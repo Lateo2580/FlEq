@@ -2,7 +2,14 @@ import { describe, it, expect, afterEach } from "vitest";
 import chalk from "chalk";
 import { displayWeatherExplanation } from "../../src/ui/weather-explanation-formatter";
 import { parseWeatherExplanation } from "../../src/dmdata/weather-explanation-parser";
-import { setDisplayMode, clearFrameWidth, setFrameWidth, visualWidth } from "../../src/ui/formatter";
+import {
+  setDisplayMode,
+  clearFrameWidth,
+  setFrameWidth,
+  visualWidth,
+  getFrameLineClampFallbackCount,
+  resetFrameLineClampFallbackCount,
+} from "../../src/ui/formatter";
 import {
   createMockWsDataMessage,
   FIXTURE_VPZJ51_SENJOU,
@@ -356,6 +363,178 @@ describe("displayWeatherExplanation - Phase D 罫線色割れ回帰", () => {
       expect(out).not.toContain("38;2;86;180;233");
     } finally {
       chalk.level = prevLevel;
+    }
+  });
+});
+
+describe("displayWeatherExplanation - CLI width contract 第2波 synthetic matrix", () => {
+  it.each([40, 60, 80, 120, 200])("過長 title / region / type / headline / prose / table を幅 %i に収める", (width) => {
+    const originalLevel = chalk.level;
+    try {
+      for (const level of [0, 3] as const) {
+        chalk.level = level;
+        setFrameWidth(width);
+        resetFrameLineClampFallbackCount();
+
+        const observed = parseWeatherExplanation(
+          createMockWsDataMessage(FIXTURE_VPFJ51_KANTO),
+        );
+        const forecastSource = parseWeatherExplanation(
+          createMockWsDataMessage(FIXTURE_VPZJ51_TYPHOON),
+        );
+        const tidalSource = parseWeatherExplanation(
+          createMockWsDataMessage(FIXTURE_VMCJ55_FUKUSHINDO),
+        );
+        if (observed == null || forecastSource?.forecast == null
+          || observed.observation == null || tidalSource?.tidal == null) {
+          throw new Error("weather explanation synthetic の基礎 fixture が不足している");
+        }
+
+        const longText = (label: string): string =>
+          `${label} ${"長い説明文・対象地域情報・予測補足 ".repeat(16)}`;
+        const targetAreas = Array.from({ length: 4 }, (_, index) => ({
+          name: longText(`対象地域${index + 1}`),
+          code: `99${String(index + 1).padStart(4, "0")}`,
+        }));
+        const informationTags = observed.informationTags.length > 0
+          ? observed.informationTags.map((tag, index) => ({
+            ...tag,
+            condition: longText(`条件${index + 1}`),
+            keywords: [longText("キーワード")],
+            areas: targetAreas.slice(0, 2),
+          }))
+          : [{
+            condition: longText("条件"),
+            keywords: [longText("キーワード")],
+            areas: targetAreas.slice(0, 2),
+          }];
+
+        const forecast = {
+          ...forecastSource.forecast,
+          series: forecastSource.forecast.series.map((series, seriesIndex) => ({
+            ...series,
+            element: longText(`予想要素${seriesIndex + 1}`),
+            intro: [longText("予想導入")],
+            supplement: [longText("予想補足")],
+            events: series.events.map((event) => ({
+              ...event,
+              areaName: longText("予想地域"),
+              regionLabel: longText("地方ラベル"),
+              eventType: longText("現象種別"),
+              eventName: longText("現象名"),
+              sentence: longText("予想イベント本文"),
+              timeName: longText("予想期間"),
+            })),
+            metrics: series.metrics.map((metric, metricIndex) => ({
+              ...metric,
+              areaName: longText(`予想地域${metricIndex + 1}`),
+              metricType: longText("気象要素コード名"),
+              locals: metric.locals.map((local, localIndex) => ({
+                ...local,
+                areaName: local.areaName == null ? null : longText(`局地${localIndex + 1}`),
+                phases: local.phases.map((phase) => ({
+                  ...phase,
+                  modifier: phase.modifier == null ? null : longText("時刻修飾"),
+                  values: phase.values.map((value) => ({
+                    ...value,
+                    timeName: longText("予想時刻"),
+                    subType: longText("値の種類"),
+                    unit: longText("単位"),
+                    description: longText("値の説明"),
+                    raw: longText("値原文"),
+                  })),
+                })),
+              })),
+            })),
+          })),
+        };
+
+        const observation = {
+          ...observed.observation,
+          series: observed.observation.series.map((series, seriesIndex) => ({
+            ...series,
+            propertyType: longText(`実況種別${seriesIndex + 1}`),
+            element: longText("実況要素"),
+            intro: [longText("実況導入")],
+            supplement: [longText("実況補足")],
+            stations: series.stations.map((station, stationIndex) => ({
+              ...station,
+              stationName: longText(`観測地点${stationIndex + 1}`),
+              stationLocation: longText("観測地点位置"),
+              measurements: station.measurements.map((measurement) => ({
+                ...measurement,
+                sentence: longText("観測本文"),
+                remark: longText("観測注記"),
+                values: measurement.values.map((value) => ({
+                  ...value,
+                  timeName: longText("観測時刻"),
+                  subType: longText("観測値種別"),
+                  unit: longText("観測単位"),
+                  description: longText("観測値説明"),
+                  raw: longText("観測値原文"),
+                })),
+              })),
+            })),
+          })),
+        };
+
+        const tidal = {
+          observations: tidalSource.tidal.observations.map((entry) => ({
+            ...entry,
+            stationName: longText("潮位観測所"),
+            sentence: longText("潮位実況本文"),
+            timeName: longText("潮位期間"),
+          })),
+          forecasts: tidalSource.tidal.forecasts.map((entry) => ({
+            ...entry,
+            stationName: longText("潮位予測所"),
+            sentence: longText("潮位予想本文"),
+            timeName: longText("潮位予想期間"),
+          })),
+        };
+
+        const info = {
+          ...observed,
+          controlTitle: longText("気象解説情報"),
+          infoType: `発表 ${longText("情報種別")}`,
+          title: longText("気象解説情報タイトル"),
+          headline: longText("ヘッドライン"),
+          informationTags,
+          targetAreas,
+          sections: [
+            {
+              sectionType: "観測実況",
+              propertyType: longText("観測コード名"),
+              textType: "本文",
+              text: longText("観測セクション本文"),
+            },
+            {
+              sectionType: longText("未知セクション見出し"),
+              propertyType: longText("付加情報コード名"),
+              textType: "本文",
+              text: longText("付加情報本文"),
+            },
+          ],
+          forecast,
+          observation,
+          tidal,
+        };
+
+        const out = capture(() => displayWeatherExplanation(info));
+        expect(stripAnsi(out), `color=${level} width=${width} series element`).toContain("予想要素1");
+        expect(stripAnsi(out), `color=${level} width=${width} section type`).toContain("未知セクション見出し");
+        for (const line of out.split("\n")) {
+          const plain = stripAnsi(line);
+          const widthOfLine = visualWidth(plain);
+          expect(widthOfLine, `color=${level} width=${width} line=${JSON.stringify(plain.slice(0, 60))}`)
+            .toBeLessThanOrEqual(width);
+          if (/^[┏┓┗┛┌┐├╠│║└╚]/.test(plain)) expect(widthOfLine).toBe(width);
+        }
+        expect(getFrameLineClampFallbackCount(), `color=${level} width=${width}`).toBe(0);
+      }
+    } finally {
+      chalk.level = originalLevel;
+      clearFrameWidth();
     }
   });
 });

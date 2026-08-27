@@ -1,8 +1,20 @@
 import { describe, it, expect, vi, beforeEach, afterEach , type MockInstance } from "vitest";
+import chalk from "chalk";
 import { displayFloodForecastInfo } from "../../src/ui/flood-forecast-formatter";
 import { parseFloodForecast } from "../../src/dmdata/flood-forecast-parser";
-import { createMockWsDataMessage } from "../helpers/mock-message";
-import { visualWidth } from "../../src/ui/formatter";
+import {
+  createMockWsDataMessage,
+  FIXTURE_VXKO50_16_02_01,
+  FIXTURE_VXKO50_16_04_01,
+  FIXTURE_VXSU50_91_01_01,
+} from "../helpers/mock-message";
+import {
+  clearFrameWidth,
+  getFrameLineClampFallbackCount,
+  resetFrameLineClampFallbackCount,
+  setFrameWidth,
+  visualWidth,
+} from "../../src/ui/formatter";
 
 const stripAnsi = (s: string) =>
   // eslint-disable-next-line no-control-regex
@@ -439,5 +451,146 @@ describe("displayFloodForecastInfo — 主文ブロック (Task 19a)", () => {
     const out = plainOutput();
     expect(out).toContain("常呂川");
     expect(out).toContain("氾濫注意水位を下回る");
+  });
+});
+
+describe("displayFloodForecastInfo - CLI width contract 第2波 synthetic matrix", () => {
+  it.each([40, 60, 80, 120, 200])("過長 title / region / type / headline / prose / period を幅 %i に収める", (width) => {
+    const originalLevel = chalk.level;
+    try {
+      const stationSource = parseFloodForecast(
+        createMockWsDataMessage(FIXTURE_VXKO50_16_02_01),
+      );
+      const richSource = parseFloodForecast(
+        createMockWsDataMessage(FIXTURE_VXKO50_16_04_01),
+      );
+      const vxsuSource = parseFloodForecast(
+        createMockWsDataMessage(FIXTURE_VXSU50_91_01_01),
+      );
+      if (stationSource == null || richSource == null || vxsuSource == null) {
+        throw new Error("flood synthetic の基礎 fixture が不足している");
+      }
+
+      const longText = (label: string): string =>
+        `${label} ${"長い洪水予報・対象地域・観測情報 ".repeat(14)}`;
+      const longHeadlines = stationSource.headlines.length > 0
+        ? stationSource.headlines.map((headline, index) => ({
+          ...headline,
+          rawScopeLabel: longText(`予報区分${index + 1}`),
+          kindName: longText("洪水警報種別"),
+          headlineText: longText("洪水予報主文"),
+          condition: longText("発表条件"),
+          areas: headline.areas.map((area, areaIndex) => ({
+            ...area,
+            name: longText(`河川対象地域${areaIndex + 1}`),
+          })),
+        }))
+        : [{
+          scope: "河川" as const,
+          rawScopeLabel: longText("予報区分"),
+          kindName: longText("洪水警報種別"),
+          kindCode: "unknown" as const,
+          headlineText: longText("洪水予報主文"),
+          condition: longText("発表条件"),
+          areas: [{ name: longText("河川対象地域"), code: "999999" }],
+        }];
+      const rawStations = stationSource.rawStations.map((station, stationIndex) => ({
+        ...station,
+        stationName: longText(`観測所${stationIndex + 1}`),
+        riverNames: station.riverNames.length > 0
+          ? station.riverNames.map((name) => longText(name))
+          : [longText("河川")],
+        primaryRiverName: longText("主要河川"),
+        prefName: longText("都道府県"),
+        cityName: longText("市町村"),
+        location: longText("観測所所在地"),
+        rawUnit: longText("水位単位"),
+        series: station.series.map((series) => ({
+          ...series,
+          name: longText("時系列期間"),
+          rawUnit: longText("水位単位"),
+        })),
+        criteria: {
+          ...station.criteria,
+          rawUnit: longText("基準単位"),
+        },
+      }));
+      const inundationAreas = richSource.inundationAreas.map((area, areaIndex) => ({
+        ...area,
+        areaName: longText(`浸水想定地区${areaIndex + 1}`),
+        prefName: longText("都道府県"),
+        cityName: longText("市町村"),
+        subCityList: area.subCityList.map(() => longText("字名")),
+      }));
+      const rainfallSummaries = richSource.rainfallSummaries.map((rainfall, index) => ({
+        ...rainfall,
+        basinName: longText(`流域${index + 1}`),
+        rawUnit: longText("雨量単位"),
+      }));
+      const floodAssumptions = richSource.floodAssumptions.map((assumption) => ({
+        ...assumption,
+        riverName: longText("氾濫河川"),
+        assumptionAreaName: longText("氾濫想定地区"),
+        attainmentDescription: longText("到達時刻説明"),
+        attainmentDubious: longText("時刻注記"),
+      }));
+      const normalInfo = {
+        ...stationSource,
+        infoKind: longText("指定河川洪水予報"),
+        headTitle: longText("洪水予報タイトル"),
+        notice: longText("洪水予報の注意事項"),
+        headlines: longHeadlines,
+        rawStations,
+        inundationAreas,
+        rainfallSummaries,
+        floodAssumptions,
+      };
+      const vxsuInfo = {
+        ...vxsuSource,
+        infoKind: longText("水位周知河川に関する情報"),
+        headTitle: longText("水位周知河川タイトル"),
+        notice: longText("水位周知河川の注意事項"),
+        headlines: vxsuSource.headlines.map((headline) => ({
+          ...headline,
+          kindName: longText("水位周知警報種別"),
+          headlineText: longText("水位周知主文"),
+        })),
+      };
+      const cancelInfo = {
+        ...normalInfo,
+        infoType: "取消" as const,
+      };
+
+      for (const level of [0, 3] as const) {
+        chalk.level = level;
+        setFrameWidth(width);
+        for (const [label, info] of [
+          ["vxko-normal", normalInfo],
+          ["vxsu-minimal", vxsuInfo],
+          ["cancel", cancelInfo],
+        ] as const) {
+          logs.length = 0;
+          resetFrameLineClampFallbackCount();
+          displayFloodForecastInfo(info);
+          expect(logs.length, `color=${level} width=${width} case=${label}`).toBeGreaterThan(0);
+          if (label === "vxko-normal") {
+            const output = stripAnsi(logs.join("\n"));
+            expect(output, `color=${level} width=${width} case=${label} level`).toMatch(/L[1-5]|解除|―/);
+            expect(output, `color=${level} width=${width} case=${label} trend`).toMatch(/[↗↘→]/);
+          }
+          for (const [index, line] of logs.entries()) {
+            const plain = stripAnsi(line);
+            const widthOfLine = visualWidth(plain);
+            expect(widthOfLine, `color=${level} width=${width} case=${label} line=${index} ${JSON.stringify(plain.slice(0, 60))}`)
+              .toBeLessThanOrEqual(width);
+            if (/^[┏┓┗┛┌┐├╠│║└╚]/.test(plain)) expect(widthOfLine).toBe(width);
+          }
+          expect(getFrameLineClampFallbackCount(), `color=${level} width=${width} case=${label}`).toBe(0);
+        }
+      }
+    } finally {
+      chalk.level = originalLevel;
+      clearFrameWidth();
+    }
   });
 });

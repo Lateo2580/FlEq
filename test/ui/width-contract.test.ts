@@ -30,23 +30,24 @@ const FRAME_LINE_SOURCE_CATALOG = [
   "weather-formatter-vpws50.ts", "weather-formatter.ts", "weather-warning-timeseries-formatter.ts",
 ] as const;
 
-// §6 の移行対象の残り 11 本。縦切り patch が進むごとにここから空にしていく。
+// §6 の移行対象の残り 7 本。縦切り patch が進むごとにここから空にしていく。
 const MIGRATION_PENDING_FRAME_LINE_SOURCES = [
-  "briefing-formatter.ts", "climate-info-formatter.ts", "early-weather-formatter.ts",
-  "flood-forecast-formatter.ts",
+  "climate-info-formatter.ts", "early-weather-formatter.ts",
   "legacy-counterpart-formatter.ts", "statistics-formatter.ts",
   "typhoon-analysis-formatter.ts", "typhoon-probability-formatter.ts", "vpwp50-detail-formatter.ts",
-  "weather-explanation-formatter.ts", "weather-warning-timeseries-formatter.ts",
 ] as const;
 
 const WIDTH_PROVEN_FRAME_LINE_SOURCES = [
+  "briefing-formatter.ts",
   "earthquake-info-formatter.ts", "eew-formatter.ts", "formatter.ts", "frame-table-builder.ts",
+  "flood-forecast-formatter.ts",
   "heat-alert-formatter.ts",
   "lg-observation-formatter.ts", "nankai-trough-formatter.ts", "responsive-table-engine.ts",
   "seismic-text-formatter.ts", "tornado-formatter.ts",
   "tsunami-formatter.ts", "volcano-formatter.ts", "weather-core-action-guide.ts",
   "weather-core-detail.ts", "weather-core-formatter.ts", "weather-core-table.ts",
   "weather-core-tail-blocks.ts", "weather-formatter-vpws50.ts", "weather-formatter.ts",
+  "weather-explanation-formatter.ts", "weather-warning-timeseries-formatter.ts",
 ] as const;
 
 /** §6 の可変 call site を source 単位ではなく site 単位で固定する。 */
@@ -55,18 +56,14 @@ function siteIds(file: string, lines: number[]): string[] {
 }
 
 const MIGRATION_PENDING_FRAME_LINE_SITES = new Set([
-  ...siteIds("briefing-formatter.ts", [90, 99, 102, 109, 123, 147, 159]),
   ...siteIds("climate-info-formatter.ts", [276, 285, 297, 316, 332, 333, 339, 344, 410, 413, 427]),
   ...siteIds("early-weather-formatter.ts", [84, 93, 96, 103, 117, 123, 124, 132, 133, 139, 186]),
-  ...siteIds("flood-forecast-formatter.ts", [75, 78, 102, 121, 155, 165, 195, 206, 254, 534, 566, 633, 644, 679, 739, 825, 878, 888]),
   ...siteIds("legacy-counterpart-formatter.ts", [38, 62, 65, 73, 78]),
   // const 渡しでも値解決しない規則のため、移行待ち site として明示管理する。
   ...siteIds("statistics-formatter.ts", [192, 193, 236]),
   ...siteIds("typhoon-analysis-formatter.ts", [27, 74, 83, 87, 106]),
   ...siteIds("typhoon-probability-formatter.ts", [100, 135, 143, 159, 187, 236, 279, 335]),
   ...siteIds("vpwp50-detail-formatter.ts", [31, 74]),
-  ...siteIds("weather-explanation-formatter.ts", [240, 295, 306, 429, 457, 480, 489, 558, 568, 580, 602, 608, 618, 681]),
-  ...siteIds("weather-warning-timeseries-formatter.ts", [312, 332, 635, 815, 819, 827]),
 ]);
 
 const WIDTH_PROVEN_FRAME_LINE_SITES = new Set([
@@ -310,7 +307,7 @@ describe("CLI width contract — static inventory gates", () => {
     expect(new Set(widthProvenSites.map((site) => `${site.file}:${site.line}`))).toEqual(WIDTH_PROVEN_FRAME_LINE_SITES);
     expect(sites.filter((site) => site.classification === "unapproved")).toEqual([]);
     expect(pendingSites.length).toBeGreaterThan(0);
-    expect(new Set(MIGRATION_PENDING_FRAME_LINE_SOURCES).size).toBe(11);
+    expect(new Set(MIGRATION_PENDING_FRAME_LINE_SOURCES).size).toBe(7);
     expect(sorted([...MIGRATION_PENDING_FRAME_LINE_SOURCES, ...WIDTH_PROVEN_FRAME_LINE_SOURCES])).toEqual(sorted(FRAME_LINE_SOURCE_CATALOG));
   });
 

@@ -19,8 +19,10 @@ import {
   flushWithRecap,
   visualWidth,
   visualPadEnd,
+  pushWrappedFrameLine,
   wrapFrameLines,
   wrapFrameLinesColored,
+  type FrameLinePart,
 } from "./formatter";
 import {
   normalizeKindName,
@@ -51,6 +53,24 @@ import {
 // VPWW (weather-core-formatter.ts) の WHITE_BORDER と同じ normal 概念色 #e8e8e8 —
 // ヘッダ=displaySeverity 色 / 本文+下辺=白系 という VPWW のデザイン言語に揃える。
 const WHITE_BORDER = chalk.rgb(232, 232, 232);
+
+/** title を共通 wrap API で描画し、recap 用にも全行を記録する。 */
+function pushWrappedTitle(
+  buf: ReturnType<typeof createRenderBuffer>,
+  level: FrameLevel,
+  width: number,
+  content: FrameLinePart[],
+  borderColor: (s: string) => string,
+): void {
+  const titleBuf = createRenderBuffer();
+  pushWrappedFrameLine(
+    titleBuf,
+    level,
+    { width, purpose: "title", borderColor },
+    content,
+  );
+  for (const line of titleBuf.getLines()) buf.pushTitle(line);
+}
 
 /** 視覚幅で切り詰める (色付け前の raw 文字列に適用) */
 function clipToVisualWidth(s: string, max: number): string {
@@ -309,7 +329,12 @@ export function renderResponsiveTable(
 
   // ヘッダ行も section 色 (目視ゲート最終決定 2026-06-11: 白固定だと divider 直下だけ浮く)
   const headerCells = cols.map((c, idx) => visualPadEnd(chalk.bold(c.header), widths[idx]));
-  buf.push(frameLineColored(frameLevel, rowBorder, headerCells.join(colSep), width));
+  pushWrappedFrameLine(
+    buf,
+    frameLevel,
+    { width, purpose: "prose", borderColor: rowBorder },
+    headerCells.join(colSep),
+  );
 
   // データ行 + clip 検知
   const report: ClipReport = new Map();
@@ -329,7 +354,12 @@ export function renderResponsiveTable(
       report.set(e.id, entryClip);
     }
     // データ行の罫線は section 色 (VPWW のテーブル行と同形)
-    buf.push(frameLineColored(frameLevel, rowBorder, cells.join(colSep), width));
+    pushWrappedFrameLine(
+      buf,
+      frameLevel,
+      { width, purpose: "prose", borderColor: rowBorder },
+      cells.join(colSep),
+    );
   }
   return report;
 }
@@ -631,8 +661,6 @@ function displayNormalResponsive(
   const tailColor: (s: string) => string =
     isCancel ? getDisplaySeverityText("release") : WHITE_BORDER;
   const frameTopFn = (): string => frameTopColored(level, headColor, width);
-  const frameLineFn = (content: string): string =>
-    frameLineColored(level, headColor, content, width);
   const frameBottomFn = (): string => frameBottomColored(level, tailColor, width);
 
   // Phase B (f): バナー発火 = 取消、または maxDisplaySeverity が警報級相当以上
@@ -661,12 +689,23 @@ function displayNormalResponsive(
 
   // フレーム
   buf.push(frameTopFn());
-  const headerParts: string[] = [];
-  headerParts.push(SEVERITY_LABELS[level]);
-  headerParts.push("気象警報・注意報時系列情報");
-  if (info.targetArea) headerParts.push(info.targetArea.name);
-  if (info.infoType === "取消") headerParts.push("(取消)");
-  buf.push(frameLineFn(headerParts.join("  ")));
+  const headerParts: FrameLinePart[] = [
+    { text: SEVERITY_LABELS[level], priority: 2, omission: "drop" },
+    { text: "気象警報・注意報時系列情報", priority: 0, omission: "never" },
+  ];
+  if (info.targetArea) {
+    headerParts.push({ text: info.targetArea.name, priority: 1, omission: "never" });
+  }
+  if (info.infoType === "取消") {
+    headerParts.push({ text: "(取消)", priority: 2, omission: "drop" });
+  }
+  pushWrappedTitle(
+    buf,
+    level,
+    width,
+    headerParts,
+    headColor,
+  );
 
   if (isCancel) {
     // 取消フレームは全体 release 色 (footer 罫線も tailColor = release)
@@ -812,22 +851,33 @@ function renderCompactOnlyFallback(
   //   (旧 `最大: {label} (Code XX)` 形式は Code 番号付きで A2 と乖離していたため廃止)
   // 本文罫線は白系 (VPWW 言語)
   const summary = buildWeatherWarningBannerText(info, { maxWidth: width - 4 });
-  buf.push(frameLineColored(level, WHITE_BORDER, summary, width));
+  pushWrappedFrameLine(
+    buf,
+    level,
+    { width, purpose: "prose", borderColor: WHITE_BORDER },
+    summary,
+  );
   if (info.unknownCodes.length > 0) {
     const distinct = Array.from(new Set(info.unknownCodes.map((u) => u.code)));
-    buf.push(
-      frameLineColored(
-        level,
-        WHITE_BORDER,
-        `未知 Code: ${distinct.map((c) => `?${c}`).join(", ")} (frame warning 昇格)`,
-        width,
-      ),
+    pushWrappedFrameLine(
+      buf,
+      level,
+      { width, purpose: "diagnostic", borderColor: WHITE_BORDER },
+      `未知 Code: ${distinct.map((c) => `?${c}`).join(", ")} (frame warning 昇格)`,
     );
   }
-  buf.push(frameLineColored(level, WHITE_BORDER, `Area: ${info.areas.length}地域`, width));
+  pushWrappedFrameLine(
+    buf,
+    level,
+    { width, purpose: "diagnostic", borderColor: WHITE_BORDER },
+    `Area: ${info.areas.length}地域`,
+  );
   buf.push(frameDividerColored(level, WHITE_BORDER, width));
-  buf.push(
-    frameLineColored(level, WHITE_BORDER, "[巨大電文のため section 表示を省略しました (compact-only)]", width),
+  pushWrappedFrameLine(
+    buf,
+    level,
+    { width, purpose: "diagnostic", borderColor: WHITE_BORDER },
+    "[巨大電文のため section 表示を省略しました (compact-only)]",
   );
 }
 

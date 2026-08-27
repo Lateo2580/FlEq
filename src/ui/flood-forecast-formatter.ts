@@ -11,6 +11,8 @@ import * as theme from "./theme";
 import {
   type FrameLevel,
   type RenderBuffer,
+  type FrameLinePart,
+  type FrameLinePurpose,
   SEVERITY_LABELS,
   getFrameWidth,
   getTruncation,
@@ -21,6 +23,7 @@ import {
   frameLineColored,
   frameDividerColored,
   frameDividerLabeledColored,
+  pushWrappedFrameLine,
   renderFooter,
   wrapFrameLinesColored,
   visualWidth,
@@ -52,40 +55,53 @@ import { resolveFloodForecastLevels } from "../engine/presentation/level-helpers
 
 const WHITE_BORDER = chalk.rgb(232, 232, 232);
 
-/** title を 1 行 or 2 行 で push する (overflow 対策、レビュー指摘 (2026-06-18) で導入)。
- *  - titleHead (kind + type + severity 等の固定 head 部) は常に 1 行目に pushTitle。
- *  - headTitle が inner に収まれば末尾 concat、超過時は 2 行目 (indent 2、wrap 可) に分離。
- *  display 種類別 (`displayVxkoNormal` / `displayCancelPath` / `displayVxsuMinimal`) で
- *  同一ロジック重複を解消。`frameLineColored` は wrap せず pad のみのため content が
- *  inner を超えると右枠線がハミ出るので、その判定をここで集約する。
- *  残課題: headTitle 自体が更に狭い幅で超過するケースは `wrapFrameLinesColored` の
- *  hard-wrap で ANSI が抜ける (Findings 3-2 #3 と同根)。 */
+/** 可変本文を共通 wrap API で配列へ追加する。 */
+function appendWrappedFrameLine(
+  lines: string[],
+  level: FrameLevel,
+  color: (s: string) => string,
+  width: number,
+  purpose: FrameLinePurpose,
+  content: string,
+  indent = 0,
+): void {
+  const rendered = createRenderBuffer();
+  pushWrappedFrameLine(
+    rendered,
+    level,
+    { width, purpose, borderColor: color, indent },
+    content,
+  );
+  lines.push(...rendered.getLines());
+}
+
+/** title を共通 wrap API で 2 行以内に push する。 */
 function pushTitleWithOverflow(
   buf: RenderBuffer,
   level: FrameLevel,
   color: (s: string) => string,
   width: number,
-  titleHead: string,
+  titleParts: readonly FrameLinePart[],
   headTitle: string | null,
 ): void {
-  const headTitlePart =
-    headTitle != null && headTitle !== "" ? chalk.white(`  ${headTitle}`) : "";
-  const titleFull = titleHead + headTitlePart;
-  if (visualWidth(titleFull) <= width - 4) {
-    buf.pushTitle(frameLineColored(level, color, titleFull, width));
-    return;
-  }
-  buf.pushTitle(frameLineColored(level, color, titleHead, width));
+  const titleBuf = createRenderBuffer();
+  const parts = [...titleParts];
   if (headTitle != null && headTitle !== "") {
-    for (const wrapped of wrapFrameLinesColored(
-      level,
-      color,
-      `  ${chalk.white(headTitle)}`,
-      width,
-    )) {
-      buf.push(wrapped);
-    }
+    const titleHead = titleParts.map((part) => part.text).filter(Boolean).join("  ");
+    const titleWidth = visualWidth(titleHead) + 2 + visualWidth(headTitle);
+    const continuation = titleWidth > width - 4 ? `  ${headTitle}` : headTitle;
+    parts.push({ text: chalk.white(continuation), priority: 0, omission: "never" });
   }
+  pushWrappedFrameLine(
+    titleBuf,
+    level,
+    { width, purpose: "title", borderColor: color },
+    parts,
+  );
+  const [first, ...rest] = titleBuf.getLines();
+  if (first == null) return;
+  buf.pushTitle(first);
+  for (const line of rest) buf.pushTitle(line);
 }
 
 /** 取消パス用の最小 layout. */
@@ -98,32 +114,32 @@ function displayCancelPath(info: ParsedFloodForecastInfo): void {
   buf.pushEmpty();
   buf.push(frameTopColored(level, color, width));
   if (info.isTest) {
-    buf.push(
-      frameLineColored(
+    if (chalk.level === 0) {
+      buf.push(frameLineColored(level, color, " テスト電文 ", width));
+    } else {
+      pushWrappedFrameLine(
+        buf,
         level,
-        color,
+        { width, purpose: "type", borderColor: color },
         theme.getRoleChalk("testBadge")(" テスト電文 "),
-        width,
-      ),
-    );
+      );
+    }
   }
   // 訂正電文バッジは取消パスでは到達しない (displayFloodForecastInfo の dispatch で
   // infoType="取消" 専用ルートに分岐されるため)。displayVxkoNormal / displayVxsuMinimal
   // 側にのみ配置 (Codex review 2026-06-19 で dead code 指摘)。
-  const titleHead =
-    chalk.bold(info.infoKind || "洪水予報") +
-    chalk.gray(`  ${info.infoType}`) +
-    chalk.gray(`  ${SEVERITY_LABELS[level]}`);
-  pushTitleWithOverflow(buf, level, color, width, titleHead, info.headTitle);
+  pushTitleWithOverflow(buf, level, color, width, [
+    { text: chalk.bold(info.infoKind || "洪水予報"), priority: 0, omission: "never" },
+    { text: chalk.gray(info.infoType), priority: 1, omission: "never" },
+    { text: chalk.gray(SEVERITY_LABELS[level]), priority: 2, omission: "drop" },
+  ], info.headTitle);
 
   buf.push(frameDividerColored(level, color, width));
-  buf.push(
-    frameLineColored(
-      level,
-      color,
-      chalk.gray("この洪水予報は取り消されました"),
-      width,
-    ),
+  pushWrappedFrameLine(
+    buf,
+    level,
+    { width, purpose: "diagnostic", borderColor: color },
+    chalk.gray("この洪水予報は取り消されました"),
   );
 
   renderFooter(
@@ -151,30 +167,30 @@ function displayVxsuMinimal(info: ParsedFloodForecastInfo): void {
   buf.pushEmpty();
   buf.push(frameTopColored(level, color, width));
   if (info.isTest) {
-    buf.push(
-      frameLineColored(
-        level,
-        color,
-        theme.getRoleChalk("testBadge")(" テスト電文 "),
-        width,
-      ),
+    pushWrappedFrameLine(
+      buf,
+      level,
+      { width, purpose: "type", borderColor: color },
+      theme.getRoleChalk("testBadge")(" テスト電文 "),
     );
   }
   if (info.infoType === "訂正") {
-    buf.push(
-      frameLineColored(
-        level,
-        color,
-        theme.getRoleChalk("correctionBadge")(" 訂正電文 "),
-        width,
-      ),
+    pushWrappedFrameLine(
+      buf,
+      level,
+      { width, purpose: "type", borderColor: color },
+      theme.getRoleChalk("correctionBadge")(" 訂正電文 "),
     );
   }
-  const titleHead =
-    chalk.bold(info.infoKind || "水位周知河川に関する情報") +
-    chalk.gray(`  ${info.infoType}`) +
-    chalk.gray(`  ${SEVERITY_LABELS[level]}`);
-  pushTitleWithOverflow(buf, level, color, width, titleHead, info.headTitle);
+  pushTitleWithOverflow(buf, level, color, width, [
+    {
+      text: chalk.bold(info.infoKind || "水位周知河川に関する情報"),
+      priority: 0,
+      omission: "never",
+    },
+    { text: chalk.gray(info.infoType), priority: 1, omission: "never" },
+    { text: chalk.gray(SEVERITY_LABELS[level]), priority: 2, omission: "drop" },
+  ], info.headTitle);
   buf.push(frameDividerColored(level, color, width));
 
   // Headline ブロック (1 行 wrap 許容)
@@ -191,19 +207,20 @@ function displayVxsuMinimal(info: ParsedFloodForecastInfo): void {
       }
     }
     if (h.kindName) {
-      buf.push(
-        frameLineColored(
-          level,
-          color,
-          `  ${chalk.bold.cyan(h.kindName)}`,
-          width,
-        ),
+      pushWrappedFrameLine(
+        buf,
+        level,
+        { width, purpose: "type", borderColor: color },
+        `  ${chalk.bold.cyan(h.kindName)}`,
       );
     }
   }
   if (info.notice) {
-    buf.push(
-      frameLineColored(level, color, `  ${chalk.gray(info.notice)}`, width),
+    pushWrappedFrameLine(
+      buf,
+      level,
+      { width, purpose: "prose", borderColor: color },
+      `  ${chalk.gray(info.notice)}`,
     );
   }
 
@@ -250,27 +267,20 @@ function buildMainTextBlock(
     .filter((n) => n !== "")
     .join(" / ");
   if (riverLabel !== "") {
-    lines.push(
-      frameLineColored(
-        level,
-        color,
-        `  ${chalk.bold.cyan("▸ " + riverLabel)}`,
-        width,
-      ),
+    appendWrappedFrameLine(
+      lines,
+      level,
+      color,
+      width,
+      "region",
+      `  ${chalk.bold.cyan("▸ " + riverLabel)}`,
     );
   }
 
   // 本文 (主文)
   const text = riverHeadline.headlineText.trim();
   if (text !== "") {
-    for (const wrapped of wrapFrameLinesColored(
-      level,
-      color,
-      `    ${chalk.white(text)}`,
-      width,
-    )) {
-      lines.push(wrapped);
-    }
+    appendWrappedFrameLine(lines, level, color, width, "prose", `    ${chalk.white(text)}`);
   }
   return lines;
 }
@@ -530,40 +540,20 @@ function buildRiverStationGroupBlock(
     // 河川名 divider (空文字なら fallback)
     const riverLabel =
       river.riverName !== "" ? river.riverName : river.riverKey;
-    lines.push(
-      frameLineColored(
-        level,
-        color,
-        `  ${chalk.bold.cyan("◇ " + riverLabel)}  ${levelChip(river.highestObservedLevel)}`,
-        width,
-      ),
+    appendWrappedFrameLine(
+      lines,
+      level,
+      color,
+      width,
+      "region",
+      `  ${chalk.bold.cyan("◇ " + riverLabel)}  ${levelChip(river.highestObservedLevel)}`,
     );
 
     for (const s of river.stations) {
       const stationLines = buildStationLines(s, width);
       for (const raw of stationLines) {
-        // 80 桁制約: stationName 長すぎは '…' 省略 — visualWidth が枠内余白を超えそうな
-        // 場合に切り詰める. 余白 = width - 4 (フレーム左右 + space).
-        let line = raw;
-        const inner = width - 4;
-        if (visualWidth(stripAnsi(line)) > inner) {
-          // ANSI 保持で削るのは難しいので、stripAnsi 結果を 1 文字ずつ切り詰める
-          // (まれな超過のフォールバック; 通常は inner に収まる).
-          const plain = stripAnsi(line);
-          let acc = "";
-          let used = 0;
-          for (const ch of plain) {
-            const w = visualWidth(ch);
-            if (used + w + 1 > inner) {
-              acc += "…";
-              break;
-            }
-            acc += ch;
-            used += w;
-          }
-          line = acc;
-        }
-        lines.push(frameLineColored(level, color, line, width));
+        // 観測値・水位レベル・trend は安全上省略できない。共通 prose wrap に委ねる。
+        appendWrappedFrameLine(lines, level, color, width, "prose", raw);
       }
     }
   }
@@ -629,24 +619,24 @@ function buildInundationBlock(
   for (const variant of variantOrder) {
     const prefBucket = variants.get(variant)!;
     // h2 (variant): ◇ marker (cyan bold)
-    lines.push(
-      frameLineColored(
-        level,
-        color,
-        `  ${chalk.bold.cyan("◇")} ${chalk.white(variant)}`,
-        width,
-      ),
+    appendWrappedFrameLine(
+      lines,
+      level,
+      color,
+      width,
+      "region",
+      `  ${chalk.bold.cyan("◇")} ${chalk.white(variant)}`,
     );
 
     for (const [prefName, areas] of prefBucket) {
       // h3 (prefecture): ○ marker (cyan bold、station h3 と同じ)
-      lines.push(
-        frameLineColored(
-          level,
-          color,
-          `    ${chalk.bold.cyan("○")} ${chalk.white(prefName)}`,
-          width,
-        ),
+      appendWrappedFrameLine(
+        lines,
+        level,
+        color,
+        width,
+        "region",
+        `    ${chalk.bold.cyan("○")} ${chalk.white(prefName)}`,
       );
 
       // items text: axis に応じて整形
@@ -676,7 +666,7 @@ function buildInundationBlock(
       // 共有 helper `packGreedyByWidth` で行分け。gray は各行に独立適用 (wrap 時色抜け回避)
       const packed = packGreedyByWidth(itemTexts, itemSep, itemInner);
       for (const p of packed) {
-        lines.push(frameLineColored(level, color, `      ${chalk.gray(p)}`, width));
+        appendWrappedFrameLine(lines, level, color, width, "prose", `      ${chalk.gray(p)}`);
       }
     }
   }
@@ -735,13 +725,13 @@ function buildRainfallBlock(
 
   for (const r of info.rainfallSummaries) {
     const heading = r.basinName != null && r.basinName !== "" ? r.basinName : "(流域不明)";
-    lines.push(
-      frameLineColored(
-        level,
-        color,
-        `  ${chalk.bold.cyan("◇")} ${chalk.white(heading)}`,
-        width,
-      ),
+    appendWrappedFrameLine(
+      lines,
+      level,
+      color,
+      width,
+      "region",
+      `  ${chalk.bold.cyan("◇")} ${chalk.white(heading)}`,
     );
 
     // VXKO: 累積実況 (任意長) / 短時間予測 (PT3H 等)
@@ -822,7 +812,14 @@ function buildFloodAssumptionBlock(
       riverPart !== ""
         ? `${chalk.bold.cyan(riverPart)}  ${chalk.white(areaPart)}`
         : chalk.white(areaPart);
-    lines.push(frameLineColored(level, color, `  ${chalk.bold.cyan("◇")} ${heading}`, width));
+    appendWrappedFrameLine(
+      lines,
+      level,
+      color,
+      width,
+      "region",
+      `  ${chalk.bold.cyan("◇")} ${heading}`,
+    );
 
     // 2 行目: 到達時刻 + 浸水深
     const parts: string[] = [];
@@ -874,30 +871,26 @@ function displayVxkoNormal(
   buf.pushEmpty();
   buf.push(frameTopColored(level, color, width));
   if (info.isTest) {
-    buf.push(
-      frameLineColored(
-        level,
-        color,
-        theme.getRoleChalk("testBadge")(" テスト電文 "),
-        width,
-      ),
+    pushWrappedFrameLine(
+      buf,
+      level,
+      { width, purpose: "type", borderColor: color },
+      theme.getRoleChalk("testBadge")(" テスト電文 "),
     );
   }
   if (info.infoType === "訂正") {
-    buf.push(
-      frameLineColored(
-        level,
-        color,
-        theme.getRoleChalk("correctionBadge")(" 訂正電文 "),
-        width,
-      ),
+    pushWrappedFrameLine(
+      buf,
+      level,
+      { width, purpose: "type", borderColor: color },
+      theme.getRoleChalk("correctionBadge")(" 訂正電文 "),
     );
   }
-  const titleHead =
-    chalk.bold(info.infoKind || "指定河川洪水予報") +
-    chalk.gray(`  ${info.infoType}`) +
-    chalk.gray(`  ${SEVERITY_LABELS[level]}`);
-  pushTitleWithOverflow(buf, level, color, width, titleHead, info.headTitle);
+  pushTitleWithOverflow(buf, level, color, width, [
+    { text: chalk.bold(info.infoKind || "指定河川洪水予報"), priority: 0, omission: "never" },
+    { text: chalk.gray(info.infoType), priority: 1, omission: "never" },
+    { text: chalk.gray(SEVERITY_LABELS[level]), priority: 2, omission: "drop" },
+  ], info.headTitle);
 
   // 主文ブロック (Task 19a)
   const mainTextLines = buildMainTextBlock(info, width, level, color);

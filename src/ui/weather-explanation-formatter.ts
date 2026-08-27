@@ -22,6 +22,7 @@ import {
   frameBottomColored,
   createRenderBuffer,
   flushWithRecap,
+  pushWrappedFrameLine,
   wrapFrameLinesColored,
   renderFooter,
   type RenderBuffer,
@@ -35,6 +36,26 @@ const WHITE_BORDER = chalk.rgb(232, 232, 232);
 
 /** controlTitle が空のときの汎用フォールバック名 (VPCJ51/VPZJ51 共通) */
 const DEFAULT_CONTROL_TITLE = "気象解説情報";
+
+function pushWrappedTitle(
+  buf: ReturnType<typeof createRenderBuffer>,
+  level: Parameters<typeof pushWrappedFrameLine>[1],
+  width: number,
+  content: Parameters<typeof pushWrappedFrameLine>[3],
+  borderColor?: (s: string) => string,
+): void {
+  const titleBuf = createRenderBuffer();
+  pushWrappedFrameLine(
+    titleBuf,
+    level,
+    { width, purpose: "title", ...(borderColor == null ? {} : { borderColor }) },
+    content,
+  );
+  const [first, ...rest] = titleBuf.getLines();
+  if (first == null) return;
+  buf.pushTitle(first);
+  for (const line of rest) buf.pushTitle(line);
+}
 
 /**
  * ForecastMetricArea の全 locals → phases → values をフラット化して返す。
@@ -237,7 +258,12 @@ function renderSeriesHeader(
   borderColor: (s: string) => string,
 ): void {
   const heading = series.element ? `▸ 予想: ${series.element}` : "▸ 予想";
-  buf.push(frameLineColored(level, borderColor, `  ${chalk.bold.cyan(heading)}`, width));
+  pushWrappedFrameLine(
+    buf,
+    level,
+    { width, purpose: "prose", borderColor },
+    `  ${chalk.bold.cyan(heading)}`,
+  );
   for (const line of series.intro) {
     const trimmed = line.replace(/　/g, " ");
     for (const wrapped of wrapFrameLinesColored(
@@ -292,7 +318,12 @@ function displayObservation(
   borderColor: (s: string) => string,
 ): void {
   buf.push(frameDividerColored(level, borderColor, width));
-  buf.push(frameLineColored(level, borderColor, chalk.bold.cyan("  ▸ 観測実況"), width));
+  pushWrappedFrameLine(
+    buf,
+    level,
+    { width, purpose: "type", borderColor },
+    chalk.bold.cyan("  ▸ 観測実況"),
+  );
 
   // インデント階層: 見出し「▸ 観測実況」(2) < 副見出し「雨の実況 (…)」(4) < 配下行 (6)。
   // 副見出し・観測点行も wrap 経由にし、狭い幅でのはみ出しを防ぐ
@@ -302,8 +333,11 @@ function displayObservation(
       (a, s) => a + s.stations.length,
       0,
     );
-    buf.push(
-      frameLineColored(level, borderColor, chalk.gray(`    詳細省略 (${totalStations} 地点)`), width),
+    pushWrappedFrameLine(
+      buf,
+      level,
+      { width, purpose: "diagnostic", borderColor },
+      chalk.gray(`    詳細省略 (${totalStations} 地点)`),
     );
     return;
   }
@@ -425,8 +459,11 @@ function renderTidal(
   for (const g of groups) {
     if (g.entries.length === 0) continue;
     buf.push(frameDividerColored(level, borderColor, width));
-    buf.push(
-      frameLineColored(level, borderColor, `  ${chalk.bold.cyan(`▸ ${g.label}`)}`, width),
+    pushWrappedFrameLine(
+      buf,
+      level,
+      { width, purpose: "type", borderColor },
+      `  ${chalk.bold.cyan(`▸ ${g.label}`)}`,
     );
     for (const entry of g.entries) {
       pushTidalEntryLine(entry, buf, level, width, borderColor);
@@ -453,8 +490,11 @@ function renderForecast(
   buf.push(frameDividerColored(level, borderColor, width));
 
   if (forecast.fallback === "raw") {
-    buf.push(
-      frameLineColored(level, borderColor, chalk.gray("予想は大規模のため省略"), width),
+    pushWrappedFrameLine(
+      buf,
+      level,
+      { width, purpose: "diagnostic", borderColor },
+      chalk.gray("予想は大規模のため省略"),
     );
     return;
   }
@@ -476,8 +516,11 @@ function renderForecast(
       // 件数サマリのみ (詳細テーブルは出さない)
       const label = series.element ?? "予想";
       if (series.events.length > 0) {
-        buf.push(
-          frameLineColored(level, borderColor, `    ${series.events.length} 地域`, width),
+        pushWrappedFrameLine(
+          buf,
+          level,
+          { width, purpose: "prose", borderColor },
+          `    ${series.events.length} 地域`,
         );
       } else if (series.metrics.length > 0) {
         const cols = Math.max(
@@ -485,13 +528,11 @@ function renderForecast(
           new Set(series.metrics.flatMap((m) => flattenMetricValues(m).map((v) => v.timeRef))).size,
           1,
         );
-        buf.push(
-          frameLineColored(
-            level,
-            borderColor,
-            `    ${label}: ${series.metrics.length} 地域 × ${cols} 時間帯`,
-            width,
-          ),
+        pushWrappedFrameLine(
+          buf,
+          level,
+          { width, purpose: "prose", borderColor },
+          `    ${label}: ${series.metrics.length} 地域 × ${cols} 時間帯`,
         );
       }
       continue;
@@ -554,30 +595,43 @@ export function displayWeatherExplanation(
 
   // テスト電文バッジ
   if (info.isTest) {
-    buf.push(
-      frameLineColored(level, borderColor, theme.getRoleChalk("testBadge")(" テスト電文 "), width),
-    );
+    if (chalk.level === 0) {
+      buf.push(frameLineColored(level, borderColor, " テスト電文 ", width));
+    } else {
+      pushWrappedFrameLine(
+        buf,
+        level,
+        { width, purpose: "type", borderColor },
+        theme.getRoleChalk("testBadge")(" テスト電文 "),
+      );
+    }
   }
 
   // タイトル行
   const controlTitle = info.controlTitle || DEFAULT_CONTROL_TITLE;
-  const titleContent =
-    chalk.bold(controlTitle) +
-    chalk.gray(`  ${info.infoType}`) +
-    chalk.gray(`  ${SEVERITY_LABELS[level]}`);
-  buf.pushTitle(frameLineColored(level, borderColor, titleContent, width));
+  pushWrappedTitle(buf, level, width, [
+    { text: chalk.bold(controlTitle), priority: 0, omission: "never" },
+    { text: chalk.gray(info.infoType), priority: 1, omission: "never" },
+    { text: chalk.gray(SEVERITY_LABELS[level]), priority: 2, omission: "drop" },
+  ], borderColor);
 
   if (info.title && info.title !== info.controlTitle) {
-    for (const wrapped of wrapFrameLinesColored(level, borderColor, chalk.white(info.title), width)) {
-      buf.push(wrapped);
-    }
+    pushWrappedFrameLine(
+      buf,
+      level,
+      { width, purpose: "title", borderColor },
+      chalk.white(info.title),
+    );
   }
 
   // 取消は短く
   if (info.infoType === "取消") {
     buf.push(frameDividerColored(level, borderColor, width));
-    buf.push(
-      frameLineColored(level, borderColor, chalk.gray(`${controlTitle}は取り消されました`), width),
+    pushWrappedFrameLine(
+      buf,
+      level,
+      { width, purpose: "diagnostic", borderColor },
+      chalk.gray(`${controlTitle}は取り消されました`),
     );
     renderFooter(
       level,
@@ -599,13 +653,23 @@ export function displayWeatherExplanation(
   if (tagSummary) {
     buf.push(frameDividerColored(level, borderColor, width));
     const banner = chalk.bold.yellow(` ${tagSummary} `);
-    buf.push(frameLineColored(level, borderColor, banner, width));
+    pushWrappedFrameLine(
+      buf,
+      level,
+      { width, purpose: "type", borderColor },
+      banner,
+    );
   }
 
   // 対象地域
   if (info.targetAreas.length > 0) {
     buf.push(frameDividerColored(level, borderColor, width));
-    buf.push(frameLineColored(level, borderColor, chalk.gray("[対象地域]"), width));
+    pushWrappedFrameLine(
+      buf,
+      level,
+      { width, purpose: "type", borderColor },
+      chalk.gray("[対象地域]"),
+    );
     const areaNames = info.targetAreas.map((a) => a.name).join(", ");
     for (const wrapped of wrapFrameLinesColored(level, borderColor, `  ${chalk.white(areaNames)}`, width)) {
       buf.push(wrapped);
@@ -615,7 +679,12 @@ export function displayWeatherExplanation(
   // Headline
   if (info.headline) {
     buf.push(frameDividerColored(level, borderColor, width));
-    buf.push(frameLineColored(level, borderColor, chalk.gray("[ヘッドライン]"), width));
+    pushWrappedFrameLine(
+      buf,
+      level,
+      { width, purpose: "type", borderColor },
+      chalk.gray("[ヘッドライン]"),
+    );
     for (const rawLine of info.headline.split("\n")) {
       const trimmed = rawLine.replace(/　/g, " ");
       for (const wrapped of wrapFrameLinesColored(
@@ -677,8 +746,11 @@ export function displayWeatherExplanation(
       if (isGroupHead) {
         buf.push(frameDividerColored(level, borderColor, width));
         const label = sectionLabel(section.sectionType);
-        buf.push(
-          frameLineColored(level, borderColor, `  ${chalk.bold.cyan(`▸ ${label}`)}`, width),
+        pushWrappedFrameLine(
+          buf,
+          level,
+          { width, purpose: "prose", borderColor },
+          `  ${chalk.bold.cyan(`▸ ${label}`)}`,
         );
       }
       for (const rawLine of section.text.split("\n")) {

@@ -1,7 +1,15 @@
 import { describe, it, expect, afterEach } from "vitest";
+import chalk from "chalk";
 import { displayWeatherBriefing } from "../../src/ui/briefing-formatter";
 import { parseWeatherBriefing } from "../../src/dmdata/briefing-parser";
-import { setDisplayMode, clearFrameWidth, setFrameWidth, visualWidth } from "../../src/ui/formatter";
+import {
+  setDisplayMode,
+  clearFrameWidth,
+  setFrameWidth,
+  visualWidth,
+  getFrameLineClampFallbackCount,
+  resetFrameLineClampFallbackCount,
+} from "../../src/ui/formatter";
 import {
   createMockWsDataMessage,
   FIXTURE_VPBS50_LINEAR_OBSERVED,
@@ -65,6 +73,62 @@ describe("displayWeatherBriefing - Phase D 配色言語", () => {
     info.infoType = "取消";
     const out = capture(() => displayWeatherBriefing(info));
     expect(stripAnsi(out)).toContain("取り消されました");
+  });
+
+  it.each([40, 60, 80, 120, 200])("過長 title / region / type / headline / prose を幅 %i に収める", (width) => {
+    const originalLevel = chalk.level;
+    try {
+      for (const level of [0, 3] as const) {
+        chalk.level = level;
+        setFrameWidth(width);
+        resetFrameLineClampFallbackCount();
+        const base = parseWeatherBriefing(
+          createMockWsDataMessage(FIXTURE_VPBS50_LINEAR_OBSERVED),
+        )!;
+        const info = {
+          ...base,
+          infoType: `発表 ${"追加種別情報 ".repeat(10)}`,
+          title: `長い気象防災速報タイトル ${"対象地域情報・電文情報 ".repeat(20)}`,
+          headline: `長いヘッドライン ${"安全な場所へ移動してください。 ".repeat(40)}`,
+          targetAreas: Array.from({ length: 4 }, (_, index) => ({
+            name: `非常に長い対象地域名${index + 1} ${"北部・南部・沿岸部 ".repeat(8)}`,
+            code: `99${String(index + 1).padStart(4, "0")}`,
+          })),
+          observations: [
+            ...base.observations.map((observation) => ({
+              ...observation,
+              observationType: `長い観測種別 ${"気象観測情報 ".repeat(6)}`,
+              description: `長い観測本文 ${"観測値と今後の推移を確認してください。 ".repeat(20)}`,
+              locationName: `長い観測地点名 ${"観測地点情報 ".repeat(8)}`,
+            })),
+            {
+              partKind: "other" as const,
+              observationType: `長い予測種別 ${"予測情報 ".repeat(6)}`,
+              description: `長い予測本文 ${"今後の情報に注意してください。 ".repeat(20)}`,
+              value: 123,
+              unit: "mm",
+              time: "2026-08-27T12:34:00+09:00",
+              locationName: `長い予測地点名 ${"対象地点 ".repeat(8)}`,
+              locationCode: "999999",
+              sourceType: "予測",
+              contextTime: "2026-08-27T12:00:00+09:00",
+            },
+          ],
+        };
+        const out = capture(() => displayWeatherBriefing(info));
+        for (const line of out.split("\n")) {
+          const plain = stripAnsi(line);
+          const widthOfLine = visualWidth(plain);
+          expect(widthOfLine, `color=${level} width=${width} line=${JSON.stringify(plain.slice(0, 60))}`)
+            .toBeLessThanOrEqual(width);
+          if (/^[┏┓┗┛┌┐├╠│║└╚]/.test(plain)) expect(widthOfLine).toBe(width);
+        }
+        expect(getFrameLineClampFallbackCount(), `color=${level} width=${width}`).toBe(0);
+      }
+    } finally {
+      chalk.level = originalLevel;
+      clearFrameWidth();
+    }
   });
 
   // 代表 NO_COLOR snapshot (Codex R3 P1-5。stripAnsi で色を落とし構造を固定)

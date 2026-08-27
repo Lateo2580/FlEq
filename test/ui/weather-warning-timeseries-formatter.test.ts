@@ -18,6 +18,11 @@ import type {
   TimeWindow,
   ParsedWeatherWarningTimeseriesInfo,
   WeatherWarningTimeseriesArea,
+  WeatherWarningTimeseriesKind,
+  PartValue,
+  SignificancyValue,
+  QuantitativeValue,
+  WindPairedValue,
 } from "../../src/types";
 import { parseWeatherWarningTimeseries as parseTimeseriesRaw } from "../../src/dmdata/weather-warning-timeseries-parser";
 import {
@@ -39,6 +44,8 @@ import {
   setDisplayMode,
   setWeatherWarningDisplayOptions,
   getWeatherWarningDisplayOptions,
+  getFrameLineClampFallbackCount,
+  resetFrameLineClampFallbackCount,
 } from "../../src/ui/formatter";
 import type { WeatherSeverityEntry, SeriesWindow } from "../../src/engine/presentation/weather-severity-pyramid";
 
@@ -1203,5 +1210,181 @@ describe("unknown 表示の安全網 (旧 severityToPrefix 検証から引き継
     // Phase B: tier prefix は級列・divider 見出し・[詳細] head で読み取れる
     // (? は standalone unknown でないため表内に出ない)。
     expect(out).toMatch(/(★★|★|☆|◆◆|◆|△|○)/);
+  });
+});
+
+describe("displayWeatherWarningTimeseriesInfo - CLI width contract 第2波 synthetic matrix", () => {
+  it.each([40, 60, 80, 120, 200])("過長 title / region / type / period / diagnostic / table を幅 %i に収める", (width) => {
+    const originalLevel = chalk.level;
+    try {
+      for (const level of [0, 3] as const) {
+        chalk.level = level;
+        setFrameWidth(width);
+        resetFrameLineClampFallbackCount();
+
+        const base = parseTimeseries(
+          createMockWsDataMessage(FIXTURE_VPWP50_NAGANO),
+        );
+        const longText = (label: string): string =>
+          `${label} ${"長い警報種別・対象地域・時刻情報 ".repeat(12)}`;
+        const longTimeWindow = (window: TimeWindow | undefined): TimeWindow | undefined =>
+          window == null
+            ? undefined
+            : {
+              ...window,
+              startName: longText("開始時刻"),
+              endName: longText("終了時刻"),
+            };
+        const longSignificancyValue = (value: SignificancyValue): SignificancyValue => ({
+          ...value,
+          info: {
+            ...value.info,
+            label: longText("警報級コード名"),
+            compact: longText("級"),
+          },
+          timeWindow: longTimeWindow(value.timeWindow),
+          peak: value.peak == null
+            ? undefined
+            : { ...value.peak, date: longText("ピーク日"), term: longText("ピーク時間帯") },
+          criteriaPeriod: value.criteriaPeriod == null
+            ? undefined
+            : {
+              ...value.criteriaPeriod,
+              sentence: longText("基準到達期間"),
+              criteriaClass: longText("基準区分"),
+            },
+        });
+        const longQuantitativeValue = (value: QuantitativeValue): QuantitativeValue => ({
+          ...value,
+          unit: longText("量単位"),
+          timeWindow: longTimeWindow(value.timeWindow),
+        });
+        const longWindValue = (value: WindPairedValue): WindPairedValue => ({
+          ...value,
+          direction: value.direction == null ? null : longText("風向"),
+          timeWindow: longTimeWindow(value.timeWindow),
+        });
+        const longPart = <T,>(
+          part: PartValue<T> | undefined,
+          mapValue: (value: T) => T,
+        ): PartValue<T> | undefined => part == null
+          ? undefined
+          : {
+            ...part,
+            base: part.base == null ? undefined : mapValue(part.base),
+            locals: part.locals?.map((local, index) => ({
+              ...local,
+              areaName: longText(`局地${index + 1}`),
+              value: mapValue(local.value),
+            })),
+          };
+        const longKind = (kind: WeatherWarningTimeseriesKind, index: number): WeatherWarningTimeseriesKind => ({
+          ...kind,
+          type: longText(`警報種別${index + 1}`),
+          significancyWorst: longPart(kind.significancyWorst, longSignificancyValue),
+          quantitativeWorst: longPart(kind.quantitativeWorst, longQuantitativeValue),
+          windWorst: longPart(kind.windWorst, longWindValue),
+          metricMeta: kind.metricMeta == null
+            ? undefined
+            : {
+              ...kind.metricMeta,
+              unit: longText("メトリック単位"),
+              label: longText("メトリック名"),
+            },
+        });
+        const longArea = (area: WeatherWarningTimeseriesArea, areaIndex: number): WeatherWarningTimeseriesArea => ({
+          ...area,
+          name: longText(`対象地域${areaIndex + 1}`),
+          kinds: {
+            1: area.kinds[1].map((kind, index) => longKind(kind, index)),
+            2: area.kinds[2].map((kind, index) => longKind(kind, index + 10)),
+            3: area.kinds[3].map((kind, index) => longKind(kind, index + 20)),
+          },
+        });
+        const areas = base.areas.map(longArea);
+        const targetArea = base.targetArea == null ? null : longArea(base.targetArea, 0);
+        const unknownCodes = [
+          ...base.unknownCodes.map((unknown, index) => ({
+            ...unknown,
+            code: longText(`未知${index + 1}`),
+            propertyType: longText("未知警報種別"),
+            timeRef: longText("未知時刻枠"),
+            areaName: longText("未知対象地域"),
+          })),
+          {
+            code: longText("99"),
+            propertyType: longText("未知警報種別"),
+            timeRef: longText("未知時刻枠"),
+            areaName: longText("未知対象地域"),
+          },
+        ];
+        const info = {
+          ...base,
+          title: longText("気象警報・注意報時系列情報タイトル"),
+          controlTitle: longText("気象警報・注意報"),
+          headline: longText("ヘッドライン"),
+          targetArea,
+          areas,
+          unknownCodes,
+        };
+
+        for (const fallback of ["none", "compactOnly", "raw"] as const) {
+          resetFrameLineClampFallbackCount();
+          const logs: string[] = [];
+          const spy = vi.spyOn(console, "log").mockImplementation((...args: unknown[]) => {
+            logs.push(args.map((arg) => String(arg ?? "")).join(" "));
+          });
+          try {
+            displayWeatherWarningTimeseriesInfo({ ...info, fallback });
+          } finally {
+            spy.mockRestore();
+          }
+          expect(logs.length, `color=${level} width=${width} fallback=${fallback}`).toBeGreaterThan(0);
+          for (const [index, line] of logs.entries()) {
+            const plain = stripAnsi(line);
+            const widthOfLine = visualWidth(plain);
+            expect(widthOfLine, `color=${level} width=${width} fallback=${fallback} line=${index} ${JSON.stringify(plain.slice(0, 60))}`)
+              .toBeLessThanOrEqual(width);
+            if (/^[┏┓┗┛┌┐├╠│║└╚]/.test(plain)) expect(widthOfLine).toBe(width);
+          }
+          expect(getFrameLineClampFallbackCount(), `color=${level} width=${width} fallback=${fallback}`).toBe(0);
+        }
+      }
+    } finally {
+      chalk.level = originalLevel;
+      clearFrameWidth();
+    }
+  });
+});
+
+describe("displayWeatherWarningTimeseriesInfo - recap", () => {
+  it("2行 title の全行を recap に再掲する", () => {
+    const originalIsTTY = process.stdout.isTTY;
+    const originalRows = process.stdout.rows;
+    const logs: string[] = [];
+    const spy = vi.spyOn(console, "log").mockImplementation((...args: unknown[]) => {
+      logs.push(args.map((arg) => String(arg ?? "")).join(" "));
+    });
+    try {
+      Object.defineProperty(process.stdout, "isTTY", { value: true, writable: true, configurable: true });
+      Object.defineProperty(process.stdout, "rows", { value: 5, writable: true, configurable: true });
+      setFrameWidth(40);
+      const base = parseTimeseries(createMockWsDataMessage(FIXTURE_VPWP50_NAGANO));
+      const targetArea = {
+        name: "第二行対象地域",
+        code: "200000",
+        kinds: { 1: [], 2: [], 3: [] },
+      };
+      displayWeatherWarningTimeseriesInfo({ ...base, targetArea });
+      const summaryIndex = logs.findIndex((line) => line.includes("▼ サマリー"));
+      expect(summaryIndex).toBeGreaterThan(-1);
+      expect(logs.slice(summaryIndex + 1).join("\n")).toContain("気象警報・注意報時系列情報");
+      expect(logs.slice(summaryIndex + 1).join("\n")).toContain("第二行対象地域");
+    } finally {
+      spy.mockRestore();
+      Object.defineProperty(process.stdout, "isTTY", { value: originalIsTTY, writable: true, configurable: true });
+      Object.defineProperty(process.stdout, "rows", { value: originalRows, writable: true, configurable: true });
+      clearFrameWidth();
+    }
   });
 });
