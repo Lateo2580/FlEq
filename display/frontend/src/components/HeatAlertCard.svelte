@@ -102,7 +102,7 @@
 </script>
 
 <section bind:this={cardEl} class:critical={special} class="standby-card heat-card" data-live-border-box data-anchor-infeasible={anchorInfeasible ? "true" : undefined}>
-  <header><span class="title">{special ? "熱中症特別警戒アラート" : "熱中症警戒アラート"}</span>{#if item.restored}<RestoredChip />{/if}<span class="date">{targetDateLabel}</span></header>
+  <header class="standby-card-header" style="--standby-header-container: {special ? 'var(--header-weatherEmergency-container)' : 'var(--header-weatherWarning-container)'}; --standby-header-on: {special ? 'var(--header-weatherEmergency-on)' : 'var(--header-weatherWarning-on)'}; --standby-header-band: {special ? 'var(--header-band-weatherEmergency)' : 'var(--header-band-weatherWarning)'}"><span class="standby-card-header__title">{special ? "熱中症特別警戒アラート" : "熱中症警戒アラート"}</span><span class="standby-card-header__meta">{#if item.restored}<RestoredChip />{/if}<span class="date">{targetDateLabel}</span></span></header>
   <div class="static-anchor" bind:this={anchorEl} use:observeResize={requestAnchorMeasure} data-static-anchor>
     <span>{anchorText}</span>
     {#each [1, 2, 3] as count}
@@ -124,27 +124,9 @@
 </section>
 
 <style>
-  .standby-card { width: var(--standby-card-width, min(360px, 28vw)); max-height: 160px; background: var(--surface-standby); border: 1px solid var(--hairline); border-radius: var(--radius-standby); box-shadow: var(--elevation-2); overflow: visible; }
-  /* 看板ヘッダ帯: 警戒=warning 橙帯 / 特別警戒=emergency 紫帯 */
-  header {
-    display: flex;
-    align-items: center;
-    padding: var(--space-2) var(--space-4);
-    font-size: var(--type-title-s-fluid);
-    font-weight: var(--type-title-weight-emphasized);
-    background: var(--header-weatherWarning-container);
-    color: var(--header-weatherWarning-on);
-    border-bottom: var(--header-band-width) solid var(--header-band-weatherWarning);
-  }
-  .critical header {
-    background: var(--header-weatherEmergency-container);
-    color: var(--header-weatherEmergency-on);
-    border-bottom-color: var(--header-band-weatherEmergency);
-  }
-  /* タイトルは折り返さない (見出し帯 1 行固定)。日付短縮と併せて最長ケースでも wrap しない */
-  .title { min-width: 0; flex: 1 1 auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .standby-card { width: var(--standby-card-width, min(360px, 28vw)); max-height: 160px; background: var(--surface-standby); border: 1px solid var(--hairline); border-radius: var(--radius-standby); box-shadow: var(--elevation-2); overflow: hidden; }
   /* 日付は見出し帯の右端に寄せる (header は flex 済み)。色は帯上の --header-*-on を継承 */
-  .date { flex: 0 0 auto; margin-left: auto; white-space: nowrap; font-size: max(12px, var(--type-label-s-fluid)); }
+  .date { white-space: nowrap; font-size: max(12px, var(--type-label-s-fluid)); }
   .static-anchor {
     position: relative;
     min-width: 0;

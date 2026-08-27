@@ -71,19 +71,19 @@ describe("UpdatedStamp", () => {
 describe("カード見出しの最終更新時刻", () => {
   it("火山情報カードは header 右端に電文の更新時刻を出す", () => {
     const { container } = render(VolcanoCard, { item: volcanoItem("2026-07-08T09:05:00+09:00") });
-    expect(container.querySelector("header .updated-stamp")?.textContent).toBe("更新 7/8 09:05");
+    expect(container.querySelector("header.standby-card-header .standby-card-header__meta .updated-stamp")?.textContent).toBe("更新 7/8 09:05");
   });
 
   it("台風情報カードは header 右端に電文の更新時刻を出す", () => {
     const { container } = render(TyphoonCard, { item: typhoonItem("2026-07-08T21:30:00+09:00") });
-    expect(container.querySelector("header .updated-stamp")?.textContent).toBe("更新 7/8 21:30");
+    expect(container.querySelector("header.standby-card-header .standby-card-header__meta .updated-stamp")?.textContent).toBe("更新 7/8 21:30");
   });
 
   it("津波情報バナーは header 右端に電文の発表時刻を出す", () => {
     const { container } = render(TsunamiStandbyBanner, {
       tsunami: tsunamiState("2026-07-08T05:00:00+09:00"),
     });
-    expect(container.querySelector(".banner-header .updated-stamp")?.textContent).toBe("更新 7/8 05:00");
+    expect(container.querySelector(".standby-card-header .standby-card-header__meta .updated-stamp")?.textContent).toBe("更新 7/8 05:00");
   });
 
   it("気象警報カードは束ねている alert のうち最新の updatedAt を出す (source は独立に届く)", () => {
@@ -93,7 +93,7 @@ describe("カード見出しの最終更新時刻", () => {
         weatherAlert("vpww56", "2026-07-08T11:20:00+09:00"),
       ],
     });
-    expect(container.querySelector(".card-header .updated-stamp")?.textContent).toBe("更新 7/8 11:20");
+    expect(container.querySelector(".standby-card-header .standby-card-header__meta .updated-stamp")?.textContent).toBe("更新 7/8 11:20");
   });
 
   // Codex 最終レビュー: 起動 seed は toISOString() の `Z`、live 更新は電文の reportDateTime
@@ -106,13 +106,13 @@ describe("カード見出しの最終更新時刻", () => {
         weatherAlert("vpww56", "2026-07-08T09:00:00+09:00"),
       ],
     });
-    expect(container.querySelector(".card-header .updated-stamp")?.textContent).toBe("更新 7/8 09:05");
+    expect(container.querySelector(".standby-card-header .standby-card-header__meta .updated-stamp")?.textContent).toBe("更新 7/8 09:05");
   });
 
   it("気象警報カードは alert が 1 件でもその時刻を出す", () => {
     const { container } = render(WeatherAlertCard, {
       alerts: [weatherAlert("vpws50", "2026-07-08T09:00:00+09:00")],
     });
-    expect(container.querySelector(".card-header .updated-stamp")?.textContent).toBe("更新 7/8 09:00");
+    expect(container.querySelector(".standby-card-header .standby-card-header__meta .updated-stamp")?.textContent).toBe("更新 7/8 09:00");
   });
 });

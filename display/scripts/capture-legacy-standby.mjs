@@ -234,6 +234,14 @@ async function captureLiveGeometry({ chrome, profileDir, url, viewport }) {
             hiddenAncestor: node.closest('[aria-hidden="true"], [hidden], [inert]') != null,
           };
         })();
+        const styled = (node, properties) => node == null ? null : (() => {
+          const rect = node.getBoundingClientRect();
+          const style = getComputedStyle(node);
+          return {
+            rect: { x: rect.x, y: rect.y, width: rect.width, height: rect.height },
+            ...Object.fromEntries(properties.map((property) => [property, style.getPropertyValue(property)])),
+          };
+        })();
         const overlap = (left, right) => left == null || right == null ? 0 : (() => {
           const a = left.getBoundingClientRect();
           const b = right.getBoundingClientRect();
@@ -282,7 +290,40 @@ async function captureLiveGeometry({ chrome, profileDir, url, viewport }) {
             readable: [...card.querySelectorAll('[data-page-probe-readable]')].map(measure),
           };
           });
-        return { heat: measure(pick('.heat-card')), tsunamiBanner: measure(pick('.tsunami-banner')), panels, briefingCards };
+        const standbyHeaders = [...document.querySelectorAll('.standby-card-header')].map((header) => {
+          const outer = header.closest('.weather-card, .briefing-card, .heat-card, .flood-card, .flood-wide-card, .typhoon-card, .volcano-card, .quake-card, .quake-replay-card, .tsunami-banner');
+          const title = header.querySelector('.standby-card-header__title');
+          const meta = header.querySelector('.standby-card-header__meta');
+          const headerChildren = [...header.children].map((child, index) => ({
+            index,
+            kind: child.classList.contains('standby-card-header__title') ? 'title'
+              : child.classList.contains('standby-card-header__meta') ? 'meta' : child.className,
+            geometry: styled(child, ['display', 'flex', 'flex-shrink', 'overflow', 'text-overflow']),
+          }));
+          const metaChildren = meta == null ? [] : [...meta.children].map((child, index) => ({
+            index,
+            kind: child.classList.contains('restored-chip') ? 'restored-chip'
+              : child.classList.contains('updated-stamp') ? 'updated-stamp'
+                : child.classList.contains('date') ? 'date' : child.className,
+            geometry: styled(child, ['display', 'flex-shrink', 'overflow', 'text-overflow']),
+          }));
+          return {
+            card: outer?.className ?? '',
+            shelf: outer?.closest('.measure-shelf, .center-measure-shelf') != null,
+            outer: styled(outer, ['border-radius', 'overflow']),
+            header: styled(header, ['padding-top', 'padding-right', 'padding-bottom', 'padding-left', 'font-size', 'font-weight', 'line-height', 'background-color', 'color', 'border-bottom-width']),
+            title: styled(title, ['display', 'flex', 'overflow', 'text-overflow', 'white-space']),
+            meta: styled(meta, ['display', 'flex-shrink', 'position', 'overflow']),
+            headerChildren,
+            titleMetaOverlap: overlap(title, meta),
+            metaChildOverlaps: meta == null ? [] : [...meta.children].flatMap((left, index, children) =>
+              children.slice(index + 1).map((right) => ({
+                left: left.className, right: right.className, overlap: overlap(left, right),
+              }))),
+            metaChildren,
+          };
+        });
+        return { heat: measure(pick('.heat-card')), tsunamiBanner: measure(pick('.tsunami-banner')), panels, briefingCards, standbyHeaders };
       })()`,
     }, attached.sessionId);
     // Entry animations (height reveal) can hold a mid-flight value for several
@@ -712,7 +753,10 @@ const UTIL_EXPECTATIONS = {
   // diagnostic value "none"; absence is never represented by a missing attr.
   "4": { "1920x1080": ["none", "none", 7, 0, 12, 0, 13, "false"], "1512x982": ["none", "none", 7, 0, 12, 0, 13, "false"], "1280x720": ["none", "none", 7, 0, 12, 0, 13, "false"], "960x620": ["none", "none", 7, 0, 2, 10, 3, "false"] },
   "7": { "1920x1080": ["full", "card", 7, 0, 12, 0, 14, "false"], "1512x982": ["compact", "card", 7, 0, 12, 0, 13, "false"], "1280x720": ["compact", "card", 4, 3, 2, 10, 0, "false"], "960x620": ["compact", "card", 4, 3, 2, 10, 0, "false"] },
-  max: { "1920x1080": ["compact", "card", 7, 0, 24, 0, 24, "false"], "1512x982": ["compact", "card", 4, 3, 24, 0, 21, "false"], "1280x720": ["compact", "card", 4, 3, 3, 21, 0, "false"], "960x620": ["compact", "card", 4, 3, 3, 21, 0, "false"] },
+  // Header unification lowers the quake/tsunami chrome by 8px. At 1920px
+  // this admits Typhoon's full promotion (+1 surplus unit); at 1512px it
+  // admits the final three quake prefix rows (7 shown, no omitted tail).
+  max: { "1920x1080": ["full", "card", 7, 0, 24, 0, 25, "false"], "1512x982": ["compact", "card", 7, 0, 24, 0, 24, "false"], "1280x720": ["compact", "card", 4, 3, 3, 21, 0, "false"], "960x620": ["compact", "card", 4, 3, 3, 21, 0, "false"] },
 };
 
 function tableMismatches(diagnostics, scenario, viewport, fixture = null) {
@@ -799,7 +843,7 @@ async function capture({ chrome, profileDir, url, scenario, viewport, outDir, ro
   const clusterFixture = url.includes("gateFixture=cluster");
   const clusterCalmFixture = url.includes("gateFixture=cluster-calm");
   let attentionGeometry = null;
-  if (attentionFixture || fixture === "briefing-pages" || fixture === "briefing-single-page") {
+  if (attentionFixture || fixture === "briefing-pages" || fixture === "briefing-single-page" || process.argv.includes("--report")) {
     attentionGeometry = await captureLiveGeometry({ chrome, profileDir, url, viewport });
     if (attentionFixture) {
       const baselineUrl = new URL(url);
@@ -809,7 +853,7 @@ async function capture({ chrome, profileDir, url, scenario, viewport, outDir, ro
         ? null
         : await captureLiveGeometry({ chrome, profileDir, url: baselineUrl.toString(), viewport });
       assertAttentionVisibilityFixture(dom, diagnostics, fixture, attentionGeometry, baselineGeometry);
-    } else {
+    } else if (fixture === "briefing-pages" || fixture === "briefing-single-page") {
       assertBriefingPagingFixture(attentionGeometry, fixture === "briefing-pages"
         ? { expectedPage: `${(cardPageTick ?? 0) + 1}/2`, expectedFooter: true, expectedEntryBoundary: true }
         : { expectedPage: "1/1", expectedFooter: false, expectedEntryBoundary: false });

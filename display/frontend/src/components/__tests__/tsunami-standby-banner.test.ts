@@ -27,7 +27,7 @@ function tsunamiState(over: Partial<DisplayTsunamiStateV1> = {}): DisplayTsunami
 describe("TsunamiStandbyBanner", () => {
   it("単一レベルのみなら「等」を付けずに見出しを出す", () => {
     const { container } = render(TsunamiStandbyBanner, { tsunami: tsunamiState() });
-    const header = container.querySelector(".banner-title");
+    const header = container.querySelector(".standby-card-header__title");
     expect(header?.textContent?.replace(/\s+/g, " ").trim()).toBe("津波警報 発令中");
   });
 
@@ -51,16 +51,17 @@ describe("TsunamiStandbyBanner", () => {
       ],
     });
     const { container } = render(TsunamiStandbyBanner, { tsunami });
-    const header = container.querySelector(".banner-title");
+    const header = container.querySelector(".standby-card-header__title");
     expect(header?.textContent?.replace(/\s+/g, " ").trim()).toBe("大津波警報等 発令中");
   });
 
   it("狭幅でも見出しを一行に保ち、更新時刻を縮小・省略できる", () => {
     const source = readFileSync(join(__dirname, "..", "TsunamiStandbyBanner.svelte"), "utf-8");
-    expect(source).toMatch(/\.banner-header\s*\{[^}]*min-width:\s*0;[^}]*flex-wrap:\s*nowrap;/s);
-    expect(source).toMatch(/\.banner-title\s*\{[^}]*flex:\s*1 1 auto;[^}]*text-overflow:\s*ellipsis;[^}]*white-space:\s*nowrap;/s);
-    expect(source).toMatch(/\.banner-header :global\(\.updated-stamp\)\s*\{[^}]*max-width:\s*45%;[^}]*font-size:\s*clamp\(10px, 2\.6cqw, 14px\)/s);
-    expect(source).toMatch(/@container \(max-width:\s*240px\)\s*\{\s*\.banner-header :global\(\.updated-stamp\)\s*\{\s*display:\s*none;/s);
+    const theme = readFileSync(join(__dirname, "../../lib/theme.css"), "utf-8");
+    expect(theme).toMatch(/\.standby-card-header\s*\{[^}]*min-width:\s*0;/s);
+    expect(theme).toMatch(/\.standby-card-header__title\s*\{[^}]*white-space:\s*nowrap;/s);
+    expect(source).toMatch(/\.standby-card-header__meta :global\(\.updated-stamp\)\s*\{[^}]*max-width:\s*45%;[^}]*font-size:\s*clamp\(10px, 2\.6cqw, 14px\)/s);
+    expect(source).toMatch(/@container \(max-width:\s*240px\)\s*\{\s*\.standby-card-header__meta :global\(\.updated-stamp\)\s*\{\s*display:\s*none;/s);
   });
 
   it("レベル別カウントを降順 (大津波→警報→注意報) のチップで render する", () => {
@@ -120,7 +121,7 @@ describe("TsunamiStandbyBanner", () => {
     });
     const { container } = render(TsunamiStandbyBanner, { tsunami });
     expect(container.querySelector(".banner-counts")).toBeFalsy();
-    const header = container.querySelector(".banner-title");
+    const header = container.querySelector(".standby-card-header__title");
     expect(header?.textContent?.replace(/\s+/g, " ").trim()).toBe("津波注意報 発令中");
   });
 
@@ -132,7 +133,7 @@ describe("TsunamiStandbyBanner", () => {
       ],
     });
     const { container } = render(TsunamiStandbyBanner, { tsunami });
-    const header = container.querySelector(".banner-title");
+    const header = container.querySelector(".standby-card-header__title");
     expect(header?.textContent?.replace(/\s+/g, " ").trim()).toBe("大津波警報 発令中");
     const items = Array.from(container.querySelectorAll(".count-chip")).map((el) => el.textContent);
     expect(items).toEqual(["大津波 1"]);
@@ -144,10 +145,10 @@ describe("TsunamiStandbyBanner", () => {
     expect(src).not.toMatch(/border-radius:\s*999px/);
   });
 
-  it("banner-header は container/on/band トークンで --bar-* を使わない", () => {
+  it("standby header は container/on/band トークンで --bar-* を使わない", () => {
     const src = readFileSync(join(__dirname, "..", "TsunamiStandbyBanner.svelte"), "utf-8");
     expect(src).toMatch(/var\(--header-tsunami\w+-container\)/);
-    expect(src).toContain("var(--header-band-width)");
+    expect(src).toContain("--standby-header-band");
     expect(src).not.toContain("var(--bar-");
   });
 

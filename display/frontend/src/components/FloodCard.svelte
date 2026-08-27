@@ -32,6 +32,11 @@
   // rivers の最高 levelRank から導出する (L5=50 以上)
   const maxLevelRank = $derived(item.data.rivers.reduce((max, river) => Math.max(max, river.levelRank), 0));
   const band = $derived(maxLevelRank >= 50 ? "flooding" : maxLevelRank >= 40 ? "emergency" : "red");
+  const headerStyle = $derived(band === "flooding"
+    ? "--standby-header-container: #000; --standby-header-on: var(--c-yellow); --standby-header-band: #fff"
+    : band === "emergency"
+      ? "--standby-header-container: var(--header-weatherEmergency-container); --standby-header-on: var(--header-weatherEmergency-on); --standby-header-band: var(--header-band-weatherEmergency)"
+      : "--standby-header-container: var(--header-tsunamiWarning-container); --standby-header-on: var(--header-tsunamiWarning-on); --standby-header-band: var(--header-band-tsunamiWarning)");
   const pageEntries = $derived(floodPageAreaEntries(item.data.rivers));
   const measurementPartition = $derived.by(() => partitionProbe == null
     ? { probeCount: 0 }
@@ -86,7 +91,7 @@
   data-flood-page-range={currentRange == null ? "" : `${currentRange.start}:${currentRange.end}`}
   data-card-page-infeasible={pagePartition.infeasible ? aggregateClipped ? "clip" : "aggregate" : "false"}
 >
-  <header>河川洪水情報{#if item.restored}<RestoredChip />{/if}</header>
+  <header class="standby-card-header" style={headerStyle}><span class="standby-card-header__title">河川洪水情報</span>{#if item.restored}<span class="standby-card-header__meta"><RestoredChip /></span>{/if}</header>
   {#each visibleRivers as river, index (river.riverKey)}
   <div
     class="river-entry"
@@ -108,28 +113,8 @@
   /* 3 河川以上は従来の max-height 解決値を予約し、集約によって自然高が下がっても
      ソルバへ渡すカード高を変えない。 */
   .height-budgeted { min-height: 200px; }
-  /* 看板ヘッダ帯 (既存カードの card-header と同型): band クラスで段階切替 (L3=赤 / L4=紫 / L5=氾濫発生黒帯) */
-  header {
-    display: flex;
-    align-items: center;
-    padding: var(--space-2) var(--space-4);
-    font-size: var(--type-title-s-fluid);
-    font-weight: var(--type-title-weight-emphasized);
-  }
-  .band-red header {
-    background: var(--header-tsunamiWarning-container);
-    color: var(--header-tsunamiWarning-on);
-    border-bottom: var(--header-band-width) solid var(--header-band-tsunamiWarning);
-  }
-  .band-emergency header {
-    background: var(--header-weatherEmergency-container);
-    color: var(--header-weatherEmergency-on);
-    border-bottom: var(--header-band-width) solid var(--header-band-weatherEmergency);
-  }
   /* L5 氾濫発生 = JMA「氾濫発生=黒」表現: 黒背景・白の細枠 (1px) で帯を囲み・下端リボン白・文字黄 */
-  .band-flooding header {
-    background: #000;
-    color: var(--c-yellow);
+  .band-flooding .standby-card-header {
     border: 1px solid #fff;
     border-bottom: var(--header-band-width) solid #fff;
   }

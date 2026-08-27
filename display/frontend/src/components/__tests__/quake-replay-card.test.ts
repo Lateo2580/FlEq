@@ -77,7 +77,7 @@ describe("QuakeReplayCard", () => {
 
   it("maxIntRank>=7 で critical ヘッダになる", () => {
     const { container } = render(QuakeReplayCard, { quake: quake({ maxInt: "7", maxIntRank: 9 }) });
-    expect(container.querySelector(".banner-header.critical")).toBeTruthy();
+    expect(container.querySelector(".standby-card-header")?.getAttribute("style")).toContain("header-quakeCritical-container");
   });
 
   it("intensityGroups があれば各地の震度を LatestQuakeCard と同じ文法 (震度チップ + 県グループ) で表示する", () => {

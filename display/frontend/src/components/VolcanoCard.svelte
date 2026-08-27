@@ -21,6 +21,13 @@
         : maxAlertLevel >= 3 || hasWarningClass ? "warning"
           : "advisory",
   );
+  const headerStyle = $derived(band === "emergency"
+    ? "--standby-header-container: var(--header-weatherEmergency-container); --standby-header-on: var(--header-weatherEmergency-on); --standby-header-band: var(--header-band-weatherEmergency)"
+    : band === "red"
+      ? "--standby-header-container: var(--header-tsunamiWarning-container); --standby-header-on: var(--header-tsunamiWarning-on); --standby-header-band: var(--header-band-tsunamiWarning)"
+      : band === "warning"
+        ? "--standby-header-container: var(--header-weatherWarning-container); --standby-header-on: var(--header-weatherWarning-on); --standby-header-band: var(--header-band-weatherWarning)"
+        : "--standby-header-container: var(--header-weatherAdvisory-container); --standby-header-on: var(--header-weatherAdvisory-on); --standby-header-band: var(--header-band-weatherAdvisory)");
 
   function compactLevelText(value: string): string {
     return value.normalize("NFKC").replace(/\s+/g, "");
@@ -76,7 +83,7 @@
 </script>
 
 <section class="standby-card volcano-card band-{band}">
-  <header>火山情報{#if item.restored}<RestoredChip />{/if}<UpdatedStamp iso={item.updatedAt} /></header>
+  <header class="standby-card-header" style={headerStyle}><span class="standby-card-header__title">火山情報</span><span class="standby-card-header__meta">{#if item.restored}<RestoredChip />{/if}<UpdatedStamp iso={item.updatedAt} /></span></header>
   {#each item.data.volcanoes as volcano (volcano.code)}
     {@const meaning = alertMeaning(volcano)}
     <div class="volcano">
@@ -125,34 +132,6 @@
 
 <style>
   .standby-card { width: var(--standby-card-width, min(360px, 28vw)); background: var(--surface-standby); border: 1px solid var(--hairline); border-radius: var(--radius-standby); box-shadow: var(--elevation-2); overflow: hidden; }
-  /* 看板ヘッダ帯: 段階カラーは band クラスで切替 (レベル2=黄 / 3=橙 / 4・噴火速報=赤 / 5=紫) */
-  header {
-    display: flex;
-    align-items: center;
-    padding: var(--space-2) var(--space-4);
-    font-size: var(--type-title-s-fluid);
-    font-weight: var(--type-title-weight-emphasized);
-  }
-  .band-advisory header {
-    background: var(--header-weatherAdvisory-container);
-    color: var(--header-weatherAdvisory-on);
-    border-bottom: var(--header-band-width) solid var(--header-band-weatherAdvisory);
-  }
-  .band-warning header {
-    background: var(--header-weatherWarning-container);
-    color: var(--header-weatherWarning-on);
-    border-bottom: var(--header-band-width) solid var(--header-band-weatherWarning);
-  }
-  .band-red header {
-    background: var(--header-tsunamiWarning-container);
-    color: var(--header-tsunamiWarning-on);
-    border-bottom: var(--header-band-width) solid var(--header-band-tsunamiWarning);
-  }
-  .band-emergency header {
-    background: var(--header-weatherEmergency-container);
-    color: var(--header-weatherEmergency-on);
-    border-bottom: var(--header-band-width) solid var(--header-band-weatherEmergency);
-  }
   /* 直近イベント (噴火速報 等) の強調色も帯段階に合わせる */
   .band-advisory strong { color: var(--role-weatherAdvisory); }
   .band-warning strong { color: var(--role-weatherWarning); }

@@ -17,9 +17,9 @@
 {/if}
 
 <style>
-  /* HeatAlertCard の .date と同じ配置文法 (margin-left:auto で右端、nowrap、下限 12px) */
+  /* 右寄せは standby-card-header__meta が担う。stamp 自身は chip/date と
+     同居しても順序を押し替えない。 */
   .updated-stamp {
-    margin-left: auto;
     padding-left: var(--space-2);
     white-space: nowrap;
     font-size: max(12px, var(--type-label-s-fluid));

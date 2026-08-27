@@ -403,10 +403,10 @@
     data-tornado-page-infeasible={tornado == null ? undefined : resolvedTornadoInfeasible ?? "false"}
     data-tornado-page-fallback={tornado == null ? undefined : resolvedTornadoInfeasible ?? (resolvedTornadoAggregatePending ? "aggregate-pending" : "false")}
   >
-    <div
-      class="card-header"
-      style="background: {headerContainerVar(topRole)}; color: {headerOnVar(topRole)}; border-bottom: var(--header-band-width) solid {headerBandVar(topRole)}"
-    >{headerLabel(topRole, alerts)}<UpdatedStamp iso={latestUpdatedAt} /></div>
+    <header
+      class="standby-card-header"
+      style="--standby-header-container: {headerContainerVar(topRole)}; --standby-header-on: {headerOnVar(topRole)}; --standby-header-band: {headerBandVar(topRole)}"
+    ><span class="standby-card-header__title">{headerLabel(topRole, alerts)}</span><span class="standby-card-header__meta"><UpdatedStamp iso={latestUpdatedAt} /></span></header>
     {#if alerts.length > 0}<ul data-page-probe-body data-page-probe-readable>
       {#each displayItems as entry (entry.item.kindKey)}
         <li class="rank-{entry.item.rank}" data-kind-key={entry.item.kindKey}>
@@ -459,14 +459,6 @@
     /* label-xs 12px at line-height:1 + 1px block padding + 1px border on each side. */
     --card-page-indicator-block-size: calc(var(--type-label-xs-size) + 4px);
   }
-  .card-header {
-    /* 最終更新時刻を右端へ寄せるため flex 行にする (他カードの header と同じ文法) */
-    display: flex;
-    align-items: center;
-    font-size: var(--type-title-s-fluid);
-    font-weight: var(--type-title-weight-emphasized);
-    padding: var(--space-2) var(--space-4);
-  }
   ul {
     list-style: none;
     margin: 0;
@@ -506,7 +498,7 @@
   .weather-card.has-page-footer:not(.has-tornado) {
     padding-bottom: var(--card-page-indicator-block-size);
   }
-  .weather-card.has-page-footer:not(.has-tornado) .card-header {
+  .weather-card.has-page-footer:not(.has-tornado) .standby-card-header {
     padding-top: calc(var(--space-2) - 3px);
     padding-bottom: calc(var(--space-2) - 3px);
   }

@@ -358,20 +358,19 @@
   data-briefing-shell-height-px={shellHeightPx}
   data-briefing-probe-width-px={probeWidth ?? undefined}
 >
-  <div
-    class="card-header"
+  <header
+    class="standby-card-header"
     class:critical={topFrameLevel === "critical"}
     class:warning={topFrameLevel === "warning"}
     class:advisory={topFrameLevel === "info" || topFrameLevel === "cancel"}
     data-briefing-card-header
-    style="background: {headerContainerVar(topFrameLevel)}; color: {headerOnVar(topFrameLevel)}; border-bottom: var(--header-band-width) solid {headerBandVar(topFrameLevel)}"
-  >{headerLabel}<UpdatedStamp iso={latestUpdatedAt} /></div>
+    style="--standby-header-container: {headerContainerVar(topFrameLevel)}; --standby-header-on: {headerOnVar(topFrameLevel)}; --standby-header-band: {headerBandVar(topFrameLevel)}"
+  ><span class="standby-card-header__title">{headerLabel}</span><span class="standby-card-header__meta"><UpdatedStamp iso={latestUpdatedAt} /></span></header>
   {@render pageAtom(visibleGroups, showPageIndicator, pageIndicatorLabel)}
 </section>
 
 <style>
   .briefing-card { box-sizing: border-box; width: 100%; max-width: 100%; overflow: hidden; border: 1px solid var(--hairline); border-radius: var(--radius-standby); background: var(--surface-standby); box-shadow: var(--elevation-2); color: var(--fg); }
-  .card-header { display: flex; align-items: center; font-size: var(--type-title-s-fluid); font-weight: var(--type-title-weight-emphasized); padding: var(--space-2) var(--space-4); }
   .briefing-entry { min-height: 0; }
   .briefing-entry.entry-divider { border-top: 1px solid var(--hairline); }
   .body { padding: var(--space-2) var(--space-4); }
@@ -391,7 +390,7 @@
   .city-name { white-space: nowrap; }
   .omitted { display: block; margin-top: var(--space-1); padding-left: 1em; color: var(--role-muted); font-size: var(--type-label-xs-size); }
   .briefing-card.has-page-footer { --card-page-indicator-block-size: calc(var(--type-label-xs-size) + 4px); padding-bottom: var(--card-page-indicator-block-size); }
-  .briefing-card.has-page-footer .card-header { padding-top: calc(var(--space-2) - 3px); padding-bottom: calc(var(--space-2) - 3px); }
+  .briefing-card.has-page-footer .standby-card-header { padding-top: calc(var(--space-2) - 3px); padding-bottom: calc(var(--space-2) - 3px); }
   .card-page-footer { display: flex; flex: 0 0 0; justify-content: flex-end; box-sizing: border-box; height: 0; min-height: 0; padding: 0 var(--space-4); overflow: visible; pointer-events: none; position: relative; z-index: 1; }
   .card-page-indicator { box-sizing: border-box; block-size: var(--card-page-indicator-block-size); padding: 1px var(--space-2); border: 1px solid var(--hairline); border-radius: var(--radius-s); background: color-mix(in srgb, var(--surface-standby) 92%, transparent); color: var(--role-muted); font-size: var(--type-label-xs-size); line-height: 1; font-variant-numeric: tabular-nums; }
 </style>

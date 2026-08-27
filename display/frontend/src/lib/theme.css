@@ -272,8 +272,44 @@ h2,
 h3,
 .heading,
 .level-label,
-.card-header {
+.card-header,
+.standby-card-header {
   line-height: 1.18;
+}
+
+/* 待機画面の色帯カード共通 header 契約。色だけは各カードが意味 role から
+   --standby-header-* 三組へ接続する。 */
+.standby-card-header {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  padding: var(--space-2) var(--space-4);
+  font-size: var(--type-title-s-fluid);
+  font-weight: var(--type-title-weight-emphasized);
+  line-height: 1.18;
+  background: var(--standby-header-container);
+  color: var(--standby-header-on);
+  border-bottom: var(--header-band-width) solid var(--standby-header-band);
+}
+.standby-card-header__title {
+  min-width: 0;
+  flex: 1 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.standby-card-header__meta {
+  display: inline-flex;
+  align-items: center;
+  flex: 0 0 auto;
+  min-width: 0;
+  margin-left: auto;
+}
+.standby-card-header__meta .updated-stamp { margin-left: 0; }
+.standby-card-header--muted {
+  background: transparent;
+  color: var(--role-muted);
+  border-bottom: 0;
 }
 
 /* 散文 (折り返して読ませる文章ブロック) は行間を戻す (spec D2)。グローバル 1.3 は

@@ -180,12 +180,12 @@
 </script>
 
 <div class="tsunami-banner">
-  <div
-    class="banner-header"
-    style="background: {headerContainerVar(highest)}; color: {headerOnVar(highest)}; border-bottom: var(--header-band-width) solid {headerBandVar(highest)}"
+  <header
+    class="standby-card-header"
+    style="--standby-header-container: {headerContainerVar(highest)}; --standby-header-on: {headerOnVar(highest)}; --standby-header-band: {headerBandVar(highest)}"
   >
-    <span class="banner-title">{highestLabel(highest)}{#if hasMultipleLevels}<span class="etc">等</span>{/if} 発令中</span><UpdatedStamp iso={tsunami.reportDateTime} />
-  </div>
+    <span class="standby-card-header__title">{highestLabel(highest)}{#if hasMultipleLevels}<span class="etc">等</span>{/if} 発令中</span><span class="standby-card-header__meta"><UpdatedStamp iso={tsunami.reportDateTime} /></span>
+  </header>
   {#if summaries.length > 0}
     <div class="banner-counts">
       {#each summaries as s (s.level)}
@@ -237,24 +237,7 @@
     container-type: inline-size;
     color: var(--fg);
   }
-  .banner-header {
-    /* 最終更新時刻を右端へ寄せるため flex 行にする (カード header と同じ文法) */
-    display: flex;
-    align-items: center;
-    min-width: 0;
-    flex-wrap: nowrap;
-    font-size: var(--type-title-s-fluid);
-    font-weight: var(--type-title-weight-emphasized);
-    padding: 8px 16px;
-  }
-  .banner-title {
-    min-width: 0;
-    flex: 1 1 auto;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-  .banner-header :global(.updated-stamp) {
+  .standby-card-header__meta :global(.updated-stamp) {
     min-width: 0;
     max-width: 45%;
     flex: 0 1 auto;
@@ -343,6 +326,6 @@
     white-space: nowrap;
   }
   @container (max-width: 240px) {
-    .banner-header :global(.updated-stamp) { display: none; }
+    .standby-card-header__meta :global(.updated-stamp) { display: none; }
   }
 </style>

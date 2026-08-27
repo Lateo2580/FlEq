@@ -768,12 +768,12 @@ describe("StandbyScreen preserved standby behaviour", () => {
     const l4 = weather({ label: "土砂災害警戒情報", role: "weatherWarning", items: [{ kind: "L4 土砂災害危険警報", displaySeverity: "officialL4", rank: "warning", shownAreas: ["東京都"], omittedAreaCount: 0 }] });
     const l5 = weather({ source: "vpws50", items: [{ kind: "L5 大雨特別警報", displaySeverity: "officialL5", rank: "emergency", shownAreas: ["千葉県"], omittedAreaCount: 0 }] });
     const { container, rerender } = renderScreen({ weatherAlerts: [l4] });
-    expect(container.querySelector(".weather-card .card-header")?.textContent).toContain("気象危険警報");
+    expect(container.querySelector(".weather-card .standby-card-header")?.textContent).toContain("気象危険警報");
     await rerender({ snapshot: baseSnapshot({ weatherAlerts: [l4, l5] }), now, dim: false, sseConnected: true });
-    expect(container.querySelector(".weather-card .card-header")?.textContent).toContain("気象特別警報");
+    expect(container.querySelector(".weather-card .standby-card-header")?.textContent).toContain("気象特別警報");
     const l3 = weather({ label: "気象警報", role: "weatherWarning", items: [{ kind: "大雨警報", displaySeverity: "officialL3", rank: "warning", shownAreas: ["東京都"], omittedAreaCount: 0 }] });
     await rerender({ snapshot: baseSnapshot({ weatherAlerts: [l3] }), now, dim: false, sseConnected: true });
-    expect(container.querySelector(".weather-card .card-header")?.textContent).toContain("気象警報");
+    expect(container.querySelector(".weather-card .standby-card-header")?.textContent).toContain("気象警報");
   });
 
   it("keeps the latest-quake rider and card design-token contracts", () => {
@@ -1994,5 +1994,42 @@ describe("StandbyScreen replay identity and timer lifecycle", () => {
     rows(container)[0]?.click(); await tick();
     await rerender({ snapshot: baseSnapshot({ recentQuakes: [{ ...nullId, eventId: "q-later" }] }), now, dim: false, sseConnected: true });
     expect(container.querySelector(".quake-replay-card")).toBeFalsy();
+  });
+});
+
+describe("Standby card header contract", () => {
+  it("10 cards connect the shared title/meta header to their severity tokens", () => {
+    const cards = [
+      ["WeatherAlertCard.svelte", "header-weather", true],
+      ["BriefingCard.svelte", "header-weather", true],
+      ["HeatAlertCard.svelte", "header-weather", true],
+      ["FloodCard.svelte", "header-tsunamiWarning", true],
+      ["FloodWideCard.svelte", "header-tsunamiWarning", true],
+      ["TyphoonCard.svelte", "header-weather", true],
+      ["VolcanoCard.svelte", "header-weather", true],
+      ["LatestQuakeCard.svelte", "header-quake", false],
+      ["QuakeReplayCard.svelte", "header-quake", false],
+      ["TsunamiStandbyBanner.svelte", "header-tsunami", true],
+    ] as const;
+    for (const [file, token, hasMeta] of cards) {
+      const source = readFileSync(join(__dirname, "..", file), "utf8");
+      expect(source).toContain('class="standby-card-header"');
+      expect(source).toContain("standby-card-header__title");
+      expect(source.includes("standby-card-header__meta")).toBe(hasMeta);
+      expect(source).toContain(token);
+    }
+    const theme = readFileSync(join(__dirname, "../../lib/theme.css"), "utf8");
+    expect(theme).toMatch(/\.standby-card-header\s*\{[^}]*padding:\s*var\(--space-2\) var\(--space-4\);[^}]*line-height:\s*1\.18;/s);
+    expect(theme).toMatch(/\.standby-card-header__title\s*\{[^}]*min-width:\s*0;[^}]*white-space:\s*nowrap;/s);
+    expect(theme).toMatch(/\.standby-card-header__title\s*\{[^}]*text-overflow:\s*ellipsis;/s);
+    expect(theme).toMatch(/\.standby-card-header__meta\s*\{[^}]*flex:\s*0 0 auto;/s);
+    expect(theme).toMatch(/\.standby-card-header--muted\s*\{[^}]*border-bottom:\s*0;/s);
+  });
+
+  it("capture report records header child order and only asserts briefing fixtures", () => {
+    const source = readFileSync(join(__dirname, "../../../../scripts/capture-legacy-standby.mjs"), "utf8");
+    expect(source).toMatch(/const headerChildren = \[\.\.\.header\.children\]\.map\(\(child, index\)/);
+    expect(source).toContain("headerChildren,");
+    expect(source).toMatch(/else if \(fixture === "briefing-pages" \|\| fixture === "briefing-single-page"\)/);
   });
 });

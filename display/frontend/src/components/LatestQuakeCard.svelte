@@ -265,7 +265,7 @@
   data-partition-probe-count={pagePartition.probeCount}
   data-card-page-infeasible={pagePartition.infeasible ? "true" : "false"}
 >
-  <div class="banner-header" class:critical={(maxSeverityRank ?? 0) >= 7}>地震情報</div>
+  <header class="standby-card-header" style="--standby-header-container: {(maxSeverityRank ?? 0) >= 7 ? 'var(--header-quakeCritical-container)' : 'var(--header-quakeWarning-container)'}; --standby-header-on: {(maxSeverityRank ?? 0) >= 7 ? 'var(--header-quakeCritical-on)' : 'var(--header-quakeWarning-on)'}; --standby-header-band: {(maxSeverityRank ?? 0) >= 7 ? 'var(--header-band-quakeCritical)' : 'var(--header-band-quakeWarning)'}"><span class="standby-card-header__title">地震情報</span></header>
   <div class="card-body">
     <div class="summary-row">
       {#if maxVisual.render}<span class="int-chip int-r{maxVisual.colorRank ?? 0}" class:special-unknown={maxVisual.colorClass === "quake-map-unknown"} class:special-empty={maxVisual.colorClass === "quake-map-neutral"} title={maxVisual.tooltip ?? undefined} aria-label={maxVisual.ariaLabel ?? undefined}>{maxVisual.label ?? ""}{#if maxVisual.badge != null}<b class="semantic-badge">{maxVisual.badge}</b>{/if}</span>{/if}
@@ -342,22 +342,6 @@
     overflow: hidden;
     width: min(360px, 28vw);
     color: var(--fg);
-  }
-  /* 看板ヘッダ (D案標準): 意味色 container 背景 + 明るい同系文字 + 下端 CUD 色帯。津波/気象カード
-     のようなローカル var 関数は起こさず、QuakePanel の .heading/.heading.critical と同じ二値
-     クラス切替で書く (Codex 指示)。critical = maxIntRank>=7 (震度6弱以上、QuakePanel と同じ閾値) */
-  .banner-header {
-    font-size: var(--type-title-s-fluid);
-    font-weight: var(--type-title-weight-emphasized);
-    padding: 8px 16px;
-    background: var(--header-quakeWarning-container);
-    color: var(--header-quakeWarning-on);
-    border-bottom: var(--header-band-width) solid var(--header-band-quakeWarning);
-  }
-  .banner-header.critical {
-    background: var(--header-quakeCritical-container);
-    color: var(--header-quakeCritical-on);
-    border-bottom: var(--header-band-width) solid var(--header-band-quakeCritical);
   }
   /* 看板ヘッダをカード端まで届かせるため、全周 padding はヘッダ配下の本文側に移した
      (津波/気象カードと同じ構造。旧 .quake-card 直付け padding だとヘッダが内側に浮いてしまう) */

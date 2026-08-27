@@ -17,6 +17,13 @@
     displayMode?: TyphoonCardDisplayMode;
   } = $props();
   const headerTone = $derived(typhoonHeaderTone(item.data.typhoons));
+  const headerStyle = $derived(headerTone === null
+    ? ""
+    : headerTone === "emergency"
+      ? "--standby-header-container: var(--header-weatherEmergency-container); --standby-header-on: var(--header-weatherEmergency-on); --standby-header-band: var(--header-band-weatherEmergency)"
+      : headerTone === "warning"
+        ? "--standby-header-container: var(--header-weatherWarning-container); --standby-header-on: var(--header-weatherWarning-on); --standby-header-band: var(--header-band-weatherWarning)"
+        : "--standby-header-container: var(--header-weatherAdvisory-container); --standby-header-on: var(--header-weatherAdvisory-on); --standby-header-band: var(--header-band-weatherAdvisory)");
   function title(typhoon: Extract<ActiveStandbyCardV1, { kind: "typhoon" }>['data']['typhoons'][number]): string {
     const number = typhoon.typhoonNumber == null ? null : Number(typhoon.typhoonNumber.slice(2));
     return number == null || Number.isNaN(number) ? "台風" : `台風 ${number} 号${typhoon.nameKana == null ? "" : `（${typhoon.nameKana}）`}`;
@@ -107,7 +114,7 @@
 </script>
 
 <section class="standby-card typhoon-card" class:compact={displayMode === "compact"}>
-  <header class:advisory={headerTone === "advisory"} class:warning={headerTone === "warning"} class:emergency={headerTone === "emergency"}>台風情報{#if item.restored}<RestoredChip />{/if}<UpdatedStamp iso={item.updatedAt} /></header>
+  <header class="standby-card-header" class:standby-card-header--muted={headerTone === null} class:advisory={headerTone === "advisory"} class:warning={headerTone === "warning"} class:emergency={headerTone === "emergency"} style={headerStyle}><span class="standby-card-header__title">台風情報</span><span class="standby-card-header__meta">{#if item.restored}<RestoredChip />{/if}<UpdatedStamp iso={item.updatedAt} /></span></header>
   {#each item.data.typhoons as typhoon (typhoon.typhoonKey)}
     {@const pressure = legacyNumericValue(typhoon.pressureHpaSemantic, typhoon.pressureHpa)}
     {@const maxWind = legacyNumericValue(typhoon.maxWindMsSemantic, typhoon.maxWindMs)}
@@ -199,30 +206,6 @@
 
 <style>
   .standby-card { width: var(--standby-card-width, min(360px, 28vw)); background: var(--surface-standby); border: 1px solid var(--hairline); border-radius: var(--radius-standby); box-shadow: var(--elevation-2); overflow: hidden; }
-  /* 情報級カード: 警報帯は付けず、タイトル級 muted 見出し (直近の地震と同格) で警報とのヒエラルキーを守る */
-  header {
-    display: flex;
-    align-items: center;
-    padding: var(--space-2) var(--space-4);
-    color: var(--role-muted);
-    font-size: var(--type-title-s-fluid);
-    font-weight: var(--type-title-weight-emphasized);
-  }
-  .advisory {
-    background: var(--header-weatherAdvisory-container);
-    color: var(--header-weatherAdvisory-on);
-    border-bottom: var(--header-band-width) solid var(--header-band-weatherAdvisory);
-  }
-  .warning {
-    background: var(--header-weatherWarning-container);
-    color: var(--header-weatherWarning-on);
-    border-bottom: var(--header-band-width) solid var(--header-band-weatherWarning);
-  }
-  .emergency {
-    background: var(--header-weatherEmergency-container);
-    color: var(--header-weatherEmergency-on);
-    border-bottom: var(--header-band-width) solid var(--header-band-weatherEmergency);
-  }
   .typhoon { padding: var(--space-2) var(--space-4); border-top: 1px solid var(--hairline); }
   .typhoon-title-row {
     display: flex;

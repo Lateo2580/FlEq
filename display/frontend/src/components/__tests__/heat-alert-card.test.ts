@@ -46,12 +46,13 @@ describe("HeatAlertCard", () => {
     }) });
     // header は flex 一列で、タイトル span・復元チップ・日付 span が同居する
     const header = container.querySelector("header");
-    expect(header?.querySelector(".title")?.textContent).toBe("熱中症特別警戒アラート");
+    expect(header?.querySelector(".standby-card-header__title")?.textContent).toBe("熱中症特別警戒アラート");
     expect(header?.querySelector(".restored-chip")).toBeTruthy();
     expect(header?.querySelector(".date")?.textContent).toBe("12/31");
     // タイトル・日付は折り返さない (nowrap) 実装で 1 行に収める
     const src = readFileSync(join(__dirname, "..", "HeatAlertCard.svelte"), "utf-8");
-    expect(src).toMatch(/\.title\s*\{[^}]*white-space:\s*nowrap/);
+    const theme = readFileSync(join(__dirname, "../../lib/theme.css"), "utf-8");
+    expect(theme).toMatch(/\.standby-card-header__title\s*\{[^}]*white-space:\s*nowrap;/s);
     expect(src).toMatch(/\.date\s*\{[^}]*white-space:\s*nowrap/);
   });
 

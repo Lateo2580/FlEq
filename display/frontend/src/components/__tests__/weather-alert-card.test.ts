@@ -112,7 +112,7 @@ describe("WeatherAlertCard", () => {
       ],
     });
     const { container } = render(WeatherAlertCard, { alerts: [alert] });
-    const header = container.querySelector(".card-header");
+    const header = container.querySelector(".standby-card-header");
     // 見出しラベルの後ろに最終更新時刻 (UpdatedStamp) が並ぶため、ラベルは前方一致で見る
     expect(header?.textContent?.trim().startsWith("気象特別警報")).toBe(true);
     expect(header?.querySelector(".updated-stamp")?.textContent).toContain("更新");
@@ -1072,11 +1072,13 @@ describe("WeatherAlertCard", () => {
     }
   });
 
-  it("card-header は container/on/band トークンで #000 直値 fg を持たない", () => {
+  it("standby header は container/on/band トークンで #000 直値 fg を持たない", () => {
     const src = readFileSync(join(__dirname, "..", "WeatherAlertCard.svelte"), "utf-8");
+    const theme = readFileSync(join(__dirname, "../../lib/theme.css"), "utf-8");
     expect(src).toMatch(/var\(--header-weather\w+-container\)/);
-    expect(src).toContain("var(--header-band-width)");
-    // .card-header の CSS ブロックに color:#000 が残っていない
-    expect(src).not.toMatch(/\.card-header\s*\{[^}]*color:\s*#000/);
+    expect(src).toContain("--standby-header-band");
+    expect(src).toContain("standby-card-header__title");
+    expect(src).toContain("standby-card-header__meta");
+    expect(theme).not.toMatch(/\.standby-card-header\s*\{[^}]*color:\s*#000/s);
   });
 });

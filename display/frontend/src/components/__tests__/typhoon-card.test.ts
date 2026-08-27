@@ -61,6 +61,13 @@ describe("TyphoonCard", () => {
     expect(headerClass({})?.contains("advisory")).toBe(false);
   });
 
+  it("muted header は severity 変数三組を設定しない", () => {
+    const { container } = render(TyphoonCard, { item: typhoonItem([typhoon({})]) });
+    const header = container.querySelector("header.standby-card-header");
+    expect(header?.classList.contains("standby-card-header--muted")).toBe(true);
+    expect(header?.getAttribute("style") ?? "").toBe("");
+  });
+
   it("renders number, name, location, and labelled fact columns (no slash-joined facts)", () => {
     const { container } = render(TyphoonCard, { item: typhoonItem() });
     const card = container.querySelector(".typhoon");

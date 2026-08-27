@@ -33,7 +33,7 @@
 </script>
 
 <button class="quake-replay-card" type="button" onclick={handleClick}>
-  <div class="banner-header" class:critical={(maxSeverityRank ?? 0) >= 7}>地震情報</div>
+  <header class="standby-card-header" style="--standby-header-container: {(maxSeverityRank ?? 0) >= 7 ? 'var(--header-quakeCritical-container)' : 'var(--header-quakeWarning-container)'}; --standby-header-on: {(maxSeverityRank ?? 0) >= 7 ? 'var(--header-quakeCritical-on)' : 'var(--header-quakeWarning-on)'}; --standby-header-band: {(maxSeverityRank ?? 0) >= 7 ? 'var(--header-band-quakeCritical)' : 'var(--header-band-quakeWarning)'}"><span class="standby-card-header__title">地震情報</span></header>
   <div class="card-body">
     <div class="summary-row">
       {#if maxVisual.render}<span class="int-chip int-r{maxVisual.colorRank ?? 0}" class:special-unknown={maxVisual.colorClass === "quake-map-unknown"} class:special-empty={maxVisual.colorClass === "quake-map-neutral"} title={maxVisual.tooltip ?? undefined} aria-label={maxVisual.ariaLabel ?? undefined}>{maxVisual.label ?? ""}{#if maxVisual.badge != null}<b class="semantic-badge">{maxVisual.badge}</b>{/if}</span>{/if}
@@ -105,19 +105,6 @@
   .quake-replay-card:focus-visible {
     outline: 2px solid var(--role-muted);
     outline-offset: 2px;
-  }
-  .banner-header {
-    font-size: var(--type-title-s-fluid);
-    font-weight: var(--type-title-weight-emphasized);
-    padding: 8px 16px;
-    background: var(--header-quakeWarning-container);
-    color: var(--header-quakeWarning-on);
-    border-bottom: var(--header-band-width) solid var(--header-band-quakeWarning);
-  }
-  .banner-header.critical {
-    background: var(--header-quakeCritical-container);
-    color: var(--header-quakeCritical-on);
-    border-bottom: var(--header-band-width) solid var(--header-band-quakeCritical);
   }
   .card-body {
     padding: var(--space-3) var(--space-4);

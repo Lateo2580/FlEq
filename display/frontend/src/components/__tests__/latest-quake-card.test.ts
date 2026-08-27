@@ -67,25 +67,25 @@ describe("LatestQuakeCard", () => {
     it("ラベル「地震情報」を render する", () => {
       const quake = latestQuake();
       const { container } = render(LatestQuakeCard, { quake });
-      expect(container.querySelector(".banner-header")?.textContent).toBe("地震情報");
+      expect(container.querySelector(".standby-card-header")?.textContent).toBe("地震情報");
     });
 
     it("maxIntRank が7未満 (震度6弱未満) では critical クラスを持たない", () => {
       const quake = latestQuake({ maxIntRank: 5 });
       const { container } = render(LatestQuakeCard, { quake });
-      expect(container.querySelector(".banner-header")?.classList.contains("critical")).toBe(false);
+      expect(container.querySelector(".standby-card-header")?.getAttribute("style")).toContain("header-quakeWarning-container");
     });
 
     it("maxIntRank が7以上 (震度6弱以上) では critical クラスを持つ", () => {
       const quake = latestQuake({ maxIntRank: 7 });
       const { container } = render(LatestQuakeCard, { quake });
-      expect(container.querySelector(".banner-header")?.classList.contains("critical")).toBe(true);
+      expect(container.querySelector(".standby-card-header")?.getAttribute("style")).toContain("header-quakeCritical-container");
     });
 
     it("maxIntRank が null では critical クラスを持たない", () => {
       const quake = latestQuake({ maxIntRank: null });
       const { container } = render(LatestQuakeCard, { quake });
-      expect(container.querySelector(".banner-header")?.classList.contains("critical")).toBe(false);
+      expect(container.querySelector(".standby-card-header")?.getAttribute("style")).toContain("header-quakeWarning-container");
     });
   });
 
@@ -252,7 +252,7 @@ describe("LatestQuakeCard", () => {
       ],
     }) });
     expect(container.querySelector(".summary-row .int-chip")).toBeNull();
-    expect(container.querySelector(".banner-header")?.classList.contains("critical")).toBe(false);
+    expect(container.querySelector(".standby-card-header")?.getAttribute("style")).toContain("header-quakeWarning-container");
     expect(container.querySelectorAll(".groups li")).toHaveLength(1);
     expect(container.textContent).not.toContain("地域欠落");
     expect(container.textContent).not.toContain("震度7");

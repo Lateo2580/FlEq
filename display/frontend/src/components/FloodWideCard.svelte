@@ -80,6 +80,11 @@
   // L5 氾濫発生=黒帯白枠白リボン黄文字、FloodCard と同型)
   const maxLevelRank = $derived(item.data.rivers.reduce((max, river) => Math.max(max, river.levelRank), 0));
   const band = $derived(maxLevelRank >= 50 ? "flooding" : maxLevelRank >= 40 ? "emergency" : "red");
+  const headerStyle = $derived(band === "flooding"
+    ? "--standby-header-container: #000; --standby-header-on: var(--c-yellow); --standby-header-band: #fff"
+    : band === "emergency"
+      ? "--standby-header-container: var(--header-weatherEmergency-container); --standby-header-on: var(--header-weatherEmergency-on); --standby-header-band: var(--header-band-weatherEmergency)"
+      : "--standby-header-container: var(--header-tsunamiWarning-container); --standby-header-on: var(--header-tsunamiWarning-on); --standby-header-band: var(--header-band-tsunamiWarning)");
 
   // prefers-reduced-motion を購読する (StandbyScreen の既存パターンを踏襲)。matchMedia 未実装環境
   // (jsdom 等) ではスキップし通常 duration。reduced-motion では flip/in/out/高さ遷移すべて duration 0。
@@ -111,7 +116,7 @@
 </script>
 
 <section class="standby-card flood-wide-card band-{band}" class:paged-flood={paginationActive} data-page-probe-card={measurementRange != null ? "" : undefined} data-page-probe-body={measurementRange != null ? "" : undefined} data-partition-probe-count={measurementPartition.probeCount} data-card-page={pageDiagnostics.page} data-card-page-keys={JSON.stringify(pageDiagnostics.keys)} data-card-page-identities={JSON.stringify(pageDiagnostics.identities)} data-flood-page-range={currentRange == null ? "" : `${currentRange.start}:${currentRange.end}`} data-card-page-infeasible={pagePartition.infeasible ? aggregateClipped ? "clip" : "aggregate" : "false"}>
-  <header>河川洪水情報{#if item.restored}<RestoredChip />{/if}</header>
+  <header class="standby-card-header" style={headerStyle}><span class="standby-card-header__title">河川洪水情報</span>{#if item.restored}<span class="standby-card-header__meta"><RestoredChip /></span>{/if}</header>
   <div class="river-grid-wrap" style={gridWrapStyle}>
   <div class="river-grid" use:measureBorderHeight={(height) => (gridHeightPx = height)}>
     {#each rows as row, index (row.key)}
@@ -167,30 +172,10 @@
 
 <style>
   .standby-card { width: min(720px, 56vw); max-height: 30vh; background: var(--surface-standby); border: 1px solid var(--hairline); border-radius: var(--radius-standby); box-shadow: var(--elevation-2); overflow: hidden; container-type: inline-size; }
-  /* 看板ヘッダ帯 (FloodCard と同型): band クラスで段階切替 (L3=赤 / L4=紫 / L5=氾濫発生黒帯) */
-  header {
-    display: flex;
-    align-items: center;
-    padding: var(--space-2) var(--space-4);
-    font-size: var(--type-title-s-fluid);
-    font-weight: var(--type-title-weight-emphasized);
-  }
-  .band-red header {
-    background: var(--header-tsunamiWarning-container);
-    color: var(--header-tsunamiWarning-on);
-    border-bottom: var(--header-band-width) solid var(--header-band-tsunamiWarning);
-  }
   /* L5 氾濫発生 = 黒背景・白細枠 (1px)・下端リボン白・文字黄 (FloodCard と同型) */
-  .band-flooding header {
-    background: #000;
-    color: var(--c-yellow);
+  .band-flooding .standby-card-header {
     border: 1px solid #fff;
     border-bottom: var(--header-band-width) solid #fff;
-  }
-  .band-emergency header {
-    background: var(--header-weatherEmergency-container);
-    color: var(--header-weatherEmergency-on);
-    border-bottom: var(--header-band-width) solid var(--header-band-weatherEmergency);
   }
   /* 河川セル増減でカード高さが「がくん」と変わらないよう、内側 grid の実測自然高を明示 height
      として受けて CSS transition で追う箱。overflow:hidden で縮小途中のはみ出しを切る。
