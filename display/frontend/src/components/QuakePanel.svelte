@@ -169,11 +169,16 @@
   let probeMeasurements = $state<Record<string, ProbeMeasurement>>({});
   let pendingProbeBox: { width: number; height: number } | null = null;
   const pendingProbeMeasurements = new Map<string, ProbeMeasurement>();
+  // spec §4 の再測定契機 document.fonts.ready を probe cache にも伝える。fallback
+  // フォントで測った partition は本フォント適用後に数 px 太り、コンテナ寸法が
+  // 変わらないため世代を混ぜないと再測定されない（macOS gate 実測 268 vs 264）
+  let fontsGeneration = $state(0);
+  void (typeof document === "undefined" ? null : document.fonts?.ready?.then(() => { fontsGeneration = 1; }));
   const quakeProbeFingerprint = $derived(pageContentFingerprint(
     { compact },
     quakeAreaEntries.map(({ identity, fingerprint }) => ({ identity, fingerprint })),
   ));
-  const quakeProbeGeneration = $derived(`${quakeProbeFingerprint}:w${Math.round(probeWidth * 100) / 100}:h${Math.round(probeHeight * 100) / 100}`);
+  const quakeProbeGeneration = $derived(`${quakeProbeFingerprint}:f${fontsGeneration}:w${Math.round(probeWidth * 100) / 100}:h${Math.round(probeHeight * 100) / 100}`);
   function quakeProbeId(range: Pick<PageRange, "start" | "end">): string {
     return `${quakeProbeGeneration}:${range.start}:${range.end}`;
   }

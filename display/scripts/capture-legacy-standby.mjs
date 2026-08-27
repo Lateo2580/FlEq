@@ -209,17 +209,24 @@ async function captureLiveGeometry({ chrome, profileDir, url, viewport }) {
     if (page == null) throw new Error("Chrome DevTools page target did not become ready");
     const attached = await cdp.command("Target.attachToTarget", { targetId: page.targetId, flatten: true });
     await wait(500);
-    const result = await cdp.command("Runtime.evaluate", {
+    // Panels animate on entry (height reveal) and re-partition on fonts.ready.
+    // A single early sample reads a mid-animation body as a containment
+    // violation, so wait for the web font and require two identical
+    // consecutive samples before trusting the geometry.
+    const evaluateGeometry = () => cdp.command("Runtime.evaluate", {
       awaitPromise: true,
       returnByValue: true,
-      expression: `(() => {
+      expression: `(async () => {
+        await (document.fonts?.ready ?? Promise.resolve());
         const pick = (selector) => [...document.querySelectorAll(selector)]
           .filter((node) => node.clientWidth > 0 && node.clientHeight > 0)
           .sort((left, right) => right.getBoundingClientRect().width * right.getBoundingClientRect().height - left.getBoundingClientRect().width * left.getBoundingClientRect().height)[0] ?? null;
         const measure = (node) => node == null ? null : (() => {
           const rect = node.getBoundingClientRect();
           const style = getComputedStyle(node);
-          return { clientWidth: node.clientWidth, scrollWidth: node.scrollWidth, clientHeight: node.clientHeight, scrollHeight: node.scrollHeight, width: rect.width, height: rect.height, maxHeight: style.maxHeight };
+          const chain = [];
+          for (let parent = node.parentElement, depth = 0; parent != null && depth < 5; parent = parent.parentElement, depth += 1) chain.push(parent.className.split(" ").slice(0, 2).join("."));
+          return { clientWidth: node.clientWidth, scrollWidth: node.scrollWidth, clientHeight: node.clientHeight, scrollHeight: node.scrollHeight, width: rect.width, height: rect.height, maxHeight: style.maxHeight, cls: node.className, chain, hiddenAncestor: node.closest('[aria-hidden="true"], [hidden], [inert]') != null };
         })();
         const overlap = (left, right) => left == null || right == null ? 0 : (() => {
           const a = left.getBoundingClientRect();
@@ -236,7 +243,20 @@ async function captureLiveGeometry({ chrome, profileDir, url, viewport }) {
         return { heat: measure(pick('.heat-card')), tsunamiBanner: measure(pick('.tsunami-banner')), panels };
       })()`,
     }, attached.sessionId);
-    return result.result.value;
+    // Entry animations (height reveal) can hold a mid-flight value for several
+    // hundred ms, so space the samples wider than any single transition.
+    await wait(1500);
+    let previous = null;
+    let latest = null;
+    for (let sample = 0; sample < 15; sample += 1) {
+      const result = await evaluateGeometry();
+      latest = result.result.value;
+      const serialized = JSON.stringify(latest);
+      if (previous === serialized) break;
+      previous = serialized;
+      await wait(1500);
+    }
+    return latest;
   } finally {
     cdp.close();
     child.kill("SIGTERM");

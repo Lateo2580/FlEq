@@ -329,6 +329,9 @@
   let probeMeasurements = $state<Record<string, ProbeMeasurement>>({});
   let pendingProbeBox: { width: number; height: number } | null = null;
   const pendingProbeMeasurements = new Map<string, ProbeMeasurement>();
+  // spec §4 の再測定契機 document.fonts.ready を probe cache にも伝える（QuakePanel と同型）
+  let fontsGeneration = $state(0);
+  void (typeof document === "undefined" ? null : document.fonts?.ready?.then(() => { fontsGeneration = 1; }));
   const tsunamiProbeFingerprint = $derived(pageContentFingerprint(
     { compact },
     tsunamiSections.flatMap((section) => sectionEntries(section).map((entry) => ({
@@ -336,7 +339,7 @@
       fingerprint: entry.fingerprint,
     }))),
   ));
-  const tsunamiProbeGeneration = $derived(`${tsunamiProbeFingerprint}:w${Math.round(probeWidth * 100) / 100}:h${Math.round(probeHeight * 100) / 100}`);
+  const tsunamiProbeGeneration = $derived(`${tsunamiProbeFingerprint}:f${fontsGeneration}:w${Math.round(probeWidth * 100) / 100}:h${Math.round(probeHeight * 100) / 100}`);
   function tsunamiProbeId(sectionId: string, range: Pick<PageRange, "start" | "end">): string {
     return `${tsunamiProbeGeneration}:${sectionId}:${range.start}:${range.end}`;
   }
