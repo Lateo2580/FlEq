@@ -756,6 +756,8 @@ export type DisplayBriefingKindV1 =
   | "recordRain"
   | "shortSnow";
 
+export type BriefingApproximation = "approx" | "atLeast" | "exact" | "unknown";
+
 export type DisplayBriefingFactV1 =
   | {
       kind: "event";
@@ -765,7 +767,19 @@ export type DisplayBriefingFactV1 =
       at: string | null;
     }
   | {
-      kind: "precipitation" | "snowfall";
+      kind: "precipitation";
+      locationName: string | null;
+      locationCode: string | null;
+      description: string;
+      value: number | null;
+      unit: string | null;
+      at: string | null;
+      /** additive wire v2; old V1 snapshots may omit both fields. */
+      duration?: string | null;
+      approximation?: BriefingApproximation;
+    }
+  | {
+      kind: "snowfall";
       locationName: string | null;
       locationCode: string | null;
       description: string;

@@ -59,8 +59,8 @@ const BRIEFING_STATIC_SUMMARY_FACTS: Readonly<Record<string, readonly Record<str
   ],
   "82_03_01_260324_VPBS50.xml": [{ kind: "event", label: "予想", areaName: "福岡地方", areaCode: "400010", at: "2023-07-10T01:50:00+09:00" }],
   "82_01_02_250630_VPBS50.xml": [
-    { kind: "precipitation", locationName: "美幌町", locationCode: "0154300", description: "約１００ミリ", value: 100, unit: "mm", at: "2023-07-13T13:10:00+09:00" },
-    { kind: "precipitation", locationName: "美幌", locationCode: "17631", description: "９３ミリ", value: 93, unit: "mm", at: "2023-07-13T13:10:00+09:00" },
+    { kind: "precipitation", locationName: "美幌町", locationCode: "0154300", description: "約１００ミリ", value: 100, unit: "mm", at: "2023-07-13T13:10:00+09:00", duration: "1時間", approximation: "approx" },
+    { kind: "precipitation", locationName: "美幌", locationCode: "17631", description: "９３ミリ", value: 93, unit: "mm", at: "2023-07-13T13:10:00+09:00", duration: "1時間", approximation: "exact" },
   ],
   "82_01_03_241031_VPBS50.xml": [{ kind: "snowfall", locationName: "長浜市余呉町柳ケ瀬", locationCode: "60026", description: "３７センチ", value: 37, unit: "cm", at: "2024-01-24T06:00:00+09:00" }],
 };
@@ -1618,7 +1618,10 @@ describe("StandbyStateStore: independent briefing card", () => {
         mode: "structured", hasUnknownKind: false,
         items: [{
           kind: "recordRain", lead: "記録的短時間大雨", sourceOrdinal: 0,
-          facts: facts!.map((fact) => ({ kind: "precipitation", ...fact })),
+          facts: facts!.map((fact) => ({
+            kind: "precipitation", ...fact, duration: "1時間",
+            approximation: fact.description.normalize("NFKC").startsWith("約") ? "approx" : fact.description.normalize("NFKC").endsWith("以上") ? "atLeast" : "exact",
+          })),
         }],
       });
     } else {

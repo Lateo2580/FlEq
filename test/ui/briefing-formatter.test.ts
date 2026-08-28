@@ -112,6 +112,8 @@ describe("displayWeatherBriefing - Phase D 配色言語", () => {
               locationCode: "999999",
               sourceType: "予測",
               contextTime: "2026-08-27T12:00:00+09:00",
+              duration: null,
+              approximation: "unknown" as const,
             },
           ],
         };

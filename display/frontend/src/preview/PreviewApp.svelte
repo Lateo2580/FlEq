@@ -663,7 +663,7 @@
         in:fade={{ duration: fixtureTransitionDuration ?? calmDur }}
         out:fade={{ duration: fixtureTransitionDuration ?? exitDur }}
       >
-        <StandbyScreen {snapshot} {now} {dim} reducedMotion={reducedMotionForPreview} {sseConnected} {gateFixture} onStageChange={(stage) => { if (mode === "standby") standbyStage = stage; }} />
+        <StandbyScreen {snapshot} {now} {dim} reducedMotion={reducedMotionForPreview} {sseConnected} {gateFixture} partitionDebug={true} onStageChange={(stage) => { if (mode === "standby") standbyStage = stage; }} />
       </div>
     {:else}
       <div

@@ -2261,25 +2261,23 @@ export const briefingStandbyItems: ActiveStandbyCardV1[] = [
     data: { generation: 3, entries: [
       {
         key: "card:vpbs:preview", source: "vpbs50", sourceEventId: "VPBS50-preview", editorialOffice: "富山地方気象台",
-        phenomenonKind: "linearRainObserved", semanticKey: "card:vpbs:semantic:linearRainObserved:富山地方気象台", serial: "3",
-        title: "富山県気象防災速報", headline: null, conditions: ["線状降水帯が発生"],
+        phenomenonKind: "recordRain", semanticKey: "card:vpbs:semantic:recordRain:富山地方気象台", serial: "3",
+        title: "富山県気象防災速報（記録的短時間大雨）", headline: null, conditions: ["記録的短時間大雨"],
         targetAreas: [{ name: "西部", code: "160020" }, { name: "東部", code: "160010" }], reportDateTime: "2026-07-07T14:31:00+09:00",
         publishingOffice: "富山地方気象台", infoType: "発表", frameLevel: "critical", severityEvidence: [], qualifier: null,
         updatedAt: "2026-07-07T14:31:00+09:00", expiresAt: "2026-07-07T16:31:00+09:00", generation: 1,
-        summary: { mode: "structured", hasUnknownKind: false, items: [{ kind: "linearRainObserved", lead: "線状降水帯が発生", sourceOrdinal: 0, facts: [
-          { kind: "event", label: "発生", areaName: "富山県西部", areaCode: "160020", at: "2026-07-07T14:30:00+09:00" },
+        summary: { mode: "structured", hasUnknownKind: false, items: [{ kind: "recordRain", lead: "記録的短時間大雨", sourceOrdinal: 0, facts: [
+          { kind: "precipitation", locationName: "高岡市", locationCode: "16202", description: "約１００ミリ", value: 100, unit: "mm", at: "2026-07-07T14:20:00+09:00", duration: "1時間", approximation: "approx" },
         ] }] },
       },
       {
         key: "card:vpoa:preview", source: "vpoa50", sourceEventId: "VPOA50-preview", editorialOffice: "富山地方気象台",
         phenomenonKind: null, semanticKey: null, serial: "1",
-        title: "富山県気象防災速報", headline: null, conditions: [],
+        title: "富山県記録的短時間大雨情報", headline: "１４時２０分、富山県高岡市で記録的短時間大雨。\n高岡市付近で１時間に約１００ミリ。", conditions: [],
         targetAreas: [{ name: "西部", code: "160020" }], reportDateTime: "2026-07-07T14:32:00+09:00",
         publishingOffice: "富山地方気象台", infoType: "発表", frameLevel: "warning", severityEvidence: [], qualifier: "未確認",
         updatedAt: "2026-07-07T14:32:00+09:00", expiresAt: "2026-07-07T16:32:00+09:00", generation: 2,
-        summary: { mode: "structured", hasUnknownKind: false, items: [{ kind: "recordRain", lead: "記録的短時間大雨", sourceOrdinal: 0, facts: [
-          { kind: "precipitation", locationName: "高岡市", locationCode: "16202", description: "約１００ミリ", value: 100, unit: "mm", at: "2026-07-07T14:20:00+09:00" },
-        ] }] },
+        summary: { mode: "structured", hasUnknownKind: false, items: [{ kind: "recordRain", lead: "記録的短時間大雨", sourceOrdinal: 0, facts: [] }] },
       },
       {
         key: "card:vpbs:cancel-preview", source: "vpbs50", sourceEventId: "VPBS50-cancel-preview", editorialOffice: "富山地方気象台",
@@ -2308,14 +2306,24 @@ export const briefingPagingStandbyItems: ActiveStandbyCardV1[] = [{
 }];
 
 /** Phase 4 browser gate: one complete entry must remain a one-page atom, with
- * no pager footer, through the same live layout path as the split fixture. */
+ * no pager footer, through the same live layout path as the split fixture.
+ * At the side's 305px card width, removing the context/area rows leaves the
+ * 34px header + roughly 52px lead/meta + roughly 100px two-column stat grid
+ * and vertical padding: about 202px, safely inside the 252px content budget. */
 export const briefingSinglePageStandbyItems: ActiveStandbyCardV1[] = [{
   ...briefingPagingBase,
   key: "briefing:phase4-single-page",
   sourceEventIds: ["card:vpbs:preview"],
   data: {
     generation: 5,
-    entries: briefingPagingBase.data.entries.slice(0, 1),
+    entries: [{
+      ...briefingPagingBase.data.entries[0]!,
+      // This fixture verifies the no-footer browser branch, not target-area
+      // wrapping. Keep the VPBS50 stat grid but remove rows that would make
+      // an otherwise single observation span the narrow side shell.
+      title: "記録的短時間大雨",
+      targetAreas: [],
+    }],
   },
 }];
 

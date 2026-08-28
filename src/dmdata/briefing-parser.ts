@@ -3,6 +3,7 @@ import {
   ParsedWeatherBriefing,
   WeatherBriefingTag,
   WeatherObservation,
+  BriefingApproximation,
   BriefingTargetArea,
   BriefingSeverityEvidence,
   DisplaySeverity,
@@ -184,6 +185,26 @@ function deriveObservationDescription(
   return "";
 }
 
+function precipitationDuration(type: string): string | null {
+  const match = /^前([0-9]+)時間(?:解析雨量|降水量)$/.exec(type.normalize("NFKC"));
+  return match == null ? null : `${match[1]}時間`;
+}
+
+function precipitationApproximation(
+  condition: string,
+  description: string,
+  value: number | null,
+): BriefingApproximation {
+  const normalizedCondition = condition.normalize("NFKC").trim();
+  if (normalizedCondition === "約") return "approx";
+  if (normalizedCondition === "以上") return "atLeast";
+  if (normalizedCondition !== "") return "unknown";
+  const normalizedDescription = description.normalize("NFKC");
+  if (/^約[0-9]+ミリ$/.test(normalizedDescription)) return "approx";
+  if (/^[0-9]+ミリ以上$/.test(normalizedDescription)) return "atLeast";
+  return value == null ? "unknown" : "exact";
+}
+
 /** Body Property.Type を exact に分類する。本文や headline の推測はしない。 */
 function briefingObservationPartKind(
   propertyType: string,
@@ -291,6 +312,8 @@ function extractObservations(body: unknown): WeatherObservation[] {
                 locationCode,
                 sourceType,
                 contextTime,
+                duration: null,
+                approximation: "unknown",
               });
               continue;
             }
@@ -301,6 +324,7 @@ function extractObservations(body: unknown): WeatherObservation[] {
               const precip = dig(precipPart, "jmx_eb:Precipitation");
               const description = str(dig(precip, "@_description"));
               const altType = str(dig(precip, "@_type"));
+              const condition = str(dig(precip, "@_condition"));
               const unit = str(dig(precip, "@_unit")) || null;
               const valueStr = nodeText(precip);
               const valueNum = parseFloat(valueStr);
@@ -317,6 +341,8 @@ function extractObservations(body: unknown): WeatherObservation[] {
                 locationCode,
                 sourceType,
                 contextTime,
+                duration: precipitationDuration(altType),
+                approximation: precipitationApproximation(condition, description, value),
               });
               continue;
             }
@@ -343,6 +369,8 @@ function extractObservations(body: unknown): WeatherObservation[] {
                 locationCode,
                 sourceType,
                 contextTime,
+                duration: null,
+                approximation: "unknown",
               });
               continue;
             }
@@ -359,6 +387,8 @@ function extractObservations(body: unknown): WeatherObservation[] {
               locationCode,
               sourceType,
               contextTime,
+              duration: null,
+              approximation: "unknown",
             });
           }
         }

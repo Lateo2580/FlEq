@@ -248,6 +248,9 @@ fixture・テスト対象:
 - `test/dmdata/briefing-parser.test.ts`
 - `test/engine/display/briefing-corpus-0827.test.ts`
 - `test/engine/display/standby-state-store.test.ts`
+- `test/ui/briefing-formatter.test.ts`（実装時裁定 2026-08-28: WeatherObservation の必須 field 追加に伴う手書き fixture の型追従。typecheck:test の機械的必然）
+- `test/fixtures/phase6b-legacy-card-production.json`（実装時裁定 2026-08-28: precipitation wire の duration/approximation 追加に伴う bytes snapshot 再生成。既存 assertion の意味は不変）
+- `test/engine/telegram-foundation/phase6b-legacy-card-production.test.ts`（同上・snapshot 期待の wire 追従が必要な場合のみ）
 - `display/frontend/src/components/__tests__/briefing-card.test.ts`
 - `display/frontend/src/components/__tests__/standby.test.ts`
 

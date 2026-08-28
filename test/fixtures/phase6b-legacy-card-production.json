@@ -129,7 +129,9 @@
                         "description": "約１００ミリ",
                         "value": 100,
                         "unit": "mm",
-                        "at": "2026-08-22T17:00:00+09:00"
+                        "at": "2026-08-22T17:00:00+09:00",
+                        "duration": "1時間",
+                        "approximation": "approx"
                       },
                       {
                         "kind": "precipitation",
@@ -138,7 +140,9 @@
                         "description": "約１００ミリ",
                         "value": 100,
                         "unit": "mm",
-                        "at": "2026-08-22T17:00:00+09:00"
+                        "at": "2026-08-22T17:00:00+09:00",
+                        "duration": "1時間",
+                        "approximation": "approx"
                       }
                     ]
                   }
@@ -304,7 +308,9 @@
                         "description": "約１００ミリ",
                         "value": 100,
                         "unit": "mm",
-                        "at": "2026-08-22T17:00:00+09:00"
+                        "at": "2026-08-22T17:00:00+09:00",
+                        "duration": "1時間",
+                        "approximation": "approx"
                       },
                       {
                         "kind": "precipitation",
@@ -313,7 +319,9 @@
                         "description": "約１００ミリ",
                         "value": 100,
                         "unit": "mm",
-                        "at": "2026-08-22T17:00:00+09:00"
+                        "at": "2026-08-22T17:00:00+09:00",
+                        "duration": "1時間",
+                        "approximation": "approx"
                       }
                     ]
                   }

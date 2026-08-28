@@ -1399,6 +1399,9 @@ export type WeatherBriefingTag =
   | "shortSnow"            // 短時間大雪
   | "other";
 
+/** 雨量値に付く XML 上の条件を表示用に正規化したもの。 */
+export type BriefingApproximation = "approx" | "atLeast" | "exact" | "unknown";
+
 /** Phase D: 電文固有語彙の severity 解決元 (監査用) */
 export type TelegramSeverityResolutionSource = "map" | "unknown" | "none";
 
@@ -1435,6 +1438,10 @@ export interface WeatherObservation {
   sourceType: string | null;
   /** MeteorologicalInfo.DateTime (Part.Time が無いときの fallback) */
   contextTime: string | null;
+  /** Precipitation@type から安全に読める時間幅。推測しない。 */
+  duration: string | null;
+  /** Precipitation の condition / description から得た数値修飾。 */
+  approximation: BriefingApproximation;
 }
 
 /** 対象地域 (Headline.Information.Item.Areas) */

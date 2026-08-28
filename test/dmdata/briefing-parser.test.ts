@@ -86,6 +86,26 @@ describe("parseWeatherBriefing - 記録的短時間大雨", () => {
     );
     expect(hasPrecipObs).toBe(true);
   });
+
+  it("Precipitation の時間幅と約／以上を推測せずに正規化する", () => {
+    const bihar = parseWeatherBriefing(createMockWsDataMessage("82_01_02_250630_VPBS50.xml"))!;
+    expect(bihar.observations).toEqual(expect.arrayContaining([
+      expect.objectContaining({ locationName: "美幌町", value: 100, unit: "mm", duration: "1時間", approximation: "approx" }),
+      expect.objectContaining({ locationName: "美幌", value: 93, unit: "mm", duration: "1時間", approximation: "exact" }),
+    ]));
+    const tokyo = parseWeatherBriefing(createMockWsDataMessage("phase6b_VPBS50_KJPTK202608221709_202608221717.xml"))!;
+    expect(tokyo.observations).toEqual(expect.arrayContaining([
+      expect.objectContaining({ value: 120, unit: "mm", duration: "1時間", approximation: "atLeast" }),
+    ]));
+  });
+
+  it("Precipitation の未知 condition は description の形にかかわらず unknown を優先する", () => {
+    const message = createMockWsDataMessage("82_01_02_250630_VPBS50.xml");
+    message.body = encodeXml(readFixture("82_01_02_250630_VPBS50.xml").replace('condition="約"', 'condition="未詳"'));
+    expect(parseWeatherBriefing(message)!.observations).toEqual(expect.arrayContaining([
+      expect.objectContaining({ locationName: "美幌町", approximation: "unknown" }),
+    ]));
+  });
 });
 
 describe("parseWeatherBriefing - 短時間大雪", () => {

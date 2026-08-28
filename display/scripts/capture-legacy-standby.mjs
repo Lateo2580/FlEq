@@ -19,6 +19,7 @@ const DEFAULT_SCENARIOS = ["quiet", "4", "7", "max", "max-floodWide"];
 const SUPPORTED_SCENARIOS = [...DEFAULT_SCENARIOS];
 const DEFAULT_VIEWPORTS = ["1920x1080", "1512x982", "1280x720", "960x620"];
 const FLOOD_WIDE_VIEWPORTS = ["1920x1080", "1280x720"];
+const BRIEFING_PAGING_PAGE_COUNT = 3;
 const ATTENTION_VISIBILITY_FIXTURES = new Set(["attention-visibility-standby", "attention-visibility-emergency", "attention-visibility-reduced-motion"]);
 const MIME_TYPES = new Map([
   [".css", "text/css"], [".html", "text/html"], [".js", "text/javascript"],
@@ -276,6 +277,8 @@ async function captureLiveGeometry({ chrome, profileDir, url, viewport }) {
             surface,
             probe: card.hasAttribute('data-page-probe-card'),
             probeFit: card.closest('[data-prefix-measure]')?.getAttribute('data-page-probe-fit') ?? null,
+            probeId: card.closest('[data-prefix-measure]')?.getAttribute('data-prefix-measure') ?? null,
+            probeComposition: card.closest('[data-prefix-measure]')?.getAttribute('data-page-probe-composition') ?? null,
             page: card.getAttribute('data-card-page') ?? '',
             range: card.getAttribute('data-briefing-page-range') ?? '',
             atomRange: card.querySelector('[data-briefing-page-atom]')?.getAttribute('data-briefing-page-atom-range') ?? '',
@@ -287,6 +290,14 @@ async function captureLiveGeometry({ chrome, profileDir, url, viewport }) {
             pending: card.getAttribute('data-card-page-pending') ?? '',
             frameLevels: [...card.querySelectorAll('[data-briefing-page-atom-entry]')].map((entry) => entry.getAttribute('data-frame-level') ?? ''),
             entryKeys: [...card.querySelectorAll('[data-briefing-page-atom-entry]')].map((entry) => entry.getAttribute('data-briefing-entry') ?? ''),
+            entryFacts: [...card.querySelectorAll('[data-briefing-page-atom-entry]')].map((entry) => ({
+              precipitationStats: entry.querySelectorAll('[data-briefing-precipitation-stat]').length,
+              precipitationLocations: entry.querySelectorAll('[data-briefing-precipitation-location]').length,
+              precipitationAmounts: entry.querySelectorAll('[data-briefing-precipitation-amount]').length,
+              precipitationTimes: entry.querySelectorAll('[data-briefing-precipitation-time]').length,
+              vpoaHeadlines: entry.querySelectorAll('[data-briefing-vpoa-headline]').length,
+              vpoaTokens: entry.querySelectorAll('[data-briefing-vpoa-token]').length,
+            })),
             readable: [...card.querySelectorAll('[data-page-probe-readable]')].map(measure),
           };
           });
@@ -565,7 +576,7 @@ function assertCardContainment(diagnostics) {
   if (overflow !== 0) throw new Error(`card scroll containment invalid: ${overflow} overflowing card(s): ${diagnostics["data-card-overflow-keys"]}; paged viewport: ${diagnostics["data-page-viewport-overflow-keys"]}`);
 }
 
-function assertBriefingPagingFixture(geometry, { expectedPage, expectedFooter, expectedEntryBoundary }) {
+function assertBriefingPagingFixture(geometry, { expectedPage, expectedFooter, expectedEntryBoundary, expectTokenizedVpoa }) {
   const cards = geometry?.briefingCards ?? [];
   const live = cards.filter((card) => !card.shelf);
   const probes = cards.filter((card) => card.shelf && card.probe);
@@ -635,6 +646,13 @@ function assertBriefingPagingFixture(geometry, { expectedPage, expectedFooter, e
   if (live[0].page !== expectedPage || (live[0].footer != null) !== expectedFooter
     || !probes.every((card) => (card.footer != null) === expectedFooter)) {
     throw new Error(`briefing page footer contract failed: ${JSON.stringify({ expectedPage, expectedFooter, live: live[0], probes })}`);
+  }
+  const entryFacts = cards.flatMap((card) => card.entryFacts ?? []);
+  if (!entryFacts.some((facts) => facts.precipitationStats > 0 && facts.precipitationLocations > 0
+    && facts.precipitationAmounts > 0 && facts.precipitationTimes > 0)
+    || expectTokenizedVpoa && (!entryFacts.some((facts) => facts.vpoaHeadlines > 0 && facts.vpoaTokens > 0)
+      || entryFacts.some((facts) => facts.vpoaHeadlines > 0 && facts.precipitationStats > 0))) {
+    throw new Error(`briefing fact selector contract failed: ${JSON.stringify(entryFacts)}`);
   }
 }
 
@@ -855,8 +873,8 @@ async function capture({ chrome, profileDir, url, scenario, viewport, outDir, ro
       assertAttentionVisibilityFixture(dom, diagnostics, fixture, attentionGeometry, baselineGeometry);
     } else if (fixture === "briefing-pages" || fixture === "briefing-single-page") {
       assertBriefingPagingFixture(attentionGeometry, fixture === "briefing-pages"
-        ? { expectedPage: `${(cardPageTick ?? 0) + 1}/2`, expectedFooter: true, expectedEntryBoundary: true }
-        : { expectedPage: "1/1", expectedFooter: false, expectedEntryBoundary: false });
+        ? { expectedPage: `${(cardPageTick ?? 0) + 1}/${BRIEFING_PAGING_PAGE_COUNT}`, expectedFooter: true, expectedEntryBoundary: true, expectTokenizedVpoa: true }
+        : { expectedPage: "1/1", expectedFooter: false, expectedEntryBoundary: false, expectTokenizedVpoa: false });
     }
   }
   // EmergencyScreen has no StandbyScreen layout tracks. It instead runs the live panel
@@ -939,10 +957,12 @@ async function main() {
           // Deterministically drive the real page coordinator through every
           // resolved briefing page, then prove the no-footer one-page branch
           // on its own live browser fixture.
-          results.push(await capture({
-            chrome, profileDir, url: gateUrl(baseUrl, scenario, 0, options.fixture, 1), scenario, viewport, outDir,
-            rotationTick: 0, cardPageTick: 1, assertTable: !options.report, fixture: options.fixture,
-          }));
+          for (let pageTick = 1; pageTick < BRIEFING_PAGING_PAGE_COUNT; pageTick += 1) {
+            results.push(await capture({
+              chrome, profileDir, url: gateUrl(baseUrl, scenario, 0, options.fixture, pageTick), scenario, viewport, outDir,
+              rotationTick: 0, cardPageTick: pageTick, assertTable: !options.report, fixture: options.fixture,
+            }));
+          }
           results.push(await capture({
             chrome, profileDir, url: gateUrl(baseUrl, scenario, 0, "briefing-single-page", 0), scenario, viewport, outDir,
             rotationTick: 0, cardPageTick: 0, assertTable: !options.report, fixture: "briefing-single-page",

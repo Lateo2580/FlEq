@@ -4,12 +4,14 @@ import { tick } from "svelte";
 import BriefingCard from "../BriefingCard.svelte";
 import StandbyScreen from "../StandbyScreen.svelte";
 import { initialState, reduce } from "../../lib/store";
-import type { ActiveStandbyCardV1, DisplayEventDtoV1, DisplayStateSnapshotV1 } from "../../lib/protocol";
+import type { ActiveStandbyCardV1, DisplayBriefingFactV1, DisplayEventDtoV1, DisplayStateSnapshotV1 } from "../../lib/protocol";
 import { createCardPageCoordinator } from "../../lib/legacy-standby/time-slice-scheduler.svelte";
 import { parseWeatherBriefing } from "../../../../../src/dmdata/briefing-parser";
 import { StandbyStateStore } from "../../../../../src/engine/display/standby-state-store";
 import { fromBriefingOutcome } from "../../../../../src/engine/presentation/events/from-briefing";
 import { processBriefing } from "../../../../../src/engine/presentation/processors/process-briefing";
+import { processLegacyCounterpart } from "../../../../../src/engine/presentation/processors/process-legacy-counterpart";
+import { fromLegacyCounterpartOutcome } from "../../../../../src/engine/presentation/events/from-legacy-counterpart";
 import { briefingPagingStandbyItems, briefingSinglePageStandbyItems } from "../../preview/fixtures";
 import {
   createMockWsDataMessage,
@@ -36,6 +38,18 @@ function briefing(entries = 1): Extract<ActiveStandbyCardV1, { kind: "briefing" 
       })),
     },
   };
+}
+
+function recordRainItem(fact: DisplayBriefingFactV1): Extract<ActiveStandbyCardV1, { kind: "briefing" }> {
+  const item = briefing();
+  const entry = item.data.entries[0]!;
+  entry.phenomenonKind = "recordRain";
+  entry.semanticKey = "card:vpbs:semantic:recordRain:気象庁";
+  entry.summary = {
+    mode: "structured", hasUnknownKind: false,
+    items: [{ kind: "recordRain", lead: "記録的短時間大雨", sourceOrdinal: 0, facts: [fact] }],
+  };
+  return item;
 }
 
 function snapshotWithBriefing(item: Extract<ActiveStandbyCardV1, { kind: "briefing" }> | null): DisplayStateSnapshotV1 {
@@ -83,6 +97,16 @@ function corpusBriefing(fixture: string): Extract<ActiveStandbyCardV1, { kind: "
   return item;
 }
 
+function legacyCorpusBriefing(fixture: string): Extract<ActiveStandbyCardV1, { kind: "briefing" }> {
+  const outcome = processLegacyCounterpart(createMockWsDataMessage(fixture));
+  if (outcome == null) throw new Error(`legacy briefing corpus did not parse: ${fixture}`);
+  const store = new StandbyStateStore();
+  store.applyEvent(fromLegacyCounterpartOutcome(outcome), Date.parse(outcome.parsed.reportDateTime) + 1);
+  const item = store.snapshotBriefingCard();
+  if (item == null) throw new Error(`legacy briefing corpus did not reach wire: ${fixture}`);
+  return item;
+}
+
 describe("BriefingCard", () => {
   it("engine frame level をそのまま描画し、raw XML ではなく card payload だけを表示する", () => {
     const { container } = render(BriefingCard, { item: briefing(), shellHeightPx: 260 });
@@ -95,6 +119,7 @@ describe("BriefingCard", () => {
     expect(entry?.textContent).toContain("防災気象情報 1");
     expect(entry?.textContent).toContain("対象: 宮崎県");
     expect(container.querySelector<HTMLElement>("[data-briefing-card]")?.style.height).toBe("260px");
+    expect(container.querySelector("[data-briefing-card]")?.hasAttribute("data-briefing-partition-debug")).toBe(false);
   });
 
   it("entry block identity ごとに pager へ登録し、同じ page shell で描画する", () => {
@@ -107,6 +132,37 @@ describe("BriefingCard", () => {
     expect(coordinator.cardDiagnostics("briefing")).toMatchObject({ page: "1/2", identities: ["card:vpbs:1:title:raw-title:0", "card:vpbs:2:headline:raw-headline:0"] });
     expect(container.querySelectorAll("[data-briefing-entry]")).toHaveLength(2);
     expect(container.querySelector("[data-card-page-footer]")).toBeTruthy();
+    coordinator.dispose();
+  });
+
+  it("実測 candidate 高では shell に収まる最大 range を採用する", () => {
+    const coordinator = createCardPageCoordinator();
+    const { container } = render(BriefingCard, {
+      item: briefing(2), pageCoordinator: coordinator, pageScheduling: true, shellHeightPx: 260,
+      partitionProbe: (_key, _placement, range) => (range.end - range.start) * 50,
+    });
+
+    expect(coordinator.cardDiagnostics("briefing")).toMatchObject({ page: "1/2" });
+    expect(container.querySelector<HTMLElement>("[data-briefing-card]")?.dataset.briefingPageRange).toBe("0:5");
+    coordinator.dispose();
+  });
+
+  it("後続 atom の不適合で先行の最大 fit range を捨てず、残りだけを保全 page にする", () => {
+    const item = briefingPagingStandbyItems[0];
+    if (item == null || item.kind !== "briefing") throw new Error("briefing-pages fixture is missing");
+    const coordinator = createCardPageCoordinator();
+    const calls: string[] = [];
+    const { container } = render(BriefingCard, {
+      item, pageCoordinator: coordinator, pageScheduling: true, shellHeightPx: 253.88,
+      partitionProbe: (_key, _placement, range) => {
+        calls.push(`${range.start}:${range.end}`);
+        return range.start === 0 && range.end <= 4 ? 0 : 2;
+      },
+    });
+
+    expect(container.querySelector<HTMLElement>("[data-briefing-card]")?.dataset.briefingPageRange).toBe("0:4");
+    expect(coordinator.cardDiagnostics("briefing").page).not.toBe("1/10");
+    expect(calls).toContain("5:6");
     coordinator.dispose();
   });
 
@@ -137,6 +193,18 @@ describe("BriefingCard", () => {
     expect(container.querySelectorAll("[data-page-probe-readable]")).toHaveLength(1);
   });
 
+  it("briefing-pages fixture の atom 4 は一つ目 entry の atomic fact だけである", () => {
+    const item = briefingPagingStandbyItems[0];
+    if (item == null || item.kind !== "briefing") throw new Error("briefing-pages fixture is missing");
+    const { container } = render(BriefingCard, {
+      item, measurementRange: { start: 4, end: 5, tails: [], omittedAreaCount: 0 }, shellHeightPx: 253.88,
+    });
+    expect(container.querySelector<HTMLElement>("[data-briefing-entry]")?.dataset.frameLevel).toBe("critical");
+    expect([...container.querySelectorAll<HTMLElement>("[data-briefing-block]")].map((block) => block.dataset.briefingBlock))
+      .toEqual(["card:vpbs:preview:fact:fact:0:precipitation:16202:0:0"]);
+    expect(container.querySelector("[data-briefing-vpoa-headline]")).toBeNull();
+  });
+
   it("briefing-single-page fixture は live pager 経路で footer なしの 1/1 を保つ", () => {
     const item = briefingSinglePageStandbyItems[0];
     if (item == null || item.kind !== "briefing") throw new Error("briefing-single-page fixture is missing");
@@ -147,6 +215,9 @@ describe("BriefingCard", () => {
     });
     expect(coordinator.cardDiagnostics("briefing")).toMatchObject({ page: "1/1" });
     expect(container.querySelector("[data-card-page-footer]")).toBeNull();
+    expect(container.querySelector("[data-briefing-prefecture-context], [data-briefing-target-regions]")).toBeNull();
+    expect(container.querySelector("[data-briefing-precipitation-stat]")).toBeTruthy();
+    expect(container.querySelectorAll("[data-briefing-block]")).toHaveLength(3);
     coordinator.dispose();
   });
 
@@ -249,6 +320,10 @@ describe("BriefingCard", () => {
       const card = node.matches("[data-page-probe-card]") ? node : node.closest<HTMLElement>("[data-page-probe-card]");
       const [start = 0, end = 0] = (card?.dataset.briefingPageRange ?? "0:0").split(":").map(Number);
       const count = end - start;
+      // Reproduce the browser-only handoff: the initial candidate signature
+      // is rejected, then the pager's settled footer signature must schedule
+      // and consume a new probe epoch rather than retaining 1 atom/page.
+      if (card?.closest<HTMLElement>("[data-page-probe-composition]")?.dataset.pageProbeComposition?.startsWith("briefing-footer:candidate")) return 254;
       return count <= 5 ? 230 : count === 6 ? 254 : 340;
     };
     Object.defineProperty(window, "innerHeight", { configurable: true, value: 577 });
@@ -286,9 +361,11 @@ describe("BriefingCard", () => {
       } },
     });
     try {
+      const item = briefingPagingStandbyItems[0];
+      if (item == null || item.kind !== "briefing") throw new Error("briefing-pages fixture is missing");
       const { container } = render(StandbyScreen, {
-        snapshot: snapshotWithBriefing(briefing(2)), now: new Date("2026-08-25T12:00:00+09:00"),
-        dim: false, sseConnected: true,
+        snapshot: snapshotWithBriefing(item), now: new Date("2026-08-25T12:00:00+09:00"),
+        dim: false, sseConnected: true, partitionDebug: true,
         testMeasurementOverride: {
           layoutWidthPx: 1280, layoutHeightPx: 1_000,
           leftTrackWidthPx: 307, centerTrackWidthPx: 576, rightTrackWidthPx: 307,
@@ -301,16 +378,30 @@ describe("BriefingCard", () => {
 
       for (let pass = 0; pass < 80; pass += 1) await tick();
 
-      expect(live()?.dataset.cardPage).toBe("1/2");
+      expect(live()?.dataset.cardPage).toBe("1/3");
       expect(live()?.dataset.cardPagePending).toBe("false");
-      expect(JSON.parse(live()?.dataset.cardPageIdentities ?? "[]")).toHaveLength(2);
+      expect(JSON.parse(live()?.dataset.cardPageIdentities ?? "[]")).toHaveLength(3);
       expect(live()?.dataset.briefingPageRange).toBe("0:5");
       expect(live()?.dataset.briefingShellHeightPx).toBe("253.88");
       expect(live()?.querySelectorAll("[data-briefing-block]")).toHaveLength(5);
+      const partitionDebug = JSON.parse(live()?.dataset.briefingPartitionDebug ?? "{}") as {
+        chromeSignature?: string;
+        pendingProbeCount?: number;
+        cache?: Array<{ id: string; fit: number }>;
+        probeReads?: Array<{ range: string; measured: number | null; basis: string }>;
+      };
+      expect(partitionDebug.chromeSignature).toMatch(/^briefing-footer:present:epoch:/);
+      expect(partitionDebug.chromeSignature).toContain(":width:307");
+      expect(partitionDebug.pendingProbeCount).toBe(0);
+      expect(partitionDebug.cache?.some((entry) => entry.id.includes("placement:side") && entry.fit === 0)).toBe(true);
+      expect(partitionDebug.probeReads?.some((read) => read.range === "0:5" && read.measured === 0 && read.basis === "0")).toBe(true);
       const rejectedBoundary = Array.from(container.querySelectorAll<HTMLElement>("[data-prefix-measure]"))
-        .find((probe) => probe.dataset.prefixMeasure?.startsWith("briefing:page-fit:0:6"));
+        .find((probe) => probe.dataset.prefixMeasure?.startsWith("briefing:page-fit:0:6")
+          && probe.dataset.pageProbeComposition?.startsWith("briefing-footer:present"));
       expect(rejectedBoundary?.dataset.pageProbeFit).toBe("false");
       expect(rejectedBoundary?.querySelector("[data-card-page-footer]")).toBeTruthy();
+      expect(container.querySelector("[data-page-probe-composition^='briefing-footer:candidate']")).toBeNull();
+      expect(container.querySelector<HTMLElement>("[data-page-probe-composition^='briefing-footer:present']")?.dataset.pageProbeFit).toBe("true");
     } finally {
       for (const [name, descriptor] of Object.entries(descriptors)) {
         if (descriptor == null) delete (HTMLElement.prototype as unknown as Record<string, unknown>)[name];
@@ -395,23 +486,20 @@ describe("BriefingCard", () => {
     expect(entries[1]?.classList.contains("entry-divider")).toBe(true);
   });
 
-  it("現象 lead・観測 fact・取消・VPOA50 の未確認 qualifier を本文で維持する", () => {
+  it("現象 lead・取消・VPOA50 の本文と未確認 qualifier を維持し、VPOA50 に stat grid を作らない", () => {
     const item = briefing(2);
     const observation = item.data.entries[0]!;
     observation.source = "vpoa50";
     observation.qualifier = "未確認";
-    observation.summary = {
-      mode: "structured", hasUnknownKind: false,
-      items: [{ kind: "recordRain", lead: "記録的短時間大雨", sourceOrdinal: 0, facts: [
-        { kind: "precipitation", locationName: "美幌町", locationCode: "001", description: "約１００ミリ", value: 100, unit: "mm", at: "2026-08-25T13:10:00+09:00" },
-      ] }],
-    };
+    observation.headline = "１７時５０分に北塩原村付近で１時間に約１００ミリの雨を解析しました。";
+    observation.summary = { mode: "structured", hasUnknownKind: false, items: [{ kind: "recordRain", lead: "記録的短時間大雨", sourceOrdinal: 0, facts: [] }] };
     const cancelled = item.data.entries[1]!;
     cancelled.summary = { mode: "cancellation", hasUnknownKind: false, items: [] };
     const { container } = render(BriefingCard, { item, shellHeightPx: 260 });
 
     expect(container.textContent).toContain("記録的短時間大雨");
-    expect(container.textContent).toContain("美幌町 約１００ミリ / 13:10");
+    expect(container.textContent).toContain("北塩原村付近");
+    expect(container.querySelectorAll("[data-briefing-precipitation-stat]")).toHaveLength(0);
     expect(container.textContent).toContain("未確認");
     expect(container.textContent).toContain("気象防災速報を取消");
   });
@@ -424,6 +512,15 @@ describe("BriefingCard", () => {
     { mode: "structured", items: [{ kind: "recordRain", lead: "雨", sourceOrdinal: 0, facts: [{}] }], hasUnknownKind: false },
     { mode: "structured", items: [{ kind: "recordRain", lead: "雨", sourceOrdinal: 0, facts: [
       { kind: "precipitation", locationName: "地点", locationCode: "1", description: "約１００ミリ", unit: "mm", at: null },
+    ] }], hasUnknownKind: false },
+    { mode: "structured", items: [{ kind: "recordRain", lead: "雨", sourceOrdinal: 0, facts: [
+      { kind: "precipitation", locationName: "地点", locationCode: "1", description: "100ミリ", value: 100, unit: "mm", at: null, duration: 1 },
+    ] }], hasUnknownKind: false },
+    { mode: "structured", items: [{ kind: "recordRain", lead: "雨", sourceOrdinal: 0, facts: [
+      { kind: "precipitation", locationName: "地点", locationCode: "1", description: "100ミリ", value: 100, unit: "mm", at: null, approximation: "roughly" },
+    ] }], hasUnknownKind: false },
+    { mode: "structured", items: [{ kind: "recordRain", lead: "雨", sourceOrdinal: 0, facts: [
+      { kind: "precipitation", locationName: "地点", locationCode: "1", description: " ", value: 100, unit: "mm", at: null, duration: "1時間", approximation: "exact" },
     ] }], hasUnknownKind: false },
   ])("summary の不正 shape は raw headline fallback にする: %o", (summary) => {
     const item = briefing();
@@ -470,7 +567,7 @@ describe("BriefingCard", () => {
 
     expect(container.textContent).toContain("記録的短時間大雨");
     expect(container.textContent).toContain("ほか1地域");
-    expect(container.textContent).toContain("美幌町 約１００ミリ / 13:10");
+    expect(container.querySelector("[data-briefing-precipitation-stat]")?.textContent).toContain("美幌町");
     expect(container.textContent).not.toContain("長い raw title");
     expect(container.textContent).not.toContain("長い raw headline");
   });
@@ -585,5 +682,137 @@ describe("BriefingCard", () => {
       "非常に長い石川県加賀の対象地域", "非常に長い石川県能登の対象地域",
     ]);
     expect(cities).toHaveLength(4);
+  });
+
+  it("VPBS50 美幌町 100mm 13:10 は地点ごとの atomic stat grid にする", () => {
+    const item = corpusBriefing("82_01_02_250630_VPBS50.xml");
+    const { container } = render(BriefingCard, { item, shellHeightPx: 260 });
+    const grids = container.querySelectorAll<HTMLElement>("[data-briefing-precipitation-stat]");
+    expect(grids).toHaveLength(2);
+    expect(grids[0]?.textContent).toContain("美幌町");
+    expect(grids[0]?.textContent).toContain("約 100mm");
+    expect(grids[0]?.textContent).toContain("13:10");
+    expect(grids[0]?.textContent).toContain("1時間");
+    expect(grids[1]?.textContent).toContain("美幌");
+    expect(grids[1]?.textContent).toContain("93mm");
+  });
+
+  it("VPBS50 北塩原村 100mm 17:50 は DOM tile にする", () => {
+    const { container } = render(BriefingCard, { item: corpusBriefing("phase6b_VPBS50_KJPDE202608201757_202608201757.xml"), shellHeightPx: 260 });
+    const tile = container.querySelector<HTMLElement>("[data-briefing-precipitation-stat]");
+    expect(tile?.querySelector("[data-briefing-precipitation-location]")?.textContent).toContain("北塩原村");
+    expect(tile?.querySelector("[data-briefing-precipitation-amount]")?.textContent).toContain("100mm");
+    expect(tile?.querySelector("[data-briefing-precipitation-time]")?.textContent).toContain("17:50");
+  });
+
+  it("VPBS50 は locationName 欠損でも残りの tile cells を描画する", () => {
+    const { container } = render(BriefingCard, { item: recordRainItem({ kind: "precipitation", locationName: null, locationCode: null, description: "100ミリ", value: 100, unit: "mm", at: "2026-08-25T13:10:00+09:00", duration: "1時間", approximation: "exact" }), shellHeightPx: 260 });
+    const tile = container.querySelector<HTMLElement>("[data-briefing-precipitation-stat]");
+    expect(tile?.querySelector("[data-briefing-precipitation-location]")).toBeNull();
+    expect(tile?.querySelector("[data-briefing-precipitation-time]")?.textContent).toContain("13:10");
+  });
+
+  it("VPBS50 は at 欠損でも残りの tile cells を描画する", () => {
+    const { container } = render(BriefingCard, { item: recordRainItem({ kind: "precipitation", locationName: "地点", locationCode: null, description: "100ミリ", value: 100, unit: "mm", at: null, duration: "1時間", approximation: "exact" }), shellHeightPx: 260 });
+    const tile = container.querySelector<HTMLElement>("[data-briefing-precipitation-stat]");
+    expect(tile?.querySelector("[data-briefing-precipitation-time]")).toBeNull();
+    expect(tile?.querySelector("[data-briefing-precipitation-duration]")?.textContent).toContain("1時間");
+  });
+
+  it("VPBS50 は duration 欠損でも残りの tile cells を描画する", () => {
+    const { container } = render(BriefingCard, { item: recordRainItem({ kind: "precipitation", locationName: "地点", locationCode: null, description: "100ミリ", value: 100, unit: "mm", at: "2026-08-25T13:10:00+09:00", duration: null, approximation: "exact" }), shellHeightPx: 260 });
+    const tile = container.querySelector<HTMLElement>("[data-briefing-precipitation-stat]");
+    expect(tile?.querySelector("[data-briefing-precipitation-duration]")).toBeNull();
+    expect(tile?.querySelector("[data-briefing-precipitation-time]")?.textContent).toContain("13:10");
+  });
+
+  it("VPBS50 は approximation unknown を無標識の tile として描画する", () => {
+    const { container } = render(BriefingCard, { item: recordRainItem({ kind: "precipitation", locationName: "地点", locationCode: null, description: "100ミリ", value: 100, unit: "mm", at: "2026-08-25T13:10:00+09:00", duration: "1時間", approximation: "unknown" }), shellHeightPx: 260 });
+    const amount = container.querySelector<HTMLElement>("[data-briefing-precipitation-amount]");
+    expect(amount?.textContent).toContain("100mm");
+    expect(amount?.textContent).not.toContain("約");
+    expect(amount?.textContent).not.toContain("以上");
+  });
+
+  it("VPBS50 は value のみ null なら fact 全体を plain text に fail-open する", () => {
+    const { container } = render(BriefingCard, { item: recordRainItem({ kind: "precipitation", locationName: "欠損地点", locationCode: null, description: "雨量不明", value: null, unit: "mm", at: "2026-08-25T13:10:00+09:00", duration: "1時間", approximation: "unknown" }), shellHeightPx: 260 });
+    expect(container.querySelectorAll("[data-briefing-precipitation-stat]")).toHaveLength(0);
+    expect(container.textContent).toContain("欠損地点 雨量不明 / 13:10");
+  });
+
+  it("VPBS50 は unit のみ null なら fact 全体を plain text に fail-open する", () => {
+    const { container } = render(BriefingCard, { item: recordRainItem({ kind: "precipitation", locationName: "欠損地点", locationCode: null, description: "雨量不明", value: 100, unit: null, at: "2026-08-25T13:10:00+09:00", duration: "1時間", approximation: "unknown" }), shellHeightPx: 260 });
+    expect(container.querySelectorAll("[data-briefing-precipitation-stat]")).toHaveLength(0);
+    expect(container.textContent).toContain("欠損地点 雨量不明 / 13:10");
+  });
+
+  it("VPBS50 corpus の以上表記は数値 tile の後置修飾として保つ", () => {
+    const { container } = render(BriefingCard, { item: corpusBriefing("phase6b_VPBS50_KJPTK202608221709_202608221717.xml"), shellHeightPx: 260 });
+    const tile = container.querySelector<HTMLElement>("[data-briefing-precipitation-stat]");
+    expect(tile?.textContent).toContain("120mm 以上");
+  });
+
+  it("線状降水帯 fact は地点・状態・時刻を一つの atomic 強調行に保つ", () => {
+    const { container } = render(BriefingCard, { item: corpusBriefing(FIXTURE_VPBS50_HJPNA202608270258), shellHeightPx: 260 });
+    const fact = container.querySelector<HTMLElement>("[data-briefing-event-fact]");
+    expect(fact?.textContent).toContain("西部　発生　02:50");
+    expect(fact?.querySelectorAll("strong")).toHaveLength(2);
+  });
+
+  it("VPOA50 headline は原文を保った token 強調だけを行い、stat grid を作らない", () => {
+    const item = legacyCorpusBriefing("phase6b_VPOA50_JPDE202608201757_202608201757.xml");
+    const entry = item.data.entries[0]!;
+    const { container } = render(BriefingCard, { item, shellHeightPx: 260 });
+    const headline = [...container.querySelectorAll<HTMLElement>("[data-briefing-vpoa-headline]")].map((node) => node.textContent).join("");
+    const tokens = [...container.querySelectorAll<HTMLElement>("[data-briefing-vpoa-token]")].map((node) => node.textContent);
+    expect(headline).toBe(entry.headline);
+    expect(container.querySelectorAll("[data-briefing-vpoa-headline]").length).toBeGreaterThan(0);
+    expect(tokens).toEqual(expect.arrayContaining(["１７時５０分", "福島県北塩原村", "北塩原村付近", "１時間に約１００ミリ"]));
+    expect(container.querySelectorAll("[data-briefing-precipitation-stat]")).toHaveLength(0);
+  });
+
+  it("VPOA50 KJPTK 1717 は 120mm以上を強調し、stat grid を作らない", () => {
+    const item = legacyCorpusBriefing("phase6b_VPOA50_JPTK202608221709_202608221717.xml");
+    const { container } = render(BriefingCard, { item, shellHeightPx: 260 });
+    expect([...container.querySelectorAll<HTMLElement>("[data-briefing-vpoa-token]")].map((node) => node.textContent)).toEqual(expect.arrayContaining(["１時間に１２０ミリ以上"]));
+    expect(container.querySelectorAll("[data-briefing-precipitation-stat]")).toHaveLength(0);
+  });
+
+  it("VPOA50 tokenizer は安全に認識できない箇所を plain text のまま保つ", () => {
+    const item = briefing();
+    const entry = item.data.entries[0]!;
+    entry.source = "vpoa50";
+    entry.headline = "1時間は時刻でない。<img src=x> 北区、板橋区で記録的短時間大雨。";
+    entry.targetAreas = [];
+    entry.summary = { mode: "structured", hasUnknownKind: false, items: [{ kind: "recordRain", lead: "記録的短時間大雨", sourceOrdinal: 0, facts: [] }] };
+    const { container } = render(BriefingCard, { item, shellHeightPx: 260 });
+    const headline = [...container.querySelectorAll<HTMLElement>("[data-briefing-vpoa-headline]")].map((node) => node.textContent).join("");
+    expect(headline).toBe(entry.headline);
+    expect(container.querySelector("img")).toBeNull();
+    const tokens = [...container.querySelectorAll<HTMLElement>("[data-briefing-vpoa-token]")].map((node) => node.textContent);
+    expect(tokens).toEqual(expect.arrayContaining(["北区", "板橋区"]));
+    expect(tokens).not.toContain("1時間");
+  });
+
+  it("VPOA50 tokenizer は offset 写像不能・候補なし・優先競合を plain fail-open する", () => {
+    const item = briefing(3);
+    const [unmapped, none, overlap] = item.data.entries;
+    if (unmapped == null || none == null || overlap == null) throw new Error("three briefing entries are required");
+    for (const entry of [unmapped, none, overlap]) {
+      entry.source = "vpoa50";
+      entry.summary = { mode: "structured", hasUnknownKind: false, items: [{ kind: "recordRain", lead: "記録的短時間大雨", sourceOrdinal: 0, facts: [] }] };
+    }
+    unmapped.headline = "㍑の雨です。";
+    unmapped.targetAreas = [{ name: "ット", code: "1" }];
+    none.headline = "本文に認識対象はありません。";
+    none.targetAreas = [];
+    overlap.headline = "１時間に約１００ミリ。";
+    overlap.targetAreas = [{ name: "約１００ミリ", code: "2" }];
+    const { container } = render(BriefingCard, { item, shellHeightPx: 260 });
+    const headlines = [...container.querySelectorAll<HTMLElement>("[data-briefing-vpoa-headline]")];
+    expect(headlines.map((node) => node.textContent)).toEqual([unmapped.headline, none.headline, overlap.headline]);
+    expect(headlines[0]?.querySelectorAll("[data-briefing-vpoa-token]")).toHaveLength(0);
+    expect(headlines[1]?.querySelectorAll("[data-briefing-vpoa-token]")).toHaveLength(0);
+    expect([...headlines[2]?.querySelectorAll<HTMLElement>("[data-briefing-vpoa-token]") ?? []].map((node) => node.textContent)).toEqual(["１時間に約１００ミリ"]);
   });
 });

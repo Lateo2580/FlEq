@@ -2001,6 +2001,10 @@ function observationFacts(
       value: observation.value,
       unit: observation.unit,
       at: observation.time,
+      ...(partKind === "precipitation" ? {
+        duration: observation.duration,
+        approximation: observation.approximation,
+      } : {}),
     }));
 }
 

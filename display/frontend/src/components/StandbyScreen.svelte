@@ -29,7 +29,7 @@
   import WeatherAlertCard from "./WeatherAlertCard.svelte";
 
   type TestMeasurementOverride = Partial<Record<string, number>> | ((pass: number) => Partial<Record<string, number>>);
-  let { snapshot, now, dim, reducedMotion = false, sseConnected, onTsunamiReplay, onStageChange, testMeasurementOverride, testLateProbeDuringFinalCommit, testProbeAfterMeasurementPass, testBeforeTerminalCommit, testAfterTerminalBoundary, rotationTick, cardPageTick, gateFixture }: {
+  let { snapshot, now, dim, reducedMotion = false, sseConnected, onTsunamiReplay, onStageChange, testMeasurementOverride, testLateProbeDuringFinalCommit, testProbeAfterMeasurementPass, testBeforeTerminalCommit, testAfterTerminalBoundary, rotationTick, cardPageTick, gateFixture, partitionDebug = false }: {
     snapshot: DisplayStateSnapshotV1;
     now: Date;
     dim: boolean;
@@ -52,6 +52,8 @@
     cardPageTick?: number;
     /** Preview gate only; production App never supplies this. */
     gateFixture?: "overflow" | "overlap" | "rotation" | "cluster" | "cluster-calm" | "tornado-pages" | "tornado-aggregate" | "tornado-clip" | "tornado-epoch-release" | "recent-quakes-narrow" | "attention-visibility-standby" | "briefing-pages" | "briefing-single-page";
+    /** Preview-only partition telemetry; production App never enables this. */
+    partitionDebug?: boolean;
   } = $props();
 
   export type { EpochCoordinator } from "../lib/legacy-standby/epoch-coordinator";
@@ -109,6 +111,12 @@
     floodAggregateFallback?: boolean;
     /** A rider probe is keyed by the weather shell context it shares. */
     composition?: string;
+    /**
+     * Briefing's cache identity includes the settled footer contract.  Keep
+     * the rendered probe footer with that entry, rather than reading the
+     * coordinator's later page state while reusing an older cache key.
+     */
+    briefingMeasurementPageFooter?: boolean;
     weatherRange?: PageRange;
     weatherSelectionRows?: number;
     tornadoAggregateFallback?: boolean;
@@ -235,6 +243,9 @@
   let contentDemotionRequested = false;
   let settling = false;
   let settleRequested = false;
+  let briefingProbeSettleQueued = false;
+  let briefingSuccessorEpochStarts = $state(0);
+  let briefingLastSuccessorEpoch = $state<string | null>(null);
   let disposed = false;
   let lastInputKey = "";
   let lastContentKey = "";
@@ -246,6 +257,19 @@
 
   function registerLayoutCard(node: HTMLElement, identity: LayoutMotionIdentity) {
     return layoutMotionCoordinator.register(node, identity);
+  }
+
+  function scheduleBriefingProbeSettle(): void {
+    if (briefingProbeSettleQueued) return;
+    briefingProbeSettleQueued = true;
+    queueMicrotask(() => {
+      briefingProbeSettleQueued = false;
+      if (!disposed && measurementSettled) {
+        requestSettle();
+        briefingSuccessorEpochStarts += 1;
+        briefingLastSuccessorEpoch = epochKey;
+      }
+    });
   }
 
   function clearCloseTimer(): void {
@@ -296,9 +320,9 @@
   // Cache keys must follow the same chrome signature. Otherwise a candidate
   // measured with provisional footer geometry could be reused after the live
   // pager settles to 1/1 (or vice versa).
-  const briefingMeasurementChromeSignature = $derived(briefingMeasurementPageFooter == null
-    ? "briefing-footer:candidate"
-    : `briefing-footer:${briefingMeasurementPageFooter ? "present" : "absent"}`);
+  const briefingMeasurementChromeBase = $derived(briefingMeasurementPageFooter == null
+    ? `briefing-footer:candidate:epoch:${epochKey}`
+    : `briefing-footer:${briefingMeasurementPageFooter ? "present" : "absent"}:epoch:${epochKey}`);
   const nankaiItem = $derived(itemOf("nankaiTrough"));
   const hasWeather = $derived(snapshot.weatherAlerts.length > 0 || tornadoItem != null);
   const hasQuake = $derived(snapshot.latestQuake != null || selectedRecentQuake != null);
@@ -480,16 +504,43 @@
       if (epoch === 0) return null;
       coordinator.enqueueProbe(id, () => {
         if (prefixMeasureEntries.some((entry) => entry.id === id)) return;
+        // A briefing footer contract is a measurement generation, not an
+        // additional candidate set. Once chrome changes, discard the older
+        // same-surface probes and their cached sentinels before mounting the
+        // new set, so a live partition can never mix candidate/present (or a
+        // prior epoch) results.
+        if (key === "briefing" && composition != null) {
+          const staleIds = new Set(prefixMeasureEntries
+            .filter((entry) => entry.key === "briefing" && entry.placement === placement && entry.composition !== composition)
+            .map((entry) => entry.id));
+          if (staleIds.size > 0) {
+            prefixMeasureEntries = prefixMeasureEntries.filter((entry) => !staleIds.has(entry.id));
+            prefixMeasurements = Object.fromEntries(Object.entries(prefixMeasurements)
+              .filter(([entryId]) => !staleIds.has(entryId)));
+          }
+        }
         prefixMeasureEntries = [...prefixMeasureEntries, {
           id, key, placement, start: range.start, end: range.end,
           tails: [...tails], omittedAreaCount: range.omittedAreaCount, purpose: "page", fixedHeightPx, floodForm,
           floodAggregateFallback: key === "flood" && range.start === 0 && range.end === 0,
           composition,
+          briefingMeasurementPageFooter: key !== "briefing" ? undefined
+            : composition?.startsWith("briefing-footer:present") ? true
+            : composition?.startsWith("briefing-footer:absent") ? false
+            : undefined,
           weatherRange,
           weatherSelectionRows,
           tornadoAggregateFallback: key === "tornado" && range.start === 0 && range.end === 0 && range.omittedAreaCount > 0,
         }];
       });
+      // The pager's settled page count changes briefing's chrome signature.
+      // That can happen only after the normal layout settle has released the
+      // pager, so these signature-specific probes otherwise remain queued
+      // forever: the live card reads their missing cache as infeasible and
+      // falls back to one atom per page. Start a successor epoch for that
+      // post-release queue. requestSettle clears measurementSettled before
+      // another caller can schedule a duplicate successor.
+      if (key === "briefing" && measurementSettled) scheduleBriefingProbeSettle();
       return null;
     };
   }
@@ -632,6 +683,21 @@
     if (trackWidth <= 0) return undefined;
     return placement === "center" ? trackWidth : Math.min(480, trackWidth);
   }
+  // A range cache is valid only for the physical width at which its atom was
+  // measured. The shelf begins outside the grid, so a pre-track side probe
+  // must never suppress the settled-width suffix probe chain.
+  const briefingSideChromeSignature = $derived(`${briefingMeasurementChromeBase}:width:${Math.round(briefingProbeWidth("side") ?? 0)}`);
+  const briefingCenterChromeSignature = $derived(`${briefingMeasurementChromeBase}:width:${Math.round(briefingProbeWidth("center") ?? 0)}`);
+  const briefingPartitionDebugContext = $derived({
+    chromeSignature: briefingSideChromeSignature,
+    pendingProbeCount: coordinator.pendingProbeCount(),
+    cache: Object.entries(prefixMeasurements)
+      .filter(([id]) => id.startsWith("briefing:page-fit:"))
+      .sort(([left], [right]) => left.localeCompare(right))
+      .map(([id, fit]) => ({ id, fit })),
+    successorEpochStarts: briefingSuccessorEpochStarts,
+    lastSuccessorEpoch: briefingLastSuccessorEpoch,
+  });
   function selectedCardHeight(card: CardCandidate, placement: Placement): number {
     if (card.key === "weather" && tornadoPagingOrProbing()) return weatherTornadoContractHeight;
     if (card.key === "briefing") return briefingPageShellHeight;
@@ -1754,8 +1820,10 @@
       pageCoordinator={measuring ? undefined : cardPageCoordinator}
       rotationMember={!measuring && renderPlan.rotationKeys.includes("briefing")}
       pageScheduling={!measuring}
-      partitionProbe={measuring ? undefined : pagePartitionProbe("briefing", placement === "center" ? "center" : "side", briefingPageShellHeight, undefined, briefingMeasurementChromeSignature)}
+      partitionProbe={measuring ? undefined : pagePartitionProbe("briefing", placement === "center" ? "center" : "side", briefingPageShellHeight, undefined, placement === "center" ? briefingCenterChromeSignature : briefingSideChromeSignature)}
       partitionRevision={briefingPartitionRevision}
+      partitionDebugContext={briefingPartitionDebugContext}
+      partitionDebugEnabled={partitionDebug || gateFixture != null}
       partitionEpoch={epochKey}
       pagePlacement={placement === "center" ? "center" : "side"}
       shellHeightPx={briefingPageShellHeight}
@@ -1800,7 +1868,7 @@
          under-measured a grouped weather card by its omitted-row height. -->
     <WeatherAlertCard alerts={weatherWithSelection(entry.selectionRows ?? entry.end)} tornado={tornadoItem} pageScheduling={true} measurementRange={entry} pagePlacement={entry.placement} forceTornadoPagingContract={tornadoPagingContractActive()} />
   {:else if entry.key === "briefing" && briefingItem != null}
-    <BriefingCard item={briefingItem} pageCoordinator={cardPageCoordinator} pageScheduling={false} measurementRange={entry} partitionRevision={briefingPartitionRevision} partitionEpoch={epochKey} measurementWidthPx={briefingProbeWidth(entry.placement)} measurementPageFooter={briefingMeasurementPageFooter} shellHeightPx={briefingPageShellHeight} pagePlacement={entry.placement} />
+    <BriefingCard item={briefingItem} pageCoordinator={cardPageCoordinator} pageScheduling={false} measurementRange={entry} partitionRevision={briefingPartitionRevision} partitionEpoch={epochKey} measurementWidthPx={briefingProbeWidth(entry.placement)} measurementPageFooter={entry.briefingMeasurementPageFooter} shellHeightPx={briefingPageShellHeight} pagePlacement={entry.placement} />
   {:else if entry.key === "flood" && floodItem != null}
     {#if entry.floodForm === "wide"}
       <FloodWideCard item={floodItem} measurementRange={entry} measurementPageFooter={!entry.floodAggregateFallback} measurementInfeasibleFallback={entry.floodAggregateFallback} pagePlacement={entry.placement} measurementFixedHeightPx={entry.fixedHeightPx ?? floodWideFixedHeightPx} pageForm="wide" />
@@ -1948,7 +2016,7 @@
       <!-- Briefing probes render the same atom as its final side page. The
            candidate range itself decides whether a footer is present. -->
       <div class="partition-preflight">
-        <BriefingCard item={briefingItem} pageScheduling={false} partitionProbe={pagePartitionProbe("briefing", "side", briefingPageShellHeight, undefined, briefingMeasurementChromeSignature)} partitionRevision={briefingPartitionRevision} partitionEpoch={epochKey} pagePlacement="side" shellHeightPx={briefingPageShellHeight} />
+        <BriefingCard item={briefingItem} pageScheduling={false} partitionProbe={pagePartitionProbe("briefing", "side", briefingPageShellHeight, undefined, briefingSideChromeSignature)} partitionRevision={briefingPartitionRevision} partitionEpoch={epochKey} pagePlacement="side" shellHeightPx={briefingPageShellHeight} />
       </div>
     {/if}
     {#if floodItem != null}
@@ -1960,7 +2028,7 @@
       </div>
     {/if}
     {#each prefixMeasureEntries.filter((entry) => entry.placement === "side") as entry (entry.id)}
-      <div class="measure-item prefix-measure-item" data-prefix-measure={entry.id} data-prefix-rows={entry.end} data-page-probe={entry.purpose === "page" ? "true" : undefined} data-page-probe-fit={pageProbeFit(entry)} use:capturePrefixMeasure={entry.id}>{@render renderPrefixProbe(entry)}</div>
+      <div class="measure-item prefix-measure-item" data-prefix-measure={entry.id} data-page-probe-composition={entry.composition} data-prefix-rows={entry.end} data-page-probe={entry.purpose === "page" ? "true" : undefined} data-page-probe-fit={pageProbeFit(entry)} use:capturePrefixMeasure={entry.id}>{@render renderPrefixProbe(entry)}</div>
     {/each}
   </div>
   <div class="center-measure-shelf" bind:this={centerMeasureShelfEl} aria-hidden="true" inert>
@@ -1981,7 +2049,7 @@
     {/if}
     {#if briefingItem != null}
       <div class="partition-preflight">
-        <BriefingCard item={briefingItem} pageScheduling={false} partitionProbe={pagePartitionProbe("briefing", "center", briefingPageShellHeight, undefined, briefingMeasurementChromeSignature)} partitionRevision={briefingPartitionRevision} partitionEpoch={epochKey} pagePlacement="center" shellHeightPx={briefingPageShellHeight} />
+        <BriefingCard item={briefingItem} pageScheduling={false} partitionProbe={pagePartitionProbe("briefing", "center", briefingPageShellHeight, undefined, briefingCenterChromeSignature)} partitionRevision={briefingPartitionRevision} partitionEpoch={epochKey} pagePlacement="center" shellHeightPx={briefingPageShellHeight} />
       </div>
     {/if}
     {#if floodItem != null}
@@ -1991,7 +2059,7 @@
       </div>
     {/if}
     {#each prefixMeasureEntries.filter((entry) => entry.placement === "center") as entry (entry.id)}
-      <div class="measure-item prefix-measure-item" data-prefix-measure={entry.id} data-prefix-rows={entry.end} data-page-probe={entry.purpose === "page" ? "true" : undefined} data-page-probe-fit={pageProbeFit(entry)} use:capturePrefixMeasure={entry.id}>{@render renderPrefixProbe(entry)}</div>
+      <div class="measure-item prefix-measure-item" data-prefix-measure={entry.id} data-page-probe-composition={entry.composition} data-prefix-rows={entry.end} data-page-probe={entry.purpose === "page" ? "true" : undefined} data-page-probe-fit={pageProbeFit(entry)} use:capturePrefixMeasure={entry.id}>{@render renderPrefixProbe(entry)}</div>
     {/each}
     <!-- Keep shelf wrappers on the exact live surface too: r-f prices these
          rects directly, including their border/padding and fixture height. -->

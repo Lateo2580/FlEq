@@ -102,7 +102,7 @@ describe("2026-08-27 Pi briefing corpus fixtures", () => {
     expect(expected.fixture).toContain(expected.eventId.slice(0, 5));
   });
 
-  it.each(PI_BRIEFING_CORPUS)("acceptance: $fixture keeps structured lead, condition, chips, and event facts", (expected) => {
+  it.each(PI_BRIEFING_CORPUS)("acceptance: $fixture keeps structured lead, condition, chips, and atomic event facts", (expected) => {
     const message = createMockWsDataMessage(expected.fixture);
     const parsed = parseWeatherBriefing(message);
     expect(parsed).not.toBeNull();
@@ -123,5 +123,17 @@ describe("2026-08-27 Pi briefing corpus fixtures", () => {
       kind: "event", label: expected.kind === "linearRainObserved" ? "発生" : "予想",
       areaName: area.name, areaCode: area.code, at: expected.at,
     })));
+  });
+
+  it("acceptance: VPBS50 record-rain corpus writes the rich precipitation wire", () => {
+    const message = createMockWsDataMessage("82_01_02_250630_VPBS50.xml");
+    const parsed = parseWeatherBriefing(message)!;
+    const outcome = processBriefing(message)!;
+    const store = new StandbyStateStore();
+    store.applyEvent(fromBriefingOutcome(outcome), Date.parse(parsed.reportDateTime) + 1);
+    expect(store.snapshotBriefingCard()?.data.entries[0]?.summary?.items[0]?.facts).toEqual([
+      { kind: "precipitation", locationName: "美幌町", locationCode: "0154300", description: "約１００ミリ", value: 100, unit: "mm", at: "2023-07-13T13:10:00+09:00", duration: "1時間", approximation: "approx" },
+      { kind: "precipitation", locationName: "美幌", locationCode: "17631", description: "９３ミリ", value: 93, unit: "mm", at: "2023-07-13T13:10:00+09:00", duration: "1時間", approximation: "exact" },
+    ]);
   });
 });
