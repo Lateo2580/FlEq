@@ -93,6 +93,29 @@ function harness(): Harness {
 // monitor が router へ渡す実 sink の配線を突く。helper を直接呼ぶテストとは別に、
 // 「sink が確かに昇格更新を通す」という肯定側を固定する
 describe("createDisplaySink (monitor の実配線)", () => {
+  it("VPWW55 特別警報を受けると weatherAlerts を直ちに常設表示 state へ渡す", () => {
+    const applyWeatherAlerts = vi.fn();
+    const promotions = new WeatherPromotionStore();
+    const sink = createDisplaySink({
+      standby: { applyEvent: () => undefined, applyWeatherAlerts },
+      promotions,
+      weatherViews: { vpws50: () => view("officialL5", ["福井市"]), vpww56: () => undefined },
+      getHub: () => null,
+      now: () => T0,
+    });
+
+    sink.ingest(weatherEvent({ type: "VPWW55", title: "福井県気象警報・注意報" }));
+
+    expect(applyWeatherAlerts).toHaveBeenCalledWith(
+      "vpws50",
+      [expect.objectContaining({ role: "weatherEmergency", items: [expect.objectContaining({ shownAreas: ["福井市"] })] })],
+      "2026-07-25T21:00:00+09:00",
+      null,
+      T0,
+    );
+    expect(promotions.get("vpws50")?.level).toBe(5);
+  });
+
   it("hub が無くても (display off) 昇格が更新される", () => {
     const h = harness();
     h.setVpws50(view("officialL5", ["東京都"]));

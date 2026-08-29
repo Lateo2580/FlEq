@@ -1560,7 +1560,13 @@ function isVpws50State(value: unknown): value is PersistedVpws50StateV2 {
     && typeof entry.messageId === "string"
     && (identityRequired ? isWeatherIdentity(entry.identity) : entry.identity == null || isWeatherIdentity(entry.identity))
     && isVpws50Snapshot(entry.snapshot);
-  return (value.current == null || isEntry(value.current, true))
+  const partialStreamsValid = value.partialStreams == null || Array.isArray(value.partialStreams)
+    && value.partialStreams.every((entry) => isRecord(entry)
+      && typeof entry.subjectKey === "string"
+      && entry.subjectKey.startsWith("weather:VPWW55:")
+      && isEntry(entry, true));
+  return partialStreamsValid
+    && (value.current == null || isEntry(value.current, true))
     && value.history.every((entry) => isEntry(entry, false))
     && (value.lastSuccessfulFullDisplayAt == null
       || typeof value.lastSuccessfulFullDisplayAt === "string" && Number.isFinite(Date.parse(value.lastSuccessfulFullDisplayAt)));
@@ -1569,6 +1575,7 @@ function isVpws50State(value: unknown): value is PersistedVpws50StateV2 {
 function isEmptyVpws50State(value: PersistedVpws50StateV2): boolean {
   return value.current == null
     && value.history.length === 0
+    && (value.partialStreams?.length ?? 0) === 0
     && value.lastSuccessfulFullDisplayAt == null;
 }
 
@@ -2742,17 +2749,31 @@ function vpws50FoundationIsConsistent(
   state: PersistedVpws50StateV2 | null,
   entries: readonly PersistedTelegramRevisionGateEntryV2[],
 ): boolean {
-  if (entries.length > 1) return false;
   // v1 adapter は表示 snapshot と trusted legacy watermark のみを運び、holder は正にしない。
   if (!authoritative) return state == null;
   if (state == null) return entries.length === 0;
-  if (isEmptyVpws50State(state)) return entries.length === 0;
-  if (entries.length !== 1) return false;
+  if (isEmptyVpws50State(state)) return entries.every((entry) => entry.cancelled);
 
-  const gateEntry = entries[0];
-  if (state.current == null) {
-    return gateEntry.cancelled && state.history.length === 0;
+  const canonicalEntries = entries.filter((entry) => entry.stateSubjectKey === "weather:vpws50");
+  if (canonicalEntries.length > 1) return false;
+  const partialStreams = state.partialStreams ?? [];
+  const partialBySubject = new Map(partialStreams.map((entry) => [entry.subjectKey, entry]));
+  for (const stream of partialStreams) {
+    const gateEntry = entries.find((entry) => entry.stateSubjectKey === stream.subjectKey);
+    if (gateEntry == null || gateEntry.cancelled) return false;
+    if (compareWeatherIdentity(stream.identity, gateWeatherIdentity(gateEntry)) !== "equal") return false;
   }
+  if (entries.some((entry) => entry.stateSubjectKey !== "weather:vpws50"
+    && !entry.cancelled
+    && !partialBySubject.has(entry.stateSubjectKey))) return false;
+
+  const gateEntry = canonicalEntries[0];
+  if (state.current == null) {
+    // 初回全国報の取消では holder の current/history は空になる一方、canonical gate は
+    // 無期限 tombstone として残る。VPWW55 overlay だけが active な場合も同じ形になる。
+    return (gateEntry == null || gateEntry.cancelled) && state.history.length === 0;
+  }
+  if (gateEntry == null) return false;
 
   const historyIdentities = state.history.map((item) => item.identity);
   if (historyIdentities.some((identity) => identity == null)) return false;
@@ -2778,7 +2799,8 @@ function sanitizeVpws50Foundation(
     isGateEntry(entry)
     && entry.domain === "weather"
     && entry.revisionFamily === "VPWS50"
-    && entry.stateSubjectKey === "weather:vpws50",
+    && (entry.stateSubjectKey === "weather:vpws50"
+      || entry.stateSubjectKey.startsWith("weather:VPWW55:")),
   )) return null;
   const validatedState = state as PersistedVpws50StateV2 | null;
   const validatedEntries = entries as PersistedTelegramRevisionGateEntryV2[];
@@ -2787,7 +2809,7 @@ function sanitizeVpws50Foundation(
     ...structuredClone(entry),
     semanticKeys: compactPersistedSemanticKeys(entry.semanticKeys),
     // tombstoneRetentionMs 導入前の v2 は domain policy を欠く。
-    // VPWS50 は固定 1 subject なので、取消 latch を期限なく保持する現行 policy へ移行する。
+    // VPWS50 family は全国 base と官署別 VPWW55 の取消 latch を期限なく保持する。
     tombstoneRetentionMs: entry.tombstoneRetentionMs === undefined
       ? VPWS50_REVISION_FAMILY_POLICY.tombstoneRetentionMs
       : entry.tombstoneRetentionMs,
@@ -2798,6 +2820,7 @@ function sanitizeVpws50Foundation(
     const identities = [
       state.current?.identity,
       ...state.history.map((entry) => entry.identity),
+      ...(state.partialStreams ?? []).map((entry) => entry.identity),
     ].filter((identity) => identity != null);
     if (!identities.every((identity) => isWeatherIdentity(identity, receivedAtMs))) return null;
   }

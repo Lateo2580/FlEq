@@ -161,9 +161,11 @@ export function createDisplaySink(deps: DisplaySinkDeps): DisplayIngestSink {
         standbyMutation,
       );
       const unsafeVpws50 = event.type === "VPWS50" && event.weatherConfidence === "unsafe";
+      const acceptedVpww55Mutation = event.type !== "VPWW55"
+        || event.weatherStateMutationAccepted === true;
       const acceptedVpww56Mutation = event.type !== "VPWW56"
         || event.weatherStateMutationAccepted === true;
-      if (event.type === "VPWS50" && !unsafeVpws50) {
+      if ((event.type === "VPWS50" || event.type === "VPWW55") && !unsafeVpws50 && acceptedVpww55Mutation) {
         const activeIdentity = event.infoType === "取消" ? deps.vpws50Identity?.() : null;
         const activeReportDateTime = activeIdentity?.reportDateTime ?? event.reportDateTime;
         deps.standby.applyWeatherAlerts?.(
@@ -186,7 +188,7 @@ export function createDisplaySink(deps: DisplaySinkDeps): DisplayIngestSink {
           ...(event.infoType === "訂正" ? [true] as const : []),
         );
       }
-      if (!unsafeVpws50 && acceptedVpww56Mutation) {
+      if (!unsafeVpws50 && acceptedVpww55Mutation && acceptedVpww56Mutation) {
         applyWeatherPromotionOnIngest(deps.promotions, deps.weatherViews, event, nowMs);
       }
       const quakeExtremeChanged = deps.quakeExtreme?.applyPresentationEvent(event, nowMs) ?? false;

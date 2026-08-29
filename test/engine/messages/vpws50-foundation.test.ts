@@ -56,6 +56,30 @@ function meta(reportDateTime: string, serial: string | null, infoType: TelegramI
   });
 }
 
+function vpww55(
+  reportDateTime: string,
+  serial: string,
+  publishingOffice: string,
+  areaCode: string,
+): ParsedWeatherWarning {
+  const m = createTelegramMeta({
+    messageId: `VPWW55:${publishingOffice}:${reportDateTime}:${serial}`,
+    eventId: null,
+    type: "VPWW55",
+    reportDateTime,
+    serial,
+    infoType: "発表",
+    receivedAtMs: Date.parse("2026-07-30T12:00:00+09:00"),
+    status: "通常",
+    isTest: false,
+  });
+  return {
+    ...weather(m, areaCode),
+    type: "VPWW55",
+    publishingOffice,
+  };
+}
+
 function weather(m: TelegramMeta, areaCode: string): ParsedWeatherWarning {
   return {
     type: "VPWS50", infoType: m.infoType.value ?? "発表", title: "気象警報・注意報",
@@ -74,12 +98,13 @@ function decide(
   gate: TelegramRevisionGate,
   parsed: ParsedWeatherWarning,
   cancellationTargetMatches = true,
+  stateSubjectKey = "weather:vpws50",
 ): TelegramRevisionDecision {
   const p = VPWS50_REVISION_FAMILY_POLICY;
   return gate.decide({
     domain: p.domain,
     revisionFamily: p.revisionFamily,
-    stateSubjectKey: "weather:vpws50",
+    stateSubjectKey,
     meta: parsed.meta,
     comparator: p.comparator,
     cancellationPolicy: p.cancellationPolicy,
@@ -88,6 +113,8 @@ function decide(
     cancellationTargetMatches,
     durable: true,
     tombstoneRetentionMs: p.tombstoneRetentionMs,
+    maxSubjects: p.maxSubjects,
+    retainForFamilyCapacity: stateSubjectKey === "weather:vpws50",
     allowMissingSerial: true,
     payloadFingerprint: semanticPayloadFingerprint({ area: parsed.layers[0].items[0].areaCode }),
   });
@@ -165,6 +192,88 @@ describe("VPWS50 common cancellation registry + persistence v2", () => {
     restoredHolder.restorePrevious();
     expect(restoredHolder.getCurrentAreasForDisplay()?.kinds[0].areas[0].areaCode).toBe("A");
     expect(decide(restoredGate, first).kind).toBe("stale");
+  });
+
+  it("StandbyPersistence は全国取消 tombstone と active VPWW55 overlay を同時に復元する", () => {
+    const gate = new TelegramRevisionGate();
+    const holder = new Vpws50StateHolder();
+    const base = weather(meta(T1, "1", "発表"), "A");
+    expect(decide(gate, base).kind).toBe("accept");
+    holder.diffAndUpdate(base, "base", { reportDateTime: T1, serial: "1" });
+    expect(decide(gate, weather(meta(T1, "1", "取消"), "A-cancel")).kind)
+      .toBe("restorePrevious");
+    holder.restorePrevious();
+    expect(holder.exportPersistedState()).toMatchObject({ current: null, history: [] });
+
+    const office = "福井地方気象台";
+    const subject = `weather:VPWW55:${office}`;
+    const partial = vpww55(T2, "2", office, "180000");
+    expect(decide(gate, partial, true, subject).kind).toBe("accept");
+    holder.mergePartialWithDisplay(partial, "partial", {
+      reportDateTime: T2,
+      serial: "2",
+    }, subject);
+
+    const file = tempPath();
+    new StandbyPersistence(file, 0, () => ({
+      vpws50: {
+        authoritative: true,
+        state: holder.exportPersistedState(),
+        gateEntries: gate.exportDurableEntries(),
+      },
+    })).save(legacyState());
+
+    const loaded = new StandbyPersistence(file).load()!;
+    expect(loaded.telegramFoundation.vpws50.gateEntries).toEqual(expect.arrayContaining([
+      expect.objectContaining({ stateSubjectKey: "weather:vpws50", cancelled: true }),
+      expect.objectContaining({ stateSubjectKey: subject, cancelled: false }),
+    ]));
+    const restoredGate = new TelegramRevisionGate();
+    const restoredHolder = new Vpws50StateHolder();
+    restoredGate.restoreDurableEntries(loaded.telegramFoundation.vpws50.gateEntries);
+    restoredHolder.restorePersistedState(loaded.telegramFoundation.vpws50.state!);
+    expect(restoredHolder.getCurrentAreasForDisplay()?.kinds[0]?.areas[0]?.areaCode).toBe("180000");
+    const oldBase = weather(meta("2026-07-30T09:00:00+09:00", "0", "発表"), "old");
+    expect(decide(restoredGate, oldBase)).toMatchObject({ kind: "stale", accepted: false });
+  });
+
+  it("StandbyPersistence 復元後も全国 base を capacity eviction から保護する", () => {
+    const gate = new TelegramRevisionGate();
+    const holder = new Vpws50StateHolder();
+    const base = weather(meta(T1, "1", "発表"), "A");
+    expect(decide(gate, base).kind).toBe("accept");
+    holder.diffAndUpdate(base, "base", { reportDateTime: T1, serial: "1" });
+
+    const file = tempPath();
+    new StandbyPersistence(file, 0, () => ({
+      vpws50: {
+        authoritative: true,
+        state: holder.exportPersistedState(),
+        gateEntries: gate.exportDurableEntries(),
+      },
+    })).save(legacyState());
+    const loaded = new StandbyPersistence(file).load()!;
+    const restoredGate = new TelegramRevisionGate();
+    restoredGate.restoreDurableEntries(loaded.telegramFoundation.vpws50.gateEntries);
+
+    const maxSubjects = VPWS50_REVISION_FAMILY_POLICY.maxSubjects;
+    if (maxSubjects == null) throw new Error("VPWS50 family capacity is required");
+    for (let index = 0; index < maxSubjects; index++) {
+      const office = `試験地方気象台${index}`;
+      const subject = `weather:VPWW55:${office}`;
+      expect(decide(
+        restoredGate,
+        vpww55(T2, String(index + 1), office, String(100000 + index)),
+        true,
+        subject,
+      ).accepted).toBe(true);
+    }
+
+    expect(restoredGate.exportDurableEntries()).toContainEqual(
+      expect.objectContaining({ stateSubjectKey: "weather:vpws50" }),
+    );
+    const oldBase = weather(meta("2026-07-30T09:00:00+09:00", "0", "発表"), "old");
+    expect(decide(restoredGate, oldBase)).toMatchObject({ kind: "stale", accepted: false });
   });
 
   it("取消対象不一致と invalid date/serial は current/watermark を変更しない", () => {

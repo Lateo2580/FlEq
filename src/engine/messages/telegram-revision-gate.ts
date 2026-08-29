@@ -1035,10 +1035,13 @@ export class TelegramRevisionGate {
         tombstoneRetentionMs: entry.tombstoneRetentionMs === undefined
           ? DEFAULT_DURABLE_TOMBSTONE_RETENTION_MS
           : entry.tombstoneRetentionMs,
-        // VTSE41 は全 subject が holder の keyed state または無期限 tombstone に対応する。
-        // restart 後も live admission と同じ family 保護を復元する。
+        // VTSE41 の keyed state と VPWS50 の全国 base は family capacity の canonical 枠。
+        // restart 後も live admission と同じ保護を復元し、部分報による eviction を防ぐ。
         retainForFamilyCapacity:
-          entry.domain === "tsunami" && entry.revisionFamily === "VTSE41",
+          (entry.domain === "tsunami" && entry.revisionFamily === "VTSE41")
+          || (entry.domain === "weather"
+            && entry.revisionFamily === "VPWS50"
+            && entry.stateSubjectKey === "weather:vpws50"),
         legacyRevisionKey: entry.legacyRevisionKey ?? null,
         // pre-provenance v2 は EventID と code fallback を区別できないため逆引き対象外。
         legacyRevisionKeyProvenance: entry.legacyRevisionKeyProvenance ?? null,

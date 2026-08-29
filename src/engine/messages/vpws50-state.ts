@@ -77,6 +77,13 @@ export interface PersistedVpws50StateV2 {
     identity: WeatherReportIdentity | null;
     snapshot: PersistedVpws50SnapshotV2;
   }>;
+  /** VPWW55 の官署別部分報。全国 base より新しい stream だけを表示時に overlay する。 */
+  partialStreams?: Array<{
+    subjectKey: string;
+    messageId: string;
+    identity: WeatherReportIdentity;
+    snapshot: PersistedVpws50SnapshotV2;
+  }>;
   lastSuccessfulFullDisplayAt: string | null;
 }
 
@@ -99,6 +106,15 @@ function restoreSnapshot(snapshot: PersistedVpws50SnapshotV2): Snapshot {
         areaName: area.areaName,
         kinds: new Map(area.kinds.map((kind) => [kind.phenomenonKey, { ...kind }])),
       },
+    ])),
+  };
+}
+
+function cloneSnapshot(snapshot: Snapshot): Snapshot {
+  return {
+    areas: new Map([...snapshot.areas].map(([areaCode, area]) => [
+      areaCode,
+      { areaName: area.areaName, kinds: new Map([...area.kinds].map(([key, kind]) => [key, { ...kind }])) },
     ])),
   };
 }
@@ -141,7 +157,12 @@ function isPersistedState(value: unknown): value is PersistedVpws50StateV2 {
     if (entry.identity == null) return !identityRequired;
     return isPersistedWeatherIdentity(entry.identity);
   };
-  return (value.current == null || isEntry(value.current, true))
+  const partialStreamsValid = value.partialStreams == null || Array.isArray(value.partialStreams)
+    && value.partialStreams.every((entry) => isRecord(entry)
+      && typeof entry.subjectKey === "string"
+      && isEntry(entry, true));
+  return partialStreamsValid
+    && (value.current == null || isEntry(value.current, true))
     && value.history.every((entry) => isEntry(entry, false))
     && (value.lastSuccessfulFullDisplayAt == null || typeof value.lastSuccessfulFullDisplayAt === "string");
 }
@@ -419,6 +440,11 @@ export class Vpws50StateHolder implements DetailProvider<"vpws50"> {
     identity: WeatherReportIdentity | null;
     snapshot: Snapshot;
   }> = [];
+  private partialStreams = new Map<string, {
+    messageId: string;
+    identity: WeatherReportIdentity;
+    snapshot: Snapshot;
+  }>();
   private lastSuccessfulFullDisplayAt: Date | null = null;
 
   diffAndUpdate(info: ParsedWeatherWarning, messageId: string): Vpws50Diff;
@@ -453,16 +479,18 @@ export class Vpws50StateHolder implements DetailProvider<"vpws50"> {
     identity?: WeatherReportIdentity,
     options?: { replaceCurrentRevision?: boolean },
   ): { diff: Vpws50Diff; displayDiff: Vpws50DisplayDiff | null } {
+    const previousEffective = this.effectiveSnapshot();
     const newSnap = infoToSnapshot(info);
     const unsafeReason = this.unsafeReasonFor(newSnap);
     if (unsafeReason != null) return { diff: this.buildUnsafeDiff(unsafeReason), displayDiff: null };
     if (newSnap == null) return { diff: this.buildUnsafeDiff("layer_missing"), displayDiff: null };
 
-    const isFirstReport = this.current == null;
+    const isFirstReport = previousEffective == null;
+    const nextEffective = this.effectiveSnapshot(newSnap, identity ?? null) ?? newSnap;
     const diffParts = isFirstReport
       ? { added: [], upgraded: [], downgraded: [], released: [] }
-      : computeDiff(this.current, newSnap);
-    const displayDiff = isFirstReport ? null : computeDisplayDiff(this.current, newSnap);
+      : computeDiff(previousEffective, nextEffective);
+    const displayDiff = isFirstReport ? null : computeDisplayDiff(previousEffective, nextEffective);
     const isUnchanged =
       !isFirstReport &&
       diffParts.added.length === 0 &&
@@ -472,7 +500,7 @@ export class Vpws50StateHolder implements DetailProvider<"vpws50"> {
 
     const shouldRecap = (() => {
       if (!isUnchanged) return false;
-      if (!hasWarningOrHigher(newSnap)) return false;
+      if (!hasWarningOrHigher(nextEffective)) return false;
       if (this.lastSuccessfulFullDisplayAt == null) return false;
       return Date.now() - this.lastSuccessfulFullDisplayAt.getTime() >= RECAP_INTERVAL_MS;
     })();
@@ -504,6 +532,84 @@ export class Vpws50StateHolder implements DetailProvider<"vpws50"> {
       },
       displayDiff,
     };
+  }
+
+  /** VPWW55 の受理済み部分報を官署 stream 単位で重ね、全国 base の他地域を保持する。 */
+  mergePartialWithDisplay(
+    info: ParsedWeatherWarning,
+    messageId: string,
+    identity: WeatherReportIdentity,
+    subjectKey: string,
+  ): { diff: Vpws50Diff; displayDiff: Vpws50DisplayDiff | null } {
+    const partial = infoToSnapshot(info);
+    if (partial == null) return { diff: this.buildUnsafeDiff("layer_missing"), displayDiff: null };
+    const previous = this.effectiveSnapshot();
+    this.partialStreams.delete(subjectKey);
+    this.partialStreams.set(subjectKey, { messageId, identity: { ...identity }, snapshot: partial });
+    return this.partialTransition(previous);
+  }
+
+  /** VPWW55 取消で当該官署 overlay だけを外し、全国 base と他官署を保持する。 */
+  clearPartial(subjectKey: string): { diff: Vpws50Diff; displayDiff: Vpws50DisplayDiff | null } {
+    const previous = this.effectiveSnapshot();
+    this.partialStreams.delete(subjectKey);
+    return this.partialTransition(previous);
+  }
+
+  retainActivePartialSubjects(subjectKeys: readonly string[]): void {
+    const retained = new Set(subjectKeys);
+    for (const subjectKey of this.partialStreams.keys()) {
+      if (!retained.has(subjectKey)) this.partialStreams.delete(subjectKey);
+    }
+  }
+
+  private partialTransition(
+    previous: Snapshot | null,
+  ): { diff: Vpws50Diff; displayDiff: Vpws50DisplayDiff | null } {
+    const next = this.effectiveSnapshot() ?? { areas: new Map() };
+    const isFirstReport = previous == null;
+    const diffParts = isFirstReport
+      ? { added: [], upgraded: [], downgraded: [], released: [] }
+      : computeDiff(previous, next);
+    const displayDiff = isFirstReport ? null : computeDisplayDiff(previous, next);
+    const isUnchanged = !isFirstReport
+      && diffParts.added.length === 0
+      && diffParts.upgraded.length === 0
+      && diffParts.downgraded.length === 0
+      && diffParts.released.length === 0;
+    if (!isUnchanged || isFirstReport) this.lastSuccessfulFullDisplayAt = new Date();
+    return {
+      diff: {
+        isFirstReport,
+        isUnchanged,
+        isCancelRollback: false,
+        shouldRecap: false,
+        confidence: "confirmed",
+        ...diffParts,
+      },
+      displayDiff,
+    };
+  }
+
+  private effectiveSnapshot(
+    baseOverride: Snapshot | null = this.current,
+    baseIdentityOverride: WeatherReportIdentity | null = this.currentIdentity,
+  ): Snapshot | null {
+    let effective = baseOverride == null ? null : cloneSnapshot(baseOverride);
+    const overlays = [...this.partialStreams.values()]
+      .filter((entry) => baseIdentityOverride == null
+        || (compareWeatherReportIdentity(entry.identity, baseIdentityOverride) ?? -1) > 0)
+      .sort((a, b) => compareWeatherReportIdentity(a.identity, b.identity) ?? 0);
+    for (const overlay of overlays) {
+      effective ??= { areas: new Map() };
+      for (const [areaCode, area] of overlay.snapshot.areas) {
+        effective.areas.set(areaCode, {
+          areaName: area.areaName,
+          kinds: new Map([...area.kinds].map(([key, kind]) => [key, { ...kind }])),
+        });
+      }
+    }
+    return effective;
   }
 
   /** revision gate を確定する前に、state を変更せず安全性だけを判定する。 */
@@ -617,6 +723,14 @@ export class Vpws50StateHolder implements DetailProvider<"vpws50"> {
         identity: entry.identity == null ? null : { ...entry.identity },
         snapshot: serializeSnapshot(entry.snapshot),
       })),
+      ...(this.partialStreams.size === 0 ? {} : {
+        partialStreams: [...this.partialStreams].map(([subjectKey, entry]) => ({
+          subjectKey,
+          messageId: entry.messageId,
+          identity: { ...entry.identity },
+          snapshot: serializeSnapshot(entry.snapshot),
+        })),
+      }),
       lastSuccessfulFullDisplayAt: this.lastSuccessfulFullDisplayAt?.toISOString() ?? null,
     };
   }
@@ -628,6 +742,7 @@ export class Vpws50StateHolder implements DetailProvider<"vpws50"> {
       this.currentMessageId = null;
       this.currentIdentity = null;
       this.history = [];
+      this.partialStreams.clear();
       this.lastSuccessfulFullDisplayAt = null;
       return;
     }
@@ -639,19 +754,25 @@ export class Vpws50StateHolder implements DetailProvider<"vpws50"> {
       identity: entry.identity == null ? null : { ...entry.identity },
       snapshot: restoreSnapshot(entry.snapshot),
     }));
+    this.partialStreams = new Map((state.partialStreams ?? []).map((entry) => [entry.subjectKey, {
+      messageId: entry.messageId,
+      identity: { ...entry.identity },
+      snapshot: restoreSnapshot(entry.snapshot),
+    }]));
     this.lastSuccessfulFullDisplayAt = state.lastSuccessfulFullDisplayAt == null
       ? null
       : new Date(state.lastSuccessfulFullDisplayAt);
   }
 
   private buildCurrentAreasForDisplay(): Vpws50CurrentAreasForDisplay | undefined {
-    if (this.current == null) return undefined;
+    const current = this.effectiveSnapshot();
+    if (current == null) return undefined;
     const allAreas = new Set<string>();
     const specialAreas = new Set<string>();
     const warningAreas = new Set<string>();
     const advisoryAreas = new Set<string>();
     const byKindCode = new Map<string, Vpws50DisplayKindGroup>();
-    for (const [areaCode, area] of this.current.areas) {
+    for (const [areaCode, area] of current.areas) {
       for (const kind of area.kinds.values()) {
         allAreas.add(areaCode);
         // 旧 3 段カウント (サマリ行 特X/警Y/注Z 用の互換維持。Code 43/48/49 は severity=warning
@@ -706,7 +827,12 @@ export class Vpws50StateHolder implements DetailProvider<"vpws50"> {
   }
 
   getCurrentIdentity(): WeatherReportIdentity | null {
-    return this.currentIdentity == null ? null : { ...this.currentIdentity };
+    const identities = [
+      ...(this.currentIdentity == null ? [] : [this.currentIdentity]),
+      ...[...this.partialStreams.values()].map((entry) => entry.identity),
+    ];
+    const latest = identities.sort((a, b) => compareWeatherReportIdentity(b, a) ?? 0)[0];
+    return latest == null ? null : { ...latest };
   }
 
   getDetail(): DetailSnapshotOf<"vpws50"> | null {

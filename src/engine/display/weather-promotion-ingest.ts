@@ -20,7 +20,7 @@ export interface WeatherPromotionViewSources {
 }
 
 /**
- * 気象電文 (VPWS50 / VPWW56) の confirmed な受理で昇格状態を更新する。
+ * 気象電文 (VPWS50 / VPWW55 / VPWW56) の confirmed な受理で昇格状態を更新する。
  * 対象外の電文・unsafe 報 (state を更新しないまま outcome が通った報) は何もしない。
  * nowMs は engine 受理時刻 —— 電文の updatedAt / reportDateTime は判定に使わない。
  */
@@ -30,10 +30,11 @@ export function applyWeatherPromotionOnIngest(
   event: PresentationEvent,
   nowMs: number,
 ): boolean {
-  if (event.type !== "VPWS50" && event.type !== "VPWW56") return false;
+  if (event.type !== "VPWS50" && event.type !== "VPWW55" && event.type !== "VPWW56") return false;
   if (event.weatherConfidence === "unsafe") return false;
-  if (event.type === "VPWW56" && event.weatherStateMutationAccepted !== true) return false;
-  const source = event.type === "VPWS50" ? "vpws50" : "vpww56";
+  if ((event.type === "VPWW55" || event.type === "VPWW56")
+      && event.weatherStateMutationAccepted !== true) return false;
+  const source = event.type === "VPWW56" ? "vpww56" : "vpws50";
   // **holder view をそのまま渡す** (spec 追補 C2)。表示用 view へ射影すると kindCode / areaCode が
   // 落ちて、L4→L5 の悪化で同じ地域が「追加された地域」に化ける
   return store.apply(source, source === "vpws50" ? views.vpws50() : views.vpww56(), nowMs);

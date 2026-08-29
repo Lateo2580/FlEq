@@ -724,8 +724,8 @@ export const CANCELLATION_CHARACTERIZATION = {
   }],
   weather: [
     {
-      family: "VPWS50", headTypes: ["VPWS50"],
-      currentBehavior: "取消対象一致時に一つ前の snapshot へ rollback",
+      family: "VPWS50", headTypes: ["VPWS50", "VPWW55"],
+      currentBehavior: "VPWW55 地域先行報と VPWS50 を同一 snapshot に反映し、取消対象一致時に一つ前へ rollback",
       targetPolicy: "restorePrevious", stateOwners: ["Vpws50StateHolder", "StandbyStateStore", "WeatherPromotionStore"],
     },
     {
@@ -734,7 +734,7 @@ export const CANCELLATION_CHARACTERIZATION = {
       targetPolicy: "clearCurrent", stateOwners: ["Vpww56StateHolder", "StandbyStateStore", "WeatherPromotionStore"],
     },
     {
-      family: "VPWW55-61-except56", headTypes: ["VPWW55", "VPWW57", "VPWW58", "VPWW59", "VPWW60", "VPWW61"],
+      family: "VPWW57-61", headTypes: ["VPWW57", "VPWW58", "VPWW59", "VPWW60", "VPWW61"],
       currentBehavior: "専用 active state holder を持たず transient 取消表示",
       targetPolicy: "markCancelled", stateOwners: [],
     },

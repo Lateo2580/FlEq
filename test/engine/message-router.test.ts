@@ -189,13 +189,25 @@ function cancellationForWarning() {
   };
 }
 
-function vpws50L5Message(name: string, reportDateTime: string, serial: string): WsDataMessage {
+function vpws50L5Message(
+  name: string,
+  reportDateTime: string,
+  serial: string,
+  options: {
+    headType?: "VPWS50" | "VPWW55";
+    infoType?: "発表" | "訂正";
+    publishingOffice?: string;
+  } = {},
+): WsDataMessage {
+  const headType = options.headType ?? "VPWS50";
+  const infoType = options.infoType ?? "発表";
+  const publishingOffice = options.publishingOffice ?? "気象庁";
   const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <Report xmlns="http://xml.kishou.go.jp/jmaxml1/">
-<Control><Title>気象警報・注意報（Ｒ０６）（集約通報）</Title><DateTime>${reportDateTime}</DateTime><Status>通常</Status><EditorialOffice>気象庁本庁</EditorialOffice><PublishingOffice>気象庁</PublishingOffice></Control>
-<Head xmlns="http://xml.kishou.go.jp/jmaxml1/informationBasis1/"><Title>警戒・注意事項集約定時通報</Title><ReportDateTime>${reportDateTime}</ReportDateTime><TargetDateTime>${reportDateTime}</TargetDateTime><EventID></EventID><InfoType>発表</InfoType><Serial>${serial}</Serial><InfoKind>気象警報・注意報</InfoKind><InfoKindVersion>1.5_0</InfoKindVersion><Headline><Text></Text><Information type="気象警報・注意報（府県予報区等）"><Item><Kind><Name>${name}</Name><Code>33</Code></Kind><Areas codeType="気象情報／府県予報区・細分区域等"><Area><Name>神奈川県</Name><Code>140000</Code></Area></Areas></Item></Information></Headline></Head>
+<Control><Title>気象警報・注意報（Ｒ０６）（集約通報）</Title><DateTime>${reportDateTime}</DateTime><Status>通常</Status><EditorialOffice>気象庁本庁</EditorialOffice><PublishingOffice>${publishingOffice}</PublishingOffice></Control>
+<Head xmlns="http://xml.kishou.go.jp/jmaxml1/informationBasis1/"><Title>警戒・注意事項集約定時通報</Title><ReportDateTime>${reportDateTime}</ReportDateTime><TargetDateTime>${reportDateTime}</TargetDateTime><EventID></EventID><InfoType>${infoType}</InfoType><Serial>${serial}</Serial><InfoKind>気象警報・注意報</InfoKind><InfoKindVersion>1.5_0</InfoKindVersion><Headline><Text></Text><Information type="気象警報・注意報（府県予報区等）"><Item><Kind><Name>${name}</Name><Code>33</Code></Kind><Areas codeType="気象情報／府県予報区・細分区域等"><Area><Name>神奈川県</Name><Code>140000</Code></Area></Areas></Item></Information></Headline></Head>
 <Body xmlns="http://xml.kishou.go.jp/jmaxml1/body/meteorology1/"></Body></Report>`;
-  return createMockWsDataMessageFromXml(xml, "VPWS50");
+  return createMockWsDataMessageFromXml(xml, headType);
 }
 
 // sound-player をモックしてテスト中に通知音が鳴るのを抑制
@@ -280,6 +292,34 @@ describe("message-router 統合テスト", () => {
 
     expect(playSoundMock).not.toHaveBeenCalled();
     expect(notifyMock).not.toHaveBeenCalled();
+  });
+
+  it("内容不変の VPWW55 訂正も一回通知し foundation stats に記録する", () => {
+    const { handler, notifier, stats } = createHandler();
+    const notifyWeatherSpy = vi.spyOn(notifier, "notifyWeatherWarning");
+    const options = {
+      headType: "VPWW55" as const,
+      publishingOffice: "横浜地方気象台",
+    };
+
+    handler(vpws50L5Message(
+      "大雨特別警報",
+      "2026-08-13T12:00:00+09:00",
+      "1",
+      options,
+    ));
+    notifyWeatherSpy.mockClear();
+
+    handler(vpws50L5Message(
+      "大雨特別警報",
+      "2026-08-13T12:00:00+09:00",
+      "1",
+      { ...options, infoType: "訂正" },
+    ));
+
+    expect(notifyWeatherSpy).toHaveBeenCalledTimes(1);
+    expect(notifyWeatherSpy.mock.calls[0]?.[0].infoType).toBe("訂正");
+    expect(stats.getSnapshot().foundation.correctionNotified).toBe(1);
   });
 
   describe("EEW ルーティング", () => {

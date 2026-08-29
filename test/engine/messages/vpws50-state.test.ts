@@ -364,6 +364,24 @@ describe("Vpws50StateHolder restorePrevious (revision 判定は共通 gate が�
     expect(restored.getCurrentAreasForDisplay()?.kinds[0].areas[0].areaCode).toBe("140000");
   });
 
+  it("官署別 VPWW55 overlay も永続化 round-trip 後に全国 base と合成する", () => {
+    const state = new Vpws50StateHolder();
+    state.diffAndUpdate(makeInfo([
+      makeItem("神奈川県", "140000", [makeKind("03", "warning")]),
+    ]), "base", firstIdentity);
+    state.mergePartialWithDisplay(makeInfo([
+      makeItem("福井県", "180000", [makeKind("33", "specialWarning")]),
+    ]), "partial", secondIdentity, "weather:VPWW55:福井地方気象台");
+
+    const restored = new Vpws50StateHolder();
+    restored.restorePersistedState(state.exportPersistedState());
+
+    expect(restored.getCurrentAreasForDisplay()?.kinds).toEqual(expect.arrayContaining([
+      expect.objectContaining({ displaySeverity: "officialL5", areas: [expect.objectContaining({ areaCode: "180000" })] }),
+      expect.objectContaining({ displaySeverity: "officialL3", areas: [expect.objectContaining({ areaCode: "140000" })] }),
+    ]));
+  });
+
   it("旧形式・破損 snapshot は破棄し、次の受信で安全に再構築する", () => {
     const legacy = {
       current: {

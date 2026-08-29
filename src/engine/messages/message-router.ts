@@ -462,7 +462,7 @@ function dispatchNotify(outcome: ProcessOutcome, notifier: Notifier): boolean {
       ) return false;
       const diff = outcome.presentation.weatherDiff;
       // 変化なし (再掲対象でなければ) は通知を抑制 (spec §4.3)
-      const acceptedVpws50Correction = outcome.headType === "VPWS50"
+      const acceptedVpws50Correction = (outcome.headType === "VPWS50" || outcome.headType === "VPWW55")
         && outcome.parsed.infoType === "訂正";
       if (diff?.isUnchanged && !diff.shouldRecap && !acceptedVpws50Correction) {
         return false;
