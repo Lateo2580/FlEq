@@ -919,7 +919,7 @@ describe("legacy improved standby mock v26", () => {
     expect(mockSource).not.toContain("function achievableSurplusUse");
   });
 
-  it("chooses the higher-expansion placement in the counterfixture", async () => {
+  it("prefers fixed columns over higher-expansion balancing in the counterfixture", async () => {
     const counterfixture = {
       capacityPx: 100,
       baseCardPx: 20,
@@ -935,9 +935,13 @@ describe("legacy improved standby mock v26", () => {
       const rightKeys = [...rendered.container.querySelectorAll<HTMLElement>('[data-mock-side="right"] [data-mock-card]')]
         .map((card) => card.dataset.mockCard);
       expect(root.dataset.ladderStage).toBe("0");
-      expect(leftKeys).toEqual(["quake", "volcano"]);
-      expect(rightKeys).toEqual(["weather", "heat"]);
-      expect(Number(root.dataset.weatherExpandedRows)).toBe(4);
+      // Fixed columns fit: left=quake is 85px, right=weather+volcano+heat is
+      // 50+1+10=61px, both within the 100px capacity. With prefixRowPx=10,
+      // 61+10*r <= 100 gives r <= 3, so the fixed plan exposes three weather
+      // rows before the old surplus-expansion ranking can move volcano left.
+      expect(leftKeys).toEqual(["quake"]);
+      expect(rightKeys).toEqual(["weather", "volcano", "heat"]);
+      expect(Number(root.dataset.weatherExpandedRows)).toBe(3);
     } finally {
       restoreMeasuredLayout();
     }
@@ -1363,7 +1367,7 @@ describe("legacy improved standby mock v26", () => {
     ["zero", 80],
     ["partial", 90],
     ["all", 200],
-  ] as const)("uses row-prefix expansion boundary %s without changing A placement", async (label, capacityPx) => {
+  ] as const)("uses row-prefix expansion boundary %s with fixed columns", async (label, capacityPx) => {
     const restoreMeasuredLayout = installMeasuredLayout({ capacityPx, baseCardPx: 40, prefixRowPx: 10 });
     try {
       const { rendered, root } = renderMock("legacyMock2=4&ladder=0");
@@ -1378,7 +1382,12 @@ describe("legacy improved standby mock v26", () => {
         expect(weatherRows).toBe(0);
       } else if (label === "all") {
         expect(quakeRows).toBe(3);
-        expect(weatherRows).toBe(10);
+        // legacyMock2=4 has fixed left=quake and fixed right=weather,volcano,heat.
+        // installMeasuredLayout gives each card a 40px base, each weather row
+        // adds 10px, and jsdom measures the CSS clamp gap as 0px here. Therefore
+        // the fixed right column fits exactly when 40+10*r+40+40 <= 200,
+        // i.e. r <= 8; the old balancing expectation of 10 is no longer valid.
+        expect(weatherRows).toBe(8);
       } else {
         expect([quakeRows, weatherRows].some((rows) => rows > 0)).toBe(true);
         expect(quakeRows < 3 || weatherRows < 10).toBe(true);

@@ -53,6 +53,15 @@ function emptyPlacement(): PlacementChoice {
   return { left: [], right: [], center: [], moved: new Set<CardKey>() };
 }
 
+function fixedColumnPlacement(candidates: readonly CardCandidate[]): PlacementChoice {
+  return {
+    left: sortedCards(candidates.filter((card) => LEFT_KEYS.has(card.key))),
+    right: sortedCards(candidates.filter((card) => !LEFT_KEYS.has(card.key))),
+    center: [],
+    moved: new Set<CardKey>(),
+  };
+}
+
 function columnHeight(cards: readonly CardCandidate[], gapPx: number): number {
   return cards.reduce((total, card) => total + card.naturalHeight, 0) + Math.max(0, cards.length - 1) * gapPx;
 }
@@ -393,11 +402,17 @@ export function makeColumnPlan(input: ColumnPlanInput): ColumnPlan {
   const fullVariants: VariantSelection = { quake: "compact", weather: "compact", typhoon: "full" };
   let variants = fullVariants;
   let candidates = candidatesForVariants(input.candidates, variants, ctx);
-  let sidePlacement = selectPlacement(enumeratePlacements(candidates, new Set<CardKey>(), false, false));
+  let sidePlacement: PlacementChoice | null = fixedColumnPlacement(candidates);
+  if (!placementFits(sidePlacement, ctx)) {
+    sidePlacement = selectPlacement(enumeratePlacements(candidates, new Set<CardKey>(), false, false));
+  }
   if (!placementFits(sidePlacement, ctx)) {
     variants = { ...fullVariants, typhoon: "compact" };
     candidates = candidatesForVariants(input.candidates, variants, ctx);
-    sidePlacement = selectPlacement(enumeratePlacements(candidates, new Set<CardKey>(), false, false));
+    sidePlacement = fixedColumnPlacement(candidates);
+    if (!placementFits(sidePlacement, ctx)) {
+      sidePlacement = selectPlacement(enumeratePlacements(candidates, new Set<CardKey>(), false, false));
+    }
   }
   const auto = input.requestedLadder == null;
   const floor = auto ? input.floorStage : input.requestedLadder ?? 0;

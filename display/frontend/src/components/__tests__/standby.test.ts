@@ -95,6 +95,17 @@ function briefing(generation = 1, headline = "大雨に警戒してください"
   };
 }
 
+function cardMeasurementOverride(heights: Readonly<Record<string, number>>, layoutHeightPx: number): Partial<Record<string, number>> {
+  const overrides: Partial<Record<string, number>> = { layoutWidthPx: 1280, layoutHeightPx, gapPx: 10, baselineGapPx: 10 };
+  for (const [key, height] of Object.entries(heights)) {
+    for (const variant of ["compact", "expanded", "full"] as const) {
+      overrides[`${key}:${variant}:right`] = height;
+      overrides[`${key}:${variant}:center`] = height;
+    }
+  }
+  return overrides;
+}
+
 describe("StandbyScreen legacy-improved skeleton", () => {
   it("renders a tornado measurement entry in the shared weather shell", () => {
     const source = readFileSync(join(__dirname, "..", "StandbyScreen.svelte"), "utf8");
@@ -138,6 +149,43 @@ describe("StandbyScreen legacy-improved skeleton", () => {
     expect(root?.querySelector(".legacy-layout")).toBeTruthy();
     expect(root?.querySelectorAll(".legacy-layout > .side")).toHaveLength(2);
     expect(root?.querySelector("[data-clock-landmark] .clock-wrap")).toBeTruthy();
+  });
+
+  it("renders all fitting cards in fixed canonical columns", async () => {
+    const { container } = render(StandbyScreen, {
+      snapshot: baseSnapshot({
+        tsunami: tsunami(),
+        latestQuake: latestQuake(),
+        weatherAlerts: [weather()],
+        standbyItems: [briefing(), flood(), typhoon(), volcano(), heat()],
+      }),
+      now,
+      dim: false,
+      sseConnected: true,
+      testMeasurementOverride: { layoutWidthPx: 1280, layoutHeightPx: 2_000, baselineGapPx: 10 },
+    });
+    for (let pass = 0; pass < 16; pass += 1) await tick();
+
+    const root = container.querySelector<HTMLElement>(".standby")!;
+    expect(root.dataset.placementLeft).toBe("tsunami,quake");
+    expect(root.dataset.placementRight).toBe("weather,briefing,flood,typhoon,volcano,heat");
+    expect(root.dataset.placementCenter).toBe("");
+  });
+
+  it("renders balancing columns when the fixed right column overflows", async () => {
+    const { container } = render(StandbyScreen, {
+      snapshot: baseSnapshot({ tsunami: tsunami(), latestQuake: latestQuake(), weatherAlerts: [weather()], standbyItems: [volcano()] }),
+      now,
+      dim: false,
+      sseConnected: true,
+      testMeasurementOverride: cardMeasurementOverride({ tsunami: 10, quake: 10, weather: 35, volcano: 70 }, 100),
+    });
+    for (let pass = 0; pass < 16; pass += 1) await tick();
+
+    const root = container.querySelector<HTMLElement>(".standby")!;
+    expect(root.dataset.placementLeft).toBe("tsunami,quake,weather");
+    expect(root.dataset.placementRight).toBe("volcano");
+    expect(root.dataset.placementCenter).toBe("");
   });
 
   it("keeps committed card surfaces through a same-priority content refresh", async () => {

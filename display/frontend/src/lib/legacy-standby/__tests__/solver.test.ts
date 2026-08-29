@@ -60,7 +60,7 @@ describe("legacy standby solver", () => {
     expect(comparePlacements(fit, overflow, context(() => 0))).toBeLessThan(0);
   });
 
-  it("keeps a fitting committed surface when candidates and priorities are unchanged", () => {
+  it("prefers the fixed surface over a fitting committed balancing surface", () => {
     const quake = card("quake", 0, 60);
     const weather = card("weather", 1, 30);
     const volcano = card("volcano", 2, 30);
@@ -70,8 +70,8 @@ describe("legacy standby solver", () => {
       candidates: [quake, weather, volcano], ctx: context(() => 0), floorStage: 0, requestedLadder: 0, previousPlan,
     });
 
-    expect(plan.left.map((entry) => entry.key)).toEqual(["quake", "weather"]);
-    expect(plan.right.map((entry) => entry.key)).toEqual(["volcano"]);
+    expect(plan.left.map((entry) => entry.key)).toEqual(["quake"]);
+    expect(plan.right.map((entry) => entry.key)).toEqual(["weather", "volcano"]);
   });
 
   it("replaces a committed surface when its updated height overflows", () => {
@@ -104,7 +104,7 @@ describe("legacy standby solver", () => {
     expect(plan.right.map((entry) => entry.key)).toEqual(["weather"]);
   });
 
-  it("retains a fitting surface after a priority rise when no relocation is required", () => {
+  it("prefers the fixed surface after a priority rise when it fits", () => {
     const quake = card("quake", 0, 60);
     const previousWeather = card("weather", 1, 30, 0, 1);
     const weather = card("weather", 1, 30, 0, 2);
@@ -116,11 +116,11 @@ describe("legacy standby solver", () => {
     });
 
     expect(plan.candidateScores?.weather).toBe(2);
-    expect(plan.left.map((entry) => entry.key)).toEqual(["quake", "weather"]);
-    expect(plan.right.map((entry) => entry.key)).toEqual(["volcano"]);
+    expect(plan.left.map((entry) => entry.key)).toEqual(["quake"]);
+    expect(plan.right.map((entry) => entry.key)).toEqual(["weather", "volcano"]);
   });
 
-  it("keeps a zero-move fitting plan ahead of a one-move balance improvement", () => {
+  it("prefers the fixed surface over a zero-move fitting balancing plan", () => {
     const quake = card("quake", 0, 60);
     const weather = card("weather", 1, 20);
     const volcano = card("volcano", 2, 20);
@@ -131,8 +131,133 @@ describe("legacy standby solver", () => {
       candidates: [quake, weather, volcano, heat], ctx: context(() => 0), floorStage: 0, requestedLadder: 0, previousPlan,
     });
 
-    expect(plan.left.map((entry) => entry.key)).toEqual(["quake", "volcano"]);
-    expect(plan.right.map((entry) => entry.key)).toEqual(["weather", "heat"]);
+    expect(plan.left.map((entry) => entry.key)).toEqual(["quake"]);
+    expect(plan.right.map((entry) => entry.key)).toEqual(["weather", "volcano", "heat"]);
+  });
+
+  it("uses canonical fixed columns when every candidate fits", () => {
+    const candidates = [
+      card("heat", 7, 10), card("volcano", 6, 10), card("typhoon", 5, 10), card("flood", 4, 10),
+      card("briefing", 3, 10), card("weather", 2, 10), card("quake", 1, 10), card("tsunami", 0, 10),
+    ];
+
+    const plan = makeColumnPlan({ candidates, ctx: context(() => 0), floorStage: 0, requestedLadder: 0 });
+
+    expect(plan.stage).toBe(0);
+    expect(plan.left.map((entry) => entry.key)).toEqual(["tsunami", "quake"]);
+    expect(plan.right.map((entry) => entry.key)).toEqual(["weather", "briefing", "flood", "typhoon", "volcano", "heat"]);
+    expect(plan.center).toEqual([]);
+  });
+
+  it("falls back to balancing when the fixed right column overflows", () => {
+    const candidates = [card("quake", 0, 45), card("weather", 1, 45), card("volcano", 2, 60)];
+
+    const plan = makeColumnPlan({ candidates, ctx: context(() => 0), floorStage: 0, requestedLadder: 0 });
+
+    expect(plan.unresolved).toBe(false);
+    expect(plan.left.map((entry) => entry.key)).toEqual(["quake", "weather"]);
+    expect(plan.right.map((entry) => entry.key)).toEqual(["volcano"]);
+  });
+
+  it("returns from a previous balancing plan to fixed columns", () => {
+    const quake = card("quake", 0, 60);
+    const weather = card("weather", 1, 20);
+    const volcano = card("volcano", 2, 20);
+    const previousPlan = committedPlan([quake, weather], [volcano]);
+
+    const plan = makeColumnPlan({
+      candidates: [quake, weather, volcano], ctx: context(() => 0), floorStage: 0, requestedLadder: 0, previousPlan,
+    });
+
+    expect(plan.left.map((entry) => entry.key)).toEqual(["quake"]);
+    expect(plan.right.map((entry) => entry.key)).toEqual(["weather", "volcano"]);
+  });
+
+  it("returns from a previous center plan to fixed columns", () => {
+    const quake = card("quake", 0, 30);
+    const weather = card("weather", 1, 20);
+    const volcano = card("volcano", 2, 20);
+    const previousPlan = committedPlan([quake], [volcano], [weather]);
+
+    const plan = makeColumnPlan({
+      candidates: [quake, weather, volcano], ctx: context(() => 0), floorStage: 0, requestedLadder: 0, previousPlan,
+    });
+
+    expect(plan.left.map((entry) => entry.key)).toEqual(["quake"]);
+    expect(plan.right.map((entry) => entry.key)).toEqual(["weather", "volcano"]);
+    expect(plan.center).toEqual([]);
+  });
+
+  it("accepts the fixed right column at the gap-inclusive capacity boundary", () => {
+    const contextAtBoundary = { ...context(() => 0), gapPx: 10, capacityPx: { left: 100, right: 60, center: 100 } };
+    const atBoundary = makeColumnPlan({
+      candidates: [card("quake", 0, 10), card("weather", 1, 20), card("volcano", 2, 30)],
+      ctx: contextAtBoundary,
+      floorStage: 0,
+      requestedLadder: 0,
+    });
+    const overBoundary = makeColumnPlan({
+      candidates: [card("quake", 0, 10), card("weather", 1, 20), card("volcano", 2, 31)],
+      ctx: contextAtBoundary,
+      floorStage: 0,
+      requestedLadder: 0,
+    });
+
+    expect(atBoundary.left.map((entry) => entry.key)).toEqual(["quake"]);
+    expect(atBoundary.right.map((entry) => entry.key)).toEqual(["weather", "volcano"]);
+    expect(overBoundary.left.map((entry) => entry.key)).toEqual(["quake", "weather"]);
+    expect(overBoundary.right.map((entry) => entry.key)).toEqual(["volcano"]);
+  });
+
+  it("keeps a fitting full typhoon balancing placement ahead of compact fixed retry", () => {
+    const typhoon = {
+      ...card("typhoon", 2, 40),
+      measurements: {
+        full: { naturalHeight: 40, centerNaturalHeight: 40 },
+        compact: { naturalHeight: 20, centerNaturalHeight: 20 },
+      },
+    };
+    const plan = makeColumnPlan({
+      candidates: [card("quake", 0, 60), card("weather", 1, 70), typhoon],
+      ctx: context(() => 0),
+      floorStage: 0,
+      requestedLadder: 0,
+    });
+
+    expect(plan.stage).toBe(0);
+    expect(plan.variants.typhoon).toBe("full");
+    expect(plan.left.map((entry) => entry.key)).toEqual(["quake", "typhoon"]);
+    expect(plan.right.map((entry) => entry.key)).toEqual(["weather"]);
+  });
+
+  it("keeps the existing route when tsunami and quake alone overflow the left column", () => {
+    const plan = makeColumnPlan({
+      candidates: [card("tsunami", 0, 70), card("quake", 1, 70), card("weather", 2, 20)],
+      ctx: context(() => 0),
+      floorStage: 0,
+      requestedLadder: 0,
+    });
+
+    expect(plan.stage).toBe(0);
+    expect(plan.left.map((entry) => entry.key)).toEqual(["tsunami", "quake"]);
+    expect(plan.right.map((entry) => entry.key)).toEqual(["weather"]);
+    expect(plan.unresolved).toBe(true);
+  });
+
+  it("keeps the empty-candidate fixed-center overflow route intact", () => {
+    const plan = makeColumnPlan({
+      candidates: [],
+      ctx: { ...context(() => 0), centerFixedHeightPx: 101 },
+      floorStage: 0,
+      requestedLadder: null,
+    });
+
+    expect(plan.stage).toBe(2);
+    expect(plan.left).toEqual([]);
+    expect(plan.right).toEqual([]);
+    expect(plan.center).toEqual([]);
+    expect(plan.centerUnresolved).toBe(true);
+    expect(plan.unresolved).toBe(true);
   });
 
   it("keeps a committed stage-3 rotation surface when candidates are unchanged", () => {
