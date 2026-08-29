@@ -96,7 +96,8 @@ function briefing(generation = 1, headline = "大雨に警戒してください"
 }
 
 function cardMeasurementOverride(heights: Readonly<Record<string, number>>, layoutHeightPx: number): Partial<Record<string, number>> {
-  const overrides: Partial<Record<string, number>> = { layoutWidthPx: 1280, layoutHeightPx, gapPx: 10, baselineGapPx: 10 };
+  // The §4-18 spill fixture uses zero inter-card gap so 10+10+70 fits the 100px left capacity.
+  const overrides: Partial<Record<string, number>> = { layoutWidthPx: 1280, layoutHeightPx, gapPx: 0, baselineGapPx: 0 };
   for (const [key, height] of Object.entries(heights)) {
     for (const variant of ["compact", "expanded", "full"] as const) {
       overrides[`${key}:${variant}:right`] = height;
@@ -172,7 +173,7 @@ describe("StandbyScreen legacy-improved skeleton", () => {
     expect(root.dataset.placementCenter).toBe("");
   });
 
-  it("renders balancing columns when the fixed right column overflows", async () => {
+  it("renders spill columns when the fixed right column overflows", async () => {
     const { container } = render(StandbyScreen, {
       snapshot: baseSnapshot({ tsunami: tsunami(), latestQuake: latestQuake(), weatherAlerts: [weather()], standbyItems: [volcano()] }),
       now,
@@ -183,8 +184,8 @@ describe("StandbyScreen legacy-improved skeleton", () => {
     for (let pass = 0; pass < 16; pass += 1) await tick();
 
     const root = container.querySelector<HTMLElement>(".standby")!;
-    expect(root.dataset.placementLeft).toBe("tsunami,quake,weather");
-    expect(root.dataset.placementRight).toBe("volcano");
+    expect(root.dataset.placementLeft).toBe("tsunami,quake,volcano");
+    expect(root.dataset.placementRight).toBe("weather");
     expect(root.dataset.placementCenter).toBe("");
   });
 

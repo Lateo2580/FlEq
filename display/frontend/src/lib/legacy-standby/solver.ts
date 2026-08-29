@@ -62,6 +62,30 @@ function fixedColumnPlacement(candidates: readonly CardCandidate[]): PlacementCh
   };
 }
 
+function fixedHasRightOnlyOverflow(choice: PlacementChoice, ctx: SolverContext): boolean {
+  return overflow(columnHeight(choice.left, ctx.gapPx), ctx.capacityPx.left) === 0
+    && overflow(rightHeight(choice.right, ctx), ctx.capacityPx.right) > 0
+    && overflow(centerHeight(choice.center, ctx), ctx.capacityPx.center) === 0;
+}
+
+function spillColumnPlacement(candidates: readonly CardCandidate[], ctx: SolverContext): PlacementChoice | null {
+  const fixed = fixedColumnPlacement(candidates);
+  if (!fixedHasRightOnlyOverflow(fixed, ctx) || fixed.right.length <= 1) return null;
+
+  const moved = new Set<CardKey>();
+  for (let suffixStart = fixed.right.length - 1; suffixStart >= 1; suffixStart -= 1) {
+    for (const card of fixed.right.slice(suffixStart)) moved.add(card.key);
+    const choice: PlacementChoice = {
+      left: sortedCards([...fixed.left, ...fixed.right.slice(suffixStart)]),
+      right: sortedCards(fixed.right.slice(0, suffixStart)),
+      center: [],
+      moved: new Set(moved),
+    };
+    if (placementFits(choice, ctx)) return choice;
+  }
+  return null;
+}
+
 function columnHeight(cards: readonly CardCandidate[], gapPx: number): number {
   return cards.reduce((total, card) => total + card.naturalHeight, 0) + Math.max(0, cards.length - 1) * gapPx;
 }
@@ -404,14 +428,16 @@ export function makeColumnPlan(input: ColumnPlanInput): ColumnPlan {
   let candidates = candidatesForVariants(input.candidates, variants, ctx);
   let sidePlacement: PlacementChoice | null = fixedColumnPlacement(candidates);
   if (!placementFits(sidePlacement, ctx)) {
-    sidePlacement = selectPlacement(enumeratePlacements(candidates, new Set<CardKey>(), false, false));
+    sidePlacement = spillColumnPlacement(candidates, ctx)
+      ?? selectPlacement(enumeratePlacements(candidates, new Set<CardKey>(), false, false));
   }
   if (!placementFits(sidePlacement, ctx)) {
     variants = { ...fullVariants, typhoon: "compact" };
     candidates = candidatesForVariants(input.candidates, variants, ctx);
     sidePlacement = fixedColumnPlacement(candidates);
     if (!placementFits(sidePlacement, ctx)) {
-      sidePlacement = selectPlacement(enumeratePlacements(candidates, new Set<CardKey>(), false, false));
+      sidePlacement = spillColumnPlacement(candidates, ctx)
+        ?? selectPlacement(enumeratePlacements(candidates, new Set<CardKey>(), false, false));
     }
   }
   const auto = input.requestedLadder == null;

@@ -1,7 +1,7 @@
 # spec: 待機画面カードのカテゴリ固定配置（平常時）と高さバランシングの条件付き切り替え
 
-- 状態: v1.1（§2.7 spill 追補はご主人裁定済み・実装待ち。v1.0 = fixed/バランシング
-  切り替えは 2026-08-29 に main `6ce0103` で配送済み）
+- 状態: v1.1 実装済み（2026-08-29。v1.0 = fixed/バランシング切り替えは
+  main `6ce0103`、v1.1 = spill 中間段）
 - 対象ブランチ: main（公開一般改善）
 - 起点 SHA: 3355201
 
@@ -199,20 +199,20 @@ v1.0（配送済み）:
 - [x] `npm run build` 成功
 - [x] `npm test` 全緑（§4 の期待値更新 3 件を含む）
 - [x] §4 テスト 1〜8, 10, 11 が新規追加され緑
-- [ ] 既存テストの期待値変更は §4-9 の solver 3 件と §4-10b の preview 2 件のみ
+- [x] 既存テストの期待値変更は §4-9 の solver 3 件と §4-10b の preview 2 件のみ
       （それ以外の既存テストは無改変で緑）
-- [ ] diff が allowed_paths 内: display/frontend/src/lib/legacy-standby/**、
+- [x] diff が allowed_paths 内: display/frontend/src/lib/legacy-standby/**、
       display/frontend/src/components/__tests__/**、
       display/frontend/src/preview/__tests__/legacy-improved-mock.test.ts、docs/specs/**
       （StandbyScreen.svelte は原則触らない。必要になったら blocked 報告で理由を返す）
 - [x] docs/specs/ に本 spec を最終版として同梱
 
-v1.1 spill（実装時に消し込む）:
+v1.1 spill（2026-08-29 実装・消し込み済み）:
 
-- [ ] `npm run build` 成功・`npm test` 全緑
-- [ ] §4 テスト 13〜17d が新規追加され緑
-- [ ] §4-18 の既存期待値更新（確定 2 件 + §4-6 差し替え）は導出根拠つきで
-      報告に列挙される。それ以外の既存テストは無改変で緑
-- [ ] 右カラムの先頭カードが spill で左へ移らないことをテストで機械確認（§4-17c）
-- [ ] spill 採用時の moved 集合に spill カードが含まれることをテストで確認
-- [ ] allowed_paths は v1.0 と同一（StandbyScreen.svelte 原則不可も同じ）
+- [x] `npm run build` 成功・`npm test` 全緑（root 5938 + display 1802、2026-08-29）
+- [x] §4 テスト 13〜17d が新規追加され緑
+- [x] §4-18 の既存期待値更新（確定 2 件 + §4-6 差し替え）は導出根拠つきで
+      報告に列挙された。それ以外の既存テストは無改変で緑
+- [x] 右カラムの先頭カードが spill で左へ移らないことをテストで機械確認（§4-17c）
+- [x] spill 採用時の moved 集合に spill カードが含まれることをテストで確認
+- [x] allowed_paths は v1.0 と同一（StandbyScreen.svelte 無変更）

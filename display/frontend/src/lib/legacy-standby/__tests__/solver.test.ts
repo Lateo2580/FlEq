@@ -205,20 +205,145 @@ describe("legacy standby solver", () => {
 
     expect(atBoundary.left.map((entry) => entry.key)).toEqual(["quake"]);
     expect(atBoundary.right.map((entry) => entry.key)).toEqual(["weather", "volcano"]);
-    expect(overBoundary.left.map((entry) => entry.key)).toEqual(["quake", "weather"]);
-    expect(overBoundary.right.map((entry) => entry.key)).toEqual(["volcano"]);
+    expect(overBoundary.left.map((entry) => entry.key)).toEqual(["quake", "volcano"]);
+    expect(overBoundary.right.map((entry) => entry.key)).toEqual(["weather"]);
+    expect([...overBoundary.moved]).toEqual(["volcano"]);
   });
 
-  it("keeps a fitting full typhoon balancing placement ahead of compact fixed retry", () => {
+  it("spills one right suffix card while keeping the right head in place", () => {
+    const quake = card("quake", 0, 20);
+    const weather = card("weather", 1, 50);
+    const heat = card("heat", 2, 60);
+
+    const plan = makeColumnPlan({
+      candidates: [quake, weather, heat], ctx: context(() => 0), floorStage: 0, requestedLadder: 0,
+    });
+
+    expect(plan.left.map((entry) => entry.key)).toEqual(["quake", "heat"]);
+    expect(plan.right.map((entry) => entry.key)).toEqual(["weather"]);
+    expect([...plan.moved]).toEqual(["heat"]);
+  });
+
+  it("spills the minimum two-card suffix and preserves canonical left order", () => {
+    const quake = card("quake", 0, 10);
+    const weather = card("weather", 1, 50);
+    const volcano = card("volcano", 2, 60);
+    const heat = card("heat", 3, 60);
+    const ctx = { ...context(() => 0), capacityPx: { left: 130, right: 100, center: 100 } };
+
+    const plan = makeColumnPlan({ candidates: [quake, weather, volcano, heat], ctx, floorStage: 0, requestedLadder: 0 });
+
+    expect(plan.left.map((entry) => entry.key)).toEqual(["quake", "volcano", "heat"]);
+    expect(plan.right.map((entry) => entry.key)).toEqual(["weather"]);
+    expect([...plan.moved]).toEqual(["heat", "volcano"]);
+  });
+
+  it("falls back to enumerate when no suffix spill candidate fits", () => {
+    const quake = card("quake", 0, 30);
+    const weather = card("weather", 1, 60);
+    const volcano = card("volcano", 2, 50);
+    const heat = card("heat", 3, 50);
+
+    const plan = makeColumnPlan({
+      candidates: [quake, weather, volcano, heat], ctx: context(() => 0), floorStage: 0, requestedLadder: 0,
+    });
+
+    expect(plan.left.map((entry) => entry.key)).toEqual(["quake", "weather"]);
+    expect(plan.right.map((entry) => entry.key)).toEqual(["volcano", "heat"]);
+    expect([...plan.moved]).toEqual(["weather"]);
+  });
+
+  it("spills into an empty left column when the fixed right column overflows", () => {
+    const weather = card("weather", 0, 40);
+    const volcano = card("volcano", 1, 40);
+    const heat = card("heat", 2, 40);
+
+    const plan = makeColumnPlan({
+      candidates: [weather, volcano, heat], ctx: context(() => 0), floorStage: 0, requestedLadder: 0,
+    });
+
+    expect(plan.left.map((entry) => entry.key)).toEqual(["heat"]);
+    expect(plan.right.map((entry) => entry.key)).toEqual(["weather", "volcano"]);
+    expect([...plan.moved]).toEqual(["heat"]);
+  });
+
+  it("prefers a fitting spill plan over a previous balancing plan", () => {
+    const quake = card("quake", 0, 20);
+    const weather = card("weather", 1, 40);
+    const volcano = card("volcano", 2, 40);
+    const heat = card("heat", 3, 30);
+    const previousPlan = committedPlan([quake, weather], [volcano, heat]);
+
+    const plan = makeColumnPlan({
+      candidates: [quake, weather, volcano, heat], ctx: context(() => 0), floorStage: 0, requestedLadder: 0, previousPlan,
+    });
+
+    expect(plan.left.map((entry) => entry.key)).toEqual(["quake", "heat"]);
+    expect(plan.right.map((entry) => entry.key)).toEqual(["weather", "volcano"]);
+    expect([...plan.moved]).toEqual(["heat"]);
+  });
+
+  it("prefers a fitting spill plan over a previous center plan", () => {
+    const quake = card("quake", 0, 20);
+    const weather = card("weather", 1, 40);
+    const volcano = card("volcano", 2, 40);
+    const heat = card("heat", 3, 30);
+    const previousPlan = { ...committedPlan([quake], [volcano, heat], [weather]), stage: 1 as const };
+
+    const plan = makeColumnPlan({
+      candidates: [quake, weather, volcano, heat], ctx: context(() => 0), floorStage: 0, requestedLadder: 0, previousPlan,
+    });
+
+    expect(plan.left.map((entry) => entry.key)).toEqual(["quake", "heat"]);
+    expect(plan.right.map((entry) => entry.key)).toEqual(["weather", "volcano"]);
+    expect([...plan.moved]).toEqual(["heat"]);
+  });
+
+  it("does not spill the only right card", () => {
+    const quake = card("quake", 0, 20);
+    const weather = card("weather", 1, 120);
+
+    const plan = makeColumnPlan({
+      candidates: [quake, weather], ctx: context(() => 0), floorStage: 0, requestedLadder: 0,
+    });
+
+    expect(plan.left.map((entry) => entry.key)).toEqual(["quake"]);
+    expect(plan.right.map((entry) => entry.key)).toEqual(["weather"]);
+    expect(plan.moved).toEqual(new Set());
+    expect(plan.unresolved).toBe(true);
+  });
+
+  it("promotes weather after spill without changing its placement", () => {
+    const quake = card("quake", 0, 20);
+    const weather = card("weather", 1, 30, 4);
+    const heat = card("heat", 2, 80);
+    const ctx: SolverContext = {
+      ...context(() => 0),
+      measureSelection: (choice, selection) => {
+        const leftHeight = choice.left.reduce((total, entry) => total + entry.naturalHeight, 0);
+        const rightHeight = choice.right.reduce((total, entry) => total + entry.naturalHeight, 0) + selection.weatherRows * 20;
+        return { leftOverflowPx: leftHeight - 100, rightOverflowPx: rightHeight - 100, centerOverflowPx: 0 };
+      },
+    };
+    const plan = makeColumnPlan({ candidates: [quake, weather, heat], ctx, floorStage: 0, requestedLadder: 0 });
+    const selection = promoteAndExpand(plan, ctx);
+
+    expect(selection.weatherRows).toBe(3);
+    expect(plan.left.map((entry) => entry.key)).toEqual(["quake", "heat"]);
+    expect(plan.right.map((entry) => entry.key)).toEqual(["weather"]);
+    expect([...plan.moved]).toEqual(["heat"]);
+  });
+
+  it("keeps a fitting full typhoon enumerate placement ahead of compact fixed retry", () => {
     const typhoon = {
-      ...card("typhoon", 2, 40),
+      ...card("typhoon", 2, 70),
       measurements: {
-        full: { naturalHeight: 40, centerNaturalHeight: 40 },
+        full: { naturalHeight: 70, centerNaturalHeight: 70 },
         compact: { naturalHeight: 20, centerNaturalHeight: 20 },
       },
     };
     const plan = makeColumnPlan({
-      candidates: [card("quake", 0, 60), card("weather", 1, 70), typhoon],
+      candidates: [card("quake", 0, 60), card("weather", 1, 40), typhoon],
       ctx: context(() => 0),
       floorStage: 0,
       requestedLadder: 0,
@@ -226,8 +351,8 @@ describe("legacy standby solver", () => {
 
     expect(plan.stage).toBe(0);
     expect(plan.variants.typhoon).toBe("full");
-    expect(plan.left.map((entry) => entry.key)).toEqual(["quake", "typhoon"]);
-    expect(plan.right.map((entry) => entry.key)).toEqual(["weather"]);
+    expect(plan.left.map((entry) => entry.key)).toEqual(["quake", "weather"]);
+    expect(plan.right.map((entry) => entry.key)).toEqual(["typhoon"]);
   });
 
   it("keeps the existing route when tsunami and quake alone overflow the left column", () => {
