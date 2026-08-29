@@ -332,11 +332,10 @@
     if (role === "weatherWarning") return 2;
     return 1;
   }
-  // weatherExpandedKinds / WeatherAlertCard と同じ表示単位。下位 role の alias が最高 role
-  // の旧形式 fallback を汚染したり、候補配分を消費したりしないよう resolver 前に絞る。
-  const highestWeatherRoleRank = $derived(Math.max(0, ...snapshot.weatherAlerts.map((alert) => weatherRoleRank(alert.role))));
+  // weatherExpandedKinds / WeatherAlertCard と同じ表示単位。emergency を先頭に保ちながら
+  // 下位 role も resolver と候補配分へ通し、カードと展開候補を同じ集合に保つ。
   const displayWeatherAlerts = $derived(
-    snapshot.weatherAlerts.filter((alert) => weatherRoleRank(alert.role) === highestWeatherRoleRank),
+    [...snapshot.weatherAlerts].sort((a, b) => weatherRoleRank(b.role) - weatherRoleRank(a.role)),
   );
   const weatherItemKindKeys = $derived.by(() => {
     const items = displayWeatherAlerts.flatMap((alert) => alert.items);

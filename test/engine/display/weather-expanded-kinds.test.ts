@@ -73,20 +73,18 @@ describe("weather expanded kind wire supply", () => {
     }]);
   });
 
-  it("複数 rank の alert は最高 rank の候補だけを供給する", () => {
+  it("複数 rank の alert は emergency を先頭に、warning 候補も併存して供給する", () => {
     const warning = {
-      ...alert("vpws50", [item("大雨", ["警報級"])]),
+      ...alert("vpws50", [item("大雨", ["警報級"], { displaySeverity: "officialL4", rank: "warning" })]),
       label: "気象警報",
       role: "weatherWarning" as const,
     };
     const emergency = alert("vpww56", [item("大雨", ["特別警報級"])]);
 
-    expect(collectWeatherExpandedKinds([warning, emergency])).toEqual([{
-      kindKey: "officialL5|大雨",
-      areas: ["特別警報級"],
-      totalAreaCount: 1,
-      candidateTruncated: false,
-    }]);
+    expect(collectWeatherExpandedKinds([warning, emergency])).toEqual([
+      { kindKey: "officialL5|大雨", areas: ["特別警報級"], totalAreaCount: 1, candidateTruncated: false },
+      { kindKey: "officialL4|大雨", areas: ["警報級"], totalAreaCount: 1, candidateTruncated: false },
+    ]);
   });
 
   it.each([

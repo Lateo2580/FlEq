@@ -677,7 +677,7 @@ describe("WeatherAlertCard", () => {
     expect(card?.querySelector(".tornado-rider")).toBeTruthy();
   });
 
-  it("複数バケツ (emergency + warning) を渡したとき、最高ランク (emergency) の item だけが描画され、下位 (warning) は省略される", () => {
+  it("複数バケツ (emergency + warning) を渡したとき、emergency を先頭に warning も描画する", () => {
     const emergencyAlert = weatherAlert({
       role: "weatherEmergency",
       label: "気象特別警報",
@@ -704,10 +704,10 @@ describe("WeatherAlertCard", () => {
         },
       ],
     });
-    // 配列順を warning → emergency と逆にしても、描画順は rank によるフィルタで固定される
+    // 配列順を warning → emergency と逆にしても、emergency を最上位に保って併存表示する
     const { container } = render(WeatherAlertCard, { alerts: [warningAlert, emergencyAlert] });
     const kinds = Array.from(container.querySelectorAll(".kind")).map((el) => el.textContent);
-    expect(kinds).toEqual(["L5 大雨特別警報"]);
+    expect(kinds).toEqual(["L5 大雨特別警報", "洪水警報"]);
   });
 
   it("vpws50 / vpww56 の両バケツが同じ kind・rank の item を同時に持つとき、1グループに統合して重複表示しない (実機バグ Fix10)", () => {
@@ -1041,7 +1041,7 @@ describe("WeatherAlertCard", () => {
     const cardKeys = Array.from(container.querySelectorAll<HTMLElement>("[data-kind-key]"))
       .map((element) => element.dataset.kindKey);
     expect(cardKeys).toEqual(wireKeys);
-    expect(container.textContent).not.toContain("除外地域");
+    expect(container.textContent).toContain("除外地域");
   });
 
   it("輪番所属 weather は実時間timerを持たず、再登場eventで地域ページを進める", async () => {

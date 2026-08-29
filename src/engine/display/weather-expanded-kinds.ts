@@ -65,12 +65,10 @@ export function weatherAreaIdentity(area: string, areaCode?: string | null): str
 export function collectWeatherExpandedKinds(
   alerts: readonly DisplayWeatherAlertV1[],
 ): DisplayWeatherExpandedKindV1[] {
-  const highestRoleRank = Math.max(
-    0,
-    ...alerts.map((alert) => WEATHER_ROLE_RANK[alert.role]),
-  );
-  const items = alerts
-    .filter((alert) => WEATHER_ROLE_RANK[alert.role] === highestRoleRank)
+  // 特別警報を先頭に保ちつつ、下位 role も落とさない。特別警報と既存 L4 警報は
+  // 独立に有効であり、展開候補もカード表示と同じ集合を保持する。
+  const items = [...alerts]
+    .sort((a, b) => WEATHER_ROLE_RANK[b.role] - WEATHER_ROLE_RANK[a.role])
     .flatMap((alert) => alert.items);
   const kindKeys = resolveWeatherKindKeys(items);
   const byKind = new Map<string, WeatherExpandedKindAccumulator>();

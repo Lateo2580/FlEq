@@ -107,12 +107,11 @@
     return "var(--header-band-weatherAdvisory)";
   }
 
-  // wire の weatherExpandedKinds と同じく、最高 role の alert 群を表示単位にする。role 内の
-  // rank は kindKey 正規化・source 横断統合の前に落とさない (spec §6 の表示単位契約)。
-  const highestRoleRank = $derived(Math.max(0, ...alerts.map((alert) => rankOfRole(alert.role))));
+  // wire の weatherExpandedKinds と同じく、特別警報を先頭に保ちながら全 role を表示単位にする。
+  // role 内の rank は kindKey 正規化・source 横断統合の前に落とさない (spec §6 の表示単位契約)。
   const rankFilteredItems = $derived.by(() => {
-    const filtered = alerts
-      .filter((alert) => rankOfRole(alert.role) === highestRoleRank)
+    const filtered = [...alerts]
+      .sort((a, b) => rankOfRole(b.role) - rankOfRole(a.role))
       .flatMap((alert) => alert.items);
     const kindKeys = resolveWeatherKindKeys(filtered);
     return filtered.map((item, index) => ({ ...item, kindKey: kindKeys[index]! }));

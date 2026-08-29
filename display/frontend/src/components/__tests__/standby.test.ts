@@ -949,7 +949,7 @@ describe("StandbyScreen preserved standby behaviour", () => {
     expect(container.querySelector(".legacy-layout")?.textContent).toContain("日南市");
   });
 
-  it("最高roleだけで alias fallback と候補配分を wire と同じ kindKey へ揃える", async () => {
+  it("role 共存時も alias fallback と候補配分を wire と同じ kindKey へ揃える", async () => {
     const alerts = [
       weather({
         source: "vpww56",
@@ -970,18 +970,18 @@ describe("StandbyScreen preserved standby behaviour", () => {
     ];
     const wire = collectWeatherExpandedKinds(alerts);
     expect(wire).toEqual([{
-      kindKey: "warning|大雨警報", areas: ["宮崎市"], totalAreaCount: 2, candidateTruncated: true,
+      kindKey: "warning|heavy-rain", areas: ["宮崎市", "下位地域"], totalAreaCount: 3, candidateTruncated: true,
     }]);
     const { container } = renderScreen({ weatherAlerts: alerts, weatherExpandedKinds: wire });
     for (let pass = 0; pass < 8; pass += 1) await tick();
     const card = container.querySelector<HTMLElement>(".legacy-layout .weather-card");
     expect(card?.querySelector("[data-kind-key]")?.getAttribute("data-kind-key")).toBe(wire[0]?.kindKey);
     expect(card?.textContent).toContain("宮崎市");
-    expect(card?.textContent).not.toContain("下位地域");
+    expect(card?.textContent).toContain("下位地域");
     const counts = JSON.parse(container.querySelector(".standby")?.getAttribute("data-expanded-counts") ?? "{}") as {
       weather?: Record<string, { count: number; n: number }>;
     };
-    expect(counts.weather?.["大雨警報"]).toEqual({ count: 1, n: 1 });
+    expect(counts.weather?.["大雨警報"]).toEqual({ count: 2, n: 1 });
   });
 
   it("snapshot の展開候補を名称と Area.Code の対で card まで渡し、同名別県を保持する", async () => {
