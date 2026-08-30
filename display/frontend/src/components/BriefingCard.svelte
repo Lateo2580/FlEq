@@ -102,7 +102,7 @@
       null,
     ) ?? item.updatedAt,
   );
-  type BriefingBlockKind = "title" | "headline" | "vpoaHeadline" | "condition" | "areaContext" | "area" | "areaOverflow" | "areaDetail" | "lead" | "fact" | "qualifier" | "meta";
+  type BriefingBlockKind = "title" | "headline" | "vpoaHeadline" | "condition" | "areaContext" | "area" | "areaOverflow" | "areaDetail" | "lead" | "fact" | "meta";
   interface BriefingBlock {
     identity: string;
     label: string;
@@ -310,7 +310,6 @@
     add("headline", entry.headline == null || entry.headline.trim() === "" ? "本文なし" : entry.headline, "raw-headline");
     for (const [index, condition] of entry.conditions.entries()) add("condition", condition, `raw-condition:${index}`);
     addTargetAreas(entry, add);
-    if (entry.qualifier != null) add("qualifier", entry.qualifier, "qualifier");
     add("meta", `${entry.publishingOffice}　${displayTime(entry.reportDateTime)}発表`, "meta");
   }
   function entryBlocks(entry: (typeof entries)[number]): BriefingBlock[] {
@@ -349,7 +348,6 @@
       }
     }
     add("meta", `${entry.publishingOffice}　${displayTime(entry.reportDateTime)}発表`, "meta");
-    if (entry.qualifier != null) add("qualifier", entry.qualifier, "qualifier");
     for (const item of summary.items) {
       for (const [index, fact] of item.facts.entries()) add("fact", factText(fact), `fact:${item.sourceOrdinal}:${fact.kind}:${fact.kind === "event" ? fact.areaCode ?? index : fact.locationCode ?? index}:${index}`, true, undefined, fact, undefined, item.kind);
     }
@@ -514,7 +512,6 @@
       {#if block.fact.duration != null}<div class="briefing-fact-stat" data-briefing-precipitation-duration><span class="briefing-fact-label">時間幅</span><span class="briefing-fact-value">{block.fact.duration}</span></div>{/if}
     </div>
   {:else if block.kind === "fact"}<p class="fact" data-briefing-block={block.identity}>{block.text}</p>
-  {:else if block.kind === "qualifier"}<p class="qualifier" data-briefing-block={block.identity}>{block.text}</p>
   {:else}<p class="meta" data-briefing-block={block.identity}>{block.text}</p>
   {/if}
 {/snippet}
@@ -579,7 +576,7 @@
   .lead { color: var(--role-weatherWarning); }
   .headline { margin-top: var(--space-1); font-size: var(--type-body-s-fluid); line-height: 1.45; white-space: pre-wrap; overflow-wrap: anywhere; }
   .vpoa-headline-segment { display: inline; }
-  .conditions, .fact, .qualifier, .meta { margin-top: var(--space-1); color: var(--role-muted); font-size: var(--type-label-s-fluid); line-height: 1.35; }
+  .conditions, .fact, .meta { margin-top: var(--space-1); color: var(--role-muted); font-size: var(--type-label-s-fluid); line-height: 1.35; }
   .fact { color: var(--role-text); }
   .briefing-event-fact { break-inside: avoid; }
   .briefing-fact-grid {
@@ -598,7 +595,6 @@
   .briefing-fact-label { display: inline-block; align-self: flex-start; white-space: nowrap; color: var(--role-muted); font-size: var(--type-label-xs-size); }
   .briefing-fact-value { display: flex; flex-wrap: wrap; gap: 0 var(--space-1); min-width: 0; color: var(--fg); font-size: max(14px, var(--type-body-l-fluid)); font-weight: var(--num-weight); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
   .briefing-fact-token { display: inline-block; white-space: nowrap; }
-  .qualifier { color: var(--role-weatherWarning); }
   /* WeatherAlertCard と同じ地域階層トークン。Phase 2 の data 属性は外側の group に保つ。 */
   .pref-group { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.5em; margin-top: var(--space-1); padding-left: 1em; break-inside: avoid; }
   .pref-name { flex-shrink: 0; font-weight: var(--type-body-weight-emphasized); font-size: max(14px, var(--type-body-s-fluid)); color: var(--fg); }

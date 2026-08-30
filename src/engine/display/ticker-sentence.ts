@@ -152,7 +152,9 @@ function legacyCounterpartSentence(event: PresentationEvent): string {
   const type = normalizeLegacyCounterpartDisplayText(event.type);
   const base = headline || title || `${type}の情報`;
   const details = legacyCounterpartPairs(event);
-  return `${ensurePeriod(base)}対応電文未確認${details.length > 0 ? ` ${details.join("、")}` : ""}。`;
+  return details.length === 0
+    ? ensurePeriod(base)
+    : `${ensurePeriod(base)} ${details.join("、")}。`;
 }
 
 /** ISO 日時 → 「午後9時37分ごろ」 (JST 12 時間制)。パース不能は null */

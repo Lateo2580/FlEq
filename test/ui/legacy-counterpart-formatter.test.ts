@@ -91,6 +91,7 @@ describe("displayLegacyCounterpartInfo - CLI width contract synthetic matrix", (
         ]) {
           expect(plain, `color=${level} width=${width} marker=${marker}`).toContain(marker);
         }
+        expect(plain).not.toContain("対応電文未確認");
         for (const value of [
           info.headline, info.areas[0]?.code, info.areas[0]?.name,
           info.phenomena[0]?.code, info.phenomena[0]?.name,

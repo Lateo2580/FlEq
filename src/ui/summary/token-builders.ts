@@ -666,7 +666,6 @@ function buildLegacyCounterpartTokens(event: PresentationEvent, model: SummaryMo
   const areaNames = event.areaNames.map(normalizeLegacyCounterpartDisplayText);
   tokens.push(token("severity", model.severity, 0, "never"));
   tokens.push(token("type", type, 0, "shorten", shortenLegacyType(type)));
-  tokens.push(token("qualifier", "対応電文未確認", 0, "shorten", "対応未確認"));
   if (title) tokens.push(token("title", title, 1, "shorten"));
   if (headline) tokens.push(token("headline", headline, 2, "drop"));
   const parts = topAreaTokenParts(areaNames, 2);

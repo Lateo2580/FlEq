@@ -486,11 +486,11 @@ describe("BriefingCard", () => {
     expect(entries[1]?.classList.contains("entry-divider")).toBe(true);
   });
 
-  it("現象 lead・取消・VPOA50 の本文と未確認 qualifier を維持し、VPOA50 に stat grid を作らない", () => {
+  it("現象 lead・取消・VPOA50 の本文を維持し、未確認 qualifier は描画せず stat grid を作らない", () => {
     const item = briefing(2);
     const observation = item.data.entries[0]!;
     observation.source = "vpoa50";
-    observation.qualifier = "未確認";
+    observation.qualifier = "対応電文未確認";
     observation.headline = "１７時５０分に北塩原村付近で１時間に約１００ミリの雨を解析しました。";
     observation.summary = { mode: "structured", hasUnknownKind: false, items: [{ kind: "recordRain", lead: "記録的短時間大雨", sourceOrdinal: 0, facts: [] }] };
     const cancelled = item.data.entries[1]!;
@@ -500,7 +500,7 @@ describe("BriefingCard", () => {
     expect(container.textContent).toContain("記録的短時間大雨");
     expect(container.textContent).toContain("北塩原村付近");
     expect(container.querySelectorAll("[data-briefing-precipitation-stat]")).toHaveLength(0);
-    expect(container.textContent).toContain("未確認");
+    expect(container.textContent).not.toContain("対応電文未確認");
     expect(container.textContent).toContain("気象防災速報を取消");
   });
 

@@ -549,9 +549,9 @@ export function buildTickerDetail(event: PresentationEvent): string | null {
     const headline = event.headline == null
       ? null
       : normalizeLegacyCounterpartDisplayText(event.headline).trim();
-    return [headline, "対応電文未確認", ...pairs]
-      .filter((part): part is string => part != null && part !== "")
-      .join(" ▪ ");
+    const parts = [headline, ...pairs]
+      .filter((part): part is string => part != null && part !== "");
+    return parts.length > 0 ? parts.join(" ▪ ") : null;
   }
   const parts: string[] = [];
   const headline = event.headline?.trim();

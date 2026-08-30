@@ -144,7 +144,7 @@ describe("Phase 6B unit 5: skeleton integration gate", () => {
     expect(JSON.stringify(PRODUCTION_LEGACY_COUNTERPART_REGISTRY.rules)).not.toContain("SYNTH");
   });
 
-  it.each(SOURCE_TYPES)("%s は60秒Holdback後だけcounterpartRuleUnconfirmedでqualifier付きfail-open表示される", (type) => {
+  it.each(SOURCE_TYPES)("%s は60秒Holdback後だけcounterpartRuleUnconfirmedでqualifierなしfail-open表示される", (type) => {
     vi.useFakeTimers();
     vi.setSystemTime(BASE_MS);
     const ingested: PresentationEvent[] = [];
@@ -180,11 +180,11 @@ describe("Phase 6B unit 5: skeleton integration gate", () => {
       legacyReason: "counterpartRuleUnconfirmed",
       legacySeverity: "unknown",
     });
-    expect(summaryText(event)).toContain("対応電文未確認");
+    expect(summaryText(event)).not.toContain("対応電文未確認");
     expect(projectDisplayEvent(event, summaryText(event))).toMatchObject({
       tickerCategory: "旧形式防災情報",
     });
-    expect(logs.join("\n")).toContain("対応電文未確認");
+    expect(logs.join("\n")).not.toContain("対応電文未確認");
     expect(snapshot.foundation.received).toBe(1);
     expect(snapshot.countByType.get(type)).toBe(1);
     expect(snapshot.foundation.legacySourceArrivedFirst).toBe(1);

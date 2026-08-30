@@ -868,7 +868,7 @@ describe("earlyWeatherSentence (spec 2026-07-23 ticker-content-lifetime T5)", ()
 });
 
 describe("legacyCounterpart ticker", () => {
-  it("専用 category と qualifier 付きの fail-open sentence を生成する", () => {
+  it("専用 category の fail-open sentence は qualifier を描画しない", () => {
     const event = makeEvent({
       domain: "legacyCounterpart",
       type: "VPOA50",
@@ -878,7 +878,8 @@ describe("legacyCounterpart ticker", () => {
       legacySeverity: "unknown",
     });
     expect(tickerCategoryOf(event)).toBe("旧形式防災情報");
-    expect(buildTickerSentence(event)).toContain("対応電文未確認");
+    expect(buildTickerSentence(event)).toBe("旧形式のヘッドライン。");
+    expect(buildTickerSentence(event)).not.toContain("対応電文未確認");
   });
 });
 

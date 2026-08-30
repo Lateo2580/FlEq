@@ -1493,7 +1493,7 @@ describe("Phase 6B legacy counterpart route and VPOA50 production slice", () => 
     expect(noEventId.eventId).toBeNull();
 
     const summary = buildSummaryTokens(event, buildSummaryModel(event)).map((item) => item.text).join(" ");
-    expect(summary).toContain("対応電文未確認");
+    expect(summary).not.toContain("対応電文未確認");
     expect(summary).toContain("VPOA50");
     expect(summary).not.toContain(secretMarker);
     expect(summary).not.toContain(wirePayload);
@@ -1509,8 +1509,8 @@ describe("Phase 6B legacy counterpart route and VPOA50 production slice", () => 
     );
     expect(dto.groupKey).toBeNull();
     expect(dto.tickerCategory).toBe("旧形式防災情報");
-    expect(dto.tickerDetail).toContain("対応電文未確認");
-    expect(dto.tickerSentence).toContain("対応電文未確認");
+    expect(dto.tickerDetail).not.toContain("対応電文未確認");
+    expect(dto.tickerSentence).not.toContain("対応電文未確認");
     const dtoJson = JSON.stringify(dto);
     expect(dtoJson).not.toContain(secretMarker);
     expect(dtoJson).not.toContain(wirePayload);
@@ -1521,7 +1521,7 @@ describe("Phase 6B legacy counterpart route and VPOA50 production slice", () => 
     const output = logs.join("\n");
     expect(output).toContain("VPOA50");
     expect(output).toContain("旧形式のタイトル");
-    expect(output).toContain("対応電文未確認");
+    expect(output).not.toContain("対応電文未確認");
     expect(output).toContain("テスト官署");
     expect(output).not.toContain(secretMarker);
     expect(output).not.toContain(wirePayload);

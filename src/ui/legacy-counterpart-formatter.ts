@@ -22,9 +22,6 @@ import {
 } from "./formatter";
 
 const WHITE_BORDER = chalk.rgb(232, 232, 232);
-const QUALIFIER_BY_REASON: Record<LegacyCounterpartReason, string> = {
-  counterpartRuleUnconfirmed: "対応電文未確認",
-};
 
 function pushPairSection(
   pairs: LegacyCounterpartCodeNamePair[],
@@ -52,7 +49,7 @@ function pushPairSection(
 /** VPOA50／VPNO50／VXWW50 の header-only fail-open CLI formatter。 */
 export function displayLegacyCounterpartInfo(
   info: ParsedLegacyCounterpartInfo,
-  reason: LegacyCounterpartReason,
+  _reason: LegacyCounterpartReason,
 ): void {
   const level: FrameLevel = "info";
   const width = getFrameWidth();
@@ -90,13 +87,6 @@ export function displayLegacyCounterpartInfo(
   }
 
   buf.push(frameDividerColored(level, color, width));
-  const qualifier = QUALIFIER_BY_REASON[reason];
-  pushWrappedFrameLine(
-    buf,
-    level,
-    { width, purpose: "prose", borderColor: color },
-    chalk.yellow.bold(`  ${qualifier}`),
-  );
   if (info.headline != null && safeText(info.headline) !== "") {
     pushWrappedFrameLine(
       buf,

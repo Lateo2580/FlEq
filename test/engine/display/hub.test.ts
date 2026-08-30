@@ -224,7 +224,7 @@ function vpoaTickerEvent(
     title: "記録的短時間大雨情報",
     controlTitle: "記録的短時間大雨情報",
     reportDateTime,
-    headline: "対応電文未確認",
+    headline: "旧形式のヘッドライン",
     publishingOffice: "気象庁",
     editorialOffice: "気象庁",
     eventId: "PAIR-EVENT",
