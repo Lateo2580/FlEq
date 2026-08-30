@@ -382,6 +382,139 @@ describe("Vpws50StateHolder restorePrevious (revision 判定は共通 gate が�
     ]));
   });
 
+  it("官署別 partialHistory は永続化 round-trip 後も取消で直前報を復元する", () => {
+    const subject = "weather:VPWW55:福井地方気象台";
+    const state = new Vpws50StateHolder();
+    state.mergePartialWithDisplay(makeInfo([
+      makeItem("福井市", "1820100", [makeKind("03", "warning")]),
+    ]), "partial-1", firstIdentity, subject);
+    state.mergePartialWithDisplay(makeInfo([
+      makeItem("福井市", "1820100", [makeKind("33", "specialWarning")]),
+    ]), "partial-2", secondIdentity, subject);
+
+    const persisted = state.exportPersistedState();
+    expect(persisted.partialHistory?.[0]?.entries).toHaveLength(1);
+    const restored = new Vpws50StateHolder();
+    restored.restorePersistedState(persisted);
+    restored.restorePreviousPartial(subject);
+
+    expect(restored.getCurrentAreasForDisplay()?.kinds[0]).toMatchObject({
+      kindCode: "03", displaySeverity: "officialL3",
+    });
+  });
+
+  it("官署別 partialHistory は最新8世代に bounded され、9回目の取消で clear する", () => {
+    const subject = "weather:VPWW55:福井地方気象台";
+    const state = new Vpws50StateHolder();
+    for (let index = 0; index < 10; index++) {
+      state.mergePartialWithDisplay(makeInfo([
+        makeItem(`地域${index}`, `18201${index.toString().padStart(2, "0")}`, [makeKind("03", "warning")]),
+      ]), `partial-${index}`, identity(`2026-08-30T10:${index.toString().padStart(2, "0")}:00+09:00`, `${index}`), subject);
+    }
+    expect(state.exportPersistedState().partialHistory?.[0]?.entries).toHaveLength(8);
+    for (let index = 8; index >= 1; index--) {
+      state.restorePreviousPartial(subject);
+      expect(state.getCurrentAreasForDisplay()?.kinds[0]?.areas[0]?.areaName).toBe(`地域${index}`);
+    }
+    state.restorePreviousPartial(subject);
+    expect(state.getCurrentAreasForDisplay()).toBeUndefined();
+  });
+
+  it("VPNO50 watermark は再起動後も同官署の遅延 VPWW55 emergency 成分だけを抑制する", () => {
+    const subject = "weather:VPWW55:福井地方気象台";
+    const state = new Vpws50StateHolder();
+    state.clearEmergencyPartialAreas(subject, ["180000"], identity("2026-08-30T11:40:00+09:00", "2"));
+    const restored = new Vpws50StateHolder();
+    restored.restorePersistedState(state.exportPersistedState());
+
+    restored.mergePartialWithDisplay(makeInfo([
+      makeItem("福井市", "1820100", [
+        makeKind("33", "specialWarning"),
+        makeKind("49", "warning", "レベル４土砂災害警戒情報"),
+      ]),
+    ]), "late-old", identity("2026-08-30T11:20:00+09:00", "1"), subject);
+    expect(restored.getCurrentAreasForDisplay()?.kinds).toEqual([
+      expect.objectContaining({ kindCode: "49", displaySeverity: "officialL4" }),
+    ]);
+
+    restored.mergePartialWithDisplay(makeInfo([
+      makeItem("福井市", "1820100", [makeKind("33", "specialWarning")]),
+    ]), "new", identity("2026-08-30T11:41:00+09:00", "3"), subject);
+    expect(restored.getCurrentAreasForDisplay()?.kinds[0]?.displaySeverity).toBe("officialL5");
+  });
+
+  it("遅延した古い VPNO50 は watermark 後の新しい VPWW55 L5 を消さない", () => {
+    const subject = "weather:VPWW55:福井地方気象台";
+    const state = new Vpws50StateHolder();
+    state.clearEmergencyPartialAreas(subject, ["180000"], identity("2026-08-30T11:40:00+09:00", "2"));
+    state.mergePartialWithDisplay(makeInfo([
+      makeItem("福井市", "1820100", [makeKind("33", "specialWarning")]),
+    ]), "new", identity("2026-08-30T11:41:00+09:00", "3"), subject);
+
+    state.clearEmergencyPartialAreas(subject, ["180000"], identity("2026-08-30T11:39:00+09:00", "1"));
+    expect(state.getCurrentAreasForDisplay()?.kinds[0]?.displaySeverity).toBe("officialL5");
+  });
+
+  it("watermark 128件満杯で最古subjectを更新後に追加しても、更新subjectをLRU退場させない", () => {
+    const state = new Vpws50StateHolder();
+    const subject = (index: number): string => `weather:VPWW55:試験地方気象台${index}`;
+    for (let index = 0; index < 128; index++) {
+      state.clearEmergencyPartialAreas(
+        subject(index),
+        ["180000"],
+        identity("2026-08-30T11:40:00+09:00", "1"),
+      );
+    }
+    state.clearEmergencyPartialAreas(
+      subject(0),
+      ["180000"],
+      identity("2026-08-30T11:41:00+09:00", "2"),
+    );
+    state.clearEmergencyPartialAreas(
+      subject(128),
+      ["180000"],
+      identity("2026-08-30T11:42:00+09:00", "3"),
+    );
+
+    const watermarks = state.exportPersistedState().emergencyClearWatermarks ?? [];
+    expect(watermarks).toHaveLength(128);
+    expect(watermarks).toContainEqual({
+      subjectKey: subject(0),
+      identity: { reportDateTime: "2026-08-30T11:41:00+09:00", serial: "2" },
+    });
+    expect(watermarks.map((entry) => entry.subjectKey)).toContain(subject(128));
+    expect(watermarks.map((entry) => entry.subjectKey)).not.toContain(subject(1));
+  });
+
+  it("history-only subject は128件に bounded され、active同期で退場subjectを掃除する", () => {
+    const state = new Vpws50StateHolder();
+    const subject = (index: number): string => `weather:VPWW55:履歴地方気象台${index}`;
+    const baseMs = Date.parse("2026-08-30T00:00:00Z");
+    for (let index = 0; index < 129; index++) {
+      const areaCode = `18${index.toString().padStart(5, "0")}`;
+      const first = new Date(baseMs + index * 60_000).toISOString();
+      const second = new Date(baseMs + index * 60_000 + 20_000).toISOString();
+      const clear = new Date(baseMs + index * 60_000 + 40_000).toISOString();
+      state.mergePartialWithDisplay(makeInfo([
+        makeItem(`地域${index}`, areaCode, [makeKind("03", "warning")]),
+      ]), `warning-${index}`, identity(first, "1"), subject(index));
+      state.mergePartialWithDisplay(makeInfo([
+        makeItem(`地域${index}`, areaCode, [makeKind("33", "specialWarning")]),
+      ]), `special-${index}`, identity(second, "2"), subject(index));
+      state.clearEmergencyPartialAreas(subject(index), ["180000"], identity(clear, "3"));
+    }
+
+    const bounded = state.exportPersistedState();
+    expect(bounded.partialStreams).toBeUndefined();
+    expect(bounded.partialHistory).toHaveLength(128);
+    expect(bounded.partialHistory?.map((group) => group.subjectKey)).not.toContain(subject(0));
+    expect(bounded.partialHistory?.map((group) => group.subjectKey)).toContain(subject(128));
+
+    state.retainActivePartialSubjects([subject(128)]);
+    expect(state.exportPersistedState().partialHistory?.map((group) => group.subjectKey))
+      .toEqual([subject(128)]);
+  });
+
   it("旧形式・破損 snapshot は破棄し、次の受信で安全に再構築する", () => {
     const legacy = {
       current: {

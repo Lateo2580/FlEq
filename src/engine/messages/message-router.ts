@@ -651,6 +651,8 @@ export interface MessageHandlerOptions {
   revisionGate?: TelegramRevisionGate;
   /** 最初の durable domain が v1 表示復元状態を脱したことを monitor へ伝える。 */
   onVpws50RevisionDecision?: (decision: TelegramRevisionDecision) => void;
+  /** VPNO50 cross-type clear/watermark の commit 完了を persistence owner へ伝える。 */
+  onVpws50StateMutationAccepted?: () => void;
   /** VPWW56 stream/gate の commit 完了を persistence owner へ伝える。 */
   onVpww56RevisionDecision?: (decision: TelegramRevisionDecision) => void;
   /** tsunami gate/item state の commit 完了を persistence owner へ伝える。 */
@@ -829,6 +831,7 @@ export function createMessageHandler(options?: MessageHandlerOptions): MessageHa
     revisionGate,
     onRevisionDecision: recordRevisionDecision,
     onVpws50RevisionDecision: options?.onVpws50RevisionDecision,
+    onVpws50StateMutationAccepted: options?.onVpws50StateMutationAccepted,
     onVpww56RevisionDecision: options?.onVpww56RevisionDecision,
     onTsunamiRevisionDecision: options?.onTsunamiRevisionDecision,
     onFloodRevisionDecision: options?.onFloodRevisionDecision,
@@ -1434,6 +1437,17 @@ export function createMessageHandler(options?: MessageHandlerOptions): MessageHa
 
     const outcomeAdmissionNowMs = statsNowMs(outcome.msg.meta?.receivedAtMs ?? Date.now());
     recordStats(outcome, stats, outcomeAdmissionNowMs);
+    // VPNO50 の府県予報区解除は VPWW55 の緊急 overlay を直ちに降格させる state transition。
+    // legacy counterpart の holdback を通すと常設表示の更新まで 60 秒遅れるため、この受理済み
+    // cross-type transition だけは相関待ちをせず一度だけ通常配送する。
+    if (
+      outcome.domain === "legacyCounterpart"
+      && outcome.parsed.type === "VPNO50"
+      && outcome.presentation.weatherStateMutationAccepted === true
+    ) {
+      emitAcceptedOutcome(outcome, outcomeAdmissionNowMs);
+      return;
+    }
     const action = legacyCounterpartCorrelator.accept(outcome);
     if (action != null) handleLegacyCounterpartAction(action);
   };

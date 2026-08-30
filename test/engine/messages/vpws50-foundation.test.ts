@@ -61,6 +61,7 @@ function vpww55(
   serial: string,
   publishingOffice: string,
   areaCode: string,
+  infoType: TelegramInfoTypeValue = "発表",
 ): ParsedWeatherWarning {
   const m = createTelegramMeta({
     messageId: `VPWW55:${publishingOffice}:${reportDateTime}:${serial}`,
@@ -68,7 +69,7 @@ function vpww55(
     type: "VPWW55",
     reportDateTime,
     serial,
-    infoType: "発表",
+    infoType,
     receivedAtMs: Date.parse("2026-07-30T12:00:00+09:00"),
     status: "通常",
     isTest: false,
@@ -76,6 +77,7 @@ function vpww55(
   return {
     ...weather(m, areaCode),
     type: "VPWW55",
+    infoType,
     publishingOffice,
   };
 }
@@ -235,6 +237,116 @@ describe("VPWS50 common cancellation registry + persistence v2", () => {
     expect(restoredHolder.getCurrentAreasForDisplay()?.kinds[0]?.areas[0]?.areaCode).toBe("180000");
     const oldBase = weather(meta("2026-07-30T09:00:00+09:00", "0", "発表"), "old");
     expect(decide(restoredGate, oldBase)).toMatchObject({ kind: "stale", accepted: false });
+  });
+
+  it("StandbyPersistence は VPWW55 partialHistory を復元し、再起動後の取消で直前報へ戻す", () => {
+    const gate = new TelegramRevisionGate();
+    const holder = new Vpws50StateHolder();
+    const office = "福井地方気象台";
+    const subject = `weather:VPWW55:${office}`;
+    const first = vpww55(T1, "1", office, "1820100");
+    const second = vpww55(T2, "2", office, "1820200");
+    expect(decide(gate, first, true, subject).kind).toBe("accept");
+    holder.mergePartialWithDisplay(first, "first", { reportDateTime: T1, serial: "1" }, subject);
+    expect(decide(gate, second, true, subject).kind).toBe("accept");
+    holder.mergePartialWithDisplay(second, "second", { reportDateTime: T2, serial: "2" }, subject);
+
+    const file = tempPath();
+    new StandbyPersistence(file, 0, () => ({
+      vpws50: {
+        authoritative: true,
+        state: holder.exportPersistedState(),
+        gateEntries: gate.exportDurableEntries(),
+      },
+    })).save(legacyState());
+    const loaded = new StandbyPersistence(file).load()!;
+    expect(loaded.telegramFoundation.vpws50.state?.partialHistory?.[0]?.entries).toHaveLength(1);
+
+    const restoredGate = new TelegramRevisionGate();
+    const restoredHolder = new Vpws50StateHolder();
+    restoredGate.restoreDurableEntries(loaded.telegramFoundation.vpws50.gateEntries);
+    restoredHolder.restorePersistedState(loaded.telegramFoundation.vpws50.state!);
+    expect(decide(restoredGate, vpww55(T2, "2", office, "1820200", "取消"), true, subject).kind)
+      .toBe("restorePrevious");
+    restoredHolder.restorePreviousPartial(subject);
+    expect(restoredHolder.getCurrentAreasForDisplay()?.kinds[0]?.areas[0]?.areaCode).toBe("1820100");
+  });
+
+  it("取消で復元した VPWW55 subject は永続化後も別官署続報の active 同期から守る", () => {
+    const gate = new TelegramRevisionGate();
+    const holder = new Vpws50StateHolder();
+    const fukuiSubject = "weather:VPWW55:福井地方気象台";
+    const first = vpww55(T1, "1", "福井地方気象台", "1820100");
+    const second = vpww55(T2, "2", "福井地方気象台", "1820200");
+    expect(decide(gate, first, true, fukuiSubject).kind).toBe("accept");
+    holder.mergePartialWithDisplay(first, "first", { reportDateTime: T1, serial: "1" }, fukuiSubject);
+    expect(decide(gate, second, true, fukuiSubject).kind).toBe("accept");
+    holder.mergePartialWithDisplay(second, "second", { reportDateTime: T2, serial: "2" }, fukuiSubject);
+    expect(decide(gate, vpww55(T2, "2", "福井地方気象台", "1820200", "取消"), true, fukuiSubject).kind)
+      .toBe("restorePrevious");
+    holder.restorePreviousPartial(fukuiSubject);
+
+    const file = tempPath();
+    new StandbyPersistence(file, 0, () => ({
+      vpws50: {
+        authoritative: true,
+        state: holder.exportPersistedState(),
+        gateEntries: gate.exportDurableEntries(),
+      },
+    })).save(legacyState());
+    const loaded = new StandbyPersistence(file).load()!;
+    const restoredGate = new TelegramRevisionGate();
+    const restoredHolder = new Vpws50StateHolder();
+    restoredGate.restoreDurableEntries(loaded.telegramFoundation.vpws50.gateEntries);
+    restoredHolder.restorePersistedState(loaded.telegramFoundation.vpws50.state!);
+
+    const ishikawaSubject = "weather:VPWW55:金沢地方気象台";
+    const ishikawa = vpww55("2026-07-30T10:40:00+09:00", "1", "金沢地方気象台", "1720100");
+    expect(decide(restoredGate, ishikawa, true, ishikawaSubject).kind).toBe("accept");
+    restoredHolder.mergePartialWithDisplay(
+      ishikawa,
+      "ishikawa",
+      { reportDateTime: ishikawa.reportDateTime, serial: "1" },
+      ishikawaSubject,
+    );
+    restoredHolder.retainActivePartialSubjects(
+      restoredGate.activeRevisionFamilySubjects("weather", "VPWS50"),
+    );
+    expect(restoredHolder.getCurrentAreasForDisplay()?.kinds[0]?.areas).toEqual(expect.arrayContaining([
+      expect.objectContaining({ areaCode: "1820100" }),
+      expect.objectContaining({ areaCode: "1720100" }),
+    ]));
+  });
+
+  it("VPNO50 emergency-clear watermark だけの foundation も保存し、再起動後の旧 L5 を抑制する", () => {
+    const holder = new Vpws50StateHolder();
+    const subject = "weather:VPWW55:福井地方気象台";
+    holder.clearEmergencyPartialAreas(
+      subject,
+      ["180000"],
+      { reportDateTime: "2026-08-30T11:40:00+09:00", serial: "2" },
+    );
+    const file = tempPath();
+    new StandbyPersistence(file, 0, () => ({
+      vpws50: { authoritative: true, state: holder.exportPersistedState(), gateEntries: [] },
+    })).save(legacyState());
+    const loaded = new StandbyPersistence(file).load()!;
+    expect(loaded.telegramFoundation.vpws50.state?.emergencyClearWatermarks).toEqual([{
+      subjectKey: subject,
+      identity: { reportDateTime: "2026-08-30T11:40:00+09:00", serial: "2" },
+    }]);
+
+    const restoredHolder = new Vpws50StateHolder();
+    restoredHolder.restorePersistedState(loaded.telegramFoundation.vpws50.state!);
+    const oldSpecial = vpww55("2026-08-30T11:20:00+09:00", "1", "福井地方気象台", "1820100");
+    oldSpecial.layers[0].items[0].kinds = [{ name: "大雨特別警報", code: "33", severity: "specialWarning" }];
+    restoredHolder.mergePartialWithDisplay(
+      oldSpecial,
+      "late-old",
+      { reportDateTime: oldSpecial.reportDateTime, serial: "1" },
+      subject,
+    );
+    expect(restoredHolder.getCurrentAreasForDisplay()).toBeUndefined();
   });
 
   it("StandbyPersistence 復元後も全国 base を capacity eviction から保護する", () => {
@@ -725,6 +837,17 @@ describe("VPWS50 common cancellation registry + persistence v2", () => {
       const current = structuredClone(state.telegramFoundation.vpws50.state!.current!);
       current.identity = { reportDateTime: T2, serial: "2" };
       state.telegramFoundation.vpws50.state!.history = [current];
+    }],
+    ["partialHistory subject が128件上限超過", (state: PersistedStandbyStateV2) => {
+      const current = state.telegramFoundation.vpws50.state!.current!;
+      state.telegramFoundation.vpws50.state!.partialHistory = Array.from({ length: 129 }, (_, index) => ({
+        subjectKey: `weather:VPWW55:試験地方気象台${index}`,
+        entries: [{
+          messageId: `partial-${index}`,
+          identity: structuredClone(current.identity),
+          snapshot: structuredClone(current.snapshot),
+        }],
+      }));
     }],
   ] as const)("v2 holder/gate 相互不整合を拒否する: %s", (_label, mutate) => {
     const { file, expected } = persistedFoundationFixture();

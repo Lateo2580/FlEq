@@ -22,6 +22,8 @@ import {
   FIXTURE_VPWS50_AGGREGATE,
   FIXTURE_VPWP50_HIGH_SEVERITY,
   FIXTURE_VPWW55_OAME,
+  FIXTURE_VPWW55_FUKUI_L5,
+  FIXTURE_VPWW55_FUKUI_DOWNGRADE,
   FIXTURE_VPWW56_DOSHA,
   FIXTURE_VPWW57_KOCHO,
   FIXTURE_VPWW58_BOFU,
@@ -508,6 +510,69 @@ describe("processWeather - VPWS50/VPWW55/VPWW56 単調性抑制", () => {
       weatherDiff: { confidence: "confirmed" },
     });
     expect(deps.vpws50State.getCurrentAreasForDisplay()?.kinds).toHaveLength(2);
+  });
+
+  it("VPWW55 の L5→L4 は同一官署 stream の降格として反映し、短時間表示用 diff も作る", () => {
+    const deps = fakeDeps(new Vpws50StateHolder());
+    expect(processWeather(createMockWsDataMessage(FIXTURE_VPWW55_FUKUI_L5), deps).kind).toBe("ok");
+    const initialL5 = deps.vpws50State.getCurrentAreasForDisplay()?.kinds
+      .find((kind) => kind.displaySeverity === "officialL5");
+    expect(initialL5?.areas.length).toBeGreaterThan(0);
+    expect(initialL5?.areas.every((area) => area.areaCode.length === 7)).toBe(true);
+
+    const lowered = requireWeatherOutcome(processWeather(
+      createMockWsDataMessage(FIXTURE_VPWW55_FUKUI_DOWNGRADE),
+      deps,
+    ));
+
+    expect(lowered.presentation.weatherDiff?.downgraded.some((area) =>
+      area.areaCode.length === 7 && area.changes.some((change) =>
+        change.prevDisplaySeverity === "officialL5" && change.newDisplaySeverity === "officialL4"),
+    )).toBe(true);
+    expect(lowered.presentation.weatherChangeDiff?.downgraded.some((area) =>
+      area.areaCode.length === 7 && area.changes.some((change) =>
+        change.prevDisplaySeverity === "officialL5" && change.newDisplaySeverity === "officialL4"),
+    )).toBe(true);
+    expect(lowered.presentation.weatherStateMutationAccepted).toBe(true);
+  });
+
+  it("VPWW55 取消は同一官署の直前報を復元し、初報取消では overlay を clear する", () => {
+    const deps = fakeDeps(new Vpws50StateHolder());
+    const common = {
+      type: "VPWW55" as const,
+      publishingOffice: "福井地方気象台",
+      areas: [{ name: "福井県", code: "180000" }],
+    };
+    expect(processWeather(buildVpws50Msg([{ code: "03", name: "大雨警報" }], {
+      ...common, id: "vpww55-before", reportDateTime: "2026-08-30T10:00:00+09:00", serial: "1",
+    }), deps).kind).toBe("ok");
+    expect(processWeather(buildVpws50Msg([{ code: "33", name: "大雨特別警報" }], {
+      ...common, id: "vpww55-current", reportDateTime: "2026-08-30T10:30:00+09:00", serial: "2",
+    }), deps).kind).toBe("ok");
+    const restored = requireWeatherOutcome(processWeather(buildVpws50Msg([{ code: "33", name: "大雨特別警報" }], {
+      ...common, id: "vpww55-cancel", reportDateTime: "2026-08-30T10:30:00+09:00", serial: "2", infoType: "取消",
+    }), deps));
+    expect(deps.vpws50State.getCurrentAreasForDisplay()?.kinds[0]).toMatchObject({
+      displaySeverity: "officialL3",
+    });
+
+    expect(processWeather(buildVpws50Msg([{ code: "03", name: "大雨警報" }], {
+      type: "VPWW55", id: "vpww55-ishikawa-next", reportDateTime: "2026-08-30T10:40:00+09:00", serial: "1",
+      publishingOffice: "金沢地方気象台", areas: [{ name: "石川県", code: "170000" }],
+    }), deps).kind).toBe("ok");
+    expect(deps.vpws50State.getCurrentAreasForDisplay()?.kinds[0]?.areas).toEqual(expect.arrayContaining([
+      expect.objectContaining({ areaCode: "180000" }),
+      expect.objectContaining({ areaCode: "170000" }),
+    ]));
+
+    const initial = fakeDeps(new Vpws50StateHolder());
+    expect(processWeather(buildVpws50Msg([{ code: "33", name: "大雨特別警報" }], {
+      ...common, id: "vpww55-initial", reportDateTime: "2026-08-30T11:00:00+09:00", serial: "1",
+    }), initial).kind).toBe("ok");
+    expect(processWeather(buildVpws50Msg([{ code: "33", name: "大雨特別警報" }], {
+      ...common, id: "vpww55-initial-cancel", reportDateTime: "2026-08-30T11:00:00+09:00", serial: "1", infoType: "取消",
+    }), initial).kind).toBe("ok");
+    expect(initial.vpws50State.getCurrentAreasForDisplay()).toBeUndefined();
   });
 
   it("VPWW56: 取消後の重複取消と古い発表を suppressed にする", () => {

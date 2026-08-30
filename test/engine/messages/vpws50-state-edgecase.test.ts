@@ -126,6 +126,23 @@ describe("R1/R2 ガードレール: parser 異常時の safety", () => {
     expect(state.getCurrentAreasForDisplay()?.totalAreas).toBe(10);
   });
 
+  it("明示解除 Kind を持つ広域解除は残存 state があっても受理する", () => {
+    const state = new Vpws50StateHolder();
+    const previous = Array.from({ length: 10 }, (_, i) => makeItem(
+      `県${i}`,
+      `${i.toString().padStart(2, "0")}0000`,
+      [makeKind("03", "warning")],
+    ));
+    state.diffAndUpdate(makeInfo(previous), "msg-1");
+    const next = previous.map((item, index) => index < 8
+      ? makeItem(item.areaName, item.areaCode, [makeKind("00", "release")])
+      : item);
+    const diff = state.diffAndUpdate(makeInfo(next), "msg-2");
+    expect(diff.confidence).toBe("confirmed");
+    expect(diff.released).toHaveLength(8);
+    expect(state.getCurrentAreasForDisplay()?.totalAreas).toBe(2);
+  });
+
   it("80% 未満消失 → 通常 diff (confidence=confirmed)", () => {
     const state = new Vpws50StateHolder();
     state.diffAndUpdate(

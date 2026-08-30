@@ -250,6 +250,12 @@ export const FIXTURE_VZVO40_NOTICE = "42_02_01_071130_VZVO40.xml";
 /** VPWW55 大雨警報・注意報 (島根県) */
 export const FIXTURE_VPWW55_OAME = "15_17_01_251222_VPWW55.xml";
 
+/** VPWW55 福井県大雨特別警報 (2026-08-30 06:51 JST) */
+export const FIXTURE_VPWW55_FUKUI_L5 = "18_00_01_260830_VPWW55_fukui_L5.xml";
+
+/** VPWW55 福井県 L5→L4 切替 (2026-08-30 11:40 JST) */
+export const FIXTURE_VPWW55_FUKUI_DOWNGRADE = "18_00_01_260830_VPWW55_fukui_downgrade.xml";
+
 /** VPWW56 土砂災害警戒情報 (宗谷地方) */
 export const FIXTURE_VPWW56_DOSHA = "15_16_01_241031_VPWW56.xml";
 
@@ -283,6 +289,12 @@ export const FIXTURE_VPHW50_ALT = "19_03_01_130906_VPHW50.xml";
 export const FIXTURE_VPHW51_SIGHTING = "19_04_01_140425_VPHW51.xml";
 
 // ── Phase 6B 後半・第1縦切り (VPOA50 → VPBS50) ──
+
+/** 2026-08-30 福井県の気象特別警報→警報切替 (実電文) */
+export const FIXTURE_VPNO50_FUKUI_SWITCH = "18_00_01_260830_VPNO50_switch.xml";
+
+/** 2026-08-30 福井県の気象特別警報発表 (切替電文の対になる実電文) */
+export const FIXTURE_VPNO50_FUKUI_ISSUE = "18_00_01_260830_VPNO50_issue.xml";
 
 export const FIXTURE_PHASE6B_VPOA50_JPTK202608221709_202608221709 =
   "phase6b_VPOA50_JPTK202608221709_202608221709.xml";
@@ -625,7 +637,7 @@ export function createMockWsDataMessage(
   const body = encodeXml(xml);
 
   // ファイル名から type を推定
-  const typeMatch = fixtureName.match(/(V[TXYZ]SE\d+|VFVO\d+|VFSVii|VZVO\d+|VPOA\d+|VPWW\d+|VPWS\d+|VPHW\d+|VPBS\d+|VPAW\d+|VPWP\d+|VPZI\d+|VPCI\d+|VPCJ\d+|VPZJ\d+|VPFJ\d+|VMCJ\d+|VPFT\d+|VPTW\d+|VPTA\d+|VXKO\d+|VXSU\d+)/);
+  const typeMatch = fixtureName.match(/(V[TXYZ]SE\d+|VFVO\d+|VFSVii|VZVO\d+|VPOA\d+|VPNO\d+|VPWW\d+|VPWS\d+|VPHW\d+|VPBS\d+|VPAW\d+|VPWP\d+|VPZI\d+|VPCI\d+|VPCJ\d+|VPZJ\d+|VPFJ\d+|VMCJ\d+|VPFT\d+|VPTW\d+|VPTA\d+|VXKO\d+|VXSU\d+)/);
   const type = typeMatch ? typeMatch[1] : "VXSE53";
   const classification = type === "VXSE43"
     ? "eew.warning"
@@ -633,7 +645,7 @@ export function createMockWsDataMessage(
       ? "eew.forecast"
       : (type.startsWith("VFVO") || type.startsWith("VFSV") || type === "VZVO40")
         ? "telegram.volcano"
-        : (type.startsWith("VPOA") || type.startsWith("VPWW") || type.startsWith("VPWS") || type.startsWith("VPHW") || type.startsWith("VPBS") || type.startsWith("VPAW") || type.startsWith("VPWP") || type.startsWith("VPZI") || type.startsWith("VPCI") || type.startsWith("VPCJ") || type.startsWith("VPZJ") || type.startsWith("VPFJ") || type.startsWith("VMCJ") || type.startsWith("VPFT") || type.startsWith("VPTW") || type.startsWith("VPTA") || type.startsWith("VXKO") || type.startsWith("VXSU"))
+        : (type.startsWith("VPOA") || type.startsWith("VPNO") || type.startsWith("VPWW") || type.startsWith("VPWS") || type.startsWith("VPHW") || type.startsWith("VPBS") || type.startsWith("VPAW") || type.startsWith("VPWP") || type.startsWith("VPZI") || type.startsWith("VPCI") || type.startsWith("VPCJ") || type.startsWith("VPZJ") || type.startsWith("VPFJ") || type.startsWith("VMCJ") || type.startsWith("VPFT") || type.startsWith("VPTW") || type.startsWith("VPTA") || type.startsWith("VXKO") || type.startsWith("VXSU"))
           ? "telegram.weather"
           : "telegram.earthquake";
   const envelope = fixtureEnvelope(xml, type);
@@ -681,7 +693,7 @@ export function createMockWsDataMessageFromXml(
       ? "eew.forecast"
       : (type.startsWith("VFVO") || type.startsWith("VFSV") || type === "VZVO40")
         ? "telegram.volcano"
-        : (type.startsWith("VPOA") || type.startsWith("VPWW") || type.startsWith("VPWS") || type.startsWith("VPHW") || type.startsWith("VPBS") || type.startsWith("VPAW") || type.startsWith("VPWP") || type.startsWith("VPZI") || type.startsWith("VPCI") || type.startsWith("VPCJ") || type.startsWith("VPZJ") || type.startsWith("VPFJ") || type.startsWith("VMCJ") || type.startsWith("VPFT") || type.startsWith("VPTW") || type.startsWith("VPTA") || type.startsWith("VXKO") || type.startsWith("VXSU"))
+        : (type.startsWith("VPOA") || type.startsWith("VPNO") || type.startsWith("VPWW") || type.startsWith("VPWS") || type.startsWith("VPHW") || type.startsWith("VPBS") || type.startsWith("VPAW") || type.startsWith("VPWP") || type.startsWith("VPZI") || type.startsWith("VPCI") || type.startsWith("VPCJ") || type.startsWith("VPZJ") || type.startsWith("VPFJ") || type.startsWith("VMCJ") || type.startsWith("VPFT") || type.startsWith("VPTW") || type.startsWith("VPTA") || type.startsWith("VXKO") || type.startsWith("VXSU"))
           ? "telegram.weather"
           : "telegram.earthquake";
   const envelope = fixtureEnvelope(xml, type);

@@ -1561,11 +1561,35 @@ function isVpws50State(value: unknown): value is PersistedVpws50StateV2 {
     && (identityRequired ? isWeatherIdentity(entry.identity) : entry.identity == null || isWeatherIdentity(entry.identity))
     && isVpws50Snapshot(entry.snapshot);
   const partialStreamsValid = value.partialStreams == null || Array.isArray(value.partialStreams)
+    && value.partialStreams.length <= 128
     && value.partialStreams.every((entry) => isRecord(entry)
       && typeof entry.subjectKey === "string"
       && entry.subjectKey.startsWith("weather:VPWW55:")
       && isEntry(entry, true));
+  const partialHistoryValid = value.partialHistory == null || Array.isArray(value.partialHistory)
+    && value.partialHistory.length <= 128
+    && value.partialHistory.every((group) => isRecord(group)
+      && typeof group.subjectKey === "string"
+      && group.subjectKey.startsWith("weather:VPWW55:")
+      && Array.isArray(group.entries)
+      && group.entries.length <= 8
+      && group.entries.every((entry) => isEntry(entry, true)));
+  const restoredSubjectsValid = value.restoredPartialSubjects == null
+    || Array.isArray(value.restoredPartialSubjects)
+    && value.restoredPartialSubjects.length <= 128
+    && value.restoredPartialSubjects.every((subject) => typeof subject === "string"
+      && subject.startsWith("weather:VPWW55:"));
+  const watermarksValid = value.emergencyClearWatermarks == null
+    || Array.isArray(value.emergencyClearWatermarks)
+    && value.emergencyClearWatermarks.length <= 128
+    && value.emergencyClearWatermarks.every((entry) => isRecord(entry)
+      && typeof entry.subjectKey === "string"
+      && entry.subjectKey.startsWith("weather:VPWW55:")
+      && isWeatherIdentity(entry.identity));
   return partialStreamsValid
+    && partialHistoryValid
+    && restoredSubjectsValid
+    && watermarksValid
     && (value.current == null || isEntry(value.current, true))
     && value.history.every((entry) => isEntry(entry, false))
     && (value.lastSuccessfulFullDisplayAt == null
@@ -1576,6 +1600,9 @@ function isEmptyVpws50State(value: PersistedVpws50StateV2): boolean {
   return value.current == null
     && value.history.length === 0
     && (value.partialStreams?.length ?? 0) === 0
+    && (value.partialHistory?.length ?? 0) === 0
+    && (value.restoredPartialSubjects?.length ?? 0) === 0
+    && (value.emergencyClearWatermarks?.length ?? 0) === 0
     && value.lastSuccessfulFullDisplayAt == null;
 }
 
@@ -2758,14 +2785,24 @@ function vpws50FoundationIsConsistent(
   if (canonicalEntries.length > 1) return false;
   const partialStreams = state.partialStreams ?? [];
   const partialBySubject = new Map(partialStreams.map((entry) => [entry.subjectKey, entry]));
+  const restoredSubjects = new Set(state.restoredPartialSubjects ?? []);
+  const watermarkSubjects = new Set((state.emergencyClearWatermarks ?? [])
+    .map((entry) => entry.subjectKey));
+  if ([...restoredSubjects].some((subject) => !partialBySubject.has(subject))) return false;
   for (const stream of partialStreams) {
     const gateEntry = entries.find((entry) => entry.stateSubjectKey === stream.subjectKey);
-    if (gateEntry == null || gateEntry.cancelled) return false;
-    if (compareWeatherIdentity(stream.identity, gateWeatherIdentity(gateEntry)) !== "equal") return false;
+    if (gateEntry == null) return false;
+    const relation = compareWeatherIdentity(stream.identity, gateWeatherIdentity(gateEntry));
+    // VPWW55 の取消は stream 内の直前 snapshot を復元する。gate は取消 revision の
+    // tombstone を保持するため、復元済み partial はそれより古い identity で整合する。
+    if (gateEntry.cancelled
+      ? relation !== "older" || !restoredSubjects.has(stream.subjectKey)
+      : relation !== "equal" || restoredSubjects.has(stream.subjectKey)) return false;
   }
   if (entries.some((entry) => entry.stateSubjectKey !== "weather:vpws50"
     && !entry.cancelled
-    && !partialBySubject.has(entry.stateSubjectKey))) return false;
+    && !partialBySubject.has(entry.stateSubjectKey)
+    && !watermarkSubjects.has(entry.stateSubjectKey))) return false;
 
   const gateEntry = canonicalEntries[0];
   if (state.current == null) {
@@ -2815,12 +2852,21 @@ function sanitizeVpws50Foundation(
       : entry.tombstoneRetentionMs,
   }));
   if (state != null) {
-    if (entries.length === 0 && !isEmptyVpws50State(state)) return null;
-    const receivedAtMs = Math.max(...entries.map((entry) => entry.acceptedAtMs));
+    const hasProjectionState = state.current != null
+      || state.history.length > 0
+      || (state.partialStreams?.length ?? 0) > 0
+      || (state.partialHistory?.length ?? 0) > 0
+      || (state.restoredPartialSubjects?.length ?? 0) > 0;
+    if (entries.length === 0 && hasProjectionState) return null;
+    const receivedAtMs = entries.length === 0
+      ? Number.MAX_SAFE_INTEGER
+      : Math.max(...entries.map((entry) => entry.acceptedAtMs));
     const identities = [
       state.current?.identity,
       ...state.history.map((entry) => entry.identity),
       ...(state.partialStreams ?? []).map((entry) => entry.identity),
+      ...(state.partialHistory ?? []).flatMap((group) => group.entries.map((entry) => entry.identity)),
+      ...(state.emergencyClearWatermarks ?? []).map((entry) => entry.identity),
     ].filter((identity) => identity != null);
     if (!identities.every((identity) => isWeatherIdentity(identity, receivedAtMs))) return null;
   }

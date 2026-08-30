@@ -56,6 +56,10 @@ export function fromLegacyCounterpartOutcome(
     soundLevel: outcome.presentation.soundLevel,
     notifyCategory: outcome.presentation.notifyCategory,
     foundationMutationAccepted: outcome.presentation.foundationMutationAccepted,
+    weatherConfidence: outcome.presentation.weatherDiff?.confidence ?? "confirmed",
+    weatherDiff: outcome.presentation.weatherDiff,
+    weatherChangeDiff: outcome.presentation.weatherChangeDiff,
+    weatherStateMutationAccepted: outcome.presentation.weatherStateMutationAccepted,
 
     isCancellation: info.infoType === "取消",
     isWarning: false,

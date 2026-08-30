@@ -27,8 +27,11 @@ import {
 // Plan-R3: displayVpws50FromState は Task 6 で実装される。dynamic import で順序問題を回避
 
 const HISTORY_DEPTH = 8;
+const PARTIAL_SUBJECT_LIMIT = 128;
 const RECAP_INTERVAL_MS = 60 * 60 * 1000;
-const ABNORMAL_RELEASE_THRESHOLD = 0.8;
+// 比率だけで正当な広域解除を拒まない。明示解除が無いまま 4 key 以上失われる payload だけを
+// 異常候補とし、完全電文の解除 evidence があれば件数を問わず受理する。
+const ABNORMAL_UNEXPLAINED_RELEASE_MIN = 4;
 
 type AreaSnapshot = Map<string, {
   phenomenonKey: PhenomenonKey;
@@ -42,6 +45,18 @@ type AreaSnapshot = Map<string, {
 
 interface Snapshot {
   areas: Map<string, { areaName: string; kinds: AreaSnapshot }>;
+}
+
+interface PartialStreamEntry {
+  messageId: string;
+  identity: WeatherReportIdentity;
+  snapshot: Snapshot;
+}
+
+interface PersistedPartialStreamEntry {
+  messageId: string;
+  identity: WeatherReportIdentity;
+  snapshot: PersistedVpws50SnapshotV2;
 }
 
 /** 市町村等を基準にした snapshot 世代。marker 欠落の旧府県粒度 state は復元しない。 */
@@ -80,9 +95,18 @@ export interface PersistedVpws50StateV2 {
   /** VPWW55 の官署別部分報。全国 base より新しい stream だけを表示時に overlay する。 */
   partialStreams?: Array<{
     subjectKey: string;
-    messageId: string;
+  } & PersistedPartialStreamEntry>;
+  /** VPWW55 取消時に restorePrevious する官署別 bounded history。欠落した旧 schema は空として扱う。 */
+  partialHistory?: Array<{
+    subjectKey: string;
+    entries: PersistedPartialStreamEntry[];
+  }>;
+  /** 取消 tombstone を維持したまま表示上だけ直前報へ戻した subject。 */
+  restoredPartialSubjects?: string[];
+  /** VPNO50 が確定した官署別の emergency 終了 watermark。 */
+  emergencyClearWatermarks?: Array<{
+    subjectKey: string;
     identity: WeatherReportIdentity;
-    snapshot: PersistedVpws50SnapshotV2;
   }>;
   lastSuccessfulFullDisplayAt: string | null;
 }
@@ -158,10 +182,31 @@ function isPersistedState(value: unknown): value is PersistedVpws50StateV2 {
     return isPersistedWeatherIdentity(entry.identity);
   };
   const partialStreamsValid = value.partialStreams == null || Array.isArray(value.partialStreams)
+    && value.partialStreams.length <= PARTIAL_SUBJECT_LIMIT
     && value.partialStreams.every((entry) => isRecord(entry)
       && typeof entry.subjectKey === "string"
       && isEntry(entry, true));
+  const partialHistoryValid = value.partialHistory == null || Array.isArray(value.partialHistory)
+    && value.partialHistory.length <= PARTIAL_SUBJECT_LIMIT
+    && value.partialHistory.every((group) => isRecord(group)
+      && typeof group.subjectKey === "string"
+      && Array.isArray(group.entries)
+      && group.entries.length <= HISTORY_DEPTH
+      && group.entries.every((entry) => isEntry(entry, true)));
+  const restoredSubjectsValid = value.restoredPartialSubjects == null
+    || Array.isArray(value.restoredPartialSubjects)
+    && value.restoredPartialSubjects.length <= PARTIAL_SUBJECT_LIMIT
+    && value.restoredPartialSubjects.every((subject) => typeof subject === "string");
+  const watermarksValid = value.emergencyClearWatermarks == null
+    || Array.isArray(value.emergencyClearWatermarks)
+    && value.emergencyClearWatermarks.length <= PARTIAL_SUBJECT_LIMIT
+    && value.emergencyClearWatermarks.every((entry) => isRecord(entry)
+      && typeof entry.subjectKey === "string"
+      && isPersistedWeatherIdentity(entry.identity));
   return partialStreamsValid
+    && partialHistoryValid
+    && restoredSubjectsValid
+    && watermarksValid
     && (value.current == null || isEntry(value.current, true))
     && value.history.every((entry) => isEntry(entry, false))
     && (value.lastSuccessfulFullDisplayAt == null || typeof value.lastSuccessfulFullDisplayAt === "string");
@@ -416,6 +461,66 @@ function countAreaKeys(snap: Snapshot | null): number {
   return n;
 }
 
+/**
+ * 完全な警報電文では、消える既存 key は同じ Area の解除 Kind で明示される。
+ * 件数比ではなくこの完全性を根拠にして、途中で切れたような payload による state 破壊を防ぐ。
+ */
+function hasExplicitReleasesForAllMissing(
+  info: ParsedWeatherWarning,
+  previous: Snapshot,
+  next: Snapshot,
+): boolean {
+  const layer = selectPreferredWeatherLayer(info.layers);
+  if (layer == null) return false;
+  const releaseAreaCodes = new Set(
+    layer.items
+      .filter((item) => item.kinds.some((kind) => {
+        const family = resolvePhenomenonFamily(kind.code, kind.name);
+        return kind.severity === "release"
+          || resolveDisplaySeverity(kind.code, kind.name, family).displaySeverity === "release";
+      }))
+      .map((item) => item.areaCode),
+  );
+  for (const [areaCode, previousArea] of previous.areas) {
+    const nextArea = next.areas.get(areaCode);
+    for (const phenomenonKey of previousArea.kinds.keys()) {
+      if (nextArea?.kinds.has(phenomenonKey) !== true && !releaseAreaCodes.has(areaCode)) return false;
+    }
+  }
+  return true;
+}
+
+function prefecturePrefix(areaCode: string): string | null {
+  const normalized = areaCode.trim();
+  return /^\d{6}$/.test(normalized) && normalized.endsWith("0000")
+    ? normalized.slice(0, 2)
+    : null;
+}
+
+function removeEmergencyKinds(
+  snapshot: Snapshot,
+  targetAreaCodes: ReadonlySet<string>,
+  clearAll = false,
+): boolean {
+  const prefixes = new Set([...targetAreaCodes].flatMap((code) => {
+    const prefix = prefecturePrefix(code);
+    return prefix == null ? [] : [prefix];
+  }));
+  let changed = false;
+  for (const [areaCode, area] of snapshot.areas) {
+    if (!clearAll
+      && !targetAreaCodes.has(areaCode)
+      && ![...prefixes].some((prefix) => areaCode.startsWith(prefix))) continue;
+    for (const [phenomenonKey, kind] of area.kinds) {
+      if (kind.displaySeverity !== "officialL5" && kind.displaySeverity !== "nonLevelSpecial") continue;
+      area.kinds.delete(phenomenonKey);
+      changed = true;
+    }
+    if (area.kinds.size === 0) snapshot.areas.delete(areaCode);
+  }
+  return changed;
+}
+
 /** 60 分再掲条件: displaySeverity が警報級相当 (rank >= nonLevelWarning) 以上を含むか */
 function hasWarningOrHigher(snap: Snapshot | null): boolean {
   if (snap == null) return false;
@@ -440,11 +545,10 @@ export class Vpws50StateHolder implements DetailProvider<"vpws50"> {
     identity: WeatherReportIdentity | null;
     snapshot: Snapshot;
   }> = [];
-  private partialStreams = new Map<string, {
-    messageId: string;
-    identity: WeatherReportIdentity;
-    snapshot: Snapshot;
-  }>();
+  private partialStreams = new Map<string, PartialStreamEntry>();
+  private partialHistory = new Map<string, PartialStreamEntry[]>();
+  private restoredPartialSubjects = new Set<string>();
+  private emergencyClearWatermarks = new Map<string, WeatherReportIdentity>();
   private lastSuccessfulFullDisplayAt: Date | null = null;
 
   diffAndUpdate(info: ParsedWeatherWarning, messageId: string): Vpws50Diff;
@@ -481,7 +585,7 @@ export class Vpws50StateHolder implements DetailProvider<"vpws50"> {
   ): { diff: Vpws50Diff; displayDiff: Vpws50DisplayDiff | null } {
     const previousEffective = this.effectiveSnapshot();
     const newSnap = infoToSnapshot(info);
-    const unsafeReason = this.unsafeReasonFor(newSnap);
+    const unsafeReason = this.unsafeReasonFor(newSnap, info);
     if (unsafeReason != null) return { diff: this.buildUnsafeDiff(unsafeReason), displayDiff: null };
     if (newSnap == null) return { diff: this.buildUnsafeDiff("layer_missing"), displayDiff: null };
 
@@ -540,12 +644,29 @@ export class Vpws50StateHolder implements DetailProvider<"vpws50"> {
     messageId: string,
     identity: WeatherReportIdentity,
     subjectKey: string,
+    options?: { replaceCurrentRevision?: boolean },
   ): { diff: Vpws50Diff; displayDiff: Vpws50DisplayDiff | null } {
-    const partial = infoToSnapshot(info);
+    const parsedPartial = infoToSnapshot(info);
+    const partial = parsedPartial == null ? null : cloneSnapshot(parsedPartial);
     if (partial == null) return { diff: this.buildUnsafeDiff("layer_missing"), displayDiff: null };
+    const watermark = this.emergencyClearWatermarks.get(subjectKey);
+    if (watermark != null && (compareWeatherReportIdentity(identity, watermark) ?? 1) <= 0) {
+      removeEmergencyKinds(partial, new Set(), true);
+    }
     const previous = this.effectiveSnapshot();
+    const current = this.partialStreams.get(subjectKey);
+    if (current != null && options?.replaceCurrentRevision !== true) {
+      const history = this.partialHistory.get(subjectKey) ?? [];
+      history.push(current);
+      while (history.length > HISTORY_DEPTH) history.shift();
+      this.partialHistory.set(subjectKey, history);
+    }
+    this.restoredPartialSubjects.delete(subjectKey);
     this.partialStreams.delete(subjectKey);
-    this.partialStreams.set(subjectKey, { messageId, identity: { ...identity }, snapshot: partial });
+    if (partial.areas.size > 0) {
+      this.partialStreams.set(subjectKey, { messageId, identity: { ...identity }, snapshot: partial });
+    }
+    this.trimPartialSubjects();
     return this.partialTransition(previous);
   }
 
@@ -553,13 +674,119 @@ export class Vpws50StateHolder implements DetailProvider<"vpws50"> {
   clearPartial(subjectKey: string): { diff: Vpws50Diff; displayDiff: Vpws50DisplayDiff | null } {
     const previous = this.effectiveSnapshot();
     this.partialStreams.delete(subjectKey);
+    this.partialHistory.delete(subjectKey);
+    this.restoredPartialSubjects.delete(subjectKey);
+    return this.partialTransition(previous);
+  }
+
+  /** VPWW55 取消の restorePrevious 契約。官署 stream 内だけを一報戻し、初報なら clear する。 */
+  restorePreviousPartial(subjectKey: string): { diff: Vpws50Diff; displayDiff: Vpws50DisplayDiff | null } {
+    const previous = this.effectiveSnapshot();
+    const history = this.partialHistory.get(subjectKey);
+    const restored = history?.pop();
+    if (history != null && history.length === 0) this.partialHistory.delete(subjectKey);
+    if (restored == null) {
+      this.partialStreams.delete(subjectKey);
+      this.restoredPartialSubjects.delete(subjectKey);
+    } else {
+      this.partialStreams.set(subjectKey, restored);
+      this.restoredPartialSubjects.add(subjectKey);
+    }
+    this.trimPartialSubjects();
+    return this.partialTransition(previous);
+  }
+
+  /**
+   * VPNO50 の府県予報区解除を、対応する VPWW55 overlay へ cross-type で反映する。
+   * VPNO50 自身は後続の警報内容を作らないため、対象地域の L5 相当だけを外す。
+   */
+  clearEmergencyPartialAreas(
+    officeSubjectKey: string,
+    areaCodes: readonly string[],
+    identity: WeatherReportIdentity,
+  ): { diff: Vpws50Diff; displayDiff: Vpws50DisplayDiff | null } {
+    const targets = new Set(areaCodes.filter((code) => code.trim() !== ""));
+    const previous = this.effectiveSnapshot();
+    const currentWatermark = this.emergencyClearWatermarks.get(officeSubjectKey);
+    if (currentWatermark != null) {
+      const relation = compareWeatherReportIdentity(identity, currentWatermark);
+      if (relation == null || relation <= 0) return this.partialTransition(previous);
+    }
+    const recordWatermark = (subjectKey: string): void => {
+      const current = this.emergencyClearWatermarks.get(subjectKey);
+      if (current == null || (compareWeatherReportIdentity(identity, current) ?? -1) > 0) {
+        // Map.set は既存 key の挿入順を更新しない。更新 watermark を LRU 末尾へ移す。
+        this.emergencyClearWatermarks.delete(subjectKey);
+        this.emergencyClearWatermarks.set(subjectKey, { ...identity });
+      }
+    };
+    recordWatermark(officeSubjectKey);
+    const affectedSubjects = new Set<string>();
+    const isNotNewerThanClear = (entryIdentity: WeatherReportIdentity): boolean =>
+      (compareWeatherReportIdentity(entryIdentity, identity) ?? 1) <= 0;
+    for (const [subjectKey, entry] of this.partialStreams) {
+      if (!isNotNewerThanClear(entry.identity)) continue;
+      const next = cloneSnapshot(entry.snapshot);
+      if (!removeEmergencyKinds(next, targets, subjectKey === officeSubjectKey)) continue;
+      affectedSubjects.add(subjectKey);
+      if (next.areas.size === 0) {
+        this.partialStreams.delete(subjectKey);
+        this.restoredPartialSubjects.delete(subjectKey);
+      } else this.partialStreams.set(subjectKey, { ...entry, snapshot: next });
+    }
+    // 取消で過去報へ戻って終了済み特別警報を復元しないよう、stream history 側も同じ解除を適用する。
+    for (const [subjectKey, entries] of this.partialHistory) {
+      let changed = false;
+      const kept = entries.map((entry) => {
+        if (!isNotNewerThanClear(entry.identity)) return entry;
+        const snapshot = cloneSnapshot(entry.snapshot);
+        changed = removeEmergencyKinds(snapshot, targets, subjectKey === officeSubjectKey) || changed;
+        return { ...entry, snapshot };
+      }).filter((entry) => entry.snapshot.areas.size > 0);
+      if (!changed) continue;
+      affectedSubjects.add(subjectKey);
+      if (kept.length === 0) this.partialHistory.delete(subjectKey);
+      else this.partialHistory.set(subjectKey, kept);
+    }
+    for (const subjectKey of affectedSubjects) recordWatermark(subjectKey);
+    while (this.emergencyClearWatermarks.size > PARTIAL_SUBJECT_LIMIT) {
+      const oldestSubject = this.emergencyClearWatermarks.keys().next().value as string | undefined;
+      if (oldestSubject == null) break;
+      this.emergencyClearWatermarks.delete(oldestSubject);
+    }
     return this.partialTransition(previous);
   }
 
   retainActivePartialSubjects(subjectKeys: readonly string[]): void {
     const retained = new Set(subjectKeys);
     for (const subjectKey of this.partialStreams.keys()) {
-      if (!retained.has(subjectKey)) this.partialStreams.delete(subjectKey);
+      if (!retained.has(subjectKey) && !this.restoredPartialSubjects.has(subjectKey)) {
+        this.partialStreams.delete(subjectKey);
+        this.partialHistory.delete(subjectKey);
+      }
+    }
+    // VPNO50 が emergency current だけを除いた subject は history-only になり得る。
+    // gate capacity eviction 後も残さないよう、stream と独立に active 集合へ同期する。
+    for (const subjectKey of this.partialHistory.keys()) {
+      if (!retained.has(subjectKey) && !this.restoredPartialSubjects.has(subjectKey)) {
+        this.partialHistory.delete(subjectKey);
+      }
+    }
+    this.trimPartialSubjects();
+  }
+
+  private trimPartialSubjects(): void {
+    while (this.partialStreams.size > PARTIAL_SUBJECT_LIMIT) {
+      const oldestSubject = this.partialStreams.keys().next().value as string | undefined;
+      if (oldestSubject == null) break;
+      this.partialStreams.delete(oldestSubject);
+      this.partialHistory.delete(oldestSubject);
+      this.restoredPartialSubjects.delete(oldestSubject);
+    }
+    while (this.partialHistory.size > PARTIAL_SUBJECT_LIMIT) {
+      const oldestSubject = this.partialHistory.keys().next().value as string | undefined;
+      if (oldestSubject == null) break;
+      this.partialHistory.delete(oldestSubject);
     }
   }
 
@@ -614,16 +841,16 @@ export class Vpws50StateHolder implements DetailProvider<"vpws50"> {
 
   /** revision gate を確定する前に、state を変更せず安全性だけを判定する。 */
   previewUnsafe(info: ParsedWeatherWarning): Vpws50Diff | null {
-    const reason = this.unsafeReasonFor(infoToSnapshot(info));
+    const reason = this.unsafeReasonFor(infoToSnapshot(info), info);
     return reason == null ? null : this.buildUnsafeDiff(reason);
   }
 
-  private unsafeReasonFor(newSnap: Snapshot | null): "layer_missing" | "abnormal_release_rate" | null {
+  private unsafeReasonFor(
+    newSnap: Snapshot | null,
+    info?: ParsedWeatherWarning,
+  ): "layer_missing" | "abnormal_release_rate" | null {
     if (newSnap == null) return "layer_missing";
-    const prevCount = countAreaKeys(this.current);
-    // 80% 以上消失は abnormal だが、prevCount<2 では single release が 100% に
-    // 化けるため誤検出を避けて閾値判定をスキップ。
-    if (prevCount < 2 || this.current == null) return null;
+    if (this.current == null) return null;
     let actualReleased = 0;
     for (const [areaCode, prevArea] of this.current.areas) {
       const currArea = newSnap.areas.get(areaCode);
@@ -631,9 +858,11 @@ export class Vpws50StateHolder implements DetailProvider<"vpws50"> {
         if (currArea == null || !currArea.kinds.has(phKey)) actualReleased++;
       }
     }
-    // 全解除は正当な一斉解除。発表中種別が残る部分大量解除だけを防御する。
+    // 全解除は正当な一斉解除。残存 state があるときだけ、解除 Kind の完全性を確認する。
     const remaining = countAreaKeys(newSnap);
-    return remaining > 0 && actualReleased / prevCount >= ABNORMAL_RELEASE_THRESHOLD
+    return remaining > 0
+      && actualReleased >= ABNORMAL_UNEXPLAINED_RELEASE_MIN
+      && (info == null || !hasExplicitReleasesForAllMissing(info, this.current, newSnap))
       ? "abnormal_release_rate"
       : null;
   }
@@ -731,6 +960,25 @@ export class Vpws50StateHolder implements DetailProvider<"vpws50"> {
           snapshot: serializeSnapshot(entry.snapshot),
         })),
       }),
+      ...(this.partialHistory.size === 0 ? {} : {
+        partialHistory: [...this.partialHistory].map(([subjectKey, entries]) => ({
+          subjectKey,
+          entries: entries.map((entry) => ({
+            messageId: entry.messageId,
+            identity: { ...entry.identity },
+            snapshot: serializeSnapshot(entry.snapshot),
+          })),
+        })),
+      }),
+      ...(this.restoredPartialSubjects.size === 0 ? {} : {
+        restoredPartialSubjects: [...this.restoredPartialSubjects],
+      }),
+      ...(this.emergencyClearWatermarks.size === 0 ? {} : {
+        emergencyClearWatermarks: [...this.emergencyClearWatermarks].map(([subjectKey, identity]) => ({
+          subjectKey,
+          identity: { ...identity },
+        })),
+      }),
       lastSuccessfulFullDisplayAt: this.lastSuccessfulFullDisplayAt?.toISOString() ?? null,
     };
   }
@@ -743,6 +991,9 @@ export class Vpws50StateHolder implements DetailProvider<"vpws50"> {
       this.currentIdentity = null;
       this.history = [];
       this.partialStreams.clear();
+      this.partialHistory.clear();
+      this.restoredPartialSubjects.clear();
+      this.emergencyClearWatermarks.clear();
       this.lastSuccessfulFullDisplayAt = null;
       return;
     }
@@ -759,6 +1010,21 @@ export class Vpws50StateHolder implements DetailProvider<"vpws50"> {
       identity: { ...entry.identity },
       snapshot: restoreSnapshot(entry.snapshot),
     }]));
+    this.partialHistory = new Map((state.partialHistory ?? []).map((group) => [group.subjectKey,
+      group.entries.slice(-HISTORY_DEPTH).map((entry) => ({
+        messageId: entry.messageId,
+        identity: { ...entry.identity },
+        snapshot: restoreSnapshot(entry.snapshot),
+      })),
+    ]));
+    const partialSubjects = new Set(this.partialStreams.keys());
+    this.restoredPartialSubjects = new Set((state.restoredPartialSubjects ?? [])
+      .filter((subject) => partialSubjects.has(subject)));
+    this.emergencyClearWatermarks = new Map((state.emergencyClearWatermarks ?? [])
+      .slice(-PARTIAL_SUBJECT_LIMIT).map((entry) => [
+      entry.subjectKey,
+      { ...entry.identity },
+    ]));
     this.lastSuccessfulFullDisplayAt = state.lastSuccessfulFullDisplayAt == null
       ? null
       : new Date(state.lastSuccessfulFullDisplayAt);

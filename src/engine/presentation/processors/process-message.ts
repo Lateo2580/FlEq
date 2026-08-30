@@ -59,6 +59,7 @@ import { processStandbyFoundation, standbyFoundationPresentation } from "./proce
 import type { ProcessOutcomeBase } from "../types";
 import { nankaiBadgeAction } from "../../display/nankai-status";
 import { gateRawOutcome, gateTransientOutcome } from "./process-transient-foundation";
+import { weatherOfficeStreamKey } from "../../messages/weather-stream-key";
 
 /** processMessage に必要な依存群 */
 export interface ProcessDeps {
@@ -76,6 +77,7 @@ export interface ProcessDeps {
   revisionGate: TelegramRevisionGate;
   onRevisionDecision?: (decision: TelegramRevisionDecision) => void;
   onVpws50RevisionDecision?: (decision: TelegramRevisionDecision) => void;
+  onVpws50StateMutationAccepted?: () => void;
   onVpww56RevisionDecision?: (decision: TelegramRevisionDecision) => void;
   onTsunamiRevisionDecision?: (decision: TelegramRevisionDecision) => void;
   onFloodRevisionDecision?: (decision: TelegramRevisionDecision) => void;
@@ -244,9 +246,32 @@ const PROCESSOR_TABLE = {
   },
   legacyCounterpart: (msg, deps, cat) => {
     const outcome = processLegacyCounterpart(msg);
-    return outcome == null
+    const gated = outcome == null
       ? processRaw(msg, cat)
       : gateTransientOutcome(outcome, LEGACY_COUNTERPART_REVISION_FAMILY_POLICY, deps);
+    // VPNO50 は特別警報の終了通知であって、後続の警報内容を持たない。府県予報区の
+    // 「解除」だけを受理済み VPWW55 overlay へ反映し、通常警報の権威は後続 VPWW55/VPWS50 に残す。
+    if (
+      gated?.domain === "legacyCounterpart"
+      && gated.parsed.type === "VPNO50"
+      && gated.parsed.publishingOffice.trim() !== ""
+      && gated.parsed.areas.length > 0
+      && gated.parsed.kinds.some((kind) => kind.code === "00" || kind.name === "解除")
+    ) {
+      const update = deps.vpws50State.clearEmergencyPartialAreas(
+        weatherOfficeStreamKey("VPWW55", gated.parsed.publishingOffice)!,
+        gated.parsed.areas.map((area) => area.code),
+        {
+          reportDateTime: gated.parsed.reportDateTime,
+          serial: gated.msg.xmlReport?.head.serial ?? null,
+        },
+      );
+      gated.presentation.weatherDiff = update.diff;
+      gated.presentation.weatherChangeDiff = update.displayDiff ?? undefined;
+      gated.presentation.weatherStateMutationAccepted = update.diff.confidence === "confirmed";
+      deps.onVpws50StateMutationAccepted?.();
+    }
+    return gated;
   },
 } satisfies Record<LinearRoute, ProcessorAdapter>;
 

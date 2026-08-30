@@ -6,6 +6,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type { PresentationEvent, ProcessOutcome } from "../../../src/engine/presentation/types";
 import { classifyMessage } from "../../../src/engine/messages/route-catalog";
 import { processMessage } from "../../../src/engine/presentation/processors/process-message";
+import { processWeather } from "../../../src/engine/presentation/processors/process-weather";
 import {
   processLegacyCounterpart,
   PRODUCTION_LEGACY_COUNTERPART_SEVERITY_RULES,
@@ -15,6 +16,7 @@ import { projectDisplayEvent } from "../../../src/engine/display/project-event";
 import { InfoDisplayHub } from "../../../src/engine/display/hub";
 import { DisplayStateStore } from "../../../src/engine/display/state-store";
 import { WeatherPromotionStore } from "../../../src/engine/display/weather-promotion-store";
+import { Vpws50StateHolder } from "../../../src/engine/messages/vpws50-state";
 import { createDisplaySink } from "../../../src/engine/monitor/display-sink";
 import { tickerTtlMs } from "../../../src/engine/display/ticker-ttl";
 import type {
@@ -61,6 +63,10 @@ import {
   createMockWsDataMessage,
   encodeXml,
   FIXTURE_VXSE51_SHINDO,
+  FIXTURE_VPWW55_FUKUI_L5,
+  FIXTURE_VPWW55_FUKUI_DOWNGRADE,
+  FIXTURE_VPNO50_FUKUI_ISSUE,
+  FIXTURE_VPNO50_FUKUI_SWITCH,
   FIXTURE_PHASE6B_VPBS50_KJPDE202608201757_202608201757,
   FIXTURE_PHASE6B_VPBS50_KJPTC202608211633_202608211633,
   FIXTURE_PHASE6B_VPBS50_KJPTC202608221709_202608221709,
@@ -540,6 +546,73 @@ function runPhase6bDisplayPair(
 }
 
 describe("Phase 6B legacy counterpart route and VPOA50 production slice", () => {
+  it("VPNO50 実 fixture は府県予報区の解除を抽出し、VPWW55 L5 overlay を原子的に失効させる", () => {
+    const issue = parseLegacyCounterpart(createMockWsDataMessage(FIXTURE_VPNO50_FUKUI_ISSUE));
+    const released = parseLegacyCounterpart(createMockWsDataMessage(FIXTURE_VPNO50_FUKUI_SWITCH));
+    expect(issue?.areas).toContainEqual({ code: "180000", name: "福井県" });
+    expect(issue?.kinds).toContainEqual({ code: "33", name: "大雨特別警報" });
+    expect(released?.areas).toEqual([{ code: "180000", name: "福井県" }]);
+    expect(released?.kinds).toEqual([{ code: "00", name: "解除" }]);
+
+    const state = new Vpws50StateHolder();
+    const deps = makeProcessDeps({ vpws50State: state });
+    const applyWeatherAlerts = vi.fn();
+    const promotions = new WeatherPromotionStore();
+    const sink = createDisplaySink({
+      standby: { applyEvent: () => undefined, applyWeatherAlerts },
+      promotions,
+      weatherViews: { vpws50: () => state.getCurrentAreasForDisplay(), vpww56: () => undefined },
+      vpws50Identity: () => state.getCurrentIdentity(),
+      getHub: () => null,
+    });
+
+    const l5Result = processWeather(createMockWsDataMessage(FIXTURE_VPWW55_FUKUI_L5), deps);
+    expect(l5Result.kind).toBe("ok");
+    if (l5Result.kind !== "ok") throw new Error("expected L5 weather outcome");
+    const l5Event = toPresentationEvent(l5Result.outcome);
+    sink.ingest(l5Event);
+    const l5 = state.getCurrentAreasForDisplay()?.kinds
+      .find((kind) => kind.displaySeverity === "officialL5");
+    expect(l5?.areas.length).toBeGreaterThan(0);
+    expect(l5?.areas.every((area) => area.areaCode.length === 7)).toBe(true);
+    expect(promotions.get("vpws50")).toMatchObject({ state: "active", level: 5 });
+
+    const outcome = expectOutcome(processMessage(
+      createMockWsDataMessage(FIXTURE_VPNO50_FUKUI_SWITCH),
+      "legacyCounterpart",
+      deps,
+    ));
+    if (outcome.domain !== "legacyCounterpart") throw new Error("expected legacy counterpart outcome");
+    const event = toPresentationEvent(outcome);
+    expect(event.weatherStateMutationAccepted).toBe(true);
+    expect(event.weatherDiff?.released.length).toBeGreaterThan(0);
+    expect(event.weatherDiff?.released.every((area) => area.areaCode.length === 7)).toBe(true);
+    expect(state.getCurrentAreasForDisplay()?.kinds
+      .some((kind) => kind.displaySeverity === "officialL5")).toBe(false);
+    expect(state.getCurrentAreasForDisplay()?.kinds
+      .some((kind) => kind.displaySeverity === "officialL4")).toBe(true);
+    sink.ingest(event);
+    expect(applyWeatherAlerts).toHaveBeenLastCalledWith(
+      "vpws50",
+      expect.arrayContaining([expect.objectContaining({
+        items: expect.arrayContaining([expect.objectContaining({ displaySeverity: "officialL4" })]),
+      })]),
+      expect.any(String),
+      null,
+      expect.any(Number),
+    );
+    expect(promotions.get("vpws50")).toMatchObject({ state: "active", level: 4 });
+
+    const downgradeResult = processWeather(
+      createMockWsDataMessage(FIXTURE_VPWW55_FUKUI_DOWNGRADE),
+      deps,
+    );
+    expect(downgradeResult.kind).toBe("ok");
+    expect(state.getCurrentAreasForDisplay()?.kinds
+      .some((kind) => kind.displaySeverity === "officialL5")).toBe(false);
+    expect(state.getCurrentAreasForDisplay()?.kinds
+      .some((kind) => kind.displaySeverity === "officialL4")).toBe(true);
+  });
   afterEach(() => {
     vi.useRealTimers();
     vi.restoreAllMocks();

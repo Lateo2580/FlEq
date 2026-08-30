@@ -22,6 +22,7 @@ export const LEGACY_COUNTERPART_BODY_EXTRACTORS = ["VPOA50"] as const;
 
 const VPOA_INFORMATION_TYPE = "記録的短時間大雨情報（発表細分）";
 const VPOA_KIND_NAME = "記録的短時間大雨情報";
+const VPNO_INFORMATION_TYPE = "気象特別警報報知（府県予報区等）";
 const VPOA_ARRAY_TAGS = new Set([
   "Information",
   "Warning",
@@ -207,6 +208,36 @@ function extractVpoaEvidence(
 }
 
 /**
+ * VPNO50 は本文を持たず、Headline の府県予報区レイヤだけが特別警報の切替対象を
+ * 権威的に示す。より細かい区域を混ぜると VPWW55 の府県 stream と対応しなくなるため、
+ * この type に限定して抽出する。
+ */
+function extractVpnoEvidence(xml: string): Pick<VpoaExtraction, "areas" | "kinds"> {
+  const parsed = vpoaXmlParser.parse(xml) as unknown;
+  const report = dig(parsed, "Report") ?? dig(parsed, "jmx:Report");
+  const candidates = listOf(dig(report, "Head", "Headline", "Information")).filter(
+    (node) => str(dig(node, "@_type")) === VPNO_INFORMATION_TYPE,
+  );
+  const areas: LegacyCounterpartCodeNamePair[] = [];
+  const kinds: LegacyCounterpartCodeNamePair[] = [];
+  for (const candidate of candidates) {
+    for (const item of listOf(dig(candidate, "Item"))) {
+      for (const kind of listOf(dig(item, "Kind"))) {
+        const pair = pairFromNode(kind);
+        if (pair != null) kinds.push(pair);
+      }
+      for (const areasNode of listOf(dig(item, "Areas"))) {
+        for (const area of listOf(dig(areasNode, "Area"))) {
+          const pair = pairFromNode(area);
+          if (pair != null) areas.push(pair);
+        }
+      }
+    }
+  }
+  return { areas: uniquePairs(areas), kinds: uniquePairs(kinds) };
+}
+
+/**
  * VPOA50／VPNO50／VXWW50 の parser。
  *
  * VPOA50 だけは raw XML の Headline.Information と Body.Warning の選択項目を
@@ -256,6 +287,13 @@ export function parseLegacyCounterpart(
       } catch {
         // 本文の decode／shape 異常は raw XML evidence を欠落扱いにし、
         // header model の fail-open 表示は維持する。
+      }
+    } else if (type === "VPNO50") {
+      try {
+        const vpno = extractVpnoEvidence(decodeTelegramBody(msg));
+        extracted = { ...extracted, ...vpno };
+      } catch {
+        // VPNO50 の抽出不能は state を変えず、従来どおり header-only 表示へ縮退する。
       }
     }
 

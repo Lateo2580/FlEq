@@ -417,6 +417,10 @@ export async function startMonitor(config: AppConfig, pipelineController?: Pipel
     onVpws50RevisionDecision: (decision) => {
       if (decision.accepted) vpws50FoundationAuthoritative = true;
     },
+    onVpws50StateMutationAccepted: () => {
+      vpws50FoundationAuthoritative = true;
+      standbyPersistence.schedule(standbyStore.exportActiveState());
+    },
     onVpww56RevisionDecision: (decision) => {
       if (!decision.accepted) return;
       standbyPersistence.schedule(standbyStore.exportActiveState());

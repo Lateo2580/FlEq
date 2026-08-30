@@ -86,6 +86,34 @@ describe("WeatherChangeDisplayStore", () => {
     expect(store.snapshot(NOW)).toBeNull();
   });
 
+  it("受理済み VPWW55 の降格 diff も短時間変更表示へ載せる", () => {
+    const store = new WeatherChangeDisplayStore();
+    const lowered = displayDiff({
+      upgraded: [],
+      downgraded: [{
+        areaCode: "180000",
+        areaName: "福井県",
+        changes: [transition({
+          prevKindCode: "33", newKindCode: "43",
+          prevDisplaySeverity: "officialL5", newDisplaySeverity: "officialL4",
+          prevOfficialAlertLevel: 5, newOfficialAlertLevel: 4,
+        })],
+      }],
+    });
+    expect(store.apply(event({
+      type: "VPWW55",
+      weatherDiff: diff({ upgraded: [], downgraded: [{
+        areaCode: "180000", areaName: "福井県", changes: [],
+      }] }),
+      weatherChangeDiff: lowered,
+    }), NOW)).toBe(true);
+    expect(store.snapshot(NOW)?.changes[0]).toMatchObject({
+      areaCode: "180000", kind: "downgraded",
+      before: { kindCode: "33", officialAlertLevel: 5 },
+      after: { kindCode: "43", officialAlertLevel: 4 },
+    });
+  });
+
   it("accepted changed を作成し、続報で原子的に置換する", () => {
     const store = new WeatherChangeDisplayStore();
     store.apply(event(), NOW);

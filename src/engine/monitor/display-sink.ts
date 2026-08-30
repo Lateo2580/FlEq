@@ -161,12 +161,12 @@ export function createDisplaySink(deps: DisplaySinkDeps): DisplayIngestSink {
         standbyMutation,
       );
       const unsafeVpws50 = event.type === "VPWS50" && event.weatherConfidence === "unsafe";
-      const acceptedVpww55Mutation = event.type !== "VPWW55"
+      const acceptedVpww55Mutation = event.type !== "VPWW55" && event.type !== "VPNO50"
         || event.weatherStateMutationAccepted === true;
       const acceptedVpww56Mutation = event.type !== "VPWW56"
         || event.weatherStateMutationAccepted === true;
-      if ((event.type === "VPWS50" || event.type === "VPWW55") && !unsafeVpws50 && acceptedVpww55Mutation) {
-        const activeIdentity = event.infoType === "取消" ? deps.vpws50Identity?.() : null;
+      if ((event.type === "VPWS50" || event.type === "VPWW55" || event.type === "VPNO50") && !unsafeVpws50 && acceptedVpww55Mutation) {
+        const activeIdentity = event.infoType === "取消" || event.type === "VPNO50" ? deps.vpws50Identity?.() : null;
         const activeReportDateTime = activeIdentity?.reportDateTime ?? event.reportDateTime;
         deps.standby.applyWeatherAlerts?.(
           "vpws50",

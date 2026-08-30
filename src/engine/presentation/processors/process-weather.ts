@@ -173,8 +173,12 @@ export function processWeather(
       }
     } else if (msg.head.type === "VPWW55" && deps.vpws50State != null) {
       const update = cancellationTriggered
-        ? deps.vpws50State.clearPartial(subject)
-        : deps.vpws50State.mergePartialWithDisplay(info, messageId, identity, subject);
+        ? decision.kind === "restorePrevious"
+          ? deps.vpws50State.restorePreviousPartial(subject)
+          : deps.vpws50State.clearPartial(subject)
+        : deps.vpws50State.mergePartialWithDisplay(info, messageId, identity, subject, {
+          replaceCurrentRevision: decision.kind === "replaceCorrection" && decision.relation === "equal",
+        });
       weatherDiff = update.diff;
       weatherChangeDiff = update.displayDiff ?? undefined;
       if (cancellationTriggered) {
@@ -185,9 +189,13 @@ export function processWeather(
         soundLevel = "info";
       }
       weatherStateMutationAccepted = weatherDiff.confidence === "confirmed";
-      deps.vpws50State.retainActivePartialSubjects(
-        deps.revisionGate.activeRevisionFamilySubjects(policy.domain, policy.revisionFamily),
-      );
+      // restorePrevious は取消済み gate subject より一つ前の accepted snapshot を表示する。
+      // active subject 集合で直後に刈ると、その復元を自分で消してしまう。
+      if (!cancellationTriggered) {
+        deps.vpws50State.retainActivePartialSubjects(
+          deps.revisionGate.activeRevisionFamilySubjects(policy.domain, policy.revisionFamily),
+        );
+      }
     } else if (msg.head.type === "VPWW56") {
       if (decision.kind === "clearCurrent") deps.vpww56State!.clearSubject(subject);
       else deps.vpww56State!.applyAccepted(info, subject);
