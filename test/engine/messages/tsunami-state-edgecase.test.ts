@@ -14,10 +14,11 @@ function tsunami(
   reportDateTime: string,
   infoType: "発表" | "訂正" | "取消",
   kind = "津波警報",
+  eventId = "tsunami",
 ): ParsedTsunamiInfo {
   const meta = createTelegramMeta({
     messageId: `${infoType}:${reportDateTime}:${kind}`,
-    eventId: "tsunami",
+    eventId,
     type: "VTSE41",
     reportDateTime,
     serial: null,
@@ -38,7 +39,13 @@ function tsunami(
       {
         areaCode: "210",
         areaName: "岩手県",
-        kindCode: kind === "大津波警報" ? "53" : kind === "津波注意報" ? "62" : "51",
+        kindCode: kind === "大津波警報"
+          ? "53"
+          : kind === "津波注意報"
+            ? "62"
+            : kind === "若干の海面変動"
+              ? "71"
+              : "51",
         kind,
         maxHeightDescription: "3m",
         firstHeight: "到達中と推測",
@@ -80,6 +87,24 @@ function apply(
 }
 
 describe("tsunami common revision gate 敵対シーケンス", () => {
+  it("容量保護対象は警報・注意報級 EventID に限り、津波予報だけの EventID を含めない", () => {
+    const holder = new TsunamiStateHolder();
+    holder.applyAccepted(tsunami(
+      "2025-01-01T00:01:00+09:00",
+      "発表",
+      "若干の海面変動",
+      "forecast-only",
+    ));
+    holder.applyAccepted(tsunami(
+      "2025-01-01T00:02:00+09:00",
+      "発表",
+      "津波注意報",
+      "advisory",
+    ));
+
+    expect(holder.activeEventIds()).toEqual(["advisory"]);
+  });
+
   it("遅着取消と順序逆転した格下げ報を棄却する", () => {
     const gate = new TelegramRevisionGate();
     const holder = new TsunamiStateHolder();

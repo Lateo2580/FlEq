@@ -872,6 +872,11 @@ export class Vpws50StateHolder implements DetailProvider<"vpws50"> {
     this.trimPartialSubjects();
   }
 
+  /** 容量判断は gate の印ではなく、holder に現存する部分警報で行う。 */
+  activePartialSubjects(): string[] {
+    return [...this.partialStreams.keys()];
+  }
+
   private trimPartialSubjects(): void {
     while (this.partialStreams.size > PARTIAL_SUBJECT_LIMIT) {
       const oldestSubject = this.partialStreams.keys().next().value as string | undefined;

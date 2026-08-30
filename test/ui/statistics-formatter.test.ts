@@ -41,6 +41,7 @@ function makeSnapshot(overrides: Partial<StatsSnapshot> = {}): StatsSnapshot {
       futureDateDiagnosed: 0,
       cancelApplied: 0,
       cancelTargetMismatch: 0,
+      capacityExceeded: 0,
       persistenceMigrationConflict: 0,
       presented: 0,
       notified: 0,

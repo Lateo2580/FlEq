@@ -104,7 +104,11 @@ export function processTsunami(
     durable: policy.durable,
     tombstoneRetentionMs: policy.tombstoneRetentionMs,
     maxSubjects: policy.maxSubjects,
-    retainForFamilyCapacity: true,
+    // EventID の保護根拠は gate の残存印ではなく、holder の active forecast。
+    retainForFamilyCapacity: msg.head.type !== "VTSE41",
+    activeFamilySubjects: msg.head.type === "VTSE41"
+      ? deps.tsunamiState.activeEventIds().map((eventId) => `tsunami:${eventId}`)
+      : undefined,
     allowMissingSerial: policy.allowMissingSerial,
     fragmentMerge: policy.fragmentMerge,
     payloadFingerprint: semanticPayloadFingerprint(semanticTsunamiPayload(parsed, policy)),

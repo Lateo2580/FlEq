@@ -350,6 +350,15 @@ export class TsunamiStateHolder
     this.observationGroups = emptyObservationGroups();
   }
 
+  /** 容量判断に使う、holder に現存する VTSE41 EventID。 */
+  activeEventIds(): string[] {
+    return [...this.eventInfos]
+      .filter(([, info]) => resolveTsunamiLevel(
+        (info.forecast ?? []).map((item) => item.kind),
+      ) != null)
+      .map(([eventId]) => eventId);
+  }
+
   /** holder 全体を明示的にリセットする。 */
   clear(): void {
     this.clearActiveState();

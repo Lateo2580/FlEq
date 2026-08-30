@@ -2602,7 +2602,7 @@ describe("Phase 3B tsunami common registry", () => {
     expect(restarted.tsunamiState.getLastInfo()).toEqual(correction);
   });
 
-  it("VTSE41 取消 tombstone を v2 往復し、REST 不通後の遅延警報を拒否する", () => {
+  it("VTSE41 の旧明示 null tombstone を有限 TTL へ移行し、REST 不通後の遅延警報を拒否する", () => {
     const shared = deps();
     expect(run(info({ type: "VTSE41", at: T1, messageId: "warning-before-cancel" }), shared).kind)
       .toBe("ok");
@@ -2626,6 +2626,12 @@ describe("Phase 3B tsunami common registry", () => {
     }));
     persistence.save(legacyState());
 
+    const persisted = JSON.parse(
+      fs.readFileSync(standbyPersistenceV2Path(file), "utf8"),
+    ) as PersistedStandbyStateV2;
+    persisted.telegramFoundation.tsunami.gateEntries[0].tombstoneRetentionMs = null;
+    fs.writeFileSync(standbyPersistenceV2Path(file), JSON.stringify(persisted), "utf8");
+
     const loaded = persistence.load()!.telegramFoundation.tsunami;
     expect(loaded.active).toBeNull();
     expect(loaded.gateEntries).toEqual([
@@ -2634,7 +2640,7 @@ describe("Phase 3B tsunami common registry", () => {
         revisionFamily: "VTSE41",
         stateSubjectKey: "tsunami:tsunami-event",
         cancelled: true,
-        tombstoneRetentionMs: null,
+        tombstoneRetentionMs: 7 * 24 * 60 * 60_000,
       }),
     ]);
     const restarted = deps();
@@ -2873,7 +2879,7 @@ describe("Phase 3B tsunami common registry", () => {
     ]);
   });
 
-  it("VTSE41 sanitizer は active を優先して 512 件へ切り詰め、restart 後の新規 admission で active を退場させない", () => {
+  it("VTSE41 sanitizer は active と TTL 内 tombstone を保護し、容量圧迫時の新規報を拒否する", () => {
     const shared = deps();
     const active = info({
       eventId: "capacity-active",
@@ -2951,6 +2957,56 @@ describe("Phase 3B tsunami common registry", () => {
       stateSubjectKey: "tsunami:capacity-active",
       cancelled: false,
     }));
+  });
+
+  it("津波予報だけの 512 EventID は容量保護せず、新規津波警報を受理する", () => {
+    const seed = deps();
+    const forecastOnly = (index: number) => info({
+      eventId: `forecast-only-${index}`,
+      areaCode: String(100 + index),
+      kindCode: "71",
+      kind: "若干の海面変動",
+      at: T1,
+      messageId: `forecast-only-${index}`,
+    });
+    expect(run(forecastOnly(0), seed).kind).toBe("ok");
+    const template = seed.revisionGate.exportDurableEntries().find(
+      (entry) => entry.stateSubjectKey === "tsunami:forecast-only-0",
+    )!;
+    const entries = Array.from(
+      { length: TSUNAMI_REVISION_FAMILY_POLICIES.VTSE41.maxSubjects },
+      (_, index) => {
+        const entry = structuredClone(template);
+        const subject = `tsunami:forecast-only-${index}`;
+        entry.stateSubjectKey = subject;
+        entry.comparison.stateSubjectKey = subject;
+        entry.comparison.revision.eventId = { raw: subject, value: subject, valid: true };
+        entry.semanticKeys = [`forecast-only-${index}`];
+        entry.acceptedAtMs += index;
+        return entry;
+      },
+    );
+
+    const saturated = deps();
+    saturated.tsunamiState.restorePersistedState(
+      null,
+      { VTSE51: [], VTSE52: [] },
+      Array.from(
+        { length: TSUNAMI_REVISION_FAMILY_POLICIES.VTSE41.maxSubjects },
+        (_, index) => forecastOnly(index),
+      ),
+    );
+    saturated.revisionGate.restoreDurableEntries(entries);
+    expect(saturated.tsunamiState.activeEventIds()).toEqual([]);
+    expect(run(info({
+      eventId: "capacity-new-warning",
+      areaCode: "999",
+      kindCode: "51",
+      kind: "津波警報",
+      at: T3,
+      messageId: "capacity-new-warning",
+    }), saturated)).toMatchObject({ kind: "ok" });
+    expect(saturated.tsunamiState.activeEventIds()).toContain("capacity-new-warning");
   });
 
   it("観測 holder と durable item gate を family 上限へ同期 compaction する", () => {
@@ -3185,19 +3241,19 @@ describe("Phase 3B tsunami common registry", () => {
     expect(TSUNAMI_REVISION_FAMILY_POLICIES.VTSE52.fragmentMerge).toBe(true);
     expect(TSUNAMI_REVISION_FAMILY_POLICIES.VTSE51.fragmentEvidence.corpusFixtures).toContain("32-39_11_10_250206_VTSE51.xml");
     expect(TSUNAMI_REVISION_FAMILY_POLICIES.VTSE52.fragmentEvidence.corpusFixtures).toContain("61_11_01_250206_VTSE52.xml");
-    expect(TSUNAMI_REVISION_FAMILY_POLICIES.VTSE41.tombstoneRetentionMs).toBeNull();
+    expect(TSUNAMI_REVISION_FAMILY_POLICIES.VTSE41.tombstoneRetentionMs).toBe(7 * 24 * 60 * 60_000);
     expect(TSUNAMI_REVISION_FAMILY_POLICIES.VTSE51.tombstoneRetentionMs).toBeNull();
     const shared = deps();
     expect(run(info({ type: "VTSE51", at: T2, observations: [observation("21001", "宮古", "1m")] }), shared).kind).toBe("ok");
     expect(run(info({ type: "VTSE52", at: T1, observations: [observation("90001", "沖合", "2m")] }), shared).kind).toBe("ok");
   });
 
-  it("durable な無期限 tombstone family は有限 maxSubjects 宣言を必須とする", () => {
+  it("durable revision family は有限 maxSubjects 宣言を必須とする", () => {
     const policy = {
       ...TSUNAMI_REVISION_FAMILY_POLICIES.VTSE41,
       maxSubjects: null,
     } as unknown as Parameters<typeof validateRevisionFamilyPolicy>[0];
-    expect(() => validateRevisionFamilyPolicy(policy)).toThrow(/bounded maxSubjects/);
+    expect(() => validateRevisionFamilyPolicy(policy)).toThrow(/maxSubjects is invalid/);
 
     expect(TSUNAMI_REVISION_FAMILY_POLICIES.VTSE41.maxSubjects).toBe(512);
     expect(TSUNAMI_REVISION_FAMILY_POLICIES.VTSE51.maxSubjects)

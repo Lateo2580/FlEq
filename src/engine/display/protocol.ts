@@ -387,6 +387,8 @@ export interface DisplayStatsV1 {
   persistenceSalvageBackupBlocked?: number;
   persistenceSalvageBackupRecovered?: number;
   persistenceSalvageBackupPendingSources?: number;
+  /** revision family の容量上限による新規 subject 拒否件数。 */
+  revisionCapacityExceeded?: number;
 }
 
 /** 画面全体の緊張度 tier (server 導出)。描画は §4 別プラン */

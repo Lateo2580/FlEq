@@ -2753,12 +2753,14 @@ function sanitizeTsunamiFoundation(
     gateEntries: boundedEntries.map((entry) => ({
       ...structuredClone(entry),
       semanticKeys: compactPersistedSemanticKeys(entry.semanticKeys),
-      // 旧 v2 の欠落値は各 family の無期限 tombstone policy へ移行する。
-      tombstoneRetentionMs: entry.tombstoneRetentionMs === undefined
-        ? entry.domain === "tsunami"
-          ? TSUNAMI_REVISION_FAMILY_POLICIES.VTSE41.tombstoneRetentionMs
-          : TSUNAMI_REVISION_FAMILY_POLICIES[entry.revisionFamily as "VTSE51" | "VTSE52"].tombstoneRetentionMs
-        : entry.tombstoneRetentionMs,
+      // VTSE41 の旧 policy が保存した明示 null も有限 TTL へ一方向移行する。
+      // 観測 family は現在も null policy のため、欠落値だけ各 policy で補完する。
+      tombstoneRetentionMs: entry.domain === "tsunami"
+        ? entry.tombstoneRetentionMs
+          ?? TSUNAMI_REVISION_FAMILY_POLICIES.VTSE41.tombstoneRetentionMs
+        : entry.tombstoneRetentionMs === undefined
+          ? TSUNAMI_REVISION_FAMILY_POLICIES[entry.revisionFamily as "VTSE51" | "VTSE52"].tombstoneRetentionMs
+          : entry.tombstoneRetentionMs,
     })),
   };
 }
@@ -2876,11 +2878,9 @@ function sanitizeVpws50Foundation(
   const compactedEntries = validatedEntries.map((entry) => ({
     ...structuredClone(entry),
     semanticKeys: compactPersistedSemanticKeys(entry.semanticKeys),
-    // tombstoneRetentionMs 導入前の v2 は domain policy を欠く。
-    // VPWS50 family は全国 base と官署別 VPWW55-61 の取消 latch を期限なく保持する。
-    tombstoneRetentionMs: entry.tombstoneRetentionMs === undefined
-      ? VPWS50_REVISION_FAMILY_POLICY.tombstoneRetentionMs
-      : entry.tombstoneRetentionMs,
+    // 旧 VPWS50 policy が保存した明示 null も有限 TTL へ一方向移行する。
+    tombstoneRetentionMs: entry.tombstoneRetentionMs
+      ?? VPWS50_REVISION_FAMILY_POLICY.tombstoneRetentionMs,
   }));
   if (validatedState != null) {
     const hasProjectionState = validatedState.current != null

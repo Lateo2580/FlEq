@@ -579,6 +579,7 @@ function buildDisplayStats(
     persistenceSalvageBackupBlocked: repair.persistenceSalvageBackupBlocked,
     persistenceSalvageBackupRecovered: repair.persistenceSalvageBackupRecovered,
     persistenceSalvageBackupPendingSources: repair.pendingSources,
+    revisionCapacityExceeded: stats.getSnapshot(now).foundation.capacityExceeded,
   };
 }
 
@@ -814,6 +815,7 @@ export function createMessageHandler(options?: MessageHandlerOptions): MessageHa
       case "invalidMeta": stats.recordFoundation("invalidMeta", callbackStatsNowMs()); break;
       case "invalidRevision": stats.recordFoundation("invalidRevision", callbackStatsNowMs()); break;
       case "cancelTargetMismatch": stats.recordFoundation("cancelTargetMismatch", callbackStatsNowMs()); break;
+      case "capacityExceeded": stats.recordFoundation("capacityExceeded", callbackStatsNowMs()); break;
       default: break;
     }
   };

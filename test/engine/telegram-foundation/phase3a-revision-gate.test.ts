@@ -80,6 +80,8 @@ function capacityInput(input: {
   durable?: boolean;
   tombstoneRetentionMs?: number | null;
   retainForFamilyCapacity?: boolean;
+  activeFamilySubjects?: readonly string[];
+  infoType?: "発表" | "取消";
 }) {
   const stateSubjectKey = input.stateSubjectKey;
   return {
@@ -94,7 +96,7 @@ function capacityInput(input: {
       type: "CAPACITY",
       reportDateTime: "2026-07-31T12:00:00+09:00",
       serial: "1",
-      infoType: "発表",
+      infoType: input.infoType ?? "発表",
       receivedAtMs: input.receivedAtMs ?? RECEIVED_AT,
       status: "通常",
       isTest: false,
@@ -108,6 +110,7 @@ function capacityInput(input: {
       : input.tombstoneRetentionMs,
     maxSubjects: input.maxSubjects === undefined ? 1 : input.maxSubjects,
     retainForFamilyCapacity: input.retainForFamilyCapacity ?? true,
+    activeFamilySubjects: input.activeFamilySubjects,
     payloadFingerprint: semanticPayloadFingerprint({ id: input.id }),
   };
 }
@@ -698,6 +701,68 @@ describe("Phase 3A EEW revision gate", () => {
     expect(entries).toHaveLength(2);
     expect(entries.map((entry) => entry.stateSubjectKey).sort())
       .toEqual(["bounded-1", "bounded-2"]);
+  });
+
+  it("holder の active subject を gate 単独の retain 印より優先し、非 active LRU だけを退場させる", () => {
+    const gate = new TelegramRevisionGate();
+    const active = ["active-a", "active-b"];
+    for (const id of ["active-a", "active-b", "inactive-old"] as const) {
+      expect(gate.decide(capacityInput({
+        id,
+        stateSubjectKey: id,
+        maxSubjects: 3,
+        retainForFamilyCapacity: true,
+        activeFamilySubjects: active,
+      })).accepted).toBe(true);
+    }
+
+    // holder の LRU と gate の LRU が異なっても、holder active の二件は失わない。
+    expect(gate.decide(capacityInput({
+      id: "new-active",
+      stateSubjectKey: "new-active",
+      maxSubjects: 3,
+      retainForFamilyCapacity: false,
+      activeFamilySubjects: active,
+    }))).toMatchObject({ accepted: true });
+    expect(gate.exportDurableEntries().map((entry) => entry.stateSubjectKey)).toEqual(
+      expect.arrayContaining(["active-a", "active-b", "new-active"]),
+    );
+    expect(gate.exportDurableEntries().map((entry) => entry.stateSubjectKey)).not.toContain("inactive-old");
+  });
+
+  it("TTL 内 tombstone は容量圧迫時も保持し、期限切れ後だけ capacity を再利用する", () => {
+    const gate = new TelegramRevisionGate();
+    expect(gate.decide(capacityInput({
+      id: "tombstone",
+      stateSubjectKey: "tombstone",
+      maxSubjects: 1,
+      infoType: "取消",
+      retainForFamilyCapacity: false,
+      tombstoneRetentionMs: 100,
+      receivedAtMs: RECEIVED_AT,
+      activeFamilySubjects: [],
+    })).accepted).toBe(true);
+    expect(gate.decide(capacityInput({
+      id: "too-early",
+      stateSubjectKey: "too-early",
+      maxSubjects: 1,
+      retainForFamilyCapacity: false,
+      tombstoneRetentionMs: 100,
+      receivedAtMs: RECEIVED_AT + 99,
+      activeFamilySubjects: [],
+    }))).toMatchObject({ kind: "capacityExceeded", accepted: false });
+    expect(gate.exportDurableEntries()).toEqual([
+      expect.objectContaining({ stateSubjectKey: "tombstone", cancelled: true }),
+    ]);
+    expect(gate.decide(capacityInput({
+      id: "new-active",
+      stateSubjectKey: "new-active",
+      maxSubjects: 1,
+      retainForFamilyCapacity: false,
+      tombstoneRetentionMs: 100,
+      receivedAtMs: RECEIVED_AT + 101,
+      activeFamilySubjects: [],
+    }))).toMatchObject({ accepted: true });
   });
 
   it("無期限 tombstone だけで family 上限を超えた場合は保護したまま設計エラーを通知する", () => {

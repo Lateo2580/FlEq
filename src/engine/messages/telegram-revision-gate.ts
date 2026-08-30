@@ -68,6 +68,11 @@ export interface TelegramRevisionGateInput {
   maxSubjects?: number | null;
   /** family 上限 compaction で保持する canonical/whole subject。 */
   retainForFamilyCapacity?: boolean;
+  /**
+   * family capacity から退場させてはならない、holder が現在表示している subject。
+   * 指定時は gate 内だけの retain 印を根拠にせず、この集合だけを保護する。
+   */
+  activeFamilySubjects?: readonly string[];
   allowMissingSerial?: boolean;
   /** equal な通常報を whole-message duplicate にせず item gate へ渡す allowlist family。 */
   fragmentMerge?: boolean;
@@ -375,6 +380,7 @@ export class TelegramRevisionGate {
         input.revisionFamily,
         input.maxSubjects,
         input.meta.receivedAtMs,
+        input.activeFamilySubjects,
       )) {
         if (commit) this.warnCapacityRejected(input.domain, input.revisionFamily, input.maxSubjects);
         return reject("capacityExceeded", null);
@@ -385,6 +391,7 @@ export class TelegramRevisionGate {
           input.revisionFamily,
           input.maxSubjects,
           input.meta.receivedAtMs,
+          input.activeFamilySubjects,
         );
         this.transientStates.set(transientStateKey, {
           semanticKey: transientSemanticKey,
@@ -397,7 +404,7 @@ export class TelegramRevisionGate {
           transientSemanticKey,
           transientStateKey,
         );
-        this.enforceFamilyLimit(input.domain, input.revisionFamily, input.maxSubjects);
+        this.enforceFamilyLimit(input.domain, input.revisionFamily, input.maxSubjects, input.activeFamilySubjects);
         this.sweep(input.meta.receivedAtMs);
       }
       return {
@@ -446,6 +453,7 @@ export class TelegramRevisionGate {
         input.revisionFamily,
         input.maxSubjects,
         input.meta.receivedAtMs,
+        input.activeFamilySubjects,
       )) {
         if (commit) this.warnCapacityRejected(input.domain, input.revisionFamily, input.maxSubjects);
         return reject("capacityExceeded", null);
@@ -457,6 +465,7 @@ export class TelegramRevisionGate {
           input.revisionFamily,
           input.maxSubjects,
           input.meta.receivedAtMs,
+          input.activeFamilySubjects,
         );
         this.states.set(key, {
           comparison: incomingComparison,
@@ -469,7 +478,7 @@ export class TelegramRevisionGate {
           legacyRevisionKey: input.legacyRevisionKey ?? null,
           legacyRevisionKeyProvenance: input.legacyRevisionKeyProvenance ?? null,
         });
-        this.enforceFamilyLimit(input.domain, input.revisionFamily, input.maxSubjects);
+        this.enforceFamilyLimit(input.domain, input.revisionFamily, input.maxSubjects, input.activeFamilySubjects);
         this.sweep(input.meta.receivedAtMs);
       }
       return {
@@ -536,7 +545,7 @@ export class TelegramRevisionGate {
             existing.legacyRevisionKeyProvenance = input.legacyRevisionKeyProvenance ?? null;
           }
           this.touchState(key, existing);
-          this.enforceFamilyLimit(input.domain, input.revisionFamily, input.maxSubjects);
+          this.enforceFamilyLimit(input.domain, input.revisionFamily, input.maxSubjects, input.activeFamilySubjects);
           this.sweep(input.meta.receivedAtMs);
         }
         return {
@@ -579,7 +588,7 @@ export class TelegramRevisionGate {
           existing.legacyRevisionKeyProvenance = input.legacyRevisionKeyProvenance ?? null;
         }
         this.touchState(key, existing);
-        this.enforceFamilyLimit(input.domain, input.revisionFamily, input.maxSubjects);
+        this.enforceFamilyLimit(input.domain, input.revisionFamily, input.maxSubjects, input.activeFamilySubjects);
         this.sweep(input.meta.receivedAtMs);
       }
       return {
@@ -607,7 +616,7 @@ export class TelegramRevisionGate {
         legacyRevisionKey: input.legacyRevisionKey ?? null,
         legacyRevisionKeyProvenance: input.legacyRevisionKeyProvenance ?? null,
       });
-      this.enforceFamilyLimit(input.domain, input.revisionFamily, input.maxSubjects);
+      this.enforceFamilyLimit(input.domain, input.revisionFamily, input.maxSubjects, input.activeFamilySubjects);
       this.sweep(input.meta.receivedAtMs);
     }
     return {
@@ -648,6 +657,7 @@ export class TelegramRevisionGate {
     revisionFamily: string,
     maxSubjects: number | null | undefined,
     nowMs: number,
+    activeFamilySubjects?: readonly string[],
   ): boolean {
     if (maxSubjects == null) {
       return this.liveEntryCount(nowMs) < TELEGRAM_REVISION_MAX_ENTRIES;
@@ -658,7 +668,8 @@ export class TelegramRevisionGate {
     if (regular.length + transient.length < maxSubjects) {
       return this.liveEntryCount(nowMs) < TELEGRAM_REVISION_MAX_ENTRIES;
     }
-    return transient.length > 0 || regular.some(([, state]) => this.isFamilyEvictable(state));
+    return transient.length > 0 || regular.some(([key, state]) =>
+      this.isFamilyEvictable(key, state, activeFamilySubjects));
   }
 
   private makeRoomForNewSubject(
@@ -666,6 +677,7 @@ export class TelegramRevisionGate {
     revisionFamily: string,
     maxSubjects: number | null | undefined,
     nowMs: number,
+    activeFamilySubjects?: readonly string[],
   ): void {
     if (maxSubjects == null) return;
     this.validateFamilyLimit(domain, revisionFamily, maxSubjects);
@@ -681,7 +693,7 @@ export class TelegramRevisionGate {
         continue;
       }
       const oldestEvictable = this.liveFamilyEntries(domain, revisionFamily, nowMs)
-        .filter(([, state]) => this.isFamilyEvictable(state))
+        .filter(([key, state]) => this.isFamilyEvictable(key, state, activeFamilySubjects))
         .sort(([, left], [, right]) => left.acceptedAtMs - right.acceptedAtMs)[0];
       if (oldestEvictable == null) {
         throw new Error(
@@ -736,10 +748,22 @@ export class TelegramRevisionGate {
     );
   }
 
-  private isFamilyEvictable(state: AcceptedRevisionState): boolean {
+  private isFamilyEvictable(
+    key: string,
+    state: AcceptedRevisionState,
+    activeFamilySubjects?: readonly string[],
+  ): boolean {
+    // live tombstone は遅延旧報を止める watermark。期限切れは decide 冒頭の
+    // sweep() / liveFamilyEntries() で除かれるため、ここへ来る間は容量退場させない。
+    if (state.cancelled) return false;
+    if (activeFamilySubjects != null) {
+      const domainSeparator = key.indexOf(":");
+      const familySeparator = key.indexOf(":", domainSeparator + 1);
+      const subject = familySeparator < 0 ? key : key.slice(familySeparator + 1);
+      return !activeFamilySubjects.includes(subject);
+    }
     return !(
       state.retainForFamilyCapacity
-      || state.durable && state.cancelled && state.tombstoneRetentionMs === null
     );
   }
 
@@ -805,6 +829,7 @@ export class TelegramRevisionGate {
     domain: string,
     revisionFamily: string,
     maxSubjects: number | null | undefined,
+    activeFamilySubjects?: readonly string[],
   ): void {
     if (maxSubjects == null) return;
     this.validateFamilyLimit(domain, revisionFamily, maxSubjects);
@@ -822,7 +847,7 @@ export class TelegramRevisionGate {
         continue;
       }
       const oldestEvictable = familyEntries()
-        .filter(([, state]) => this.isFamilyEvictable(state))
+        .filter(([key, state]) => this.isFamilyEvictable(key, state, activeFamilySubjects))
         .sort(([, a], [, b]) => a.acceptedAtMs - b.acceptedAtMs)[0]?.[0];
       if (oldestEvictable == null) {
         throw new Error(
@@ -991,7 +1016,6 @@ export class TelegramRevisionGate {
   }
 
   exportDurableEntries(): PersistedTelegramRevisionGateEntryV2[] {
-    this.sweep(Date.now());
     const result: PersistedTelegramRevisionGateEntryV2[] = [];
     for (const [key, state] of this.states) {
       if (!state.durable) continue;
@@ -1047,7 +1071,6 @@ export class TelegramRevisionGate {
         legacyRevisionKeyProvenance: entry.legacyRevisionKeyProvenance ?? null,
       });
     }
-    this.sweep(Date.now());
   }
 
   private sweep(nowMs: number): void {

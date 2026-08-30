@@ -131,6 +131,8 @@ function eewPolicy(headType: "VXSE43" | "VXSE44" | "VXSE45"):
 
 const VPWS50_SUBJECT = "weather:vpws50";
 const VPWW_PARTIAL_MAX_SUBJECTS = 128;
+/** durable revision tombstone の既定値と揃え、遅延再送より十分長い。 */
+export const FAMILY_CAPACITY_TOMBSTONE_RETENTION_MS = 7 * 24 * 60 * 60_000;
 const NANKAI_CURRENT_SUBJECT = "nankai:current";
 const STANDBY_DOMAIN_RETENTION_MS = 36 * 60 * 60_000;
 const HEAT_RETENTION_MS = 3 * 24 * 60 * 60_000;
@@ -715,7 +717,7 @@ export const VPWS50_REVISION_FAMILY_POLICY: RevisionFamilyPolicy<ParsedWeatherWa
   deactivationPredicate: () => false,
   durable: true,
   // 全国 base 1件と官署別部分報を有限上限で保持する。
-  tombstoneRetentionMs: null,
+  tombstoneRetentionMs: FAMILY_CAPACITY_TOMBSTONE_RETENTION_MS,
   maxSubjects: 1 + VPWW_PARTIAL_MAX_SUBJECTS,
   allowMissingSerial: true,
   fragmentMerge: false,
@@ -767,7 +769,7 @@ export const TSUNAMI_REVISION_FAMILY_POLICIES = {
     // 無警報 item は EventID 内の keyed state を更新する。別 EventID の active state は解除しない。
     deactivationPredicate: () => false,
     durable: true,
-    tombstoneRetentionMs: null,
+    tombstoneRetentionMs: FAMILY_CAPACITY_TOMBSTONE_RETENTION_MS,
     maxSubjects: 512,
     // VTSE41 は正常電文・取消とも Serial 空の実 fixture が存在する。
     allowMissingSerial: true,

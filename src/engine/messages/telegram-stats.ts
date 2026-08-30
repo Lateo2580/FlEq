@@ -81,6 +81,7 @@ const FOUNDATION_METRICS = [
   "futureDateDiagnosed",
   "cancelApplied",
   "cancelTargetMismatch",
+  "capacityExceeded",
   "persistenceMigrationConflict",
   "presented",
   "notified",

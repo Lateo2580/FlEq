@@ -87,7 +87,11 @@ export function processWeather(
       durable: policy.durable,
       tombstoneRetentionMs: policy.tombstoneRetentionMs,
       maxSubjects: policy.maxSubjects,
+      // 全国 base は singleton のため従来どおり保持する。部分報の保護根拠は holder の active 集合。
       retainForFamilyCapacity: msg.head.type === "VPWS50",
+      activeFamilySubjects: isVpws50StateHeadType(msg.head.type)
+        ? ["weather:vpws50", ...deps.vpws50State?.activePartialSubjects() ?? []]
+        : undefined,
       allowMissingSerial: policy.allowMissingSerial,
       // transport metadata と受信時刻は semantic payload に含めない。
       payloadFingerprint: semanticPayloadFingerprint(semanticWeatherPayload),

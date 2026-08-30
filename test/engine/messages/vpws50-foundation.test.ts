@@ -668,7 +668,7 @@ describe("VPWS50 common cancellation registry + persistence v2", () => {
     expect(key).toHaveLength("発表:".length + 64);
   });
 
-  it("7日超の旧 pre-digest v2 でも取消 latch を無期限 policy へ移行して遅延旧報を拒否する", () => {
+  it("旧 pre-digest v2 の明示 null 取消 latch を有限 TTL policy へ移行する", () => {
     const gate = new TelegramRevisionGate();
     const holder = new Vpws50StateHolder();
     const first = weather(meta(T1, "1", "発表"), "A");
@@ -700,7 +700,7 @@ describe("VPWS50 common cancellation registry + persistence v2", () => {
       fs.readFileSync(standbyPersistenceV2Path(file), "utf8"),
     ) as PersistedStandbyStateV2;
     const oldEntry = oldV2.telegramFoundation.vpws50.gateEntries[0];
-    delete oldEntry.tombstoneRetentionMs;
+    oldEntry.tombstoneRetentionMs = null;
     oldEntry.semanticKeys = [`取消:${JSON.stringify({ area: "B-cancel" })}`];
     fs.writeFileSync(standbyPersistenceV2Path(file), JSON.stringify(oldV2), "utf8");
 
@@ -712,7 +712,7 @@ describe("VPWS50 common cancellation registry + persistence v2", () => {
     nowSpy.mockRestore();
     expect(loaded.telegramFoundation.vpws50.gateEntries[0]).toMatchObject({
       cancelled: true,
-      tombstoneRetentionMs: null,
+      tombstoneRetentionMs: 7 * 24 * 60 * 60_000,
     });
 
     const restoredGate = new TelegramRevisionGate();
