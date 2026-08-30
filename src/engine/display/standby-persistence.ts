@@ -47,6 +47,7 @@ import {
 import {
   VPWS50_SNAPSHOT_GENERATION,
   Vpws50StateHolder,
+  migratePersistedVpws50EmergencyClears,
   type PersistedVpws50StateV2,
   type WeatherReportIdentity,
 } from "../messages/vpws50-state";
@@ -1591,7 +1592,17 @@ function isVpws50State(value: unknown): value is PersistedVpws50StateV2 {
     && value.restoredPartialSubjects.length <= 128
     && value.restoredPartialSubjects.every((subject) => typeof subject === "string"
       && weatherOfficeFromStreamKey(subject) != null);
-  const watermarksValid = value.emergencyClearWatermarks == null
+  const tombstonesValid = value.emergencyClearTombstones == null
+    || Array.isArray(value.emergencyClearTombstones)
+    && value.emergencyClearTombstones.length <= 128
+    && value.emergencyClearTombstones.every((entry) => isRecord(entry)
+      && typeof entry.officeKey === "string"
+      && normalizeWeatherOfficeWatermarkKey(entry.officeKey) != null
+      && Array.isArray(entry.areaCodes)
+      && entry.areaCodes.length > 0
+      && entry.areaCodes.every((areaCode) => typeof areaCode === "string" && areaCode.trim() !== "")
+      && isWeatherIdentity(entry.identity));
+  const legacyWatermarksValid = value.emergencyClearWatermarks == null
     || Array.isArray(value.emergencyClearWatermarks)
     && value.emergencyClearWatermarks.length <= 128
     && value.emergencyClearWatermarks.every((entry) => isRecord(entry)
@@ -1601,7 +1612,8 @@ function isVpws50State(value: unknown): value is PersistedVpws50StateV2 {
   return partialStreamsValid
     && partialHistoryValid
     && restoredSubjectsValid
-    && watermarksValid
+    && tombstonesValid
+    && legacyWatermarksValid
     && (value.current == null || isEntry(value.current, true))
     && value.history.every((entry) => isEntry(entry, false))
     && (value.lastSuccessfulFullDisplayAt == null
@@ -1614,7 +1626,7 @@ function isEmptyVpws50State(value: PersistedVpws50StateV2): boolean {
     && (value.partialStreams?.length ?? 0) === 0
     && (value.partialHistory?.length ?? 0) === 0
     && (value.restoredPartialSubjects?.length ?? 0) === 0
-    && (value.emergencyClearWatermarks?.length ?? 0) === 0
+    && (value.emergencyClearTombstones?.length ?? 0) === 0
     && value.lastSuccessfulFullDisplayAt == null;
 }
 
@@ -2798,9 +2810,9 @@ function vpws50FoundationIsConsistent(
   const partialStreams = state.partialStreams ?? [];
   const partialBySubject = new Map(partialStreams.map((entry) => [entry.subjectKey, entry]));
   const restoredSubjects = new Set(state.restoredPartialSubjects ?? []);
-  const watermarkOffices = new Set((state.emergencyClearWatermarks ?? [])
+  const tombstoneOffices = new Set((state.emergencyClearTombstones ?? [])
     .flatMap((entry) => {
-      const key = normalizeWeatherOfficeWatermarkKey(entry.subjectKey);
+      const key = normalizeWeatherOfficeWatermarkKey(entry.officeKey);
       return key == null ? [] : [key];
     }));
   if ([...restoredSubjects].some((subject) => !partialBySubject.has(subject))) return false;
@@ -2817,7 +2829,7 @@ function vpws50FoundationIsConsistent(
   if (entries.some((entry) => entry.stateSubjectKey !== "weather:vpws50"
     && !entry.cancelled
     && !partialBySubject.has(entry.stateSubjectKey)
-    && !watermarkOffices.has(weatherOfficeWatermarkKey(
+    && !tombstoneOffices.has(weatherOfficeWatermarkKey(
       weatherOfficeFromStreamKey(entry.stateSubjectKey),
     ) ?? ""))) return false;
 
@@ -2856,7 +2868,9 @@ function sanitizeVpws50Foundation(
     && (entry.stateSubjectKey === "weather:vpws50"
       || weatherOfficeFromStreamKey(entry.stateSubjectKey) != null),
   )) return null;
-  const validatedState = state as PersistedVpws50StateV2 | null;
+  const validatedState = state == null
+    ? null
+    : migratePersistedVpws50EmergencyClears(state as PersistedVpws50StateV2);
   const validatedEntries = entries as PersistedTelegramRevisionGateEntryV2[];
   if (!vpws50FoundationIsConsistent(value.authoritative, validatedState, validatedEntries)) return null;
   const compactedEntries = validatedEntries.map((entry) => ({
@@ -2868,28 +2882,28 @@ function sanitizeVpws50Foundation(
       ? VPWS50_REVISION_FAMILY_POLICY.tombstoneRetentionMs
       : entry.tombstoneRetentionMs,
   }));
-  if (state != null) {
-    const hasProjectionState = state.current != null
-      || state.history.length > 0
-      || (state.partialStreams?.length ?? 0) > 0
-      || (state.partialHistory?.length ?? 0) > 0
-      || (state.restoredPartialSubjects?.length ?? 0) > 0;
+  if (validatedState != null) {
+    const hasProjectionState = validatedState.current != null
+      || validatedState.history.length > 0
+      || (validatedState.partialStreams?.length ?? 0) > 0
+      || (validatedState.partialHistory?.length ?? 0) > 0
+      || (validatedState.restoredPartialSubjects?.length ?? 0) > 0;
     if (entries.length === 0 && hasProjectionState) return null;
     const receivedAtMs = entries.length === 0
       ? Number.MAX_SAFE_INTEGER
       : Math.max(...entries.map((entry) => entry.acceptedAtMs));
     const identities = [
-      state.current?.identity,
-      ...state.history.map((entry) => entry.identity),
-      ...(state.partialStreams ?? []).map((entry) => entry.identity),
-      ...(state.partialHistory ?? []).flatMap((group) => group.entries.map((entry) => entry.identity)),
-      ...(state.emergencyClearWatermarks ?? []).map((entry) => entry.identity),
+      validatedState.current?.identity,
+      ...validatedState.history.map((entry) => entry.identity),
+      ...(validatedState.partialStreams ?? []).map((entry) => entry.identity),
+      ...(validatedState.partialHistory ?? []).flatMap((group) => group.entries.map((entry) => entry.identity)),
+      ...(validatedState.emergencyClearTombstones ?? []).map((entry) => entry.identity),
     ].filter((identity) => identity != null);
     if (!identities.every((identity) => isWeatherIdentity(identity, receivedAtMs))) return null;
   }
   return {
     authoritative: value.authoritative,
-    state: state == null ? null : structuredClone(state),
+    state: validatedState == null ? null : structuredClone(validatedState),
     gateEntries: compactedEntries,
   };
 }

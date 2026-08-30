@@ -16,7 +16,11 @@ import {
   TelegramRevisionGate,
   type TelegramRevisionDecision,
 } from "../../../src/engine/messages/telegram-revision-gate";
-import { Vpws50StateHolder } from "../../../src/engine/messages/vpws50-state";
+import {
+  VPWS50_LEGACY_ALL_AREAS,
+  Vpws50StateHolder,
+  type PersistedVpws50StateV2,
+} from "../../../src/engine/messages/vpws50-state";
 import type { ParsedWeatherWarning, TelegramInfoTypeValue, TelegramMeta } from "../../../src/types";
 
 const T1 = "2026-07-30T10:00:00+09:00";
@@ -319,7 +323,7 @@ describe("VPWS50 common cancellation registry + persistence v2", () => {
     ]));
   });
 
-  it("VPNO50 の官署 watermark だけの foundation も保存し、再起動後の未受信 VPWW57 旧 L5 を抑制する", () => {
+  it("VPNO50 の区域 tombstone だけの foundation も保存し、再起動後の未受信 VPWW57 旧 L5 を抑制する", () => {
     const holder = new Vpws50StateHolder();
     const officeKey = "weather:office:福井地方気象台";
     const subject = "weather:VPWW57:福井地方気象台";
@@ -333,8 +337,9 @@ describe("VPWS50 common cancellation registry + persistence v2", () => {
       vpws50: { authoritative: true, state: holder.exportPersistedState(), gateEntries: [] },
     })).save(legacyState());
     const loaded = new StandbyPersistence(file).load()!;
-    expect(loaded.telegramFoundation.vpws50.state?.emergencyClearWatermarks).toEqual([{
-      subjectKey: officeKey,
+    expect(loaded.telegramFoundation.vpws50.state?.emergencyClearTombstones).toEqual([{
+      officeKey,
+      areaCodes: ["180000"],
       identity: { reportDateTime: "2026-08-30T11:40:00+09:00", serial: "2" },
     }]);
 
@@ -355,7 +360,60 @@ describe("VPWS50 common cancellation registry + persistence v2", () => {
       { reportDateTime: oldSpecial.reportDateTime, serial: "1" },
       subject,
     );
-    expect(restoredHolder.getCurrentAreasForDisplay()).toBeUndefined();
+    expect(restoredHolder.getCurrentAreasForDisplay()?.totalAreas).toBe(0);
+  });
+
+  it("旧 emergencyClearWatermarks を官署全域 tombstone へ移行し、foundation と L5 抑止を維持する", () => {
+    const office = "福井地方気象台";
+    const officeKey = `weather:office:${office}`;
+    const subject = `weather:VPWW57:${office}`;
+    const gate = new TelegramRevisionGate();
+    const oldSpecial = vpww55(T1, "1", office, "1820100", "発表", "VPWW57");
+    oldSpecial.layers[0].items[0].kinds = [{ name: "高潮特別警報", code: "38", severity: "specialWarning" }];
+    expect(decide(gate, oldSpecial, true, subject).kind).toBe("accept");
+    const oldState: PersistedVpws50StateV2 = {
+      current: null,
+      history: [],
+      emergencyClearWatermarks: [{
+        subjectKey: officeKey,
+        identity: { reportDateTime: T2, serial: "2" },
+      }],
+      lastSuccessfulFullDisplayAt: null,
+    };
+    const file = tempPath();
+    new StandbyPersistence(file, 0, () => ({
+      vpws50: {
+        authoritative: true,
+        state: oldState,
+        gateEntries: gate.exportDurableEntries(),
+      },
+    })).save(legacyState());
+
+    const loaded = new StandbyPersistence(file).load()!;
+    expect(loaded.telegramFoundation.vpws50.gateEntries).toHaveLength(1);
+    expect(loaded.telegramFoundation.vpws50.state).toMatchObject({
+      current: null,
+      emergencyClearTombstones: [{
+        officeKey,
+        areaCodes: [VPWS50_LEGACY_ALL_AREAS],
+        identity: { reportDateTime: T2, serial: "2" },
+      }],
+    });
+    expect(loaded.telegramFoundation.vpws50.state).not.toHaveProperty("emergencyClearWatermarks");
+
+    const restoredHolder = new Vpws50StateHolder();
+    restoredHolder.restorePersistedState(loaded.telegramFoundation.vpws50.state!);
+    restoredHolder.mergePartialWithDisplay(
+      oldSpecial,
+      "late-old",
+      { reportDateTime: T1, serial: "1" },
+      subject,
+    );
+    expect(restoredHolder.getCurrentAreasForDisplay()?.totalAreas).toBe(0);
+
+    // rollback 用 v1 は従来どおり foundation を含まず、旧 binary が parse できる形を保つ。
+    expect(JSON.parse(fs.readFileSync(file, "utf8"))).toMatchObject({ version: 1 });
+    expect(JSON.parse(fs.readFileSync(file, "utf8"))).not.toHaveProperty("telegramFoundation");
   });
 
   it("StandbyPersistence 復元後も全国 base を capacity eviction から保護する", () => {

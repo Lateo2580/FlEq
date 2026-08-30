@@ -115,7 +115,13 @@ export interface PersistedVpws50StateV2 {
   }>;
   /** 取消 tombstone を維持したまま表示上だけ直前報へ戻した subject。 */
   restoredPartialSubjects?: string[];
-  /** VPNO50 が確定した官署別（head type 非依存）の emergency 終了 watermark。 */
+  /** VPNO50 が確定した区域別の emergency 終了 tombstone。 */
+  emergencyClearTombstones?: Array<{
+    officeKey: string;
+    areaCodes: string[];
+    identity: WeatherReportIdentity;
+  }>;
+  /** emergencyClearTombstones 導入前の官署単位 watermark。reader migration 専用。 */
   emergencyClearWatermarks?: Array<{
     subjectKey: string;
     identity: WeatherReportIdentity;
@@ -230,7 +236,17 @@ function isPersistedState(value: unknown): value is PersistedVpws50StateV2 {
     || Array.isArray(value.restoredPartialSubjects)
     && value.restoredPartialSubjects.length <= PARTIAL_SUBJECT_LIMIT
     && value.restoredPartialSubjects.every((subject) => typeof subject === "string");
-  const watermarksValid = value.emergencyClearWatermarks == null
+  const tombstonesValid = value.emergencyClearTombstones == null
+    || Array.isArray(value.emergencyClearTombstones)
+    && value.emergencyClearTombstones.length <= PARTIAL_SUBJECT_LIMIT
+    && value.emergencyClearTombstones.every((entry) => isRecord(entry)
+      && typeof entry.officeKey === "string"
+      && normalizeWeatherOfficeWatermarkKey(entry.officeKey) != null
+      && Array.isArray(entry.areaCodes)
+      && entry.areaCodes.length > 0
+      && entry.areaCodes.every((areaCode) => typeof areaCode === "string" && areaCode.trim() !== "")
+      && isPersistedWeatherIdentity(entry.identity));
+  const legacyWatermarksValid = value.emergencyClearWatermarks == null
     || Array.isArray(value.emergencyClearWatermarks)
     && value.emergencyClearWatermarks.length <= PARTIAL_SUBJECT_LIMIT
     && value.emergencyClearWatermarks.every((entry) => isRecord(entry)
@@ -240,7 +256,8 @@ function isPersistedState(value: unknown): value is PersistedVpws50StateV2 {
   return partialStreamsValid
     && partialHistoryValid
     && restoredSubjectsValid
-    && watermarksValid
+    && tombstonesValid
+    && legacyWatermarksValid
     && (value.current == null || isEntry(value.current, true))
     && value.history.every((entry) => isEntry(entry, false))
     && (value.lastSuccessfulFullDisplayAt == null || typeof value.lastSuccessfulFullDisplayAt === "string");
@@ -549,7 +566,6 @@ function prefecturePrefix(areaCode: string): string | null {
 function removeEmergencyKinds(
   snapshot: Snapshot,
   targetAreaCodes: ReadonlySet<string>,
-  clearAll = false,
 ): boolean {
   const prefixes = new Set([...targetAreaCodes].flatMap((code) => {
     const prefix = prefecturePrefix(code);
@@ -557,8 +573,7 @@ function removeEmergencyKinds(
   }));
   let changed = false;
   for (const [areaCode, area] of snapshot.areas) {
-    if (!clearAll
-      && !targetAreaCodes.has(areaCode)
+    if (!targetAreaCodes.has(areaCode)
       && ![...prefixes].some((prefix) => areaCode.startsWith(prefix))) continue;
     for (const [phenomenonKey, kind] of area.kinds) {
       if (kind.displaySeverity !== "officialL5" && kind.displaySeverity !== "nonLevelSpecial") continue;
@@ -568,6 +583,54 @@ function removeEmergencyKinds(
     if (area.kinds.size === 0) snapshot.areas.delete(areaCode);
   }
   return changed;
+}
+
+interface EmergencyClearTombstone {
+  officeKey: string;
+  areaCodes: string[];
+  identity: WeatherReportIdentity;
+}
+
+/** 旧官署 watermark を、その官署の全対象区域へだけ効かせる migration marker。 */
+export const VPWS50_LEGACY_ALL_AREAS = "*" as const;
+
+function emergencyTombstoneKey(tombstone: EmergencyClearTombstone): string {
+  return [
+    tombstone.officeKey,
+    ...tombstone.areaCodes,
+  ].join("\u0000");
+}
+
+/** 旧官署単位 watermark を、整合性検査・holder 復元より前に新 tombstone へ正規化する。 */
+export function migratePersistedVpws50EmergencyClears(
+  state: PersistedVpws50StateV2,
+): PersistedVpws50StateV2 {
+  const legacyWatermarks = state.emergencyClearWatermarks ?? [];
+  if (legacyWatermarks.length === 0) return state;
+  const { emergencyClearWatermarks: _legacy, ...rest } = state;
+  const tombstones = new Map<string, EmergencyClearTombstone>();
+  for (const entry of [
+    ...legacyWatermarks.map((watermark) => ({
+      officeKey: normalizeWeatherOfficeWatermarkKey(watermark.subjectKey) ?? watermark.subjectKey,
+      areaCodes: [VPWS50_LEGACY_ALL_AREAS],
+      identity: { ...watermark.identity },
+    })),
+    ...(state.emergencyClearTombstones ?? []).map((tombstone) => ({
+      officeKey: normalizeWeatherOfficeWatermarkKey(tombstone.officeKey) ?? tombstone.officeKey,
+      areaCodes: [...new Set(tombstone.areaCodes.map((areaCode) => areaCode.trim()))].sort(),
+      identity: { ...tombstone.identity },
+    })),
+  ]) {
+    const key = emergencyTombstoneKey(entry);
+    const current = tombstones.get(key);
+    if (current != null && (compareWeatherReportIdentity(entry.identity, current.identity) ?? -1) <= 0) continue;
+    tombstones.delete(key);
+    tombstones.set(key, entry);
+  }
+  return {
+    ...rest,
+    emergencyClearTombstones: [...tombstones.values()].slice(-PARTIAL_SUBJECT_LIMIT),
+  };
 }
 
 /** 60 分再掲条件: displaySeverity が警報級相当 (rank >= nonLevelWarning) 以上を含むか */
@@ -597,7 +660,8 @@ export class Vpws50StateHolder implements DetailProvider<"vpws50"> {
   private partialStreams = new Map<string, PartialStreamEntry>();
   private partialHistory = new Map<string, PartialStreamEntry[]>();
   private restoredPartialSubjects = new Set<string>();
-  private emergencyClearWatermarks = new Map<string, WeatherReportIdentity>();
+  /** LRU 順の区域別 VPNO50 tombstone。1 件は一通の VPNO50 の全対象区域を保持する。 */
+  private emergencyClearTombstones = new Map<string, EmergencyClearTombstone>();
   private lastSuccessfulFullDisplayAt: Date | null = null;
 
   diffAndUpdate(info: ParsedWeatherWarning, messageId: string): Vpws50Diff;
@@ -713,13 +777,6 @@ export class Vpws50StateHolder implements DetailProvider<"vpws50"> {
       if (ownedPhenomena.size === 0) continue;
       partial.clearedPhenomena.set(item.areaCode, ownedPhenomena);
     }
-    const officeWatermarkKey = weatherOfficeWatermarkKey(info.publishingOffice);
-    const watermark = officeWatermarkKey == null
-      ? undefined
-      : this.emergencyClearWatermarks.get(officeWatermarkKey);
-    if (watermark != null && (compareWeatherReportIdentity(identity, watermark) ?? 1) <= 0) {
-      removeEmergencyKinds(partial, new Set(), true);
-    }
     const previous = this.effectiveSnapshot();
     if (current != null && options?.replaceCurrentRevision !== true) {
       const history = this.partialHistory.get(subjectKey) ?? [];
@@ -763,8 +820,9 @@ export class Vpws50StateHolder implements DetailProvider<"vpws50"> {
   }
 
   /**
-   * VPNO50 の府県予報区解除を、同じ官署の VPWW55-61 overlay へ cross-type で反映する。
-   * VPNO50 自身は後続の警報内容を作らないため、対象地域の L5 相当だけを外す。
+   * VPNO50 の府県予報区解除を区域 tombstone として記録する。
+   * tombstone は全国 base と官署を跨ぐ partial overlay の合成時にのみ適用するため、
+   * 取消復元・遅延到着でも終了済み L5 を再露出させず、新しい再発表は受理できる。
    */
   clearEmergencyPartialAreas(
     officeWatermarkKey: string,
@@ -773,52 +831,26 @@ export class Vpws50StateHolder implements DetailProvider<"vpws50"> {
   ): { diff: Vpws50Diff; displayDiff: Vpws50DisplayDiff | null } {
     const normalizedOfficeKey = normalizeWeatherOfficeWatermarkKey(officeWatermarkKey)
       ?? officeWatermarkKey;
-    const targets = new Set(areaCodes.filter((code) => code.trim() !== ""));
+    const targets = [...new Set(areaCodes.map((code) => code.trim()).filter((code) => code !== ""))].sort();
     const previous = this.effectiveSnapshot();
-    const currentWatermark = this.emergencyClearWatermarks.get(normalizedOfficeKey);
-    if (currentWatermark != null) {
-      const relation = compareWeatherReportIdentity(identity, currentWatermark);
-      if (relation == null || relation <= 0) return this.partialTransition(previous);
-    }
-    const recordWatermark = (subjectKey: string): void => {
-      const current = this.emergencyClearWatermarks.get(subjectKey);
-      if (current == null || (compareWeatherReportIdentity(identity, current) ?? -1) > 0) {
-        // Map.set は既存 key の挿入順を更新しない。更新 watermark を LRU 末尾へ移す。
-        this.emergencyClearWatermarks.delete(subjectKey);
-        this.emergencyClearWatermarks.set(subjectKey, { ...identity });
+    if (targets.length > 0) {
+      const tombstone = {
+        officeKey: normalizedOfficeKey,
+        areaCodes: targets,
+        identity: { ...identity },
+      };
+      const key = emergencyTombstoneKey(tombstone);
+      const current = this.emergencyClearTombstones.get(key);
+      if (current == null || (compareWeatherReportIdentity(identity, current.identity) ?? -1) > 0) {
+        // Map.set は既存 key の挿入順を更新しない。新しい更新を LRU 末尾へ移す。
+        this.emergencyClearTombstones.delete(key);
+        this.emergencyClearTombstones.set(key, tombstone);
       }
-    };
-    recordWatermark(normalizedOfficeKey);
-    const isNotNewerThanClear = (entryIdentity: WeatherReportIdentity): boolean =>
-      (compareWeatherReportIdentity(entryIdentity, identity) ?? 1) <= 0;
-    for (const [subjectKey, entry] of this.partialStreams) {
-      if (!isNotNewerThanClear(entry.identity)) continue;
-      if (weatherOfficeWatermarkKey(weatherOfficeFromStreamKey(subjectKey)) !== normalizedOfficeKey) continue;
-      const next = cloneSnapshot(entry.snapshot);
-      if (!removeEmergencyKinds(next, targets, true)) continue;
-      if (next.areas.size === 0) {
-        this.partialStreams.delete(subjectKey);
-        this.restoredPartialSubjects.delete(subjectKey);
-      } else this.partialStreams.set(subjectKey, { ...entry, snapshot: next });
     }
-    // 取消で過去報へ戻って終了済み特別警報を復元しないよう、stream history 側も同じ解除を適用する。
-    for (const [subjectKey, entries] of this.partialHistory) {
-      if (weatherOfficeWatermarkKey(weatherOfficeFromStreamKey(subjectKey)) !== normalizedOfficeKey) continue;
-      let changed = false;
-      const kept = entries.map((entry) => {
-        if (!isNotNewerThanClear(entry.identity)) return entry;
-        const snapshot = cloneSnapshot(entry.snapshot);
-        changed = removeEmergencyKinds(snapshot, targets, true) || changed;
-        return { ...entry, snapshot };
-      }).filter((entry) => entry.snapshot.areas.size > 0);
-      if (!changed) continue;
-      if (kept.length === 0) this.partialHistory.delete(subjectKey);
-      else this.partialHistory.set(subjectKey, kept);
-    }
-    while (this.emergencyClearWatermarks.size > PARTIAL_SUBJECT_LIMIT) {
-      const oldestSubject = this.emergencyClearWatermarks.keys().next().value as string | undefined;
-      if (oldestSubject == null) break;
-      this.emergencyClearWatermarks.delete(oldestSubject);
+    while (this.emergencyClearTombstones.size > PARTIAL_SUBJECT_LIMIT) {
+      const oldestKey = this.emergencyClearTombstones.keys().next().value as string | undefined;
+      if (oldestKey == null) break;
+      this.emergencyClearTombstones.delete(oldestKey);
     }
     return this.partialTransition(previous);
   }
@@ -831,8 +863,7 @@ export class Vpws50StateHolder implements DetailProvider<"vpws50"> {
         this.partialHistory.delete(subjectKey);
       }
     }
-    // VPNO50 が emergency current だけを除いた subject は history-only になり得る。
-    // gate capacity eviction 後も残さないよう、stream と独立に active 集合へ同期する。
+    // gate capacity eviction 後も history-only subject を残さないよう、stream と独立に active 集合へ同期する。
     for (const subjectKey of this.partialHistory.keys()) {
       if (!retained.has(subjectKey) && !this.restoredPartialSubjects.has(subjectKey)) {
         this.partialHistory.delete(subjectKey);
@@ -889,19 +920,29 @@ export class Vpws50StateHolder implements DetailProvider<"vpws50"> {
     baseIdentityOverride: WeatherReportIdentity | null = this.currentIdentity,
   ): Snapshot | null {
     let effective = baseOverride == null ? null : cloneSnapshot(baseOverride);
-    const overlays = [...this.partialStreams.values()]
+    if (effective != null && baseIdentityOverride != null) {
+      this.applyEmergencyClearTombstones(effective, baseIdentityOverride);
+    }
+    const overlays = [...this.partialStreams]
+      .map(([subjectKey, entry]) => ({ subjectKey, ...entry }))
       .filter((entry) => baseIdentityOverride == null
         || (compareWeatherReportIdentity(entry.identity, baseIdentityOverride) ?? -1) > 0)
       .sort((a, b) => compareWeatherReportIdentity(a.identity, b.identity) ?? 0);
     for (const overlay of overlays) {
       effective ??= { areas: new Map(), clearedPhenomena: new Map() };
-      for (const [areaCode, phenomenonKeys] of overlay.snapshot.clearedPhenomena) {
+      const overlaySnapshot = cloneSnapshot(overlay.snapshot);
+      this.applyEmergencyClearTombstones(
+        overlaySnapshot,
+        overlay.identity,
+        weatherOfficeWatermarkKey(weatherOfficeFromStreamKey(overlay.subjectKey)),
+      );
+      for (const [areaCode, phenomenonKeys] of overlaySnapshot.clearedPhenomena) {
         const effectiveArea = effective.areas.get(areaCode);
         if (effectiveArea == null) continue;
         for (const phenomenonKey of phenomenonKeys) effectiveArea.kinds.delete(phenomenonKey);
         if (effectiveArea.kinds.size === 0) effective.areas.delete(areaCode);
       }
-      for (const [areaCode, area] of overlay.snapshot.areas) {
+      for (const [areaCode, area] of overlaySnapshot.areas) {
         if (area.kinds.size === 0) continue;
         const effectiveArea = effective.areas.get(areaCode);
         if (effectiveArea == null) {
@@ -918,6 +959,23 @@ export class Vpws50StateHolder implements DetailProvider<"vpws50"> {
       }
     }
     return effective;
+  }
+
+  private applyEmergencyClearTombstones(
+    snapshot: Snapshot,
+    snapshotIdentity: WeatherReportIdentity,
+    snapshotOfficeKey: string | null = null,
+  ): void {
+    for (const tombstone of this.emergencyClearTombstones.values()) {
+      const relation = compareWeatherReportIdentity(snapshotIdentity, tombstone.identity);
+      if (relation == null || relation > 0) continue;
+      if (tombstone.areaCodes.includes(VPWS50_LEGACY_ALL_AREAS)) {
+        if (snapshotOfficeKey !== tombstone.officeKey) continue;
+        removeEmergencyKinds(snapshot, new Set(snapshot.areas.keys()));
+      } else {
+        removeEmergencyKinds(snapshot, new Set(tombstone.areaCodes));
+      }
+    }
   }
 
   /** revision gate を確定する前に、state を変更せず安全性だけを判定する。 */
@@ -1054,10 +1112,11 @@ export class Vpws50StateHolder implements DetailProvider<"vpws50"> {
       ...(this.restoredPartialSubjects.size === 0 ? {} : {
         restoredPartialSubjects: [...this.restoredPartialSubjects],
       }),
-      ...(this.emergencyClearWatermarks.size === 0 ? {} : {
-        emergencyClearWatermarks: [...this.emergencyClearWatermarks].map(([subjectKey, identity]) => ({
-          subjectKey,
-          identity: { ...identity },
+      ...(this.emergencyClearTombstones.size === 0 ? {} : {
+        emergencyClearTombstones: [...this.emergencyClearTombstones.values()].map((tombstone) => ({
+          officeKey: tombstone.officeKey,
+          areaCodes: [...tombstone.areaCodes],
+          identity: { ...tombstone.identity },
         })),
       }),
       lastSuccessfulFullDisplayAt: this.lastSuccessfulFullDisplayAt?.toISOString() ?? null,
@@ -1074,10 +1133,11 @@ export class Vpws50StateHolder implements DetailProvider<"vpws50"> {
       this.partialStreams.clear();
       this.partialHistory.clear();
       this.restoredPartialSubjects.clear();
-      this.emergencyClearWatermarks.clear();
+      this.emergencyClearTombstones.clear();
       this.lastSuccessfulFullDisplayAt = null;
       return;
     }
+    state = migratePersistedVpws50EmergencyClears(state);
     this.current = state.current == null ? null : restoreSnapshot(state.current.snapshot);
     this.currentMessageId = state.current?.messageId ?? null;
     this.currentIdentity = state.current == null ? null : { ...state.current.identity };
@@ -1101,14 +1161,21 @@ export class Vpws50StateHolder implements DetailProvider<"vpws50"> {
     const partialSubjects = new Set(this.partialStreams.keys());
     this.restoredPartialSubjects = new Set((state.restoredPartialSubjects ?? [])
       .filter((subject) => partialSubjects.has(subject)));
-    this.emergencyClearWatermarks.clear();
-    for (const entry of (state.emergencyClearWatermarks ?? []).slice(-PARTIAL_SUBJECT_LIMIT)) {
-      const officeKey = normalizeWeatherOfficeWatermarkKey(entry.subjectKey);
+    this.emergencyClearTombstones.clear();
+    for (const entry of (state.emergencyClearTombstones ?? []).slice(-PARTIAL_SUBJECT_LIMIT)) {
+      const officeKey = normalizeWeatherOfficeWatermarkKey(entry.officeKey);
       if (officeKey == null) continue;
-      const current = this.emergencyClearWatermarks.get(officeKey);
-      if (current == null || (compareWeatherReportIdentity(entry.identity, current) ?? -1) > 0) {
-        this.emergencyClearWatermarks.delete(officeKey);
-        this.emergencyClearWatermarks.set(officeKey, { ...entry.identity });
+      const tombstone = {
+        officeKey,
+        areaCodes: [...new Set(entry.areaCodes.map((areaCode) => areaCode.trim()).filter((areaCode) => areaCode !== ""))].sort(),
+        identity: { ...entry.identity },
+      };
+      if (tombstone.areaCodes.length === 0) continue;
+      const key = emergencyTombstoneKey(tombstone);
+      const current = this.emergencyClearTombstones.get(key);
+      if (current == null || (compareWeatherReportIdentity(tombstone.identity, current.identity) ?? -1) > 0) {
+        this.emergencyClearTombstones.delete(key);
+        this.emergencyClearTombstones.set(key, tombstone);
       }
     }
     this.lastSuccessfulFullDisplayAt = state.lastSuccessfulFullDisplayAt == null
