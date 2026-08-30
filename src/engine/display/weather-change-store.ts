@@ -5,6 +5,7 @@ import type {
   Vpws50DisplayKindTransition,
 } from "../../types";
 import type { PresentationEvent } from "../presentation/types";
+import { isVpws50StateHeadType } from "../messages/weather-stream-key";
 import type {
   DisplayWeatherChangeItemV1,
   DisplayWeatherChangeKindV1,
@@ -90,14 +91,14 @@ function itemsFromDiff(diff: Vpws50DisplayDiff): DisplayWeatherChangeItemV1[] {
   return items;
 }
 
-/** VPWS50/VPWW55 の受理済み差分だけを保持する、非永続・単一レコードの表示ストア。 */
+/** VPWS50/VPWW55-61 の受理済み差分だけを保持する、非永続・単一レコードの表示ストア。 */
 export class WeatherChangeDisplayStore {
   private readonly bootId = randomUUID();
   private counter = 0;
   private record: WeatherChangeRecord | null = null;
 
   apply(event: PresentationEvent, nowMs: number): boolean {
-    if (event.type !== "VPWS50" && event.type !== "VPWW55") return false;
+    if (!isVpws50StateHeadType(event.type)) return false;
 
     const diff = event.weatherDiff;
     const displayDiff = event.weatherChangeDiff;
@@ -125,7 +126,7 @@ export class WeatherChangeDisplayStore {
     this.record = {
       expiresAtMs,
       dto: {
-        // VPWW55 は全国 view に重ねる部分 stream だが、wire 上の権威 source は統合 state の vpws50。
+        // VPWW55-61 は全国 view に重ねる部分 stream だが、wire 上の権威 source は統合 state の vpws50。
         source: "vpws50",
         changeKey: `${this.bootId}:${this.counter}`,
         reportDateTime: event.reportDateTime,

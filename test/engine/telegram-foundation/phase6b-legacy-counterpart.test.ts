@@ -65,6 +65,7 @@ import {
   FIXTURE_VXSE51_SHINDO,
   FIXTURE_VPWW55_FUKUI_L5,
   FIXTURE_VPWW55_FUKUI_DOWNGRADE,
+  FIXTURE_VPWW57_KOCHO,
   FIXTURE_VPNO50_FUKUI_ISSUE,
   FIXTURE_VPNO50_FUKUI_SWITCH,
   FIXTURE_PHASE6B_VPBS50_KJPDE202608201757_202608201757,
@@ -546,7 +547,7 @@ function runPhase6bDisplayPair(
 }
 
 describe("Phase 6B legacy counterpart route and VPOA50 production slice", () => {
-  it("VPNO50 実 fixture は府県予報区の解除を抽出し、VPWW55 L5 overlay を原子的に失効させる", () => {
+  it("VPNO50 実 fixture は府県予報区の解除を抽出し、同官署 VPWW55-61 L5 を遅着込みで失効させる", () => {
     const issue = parseLegacyCounterpart(createMockWsDataMessage(FIXTURE_VPNO50_FUKUI_ISSUE));
     const released = parseLegacyCounterpart(createMockWsDataMessage(FIXTURE_VPNO50_FUKUI_SWITCH));
     expect(issue?.areas).toContainEqual({ code: "180000", name: "福井県" });
@@ -602,6 +603,15 @@ describe("Phase 6B legacy counterpart route and VPOA50 production slice", () => 
       expect.any(Number),
     );
     expect(promotions.get("vpws50")).toMatchObject({ state: "active", level: 4 });
+
+    const delayedVpww57 = processWeather(createMockWsDataMessage(
+      FIXTURE_VPWW57_KOCHO,
+      undefined,
+      { publishingOffice: "福井地方気象台" },
+    ), deps);
+    expect(delayedVpww57.kind).toBe("ok");
+    expect(state.getCurrentAreasForDisplay()?.kinds
+      .some((kind) => kind.displaySeverity === "officialL5")).toBe(false);
 
     const downgradeResult = processWeather(
       createMockWsDataMessage(FIXTURE_VPWW55_FUKUI_DOWNGRADE),

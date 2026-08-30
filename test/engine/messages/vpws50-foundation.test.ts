@@ -62,11 +62,12 @@ function vpww55(
   publishingOffice: string,
   areaCode: string,
   infoType: TelegramInfoTypeValue = "発表",
+  headType: "VPWW55" | "VPWW57" = "VPWW55",
 ): ParsedWeatherWarning {
   const m = createTelegramMeta({
-    messageId: `VPWW55:${publishingOffice}:${reportDateTime}:${serial}`,
+    messageId: `${headType}:${publishingOffice}:${reportDateTime}:${serial}`,
     eventId: null,
-    type: "VPWW55",
+    type: headType,
     reportDateTime,
     serial,
     infoType,
@@ -76,7 +77,7 @@ function vpww55(
   });
   return {
     ...weather(m, areaCode),
-    type: "VPWW55",
+    type: headType,
     infoType,
     publishingOffice,
   };
@@ -196,7 +197,7 @@ describe("VPWS50 common cancellation registry + persistence v2", () => {
     expect(decide(restoredGate, first).kind).toBe("stale");
   });
 
-  it("StandbyPersistence は全国取消 tombstone と active VPWW55 overlay を同時に復元する", () => {
+  it("StandbyPersistence は全国取消 tombstone と active VPWW57 overlay を同時に復元する", () => {
     const gate = new TelegramRevisionGate();
     const holder = new Vpws50StateHolder();
     const base = weather(meta(T1, "1", "発表"), "A");
@@ -208,8 +209,8 @@ describe("VPWS50 common cancellation registry + persistence v2", () => {
     expect(holder.exportPersistedState()).toMatchObject({ current: null, history: [] });
 
     const office = "福井地方気象台";
-    const subject = `weather:VPWW55:${office}`;
-    const partial = vpww55(T2, "2", office, "180000");
+    const subject = `weather:VPWW57:${office}`;
+    const partial = vpww55(T2, "2", office, "180000", "発表", "VPWW57");
     expect(decide(gate, partial, true, subject).kind).toBe("accept");
     holder.mergePartialWithDisplay(partial, "partial", {
       reportDateTime: T2,
@@ -318,11 +319,12 @@ describe("VPWS50 common cancellation registry + persistence v2", () => {
     ]));
   });
 
-  it("VPNO50 emergency-clear watermark だけの foundation も保存し、再起動後の旧 L5 を抑制する", () => {
+  it("VPNO50 の官署 watermark だけの foundation も保存し、再起動後の未受信 VPWW57 旧 L5 を抑制する", () => {
     const holder = new Vpws50StateHolder();
-    const subject = "weather:VPWW55:福井地方気象台";
+    const officeKey = "weather:office:福井地方気象台";
+    const subject = "weather:VPWW57:福井地方気象台";
     holder.clearEmergencyPartialAreas(
-      subject,
+      officeKey,
       ["180000"],
       { reportDateTime: "2026-08-30T11:40:00+09:00", serial: "2" },
     );
@@ -332,14 +334,21 @@ describe("VPWS50 common cancellation registry + persistence v2", () => {
     })).save(legacyState());
     const loaded = new StandbyPersistence(file).load()!;
     expect(loaded.telegramFoundation.vpws50.state?.emergencyClearWatermarks).toEqual([{
-      subjectKey: subject,
+      subjectKey: officeKey,
       identity: { reportDateTime: "2026-08-30T11:40:00+09:00", serial: "2" },
     }]);
 
     const restoredHolder = new Vpws50StateHolder();
     restoredHolder.restorePersistedState(loaded.telegramFoundation.vpws50.state!);
-    const oldSpecial = vpww55("2026-08-30T11:20:00+09:00", "1", "福井地方気象台", "1820100");
-    oldSpecial.layers[0].items[0].kinds = [{ name: "大雨特別警報", code: "33", severity: "specialWarning" }];
+    const oldSpecial = vpww55(
+      "2026-08-30T11:20:00+09:00",
+      "1",
+      "福井地方気象台",
+      "1820100",
+      "発表",
+      "VPWW57",
+    );
+    oldSpecial.layers[0].items[0].kinds = [{ name: "高潮特別警報", code: "38", severity: "specialWarning" }];
     restoredHolder.mergePartialWithDisplay(
       oldSpecial,
       "late-old",

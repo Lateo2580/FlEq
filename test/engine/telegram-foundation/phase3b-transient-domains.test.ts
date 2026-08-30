@@ -8,7 +8,6 @@ import {
   RAW_REVISION_FAMILY_POLICY,
   routeHasExplicitRevisionFamilyPolicy,
   SEISMIC_TEXT_REVISION_FAMILY_POLICY,
-  TRANSIENT_WEATHER_REVISION_FAMILY_POLICY,
   WEATHER_EXPLANATION_REVISION_FAMILY_POLICY,
 } from "../../../src/engine/messages/revision-family-registry";
 import { ROUTE_CATALOG, type Route } from "../../../src/engine/messages/route-catalog";
@@ -52,7 +51,6 @@ describe("Phase 3B transient domain registry", () => {
       EARLY_WEATHER_REVISION_FAMILY_POLICY,
       CLIMATE_INFO_REVISION_FAMILY_POLICY,
       WEATHER_EXPLANATION_REVISION_FAMILY_POLICY,
-      TRANSIENT_WEATHER_REVISION_FAMILY_POLICY,
       RAW_REVISION_FAMILY_POLICY,
     ]) {
       expect(policy).toMatchObject({

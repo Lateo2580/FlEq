@@ -7,8 +7,7 @@ import * as log from "../../../logger";
 import type { WeatherReportIdentity } from "../../messages/vpws50-state";
 import { weatherRevisionFamilyPolicy } from "../../messages/revision-family-registry";
 import { semanticPayloadFingerprint } from "../../messages/telegram-revision-gate";
-
-const VPWS50_STATE_HEAD_TYPES = new Set(["VPWS50", "VPWW55"]);
+import { isVpws50StateHeadType } from "../../messages/weather-stream-key";
 
 /** processWeather の戻り値。抑制とパース失敗を呼び出し側で区別する。 */
 export type WeatherProcessResult = SuppressibleProcessResult<WeatherOutcome>;
@@ -17,7 +16,7 @@ export type WeatherProcessResult = SuppressibleProcessResult<WeatherOutcome>;
  * 気象警報・注意報電文 (VPWW55-61, VPWS50) を処理し WeatherOutcome を返す。
  * パース失敗は parse-failed、単調性ガードで棄却した報は suppressed を返す。
  *
- * VPWS50 と、その地域先行報 VPWW55 は、deps.vpws50State で同じ差分計算を行い
+ * VPWS50 と、その地域先行報 VPWW55/57-61 は、deps.vpws50State で同じ差分計算を行い
  * presentation.weatherDiff に乗せる。
  *   - 取消 (rollback): frameLevel/soundLevel = "cancel"
  *   - unsafe (layer_missing / abnormal_release_rate): frameLevel/soundLevel = "warning"
@@ -59,7 +58,7 @@ export function processWeather(
     policy != null
     && subject != null
     && deps?.revisionGate != null
-    && (!VPWS50_STATE_HEAD_TYPES.has(msg.head.type) || deps.vpws50State != null)
+    && (!isVpws50StateHeadType(msg.head.type) || deps.vpws50State != null)
     && (msg.head.type !== "VPWW56" || deps.vpww56State != null)
   ) {
     const messageId = msg.xmlReport?.head.eventId
@@ -96,7 +95,7 @@ export function processWeather(
     const evaluation = deps.revisionGate.evaluate(gateInput);
     if (!evaluation.accepted) {
       deps.onRevisionDecision?.(evaluation);
-      if (VPWS50_STATE_HEAD_TYPES.has(msg.head.type)) deps.onVpws50RevisionDecision?.(evaluation);
+      if (isVpws50StateHeadType(msg.head.type)) deps.onVpws50RevisionDecision?.(evaluation);
       if (msg.head.type === "VPWW56") deps.onVpww56RevisionDecision?.(evaluation);
       return { kind: "suppressed" };
     }
@@ -133,7 +132,7 @@ export function processWeather(
 
     const decision = deps.revisionGate.decide(gateInput);
     deps.onRevisionDecision?.(decision);
-    if (VPWS50_STATE_HEAD_TYPES.has(msg.head.type)) deps.onVpws50RevisionDecision?.(decision);
+    if (isVpws50StateHeadType(msg.head.type)) deps.onVpws50RevisionDecision?.(decision);
     if (!decision.accepted) {
       if (msg.head.type === "VPWW56") deps.onVpww56RevisionDecision?.(decision);
       return { kind: "suppressed" };
@@ -171,7 +170,7 @@ export function processWeather(
       if (decision.kind === "restorePrevious") {
         weatherStateMutationAccepted = weatherDiff?.confidence === "confirmed";
       }
-    } else if (msg.head.type === "VPWW55" && deps.vpws50State != null) {
+    } else if (isVpws50StateHeadType(msg.head.type) && deps.vpws50State != null) {
       const update = cancellationTriggered
         ? decision.kind === "restorePrevious"
           ? deps.vpws50State.restorePreviousPartial(subject)

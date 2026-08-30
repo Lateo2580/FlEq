@@ -57,6 +57,7 @@ import {
 } from "./telegram-diagnostic";
 import { TelegramRevisionGate, type TelegramRevisionDecision } from "./telegram-revision-gate";
 import { routeHasExplicitRevisionFamilyPolicy } from "./revision-family-registry";
+import { isVpws50StateHeadType } from "./weather-stream-key";
 import {
   createUnknownDeliveryCapabilities,
   type DeliveryCapabilities,
@@ -462,7 +463,7 @@ function dispatchNotify(outcome: ProcessOutcome, notifier: Notifier): boolean {
       ) return false;
       const diff = outcome.presentation.weatherDiff;
       // 変化なし (再掲対象でなければ) は通知を抑制 (spec §4.3)
-      const acceptedVpws50Correction = (outcome.headType === "VPWS50" || outcome.headType === "VPWW55")
+      const acceptedVpws50Correction = isVpws50StateHeadType(outcome.headType)
         && outcome.parsed.infoType === "訂正";
       if (diff?.isUnchanged && !diff.shouldRecap && !acceptedVpws50Correction) {
         return false;

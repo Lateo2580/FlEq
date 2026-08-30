@@ -51,6 +51,11 @@ import {
   type WeatherReportIdentity,
 } from "../messages/vpws50-state";
 import {
+  normalizeWeatherOfficeWatermarkKey,
+  weatherOfficeFromStreamKey,
+  weatherOfficeWatermarkKey,
+} from "../messages/weather-stream-key";
+import {
   TSUNAMI_OBSERVATION_MAX_STATIONS_PER_FAMILY,
 } from "../messages/tsunami-state";
 import {
@@ -1542,8 +1547,8 @@ function isVpws50Kind(value: unknown): boolean {
 }
 
 function isVpws50Snapshot(value: unknown): boolean {
-  return isRecord(value)
-    && value.generation === VPWS50_SNAPSHOT_GENERATION
+  if (!isRecord(value)) return false;
+  const areasValid = value.generation === VPWS50_SNAPSHOT_GENERATION
     && Array.isArray(value.areas) && value.areas.every((area) =>
     isRecord(area)
     && typeof area.areaCode === "string"
@@ -1551,6 +1556,13 @@ function isVpws50Snapshot(value: unknown): boolean {
     && Array.isArray(area.kinds)
     && area.kinds.every(isVpws50Kind),
   );
+  const clearsValid = value.clearedPhenomena == null
+    || Array.isArray(value.clearedPhenomena)
+    && value.clearedPhenomena.every((entry) => isRecord(entry)
+      && typeof entry.areaCode === "string"
+      && Array.isArray(entry.phenomenonKeys)
+      && entry.phenomenonKeys.every((key) => typeof key === "string"));
+  return areasValid && clearsValid;
 }
 
 function isVpws50State(value: unknown): value is PersistedVpws50StateV2 {
@@ -1564,13 +1576,13 @@ function isVpws50State(value: unknown): value is PersistedVpws50StateV2 {
     && value.partialStreams.length <= 128
     && value.partialStreams.every((entry) => isRecord(entry)
       && typeof entry.subjectKey === "string"
-      && entry.subjectKey.startsWith("weather:VPWW55:")
+      && weatherOfficeFromStreamKey(entry.subjectKey) != null
       && isEntry(entry, true));
   const partialHistoryValid = value.partialHistory == null || Array.isArray(value.partialHistory)
     && value.partialHistory.length <= 128
     && value.partialHistory.every((group) => isRecord(group)
       && typeof group.subjectKey === "string"
-      && group.subjectKey.startsWith("weather:VPWW55:")
+      && weatherOfficeFromStreamKey(group.subjectKey) != null
       && Array.isArray(group.entries)
       && group.entries.length <= 8
       && group.entries.every((entry) => isEntry(entry, true)));
@@ -1578,13 +1590,13 @@ function isVpws50State(value: unknown): value is PersistedVpws50StateV2 {
     || Array.isArray(value.restoredPartialSubjects)
     && value.restoredPartialSubjects.length <= 128
     && value.restoredPartialSubjects.every((subject) => typeof subject === "string"
-      && subject.startsWith("weather:VPWW55:"));
+      && weatherOfficeFromStreamKey(subject) != null);
   const watermarksValid = value.emergencyClearWatermarks == null
     || Array.isArray(value.emergencyClearWatermarks)
     && value.emergencyClearWatermarks.length <= 128
     && value.emergencyClearWatermarks.every((entry) => isRecord(entry)
       && typeof entry.subjectKey === "string"
-      && entry.subjectKey.startsWith("weather:VPWW55:")
+      && normalizeWeatherOfficeWatermarkKey(entry.subjectKey) != null
       && isWeatherIdentity(entry.identity));
   return partialStreamsValid
     && partialHistoryValid
@@ -2786,14 +2798,17 @@ function vpws50FoundationIsConsistent(
   const partialStreams = state.partialStreams ?? [];
   const partialBySubject = new Map(partialStreams.map((entry) => [entry.subjectKey, entry]));
   const restoredSubjects = new Set(state.restoredPartialSubjects ?? []);
-  const watermarkSubjects = new Set((state.emergencyClearWatermarks ?? [])
-    .map((entry) => entry.subjectKey));
+  const watermarkOffices = new Set((state.emergencyClearWatermarks ?? [])
+    .flatMap((entry) => {
+      const key = normalizeWeatherOfficeWatermarkKey(entry.subjectKey);
+      return key == null ? [] : [key];
+    }));
   if ([...restoredSubjects].some((subject) => !partialBySubject.has(subject))) return false;
   for (const stream of partialStreams) {
     const gateEntry = entries.find((entry) => entry.stateSubjectKey === stream.subjectKey);
     if (gateEntry == null) return false;
     const relation = compareWeatherIdentity(stream.identity, gateWeatherIdentity(gateEntry));
-    // VPWW55 の取消は stream 内の直前 snapshot を復元する。gate は取消 revision の
+    // VPWW55-61 の取消は stream 内の直前 snapshot を復元する。gate は取消 revision の
     // tombstone を保持するため、復元済み partial はそれより古い identity で整合する。
     if (gateEntry.cancelled
       ? relation !== "older" || !restoredSubjects.has(stream.subjectKey)
@@ -2802,12 +2817,14 @@ function vpws50FoundationIsConsistent(
   if (entries.some((entry) => entry.stateSubjectKey !== "weather:vpws50"
     && !entry.cancelled
     && !partialBySubject.has(entry.stateSubjectKey)
-    && !watermarkSubjects.has(entry.stateSubjectKey))) return false;
+    && !watermarkOffices.has(weatherOfficeWatermarkKey(
+      weatherOfficeFromStreamKey(entry.stateSubjectKey),
+    ) ?? ""))) return false;
 
   const gateEntry = canonicalEntries[0];
   if (state.current == null) {
     // 初回全国報の取消では holder の current/history は空になる一方、canonical gate は
-    // 無期限 tombstone として残る。VPWW55 overlay だけが active な場合も同じ形になる。
+    // 無期限 tombstone として残る。VPWW55-61 overlay だけが active な場合も同じ形になる。
     return (gateEntry == null || gateEntry.cancelled) && state.history.length === 0;
   }
   if (gateEntry == null) return false;
@@ -2837,7 +2854,7 @@ function sanitizeVpws50Foundation(
     && entry.domain === "weather"
     && entry.revisionFamily === "VPWS50"
     && (entry.stateSubjectKey === "weather:vpws50"
-      || entry.stateSubjectKey.startsWith("weather:VPWW55:")),
+      || weatherOfficeFromStreamKey(entry.stateSubjectKey) != null),
   )) return null;
   const validatedState = state as PersistedVpws50StateV2 | null;
   const validatedEntries = entries as PersistedTelegramRevisionGateEntryV2[];
@@ -2846,7 +2863,7 @@ function sanitizeVpws50Foundation(
     ...structuredClone(entry),
     semanticKeys: compactPersistedSemanticKeys(entry.semanticKeys),
     // tombstoneRetentionMs 導入前の v2 は domain policy を欠く。
-    // VPWS50 family は全国 base と官署別 VPWW55 の取消 latch を期限なく保持する。
+    // VPWS50 family は全国 base と官署別 VPWW55-61 の取消 latch を期限なく保持する。
     tombstoneRetentionMs: entry.tombstoneRetentionMs === undefined
       ? VPWS50_REVISION_FAMILY_POLICY.tombstoneRetentionMs
       : entry.tombstoneRetentionMs,

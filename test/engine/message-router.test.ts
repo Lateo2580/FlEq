@@ -194,7 +194,7 @@ function vpws50L5Message(
   reportDateTime: string,
   serial: string,
   options: {
-    headType?: "VPWS50" | "VPWW55";
+    headType?: "VPWS50" | "VPWW55" | "VPWW57" | "VPWW58" | "VPWW59" | "VPWW60" | "VPWW61";
     infoType?: "発表" | "訂正";
     publishingOffice?: string;
   } = {},
@@ -312,6 +312,34 @@ describe("message-router 統合テスト", () => {
 
     handler(vpws50L5Message(
       "大雨特別警報",
+      "2026-08-13T12:00:00+09:00",
+      "1",
+      { ...options, infoType: "訂正" },
+    ));
+
+    expect(notifyWeatherSpy).toHaveBeenCalledTimes(1);
+    expect(notifyWeatherSpy.mock.calls[0]?.[0].infoType).toBe("訂正");
+    expect(stats.getSnapshot().foundation.correctionNotified).toBe(1);
+  });
+
+  it("内容不変の VPWW57 訂正も stateful weather の通知例外として一回通知する", () => {
+    const { handler, notifier, stats } = createHandler();
+    const notifyWeatherSpy = vi.spyOn(notifier, "notifyWeatherWarning");
+    const options = {
+      headType: "VPWW57" as const,
+      publishingOffice: "横浜地方気象台",
+    };
+
+    handler(vpws50L5Message(
+      "高潮特別警報",
+      "2026-08-13T12:00:00+09:00",
+      "1",
+      options,
+    ));
+    notifyWeatherSpy.mockClear();
+
+    handler(vpws50L5Message(
+      "高潮特別警報",
       "2026-08-13T12:00:00+09:00",
       "1",
       { ...options, infoType: "訂正" },

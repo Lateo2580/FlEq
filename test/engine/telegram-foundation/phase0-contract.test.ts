@@ -315,7 +315,6 @@ describe("telegram foundation Phase 0 contract", () => {
         "nankaiTrough|nankaiTrough|clearCurrent|StandbyStateStore",
         "weather|VPWS50|restorePrevious|Vpws50StateHolder,StandbyStateStore,WeatherPromotionStore",
         "weather|VPWW56|clearCurrent|Vpww56StateHolder,StandbyStateStore,WeatherPromotionStore",
-        "weather|VPWW57-61|markCancelled|",
         "tornado|tornado|clearCurrent|StandbyStateStore",
         "briefing|briefing|markCancelled|",
         "earlyWeather|earlyWeather|markCancelled|",

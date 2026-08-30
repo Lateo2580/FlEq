@@ -114,6 +114,42 @@ describe("WeatherChangeDisplayStore", () => {
     });
   });
 
+  it("受理済み VPWW57 の高潮降格 diff も短時間変更表示へ載せる", () => {
+    const store = new WeatherChangeDisplayStore();
+    const lowered = displayDiff({
+      upgraded: [],
+      downgraded: [{
+        areaCode: "3720100",
+        areaName: "高松市",
+        changes: [transition({
+          phenomenonKey: "高潮",
+          kindShortName: "高潮警報",
+          prevKindShortName: "高潮特別警報",
+          prevKindCode: "38",
+          newKindCode: "08",
+          prevDisplaySeverity: "officialL5",
+          newDisplaySeverity: "officialL3",
+          prevOfficialAlertLevel: 5,
+          newOfficialAlertLevel: 3,
+        })],
+      }],
+    });
+    expect(store.apply(event({
+      type: "VPWW57",
+      weatherDiff: diff({ upgraded: [], downgraded: [{
+        areaCode: "3720100", areaName: "高松市", changes: [],
+      }] }),
+      weatherChangeDiff: lowered,
+    }), NOW)).toBe(true);
+    expect(store.snapshot(NOW)?.changes[0]).toMatchObject({
+      areaCode: "3720100",
+      phenomenonKey: "高潮",
+      kind: "downgraded",
+      before: { kindCode: "38", officialAlertLevel: 5 },
+      after: { kindCode: "08", officialAlertLevel: 3 },
+    });
+  });
+
   it("accepted changed を作成し、続報で原子的に置換する", () => {
     const store = new WeatherChangeDisplayStore();
     store.apply(event(), NOW);

@@ -41,7 +41,11 @@ import { jstDayKey } from "../../utils/jst-day-key";
 import { nankaiBadgeAction } from "../display/nankai-status";
 import { normalizeTornadoPublishingOffice, tornadoTickerGroupKey } from "../display/tornado-group-key";
 import type { Route } from "./route-catalog";
-import { weatherOfficeStreamKey } from "./weather-stream-key";
+import {
+  VPWS50_STATE_HEAD_TYPES,
+  isVpws50StateHeadType,
+  weatherOfficeStreamKey,
+} from "./weather-stream-key";
 
 interface RevisionFamilyPolicyBase<TParsed> {
   domain: string;
@@ -126,7 +130,7 @@ function eewPolicy(headType: "VXSE43" | "VXSE44" | "VXSE45"):
 }
 
 const VPWS50_SUBJECT = "weather:vpws50";
-const VPWW55_MAX_SUBJECTS = 128;
+const VPWW_PARTIAL_MAX_SUBJECTS = 128;
 const NANKAI_CURRENT_SUBJECT = "nankai:current";
 const STANDBY_DOMAIN_RETENTION_MS = 36 * 60 * 60_000;
 const HEAT_RETENTION_MS = 3 * 24 * 60 * 60_000;
@@ -234,15 +238,6 @@ export const WEATHER_EXPLANATION_REVISION_FAMILY_POLICY = transientEventPolicy<P
   prefix: "weatherExplanation",
   retentionMs: 36 * 60 * 60_000,
   maxSubjects: 256,
-});
-
-export const TRANSIENT_WEATHER_REVISION_FAMILY_POLICY = transientEventPolicy<ParsedWeatherWarning>({
-  domain: "weather",
-  revisionFamily: "VPWW57-61",
-  headTypes: ["VPWW57", "VPWW58", "VPWW59", "VPWW60", "VPWW61"],
-  prefix: "weatherTransient",
-  retentionMs: 36 * 60 * 60_000,
-  maxSubjects: 128,
 });
 
 export const RAW_REVISION_FAMILY_POLICY = transientEventPolicy<unknown>({
@@ -694,9 +689,10 @@ function tsunamiObservationPolicy(
 
 function vpws50StateSubjectKey(meta: TelegramMeta, parsed: ParsedWeatherWarning): string | null {
   if (!meta.type.valid) return null;
-  if (meta.type.value === "VPWS50") return VPWS50_SUBJECT;
-  if (meta.type.value === "VPWW55") {
-    return weatherOfficeStreamKey(meta.type.value, parsed.publishingOffice);
+  const headType = meta.type.value;
+  if (headType === "VPWS50") return VPWS50_SUBJECT;
+  if (headType != null && headType !== "VPWS50" && isVpws50StateHeadType(headType)) {
+    return weatherOfficeStreamKey(headType, parsed.publishingOffice);
   }
   return null;
 }
@@ -704,11 +700,11 @@ function vpws50StateSubjectKey(meta: TelegramMeta, parsed: ParsedWeatherWarning)
 export const VPWS50_REVISION_FAMILY_POLICY: RevisionFamilyPolicy<ParsedWeatherWarning> = {
   domain: "weather",
   revisionFamily: "VPWS50",
-  // VPWW55 は同じ警報現況を先行して伝える地域報。全国集約 VPWS50 と同じ current
+  // VPWW55/57-61 は同じ警報現況を先行して伝える地域報。全国集約 VPWS50 と同じ current
   // state に入れ、ReportDateTime/Serial の単調性を family 横断で守る。
-  headTypes: ["VPWS50", "VPWW55"],
+  headTypes: VPWS50_STATE_HEAD_TYPES,
   comparator: "reportDateTimeThenSerial",
-  // VPWS50 は全国 base、VPWW55 は官署別部分 stream。EventID は state 粒度ではない。
+  // VPWS50 は全国 base、VPWW55/57-61 は官署別部分 stream。EventID は state 粒度ではない。
   extractStateSubjectKey: vpws50StateSubjectKey,
   extractCancellationTarget: (meta, parsed) => {
     const subject = vpws50StateSubjectKey(meta, parsed);
@@ -720,7 +716,7 @@ export const VPWS50_REVISION_FAMILY_POLICY: RevisionFamilyPolicy<ParsedWeatherWa
   durable: true,
   // 全国 base 1件と官署別部分報を有限上限で保持する。
   tombstoneRetentionMs: null,
-  maxSubjects: 1 + VPWW55_MAX_SUBJECTS,
+  maxSubjects: 1 + VPWW_PARTIAL_MAX_SUBJECTS,
   allowMissingSerial: true,
   fragmentMerge: false,
 };
@@ -894,7 +890,6 @@ export const ALL_REVISION_FAMILY_POLICIES = [
   EARLY_WEATHER_REVISION_FAMILY_POLICY,
   CLIMATE_INFO_REVISION_FAMILY_POLICY,
   WEATHER_EXPLANATION_REVISION_FAMILY_POLICY,
-  TRANSIENT_WEATHER_REVISION_FAMILY_POLICY,
   LEGACY_COUNTERPART_REVISION_FAMILY_POLICY,
   RAW_REVISION_FAMILY_POLICY,
 ] as const;
@@ -946,9 +941,6 @@ export function weatherRevisionFamilyPolicy(
 ): RevisionFamilyPolicy<ParsedWeatherWarning> | null {
   if (VPWS50_REVISION_FAMILY_POLICY.headTypes.includes(headType)) return VPWS50_REVISION_FAMILY_POLICY;
   if (headType === "VPWW56") return VPWW56_REVISION_FAMILY_POLICY;
-  if (TRANSIENT_WEATHER_REVISION_FAMILY_POLICY.headTypes.includes(headType)) {
-    return TRANSIENT_WEATHER_REVISION_FAMILY_POLICY;
-  }
   return null;
 }
 

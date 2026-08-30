@@ -116,6 +116,29 @@ describe("createDisplaySink (monitor の実配線)", () => {
     expect(promotions.get("vpws50")?.level).toBe(5);
   });
 
+  it("VPWW57 特別警報も VPWW55 と同じ weatherAlerts/promotion state へ反映する", () => {
+    const applyWeatherAlerts = vi.fn();
+    const promotions = new WeatherPromotionStore();
+    const sink = createDisplaySink({
+      standby: { applyEvent: () => undefined, applyWeatherAlerts },
+      promotions,
+      weatherViews: { vpws50: () => view("officialL5", ["高松市"]), vpww56: () => undefined },
+      getHub: () => null,
+      now: () => T0,
+    });
+
+    sink.ingest(weatherEvent({ type: "VPWW57", title: "香川県高潮警報・注意報" }));
+
+    expect(applyWeatherAlerts).toHaveBeenCalledWith(
+      "vpws50",
+      [expect.objectContaining({ role: "weatherEmergency", items: [expect.objectContaining({ shownAreas: ["高松市"] })] })],
+      "2026-07-25T21:00:00+09:00",
+      null,
+      T0,
+    );
+    expect(promotions.get("vpws50")?.level).toBe(5);
+  });
+
   it("hub が無くても (display off) 昇格が更新される", () => {
     const h = harness();
     h.setVpws50(view("officialL5", ["東京都"]));

@@ -157,9 +157,10 @@ function buildVpws50Msg(
     reportDateTime?: string;
     serial?: string | null;
     infoType?: string;
-    type?: "VPWS50" | "VPWW55" | "VPWW56";
+    type?: "VPWS50" | "VPWW55" | "VPWW56" | "VPWW57" | "VPWW58" | "VPWW59" | "VPWW60" | "VPWW61";
     publishingOffice?: string;
     areas?: Array<{ name: string; code: string }>;
+    releaseLastKinds?: Array<{ code: string; name: string }>;
   } = {},
 ): WsDataMessage {
   const reportDateTime = opts.reportDateTime ?? "2026-06-12T15:00:00+09:00";
@@ -204,6 +205,20 @@ function buildVpws50Msg(
       },
       Body: {
         "@_xmlns": "http://xml.kishou.go.jp/jmaxml1/body/meteorology1/",
+        ...(opts.releaseLastKinds == null ? {} : {
+          Warning: {
+            "@_type": "気象警報・注意報（府県予報区等）",
+            Item: (opts.areas ?? [{ name: "神奈川県", code: "140000" }]).map((area) => ({
+              Area: { Name: area.name, Code: area.code },
+              Kind: opts.releaseLastKinds!.map((lastKind) => ({
+                Name: "解除",
+                Code: "00",
+                Status: "解除",
+                LastKind: { Name: lastKind.name, Code: lastKind.code },
+              })),
+            })),
+          },
+        }),
       },
     },
   };
@@ -310,6 +325,35 @@ describe("processWeather - VPWS50/VPWW55/VPWW56 単調性抑制", () => {
     expect(finalView?.kinds[0]?.areas).toHaveLength(2);
   });
 
+  it("全国 base の大雨を新しい VPWW55 明示解除で消し、古い base と別現象から隔離する", () => {
+    const deps = fakeDeps(new Vpws50StateHolder());
+    const area = [{ name: "高松市", code: "3720100" }];
+    const baseKinds = [
+      { code: "03", name: "大雨警報" },
+      { code: "38", name: "高潮特別警報" },
+    ];
+    expect(processWeather(buildVpws50Msg(baseKinds, {
+      type: "VPWS50", id: "base-rain-surge",
+      reportDateTime: "2026-06-12T08:00:00+09:00", serial: "1", areas: area,
+    }), deps).kind).toBe("ok");
+
+    const release = requireWeatherOutcome(processWeather(buildVpws50Msg([
+      { code: "00", name: "解除" },
+    ], {
+      type: "VPWW55", id: "rain-release", publishingOffice: "高松地方気象台",
+      reportDateTime: "2026-06-12T09:00:00+09:00", serial: "1", areas: area,
+      releaseLastKinds: [{ code: "03", name: "大雨警報" }],
+    }), deps));
+    expect(release.presentation.weatherDiff?.released[0]?.changes[0]?.phenomenonKey).toBe("大雨");
+    expect(deps.vpws50State.getCurrentAreasForDisplay()?.kinds.map((kind) => kind.kindCode)).toEqual(["38"]);
+
+    expect(processWeather(buildVpws50Msg(baseKinds, {
+      type: "VPWS50", id: "late-old-base",
+      reportDateTime: "2026-06-12T07:59:00+09:00", serial: "0", areas: area,
+    }), deps)).toEqual({ kind: "suppressed" });
+    expect(deps.vpws50State.getCurrentAreasForDisplay()?.kinds.map((kind) => kind.kindCode)).toEqual(["38"]);
+  });
+
   it("VPWW55 の受理でも VPWS50 authoritative callback を呼ぶ", () => {
     const deps = fakeDeps(new Vpws50StateHolder());
     deps.onVpws50RevisionDecision = vi.fn();
@@ -341,6 +385,55 @@ describe("processWeather - VPWS50/VPWW55/VPWW56 単調性抑制", () => {
       "weather:VPWW55:横浜地方気象台",
     ]);
     expect(deps.vpws50State.getCurrentAreasForDisplay()?.totalAreas).toBe(2);
+  });
+
+  it("VPWW57/58/61 は実 fixture を官署別 partial overlay として同じ durable family に反映する", () => {
+    const deps = fakeDeps(new Vpws50StateHolder());
+    const fixtures = [
+      [FIXTURE_VPWW57_KOCHO, "高松地方気象台"],
+      [FIXTURE_VPWW58_BOFU, "福井地方気象台"],
+      [FIXTURE_VPWW61_OTHER, "横浜地方気象台"],
+    ] as const;
+    for (const [fixture, publishingOffice] of fixtures) {
+      const outcome = requireWeatherOutcome(processWeather(
+        createMockWsDataMessage(fixture, undefined, { publishingOffice }),
+        deps,
+      ));
+      expect(outcome.presentation.weatherStateMutationAccepted).toBe(true);
+    }
+    expect(deps.revisionGate.activeRevisionFamilySubjects("weather", "VPWS50")).toEqual([
+      "weather:VPWW57:高松地方気象台",
+      "weather:VPWW58:福井地方気象台",
+      "weather:VPWW61:横浜地方気象台",
+    ]);
+    expect(deps.vpws50State.getCurrentAreasForDisplay()?.totalAreas).toBeGreaterThan(0);
+  });
+
+  it("VPWW57 の降格と取消は同一官署 stream の partialHistory を復元する", () => {
+    const deps = fakeDeps(new Vpws50StateHolder());
+    const common = {
+      type: "VPWW57" as const,
+      publishingOffice: "高松地方気象台",
+      areas: [{ name: "高松市", code: "3720100" }],
+    };
+    expect(processWeather(buildVpws50Msg([{ code: "38", name: "高潮特別警報" }], {
+      ...common, id: "vpww57-special", reportDateTime: "2026-08-30T10:00:00+09:00", serial: "1",
+    }), deps).kind).toBe("ok");
+    const downgraded = requireWeatherOutcome(processWeather(buildVpws50Msg([{ code: "08", name: "高潮警報" }], {
+      ...common, id: "vpww57-warning", reportDateTime: "2026-08-30T10:10:00+09:00", serial: "2",
+    }), deps));
+    expect(downgraded.presentation.weatherStateMutationAccepted).toBe(true);
+    expect(deps.vpws50State.getCurrentAreasForDisplay()?.kinds[0]).toMatchObject({
+      kindCode: "08", displaySeverity: "officialL3",
+    });
+
+    const restored = requireWeatherOutcome(processWeather(buildVpws50Msg([{ code: "08", name: "高潮警報" }], {
+      ...common, id: "vpww57-cancel", reportDateTime: "2026-08-30T10:10:00+09:00", serial: "2", infoType: "取消",
+    }), deps));
+    expect(restored.presentation.frameLevel).toBe("cancel");
+    expect(deps.vpws50State.getCurrentAreasForDisplay()?.kinds[0]).toMatchObject({
+      kindCode: "38", displaySeverity: "officialL5",
+    });
   });
 
   it("VPWS50: 取消後の重複取消と古い発表を suppressed にする", () => {

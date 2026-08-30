@@ -27,16 +27,19 @@ function makeItem(areaName: string, areaCode: string, kinds: WeatherKind[]): Wea
   return { areaName, areaCode, kinds, statuses: [] };
 }
 
-function makeInfo(items: WeatherItem[], opts: { infoType?: string } = {}): ParsedWeatherWarning {
+function makeInfo(
+  items: WeatherItem[],
+  opts: { infoType?: string; type?: string; publishingOffice?: string } = {},
+): ParsedWeatherWarning {
   const layers = [{ type: "気象警報・注意報（府県予報区等）", items }];
   return {
     meta: testTelegramMeta(false),
-    type: "VPWS50",
+    type: opts.type ?? "VPWS50",
     infoType: opts.infoType ?? "発表",
     title: "気象警報・注意報",
     reportDateTime: "2026-06-05T15:18:00+09:00",
     headline: null,
-    publishingOffice: "気象庁",
+    publishingOffice: opts.publishingOffice ?? "気象庁",
     editorialOffice: "気象庁",
     controlTitle: "気象警報・注意報",
     layers,
@@ -382,6 +385,104 @@ describe("Vpws50StateHolder restorePrevious (revision 判定は共通 gate が�
     ]));
   });
 
+  it("同一官署・同一市町村の VPWW55 と VPWW57 は現象単位で合成し両 kinds を保持する", () => {
+    const state = new Vpws50StateHolder();
+    const office = "高松地方気象台";
+    state.mergePartialWithDisplay(makeInfo([
+      makeItem("高松市", "3720100", [makeKind("38", "specialWarning", "高潮特別警報")]),
+    ], { type: "VPWW57", publishingOffice: office }), "surge", firstIdentity,
+    `weather:VPWW57:${office}`);
+    state.mergePartialWithDisplay(makeInfo([
+      makeItem("高松市", "3720100", [makeKind("03", "warning", "大雨警報")]),
+    ], { type: "VPWW55", publishingOffice: office }), "rain", secondIdentity,
+    `weather:VPWW55:${office}`);
+
+    const kinds = state.getCurrentAreasForDisplay()?.kinds ?? [];
+    expect(kinds.map((kind) => kind.kindCode)).toEqual(expect.arrayContaining(["03", "38"]));
+    expect(kinds.find((kind) => kind.kindCode === "03")?.areas).toContainEqual(
+      expect.objectContaining({ areaCode: "3720100" }),
+    );
+    expect(kinds.find((kind) => kind.kindCode === "38")?.areas).toContainEqual(
+      expect.objectContaining({ areaCode: "3720100" }),
+    );
+  });
+
+  it("VPWW55 の明示解除 tombstone は base の同現象だけを消し、永続化・古い base 後も保持する", () => {
+    const state = new Vpws50StateHolder();
+    const office = "高松地方気象台";
+    const area = "3720100";
+    const baseInfo = makeInfo([
+      makeItem("高松市", area, [
+        makeKind("03", "warning", "大雨警報"),
+        makeKind("38", "specialWarning", "高潮特別警報"),
+      ]),
+    ]);
+    state.diffAndUpdate(baseInfo, "base", firstIdentity);
+    const releasedItem = makeItem("高松市", area, [makeKind("00", "release", "解除")]);
+    releasedItem.statuses = [{
+      kindCode: "00",
+      status: "解除",
+      lastKindCode: "03",
+      lastKindName: "大雨警報",
+    }];
+    const released = state.mergePartialWithDisplay(
+      makeInfo([releasedItem], { type: "VPWW55", publishingOffice: office }),
+      "rain-release",
+      secondIdentity,
+      `weather:VPWW55:${office}`,
+    );
+    expect(released.diff.released[0]?.changes[0]?.phenomenonKey).toBe("大雨");
+    expect(state.getCurrentAreasForDisplay()?.kinds.map((kind) => kind.kindCode)).toEqual(["38"]);
+
+    const restored = new Vpws50StateHolder();
+    restored.restorePersistedState(state.exportPersistedState());
+    restored.diffAndUpdate(
+      baseInfo,
+      "late-old-base",
+      identity("2026-06-05T14:30:00+09:00", "0"),
+    );
+    expect(restored.getCurrentAreasForDisplay()?.kinds.map((kind) => kind.kindCode)).toEqual(["38"]);
+  });
+
+  it("tombstone-only 履歴を後続の曖昧解除へ引き継ぎ、base を復活させない", () => {
+    const state = new Vpws50StateHolder();
+    const office = "高松地方気象台";
+    const area = "3720100";
+    const subject = `weather:VPWW55:${office}`;
+    state.diffAndUpdate(makeInfo([
+      makeItem("高松市", area, [makeKind("03", "warning", "大雨警報")]),
+    ]), "base", firstIdentity);
+
+    const explicitRelease = makeItem("高松市", area, [makeKind("00", "release", "解除")]);
+    explicitRelease.statuses = [{
+      kindCode: "00",
+      status: "解除",
+      lastKindCode: "03",
+      lastKindName: "大雨警報",
+    }];
+    state.mergePartialWithDisplay(
+      makeInfo([explicitRelease], { type: "VPWW55", publishingOffice: office }),
+      "explicit-release",
+      secondIdentity,
+      subject,
+    );
+    expect(state.getCurrentAreasForDisplay()?.kinds).toEqual([]);
+
+    const ambiguousRelease = makeItem("高松市", area, [makeKind("00", "release", "解除")]);
+    state.mergePartialWithDisplay(
+      makeInfo([ambiguousRelease], { type: "VPWW55", publishingOffice: office }),
+      "ambiguous-release",
+      identity("2026-06-05T16:00:00+09:00", "3"),
+      subject,
+    );
+
+    expect(state.getCurrentAreasForDisplay()?.kinds).toEqual([]);
+    expect(state.exportPersistedState().partialStreams?.[0]?.snapshot.clearedPhenomena).toEqual([{
+      areaCode: area,
+      phenomenonKeys: ["大雨"],
+    }]);
+  });
+
   it("官署別 partialHistory は永続化 round-trip 後も取消で直前報を復元する", () => {
     const subject = "weather:VPWW55:福井地方気象台";
     const state = new Vpws50StateHolder();
@@ -420,26 +521,30 @@ describe("Vpws50StateHolder restorePrevious (revision 判定は共通 gate が�
     expect(state.getCurrentAreasForDisplay()).toBeUndefined();
   });
 
-  it("VPNO50 watermark は再起動後も同官署の遅延 VPWW55 emergency 成分だけを抑制する", () => {
-    const subject = "weather:VPWW55:福井地方気象台";
+  it("VPNO50 の官署 watermark は再起動後も未受信だった同官署 VPWW57 の遅延 emergency を抑制する", () => {
+    const office = "福井地方気象台";
+    const officeKey = `weather:office:${office}`;
+    const subject = `weather:VPWW57:${office}`;
     const state = new Vpws50StateHolder();
-    state.clearEmergencyPartialAreas(subject, ["180000"], identity("2026-08-30T11:40:00+09:00", "2"));
+    state.clearEmergencyPartialAreas(officeKey, ["180000"], identity("2026-08-30T11:40:00+09:00", "2"));
     const restored = new Vpws50StateHolder();
     restored.restorePersistedState(state.exportPersistedState());
 
     restored.mergePartialWithDisplay(makeInfo([
       makeItem("福井市", "1820100", [
-        makeKind("33", "specialWarning"),
+        makeKind("38", "specialWarning", "高潮特別警報"),
         makeKind("49", "warning", "レベル４土砂災害警戒情報"),
       ]),
-    ]), "late-old", identity("2026-08-30T11:20:00+09:00", "1"), subject);
+    ], { type: "VPWW57", publishingOffice: office }), "late-old",
+    identity("2026-08-30T11:20:00+09:00", "1"), subject);
     expect(restored.getCurrentAreasForDisplay()?.kinds).toEqual([
       expect.objectContaining({ kindCode: "49", displaySeverity: "officialL4" }),
     ]);
 
     restored.mergePartialWithDisplay(makeInfo([
-      makeItem("福井市", "1820100", [makeKind("33", "specialWarning")]),
-    ]), "new", identity("2026-08-30T11:41:00+09:00", "3"), subject);
+      makeItem("福井市", "1820100", [makeKind("38", "specialWarning", "高潮特別警報")]),
+    ], { type: "VPWW57", publishingOffice: office }), "new",
+    identity("2026-08-30T11:41:00+09:00", "3"), subject);
     expect(restored.getCurrentAreasForDisplay()?.kinds[0]?.displaySeverity).toBe("officialL5");
   });
 
@@ -458,6 +563,7 @@ describe("Vpws50StateHolder restorePrevious (revision 判定は共通 gate が�
   it("watermark 128件満杯で最古subjectを更新後に追加しても、更新subjectをLRU退場させない", () => {
     const state = new Vpws50StateHolder();
     const subject = (index: number): string => `weather:VPWW55:試験地方気象台${index}`;
+    const officeKey = (index: number): string => `weather:office:試験地方気象台${index}`;
     for (let index = 0; index < 128; index++) {
       state.clearEmergencyPartialAreas(
         subject(index),
@@ -479,11 +585,11 @@ describe("Vpws50StateHolder restorePrevious (revision 判定は共通 gate が�
     const watermarks = state.exportPersistedState().emergencyClearWatermarks ?? [];
     expect(watermarks).toHaveLength(128);
     expect(watermarks).toContainEqual({
-      subjectKey: subject(0),
+      subjectKey: officeKey(0),
       identity: { reportDateTime: "2026-08-30T11:41:00+09:00", serial: "2" },
     });
-    expect(watermarks.map((entry) => entry.subjectKey)).toContain(subject(128));
-    expect(watermarks.map((entry) => entry.subjectKey)).not.toContain(subject(1));
+    expect(watermarks.map((entry) => entry.subjectKey)).toContain(officeKey(128));
+    expect(watermarks.map((entry) => entry.subjectKey)).not.toContain(officeKey(1));
   });
 
   it("history-only subject は128件に bounded され、active同期で退場subjectを掃除する", () => {

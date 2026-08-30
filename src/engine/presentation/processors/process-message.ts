@@ -50,7 +50,6 @@ import {
   EARLY_WEATHER_REVISION_FAMILY_POLICY,
   CLIMATE_INFO_REVISION_FAMILY_POLICY,
   WEATHER_EXPLANATION_REVISION_FAMILY_POLICY,
-  TRANSIENT_WEATHER_REVISION_FAMILY_POLICY,
   RAW_REVISION_FAMILY_POLICY,
   LEGACY_COUNTERPART_REVISION_FAMILY_POLICY,
   type RevisionFamilyPolicy,
@@ -59,7 +58,7 @@ import { processStandbyFoundation, standbyFoundationPresentation } from "./proce
 import type { ProcessOutcomeBase } from "../types";
 import { nankaiBadgeAction } from "../../display/nankai-status";
 import { gateRawOutcome, gateTransientOutcome } from "./process-transient-foundation";
-import { weatherOfficeStreamKey } from "../../messages/weather-stream-key";
+import { weatherOfficeWatermarkKey } from "../../messages/weather-stream-key";
 
 /** processMessage に必要な依存群 */
 export interface ProcessDeps {
@@ -166,11 +165,7 @@ const PROCESSOR_TABLE = {
   },
   weather: (msg, deps, cat) => {
     const weatherResult = processWeather(msg, deps);
-    if (weatherResult.kind === "ok") {
-      return TRANSIENT_WEATHER_REVISION_FAMILY_POLICY.headTypes.includes(msg.head.type)
-        ? gateTransientOutcome(weatherResult.outcome, TRANSIENT_WEATHER_REVISION_FAMILY_POLICY, deps)
-        : weatherResult.outcome;
-    }
+    if (weatherResult.kind === "ok") return weatherResult.outcome;
     if (weatherResult.kind === "suppressed") return null; // 古い報・重複報・対象不一致取消 → 全出力なし
     return processRaw(msg, cat);
   },
@@ -250,7 +245,7 @@ const PROCESSOR_TABLE = {
       ? processRaw(msg, cat)
       : gateTransientOutcome(outcome, LEGACY_COUNTERPART_REVISION_FAMILY_POLICY, deps);
     // VPNO50 は特別警報の終了通知であって、後続の警報内容を持たない。府県予報区の
-    // 「解除」だけを受理済み VPWW55 overlay へ反映し、通常警報の権威は後続 VPWW55/VPWS50 に残す。
+    // 「解除」だけを同官署の受理済み VPWW55-61 overlay へ反映し、通常警報の権威は後続 VPWW55-61/VPWS50 に残す。
     if (
       gated?.domain === "legacyCounterpart"
       && gated.parsed.type === "VPNO50"
@@ -259,7 +254,7 @@ const PROCESSOR_TABLE = {
       && gated.parsed.kinds.some((kind) => kind.code === "00" || kind.name === "解除")
     ) {
       const update = deps.vpws50State.clearEmergencyPartialAreas(
-        weatherOfficeStreamKey("VPWW55", gated.parsed.publishingOffice)!,
+        weatherOfficeWatermarkKey(gated.parsed.publishingOffice)!,
         gated.parsed.areas.map((area) => area.code),
         {
           reportDateTime: gated.parsed.reportDateTime,

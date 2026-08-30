@@ -34,6 +34,7 @@ import type { DailyQuakeCounter } from "../messages/daily-quake-counter";
 import { weatherAlertsFromVpws50, weatherAlertsFromVpww56 } from "../display/weather-alert-view";
 import type { DisplayWeatherAlertV1, DisplayWeatherSourceV1 } from "../display/types";
 import type { WeatherReportIdentity } from "../messages/vpws50-state";
+import { isVpws50StateHeadType } from "../messages/weather-stream-key";
 
 export interface DisplaySinkDeps {
   /** monitor 所有の待機画面 state */
@@ -161,11 +162,12 @@ export function createDisplaySink(deps: DisplaySinkDeps): DisplayIngestSink {
         standbyMutation,
       );
       const unsafeVpws50 = event.type === "VPWS50" && event.weatherConfidence === "unsafe";
-      const acceptedVpww55Mutation = event.type !== "VPWW55" && event.type !== "VPNO50"
+      const acceptedVpws50Mutation = (!isVpws50StateHeadType(event.type) || event.type === "VPWS50")
+        && event.type !== "VPNO50"
         || event.weatherStateMutationAccepted === true;
       const acceptedVpww56Mutation = event.type !== "VPWW56"
         || event.weatherStateMutationAccepted === true;
-      if ((event.type === "VPWS50" || event.type === "VPWW55" || event.type === "VPNO50") && !unsafeVpws50 && acceptedVpww55Mutation) {
+      if ((isVpws50StateHeadType(event.type) || event.type === "VPNO50") && !unsafeVpws50 && acceptedVpws50Mutation) {
         const activeIdentity = event.infoType === "取消" || event.type === "VPNO50" ? deps.vpws50Identity?.() : null;
         const activeReportDateTime = activeIdentity?.reportDateTime ?? event.reportDateTime;
         deps.standby.applyWeatherAlerts?.(
@@ -188,7 +190,7 @@ export function createDisplaySink(deps: DisplaySinkDeps): DisplayIngestSink {
           ...(event.infoType === "訂正" ? [true] as const : []),
         );
       }
-      if (!unsafeVpws50 && acceptedVpww55Mutation && acceptedVpww56Mutation) {
+      if (!unsafeVpws50 && acceptedVpws50Mutation && acceptedVpww56Mutation) {
         applyWeatherPromotionOnIngest(deps.promotions, deps.weatherViews, event, nowMs);
       }
       const quakeExtremeChanged = deps.quakeExtreme?.applyPresentationEvent(event, nowMs) ?? false;
