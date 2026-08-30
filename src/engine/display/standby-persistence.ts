@@ -1,5 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
+import { createHash } from "node:crypto";
 import * as log from "../../logger";
 import type {
   DisplayFloodHydrographV1,
@@ -3834,6 +3835,97 @@ function salvageStandbyDomainProjections(
   return salvaged;
 }
 
+function nankaiMigrationSemanticKey(state: PersistedNankaiStateV1): string {
+  const fingerprint = createHash("sha256").update(JSON.stringify({
+    sourceEventId: state.sourceEventId,
+    statusCode: state.statusCode,
+    revision: state.revision,
+  })).digest("hex");
+  return `発表:${fingerprint}`;
+}
+
+function migratedNankaiStandbyState(
+  base: PersistedStandbyStateV1,
+  foundation: PersistedTelegramFoundationV2["standbyDomains"],
+): {
+  base: PersistedStandbyStateV1;
+  foundation: PersistedTelegramFoundationV2["standbyDomains"];
+} {
+  const projection = base.nankaiTrough;
+  if (projection == null || projection.sourceEventId.trim() === "") return { base, foundation };
+  const gateEntries = foundation.gateEntries.map((entry) => structuredClone(entry));
+  const gateIndex = gateEntries.findIndex((entry) =>
+    entry.domain === "nankaiTrough"
+    && entry.revisionFamily === "nankaiTrough"
+    && entry.stateSubjectKey === "nankai:current");
+  const existing = gateIndex < 0 ? null : gateEntries[gateIndex];
+  if (existing?.cancelled === true) return { base, foundation };
+  const revisionMatches = existing != null
+    && existing.comparison.revision.reportDateTime.epochMs === projection.revision.reportTimeMs
+    && existing.comparison.revision.serial.raw === projection.revision.serial;
+  if (existing != null && !revisionMatches) return { base, foundation };
+
+  const existingSemanticKey = existing?.semanticKeys.at(-1);
+  if (
+    projection.appliedSemanticKey != null
+    && existing != null
+    && existingSemanticKey !== projection.appliedSemanticKey
+  ) return { base, foundation };
+  const semanticKey = projection.appliedSemanticKey
+    ?? existingSemanticKey
+    ?? nankaiMigrationSemanticKey(projection);
+  const migratedProjection = projection.appliedSemanticKey === semanticKey
+    ? projection
+    : { ...projection, appliedSemanticKey: semanticKey };
+
+  if (existing != null) {
+    gateEntries[gateIndex] = {
+      ...existing,
+      semanticKeys: existing.semanticKeys.length === 0 ? [semanticKey] : existing.semanticKeys,
+      legacyRevisionKey: projection.sourceEventId,
+      legacyRevisionKeyProvenance: "eventId",
+    };
+  } else {
+    const reportDateTime = new Date(projection.revision.reportTimeMs).toISOString();
+    const serialRaw = projection.revision.serial;
+    const serialNumeric = serialRaw != null && /^\d+$/.test(serialRaw) ? Number(serialRaw) : null;
+    const savedAtMs = Date.parse(base.savedAt);
+    gateEntries.push({
+      domain: "nankaiTrough",
+      revisionFamily: "nankaiTrough",
+      stateSubjectKey: "nankai:current",
+      comparison: {
+        stateSubjectKey: "nankai:current",
+        revision: {
+          eventId: { raw: "nankai:current", value: "nankai:current", valid: true },
+          type: { raw: "nankaiTrough", value: "nankaiTrough", valid: true },
+          reportDateTime: {
+            raw: reportDateTime,
+            epochMs: projection.revision.reportTimeMs,
+            valid: true,
+          },
+          serial: {
+            raw: serialRaw,
+            numeric: serialNumeric,
+            valid: serialNumeric != null,
+          },
+          infoType: { raw: "発表", value: "発表", valid: true },
+        },
+      },
+      semanticKeys: [semanticKey],
+      cancelled: false,
+      acceptedAtMs: Number.isFinite(savedAtMs) ? savedAtMs : projection.revision.reportTimeMs,
+      tombstoneRetentionMs: NANKAI_REVISION_FAMILY_POLICY.tombstoneRetentionMs,
+      legacyRevisionKey: projection.sourceEventId,
+      legacyRevisionKeyProvenance: "eventId",
+    });
+  }
+  return {
+    base: { ...base, nankaiTrough: migratedProjection },
+    foundation: { gateEntries },
+  };
+}
+
 function sanitizePersistedStandbyStateV2(value: unknown): PersistedStandbyStateV2 | null {
   if (!isRecord(value) || value.version !== 2) return null;
   const base = baseV1FromRecord(value);
@@ -3860,8 +3952,16 @@ function sanitizePersistedStandbyStateV2(value: unknown): PersistedStandbyStateV
         volcanoes: withoutLegacyVpww56.volcanoes.filter((entry) => acceptedVolcanoCodes.has(entry.code)),
       }
     : withoutLegacyVpww56;
-  const salvaged = salvageStandbyDomainProjections(foundationSynchronized, telegramFoundation.standbyDomains);
-  return { ...salvaged, version: 2, telegramFoundation };
+  const migratedNankai = migratedNankaiStandbyState(
+    foundationSynchronized,
+    telegramFoundation.standbyDomains,
+  );
+  const salvaged = salvageStandbyDomainProjections(migratedNankai.base, migratedNankai.foundation);
+  return {
+    ...salvaged,
+    version: 2,
+    telegramFoundation: { ...telegramFoundation, standbyDomains: migratedNankai.foundation },
+  };
 }
 
 function migratedVpws50GateEntries(base: PersistedStandbyStateV1): PersistedTelegramRevisionGateEntryV2[] {
@@ -3907,8 +4007,9 @@ function migratedVpws50GateEntries(base: PersistedStandbyStateV1): PersistedTele
 function migratePersistedStandbyStateV1(value: unknown): PersistedStandbyStateV2 | null {
   const base = sanitizePersistedStandbyStateV1(value);
   if (base == null) return null;
+  const migratedNankai = migratedNankaiStandbyState(base, emptyStandbyDomainsFoundation());
   return {
-    ...base,
+    ...migratedNankai.base,
     version: 2,
     telegramFoundation: {
       vpws50: { authoritative: false, state: null, gateEntries: migratedVpws50GateEntries(base) },
@@ -3916,7 +4017,7 @@ function migratePersistedStandbyStateV1(value: unknown): PersistedStandbyStateV2
       tsunami: emptyTsunamiFoundation(),
       volcano: emptyVolcanoFoundation(),
       floodForecast: emptyFloodFoundation(),
-      standbyDomains: emptyStandbyDomainsFoundation(),
+      standbyDomains: migratedNankai.foundation,
     },
   };
 }

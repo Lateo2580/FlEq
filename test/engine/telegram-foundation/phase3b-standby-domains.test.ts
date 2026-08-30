@@ -34,6 +34,7 @@ import {
   FIXTURE_VPWP50_NAGANO,
   FIXTURE_VXSE62_LGOBS,
   FIXTURE_VYSE50_ALERT,
+  FIXTURE_VYSE50_CANCEL,
   FIXTURE_VYSE51_ADVISORY,
   readFixture,
 } from "../../helpers/mock-message";
@@ -176,6 +177,126 @@ describe("Phase 3B standby domain registry", () => {
     expect(accepted?.presentation.acceptedCorrection).toBe(true);
     expect(replay).toBeNull();
   });
+
+  it("本文なし南海トラフ取消は EventID 一致時だけ current gate と badge を解除する", () => {
+    const alertXml = readFixture(FIXTURE_VYSE50_ALERT);
+    const cancelXml = readFixture(FIXTURE_VYSE50_CANCEL);
+    const alertEventId = alertXml.match(/<EventID>([^<]+)<\/EventID>/)?.[1];
+    expect(alertEventId).toBeDefined();
+    if (alertEventId == null) return;
+    const matchingCancel = cancelXml.replace(/<EventID>[^<]*<\/EventID>/, `<EventID>${alertEventId}</EventID>`);
+    const deps = makeProcessDeps();
+    const store = new StandbyStateStore();
+    const active = processMessage(createMockWsDataMessageFromXml(alertXml, "VYSE50"), "nankaiTrough", deps);
+    expect(active).not.toBeNull();
+    if (active == null) return;
+    store.applyEvent(toPresentationEvent(active), Date.now());
+    expect(store.snapshotItems().map((item) => item.kind)).toContain("nankaiTrough");
+
+    const unrelated = processMessage(createMockWsDataMessageFromXml(cancelXml, "VYSE50"), "nankaiTrough", deps);
+    expect(unrelated).toBeNull();
+    expect(store.snapshotItems().map((item) => item.kind)).toContain("nankaiTrough");
+
+    const matching = processMessage(createMockWsDataMessageFromXml(matchingCancel, "VYSE50"), "nankaiTrough", deps);
+    expect(matching).not.toBeNull();
+    if (matching == null) return;
+    store.applyEvent(toPresentationEvent(matching), Date.now());
+    expect(store.snapshotItems().map((item) => item.kind)).not.toContain("nankaiTrough");
+  });
+
+  it.each(["pre-provenance gate", "gate missing"] as const)(
+    "旧保存状態 (%s) を復元後、本文なし取消で badge を解除する",
+    (legacyMode) => {
+      const alertXml = readFixture(FIXTURE_VYSE50_ALERT);
+      const activeEventId = alertXml.match(/<EventID>([^<]+)<\/EventID>/)?.[1];
+      const activeReportDateTime = alertXml.match(/<ReportDateTime>([^<]+)<\/ReportDateTime>/)?.[1];
+      expect(activeEventId).toBeDefined();
+      expect(activeReportDateTime).toBeDefined();
+      if (activeEventId == null || activeReportDateTime == null) return;
+      const activeReportTimeMs = Date.parse(activeReportDateTime);
+      const nowMs = activeReportTimeMs + 5 * 60_000;
+      vi.useFakeTimers();
+      vi.setSystemTime(nowMs);
+      const activeDeps = makeProcessDeps();
+      const active = processMessage(
+        createMockWsDataMessageFromXml(alertXml, "VYSE50"),
+        "nankaiTrough",
+        activeDeps,
+      );
+      expect(active).not.toBeNull();
+      if (active == null) return;
+      const activeStore = new StandbyStateStore();
+      activeStore.applyEvent(toPresentationEvent(active), nowMs);
+
+      const dir = fs.mkdtempSync(path.join(os.tmpdir(), `fleq-nankai-${legacyMode.replaceAll(" ", "-")}-`));
+      tempDirs.push(dir);
+      const file = path.join(dir, "display-active-state-v1.json");
+      const persistence = new StandbyPersistence(file, 0, () => ({
+        vpws50: { authoritative: true, state: null, gateEntries: [] },
+        vpww56: { authoritative: false, state: null, gateEntries: [] },
+        tsunami: { active: null, observations: { VTSE51: [], VTSE52: [] }, gateEntries: [] },
+        volcano: { authoritative: false, state: null, active: [], gateEntries: [] },
+        floodForecast: { authoritative: false, active: [], gateEntries: [] },
+        standbyDomains: {
+          gateEntries: activeDeps.revisionGate.exportDurableEntries()
+            .filter((entry) => entry.domain === "nankaiTrough"),
+        },
+      }));
+      persistence.save(activeStore.exportActiveState());
+      const v2Path = standbyPersistenceV2Path(file);
+      const saved = JSON.parse(fs.readFileSync(v2Path, "utf8")) as {
+        nankaiTrough: { appliedSemanticKey?: string } | null;
+        telegramFoundation: { standbyDomains: { gateEntries: PersistedTelegramRevisionGateEntryV2[] } };
+      };
+      if (legacyMode === "pre-provenance gate") {
+        const gate = saved.telegramFoundation.standbyDomains.gateEntries[0];
+        expect(gate).toBeDefined();
+        if (gate == null) return;
+        gate.legacyRevisionKey = "nankai:current";
+        delete gate.legacyRevisionKeyProvenance;
+        fs.writeFileSync(v2Path, `${JSON.stringify(saved)}\n`, "utf8");
+      } else {
+        const legacy = JSON.parse(fs.readFileSync(file, "utf8")) as {
+          nankaiTrough: { appliedSemanticKey?: string } | null;
+        };
+        if (legacy.nankaiTrough != null) delete legacy.nankaiTrough.appliedSemanticKey;
+        fs.writeFileSync(file, `${JSON.stringify(legacy)}\n`, "utf8");
+        fs.rmSync(v2Path);
+      }
+
+      const loaded = new StandbyPersistence(file).load();
+      expect(loaded?.telegramFoundation.standbyDomains.gateEntries).toEqual([
+        expect.objectContaining({
+          legacyRevisionKey: activeEventId,
+          legacyRevisionKeyProvenance: "eventId",
+        }),
+      ]);
+      if (loaded == null) return;
+      const restartedDeps = makeProcessDeps();
+      restartedDeps.revisionGate.restoreDurableEntries(
+        loaded.telegramFoundation.standbyDomains.gateEntries,
+      );
+      const restartedStore = new StandbyStateStore();
+      restartedStore.restoreActiveState(loaded, nowMs);
+      expect(restartedStore.snapshotItems().map((item) => item.kind)).toContain("nankaiTrough");
+
+      const cancelXml = readFixture(FIXTURE_VYSE50_CANCEL)
+        .replace(/<EventID>[^<]*<\/EventID>/, `<EventID>${activeEventId}</EventID>`)
+        .replace(
+          /<ReportDateTime>[^<]*<\/ReportDateTime>/,
+          `<ReportDateTime>${new Date(activeReportTimeMs + 60_000).toISOString()}</ReportDateTime>`,
+        );
+      const cancellation = processMessage(
+        createMockWsDataMessageFromXml(cancelXml, "VYSE50"),
+        "nankaiTrough",
+        restartedDeps,
+      );
+      expect(cancellation).not.toBeNull();
+      if (cancellation == null) return;
+      restartedStore.applyEvent(toPresentationEvent(cancellation), nowMs);
+      expect(restartedStore.snapshotItems().map((item) => item.kind)).not.toContain("nankaiTrough");
+    },
+  );
 
   it("does not let a heat family update prune an active tornado family card", () => {
     const deps = makeProcessDeps();

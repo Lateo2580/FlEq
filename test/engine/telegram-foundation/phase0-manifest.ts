@@ -719,7 +719,7 @@ export const CANCELLATION_CHARACTERIZATION = {
   ],
   nankaiTrough: [{
     family: "nankaiTrough", headTypes: ["VYSE50", "VYSE51", "VYSE52", "VYSE60"],
-    currentBehavior: "current active state を削除",
+    currentBehavior: "本文なし取消は EventID 対象一致時だけ current active state を削除",
     targetPolicy: "clearCurrent", stateOwners: ["StandbyStateStore"],
   }],
   weather: [
@@ -1007,10 +1007,10 @@ export const CANCELLATION_MUTATION_EVIDENCE = [
   },
   {
     domain: "nankaiTrough", family: "nankaiTrough", owner: "StandbyStateStore",
-    behavior: "current active state を null にする",
+    behavior: "EventID 対象一致した current active state だけを null にする",
     sources: [{
       sourceFile: "src/engine/display/standby-state-store.ts",
-      needles: ["status.action === \"deactivate\" || event.isCancellation", "this.nankaiTrough = null;"],
+      needles: ["if (event.isCancellation) {", "this.nankaiTrough?.sourceEventId !== cancellationTargetId", "this.nankaiTrough = null;"],
     }],
   },
   {

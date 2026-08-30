@@ -60,6 +60,11 @@ interface RevisionFamilyPolicyBase<TParsed> {
     meta: TelegramMeta,
     parsed: TParsed,
   ) => readonly string[] | null;
+  /** EventID を subject とは別に保持し、本文なし取消の対象照合に用いる。 */
+  extractRevisionHistoryKey?: (
+    meta: TelegramMeta,
+    parsed: TParsed,
+  ) => string | null;
   cancellationPolicy: CancellationPolicy;
   terminalPredicate: (meta: TelegramMeta, parsed: TParsed) => boolean;
   deactivationPredicate: (meta: TelegramMeta, parsed: TParsed) => boolean;
@@ -398,6 +403,7 @@ export const NANKAI_REVISION_FAMILY_POLICY: RevisionFamilyPolicy<ParsedNankaiTro
   domain: "nankaiTrough", revisionFamily: "nankaiTrough", headTypes: ["VYSE50", "VYSE51", "VYSE52", "VYSE60"],
   comparator: "reportDateTimeThenSerial", extractStateSubjectKey: () => NANKAI_CURRENT_SUBJECT,
   extractCancellationTarget: () => [NANKAI_CURRENT_SUBJECT], cancellationPolicy: "clearCurrent",
+  extractRevisionHistoryKey: (meta) => meta.eventId.valid ? nonBlank(meta.eventId.value) : null,
   terminalPredicate: () => false,
   deactivationPredicate: (_meta, parsed) => nankaiBadgeAction(parsed.infoSerial?.code ?? null).action === "deactivate",
   durable: true, tombstoneRetentionMs: NANKAI_RETENTION_MS, maxSubjects: 1,

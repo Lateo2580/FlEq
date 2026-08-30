@@ -934,11 +934,19 @@ export class StandbyStateStore {
   private applyNankai(event: PresentationEvent, nowMs: number): DisplayMutation {
     if (event.raw == null || Array.isArray(event.raw)) return NO_MUTATION;
     const raw = event.raw as ParsedNankaiTroughInfo;
+    if (event.isCancellation) {
+      const cancellationTargetId = event.eventId;
+      if (cancellationTargetId == null || this.nankaiTrough?.sourceEventId !== cancellationTargetId) {
+        return NO_MUTATION;
+      }
+      this.nankaiTrough = null;
+      return { viewChanged: true, durableChanged: true };
+    }
     const status = nankaiBadgeAction(raw.infoSerial?.code ?? null);
     if (status.action === "ignore") return NO_MUTATION;
     const revision = revisionOf(event.reportDateTime, event.serial ?? null, nowMs);
     if (event.standbyStateMutationAccepted == null && !this.revisionGuard.accept("nankai:current", revision, nowMs, 30 * DAY_MS, event.infoType === "訂正")) return NO_MUTATION;
-    if (status.action === "deactivate" || event.isCancellation) {
+    if (status.action === "deactivate") {
       const changed = this.nankaiTrough != null;
       this.nankaiTrough = null;
       return { viewChanged: changed, durableChanged: true };
@@ -1027,7 +1035,7 @@ export class StandbyStateStore {
     this.quakeHost = { ...candidate, maxIntRank: safetyRank, revision, expiresAtMs };
     let changed = false;
     for (const [eventId, state] of this.longPeriodByEvent) {
-      if (eventId !== event.eventId) {
+      if (eventId !== event.eventId && state.hosted) {
         this.longPeriodByEvent.delete(eventId);
         changed ||= state.hosted;
       }

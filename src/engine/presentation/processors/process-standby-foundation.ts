@@ -33,6 +33,15 @@ export function processStandbyFoundation<TParsed>(
   }
   const subject = subjects[0];
   const targets = policy.extractCancellationTarget(parsed.meta, parsed);
+  const historyKey = policy.extractRevisionHistoryKey?.(parsed.meta, parsed) ?? null;
+  const historyTargetMatches = policy.extractRevisionHistoryKey == null
+    || parsed.meta.infoType.value !== "取消"
+    || historyKey != null && deps.revisionGate.stateSubjectForLegacyRevisionKey(
+      policy.domain,
+      policy.revisionFamily,
+      historyKey,
+      parsed.meta.receivedAtMs,
+    ) === subject;
   const { meta: _transportMeta, ...semanticPayload } = parsed;
   const gateInput: TelegramRevisionGateInput = {
     domain: policy.domain,
@@ -43,14 +52,15 @@ export function processStandbyFoundation<TParsed>(
     cancellationPolicy: policy.cancellationPolicy,
     terminal: policy.terminalPredicate(parsed.meta, parsed),
     deactivation: policy.deactivationPredicate(parsed.meta, parsed),
-    cancellationTargetMatches: targets == null || targets.includes(subject),
+    cancellationTargetMatches: (targets == null || targets.includes(subject)) && historyTargetMatches,
     durable: policy.durable,
     tombstoneRetentionMs: policy.tombstoneRetentionMs,
     maxSubjects: policy.maxSubjects,
     allowMissingSerial: policy.allowMissingSerial,
     fragmentMerge: false,
     payloadFingerprint: semanticPayloadFingerprint(semanticPayload),
-    legacyRevisionKey: subject,
+    legacyRevisionKey: historyKey ?? subject,
+    legacyRevisionKeyProvenance: historyKey == null ? null : "eventId",
   };
   const decision = deps.revisionGate.decide(gateInput);
   deps.onRevisionDecision?.(decision);

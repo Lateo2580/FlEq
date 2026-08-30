@@ -299,6 +299,22 @@ describe("RevisionGuard", () => {
 });
 
 describe("StandbyStateStore: earthquake host", () => {
+  it("別地震が host になっても pending 長周期 rider を保持し、後着 host に結合する", () => {
+    const store = new StandbyStateStore();
+    store.applyEvent(longPeriodEvent("Q-A", T0), T0);
+    store.applyEvent(quakeHostEvent("Q-B", 5, T0 + 1), T0 + 1);
+    expect(store.exportActiveState().longPeriod).toEqual([
+      expect.objectContaining({ eventId: "Q-A", hosted: false }),
+    ]);
+
+    const restored = new StandbyStateStore();
+    restored.restoreActiveState(store.exportActiveState(), T0 + 2);
+    restored.applyEvent(quakeHostEvent("Q-A", 6, T0 + 3), T0 + 3);
+    expect(restored.snapshotItems()).toEqual([
+      expect.objectContaining({ kind: "longPeriod", data: { eventId: "Q-A", maxLgInt: "3" } }),
+    ]);
+  });
+
   it("TTL 中の強い quakeHost と rider を弱い別地震で置換しない", () => {
     const store = new StandbyStateStore();
     expect(store.applyEvent(quakeHostEvent("Q1", 5, T0), T0).durableChanged).toBe(true);

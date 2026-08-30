@@ -150,12 +150,13 @@ const PROCESSOR_TABLE = {
     const outcome = processNankaiTrough(msg);
     if (outcome == null) return processRaw(msg, cat);
     const action = nankaiBadgeAction(outcome.parsed.infoSerial?.code ?? null).action;
+    const ownsProjection = outcome.parsed.infoType === "取消" || action !== "ignore";
     const gated = gateStandbyOutcome(
       outcome,
-      action === "ignore" ? NANKAI_INFORMATION_REVISION_FAMILY_POLICY : NANKAI_REVISION_FAMILY_POLICY,
+      ownsProjection ? NANKAI_REVISION_FAMILY_POLICY : NANKAI_INFORMATION_REVISION_FAMILY_POLICY,
       deps,
     );
-    if (gated != null && action === "ignore") {
+    if (gated != null && !ownsProjection) {
       // Informational reports are gated for exactly-once notification only; they do not own standby projection state.
       gated.presentation.standbyStateSubject = null;
       gated.presentation.standbyActiveSubjects = undefined;
