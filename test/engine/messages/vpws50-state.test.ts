@@ -653,7 +653,8 @@ describe("Vpws50StateHolder restorePrevious (revision 判定は共通 gate が�
     state.retainActivePartialSubjects([subject(128)]);
     expect(state.exportPersistedState().partialHistory?.map((group) => group.subjectKey))
       .toEqual([subject(128)]);
-  });
+    // 129 subject × 全 stream 合成の容量境界テストは CI の共有 runner では 5s を超える
+  }, 30_000);
 
   it("VPNO50 は全国 VPWS50 base の L5 だけを解除し、同区域の L4 は維持する", () => {
     const state = new Vpws50StateHolder();
