@@ -1,0 +1,67 @@
+{
+  "version": 1,
+  "savedAt": "2026-08-31T00:00:00.000Z",
+  "heat": [
+    {
+      "key": "heat:2026-08-31",
+      "sourceEventIds": ["anonymous-heat-1"],
+      "targetDate": "2026-08-31",
+      "targetDateEndMs": 1788192000000,
+      "areas": [{ "areaName": "匿名県", "isSpecial": false }],
+      "isSpecial": false,
+      "revision": { "reportTimeMs": 1788130800000, "serial": "1" }
+    }
+  ],
+  "typhoons": [],
+  "volcanoes": [],
+  "weatherAlerts": [],
+  "tornado": [],
+  "longPeriod": [],
+  "quakeHost": null,
+  "nankaiTrough": null,
+  "seen": [],
+  "briefingCritical": {
+    "generation": 7,
+    "entries": [
+      {
+        "entry": {
+          "key": "card:vpbs:semantic:recordRain:匿名地方気象台",
+          "source": "vpbs50",
+          "sourceEventId": "anonymous-vpbs-1",
+          "editorialOffice": "匿名地方気象台",
+          "phenomenonKind": "recordRain",
+          "semanticKey": "card:vpbs:semantic:recordRain:匿名地方気象台",
+          "serial": "2",
+          "title": "匿名県気象防災速報",
+          "headline": null,
+          "conditions": ["記録的短時間大雨"],
+          "targetAreas": [{ "name": "匿名地域", "code": "000000" }],
+          "reportDateTime": "2026-08-30T23:00:00.000Z",
+          "publishingOffice": "匿名地方気象台",
+          "infoType": "発表",
+          "frameLevel": "critical",
+          "severityEvidence": [],
+          "summary": {
+            "mode": "structured",
+            "items": [{ "kind": "recordRain", "lead": "記録的短時間大雨", "sourceOrdinal": 0, "facts": [] }],
+            "hasUnknownKind": false
+          },
+          "qualifier": null,
+          "updatedAt": "2026-08-30T23:00:00.000Z",
+          "expiresAt": "2026-08-31T01:00:00.000Z",
+          "generation": 7
+        },
+        "updatedAtMs": 1788130800000,
+        "expiresAtMs": 1788138000000
+      }
+    ],
+    "cancellations": [],
+    "watermarks": [
+      {
+        "semanticKey": "card:vpbs:semantic:recordRain:匿名地方気象台",
+        "revision": { "reportTimeMs": 1788130800000, "serial": "2" },
+        "expiresAtMs": 1788138000000
+      }
+    ]
+  }
+}

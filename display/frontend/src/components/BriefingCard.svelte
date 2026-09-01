@@ -11,6 +11,7 @@
   import { createCardPageCoordinator, type CardPageCoordinator } from "../lib/legacy-standby/time-slice-scheduler.svelte";
   import UpdatedStamp from "./UpdatedStamp.svelte";
   import NumberUnit from "./NumberUnit.svelte";
+  import RestoredChip from "./RestoredChip.svelte";
 
   type BriefingPartitionDebugContext = {
     chromeSignature: string;
@@ -560,7 +561,7 @@
     class:advisory={topFrameLevel === "info" || topFrameLevel === "cancel"}
     data-briefing-card-header
     style="--standby-header-container: {headerContainerVar(topFrameLevel)}; --standby-header-on: {headerOnVar(topFrameLevel)}; --standby-header-band: {headerBandVar(topFrameLevel)}"
-  ><span class="standby-card-header__title">{headerLabel}</span><span class="standby-card-header__meta"><UpdatedStamp iso={latestUpdatedAt} /></span></header>
+  ><span class="standby-card-header__title">{headerLabel}</span><span class="standby-card-header__meta">{#if item.restored}<RestoredChip />{/if}<UpdatedStamp iso={latestUpdatedAt} /></span></header>
   {@render pageAtom(visibleGroups, showPageIndicator, pageIndicatorLabel)}
 </section>
 

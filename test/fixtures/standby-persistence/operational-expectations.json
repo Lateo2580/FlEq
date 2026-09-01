@@ -1,0 +1,73 @@
+{
+  "fixtures": [
+    {
+      "path": "operational-v1-anonymized.json",
+      "fixedNowMs": "2026-08-31T00:00:00.000Z",
+      "retainedPointers": [
+        {
+          "source": "/heat/0/areas/0/areaName",
+          "migration": "/heat/0/areas/0/areaName",
+          "v2": "/heat/0/areas/0/areaName",
+          "v1": "/heat/0/areas/0/areaName",
+          "value": "匿名県"
+        },
+        {
+          "source": "/briefingCritical/entries/0/entry/title",
+          "migration": "/briefingCritical/entries/0/entry/title",
+          "v2": "/briefingCritical/entries/0/entry/title",
+          "v1": "/briefingCritical/entries/0/entry/title",
+          "value": "匿名県気象防災速報"
+        }
+      ],
+      "expiredPointers": [],
+      "expiredReason": "fixedNowMs より前の expiry-bearing unit を含まない",
+      "explicitReplacementAllowlist": [],
+      "optionalCompletionPointers": [
+        "/floods",
+        "/telegramFoundation"
+      ],
+      "savedV2ChangeAllowlist": [
+        "/floods",
+        "/telegramFoundation"
+      ],
+      "savedV1ChangeAllowlist": [
+        "/floods"
+      ],
+      "reloadedV2ChangeAllowlist": [],
+      "reloadedV1ChangeAllowlist": [
+        "/telegramFoundation"
+      ]
+    },
+    {
+      "path": "operational-v2-anonymized.json",
+      "fixedNowMs": "2026-08-31T00:00:00.000Z",
+      "retainedPointers": [
+        {
+          "source": "/briefingCritical/rawAliases/0/sourceEventId",
+          "migration": "/briefingCritical/rawAliases/1/sourceEventId",
+          "v2": "/briefingCritical/rawAliases/0/sourceEventId",
+          "v1": "/briefingCritical/rawAliases/0/sourceEventId",
+          "value": "anonymous-retained-lineage"
+        }
+      ],
+      "expiredPointers": ["/briefingCritical/rawAliases/1"],
+      "explicitReplacementAllowlist": [],
+      "optionalCompletionPointers": [
+        "/floods"
+      ],
+      "savedV2ChangeAllowlist": [
+        "/briefingCritical/rawAliases",
+        "/floods"
+      ],
+      "savedV1ChangeAllowlist": [
+        "/briefingCritical/rawAliases",
+        "/floods",
+        "/telegramFoundation"
+      ],
+      "reloadedV2ChangeAllowlist": [],
+      "reloadedV1ChangeAllowlist": [
+        "/telegramFoundation"
+      ]
+    }
+  ]
+}

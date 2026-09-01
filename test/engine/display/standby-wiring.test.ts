@@ -1,12 +1,15 @@
 import { testTelegramMeta } from "../../helpers/telegram-meta";
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createDisplayController } from "../../../src/engine/display/controller";
 import { SWEEP_INTERVAL_MS } from "../../../src/engine/display/constants";
 import { InfoDisplayHub } from "../../../src/engine/display/hub";
-import { StandbyPersistence } from "../../../src/engine/display/standby-persistence";
+import {
+  StandbyPersistence,
+  standbyPersistenceV2Path,
+} from "../../../src/engine/display/standby-persistence";
 import { StandbyStateStore } from "../../../src/engine/display/standby-state-store";
 import { DisplayStateStore } from "../../../src/engine/display/state-store";
 import type { DisplayRuntime } from "../../../src/engine/display/runtime";
@@ -212,22 +215,38 @@ describe("standby monitor wiring", () => {
     expect(exit).toHaveBeenCalledWith(0);
   });
 
-  it("startMonitor の実 restore→sweep 経路は salvage rewrite を一度だけ予約する", async () => {
+  it("startMonitor の実 restore→post-expiry coupling→sweep は両fileを一度だけrewriteし、変更なしは0回", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(T0);
     const root = mkdtempSync(join(tmpdir(), "fleq-standby-monitor-rewrite-"));
     tempRoots.push(root);
     const runtimeDir = join(root, "data", "runtime");
     mkdirSync(runtimeDir, { recursive: true });
     const persisted = new StandbyStateStore().exportActiveState();
     persisted.heat = [{ key: "broken-heat" }] as never;
+    persisted.briefingCritical = {
+      generation: 11,
+      entries: [], cancellations: [], watermarks: [],
+      rawAliases: [{
+        source: "vpoa50", sourceEventId: "expired-alias", semanticKey: "canonical",
+        revision: { reportTimeMs: T0 - 1, serial: "1" }, expiresAtMs: T0,
+      }],
+    };
+    const persistPath = join(runtimeDir, "display-active-state-v1.json");
     writeFileSync(
-      join(runtimeDir, "display-active-state-v1.json"),
+      persistPath,
       `${JSON.stringify(persisted)}\n`,
       "utf8",
     );
 
     const cwd = vi.spyOn(process, "cwd").mockReturnValue(root);
+    const originalSchedule = StandbyPersistence.prototype.schedule;
+    let scheduledPersistence: StandbyPersistence | null = null;
     const schedule = vi.spyOn(StandbyPersistence.prototype, "schedule")
-      .mockImplementation(() => undefined);
+      .mockImplementation(function (this: StandbyPersistence, value) {
+        scheduledPersistence = this;
+        originalSchedule.call(this, value);
+      });
     const registerShutdownSignals = vi.spyOn(shutdownModule, "registerShutdownSignals")
       .mockImplementation(() => undefined);
     const connect = vi.fn().mockResolvedValue(undefined);
@@ -282,5 +301,28 @@ describe("standby monitor wiring", () => {
     expect(connect).toHaveBeenCalledTimes(1);
     expect(registerShutdownSignals).toHaveBeenCalledTimes(1);
     expect(schedule).toHaveBeenCalledTimes(1);
+    expect(scheduledPersistence).not.toBeNull();
+    (scheduledPersistence as StandbyPersistence | null)?.flush();
+    const rewrittenV1 = JSON.parse(readFileSync(persistPath, "utf8"));
+    const rewrittenV2 = JSON.parse(readFileSync(standbyPersistenceV2Path(persistPath), "utf8"));
+    expect(rewrittenV1.briefingCritical).toBeUndefined();
+    expect(rewrittenV2.briefingCritical).toBeUndefined();
+
+    const unchangedRoot = mkdtempSync(join(tmpdir(), "fleq-standby-monitor-unchanged-"));
+    tempRoots.push(unchangedRoot);
+    const unchangedRuntimeDir = join(unchangedRoot, "data", "runtime");
+    mkdirSync(unchangedRuntimeDir, { recursive: true });
+    writeFileSync(
+      join(unchangedRuntimeDir, "display-active-state-v1.json"),
+      JSON.stringify(new StandbyStateStore().exportActiveState()),
+      "utf8",
+    );
+    cwd.mockReturnValue(unchangedRoot);
+    schedule.mockClear();
+    scheduledPersistence = null;
+    await startMonitor({ ...DEFAULT_CONFIG, apiKey: "test" });
+
+    expect(schedule).not.toHaveBeenCalled();
+    expect(scheduledPersistence).toBeNull();
   });
 });

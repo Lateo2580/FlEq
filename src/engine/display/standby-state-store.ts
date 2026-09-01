@@ -25,12 +25,14 @@ import type {
 } from "./protocol";
 import type {
   PersistedTelegramFoundationV2,
+  PersistedBriefingCriticalStateV1,
+  PersistedBriefingCriticalRawAliasV1,
   PersistedStandbyState,
   PersistedStandbyStateV1,
   PersistedVolcanoStateV1,
   PersistedWeatherAlertStateV1,
 } from "./standby-persistence";
-import { persistedLongPeriodSafetyRank } from "./standby-persistence";
+import { persistedLongPeriodSafetyRank, validateBriefingCriticalForWrite } from "./standby-persistence";
 import { FloodActiveReducer, type PersistedFloodState } from "./flood-active-reducer";
 import { projectFloodUpdate } from "./project-flood";
 import { resolveQuakeIntensitySafetyRank } from "./project-event";
@@ -40,6 +42,8 @@ import {
   BRIEFING_CARD_KEY,
   BRIEFING_CARD_MAX_ENTRIES,
   BRIEFING_CARD_TTL_MS,
+  BRIEFING_CRITICAL_WATERMARK_MAX_SUBJECTS,
+  BRIEFING_RAW_ALIAS_MAX_LINEAGES,
   NO_MUTATION,
   compareRevision,
   revisionOf,
@@ -178,6 +182,7 @@ interface BriefingCardEntryState {
   entry: DisplayBriefingEntryV1;
   updatedAtMs: number;
   expiresAtMs: number;
+  restored: boolean;
 }
 
 interface BriefingRevisionWatermark {
@@ -185,10 +190,36 @@ interface BriefingRevisionWatermark {
   expiresAtMs: number;
 }
 
+export type BriefingCriticalIdentity =
+  | { kind: "semantic"; semanticKey: string }
+  | { kind: "raw"; source: "vpbs50" | "vpoa50"; sourceEventId: string };
+
+interface RawBriefingCriticalProvenance {
+  identity: Extract<BriefingCriticalIdentity, { kind: "raw" }>;
+  phase: "active" | "downgraded" | "cancelled";
+  lastStrictRevision: StandbyRevision | null;
+  lastAcceptedFrameLevel: "critical" | "warning" | "info" | "cancel";
+  lastPayloadFingerprint: string;
+  lastCriticalExpiresAtMs: number;
+  expiresAtMs: number;
+}
+
+interface RawBriefingAliasTombstone {
+  identity: Extract<BriefingCriticalIdentity, { kind: "raw" }>;
+  semanticKey: string;
+  revision: StandbyRevision;
+  expiresAtMs: number;
+}
+
 interface BriefingCardEntryCandidate extends BriefingCardEntryState {
   phenomenonKinds: DisplayBriefingKindV1[];
   hasRawEventId: boolean;
-  isVpbsCancellation: boolean;
+  isCancellation: boolean;
+  rawIdentity: Extract<BriefingCriticalIdentity, { kind: "raw" }>;
+  rawToken: string;
+  semanticKeyCandidate: string | null;
+  revision: StandbyRevision | null;
+  fingerprint: string;
 }
 
 export type BriefingCardMutationResult =
@@ -199,6 +230,8 @@ export type BriefingCardMutationResult =
       generation: number;
       evictedKey: string | null;
       action: "upsert" | "expiredCancellationRemoved" | "pruned";
+      durableChanged?: boolean;
+      viewChanged?: boolean;
     }
   | {
       kind: "ignored";
@@ -207,7 +240,17 @@ export type BriefingCardMutationResult =
       generation: number;
       evictedKey: null;
       reason: "notBriefing" | "expired" | "unchanged" | "older" | "cancelTargetAmbiguous" | "cancelTargetMissing";
+      durableChanged?: boolean;
+      viewChanged?: boolean;
     };
+
+interface BriefingCandidateOutcome {
+  changed: boolean;
+  viewChanged: boolean;
+  evictedKey: string | null;
+  action?: "upsert" | "expiredCancellationRemoved" | "pruned";
+  reason?: "expired" | "unchanged" | "older" | "cancelTargetAmbiguous" | "cancelTargetMissing" | "notBriefing";
+}
 
 export type CardReconcileResult =
   | {
@@ -229,8 +272,13 @@ export type CardReconcileResult =
       canonicalKey: string | null;
       generation: number;
       evictedKey: null;
-      reason: "sourceNotFound" | "sourceNotVpoa50" | "canonicalNotBriefing" | "expired" | "canonicalNotNewer";
+      reason: "sourceNotFound" | "sourceNotVpoa50" | "sourceAlreadyReconciled"
+        | "canonicalNotBriefing" | "expired" | "canonicalNotNewer";
     };
+
+export interface RestoreActiveStateResult {
+  briefingCriticalRewriteRequired: boolean;
+}
 
 export interface VolcanoSeedEntry {
   volcanoCode: string;
@@ -260,14 +308,17 @@ export class StandbyStateStore {
   /** v1 migration survivors are not pruned until each subject receives a foundation-gated report. */
   private readonly managedStandbySubjects = new Map<string, Set<string>>();
   private readonly revisionGuard = new RevisionGuard();
-  /** VPBS50／VPOA50 browser card only. This map is intentionally non-persistent. */
+  /** VPBS50／VPOA50 browser card state.  Only critical lifecycle is durable. */
   private readonly briefingEntries = new Map<string, BriefingCardEntryState>();
   /**
    * Semantic revision memory survives a cancel frame's shorter TTL so a late,
    * older VPBS50 report cannot resurrect the cancelled subject.
    */
   private readonly briefingRevisionWatermarks = new Map<string, BriefingRevisionWatermark>();
+  private readonly rawCriticalProvenance = new Map<string, RawBriefingCriticalProvenance>();
+  private readonly rawBriefingAliases = new Map<string, RawBriefingAliasTombstone>();
   private briefingGeneration = 0;
+  private briefingDurableGeneration = 0;
   private readonly changeListeners: Array<() => void> = [];
   private readonly durableListeners: Array<() => void> = [];
 
@@ -356,7 +407,607 @@ export class StandbyStateStore {
         generation: this.briefingGeneration, evictedKey: null, reason: "notBriefing",
       };
     }
-    return this.upsertBriefingCardEntry(candidate, nowMs);
+    const durableBefore = this.briefingDurableFingerprint();
+    const pruned = this.pruneBriefingLifecycle(nowMs);
+    const generation = this.briefingGeneration + 1;
+    const outcome = this.applyBriefingLifecycleCandidate(candidate, nowMs, generation);
+    const changed = pruned.changed || outcome.changed;
+    if (changed) this.briefingGeneration = generation;
+    const durableChanged = durableBefore !== this.briefingDurableFingerprint();
+    if (durableChanged) this.briefingDurableGeneration = this.briefingGeneration;
+    const viewChanged = pruned.viewChanged || outcome.viewChanged;
+    if (!changed) {
+      return {
+        kind: "ignored", status: "ignored", applied: false,
+        generation: this.briefingGeneration, evictedKey: null,
+        reason: outcome.reason ?? "unchanged", durableChanged: false, viewChanged: false,
+      };
+    }
+    return {
+      kind: "applied", status: "applied", applied: true,
+      generation: this.briefingGeneration, evictedKey: outcome.evictedKey,
+      action: outcome.action ?? (pruned.changed ? "pruned" : "upsert"), durableChanged, viewChanged,
+    };
+  }
+
+  private ignoredBriefingOutcome(
+    reason: BriefingCandidateOutcome["reason"],
+  ): BriefingCandidateOutcome {
+    return { changed: false, viewChanged: false, evictedKey: null, reason };
+  }
+
+  private applyBriefingLifecycleCandidate(
+    candidate: BriefingCardEntryCandidate,
+    nowMs: number,
+    generation: number,
+  ): BriefingCandidateOutcome {
+    if (candidate.entry.frameLevel !== "cancel" && candidate.expiresAtMs <= nowMs) {
+      return this.ignoredBriefingOutcome("expired");
+    }
+    if (!briefingCandidateWithinLimits(candidate.entry)) {
+      log.warn("[briefing-card] nested payload capacity rejected");
+      return this.ignoredBriefingOutcome("unchanged");
+    }
+    if (candidate.isCancellation) {
+      return this.applyBriefingCancellation(candidate, nowMs, generation);
+    }
+
+    const rawEntry = this.briefingEntries.get(rawBriefingDisplayKey(candidate.rawIdentity)) ?? null;
+    const provenance = this.rawCriticalProvenance.get(candidate.rawToken) ?? null;
+    const alias = this.rawBriefingAliases.get(candidate.rawToken) ?? null;
+    if (provenance != null || alias != null || rawEntry?.entry.frameLevel === "critical") {
+      return this.applyRawBriefingLifecycle(candidate, nowMs, generation, provenance, alias);
+    }
+    if (candidate.semanticKeyCandidate != null) {
+      return this.applySemanticBriefingLifecycle(
+        candidate,
+        candidate.semanticKeyCandidate,
+        nowMs,
+        generation,
+      );
+    }
+    return this.applyRawBriefingLifecycle(candidate, nowMs, generation, null, null);
+  }
+
+  private applySemanticBriefingLifecycle(
+    candidate: BriefingCardEntryCandidate,
+    semanticKey: string,
+    nowMs: number,
+    generation: number,
+  ): BriefingCandidateOutcome {
+    const watermark = this.briefingRevisionWatermarks.get(semanticKey) ?? null;
+    const existing = this.briefingEntries.get(semanticKey) ?? null;
+    const frame = candidate.entry.frameLevel;
+    if (watermark == null) {
+      if (frame !== "critical") {
+        return this.applyTransientBriefingEntry(candidate, semanticKey, generation, true);
+      }
+      if (candidate.revision == null) return this.ignoredBriefingOutcome("older");
+      if (this.briefingRevisionWatermarks.size >= BRIEFING_CRITICAL_WATERMARK_MAX_SUBJECTS) {
+        log.warn("[briefing-card] briefingCriticalProtectionCapacityRejected semantic");
+        return this.ignoredBriefingOutcome("unchanged");
+      }
+    } else {
+      if (candidate.revision == null) return this.ignoredBriefingOutcome("older");
+      const comparison = compareRevision(candidate.revision, watermark.revision);
+      if (comparison < 0) return this.ignoredBriefingOutcome("older");
+      if (comparison === 0) {
+        if (existing != null && existing.entry.frameLevel === frame
+          && briefingPayloadFingerprint(existing.entry) === candidate.fingerprint) {
+          return this.ignoredBriefingOutcome("unchanged");
+        }
+        log.warn(`[briefing-card] same revision payload conflict key=${semanticKey}`);
+        return this.ignoredBriefingOutcome("older");
+      }
+    }
+
+    const revision = candidate.revision;
+    if (revision == null) return this.ignoredBriefingOutcome("older");
+    const rawKey = rawBriefingDisplayKey(candidate.rawIdentity);
+    const transientRaw = this.briefingEntries.get(rawKey);
+    const removedTransientRaw = transientRaw != null
+      && transientRaw.entry.frameLevel !== "critical"
+      && !this.rawCriticalProvenance.has(candidate.rawToken);
+    if (removedTransientRaw) this.briefingEntries.delete(rawKey);
+    this.briefingRevisionWatermarks.set(semanticKey, {
+      revision: { ...revision },
+      expiresAtMs: nowMs + BRIEFING_CARD_TTL_MS,
+    });
+    this.briefingEntries.delete(semanticKey);
+    const entry = this.semanticBriefingEntry(candidate, semanticKey, generation, existing?.entry ?? null);
+    const evictedKey = this.putBriefingEntry(entry, candidate.updatedAtMs, candidate.expiresAtMs, false);
+    return {
+      changed: true,
+      viewChanged: true,
+      evictedKey,
+      action: "upsert",
+    };
+  }
+
+  private applyRawBriefingLifecycle(
+    candidate: BriefingCardEntryCandidate,
+    nowMs: number,
+    generation: number,
+    provenance: RawBriefingCriticalProvenance | null,
+    alias: RawBriefingAliasTombstone | null,
+  ): BriefingCandidateOutcome {
+    const frame = candidate.entry.frameLevel;
+    const rawKey = rawBriefingDisplayKey(candidate.rawIdentity);
+
+    if (provenance == null && alias == null) {
+      if (frame !== "critical") {
+        return this.applyTransientBriefingEntry(candidate, rawKey, generation, false);
+      }
+      if (!this.canReserveRawProtection(candidate.rawToken)) {
+        log.warn("[briefing-card] briefingCriticalProtectionCapacityRejected raw");
+        return this.ignoredBriefingOutcome("unchanged");
+      }
+      const entry = this.liveBriefingEntry(candidate, generation, null);
+      const evictedKey = this.putBriefingEntry(entry, candidate.updatedAtMs, candidate.expiresAtMs, false);
+      this.rawCriticalProvenance.set(candidate.rawToken, {
+        identity: { ...candidate.rawIdentity },
+        phase: "active",
+        lastStrictRevision: candidate.revision == null ? null : { ...candidate.revision },
+        lastAcceptedFrameLevel: "critical",
+        lastPayloadFingerprint: candidate.fingerprint,
+        lastCriticalExpiresAtMs: candidate.expiresAtMs,
+        expiresAtMs: Math.max(candidate.expiresAtMs, nowMs + BRIEFING_CARD_TTL_MS),
+      });
+      return { changed: true, viewChanged: true, evictedKey, action: "upsert" };
+    }
+
+    let promotionEligible = false;
+    if (alias != null) {
+      if (candidate.revision == null || compareRevision(candidate.revision, alias.revision) <= 0) {
+        return this.ignoredBriefingOutcome("older");
+      }
+      promotionEligible = candidate.semanticKeyCandidate != null;
+    } else if (provenance != null) {
+      const floor = provenance.lastStrictRevision;
+      if (floor == null) {
+        if (candidate.revision == null) {
+          return frame === "critical" && candidate.fingerprint === provenance.lastPayloadFingerprint
+            ? this.ignoredBriefingOutcome("unchanged")
+            : this.ignoredBriefingOutcome("older");
+        }
+        if (frame !== "critical" || candidate.fingerprint !== provenance.lastPayloadFingerprint) {
+          return this.ignoredBriefingOutcome("older");
+        }
+        promotionEligible = candidate.semanticKeyCandidate != null;
+      } else {
+        if (candidate.revision == null) return this.ignoredBriefingOutcome("older");
+        const comparison = compareRevision(candidate.revision, floor);
+        if (comparison < 0) return this.ignoredBriefingOutcome("older");
+        if (comparison === 0) {
+          if (candidate.semanticKeyCandidate != null
+            && provenance.phase === "active"
+            && frame === "critical"
+            && candidate.fingerprint === provenance.lastPayloadFingerprint) {
+            promotionEligible = true;
+          } else if (frame === provenance.lastAcceptedFrameLevel
+            && candidate.fingerprint === provenance.lastPayloadFingerprint) {
+            return this.ignoredBriefingOutcome("unchanged");
+          } else {
+            return this.ignoredBriefingOutcome("older");
+          }
+        } else {
+          promotionEligible = candidate.semanticKeyCandidate != null;
+        }
+      }
+    }
+
+    if (promotionEligible) {
+      return this.promoteRawBriefingLifecycle(candidate, nowMs, generation, provenance, alias);
+    }
+    if (candidate.semanticKeyCandidate != null) return this.ignoredBriefingOutcome("older");
+
+    if (alias != null) this.rawBriefingAliases.delete(candidate.rawToken);
+    const previousEntry = this.briefingEntries.get(rawKey) ?? null;
+    const previousCriticalExpiry = provenance?.lastCriticalExpiresAtMs ?? 0;
+    const protectionExpiry = Math.max(
+      provenance?.expiresAtMs ?? alias?.expiresAtMs ?? 0,
+      candidate.expiresAtMs,
+      nowMs + BRIEFING_CARD_TTL_MS,
+    );
+    const phase = frame === "critical" ? "active" : "downgraded";
+    this.rawCriticalProvenance.set(candidate.rawToken, {
+      identity: { ...candidate.rawIdentity },
+      phase,
+      lastStrictRevision: candidate.revision == null ? null : { ...candidate.revision },
+      lastAcceptedFrameLevel: frame,
+      lastPayloadFingerprint: candidate.fingerprint,
+      lastCriticalExpiresAtMs: frame === "critical" ? candidate.expiresAtMs : previousCriticalExpiry,
+      expiresAtMs: protectionExpiry,
+    });
+    this.briefingEntries.delete(rawKey);
+    const entry = this.liveBriefingEntry(candidate, generation, null);
+    const evictedKey = this.putBriefingEntry(entry, candidate.updatedAtMs, candidate.expiresAtMs, false);
+    return {
+      changed: true,
+      viewChanged: previousEntry == null || !sameBriefingCardEntry(previousEntry.entry, entry),
+      evictedKey,
+      action: "upsert",
+    };
+  }
+
+  private promoteRawBriefingLifecycle(
+    candidate: BriefingCardEntryCandidate,
+    nowMs: number,
+    generation: number,
+    provenance: RawBriefingCriticalProvenance | null,
+    alias: RawBriefingAliasTombstone | null,
+  ): BriefingCandidateOutcome {
+    const semanticKey = candidate.semanticKeyCandidate;
+    const revision = candidate.revision;
+    if (semanticKey == null || revision == null) return this.ignoredBriefingOutcome("older");
+    const watermark = this.briefingRevisionWatermarks.get(semanticKey) ?? null;
+    if (watermark != null && compareRevision(revision, watermark.revision) <= 0) {
+      return this.ignoredBriefingOutcome("older");
+    }
+    if (watermark == null
+      && this.briefingRevisionWatermarks.size >= BRIEFING_CRITICAL_WATERMARK_MAX_SUBJECTS) {
+      log.warn("[briefing-card] briefingCriticalProtectionCapacityRejected promotion");
+      return this.ignoredBriefingOutcome("unchanged");
+    }
+
+    const sourceKey = rawBriefingDisplayKey(candidate.rawIdentity);
+    const sourceEntry = this.briefingEntries.get(sourceKey) ?? null;
+    const canonicalEntry = this.briefingEntries.get(semanticKey) ?? null;
+    const watermarkExpiry = nowMs + BRIEFING_CARD_TTL_MS;
+    const aliasExpiry = Math.max(
+      alias?.expiresAtMs ?? 0,
+      provenance?.expiresAtMs ?? 0,
+      watermarkExpiry,
+    );
+    this.briefingEntries.delete(sourceKey);
+    this.rawCriticalProvenance.delete(candidate.rawToken);
+    this.briefingRevisionWatermarks.set(semanticKey, {
+      revision: { ...revision }, expiresAtMs: watermarkExpiry,
+    });
+    this.rawBriefingAliases.set(candidate.rawToken, {
+      identity: { ...candidate.rawIdentity },
+      semanticKey,
+      revision: { ...revision },
+      expiresAtMs: aliasExpiry,
+    });
+    this.briefingEntries.delete(semanticKey);
+    const entry = this.semanticBriefingEntry(candidate, semanticKey, generation, canonicalEntry?.entry ?? null);
+    const evictedKey = this.putBriefingEntry(entry, candidate.updatedAtMs, candidate.expiresAtMs, false);
+    return {
+      changed: true,
+      viewChanged: sourceEntry != null || canonicalEntry == null || !sameBriefingCardEntry(canonicalEntry.entry, entry),
+      evictedKey,
+      action: "upsert",
+    };
+  }
+
+  private applyTransientBriefingEntry(
+    candidate: BriefingCardEntryCandidate,
+    key: string,
+    generation: number,
+    semantic: boolean,
+  ): BriefingCandidateOutcome {
+    const previous = this.briefingEntries.get(key) ?? null;
+    const entry = semantic
+      ? this.semanticBriefingEntry(candidate, key, generation, previous?.entry ?? null)
+      : this.liveBriefingEntry(candidate, generation, null);
+    if (previous != null) {
+      const comparison = compareBriefingEntryRevision(previous.entry, entry);
+      if (comparison != null && comparison < 0) return this.ignoredBriefingOutcome("older");
+      if (comparison === 0) {
+        return briefingPayloadFingerprint(previous.entry) === briefingPayloadFingerprint(entry)
+          && previous.entry.frameLevel === entry.frameLevel
+          ? this.ignoredBriefingOutcome("unchanged")
+          : this.ignoredBriefingOutcome("older");
+      }
+      if (comparison == null && sameBriefingCardEntry(previous.entry, entry)) {
+        return this.ignoredBriefingOutcome("unchanged");
+      }
+    }
+    const evictedKey = this.putBriefingEntry(entry, candidate.updatedAtMs, candidate.expiresAtMs, false);
+    return { changed: true, viewChanged: true, evictedKey, action: "upsert" };
+  }
+
+  private semanticCancellationTargets(
+    candidate: BriefingCardEntryCandidate,
+  ): { keys: string[]; ambiguous: boolean } {
+    const exact = [...this.briefingEntries.values()]
+      .filter((state) => state.entry.source === "vpbs50"
+        && state.entry.sourceEventId === candidate.entry.sourceEventId
+        && isSemanticBriefingSubject(state.entry))
+      .flatMap((state) => typeof state.entry.semanticKey === "string" ? [state.entry.semanticKey] : []);
+    const exactKeys = [...new Set(exact)];
+    if (exactKeys.length > 0) return { keys: exactKeys, ambiguous: false };
+
+    if (candidate.semanticKeyCandidate != null
+      && (this.briefingRevisionWatermarks.has(candidate.semanticKeyCandidate)
+        || this.briefingEntries.has(candidate.semanticKeyCandidate))) {
+      return { keys: [candidate.semanticKeyCandidate], ambiguous: false };
+    }
+    const editorialOffice = nonBlank(candidate.entry.editorialOffice);
+    if (candidate.hasRawEventId || candidate.phenomenonKinds.length === 0
+      || editorialOffice == null) {
+      return { keys: [], ambiguous: false };
+    }
+    const possible = candidate.phenomenonKinds
+      .map((kind) => briefingSemanticKey(editorialOffice, kind))
+      .filter((key) => this.briefingRevisionWatermarks.has(key) || this.briefingEntries.has(key));
+    const keys = [...new Set(possible)];
+    return { keys: keys.length === 1 ? keys : [], ambiguous: keys.length > 1 };
+  }
+
+  private applyBriefingCancellation(
+    candidate: BriefingCardEntryCandidate,
+    nowMs: number,
+    generation: number,
+  ): BriefingCandidateOutcome {
+    const rawKey = rawBriefingDisplayKey(candidate.rawIdentity);
+    const rawEntry = this.briefingEntries.get(rawKey) ?? null;
+    const provenance = this.rawCriticalProvenance.get(candidate.rawToken) ?? null;
+    const alias = this.rawBriefingAliases.get(candidate.rawToken) ?? null;
+    const semanticTargets = this.semanticCancellationTargets(candidate);
+    if (semanticTargets.ambiguous) {
+      log.warn("[briefing-card] cancellation semantic target is ambiguous");
+      return this.ignoredBriefingOutcome("cancelTargetAmbiguous");
+    }
+
+    const semanticPlans = semanticTargets.keys.map((semanticKey) => ({
+      semanticKey,
+      watermark: this.briefingRevisionWatermarks.get(semanticKey) ?? null,
+      existing: this.briefingEntries.get(semanticKey) ?? null,
+    }));
+    const lifecycleTarget = provenance != null || alias != null
+      || rawEntry?.entry.frameLevel === "critical"
+      || semanticPlans.some((plan) => plan.watermark != null);
+    const transientRawTarget = rawEntry != null && rawEntry.entry.frameLevel !== "critical";
+    const transientSemanticTargets = semanticPlans.filter((plan) => plan.watermark == null && plan.existing != null);
+    if (!lifecycleTarget && !transientRawTarget && transientSemanticTargets.length === 0) {
+      if (candidate.hasRawEventId) log.warn("[briefing-card] cancellation sourceEventId target is missing");
+      return this.ignoredBriefingOutcome(
+        candidate.hasRawEventId ? "cancelTargetMissing" : "cancelTargetAmbiguous",
+      );
+    }
+    if (candidate.revision == null && lifecycleTarget) {
+      log.warn("[briefing-card] unordered critical lifecycle cancellation rejected");
+      return this.ignoredBriefingOutcome("older");
+    }
+
+    let rawLifecycleIdempotent = false;
+    if (alias != null) {
+      if (candidate.revision == null || compareRevision(candidate.revision, alias.revision) <= 0) {
+        return this.ignoredBriefingOutcome("older");
+      }
+    } else if (provenance != null) {
+      if (candidate.revision == null || provenance.lastStrictRevision == null) {
+        return this.ignoredBriefingOutcome("older");
+      }
+      const comparison = compareRevision(candidate.revision, provenance.lastStrictRevision);
+      if (comparison < 0) return this.ignoredBriefingOutcome("older");
+      if (comparison === 0) {
+        if (provenance.phase === "cancelled"
+          && provenance.lastAcceptedFrameLevel === "cancel"
+          && provenance.lastPayloadFingerprint === candidate.fingerprint) {
+          rawLifecycleIdempotent = true;
+        } else {
+          return this.ignoredBriefingOutcome("older");
+        }
+      }
+    } else if (rawEntry?.entry.frameLevel === "critical") {
+      return this.ignoredBriefingOutcome("older");
+    }
+
+    const semanticUpdates: typeof semanticPlans = [];
+    for (const plan of semanticPlans) {
+      if (plan.watermark == null) continue;
+      if (candidate.revision == null) return this.ignoredBriefingOutcome("older");
+      const comparison = compareRevision(candidate.revision, plan.watermark.revision);
+      if (comparison < 0) return this.ignoredBriefingOutcome("older");
+      if (comparison === 0) {
+        if (plan.existing?.entry.frameLevel === "cancel"
+          && briefingPayloadFingerprint(plan.existing.entry) === candidate.fingerprint) continue;
+        return this.ignoredBriefingOutcome("older");
+      }
+      semanticUpdates.push(plan);
+    }
+
+    const transientPlans = [
+      ...(transientRawTarget ? [{ key: rawKey, existing: rawEntry!, semanticKey: null as string | null }] : []),
+      ...transientSemanticTargets.map((plan) => ({
+        key: plan.semanticKey, existing: plan.existing!, semanticKey: plan.semanticKey as string | null,
+      })),
+    ];
+    for (const plan of transientPlans) {
+      const comparison = compareBriefingEntryRevision(plan.existing.entry, candidate.entry);
+      if (comparison != null && comparison < 0) return this.ignoredBriefingOutcome("older");
+      if (plan.existing.entry.frameLevel === "cancel") {
+        if (briefingPayloadFingerprint(plan.existing.entry) === candidate.fingerprint) continue;
+        return this.ignoredBriefingOutcome("older");
+      }
+    }
+
+    const rawLifecycleUpdate = (alias != null || provenance != null) && !rawLifecycleIdempotent;
+    const transientUpdates = transientPlans.filter((plan) =>
+      plan.existing.entry.frameLevel !== "cancel");
+    if (!rawLifecycleUpdate && semanticUpdates.length === 0 && transientUpdates.length === 0) {
+      return this.ignoredBriefingOutcome("unchanged");
+    }
+
+    let viewChanged = false;
+    let evictedKey: string | null = null;
+    for (const plan of semanticUpdates) {
+      this.briefingRevisionWatermarks.set(plan.semanticKey, {
+        revision: { ...candidate.revision! },
+        expiresAtMs: nowMs + BRIEFING_CARD_TTL_MS,
+      });
+      viewChanged = this.briefingEntries.delete(plan.semanticKey) || viewChanged;
+      if (candidate.expiresAtMs > nowMs) {
+        const entry = this.semanticBriefingEntry(
+          candidate,
+          plan.semanticKey,
+          generation,
+          plan.existing?.entry ?? null,
+        );
+        evictedKey ??= this.putBriefingEntry(entry, candidate.updatedAtMs, candidate.expiresAtMs, false);
+        viewChanged = true;
+      }
+    }
+
+    if (rawLifecycleUpdate) {
+      if (alias != null) this.rawBriefingAliases.delete(candidate.rawToken);
+      viewChanged = this.briefingEntries.delete(rawKey) || viewChanged;
+      const protectionExpiry = Math.max(
+        provenance?.expiresAtMs ?? alias?.expiresAtMs ?? 0,
+        candidate.expiresAtMs,
+        nowMs + BRIEFING_CARD_TTL_MS,
+      );
+      this.rawCriticalProvenance.set(candidate.rawToken, {
+        identity: { ...candidate.rawIdentity },
+        phase: "cancelled",
+        lastStrictRevision: { ...candidate.revision! },
+        lastAcceptedFrameLevel: "cancel",
+        lastPayloadFingerprint: candidate.fingerprint,
+        lastCriticalExpiresAtMs: provenance?.lastCriticalExpiresAtMs ?? 0,
+        expiresAtMs: protectionExpiry,
+      });
+      if (candidate.expiresAtMs > nowMs) {
+        const entry = this.liveBriefingEntry(candidate, generation, null);
+        evictedKey ??= this.putBriefingEntry(entry, candidate.updatedAtMs, candidate.expiresAtMs, false);
+        viewChanged = true;
+      }
+    }
+
+    for (const plan of transientUpdates) {
+      viewChanged = this.briefingEntries.delete(plan.key) || viewChanged;
+      if (candidate.expiresAtMs > nowMs) {
+        const entry = plan.semanticKey == null
+          ? this.liveBriefingEntry(candidate, generation, null)
+          : this.semanticBriefingEntry(candidate, plan.semanticKey, generation, plan.existing.entry);
+        evictedKey ??= this.putBriefingEntry(entry, candidate.updatedAtMs, candidate.expiresAtMs, false);
+        viewChanged = true;
+      }
+    }
+    return {
+      changed: true,
+      viewChanged,
+      evictedKey,
+      action: candidate.expiresAtMs <= nowMs ? "expiredCancellationRemoved" : "upsert",
+    };
+  }
+
+  private semanticBriefingEntry(
+    candidate: BriefingCardEntryCandidate,
+    semanticKey: string,
+    generation: number,
+    existing: DisplayBriefingEntryV1 | null,
+  ): DisplayBriefingEntryV1 {
+    const phenomenonKind = candidate.semanticKeyCandidate === semanticKey
+      ? candidate.entry.phenomenonKind
+      : existing?.phenomenonKind ?? candidate.entry.phenomenonKind;
+    return {
+      ...copyBriefingEntry(candidate.entry),
+      key: semanticKey,
+      editorialOffice: candidate.semanticKeyCandidate === semanticKey
+        ? candidate.entry.editorialOffice
+        : existing?.editorialOffice ?? candidate.entry.editorialOffice,
+      phenomenonKind,
+      semanticKey,
+      generation,
+    };
+  }
+
+
+  private liveBriefingEntry(
+    candidate: BriefingCardEntryCandidate,
+    generation: number,
+    semanticKey: string | null,
+  ): DisplayBriefingEntryV1 {
+    const existingSubject = semanticKey == null ? null : this.briefingEntries.get(semanticKey)?.entry ?? null;
+    const phenomenonKind = semanticKey == null ? null
+      : candidate.phenomenonKinds[0] ?? candidate.entry.phenomenonKind ?? existingSubject?.phenomenonKind ?? null;
+    return {
+      ...copyBriefingEntry(candidate.entry),
+      key: semanticKey ?? rawBriefingDisplayKey(candidate.rawIdentity),
+      editorialOffice: nonBlank(candidate.entry.editorialOffice) ?? existingSubject?.editorialOffice ?? "",
+      phenomenonKind,
+      semanticKey,
+      generation,
+    };
+  }
+
+  private putBriefingEntry(
+    entry: DisplayBriefingEntryV1,
+    updatedAtMs: number,
+    expiresAtMs: number,
+    restored: boolean,
+  ): string | null {
+    let evictedKey: string | null = null;
+    if (!this.briefingEntries.has(entry.key) && this.briefingEntries.size >= BRIEFING_CARD_MAX_ENTRIES) {
+      const victim = [...this.briefingEntries.values()].sort((left, right) =>
+        left.updatedAtMs - right.updatedAtMs
+        || briefingEntryIdentityToken(left.entry).localeCompare(briefingEntryIdentityToken(right.entry)))[0];
+      if (victim != null) {
+        this.briefingEntries.delete(victim.entry.key);
+        evictedKey = victim.entry.key;
+      }
+    }
+    this.briefingEntries.set(entry.key, { entry, updatedAtMs, expiresAtMs, restored });
+    return evictedKey;
+  }
+
+  private canReserveRawProtection(token: string): boolean {
+    const identities = new Set([...this.rawCriticalProvenance.keys(), ...this.rawBriefingAliases.keys()]);
+    return identities.has(token) || identities.size < BRIEFING_RAW_ALIAS_MAX_LINEAGES;
+  }
+
+  private pruneBriefingLifecycle(nowMs: number): { changed: boolean; viewChanged: boolean; durableChanged: boolean } {
+    let changed = false;
+    let viewChanged = false;
+    let durableChanged = false;
+    for (const [key, state] of [...this.briefingEntries]) {
+      if (state.expiresAtMs > nowMs) continue;
+      this.briefingEntries.delete(key);
+      changed = true;
+      viewChanged = true;
+      durableChanged ||= isDurableBriefingEntry(state.entry);
+    }
+    for (const [key, provenance] of [...this.rawCriticalProvenance]) {
+      if (provenance.expiresAtMs <= nowMs) {
+        this.rawCriticalProvenance.delete(key);
+        changed = true;
+      }
+    }
+    for (const [key, alias] of [...this.rawBriefingAliases]) {
+      if (alias.expiresAtMs <= nowMs) {
+        this.rawBriefingAliases.delete(key);
+        changed = true;
+        durableChanged = true;
+      }
+    }
+    for (const [semanticKey, watermark] of [...this.briefingRevisionWatermarks]) {
+      if (watermark.expiresAtMs > nowMs) continue;
+      this.briefingRevisionWatermarks.delete(semanticKey);
+      const dependent = this.briefingEntries.get(semanticKey);
+      if (dependent != null && isDurableBriefingEntry(dependent.entry)) {
+        this.briefingEntries.delete(semanticKey);
+        viewChanged = true;
+      }
+      changed = true;
+      durableChanged = true;
+    }
+    return { changed, viewChanged, durableChanged };
+  }
+
+  private briefingDurableFingerprint(): string {
+    const entries = [...this.briefingEntries.values()].filter((state) => isDurableBriefingEntry(state.entry))
+      .map((state) => ({
+        entry: { ...state.entry, generation: 0 },
+        updatedAtMs: state.updatedAtMs,
+        expiresAtMs: state.expiresAtMs,
+      }))
+      .sort((left, right) => briefingEntryIdentityToken(left.entry).localeCompare(briefingEntryIdentityToken(right.entry)));
+    const watermarks = [...this.briefingRevisionWatermarks.entries()].sort(([left], [right]) => left.localeCompare(right));
+    const aliases = [...this.rawBriefingAliases.entries()].sort(([left], [right]) => left.localeCompare(right));
+    return stableCanonicalJson({ entries, watermarks, aliases });
   }
 
   /**
@@ -368,136 +1019,259 @@ export class StandbyStateStore {
     canonicalEvent: PresentationEvent,
     nowMs: number,
   ): CardReconcileResult {
-    const pruned = this.pruneBriefingCardEntries(nowMs);
-    const source = this.briefingEntries.get(sourceKey);
-    const canonicalCandidate = briefingCardEntryCandidate(canonicalEvent, nowMs);
-    const canonicalKey = canonicalCandidate?.entry.key ?? null;
-    if (source == null) {
-      if (pruned) this.notify({ viewChanged: true, durableChanged: false });
+    return this.reconcileBriefingCriticalLifecycle(sourceKey, canonicalEvent, nowMs);
+  }
+
+  private reconcileBriefingCriticalLifecycle(
+    sourceKey: string,
+    canonicalEvent: PresentationEvent,
+    nowMs: number,
+  ): CardReconcileResult {
+    const durableBefore = this.briefingDurableFingerprint();
+    const pruned = this.pruneBriefingLifecycle(nowMs);
+    const candidate = briefingCardEntryCandidate(canonicalEvent, nowMs);
+    const canonicalKey = candidate?.semanticKeyCandidate ?? null;
+    const ignored = (
+      reason: Extract<CardReconcileResult, { kind: "ignored" }>["reason"],
+    ): CardReconcileResult => {
+      if (pruned.changed) {
+        this.briefingGeneration += 1;
+        const durableChanged = durableBefore !== this.briefingDurableFingerprint();
+        if (durableChanged) this.briefingDurableGeneration = this.briefingGeneration;
+        this.notify({ viewChanged: pruned.viewChanged, durableChanged });
+      }
       return {
-        kind: "ignored", status: "ignored", applied: false, sourceKey, canonicalKey,
-        generation: this.briefingGeneration, evictedKey: null, reason: "sourceNotFound",
+        kind: "ignored",
+        status: "ignored",
+        applied: false,
+        sourceKey,
+        canonicalKey,
+        generation: this.briefingGeneration,
+        evictedKey: null,
+        reason,
       };
+    };
+
+    const sourceEntry = this.briefingEntries.get(sourceKey) ?? null;
+    if (sourceEntry != null && sourceEntry.entry.source !== "vpoa50") {
+      return ignored("sourceNotVpoa50");
     }
-    if (source.entry.source !== "vpoa50") {
-      if (pruned) this.notify({ viewChanged: true, durableChanged: false });
-      return {
-        kind: "ignored", status: "ignored", applied: false, sourceKey, canonicalKey,
-        generation: this.briefingGeneration, evictedKey: null, reason: "sourceNotVpoa50",
-      };
-    }
-    if (canonicalCandidate == null || canonicalCandidate.entry.source !== "vpbs50") {
-      if (pruned) this.notify({ viewChanged: true, durableChanged: false });
-      return {
-        kind: "ignored", status: "ignored", applied: false, sourceKey, canonicalKey,
-        generation: this.briefingGeneration, evictedKey: null, reason: "canonicalNotBriefing",
-      };
-    }
-    if (strictBriefingRevision(canonicalCandidate.entry) == null) {
-      log.warn("[briefing-card] late reconcile canonical is unordered");
-      if (pruned) this.notify({ viewChanged: true, durableChanged: false });
-      return {
-        kind: "ignored", status: "ignored", applied: false, sourceKey, canonicalKey,
-        generation: this.briefingGeneration, evictedKey: null, reason: "canonicalNotNewer",
-      };
-    }
-    if (canonicalKey === sourceKey) {
-      if (pruned) this.notify({ viewChanged: true, durableChanged: false });
-      return {
-        kind: "ignored", status: "ignored", applied: false, sourceKey, canonicalKey,
-        generation: this.briefingGeneration, evictedKey: null, reason: "canonicalNotBriefing",
-      };
+    const sourceProvenanceByKey = [...this.rawCriticalProvenance.values()]
+      .find((item) => rawBriefingDisplayKey(item.identity) === sourceKey) ?? null;
+    const sourceAlias = [...this.rawBriefingAliases.values()]
+      .find((item) => rawBriefingDisplayKey(item.identity) === sourceKey) ?? null;
+    const sourceIdentity = sourceEntry?.entry.source === "vpoa50"
+      ? { kind: "raw" as const, source: "vpoa50" as const, sourceEventId: sourceEntry.entry.sourceEventId }
+      : sourceProvenanceByKey?.identity ?? sourceAlias?.identity ?? null;
+    if (sourceIdentity == null) return ignored("sourceNotFound");
+    const sourceToken = briefingCriticalIdentityToken(sourceIdentity);
+    const sourceProvenance = this.rawCriticalProvenance.get(sourceToken) ?? null;
+
+    if (sourceEntry == null && sourceProvenance == null && sourceAlias != null) {
+      return ignored("sourceAlreadyReconciled");
     }
 
-    const canonicalSubjectCandidate = this.resolveBriefingCardTarget(canonicalCandidate);
-    if (canonicalSubjectCandidate == null) {
-      if (pruned) this.notify({ viewChanged: true, durableChanged: false });
-      return {
-        kind: "ignored", status: "ignored", applied: false, sourceKey, canonicalKey,
-        generation: this.briefingGeneration, evictedKey: null, reason: "canonicalNotBriefing",
-      };
-    }
-    const semanticKey = canonicalSubjectCandidate.entry.semanticKey ?? null;
-    const existingCanonical = semanticKey == null
-      ? []
-      : [...this.briefingEntries.values()].filter((state) =>
-        state.entry.key !== sourceKey && state.entry.source === "vpbs50" && state.entry.semanticKey === semanticKey,
+    if (sourceProvenance == null) {
+      if (sourceEntry == null || sourceEntry.entry.frameLevel === "critical") {
+        return ignored("sourceNotFound");
+      }
+      return this.reconcileTransientBriefing(
+        sourceKey,
+        sourceEntry,
+        candidate,
+        canonicalEvent,
+        nowMs,
+        durableBefore,
+        pruned,
       );
-    if (existingCanonical.length > 1) {
-      log.warn("[briefing-card] late reconcile canonical subject is ambiguous");
-      if (pruned) this.notify({ viewChanged: true, durableChanged: false });
-      return {
-        kind: "ignored", status: "ignored", applied: false, sourceKey, canonicalKey,
-        generation: this.briefingGeneration, evictedKey: null, reason: "canonicalNotNewer",
-      };
     }
-    const existing = existingCanonical[0];
-    if (existing != null) {
-      const comparison = compareBriefingEntryRevision(existing.entry, canonicalSubjectCandidate.entry);
-      if (comparison == null || comparison < 0) {
+    if (sourceProvenance.phase !== "active"
+      || sourceProvenance.expiresAtMs <= nowMs
+      || sourceProvenance.lastCriticalExpiresAtMs <= nowMs) {
+      return ignored("sourceNotFound");
+    }
+    if (candidate == null || candidate.entry.source !== "vpbs50"
+      || candidate.semanticKeyCandidate == null || candidate.revision == null
+      || candidate.entry.frameLevel === "cancel") {
+      return ignored("canonicalNotBriefing");
+    }
+
+    const semanticKey = candidate.semanticKeyCandidate;
+    const watermark = this.briefingRevisionWatermarks.get(semanticKey) ?? null;
+    const canonicalLive = this.briefingEntries.get(semanticKey) ?? null;
+    const expiredCanonical = candidate.expiresAtMs <= nowMs;
+    if (!expiredCanonical && !briefingCandidateWithinLimits(candidate.entry)) {
+      return ignored("canonicalNotBriefing");
+    }
+    if (watermark != null) {
+      const comparison = compareRevision(candidate.revision, watermark.revision);
+      if (comparison < 0) {
         log.warn("[briefing-card] late reconcile canonical is not newer");
-        if (pruned) this.notify({ viewChanged: true, durableChanged: false });
-        return {
-          kind: "ignored", status: "ignored", applied: false, sourceKey, canonicalKey,
-          generation: this.briefingGeneration, evictedKey: null, reason: "canonicalNotNewer",
-        };
+        return ignored("canonicalNotNewer");
       }
       if (comparison === 0) {
-        if (!sameBriefingPayload(existing.entry, canonicalSubjectCandidate.entry)) {
-          log.warn("[briefing-card] late reconcile same revision payload conflict");
-          if (pruned) this.notify({ viewChanged: true, durableChanged: false });
-          return {
-            kind: "ignored", status: "ignored", applied: false, sourceKey, canonicalKey,
-            generation: this.briefingGeneration, evictedKey: null, reason: "canonicalNotNewer",
-          };
+        if (canonicalLive != null
+          && briefingPayloadFingerprint(canonicalLive.entry) !== candidate.fingerprint) {
+          return ignored("canonicalNotNewer");
         }
-        this.briefingEntries.delete(sourceKey);
-        this.briefingGeneration += 1;
-        this.notify({ viewChanged: true, durableChanged: false });
-        return {
-          kind: "applied", status: "applied", applied: true, sourceKey,
-          canonicalKey: existing.entry.key, generation: this.briefingGeneration,
-          expiresAt: existing.entry.expiresAt, canonicalInserted: false, evictedKey: null,
-        };
+        // 通常reconcileのwatermark-only equalは由来を証明できない。一方、期限切れ
+        // canonicalは表示を生成せずsource retirementだけを行うため、同順位を許可する。
+        if (!expiredCanonical && canonicalLive == null) return ignored("canonicalNotNewer");
       }
     }
 
-    const expiresAtMs = Math.min(source.expiresAtMs, canonicalCandidate.expiresAtMs);
-    if (expiresAtMs <= nowMs) {
-      const generation = this.briefingGeneration + 1;
-      this.briefingEntries.delete(sourceKey);
-      this.briefingGeneration = generation;
-      this.notify({ viewChanged: true, durableChanged: false });
-      return {
-        kind: "applied", status: "applied", applied: true, sourceKey,
-        canonicalKey: canonicalCandidate.entry.key, generation, expiresAt: null,
-        canonicalInserted: false, evictedKey: null,
-      };
+    if (!expiredCanonical) {
+      if (sourceProvenance.lastStrictRevision == null) {
+        log.warn("[briefing-card] late reconcile canonical is unordered");
+        return ignored("canonicalNotNewer");
+      }
+      if (compareRevision(candidate.revision, sourceProvenance.lastStrictRevision) < 0) {
+        log.warn("[briefing-card] late reconcile canonical is not newer");
+        return ignored("canonicalNotNewer");
+      }
+      if (watermark == null
+        && this.briefingRevisionWatermarks.size >= BRIEFING_CRITICAL_WATERMARK_MAX_SUBJECTS) {
+        log.warn("[briefing-card] briefingCriticalProtectionCapacityRejected reconcile");
+        return ignored("canonicalNotNewer");
+      }
     }
 
     const generation = this.briefingGeneration + 1;
-    const resolvedCanonical = canonicalSubjectCandidate;
-    const entry: DisplayBriefingEntryV1 = {
-      ...resolvedCanonical.entry,
-      expiresAt: new Date(expiresAtMs).toISOString(),
-      generation,
-    };
-    this.briefingEntries.delete(sourceKey);
-    if (existing != null) this.briefingEntries.delete(existing.entry.key);
-    const resolvedCanonicalKey = resolvedCanonical.entry.key;
-    this.briefingEntries.set(resolvedCanonicalKey, {
-      entry,
-      updatedAtMs: canonicalCandidate.updatedAtMs,
-      expiresAtMs,
+    const previousAlias = this.rawBriefingAliases.get(sourceToken) ?? null;
+    const acceptedRevision = expiredCanonical && sourceProvenance.lastStrictRevision != null
+      && compareRevision(sourceProvenance.lastStrictRevision, candidate.revision) > 0
+      ? sourceProvenance.lastStrictRevision
+      : candidate.revision;
+    const canonicalMaintained = !expiredCanonical && watermark != null
+      && compareRevision(candidate.revision, watermark.revision) === 0;
+    const resultingWatermarkExpiry = expiredCanonical
+      ? watermark?.expiresAtMs ?? 0
+      : canonicalMaintained
+        ? watermark!.expiresAtMs
+        : nowMs + BRIEFING_CARD_TTL_MS;
+    const aliasExpiry = Math.max(
+      previousAlias?.expiresAtMs ?? 0,
+      sourceProvenance.expiresAtMs,
+      resultingWatermarkExpiry,
+    );
+
+    const sourceWasVisible = this.briefingEntries.delete(sourceKey);
+    this.rawCriticalProvenance.delete(sourceToken);
+    this.rawBriefingAliases.set(sourceToken, {
+      identity: { ...sourceIdentity },
+      semanticKey,
+      revision: { ...acceptedRevision },
+      expiresAtMs: aliasExpiry,
     });
-    this.rememberBriefingRevision(entry, nowMs);
+
+    let expiresAt: string | null = null;
+    let canonicalInserted = false;
+    let viewChanged = sourceWasVisible;
+    if (!expiredCanonical && !canonicalMaintained) {
+      this.briefingRevisionWatermarks.set(semanticKey, {
+        revision: { ...candidate.revision },
+        expiresAtMs: resultingWatermarkExpiry,
+      });
+      viewChanged = this.briefingEntries.delete(semanticKey) || viewChanged;
+      const displayExpiry = Math.min(
+        sourceProvenance.lastCriticalExpiresAtMs,
+        candidate.expiresAtMs,
+      );
+      const entry = this.semanticBriefingEntry(candidate, semanticKey, generation, canonicalLive?.entry ?? null);
+      entry.expiresAt = new Date(displayExpiry).toISOString();
+      this.putBriefingEntry(entry, candidate.updatedAtMs, displayExpiry, false);
+      expiresAt = entry.expiresAt;
+      canonicalInserted = true;
+      viewChanged = true;
+    } else if (canonicalMaintained && canonicalLive != null) {
+      const displayExpiry = Math.min(
+        canonicalLive.expiresAtMs,
+        sourceProvenance.lastCriticalExpiresAtMs,
+        candidate.expiresAtMs,
+      );
+      if (displayExpiry !== canonicalLive.expiresAtMs) {
+        canonicalLive.expiresAtMs = displayExpiry;
+        canonicalLive.entry.expiresAt = new Date(displayExpiry).toISOString();
+        viewChanged = true;
+      }
+      expiresAt = canonicalLive.entry.expiresAt;
+    }
+
     this.briefingGeneration = generation;
-    this.notify({ viewChanged: true, durableChanged: false });
+    const durableChanged = durableBefore !== this.briefingDurableFingerprint();
+    if (durableChanged) this.briefingDurableGeneration = generation;
+    this.notify({ viewChanged: pruned.viewChanged || viewChanged, durableChanged });
     return {
-      kind: "applied", status: "applied", applied: true, sourceKey, canonicalKey: resolvedCanonicalKey,
-      generation, expiresAt: entry.expiresAt, canonicalInserted: true, evictedKey: null,
+      kind: "applied",
+      status: "applied",
+      applied: true,
+      sourceKey,
+      canonicalKey: semanticKey,
+      generation,
+      expiresAt,
+      canonicalInserted,
+      evictedKey: null,
     };
   }
+
+  private reconcileTransientBriefing(
+    sourceKey: string,
+    sourceEntry: BriefingCardEntryState,
+    candidate: BriefingCardEntryCandidate | null,
+    canonicalEvent: PresentationEvent,
+    nowMs: number,
+    durableBefore: string,
+    pruned: { changed: boolean; viewChanged: boolean; durableChanged: boolean },
+  ): CardReconcileResult {
+    const canonicalKey = candidate?.semanticKeyCandidate ?? candidate?.entry.key ?? null;
+    const ignored = (
+      reason: Extract<CardReconcileResult, { kind: "ignored" }>["reason"],
+    ): CardReconcileResult => {
+      if (pruned.changed) {
+        this.briefingGeneration += 1;
+        const durableChanged = durableBefore !== this.briefingDurableFingerprint();
+        if (durableChanged) this.briefingDurableGeneration = this.briefingGeneration;
+        this.notify({ viewChanged: pruned.viewChanged, durableChanged });
+      }
+      return { kind: "ignored", status: "ignored", applied: false, sourceKey, canonicalKey,
+        generation: this.briefingGeneration, evictedKey: null, reason };
+    };
+    if (candidate == null || candidate.entry.source !== "vpbs50"
+      || candidate.entry.frameLevel === "cancel" || !briefingCandidateWithinLimits(candidate.entry)) {
+      return ignored("canonicalNotBriefing");
+    }
+    if (candidate.expiresAtMs > nowMs) {
+      const comparison = compareBriefingEntryRevision(sourceEntry.entry, candidate.entry);
+      if (comparison != null && comparison < 0) return ignored("canonicalNotNewer");
+      if (comparison == null && strictBriefingRevision(sourceEntry.entry) != null) {
+        return ignored("canonicalNotNewer");
+      }
+    }
+    const generation = this.briefingGeneration + 1;
+    this.briefingEntries.delete(sourceKey);
+    let expiresAt: string | null = null;
+    let inserted = false;
+    if (candidate.expiresAtMs > nowMs) {
+      const displayExpiry = Math.min(sourceEntry.expiresAtMs, candidate.expiresAtMs);
+      if (displayExpiry > nowMs) {
+        const entry = candidate.semanticKeyCandidate == null
+          ? this.liveBriefingEntry(candidate, generation, null)
+          : this.semanticBriefingEntry(candidate, candidate.semanticKeyCandidate, generation, null);
+        entry.expiresAt = new Date(displayExpiry).toISOString();
+        this.putBriefingEntry(entry, candidate.updatedAtMs, displayExpiry, false);
+        expiresAt = entry.expiresAt;
+        inserted = true;
+      }
+    }
+    this.briefingGeneration = generation;
+    const durableChanged = durableBefore !== this.briefingDurableFingerprint();
+    if (durableChanged) this.briefingDurableGeneration = generation;
+    this.notify({ viewChanged: true, durableChanged });
+    return { kind: "applied", status: "applied", applied: true, sourceKey,
+      canonicalKey: canonicalKey ?? briefingCardIdentity(canonicalEvent) ?? "", generation,
+      expiresAt, canonicalInserted: inserted, evictedKey: null };
+  }
+
 
   /** Current card-only mutation generation, for targeted reconcile tests. */
   briefingCardGeneration(): number {
@@ -509,281 +1283,6 @@ export class StandbyStateStore {
     return this.briefingEntries.size;
   }
 
-  private upsertBriefingCardEntry(
-    candidate: BriefingCardEntryCandidate,
-    nowMs: number,
-  ): BriefingCardMutationResult {
-    const pruned = this.pruneBriefingCardEntries(nowMs);
-    const exactCancellationTargets = candidate.isVpbsCancellation && candidate.hasRawEventId
-      ? this.exactVpbsEntries(candidate.entry.sourceEventId)
-      : [];
-    if (exactCancellationTargets.length > 0) {
-      return this.applyExactVpbsCancellation(candidate, exactCancellationTargets, nowMs);
-    }
-    const resolved = this.resolveBriefingCardTarget(candidate);
-    if (resolved == null) {
-      return pruned
-        ? {
-            kind: "applied", status: "applied", applied: true,
-            generation: this.briefingGeneration, evictedKey: null, action: "pruned",
-          }
-        : {
-            kind: "ignored", status: "ignored", applied: false,
-            generation: this.briefingGeneration, evictedKey: null,
-            reason: candidate.isVpbsCancellation
-              ? candidate.hasRawEventId ? "cancelTargetMissing" : "cancelTargetAmbiguous"
-              : "notBriefing",
-          };
-    }
-    candidate = resolved;
-    const previous = this.briefingEntries.get(candidate.entry.key);
-    if (previous == null && this.isRejectedByBriefingRevisionWatermark(candidate, nowMs)) {
-      log.warn(`[briefing-card] semantic revision watermark rejected older report key=${candidate.entry.key}`);
-      return pruned
-        ? {
-            kind: "applied", status: "applied", applied: true,
-            generation: this.briefingGeneration, evictedKey: null, action: "pruned",
-          }
-        : {
-            kind: "ignored", status: "ignored", applied: false,
-            generation: this.briefingGeneration, evictedKey: null, reason: "older",
-          };
-    }
-    if (candidate.expiresAtMs <= nowMs) {
-      if (candidate.entry.source === "vpbs50" && candidate.entry.frameLevel === "cancel" && previous != null) {
-        // Even an already-expired cancellation advances the semantic revision
-        // watermark before its frame disappears.
-        this.rememberBriefingRevision(candidate.entry, nowMs);
-        this.briefingEntries.delete(candidate.entry.key);
-        this.briefingGeneration += 1;
-        return {
-          kind: "applied", status: "applied", applied: true,
-          generation: this.briefingGeneration, evictedKey: null, action: "expiredCancellationRemoved",
-        };
-      }
-      return pruned
-        ? {
-            kind: "applied", status: "applied", applied: true,
-            generation: this.briefingGeneration, evictedKey: null, action: "pruned",
-          }
-        : {
-            kind: "ignored", status: "ignored", applied: false,
-            generation: this.briefingGeneration, evictedKey: null, reason: "expired",
-          };
-    }
-    if (previous != null && !candidate.isVpbsCancellation) {
-      const comparison = compareBriefingEntryRevision(previous.entry, candidate.entry);
-      if (comparison != null && comparison < 0) {
-        return pruned
-          ? {
-              kind: "applied", status: "applied", applied: true,
-              generation: this.briefingGeneration, evictedKey: null, action: "pruned",
-            }
-          : {
-              kind: "ignored", status: "ignored", applied: false,
-              generation: this.briefingGeneration, evictedKey: null, reason: "older",
-            };
-      }
-      if (comparison === 0) {
-        if (!sameBriefingPayload(previous.entry, candidate.entry)) {
-          log.warn(`[briefing-card] same revision payload conflict key=${candidate.entry.key}`);
-        }
-        return pruned
-          ? {
-              kind: "applied", status: "applied", applied: true,
-              generation: this.briefingGeneration, evictedKey: null, action: "pruned",
-            }
-          : {
-              kind: "ignored", status: "ignored", applied: false,
-              generation: this.briefingGeneration, evictedKey: null, reason: "unchanged",
-            };
-      }
-    }
-    if (previous != null && sameBriefingCardEntry(previous.entry, candidate.entry)) {
-      return pruned
-        ? {
-            kind: "applied", status: "applied", applied: true,
-            generation: this.briefingGeneration, evictedKey: null, action: "pruned",
-          }
-        : {
-            kind: "ignored", status: "ignored", applied: false,
-            generation: this.briefingGeneration, evictedKey: null, reason: "unchanged",
-          };
-    }
-
-    let evictedKey: string | null = null;
-    if (previous == null && this.briefingEntries.size >= BRIEFING_CARD_MAX_ENTRIES) {
-      const victim = [...this.briefingEntries.values()]
-        .sort((left, right) => left.updatedAtMs - right.updatedAtMs || compareBriefingKeys(left.entry.key, right.entry.key))[0];
-      if (victim != null) {
-        this.briefingEntries.delete(victim.entry.key);
-        evictedKey = victim.entry.key;
-      }
-    }
-
-    const generation = this.briefingGeneration + 1;
-    const entry: DisplayBriefingEntryV1 = { ...candidate.entry, generation };
-    this.briefingEntries.set(entry.key, {
-      entry,
-      updatedAtMs: candidate.updatedAtMs,
-      expiresAtMs: candidate.expiresAtMs,
-    });
-    this.rememberBriefingRevision(entry, nowMs);
-    this.briefingGeneration = generation;
-    return {
-      kind: "applied", status: "applied", applied: true,
-      generation, evictedKey, action: "upsert",
-    };
-  }
-
-  private exactVpbsEntries(sourceEventId: string): BriefingCardEntryState[] {
-    return [...this.briefingEntries.values()].filter((state) =>
-      state.entry.source === "vpbs50" && state.entry.sourceEventId === sourceEventId,
-    );
-  }
-
-  /** Cancel every exact projection, collapsing raw fallbacks onto semantic subjects. */
-  private applyExactVpbsCancellation(
-    candidate: BriefingCardEntryCandidate,
-    exact: readonly BriefingCardEntryState[],
-    nowMs: number,
-  ): BriefingCardMutationResult {
-    const semanticTargets = exact.filter((state) => isSemanticBriefingSubject(state.entry));
-    const targets = semanticTargets.length === 0 ? exact : semanticTargets;
-    for (const state of exact) this.rememberBriefingRevision(state.entry, nowMs);
-    for (const state of exact) this.briefingEntries.delete(state.entry.key);
-
-    const generation = this.briefingGeneration + 1;
-    // Record cancellation revisions before checking the short cancel-frame TTL.
-    // This preserves ordering when an expired cancellation arrives late.
-    for (const target of targets) this.rememberBriefingRevision(inheritBriefingSubject(candidate, target).entry, nowMs);
-    if (candidate.expiresAtMs <= nowMs) {
-      this.briefingGeneration = generation;
-      return {
-        kind: "applied", status: "applied", applied: true,
-        generation, evictedKey: null, action: "expiredCancellationRemoved",
-      };
-    }
-    for (const target of targets) {
-      const inherited = inheritBriefingSubject(candidate, target);
-      const entry: DisplayBriefingEntryV1 = { ...inherited.entry, generation };
-      this.briefingEntries.set(entry.key, {
-        entry,
-        updatedAtMs: inherited.updatedAtMs,
-        expiresAtMs: inherited.expiresAtMs,
-      });
-      this.rememberBriefingRevision(entry, nowMs);
-    }
-    this.briefingGeneration = generation;
-    return {
-      kind: "applied", status: "applied", applied: true,
-      generation, evictedKey: null, action: "upsert",
-    };
-  }
-
-  /** Resolve card-only identity without weakening parser/transport EventID identity. */
-  private resolveBriefingCardTarget(
-    candidate: BriefingCardEntryCandidate,
-  ): BriefingCardEntryCandidate | null {
-    if (candidate.entry.source !== "vpbs50") return candidate;
-    const exact = [...this.briefingEntries.values()].filter((state) =>
-      state.entry.source === "vpbs50" && state.entry.sourceEventId === candidate.entry.sourceEventId,
-    );
-    if (exact.length === 1) {
-      const existing = exact[0]!;
-      // VPBS50 cancellation is exact-first regardless of revision completeness.
-      // Its independent 10-minute frame must replace the resolved subject.
-      if (candidate.isVpbsCancellation) return inheritBriefingSubject(candidate, existing);
-      // Exact EventID still wins, but an unordered report must not overwrite a
-      // semantic subject. Keep it as the raw exact fallback instead.
-      if (!isSemanticBriefingSubject(existing.entry)
-        || strictBriefingRevision(existing.entry) != null && strictBriefingRevision(candidate.entry) != null) {
-        return inheritBriefingSubject(candidate, existing);
-      }
-      log.warn("[briefing-card] exact VPBS50 match is unordered; preserving semantic subject");
-      return candidate;
-    }
-
-    const semanticCandidates = briefingSemanticCandidates(
-      this.briefingEntries.values(), candidate.entry.editorialOffice ?? "", candidate.phenomenonKinds,
-    );
-    if (candidate.isVpbsCancellation) {
-      // A cancellation with an EventID is never allowed to jump to a merely
-      // similar subject. messageId-only fail-open input may use the guarded
-      // unique fallback specified for VPBS50 cancellation.
-      if (candidate.hasRawEventId) {
-        log.warn("[briefing-card] cancellation sourceEventId target is missing");
-        return null;
-      }
-      if (candidate.phenomenonKinds.length === 0) {
-        log.warn("[briefing-card] cancellation semantic fallback has no phenomenon kind");
-        return null;
-      }
-      if ((candidate.entry.editorialOffice ?? "") === "") {
-        log.warn("[briefing-card] cancellation semantic fallback has no editorial office");
-        return null;
-      }
-      if (semanticCandidates.length === 1) return inheritBriefingSubject(candidate, semanticCandidates[0]!);
-      if (semanticCandidates.length === 0) log.warn("[briefing-card] cancellation semantic target is missing");
-      else log.warn("[briefing-card] cancellation semantic target is ambiguous");
-      return null;
-    }
-    if (candidate.phenomenonKinds.length === 0 || (candidate.entry.editorialOffice ?? "") === "") return candidate;
-    if (strictBriefingRevision(candidate.entry) == null) return candidate;
-    if (semanticCandidates.length === 1) return inheritBriefingSubject(candidate, semanticCandidates[0]!);
-    if (semanticCandidates.length > 1) return candidate;
-    const phenomenonKind = candidate.phenomenonKinds[0]!;
-    const semanticKey = briefingSemanticKey(candidate.entry.editorialOffice!, phenomenonKind);
-    return {
-      ...candidate,
-      entry: {
-        ...candidate.entry,
-        key: semanticKey,
-        phenomenonKind,
-        semanticKey,
-      },
-    };
-  }
-
-  private pruneBriefingCardEntries(nowMs: number): boolean {
-    let changed = false;
-    for (const [key, state] of this.briefingEntries) {
-      if (state.expiresAtMs <= nowMs) {
-        this.briefingEntries.delete(key);
-        changed = true;
-      }
-    }
-    for (const [semanticKey, watermark] of this.briefingRevisionWatermarks) {
-      if (watermark.expiresAtMs <= nowMs) this.briefingRevisionWatermarks.delete(semanticKey);
-    }
-    if (changed) this.briefingGeneration += 1;
-    return changed;
-  }
-
-  private rememberBriefingRevision(entry: DisplayBriefingEntryV1, nowMs: number): void {
-    if (!isSemanticBriefingSubject(entry)) return;
-    const revision = strictBriefingRevision(entry);
-    if (revision == null) return;
-    const previous = this.briefingRevisionWatermarks.get(entry.semanticKey);
-    const retainedRevision = previous != null && compareRevision(previous.revision, revision) >= 0
-      ? previous.revision
-      : revision;
-    this.briefingRevisionWatermarks.set(entry.semanticKey, {
-      revision: { ...retainedRevision },
-      expiresAtMs: nowMs + BRIEFING_CARD_TTL_MS,
-    });
-  }
-
-  private isRejectedByBriefingRevisionWatermark(
-    candidate: BriefingCardEntryCandidate,
-    nowMs: number,
-  ): boolean {
-    if (!isSemanticBriefingSubject(candidate.entry) || candidate.isVpbsCancellation) return false;
-    const revision = strictBriefingRevision(candidate.entry);
-    const watermark = this.briefingRevisionWatermarks.get(candidate.entry.semanticKey);
-    return revision != null && watermark != null && watermark.expiresAtMs > nowMs
-      && compareRevision(revision, watermark.revision) <= 0;
-  }
 
   private retainManagedStandbySubjects(
     domain: string,
@@ -1465,8 +1964,14 @@ export class StandbyStateStore {
         durableChanged = true;
       }
     }
-    if (this.pruneBriefingCardEntries(nowMs)) {
-      viewChanged = true;
+    const briefingDurableBefore = this.briefingDurableFingerprint();
+    const briefingPrune = this.pruneBriefingLifecycle(nowMs);
+    if (briefingPrune.changed) {
+      this.briefingGeneration += 1;
+      const briefingDurableChanged = briefingDurableBefore !== this.briefingDurableFingerprint();
+      if (briefingDurableChanged) this.briefingDurableGeneration = this.briefingGeneration;
+      viewChanged ||= briefingPrune.viewChanged;
+      durableChanged ||= briefingDurableChanged;
     }
     if (this.revisionGuard.sweep(nowMs)) durableChanged = true;
     const floodMutation = this.floods.sweep(nowMs);
@@ -1591,13 +2096,14 @@ export class StandbyStateStore {
       sourceEventIds: entries.map((entry) => entry.sourceEventId),
       updatedAt: new Date(Math.max(...states.map((state) => state.updatedAtMs))).toISOString(),
       expiresAt: new Date(Math.max(...states.map((state) => state.expiresAtMs))).toISOString(),
-      restored: false,
+      restored: states.some((state) => state.restored),
       severity,
       data: { generation: this.briefingGeneration, entries },
     };
   }
 
   exportActiveState(): PersistedStandbyStateV1 {
+    const briefingCritical = this.exportBriefingCritical();
     return {
       version: 1,
       savedAt: new Date().toISOString(),
@@ -1652,10 +2158,39 @@ export class StandbyStateStore {
       quakeHost: this.quakeHost == null ? null : { ...this.quakeHost, revision: { ...this.quakeHost.revision } },
       nankaiTrough: this.nankaiTrough == null ? null : { sourceEventId: this.nankaiTrough.sourceEventId, statusCode: this.nankaiTrough.statusCode, label: this.nankaiTrough.label, revision: { ...this.nankaiTrough.revision }, expiresAtMs: this.nankaiTrough.expiresAtMs, appliedSemanticKey: this.nankaiTrough.appliedSemanticKey },
       seen: this.revisionGuard.export(),
+      ...(briefingCritical == null ? {} : { briefingCritical }),
     };
   }
 
-  restoreActiveState(data: PersistedStandbyState, nowMs: number): void {
+  private exportBriefingCritical(): PersistedBriefingCriticalStateV1 | null {
+    const entries = [...this.briefingEntries.values()]
+      .filter((state) => state.entry.frameLevel === "critical")
+      .map((state) => ({
+        entry: copyBriefingEntry(state.entry), updatedAtMs: state.updatedAtMs, expiresAtMs: state.expiresAtMs,
+      }));
+    const cancellations = [...this.briefingEntries.values()]
+      .filter((state) => state.entry.frameLevel === "cancel" && isSemanticBriefingSubject(state.entry))
+      .map((state) => ({
+        entry: copyBriefingEntry(state.entry), updatedAtMs: state.updatedAtMs, expiresAtMs: state.expiresAtMs,
+      }));
+    const watermarks = [...this.briefingRevisionWatermarks.entries()].map(([semanticKey, watermark]) => ({
+      semanticKey, revision: { ...watermark.revision }, expiresAtMs: watermark.expiresAtMs,
+    }));
+    const rawAliases: PersistedBriefingCriticalRawAliasV1[] = [...this.rawBriefingAliases.values()].map((alias) => ({
+      source: alias.identity.source, sourceEventId: alias.identity.sourceEventId,
+      semanticKey: alias.semanticKey, revision: { ...alias.revision }, expiresAtMs: alias.expiresAtMs,
+    }));
+    if (entries.length === 0 && cancellations.length === 0 && watermarks.length === 0 && rawAliases.length === 0) return null;
+    return validateBriefingCriticalForWrite({
+      generation: this.briefingDurableGeneration,
+      entries,
+      cancellations,
+      watermarks,
+      ...(rawAliases.length === 0 ? {} : { rawAliases }),
+    });
+  }
+
+  restoreActiveState(data: PersistedStandbyState, nowMs: number): RestoreActiveStateResult {
     this.heatAlerts.clear();
     this.typhoons.clear();
     this.volcanoes.clear();
@@ -1669,7 +2204,11 @@ export class StandbyStateStore {
     this.legacyFloodEventIds.clear();
     this.briefingEntries.clear();
     this.briefingRevisionWatermarks.clear();
+    this.rawCriticalProvenance.clear();
+    this.rawBriefingAliases.clear();
     this.briefingGeneration = 0;
+    this.briefingDurableGeneration = 0;
+    const briefingCriticalRewriteRequired = this.restoreBriefingCritical(data.briefingCritical, nowMs);
     for (const state of data.heat) {
       if (state.targetDateEndMs <= nowMs) continue;
       this.heatAlerts.set(state.key, {
@@ -1759,6 +2298,60 @@ export class StandbyStateStore {
     }, nowMs);
     for (const eventId of this.floods.activeEventIds()) this.legacyFloodEventIds.add(eventId);
     this.revisionGuard.restore(data.seen, nowMs);
+    return { briefingCriticalRewriteRequired };
+  }
+
+  private restoreBriefingCritical(state: PersistedBriefingCriticalStateV1 | undefined, nowMs: number): boolean {
+    if (state == null) return false;
+    this.briefingGeneration = state.generation;
+    this.briefingDurableGeneration = state.generation;
+    let rewriteRequired = state.rawAliases != null && state.rawAliases.length === 0;
+    for (const watermark of state.watermarks) {
+      if (watermark.expiresAtMs <= nowMs) {
+        rewriteRequired = true;
+        continue;
+      }
+      this.briefingRevisionWatermarks.set(watermark.semanticKey, {
+        revision: { ...watermark.revision }, expiresAtMs: watermark.expiresAtMs,
+      });
+    }
+    for (const alias of state.rawAliases ?? []) {
+      if (alias.expiresAtMs <= nowMs) {
+        rewriteRequired = true;
+        continue;
+      }
+      const identity = { kind: "raw" as const, source: alias.source, sourceEventId: alias.sourceEventId };
+      this.rawBriefingAliases.set(briefingCriticalIdentityToken(identity), {
+        identity, semanticKey: alias.semanticKey, revision: { ...alias.revision }, expiresAtMs: alias.expiresAtMs,
+      });
+    }
+    for (const persisted of [...state.entries, ...state.cancellations]) {
+      if (persisted.expiresAtMs <= nowMs) {
+        rewriteRequired = true;
+        continue;
+      }
+      if (persisted.entry.semanticKey != null && !this.briefingRevisionWatermarks.has(persisted.entry.semanticKey)) {
+        rewriteRequired = true;
+        continue;
+      }
+      const entry = copyBriefingEntry(persisted.entry);
+      this.briefingEntries.set(entry.key, {
+        entry, updatedAtMs: persisted.updatedAtMs, expiresAtMs: persisted.expiresAtMs, restored: true,
+      });
+      if (entry.semanticKey == null && entry.frameLevel === "critical") {
+        const identity = { kind: "raw" as const, source: entry.source, sourceEventId: entry.sourceEventId };
+        const token = briefingCriticalIdentityToken(identity);
+        const revision = strictBriefingRevision(entry);
+        this.rawCriticalProvenance.set(token, {
+          identity, phase: "active", lastStrictRevision: revision == null ? null : { ...revision },
+          lastAcceptedFrameLevel: "critical", lastPayloadFingerprint: briefingPayloadFingerprint(entry),
+          lastCriticalExpiresAtMs: persisted.expiresAtMs, expiresAtMs: persisted.expiresAtMs,
+        });
+      }
+    }
+    const canonical = this.exportBriefingCritical();
+    if (canonical == null) return true;
+    return rewriteRequired || stableCanonicalJson(canonical) !== stableCanonicalJson(state);
   }
 
   onChange(cb: () => void): void {
@@ -1831,17 +2424,56 @@ function briefingSemanticKey(editorialOffice: string, phenomenonKind: DisplayBri
   return `card:vpbs:semantic:${phenomenonKind}:${editorialOffice}`;
 }
 
-function briefingSemanticCandidates(
-  entries: Iterable<BriefingCardEntryState>,
-  editorialOffice: string,
-  kinds: readonly DisplayBriefingKindV1[],
-): BriefingCardEntryState[] {
-  if (editorialOffice === "" || kinds.length === 0) return [];
-  return [...entries].filter((state) => state.entry.source === "vpbs50"
-    && state.entry.editorialOffice === editorialOffice
-    && isSemanticBriefingSubject(state.entry)
-    && kinds.includes(state.entry.phenomenonKind));
+export function briefingCriticalIdentityToken(identity: BriefingCriticalIdentity): string {
+  return identity.kind === "semantic"
+    ? JSON.stringify(["semantic", identity.semanticKey])
+    : JSON.stringify(["raw", identity.source, identity.sourceEventId]);
 }
+
+function rawBriefingDisplayKey(identity: Extract<BriefingCriticalIdentity, { kind: "raw" }>): string {
+  return `card:briefing:${briefingCriticalIdentityToken(identity)}`;
+}
+
+function stableCanonicalJson(value: unknown): string {
+  if (Array.isArray(value)) {
+    return `[${value.map(stableCanonicalJson).sort().join(",")}]`;
+  }
+  if (value != null && typeof value === "object") {
+    return `{${Object.entries(value as Record<string, unknown>)
+      .sort(([left], [right]) => left.localeCompare(right))
+      .map(([key, item]) => `${JSON.stringify(key)}:${stableCanonicalJson(item)}`).join(",")}}`;
+  }
+  return JSON.stringify(value);
+}
+
+function briefingPayloadFingerprint(entry: DisplayBriefingEntryV1): string {
+  const {
+    key: _key, sourceEventId: _sourceEventId, editorialOffice: _editorialOffice,
+    phenomenonKind: _phenomenonKind, semanticKey: _semanticKey, serial: _serial,
+    reportDateTime: _reportDateTime, updatedAt: _updatedAt, expiresAt: _expiresAt,
+    generation: _generation, ...payload
+  } = entry;
+  return stableCanonicalJson(payload);
+}
+
+function briefingEntryIdentityToken(entry: DisplayBriefingEntryV1): string {
+  return entry.semanticKey != null
+    ? briefingCriticalIdentityToken({ kind: "semantic", semanticKey: entry.semanticKey })
+    : briefingCriticalIdentityToken({ kind: "raw", source: entry.source, sourceEventId: entry.sourceEventId });
+}
+
+function isDurableBriefingEntry(entry: DisplayBriefingEntryV1): boolean {
+  return entry.frameLevel === "critical"
+    || entry.frameLevel === "cancel" && isSemanticBriefingSubject(entry);
+}
+
+function briefingCandidateWithinLimits(entry: DisplayBriefingEntryV1): boolean {
+  return entry.conditions.length <= 2_048 && entry.targetAreas.length <= 2_048
+    && entry.severityEvidence.length <= 2_048
+    && (entry.summary == null || entry.summary.items.length <= 4
+      && entry.summary.items.every((item) => item.facts.length <= 2_048));
+}
+
 
 function isSemanticBriefingSubject(entry: DisplayBriefingEntryV1): entry is DisplayBriefingEntryV1 & {
   phenomenonKind: DisplayBriefingKindV1;
@@ -1850,21 +2482,6 @@ function isSemanticBriefingSubject(entry: DisplayBriefingEntryV1): entry is Disp
   return entry.source === "vpbs50" && entry.phenomenonKind != null && entry.semanticKey != null;
 }
 
-function inheritBriefingSubject(
-  candidate: BriefingCardEntryCandidate,
-  existing: BriefingCardEntryState,
-): BriefingCardEntryCandidate {
-  return {
-    ...candidate,
-    entry: {
-      ...candidate.entry,
-      key: existing.entry.key,
-      editorialOffice: existing.entry.editorialOffice,
-      phenomenonKind: existing.entry.phenomenonKind,
-      semanticKey: existing.entry.semanticKey,
-    },
-  };
-}
 
 function strictBriefingRevision(entry: DisplayBriefingEntryV1): StandbyRevision | null {
   const reportTimeMs = Date.parse(entry.reportDateTime);
@@ -1888,17 +2505,17 @@ function compareBriefingEntryRevision(
 /** Card identity deliberately preserves the raw EventID/messageId spelling. */
 export function briefingCardIdentity(event: PresentationEvent): string | null {
   const source = parsedBriefing(event) != null
-    ? "vpbs"
+    ? "vpbs50"
     : parsedVpoa(event) != null
-      ? "vpoa"
+      ? "vpoa50"
       : event.domain === "briefing" && event.type === "VPBS50"
-        ? "vpbs"
+        ? "vpbs50"
         : event.domain === "legacyCounterpart" && event.type === "VPOA50"
-          ? "vpoa"
+          ? "vpoa50"
           : null;
   const rawIdentity = sourceEventId(event);
   if (source == null || rawIdentity == null) return null;
-  return `card:${source}:${rawIdentity}`;
+  return rawBriefingDisplayKey({ kind: "raw", source, sourceEventId: rawIdentity });
 }
 
 function reportTimeMs(reportDateTime: string, nowMs: number): number {
@@ -2079,15 +2696,17 @@ function briefingCardEntryCandidate(
     : vpoa != null || event.domain === "legacyCounterpart" && event.type === "VPOA50"
       ? "vpoa50"
       : null;
-  const key = briefingCardIdentity(event);
   const rawIdentity = sourceEventId(event);
-  if (source == null || key == null || rawIdentity == null) return null;
+  if (source == null || rawIdentity == null) return null;
+  const typedRawIdentity: Extract<BriefingCriticalIdentity, { kind: "raw" }> = {
+    kind: "raw", source, sourceEventId: rawIdentity,
+  };
 
   const infoType = nonBlank(info?.infoType ?? vpoa?.infoType ?? event.infoType) ?? event.infoType;
   const reportDateTime = info?.reportDateTime ?? vpoa?.reportDateTime ?? event.reportDateTime;
   const updatedAtMs = reportTimeMs(reportDateTime, nowMs);
-  const isVpbsCancellation = source === "vpbs50" && (infoType === "取消" || event.isCancellation);
-  const ownTtlMs = isVpbsCancellation ? BRIEFING_CARD_CANCEL_TTL_MS : BRIEFING_CARD_TTL_MS;
+  const isCancellation = infoType === "取消" || event.isCancellation;
+  const ownTtlMs = isCancellation ? BRIEFING_CARD_CANCEL_TTL_MS : BRIEFING_CARD_TTL_MS;
   const ownExpiresAtMs = updatedAtMs + ownTtlMs;
   const expiresAtMs = ownExpiresAtMs;
 
@@ -2096,9 +2715,13 @@ function briefingCardEntryCandidate(
     : vpoa != null
       ? vpoa.areas.map((area) => ({ name: area.name, code: area.code }))
       : briefingAreaItems(event);
-  const frameLevel = source === "vpbs50"
+  const frameLevel = isCancellation
+    ? "cancel"
+    : source === "vpbs50"
     ? normalizeBriefingFrameLevel(info == null ? event.frameLevel : briefingFrameLevel(info))
-    : vpoa != null && isHighVpoaCard(vpoa) ? "critical" : "warning";
+    : vpoa == null
+      ? normalizeBriefingFrameLevel(event.frameLevel)
+      : isHighVpoaCard(vpoa) ? "critical" : "warning";
   const severityEvidence = info != null
     ? briefingEvidenceToWire(info)
     : vpoa != null
@@ -2111,6 +2734,12 @@ function briefingCardEntryCandidate(
       : [];
   const phenomenonKinds = briefingPhenomenonKinds(info);
   const editorialOffice = nonBlank(info?.editorialOffice ?? vpoa?.editorialOffice ?? event.editorialOffice) ?? "";
+  const revision = strictRevisionFromParts(reportDateTime, info?.serial ?? vpoa?.serial ?? event.serial ?? null);
+  const semanticKeyCandidate = source === "vpbs50" && editorialOffice !== ""
+    && phenomenonKinds.length === 1 && revision != null
+    ? briefingSemanticKey(editorialOffice, phenomenonKinds[0]!)
+    : null;
+  const key = semanticKeyCandidate ?? rawBriefingDisplayKey(typedRawIdentity);
 
   const entry: DisplayBriefingEntryV1 = {
     key,
@@ -2119,8 +2748,8 @@ function briefingCardEntryCandidate(
     editorialOffice,
     // A fail-open raw entry must not look like a semantic subject. The kind is
     // written only by subject creation or inheritance after guarded matching.
-    phenomenonKind: null,
-    semanticKey: null,
+    phenomenonKind: semanticKeyCandidate == null ? null : phenomenonKinds[0]!,
+    semanticKey: semanticKeyCandidate,
     serial: info?.serial ?? vpoa?.serial ?? event.serial ?? null,
     title: info?.title ?? vpoa?.title ?? event.title,
     headline: info?.headline ?? vpoa?.headline ?? event.headline,
@@ -2141,10 +2770,25 @@ function briefingCardEntryCandidate(
     entry,
     updatedAtMs,
     expiresAtMs,
+    restored: false,
     phenomenonKinds,
     hasRawEventId: rawEventId(event) != null,
-    isVpbsCancellation,
+    isCancellation,
+    rawIdentity: typedRawIdentity,
+    rawToken: briefingCriticalIdentityToken(typedRawIdentity),
+    semanticKeyCandidate,
+    revision,
+    fingerprint: briefingPayloadFingerprint(entry),
   };
+}
+
+function strictRevisionFromParts(reportDateTime: string, serial: string | null | undefined): StandbyRevision | null {
+  const reportTimeMs = Date.parse(reportDateTime);
+  if (!Number.isFinite(reportTimeMs) || serial == null || !/^\d+$/.test(serial.trim())) return null;
+  const numeric = Number(serial);
+  return Number.isSafeInteger(numeric) && numeric >= 0
+    ? { reportTimeMs, serial: String(numeric) }
+    : null;
 }
 
 function normalizeBriefingFrameLevel(
@@ -2161,22 +2805,6 @@ function sameBriefingCardEntry(left: DisplayBriefingEntryV1, right: DisplayBrief
 }
 
 /** Revision equality is about the semantic payload, not the raw EventID lineage. */
-function sameBriefingPayload(left: DisplayBriefingEntryV1, right: DisplayBriefingEntryV1): boolean {
-  const {
-    key: _leftKey,
-    sourceEventId: _leftSourceEventId,
-    generation: _leftGeneration,
-    ...leftPayload
-  } = left;
-  const {
-    key: _rightKey,
-    sourceEventId: _rightSourceEventId,
-    generation: _rightGeneration,
-    ...rightPayload
-  } = right;
-  return JSON.stringify(leftPayload) === JSON.stringify(rightPayload);
-}
-
 function compareBriefingKeys(left: string, right: string): number {
   return left < right ? -1 : left > right ? 1 : 0;
 }
@@ -2184,8 +2812,8 @@ function compareBriefingKeys(left: string, right: string): number {
 function briefingCardMutationToDisplayMutation(result: BriefingCardMutationResult): DisplayMutation {
   if (!result.applied) return NO_MUTATION;
   return {
-    viewChanged: true,
-    durableChanged: false,
+    viewChanged: result.viewChanged === true,
+    durableChanged: result.durableChanged === true,
     ...(result.evictedKey == null ? {} : { cardEvictedKey: result.evictedKey }),
   };
 }

@@ -51,6 +51,10 @@ import {
 
 const T0 = Date.parse("2026-07-21T05:00:00+09:00");
 
+function rawBriefingKey(source: "vpbs50" | "vpoa50", sourceEventId: string): string {
+  return `card:briefing:${JSON.stringify(["raw", source, sourceEventId])}`;
+}
+
 const BRIEFING_STATIC_SUMMARY_FACTS: Readonly<Record<string, readonly Record<string, unknown>[]>> = {
   "82_01_01_260324_VPBS50.xml": [
     { kind: "event", label: "発生", areaName: "北西部", areaCode: "120010", at: "2023-09-08T10:10:00+09:00" },
@@ -270,6 +274,63 @@ function semanticBriefingEvent(
     reportDateTime,
     editorialOffice,
     raw,
+  };
+}
+
+function rawLifecycleBriefingEvent(
+  eventId: string,
+  reportDateTime: string,
+  serial: string | null,
+  frameLevel: "critical" | "warning" | "info" | "cancel" = "critical",
+  source: "vpbs50" | "vpoa50" = "vpbs50",
+  title = "気象防災速報",
+): PresentationEvent {
+  const event = minimalBriefingEvent(eventId, reportDateTime);
+  event.domain = source === "vpbs50" ? "briefing" : "legacyCounterpart";
+  event.type = source === "vpbs50" ? "VPBS50" : "VPOA50";
+  event.serial = serial;
+  event.frameLevel = frameLevel;
+  event.infoType = frameLevel === "cancel" ? "取消" : "発表";
+  event.isCancellation = frameLevel === "cancel";
+  event.title = title;
+  return event;
+}
+
+function semanticBriefingFrame(
+  event: PresentationEvent,
+  frameLevel: "critical" | "warning" | "info" | "cancel",
+): PresentationEvent {
+  const raw = event.raw as ParsedWeatherBriefing;
+  const displaySeverity = frameLevel === "critical"
+    ? "nonLevelSpecial"
+    : frameLevel === "warning"
+      ? "nonLevelWarning"
+      : frameLevel === "info"
+        ? "nonLevelAdvisory"
+        : "release";
+  const infoType = frameLevel === "cancel" ? "取消" : raw.infoType;
+  return {
+    ...event,
+    frameLevel,
+    infoType,
+    isCancellation: frameLevel === "cancel",
+    raw: {
+      ...raw,
+      infoType,
+      maxDisplaySeverity: displaySeverity,
+      briefingSeverityEvidence: raw.briefingSeverityEvidence.map((evidence) => ({
+        ...evidence,
+        displaySeverity,
+      })),
+    },
+  };
+}
+
+function rawizeSemanticBriefing(event: PresentationEvent): PresentationEvent {
+  return {
+    ...event,
+    editorialOffice: "",
+    raw: { ...(event.raw as ParsedWeatherBriefing), editorialOffice: "" },
   };
 }
 
@@ -1497,10 +1558,27 @@ describe("StandbyStateStore: independent briefing card", () => {
     const vpoaCancel = vpoaEvent(FIXTURE_VPOA50_SYNTH_CANCEL);
     const vpoaCancelStore = new StandbyStateStore();
     const vpoaCancelNow = Date.parse(vpoaCancel.reportDateTime) + 1;
-    vpoaCancelStore.applyEvent(vpoaCancel, vpoaCancelNow);
-    const vpoaCancelEntry = vpoaCancelStore.snapshotBriefingCard()!.data.entries[0]!;
-    expect(vpoaCancelEntry.summary).toMatchObject({ mode: "rawHeadlineFallback" });
-    expect(Date.parse(vpoaCancelEntry.expiresAt)).toBe(Date.parse(vpoaCancel.reportDateTime) + BRIEFING_CARD_TTL_MS);
+    expect(vpoaCancelStore.applyEvent(vpoaCancel, vpoaCancelNow))
+      .toEqual({ viewChanged: false, durableChanged: false });
+    expect(vpoaCancelStore.snapshotBriefingCard()).toBeNull();
+  });
+
+  it("VPOA50 raw cancellationはsource非限定でcancel lifecycleと10分TTLを適用する", () => {
+    const cancelAtMs = Date.parse("2026-08-25T00:01:00.000Z");
+    const critical = rawLifecycleBriefingEvent(
+      "vpoa-raw-cancel", "2026-08-25T00:00:00.000Z", "1", "critical", "vpoa50",
+    );
+    const cancel = rawLifecycleBriefingEvent(
+      "vpoa-raw-cancel", new Date(cancelAtMs).toISOString(), "2", "cancel", "vpoa50",
+    );
+    const store = new StandbyStateStore();
+
+    store.applyEvent(critical, cancelAtMs);
+    expect(store.applyEvent(cancel, cancelAtMs)).toEqual({ viewChanged: true, durableChanged: true });
+    const entry = store.snapshotBriefingCard()!.data.entries[0]!;
+    expect(entry).toMatchObject({ source: "vpoa50", frameLevel: "cancel", infoType: "取消" });
+    expect(Date.parse(entry.expiresAt)).toBe(cancelAtMs + BRIEFING_CARD_CANCEL_TTL_MS);
+    expect(store.exportActiveState().briefingCritical).toBeUndefined();
   });
 
   it("headline を無関係な散文へ置換しても summary は変わらない", () => {
@@ -1572,18 +1650,23 @@ describe("StandbyStateStore: independent briefing card", () => {
       expect(store.snapshotBriefingCard()).toBeNull();
       return;
     }
-    expect(mutation)
-      .toEqual({ viewChanged: true, durableChanged: false });
+    expect(mutation).toEqual({
+      viewChanged: true,
+      durableChanged: briefingFrameLevel(info) === "critical",
+    });
 
     const card = store.snapshotBriefingCard();
     expect(card).not.toBeNull();
     const entry = card!.data.entries[0];
     expect(card!.data.entries).toHaveLength(1);
     expect(entry).toMatchObject({
-      key: info.briefingSeverityEvidence.some((evidence) => evidence.tag !== "other")
-        && info.editorialOffice !== ""
+      key: new Set(info.briefingSeverityEvidence
+        .map((evidence) => evidence.tag)
+        .filter((tag) => ["linearRainObserved", "linearRainPredicted", "recordRain", "shortSnow"].includes(tag)))
+        .size === 1
+        && info.editorialOffice !== "" && info.serial != null
         ? expect.stringMatching(/^card:vpbs:semantic:/)
-        : `card:vpbs:${info.eventId}`,
+        : rawBriefingKey("vpbs50", info.eventId!),
       source: "vpbs50",
       title: expected.title,
       headline: expected.headline,
@@ -1612,7 +1695,7 @@ describe("StandbyStateStore: independent briefing card", () => {
     expect(entry).toMatchObject({
       key: expected.source === "vpbs50"
         ? expect.stringMatching(/^card:vpbs:semantic:/)
-        : `card:vpoa:${expected.sourceEventId}`,
+        : rawBriefingKey("vpoa50", expected.sourceEventId),
       source: expected.source,
       sourceEventId: expected.sourceEventId,
       title: expected.title,
@@ -1653,10 +1736,13 @@ describe("StandbyStateStore: independent briefing card", () => {
     const nowMs = Date.parse(source.reportDateTime) + 1;
     const store = new StandbyStateStore();
 
-    expect(store.applyEvent(source, nowMs)).toEqual({ viewChanged: true, durableChanged: false });
+    expect(store.applyEvent(source, nowMs)).toEqual({
+      viewChanged: true,
+      durableChanged: source.legacySeverity === "high",
+    });
     const entry = store.snapshotBriefingCard()!.data.entries[0];
     expect(entry).toMatchObject({
-      key: `card:vpoa:${source.eventId}`,
+      key: rawBriefingKey("vpoa50", source.eventId!),
       source: "vpoa50",
       sourceEventId: source.eventId,
       qualifier: "対応電文未確認",
@@ -1675,7 +1761,7 @@ describe("StandbyStateStore: independent briefing card", () => {
     const store = new StandbyStateStore();
 
     store.applyEvent(source, nowMs);
-    const sourceKey = "card:vpoa:raw-message-id";
+    const sourceKey = rawBriefingKey("vpoa50", "raw-message-id");
     expect(store.snapshotBriefingCard()!.data.entries[0].key).toBe(sourceKey);
   });
 
@@ -1697,7 +1783,7 @@ describe("StandbyStateStore: independent briefing card", () => {
     const canonical = briefingEvent(FIXTURE_PHASE6B_VPBS50_KJPTK202608221709_202608221709);
     const nowMs = Date.parse(source.reportDateTime) + 1;
     const store = new StandbyStateStore();
-    const sourceKey = `card:vpoa:${source.eventId}`;
+    const sourceKey = rawBriefingKey("vpoa50", source.eventId!);
 
     store.applyEvent(source, nowMs);
     const applied = store.reconcileBriefingCard(sourceKey, canonical, nowMs);
@@ -1710,7 +1796,7 @@ describe("StandbyStateStore: independent briefing card", () => {
     });
 
     const repeated = store.reconcileBriefingCard(sourceKey, canonical, nowMs);
-    expect(repeated).toMatchObject({ kind: "ignored", reason: "sourceNotFound" });
+    expect(repeated).toMatchObject({ kind: "ignored", reason: "sourceAlreadyReconciled" });
     expect(repeated.generation).toBe(applied.generation);
     expect(store.snapshotBriefingCard()!.data.entries).toHaveLength(1);
   });
@@ -1724,7 +1810,7 @@ describe("StandbyStateStore: independent briefing card", () => {
     const store = new StandbyStateStore();
 
     store.applyEvent(source, nowMs);
-    const result = store.reconcileBriefingCard("card:vpoa:source-min", canonical, nowMs);
+    const result = store.reconcileBriefingCard(rawBriefingKey("vpoa50", "source-min"), canonical, nowMs);
     expect(result).toMatchObject({ kind: "applied", applied: true, canonicalInserted: true, evictedKey: null });
     if (result.kind !== "applied") throw new Error("reconcile must apply before its expiry");
     const expiresAtMs = nowMs + 1_000;
@@ -1743,12 +1829,12 @@ describe("StandbyStateStore: independent briefing card", () => {
     const store = new StandbyStateStore();
 
     store.applyEvent(source, nowMs);
-    const result = store.reconcileBriefingCard("card:vpoa:source-expired", canonical, nowMs);
+    const result = store.reconcileBriefingCard(rawBriefingKey("vpoa50", "source-expired"), canonical, nowMs);
     expect(result).toMatchObject({
       kind: "applied", applied: true, canonicalInserted: false, expiresAt: null, generation: 2,
     });
     expect(store.snapshotBriefingCard()).toBeNull();
-    expect(store.reconcileBriefingCard("card:vpoa:source-expired", canonical, nowMs))
+    expect(store.reconcileBriefingCard(rawBriefingKey("vpoa50", "source-expired"), canonical, nowMs))
       .toMatchObject({ kind: "ignored", applied: false, reason: "sourceNotFound", generation: 2 });
   });
 
@@ -1763,7 +1849,7 @@ describe("StandbyStateStore: independent briefing card", () => {
     store.onDurable(() => { durableCalls += 1; });
 
     store.applyEvent(source, nowMs);
-    store.reconcileBriefingCard("card:vpoa:source-durable", canonical, nowMs);
+    store.reconcileBriefingCard(rawBriefingKey("vpoa50", "source-durable"), canonical, nowMs);
     store.sweep(nowMs + BRIEFING_CARD_TTL_MS);
     expect(durableCalls).toBe(0);
   });
@@ -1783,7 +1869,7 @@ describe("StandbyStateStore: independent briefing card", () => {
     expect(store.applyEvent(issued, nowMs)).toEqual({ viewChanged: true, durableChanged: false });
     expect(store.applyEvent(corrected, nowMs + 1_000)).toEqual({ viewChanged: true, durableChanged: false });
     expect(store.snapshotBriefingCard()!.data.entries[0]).toMatchObject({
-      key: "card:vpbs:corrected", title: "訂正済み気象防災速報", infoType: "訂正", generation: 2,
+      key: rawBriefingKey("vpbs50", "corrected"), title: "訂正済み気象防災速報", infoType: "訂正", generation: 2,
     });
   });
 
@@ -1848,12 +1934,12 @@ describe("StandbyStateStore: independent briefing card", () => {
     expect(store.briefingCardEntryCount()).toBe(BRIEFING_CARD_MAX_ENTRIES);
 
     expect(store.applyBriefingCardEvent(minimalBriefingEvent("a-overflow", new Date(baseMs).toISOString()), baseMs))
-      .toMatchObject({ kind: "applied", evictedKey: "card:vpbs:b-000" });
+      .toMatchObject({ kind: "applied", evictedKey: rawBriefingKey("vpbs50", "b-000") });
     expect(store.briefingCardEntryCount()).toBe(BRIEFING_CARD_MAX_ENTRIES);
     const entries = store.snapshotBriefingCard()!.data.entries;
     expect(entries).toHaveLength(BRIEFING_CARD_MAX_ENTRIES);
-    expect(entries.some((entry) => entry.key === "card:vpbs:b-000")).toBe(false);
-    expect(entries.some((entry) => entry.key === "card:vpbs:a-overflow")).toBe(true);
+    expect(entries.some((entry) => entry.key === rawBriefingKey("vpbs50", "b-000"))).toBe(false);
+    expect(entries.some((entry) => entry.key === rawBriefingKey("vpbs50", "a-overflow"))).toBe(true);
   });
 
   it("prune 後の追加は eviction を報告せず128件を保つ", () => {
@@ -1867,7 +1953,7 @@ describe("StandbyStateStore: independent briefing card", () => {
     expect(store.applyBriefingCardEvent(minimalBriefingEvent("fresh-new", new Date(nowMs).toISOString()), nowMs))
       .toMatchObject({ kind: "applied", evictedKey: null });
     expect(store.briefingCardEntryCount()).toBe(BRIEFING_CARD_MAX_ENTRIES);
-    expect(store.snapshotBriefingCard()!.data.entries.some((entry) => entry.key === "card:vpbs:expired-first")).toBe(false);
+    expect(store.snapshotBriefingCard()!.data.entries.some((entry) => entry.key === rawBriefingKey("vpbs50", "expired-first"))).toBe(false);
   });
 
   it("briefing 追加後も既存 kind の snapshot byte shape を変えない", () => {
@@ -1925,7 +2011,7 @@ describe("StandbyStateStore: independent briefing card", () => {
     store.applyEvent(combined, nowMs);
     expect(store.snapshotBriefingCard()!.data.entries).toHaveLength(3);
     expect(store.snapshotBriefingCard()!.data.entries.find((entry) => entry.sourceEventId === "combined"))
-      .toMatchObject({ key: "card:vpbs:combined", phenomenonKind: null, semanticKey: null });
+      .toMatchObject({ key: rawBriefingKey("vpbs50", "combined"), phenomenonKind: null, semanticKey: null });
 
     const empty = semanticBriefingEvent("empty", "2026-08-25T00:02:00.000Z", "3");
     empty.raw = { ...(empty.raw as ParsedWeatherBriefing), briefingConditions: [], briefingSeverityEvidence: [] };
@@ -1973,7 +2059,7 @@ describe("StandbyStateStore: independent briefing card", () => {
     expect(Date.parse(entry.expiresAt)).toBe(Date.parse(cancel.reportDateTime) + BRIEFING_CARD_CANCEL_TTL_MS);
   });
 
-  it("VPBS50 取消の EventID exact は revision 欠落でも cancel frame に置換する", () => {
+  it("C-1 案B: VPBS50 critical exact 取消は revision 欠落なら fail-closed", () => {
     const nowMs = Date.parse("2026-08-25T00:10:00.000Z");
     const normal = semanticBriefingEvent("cancel-exact", "2026-08-25T00:00:00.000Z", "1");
     const cancel = semanticBriefingEvent("cancel-exact", "", "2");
@@ -1985,18 +2071,17 @@ describe("StandbyStateStore: independent briefing card", () => {
     const store = new StandbyStateStore();
 
     store.applyEvent(normal, nowMs);
-    store.applyEvent(cancel, nowMs);
+    const before = store.exportActiveState().briefingCritical;
+    const generation = store.briefingCardGeneration();
+    expect(store.applyEvent(cancel, nowMs)).toEqual({ viewChanged: false, durableChanged: false });
+    expect(store.briefingCardGeneration()).toBe(generation);
+    expect(store.exportActiveState().briefingCritical).toEqual(before);
     expect(store.snapshotBriefingCard()!.data.entries).toEqual([
-      expect.objectContaining({
-        sourceEventId: "cancel-exact",
-        key: "card:vpbs:semantic:linearRainObserved:試験地方気象台",
-        infoType: "取消",
-        frameLevel: "cancel",
-      }),
+      expect.objectContaining({ sourceEventId: "cancel-exact", frameLevel: "critical" }),
     ]);
   });
 
-  it("VPBS50 取消は同一 EventID の raw fallback が共存しても semantic subject を確実に取消す", () => {
+  it("C-1 案B: raw fallback 共存時も unordered 取消は全targetを変更しない", () => {
     const nowMs = Date.parse("2026-08-25T00:10:00.000Z");
     const normal = semanticBriefingEvent("cancel-many", "2026-08-25T00:00:00.000Z", "1");
     const unordered = semanticBriefingEvent("cancel-many", "2026-08-25T00:01:00.000Z", "2");
@@ -2012,14 +2097,11 @@ describe("StandbyStateStore: independent briefing card", () => {
     store.applyEvent(normal, nowMs);
     store.applyEvent(unordered, nowMs);
     expect(store.snapshotBriefingCard()!.data.entries).toHaveLength(2);
-    store.applyEvent(cancel, nowMs);
-    expect(store.snapshotBriefingCard()!.data.entries).toEqual([
-      expect.objectContaining({
-        sourceEventId: "cancel-many",
-        key: "card:vpbs:semantic:linearRainObserved:試験地方気象台",
-        frameLevel: "cancel",
-      }),
-    ]);
+    const before = store.snapshotBriefingCard();
+    const generation = store.briefingCardGeneration();
+    expect(store.applyEvent(cancel, nowMs)).toEqual({ viewChanged: false, durableChanged: false });
+    expect(store.briefingCardGeneration()).toBe(generation);
+    expect(store.snapshotBriefingCard()).toEqual(before);
   });
 
   it("late reconcile は古い canonical で新しい VPBS50 も VPOA50 source も置換しない", () => {
@@ -2032,7 +2114,7 @@ describe("StandbyStateStore: independent briefing card", () => {
 
     store.applyEvent(newer, nowMs);
     store.applyEvent(source, nowMs);
-    expect(store.reconcileBriefingCard(`card:vpoa:${source.eventId}`, canonical, nowMs))
+    expect(store.reconcileBriefingCard(rawBriefingKey("vpoa50", source.eventId!), canonical, nowMs))
       .toMatchObject({ kind: "ignored", reason: "canonicalNotNewer" });
     expect(store.snapshotBriefingCard()!.data.entries.map((entry) => entry.sourceEventId))
       .toEqual(expect.arrayContaining(["newer", source.eventId]));
@@ -2040,24 +2122,21 @@ describe("StandbyStateStore: independent briefing card", () => {
     warn.mockRestore();
   });
 
-  it("late reconcile は unordered canonical で VPBS50 も VPOA50 source も変更しない", () => {
+  it("late reconcile は strict identity を構成できない canonical で state を変更しない", () => {
     const source = vpoaEvent(FIXTURE_PHASE6B_VPOA50_JPTK202608221709_202608221709);
     const nowMs = Date.parse(source.reportDateTime) + 1;
     const existing = semanticBriefingEvent("late-existing", "2026-08-22T17:10:00+09:00", "2");
     const unordered = semanticBriefingEvent("late-unordered", "2026-08-22T17:11:00+09:00", "3");
     unordered.serial = null;
     unordered.raw = { ...(unordered.raw as ParsedWeatherBriefing), serial: null };
-    const warn = vi.spyOn(log, "warn");
     const store = new StandbyStateStore();
 
     store.applyEvent(existing, nowMs);
     store.applyEvent(source, nowMs);
-    expect(store.reconcileBriefingCard(`card:vpoa:${source.eventId}`, unordered, nowMs))
-      .toMatchObject({ kind: "ignored", reason: "canonicalNotNewer" });
+    expect(store.reconcileBriefingCard(rawBriefingKey("vpoa50", source.eventId!), unordered, nowMs))
+      .toMatchObject({ kind: "ignored", reason: "canonicalNotBriefing" });
     expect(store.snapshotBriefingCard()!.data.entries.map((entry) => entry.sourceEventId))
       .toEqual(expect.arrayContaining(["late-existing", source.eventId]));
-    expect(warn).toHaveBeenCalledWith("[briefing-card] late reconcile canonical is unordered");
-    warn.mockRestore();
   });
 
   it("exact EventID は競合する Condition 集合より先に既存 subject を解決する", () => {
@@ -2072,7 +2151,7 @@ describe("StandbyStateStore: independent briefing card", () => {
     store.applyEvent(corrected, nowMs);
     expect(store.snapshotBriefingCard()!.data.entries).toEqual(expect.arrayContaining([
       expect.objectContaining({ sourceEventId: "exact", phenomenonKind: "linearRainObserved", semanticKey: "card:vpbs:semantic:linearRainObserved:試験地方気象台" }),
-      expect.objectContaining({ sourceEventId: "competing", phenomenonKind: "recordRain" }),
+      expect.objectContaining({ sourceEventId: "exact", phenomenonKind: "recordRain", semanticKey: "card:vpbs:semantic:recordRain:試験地方気象台" }),
     ]));
   });
 
@@ -2104,7 +2183,7 @@ describe("StandbyStateStore: independent briefing card", () => {
     expect(entries.find((entry) => entry.sourceEventId === "followup"))
       .toMatchObject({ key: "card:vpbs:semantic:linearRainObserved:試験地方気象台", phenomenonKind: "linearRainObserved" });
     expect(entries.find((entry) => entry.sourceEventId === "raw"))
-      .toMatchObject({ key: "card:vpbs:raw", editorialOffice: "試験地方気象台", semanticKey: null, phenomenonKind: null });
+      .toMatchObject({ key: rawBriefingKey("vpbs50", "raw"), editorialOffice: "試験地方気象台", semanticKey: null, phenomenonKind: null });
   });
 
   it("EventID 欠落取消の複数 semantic 候補は保護し、VPOA50取消とは混ざらない", () => {
@@ -2148,7 +2227,9 @@ describe("StandbyStateStore: independent briefing card", () => {
     ] };
     const store = new StandbyStateStore();
     store.applyEvent(all, nowMs);
-    expect(store.snapshotBriefingCard()!.data.entries[0]!.phenomenonKind).toBe("linearRainObserved");
+    expect(store.snapshotBriefingCard()!.data.entries[0]).toMatchObject({
+      key: rawBriefingKey("vpbs50", "all"), phenomenonKind: null, semanticKey: null,
+    });
   });
 
   it("unordered exact は semantic subject を上書きせず raw exact fallback にし、prune は ignored 経路でも通知する", () => {
@@ -2169,10 +2250,10 @@ describe("StandbyStateStore: independent briefing card", () => {
     store.applyEvent(unordered, nowMs);
     expect(store.snapshotBriefingCard()!.data.entries).toEqual(expect.arrayContaining([
       expect.objectContaining({ sourceEventId: "same", semanticKey: "card:vpbs:semantic:linearRainObserved:試験地方気象台" }),
-      expect.objectContaining({ key: "card:vpbs:same", semanticKey: null }),
+      expect.objectContaining({ key: rawBriefingKey("vpbs50", "same"), semanticKey: null }),
     ]));
     store.applyEvent(expired, Date.parse("2026-08-24T22:00:00.000Z"));
-    expect(store.applyEvent(missingCancel, nowMs)).toEqual({ viewChanged: true, durableChanged: false });
+    expect(store.applyEvent(missingCancel, nowMs)).toEqual({ viewChanged: true, durableChanged: true });
   });
 
   it("cancel frame の TTL 後も semantic revision watermark は遅着旧報の復活を防ぐ", () => {
@@ -2188,7 +2269,7 @@ describe("StandbyStateStore: independent briefing card", () => {
 
     store.applyEvent(issued, issuedAtMs);
     store.applyEvent(cancel, cancelAtMs);
-    expect(store.sweep(cancelAtMs + BRIEFING_CARD_CANCEL_TTL_MS)).toEqual({ viewChanged: true, durableChanged: false });
+    expect(store.sweep(cancelAtMs + BRIEFING_CARD_CANCEL_TTL_MS)).toEqual({ viewChanged: true, durableChanged: true });
     expect(store.snapshotBriefingCard()).toBeNull();
     expect(store.applyEvent(lateOlder, cancelAtMs + BRIEFING_CARD_CANCEL_TTL_MS))
       .toEqual({ viewChanged: false, durableChanged: false });
@@ -2208,9 +2289,1038 @@ describe("StandbyStateStore: independent briefing card", () => {
     const store = new StandbyStateStore();
 
     store.applyEvent(issued, issuedAtMs);
-    expect(store.applyEvent(cancel, cancelArrivalAtMs)).toEqual({ viewChanged: true, durableChanged: false });
+    expect(store.applyEvent(cancel, cancelArrivalAtMs)).toEqual({ viewChanged: true, durableChanged: true });
     expect(store.snapshotBriefingCard()).toBeNull();
     expect(store.applyEvent(intermediateLate, cancelArrivalAtMs)).toEqual({ viewChanged: false, durableChanged: false });
     expect(store.snapshotBriefingCard()).toBeNull();
   });
+
+  it("semantic/raw criticalだけをabsolute expiryとgenerationごと復元する", () => {
+    const nowMs = Date.parse("2026-08-25T00:10:00.000Z");
+    const semantic = semanticBriefingEvent("restore-semantic", "2026-08-25T00:00:00.000Z", "1");
+    const raw = rawLifecycleBriefingEvent("restore-raw", "2026-08-25T00:01:00.000Z", "2");
+    const transient = rawLifecycleBriefingEvent("restore-info", "2026-08-25T00:02:00.000Z", "3", "info");
+    const live = new StandbyStateStore();
+
+    live.applyEvent(semantic, nowMs);
+    live.applyEvent(raw, nowMs);
+    live.applyEvent(transient, nowMs);
+    const persisted = live.exportActiveState();
+    expect(persisted.briefingCritical).toMatchObject({ generation: 2, cancellations: [] });
+    expect(persisted.briefingCritical!.entries).toHaveLength(2);
+    expect(persisted.briefingCritical!.entries.every((unit) => unit.entry.frameLevel === "critical")).toBe(true);
+    expect(persisted.briefingCritical!.watermarks).toHaveLength(1);
+    expect(persisted.briefingCritical!.watermarks[0]!.revision.serial).toBe("1");
+    expect(persisted.briefingCritical!.entries.map((unit) => unit.expiresAtMs).sort())
+      .toEqual([Date.parse(semantic.reportDateTime), Date.parse(raw.reportDateTime)]
+        .map((time) => time + BRIEFING_CARD_TTL_MS).sort());
+
+    const restored = new StandbyStateStore();
+    expect(restored.restoreActiveState(persisted, nowMs + 1).briefingCriticalRewriteRequired).toBe(false);
+    expect(restored.snapshotBriefingCard()!.data.entries).toHaveLength(2);
+    expect(restored.snapshotBriefingCard()!.restored).toBe(true);
+    expect(restored.snapshotBriefingCard()!.data.entries.every((entry) => entry.frameLevel === "critical")).toBe(true);
+    expect(restored.exportActiveState().briefingCritical).toEqual(persisted.briefingCritical);
+  });
+
+  it("semantic criticalのdowngradeはentryを非永続化しwatermarkだけで旧報を防ぐ", () => {
+    const nowMs = Date.parse("2026-08-25T00:10:00.000Z");
+    const critical = semanticBriefingEvent("semantic-critical", "2026-08-25T00:00:00.000Z", "3");
+    const warning = semanticBriefingFrame(
+      semanticBriefingEvent("semantic-warning", "2026-08-25T00:01:00.000Z", "4"),
+      "warning",
+    );
+    const older = semanticBriefingEvent("semantic-older", "2026-08-25T00:00:30.000Z", "9");
+    const newer = semanticBriefingEvent("semantic-newer", "2026-08-25T00:02:00.000Z", "5");
+    const store = new StandbyStateStore();
+
+    expect(store.applyEvent(critical, nowMs).durableChanged).toBe(true);
+    expect(store.applyEvent(warning, nowMs)).toEqual({ viewChanged: true, durableChanged: true });
+    expect(store.snapshotBriefingCard()!.data.entries[0]).toMatchObject({ frameLevel: "warning" });
+    expect(store.exportActiveState().briefingCritical).toMatchObject({ entries: [], cancellations: [] });
+    expect(store.exportActiveState().briefingCritical!.watermarks).toHaveLength(1);
+    expect(store.exportActiveState().briefingCritical!.watermarks[0]!.revision.serial).toBe("4");
+
+    const restored = new StandbyStateStore();
+    restored.restoreActiveState(store.exportActiveState(), nowMs + 1);
+    expect(restored.snapshotBriefingCard()).toBeNull();
+    expect(restored.applyEvent(older, nowMs + 1)).toEqual({ viewChanged: false, durableChanged: false });
+    expect(restored.applyEvent(newer, nowMs + 1)).toEqual({ viewChanged: true, durableChanged: true });
+  });
+
+  it("raw strict cancellationは順序を守りprocess-local cancelだけを残す", () => {
+    const nowMs = Date.parse("2026-08-25T00:10:00.000Z");
+    const current = rawLifecycleBriefingEvent("raw-cancel", "2026-08-25T00:00:00.000Z", "3");
+    const older = rawLifecycleBriefingEvent("raw-cancel", "2026-08-24T23:59:00.000Z", "2", "cancel");
+    const newer = rawLifecycleBriefingEvent("raw-cancel", "2026-08-25T00:01:00.000Z", "4", "cancel");
+    const store = new StandbyStateStore();
+    let durableCalls = 0;
+    store.onDurable(() => { durableCalls += 1; });
+
+    store.applyEvent(current, nowMs);
+    durableCalls = 0;
+    expect(store.applyEvent(older, nowMs)).toEqual({ viewChanged: false, durableChanged: false });
+    expect(store.applyEvent(newer, nowMs)).toEqual({ viewChanged: true, durableChanged: true });
+    expect(durableCalls).toBe(1);
+    expect(store.snapshotBriefingCard()!.data.entries[0]).toMatchObject({ frameLevel: "cancel" });
+    expect(store.exportActiveState().briefingCritical).toBeUndefined();
+    const generation = store.briefingCardGeneration();
+    const expiry = store.snapshotBriefingCard()!.data.entries[0]!.expiresAt;
+    expect(store.applyEvent(newer, nowMs + 1)).toEqual({ viewChanged: false, durableChanged: false });
+    expect(store.briefingCardGeneration()).toBe(generation);
+    expect(store.snapshotBriefingCard()!.data.entries[0]!.expiresAt).toBe(expiry);
+
+    const restored = new StandbyStateStore();
+    restored.restoreActiveState(store.exportActiveState(), nowMs + 1);
+    expect(restored.snapshotBriefingCard()).toBeNull();
+  });
+
+  it("raw downgradeとcancelled→downgraded→critical復帰はprovenanceだけで順序制御する", () => {
+    const nowMs = Date.parse("2026-08-25T00:10:00.000Z");
+    const critical3 = rawLifecycleBriefingEvent("raw-phase", "2026-08-25T00:00:00.000Z", "3");
+    const warning4 = rawLifecycleBriefingEvent("raw-phase", "2026-08-25T00:01:00.000Z", "4", "warning");
+    const cancel5 = rawLifecycleBriefingEvent("raw-phase", "2026-08-25T00:02:00.000Z", "5", "cancel");
+    const info6 = rawLifecycleBriefingEvent("raw-phase", "2026-08-25T00:03:00.000Z", "6", "info");
+    const critical7 = rawLifecycleBriefingEvent("raw-phase", "2026-08-25T00:04:00.000Z", "7");
+    const store = new StandbyStateStore();
+    let durableCalls = 0;
+    store.onDurable(() => { durableCalls += 1; });
+
+    store.applyEvent(critical3, nowMs);
+    durableCalls = 0;
+    expect(store.applyEvent(warning4, nowMs)).toEqual({ viewChanged: true, durableChanged: true });
+    expect(durableCalls).toBe(1);
+    expect(store.exportActiveState().briefingCritical).toBeUndefined();
+    expect(store.applyEvent(cancel5, nowMs)).toEqual({ viewChanged: true, durableChanged: false });
+    expect(store.applyEvent(info6, nowMs)).toEqual({ viewChanged: true, durableChanged: false });
+    expect(durableCalls).toBe(1);
+    expect(store.applyEvent(critical7, nowMs)).toEqual({ viewChanged: true, durableChanged: true });
+    expect(durableCalls).toBe(2);
+    expect(store.snapshotBriefingCard()!.data.entries[0]).toMatchObject({ frameLevel: "critical", serial: "7" });
+  });
+
+  it("C-1案Bはunordered raw criticalを拒否しnever-criticalだけ従来cancelを維持する", () => {
+    const nowMs = Date.parse("2026-08-25T00:10:00.000Z");
+    const critical = rawLifecycleBriefingEvent("raw-unordered", "2026-08-25T00:00:00.000Z", null);
+    const strictCancel = rawLifecycleBriefingEvent("raw-unordered", "2026-08-25T00:01:00.000Z", "2", "cancel");
+    const criticalStore = new StandbyStateStore();
+    criticalStore.applyEvent(critical, nowMs);
+    const before = criticalStore.snapshotBriefingCard();
+    expect(criticalStore.applyEvent(strictCancel, nowMs)).toEqual({ viewChanged: false, durableChanged: false });
+    expect(criticalStore.snapshotBriefingCard()).toEqual(before);
+
+    const warning = rawLifecycleBriefingEvent("transient-unordered", "", null, "warning");
+    const cancel = rawLifecycleBriefingEvent("transient-unordered", "", null, "cancel");
+    const transientStore = new StandbyStateStore();
+    transientStore.applyEvent(warning, nowMs);
+    expect(transientStore.applyEvent(cancel, nowMs)).toEqual({ viewChanged: true, durableChanged: false });
+    const generation = transientStore.briefingCardGeneration();
+    const expiresAt = transientStore.snapshotBriefingCard()!.data.entries[0]!.expiresAt;
+    expect(transientStore.applyEvent(cancel, nowMs + 5_000)).toEqual({ viewChanged: false, durableChanged: false });
+    expect(transientStore.briefingCardGeneration()).toBe(generation);
+    expect(transientStore.snapshotBriefingCard()!.data.entries[0]!.expiresAt).toBe(expiresAt);
+  });
+
+  it("raw→semantic promotionはaliasへatomic変換しreload後も旧raw replayを拒否する", () => {
+    const nowMs = Date.parse("2026-08-25T00:10:00.000Z");
+    const raw2 = rawizeSemanticBriefing(
+      semanticBriefingEvent("promote-a", "2026-08-25T00:00:00.000Z", "2"),
+    );
+    const semantic3 = semanticBriefingEvent("promote-a", "2026-08-25T00:01:00.000Z", "3");
+    const rawSame = rawizeSemanticBriefing(semantic3);
+    const raw4 = rawizeSemanticBriefing(
+      semanticBriefingEvent("promote-a", "2026-08-25T00:02:00.000Z", "4"),
+    );
+    const live = new StandbyStateStore();
+    live.applyEvent(raw2, nowMs);
+    const persistedRaw = live.exportActiveState();
+    const store = new StandbyStateStore();
+    store.restoreActiveState(persistedRaw, nowMs);
+    let durableCalls = 0;
+    store.onDurable(() => { durableCalls += 1; });
+
+    expect(store.applyEvent(semantic3, nowMs)).toEqual({ viewChanged: true, durableChanged: true });
+    expect(durableCalls).toBe(1);
+    expect(store.snapshotBriefingCard()!.data.entries).toEqual([
+      expect.objectContaining({ sourceEventId: "promote-a", semanticKey: expect.any(String) }),
+    ]);
+    expect(store.snapshotBriefingCard()!.restored).toBe(false);
+    const promoted = store.exportActiveState().briefingCritical!;
+    expect(promoted.rawAliases).toHaveLength(1);
+    expect(promoted.rawAliases![0]).toMatchObject({
+      source: "vpbs50", sourceEventId: "promote-a", revision: { serial: "3" },
+    });
+    expect(promoted.rawAliases![0]!.expiresAtMs).toBeGreaterThanOrEqual(promoted.watermarks[0]!.expiresAtMs);
+    const generation = store.briefingCardGeneration();
+    expect(store.applyEvent(rawSame, nowMs)).toEqual({ viewChanged: false, durableChanged: false });
+    expect(store.briefingCardGeneration()).toBe(generation);
+
+    const reloaded = new StandbyStateStore();
+    reloaded.restoreActiveState(store.exportActiveState(), nowMs + 1);
+    expect(reloaded.applyEvent(rawSame, nowMs + 1)).toEqual({ viewChanged: false, durableChanged: false });
+    expect(reloaded.applyEvent(raw4, nowMs + 1)).toEqual({ viewChanged: true, durableChanged: true });
+    expect(reloaded.exportActiveState().briefingCritical?.rawAliases).toBeUndefined();
+    expect(reloaded.snapshotBriefingCard()!.data.entries[0]).toMatchObject({
+      key: rawBriefingKey("vpbs50", "promote-a"), frameLevel: "critical",
+    });
+  });
+
+  it("promotionはrawとcanonicalの両floorよりnewerなrevisionだけを受理する", () => {
+    const nowMs = Date.parse("2026-08-25T00:10:00.000Z");
+    const canonical5 = semanticBriefingEvent("canonical-b", "2026-08-25T00:05:00.000Z", "5");
+    const raw2 = rawizeSemanticBriefing(
+      semanticBriefingEvent("promote-floor", "2026-08-25T00:00:00.000Z", "2"),
+    );
+    const candidate3 = semanticBriefingEvent("promote-floor", "2026-08-25T00:03:00.000Z", "3");
+    const candidate5 = semanticBriefingEvent("promote-floor", "2026-08-25T00:05:00.000Z", "5");
+    const candidate6 = semanticBriefingEvent("promote-floor", "2026-08-25T00:06:00.000Z", "6");
+    const store = new StandbyStateStore();
+
+    store.applyEvent(canonical5, nowMs);
+    store.applyEvent(raw2, nowMs);
+    const before = store.exportActiveState().briefingCritical;
+    expect(store.applyEvent(candidate3, nowMs)).toEqual({ viewChanged: false, durableChanged: false });
+    expect(store.applyEvent(candidate5, nowMs)).toEqual({ viewChanged: false, durableChanged: false });
+    expect(store.exportActiveState().briefingCritical).toEqual(before);
+    expect(store.applyEvent(candidate6, nowMs)).toEqual({ viewChanged: true, durableChanged: true });
+    expect(store.exportActiveState().briefingCritical?.rawAliases?.[0]).toMatchObject({
+      sourceEventId: "promote-floor", revision: { serial: "6" },
+    });
+  });
+
+  it("critical VPOA50 normal reconcileはmin expiry・alias・callbackを一回で確定する", () => {
+    const nowMs = Date.parse("2026-08-25T00:10:00.000Z");
+    const source = rawLifecycleBriefingEvent(
+      "reconcile-source", "2026-08-25T00:00:00.000Z", "2", "critical", "vpoa50",
+    );
+    const canonical = semanticBriefingEvent("reconcile-canonical", "2026-08-25T00:01:00.000Z", "3");
+    const sourceKey = rawBriefingKey("vpoa50", "reconcile-source");
+    const store = new StandbyStateStore();
+    store.applyEvent(source, nowMs);
+    let durableCalls = 0;
+    store.onDurable(() => { durableCalls += 1; });
+
+    const result = store.reconcileBriefingCard(sourceKey, canonical, nowMs);
+    expect(result).toMatchObject({ kind: "applied", canonicalInserted: true });
+    expect(durableCalls).toBe(1);
+    expect(result.kind === "applied" && result.expiresAt)
+      .toBe(new Date(Date.parse(source.reportDateTime) + BRIEFING_CARD_TTL_MS).toISOString());
+    const persisted = store.exportActiveState().briefingCritical!;
+    expect(persisted.rawAliases).toHaveLength(1);
+    expect(persisted.rawAliases![0]).toMatchObject({
+      source: "vpoa50", sourceEventId: "reconcile-source", revision: { serial: "3" },
+    });
+    expect(store.applyEvent(source, nowMs)).toEqual({ viewChanged: false, durableChanged: false });
+
+    const restored = new StandbyStateStore();
+    restored.restoreActiveState(store.exportActiveState(), nowMs + 1);
+    expect(restored.applyEvent(source, nowMs + 1)).toEqual({ viewChanged: false, durableChanged: false });
+    expect(restored.snapshotBriefingCard()!.data.entries.every((entry) => entry.source !== "vpoa50")).toBe(true);
+  });
+
+  it("same-revision canonical維持でもsource critical expiryとのminへ短縮する", () => {
+    const nowMs = Date.parse("2026-08-25T00:10:00.000Z");
+    const source = rawLifecycleBriefingEvent(
+      "reconcile-maintained-source", "2026-08-25T00:00:00.000Z", "2", "critical", "vpoa50",
+    );
+    const canonical = semanticBriefingEvent(
+      "reconcile-maintained-canonical", "2026-08-25T00:01:00.000Z", "3",
+    );
+    const store = new StandbyStateStore();
+    store.applyEvent(canonical, nowMs);
+    store.applyEvent(source, nowMs);
+
+    const result = store.reconcileBriefingCard(
+      rawBriefingKey("vpoa50", "reconcile-maintained-source"), canonical, nowMs,
+    );
+    const expectedExpiry = Date.parse(source.reportDateTime) + BRIEFING_CARD_TTL_MS;
+    expect(result).toMatchObject({
+      kind: "applied", canonicalInserted: false, expiresAt: new Date(expectedExpiry).toISOString(),
+    });
+    expect(store.snapshotBriefingCard()!.data.entries).toEqual([
+      expect.objectContaining({
+        sourceEventId: "reconcile-maintained-canonical",
+        expiresAt: new Date(expectedExpiry).toISOString(),
+      }),
+    ]);
+    expect(store.exportActiveState().briefingCritical?.entries[0]?.expiresAtMs).toBe(expectedExpiry);
+  });
+
+  it("期限切れcanonical reconcileはsourceをretireしmax revision aliasだけを残す", () => {
+    const nowMs = Date.parse("2026-08-25T02:00:00.000Z");
+    const source = rawLifecycleBriefingEvent(
+      "retire-source",
+      new Date(nowMs - BRIEFING_CARD_TTL_MS + 1_000).toISOString(),
+      "5",
+      "critical",
+      "vpoa50",
+    );
+    const canonical = semanticBriefingEvent(
+      "retire-canonical",
+      new Date(nowMs - BRIEFING_CARD_TTL_MS).toISOString(),
+      "2",
+    );
+    const sourceKey = rawBriefingKey("vpoa50", "retire-source");
+    const store = new StandbyStateStore();
+    store.applyEvent(source, nowMs);
+    let durableCalls = 0;
+    store.onDurable(() => { durableCalls += 1; });
+
+    expect(store.reconcileBriefingCard(sourceKey, canonical, nowMs)).toMatchObject({
+      kind: "applied", canonicalInserted: false, expiresAt: null,
+    });
+    expect(durableCalls).toBe(1);
+    expect(store.snapshotBriefingCard()).toBeNull();
+    expect(store.exportActiveState().briefingCritical).toMatchObject({ entries: [], watermarks: [] });
+    expect(store.exportActiveState().briefingCritical!.rawAliases).toHaveLength(1);
+    expect(store.exportActiveState().briefingCritical!.rawAliases![0]!.revision.serial).toBe("5");
+    expect(store.applyEvent(source, nowMs)).toEqual({ viewChanged: false, durableChanged: false });
+    const restored = new StandbyStateStore();
+    restored.restoreActiveState(store.exportActiveState(), nowMs);
+    expect(restored.applyEvent(source, nowMs)).toEqual({ viewChanged: false, durableChanged: false });
+  });
+
+  it("期限切れcanonical retirementは同revision watermark-only targetでもsourceをretireする", () => {
+    const nowMs = Date.parse("2026-08-25T02:00:00.000Z");
+    const source = rawLifecycleBriefingEvent(
+      "retire-watermark-source",
+      new Date(nowMs - BRIEFING_CARD_TTL_MS + 1_000).toISOString(),
+      "5",
+      "critical",
+      "vpoa50",
+    );
+    const canonical = semanticBriefingEvent(
+      "retire-watermark-canonical",
+      new Date(nowMs - BRIEFING_CARD_TTL_MS).toISOString(),
+      "2",
+      "記録的短時間大雨",
+    );
+    const sourceStore = new StandbyStateStore();
+    sourceStore.applyEvent(source, nowMs);
+    const persisted = sourceStore.exportActiveState();
+    persisted.briefingCritical!.watermarks.push({
+      semanticKey: "card:vpbs:semantic:recordRain:試験地方気象台",
+      revision: { reportTimeMs: Date.parse(canonical.reportDateTime), serial: "2" },
+      expiresAtMs: nowMs + 60_000,
+    });
+    const store = new StandbyStateStore();
+    store.restoreActiveState(persisted, nowMs);
+
+    expect(store.reconcileBriefingCard(
+      rawBriefingKey("vpoa50", "retire-watermark-source"), canonical, nowMs,
+    )).toMatchObject({ kind: "applied", canonicalInserted: false });
+    expect(store.exportActiveState().briefingCritical?.rawAliases?.[0]).toMatchObject({
+      sourceEventId: "retire-watermark-source", revision: { serial: "5" },
+    });
+    expect(store.exportActiveState().briefingCritical?.watermarks).toHaveLength(1);
+  });
+
+  it("expired newer candidateは既存durable pruneだけを一回通知しstateを前進させない", () => {
+    const acceptedAtMs = Date.parse("2026-08-25T02:00:00.000Z");
+    const reportAtMs = acceptedAtMs - BRIEFING_CARD_TTL_MS + 1;
+    const current = rawLifecycleBriefingEvent("expiry-order", new Date(reportAtMs).toISOString(), "3");
+    const expiredNewer = rawLifecycleBriefingEvent("expiry-order", new Date(reportAtMs).toISOString(), "4");
+    const store = new StandbyStateStore();
+    store.applyEvent(current, acceptedAtMs);
+    let durableCalls = 0;
+    store.onDurable(() => { durableCalls += 1; });
+
+    const generation = store.briefingCardGeneration();
+    expect(store.applyEvent(expiredNewer, reportAtMs + BRIEFING_CARD_TTL_MS)).toEqual({
+      viewChanged: true, durableChanged: true,
+    });
+    expect(durableCalls).toBe(1);
+    expect(store.briefingCardGeneration()).toBe(generation + 1);
+    expect(store.snapshotBriefingCard()).toBeNull();
+    expect(store.exportActiveState().briefingCritical).toBeUndefined();
+  });
+
+  it("alias-onlyは非表示で独立expiryし最後のdurable sliceを省略する", () => {
+    const nowMs = Date.parse("2026-08-25T00:10:00.000Z");
+    const empty = new StandbyStateStore().exportActiveState();
+    empty.briefingCritical = {
+      generation: 7,
+      entries: [],
+      cancellations: [],
+      watermarks: [],
+      rawAliases: [{
+        source: "vpoa50",
+        sourceEventId: "alias-only",
+        semanticKey: "card:vpbs:semantic:recordRain:試験地方気象台",
+        revision: { reportTimeMs: nowMs, serial: "3" },
+        expiresAtMs: nowMs + 1,
+      }],
+    };
+    const store = new StandbyStateStore();
+    expect(store.restoreActiveState(empty, nowMs).briefingCriticalRewriteRequired).toBe(false);
+    expect(store.snapshotBriefingCard()).toBeNull();
+    expect(store.exportActiveState().briefingCritical?.rawAliases).toHaveLength(1);
+    expect(store.sweep(nowMs + 1)).toEqual({ viewChanged: false, durableChanged: true });
+    expect(store.exportActiveState().briefingCritical).toBeUndefined();
+  });
+
+  it("restore post-expiry couplingはwatermarkとaliasを独立に扱いrewriteを要求する", () => {
+    const nowMs = Date.parse("2026-08-25T00:10:00.000Z");
+    const live = new StandbyStateStore();
+    live.applyEvent(semanticBriefingEvent("coupling", "2026-08-25T00:00:00.000Z", "1"), nowMs);
+    const persisted = live.exportActiveState();
+    persisted.briefingCritical!.watermarks[0]!.expiresAtMs = nowMs;
+    persisted.briefingCritical!.rawAliases = [{
+      source: "vpoa50", sourceEventId: "independent-alias",
+      semanticKey: persisted.briefingCritical!.watermarks[0]!.semanticKey,
+      revision: { reportTimeMs: nowMs, serial: "2" }, expiresAtMs: nowMs + 60_000,
+    }];
+    const restored = new StandbyStateStore();
+    expect(restored.restoreActiveState(persisted, nowMs).briefingCriticalRewriteRequired).toBe(true);
+    expect(restored.snapshotBriefingCard()).toBeNull();
+    expect(restored.exportActiveState().briefingCritical).toMatchObject({
+      entries: [], watermarks: [], rawAliases: [expect.objectContaining({ sourceEventId: "independent-alias" })],
+    });
+  });
+
+  it("restore generation floorの次mutationだけを一つ進めempty sliceではgenerationを出力しない", () => {
+    const nowMs = Date.parse("2026-08-25T00:10:00.000Z");
+    const first = new StandbyStateStore();
+    first.applyEvent(semanticBriefingEvent("generation-one", "2026-08-25T00:00:00.000Z", "1"), nowMs);
+    const persisted = first.exportActiveState();
+    const floor = persisted.briefingCritical!.generation;
+    const restored = new StandbyStateStore();
+    restored.restoreActiveState(persisted, nowMs);
+    restored.applyEvent(semanticBriefingEvent(
+      "generation-two", "2026-08-25T00:01:00.000Z", "2", "記録的短時間大雨",
+    ), nowMs);
+    expect(restored.briefingCardGeneration()).toBe(floor + 1);
+    expect(restored.exportActiveState().briefingCritical!.generation).toBe(floor + 1);
+    expect(new StandbyStateStore().exportActiveState().briefingCritical).toBeUndefined();
+  });
+
+  it("同一sweepの複数critical expiryをgeneration/callback一回へ集約する", () => {
+    const reportMs = Date.parse("2026-08-25T00:00:00.000Z");
+    const store = new StandbyStateStore();
+    store.applyEvent(rawLifecycleBriefingEvent("sweep-a", new Date(reportMs).toISOString(), "1"), reportMs);
+    store.applyEvent(rawLifecycleBriefingEvent("sweep-b", new Date(reportMs).toISOString(), "1"), reportMs);
+    let durableCalls = 0;
+    store.onDurable(() => { durableCalls += 1; });
+    const generation = store.briefingCardGeneration();
+
+    expect(store.sweep(reportMs + BRIEFING_CARD_TTL_MS)).toEqual({ viewChanged: true, durableChanged: true });
+    expect(store.briefingCardGeneration()).toBe(generation + 1);
+    expect(durableCalls).toBe(1);
+  });
+
+  it("raw protection 511/512/513境界と満杯時promotionのslot変換を守る", () => {
+    const nowMs = Date.parse("2026-08-25T00:00:00.000Z");
+    const store = new StandbyStateStore();
+    for (let index = 0; index < 512; index += 1) {
+      const id = `raw-cap-${String(index).padStart(3, "0")}`;
+      expect(store.applyBriefingCardEvent(rawLifecycleBriefingEvent(
+        id, new Date(nowMs).toISOString(), "1",
+      ), nowMs).applied).toBe(true);
+    }
+    expect(store.briefingCardGeneration()).toBe(512);
+    const internals = store as unknown as {
+      rawCriticalProvenance: Map<string, { expiresAtMs: number }>;
+      rawBriefingAliases: Map<string, unknown>;
+      briefingEntries: Map<string, { expiresAtMs: number }>;
+      briefingRevisionWatermarks: Map<string, unknown>;
+    };
+    expect(internals.rawCriticalProvenance.size + internals.rawBriefingAliases.size).toBe(512);
+    expect([...internals.rawCriticalProvenance.values()].filter((state) =>
+      !Number.isFinite(state.expiresAtMs) || state.expiresAtMs <= nowMs)).toEqual([]);
+    expect([...internals.briefingEntries.values()].filter((state) =>
+      !Number.isFinite(state.expiresAtMs) || state.expiresAtMs <= nowMs)).toEqual([]);
+    expect(internals.rawBriefingAliases.size).toBe(0);
+    expect(internals.briefingRevisionWatermarks.size).toBe(0);
+    const rejected = store.applyBriefingCardEvent(rawLifecycleBriefingEvent(
+      "raw-cap-512", new Date(nowMs).toISOString(), "1",
+    ), nowMs);
+    expect(rejected).toMatchObject({ kind: "ignored", generation: 512 });
+
+    const promote = semanticBriefingEvent("raw-cap-000", new Date(nowMs + 1).toISOString(), "2");
+    expect(store.applyBriefingCardEvent(promote, nowMs + 1)).toMatchObject({ kind: "applied", generation: 513 });
+    expect(store.exportActiveState().briefingCritical?.rawAliases).toHaveLength(1);
+    expect(store.exportActiveState().briefingCritical?.rawAliases?.[0]).toMatchObject({ sourceEventId: "raw-cap-000" });
+    expect(store.applyBriefingCardEvent(rawLifecycleBriefingEvent(
+      "raw-cap-512", new Date(nowMs + 1).toISOString(), "2",
+    ), nowMs + 1)).toMatchObject({ kind: "ignored", generation: 513 });
+  });
+
+  it("semantic watermark 511/512/513境界で有効protectionをevictしない", () => {
+    const nowMs = Date.parse("2026-08-25T00:00:00.000Z");
+    const store = new StandbyStateStore();
+    for (let index = 0; index < 512; index += 1) {
+      const event = semanticBriefingEvent(
+        `wm-cap-${index}`,
+        new Date(nowMs).toISOString(),
+        "1",
+        "線状降水帯発生",
+        `試験地方気象台-${index}`,
+      );
+      expect(store.applyBriefingCardEvent(event, nowMs).applied).toBe(true);
+    }
+    expect(store.exportActiveState().briefingCritical?.watermarks).toHaveLength(512);
+    const generation = store.briefingCardGeneration();
+    expect(store.applyBriefingCardEvent(semanticBriefingEvent(
+      "wm-cap-over", new Date(nowMs).toISOString(), "1", "線状降水帯発生", "超過地方気象台",
+    ), nowMs)).toMatchObject({ kind: "ignored", generation });
+    expect(store.exportActiveState().briefingCritical?.watermarks).toHaveLength(512);
+  });
+});
+
+describe("briefing critical acceptance matrices", () => {
+  type AdmissionState = "none" | "active" | "downgraded" | "cancelled"
+    | "alias" | "semantic" | "watermark-only" | "promotion";
+  type AdmissionFrame = "critical" | "warning" | "info";
+
+  const admissionStates: AdmissionState[] = [
+    "none", "active", "downgraded", "cancelled",
+    "alias", "semantic", "watermark-only", "promotion",
+  ];
+  const admissionFrames: AdmissionFrame[] = ["critical", "warning", "info"];
+  const expiryAdmissionMatrix = admissionStates.flatMap((state) =>
+    admissionFrames.flatMap((frame) => [0, 1].map((expiryOffsetMs) => ({
+      state, frame, expiryOffsetMs,
+    }))));
+
+  interface AdmissionInternals {
+    briefingEntries: Map<string, { entry: { expiresAt: string }; expiresAtMs: number }>;
+    rawCriticalProvenance: Map<string, {
+      expiresAtMs: number;
+      lastCriticalExpiresAtMs: number;
+    }>;
+    rawBriefingAliases: Map<string, { expiresAtMs: number }>;
+    briefingRevisionWatermarks: Map<string, { expiresAtMs: number }>;
+  }
+
+  function admissionInternals(store: StandbyStateStore): AdmissionInternals {
+    return store as unknown as AdmissionInternals;
+  }
+
+  function keepAdmissionStateLive(store: StandbyStateStore, nowMs: number): void {
+    const futureMs = nowMs + BRIEFING_CARD_TTL_MS;
+    const internals = admissionInternals(store);
+    for (const state of internals.briefingEntries.values()) {
+      state.expiresAtMs = futureMs;
+      state.entry.expiresAt = new Date(futureMs).toISOString();
+    }
+    for (const state of internals.rawCriticalProvenance.values()) {
+      state.expiresAtMs = futureMs;
+      state.lastCriticalExpiresAtMs = futureMs;
+    }
+    for (const state of internals.rawBriefingAliases.values()) state.expiresAtMs = futureMs;
+    for (const state of internals.briefingRevisionWatermarks.values()) state.expiresAtMs = futureMs;
+  }
+
+  function expiryAdmissionScenario(
+    state: AdmissionState,
+    frame: AdmissionFrame,
+    expiryOffsetMs: number,
+  ): { store: StandbyStateStore; candidate: PresentationEvent } {
+    const nowMs = Date.parse("2026-08-25T02:00:00.000Z");
+    const candidateAtMs = nowMs - BRIEFING_CARD_TTL_MS + expiryOffsetMs;
+    const seedAtMs = candidateAtMs - 2_000;
+    const transitionAtMs = candidateAtMs - 1_000;
+    const id = `expiry-matrix-${state}-${frame}-${expiryOffsetMs}`;
+    const store = new StandbyStateStore();
+
+    if (state === "active" || state === "downgraded" || state === "cancelled") {
+      store.applyBriefingCardEvent(rawLifecycleBriefingEvent(
+        id, new Date(seedAtMs).toISOString(), "1", "critical",
+      ), seedAtMs + 1);
+      if (state !== "active") {
+        store.applyBriefingCardEvent(rawLifecycleBriefingEvent(
+          id,
+          new Date(transitionAtMs).toISOString(),
+          "2",
+          state === "downgraded" ? "warning" : "cancel",
+        ), transitionAtMs + 1);
+      }
+    } else if (state === "alias") {
+      store.applyBriefingCardEvent(rawizeSemanticBriefing(semanticBriefingEvent(
+        id, new Date(seedAtMs).toISOString(), "1",
+      )), seedAtMs + 1);
+      store.applyBriefingCardEvent(semanticBriefingEvent(
+        id, new Date(transitionAtMs).toISOString(), "2",
+      ), transitionAtMs + 1);
+      const internals = admissionInternals(store);
+      internals.briefingEntries.clear();
+      internals.briefingRevisionWatermarks.clear();
+    } else if (state === "semantic" || state === "watermark-only") {
+      store.applyBriefingCardEvent(semanticBriefingEvent(
+        id, new Date(seedAtMs).toISOString(), "1",
+      ), seedAtMs + 1);
+      if (state === "watermark-only") {
+        store.applyBriefingCardEvent(semanticBriefingFrame(semanticBriefingEvent(
+          id, new Date(transitionAtMs).toISOString(), "2",
+        ), "warning"), transitionAtMs + 1);
+        admissionInternals(store).briefingEntries.clear();
+      }
+    } else if (state === "promotion") {
+      store.applyBriefingCardEvent(rawizeSemanticBriefing(semanticBriefingEvent(
+        id, new Date(transitionAtMs).toISOString(), "2",
+      )), transitionAtMs + 1);
+    }
+
+    keepAdmissionStateLive(store, nowMs);
+    const candidate = state === "semantic" || state === "watermark-only" || state === "promotion"
+      ? semanticBriefingFrame(semanticBriefingEvent(
+          id, new Date(candidateAtMs).toISOString(), "3",
+        ), frame)
+      : state === "alias"
+        ? rawizeSemanticBriefing(semanticBriefingFrame(semanticBriefingEvent(
+            id, new Date(candidateAtMs).toISOString(), "3",
+          ), frame))
+        : rawLifecycleBriefingEvent(id, new Date(candidateAtMs).toISOString(), "3", frame);
+    return { store, candidate };
+  }
+
+  it.each(expiryAdmissionMatrix)(
+    "$state $frame strictly-newer candidate expiry=now+$expiryOffsetMs を境界処理する",
+    ({ state, frame, expiryOffsetMs }) => {
+      const nowMs = Date.parse("2026-08-25T02:00:00.000Z");
+      const direct = expiryAdmissionScenario(state, frame, expiryOffsetMs);
+      const directGeneration = direct.store.briefingCardGeneration();
+      const directResult = direct.store.applyBriefingCardEvent(direct.candidate, nowMs);
+      const { store, candidate } = expiryAdmissionScenario(state, frame, expiryOffsetMs);
+      const before = structuredClone(store.exportActiveState().briefingCritical);
+      const beforeCard = structuredClone(store.snapshotBriefingCard());
+      const generation = store.briefingCardGeneration();
+      if (state !== "none") expect(before != null || beforeCard != null).toBe(true);
+      let viewCalls = 0;
+      let durableCalls = 0;
+      store.onChange(() => { viewCalls += 1; });
+      store.onDurable(() => { durableCalls += 1; });
+      const mutation = store.applyEvent(candidate, nowMs);
+      if (expiryOffsetMs === 0) {
+        expect(directResult).toMatchObject({ kind: "ignored", reason: "expired", generation: directGeneration });
+        expect(mutation).toEqual({ viewChanged: false, durableChanged: false });
+        expect(store.exportActiveState().briefingCritical).toEqual(before);
+        expect(store.snapshotBriefingCard()).toEqual(beforeCard);
+        expect(store.briefingCardGeneration()).toBe(generation);
+        expect(viewCalls).toBe(0);
+        expect(durableCalls).toBe(0);
+      } else {
+        expect(directResult).toMatchObject({ kind: "applied", generation: directGeneration + 1 });
+        expect(mutation.viewChanged).toBe(true);
+        expect(store.briefingCardGeneration()).toBe(generation + 1);
+        expect(viewCalls).toBe(1);
+        expect(durableCalls).toBe(Number(mutation.durableChanged));
+        expect(store.snapshotBriefingCard()!.data.entries).toEqual([
+          expect.objectContaining({ frameLevel: frame, sourceEventId: candidate.eventId }),
+        ]);
+        const durable = store.exportActiveState().briefingCritical;
+        expect(durable?.entries ?? []).toHaveLength(frame === "critical" ? 1 : 0);
+        const semanticLifecycle = state === "semantic" || state === "watermark-only" || state === "promotion";
+        expect(durable?.watermarks ?? []).toHaveLength(semanticLifecycle ? 1 : 0);
+        expect(durable?.rawAliases ?? []).toHaveLength(state === "promotion" ? 1 : 0);
+      }
+    },
+  );
+
+  it("expiry=now のoversized candidateはcapacity diagnosticより先にexpiredとなる", () => {
+    const nowMs = Date.parse("2026-08-25T02:00:00.000Z");
+    const candidate = rawLifecycleBriefingEvent(
+      "expiry-before-capacity",
+      new Date(nowMs - BRIEFING_CARD_TTL_MS).toISOString(),
+      "1",
+    );
+    const oversized: PresentationEvent = {
+      ...candidate,
+      areaItems: Array.from({ length: 2_049 }, (_, index) => ({
+        name: `area-${index}`, code: String(index), kind: "気象防災速報",
+      })),
+    };
+    const warn = vi.spyOn(log, "warn");
+
+    expect(new StandbyStateStore().applyBriefingCardEvent(oversized, nowMs))
+      .toMatchObject({ kind: "ignored", reason: "expired" });
+    expect(warn).not.toHaveBeenCalledWith("[briefing-card] nested payload capacity rejected");
+  });
+
+  it.each(["warning", "info"] as const)(
+    "raw criticalからsemantic %sへのpromotionはalias・watermark・transient表示をatomic更新する",
+    (frame) => {
+      const nowMs = Date.parse("2026-08-25T00:10:00.000Z");
+      const raw = rawizeSemanticBriefing(semanticBriefingEvent(
+        `promotion-${frame}`, "2026-08-25T00:00:00.000Z", "1",
+      ));
+      const candidate = semanticBriefingFrame(semanticBriefingEvent(
+        `promotion-${frame}`, "2026-08-25T00:01:00.000Z", "2",
+      ), frame);
+      const store = new StandbyStateStore();
+      store.applyEvent(raw, nowMs);
+
+      expect(store.applyEvent(candidate, nowMs)).toEqual({ viewChanged: true, durableChanged: true });
+      expect(store.snapshotBriefingCard()!.data.entries).toEqual([
+        expect.objectContaining({ frameLevel: frame, semanticKey: expect.any(String) }),
+      ]);
+      expect(store.exportActiveState().briefingCritical).toMatchObject({
+        entries: [],
+        cancellations: [],
+        watermarks: [expect.objectContaining({
+          revision: expect.objectContaining({ serial: "2" }),
+        })],
+        rawAliases: [expect.objectContaining({ sourceEventId: `promotion-${frame}` })],
+      });
+    },
+  );
+
+  function provenanceOnlyStore(source: PresentationEvent, nowMs: number): StandbyStateStore {
+    const store = new StandbyStateStore();
+    store.applyEvent(source, nowMs);
+    for (let index = 0; index < BRIEFING_CARD_MAX_ENTRIES; index += 1) {
+      store.applyEvent(rawLifecycleBriefingEvent(
+        `provenance-filler-${index}`,
+        new Date(nowMs).toISOString(),
+        "1",
+        "warning",
+      ), nowMs);
+    }
+    expect(store.snapshotBriefingCard()!.data.entries.some((entry) =>
+      entry.sourceEventId === source.eventId)).toBe(false);
+    return store;
+  }
+
+  it.each([
+    { branch: "normal", candidateOffsetMs: 60_000, sourceOffsetMs: -60 * 60_000, canonicalInserted: true },
+    { branch: "retirement", candidateOffsetMs: -BRIEFING_CARD_TTL_MS, sourceOffsetMs: -BRIEFING_CARD_TTL_MS + 1_000, canonicalInserted: false },
+  ] as const)(
+    "provenance-only sourceの$branch reconcileを受理する",
+    ({ branch, candidateOffsetMs, sourceOffsetMs, canonicalInserted }) => {
+      const nowMs = Date.parse("2026-08-25T02:00:00.000Z");
+      const source = rawLifecycleBriefingEvent(
+        `provenance-${branch}`,
+        new Date(nowMs + sourceOffsetMs).toISOString(),
+        branch === "normal" ? "2" : "5",
+        "critical",
+        "vpoa50",
+      );
+      const store = provenanceOnlyStore(source, nowMs);
+      const canonical = semanticBriefingEvent(
+        `canonical-${branch}`,
+        new Date(branch === "normal" ? nowMs + sourceOffsetMs + candidateOffsetMs : nowMs + candidateOffsetMs).toISOString(),
+        branch === "normal" ? "3" : "2",
+      );
+
+      expect(store.reconcileBriefingCard(
+        rawBriefingKey("vpoa50", `provenance-${branch}`), canonical, nowMs,
+      )).toMatchObject({ kind: "applied", canonicalInserted });
+      expect(store.exportActiveState().briefingCritical?.rawAliases).toEqual([
+        expect.objectContaining({ sourceEventId: `provenance-${branch}` }),
+      ]);
+    },
+  );
+
+  it("unordered provenance sourceも期限切れcanonicalでretireしcanonical revisionをalias floorにする", () => {
+    const nowMs = Date.parse("2026-08-25T02:00:00.000Z");
+    const source = rawLifecycleBriefingEvent(
+      "retire-unordered",
+      new Date(nowMs - BRIEFING_CARD_TTL_MS + 1_000).toISOString(),
+      null,
+      "critical",
+      "vpoa50",
+    );
+    const canonical = semanticBriefingEvent(
+      "retire-unordered-canonical",
+      new Date(nowMs - BRIEFING_CARD_TTL_MS).toISOString(),
+      "2",
+    );
+    const store = new StandbyStateStore();
+    store.applyEvent(source, nowMs);
+
+    expect(store.reconcileBriefingCard(
+      rawBriefingKey("vpoa50", "retire-unordered"), canonical, nowMs,
+    )).toMatchObject({ kind: "applied", canonicalInserted: false });
+    expect(store.exportActiveState().briefingCritical?.rawAliases?.[0]).toMatchObject({
+      sourceEventId: "retire-unordered", revision: { serial: "2" },
+    });
+  });
+
+  it.each([
+    { expiryOffsetMs: 0, outcome: "retired" },
+    { expiryOffsetMs: 1, outcome: "normal-rejected" },
+  ] as const)("reconcile expiry=now+$expiryOffsetMs は$outcome branchに入る", ({ expiryOffsetMs, outcome }) => {
+    const nowMs = Date.parse("2026-08-25T02:00:00.000Z");
+    const source = rawLifecycleBriefingEvent(
+      `boundary-source-${expiryOffsetMs}`,
+      new Date(nowMs - BRIEFING_CARD_TTL_MS + 1_000).toISOString(),
+      "5",
+      "critical",
+      "vpoa50",
+    );
+    const canonical = semanticBriefingEvent(
+      `boundary-canonical-${expiryOffsetMs}`,
+      new Date(nowMs - BRIEFING_CARD_TTL_MS + expiryOffsetMs).toISOString(),
+      "2",
+    );
+    const store = new StandbyStateStore();
+    store.applyEvent(source, nowMs);
+
+    const result = store.reconcileBriefingCard(
+      rawBriefingKey("vpoa50", `boundary-source-${expiryOffsetMs}`), canonical, nowMs,
+    );
+    if (outcome === "retired") {
+      expect(result).toMatchObject({ kind: "applied", canonicalInserted: false });
+      expect(store.exportActiveState().briefingCritical?.rawAliases).toHaveLength(1);
+    } else {
+      expect(result).toMatchObject({ kind: "ignored", reason: "canonicalNotNewer" });
+      expect(store.snapshotBriefingCard()!.data.entries).toEqual([
+        expect.objectContaining({ sourceEventId: `boundary-source-${expiryOffsetMs}` }),
+      ]);
+      expect(store.exportActiveState().briefingCritical?.rawAliases).toBeUndefined();
+    }
+  });
+
+  it("期限切れかつcapacity超過のcanonicalはcapacity拒否せずsource-retirementへ進む", () => {
+    const nowMs = Date.parse("2026-08-25T02:00:00.000Z");
+    const source = rawLifecycleBriefingEvent(
+      "expired-oversized-source",
+      new Date(nowMs - BRIEFING_CARD_TTL_MS + 1_000).toISOString(),
+      "5",
+      "critical",
+      "vpoa50",
+    );
+    const canonical = semanticBriefingEvent(
+      "expired-oversized-canonical",
+      new Date(nowMs - BRIEFING_CARD_TTL_MS).toISOString(),
+      "2",
+    );
+    canonical.raw = {
+      ...(canonical.raw as ParsedWeatherBriefing),
+      targetAreas: Array.from({ length: 2_049 }, (_, index) => ({
+        name: `area-${index}`, code: String(index),
+      })),
+    };
+    expect((canonical.raw as ParsedWeatherBriefing).targetAreas).toHaveLength(2_049);
+    const store = new StandbyStateStore();
+    store.applyEvent(source, nowMs);
+    const warn = vi.spyOn(log, "warn");
+
+    expect(store.reconcileBriefingCard(
+      rawBriefingKey("vpoa50", "expired-oversized-source"), canonical, nowMs,
+    )).toMatchObject({ kind: "applied", canonicalInserted: false });
+    expect(store.snapshotBriefingCard()).toBeNull();
+    expect(store.exportActiveState().briefingCritical?.rawAliases).toEqual([
+      expect.objectContaining({ sourceEventId: "expired-oversized-source" }),
+    ]);
+    expect(warn).not.toHaveBeenCalledWith("[briefing-card] nested payload capacity rejected");
+  });
+
+  it("normal reconcileはwatermark capacity不足ならsourceを含む全stateを不変にする", () => {
+    const nowMs = Date.parse("2026-08-25T00:10:00.000Z");
+    const source = rawLifecycleBriefingEvent(
+      "capacity-source", "2026-08-25T00:00:00.000Z", "2", "critical", "vpoa50",
+    );
+    const seed = new StandbyStateStore();
+    seed.applyEvent(source, nowMs);
+    const persisted = seed.exportActiveState();
+    persisted.briefingCritical!.watermarks = Array.from({ length: 512 }, (_, index) => ({
+      semanticKey: `capacity-watermark-${index}`,
+      revision: { reportTimeMs: nowMs - 60_000, serial: "1" },
+      expiresAtMs: nowMs + BRIEFING_CARD_TTL_MS,
+    }));
+    const store = new StandbyStateStore();
+    store.restoreActiveState(persisted, nowMs);
+    const before = store.exportActiveState().briefingCritical;
+    const generation = store.briefingCardGeneration();
+    const canonical = semanticBriefingEvent(
+      "capacity-canonical", "2026-08-25T00:01:00.000Z", "3", "線状降水帯発生", "capacity-office",
+    );
+
+    expect(store.reconcileBriefingCard(
+      rawBriefingKey("vpoa50", "capacity-source"), canonical, nowMs,
+    )).toMatchObject({ kind: "ignored", reason: "canonicalNotNewer", generation });
+    expect(store.exportActiveState().briefingCritical).toEqual(before);
+  });
+
+  it("same-revision canonical payload conflictはsource・canonical・aliasを不変にする", () => {
+    const nowMs = Date.parse("2026-08-25T00:10:00.000Z");
+    const source = rawLifecycleBriefingEvent(
+      "same-conflict-source", "2026-08-25T00:00:00.000Z", "2", "critical", "vpoa50",
+    );
+    const canonical = semanticBriefingEvent(
+      "same-conflict-live", "2026-08-25T00:01:00.000Z", "3",
+    );
+    const conflict = semanticBriefingEvent(
+      "same-conflict-candidate", "2026-08-25T00:01:00.000Z", "3",
+    );
+    conflict.title = "same revision conflict";
+    conflict.raw = { ...(conflict.raw as ParsedWeatherBriefing), title: "same revision conflict" };
+    const store = new StandbyStateStore();
+    store.applyEvent(canonical, nowMs);
+    store.applyEvent(source, nowMs);
+    const before = store.exportActiveState().briefingCritical;
+    const beforeCard = store.snapshotBriefingCard();
+
+    expect(store.reconcileBriefingCard(
+      rawBriefingKey("vpoa50", "same-conflict-source"), conflict, nowMs,
+    )).toMatchObject({ kind: "ignored", reason: "canonicalNotNewer" });
+    expect(store.exportActiveState().briefingCritical).toEqual(before);
+    expect(store.snapshotBriefingCard()).toEqual(beforeCard);
+  });
+
+  type ReplayOrigin = "promotion" | "normal-reconcile" | "retirement";
+  type ReplayProjection = "canonical-live" | "watermark-only" | "alias-only";
+  type ReplayRevision = "older" | "same" | "unordered";
+  const replayOrigins: Array<{ origin: ReplayOrigin; projection: ReplayProjection }> = [
+    ...(["promotion", "normal-reconcile"] as ReplayOrigin[]).flatMap((origin) =>
+      (["canonical-live", "watermark-only", "alias-only"] as ReplayProjection[])
+        .map((projection) => ({ origin, projection }))),
+    { origin: "retirement", projection: "alias-only" },
+  ];
+  const replayMatrix = replayOrigins.flatMap(({ origin, projection }) =>
+    [false, true].flatMap((reload) => (["older", "same", "unordered"] as ReplayRevision[])
+      .map((revision) => ({ origin, projection, reload, revision }))));
+
+  function replayOriginStore(origin: ReplayOrigin, id: string, nowMs: number): StandbyStateStore {
+    const store = new StandbyStateStore();
+    if (origin === "promotion") {
+      expect(store.applyBriefingCardEvent(rawizeSemanticBriefing(semanticBriefingEvent(
+        id, "2026-08-25T00:00:00.000Z", "1",
+      )), nowMs).applied).toBe(true);
+      expect(store.applyBriefingCardEvent(semanticBriefingEvent(
+        id, "2026-08-25T00:01:00.000Z", "2",
+      ), nowMs).applied).toBe(true);
+      return store;
+    }
+
+    if (origin === "normal-reconcile") {
+      const source = rawLifecycleBriefingEvent(
+        id, "2026-08-25T00:00:00.000Z", "2", "critical", "vpoa50",
+      );
+      expect(store.applyBriefingCardEvent(source, nowMs).applied).toBe(true);
+      expect(store.reconcileBriefingCard(
+        rawBriefingKey("vpoa50", id),
+        semanticBriefingEvent(`${id}-canonical`, "2026-08-25T00:01:00.000Z", "3"),
+        nowMs,
+      )).toMatchObject({ kind: "applied", canonicalInserted: true });
+      return store;
+    }
+
+    const sourceAtMs = nowMs - BRIEFING_CARD_TTL_MS + 1_000;
+    expect(store.applyBriefingCardEvent(rawLifecycleBriefingEvent(
+      id, new Date(sourceAtMs).toISOString(), "5", "critical", "vpoa50",
+    ), nowMs).applied).toBe(true);
+    expect(store.reconcileBriefingCard(
+      rawBriefingKey("vpoa50", id),
+      semanticBriefingEvent(
+        `${id}-canonical`, new Date(nowMs - BRIEFING_CARD_TTL_MS).toISOString(), "2",
+      ),
+      nowMs,
+    )).toMatchObject({ kind: "applied", canonicalInserted: false });
+    return store;
+  }
+
+  function projectReplayStore(
+    live: StandbyStateStore,
+    projection: ReplayProjection,
+    reload: boolean,
+    nowMs: number,
+  ): StandbyStateStore {
+    if (reload) {
+      const persisted = structuredClone(live.exportActiveState());
+      if (projection !== "canonical-live") persisted.briefingCritical!.entries = [];
+      if (projection === "alias-only") persisted.briefingCritical!.watermarks = [];
+      const restored = new StandbyStateStore();
+      restored.restoreActiveState(
+        JSON.parse(JSON.stringify(persisted)) as typeof persisted,
+        nowMs,
+      );
+      return restored;
+    }
+    const internals = admissionInternals(live);
+    if (projection !== "canonical-live") internals.briefingEntries.clear();
+    if (projection === "alias-only") internals.briefingRevisionWatermarks.clear();
+    return live;
+  }
+
+  function rawReplay(
+    origin: ReplayOrigin,
+    id: string,
+    revision: ReplayRevision,
+    nowMs: number,
+  ): PresentationEvent {
+    if (origin === "retirement") {
+      const sourceAtMs = nowMs - BRIEFING_CARD_TTL_MS + 1_000;
+      return rawLifecycleBriefingEvent(
+        id,
+        new Date(sourceAtMs + (revision === "older" ? -1 : revision === "unordered" ? 1 : 0)).toISOString(),
+        revision === "older" ? "4" : revision === "same" ? "5" : null,
+        "critical",
+        "vpoa50",
+      );
+    }
+    const reportDateTime = revision === "older"
+      ? "2026-08-25T00:00:00.000Z"
+      : revision === "same"
+        ? "2026-08-25T00:01:00.000Z"
+        : "2026-08-25T00:02:00.000Z";
+    const serial = revision === "older"
+      ? origin === "promotion" ? "1" : "2"
+      : revision === "same"
+        ? origin === "promotion" ? "2" : "3"
+        : null;
+    return origin === "promotion"
+      ? rawizeSemanticBriefing(semanticBriefingEvent(id, reportDateTime, serial ?? "3"))
+      : rawLifecycleBriefingEvent(id, reportDateTime, serial, "critical", "vpoa50");
+  }
+
+  it.each(replayMatrix)(
+    "$origin $projection reload=$reload 後のraw $revision replayを完全no-opで拒否する",
+    ({ origin, projection, reload, revision }) => {
+      const nowMs = Date.parse("2026-08-25T00:10:00.000Z");
+      const id = `replay-${origin}-${projection}-${reload}-${revision}`;
+      const live = replayOriginStore(origin, id, nowMs);
+      const store = projectReplayStore(live, projection, reload, nowMs);
+      const replay = rawReplay(origin, id, revision, nowMs);
+      if (origin === "promotion" && revision === "unordered") {
+        replay.serial = null;
+        replay.raw = { ...(replay.raw as ParsedWeatherBriefing), serial: null };
+      }
+      const before = structuredClone(store.exportActiveState().briefingCritical);
+      const beforeCard = structuredClone(store.snapshotBriefingCard());
+      const generation = store.briefingCardGeneration();
+      let viewCalls = 0;
+      let durableCalls = 0;
+      store.onChange(() => { viewCalls += 1; });
+      store.onDurable(() => { durableCalls += 1; });
+
+      expect(store.applyBriefingCardEvent(replay, nowMs))
+        .toMatchObject({ kind: "ignored", generation });
+      expect(store.applyEvent(replay, nowMs)).toEqual({ viewChanged: false, durableChanged: false });
+      expect(store.exportActiveState().briefingCritical).toEqual(before);
+      expect(store.snapshotBriefingCard()).toEqual(beforeCard);
+      expect(store.briefingCardGeneration()).toBe(generation);
+      expect(viewCalls).toBe(0);
+      expect(durableCalls).toBe(0);
+    },
+  );
+
+  it.each([
+    { appliedCount: 128, expectedCount: 128 },
+    { appliedCount: 129, expectedCount: 128 },
+  ] as const)(
+    "live apply $appliedCount件→export→reloadはentry境界$expectedCount件を維持する",
+    ({ appliedCount, expectedCount }) => {
+      const nowMs = Date.parse("2026-08-25T00:00:00.000Z");
+      const live = new StandbyStateStore();
+      for (let index = 0; index < appliedCount; index += 1) {
+        live.applyEvent(rawLifecycleBriefingEvent(
+          `entry-reload-${String(index).padStart(3, "0")}`,
+          new Date(nowMs).toISOString(),
+          "1",
+        ), nowMs);
+      }
+      const exported = live.exportActiveState();
+      expect(exported.briefingCritical?.entries).toHaveLength(expectedCount);
+
+      const reloaded = new StandbyStateStore();
+      expect(() => reloaded.restoreActiveState(
+        JSON.parse(JSON.stringify(exported)) as typeof exported,
+        nowMs + 1,
+      )).not.toThrow();
+      expect(reloaded.snapshotBriefingCard()!.data.entries).toHaveLength(expectedCount);
+      expect(reloaded.exportActiveState().briefingCritical?.entries).toHaveLength(expectedCount);
+    },
+  );
 });

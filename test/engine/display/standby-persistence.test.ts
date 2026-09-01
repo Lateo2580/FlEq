@@ -3,10 +3,15 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
+  BriefingCriticalPersistenceInvariantError,
   StandbyPersistence,
   standbyPersistenceV2Path,
+  validateBriefingCriticalForWrite,
+  type PersistedBriefingCriticalEntryV1,
+  type PersistedBriefingCriticalStateV1,
   type PersistedStandbyStateV1,
 } from "../../../src/engine/display/standby-persistence";
+import type { DisplayBriefingEntryV1 } from "../../../src/engine/display/protocol";
 import { StandbyStateStore } from "../../../src/engine/display/standby-state-store";
 import { DisplayStateStore } from "../../../src/engine/display/state-store";
 import { FloodActiveReducer } from "../../../src/engine/display/flood-active-reducer";
@@ -36,6 +41,88 @@ function tempPath(): string {
   return join(root, "data", "runtime", "display-active-state-v1.json");
 }
 
+function jsonPointer(value: unknown, pointer: string): unknown {
+  return pointer.split("/").slice(1).reduce<unknown>((current, token) => {
+    if (current == null || typeof current !== "object") return undefined;
+    const key = token.replace(/~1/g, "/").replace(/~0/g, "~");
+    return (current as Record<string, unknown>)[key];
+  }, value);
+}
+
+function operationalArray(value: unknown[], pointer: string): unknown[] {
+  const copied = [...value];
+  if (pointer === "/briefingCritical/rawAliases") {
+    copied.sort((left, right) => {
+      const leftRecord = left as Record<string, unknown>;
+      const rightRecord = right as Record<string, unknown>;
+      return `${String(leftRecord.source)}\0${String(leftRecord.sourceEventId)}`
+        .localeCompare(`${String(rightRecord.source)}\0${String(rightRecord.sourceEventId)}`);
+    });
+  }
+  return copied;
+}
+
+function operationalArrayIdentity(value: unknown, pointer: string): string | null {
+  if (pointer !== "/briefingCritical/rawAliases" || value == null || typeof value !== "object") return null;
+  const record = value as Record<string, unknown>;
+  return typeof record.source === "string" && typeof record.sourceEventId === "string"
+    ? `${record.source}\0${record.sourceEventId}`
+    : null;
+}
+
+function explicitPrimitiveReplacements(source: unknown, target: unknown, pointer = ""): string[] {
+  if (source == null || target == null || typeof source !== "object" || typeof target !== "object") {
+    return pointer !== "/version" && JSON.stringify(source) !== JSON.stringify(target) ? [pointer] : [];
+  }
+  if (Array.isArray(source) || Array.isArray(target)) {
+    if (!Array.isArray(source) || !Array.isArray(target)) return [pointer];
+    const left = operationalArray(source, pointer);
+    const right = operationalArray(target, pointer);
+    const leftIdentities = left.map((item) => operationalArrayIdentity(item, pointer));
+    const rightIdentities = right.map((item) => operationalArrayIdentity(item, pointer));
+    if (leftIdentities.every((identity) => identity != null)
+      && rightIdentities.every((identity) => identity != null)) {
+      const rightByIdentity = new Map(rightIdentities.map((identity, index) => [identity!, right[index]]));
+      const identitySetChanged = JSON.stringify(leftIdentities) !== JSON.stringify(rightIdentities);
+      return [
+        ...(identitySetChanged ? [pointer] : []),
+        ...left.flatMap((item, index) => {
+          const matching = rightByIdentity.get(leftIdentities[index]!);
+          return matching === undefined
+            ? []
+            : explicitPrimitiveReplacements(item, matching, `${pointer}/${index}`);
+        }),
+      ];
+    }
+    return [
+      ...(left.length === right.length ? [] : [pointer]),
+      ...left.slice(0, Math.min(left.length, right.length)).flatMap((item, index) =>
+        explicitPrimitiveReplacements(item, right[index], `${pointer}/${index}`)),
+    ];
+  }
+  const left = source as Record<string, unknown>;
+  const right = target as Record<string, unknown>;
+  return [...new Set([...Object.keys(left), ...Object.keys(right)])].sort().flatMap((key) => {
+    const childPointer = `${pointer}/${key.replace(/~/g, "~0").replace(/\//g, "~1")}`;
+    if (childPointer === "/version") return [];
+    if (!Object.hasOwn(left, key) || !Object.hasOwn(right, key)) return [childPointer];
+    return explicitPrimitiveReplacements(left[key], right[key], childPointer);
+  });
+}
+
+function expiredEpochPointers(value: unknown, nowMs: number, pointer = ""): string[] {
+  if (Array.isArray(value)) {
+    return value.flatMap((item, index) => expiredEpochPointers(item, nowMs, `${pointer}/${index}`));
+  }
+  if (value == null || typeof value !== "object") return [];
+  return Object.entries(value as Record<string, unknown>).flatMap(([key, item]) => {
+    const childPointer = `${pointer}/${key.replace(/~/g, "~0").replace(/\//g, "~1")}`;
+    if (/^(?:expiresAtMs|forgetAtMs|targetDateEndMs)$/.test(key)
+      && typeof item === "number" && item <= nowMs) return [childPointer];
+    return expiredEpochPointers(item, nowMs, childPointer);
+  });
+}
+
 function state(over: Partial<PersistedStandbyStateV1> = {}): PersistedStandbyStateV1 {
   return {
     version: 1,
@@ -63,6 +150,94 @@ function state(over: Partial<PersistedStandbyStateV1> = {}): PersistedStandbySta
     quakeHost: null,
     nankaiTrough: null,
     ...over,
+  };
+}
+
+function rawBriefingDisplayKey(source: "vpbs50" | "vpoa50", sourceEventId: string): string {
+  return `card:briefing:${JSON.stringify(["raw", source, sourceEventId])}`;
+}
+
+function briefingUnit(options: {
+  source?: "vpbs50" | "vpoa50";
+  sourceEventId?: string;
+  semanticKey?: string | null;
+  phenomenonKind?: "linearRainObserved" | "linearRainPredicted" | "recordRain" | "shortSnow" | null;
+  editorialOffice?: string;
+  frameLevel?: "critical" | "cancel";
+  revision?: { reportTimeMs: number; serial: string } | null;
+  generation?: number;
+  updatedAtMs?: number;
+  expiresAtMs?: number;
+} = {}): PersistedBriefingCriticalEntryV1 {
+  const source = options.source ?? "vpbs50";
+  const sourceEventId = options.sourceEventId ?? "briefing-event-1";
+  const editorialOffice = options.editorialOffice ?? "試験地方気象台";
+  const phenomenonKind = options.phenomenonKind === undefined ? "recordRain" : options.phenomenonKind;
+  const semanticKey = options.semanticKey === undefined
+    ? `card:vpbs:semantic:${phenomenonKind}:${editorialOffice}`
+    : options.semanticKey;
+  const revision = options.revision === undefined ? { reportTimeMs: T0, serial: "3" } : options.revision;
+  const updatedAtMs = options.updatedAtMs ?? T0;
+  const expiresAtMs = options.expiresAtMs ?? T0 + 60 * 60_000;
+  const entry: DisplayBriefingEntryV1 = {
+    key: semanticKey ?? rawBriefingDisplayKey(source, sourceEventId),
+    source,
+    sourceEventId,
+    editorialOffice,
+    phenomenonKind,
+    semanticKey,
+    serial: revision?.serial ?? null,
+    title: "記録的短時間大雨情報",
+    headline: "試験地方で記録的な大雨",
+    conditions: ["警戒"],
+    targetAreas: [{ name: "試験地方", code: "999999" }],
+    reportDateTime: revision == null ? "" : new Date(revision.reportTimeMs).toISOString(),
+    publishingOffice: editorialOffice,
+    infoType: options.frameLevel === "cancel" ? "取消" : "発表",
+    frameLevel: options.frameLevel ?? "critical",
+    severityEvidence: [{
+      source: "test", condition: null, tag: "recordRain", displaySeverity: "officialL5",
+      soundLevel: null, severity: null, phenomenonCode: null, kindCode: null, levelCode: null, status: null,
+    }],
+    summary: {
+      mode: options.frameLevel === "cancel" ? "cancellation" : "structured",
+      hasUnknownKind: false,
+      items: [{
+        kind: "recordRain", lead: "記録的短時間大雨", sourceOrdinal: 0,
+        facts: [{
+          kind: "precipitation", locationName: "試験市", locationCode: "999999",
+          description: "1時間雨量", value: 100, unit: "mm", at: new Date(T0).toISOString(),
+          duration: "1時間", approximation: "exact",
+        }],
+      }],
+    },
+    qualifier: null,
+    updatedAt: new Date(updatedAtMs).toISOString(),
+    expiresAt: new Date(expiresAtMs).toISOString(),
+    generation: options.generation ?? 1,
+  };
+  return { entry, updatedAtMs, expiresAtMs };
+}
+
+function rawBriefingUnit(sourceEventId: string, source: "vpbs50" | "vpoa50" = "vpoa50"):
+PersistedBriefingCriticalEntryV1 {
+  return briefingUnit({
+    source, sourceEventId, semanticKey: null, phenomenonKind: null, editorialOffice: "",
+    revision: { reportTimeMs: T0, serial: "3" },
+  });
+}
+
+function semanticBriefingSlice(): PersistedBriefingCriticalStateV1 {
+  const unit = briefingUnit();
+  return {
+    generation: 1,
+    entries: [unit],
+    cancellations: [],
+    watermarks: [{
+      semanticKey: unit.entry.semanticKey!,
+      revision: { reportTimeMs: T0, serial: "3" },
+      expiresAtMs: T0 + 60 * 60_000,
+    }],
   };
 }
 
@@ -251,6 +426,17 @@ afterEach(() => {
   for (const root of roots.splice(0)) rmSync(root, { recursive: true, force: true });
 });
 
+describe("operational fixture explicit replacement guard", () => {
+  it.each([
+    ["field removal", { nested: { keep: 1, removed: 2 } }, { nested: { keep: 1 } }, ["/nested/removed"]],
+    ["field addition", { nested: { keep: 1 } }, { nested: { keep: 1, added: 2 } }, ["/nested/added"]],
+    ["array shortening", { items: [1, 2] }, { items: [1] }, ["/items"]],
+    ["array extension", { items: [1] }, { items: [1, 2] }, ["/items"]],
+  ] as const)("%s は allowlist 外変更として検出する", (_name, source, target, expected) => {
+    expect(explicitPrimitiveReplacements(source, target)).toEqual(expected);
+  });
+});
+
 describe("StandbyPersistence", () => {
   it("atomic save と load が往復する", () => {
     const persistence = new StandbyPersistence(tempPath());
@@ -275,6 +461,74 @@ describe("StandbyPersistence", () => {
         standbyDomains: { gateEntries: [] },
       },
     }));
+  });
+
+  it("standalone v1 fallbackのtokenized standby domainを初回v2保存でも維持する", () => {
+    const path = tempPath();
+    const acceptedAtMs = T0 - 5 * 60_000;
+    const dayMs = 24 * 60 * 60_000;
+    const heat = {
+      ...rootHeat("heat:2026-07-21:東京都", "2026-07-21"),
+      appliedSemanticKey: `発表:${"a".repeat(64)}`,
+    };
+    const typhoon = {
+      ...rootTyphoon("TC-A"),
+      key: "TC-A",
+      appliedSemanticKey: `訂正:${"b".repeat(64)}`,
+    };
+    const tornado = {
+      ...rootTornado("試験地方気象台"),
+      appliedSemanticKey: `発表:${"c".repeat(64)}`,
+    };
+    const longPeriod = {
+      ...rootLongPeriod("lg-event"),
+      appliedSemanticKey: `発表:${"d".repeat(64)}`,
+    };
+    const subjects = [
+      [heat.key, heat.revision, 3 * dayMs],
+      [`typhoon:${typhoon.key}`, typhoon.revision, 7 * dayMs],
+      [`tornado:${tornado.publishingOffice}`, tornado.revision, 36 * 60 * 60_000],
+      [`longPeriod:${longPeriod.eventId}`, longPeriod.revision, 36 * 60 * 60_000],
+    ] as const;
+    mkdirSync(dirname(path), { recursive: true });
+    writeFileSync(path, JSON.stringify(state({
+      heat: [heat], typhoons: [typhoon], tornado: [tornado], longPeriod: [longPeriod],
+      seen: subjects.map(([key, revision, retentionMs]) => ({
+        key, revision, forgetAtMs: acceptedAtMs + retentionMs + 1,
+      })),
+    })), "utf8");
+
+    const fallbackReader = new StandbyPersistence(path);
+    const loaded = fallbackReader.load();
+    expect(loaded?.telegramFoundation.standbyDomains.gateEntries.map((entry) =>
+      entry.stateSubjectKey)).toEqual(subjects.map(([key]) => key));
+    expect(loaded?.telegramFoundation.standbyDomains.gateEntries[0]).toMatchObject({
+      stateSubjectKey: heat.key,
+      comparison: { revision: {
+        reportDateTime: { epochMs: heat.revision.reportTimeMs },
+        serial: { raw: heat.revision.serial },
+      } },
+      semanticKeys: [heat.appliedSemanticKey],
+    });
+    expect(fallbackReader.takeMigrationConflictCount()).toBe(0);
+
+    const { telegramFoundation, version: _version, ...exported } = loaded!;
+    new StandbyPersistence(path, undefined, () => telegramFoundation).save({
+      ...exported,
+      version: 1,
+      briefingCritical: semanticBriefingSlice(),
+    });
+    const savedV2 = JSON.parse(readFileSync(standbyPersistenceV2Path(path), "utf8"));
+    expect(savedV2.telegramFoundation.standbyDomains.gateEntries.map(
+      (entry: { stateSubjectKey: string }) => entry.stateSubjectKey,
+    )).toEqual(subjects.map(([key]) => key));
+    expect(savedV2.heat).toEqual(loaded?.heat);
+    const reloaded = new StandbyPersistence(path).load();
+    expect(reloaded?.heat).toEqual(loaded?.heat);
+    expect(reloaded?.typhoons).toEqual(loaded?.typhoons);
+    expect(reloaded?.tornado).toEqual(loaded?.tornado);
+    expect(reloaded?.longPeriod).toEqual(loaded?.longPeriod);
+    expect(reloaded?.briefingCritical).toEqual(validateBriefingCriticalForWrite(semanticBriefingSlice()));
   });
 
   it("version 不一致は全体を破棄し、構造不正な domain だけを空にする", () => {
@@ -2007,6 +2261,374 @@ describe("StandbyStateStore persistence", () => {
     store.seedVolcanoAlerts([{ volcanoCode: "V-1", volcanoName: "Mount Test", alertLevel: 4, reportDateTime: new Date(T0 + 120_000).toISOString() }], "success", T0 + 120_000);
 
     expect(store.snapshotItems().find((item) => item.kind === "volcano")?.restored).toBe(true);
+  });
+});
+
+describe("briefing critical persistence", () => {
+  function loadExternalBriefing(
+    briefingCritical: unknown,
+  ): ReturnType<StandbyPersistence["load"]> {
+    const path = tempPath();
+    mkdirSync(dirname(path), { recursive: true });
+    writeFileSync(path, JSON.stringify(state({
+      briefingCritical: briefingCritical as PersistedBriefingCriticalStateV1,
+    })), "utf8");
+    return new StandbyPersistence(path).load();
+  }
+
+  it("semantic/raw のtyped文字列衝突を共存させ、identity順にcanonicalizeする", () => {
+    const semantic = briefingUnit();
+    const raw = rawBriefingUnit(semantic.entry.semanticKey!, "vpbs50");
+    const validated = validateBriefingCriticalForWrite({
+      generation: 1,
+      entries: [semantic, raw],
+      cancellations: [],
+      watermarks: [{
+        semanticKey: semantic.entry.semanticKey!, revision: { reportTimeMs: T0, serial: "003" },
+        expiresAtMs: T0 + 60 * 60_000,
+      }],
+    });
+
+    expect(validated.entries.map((unit) => unit.entry.key)).toEqual([
+      rawBriefingDisplayKey("vpbs50", semantic.entry.semanticKey!),
+      semantic.entry.semanticKey,
+    ]);
+    expect(validated.watermarks[0]?.revision.serial).toBe("3");
+  });
+
+  it("rawAliases 欠落を空として受理し、明示emptyはwriterで省略する", () => {
+    const missing = validateBriefingCriticalForWrite(semanticBriefingSlice());
+    const explicit = validateBriefingCriticalForWrite({ ...semanticBriefingSlice(), rawAliases: [] });
+
+    expect(missing.rawAliases).toBeUndefined();
+    expect(explicit.rawAliases).toBeUndefined();
+  });
+
+  it("外部配列orderingと明示empty rawAliasesはcanonical rewriteを要求し、保存後に解消する", () => {
+    const path = tempPath();
+    const external = state({
+      briefingCritical: {
+        generation: 1,
+        entries: [rawBriefingUnit("z-last"), rawBriefingUnit("a-first")],
+        cancellations: [], watermarks: [], rawAliases: [],
+      },
+    });
+    mkdirSync(dirname(path), { recursive: true });
+    writeFileSync(path, JSON.stringify(external), "utf8");
+    const persistence = new StandbyPersistence(path);
+    const loaded = persistence.load();
+
+    expect(persistence.hasPendingSalvageRepair()).toBe(true);
+    expect(loaded?.briefingCritical?.entries.map((unit) => unit.entry.sourceEventId))
+      .toEqual(["a-first", "z-last"]);
+    persistence.save(loaded!);
+    expect(persistence.hasPendingSalvageRepair()).toBe(false);
+    expect(JSON.parse(readFileSync(path, "utf8")).briefingCritical.rawAliases).toBeUndefined();
+  });
+
+  it("generation単独のempty sliceはv1/v2 writerが省略する", () => {
+    const path = tempPath();
+    new StandbyPersistence(path).save(state({
+      briefingCritical: { generation: 99, entries: [], cancellations: [], watermarks: [], rawAliases: [] },
+    }));
+
+    expect(JSON.parse(readFileSync(path, "utf8")).briefingCritical).toBeUndefined();
+    expect(JSON.parse(readFileSync(standbyPersistenceV2Path(path), "utf8")).briefingCritical).toBeUndefined();
+  });
+
+  it("alias-only sliceをv1/v2へ意味的同一にdual-writeし、v1 fallbackでも保持する", () => {
+    const path = tempPath();
+    const aliasOnly: PersistedBriefingCriticalStateV1 = {
+      generation: 11,
+      entries: [], cancellations: [], watermarks: [],
+      rawAliases: [{
+        source: "vpoa50", sourceEventId: "raw-alias-1", semanticKey: "card:vpbs:semantic:recordRain:試験地方気象台",
+        revision: { reportTimeMs: T0, serial: "007" }, expiresAtMs: T0 + 60 * 60_000,
+      }],
+    };
+    const persistence = new StandbyPersistence(path);
+    persistence.save(state({ briefingCritical: aliasOnly }));
+    const v1 = JSON.parse(readFileSync(path, "utf8"));
+    const v2 = JSON.parse(readFileSync(standbyPersistenceV2Path(path), "utf8"));
+
+    expect(v1.briefingCritical).toEqual(v2.briefingCritical);
+    expect(v2.briefingCritical).toEqual({
+      ...aliasOnly,
+      rawAliases: [{ ...aliasOnly.rawAliases![0], revision: { reportTimeMs: T0, serial: "7" } }],
+    });
+    rmSync(standbyPersistenceV2Path(path));
+    expect(new StandbyPersistence(path).load()?.briefingCritical).toEqual(v1.briefingCritical);
+  });
+
+  it("required/nullable/enum/nested payloadとauthoritative field矛盾をfail-loudにする", () => {
+    const mutations: Array<(entry: Record<string, unknown>, unit: PersistedBriefingCriticalEntryV1) => void> = [
+      (entry) => { delete entry.headline; },
+      (entry) => { entry.source = "unknown"; },
+      (entry) => { entry.summary = null; },
+      (entry) => {
+        const evidence = (entry.severityEvidence as Array<Record<string, unknown>>)[0]!;
+        delete evidence.status;
+      },
+      (entry) => {
+        const summary = entry.summary as { items: Array<{ facts: Array<Record<string, unknown>> }> };
+        delete summary.items[0]!.facts[0]!.locationName;
+      },
+      (entry) => {
+        const summary = entry.summary as { items: Array<{ facts: Array<Record<string, unknown>> }> };
+        summary.items[0]!.facts[0]!.value = Number.POSITIVE_INFINITY;
+      },
+      (entry) => { entry.conditions = Array.from({ length: 2_049 }, () => "x"); },
+      (entry) => {
+        const summary = entry.summary as { items: unknown[] };
+        summary.items = Array.from({ length: 5 }, () => summary.items[0]);
+      },
+      (entry) => { entry.generation = 2; },
+      (entry) => { entry.updatedAt = new Date(T0 + 1).toISOString(); },
+      (_entry, unit) => { unit.updatedAtMs = unit.expiresAtMs + 1; },
+      (entry) => { entry.frameLevel = "warning"; },
+    ];
+
+    for (const mutate of mutations) {
+      const slice = semanticBriefingSlice();
+      const unit = slice.entries[0]!;
+      const entry = unit.entry as unknown as Record<string, unknown>;
+      mutate(entry, unit);
+      expect(() => validateBriefingCriticalForWrite(slice)).toThrow(BriefingCriticalPersistenceInvariantError);
+    }
+  });
+
+  it("malformed aliasは同identityのalias bundleだけを除外しsemantic/raw bundleを維持する", () => {
+    const slice = semanticBriefingSlice();
+    const raw = rawBriefingUnit("raw-survivor");
+    const malformedSemantic = structuredClone(slice.entries[0]!) as PersistedBriefingCriticalEntryV1;
+    malformedSemantic.entry.source = "vpoa50";
+    const malformedRawAlias = {
+      source: "vpoa50" as const,
+      sourceEventId: "raw-survivor",
+      semanticKey: "",
+      revision: { reportTimeMs: T0, serial: "3" },
+      expiresAtMs: T0 + 60 * 60_000,
+    };
+    const validAlias = {
+      source: "vpoa50" as const, sourceEventId: "alias-A", semanticKey: slice.entries[0]!.entry.semanticKey!,
+      revision: { reportTimeMs: T0, serial: "3" }, expiresAtMs: T0 + 60 * 60_000,
+    };
+    const validRawIdentityAlias = { ...validAlias, sourceEventId: "raw-survivor" };
+    const loaded = loadExternalBriefing({
+      ...slice,
+      entries: [...slice.entries, malformedSemantic, raw],
+      watermarks: [
+        ...slice.watermarks,
+        { ...slice.watermarks[0], revision: { reportTimeMs: "invalid", serial: "3" } },
+      ],
+      rawAliases: [
+        validAlias,
+        { ...validAlias, revision: { reportTimeMs: "invalid", serial: "3" } },
+        { ...validAlias, sourceEventId: "alias-B" },
+        validRawIdentityAlias,
+        malformedRawAlias,
+      ],
+    });
+
+    expect(loaded?.briefingCritical?.entries.map((unit) => unit.entry.sourceEventId))
+      .toEqual(["raw-survivor", slice.entries[0]!.entry.sourceEventId]);
+    expect(loaded?.briefingCritical?.watermarks).toHaveLength(1);
+    expect(loaded?.briefingCritical?.rawAliases?.map((alias) => alias.sourceEventId))
+      .toEqual(["alias-B"]);
+  });
+
+  it("duplicate aliasとraw entry+alias矛盾をtyped raw identity単位で入力順非依存にsalvageする", () => {
+    const alias = {
+      source: "vpoa50" as const, sourceEventId: "duplicate", semanticKey: "canonical",
+      revision: { reportTimeMs: T0, serial: "3" }, expiresAtMs: T0 + 60 * 60_000,
+    };
+    const raw = rawBriefingUnit("entry-alias-conflict");
+    const conflictingAlias = { ...alias, sourceEventId: "entry-alias-conflict" };
+    const first = {
+      generation: 1, entries: [raw], cancellations: [], watermarks: [],
+      rawAliases: [alias, { ...alias }, conflictingAlias],
+    };
+    const second = { ...first, rawAliases: [...first.rawAliases].reverse() };
+
+    const left = loadExternalBriefing(first)?.briefingCritical;
+    const right = loadExternalBriefing(second)?.briefingCritical;
+    expect(left).toEqual(right);
+    expect(left).toEqual({ generation: 1, entries: [], cancellations: [], watermarks: [] });
+  });
+
+  it("entry 128/129、watermark 511/512/513、alias 511/512/513 を境界検証する", () => {
+    const rawEntries = Array.from({ length: 129 }, (_, index) => rawBriefingUnit(`raw-${index}`));
+    expect(validateBriefingCriticalForWrite({
+      generation: 1, entries: rawEntries.slice(0, 128), cancellations: [], watermarks: [],
+    }).entries).toHaveLength(128);
+    expect(() => validateBriefingCriticalForWrite({
+      generation: 1, entries: rawEntries, cancellations: [], watermarks: [],
+    })).toThrow("limit-exceeded");
+
+    const watermarks = Array.from({ length: 513 }, (_, index) => ({
+      semanticKey: `semantic-${index}`, revision: { reportTimeMs: T0, serial: "1" },
+      expiresAtMs: T0 + 60 * 60_000,
+    }));
+    for (const count of [511, 512]) {
+      expect(validateBriefingCriticalForWrite({
+        generation: 1, entries: [], cancellations: [], watermarks: watermarks.slice(0, count),
+      }).watermarks).toHaveLength(count);
+    }
+    expect(() => validateBriefingCriticalForWrite({
+      generation: 1, entries: [], cancellations: [], watermarks,
+    })).toThrow("limit-exceeded");
+
+    const aliases = Array.from({ length: 513 }, (_, index) => ({
+      source: "vpoa50" as const, sourceEventId: `alias-${index}`, semanticKey: `semantic-${index}`,
+      revision: { reportTimeMs: T0, serial: "1" }, expiresAtMs: T0 + 60 * 60_000,
+    }));
+    for (const count of [511, 512]) {
+      expect(validateBriefingCriticalForWrite({
+        generation: 1, entries: [], cancellations: [], watermarks: [], rawAliases: aliases.slice(0, count),
+      }).rawAliases).toHaveLength(count);
+    }
+    expect(() => validateBriefingCriticalForWrite({
+      generation: 1, entries: [], cancellations: [], watermarks: [], rawAliases: aliases,
+    })).toThrow("limit-exceeded");
+  });
+
+  it("raw provenance+alias union 512を許し513を拒否する", () => {
+    const entries = Array.from({ length: 128 }, (_, index) => rawBriefingUnit(`entry-${index}`));
+    const aliases = Array.from({ length: 385 }, (_, index) => ({
+      source: "vpoa50" as const, sourceEventId: `alias-${index}`, semanticKey: `semantic-${index}`,
+      revision: { reportTimeMs: T0, serial: "1" }, expiresAtMs: T0 + 60 * 60_000,
+    }));
+    expect(validateBriefingCriticalForWrite({
+      generation: 1, entries, cancellations: [], watermarks: [], rawAliases: aliases.slice(0, 384),
+    }).rawAliases).toHaveLength(384);
+    expect(() => validateBriefingCriticalForWrite({
+      generation: 1, entries, cancellations: [], watermarks: [], rawAliases: aliases,
+    })).toThrow("limit-exceeded");
+  });
+
+  it("外部top-level容量超過はbriefing domainだけを除外し他domainを維持する", () => {
+    const aliases = Array.from({ length: 513 }, (_, index) => ({
+      source: "vpoa50", sourceEventId: `alias-${index}`, semanticKey: `semantic-${index}`,
+      revision: { reportTimeMs: T0, serial: "1" }, expiresAtMs: T0 + 60 * 60_000,
+    }));
+    const loaded = loadExternalBriefing({
+      generation: 1, entries: [], cancellations: [], watermarks: [], rawAliases: aliases,
+    });
+
+    expect(loaded?.briefingCritical).toBeUndefined();
+    expect(loaded?.heat).toHaveLength(1);
+  });
+
+  it("writer invariant違反は既存の正常v1/v2 fileを置換しない", () => {
+    const path = tempPath();
+    const persistence = new StandbyPersistence(path);
+    persistence.save(state({ savedAt: "valid", briefingCritical: semanticBriefingSlice() }));
+    const beforeV1 = readFileSync(path, "utf8");
+    const beforeV2 = readFileSync(standbyPersistenceV2Path(path), "utf8");
+    const invalid = semanticBriefingSlice();
+    invalid.entries[0]!.entry.key = "not-canonical";
+
+    expect(() => persistence.save(state({ savedAt: "invalid", briefingCritical: invalid })))
+      .toThrow(BriefingCriticalPersistenceInvariantError);
+    expect(readFileSync(path, "utf8")).toBe(beforeV1);
+    expect(readFileSync(standbyPersistenceV2Path(path), "utf8")).toBe(beforeV2);
+  });
+});
+
+describe("briefing operational persistence fixtures", () => {
+  const fixtureRoot = join(process.cwd(), "test", "fixtures", "standby-persistence");
+  const expectations = JSON.parse(readFileSync(join(fixtureRoot, "operational-expectations.json"), "utf8")) as {
+    fixtures: Array<{
+      path: string;
+      fixedNowMs: string;
+      retainedPointers: Array<{ source: string; migration: string; v2: string; v1: string; value: unknown }>;
+      expiredPointers: string[];
+      expiredReason?: string;
+      explicitReplacementAllowlist: string[];
+      optionalCompletionPointers: string[];
+      savedV2ChangeAllowlist: string[];
+      savedV1ChangeAllowlist: string[];
+      reloadedV2ChangeAllowlist: string[];
+      reloadedV1ChangeAllowlist: string[];
+    }>;
+  };
+
+  it.each(expectations.fixtures)("$path は固定時計で load→restore→dual-write→reload して意味を保つ", (expected) => {
+    vi.useFakeTimers();
+    vi.setSystemTime(expected.fixedNowMs);
+    try {
+      const source = JSON.parse(readFileSync(join(fixtureRoot, expected.path), "utf8")) as Record<string, unknown>;
+      const path = tempPath();
+      mkdirSync(dirname(path), { recursive: true });
+      writeFileSync(source.version === 1 ? path : standbyPersistenceV2Path(path), JSON.stringify(source), "utf8");
+      for (const retained of expected.retainedPointers) {
+        expect(jsonPointer(source, retained.source)).toEqual(retained.value);
+      }
+      if (expected.expiredPointers.length === 0) {
+        expect(expected.expiredReason).toBeTruthy();
+        expect(expiredEpochPointers(source, Date.now())).toEqual([]);
+      }
+
+      const nowMs = Date.now();
+      const persistence = new StandbyPersistence(path);
+      const loaded = persistence.load();
+      expect(loaded).not.toBeNull();
+      const structuralChanges = explicitPrimitiveReplacements(source, loaded);
+      expect(structuralChanges.filter((pointer) => !expected.optionalCompletionPointers.includes(pointer)))
+        .toEqual(expected.explicitReplacementAllowlist);
+      expect(structuralChanges.filter((pointer) => expected.optionalCompletionPointers.includes(pointer)))
+        .toEqual(expected.optionalCompletionPointers);
+      const store = new StandbyStateStore();
+      const restore = store.restoreActiveState(loaded!, nowMs);
+      store.sweep(nowMs);
+      const exported = store.exportActiveState();
+      persistence.save(exported);
+
+      const writtenV2 = JSON.parse(readFileSync(standbyPersistenceV2Path(path), "utf8"));
+      const writtenV1 = JSON.parse(readFileSync(path, "utf8"));
+      expect(explicitPrimitiveReplacements(source, writtenV2)).toEqual(expected.savedV2ChangeAllowlist);
+      expect(explicitPrimitiveReplacements(source, writtenV1)).toEqual(expected.savedV1ChangeAllowlist);
+      const reloaded = persistence.load();
+      expect(reloaded).not.toBeNull();
+      expect(explicitPrimitiveReplacements(writtenV2, reloaded))
+        .toEqual(expected.reloadedV2ChangeAllowlist);
+      const reloadedStore = new StandbyStateStore();
+      reloadedStore.restoreActiveState(reloaded!, nowMs);
+
+      const fallbackPath = tempPath();
+      mkdirSync(dirname(fallbackPath), { recursive: true });
+      writeFileSync(fallbackPath, JSON.stringify(writtenV1), "utf8");
+      const fallbackReloaded = new StandbyPersistence(fallbackPath).load();
+      expect(fallbackReloaded).not.toBeNull();
+      expect(explicitPrimitiveReplacements(writtenV1, fallbackReloaded))
+        .toEqual(expected.reloadedV1ChangeAllowlist);
+      const fallbackStore = new StandbyStateStore();
+      fallbackStore.restoreActiveState(fallbackReloaded!, nowMs);
+      for (const retained of expected.retainedPointers) {
+        expect(jsonPointer(loaded, retained.migration)).toEqual(retained.value);
+        expect(jsonPointer(writtenV2, retained.v2)).toEqual(retained.value);
+        expect(jsonPointer(writtenV1, retained.v1)).toEqual(retained.value);
+        expect(jsonPointer(reloadedStore.exportActiveState(), retained.v2)).toEqual(retained.value);
+        expect(jsonPointer(fallbackStore.exportActiveState(), retained.v1)).toEqual(retained.value);
+      }
+      for (const pointer of expected.expiredPointers) {
+        expect(jsonPointer(store.exportActiveState(), pointer)).toBeUndefined();
+        expect(jsonPointer(writtenV2, pointer)).toBeUndefined();
+        expect(jsonPointer(writtenV1, pointer)).toBeUndefined();
+        expect(jsonPointer(reloadedStore.exportActiveState(), pointer)).toBeUndefined();
+        expect(jsonPointer(fallbackStore.exportActiveState(), pointer)).toBeUndefined();
+      }
+      if (expected.path.includes("v1")) {
+        expect(source.briefingCritical).toBeDefined();
+        expect((source.briefingCritical as Record<string, unknown>).rawAliases).toBeUndefined();
+        expect(writtenV2.briefingCritical.rawAliases).toBeUndefined();
+        expect(writtenV1.briefingCritical.rawAliases).toBeUndefined();
+      } else {
+        expect(restore.briefingCriticalRewriteRequired).toBe(true);
+      }
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
 

@@ -4,6 +4,7 @@ import { createHash } from "node:crypto";
 import * as log from "../../logger";
 import type {
   DisplayFloodHydrographV1,
+  DisplayBriefingEntryV1,
   DisplayFloodRiverV1,
   DisplayFloodStationV1,
   DisplayHeatAreaV1,
@@ -128,6 +129,43 @@ export interface PersistedStandbyStateV1 {
   quakeHost?: PersistedQuakeHostStateV1 | null;
   nankaiTrough?: PersistedNankaiStateV1 | null;
   seen: PersistedSeenEntry[];
+  /** Critical briefing lifecycle only.  Warning/info projections stay ephemeral. */
+  briefingCritical?: PersistedBriefingCriticalStateV1;
+}
+
+export interface PersistedBriefingCriticalEntryV1 {
+  entry: DisplayBriefingEntryV1;
+  updatedAtMs: number;
+  expiresAtMs: number;
+}
+
+export interface PersistedBriefingCriticalWatermarkV1 {
+  semanticKey: string;
+  revision: StandbyRevision;
+  expiresAtMs: number;
+}
+
+export interface PersistedBriefingCriticalRawAliasV1 {
+  source: "vpbs50" | "vpoa50";
+  sourceEventId: string;
+  semanticKey: string;
+  revision: StandbyRevision;
+  expiresAtMs: number;
+}
+
+export interface PersistedBriefingCriticalStateV1 {
+  generation: number;
+  entries: PersistedBriefingCriticalEntryV1[];
+  cancellations: PersistedBriefingCriticalEntryV1[];
+  watermarks: PersistedBriefingCriticalWatermarkV1[];
+  rawAliases?: PersistedBriefingCriticalRawAliasV1[];
+}
+
+export class BriefingCriticalPersistenceInvariantError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "BriefingCriticalPersistenceInvariantError";
+  }
 }
 
 /** Phase 4B 単位 4 の v2 observation schema。旧 JSON の areaCode 欠落も許容する。 */
@@ -370,9 +408,10 @@ interface PersistedReadResult {
 type SalvageDomain =
   | "root.heat" | "root.typhoons" | "root.volcanoes" | "root.tornado" | "root.longPeriod"
   | "root.seen" | "root.floods" | "root.weatherAlerts" | "root.quakeHost" | "root.nankaiTrough"
+  | "root.briefingCritical"
   | "foundation.vpws50" | "foundation.vpww56" | "foundation.tsunami" | "foundation.volcano"
   | "foundation.floodForecast" | "foundation.standbyDomains";
-type SalvageUnit = "entry" | "source" | "eventId" | "code" | "subject" | "stationCode" | "family" | "singleton" | "domain";
+type SalvageUnit = "entry" | "source" | "eventId" | "code" | "subject" | "identity" | "stationCode" | "family" | "singleton" | "domain";
 type SalvageReason = "invalid-entry" | "invalid-container" | "coupling-mismatch" | "duplicate-subject" | "limit-exceeded";
 
 interface RepairMetric {
@@ -388,6 +427,8 @@ interface RepairMetric {
 interface RepairCollector {
   source: string;
   metrics: Map<SalvageDomain, RepairMetric>;
+  /** 値の破損を伴わない ordering / optional-field canonicalization。 */
+  canonicalRewriteRequired: boolean;
 }
 
 /** 原文と同じ寿命で保持する。backup が成功するまで repair の内訳を失わない。 */
@@ -466,6 +507,7 @@ export class StandbyPersistence {
   private persistenceSalvageBackupBlocked = 0;
   private persistenceSalvageBackupRecovered = 0;
   private salvageBackupWriteBlocked = false;
+  private canonicalRewriteRequired = false;
 
   constructor(
     private readonly persistPath: string,
@@ -557,7 +599,7 @@ export class StandbyPersistence {
 
   /** restore と startup sweep の後に一度だけ canonical rewrite を予約するための問い合せ。 */
   hasPendingSalvageRepair(): boolean {
-    return this.repairSources.size > 0;
+    return this.repairSources.size > 0 || this.canonicalRewriteRequired;
   }
 
   private recordMigrationConflict(detail: string): void {
@@ -566,6 +608,16 @@ export class StandbyPersistence {
   }
 
   private toV2(state: PersistedStandbyState): PersistedStandbyStateV2 {
+    const validatedBriefingCritical = state.briefingCritical == null
+      ? undefined
+      : validateBriefingCriticalState(state.briefingCritical, true);
+    const briefingCritical = validatedBriefingCritical == null
+      || validatedBriefingCritical.entries.length === 0
+        && validatedBriefingCritical.cancellations.length === 0
+        && validatedBriefingCritical.watermarks.length === 0
+        && (validatedBriefingCritical.rawAliases?.length ?? 0) === 0
+      ? undefined
+      : validatedBriefingCritical;
     const foundation = this.foundationProvider?.()
       ?? (state.version === 2 ? state.telegramFoundation : emptyTelegramFoundation());
     const tsunami = normalizeTsunamiFoundationForWrite(
@@ -584,8 +636,14 @@ export class StandbyPersistence {
       foundation.standbyDomains ?? emptyStandbyDomainsFoundation(),
     );
     const typhoons = normalizeTyphoonStatesForWrite(state.typhoons);
+    const { briefingCritical: _briefingCritical, ...stateWithoutBriefingCritical } = state;
     const projectionState = salvageStandbyDomainProjections(
-      { ...state, version: 1, typhoons },
+      {
+        ...stateWithoutBriefingCritical,
+        version: 1,
+        typhoons,
+        ...(briefingCritical == null ? {} : { briefingCritical }),
+      },
       standbyDomains,
     );
     const seen = mergeLegacySeenEntries(
@@ -641,7 +699,9 @@ export class StandbyPersistence {
   private readPath(filePath: string, allowV1: boolean): PersistedReadResult {
     if (!fs.existsSync(filePath)) return { state: null, migrationConflict: false };
     let raw: Buffer | null = null;
-    const collector: RepairCollector = { source: path.basename(filePath), metrics: new Map() };
+    const collector: RepairCollector = {
+      source: path.basename(filePath), metrics: new Map(), canonicalRewriteRequired: false,
+    };
     try {
       raw = fs.readFileSync(filePath);
       const parsed: unknown = JSON.parse(raw.toString("utf8"));
@@ -657,6 +717,7 @@ export class StandbyPersistence {
       } finally {
         activeRepairCollector = null;
       }
+      this.canonicalRewriteRequired ||= collector.canonicalRewriteRequired;
       if (sanitized == null) {
         log.warn(`[standby-persistence] top-level structure validation 失敗 — 破棄 (${path.basename(filePath)})`);
         // Top-level failures have no closed domain token, but still require original-byte backup
@@ -724,6 +785,7 @@ export class StandbyPersistence {
       fs.renameSync(v2TmpPath, v2Path);
       fs.renameSync(v1TmpPath, this.persistPath);
       this.renamedSeq = seq;
+      this.canonicalRewriteRequired = false;
     } catch (err) {
       log.warn(`[standby-persistence] save 失敗: ${err instanceof Error ? err.message : String(err)}`);
       for (const tmpPath of [v2TmpPath, v1TmpPath]) {
@@ -782,6 +844,7 @@ export class StandbyPersistence {
       fs.renameSync(v2TmpPath, v2Path);
       fs.renameSync(v1TmpPath, this.persistPath);
       this.renamedSeq = pending.seq;
+      this.canonicalRewriteRequired = false;
     } catch (err) {
       log.warn(`[standby-persistence] save 失敗: ${err instanceof Error ? err.message : String(err)}`);
       for (const tmpPath of [v2TmpPath, v1TmpPath]) {
@@ -1382,6 +1445,7 @@ function sanitizePersistedStandbyStateV1(value: unknown): PersistedStandbyStateV
   if (value.quakeHost != null && quakeHost == null) {
     recordRepair("root.quakeHost", "singleton", 1, 0, "invalid-entry", true);
   }
+  const briefingCritical = sanitizeBriefingCritical(value.briefingCritical);
   return {
     version: 1,
     savedAt: value.savedAt,
@@ -1395,7 +1459,286 @@ function sanitizePersistedStandbyStateV1(value: unknown): PersistedStandbyStateV
     quakeHost,
     nankaiTrough,
     seen: validDomainArray(value.seen, isSeenEntry, "root.seen"),
+    ...(briefingCritical == null ? {} : { briefingCritical }),
   };
+}
+
+const BRIEFING_NESTED_MAX = 2_048;
+const BRIEFING_ENTRY_MAX = 128;
+const BRIEFING_PROTECTION_MAX = 512;
+const BRIEFING_KINDS = new Set(["linearRainObserved", "linearRainPredicted", "recordRain", "shortSnow"]);
+const BRIEFING_FRAMES = new Set(["critical", "warning", "info", "cancel"]);
+
+function nonBlankString(value: unknown): value is string {
+  return typeof value === "string" && value.trim() !== "";
+}
+
+function validEpochMs(value: unknown): value is number {
+  return Number.isSafeInteger(value) && Number.isFinite(new Date(value as number).getTime());
+}
+
+function canonicalStrictRevision(value: unknown): StandbyRevision | null {
+  if (!isRecord(value) || !validEpochMs(value.reportTimeMs) || !nonBlankString(value.serial)
+    || !/^\d+$/.test(value.serial)) return null;
+  const serial = Number(value.serial);
+  if (!Number.isSafeInteger(serial) || serial < 0) return null;
+  return { reportTimeMs: value.reportTimeMs, serial: String(serial) };
+}
+
+function nullableString(value: unknown): value is string | null | undefined {
+  return value == null || typeof value === "string";
+}
+
+function requiredNullableString(value: Record<string, unknown>, key: string): boolean {
+  return Object.hasOwn(value, key) && (value[key] === null || typeof value[key] === "string");
+}
+
+function allFiniteNumbers(value: unknown, seen = new Set<object>()): boolean {
+  if (typeof value === "number") return Number.isFinite(value);
+  if (value == null || typeof value !== "object") return true;
+  if (seen.has(value)) return false;
+  seen.add(value);
+  const valid = Array.isArray(value)
+    ? value.every((item) => allFiniteNumbers(item, seen))
+    : Object.values(value).every((item) => allFiniteNumbers(item, seen));
+  seen.delete(value);
+  return valid;
+}
+
+function validBriefingFact(value: unknown): boolean {
+  if (!isRecord(value) || !nonBlankString(value.kind)) return false;
+  if (value.kind === "event") return (value.label === "発生" || value.label === "予想")
+    && requiredNullableString(value, "areaName") && requiredNullableString(value, "areaCode")
+    && requiredNullableString(value, "at");
+  if (value.kind !== "precipitation" && value.kind !== "snowfall") return false;
+  return requiredNullableString(value, "locationName") && requiredNullableString(value, "locationCode")
+    && typeof value.description === "string"
+    && Object.hasOwn(value, "value")
+    && (value.value === null || typeof value.value === "number" && Number.isFinite(value.value))
+    && requiredNullableString(value, "unit") && requiredNullableString(value, "at")
+    && (value.kind !== "precipitation"
+      || ((!Object.hasOwn(value, "duration") || nullableString(value.duration))
+        && (!Object.hasOwn(value, "approximation")
+          || ["approx", "atLeast", "exact", "unknown"].includes(String(value.approximation)))));
+}
+
+function validBriefingEntry(value: unknown): value is DisplayBriefingEntryV1 {
+  if (!isRecord(value) || !allFiniteNumbers(value)
+    || !nonBlankString(value.key) || (value.source !== "vpbs50" && value.source !== "vpoa50")
+    || !nonBlankString(value.sourceEventId)
+    || (Object.hasOwn(value, "editorialOffice") && typeof value.editorialOffice !== "string")
+    || (Object.hasOwn(value, "phenomenonKind") && value.phenomenonKind != null && !BRIEFING_KINDS.has(String(value.phenomenonKind)))
+    || (Object.hasOwn(value, "semanticKey") && !nullableString(value.semanticKey))
+    || (Object.hasOwn(value, "serial") && !nullableString(value.serial))
+    || typeof value.title !== "string" || !requiredNullableString(value, "headline")
+    || !Array.isArray(value.conditions) || value.conditions.length > BRIEFING_NESTED_MAX
+    || !value.conditions.every((item) => typeof item === "string")
+    || !Array.isArray(value.targetAreas) || value.targetAreas.length > BRIEFING_NESTED_MAX
+    || !value.targetAreas.every((item) => isRecord(item) && typeof item.name === "string" && typeof item.code === "string")
+    || typeof value.reportDateTime !== "string" || typeof value.publishingOffice !== "string"
+    || typeof value.infoType !== "string" || !BRIEFING_FRAMES.has(String(value.frameLevel))
+    || !Array.isArray(value.severityEvidence) || value.severityEvidence.length > BRIEFING_NESTED_MAX
+    || !value.severityEvidence.every((item) => isRecord(item) && typeof item.source === "string"
+      && ["condition", "tag", "displaySeverity", "soundLevel", "severity", "phenomenonCode", "kindCode", "levelCode", "status"]
+        .every((key) => requiredNullableString(item, key)))
+    || !requiredNullableString(value, "qualifier") || typeof value.updatedAt !== "string" || typeof value.expiresAt !== "string"
+    || !Number.isSafeInteger(value.generation) || (value.generation as number) < 1) return false;
+  if (Object.hasOwn(value, "summary")) {
+    if (!isRecord(value.summary)
+      || !["structured", "mixed", "rawHeadlineFallback", "cancellation"].includes(String(value.summary.mode))
+      || typeof value.summary.hasUnknownKind !== "boolean" || !Array.isArray(value.summary.items)
+      || value.summary.items.length > 4
+      || !value.summary.items.every((item) => isRecord(item) && BRIEFING_KINDS.has(String(item.kind))
+        && typeof item.lead === "string" && Number.isSafeInteger(item.sourceOrdinal) && (item.sourceOrdinal as number) >= 0
+        && Array.isArray(item.facts) && item.facts.length <= BRIEFING_NESTED_MAX && item.facts.every(validBriefingFact))) return false;
+  }
+  return true;
+}
+
+function rawBriefingToken(source: string, sourceEventId: string): string {
+  return JSON.stringify(["raw", source, sourceEventId]);
+}
+
+function identifiableBriefingAliasToken(value: unknown): string | null {
+  return isRecord(value) && (value.source === "vpbs50" || value.source === "vpoa50")
+    && nonBlankString(value.sourceEventId)
+    ? rawBriefingToken(value.source, value.sourceEventId)
+    : null;
+}
+
+function semanticBriefingToken(semanticKey: string): string {
+  return JSON.stringify(["semantic", semanticKey]);
+}
+
+function canonicalRawBriefingKey(source: string, sourceEventId: string): string {
+  return `card:briefing:${rawBriefingToken(source, sourceEventId)}`;
+}
+
+function canonicalBriefingSemanticKey(entry: DisplayBriefingEntryV1): string | null {
+  return entry.source === "vpbs50" && nonBlankString(entry.editorialOffice)
+    && entry.phenomenonKind != null && BRIEFING_KINDS.has(entry.phenomenonKind)
+    && nonBlankString(entry.semanticKey)
+    ? `card:vpbs:semantic:${entry.phenomenonKind}:${entry.editorialOffice}`
+    : null;
+}
+
+function parsedBriefingUnit(value: unknown, frame: "critical" | "cancel", generation: number): PersistedBriefingCriticalEntryV1 | null {
+  if (!isRecord(value) || !validBriefingEntry(value.entry)
+    || value.entry.frameLevel !== frame || !validEpochMs(value.updatedAtMs) || !validEpochMs(value.expiresAtMs)
+    || value.updatedAtMs > value.expiresAtMs || value.entry.updatedAt !== new Date(value.updatedAtMs).toISOString()
+    || value.entry.expiresAt !== new Date(value.expiresAtMs).toISOString()
+    || value.entry.generation > generation) return null;
+  const canonicalSemantic = canonicalBriefingSemanticKey(value.entry);
+  if (canonicalSemantic != null) {
+    if (value.entry.key !== canonicalSemantic || value.entry.semanticKey !== canonicalSemantic
+      || canonicalStrictRevision({ reportTimeMs: Date.parse(value.entry.reportDateTime), serial: value.entry.serial }) == null) return null;
+  } else if (frame !== "critical" || value.entry.semanticKey != null || value.entry.phenomenonKind != null
+    || value.entry.key !== canonicalRawBriefingKey(value.entry.source, value.entry.sourceEventId)) return null;
+  return { entry: structuredClone(value.entry), updatedAtMs: value.updatedAtMs, expiresAtMs: value.expiresAtMs };
+}
+
+function validateBriefingCriticalState(value: unknown, failLoud: boolean): PersistedBriefingCriticalStateV1 | null {
+  const invalidDomain = (reason: string): null => {
+    if (failLoud) throw new BriefingCriticalPersistenceInvariantError(reason);
+    recordRepair("root.briefingCritical", "identity", 1, 0, reason === "limit-exceeded" ? "limit-exceeded" : "invalid-container", true);
+    return null;
+  };
+  if (!isRecord(value) || !Number.isSafeInteger(value.generation) || (value.generation as number) < 0
+    || !Array.isArray(value.entries) || !Array.isArray(value.cancellations) || !Array.isArray(value.watermarks)
+    || value.rawAliases != null && !Array.isArray(value.rawAliases)) return invalidDomain("invalid-container");
+  if (value.entries.length > BRIEFING_ENTRY_MAX || value.cancellations.length > BRIEFING_ENTRY_MAX
+    || value.entries.length + value.cancellations.length > BRIEFING_ENTRY_MAX
+    || value.watermarks.length > BRIEFING_PROTECTION_MAX
+    || (value.rawAliases?.length ?? 0) > BRIEFING_PROTECTION_MAX) return invalidDomain("limit-exceeded");
+  const generation = value.generation as number;
+  const entries = value.entries.map((item) => parsedBriefingUnit(item, "critical", generation));
+  const cancellations = value.cancellations.map((item) => parsedBriefingUnit(item, "cancel", generation));
+  const watermarks = value.watermarks.map((item): PersistedBriefingCriticalWatermarkV1 | null => {
+    if (!isRecord(item) || !nonBlankString(item.semanticKey) || !validEpochMs(item.expiresAtMs)) return null;
+    const revision = canonicalStrictRevision(item.revision);
+    return revision == null ? null : { semanticKey: item.semanticKey, revision, expiresAtMs: item.expiresAtMs };
+  });
+  const aliases = (value.rawAliases ?? []).map((item): PersistedBriefingCriticalRawAliasV1 | null => {
+    if (!isRecord(item) || (item.source !== "vpbs50" && item.source !== "vpoa50")
+      || !nonBlankString(item.sourceEventId) || !nonBlankString(item.semanticKey) || !validEpochMs(item.expiresAtMs)) return null;
+    const revision = canonicalStrictRevision(item.revision);
+    return revision == null ? null : { source: item.source, sourceEventId: item.sourceEventId,
+      semanticKey: item.semanticKey, revision, expiresAtMs: item.expiresAtMs };
+  });
+  const malformed = entries.filter((item) => item == null).length + cancellations.filter((item) => item == null).length
+    + watermarks.filter((item) => item == null).length + aliases.filter((item) => item == null).length;
+  if (failLoud && malformed > 0) throw new BriefingCriticalPersistenceInvariantError("malformed briefing unit");
+
+  const goodEntries = entries.filter((item): item is PersistedBriefingCriticalEntryV1 => item != null);
+  const goodCancellations = cancellations.filter((item): item is PersistedBriefingCriticalEntryV1 => item != null);
+  const goodWatermarks = watermarks.filter((item): item is PersistedBriefingCriticalWatermarkV1 => item != null);
+  const goodAliases = aliases.filter((item): item is PersistedBriefingCriticalRawAliasV1 => item != null);
+  const malformedAliasTokens = new Set<string>();
+  for (const [index, valueAlias] of (value.rawAliases ?? []).entries()) {
+    if (aliases[index] != null) continue;
+    const token = identifiableBriefingAliasToken(valueAlias);
+    if (token != null) malformedAliasTokens.add(token);
+  }
+  const semanticMultiplicity = new Map<string, number>();
+  const watermarkMultiplicity = new Map<string, number>();
+  const rawMultiplicity = new Map<string, number>();
+  const aliasMultiplicity = new Map<string, number>();
+  for (const unit of [...goodEntries, ...goodCancellations]) {
+    const key = unit.entry.semanticKey == null
+      ? rawBriefingToken(unit.entry.source, unit.entry.sourceEventId)
+      : semanticBriefingToken(unit.entry.semanticKey);
+    const target = unit.entry.semanticKey == null ? rawMultiplicity : semanticMultiplicity;
+    target.set(key, (target.get(key) ?? 0) + 1);
+  }
+  for (const unit of goodWatermarks) {
+    const key = semanticBriefingToken(unit.semanticKey);
+    watermarkMultiplicity.set(key, (watermarkMultiplicity.get(key) ?? 0) + 1);
+  }
+  for (const unit of goodAliases) {
+    const key = rawBriefingToken(unit.source, unit.sourceEventId);
+    if (malformedAliasTokens.has(key)) continue;
+    aliasMultiplicity.set(key, (aliasMultiplicity.get(key) ?? 0) + 1);
+  }
+  const invalidSemantic = new Set([...semanticMultiplicity, ...watermarkMultiplicity]
+    .filter(([key]) => (semanticMultiplicity.get(key) ?? 0) > 1 || (watermarkMultiplicity.get(key) ?? 0) !== 1)
+    .map(([key]) => key));
+  const invalidRaw = new Set([...rawMultiplicity, ...aliasMultiplicity]
+    .filter(([key]) => (rawMultiplicity.get(key) ?? 0) > 1 || (aliasMultiplicity.get(key) ?? 0) > 1
+      || (rawMultiplicity.get(key) ?? 0) > 0 && (aliasMultiplicity.get(key) ?? 0) > 0)
+    .map(([key]) => key));
+  const coupledEntries = goodEntries.filter((unit) => unit.entry.semanticKey == null
+    ? !invalidRaw.has(rawBriefingToken(unit.entry.source, unit.entry.sourceEventId))
+    : !invalidSemantic.has(semanticBriefingToken(unit.entry.semanticKey))
+      && goodWatermarks.some((wm) => wm.semanticKey === unit.entry.semanticKey
+        && compareRevision(wm.revision, strictBriefingRevisionForPersistence(unit.entry)!) === 0));
+  const coupledCancellations = goodCancellations.filter((unit) => unit.entry.semanticKey != null
+    && !invalidSemantic.has(semanticBriefingToken(unit.entry.semanticKey))
+    && goodWatermarks.some((wm) => wm.semanticKey === unit.entry.semanticKey
+      && compareRevision(wm.revision, strictBriefingRevisionForPersistence(unit.entry)!) === 0));
+  const coupledWatermarks = goodWatermarks.filter((wm) => !invalidSemantic.has(semanticBriefingToken(wm.semanticKey)));
+  const invalidAlias = new Set([...invalidRaw, ...malformedAliasTokens]);
+  const coupledAliases = goodAliases.filter((alias) => !invalidAlias.has(rawBriefingToken(alias.source, alias.sourceEventId)));
+  if (failLoud && (coupledEntries.length !== goodEntries.length || coupledCancellations.length !== goodCancellations.length
+    || coupledWatermarks.length !== goodWatermarks.length || coupledAliases.length !== goodAliases.length)) {
+    throw new BriefingCriticalPersistenceInvariantError(
+      `briefing identity or coupling invariant entries=${coupledEntries.length}/${goodEntries.length}`
+      + ` cancellations=${coupledCancellations.length}/${goodCancellations.length}`
+      + ` watermarks=${coupledWatermarks.length}/${goodWatermarks.length}`
+      + ` aliases=${coupledAliases.length}/${goodAliases.length}`,
+    );
+  }
+  const discarded = malformed + goodEntries.length - coupledEntries.length + goodCancellations.length - coupledCancellations.length
+    + goodWatermarks.length - coupledWatermarks.length + goodAliases.length - coupledAliases.length;
+  if (!failLoud && discarded > 0) recordRepair("root.briefingCritical", "identity", discarded,
+    coupledEntries.length + coupledCancellations.length + coupledWatermarks.length + coupledAliases.length, "coupling-mismatch");
+  const rawUnion = new Set([
+    ...coupledEntries.filter((unit) => unit.entry.semanticKey == null)
+      .map((unit) => rawBriefingToken(unit.entry.source, unit.entry.sourceEventId)),
+    ...coupledAliases.map((unit) => rawBriefingToken(unit.source, unit.sourceEventId)),
+  ]);
+  if (rawUnion.size > BRIEFING_PROTECTION_MAX) return invalidDomain("limit-exceeded");
+  const entryOrder = coupledEntries.map(briefingPersistedUnitToken).join("\n");
+  const cancellationOrder = coupledCancellations.map(briefingPersistedUnitToken).join("\n");
+  const watermarkOrder = coupledWatermarks.map((item) => semanticBriefingToken(item.semanticKey)).join("\n");
+  const aliasOrder = coupledAliases.map((item) => rawBriefingToken(item.source, item.sourceEventId)).join("\n");
+  coupledEntries.sort((a, b) => briefingPersistedUnitToken(a).localeCompare(briefingPersistedUnitToken(b)));
+  coupledCancellations.sort((a, b) => briefingPersistedUnitToken(a).localeCompare(briefingPersistedUnitToken(b)));
+  coupledWatermarks.sort((a, b) => semanticBriefingToken(a.semanticKey).localeCompare(semanticBriefingToken(b.semanticKey)));
+  coupledAliases.sort((a, b) => rawBriefingToken(a.source, a.sourceEventId).localeCompare(rawBriefingToken(b.source, b.sourceEventId)));
+  if (!failLoud && activeRepairCollector != null
+    && (entryOrder !== coupledEntries.map(briefingPersistedUnitToken).join("\n")
+      || cancellationOrder !== coupledCancellations.map(briefingPersistedUnitToken).join("\n")
+      || watermarkOrder !== coupledWatermarks.map((item) => semanticBriefingToken(item.semanticKey)).join("\n")
+      || aliasOrder !== coupledAliases.map((item) => rawBriefingToken(item.source, item.sourceEventId)).join("\n")
+      || Object.hasOwn(value, "rawAliases") && coupledAliases.length === 0)) {
+    activeRepairCollector.canonicalRewriteRequired = true;
+  }
+  return { generation, entries: coupledEntries, cancellations: coupledCancellations, watermarks: coupledWatermarks,
+    ...(coupledAliases.length === 0 ? {} : { rawAliases: coupledAliases }) };
+}
+
+export function validateBriefingCriticalForWrite(
+  value: PersistedBriefingCriticalStateV1,
+): PersistedBriefingCriticalStateV1 {
+  const validated = validateBriefingCriticalState(value, true);
+  if (validated == null) throw new BriefingCriticalPersistenceInvariantError("briefing slice is invalid");
+  return validated;
+}
+
+function strictBriefingRevisionForPersistence(entry: DisplayBriefingEntryV1): StandbyRevision | null {
+  return canonicalStrictRevision({ reportTimeMs: Date.parse(entry.reportDateTime), serial: entry.serial });
+}
+
+function briefingPersistedUnitToken(unit: PersistedBriefingCriticalEntryV1): string {
+  return unit.entry.semanticKey == null
+    ? rawBriefingToken(unit.entry.source, unit.entry.sourceEventId)
+    : semanticBriefingToken(unit.entry.semanticKey);
+}
+
+/** The briefing payload is a protocol DTO; malformed units are repaired within this domain. */
+function sanitizeBriefingCritical(value: unknown): PersistedBriefingCriticalStateV1 | null {
+  if (value == null) return null;
+  return validateBriefingCriticalState(value, false);
 }
 
 function emptyTsunamiFoundation(): PersistedTelegramFoundationV2["tsunami"] {
@@ -3926,6 +4269,128 @@ function migratedNankaiStandbyState(
   };
 }
 
+interface LegacyStandbyGateProjection {
+  domain: "tornado" | "heatAlert" | "typhoonAnalysis" | "lgObservation";
+  revisionFamily: "tornado" | "VPFT50" | "typhoonAnalysis" | "VXSE62";
+  stateSubjectKey: string;
+  revision: StandbyRevision;
+  appliedSemanticKey?: string;
+}
+
+function legacyStandbyGateInfoType(
+  semanticKey: string,
+): "発表" | "訂正" | "取消" | null {
+  const separator = semanticKey.indexOf(":");
+  const value = separator < 0 ? "" : semanticKey.slice(0, separator);
+  return value === "発表" || value === "訂正" || value === "取消" ? value : null;
+}
+
+/**
+ * standalone v1 は gate 本体を持たないが、active projection の application token と
+ * rollback 用 seen から、同一 revision の受理済み gate だけは損失なく復元できる。
+ * identity/revision が重複・不一致なら推測せず、従来どおり legacy projection に留める。
+ */
+function migratedLegacyStandbyGateEntries(
+  base: PersistedStandbyStateV1,
+): PersistedTelegramRevisionGateEntryV2[] {
+  const projections: LegacyStandbyGateProjection[] = [
+    ...base.heat.map((state) => ({
+      domain: "heatAlert" as const,
+      revisionFamily: "VPFT50" as const,
+      stateSubjectKey: state.key,
+      revision: state.revision,
+      appliedSemanticKey: state.appliedSemanticKey,
+    })),
+    ...base.typhoons.map((state) => ({
+      domain: "typhoonAnalysis" as const,
+      revisionFamily: "typhoonAnalysis" as const,
+      stateSubjectKey: `typhoon:${state.key}`,
+      revision: state.revision,
+      appliedSemanticKey: state.appliedSemanticKey,
+    })),
+    ...(base.tornado ?? []).map((state) => ({
+      domain: "tornado" as const,
+      revisionFamily: "tornado" as const,
+      stateSubjectKey: `tornado:${state.publishingOffice}`,
+      revision: state.revision,
+      appliedSemanticKey: state.appliedSemanticKey,
+    })),
+    ...(base.longPeriod ?? []).map((state) => ({
+      domain: "lgObservation" as const,
+      revisionFamily: "VXSE62" as const,
+      stateSubjectKey: `longPeriod:${state.eventId}`,
+      revision: state.revision,
+      appliedSemanticKey: state.appliedSemanticKey,
+    })),
+  ];
+  const projectionCounts = new Map<string, number>();
+  for (const projection of projections) {
+    projectionCounts.set(
+      projection.stateSubjectKey,
+      (projectionCounts.get(projection.stateSubjectKey) ?? 0) + 1,
+    );
+  }
+  const seenByKey = new Map<string, PersistedSeenEntry | null>();
+  for (const seen of base.seen) {
+    seenByKey.set(seen.key, seenByKey.has(seen.key) ? null : seen);
+  }
+  return projections.flatMap((projection) => {
+    const semanticKey = projection.appliedSemanticKey;
+    const infoType = semanticKey == null ? null : legacyStandbyGateInfoType(semanticKey);
+    const seen = seenByKey.get(projection.stateSubjectKey);
+    const policy = STANDBY_FOUNDATION_POLICIES.find((candidate) =>
+      candidate.domain === projection.domain
+      && candidate.revisionFamily === projection.revisionFamily);
+    const retentionMs = policy?.tombstoneRetentionMs;
+    if (
+      projectionCounts.get(projection.stateSubjectKey) !== 1
+      || semanticKey == null
+      || infoType == null
+      || seen == null
+      || seen.revision.reportTimeMs !== projection.revision.reportTimeMs
+      || seen.revision.serial !== projection.revision.serial
+      || retentionMs == null
+    ) return [];
+    const reportDate = new Date(projection.revision.reportTimeMs);
+    if (!Number.isFinite(reportDate.getTime())) return [];
+    const reportDateTime = reportDate.toISOString();
+    const serial = parseTelegramSerial(projection.revision.serial);
+    const gate: PersistedTelegramRevisionGateEntryV2 = {
+      domain: projection.domain,
+      revisionFamily: projection.revisionFamily,
+      stateSubjectKey: projection.stateSubjectKey,
+      comparison: {
+        stateSubjectKey: projection.stateSubjectKey,
+        revision: {
+          eventId: {
+            raw: projection.stateSubjectKey,
+            value: projection.stateSubjectKey,
+            valid: true,
+          },
+          type: {
+            raw: projection.revisionFamily,
+            value: projection.revisionFamily,
+            valid: true,
+          },
+          reportDateTime: {
+            raw: reportDateTime,
+            epochMs: projection.revision.reportTimeMs,
+            valid: true,
+          },
+          serial,
+          infoType: { raw: infoType, value: infoType, valid: true },
+        },
+      },
+      semanticKeys: [semanticKey],
+      cancelled: false,
+      acceptedAtMs: seen.forgetAtMs - retentionMs - 1,
+      tombstoneRetentionMs: retentionMs,
+      legacyRevisionKey: projection.stateSubjectKey,
+    };
+    return isGateEntry(gate) ? [gate] : [];
+  });
+}
+
 function sanitizePersistedStandbyStateV2(value: unknown): PersistedStandbyStateV2 | null {
   if (!isRecord(value) || value.version !== 2) return null;
   const base = baseV1FromRecord(value);
@@ -4007,7 +4472,9 @@ function migratedVpws50GateEntries(base: PersistedStandbyStateV1): PersistedTele
 function migratePersistedStandbyStateV1(value: unknown): PersistedStandbyStateV2 | null {
   const base = sanitizePersistedStandbyStateV1(value);
   if (base == null) return null;
-  const migratedNankai = migratedNankaiStandbyState(base, emptyStandbyDomainsFoundation());
+  const migratedNankai = migratedNankaiStandbyState(base, {
+    gateEntries: migratedLegacyStandbyGateEntries(base),
+  });
   return {
     ...migratedNankai.base,
     version: 2,

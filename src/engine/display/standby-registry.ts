@@ -15,6 +15,8 @@ const DAY = 24 * HOUR;
 export const BRIEFING_CARD_TTL_MS = 120 * 60_000;
 export const BRIEFING_CARD_CANCEL_TTL_MS = 10 * 60_000;
 export const BRIEFING_CARD_MAX_ENTRIES = 128;
+export const BRIEFING_CRITICAL_WATERMARK_MAX_SUBJECTS = 512;
+export const BRIEFING_RAW_ALIAS_MAX_LINEAGES = 512;
 export const BRIEFING_CARD_PRIORITY = 450;
 export const BRIEFING_CARD_KEY = "briefing:active";
 

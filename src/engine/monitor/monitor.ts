@@ -136,11 +136,13 @@ export async function startMonitor(config: AppConfig, pipelineController?: Pipel
   });
   // 受信コールスタック上で同期 I/O を走らせない。実書き込みは debounce 後に非同期で行い、
   // 終了時は stopStandbySweep -> flush() で書き切る
-  standbyStore.onDurable(() => standbyPersistence.schedule(standbyStore.exportActiveState()));
+  const startupNowMs = Date.now();
+  let briefingCriticalRewriteRequired = false;
   const persistedStandby = standbyPersistence.load();
   if (persistedStandby != null) {
-    const restoredAtMs = Date.now();
-    standbyStore.restoreActiveState(persistedStandby, restoredAtMs);
+    const restoredAtMs = startupNowMs;
+    briefingCriticalRewriteRequired = standbyStore
+      .restoreActiveState(persistedStandby, restoredAtMs).briefingCriticalRewriteRequired;
     const persistedVpws50 = persistedStandby.telegramFoundation.vpws50;
     vpws50FoundationAuthoritative = persistedVpws50.authoritative;
     if (persistedVpws50.state != null) vpws50State.restorePersistedState(persistedVpws50.state);
@@ -167,7 +169,7 @@ export async function startMonitor(config: AppConfig, pipelineController?: Pipel
       standbyStore.restoreCanonicalVolcanoes(
         persistedVolcano.active,
         persistedVolcano.gateEntries,
-        Date.now(),
+        startupNowMs,
       );
     }
     const foundationVolcanoSubjects = new Set(
@@ -215,12 +217,17 @@ export async function startMonitor(config: AppConfig, pipelineController?: Pipel
       );
     }
   }
-  standbyStore.sweep(Date.now());
+  const startupSweepMutation = standbyStore.sweep(startupNowMs);
   // salvage source は全 holder / gate の restore と起動時 sweep が完了してからだけ
   // canonical 化する。通常 load では pending repair が無く、追加 write は発生しない。
-  if (persistedStandby != null && standbyPersistence.hasPendingSalvageRepair()) {
+  if (persistedStandby != null && (
+    briefingCriticalRewriteRequired
+    || standbyPersistence.hasPendingSalvageRepair()
+    || startupSweepMutation.durableChanged
+  )) {
     standbyPersistence.schedule(standbyStore.exportActiveState());
   }
+  standbyStore.onDurable(() => standbyPersistence.schedule(standbyStore.exportActiveState()));
 
   // 気象警報の昇格 lifecycle も monitor 所有にする。display runtime は `display off` → `on` で
   // 作り直されるが、昇格の時計は電文を受理してからの壁時計経過なので途切れさせない。

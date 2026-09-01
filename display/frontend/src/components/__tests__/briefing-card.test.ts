@@ -468,6 +468,19 @@ describe("BriefingCard", () => {
     expect(container.textContent).toContain(frameLevel === "info" ? "記録的短時間大雨情報" : "気象速報");
   });
 
+  it("restored card だけ既存 RestoredChip を header に表示する", () => {
+    const restored = briefing();
+    restored.restored = true;
+    const restoredView = render(BriefingCard, { item: restored, shellHeightPx: 260 });
+    expect(restoredView.container.querySelector("[data-briefing-card-header] .restored-chip")?.textContent).toBe("同期中");
+    restoredView.unmount();
+
+    const live = briefing();
+    live.restored = false;
+    const liveView = render(BriefingCard, { item: live, shellHeightPx: 260 });
+    expect(liveView.container.querySelector(".restored-chip")).toBeNull();
+  });
+
   it("複数 entry は最上位 severity の card header と本文区切りへ集約し、更新時刻を一度だけ表示する", () => {
     const item = briefing(2);
     item.data.entries[0]!.frameLevel = "warning";
