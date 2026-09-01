@@ -1,14 +1,30 @@
 import { describe, expect, it } from "vitest";
 import {
   acceptsMeasurement,
+  buildInitialWeatherFragments,
   buildWeatherEmergencyInput as buildWeatherEmergencyInputAt,
+  buildWeatherBaseFragments,
   capRowAreas,
+  evaluateWeatherFragmentRefinement,
+  finitePositiveOrNull,
   paginateWeatherRows,
+  packWeatherFragmentsByHeight,
+  provisionalMinimumWeatherFragments,
+  resolveWeatherInitialPageIndex,
   selectPagedItems,
   selectSubKinds,
   stripLevelPrefix,
+  weatherAreaFragmentKey,
+  weatherAreaOmissionKey,
+  weatherBaseContentFingerprint,
+  weatherBaseLayoutEpochKey,
+  weatherInfeasiblePages,
+  weatherPageCyclerResetKey,
   weatherPageCapacity,
+  weatherPartitionSignature,
+  weatherReferenceGeometrySourceKey,
   weatherRowAreaMax,
+  weatherSyncingPages,
   type WeatherPanelItemV1,
 } from "../weather-panel";
 import type {
@@ -406,11 +422,336 @@ describe("capRowAreas", () => {
     expect(row.hiddenAreaCount).toBe(1);
   });
 
+  it("短い code 配列の欠落位置を空文字へ変えず null のまま保持する", () => {
+    const row = capRowAreas(panelItem({
+      shownAreas: ["福井市", "コード欠落地域"],
+      shownAreaCodes: ["1820100"],
+    }), 12);
+    expect(row.areaCodes).toEqual(["1820100", null]);
+    const fragments = buildInitialWeatherFragments([row], 12);
+    const entries = fragments.flatMap((fragment) =>
+      fragment.fragmentType === "group" ? fragment.areas : []);
+    expect(entries.map((entry) => entry.areaCode)).toEqual(["1820100", null]);
+    expect(weatherBaseContentFingerprint(fragments)).toContain(
+      JSON.stringify([1, "コード欠落地域", "コード欠落地域", null, "name:コード欠落地域", false]),
+    );
+  });
+
   it("上限 0 以下でも 1 件は必ず出す (全滅させない)", () => {
     expect(capRowAreas(panelItem(), 0).areas).toEqual(["東京都"]);
     expect(capRowAreas(panelItem(), -3).areas).toEqual(["東京都"]);
   });
 });
+
+describe("気象警報の県 group / fragment 投影", () => {
+  it("cap を先に適用し、prefecture は areaMax-1、raw は areaMax 件の連続 range へ分ける", () => {
+    const prefectureAreas = Array.from({ length: 8 }, (_, index) => `福井市${index}`);
+    const rawAreas = Array.from({ length: 7 }, (_, index) => `raw ${index}`);
+    const fragments = buildWeatherBaseFragments([
+      panelItem({
+        key: "pref",
+        shownAreas: prefectureAreas,
+        shownAreaCodes: prefectureAreas.map((_, index) => `1820${String(index).padStart(3, "0")}`),
+      }),
+      panelItem({ key: "raw", shownAreas: rawAreas }),
+    ], 6);
+
+    expect(fragments.map((fragment) => fragment.fragmentType === "group"
+      ? [fragment.logicalRowKey, fragment.group.kind, fragment.areaStart, fragment.areaEndExclusive]
+      : [])).toEqual([
+      ["pref", "prefecture", 0, 5],
+      ["pref", "prefecture", 5, 6],
+      ["raw", "raw", 0, 6],
+    ]);
+    // raw の7件目は cap で落ち、断片化で後続へ送る対象ではない。
+    expect(fragments.at(-1)?.hiddenAreaCount).toBe(1);
+  });
+
+  it("fallback areaMax=12 は県11件、raw12件で、wire3件＋UI8件を最後だけへ付ける", () => {
+    const areas = Array.from({ length: 20 }, (_, index) => `福井市${index}`);
+    const fragments = buildWeatherBaseFragments([panelItem({
+      key: "rain",
+      shownAreas: areas,
+      shownAreaCodes: areas.map((_, index) => `182${String(index).padStart(4, "0")}`),
+      omittedAreaCount: 3,
+    })], 12);
+    expect(fragments).toHaveLength(2);
+    expect(fragments.map((fragment) => fragment.fragmentType === "group"
+      ? fragment.areaEndExclusive - fragment.areaStart
+      : 0)).toEqual([11, 1]);
+    expect(fragments.map((fragment) => fragment.hiddenAreaCount)).toEqual([0, 11]);
+  });
+
+  it("追加地域を cap で優先した後に元順へ戻し、identity と added を group へ保持する", () => {
+    const fragments = buildWeatherBaseFragments([panelItem({
+      key: "added",
+      shownAreas: ["府中市", "福井市", "府中市"],
+      shownAreaCodes: ["1320600", "1820100", "3420600"],
+      addedAreas: ["府中市"],
+      addedAreaCodes: ["3420600"],
+    })], 2);
+    const entries = fragments.flatMap((fragment) =>
+      fragment.fragmentType === "group" ? fragment.areas : []);
+    expect(entries.map((area) => [area.identity, area.added])).toEqual([
+      ["code:1320600", false],
+      ["code:3420600", true],
+    ]);
+    expect(entries.map((area) => area.sourceIndex)).toEqual([0, 2]);
+    expect(fragments.at(-1)?.hiddenAreaCount).toBe(1);
+  });
+
+  it("fragment の areas は group の half-open slice と全 field が一致し、key は正規 JSON で一意", () => {
+    const fragments = buildWeatherBaseFragments([panelItem({
+      key: "quoted|\"雪",
+      shownAreas: ["福井市", "敦賀市", "大野市"],
+      shownAreaCodes: ["1820100", "1820200", "1820500"],
+    })], 2);
+    for (const fragment of fragments) {
+      expect(fragment.fragmentType).toBe("group");
+      if (fragment.fragmentType !== "group") continue;
+      expect(fragment.areas).toEqual(
+        fragment.group.areas.slice(fragment.areaStart, fragment.areaEndExclusive),
+      );
+      expect(fragment.continued).toBe(fragment.areaStart > 0);
+      expect(fragment.key).toBe(weatherAreaFragmentKey(
+        fragment.group.key,
+        fragment.areaStart,
+        fragment.areaEndExclusive,
+      ));
+    }
+    expect(new Set(fragments.map((fragment) => fragment.key)).size).toBe(fragments.length);
+  });
+
+  it("表示0・省略ありだけ omission-only を作り、表示0・省略0は断片を作らない", () => {
+    const omitted = buildWeatherBaseFragments([panelItem({
+      key: "omitted",
+      shownAreas: [],
+      omittedAreaCount: 9,
+    })], 12);
+    expect(omitted).toEqual([{
+      fragmentType: "omission-only",
+      key: weatherAreaOmissionKey("omitted"),
+      logicalRowKey: "omitted",
+      kind: "L5 大雨特別警報",
+      level: 5,
+      hiddenAreaCount: 9,
+      continued: false,
+    }]);
+    expect(buildWeatherBaseFragments([panelItem({ shownAreas: [] })], 12)).toEqual([]);
+  });
+
+  it("provisional は全地域を singleton page 単位へ展開し、省略数を論理行の最後だけに移す", () => {
+    const base = buildWeatherBaseFragments([panelItem({
+      key: "provisional",
+      shownAreas: ["A", "B", "C"],
+      omittedAreaCount: 4,
+    })], 12);
+    const provisional = provisionalMinimumWeatherFragments(base);
+    expect(provisional.map((fragment) => fragment.fragmentType === "group"
+      ? [fragment.areaStart, fragment.areaEndExclusive, fragment.hiddenAreaCount]
+      : [])).toEqual([[0, 1, 0], [1, 2, 0], [2, 3, 4]]);
+  });
+});
+
+describe("気象警報 fragment の実高 refinement / partition", () => {
+  const fourAreaBase = () => buildWeatherBaseFragments([panelItem({
+    key: "four",
+    shownAreas: ["A", "B", "C", "D"],
+  })], 12);
+
+  it("過高 fragment を候補終端の降順で測り、最大 fitting prefix と残部へ分ける", () => {
+    const base = fourAreaBase();
+    const parent = base[0]!;
+    expect(parent.fragmentType).toBe("group");
+    if (parent.fragmentType !== "group") return;
+    const heights = new Map<string, number>([[parent.key, 120]]);
+
+    const first = evaluateWeatherFragmentRefinement(base, heights, 70);
+    expect(first.state).toBe("pending");
+    if (first.state !== "pending" || first.candidate == null) return;
+    expect(first.candidate.areaEndExclusive).toBe(3);
+    heights.set(first.candidate.key, 90);
+
+    const second = evaluateWeatherFragmentRefinement(base, heights, 70);
+    expect(second.state).toBe("pending");
+    if (second.state !== "pending" || second.candidate == null) return;
+    expect(second.candidate.areaEndExclusive).toBe(2);
+    heights.set(second.candidate.key, 60);
+
+    const split = evaluateWeatherFragmentRefinement(base, heights, 70);
+    expect(split.state).toBe("split");
+    if (split.state !== "split") return;
+    expect(split.fragments.map((fragment) => fragment.fragmentType === "group"
+      ? [fragment.areaStart, fragment.areaEndExclusive]
+      : [])).toEqual([[0, 2], [2, 4]]);
+    expect(split.fragments.flatMap((fragment) =>
+      fragment.fragmentType === "group" ? fragment.areas.map((area) => area.identity) : []))
+      .toEqual(parent.areas.map((area) => area.identity));
+  });
+
+  it("split 後は省略数を最終子だけへ移す", () => {
+    const [parent] = buildWeatherBaseFragments([panelItem({
+      key: "hidden",
+      shownAreas: ["A", "B", "C"],
+      omittedAreaCount: 5,
+    })], 12);
+    expect(parent?.fragmentType).toBe("group");
+    if (parent?.fragmentType !== "group") return;
+    const heights = new Map<string, number>([[parent.key, 100]]);
+    const pending = evaluateWeatherFragmentRefinement([parent], heights, 70);
+    if (pending.state !== "pending" || pending.candidate == null) return;
+    heights.set(pending.candidate.key, 60);
+    const split = evaluateWeatherFragmentRefinement([parent], heights, 70);
+    expect(split.state).toBe("split");
+    if (split.state !== "split") return;
+    expect(split.fragments.map((fragment) => fragment.hiddenAreaCount)).toEqual([0, 5]);
+  });
+
+  it("単一地域・omission-only の過高は部分表示せず infeasible にする", () => {
+    const singleton = provisionalMinimumWeatherFragments(fourAreaBase())[0]!;
+    expect(evaluateWeatherFragmentRefinement(
+      [singleton],
+      new Map([[singleton.key, 80]]),
+      70,
+    )).toEqual({ state: "infeasible" });
+
+    const omission = buildWeatherBaseFragments([panelItem({ shownAreas: [], omittedAreaCount: 2 })], 12)[0]!;
+    expect(evaluateWeatherFragmentRefinement(
+      [omission],
+      new Map([[omission.key, 80]]),
+      70,
+    )).toEqual({ state: "infeasible" });
+  });
+
+  it("複数地域 fragment でも singleton 候補まで全て過高なら置換せず infeasible にする", () => {
+    const [parent] = buildWeatherBaseFragments([panelItem({
+      key: "all-too-tall",
+      shownAreas: ["A", "B", "C"],
+      omittedAreaCount: 6,
+    })], 12);
+    expect(parent?.fragmentType).toBe("group");
+    if (parent?.fragmentType !== "group") return;
+    const candidateTwoKey = weatherAreaFragmentKey(parent.group.key, 0, 2);
+    const candidateOneKey = weatherAreaFragmentKey(parent.group.key, 0, 1);
+    const result = evaluateWeatherFragmentRefinement([parent], new Map([
+      [parent.key, 120],
+      [candidateTwoKey, 90],
+      [candidateOneKey, 80],
+    ]), 70);
+    expect(result).toEqual({ state: "infeasible" });
+    expect(parent.hiddenAreaCount).toBe(6);
+    expect(parent.areas).toHaveLength(3);
+  });
+
+  it("0・NaN・欠落測定を fitting とせず pending に保つ", () => {
+    const [fragment] = fourAreaBase();
+    for (const height of [undefined, 0, Number.NaN]) {
+      const heights = new Map<string, number>();
+      if (height !== undefined) heights.set(fragment!.key, height);
+      expect(evaluateWeatherFragmentRefinement([fragment!], heights, 70))
+        .toEqual({ state: "pending", candidate: null });
+    }
+  });
+
+  it("全 fragment 高が揃ったときだけ greedy に詰め、各 fragment を一度だけ配置する", () => {
+    const fragments = provisionalMinimumWeatherFragments(fourAreaBase());
+    const heights = new Map(fragments.map((fragment, index) => [fragment.key, index === 3 ? 50 : 30]));
+    const pages = packWeatherFragmentsByHeight(fragments, heights, 70);
+    expect(pages?.map((page) => page.length)).toEqual([2, 1, 1]);
+    expect(pages?.flat().map((fragment) => fragment.key)).toEqual(fragments.map((fragment) => fragment.key));
+    expect(packWeatherFragmentsByHeight(fragments, new Map(), 70)).toBeNull();
+  });
+});
+
+describe("気象警報 layout key / 公開 partition", () => {
+  it("正規 content fingerprint は名称・追加・省略を含み、同 generation の訂正も区別する", () => {
+    const before = buildWeatherBaseFragments([panelItem({ shownAreas: ["長い地域名称"] })], 12);
+    const after = buildWeatherBaseFragments([panelItem({ shownAreas: ["短名"], addedAreas: ["短名"] })], 12);
+    expect(weatherBaseContentFingerprint(before)).not.toBe(weatherBaseContentFingerprint(after));
+  });
+
+  it("reference / base epoch key は spec の正規 JSON tuple と一致する", () => {
+    const fragments = fourFragmentFixture();
+    const fingerprint = weatherBaseContentFingerprint(fragments);
+    const referenceKey = weatherReferenceGeometrySourceKey({
+      compact: false,
+      layoutSettling: false,
+      whereFrameWidth: 800,
+      whereFrameHeight: 300,
+      whereFontSize: 20,
+      pagerReferenceTotal: 4,
+    });
+    expect(referenceKey).toBe(JSON.stringify([
+      "weather-area-reference-geometry-v1", false, false, 800, 300, 20, 4,
+    ]));
+    expect(weatherBaseLayoutEpochKey({
+      input: { generation: "g", level: 5, activationKey: "a" },
+      referenceGeometrySourceKey: referenceKey,
+      stableWhereBodyWidth: 600,
+      stableWhereBodyHeight: 120,
+      baseContentFingerprint: fingerprint,
+      baseFragments: fragments,
+    })).toBe(JSON.stringify([
+      "weather-area-base-epoch-v2",
+      "g", 5, "a", referenceKey, 600, 120, fingerprint,
+      fragments.map((fragment) => fragment.key),
+    ]));
+  });
+
+  it("syncing / infeasible は一意な専用1ページ、signature は公開 key 列だけで決まる", () => {
+    const identity = { generation: "g", level: 5 as const, activationKey: "a" };
+    const syncing = weatherSyncingPages(identity);
+    const infeasible = weatherInfeasiblePages(identity, "fingerprint");
+    expect(syncing).toHaveLength(1);
+    expect(syncing[0]?.[0]).toMatchObject({
+      fragmentType: "syncing", message: "対象地域を同期中です",
+    });
+    expect(infeasible[0]?.[0]).toMatchObject({
+      fragmentType: "infeasible", message: "対象地域の一覧を表示できません",
+    });
+    const signature = weatherPartitionSignature(syncing);
+    expect(signature).toBe(JSON.stringify([
+      "weather-area-partition-v1",
+      syncing.map((page) => page.map((entry) => entry.key)),
+    ]));
+    expect(weatherPageCyclerResetKey(signature)).toBe(JSON.stringify([
+      "weather-area-cycle-v2", signature,
+    ]));
+  });
+
+  it("initial page は同じ論理行の added 断片、行先頭、0 の順で解決する", () => {
+    const fragments = provisionalMinimumWeatherFragments(buildWeatherBaseFragments([panelItem({
+      key: "target",
+      shownAreas: ["A", "B"],
+      addedAreas: ["B"],
+    })], 12));
+    const pages = fragments.map((fragment) => [fragment]);
+    expect(resolveWeatherInitialPageIndex(pages, "target")).toBe(1);
+    expect(resolveWeatherInitialPageIndex(pages, "missing")).toBe(0);
+    expect(resolveWeatherInitialPageIndex(pages, null)).toBe(0);
+
+    const omission = buildWeatherBaseFragments([panelItem({
+      key: "omitted",
+      shownAreas: [],
+      omittedAreaCount: 3,
+    })], 12)[0]!;
+    expect(resolveWeatherInitialPageIndex([[pages[0]![0]!], [omission]], "omitted")).toBe(0);
+  });
+
+  it("finitePositiveOrNull は正の有限値だけを通す", () => {
+    expect(finitePositiveOrNull(1)).toBe(1);
+    for (const value of [null, undefined, 0, -1, Number.NaN, Number.POSITIVE_INFINITY]) {
+      expect(finitePositiveOrNull(value)).toBeNull();
+    }
+  });
+});
+
+function fourFragmentFixture() {
+  return provisionalMinimumWeatherFragments(buildWeatherBaseFragments([panelItem({
+    key: "fixture",
+    shownAreas: ["A", "B", "C", "D"],
+  })], 12));
+}
 
 describe("paginateWeatherRows", () => {
   it("capacity ごとに等分割し、全行が必ずどこかのページに入る", () => {
@@ -520,9 +861,15 @@ describe("weatherRowAreaMax", () => {
     expect(weatherRowAreaMax(null, null, true)).toBe(6);
   });
 
-  it("使えない実測値 (0 以下) でも fallback", () => {
+  it("使えない実測値 (0 以下・NaN・無限大) でも fallback", () => {
     expect(weatherRowAreaMax(0, 20, false)).toBe(12);
+    expect(weatherRowAreaMax(-1, 20, false)).toBe(12);
+    expect(weatherRowAreaMax(Number.NaN, 20, false)).toBe(12);
+    expect(weatherRowAreaMax(Number.POSITIVE_INFINITY, 20, false)).toBe(12);
     expect(weatherRowAreaMax(600, 0, false)).toBe(12);
+    expect(weatherRowAreaMax(600, -1, true)).toBe(6);
+    expect(weatherRowAreaMax(600, Number.NaN, true)).toBe(6);
+    expect(weatherRowAreaMax(600, Number.POSITIVE_INFINITY, true)).toBe(6);
   });
 
   it("幅とフォントサイズから 1 行あたり件数 × 許容折返し行数で決まる", () => {

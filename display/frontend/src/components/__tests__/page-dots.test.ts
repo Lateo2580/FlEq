@@ -86,4 +86,56 @@ describe("PageDots", () => {
     expect(src).toMatch(/\.page-dot::after\s*\{[^}]*width: 6px;[^}]*height: 6px;/);
     expect(src).toMatch(/\.page-dot\.current::after\s*\{[^}]*width: 8px;[^}]*height: 8px;/);
   });
+
+  it.each([
+    [0, [0, 1, 2, 3, 4, 9]],
+    [3, [0, 1, 2, 3, 4, 9]],
+    [4, [0, 3, 4, 5, 9]],
+    [6, [0, 5, 6, 7, 8, 9]],
+    [9, [0, 5, 6, 7, 8, 9]],
+  ])("windowed total=10/current=%i は決定的な実 page index と ellipsis を最大7 tokenで描く", (
+    current,
+    expectedPages,
+  ) => {
+    const { container } = render(PageDots, {
+      total: 10,
+      current,
+      onJump: () => {},
+      windowed: true,
+    });
+    const buttons = Array.from(container.querySelectorAll(".page-dot"));
+    expect(buttons.map((button) => Number(button.getAttribute("aria-label")?.split("/")[0]) - 1))
+      .toEqual(expectedPages);
+    expect(buttons.length + container.querySelectorAll(".page-ellipsis").length).toBe(7);
+    for (const ellipsis of container.querySelectorAll(".page-ellipsis")) {
+      expect(ellipsis.textContent).toBe("…");
+      expect(ellipsis.getAttribute("aria-hidden")).toBe("true");
+      expect(ellipsis.tagName).not.toBe("BUTTON");
+    }
+  });
+
+  it("windowed total=10_000 でも全ページ比例の DOM を作らず、実 index へ jump する", async () => {
+    const onJump = vi.fn();
+    const { container } = render(PageDots, {
+      total: 10_000,
+      current: 5_000,
+      onJump,
+      windowed: true,
+    });
+    const buttons = Array.from(container.querySelectorAll<HTMLButtonElement>(".page-dot"));
+    expect(buttons.length).toBe(5);
+    expect(buttons.length + container.querySelectorAll(".page-ellipsis").length).toBe(7);
+    const last = buttons.at(-1)!;
+    expect(last.getAttribute("aria-label")).toBe("10000/10000ページ");
+    await fireEvent.click(last);
+    expect(onJump).toHaveBeenCalledWith(9_999);
+  });
+
+  it("windowed chrome は 80px×24px、nowrap で current 移動時にも外形を変えない", () => {
+    const src = readFileSync(join(__dirname, "..", "PageDots.svelte"), "utf-8");
+    expect(src).toMatch(/\.page-dots\.windowed\s*\{[^}]*inline-size: 80px;/);
+    expect(src).toMatch(/\.page-dots\.windowed\s*\{[^}]*max-inline-size: 80px;/);
+    expect(src).toMatch(/\.page-dots\.windowed\s*\{[^}]*block-size: 24px;/);
+    expect(src).toMatch(/\.page-dots\.windowed\s*\{[^}]*flex-wrap: nowrap;/);
+  });
 });

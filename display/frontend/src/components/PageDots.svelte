@@ -15,24 +15,68 @@
     total,
     current,
     onJump,
+    windowed = false,
   }: {
     total: number;
     current: number;
     onJump: (index: number) => void;
+    /** 緊急気象パネル用。全ページ数を保持したまま最大 7 token だけを描く。 */
+    windowed?: boolean;
   } = $props();
+
+  type PageToken =
+    | { type: "page"; index: number }
+    | { type: "ellipsis"; key: "leading" | "trailing" };
+
+  const tokens = $derived.by((): PageToken[] => {
+    if (!windowed || total <= 7) {
+      return Array.from({ length: Math.max(0, total) }, (_, index) => ({ type: "page", index }));
+    }
+    const safeCurrent = Math.max(0, Math.min(total - 1, current));
+    if (safeCurrent <= 3) {
+      return [
+        ...Array.from({ length: 5 }, (_, index) => ({ type: "page", index }) as const),
+        { type: "ellipsis", key: "trailing" },
+        { type: "page", index: total - 1 },
+      ];
+    }
+    if (safeCurrent >= total - 4) {
+      return [
+        { type: "page", index: 0 },
+        { type: "ellipsis", key: "leading" },
+        ...Array.from(
+          { length: 5 },
+          (_, offset) => ({ type: "page", index: total - 5 + offset }) as const,
+        ),
+      ];
+    }
+    return [
+      { type: "page", index: 0 },
+      { type: "ellipsis", key: "leading" },
+      { type: "page", index: safeCurrent - 1 },
+      { type: "page", index: safeCurrent },
+      { type: "page", index: safeCurrent + 1 },
+      { type: "ellipsis", key: "trailing" },
+      { type: "page", index: total - 1 },
+    ];
+  });
 </script>
 
 {#if total > 1}
-  <div class="page-dots" role="group" aria-label="ページ切替 (全{total}ページ)">
-    {#each Array.from({ length: total }, (_, i) => i) as i (i)}
-      <button
-        type="button"
-        class="page-dot"
-        class:current={i === current}
-        aria-label="{i + 1}/{total}ページ"
-        aria-current={i === current ? "true" : undefined}
-        onclick={() => onJump(i)}
-      ></button>
+  <div class="page-dots" class:windowed role="group" aria-label="ページ切替 (全{total}ページ)">
+    {#each tokens as token (`${token.type}:${token.type === "page" ? token.index : token.key}`)}
+      {#if token.type === "page"}
+        <button
+          type="button"
+          class="page-dot"
+          class:current={token.index === current}
+          aria-label="{token.index + 1}/{total}ページ"
+          aria-current={token.index === current ? "true" : undefined}
+          onclick={() => onJump(token.index)}
+        ></button>
+      {:else}
+        <span class="page-ellipsis" aria-hidden="true">…</span>
+      {/if}
     {/each}
   </div>
 {/if}
@@ -49,6 +93,23 @@
     flex-wrap: wrap;
     gap: 4px; /* Task13 以前の間隔に復帰 (下記 .page-dot 撤回理由と同じ経緯) */
     margin-left: auto;
+  }
+  .page-dots.windowed {
+    box-sizing: border-box;
+    inline-size: 80px;
+    max-inline-size: 80px;
+    block-size: 24px;
+    min-height: 24px;
+    flex-wrap: nowrap;
+    justify-content: flex-end;
+  }
+  .page-ellipsis {
+    flex: 0 0 8px;
+    inline-size: 8px;
+    block-size: 24px;
+    line-height: 24px;
+    text-align: center;
+    color: var(--role-muted);
   }
   /* 透明 24×24px 箱 + ::before 描画の構造 (Task13) は、26 ページ相当の多ページ時に
      624px → 2 行折返しを起こしメイン表示を圧迫する実害があった (preview 目視レビュー 2026-07-18)。

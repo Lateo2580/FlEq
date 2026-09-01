@@ -1,26 +1,35 @@
 <script lang="ts">
   import {
-    WEATHER_PAGE_ROW_CAPACITY,
-    WEATHER_ROW_AREA_MAX,
-    WEATHER_ROW_AREA_MAX_COMPACT,
     WEATHER_SUB_KIND_MAX,
     acceptsMeasurement,
-    capRowAreas,
-    paginateWeatherRows,
+    buildWeatherBaseFragments,
+    evaluateWeatherFragmentRefinement,
+    finitePositiveOrNull,
+    packWeatherFragmentsByHeight,
+    provisionalMinimumWeatherFragments,
+    resolveWeatherInitialPageIndex,
     selectPagedItems,
     selectSubKinds,
     selectWeatherChangeItems,
     stripLevelPrefix,
+    weatherBaseContentFingerprint,
+    weatherBaseLayoutEpochKey,
     weatherChangeRowText,
     weatherChangeFadeDuration,
     weatherChangeSummary,
     weatherEmergencyHeading,
-    weatherPageCapacity,
+    weatherInfeasiblePages,
+    weatherPageCyclerResetKey,
+    weatherPartitionSignature,
+    weatherReferenceGeometrySourceKey,
     weatherRowAreaMax,
+    weatherSyncingPages,
+    type WeatherAreaGroupFragment,
     type WeatherEmergencyInputV1,
+    type WeatherGroupFragment,
+    type WeatherPublicEntry,
   } from "../lib/weather-panel";
-  import { weatherAreaIdentity } from "../lib/weather-expanded-kinds";
-  import { measureHeight, measureBorderHeight, observeResize } from "../lib/measure-height";
+  import { measureBorderHeight, observeResize } from "../lib/measure-height";
   import { createPageCycler } from "../lib/page-cycler.svelte";
   import { SPRING_EFFECTS_DEFAULT_MS, springEffectsOut } from "../lib/motion";
   import { fade } from "svelte/transition";
@@ -99,17 +108,14 @@
     return level === 5 ? "命の危険 直ちに安全確保" : "危険な場所にいる人は全員避難";
   }
 
-  // ── 「どこ」領域のページング (Codex R1 Important: overflow:hidden の無言切り捨て封じ) ──
-  // QuakePanel / TsunamiPanel と同じ作法: 領域と行を実測して 1 ページの行数を出し、
-  // createPageCycler で自動巡回する。jsdom は ResizeObserver 未実装で測定が一度も走らないため、
-  // weatherPageCapacity の「未実測 = fallback (WEATHER_PAGE_ROW_CAPACITY)」経路に落ちる。
-  // 1 行に並べる地域名の件数は**領域の実測幅**から決める (固定件数だと、ゆとりがあるのに
-  // 省略してしまう / 狭いのに詰め込む、の両方が起きる)。未実測のうちは fallback
-  // 地域件数の可変化に使う実測 (幅と実効フォントサイズ)。高さと同じく未実測は null
-  let whereBodyWidth = $state<number | null>(null);
+  // ── 「どこ」領域: cap → group → fragment → 実高 partition ──
+  // areaMax は地域列の実幅から算出する。未測定中だけ既存の normal=12 / compact=6 fallback。
+  let measuredAreaColumn = $state<{ referenceKey: string; width: number } | null>(null);
   let whereFontSize = $state<number | null>(null);
-  const areaMax = $derived(weatherRowAreaMax(whereBodyWidth, whereFontSize, compact));
-  const mainRows = $derived(pagedItems.map((it) => capRowAreas(it, areaMax)));
+  let whereFrameWidth = $state<number | null>(null);
+  let whereFrameHeight = $state<number | null>(null);
+  let whereFrameEl = $state<HTMLElement | null>(null);
+
   // 副セクションは **地域名を持たない要約** (ユーザー決定 2026-07-26)。種別名だけを上限まで
   // 並べ、残りは「ほか N 種別」で明示する。地域行を並べると折返しで高さが青天井になり、
   // ページ送りを持たない固定領域では溢れが黙って切られる (Codex R5)。上限は distinct な種別数
@@ -127,167 +133,315 @@
   /** 副セクションに載らなかった種別数。黙って消さず件数で明示する */
   const hiddenSubKindCount = $derived(subSelection.hiddenKindCount);
 
-  // 省略の告知は**行末の「ほか N 地域」「ほか N 種別」に一本化**する (ユーザー決定 2026-07-26、
-  // spec §3 の「縮退省略時は『表示は一部です』固定表示」から変更)。旧実装は領域下端にも固定文を
-  // 出していたが、主語が無く「ページの一部」と誤読される一方、同じことを行末表記が件数付きで
-  // 既に言っていた。件数の方が具体的なので、重複する固定文を落として行末表記に寄せる
+  // 省略の告知は行末の「ほか N 地域」「ほか N 種別」に一本化する。
 
-  // null = まだ測っていない (ResizeObserver 未発火・jsdom)。実測して 0 だった場合と区別する
-  // — 同一視すると「潰れて見えない領域」に fallback 行数を描いて黙って消すことになる (Codex R2)
-  let whereAreaHeight = $state<number | null>(null);
-  // 行高は**観測した中の最大**を使う。地域名の折返しで行高は不揃いになり、先頭行を代表値にすると
-  // 後続の高い行が溢れる (Codex R2)。多めに見積もる方向へ倒すのでページが増えるだけで情報は残る
-  let maxRowHeight = $state<number | null>(null);
-  // レイアウト遷移中の実測は**採らない**。過渡値を確定値に昇格させると、遷移中に折り返して
-  // 膨らんだ行高が最終レイアウトへ residue として残り、以後ずっと余分にページを割る (Codex R4)。
-  // 整定が解けた時点で最終 DOM から測り直す — ResizeObserver は「サイズが変わらなければ鳴らない」
-  // ので、次の通知を待つ設計にすると整定後に一度も更新されない経路ができる。
-  let whereBodyEl = $state<HTMLElement | null>(null);
-  // 実測に使う DOM は **作られた時点の点灯キー (token) と一緒に**持つ (spec 追補 C1 の
-  // 再点灯 crossfade 対策)。退場中の旧 DOM も ResizeObserver を鳴らし続けるので
-  // (`pointer-events: none` では止まらない)、token が現行 activationKey と一致するものだけを
-  // 受理する。action は `update` を実装しない = パラメータは**生成時の値で固定**される
-  const rowNodes = new Map<HTMLElement, string>();
-  // 地域列 (.areas) の実幅を測るための登録。行全体の幅を使うと区分列・gap・縦罫ぶんを
-  // 数え込んで件数を過大評価する (Codex R6)
-  const areaNodes = new Map<HTMLElement, string>();
-  function registerRow(node: HTMLElement, token: string) {
-    rowNodes.set(node, token);
-    return {
-      destroy(): void {
-        rowNodes.delete(node);
-      },
-    };
-  }
-  function registerAreas(node: HTMLElement, token: string) {
-    areaNodes.set(node, token);
-    return {
-      destroy(): void {
-        areaNodes.delete(node);
-      },
-    };
-  }
-  /** 現行の点灯に属する DOM だけを返す (退場中の旧 DOM は除く) */
-  function liveNodes(nodes: Map<HTMLElement, string>): HTMLElement[] {
-    const key = input.activationKey;
-    return [...nodes].filter(([, token]) => token === key).map(([node]) => node);
-  }
-  /** ResizeObserver 未対応環境 (jsdom) では destroy を持たない handle が返る */
   type MeasureHandle = { destroy?: () => void };
-  function measureWhereArea(node: HTMLElement, token: string) {
-    const handle: MeasureHandle = measureHeight(node, (px) => {
-      if (acceptsMeasurement(token, input.activationKey, layoutSettling)) whereAreaHeight = px;
-    });
-    // 生成時に固定した token を `update` で上書きさせないため、destroy だけを返す
-    return { destroy: () => handle.destroy?.() };
+  interface ReferenceMeasurement {
+    width: number;
+    height: number;
   }
-  function measureRow(node: HTMLElement, token: string) {
-    const handle: MeasureHandle = measureBorderHeight(node, (px) => {
-      if (!acceptsMeasurement(token, input.activationKey, layoutSettling)) return;
-      if (maxRowHeight == null || px > maxRowHeight) maxRowHeight = px;
-    });
-    return { destroy: () => handle.destroy?.() };
+  interface ReferenceMeasurementToken {
+    referenceKey: string;
+    activationKey: string;
   }
-  function observeWhereArea(node: HTMLElement, token: string) {
-    const handle: MeasureHandle = observeResize(node, () => {
-      if (acceptsMeasurement(token, input.activationKey, layoutSettling)) remeasureWidth();
-    });
-    return { destroy: () => handle.destroy?.() };
+  interface FragmentMeasurementToken {
+    baseEpochKey: string;
+    fragmentKey: string;
+    activationKey: string;
   }
-  /** 地域件数の可変化に使う「地域列の幅」と文字サイズを実測する。取れない環境 (jsdom) では未実測 */
-  function remeasureWidth(): void {
-    if (whereBodyEl == null || layoutSettling) return;
-    // 測るのは .areas 列そのもの。まだ行が無いときだけ領域全幅で代用する (初回描画の暫定値)
-    const areaEl = liveNodes(areaNodes)[0];
-    const width = (areaEl ?? whereBodyEl).getBoundingClientRect().width;
-    if (width > 0) whereBodyWidth = width;
-    // 文字サイズは行から採る (行は --panel-scale 連動なので where-body の値とは違う)
-    const sample = areaEl ?? liveNodes(rowNodes)[0] ?? whereBodyEl;
-    const fontSize = Number.parseFloat(getComputedStyle(sample).fontSize);
-    if (Number.isFinite(fontSize) && fontSize > 0) whereFontSize = fontSize;
+
+  let referenceMeasurements = $state(new Map<string, ReferenceMeasurement>());
+  let activeBaseEpochKey = $state<string | null>(null);
+  let refinementFragments = $state<WeatherGroupFragment[]>([]);
+  let fragmentHeights = $state(new Map<string, number>());
+  let candidateHeights = $state(new Map<string, number>());
+  let candidateFragment = $state<WeatherAreaGroupFragment | null>(null);
+  let layoutState = $state<"pending" | "ready" | "infeasible">("pending");
+
+  function readWhereFrame(node: HTMLElement, token: string): void {
+    if (!acceptsMeasurement(token, input.activationKey, layoutSettling)) return;
+    const rect = node.getBoundingClientRect();
+    const width = finitePositiveOrNull(rect.width);
+    const height = finitePositiveOrNull(rect.height);
+    whereFrameWidth = width;
+    whereFrameHeight = height;
   }
-  /** 最終 DOM から実測し直す。0 しか取れない環境 (jsdom) では null を返して未実測へ戻す */
-  function remeasureRows(): number | null {
-    let max: number | null = null;
-    for (const node of liveNodes(rowNodes)) {
-      const h = node.getBoundingClientRect().height;
-      if (h > 0 && (max == null || h > max)) max = h;
-    }
-    return max;
+  function observeWhereFrame(node: HTMLElement, token: string) {
+    whereFrameEl = node;
+    readWhereFrame(node, token);
+    const handle: MeasureHandle = observeResize(node, () => readWhereFrame(node, token));
+    return {
+      destroy(): void {
+        if (whereFrameEl === node) whereFrameEl = null;
+        handle.destroy?.();
+      },
+    };
   }
-  // 測り直しの契機は「整定の解除」と「内容・レベル・スロット幅の変化」の 2 つ。
-  // 契機は**値**で判定する (`measureKey`) — `input.generation` を直接 $effect で読むと、
-  // 中身が同じ続報でも prop の識別子が変わるたびに effect が走り、実測値を毎回捨ててしまう
-  // (ResizeObserver は寸法が変わらなければ鳴らないので、捨てた後 fallback のまま固定される)
-  // areaMax も契機に含める (Codex R6): 行高の観測は最大値の片方向なので、狭幅 → 広幅で
-  // 折返しが解けても maxRowHeight が下がらず、余分なページが残り続ける。1 行に並ぶ地域数が
-  // 変わったら DOM 更新後に測り直して、現在のレイアウトの値へ置き換える
-  // activationKey も契機に含める: 再点灯では `{#key}` ブロックごと DOM が作り直されるので、
-  // 前の点灯で観測した行高 (単調増加) をそのまま持ち越すと容量を過小評価したまま固定される
-  const measureKey = $derived(
-    `${input.generation}|${input.level}|${compact}|${areaMax}|${input.activationKey}`,
-  );
-  let wasSettling = false;
-  let lastMeasureKey: string | undefined;
-  $effect(() => {
-    const key = measureKey;
-    const settling = layoutSettling;
-    untrack(() => {
-      if (settling) {
-        wasSettling = true;
-        return;
+
+  const baseFragmentsBeforeGeometry = $derived.by(() => {
+    // referenceKey はこの derived より後で定義されるため、最新の受理済み地域列幅を使う。
+    const areaWidth = measuredAreaColumn?.width ?? null;
+    const max = weatherRowAreaMax(areaWidth, whereFontSize, compact);
+    return { areaMax: max, fragments: buildWeatherBaseFragments(pagedItems, max) };
+  });
+  const areaMax = $derived(baseFragmentsBeforeGeometry.areaMax);
+  const baseFragments = $derived(baseFragmentsBeforeGeometry.fragments);
+  const provisionalMinimumFragments = $derived(provisionalMinimumWeatherFragments(baseFragments));
+  const pagerReferenceTotal = $derived(provisionalMinimumFragments.length);
+  const baseContentFingerprint = $derived(weatherBaseContentFingerprint(baseFragments));
+  const referenceGeometrySourceKey = $derived(weatherReferenceGeometrySourceKey({
+    compact,
+    layoutSettling,
+    whereFrameWidth,
+    whereFrameHeight,
+    whereFontSize,
+    pagerReferenceTotal,
+  }));
+  const referenceMeasurement = $derived(referenceMeasurements.get(referenceGeometrySourceKey) ?? null);
+  const stableWhereBodyWidth = $derived(referenceMeasurement?.width ?? null);
+  const stableWhereBodyHeight = $derived(referenceMeasurement?.height ?? null);
+  const baseLayoutEpochKey = $derived(weatherBaseLayoutEpochKey({
+    input,
+    referenceGeometrySourceKey,
+    stableWhereBodyWidth,
+    stableWhereBodyHeight,
+    baseContentFingerprint,
+    baseFragments,
+  }));
+  const isSyncingContent = $derived(provisionalMinimumFragments.length === 0);
+  // effect による state 初期化より先に新 input が描画されても、旧 epoch の final / 測定 DOM を
+  // 一瞬も公開しない。active key が一致するまでは外向きには pending として扱う。
+  const baseEpochIsActive = $derived(activeBaseEpochKey === baseLayoutEpochKey);
+  const publicLayoutState = $derived(baseEpochIsActive ? layoutState : "pending");
+
+  function readReferenceBody(node: HTMLElement, token: ReferenceMeasurementToken): void {
+    if (
+      token.referenceKey !== referenceGeometrySourceKey
+      || !acceptsMeasurement(token.activationKey, input.activationKey, layoutSettling)
+    ) return;
+    const width = finitePositiveOrNull(node.clientWidth);
+    const height = finitePositiveOrNull(node.clientHeight);
+    if (width == null || height == null) {
+      if (referenceMeasurements.has(token.referenceKey)) {
+        const next = new Map(referenceMeasurements);
+        next.delete(token.referenceKey);
+        referenceMeasurements = next;
       }
-      const keyChanged = lastMeasureKey !== undefined && key !== lastMeasureKey;
-      lastMeasureKey = key;
-      if (!keyChanged && !wasSettling) return;
-      wasSettling = false;
-      // 過渡値・前の内容の行高は捨て、確定した DOM から測り直す
-      const areaPx = whereBodyEl?.getBoundingClientRect().height ?? 0;
-      if (areaPx > 0) whereAreaHeight = areaPx;
-      maxRowHeight = remeasureRows();
-      remeasureWidth();
+      return;
+    }
+    const current = referenceMeasurements.get(token.referenceKey);
+    if (current?.width === width && current.height === height) return;
+    referenceMeasurements = new Map(referenceMeasurements).set(token.referenceKey, { width, height });
+  }
+  function measureReferenceBody(node: HTMLElement, token: ReferenceMeasurementToken) {
+    readReferenceBody(node, token);
+    const handle: MeasureHandle = observeResize(node, () => readReferenceBody(node, token));
+    return { destroy: () => handle.destroy?.() };
+  }
+  function readAreaGeometry(node: HTMLElement, token: ReferenceMeasurementToken): void {
+    if (
+      token.referenceKey !== referenceGeometrySourceKey
+      || !acceptsMeasurement(token.activationKey, input.activationKey, layoutSettling)
+    ) return;
+    const width = finitePositiveOrNull(node.getBoundingClientRect().width);
+    const fontSize = finitePositiveOrNull(Number.parseFloat(getComputedStyle(node).fontSize));
+    whereFontSize = fontSize;
+    measuredAreaColumn = width == null ? null : { referenceKey: token.referenceKey, width };
+  }
+  function measureAreaGeometry(node: HTMLElement, token: ReferenceMeasurementToken) {
+    readAreaGeometry(node, token);
+    const handle: MeasureHandle = observeResize(node, () => readAreaGeometry(node, token));
+    return { destroy: () => handle.destroy?.() };
+  }
+
+  function recordFragmentHeight(token: FragmentMeasurementToken, height: number): void {
+    if (
+      token.baseEpochKey !== baseLayoutEpochKey
+      || !acceptsMeasurement(token.activationKey, input.activationKey, layoutSettling)
+    ) return;
+    const isCurrent = refinementFragments.some((fragment) => fragment.key === token.fragmentKey);
+    const isCandidate = candidateFragment?.key === token.fragmentKey;
+    if (!isCurrent && !isCandidate) return;
+    if (finitePositiveOrNull(height) == null) {
+      if (isCurrent && fragmentHeights.has(token.fragmentKey)) {
+        const next = new Map(fragmentHeights);
+        next.delete(token.fragmentKey);
+        fragmentHeights = next;
+      } else if (isCandidate && candidateHeights.has(token.fragmentKey)) {
+        const next = new Map(candidateHeights);
+        next.delete(token.fragmentKey);
+        candidateHeights = next;
+      }
+      return;
+    }
+    if (isCurrent) {
+      if (fragmentHeights.get(token.fragmentKey) === height) return;
+      fragmentHeights = new Map(fragmentHeights).set(token.fragmentKey, height);
+    } else {
+      if (candidateHeights.get(token.fragmentKey) === height) return;
+      candidateHeights = new Map(candidateHeights).set(token.fragmentKey, height);
+    }
+  }
+  function measureFragment(node: HTMLElement, token: FragmentMeasurementToken | null) {
+    if (token == null) return {};
+    const immediate = node.getBoundingClientRect().height;
+    if (immediate > 0) recordFragmentHeight(token, immediate);
+    const handle: MeasureHandle = measureBorderHeight(node, (height) => recordFragmentHeight(token, height));
+    return { destroy: () => handle.destroy?.() };
+  }
+
+  // 整定解除時は ResizeObserver の次回通知を待たず、partition 非依存 frame を読み直す。
+  $effect(() => {
+    const settling = layoutSettling;
+    const activationKey = input.activationKey;
+    const node = whereFrameEl;
+    untrack(() => {
+      if (!settling && node != null) readWhereFrame(node, activationKey);
     });
   });
-  const pageCapacity = $derived(weatherPageCapacity(whereAreaHeight, maxRowHeight, WEATHER_PAGE_ROW_CAPACITY));
-  const pages = $derived(paginateWeatherRows(mainRows, pageCapacity));
 
-  // 内容が変わったら (generation 更新・主レベル変化) 先頭ページへ戻す。generation は engine 側が
-  // 縮退方向の変化でも上げる契約なので、地域が減ったときも先頭から読み直しになる
+  // base epoch の変更だけが refinement と infeasible を原子的に初期化する。
+  $effect(() => {
+    const epochKey = baseLayoutEpochKey;
+    const initialFragments = baseFragments;
+    untrack(() => {
+      if (activeBaseEpochKey === epochKey) return;
+      activeBaseEpochKey = epochKey;
+      layoutState = "pending";
+      refinementFragments = [...initialFragments];
+      fragmentHeights = new Map();
+      candidateHeights = new Map();
+      candidateFragment = null;
+    });
+  });
+
+  // 同一 epoch 内は split-only。最大 fitting prefix の未測定候補だけを測定棚へ追加する。
+  $effect(() => {
+    const epochKey = baseLayoutEpochKey;
+    const activeEpoch = activeBaseEpochKey;
+    const syncing = isSyncingContent;
+    const settling = layoutSettling;
+    const availableHeight = stableWhereBodyHeight;
+    const currentFragments = refinementFragments;
+    const currentFragmentHeights = fragmentHeights;
+    const currentCandidateHeights = candidateHeights;
+    const state = layoutState;
+    untrack(() => {
+      if (
+        activeEpoch !== epochKey
+        || syncing
+        || settling
+        || availableHeight == null
+        || state === "infeasible"
+      ) return;
+      const heights = new Map([...currentFragmentHeights, ...currentCandidateHeights]);
+      const result = evaluateWeatherFragmentRefinement(currentFragments, heights, availableHeight);
+      if (result.state === "pending") {
+        if (candidateFragment?.key !== result.candidate?.key) candidateFragment = result.candidate;
+        if (layoutState !== "pending") layoutState = "pending";
+        return;
+      }
+      if (result.state === "split") {
+        const nextKeys = new Set(result.fragments.map((fragment) => fragment.key));
+        const nextHeights = new Map<string, number>();
+        for (const key of nextKeys) {
+          const height = currentFragmentHeights.get(key) ?? currentCandidateHeights.get(key);
+          if (height != null) nextHeights.set(key, height);
+        }
+        refinementFragments = result.fragments;
+        fragmentHeights = nextHeights;
+        candidateHeights = new Map();
+        candidateFragment = null;
+        layoutState = "pending";
+        return;
+      }
+      candidateFragment = null;
+      layoutState = result.state;
+    });
+  });
+
+  const provisionalPages = $derived(
+    provisionalMinimumFragments.map((fragment) => [fragment]),
+  );
+  const finalPages = $derived.by((): WeatherGroupFragment[][] => {
+    if (!baseEpochIsActive || layoutState !== "ready" || stableWhereBodyHeight == null) return [];
+    return packWeatherFragmentsByHeight(
+      refinementFragments,
+      fragmentHeights,
+      stableWhereBodyHeight,
+    ) ?? [];
+  });
+  const syncingPages = $derived(weatherSyncingPages(input));
+  const infeasiblePages = $derived(weatherInfeasiblePages(input, baseContentFingerprint));
+  const publicPages = $derived.by((): WeatherPublicEntry[][] => {
+    if (isSyncingContent) return syncingPages;
+    if (publicLayoutState === "pending") return provisionalPages;
+    if (publicLayoutState === "ready" && finalPages.length > 0) return finalPages;
+    return infeasiblePages;
+  });
+  const partitionSignature = $derived(weatherPartitionSignature(publicPages));
+  const pageCyclerResetKey = $derived(weatherPageCyclerResetKey(partitionSignature));
+
   const cycler = createPageCycler({
-    pageCount: () => pages.length,
-    resetKey: () => `${input.generation}|${input.level}`,
+    pageCount: () => publicPages.length,
+    resetKey: () => pageCyclerResetKey,
     reducedMotion: () => reducedMotionInput,
   });
   onDestroy(() => cycler.destroy());
-  const currentPage = $derived(pages[cycler.index] ?? pages[0] ?? []);
+  const currentPage = $derived(publicPages[cycler.index] ?? publicPages[0]!);
 
-  // 追加地域を含む行のページから見せる (spec 追補 C11)。10 秒周期の巡回を待たせると、
-  // ハイライトを出す意味が薄れる。契機は再点灯 (activationKey) のときだけ
-  // 再点灯演出は prefers-reduced-motion で止める。**バッジとハイライトは残す** (情報は落とさない)
   const reducedMotion = $derived(cycler.reducedMotion);
-  let lastJumpedActivation: string | undefined;
+  let consumedActivationKey: string | null = null;
   $effect(() => {
-    const key = input.activationKey;
-    const rowKey = input.firstPageRowKey;
-    const pageList = pages;
-    // **実測が終わるまで activation を消費しない**。fallback 容量で組んだ仮のページ割りで
-    // 消費すると、実測後に対象行が別ページへ移っても跳び直せない
-    // (Codex レビュー 3 巡目 2026-07-27)
-    const measured =
-      whereAreaHeight != null
-      && maxRowHeight != null
-      && whereBodyWidth != null
-      && whereFontSize != null;
+    const activationKey = input.activationKey;
+    const firstPageRowKey = input.firstPageRowKey;
+    const syncing = isSyncingContent;
+    const state = publicLayoutState;
+    const pageList = finalPages;
     untrack(() => {
-      if (!measured || key === lastJumpedActivation) return;
-      lastJumpedActivation = key;
-      if (rowKey == null) return;
-      const index = pageList.findIndex((page) => page.some((row) => row.key === rowKey));
-      // $effect の中なので flushSync は使わない (Svelte が effect 内の同期フラッシュを許さない)
-      if (index > 0) cycler.jumpTo(index, { immediate: false });
+      if (syncing || state !== "ready" || pageList.length === 0) return;
+      if (consumedActivationKey === activationKey) return;
+      const targetIndex = resolveWeatherInitialPageIndex(pageList, firstPageRowKey);
+      cycler.jumpTo(targetIndex, { immediate: false });
+      consumedActivationKey = activationKey;
     });
   });
 </script>
+
+{#snippet weatherFragmentRow(
+  fragment: WeatherGroupFragment,
+  measurementToken: FragmentMeasurementToken | null,
+)}
+  <div
+    class="where-row"
+    class:sub-level-row={fragment.level !== input.level}
+    data-fragment-key={fragment.key}
+    data-fragment-type={fragment.fragmentType}
+    data-continued={fragment.fragmentType === "group" ? fragment.continued : false}
+    data-group-kind={fragment.fragmentType === "group" ? fragment.group.kind : undefined}
+    use:measureFragment={measurementToken}
+  >
+    <span class="kind"
+      >{#if fragment.level !== input.level}<span class="row-level">L{fragment.level}</span>{/if}{fragment.kind}</span
+    >
+    <div class="areas">
+      {#if fragment.fragmentType === "group"}
+        <div class="area-group" class:raw-group={fragment.group.kind === "raw"}>
+          {#if fragment.group.kind === "prefecture"}
+            <span class="prefecture-name">{fragment.group.prefectureName}</span>
+          {/if}
+          <span class="municipalities">
+            {#each fragment.areas as area (`${area.identity}:${area.sourceIndex}`)}<span
+                class="area-name"
+                class:added={area.added}>{area.displayName}</span
+              >{/each}
+          </span>
+        </div>
+      {/if}
+      {#if fragment.hiddenAreaCount > 0}<span class="omitted">ほか{fragment.hiddenAreaCount}地域</span>{/if}
+    </div>
+  </div>
+{/snippet}
 
 <!-- 再点灯演出 (spec 追補 C1): 外側の panel key は固定のまま、activationKey が変わったら
      **中身だけ**を差し替えて短い fade-in を掛ける (旧内容は outro を持たないので重ねない
@@ -337,25 +491,28 @@
     <!-- どこ: 種別ごとに shownAreas + ほか N 地域 (source 間の合算はしない)。
          行が領域に収まらないときは切り捨てず自動ページ送りで全種別を巡回する。
          パネル内で唯一の「面」を持つタイル (一覧・ページャを抱える領域だけを囲う) -->
-    <div class="tile tile-where">
+    <div
+      class="tile tile-where"
+      data-layout-state={isSyncingContent ? "syncing" : publicLayoutState}
+      data-pager-reference-total={pagerReferenceTotal}
+      bind:this={whereFrameEl}
+      use:observeWhereFrame={input.activationKey}
+    >
       <!-- 見出し行にページャを置く: 省略の告知 (行末の件数) とページ位置を別の場所で言う。
            同じフッタに並べていた旧構成は「省略＝ページの一部」と誤読された (ユーザー指摘) -->
       <div class="where-head">
         <span class="section-label">対象地域・区分</span>
         {#if cycler.total > 1}
-          <PageDots total={cycler.total} current={cycler.index} onJump={(i) => cycler.jumpTo(i)} />
+          <PageDots
+            total={cycler.total}
+            current={cycler.index}
+            onJump={(i) => cycler.jumpTo(i)}
+            windowed={true}
+          />
         {/if}
       </div>
-      <!-- 実測系の action には**この DOM が作られた時点の点灯キー**を渡す (action は update を
-           持たないので生成時の値で固定される)。crossfade で退場中の旧 DOM が鳴らす測定は
-           token 不一致で弾かれ、現行ページの容量計算を汚さない -->
-      <div
-        class="where-body"
-        bind:this={whereBodyEl}
-        use:observeWhereArea={input.activationKey}
-        use:measureWhereArea={input.activationKey}
-      >
-        {#key cycler.index}
+      <div class="where-body">
+        {#key `${partitionSignature}:${cycler.index}`}
           <div
             class="page-fade"
             transition:fade={{
@@ -363,33 +520,18 @@
               easing: springEffectsOut,
             }}
           >
-            {#if currentPage.length === 0}
-              <!-- engine は昇格を指示しているが、まだ当該レベルの item を組めていない状態
-                   (電文待ち・一時的な不整合)。主役表示は畳まず「まだ届いていない」ことを描く -->
-              <div class="syncing">対象地域を同期中です</div>
-            {/if}
-            {#each currentPage as row (row.key)}
-              <div
-                class="where-row"
-                class:sub-level-row={row.level !== input.level}
-                use:registerRow={input.activationKey}
-                use:measureRow={input.activationKey}
-              >
-                <!-- 下位レベルの行 (追加が起きた行だけがここに来る) はレベル印を添える。
-                     種別名だけでは主レベルの行と見分けが付かない -->
-                <span class="kind"
-                  >{#if row.level !== input.level}<span class="row-level">L{row.level}</span>{/if}{row.kind}</span
-                >
-                <span class="areas" use:registerAreas={input.activationKey}>
-                  {#each row.areas as area, areaIndex (weatherAreaIdentity(area, row.areaCodes?.[areaIndex]))}<span
-                      class="area-name"
-                      class:added={row.addedAreas.some((addedArea, index) =>
-                        weatherAreaIdentity(addedArea, row.addedAreaCodes?.[index]) === weatherAreaIdentity(area, row.areaCodes?.[areaIndex]))}>{area}</span
-                    >{/each}
-                  {#if row.hiddenAreaCount > 0}<span class="omitted">ほか{row.hiddenAreaCount}地域</span>{/if}
-                </span>
+            {#if currentPage[0]?.fragmentType === "syncing"}
+              <div class="syncing" role="status">{currentPage[0].message}</div>
+            {:else if currentPage[0]?.fragmentType === "infeasible"}
+              <div class="where-row infeasible-row" role="status">
+                <span class="kind">対象地域</span>
+                <div class="areas"><span class="infeasible-message">{currentPage[0].message}</span></div>
               </div>
-            {/each}
+            {:else}
+              {#each currentPage as fragment (fragment.key)}
+                {@render weatherFragmentRow(fragment as WeatherGroupFragment, null)}
+              {/each}
+            {/if}
           </div>
         {/key}
       </div>
@@ -415,6 +557,79 @@
   </div>
   {/key}
   </div>
+
+  <!-- partition 非依存の基準 geometry と全断片を、実レイアウト外の同型 DOM で測る。 -->
+  <div class="measurement-shelf" aria-hidden="true" inert>
+    {#key input.activationKey}
+    {#if whereFrameWidth != null && whereFrameHeight != null}
+      {#key referenceGeometrySourceKey}
+        <div
+          class="tile tile-where measurement-reference"
+          style:width={`${whereFrameWidth}px`}
+          style:height={`${whereFrameHeight}px`}
+        >
+          <div class="where-head">
+            <span class="section-label">対象地域・区分</span>
+            <PageDots
+              total={pagerReferenceTotal}
+              current={0}
+              onJump={() => {}}
+              windowed={true}
+            />
+          </div>
+          <div
+            class="where-body"
+            use:measureReferenceBody={{
+              referenceKey: referenceGeometrySourceKey,
+              activationKey: input.activationKey,
+            }}
+          ></div>
+        </div>
+      {/key}
+    {/if}
+
+    {#if stableWhereBodyWidth != null}
+      {#key referenceGeometrySourceKey}
+        <div class="measurement-area-probe" style:width={`${stableWhereBodyWidth}px`}>
+          <div class="where-row">
+            <span class="kind">測定</span>
+            <div
+              class="areas"
+              use:measureAreaGeometry={{
+                referenceKey: referenceGeometrySourceKey,
+                activationKey: input.activationKey,
+              }}
+            ><span class="area-name">測定</span></div>
+          </div>
+        </div>
+      {/key}
+    {/if}
+
+    {#if baseEpochIsActive && !isSyncingContent && !layoutSettling && stableWhereBodyWidth != null}
+      {#key baseLayoutEpochKey}
+        <div class="measurement-fragments" style:width={`${stableWhereBodyWidth}px`}>
+          {#each refinementFragments as fragment (fragment.key)}
+            {@render weatherFragmentRow(fragment, {
+              baseEpochKey: baseLayoutEpochKey,
+              fragmentKey: fragment.key,
+              activationKey: input.activationKey,
+            })}
+          {/each}
+          {#if candidateFragment != null}
+            {#key candidateFragment.key}
+              {@render weatherFragmentRow(candidateFragment, {
+                baseEpochKey: baseLayoutEpochKey,
+                fragmentKey: candidateFragment.key,
+                activationKey: input.activationKey,
+              })}
+            {/key}
+          {/if}
+        </div>
+      {/key}
+    {/if}
+    {/key}
+  </div>
+
   {#if changeVisible && input.change != null}
     {#key input.change.changeKey}
       <section
@@ -436,6 +651,7 @@
 
 <style>
   .weather-panel {
+    position: relative;
     container-type: inline-size;
     height: 100%;
     display: flex;
@@ -692,6 +908,9 @@
     color: var(--role-muted);
     font-size: calc(var(--type-body-l-size) * var(--panel-scale, 1));
   }
+  .infeasible-message {
+    color: var(--role-muted);
+  }
   /* 「何が」の上限超過ぶん。警報名と同じ行に、控えめなトーンで件数だけ添える */
   .name-omitted {
     color: var(--role-muted);
@@ -734,10 +953,38 @@
   .areas {
     display: flex;
     flex-wrap: wrap;
+    align-items: baseline;
     gap: var(--space-1) var(--space-3);
     min-width: 0;
     border-inline-start: 1px solid var(--hairline);
     padding-inline-start: var(--space-4);
+    color: var(--fg);
+  }
+  .area-group {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    min-width: 0;
+    gap: var(--space-1);
+  }
+  .area-group.raw-group {
+    display: contents;
+  }
+  .prefecture-name {
+    color: var(--fg);
+    font-weight: var(--type-body-weight-emphasized);
+    white-space: nowrap;
+  }
+  .municipalities {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-1) var(--space-3);
+    min-width: 0;
+    padding-inline-start: var(--space-2);
+    color: var(--fg);
+  }
+  .raw-group .municipalities {
+    padding-inline-start: 0;
   }
   .area-name {
     white-space: nowrap;
@@ -759,6 +1006,32 @@
   .omitted {
     white-space: nowrap;
     color: var(--role-muted);
+    align-self: flex-end;
+  }
+
+  /* 基準 geometry と断片の測定棚。absolute + visibility:hidden により、実レイアウト高と
+     accessibility tree の双方へ参加しない。 */
+  .measurement-shelf {
+    position: absolute;
+    inset: 0 auto auto 0;
+    visibility: hidden;
+    pointer-events: none;
+    overflow: visible;
+    z-index: -1;
+  }
+  .measurement-reference {
+    box-sizing: border-box;
+    flex: none;
+  }
+  .measurement-area-probe,
+  .measurement-fragments {
+    box-sizing: border-box;
+    position: relative;
+    overflow: visible;
+  }
+  .measurement-area-probe .where-row,
+  .measurement-fragments .where-row {
+    box-sizing: border-box;
   }
   /* どうする: 面ではなく role 色の縦レールで主張する行動レール (主役スロットのみ) */
   .tile-action {

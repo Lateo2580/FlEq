@@ -10,6 +10,11 @@ import {
   type DisplayWeatherSourceV1,
 } from "./protocol";
 import { SPRING_EFFECTS_DEFAULT_MS } from "./motion";
+import {
+  groupCodedAreasByPrefecture,
+  type CodedAreaEntry,
+  type CodedPrefectureGroup,
+} from "./prefecture-group";
 import { resolveWeatherKindKeys, weatherAreaIdentity } from "./weather-expanded-kinds";
 
 /** 主役パネルへ載せる 1 行。同じ severity × 現象は source をまたいで統合する (spec §3) */
@@ -102,7 +107,12 @@ export function weatherRowAreaMax(
 ): number {
   const fallback = compact ? WEATHER_ROW_AREA_MAX_COMPACT : WEATHER_ROW_AREA_MAX;
   if (areaWidthPx == null || fontSizePx == null) return fallback;
-  if (!(areaWidthPx > 0) || !(fontSizePx > 0)) return fallback;
+  if (
+    !Number.isFinite(areaWidthPx)
+    || !Number.isFinite(fontSizePx)
+    || !(areaWidthPx > 0)
+    || !(fontSizePx > 0)
+  ) return fallback;
   const perLine = Math.floor(areaWidthPx / (fontSizePx * AREA_NAME_EM));
   const lines = compact ? AREA_WRAP_LINES_COMPACT : AREA_WRAP_LINES;
   return Math.max(1, perLine * lines);
@@ -169,7 +179,9 @@ export interface WeatherPanelRowV1 extends WeatherPanelItemV1 {
   /** 実際に描く地域名 */
   areas: string[];
   /** areas と同じ添字の XML Area.Code。 */
-  areaCodes?: string[];
+  areaCodes?: Array<string | null>;
+  /** cap 前の shownAreas における位置。追加優先選抜後も元位置を失わない。 */
+  areaSourceIndices: number[];
   /** 「ほか N 地域」の N。engine の omittedAreaCount + UI 上限で落ちた件数 */
   hiddenAreaCount: number;
 }
@@ -202,14 +214,465 @@ export function capRowAreas(item: WeatherPanelItemV1, maxAreas: number): Weather
   const keptIndices = new Set(kept.map(({ index }) => index));
   const selected = indexed.filter(({ index }) => keptIndices.has(index));
   const areas = selected.map(({ area }) => area);
-  const areaCodes = selected.map(({ areaCode }) => areaCode ?? "");
+  const areaCodes = selected.map(({ areaCode }) => areaCode);
   const droppedByUi = Math.max(0, item.shownAreas.length - areas.length);
   return {
     ...item,
     areas,
     ...(item.shownAreaCodes == null ? {} : { areaCodes }),
+    areaSourceIndices: selected.map(({ index }) => index),
     hiddenAreaCount: item.omittedAreaCount + droppedByUi,
   };
+}
+
+export interface WeatherFragmentBase {
+  key: string;
+  logicalRowKey: string;
+  kind: string;
+  level: DisplayWeatherPromotionLevelV1;
+  hiddenAreaCount: number;
+}
+
+export interface WeatherAreaGroupFragment extends WeatherFragmentBase {
+  fragmentType: "group";
+  group: CodedPrefectureGroup;
+  areaStart: number;
+  areaEndExclusive: number;
+  areas: CodedAreaEntry[];
+  continued: boolean;
+}
+
+export interface WeatherOmissionOnlyFragment extends WeatherFragmentBase {
+  fragmentType: "omission-only";
+  group?: never;
+  areaStart?: never;
+  areaEndExclusive?: never;
+  areas?: never;
+  continued: false;
+}
+
+export type WeatherGroupFragment = WeatherAreaGroupFragment | WeatherOmissionOnlyFragment;
+
+export interface WeatherSyncingEntry {
+  fragmentType: "syncing";
+  key: string;
+  message: "対象地域を同期中です";
+}
+
+export interface WeatherInfeasibleEntry {
+  fragmentType: "infeasible";
+  key: string;
+  message: "対象地域の一覧を表示できません";
+}
+
+export type WeatherPublicEntry = WeatherGroupFragment | WeatherSyncingEntry | WeatherInfeasibleEntry;
+export type WeatherLayoutState = "pending" | "ready" | "infeasible";
+
+export function weatherAreaFragmentKey(
+  groupKey: string,
+  areaStart: number,
+  areaEndExclusive: number,
+): string {
+  return JSON.stringify([
+    "weather-area-fragment-v1",
+    groupKey,
+    areaStart,
+    areaEndExclusive,
+  ]);
+}
+
+export function weatherAreaOmissionKey(logicalRowKey: string): string {
+  return JSON.stringify(["weather-area-omission-v1", logicalRowKey]);
+}
+
+export function createWeatherAreaGroupFragment(
+  row: Pick<WeatherPanelRowV1, "key" | "kind" | "level">,
+  group: CodedPrefectureGroup,
+  areaStart: number,
+  areaEndExclusive: number,
+  hiddenAreaCount = 0,
+): WeatherAreaGroupFragment {
+  return {
+    fragmentType: "group",
+    key: weatherAreaFragmentKey(group.key, areaStart, areaEndExclusive),
+    logicalRowKey: row.key,
+    kind: row.kind,
+    level: row.level,
+    hiddenAreaCount,
+    group,
+    areaStart,
+    areaEndExclusive,
+    areas: group.areas.slice(areaStart, areaEndExclusive),
+    continued: areaStart > 0,
+  };
+}
+
+function createWeatherOmissionOnlyFragment(
+  row: Pick<WeatherPanelRowV1, "key" | "kind" | "level" | "hiddenAreaCount">,
+): WeatherOmissionOnlyFragment {
+  return {
+    fragmentType: "omission-only",
+    key: weatherAreaOmissionKey(row.key),
+    logicalRowKey: row.key,
+    kind: row.kind,
+    level: row.level,
+    hiddenAreaCount: row.hiddenAreaCount,
+    continued: false,
+  };
+}
+
+/** cap 済みの論理行を、県 / raw group ごとの連続 range へ初期断片化する。 */
+export function buildInitialWeatherFragments(
+  rows: readonly WeatherPanelRowV1[],
+  areaMax: number,
+): WeatherGroupFragment[] {
+  const safeAreaMax = Number.isFinite(areaMax) && areaMax >= 1 ? Math.floor(areaMax) : 1;
+  const allFragments: WeatherGroupFragment[] = [];
+
+  for (const row of rows) {
+    const groups = groupCodedAreasByPrefecture({
+      logicalRowKey: row.key,
+      areas: row.areas,
+      areaCodes: row.areaCodes,
+      sourceIndices: row.areaSourceIndices,
+      addedAreas: row.addedAreas,
+      addedAreaCodes: row.addedAreaCodes,
+    });
+    const rowFragments: WeatherGroupFragment[] = [];
+    for (const group of groups) {
+      const limit = group.kind === "prefecture"
+        ? Math.max(1, safeAreaMax - 1)
+        : Math.max(1, safeAreaMax);
+      for (let areaStart = 0; areaStart < group.areas.length; areaStart += limit) {
+        const areaEndExclusive = Math.min(areaStart + limit, group.areas.length);
+        rowFragments.push(createWeatherAreaGroupFragment(
+          row,
+          group,
+          areaStart,
+          areaEndExclusive,
+        ));
+      }
+    }
+    if (rowFragments.length === 0) {
+      if (row.hiddenAreaCount > 0) rowFragments.push(createWeatherOmissionOnlyFragment(row));
+    } else if (row.hiddenAreaCount > 0) {
+      rowFragments[rowFragments.length - 1]!.hiddenAreaCount = row.hiddenAreaCount;
+    }
+    allFragments.push(...rowFragments);
+  }
+
+  const keys = new Set(allFragments.map((fragment) => fragment.key));
+  if (keys.size !== allFragments.length) {
+    throw new Error("weather fragment keys must be unique");
+  }
+  return allFragments;
+}
+
+/** cap → strict group → 初期断片化の順序を一つの純関数として固定する。 */
+export function buildWeatherBaseFragments(
+  items: readonly WeatherPanelItemV1[],
+  areaMax: number,
+): WeatherGroupFragment[] {
+  return buildInitialWeatherFragments(
+    items.map((item) => capRowAreas(item, areaMax)),
+    areaMax,
+  );
+}
+
+/** pending 中に公開する、全地域を単一 range へ展開した安全側 partition の正本。 */
+export function provisionalMinimumWeatherFragments(
+  baseFragments: readonly WeatherGroupFragment[],
+): WeatherGroupFragment[] {
+  const fragments: WeatherGroupFragment[] = [];
+  for (const fragment of baseFragments) {
+    if (fragment.fragmentType === "omission-only") {
+      fragments.push({ ...fragment });
+      continue;
+    }
+    for (let areaStart = fragment.areaStart; areaStart < fragment.areaEndExclusive; areaStart += 1) {
+      fragments.push(createWeatherAreaGroupFragment(
+        {
+          key: fragment.logicalRowKey,
+          kind: fragment.kind,
+          level: fragment.level,
+        },
+        fragment.group,
+        areaStart,
+        areaStart + 1,
+        areaStart + 1 === fragment.areaEndExclusive ? fragment.hiddenAreaCount : 0,
+      ));
+    }
+  }
+  return fragments;
+}
+
+export function splitWeatherAreaGroupFragment(
+  fragment: WeatherAreaGroupFragment,
+  candidateEnd: number,
+): [WeatherAreaGroupFragment, WeatherAreaGroupFragment] {
+  if (!(candidateEnd > fragment.areaStart) || !(candidateEnd < fragment.areaEndExclusive)) {
+    throw new RangeError("weather fragment split must create two non-empty ranges");
+  }
+  const row = {
+    key: fragment.logicalRowKey,
+    kind: fragment.kind,
+    level: fragment.level,
+  };
+  return [
+    createWeatherAreaGroupFragment(row, fragment.group, fragment.areaStart, candidateEnd, 0),
+    createWeatherAreaGroupFragment(
+      row,
+      fragment.group,
+      candidateEnd,
+      fragment.areaEndExclusive,
+      fragment.hiddenAreaCount,
+    ),
+  ];
+}
+
+export function finitePositiveOrNull(value: number | null | undefined): number | null {
+  return value != null && Number.isFinite(value) && value > 0 ? value : null;
+}
+
+export function weatherBaseContentFingerprint(
+  baseFragments: readonly WeatherGroupFragment[],
+): string {
+  return JSON.stringify([
+    "weather-area-content-v1",
+    baseFragments.map((fragment) =>
+      fragment.fragmentType === "group"
+        ? [
+            "group",
+            fragment.key,
+            fragment.logicalRowKey,
+            fragment.kind,
+            fragment.level,
+            fragment.hiddenAreaCount,
+            fragment.continued,
+            fragment.group.key,
+            fragment.group.kind,
+            fragment.group.kind === "prefecture" ? fragment.group.prefectureCode : null,
+            fragment.group.kind === "prefecture" ? fragment.group.prefectureName : null,
+            fragment.areaStart,
+            fragment.areaEndExclusive,
+            fragment.areas.map((area) => [
+              area.sourceIndex,
+              area.areaName,
+              area.displayName,
+              area.areaCode,
+              area.identity,
+              area.added,
+            ]),
+          ]
+        : [
+            "omission-only",
+            fragment.key,
+            fragment.logicalRowKey,
+            fragment.kind,
+            fragment.level,
+            fragment.hiddenAreaCount,
+            false,
+          ],
+    ),
+  ]);
+}
+
+export interface WeatherReferenceGeometryKeyInput {
+  compact: boolean;
+  layoutSettling: boolean;
+  whereFrameWidth: number | null;
+  whereFrameHeight: number | null;
+  whereFontSize: number | null;
+  pagerReferenceTotal: number;
+}
+
+export function weatherReferenceGeometrySourceKey(
+  input: WeatherReferenceGeometryKeyInput,
+): string {
+  return JSON.stringify([
+    "weather-area-reference-geometry-v1",
+    input.compact,
+    input.layoutSettling,
+    finitePositiveOrNull(input.whereFrameWidth),
+    finitePositiveOrNull(input.whereFrameHeight),
+    finitePositiveOrNull(input.whereFontSize),
+    input.pagerReferenceTotal,
+  ]);
+}
+
+export interface WeatherBaseLayoutEpochKeyInput {
+  input: Pick<WeatherEmergencyInputV1, "generation" | "level" | "activationKey">;
+  referenceGeometrySourceKey: string;
+  stableWhereBodyWidth: number | null;
+  stableWhereBodyHeight: number | null;
+  baseContentFingerprint: string;
+  baseFragments: readonly WeatherGroupFragment[];
+}
+
+export function weatherBaseLayoutEpochKey(input: WeatherBaseLayoutEpochKeyInput): string {
+  return JSON.stringify([
+    "weather-area-base-epoch-v2",
+    input.input.generation,
+    input.input.level,
+    input.input.activationKey,
+    input.referenceGeometrySourceKey,
+    finitePositiveOrNull(input.stableWhereBodyWidth),
+    finitePositiveOrNull(input.stableWhereBodyHeight),
+    input.baseContentFingerprint,
+    input.baseFragments.map((fragment) => fragment.key),
+  ]);
+}
+
+export type WeatherRefinementResult =
+  | { state: "pending"; candidate: WeatherAreaGroupFragment | null }
+  | { state: "split"; fragments: WeatherGroupFragment[] }
+  | { state: "ready" }
+  | { state: "infeasible" };
+
+function validMeasuredHeight(
+  heights: ReadonlyMap<string, number>,
+  key: string,
+): number | null {
+  return finitePositiveOrNull(heights.get(key));
+}
+
+/**
+ * 現 refinement 列を一段だけ評価する。候補は長い接頭辞から順に要求するため、
+ * ResizeObserver callback の到着順に split 境界が左右されない。
+ */
+export function evaluateWeatherFragmentRefinement(
+  fragments: readonly WeatherGroupFragment[],
+  heights: ReadonlyMap<string, number>,
+  stableWhereBodyHeight: number,
+): WeatherRefinementResult {
+  if (finitePositiveOrNull(stableWhereBodyHeight) == null) {
+    return { state: "pending", candidate: null };
+  }
+  for (const [fragmentIndex, fragment] of fragments.entries()) {
+    const height = validMeasuredHeight(heights, fragment.key);
+    if (height == null) return { state: "pending", candidate: null };
+    if (height <= stableWhereBodyHeight) continue;
+    if (fragment.fragmentType === "omission-only") return { state: "infeasible" };
+    if (fragment.areaEndExclusive - fragment.areaStart <= 1) return { state: "infeasible" };
+
+    for (
+      let candidateEnd = fragment.areaEndExclusive - 1;
+      candidateEnd >= fragment.areaStart + 1;
+      candidateEnd -= 1
+    ) {
+      const candidate = createWeatherAreaGroupFragment(
+        {
+          key: fragment.logicalRowKey,
+          kind: fragment.kind,
+          level: fragment.level,
+        },
+        fragment.group,
+        fragment.areaStart,
+        candidateEnd,
+        0,
+      );
+      const candidateHeight = validMeasuredHeight(heights, candidate.key);
+      if (candidateHeight == null) return { state: "pending", candidate };
+      if (candidateHeight <= stableWhereBodyHeight) {
+        const children = splitWeatherAreaGroupFragment(fragment, candidateEnd);
+        return {
+          state: "split",
+          fragments: [
+            ...fragments.slice(0, fragmentIndex),
+            ...children,
+            ...fragments.slice(fragmentIndex + 1),
+          ],
+        };
+      }
+    }
+    return { state: "infeasible" };
+  }
+  return { state: "ready" };
+}
+
+export function packWeatherFragmentsByHeight(
+  fragments: readonly WeatherGroupFragment[],
+  heights: ReadonlyMap<string, number>,
+  stableWhereBodyHeight: number,
+): WeatherGroupFragment[][] | null {
+  if (fragments.length === 0 || finitePositiveOrNull(stableWhereBodyHeight) == null) return null;
+  const pages: WeatherGroupFragment[][] = [];
+  let current: WeatherGroupFragment[] = [];
+  let usedHeight = 0;
+  for (const fragment of fragments) {
+    const height = validMeasuredHeight(heights, fragment.key);
+    if (height == null || height > stableWhereBodyHeight) return null;
+    if (current.length > 0 && usedHeight + height > stableWhereBodyHeight) {
+      pages.push(current);
+      current = [];
+      usedHeight = 0;
+    }
+    current.push(fragment);
+    usedHeight += height;
+  }
+  if (current.length > 0) pages.push(current);
+  return pages;
+}
+
+export function weatherSyncingPages(
+  input: Pick<WeatherEmergencyInputV1, "generation" | "level" | "activationKey">,
+): WeatherSyncingEntry[][] {
+  return [[{
+    fragmentType: "syncing",
+    key: JSON.stringify([
+      "weather-area-syncing-v1",
+      input.generation,
+      input.level,
+      input.activationKey,
+    ]),
+    message: "対象地域を同期中です",
+  }]];
+}
+
+export function weatherInfeasiblePages(
+  input: Pick<WeatherEmergencyInputV1, "generation" | "level" | "activationKey">,
+  baseContentFingerprint: string,
+): WeatherInfeasibleEntry[][] {
+  return [[{
+    fragmentType: "infeasible",
+    key: JSON.stringify([
+      "weather-area-infeasible-v1",
+      input.generation,
+      input.level,
+      input.activationKey,
+      baseContentFingerprint,
+    ]),
+    message: "対象地域の一覧を表示できません",
+  }]];
+}
+
+export function weatherPartitionSignature(
+  publicPages: readonly (readonly Pick<WeatherPublicEntry, "key">[])[],
+): string {
+  return JSON.stringify([
+    "weather-area-partition-v1",
+    publicPages.map((page) => page.map((entry) => entry.key)),
+  ]);
+}
+
+export function weatherPageCyclerResetKey(partitionSignature: string): string {
+  return JSON.stringify(["weather-area-cycle-v2", partitionSignature]);
+}
+
+export function resolveWeatherInitialPageIndex(
+  pages: readonly (readonly WeatherGroupFragment[])[],
+  firstPageRowKey: string | null,
+): number {
+  if (firstPageRowKey == null) return 0;
+  const addedIndex = pages.findIndex((page) => page.some((fragment) =>
+    fragment.logicalRowKey === firstPageRowKey
+    && fragment.fragmentType === "group"
+    && fragment.areas.some((area) => area.added)));
+  if (addedIndex >= 0) return addedIndex;
+  const rowIndex = pages.findIndex((page) => page.some((fragment) =>
+    fragment.fragmentType === "group"
+    && fragment.logicalRowKey === firstPageRowKey));
+  return rowIndex >= 0 ? rowIndex : 0;
 }
 
 /**

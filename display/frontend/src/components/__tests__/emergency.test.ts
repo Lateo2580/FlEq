@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, it, expect, vi } from "vitest";
 import { render, screen } from "@testing-library/svelte";
-import { flushSync } from "svelte";
+import { flushSync, tick } from "svelte";
 import EmergencyScreen from "../EmergencyScreen.svelte";
 import WeatherEmergencyPanel from "../WeatherEmergencyPanel.svelte";
 import { PAGE_HOLD_MS } from "../../lib/page-cycler.svelte";
@@ -23,6 +23,137 @@ import type { WeatherEmergencyInputV1, WeatherPanelItemV1 } from "../../lib/weat
 function settleFade(): void {
   vi.advanceTimersByTime(1000);
   flushSync();
+}
+
+interface WeatherGeometryOptions {
+  frameWidth?: number;
+  frameHeight?: number;
+  bodyWidth?: number;
+  bodyHeight?: number;
+  areaWidth?: number;
+  fontSize?: number;
+  measureFragments?: boolean;
+  rowHeight?: (row: Element) => number;
+}
+
+/** WeatherEmergencyPanel の partition 非依存 frame / 基準 body / 断片棚を制御する。 */
+function installWeatherGeometry(options: WeatherGeometryOptions = {}) {
+  const originalResizeObserver = globalThis.ResizeObserver;
+  const originalRect = Element.prototype.getBoundingClientRect;
+  const originalComputedStyle = window.getComputedStyle;
+  const frameWidth = options.frameWidth ?? 800;
+  const frameHeight = options.frameHeight ?? 260;
+  const bodyWidth = options.bodyWidth ?? 600;
+  const bodyHeight = options.bodyHeight ?? 120;
+  const areaWidth = options.areaWidth ?? 480;
+  const fontSize = options.fontSize ?? 20;
+  let measureFragments = options.measureFragments ?? true;
+  const observed: Array<{
+    target: Element;
+    observer: GeometryResizeObserver;
+  }> = [];
+
+  const rectOf = (element: Element): DOMRect => {
+    let width = 0;
+    let height = 0;
+    if (element.classList.contains("tile-where")) {
+      width = frameWidth;
+      height = frameHeight;
+    } else if (element.classList.contains("where-body")) {
+      width = bodyWidth;
+      height = bodyHeight;
+    } else if (
+      element.classList.contains("areas")
+      && element.closest(".measurement-area-probe") != null
+    ) {
+      width = areaWidth;
+      height = 30;
+    } else if (element.classList.contains("syncing")) {
+      width = bodyWidth;
+      height = Math.max(1, Math.floor(bodyHeight * 0.55));
+    } else if (element.classList.contains("where-row")) {
+      width = bodyWidth;
+      const isMeasuredFragment = element.closest(".measurement-fragments") != null;
+      height = isMeasuredFragment && !measureFragments
+        ? 0
+        : (options.rowHeight?.(element) ?? 30);
+    }
+    return {
+      x: 0,
+      y: 0,
+      top: 0,
+      left: 0,
+      right: width,
+      bottom: height,
+      width,
+      height,
+      toJSON: () => ({}),
+    } as DOMRect;
+  };
+
+  Element.prototype.getBoundingClientRect = function (this: Element): DOMRect {
+    return rectOf(this);
+  };
+  window.getComputedStyle = ((element: Element, pseudo?: string | null) => {
+    if (element.classList.contains("areas")) {
+      return {
+        fontSize: `${fontSize}px`,
+        getPropertyValue: () => "",
+      } as unknown as CSSStyleDeclaration;
+    }
+    return originalComputedStyle.call(window, element, pseudo);
+  }) as typeof window.getComputedStyle;
+
+  class GeometryResizeObserver {
+    private active = true;
+    constructor(private readonly callback: ResizeObserverCallback) {}
+    observe(target: Element): void {
+      if (target.classList.contains("where-body")) {
+        Object.defineProperties(target, {
+          clientWidth: { configurable: true, value: bodyWidth },
+          clientHeight: { configurable: true, value: bodyHeight },
+        });
+      }
+      observed.push({ target, observer: this });
+      // 実ブラウザ同様、observe() の呼出しスタックを抜けてから callback を届ける。
+      queueMicrotask(() => this.notify(target));
+    }
+    unobserve(): void {}
+    disconnect(): void {
+      this.active = false;
+    }
+    notify(target: Element): void {
+      if (!this.active) return;
+      const rect = rectOf(target);
+      this.callback([{
+        target,
+        contentRect: rect,
+        borderBoxSize: [{ blockSize: rect.height, inlineSize: rect.width }],
+      } as unknown as ResizeObserverEntry], this as unknown as ResizeObserver);
+    }
+  }
+  globalThis.ResizeObserver = GeometryResizeObserver as unknown as typeof ResizeObserver;
+
+  return {
+    setMeasureFragments(value: boolean): void {
+      measureFragments = value;
+    },
+    fireAll(): void {
+      for (const { target, observer } of [...observed]) observer.notify(target);
+    },
+    restore(): void {
+      Element.prototype.getBoundingClientRect = originalRect;
+      window.getComputedStyle = originalComputedStyle;
+      globalThis.ResizeObserver = originalResizeObserver;
+    },
+  };
+}
+
+async function settleWeatherLayout(): Promise<void> {
+  for (let index = 0; index < 8; index += 1) {
+    flushSync();
+    await tick();
+  }
 }
 
 function eewInput(over: Partial<DisplayEewInputV1> = {}): DisplayEewInputV1 {
@@ -259,8 +390,10 @@ describe("EmergencyScreen", () => {
       expect(row.querySelector(".kind")?.textContent).toBe("大雨特別警報");
       expect(Array.from(row.querySelectorAll(".area-name")).map((el) => el.textContent)).toEqual([
         "東京都",
-        "千葉県",
       ]);
+      // 未測定中は地域を1件ずつ安全側の provisional page にする。
+      expect(p.querySelector(".tile-where")?.getAttribute("data-layout-state")).toBe("pending");
+      expect(p.querySelector(".tile-where")?.getAttribute("data-pager-reference-total")).toBe("2");
       // どうする (主役スロットは独立した行動レール。compact のみヒーロー行へ束ねる)
       expect(p.querySelector(".tile-action .action-main")?.textContent).toBe("命の危険 直ちに安全確保");
       expect(p.querySelector(".tile-action .action-note")?.textContent).toContain(
@@ -473,11 +606,9 @@ describe("EmergencyScreen", () => {
         ],
       });
       const rows = container.querySelectorAll(".tile-where .where-row");
-      expect(rows.length).toBe(2);
-      expect(Array.from(rows).map((r) => r.querySelector(".omitted")?.textContent)).toEqual([
-        "ほか2地域",
-        "ほか3地域",
-      ]);
+      expect(rows.length).toBe(1);
+      expect(rows[0]?.querySelector(".omitted")?.textContent).toBe("ほか2地域");
+      expect(container.querySelector(".tile-where")?.getAttribute("data-pager-reference-total")).toBe("2");
       // 「何が」の警報名だけは重複を畳む (地域は畳まない)
       expect(container.querySelectorAll(".tile-what .alert-name").length).toBe(1);
     });
@@ -499,8 +630,11 @@ describe("EmergencyScreen", () => {
         ],
       });
       expect(container.querySelector(".tile-where .partial")).toBeFalsy();
-      // 省略の告知そのものは残る (UI 上限 8 件 + engine 縮退 3 件 = ほか15地域)
-      expect(container.querySelector(".tile-where .omitted")?.textContent).toContain("ほか");
+      // provisional でも省略は論理行の最終断片だけへ置く。
+      const pagerButtons = container.querySelectorAll<HTMLButtonElement>(".tile-where .page-dot");
+      pagerButtons[pagerButtons.length - 1]?.click();
+      flushSync();
+      expect(container.querySelector(".tile-where .omitted")?.textContent).toBe("ほか11地域");
     });
 
     // Codex R3 Important: source 違いの同一種別を 2 種別と数えると、実際には何も隠していないのに
@@ -542,52 +676,538 @@ describe("EmergencyScreen", () => {
       expect(container.querySelector(".action-main")?.textContent).toBe("命の危険 直ちに安全確保");
     });
 
-    // Codex R5 Minor: 「同じ measureKey のまま親が新しい input object を渡しても実測値を捨てない」
-    // — これが崩れると ResizeObserver が鳴らない限り fallback 行数に固定される (実際に踏んだ)
-    it("同一 generation で input object が差し替わっても実測値を捨てない", async () => {
-      const origRO = (globalThis as { ResizeObserver?: unknown }).ResizeObserver;
-      class FixedResizeObserver {
-        constructor(private cb: (entries: unknown[]) => void) {}
-        observe(el: Element): void {
-          if (el.classList.contains("where-body")) {
-            this.cb([{ contentRect: { height: 100 }, target: el }]);
-          } else if (el.classList.contains("where-row")) {
-            this.cb([{ borderBoxSize: [{ blockSize: 40 }], target: el }]);
-          }
-        }
-        unobserve(): void {}
-        disconnect(): void {}
-      }
-      (globalThis as { ResizeObserver?: unknown }).ResizeObserver = FixedResizeObserver;
+    it("ready DOM は県見出し・市区町村・raw・共通省略末尾を分離し、追加印を地域だけへ付ける", async () => {
+      const geometry = installWeatherGeometry({ areaWidth: 1_200, bodyHeight: 200 });
+      const rendered = render(WeatherEmergencyPanel, {
+        input: weatherInput({
+          items: [weatherItem({
+            key: "grouped",
+            kind: "L5 大雨特別警報",
+            shownAreas: ["福井県福井市", "敦賀市", "宗谷地方", "府中市", "府中市"],
+            shownAreaCodes: ["1820100", "1820200", "011000", "1320600", "3420600"],
+            addedAreas: ["府中市"],
+            addedAreaCodes: ["3420600"],
+            omittedAreaCount: 2,
+          })],
+        }),
+        reducedMotionInput: true,
+      });
       try {
-        const items = Array.from({ length: 5 }, (_, i) =>
-          weatherItem({ key: `k${i}`, kind: `L5 特別警報${i}` }),
-        );
-        const { container, rerender } = render(WeatherEmergencyPanel, {
-          input: weatherInput({ items }),
-          compact: false,
-          layoutSettling: false,
-        });
-        flushSync();
-        // 実測 100px / 40px = 2 行/ページ → 5 行で 3 ページ
-        expectCurrentDot(container.querySelector(".tile-where"), 1, 3);
-
-        // 中身も generation も同じだが、親は毎回新しいオブジェクトを渡す (deriveEmergencyPanels の実態)
-        await rerender({
-          input: weatherInput({ items: items.map((it) => ({ ...it })) }),
-          compact: false,
-          layoutSettling: false,
-        });
-        flushSync();
-        // 実測を捨てて fallback (4 行 → 2 ページ) に戻っていないこと
-        expectCurrentDot(container.querySelector(".tile-where"), 1, 3);
+        await settleWeatherLayout();
+        const where = rendered.container.querySelector(".tile-where")!;
+        expect(where.getAttribute("data-layout-state")).toBe("ready");
+        expect(Array.from(where.querySelectorAll(".prefecture-name")).map((node) => node.textContent))
+          .toEqual(["福井県", "東京都", "広島県"]);
+        expect(Array.from(where.querySelectorAll(".area-name")).map((node) => node.textContent))
+          .toEqual(["福井市", "敦賀市", "宗谷地方", "府中市", "府中市"]);
+        expect(where.querySelector('[data-group-kind="raw"] .prefecture-name')).toBeFalsy();
+        expect(where.querySelectorAll(".omitted")).toHaveLength(1);
+        expect(where.querySelector(".omitted")?.textContent).toBe("ほか2地域");
+        const fuchu = Array.from(where.querySelectorAll(".area-name"))
+          .filter((node) => node.textContent === "府中市");
+        expect(fuchu.map((node) => node.classList.contains("added"))).toEqual([false, true]);
+        expect(Array.from(where.querySelectorAll(".prefecture-name"))
+          .some((node) => node.classList.contains("added"))).toBe(false);
       } finally {
-        if (origRO === undefined) {
-          delete (globalThis as { ResizeObserver?: unknown }).ResizeObserver;
-        } else {
-          (globalThis as { ResizeObserver?: unknown }).ResizeObserver = origRO;
-        }
+        rendered.unmount();
+        geometry.restore();
       }
+    });
+
+    it("過高な県 fragment を最大 fitting prefix へ再分割し、継続県見出しと最終省略だけを描く", async () => {
+      const geometry = installWeatherGeometry({
+        areaWidth: 1_200,
+        bodyHeight: 70,
+        rowHeight: (row) => 20 + row.querySelectorAll(".area-name").length * 25,
+      });
+      const rendered = render(WeatherEmergencyPanel, {
+        input: weatherInput({
+          items: [weatherItem({
+            key: "split",
+            kind: "L5 大雨特別警報",
+            shownAreas: ["福井市", "敦賀市", "大野市", "勝山市"],
+            shownAreaCodes: ["1820100", "1820200", "1820500", "1820600"],
+            omittedAreaCount: 3,
+          })],
+        }),
+        reducedMotionInput: true,
+      });
+      try {
+        await settleWeatherLayout();
+        const where = rendered.container.querySelector(".tile-where")!;
+        expect(where.getAttribute("data-layout-state")).toBe("ready");
+        expect(where.getAttribute("data-pager-reference-total")).toBe("4");
+        expect(where.querySelector(".page-dots")?.getAttribute("aria-label")).toContain("全2ページ");
+        expect(Array.from(where.querySelectorAll(".area-name")).map((node) => node.textContent))
+          .toEqual(["福井市", "敦賀市"]);
+        expect(where.querySelectorAll(".prefecture-name")).toHaveLength(1);
+        expect(where.querySelector(".omitted")).toBeFalsy();
+
+        where.querySelectorAll<HTMLButtonElement>(".page-dot")[1]?.click();
+        await settleWeatherLayout();
+        expect(Array.from(where.querySelectorAll(".area-name")).map((node) => node.textContent))
+          .toEqual(["大野市", "勝山市"]);
+        expect(where.querySelectorAll(".prefecture-name")).toHaveLength(1);
+        expect(where.querySelector(".where-row")?.getAttribute("data-continued")).toBe("true");
+        expect(where.querySelector(".omitted")?.textContent).toBe("ほか3地域");
+      } finally {
+        rendered.unmount();
+        geometry.restore();
+      }
+    });
+
+    it("同じ generation でも名称訂正は新 base epoch となり、旧 split を捨てて再結合する", async () => {
+      const geometry = installWeatherGeometry({
+        areaWidth: 1_200,
+        bodyHeight: 70,
+        rowHeight: (row) => row.textContent?.includes("短")
+          ? 50
+          : 20 + row.querySelectorAll(".area-name").length * 25,
+      });
+      const codes = ["1820100", "1820200", "1820500", "1820600"];
+      const rendered = render(WeatherEmergencyPanel, {
+        input: weatherInput({
+          items: [weatherItem({
+            key: "corrected",
+            kind: "L5 大雨特別警報",
+            shownAreas: ["非常に長い地域一", "非常に長い地域二", "非常に長い地域三", "非常に長い地域四"],
+            shownAreaCodes: codes,
+          })],
+        }),
+        reducedMotionInput: true,
+      });
+      try {
+        await settleWeatherLayout();
+        const where = rendered.container.querySelector(".tile-where")!;
+        expect(where.getAttribute("data-layout-state")).toBe("ready");
+        expect(where.querySelector(".page-dots")?.getAttribute("aria-label")).toContain("全2ページ");
+
+        await rendered.rerender({
+          input: weatherInput({
+            items: [weatherItem({
+              key: "corrected",
+              kind: "L5 大雨特別警報",
+              shownAreas: ["短一", "短二", "短三", "短四"],
+              shownAreaCodes: codes,
+            })],
+          }),
+          reducedMotionInput: true,
+        });
+        await settleWeatherLayout();
+        expect(where.getAttribute("data-layout-state")).toBe("ready");
+        expect(where.querySelector(".page-dots")).toBeFalsy();
+        expect(Array.from(where.querySelectorAll(".area-name")).map((node) => node.textContent))
+          .toEqual(["短一", "短二", "短三", "短四"]);
+      } finally {
+        rendered.unmount();
+        geometry.restore();
+      }
+    });
+
+    it("単一地域さえ収まらない場合は infeasible 1ページだけを公開し、部分表示しない", async () => {
+      const geometry = installWeatherGeometry({ bodyHeight: 70, rowHeight: () => 80 });
+      const rendered = render(WeatherEmergencyPanel, {
+        input: weatherInput({
+          items: [weatherItem({
+            key: "too-tall",
+            kind: "L5 大雨特別警報",
+            shownAreas: ["極端に長い地域名称"],
+            shownAreaCodes: ["1820100"],
+            omittedAreaCount: 4,
+          })],
+        }),
+        reducedMotionInput: true,
+      });
+      try {
+        await settleWeatherLayout();
+        const where = rendered.container.querySelector(".tile-where")!;
+        expect(where.getAttribute("data-layout-state")).toBe("infeasible");
+        expect(where.querySelector('[role="status"]')?.textContent)
+          .toContain("対象地域の一覧を表示できません");
+        expect(where.querySelector(".area-name")).toBeFalsy();
+        expect(where.querySelector(".prefecture-name")).toBeFalsy();
+        expect(where.querySelector(".omitted")).toBeFalsy();
+        expect(where.querySelector(".page-dots")).toBeFalsy();
+      } finally {
+        rendered.unmount();
+        geometry.restore();
+      }
+    });
+
+    it("omission-only は警報種別と共通の『ほかN地域』だけを同じ測定経路で描く", async () => {
+      const geometry = installWeatherGeometry({ bodyHeight: 70 });
+      const rendered = render(WeatherEmergencyPanel, {
+        input: weatherInput({
+          items: [weatherItem({
+            key: "only-omitted",
+            kind: "L5 大雨特別警報",
+            shownAreas: [],
+            omittedAreaCount: 9,
+          })],
+        }),
+        reducedMotionInput: true,
+      });
+      try {
+        await settleWeatherLayout();
+        const where = rendered.container.querySelector(".tile-where")!;
+        expect(where.getAttribute("data-layout-state")).toBe("ready");
+        expect(where.querySelector(".where-row")?.getAttribute("data-fragment-type"))
+          .toBe("omission-only");
+        expect(where.querySelector(".kind")?.textContent).toBe("大雨特別警報");
+        expect(where.querySelector(".omitted")?.textContent).toBe("ほか9地域");
+        expect(where.querySelector(".area-group")).toBeFalsy();
+        expect(where.querySelector(".area-name")).toBeFalsy();
+        expect(where.querySelector(".prefecture-name")).toBeFalsy();
+      } finally {
+        rendered.unmount();
+        geometry.restore();
+      }
+    });
+
+    it("pending では activation を消費せず、測定完了で初めて追加地域の final page へ jump する", async () => {
+      const geometry = installWeatherGeometry({ bodyHeight: 35, measureFragments: false });
+      const items = [
+        weatherItem({ key: "plain", kind: "L5 大雨特別警報", shownAreas: ["福井市"], shownAreaCodes: ["1820100"] }),
+        weatherItem({
+          key: "target",
+          kind: "L5 暴風特別警報",
+          shownAreas: ["敦賀市"],
+          shownAreaCodes: ["1820200"],
+          addedAreas: ["敦賀市"],
+          addedAreaCodes: ["1820200"],
+        }),
+      ];
+      const rendered = render(WeatherEmergencyPanel, {
+        input: weatherInput({ items, firstPageRowKey: "target" }),
+        reducedMotionInput: true,
+      });
+      try {
+        await settleWeatherLayout();
+        const where = rendered.container.querySelector(".tile-where")!;
+        expect(where.getAttribute("data-layout-state")).toBe("pending");
+        expect(where.querySelector(".page-dot.current")?.getAttribute("aria-label")).toBe("1/2ページ");
+
+        geometry.setMeasureFragments(true);
+        geometry.fireAll();
+        await settleWeatherLayout();
+        expect(where.getAttribute("data-layout-state")).toBe("ready");
+        expect(where.querySelector(".page-dot.current")?.getAttribute("aria-label")).toBe("2/2ページ");
+        expect(where.querySelector(".area-name.added")?.textContent).toBe("敦賀市");
+      } finally {
+        rendered.unmount();
+        geometry.restore();
+      }
+    });
+
+    it("消費済み activation は infeasible を経て同じ final へ戻っても再 jump しない", async () => {
+      const geometry = installWeatherGeometry({
+        bodyHeight: 35,
+        rowHeight: (row) => row.textContent?.includes("OVER") ? 80 : 30,
+      });
+      const readyItems = [
+        weatherItem({ key: "plain", kind: "L5 大雨特別警報", shownAreas: ["福井市"] }),
+        weatherItem({ key: "target", kind: "L5 暴風特別警報", shownAreas: ["敦賀市"], addedAreas: ["敦賀市"] }),
+      ];
+      const rendered = render(WeatherEmergencyPanel, {
+        input: weatherInput({ items: readyItems, firstPageRowKey: "target" }),
+        reducedMotionInput: true,
+      });
+      try {
+        await settleWeatherLayout();
+        const where = rendered.container.querySelector(".tile-where")!;
+        expect(where.querySelector(".page-dot.current")?.getAttribute("aria-label")).toBe("2/2ページ");
+
+        await rendered.rerender({
+          input: weatherInput({
+            items: [weatherItem({ key: "over", kind: "L5 OVER特別警報", shownAreas: ["OVER"] })],
+            firstPageRowKey: "target",
+          }),
+          reducedMotionInput: true,
+        });
+        await settleWeatherLayout();
+        expect(where.getAttribute("data-layout-state")).toBe("infeasible");
+
+        await rendered.rerender({
+          input: weatherInput({ items: readyItems, firstPageRowKey: "target" }),
+          reducedMotionInput: true,
+        });
+        await settleWeatherLayout();
+        expect(where.getAttribute("data-layout-state")).toBe("ready");
+        expect(where.querySelector(".page-dot.current")?.getAttribute("aria-label")).toBe("1/2ページ");
+      } finally {
+        rendered.unmount();
+        geometry.restore();
+      }
+    });
+
+    it("未消費 activation は syncing から ready へ回復した時に一度だけ追加地域へ jump する", async () => {
+      const geometry = installWeatherGeometry({ bodyHeight: 35 });
+      const rendered = render(WeatherEmergencyPanel, {
+        input: weatherInput({ items: [], firstPageRowKey: "target" }),
+        reducedMotionInput: true,
+      });
+      try {
+        await settleWeatherLayout();
+        const where = rendered.container.querySelector(".tile-where")!;
+        expect(where.getAttribute("data-layout-state")).toBe("syncing");
+        expect(where.querySelector(".page-dots")).toBeFalsy();
+
+        const items = [
+          weatherItem({ key: "plain", kind: "L5 大雨特別警報", shownAreas: ["福井市"] }),
+          weatherItem({
+            key: "target",
+            kind: "L5 暴風特別警報",
+            shownAreas: ["敦賀市"],
+            addedAreas: ["敦賀市"],
+          }),
+        ];
+        await rendered.rerender({
+          input: weatherInput({ items, firstPageRowKey: "target" }),
+          reducedMotionInput: true,
+        });
+        await settleWeatherLayout();
+        expect(where.getAttribute("data-layout-state")).toBe("ready");
+        expect(where.querySelector(".page-dot.current")?.getAttribute("aria-label")).toBe("2/2ページ");
+        expect(where.querySelector(".area-name.added")?.textContent).toBe("敦賀市");
+      } finally {
+        rendered.unmount();
+        geometry.restore();
+      }
+    });
+
+    it("未消費 activation は infeasible から ready へ回復した時にも一度だけ追加地域へ jump する", async () => {
+      const geometry = installWeatherGeometry({
+        bodyHeight: 35,
+        rowHeight: (row) => row.textContent?.includes("BLOCKED") ? 80 : 30,
+      });
+      const rendered = render(WeatherEmergencyPanel, {
+        input: weatherInput({
+          items: [weatherItem({ key: "blocked", kind: "L5 BLOCKED特別警報", shownAreas: ["BLOCKED"] })],
+          firstPageRowKey: "target",
+        }),
+        reducedMotionInput: true,
+      });
+      try {
+        await settleWeatherLayout();
+        const where = rendered.container.querySelector(".tile-where")!;
+        expect(where.getAttribute("data-layout-state")).toBe("infeasible");
+
+        const items = [
+          weatherItem({ key: "plain", kind: "L5 大雨特別警報", shownAreas: ["福井市"] }),
+          weatherItem({
+            key: "target",
+            kind: "L5 暴風特別警報",
+            shownAreas: ["敦賀市"],
+            addedAreas: ["敦賀市"],
+          }),
+        ];
+        await rendered.rerender({
+          input: weatherInput({ items, firstPageRowKey: "target" }),
+          reducedMotionInput: true,
+        });
+        await settleWeatherLayout();
+        expect(where.getAttribute("data-layout-state")).toBe("ready");
+        expect(where.querySelector(".page-dot.current")?.getAttribute("aria-label")).toBe("2/2ページ");
+        expect(where.querySelector(".area-name.added")?.textContent).toBe("敦賀市");
+      } finally {
+        rendered.unmount();
+        geometry.restore();
+      }
+    });
+
+    it.each([
+      ["1920×1080 normal", false, 900, 300, 700, 120, 560],
+      ["1920×1080 compact", true, 520, 230, 420, 90, 280],
+      ["1280×720 normal", false, 640, 210, 500, 90, 360],
+      ["1280×720 compact", true, 420, 180, 300, 70, 240],
+    ] as const)("%s の全 final page と syncing / infeasible が基準 body 内に収まり frame 寸法を変えない", async (
+      _label,
+      compact,
+      frameWidth,
+      frameHeight,
+      bodyWidth,
+      bodyHeight,
+      areaWidth,
+    ) => {
+      const geometry = installWeatherGeometry({
+        frameWidth,
+        frameHeight,
+        bodyWidth,
+        bodyHeight,
+        areaWidth,
+        rowHeight: (row) => row.textContent?.includes("OVERFLOW")
+          ? bodyHeight + 10
+          : Math.max(1, Math.floor(bodyHeight * 0.55)),
+      });
+      const fukuiAreas = Array.from({ length: 8 }, (_, index) => `福井市${index}`);
+      const readyInput = weatherInput({
+        items: [
+          weatherItem({
+            key: "pref",
+            kind: "L5 大雨特別警報",
+            shownAreas: fukuiAreas,
+            shownAreaCodes: fukuiAreas.map((_, index) => `1820${String(100 + index)}`),
+          }),
+          weatherItem({
+            key: "same-name-prefectures",
+            kind: "L5 土砂災害特別警報",
+            shownAreas: ["府中市", "府中市"],
+            shownAreaCodes: ["1320600", "3420600"],
+          }),
+          weatherItem({
+            key: "raw",
+            kind: "L5 暴風特別警報",
+            shownAreas: ["宗谷地方", "奄美地方"],
+            shownAreaCodes: ["011000", "460040"],
+          }),
+          weatherItem({
+            key: "omission-only",
+            kind: "L5 高潮特別警報",
+            shownAreas: [],
+            omittedAreaCount: 4,
+          }),
+          ...["北海道", "青森県", "岩手県", "宮城県"].map((name, index) => weatherItem({
+            key: `extra-${index}`,
+            kind: `L5 追加検証特別警報${index}`,
+            shownAreas: [`${name}地域`],
+            shownAreaCodes: [`0${index + 1}20000`],
+          })),
+        ],
+      });
+      const rendered = render(WeatherEmergencyPanel, {
+        input: readyInput,
+        compact,
+        reducedMotionInput: true,
+      });
+      try {
+        await settleWeatherLayout();
+        const where = rendered.container.querySelector(".tile-where")!;
+        const frame = where.getBoundingClientRect();
+        expect([frame.width, frame.height]).toEqual([frameWidth, frameHeight]);
+        expect(where.getAttribute("data-layout-state")).toBe("ready");
+        expect(Number(where.getAttribute("data-pager-reference-total"))).toBeGreaterThan(7);
+        const pageLabel = where.querySelector(".page-dots")?.getAttribute("aria-label") ?? "";
+        const total = Number(pageLabel.match(/全(\d+)ページ/)?.[1] ?? 1);
+        expect(total).toBeGreaterThan(7);
+        const seenPrefectures = new Set<string>();
+        const seenGroupKinds = new Set<string>();
+        let sawContinued = false;
+        let sawOmissionOnly = false;
+        for (let pageIndex = 0; pageIndex < total; pageIndex += 1) {
+          if (total > 1) {
+            const target = Array.from(where.querySelectorAll<HTMLButtonElement>(".page-dot"))
+              .find((button) => button.getAttribute("aria-label") === `${pageIndex + 1}/${total}ページ`);
+            expect(target).toBeTruthy();
+            target?.click();
+            await settleWeatherLayout();
+          }
+          expect(where.querySelectorAll(".page-dots .page-dot, .page-dots .page-ellipsis").length)
+            .toBeLessThanOrEqual(7);
+          for (const name of where.querySelectorAll(".page-fade .prefecture-name")) {
+            if (name.textContent != null) seenPrefectures.add(name.textContent);
+          }
+          for (const row of where.querySelectorAll<HTMLElement>(".page-fade .where-row")) {
+            const groupKind = row.dataset.groupKind;
+            if (groupKind != null) seenGroupKinds.add(groupKind);
+            sawContinued ||= row.dataset.continued === "true";
+            sawOmissionOnly ||= row.dataset.fragmentType === "omission-only";
+          }
+          const used = Array.from(where.querySelectorAll(".page-fade .where-row"))
+            .reduce((sum, row) => sum + row.getBoundingClientRect().height, 0);
+          expect(used).toBeLessThanOrEqual(bodyHeight);
+        }
+        expect(seenPrefectures).toEqual(new Set(["福井県", "東京都", "広島県", "北海道", "青森県", "岩手県", "宮城県"]));
+        expect(seenGroupKinds).toEqual(new Set(["prefecture", "raw"]));
+        expect(sawContinued).toBe(true);
+        expect(sawOmissionOnly).toBe(true);
+
+        await rendered.rerender({
+          input: weatherInput({ items: [] }),
+          compact,
+          reducedMotionInput: true,
+        });
+        await settleWeatherLayout();
+        expect(where.getAttribute("data-layout-state")).toBe("syncing");
+        expect(where.querySelector(".syncing")?.textContent).toBe("対象地域を同期中です");
+        expect(where.querySelector(".syncing")!.getBoundingClientRect().height)
+          .toBeLessThanOrEqual(bodyHeight);
+        expect([where.getBoundingClientRect().width, where.getBoundingClientRect().height])
+          .toEqual([frameWidth, frameHeight]);
+
+        await rendered.rerender({
+          input: weatherInput({
+            items: [weatherItem({ key: "overflow", kind: "L5 OVERFLOW特別警報", shownAreas: ["OVERFLOW"] })],
+          }),
+          compact,
+          reducedMotionInput: true,
+        });
+        await settleWeatherLayout();
+        expect(where.getAttribute("data-layout-state")).toBe("infeasible");
+        expect(where.querySelector(".infeasible-message")?.textContent)
+          .toBe("対象地域の一覧を表示できません");
+        expect(where.querySelector(".infeasible-row")!.getBoundingClientRect().height)
+          .toBeLessThanOrEqual(bodyHeight);
+        expect([where.getBoundingClientRect().width, where.getBoundingClientRect().height])
+          .toEqual([frameWidth, frameHeight]);
+      } finally {
+        rendered.unmount();
+        geometry.restore();
+      }
+    });
+
+    it("pending の同内容再評価は保持時間を再開始せず、10秒で通常巡回する", async () => {
+      vi.useFakeTimers();
+      const items = [
+        weatherItem({ key: "a", kind: "L5 大雨特別警報", shownAreas: ["A"] }),
+        weatherItem({ key: "b", kind: "L5 暴風特別警報", shownAreas: ["B"] }),
+      ];
+      const rendered = render(WeatherEmergencyPanel, {
+        input: weatherInput({ items }),
+        reducedMotionInput: true,
+      });
+      try {
+        flushSync();
+        vi.advanceTimersByTime(PAGE_HOLD_MS - 1);
+        await rendered.rerender({
+          input: weatherInput({ items: items.map((item) => ({ ...item })) }),
+          reducedMotionInput: true,
+        });
+        flushSync();
+        expect(rendered.container.querySelector(".tile-where .page-dot.current")?.getAttribute("aria-label"))
+          .toBe("1/2ページ");
+        vi.advanceTimersByTime(1);
+        flushSync();
+        expect(rendered.container.querySelector(".tile-where .page-dot.current")?.getAttribute("aria-label"))
+          .toBe("2/2ページ");
+      } finally {
+        rendered.unmount();
+        vi.useRealTimers();
+      }
+    });
+
+    it("同一 generation の input object 差し替えだけでは provisional partition を reset しない", async () => {
+      const items = Array.from({ length: 5 }, (_, i) =>
+        weatherItem({ key: `k${i}`, kind: `L5 特別警報${i}`, shownAreas: [`地域${i}`] }),
+      );
+      const { container, rerender } = render(WeatherEmergencyPanel, {
+        input: weatherInput({ items }),
+        compact: false,
+        layoutSettling: false,
+      });
+      flushSync();
+      container.querySelectorAll<HTMLButtonElement>(".tile-where .page-dot")[2]?.click();
+      flushSync();
+      expect(container.querySelector(".tile-where .page-dot.current")?.getAttribute("aria-label"))
+        .toBe("3/5ページ");
+
+      await rerender({
+        input: weatherInput({ items: items.map((item) => ({ ...item })) }),
+        compact: false,
+        layoutSettling: false,
+      });
+      flushSync();
+      expect(container.querySelector(".tile-where .page-dot.current")?.getAttribute("aria-label"))
+        .toBe("3/5ページ");
     });
 
     // ユーザー指摘 2026-07-26: 電文由来の `L5 大雨特別警報` と `暴風特別警報` (レベル非対応) が
@@ -612,7 +1232,8 @@ describe("EmergencyScreen", () => {
       ).toEqual(["大雨特別警報", "暴風特別警報"]);
       expect(
         Array.from(container.querySelectorAll(".tile-where .kind")).map((el) => el.textContent),
-      ).toEqual(["大雨特別警報", "暴風特別警報"]);
+      ).toEqual(["大雨特別警報"]);
+      expect(container.querySelector(".tile-where")?.getAttribute("data-pager-reference-total")).toBe("4");
       expect(container.querySelector(".tile-sub .kind")?.textContent).toBe("洪水警報");
       // 見出しの「警戒レベル5相当」がレベルを担うので、行から L が消えても情報は失われない
       expect(container.querySelector(".tile-what .level-label")?.textContent).toBe("警戒レベル5相当");
@@ -650,77 +1271,11 @@ describe("EmergencyScreen", () => {
       expect(container.querySelector(".where-head .page-dots")).toBeTruthy();
     });
 
-    // Codex R6 Important: 行高の観測は最大値の片方向なので、狭幅で折り返した行高が広幅へ戻っても
-    // 残り、余分なページが居座る。1 行に並ぶ地域数が変わったら DOM から測り直す
-    it("狭幅で増えたページが、幅が戻ると解消する (行高の観測が片方向に残らない)", async () => {
-      const origRO = (globalThis as { ResizeObserver?: unknown }).ResizeObserver;
-      const origRect = Element.prototype.getBoundingClientRect;
-      // 幅と行高をまとめて制御する。狭いときは行が折り返して高くなる、という実機の関係を模す
-      let areaWidth = 120; // 地域列の幅
-      const rowHeightOf = (): number => (areaWidth < 300 ? 50 : 25);
-      // 観測対象を覚えておき、幅が変わったら実 ResizeObserver と同じく再通知する
-      const observed: Array<{ el: Element; cb: (entries: unknown[]) => void }> = [];
-      const notify = (el: Element, cb: (entries: unknown[]) => void): void => {
-        if (el.classList.contains("where-body")) {
-          cb([{ contentRect: { height: 100 }, target: el }]);
-        } else if (el.classList.contains("where-row")) {
-          cb([{ borderBoxSize: [{ blockSize: rowHeightOf() }], target: el }]);
-        }
-      };
-      const fireAll = (): void => {
-        for (const { el, cb } of observed) notify(el, cb);
-      };
-      class WidthResizeObserver {
-        constructor(private cb: (entries: unknown[]) => void) {}
-        observe(el: Element): void {
-          observed.push({ el, cb: this.cb });
-          notify(el, this.cb);
-        }
-        unobserve(): void {}
-        disconnect(): void {}
-      }
-      (globalThis as { ResizeObserver?: unknown }).ResizeObserver = WidthResizeObserver;
-      Element.prototype.getBoundingClientRect = function (this: Element): DOMRect {
-        const height = this.classList.contains("where-body")
-          ? 100
-          : this.classList.contains("where-row")
-            ? rowHeightOf()
-            : 0;
-        const width = this.classList.contains("areas") ? areaWidth : 0;
-        return { height, width, top: 0, bottom: height, left: 0, right: width, x: 0, y: 0, toJSON: () => ({}) } as DOMRect;
-      };
-      // jsdom は CSS を解決しないので実効フォントサイズも与える (地域件数の算出に要る)
-      const origComputed = window.getComputedStyle;
-      window.getComputedStyle = (() =>
-        ({ fontSize: "20px", getPropertyValue: () => "" }) as unknown as CSSStyleDeclaration) as typeof window.getComputedStyle;
-      try {
-        const items = Array.from({ length: 4 }, (_, i) =>
-          weatherItem({ key: `k${i}`, kind: `L5 特別警報${i}` }),
-        );
-        const { container } = render(WeatherEmergencyPanel, {
-          input: weatherInput({ items }),
-          compact: false,
-          layoutSettling: false,
-        });
-        flushSync();
-        // 狭幅: 領域 100px / 行 50px = 2 行/ページ → 4 行で 2 ページ
-        expectCurrentDot(container.querySelector(".tile-where"), 1, 2);
-
-        // 幅だけが広がる (レイアウト整定を経由しない、純粋な ResizeObserver 通知)
-        areaWidth = 600;
-        fireAll();
-        flushSync();
-        // 領域 100px / 行 25px = 4 行 → 1 ページ。折返し時の 50px を持ち越していたら 2 ページのまま
-        expect(container.querySelector(".tile-where .page-dots")).toBeFalsy();
-      } finally {
-        Element.prototype.getBoundingClientRect = origRect;
-        window.getComputedStyle = origComputed;
-        if (origRO === undefined) {
-          delete (globalThis as { ResizeObserver?: unknown }).ResizeObserver;
-        } else {
-          (globalThis as { ResizeObserver?: unknown }).ResizeObserver = origRO;
-        }
-      }
+    it("live where-body の resize を base epoch geometry へ逆流させず、基準棚だけを測る", () => {
+      const src = readFileSync(join(__dirname, "..", "WeatherEmergencyPanel.svelte"), "utf-8");
+      expect(src).toContain("use:measureReferenceBody");
+      expect(src).not.toContain("use:observeWhereArea");
+      expect(src).not.toContain("bind:this={whereBodyEl}");
     });
 
     // ── spec 追補 (2026-07-26/27): 新規/更新バッジ・追加地域ハイライト・再点灯 ──
@@ -764,9 +1319,14 @@ describe("EmergencyScreen", () => {
           ),
         ],
       });
-      const areas = Array.from(container.querySelectorAll(".tile-where .area-name"));
-      expect(areas.map((el) => el.textContent)).toEqual(["東京都", "千葉県"]);
-      expect(areas.map((el) => el.classList.contains("added"))).toEqual([false, true]);
+      let areas = Array.from(container.querySelectorAll(".tile-where .area-name"));
+      expect(areas.map((el) => [el.textContent, el.classList.contains("added")]))
+        .toEqual([["東京都", false]]);
+      container.querySelectorAll<HTMLButtonElement>(".tile-where .page-dot")[1]?.click();
+      flushSync();
+      areas = Array.from(container.querySelectorAll(".tile-where .area-name"));
+      expect(areas.map((el) => [el.textContent, el.classList.contains("added")]))
+        .toContainEqual(["千葉県", true]);
     });
 
     it("同名地域でも Area.Code が一致する追加地域だけを下線にする", () => {
@@ -781,8 +1341,11 @@ describe("EmergencyScreen", () => {
           })],
         }),
       });
+      container.querySelectorAll<HTMLButtonElement>(".tile-where .page-dot")[1]?.click();
+      flushSync();
       const areas = Array.from(container.querySelectorAll(".tile-where .area-name"));
-      expect(areas.map((el) => el.classList.contains("added"))).toEqual([false, true]);
+      expect(areas.map((el) => [el.textContent, el.classList.contains("added")]))
+        .toContainEqual(["府中市", true]);
     });
 
     // ご主人決定 2026-07-27: 「L5 継続中に L4 の地域が増えた」で更新点灯するのに、下位レベルが
@@ -810,19 +1373,18 @@ describe("EmergencyScreen", () => {
           ),
         ],
       });
+      expect(container.querySelector(".tile-where")?.getAttribute("data-pager-reference-total")).toBe("3");
+      container.querySelectorAll<HTMLButtonElement>(".tile-where .page-dot")[2]?.click();
+      flushSync();
       const rows = Array.from(container.querySelectorAll(".tile-where .where-row"));
-      expect(rows.map((r) => r.querySelector(".kind")?.textContent)).toEqual([
-        "大雨特別警報",
-        "L4洪水警報",
-      ]);
+      const subRow = rows.find((row) => row.querySelector(".kind")?.textContent === "L4洪水警報")!;
       // 下位レベルの行はレベル印を持ち、主レベルの意味色を借りない
-      const subRow = rows[1];
       expect(subRow.classList.contains("sub-level-row")).toBe(true);
       expect(subRow.querySelector(".row-level")?.textContent).toBe("L4");
       // 追加された地域だけに下線が付く
       const areas = Array.from(subRow.querySelectorAll(".area-name"));
-      expect(areas.map((el) => el.textContent)).toEqual(["千葉県", "茨城県"]);
-      expect(areas.map((el) => el.classList.contains("added"))).toEqual([false, true]);
+      expect(areas.map((el) => [el.textContent, el.classList.contains("added")]))
+        .toEqual([["茨城県", true]]);
       // 副セクションの要約は下位レベルの全種別を持ったまま (巡回で別ページでも種別は読める)
       const sub = container.querySelector(".tile-sub")!;
       expect(Array.from(sub.querySelectorAll(".sub-kinds .kind")).map((el) => el.textContent)).toEqual([
@@ -849,68 +1411,39 @@ describe("EmergencyScreen", () => {
       expect(derive).not.toMatch(/key: `weather:current[^`]*\$\{/);
     });
 
+    it("activation 初期 jump は component-local guard を null 初期化し、ready effect 内で jump 成功後に消費する", () => {
+      const src = readFileSync(join(__dirname, "..", "WeatherEmergencyPanel.svelte"), "utf-8");
+      expect(src).toContain("let consumedActivationKey: string | null = null");
+      expect(src).toContain("cycler.jumpTo(targetIndex, { immediate: false })");
+      const jumpAt = src.lastIndexOf("cycler.jumpTo(targetIndex, { immediate: false })");
+      const consumeAt = src.lastIndexOf("consumedActivationKey = activationKey");
+      expect(jumpAt).toBeGreaterThan(0);
+      expect(consumeAt).toBeGreaterThan(jumpAt);
+      expect(src.slice(src.lastIndexOf("$effect(() =>", jumpAt), consumeAt)).toContain("untrack(() =>");
+    });
+
     it("EmergencyScreen は気象パネルにもレイアウト整定フラグを渡す", () => {
       const src = readFileSync(join(__dirname, "..", "EmergencyScreen.svelte"), "utf-8");
       expect(src).toMatch(/<WeatherEmergencyPanel[^>]*layoutSettling=\{settling\}/);
     });
 
-    // Codex R4 Important: 整定中の過渡値を確定値へ昇格させると、遷移中に折り返して膨らんだ行高が
-    // 最終レイアウトに residue として残り、以後ずっと余分にページを割る。
-    // 遷移中 40px → 整定後 20px を与え、最終値で容量が計算し直されることを実挙動で固定する
-    it("整定解除後は遷移中の行高を持ち越さず、最終 DOM から測り直して容量を決める", async () => {
-      const origRO = (globalThis as { ResizeObserver?: unknown }).ResizeObserver;
-      const origRect = Element.prototype.getBoundingClientRect;
-      // 遷移中は折返しで 40px、整定後の最終レイアウトでは 20px を報告する
-      let reportedRowPx = 40;
-      class SettlingResizeObserver {
-        constructor(private cb: (entries: unknown[]) => void) {}
-        observe(el: Element): void {
-          if (el.classList.contains("where-body")) {
-            this.cb([{ contentRect: { height: 100 }, target: el }]);
-          } else if (el.classList.contains("where-row")) {
-            this.cb([{ borderBoxSize: [{ blockSize: reportedRowPx }], target: el }]);
-          }
-        }
-        unobserve(): void {}
-        disconnect(): void {}
-      }
-      (globalThis as { ResizeObserver?: unknown }).ResizeObserver = SettlingResizeObserver;
-      // 整定後の最終レイアウト: 領域 100px・行 20px (= 5 行入る)
-      Element.prototype.getBoundingClientRect = function (this: Element): DOMRect {
-        const height = this.classList.contains("where-body")
-          ? 100
-          : this.classList.contains("where-row")
-            ? 20
-            : 0;
-        return { height, width: 0, top: 0, bottom: height, left: 0, right: 0, x: 0, y: 0, toJSON: () => ({}) } as DOMRect;
-      };
-      try {
-        const items = Array.from({ length: 5 }, (_, i) =>
-          weatherItem({ key: `k${i}`, kind: `L5 特別警報${i}` }),
-        );
-        const { container, rerender } = render(WeatherEmergencyPanel, {
-          input: weatherInput({ items }),
-          compact: false,
-          layoutSettling: true,
-        });
-        flushSync();
-        // 整定中は実測を採らない = 未実測扱いの fallback 4 行 → 2 ページ
-        expectCurrentDot(container.querySelector(".tile-where"), 1, 2);
+    it("layoutSettling 中と callback 不足時は pending / provisional を維持する", async () => {
+      const items = Array.from({ length: 5 }, (_, i) =>
+        weatherItem({ key: `k${i}`, kind: `L5 特別警報${i}`, shownAreas: [`地域${i}`] }),
+      );
+      const { container, rerender } = render(WeatherEmergencyPanel, {
+        input: weatherInput({ items }),
+        compact: false,
+        layoutSettling: true,
+      });
+      flushSync();
+      expect(container.querySelector(".tile-where")?.getAttribute("data-layout-state")).toBe("pending");
+      expect(container.querySelector(".measurement-fragments")).toBeFalsy();
 
-        reportedRowPx = 20;
-        await rerender({ input: weatherInput({ items }), compact: false, layoutSettling: false });
-        flushSync();
-        // 最終 DOM (100px / 20px) で測り直し 5 行 = 1 ページ。遷移中の 40px を持ち越していたら 3 ページになる
-        expect(container.querySelector(".tile-where .page-dots")).toBeFalsy();
-        expect(container.querySelectorAll(".tile-where .where-row").length).toBe(5);
-      } finally {
-        Element.prototype.getBoundingClientRect = origRect;
-        if (origRO === undefined) {
-          delete (globalThis as { ResizeObserver?: unknown }).ResizeObserver;
-        } else {
-          (globalThis as { ResizeObserver?: unknown }).ResizeObserver = origRO;
-        }
-      }
+      await rerender({ input: weatherInput({ items }), compact: false, layoutSettling: false });
+      flushSync();
+      expect(container.querySelector(".tile-where")?.getAttribute("data-layout-state")).toBe("pending");
+      expect(container.querySelector(".tile-where")?.getAttribute("data-pager-reference-total")).toBe("5");
     });
 
     // ユーザー決定 2026-07-26: 区分一覧は上限を掛けず折り返して全種別を載せる。
@@ -1089,82 +1622,44 @@ describe("EmergencyScreen", () => {
       expect(container.querySelector(".eew-panel.compact")).toBeFalsy();
     });
 
-    // Codex R1 Important: 旧実装は .tile-where が overflow:hidden で、種別が増えると下側が
-    // 無言で切れていた (engine 縮退にしか反応しない truncated では検知できない)。
-    // QuakePanel / TsunamiPanel と同じ自動ページ送りに置き換え、全種別が到達可能なことを固定する
-    it("種別が 1 ページ容量 (fallback 4) を超えたらページャが出て、全種別が巡回で到達できる", () => {
+    it("pending の全 singleton page が10秒周期の巡回で到達できる", () => {
       vi.useFakeTimers();
       try {
         const items = Array.from({ length: 5 }, (_, i) =>
-          weatherItem({ key: `k${i}`, kind: `L5 特別警報${i}` }),
+          weatherItem({ key: `k${i}`, kind: `L5 特別警報${i}`, shownAreas: [`地域${i}`] }),
         );
         const { container } = render(EmergencyScreen, {
           panels: [panel("weather:current", weatherInput({ items }))],
         });
         flushSync();
-        // 1 ページ目: 先頭 4 件、5 件目はまだ出ない
         const kindsOf = (): (string | null)[] =>
           Array.from(container.querySelectorAll(".tile-where .kind")).map((el) => el.textContent);
-        expect(kindsOf()).toEqual(["特別警報0", "特別警報1", "特別警報2", "特別警報3"]);
-        expectCurrentDot(container.querySelector(".tile-where"), 1, 2);
+        expect(kindsOf()).toEqual(["特別警報0"]);
+        expectCurrentDot(container.querySelector(".tile-where"), 1, 5);
 
-        // 巡回で 2 ページ目へ進み、残りの種別が読める (切り捨てられていない)
         vi.advanceTimersByTime(PAGE_HOLD_MS);
         settleFade();
-        expect(kindsOf()).toEqual(["特別警報4"]);
-        expectCurrentDot(container.querySelector(".tile-where"), 2, 2);
+        expect(kindsOf()).toEqual(["特別警報1"]);
+        expectCurrentDot(container.querySelector(".tile-where"), 2, 5);
       } finally {
         vi.useRealTimers();
       }
     });
 
-    // Codex R2 Important: jsdom は ResizeObserver 未実装なので、既存テストは fallback 経路しか
-    // 通らない。実測経路 (領域 100px・行高が不揃い) を制御可能なモックで通し、
-    // 「最も高い行」を基準に容量を決める = 過積載しないことを固定する。
-    // 行間は CSS gap ではなく行の padding で持つ設計なので、実測値に gap 補正を足す必要はない
-    it("実測経路: 行高が不揃いでも最も高い行を基準にページ分割する (過積載しない)", () => {
-      const origRO = (globalThis as { ResizeObserver?: unknown }).ResizeObserver;
-      let rowSeen = 0;
-      class FakeResizeObserver {
-        constructor(private cb: (entries: unknown[]) => void) {}
-        observe(el: Element): void {
-          if (el.classList.contains("where-body")) {
-            this.cb([{ contentRect: { height: 100 }, target: el }]);
-            return;
-          }
-          if (el.classList.contains("where-row")) {
-            // 1 行目 20px、2 行目以降は折返しで 40px (先頭行だけを代表値にすると溢れる形)
-            const height = rowSeen++ === 0 ? 20 : 40;
-            this.cb([{ borderBoxSize: [{ blockSize: height }], target: el }]);
-          }
-        }
-        unobserve(): void {}
-        disconnect(): void {}
-      }
-      (globalThis as { ResizeObserver?: unknown }).ResizeObserver = FakeResizeObserver;
-      try {
-        const items = Array.from({ length: 5 }, (_, i) =>
-          weatherItem({ key: `k${i}`, kind: `L5 特別警報${i}` }),
-        );
-        const { container } = render(EmergencyScreen, {
-          panels: [panel("weather:current", weatherInput({ items }))],
-        });
-        flushSync();
-        // 100px / 最大行高 40px = 2 行/ページ → 5 行は 3 ページ (先頭行 20px 基準の 5 行詰めではない)
-        expectCurrentDot(container.querySelector(".tile-where"), 1, 3);
-        expect(container.querySelectorAll(".tile-where .where-row").length).toBe(2);
-      } finally {
-        if (origRO === undefined) {
-          delete (globalThis as { ResizeObserver?: unknown }).ResizeObserver;
-        } else {
-          (globalThis as { ResizeObserver?: unknown }).ResizeObserver = origRO;
-        }
-      }
+    it("全 refinement fragment と候補 prefix を同型の非表示測定棚へ描く", () => {
+      const src = readFileSync(join(__dirname, "..", "WeatherEmergencyPanel.svelte"), "utf-8");
+      expect(src).toContain("class=\"measurement-shelf\"");
+      expect(src).toContain("aria-hidden=\"true\"");
+      expect(src).toContain("inert");
+      expect(src).toContain("use:measureFragment");
+      expect(src).toMatch(/\.measurement-shelf\s*\{[^}]*position: absolute;[^}]*visibility: hidden;[^}]*pointer-events: none;/);
     });
 
     it("1 ページに収まるときはページャを出さない", () => {
       const { container } = render(EmergencyScreen, {
-        panels: [panel("weather:current", weatherInput())],
+        panels: [panel("weather:current", weatherInput({
+          items: [weatherItem({ key: "one", kind: "L5 大雨特別警報", shownAreas: ["東京都"] })],
+        }))],
       });
       expect(container.querySelector(".tile-where .page-dots")).toBeFalsy();
     });
@@ -1181,10 +1676,13 @@ describe("EmergencyScreen", () => {
           ),
         ],
       });
-      const row = container.querySelector(".tile-where .where-row")!;
-      // 非 compact の上限 12 件まで描き、落とした 8 件 + engine 縮退 3 件 = ほか11地域
-      expect(row.querySelectorAll(".area-name").length).toBe(12);
-      expect(row.querySelector(".omitted")?.textContent).toBe("ほか11地域");
+      // cap は従来どおり12件。その後、pending は1件ずつ12ページへ展開し、省略は最終ページだけ。
+      expect(container.querySelector(".tile-where")?.getAttribute("data-pager-reference-total")).toBe("12");
+      expect(container.querySelectorAll(".tile-where .area-name").length).toBe(1);
+      const pagerButtons = container.querySelectorAll<HTMLButtonElement>(".tile-where .page-dot");
+      pagerButtons[pagerButtons.length - 1]?.click();
+      flushSync();
+      expect(container.querySelector(".tile-where .omitted")?.textContent).toBe("ほか11地域");
     });
 
     it("副セクションの種別が上限を超えたら「ほか N 種別」で明示する (黙って消さない)", () => {

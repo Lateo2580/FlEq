@@ -223,7 +223,7 @@ LCD-confirmed production values (2026-07-29) are `calm: #000000`, `caution: #131
 - **EmergencyScreen**: 緊急パネル群のレイアウト・FLIP 補間・グリッド段組みを司るコンテナ。トークン依存は薄く構造中心。`--panel-scale: 1.5` を自ら注入する唯一の箇所。
 - **InstrumentRow**: 待機画面下部の統計行（受信通数・本日の地震件数＋スパークライン）。`--role-muted`・`--num-weight`・`--fg-faint` 依存。SVG スパークラインは `fill="var(--role-muted)"` を属性で直接埋める。
 - **LatestQuakeCard**: 待機画面左上の「最新の地震」カード（看板ヘッダ＋概要＋震度別グループ／ページング）。`--surface-standby`・`--header-quakeWarning/Critical-*`・`--int-*` 依存。震度 8/9 面の前景は `#000`/`#fff` 直値（トークン未整備箇所）。
-- **PageDots**: 詳細ページャの現在地ドット＋クリックジャンプ（4 箇所で共有）。`--fg`・`--spring-effects-default` 依存。非強調を opacity ではなく `color-mix(--fg 35%, transparent)` で表す減光合成の代表例。
+- **PageDots**: 詳細ページャの現在地ドット＋クリックジャンプ（4 箇所で共有）。`--fg`・`--spring-effects-default` 依存。非強調を opacity ではなく `color-mix(--fg 35%, transparent)` で表す減光合成の代表例。既定 mode は全ページを 1:1 で描く。WeatherEmergencyPanel だけが `windowed` mode を使い、先頭・末尾・現在近傍と固定文字 `…` を最大 7 token、80px×24px、折返しなしで描く。windowed button の index は表示順ではなく実ページ index であり、非表示の中間ページも自動巡回から除外しない。
 - **QuakePanel**: 緊急画面の地震情報パネル（EewPanel と対）。震源・最大震度・チップ・震度別リストを表示。トークン構成は EewPanel とほぼ同型で `--panel-scale` 連動が広範。震度 8/9 前景は `#000`/`#fff` 直値。
 - **QuakeReplayCard**: 待機画面の地震履歴クリックで再表示する簡易版カード（ページング無し）。LatestQuakeCard と寸法・トークンをほぼ完全共有。フォーカスリングは `outline: 2px solid var(--role-muted)`。
 - **RecentQuakes**: 待機画面の「直近の地震」一覧（最大 5 件、行クリックで Replay）。行本文は `--type-body-s-fluid`（FHD 14px）を使い、`--int-*`・`--role-muted`・`--num-weight` に依存する。震度 8/9 前景は `#000`/`#fff` 直値。遠見可読性は実機ゲートで再評価する。
@@ -237,7 +237,13 @@ LCD-confirmed production values (2026-07-29) are `calm: #000000`, `caution: #131
 - **UpdatedStamp**: カード見出し右端の「最終更新時刻」（気象警報／台風情報／火山情報／津波情報バナーで共有）。表記は常に月日込み（`formatMdHm`）— 数時間〜数日更新が空く種別があり、`HH:MM` だけだと古い電文が今日の更新に見えるため、桁数より曖昧さの排除を採る。色は `color: inherit` で見出し帯の on 色を継承し、独自トークンを持たない（コントラスト監査の対象ペアを増やさない）。
 - **VolcanoCard**: 待機画面右上の火山カード。数値の噴火警戒レベルは火山名と同じ見出し行へ載せる。警報の対象区分に同義の生表記（例: `レベル３（入山規制）`）があっても、見出しに数値レベルがある場合は補助行へ重複表示しない。数値レベルがない場合は補助行が唯一の情報源になり得るため、生表記を維持する。
 - **WeatherAlertCard**: 待機画面右上の気象警報／特別警報カード（最高ランクのみ表示）。`--header-weather*-*`・`--role-weather*` 依存。意味色は JS 注入でなく CSS クラスセレクタで完結する。高さ上限 280px は維持し、収まらない末尾は黙って切らず、実測した省略行で「ほか N 項目／地域」と可視化する。表示文字列・行構造・フォント確定による高さ変化を再計測へ反映する。
-- **WeatherEmergencyPanel**: 緊急画面の気象警報パネル（警戒レベル 4・5 相当の主役化、Spec C）。「何が」はヒーロー、「どこ」は surface と影を持つページング詳細、「どうする」は意味色の縦レールを持つ行動欄として分離する。compact slot だけはレベルと行動文を 1 行に束ねる。詳細は「区分 ｜ 地域」の 2 列で、地域数と 1 ページの行数は領域の実測値から決め、落とした情報は「ほか N 地域／種別」で可視化する。L5 と併存する L4 は地域名を持たない副セクションへ回す。色 role は WeatherAlertCard と共有し、critical tier では overlay 合成後の AA を守るため主要文字を `--fg` へ退避し、意味色は看板帯・行動レール・追加地域の下線へ残す。engine が供給する activation と追加地域を、新規／更新バッジ、下線＋記号、クロスフェードとして描画する。
+- **WeatherEmergencyPanel**: 緊急画面の気象警報パネル（警戒レベル 4・5 相当の主役化、Spec C）。「何が」はヒーロー、「どこ」は surface と影を持つページング詳細、「どうする」は意味色の縦レールを持つ行動欄として分離する。compact slot だけはレベルと行動文を 1 行に束ねる。詳細は「区分 ｜ 地域」の 2 列で、地域数と 1 ページの断片数は領域の実測値から決め、落とした情報は「ほか N 地域／種別」で可視化する。L5 と併存する L4 は地域名を持たない副セクションへ回す。色 role は WeatherAlertCard と共有し、critical tier では overlay 合成後の AA を守るため主要文字を `--fg` へ退避し、意味色は看板帯・行動レール・追加地域の下線へ残す。engine が供給する activation と追加地域を、新規／更新バッジ、下線＋記号、クロスフェードとして描画する。
+
+WeatherEmergencyPanel の対象地域は、正確な 7 桁市区町村コードの先頭 2 桁だけから行政都道府県を求め、「都道府県見出し → 市区町村」の階層で描く。県見出しは主要色 `--fg` と既存 typography / spacing だけで強調し、新しい意味色や県アイコンを持たない。コード欠落、空、不正、6 桁の粗い地域コード、未知県コードは名称から推測せず raw 表示とし、原名を変えない。連続 raw run と連続する同一県だけを一 group にし、県や raw を挟んだ同県再登場は入力位置の別 group とする。追加の `＋`と下線は市区町村または raw 名だけに付き、県見出しには付かない。
+
+一つの「区分」行へ複数県を無制限に積まず、県 group / raw run を有界な連続断片へ分ける。`ほか N 地域` は県別に配分せず、論理行の最後の断片だけに共通末尾として 1 回描く。表示地域がなく省略件数だけがある場合は、左列の区分と右列の `ほか N 地域`だけを持つ omission-only 断片とする。
+
+ページ割りは partition 非依存の基準 geometry と、`visibility:hidden`・`aria-hidden`・`inert` の測定棚で得た各断片の border-box 実高を正本とする。測定不足中は各地域を 1 件ずつにした provisional page を公開し、測定済み断片だけで final を作らない。過高な複数地域断片は、実測で収まる最大の連続接頭辞と残部へ split-only で精密化する。単一地域または omission-only も収まらない場合は通常地域を部分表示せず、`対象地域の一覧を表示できません`という infeasible 1 ページへ切り替える。対象断片がまだ無い場合は layout state を pending のまま保ち、`対象地域を同期中です`という syncing 1 ページを描く。syncing / infeasible は PageDots と activation 初期 jump を持たない。
 
 WeatherEmergencyPanel の `activationKey` 切替は、現行実装どおり旧内容と新内容を重ね、双方の `in:fade` / `out:fade`（`--spring-effects-default-duration`、231ms）でクロスフェードすることを規範とする。コード内の「outro を持たない片方向フェード」というコメントは旧記述であり、現行動作を変更しない。コメントの修正は次回の実装変更に委ねる。
 

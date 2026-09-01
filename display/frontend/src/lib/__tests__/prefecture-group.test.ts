@@ -1,12 +1,131 @@
 import { describe, expect, it } from "vitest";
 import {
   countByPrefecture,
+  groupCodedAreasByPrefecture,
   groupByPrefecture,
   groupByPrefectureOrRegion,
   PREFECTURES,
   PREFECTURE_BY_CODE,
   prefectureFromMunicipalityCode,
+  weatherAreaGroupKey,
 } from "../prefecture-group";
+
+describe("groupCodedAreasByPrefecture", () => {
+  it("7桁市区町村コードで連続する福井県地域を group 化し、県名接頭辞だけを表示名から除く", () => {
+    const groups = groupCodedAreasByPrefecture({
+      logicalRowKey: "rain",
+      areas: ["福井市", "福井県敦賀市"],
+      areaCodes: ["1820100", "1820200"],
+    });
+    expect(groups).toEqual([{
+      kind: "prefecture",
+      key: weatherAreaGroupKey("rain", 0, "prefecture", "18"),
+      groupOrdinal: 0,
+      prefectureCode: "18",
+      prefectureName: "福井県",
+      areas: [
+        {
+          sourceIndex: 0,
+          areaName: "福井市",
+          displayName: "福井市",
+          areaCode: "1820100",
+          identity: "code:1820100",
+          added: false,
+        },
+        {
+          sourceIndex: 1,
+          areaName: "福井県敦賀市",
+          displayName: "敦賀市",
+          areaCode: "1820200",
+          identity: "code:1820200",
+          added: false,
+        },
+      ],
+    }]);
+  });
+
+  it("同名の府中市を東京都・広島県の別 group / code identity として保持する", () => {
+    const groups = groupCodedAreasByPrefecture({
+      logicalRowKey: "same-name",
+      areas: ["府中市", "府中市"],
+      areaCodes: ["1320600", "3420600"],
+      addedAreas: ["府中市"],
+      addedAreaCodes: ["3420600"],
+    });
+    expect(groups.map((group) => group.kind === "prefecture" && group.prefectureName))
+      .toEqual(["東京都", "広島県"]);
+    expect(groups.flatMap((group) => group.areas).map((area) => [area.identity, area.added]))
+      .toEqual([["code:1320600", false], ["code:3420600", true]]);
+  });
+
+  it("名称とコードの県が食い違ってもコード側の見出しだけを採り、原名を補正しない", () => {
+    const [group] = groupCodedAreasByPrefecture({
+      logicalRowKey: "mismatch",
+      areas: ["広島県府中市"],
+      areaCodes: ["1320600"],
+    });
+    expect(group?.kind).toBe("prefecture");
+    expect(group?.kind === "prefecture" && group.prefectureName).toBe("東京都");
+    expect(group?.areas[0].displayName).toBe("広島県府中市");
+  });
+
+  it.each(["011000", "", "1820A00", "4820100", undefined])(
+    "粗い・空・不正・未知・欠落コード %s は名称から県を推測せず raw にする",
+    (areaCode) => {
+      const [group] = groupCodedAreasByPrefecture({
+        logicalRowKey: "raw",
+        areas: ["福井県敦賀市"],
+        areaCodes: [areaCode],
+      });
+      expect(group?.kind).toBe("raw");
+      expect(group?.areas[0].displayName).toBe("福井県敦賀市");
+    },
+  );
+
+  it("宗谷地方・奄美地方の粗いコードを raw の原名のまま保持する", () => {
+    const groups = groupCodedAreasByPrefecture({
+      logicalRowKey: "regions",
+      areas: ["宗谷地方", "奄美地方"],
+      areaCodes: ["011000", "460040"],
+    });
+    expect(groups).toHaveLength(1);
+    expect(groups[0]).toMatchObject({
+      kind: "raw",
+      areas: [{ displayName: "宗谷地方" }, { displayName: "奄美地方" }],
+    });
+  });
+
+  it("raw run を県 group 越しに結合せず、同県再登場も入力位置に残す", () => {
+    const groups = groupCodedAreasByPrefecture({
+      logicalRowKey: "order",
+      areas: ["raw A", "raw B", "福井市", "raw C", "raw D", "敦賀市"],
+      areaCodes: [null, "", "1820100", "011000", undefined, "1820200"],
+    });
+    expect(groups.map((group) => [
+      group.groupOrdinal,
+      group.kind,
+      group.kind === "prefecture" ? group.prefectureCode : "raw",
+      group.areas.map((area) => area.areaName),
+    ])).toEqual([
+      [0, "raw", "raw", ["raw A", "raw B"]],
+      [1, "prefecture", "18", ["福井市"]],
+      [2, "raw", "raw", ["raw C", "raw D"]],
+      [3, "prefecture", "18", ["敦賀市"]],
+    ]);
+    expect(new Set(groups.map((group) => group.key)).size).toBe(4);
+  });
+
+  it("group key は区切り文字・引用符・Unicode を含む logicalRowKey でも正規 JSON tuple になる", () => {
+    const logicalRowKey = "a|b\"雪☃";
+    expect(weatherAreaGroupKey(logicalRowKey, 2, "raw")).toBe(JSON.stringify([
+      "weather-area-group-v1",
+      logicalRowKey,
+      2,
+      "raw",
+      "raw",
+    ]));
+  });
+});
 
 describe("groupByPrefecture", () => {
   it("県名を含む地域名を都道府県ごとにグループ化し、市区町村名だけを cities に残す", () => {

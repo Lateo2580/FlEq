@@ -1,3 +1,5 @@
+import { weatherAreaIdentity } from "./weather-expanded-kinds";
+
 // 都道府県 → 市区町村 の階層に整形する共有ユーティリティ。地域名が「◯◯県」等で始まらない
 // 場合 (地方名など) は pref=null (「その他」グループ) にまとめる。
 // WeatherAlertCard (気象警報カード) と LatestQuakeCard/QuakePanel (地震情報カード) で共有する
@@ -38,6 +40,125 @@ export const PREFECTURE_BY_CODE: Readonly<Record<string, string>> = {
 export function prefectureFromMunicipalityCode(areaCode: string | null | undefined): string | null {
   if (areaCode == null || !/^\d{7}$/.test(areaCode)) return null;
   return PREFECTURE_BY_CODE[areaCode.slice(0, 2)] ?? null;
+}
+
+/**
+ * 緊急気象パネル用の、identity と入力位置を失わない地域 entry。
+ * `areaName` は wire 原文、`displayName` は県見出し配下だけで使う表示名である。
+ */
+export interface CodedAreaEntry {
+  sourceIndex: number;
+  areaName: string;
+  displayName: string;
+  areaCode: string | null;
+  identity: string;
+  added: boolean;
+}
+
+export type CodedPrefectureGroup =
+  | {
+      kind: "prefecture";
+      key: string;
+      groupOrdinal: number;
+      prefectureCode: string;
+      prefectureName: string;
+      areas: CodedAreaEntry[];
+    }
+  | {
+      kind: "raw";
+      key: string;
+      groupOrdinal: number;
+      areas: CodedAreaEntry[];
+    };
+
+export interface CodedAreaGroupingInput {
+  logicalRowKey: string;
+  areas: readonly string[];
+  areaCodes?: readonly (string | null | undefined)[];
+  sourceIndices?: readonly number[];
+  addedAreas?: readonly string[];
+  addedAreaCodes?: readonly (string | null | undefined)[];
+}
+
+export function weatherAreaGroupKey(
+  logicalRowKey: string,
+  groupOrdinal: number,
+  groupKind: CodedPrefectureGroup["kind"],
+  prefectureCode?: string,
+): string {
+  return JSON.stringify([
+    "weather-area-group-v1",
+    logicalRowKey,
+    groupOrdinal,
+    groupKind,
+    groupKind === "prefecture" ? prefectureCode : "raw",
+  ]);
+}
+
+/**
+ * 7 桁市区町村コードだけを根拠に、入力上で連続する地域を県 / raw run へ投影する。
+ * 既存カード用 API と違い、名称から県を推測せず、同県の再登場も前方へ移動しない。
+ */
+export function groupCodedAreasByPrefecture(
+  input: CodedAreaGroupingInput,
+): CodedPrefectureGroup[] {
+  const addedIdentities = new Set(
+    (input.addedAreas ?? []).map((area, index) =>
+      weatherAreaIdentity(area, input.addedAreaCodes?.[index])),
+  );
+  const groups: CodedPrefectureGroup[] = [];
+
+  input.areas.forEach((areaName, groupedInputIndex) => {
+    const sourceIndex = input.sourceIndices?.[groupedInputIndex] ?? groupedInputIndex;
+    const areaCode = input.areaCodes?.[groupedInputIndex] ?? null;
+    const prefectureName = prefectureFromMunicipalityCode(areaCode);
+    const prefectureCode = prefectureName == null ? null : areaCode!.slice(0, 2);
+    const displayName = prefectureName != null
+      && areaName.startsWith(prefectureName)
+      && areaName.length > prefectureName.length
+      ? areaName.slice(prefectureName.length)
+      : areaName;
+    const entry: CodedAreaEntry = {
+      sourceIndex,
+      areaName,
+      displayName: prefectureName == null ? areaName : displayName,
+      areaCode,
+      identity: weatherAreaIdentity(areaName, areaCode),
+      added: addedIdentities.has(weatherAreaIdentity(areaName, areaCode)),
+    };
+    const previous = groups.at(-1);
+
+    if (prefectureName == null || prefectureCode == null) {
+      if (previous?.kind === "raw") {
+        previous.areas.push(entry);
+        return;
+      }
+      const groupOrdinal = groups.length;
+      groups.push({
+        kind: "raw",
+        key: weatherAreaGroupKey(input.logicalRowKey, groupOrdinal, "raw"),
+        groupOrdinal,
+        areas: [entry],
+      });
+      return;
+    }
+
+    if (previous?.kind === "prefecture" && previous.prefectureCode === prefectureCode) {
+      previous.areas.push(entry);
+      return;
+    }
+    const groupOrdinal = groups.length;
+    groups.push({
+      kind: "prefecture",
+      key: weatherAreaGroupKey(input.logicalRowKey, groupOrdinal, "prefecture", prefectureCode),
+      groupOrdinal,
+      prefectureCode,
+      prefectureName,
+      areas: [entry],
+    });
+  });
+
+  return groups;
 }
 
 // 47 都道府県の完全名の前方一致で area の pref を切り出す (groupByPrefecture /
