@@ -1276,7 +1276,7 @@ const attentionVisibilityQuakeLevels = [
 const attentionVisibilityQuakeGroups: DisplayIntensityGroupV1[] = attentionVisibilityQuakeLevels.map(([intensity, rank], groupIndex) => ({
   intensity,
   rank,
-  areas: Array.from({ length: 24 }, (_, areaIndex) =>
+  areas: Array.from({ length: 48 }, (_, areaIndex) =>
     `${["岩手県", "宮城県", "福島県", "茨城県"][groupIndex]}緊急観測地域${String(areaIndex + 1).padStart(2, "0")}`),
   omittedAreaCount: 0,
 }));
