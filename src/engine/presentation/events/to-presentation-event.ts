@@ -72,10 +72,14 @@ function convertPresentationEvent(outcome: ProcessOutcome): PresentationEvent {
 /** ProcessOutcome → PresentationEvent に変換する */
 export function toPresentationEvent(outcome: ProcessOutcome): PresentationEvent {
   const event = convertPresentationEvent(outcome);
-  event.standbyStateMutationAccepted = outcome.presentation.standbyStateMutationAccepted;
-  event.standbyStateSubject = outcome.presentation.standbyStateSubject;
-  event.standbyActiveSubjects = outcome.presentation.standbyActiveSubjects;
-  event.standbyAppliedSemanticKey = outcome.presentation.standbyAppliedSemanticKey;
+  // VPTA admission context travels only through the router-private display command.
+  // Other standby domains retain their established public event contract.
+  if (outcome.domain !== "typhoonProbability") {
+    event.standbyStateMutationAccepted = outcome.presentation.standbyStateMutationAccepted;
+    event.standbyStateSubject = outcome.presentation.standbyStateSubject;
+    event.standbyActiveSubjects = outcome.presentation.standbyActiveSubjects;
+    event.standbyAppliedSemanticKey = outcome.presentation.standbyAppliedSemanticKey;
+  }
   event.foundationMutationAccepted = outcome.presentation.foundationMutationAccepted;
   event.foundationResolvedTrigger = outcome.presentation.foundationResolvedTrigger;
   event.foundationCancellationPolicy = outcome.presentation.foundationCancellationPolicy;

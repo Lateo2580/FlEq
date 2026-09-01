@@ -174,6 +174,7 @@ export class ReplHandler {
         if (result instanceof Promise) {
           result
             .catch((err: unknown) => {
+              if (rawCmd === "quit" || rawCmd === "exit") process.exitCode = 1;
               log.error(
                 `コマンド実行エラー: ${err instanceof Error ? err.message : err}`
               );
@@ -187,6 +188,7 @@ export class ReplHandler {
           if (!this.stopping) this.prompt();
         }
       } catch (err) {
+        if (rawCmd === "quit" || rawCmd === "exit") process.exitCode = 1;
         log.error(
           `コマンド実行エラー: ${err instanceof Error ? err.message : err}`
         );
@@ -198,7 +200,16 @@ export class ReplHandler {
     this.rl.on("close", () => {
       if (!this.stopping) {
         this.stop();
-        void this.onQuit();
+        try {
+          const result = this.onQuit();
+          void Promise.resolve(result).catch((err: unknown) => {
+            process.exitCode = 1;
+            log.error(`終了処理エラー: ${err instanceof Error ? err.message : err}`);
+          });
+        } catch (err) {
+          process.exitCode = 1;
+          log.error(`終了処理エラー: ${err instanceof Error ? err.message : err}`);
+        }
       }
     });
 

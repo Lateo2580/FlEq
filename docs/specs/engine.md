@@ -279,7 +279,7 @@ display runtime は REPL の `display on/off` で作り直されるため、**�
 
 昇格 lifecycle を monitor 所有にしているのは、昇格の時計が「電文を受理してからの壁時計経過」であって display セッションの都合ではないため。`display off` → `on` で runtime ごと作り直しても時計が途切れない。`DisplayStateStore` は注入が無ければ自前のインスタンスを生成する (埋込利用・既存テスト互換)。
 
-起動時はどちらも「永続ファイルを `load()` → `restore()` → sweep」の順で立ち上げ、以後は store の `onDurable` 通知を受けて `schedule()` で保存を予約する。受信コールスタック上でも sweep 上でも同期 I/O を走らせない。書き切りはシャットダウン経路のフック (`stopStandbySweep` / `flushWeatherPromotion`) が担う。
+起動時はどちらも永続ファイルをloadしてからrestoreとsweepを行う。standby内のVPTA50だけはdurable gateを先にrestore／7日expiryし、その後にcoupled probability projectionをrestoreする。以後は store の `onDurable` 通知を受けて `schedule()` で保存を予約するが、VPTA admission中はlistenerを抑止し、accepted／suppressed／failed completion adapterだけが最終stateを一回scheduleする。受信コールスタック上でも通常sweep上でも同期 I/O を走らせず、failure completionとシャットダウンだけがtyped synchronous flush／saveを使う。
 
 どちらの状態も **`displaySink.ingest` で更新する**。`displaySink` は router へ渡す遅延 sink で、hub の有無に関わらず必ず通るため、`display off` 中でも受信が反映される。standby は `standbyStore.applyEvent()`、昇格は `applyWeatherPromotionOnIngest()` を呼ぶ。**昇格を hub 側で更新してはいけない** — 理由は `display/weather-promotion.ts` 節の「受理経路」を参照。
 
@@ -1195,19 +1195,28 @@ interface ShutdownContext {
   flushAndDisposeVolcanoBuffer?: () => void;
   stopSummaryTimer?: () => void;
   stopDisplayRuntime?: () => Promise<void>;
-  stopStandbySweep?: () => void;
+  stopStandbySweep?: () => StandbyPersistenceSaveResult | void;
   flushDetailCaches?: () => void;
   flushWeatherPromotion?: () => void;
 }
 
-function createShutdownHandler(ctx: ShutdownContext): () => Promise<void>
-function registerShutdownSignals(shutdown: () => Promise<void>): void
+type ShutdownFailure =
+  | { operation: "standbyPersistence"; stage: StandbyPersistenceWriteFailureStage | "exportActiveState" }
+  | { operation: "shutdown"; stage: "unexpected" };
+type ShutdownResult =
+  | { kind: "completed"; exitCode: 0 }
+  | { kind: "failed"; exitCode: 1; failures: readonly ShutdownFailure[] };
+
+function createShutdownHandler(ctx: ShutdownContext): () => Promise<ShutdownResult>
+function runShutdownAndRecordExitCode(shutdown: () => Promise<ShutdownResult>): Promise<ShutdownResult>
+function registerShutdownSignals(shutdown: () => Promise<ShutdownResult>): void
 ```
 
 - `ShutdownContext` — シャットダウンに必要な依存をまとめたインターフェース。`manager` は `ConnectionManager` インターフェース型（`MultiConnectionManager` の基底）。`resetTerminalTitle` はコールバック注入で CLI 層への逆依存を回避。`stopSummaryTimer` は定期要約タイマーの停止コールバック。
 - 末尾 4 つは monitor 所有の状態を書き切るためのフック。`stopDisplayRuntime` は SSE クライアント切断 + HTTP サーバ close、`stopStandbySweep` は standby sweep の停止と active-state の最終保存、`flushDetailCaches` は VPWP50 詳細 cache、`flushWeatherPromotion` は気象警報の昇格 lifecycle を書き切る。
-- `createShutdownHandler` — 冪等なシャットダウン関数を生成する。内部フラグで二重実行を防止。
-- `registerShutdownSignals` — `SIGINT`, `SIGTERM` (+ 非 Windows では `SIGHUP`) にシャットダウンハンドラを登録する。
+- `createShutdownHandler` — 同じ `Promise<ShutdownResult>` を返す冪等なシャットダウン関数を生成し、standby save failureをtyped resultへ集約する。
+- `runShutdownAndRecordExitCode` — signal／REPL quit／readline close共通のresult consumer。unexpected rejectionもfailedへ閉じ、`process.exitCode`を設定する。
+- `registerShutdownSignals` — `SIGINT`, `SIGTERM` (+ 非 Windows では `SIGHUP`) に共通consumerを登録し、resultのexitCodeでsignal ownerだけが`process.exit()`する。
 
 ### 内部ロジック
 
@@ -1224,9 +1233,9 @@ function registerShutdownSignals(shutdown: () => Promise<void>): void
 10. API 経由でソケットをクローズ (3秒タイムアウト、失敗は無視。`MultiConnectionManager` の場合は全ソケットを並列クローズ)
 11. `ConnectionManager.close()` でローカル WebSocket 切断
 12. ターミナルタイトルのリセット
-13. `process.exit(0)`
+13. cleanup結果を`ShutdownResult`として返す（handler本体は`process.exit()`しない）
 
-5 が 6 より先なのは、`controller.stop()` が display off 用の standby sweep を再開するため。再開後に確実に停止・最終保存する順序にしている。永続化フック (6〜8) はいずれも「予約を捨ててから現在状態を同期で書く」形で、debounce 待ちの予約より現在状態の方が新しいことを前提にする。
+5 が 6 より先なのは、`controller.stop()` が display off 用の standby sweep を再開するため。再開後に確実に停止・最終保存する順序にしている。standbyは予約を捨てて現在状態をtyped `save()`へ渡し、validation／backup／write／rename failureをexitCode 1へ反映する。失敗してもsocket、REPL、logger、他cacheのcleanupは最後まで継続し、pendingは保持する。
 
 `closeSocketViaApi` は内部関数で、`Promise.race` によるタイムアウト制御を行う。
 
@@ -2176,7 +2185,7 @@ function processEew(msg: WsDataMessage, eewTracker: EewTracker, eewLogger: EewEv
 | `process-weather-explanation.ts` | VPCJ51/VPZJ51/VPFJ51/VMCJ53-55 | frameLevel は一律 `normal`（取消は `cancel`） |
 | `process-heat-alert.ts` | VPFT50 | `resolveHeatAlertLevels` で frame/sound を pair 解決 |
 | `process-typhoon-analysis.ts` | VPTW60/61/62 | `resolveTyphoonAnalysisLevels` で frame/sound を pair 解決。frame は一律 `normal`（取消は `cancel`） |
-| `process-typhoon-probability.ts` | VPTA50 | `resolveTyphoonProbabilityLevels` で frame/sound を pair 解決。`typhoonProbabilityState` で連続ゼロ抑制 (`suppressNotify`) |
+| `process-typhoon-probability.ts` | VPTA50 | parse preparation と stateless notification baseline を構成する。連続ゼロ抑制は router が accepted finalized classification を process-local holder へ適用した後だけ上書きする |
 | `process-flood-forecast.ts` | VXKO50-89/VXSU50-59 | 共通 `TelegramRevisionGate` で EventID lifecycle を判定し、受理済み通常 VXKO だけを `floodForecastState.diffAndUpdate()` へ渡して station 単位 dedup + reasons を抽出する。dedup bypass 4 ケースは取消 (`rollback` のみ) / 訂正 / Headline-only (`rawStations` 空) / VXSU schema。取消後は tombstone が同一 revision の遅延報を拒否し、より新しい revision の再発表だけを新 lifecycle として受理する |
 | `process-raw.ts` | フォールバック | `statsCategory` を引数で受け取り、元ルートのカテゴリを保持。frameLevel 固定 `"info"` |
 
@@ -3016,7 +3025,9 @@ interface DisplayCallbacks {
 
 VFVO50/VFVO51/VFSVii と VFVO52/VFVO56 は、通知・Presentation・standby 投影より前に共通 revision gate を通る。subject は alert/eruption を分けた火山コード単位で、VFVO51 は複数火山 entry を独立評価する。明示取消 A、terminal B、非活性 C は共通 resolver の `A > B > C` に従い、同一 subject の mutation・stats・永続化 callback は一回だけ発火する。subject を確定できない入力は表示/ticker だけの fail-open とし、`volcanoStateMutationAccepted=false` により通知・standby・promotion・永続化を抑止する。VFVO53 は非 durable `markCancelled` gate を通過後、従来どおり transient batch aggregator が担当する。
 
-Phase 3B の standby domain（tornado / heatAlert / typhoonAnalysis / typhoonProbability / nankaiTrough / weatherWarningTimeseries / lgObservation）も、通知と durable projection より前に共通 revision gate を通る。subject は順に官署 stream、対象 JST 日×地域、台風 EventID、確率 cache の台風 EventID、固定 singleton、官署×対象 scope、地震 EventID である。subject を確定できない報は `standbyStateMutationAccepted=false` の表示/ticker 限定 fail-open となり、通知・standby state・detail/dedup cache を変更しない。既存 standby active state を持つ tornado / heat / typhoon analysis / nankai / long-period は gate watermark を v2 foundation に保存し、rollback 用 v1 `seen` も dual-write する。VPTA50 の連続ゼロ cache と VPWP50 detail cache はそれぞれ従来の安全側メモリ履歴・専用ファイルを所有するため、共通 gate 自体は非 durable とする。
+Phase 3B の standby domain（tornado / heatAlert / typhoonAnalysis / typhoonProbability / nankaiTrough / weatherWarningTimeseries / lgObservation）も、通知と durable projection より前に共通 revision gate を通る。subject は順に官署 stream、対象 JST 日×地域、台風 EventID、確率 cache の台風 EventID、固定 singleton、官署×対象 scope、地震 EventID である。subject を確定できない報は `standbyStateMutationAccepted=false` の表示/ticker 限定 fail-open となり、通知・standby state・detail/dedup cache を変更しない。既存 standby active state を持つ tornado / heat / typhoon analysis / nankai / long-period に加え、VPTA50 の gate watermark／tombstoneとcompact probability projectionを v2 foundation に保存し、rollback 用 v1 `seen`／gate metadataへdual-writeする。VPTA50 の連続ゼロ cache と VPWP50 detail cacheはprocess-local／専用ファイルのままだが、VPTA50 gate自体はdurable 7日である。
+
+VPTA50 admission は router のprocess-wide直列serializer内で行う。gateがcomparison、ordered semantic keys、cancelled、acceptedAt、projection bindingを一つのimmutable commit recordとして同期確定し、その同じrecordからfinalized classificationを一度だけ作る。public `ProcessOutcome`／`PresentationEvent`にはcommitやclassificationを載せず、opaque owner token付きprivate sidecarだけを`displaySink.ingest`の第二引数へ渡す。standby reducerは再projectせずsidecarのbindingを検証してprobability mapを更新する。accepted／suppressed／failed completionがVPTA保存の唯一のownerで、通常durable changeはdebounce schedule一回、failure reconcileはschedule後`flushThrough()`まで完了してからfail-loudにする。
 
 Phase 3B の transient domain（earthquake / seismicText / briefing / earlyWeather / VPWW55-61 except 56 / climateInfo / weatherExplanation / raw）は、全て `markCancelled` policy を明示する。earthquake は VXSE51/52/53/61 共通の EventID subject とし、震度なし続報を gate 後も presentation へ渡すことで `quake-observation-merge`、当日履歴、quake extreme の既存契約を維持する。他 family は type＋EventID で分離する。EventID 欠落は単発 transient subject と semantic fingerprint だけで再送を抑止し、受信時刻による擬似結合は行わない。各非 durable family は runtime retention と `maxSubjects` を宣言し、router は ignore 以外の全 XML route へ transport dedup・日時診断を一度だけ適用する。parser 失敗は raw policy へ落ち、metadata 自体を取得できない legacy direct-call だけは watermark なしの raw 表示へ fail-open する。
 
@@ -3024,7 +3035,7 @@ Phase 3B の transient domain（earthquake / seismicText / briefing / earlyWeath
 
 `route-catalog.ts` の各 entry は意味処理対象の `foundationHeadTypes` を持ち、`ALL_REVISION_FAMILY_POLICIES` との網羅性テストで未登録 type を検出する。classification/prefix の broad matcher は実行時にも route domain と head.type の明示 policy を検証し、未登録 type は警告して raw policy へ落とす。火山の既存 batch 系も例外にせず、VFVO53-55 は type＋火山コードの `volcanoAshfall`、VZVO40/VFVO60 は type＋EventID の `volcanoTransient` policy を通過後に既存 aggregator / presentation へ渡す。`VolcanoRouteHandler.handle()` は `accepted` / `parseFailed` / `policyMissing` / `suppressed` を区別し、router は parse/policy failure のみ raw 表示へ戻して semantic suppression を再表示しない。
 
-非 durable の VPTA50 / nankai information / VPWP50 も process lifetime 中は各 policy の宣言期間（7日 / 30日 / 36時間）watermark を保持し、11分の共通 transient 期限へ縮退させない。
+非 durable の nankai information / VPWP50 は process lifetime 中に各 policy の宣言期間（30日 / 36時間）watermark を保持し、11分の共通 transient 期限へ縮退させない。VPTA50は例外ではなくdurable 7日で、startupと60秒runtime sweepがgate expiryとorphan probability cleanupを一つの保存mutationへ合流する。
 
 ### 概要
 

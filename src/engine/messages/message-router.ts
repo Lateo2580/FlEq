@@ -3,8 +3,8 @@ import * as log from "../../logger";
 import type { WsDataMessage } from "../../types";
 import {
   normalizeTelegramMessage,
-  requireTelegramMeta,
 } from "../../dmdata/telegram-ingress";
+import type { TelegramIngressDiagnostics } from "../../dmdata/telegram-ingress";
 import { telegramDateDiagnosticReason } from "../../dmdata/telegram-meta";
 import { EewTracker } from "../eew/eew-tracker";
 import { EewEventLogger } from "../eew/eew-logger";
@@ -34,8 +34,19 @@ import type {
   DisplayReceiptTimerScheduler,
   DisplayLateCounterpartContext,
   DisplayStatsV1,
+  VptaAdmissionCompletion,
+  VptaAdmissionCompletionAdapter,
+  VptaDisplayIngestCommand,
+  VptaFailureStage,
+  VptaPersistenceCompletionAck,
 } from "../display/types";
-import { processMessage as processMsg, ProcessDeps } from "../presentation/processors/process-message";
+import {
+  assertVptaAdmissionCompletion,
+  createVptaRouterOwnerToken,
+  withVptaRouterOwnerToken,
+} from "../display/types";
+import type { StandbyPersistenceFlushThroughResult } from "../display/standby-persistence";
+import { processMessageInternal as processMsg, ProcessDeps } from "../presentation/processors/process-message";
 import { toPresentationEvent } from "../presentation/events/to-presentation-event";
 import { expandVolcanoBatchForDisplay } from "../presentation/events/from-volcano";
 import { shouldDisplay, renderTemplate } from "../filter-template/pipeline";
@@ -73,6 +84,48 @@ import {
 export const LEGACY_DISPLAY_RECEIPT_CAPACITY = 512;
 export const LEGACY_DISPLAY_RECEIPT_EVENT_KEY_CAPACITY = 32;
 export const LEGACY_DISPLAY_RECEIPT_RETENTION_MS = 11 * 60_000;
+export const ROUTER_REENTRANT_QUEUE_MAX_ITEMS = 256;
+export const ROUTER_REENTRANT_QUEUE_MAX_BYTES = 64 * 1024 * 1024;
+export const ROUTER_MAX_DRAINED_ENVELOPES_PER_TURN = 512;
+
+export type ReadonlyDeep<T> =
+  T extends (...args: never[]) => unknown ? T
+    : T extends readonly (infer U)[] ? readonly ReadonlyDeep<U>[]
+      : T extends object ? { readonly [K in keyof T]: ReadonlyDeep<T[K]> }
+        : T;
+
+export class RouterSerializerPoisonedError extends Error {
+  constructor(readonly serializerCause: unknown) {
+    super("message router serializer is poisoned");
+    this.name = "RouterSerializerPoisonedError";
+  }
+}
+
+interface RouterEnvelope {
+  readonly message: ReadonlyDeep<WsDataMessage>;
+  readonly route: Route;
+  readonly diagnostics: Readonly<TelegramIngressDiagnostics>;
+  readonly ingressObservedAtMs: number;
+  readonly ordinal: number;
+  readonly byteLength: number;
+}
+
+function deepFreezeRouterSnapshot<T>(value: T, seen = new WeakSet<object>()): T {
+  if (typeof value !== "object" || value == null) return value;
+  const object = value as object;
+  if (seen.has(object) || Object.isFrozen(object)) return value;
+  seen.add(object);
+  // ArrayBuffer views cannot be frozen on every supported Node release. WsDataMessage
+  // does not normally contain one, but treating the view as an opaque leaf keeps the
+  // generic guard from turning a valid transport payload into a platform-dependent error.
+  if (!ArrayBuffer.isView(object)) {
+    for (const key of Reflect.ownKeys(object)) {
+      deepFreezeRouterSnapshot(Reflect.get(object, key), seen);
+    }
+    Object.freeze(object);
+  }
+  return value;
+}
 
 type DisplayIngestOperation = (
   event: PresentationEvent,
@@ -125,6 +178,34 @@ function cardResultOf(result: unknown): DisplayCardIngestResult | DisplayCardRec
   const cardResult = result.cardResult;
   if (typeof cardResult !== "object" || cardResult == null || !("kind" in cardResult)) return undefined;
   return cardResult as DisplayCardIngestResult | DisplayCardReconcileResult;
+}
+
+function vptaMutationOf(result: unknown): { viewChanged: boolean; durableChanged: boolean } | undefined {
+  if (typeof result !== "object" || result == null || !("vptaMutation" in result)) return undefined;
+  const mutation = result.vptaMutation;
+  if (typeof mutation !== "object" || mutation == null
+    || !("viewChanged" in mutation) || !("durableChanged" in mutation)
+    || typeof mutation.viewChanged !== "boolean"
+    || typeof mutation.durableChanged !== "boolean") return undefined;
+  return mutation as { viewChanged: boolean; durableChanged: boolean };
+}
+
+function vptaFailureOf(result: unknown): {
+  stage: "standbyReducer" | "managedRetention" | "displaySinkPostStandby";
+  cause: unknown;
+} | undefined {
+  if (typeof result !== "object" || result == null || !("vptaFailure" in result)) return undefined;
+  const failure = result.vptaFailure;
+  if (typeof failure !== "object" || failure == null || !("stage" in failure) || !("cause" in failure)) {
+    return undefined;
+  }
+  if (failure.stage !== "standbyReducer"
+    && failure.stage !== "managedRetention"
+    && failure.stage !== "displaySinkPostStandby") return undefined;
+  return failure as {
+    stage: "standbyReducer" | "managedRetention" | "displaySinkPostStandby";
+    cause: unknown;
+  };
 }
 
 function displayIngestApplied(result: unknown): result is Extract<DisplayIngestResult, { kind: "applied" }> {
@@ -597,7 +678,7 @@ function buildDisplayStats(
  */
 export type RoutedMessageTap = (event: {
   route: Route;
-  message: WsDataMessage;
+  message: ReadonlyDeep<WsDataMessage>;
 }) => void;
 
 /** tap の throw/reject 値を安全に文字列化する (null や非 Error でも二次例外を出さない) */
@@ -649,6 +730,7 @@ export interface MessageHandlerOptions {
   tsunamiState?: TsunamiStateHolder;
   volcanoState?: VolcanoStateHolder;
   floodForecastState?: FloodForecastStateHolder;
+  typhoonProbabilityState?: TyphoonProbabilityStateHolder;
   /** durable revision watermark の復元用。 */
   revisionGate?: TelegramRevisionGate;
   /** 最初の durable domain が v1 表示復元状態を脱したことを monitor へ伝える。 */
@@ -664,6 +746,15 @@ export interface MessageHandlerOptions {
   onFloodRevisionDecision?: (decision: TelegramRevisionDecision) => void;
   /** tornado/heat/typhoon/nankai/VPWP/VXSE62 common gate commit. */
   onStandbyRevisionDecision?: (decision: TelegramRevisionDecision) => void;
+  /** VPTA observer only. Persistence is owned by onVptaAdmissionCompletion. */
+  onVptaStandbyRevisionDecision?: (decision: TelegramRevisionDecision) => void;
+  /**
+   * VPTA persistence owner. Omission is tolerated only when no durable completion
+   * occurs; a durable completion without this adapter poisons the router.
+   */
+  onVptaAdmissionCompletion?: VptaAdmissionCompletionAdapter;
+  withStandbyDurableNotificationsSuppressed?: <T>(callback: () => T) => T;
+  flushStandbyThrough?: (requiredSeq: number) => StandbyPersistenceFlushThroughResult;
   /** message 処理時点の process-wide capability を読む遅延 getter。 */
   getDeliveryCapabilities?: () => DeliveryCapabilities;
   getPersistenceSalvageDiagnostics?: () => {
@@ -729,14 +820,41 @@ export function createMessageHandler(options?: MessageHandlerOptions): MessageHa
   const vpww56State = options?.vpww56State ?? new Vpww56StateHolder();
   const vpwp50Cache = new Vpwp50DetailCache();
   const tornadoDetailProvider = new TornadoDetailProvider();
-  const typhoonProbabilityState = new TyphoonProbabilityStateHolder();
+  const typhoonProbabilityState = options?.typhoonProbabilityState
+    ?? new TyphoonProbabilityStateHolder();
   const floodForecastState = options?.floodForecastState ?? new FloodForecastStateHolder();
   const stats = new TelegramStats();
   const summaryTracker = new SummaryWindowTracker();
   const dailyQuakeCounter = options?.dailyQuakeCounter ?? new DailyQuakeCounter();
   const diffStore = new PresentationDiffStore();
+  const vptaDisplayCommands = new WeakMap<ProcessOutcome, VptaDisplayIngestCommand>();
+  const vptaAdmissionCompletions = new WeakMap<ProcessOutcome, Extract<VptaAdmissionCompletion, { kind: "accepted" }>>();
   const transportDedup = new TelegramTransportDeduplicator();
   const revisionGate = options?.revisionGate ?? new TelegramRevisionGate();
+  const pendingEnvelopes: RouterEnvelope[] = [];
+  let pendingEnvelopeBytes = 0;
+  let serializerOwnerActive = false;
+  let serializerPoisonError: RouterSerializerPoisonedError | null = null;
+  let nextEnvelopeOrdinal = 1;
+  let turnRequiredPersistenceSeq = 0;
+  let turnDurableFloorSatisfiedSeq = 0;
+  let turnPersistenceCause: unknown | null = null;
+  let turnPersistenceDispatchFailed = false;
+
+  const poisonSerializer = (cause: unknown): RouterSerializerPoisonedError => {
+    if (serializerPoisonError == null) {
+      serializerPoisonError = cause instanceof RouterSerializerPoisonedError
+        ? cause
+        : new RouterSerializerPoisonedError(cause);
+    }
+    pendingEnvelopes.length = 0;
+    pendingEnvelopeBytes = 0;
+    return serializerPoisonError;
+  };
+
+  const assertSerializerHealthy = (): void => {
+    if (serializerPoisonError != null) throw serializerPoisonError;
+  };
   let lastStatsNowMs = Number.NEGATIVE_INFINITY;
   const statsNowMs = (rawNowMs: number): number => {
     lastStatsNowMs = Math.max(lastStatsNowMs, rawNowMs);
@@ -839,6 +957,55 @@ export function createMessageHandler(options?: MessageHandlerOptions): MessageHa
     onTsunamiRevisionDecision: options?.onTsunamiRevisionDecision,
     onFloodRevisionDecision: options?.onFloodRevisionDecision,
     onStandbyRevisionDecision: options?.onStandbyRevisionDecision,
+    onVptaStandbyRevisionDecision: options?.onVptaStandbyRevisionDecision,
+    assertRouterSerializerHealthy: assertSerializerHealthy,
+    onVptaAdmissionCompletion: (completion) => {
+      assertVptaAdmissionCompletion(completion);
+      let ack: VptaPersistenceCompletionAck;
+      try {
+        const adapter = options?.onVptaAdmissionCompletion;
+        if (adapter == null) {
+          if (completion.durableChanged) {
+            throw new Error("VPTA durable completion persistence adapter is not configured");
+          }
+          ack = { kind: "notRequired" };
+        } else {
+          ack = adapter(completion);
+        }
+      } catch (cause) {
+        ack = {
+          kind: "failed", operation: "completionCallback",
+          completionAlreadyEmitted: true, receipt: null, cause,
+        };
+      }
+      if (ack.kind === "scheduled" || ack.kind === "flushed") {
+        turnRequiredPersistenceSeq = Math.max(turnRequiredPersistenceSeq, ack.receipt.seq);
+        if (ack.kind === "flushed") {
+          turnDurableFloorSatisfiedSeq = Math.max(
+            turnDurableFloorSatisfiedSeq,
+            ack.result.writtenSeq,
+          );
+        }
+      } else if (ack.kind === "failed") {
+        if (ack.receipt != null) {
+          turnRequiredPersistenceSeq = Math.max(turnRequiredPersistenceSeq, ack.receipt.seq);
+        }
+        turnPersistenceCause = ack.cause;
+        turnPersistenceDispatchFailed = true;
+        poisonSerializer(ack.cause);
+      }
+      return ack;
+    },
+    activeTyphoonProbabilitySubjects: (nowMs) => {
+      const provider = displaySink?.activeTyphoonProbabilitySubjects;
+      return provider == null ? [] : provider(nowMs);
+    },
+    maintainTyphoonProbabilitySubjects: (nowMs, activeGateSubjects) =>
+      displaySink?.maintainTyphoonProbabilitySubjects?.(nowMs, activeGateSubjects)
+        ?? { viewChanged: false, durableChanged: false },
+    reconcileTyphoonProbabilitySubject: (eventId) =>
+      displaySink?.reconcileTyphoonProbabilitySubject?.(eventId)
+        ?? { viewChanged: false, durableChanged: false },
     getDeliveryCapabilities: options?.getDeliveryCapabilities
       ?? (() => createUnknownDeliveryCapabilities()),
     onVxse44Suppressed: (reason) => {
@@ -878,6 +1045,8 @@ export function createMessageHandler(options?: MessageHandlerOptions): MessageHa
         } catch (e) {
           log.warn(`[outcome-tap] tap 実行で例外: ${describeTapError(e)}`);
         }
+        // tap が同期再入 overload を捕捉しても sticky latch はここで必ず観測する。
+        assertSerializerHealthy();
       }
     }
 
@@ -902,9 +1071,11 @@ export function createMessageHandler(options?: MessageHandlerOptions): MessageHa
           emitCardMutationApplied(cardMutationMetric(cardResult, "ingest", volcanoEvent.type));
         }
       } else {
+        const vptaDisplayCommand = vptaDisplayCommands.get(outcome as ProcessOutcome);
         const result = displayIngestOverride == null
-          ? displaySink?.ingest(event)
+          ? displaySink?.ingest(event, vptaDisplayCommand)
           : displayIngestOverride(event);
+        if (vptaDisplayCommand != null) vptaDisplayCommands.delete(outcome as ProcessOutcome);
         const tickerResult = tickerResultOf(result);
         const cardResult = cardResultOf(result);
         if (displayIngestCapture != null) {
@@ -923,6 +1094,7 @@ export function createMessageHandler(options?: MessageHandlerOptions): MessageHa
     } catch {
       // 表示系の障害を本体に波及させない
     }
+    assertSerializerHealthy();
 
     if (!displayed) {
       return false;
@@ -956,6 +1128,7 @@ export function createMessageHandler(options?: MessageHandlerOptions): MessageHa
     displayIngestOverride?: DisplayIngestOperation,
   ): { notified: boolean; presented: boolean; displayIngestResult?: DisplayIngestResult } {
     const notified = allowNotification && dispatchNotify(outcome, notifier);
+    assertSerializerHealthy();
     const acceptedCorrection = outcome.domain === "eew"
       ? outcome.eewResult.isCorrection === true
       : outcome.presentation.acceptedCorrection === true;
@@ -979,6 +1152,192 @@ export function createMessageHandler(options?: MessageHandlerOptions): MessageHa
         ? {}
         : { displayIngestResult: displayIngestCapture.result }),
     };
+  }
+
+  /**
+   * VPTA50 は standby reducer の mutation evidence を persistence completion より
+   * 前に確定する必要があるため、汎用表示 pipeline と混ぜず同じ順序を明示する。
+   */
+  function emitAcceptedVptaOutcome(
+    outcome: ProcessOutcome,
+    command: VptaDisplayIngestCommand,
+    acceptedCompletion: Extract<VptaAdmissionCompletion, { kind: "accepted" }>,
+    actionNowMs: number,
+  ): void {
+    const changes = { ...acceptedCompletion.changes };
+    let stage: VptaFailureStage = "recordStats";
+    let displayed = false;
+    let event: PresentationEvent | null = null;
+    let displayResult: DisplayIngestResult | DisplayIngestOutcome | void | number;
+
+    const failBeforeCompletion = (cause: unknown): never => {
+      const causes: unknown[] = [cause];
+      try {
+        const reconciliation = displaySink?.reconcileTyphoonProbabilityCommand?.(command);
+        changes.projectionOrRetention ||= reconciliation?.durableChanged === true;
+      } catch (reconcileCause) {
+        causes.push(reconcileCause);
+      }
+      const durableChanged = changes.gateExpiry || changes.projectionCleanup
+        || changes.incomingGate || changes.projectionOrRetention;
+      const completion: VptaAdmissionCompletion = durableChanged
+        ? {
+            kind: "failed", nowMs: acceptedCompletion.nowMs, durableChanged: true,
+            persistence: "immediate", changes: { ...changes }, stage,
+          }
+        : {
+            kind: "failed", nowMs: acceptedCompletion.nowMs, durableChanged: false,
+            persistence: "none", changes: { ...changes }, stage,
+          };
+      try {
+        processDeps.onVptaAdmissionCompletion?.(completion);
+      } catch (completionCause) {
+        causes.push(completionCause);
+      }
+      if (causes.length === 1) throw causes[0];
+      throw new AggregateError(causes, "VPTA50 post-gate admission failed");
+    };
+
+    try {
+      stage = "recordStats";
+      recordStats(outcome, stats, actionNowMs);
+      assertSerializerHealthy();
+
+      stage = "correlator";
+      const action = legacyCounterpartCorrelator.accept(outcome);
+      if (action == null || action.kind !== "emitNow") {
+        throw new Error("VPTA50 correlator invariant failed");
+      }
+      assertSerializerHealthy();
+
+      stage = "notifier";
+      const notified = dispatchNotify(outcome, notifier);
+      assertSerializerHealthy();
+
+      stage = "postNotifierStats";
+      if (outcome.presentation.acceptedCorrection === true && notified) {
+        stats.recordFoundation("correctionNotified", actionNowMs);
+      }
+      if (notified) stats.recordFoundation("notified", actionNowMs);
+      assertSerializerHealthy();
+
+      if (outcomeTaps) {
+        for (const tap of outcomeTaps) {
+          try {
+            const result = tap(outcome) as unknown;
+            if (result instanceof Promise) {
+              result.catch((error: unknown) => {
+                log.warn(`[outcome-tap] async tap の reject: ${describeTapError(error)}`);
+              });
+            }
+          } catch (error) {
+            log.warn(`[outcome-tap] tap 実行で例外: ${describeTapError(error)}`);
+          }
+          if (serializerPoisonError != null) {
+            stage = "outcomeTapPoison";
+            throw serializerPoisonError;
+          }
+        }
+      }
+
+      stage = "eventConversion";
+      event = toPresentationEvent(outcome);
+      assertSerializerHealthy();
+
+      stage = "displayPreprocess";
+      const diffed = diffStore.apply(event);
+      event = diffed;
+      displayed = shouldDisplay(diffed, pipeline);
+      summaryTracker.record(diffed, displayed);
+      dailyQuakeCounter.record(diffed);
+      assertSerializerHealthy();
+
+      stage = "standbyReducer";
+      displayResult = displaySink?.ingest(diffed, command);
+      const mutation = vptaMutationOf(displayResult);
+      changes.projectionOrRetention ||= mutation?.durableChanged === true;
+      const failure = vptaFailureOf(displayResult);
+      if (failure != null) {
+        stage = failure.stage;
+        throw failure.cause;
+      }
+      const cardResult = cardResultOf(displayResult);
+      emitCardMutationApplied(cardMutationMetric(cardResult, "ingest", diffed.type));
+      assertSerializerHealthy();
+    } catch (cause) {
+      failBeforeCompletion(cause);
+    }
+
+    // Exactly one successful completion. Any failure from this point is presentation
+    // or infrastructure work and must never synthesize a second completion.
+    processDeps.onVptaAdmissionCompletion?.({
+      ...acceptedCompletion,
+      changes: { ...changes },
+    });
+    assertSerializerHealthy();
+
+    // Post-completion presentation is deliberately best-effort. Reentrant overload is
+    // still observed at every callback boundary and the outer turn flushes its floor.
+    try {
+      displaySink?.publishStats?.(buildDisplayStats(
+        summaryTracker, stats, dailyQuakeCounter, options?.getPersistenceSalvageDiagnostics, actionNowMs,
+      ));
+    } catch (cause) {
+      log.warn(`[vpta50-presentation] publishStats failed: ${describeTapError(cause)}`);
+    }
+    assertSerializerHealthy();
+    if (!displayed || event == null) return;
+
+    let focused = true;
+    if (pipeline.focus != null) {
+      try {
+        focused = pipeline.focus(event);
+      } catch (cause) {
+        log.warn(`[vpta50-presentation] focus failed: ${describeTapError(cause)}`);
+        focused = true;
+      }
+      assertSerializerHealthy();
+    }
+
+    let outputSucceeded = false;
+    if (!focused && display != null) {
+      try {
+        console.log(chalk.dim(display.renderSummaryLine(event)));
+        outputSucceeded = true;
+      } catch (cause) {
+        log.warn(`[vpta50-presentation] consoleOrDisplay failed: ${describeTapError(cause)}`);
+      }
+      assertSerializerHealthy();
+    } else {
+      let templateOutput: string | null = null;
+      try {
+        templateOutput = renderTemplate(event, pipeline);
+      } catch (cause) {
+        log.warn(`[vpta50-presentation] template failed: ${describeTapError(cause)}`);
+      }
+      assertSerializerHealthy();
+      try {
+        if (templateOutput != null) {
+          console.log(templateOutput);
+        } else if (display != null && display.getDisplayMode() === "compact") {
+          console.log(display.renderSummaryLine(event));
+        } else {
+          display?.displayOutcome(outcome);
+        }
+        outputSucceeded = true;
+      } catch (cause) {
+        log.warn(`[vpta50-presentation] consoleOrDisplay failed: ${describeTapError(cause)}`);
+      }
+      assertSerializerHealthy();
+    }
+    if (outputSucceeded) {
+      try {
+        stats.recordFoundation("presented", actionNowMs);
+      } catch (cause) {
+        log.warn(`[vpta50-presentation] presentedStats failed: ${describeTapError(cause)}`);
+      }
+      assertSerializerHealthy();
+    }
   }
 
   function sourceDispositions(action: LegacyCounterpartAction): readonly LegacyCounterpartAffectedSource[] {
@@ -1294,14 +1653,15 @@ export function createMessageHandler(options?: MessageHandlerOptions): MessageHa
     onFoundationPresented: () => stats.recordFoundation("presented", statsNowMs(Date.now())),
   });
 
-  const handler = (incoming: WsDataMessage): void => {
-    const normalized = normalizeTelegramMessage(incoming);
-    const msg = normalized.message;
-    if (normalized.diagnostics.testMetadataMismatch) {
+  const processEnvelope = (envelope: RouterEnvelope): void => {
+    // All downstream consumers intentionally share this single frozen graph.
+    // Existing parsers are read-only but accept the historical mutable type.
+    const msg = envelope.message as WsDataMessage;
+    if (envelope.diagnostics.testMetadataMismatch) {
       stats.recordTestMetadataMismatch(statsNowMs(msg.meta?.receivedAtMs ?? Date.now()));
     }
 
-    const route = classifyMessage(msg.classification, msg.head.type);
+    const route = envelope.route;
     let rawFallbackLogged = false;
     const logUnknownRawFallbackOnce = (): void => {
       if (rawFallbackLogged) return;
@@ -1335,6 +1695,7 @@ export function createMessageHandler(options?: MessageHandlerOptions): MessageHa
         } catch (e) {
           log.warn(`[route-tap] tap 実行で例外: ${describeTapError(e)}`);
         }
+        assertSerializerHealthy();
       }
     }
 
@@ -1342,7 +1703,8 @@ export function createMessageHandler(options?: MessageHandlerOptions): MessageHa
     // parser 失敗も raw family へ落ちるため、transport dedup と日時診断は parse 前に共通適用する。
     const usesFoundationGate = route !== "ignore";
     if (usesFoundationGate) {
-      const meta = requireTelegramMeta(msg);
+      const meta = msg.meta;
+      if (meta == null) throw new Error("router normalized meta invariant failed");
       const admissionNowMs = statsNowMs(meta.receivedAtMs);
       stats.recordFoundation("received", admissionNowMs);
       if (!transportDedup.accept(meta.messageId, meta.receivedAtMs)) {
@@ -1400,6 +1762,9 @@ export function createMessageHandler(options?: MessageHandlerOptions): MessageHa
     // 特殊ルート volcano: VFVO53 バッチ集約を伴う独立ライフサイクルのため線形 processor 表に
     // 載せず、VolcanoRouteHandler に委譲する (catalog は分類のみ担う)。
     let outcome: ProcessOutcome | null;
+    let vptaDisplayCommand: VptaDisplayIngestCommand | undefined;
+    let vptaAdmissionCompletion: Extract<VptaAdmissionCompletion, { kind: "accepted" }> | undefined;
+    let vptaTransient = false;
     const messageStatsNowMs = msg.meta?.receivedAtMs ?? Date.now();
     if (processingRoute === "volcano") {
       const result = withMessageStatsTime(messageStatsNowMs, () => volcanoHandler.handle(msg));
@@ -1412,21 +1777,60 @@ export function createMessageHandler(options?: MessageHandlerOptions): MessageHa
         return;
       }
       if (result.kind === "suppressed") return;
-      outcome = withMessageStatsTime(messageStatsNowMs, () => processMsg(msg, "raw", processDeps));
+      const processed = withMessageStatsTime(messageStatsNowMs, () => processMsg(msg, "raw", processDeps));
+      outcome = processed?.outcome ?? null;
+      vptaDisplayCommand = processed?.internal?.vptaDisplayCommand;
+      vptaAdmissionCompletion = processed?.internal?.completion;
+      vptaTransient = processed?.internal?.transient === true;
     } else {
       // 火山以外: processMessage → recordStats → dispatchNotify → runDisplayPipeline
-      outcome = withMessageStatsTime(
+      const processed = withMessageStatsTime(
         messageStatsNowMs,
         () => processMsg(msg, processingRoute, processDeps),
       );
+      outcome = processed?.outcome ?? null;
+      vptaDisplayCommand = processed?.internal?.vptaDisplayCommand;
+      vptaAdmissionCompletion = processed?.internal?.completion;
+      vptaTransient = processed?.internal?.transient === true;
     }
 
     if (outcome == null) {
       return;
     }
+    if (vptaDisplayCommand != null) vptaDisplayCommands.set(outcome, vptaDisplayCommand);
+    if (vptaAdmissionCompletion != null) {
+      vptaAdmissionCompletions.set(outcome, vptaAdmissionCompletion);
+    }
 
     if (outcome.domain === "raw" && !rawFallbackLogged) {
       logUnknownRawFallbackOnce();
+    }
+
+    if (
+      outcome.domain === "typhoonProbability"
+      && vptaTransient
+    ) {
+      if (vptaDisplayCommands.has(outcome) || vptaAdmissionCompletions.has(outcome)) {
+        throw new Error("VPTA50 transient sidecar invariant failed");
+      }
+      // Invalid EventID is deliberately outside started admission. It still follows
+      // the ordinary CLI/ticker/stats/notifier pipeline, but owns no reducer command
+      // and emits no persistence completion.
+    } else if (outcome.domain === "typhoonProbability") {
+      const command = vptaDisplayCommands.get(outcome);
+      const completion = vptaAdmissionCompletions.get(outcome);
+      if (command == null || completion == null) {
+        throw new Error("VPTA50 accepted sidecar invariant failed");
+      }
+      vptaDisplayCommands.delete(outcome);
+      vptaAdmissionCompletions.delete(outcome);
+      emitAcceptedVptaOutcome(
+        outcome,
+        command,
+        completion,
+        statsNowMs(outcome.msg.meta?.receivedAtMs ?? Date.now()),
+      );
+      return;
     }
 
     if (outcome.domain === "eew" && outcome.displayLifecycleOnly === true) {
@@ -1453,6 +1857,151 @@ export function createMessageHandler(options?: MessageHandlerOptions): MessageHa
     }
     const action = legacyCounterpartCorrelator.accept(outcome);
     if (action != null) handleLegacyCounterpartAction(action);
+  };
+
+  const createEnvelope = (incoming: WsDataMessage): RouterEnvelope => {
+    assertSerializerHealthy();
+    const ingressObservedAtMs = Date.now();
+    try {
+      const normalized = normalizeTelegramMessage(incoming, ingressObservedAtMs);
+      const message = deepFreezeRouterSnapshot(structuredClone(normalized.message));
+      const route = classifyMessage(message.classification, message.head.type);
+      const serialized = JSON.stringify(message);
+      const byteLength = Buffer.byteLength(serialized, "utf8");
+      if (!Number.isSafeInteger(byteLength) || byteLength < 0) {
+        throw new Error("router snapshot byte length invariant failed");
+      }
+      if (!Number.isSafeInteger(nextEnvelopeOrdinal) || nextEnvelopeOrdinal < 1) {
+        throw new Error("router envelope ordinal invariant failed");
+      }
+      const ordinal = nextEnvelopeOrdinal;
+      nextEnvelopeOrdinal = ordinal === Number.MAX_SAFE_INTEGER
+        ? Number.POSITIVE_INFINITY
+        : ordinal + 1;
+      return Object.freeze({
+        message: message as ReadonlyDeep<WsDataMessage>,
+        route,
+        diagnostics: Object.freeze(structuredClone(normalized.diagnostics)),
+        ingressObservedAtMs,
+        ordinal,
+        byteLength,
+      });
+    } catch (cause) {
+      throw poisonSerializer(cause);
+    }
+  };
+
+  const enqueueReentrant = (envelope: RouterEnvelope): void => {
+    let nextBytes: number;
+    try {
+      nextBytes = pendingEnvelopeBytes + envelope.byteLength;
+      if (!Number.isSafeInteger(nextBytes)
+        || pendingEnvelopes.length + 1 > ROUTER_REENTRANT_QUEUE_MAX_ITEMS
+        || nextBytes > ROUTER_REENTRANT_QUEUE_MAX_BYTES) {
+        throw new Error("router reentrant queue capacity exceeded");
+      }
+      pendingEnvelopes.push(envelope);
+      pendingEnvelopeBytes = nextBytes;
+    } catch (cause) {
+      throw poisonSerializer(cause);
+    }
+  };
+
+  const throwTurnErrors = (
+    recoverableErrors: readonly unknown[],
+    poisonError: RouterSerializerPoisonedError | null,
+    persistenceCause: unknown | null,
+  ): void => {
+    if (recoverableErrors.length === 0 && poisonError != null && persistenceCause == null) {
+      throw poisonError;
+    }
+    const causes = [...recoverableErrors];
+    if (poisonError != null && !causes.includes(poisonError.serializerCause)) {
+      causes.push(poisonError.serializerCause);
+    }
+    if (persistenceCause != null && !causes.includes(persistenceCause)) causes.push(persistenceCause);
+    if (causes.length === 0) return;
+    if (causes.length === 1) throw causes[0];
+    throw new AggregateError(causes, "message router drain failed");
+  };
+
+  const handler = (incoming: WsDataMessage): void => {
+    // Sticky poison rejection deliberately precedes clock access and every ingress operation.
+    assertSerializerHealthy();
+    const envelope = createEnvelope(incoming);
+    if (serializerOwnerActive) {
+      enqueueReentrant(envelope);
+      return;
+    }
+
+    serializerOwnerActive = true;
+    turnRequiredPersistenceSeq = 0;
+    turnDurableFloorSatisfiedSeq = 0;
+    turnPersistenceCause = null;
+    turnPersistenceDispatchFailed = false;
+    const recoverableErrors: unknown[] = [];
+    let current: RouterEnvelope | undefined = envelope;
+    let drained = 0;
+    try {
+      while (current != null) {
+        if (serializerPoisonError != null) break;
+        if (drained >= ROUTER_MAX_DRAINED_ENVELOPES_PER_TURN) {
+          poisonSerializer(new Error("router drain step capacity exceeded"));
+          break;
+        }
+        drained += 1;
+        try {
+          const ownerToken = createVptaRouterOwnerToken();
+          withVptaRouterOwnerToken(ownerToken, () => {
+            if (current!.route === "typhoonProbability"
+              && options?.withStandbyDurableNotificationsSuppressed != null) {
+              options.withStandbyDurableNotificationsSuppressed(() => processEnvelope(current!));
+            } else {
+              processEnvelope(current!);
+            }
+          });
+        } catch (cause) {
+          if (cause !== serializerPoisonError) recoverableErrors.push(cause);
+        }
+        if (serializerPoisonError != null) break;
+        const next = pendingEnvelopes.shift();
+        if (next == null) {
+          current = undefined;
+        } else {
+          pendingEnvelopeBytes -= next.byteLength;
+          if (!Number.isSafeInteger(pendingEnvelopeBytes) || pendingEnvelopeBytes < 0) {
+            poisonSerializer(new Error("router reentrant queue byte accounting invariant failed"));
+            break;
+          }
+          current = next;
+        }
+      }
+    } finally {
+      serializerOwnerActive = false;
+      if (serializerPoisonError != null) {
+        pendingEnvelopes.length = 0;
+        pendingEnvelopeBytes = 0;
+      }
+    }
+    if (
+      serializerPoisonError != null
+      && !turnPersistenceDispatchFailed
+      && turnRequiredPersistenceSeq > turnDurableFloorSatisfiedSeq
+    ) {
+      try {
+        const result = options?.flushStandbyThrough?.(turnRequiredPersistenceSeq);
+        if (result == null || result.kind === "failed" || result.writtenSeq < turnRequiredPersistenceSeq) {
+          turnPersistenceCause = result?.kind === "failed"
+            ? result.cause
+            : new Error("standby persistence durable floor was not satisfied");
+        } else {
+          turnDurableFloorSatisfiedSeq = result.writtenSeq;
+        }
+      } catch (cause) {
+        turnPersistenceCause = cause;
+      }
+    }
+    throwTurnErrors(recoverableErrors, serializerPoisonError, turnPersistenceCause);
   };
 
   return {

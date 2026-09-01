@@ -967,14 +967,14 @@ describe("VPWS50 common cancellation registry + persistence v2", () => {
       const standalone = JSON.parse(fs.readFileSync(file, "utf8")) as PersistedStandbyStateV1;
       standalone.savedAt = "2026-07-30T12:00:00+09:00";
       fs.writeFileSync(file, JSON.stringify(standalone), "utf8");
-    }],
-    ["v1 欠落", (file: string) => fs.rmSync(file)],
-    ["v1 改変", (file: string) => fs.writeFileSync(file, "{}", "utf8")],
-  ] as const)("standalone 新旧実体の矛盾 telemetry: %s", (_label, mutate) => {
+    }, 0],
+    ["v1 欠落", (file: string) => fs.rmSync(file), 1],
+    ["v1 改変", (file: string) => fs.writeFileSync(file, "{}", "utf8"), 1],
+  ] as const)("standalone rollback mirror の意味比較 telemetry: %s", (_label, mutate, expectedConflicts) => {
     const { file, expected } = persistedFoundationFixture();
     mutate(file);
     const persistence = new StandbyPersistence(file);
     expect(persistence.load()).toEqual(expected);
-    expect(persistence.takeMigrationConflictCount()).toBe(1);
+    expect(persistence.takeMigrationConflictCount()).toBe(expectedConflicts);
   });
 });

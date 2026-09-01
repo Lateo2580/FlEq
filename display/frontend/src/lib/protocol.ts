@@ -917,6 +917,33 @@ export interface DisplayTyphoonV1 {
   /** 移動速度 canonical の additive wire semantic。 */
   moveSpeedKmhSemantic?: DisplayTyphoonNumericSemanticV1;
   reportDateTime: string;
+  /** V1 additive compact VPTA50 slice. Full grids never cross the protocol. */
+  probability?: DisplayTyphoonProbabilityV1;
+}
+
+export interface DisplayTyphoonProbabilityPrefectureV1 {
+  prefectureCode: string;
+  prefectureName: string;
+  fiveDayProbability: number;
+}
+
+export interface DisplayTyphoonProbabilityWorstAreaV1 {
+  areaCode: string;
+  areaName: string;
+  prefectureCode: string;
+  prefectureName: string;
+  fiveDayProbability: number;
+  peakAt: string | null;
+}
+
+export interface DisplayTyphoonProbabilityV1 {
+  baseTime: string;
+  forecastEndsAt: string;
+  reportDateTime: string;
+  maxFiveDayProbability: number;
+  activePrefectureCount: number;
+  topPrefectures: DisplayTyphoonProbabilityPrefectureV1[];
+  worstArea: DisplayTyphoonProbabilityWorstAreaV1;
 }
 
 export interface DisplayHeatAreaV1 {

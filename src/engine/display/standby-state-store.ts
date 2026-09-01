@@ -29,6 +29,7 @@ import type {
   PersistedBriefingCriticalRawAliasV1,
   PersistedStandbyState,
   PersistedStandbyStateV1,
+  PersistedTyphoonProbabilityStateV1,
   PersistedVolcanoStateV1,
   PersistedWeatherAlertStateV1,
 } from "./standby-persistence";
@@ -69,6 +70,12 @@ import { typhoonNumericValueFromLegacyScalar } from "../typhoon-numeric-persiste
 import { projectTyphoonNumericSemantic } from "./typhoon-numeric-semantic";
 import { attachWeatherExpandedKinds } from "./weather-expanded-kinds";
 import { DISPLAY_SEVERITY_RANK } from "../../dmdata/weather-warning-level";
+import { assertVptaRouterOwnerToken, type VptaDisplayIngestCommand } from "./types";
+import type { TyphoonProbabilityState } from "./project-typhoon-probability";
+import {
+  isCanonicalTyphoonProbabilityState,
+  validateTyphoonProbabilityEventId,
+} from "./project-typhoon-probability";
 
 export { RevisionGuard } from "./revision-guard";
 export type { PersistedSeenEntry } from "./revision-guard";
@@ -294,6 +301,7 @@ export interface VolcanoSeedEntry {
 export class StandbyStateStore {
   private heatAlerts = new Map<string, HeatState>();
   private typhoons = new Map<string, TyphoonState>();
+  private typhoonProbabilities = new Map<string, TyphoonProbabilityState>();
   private volcanoes = new Map<string, VolcanoState>();
   private readonly managedVolcanoAlerts = new Set<string>();
   private readonly managedVolcanoEruptions = new Set<string>();
@@ -390,6 +398,129 @@ export class StandbyStateStore {
         this.retainManagedStandbySubjects(event.domain, event.standbyActiveSubjects ?? []),
       );
     }
+    this.notify(mutation);
+    return mutation;
+  }
+
+  applyTyphoonProbabilityCommand(
+    command: VptaDisplayIngestCommand,
+  ): DisplayMutation {
+    assertVptaRouterOwnerToken(command.ownerToken);
+    const { finalized, commit } = command;
+    const prefix = "typhoonProbability:";
+    if (!commit.stateSubjectKey.startsWith(prefix)) {
+      throw new Error("invalid VPTA state subject");
+    }
+    const eventId = commit.stateSubjectKey.slice(prefix.length);
+    const expectedCancelled = finalized.result.kind === "cancel"
+      || finalized.result.kind === "deactivateAllZero";
+    const comparisonRevision = commit.comparison.revision;
+    if (validateTyphoonProbabilityEventId(eventId) !== eventId
+      || commit.revisionFamily !== "VPTA50"
+      || commit.comparison.stateSubjectKey !== commit.stateSubjectKey
+      || comparisonRevision.eventId.raw !== eventId
+      || comparisonRevision.eventId.value !== eventId
+      || comparisonRevision.type.raw !== "VPTA50"
+      || comparisonRevision.type.value !== "VPTA50"
+      || comparisonRevision.infoType.raw !== finalized.canonicalInfoType
+      || comparisonRevision.infoType.value !== finalized.canonicalInfoType
+      || (finalized.canonicalInfoType === "取消") !== (finalized.result.kind === "cancel")
+      || commit.cancelled !== expectedCancelled
+      || commit.decision.accepted !== true
+      || commit.semanticKeys.at(-1) !== commit.binding.appliedSemanticKey
+      || finalized.nowMs !== commit.acceptedAtMs
+      || finalized.appliedSemanticKey !== commit.binding.appliedSemanticKey
+      || finalized.acceptedRevision.reportTimeMs !== commit.binding.revision.reportTimeMs
+      || finalized.acceptedRevision.serial !== commit.binding.revision.serial) {
+      throw new Error("VPTA reducer binding mismatch");
+    }
+    let viewChanged = false;
+    if (finalized.result.kind === "active") {
+      const state = finalized.result.state;
+      if (state.eventId !== eventId
+        || state.revision.reportTimeMs !== commit.binding.revision.reportTimeMs
+        || state.revision.serial !== commit.binding.revision.serial
+        || state.appliedSemanticKey !== commit.binding.appliedSemanticKey
+        || state.expiresAtMs <= state.baseTimeMs
+        || state.expiresAtMs <= finalized.nowMs
+        || !isCanonicalTyphoonProbabilityState(state)
+        || commit.cancelled) {
+        throw new Error("VPTA active reducer invariant failed");
+      }
+      if (!this.typhoonProbabilities.has(eventId) && this.typhoonProbabilities.size >= 256) {
+        throw new Error("VPTA projection capacity exceeded");
+      }
+      const next = copyTyphoonProbabilityState(state, false);
+      const current = this.typhoonProbabilities.get(eventId);
+      viewChanged = current == null || JSON.stringify(current) !== JSON.stringify(next);
+      this.typhoonProbabilities.set(eventId, next);
+      this.diagnoseTyphoonIdentityMismatch(eventId);
+    } else {
+      viewChanged = this.typhoonProbabilities.delete(eventId);
+    }
+    const mutation = { viewChanged, durableChanged: viewChanged };
+    this.notify(mutation);
+    return mutation;
+  }
+
+  reconcileTyphoonProbabilityCommand(
+    command: VptaDisplayIngestCommand,
+  ): DisplayMutation {
+    assertVptaRouterOwnerToken(command.ownerToken);
+    const prefix = "typhoonProbability:";
+    const eventId = command.commit.stateSubjectKey.startsWith(prefix)
+      ? command.commit.stateSubjectKey.slice(prefix.length)
+      : "";
+    if (validateTyphoonProbabilityEventId(eventId) !== eventId) {
+      throw new Error("invalid VPTA reconcile subject");
+    }
+    const current = this.typhoonProbabilities.get(eventId);
+    const finalized = command.finalized;
+    const canRetain = !command.commit.cancelled
+      && finalized.result.kind === "active"
+      && current != null
+      && current.eventId === eventId
+      && current.revision.reportTimeMs === command.commit.binding.revision.reportTimeMs
+      && current.revision.serial === command.commit.binding.revision.serial
+      && current.appliedSemanticKey === command.commit.binding.appliedSemanticKey
+      && current.expiresAtMs === finalized.result.state.expiresAtMs
+      && isCanonicalTyphoonProbabilityState(current);
+    const changed = canRetain ? false : this.typhoonProbabilities.delete(eventId);
+    const mutation = { viewChanged: changed, durableChanged: changed };
+    this.notify(mutation);
+    return mutation;
+  }
+
+  reconcileTyphoonProbabilitySubject(eventId: string): DisplayMutation {
+    if (validateTyphoonProbabilityEventId(eventId) !== eventId) {
+      throw new Error("invalid VPTA reconcile subject");
+    }
+    const changed = this.typhoonProbabilities.delete(eventId);
+    const mutation = { viewChanged: changed, durableChanged: changed };
+    this.notify(mutation);
+    return mutation;
+  }
+
+  activeTyphoonProbabilitySubjects(nowMs: number): string[] {
+    return [...this.typhoonProbabilities]
+      .filter(([, state]) => state.expiresAtMs > nowMs)
+      .map(([eventId]) => `typhoonProbability:${eventId}`)
+      .sort(compareCodeUnitText);
+  }
+
+  maintainTyphoonProbabilitySubjects(
+    nowMs: number,
+    activeGateSubjects: readonly string[],
+  ): DisplayMutation {
+    const retained = new Set(activeGateSubjects);
+    let changed = false;
+    for (const [eventId, state] of this.typhoonProbabilities) {
+      if (state.expiresAtMs <= nowMs || !retained.has(`typhoonProbability:${eventId}`)) {
+        this.typhoonProbabilities.delete(eventId);
+        changed = true;
+      }
+    }
+    const mutation = { viewChanged: changed, durableChanged: changed };
     this.notify(mutation);
     return mutation;
   }
@@ -1550,13 +1681,15 @@ export class StandbyStateStore {
   private applyTyphoon(event: PresentationEvent, nowMs: number): DisplayMutation {
     const update = projectTyphoonUpdate(event);
     if (update == null) return NO_MUTATION;
+    const typhoonKey = update.typhoonKey.trim();
+    if (typhoonKey === "") return NO_MUTATION;
     const revision = revisionOf(update.reportDateTime, update.serial, nowMs);
-    const key = `typhoon:${update.typhoonKey}`;
+    const key = `typhoon:${typhoonKey}`;
     if (event.standbyStateMutationAccepted == null && !this.revisionGuard.accept(key, revision, nowMs, 7 * DAY_MS, update.isCorrection || update.isCancellation)) return NO_MUTATION;
     if (update.isCancellation) {
-      return { viewChanged: this.typhoons.delete(update.typhoonKey), durableChanged: true };
+      return { viewChanged: this.typhoons.delete(typhoonKey), durableChanged: true };
     }
-    const previousState = this.typhoons.get(update.typhoonKey);
+    const previousState = this.typhoons.get(typhoonKey);
     const pressureDeltaHpa = canonicalNumericDelta(
       update.pressureHpaValue,
       previousState?.pressureHpaValue,
@@ -1565,7 +1698,7 @@ export class StandbyStateStore {
       update.maxWindMsValue,
       previousState?.maxWindMsValue,
     );
-    this.typhoons.set(update.typhoonKey, {
+    this.typhoons.set(typhoonKey, {
       sourceEventId: update.sourceEventId,
       pressureHpaValue: structuredClone(update.pressureHpaValue),
       maxWindMsValue: structuredClone(update.maxWindMsValue),
@@ -1573,6 +1706,7 @@ export class StandbyStateStore {
       moveSpeedKmhValue: structuredClone(update.moveSpeedKmhValue),
       typhoon: {
         ...update.typhoon,
+        typhoonKey,
         pressureDeltaHpa,
         maxWindDeltaMs,
         intensityTrend: typhoonIntensityTrend(pressureDeltaHpa, maxWindDeltaMs),
@@ -1582,7 +1716,25 @@ export class StandbyStateStore {
       expiresAtMs: revision.reportTimeMs + DAY_MS,
       restored: false,
     });
+    this.diagnoseTyphoonIdentityMismatch(typhoonKey);
     return { viewChanged: true, durableChanged: true };
+  }
+
+  private diagnoseTyphoonIdentityMismatch(eventId: string): void {
+    const analysis = this.typhoons.get(eventId);
+    const probability = this.typhoonProbabilities.get(eventId);
+    if (analysis == null || probability == null) return;
+    const mismatches = [
+      ["name", analysis.typhoon.name, probability.identity.name],
+      ["nameKana", analysis.typhoon.nameKana, probability.identity.nameKana],
+      ["remark", analysis.typhoon.remark, probability.identity.remark],
+      ["typhoonNumber", analysis.typhoon.typhoonNumber, probability.identity.typhoonNumber],
+    ].filter(([, left, right]) => left !== right).map(([field]) => field);
+    if (mismatches.length > 0) {
+      log.warn(
+        `[typhoon-card] eventId=${eventId} reason=vptwVptaIdentityMismatch fields=${mismatches.join(",")}`,
+      );
+    }
   }
 
   private applyVolcano(event: PresentationEvent, nowMs: number): DisplayMutation {
@@ -1918,6 +2070,13 @@ export class StandbyStateStore {
         durableChanged = true;
       }
     }
+    for (const [eventId, state] of this.typhoonProbabilities) {
+      if (state.expiresAtMs <= nowMs) {
+        this.typhoonProbabilities.delete(eventId);
+        viewChanged = true;
+        durableChanged = true;
+      }
+    }
     for (const [key, state] of this.volcanoes) {
       if (state.eventExpiresAtMs != null && state.eventExpiresAtMs <= nowMs) {
         state.eventExpiresAtMs = null;
@@ -2000,22 +2159,78 @@ export class StandbyStateStore {
       severity: states.some((state) => state.isSpecial) ? "critical" : "warning",
       data: { targetDate, areas: states.flatMap((state) => state.areas.map((area) => ({ ...area }))) },
     });
-    if (this.typhoons.size > 0) {
-      const states = [...this.typhoons.values()].sort((a, b) => (a.typhoon.typhoonNumber ?? "").localeCompare(b.typhoon.typhoonNumber ?? ""));
+    if (this.typhoons.size > 0 || this.typhoonProbabilities.size > 0) {
+      const keys = [...new Set([
+        ...this.typhoons.keys(),
+        ...this.typhoonProbabilities.keys(),
+      ])];
+      const states = keys.map((eventId) => {
+        const analysis = this.typhoons.get(eventId);
+        const probability = this.typhoonProbabilities.get(eventId);
+        const displayProbability = probability == null ? undefined : {
+          baseTime: new Date(probability.baseTimeMs).toISOString(),
+          forecastEndsAt: new Date(probability.expiresAtMs).toISOString(),
+          reportDateTime: new Date(probability.revision.reportTimeMs).toISOString(),
+          maxFiveDayProbability: probability.maxFiveDayProbability,
+          activePrefectureCount: probability.activePrefectureCount,
+          topPrefectures: probability.topPrefectures.map((item) => ({ ...item })),
+          worstArea: {
+            areaCode: probability.worstArea.areaCode,
+            areaName: probability.worstArea.areaName,
+            prefectureCode: probability.worstArea.prefectureCode,
+            prefectureName: probability.worstArea.prefectureName,
+            fiveDayProbability: probability.worstArea.fiveDayProbability,
+            peakAt: probability.worstArea.peakAtMs == null
+              ? null
+              : new Date(probability.worstArea.peakAtMs).toISOString(),
+          },
+        };
+        const typhoon: DisplayTyphoonV1 = analysis == null ? {
+          typhoonKey: eventId,
+          name: probability!.identity.name,
+          nameKana: probability!.identity.nameKana,
+          remark: probability!.identity.remark,
+          typhoonNumber: probability!.identity.typhoonNumber,
+          category: null,
+          intensityClass: null,
+          sizeClass: null,
+          location: null,
+          pressureHpa: null,
+          maxWindMs: null,
+          maxGustMs: null,
+          moveDirection: null,
+          moveSpeedKmh: null,
+          reportDateTime: new Date(probability!.revision.reportTimeMs).toISOString(),
+          probability: displayProbability!,
+        } : {
+          ...((): Omit<DisplayTyphoonV1, "probability"> => {
+            const { probability: _probability, ...analysisOnly } = analysis.typhoon;
+            return analysisOnly;
+          })(),
+          pressureHpaSemantic: projectTyphoonNumericSemantic(analysis.pressureHpaValue, "hPa"),
+          maxWindMsSemantic: projectTyphoonNumericSemantic(analysis.maxWindMsValue, "m/s"),
+          maxGustMsSemantic: projectTyphoonNumericSemantic(analysis.maxGustMsValue, "m/s"),
+          moveSpeedKmhSemantic: projectTyphoonNumericSemantic(analysis.moveSpeedKmhValue, "km/h"),
+          ...(displayProbability == null ? {} : { probability: displayProbability }),
+        };
+        return { eventId, analysis, probability, typhoon };
+      }).sort((left, right) =>
+        compareCodeUnitText(left.typhoon.typhoonNumber ?? "", right.typhoon.typhoonNumber ?? "")
+        || compareCodeUnitText(left.eventId, right.eventId));
+      const visibleTimes = states.flatMap(({ analysis, probability }) => [
+        ...(analysis == null ? [] : [{ updated: analysis.revision.reportTimeMs, expires: analysis.expiresAtMs, restored: analysis.restored, source: analysis.sourceEventId }]),
+        ...(probability == null ? [] : [{ updated: probability.revision.reportTimeMs, expires: probability.expiresAtMs, restored: probability.restored, source: probability.sourceEventId }]),
+      ]);
+      const sourceEventIds = [...new Set(visibleTimes.map((value) => value.source).filter((value) => value.trim() !== ""))]
+        .sort(compareCodeUnitText);
       items.push({
         kind: "typhoon", surface: "corner-right", key: "typhoon:active",
-        sourceEventIds: states.map((state) => state.sourceEventId),
-        updatedAt: new Date(Math.max(...states.map((state) => state.revision.reportTimeMs))).toISOString(),
-        expiresAt: new Date(Math.max(...states.map((state) => state.expiresAtMs))).toISOString(),
-        restored: states.some((state) => state.restored),
-        severity: typhoonStandbySeverity(states.map((state) => state.typhoon)),
-        data: { typhoons: states.map((state) => ({
-          ...state.typhoon,
-          pressureHpaSemantic: projectTyphoonNumericSemantic(state.pressureHpaValue, "hPa"),
-          maxWindMsSemantic: projectTyphoonNumericSemantic(state.maxWindMsValue, "m/s"),
-          maxGustMsSemantic: projectTyphoonNumericSemantic(state.maxGustMsValue, "m/s"),
-          moveSpeedKmhSemantic: projectTyphoonNumericSemantic(state.moveSpeedKmhValue, "km/h"),
-        })) },
+        sourceEventIds,
+        updatedAt: new Date(Math.max(...visibleTimes.map((value) => value.updated))).toISOString(),
+        expiresAt: new Date(Math.max(...visibleTimes.map((value) => value.expires))).toISOString(),
+        restored: visibleTimes.some((value) => value.restored),
+        severity: typhoonStandbySeverity(states.flatMap((state) => state.analysis == null ? [] : [state.typhoon])),
+        data: { typhoons: states.map((state) => state.typhoon) },
       });
     }
     const volcanoes = [...this.volcanoes.values()].filter((state) =>
@@ -2117,10 +2332,12 @@ export class StandbyStateStore {
         revision: { ...state.revision },
         appliedSemanticKey: state.appliedSemanticKey,
       })),
-      typhoons: [...this.typhoons].map(([key, state]) => ({
+      typhoons: [...this.typhoons].map(([key, state]) => {
+        const { probability: _probability, ...analysisOnly } = state.typhoon;
+        return ({
         key,
         sourceEventId: state.sourceEventId,
-        typhoon: { ...state.typhoon },
+        typhoon: { ...analysisOnly },
         pressureHpaValue: structuredClone(state.pressureHpaValue),
         maxWindMsValue: structuredClone(state.maxWindMsValue),
         maxGustMsValue: structuredClone(state.maxGustMsValue),
@@ -2130,7 +2347,25 @@ export class StandbyStateStore {
         ...(state.appliedSemanticKey == null
           ? {}
           : { appliedSemanticKey: state.appliedSemanticKey }),
-      })),
+      });
+      }),
+      ...(this.typhoonProbabilities.size === 0 ? {} : {
+        typhoonProbabilities: [...this.typhoonProbabilities]
+          .sort(([left], [right]) => compareCodeUnitText(left, right))
+          .map(([key, state]) => ({
+            key,
+            sourceEventId: state.sourceEventId,
+            identity: { ...state.identity },
+            baseTimeMs: state.baseTimeMs,
+            maxFiveDayProbability: state.maxFiveDayProbability,
+            activePrefectureCount: state.activePrefectureCount,
+            topPrefectures: state.topPrefectures.map((item) => ({ ...item })),
+            worstArea: { ...state.worstArea },
+            revision: { ...state.revision },
+            appliedSemanticKey: state.appliedSemanticKey,
+            expiresAtMs: state.expiresAtMs,
+          })),
+      }),
       volcanoes: [...this.volcanoes.values()].map((state) => ({
         code: state.code,
         name: state.name,
@@ -2193,6 +2428,7 @@ export class StandbyStateStore {
   restoreActiveState(data: PersistedStandbyState, nowMs: number): RestoreActiveStateResult {
     this.heatAlerts.clear();
     this.typhoons.clear();
+    this.typhoonProbabilities.clear();
     this.volcanoes.clear();
     this.managedVolcanoAlerts.clear();
     this.managedVolcanoEruptions.clear();
@@ -2224,6 +2460,7 @@ export class StandbyStateStore {
     }
     for (const state of data.typhoons ?? []) {
       if (state.expiresAtMs > nowMs) {
+        const { probability: _probability, ...analysisOnly } = state.typhoon;
         this.typhoons.set(state.typhoon.typhoonKey, {
           sourceEventId: state.sourceEventId,
           pressureHpaValue: structuredClone(state.pressureHpaValue
@@ -2235,7 +2472,7 @@ export class StandbyStateStore {
           moveSpeedKmhValue: structuredClone(state.moveSpeedKmhValue
             ?? typhoonNumericValueFromLegacyScalar(state.typhoon.moveSpeedKmh)),
           typhoon: {
-            ...state.typhoon,
+            ...analysisOnly,
             pressureDeltaHpa: state.typhoon.pressureDeltaHpa ?? null,
             maxGustMs: state.typhoon.maxGustMs ?? null,
             maxWindDeltaMs: state.typhoon.maxWindDeltaMs ?? null,
@@ -2246,6 +2483,22 @@ export class StandbyStateStore {
           expiresAtMs: state.expiresAtMs,
           restored: true,
         });
+      }
+    }
+    const probabilitySubjectCounts = new Map<string, number>();
+    for (const state of data.typhoonProbabilities ?? []) {
+      probabilitySubjectCounts.set(
+        state.key,
+        (probabilitySubjectCounts.get(state.key) ?? 0) + 1,
+      );
+    }
+    for (const state of data.typhoonProbabilities ?? []) {
+      const restored = copyTyphoonProbabilityState(state, true);
+      if (state.expiresAtMs > nowMs
+        && probabilitySubjectCounts.get(state.key) === 1
+        && this.typhoonProbabilities.size < 256
+        && isCanonicalTyphoonProbabilityState(restored)) {
+        this.typhoonProbabilities.set(state.key, restored);
       }
     }
     for (const state of data.volcanoes ?? []) {
@@ -2363,8 +2616,20 @@ export class StandbyStateStore {
   }
 
   private notify(mutation: DisplayMutation): void {
-    if (mutation.viewChanged) for (const cb of this.changeListeners) cb();
-    if (mutation.durableChanged) for (const cb of this.durableListeners) cb();
+    let changeFailures = 0;
+    if (mutation.viewChanged) for (const cb of this.changeListeners) {
+      try { cb(); } catch { changeFailures += 1; }
+    }
+    if (changeFailures > 0) {
+      log.warn(`[standby-state] observerFailure operation=onChange failures=${changeFailures}`);
+    }
+    let durableFailures = 0;
+    if (mutation.durableChanged) for (const cb of this.durableListeners) {
+      try { cb(); } catch { durableFailures += 1; }
+    }
+    if (durableFailures > 0) {
+      log.warn(`[standby-state] observerFailure operation=onDurable failures=${durableFailures}`);
+    }
   }
 }
 
@@ -2864,6 +3129,30 @@ function copyVolcanoEvent(
           plumeHeightAboveSeaLevelSemantic:
             copyDisplayPlumeHeightSemantic(event.plumeHeightAboveSeaLevelSemantic),
         }),
+  };
+}
+
+function compareCodeUnitText(left: string, right: string): number {
+  return left < right ? -1 : left > right ? 1 : 0;
+}
+
+function copyTyphoonProbabilityState(
+  state: TyphoonProbabilityState | PersistedTyphoonProbabilityStateV1,
+  restored: boolean,
+): TyphoonProbabilityState {
+  return {
+    eventId: "eventId" in state ? state.eventId : state.key,
+    sourceEventId: state.sourceEventId,
+    identity: { ...state.identity },
+    baseTimeMs: state.baseTimeMs,
+    maxFiveDayProbability: state.maxFiveDayProbability,
+    activePrefectureCount: state.activePrefectureCount,
+    topPrefectures: state.topPrefectures.map((item) => ({ ...item })),
+    worstArea: { ...state.worstArea },
+    revision: { ...state.revision },
+    appliedSemanticKey: state.appliedSemanticKey,
+    expiresAtMs: state.expiresAtMs,
+    restored,
   };
 }
 

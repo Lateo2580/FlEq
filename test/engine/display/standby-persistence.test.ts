@@ -2528,8 +2528,11 @@ describe("briefing critical persistence", () => {
     const invalid = semanticBriefingSlice();
     invalid.entries[0]!.entry.key = "not-canonical";
 
-    expect(() => persistence.save(state({ savedAt: "invalid", briefingCritical: invalid })))
-      .toThrow(BriefingCriticalPersistenceInvariantError);
+    const result = persistence.save(state({ savedAt: "invalid", briefingCritical: invalid }));
+    expect(result).toMatchObject({ kind: "failed", stage: "validation", pendingRetained: true });
+    if (result.kind === "failed") {
+      expect(result.cause).toBeInstanceOf(BriefingCriticalPersistenceInvariantError);
+    }
     expect(readFileSync(path, "utf8")).toBe(beforeV1);
     expect(readFileSync(standbyPersistenceV2Path(path), "utf8")).toBe(beforeV2);
   });
@@ -2664,6 +2667,20 @@ describe("StandbyPersistence の遅延保存", () => {
     expect(JSON.parse(readFileSync(path, "utf8")).savedAt).toBe("pending");
   });
 
+  it("stopTimer は debounce だけを止め、shutdown 用の pending を保持する", async () => {
+    vi.useFakeTimers();
+    const path = tempPath();
+    const persistence = new StandbyPersistence(path, 10_000);
+
+    persistence.schedule(state({ savedAt: "shutdown-pending" }));
+    persistence.stopTimer();
+    await vi.advanceTimersByTimeAsync(20_000);
+    expect(existsSync(path)).toBe(false);
+
+    persistence.flush();
+    expect(JSON.parse(readFileSync(path, "utf8")).savedAt).toBe("shutdown-pending");
+  });
+
   it("flush 後は予約が消え、残ったタイマーが発火しても書き直さない", async () => {
     const path = tempPath();
     const persistence = new StandbyPersistence(path, 10);
@@ -2694,6 +2711,32 @@ describe("StandbyPersistence の遅延保存", () => {
 describe("StandbyPersistence の書き込み順序", () => {
   const tmpFiles = (path: string): string[] =>
     readdirSync(dirname(path)).filter((name) => name.endsWith(".tmp"));
+
+  it("async debounce failure は typed lastFailure と pending を保持し、自動成功扱いにしない", async () => {
+    const path = tempPath();
+    const persistence = new StandbyPersistence(path, 10_000);
+    const write = vi.spyOn(fs.promises, "writeFile").mockRejectedValueOnce(new Error("disk-full"));
+    persistence.schedule(state({ savedAt: "pending-after-failure" }));
+    await persistence.__test_writePending();
+
+    expect(persistence.isUnhealthy()).toBe(true);
+    expect(persistence.lastFailure()).toMatchObject({
+      kind: "failed",
+      requestedSeq: 1,
+      failedSeq: 1,
+      stage: "writeV2Temp",
+      pendingRetained: true,
+      partialCommit: "none",
+      cause: expect.objectContaining({ message: "disk-full" }),
+    });
+    expect(existsSync(path)).toBe(false);
+
+    write.mockRestore();
+    await persistence.__test_writePending();
+    expect(JSON.parse(readFileSync(path, "utf8")).savedAt).toBe("pending-after-failure");
+    expect(persistence.lastFailure()).toBeNull();
+    expect(persistence.isUnhealthy()).toBe(false);
+  });
 
   it("追い越された書き込みは rename しない (同期保存が後勝ちされない)", async () => {
     const path = tempPath();
@@ -2752,8 +2795,9 @@ describe("StandbyPersistence の書き込み順序", () => {
     const asyncWrite = vi.spyOn(fs.promises, "writeFile");
     try {
       persistence.schedule(state({ savedAt: "old" }));
+      const inFlight = persistence.__test_writePending();
       persistence.save(state({ savedAt: "new" }));
-      await persistence.__test_writePending();
+      await inFlight;
 
       const syncTmp = syncWrite.mock.calls.map((call) => String(call[0]));
       const asyncTmp = asyncWrite.mock.calls.map((call) => String(call[0]));

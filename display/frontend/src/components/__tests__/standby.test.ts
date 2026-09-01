@@ -6,7 +6,7 @@ import { flushSync, tick } from "svelte";
 import StandbyScreen from "../StandbyScreen.svelte";
 import App from "../../App.svelte";
 import { baseSnapshot } from "../../lib/__tests__/fixtures";
-import type { ActiveStandbyCardV1, DisplayActiveEewV1, DisplayLatestQuakeStateV1, DisplayRecentQuakeV1, DisplayTsunamiStateV1, DisplayTyphoonV1, DisplayWeatherAlertV1 } from "../../lib/protocol";
+import type { ActiveStandbyCardV1, DisplayActiveEewV1, DisplayLatestQuakeStateV1, DisplayRecentQuakeV1, DisplayTsunamiStateV1, DisplayTyphoonProbabilityV1, DisplayTyphoonV1, DisplayWeatherAlertV1 } from "../../lib/protocol";
 import { collectWeatherExpandedKinds } from "../../lib/weather-expanded-kinds";
 import { SPRING_SPATIAL_DEFAULT_MS } from "../../lib/motion";
 import { TIME_SLICE_PERIOD_MS } from "../../lib/legacy-standby/time-slice-scheduler.svelte";
@@ -58,8 +58,18 @@ function flood(surface: "corner-right" | "clock-top-wide" = "corner-right"): Ext
     data: { rivers: [{ riverKey: "river", riverName: "一級河川", level: "L4", levelRank: 40, kindName: "氾濫危険情報", reportDateTime: "2026-08-20T12:00:00+09:00" }] },
   };
 }
-function typhoon(): Extract<ActiveStandbyCardV1, { kind: "typhoon" }> {
-  const storm: DisplayTyphoonV1 = { typhoonKey: "TC-1", name: "Alpha", nameKana: "ALPHA", remark: null, typhoonNumber: "2605", category: "TS", location: "ocean", pressureHpa: 990, maxWindMs: 25, maxGustMs: 35, moveDirection: "N", moveSpeedKmh: 20, reportDateTime: "2026-08-20T12:00:00+09:00" };
+function probability(over: Partial<DisplayTyphoonProbabilityV1> = {}): DisplayTyphoonProbabilityV1 {
+  return {
+    baseTime: "2026-08-20T00:00:00+09:00", forecastEndsAt: "2026-08-25T00:00:00+09:00",
+    reportDateTime: "2026-08-20T12:00:00+09:00", maxFiveDayProbability: 50,
+    activePrefectureCount: 1,
+    topPrefectures: [{ prefectureCode: "45", prefectureName: "宮崎県", fiveDayProbability: 50 }],
+    worstArea: { areaCode: "4500", areaName: "南部平野部", prefectureCode: "45", prefectureName: "宮崎県", fiveDayProbability: 50, peakAt: "2026-08-21T03:00:00+09:00" },
+    ...over,
+  };
+}
+function typhoon(over: Partial<DisplayTyphoonV1> = {}): Extract<ActiveStandbyCardV1, { kind: "typhoon" }> {
+  const storm: DisplayTyphoonV1 = { typhoonKey: "TC-1", name: "Alpha", nameKana: "ALPHA", remark: null, typhoonNumber: "2605", category: "TS", location: "ocean", pressureHpa: 990, maxWindMs: 25, maxGustMs: 35, moveDirection: "N", moveSpeedKmh: 20, reportDateTime: "2026-08-20T12:00:00+09:00", ...over };
   return { kind: "typhoon", surface: "corner-right", key: "typhoon:1", sourceEventIds: ["typhoon:1"], updatedAt: "2026-08-20T12:00:00+09:00", expiresAt: null, restored: false, severity: "normal", data: { typhoons: [storm] } };
 }
 function volcano(): Extract<ActiveStandbyCardV1, { kind: "volcano" }> {
@@ -108,6 +118,46 @@ function cardMeasurementOverride(heights: Readonly<Record<string, number>>, layo
 }
 
 describe("StandbyScreen legacy-improved skeleton", () => {
+  it("adds probability presence to typhoon score and every rendered field to the measurement tuple", () => {
+    const source = readFileSync(join(__dirname, "..", "StandbyScreen.svelte"), "utf8");
+    expect(source).toMatch(/typhoons\.filter\(\(typhoon\) => typhoon\.probability != null\)\.length \* 2/);
+    const tupleStart = source.indexOf("function typhoonMeasurementTuple(");
+    const tupleEnd = source.indexOf("$effect.pre", tupleStart);
+    const tuple = source.slice(tupleStart, tupleEnd);
+    for (const field of [
+      "baseTime", "forecastEndsAt", "reportDateTime", "maxFiveDayProbability",
+      "activePrefectureCount", "prefectureCode", "prefectureName", "fiveDayProbability",
+      "areaCode", "areaName", "peakAt", "item.restored",
+    ]) expect(tuple, field).toContain(field);
+    expect(tuple).toContain('probabilityTuple("full")');
+    expect(tuple).toContain('probabilityTuple("compact")');
+    expect(tuple).toContain("slice(0, displayMode === \"compact\" ? 3 : 5)");
+  });
+
+  it("remeasures on probability content changes but reuses a value-identical object", async () => {
+    const first = typhoon({ probability: probability() });
+    const props = {
+      snapshot: baseSnapshot({ standbyItems: [first] }), now, dim: false, sseConnected: true,
+      testMeasurementOverride: { layoutWidthPx: 1280, layoutHeightPx: 1_000 },
+    };
+    const view = render(StandbyScreen, props);
+    for (let pass = 0; pass < 8; pass += 1) await tick();
+    const epoch = () => Number(view.container.querySelector<HTMLElement>(".standby")?.dataset.measurementEpoch);
+    const beforeClone = epoch();
+
+    await view.rerender({ ...props, snapshot: structuredClone(props.snapshot) });
+    for (let pass = 0; pass < 4; pass += 1) await tick();
+    expect(epoch()).toBe(beforeClone);
+
+    const changed = typhoon({ probability: probability({ maxFiveDayProbability: 51 }) });
+    await view.rerender({
+      ...props,
+      snapshot: baseSnapshot({ standbyItems: [changed] }),
+    });
+    for (let pass = 0; pass < 8; pass += 1) await tick();
+    expect(epoch()).toBeGreaterThan(beforeClone);
+  });
+
   it("renders a tornado measurement entry in the shared weather shell", () => {
     const source = readFileSync(join(__dirname, "..", "StandbyScreen.svelte"), "utf8");
     const dispatchStart = source.indexOf("{#snippet renderPrefixProbe(entry: PrefixMeasureEntry)}");

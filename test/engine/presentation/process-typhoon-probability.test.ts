@@ -30,7 +30,7 @@ describe("processTyphoonProbability", () => {
     expect(out!.presentation.suppressNotify).toBeFalsy();
   });
 
-  it("JANGMI_GONE 連続2回目: suppressNotify=true", () => {
+  it("直接呼出しは holder を変更せず、連続ゼロでも baseline のまま", () => {
     const state = new TyphoonProbabilityStateHolder();
     processTyphoonProbability(
       createMockWsDataMessage(FIXTURE_VPTA50_JANGMI_GONE),
@@ -40,7 +40,7 @@ describe("processTyphoonProbability", () => {
       createMockWsDataMessage(FIXTURE_VPTA50_JANGMI_GONE),
       { typhoonProbabilityState: state },
     );
-    expect(out2!.presentation.suppressNotify).toBe(true);
+    expect(out2!.presentation.suppressNotify).toBe(false);
     expect(out2!.presentation.soundLevel).toBe("info");
   });
 

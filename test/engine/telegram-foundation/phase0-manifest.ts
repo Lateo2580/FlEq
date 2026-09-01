@@ -1106,20 +1106,20 @@ export const CANCELLATION_MUTATION_EVIDENCE = [
     behavior: "取消・terminal lifecycle で台風キーを削除",
     sources: [{
       sourceFile: "src/engine/display/standby-state-store.ts",
-      needles: ["if (update.isCancellation) {", "this.typhoons.delete(update.typhoonKey)"],
+      needles: ["if (update.isCancellation) {", "this.typhoons.delete(typhoonKey)"],
     }],
   },
   {
     domain: "typhoonProbability", family: "typhoonProbability", owner: "TyphoonProbabilityStateHolder",
-    behavior: "EventID の確率 cache を rollback",
+    behavior: "accepted finalized classification だけで通知用ゼロ履歴を更新・取消",
     sources: [
       {
-        sourceFile: "src/engine/presentation/processors/process-typhoon-probability.ts",
-        needles: ['info.infoType === "取消"', "deps.typhoonProbabilityState.rollback"],
+        sourceFile: "src/engine/presentation/processors/process-message.ts",
+        needles: ["deps.typhoonProbabilityState.applyAcceptedClassification(eventId, finalized)"],
       },
       {
         sourceFile: "src/engine/messages/typhoon-probability-state.ts",
-        needles: ["rollback(eventId: string)", "this.last.delete(eventId);"],
+        needles: ['case "cancel":', "this.last.delete(eventId);"],
       },
     ],
   },

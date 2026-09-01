@@ -10,6 +10,11 @@ import {
   type TelegramRevisionComparator,
 } from "../../dmdata/telegram-meta";
 import * as log from "../../logger";
+import type { StandbyRevision } from "../display/standby-registry";
+import {
+  TYPHOON_PROBABILITY_MAX_SUBJECTS,
+  validateTyphoonProbabilityEventId,
+} from "../display/project-typhoon-probability";
 
 export type CancellationPolicy =
   | "restorePrevious"
@@ -97,6 +102,84 @@ interface AcceptedRevisionState {
   legacyRevisionKeyProvenance: "eventId" | "codeFallback" | null;
 }
 
+export interface AcceptedTyphoonProbabilityBinding {
+  revision: StandbyRevision;
+  appliedSemanticKey: string;
+}
+
+export interface VptaAcceptedCommit {
+  stateSubjectKey: string;
+  revisionFamily: "VPTA50";
+  decision: TelegramRevisionDecision & { accepted: true };
+  comparison: TelegramRevisionComparisonInput;
+  semanticKeys: readonly string[];
+  cancelled: boolean;
+  acceptedAtMs: number;
+  tombstoneRetentionMs: 604_800_000;
+  binding: AcceptedTyphoonProbabilityBinding;
+}
+
+export type VptaGateResult =
+  | { kind: "accepted"; commit: VptaAcceptedCommit }
+  | {
+      kind: "suppressed";
+      decision: TelegramRevisionDecision & { accepted: false };
+      durableChanged: boolean;
+    };
+
+export type VptaCapacityClass = "P+G" | "GT" | "GA";
+
+export interface VptaCapacityBundle {
+  stateSubjectKey: string;
+  acceptedAtMs: number;
+  class: VptaCapacityClass;
+  incoming?: boolean;
+}
+
+export type VptaCapacitySelection =
+  | { kind: "selected"; retained: readonly VptaCapacityBundle[]; discarded: readonly VptaCapacityBundle[] }
+  | { kind: "protectedOverflow" };
+
+/** Opaque, single-use plan issued immediately before the atomic gate evaluation. */
+export interface VptaCapacityPlan {
+  readonly stateSubjectKey: string;
+  readonly candidateKind: "active" | "deactivateAllZero" | "cancel" | "expired" | "nonProjectable";
+  readonly maxSubjects: number;
+  readonly selection: VptaCapacitySelection;
+}
+
+function compareCodeUnit(left: string, right: string): number {
+  return left < right ? -1 : left > right ? 1 : 0;
+}
+
+/** Live gate と persistence reader が共有する deterministic capacity selector。 */
+export function selectVptaCapacityBundles(
+  bundles: readonly VptaCapacityBundle[],
+  maxSubjects = 256,
+): VptaCapacitySelection {
+  if (!Number.isSafeInteger(maxSubjects) || maxSubjects <= 0) {
+    throw new Error("invalid VPTA capacity");
+  }
+  const protectedBundles = bundles.filter((bundle) => bundle.class !== "GA");
+  if (protectedBundles.length > maxSubjects) return { kind: "protectedOverflow" };
+  const ga = bundles.filter((bundle) => bundle.class === "GA")
+    .sort((left, right) => left.acceptedAtMs - right.acceptedAtMs
+      || compareCodeUnit(left.stateSubjectKey, right.stateSubjectKey));
+  const discardCount = Math.max(0, bundles.length - maxSubjects);
+  const discardedSet = new Set(ga.slice(0, discardCount));
+  return {
+    kind: "selected",
+    retained: bundles.filter((bundle) => !discardedSet.has(bundle)),
+    discarded: bundles.filter((bundle) => discardedSet.has(bundle)),
+  };
+}
+
+function deepFreeze<T>(value: T): T {
+  if (typeof value !== "object" || value == null || Object.isFrozen(value)) return value;
+  for (const child of Object.values(value as Record<string, unknown>)) deepFreeze(child);
+  return Object.freeze(value);
+}
+
 export interface PersistedTelegramRevisionGateEntryV2 {
   domain: string;
   revisionFamily: string;
@@ -111,7 +194,7 @@ export interface PersistedTelegramRevisionGateEntryV2 {
 }
 
 const REVISION_GATE_RETENTION_MS = 11 * 60_000;
-const DEFAULT_DURABLE_TOMBSTONE_RETENTION_MS = 7 * 24 * 60 * 60_000;
+const DEFAULT_DURABLE_TOMBSTONE_RETENTION_MS = 604_800_000 as const;
 export const TELEGRAM_REVISION_MAX_ENTRIES = 16_384;
 export const TELEGRAM_REVISION_MAX_SEMANTIC_KEYS = 32;
 
@@ -232,6 +315,24 @@ export function compactPersistedSemanticKeys(keys: readonly string[]): string[] 
   return newestFirst.reverse();
 }
 
+/**
+ * VPTA50 の semantic key は admission で既に bounded canonical value へ確定している。
+ * Persistence restore では hash や sort で別の key に救済せず、duplicate の newest
+ * occurrence だけを残して受理順を維持する。
+ */
+export function normalizeVptaPersistedSemanticKeys(keys: readonly string[]): string[] {
+  const seen = new Set<string>();
+  const newestFirst: string[] = [];
+  for (let index = keys.length - 1; index >= 0; index -= 1) {
+    const key = keys[index]!;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    newestFirst.push(key);
+    if (newestFirst.length >= TELEGRAM_REVISION_MAX_SEMANTIC_KEYS) break;
+  }
+  return newestFirst.reverse();
+}
+
 export function telegramRevisionSemanticKey(
   input: Pick<TelegramRevisionGateInput, "meta" | "payloadFingerprint">,
 ): string {
@@ -283,6 +384,14 @@ function compareWithSerialPolicy(
 export class TelegramRevisionGate {
   private readonly states = new Map<string, AcceptedRevisionState>();
   private readonly warnedFamilyCapacity = new Map<string, number>();
+  private readonly vptaCapacityPlanReceipts = new WeakMap<
+    VptaCapacityPlan,
+    {
+      input: TelegramRevisionGateInput;
+      candidateKind: VptaCapacityPlan["candidateKind"];
+      stateSignature: string;
+    }
+  >();
   private readonly transientStates = new Map<
     string,
     {
@@ -310,6 +419,214 @@ export class TelegramRevisionGate {
   /** Revision decision を確定し、watermark / tombstone を更新する。 */
   decide(input: TelegramRevisionGateInput): TelegramRevisionDecision {
     return this.decideInternal(input, true);
+  }
+
+  private buildTyphoonProbabilityCapacityData(
+    input: TelegramRevisionGateInput,
+    candidateKind: VptaCapacityPlan["candidateKind"],
+  ): {
+    subject: string;
+    maxSubjects: number;
+    bundles: VptaCapacityBundle[];
+    selection: VptaCapacitySelection;
+    stateSignature: string;
+  } {
+    const subjectPrefix = "typhoonProbability:";
+    const subject = input.stateSubjectKey;
+    const eventId = subject?.startsWith(subjectPrefix) === true
+      ? subject.slice(subjectPrefix.length)
+      : "";
+    if (input.domain !== "typhoonProbability"
+      || input.revisionFamily !== "VPTA50"
+      || subject == null
+      || validateTyphoonProbabilityEventId(eventId) !== eventId) {
+      throw new Error("invalid VPTA capacity input");
+    }
+    const maxSubjects = input.maxSubjects ?? TYPHOON_PROBABILITY_MAX_SUBJECTS;
+    if (maxSubjects !== TYPHOON_PROBABILITY_MAX_SUBJECTS) {
+      throw new Error("invalid VPTA capacity input");
+    }
+    const cancelled = candidateKind === "cancel" || candidateKind === "deactivateAllZero";
+    const incomingClass: VptaCapacityClass = candidateKind === "active"
+      ? "P+G"
+      : cancelled ? "GT" : "GA";
+    const prefix = `${input.domain}:${input.revisionFamily}:`;
+    const activeSubjects = new Set(input.activeFamilySubjects ?? []);
+    const bundles: VptaCapacityBundle[] = [...this.states]
+      .filter(([stateKey]) => stateKey.startsWith(prefix) && stateKey !== `${prefix}${subject}`)
+      .map(([stateKey, state]) => {
+        const stateSubjectKey = stateKey.slice(prefix.length);
+        return {
+          stateSubjectKey,
+          acceptedAtMs: state.acceptedAtMs,
+          class: state.cancelled ? "GT" : activeSubjects.has(stateSubjectKey) ? "P+G" : "GA",
+        };
+      });
+    bundles.push({
+      stateSubjectKey: subject,
+      acceptedAtMs: input.meta.receivedAtMs,
+      class: incomingClass,
+      incoming: true,
+    });
+    const selection = selectVptaCapacityBundles(bundles, maxSubjects);
+    const stateSignature = JSON.stringify([...bundles]
+      .sort((left, right) => compareCodeUnit(left.stateSubjectKey, right.stateSubjectKey))
+      .map((bundle) => [
+        bundle.stateSubjectKey,
+        bundle.acceptedAtMs,
+        bundle.class,
+        bundle.incoming === true,
+      ]));
+    return { subject, maxSubjects, bundles, selection, stateSignature };
+  }
+
+  /** §5.3 step 11: mutation-free capacity planning with a single-use gate receipt. */
+  planTyphoonProbabilityCapacity(
+    input: TelegramRevisionGateInput,
+    candidateKind: VptaCapacityPlan["candidateKind"],
+  ): VptaCapacityPlan {
+    const data = this.buildTyphoonProbabilityCapacityData(input, candidateKind);
+    const plan = deepFreeze<VptaCapacityPlan>({
+      stateSubjectKey: data.subject,
+      candidateKind,
+      maxSubjects: data.maxSubjects,
+      selection: data.selection,
+    });
+    this.vptaCapacityPlanReceipts.set(plan, {
+      input,
+      candidateKind,
+      stateSignature: data.stateSignature,
+    });
+    return plan;
+  }
+
+  /**
+   * VPTA50 専用の single-commit operation。commit record を完全に構成して
+   * freeze できた場合だけ canonical map を置換する。
+   */
+  decideTyphoonProbability(
+    input: TelegramRevisionGateInput,
+    candidateKind: VptaCapacityPlan["candidateKind"],
+    suppliedCapacityPlan?: VptaCapacityPlan,
+  ): VptaGateResult {
+    const subjectPrefix = "typhoonProbability:";
+    const subject = input.stateSubjectKey;
+    const eventId = subject?.startsWith(subjectPrefix) === true
+      ? subject.slice(subjectPrefix.length)
+      : "";
+    if (
+      input.domain !== "typhoonProbability"
+      || input.revisionFamily !== "VPTA50"
+      || subject == null
+      || validateTyphoonProbabilityEventId(eventId) !== eventId
+      || input.durable !== true
+      || input.tombstoneRetentionMs !== DEFAULT_DURABLE_TOMBSTONE_RETENTION_MS
+    ) {
+      return {
+        kind: "suppressed",
+        decision: reject("invalidMeta", null) as TelegramRevisionDecision & { accepted: false },
+        durableChanged: false,
+      };
+    }
+    const decision = this.evaluate(input);
+    if (!decision.accepted) {
+      return {
+        kind: "suppressed",
+        decision: decision as TelegramRevisionDecision & { accepted: false },
+        durableChanged: false,
+      };
+    }
+    const key = `${input.domain}:${input.revisionFamily}:${subject}`;
+    const current = this.states.get(key);
+    const rawRevision = telegramRevision(input.meta);
+    const comparison: TelegramRevisionComparisonInput = {
+      revision: {
+        ...rawRevision,
+        eventId: { raw: eventId, value: eventId, valid: true },
+        type: { raw: "VPTA50", value: "VPTA50", valid: true },
+      },
+      stateSubjectKey: subject,
+    };
+    const semanticKey = telegramRevisionSemanticKey(input);
+    const semanticKeys = decision.relation === "equal" && current != null
+      ? normalizeVptaPersistedSemanticKeys([...current.semanticKeys, semanticKey])
+      : [semanticKey];
+    if (semanticKeys.length === 0 || semanticKeys.at(-1) !== semanticKey) {
+      throw new Error("VPTA semantic-key commit invariant failed");
+    }
+    const cancelled = candidateKind === "cancel" || candidateKind === "deactivateAllZero";
+    const prefix = `${input.domain}:${input.revisionFamily}:`;
+    const capacityPlan = suppliedCapacityPlan
+      ?? this.planTyphoonProbabilityCapacity(input, candidateKind);
+    const receipt = this.vptaCapacityPlanReceipts.get(capacityPlan);
+    const currentCapacityData = this.buildTyphoonProbabilityCapacityData(input, candidateKind);
+    if (receipt == null
+      || receipt.input !== input
+      || receipt.candidateKind !== candidateKind
+      || receipt.stateSignature !== currentCapacityData.stateSignature
+      || capacityPlan.stateSubjectKey !== subject
+      || capacityPlan.candidateKind !== candidateKind
+      || capacityPlan.maxSubjects !== currentCapacityData.maxSubjects) {
+      throw new Error("stale or foreign VPTA capacity plan");
+    }
+    this.vptaCapacityPlanReceipts.delete(capacityPlan);
+    const capacity = capacityPlan.selection;
+    if (capacity.kind === "protectedOverflow"
+      || capacity.discarded.some((bundle) => bundle.incoming === true)) {
+      return {
+        kind: "suppressed",
+        decision: reject("capacityExceeded", null) as TelegramRevisionDecision & { accepted: false },
+        durableChanged: false,
+      };
+    }
+    const acceptedDecision = deepFreeze(structuredClone(decision)) as TelegramRevisionDecision & { accepted: true };
+    const frozenComparison = deepFreeze(structuredClone(comparison));
+    const frozenSemanticKeys = deepFreeze([...semanticKeys]);
+    const reportTimeMs = frozenComparison.revision.reportDateTime.epochMs;
+    if (reportTimeMs == null || !Number.isSafeInteger(reportTimeMs)) {
+      throw new Error("VPTA report-time commit invariant failed");
+    }
+    const binding = deepFreeze<AcceptedTyphoonProbabilityBinding>({
+      revision: {
+        reportTimeMs,
+        serial: frozenComparison.revision.serial.valid
+          ? frozenComparison.revision.serial.raw
+          : null,
+      },
+      appliedSemanticKey: frozenSemanticKeys.at(-1)!,
+    });
+    const canonicalState = deepFreeze<AcceptedRevisionState>({
+      comparison: frozenComparison,
+      semanticKeys: new Set(frozenSemanticKeys),
+      cancelled,
+      acceptedAtMs: input.meta.receivedAtMs,
+      durable: true,
+      tombstoneRetentionMs: DEFAULT_DURABLE_TOMBSTONE_RETENTION_MS,
+      retainForFamilyCapacity: false,
+      legacyRevisionKey: input.legacyRevisionKey ?? eventId,
+      legacyRevisionKeyProvenance: input.legacyRevisionKeyProvenance ?? "eventId",
+    });
+    const commit = deepFreeze<VptaAcceptedCommit>({
+      stateSubjectKey: subject,
+      revisionFamily: "VPTA50",
+      decision: acceptedDecision,
+      comparison: canonicalState.comparison,
+      semanticKeys: frozenSemanticKeys,
+      cancelled: canonicalState.cancelled,
+      acceptedAtMs: canonicalState.acceptedAtMs,
+      tombstoneRetentionMs: canonicalState.tombstoneRetentionMs as 604_800_000,
+      binding,
+    });
+
+    // No mutation precedes this point. From here the capacity plan and incoming
+    // canonical entry are applied synchronously as one operation.
+    for (const victim of capacity.discarded) {
+      this.states.delete(`${prefix}${victim.stateSubjectKey}`);
+    }
+    this.states.delete(key);
+    this.states.set(key, canonicalState);
+    this.rearmCapacityWarning(input.domain, input.revisionFamily);
+    return { kind: "accepted", commit };
   }
 
   private decideInternal(
@@ -419,13 +736,22 @@ export class TelegramRevisionGate {
 
     const key = `${input.domain}:${input.revisionFamily}:${input.stateSubjectKey}`;
     const rawRevision = telegramRevision(input.meta);
+    const vptaEventId = input.domain === "typhoonProbability"
+      && input.revisionFamily === "VPTA50"
+      && input.stateSubjectKey.startsWith("typhoonProbability:")
+      ? input.stateSubjectKey.slice("typhoonProbability:".length)
+      : null;
     const incomingComparison: TelegramRevisionComparisonInput = {
       // comparator の identity 欄を registry identity へ束縛する。EventID を identity に
       // 含める family は subject extractor 側で組み込むため、EventID 欠落を一律拒否しない。
       revision: {
         ...rawRevision,
         serial: rawRevision.serial,
-        eventId: { raw: input.stateSubjectKey, value: input.stateSubjectKey, valid: true },
+        eventId: {
+          raw: vptaEventId ?? input.stateSubjectKey,
+          value: vptaEventId ?? input.stateSubjectKey,
+          valid: true,
+        },
         type: { raw: input.revisionFamily, value: input.revisionFamily, valid: true },
       },
       stateSubjectKey: input.stateSubjectKey,
@@ -848,7 +1174,7 @@ export class TelegramRevisionGate {
       }
       const oldestEvictable = familyEntries()
         .filter(([key, state]) => this.isFamilyEvictable(key, state, activeFamilySubjects))
-        .sort(([, a], [, b]) => a.acceptedAtMs - b.acceptedAtMs)[0]?.[0];
+        .sort(([, left], [, right]) => left.acceptedAtMs - right.acceptedAtMs)[0]?.[0];
       if (oldestEvictable == null) {
         throw new Error(
           `telegram revision family capacity invariant violated: ${domain}:${revisionFamily}`,
@@ -1052,7 +1378,11 @@ export class TelegramRevisionGate {
       }
       this.states.set(key, {
         comparison: structuredClone(entry.comparison),
-        semanticKeys: new Set(compactPersistedSemanticKeys(entry.semanticKeys)),
+        semanticKeys: new Set(
+          entry.domain === "typhoonProbability" && entry.revisionFamily === "VPTA50"
+            ? normalizeVptaPersistedSemanticKeys(entry.semanticKeys)
+            : compactPersistedSemanticKeys(entry.semanticKeys),
+        ),
         cancelled: entry.cancelled,
         acceptedAtMs: entry.acceptedAtMs,
         durable: true,

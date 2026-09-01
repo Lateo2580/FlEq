@@ -199,7 +199,6 @@ describe("standby monitor wiring", () => {
   it("shutdown は standby sweep を止めて最終 flush する", async () => {
     const order: string[] = [];
     const stopStandbySweep = vi.fn(() => { order.push("standby"); });
-    const exit = vi.spyOn(process, "exit").mockImplementation((() => undefined) as never);
     const shutdown = createShutdownHandler({
       apiKey: "test",
       manager: { getStatus: () => ({ socketId: null }), close: vi.fn() } as never,
@@ -209,10 +208,10 @@ describe("standby monitor wiring", () => {
       stopDisplayRuntime: vi.fn(async () => { order.push("display"); }),
       stopStandbySweep,
     });
-    await shutdown();
+    const result = await shutdown();
     expect(stopStandbySweep).toHaveBeenCalledTimes(1);
     expect(order).toEqual(["display", "standby"]);
-    expect(exit).toHaveBeenCalledWith(0);
+    expect(result).toEqual({ kind: "completed", exitCode: 0 });
   });
 
   it("startMonitor の実 restore→post-expiry coupling→sweep は両fileを一度だけrewriteし、変更なしは0回", async () => {
@@ -245,7 +244,7 @@ describe("standby monitor wiring", () => {
     const schedule = vi.spyOn(StandbyPersistence.prototype, "schedule")
       .mockImplementation(function (this: StandbyPersistence, value) {
         scheduledPersistence = this;
-        originalSchedule.call(this, value);
+        return originalSchedule.call(this, value);
       });
     const registerShutdownSignals = vi.spyOn(shutdownModule, "registerShutdownSignals")
       .mockImplementation(() => undefined);

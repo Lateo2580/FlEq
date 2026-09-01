@@ -10,7 +10,12 @@ import type { Vpwp50DetailCache } from "../../messages/vpwp50-detail-cache";
 import type { TornadoDetailProvider } from "../../messages/tornado-detail-provider";
 import type { TyphoonProbabilityStateHolder } from "../../messages/typhoon-probability-state";
 import type { FloodForecastStateHolder } from "../../messages/flood-forecast-state";
-import type { TelegramRevisionGate, TelegramRevisionDecision } from "../../messages/telegram-revision-gate";
+import {
+  semanticPayloadFingerprint,
+  type TelegramRevisionGate,
+  type TelegramRevisionDecision,
+  type TelegramRevisionGateInput,
+} from "../../messages/telegram-revision-gate";
 import type { StatsCategory } from "../../messages/telegram-stats";
 import { routeToCategory } from "../../messages/telegram-stats";
 import type { Route, LinearRoute } from "../../messages/route-catalog";
@@ -31,7 +36,10 @@ import { processClimateInfo } from "./process-climate-info";
 import { processWeatherExplanation } from "./process-weather-explanation";
 import { processHeatAlert } from "./process-heat-alert";
 import { processTyphoonAnalysis } from "./process-typhoon-analysis";
-import { processTyphoonProbability } from "./process-typhoon-probability";
+import {
+  createTyphoonProbabilityOutcomeBaseline,
+  prepareTyphoonProbability,
+} from "./process-typhoon-probability";
 import { processFloodForecast } from "./process-flood-forecast";
 import { processLegacyCounterpart } from "./process-legacy-counterpart";
 import { processRaw } from "./process-raw";
@@ -59,6 +67,28 @@ import type { ProcessOutcomeBase } from "../types";
 import { nankaiBadgeAction } from "../../display/nankai-status";
 import { gateRawOutcome, gateTransientOutcome } from "./process-transient-foundation";
 import { weatherOfficeWatermarkKey } from "../../messages/weather-stream-key";
+import {
+  canonicalizeVptaInfoType,
+  finalizeTyphoonProbabilityClassification,
+  normalizeVpta50Serial,
+  projectTyphoonProbability,
+  TYPHOON_PROBABILITY_MAX_EVENT_ID_LENGTH,
+  TYPHOON_PROBABILITY_RETENTION_MS,
+  validateTyphoonProbabilityEventId,
+  validateVptaClassificationClock,
+} from "../../display/project-typhoon-probability";
+import type {
+  VptaAdmissionCompletion,
+  VptaAdmissionCompletionAdapter,
+  VptaDisplayIngestCommand,
+  VptaDurableChangeFlags,
+  VptaFailureStage,
+} from "../../display/types";
+import {
+  assertVptaAdmissionCompletion,
+  requireVptaRouterOwnerToken,
+} from "../../display/types";
+import * as log from "../../../logger";
 
 /** processMessage に必要な依存群 */
 export interface ProcessDeps {
@@ -81,8 +111,55 @@ export interface ProcessDeps {
   onTsunamiRevisionDecision?: (decision: TelegramRevisionDecision) => void;
   onFloodRevisionDecision?: (decision: TelegramRevisionDecision) => void;
   onStandbyRevisionDecision?: (decision: TelegramRevisionDecision) => void;
+  /** VPTA observer is deliberately persistence-free; completion owns persistence. */
+  onVptaStandbyRevisionDecision?: (decision: TelegramRevisionDecision) => void;
+  /** Router-owned sticky poison guard, checked immediately after external callbacks. */
+  assertRouterSerializerHealthy?: () => void;
+  onVptaAdmissionCompletion?: VptaAdmissionCompletionAdapter;
+  activeTyphoonProbabilitySubjects?: (nowMs: number) => readonly string[];
+  maintainTyphoonProbabilitySubjects?: (
+    nowMs: number,
+    activeGateSubjects: readonly string[],
+  ) => { viewChanged: boolean; durableChanged: boolean };
+  reconcileTyphoonProbabilitySubject?: (
+    eventId: string,
+  ) => { viewChanged: boolean; durableChanged: boolean };
   getDeliveryCapabilities?: () => DeliveryCapabilities;
   onVxse44Suppressed?: (reason: Vxse44SuppressionReason) => void;
+}
+
+interface VptaAcceptedInternal {
+  transient?: never;
+  vptaDisplayCommand: VptaDisplayIngestCommand;
+  completion: Extract<VptaAdmissionCompletion, { kind: "accepted" }>;
+}
+
+interface VptaTransientInternal {
+  transient: true;
+  vptaDisplayCommand?: never;
+  completion?: never;
+}
+
+type VptaInternal = VptaAcceptedInternal | VptaTransientInternal;
+
+const vptaInternalCommands = new WeakMap<ProcessOutcome, VptaInternal>();
+
+export interface ProcessMessageInternalResult {
+  outcome: ProcessOutcome;
+  internal?: VptaInternal;
+}
+
+function vptaDurableChanged(changes: VptaDurableChangeFlags): boolean {
+  return changes.gateExpiry || changes.projectionCleanup
+    || changes.incomingGate || changes.projectionOrRetention;
+}
+
+function completeVptaAdmission(
+  deps: ProcessDeps,
+  completion: VptaAdmissionCompletion,
+): void {
+  assertVptaAdmissionCompletion(completion);
+  deps.onVptaAdmissionCompletion?.(completion);
 }
 
 /**
@@ -211,28 +288,232 @@ const PROCESSOR_TABLE = {
     return outcome == null ? processRaw(msg, cat) : gateStandbyOutcome(outcome, TYPHOON_ANALYSIS_REVISION_FAMILY_POLICY, deps);
   },
   typhoonProbability: (msg, deps, cat) => {
-    const outcome = processTyphoonProbability(msg);
-    if (outcome == null) return processRaw(msg, cat);
-    const gated = gateStandbyOutcome(outcome, TYPHOON_PROBABILITY_REVISION_FAMILY_POLICY, deps);
-    if (gated?.presentation.standbyStateMutationAccepted === true) {
-      if (outcome.parsed.infoType === "取消") deps.typhoonProbabilityState.rollback(outcome.parsed.eventId ?? "");
-      else {
-        const diff = deps.typhoonProbabilityState.diffAndUpdate(
-          outcome.parsed.eventId ?? "",
-          outcome.presentation.typhoonProbabilityMaxDaily5 ?? 0,
-          outcome.parsed.reportDateTime,
+    const parsed = prepareTyphoonProbability(msg);
+    if (parsed == null) return processRaw(msg, cat);
+    const eventId = validateTyphoonProbabilityEventId(parsed.eventId);
+    if (eventId == null) {
+      const eventIdLength = parsed.eventId?.trim().length ?? 0;
+      if (eventIdLength > TYPHOON_PROBABILITY_MAX_EVENT_ID_LENGTH) {
+        // EventID 本文は adversarial input になり得るため、bounded な triage 情報だけを残す。
+        log.warn(
+          `[vpta50-admission] headType=VPTA50 length=${eventIdLength} reason=eventIdTooLong`,
         );
-        if (diff.isUnchangedZero && !diff.shouldRecap) {
-          outcome.presentation.soundLevel = "info";
-          outcome.presentation.suppressNotify = true;
+      }
+      const canonicalInfoType = canonicalizeVptaInfoType(parsed.meta, parsed.infoType);
+      if (canonicalInfoType.kind === "invalid") {
+        throw new Error(`VPTA50 ${canonicalInfoType.reason}`);
+      }
+      const transient = createTyphoonProbabilityOutcomeBaseline(msg, parsed, canonicalInfoType.value);
+      vptaInternalCommands.set(transient, { transient: true });
+      return transient;
+    }
+    const classificationNowMs = parsed.meta.receivedAtMs;
+    const changes: VptaDurableChangeFlags = {
+      gateExpiry: false,
+      projectionCleanup: false,
+      incomingGate: false,
+      projectionOrRetention: false,
+    };
+    let stage: VptaFailureStage = "classificationClock";
+    let committed = false;
+    let completionEmitted = false;
+    try {
+      if (!validateVptaClassificationClock(classificationNowMs)) {
+        throw new Error("VPTA50 classificationClock");
+      }
+      stage = "infoTypeCanonicalization";
+      const canonicalInfoType = canonicalizeVptaInfoType(parsed.meta, parsed.infoType);
+      if (canonicalInfoType.kind === "invalid") {
+        throw new Error(`VPTA50 ${canonicalInfoType.reason}`);
+      }
+      stage = "processorBaseline";
+      const outcome = createTyphoonProbabilityOutcomeBaseline(msg, parsed, canonicalInfoType.value);
+      stage = "projector";
+      const classification = projectTyphoonProbability(parsed, canonicalInfoType.value, classificationNowMs);
+
+      stage = "admissionGateExpiry";
+      changes.gateExpiry = deps.revisionGate.expireRevisionFamily(
+        "typhoonProbability", "VPTA50", classificationNowMs, TYPHOON_PROBABILITY_RETENTION_MS,
+      );
+      stage = "activeSubjectSnapshot";
+      const gateActiveBefore = deps.revisionGate.activeRevisionFamilySubjects(
+        "typhoonProbability", "VPTA50",
+      );
+      stage = "projectionCleanup";
+      const cleanup = deps.maintainTyphoonProbabilitySubjects?.(classificationNowMs, gateActiveBefore);
+      changes.projectionCleanup = cleanup?.durableChanged === true;
+      stage = "protectionSnapshot";
+      const activeFamilySubjects = deps.activeTyphoonProbabilitySubjects == null
+        ? []
+        : deps.activeTyphoonProbabilitySubjects(classificationNowMs);
+      if (!Array.isArray(activeFamilySubjects)) {
+        log.warn("[vpta50-admission] reason=vpta50ProtectionSnapshotInvalid");
+        throw new Error("VPTA50 protectionSnapshot");
+      }
+      const validSubjects = [...new Set(activeFamilySubjects)];
+      if (validSubjects.length !== activeFamilySubjects.length
+        || validSubjects.some((subject, index) => {
+          if (typeof subject !== "string" || !subject.startsWith("typhoonProbability:")) return true;
+          const id = subject.slice("typhoonProbability:".length);
+          return validateTyphoonProbabilityEventId(id) !== id
+            || index > 0 && validSubjects[index - 1]! >= subject;
+        })) {
+        log.warn("[vpta50-admission] reason=vpta50ProtectionSnapshotInvalid");
+        throw new Error("VPTA50 protectionSnapshot");
+      }
+
+      stage = "serialCanonicalization";
+      const serial = normalizeVpta50Serial(parsed.meta.serial.raw);
+      if (serial.kind === "invalid") throw new Error("VPTA50 serialCanonicalization");
+      const gateMeta = {
+        ...parsed.meta,
+        serial: serial.kind === "missing"
+          ? { raw: null, numeric: null, valid: false }
+          : { raw: serial.canonicalRaw, numeric: serial.numeric, valid: true },
+        infoType: {
+          raw: canonicalInfoType.value,
+          value: canonicalInfoType.value,
+          valid: true,
+        },
+      };
+      const { meta: _meta, ...semanticPayload } = parsed;
+      const stateSubjectKey = `typhoonProbability:${eventId}`;
+      const candidateKind = classification.result.kind;
+      const gateInput: TelegramRevisionGateInput = {
+        domain: "typhoonProbability",
+        revisionFamily: "VPTA50",
+        stateSubjectKey,
+        meta: gateMeta,
+        comparator: "reportDateTimeThenSerial",
+        cancellationPolicy: "clearCurrent",
+        terminal: false,
+        deactivation: candidateKind === "cancel" || candidateKind === "deactivateAllZero",
+        cancellationTargetMatches: true,
+        durable: true,
+        tombstoneRetentionMs: TYPHOON_PROBABILITY_RETENTION_MS,
+        maxSubjects: TYPHOON_PROBABILITY_REVISION_FAMILY_POLICY.maxSubjects,
+        activeFamilySubjects: validSubjects,
+        allowMissingSerial: true,
+        fragmentMerge: false,
+        payloadFingerprint: semanticPayloadFingerprint({
+          ...semanticPayload,
+          eventId,
+          serial: serial.kind === "numeric" ? serial.canonicalRaw : null,
+          infoType: canonicalInfoType.value,
+        }),
+        legacyRevisionKey: eventId,
+        legacyRevisionKeyProvenance: "eventId",
+      };
+      stage = "capacityPlan";
+      const capacityPlan = deps.revisionGate.planTyphoonProbabilityCapacity(
+        gateInput,
+        candidateKind,
+      );
+      stage = "gateEvaluate";
+      const gateResult = deps.revisionGate.decideTyphoonProbability(
+        gateInput,
+        candidateKind,
+        capacityPlan,
+      );
+      if (gateResult.kind === "suppressed") {
+        stage = "genericRevisionCallback";
+        deps.onRevisionDecision?.(gateResult.decision);
+        deps.assertRouterSerializerHealthy?.();
+        stage = "standbyRevisionObserver";
+        deps.onVptaStandbyRevisionDecision?.(gateResult.decision);
+        deps.assertRouterSerializerHealthy?.();
+        const durableChanged = vptaDurableChanged(changes);
+        const completion: VptaAdmissionCompletion = durableChanged
+          ? { kind: "suppressed", nowMs: classificationNowMs, durableChanged: true, persistence: "deferred", changes: { ...changes } }
+          : { kind: "suppressed", nowMs: classificationNowMs, durableChanged: false, persistence: "none", changes: { ...changes } };
+        completionEmitted = true;
+        completeVptaAdmission(deps, completion);
+        return null;
+      }
+      const commit = gateResult.commit;
+      committed = true;
+      changes.incomingGate = true;
+      stage = "gateCommitInvariant";
+      const expectedCancelled = candidateKind === "cancel" || candidateKind === "deactivateAllZero";
+      if (
+        commit.cancelled !== expectedCancelled
+        || (canonicalInfoType.value === "取消") !== (candidateKind === "cancel")
+        || commit.comparison.revision.infoType.raw !== canonicalInfoType.value
+        || commit.comparison.revision.infoType.value !== canonicalInfoType.value
+      ) throw new Error("VPTA50 gateCommitInvariant");
+      if (classification.result.kind === "expired" || classification.result.kind === "nonProjectable") {
+        const reason = classification.result.kind === "expired"
+          ? "expired"
+          : classification.result.reason;
+        log.warn(
+          `[vpta50-admission] eventId=${eventId} reportTimeMs=${commit.binding.revision.reportTimeMs} serial=${commit.binding.revision.serial ?? "(missing)"} reason=${reason}`,
+        );
+      }
+      stage = "genericRevisionCallback";
+      deps.onRevisionDecision?.(commit.decision);
+      deps.assertRouterSerializerHealthy?.();
+      stage = "standbyRevisionObserver";
+      deps.onVptaStandbyRevisionDecision?.(commit.decision);
+      deps.assertRouterSerializerHealthy?.();
+      stage = "finalizer";
+      const finalized = finalizeTyphoonProbabilityClassification(
+        classification,
+        commit.binding.revision,
+        commit.binding.appliedSemanticKey,
+      );
+      stage = "notificationHolder";
+      const holderDiff = deps.typhoonProbabilityState.applyAcceptedClassification(eventId, finalized);
+      if (holderDiff.isUnchangedZero && !holderDiff.shouldRecap) {
+        outcome.presentation.soundLevel = "info";
+        outcome.presentation.suppressNotify = true;
+      }
+      stage = "outcomeBinding";
+      const activeAfter = deps.revisionGate.activeRevisionFamilySubjects(
+        "typhoonProbability", "VPTA50",
+      );
+      outcome.presentation.acceptedCorrection = commit.decision.isCorrection;
+      vptaInternalCommands.set(outcome, {
+        vptaDisplayCommand: {
+          domain: "typhoonProbability",
+          ownerToken: requireVptaRouterOwnerToken(),
+          finalized,
+          commit,
+          activeSubjects: Object.freeze([...activeAfter]),
+        },
+        completion: {
+          kind: "accepted",
+          nowMs: classificationNowMs,
+          durableChanged: true,
+          persistence: "deferred",
+          changes: { ...changes },
+        },
+      });
+      return outcome;
+    } catch (cause) {
+      const failures: unknown[] = [cause];
+      if (committed) {
+        try {
+          const reconciliation = deps.reconcileTyphoonProbabilitySubject?.(eventId);
+          changes.projectionOrRetention ||= reconciliation?.durableChanged === true;
+        } catch (reconcileCause) {
+          failures.push(reconcileCause);
         }
       }
-      deps.typhoonProbabilityState.retainEventIds(
-        gated.presentation.standbyActiveSubjects?.map((subject) =>
-          subject.slice("typhoonProbability:".length)) ?? [],
-      );
+      if (!completionEmitted) {
+        const durableChanged = vptaDurableChanged(changes);
+        const completion: VptaAdmissionCompletion = durableChanged
+          ? { kind: "failed", nowMs: classificationNowMs, durableChanged: true, persistence: "immediate", changes: { ...changes }, stage }
+          : { kind: "failed", nowMs: classificationNowMs, durableChanged: false, persistence: "none", changes: { ...changes }, stage };
+        completionEmitted = true;
+        try {
+          completeVptaAdmission(deps, completion);
+        } catch (completionCause) {
+          failures.push(completionCause);
+        }
+      }
+      if (failures.length === 1) throw failures[0];
+      throw new AggregateError(failures, "VPTA50 admission failed");
     }
-    return gated;
   },
   floodForecast: (msg, deps, cat) => {
     const result = processFloodForecast(msg, deps);
@@ -303,4 +584,19 @@ export function processMessage(
   return outcome?.domain === "raw"
     ? gateRawOutcome(outcome, RAW_REVISION_FAMILY_POLICY, deps)
     : outcome;
+}
+
+export function processMessageInternal(
+  msg: WsDataMessage,
+  route: Route,
+  deps: ProcessDeps,
+): ProcessMessageInternalResult | null {
+  const outcome = processMessage(msg, route, deps);
+  if (outcome == null) return null;
+  const internal = vptaInternalCommands.get(outcome);
+  if (internal != null) vptaInternalCommands.delete(outcome);
+  return {
+    outcome,
+    ...(internal == null ? {} : { internal }),
+  };
 }

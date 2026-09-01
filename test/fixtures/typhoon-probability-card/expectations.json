@@ -1,0 +1,25 @@
+{
+  "fixture": "76_01_01_200630_VPTA50.xml",
+  "eventId": "TC2001",
+  "slotCount": 40,
+  "slotDuration": "PT3H",
+  "baseTimeMs": 1601445600000,
+  "forecastEndsAtMs": 1601877600000,
+  "maxFiveDayProbability": 100,
+  "activePrefectureCount": 45,
+  "topPrefectures": [
+    { "prefectureCode": "460040", "prefectureName": "奄美地方", "fiveDayProbability": 100 },
+    { "prefectureCode": "471000", "prefectureName": "沖縄本島地方", "fiveDayProbability": 100 },
+    { "prefectureCode": "472000", "prefectureName": "大東島地方", "fiveDayProbability": 100 },
+    { "prefectureCode": "420000", "prefectureName": "長崎県", "fiveDayProbability": 99 },
+    { "prefectureCode": "430000", "prefectureName": "熊本県", "fiveDayProbability": 99 }
+  ],
+  "worstArea": {
+    "areaCode": "472000",
+    "areaName": "大東島地方",
+    "prefectureCode": "472000",
+    "prefectureName": "大東島地方",
+    "fiveDayProbability": 100,
+    "peakAtMs": 1601510400000
+  }
+}

@@ -1,45 +1,89 @@
-import { describe, it, expect } from "vitest";
+import { describe, expect, it } from "vitest";
+import type {
+  FinalizedTyphoonProbabilityClassification,
+  FinalizedTyphoonProbabilityResult,
+  TyphoonProbabilityState,
+} from "../../../src/engine/display/project-typhoon-probability";
 import { TyphoonProbabilityStateHolder } from "../../../src/engine/messages/typhoon-probability-state";
 
-/**
- * TyphoonProbabilityStateHolder の敵対的シーケンステスト。
- *
- * typhoon-probability-state.test.ts に単発の遷移 (初回/連続ゼロ/0↔非0/rollback/
- * 空 eventId) が入っているので、このファイルは複数 EventID が交互に届く実運用
- * シーケンスでの独立性と、この holder が「時刻順序を判定しない」設計であること
- * を固定する。
- *
- * この holder は receivedAt を保持するが順序比較には使わない (連続ゼロ dedup のみ)。
- * よって遅着した非ゼロ報も抑制されず必ず再通知される — 安全側 (見落とさない) の
- * 契約を回帰テストとして明示する。
- */
+const T0 = Date.parse("2026-06-02T15:55:00+09:00");
+
+function classification(
+  eventId: string,
+  kind: FinalizedTyphoonProbabilityResult["kind"],
+  nowMs: number,
+  probability = 50,
+): FinalizedTyphoonProbabilityClassification {
+  const state: TyphoonProbabilityState = {
+    eventId,
+    sourceEventId: `source-${eventId}`,
+    identity: { name: null, nameKana: null, remark: null, typhoonNumber: null },
+    baseTimeMs: T0,
+    maxFiveDayProbability: probability,
+    activePrefectureCount: 1,
+    topPrefectures: [{
+      prefectureCode: "01", prefectureName: "北海道", fiveDayProbability: probability,
+    }],
+    worstArea: {
+      areaCode: "0100", areaName: "石狩地方", prefectureCode: "01",
+      prefectureName: "北海道", fiveDayProbability: probability, peakAtMs: T0,
+    },
+    revision: { reportTimeMs: nowMs, serial: "1" },
+    appliedSemanticKey: `semantic-${eventId}-${nowMs}`,
+    expiresAtMs: T0 + 5 * 24 * 60 * 60_000,
+    restored: false,
+  };
+  const result: FinalizedTyphoonProbabilityResult = kind === "active"
+    ? { kind, state }
+    : kind === "nonProjectable"
+      ? { kind, reason: "compactOnly" }
+      : { kind };
+  return {
+    nowMs,
+    canonicalInfoType: kind === "cancel" ? "取消" : "発表",
+    result,
+    acceptedRevision: { reportTimeMs: nowMs, serial: "1" },
+    appliedSemanticKey: `semantic-${eventId}-${nowMs}`,
+  };
+}
+
+function apply(
+  holder: TyphoonProbabilityStateHolder,
+  eventId: string,
+  kind: FinalizedTyphoonProbabilityResult["kind"],
+  nowMs: number,
+  probability = 50,
+) {
+  return holder.applyAcceptedClassification(
+    eventId,
+    classification(eventId, kind, nowMs, probability),
+  );
+}
 
 describe("TyphoonProbabilityStateHolder 敵対シーケンス", () => {
-  it("複数 EventID が交互に届いても連続ゼロ判定が混線しない", () => {
-    const h = new TyphoonProbabilityStateHolder();
-    expect(h.diffAndUpdate("TC-A", 0, "t1").isUnchangedZero).toBe(false); // A 初回ゼロ
-    expect(h.diffAndUpdate("TC-B", 0, "t2").isUnchangedZero).toBe(false); // B 初回ゼロ
-    expect(h.diffAndUpdate("TC-A", 0, "t3").isUnchangedZero).toBe(true); // A 連続ゼロ
-    expect(h.diffAndUpdate("TC-B", 50, "t4").isUnchangedZero).toBe(false); // B 上昇 (A の履歴に影響しない)
-    // A の連続ゼロ判定は B の遷移に汚染されず維持される
-    expect(h.diffAndUpdate("TC-A", 0, "t5").isUnchangedZero).toBe(true);
+  it("複数 EventID が交互でも履歴を混線させない", () => {
+    const holder = new TyphoonProbabilityStateHolder();
+    expect(apply(holder, "TC-A", "deactivateAllZero", T0).isUnchangedZero).toBe(false);
+    expect(apply(holder, "TC-B", "deactivateAllZero", T0 + 1).isUnchangedZero).toBe(false);
+    expect(apply(holder, "TC-A", "deactivateAllZero", T0 + 2).isUnchangedZero).toBe(true);
+    expect(apply(holder, "TC-B", "active", T0 + 3, 50).isUnchangedZero).toBe(false);
+    expect(apply(holder, "TC-A", "deactivateAllZero", T0 + 4).isUnchangedZero).toBe(true);
   });
 
-  it("遅着した非ゼロ報は順序を問わず再通知される (時刻順序で dedup しない)", () => {
-    const h = new TyphoonProbabilityStateHolder();
-    h.diffAndUpdate("TC-A", 0, "2026-06-02T15:00:00+09:00");
-    expect(h.diffAndUpdate("TC-A", 0, "2026-06-02T16:00:00+09:00").isUnchangedZero).toBe(true);
-
-    // 上の 2 報より前の時刻の非ゼロ報が遅れて届く → receivedAt は比較されず、非ゼロなので再通知
-    const late = h.diffAndUpdate("TC-A", 50, "2026-06-02T15:30:00+09:00");
-    expect(late.isUnchangedZero).toBe(false);
+  it("nonProjectable は LRU を更新せず、別 EventID の mutation に影響しない", () => {
+    const holder = new TyphoonProbabilityStateHolder();
+    apply(holder, "TC-A", "deactivateAllZero", T0);
+    apply(holder, "TC-B", "active", T0 + 1, 20);
+    apply(holder, "TC-A", "nonProjectable", T0 + 2);
+    expect(apply(holder, "TC-B", "deactivateAllZero", T0 + 3).isUnchangedZero).toBe(false);
+    expect(apply(holder, "TC-A", "deactivateAllZero", T0 + 4).isUnchangedZero).toBe(true);
   });
 
-  it("未受信 EventID の rollback は no-op で他 EventID を壊さない", () => {
-    const h = new TyphoonProbabilityStateHolder();
-    h.diffAndUpdate("TC-A", 0, "t1");
-    expect(() => h.rollback("TC-UNSEEN")).not.toThrow();
-    // 無関係な rollback で A の履歴は消えない
-    expect(h.diffAndUpdate("TC-A", 0, "t2").isUnchangedZero).toBe(true);
+  it("expired / nonProjectable の初回適用は entry を新規作成しない", () => {
+    const holder = new TyphoonProbabilityStateHolder();
+    apply(holder, "TC-A", "expired", T0);
+    apply(holder, "TC-B", "nonProjectable", T0 + 1);
+    expect(apply(holder, "TC-A", "deactivateAllZero", T0 + 2).isUnchangedZero).toBe(false);
+    expect(apply(holder, "TC-B", "deactivateAllZero", T0 + 3).isUnchangedZero).toBe(false);
   });
 });

@@ -1,0 +1,49 @@
+{
+  "version": 2,
+  "savedAt": "2026-08-31T00:00:00.000Z",
+  "heat": [],
+  "typhoons": [],
+  "volcanoes": [],
+  "weatherAlerts": [],
+  "tornado": [],
+  "longPeriod": [],
+  "quakeHost": null,
+  "nankaiTrough": null,
+  "seen": [],
+  "briefingCritical": {
+    "generation": 11,
+    "entries": [],
+    "cancellations": [],
+    "watermarks": [],
+    "rawAliases": [
+      {
+        "source": "vpoa50",
+        "sourceEventId": "anonymous-retained-lineage",
+        "semanticKey": "card:vpbs:semantic:recordRain:匿名地方気象台",
+        "revision": { "reportTimeMs": 1788130800000, "serial": "3" },
+        "expiresAtMs": 1788138000000
+      },
+      {
+        "source": "vpoa50",
+        "sourceEventId": "anonymous-expired-lineage",
+        "semanticKey": "card:vpbs:semantic:recordRain:匿名地方気象台",
+        "revision": { "reportTimeMs": 1788127200000, "serial": "1" },
+        "expiresAtMs": 1788134400000
+      }
+    ]
+  },
+  "telegramFoundation": {
+    "vpws50": { "authoritative": true, "state": null, "gateEntries": [] },
+    "vpww56": { "generation": 1, "authoritative": false, "state": null, "gateEntries": [] },
+    "tsunami": {
+      "active": null,
+      "keyedActive": [],
+      "legacyActive": null,
+      "observations": { "VTSE51": [], "VTSE52": [] },
+      "gateEntries": []
+    },
+    "volcano": { "authoritative": false, "state": null, "active": [], "gateEntries": [] },
+    "floodForecast": { "authoritative": false, "active": [], "gateEntries": [] },
+    "standbyDomains": { "gateEntries": [] }
+  }
+}

@@ -14,6 +14,13 @@ import * as log from "../logger";
 const FALLBACK_RAW_BYTES = 5 * 1024 * 1024;
 const FALLBACK_COMPACT_AREAS = 600;
 const FALLBACK_COMPACT_STEPS = 60;
+const MAX_DUPLICATE_DIAGNOSTIC_CODES = 32;
+
+function parseStrictDecimalId(raw: string): number {
+  if (!/^\d+$/u.test(raw)) return Number.NaN;
+  const value = Number(raw);
+  return Number.isSafeInteger(value) ? value : Number.NaN;
+}
 
 export function decideFallback(
   regionCount: number,
@@ -185,7 +192,7 @@ export function parseTyphoonProbability(
       const tdNodes = listOf(dig(dig(tsi, "TimeDefines"), "TimeDefine"));
       for (const td of tdNodes) {
         const timeIdStr = str(dig(td, "@_timeId"));
-        const timeId = parseInt(timeIdStr, 10);
+        const timeId = parseStrictDecimalId(timeIdStr);
         if (isNaN(timeId)) {
           base.parserDiagnostics.unknownAttributes.push(`timeId=${timeIdStr}`);
           continue;
@@ -217,7 +224,7 @@ export function parseTyphoonProbability(
         r.series40 = new Array(stepCount).fill(null);
         for (const v of vals) {
           const refIdStr = str(dig(v, "@_refID"));
-          const refId = parseInt(refIdStr, 10);
+          const refId = parseStrictDecimalId(refIdStr);
           const unit = str(dig(v, "@_unit"));
           if (unit !== "%") {
             base.parserDiagnostics.unknownAttributes.push(`unit=${unit}`);
@@ -293,6 +300,11 @@ export function parseTyphoonProbability(
 
     // ─── diagnostics warn 集計 ───
     const d = base.parserDiagnostics;
+    d.duplicateCodes = [...new Set(d.duplicateCodes
+      .map((code) => code.trim())
+      .filter((code) => code !== ""))]
+      .sort((left, right) => left < right ? -1 : left > right ? 1 : 0)
+      .slice(0, MAX_DUPLICATE_DIAGNOSTIC_CODES);
     if (d.duplicateCodes.length || d.dailyAnomalies.length || d.sectionCodeCountMismatch) {
       log.warn(
         `[VPTA50] diagnostics: duplicateCodes=${d.duplicateCodes.length} ` +

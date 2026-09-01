@@ -1,7 +1,7 @@
 {
   "fixtures": [
     {
-      "path": "operational-v1-anonymized.json",
+      "path": "operational-v1.json",
       "fixedNowMs": "2026-08-31T00:00:00.000Z",
       "retainedPointers": [
         {
@@ -39,7 +39,7 @@
       ]
     },
     {
-      "path": "operational-v2-anonymized.json",
+      "path": "operational-v2.json",
       "fixedNowMs": "2026-08-31T00:00:00.000Z",
       "retainedPointers": [
         {

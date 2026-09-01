@@ -18,6 +18,7 @@ import type {
   DisplayIngestOutcome,
   DisplayLateCounterpartContext,
   DisplayLateCounterpartResult,
+  VptaDisplayIngestCommand,
 } from "../display/types";
 import type { ActiveStandbyCardV1 } from "../display/protocol";
 import { briefingCardIdentity } from "../display/standby-state-store";
@@ -40,6 +41,18 @@ export interface DisplaySinkDeps {
   /** monitor 所有の待機画面 state */
   standby: {
     applyEvent(event: PresentationEvent, nowMs: number): unknown;
+    applyTyphoonProbabilityCommand?(command: VptaDisplayIngestCommand): unknown;
+    activeTyphoonProbabilitySubjects?(nowMs: number): string[];
+    maintainTyphoonProbabilitySubjects?(
+      nowMs: number,
+      activeGateSubjects: readonly string[],
+    ): { viewChanged: boolean; durableChanged: boolean };
+    reconcileTyphoonProbabilityCommand?(
+      command: VptaDisplayIngestCommand,
+    ): { viewChanged: boolean; durableChanged: boolean };
+    reconcileTyphoonProbabilitySubject?(
+      eventId: string,
+    ): { viewChanged: boolean; durableChanged: boolean };
     /** normal ingest の card mutation を generation 単位で観測する。 */
     briefingCardGeneration?(): number;
     /** card 専用 state の source→canonical 置換。ticker state を参照しない。 */
@@ -151,8 +164,39 @@ function tickerResultOf(value: unknown): DisplayIngestResult | undefined {
 
 export function createDisplaySink(deps: DisplaySinkDeps): DisplayIngestSink {
   const now = deps.now ?? Date.now;
-  const ingest = (event: PresentationEvent): DisplayIngestResult | DisplayIngestOutcome | void | number => {
+  const ingest = (
+    event: PresentationEvent,
+    internalCommand?: VptaDisplayIngestCommand,
+  ): DisplayIngestResult | DisplayIngestOutcome | void | number => {
       const nowMs = now();
+      let vptaMutation: { viewChanged: boolean; durableChanged: boolean } | undefined;
+      if (internalCommand != null) {
+        try {
+          const mutation = deps.standby.applyTyphoonProbabilityCommand?.(internalCommand);
+          vptaMutation = typeof mutation === "object" && mutation != null
+            && "viewChanged" in mutation && "durableChanged" in mutation
+            ? mutation as { viewChanged: boolean; durableChanged: boolean }
+            : { viewChanged: false, durableChanged: false };
+        } catch (cause) {
+          return { vptaFailure: { stage: "standbyReducer", cause } };
+        }
+        try {
+          const retained = deps.standby.maintainTyphoonProbabilitySubjects?.(
+            internalCommand.finalized.nowMs,
+            internalCommand.activeSubjects,
+          ) ?? { viewChanged: false, durableChanged: false };
+          vptaMutation = {
+            viewChanged: vptaMutation.viewChanged || retained.viewChanged,
+            durableChanged: vptaMutation.durableChanged || retained.durableChanged,
+          };
+        } catch (cause) {
+          return {
+            vptaMutation,
+            vptaFailure: { stage: "managedRetention", cause },
+          };
+        }
+      }
+      try {
       const beforeCardGeneration = deps.standby.briefingCardGeneration?.();
       const standbyMutation = deps.standby.applyEvent(event, nowMs);
       const cardResult = briefingCardIngestResult(
@@ -199,12 +243,23 @@ export function createDisplaySink(deps: DisplaySinkDeps): DisplayIngestSink {
       const hub = deps.getHub();
       // monitor 側で先に更新した store は hub の state-store からは差分に見えない。
       // 特に取消・下方修正を即時に snapshot へ反映するため、外部 dirty を明示する。
-      if (quakeExtremeChanged || quakeDisplayChanged || dailyQuakeChanged) hub?.markExternalStateDirty?.();
+      const commandViewChanged = vptaMutation?.viewChanged === true;
+      if (commandViewChanged || quakeExtremeChanged || quakeDisplayChanged || dailyQuakeChanged) {
+        hub?.markExternalStateDirty?.();
+      }
       const tickerResult = tickerResultOf(hub?.ingest(event));
-      return cardResult == null ? tickerResult : {
+      return cardResult == null && vptaMutation == null ? tickerResult : {
         ...(tickerResult == null || typeof tickerResult !== "object" ? {} : { tickerResult }),
         cardResult,
+        ...(vptaMutation == null ? {} : { vptaMutation }),
       };
+      } catch (cause) {
+        if (internalCommand == null) throw cause;
+        return {
+          ...(vptaMutation == null ? {} : { vptaMutation }),
+          vptaFailure: { stage: "displaySinkPostStandby", cause },
+        };
+      }
     };
   const reconcileLateCounterpart = (
     event: PresentationEvent,
@@ -270,5 +325,16 @@ export function createDisplaySink(deps: DisplaySinkDeps): DisplayIngestSink {
     ingestTickerOnly,
     reconcileLateCounterpart,
     reconcileLateCounterpartCard,
+    activeTyphoonProbabilitySubjects: (nowMs) =>
+      deps.standby.activeTyphoonProbabilitySubjects?.(nowMs) ?? [],
+    maintainTyphoonProbabilitySubjects: (nowMs, activeGateSubjects) =>
+      deps.standby.maintainTyphoonProbabilitySubjects?.(nowMs, activeGateSubjects)
+        ?? { viewChanged: false, durableChanged: false },
+    reconcileTyphoonProbabilityCommand: (command) =>
+      deps.standby.reconcileTyphoonProbabilityCommand?.(command)
+        ?? { viewChanged: false, durableChanged: false },
+    reconcileTyphoonProbabilitySubject: (eventId) =>
+      deps.standby.reconcileTyphoonProbabilitySubject?.(eventId)
+        ?? { viewChanged: false, durableChanged: false },
   };
 }

@@ -4,6 +4,10 @@ import { EewEventLogger } from "../eew/eew-logger";
 import * as log from "../../logger";
 
 import type { ReplHandler as ReplHandlerType } from "../../ui/repl";
+import type {
+  StandbyPersistenceSaveResult,
+  StandbyPersistenceWriteFailureStage,
+} from "../display/standby-persistence";
 
 const SOCKET_CLOSE_TIMEOUT_MS = 3000;
 
@@ -60,7 +64,7 @@ export interface ShutdownContext {
   /** 情報ディスプレイ runtime の停止 (SSE クライアント切断 + HTTP サーバ close) */
   stopDisplayRuntime?: () => Promise<void>;
   /** monitor 所有 standby sweep の停止 + active-state 最終保存 */
-  stopStandbySweep?: () => void;
+  stopStandbySweep?: () => StandbyPersistenceSaveResult | void;
   /** VPWP50 詳細 cache の予約済み保存を書き切る */
   flushDetailCaches?: () => void;
   /** 気象警報 昇格 lifecycle の最終保存 */
@@ -73,56 +77,117 @@ export interface ShutdownContext {
   flushDailyQuake?: () => void;
 }
 
+export type ShutdownResult =
+  | { kind: "completed"; exitCode: 0 }
+  | {
+      kind: "failed";
+      exitCode: 1;
+      failures: readonly (
+        | { operation: "standbyPersistence"; stage: StandbyPersistenceWriteFailureStage | "exportActiveState" }
+        | { operation: "shutdown"; stage: "unexpected" }
+      )[];
+    };
+
 /**
  * グレースフルシャットダウンハンドラを生成する。
  * 返された関数は複数回呼ばれても冪等 (二重シャットダウン防止)。
  */
-export function createShutdownHandler(ctx: ShutdownContext): () => Promise<void> {
-  let shuttingDown = false;
+export function createShutdownHandler(ctx: ShutdownContext): () => Promise<ShutdownResult> {
+  let shutdownPromise: Promise<ShutdownResult> | null = null;
 
-  return async () => {
-    if (shuttingDown) return;
-    shuttingDown = true;
+  return () => {
+    if (shutdownPromise != null) return shutdownPromise;
+    shutdownPromise = (async (): Promise<ShutdownResult> => {
+    const failures: Array<
+      | { operation: "standbyPersistence"; stage: StandbyPersistenceWriteFailureStage | "exportActiveState" }
+      | { operation: "shutdown"; stage: "unexpected" }
+    > = [];
+    const safely = (operation: () => void): void => {
+      try { operation(); } catch { failures.push({ operation: "shutdown", stage: "unexpected" }); }
+    };
     log.info("シャットダウン中...");
-    ctx.stopSummaryTimer?.();
-    ctx.flushAndDisposeVolcanoBuffer?.();
-    ctx.disposeLegacyCounterpartCorrelator?.();
-    ctx.eewLogger.closeAll();
+    safely(() => ctx.stopSummaryTimer?.());
+    safely(() => ctx.flushAndDisposeVolcanoBuffer?.());
+    safely(() => ctx.disposeLegacyCounterpartCorrelator?.());
+    safely(() => ctx.eewLogger.closeAll());
     try {
       await ctx.eewLogger.flush();
     } catch {
-      // flush 失敗は無視
+      failures.push({ operation: "shutdown", stage: "unexpected" });
     }
     if (ctx.stopDisplayRuntime) {
       try {
         await ctx.stopDisplayRuntime();
       } catch {
-        // 表示系の停止失敗はシャットダウンを妨げない
+        failures.push({ operation: "shutdown", stage: "unexpected" });
       }
     }
     // controller.stop() は display off sweep を再開するため、その後で確実に停止・最終保存する。
-    ctx.stopStandbySweep?.();
-    ctx.flushDetailCaches?.();
-    ctx.flushWeatherPromotion?.();
-    ctx.flushQuakeExtreme?.();
-    ctx.flushQuakeDisplay?.();
-    ctx.flushDailyQuake?.();
-    const repl = ctx.getReplHandler();
-    if (repl) repl.stop();
+    try {
+      const persistenceResult = ctx.stopStandbySweep?.();
+      if (persistenceResult?.kind === "failed") {
+        failures.push({ operation: "standbyPersistence", stage: persistenceResult.stage });
+      }
+    } catch {
+      failures.push({ operation: "standbyPersistence", stage: "exportActiveState" });
+    }
+    safely(() => ctx.flushDetailCaches?.());
+    safely(() => ctx.flushWeatherPromotion?.());
+    safely(() => ctx.flushQuakeExtreme?.());
+    safely(() => ctx.flushQuakeDisplay?.());
+    safely(() => ctx.flushDailyQuake?.());
+    let repl: ReplHandlerType | null = null;
+    try {
+      repl = ctx.getReplHandler();
+    } catch {
+      failures.push({ operation: "shutdown", stage: "unexpected" });
+    }
+    safely(() => repl?.stop());
     const socketClosePromise = closeSocketViaApi(ctx.apiKey, ctx.manager);
-    ctx.manager.close();
-    await socketClosePromise;
-    ctx.resetTerminalTitle();
-    if (process.stdout.isTTY) process.stdout.write("\n");
-    process.exit(0);
+    safely(() => ctx.manager.close());
+    try {
+      await socketClosePromise;
+    } catch {
+      failures.push({ operation: "shutdown", stage: "unexpected" });
+    }
+    safely(ctx.resetTerminalTitle);
+    safely(() => { if (process.stdout.isTTY) process.stdout.write("\n"); });
+    return failures.length === 0
+      ? { kind: "completed", exitCode: 0 }
+      : { kind: "failed", exitCode: 1, failures };
+    })();
+    return shutdownPromise;
   };
 }
 
+export async function runShutdownAndRecordExitCode(
+  shutdown: () => Promise<ShutdownResult>,
+): Promise<ShutdownResult> {
+  let result: ShutdownResult;
+  try {
+    result = await shutdown();
+  } catch {
+    result = {
+      kind: "failed", exitCode: 1,
+      failures: [{ operation: "shutdown", stage: "unexpected" }],
+    };
+  }
+  process.exitCode = result.exitCode;
+  return result;
+}
+
 /** シャットダウンシグナルを登録する */
-export function registerShutdownSignals(shutdown: () => Promise<void>): void {
-  process.on("SIGINT", shutdown);
-  process.on("SIGTERM", shutdown);
+export function registerShutdownSignals(shutdown: () => Promise<ShutdownResult>): void {
+  let signalShutdown: Promise<void> | null = null;
+  const signalHandler = (): void => {
+    if (signalShutdown != null) return;
+    signalShutdown = runShutdownAndRecordExitCode(shutdown).then((result) => {
+      process.exit(result.exitCode);
+    });
+  };
+  process.on("SIGINT", signalHandler);
+  process.on("SIGTERM", signalHandler);
   if (process.platform !== "win32") {
-    process.on("SIGHUP", shutdown);
+    process.on("SIGHUP", signalHandler);
   }
 }

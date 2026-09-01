@@ -332,6 +332,9 @@ describe("telegram foundation Phase 2 deriveIsTest", () => {
       const events: PresentationEvent[] = [];
       const runtime = createMessageHandler({
         displaySink: { ingest: (event) => events.push(event) },
+        onVptaAdmissionCompletion: (completion) => completion.durableChanged
+          ? { kind: "scheduled", receipt: { kind: "scheduled", seq: 1 } }
+          : { kind: "notRequired" },
       });
       runtime.handler(withEnvelopeStatus(fixture, status));
       runtime.flushAndDisposeVolcanoBuffer();

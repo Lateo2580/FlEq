@@ -24,6 +24,7 @@ import type {
   SpecialValueDiagnostic,
   StrictTextMeta,
   TelegramMeta,
+  TelegramRevisionComparisonInput,
   TsunamiObservationStation,
   TsunamiParserDiagnostic,
   Vpws50CurrentAreasForDisplay,
@@ -63,7 +64,10 @@ import {
 } from "../messages/tsunami-state";
 import {
   compactPersistedSemanticKeys,
+  normalizeVptaPersistedSemanticKeys,
+  selectVptaCapacityBundles,
   TELEGRAM_REVISION_MAX_ENTRIES,
+  TELEGRAM_REVISION_MAX_SEMANTIC_KEYS,
   type PersistedTelegramRevisionGateEntryV2,
 } from "../messages/telegram-revision-gate";
 import {
@@ -77,6 +81,7 @@ import {
   NANKAI_REVISION_FAMILY_POLICY,
   TORNADO_REVISION_FAMILY_POLICY,
   TYPHOON_ANALYSIS_REVISION_FAMILY_POLICY,
+  TYPHOON_PROBABILITY_REVISION_FAMILY_POLICY,
 } from "../messages/revision-family-registry";
 import { weatherAlertsFromVpws50, weatherAlertsFromVpww56 } from "./weather-alert-view";
 import { resolveTsunamiLevel } from "../../utils/tsunami-kind";
@@ -102,6 +107,24 @@ import {
   parsePersistedTyphoonNumericValue,
   typhoonNumericValueFromLegacyScalar,
 } from "../typhoon-numeric-persistence";
+import {
+  TYPHOON_PROBABILITY_MAX_ACTIVE_PREFECTURES,
+  TYPHOON_PROBABILITY_MAX_CODE_LENGTH,
+  TYPHOON_PROBABILITY_MAX_EVENT_ID_LENGTH,
+  TYPHOON_PROBABILITY_MAX_NAME_LENGTH,
+  TYPHOON_PROBABILITY_MAX_REMARK_LENGTH,
+  TYPHOON_PROBABILITY_MAX_SEMANTIC_KEY_LENGTH,
+  TYPHOON_PROBABILITY_MAX_SOURCE_ID_LENGTH,
+  TYPHOON_PROBABILITY_MAX_SUBJECTS,
+  TYPHOON_PROBABILITY_MAX_TOP_PREFECTURES,
+  TYPHOON_PROBABILITY_READER_MAX_RAW_ITEMS,
+  TYPHOON_PROBABILITY_READER_MAX_RAW_BUNDLES,
+  TYPHOON_PROBABILITY_ACCEPTED_AT_FUTURE_SKEW_MS,
+  TYPHOON_PROBABILITY_REPORT_FUTURE_SKEW_MS,
+  TYPHOON_PROBABILITY_RETENTION_MS,
+  normalizeVpta50Serial,
+  validateTyphoonProbabilityEventId,
+} from "./project-typhoon-probability";
 
 const PERSIST_SCHEMA_VERSION = 2;
 
@@ -121,6 +144,8 @@ export interface PersistedStandbyStateV1 {
   savedAt: string;
   heat: PersistedHeatStateV1[];
   typhoons: PersistedTyphoonStateV1[];
+  typhoonProbabilities?: PersistedTyphoonProbabilityStateV1[];
+  typhoonProbabilityGateMetadata?: PersistedTyphoonProbabilityGateMetadataV1[];
   volcanoes: PersistedVolcanoStateV1[];
   floods?: PersistedFloodState;
   weatherAlerts?: PersistedWeatherAlertStateV1[];
@@ -316,6 +341,7 @@ const STANDBY_FOUNDATION_POLICIES = [
   TORNADO_REVISION_FAMILY_POLICY,
   HEAT_ALERT_REVISION_FAMILY_POLICY,
   TYPHOON_ANALYSIS_REVISION_FAMILY_POLICY,
+  TYPHOON_PROBABILITY_REVISION_FAMILY_POLICY,
   NANKAI_REVISION_FAMILY_POLICY,
   LG_OBSERVATION_REVISION_FAMILY_POLICY,
 ] as const;
@@ -339,6 +365,20 @@ function standbyLegacySeenEntries(
       forgetAtMs: entry.acceptedAtMs + retentionMs + 1,
     }];
   });
+}
+
+function vptaGateMetadata(
+  entries: readonly PersistedTelegramRevisionGateEntryV2[],
+): PersistedTyphoonProbabilityGateMetadataV1[] {
+  return entries
+    .filter((entry) => entry.domain === "typhoonProbability" && entry.revisionFamily === "VPTA50")
+    .sort((left, right) => left.stateSubjectKey < right.stateSubjectKey ? -1 : left.stateSubjectKey > right.stateSubjectKey ? 1 : 0)
+    .map((entry) => ({
+      stateSubjectKey: entry.stateSubjectKey,
+      comparison: structuredClone(entry.comparison),
+      semanticKeys: [...entry.semanticKeys],
+      cancelled: entry.cancelled,
+    }));
 }
 
 function mergeLegacySeenEntries(
@@ -369,6 +409,47 @@ export interface PersistedTyphoonStateV1 {
   revision: StandbyRevision;
   expiresAtMs: number;
   appliedSemanticKey?: string;
+}
+
+export interface PersistedTyphoonProbabilityPrefectureV1 {
+  prefectureCode: string;
+  prefectureName: string;
+  fiveDayProbability: number;
+}
+
+export interface PersistedTyphoonProbabilityWorstAreaV1 {
+  areaCode: string;
+  areaName: string;
+  prefectureCode: string;
+  prefectureName: string;
+  fiveDayProbability: number;
+  peakAtMs: number | null;
+}
+
+export interface PersistedTyphoonProbabilityStateV1 {
+  key: string;
+  sourceEventId: string;
+  identity: {
+    name: string | null;
+    nameKana: string | null;
+    remark: string | null;
+    typhoonNumber: string | null;
+  };
+  baseTimeMs: number;
+  maxFiveDayProbability: number;
+  activePrefectureCount: number;
+  topPrefectures: PersistedTyphoonProbabilityPrefectureV1[];
+  worstArea: PersistedTyphoonProbabilityWorstAreaV1;
+  revision: StandbyRevision;
+  appliedSemanticKey: string;
+  expiresAtMs: number;
+}
+
+export interface PersistedTyphoonProbabilityGateMetadataV1 {
+  stateSubjectKey: string;
+  comparison: TelegramRevisionComparisonInput;
+  semanticKeys: string[];
+  cancelled: boolean;
 }
 export interface PersistedVolcanoStateV1 {
   code: string;
@@ -405,8 +486,69 @@ interface PersistedReadResult {
   migrationConflict: boolean;
 }
 
+export type StandbyPersistenceWriteFailureStage =
+  | "validation"
+  | "salvageBackup"
+  | "mkdir"
+  | "writeV2Temp"
+  | "writeV1Temp"
+  | "renameV2"
+  | "renameV1"
+  | "pendingUnavailable"
+  | "pendingBehindRequiredSeq";
+
+export interface StandbyPersistenceScheduleReceipt {
+  kind: "scheduled";
+  seq: number;
+}
+
+export type StandbyPersistenceFlushThroughResult =
+  | {
+      kind: "written";
+      requiredSeq: number;
+      targetSeq: number;
+      writtenSeq: number;
+      v2Committed: true;
+      v1Committed: true;
+    }
+  | { kind: "alreadyWritten"; requiredSeq: number; writtenSeq: number }
+  | {
+      kind: "failed";
+      requiredSeq: number;
+      targetSeq: number | null;
+      failedSeq: number | null;
+      stage: StandbyPersistenceWriteFailureStage;
+      pendingRetained: true;
+      partialCommit: "none" | "v2Only" | "unknown";
+      cause: unknown;
+    };
+
+export type StandbyPersistenceSaveResult =
+  | {
+      kind: "written";
+      requestedSeq: number;
+      writtenSeq: number;
+      v2Committed: true;
+      v1Committed: true;
+    }
+  | {
+      kind: "failed";
+      requestedSeq: number | null;
+      failedSeq: number | null;
+      stage: StandbyPersistenceWriteFailureStage;
+      pendingRetained: true;
+      partialCommit: "none" | "v2Only" | "unknown";
+      cause: unknown;
+    };
+
+export type StandbyPersistenceLastFailure = Extract<
+  StandbyPersistenceSaveResult,
+  { kind: "failed" }
+>;
+
 type SalvageDomain =
   | "root.heat" | "root.typhoons" | "root.volcanoes" | "root.tornado" | "root.longPeriod"
+  | "root.typhoonProbabilities" | "root.typhoonProbabilityGateMetadata"
   | "root.seen" | "root.floods" | "root.weatherAlerts" | "root.quakeHost" | "root.nankaiTrough"
   | "root.briefingCritical"
   | "foundation.vpws50" | "foundation.vpww56" | "foundation.tsunami" | "foundation.volcano"
@@ -442,6 +584,34 @@ const REPAIR_REASON_PRIORITY: readonly SalvageReason[] = [
 ];
 
 let activeRepairCollector: RepairCollector | null = null;
+
+type VptaPersistenceDiagnostic =
+  | "vpta50V1GateMetadataPresentInvalid"
+  | "vpta50V1GateMetadataMissing"
+  | "vpta50V1MissingAppliedSemanticKey"
+  | "vpta50V1RevisionReconstructionFailed"
+  | "vpta50GateRetentionDefaulted"
+  | "vpta50GateRetentionInvalid"
+  | "vpta50PersistenceCouplingMismatch";
+
+interface VptaPersistenceReadContext {
+  nowMs: number;
+  diagnostics: Set<VptaPersistenceDiagnostic>;
+}
+
+let activeVptaPersistenceReadContext: VptaPersistenceReadContext | null = null;
+
+function persistenceValidationNowMs(): number {
+  return activeVptaPersistenceReadContext?.nowMs ?? Date.now();
+}
+
+function warnVptaPersistenceDiagnostic(diagnostic: VptaPersistenceDiagnostic): void {
+  const context = activeVptaPersistenceReadContext;
+  if (context?.diagnostics.has(diagnostic)) return;
+  context?.diagnostics.add(diagnostic);
+  if (activeRepairCollector != null) activeRepairCollector.canonicalRewriteRequired = true;
+  log.warn(`[standby-persistence] ${diagnostic}`);
+}
 
 function recordRepair(
   domain: SalvageDomain,
@@ -508,6 +678,8 @@ export class StandbyPersistence {
   private persistenceSalvageBackupRecovered = 0;
   private salvageBackupWriteBlocked = false;
   private canonicalRewriteRequired = false;
+  /** debounce writer の failure latch。pending と共に保持して monitor から観測できる。 */
+  private asyncLastFailure: StandbyPersistenceLastFailure | null = null;
 
   constructor(
     private readonly persistPath: string,
@@ -515,49 +687,83 @@ export class StandbyPersistence {
     private readonly foundationProvider: (() => PersistedTelegramFoundationInputV2) | null = null,
   ) {}
 
-  load(): PersistedStandbyStateV2 | null {
-    this.cleanStaleTmpFiles();
-    const v2Path = standbyPersistenceV2Path(this.persistPath);
-    const v2 = this.readPath(v2Path, false);
-    if (v2.state != null) {
-      // rollback 用 standalone v1 も必ず検査する。v2 を正として採用する方針は変えず、
-      // rename 間の停止・旧 binary 運用・v1 欠損を telemetry へ出す。
-      const standaloneV1 = this.readPath(this.persistPath, true);
-      const standaloneConflict = standaloneV1.state == null
-        || JSON.stringify(this.toV1(v2.state)) !== JSON.stringify(this.toV1(standaloneV1.state));
-      if (v2.migrationConflict || standaloneV1.migrationConflict || standaloneConflict) {
-        this.recordMigrationConflict("telegram foundation persistence sources conflict; canonical v2 is authoritative");
+  load(nowMs = Date.now()): PersistedStandbyStateV2 | null {
+    if (!validPersistenceEpoch(nowMs)) throw new Error("invalid standby persistence startup clock");
+    const previousReadContext = activeVptaPersistenceReadContext;
+    activeVptaPersistenceReadContext = { nowMs, diagnostics: new Set() };
+    try {
+      this.cleanStaleTmpFiles();
+      const v2Path = standbyPersistenceV2Path(this.persistPath);
+      const v2 = this.readPath(v2Path, false);
+      if (v2.state != null) {
+        // rollback 用 standalone v1 も必ず検査する。v2 を正として採用する方針は変えず、
+        // rename 間の停止・旧 binary 運用・v1 欠損を telemetry へ出す。
+        const standaloneV1 = this.readPath(this.persistPath, true);
+        const standaloneConflict = standaloneV1.state == null
+          || !rollbackMirrorsSemanticallyEqual(
+            this.toV1(v2.state),
+            this.toV1(standaloneV1.state),
+          );
+        if (v2.migrationConflict || standaloneV1.migrationConflict || standaloneConflict) {
+          this.recordMigrationConflict("telegram foundation persistence sources conflict; canonical v2 is authoritative");
+        }
+        return v2.state;
       }
-      return v2.state;
+      // Phase 3B 導入途中に同じ path へ書かれた v2 も読み取れるようにしつつ、
+      // 現行 writer は旧 reader 用の version:1 と新 schema を別ファイルへ dual-write する。
+      const fallback = this.readPath(this.persistPath, true);
+      if (fallback.migrationConflict) {
+        this.recordMigrationConflict("telegram foundation envelope fields differ; new schema is authoritative");
+      }
+      if (fallback.state == null || fallback.state.telegramFoundation.vpww56.authoritative) {
+        return fallback.state;
+      }
+      return {
+        ...fallback.state,
+        weatherAlerts: fallback.state.weatherAlerts?.filter((entry) => entry.source !== "vpww56"),
+      };
+    } finally {
+      activeVptaPersistenceReadContext = previousReadContext;
     }
-    // Phase 3B 導入途中に同じ path へ書かれた v2 も読み取れるようにしつつ、
-    // 現行 writer は旧 reader 用の version:1 と新 schema を別ファイルへ dual-write する。
-    const fallback = this.readPath(this.persistPath, true);
-    if (fallback.migrationConflict) {
-      this.recordMigrationConflict("telegram foundation envelope fields differ; new schema is authoritative");
-    }
-    if (fallback.state == null || fallback.state.telegramFoundation.vpww56.authoritative) {
-      return fallback.state;
-    }
-    return {
-      ...fallback.state,
-      weatherAlerts: fallback.state.weatherAlerts?.filter((entry) => entry.source !== "vpww56"),
-    };
   }
 
-  save(state: PersistedStandbyState): void {
-    this.writeSync(this.toV2(state), ++this.seq);
+  save(state: PersistedStandbyState): StandbyPersistenceSaveResult {
+    let normalized: PersistedStandbyStateV2;
+    try {
+      normalized = this.toV2(state);
+    } catch (cause) {
+      return {
+        kind: "failed", requestedSeq: null, failedSeq: null, stage: "validation",
+        pendingRetained: true, partialCommit: "none", cause,
+      };
+    }
+    // Validation failure must leave an existing timer untouched. Once validation
+    // succeeds, however, this synchronous write owns the retry policy and must not
+    // leave a debounce callback armed after a failure.
+    this.clearTimer();
+    const requestedSeq = ++this.seq;
+    const result = this.writeSyncResult(normalized, requestedSeq);
+    if (result.kind === "failed" && (this.pending == null || this.pending.seq < requestedSeq)) {
+      this.pending = { state: normalized, seq: requestedSeq };
+    } else if (result.kind === "written") {
+      if (this.pending != null && this.pending.seq <= result.writtenSeq) this.pending = null;
+      this.asyncLastFailure = null;
+    }
+    return result;
   }
 
   /**
    * 最新状態の保存を予約する。debounceMs 後に 1 回だけ非同期で書く。
    * 予約中に再度呼ばれた場合は最新状態で上書きし、書き込み回数は増やさない。
    */
-  schedule(state: PersistedStandbyState): void {
+  schedule(state: PersistedStandbyState): StandbyPersistenceScheduleReceipt {
     // seq は「内容を確定した時点」で採る。書き込み開始時に採ると、予約 → 同期保存の順で
     // 呼ばれたとき古い内容の方が大きい seq を持ってしまい、順序保証が逆転する
-    this.pending = { state: this.toV2(state), seq: ++this.seq };
+    const normalized = this.toV2(state);
+    const seq = ++this.seq;
+    this.pending = { state: normalized, seq };
     this.armTimer();
+    return { kind: "scheduled", seq };
   }
 
   /**
@@ -572,6 +778,51 @@ export class StandbyPersistence {
     this.writeSync(pending.state, pending.seq);
   }
 
+  flushThrough(requiredSeq: number): StandbyPersistenceFlushThroughResult {
+    this.clearTimer();
+    if (!Number.isSafeInteger(requiredSeq) || requiredSeq < 1) {
+      return {
+        kind: "failed", requiredSeq, targetSeq: null, failedSeq: null,
+        stage: "pendingBehindRequiredSeq", pendingRetained: true,
+        partialCommit: "none", cause: new Error("invalid required persistence seq"),
+      };
+    }
+    const pending = this.pending;
+    if (pending == null) {
+      return this.renamedSeq >= requiredSeq
+        ? { kind: "alreadyWritten", requiredSeq, writtenSeq: this.renamedSeq }
+        : {
+            kind: "failed", requiredSeq, targetSeq: null, failedSeq: null,
+            stage: "pendingUnavailable", pendingRetained: true,
+            partialCommit: "none", cause: new Error("standby persistence pending unavailable"),
+          };
+    }
+    if (pending.seq < requiredSeq) {
+      return {
+        kind: "failed", requiredSeq, targetSeq: pending.seq, failedSeq: pending.seq,
+        stage: "pendingBehindRequiredSeq", pendingRetained: true,
+        partialCommit: "none", cause: new Error("standby persistence pending behind required seq"),
+      };
+    }
+    const targetSeq = pending.seq;
+    const result = this.writeSyncResult(pending.state, targetSeq);
+    if (result.kind === "failed") return {
+      kind: "failed", requiredSeq, targetSeq, failedSeq: result.failedSeq,
+      stage: result.stage, pendingRetained: true,
+      partialCommit: result.partialCommit, cause: result.cause,
+    };
+    if (this.pending?.seq === targetSeq) this.pending = null;
+    return {
+      kind: "written", requiredSeq, targetSeq, writtenSeq: result.writtenSeq,
+      v2Committed: true, v1Committed: true,
+    };
+  }
+
+  /** debounce callback だけを停止し、最新 pending は shutdown の同期保存用に保持する。 */
+  stopTimer(): void {
+    this.clearTimer();
+  }
+
   /** 予約を捨てる (テスト・再初期化用。ディスク上の内容は触らない) */
   dispose(): void {
     this.clearTimer();
@@ -582,6 +833,14 @@ export class StandbyPersistence {
     const count = this.migrationConflictCount;
     this.migrationConflictCount = 0;
     return count;
+  }
+
+  lastFailure(): StandbyPersistenceLastFailure | null {
+    return this.asyncLastFailure;
+  }
+
+  isUnhealthy(): boolean {
+    return this.asyncLastFailure != null;
   }
 
   /** monitor diagnostics 用。counter は process lifetime で単調増加する。 */
@@ -604,6 +863,7 @@ export class StandbyPersistence {
 
   private recordMigrationConflict(detail: string): void {
     this.migrationConflictCount++;
+    this.canonicalRewriteRequired = true;
     log.warn(`[standby-persistence] persistenceMigrationConflict: ${detail}`);
   }
 
@@ -632,29 +892,60 @@ export class StandbyPersistence {
     const floodForecast = normalizeFloodFoundationForWrite(
       foundation.floodForecast ?? emptyFloodFoundation(),
     );
+    const typhoonProbabilities = normalizeTyphoonProbabilityStatesForWrite(
+      state.typhoonProbabilities,
+    );
     const standbyDomains = normalizeStandbyDomainsFoundationForWrite(
       foundation.standbyDomains ?? emptyStandbyDomainsFoundation(),
+      new Set(typhoonProbabilities.map((projection) =>
+        `typhoonProbability:${projection.key}`)),
     );
     const typhoons = normalizeTyphoonStatesForWrite(state.typhoons);
-    const { briefingCritical: _briefingCritical, ...stateWithoutBriefingCritical } = state;
-    const projectionState = salvageStandbyDomainProjections(
+    const vptaGates = new Map(standbyDomains.gateEntries
+      .filter((entry) => entry.domain === "typhoonProbability" && entry.revisionFamily === "VPTA50")
+      .map((entry) => [entry.stateSubjectKey, entry]));
+    for (const projection of typhoonProbabilities) {
+      const gate = vptaGates.get(`typhoonProbability:${projection.key}`);
+      if (gate == null || gate.cancelled || !standbyProjectionMatchesGate(
+        projection.revision, projection.appliedSemanticKey, gate,
+      )) throw new Error("invalid VPTA persistence coupling");
+    }
+    const {
+      briefingCritical: _briefingCritical,
+      typhoonProbabilities: _typhoonProbabilities,
+      typhoonProbabilityGateMetadata: _typhoonProbabilityGateMetadata,
+      ...stateWithoutBriefingCritical
+    } = state;
+    const rawProjectionState = salvageStandbyDomainProjections(
       {
         ...stateWithoutBriefingCritical,
         version: 1,
         typhoons,
+        ...(typhoonProbabilities.length === 0 ? {} : { typhoonProbabilities }),
         ...(briefingCritical == null ? {} : { briefingCritical }),
       },
       standbyDomains,
     );
+    const vptaEventIds = new Set(typhoonProbabilities.map((projection) => projection.key));
+    for (const entry of foundation.standbyDomains?.gateEntries ?? []) {
+      if (entry.domain !== "typhoonProbability" || entry.revisionFamily !== "VPTA50") continue;
+      const eventId = vptaEventIdFromSubject(entry.stateSubjectKey);
+      if (eventId != null) vptaEventIds.add(eventId);
+    }
+    const projectionState = stripVptaRollbackSeen(rawProjectionState, vptaEventIds);
     const seen = mergeLegacySeenEntries(
       projectionState.seen,
       volcanoLegacySeenEntries(volcano.gateEntries, volcano.state),
     );
     const rollbackSeen = mergeLegacySeenEntries(seen, standbyLegacySeenEntries(standbyDomains.gateEntries));
+    const probabilityGateMetadata = vptaGateMetadata(standbyDomains.gateEntries);
     return {
       ...projectionState,
       version: 2,
       seen: rollbackSeen,
+      ...(probabilityGateMetadata.length === 0
+        ? {}
+        : { typhoonProbabilityGateMetadata: probabilityGateMetadata }),
       floods: floodForecast.authoritative
         ? {
             events: structuredClone(floodForecast.active),
@@ -673,10 +964,26 @@ export class StandbyPersistence {
   }
 
   private toV1(state: PersistedStandbyStateV2): PersistedStandbyStateV1 {
-    const { telegramFoundation: _foundation, version: _version, ...legacy } = state;
+    const {
+      telegramFoundation: _foundation,
+      version: _version,
+      typhoonProbabilities,
+      typhoonProbabilityGateMetadata: _legacyProbabilityMetadata,
+      ...legacy
+    } = state;
     return {
       ...legacy,
       version: 1,
+      ...(typhoonProbabilities == null || typhoonProbabilities.length === 0
+        ? {}
+        : { typhoonProbabilities }),
+      ...(vptaGateMetadata(state.telegramFoundation.standbyDomains.gateEntries).length === 0
+        ? {}
+        : {
+            typhoonProbabilityGateMetadata: vptaGateMetadata(
+              state.telegramFoundation.standbyDomains.gateEntries,
+            ),
+          }),
       seen: mergeLegacySeenEntries(
         mergeLegacySeenEntries(
           legacy.seen,
@@ -765,33 +1072,65 @@ export class StandbyPersistence {
   }
 
   private writeSync(state: PersistedStandbyStateV2, seq: number): void {
-    if (!this.backupRepairSources()) {
-      this.pending = { state, seq };
-      return;
+    const result = this.writeSyncResult(state, seq);
+    if (result.kind === "failed") {
+      if (this.pending == null || this.pending.seq < seq) this.pending = { state, seq };
+      log.warn(`[standby-persistence] save 失敗: ${result.cause instanceof Error ? result.cause.message : String(result.cause)}`);
     }
+  }
+
+  private writeSyncResult(
+    state: PersistedStandbyStateV2,
+    seq: number,
+  ): StandbyPersistenceSaveResult {
+    if (!this.backupRepairSources()) return {
+      kind: "failed", requestedSeq: seq, failedSeq: seq, stage: "salvageBackup",
+      pendingRetained: true, partialCommit: "none", cause: new Error("salvage backup blocked"),
+    };
     const v2Path = standbyPersistenceV2Path(this.persistPath);
     const v2TmpPath = this.tmpPathFor(v2Path, seq);
     const v1TmpPath = this.tmpPathFor(this.persistPath, seq);
-    try {
-      fs.mkdirSync(path.dirname(this.persistPath), { recursive: true });
-      fs.writeFileSync(v2TmpPath, JSON.stringify(state), "utf8");
-      fs.writeFileSync(v1TmpPath, JSON.stringify(this.toV1(state)), "utf8");
-      if (seq < this.renamedSeq) {
-        // 既により新しい内容が置かれている。追い越された書き込みは反映しない
-        fs.rmSync(v2TmpPath, { force: true });
-        fs.rmSync(v1TmpPath, { force: true });
-        return;
-      }
-      fs.renameSync(v2TmpPath, v2Path);
-      fs.renameSync(v1TmpPath, this.persistPath);
-      this.renamedSeq = seq;
-      this.canonicalRewriteRequired = false;
-    } catch (err) {
-      log.warn(`[standby-persistence] save 失敗: ${err instanceof Error ? err.message : String(err)}`);
+    const failure = (
+      stage: StandbyPersistenceWriteFailureStage,
+      cause: unknown,
+      partialCommit: "none" | "v2Only" | "unknown" = "none",
+    ): StandbyPersistenceSaveResult => {
       for (const tmpPath of [v2TmpPath, v1TmpPath]) {
-        try { fs.rmSync(tmpPath, { force: true }); } catch { /* 後始末の失敗は無視 */ }
+        try { fs.rmSync(tmpPath, { force: true }); } catch { /* primary failure wins */ }
       }
+      return {
+        kind: "failed", requestedSeq: seq, failedSeq: seq, stage,
+        pendingRetained: true, partialCommit, cause,
+      };
+    };
+    try { fs.mkdirSync(path.dirname(this.persistPath), { recursive: true }); }
+    catch (cause) { return failure("mkdir", cause); }
+    try { fs.writeFileSync(v2TmpPath, JSON.stringify(state), "utf8"); }
+    catch (cause) { return failure("writeV2Temp", cause); }
+    let legacy: PersistedStandbyStateV1;
+    try {
+      legacy = this.toV1(state);
+      fs.writeFileSync(v1TmpPath, JSON.stringify(legacy), "utf8");
+    } catch (cause) { return failure("writeV1Temp", cause); }
+    if (seq < this.renamedSeq) {
+      for (const tmpPath of [v2TmpPath, v1TmpPath]) {
+        try { fs.rmSync(tmpPath, { force: true }); } catch { /* stale temp cleanup */ }
+      }
+      return {
+        kind: "written", requestedSeq: seq, writtenSeq: this.renamedSeq,
+        v2Committed: true, v1Committed: true,
+      };
     }
+    try { fs.renameSync(v2TmpPath, v2Path); }
+    catch (cause) { return failure("renameV2", cause); }
+    try { fs.renameSync(v1TmpPath, this.persistPath); }
+    catch (cause) { return failure("renameV1", cause, "v2Only"); }
+    this.renamedSeq = seq;
+    this.canonicalRewriteRequired = false;
+    return {
+      kind: "written", requestedSeq: seq, writtenSeq: seq,
+      v2Committed: true, v1Committed: true,
+    };
   }
 
   /** テスト用: 予約済みの書き込みをタイマーを待たずに実行する (実時間依存を避けるため) */
@@ -823,6 +1162,11 @@ export class StandbyPersistence {
     if (pending == null) return;
     if (!this.backupRepairSources()) {
       if (this.pending == null || this.pending.seq < pending.seq) this.pending = pending;
+      this.asyncLastFailure = {
+        kind: "failed", requestedSeq: pending.seq, failedSeq: pending.seq,
+        stage: "salvageBackup", pendingRetained: true, partialCommit: "none",
+        cause: new Error("salvage backup blocked"),
+      };
       return;
     }
     this.pending = null;
@@ -830,9 +1174,15 @@ export class StandbyPersistence {
     const v2Path = standbyPersistenceV2Path(this.persistPath);
     const v2TmpPath = this.tmpPathFor(v2Path, pending.seq);
     const v1TmpPath = this.tmpPathFor(this.persistPath, pending.seq);
+    let failed = false;
+    let stage: StandbyPersistenceWriteFailureStage = "mkdir";
+    let partialCommit: StandbyPersistenceLastFailure["partialCommit"] = "none";
     try {
+      stage = "mkdir";
       await fs.promises.mkdir(path.dirname(this.persistPath), { recursive: true });
+      stage = "writeV2Temp";
       await fs.promises.writeFile(v2TmpPath, JSON.stringify(pending.state), "utf8");
+      stage = "writeV1Temp";
       await fs.promises.writeFile(v1TmpPath, JSON.stringify(this.toV1(pending.state)), "utf8");
       // ここから rename までは await を挟まない。await で中断すると、guard 通過後・rename 完了前に
       // 同期保存が割り込み、そのあと古い rename が完了して旧内容で上書き + renamedSeq 逆行が起きる
@@ -841,11 +1191,21 @@ export class StandbyPersistence {
         fs.rmSync(v1TmpPath, { force: true });
         return;
       }
+      stage = "renameV2";
       fs.renameSync(v2TmpPath, v2Path);
+      partialCommit = "v2Only";
+      stage = "renameV1";
       fs.renameSync(v1TmpPath, this.persistPath);
       this.renamedSeq = pending.seq;
       this.canonicalRewriteRequired = false;
+      this.asyncLastFailure = null;
     } catch (err) {
+      failed = true;
+      this.restorePending(pending);
+      this.asyncLastFailure = {
+        kind: "failed", requestedSeq: pending.seq, failedSeq: pending.seq,
+        stage, pendingRetained: true, partialCommit, cause: err,
+      };
       log.warn(`[standby-persistence] save 失敗: ${err instanceof Error ? err.message : String(err)}`);
       for (const tmpPath of [v2TmpPath, v1TmpPath]) {
         try { fs.rmSync(tmpPath, { force: true }); } catch { /* 後始末の失敗は無視 */ }
@@ -853,8 +1213,12 @@ export class StandbyPersistence {
     } finally {
       this.writing = false;
       // 書き込み中に届いた更新は、終わってからもう一度だけ書く
-      if (this.pending != null) this.armTimer();
+      if (!failed && this.pending != null) this.armTimer();
     }
+  }
+
+  private restorePending(pending: { state: PersistedStandbyStateV2; seq: number }): void {
+    if (this.pending == null || this.pending.seq < pending.seq) this.pending = pending;
   }
 
   private backupRepairSources(): boolean {
@@ -1200,6 +1564,385 @@ function normalizeTyphoonStatesForWrite(
   });
 }
 
+function exactBoundedString(value: unknown, maxLength: number): value is string {
+  return typeof value === "string"
+    && value === value.trim()
+    && value.length >= 1
+    && value.length <= maxLength;
+}
+
+function validProbabilityInteger(value: unknown, active = false): value is number {
+  return Number.isSafeInteger(value) && (value as number) >= (active ? 1 : 0) && (value as number) <= 100;
+}
+
+function validPersistenceEpoch(value: unknown): value is number {
+  return Number.isSafeInteger(value) && Number.isFinite(new Date(value as number).getTime());
+}
+
+type OptionalArrayMode = "absent" | "present-array" | "present-invalid";
+
+function optionalArrayMode(value: Record<string, unknown>, key: string): OptionalArrayMode {
+  if (!Object.hasOwn(value, key)) return "absent";
+  return Array.isArray(value[key]) ? "present-array" : "present-invalid";
+}
+
+function rawHasVptaEvidence(value: Record<string, unknown>): boolean {
+  if (Object.hasOwn(value, "typhoonProbabilities")
+    || Object.hasOwn(value, "typhoonProbabilityGateMetadata")) return true;
+  if (Array.isArray(value.seen) && value.seen.slice(0, TYPHOON_PROBABILITY_READER_MAX_RAW_ITEMS + 1)
+    .some((entry) => isRecord(entry)
+      && typeof entry.key === "string"
+      && entry.key.startsWith("typhoonProbability:"))) return true;
+  if (!isRecord(value.telegramFoundation)
+    || !isRecord(value.telegramFoundation.standbyDomains)
+    || !Array.isArray(value.telegramFoundation.standbyDomains.gateEntries)) return false;
+  return value.telegramFoundation.standbyDomains.gateEntries
+    .slice(0, TYPHOON_PROBABILITY_READER_MAX_RAW_ITEMS + 1)
+    .some((entry) => isRecord(entry)
+      && entry.domain === "typhoonProbability"
+      && entry.revisionFamily === "VPTA50");
+}
+
+function vptaEventIdFromSubject(subject: unknown): string | null {
+  if (typeof subject !== "string" || !subject.startsWith("typhoonProbability:")) return null;
+  const eventId = subject.slice("typhoonProbability:".length);
+  return validateTyphoonProbabilityEventId(eventId) === eventId ? eventId : null;
+}
+
+function collectRawVptaEventIds(value: Record<string, unknown>): Set<string> {
+  const eventIds = new Set<string>();
+  if (Array.isArray(value.typhoonProbabilities)) {
+    for (const item of value.typhoonProbabilities.slice(
+      0,
+      TYPHOON_PROBABILITY_READER_MAX_RAW_ITEMS + 1,
+    )) {
+      if (!isRecord(item) || typeof item.key !== "string") continue;
+      if (validateTyphoonProbabilityEventId(item.key) === item.key) eventIds.add(item.key);
+    }
+  }
+  if (Array.isArray(value.typhoonProbabilityGateMetadata)) {
+    for (const item of value.typhoonProbabilityGateMetadata.slice(
+      0,
+      TYPHOON_PROBABILITY_READER_MAX_RAW_ITEMS + 1,
+    )) {
+      if (!isRecord(item)) continue;
+      const eventId = vptaEventIdFromSubject(item.stateSubjectKey);
+      if (eventId != null) eventIds.add(eventId);
+    }
+  }
+  if (isRecord(value.telegramFoundation)
+    && isRecord(value.telegramFoundation.standbyDomains)
+    && Array.isArray(value.telegramFoundation.standbyDomains.gateEntries)) {
+    for (const item of value.telegramFoundation.standbyDomains.gateEntries.slice(
+      0,
+      TYPHOON_PROBABILITY_READER_MAX_RAW_ITEMS + 1,
+    )) {
+      if (!isRecord(item)
+        || item.domain !== "typhoonProbability"
+        || item.revisionFamily !== "VPTA50") continue;
+      const eventId = vptaEventIdFromSubject(item.stateSubjectKey);
+      if (eventId != null) eventIds.add(eventId);
+    }
+  }
+  if (Array.isArray(value.seen)) {
+    const claimedLegacyKeys = new Set<string>([
+      ...(Array.isArray(value.heat) ? value.heat.flatMap((item) =>
+        isRecord(item) && typeof item.key === "string" ? [item.key] : []) : []),
+      ...(Array.isArray(value.typhoons) ? value.typhoons.flatMap((item) =>
+        isRecord(item) && typeof item.key === "string" ? [`typhoon:${item.key}`] : []) : []),
+      ...(Array.isArray(value.tornado) ? value.tornado.flatMap((item) =>
+        isRecord(item) && typeof item.publishingOffice === "string"
+          ? [`tornado:${item.publishingOffice}`] : []) : []),
+      ...(Array.isArray(value.longPeriod) ? value.longPeriod.flatMap((item) =>
+        isRecord(item) && typeof item.eventId === "string"
+          ? [`longPeriod:${item.eventId}`] : []) : []),
+      ...(value.nankaiTrough == null ? [] : ["nankai:current"]),
+    ]);
+    const allowUnprefixedSeen = Array.isArray(value.typhoonProbabilities);
+    for (const item of value.seen.slice(0, TYPHOON_PROBABILITY_READER_MAX_RAW_ITEMS + 1)) {
+      if (!isRecord(item) || typeof item.key !== "string") continue;
+      const eventId = item.key.startsWith("typhoonProbability:")
+        ? item.key.slice("typhoonProbability:".length)
+        : allowUnprefixedSeen && !claimedLegacyKeys.has(item.key) ? item.key : "";
+      if (validateTyphoonProbabilityEventId(eventId) === eventId) eventIds.add(eventId);
+    }
+  }
+  return eventIds;
+}
+
+function vptaRawDomainExceedsHardLimit(value: Record<string, unknown>): boolean {
+  if (Array.isArray(value.typhoonProbabilities)
+    && value.typhoonProbabilities.length > TYPHOON_PROBABILITY_READER_MAX_RAW_ITEMS) return true;
+  if (Array.isArray(value.typhoonProbabilityGateMetadata)
+    && value.typhoonProbabilityGateMetadata.length > TYPHOON_PROBABILITY_READER_MAX_RAW_ITEMS) return true;
+  if (isRecord(value.telegramFoundation)
+    && isRecord(value.telegramFoundation.standbyDomains)
+    && Array.isArray(value.telegramFoundation.standbyDomains.gateEntries)) {
+    let vptaItems = 0;
+    for (const item of value.telegramFoundation.standbyDomains.gateEntries) {
+      if (isRecord(item)
+        && item.domain === "typhoonProbability"
+        && item.revisionFamily === "VPTA50"
+        && ++vptaItems > TYPHOON_PROBABILITY_READER_MAX_RAW_ITEMS) return true;
+    }
+  }
+  const eventIds = collectRawVptaEventIds(value);
+  if (eventIds.size > TYPHOON_PROBABILITY_READER_MAX_RAW_BUNDLES) return true;
+  if (Array.isArray(value.seen)) {
+    let vptaItems = 0;
+    for (const item of value.seen) {
+      if (isRecord(item)
+        && typeof item.key === "string"
+        && (item.key.startsWith("typhoonProbability:") || eventIds.has(item.key))
+        && ++vptaItems > TYPHOON_PROBABILITY_READER_MAX_RAW_ITEMS) return true;
+    }
+  }
+  return false;
+}
+
+function stripVptaRollbackSeen(
+  base: PersistedStandbyStateV1,
+  eventIds: ReadonlySet<string>,
+): PersistedStandbyStateV1 {
+  const seen = base.seen.filter((entry) =>
+    !entry.key.startsWith("typhoonProbability:") && !eventIds.has(entry.key));
+  return seen.length === base.seen.length ? base : { ...base, seen };
+}
+
+function removeVptaRootDomain(
+  base: PersistedStandbyStateV1,
+  eventIds: ReadonlySet<string>,
+): PersistedStandbyStateV1 {
+  const {
+    typhoonProbabilities: _typhoonProbabilities,
+    typhoonProbabilityGateMetadata: _typhoonProbabilityGateMetadata,
+    ...withoutVpta
+  } = stripVptaRollbackSeen(base, eventIds);
+  return withoutVpta;
+}
+
+function sanitizeTyphoonProbabilityState(
+  value: unknown,
+): PersistedTyphoonProbabilityStateV1 | null {
+  if (!isRecord(value)) return null;
+  const activePrefectureCount = value.activePrefectureCount;
+  const revisionSerial = isRecord(value.revision) && Object.hasOwn(value.revision, "serial")
+    && (value.revision.serial === null || typeof value.revision.serial === "string")
+    ? normalizeVpta50Serial(value.revision.serial)
+    : { kind: "invalid" as const };
+  if (!isRecord(value)
+    || !exactBoundedString(value.key, TYPHOON_PROBABILITY_MAX_EVENT_ID_LENGTH)
+    || validateTyphoonProbabilityEventId(value.key) !== value.key
+    || !exactBoundedString(value.sourceEventId, TYPHOON_PROBABILITY_MAX_SOURCE_ID_LENGTH)
+    || !isRecord(value.identity)
+    || !validPersistenceEpoch(value.baseTimeMs)
+    || !validProbabilityInteger(value.maxFiveDayProbability, true)
+    || typeof activePrefectureCount !== "number"
+    || !Number.isSafeInteger(activePrefectureCount)
+    || activePrefectureCount < 1
+    || activePrefectureCount > TYPHOON_PROBABILITY_MAX_ACTIVE_PREFECTURES
+    || !Array.isArray(value.topPrefectures)
+    || !isRecord(value.worstArea)
+    || !isRevision(value.revision)
+    || !validPersistenceEpoch(value.revision.reportTimeMs)
+    || revisionSerial.kind === "invalid"
+    || !exactBoundedString(value.appliedSemanticKey, TYPHOON_PROBABILITY_MAX_SEMANTIC_KEY_LENGTH)
+    || !validPersistenceEpoch(value.expiresAtMs)
+    || value.expiresAtMs <= value.baseTimeMs
+    || value.expiresAtMs - value.baseTimeMs > 120 * 60 * 60_000) return null;
+  const identityValue = value.identity;
+  const nullableIdentity = (
+    key: "name" | "nameKana" | "remark" | "typhoonNumber",
+    maxLength: number,
+  ): string | null | undefined => {
+    if (!Object.hasOwn(identityValue, key)) return undefined;
+    const item = identityValue[key];
+    return item === null ? null : exactBoundedString(item, maxLength) ? item : undefined;
+  };
+  const identity = {
+    name: nullableIdentity("name", TYPHOON_PROBABILITY_MAX_NAME_LENGTH),
+    nameKana: nullableIdentity("nameKana", TYPHOON_PROBABILITY_MAX_NAME_LENGTH),
+    remark: nullableIdentity("remark", TYPHOON_PROBABILITY_MAX_REMARK_LENGTH),
+    typhoonNumber: nullableIdentity("typhoonNumber", TYPHOON_PROBABILITY_MAX_CODE_LENGTH),
+  };
+  if (Object.values(identity).some((item) => item === undefined)) return null;
+  if (value.topPrefectures.length !== Math.min(
+    TYPHOON_PROBABILITY_MAX_TOP_PREFECTURES,
+    activePrefectureCount,
+  )) return null;
+  const topPrefectures: PersistedTyphoonProbabilityPrefectureV1[] = [];
+  const codes = new Set<string>();
+  for (const item of value.topPrefectures) {
+    if (!isRecord(item)
+      || !exactBoundedString(item.prefectureCode, TYPHOON_PROBABILITY_MAX_CODE_LENGTH)
+      || !exactBoundedString(item.prefectureName, TYPHOON_PROBABILITY_MAX_NAME_LENGTH)
+      || !validProbabilityInteger(item.fiveDayProbability, true)
+      || codes.has(item.prefectureCode)) return null;
+    codes.add(item.prefectureCode);
+    topPrefectures.push({
+      prefectureCode: item.prefectureCode,
+      prefectureName: item.prefectureName,
+      fiveDayProbability: item.fiveDayProbability,
+    });
+  }
+  for (let index = 1; index < topPrefectures.length; index += 1) {
+    const previous = topPrefectures[index - 1]!, current = topPrefectures[index]!;
+    if (previous.fiveDayProbability < current.fiveDayProbability
+      || previous.fiveDayProbability === current.fiveDayProbability
+        && previous.prefectureCode >= current.prefectureCode) return null;
+  }
+  const worst = value.worstArea;
+  if (!exactBoundedString(worst.areaCode, TYPHOON_PROBABILITY_MAX_CODE_LENGTH)
+    || !exactBoundedString(worst.areaName, TYPHOON_PROBABILITY_MAX_NAME_LENGTH)
+    || !exactBoundedString(worst.prefectureCode, TYPHOON_PROBABILITY_MAX_CODE_LENGTH)
+    || !exactBoundedString(worst.prefectureName, TYPHOON_PROBABILITY_MAX_NAME_LENGTH)
+    || !validProbabilityInteger(worst.fiveDayProbability, true)
+    || !Object.hasOwn(worst, "peakAtMs")
+    || !(worst.peakAtMs == null || validPersistenceEpoch(worst.peakAtMs)
+      && worst.peakAtMs >= value.baseTimeMs && worst.peakAtMs < value.expiresAtMs)) return null;
+  const matchingWorst = topPrefectures.filter((item) =>
+    item.prefectureCode === worst.prefectureCode
+    && item.prefectureName === worst.prefectureName
+    && item.fiveDayProbability === worst.fiveDayProbability);
+  if (matchingWorst.length !== 1
+    || topPrefectures[0]?.fiveDayProbability !== value.maxFiveDayProbability
+    || worst.fiveDayProbability !== value.maxFiveDayProbability) return null;
+  return {
+    key: value.key,
+    sourceEventId: value.sourceEventId,
+    identity: identity as PersistedTyphoonProbabilityStateV1["identity"],
+    baseTimeMs: value.baseTimeMs,
+    maxFiveDayProbability: value.maxFiveDayProbability,
+    activePrefectureCount,
+    topPrefectures,
+    worstArea: {
+      areaCode: worst.areaCode,
+      areaName: worst.areaName,
+      prefectureCode: worst.prefectureCode,
+      prefectureName: worst.prefectureName,
+      fiveDayProbability: worst.fiveDayProbability,
+      peakAtMs: worst.peakAtMs as number | null,
+    },
+    revision: { ...value.revision },
+    appliedSemanticKey: value.appliedSemanticKey,
+    expiresAtMs: value.expiresAtMs,
+  };
+}
+
+function sanitizeTyphoonProbabilityStates(value: unknown): PersistedTyphoonProbabilityStateV1[] {
+  if (value == null) return [];
+  if (!Array.isArray(value)) {
+    recordRepair("root.typhoonProbabilities", "subject", 1, 0, "invalid-container", true);
+    return [];
+  }
+  if (value.length > TYPHOON_PROBABILITY_READER_MAX_RAW_ITEMS) {
+    recordRepair("root.typhoonProbabilities", "subject", value.length, 0, "limit-exceeded", true);
+    return [];
+  }
+  const rawSubjectCounts = new Map<string, number>();
+  for (const item of value) {
+    if (!isRecord(item) || typeof item.key !== "string"
+      || validateTyphoonProbabilityEventId(item.key) !== item.key) continue;
+    rawSubjectCounts.set(item.key, (rawSubjectCounts.get(item.key) ?? 0) + 1);
+  }
+  const states: PersistedTyphoonProbabilityStateV1[] = [];
+  let invalid = 0;
+  for (const item of value) {
+    const parsed = sanitizeTyphoonProbabilityState(item);
+    if (parsed == null) { invalid += 1; continue; }
+    if (rawSubjectCounts.get(parsed.key) === 1) states.push(parsed);
+  }
+  states.sort((left, right) => left.key < right.key ? -1 : left.key > right.key ? 1 : 0);
+  const duplicateCount = [...rawSubjectCounts.values()].filter((count) => count > 1)
+    .reduce((sum, count) => sum + count, 0);
+  if (invalid > 0) recordRepair("root.typhoonProbabilities", "subject", invalid, states.length, "invalid-entry");
+  if (duplicateCount > 0) recordRepair("root.typhoonProbabilities", "subject", duplicateCount, states.length, "duplicate-subject");
+  if (states.length > TYPHOON_PROBABILITY_READER_MAX_RAW_BUNDLES) {
+    recordRepair("root.typhoonProbabilities", "subject", states.length, 0, "limit-exceeded", true);
+    return [];
+  }
+  return states;
+}
+
+function normalizeTyphoonProbabilityStatesForWrite(
+  states: readonly PersistedTyphoonProbabilityStateV1[] | undefined,
+): PersistedTyphoonProbabilityStateV1[] {
+  if (states == null) return [];
+  const normalized = states.map(sanitizeTyphoonProbabilityState);
+  if (normalized.some((state) => state == null)) throw new Error("invalid persisted typhoon probability state");
+  const result = normalized as PersistedTyphoonProbabilityStateV1[];
+  if (result.length > TYPHOON_PROBABILITY_MAX_SUBJECTS
+    || new Set(result.map((state) => state.key)).size !== result.length) {
+    throw new Error("invalid persisted typhoon probability collection");
+  }
+  return result.sort((left, right) => left.key < right.key ? -1 : left.key > right.key ? 1 : 0);
+}
+
+function sanitizeVptaGateMetadata(
+  value: unknown,
+): PersistedTyphoonProbabilityGateMetadataV1[] {
+  if (!Array.isArray(value)) {
+    recordRepair("root.typhoonProbabilityGateMetadata", "subject", 1, 0, "invalid-container", true);
+    return [];
+  }
+  if (value.length > TYPHOON_PROBABILITY_READER_MAX_RAW_ITEMS) {
+    recordRepair(
+      "root.typhoonProbabilityGateMetadata", "subject", value.length, 0,
+      "limit-exceeded", true,
+    );
+    return [];
+  }
+  const rawSubjectCounts = new Map<string, number>();
+  for (const item of value) {
+    if (!isRecord(item) || typeof item.stateSubjectKey !== "string"
+      || vptaEventIdFromSubject(item.stateSubjectKey) == null) continue;
+    rawSubjectCounts.set(
+      item.stateSubjectKey,
+      (rawSubjectCounts.get(item.stateSubjectKey) ?? 0) + 1,
+    );
+  }
+  const result: PersistedTyphoonProbabilityGateMetadataV1[] = [];
+  let invalid = 0;
+  for (const item of value) {
+    if (!isRecord(item)
+      || typeof item.stateSubjectKey !== "string"
+      || !item.stateSubjectKey.startsWith("typhoonProbability:")
+      || validateTyphoonProbabilityEventId(item.stateSubjectKey.slice("typhoonProbability:".length))
+        !== item.stateSubjectKey.slice("typhoonProbability:".length)
+      || !isRecord(item.comparison)
+      || item.comparison.stateSubjectKey !== item.stateSubjectKey
+      || !isRecord(item.comparison.revision)
+      || !isRecord(item.comparison.revision.serial)
+      || !Object.hasOwn(item.comparison.revision.serial, "raw")
+      || !(item.comparison.revision.serial.raw === null
+        || typeof item.comparison.revision.serial.raw === "string")
+      || !isRecord(item.comparison.revision.reportDateTime)
+      || !Array.isArray(item.semanticKeys)
+      || item.semanticKeys.length > TELEGRAM_REVISION_MAX_SEMANTIC_KEYS
+      || !item.semanticKeys.every((key) => exactBoundedString(key, TYPHOON_PROBABILITY_MAX_SEMANTIC_KEY_LENGTH))
+      || typeof item.cancelled !== "boolean") {
+      invalid += 1; continue;
+    }
+    const semanticKeys = normalizeVptaPersistedSemanticKeys(item.semanticKeys);
+    if (semanticKeys.length !== item.semanticKeys.length && activeRepairCollector != null) {
+      activeRepairCollector.canonicalRewriteRequired = true;
+    }
+    const metadata: PersistedTyphoonProbabilityGateMetadataV1 = {
+      stateSubjectKey: item.stateSubjectKey,
+      comparison: structuredClone(item.comparison) as unknown as TelegramRevisionComparisonInput,
+      semanticKeys,
+      cancelled: item.cancelled,
+    };
+    if (rawSubjectCounts.get(metadata.stateSubjectKey) === 1) result.push(metadata);
+  }
+  result.sort((left, right) => left.stateSubjectKey < right.stateSubjectKey ? -1 : left.stateSubjectKey > right.stateSubjectKey ? 1 : 0);
+  const duplicates = [...rawSubjectCounts.values()].filter((count) => count > 1)
+    .reduce((sum, count) => sum + count, 0);
+  if (invalid > 0) recordRepair("root.typhoonProbabilityGateMetadata", "subject", invalid, result.length, "invalid-entry");
+  if (duplicates > 0) recordRepair("root.typhoonProbabilityGateMetadata", "subject", duplicates, result.length, "duplicate-subject");
+  return result;
+}
+
 function isVolcanoState(value: unknown): value is PersistedVolcanoStateV1 {
   return isRecord(value)
     && typeof value.code === "string"
@@ -1435,6 +2178,20 @@ function validDomainArray<T>(
 
 function sanitizePersistedStandbyStateV1(value: unknown): PersistedStandbyStateV1 | null {
   if (!isRecord(value) || value.version !== 1 || typeof value.savedAt !== "string") return null;
+  const metadataMode = optionalArrayMode(value, "typhoonProbabilityGateMetadata");
+  if (metadataMode === "present-invalid") {
+    warnVptaPersistenceDiagnostic("vpta50V1GateMetadataPresentInvalid");
+  } else if (metadataMode === "absent" && rawHasVptaEvidence(value)) {
+    warnVptaPersistenceDiagnostic("vpta50V1GateMetadataMissing");
+  }
+  if (Array.isArray(value.typhoonProbabilities)
+    && value.typhoonProbabilities.length <= TYPHOON_PROBABILITY_READER_MAX_RAW_ITEMS
+    && value.typhoonProbabilities.some((item) => isRecord(item)
+      && typeof item.key === "string"
+      && validateTyphoonProbabilityEventId(item.key) === item.key
+      && !Object.hasOwn(item, "appliedSemanticKey"))) {
+    warnVptaPersistenceDiagnostic("vpta50V1MissingAppliedSemanticKey");
+  }
   const floods = value.floods == null ? undefined : sanitizeFloodState(value.floods);
   // floods の container 不正は sanitizeFloodState で source 別 repair report に集約する。
   const nankaiTrough = value.nankaiTrough == null || isNankaiState(value.nankaiTrough) ? value.nankaiTrough : null;
@@ -1451,6 +2208,12 @@ function sanitizePersistedStandbyStateV1(value: unknown): PersistedStandbyStateV
     savedAt: value.savedAt,
     heat: validDomainArray(value.heat, isHeatState, "root.heat"),
     typhoons: sanitizeTyphoonStates(value.typhoons),
+    ...(Object.hasOwn(value, "typhoonProbabilities") ? {
+      typhoonProbabilities: sanitizeTyphoonProbabilityStates(value.typhoonProbabilities),
+    } : {}),
+    ...(Object.hasOwn(value, "typhoonProbabilityGateMetadata") ? {
+      typhoonProbabilityGateMetadata: sanitizeVptaGateMetadata(value.typhoonProbabilityGateMetadata),
+    } : {}),
     volcanoes: sanitizeVolcanoStates(value.volcanoes),
     floods,
     weatherAlerts: sanitizeWeatherAlertStates(value.weatherAlerts),
@@ -1792,6 +2555,12 @@ function standbySubjectMatchesPolicy(
   if (entry.domain === "typhoonAnalysis" && entry.revisionFamily === "typhoonAnalysis") {
     return entry.stateSubjectKey.startsWith("typhoon:");
   }
+  if (entry.domain === "typhoonProbability" && entry.revisionFamily === "VPTA50") {
+    const eventId = entry.stateSubjectKey.startsWith("typhoonProbability:")
+      ? entry.stateSubjectKey.slice("typhoonProbability:".length)
+      : "";
+    return validateTyphoonProbabilityEventId(eventId) === eventId;
+  }
   if (entry.domain === "nankaiTrough" && entry.revisionFamily === "nankaiTrough") {
     return entry.stateSubjectKey === "nankai:current";
   }
@@ -1803,23 +2572,70 @@ function standbySubjectMatchesPolicy(
 
 function normalizeStandbyDomainsFoundationForWrite(
   value: PersistedTelegramFoundationV2["standbyDomains"],
+  vptaProjectionSubjects: ReadonlySet<string> | null = new Set<string>(),
 ): PersistedTelegramFoundationV2["standbyDomains"] {
   const perFamily = new Map<string, PersistedTelegramRevisionGateEntryV2[]>();
+  const vptaSubjects = new Set<string>();
   for (const entry of value.gateEntries) {
     const policy = standbyFoundationPolicy(entry);
+    if (entry.domain === "typhoonProbability" && entry.revisionFamily === "VPTA50"
+      && vptaProjectionSubjects !== null
+      && (!isGateEntry(entry)
+        || entry.tombstoneRetentionMs !== TYPHOON_PROBABILITY_RETENTION_MS
+        || policy == null
+        || !standbySubjectMatchesPolicy(entry))) {
+      throw new Error("invalid persisted VPTA gate entry");
+    }
     if (policy == null || !standbySubjectMatchesPolicy(entry)) continue;
+    if (entry.domain === "typhoonProbability" && entry.revisionFamily === "VPTA50") {
+      if (vptaSubjects.has(entry.stateSubjectKey)) {
+        throw new Error("invalid persisted VPTA gate collection");
+      }
+      vptaSubjects.add(entry.stateSubjectKey);
+    }
+    const normalizedSemanticKeys = entry.domain === "typhoonProbability"
+      && entry.revisionFamily === "VPTA50"
+      ? normalizeVptaPersistedSemanticKeys(entry.semanticKeys)
+      : compactPersistedSemanticKeys(entry.semanticKeys);
+    if (entry.domain === "typhoonProbability" && entry.revisionFamily === "VPTA50"
+      && vptaProjectionSubjects !== null
+      && normalizedSemanticKeys.length !== entry.semanticKeys.length) {
+      throw new Error("invalid persisted VPTA semantic key collection");
+    }
     const key = `${entry.domain}:${entry.revisionFamily}`;
     const entries = perFamily.get(key) ?? [];
     entries.push({
       ...structuredClone(entry),
       tombstoneRetentionMs: entry.tombstoneRetentionMs ?? policy.tombstoneRetentionMs,
-      semanticKeys: compactPersistedSemanticKeys(entry.semanticKeys),
+      semanticKeys: normalizedSemanticKeys,
     });
     perFamily.set(key, entries);
   }
   return {
     gateEntries: [...perFamily.values()].flatMap((entries) => {
       const policy = standbyFoundationPolicy(entries[0]);
+      if (entries[0]?.domain === "typhoonProbability" && entries[0].revisionFamily === "VPTA50") {
+        if (vptaProjectionSubjects === null) {
+          return entries.sort((left, right) => left.stateSubjectKey < right.stateSubjectKey
+            ? -1 : left.stateSubjectKey > right.stateSubjectKey ? 1 : 0);
+        }
+        if (entries.length > (policy?.maxSubjects ?? TYPHOON_PROBABILITY_MAX_SUBJECTS)) {
+          throw new Error("VPTA persistence subject capacity exceeded");
+        }
+        const selection = selectVptaCapacityBundles(entries.map((entry) => ({
+          stateSubjectKey: entry.stateSubjectKey,
+          acceptedAtMs: entry.acceptedAtMs,
+          class: entry.cancelled
+            ? "GT" as const
+            : vptaProjectionSubjects.has(entry.stateSubjectKey) ? "P+G" as const : "GA" as const,
+        })), policy?.maxSubjects ?? TYPHOON_PROBABILITY_MAX_SUBJECTS);
+        if (selection.kind === "protectedOverflow") {
+          throw new Error("VPTA protected persistence capacity exceeded");
+        }
+        const retained = new Set(selection.retained.map((bundle) => bundle.stateSubjectKey));
+        return entries.filter((entry) => retained.has(entry.stateSubjectKey))
+          .sort((left, right) => left.stateSubjectKey < right.stateSubjectKey ? -1 : left.stateSubjectKey > right.stateSubjectKey ? 1 : 0);
+      }
       return entries.slice(-(policy?.maxSubjects ?? TELEGRAM_REVISION_MAX_ENTRIES));
     }),
   };
@@ -1829,18 +2645,58 @@ function sanitizeStandbyDomainsFoundation(
   value: unknown,
 ): PersistedTelegramFoundationV2["standbyDomains"] | null {
   if (!isRecord(value) || !Array.isArray(value.gateEntries)) return null;
+  const rawVptaSubjectCounts = new Map<string, number>();
+  for (const candidate of value.gateEntries) {
+    if (!isRecord(candidate)
+      || candidate.domain !== "typhoonProbability"
+      || candidate.revisionFamily !== "VPTA50"
+      || typeof candidate.stateSubjectKey !== "string") continue;
+    rawVptaSubjectCounts.set(
+      candidate.stateSubjectKey,
+      (rawVptaSubjectCounts.get(candidate.stateSubjectKey) ?? 0) + 1,
+    );
+  }
+  const rawVptaCount = value.gateEntries.filter((candidate) => isRecord(candidate)
+    && candidate.domain === "typhoonProbability"
+    && candidate.revisionFamily === "VPTA50").length;
+  const rejectVptaDomain = rawVptaCount > TYPHOON_PROBABILITY_READER_MAX_RAW_ITEMS;
+  if (rejectVptaDomain) {
+    recordRepair("foundation.standbyDomains", "subject", rawVptaCount, 0, "limit-exceeded", true);
+  }
   const gateEntries = value.gateEntries.flatMap((candidate) => {
+    if (rejectVptaDomain && isRecord(candidate)
+      && candidate.domain === "typhoonProbability"
+      && candidate.revisionFamily === "VPTA50") return [];
+    const rawVpta = isRecord(candidate)
+      && candidate.domain === "typhoonProbability"
+      && candidate.revisionFamily === "VPTA50";
+    if (rawVpta && typeof candidate.stateSubjectKey === "string"
+      && (rawVptaSubjectCounts.get(candidate.stateSubjectKey) ?? 0) > 1) return [];
+    if (rawVpta && Object.hasOwn(candidate, "tombstoneRetentionMs")
+      && candidate.tombstoneRetentionMs !== TYPHOON_PROBABILITY_RETENTION_MS) {
+      warnVptaPersistenceDiagnostic("vpta50GateRetentionInvalid");
+      return [];
+    }
     if (!isGateEntry(candidate)) return [];
     const entry = candidate as PersistedTelegramRevisionGateEntryV2;
     const policy = standbyFoundationPolicy(entry);
     if (policy == null || !standbySubjectMatchesPolicy(entry)) return [];
+    if (entry.domain === "typhoonProbability" && entry.revisionFamily === "VPTA50"
+      && !Object.hasOwn(entry, "tombstoneRetentionMs")) {
+      if (activeRepairCollector != null) activeRepairCollector.canonicalRewriteRequired = true;
+      warnVptaPersistenceDiagnostic("vpta50GateRetentionDefaulted");
+    }
     return [{
       ...structuredClone(entry),
       tombstoneRetentionMs: entry.tombstoneRetentionMs ?? policy.tombstoneRetentionMs,
-      semanticKeys: compactPersistedSemanticKeys(entry.semanticKeys),
+      semanticKeys: entry.domain === "typhoonProbability" && entry.revisionFamily === "VPTA50"
+        ? normalizeVptaPersistedSemanticKeys(entry.semanticKeys)
+        : compactPersistedSemanticKeys(entry.semanticKeys),
     }];
   });
-  const duplicateSubjects = new Set<string>();
+  const duplicateSubjects = new Set(
+    [...rawVptaSubjectCounts].filter(([, count]) => count > 1).map(([subject]) => subject),
+  );
   const counts = new Map<string, number>();
   for (const entry of gateEntries) counts.set(entry.stateSubjectKey, (counts.get(entry.stateSubjectKey) ?? 0) + 1);
   for (const [subject, count] of counts) if (count > 1) duplicateSubjects.add(subject);
@@ -1850,7 +2706,7 @@ function sanitizeStandbyDomainsFoundation(
     "foundation.standbyDomains", "subject", discarded, retained.length,
     duplicateSubjects.size > 0 ? "duplicate-subject" : "invalid-entry",
   );
-  const normalized = normalizeStandbyDomainsFoundationForWrite({ gateEntries: retained });
+  const normalized = normalizeStandbyDomainsFoundationForWrite({ gateEntries: retained }, null);
   if (normalized.gateEntries.length !== retained.length) {
     recordRepair(
       "foundation.standbyDomains", "subject", 1, normalized.gateEntries.length, "limit-exceeded",
@@ -1984,9 +2840,11 @@ function isStrictText(value: unknown): value is StrictTextMeta {
 function isGateEntry(value: unknown): value is PersistedTelegramRevisionGateEntryV2 {
   if (!isRecord(value) || !isRecord(value.comparison) || !isRecord(value.comparison.revision)) return false;
   const revision = value.comparison.revision;
-  if (typeof value.acceptedAtMs !== "number" || !Number.isFinite(value.acceptedAtMs)) return false;
+  const acceptedAtMs = value.acceptedAtMs;
+  if (typeof acceptedAtMs !== "number" || !Number.isSafeInteger(acceptedAtMs)
+    || !validPersistenceEpoch(acceptedAtMs)) return false;
   if (!isRecord(revision.reportDateTime) || typeof revision.reportDateTime.raw !== "string") return false;
-  const strictDate = parseStrictReportDateTime(revision.reportDateTime.raw, value.acceptedAtMs);
+  const strictDate = parseStrictReportDateTime(revision.reportDateTime.raw, acceptedAtMs);
   if (!strictDate.valid || strictDate.epochMs == null) return false;
   if (revision.reportDateTime.epochMs !== strictDate.epochMs || revision.reportDateTime.valid !== true) return false;
   if (!isRecord(revision.serial) || !(revision.serial.raw == null || typeof revision.serial.raw === "string")) return false;
@@ -2008,16 +2866,48 @@ function isGateEntry(value: unknown): value is PersistedTelegramRevisionGateEntr
     || eventId.valid !== true
     || type.valid !== true
   ) return false;
+  if (!isRecord(revision.infoType)) return false;
+  const isVpta = value.domain === "typhoonProbability" && value.revisionFamily === "VPTA50";
+  const vptaEventId = isVpta && typeof value.stateSubjectKey === "string"
+    && value.stateSubjectKey.startsWith("typhoonProbability:")
+    ? value.stateSubjectKey.slice("typhoonProbability:".length)
+    : null;
+  if (isVpta && (
+    vptaEventId == null
+    || validateTyphoonProbabilityEventId(vptaEventId) !== vptaEventId
+    || eventId.raw !== vptaEventId
+    || eventId.value !== vptaEventId
+    || type.raw !== "VPTA50"
+    || type.value !== "VPTA50"
+    || (revision.infoType.raw !== "発表"
+      && revision.infoType.raw !== "訂正"
+      && revision.infoType.raw !== "取消")
+    || revision.infoType.raw !== revision.infoType.value
+    || acceptedAtMs > persistenceValidationNowMs()
+      + TYPHOON_PROBABILITY_ACCEPTED_AT_FUTURE_SKEW_MS
+    || revision.reportDateTime.epochMs > acceptedAtMs
+      + TYPHOON_PROBABILITY_REPORT_FUTURE_SKEW_MS
+    || !serialMissing && serialRaw !== String(revision.serial.numeric)
+    || serialMissing && serialRaw !== null
+    || !Array.isArray(value.semanticKeys)
+    || value.semanticKeys.length < 1 && value.cancelled !== true
+    || value.semanticKeys.length > TELEGRAM_REVISION_MAX_SEMANTIC_KEYS
+    || value.semanticKeys.some((key) => !exactBoundedString(key, TYPHOON_PROBABILITY_MAX_SEMANTIC_KEY_LENGTH))
+    || revision.infoType.value === "取消" && value.cancelled !== true
+    || Object.hasOwn(value, "tombstoneRetentionMs")
+      && value.tombstoneRetentionMs !== 7 * 24 * 60 * 60_000
+  )) return false;
   return typeof value.domain === "string"
     && typeof value.revisionFamily === "string"
     && typeof value.stateSubjectKey === "string"
     && value.comparison.stateSubjectKey === value.stateSubjectKey
-    && isRecord(revision.infoType)
     && (revision.infoType.raw == null || typeof revision.infoType.raw === "string")
     && (revision.infoType.value === "発表" || revision.infoType.value === "訂正" || revision.infoType.value === "取消")
     && revision.infoType.valid === true
     && isStringArray(value.semanticKeys)
-    && value.semanticKeys.length <= TELEGRAM_REVISION_MAX_ENTRIES
+    && value.semanticKeys.length <= (isVpta
+      ? TELEGRAM_REVISION_MAX_SEMANTIC_KEYS
+      : TELEGRAM_REVISION_MAX_ENTRIES)
     && value.semanticKeys.every((key) => key.length <= 1_048_576)
     && typeof value.cancelled === "boolean"
     && (value.legacyRevisionKey == null
@@ -2030,7 +2920,7 @@ function isGateEntry(value: unknown): value is PersistedTelegramRevisionGateEntr
       || typeof value.tombstoneRetentionMs === "number"
       && Number.isFinite(value.tombstoneRetentionMs)
       && value.tombstoneRetentionMs > 0)
-    && eventId.value === value.stateSubjectKey
+    && (isVpta || eventId.value === value.stateSubjectKey)
     && type.value === value.revisionFamily;
 }
 
@@ -4138,6 +5028,96 @@ function standbyProjectionMatchesGate(
     && gate.semanticKeys.at(-1) === appliedSemanticKey;
 }
 
+/** VPTA projection + gate を EventID bundle として coupling 後にだけ 256 件へ絞る。 */
+function normalizeVptaPersistenceBundles(
+  base: PersistedStandbyStateV1,
+  foundation: PersistedTelegramFoundationV2["standbyDomains"],
+): {
+  base: PersistedStandbyStateV1;
+  foundation: PersistedTelegramFoundationV2["standbyDomains"];
+} {
+  const vptaGates = foundation.gateEntries.filter((entry) =>
+    entry.domain === "typhoonProbability" && entry.revisionFamily === "VPTA50");
+  const otherGates = foundation.gateEntries.filter((entry) =>
+    entry.domain !== "typhoonProbability" || entry.revisionFamily !== "VPTA50");
+  const vptaEventIds = new Set<string>();
+  for (const gate of vptaGates) {
+    const eventId = vptaEventIdFromSubject(gate.stateSubjectKey);
+    if (eventId != null) vptaEventIds.add(eventId);
+  }
+  for (const projection of base.typhoonProbabilities ?? []) vptaEventIds.add(projection.key);
+  const cleanBase = stripVptaRollbackSeen(base, vptaEventIds);
+  const projections = cleanBase.typhoonProbabilities ?? [];
+  const bundleSubjects = new Set([
+    ...vptaGates.map((entry) => entry.stateSubjectKey),
+    ...projections.map((projection) => `typhoonProbability:${projection.key}`),
+  ]);
+  if (bundleSubjects.size > TYPHOON_PROBABILITY_READER_MAX_RAW_BUNDLES) {
+    recordRepair(
+      "foundation.standbyDomains", "subject", bundleSubjects.size, 0, "limit-exceeded", true,
+    );
+    const { typhoonProbabilities: _probabilities, ...withoutProbabilities } = cleanBase;
+    return { base: withoutProbabilities, foundation: { gateEntries: otherGates } };
+  }
+
+  const projectionBySubject = new Map(projections.map((projection) =>
+    [`typhoonProbability:${projection.key}`, projection]));
+  const bundles = vptaGates.map((gate) => {
+    const projection = projectionBySubject.get(gate.stateSubjectKey);
+    const coupled = projection != null && !gate.cancelled
+      && standbyProjectionMatchesGate(
+        projection.revision,
+        projection.appliedSemanticKey,
+        gate,
+      );
+    return {
+      stateSubjectKey: gate.stateSubjectKey,
+      acceptedAtMs: gate.acceptedAtMs,
+      class: gate.cancelled ? "GT" as const : coupled ? "P+G" as const : "GA" as const,
+      coupled,
+    };
+  });
+  const selection = selectVptaCapacityBundles(bundles, TYPHOON_PROBABILITY_MAX_SUBJECTS);
+  if (selection.kind === "protectedOverflow") {
+    recordRepair(
+      "foundation.standbyDomains", "subject", bundles.length, 0, "limit-exceeded", true,
+    );
+    const { typhoonProbabilities: _probabilities, ...withoutProbabilities } = cleanBase;
+    return { base: withoutProbabilities, foundation: { gateEntries: otherGates } };
+  }
+  const retainedSubjects = new Set(selection.retained.map((bundle) => bundle.stateSubjectKey));
+  const coupledSubjects = new Set(bundles
+    .filter((bundle) => bundle.coupled && retainedSubjects.has(bundle.stateSubjectKey))
+    .map((bundle) => bundle.stateSubjectKey));
+  const retainedGates = vptaGates.filter((gate) => retainedSubjects.has(gate.stateSubjectKey));
+  const retainedProjections = projections.filter((projection) =>
+    coupledSubjects.has(`typhoonProbability:${projection.key}`));
+  const discarded = vptaGates.length - retainedGates.length
+    + projections.length - retainedProjections.length;
+  if (discarded > 0) {
+    if (projections.length > bundles.filter((bundle) => bundle.coupled).length) {
+      warnVptaPersistenceDiagnostic("vpta50PersistenceCouplingMismatch");
+    }
+    recordRepair(
+      "foundation.standbyDomains", "subject", discarded,
+      retainedGates.length + retainedProjections.length,
+      selection.discarded.length > 0 ? "limit-exceeded" : "coupling-mismatch",
+    );
+  }
+  const { typhoonProbabilities: _probabilities, ...withoutProbabilities } = cleanBase;
+  return {
+    base: {
+      ...withoutProbabilities,
+      ...(retainedProjections.length === 0 ? {} : { typhoonProbabilities: retainedProjections }),
+    },
+    foundation: {
+      gateEntries: [...otherGates, ...retainedGates.sort((left, right) =>
+        left.stateSubjectKey < right.stateSubjectKey ? -1
+          : left.stateSubjectKey > right.stateSubjectKey ? 1 : 0)],
+    },
+  };
+}
+
 function salvageStandbyDomainProjections(
   base: PersistedStandbyStateV1,
   foundation: PersistedTelegramFoundationV2["standbyDomains"],
@@ -4149,10 +5129,19 @@ function salvageStandbyDomainProjections(
       ? semanticKey == null
       : standbyProjectionMatchesGate(revision, semanticKey, gate);
   };
-  const salvaged = {
-    ...base,
+  const { typhoonProbabilities, ...baseWithoutProbabilities } = base;
+  const salvaged: PersistedStandbyStateV1 = {
+    ...baseWithoutProbabilities,
     heat: base.heat.filter((state) => keep(state.key, state.revision, state.appliedSemanticKey)),
     typhoons: base.typhoons.filter((state) => keep(`typhoon:${state.key}`, state.revision, state.appliedSemanticKey)),
+    ...(() => {
+      const retained = typhoonProbabilities?.filter((state) => keep(
+        `typhoonProbability:${state.key}`,
+        state.revision,
+        state.appliedSemanticKey,
+      ));
+      return retained == null || retained.length === 0 ? {} : { typhoonProbabilities: retained };
+    })(),
     tornado: base.tornado?.filter((state) => keep(
       `tornado:${state.publishingOffice}`,
       state.revision,
@@ -4171,6 +5160,7 @@ function salvageStandbyDomainProjections(
   };
   const discarded = base.heat.length - salvaged.heat.length
     + base.typhoons.length - salvaged.typhoons.length
+    + (base.typhoonProbabilities?.length ?? 0) - (salvaged.typhoonProbabilities?.length ?? 0)
     + (base.tornado?.length ?? 0) - (salvaged.tornado?.length ?? 0)
     + (base.longPeriod?.length ?? 0) - (salvaged.longPeriod?.length ?? 0)
     + Number(base.nankaiTrough != null && salvaged.nankaiTrough == null);
@@ -4394,15 +5384,39 @@ function migratedLegacyStandbyGateEntries(
 function sanitizePersistedStandbyStateV2(value: unknown): PersistedStandbyStateV2 | null {
   if (!isRecord(value) || value.version !== 2) return null;
   const base = baseV1FromRecord(value);
-  const telegramFoundation = sanitizeFoundation(value.telegramFoundation);
-  if (base == null || telegramFoundation == null) return null;
+  const sanitizedFoundation = sanitizeFoundation(value.telegramFoundation);
+  if (base == null || sanitizedFoundation == null) return null;
+  const rawVptaHardLimit = vptaRawDomainExceedsHardLimit(value);
+  if (rawVptaHardLimit) {
+    recordRepair(
+      "foundation.standbyDomains", "subject",
+      TYPHOON_PROBABILITY_READER_MAX_RAW_BUNDLES + 1, 0,
+      "limit-exceeded", true,
+    );
+  }
+  const hardLimitEventIds = collectRawVptaEventIds(value);
+  for (const entry of sanitizedFoundation.standbyDomains.gateEntries) {
+    if (entry.domain !== "typhoonProbability" || entry.revisionFamily !== "VPTA50") continue;
+    const eventId = vptaEventIdFromSubject(entry.stateSubjectKey);
+    if (eventId != null) hardLimitEventIds.add(eventId);
+  }
+  const telegramFoundation = rawVptaHardLimit
+    ? {
+        ...sanitizedFoundation,
+        standbyDomains: {
+          gateEntries: sanitizedFoundation.standbyDomains.gateEntries.filter((entry) =>
+            entry.domain !== "typhoonProbability" || entry.revisionFamily !== "VPTA50"),
+        },
+      }
+    : sanitizedFoundation;
+  const boundedBase = rawVptaHardLimit ? removeVptaRootDomain(base, hardLimitEventIds) : base;
   // 官署 provenance のない旧 VPWW56 union は subject 単位の復元待ちへ変換できない。
   // 非 authoritative foundation と併存する名称-only 表示は、旧粒度を固着させず破棄する。
   const withoutLegacyVpww56 = telegramFoundation.vpww56.authoritative
-    ? base
+    ? boundedBase
     : {
-        ...base,
-        weatherAlerts: base.weatherAlerts?.filter((entry) => entry.source !== "vpww56"),
+        ...boundedBase,
+        weatherAlerts: boundedBase.weatherAlerts?.filter((entry) => entry.source !== "vpww56"),
       };
   // volcano foundation は code bundle が真実源である。foundation 側で code を落としたら、
   // rollback 用 root projection だけを残して次回保存で復活させてはならない。
@@ -4417,9 +5431,13 @@ function sanitizePersistedStandbyStateV2(value: unknown): PersistedStandbyStateV
         volcanoes: withoutLegacyVpww56.volcanoes.filter((entry) => acceptedVolcanoCodes.has(entry.code)),
       }
     : withoutLegacyVpww56;
-  const migratedNankai = migratedNankaiStandbyState(
+  const vptaNormalized = normalizeVptaPersistenceBundles(
     foundationSynchronized,
     telegramFoundation.standbyDomains,
+  );
+  const migratedNankai = migratedNankaiStandbyState(
+    vptaNormalized.base,
+    vptaNormalized.foundation,
   );
   const salvaged = salvageStandbyDomainProjections(migratedNankai.base, migratedNankai.foundation);
   return {
@@ -4469,22 +5487,297 @@ function migratedVpws50GateEntries(base: PersistedStandbyStateV1): PersistedTele
   }];
 }
 
+function migratedVptaGateEntries(
+  base: PersistedStandbyStateV1,
+  allowUnprefixedSeen: boolean,
+  blockedSeenOnlySubjects: ReadonlySet<string>,
+): PersistedTelegramRevisionGateEntryV2[] {
+  const retentionMs = 7 * 24 * 60 * 60_000;
+  const seenGroups = new Map<string, PersistedSeenEntry[]>();
+  for (const seen of base.seen) {
+    const items = seenGroups.get(seen.key) ?? [];
+    items.push(seen); seenGroups.set(seen.key, items);
+  }
+  const uniqueSeen = (subject: string): PersistedSeenEntry | null => {
+    const eventId = subject.slice("typhoonProbability:".length);
+    const candidates = [
+      ...(seenGroups.get(eventId) ?? []),
+      ...(seenGroups.get(subject) ?? []),
+    ];
+    return candidates.length === 1 ? candidates[0]! : null;
+  };
+  if (base.typhoonProbabilityGateMetadata != null) {
+    const migrated = base.typhoonProbabilityGateMetadata.flatMap((metadata) => {
+      const seen = uniqueSeen(metadata.stateSubjectKey);
+      if (seen == null) return [];
+      const metadataSerial = normalizeVpta50Serial(metadata.comparison.revision.serial.raw);
+      const seenSerial = normalizeVpta50Serial(seen.revision.serial);
+      if (metadataSerial.kind === "invalid" || seenSerial.kind === "invalid") return [];
+      const rawMetadataSerial = metadata.comparison.revision.serial;
+      if (metadataSerial.kind === "missing"
+        ? rawMetadataSerial.raw !== null
+          || rawMetadataSerial.numeric !== null
+          || rawMetadataSerial.valid !== false
+        : rawMetadataSerial.numeric !== metadataSerial.numeric
+          || rawMetadataSerial.valid !== true) return [];
+      const canonicalMetadataSerial = metadataSerial.kind === "missing" ? null : metadataSerial.canonicalRaw;
+      const canonicalSeenSerial = seenSerial.kind === "missing" ? null : seenSerial.canonicalRaw;
+      const reportTimeMs = metadata.comparison.revision.reportDateTime.epochMs;
+      if (reportTimeMs == null
+        || seen.revision.reportTimeMs !== reportTimeMs
+        || canonicalSeenSerial !== canonicalMetadataSerial) return [];
+      const eventId = metadata.stateSubjectKey.slice("typhoonProbability:".length);
+      const comparison = structuredClone(metadata.comparison);
+      comparison.revision.serial = metadataSerial.kind === "missing"
+        ? { raw: null, numeric: null, valid: false }
+        : { raw: metadataSerial.canonicalRaw, numeric: metadataSerial.numeric, valid: true };
+      const gate: PersistedTelegramRevisionGateEntryV2 = {
+        domain: "typhoonProbability",
+        revisionFamily: "VPTA50",
+        stateSubjectKey: metadata.stateSubjectKey,
+        comparison,
+        semanticKeys: [...metadata.semanticKeys],
+        cancelled: metadata.cancelled,
+        acceptedAtMs: seen.forgetAtMs - retentionMs - 1,
+        tombstoneRetentionMs: retentionMs,
+        legacyRevisionKey: eventId,
+        legacyRevisionKeyProvenance: "eventId",
+      };
+      return isGateEntry(gate) ? [gate] : [];
+    });
+    if (migrated.length !== base.typhoonProbabilityGateMetadata.length) {
+      warnVptaPersistenceDiagnostic("vpta50V1RevisionReconstructionFailed");
+    }
+    return migrated;
+  }
+  const activeGates = (base.typhoonProbabilities ?? []).flatMap((projection) => {
+    const subject = `typhoonProbability:${projection.key}`;
+    const seen = uniqueSeen(subject);
+    const projectionSerial = normalizeVpta50Serial(projection.revision.serial);
+    const seenSerial = seen == null ? null : normalizeVpta50Serial(seen.revision.serial);
+    if (seen == null
+      || projectionSerial.kind === "invalid"
+      || seenSerial == null || seenSerial.kind === "invalid"
+      || seen.revision.reportTimeMs !== projection.revision.reportTimeMs
+      || (seenSerial.kind === "missing" ? null : seenSerial.canonicalRaw)
+        !== (projectionSerial.kind === "missing" ? null : projectionSerial.canonicalRaw)) return [];
+    const semanticKey = projection.appliedSemanticKey;
+    const infoType = /^(発表|訂正):[0-9a-f]{64}$/u.test(semanticKey)
+      ? semanticKey.slice(0, semanticKey.indexOf(":")) as "発表" | "訂正"
+      : null;
+    // Reserved empty-key GT is available only to a genuinely missing legacy
+    // application key. A present but non-canonical key cannot prove InfoType and
+    // must not be reinterpreted as a cancellation watermark.
+    if (infoType == null) return [];
+    const serial = projectionSerial.kind === "missing"
+      ? { raw: null, numeric: null, valid: false }
+      : { raw: projectionSerial.canonicalRaw, numeric: projectionSerial.numeric, valid: true };
+    const reportDateTime = new Date(projection.revision.reportTimeMs).toISOString();
+    const gate: PersistedTelegramRevisionGateEntryV2 = {
+      domain: "typhoonProbability",
+      revisionFamily: "VPTA50",
+      stateSubjectKey: subject,
+      comparison: {
+        stateSubjectKey: subject,
+        revision: {
+          eventId: { raw: projection.key, value: projection.key, valid: true },
+          type: { raw: "VPTA50", value: "VPTA50", valid: true },
+          reportDateTime: {
+            raw: reportDateTime,
+            epochMs: projection.revision.reportTimeMs,
+            valid: true,
+          },
+          serial,
+          infoType: { raw: infoType, value: infoType, valid: true },
+        },
+      },
+      semanticKeys: [semanticKey],
+      cancelled: false,
+      acceptedAtMs: seen.forgetAtMs - retentionMs - 1,
+      tombstoneRetentionMs: retentionMs,
+      legacyRevisionKey: projection.key,
+      legacyRevisionKeyProvenance: "eventId",
+    };
+    return isGateEntry(gate) ? [gate] : [];
+  });
+  const activeSubjects = new Set(activeGates.map((gate) => gate.stateSubjectKey));
+  const claimedLegacyKeys = new Set<string>([
+    ...base.heat.map((state) => state.key),
+    ...base.typhoons.map((state) => `typhoon:${state.key}`),
+    ...(base.tornado ?? []).map((state) => `tornado:${state.publishingOffice}`),
+    ...(base.longPeriod ?? []).map((state) => `longPeriod:${state.eventId}`),
+    ...(base.nankaiTrough == null ? [] : ["nankai:current"]),
+  ]);
+  const normalizedSeenOnlyGroups = new Map<string, PersistedSeenEntry[]>();
+  for (const [key, entries] of seenGroups) {
+    if (claimedLegacyKeys.has(key)) continue;
+    const eventId = key.startsWith("typhoonProbability:")
+      ? key.slice("typhoonProbability:".length)
+      : allowUnprefixedSeen ? key : "";
+    if (validateTyphoonProbabilityEventId(eventId) !== eventId) continue;
+    const subject = `typhoonProbability:${eventId}`;
+    const candidates = normalizedSeenOnlyGroups.get(subject) ?? [];
+    candidates.push(...entries);
+    normalizedSeenOnlyGroups.set(subject, candidates);
+  }
+  const seenOnlyGates = [...normalizedSeenOnlyGroups].flatMap(([subject, entries]) => {
+    if (entries.length !== 1
+      || activeSubjects.has(subject)
+      || blockedSeenOnlySubjects.has(subject)) return [];
+    const eventId = subject.slice("typhoonProbability:".length);
+    const seen = entries[0]!;
+    const serial = normalizeVpta50Serial(seen.revision.serial);
+    if (serial.kind === "invalid" || !validPersistenceEpoch(seen.revision.reportTimeMs)) return [];
+    const reportDateTime = new Date(seen.revision.reportTimeMs).toISOString();
+    const gate: PersistedTelegramRevisionGateEntryV2 = {
+      domain: "typhoonProbability",
+      revisionFamily: "VPTA50",
+      stateSubjectKey: subject,
+      comparison: {
+        stateSubjectKey: subject,
+        revision: {
+          eventId: { raw: eventId, value: eventId, valid: true },
+          type: { raw: "VPTA50", value: "VPTA50", valid: true },
+          reportDateTime: { raw: reportDateTime, epochMs: seen.revision.reportTimeMs, valid: true },
+          serial: serial.kind === "missing"
+            ? { raw: null, numeric: null, valid: false }
+            : { raw: serial.canonicalRaw, numeric: serial.numeric, valid: true },
+          infoType: { raw: "取消", value: "取消", valid: true },
+        },
+      },
+      semanticKeys: [],
+      cancelled: true,
+      acceptedAtMs: seen.forgetAtMs - retentionMs - 1,
+      tombstoneRetentionMs: retentionMs,
+      legacyRevisionKey: eventId,
+      legacyRevisionKeyProvenance: "eventId",
+    };
+    return isGateEntry(gate) ? [gate] : [];
+  });
+  const migrated = [...activeGates, ...seenOnlyGates];
+  const rawVptaSeenCount = normalizedSeenOnlyGroups.size;
+  if (activeGates.length < (base.typhoonProbabilities?.length ?? 0)
+    || migrated.length < rawVptaSeenCount) {
+    warnVptaPersistenceDiagnostic("vpta50V1RevisionReconstructionFailed");
+  }
+  return migrated;
+}
+
+function invalidLegacyVptaProjectionSubjects(value: Record<string, unknown>): Set<string> {
+  const blocked = new Set<string>();
+  if (!Array.isArray(value.typhoonProbabilities)
+    || value.typhoonProbabilities.length > TYPHOON_PROBABILITY_READER_MAX_RAW_ITEMS) return blocked;
+  const counts = new Map<string, number>();
+  for (const item of value.typhoonProbabilities) {
+    if (!isRecord(item) || typeof item.key !== "string"
+      || validateTyphoonProbabilityEventId(item.key) !== item.key) continue;
+    counts.set(item.key, (counts.get(item.key) ?? 0) + 1);
+  }
+  const placeholderSemanticKey = `発表:${"0".repeat(64)}`;
+  for (const item of value.typhoonProbabilities) {
+    if (!isRecord(item) || typeof item.key !== "string"
+      || validateTyphoonProbabilityEventId(item.key) !== item.key) continue;
+    const subject = `typhoonProbability:${item.key}`;
+    if ((counts.get(item.key) ?? 0) > 1) {
+      blocked.add(subject);
+      continue;
+    }
+    if (Object.hasOwn(item, "appliedSemanticKey")) {
+      if (sanitizeTyphoonProbabilityState(item) == null
+        || typeof item.appliedSemanticKey !== "string"
+        || !/^(発表|訂正):[0-9a-f]{64}$/u.test(item.appliedSemanticKey)) {
+        blocked.add(subject);
+      }
+      continue;
+    }
+    if (sanitizeTyphoonProbabilityState({
+      ...item,
+      appliedSemanticKey: placeholderSemanticKey,
+    }) == null) blocked.add(subject);
+  }
+  return blocked;
+}
+
+function stripVptaSeenOnlySubjects(
+  base: PersistedStandbyStateV1,
+  subjects: ReadonlySet<string>,
+): PersistedStandbyStateV1 {
+  if (subjects.size === 0) return base;
+  const seen = base.seen.filter((entry) => {
+    const subject = entry.key.startsWith("typhoonProbability:")
+      ? entry.key
+      : `typhoonProbability:${entry.key}`;
+    return !subjects.has(subject);
+  });
+  return seen.length === base.seen.length ? base : { ...base, seen };
+}
+
 function migratePersistedStandbyStateV1(value: unknown): PersistedStandbyStateV2 | null {
+  if (!isRecord(value)) return null;
+  const metadataMode = optionalArrayMode(value, "typhoonProbabilityGateMetadata");
+  const hardLimit = vptaRawDomainExceedsHardLimit(value);
+  if (hardLimit) {
+    recordRepair(
+      "foundation.standbyDomains", "subject",
+      TYPHOON_PROBABILITY_READER_MAX_RAW_BUNDLES + 1, 0,
+      "limit-exceeded", true,
+    );
+  }
+  const rawEventIds = collectRawVptaEventIds(value);
+  const blockedSeenOnlySubjects = metadataMode === "absent"
+    ? invalidLegacyVptaProjectionSubjects(value)
+    : new Set<string>();
+  const allowUnprefixedSeen = Array.isArray(value.typhoonProbabilities);
   const base = sanitizePersistedStandbyStateV1(value);
   if (base == null) return null;
-  const migratedNankai = migratedNankaiStandbyState(base, {
-    gateEntries: migratedLegacyStandbyGateEntries(base),
+  const boundedMigrationBase = hardLimit || metadataMode === "present-invalid"
+    ? removeVptaRootDomain(base, rawEventIds)
+    : base;
+  const migrationBase = stripVptaSeenOnlySubjects(
+    boundedMigrationBase,
+    blockedSeenOnlySubjects,
+  );
+  const canonicalBase: PersistedStandbyStateV1 = {
+    ...migrationBase,
+    ...(migrationBase.typhoonProbabilities == null ? {} : {
+      typhoonProbabilities: migrationBase.typhoonProbabilities.map((projection) => {
+        const serial = normalizeVpta50Serial(projection.revision.serial);
+        return serial.kind === "invalid" ? projection : {
+          ...projection,
+          revision: {
+            ...projection.revision,
+            serial: serial.kind === "missing" ? null : serial.canonicalRaw,
+          },
+        };
+      }),
+    }),
+  };
+  const migratedNankai = migratedNankaiStandbyState(canonicalBase, {
+    gateEntries: [
+      ...migratedLegacyStandbyGateEntries(canonicalBase),
+      ...(hardLimit || metadataMode === "present-invalid"
+        ? []
+        : migratedVptaGateEntries(
+            canonicalBase,
+            allowUnprefixedSeen,
+            blockedSeenOnlySubjects,
+          )),
+    ],
   });
+  const vptaNormalized = normalizeVptaPersistenceBundles(
+    migratedNankai.base,
+    migratedNankai.foundation,
+  );
   return {
-    ...migratedNankai.base,
+    ...vptaNormalized.base,
     version: 2,
     telegramFoundation: {
-      vpws50: { authoritative: false, state: null, gateEntries: migratedVpws50GateEntries(base) },
+      vpws50: { authoritative: false, state: null, gateEntries: migratedVpws50GateEntries(canonicalBase) },
       vpww56: emptyVpww56Foundation(),
       tsunami: emptyTsunamiFoundation(),
       volcano: emptyVolcanoFoundation(),
       floodForecast: emptyFloodFoundation(),
-      standbyDomains: migratedNankai.foundation,
+      standbyDomains: vptaNormalized.foundation,
     },
   };
 }
@@ -4611,13 +5904,121 @@ function hasFloodMigrationConflict(raw: unknown, state: PersistedStandbyStateV2)
   return JSON.stringify(canonicalSeen) !== JSON.stringify(legacySeen);
 }
 
+function stablePersistenceJson(value: unknown): string {
+  const canonicalize = (item: unknown): unknown => {
+    if (Array.isArray(item)) return item.map(canonicalize);
+    if (!isRecord(item)) return item;
+    const result: Record<string, unknown> = {};
+    for (const key of Object.keys(item).sort()) result[key] = canonicalize(item[key]);
+    return result;
+  };
+  return JSON.stringify(canonicalize(value));
+}
+
+function rollbackMirrorsSemanticallyEqual(
+  left: PersistedStandbyStateV1,
+  right: PersistedStandbyStateV1,
+): boolean {
+  const comparable = (state: PersistedStandbyStateV1): unknown => {
+    const { savedAt: _savedAt, ...withoutSavedAt } = state;
+    return {
+      ...withoutSavedAt,
+      ...(state.typhoonProbabilities == null ? {} : {
+        typhoonProbabilities: [...state.typhoonProbabilities].sort((a, b) =>
+          a.key < b.key ? -1 : a.key > b.key ? 1 : 0),
+      }),
+      ...(state.typhoonProbabilityGateMetadata == null ? {} : {
+        typhoonProbabilityGateMetadata: [...state.typhoonProbabilityGateMetadata]
+          .sort((a, b) => a.stateSubjectKey < b.stateSubjectKey
+            ? -1 : a.stateSubjectKey > b.stateSubjectKey ? 1 : 0),
+      }),
+      seen: [...state.seen].sort((a, b) =>
+        a.key < b.key ? -1 : a.key > b.key ? 1
+          : stablePersistenceJson(a).localeCompare(stablePersistenceJson(b))),
+    };
+  };
+  return stablePersistenceJson(comparable(left)) === stablePersistenceJson(comparable(right));
+}
+
+function rawMirrorArrayMatches(
+  raw: Record<string, unknown>,
+  key: string,
+  expected: readonly unknown[],
+  identity: (item: unknown) => string,
+): boolean {
+  if (expected.length === 0) return !Object.hasOwn(raw, key);
+  const actual = raw[key];
+  if (!Array.isArray(actual)) return false;
+  const sorted = (items: readonly unknown[]) => [...items].sort((left, right) => {
+    const leftKey = identity(left), rightKey = identity(right);
+    return leftKey < rightKey ? -1 : leftKey > rightKey ? 1
+      : stablePersistenceJson(left).localeCompare(stablePersistenceJson(right));
+  });
+  return stablePersistenceJson(sorted(actual)) === stablePersistenceJson(sorted(expected));
+}
+
+function hasVptaRollbackMirrorConflict(
+  raw: unknown,
+  state: PersistedStandbyStateV2,
+): boolean {
+  if (!isRecord(raw)) return false;
+  const vptaGates = state.telegramFoundation.standbyDomains.gateEntries.filter((entry) =>
+    entry.domain === "typhoonProbability" && entry.revisionFamily === "VPTA50");
+  const projections = state.typhoonProbabilities ?? [];
+  const metadata = vptaGateMetadata(vptaGates);
+  if (!rawMirrorArrayMatches(
+    raw,
+    "typhoonProbabilities",
+    projections,
+    (item) => isRecord(item) && typeof item.key === "string" ? item.key : "",
+  )) return true;
+  if (!rawMirrorArrayMatches(
+    raw,
+    "typhoonProbabilityGateMetadata",
+    metadata,
+    (item) => isRecord(item) && typeof item.stateSubjectKey === "string"
+      ? item.stateSubjectKey : "",
+  )) return true;
+
+  const eventIds = collectRawVptaEventIds(raw);
+  for (const gate of vptaGates) {
+    const eventId = vptaEventIdFromSubject(gate.stateSubjectKey);
+    if (eventId != null) eventIds.add(eventId);
+  }
+  const expectedSeen = standbyLegacySeenEntries(vptaGates);
+  if (!Array.isArray(raw.seen)) return expectedSeen.length > 0;
+  const nonVptaSeenKeys = new Set(state.seen.map((entry) => entry.key));
+  const hasVptaMirrorShape = expectedSeen.length > 0
+    || Object.hasOwn(raw, "typhoonProbabilities")
+    || Object.hasOwn(raw, "typhoonProbabilityGateMetadata");
+  const actualSeen = raw.seen.filter((entry) => isRecord(entry)
+    && typeof entry.key === "string"
+    && (entry.key.startsWith("typhoonProbability:")
+      || eventIds.has(entry.key)
+      || hasVptaMirrorShape
+        && !nonVptaSeenKeys.has(entry.key)
+        && validateTyphoonProbabilityEventId(entry.key) === entry.key));
+  const bySeenKey = (item: unknown) => isRecord(item) && typeof item.key === "string" ? item.key : "";
+  const sorted = (items: readonly unknown[]) => [...items].sort((left, right) => {
+    const leftKey = bySeenKey(left), rightKey = bySeenKey(right);
+    return leftKey < rightKey ? -1 : leftKey > rightKey ? 1
+      : stablePersistenceJson(left).localeCompare(stablePersistenceJson(right));
+  });
+  return stablePersistenceJson(sorted(actualSeen)) !== stablePersistenceJson(sorted(expectedSeen));
+}
+
 function hasStandbyDomainsMigrationConflict(raw: unknown, state: PersistedStandbyStateV2): boolean {
   if (!isRecord(raw)) return false;
   const projected = standbyLegacySeenEntries(state.telegramFoundation.standbyDomains.gateEntries);
   if (projected.length === 0) return false;
-  if (!Object.hasOwn(raw, "seen")) return true;
-  const legacyByKey = new Map(state.seen.map((entry) => [entry.key, entry]));
-  return projected.some((entry) => JSON.stringify(legacyByKey.get(entry.key)) !== JSON.stringify(entry));
+  if (!Array.isArray(raw.seen)) return true;
+  const legacyByKey = new Map<string, unknown | null>();
+  for (const entry of raw.seen) {
+    if (!isRecord(entry) || typeof entry.key !== "string") continue;
+    legacyByKey.set(entry.key, legacyByKey.has(entry.key) ? null : entry);
+  }
+  return projected.some((entry) =>
+    stablePersistenceJson(legacyByKey.get(entry.key)) !== stablePersistenceJson(entry));
 }
 
 function hasFoundationMigrationConflict(raw: unknown, state: PersistedStandbyStateV2): boolean {
@@ -4625,5 +6026,6 @@ function hasFoundationMigrationConflict(raw: unknown, state: PersistedStandbySta
     || hasVpww56MigrationConflict(raw, state)
     || hasVolcanoMigrationConflict(raw, state)
     || hasFloodMigrationConflict(raw, state)
+    || hasVptaRollbackMirrorConflict(raw, state)
     || hasStandbyDomainsMigrationConflict(raw, state);
 }

@@ -171,6 +171,7 @@ describe("ReplHandler", () => {
   let mockRl: EventEmitter & { prompt: ReturnType<typeof vi.fn>; setPrompt: ReturnType<typeof vi.fn>; close: ReturnType<typeof vi.fn>; line: string };
 
   beforeEach(() => {
+    process.exitCode = undefined;
     consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
     // stdout.isTTY を false にして StatusLine の render を抑制
     Object.defineProperty(process.stdout, "isTTY", {
@@ -184,6 +185,7 @@ describe("ReplHandler", () => {
   });
 
   afterEach(() => {
+    process.exitCode = undefined;
     consoleSpy.mockRestore();
     vi.restoreAllMocks();
   });
@@ -828,6 +830,34 @@ describe("ReplHandler", () => {
       mockRl.emit("close");
 
       expect(onQuit).toHaveBeenCalled();
+    });
+
+    it("quit の shutdown adapter rejection は process.exitCode=1 にする", async () => {
+      const onQuit = vi.fn().mockRejectedValue(new Error("save failed"));
+      const handler = new ReplHandler(
+        createConfig(), createMockWsManager(), new Notifier(), new EewEventLogger(),
+        onQuit, new TelegramStats(),
+      );
+      handler.start();
+
+      simulateLine("quit");
+
+      await vi.waitFor(() => expect(process.exitCode).toBe(1));
+      expect(onQuit).toHaveBeenCalledTimes(1);
+    });
+
+    it("readline close の shutdown adapter rejection も process.exitCode=1 にする", async () => {
+      const onQuit = vi.fn().mockRejectedValue(new Error("save failed"));
+      const handler = new ReplHandler(
+        createConfig(), createMockWsManager(), new Notifier(), new EewEventLogger(),
+        onQuit, new TelegramStats(),
+      );
+      handler.start();
+
+      mockRl.emit("close");
+
+      await vi.waitFor(() => expect(process.exitCode).toBe(1));
+      expect(onQuit).toHaveBeenCalledTimes(1);
     });
   });
 });

@@ -42,6 +42,11 @@ import { nankaiBadgeAction } from "../display/nankai-status";
 import { normalizeTornadoPublishingOffice, tornadoTickerGroupKey } from "../display/tornado-group-key";
 import type { Route } from "./route-catalog";
 import {
+  TYPHOON_PROBABILITY_MAX_EVENT_ID_LENGTH,
+  TYPHOON_PROBABILITY_MAX_SUBJECTS,
+  TYPHOON_PROBABILITY_RETENTION_MS,
+} from "../display/project-typhoon-probability";
+import {
   VPWS50_STATE_HEAD_TYPES,
   isVpws50StateHeadType,
   weatherOfficeStreamKey,
@@ -332,7 +337,9 @@ export function typhoonAnalysisStateSubjectKey(parsed: ParsedTyphoonAnalysis): s
 
 export function typhoonProbabilityStateSubjectKey(parsed: ParsedTyphoonProbability): string | null {
   const eventId = nonBlank(parsed.eventId);
-  return eventId == null ? null : `typhoonProbability:${eventId}`;
+  return eventId == null || eventId.length > TYPHOON_PROBABILITY_MAX_EVENT_ID_LENGTH
+    ? null
+    : `typhoonProbability:${eventId}`;
 }
 
 export function weatherTimeseriesStateSubjectKey(
@@ -395,7 +402,8 @@ export const TYPHOON_PROBABILITY_REVISION_FAMILY_POLICY: RevisionFamilyPolicy<Pa
     const key = typhoonProbabilityStateSubjectKey(parsed); return key == null ? null : [key];
   },
   cancellationPolicy: "clearCurrent", terminalPredicate: () => false, deactivationPredicate: () => false,
-  durable: false, tombstoneRetentionMs: 7 * 24 * 60 * 60_000, maxSubjects: 256,
+  durable: true, tombstoneRetentionMs: TYPHOON_PROBABILITY_RETENTION_MS,
+  maxSubjects: TYPHOON_PROBABILITY_MAX_SUBJECTS,
   allowMissingSerial: true, fragmentMerge: false,
 };
 

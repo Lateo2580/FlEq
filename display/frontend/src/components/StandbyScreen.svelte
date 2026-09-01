@@ -634,7 +634,11 @@
       return Math.max(score, rank);
     }, 0) ?? 0);
     if (key === "flood") return 2 + (floodItem?.data.rivers.length ?? 0) * 2;
-    if (key === "typhoon") return 2 + (typhoonItem?.data.typhoons.length ?? 0) * 4;
+    if (key === "typhoon") {
+      const typhoons = typhoonItem?.data.typhoons ?? [];
+      return 2 + typhoons.length * 4
+        + typhoons.filter((typhoon) => typhoon.probability != null).length * 2;
+    }
     if (key === "volcano") return 2 + (volcanoItem?.data.volcanoes.length ?? 0) * 2;
     return 2 + (heatItem?.data.areas.length ?? 0);
   }
@@ -1730,10 +1734,65 @@
     }
     void settleMeasurements();
   }
+  function probabilityPeakLabel(iso: string | null): string {
+    if (iso == null) return "ピーク時刻不明";
+    const value = new Date(iso);
+    if (!Number.isFinite(value.getTime())) return "ピーク時刻不明";
+    const parts = new Intl.DateTimeFormat("ja-JP", {
+      timeZone: "Asia/Tokyo", month: "numeric", day: "numeric",
+      hour: "2-digit", minute: "2-digit", hourCycle: "h23",
+    }).formatToParts(value);
+    const part = (type: Intl.DateTimeFormatPartTypes): string =>
+      parts.find((candidate) => candidate.type === type)?.value ?? "";
+    return `${part("month")}月${part("day")}日 ${part("hour")}:${part("minute")}`;
+  }
+  function typhoonMeasurementTuple(
+    item: Extract<ActiveStandbyCardV1, { kind: "typhoon" }>,
+  ): string {
+    return JSON.stringify(item.data.typhoons.map((typhoon) => {
+      const analysis = [
+        "analysis", typhoon.typhoonKey, typhoon.name, typhoon.nameKana,
+        typhoon.remark, typhoon.typhoonNumber, typhoon.category,
+        typhoon.intensityClass ?? null, typhoon.sizeClass ?? null,
+        typhoon.location, typhoon.pressureHpa, typhoon.pressureHpaSemantic ?? null,
+        typhoon.pressureDeltaHpa ?? null, typhoon.maxWindMs,
+        typhoon.maxWindMsSemantic ?? null, typhoon.maxGustMs ?? null,
+        typhoon.maxGustMsSemantic ?? null, typhoon.maxWindDeltaMs ?? null,
+        typhoon.intensityTrend ?? null, typhoon.moveDirection,
+        typhoon.moveSpeedKmh, typhoon.moveSpeedKmhSemantic ?? null,
+        typhoon.reportDateTime,
+      ];
+      const probabilityTuple = (displayMode: "full" | "compact") => {
+        const probability = typhoon.probability;
+        if (probability == null) return ["probability", "absent"];
+        const visible = probability.topPrefectures.slice(0, displayMode === "compact" ? 3 : 5);
+        const omittedCount = Math.max(0, probability.activePrefectureCount - visible.length);
+        const omittedLabel = omittedCount > 0 ? `ほか${omittedCount}府県等` : "";
+        const peakLabel = probabilityPeakLabel(probability.worstArea.peakAt);
+        return [
+          "probability", "present", displayMode, typhoon.typhoonKey,
+          probability.baseTime, probability.forecastEndsAt, probability.reportDateTime,
+          probability.maxFiveDayProbability, probability.activePrefectureCount, omittedLabel,
+          visible.map((prefecture) => [
+            prefecture.prefectureCode, prefecture.prefectureName, prefecture.fiveDayProbability,
+          ]),
+          [
+            probability.worstArea.areaCode, probability.worstArea.areaName,
+            probability.worstArea.prefectureCode, probability.worstArea.prefectureName,
+            probability.worstArea.fiveDayProbability, probability.worstArea.peakAt, peakLabel,
+          ],
+          item.restored,
+        ];
+      };
+      return [analysis, probabilityTuple("full"), probabilityTuple("compact")];
+    }));
+  }
   $effect.pre(() => {
     const standbyContentIdentity = snapshot.standbyItems?.map((item) => item.kind === "briefing"
       ? `${item.kind}:${item.updatedAt}:generation:${item.data.generation}`
-      : `${item.kind}:${item.updatedAt}`).join(",") ?? "";
+      : item.kind === "typhoon"
+        ? `${item.kind}:${item.updatedAt}:measurement:${typhoonMeasurementTuple(item)}`
+        : `${item.kind}:${item.updatedAt}`).join(",") ?? "";
     const contentKey = [snapshot.generatedAt, snapshot.seq, snapshot.latestQuake?.updatedAtMs ?? "", selectedId ?? "", standbyContentIdentity, snapshot.weatherAlerts.map((alert) => alert.updatedAt).join(",")].join("|");
     const input = [contentKey, sseConnected].join("|");
     if (input !== lastInputKey) {

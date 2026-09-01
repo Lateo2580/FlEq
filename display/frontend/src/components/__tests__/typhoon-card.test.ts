@@ -6,6 +6,7 @@ import TyphoonCard from "../TyphoonCard.svelte";
 import type {
   ActiveStandbyCardV1,
   DisplayTyphoonNumericSemanticV1,
+  DisplayTyphoonProbabilityV1,
   DisplayTyphoonV1,
 } from "../../lib/protocol";
 import { typhoonHeaderTone } from "../../lib/typhoon-header-tone";
@@ -16,6 +17,39 @@ function typhoon(over: Partial<DisplayTyphoonV1> = {}): DisplayTyphoonV1 {
 
 function typhoonItem(typhoons = [typhoon()]): Extract<ActiveStandbyCardV1, { kind: "typhoon" }> {
   return { kind: "typhoon", surface: "corner-right", key: "typhoon:active", sourceEventIds: ["typhoon-1"], updatedAt: "2026-07-21T00:00:00.000Z", expiresAt: "2026-07-22T00:00:00.000Z", restored: false, severity: "normal", data: { typhoons } };
+}
+
+function probability(
+  over: Partial<DisplayTyphoonProbabilityV1> = {},
+): DisplayTyphoonProbabilityV1 {
+  return {
+    baseTime: "2026-07-20T00:00:00.000Z",
+    forecastEndsAt: "2026-07-25T00:00:00.000Z",
+    reportDateTime: "2026-07-21T00:00:00.000Z",
+    maxFiveDayProbability: 80,
+    activePrefectureCount: 8,
+    topPrefectures: [
+      ["13", "東京都", 80],
+      ["14", "神奈川県", 70],
+      ["12", "千葉県", 60],
+      ["11", "埼玉県", 50],
+      ["08", "茨城県", 40],
+      ["09", "栃木県", 30],
+    ].map(([prefectureCode, prefectureName, fiveDayProbability]) => ({
+      prefectureCode: String(prefectureCode),
+      prefectureName: String(prefectureName),
+      fiveDayProbability: Number(fiveDayProbability),
+    })),
+    worstArea: {
+      areaCode: "1300",
+      areaName: "東京地方",
+      prefectureCode: "13",
+      prefectureName: "東京都",
+      fiveDayProbability: 80,
+      peakAt: "2026-07-21T00:00:00.000Z",
+    },
+    ...over,
+  };
 }
 
 function numericSemantic(
@@ -519,5 +553,115 @@ describe("TyphoonCard", () => {
       node.querySelector("[data-value]")?.getAttribute("data-value") ?? node.querySelector(".nu-value")?.textContent,
     ))
       .toEqual(["990", "25", "20"]);
+  });
+
+  it("analysis-only / probability-only / combined を同じ additive card で描画する", () => {
+    const analysis = render(TyphoonCard, { item: typhoonItem() });
+    expect(analysis.container.querySelector(".probability")).toBeNull();
+    analysis.unmount();
+
+    const probabilityOnlyTyphoon = typhoon({
+      name: "JANGMI", nameKana: "チャンミー", remark: "台風発生予想", category: null,
+      location: null, pressureHpa: null, maxWindMs: null, maxGustMs: null,
+      moveDirection: null, moveSpeedKmh: null, probability: probability(),
+    });
+    const probabilityOnly = render(TyphoonCard, {
+      item: typhoonItem([probabilityOnlyTyphoon]),
+    });
+    expect(probabilityOnly.container.querySelector(".probability")).toBeTruthy();
+    expect(probabilityOnly.container.querySelector(".meta")).toBeNull();
+    expect(probabilityOnly.container.querySelector("header")?.classList.contains(
+      "standby-card-header--muted",
+    )).toBe(true);
+    probabilityOnly.unmount();
+
+    const combined = render(TyphoonCard, {
+      item: typhoonItem([typhoon({ intensityClass: "非常に強い", probability: probability() })]),
+    });
+    expect(combined.container.querySelector(".meta")).toBeTruthy();
+    expect(combined.container.querySelector(".probability")).toBeTruthy();
+    expect(combined.container.querySelector("header")?.classList.contains("warning")).toBe(true);
+  });
+
+  it("full は上位5件、compact は上位3件と正確な omitted label を表示する", () => {
+    const item = typhoonItem([typhoon({ probability: probability() })]);
+    const full = render(TyphoonCard, { item });
+    expect(full.container.querySelectorAll(".probability-prefecture-list li")).toHaveLength(5);
+    expect(full.container.querySelector(".probability-omitted")?.textContent).toBe("ほか3府県等");
+    expect(full.container.querySelector(".probability-maximum")?.textContent).toContain("80%");
+    full.unmount();
+
+    const compact = render(TyphoonCard, { item, displayMode: "compact" });
+    expect(compact.container.querySelectorAll(".probability-prefectures > span:not(.probability-omitted)"))
+      .toHaveLength(3);
+    expect(compact.container.querySelector(".probability-omitted")?.textContent).toBe("ほか5府県等");
+    expect(compact.container.querySelector(".probability-compact-summary")?.textContent)
+      .toContain("5日以内 最大80%");
+  });
+
+  it("worst area と peak を JST 表示し、null peak は明示する", () => {
+    const exact = render(TyphoonCard, {
+      item: typhoonItem([typhoon({ probability: probability() })]),
+    });
+    expect(exact.container.querySelector(".probability-worst")?.textContent)
+      .toContain("東京地方（東京都）80%");
+    expect(exact.container.querySelector(".probability-peak")?.textContent).toBe("7月21日 09:00");
+    exact.unmount();
+
+    const unknown = render(TyphoonCard, {
+      item: typhoonItem([typhoon({
+        probability: probability({
+          worstArea: { ...probability().worstArea, peakAt: null },
+        }),
+      })]),
+    });
+    expect(unknown.container.querySelector(".probability-peak")?.textContent).toBe("ピーク時刻不明");
+  });
+
+  it.each([1, 50, 100])("probability %i は VPTW header tone を変更しない", (value) => {
+    const neutral = render(TyphoonCard, {
+      item: typhoonItem([typhoon({
+        category: null,
+        probability: probability({
+          maxFiveDayProbability: value,
+          topPrefectures: [{ prefectureCode: "13", prefectureName: "東京都", fiveDayProbability: value }],
+          activePrefectureCount: 1,
+          worstArea: { ...probability().worstArea, fiveDayProbability: value },
+        }),
+      })]),
+    });
+    const header = neutral.container.querySelector("header");
+    expect(header?.classList.contains("standby-card-header--muted")).toBe(true);
+    expect(header?.classList.contains("advisory")).toBe(false);
+    expect(header?.classList.contains("warning")).toBe(false);
+    expect(header?.classList.contains("emergency")).toBe(false);
+  });
+
+  it("ARIA、RestoredChip、UpdatedStamp を probability card でも維持する", () => {
+    const { container } = render(TyphoonCard, {
+      item: { ...typhoonItem([typhoon({ probability: probability() })]), restored: true },
+    });
+    expect(container.querySelector('section.probability[aria-label="暴風域に入る確率（5日以内）"]'))
+      .toBeTruthy();
+    expect(container.querySelector(".restored-chip")?.textContent).toBe("同期中");
+    expect(container.querySelector(".updated-stamp")?.textContent).toContain("更新 7/21 09:00");
+  });
+
+  it("複数台風の wire order と各 probability slice を崩さない", () => {
+    const { container } = render(TyphoonCard, {
+      item: typhoonItem([
+        typhoon({ typhoonKey: "TC-B", nameKana: "BETA", probability: probability() }),
+        typhoon({
+          typhoonKey: "TC-A", nameKana: "ALPHA",
+          probability: probability({ maxFiveDayProbability: 50 }),
+        }),
+      ]),
+    });
+    const cards = Array.from(container.querySelectorAll(".typhoon"));
+    expect(cards).toHaveLength(2);
+    expect(cards[0].textContent).toContain("BETA");
+    expect(cards[0].querySelector(".probability-maximum")?.textContent).toContain("80%");
+    expect(cards[1].textContent).toContain("ALPHA");
+    expect(cards[1].querySelector(".probability-maximum")?.textContent).toContain("50%");
   });
 });

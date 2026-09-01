@@ -654,7 +654,7 @@ Phase 3B 完了時の registry は次を正とする。保持期間の「runtime
 | tornado（VPHW50、VPHW51） | 正規化した発表官署 stream | `clearCurrent` | 永続／36時間 | 128 |
 | heatAlert／VPFT50 | `(JST対象日, 対象地域)` | `clearCurrent` | 永続／3日 | 256 |
 | typhoonAnalysis（VPTW60〜62） | typhoon EventID | `clearCurrent` | 永続／7日 | 64 |
-| typhoonProbability／VPTA50 | EventID | `clearCurrent` | 非永続／7日 runtime | 256 |
+| typhoonProbability／VPTA50 | EventID | `clearCurrent` | 永続／7日 | 256 |
 | nankaiTrough／nankaiTrough（VYSE50〜52、VYSE60） | 固定 `nankai:current` | `clearCurrent` | 永続／30日 | 1 |
 | nankaiTrough／nankaiInformation（VYSE50〜52、VYSE60） | `(head.type, EventID)` | `clearCurrent` | 非永続／30日 runtime | 256 |
 | weatherWarningTimeseries／VPWP50 | `(発表官署, 対象コード／名称／全域)` | `clearCurrent` | 非永続／36時間 runtime | 512 |
@@ -669,6 +669,7 @@ Phase 3B 完了時の registry は次を正とする。保持期間の「runtime
 | raw fallback | `(head.type, EventID)`。欠落時は単発 transient key | `markCancelled` | 非永続／11分 runtime | 512 |
 
 - `typhoonAnalysis` の `transitionedToLow`／`formationCancelled` は B（terminal）として解決する。
+- VPTA50 は EventID 1〜128文字だけを durable subject とし、129文字以上は CLI／ticker／通知だけの transient 表示へ閉じる。gate は prospective entry から comparison、ordered semantic keys、cancelled、acceptedAt、projection binding を一つの deeply-frozen commit recordとして同期生成し、構成完了前にはmapを変更しない。active projectionとgate watermark／tombstoneはstandby persistence v2とrollback v1へ同時保存し、accepted／suppressed／failed completionだけが保存予約を所有する。連続ゼロ通知履歴だけはprocess-localの256件LRU・7日TTLであり、永続化しない。
 - 洪水は station が全件 unknown のとき `observeOnly` とし、解除 tombstone を作らない。VXSU の observed series 非保持契約も維持する。
 - 洪水で unknown と known 低位が混在する場合、現行実装は known 低位が一件以上あり警報級が一件もなければ EventID 全体を deactivation できる。前回警報級だった局が今回 unknown の場合に早期解除となる可能性は既知の限界であり、`前回 high + 今回 known-low／unknown 混在` を将来の回帰ケース候補とする。
 - VTSE51／52 は holder と gate の station 上限・LRU 順序を同じ 1,024 件にし、family 取消時は item watermark を除去して whole tombstone だけを残す。

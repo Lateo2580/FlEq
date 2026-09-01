@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Report>
+  <Control>
+    <Title>台風の暴風域に入る確率</Title>
+    <DateTime>2026-08-31T00:00:00Z</DateTime>
+    <Status>通常</Status>
+    <PublishingOffice>気象庁</PublishingOffice>
+  </Control>
+  <Head>
+    <Title>台風の暴風域に入る確率</Title>
+    <ReportDateTime>2026-08-31T09:00:00+09:00</ReportDateTime>
+    <TargetDateTime>2026-08-31T09:00:00+09:00</TargetDateTime>
+    <EventID>TC-DUPLICATE</EventID>
+    <InfoType>発表</InfoType>
+    <Serial>1</Serial>
+  </Head>
+  <Body>
+    <MeteorologicalInfos type="台風情報">
+      <MeteorologicalInfo type="台風呼称">
+        <Item><Kind><Property><Type>呼称</Type><TyphoonNamePart><Name>TEST</Name><NameKana>テスト</NameKana><Number>2606</Number></TyphoonNamePart></Property></Kind></Item>
+      </MeteorologicalInfo>
+      <MeteorologicalInfo type="台風の暴風域に入る確率（1日積算）">
+        <Item><Kind><Property><Type>台風の暴風域に入る確率</Type><FiftyKtWindProbabilityPart><FiftyKtWindProbability unit="%">10</FiftyKtWindProbability></FiftyKtWindProbabilityPart></Property></Kind><Area><Name>試験地域</Name><Code>130001</Code><Prefecture>東京都</Prefecture><PrefectureCode>130000</PrefectureCode></Area></Item>
+        <Item><Kind><Property><Type>台風の暴風域に入る確率</Type><FiftyKtWindProbabilityPart><FiftyKtWindProbability unit="%">20</FiftyKtWindProbability></FiftyKtWindProbabilityPart></Property></Kind><Area><Name>試験地域</Name><Code>130001</Code><Prefecture>東京都</Prefecture><PrefectureCode>130000</PrefectureCode></Area></Item>
+      </MeteorologicalInfo>
+      <MeteorologicalInfo type="台風の暴風域に入る確率（2日積算）"><Item><Kind><Property><Type>台風の暴風域に入る確率</Type><FiftyKtWindProbabilityPart><FiftyKtWindProbability unit="%">20</FiftyKtWindProbability></FiftyKtWindProbabilityPart></Property></Kind><Area><Name>試験地域</Name><Code>130001</Code><Prefecture>東京都</Prefecture><PrefectureCode>130000</PrefectureCode></Area></Item></MeteorologicalInfo>
+      <MeteorologicalInfo type="台風の暴風域に入る確率（3日積算）"><Item><Kind><Property><Type>台風の暴風域に入る確率</Type><FiftyKtWindProbabilityPart><FiftyKtWindProbability unit="%">30</FiftyKtWindProbability></FiftyKtWindProbabilityPart></Property></Kind><Area><Name>試験地域</Name><Code>130001</Code><Prefecture>東京都</Prefecture><PrefectureCode>130000</PrefectureCode></Area></Item></MeteorologicalInfo>
+      <MeteorologicalInfo type="台風の暴風域に入る確率（4日積算）"><Item><Kind><Property><Type>台風の暴風域に入る確率</Type><FiftyKtWindProbabilityPart><FiftyKtWindProbability unit="%">40</FiftyKtWindProbability></FiftyKtWindProbabilityPart></Property></Kind><Area><Name>試験地域</Name><Code>130001</Code><Prefecture>東京都</Prefecture><PrefectureCode>130000</PrefectureCode></Area></Item></MeteorologicalInfo>
+      <MeteorologicalInfo type="台風の暴風域に入る確率（5日積算）"><Item><Kind><Property><Type>台風の暴風域に入る確率</Type><FiftyKtWindProbabilityPart><FiftyKtWindProbability unit="%">50</FiftyKtWindProbability></FiftyKtWindProbabilityPart></Property></Kind><Area><Name>試験地域</Name><Code>130001</Code><Prefecture>東京都</Prefecture><PrefectureCode>130000</PrefectureCode></Area></Item></MeteorologicalInfo>
+      <TimeSeriesInfo>
+        <TimeDefines><TimeDefine timeId="1"><DateTime>2026-08-31T09:00:00+09:00</DateTime><Duration>PT3H</Duration></TimeDefine></TimeDefines>
+        <Item><Kind><Property><Type>台風の暴風域に入る確率</Type><FiftyKtWindProbabilityPart><FiftyKtWindProbability refID="1" unit="%">25</FiftyKtWindProbability></FiftyKtWindProbabilityPart></Property></Kind><Area><Name>試験地域</Name><Code>130001</Code><Prefecture>東京都</Prefecture><PrefectureCode>130000</PrefectureCode></Area></Item>
+      </TimeSeriesInfo>
+    </MeteorologicalInfos>
+  </Body>
+</Report>

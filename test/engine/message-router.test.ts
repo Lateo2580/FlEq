@@ -1519,8 +1519,10 @@ describe("message-router 統合テスト", () => {
       expect(tap).toHaveBeenCalledTimes(1);
       const event = tap.mock.calls[0][0];
       expect(event.route).toBe("earthquake");
-      expect(event.message).toBe(msg);
-      expect(event.message.meta).toBe(msg.meta);
+      expect(event.message).not.toBe(msg);
+      expect(event.message).toStrictEqual(msg);
+      expect(Object.isFrozen(event.message)).toBe(true);
+      expect(Object.isFrozen(event.message.meta)).toBe(true);
     });
 
     it("ignore 対象の電文でも tap は呼ばれる (route === 'ignore')", () => {

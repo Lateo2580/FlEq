@@ -16,6 +16,10 @@ import { processMessage } from "../../../src/engine/presentation/processors/proc
 import { toPresentationEvent } from "../../../src/engine/presentation/events/to-presentation-event";
 import { StandbyStateStore } from "../../../src/engine/display/standby-state-store";
 import {
+  createVptaRouterOwnerToken,
+  withVptaRouterOwnerToken,
+} from "../../../src/engine/display/types";
+import {
   StandbyPersistence,
   standbyPersistenceV2Path,
 } from "../../../src/engine/display/standby-persistence";
@@ -45,6 +49,16 @@ const tempDirs: string[] = [];
 function withReceivedAtMs(message: WsDataMessage, receivedAtMs: number): WsDataMessage {
   if (message.meta == null) throw new Error("fixture message must have TelegramMeta");
   return { ...message, meta: { ...message.meta, receivedAtMs } };
+}
+
+function processFoundationMessage(
+  message: WsDataMessage,
+  route: Parameters<typeof processMessage>[1],
+  deps: Parameters<typeof processMessage>[2],
+) {
+  if (route !== "typhoonProbability") return processMessage(message, route, deps);
+  const ownerToken = createVptaRouterOwnerToken();
+  return withVptaRouterOwnerToken(ownerToken, () => processMessage(message, route, deps));
 }
 
 function tornadoGate(): PersistedTelegramRevisionGateEntryV2 {
@@ -122,7 +136,7 @@ describe("Phase 3B standby domain registry", () => {
     expect(TORNADO_REVISION_FAMILY_POLICY).toMatchObject({ cancellationPolicy: "clearCurrent", durable: true, maxSubjects: 128 });
     expect(HEAT_ALERT_REVISION_FAMILY_POLICY).toMatchObject({ cancellationPolicy: "clearCurrent", durable: true, maxSubjects: 256 });
     expect(TYPHOON_ANALYSIS_REVISION_FAMILY_POLICY).toMatchObject({ cancellationPolicy: "clearCurrent", durable: true, maxSubjects: 64 });
-    expect(TYPHOON_PROBABILITY_REVISION_FAMILY_POLICY).toMatchObject({ cancellationPolicy: "clearCurrent", durable: false, maxSubjects: 256 });
+    expect(TYPHOON_PROBABILITY_REVISION_FAMILY_POLICY).toMatchObject({ cancellationPolicy: "clearCurrent", durable: true, maxSubjects: 256 });
     expect(NANKAI_REVISION_FAMILY_POLICY).toMatchObject({ cancellationPolicy: "clearCurrent", durable: true, maxSubjects: 1 });
     expect(NANKAI_INFORMATION_REVISION_FAMILY_POLICY).toMatchObject({ cancellationPolicy: "clearCurrent", durable: false, maxSubjects: 256 });
     expect(WEATHER_TIMESERIES_REVISION_FAMILY_POLICY).toMatchObject({ cancellationPolicy: "clearCurrent", durable: false, maxSubjects: 512 });
@@ -156,14 +170,22 @@ describe("Phase 3B standby domain registry", () => {
   ] as const)("gates a real %s fixture before presentation", (fixture, type, route, ownsProjection) => {
     const xml = readFixture(fixture);
     const deps = makeProcessDeps();
-    const first = processMessage(createMockWsDataMessageFromXml(xml, type), route, deps);
-    const semanticReplay = processMessage(
+    const first = processFoundationMessage(createMockWsDataMessageFromXml(xml, type), route, deps);
+    const semanticReplay = processFoundationMessage(
       createMockWsDataMessageFromXml(`${xml}\n`, type),
       route,
       deps,
     );
-    expect(first?.presentation.standbyStateMutationAccepted).toBe(true);
-    expect(first?.presentation.standbyStateSubject).toEqual(ownsProjection ? expect.any(String) : null);
+    if (route === "typhoonProbability") {
+      // VPTA admission context belongs to the router-private sidecar, not ProcessOutcome.
+      expect(first?.presentation.standbyStateMutationAccepted).toBeUndefined();
+      expect(first?.presentation.standbyStateSubject).toBeUndefined();
+      expect(first?.presentation.standbyActiveSubjects).toBeUndefined();
+      expect(first?.presentation.standbyAppliedSemanticKey).toBeUndefined();
+    } else {
+      expect(first?.presentation.standbyStateMutationAccepted).toBe(true);
+      expect(first?.presentation.standbyStateSubject).toEqual(ownsProjection ? expect.any(String) : null);
+    }
     expect(semanticReplay).toBeNull();
   });
 
@@ -326,19 +348,19 @@ describe("Phase 3B standby domain registry", () => {
     [FIXTURE_VPTA50_DAMREY, "VPTA50", "typhoonProbability", 7 * 24 * 60 * 60_000],
     [FIXTURE_VYSE51_ADVISORY, "VYSE51", "nankaiTrough", 30 * 24 * 60 * 60_000],
     [FIXTURE_VPWP50_NAGANO, "VPWP50", "weatherWarningTimeseries", 36 * 60 * 60_000],
-  ] as const)("keeps non-durable %s watermarks for the declared runtime TTL", (fixture, type, route, retentionMs) => {
+  ] as const)("keeps %s watermarks for the declared retention TTL", (fixture, type, route, retentionMs) => {
     const message = createMockWsDataMessageFromXml(readFixture(fixture), type);
     const receivedAtMs = message.meta?.receivedAtMs;
     expect(receivedAtMs).toEqual(expect.any(Number));
     if (receivedAtMs == null) return;
     const deps = makeProcessDeps();
-    expect(processMessage(withReceivedAtMs(message, receivedAtMs), route, deps)).not.toBeNull();
-    expect(processMessage(
+    expect(processFoundationMessage(withReceivedAtMs(message, receivedAtMs), route, deps)).not.toBeNull();
+    expect(processFoundationMessage(
       withReceivedAtMs(message, receivedAtMs + 12 * 60_000),
       route,
       deps,
     )).toBeNull();
-    expect(processMessage(
+    expect(processFoundationMessage(
       withReceivedAtMs(message, receivedAtMs + retentionMs + 1),
       route,
       deps,

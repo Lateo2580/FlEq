@@ -9,13 +9,15 @@ import { restoreVolcanoState } from "../startup/volcano-initializer";
 import { resetTerminalTitle } from "../../ui/terminal-title";
 import { formatTimestamp } from "../../ui/formatter";
 import { withReplDisplay, updateReplConnectionState } from "./repl-coordinator";
-import { createShutdownHandler, registerShutdownSignals } from "./shutdown";
+import { createShutdownHandler, registerShutdownSignals, runShutdownAndRecordExitCode } from "./shutdown";
 import * as log from "../../logger";
 import type { PipelineController } from "../filter-template/pipeline-controller";
 import type {
   DisplayConnectionStateV1,
   DisplayIngestSink,
   DisplayLateCounterpartContext,
+  VptaAdmissionCompletion,
+  VptaPersistenceCompletionAck,
 } from "../display/types";
 import type { DisplayRuntime } from "../display/runtime";
 import { StandbyPersistence } from "../display/standby-persistence";
@@ -41,6 +43,8 @@ import {
 import { FloodForecastStateHolder } from "../messages/flood-forecast-state";
 import { FLOOD_FORECAST_RETENTION_MS } from "../messages/revision-family-registry";
 import { sweepFloodForecastFoundation } from "../messages/flood-forecast-lifecycle";
+import { TYPHOON_PROBABILITY_RETENTION_MS } from "../display/project-typhoon-probability";
+import { TyphoonProbabilityStateHolder } from "../messages/typhoon-probability-state";
 
 import { formatSummaryInterval } from "../../ui/summary-interval-formatter";
 import { WINDOW_MINUTES, type SummaryWindowTracker } from "../messages/summary-tracker";
@@ -69,6 +73,7 @@ export async function startMonitor(config: AppConfig, pipelineController?: Pipel
   const volcanoState = new VolcanoStateHolder();
   const floodForecastState = new FloodForecastStateHolder();
   const revisionGate = new TelegramRevisionGate();
+  const typhoonProbabilityState = new TyphoonProbabilityStateHolder();
   let vpws50FoundationAuthoritative = true;
   // domain 全体を一報で authoritative 化しない。true は「現行 schema で初期化済み」の意味だけで、
   // 復元待ち／到着済みの authority は Vpww56StateHolder が subject 単位で持つ。
@@ -124,13 +129,22 @@ export async function startMonitor(config: AppConfig, pipelineController?: Pipel
       },
       standbyDomains: {
         gateEntries: revisionGate.exportDurableEntries().filter((entry) =>
-          ["tornado", "heatAlert", "typhoonAnalysis", "nankaiTrough", "lgObservation"]
+          ["tornado", "heatAlert", "typhoonAnalysis", "typhoonProbability", "nankaiTrough", "lgObservation"]
             .includes(entry.domain)),
       },
     }),
   );
   let standbyDirtyNotify: (() => void) | null = null;
   let standbyDirtySuppressed = false;
+  let standbyDurableSuppressionDepth = 0;
+  const withStandbyDurableNotificationsSuppressed = <T>(callback: () => T): T => {
+    standbyDurableSuppressionDepth += 1;
+    try {
+      return callback();
+    } finally {
+      standbyDurableSuppressionDepth -= 1;
+    }
+  };
   standbyStore.onChange(() => {
     if (!standbyDirtySuppressed) standbyDirtyNotify?.();
   });
@@ -138,9 +152,19 @@ export async function startMonitor(config: AppConfig, pipelineController?: Pipel
   // 終了時は stopStandbySweep -> flush() で書き切る
   const startupNowMs = Date.now();
   let briefingCriticalRewriteRequired = false;
-  const persistedStandby = standbyPersistence.load();
+  let startupVptaGateChanged = false;
+  let startupVptaProjectionChanged = false;
+  const persistedStandby = standbyPersistence.load(startupNowMs);
   if (persistedStandby != null) {
     const restoredAtMs = startupNowMs;
+    // VPTA projection は durable gate と結合して初めて復元できる。gate restore / expiry を
+    // probability slice より先に確定し、旧報の一時的な再表示を作らない。
+    revisionGate.restoreDurableEntries(
+      persistedStandby.telegramFoundation.standbyDomains.gateEntries,
+    );
+    startupVptaGateChanged = revisionGate.expireRevisionFamily(
+      "typhoonProbability", "VPTA50", startupNowMs, TYPHOON_PROBABILITY_RETENTION_MS,
+    );
     briefingCriticalRewriteRequired = standbyStore
       .restoreActiveState(persistedStandby, restoredAtMs).briefingCriticalRewriteRequired;
     const persistedVpws50 = persistedStandby.telegramFoundation.vpws50;
@@ -198,7 +222,10 @@ export async function startMonitor(config: AppConfig, pipelineController?: Pipel
         persistedFlood.legacyEventIds ?? [],
       );
     }
-    revisionGate.restoreDurableEntries(persistedStandby.telegramFoundation.standbyDomains.gateEntries);
+    startupVptaProjectionChanged = standbyStore.maintainTyphoonProbabilitySubjects(
+      startupNowMs,
+      revisionGate.activeRevisionFamilySubjects("typhoonProbability", "VPTA50"),
+    ).durableChanged;
     if (persistedVpws50.authoritative) {
       const identity = vpws50State.getCurrentIdentity();
       standbyStore.restoreCanonicalVpws50Alerts(
@@ -217,17 +244,28 @@ export async function startMonitor(config: AppConfig, pipelineController?: Pipel
       );
     }
   }
+  if (persistedStandby == null) {
+    startupVptaGateChanged = revisionGate.expireRevisionFamily(
+      "typhoonProbability", "VPTA50", startupNowMs, TYPHOON_PROBABILITY_RETENTION_MS,
+    );
+  }
   const startupSweepMutation = standbyStore.sweep(startupNowMs);
   // salvage source は全 holder / gate の restore と起動時 sweep が完了してからだけ
   // canonical 化する。通常 load では pending repair が無く、追加 write は発生しない。
   if (persistedStandby != null && (
     briefingCriticalRewriteRequired
     || standbyPersistence.hasPendingSalvageRepair()
+    || startupVptaGateChanged
+    || startupVptaProjectionChanged
     || startupSweepMutation.durableChanged
   )) {
     standbyPersistence.schedule(standbyStore.exportActiveState());
   }
-  standbyStore.onDurable(() => standbyPersistence.schedule(standbyStore.exportActiveState()));
+  standbyStore.onDurable(() => {
+    if (standbyDurableSuppressionDepth === 0) {
+      standbyPersistence.schedule(standbyStore.exportActiveState());
+    }
+  });
 
   // 気象警報の昇格 lifecycle も monitor 所有にする。display runtime は `display off` → `on` で
   // 作り直されるが、昇格の時計は電文を受理してからの壁時計経過なので途切れさせない。
@@ -309,21 +347,34 @@ export async function startMonitor(config: AppConfig, pipelineController?: Pipel
 
   let standbySweepTimer: NodeJS.Timeout | null = null;
   function sweepStandbyFoundation(nowMs: number) {
-    const standbyMutation = standbyStore.sweep(nowMs);
-    const floodMutation = sweepFloodForecastFoundation(
-      revisionGate,
-      floodForecastState,
-      standbyStore,
-      nowMs,
-    );
-    if (floodMutation.foundationChanged) {
+    const mutation = withStandbyDurableNotificationsSuppressed(() => {
+      const standbyMutation = standbyStore.sweep(nowMs);
+      const floodMutation = sweepFloodForecastFoundation(
+        revisionGate,
+        floodForecastState,
+        standbyStore,
+        nowMs,
+      );
+      const vptaGateChanged = revisionGate.expireRevisionFamily(
+        "typhoonProbability", "VPTA50", nowMs, TYPHOON_PROBABILITY_RETENTION_MS,
+      );
+      const vptaProjectionMutation = standbyStore.maintainTyphoonProbabilitySubjects(
+        nowMs,
+        revisionGate.activeRevisionFamilySubjects("typhoonProbability", "VPTA50"),
+      );
+      typhoonProbabilityState.sweep(nowMs);
+      return {
+        viewChanged: standbyMutation.viewChanged || floodMutation.viewChanged
+          || vptaProjectionMutation.viewChanged,
+        durableChanged: standbyMutation.durableChanged || floodMutation.durableChanged
+          || floodMutation.foundationChanged || vptaGateChanged
+          || vptaProjectionMutation.durableChanged,
+      };
+    });
+    if (mutation.durableChanged) {
       standbyPersistence.schedule(standbyStore.exportActiveState());
     }
-    return {
-      viewChanged: standbyMutation.viewChanged || floodMutation.viewChanged,
-      durableChanged: standbyMutation.durableChanged || floodMutation.durableChanged
-        || floodMutation.foundationChanged,
-    };
+    return mutation;
   }
 
   function startStandbySweep(): void {
@@ -387,7 +438,7 @@ export async function startMonitor(config: AppConfig, pipelineController?: Pipel
     },
   });
   const displaySink: DisplayIngestSink = {
-    ingest: (e) => baseDisplaySink.ingest(e),
+    ingest: (e, internalCommand) => baseDisplaySink.ingest(e, internalCommand),
     ingestTickerOnly: (e) => baseDisplaySink.ingestTickerOnly?.(e),
     reconcileLateCounterpart: (e, sourceEventKeys, context?: DisplayLateCounterpartContext) => {
       const result = context == null
@@ -399,6 +450,17 @@ export async function startMonitor(config: AppConfig, pipelineController?: Pipel
       baseDisplaySink.reconcileLateCounterpartCard?.(e, context)
       ?? {},
     publishStats: (s) => displayHubRef?.publishStats?.(s),
+    activeTyphoonProbabilitySubjects: (nowMs) =>
+      baseDisplaySink.activeTyphoonProbabilitySubjects?.(nowMs) ?? [],
+    maintainTyphoonProbabilitySubjects: (nowMs, subjects) =>
+      baseDisplaySink.maintainTyphoonProbabilitySubjects?.(nowMs, subjects)
+      ?? { viewChanged: false, durableChanged: false },
+    reconcileTyphoonProbabilityCommand: (command) =>
+      baseDisplaySink.reconcileTyphoonProbabilityCommand?.(command)
+      ?? { viewChanged: false, durableChanged: false },
+    reconcileTyphoonProbabilitySubject: (eventId) =>
+      baseDisplaySink.reconcileTyphoonProbabilitySubject?.(eventId)
+      ?? { viewChanged: false, durableChanged: false },
   };
   let displayRuntime: DisplayRuntime | null = null;
   // dmdata 接続状態 (onConnected/onDisconnected が更新)。display on 時の接続状態 seed に使う
@@ -410,6 +472,74 @@ export async function startMonitor(config: AppConfig, pipelineController?: Pipel
   const persistAcceptedTsunamiRevision = () => {
     standbyPersistence.schedule(standbyStore.exportActiveState());
   };
+  const persistVptaAdmissionCompletion = (
+    completion: VptaAdmissionCompletion,
+  ): VptaPersistenceCompletionAck => {
+    const durableChanged = completion.changes.gateExpiry
+      || completion.changes.projectionCleanup
+      || completion.changes.incomingGate
+      || completion.changes.projectionOrRetention;
+    const shapeValid = durableChanged === completion.durableChanged
+      && (completion.kind === "accepted"
+        ? completion.durableChanged === true && completion.persistence === "deferred"
+        : completion.kind === "suppressed"
+          ? completion.durableChanged
+            ? completion.persistence === "deferred"
+            : completion.persistence === "none"
+          : completion.durableChanged
+            ? completion.persistence === "immediate"
+            : completion.persistence === "none");
+    if (!shapeValid) {
+      return {
+        kind: "failed", operation: "completionCallback", completionAlreadyEmitted: true,
+        receipt: null, cause: new Error("invalid VPTA admission completion durability"),
+      };
+    }
+    if (!completion.durableChanged) return { kind: "notRequired" };
+    const asynchronousFailure = standbyPersistence.lastFailure();
+    if (asynchronousFailure != null) {
+      return {
+        kind: "failed", operation: "schedule", completionAlreadyEmitted: true,
+        receipt: null, cause: asynchronousFailure,
+      };
+    }
+
+    let state: ReturnType<StandbyStateStore["exportActiveState"]>;
+    try {
+      state = standbyStore.exportActiveState();
+    } catch (cause) {
+      return {
+        kind: "failed", operation: "exportActiveState", completionAlreadyEmitted: true,
+        receipt: null, cause,
+      };
+    }
+    let receipt;
+    try {
+      receipt = standbyPersistence.schedule(state);
+    } catch (cause) {
+      return {
+        kind: "failed", operation: "schedule", completionAlreadyEmitted: true,
+        receipt: null, cause,
+      };
+    }
+    if (completion.persistence === "deferred") return { kind: "scheduled", receipt };
+    let result;
+    try {
+      result = standbyPersistence.flushThrough(receipt.seq);
+    } catch (cause) {
+      return {
+        kind: "failed", operation: "flushThrough", completionAlreadyEmitted: true,
+        receipt, cause,
+      };
+    }
+    if (result.kind === "failed") {
+      return {
+        kind: "failed", operation: "flushThrough", completionAlreadyEmitted: true,
+        receipt, cause: result.cause,
+      };
+    }
+    return { kind: "flushed", receipt, result };
+  };
   const { handler: routeMessage, eewLogger, notifier, vpwp50Cache, tornadoDetailProvider, stats, summaryTracker, flushAndDisposeVolcanoBuffer, disposeLegacyCounterpartCorrelator, buildDisplayStats } = createMessageHandler({
     pipeline: pipeline ?? undefined,
     display,
@@ -420,6 +550,7 @@ export async function startMonitor(config: AppConfig, pipelineController?: Pipel
     tsunamiState,
     volcanoState,
     floodForecastState,
+    typhoonProbabilityState,
     revisionGate,
     onVpws50RevisionDecision: (decision) => {
       if (decision.accepted) vpws50FoundationAuthoritative = true;
@@ -446,6 +577,12 @@ export async function startMonitor(config: AppConfig, pipelineController?: Pipel
     onStandbyRevisionDecision: (decision) => {
       if (decision.accepted) standbyPersistence.schedule(standbyStore.exportActiveState());
     },
+    onVptaStandbyRevisionDecision: () => {
+      // Observer only. VPTA persistence is owned exclusively by completion below.
+    },
+    onVptaAdmissionCompletion: persistVptaAdmissionCompletion,
+    withStandbyDurableNotificationsSuppressed,
+    flushStandbyThrough: (requiredSeq) => standbyPersistence.flushThrough(requiredSeq),
     getDeliveryCapabilities: () => manager?.getDeliveryCapabilities()
       ?? createUnknownDeliveryCapabilities(),
     getPersistenceSalvageDiagnostics: () => standbyPersistence.salvageBackupDiagnostics(),
@@ -543,10 +680,15 @@ export async function startMonitor(config: AppConfig, pipelineController?: Pipel
     },
     stopStandbySweep: () => {
       stopStandbySweep();
-      // 予約済み (debounce 待ち) より exportActiveState() の方が常に新しいので、
-      // 予約は捨てて現在状態を同期保存する
-      standbyPersistence.dispose();
-      standbyPersistence.save(standbyStore.exportActiveState());
+      // export / validation が失敗しても debounce callback を shutdown 中に走らせない。
+      // pending 自体は typed save が成功するまで durable fallback として保持する。
+      standbyPersistence.stopTimer();
+      // 予約済み state は export / validation / write のどこかが失敗した場合の durable
+      // fallback なので、同期保存が両 mirror を commit するまでは破棄しない。
+      const currentState = standbyStore.exportActiveState();
+      const result = standbyPersistence.save(currentState);
+      if (result.kind === "written") standbyPersistence.dispose();
+      return result;
     },
     flushDetailCaches: () => vpwp50Cache.flush(),
     flushWeatherPromotion: () => {
@@ -571,7 +713,10 @@ export async function startMonitor(config: AppConfig, pipelineController?: Pipel
 
   // REPL ハンドラ (遅延ロード)
   const { ReplHandler } = await import("../../ui/repl");
-  replHandler = new ReplHandler(config, manager, notifier, eewLogger, shutdown, stats, [tsunamiState, volcanoState], [tsunamiState, volcanoState, tornadoDetailProvider, vpws50State, vpwp50Cache], pipelineController, summaryTracker, displayController);
+  const shutdownFromRepl = async (): Promise<void> => {
+    await runShutdownAndRecordExitCode(shutdown);
+  };
+  replHandler = new ReplHandler(config, manager, notifier, eewLogger, shutdownFromRepl, stats, [tsunamiState, volcanoState], [tsunamiState, volcanoState, tornadoDetailProvider, vpws50State, vpwp50Cache], pipelineController, summaryTracker, displayController);
 
   registerShutdownSignals(shutdown);
 

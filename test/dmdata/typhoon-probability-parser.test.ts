@@ -151,6 +151,18 @@ describe("parseTyphoonProbability — TimeDefine 並び替え防御", () => {
       expect(masuda.peak.time).toBe(expectedTd!.dateTime);
     }
   });
+
+  it("部分一致する timeId / refID を十進整数として救済しない", () => {
+    const xml = BASE_XML
+      .replace('timeId="1"', 'timeId="1x"')
+      .replace('refID="1"', 'refID="1x"');
+    const info = parseTyphoonProbability(createMockWsDataMessageFromXml(xml, "VPTA50"));
+    expect(info).not.toBeNull();
+    expect(info!.timeDefines.some((definition) => definition.timeId === 1)).toBe(false);
+    expect(info!.parserDiagnostics.unknownAttributes).toContain("timeId=1x");
+    expect(info!.parserDiagnostics.unknownAttributes)
+      .toContain(`refID=1x (out of range 1..${info!.timeDefines.length})`);
+  });
 });
 
 describe("parseTyphoonProbability — memory guard", () => {
@@ -181,12 +193,13 @@ describe("parseTyphoonProbability — memory guard", () => {
     expect(decideFallback(375, 40, 5 * 1024 * 1024 + 1)).toBe("raw");
   });
 
-  // parser 統合経路で base.fallback = "compactOnly" が立つことを証明する。
-  // FALLBACK_COMPACT_STEPS=60 を超えるため、TimeDefine を 21 個追加して 61 step にする。
-  // refID は元の 1〜40 までしか付かないので、追加 step (refID 41-61) は series40 内で null のまま残る
-  // (parser はクラッシュしない、計算は走る)。
-  it("parser 統合: synthetic で stepCount=61 にすると fallback='compactOnly'", () => {
-    const additions = Array.from({ length: 21 }, (_, i) =>
+  // refID は元の 1〜40 までなので追加 step は null のままだが、DTO は切り捨てない。
+  it.each([
+    [60, "none"],
+    [61, "compactOnly"],
+    [62, "compactOnly"],
+  ] as const)("parser 統合: stepCount=%i を全件保持して fallback=%s", (stepCount, fallback) => {
+    const additions = Array.from({ length: stepCount - 40 }, (_, i) =>
       `<TimeDefine timeId="${41 + i}">\n<DateTime>2020-10-05T15:00:00+09:00</DateTime>\n<Duration>PT3H</Duration>\n</TimeDefine>`,
     ).join("\n");
     const xml = BASE_XML.replace(
@@ -196,7 +209,8 @@ describe("parseTyphoonProbability — memory guard", () => {
     const msg = createMockWsDataMessageFromXml(xml, "VPTA50");
     const info = parseTyphoonProbability(msg);
     expect(info).not.toBeNull();
-    expect(info!.timeDefines.length).toBeGreaterThan(60);
-    expect(info!.fallback).toBe("compactOnly");
+    expect(info!.timeDefines).toHaveLength(stepCount);
+    expect(info!.regions.every((region) => region.series40.length === stepCount)).toBe(true);
+    expect(info!.fallback).toBe(fallback);
   });
 });
