@@ -27,6 +27,7 @@
   import TyphoonCard from "./TyphoonCard.svelte";
   import VolcanoCard from "./VolcanoCard.svelte";
   import WeatherAlertCard from "./WeatherAlertCard.svelte";
+  import WeatherWarningForecastCard from "./WeatherWarningForecastCard.svelte";
 
   type TestMeasurementOverride = Partial<Record<string, number>> | ((pass: number) => Partial<Record<string, number>>);
   let { snapshot, now, dim, reducedMotion = false, sseConnected, onTsunamiReplay, onStageChange, testMeasurementOverride, testLateProbeDuringFinalCommit, testProbeAfterMeasurementPass, testBeforeTerminalCommit, testAfterTerminalBoundary, rotationTick, cardPageTick, gateFixture, partitionDebug = false }: {
@@ -84,8 +85,8 @@
   // confirmation pass; this is not a general retry budget.
   const MAX_POST_COMMIT_VERIFICATION_PASSES = 1;
   const layoutMotionDuration = SPRING_SPATIAL_DEFAULT_MS;
-  const KNOWN_KINDS = new Set<string>(["volcano", "typhoon", "heat", "flood", "tornado", "longPeriod", "nankaiTrough", "briefing"]);
-  const CARD_ORDER: readonly CardKey[] = ["tsunami", "quake", "weather", "briefing", "flood", "typhoon", "volcano", "heat"];
+  const KNOWN_KINDS = new Set<string>(["volcano", "typhoon", "heat", "flood", "tornado", "longPeriod", "nankaiTrough", "briefing", "weatherWarningForecast"]);
+  const CARD_ORDER: readonly CardKey[] = ["tsunami", "quake", "weather", "weatherWarningForecast", "briefing", "flood", "typhoon", "volcano", "heat"];
   const MAX_PREFIX_ROWS = 128;
   const QUAKE_CARD_AUTO_CLOSE_MS = 20_000;
   type Placement = "left" | "right" | "center";
@@ -310,6 +311,7 @@
   const volcanoItem = $derived(itemOf("volcano"));
   const heatItem = $derived(itemOf("heat"));
   const briefingItem = $derived(itemOf("briefing"));
+  const weatherWarningForecastItem = $derived(itemOf("weatherWarningForecast"));
   // Candidate ranges need their own footer rule while partitioning. Once the
   // live pager is settled, however, every shelf probe must render its current
   // chrome signature (not a stale candidate-local approximation).
@@ -548,6 +550,7 @@
     if (key === "tsunami") return 112;
     if (key === "quake") return variant === "expanded" ? 260 : 184;
     if (key === "weather") return variant === "expanded" ? 270 : 178;
+    if (key === "weatherWarningForecast") return 190;
     if (key === "typhoon") return variant === "full" ? 240 : 120;
     if (key === "heat") return 150;
     if (key === "briefing") return briefingPageShellHeight;
@@ -594,6 +597,7 @@
     return key === "tsunami" ? snapshot.tsunami != null
       : key === "quake" ? hasQuake
       : key === "weather" ? hasWeather
+      : key === "weatherWarningForecast" ? weatherWarningForecastItem != null
       : key === "briefing" ? briefingItem != null && briefingItem.data.entries.length > 0
       : key === "flood" ? floodItem != null
       : key === "typhoon" ? typhoonItem != null
@@ -627,6 +631,10 @@
     if (key === "weather") return 3 + [...weatherDisplayGroups.values()]
       .reduce((total, group) => total + group.currentAreas.length + 1, 0)
       + (tornadoItem == null ? 0 : tornadoItem.data.areas.length + 1);
+    if (key === "weatherWarningForecast") return 3 + (weatherWarningForecastItem?.data.groups.reduce(
+      (total, group) => total + group.targets.reduce((sum, target) => sum + target.periods.length, 0),
+      0,
+    ) ?? 0);
     if (key === "briefing") return 2 + (briefingItem?.data.entries.reduce((score, entry) => {
       // frameLevel is engine authority. This only ranks that explicit wire value;
       // it never infers severity from title, Condition, or any other text.
@@ -643,7 +651,8 @@
     return 2 + (heatItem?.data.areas.length ?? 0);
   }
   function pageFormattingActive(key: CardKey): boolean {
-    const page = key === "quake" || key === "weather" || key === "briefing" ? cardPageCoordinator.cardDiagnostics(key).page : "0/0";
+    const page = key === "quake" || key === "weather" || key === "weatherWarningForecast" || key === "briefing"
+      ? cardPageCoordinator.cardDiagnostics(key).page : "0/0";
     const pageCount = Number(page.split("/")[1] ?? 0);
     if (pageCount > 1) return true;
     if (key === "weather") {
@@ -1027,6 +1036,7 @@
     // actual card disappearance/replay replacement exits the page substate.
     if (snapshot.latestQuake == null || selectedRecentQuake != null) cardPageCoordinator.unregister("quake");
     if (!hasWeather) cardPageCoordinator.unregister("weather");
+    if (weatherWarningForecastItem == null) cardPageCoordinator.unregister("weatherWarningForecast");
     if (tornadoItem == null) cardPageCoordinator.unregister("tornado");
     if (floodItem == null) cardPageCoordinator.unregister("flood");
     if (briefingItem == null || briefingItem.data.entries.length === 0) cardPageCoordinator.unregister("briefing");
@@ -1792,6 +1802,13 @@
       ? `${item.kind}:${item.updatedAt}:generation:${item.data.generation}`
       : item.kind === "typhoon"
         ? `${item.kind}:${item.updatedAt}:measurement:${typhoonMeasurementTuple(item)}`
+        : item.kind === "weatherWarningForecast"
+          ? `${item.kind}:${item.updatedAt}:atoms:${JSON.stringify(item.data.groups.map((group) => [
+              group.key,
+              group.targets.map((target) => [target.key, target.periods.map((period) => [
+                period.key, period.pagerAnchorKey, period.pagerAnchorOrdinal, period.pagerSlot,
+              ])]),
+            ]))}`
         : `${item.kind}:${item.updatedAt}`).join(",") ?? "";
     const contentKey = [snapshot.generatedAt, snapshot.seq, snapshot.latestQuake?.updatedAtMs ?? "", selectedId ?? "", standbyContentIdentity, snapshot.weatherAlerts.map((alert) => alert.updatedAt).join(",")].join("|");
     const input = [contentKey, sseConnected].join("|");
@@ -1871,6 +1888,14 @@
         return pagePartitionProbe("tornado", probePlacement, 1, undefined, composition, weatherRange, selected.weatherRows)("tornado", probePlacement, tornadoRange, []);
       }}
       pagePlacement={placement === "center" ? "center" : "side"}
+    />
+  {:else if key === "weatherWarningForecast" && weatherWarningForecastItem != null}
+    <WeatherWarningForecastCard
+      item={weatherWarningForecastItem}
+      pageCoordinator={measuring ? undefined : cardPageCoordinator}
+      rotationMember={!measuring && renderPlan.rotationKeys.includes("weatherWarningForecast")}
+      pageScheduling={!measuring}
+      measurementMaxAtom={measuring}
     />
   {:else if key === "briefing" && briefingItem != null}
     <BriefingCard
@@ -2024,6 +2049,11 @@
   data-briefing-page-host={cardPageCoordinator.diagnostics().cards.briefing.appearanceHost ?? ""}
   data-briefing-page-mode={cardPageCoordinator.diagnostics().cards.briefing.mode}
   data-briefing-page-pending-appearance={cardPageCoordinator.diagnostics().pendingAppearanceKeys.includes("briefing") ? "true" : "false"}
+  data-weather-warning-forecast-page={cardPageCoordinator.cardDiagnostics("weatherWarningForecast").page}
+  data-weather-warning-forecast-page-keys={JSON.stringify(cardPageCoordinator.cardDiagnostics("weatherWarningForecast").keys)}
+  data-weather-warning-forecast-page-identities={JSON.stringify(cardPageCoordinator.cardDiagnostics("weatherWarningForecast").identities)}
+  data-weather-warning-forecast-page-host={cardPageCoordinator.diagnostics().cards.weatherWarningForecast.appearanceHost ?? ""}
+  data-weather-warning-forecast-page-mode={cardPageCoordinator.diagnostics().cards.weatherWarningForecast.mode}
   data-card-page={cardPageCoordinator.cardDiagnostics("quake").page}
   data-card-page-keys={JSON.stringify(cardPageCoordinator.cardDiagnostics("quake").keys)}
   data-card-page-identities={JSON.stringify(cardPageCoordinator.cardDiagnostics("quake").identities)}

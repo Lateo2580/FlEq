@@ -1,0 +1,109 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Report xmlns="http://xml.kishou.go.jp/jmaxml1/" xmlns:jmx="http://xml.kishou.go.jp/jmaxml1/">
+  <Control>
+    <Title>気象警報・注意報時系列情報（Ｒ０６）</Title>
+    <DateTime>2026-06-05T23:55:00Z</DateTime>
+    <Status>通常</Status>
+    <EditorialOffice>長野地方気象台</EditorialOffice>
+    <PublishingOffice>長野地方気象台</PublishingOffice>
+  </Control>
+  <Head xmlns="http://xml.kishou.go.jp/jmaxml1/informationBasis1/">
+    <Title>長野県警戒・注意事項時系列情報</Title>
+    <ReportDateTime>2026-06-06T08:55:00+09:00</ReportDateTime>
+    <TargetDateTime>2026-06-06T09:00:00+09:00</TargetDateTime>
+    <EventID>VPWP50-LOCAL-IDENTITY</EventID>
+    <InfoType>発表</InfoType>
+    <Serial>01</Serial>
+    <InfoKind>気象警報・注意報時系列</InfoKind>
+    <InfoKindVersion>1.5_0</InfoKindVersion>
+  </Head>
+  <Body xmlns="http://xml.kishou.go.jp/jmaxml1/body/meteorology1/">
+    <MeteorologicalInfos type="量的予想時系列（市町村等）">
+      <TimeSeriesInfo>
+        <TimeDefines>
+          <TimeDefine timeId="1"><DateTime>2026-06-06T09:00:00+09:00</DateTime><Duration>PT3H</Duration><Name> ６日　昼前 </Name></TimeDefine>
+          <TimeDefine timeId="2"><DateTime>2026-06-06T12:00:00+09:00</DateTime><Duration>PT3H</Duration><Name>６日昼過ぎ</Name></TimeDefine>
+          <TimeDefine timeId="3"><DateTime>2026-06-06T15:00:00+09:00</DateTime><Duration>PT3H</Duration><Name>重複Ａ</Name></TimeDefine>
+          <TimeDefine timeId="3"><DateTime>2026-06-06T18:00:00+09:00</DateTime><Duration>PT3H</Duration><Name>重複Ｂ</Name></TimeDefine>
+          <TimeDefine timeId="4"><DateTime>2026-06-07T00:00:00</DateTime><Duration>PT3H</Duration><Name>offsetなし</Name></TimeDefine>
+          <TimeDefine timeId="5"><DateTime>2026-06-07T00:00:00+09:00</DateTime><Duration>P1M</Duration><Name>month duration</Name></TimeDefine>
+        </TimeDefines>
+        <Item>
+          <Kind><Property><Type> 土砂災害危険度 </Type><SignificancyPart><Base>
+            <Significancy refID="1"><Name>警戒レベル２</Name><Code>21</Code></Significancy>
+            <Significancy refID="2"><Name>警戒レベル２相当</Name><Code>22</Code></Significancy>
+            <Significancy refID="3"><Name>警戒レベル３相当</Name><Code>31</Code></Significancy>
+            <Significancy refID="4"><Name>区分不明</Name><Code>99</Code></Significancy>
+            <Significancy refID="5"><Name>警戒レベル４相当</Name><Code>41</Code></Significancy>
+            <Local>
+              <AreaName code="L001"> 沿岸　東部 </AreaName><Code>L001</Code>
+              <Significancy refID="1"><Name>注意報級</Name><Code>20</Code></Significancy>
+            </Local>
+            <Local>
+              <AreaName code="L001">沿岸 東部</AreaName><Code>L001</Code>
+              <Significancy refID="1"><Name>注意報級</Name><Code>20</Code></Significancy>
+            </Local>
+            <Local>
+              <AreaName>沿岸 東部</AreaName>
+              <Significancy refID="2"><Name>警報級</Name><Code>30</Code></Significancy>
+            </Local>
+            <Local>
+              <AreaName code="L002">山地東部</AreaName>
+              <Significancy refID="1"><Name>注意報級</Name><Code>20</Code></Significancy>
+            </Local>
+            <Local>
+              <AreaName code="L002">山地西部</AreaName>
+              <Significancy refID="2"><Name>警報級</Name><Code>30</Code></Significancy>
+            </Local>
+            <Local>
+              <AreaName code="L003">属性要素不一致</AreaName><Code>L004</Code>
+              <Significancy refID="1"><Name>注意報級</Name><Code>20</Code></Significancy>
+            </Local>
+            <Local>
+              <AreaName code="L005">　 </AreaName>
+              <Significancy refID="1"><Name>注意報級</Name><Code>20</Code></Significancy>
+            </Local>
+          </Base></SignificancyPart></Property></Kind>
+          <Kind><Property><Type>雷</Type><SignificancyPart><Base>
+            <Significancy refID="1"><Name>注意報級</Name><Code>20</Code></Significancy>
+            <Significancy refID="2"><Name>区分不明</Name><Code>99</Code></Significancy>
+          </Base></SignificancyPart></Property></Kind>
+          <Area><Name> 長野県　北部 </Name><Code>200010</Code></Area>
+        </Item>
+        <Item>
+          <Kind><Property><Type>雨</Type><SignificancyPart><Base>
+            <Significancy refID="2"><Name>警報級</Name><Code>30</Code></Significancy>
+          </Base></SignificancyPart></Property></Kind>
+          <Area><Name>長野県 北部</Name><Code>200010</Code></Area>
+        </Item>
+        <Item>
+          <Kind><Property><Type>風</Type><SignificancyPart><Base>
+            <Significancy refID="1"><Name>注意報級</Name><Code>20</Code></Significancy>
+            <Local><AreaName code="L001">別親の沿岸</AreaName><Significancy refID="1"><Name>注意報級</Name><Code>20</Code></Significancy></Local>
+          </Base></SignificancyPart></Property></Kind>
+          <Area><Name>長野県 北部</Name><Code>200020</Code></Area>
+        </Item>
+        <Item>
+          <Kind><Property><Type>雪</Type><SignificancyPart><Base>
+            <Significancy refID="1"><Name>注意報級</Name><Code>20</Code></Significancy>
+          </Base></SignificancyPart></Property></Kind>
+          <Area><Name>長野県 北部</Name></Area>
+        </Item>
+        <Item>
+          <Kind><Property><Type>波</Type><SignificancyPart><Base>
+            <Significancy refID="1"><Name>特別警報級</Name><Code>50</Code></Significancy>
+            <Significancy refID="2"><Name>区分不明</Name><Code>98</Code></Significancy>
+          </Base></SignificancyPart></Property></Kind>
+          <Area><Name>競合地域Ａ</Name><Code>209999</Code></Area>
+        </Item>
+        <Item>
+          <Kind><Property><Type>波</Type><SignificancyPart><Base>
+            <Significancy refID="2"><Name>警報級</Name><Code>30</Code></Significancy>
+          </Base></SignificancyPart></Property></Kind>
+          <Area><Name>競合地域Ｂ</Name><Code>209999</Code></Area>
+        </Item>
+      </TimeSeriesInfo>
+    </MeteorologicalInfos>
+    <TargetArea><Name>長野県</Name><Code>200000</Code></TargetArea>
+  </Body>
+</Report>

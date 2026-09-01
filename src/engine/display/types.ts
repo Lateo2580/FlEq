@@ -319,8 +319,13 @@ export interface DisplayIngestSink {
   publishStats?(stats: DisplayStatsV1): void;
   /** VPTA gate capacity protection snapshot. Read-only and deterministically sorted. */
   activeTyphoonProbabilitySubjects?(nowMs: number): readonly string[];
+  activeWeatherWarningForecastSubjects?(nowMs: number): readonly string[];
   /** Admission/startup/runtime coupling cleanup. */
   maintainTyphoonProbabilitySubjects?(
+    nowMs: number,
+    activeGateSubjects: readonly string[],
+  ): { viewChanged: boolean; durableChanged: boolean };
+  maintainWeatherWarningForecastSubjects?(
     nowMs: number,
     activeGateSubjects: readonly string[],
   ): { viewChanged: boolean; durableChanged: boolean };

@@ -11,6 +11,7 @@ import { collectWeatherExpandedKinds } from "../../lib/weather-expanded-kinds";
 import { SPRING_SPATIAL_DEFAULT_MS } from "../../lib/motion";
 import { TIME_SLICE_PERIOD_MS } from "../../lib/legacy-standby/time-slice-scheduler.svelte";
 import type { EpochCoordinatorControl } from "../../lib/legacy-standby/epoch-coordinator";
+import { legacyImprovedWeatherWarningForecast } from "../../preview/fixtures";
 
 const now = new Date("2026-08-20T12:00:00+09:00");
 const appStageOneMeasurement: Partial<Record<string, number>> = {
@@ -208,7 +209,7 @@ describe("StandbyScreen legacy-improved skeleton", () => {
         tsunami: tsunami(),
         latestQuake: latestQuake(),
         weatherAlerts: [weather()],
-        standbyItems: [briefing(), flood(), typhoon(), volcano(), heat()],
+        standbyItems: [legacyImprovedWeatherWarningForecast, briefing(), flood(), typhoon(), volcano(), heat()],
       }),
       now,
       dim: false,
@@ -219,8 +220,9 @@ describe("StandbyScreen legacy-improved skeleton", () => {
 
     const root = container.querySelector<HTMLElement>(".standby")!;
     expect(root.dataset.placementLeft).toBe("tsunami,quake");
-    expect(root.dataset.placementRight).toBe("weather,briefing,flood,typhoon,volcano,heat");
+    expect(root.dataset.placementRight).toBe("weather,weatherWarningForecast,briefing,flood,typhoon,volcano,heat");
     expect(root.dataset.placementCenter).toBe("");
+    expect(root.querySelector("[data-weather-warning-forecast-card]")).toBeTruthy();
   });
 
   it("renders spill columns when the fixed right column overflows", async () => {

@@ -7,9 +7,16 @@ import type {
   DisplaySeverity,
   OfficialAlertLevel,
   ResolutionSource,
+  SignificancyInfo,
+  SignificancyOccurrence,
+  ForecastTimeSlot,
+  WeatherWarningAreaIdentity,
+  WeatherWarningLocalIdentity,
 } from "../../types";
+import { createHash } from "node:crypto";
 import {
   classifySignificancyCode,
+  normalizeKindName,
 } from "../../dmdata/weather-warning-timeseries-significancy";
 import {
   resolveVpwp50Significancy,
@@ -66,6 +73,88 @@ export interface WeatherSeverityEntry {
   officialAlertLevel: OfficialAlertLevel | null;
   /** Phase B: 解決ソース (map / unknown) */
   resolutionSource: ResolutionSource;
+}
+
+/** Forecast card の reducer にだけ渡す lossless occurrence projection。 */
+export interface ForecastOccurrenceEntry {
+  phenomenonName: string;
+  significancy: SignificancyInfo;
+  forecastLabel: string;
+  displaySeverity: DisplaySeverity;
+  tsNum: 1 | 2 | 3;
+  timeRef: string;
+  slot: ForecastTimeSlot | null;
+  area: WeatherWarningAreaIdentity;
+  local: WeatherWarningLocalIdentity | null;
+}
+
+/** Persisted keys use exactly a 43 character base64url SHA-256 digest. */
+export type Vpwp50KeyKind = "group" | "target" | "occurrence" | "period" | "anchor";
+
+export function vpwp50StableKey(
+  kind: Vpwp50KeyKind,
+  components: readonly (string | number | null)[],
+): string {
+  if (components.some((value) => value !== null
+    && typeof value !== "string"
+    && (typeof value !== "number" || !Number.isSafeInteger(value)))) {
+    throw new Error("VPWP50 stable key requires string, safe-integer, or null components");
+  }
+  const canonicalTuple = JSON.stringify(["vpwp50-key-v1", kind, ...components]);
+  return createHash("sha256").update(canonicalTuple, "utf8").digest("base64url");
+}
+
+/** One authoritative VPWP50 forecast label generator. */
+export function vpwp50ForecastLabel(
+  phenomenonName: string,
+  significancy: SignificancyInfo,
+): string | null {
+  const base = normalizeKindName(phenomenonName, "below");
+  if (!significancy.known || significancy.family === "unknown") return `${base}（区分不明）の予測`;
+  if (significancy.family === "grade" && ["advisory", "warning", "special"].includes(significancy.severity)) {
+    return `${normalizeKindName(phenomenonName, significancy.severity)}級の予測`;
+  }
+  if (significancy.family === "alertLevel" && ["advisory", "warning", "special"].includes(significancy.severity)) {
+    return `${base}（${significancy.label}）の予測`;
+  }
+  return null;
+}
+
+/**
+ * Existing flattenEntries remains the compact/worst API.  Forecast cards must
+ * use this function so code 21/22 and unknown sibling occurrences survive.
+ */
+export function projectForecastOccurrences(info: ParsedWeatherWarningTimeseriesInfo): ForecastOccurrenceEntry[] {
+  const result: ForecastOccurrenceEntry[] = [];
+  for (const area of info.areas) {
+    const areaIdentity = area.identity;
+    if (areaIdentity == null || area.identityKey !== areaIdentity.key) continue;
+    for (const tsNum of [1, 2, 3] as const) {
+      for (const kind of area.kinds[tsNum]) {
+        if (kind.partKind !== "Significancy" || kind.significancyOccurrences == null) continue;
+        const collect = (occurrences: SignificancyOccurrence[] | undefined, local: WeatherWarningLocalIdentity | null): void => {
+          for (const occurrence of occurrences ?? []) {
+            const forecastLabel = vpwp50ForecastLabel(kind.type, occurrence.info);
+            if (forecastLabel == null) continue;
+            const resolved = resolveVpwp50Significancy(occurrence.info);
+            const displaySeverity: DisplaySeverity = resolved?.displaySeverity ?? "unknown";
+            result.push({
+              phenomenonName: kind.type, significancy: occurrence.info, forecastLabel, displaySeverity,
+              tsNum: occurrence.tsNum, timeRef: occurrence.timeRef, slot: occurrence.slot,
+              area: areaIdentity, local,
+            });
+          }
+        };
+        collect(kind.significancyOccurrences.base, null);
+        for (const local of kind.significancyOccurrences.locals ?? []) {
+          const identity = local.identityKey === local.identity?.key ? local.identity : null;
+          if (identity == null) continue;
+          collect(local.value, identity);
+        }
+      }
+    }
+  }
+  return result;
 }
 
 function buildEntryId(

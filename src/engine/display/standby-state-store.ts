@@ -22,6 +22,7 @@ import type {
   DisplayVolcanoEventV1,
   DisplayWeatherAlertV1,
   DisplayWeatherSourceV1,
+  DisplayWeatherWarningForecastGroupV1,
 } from "./protocol";
 import type {
   PersistedTelegramFoundationV2,
@@ -32,6 +33,7 @@ import type {
   PersistedTyphoonProbabilityStateV1,
   PersistedVolcanoStateV1,
   PersistedWeatherAlertStateV1,
+  PersistedWeatherWarningForecastStateV1,
 } from "./standby-persistence";
 import { persistedLongPeriodSafetyRank, validateBriefingCriticalForWrite } from "./standby-persistence";
 import { FloodActiveReducer, type PersistedFloodState } from "./flood-active-reducer";
@@ -76,6 +78,18 @@ import {
   isCanonicalTyphoonProbabilityState,
   validateTyphoonProbabilityEventId,
 } from "./project-typhoon-probability";
+import {
+  normalizeVpwp50RevisionSerial,
+  reduceWeatherWarningForecast,
+  type WeatherWarningForecastState,
+} from "./weather-warning-forecast-active-reducer";
+import type { ParsedWeatherWarningTimeseriesInfo } from "../../types";
+import {
+  VPWP50_MAX_SOURCE_EVENT_ID_LENGTH,
+  buildWeatherWarningForecastCard,
+  weatherWarningForecastProjectionLimitReasons,
+} from "./weather-warning-forecast-wire";
+import type { PersistedTelegramRevisionGateEntryV2 } from "../messages/telegram-revision-gate";
 
 export { RevisionGuard } from "./revision-guard";
 export type { PersistedSeenEntry } from "./revision-guard";
@@ -310,6 +324,7 @@ export class StandbyStateStore {
   private quakeHost: QuakeHostState | null = null;
   private nankaiTrough: NankaiState | null = null;
   private weatherAlerts = new Map<DisplayWeatherSourceV1, PersistedWeatherAlertStateV1>();
+  private readonly weatherWarningForecasts = new Map<string, WeatherWarningForecastState>();
   private readonly floods = new FloodActiveReducer();
   /** v1 / pre-flood-v2 由来で、まだ共通 gate の正規報を受けていない表示 EventID。 */
   private readonly legacyFloodEventIds = new Set<string>();
@@ -339,7 +354,7 @@ export class StandbyStateStore {
       && event.foundationMutationAccepted === false
     ) return NO_MUTATION;
     if (
-      ["tornado", "heatAlert", "typhoonAnalysis", "nankaiTrough", "lgObservation"].includes(event.domain)
+      ["tornado", "heatAlert", "typhoonAnalysis", "nankaiTrough", "lgObservation", "weatherWarningTimeseries"].includes(event.domain)
       && event.standbyStateMutationAccepted === false
     ) return NO_MUTATION;
     let mutation = NO_MUTATION;
@@ -380,6 +395,9 @@ export class StandbyStateStore {
       case "nankaiTrough":
         mutation = this.applyNankai(event, nowMs);
         break;
+      case "weatherWarningTimeseries":
+        mutation = this.applyWeatherWarningForecast(event, nowMs);
+        break;
       case "briefing":
       case "legacyCounterpart": {
         const result = this.applyBriefingCardEvent(event, nowMs);
@@ -400,6 +418,166 @@ export class StandbyStateStore {
     }
     this.notify(mutation);
     return mutation;
+  }
+
+  /** Read-only admission protection snapshot for the VPWP50 revision gate. */
+  activeWeatherWarningForecastSubjects(nowMs: number): string[] {
+    return [...this.weatherWarningForecasts.values()]
+      .filter((state) => state.expiresAtMs > nowMs && state.groups.some((group) =>
+        group.targets.some((target) => target.periods.some((period) => Date.parse(period.endsAt) > nowMs))))
+      .map((state) => state.subjectKey).sort(compareCodeUnitText);
+  }
+
+  maintainWeatherWarningForecastSubjects(
+    nowMs: number,
+    activeGateSubjects: readonly string[],
+  ): DisplayMutation {
+    const active = new Set(activeGateSubjects);
+    let viewChanged = false;
+    for (const [subject, state] of this.weatherWarningForecasts) {
+      if (!active.has(subject) || state.expiresAtMs <= nowMs) {
+        this.weatherWarningForecasts.delete(subject);
+        if (!active.has(subject) && state.expiresAtMs > nowMs) {
+          log.warn(`[VPWP50] vpwp50ActiveBeyondGateRetention subject=${subject.slice(0, 128)}`);
+        }
+        viewChanged = true;
+      }
+    }
+    return { viewChanged, durableChanged: viewChanged };
+  }
+
+  /**
+   * An accepted gate is authoritative even if routing fails before display
+   * ingestion. Remove any older/cancelled projection before the admission's
+   * one canonical persistence reservation is created.
+   */
+  reconcileWeatherWarningForecastGateBindings(
+    entries: readonly PersistedTelegramRevisionGateEntryV2[],
+  ): DisplayMutation {
+    const bindings = new Map<string, PersistedTelegramRevisionGateEntryV2 | null>();
+    for (const entry of entries) {
+      if (entry.domain !== "weatherWarningTimeseries" || entry.revisionFamily !== "VPWP50") continue;
+      bindings.set(entry.stateSubjectKey, bindings.has(entry.stateSubjectKey) ? null : entry);
+    }
+    let changed = false;
+    for (const [subject, state] of this.weatherWarningForecasts) {
+      const gate = bindings.get(subject);
+      const gateSerial = gate == null
+        ? undefined
+        : normalizeVpwp50RevisionSerial(gate.comparison.revision.serial.raw);
+      const stateSerial = normalizeVpwp50RevisionSerial(state.revision.serial);
+      const matches = gate != null
+        && !gate.cancelled
+        && gateSerial !== undefined
+        && stateSerial !== undefined
+        && gateSerial === stateSerial
+        && gate.comparison.revision.reportDateTime.epochMs === state.revision.reportTimeMs
+        && gate.semanticKeys.at(-1) === state.appliedSemanticKey;
+      if (matches) continue;
+      this.weatherWarningForecasts.delete(subject);
+      changed = true;
+    }
+    const mutation = changed
+      ? { viewChanged: true, durableChanged: true }
+      : NO_MUTATION;
+    this.notify(mutation);
+    return mutation;
+  }
+
+  private applyWeatherWarningForecast(event: PresentationEvent, nowMs: number): DisplayMutation {
+    if (event.standbyStateMutationAccepted !== true || event.standbyStateSubject == null) return NO_MUTATION;
+    const subjectKey = event.standbyStateSubject;
+    if (event.isCancellation) {
+      const changed = this.weatherWarningForecasts.delete(subjectKey);
+      return changed ? { viewChanged: true, durableChanged: true } : NO_MUTATION;
+    }
+    const parsedCandidate = event.raw as ParsedWeatherWarningTimeseriesInfo | null;
+    if (parsedCandidate == null || typeof parsedCandidate !== "object"
+      || parsedCandidate.meta == null || typeof parsedCandidate.meta !== "object") {
+      const changed = this.weatherWarningForecasts.delete(subjectKey);
+      log.warn(`[VPWP50] vpwp50ProjectionRejected subject=${subjectKey.slice(0, 128)} reason=invalidParsedPayload existingProjectionDeleted=${changed}`);
+      return changed ? { viewChanged: true, durableChanged: true } : NO_MUTATION;
+    }
+    const parsed = parsedCandidate;
+    const sourceEventId = [event.eventId, parsed.meta.messageId, event.id]
+      .map((value) => value?.trim() ?? "")
+      .find((value) => value !== "" && value.length <= VPWP50_MAX_SOURCE_EVENT_ID_LENGTH);
+    const semantic = event.standbyAppliedSemanticKey?.trim();
+    if (sourceEventId == null || semantic == null || semantic === "") {
+      const changed = this.weatherWarningForecasts.delete(subjectKey);
+      if (sourceEventId == null) {
+        log.warn(`[VPWP50] vpwp50MissingSourceEventId subject=${subjectKey.slice(0, 128)} existingProjectionDeleted=${changed}`);
+      }
+      if (semantic == null || semantic === "") {
+        log.warn(`[VPWP50] vpwp50MissingAppliedSemanticKey subject=${subjectKey.slice(0, 128)} existingProjectionDeleted=${changed}`);
+      }
+      return changed ? { viewChanged: true, durableChanged: true } : NO_MUTATION;
+    }
+    // The foundation has already validated report time before admission. Keep
+    // this local so VPWP50 does not add a legacy revisionOf call site.
+    const parsedReportTime = Date.parse(event.reportDateTime);
+    if (!Number.isSafeInteger(parsedReportTime)) {
+      const changed = this.weatherWarningForecasts.delete(subjectKey);
+      log.warn(`[VPWP50] vpwp50ProjectionRejected subject=${subjectKey.slice(0, 128)} reason=invalidReportDateTime existingProjectionDeleted=${changed}`);
+      return changed ? { viewChanged: true, durableChanged: true } : NO_MUTATION;
+    }
+    const revision = { reportTimeMs: parsedReportTime, serial: event.serial ?? null };
+    let state: WeatherWarningForecastState | null = null;
+    try {
+      state = reduceWeatherWarningForecast(
+        parsed,
+        subjectKey,
+        sourceEventId,
+        revision,
+        semantic,
+        nowMs,
+      );
+    } catch {
+      // An accepted durable gate must never leave an older projection behind
+      // when a malformed parser payload makes projection construction throw.
+    }
+    if (state == null) {
+      const changed = this.weatherWarningForecasts.delete(subjectKey);
+      log.warn(`[VPWP50] vpwp50ProjectionRejected subject=${subjectKey.slice(0, 128)} revision=${JSON.stringify(revision)} existingProjectionDeleted=${changed}`);
+      return changed ? { viewChanged: true, durableChanged: true } : NO_MUTATION;
+    }
+    const old = this.weatherWarningForecasts.get(subjectKey);
+    const prospective = [...this.weatherWarningForecasts]
+      .filter(([key]) => key !== subjectKey)
+      .map(([, value]) => value);
+    prospective.push(state);
+    let reasons: ReturnType<typeof weatherWarningForecastProjectionLimitReasons>;
+    try {
+      reasons = weatherWarningForecastProjectionLimitReasons(prospective);
+    } catch {
+      const changed = this.weatherWarningForecasts.delete(subjectKey);
+      log.warn(`[VPWP50] vpwp50ProjectionRejected subject=${subjectKey.slice(0, 128)} reason=wireInvariant existingProjectionDeleted=${changed}`);
+      return changed ? { viewChanged: true, durableChanged: true } : NO_MUTATION;
+    }
+    if (reasons.length > 0) {
+      const changed = this.weatherWarningForecasts.delete(subjectKey);
+      const diagnostic = JSON.stringify({
+        subjectKey: subjectKey.slice(0, 128),
+        candidateRevision: revision,
+        existingProjectionDeleted: changed,
+        reasons,
+      });
+      if (reasons.some((reason) => reason.code !== "cardJsonBytes")) {
+        log.warn(`[VPWP50] vpwp50ProjectionCapacityExceeded ${diagnostic}`);
+      }
+      if (reasons.some((reason) => reason.code === "cardJsonBytes")) {
+        log.warn(`[VPWP50] vpwp50ProjectionWireBudgetExceeded ${diagnostic}`);
+      }
+      return changed ? { viewChanged: true, durableChanged: true } : NO_MUTATION;
+    }
+    this.weatherWarningForecasts.set(subjectKey, state);
+    const viewChanged = old == null
+      || old.sourceEventId !== state.sourceEventId
+      || old.revision.reportTimeMs !== state.revision.reportTimeMs
+      || old.expiresAtMs !== state.expiresAtMs
+      || old.restored !== state.restored
+      || JSON.stringify(old.groups) !== JSON.stringify(state.groups);
+    return { viewChanged, durableChanged: true };
   }
 
   applyTyphoonProbabilityCommand(
@@ -1437,6 +1615,8 @@ export class StandbyStateStore {
         this.nankaiTrough = null;
       } else if (subject.startsWith("longPeriod:")) {
         changed = this.longPeriodByEvent.delete(subject.slice("longPeriod:".length)) || changed;
+      } else if (domain === "weatherWarningTimeseries") {
+        changed = this.weatherWarningForecasts.delete(subject) || changed;
       }
     }
     if (managed.size === 0) this.managedStandbySubjects.delete(domain);
@@ -2123,6 +2303,14 @@ export class StandbyStateStore {
         durableChanged = true;
       }
     }
+    for (const [subject, state] of this.weatherWarningForecasts) {
+      const groups = state.groups.map((group) => ({ ...group, targets: group.targets.map((target) => ({ ...target, periods: target.periods.filter((period) => Date.parse(period.endsAt) > nowMs) })).filter((target) => target.periods.length > 0) })).filter((group) => group.targets.length > 0);
+      if (groups.length === 0) {
+        this.weatherWarningForecasts.delete(subject); viewChanged = true; durableChanged = true;
+      } else if (JSON.stringify(groups) !== JSON.stringify(state.groups)) {
+        state.groups = groups; state.expiresAtMs = Math.max(...groups.flatMap((group) => group.targets.flatMap((target) => target.periods.map((period) => Date.parse(period.endsAt))))); viewChanged = true; durableChanged = true;
+      }
+    }
     const briefingDurableBefore = this.briefingDurableFingerprint();
     const briefingPrune = this.pruneBriefingLifecycle(nowMs);
     if (briefingPrune.changed) {
@@ -2291,7 +2479,13 @@ export class StandbyStateStore {
     });
     const briefing = this.snapshotBriefingCard();
     if (briefing != null) items.push(briefing);
+    const forecast = this.snapshotWeatherWarningForecastCard();
+    if (forecast != null) items.push(forecast);
     return sortStandbyItems(items);
+  }
+
+  private snapshotWeatherWarningForecastCard(): Extract<ActiveStandbyCardV1, { kind: "weatherWarningForecast" }> | null {
+    return buildWeatherWarningForecastCard([...this.weatherWarningForecasts.values()]);
   }
 
   snapshotBriefingCard(): Extract<ActiveStandbyCardV1, { kind: "briefing" }> | null {
@@ -2366,6 +2560,21 @@ export class StandbyStateStore {
             expiresAtMs: state.expiresAtMs,
           })),
       }),
+      ...(this.weatherWarningForecasts.size === 0 ? {} : {
+        weatherWarningForecasts: [...this.weatherWarningForecasts.values()]
+          .sort((left, right) => compareCodeUnitText(left.subjectKey, right.subjectKey))
+          .map((state): PersistedWeatherWarningForecastStateV1 => ({
+            subjectKey: state.subjectKey,
+            sourceEventId: state.sourceEventId,
+            publishingOffice: state.publishingOffice,
+            targetAreaName: state.targetAreaName,
+            targetAreaCode: state.targetAreaCode,
+            groups: structuredClone(state.groups),
+            revision: { ...state.revision },
+            appliedSemanticKey: state.appliedSemanticKey,
+            expiresAtMs: state.expiresAtMs,
+          })),
+      }),
       volcanoes: [...this.volcanoes.values()].map((state) => ({
         code: state.code,
         name: state.name,
@@ -2429,6 +2638,7 @@ export class StandbyStateStore {
     this.heatAlerts.clear();
     this.typhoons.clear();
     this.typhoonProbabilities.clear();
+    this.weatherWarningForecasts.clear();
     this.volcanoes.clear();
     this.managedVolcanoAlerts.clear();
     this.managedVolcanoEruptions.clear();
@@ -2491,6 +2701,42 @@ export class StandbyStateStore {
         state.key,
         (probabilitySubjectCounts.get(state.key) ?? 0) + 1,
       );
+    }
+    const forecastSubjectCounts = new Map<string, number>();
+    for (const state of data.weatherWarningForecasts ?? []) {
+      forecastSubjectCounts.set(
+        state.subjectKey,
+        (forecastSubjectCounts.get(state.subjectKey) ?? 0) + 1,
+      );
+    }
+    for (const state of [...(data.weatherWarningForecasts ?? [])]
+      .sort((left, right) => compareCodeUnitText(left.subjectKey, right.subjectKey))) {
+      if (forecastSubjectCounts.get(state.subjectKey) !== 1) continue;
+      const groups = state.groups.map((group) => ({
+        ...group,
+        targets: group.targets.map((target) => ({
+          ...target,
+          periods: target.periods.filter((period) => Date.parse(period.endsAt) > nowMs),
+        })).filter((target) => target.periods.length > 0),
+      })).filter((group) => group.targets.length > 0);
+      const periodEnds = groups.flatMap((group) => group.targets.flatMap((target) =>
+        target.periods.map((period) => Date.parse(period.endsAt))));
+      if (periodEnds.length === 0 || state.expiresAtMs <= nowMs) continue;
+      const candidate: WeatherWarningForecastState = {
+        ...structuredClone(state),
+        groups,
+        expiresAtMs: Math.max(...periodEnds),
+        restored: true,
+      };
+      try {
+        if (weatherWarningForecastProjectionLimitReasons([
+          ...this.weatherWarningForecasts.values(),
+          candidate,
+        ]).length > 0) continue;
+      } catch {
+        continue;
+      }
+      this.weatherWarningForecasts.set(state.subjectKey, candidate);
     }
     for (const state of data.typhoonProbabilities ?? []) {
       const restored = copyTyphoonProbabilityState(state, true);

@@ -6,9 +6,13 @@ type Equal<Left, Right> = (<Value>() => Value extends Left ? 1 : 2) extends (<Va
 type Assert<Value extends true> = Value;
 type CardKeyExcludesTornado = Assert<Equal<Extract<CardKey, "tornado">, never>>;
 type PagePartitionKeyIncludesTornado = Assert<Equal<Extract<PagePartitionKey, "tornado">, "tornado">>;
+type CardKeyIncludesForecast = Assert<Equal<Extract<CardKey, "weatherWarningForecast">, "weatherWarningForecast">>;
+type PagePartitionKeyIncludesForecast = Assert<Equal<Extract<PagePartitionKey, "weatherWarningForecast">, "weatherWarningForecast">>;
 
 void (null as unknown as CardKeyExcludesTornado);
 void (null as unknown as PagePartitionKeyIncludesTornado);
+void (null as unknown as CardKeyIncludesForecast);
+void (null as unknown as PagePartitionKeyIncludesForecast);
 
 describe("legacy standby page partition", () => {
   it("shows a page footer only for a candidate split from the complete atom", () => {

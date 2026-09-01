@@ -10,6 +10,8 @@ import {
   type PersistedBriefingCriticalEntryV1,
   type PersistedBriefingCriticalStateV1,
   type PersistedStandbyStateV1,
+  type PersistedTelegramFoundationInputV2,
+  type PersistedWeatherWarningForecastStateV1,
 } from "../../../src/engine/display/standby-persistence";
 import type { DisplayBriefingEntryV1 } from "../../../src/engine/display/protocol";
 import { StandbyStateStore } from "../../../src/engine/display/standby-state-store";
@@ -18,7 +20,20 @@ import { FloodActiveReducer } from "../../../src/engine/display/flood-active-red
 import { VPWW56_SNAPSHOT_GENERATION } from "../../../src/engine/messages/vpww56-state";
 import { parseFloodForecast } from "../../../src/dmdata/flood-forecast-parser";
 import { parseVolcanoTelegram } from "../../../src/dmdata/volcano-parser";
+import { parseWeatherWarningTimeseries } from "../../../src/dmdata/weather-warning-timeseries-parser";
+import { classifySignificancyCode } from "../../../src/dmdata/weather-warning-timeseries-significancy";
+import { resolveVpwp50Significancy } from "../../../src/dmdata/weather-warning-level";
+import {
+  reduceWeatherWarningForecast,
+  vpwp50ForecastPeriodLabel,
+  vpwp50ForecastStandbySeverity,
+} from "../../../src/engine/display/weather-warning-forecast-active-reducer";
+import { WEATHER_TIMESERIES_RETENTION_MS } from "../../../src/engine/messages/revision-family-registry";
 import { fromFloodForecastOutcome } from "../../../src/engine/presentation/events/from-flood-forecast";
+import {
+  vpwp50ForecastLabel,
+  vpwp50StableKey,
+} from "../../../src/engine/presentation/weather-severity-pyramid";
 import * as log from "../../../src/logger";
 import type { FloodForecastOutcome, PresentationEvent } from "../../../src/engine/presentation/types";
 import type { SpecialValue } from "../../../src/types";
@@ -30,6 +45,7 @@ import {
   createMockWsDataMessage,
   FIXTURE_VFVO56_FLASH_1,
   FIXTURE_VFVO56_FLASH_4,
+  FIXTURE_VPWP50_LOCAL_IDENTITY,
 } from "../../helpers/mock-message";
 
 const T0 = Date.parse("2026-07-21T05:00:00+09:00");
@@ -151,6 +167,329 @@ function state(over: Partial<PersistedStandbyStateV1> = {}): PersistedStandbySta
     nankaiTrough: null,
     ...over,
   };
+}
+
+const VPWP50_TEST_NOW_MS = Date.parse("2026-06-06T00:30:00.000Z");
+const VPWP50_TEST_SUBJECT = "weatherTimeseries:VPWP50-LOCAL-IDENTITY:200000";
+const VPWP50_TEST_SEMANTIC = `発表:${"1".repeat(64)}`;
+
+function vpwp50PersistenceProjection(): PersistedWeatherWarningForecastStateV1 {
+  const parsed = parseWeatherWarningTimeseries(
+    createMockWsDataMessage(FIXTURE_VPWP50_LOCAL_IDENTITY),
+  );
+  if (parsed == null) throw new Error("VPWP50 local identity fixture did not parse");
+  const runtime = reduceWeatherWarningForecast(
+    parsed,
+    VPWP50_TEST_SUBJECT,
+    "fixture-message-id",
+    { reportTimeMs: Date.parse(parsed.reportDateTime), serial: parsed.serial },
+    VPWP50_TEST_SEMANTIC,
+    VPWP50_TEST_NOW_MS,
+  );
+  if (runtime == null) throw new Error("VPWP50 local identity fixture did not reduce");
+  const { restored: _restored, ...projection } = runtime;
+  return projection;
+}
+
+function vpwp50PersistenceFoundation(
+  projection: PersistedWeatherWarningForecastStateV1,
+): PersistedTelegramFoundationInputV2 {
+  const reportDateTime = new Date(projection.revision.reportTimeMs).toISOString();
+  const serial = projection.revision.serial;
+  return {
+    vpws50: { authoritative: true, state: null, gateEntries: [] },
+    vpww56: {
+      generation: VPWW56_SNAPSHOT_GENERATION,
+      authoritative: false,
+      state: null,
+      gateEntries: [],
+    },
+    tsunami: {
+      active: null,
+      keyedActive: [],
+      legacyActive: null,
+      observations: { VTSE51: [], VTSE52: [] },
+      gateEntries: [],
+    },
+    volcano: { authoritative: false, state: null, active: [], gateEntries: [] },
+    floodForecast: { authoritative: false, active: [], gateEntries: [] },
+    standbyDomains: { gateEntries: [{
+      domain: "weatherWarningTimeseries",
+      revisionFamily: "VPWP50",
+      stateSubjectKey: projection.subjectKey,
+      comparison: {
+        stateSubjectKey: projection.subjectKey,
+        revision: {
+          eventId: { raw: projection.subjectKey, value: projection.subjectKey, valid: true },
+          type: { raw: "VPWP50", value: "VPWP50", valid: true },
+          reportDateTime: { raw: reportDateTime, epochMs: projection.revision.reportTimeMs, valid: true },
+          serial: serial == null
+            ? { raw: null, numeric: null, valid: false }
+            : { raw: serial, numeric: Number(serial), valid: true },
+          infoType: { raw: "発表", value: "発表", valid: true },
+        },
+      },
+      semanticKeys: [projection.appliedSemanticKey],
+      cancelled: false,
+      acceptedAtMs: VPWP50_TEST_NOW_MS,
+      tombstoneRetentionMs: WEATHER_TIMESERIES_RETENTION_MS,
+      legacyRevisionKey: projection.subjectKey,
+      legacyRevisionKeyProvenance: null,
+    }] },
+  };
+}
+
+type Vpwp50DtoGroup = PersistedWeatherWarningForecastStateV1["groups"][number];
+type Vpwp50DtoTarget = Vpwp50DtoGroup["targets"][number];
+
+interface Vpwp50DtoContext {
+  subjectKey: string;
+  sourceEventId: string;
+  revision: PersistedWeatherWarningForecastStateV1["revision"];
+  appliedSemanticKey: string;
+}
+
+const VPWP50_DTO_HOUR_MS = 60 * 60_000;
+
+function vpwp50DtoContext(tag: string): Vpwp50DtoContext {
+  return {
+    subjectKey: `weatherTimeseries:vpwp50-persisted-dto:${tag}`,
+    sourceEventId: `vpwp50-persisted-dto-${tag}`,
+    revision: { reportTimeMs: VPWP50_TEST_NOW_MS - VPWP50_DTO_HOUR_MS, serial: "1" },
+    appliedSemanticKey: `発表:${"2".repeat(64)}`,
+  };
+}
+
+function vpwp50DtoGroup(
+  phenomenonName: string,
+  significancyCode: string,
+): Vpwp50DtoGroup {
+  const significancy = classifySignificancyCode(phenomenonName, significancyCode);
+  const forecastLabel = vpwp50ForecastLabel(phenomenonName, significancy);
+  if (forecastLabel == null) throw new Error("VPWP50 DTO group has no forecast label");
+  const displaySeverity = resolveVpwp50Significancy(significancy)?.displaySeverity ?? "unknown";
+  return {
+    key: vpwp50StableKey("group", [
+      phenomenonName, significancyCode, forecastLabel, displaySeverity,
+    ]),
+    phenomenonName,
+    significancyCode,
+    forecastLabel,
+    displaySeverity,
+    severity: vpwp50ForecastStandbySeverity(displaySeverity),
+    targets: [],
+  };
+}
+
+function vpwp50DtoTarget(
+  context: Vpwp50DtoContext,
+  groupKey: string,
+  options: {
+    scope: "area" | "local";
+    name: string;
+    parentAreaName: string;
+    areaCode: string | null;
+    localCode: string | null;
+    endsAtMs: number;
+  },
+): Vpwp50DtoTarget {
+  const areaIdentityKey = options.areaCode == null
+    ? `name:${options.parentAreaName}` : `code:${options.areaCode}`;
+  const localIdentityKey = options.scope === "local"
+    ? options.localCode == null ? `name:${options.name}` : `code:${options.localCode}`
+    : null;
+  const targetKey = options.scope === "area"
+    ? vpwp50StableKey("target", [context.subjectKey, "area", areaIdentityKey])
+    : vpwp50StableKey("target", [
+      context.subjectKey, "local", areaIdentityKey, localIdentityKey,
+    ]);
+  const startsAt = new Date(options.endsAtMs - 3 * VPWP50_DTO_HOUR_MS).toISOString();
+  const endsAt = new Date(options.endsAtMs).toISOString();
+  const pagerAnchorOrdinal = 0;
+  return {
+    key: targetKey,
+    scope: options.scope,
+    name: options.name,
+    parentAreaName: options.parentAreaName,
+    areaCode: options.areaCode,
+    localCode: options.localCode,
+    periods: [{
+      key: vpwp50StableKey("period", [
+        groupKey, targetKey, 1, "3h", startsAt, endsAt,
+      ]),
+      tsNum: 1,
+      series: "3h",
+      startsAt,
+      endsAt,
+      label: vpwp50ForecastPeriodLabel(startsAt, endsAt),
+      pagerAnchorKey: vpwp50StableKey("anchor", [
+        context.subjectKey,
+        context.revision.reportTimeMs,
+        context.revision.serial,
+        groupKey,
+        targetKey,
+        pagerAnchorOrdinal,
+      ]),
+      pagerAnchorOrdinal,
+      pagerSlot: 0,
+    }],
+  };
+}
+
+function vpwp50DtoProjection(
+  context: Vpwp50DtoContext,
+  groups: Vpwp50DtoGroup[],
+): PersistedWeatherWarningForecastStateV1 {
+  const ends = groups.flatMap((group) => group.targets.flatMap((target) =>
+    target.periods.map((period) => Date.parse(period.endsAt))));
+  if (ends.length === 0) throw new Error("VPWP50 DTO projection requires a period");
+  return {
+    ...context,
+    publishingOffice: "試験地方気象台",
+    targetAreaName: "長野県",
+    targetAreaCode: "200000",
+    groups,
+    expiresAtMs: Math.max(...ends),
+  };
+}
+
+function vpwp50DtoFoundation(
+  projections: readonly PersistedWeatherWarningForecastStateV1[],
+): PersistedTelegramFoundationInputV2 {
+  const first = projections[0];
+  if (first == null) throw new Error("VPWP50 DTO foundation requires a projection");
+  return {
+    ...vpwp50PersistenceFoundation(first),
+    standbyDomains: {
+      gateEntries: projections.map((projection) =>
+        vpwp50PersistenceFoundation(projection).standbyDomains!.gateEntries[0]!),
+    },
+  };
+}
+
+function reverseVpwp50DtoInput(
+  projection: PersistedWeatherWarningForecastStateV1,
+): PersistedWeatherWarningForecastStateV1 {
+  return {
+    ...structuredClone(projection),
+    groups: [...projection.groups].reverse().map((group) => ({
+      ...structuredClone(group),
+      targets: [...group.targets].reverse().map((target) => ({
+        ...structuredClone(target),
+        periods: [...target.periods].reverse(),
+      })),
+    })),
+  };
+}
+
+function vpwp50AreaConflictDto(
+  context: Vpwp50DtoContext,
+  conflictIsOuterWitness = false,
+): PersistedWeatherWarningForecastStateV1 {
+  const conflictEnd = VPWP50_TEST_NOW_MS
+    + (conflictIsOuterWitness ? 8 : 4) * VPWP50_DTO_HOUR_MS;
+  const retainedEnd = VPWP50_TEST_NOW_MS
+    + (conflictIsOuterWitness ? 7 : 8) * VPWP50_DTO_HOUR_MS;
+  const rain = vpwp50DtoGroup("雨", "21");
+  const wind = vpwp50DtoGroup("風", "22");
+  const snow = vpwp50DtoGroup("雪", "30");
+  rain.targets = [
+    vpwp50DtoTarget(context, rain.key, { scope: "area", name: "長野県北部", parentAreaName: "長野県北部", areaCode: "200010", localCode: null, endsAtMs: conflictEnd }),
+    vpwp50DtoTarget(context, rain.key, { scope: "local", name: "北部内地域", parentAreaName: "長野県北部", areaCode: "200010", localCode: "009", endsAtMs: conflictEnd }),
+    vpwp50DtoTarget(context, rain.key, { scope: "area", name: "正常地域", parentAreaName: "正常地域", areaCode: "200020", localCode: null, endsAtMs: retainedEnd }),
+    vpwp50DtoTarget(context, rain.key, { scope: "area", name: "無コード北", parentAreaName: "無コード北", areaCode: null, localCode: null, endsAtMs: retainedEnd - VPWP50_DTO_HOUR_MS }),
+  ];
+  wind.targets = [
+    vpwp50DtoTarget(context, wind.key, { scope: "area", name: "長野県南部", parentAreaName: "長野県南部", areaCode: "200010", localCode: null, endsAtMs: conflictEnd }),
+    vpwp50DtoTarget(context, wind.key, { scope: "area", name: "正常地域", parentAreaName: "正常地域", areaCode: "200020", localCode: null, endsAtMs: retainedEnd }),
+    vpwp50DtoTarget(context, wind.key, { scope: "area", name: "無コード南", parentAreaName: "無コード南", areaCode: null, localCode: null, endsAtMs: retainedEnd - VPWP50_DTO_HOUR_MS }),
+  ];
+  snow.targets = [
+    vpwp50DtoTarget(context, snow.key, { scope: "area", name: "長野県北部", parentAreaName: "長野県北部", areaCode: "200010", localCode: null, endsAtMs: conflictEnd }),
+  ];
+  return vpwp50DtoProjection(context, [rain, wind, snow]);
+}
+
+function vpwp50LocalConflictDto(
+  context: Vpwp50DtoContext,
+  conflictIsOuterWitness = false,
+): PersistedWeatherWarningForecastStateV1 {
+  const conflictEnd = VPWP50_TEST_NOW_MS
+    + (conflictIsOuterWitness ? 8 : 4) * VPWP50_DTO_HOUR_MS;
+  const retainedEnd = VPWP50_TEST_NOW_MS
+    + (conflictIsOuterWitness ? 7 : 8) * VPWP50_DTO_HOUR_MS;
+  const rain = vpwp50DtoGroup("雨", "21");
+  const wind = vpwp50DtoGroup("風", "22");
+  const snow = vpwp50DtoGroup("雪", "30");
+  rain.targets = [
+    vpwp50DtoTarget(context, rain.key, { scope: "local", name: "松本地域", parentAreaName: "長野県中部", areaCode: "200010", localCode: "001", endsAtMs: conflictEnd }),
+    vpwp50DtoTarget(context, rain.key, { scope: "area", name: "長野県中部", parentAreaName: "長野県中部", areaCode: "200010", localCode: null, endsAtMs: retainedEnd - VPWP50_DTO_HOUR_MS }),
+    vpwp50DtoTarget(context, rain.key, { scope: "local", name: "安曇地域", parentAreaName: "長野県中部", areaCode: "200010", localCode: "002", endsAtMs: retainedEnd - VPWP50_DTO_HOUR_MS }),
+    vpwp50DtoTarget(context, rain.key, { scope: "area", name: "正常別地域", parentAreaName: "正常別地域", areaCode: "200020", localCode: null, endsAtMs: retainedEnd }),
+    vpwp50DtoTarget(context, rain.key, { scope: "local", name: "無コード地域A", parentAreaName: "長野県中部", areaCode: "200010", localCode: null, endsAtMs: retainedEnd - 2 * VPWP50_DTO_HOUR_MS }),
+  ];
+  wind.targets = [
+    vpwp50DtoTarget(context, wind.key, { scope: "local", name: "大北地域", parentAreaName: "長野県中部", areaCode: "200010", localCode: "001", endsAtMs: conflictEnd }),
+    vpwp50DtoTarget(context, wind.key, { scope: "area", name: "長野県中部", parentAreaName: "長野県中部", areaCode: "200010", localCode: null, endsAtMs: retainedEnd - VPWP50_DTO_HOUR_MS }),
+    vpwp50DtoTarget(context, wind.key, { scope: "local", name: "無コード地域B", parentAreaName: "長野県中部", areaCode: "200010", localCode: null, endsAtMs: retainedEnd - 2 * VPWP50_DTO_HOUR_MS }),
+  ];
+  snow.targets = [
+    vpwp50DtoTarget(context, snow.key, { scope: "local", name: "松本地域", parentAreaName: "長野県中部", areaCode: "200010", localCode: "001", endsAtMs: conflictEnd }),
+  ];
+  return vpwp50DtoProjection(context, [rain, wind, snow]);
+}
+
+function vpwp50HealthyDto(context: Vpwp50DtoContext): PersistedWeatherWarningForecastStateV1 {
+  const rain = vpwp50DtoGroup("雨", "21");
+  rain.targets = [vpwp50DtoTarget(context, rain.key, {
+    scope: "area",
+    name: "健全地域",
+    parentAreaName: "健全地域",
+    areaCode: "299999",
+    localCode: null,
+    endsAtMs: VPWP50_TEST_NOW_MS + 9 * VPWP50_DTO_HOUR_MS,
+  })];
+  return vpwp50DtoProjection(context, [rain]);
+}
+
+function vpwp50DtoPersistedState(
+  projections: PersistedWeatherWarningForecastStateV1[],
+): PersistedStandbyStateV1 {
+  return state({
+    savedAt: new Date(VPWP50_TEST_NOW_MS).toISOString(),
+    heat: [{
+      key: "heat:2026-06-06",
+      sourceEventIds: ["vpwp50-dto-companion-heat"],
+      targetDate: "2026-06-06",
+      targetDateEndMs: Date.parse("2026-06-07T00:00:00+09:00"),
+      areas: [{ areaName: "東京都", isSpecial: false }],
+      isSpecial: false,
+      revision: { reportTimeMs: VPWP50_TEST_NOW_MS - 2 * VPWP50_DTO_HOUR_MS, serial: "1" },
+    }],
+    seen: [{
+      key: "heat:2026-06-06",
+      revision: { reportTimeMs: VPWP50_TEST_NOW_MS - 2 * VPWP50_DTO_HOUR_MS, serial: "1" },
+      forgetAtMs: VPWP50_TEST_NOW_MS + 24 * VPWP50_DTO_HOUR_MS,
+    }],
+    weatherWarningForecasts: projections,
+  });
+}
+
+function overwriteVpwp50DtoV2(
+  path: string,
+  projections: PersistedWeatherWarningForecastStateV1[],
+  reverseInput: boolean,
+): void {
+  const v2Path = standbyPersistenceV2Path(path);
+  const raw = JSON.parse(readFileSync(v2Path, "utf8")) as {
+    weatherWarningForecasts?: PersistedWeatherWarningForecastStateV1[];
+    telegramFoundation: { standbyDomains: { gateEntries: unknown[] } };
+  };
+  raw.weatherWarningForecasts = reverseInput
+    ? [...projections].reverse().map(reverseVpwp50DtoInput)
+    : structuredClone(projections);
+  if (reverseInput) raw.telegramFoundation.standbyDomains.gateEntries.reverse();
+  writeFileSync(v2Path, JSON.stringify(raw), "utf8");
 }
 
 function rawBriefingDisplayKey(source: "vpbs50" | "vpoa50", sourceEventId: string): string {
@@ -434,6 +773,980 @@ describe("operational fixture explicit replacement guard", () => {
     ["array extension", { items: [1] }, { items: [1, 2] }, ["/items"]],
   ] as const)("%s は allowlist 外変更として検出する", (_name, source, target, expected) => {
     expect(explicitPrimitiveReplacements(source, target)).toEqual(expected);
+  });
+});
+
+describe("VPWP50 persistence coupling and salvage", () => {
+  it("dual-writes and reloads a coupled projection, gate, seen mirror, and restored card", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(VPWP50_TEST_NOW_MS);
+    const path = tempPath();
+    const projection = vpwp50PersistenceProjection();
+    const foundation = vpwp50PersistenceFoundation(projection);
+    const persistence = new StandbyPersistence(path, undefined, () => foundation);
+    persistence.save(state({
+      savedAt: new Date(VPWP50_TEST_NOW_MS).toISOString(),
+      heat: [],
+      seen: [],
+      weatherWarningForecasts: [projection],
+    }));
+
+    const loaded = persistence.load();
+    expect(loaded?.weatherWarningForecasts).toEqual([projection]);
+    expect(loaded?.telegramFoundation.standbyDomains.gateEntries).toEqual(
+      expect.arrayContaining([expect.objectContaining({
+        stateSubjectKey: projection.subjectKey,
+        cancelled: false,
+        semanticKeys: [projection.appliedSemanticKey],
+      })]),
+    );
+    const v1 = JSON.parse(readFileSync(path, "utf8")) as Record<string, unknown>;
+    const v2 = JSON.parse(readFileSync(standbyPersistenceV2Path(path), "utf8")) as Record<string, unknown>;
+    expect(v1.weatherWarningForecasts).toEqual([projection]);
+    expect(v1.weatherWarningForecastGateMetadata).toEqual(expect.any(Array));
+    expect(v1.seen).toEqual(expect.arrayContaining([expect.objectContaining({ key: projection.subjectKey })]));
+    expect(v2.weatherWarningForecasts).toEqual([projection]);
+
+    const restored = new StandbyStateStore();
+    restored.restoreActiveState(loaded!, VPWP50_TEST_NOW_MS);
+    const card = restored.snapshotItems().find((item) => item.kind === "weatherWarningForecast");
+    expect(card).toMatchObject({ restored: true, key: "weatherWarningForecast:active" });
+  });
+
+  it("C-1 discards a missing-key projection and creates only a strict synthetic tombstone", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(VPWP50_TEST_NOW_MS);
+    const path = tempPath();
+    const projection = vpwp50PersistenceProjection();
+    const missingKey = { ...structuredClone(projection) } as Record<string, unknown>;
+    Reflect.deleteProperty(missingKey, "appliedSemanticKey");
+    (missingKey.revision as { serial: string | null }).serial = "01";
+    const raw = state({
+      savedAt: new Date(VPWP50_TEST_NOW_MS).toISOString(),
+      heat: [],
+      weatherWarningForecasts: [missingKey as unknown as PersistedWeatherWarningForecastStateV1],
+      seen: [{
+        key: projection.subjectKey,
+        revision: { reportTimeMs: projection.revision.reportTimeMs, serial: "01" },
+        forgetAtMs: VPWP50_TEST_NOW_MS + WEATHER_TIMESERIES_RETENTION_MS + 1,
+      }],
+    });
+    mkdirSync(dirname(path), { recursive: true });
+    writeFileSync(path, JSON.stringify(raw), "utf8");
+
+    const loaded = new StandbyPersistence(path).load();
+    expect(loaded?.weatherWarningForecasts).toBeUndefined();
+    expect(loaded?.telegramFoundation.standbyDomains.gateEntries).toEqual([
+      expect.objectContaining({
+        stateSubjectKey: projection.subjectKey,
+        cancelled: true,
+        semanticKeys: [],
+        acceptedAtMs: VPWP50_TEST_NOW_MS,
+      }),
+    ]);
+    const restored = new StandbyStateStore();
+    restored.restoreActiveState(loaded!, VPWP50_TEST_NOW_MS);
+    expect(restored.snapshotItems().some((item) => item.kind === "weatherWarningForecast")).toBe(false);
+  });
+
+  it("canonicalizes lossless v1 metadata offset and zero-padded serial across two reloads", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(VPWP50_TEST_NOW_MS);
+    const path = tempPath();
+    const projection = vpwp50PersistenceProjection();
+    const gate = structuredClone(vpwp50PersistenceFoundation(projection)
+      .standbyDomains!.gateEntries[0]!);
+    const localReport = new Date(projection.revision.reportTimeMs + 9 * 60 * 60_000)
+      .toISOString().replace("Z", "+09:00");
+    gate.comparison.revision.reportDateTime.raw = localReport;
+    gate.comparison.revision.serial = { raw: "01", numeric: 1, valid: true };
+    const raw = {
+      ...state({
+        savedAt: new Date(VPWP50_TEST_NOW_MS).toISOString(),
+        heat: [],
+        weatherWarningForecasts: [projection],
+        seen: [{
+          key: projection.subjectKey,
+          revision: { reportTimeMs: projection.revision.reportTimeMs, serial: "01" },
+          forgetAtMs: VPWP50_TEST_NOW_MS + WEATHER_TIMESERIES_RETENTION_MS + 1,
+        }],
+      }),
+      weatherWarningForecastGateMetadata: [{
+        stateSubjectKey: projection.subjectKey,
+        comparison: gate.comparison,
+        semanticKeys: gate.semanticKeys,
+        cancelled: gate.cancelled,
+      }],
+    };
+    mkdirSync(dirname(path), { recursive: true });
+    writeFileSync(path, JSON.stringify(raw), "utf8");
+
+    const persistence = new StandbyPersistence(path);
+    const migrated = persistence.load();
+    const migratedGate = migrated?.telegramFoundation.standbyDomains.gateEntries[0];
+    expect(migrated?.weatherWarningForecasts).toEqual([projection]);
+    expect(migratedGate?.comparison.revision.reportDateTime.raw)
+      .toBe(new Date(projection.revision.reportTimeMs).toISOString());
+    expect(migratedGate?.comparison.revision.serial).toEqual({ raw: "1", numeric: 1, valid: true });
+
+    persistence.save(migrated!);
+    const v2Reload = new StandbyPersistence(path).load();
+    expect(v2Reload?.telegramFoundation.standbyDomains.gateEntries[0])
+      .toEqual(migratedGate);
+    rmSync(standbyPersistenceV2Path(path));
+    const v1Reload = new StandbyPersistence(path).load();
+    expect(v1Reload?.telegramFoundation.standbyDomains.gateEntries[0])
+      .toEqual(migratedGate);
+    expect(v1Reload?.weatherWarningForecasts).toEqual([projection]);
+  });
+
+  it("rejects a v1 metadata ISO whose calendar fields normalize to another instant spelling", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(VPWP50_TEST_NOW_MS);
+    const path = tempPath();
+    const projection = vpwp50PersistenceProjection();
+    const gate = structuredClone(vpwp50PersistenceFoundation(projection)
+      .standbyDomains!.gateEntries[0]!);
+    const invalidCalendarIso = "2026-02-30T00:00:00+09:00";
+    gate.comparison.revision.reportDateTime = {
+      raw: invalidCalendarIso,
+      epochMs: Date.parse(invalidCalendarIso),
+      valid: true,
+    };
+    const raw = {
+      ...state({
+        savedAt: new Date(VPWP50_TEST_NOW_MS).toISOString(),
+        heat: [],
+        seen: [],
+        weatherWarningForecasts: [],
+      }),
+      weatherWarningForecastGateMetadata: [{
+        stateSubjectKey: projection.subjectKey,
+        comparison: gate.comparison,
+        semanticKeys: gate.semanticKeys,
+        cancelled: gate.cancelled,
+      }],
+    };
+    mkdirSync(dirname(path), { recursive: true });
+    writeFileSync(path, JSON.stringify(raw), "utf8");
+
+    const loaded = new StandbyPersistence(path).load();
+    expect(loaded?.telegramFoundation.standbyDomains.gateEntries).toEqual([]);
+    expect(loaded?.weatherWarningForecasts).toBeUndefined();
+  });
+
+  it("does not let a malformed duplicate seen claim fall back into C-1", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(VPWP50_TEST_NOW_MS);
+    const projection = vpwp50PersistenceProjection();
+    const missingKey = structuredClone(projection) as unknown as Record<string, unknown>;
+    Reflect.deleteProperty(missingKey, "appliedSemanticKey");
+    const validSeen = {
+      key: projection.subjectKey,
+      revision: projection.revision,
+      forgetAtMs: VPWP50_TEST_NOW_MS + WEATHER_TIMESERIES_RETENTION_MS + 1,
+    };
+    const malformedDuplicate = {
+      key: ` ${projection.subjectKey} `,
+      revision: null,
+      forgetAtMs: validSeen.forgetAtMs,
+    };
+
+    for (const seen of [
+      [validSeen, malformedDuplicate],
+      [malformedDuplicate, validSeen],
+    ]) {
+      const path = tempPath();
+      mkdirSync(dirname(path), { recursive: true });
+      writeFileSync(path, JSON.stringify(state({
+        savedAt: new Date(VPWP50_TEST_NOW_MS).toISOString(),
+        heat: [],
+        weatherWarningForecasts: [missingKey as unknown as PersistedWeatherWarningForecastStateV1],
+        seen: seen as PersistedStandbyStateV1["seen"],
+      })), "utf8");
+      const loaded = new StandbyPersistence(path).load();
+      expect(loaded?.weatherWarningForecasts).toBeUndefined();
+      expect(loaded?.telegramFoundation.standbyDomains.gateEntries).toEqual([]);
+    }
+  });
+
+  it("migrates projection-free seen-only state only when the metadata root is absent", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(VPWP50_TEST_NOW_MS);
+    const projection = vpwp50PersistenceProjection();
+    const seen = [{
+      key: projection.subjectKey,
+      revision: { reportTimeMs: projection.revision.reportTimeMs, serial: "01" },
+      forgetAtMs: VPWP50_TEST_NOW_MS + WEATHER_TIMESERIES_RETENTION_MS + 1,
+    }];
+    const path = tempPath();
+    mkdirSync(dirname(path), { recursive: true });
+    writeFileSync(path, JSON.stringify(state({
+      savedAt: new Date(VPWP50_TEST_NOW_MS).toISOString(),
+      heat: [],
+      seen,
+    })), "utf8");
+    const loaded = new StandbyPersistence(path).load();
+    expect(loaded?.weatherWarningForecasts).toBeUndefined();
+    expect(loaded?.telegramFoundation.standbyDomains.gateEntries).toEqual([
+      expect.objectContaining({
+        stateSubjectKey: projection.subjectKey,
+        cancelled: true,
+        semanticKeys: [],
+        comparison: expect.objectContaining({
+          revision: expect.objectContaining({
+            infoType: { raw: "取消", value: "取消", valid: true },
+            serial: { raw: "1", numeric: 1, valid: true },
+          }),
+        }),
+      }),
+    ]);
+  });
+
+  it("does not treat an explicit empty metadata array as C-1 metadata absence", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(VPWP50_TEST_NOW_MS);
+    const path = tempPath();
+    const projection = vpwp50PersistenceProjection();
+    const missingKey = { ...structuredClone(projection) } as Record<string, unknown>;
+    Reflect.deleteProperty(missingKey, "appliedSemanticKey");
+    (missingKey.revision as { serial: string | null }).serial = "01";
+    const raw = {
+      ...state({
+        savedAt: new Date(VPWP50_TEST_NOW_MS).toISOString(),
+        heat: [],
+        weatherWarningForecasts: [missingKey as unknown as PersistedWeatherWarningForecastStateV1],
+        seen: [{
+          key: projection.subjectKey,
+          revision: projection.revision,
+          forgetAtMs: VPWP50_TEST_NOW_MS + WEATHER_TIMESERIES_RETENTION_MS + 1,
+        }],
+      }),
+      weatherWarningForecastGateMetadata: [],
+    };
+    mkdirSync(dirname(path), { recursive: true });
+    writeFileSync(path, JSON.stringify(raw), "utf8");
+    const loaded = new StandbyPersistence(path).load();
+    expect(loaded?.weatherWarningForecasts).toBeUndefined();
+    expect(loaded?.telegramFoundation.standbyDomains.gateEntries).toEqual([]);
+  });
+
+  it("keeps every present metadata root shape out of legacy and C-1 fallback", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(VPWP50_TEST_NOW_MS);
+    const projection = vpwp50PersistenceProjection();
+    const missingKey = structuredClone(projection) as unknown as Record<string, unknown>;
+    Reflect.deleteProperty(missingKey, "appliedSemanticKey");
+    const gate = structuredClone(vpwp50PersistenceFoundation(projection)
+      .standbyDomains!.gateEntries[0]!);
+    const metadata = {
+      stateSubjectKey: projection.subjectKey,
+      comparison: gate.comparison,
+      semanticKeys: gate.semanticKeys,
+      cancelled: gate.cancelled,
+    };
+    const unrelated = structuredClone(metadata);
+    const unrelatedSubject = "weatherTimeseries:unrelated:000000";
+    unrelated.stateSubjectKey = unrelatedSubject;
+    unrelated.comparison.stateSubjectKey = unrelatedSubject;
+    unrelated.comparison.revision.eventId = {
+      raw: unrelatedSubject, value: unrelatedSubject, valid: true,
+    };
+    const roots: readonly [string, unknown][] = [
+      ["nonmatching present-array", [unrelated]],
+      ["malformed claimed present-array", [{ ...metadata, comparison: null }]],
+      ["duplicate claimed present-array", [metadata, structuredClone(metadata)]],
+      ["normalized duplicate claimed present-array", [
+        metadata,
+        { ...structuredClone(metadata), stateSubjectKey: ` ${projection.subjectKey} `, comparison: null },
+      ]],
+      ["explicit null", null],
+      ["object", {}],
+      ["scalar", "invalid"],
+      ["boolean", false],
+      ["number", 1],
+    ];
+    for (const [name, metadataRoot] of roots) {
+      const path = tempPath();
+      const raw: Record<string, unknown> = {
+        ...state({
+          savedAt: new Date(VPWP50_TEST_NOW_MS).toISOString(),
+          heat: [],
+          weatherWarningForecasts: [missingKey as unknown as PersistedWeatherWarningForecastStateV1],
+          seen: [{
+            key: projection.subjectKey,
+            revision: projection.revision,
+            forgetAtMs: VPWP50_TEST_NOW_MS + WEATHER_TIMESERIES_RETENTION_MS + 1,
+          }],
+        }),
+        weatherWarningForecastGateMetadata: metadataRoot,
+      };
+      mkdirSync(dirname(path), { recursive: true });
+      writeFileSync(path, JSON.stringify(raw), "utf8");
+      const loaded = new StandbyPersistence(path).load();
+      expect(loaded?.weatherWarningForecasts, name).toBeUndefined();
+      expect(loaded?.telegramFoundation.standbyDomains.gateEntries, name).toEqual([]);
+    }
+  });
+
+  it("salvages a malformed max-expiry child only while a deep-valid outer witness remains", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(VPWP50_TEST_NOW_MS);
+    const path = tempPath();
+    const projection = vpwp50PersistenceProjection();
+    const foundation = vpwp50PersistenceFoundation(projection);
+    new StandbyPersistence(path, undefined, () => foundation).save(state({
+      savedAt: new Date(VPWP50_TEST_NOW_MS).toISOString(),
+      heat: [],
+      seen: [],
+      weatherWarningForecasts: [projection],
+    }));
+    const original = JSON.parse(readFileSync(standbyPersistenceV2Path(path), "utf8")) as {
+      weatherWarningForecasts: PersistedWeatherWarningForecastStateV1[];
+    } & Record<string, unknown>;
+    const maxEndsAt = new Date(projection.expiresAtMs).toISOString();
+    const maxPeriods = original.weatherWarningForecasts[0].groups.flatMap((group) =>
+      group.targets.flatMap((target) => target.periods.filter((period) => period.endsAt === maxEndsAt)));
+    expect(maxPeriods.length).toBeGreaterThan(1);
+    maxPeriods[0]!.key = "malformed";
+    writeFileSync(standbyPersistenceV2Path(path), JSON.stringify(original), "utf8");
+    const tiedWitness = new StandbyPersistence(path).load();
+    expect(tiedWitness?.weatherWarningForecasts).toHaveLength(1);
+    expect(tiedWitness?.weatherWarningForecasts?.[0]?.groups.flatMap((group) =>
+      group.targets.flatMap((target) => target.periods)).length).toBe(
+      projection.groups.flatMap((group) => group.targets.flatMap((target) => target.periods)).length - 1,
+    );
+
+    const withoutWitness = structuredClone(original);
+    for (const group of withoutWitness.weatherWarningForecasts[0].groups) for (const target of group.targets) {
+      for (const period of target.periods) if (period.endsAt === maxEndsAt) period.key = "malformed";
+    }
+    writeFileSync(standbyPersistenceV2Path(path), JSON.stringify(withoutWitness), "utf8");
+    const warn = vi.spyOn(log, "warn").mockImplementation(() => undefined);
+    const rejected = new StandbyPersistence(path).load();
+    expect(rejected?.weatherWarningForecasts).toBeUndefined();
+    expect(rejected?.telegramFoundation.standbyDomains.gateEntries).toEqual([
+      expect.objectContaining({ stateSubjectKey: projection.subjectKey, cancelled: false }),
+    ]);
+    const couplingDiagnostic = warn.mock.calls
+      .map(([message]) => String(message))
+      .find((message) => message.includes("vpwp50SubjectExpiryCouplingRejected"));
+    expect(couplingDiagnostic).toContain(`"subjectKey":"${projection.subjectKey}"`);
+    expect(couplingDiagnostic).toContain(`"persistedExpiresAtMs":${projection.expiresAtMs}`);
+    expect(couplingDiagnostic).toContain(`"excludedChildKinds":["period"]`);
+    expect(couplingDiagnostic).toContain(`"excludedChildCount":${maxPeriods.length}`);
+    expect(couplingDiagnostic).toContain(
+      `"reasons":["removedExpiryWitness","outerDerivedMismatch"]`,
+    );
+    expect(couplingDiagnostic).toContain(`"canonicalRewriteRequired":true`);
+  });
+
+  it("reports simultaneous invalid-outer and unknown-child coupling reasons in canonical order", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(VPWP50_TEST_NOW_MS);
+    const path = tempPath();
+    const projection = vpwp50PersistenceProjection();
+    const foundation = vpwp50PersistenceFoundation(projection);
+    new StandbyPersistence(path, undefined, () => foundation).save(state({
+      savedAt: new Date(VPWP50_TEST_NOW_MS).toISOString(),
+      heat: [],
+      seen: [],
+      weatherWarningForecasts: [projection],
+    }));
+    const raw = JSON.parse(readFileSync(standbyPersistenceV2Path(path), "utf8")) as {
+      weatherWarningForecasts: PersistedWeatherWarningForecastStateV1[];
+    } & Record<string, unknown>;
+    raw.weatherWarningForecasts[0]!.expiresAtMs = 8_640_000_000_000_001;
+    raw.weatherWarningForecasts[0]!.groups[0]!.targets[0]!.periods[0]!.endsAt = "invalid";
+    writeFileSync(standbyPersistenceV2Path(path), JSON.stringify(raw), "utf8");
+    const warn = vi.spyOn(log, "warn").mockImplementation(() => undefined);
+
+    const loaded = new StandbyPersistence(path).load();
+    expect(loaded?.weatherWarningForecasts).toBeUndefined();
+    expect(loaded?.telegramFoundation.standbyDomains.gateEntries).toEqual([
+      expect.objectContaining({ stateSubjectKey: projection.subjectKey, cancelled: false }),
+    ]);
+    const diagnostic = warn.mock.calls
+      .map(([message]) => String(message))
+      .find((message) => message.includes("vpwp50SubjectExpiryCouplingRejected"));
+    expect(diagnostic).toContain(`"persistedExpiresAtMs":null`);
+    expect(diagnostic).toContain(`"excludedUnknownEndsAtCount":1`);
+    expect(diagnostic).toContain(`"excludedChildKinds":["period"]`);
+    expect(diagnostic).toContain(`"excludedChildCount":1`);
+    expect(diagnostic).toContain(
+      `"reasons":["invalidOuterExpiry","removedExpiryWitness"]`,
+    );
+    expect(diagnostic).not.toContain("outerDerivedMismatch");
+  });
+
+  it("salvages persisted Area/Local identity conflicts across every group independent of DTO input order and rewrite", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(VPWP50_TEST_NOW_MS);
+    const areaContext = vpwp50DtoContext("area-conflict");
+    const localContext = vpwp50DtoContext("local-conflict");
+    const healthyContext = vpwp50DtoContext("healthy-subject");
+    const areaSeed = vpwp50HealthyDto(areaContext);
+    const localSeed = vpwp50HealthyDto(localContext);
+    const healthy = vpwp50HealthyDto(healthyContext);
+    const seeds = [areaSeed, localSeed, healthy];
+    const areaConflict = vpwp50AreaConflictDto(areaContext);
+    const localConflict = vpwp50LocalConflictDto(localContext);
+    const areaSnowKey = vpwp50DtoGroup("雪", "30").key;
+    const localSnowKey = areaSnowKey;
+    const warn = vi.spyOn(log, "warn").mockImplementation(() => undefined);
+    const outcomes: Array<{
+      forecasts: PersistedWeatherWarningForecastStateV1[] | undefined;
+      gates: unknown[];
+      diagnostics: string[];
+      heat: PersistedStandbyStateV1["heat"];
+    }> = [];
+
+    for (const reverseInput of [false, true]) {
+      const path = tempPath();
+      const foundation = vpwp50DtoFoundation(seeds);
+      const initial = new StandbyPersistence(path, undefined, () => foundation);
+      expect(initial.save(vpwp50DtoPersistedState(seeds)).kind).toBe("written");
+      overwriteVpwp50DtoV2(path, [areaConflict, localConflict, healthy], reverseInput);
+      warn.mockClear();
+
+      const persistence = new StandbyPersistence(path);
+      const loaded = persistence.load(VPWP50_TEST_NOW_MS);
+      if (loaded == null) throw new Error("VPWP50 DTO conflict fixture did not load");
+      const area = loaded.weatherWarningForecasts?.find((entry) =>
+        entry.subjectKey === areaContext.subjectKey);
+      const local = loaded.weatherWarningForecasts?.find((entry) =>
+        entry.subjectKey === localContext.subjectKey);
+      const retainedHealthy = loaded.weatherWarningForecasts?.find((entry) =>
+        entry.subjectKey === healthyContext.subjectKey);
+      if (area == null || local == null) throw new Error("VPWP50 conflict subject was over-salvaged");
+
+      const areaTargets = area.groups.flatMap((group) => group.targets);
+      expect(areaTargets.some((target) => target.areaCode === "200010")).toBe(false);
+      expect(areaTargets.filter((target) => target.areaCode === "200020")).toHaveLength(2);
+      expect(areaTargets.filter((target) => target.areaCode == null).map((target) => target.name).sort())
+        .toEqual(["無コード北", "無コード南"]);
+      expect(area.groups.some((group) => group.key === areaSnowKey)).toBe(false);
+      expect(area.expiresAtMs).toBe(VPWP50_TEST_NOW_MS + 8 * VPWP50_DTO_HOUR_MS);
+
+      const localTargets = local.groups.flatMap((group) => group.targets);
+      expect(localTargets.some((target) => target.localCode === "001")).toBe(false);
+      expect(localTargets.filter((target) =>
+        target.scope === "area" && target.areaCode === "200010")).toHaveLength(2);
+      expect(localTargets.filter((target) => target.localCode === "002").map((target) => target.name))
+        .toEqual(["安曇地域"]);
+      expect(localTargets.filter((target) =>
+        target.scope === "local" && target.localCode == null).map((target) => target.name).sort())
+        .toEqual(["無コード地域A", "無コード地域B"]);
+      expect(local.groups.some((group) => group.key === localSnowKey)).toBe(false);
+      expect(local.expiresAtMs).toBe(VPWP50_TEST_NOW_MS + 8 * VPWP50_DTO_HOUR_MS);
+
+      expect(retainedHealthy).toEqual(healthy);
+      expect(loaded.heat).toEqual(vpwp50DtoPersistedState(seeds).heat);
+      const vpwp50Gates = loaded.telegramFoundation.standbyDomains.gateEntries
+        .filter((entry) => entry.revisionFamily === "VPWP50");
+      expect(vpwp50Gates.map((entry) => entry.stateSubjectKey).sort()).toEqual(
+        [areaContext.subjectKey, healthyContext.subjectKey, localContext.subjectKey].sort(),
+      );
+      expect(vpwp50Gates.every((entry) => !entry.cancelled)).toBe(true);
+
+      const diagnostics = warn.mock.calls.map(([message]) => String(message))
+        .filter((message) => message.includes("vpwp50PersistedAreaIdentityConflict")
+          || message.includes("vpwp50PersistedLocalIdentityConflict"))
+        .sort();
+      expect(diagnostics).toHaveLength(2);
+      expect(diagnostics.find((message) => message.includes(areaContext.subjectKey)))
+        .toContain('identities=["code:200010"]');
+      expect(diagnostics.find((message) => message.includes(localContext.subjectKey)))
+        .toContain('identities=["code:200010\\u0000code:001"]');
+
+      expect(persistence.hasPendingSalvageRepair()).toBe(true);
+      expect(persistence.save(loaded).kind).toBe("written");
+      warn.mockClear();
+      const reloaded = new StandbyPersistence(path).load(VPWP50_TEST_NOW_MS);
+      expect(reloaded?.weatherWarningForecasts).toEqual(loaded.weatherWarningForecasts);
+      expect(reloaded?.heat).toEqual(loaded.heat);
+      expect(warn.mock.calls.map(([message]) => String(message)).some((message) =>
+        message.includes("vpwp50PersistedAreaIdentityConflict")
+        || message.includes("vpwp50PersistedLocalIdentityConflict"))).toBe(false);
+
+      outcomes.push({
+        forecasts: loaded.weatherWarningForecasts,
+        gates: vpwp50Gates,
+        diagnostics,
+        heat: loaded.heat,
+      });
+    }
+
+    expect(outcomes[1]).toEqual(outcomes[0]);
+  });
+
+  it.each(["area", "local"] as const)(
+    "rejects a %s identity conflict that owns the outer expiry witness and preserves its active gate across rewrite",
+    (conflictKind) => {
+      vi.useFakeTimers();
+      vi.setSystemTime(VPWP50_TEST_NOW_MS);
+      const conflictContext = vpwp50DtoContext(`expiry-${conflictKind}`);
+      const healthyContext = vpwp50DtoContext(`expiry-${conflictKind}-healthy`);
+      const seed = vpwp50HealthyDto(conflictContext);
+      const healthy = vpwp50HealthyDto(healthyContext);
+      const conflict = conflictKind === "area"
+        ? vpwp50AreaConflictDto(conflictContext, true)
+        : vpwp50LocalConflictDto(conflictContext, true);
+      const seeds = [seed, healthy];
+      const warn = vi.spyOn(log, "warn").mockImplementation(() => undefined);
+      const outcomes: Array<{
+        forecasts: PersistedWeatherWarningForecastStateV1[] | undefined;
+        gate: unknown;
+        diagnostic: string | undefined;
+        heat: PersistedStandbyStateV1["heat"];
+      }> = [];
+
+      for (const reverseInput of [false, true]) {
+        const path = tempPath();
+        const foundation = vpwp50DtoFoundation(seeds);
+        expect(new StandbyPersistence(path, undefined, () => foundation)
+          .save(vpwp50DtoPersistedState(seeds)).kind).toBe("written");
+        overwriteVpwp50DtoV2(path, [conflict, healthy], reverseInput);
+        warn.mockClear();
+
+        const persistence = new StandbyPersistence(path);
+        const loaded = persistence.load(VPWP50_TEST_NOW_MS);
+        if (loaded == null) throw new Error("VPWP50 expiry witness fixture did not load");
+        expect(loaded.weatherWarningForecasts?.some((entry) =>
+          entry.subjectKey === conflictContext.subjectKey)).toBe(false);
+        expect(loaded.weatherWarningForecasts?.find((entry) =>
+          entry.subjectKey === healthyContext.subjectKey)).toEqual(healthy);
+        expect(loaded.heat).toEqual(vpwp50DtoPersistedState(seeds).heat);
+        const gate = loaded.telegramFoundation.standbyDomains.gateEntries.find((entry) =>
+          entry.revisionFamily === "VPWP50"
+          && entry.stateSubjectKey === conflictContext.subjectKey);
+        expect(gate).toMatchObject({ cancelled: false, semanticKeys: [conflict.appliedSemanticKey] });
+        const diagnostic = warn.mock.calls.map(([message]) => String(message)).find((message) =>
+          message.includes("vpwp50SubjectExpiryCouplingRejected")
+          && message.includes(conflictContext.subjectKey));
+        expect(diagnostic).toContain(`"persistedExpiresAtMs":${VPWP50_TEST_NOW_MS + 8 * VPWP50_DTO_HOUR_MS}`);
+        expect(diagnostic).toContain(`"retainedMaxEndsAtMs":${VPWP50_TEST_NOW_MS + 7 * VPWP50_DTO_HOUR_MS}`);
+        expect(diagnostic).toContain('"excludedChildKinds":["target"]');
+        expect(diagnostic).toContain('"reasons":["removedExpiryWitness","outerDerivedMismatch"]');
+        expect(diagnostic).toContain('"canonicalRewriteRequired":true');
+
+        expect(persistence.hasPendingSalvageRepair()).toBe(true);
+        expect(persistence.save(loaded).kind).toBe("written");
+        warn.mockClear();
+        const reloaded = new StandbyPersistence(path).load(VPWP50_TEST_NOW_MS);
+        expect(reloaded?.weatherWarningForecasts).toEqual(loaded.weatherWarningForecasts);
+        expect(reloaded?.telegramFoundation.standbyDomains.gateEntries.find((entry) =>
+          entry.revisionFamily === "VPWP50"
+          && entry.stateSubjectKey === conflictContext.subjectKey)).toEqual(gate);
+        expect(reloaded?.heat).toEqual(loaded.heat);
+        expect(warn.mock.calls.map(([message]) => String(message)).some((message) =>
+          message.includes("vpwp50PersistedAreaIdentityConflict")
+          || message.includes("vpwp50PersistedLocalIdentityConflict"))).toBe(false);
+
+        outcomes.push({ forecasts: loaded.weatherWarningForecasts, gate, diagnostic, heat: loaded.heat });
+      }
+
+      expect(outcomes[1]).toEqual(outcomes[0]);
+    },
+  );
+
+  it("salvages an external 513-bundle file deterministically and makes the writer fail loud", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(VPWP50_TEST_NOW_MS);
+    const projection = vpwp50PersistenceProjection();
+    const template = vpwp50PersistenceFoundation(projection)
+      .standbyDomains!.gateEntries[0]!;
+    const gates = Array.from({ length: 513 }, (_, index) => {
+      const stateSubjectKey = `weatherTimeseries:capacity:${String(index).padStart(3, "0")}`;
+      const gate = structuredClone(template);
+      gate.stateSubjectKey = stateSubjectKey;
+      gate.comparison.stateSubjectKey = stateSubjectKey;
+      gate.comparison.revision.eventId = {
+        raw: stateSubjectKey, value: stateSubjectKey, valid: true,
+      };
+      gate.acceptedAtMs = VPWP50_TEST_NOW_MS - index;
+      gate.legacyRevisionKey = stateSubjectKey;
+      return gate;
+    });
+    const expectedSubjects = gates.slice(0, 512).map((gate) => gate.stateSubjectKey).sort();
+
+    for (const ordered of [gates, [...gates].reverse()]) {
+      const path = tempPath();
+      const baselineFoundation = vpwp50PersistenceFoundation(projection);
+      baselineFoundation.standbyDomains!.gateEntries = [structuredClone(template)];
+      new StandbyPersistence(path, undefined, () => baselineFoundation).save(state({
+        savedAt: new Date(VPWP50_TEST_NOW_MS).toISOString(), heat: [], seen: [],
+      }));
+      const rawV2 = JSON.parse(readFileSync(standbyPersistenceV2Path(path), "utf8")) as {
+        telegramFoundation: { standbyDomains: { gateEntries: typeof gates } };
+      };
+      rawV2.telegramFoundation.standbyDomains.gateEntries = structuredClone(ordered);
+      writeFileSync(standbyPersistenceV2Path(path), JSON.stringify(rawV2), "utf8");
+      const loaded = new StandbyPersistence(path).load();
+      const retained = loaded?.telegramFoundation.standbyDomains.gateEntries
+        .filter((gate) => gate.revisionFamily === "VPWP50")
+        .map((gate) => gate.stateSubjectKey)
+        .sort();
+      expect(retained).toEqual(expectedSubjects);
+      expect(retained).not.toContain(gates[512]!.stateSubjectKey);
+    }
+
+    const path = tempPath();
+    const baselineFoundation = vpwp50PersistenceFoundation(projection);
+    baselineFoundation.standbyDomains!.gateEntries = [structuredClone(template)];
+    const baselinePersistence = new StandbyPersistence(path, undefined, () => baselineFoundation);
+    baselinePersistence.save(state({
+      savedAt: new Date(VPWP50_TEST_NOW_MS).toISOString(), heat: [], seen: [],
+    }));
+    const beforeV1 = readFileSync(path, "utf8");
+    const beforeV2 = readFileSync(standbyPersistenceV2Path(path), "utf8");
+    const overflowingFoundation = vpwp50PersistenceFoundation(projection);
+    overflowingFoundation.standbyDomains!.gateEntries = structuredClone(gates);
+    const writer = new StandbyPersistence(path, undefined, () => overflowingFoundation);
+    const result = writer.save(state({
+      savedAt: new Date(VPWP50_TEST_NOW_MS).toISOString(), heat: [], seen: [],
+    }));
+    expect(result).toMatchObject({ kind: "failed", stage: "validation" });
+    expect(result.kind === "failed" ? result.cause : null)
+      .toEqual(expect.objectContaining({ message: "VPWP50 persistence subject capacity exceeded" }));
+    expect(readFileSync(path, "utf8")).toBe(beforeV1);
+    expect(readFileSync(standbyPersistenceV2Path(path), "utf8")).toBe(beforeV2);
+  });
+
+  it("applies every VPWP50 raw source hard limit before candidate salvage", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(VPWP50_TEST_NOW_MS);
+    const projection = vpwp50PersistenceProjection();
+    const gate = structuredClone(vpwp50PersistenceFoundation(projection)
+      .standbyDomains!.gateEntries[0]!);
+    const metadata = {
+      stateSubjectKey: projection.subjectKey,
+      comparison: gate.comparison,
+      semanticKeys: gate.semanticKeys,
+      cancelled: gate.cancelled,
+    };
+    const seen = {
+      key: projection.subjectKey,
+      revision: projection.revision,
+      forgetAtMs: VPWP50_TEST_NOW_MS + WEATHER_TIMESERIES_RETENTION_MS + 1,
+    };
+    const baseRaw = (): Record<string, unknown> => ({
+      ...state({
+        savedAt: new Date(VPWP50_TEST_NOW_MS).toISOString(),
+        heat: [],
+        weatherWarningForecasts: [projection],
+        seen: [seen],
+      }),
+      weatherWarningForecastGateMetadata: [metadata],
+    });
+    const loadV1 = (raw: Record<string, unknown>) => {
+      const path = tempPath();
+      mkdirSync(dirname(path), { recursive: true });
+      writeFileSync(path, JSON.stringify(raw), "utf8");
+      return new StandbyPersistence(path).load();
+    };
+    const expectActive = (loaded: ReturnType<StandbyPersistence["load"]>) => {
+      expect(loaded?.weatherWarningForecasts).toHaveLength(1);
+      expect(loaded?.telegramFoundation.standbyDomains.gateEntries
+        .filter((entry) => entry.revisionFamily === "VPWP50")).toHaveLength(1);
+    };
+    const expectRejected = (loaded: ReturnType<StandbyPersistence["load"]>) => {
+      expect(loaded?.weatherWarningForecasts).toBeUndefined();
+      expect(loaded?.telegramFoundation.standbyDomains.gateEntries
+        .filter((entry) => entry.revisionFamily === "VPWP50")).toEqual([]);
+    };
+
+    for (const count of [1_024, 1_025]) {
+      const projectionRaw = baseRaw();
+      projectionRaw.weatherWarningForecasts = [
+        projection,
+        ...Array.from({ length: count - 1 }, () => null),
+      ];
+      (count === 1_024 ? expectActive : expectRejected)(loadV1(projectionRaw));
+
+      const metadataRaw = baseRaw();
+      metadataRaw.weatherWarningForecastGateMetadata = [
+        metadata,
+        ...Array.from({ length: count - 1 }, () => null),
+      ];
+      (count === 1_024 ? expectActive : expectRejected)(loadV1(metadataRaw));
+
+      const seenRaw = baseRaw();
+      seenRaw.seen = [
+        seen,
+        ...Array.from({ length: count - 1 }, (_, index) => ({
+          key: `weatherTimeseries:padding:${index}`,
+          revision: null,
+          forgetAtMs: 0,
+        })),
+      ];
+      (count === 1_024 ? expectActive : expectRejected)(loadV1(seenRaw));
+
+      const path = tempPath();
+      const foundation = vpwp50PersistenceFoundation(projection);
+      new StandbyPersistence(path, undefined, () => foundation).save(state({
+        savedAt: new Date(VPWP50_TEST_NOW_MS).toISOString(),
+        heat: [], seen: [], weatherWarningForecasts: [projection],
+      }));
+      const rawV2 = JSON.parse(readFileSync(standbyPersistenceV2Path(path), "utf8")) as {
+        telegramFoundation: { standbyDomains: { gateEntries: unknown[] } };
+      };
+      rawV2.telegramFoundation.standbyDomains.gateEntries = [
+        gate,
+        ...Array.from({ length: count - 1 }, (_, index) => ({
+          domain: "weatherWarningTimeseries",
+          revisionFamily: "VPWP50",
+          stateSubjectKey: `weatherTimeseries:padding:${index}`,
+        })),
+      ];
+      writeFileSync(standbyPersistenceV2Path(path), JSON.stringify(rawV2), "utf8");
+      (count === 1_024 ? expectActive : expectRejected)(new StandbyPersistence(path).load());
+    }
+  });
+
+  it("applies the distinct raw bundle 1024/1025 boundary after source preflight", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(VPWP50_TEST_NOW_MS);
+    const projection = vpwp50PersistenceProjection();
+    const gate = structuredClone(vpwp50PersistenceFoundation(projection)
+      .standbyDomains!.gateEntries[0]!);
+    const seen = {
+      key: projection.subjectKey,
+      revision: projection.revision,
+      forgetAtMs: VPWP50_TEST_NOW_MS + WEATHER_TIMESERIES_RETENTION_MS + 1,
+    };
+
+    for (const distinctProjectionSubjects of [1_023, 1_024]) {
+      const malformedProjections = Array.from(
+        { length: distinctProjectionSubjects },
+        (_, index) => ({ subjectKey: `weatherTimeseries:bundle:${String(index).padStart(4, "0")}` }),
+      );
+      const expectedRetained = distinctProjectionSubjects + 1 === 1_024;
+
+      const v1Path = tempPath();
+      mkdirSync(dirname(v1Path), { recursive: true });
+      writeFileSync(v1Path, JSON.stringify(state({
+        savedAt: new Date(VPWP50_TEST_NOW_MS).toISOString(),
+        heat: [],
+        weatherWarningForecasts: malformedProjections as unknown as PersistedWeatherWarningForecastStateV1[],
+        seen: [seen],
+      })), "utf8");
+      const v1Loaded = new StandbyPersistence(v1Path).load();
+      expect(v1Loaded?.telegramFoundation.standbyDomains.gateEntries
+        .filter((entry) => entry.revisionFamily === "VPWP50"), `v1 union ${distinctProjectionSubjects + 1}`)
+        .toHaveLength(expectedRetained ? 1 : 0);
+
+      const v2Path = tempPath();
+      const foundation = vpwp50PersistenceFoundation(projection);
+      foundation.standbyDomains!.gateEntries = [gate];
+      new StandbyPersistence(v2Path, undefined, () => foundation).save(state({
+        savedAt: new Date(VPWP50_TEST_NOW_MS).toISOString(), heat: [], seen: [],
+      }));
+      const rawV2 = JSON.parse(readFileSync(standbyPersistenceV2Path(v2Path), "utf8")) as {
+        weatherWarningForecasts?: unknown[];
+      };
+      rawV2.weatherWarningForecasts = malformedProjections;
+      writeFileSync(standbyPersistenceV2Path(v2Path), JSON.stringify(rawV2), "utf8");
+      const v2Loaded = new StandbyPersistence(v2Path).load();
+      expect(v2Loaded?.telegramFoundation.standbyDomains.gateEntries
+        .filter((entry) => entry.revisionFamily === "VPWP50"), `v2 union ${distinctProjectionSubjects + 1}`)
+        .toHaveLength(expectedRetained ? 1 : 0);
+    }
+  });
+
+  it("preflights nested groups, targets, and periods at 1024/1025 before child validation", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(VPWP50_TEST_NOW_MS);
+    const original = vpwp50PersistenceProjection();
+    const gate = vpwp50PersistenceFoundation(original).standbyDomains!.gateEntries[0]!;
+    const isolated = structuredClone(original);
+    isolated.groups = [isolated.groups[0]!];
+    isolated.groups[0]!.targets = [isolated.groups[0]!.targets[0]!];
+    isolated.groups[0]!.targets[0]!.periods = [isolated.groups[0]!.targets[0]!.periods[0]!];
+    isolated.expiresAtMs = Date.parse(isolated.groups[0]!.targets[0]!.periods[0]!.endsAt);
+
+    const loadCandidate = (candidate: Record<string, unknown>) => {
+      const path = tempPath();
+      const foundation = vpwp50PersistenceFoundation(original);
+      new StandbyPersistence(path, undefined, () => foundation).save(state({
+        savedAt: new Date(VPWP50_TEST_NOW_MS).toISOString(),
+        heat: [], seen: [], weatherWarningForecasts: [original],
+      }));
+      const rawV2 = JSON.parse(readFileSync(standbyPersistenceV2Path(path), "utf8")) as {
+        weatherWarningForecasts: unknown[];
+      };
+      rawV2.weatherWarningForecasts = [candidate];
+      writeFileSync(standbyPersistenceV2Path(path), JSON.stringify(rawV2), "utf8");
+      return new StandbyPersistence(path).load();
+    };
+    const assertOutcome = (
+      loaded: ReturnType<StandbyPersistence["load"]>,
+      retained: boolean,
+      label: string,
+    ) => {
+      if (retained) expect(loaded?.weatherWarningForecasts, label).toHaveLength(1);
+      else expect(loaded?.weatherWarningForecasts, label).toBeUndefined();
+      expect(loaded?.telegramFoundation.standbyDomains.gateEntries, label).toEqual([
+        expect.objectContaining({ stateSubjectKey: gate.stateSubjectKey }),
+      ]);
+    };
+
+    for (const count of [1_024, 1_025]) {
+      const groupsCandidate = structuredClone(original) as unknown as Record<string, unknown>;
+      groupsCandidate.groups = [
+        original.groups[0]!,
+        ...Array.from({ length: count - 1 }, () => null),
+      ];
+      assertOutcome(loadCandidate(groupsCandidate), count === 1_024, `groups ${count}`);
+
+      const targetsCandidate = structuredClone(isolated) as unknown as Record<string, unknown>;
+      const targetsGroup = (targetsCandidate.groups as Record<string, unknown>[])[0]!;
+      targetsGroup.targets = [
+        isolated.groups[0]!.targets[0]!,
+        ...Array.from({ length: count - 1 }, () => null),
+      ];
+      assertOutcome(loadCandidate(targetsCandidate), count === 1_024, `targets ${count}`);
+
+      const periodsCandidate = structuredClone(isolated) as unknown as Record<string, unknown>;
+      const periodsGroup = (periodsCandidate.groups as Record<string, unknown>[])[0]!;
+      const periodsTarget = (periodsGroup.targets as Record<string, unknown>[])[0]!;
+      const validPeriod = isolated.groups[0]!.targets[0]!.periods[0]!;
+      periodsTarget.periods = [
+        validPeriod,
+        ...Array.from({ length: count - 1 }, () => ({
+          ...validPeriod,
+          key: "malformed",
+        })),
+      ];
+      assertOutcome(loadCandidate(periodsCandidate), count === 1_024, `periods ${count}`);
+    }
+  });
+
+  it("does not inspect nested projection containers until v1 or v2 gate coupling succeeds", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(VPWP50_TEST_NOW_MS);
+    const projection = structuredClone(vpwp50PersistenceProjection()) as unknown as Record<string, unknown>;
+    projection.groups = Array.from({ length: 1_025 }, () => null);
+    const warn = vi.spyOn(log, "warn").mockImplementation(() => undefined);
+
+    const v1Path = tempPath();
+    mkdirSync(dirname(v1Path), { recursive: true });
+    writeFileSync(v1Path, JSON.stringify({
+      ...state({
+        savedAt: new Date(VPWP50_TEST_NOW_MS).toISOString(),
+        heat: [],
+        seen: [],
+        weatherWarningForecasts: [
+          projection as unknown as PersistedWeatherWarningForecastStateV1,
+        ],
+      }),
+      weatherWarningForecastGateMetadata: [],
+    }), "utf8");
+    expect(new StandbyPersistence(v1Path).load()?.weatherWarningForecasts).toBeUndefined();
+    expect(warn.mock.calls.flat().join("\n")).not.toContain("vpwp50ReaderNestedRawLimitExceeded");
+
+    warn.mockClear();
+    const v2Path = tempPath();
+    new StandbyPersistence(v2Path).save(state({
+      savedAt: new Date(VPWP50_TEST_NOW_MS).toISOString(), heat: [], seen: [],
+    }));
+    const rawV2 = JSON.parse(readFileSync(standbyPersistenceV2Path(v2Path), "utf8")) as {
+      weatherWarningForecasts?: unknown[];
+    };
+    rawV2.weatherWarningForecasts = [projection];
+    writeFileSync(standbyPersistenceV2Path(v2Path), JSON.stringify(rawV2), "utf8");
+    expect(new StandbyPersistence(v2Path).load()?.weatherWarningForecasts).toBeUndefined();
+    expect(warn.mock.calls.flat().join("\n")).not.toContain("vpwp50ReaderNestedRawLimitExceeded");
+  });
+
+  it("preflights the full shared seen and standby-domain containers at 16384/16385", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(VPWP50_TEST_NOW_MS);
+    const projection = vpwp50PersistenceProjection();
+    const gate = structuredClone(vpwp50PersistenceFoundation(projection)
+      .standbyDomains!.gateEntries[0]!);
+    const metadata = {
+      stateSubjectKey: projection.subjectKey,
+      comparison: gate.comparison,
+      semanticKeys: gate.semanticKeys,
+      cancelled: gate.cancelled,
+    };
+    const seen = {
+      key: projection.subjectKey,
+      revision: projection.revision,
+      forgetAtMs: VPWP50_TEST_NOW_MS + WEATHER_TIMESERIES_RETENTION_MS + 1,
+    };
+    for (const count of [16_384, 16_385]) {
+      const v1Path = tempPath();
+      mkdirSync(dirname(v1Path), { recursive: true });
+      writeFileSync(v1Path, JSON.stringify({
+        ...state({
+          savedAt: new Date(VPWP50_TEST_NOW_MS).toISOString(),
+          heat: [],
+          weatherWarningForecasts: [projection],
+          seen: [seen, ...Array.from({ length: count - 1 }, () => null)] as unknown as PersistedStandbyStateV1["seen"],
+        }),
+        weatherWarningForecastGateMetadata: [metadata],
+      }), "utf8");
+      const v1Loaded = new StandbyPersistence(v1Path).load();
+      if (count === 16_384) {
+        expect(v1Loaded?.weatherWarningForecasts, `v1 seen ${count}`).toHaveLength(1);
+      } else {
+        expect(v1Loaded?.weatherWarningForecasts, `v1 seen ${count}`).toBeUndefined();
+      }
+
+      const v2Path = tempPath();
+      const foundation = vpwp50PersistenceFoundation(projection);
+      new StandbyPersistence(v2Path, undefined, () => foundation).save(state({
+        savedAt: new Date(VPWP50_TEST_NOW_MS).toISOString(),
+        heat: [], seen: [], weatherWarningForecasts: [projection],
+      }));
+      const rawV2 = JSON.parse(readFileSync(standbyPersistenceV2Path(v2Path), "utf8")) as {
+        telegramFoundation: { standbyDomains: { gateEntries: unknown[] } };
+      };
+      rawV2.telegramFoundation.standbyDomains.gateEntries = [
+        gate,
+        ...Array.from({ length: count - 1 }, () => null),
+      ];
+      writeFileSync(standbyPersistenceV2Path(v2Path), JSON.stringify(rawV2), "utf8");
+      const v2Loaded = new StandbyPersistence(v2Path).load();
+      if (count === 16_384) {
+        expect(v2Loaded?.weatherWarningForecasts, `v2 gates ${count}`).toHaveLength(1);
+      } else {
+        expect(v2Loaded?.weatherWarningForecasts, `v2 gates ${count}`).toBeUndefined();
+      }
+    }
+
+    const path = tempPath();
+    const baseline = new StandbyPersistence(path);
+    baseline.save(state({ heat: [], seen: [] }));
+    const beforeV1 = readFileSync(path, "utf8");
+    const beforeV2 = readFileSync(standbyPersistenceV2Path(path), "utf8");
+    const result = baseline.save(state({
+      heat: [],
+      seen: Array.from({ length: 16_385 }, (_, index) => ({
+        key: `raw:${index}`,
+        revision: { reportTimeMs: T0, serial: "1" },
+        forgetAtMs: T0 + 1,
+      })),
+    }));
+    expect(result).toMatchObject({ kind: "failed", stage: "validation" });
+    expect(readFileSync(path, "utf8")).toBe(beforeV1);
+    expect(readFileSync(standbyPersistenceV2Path(path), "utf8")).toBe(beforeV2);
+
+    const oversizedFoundation = vpwp50PersistenceFoundation(projection);
+    oversizedFoundation.standbyDomains!.gateEntries = Array.from(
+      { length: 16_385 },
+      () => structuredClone(gate),
+    );
+    const gateResult = new StandbyPersistence(
+      path,
+      undefined,
+      () => oversizedFoundation,
+    ).save(state({ heat: [], seen: [] }));
+    expect(gateResult).toMatchObject({ kind: "failed", stage: "validation" });
+    expect(readFileSync(path, "utf8")).toBe(beforeV1);
+    expect(readFileSync(standbyPersistenceV2Path(path), "utf8")).toBe(beforeV2);
   });
 });
 

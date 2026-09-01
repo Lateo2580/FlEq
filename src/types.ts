@@ -1637,6 +1637,10 @@ export interface QuantitativeMetricMeta {
 export interface LocalValue<T> {
   areaName: string;
   code?: string;
+  /** parser-authoritative identity key (code:* or name:*). */
+  identityKey?: string;
+  /** VPWP50 parser が確定した identity。旧データでは欠落しうる。 */
+  identity?: WeatherWarningLocalIdentity;
   value: T;
 }
 
@@ -1679,6 +1683,41 @@ export interface SignificancyValue {
   peak?: SignificancyPeakTime;
   /** CriteriaPeriod (警戒レベル4+土砂/高潮で出る) */
   criteriaPeriod?: SignificancyCriteriaPeriod;
+}
+
+/** VPWP50 card projection 用の、TimeDefine から厳密に解決した絶対時刻枠。 */
+export interface ForecastTimeSlot {
+  tsNum: WeatherWarningTimeseriesNumber;
+  series: "3h" | "24h" | "day";
+  /** TimeDefine の refID。runtime-only であり display DTO には保存しない。 */
+  timeRef: string;
+  name: string;
+  startsAt: string;
+  endsAt: string;
+}
+
+/** worst 選定前の Significancy 一件。VPWP50 forecast card の入力専用。 */
+export interface SignificancyOccurrence {
+  info: SignificancyInfo;
+  tsNum: WeatherWarningTimeseriesNumber;
+  timeRef: string;
+  slot: ForecastTimeSlot | null;
+  peak?: SignificancyPeakTime;
+  criteriaPeriod?: SignificancyCriteriaPeriod;
+}
+
+/** parser で NFC / whitespace / code fallback まで確定させた Area identity。 */
+export interface WeatherWarningAreaIdentity {
+  key: string;
+  name: string;
+  code: string | null;
+}
+
+/** parser で確定させた Local identity。 */
+export interface WeatherWarningLocalIdentity {
+  key: string;
+  name: string;
+  code: string | null;
 }
 
 /** PeakTime (ピーク時刻) */
@@ -1746,6 +1785,8 @@ export interface WeatherWarningTimeseriesKind {
   partKind: WeatherWarningTimeseriesPartKind;
   /** Significancy の worst (Code 系、Local 階層保持) */
   significancyWorst?: PartValue<SignificancyValue>;
+  /** card 用の全 occurrence。既存 CLI 用の significancyWorst とは独立に保持する。 */
+  significancyOccurrences?: PartValue<SignificancyOccurrence[]>;
   /** 数値系の worst (Precipitation/Snowfall/Humidity/WaveHeight/TidalLevel/Visibility) */
   quantitativeWorst?: PartValue<QuantitativeValue>;
   /** 風 (Direction + Speed) の組 (paired) */
@@ -1758,6 +1799,10 @@ export interface WeatherWarningTimeseriesKind {
 export interface WeatherWarningTimeseriesArea {
   name: string;
   code: string;
+  /** parser-authoritative identity key (code:* or name:*). */
+  identityKey?: string;
+  /** additive parser-authoritative identity。旧 caller 互換のため name/code も残す。 */
+  identity?: WeatherWarningAreaIdentity;
   /** TimeSeries 番号別の Kind 一覧 (1: 3時間系列、2: 24時間最大、3: 日単位) */
   kinds: {
     1: WeatherWarningTimeseriesKind[];

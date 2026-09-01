@@ -388,6 +388,10 @@ export const FIXTURE_VPAW51_HIGHTEMP_SNOW = "72_08_01_190327_VPAW51.xml";
 /** VPWP50 気象警報・注意報時系列情報 (長野県 - Pi 実機 2026-06-05 19:55:00 受信) */
 export const FIXTURE_VPWP50_NAGANO = "81_09_01_260605_VPWP50.xml";
 
+/** VPWP50 人工: Area / Local identity、重複、競合、strict slot */
+export const FIXTURE_VPWP50_LOCAL_IDENTITY =
+  "81_09_01_260605_VPWP50_local_identity.xml";
+
 /** VPWP50 気象警報・注意報時系列情報 (宗谷地方 #1 - 426KB) */
 export const FIXTURE_VPWP50_SOYA_01 = "81_01_01_260129_VPWP50.xml";
 

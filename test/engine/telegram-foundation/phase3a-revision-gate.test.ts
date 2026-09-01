@@ -10,6 +10,8 @@ import { TelegramTransportDeduplicator } from "../../../src/engine/messages/tele
 import {
   ALL_REVISION_FAMILY_POLICIES,
   EEW_REVISION_FAMILY_POLICIES,
+  WEATHER_TIMESERIES_RETENTION_MS,
+  WEATHER_TIMESERIES_REVISION_FAMILY_POLICY,
 } from "../../../src/engine/messages/revision-family-registry";
 
 const RECEIVED_AT = Date.parse("2026-07-31T12:10:00+09:00");
@@ -1115,5 +1117,132 @@ describe("Phase 3B trigger and transient capacity contracts", () => {
     expect(gate.decide(input("second", RECEIVED_AT + 13 * 60_000)).accepted).toBe(true);
     expect(gate.decide(input("third", RECEIVED_AT + 14 * 60_000)).accepted).toBe(true);
     expect(gate.decide(input("first", RECEIVED_AT + 15 * 60_000)).accepted).toBe(true);
+  });
+});
+
+describe("VPWP50 durable retention and reject-new-subject capacity", () => {
+  const DOMAIN = "weatherWarningTimeseries";
+  const FAMILY = "VPWP50";
+  const acceptedAtMs = Date.parse("2026-08-01T00:00:00.000Z");
+
+  function vpwp50Input(input: {
+    subject: string;
+    receivedAtMs?: number;
+    reportDateTime?: string;
+    serial?: string;
+    infoType?: "発表" | "訂正" | "取消";
+  }) {
+    const infoType = input.infoType ?? "発表";
+    const reportDateTime = input.reportDateTime ?? "2026-08-01T09:00:00+09:00";
+    const serial = input.serial ?? "1";
+    return {
+      domain: DOMAIN,
+      revisionFamily: FAMILY,
+      stateSubjectKey: input.subject,
+      meta: createTelegramMeta({
+        messageId: `${input.subject}:${infoType}:${serial}`,
+        eventId: input.subject,
+        type: FAMILY,
+        reportDateTime,
+        serial,
+        infoType,
+        receivedAtMs: input.receivedAtMs ?? acceptedAtMs,
+        status: "通常",
+        isTest: false,
+      }),
+      comparator: "reportDateTimeThenSerial" as const,
+      cancellationPolicy: "clearCurrent" as const,
+      cancellationTargetMatches: true,
+      terminal: false,
+      durable: true,
+      tombstoneRetentionMs: WEATHER_TIMESERIES_RETENTION_MS,
+      maxSubjects: 512,
+      familyCapacityMode: "rejectNewSubject" as const,
+      activeFamilySubjects: [] as const,
+      allowMissingSerial: true,
+      payloadFingerprint: semanticPayloadFingerprint({
+        subject: input.subject, reportDateTime, serial, infoType,
+      }),
+    };
+  }
+
+  it("declares the seven-day durable policy and no-victim capacity mode", () => {
+    expect(WEATHER_TIMESERIES_REVISION_FAMILY_POLICY).toMatchObject({
+      domain: DOMAIN,
+      revisionFamily: FAMILY,
+      durable: true,
+      activeRetentionMs: WEATHER_TIMESERIES_RETENTION_MS,
+      tombstoneRetentionMs: WEATHER_TIMESERIES_RETENTION_MS,
+      maxSubjects: 512,
+      familyCapacityMode: "rejectNewSubject",
+    });
+  });
+
+  it("retains exactly 512 whole bundles, rejects 513 without eviction, and still updates an existing subject", () => {
+    const gate = new TelegramRevisionGate();
+    for (let index = 0; index < 512; index += 1) {
+      expect(gate.decide(vpwp50Input({ subject: `weatherTimeseries:office:${String(index).padStart(3, "0")}` })).accepted).toBe(true);
+    }
+    const before = gate.exportDurableEntries();
+    expect(before).toHaveLength(512);
+    expect(gate.decide(vpwp50Input({ subject: "weatherTimeseries:office:512" }))).toMatchObject({
+      kind: "capacityExceeded",
+      accepted: false,
+    });
+    expect(gate.exportDurableEntries()).toEqual(before);
+
+    const existing = "weatherTimeseries:office:000";
+    expect(gate.decide(vpwp50Input({
+      subject: existing,
+      receivedAtMs: acceptedAtMs + 1,
+      reportDateTime: "2026-08-01T09:01:00+09:00",
+      serial: "2",
+      infoType: "訂正",
+    }))).toMatchObject({ kind: "replaceCorrection", accepted: true });
+    expect(gate.revisionFamilySubjectKeys(DOMAIN, FAMILY)).toHaveLength(512);
+    expect(gate.revisionFamilySubjectKeys(DOMAIN, FAMILY)).not.toContain("weatherTimeseries:office:512");
+  });
+
+  it("uses the same strict-greater-than boundary for active watermarks and tombstones", () => {
+    const gate = new TelegramRevisionGate();
+    const active = "weatherTimeseries:active";
+    const cancelled = "weatherTimeseries:cancelled";
+    expect(gate.decide(vpwp50Input({ subject: active })).accepted).toBe(true);
+    expect(gate.decide(vpwp50Input({ subject: cancelled })).accepted).toBe(true);
+    expect(gate.decide(vpwp50Input({ subject: cancelled, infoType: "取消" }))).toMatchObject({
+      kind: "clearCurrent",
+      accepted: true,
+    });
+
+    expect(gate.expireRevisionFamilyDetailed(
+      DOMAIN, FAMILY, acceptedAtMs + WEATHER_TIMESERIES_RETENTION_MS,
+      WEATHER_TIMESERIES_RETENTION_MS,
+    )).toEqual({ changed: false, expiredStateSubjectKeys: [] });
+    expect(gate.revisionFamilySubjectKeys(DOMAIN, FAMILY)).toEqual([active, cancelled]);
+
+    expect(gate.expireRevisionFamilyDetailed(
+      DOMAIN, FAMILY, acceptedAtMs + WEATHER_TIMESERIES_RETENTION_MS + 1,
+      WEATHER_TIMESERIES_RETENTION_MS,
+    )).toEqual({ changed: true, expiredStateSubjectKeys: [active, cancelled] });
+    expect(gate.revisionFamilySubjectKeys(DOMAIN, FAMILY)).toEqual([]);
+    expect(gate.decide(vpwp50Input({
+      subject: "weatherTimeseries:new",
+      receivedAtMs: acceptedAtMs + WEATHER_TIMESERIES_RETENTION_MS + 1,
+    })).accepted).toBe(true);
+  });
+
+  it("exposes a sorted mutation-free family subject snapshot", () => {
+    const gate = new TelegramRevisionGate();
+    for (const subject of ["weatherTimeseries:z", "weatherTimeseries:a", "weatherTimeseries:m"]) {
+      expect(gate.decide(vpwp50Input({ subject })).accepted).toBe(true);
+    }
+    const before = gate.exportDurableEntries();
+    expect(gate.revisionFamilySubjectKeys(DOMAIN, FAMILY)).toEqual([
+      "weatherTimeseries:a", "weatherTimeseries:m", "weatherTimeseries:z",
+    ]);
+    expect(gate.revisionFamilySubjectKeys(DOMAIN, FAMILY)).toEqual([
+      "weatherTimeseries:a", "weatherTimeseries:m", "weatherTimeseries:z",
+    ]);
+    expect(gate.exportDurableEntries()).toEqual(before);
   });
 });

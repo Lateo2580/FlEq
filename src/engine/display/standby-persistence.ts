@@ -14,6 +14,9 @@ import type {
   DisplayWeatherAlertItemV1,
   DisplayWeatherAlertV1,
   DisplayWeatherSourceV1,
+  DisplayWeatherWarningForecastGroupV1,
+  DisplayWeatherWarningForecastPeriodV1,
+  DisplayWeatherWarningForecastTargetV1,
 } from "./protocol";
 import type { PersistedFloodEventState, PersistedFloodState } from "./flood-active-reducer";
 import type { PersistedSeenEntry } from "./revision-guard";
@@ -82,6 +85,8 @@ import {
   TORNADO_REVISION_FAMILY_POLICY,
   TYPHOON_ANALYSIS_REVISION_FAMILY_POLICY,
   TYPHOON_PROBABILITY_REVISION_FAMILY_POLICY,
+  WEATHER_TIMESERIES_RETENTION_MS,
+  WEATHER_TIMESERIES_REVISION_FAMILY_POLICY,
 } from "../messages/revision-family-registry";
 import { weatherAlertsFromVpws50, weatherAlertsFromVpww56 } from "./weather-alert-view";
 import { resolveTsunamiLevel } from "../../utils/tsunami-kind";
@@ -125,6 +130,56 @@ import {
   normalizeVpta50Serial,
   validateTyphoonProbabilityEventId,
 } from "./project-typhoon-probability";
+import type { WeatherWarningForecastState } from "./weather-warning-forecast-active-reducer";
+import {
+  normalizeVpwp50RevisionSerial,
+  vpwp50ForecastPeriodLabel,
+  vpwp50ForecastStandbySeverity,
+} from "./weather-warning-forecast-active-reducer";
+import {
+  WEATHER_WARNING_FORECAST_MAX_CARD_JSON_BYTES,
+  WEATHER_WARNING_FORECAST_MAX_GROUPS_PER_SUBJECT,
+  WEATHER_WARNING_FORECAST_MAX_PERIODS_PER_CARD,
+  WEATHER_WARNING_FORECAST_MAX_PERIODS_PER_SUBJECT,
+  WEATHER_WARNING_FORECAST_MAX_PERIODS_PER_TARGET,
+  WEATHER_WARNING_FORECAST_MAX_SUBJECTS,
+  WEATHER_WARNING_FORECAST_MAX_TARGETS_PER_GROUP,
+  WEATHER_WARNING_FORECAST_PERIODS_PER_ATOM,
+  WEATHER_WARNING_FORECAST_READER_MAX_RAW_BUNDLES,
+  WEATHER_WARNING_FORECAST_READER_MAX_RAW_GROUP_ITEMS_PER_SUBJECT,
+  WEATHER_WARNING_FORECAST_READER_MAX_RAW_METADATA_ITEMS,
+  WEATHER_WARNING_FORECAST_READER_MAX_RAW_PERIOD_ITEMS_PER_SUBJECT,
+  WEATHER_WARNING_FORECAST_READER_MAX_RAW_PERIOD_ITEMS_PER_TARGET,
+  WEATHER_WARNING_FORECAST_READER_MAX_RAW_PROJECTION_ITEMS,
+  WEATHER_WARNING_FORECAST_READER_MAX_RAW_SEEN_ITEMS,
+  WEATHER_WARNING_FORECAST_READER_MAX_RAW_TARGET_ITEMS_PER_GROUP,
+  WEATHER_WARNING_FORECAST_READER_MAX_RAW_TARGET_ITEMS_PER_SUBJECT,
+  WEATHER_WARNING_FORECAST_READER_MAX_RAW_V2_GATE_ITEMS,
+  VPWP50_ACCEPTED_AT_FUTURE_SKEW_MS,
+  VPWP50_DERIVED_KEY_LENGTH,
+  VPWP50_MAX_AREA_CODE_LENGTH,
+  VPWP50_MAX_AREA_NAME_LENGTH,
+  VPWP50_MAX_FORECAST_LABEL_LENGTH,
+  VPWP50_MAX_LOCAL_CODE_LENGTH,
+  VPWP50_MAX_LOCAL_NAME_LENGTH,
+  VPWP50_MAX_PHENOMENON_NAME_LENGTH,
+  VPWP50_MAX_PUBLISHING_OFFICE_LENGTH,
+  VPWP50_MAX_SIGNIFICANCY_CODE_LENGTH,
+  VPWP50_MAX_SOURCE_EVENT_ID_LENGTH,
+  VPWP50_MAX_SUBJECT_KEY_LENGTH,
+  VPWP50_REPORT_FUTURE_SKEW_MS,
+  assertWeatherWarningForecastWireInvariant,
+  buildWeatherWarningForecastCard,
+  periodCanonicalOrder,
+  sortWeatherWarningForecastGroups,
+  weatherWarningForecastProjectionLimitReasons,
+} from "./weather-warning-forecast-wire";
+import {
+  vpwp50ForecastLabel,
+  vpwp50StableKey,
+} from "../presentation/weather-severity-pyramid";
+import { classifySignificancyCode } from "../../dmdata/weather-warning-timeseries-significancy";
+import { resolveVpwp50Significancy } from "../../dmdata/weather-warning-level";
 
 const PERSIST_SCHEMA_VERSION = 2;
 
@@ -146,6 +201,8 @@ export interface PersistedStandbyStateV1 {
   typhoons: PersistedTyphoonStateV1[];
   typhoonProbabilities?: PersistedTyphoonProbabilityStateV1[];
   typhoonProbabilityGateMetadata?: PersistedTyphoonProbabilityGateMetadataV1[];
+  weatherWarningForecasts?: PersistedWeatherWarningForecastStateV1[];
+  weatherWarningForecastGateMetadata?: PersistedWeatherWarningForecastGateMetadataV1[];
   volcanoes: PersistedVolcanoStateV1[];
   floods?: PersistedFloodState;
   weatherAlerts?: PersistedWeatherAlertStateV1[];
@@ -156,6 +213,25 @@ export interface PersistedStandbyStateV1 {
   seen: PersistedSeenEntry[];
   /** Critical briefing lifecycle only.  Warning/info projections stay ephemeral. */
   briefingCritical?: PersistedBriefingCriticalStateV1;
+}
+
+export interface PersistedWeatherWarningForecastStateV1 {
+  subjectKey: string;
+  sourceEventId: string;
+  publishingOffice: string;
+  targetAreaName: string | null;
+  targetAreaCode: string | null;
+  groups: DisplayWeatherWarningForecastGroupV1[];
+  revision: StandbyRevision;
+  appliedSemanticKey: string;
+  expiresAtMs: number;
+}
+
+export interface PersistedWeatherWarningForecastGateMetadataV1 {
+  stateSubjectKey: string;
+  comparison: TelegramRevisionComparisonInput;
+  semanticKeys: string[];
+  cancelled: boolean;
 }
 
 export interface PersistedBriefingCriticalEntryV1 {
@@ -342,6 +418,7 @@ const STANDBY_FOUNDATION_POLICIES = [
   HEAT_ALERT_REVISION_FAMILY_POLICY,
   TYPHOON_ANALYSIS_REVISION_FAMILY_POLICY,
   TYPHOON_PROBABILITY_REVISION_FAMILY_POLICY,
+  WEATHER_TIMESERIES_REVISION_FAMILY_POLICY,
   NANKAI_REVISION_FAMILY_POLICY,
   LG_OBSERVATION_REVISION_FAMILY_POLICY,
 ] as const;
@@ -549,6 +626,7 @@ export type StandbyPersistenceLastFailure = Extract<
 type SalvageDomain =
   | "root.heat" | "root.typhoons" | "root.volcanoes" | "root.tornado" | "root.longPeriod"
   | "root.typhoonProbabilities" | "root.typhoonProbabilityGateMetadata"
+  | "root.weatherWarningForecasts" | "root.weatherWarningForecastGateMetadata"
   | "root.seen" | "root.floods" | "root.weatherAlerts" | "root.quakeHost" | "root.nankaiTrough"
   | "root.briefingCritical"
   | "foundation.vpws50" | "foundation.vpww56" | "foundation.tsunami" | "foundation.volcano"
@@ -597,6 +675,7 @@ type VptaPersistenceDiagnostic =
 interface VptaPersistenceReadContext {
   nowMs: number;
   diagnostics: Set<VptaPersistenceDiagnostic>;
+  vpwp50Diagnostics: Set<string>;
 }
 
 let activeVptaPersistenceReadContext: VptaPersistenceReadContext | null = null;
@@ -611,6 +690,15 @@ function warnVptaPersistenceDiagnostic(diagnostic: VptaPersistenceDiagnostic): v
   context?.diagnostics.add(diagnostic);
   if (activeRepairCollector != null) activeRepairCollector.canonicalRewriteRequired = true;
   log.warn(`[standby-persistence] ${diagnostic}`);
+}
+
+function warnVpwp50PersistenceDiagnostic(diagnostic: string, detail = ""): void {
+  const context = activeVptaPersistenceReadContext;
+  const token = `${diagnostic}:${detail}`;
+  if (context?.vpwp50Diagnostics.has(token)) return;
+  context?.vpwp50Diagnostics.add(token);
+  if (activeRepairCollector != null) activeRepairCollector.canonicalRewriteRequired = true;
+  log.warn(`[standby-persistence] ${diagnostic}${detail === "" ? "" : ` ${detail}`}`);
 }
 
 function recordRepair(
@@ -690,7 +778,11 @@ export class StandbyPersistence {
   load(nowMs = Date.now()): PersistedStandbyStateV2 | null {
     if (!validPersistenceEpoch(nowMs)) throw new Error("invalid standby persistence startup clock");
     const previousReadContext = activeVptaPersistenceReadContext;
-    activeVptaPersistenceReadContext = { nowMs, diagnostics: new Set() };
+    activeVptaPersistenceReadContext = {
+      nowMs,
+      diagnostics: new Set(),
+      vpwp50Diagnostics: new Set(),
+    };
     try {
       this.cleanStaleTmpFiles();
       const v2Path = standbyPersistenceV2Path(this.persistPath);
@@ -880,6 +972,16 @@ export class StandbyPersistence {
       : validatedBriefingCritical;
     const foundation = this.foundationProvider?.()
       ?? (state.version === 2 ? state.telegramFoundation : emptyTelegramFoundation());
+    // These are shared raw containers, so their full length must be checked before
+    // normalization can inspect, filter, or family-cap their children. Writer
+    // overflow is fail-loud: never turn a 16,385-item runtime root into a prefix.
+    if (state.seen.length > TELEGRAM_REVISION_MAX_ENTRIES) {
+      throw new Error("standby root seen wire limit exceeded");
+    }
+    const rawStandbyDomains = foundation.standbyDomains ?? emptyStandbyDomainsFoundation();
+    if (rawStandbyDomains.gateEntries.length > TELEGRAM_REVISION_MAX_ENTRIES) {
+      throw new Error("standbyDomains gate entry wire limit exceeded");
+    }
     const tsunami = normalizeTsunamiFoundationForWrite(
       foundation.tsunami ?? emptyTsunamiFoundation(),
     );
@@ -895,11 +997,17 @@ export class StandbyPersistence {
     const typhoonProbabilities = normalizeTyphoonProbabilityStatesForWrite(
       state.typhoonProbabilities,
     );
+    const weatherWarningForecasts = normalizeVpwp50ProjectionsForWrite(
+      state.weatherWarningForecasts,
+    );
     const standbyDomains = normalizeStandbyDomainsFoundationForWrite(
-      foundation.standbyDomains ?? emptyStandbyDomainsFoundation(),
+      rawStandbyDomains,
       new Set(typhoonProbabilities.map((projection) =>
         `typhoonProbability:${projection.key}`)),
     );
+    if (standbyDomains.gateEntries.length > TELEGRAM_REVISION_MAX_ENTRIES) {
+      throw new Error("standbyDomains gate entry wire limit exceeded");
+    }
     const typhoons = normalizeTyphoonStatesForWrite(state.typhoons);
     const vptaGates = new Map(standbyDomains.gateEntries
       .filter((entry) => entry.domain === "typhoonProbability" && entry.revisionFamily === "VPTA50")
@@ -910,10 +1018,25 @@ export class StandbyPersistence {
         projection.revision, projection.appliedSemanticKey, gate,
       )) throw new Error("invalid VPTA persistence coupling");
     }
+    const vpwp50Gates = new Map(standbyDomains.gateEntries
+      .filter((entry) => entry.domain === "weatherWarningTimeseries"
+        && entry.revisionFamily === "VPWP50")
+      .map((entry) => [entry.stateSubjectKey, entry]));
+    if (vpwp50Gates.size > WEATHER_WARNING_FORECAST_MAX_SUBJECTS) {
+      throw new Error("VPWP50 persistence gate capacity exceeded");
+    }
+    for (const projection of weatherWarningForecasts) {
+      const gate = vpwp50Gates.get(projection.subjectKey);
+      if (gate == null || !vpwp50ProjectionMatchesGate(projection, gate)) {
+        throw new Error("invalid VPWP50 persistence coupling");
+      }
+    }
     const {
       briefingCritical: _briefingCritical,
       typhoonProbabilities: _typhoonProbabilities,
       typhoonProbabilityGateMetadata: _typhoonProbabilityGateMetadata,
+      weatherWarningForecasts: _weatherWarningForecasts,
+      weatherWarningForecastGateMetadata: _weatherWarningForecastGateMetadata,
       ...stateWithoutBriefingCritical
     } = state;
     const rawProjectionState = salvageStandbyDomainProjections(
@@ -922,6 +1045,7 @@ export class StandbyPersistence {
         version: 1,
         typhoons,
         ...(typhoonProbabilities.length === 0 ? {} : { typhoonProbabilities }),
+        ...(weatherWarningForecasts.length === 0 ? {} : { weatherWarningForecasts }),
         ...(briefingCritical == null ? {} : { briefingCritical }),
       },
       standbyDomains,
@@ -933,19 +1057,31 @@ export class StandbyPersistence {
       if (eventId != null) vptaEventIds.add(eventId);
     }
     const projectionState = stripVptaRollbackSeen(rawProjectionState, vptaEventIds);
+    const projectionStateWithoutVpwp50Seen = {
+      ...projectionState,
+      seen: projectionState.seen.filter((entry) => vpwp50SubjectFromSeenKey(entry.key) == null),
+    };
     const seen = mergeLegacySeenEntries(
-      projectionState.seen,
+      projectionStateWithoutVpwp50Seen.seen,
       volcanoLegacySeenEntries(volcano.gateEntries, volcano.state),
     );
     const rollbackSeen = mergeLegacySeenEntries(seen, standbyLegacySeenEntries(standbyDomains.gateEntries));
+    if (rollbackSeen.length > TELEGRAM_REVISION_MAX_ENTRIES) {
+      throw new Error("standby rollback seen wire limit exceeded");
+    }
     const probabilityGateMetadata = vptaGateMetadata(standbyDomains.gateEntries);
+    const forecastGateMetadata = vpwp50GateMetadata(standbyDomains.gateEntries);
     return {
-      ...projectionState,
+      ...projectionStateWithoutVpwp50Seen,
       version: 2,
       seen: rollbackSeen,
       ...(probabilityGateMetadata.length === 0
         ? {}
         : { typhoonProbabilityGateMetadata: probabilityGateMetadata }),
+      ...(weatherWarningForecasts.length === 0 ? {} : { weatherWarningForecasts }),
+      ...(forecastGateMetadata.length === 0
+        ? {}
+        : { weatherWarningForecastGateMetadata: forecastGateMetadata }),
       floods: floodForecast.authoritative
         ? {
             events: structuredClone(floodForecast.active),
@@ -969,6 +1105,8 @@ export class StandbyPersistence {
       version: _version,
       typhoonProbabilities,
       typhoonProbabilityGateMetadata: _legacyProbabilityMetadata,
+      weatherWarningForecasts,
+      weatherWarningForecastGateMetadata: _legacyForecastMetadata,
       ...legacy
     } = state;
     return {
@@ -977,10 +1115,20 @@ export class StandbyPersistence {
       ...(typhoonProbabilities == null || typhoonProbabilities.length === 0
         ? {}
         : { typhoonProbabilities }),
+      ...(weatherWarningForecasts == null || weatherWarningForecasts.length === 0
+        ? {}
+        : { weatherWarningForecasts }),
       ...(vptaGateMetadata(state.telegramFoundation.standbyDomains.gateEntries).length === 0
         ? {}
         : {
             typhoonProbabilityGateMetadata: vptaGateMetadata(
+              state.telegramFoundation.standbyDomains.gateEntries,
+            ),
+          }),
+      ...(vpwp50GateMetadata(state.telegramFoundation.standbyDomains.gateEntries).length === 0
+        ? {}
+        : {
+            weatherWarningForecastGateMetadata: vpwp50GateMetadata(
               state.telegramFoundation.standbyDomains.gateEntries,
             ),
           }),
@@ -1586,6 +1734,868 @@ function optionalArrayMode(value: Record<string, unknown>, key: string): Optiona
   return Array.isArray(value[key]) ? "present-array" : "present-invalid";
 }
 
+const VPWP50_DERIVED_KEY_PATTERN = /^[A-Za-z0-9_-]{43}$/;
+const VPWP50_APPLIED_SEMANTIC_KEY_PATTERN = /^(?:発表|訂正):[0-9a-f]{64}$/u;
+const VPWP50_GATE_SEMANTIC_KEY_PATTERN = /^(?:発表|訂正|取消):[0-9a-f]{64}$/u;
+const VPWP50_ISO_PATTERN = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,9})?(?:Z|[+-]\d{2}:\d{2})$/;
+const VPWP50_MIGRATION_ISO_PATTERN = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.(\d{1,9}))?(Z|([+-])(\d{2}):(\d{2}))$/;
+
+function compareCodeUnitString(left: string, right: string): number {
+  return left < right ? -1 : left > right ? 1 : 0;
+}
+
+function canonicalVpwp50Name(value: unknown, maxLength: number): value is string {
+  if (typeof value !== "string") return false;
+  const canonical = value.normalize("NFC").trim().replace(/\s+/gu, " ");
+  return canonical !== "" && canonical === value && value.length <= maxLength;
+}
+
+function canonicalVpwp50Token(value: unknown, maxLength: number): value is string {
+  return typeof value === "string" && value !== "" && value === value.trim()
+    && value.length <= maxLength;
+}
+
+function canonicalVpwp50OptionalName(value: unknown, maxLength: number): value is string | null {
+  return value === null || canonicalVpwp50Name(value, maxLength);
+}
+
+function canonicalVpwp50OptionalToken(value: unknown, maxLength: number): value is string | null {
+  return value === null || canonicalVpwp50Token(value, maxLength);
+}
+
+function isVpwp50Subject(value: unknown): value is string {
+  return canonicalVpwp50Token(value, VPWP50_MAX_SUBJECT_KEY_LENGTH)
+    && value.startsWith("weatherTimeseries:");
+}
+
+function vpwp50ClaimedSubject(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const subject = value.trim();
+  return isVpwp50Subject(subject) ? subject : null;
+}
+
+function vpwp50SubjectFromSeenKey(value: unknown): string | null {
+  return vpwp50ClaimedSubject(value);
+}
+
+function isVpwp50DerivedKey(value: unknown): value is string {
+  return typeof value === "string" && value.length === VPWP50_DERIVED_KEY_LENGTH
+    && VPWP50_DERIVED_KEY_PATTERN.test(value);
+}
+
+function parseVpwp50Iso(value: unknown): number | null {
+  if (typeof value !== "string" || !VPWP50_ISO_PATTERN.test(value)) return null;
+  const epoch = Date.parse(value);
+  if (!validPersistenceEpoch(epoch)) return null;
+  try {
+    return new Date(epoch).toISOString() === value ? epoch : null;
+  } catch {
+    return null;
+  }
+}
+
+/** v1 metadata may use an equivalent offset ISO, but the source form must be lossless. */
+function parseVpwp50MigrationIso(value: unknown): number | null {
+  if (typeof value !== "string") return null;
+  const match = VPWP50_MIGRATION_ISO_PATTERN.exec(value);
+  if (match == null) return null;
+  const epoch = Date.parse(value);
+  if (!validPersistenceEpoch(epoch)) return null;
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+  const hour = Number(match[4]);
+  const minute = Number(match[5]);
+  const second = Number(match[6]);
+  const fraction = match[7] ?? "";
+  const millisecond = Number(fraction.padEnd(3, "0").slice(0, 3));
+  const offsetHour = Number(match[10] ?? 0);
+  const offsetMinute = Number(match[11] ?? 0);
+  if (month < 1 || month > 12 || day < 1 || day > 31 || hour > 23
+    || minute > 59 || second > 59 || offsetHour > 23 || offsetMinute > 59
+    || /[1-9]/.test(fraction.slice(3))) return null;
+  const signedOffsetMinutes = match[8] === "Z"
+    ? 0
+    : (match[9] === "+" ? 1 : -1) * (offsetHour * 60 + offsetMinute);
+  const local = new Date(epoch + signedOffsetMinutes * 60_000);
+  if (local.getUTCFullYear() !== year || local.getUTCMonth() + 1 !== month
+    || local.getUTCDate() !== day || local.getUTCHours() !== hour
+    || local.getUTCMinutes() !== minute || local.getUTCSeconds() !== second
+    || local.getUTCMilliseconds() !== millisecond) return null;
+  return epoch;
+}
+
+interface Vpwp50ExcludedWitness {
+  ends: number[];
+  unknownEnds: number;
+  kinds: Set<"period" | "target" | "group">;
+  count: number;
+}
+
+function recordVpwp50RawPeriodWitness(
+  raw: unknown,
+  witness: Vpwp50ExcludedWitness,
+  kind: "period" | "target" | "group",
+): void {
+  witness.kinds.add(kind);
+  witness.count += 1;
+  const recordPeriod = (period: unknown): void => {
+    if (!isRecord(period)) {
+      witness.unknownEnds += 1;
+      return;
+    }
+    const end = parseVpwp50Iso(period.endsAt);
+    if (end == null) witness.unknownEnds += 1;
+    else witness.ends.push(end);
+  };
+  if (kind === "period") {
+    recordPeriod(raw);
+    return;
+  }
+  if (kind === "target") {
+    if (!isRecord(raw) || !Array.isArray(raw.periods)) return;
+    for (const period of raw.periods) recordPeriod(period);
+    return;
+  }
+  if (!isRecord(raw) || !Array.isArray(raw.targets)) return;
+  for (const target of raw.targets) {
+    if (!isRecord(target) || !Array.isArray(target.periods)) continue;
+    for (const period of target.periods) recordPeriod(period);
+  }
+}
+
+type Vpwp50NestedReason = {
+  code: "groupsPerSubject" | "targetsPerGroup" | "targetsPerSubject"
+    | "periodsPerTarget" | "periodsPerSubject";
+  actual: number;
+  limit: 1_024;
+};
+
+function vpwp50NestedRawPreflight(value: Record<string, unknown>): Vpwp50NestedReason[] {
+  if (!Array.isArray(value.groups)) return [];
+  const reasons: Vpwp50NestedReason[] = [];
+  if (value.groups.length > WEATHER_WARNING_FORECAST_READER_MAX_RAW_GROUP_ITEMS_PER_SUBJECT) {
+    reasons.push({ code: "groupsPerSubject", actual: value.groups.length, limit: 1_024 });
+    return reasons;
+  }
+  let maxTargets = 0;
+  let totalTargets = 0;
+  for (const group of value.groups) {
+    const length = isRecord(group) && Array.isArray(group.targets) ? group.targets.length : 0;
+    maxTargets = Math.max(maxTargets, length);
+    totalTargets += length;
+  }
+  if (maxTargets > WEATHER_WARNING_FORECAST_READER_MAX_RAW_TARGET_ITEMS_PER_GROUP) {
+    reasons.push({ code: "targetsPerGroup", actual: maxTargets, limit: 1_024 });
+  }
+  if (totalTargets > WEATHER_WARNING_FORECAST_READER_MAX_RAW_TARGET_ITEMS_PER_SUBJECT) {
+    reasons.push({ code: "targetsPerSubject", actual: totalTargets, limit: 1_024 });
+  }
+  if (reasons.length > 0) return reasons;
+  let maxPeriods = 0;
+  let totalPeriods = 0;
+  for (const group of value.groups) {
+    if (!isRecord(group) || !Array.isArray(group.targets)) continue;
+    for (const target of group.targets) {
+      const length = isRecord(target) && Array.isArray(target.periods) ? target.periods.length : 0;
+      maxPeriods = Math.max(maxPeriods, length);
+      totalPeriods += length;
+    }
+  }
+  if (maxPeriods > WEATHER_WARNING_FORECAST_READER_MAX_RAW_PERIOD_ITEMS_PER_TARGET) {
+    reasons.push({ code: "periodsPerTarget", actual: maxPeriods, limit: 1_024 });
+  }
+  if (totalPeriods > WEATHER_WARNING_FORECAST_READER_MAX_RAW_PERIOD_ITEMS_PER_SUBJECT) {
+    reasons.push({ code: "periodsPerSubject", actual: totalPeriods, limit: 1_024 });
+  }
+  return reasons;
+}
+
+function sanitizeVpwp50Period(
+  value: unknown,
+  subjectKey: string,
+  revision: StandbyRevision,
+  groupKey: string,
+  targetKey: string,
+): DisplayWeatherWarningForecastPeriodV1 | null {
+  if (!isRecord(value)
+    || !isVpwp50DerivedKey(value.key)
+    || !Number.isSafeInteger(value.tsNum) || ![1, 2, 3].includes(value.tsNum as number)
+    || !["3h", "24h", "day"].includes(value.series as string)
+    || typeof value.startsAt !== "string" || typeof value.endsAt !== "string"
+    || typeof value.label !== "string"
+    || !isVpwp50DerivedKey(value.pagerAnchorKey)
+    || !Number.isSafeInteger(value.pagerAnchorOrdinal) || (value.pagerAnchorOrdinal as number) < 0
+    || !Number.isSafeInteger(value.pagerSlot) || ![0, 1, 2, 3].includes(value.pagerSlot as number)) return null;
+  const startsAtMs = parseVpwp50Iso(value.startsAt);
+  const endsAtMs = parseVpwp50Iso(value.endsAt);
+  if (startsAtMs == null || endsAtMs == null || startsAtMs >= endsAtMs) return null;
+  const tsNum = value.tsNum as 1 | 2 | 3;
+  const series = value.series as "3h" | "24h" | "day";
+  const expectedKey = vpwp50StableKey("period", [
+    groupKey, targetKey, tsNum, series, value.startsAt, value.endsAt,
+  ]);
+  const serial = normalizeVpwp50RevisionSerial(revision.serial);
+  if (serial === undefined) return null;
+  const expectedAnchor = vpwp50StableKey("anchor", [
+    subjectKey, revision.reportTimeMs, serial, groupKey, targetKey,
+    value.pagerAnchorOrdinal as number,
+  ]);
+  if (value.key !== expectedKey || value.pagerAnchorKey !== expectedAnchor
+    || value.label !== vpwp50ForecastPeriodLabel(value.startsAt, value.endsAt)) return null;
+  return {
+    key: value.key,
+    tsNum,
+    series,
+    startsAt: value.startsAt,
+    endsAt: value.endsAt,
+    label: value.label,
+    pagerAnchorKey: value.pagerAnchorKey,
+    pagerAnchorOrdinal: value.pagerAnchorOrdinal as number,
+    pagerSlot: value.pagerSlot as 0 | 1 | 2 | 3,
+  };
+}
+
+interface SanitizedVpwp50Target {
+  value: DisplayWeatherWarningForecastTargetV1;
+  raw: unknown;
+  areaIdentityKey: string;
+  localIdentityKey: string | null;
+}
+
+function sanitizeVpwp50Target(
+  value: unknown,
+  subjectKey: string,
+  revision: StandbyRevision,
+  groupKey: string,
+  nowMs: number,
+  witness: Vpwp50ExcludedWitness,
+): SanitizedVpwp50Target | null {
+  if (!isRecord(value) || !Array.isArray(value.periods)
+    || !isVpwp50DerivedKey(value.key)
+    || (value.scope !== "area" && value.scope !== "local")
+    || !canonicalVpwp50Name(value.name, value.scope === "area"
+      ? VPWP50_MAX_AREA_NAME_LENGTH : VPWP50_MAX_LOCAL_NAME_LENGTH)
+    || !canonicalVpwp50Name(value.parentAreaName, VPWP50_MAX_AREA_NAME_LENGTH)
+    || !canonicalVpwp50OptionalToken(value.areaCode, VPWP50_MAX_AREA_CODE_LENGTH)
+    || !canonicalVpwp50OptionalToken(value.localCode, VPWP50_MAX_LOCAL_CODE_LENGTH)
+    || value.scope === "area" && (value.name !== value.parentAreaName || value.localCode !== null)) {
+    recordVpwp50RawPeriodWitness(value, witness, "target");
+    return null;
+  }
+  const areaIdentityKey = value.areaCode == null
+    ? `name:${value.parentAreaName}` : `code:${value.areaCode}`;
+  const localIdentityKey = value.scope === "local"
+    ? value.localCode == null ? `name:${value.name}` : `code:${value.localCode}`
+    : null;
+  const expectedKey = value.scope === "area"
+    ? vpwp50StableKey("target", [subjectKey, "area", areaIdentityKey])
+    : vpwp50StableKey("target", [subjectKey, "local", areaIdentityKey, localIdentityKey]);
+  if (value.key !== expectedKey) {
+    recordVpwp50RawPeriodWitness(value, witness, "target");
+    return null;
+  }
+  const targetKey = value.key as string;
+  const candidates = value.periods.map((raw) => ({
+    raw,
+    period: sanitizeVpwp50Period(raw, subjectKey, revision, groupKey, targetKey),
+  }));
+  const keyCounts = new Map<string, number>();
+  const anchorSlotCounts = new Map<string, number>();
+  for (const candidate of candidates) {
+    if (candidate.period == null) continue;
+    keyCounts.set(candidate.period.key, (keyCounts.get(candidate.period.key) ?? 0) + 1);
+    const anchorSlot = `${candidate.period.pagerAnchorKey}\u0000${candidate.period.pagerSlot}`;
+    anchorSlotCounts.set(anchorSlot, (anchorSlotCounts.get(anchorSlot) ?? 0) + 1);
+  }
+  const periods: DisplayWeatherWarningForecastPeriodV1[] = [];
+  for (const candidate of candidates) {
+    const period = candidate.period;
+    const duplicate = period != null && ((keyCounts.get(period.key) ?? 0) > 1
+      || (anchorSlotCounts.get(`${period.pagerAnchorKey}\u0000${period.pagerSlot}`) ?? 0) > 1);
+    if (period == null || duplicate) {
+      recordVpwp50RawPeriodWitness(candidate.raw, witness, "period");
+      continue;
+    }
+    periods.push(period);
+  }
+  periods.sort(periodCanonicalOrder);
+  const anchorCounts = new Map<string, number>();
+  for (const period of periods) {
+    anchorCounts.set(period.pagerAnchorKey, (anchorCounts.get(period.pagerAnchorKey) ?? 0) + 1);
+  }
+  if (periods.length > WEATHER_WARNING_FORECAST_MAX_PERIODS_PER_TARGET
+    || [...anchorCounts.values()].some((count) => count > WEATHER_WARNING_FORECAST_PERIODS_PER_ATOM)) {
+    recordVpwp50RawPeriodWitness(value, witness, "target");
+    return null;
+  }
+  if (periods.length === 0) return null;
+  return {
+    raw: value,
+    areaIdentityKey,
+    localIdentityKey,
+    value: {
+      key: targetKey,
+      scope: value.scope,
+      name: value.name,
+      parentAreaName: value.parentAreaName,
+      areaCode: value.areaCode,
+      localCode: value.localCode,
+      periods,
+    },
+  };
+}
+
+interface SanitizedVpwp50Group {
+  value: DisplayWeatherWarningForecastGroupV1;
+  raw: unknown;
+  targets: SanitizedVpwp50Target[];
+}
+
+function sanitizeVpwp50Group(
+  value: unknown,
+  subjectKey: string,
+  revision: StandbyRevision,
+  nowMs: number,
+  witness: Vpwp50ExcludedWitness,
+): SanitizedVpwp50Group | null {
+  if (!isRecord(value) || !Array.isArray(value.targets)
+    || !isVpwp50DerivedKey(value.key)
+    || !canonicalVpwp50Name(value.phenomenonName, VPWP50_MAX_PHENOMENON_NAME_LENGTH)
+    || !canonicalVpwp50Token(value.significancyCode, VPWP50_MAX_SIGNIFICANCY_CODE_LENGTH)
+    || !canonicalVpwp50Name(value.forecastLabel, VPWP50_MAX_FORECAST_LABEL_LENGTH)
+    || typeof value.displaySeverity !== "string"
+    || !["info", "normal", "warning", "critical"].includes(value.severity as string)) {
+    recordVpwp50RawPeriodWitness(value, witness, "group");
+    return null;
+  }
+  const significancy = classifySignificancyCode(value.phenomenonName, value.significancyCode);
+  const forecastLabel = vpwp50ForecastLabel(value.phenomenonName, significancy);
+  const resolved = resolveVpwp50Significancy(significancy);
+  const displaySeverity = resolved?.displaySeverity ?? "unknown";
+  const expectedKey = vpwp50StableKey("group", [
+    value.phenomenonName, value.significancyCode, forecastLabel, displaySeverity,
+  ]);
+  if (forecastLabel == null || forecastLabel !== value.forecastLabel
+    || displaySeverity !== value.displaySeverity || value.key !== expectedKey
+    || value.severity !== vpwp50ForecastStandbySeverity(displaySeverity)) {
+    recordVpwp50RawPeriodWitness(value, witness, "group");
+    return null;
+  }
+  const groupKey = value.key as string;
+  const targets = value.targets.map((target) =>
+    sanitizeVpwp50Target(target, subjectKey, revision, groupKey, nowMs, witness));
+  const targetKeyCounts = new Map<string, number>();
+  for (const target of targets) if (target != null) {
+    targetKeyCounts.set(target.value.key, (targetKeyCounts.get(target.value.key) ?? 0) + 1);
+  }
+  const retained: SanitizedVpwp50Target[] = [];
+  for (const target of targets) {
+    if (target == null) continue;
+    if ((targetKeyCounts.get(target.value.key) ?? 0) > 1) {
+      recordVpwp50RawPeriodWitness(target.raw, witness, "target");
+      continue;
+    }
+    retained.push(target);
+  }
+  retained.sort((left, right) =>
+    compareCodeUnitString(left.value.scope, right.value.scope)
+    || compareCodeUnitString(left.value.areaCode ?? "", right.value.areaCode ?? "")
+    || compareCodeUnitString(left.value.localCode ?? "", right.value.localCode ?? "")
+    || compareCodeUnitString(left.value.key, right.value.key)
+    || compareCodeUnitString(left.value.name, right.value.name));
+  if (retained.length > WEATHER_WARNING_FORECAST_MAX_TARGETS_PER_GROUP) {
+    recordVpwp50RawPeriodWitness(value, witness, "group");
+    return null;
+  }
+  if (retained.length === 0) return null;
+  return {
+    raw: value,
+    targets: retained,
+    value: {
+      key: groupKey,
+      phenomenonName: value.phenomenonName,
+      significancyCode: value.significancyCode,
+      forecastLabel: value.forecastLabel,
+      displaySeverity,
+      severity: value.severity as "info" | "normal" | "warning" | "critical",
+      targets: retained.map((target) => target.value),
+    },
+  };
+}
+
+interface Vpwp50ProjectionScalarClaim {
+  raw: Record<string, unknown>;
+  subjectKey: string;
+  sourceEventId: string;
+  publishingOffice: string;
+  targetAreaName: string | null;
+  targetAreaCode: string | null;
+  groups: unknown[];
+  revision: StandbyRevision;
+  appliedSemanticKey: string;
+}
+
+/**
+ * Projection routing is intentionally scalar-only. In particular, this helper
+ * proves that `groups` is a container but does not read its length or enumerate
+ * any group, target, or period child. Reader coupling must finish before the
+ * nested length-only preflight is allowed to inspect those containers.
+ */
+function vpwp50ProjectionScalarClaim(
+  value: unknown,
+): Vpwp50ProjectionScalarClaim | null {
+  if (!isRecord(value)) return null;
+  const rawRevision = isRecord(value.revision) ? value.revision : null;
+  const serial = rawRevision == null || !(rawRevision.serial === null || typeof rawRevision.serial === "string")
+    ? undefined : normalizeVpwp50RevisionSerial(rawRevision.serial);
+  if (!isVpwp50Subject(value.subjectKey)
+    || !canonicalVpwp50Token(value.sourceEventId, VPWP50_MAX_SOURCE_EVENT_ID_LENGTH)
+    || !canonicalVpwp50Name(value.publishingOffice, VPWP50_MAX_PUBLISHING_OFFICE_LENGTH)
+    || !canonicalVpwp50OptionalName(value.targetAreaName, VPWP50_MAX_AREA_NAME_LENGTH)
+    || !canonicalVpwp50OptionalToken(value.targetAreaCode, VPWP50_MAX_AREA_CODE_LENGTH)
+    || !Array.isArray(value.groups)
+    || rawRevision == null || !validPersistenceEpoch(rawRevision.reportTimeMs)
+    || serial === undefined
+    || typeof value.appliedSemanticKey !== "string"
+    || !VPWP50_APPLIED_SEMANTIC_KEY_PATTERN.test(value.appliedSemanticKey)) return null;
+  return {
+    raw: value,
+    subjectKey: value.subjectKey,
+    sourceEventId: value.sourceEventId,
+    publishingOffice: value.publishingOffice,
+    targetAreaName: value.targetAreaName,
+    targetAreaCode: value.targetAreaCode,
+    groups: value.groups,
+    revision: { reportTimeMs: rawRevision.reportTimeMs, serial },
+    appliedSemanticKey: value.appliedSemanticKey,
+  };
+}
+
+function sanitizeVpwp50Projection(
+  value: unknown,
+  nowMs: number,
+): WeatherWarningForecastState | null {
+  const claim = vpwp50ProjectionScalarClaim(value);
+  if (claim == null) return null;
+  const nestedReasons = vpwp50NestedRawPreflight(claim.raw);
+  if (nestedReasons.length > 0) {
+    warnVpwp50PersistenceDiagnostic(
+      "vpwp50ReaderNestedRawLimitExceeded",
+      `subject=${JSON.stringify(claim.subjectKey)} reasons=${JSON.stringify(nestedReasons)}`,
+    );
+    recordRepair("root.weatherWarningForecasts", "subject", 1, 0, "limit-exceeded");
+    return null;
+  }
+  const { revision, subjectKey } = claim;
+  const witness: Vpwp50ExcludedWitness = {
+    ends: [], unknownEnds: 0, kinds: new Set(), count: 0,
+  };
+  const candidates = claim.groups.map((group) =>
+    sanitizeVpwp50Group(group, subjectKey, revision, nowMs, witness));
+  const groupCounts = new Map<string, number>();
+  for (const group of candidates) if (group != null) {
+    groupCounts.set(group.value.key, (groupCounts.get(group.value.key) ?? 0) + 1);
+  }
+  let groups = candidates.flatMap((group) => {
+    if (group == null) return [];
+    if ((groupCounts.get(group.value.key) ?? 0) > 1) {
+      recordVpwp50RawPeriodWitness(group.raw, witness, "group");
+      return [];
+    }
+    return [group];
+  });
+  const areaNames = new Map<string, Set<string>>();
+  const localNames = new Map<string, Set<string>>();
+  for (const group of groups) for (const target of group.targets) {
+    const areas = areaNames.get(target.areaIdentityKey) ?? new Set<string>();
+    areas.add(target.value.parentAreaName);
+    areaNames.set(target.areaIdentityKey, areas);
+    if (target.localIdentityKey != null) {
+      const token = `${target.areaIdentityKey}\u0000${target.localIdentityKey}`;
+      const locals = localNames.get(token) ?? new Set<string>();
+      locals.add(target.value.name);
+      localNames.set(token, locals);
+    }
+  }
+  const conflictingAreas = new Set([...areaNames].filter(([, names]) => names.size > 1).map(([key]) => key));
+  const conflictingLocals = new Set([...localNames].filter(([, names]) => names.size > 1).map(([key]) => key));
+  if (conflictingAreas.size > 0) warnVpwp50PersistenceDiagnostic(
+    "vpwp50PersistedAreaIdentityConflict",
+      `subject=${claim.subjectKey} identities=${JSON.stringify([...conflictingAreas].sort(compareCodeUnitString).slice(0, 8))}`,
+  );
+  if (conflictingLocals.size > 0) warnVpwp50PersistenceDiagnostic(
+    "vpwp50PersistedLocalIdentityConflict",
+      `subject=${claim.subjectKey} identities=${JSON.stringify([...conflictingLocals].sort(compareCodeUnitString).slice(0, 8))}`,
+  );
+  groups = groups.map((group) => {
+    const retainedTargets = group.targets.filter((target) => {
+      const localToken = target.localIdentityKey == null
+        ? null : `${target.areaIdentityKey}\u0000${target.localIdentityKey}`;
+      const conflicted = conflictingAreas.has(target.areaIdentityKey)
+        || localToken != null && conflictingLocals.has(localToken);
+      if (conflicted) recordVpwp50RawPeriodWitness(target.raw, witness, "target");
+      return !conflicted;
+    });
+    return { ...group, targets: retainedTargets, value: { ...group.value, targets: retainedTargets.map((target) => target.value) } };
+  }).filter((group) => group.targets.length > 0);
+  const canonicalGroups = sortWeatherWarningForecastGroups(groups.map((group) => group.value));
+  const periodEnds = canonicalGroups.flatMap((group) => group.targets.flatMap((target) =>
+    target.periods.map((period) => Date.parse(period.endsAt))));
+  const deepValidMax = periodEnds.length === 0 ? null : Math.max(...periodEnds);
+  const outer = validPersistenceEpoch(claim.raw.expiresAtMs) ? claim.raw.expiresAtMs : null;
+  const retainedOuterWitness = outer != null && periodEnds.includes(outer);
+  const removedWitness = witness.unknownEnds > 0 || outer != null && (
+    witness.ends.some((end) => end > outer)
+    || witness.ends.some((end) => end === outer) && !retainedOuterWitness
+  );
+  const couplingReasons = [
+    ...(outer == null ? ["invalidOuterExpiry"] : []),
+    ...(removedWitness ? ["removedExpiryWitness"] : []),
+    ...(outer != null && (deepValidMax == null || deepValidMax !== outer)
+      ? ["outerDerivedMismatch"] : []),
+  ];
+  if (couplingReasons.length > 0) {
+    const excludedChildKinds = (["period", "target", "group"] as const)
+      .filter((kind) => witness.kinds.has(kind));
+    warnVpwp50PersistenceDiagnostic(
+      "vpwp50SubjectExpiryCouplingRejected",
+      JSON.stringify({
+        subjectKey: claim.subjectKey,
+        persistedExpiresAtMs: outer,
+        retainedMaxEndsAtMs: deepValidMax,
+        excludedUnknownEndsAtCount: witness.unknownEnds,
+        excludedChildKinds,
+        excludedChildCount: witness.count,
+        reasons: couplingReasons,
+        canonicalRewriteRequired: true,
+      }),
+    );
+    recordRepair("root.weatherWarningForecasts", "subject", 1, 0, "coupling-mismatch");
+    return null;
+  }
+  const retainedGroups = sortWeatherWarningForecastGroups(canonicalGroups.map((group) => ({
+    ...group,
+    targets: group.targets.map((target) => ({
+      ...target,
+      periods: target.periods.filter((period) => Date.parse(period.endsAt) > nowMs),
+    })).filter((target) => target.periods.length > 0),
+  })).filter((group) => group.targets.length > 0));
+  const retainedEnds = retainedGroups.flatMap((group) => group.targets.flatMap((target) =>
+    target.periods.map((period) => Date.parse(period.endsAt))));
+  if (retainedGroups.length === 0 || retainedEnds.length === 0) return null;
+  if (retainedGroups.length > WEATHER_WARNING_FORECAST_MAX_GROUPS_PER_SUBJECT
+    || retainedEnds.length > WEATHER_WARNING_FORECAST_MAX_PERIODS_PER_SUBJECT) return null;
+  const state: WeatherWarningForecastState = {
+    subjectKey,
+    sourceEventId: claim.sourceEventId,
+    publishingOffice: claim.publishingOffice,
+    targetAreaName: claim.targetAreaName,
+    targetAreaCode: claim.targetAreaCode,
+    groups: retainedGroups,
+    revision,
+    appliedSemanticKey: claim.appliedSemanticKey,
+    expiresAtMs: Math.max(...retainedEnds),
+    restored: true,
+  };
+  if (weatherWarningForecastProjectionLimitReasons([state]).length > 0) return null;
+  return state;
+}
+
+function sanitizeCoupledVpwp50Projections(
+  value: unknown,
+  gates: readonly PersistedTelegramRevisionGateEntryV2[],
+  nowMs: number,
+): PersistedWeatherWarningForecastStateV1[] {
+  if (!Array.isArray(value)) {
+    recordRepair("root.weatherWarningForecasts", "subject", 1, 0, "invalid-container", true);
+    return [];
+  }
+  if (value.length > WEATHER_WARNING_FORECAST_READER_MAX_RAW_PROJECTION_ITEMS) {
+    warnVpwp50PersistenceDiagnostic(
+      "vpwp50ReaderRawLimitExceeded",
+      `container=weatherWarningForecasts actual=${value.length} limit=${WEATHER_WARNING_FORECAST_READER_MAX_RAW_PROJECTION_ITEMS}`,
+    );
+    recordRepair("root.weatherWarningForecasts", "subject", value.length, 0, "limit-exceeded", true);
+    return [];
+  }
+  const subjectCounts = new Map<string, number>();
+  for (const item of value) {
+    const subject = isRecord(item) ? vpwp50ClaimedSubject(item.subjectKey) : null;
+    if (subject != null) subjectCounts.set(subject, (subjectCounts.get(subject) ?? 0) + 1);
+  }
+  const gateBySubject = new Map(gates.filter((gate) =>
+    gate.domain === "weatherWarningTimeseries" && gate.revisionFamily === "VPWP50")
+    .map((gate) => [gate.stateSubjectKey, gate]));
+  let couplingRejected = 0;
+  const states = value.flatMap((item) => {
+    const claimedSubject = isRecord(item) ? vpwp50ClaimedSubject(item.subjectKey) : null;
+    if (claimedSubject != null && (subjectCounts.get(claimedSubject) ?? 0) > 1) return [];
+    const claim = vpwp50ProjectionScalarClaim(item);
+    if (claim == null) return [];
+    const gate = gateBySubject.get(claim.subjectKey);
+    if (gate == null || !vpwp50ProjectionMatchesGate(claim, gate)) {
+      couplingRejected += 1;
+      return [];
+    }
+    const state = sanitizeVpwp50Projection(item, nowMs);
+    if (state == null) return [];
+    const { restored: _restored, ...persisted } = state;
+    return [persisted];
+  });
+  const discarded = value.length - states.length;
+  if (discarded > 0) recordRepair(
+    "root.weatherWarningForecasts", "subject", discarded, states.length,
+    [...subjectCounts.values()].some((count) => count > 1)
+      ? "duplicate-subject"
+      : couplingRejected > 0 ? "coupling-mismatch" : "invalid-entry",
+  );
+  return states.sort((left, right) => compareCodeUnitString(left.subjectKey, right.subjectKey));
+}
+
+function vpwp50SemanticStatusIsValid(
+  infoType: unknown,
+  semanticKeys: readonly string[],
+  cancelled: boolean,
+): boolean {
+  if (infoType !== "発表" && infoType !== "訂正" && infoType !== "取消") return false;
+  if (semanticKeys.length > TELEGRAM_REVISION_MAX_SEMANTIC_KEYS
+    || new Set(semanticKeys).size !== semanticKeys.length
+    || semanticKeys.some((key) => !VPWP50_GATE_SEMANTIC_KEY_PATTERN.test(key))) return false;
+  if (!cancelled) {
+    return (infoType === "発表" || infoType === "訂正")
+      && semanticKeys.length > 0
+      && semanticKeys.every((key) => key.startsWith("発表:") || key.startsWith("訂正:"))
+      && semanticKeys.at(-1)!.startsWith(`${infoType}:`);
+  }
+  if (infoType !== "取消") return false;
+  return semanticKeys.length === 0 || semanticKeys.at(-1)!.startsWith("取消:");
+}
+
+function canonicalVpwp50Comparison(
+  value: unknown,
+  subjectKey: string,
+): TelegramRevisionComparisonInput | null {
+  if (!isRecord(value) || value.stateSubjectKey !== subjectKey || !isRecord(value.revision)) return null;
+  const revision = value.revision;
+  if (!isRecord(revision.eventId)
+    || revision.eventId.raw !== subjectKey || revision.eventId.value !== subjectKey
+    || revision.eventId.valid !== true
+    || !isRecord(revision.type)
+    || revision.type.raw !== "VPWP50" || revision.type.value !== "VPWP50"
+    || revision.type.valid !== true
+    || !isRecord(revision.reportDateTime)
+    || typeof revision.reportDateTime.raw !== "string"
+    || !validPersistenceEpoch(revision.reportDateTime.epochMs)
+    || revision.reportDateTime.valid !== true
+    || parseVpwp50Iso(revision.reportDateTime.raw) !== revision.reportDateTime.epochMs
+    || !isRecord(revision.serial)
+    || !isRecord(revision.infoType)
+    || revision.infoType.valid !== true
+    || revision.infoType.raw !== revision.infoType.value) return null;
+  const serialRaw = revision.serial.raw;
+  const normalized = serialRaw === null || typeof serialRaw === "string"
+    ? normalizeVpwp50RevisionSerial(serialRaw) : undefined;
+  if (normalized === undefined) return null;
+  if (normalized == null) {
+    if (revision.serial.raw !== null || revision.serial.numeric !== null
+      || revision.serial.valid !== false) return null;
+  } else {
+    if (revision.serial.raw !== normalized
+      || revision.serial.numeric !== Number(normalized)
+      || revision.serial.valid !== true) return null;
+  }
+  return structuredClone(value) as unknown as TelegramRevisionComparisonInput;
+}
+
+/** v1 migration accepts lossless source forms and emits the strict v2 form. */
+function normalizeVpwp50ComparisonForMigration(
+  value: unknown,
+  subjectKey: string,
+): TelegramRevisionComparisonInput | null {
+  if (!isRecord(value) || value.stateSubjectKey !== subjectKey || !isRecord(value.revision)) return null;
+  const revision = value.revision;
+  if (!isRecord(revision.eventId)
+    || revision.eventId.raw !== subjectKey || revision.eventId.value !== subjectKey
+    || revision.eventId.valid !== true
+    || !isRecord(revision.type)
+    || revision.type.raw !== "VPWP50" || revision.type.value !== "VPWP50"
+    || revision.type.valid !== true
+    || !isRecord(revision.reportDateTime)
+    || typeof revision.reportDateTime.raw !== "string"
+    || !validPersistenceEpoch(revision.reportDateTime.epochMs)
+    || revision.reportDateTime.valid !== true
+    || parseVpwp50MigrationIso(revision.reportDateTime.raw) !== revision.reportDateTime.epochMs
+    || !isRecord(revision.serial)
+    || !isRecord(revision.infoType)
+    || revision.infoType.valid !== true
+    || revision.infoType.raw !== revision.infoType.value) return null;
+  const rawSerial = revision.serial.raw;
+  if (!(rawSerial === null || typeof rawSerial === "string")) return null;
+  const normalizedSerial = normalizeVpwp50RevisionSerial(rawSerial);
+  if (normalizedSerial === undefined) return null;
+  if (normalizedSerial == null) {
+    if (revision.serial.numeric !== null || revision.serial.valid !== false) return null;
+  } else if (revision.serial.numeric !== Number(normalizedSerial)
+    || revision.serial.valid !== true) return null;
+  const candidate = structuredClone(value) as unknown as TelegramRevisionComparisonInput;
+  candidate.revision.reportDateTime = {
+    raw: new Date(revision.reportDateTime.epochMs).toISOString(),
+    epochMs: revision.reportDateTime.epochMs,
+    valid: true,
+  };
+  candidate.revision.serial = normalizedSerial == null
+    ? { raw: null, numeric: null, valid: false }
+    : { raw: normalizedSerial, numeric: Number(normalizedSerial), valid: true };
+  return canonicalVpwp50Comparison(candidate, subjectKey);
+}
+
+function sanitizeVpwp50GateMetadataItem(
+  value: unknown,
+): PersistedWeatherWarningForecastGateMetadataV1 | null {
+  if (!isRecord(value) || !isVpwp50Subject(value.stateSubjectKey)
+    || !Array.isArray(value.semanticKeys)
+    || value.semanticKeys.some((key) => typeof key !== "string")
+    || typeof value.cancelled !== "boolean") return null;
+  const comparison = normalizeVpwp50ComparisonForMigration(
+    value.comparison,
+    value.stateSubjectKey,
+  );
+  if (comparison == null || !vpwp50SemanticStatusIsValid(
+    comparison.revision.infoType.value,
+    value.semanticKeys as string[],
+    value.cancelled,
+  )) return null;
+  return {
+    stateSubjectKey: value.stateSubjectKey,
+    comparison,
+    semanticKeys: [...value.semanticKeys] as string[],
+    cancelled: value.cancelled,
+  };
+}
+
+function sanitizeVpwp50GateMetadata(
+  value: unknown,
+): PersistedWeatherWarningForecastGateMetadataV1[] {
+  if (!Array.isArray(value)) {
+    warnVpwp50PersistenceDiagnostic("vpwp50V1GateMetadataPresentInvalid");
+    recordRepair("root.weatherWarningForecastGateMetadata", "subject", 1, 0, "invalid-container", true);
+    return [];
+  }
+  if (value.length > WEATHER_WARNING_FORECAST_READER_MAX_RAW_METADATA_ITEMS) {
+    warnVpwp50PersistenceDiagnostic(
+      "vpwp50ReaderRawLimitExceeded",
+      `container=weatherWarningForecastGateMetadata actual=${value.length} limit=${WEATHER_WARNING_FORECAST_READER_MAX_RAW_METADATA_ITEMS}`,
+    );
+    recordRepair("root.weatherWarningForecastGateMetadata", "subject", value.length, 0, "limit-exceeded", true);
+    return [];
+  }
+  const claimedCounts = new Map<string, number>();
+  for (const item of value) {
+    const subject = isRecord(item) ? vpwp50ClaimedSubject(item.stateSubjectKey) : null;
+    if (subject != null) claimedCounts.set(subject, (claimedCounts.get(subject) ?? 0) + 1);
+  }
+  const retained = value.flatMap((item) => {
+    const claimedSubject = isRecord(item)
+      ? vpwp50ClaimedSubject(item.stateSubjectKey)
+      : null;
+    if (claimedSubject != null && (claimedCounts.get(claimedSubject) ?? 0) > 1) return [];
+    const metadata = sanitizeVpwp50GateMetadataItem(item);
+    if (metadata == null) {
+      if (claimedSubject != null) warnVpwp50PersistenceDiagnostic(
+        "vpwp50V1GateMetadataInvalidClaimedSubject",
+        `subject=${claimedSubject}`,
+      );
+      return [];
+    }
+    return [metadata];
+  });
+  for (const [subject, count] of claimedCounts) if (count > 1) {
+    warnVpwp50PersistenceDiagnostic(
+      "vpwp50V1GateMetadataDuplicateClaimedSubject",
+      `subject=${subject}`,
+    );
+  }
+  if (retained.length !== value.length) recordRepair(
+    "root.weatherWarningForecastGateMetadata",
+    "subject",
+    value.length - retained.length,
+    retained.length,
+    [...claimedCounts.values()].some((count) => count > 1) ? "duplicate-subject" : "invalid-entry",
+  );
+  return retained.sort((left, right) => compareCodeUnitString(left.stateSubjectKey, right.stateSubjectKey));
+}
+
+function sanitizeVpwp50GateEntry(
+  value: PersistedTelegramRevisionGateEntryV2,
+  nowMs: number,
+): PersistedTelegramRevisionGateEntryV2 | null {
+  if (value.domain !== "weatherWarningTimeseries" || value.revisionFamily !== "VPWP50"
+    || !isVpwp50Subject(value.stateSubjectKey)
+    || value.tombstoneRetentionMs !== WEATHER_TIMESERIES_RETENTION_MS
+    || !validPersistenceEpoch(value.acceptedAtMs)
+    || value.acceptedAtMs > nowMs + VPWP50_ACCEPTED_AT_FUTURE_SKEW_MS
+    || !Array.isArray(value.semanticKeys)
+    || typeof value.cancelled !== "boolean") return null;
+  const comparison = canonicalVpwp50Comparison(value.comparison, value.stateSubjectKey);
+  if (comparison == null
+    || comparison.revision.reportDateTime.epochMs! > value.acceptedAtMs + VPWP50_REPORT_FUTURE_SKEW_MS
+    || !vpwp50SemanticStatusIsValid(
+      comparison.revision.infoType.value,
+      value.semanticKeys,
+      value.cancelled,
+    )) return null;
+  return { ...structuredClone(value), comparison };
+}
+
+/**
+ * Live TelegramMeta keeps the source offset and zero-padded Serial for revision
+ * comparison. Persistence has a stricter canonical representation, so convert
+ * those two lossless forms before applying the fail-loud writer invariant.
+ */
+function normalizeVpwp50GateEntryForWrite(
+  value: PersistedTelegramRevisionGateEntryV2,
+  nowMs: number,
+): PersistedTelegramRevisionGateEntryV2 | null {
+  const comparison = normalizeVpwp50ComparisonForMigration(
+    value.comparison,
+    value.stateSubjectKey,
+  );
+  if (comparison == null) return null;
+  const candidate = structuredClone(value);
+  candidate.comparison = comparison;
+  return sanitizeVpwp50GateEntry(candidate, nowMs);
+}
+
+function vpwp50GateMetadata(
+  entries: readonly PersistedTelegramRevisionGateEntryV2[],
+): PersistedWeatherWarningForecastGateMetadataV1[] {
+  return entries.filter((entry) =>
+    entry.domain === "weatherWarningTimeseries" && entry.revisionFamily === "VPWP50")
+    .sort((left, right) => compareCodeUnitString(left.stateSubjectKey, right.stateSubjectKey))
+    .map((entry) => ({
+      stateSubjectKey: entry.stateSubjectKey,
+      comparison: structuredClone(entry.comparison),
+      semanticKeys: [...entry.semanticKeys],
+      cancelled: entry.cancelled,
+    }));
+}
+
+function vpwp50LegacySeenEntries(
+  entries: readonly PersistedTelegramRevisionGateEntryV2[],
+): PersistedSeenEntry[] {
+  return entries.flatMap((entry) => {
+    if (entry.domain !== "weatherWarningTimeseries" || entry.revisionFamily !== "VPWP50") return [];
+    const reportTimeMs = entry.comparison.revision.reportDateTime.epochMs;
+    if (reportTimeMs == null || !Number.isSafeInteger(entry.acceptedAtMs + WEATHER_TIMESERIES_RETENTION_MS + 1)) return [];
+    return [{
+      key: entry.stateSubjectKey,
+      revision: { reportTimeMs, serial: entry.comparison.revision.serial.raw },
+      forgetAtMs: entry.acceptedAtMs + WEATHER_TIMESERIES_RETENTION_MS + 1,
+    }];
+  });
+}
+
 function rawHasVptaEvidence(value: Record<string, unknown>): boolean {
   if (Object.hasOwn(value, "typhoonProbabilities")
     || Object.hasOwn(value, "typhoonProbabilityGateMetadata")) return true;
@@ -2176,9 +3186,43 @@ function validDomainArray<T>(
   return entries;
 }
 
+function sanitizeSharedSeenEntries(value: unknown): PersistedSeenEntry[] {
+  if (!Array.isArray(value)) {
+    recordRepair("root.seen", "entry", 1, 0, "invalid-container", true);
+    return [];
+  }
+  if (value.length > TELEGRAM_REVISION_MAX_ENTRIES) {
+    warnVpwp50PersistenceDiagnostic(
+      "vpwp50ReaderSharedContainerLimitExceeded",
+      `container=seen actual=${value.length} limit=${TELEGRAM_REVISION_MAX_ENTRIES}`,
+    );
+    recordRepair("root.seen", "entry", value.length, 0, "limit-exceeded", true);
+    return [];
+  }
+  const validated = value.filter(isSeenEntry);
+  const vpwp50RawCount = value.filter((entry) => isRecord(entry)
+    && typeof entry.key === "string" && entry.key.trim().startsWith("weatherTimeseries:")).length;
+  const retained = vpwp50RawCount > WEATHER_WARNING_FORECAST_READER_MAX_RAW_SEEN_ITEMS
+    ? validated.filter((entry) => vpwp50SubjectFromSeenKey(entry.key) == null)
+    : validated;
+  if (vpwp50RawCount > WEATHER_WARNING_FORECAST_READER_MAX_RAW_SEEN_ITEMS) {
+    warnVpwp50PersistenceDiagnostic(
+      "vpwp50ReaderRawLimitExceeded",
+      `container=seen actual=${vpwp50RawCount} limit=${WEATHER_WARNING_FORECAST_READER_MAX_RAW_SEEN_ITEMS}`,
+    );
+  }
+  if (retained.length !== value.length) recordRepair(
+    "root.seen", "entry", value.length - retained.length, retained.length,
+    vpwp50RawCount > WEATHER_WARNING_FORECAST_READER_MAX_RAW_SEEN_ITEMS
+      ? "limit-exceeded" : "invalid-entry",
+  );
+  return retained;
+}
+
 function sanitizePersistedStandbyStateV1(value: unknown): PersistedStandbyStateV1 | null {
   if (!isRecord(value) || value.version !== 1 || typeof value.savedAt !== "string") return null;
   const metadataMode = optionalArrayMode(value, "typhoonProbabilityGateMetadata");
+  const vpwp50MetadataMode = optionalArrayMode(value, "weatherWarningForecastGateMetadata");
   if (metadataMode === "present-invalid") {
     warnVptaPersistenceDiagnostic("vpta50V1GateMetadataPresentInvalid");
   } else if (metadataMode === "absent" && rawHasVptaEvidence(value)) {
@@ -2191,6 +3235,9 @@ function sanitizePersistedStandbyStateV1(value: unknown): PersistedStandbyStateV
       && validateTyphoonProbabilityEventId(item.key) === item.key
       && !Object.hasOwn(item, "appliedSemanticKey"))) {
     warnVptaPersistenceDiagnostic("vpta50V1MissingAppliedSemanticKey");
+  }
+  if (vpwp50MetadataMode === "present-invalid") {
+    warnVpwp50PersistenceDiagnostic("vpwp50V1GateMetadataPresentInvalid");
   }
   const floods = value.floods == null ? undefined : sanitizeFloodState(value.floods);
   // floods の container 不正は sanitizeFloodState で source 別 repair report に集約する。
@@ -2214,6 +3261,14 @@ function sanitizePersistedStandbyStateV1(value: unknown): PersistedStandbyStateV
     ...(Object.hasOwn(value, "typhoonProbabilityGateMetadata") ? {
       typhoonProbabilityGateMetadata: sanitizeVptaGateMetadata(value.typhoonProbabilityGateMetadata),
     } : {}),
+    // VPWP50 projections are intentionally omitted here. v1 migration and the
+    // v2 reader first establish authoritative gates from scalar-only claims,
+    // then invoke sanitizeCoupledVpwp50Projections for matching candidates.
+    ...(Object.hasOwn(value, "weatherWarningForecastGateMetadata") ? {
+      weatherWarningForecastGateMetadata: sanitizeVpwp50GateMetadata(
+        value.weatherWarningForecastGateMetadata,
+      ),
+    } : {}),
     volcanoes: sanitizeVolcanoStates(value.volcanoes),
     floods,
     weatherAlerts: sanitizeWeatherAlertStates(value.weatherAlerts),
@@ -2221,7 +3276,7 @@ function sanitizePersistedStandbyStateV1(value: unknown): PersistedStandbyStateV
     longPeriod: validDomainArray(value.longPeriod, isLongPeriodState, "root.longPeriod"),
     quakeHost,
     nankaiTrough,
-    seen: validDomainArray(value.seen, isSeenEntry, "root.seen"),
+    seen: sanitizeSharedSeenEntries(value.seen),
     ...(briefingCritical == null ? {} : { briefingCritical }),
   };
 }
@@ -2567,6 +3622,10 @@ function standbySubjectMatchesPolicy(
   if (entry.domain === "lgObservation" && entry.revisionFamily === "VXSE62") {
     return entry.stateSubjectKey.startsWith("longPeriod:");
   }
+  if (entry.domain === "weatherWarningTimeseries" && entry.revisionFamily === "VPWP50") {
+    return entry.stateSubjectKey.startsWith("weatherTimeseries:")
+      && entry.stateSubjectKey.length <= VPWP50_MAX_SUBJECT_KEY_LENGTH;
+  }
   return false;
 }
 
@@ -2576,8 +3635,10 @@ function normalizeStandbyDomainsFoundationForWrite(
 ): PersistedTelegramFoundationV2["standbyDomains"] {
   const perFamily = new Map<string, PersistedTelegramRevisionGateEntryV2[]>();
   const vptaSubjects = new Set<string>();
+  const vpwp50Subjects = new Set<string>();
   for (const entry of value.gateEntries) {
     const policy = standbyFoundationPolicy(entry);
+    let entryForWrite = entry;
     if (entry.domain === "typhoonProbability" && entry.revisionFamily === "VPTA50"
       && vptaProjectionSubjects !== null
       && (!isGateEntry(entry)
@@ -2587,16 +3648,27 @@ function normalizeStandbyDomainsFoundationForWrite(
       throw new Error("invalid persisted VPTA gate entry");
     }
     if (policy == null || !standbySubjectMatchesPolicy(entry)) continue;
+    if (entry.domain === "weatherWarningTimeseries" && entry.revisionFamily === "VPWP50") {
+      const normalized = normalizeVpwp50GateEntryForWrite(entry, persistenceValidationNowMs());
+      if (normalized == null) throw new Error("invalid persisted VPWP50 gate entry");
+      if (vpwp50Subjects.has(entry.stateSubjectKey)) {
+        throw new Error("invalid persisted VPWP50 gate collection");
+      }
+      vpwp50Subjects.add(entry.stateSubjectKey);
+      entryForWrite = normalized;
+    }
     if (entry.domain === "typhoonProbability" && entry.revisionFamily === "VPTA50") {
       if (vptaSubjects.has(entry.stateSubjectKey)) {
         throw new Error("invalid persisted VPTA gate collection");
       }
       vptaSubjects.add(entry.stateSubjectKey);
     }
-    const normalizedSemanticKeys = entry.domain === "typhoonProbability"
-      && entry.revisionFamily === "VPTA50"
-      ? normalizeVptaPersistedSemanticKeys(entry.semanticKeys)
-      : compactPersistedSemanticKeys(entry.semanticKeys);
+    const normalizedSemanticKeys = entryForWrite.domain === "typhoonProbability"
+      && entryForWrite.revisionFamily === "VPTA50"
+      ? normalizeVptaPersistedSemanticKeys(entryForWrite.semanticKeys)
+      : entryForWrite.domain === "weatherWarningTimeseries" && entryForWrite.revisionFamily === "VPWP50"
+        ? [...entryForWrite.semanticKeys]
+        : compactPersistedSemanticKeys(entryForWrite.semanticKeys);
     if (entry.domain === "typhoonProbability" && entry.revisionFamily === "VPTA50"
       && vptaProjectionSubjects !== null
       && normalizedSemanticKeys.length !== entry.semanticKeys.length) {
@@ -2605,8 +3677,8 @@ function normalizeStandbyDomainsFoundationForWrite(
     const key = `${entry.domain}:${entry.revisionFamily}`;
     const entries = perFamily.get(key) ?? [];
     entries.push({
-      ...structuredClone(entry),
-      tombstoneRetentionMs: entry.tombstoneRetentionMs ?? policy.tombstoneRetentionMs,
+      ...structuredClone(entryForWrite),
+      tombstoneRetentionMs: entryForWrite.tombstoneRetentionMs ?? policy.tombstoneRetentionMs,
       semanticKeys: normalizedSemanticKeys,
     });
     perFamily.set(key, entries);
@@ -2636,6 +3708,15 @@ function normalizeStandbyDomainsFoundationForWrite(
         return entries.filter((entry) => retained.has(entry.stateSubjectKey))
           .sort((left, right) => left.stateSubjectKey < right.stateSubjectKey ? -1 : left.stateSubjectKey > right.stateSubjectKey ? 1 : 0);
       }
+      if (entries[0]?.domain === "weatherWarningTimeseries"
+        && entries[0].revisionFamily === "VPWP50") {
+        if (vptaProjectionSubjects !== null
+          && entries.length > WEATHER_WARNING_FORECAST_MAX_SUBJECTS) {
+          throw new Error("VPWP50 persistence subject capacity exceeded");
+        }
+        return entries.sort((left, right) =>
+          compareCodeUnitString(left.stateSubjectKey, right.stateSubjectKey));
+      }
       return entries.slice(-(policy?.maxSubjects ?? TELEGRAM_REVISION_MAX_ENTRIES));
     }),
   };
@@ -2645,16 +3726,35 @@ function sanitizeStandbyDomainsFoundation(
   value: unknown,
 ): PersistedTelegramFoundationV2["standbyDomains"] | null {
   if (!isRecord(value) || !Array.isArray(value.gateEntries)) return null;
-  const rawVptaSubjectCounts = new Map<string, number>();
-  for (const candidate of value.gateEntries) {
-    if (!isRecord(candidate)
-      || candidate.domain !== "typhoonProbability"
-      || candidate.revisionFamily !== "VPTA50"
-      || typeof candidate.stateSubjectKey !== "string") continue;
-    rawVptaSubjectCounts.set(
-      candidate.stateSubjectKey,
-      (rawVptaSubjectCounts.get(candidate.stateSubjectKey) ?? 0) + 1,
+  if (value.gateEntries.length > TELEGRAM_REVISION_MAX_ENTRIES) {
+    warnVpwp50PersistenceDiagnostic(
+      "vpwp50ReaderSharedContainerLimitExceeded",
+      `container=standbyDomains.gateEntries actual=${value.gateEntries.length} limit=${TELEGRAM_REVISION_MAX_ENTRIES}`,
     );
+    recordRepair(
+      "foundation.standbyDomains", "domain", value.gateEntries.length, 0,
+      "limit-exceeded", true,
+    );
+    return emptyStandbyDomainsFoundation();
+  }
+  const rawVptaSubjectCounts = new Map<string, number>();
+  const rawVpwp50SubjectCounts = new Map<string, number>();
+  for (const candidate of value.gateEntries) {
+    if (!isRecord(candidate) || typeof candidate.stateSubjectKey !== "string") continue;
+    if (candidate.domain === "typhoonProbability" && candidate.revisionFamily === "VPTA50") {
+      rawVptaSubjectCounts.set(
+        candidate.stateSubjectKey,
+        (rawVptaSubjectCounts.get(candidate.stateSubjectKey) ?? 0) + 1,
+      );
+    }
+    if (candidate.domain === "weatherWarningTimeseries"
+      && candidate.revisionFamily === "VPWP50"
+      && typeof candidate.stateSubjectKey === "string") {
+      rawVpwp50SubjectCounts.set(
+        candidate.stateSubjectKey,
+        (rawVpwp50SubjectCounts.get(candidate.stateSubjectKey) ?? 0) + 1,
+      );
+    }
   }
   const rawVptaCount = value.gateEntries.filter((candidate) => isRecord(candidate)
     && candidate.domain === "typhoonProbability"
@@ -2663,15 +3763,34 @@ function sanitizeStandbyDomainsFoundation(
   if (rejectVptaDomain) {
     recordRepair("foundation.standbyDomains", "subject", rawVptaCount, 0, "limit-exceeded", true);
   }
+  const rawVpwp50Count = value.gateEntries.filter((candidate) => isRecord(candidate)
+    && candidate.domain === "weatherWarningTimeseries"
+    && candidate.revisionFamily === "VPWP50").length;
+  const rejectVpwp50Domain = rawVpwp50Count > WEATHER_WARNING_FORECAST_READER_MAX_RAW_V2_GATE_ITEMS;
+  if (rejectVpwp50Domain) {
+    warnVpwp50PersistenceDiagnostic(
+      "vpwp50ReaderRawLimitExceeded",
+      `container=standbyDomains.gateEntries actual=${rawVpwp50Count} limit=${WEATHER_WARNING_FORECAST_READER_MAX_RAW_V2_GATE_ITEMS}`,
+    );
+    recordRepair("foundation.standbyDomains", "subject", rawVpwp50Count, 0, "limit-exceeded");
+  }
   const gateEntries = value.gateEntries.flatMap((candidate) => {
     if (rejectVptaDomain && isRecord(candidate)
       && candidate.domain === "typhoonProbability"
       && candidate.revisionFamily === "VPTA50") return [];
+    if (rejectVpwp50Domain && isRecord(candidate)
+      && candidate.domain === "weatherWarningTimeseries"
+      && candidate.revisionFamily === "VPWP50") return [];
     const rawVpta = isRecord(candidate)
       && candidate.domain === "typhoonProbability"
       && candidate.revisionFamily === "VPTA50";
+    const rawVpwp50 = isRecord(candidate)
+      && candidate.domain === "weatherWarningTimeseries"
+      && candidate.revisionFamily === "VPWP50";
     if (rawVpta && typeof candidate.stateSubjectKey === "string"
       && (rawVptaSubjectCounts.get(candidate.stateSubjectKey) ?? 0) > 1) return [];
+    if (rawVpwp50 && typeof candidate.stateSubjectKey === "string"
+      && (rawVpwp50SubjectCounts.get(candidate.stateSubjectKey) ?? 0) > 1) return [];
     if (rawVpta && Object.hasOwn(candidate, "tombstoneRetentionMs")
       && candidate.tombstoneRetentionMs !== TYPHOON_PROBABILITY_RETENTION_MS) {
       warnVptaPersistenceDiagnostic("vpta50GateRetentionInvalid");
@@ -2681,6 +3800,10 @@ function sanitizeStandbyDomainsFoundation(
     const entry = candidate as PersistedTelegramRevisionGateEntryV2;
     const policy = standbyFoundationPolicy(entry);
     if (policy == null || !standbySubjectMatchesPolicy(entry)) return [];
+    if (rawVpwp50) {
+      const sanitized = sanitizeVpwp50GateEntry(entry, persistenceValidationNowMs());
+      return sanitized == null ? [] : [sanitized];
+    }
     if (entry.domain === "typhoonProbability" && entry.revisionFamily === "VPTA50"
       && !Object.hasOwn(entry, "tombstoneRetentionMs")) {
       if (activeRepairCollector != null) activeRepairCollector.canonicalRewriteRequired = true;
@@ -2697,6 +3820,9 @@ function sanitizeStandbyDomainsFoundation(
   const duplicateSubjects = new Set(
     [...rawVptaSubjectCounts].filter(([, count]) => count > 1).map(([subject]) => subject),
   );
+  for (const [subject, count] of rawVpwp50SubjectCounts) {
+    if (count > 1) duplicateSubjects.add(subject);
+  }
   const counts = new Map<string, number>();
   for (const entry of gateEntries) counts.set(entry.stateSubjectKey, (counts.get(entry.stateSubjectKey) ?? 0) + 1);
   for (const [subject, count] of counts) if (count > 1) duplicateSubjects.add(subject);
@@ -5028,6 +6154,524 @@ function standbyProjectionMatchesGate(
     && gate.semanticKeys.at(-1) === appliedSemanticKey;
 }
 
+function vpwp50ProjectionMatchesGate(
+  projection: Pick<
+    PersistedWeatherWarningForecastStateV1,
+    "subjectKey" | "revision" | "appliedSemanticKey"
+  >,
+  gate: PersistedTelegramRevisionGateEntryV2,
+): boolean {
+  const gateSerial = normalizeVpwp50RevisionSerial(gate.comparison.revision.serial.raw);
+  const projectionSerial = normalizeVpwp50RevisionSerial(projection.revision.serial);
+  return !gate.cancelled
+    && gateSerial !== undefined && projectionSerial !== undefined
+    && gate.comparison.revision.reportDateTime.epochMs === projection.revision.reportTimeMs
+    && gateSerial === projectionSerial
+    && gate.semanticKeys.at(-1) === projection.appliedSemanticKey;
+}
+
+function normalizeVpwp50PersistenceBundles(
+  base: PersistedStandbyStateV1,
+  foundation: PersistedTelegramFoundationV2["standbyDomains"],
+  nowMs: number,
+): {
+  base: PersistedStandbyStateV1;
+  foundation: PersistedTelegramFoundationV2["standbyDomains"];
+} {
+  const vpwp50Gates = foundation.gateEntries.filter((entry) =>
+    entry.domain === "weatherWarningTimeseries" && entry.revisionFamily === "VPWP50");
+  const otherGates = foundation.gateEntries.filter((entry) =>
+    entry.domain !== "weatherWarningTimeseries" || entry.revisionFamily !== "VPWP50");
+  const projections = base.weatherWarningForecasts ?? [];
+  const bundleSubjects = new Set([
+    ...vpwp50Gates.map((entry) => entry.stateSubjectKey),
+    ...projections.map((projection) => projection.subjectKey),
+  ]);
+  if (bundleSubjects.size > WEATHER_WARNING_FORECAST_READER_MAX_RAW_BUNDLES) {
+    warnVpwp50PersistenceDiagnostic(
+      "vpwp50ReaderRawLimitExceeded",
+      `container=bundles actual=${bundleSubjects.size} limit=${WEATHER_WARNING_FORECAST_READER_MAX_RAW_BUNDLES}`,
+    );
+    const { weatherWarningForecasts: _projections, weatherWarningForecastGateMetadata: _metadata, ...without } = base;
+    return {
+      base: {
+        ...without,
+        seen: base.seen.filter((entry) => vpwp50SubjectFromSeenKey(entry.key) == null),
+      },
+      foundation: { gateEntries: otherGates },
+    };
+  }
+  const sortedGates = [...vpwp50Gates].sort((left, right) =>
+    right.acceptedAtMs - left.acceptedAtMs
+    || compareCodeUnitString(left.stateSubjectKey, right.stateSubjectKey));
+  const retainedGates = sortedGates.slice(0, WEATHER_WARNING_FORECAST_MAX_SUBJECTS);
+  if (retainedGates.length !== sortedGates.length) {
+    recordRepair(
+      "foundation.standbyDomains", "subject",
+      sortedGates.length - retainedGates.length,
+      retainedGates.length,
+      "limit-exceeded",
+    );
+  }
+  const projectionBySubject = new Map(projections.map((projection) => [projection.subjectKey, projection]));
+  const retainedRuntime: WeatherWarningForecastState[] = [];
+  for (const gate of retainedGates) {
+    const projection = projectionBySubject.get(gate.stateSubjectKey);
+    if (projection == null || gate.cancelled || projection.expiresAtMs <= nowMs
+      || !vpwp50ProjectionMatchesGate(projection, gate)) continue;
+    const candidate: WeatherWarningForecastState = {
+      ...structuredClone(projection),
+      restored: true,
+    };
+    const prospective = [...retainedRuntime, candidate];
+    const reasons = weatherWarningForecastProjectionLimitReasons(prospective);
+    if (reasons.length > 0) {
+      const detail = `subject=${candidate.subjectKey} reasons=${JSON.stringify(reasons)}`;
+      if (reasons.some((reason) => reason.code !== "cardJsonBytes")) {
+        warnVpwp50PersistenceDiagnostic("vpwp50ProjectionCapacityExceeded", detail);
+      }
+      if (reasons.some((reason) => reason.code === "cardJsonBytes")) {
+        warnVpwp50PersistenceDiagnostic("vpwp50ProjectionWireBudgetExceeded", detail);
+      }
+      continue;
+    }
+    retainedRuntime.push(candidate);
+  }
+  const retainedProjections = retainedRuntime
+    .sort((left, right) => compareCodeUnitString(left.subjectKey, right.subjectKey))
+    .map((state): PersistedWeatherWarningForecastStateV1 => {
+      const { restored: _restored, ...persisted } = state;
+      return persisted;
+    });
+  const retainedGateSubjects = new Set(retainedGates.map((entry) => entry.stateSubjectKey));
+  const removedProjectionCount = projections.length - retainedProjections.length;
+  if (removedProjectionCount > 0) recordRepair(
+    "root.weatherWarningForecasts", "subject", removedProjectionCount,
+    retainedProjections.length, "coupling-mismatch",
+  );
+  const vpwp50Seen = vpwp50LegacySeenEntries(retainedGates);
+  const seen = mergeLegacySeenEntries(
+    base.seen.filter((entry) => vpwp50SubjectFromSeenKey(entry.key) == null),
+    vpwp50Seen,
+  );
+  const {
+    weatherWarningForecasts: _forecasts,
+    weatherWarningForecastGateMetadata: _gateMetadata,
+    ...withoutVpwp50
+  } = base;
+  return {
+    base: {
+      ...withoutVpwp50,
+      seen,
+      ...(retainedProjections.length === 0 ? {} : {
+        weatherWarningForecasts: retainedProjections,
+      }),
+      ...(retainedGates.length === 0 ? {} : {
+        weatherWarningForecastGateMetadata: vpwp50GateMetadata(retainedGates),
+      }),
+    },
+    foundation: {
+      gateEntries: [
+        ...otherGates,
+        ...retainedGates.filter((entry) => retainedGateSubjects.has(entry.stateSubjectKey))
+          .sort((left, right) => compareCodeUnitString(left.stateSubjectKey, right.stateSubjectKey)),
+      ],
+    },
+  };
+}
+
+function normalizeVpwp50ProjectionsForWrite(
+  value: readonly PersistedWeatherWarningForecastStateV1[] | undefined,
+): PersistedWeatherWarningForecastStateV1[] {
+  const input = value ?? [];
+  if (input.length > WEATHER_WARNING_FORECAST_MAX_SUBJECTS
+    || new Set(input.map((state) => state.subjectKey)).size !== input.length) {
+    throw new Error("VPWP50 persistence projection capacity or identity invariant failed");
+  }
+  const states = input.map((projection) => {
+    const sanitized = sanitizeVpwp50Projection(projection, -8_640_000_000_000_000);
+    if (sanitized == null) throw new Error(`invalid VPWP50 persisted projection: ${projection.subjectKey}`);
+    const { restored: _restored, ...persisted } = sanitized;
+    if (stablePersistenceJson(persisted) !== stablePersistenceJson(projection)) {
+      throw new Error(`non-canonical VPWP50 persisted projection: ${projection.subjectKey}`);
+    }
+    return persisted;
+  }).sort((left, right) => compareCodeUnitString(left.subjectKey, right.subjectKey));
+  const runtime = states.map((state): WeatherWarningForecastState => ({
+    ...structuredClone(state), restored: true,
+  }));
+  assertWeatherWarningForecastWireInvariant(runtime);
+  const card = buildWeatherWarningForecastCard(runtime);
+  if (card != null && Buffer.byteLength(JSON.stringify(card), "utf8")
+    > WEATHER_WARNING_FORECAST_MAX_CARD_JSON_BYTES) {
+    throw new Error("VPWP50 persisted card wire budget exceeded");
+  }
+  return states;
+}
+
+interface ReconstructedVpwp50Seen {
+  acceptedAtMs: number;
+  comparison: TelegramRevisionComparisonInput;
+}
+
+function warnVpwp50V1RevisionReconstructionFailed(input: {
+  subject: string;
+  metadataRootState: OptionalArrayMode;
+  rawSeenKeyCount: number;
+  seenEntries: readonly PersistedSeenEntry[];
+  expectedRevision: StandbyRevision | null;
+  appliedSemanticKeyCanonical: boolean;
+  projectionFreeSeenOnly: boolean;
+  nowMs: number;
+}): void {
+  const seen = input.rawSeenKeyCount === 1 && input.seenEntries.length === 1
+    ? input.seenEntries[0]!
+    : null;
+  const acceptedAtMs = seen == null || !validPersistenceEpoch(seen.forgetAtMs)
+    ? null
+    : seen.forgetAtMs - WEATHER_TIMESERIES_RETENTION_MS - 1;
+  const expectedSerial = input.expectedRevision == null
+    ? null
+    : normalizeVpwp50RevisionSerial(input.expectedRevision.serial);
+  const seenSerial = seen == null ? null : normalizeVpwp50RevisionSerial(seen.revision.serial);
+  const revisionMatch = input.expectedRevision == null
+    ? null
+    : seen != null
+      && expectedSerial !== undefined
+      && seenSerial !== undefined
+      && input.expectedRevision.reportTimeMs === seen.revision.reportTimeMs
+      && expectedSerial === seenSerial;
+  const acceptedAtFutureSkew = acceptedAtMs == null || !validPersistenceEpoch(acceptedAtMs)
+    ? null
+    : acceptedAtMs > input.nowMs + VPWP50_ACCEPTED_AT_FUTURE_SKEW_MS;
+  const reportFutureSkew = acceptedAtMs == null || seen == null
+    || !validPersistenceEpoch(acceptedAtMs)
+    || !validPersistenceEpoch(seen.revision.reportTimeMs)
+    ? null
+    : seen.revision.reportTimeMs > acceptedAtMs + VPWP50_REPORT_FUTURE_SKEW_MS;
+  warnVpwp50PersistenceDiagnostic(
+    "vpwp50V1RevisionReconstructionFailed",
+    `subject=${input.subject} failure=${JSON.stringify({
+      metadataRootState: input.metadataRootState,
+      seenKeyCount: input.rawSeenKeyCount,
+      revisionMatch,
+      acceptedAtFutureSkew,
+      reportFutureSkew,
+      appliedSemanticKeyCanonicality: input.appliedSemanticKeyCanonical,
+      projectionFreeSeenOnly: input.projectionFreeSeenOnly,
+    })}`,
+  );
+}
+
+interface Vpwp50MissingKeyProjectionScalars {
+  subjectKey: string;
+  revision: StandbyRevision;
+  rawSerial: string | null;
+}
+
+/** C-1 scalar claim only. Deliberately does not enumerate groups, targets, or periods. */
+function vpwp50MissingKeyProjectionScalars(
+  value: unknown,
+): Vpwp50MissingKeyProjectionScalars | null {
+  if (!isRecord(value) || Object.hasOwn(value, "appliedSemanticKey")
+    || !isVpwp50Subject(value.subjectKey)
+    || !canonicalVpwp50Token(value.sourceEventId, VPWP50_MAX_SOURCE_EVENT_ID_LENGTH)
+    || !canonicalVpwp50Name(value.publishingOffice, VPWP50_MAX_PUBLISHING_OFFICE_LENGTH)
+    || !canonicalVpwp50OptionalName(value.targetAreaName, VPWP50_MAX_AREA_NAME_LENGTH)
+    || !canonicalVpwp50OptionalToken(value.targetAreaCode, VPWP50_MAX_AREA_CODE_LENGTH)
+    || !Array.isArray(value.groups)
+    || !validPersistenceEpoch(value.expiresAtMs)
+    || !isRecord(value.revision)
+    || !validPersistenceEpoch(value.revision.reportTimeMs)
+    || !(value.revision.serial === null || typeof value.revision.serial === "string")) return null;
+  const serial = normalizeVpwp50RevisionSerial(value.revision.serial);
+  if (serial === undefined) return null;
+  return {
+    subjectKey: value.subjectKey,
+    revision: { reportTimeMs: value.revision.reportTimeMs, serial },
+    rawSerial: value.revision.serial,
+  };
+}
+
+function reconstructVpwp50Seen(
+  seen: PersistedSeenEntry,
+  subjectKey: string,
+  infoType: "発表" | "訂正" | "取消",
+  nowMs: number,
+): ReconstructedVpwp50Seen | null {
+  if (seen.key !== subjectKey || !validPersistenceEpoch(seen.forgetAtMs)
+    || !validPersistenceEpoch(seen.revision.reportTimeMs)) return null;
+  const acceptedAtMs = seen.forgetAtMs - WEATHER_TIMESERIES_RETENTION_MS - 1;
+  if (!validPersistenceEpoch(acceptedAtMs)
+    || acceptedAtMs > nowMs + VPWP50_ACCEPTED_AT_FUTURE_SKEW_MS
+    || seen.revision.reportTimeMs > acceptedAtMs + VPWP50_REPORT_FUTURE_SKEW_MS) return null;
+  const serial = normalizeVpwp50RevisionSerial(seen.revision.serial);
+  if (serial === undefined) return null;
+  const reportDateTime = new Date(seen.revision.reportTimeMs).toISOString();
+  return {
+    acceptedAtMs,
+    comparison: {
+      stateSubjectKey: subjectKey,
+      revision: {
+        eventId: { raw: subjectKey, value: subjectKey, valid: true },
+        type: { raw: "VPWP50", value: "VPWP50", valid: true },
+        reportDateTime: {
+          raw: reportDateTime,
+          epochMs: seen.revision.reportTimeMs,
+          valid: true,
+        },
+        serial: serial == null
+          ? { raw: null, numeric: null, valid: false }
+          : { raw: serial, numeric: Number(serial), valid: true },
+        infoType: { raw: infoType, value: infoType, valid: true },
+      },
+    },
+  };
+}
+
+function migratedVpwp50GateEntries(
+  raw: Record<string, unknown>,
+  base: PersistedStandbyStateV1,
+  metadataMode: OptionalArrayMode,
+  nowMs: number,
+): PersistedTelegramRevisionGateEntryV2[] {
+  if (metadataMode === "present-invalid") return [];
+  const rawSeenClaimCounts = new Map<string, number>();
+  if (Array.isArray(raw.seen)) for (const candidate of raw.seen) {
+    const subject = isRecord(candidate)
+      ? vpwp50SubjectFromSeenKey(candidate.key)
+      : null;
+    if (subject != null) {
+      rawSeenClaimCounts.set(subject, (rawSeenClaimCounts.get(subject) ?? 0) + 1);
+    }
+  }
+  const seenGroups = new Map<string, PersistedSeenEntry[]>();
+  for (const seen of base.seen) {
+    const subject = vpwp50SubjectFromSeenKey(seen.key);
+    if (subject == null) continue;
+    const values = seenGroups.get(subject) ?? [];
+    values.push({ ...seen, key: subject });
+    seenGroups.set(subject, values);
+  }
+  const uniqueSeen = (subject: string): PersistedSeenEntry | null => {
+    const entries = seenGroups.get(subject) ?? [];
+    return rawSeenClaimCounts.get(subject) === 1 && entries.length === 1
+      ? entries[0]!
+      : null;
+  };
+  if (metadataMode === "present-array") {
+    return (base.weatherWarningForecastGateMetadata ?? []).flatMap((metadata) => {
+      const seen = uniqueSeen(metadata.stateSubjectKey);
+      const metadataSerial = normalizeVpwp50RevisionSerial(metadata.comparison.revision.serial.raw);
+      const seenSerial = seen == null ? undefined : normalizeVpwp50RevisionSerial(seen.revision.serial);
+      const reconstructed = seen == null ? null : reconstructVpwp50Seen(
+        seen,
+        metadata.stateSubjectKey,
+        metadata.comparison.revision.infoType.value as "発表" | "訂正" | "取消",
+        nowMs,
+      );
+      if (reconstructed == null || metadataSerial === undefined || seenSerial === undefined
+        || metadataSerial !== seenSerial
+        || metadata.comparison.revision.reportDateTime.epochMs !== seen?.revision.reportTimeMs) {
+        warnVpwp50V1RevisionReconstructionFailed({
+          subject: metadata.stateSubjectKey,
+          metadataRootState: metadataMode,
+          rawSeenKeyCount: rawSeenClaimCounts.get(metadata.stateSubjectKey) ?? 0,
+          seenEntries: seenGroups.get(metadata.stateSubjectKey) ?? [],
+          expectedRevision: {
+            reportTimeMs: metadata.comparison.revision.reportDateTime.epochMs!,
+            serial: metadataSerial === undefined ? null : metadataSerial,
+          },
+          appliedSemanticKeyCanonical: true,
+          projectionFreeSeenOnly: false,
+          nowMs,
+        });
+        return [];
+      }
+      const gate: PersistedTelegramRevisionGateEntryV2 = {
+        domain: "weatherWarningTimeseries",
+        revisionFamily: "VPWP50",
+        stateSubjectKey: metadata.stateSubjectKey,
+        comparison: structuredClone(metadata.comparison),
+        semanticKeys: [...metadata.semanticKeys],
+        cancelled: metadata.cancelled,
+        acceptedAtMs: reconstructed.acceptedAtMs,
+        tombstoneRetentionMs: WEATHER_TIMESERIES_RETENTION_MS,
+        legacyRevisionKey: metadata.stateSubjectKey,
+        legacyRevisionKeyProvenance: null,
+      };
+      return sanitizeVpwp50GateEntry(gate, nowMs) == null ? [] : [gate];
+    });
+  }
+  const gates: PersistedTelegramRevisionGateEntryV2[] = [];
+  const rawProjectionSubjects = new Set<string>();
+  const rawProjectionCounts = new Map<string, number>();
+  const nonCanonicalAppliedKeySubjects = new Set<string>();
+  if (Array.isArray(raw.weatherWarningForecasts)) for (const item of raw.weatherWarningForecasts) {
+    const subject = isRecord(item) ? vpwp50ClaimedSubject(item.subjectKey) : null;
+    if (subject == null) continue;
+    rawProjectionSubjects.add(subject);
+    rawProjectionCounts.set(subject, (rawProjectionCounts.get(subject) ?? 0) + 1);
+    if (Object.hasOwn(item, "appliedSemanticKey")
+      && (typeof item.appliedSemanticKey !== "string"
+        || !VPWP50_APPLIED_SEMANTIC_KEY_PATTERN.test(item.appliedSemanticKey))) {
+      nonCanonicalAppliedKeySubjects.add(subject);
+    }
+  }
+  for (const subject of [...nonCanonicalAppliedKeySubjects].sort(compareCodeUnitString)) {
+    warnVpwp50PersistenceDiagnostic(
+      "vpwp50V1NonCanonicalAppliedSemanticKey",
+      `subject=${subject}`,
+    );
+  }
+  const scalarProjectionClaims = Array.isArray(raw.weatherWarningForecasts)
+    ? raw.weatherWarningForecasts.flatMap((item) => {
+        const claim = vpwp50ProjectionScalarClaim(item);
+        return claim != null && rawProjectionCounts.get(claim.subjectKey) === 1 ? [claim] : [];
+      })
+    : [];
+  const projectionSubjects = new Set(scalarProjectionClaims.map((claim) => claim.subjectKey));
+  for (const projection of scalarProjectionClaims) {
+    const seen = uniqueSeen(projection.subjectKey);
+    const prefix = projection.appliedSemanticKey.startsWith("発表:") ? "発表"
+      : projection.appliedSemanticKey.startsWith("訂正:") ? "訂正" : null;
+    const reconstructed = seen == null || prefix == null
+      ? null
+      : reconstructVpwp50Seen(seen, projection.subjectKey, prefix, nowMs);
+    const projectionSerial = normalizeVpwp50RevisionSerial(projection.revision.serial);
+    const seenSerial = seen == null ? undefined : normalizeVpwp50RevisionSerial(seen.revision.serial);
+    if (reconstructed == null || projectionSerial === undefined || seenSerial === undefined
+      || projectionSerial !== seenSerial
+      || projection.revision.reportTimeMs !== seen?.revision.reportTimeMs) {
+      warnVpwp50V1RevisionReconstructionFailed({
+        subject: projection.subjectKey,
+        metadataRootState: metadataMode,
+        rawSeenKeyCount: rawSeenClaimCounts.get(projection.subjectKey) ?? 0,
+        seenEntries: seenGroups.get(projection.subjectKey) ?? [],
+        expectedRevision: projection.revision,
+        appliedSemanticKeyCanonical: true,
+        projectionFreeSeenOnly: false,
+        nowMs,
+      });
+      continue;
+    }
+    gates.push({
+      domain: "weatherWarningTimeseries",
+      revisionFamily: "VPWP50",
+      stateSubjectKey: projection.subjectKey,
+      comparison: reconstructed.comparison,
+      semanticKeys: [projection.appliedSemanticKey],
+      cancelled: false,
+      acceptedAtMs: reconstructed.acceptedAtMs,
+      tombstoneRetentionMs: WEATHER_TIMESERIES_RETENTION_MS,
+      legacyRevisionKey: projection.subjectKey,
+      legacyRevisionKeyProvenance: null,
+    });
+  }
+  const rawMissingKeyCandidates = new Map<string, Vpwp50MissingKeyProjectionScalars[]>();
+  if (Array.isArray(raw.weatherWarningForecasts)) for (const item of raw.weatherWarningForecasts) {
+    const scalars = vpwp50MissingKeyProjectionScalars(item);
+    if (scalars == null) continue;
+    const candidates = rawMissingKeyCandidates.get(scalars.subjectKey) ?? [];
+    candidates.push(scalars);
+    rawMissingKeyCandidates.set(scalars.subjectKey, candidates);
+  }
+  const syntheticTombstones = new Set<string>();
+  const legacySeenSubjects = [...new Set([
+    ...rawSeenClaimCounts.keys(),
+    ...seenGroups.keys(),
+  ])].sort(compareCodeUnitString);
+  for (const subject of legacySeenSubjects) {
+    const entries = seenGroups.get(subject) ?? [];
+    if (projectionSubjects.has(subject)) continue;
+    const missingCandidates = rawMissingKeyCandidates.get(subject) ?? [];
+    const rawSeenKeyCount = rawSeenClaimCounts.get(subject) ?? 0;
+    const projectionClaimCanUseC1 = rawProjectionSubjects.has(subject)
+      && rawProjectionCounts.get(subject) === 1
+      && missingCandidates.length === 1;
+    if (rawSeenKeyCount !== 1 || entries.length !== 1
+      || rawProjectionSubjects.has(subject) && !projectionClaimCanUseC1) {
+      if (!nonCanonicalAppliedKeySubjects.has(subject)) {
+        warnVpwp50V1RevisionReconstructionFailed({
+          subject,
+          metadataRootState: metadataMode,
+          rawSeenKeyCount,
+          seenEntries: entries,
+          expectedRevision: missingCandidates.length === 1 ? missingCandidates[0]!.revision : null,
+          appliedSemanticKeyCanonical: !nonCanonicalAppliedKeySubjects.has(subject),
+          projectionFreeSeenOnly: !rawProjectionSubjects.has(subject),
+          nowMs,
+        });
+      }
+      continue;
+    }
+    const reconstructed = reconstructVpwp50Seen(entries[0]!, subject, "取消", nowMs);
+    if (reconstructed == null) {
+      warnVpwp50V1RevisionReconstructionFailed({
+        subject,
+        metadataRootState: metadataMode,
+        rawSeenKeyCount,
+        seenEntries: entries,
+        expectedRevision: missingCandidates.length === 1 ? missingCandidates[0]!.revision : null,
+        appliedSemanticKeyCanonical: true,
+        projectionFreeSeenOnly: !rawProjectionSubjects.has(subject),
+        nowMs,
+      });
+      continue;
+    }
+    if (missingCandidates.length === 1) {
+      const candidate = missingCandidates[0]!;
+      const seenSerial = normalizeVpwp50RevisionSerial(entries[0]!.revision.serial);
+      if (seenSerial === undefined || candidate.revision.reportTimeMs !== entries[0]!.revision.reportTimeMs
+        || candidate.revision.serial !== seenSerial) {
+        warnVpwp50V1RevisionReconstructionFailed({
+          subject,
+          metadataRootState: metadataMode,
+          rawSeenKeyCount,
+          seenEntries: entries,
+          expectedRevision: candidate.revision,
+          appliedSemanticKeyCanonical: true,
+          projectionFreeSeenOnly: false,
+          nowMs,
+        });
+        continue;
+      }
+    }
+    gates.push({
+      domain: "weatherWarningTimeseries",
+      revisionFamily: "VPWP50",
+      stateSubjectKey: subject,
+      comparison: reconstructed.comparison,
+      semanticKeys: [],
+      cancelled: true,
+      acceptedAtMs: reconstructed.acceptedAtMs,
+      tombstoneRetentionMs: WEATHER_TIMESERIES_RETENTION_MS,
+      legacyRevisionKey: subject,
+      legacyRevisionKeyProvenance: null,
+    });
+    if (missingCandidates.length === 1) syntheticTombstones.add(subject);
+  }
+  for (const [subject, candidates] of rawMissingKeyCandidates) {
+    const entries = seenGroups.get(subject) ?? [];
+    const rawSeenKeyCount = rawSeenClaimCounts.get(subject) ?? 0;
+    const candidate = candidates.length === 1 ? candidates[0]! : null;
+    const normalizedSerial = candidate?.revision.serial;
+    const seenSummary = entries.slice(0, 8).map((entry) => ({
+      reportTimeMs: entry.revision.reportTimeMs,
+      serial: entry.revision.serial,
+      forgetAtMs: entry.forgetAtMs,
+    }));
+    const acceptedAtMs = rawSeenKeyCount === 1 && entries.length === 1
+      ? entries[0]!.forgetAtMs - WEATHER_TIMESERIES_RETENTION_MS - 1
+      : null;
+    warnVpwp50PersistenceDiagnostic(
+      "vpwp50V1MissingAppliedSemanticKey",
+      `subject=${subject} projectionRevision=${JSON.stringify(candidate?.revision ?? null)} seenKeyCount=${rawSeenKeyCount} seenRevisions=${JSON.stringify(seenSummary)} rawSerial=${JSON.stringify(candidate?.rawSerial ?? null)} normalizedSerial=${JSON.stringify(normalizedSerial ?? null)} acceptedAtFutureSkew=${acceptedAtMs != null && acceptedAtMs > nowMs + VPWP50_ACCEPTED_AT_FUTURE_SKEW_MS} reportFutureSkew=${acceptedAtMs != null && candidate != null && candidate.revision.reportTimeMs > acceptedAtMs + VPWP50_REPORT_FUTURE_SKEW_MS} projectionDiscarded=true tombstoneGenerated=${syntheticTombstones.has(subject)}`,
+    );
+  }
+  return gates;
+}
+
 /** VPTA projection + gate を EventID bundle として coupling 後にだけ 256 件へ絞る。 */
 function normalizeVptaPersistenceBundles(
   base: PersistedStandbyStateV1,
@@ -5383,10 +7027,13 @@ function migratedLegacyStandbyGateEntries(
 
 function sanitizePersistedStandbyStateV2(value: unknown): PersistedStandbyStateV2 | null {
   if (!isRecord(value) || value.version !== 2) return null;
-  const base = baseV1FromRecord(value);
-  const sanitizedFoundation = sanitizeFoundation(value.telegramFoundation);
-  if (base == null || sanitizedFoundation == null) return null;
   const rawVptaHardLimit = vptaRawDomainExceedsHardLimit(value);
+  const rawVpwp50BundleLimit = vpwp50RawBundleLimitExceeded(value);
+  // Source and distinct-bundle preflights above are deliberately completed
+  // before either gate predicates or projection scalar claims are evaluated.
+  const sanitizedFoundation = sanitizeFoundation(value.telegramFoundation);
+  const base = baseV1FromRecord(value);
+  if (base == null || sanitizedFoundation == null) return null;
   if (rawVptaHardLimit) {
     recordRepair(
       "foundation.standbyDomains", "subject",
@@ -5400,7 +7047,7 @@ function sanitizePersistedStandbyStateV2(value: unknown): PersistedStandbyStateV
     const eventId = vptaEventIdFromSubject(entry.stateSubjectKey);
     if (eventId != null) hardLimitEventIds.add(eventId);
   }
-  const telegramFoundation = rawVptaHardLimit
+  let telegramFoundation = rawVptaHardLimit
     ? {
         ...sanitizedFoundation,
         standbyDomains: {
@@ -5409,7 +7056,28 @@ function sanitizePersistedStandbyStateV2(value: unknown): PersistedStandbyStateV
         },
       }
     : sanitizedFoundation;
-  const boundedBase = rawVptaHardLimit ? removeVptaRootDomain(base, hardLimitEventIds) : base;
+  let boundedBase = rawVptaHardLimit ? removeVptaRootDomain(base, hardLimitEventIds) : base;
+  if (rawVpwp50BundleLimit) {
+    boundedBase = removeVpwp50RootDomain(boundedBase);
+    telegramFoundation = {
+      ...telegramFoundation,
+      standbyDomains: {
+        gateEntries: telegramFoundation.standbyDomains.gateEntries.filter((entry) =>
+          entry.domain !== "weatherWarningTimeseries" || entry.revisionFamily !== "VPWP50"),
+      },
+    };
+  }
+  if (!rawVpwp50BundleLimit && Object.hasOwn(value, "weatherWarningForecasts")) {
+    const weatherWarningForecasts = sanitizeCoupledVpwp50Projections(
+      value.weatherWarningForecasts,
+      telegramFoundation.standbyDomains.gateEntries,
+      persistenceValidationNowMs(),
+    );
+    boundedBase = {
+      ...boundedBase,
+      ...(weatherWarningForecasts.length === 0 ? {} : { weatherWarningForecasts }),
+    };
+  }
   // 官署 provenance のない旧 VPWW56 union は subject 単位の復元待ちへ変換できない。
   // 非 authoritative foundation と併存する名称-only 表示は、旧粒度を固着させず破棄する。
   const withoutLegacyVpww56 = telegramFoundation.vpww56.authoritative
@@ -5439,11 +7107,19 @@ function sanitizePersistedStandbyStateV2(value: unknown): PersistedStandbyStateV
     vptaNormalized.base,
     vptaNormalized.foundation,
   );
-  const salvaged = salvageStandbyDomainProjections(migratedNankai.base, migratedNankai.foundation);
+  const vpwp50Normalized = normalizeVpwp50PersistenceBundles(
+    migratedNankai.base,
+    migratedNankai.foundation,
+    persistenceValidationNowMs(),
+  );
+  const salvaged = salvageStandbyDomainProjections(
+    vpwp50Normalized.base,
+    vpwp50Normalized.foundation,
+  );
   return {
     ...salvaged,
     version: 2,
-    telegramFoundation: { ...telegramFoundation, standbyDomains: migratedNankai.foundation },
+    telegramFoundation: { ...telegramFoundation, standbyDomains: vpwp50Normalized.foundation },
   };
 }
 
@@ -5712,10 +7388,114 @@ function stripVptaSeenOnlySubjects(
   return seen.length === base.seen.length ? base : { ...base, seen };
 }
 
+function rawHasVpwp50V1Evidence(value: Record<string, unknown>): boolean {
+  if (Object.hasOwn(value, "weatherWarningForecasts")) return true;
+  return Array.isArray(value.seen) && value.seen.some((entry) =>
+    isRecord(entry) && vpwp50SubjectFromSeenKey(entry.key) != null);
+}
+
+function vpwp50RawDomainExceedsHardLimit(value: Record<string, unknown>): boolean {
+  if (Array.isArray(value.weatherWarningForecasts)
+    && value.weatherWarningForecasts.length > WEATHER_WARNING_FORECAST_READER_MAX_RAW_PROJECTION_ITEMS) return true;
+  if (Array.isArray(value.weatherWarningForecastGateMetadata)
+    && value.weatherWarningForecastGateMetadata.length > WEATHER_WARNING_FORECAST_READER_MAX_RAW_METADATA_ITEMS) return true;
+  if (Array.isArray(value.seen)) {
+    if (value.seen.length > TELEGRAM_REVISION_MAX_ENTRIES) return true;
+    let count = 0;
+    for (const entry of value.seen) {
+      if (isRecord(entry) && typeof entry.key === "string"
+        && entry.key.trim().startsWith("weatherTimeseries:")
+        && ++count > WEATHER_WARNING_FORECAST_READER_MAX_RAW_SEEN_ITEMS) return true;
+    }
+  }
+  return false;
+}
+
+function rawVpwp50V2GateCandidates(value: Record<string, unknown>): unknown[] | null {
+  const foundation = value.telegramFoundation;
+  if (!isRecord(foundation) || !isRecord(foundation.standbyDomains)
+    || !Array.isArray(foundation.standbyDomains.gateEntries)) return [];
+  const gateEntries = foundation.standbyDomains.gateEntries;
+  if (gateEntries.length > TELEGRAM_REVISION_MAX_ENTRIES) return null;
+  const candidates = gateEntries.filter((entry) => isRecord(entry)
+    && entry.domain === "weatherWarningTimeseries"
+    && entry.revisionFamily === "VPWP50");
+  return candidates.length > WEATHER_WARNING_FORECAST_READER_MAX_RAW_V2_GATE_ITEMS
+    ? null
+    : candidates;
+}
+
+/** Raw-source limits precede this union; null means a source already overflowed. */
+function rawVpwp50BundleSubjects(value: Record<string, unknown>): Set<string> | null {
+  if (vpwp50RawDomainExceedsHardLimit(value)) return null;
+  const rawGates = rawVpwp50V2GateCandidates(value);
+  if (rawGates == null) return null;
+  const subjects = new Set<string>();
+  const add = (candidate: unknown): void => {
+    const subject = vpwp50ClaimedSubject(candidate);
+    if (subject != null) subjects.add(subject);
+  };
+  if (Array.isArray(value.weatherWarningForecasts)) {
+    for (const item of value.weatherWarningForecasts) {
+      if (isRecord(item)) add(item.subjectKey);
+    }
+  }
+  if (Array.isArray(value.weatherWarningForecastGateMetadata)) {
+    for (const item of value.weatherWarningForecastGateMetadata) {
+      if (isRecord(item)) add(item.stateSubjectKey);
+    }
+  }
+  if (Array.isArray(value.seen)) {
+    for (const item of value.seen) {
+      if (isRecord(item)) add(item.key);
+    }
+  }
+  for (const item of rawGates) {
+    if (isRecord(item)) add(item.stateSubjectKey);
+  }
+  return subjects;
+}
+
+function vpwp50RawBundleLimitExceeded(value: Record<string, unknown>): boolean {
+  const subjects = rawVpwp50BundleSubjects(value);
+  if (subjects == null || subjects.size <= WEATHER_WARNING_FORECAST_READER_MAX_RAW_BUNDLES) {
+    return false;
+  }
+  warnVpwp50PersistenceDiagnostic(
+    "vpwp50ReaderRawLimitExceeded",
+    `container=bundles actual=${subjects.size} limit=${WEATHER_WARNING_FORECAST_READER_MAX_RAW_BUNDLES}`,
+  );
+  recordRepair(
+    "foundation.standbyDomains", "subject", subjects.size, 0,
+    "limit-exceeded", true,
+  );
+  return true;
+}
+
+function removeVpwp50RootDomain(base: PersistedStandbyStateV1): PersistedStandbyStateV1 {
+  const {
+    weatherWarningForecasts: _forecasts,
+    weatherWarningForecastGateMetadata: _metadata,
+    ...withoutVpwp50
+  } = base;
+  return {
+    ...withoutVpwp50,
+    seen: base.seen.filter((entry) => vpwp50SubjectFromSeenKey(entry.key) == null),
+  };
+}
+
 function migratePersistedStandbyStateV1(value: unknown): PersistedStandbyStateV2 | null {
   if (!isRecord(value)) return null;
   const metadataMode = optionalArrayMode(value, "typhoonProbabilityGateMetadata");
+  const vpwp50MetadataMode = optionalArrayMode(value, "weatherWarningForecastGateMetadata");
   const hardLimit = vptaRawDomainExceedsHardLimit(value);
+  const vpwp50HardLimit = vpwp50RawDomainExceedsHardLimit(value);
+  const vpwp50BundleLimit = !vpwp50HardLimit && vpwp50RawBundleLimitExceeded(value);
+  const restoreNowMs = persistenceValidationNowMs();
+  if (!vpwp50HardLimit && !vpwp50BundleLimit
+    && vpwp50MetadataMode === "absent" && rawHasVpwp50V1Evidence(value)) {
+    warnVpwp50PersistenceDiagnostic("vpwp50V1GateMetadataMissing");
+  }
   if (hardLimit) {
     recordRepair(
       "foundation.standbyDomains", "subject",
@@ -5730,9 +7510,13 @@ function migratePersistedStandbyStateV1(value: unknown): PersistedStandbyStateV2
   const allowUnprefixedSeen = Array.isArray(value.typhoonProbabilities);
   const base = sanitizePersistedStandbyStateV1(value);
   if (base == null) return null;
-  const boundedMigrationBase = hardLimit || metadataMode === "present-invalid"
+  const vptaBoundedMigrationBase = hardLimit || metadataMode === "present-invalid"
     ? removeVptaRootDomain(base, rawEventIds)
     : base;
+  const boundedMigrationBase = vpwp50HardLimit || vpwp50BundleLimit
+    || vpwp50MetadataMode === "present-invalid"
+    ? removeVpwp50RootDomain(vptaBoundedMigrationBase)
+    : vptaBoundedMigrationBase;
   const migrationBase = stripVptaSeenOnlySubjects(
     boundedMigrationBase,
     blockedSeenOnlySubjects,
@@ -5752,7 +7536,7 @@ function migratePersistedStandbyStateV1(value: unknown): PersistedStandbyStateV2
       }),
     }),
   };
-  const migratedNankai = migratedNankaiStandbyState(canonicalBase, {
+  const migratedFoundation: PersistedTelegramFoundationV2["standbyDomains"] = {
     gateEntries: [
       ...migratedLegacyStandbyGateEntries(canonicalBase),
       ...(hardLimit || metadataMode === "present-invalid"
@@ -5762,14 +7546,41 @@ function migratePersistedStandbyStateV1(value: unknown): PersistedStandbyStateV2
             allowUnprefixedSeen,
             blockedSeenOnlySubjects,
           )),
+      ...(vpwp50HardLimit || vpwp50BundleLimit || vpwp50MetadataMode === "present-invalid"
+        ? []
+        : migratedVpwp50GateEntries(
+            value,
+            canonicalBase,
+            vpwp50MetadataMode,
+            restoreNowMs,
+          )),
     ],
-  });
+  };
+  const weatherWarningForecasts = !vpwp50HardLimit
+    && !vpwp50BundleLimit
+    && vpwp50MetadataMode !== "present-invalid"
+    && Object.hasOwn(value, "weatherWarningForecasts")
+    ? sanitizeCoupledVpwp50Projections(
+        value.weatherWarningForecasts,
+        migratedFoundation.gateEntries,
+        restoreNowMs,
+      )
+    : [];
+  const migratedNankai = migratedNankaiStandbyState({
+    ...canonicalBase,
+    ...(weatherWarningForecasts.length === 0 ? {} : { weatherWarningForecasts }),
+  }, migratedFoundation);
   const vptaNormalized = normalizeVptaPersistenceBundles(
     migratedNankai.base,
     migratedNankai.foundation,
   );
+  const vpwp50Normalized = normalizeVpwp50PersistenceBundles(
+    vptaNormalized.base,
+    vptaNormalized.foundation,
+    restoreNowMs,
+  );
   return {
-    ...vptaNormalized.base,
+    ...vpwp50Normalized.base,
     version: 2,
     telegramFoundation: {
       vpws50: { authoritative: false, state: null, gateEntries: migratedVpws50GateEntries(canonicalBase) },
@@ -5777,7 +7588,7 @@ function migratePersistedStandbyStateV1(value: unknown): PersistedStandbyStateV2
       tsunami: emptyTsunamiFoundation(),
       volcano: emptyVolcanoFoundation(),
       floodForecast: emptyFloodFoundation(),
-      standbyDomains: vptaNormalized.foundation,
+      standbyDomains: vpwp50Normalized.foundation,
     },
   };
 }
@@ -5932,6 +7743,14 @@ function rollbackMirrorsSemanticallyEqual(
           .sort((a, b) => a.stateSubjectKey < b.stateSubjectKey
             ? -1 : a.stateSubjectKey > b.stateSubjectKey ? 1 : 0),
       }),
+      ...(state.weatherWarningForecasts == null ? {} : {
+        weatherWarningForecasts: [...state.weatherWarningForecasts].sort((a, b) =>
+          compareCodeUnitString(a.subjectKey, b.subjectKey)),
+      }),
+      ...(state.weatherWarningForecastGateMetadata == null ? {} : {
+        weatherWarningForecastGateMetadata: [...state.weatherWarningForecastGateMetadata]
+          .sort((a, b) => compareCodeUnitString(a.stateSubjectKey, b.stateSubjectKey)),
+      }),
       seen: [...state.seen].sort((a, b) =>
         a.key < b.key ? -1 : a.key > b.key ? 1
           : stablePersistenceJson(a).localeCompare(stablePersistenceJson(b))),
@@ -6007,6 +7826,41 @@ function hasVptaRollbackMirrorConflict(
   return stablePersistenceJson(sorted(actualSeen)) !== stablePersistenceJson(sorted(expectedSeen));
 }
 
+function hasVpwp50RollbackMirrorConflict(
+  raw: unknown,
+  state: PersistedStandbyStateV2,
+): boolean {
+  if (!isRecord(raw)) return false;
+  const gates = state.telegramFoundation.standbyDomains.gateEntries.filter((entry) =>
+    entry.domain === "weatherWarningTimeseries" && entry.revisionFamily === "VPWP50");
+  const projections = state.weatherWarningForecasts ?? [];
+  const metadata = vpwp50GateMetadata(gates);
+  if (!rawMirrorArrayMatches(
+    raw,
+    "weatherWarningForecasts",
+    projections,
+    (item) => isRecord(item) && typeof item.subjectKey === "string" ? item.subjectKey : "",
+  )) return true;
+  if (!rawMirrorArrayMatches(
+    raw,
+    "weatherWarningForecastGateMetadata",
+    metadata,
+    (item) => isRecord(item) && typeof item.stateSubjectKey === "string"
+      ? item.stateSubjectKey : "",
+  )) return true;
+  const expectedSeen = vpwp50LegacySeenEntries(gates);
+  if (!Array.isArray(raw.seen)) return expectedSeen.length > 0;
+  const actualSeen = raw.seen.filter((entry) => isRecord(entry)
+    && vpwp50SubjectFromSeenKey(entry.key) != null);
+  const sortSeen = (items: readonly unknown[]) => [...items].sort((left, right) => {
+    const leftKey = isRecord(left) && typeof left.key === "string" ? left.key : "";
+    const rightKey = isRecord(right) && typeof right.key === "string" ? right.key : "";
+    return compareCodeUnitString(leftKey, rightKey)
+      || compareCodeUnitString(stablePersistenceJson(left), stablePersistenceJson(right));
+  });
+  return stablePersistenceJson(sortSeen(actualSeen)) !== stablePersistenceJson(sortSeen(expectedSeen));
+}
+
 function hasStandbyDomainsMigrationConflict(raw: unknown, state: PersistedStandbyStateV2): boolean {
   if (!isRecord(raw)) return false;
   const projected = standbyLegacySeenEntries(state.telegramFoundation.standbyDomains.gateEntries);
@@ -6027,5 +7881,6 @@ function hasFoundationMigrationConflict(raw: unknown, state: PersistedStandbySta
     || hasVolcanoMigrationConflict(raw, state)
     || hasFloodMigrationConflict(raw, state)
     || hasVptaRollbackMirrorConflict(raw, state)
+    || hasVpwp50RollbackMirrorConflict(raw, state)
     || hasStandbyDomainsMigrationConflict(raw, state);
 }

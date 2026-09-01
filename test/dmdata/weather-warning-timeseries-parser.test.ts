@@ -12,13 +12,100 @@ import {
   FIXTURE_VPWP50_CRITERIA_PERIOD,
   FIXTURE_VPWP50_LOCAL_AREA,
   FIXTURE_VPWP50_CRITERIA_PROPERTY_SIBLING,
+  FIXTURE_VPWP50_LOCAL_IDENTITY,
+  createMockWsDataMessageFromXml,
+  readFixture,
 } from "../helpers/mock-message";
 import { parseWeatherWarningTimeseries } from "../../src/dmdata/weather-warning-timeseries-parser";
 import {
   classifySignificancyCode,
   pickWorstKnownSignificancy,
 } from "../../src/dmdata/weather-warning-timeseries-significancy";
+import { parseStrictElapsedDuration } from "../../src/dmdata/timeseries-common";
 import { weatherWarningTimeseriesFrameLevel } from "../../src/engine/presentation/level-helpers";
+
+describe("VPWP50 strict elapsed duration", () => {
+  it.each([
+    ["PT0S", null],
+    ["PT3H", 3 * 60 * 60_000],
+    ["P1DT2H30M", (24 * 60 + 2 * 60 + 30) * 60_000],
+    ["P1DT", null],
+    ["P1D", 24 * 60 * 60_000],
+    ["PT", null],
+    ["PT1.5H", null],
+    ["-PT1H", null],
+  ] as const)("parses only the bounded XSD duration subset: %s", (input, expected) => {
+    expect(parseStrictElapsedDuration(input)).toBe(expected);
+  });
+});
+
+describe("VPWP50 forecast occurrence / identity projection", () => {
+  it("retains every Significancy occurrence and leaves ambiguous or invalid slots unresolved", () => {
+    const info = parseWeatherWarningTimeseries(
+      createMockWsDataMessage(FIXTURE_VPWP50_LOCAL_IDENTITY),
+    );
+    expect(info).not.toBeNull();
+    if (info == null) return;
+    const north = info.areas.find((area) => area.identityKey === "code:200010");
+    expect(north?.name).toBe("長野県 北部");
+    const sediment = north?.kinds[1].find((kind) => kind.type === "土砂災害危険度");
+    expect(sediment?.significancyOccurrences?.base?.map((entry) => entry.info.code)).toEqual([
+      "21", "22", "31", "99", "41",
+    ]);
+    expect(sediment?.significancyOccurrences?.base?.map((entry) => entry.slot == null)).toEqual([
+      false, false, true, true, true,
+    ]);
+    expect(sediment?.significancyOccurrences?.base?.[0]?.slot).toMatchObject({
+      series: "3h",
+      startsAt: "2026-06-06T00:00:00.000Z",
+      endsAt: "2026-06-06T03:00:00.000Z",
+      name: "６日 昼前",
+    });
+  });
+
+  it("keeps code, code-less, and parent-scoped identities distinct while excluding conflicts", () => {
+    const info = parseWeatherWarningTimeseries(
+      createMockWsDataMessage(FIXTURE_VPWP50_LOCAL_IDENTITY),
+    );
+    expect(info).not.toBeNull();
+    if (info == null) return;
+    expect(info.areas.map((area) => area.identityKey).sort()).toEqual([
+      "code:200010", "code:200020", "name:長野県 北部",
+    ]);
+    const north = info.areas.find((area) => area.identityKey === "code:200010");
+    const locals = north?.kinds[1]
+      .flatMap((kind) => kind.significancyOccurrences?.locals ?? [])
+      .map((local) => local.identityKey);
+    expect(locals).toEqual(["code:L001", "name:沿岸 東部"]);
+    expect(north?.kinds[1]
+      .flatMap((kind) => kind.significancyOccurrences?.locals ?? [])
+      .find((local) => local.identityKey === "code:L001")?.value).toHaveLength(1);
+    expect(locals).not.toContain("code:L002");
+    const otherParent = info.areas.find((area) => area.identityKey === "code:200020");
+    expect(otherParent?.kinds[1].flatMap((kind) =>
+      kind.significancyOccurrences?.locals ?? []).map((local) => local.identityKey)).toEqual(["code:L001"]);
+    expect(info.maxKnownSignificancy?.code).toBe("41");
+    expect(info.unknownCodes.map((entry) => entry.code)).not.toContain("98");
+  });
+
+  it("combines same-type occurrence collections across duplicate Area items", () => {
+    const xml = readFixture(FIXTURE_VPWP50_LOCAL_IDENTITY).replace(
+      "<Kind><Property><Type>雨</Type><SignificancyPart><Base>",
+      "<Kind><Property><Type> 土砂災害危険度 </Type><SignificancyPart><Base>",
+    );
+    const info = parseWeatherWarningTimeseries(
+      createMockWsDataMessageFromXml(xml, "VPWP50"),
+    );
+    expect(info).not.toBeNull();
+    if (info == null) return;
+    const north = info.areas.find((area) => area.identityKey === "code:200010");
+    const sediment = north?.kinds[1].filter((kind) => kind.type === "土砂災害危険度");
+    expect(sediment).toHaveLength(2);
+    expect(sediment?.[0]?.significancyOccurrences?.base?.map((entry) => entry.info.code))
+      .toEqual(["21", "22", "31", "99", "41", "30"]);
+    expect(sediment?.[1]?.significancyOccurrences).toBeUndefined();
+  });
+});
 
 describe("weather-warning-timeseries-parser (実物 fixture)", () => {
   it("実物 #1 (宗谷 #1) をパースできる", () => {

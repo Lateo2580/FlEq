@@ -745,7 +745,10 @@ export interface MessageHandlerOptions {
   onVolcanoRevisionDecision?: (decision: TelegramRevisionDecision) => void;
   onFloodRevisionDecision?: (decision: TelegramRevisionDecision) => void;
   /** tornado/heat/typhoon/nankai/VPWP/VXSE62 common gate commit. */
-  onStandbyRevisionDecision?: (decision: TelegramRevisionDecision) => void;
+  onStandbyRevisionDecision?: (
+    decision: TelegramRevisionDecision,
+    context?: { domain: string; revisionFamily: string },
+  ) => void;
   /** VPTA observer only. Persistence is owned by onVptaAdmissionCompletion. */
   onVptaStandbyRevisionDecision?: (decision: TelegramRevisionDecision) => void;
   /**
@@ -1000,8 +1003,15 @@ export function createMessageHandler(options?: MessageHandlerOptions): MessageHa
       const provider = displaySink?.activeTyphoonProbabilitySubjects;
       return provider == null ? [] : provider(nowMs);
     },
+    activeWeatherWarningForecastSubjects: (nowMs) => {
+      const provider = displaySink?.activeWeatherWarningForecastSubjects;
+      return provider == null ? [] : provider(nowMs);
+    },
     maintainTyphoonProbabilitySubjects: (nowMs, activeGateSubjects) =>
       displaySink?.maintainTyphoonProbabilitySubjects?.(nowMs, activeGateSubjects)
+        ?? { viewChanged: false, durableChanged: false },
+    maintainWeatherWarningForecastSubjects: (nowMs, activeGateSubjects) =>
+      displaySink?.maintainWeatherWarningForecastSubjects?.(nowMs, activeGateSubjects)
         ?? { viewChanged: false, durableChanged: false },
     reconcileTyphoonProbabilitySubject: (eventId) =>
       displaySink?.reconcileTyphoonProbabilitySubject?.(eventId)
@@ -1953,7 +1963,8 @@ export function createMessageHandler(options?: MessageHandlerOptions): MessageHa
         try {
           const ownerToken = createVptaRouterOwnerToken();
           withVptaRouterOwnerToken(ownerToken, () => {
-            if (current!.route === "typhoonProbability"
+            if ((current!.route === "typhoonProbability"
+              || current!.route === "weatherWarningTimeseries")
               && options?.withStandbyDurableNotificationsSuppressed != null) {
               options.withStandbyDurableNotificationsSuppressed(() => processEnvelope(current!));
             } else {

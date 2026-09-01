@@ -43,7 +43,12 @@ export interface DisplaySinkDeps {
     applyEvent(event: PresentationEvent, nowMs: number): unknown;
     applyTyphoonProbabilityCommand?(command: VptaDisplayIngestCommand): unknown;
     activeTyphoonProbabilitySubjects?(nowMs: number): string[];
+    activeWeatherWarningForecastSubjects?(nowMs: number): string[];
     maintainTyphoonProbabilitySubjects?(
+      nowMs: number,
+      activeGateSubjects: readonly string[],
+    ): { viewChanged: boolean; durableChanged: boolean };
+    maintainWeatherWarningForecastSubjects?(
       nowMs: number,
       activeGateSubjects: readonly string[],
     ): { viewChanged: boolean; durableChanged: boolean };
@@ -327,8 +332,13 @@ export function createDisplaySink(deps: DisplaySinkDeps): DisplayIngestSink {
     reconcileLateCounterpartCard,
     activeTyphoonProbabilitySubjects: (nowMs) =>
       deps.standby.activeTyphoonProbabilitySubjects?.(nowMs) ?? [],
+    activeWeatherWarningForecastSubjects: (nowMs) =>
+      deps.standby.activeWeatherWarningForecastSubjects?.(nowMs) ?? [],
     maintainTyphoonProbabilitySubjects: (nowMs, activeGateSubjects) =>
       deps.standby.maintainTyphoonProbabilitySubjects?.(nowMs, activeGateSubjects)
+        ?? { viewChanged: false, durableChanged: false },
+    maintainWeatherWarningForecastSubjects: (nowMs, activeGateSubjects) =>
+      deps.standby.maintainWeatherWarningForecastSubjects?.(nowMs, activeGateSubjects)
         ?? { viewChanged: false, durableChanged: false },
     reconcileTyphoonProbabilityCommand: (command) =>
       deps.standby.reconcileTyphoonProbabilityCommand?.(command)

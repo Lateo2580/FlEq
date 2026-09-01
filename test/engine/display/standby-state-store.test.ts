@@ -7,6 +7,24 @@ import { deriveBriefingTag, parseWeatherBriefing } from "../../../src/dmdata/bri
 import * as log from "../../../src/logger";
 import { RevisionGuard, StandbyStateStore } from "../../../src/engine/display/standby-state-store";
 import {
+  reduceWeatherWarningForecast,
+  vpwp50ForecastPeriodLabel,
+  type WeatherWarningForecastState,
+} from "../../../src/engine/display/weather-warning-forecast-active-reducer";
+import {
+  buildWeatherWarningForecastCard,
+  weatherWarningForecastCardJsonBytes,
+  weatherWarningForecastProjectionLimitReasons,
+} from "../../../src/engine/display/weather-warning-forecast-wire";
+import type {
+  DisplayWeatherWarningForecastGroupV1,
+  DisplayWeatherWarningForecastPeriodV1,
+  DisplayWeatherWarningForecastTargetV1,
+} from "../../../src/engine/display/protocol";
+import { vpwp50StableKey } from "../../../src/engine/presentation/weather-severity-pyramid";
+import type { PersistedTelegramRevisionGateEntryV2 } from "../../../src/engine/messages/telegram-revision-gate";
+import { parseWeatherWarningTimeseries } from "../../../src/dmdata/weather-warning-timeseries-parser";
+import {
   BRIEFING_CARD_CANCEL_TTL_MS,
   BRIEFING_CARD_MAX_ENTRIES,
   BRIEFING_CARD_TTL_MS,
@@ -24,6 +42,7 @@ import type {
   ParsedTyphoonAnalysis,
   ParsedVolcanoInfo,
   ParsedWeatherBriefing,
+  ParsedWeatherWarningTimeseriesInfo,
   SpecialValue,
 } from "../../../src/types";
 import {
@@ -42,6 +61,7 @@ import {
   FIXTURE_VPBS50_SYNTH_MULTI,
   FIXTURE_VPBS50_SYNTH_UNKNOWN,
   FIXTURE_VPOA50_SYNTH_CANCEL,
+  FIXTURE_VPWP50_LOCAL_IDENTITY,
   readFixture,
 } from "../../helpers/mock-message";
 import {
@@ -356,6 +376,556 @@ describe("RevisionGuard", () => {
     expect(guard.accept("typhoon:TC-1", revision, T0)).toBe(true);
     expect(guard.accept("typhoon:TC-1", revision, T0 + 1)).toBe(false);
     expect(guard.accept("typhoon:TC-1", revision, T0 + 2, undefined, true)).toBe(true);
+  });
+});
+
+interface ForecastFixtureExpectations {
+  nowMs: number;
+  reportTimeMs: number;
+  subjectKey: string;
+  occurrence: {
+    startsAt: string;
+    endsAt: string;
+  };
+  stableKeys: {
+    group: string;
+    areaTarget: string;
+    period: string;
+    pagerAnchor: string;
+    mixedGroupA: string;
+    mixedGroupB: string;
+    mixedGroupBTarget: string;
+  };
+  jstLabels: [string, string, string][];
+  groupShapeBytes: Record<string, number>;
+  groupShape129Reasons: unknown[];
+  twoTargets129Reasons: unknown[];
+  twoTargetsBoundaryBytes: Record<string, number>;
+  mixedShapeBytes: {
+    groupA: number;
+    groupB: number;
+    original: number;
+    subjectPrefix128: number;
+  };
+  mixed129Reasons: unknown[];
+}
+
+const forecastFixtureExpectations = JSON.parse(
+  readFixture("vpwp50-forecast-expectations.json"),
+) as ForecastFixtureExpectations;
+
+function reverseForecastInput(info: ParsedWeatherWarningTimeseriesInfo): ParsedWeatherWarningTimeseriesInfo {
+  const copy = structuredClone(info);
+  copy.areas.reverse();
+  for (const area of copy.areas) for (const tsNum of [1, 2, 3] as const) {
+    area.kinds[tsNum].reverse();
+    for (const kind of area.kinds[tsNum]) {
+      kind.significancyOccurrences?.base?.reverse();
+      kind.significancyOccurrences?.locals?.reverse();
+      for (const local of kind.significancyOccurrences?.locals ?? []) local.value.reverse();
+    }
+  }
+  return copy;
+}
+
+function forecastGroupShape(groupCount: number): WeatherWarningForecastState {
+  const subjectKey = "weatherTimeseries:a:scope:all";
+  const reportTimeMs = 1_767_139_200_000;
+  const startsAt = "2026-01-01T00:00:00.000Z";
+  const endsAt = "2026-01-01T01:00:00.000Z";
+  const targetKey = vpwp50StableKey("target", [subjectKey, "area", "name:a"]);
+  return {
+    subjectKey,
+    sourceEventId: "a",
+    publishingOffice: "a",
+    targetAreaName: "a",
+    targetAreaCode: null,
+    revision: { reportTimeMs, serial: "1" },
+    appliedSemanticKey: `発表:${"a".repeat(64)}`,
+    expiresAtMs: Date.parse(endsAt),
+    restored: false,
+    groups: Array.from({ length: groupCount }, (_, index) => {
+      const significancyCode = `u${index}`;
+      const groupKey = vpwp50StableKey("group", [
+        "雨", significancyCode, "大雨（区分不明）の予測", "unknown",
+      ]);
+      return {
+        key: groupKey,
+        phenomenonName: "雨",
+        significancyCode,
+        forecastLabel: "大雨（区分不明）の予測",
+        displaySeverity: "unknown" as const,
+        severity: "warning" as const,
+        targets: [{
+          key: targetKey,
+          scope: "area" as const,
+          name: "a",
+          parentAreaName: "a",
+          areaCode: null,
+          localCode: null,
+          periods: [{
+            key: vpwp50StableKey("period", [groupKey, targetKey, 1, "3h", startsAt, endsAt]),
+            tsNum: 1 as const,
+            series: "3h" as const,
+            startsAt,
+            endsAt,
+            label: "1月1日 09:00–10:00",
+            pagerAnchorKey: vpwp50StableKey("anchor", [
+              subjectKey, reportTimeMs, "1", groupKey, targetKey, 0,
+            ]),
+            pagerAnchorOrdinal: 0,
+            pagerSlot: 0 as const,
+          }],
+        }],
+      };
+    }),
+  };
+}
+
+function forecastGateBinding(
+  state: WeatherWarningForecastState,
+  over: Partial<PersistedTelegramRevisionGateEntryV2> = {},
+): PersistedTelegramRevisionGateEntryV2 {
+  return {
+    domain: "weatherWarningTimeseries",
+    revisionFamily: "VPWP50",
+    stateSubjectKey: state.subjectKey,
+    comparison: {
+      stateSubjectKey: state.subjectKey,
+      revision: {
+        eventId: { raw: state.subjectKey, value: state.subjectKey, valid: true },
+        type: { raw: "VPWP50", value: "VPWP50", valid: true },
+        reportDateTime: {
+          raw: new Date(state.revision.reportTimeMs).toISOString(),
+          epochMs: state.revision.reportTimeMs,
+          valid: true,
+        },
+        serial: state.revision.serial == null
+          ? { raw: null, numeric: null, valid: false }
+          : { raw: state.revision.serial, numeric: Number(state.revision.serial), valid: true },
+        infoType: { raw: "発表", value: "発表", valid: true },
+      },
+    },
+    semanticKeys: [state.appliedSemanticKey],
+    cancelled: false,
+    acceptedAtMs: state.revision.reportTimeMs,
+    tombstoneRetentionMs: 7 * 24 * 60 * 60_000,
+    ...over,
+  };
+}
+
+const FORECAST_WIRE_SUBJECT = "weatherTimeseries:a:scope:all";
+const FORECAST_WIRE_REPORT_MS = 1_767_139_200_000;
+const FORECAST_WIRE_START_MS = Date.parse("2026-01-01T00:00:00.000Z");
+const FORECAST_WIRE_UNKNOWN_LABEL = "大雨（区分不明）の予測";
+
+function forecastWirePeriod(
+  groupKey: string,
+  targetKey: string,
+  index: number,
+  startsAtMs: number,
+): DisplayWeatherWarningForecastPeriodV1 {
+  const startsAt = new Date(startsAtMs).toISOString();
+  const endsAt = new Date(startsAtMs + 60 * 60_000).toISOString();
+  const pagerAnchorOrdinal = Math.floor(index / 4);
+  return {
+    key: vpwp50StableKey("period", [groupKey, targetKey, 1, "3h", startsAt, endsAt]),
+    tsNum: 1,
+    series: "3h",
+    startsAt,
+    endsAt,
+    label: vpwp50ForecastPeriodLabel(startsAt, endsAt),
+    pagerAnchorKey: vpwp50StableKey("anchor", [
+      FORECAST_WIRE_SUBJECT,
+      FORECAST_WIRE_REPORT_MS,
+      "1",
+      groupKey,
+      targetKey,
+      pagerAnchorOrdinal,
+    ]),
+    pagerAnchorOrdinal,
+    pagerSlot: (index % 4) as 0 | 1 | 2 | 3,
+  };
+}
+
+function forecastWireTarget(
+  groupKey: string,
+  name: string,
+  periodCount: number,
+  startStrideHours: number,
+): DisplayWeatherWarningForecastTargetV1 {
+  const key = vpwp50StableKey("target", [
+    FORECAST_WIRE_SUBJECT,
+    "area",
+    `name:${name}`,
+  ]);
+  return {
+    key,
+    scope: "area",
+    name,
+    parentAreaName: name,
+    areaCode: null,
+    localCode: null,
+    periods: Array.from({ length: periodCount }, (_, index) =>
+      forecastWirePeriod(
+        groupKey,
+        key,
+        index,
+        FORECAST_WIRE_START_MS + index * startStrideHours * 60 * 60_000,
+      )),
+  };
+}
+
+function forecastWireGroup(
+  significancyCode: string,
+  targets: DisplayWeatherWarningForecastTargetV1[],
+): DisplayWeatherWarningForecastGroupV1 {
+  return {
+    key: vpwp50StableKey("group", [
+      "雨",
+      significancyCode,
+      FORECAST_WIRE_UNKNOWN_LABEL,
+      "unknown",
+    ]),
+    phenomenonName: "雨",
+    significancyCode,
+    forecastLabel: FORECAST_WIRE_UNKNOWN_LABEL,
+    displaySeverity: "unknown",
+    severity: "warning",
+    targets,
+  };
+}
+
+function forecastWireState(
+  groups: DisplayWeatherWarningForecastGroupV1[],
+): WeatherWarningForecastState {
+  return {
+    subjectKey: FORECAST_WIRE_SUBJECT,
+    sourceEventId: "a",
+    publishingOffice: "a",
+    targetAreaName: "a",
+    targetAreaCode: null,
+    revision: { reportTimeMs: FORECAST_WIRE_REPORT_MS, serial: "1" },
+    appliedSemanticKey: `発表:${"a".repeat(64)}`,
+    expiresAtMs: Date.parse("2026-01-11T17:00:00.000Z"),
+    restored: false,
+    groups,
+  };
+}
+
+function twoTarget129ForecastState(): WeatherWarningForecastState {
+  const groupKey = vpwp50StableKey("group", [
+    "雨", "uT", FORECAST_WIRE_UNKNOWN_LABEL, "unknown",
+  ]);
+  return forecastWireState([forecastWireGroup("uT", [
+    forecastWireTarget(groupKey, "a", 129, 2),
+    forecastWireTarget(groupKey, "b", 129, 2),
+  ])]);
+}
+
+function mixed129ForecastState(): WeatherWarningForecastState {
+  const groupAKey = forecastFixtureExpectations.stableKeys.mixedGroupA;
+  const groupBKey = forecastFixtureExpectations.stableKeys.mixedGroupB;
+  const groupA = forecastWireGroup(
+    "uA",
+    Array.from({ length: 129 }, (_, index) =>
+      forecastWireTarget(groupAKey, index.toString(36), 1, 0)),
+  );
+  const groupB = forecastWireGroup("uB", [
+    forecastWireTarget(groupBKey, "b", 129, 2),
+  ]);
+  expect(groupA.key).toBe(groupAKey);
+  expect(groupB.key).toBe(groupBKey);
+  expect(groupB.targets[0]?.key).toBe(forecastFixtureExpectations.stableKeys.mixedGroupBTarget);
+  return forecastWireState([groupA, groupB]);
+}
+
+function exactWeatherWarningForecastWireState(
+  desiredBytes: number,
+  restored = false,
+): WeatherWarningForecastState {
+  const subjectKey = "weatherTimeseries:exact-wire:scope:all";
+  const reportTimeMs = Date.parse("2026-01-01T00:00:00.000Z");
+  const startsAt = "2026-01-01T01:00:00.000Z";
+  const endsAt = "2026-01-01T02:00:00.000Z";
+  const phenomenonName = "雨";
+  const significancyCode = "99";
+  const forecastLabel = "大雨（区分不明）の予測";
+  const groupKey = vpwp50StableKey("group", [
+    phenomenonName, significancyCode, forecastLabel, "unknown",
+  ]);
+  const build = (sourceExtra: number, nameExtras: readonly number[]): WeatherWarningForecastState => ({
+    subjectKey,
+    sourceEventId: `s${"x".repeat(sourceExtra)}`,
+    publishingOffice: "a",
+    targetAreaName: null,
+    targetAreaCode: null,
+    revision: { reportTimeMs, serial: "1" },
+    appliedSemanticKey: `発表:${"a".repeat(64)}`,
+    expiresAtMs: Date.parse(endsAt),
+    restored,
+    groups: [{
+      key: groupKey,
+      phenomenonName,
+      significancyCode,
+      forecastLabel,
+      displaySeverity: "unknown",
+      severity: "warning",
+      targets: Array.from({ length: 128 }, (_, index) => {
+        const name = `a${index.toString(36)}${"x".repeat(nameExtras[index] ?? 0)}`;
+        const targetKey = vpwp50StableKey("target", [subjectKey, "area", `name:${name}`]);
+        const periodKey = vpwp50StableKey("period", [
+          groupKey, targetKey, 1, "3h", startsAt, endsAt,
+        ]);
+        return {
+          key: targetKey,
+          scope: "area" as const,
+          name,
+          parentAreaName: name,
+          areaCode: null,
+          localCode: null,
+          periods: [{
+            key: periodKey,
+            tsNum: 1 as const,
+            series: "3h" as const,
+            startsAt,
+            endsAt,
+            label: "1月1日 10:00–11:00",
+            pagerAnchorKey: vpwp50StableKey("anchor", [
+              subjectKey, reportTimeMs, "1", groupKey, targetKey, 0,
+            ]),
+            pagerAnchorOrdinal: 0,
+            pagerSlot: 0 as const,
+          }],
+        };
+      }),
+    }],
+  });
+  const emptyExtras = Array.from({ length: 128 }, () => 0);
+  const base = build(0, emptyExtras);
+  const baseCard = buildWeatherWarningForecastCard([base]);
+  if (baseCard == null) throw new Error("exact wire fixture must produce a card");
+  let remaining = desiredBytes - weatherWarningForecastCardJsonBytes(baseCard);
+  if (remaining < 0) throw new Error("exact wire target is below the fixture base");
+  const sourceExtra = remaining % 2;
+  remaining -= sourceExtra;
+  const nameExtras = [...emptyExtras];
+  for (let index = 0; index < nameExtras.length && remaining > 0; index += 1) {
+    const baseNameLength = `a${index.toString(36)}`.length;
+    const characters = Math.min(256 - baseNameLength, remaining / 2);
+    nameExtras[index] = characters;
+    remaining -= characters * 2;
+  }
+  if (remaining !== 0) throw new Error("exact wire fixture filler capacity exhausted");
+  return build(sourceExtra, nameExtras);
+}
+
+describe("VPWP50 forecast reducer and wire invariant", () => {
+  it("reduces the XML fixture into deterministic groups, periods, and immutable anchors", () => {
+    const parsed = parseWeatherWarningTimeseries(
+      createMockWsDataMessage(FIXTURE_VPWP50_LOCAL_IDENTITY),
+    );
+    expect(parsed).not.toBeNull();
+    if (parsed == null) return;
+    const reduce = (input: ParsedWeatherWarningTimeseriesInfo, nowMs: number) =>
+      reduceWeatherWarningForecast(
+        input,
+        forecastFixtureExpectations.subjectKey,
+        "fixture-message-id",
+        { reportTimeMs: forecastFixtureExpectations.reportTimeMs, serial: "01" },
+        `発表:${"1".repeat(64)}`,
+        nowMs,
+      );
+    const state = reduce(parsed, forecastFixtureExpectations.nowMs);
+    const reversed = reduce(reverseForecastInput(parsed), forecastFixtureExpectations.nowMs);
+    expect(state).not.toBeNull();
+    expect(reversed).toEqual(state);
+    if (state == null) return;
+    const code21 = state.groups.find((group) => group.significancyCode === "21");
+    const code22 = state.groups.find((group) => group.significancyCode === "22");
+    expect(code21?.key).toBe(forecastFixtureExpectations.stableKeys.group);
+    expect(code21?.key).not.toBe(code22?.key);
+    expect(code21?.targets[0]?.key).toBe(forecastFixtureExpectations.stableKeys.areaTarget);
+    expect(code21?.targets[0]?.periods[0]).toMatchObject({
+      key: forecastFixtureExpectations.stableKeys.period,
+      pagerAnchorKey: forecastFixtureExpectations.stableKeys.pagerAnchor,
+      pagerAnchorOrdinal: 0,
+      pagerSlot: 0,
+    });
+    expect(state.revision.serial).toBe("1");
+    expect(state.expiresAtMs).toBe(Date.parse("2026-06-06T06:00:00.000Z"));
+    const afterFirstSlot = reduce(parsed, Date.parse("2026-06-06T03:00:00.000Z"));
+    expect(afterFirstSlot?.groups.flatMap((group) => group.targets.flatMap((target) => target.periods))
+      .every((period) => Date.parse(period.endsAt) > Date.parse("2026-06-06T03:00:00.000Z"))).toBe(true);
+    expect(reduce(parsed, Date.parse("2026-06-06T06:00:00.000Z"))).toBeNull();
+  });
+
+  it.each(forecastFixtureExpectations.jstLabels)("formats %s to %s in fixed JST", (startsAt, endsAt, label) => {
+    expect(vpwp50ForecastPeriodLabel(startsAt, endsAt)).toBe(label);
+  });
+
+  it.each([100, 101, 102, 128, 129])("matches the literal %i-group UTF-8 byte golden", (count) => {
+    const card = buildWeatherWarningForecastCard([forecastGroupShape(count)]);
+    expect(card).not.toBeNull();
+    if (card == null) return;
+    expect(weatherWarningForecastCardJsonBytes(card)).toBe(forecastFixtureExpectations.groupShapeBytes[String(count)]);
+  });
+
+  it("reports every 129-group count and wire violation in canonical order", () => {
+    const state = forecastGroupShape(129);
+    const reasons = weatherWarningForecastProjectionLimitReasons([state]);
+    expect(reasons).toEqual(forecastFixtureExpectations.groupShape129Reasons);
+    expect(weatherWarningForecastProjectionLimitReasons([{ ...state, groups: [...state.groups].reverse() }]))
+      .toEqual(reasons);
+  });
+
+  it("applies one common effective limit to every violating local target", () => {
+    const state = twoTarget129ForecastState();
+    const reasons = weatherWarningForecastProjectionLimitReasons([state]);
+    expect(reasons).toEqual(forecastFixtureExpectations.twoTargets129Reasons);
+    const common = reasons.find((reason) => reason.code === "periodsPerTarget");
+    expect(common?.effectiveLimit).toBe(64);
+
+    const at64 = structuredClone(state);
+    for (const target of at64.groups[0]!.targets) target.periods = target.periods.slice(0, 64);
+    const card64 = buildWeatherWarningForecastCard([at64]);
+    expect(card64).not.toBeNull();
+    expect(weatherWarningForecastCardJsonBytes(card64!))
+      .toBe(forecastFixtureExpectations.twoTargetsBoundaryBytes["64"]);
+    expect(weatherWarningForecastProjectionLimitReasons([at64])).toEqual([]);
+
+    const at65 = structuredClone(state);
+    for (const target of at65.groups[0]!.targets) target.periods = target.periods.slice(0, 65);
+    const card65 = buildWeatherWarningForecastCard([at65]);
+    expect(card65).not.toBeNull();
+    expect(weatherWarningForecastCardJsonBytes(card65!))
+      .toBe(forecastFixtureExpectations.twoTargetsBoundaryBytes["65"]);
+    expect(weatherWarningForecastProjectionLimitReasons([at65]).map((reason) => reason.code))
+      .toEqual(["periodsPerSubject", "periodsPerCard"]);
+
+    const reversed = structuredClone(state);
+    reversed.groups[0]!.targets.reverse();
+    for (const target of reversed.groups[0]!.targets) target.periods.reverse();
+    expect(weatherWarningForecastProjectionLimitReasons([reversed])).toEqual(reasons);
+
+    const zeroOnly = twoTarget129ForecastState();
+    zeroOnly.groups[0]!.targets[0]!.periods = zeroOnly.groups[0]!.targets[0]!.periods.slice(0, 128);
+    expect(weatherWarningForecastProjectionLimitReasons([zeroOnly])
+      .find((reason) => reason.code === "periodsPerTarget")?.effectiveLimit).toBe(0);
+  });
+
+  it("keeps null distinct from zero for the mixed local no-solution golden", () => {
+    const state = mixed129ForecastState();
+    const [groupA, groupB] = state.groups;
+    const cardA = buildWeatherWarningForecastCard([forecastWireState([groupA!])]);
+    const cardB = buildWeatherWarningForecastCard([forecastWireState([groupB!])]);
+    const card = buildWeatherWarningForecastCard([state]);
+    expect(cardA).not.toBeNull();
+    expect(cardB).not.toBeNull();
+    expect(card).not.toBeNull();
+    expect(weatherWarningForecastCardJsonBytes(cardA!))
+      .toBe(forecastFixtureExpectations.mixedShapeBytes.groupA);
+    expect(weatherWarningForecastCardJsonBytes(cardB!))
+      .toBe(forecastFixtureExpectations.mixedShapeBytes.groupB);
+    expect(weatherWarningForecastCardJsonBytes(card!))
+      .toBe(forecastFixtureExpectations.mixedShapeBytes.original);
+
+    const reasons = weatherWarningForecastProjectionLimitReasons([state]);
+    expect(reasons).toEqual(forecastFixtureExpectations.mixed129Reasons);
+    expect(reasons.slice(0, 2).map((reason) => reason.effectiveLimit)).toEqual([null, null]);
+    expect(JSON.parse(JSON.stringify(reasons))).toEqual(forecastFixtureExpectations.mixed129Reasons);
+
+    const prefix128 = structuredClone(state);
+    prefix128.groups = [{ ...prefix128.groups[0]!, targets: prefix128.groups[0]!.targets.slice(0, 128) }];
+    const prefixCard = buildWeatherWarningForecastCard([prefix128]);
+    expect(prefixCard).not.toBeNull();
+    expect(weatherWarningForecastCardJsonBytes(prefixCard!))
+      .toBe(forecastFixtureExpectations.mixedShapeBytes.subjectPrefix128);
+    expect(weatherWarningForecastProjectionLimitReasons([prefix128])).toEqual([]);
+
+    const reversed = structuredClone(state);
+    reversed.groups.reverse();
+    reversed.groups.find((group) => group.significancyCode === "uA")!.targets.reverse();
+    reversed.groups.find((group) => group.significancyCode === "uB")!.targets[0]!.periods.reverse();
+    expect(weatherWarningForecastProjectionLimitReasons([reversed])).toEqual(reasons);
+  });
+
+  it.each([65_535, 65_536, 65_537])("measures and enforces the exact %i-byte card boundary", (bytes) => {
+    const state = exactWeatherWarningForecastWireState(bytes);
+    const card = buildWeatherWarningForecastCard([state]);
+    expect(card).not.toBeNull();
+    expect(weatherWarningForecastCardJsonBytes(card!)).toBe(bytes);
+    const reasons = weatherWarningForecastProjectionLimitReasons([state]);
+    if (bytes <= 65_536) {
+      expect(reasons).toEqual([]);
+    } else {
+      expect(reasons).toEqual([{
+        code: "cardJsonBytes",
+        actual: 65_537,
+        declaredLimit: 65_536,
+        effectiveLimit: 65_536,
+        violatingUnitCount: 1,
+        limitingHierarchies: ["cardJsonBytes"],
+        samplePaths: ["card/weatherWarningForecast:active/jsonBytes"],
+      }]);
+    }
+  });
+
+  it("evaluates the actual restored boolean before the exact wire boundary", () => {
+    const live = exactWeatherWarningForecastWireState(65_536, false);
+    const restored = { ...live, restored: true };
+    expect(weatherWarningForecastCardJsonBytes(buildWeatherWarningForecastCard([live])!)).toBe(65_536);
+    expect(weatherWarningForecastCardJsonBytes(buildWeatherWarningForecastCard([restored])!)).toBe(65_535);
+    expect(weatherWarningForecastProjectionLimitReasons([restored])).toEqual([]);
+  });
+
+  it("fails closed when direct restore would admit an over-limit or duplicate subject", () => {
+    const restoreNowMs = Date.parse("2025-12-31T23:59:59.999Z");
+    const oversized = forecastGroupShape(129);
+    const { restored: _oversizedRestored, ...persistedOversized } = oversized;
+    const oversizedState = new StandbyStateStore().exportActiveState();
+    oversizedState.weatherWarningForecasts = [persistedOversized];
+
+    const restoredOversized = new StandbyStateStore();
+    restoredOversized.restoreActiveState(oversizedState, restoreNowMs);
+    expect(restoredOversized.exportActiveState().weatherWarningForecasts).toBeUndefined();
+    expect(restoredOversized.snapshotItems().some((item) =>
+      item.kind === "weatherWarningForecast")).toBe(false);
+
+    const valid = forecastGroupShape(1);
+    const { restored: _validRestored, ...persistedValid } = valid;
+    const duplicateState = new StandbyStateStore().exportActiveState();
+    duplicateState.weatherWarningForecasts = [persistedValid, structuredClone(persistedValid)];
+
+    const restoredDuplicate = new StandbyStateStore();
+    restoredDuplicate.restoreActiveState(duplicateState, restoreNowMs);
+    expect(restoredDuplicate.exportActiveState().weatherWarningForecasts).toBeUndefined();
+  });
+
+  it("removes an old projection when an accepted gate binding cannot reach display ingestion", () => {
+    const restoreNowMs = Date.parse("2025-12-31T23:59:59.999Z");
+    const projection = forecastGroupShape(1);
+    const { restored: _restored, ...persisted } = projection;
+    const persistedState = new StandbyStateStore().exportActiveState();
+    persistedState.weatherWarningForecasts = [persisted];
+    const store = new StandbyStateStore();
+    store.restoreActiveState(persistedState, restoreNowMs);
+    const durable = vi.fn();
+    store.onDurable(durable);
+
+    expect(store.reconcileWeatherWarningForecastGateBindings([
+      forecastGateBinding(projection),
+    ])).toEqual({ viewChanged: false, durableChanged: false });
+    expect(store.exportActiveState().weatherWarningForecasts).toHaveLength(1);
+
+    const correctionSemantic = `訂正:${"b".repeat(64)}`;
+    expect(store.reconcileWeatherWarningForecastGateBindings([
+      forecastGateBinding(projection, {
+        semanticKeys: [projection.appliedSemanticKey, correctionSemantic],
+      }),
+    ])).toEqual({ viewChanged: true, durableChanged: true });
+    expect(store.exportActiveState().weatherWarningForecasts).toBeUndefined();
+    expect(durable).toHaveBeenCalledTimes(1);
   });
 });
 

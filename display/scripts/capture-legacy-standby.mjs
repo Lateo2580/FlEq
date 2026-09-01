@@ -301,8 +301,26 @@ async function captureLiveGeometry({ chrome, profileDir, url, viewport }) {
             readable: [...card.querySelectorAll('[data-page-probe-readable]')].map(measure),
           };
           });
+        const forecastCards = [...document.querySelectorAll('[data-weather-warning-forecast-card]')]
+          .map((card) => {
+            const shelf = card.closest('.measure-shelf, .center-measure-shelf');
+            const atom = card.querySelector('[data-forecast-atom]');
+            const footer = card.querySelector('[data-card-page-footer]');
+            return {
+              shelf: shelf != null,
+              surface: card.closest('[data-layout-motion-card]')?.getAttribute('data-layout-motion-card') ?? null,
+              page: card.getAttribute('data-card-page') ?? '',
+              card: measure(card),
+              header: measure(card.querySelector('.standby-card-header')),
+              atom: measure(atom),
+              footer: measure(footer),
+              atomFooterOverlap: overlap(atom, footer),
+              periodCount: card.querySelectorAll('[data-forecast-period]').length,
+              continuation: card.querySelector('.continuation')?.textContent ?? '',
+            };
+          });
         const standbyHeaders = [...document.querySelectorAll('.standby-card-header')].map((header) => {
-          const outer = header.closest('.weather-card, .briefing-card, .heat-card, .flood-card, .flood-wide-card, .typhoon-card, .volcano-card, .quake-card, .quake-replay-card, .tsunami-banner');
+          const outer = header.closest('.weather-card, .forecast-card, .briefing-card, .heat-card, .flood-card, .flood-wide-card, .typhoon-card, .volcano-card, .quake-card, .quake-replay-card, .tsunami-banner');
           const title = header.querySelector('.standby-card-header__title');
           const meta = header.querySelector('.standby-card-header__meta');
           const headerChildren = [...header.children].map((child, index) => ({
@@ -334,7 +352,7 @@ async function captureLiveGeometry({ chrome, profileDir, url, viewport }) {
             metaChildren,
           };
         });
-        return { heat: measure(pick('.heat-card')), tsunamiBanner: measure(pick('.tsunami-banner')), panels, briefingCards, standbyHeaders };
+        return { heat: measure(pick('.heat-card')), tsunamiBanner: measure(pick('.tsunami-banner')), panels, briefingCards, forecastCards, standbyHeaders };
       })()`,
     }, attached.sessionId);
     // Entry animations (height reveal) can hold a mid-flight value for several
@@ -425,6 +443,8 @@ function diagnosticsFromDom(dom) {
     "data-flood-page", "data-flood-page-keys", "data-flood-page-identities", "data-flood-page-infeasible", "data-flood-page-footer", "data-flood-page-visible-count",
     "data-tornado-page", "data-tornado-page-keys", "data-tornado-page-identities", "data-tornado-page-infeasible", "data-tornado-page-footer", "data-tornado-page-visible-count",
     "data-tornado-page-host", "data-tornado-page-mode", "data-tornado-page-pending-appearance",
+    "data-weather-warning-forecast-page", "data-weather-warning-forecast-page-keys", "data-weather-warning-forecast-page-identities",
+    "data-weather-warning-forecast-page-host", "data-weather-warning-forecast-page-mode",
     "data-typhoon-variant",
     "data-preview-attention-visibility", "data-preview-reduced-motion", "data-preview-mode",
     "data-tsunami-page", "data-tsunami-page-unseen", "data-tsunami-page-infeasible",
@@ -524,7 +544,10 @@ function assertNarrowGeometry(diagnostics, scenario, viewport) {
   // rotation slot just as max does.
   if (scenario === "max" || scenario === "7") {
     expectEqual(diagnostics["data-ladder-stage"], "3", `960px scenario-${scenario} stage (§5)`);
-    expectEqual(diagnostics["data-rotation-keys"], "weather,flood,typhoon,volcano,heat", `960px scenario-${scenario} rotation set (§5)`);
+    const rotationKeys = scenario === "max"
+      ? "weather,weatherWarningForecast,flood,typhoon,volcano,heat"
+      : "weather,flood,typhoon,volcano,heat";
+    expectEqual(diagnostics["data-rotation-keys"], rotationKeys, `960px scenario-${scenario} rotation set (§5)`);
     expectEqual(diagnostics["data-layout-unresolved"], "false", `960px scenario-${scenario} resolved layout (§5)`);
   }
   if (scenario !== "quiet") expectEqual(diagnostics["data-recent-hypocenters-horizontal-clipped"], "false", "960px recent-quake hypocenter clipping");
@@ -574,6 +597,26 @@ function assertNankaiSeparation(diagnostics) {
 function assertCardContainment(diagnostics) {
   const overflow = numberDiagnostic(diagnostics, "data-card-overflow-count");
   if (overflow !== 0) throw new Error(`card scroll containment invalid: ${overflow} overflowing card(s): ${diagnostics["data-card-overflow-keys"]}; paged viewport: ${diagnostics["data-page-viewport-overflow-keys"]}`);
+}
+
+function assertForecastContinuationGeometry(geometry, diagnostics) {
+  if (diagnostics["data-rotation-active-key"] !== "weatherWarningForecast") return;
+  const cards = geometry?.forecastCards ?? [];
+  const visible = cards.filter((entry) => !entry.shelf
+    && entry.card?.clientWidth > 0 && entry.card?.clientHeight > 0);
+  if (visible.length !== 1) throw new Error(`forecast continuation surface missing: ${JSON.stringify({ visible: visible.length, cards })}`);
+  const entry = visible[0];
+  const fits = (box) => box != null && box.clientWidth > 0 && box.clientHeight > 0
+    && box.scrollWidth <= box.clientWidth + 1 && box.scrollHeight <= box.clientHeight + 1;
+  if (!fits(entry.card) || !fits(entry.header) || !fits(entry.atom) || !fits(entry.footer)) {
+    throw new Error(`forecast continuation containment failed: ${JSON.stringify(entry)}`);
+  }
+  if (!/^\d+\/32$/.test(entry.page) || entry.periodCount < 1 || entry.periodCount > 4
+    || entry.atomFooterOverlap > 0 || !/^続き \d+\/32$/.test(entry.continuation)) {
+    throw new Error(`forecast continuation contract failed: ${JSON.stringify(entry)}`);
+  }
+  expectEqual(diagnostics["data-weather-warning-forecast-page"], entry.page, "forecast page diagnostic");
+  expectEqual(diagnostics["data-weather-warning-forecast-page-mode"], "logical", "forecast page mode");
 }
 
 function assertBriefingPagingFixture(geometry, { expectedPage, expectedFooter, expectedEntryBoundary, expectTokenizedVpoa }) {
@@ -752,8 +795,8 @@ function tornadoExpectation(scenario, viewport) {
 const FLOOD_CARD_TWO = { floodForm: "card", floodPage: "1/2", floodPageKeys: '["大淀川","五ヶ瀬川"]', floodPageIdentities: '["氾濫危険情報|大淀川|0|code:8303040001","氾濫警戒情報|五ヶ瀬川|0|code:8303040003"]', floodPageFooter: "true", floodVisibleCount: "2", floodInfeasible: "false" };
 const FLOOD_CARD_ONE = { floodForm: "card", floodPage: "1/1", floodPageKeys: '["大淀川"]', floodPageIdentities: '["氾濫危険情報|大淀川|0|code:8303040001"]', floodPageFooter: "false", floodVisibleCount: "3", floodInfeasible: "false" };
 const FLOOD_WIDE_EXPECTATIONS = {
-  "1920x1080": { stage: "1", rotationKeys: "", typhoonVariant: "compact", floodForm: "wide", floodPage: "1/2", floodPageKeys: '["大淀川","一ツ瀬川"]', floodPageIdentities: '["氾濫発生情報|大淀川|0|code:8303040001","氾濫警戒情報|一ツ瀬川|0|code:8303040005"]', floodPageFooter: "true", floodVisibleCount: "4", floodInfeasible: "false", expandedCounts: { quake: { count: 4, n: 3 }, weather: { "大雨警報(土砂災害)": { count: 24, n: 0 } } }, surplus: "21" },
-  "1280x720": { stage: "3", rotationKeys: "weather,flood,typhoon,volcano,heat", typhoonVariant: "compact", floodForm: "card", floodPage: "1/2", floodPageKeys: '["大淀川","五ヶ瀬川"]', floodPageIdentities: '["氾濫発生情報|大淀川|0|code:8303040001","氾濫危険情報|五ヶ瀬川|0|code:8303040003"]', floodPageFooter: "true", floodVisibleCount: "0", floodInfeasible: "false", expandedCounts: { quake: { count: 4, n: 3 }, weather: { "大雨警報(土砂災害)": { count: 3, n: 21 } } }, surplus: "0" },
+  "1920x1080": { stage: "1", rotationKeys: "", typhoonVariant: "compact", floodForm: "card", floodPage: "1/3", floodPageKeys: '["大淀川","五ヶ瀬川","一ツ瀬川"]', floodPageIdentities: '["氾濫発生情報|大淀川|0|code:8303040001","氾濫危険情報|五ヶ瀬川|0|code:8303040003","氾濫警戒情報|一ツ瀬川|0|code:8303040005"]', floodPageFooter: "true", floodVisibleCount: "2", floodInfeasible: "false", expandedCounts: { quake: { count: 4, n: 3 }, weather: { "大雨警報(土砂災害)": { count: 24, n: 0 } } }, surplus: "21" },
+  "1280x720": { stage: "3", rotationKeys: "weather,weatherWarningForecast,flood,typhoon,volcano,heat", typhoonVariant: "compact", floodForm: "card", floodPage: "1/2", floodPageKeys: '["大淀川","五ヶ瀬川"]', floodPageIdentities: '["氾濫発生情報|大淀川|0|code:8303040001","氾濫危険情報|五ヶ瀬川|0|code:8303040003"]', floodPageFooter: "true", floodVisibleCount: "0", floodRotationVisibleCount: "2", floodInfeasible: "false", expandedCounts: { quake: { count: 4, n: 3 }, weather: { "大雨警報(土砂災害)": { count: 3, n: 21 } } }, surplus: "0" },
 };
 
 // §5 / §11.1 fixed tables. --report emits this comparison without mutating
@@ -762,7 +805,7 @@ const TABLE_EXPECTATIONS = {
   quiet: { "1920x1080": { stage: "0", rotationKeys: "", ...FLOOD_NONE }, "1512x982": { stage: "0", rotationKeys: "", ...FLOOD_NONE }, "1280x720": { stage: "0", rotationKeys: "", ...FLOOD_NONE }, "960x620": { stage: "0", rotationKeys: "", ...FLOOD_NONE } },
   "4": { "1920x1080": { stage: "0", rotationKeys: "", ...FLOOD_NONE }, "1512x982": { stage: "0", rotationKeys: "", ...FLOOD_NONE }, "1280x720": { stage: "2", rotationKeys: "", ...FLOOD_NONE }, "960x620": { stage: "3", rotationKeys: "weather,volcano,heat", ...FLOOD_NONE } },
   "7": { "1920x1080": { stage: "1", rotationKeys: "", ...FLOOD_CARD_TWO }, "1512x982": { stage: "1", rotationKeys: "", ...FLOOD_CARD_TWO }, "1280x720": { stage: "3", rotationKeys: "weather,flood,typhoon,volcano,heat", ...FLOOD_CARD_ONE, floodVisibleCount: "0" }, "960x620": { stage: "3", rotationKeys: "weather,flood,typhoon,volcano,heat", ...FLOOD_CARD_ONE, floodVisibleCount: "0" } },
-  max: { "1920x1080": { stage: "1", rotationKeys: "", ...FLOOD_CARD_TWO }, "1512x982": { stage: "1", rotationKeys: "", ...FLOOD_CARD_TWO }, "1280x720": { stage: "3", rotationKeys: "weather,flood,typhoon,volcano,heat", ...FLOOD_CARD_ONE, floodVisibleCount: "0" }, "960x620": { stage: "3", rotationKeys: "weather,flood,typhoon,volcano,heat", ...FLOOD_CARD_ONE, floodVisibleCount: "0" } },
+  max: { "1920x1080": { stage: "1", rotationKeys: "", ...FLOOD_CARD_TWO }, "1512x982": { stage: "2", rotationKeys: "", ...FLOOD_CARD_ONE }, "1280x720": { stage: "3", rotationKeys: "weather,weatherWarningForecast,flood,typhoon,volcano,heat", ...FLOOD_CARD_ONE, floodVisibleCount: "0" }, "960x620": { stage: "3", rotationKeys: "weather,weatherWarningForecast,flood,typhoon,volcano,heat", ...FLOOD_CARD_ONE, floodVisibleCount: "0" } },
 };
 // §11.1 C, keyed independently of the §5 ladder table. Keeping the measured
 // payload here makes --report reject a stage match with stale expansion data.
@@ -771,10 +814,9 @@ const UTIL_EXPECTATIONS = {
   // diagnostic value "none"; absence is never represented by a missing attr.
   "4": { "1920x1080": ["none", "none", 7, 0, 12, 0, 13, "false"], "1512x982": ["none", "none", 7, 0, 12, 0, 13, "false"], "1280x720": ["none", "none", 7, 0, 12, 0, 13, "false"], "960x620": ["none", "none", 7, 0, 2, 10, 3, "false"] },
   "7": { "1920x1080": ["full", "card", 7, 0, 12, 0, 14, "false"], "1512x982": ["compact", "card", 7, 0, 12, 0, 13, "false"], "1280x720": ["compact", "card", 4, 3, 2, 10, 0, "false"], "960x620": ["compact", "card", 4, 3, 2, 10, 0, "false"] },
-  // Header unification lowers the quake/tsunami chrome by 8px. At 1920px
-  // this admits Typhoon's full promotion (+1 surplus unit); at 1512px it
-  // admits the final three quake prefix rows (7 shown, no omitted tail).
-  max: { "1920x1080": ["full", "card", 7, 0, 24, 0, 25, "false"], "1512x982": ["compact", "card", 7, 0, 24, 0, 24, "false"], "1280x720": ["compact", "card", 4, 3, 3, 21, 0, "false"], "960x620": ["compact", "card", 4, 3, 3, 21, 0, "false"] },
+  // The forecast card is a fixed-column member before stage 3. Its measured
+  // height consumes the former typhoon/quake expansion surplus at wide cells.
+  max: { "1920x1080": ["compact", "card", 4, 3, 24, 0, 21, "false"], "1512x982": ["compact", "card", 4, 3, 24, 0, 21, "false"], "1280x720": ["compact", "card", 4, 3, 3, 21, 0, "false"], "960x620": ["compact", "card", 4, 3, 3, 21, 0, "false"] },
 };
 
 function tableMismatches(diagnostics, scenario, viewport, fixture = null) {
@@ -789,6 +831,19 @@ function tableMismatches(diagnostics, scenario, viewport, fixture = null) {
     })();
   const expected = fixtureExpected ?? (baseExpected == null ? null : { ...baseExpected, ...tornadoExpectation(scenario, viewport) });
   if (expected == null) return [];
+  const rotationActiveKey = diagnostics["data-rotation-active-key"] ?? "";
+  const rotationKeys = (diagnostics["data-rotation-keys"] ?? "").split(",").filter(Boolean);
+  // Stage 3 keeps every logical pager registered while rendering one rotation
+  // member. Visibility counts therefore follow the active host, rather than
+  // the tick-0 table cell used to describe the stable partition itself.
+  if (fixtureExpected == null && rotationKeys.length > 0) {
+    expected.floodVisibleCount = rotationActiveKey === "flood" && baseExpected?.floodForm === "card"
+      ? (baseExpected.floodRotationVisibleCount ?? FLOOD_CARD_ONE.floodVisibleCount)
+      : "0";
+    expected.tornadoVisibleCount = rotationActiveKey === "weather"
+      ? tornadoExpectation(scenario, viewport).tornadoVisibleCount
+      : "0";
+  }
   const observed = {
     stage: diagnostics["data-ladder-stage"], rotationKeys: diagnostics["data-rotation-keys"],
     unresolved: diagnostics["data-layout-unresolved"], nonconverged: diagnostics["data-measurement-nonconverged"],
@@ -861,7 +916,8 @@ async function capture({ chrome, profileDir, url, scenario, viewport, outDir, ro
   const clusterFixture = url.includes("gateFixture=cluster");
   const clusterCalmFixture = url.includes("gateFixture=cluster-calm");
   let attentionGeometry = null;
-  if (attentionFixture || fixture === "briefing-pages" || fixture === "briefing-single-page" || process.argv.includes("--report")) {
+  const forecastContinuationCapture = scenario === "max" && viewport.label === "960x620";
+  if (attentionFixture || fixture === "briefing-pages" || fixture === "briefing-single-page" || forecastContinuationCapture || process.argv.includes("--report")) {
     attentionGeometry = await captureLiveGeometry({ chrome, profileDir, url, viewport });
     if (attentionFixture) {
       const baselineUrl = new URL(url);
@@ -890,6 +946,7 @@ async function capture({ chrome, profileDir, url, scenario, viewport, outDir, ro
     // through to the generic containment counterexample.
     assertFloodReadability(diagnostics);
     assertCardContainment(diagnostics);
+    if (attentionGeometry != null) assertForecastContinuationGeometry(attentionGeometry, diagnostics);
     if (fixture === "recent-quakes-narrow") assertRecentQuakesNarrowFixture(diagnostics);
     assertGeometry(diagnostics, { skipWeatherHeight: clusterFixture });
     if (clusterFixture) assertClusterFixture(diagnostics, { requirePreRotation: clusterCalmFixture });

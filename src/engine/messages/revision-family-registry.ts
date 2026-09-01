@@ -79,6 +79,10 @@ interface RevisionFamilyPolicyBase<TParsed> {
   tombstoneRetentionMs: number | null;
   /** family が保持し得る subject 数。durable な無期限 tombstone では有限値を必須とする。 */
   maxSubjects: number | null;
+  /** active durable watermark も acceptedAt 起点で失効させる family。 */
+  activeRetentionMs?: number;
+  /** 容量満杯時に既存 victim を選ばず、新規 subject を拒否する。 */
+  familyCapacityMode?: "evictInactive" | "rejectNewSubject";
   /** serial が構造上省略される family のみ明示して許可する。 */
   allowMissingSerial?: boolean;
 }
@@ -349,8 +353,12 @@ export function weatherTimeseriesStateSubjectKey(
   const areaCode = nonBlank(parsed.targetArea?.code);
   const areaName = nonBlank(parsed.targetArea?.name);
   const area = areaCode == null ? (areaName == null ? "scope:all" : `name:${areaName}`) : `code:${areaCode}`;
-  return office == null ? null : `weatherTimeseries:${office}:${area}`;
+  if (office == null) return null;
+  const subject = `weatherTimeseries:${office}:${area}`;
+  return subject.length <= 1_024 ? subject : null;
 }
+
+export const WEATHER_TIMESERIES_RETENTION_MS = 7 * 24 * 60 * 60_000;
 
 export function longPeriodStateSubjectKey(meta: TelegramMeta): string | null {
   const eventId = meta.eventId.valid ? nonBlank(meta.eventId.value) : null;
@@ -444,7 +452,11 @@ export const WEATHER_TIMESERIES_REVISION_FAMILY_POLICY: RevisionFamilyPolicy<Par
     const key = weatherTimeseriesStateSubjectKey(parsed); return key == null ? null : [key];
   },
   cancellationPolicy: "clearCurrent", terminalPredicate: () => false, deactivationPredicate: () => false,
-  durable: false, tombstoneRetentionMs: STANDBY_DOMAIN_RETENTION_MS, maxSubjects: 512,
+  durable: true,
+  tombstoneRetentionMs: WEATHER_TIMESERIES_RETENTION_MS,
+  activeRetentionMs: WEATHER_TIMESERIES_RETENTION_MS,
+  familyCapacityMode: "rejectNewSubject",
+  maxSubjects: 512,
   allowMissingSerial: true, fragmentMerge: false,
 };
 

@@ -4,6 +4,7 @@ import {
   MAX_BLOCKED_MS,
   MAX_CLIENTS,
   MAX_EVENT_BYTES,
+  MAX_SNAPSHOT_BYTES,
   MAX_WRITABLE_LENGTH,
 } from "../../../src/engine/display/constants";
 import { encodeSseGuarded, SseClients } from "../../../src/engine/display/sse-clients";
@@ -13,6 +14,8 @@ import type {
   DisplayServerMessage,
   DisplayStateSnapshotV1,
 } from "../../../src/engine/display/types";
+import type { ActiveStandbyCardV1 } from "../../../src/engine/display/protocol";
+import { vpwp50StableKey } from "../../../src/engine/presentation/weather-severity-pyramid";
 import { displayEventDto, displaySnapshot } from "../../helpers/display-fixtures";
 
 interface FakeRes {
@@ -62,6 +65,75 @@ const baseSnapshot = displaySnapshot;
 
 function snapshotMsg(over: Partial<DisplayStateSnapshotV1> = {}): DisplayServerMessage {
   return { type: "snapshot", snapshot: baseSnapshot(over) };
+}
+
+function maxValidWeatherWarningForecastCard(): Extract<ActiveStandbyCardV1, { kind: "weatherWarningForecast" }> {
+  const subject = "weatherTimeseries:VPWP50-SSE:200000";
+  const groupKey = vpwp50StableKey("group", [
+    "土砂災害危険度", "31", "土砂災害（警戒レベル3相当）の予測", "officialL3",
+  ]);
+  const reportTimeMs = Date.parse("2026-09-01T00:00:00.000Z");
+  const startsAt = "2026-09-01T01:00:00.000Z";
+  const endsAt = "2026-09-01T02:00:00.000Z";
+  const build = (
+    sourceExtra: number,
+    nameExtras: readonly number[],
+  ): Extract<ActiveStandbyCardV1, { kind: "weatherWarningForecast" }> => ({
+    kind: "weatherWarningForecast",
+    surface: "corner-right",
+    key: "weatherWarningForecast:active",
+    sourceEventIds: [`s${"x".repeat(sourceExtra)}`],
+    updatedAt: new Date(reportTimeMs).toISOString(),
+    expiresAt: endsAt,
+    restored: false,
+    severity: "warning",
+    data: { groups: [{
+      key: groupKey,
+      phenomenonName: "土砂災害危険度",
+      significancyCode: "31",
+      forecastLabel: "土砂災害（警戒レベル3相当）の予測",
+      displaySeverity: "officialL3",
+      severity: "warning",
+      targets: Array.from({ length: 128 }, (_, index) => {
+        const name = `a${index.toString(36)}${"x".repeat(nameExtras[index] ?? 0)}`;
+        const targetKey = vpwp50StableKey("target", [subject, "area", `name:${name}`]);
+        return {
+          key: targetKey,
+          scope: "area" as const,
+          name,
+          parentAreaName: name,
+          areaCode: null,
+          localCode: null,
+          periods: [{
+            key: vpwp50StableKey("period", [groupKey, targetKey, 1, "3h", startsAt, endsAt]),
+            tsNum: 1 as const,
+            series: "3h" as const,
+            startsAt,
+            endsAt,
+            label: "9月1日 10:00–11:00",
+            pagerAnchorKey: vpwp50StableKey("anchor", [
+              subject, reportTimeMs, "1", groupKey, targetKey, 0,
+            ]),
+            pagerAnchorOrdinal: 0,
+            pagerSlot: 0 as const,
+          }],
+        };
+      }),
+    }] },
+  });
+  const nameExtras = Array.from({ length: 128 }, () => 0);
+  let remaining = 64 * 1024 - Buffer.byteLength(JSON.stringify(build(0, nameExtras)), "utf8");
+  if (remaining < 0) throw new Error("VPWP50 SSE fixture base exceeds wire budget");
+  const sourceExtra = remaining % 2;
+  remaining -= sourceExtra;
+  for (let index = 0; index < nameExtras.length && remaining > 0; index += 1) {
+    const baseNameLength = `a${index.toString(36)}`.length;
+    const characters = Math.min(256 - baseNameLength, remaining / 2);
+    nameExtras[index] = characters;
+    remaining -= characters * 2;
+  }
+  if (remaining !== 0) throw new Error("VPWP50 SSE fixture filler capacity exhausted");
+  return build(sourceExtra, nameExtras);
 }
 
 /** JSON 化後に MAX_SNAPSHOT_BYTES (256KB) を超える recentTicker を生成する */
@@ -349,5 +421,18 @@ describe("encodeSseGuarded", () => {
   it("event メッセージは id 行を持つが snapshot/state は持たない", () => {
     expect(encodeSseGuarded(eventMsg(42))).toContain("id: 42\n");
     expect(encodeSseGuarded(snapshotMsg())).not.toContain("id:");
+  });
+
+  it("128 period・64KiB 以下の最大 VPWP50 card を snapshot/state の双方で通す", () => {
+    const card = maxValidWeatherWarningForecastCard();
+    expect(card.data.groups.flatMap((group) => group.targets.flatMap((target) => target.periods))).toHaveLength(128);
+    expect(Buffer.byteLength(JSON.stringify(card), "utf8")).toBe(64 * 1024);
+    const snapshot = baseSnapshot({ standbyItems: [card] });
+    const snapshotFrame = encodeSseGuarded({ type: "snapshot", snapshot });
+    const stateFrame = encodeSseGuarded({ type: "state", snapshot });
+    expect(snapshotFrame).not.toBeNull();
+    expect(stateFrame).not.toBeNull();
+    expect(Buffer.byteLength(snapshotFrame!, "utf8")).toBeLessThanOrEqual(MAX_SNAPSHOT_BYTES);
+    expect(Buffer.byteLength(stateFrame!, "utf8")).toBeLessThanOrEqual(MAX_SNAPSHOT_BYTES);
   });
 });

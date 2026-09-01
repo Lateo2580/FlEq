@@ -36,6 +36,23 @@ describe("protocol.ts 複製の同期", () => {
     expect(copy).toBe(source);
   });
 
+  it("protocol v1 のまま weatherWarningForecast kind と authoritative DTO を同期する", () => {
+    const sourcePath = resolve(__dirname, "../../../src/engine/display/protocol.ts");
+    const frontendPath = resolve(__dirname, "../../../display/frontend/src/lib/protocol.ts");
+    for (const path of [sourcePath, frontendPath]) {
+      const text = readFileSync(path, "utf8");
+      expect(text).toContain("export const DISPLAY_PROTOCOL_VERSION = 1 as const");
+      expect(text).toContain('kind: "weatherWarningForecast"');
+      expect(text).toContain("interface DisplayWeatherWarningForecastPeriodV1");
+      expect(text).toContain("pagerAnchorKey: string");
+      const periodBegin = text.indexOf("export interface DisplayWeatherWarningForecastPeriodV1");
+      const targetBegin = text.indexOf("export interface DisplayWeatherWarningForecastTargetV1", periodBegin);
+      expect(periodBegin).toBeGreaterThanOrEqual(0);
+      expect(targetBegin).toBeGreaterThan(periodBegin);
+      expect(text.slice(periodBegin, targetBegin)).not.toContain("timeRef");
+    }
+  });
+
   it("台風数値の serializable rank union と semantic DTO が engine/frontend で一致する", () => {
     const source = extractSyncRegion(resolve(__dirname, "../../../src/engine/display/protocol.ts"));
     const copy = extractSyncRegion(resolve(__dirname, "../../../display/frontend/src/lib/protocol.ts"));

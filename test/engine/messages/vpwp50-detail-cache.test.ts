@@ -4,7 +4,12 @@ import os from "node:os";
 import path from "node:path";
 import chalk from "chalk";
 import { Vpwp50DetailCache } from "../../../src/engine/messages/vpwp50-detail-cache";
+import { parseWeatherWarningTimeseries } from "../../../src/dmdata/weather-warning-timeseries-parser";
 import { handleDetail } from "../../../src/ui/repl-handlers/info-handlers";
+import {
+  createMockWsDataMessage,
+  FIXTURE_VPWP50_LOCAL_IDENTITY,
+} from "../../helpers/mock-message";
 
 chalk.level = 0;
 
@@ -100,6 +105,32 @@ describe("Vpwp50DetailCache 永続化", () => {
 
     const cache2 = new Vpwp50DetailCache({ persistRoot: root });
     expect(cache2.getDetail()).not.toBeNull();
+  });
+
+  it("card 専用 occurrence・Area/Local identity・absolute slot を詳細 cache へ保存しない", () => {
+    const root = makeTmpRoot();
+    tmpRoots.push(root);
+    const parsed = parseWeatherWarningTimeseries(
+      createMockWsDataMessage(FIXTURE_VPWP50_LOCAL_IDENTITY),
+    );
+    expect(parsed).not.toBeNull();
+    if (parsed == null) return;
+    expect(parsed.areas.some((area) => area.identityKey != null
+      && area.kinds[1].some((kind) => kind.significancyOccurrences != null))).toBe(true);
+
+    const cache = new Vpwp50DetailCache({ persistRoot: root });
+    cache.rememberLatest(parsed);
+    cache.flush();
+    const written = fs.readFileSync(
+      path.join(root, "data", "runtime", "vpwp50-latest.json"),
+      "utf8",
+    );
+    expect(written).not.toContain("significancyOccurrences");
+    expect(written).not.toContain("identityKey");
+    expect(written).not.toContain('"identity"');
+    expect(written).not.toContain('"startsAt"');
+    expect(written).not.toContain('"endsAt"');
+    expect(written).not.toContain('"slot"');
   });
 
   it("破損 JSON は無視されて getDetail()=null (load 失敗で例外を投げない)", () => {

@@ -41,7 +41,10 @@ import {
   VolcanoStateHolder,
 } from "../messages/volcano-state";
 import { FloodForecastStateHolder } from "../messages/flood-forecast-state";
-import { FLOOD_FORECAST_RETENTION_MS } from "../messages/revision-family-registry";
+import {
+  FLOOD_FORECAST_RETENTION_MS,
+  WEATHER_TIMESERIES_RETENTION_MS,
+} from "../messages/revision-family-registry";
 import { sweepFloodForecastFoundation } from "../messages/flood-forecast-lifecycle";
 import { TYPHOON_PROBABILITY_RETENTION_MS } from "../display/project-typhoon-probability";
 import { TyphoonProbabilityStateHolder } from "../messages/typhoon-probability-state";
@@ -129,7 +132,7 @@ export async function startMonitor(config: AppConfig, pipelineController?: Pipel
       },
       standbyDomains: {
         gateEntries: revisionGate.exportDurableEntries().filter((entry) =>
-          ["tornado", "heatAlert", "typhoonAnalysis", "typhoonProbability", "nankaiTrough", "lgObservation"]
+          ["tornado", "heatAlert", "typhoonAnalysis", "typhoonProbability", "nankaiTrough", "lgObservation", "weatherWarningTimeseries"]
             .includes(entry.domain)),
       },
     }),
@@ -137,12 +140,33 @@ export async function startMonitor(config: AppConfig, pipelineController?: Pipel
   let standbyDirtyNotify: (() => void) | null = null;
   let standbyDirtySuppressed = false;
   let standbyDurableSuppressionDepth = 0;
+  let vpwp50AdmissionPersistencePending = false;
   const withStandbyDurableNotificationsSuppressed = <T>(callback: () => T): T => {
+    const ownsVpwp50Completion = standbyDurableSuppressionDepth === 0;
+    if (ownsVpwp50Completion) vpwp50AdmissionPersistencePending = false;
     standbyDurableSuppressionDepth += 1;
     try {
       return callback();
     } finally {
-      standbyDurableSuppressionDepth -= 1;
+      // VPWP50 gate expiry/admission and reducer mutation form one durable
+      // transaction. Reserve its canonical state exactly once after the whole
+      // router operation, including failure paths between gate commit and
+      // display ingestion.
+      const completesVpwp50Admission = ownsVpwp50Completion
+        && vpwp50AdmissionPersistencePending;
+      try {
+        if (completesVpwp50Admission) {
+          standbyStore.reconcileWeatherWarningForecastGateBindings(
+            revisionGate.exportDurableEntries(),
+          );
+        }
+      } finally {
+        standbyDurableSuppressionDepth -= 1;
+      }
+      if (completesVpwp50Admission) {
+        vpwp50AdmissionPersistencePending = false;
+        standbyPersistence.schedule(standbyStore.exportActiveState());
+      }
     }
   };
   standbyStore.onChange(() => {
@@ -154,6 +178,8 @@ export async function startMonitor(config: AppConfig, pipelineController?: Pipel
   let briefingCriticalRewriteRequired = false;
   let startupVptaGateChanged = false;
   let startupVptaProjectionChanged = false;
+  let startupVpwp50GateChanged = false;
+  let startupVpwp50ProjectionChanged = false;
   const persistedStandby = standbyPersistence.load(startupNowMs);
   if (persistedStandby != null) {
     const restoredAtMs = startupNowMs;
@@ -161,6 +187,12 @@ export async function startMonitor(config: AppConfig, pipelineController?: Pipel
     // probability slice より先に確定し、旧報の一時的な再表示を作らない。
     revisionGate.restoreDurableEntries(
       persistedStandby.telegramFoundation.standbyDomains.gateEntries,
+    );
+    startupVpwp50GateChanged = revisionGate.expireRevisionFamily(
+      "weatherWarningTimeseries",
+      "VPWP50",
+      startupNowMs,
+      WEATHER_TIMESERIES_RETENTION_MS,
     );
     startupVptaGateChanged = revisionGate.expireRevisionFamily(
       "typhoonProbability", "VPTA50", startupNowMs, TYPHOON_PROBABILITY_RETENTION_MS,
@@ -226,6 +258,10 @@ export async function startMonitor(config: AppConfig, pipelineController?: Pipel
       startupNowMs,
       revisionGate.activeRevisionFamilySubjects("typhoonProbability", "VPTA50"),
     ).durableChanged;
+    startupVpwp50ProjectionChanged = standbyStore.maintainWeatherWarningForecastSubjects(
+      startupNowMs,
+      revisionGate.revisionFamilySubjectKeys("weatherWarningTimeseries", "VPWP50"),
+    ).durableChanged;
     if (persistedVpws50.authoritative) {
       const identity = vpws50State.getCurrentIdentity();
       standbyStore.restoreCanonicalVpws50Alerts(
@@ -248,6 +284,12 @@ export async function startMonitor(config: AppConfig, pipelineController?: Pipel
     startupVptaGateChanged = revisionGate.expireRevisionFamily(
       "typhoonProbability", "VPTA50", startupNowMs, TYPHOON_PROBABILITY_RETENTION_MS,
     );
+    startupVpwp50GateChanged = revisionGate.expireRevisionFamily(
+      "weatherWarningTimeseries",
+      "VPWP50",
+      startupNowMs,
+      WEATHER_TIMESERIES_RETENTION_MS,
+    );
   }
   const startupSweepMutation = standbyStore.sweep(startupNowMs);
   // salvage source は全 holder / gate の restore と起動時 sweep が完了してからだけ
@@ -257,6 +299,8 @@ export async function startMonitor(config: AppConfig, pipelineController?: Pipel
     || standbyPersistence.hasPendingSalvageRepair()
     || startupVptaGateChanged
     || startupVptaProjectionChanged
+    || startupVpwp50GateChanged
+    || startupVpwp50ProjectionChanged
     || startupSweepMutation.durableChanged
   )) {
     standbyPersistence.schedule(standbyStore.exportActiveState());
@@ -362,13 +406,24 @@ export async function startMonitor(config: AppConfig, pipelineController?: Pipel
         nowMs,
         revisionGate.activeRevisionFamilySubjects("typhoonProbability", "VPTA50"),
       );
+      const vpwp50GateChanged = revisionGate.expireRevisionFamily(
+        "weatherWarningTimeseries",
+        "VPWP50",
+        nowMs,
+        WEATHER_TIMESERIES_RETENTION_MS,
+      );
+      const vpwp50ProjectionMutation = standbyStore.maintainWeatherWarningForecastSubjects(
+        nowMs,
+        revisionGate.revisionFamilySubjectKeys("weatherWarningTimeseries", "VPWP50"),
+      );
       typhoonProbabilityState.sweep(nowMs);
       return {
         viewChanged: standbyMutation.viewChanged || floodMutation.viewChanged
-          || vptaProjectionMutation.viewChanged,
+          || vptaProjectionMutation.viewChanged || vpwp50ProjectionMutation.viewChanged,
         durableChanged: standbyMutation.durableChanged || floodMutation.durableChanged
           || floodMutation.foundationChanged || vptaGateChanged
-          || vptaProjectionMutation.durableChanged,
+          || vptaProjectionMutation.durableChanged
+          || vpwp50GateChanged || vpwp50ProjectionMutation.durableChanged,
       };
     });
     if (mutation.durableChanged) {
@@ -452,8 +507,13 @@ export async function startMonitor(config: AppConfig, pipelineController?: Pipel
     publishStats: (s) => displayHubRef?.publishStats?.(s),
     activeTyphoonProbabilitySubjects: (nowMs) =>
       baseDisplaySink.activeTyphoonProbabilitySubjects?.(nowMs) ?? [],
+    activeWeatherWarningForecastSubjects: (nowMs) =>
+      baseDisplaySink.activeWeatherWarningForecastSubjects?.(nowMs) ?? [],
     maintainTyphoonProbabilitySubjects: (nowMs, subjects) =>
       baseDisplaySink.maintainTyphoonProbabilitySubjects?.(nowMs, subjects)
+      ?? { viewChanged: false, durableChanged: false },
+    maintainWeatherWarningForecastSubjects: (nowMs, subjects) =>
+      baseDisplaySink.maintainWeatherWarningForecastSubjects?.(nowMs, subjects)
       ?? { viewChanged: false, durableChanged: false },
     reconcileTyphoonProbabilityCommand: (command) =>
       baseDisplaySink.reconcileTyphoonProbabilityCommand?.(command)
@@ -574,8 +634,20 @@ export async function startMonitor(config: AppConfig, pipelineController?: Pipel
       floodFoundationAuthoritative = true;
       standbyPersistence.schedule(standbyStore.exportActiveState());
     },
-    onStandbyRevisionDecision: (decision) => {
-      if (decision.accepted) standbyPersistence.schedule(standbyStore.exportActiveState());
+    onStandbyRevisionDecision: (decision, context) => {
+      if (context?.domain === "weatherWarningTimeseries"
+        && context.revisionFamily === "VPWP50") {
+        if (!decision.accepted && decision.preAdmissionDurableChanged !== true) return;
+        if (standbyDurableSuppressionDepth > 0) {
+          vpwp50AdmissionPersistencePending = true;
+        } else {
+          standbyPersistence.schedule(standbyStore.exportActiveState());
+        }
+        return;
+      }
+      if (decision.accepted || decision.preAdmissionDurableChanged === true) {
+        standbyPersistence.schedule(standbyStore.exportActiveState());
+      }
     },
     onVptaStandbyRevisionDecision: () => {
       // Observer only. VPTA persistence is owned exclusively by completion below.

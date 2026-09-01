@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { achievableSurplusUse, bestPlacement, comparePlacements, enumeratePlacements, makeColumnPlan, promoteAndExpand, solveRotation, type SolverContext } from "../solver";
+import { MAX_ROTATION_CANDIDATE_PASSES, achievableSurplusUse, bestPlacement, comparePlacements, enumeratePlacements, makeColumnPlan, promoteAndExpand, solveRotation, type SolverContext } from "../solver";
 import type { CardCandidate, ColumnPlan, PlacementChoice } from "../types";
 
 function card(key: CardCandidate["key"], order: number, height: number, maxRegionRows = 0, score = 0): CardCandidate {
@@ -138,14 +138,14 @@ describe("legacy standby solver", () => {
   it("uses canonical fixed columns when every candidate fits", () => {
     const candidates = [
       card("heat", 7, 10), card("volcano", 6, 10), card("typhoon", 5, 10), card("flood", 4, 10),
-      card("briefing", 3, 10), card("weather", 2, 10), card("quake", 1, 10), card("tsunami", 0, 10),
+      card("briefing", 3, 10), card("weatherWarningForecast", 2.5, 10), card("weather", 2, 10), card("quake", 1, 10), card("tsunami", 0, 10),
     ];
 
     const plan = makeColumnPlan({ candidates, ctx: context(() => 0), floorStage: 0, requestedLadder: 0 });
 
     expect(plan.stage).toBe(0);
     expect(plan.left.map((entry) => entry.key)).toEqual(["tsunami", "quake"]);
-    expect(plan.right.map((entry) => entry.key)).toEqual(["weather", "briefing", "flood", "typhoon", "volcano", "heat"]);
+    expect(plan.right.map((entry) => entry.key)).toEqual(["weather", "weatherWarningForecast", "briefing", "flood", "typhoon", "volcano", "heat"]);
     expect(plan.center).toEqual([]);
   });
 
@@ -607,15 +607,17 @@ describe("legacy standby solver", () => {
     expect(solution.failureCount).toBeGreaterThan(0);
   });
 
-  it("briefing を含む六候補を探索し、既存五種の相対 rotation 順を保つ", () => {
+  it("forecast を含む七候補を最後まで探索し、既存六種の相対 rotation 順を保つ", () => {
     const candidates = [
-      card("quake", 0, 80), card("weather", 1, 110), card("briefing", 2, 110), card("flood", 3, 110),
-      card("typhoon", 4, 110), card("volcano", 5, 110), card("heat", 6, 110),
+      card("quake", 0, 80), card("weather", 1, 110), card("weatherWarningForecast", 2, 110),
+      card("briefing", 3, 110), card("flood", 4, 110), card("typhoon", 5, 110),
+      card("volcano", 6, 110), card("heat", 7, 110),
     ];
     const ctx = { ...context(() => 0), rotationSlotHeight: (keys: readonly CardCandidate["key"][]) => keys.length === 0 ? 0 : 20 };
     const keys = solveRotation(candidates, ctx).rotationKeys;
-    expect(keys).toEqual(["weather", "briefing", "flood", "typhoon", "volcano", "heat"]);
-    expect(keys.filter((key) => key !== "briefing")).toEqual(["weather", "flood", "typhoon", "volcano", "heat"]);
+    expect(MAX_ROTATION_CANDIDATE_PASSES).toBe(7);
+    expect(keys).toEqual(["weather", "weatherWarningForecast", "briefing", "flood", "typhoon", "volcano", "heat"]);
+    expect(keys.filter((key) => key !== "weatherWarningForecast")).toEqual(["weather", "briefing", "flood", "typhoon", "volcano", "heat"]);
   });
 
   it("applies lexicographic center, wide-flood, surplus, maximum-height, then balance ordering", () => {

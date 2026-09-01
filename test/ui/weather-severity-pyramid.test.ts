@@ -6,6 +6,9 @@ import {
   formatCriteriaTimeBySeries,
   partitionBySeverity,
   summarizeAdvisoryByPhenomenon,
+  projectForecastOccurrences,
+  vpwp50ForecastLabel,
+  vpwp50StableKey,
 } from "../../src/engine/presentation/weather-severity-pyramid";
 import type {
   SeriesWindow,
@@ -20,12 +23,88 @@ import type {
   TimeWindow,
 } from "../../src/types";
 import { parseWeatherWarningTimeseries } from "../../src/dmdata/weather-warning-timeseries-parser";
+import { classifySignificancyCode } from "../../src/dmdata/weather-warning-timeseries-significancy";
 import {
   createMockWsDataMessage,
   FIXTURE_VPWP50_NAGANO,
   FIXTURE_VPWP50_CRITERIA_PERIOD,
   FIXTURE_VPWP50_HIGH_SEVERITY,
+  FIXTURE_VPWP50_LOCAL_IDENTITY,
+  readFixture,
 } from "../helpers/mock-message";
+
+interface Vpwp50ForecastExpectations {
+  subjectKey: string;
+  reportTimeMs: number;
+  occurrence: {
+    phenomenonName: string;
+    significancyCode: string;
+    timeRef: string;
+    startsAt: string;
+    endsAt: string;
+    forecastLabel: string;
+  };
+  stableKeys: Record<"group" | "areaTarget" | "localTarget" | "period" | "pagerAnchor", string>;
+  forecastLabels: [string, string, string][];
+}
+
+const forecastExpectations = JSON.parse(
+  readFixture("vpwp50-forecast-expectations.json"),
+) as Vpwp50ForecastExpectations;
+
+describe("VPWP50 lossless forecast projection", () => {
+  it("projects visible known and unknown siblings without collapsing code 21 and 22", () => {
+    const parsed = parseWeatherWarningTimeseries(
+      createMockWsDataMessage(FIXTURE_VPWP50_LOCAL_IDENTITY),
+    );
+    expect(parsed).not.toBeNull();
+    if (parsed == null) return;
+    const entries = projectForecastOccurrences(parsed);
+    const sediment = entries.filter((entry) => entry.phenomenonName === "土砂災害危険度" && entry.local == null);
+    expect(sediment.map((entry) => entry.significancy.code)).toEqual(["21", "22", "31", "99", "41"]);
+    expect(sediment.map((entry) => entry.forecastLabel)).toEqual([
+      "土砂災害（警戒レベル2）の予測",
+      "土砂災害（警戒レベル2相当）の予測",
+      "土砂災害（警戒レベル3相当）の予測",
+      "土砂災害（区分不明）の予測",
+      "土砂災害（警戒レベル4相当）の予測",
+    ]);
+    expect(entries.filter((entry) => entry.phenomenonName === "雷").map((entry) => entry.significancy.code)).toEqual(["20", "99"]);
+  });
+
+  it.each(forecastExpectations.forecastLabels)("uses the authoritative label for %s code %s", (name, code, expected) => {
+    expect(vpwp50ForecastLabel(name, classifySignificancyCode(name, code))).toBe(expected);
+  });
+
+  it.each(["00", "01", "11"])("does not project non-visible code %s", (code) => {
+    expect(vpwp50ForecastLabel("雨", classifySignificancyCode("雨", code))).toBeNull();
+  });
+
+  it("matches the static digest keys for group, target, period, and anchor", () => {
+    const occurrence = forecastExpectations.occurrence;
+    const group = vpwp50StableKey("group", [
+      occurrence.phenomenonName, occurrence.significancyCode,
+      occurrence.forecastLabel, "officialL2",
+    ]);
+    const areaTarget = vpwp50StableKey("target", [forecastExpectations.subjectKey, "area", "code:200010"]);
+    expect(group).toBe(forecastExpectations.stableKeys.group);
+    expect(areaTarget).toBe(forecastExpectations.stableKeys.areaTarget);
+    expect(vpwp50StableKey("target", [forecastExpectations.subjectKey, "local", "code:200010", "code:L001"]))
+      .toBe(forecastExpectations.stableKeys.localTarget);
+    expect(vpwp50StableKey("period", [group, areaTarget, 1, "3h", occurrence.startsAt, occurrence.endsAt]))
+      .toBe(forecastExpectations.stableKeys.period);
+    expect(vpwp50StableKey("anchor", [forecastExpectations.subjectKey, forecastExpectations.reportTimeMs, "1", group, areaTarget, 0]))
+      .toBe(forecastExpectations.stableKeys.pagerAnchor);
+    for (const key of Object.values(forecastExpectations.stableKeys)) {
+      expect(key).toMatch(/^[A-Za-z0-9_-]{43}$/);
+    }
+  });
+
+  it("rejects unsupported stable-key component values at runtime", () => {
+    expect(() => vpwp50StableKey("group", [Number.NaN])).toThrow();
+    expect(() => vpwp50StableKey("group", [1.5])).toThrow();
+  });
+});
 
 function makeEmptyInfo(): ParsedWeatherWarningTimeseriesInfo {
   return {

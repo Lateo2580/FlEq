@@ -890,6 +890,37 @@ describe("shared card-page coordinator", () => {
     pages.dispose();
   });
 
+  it("advances forecast anchors, preserves a stable successor after expiry, and unregisters cleanly", () => {
+    const time = controlledClock();
+    const pages = createCardPageCoordinator({ clock: time.clock });
+    pages.register({
+      key: "weatherWarningForecast",
+      identities: ["anchor-0", "anchor-1", "anchor-2"],
+      fingerprints: ["f0", "f1", "f2"],
+      labels: ["予測 0", "予測 1", "予測 2"],
+    });
+    pages.jumpTo("weatherWarningForecast", 1);
+    expect(pages.cardDiagnostics("weatherWarningForecast")).toMatchObject({
+      activeKey: "anchor-1",
+      page: "2/3",
+    });
+    pages.register({
+      key: "weatherWarningForecast",
+      identities: ["anchor-0", "anchor-2"],
+      fingerprints: ["f0", "f2"],
+      labels: ["予測 0", "予測 2"],
+    });
+    expect(pages.cardDiagnostics("weatherWarningForecast")).toMatchObject({
+      activeKey: "anchor-2",
+      page: "2/2",
+    });
+    time.advance(TIME_SLICE_PERIOD_MS);
+    expect(pages.cardDiagnostics("weatherWarningForecast").activeKey).toBe("anchor-0");
+    pages.unregister("weatherWarningForecast");
+    expect(pages.cardDiagnostics("weatherWarningForecast")).toMatchObject({ page: "0/0", activeKey: null });
+    pages.dispose();
+  });
+
   it("disposes the remaining shared timer on coordinator unmount", () => {
     const pages = createCardPageCoordinator();
     pages.register({ key: "quake", identities: ["q1", "q2"] });

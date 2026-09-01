@@ -28,6 +28,8 @@ export const STANDBY_CARD_REGISTRY = {
   heat: { priority: 200, fallbackTtlMs: null, tombstoneTtlMs: 2 * DAY },
   longPeriod: { priority: 100, fallbackTtlMs: 12 * HOUR, tombstoneTtlMs: DAY + 12 * HOUR },
   nankaiTrough: { priority: 100, fallbackTtlMs: 7 * DAY, tombstoneTtlMs: 14 * DAY },
+  /** VPWP50 is bounded exclusively by its TimeDefine periods. */
+  weatherWarningForecast: { priority: 425, fallbackTtlMs: null, tombstoneTtlMs: 7 * DAY },
 } satisfies Record<Exclude<StandbyKind, "briefing">, CardPolicy>;
 
 export function tombstoneTtlForKey(key: string): number {

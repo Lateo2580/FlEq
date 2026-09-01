@@ -110,14 +110,22 @@ export interface ProcessDeps {
   onVpww56RevisionDecision?: (decision: TelegramRevisionDecision) => void;
   onTsunamiRevisionDecision?: (decision: TelegramRevisionDecision) => void;
   onFloodRevisionDecision?: (decision: TelegramRevisionDecision) => void;
-  onStandbyRevisionDecision?: (decision: TelegramRevisionDecision) => void;
+  onStandbyRevisionDecision?: (
+    decision: TelegramRevisionDecision,
+    context?: { domain: string; revisionFamily: string },
+  ) => void;
   /** VPTA observer is deliberately persistence-free; completion owns persistence. */
   onVptaStandbyRevisionDecision?: (decision: TelegramRevisionDecision) => void;
   /** Router-owned sticky poison guard, checked immediately after external callbacks. */
   assertRouterSerializerHealthy?: () => void;
   onVptaAdmissionCompletion?: VptaAdmissionCompletionAdapter;
   activeTyphoonProbabilitySubjects?: (nowMs: number) => readonly string[];
+  activeWeatherWarningForecastSubjects?: (nowMs: number) => readonly string[];
   maintainTyphoonProbabilitySubjects?: (
+    nowMs: number,
+    activeGateSubjects: readonly string[],
+  ) => { viewChanged: boolean; durableChanged: boolean };
+  maintainWeatherWarningForecastSubjects?: (
     nowMs: number,
     activeGateSubjects: readonly string[],
   ) => { viewChanged: boolean; durableChanged: boolean };

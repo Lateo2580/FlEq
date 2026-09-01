@@ -40,6 +40,7 @@ import {
   FIXTURE_VYSE50_ALERT,
   FIXTURE_VYSE50_CANCEL,
   FIXTURE_VYSE51_ADVISORY,
+  FIXTURE_VPWP50_LOCAL_IDENTITY,
   readFixture,
 } from "../../helpers/mock-message";
 import * as log from "../../../src/logger";
@@ -139,7 +140,13 @@ describe("Phase 3B standby domain registry", () => {
     expect(TYPHOON_PROBABILITY_REVISION_FAMILY_POLICY).toMatchObject({ cancellationPolicy: "clearCurrent", durable: true, maxSubjects: 256 });
     expect(NANKAI_REVISION_FAMILY_POLICY).toMatchObject({ cancellationPolicy: "clearCurrent", durable: true, maxSubjects: 1 });
     expect(NANKAI_INFORMATION_REVISION_FAMILY_POLICY).toMatchObject({ cancellationPolicy: "clearCurrent", durable: false, maxSubjects: 256 });
-    expect(WEATHER_TIMESERIES_REVISION_FAMILY_POLICY).toMatchObject({ cancellationPolicy: "clearCurrent", durable: false, maxSubjects: 512 });
+    expect(WEATHER_TIMESERIES_REVISION_FAMILY_POLICY).toMatchObject({
+      cancellationPolicy: "clearCurrent",
+      durable: true,
+      maxSubjects: 512,
+      activeRetentionMs: 7 * 24 * 60 * 60_000,
+      familyCapacityMode: "rejectNewSubject",
+    });
     expect(LG_OBSERVATION_REVISION_FAMILY_POLICY).toMatchObject({ cancellationPolicy: "markCancelled", durable: true, maxSubjects: 256 });
   });
 
@@ -347,7 +354,7 @@ describe("Phase 3B standby domain registry", () => {
   it.each([
     [FIXTURE_VPTA50_DAMREY, "VPTA50", "typhoonProbability", 7 * 24 * 60 * 60_000],
     [FIXTURE_VYSE51_ADVISORY, "VYSE51", "nankaiTrough", 30 * 24 * 60 * 60_000],
-    [FIXTURE_VPWP50_NAGANO, "VPWP50", "weatherWarningTimeseries", 36 * 60 * 60_000],
+    [FIXTURE_VPWP50_NAGANO, "VPWP50", "weatherWarningTimeseries", 7 * 24 * 60 * 60_000],
   ] as const)("keeps %s watermarks for the declared retention TTL", (fixture, type, route, retentionMs) => {
     const message = createMockWsDataMessageFromXml(readFixture(fixture), type);
     const receivedAtMs = message.meta?.receivedAtMs;
@@ -428,6 +435,128 @@ describe("Phase 3B standby domain registry", () => {
     const legacy = JSON.parse(fs.readFileSync(file, "utf8")) as { version: number; seen: Array<{ key: string }> };
     expect(legacy.version).toBe(1);
     expect(legacy.seen).toContainEqual(expect.objectContaining({ key: "tornado:気象庁予報部" }));
+  });
+
+  it("runs a real VPWP50 through admission, projection, dual persistence, correction, and cancellation", () => {
+    const nowMs = Date.parse("2026-06-06T00:30:00.000Z");
+    vi.useFakeTimers();
+    vi.setSystemTime(nowMs);
+    const store = new StandbyStateStore();
+    const deps = makeProcessDeps({
+      activeWeatherWarningForecastSubjects: (atMs) =>
+        store.activeWeatherWarningForecastSubjects(atMs),
+      maintainWeatherWarningForecastSubjects: (atMs, subjects) =>
+        store.maintainWeatherWarningForecastSubjects(atMs, subjects),
+    });
+    const xml = readFixture(FIXTURE_VPWP50_LOCAL_IDENTITY);
+    const issue = processMessage(
+      withReceivedAtMs(createMockWsDataMessageFromXml(xml, "VPWP50"), nowMs),
+      "weatherWarningTimeseries",
+      deps,
+    );
+    expect(issue?.domain).toBe("weatherWarningTimeseries");
+    expect(issue?.presentation).toMatchObject({
+      standbyStateMutationAccepted: true,
+      standbyStateSubject: "weatherTimeseries:長野地方気象台:code:200000",
+    });
+    if (issue == null) return;
+    expect(store.applyEvent(toPresentationEvent(issue), nowMs)).toEqual({
+      viewChanged: true,
+      durableChanged: true,
+    });
+    expect(store.snapshotItems()).toEqual([
+      expect.objectContaining({
+        kind: "weatherWarningForecast",
+        key: "weatherWarningForecast:active",
+        restored: false,
+      }),
+    ]);
+
+    const correctionXml = xml.replace(
+      /<InfoType>[^<]*<\/InfoType>/,
+      "<InfoType>訂正</InfoType>",
+    );
+    const correction = processMessage(
+      withReceivedAtMs(createMockWsDataMessageFromXml(correctionXml, "VPWP50"), nowMs + 1),
+      "weatherWarningTimeseries",
+      deps,
+    );
+    expect(correction?.presentation.acceptedCorrection).toBe(true);
+    if (correction == null) return;
+    expect(store.applyEvent(toPresentationEvent(correction), nowMs + 1).durableChanged).toBe(true);
+    expect(processMessage(
+      withReceivedAtMs(createMockWsDataMessageFromXml(`${correctionXml}\n`, "VPWP50"), nowMs + 2),
+      "weatherWarningTimeseries",
+      deps,
+    )).toBeNull();
+
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "fleq-vpwp50-foundation-"));
+    tempDirs.push(dir);
+    const file = path.join(dir, "display-active-state-v1.json");
+    const persistence = new StandbyPersistence(file, undefined, () => ({
+      vpws50: { authoritative: true, state: null, gateEntries: [] },
+      vpww56: { authoritative: false, state: null, gateEntries: [] },
+      tsunami: { active: null, observations: { VTSE51: [], VTSE52: [] }, gateEntries: [] },
+      volcano: { authoritative: false, state: null, active: [], gateEntries: [] },
+      floodForecast: { authoritative: false, active: [], gateEntries: [] },
+      standbyDomains: {
+        gateEntries: deps.revisionGate.exportDurableEntries()
+          .filter((entry) => entry.domain === "weatherWarningTimeseries"),
+      },
+    }));
+    persistence.schedule(store.exportActiveState());
+    persistence.flush();
+    const v1 = JSON.parse(fs.readFileSync(file, "utf8")) as {
+      weatherWarningForecasts?: unknown[];
+      weatherWarningForecastGateMetadata?: unknown[];
+      seen: Array<{ key: string }>;
+    };
+    expect(v1.weatherWarningForecasts).toHaveLength(1);
+    expect(v1.weatherWarningForecastGateMetadata).toHaveLength(1);
+    expect(v1.seen).toContainEqual(expect.objectContaining({
+      key: "weatherTimeseries:長野地方気象台:code:200000",
+    }));
+    const loaded = new StandbyPersistence(file).load();
+    expect(loaded?.weatherWarningForecasts).toHaveLength(1);
+    expect(loaded?.telegramFoundation.standbyDomains.gateEntries).toHaveLength(1);
+    if (loaded == null) return;
+    const restartedStore = new StandbyStateStore();
+    restartedStore.restoreActiveState(loaded, nowMs + 10);
+    expect(restartedStore.snapshotItems()).toEqual([
+      expect.objectContaining({ kind: "weatherWarningForecast", restored: true }),
+    ]);
+    const restartedDeps = makeProcessDeps({
+      activeWeatherWarningForecastSubjects: (atMs) =>
+        restartedStore.activeWeatherWarningForecastSubjects(atMs),
+      maintainWeatherWarningForecastSubjects: (atMs, subjects) =>
+        restartedStore.maintainWeatherWarningForecastSubjects(atMs, subjects),
+    });
+    restartedDeps.revisionGate.restoreDurableEntries(
+      loaded.telegramFoundation.standbyDomains.gateEntries,
+    );
+
+    const cancellationXml = xml
+      .replace(/<InfoType>[^<]*<\/InfoType>/, "<InfoType>取消</InfoType>")
+      .replace(/<Serial>[^<]*<\/Serial>/, "<Serial>02</Serial>")
+      .replace(
+        /<ReportDateTime>[^<]*<\/ReportDateTime>/,
+        "<ReportDateTime>2026-06-06T08:56:00+09:00</ReportDateTime>",
+      );
+    const cancellation = processMessage(
+      withReceivedAtMs(createMockWsDataMessageFromXml(cancellationXml, "VPWP50"), nowMs + 20),
+      "weatherWarningTimeseries",
+      restartedDeps,
+    );
+    expect(cancellation?.presentation.standbyStateMutationAccepted).toBe(true);
+    if (cancellation == null) return;
+    expect(restartedStore.applyEvent(toPresentationEvent(cancellation), nowMs + 20))
+      .toEqual({ viewChanged: true, durableChanged: true });
+    expect(restartedStore.snapshotItems()).toEqual([]);
+    expect(processMessage(
+      withReceivedAtMs(createMockWsDataMessageFromXml(xml, "VPWP50"), nowMs + 21),
+      "weatherWarningTimeseries",
+      restartedDeps,
+    )).toBeNull();
   });
 
   it("standbyDomains は malformed subject だけを落とし、正常 gate と warn token を保つ", () => {

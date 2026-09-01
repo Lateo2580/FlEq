@@ -51,6 +51,10 @@ export interface TelegramRevisionDecision {
   resolvedTrigger: CancellationTrigger | null;
   /** 旧 fingerprint alias 一致を新 primary key へ無通知移行した。 */
   semanticKeyMigrated?: boolean;
+  /** incoming admission の前に finite-lifecycle family を失効させた。 */
+  preAdmissionDurableChanged?: boolean;
+  /** pre-admission expiry で失効した canonical state subject。 */
+  expiredStateSubjectKeys?: readonly string[];
 }
 
 export interface TelegramRevisionGateInput {
@@ -71,6 +75,7 @@ export interface TelegramRevisionGateInput {
   tombstoneRetentionMs?: number | null;
   /** registry が保証する family 全体の subject 上限。全 policy で必須。 */
   maxSubjects?: number | null;
+  familyCapacityMode?: "evictInactive" | "rejectNewSubject";
   /** family 上限 compaction で保持する canonical/whole subject。 */
   retainForFamilyCapacity?: boolean;
   /**
@@ -191,6 +196,11 @@ export interface PersistedTelegramRevisionGateEntryV2 {
   tombstoneRetentionMs?: number | null;
   legacyRevisionKey?: string | null;
   legacyRevisionKeyProvenance?: "eventId" | "codeFallback" | null;
+}
+
+export interface RevisionFamilyExpiryResult {
+  changed: boolean;
+  expiredStateSubjectKeys: string[];
 }
 
 const REVISION_GATE_RETENTION_MS = 11 * 60_000;
@@ -698,6 +708,7 @@ export class TelegramRevisionGate {
         input.maxSubjects,
         input.meta.receivedAtMs,
         input.activeFamilySubjects,
+        input.familyCapacityMode,
       )) {
         if (commit) this.warnCapacityRejected(input.domain, input.revisionFamily, input.maxSubjects);
         return reject("capacityExceeded", null);
@@ -709,6 +720,7 @@ export class TelegramRevisionGate {
           input.maxSubjects,
           input.meta.receivedAtMs,
           input.activeFamilySubjects,
+          input.familyCapacityMode,
         );
         this.transientStates.set(transientStateKey, {
           semanticKey: transientSemanticKey,
@@ -780,6 +792,7 @@ export class TelegramRevisionGate {
         input.maxSubjects,
         input.meta.receivedAtMs,
         input.activeFamilySubjects,
+        input.familyCapacityMode,
       )) {
         if (commit) this.warnCapacityRejected(input.domain, input.revisionFamily, input.maxSubjects);
         return reject("capacityExceeded", null);
@@ -792,6 +805,7 @@ export class TelegramRevisionGate {
           input.maxSubjects,
           input.meta.receivedAtMs,
           input.activeFamilySubjects,
+          input.familyCapacityMode,
         );
         this.states.set(key, {
           comparison: incomingComparison,
@@ -984,6 +998,7 @@ export class TelegramRevisionGate {
     maxSubjects: number | null | undefined,
     nowMs: number,
     activeFamilySubjects?: readonly string[],
+    familyCapacityMode: "evictInactive" | "rejectNewSubject" = "evictInactive",
   ): boolean {
     if (maxSubjects == null) {
       return this.liveEntryCount(nowMs) < TELEGRAM_REVISION_MAX_ENTRIES;
@@ -994,6 +1009,7 @@ export class TelegramRevisionGate {
     if (regular.length + transient.length < maxSubjects) {
       return this.liveEntryCount(nowMs) < TELEGRAM_REVISION_MAX_ENTRIES;
     }
+    if (familyCapacityMode === "rejectNewSubject") return false;
     return transient.length > 0 || regular.some(([key, state]) =>
       this.isFamilyEvictable(key, state, activeFamilySubjects));
   }
@@ -1004,9 +1020,17 @@ export class TelegramRevisionGate {
     maxSubjects: number | null | undefined,
     nowMs: number,
     activeFamilySubjects?: readonly string[],
+    familyCapacityMode: "evictInactive" | "rejectNewSubject" = "evictInactive",
   ): void {
     if (maxSubjects == null) return;
     this.validateFamilyLimit(domain, revisionFamily, maxSubjects);
+    if (familyCapacityMode === "rejectNewSubject") {
+      if (this.liveFamilyEntries(domain, revisionFamily, nowMs).length
+        + this.liveTransientFamilyEntries(domain, revisionFamily, nowMs).length >= maxSubjects) {
+        throw new Error(`telegram revision rejectNewSubject admission invariant violated: ${domain}:${revisionFamily}`);
+      }
+      return;
+    }
     while (
       this.liveFamilyEntries(domain, revisionFamily, nowMs).length
       + this.liveTransientFamilyEntries(domain, revisionFamily, nowMs).length
@@ -1252,12 +1276,21 @@ export class TelegramRevisionGate {
     nowMs: number,
     retentionMs: number,
   ): boolean {
+    return this.expireRevisionFamilyDetailed(domain, revisionFamily, nowMs, retentionMs).changed;
+  }
+
+  expireRevisionFamilyDetailed(
+    domain: string,
+    revisionFamily: string,
+    nowMs: number,
+    retentionMs: number,
+  ): RevisionFamilyExpiryResult {
     const prefix = `${domain}:${revisionFamily}:`;
-    let changed = false;
+    const expiredStateSubjectKeys: string[] = [];
     for (const [key, state] of this.states) {
       if (key.startsWith(prefix) && nowMs - state.acceptedAtMs > retentionMs) {
         this.states.delete(key);
-        changed = true;
+        expiredStateSubjectKeys.push(key.slice(prefix.length));
       }
     }
     for (const [subjectKey, state] of [...this.transientStates]) {
@@ -1267,11 +1300,22 @@ export class TelegramRevisionGate {
         && nowMs - state.acceptedAtMs > retentionMs
       ) {
         this.deleteTransientState(subjectKey, state);
-        changed = true;
+        expiredStateSubjectKeys.push(subjectKey.startsWith(prefix) ? subjectKey.slice(prefix.length) : subjectKey);
       }
     }
     this.rearmCapacityWarning(domain, revisionFamily);
-    return changed;
+    const unique = [...new Set(expiredStateSubjectKeys)].sort(compareCodeUnit);
+    return { changed: unique.length > 0, expiredStateSubjectKeys: unique };
+  }
+
+  /** Mutation-free family subject snapshot used by rejectNewSubject preflight. */
+  revisionFamilySubjectKeys(domain: string, revisionFamily: string): string[] {
+    const prefix = `${domain}:${revisionFamily}:`;
+    return [...new Set([
+      ...[...this.states.keys()].filter((key) => key.startsWith(prefix)).map((key) => key.slice(prefix.length)),
+      ...[...this.transientStates].filter(([, state]) => state.domain === domain && state.revisionFamily === revisionFamily)
+        .map(([key]) => key.startsWith(prefix) ? key.slice(prefix.length) : key),
+    ])].sort(compareCodeUnit);
   }
 
   /** rollback key と由来を失わず更新する domain adapter 用参照。 */

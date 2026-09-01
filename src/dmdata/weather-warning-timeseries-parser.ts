@@ -18,6 +18,10 @@ import type {
   UnknownSignificancyOccurrence,
   TimeWindow,
   SoundLevel,
+  SignificancyOccurrence,
+  ForecastTimeSlot,
+  WeatherWarningAreaIdentity,
+  WeatherWarningLocalIdentity,
 } from "../types";
 import { decodeBody, dig, str } from "./telegram-parser";
 import {
@@ -25,7 +29,10 @@ import {
   nodeText,
   toNumberOrNull,
   buildTimeDefineMap,
+  buildStrictTimeDefineMap,
+  resolveStrictTimeDefine,
   type TimeDefineEntry,
+  type StrictTimeDefineMap,
 } from "./timeseries-common";
 import {
   classifySignificancyCode,
@@ -88,6 +95,23 @@ const ARRAY_TAGS: ReadonlySet<string> = new Set([
 const FALLBACK_RAW_BYTES = 5 * 1024 * 1024;
 const FALLBACK_COMPACT_BYTES = 3 * 1024 * 1024;
 const FALLBACK_COMPACT_AREAS = 200;
+const VPWP50_MAX_TIME_REF_LENGTH = 64;
+const VPWP50_MAX_TIME_NAME_LENGTH = 128;
+
+interface ForecastSlotDiagnosticCollector {
+  unresolvedCount: number;
+  samples: string[];
+}
+
+function recordForecastSlotDiagnostic(
+  collector: ForecastSlotDiagnosticCollector,
+  sample: string,
+): void {
+  collector.unresolvedCount += 1;
+  collector.samples.push(sample);
+  collector.samples.sort((left, right) => left < right ? -1 : left > right ? 1 : 0);
+  if (collector.samples.length > 8) collector.samples.pop();
+}
 
 /** 数値系メトリックのメタデータ。worst 方向はここに集約 (推測補完禁止)。 */
 const QUANTITATIVE_METRIC_META: Record<string, QuantitativeMetricMeta> = {
@@ -178,6 +202,166 @@ function buildTimeWindow(
 
 // ── PartValue<T> 抽出 (Base / Local 両対応の汎用ヘルパー) ──
 
+function normalizeIdentityText(value: string): string {
+  return value.normalize("NFC").trim().replace(/\s+/gu, " ");
+}
+
+function localIdentity(local: unknown): WeatherWarningLocalIdentity | null {
+  const areaNameNode = dig(local, "AreaName");
+  const name = normalizeIdentityText(nodeText(areaNameNode));
+  if (name === "") return null;
+  const elementCode = nodeText(dig(local, "Code")).trim();
+  const attributeCode = str(dig(areaNameNode, "@_code")).trim();
+  if (elementCode !== "" && attributeCode !== "" && elementCode !== attributeCode) return null;
+  const code = elementCode || attributeCode || null;
+  return { key: code == null ? `name:${name}` : `code:${code}`, name, code };
+}
+
+function seriesFor(tsNum: WeatherWarningTimeseriesNumber): ForecastTimeSlot["series"] {
+  return tsNum === 1 ? "3h" : tsNum === 2 ? "24h" : "day";
+}
+
+function significancyOccurrenceFingerprint(value: SignificancyOccurrence): string {
+  return JSON.stringify([
+    value.info.code,
+    value.info.known,
+    value.info.rank,
+    value.info.family,
+    value.info.label,
+    value.info.compact,
+    value.info.severity,
+    value.tsNum,
+    value.timeRef,
+    value.slot == null ? null : [
+      value.slot.tsNum,
+      value.slot.series,
+      value.slot.timeRef,
+      value.slot.name,
+      value.slot.startsAt,
+      value.slot.endsAt,
+    ],
+    value.peak == null ? null : [value.peak.date, value.peak.term],
+    value.criteriaPeriod == null ? null : [
+      value.criteriaPeriod.sentence,
+      value.criteriaPeriod.criteriaClass,
+      value.criteriaPeriod.time,
+      value.criteriaPeriod.duration,
+    ],
+  ]);
+}
+
+/** Same-identity/name duplicate Local nodes form one occurrence collection. */
+function mergeSignificancyOccurrenceLocal(
+  locals: LocalValue<SignificancyOccurrence[]>[],
+  candidate: LocalValue<SignificancyOccurrence[]>,
+): void {
+  const existing = locals.find((local) =>
+    local.identityKey === candidate.identityKey && local.areaName === candidate.areaName);
+  if (existing == null) {
+    locals.push(candidate);
+    return;
+  }
+  const seen = new Set(existing.value.map(significancyOccurrenceFingerprint));
+  for (const occurrence of candidate.value) {
+    const fingerprint = significancyOccurrenceFingerprint(occurrence);
+    if (seen.has(fingerprint)) continue;
+    seen.add(fingerprint);
+    existing.value.push(occurrence);
+  }
+}
+
+function mergeSignificancyOccurrenceList(
+  target: SignificancyOccurrence[],
+  candidates: readonly SignificancyOccurrence[],
+): void {
+  const seen = new Set(target.map(significancyOccurrenceFingerprint));
+  for (const occurrence of candidates) {
+    const fingerprint = significancyOccurrenceFingerprint(occurrence);
+    if (seen.has(fingerprint)) continue;
+    seen.add(fingerprint);
+    target.push(occurrence);
+  }
+}
+
+/** Duplicate Area Items of the same type share one card-only collection. */
+function mergeAreaSignificancyOccurrenceCollections(
+  area: WeatherWarningTimeseriesArea,
+): void {
+  for (const tsNum of [1, 2, 3] as WeatherWarningTimeseriesNumber[]) {
+    const firstByType = new Map<string, WeatherWarningTimeseriesKind>();
+    for (const kind of area.kinds[tsNum]) {
+      if (kind.partKind !== "Significancy" || kind.significancyOccurrences == null) continue;
+      const first = firstByType.get(kind.type);
+      if (first == null || first.significancyOccurrences == null) {
+        firstByType.set(kind.type, kind);
+        continue;
+      }
+      const source = kind.significancyOccurrences;
+      const target = first.significancyOccurrences;
+      if (source.base != null) {
+        const base = target.base ?? (target.base = []);
+        mergeSignificancyOccurrenceList(base, source.base);
+      }
+      for (const local of source.locals ?? []) {
+        const locals = target.locals ?? (target.locals = []);
+        mergeSignificancyOccurrenceLocal(locals, local);
+      }
+      delete kind.significancyOccurrences;
+    }
+  }
+}
+
+/** Card 専用: worst 化せず、参照先が解決できない occurrence も残す。 */
+function extractSignificancyOccurrences(
+  sigList: unknown[],
+  peakList: unknown[],
+  criteriaList: unknown[],
+  propertyType: string,
+  strictTimeMap: StrictTimeDefineMap,
+  tsNum: WeatherWarningTimeseriesNumber,
+  diagnostics: ForecastSlotDiagnosticCollector,
+): SignificancyOccurrence[] {
+  const result: SignificancyOccurrence[] = [];
+  for (const sig of sigList) {
+    const code = nodeText(dig(sig, "Code")).trim();
+    const timeRef = str(dig(sig, "@_refID")).trim();
+    if (code === "") continue;
+    const validTimeRef = timeRef !== "" && timeRef.length <= VPWP50_MAX_TIME_REF_LENGTH;
+    const entry = validTimeRef && !strictTimeMap.ambiguousIds.has(timeRef)
+      ? strictTimeMap.entries.get(timeRef)
+      : undefined;
+    const resolved = entry == null ? null : resolveStrictTimeDefine(entry);
+    const timeName = normalizeIdentityText(entry?.name ?? "");
+    const slot = resolved == null || timeName.length > VPWP50_MAX_TIME_NAME_LENGTH ? null : {
+      tsNum, series: seriesFor(tsNum), timeRef, name: timeName,
+      startsAt: resolved.startsAt, endsAt: resolved.endsAt,
+    } satisfies ForecastTimeSlot;
+    if (slot == null) {
+      const reason = !validTimeRef
+        ? "invalidRef"
+        : strictTimeMap.ambiguousIds.has(timeRef)
+          ? "duplicateTimeId"
+          : entry == null
+            ? "missingTimeDefine"
+            : resolved == null
+              ? "invalidTimeDefine"
+              : "timeNameTooLong";
+      recordForecastSlotDiagnostic(
+        diagnostics,
+        `${tsNum}:${reason}:${timeRef.slice(0, VPWP50_MAX_TIME_REF_LENGTH)}`,
+      );
+    }
+    const peakNode = peakList.find((node) => str(dig(node, "@_refID")).trim() === timeRef);
+    const criteriaNode = criteriaList.find((node) => str(dig(node, "@_refID")).trim() === timeRef);
+    result.push({
+      info: classifySignificancyCode(propertyType, code), tsNum, timeRef, slot,
+      ...(peakNode == null ? {} : { peak: extractPeakTime([peakNode], timeRef) }),
+      ...(criteriaNode == null ? {} : { criteriaPeriod: extractCriteriaPeriod([criteriaNode], timeRef) }),
+    });
+  }
+  return result;
+}
+
 /**
  * Significancy 集合を Base または Local 直下から取り出す。
  *
@@ -194,20 +378,28 @@ function buildTimeWindow(
  *
  * Local が存在しなければ Base 直下のみ、存在すれば locals に詰める。
  */
+type ExtractedSignificancyPart = PartValue<SignificancyValue> & {
+  occurrences: PartValue<SignificancyOccurrence[]>;
+};
+
 function extractSignificancyPart(
   partNode: unknown,
   propertyType: string,
   areaName: string,
   timeMap: Map<string, TimeDefineEntry>,
+  strictTimeMap: StrictTimeDefineMap,
+  tsNum: WeatherWarningTimeseriesNumber,
+  diagnostics: ForecastSlotDiagnosticCollector,
   knownCollector: SignificancyInfo[],
   unknownCodes: UnknownSignificancyOccurrence[],
   /** R1 #1: Property 直下に CriteriaPeriod があれば fallback として渡す */
   propertyLevelCriteria: unknown[],
-): PartValue<SignificancyValue> | undefined {
+): ExtractedSignificancyPart | undefined {
   const base = dig(partNode, "Base");
   if (base == null) return undefined;
 
   const partValue: PartValue<SignificancyValue> = {};
+  const occurrenceValue: PartValue<SignificancyOccurrence[]> = {};
 
   // Base 直下の Significancy (Local が無い場合の素値)
   // CriteriaPeriod は Base 直下優先、無ければ Property 直下 (R1 #1)
@@ -227,13 +419,19 @@ function extractSignificancyPart(
   if (baseDirectSigs != null) {
     partValue.base = baseDirectSigs;
   }
+  occurrenceValue.base = extractSignificancyOccurrences(
+    listOf(dig(base, "Significancy")), listOf(dig(base, "PeakTime")), effectiveCriteria,
+    propertyType, strictTimeMap, tsNum, diagnostics,
+  );
 
   // Local
   const localList = listOf(dig(base, "Local"));
   if (localList.length > 0) {
     const locals: LocalValue<SignificancyValue>[] = [];
     for (const local of localList) {
-      const localAreaName = str(dig(local, "AreaName"));
+      const identity = localIdentity(local);
+      if (identity == null) continue;
+      const localAreaName = identity.name;
       const localCriteria = listOf(dig(local, "CriteriaPeriod"));
       // Local の CriteriaPeriod が無ければ Property 直下を fallback
       const localEffectiveCriteria =
@@ -249,14 +447,28 @@ function extractSignificancyPart(
         unknownCodes,
       );
       if (worst != null) {
-        locals.push({ areaName: localAreaName || "", value: worst });
+        locals.push({ areaName: localAreaName, code: identity.code ?? undefined, identityKey: identity.key, identity, value: worst });
+      }
+      const occurrences = extractSignificancyOccurrences(
+        listOf(dig(local, "Significancy")), listOf(dig(local, "PeakTime")), localEffectiveCriteria,
+        propertyType, strictTimeMap, tsNum, diagnostics,
+      );
+      if (occurrences.length > 0) {
+        const target = occurrenceValue.locals ?? (occurrenceValue.locals = []);
+        mergeSignificancyOccurrenceLocal(target, {
+          areaName: localAreaName,
+          code: identity.code ?? undefined,
+          identityKey: identity.key,
+          identity,
+          value: occurrences,
+        });
       }
     }
     if (locals.length > 0) partValue.locals = locals;
   }
 
   if (partValue.base == null && partValue.locals == null) return undefined;
-  return partValue;
+  return { ...partValue, occurrences: occurrenceValue };
 }
 
 /**
@@ -544,10 +756,13 @@ function extractKindFromProperty(
   property: unknown,
   areaName: string,
   timeMap: Map<string, TimeDefineEntry>,
+  strictTimeMap: StrictTimeDefineMap,
+  tsNum: WeatherWarningTimeseriesNumber,
+  diagnostics: ForecastSlotDiagnosticCollector,
   knownCollector: SignificancyInfo[],
   unknownCodes: UnknownSignificancyOccurrence[],
 ): WeatherWarningTimeseriesKind | null {
-  const type = str(dig(property, "Type"));
+  const type = normalizeIdentityText(nodeText(dig(property, "Type")));
   if (!type) return null;
 
   // [R1 #1] Property 直下に CriteriaPeriod が出る形状 (R06 spec) を取得し、
@@ -562,6 +777,9 @@ function extractKindFromProperty(
       type,
       areaName,
       timeMap,
+      strictTimeMap,
+      tsNum,
+      diagnostics,
       knownCollector,
       unknownCodes,
       propertyLevelCriteria,
@@ -571,6 +789,7 @@ function extractKindFromProperty(
       type,
       partKind: "Significancy",
       significancyWorst: worst,
+      significancyOccurrences: worst.occurrences,
     };
   }
 
@@ -638,6 +857,7 @@ function extractKindFromProperty(
 interface AreaIdentity {
   name: string;
   code: string;
+  identity: WeatherWarningAreaIdentity;
 }
 
 function extractAreaIdentity(item: unknown): AreaIdentity | null {
@@ -645,18 +865,18 @@ function extractAreaIdentity(item: unknown): AreaIdentity | null {
   // 公式 spec §2-8-2-4-1-2 は「Areas で包む」と書くが、実物が真実
   const directAreas = listOf(dig(item, "Area"));
   for (const area of directAreas) {
-    const name = str(dig(area, "Name"));
-    const code = nodeText(dig(area, "Code"));
-    if (name) return { name, code };
+    const name = normalizeIdentityText(str(dig(area, "Name")));
+    const code = nodeText(dig(area, "Code")).trim();
+    if (name) return { name, code, identity: { key: code === "" ? `name:${name}` : `code:${code}`, name, code: code || null } };
   }
   // フォールバック: Areas/Area 構造 (公式 spec の表記通り、別電文系列向け)
   const areasList = listOf(dig(item, "Areas"));
   for (const areas of areasList) {
     const areaList = listOf(dig(areas, "Area"));
     for (const area of areaList) {
-      const name = str(dig(area, "Name"));
-      const code = nodeText(dig(area, "Code"));
-      if (name) return { name, code };
+      const name = normalizeIdentityText(str(dig(area, "Name")));
+      const code = nodeText(dig(area, "Code")).trim();
+      if (name) return { name, code, identity: { key: code === "" ? `name:${name}` : `code:${code}`, name, code: code || null } };
     }
   }
   return null;
@@ -668,12 +888,14 @@ function extractTargetArea(
   if (body == null) return null;
   const ta = dig(body, "TargetArea");
   if (ta == null) return null;
-  const name = str(dig(ta, "Name"));
-  const code = nodeText(dig(ta, "Code"));
+  const name = normalizeIdentityText(nodeText(dig(ta, "Name")));
+  const code = nodeText(dig(ta, "Code")).trim();
   if (!name) return null;
   return {
     name,
     code,
+    identityKey: code === "" ? `name:${name}` : `code:${code}`,
+    identity: { key: code === "" ? `name:${name}` : `code:${code}`, name, code: code || null },
     kinds: { 1: [], 2: [], 3: [] },
   };
 }
@@ -747,10 +969,49 @@ function deriveMaxDisplaySeverity(
   return { displaySeverity: bestDisplay, soundLevel: bestSound, info: bestInfo };
 }
 
+function retainedSignificancyFacts(
+  areas: readonly WeatherWarningTimeseriesArea[],
+): {
+  known: SignificancyInfo[];
+  unknown: UnknownSignificancyOccurrence[];
+} {
+  const known: SignificancyInfo[] = [];
+  const unknown: UnknownSignificancyOccurrence[] = [];
+  const collect = (
+    occurrences: readonly SignificancyOccurrence[] | undefined,
+    propertyType: string,
+    areaName: string,
+  ): void => {
+    for (const occurrence of occurrences ?? []) {
+      if (occurrence.info.known) known.push(occurrence.info);
+      else unknown.push({
+        code: occurrence.info.code,
+        propertyType,
+        timeRef: occurrence.timeRef,
+        areaName,
+      });
+    }
+  };
+  for (const area of areas) {
+    for (const tsNum of [1, 2, 3] as WeatherWarningTimeseriesNumber[]) {
+      for (const kind of area.kinds[tsNum]) {
+        if (kind.partKind !== "Significancy") continue;
+        collect(kind.significancyOccurrences?.base, kind.type, area.name);
+        for (const local of kind.significancyOccurrences?.locals ?? []) {
+          collect(local.value, kind.type, `${area.name}/${local.areaName}`);
+        }
+      }
+    }
+  }
+  return { known, unknown };
+}
+
 function extractTimeSeriesData(body: unknown): TimeSeriesExtractResult {
   const areaMap = new Map<string, WeatherWarningTimeseriesArea>();
+  const areaNamesByIdentity = new Map<string, Set<string>>();
   const knownCollector: SignificancyInfo[] = [];
   const unknownCodes: UnknownSignificancyOccurrence[] = [];
+  const slotDiagnostics: ForecastSlotDiagnosticCollector = { unresolvedCount: 0, samples: [] };
 
   if (body == null) {
     return {
@@ -772,20 +1033,26 @@ function extractTimeSeriesData(body: unknown): TimeSeriesExtractResult {
     for (const ts of tsList) {
       // [R1 #2] TimeDefines を解決し、worst 値を時刻幅へ畳むために以降の関数に伝播
       const timeMap = buildTimeDefineMap(dig(ts, "TimeDefines"));
+      const strictTimeMap = buildStrictTimeDefineMap(dig(ts, "TimeDefines"));
 
       const itemList = listOf(dig(ts, "Item"));
       for (const item of itemList) {
         const areaIdent = extractAreaIdentity(item);
         if (areaIdent == null) continue;
+        const areaNames = areaNamesByIdentity.get(areaIdent.identity.key) ?? new Set<string>();
+        areaNames.add(areaIdent.name);
+        areaNamesByIdentity.set(areaIdent.identity.key, areaNames);
 
-        let area = areaMap.get(areaIdent.code);
+        let area = areaMap.get(areaIdent.identity.key);
         if (area == null) {
           area = {
             name: areaIdent.name,
             code: areaIdent.code,
+            identityKey: areaIdent.identity.key,
+            identity: areaIdent.identity,
             kinds: { 1: [], 2: [], 3: [] },
           };
-          areaMap.set(areaIdent.code, area);
+          areaMap.set(areaIdent.identity.key, area);
         }
 
         const kindList = listOf(dig(item, "Kind"));
@@ -798,6 +1065,9 @@ function extractTimeSeriesData(body: unknown): TimeSeriesExtractResult {
               property,
               areaIdent.name,
               timeMap,
+              strictTimeMap,
+              tsNumber,
+              slotDiagnostics,
               knownCollector,
               unknownCodes,
             );
@@ -815,15 +1085,74 @@ function extractTimeSeriesData(body: unknown): TimeSeriesExtractResult {
     }
   }
 
+  const conflictedAreas = new Set([...areaNamesByIdentity]
+    .filter(([key, names]) => key.startsWith("code:") && names.size > 1)
+    .map(([key]) => key)
+    .sort());
+  for (const key of conflictedAreas) {
+    areaMap.delete(key);
+    log.warn(`[VPWP50] vpwp50AreaIdentityConflict identity=${key.slice(0, 96)}`);
+  }
+
   const areas = Array.from(areaMap.values());
+  for (const area of areas) mergeAreaSignificancyOccurrenceCollections(area);
+  const localNamesByIdentity = new Map<string, Set<string>>();
+  for (const area of areas) {
+    const parentKey = area.identityKey ?? area.identity?.key ?? `name:${area.name}`;
+    for (const tsNum of [1, 2, 3] as WeatherWarningTimeseriesNumber[]) {
+      for (const kind of area.kinds[tsNum]) {
+        for (const local of kind.significancyOccurrences?.locals ?? []) {
+          const localKey = local.identityKey ?? local.identity?.key;
+          if (localKey == null) continue;
+          const scopedKey = `${parentKey}\u0000${localKey}`;
+          const names = localNamesByIdentity.get(scopedKey) ?? new Set<string>();
+          names.add(local.areaName);
+          localNamesByIdentity.set(scopedKey, names);
+        }
+      }
+    }
+  }
+  const conflictedLocals = new Set([...localNamesByIdentity]
+    .filter(([key, names]) => key.includes("\u0000code:") && names.size > 1)
+    .map(([key]) => key)
+    .sort());
+  for (const area of areas) {
+    const parentKey = area.identityKey ?? area.identity?.key ?? `name:${area.name}`;
+    for (const tsNum of [1, 2, 3] as WeatherWarningTimeseriesNumber[]) {
+      for (const kind of area.kinds[tsNum]) {
+        const keep = <T>(local: LocalValue<T>): boolean => {
+          const localKey = local.identityKey ?? local.identity?.key;
+          return localKey == null || !conflictedLocals.has(`${parentKey}\u0000${localKey}`);
+        };
+        if (kind.significancyOccurrences?.locals != null) {
+          kind.significancyOccurrences.locals = kind.significancyOccurrences.locals.filter(keep);
+          if (kind.significancyOccurrences.locals.length === 0) delete kind.significancyOccurrences.locals;
+        }
+        if (kind.significancyWorst?.locals != null) {
+          kind.significancyWorst.locals = kind.significancyWorst.locals.filter(keep);
+          if (kind.significancyWorst.locals.length === 0) delete kind.significancyWorst.locals;
+        }
+      }
+    }
+  }
+  for (const key of conflictedLocals) {
+    log.warn(`[VPWP50] vpwp50LocalIdentityConflict identity=${key.slice(0, 96)}`);
+  }
+  if (slotDiagnostics.unresolvedCount > 0) {
+    log.warn(`[VPWP50] vpwp50ForecastSlotUnresolved count=${slotDiagnostics.unresolvedCount} samples=${JSON.stringify(slotDiagnostics.samples)}`);
+  }
   const maxDisplay = deriveMaxDisplaySeverity(areas);
+  // Identity conflict candidates are excluded as a complete bundle. Rebuild
+  // the legacy aggregate facts from the retained occurrence population so a
+  // discarded Area/Local cannot still raise the frame or unknown diagnostic.
+  const retainedFacts = retainedSignificancyFacts(areas);
   return {
     areas,
-    maxKnownSignificancy: pickWorstKnownSignificancy(knownCollector),
+    maxKnownSignificancy: pickWorstKnownSignificancy(retainedFacts.known),
     maxDisplaySeverity: maxDisplay.displaySeverity,
     maxSoundLevel: maxDisplay.soundLevel,
     maxDisplayRankSignificancy: maxDisplay.info,
-    unknownCodes,
+    unknownCodes: retainedFacts.unknown,
   };
 }
 

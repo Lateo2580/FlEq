@@ -12,6 +12,11 @@
   import TyphoonCard from "../components/TyphoonCard.svelte";
   import VolcanoCard from "../components/VolcanoCard.svelte";
   import WeatherAlertCard from "../components/WeatherAlertCard.svelte";
+  import WeatherWarningForecastCard from "../components/WeatherWarningForecastCard.svelte";
+  import {
+    buildWeatherWarningForecastAtoms,
+    type WeatherWarningForecastAtom,
+  } from "../lib/weather-warning-forecast";
   import type {
     ActiveStandbyCardV1,
     DisplayIntensityGroupV1,
@@ -42,6 +47,7 @@
     legacyImprovedMaxWeatherAlertsCompact,
     legacyImprovedWeatherAlertsExpanded,
     legacyImprovedWeatherAlertsCompact,
+    legacyImprovedWeatherWarningForecast,
     legacyImprovedTornadoFullAreas,
     legacyImprovedTornadoFixtures,
     recentQuakesRich,
@@ -112,7 +118,7 @@
 
   type PageableCardKey = PageableKey;
   type MeasurablePageKey = Extract<PageableKey, "quake" | "weather">;
-  const PAGEABLE_CARD_KEYS = ["quake", "weather", "briefing", "flood", "tornado"] as const satisfies readonly PageableCardKey[];
+  const PAGEABLE_CARD_KEYS = ["quake", "weather", "weatherWarningForecast", "briefing", "flood", "tornado"] as const satisfies readonly PageableCardKey[];
 
   interface QuakePage {
     state: DisplayLatestQuakeStateV1;
@@ -160,6 +166,10 @@
   }
 
   const EMPTY_TORNADO_PAGE_PARTITION: CardPagePartition<TornadoPage> = {
+    pages: [], keys: [], identities: [], usesCandidate: false,
+    infeasible: false, candidateTruncated: false, probeCount: 0,
+  };
+  const EMPTY_PAGE_PARTITION: CardPagePartition<never> = {
     pages: [], keys: [], identities: [], usesCandidate: false,
     infeasible: false, candidateTruncated: false, probeCount: 0,
   };
@@ -238,9 +248,9 @@
     return items.find((item): item is StandbyItemOf<K> => item.kind === kind) ?? null;
   }
 
-  const knownCardKeys: readonly CardKey[] = ["tsunami", "quake", "weather", "flood", "typhoon", "volcano", "heat"];
+  const knownCardKeys: readonly CardKey[] = ["tsunami", "quake", "weather", "weatherWarningForecast", "briefing", "flood", "typhoon", "volcano", "heat"];
   // Solver の内部規則と同じ。テンプレートの診断属性にも使うため、ここに残す。
-  const centerEligibleKeys = new Set<CardKey>(["weather", "flood", "typhoon", "volcano"]);
+  const centerEligibleKeys = new Set<CardKey>(["weather", "weatherWarningForecast", "briefing", "flood", "typhoon", "volcano"]);
 
   function parseCardKey(value: string): CardKey | null {
     return knownCardKeys.includes(value as CardKey) ? value as CardKey : null;
@@ -335,6 +345,11 @@
   const typhoon = scenario === "4" ? null : findItem(activeItems, "typhoon");
   const volcano = findItem(activeItems, "volcano");
   const heat = findItem(activeItems, "heat");
+  const weatherWarningForecast = findItem(activeItems, "weatherWarningForecast")
+    ?? (scenario === "max" ? legacyImprovedWeatherWarningForecast : null);
+  const weatherWarningForecastAtoms = weatherWarningForecast == null
+    ? []
+    : buildWeatherWarningForecastAtoms(weatherWarningForecast);
   const tornado = findItem(activeItems, "tornado");
   const tornadoFixture = params.get("tornadoFixture");
   const tornadoFullAreas = tornado == null
@@ -404,6 +419,7 @@
   const cardKeys: CardKey[] = [];
   if (tsunami != null) cardKeys.push("tsunami");
   cardKeys.push("quake", "weather");
+  if (weatherWarningForecast != null) cardKeys.push("weatherWarningForecast");
   if (flood != null) cardKeys.push("flood");
   if (typhoon != null) cardKeys.push("typhoon");
   if (volcano != null) cardKeys.push("volcano");
@@ -502,10 +518,11 @@
   let cardPageEpochBusy = false;
   let cardPageTickPending = false;
   let cardPageSchedulerStage: LadderStage | null = null;
-  let cardPageSchedulerPageCounts: Record<PageableCardKey, number> = { quake: 0, weather: 0, briefing: 0, flood: 0, tornado: 0 };
+  let cardPageSchedulerPageCounts: Record<PageableCardKey, number> = { quake: 0, weather: 0, weatherWarningForecast: 0, briefing: 0, flood: 0, tornado: 0 };
   let cardPageSchedulerSubstates = $state<Record<PageableCardKey, CardPageSchedulerSubstate>>({
     quake: { mode: "real", phaseStartedAtMs: 0, processedTick: 0, pageCount: 0 },
     weather: { mode: "real", phaseStartedAtMs: 0, processedTick: 0, pageCount: 0 },
+    weatherWarningForecast: { mode: "real", phaseStartedAtMs: 0, processedTick: 0, pageCount: 0 },
     briefing: { mode: "real", phaseStartedAtMs: 0, processedTick: 0, pageCount: 0 },
     flood: { mode: "real", phaseStartedAtMs: 0, processedTick: 0, pageCount: 0 },
     tornado: { mode: "real", phaseStartedAtMs: 0, processedTick: 0, pageCount: 0 },
@@ -520,6 +537,7 @@
   let cardPageRuntime = $state<Record<PageableCardKey, CardPageRuntime>>({
     quake: { activeKey: null, knownKeys: [], pendingKeys: [], cycleOriginKey: null },
     weather: { activeKey: null, knownKeys: [], pendingKeys: [], cycleOriginKey: null },
+    weatherWarningForecast: { activeKey: null, knownKeys: [], pendingKeys: [], cycleOriginKey: null },
     briefing: { activeKey: null, knownKeys: [], pendingKeys: [], cycleOriginKey: null },
     flood: { activeKey: null, knownKeys: [], pendingKeys: [], cycleOriginKey: null },
     tornado: { activeKey: null, knownKeys: [], pendingKeys: [], cycleOriginKey: null },
@@ -593,10 +611,11 @@
     }
   }
 
-  function pagePartitionFor(key: PageableCardKey): CardPagePartition<QuakePage> | CardPagePartition<WeatherPage> | CardPagePartition<FloodPage> | CardPagePartition<TornadoPage> {
+  function pagePartitionFor(key: PageableCardKey): CardPagePartition<QuakePage> | CardPagePartition<WeatherPage> | CardPagePartition<WeatherWarningForecastAtom> | CardPagePartition<FloodPage> | CardPagePartition<TornadoPage> | CardPagePartition<never> {
     return key === "quake" ? cardPagePartitions.quake
       : key === "weather" ? cardPagePartitions.weather
-        : key === "briefing" ? cardPagePartitions.quake
+        : key === "weatherWarningForecast" ? cardPagePartitions.weatherWarningForecast
+          : key === "briefing" ? EMPTY_PAGE_PARTITION
           : key === "flood" ? cardPagePartitions.flood
           : cardPagePartitions.tornado;
   }
@@ -682,7 +701,7 @@
   }
 
   function advanceCardPageOnRotation(key: CardKey | null): void {
-    if (key !== "quake" && key !== "weather" && key !== "flood") return;
+    if (key !== "quake" && key !== "weather" && key !== "weatherWarningForecast" && key !== "flood") return;
     advanceCardPageFor(key, 1);
     if (key === "weather") advanceCardPageFor("tornado", 1);
   }
@@ -747,6 +766,8 @@
     const currentPageCounts: Record<PageableCardKey, number> = {
       quake: pageCardIsVisible("quake") ? cardPagePartitions.quake.pages.length : 0,
       weather: pageCardIsVisible("weather") ? cardPagePartitions.weather.pages.length : 0,
+      weatherWarningForecast: pageCardIsVisible("weatherWarningForecast")
+        ? cardPagePartitions.weatherWarningForecast.pages.length : 0,
       briefing: 0,
       flood: pageCardIsVisible("flood") ? cardPagePartitions.flood.pages.length : 0,
       tornado: pageCardIsVisible("tornado") ? cardPagePartitions.tornado.pages.length : 0,
@@ -827,10 +848,11 @@
     cardPageTick = 0;
     cardPageEpochBusy = false;
     cardPageTickPending = false;
-    cardPageSchedulerPageCounts = { quake: 0, weather: 0, briefing: 0, flood: 0, tornado: 0 };
+    cardPageSchedulerPageCounts = { quake: 0, weather: 0, weatherWarningForecast: 0, briefing: 0, flood: 0, tornado: 0 };
     cardPageSchedulerSubstates = {
       quake: { mode: "real", phaseStartedAtMs: 0, processedTick: 0, pageCount: 0 },
       weather: { mode: "real", phaseStartedAtMs: 0, processedTick: 0, pageCount: 0 },
+      weatherWarningForecast: { mode: "real", phaseStartedAtMs: 0, processedTick: 0, pageCount: 0 },
       briefing: { mode: "real", phaseStartedAtMs: 0, processedTick: 0, pageCount: 0 },
       flood: { mode: "real", phaseStartedAtMs: 0, processedTick: 0, pageCount: 0 },
       tornado: { mode: "real", phaseStartedAtMs: 0, processedTick: 0, pageCount: 0 },
@@ -838,6 +860,7 @@
     cardPageRuntime = {
       quake: { activeKey: null, knownKeys: [], pendingKeys: [], cycleOriginKey: null },
       weather: { activeKey: null, knownKeys: [], pendingKeys: [], cycleOriginKey: null },
+      weatherWarningForecast: { activeKey: null, knownKeys: [], pendingKeys: [], cycleOriginKey: null },
       briefing: { activeKey: null, knownKeys: [], pendingKeys: [], cycleOriginKey: null },
       flood: { activeKey: null, knownKeys: [], pendingKeys: [], cycleOriginKey: null },
       tornado: { activeKey: null, knownKeys: [], pendingKeys: [], cycleOriginKey: null },
@@ -1862,6 +1885,19 @@
     };
   }
 
+  function partitionWeatherWarningForecastPages(): CardPagePartition<WeatherWarningForecastAtom> {
+    const pages = weatherWarningForecastAtoms;
+    return {
+      pages,
+      keys: pages.map((page) => page.label),
+      identities: pages.map((page) => page.identity),
+      usesCandidate: pages.length > 1,
+      infeasible: false,
+      candidateTruncated: false,
+      probeCount: 0,
+    };
+  }
+
   // The preview owns its pager rather than importing the live coordinator.
   // Keep flood equally observable here with a deterministic two-river page;
   // live partitioning remains shelf-probe based in StandbyScreen.
@@ -1957,6 +1993,9 @@
     if (key === "tsunami") return (tsunami?.coasts.length ?? 0) + 3;
     if (key === "quake") return 6 + compactQuakeState.intensityGroups.length * 2 + (longPeriod == null ? 0 : 1);
     if (key === "weather") return 3 + fullWeatherAlerts.reduce((total, alert) => total + alert.items.reduce((subtotal, item) => subtotal + item.shownAreas.length + 1, 0), 0);
+    if (key === "weatherWarningForecast") return 3 + (weatherWarningForecast?.data.groups.reduce(
+      (total, group) => total + group.targets.reduce((subtotal, target) => subtotal + target.periods.length, 0), 0,
+    ) ?? 0);
     if (key === "flood") return 2 + (flood?.data.rivers.length ?? 0) * 2;
     if (key === "typhoon") return 2 + (typhoon?.data.typhoons.length ?? 0) * 4;
     if (key === "volcano") return 2 + (volcano?.data.volcanoes.length ?? 0) * 2;
@@ -2247,27 +2286,37 @@
   const cardPagePartitions = $derived.by(() => ({
     quake: partitionQuakePages(contentSelection.quakeRows),
     weather: partitionWeatherPages(contentSelection.weatherRows),
+    weatherWarningForecast: partitionWeatherWarningForecastPages(),
     flood: partitionFloodPages(),
     tornado: partitionTornadoPages(),
   }));
   const cardPageLists = $derived.by(() => ({
     quake: cardPagePartitions.quake.pages,
     weather: cardPagePartitions.weather.pages,
+    weatherWarningForecast: cardPagePartitions.weatherWarningForecast.pages,
+    briefing: EMPTY_PAGE_PARTITION.pages,
     flood: cardPagePartitions.flood.pages,
     tornado: cardPagePartitions.tornado.pages,
   }));
   const cardPageCounts = $derived.by(() => ({
     quake: cardPageLists.quake.length,
     weather: cardPageLists.weather.length,
+    weatherWarningForecast: cardPageLists.weatherWarningForecast.length,
+    briefing: cardPageLists.briefing.length,
     flood: cardPageLists.flood.length,
     tornado: cardPageLists.tornado.length,
   }));
-  const cardPageIsActive = $derived(cardPageCounts.quake > 1 || cardPageCounts.weather > 1 || cardPageCounts.flood > 1 || cardPageCounts.tornado > 1);
+  const cardPageIsActive = $derived(cardPageCounts.quake > 1 || cardPageCounts.weather > 1
+    || cardPageCounts.weatherWarningForecast > 1 || cardPageCounts.flood > 1 || cardPageCounts.tornado > 1);
   const cardPageInfeasible = $derived(cardPagePartitions.quake.infeasible || cardPagePartitions.weather.infeasible);
   const candidateTruncated = $derived(cardPagePartitions.quake.candidateTruncated || cardPagePartitions.weather.candidateTruncated);
   const partitionProbeCounts = $derived({
     quake: pageScans.quake.probeCount,
     weather: pageScans.weather.probeCount,
+    weatherWarningForecast: 0,
+    briefing: 0,
+    flood: 0,
+    tornado: cardPagePartitions.tornado.probeCount,
   });
   const partitionTailProbeMeasured = $derived(
     [...Object.keys(measuredPageHeights), ...Object.keys(measuredCenterPageHeights)]
@@ -2283,22 +2332,26 @@
       schedulerRotationKeys.join(","),
       cardPagePartitions.quake.keys.join(","),
       cardPagePartitions.weather.keys.join(","),
+      cardPagePartitions.weatherWarningForecast.keys.join(","),
       cardPagePartitions.flood.keys.join(","),
       cardPagePartitions.tornado.keys.join(","),
       cardPagePartitions.quake.identities.join(","),
       cardPagePartitions.weather.identities.join(","),
+      cardPagePartitions.weatherWarningForecast.identities.join(","),
       cardPagePartitions.flood.identities.join(","),
       cardPagePartitions.tornado.identities.join(","),
       cardPagePartitions.quake.usesCandidate,
       cardPagePartitions.weather.usesCandidate,
+      cardPagePartitions.weatherWarningForecast.usesCandidate,
       cardPagePartitions.flood.usesCandidate,
       cardPagePartitions.tornado.usesCandidate,
     ].join("|");
   }
 
-  function cardPagePartition(key: CardKey): CardPagePartition<QuakePage> | CardPagePartition<WeatherPage> | CardPagePartition<FloodPage> | null {
+  function cardPagePartition(key: CardKey): CardPagePartition<QuakePage> | CardPagePartition<WeatherPage> | CardPagePartition<WeatherWarningForecastAtom> | CardPagePartition<FloodPage> | null {
     if (key === "quake") return cardPagePartitions.quake;
     if (key === "weather") return cardPagePartitions.weather;
+    if (key === "weatherWarningForecast") return cardPagePartitions.weatherWarningForecast;
     if (key === "flood") return cardPagePartitions.flood;
     return null;
   }
@@ -2322,14 +2375,17 @@
   }
 
   function cardPageTailEntries(key: CardKey): PageTail[][] {
-    return cardPagePartition(key)?.pages.map((page) => page.tails) ?? [];
+    const partition = cardPagePartition(key);
+    if (partition == null) return [];
+    if (key === "weatherWarningForecast") return partition.pages.map(() => []);
+    return (partition as CardPagePartition<QuakePage | WeatherPage | FloodPage>).pages.map((page) => page.tails);
   }
 
   function cardPageIndex(key: CardKey): number {
     const total = cardPageCount(key);
     if (total <= 1) return 0;
     if (cardPageTickOverride != null) return cardPageTickOverride % total;
-    if (key !== "quake" && key !== "weather" && key !== "flood") return 0;
+    if (key !== "quake" && key !== "weather" && key !== "weatherWarningForecast" && key !== "flood") return 0;
     const activeKey = cardPageRuntime[key].activeKey;
     const index = cardPageIdentityKeys(key).indexOf(activeKey ?? "");
     return index >= 0 ? index : 0;
@@ -2349,7 +2405,7 @@
   }
 
   function cardPageAttribute(key: CardKey): string | undefined {
-    if (key !== "quake" && key !== "weather" && key !== "flood") return undefined;
+    if (key !== "quake" && key !== "weather" && key !== "weatherWarningForecast" && key !== "flood") return undefined;
     return `${cardPageIndex(key) + 1}/${cardPageCount(key)}`;
   }
 
@@ -2557,18 +2613,24 @@
         activeKeys: {
           quake: cardPageRuntime.quake.activeKey,
           weather: cardPageRuntime.weather.activeKey,
+          weatherWarningForecast: cardPageRuntime.weatherWarningForecast.activeKey,
+          briefing: cardPageRuntime.briefing.activeKey,
           flood: cardPageRuntime.flood.activeKey,
           tornado: cardPageRuntime.tornado.activeKey,
         },
         pendingKeys: {
           quake: [...cardPageRuntime.quake.pendingKeys],
           weather: [...cardPageRuntime.weather.pendingKeys],
+          weatherWarningForecast: [...cardPageRuntime.weatherWarningForecast.pendingKeys],
+          briefing: [...cardPageRuntime.briefing.pendingKeys],
           flood: [...cardPageRuntime.flood.pendingKeys],
           tornado: [...cardPageRuntime.tornado.pendingKeys],
         },
         cycleOriginKeys: {
           quake: cardPageRuntime.quake.cycleOriginKey,
           weather: cardPageRuntime.weather.cycleOriginKey,
+          weatherWarningForecast: cardPageRuntime.weatherWarningForecast.cycleOriginKey,
+          briefing: cardPageRuntime.briefing.cycleOriginKey,
           flood: cardPageRuntime.flood.cycleOriginKey,
           tornado: cardPageRuntime.tornado.cycleOriginKey,
         },
@@ -2577,6 +2639,8 @@
         substates: {
           quake: { ...cardPageSchedulerSubstates.quake },
           weather: { ...cardPageSchedulerSubstates.weather },
+          weatherWarningForecast: { ...cardPageSchedulerSubstates.weatherWarningForecast },
+          briefing: { ...cardPageSchedulerSubstates.briefing },
           flood: { ...cardPageSchedulerSubstates.flood },
           tornado: { ...cardPageSchedulerSubstates.tornado },
         },
@@ -2584,7 +2648,8 @@
           (key) => cardPageSchedulerSubstates[key].pageCount > 1,
         ),
         tickPending: cardPageTickPending,
-        suspendedKeys: schedulerRotationKeys.filter((key) => key === "quake" || key === "weather" || key === "flood"),
+        suspendedKeys: schedulerRotationKeys.filter((key) => key === "quake" || key === "weather"
+          || key === "weatherWarningForecast" || key === "briefing" || key === "flood"),
         inFlight: cardPageEpochBusy,
         timerActive: cardPageSchedulerTimer != null,
       },
@@ -2648,6 +2713,13 @@
       </div>
     </div>
     {#if useCardPage && (pageCount > 1 || cardPagePartition("weather")?.candidateTruncated)}<span class="mock-card-page" data-card-page-indicator>{pageIndex + 1}/{pageCount}</span>{/if}
+  {:else if key === "weatherWarningForecast" && weatherWarningForecast != null}
+    <WeatherWarningForecastCard
+      item={weatherWarningForecast}
+      pageIndexOverride={useCardPage ? pageIndex : 0}
+      pageScheduling={false}
+      measurementMaxAtom={!useCardPage}
+    />
   {:else if key === "flood" && flood != null}
     {#if floodIsWide && (placement === "center" || floodWide)}
       <FloodWideCard item={flood} measurementRange={useCardPage ? floodPageForRender(pageIndex) : undefined} />
@@ -2757,12 +2829,12 @@
   data-placement-surplus-use={placementSurplusUse}
   data-card-page-tick={currentCardPageTick}
   data-card-page-tick-override={cardPageTickOverride ?? undefined}
-  data-card-page-counts={`quake:${cardPageCounts.quake},weather:${cardPageCounts.weather},flood:${cardPageCounts.flood},tornado:${cardPageCounts.tornado}`}
+  data-card-page-counts={`quake:${cardPageCounts.quake},weather:${cardPageCounts.weather},weatherWarningForecast:${cardPageCounts.weatherWarningForecast},briefing:${cardPageCounts.briefing},flood:${cardPageCounts.flood},tornado:${cardPageCounts.tornado}`}
   data-card-page-active={cardPageIsActive ? "true" : "false"}
-  data-card-page-keys={JSON.stringify({ quake: cardPagePartitions.quake.keys, weather: cardPagePartitions.weather.keys, flood: cardPagePartitions.flood.keys, tornado: cardPagePartitions.tornado.keys })}
-  data-card-page-identities={JSON.stringify({ quake: cardPagePartitions.quake.identities, weather: cardPagePartitions.weather.identities, flood: cardPagePartitions.flood.identities, tornado: cardPagePartitions.tornado.identities })}
-  data-card-page-tail-counts={JSON.stringify({ quake: cardPageTailEntries("quake"), weather: cardPageTailEntries("weather"), flood: cardPageTailEntries("flood"), tornado: cardPagePartitions.tornado.pages.map((page) => page.tails) })}
-  data-card-page-active-keys={JSON.stringify({ quake: cardPageRuntime.quake.activeKey, weather: cardPageRuntime.weather.activeKey, flood: cardPageRuntime.flood.activeKey, tornado: cardPageRuntime.tornado.activeKey })}
+  data-card-page-keys={JSON.stringify({ quake: cardPagePartitions.quake.keys, weather: cardPagePartitions.weather.keys, weatherWarningForecast: cardPagePartitions.weatherWarningForecast.keys, briefing: [], flood: cardPagePartitions.flood.keys, tornado: cardPagePartitions.tornado.keys })}
+  data-card-page-identities={JSON.stringify({ quake: cardPagePartitions.quake.identities, weather: cardPagePartitions.weather.identities, weatherWarningForecast: cardPagePartitions.weatherWarningForecast.identities, briefing: [], flood: cardPagePartitions.flood.identities, tornado: cardPagePartitions.tornado.identities })}
+  data-card-page-tail-counts={JSON.stringify({ quake: cardPageTailEntries("quake"), weather: cardPageTailEntries("weather"), weatherWarningForecast: cardPageTailEntries("weatherWarningForecast"), briefing: [], flood: cardPageTailEntries("flood"), tornado: cardPagePartitions.tornado.pages.map((page) => page.tails) })}
+  data-card-page-active-keys={JSON.stringify({ quake: cardPageRuntime.quake.activeKey, weather: cardPageRuntime.weather.activeKey, weatherWarningForecast: cardPageRuntime.weatherWarningForecast.activeKey, briefing: cardPageRuntime.briefing.activeKey, flood: cardPageRuntime.flood.activeKey, tornado: cardPageRuntime.tornado.activeKey })}
   data-partition-probe-count={JSON.stringify(partitionProbeCounts)}
   data-partition-tail-probe={partitionTailProbeMeasured ? "true" : "false"}
   data-card-page-infeasible={cardPageInfeasible ? "true" : "false"}
@@ -2777,7 +2849,7 @@
   data-tornado-page-mode={pageSchedulerMode("tornado")}
   data-tornado-page-pending-appearance="false"
   data-candidate-truncated={candidateTruncated ? "true" : "false"}
-  data-center-eligible-keys="weather,flood,typhoon,volcano"
+  data-center-eligible-keys="weather,weatherWarningForecast,briefing,flood,typhoon,volcano"
   data-clock-mode={layoutPlan.stage === 0 ? "viewport-center" : "ticker-bottom-right"}
   data-center-fixed-height-px={centerFixedNaturalHeight()}
   data-center-capacity-px={centerCapacityPx()}

@@ -992,6 +992,26 @@ export interface DisplayFloodRiverV1 {
   station?: DisplayFloodStationV1 | null;
 }
 
+export type DisplayWeatherWarningForecastSeriesV1 = "3h" | "24h" | "day";
+export interface DisplayWeatherWarningForecastPeriodV1 {
+  key: string; tsNum: 1 | 2 | 3; series: DisplayWeatherWarningForecastSeriesV1;
+  startsAt: string; endsAt: string; label: string;
+  pagerAnchorKey: string; pagerAnchorOrdinal: number; pagerSlot: 0 | 1 | 2 | 3;
+}
+export interface DisplayWeatherWarningForecastTargetV1 {
+  key: string; scope: "area" | "local"; name: string; parentAreaName: string;
+  areaCode: string | null; localCode: string | null;
+  periods: DisplayWeatherWarningForecastPeriodV1[];
+}
+export interface DisplayWeatherWarningForecastGroupV1 {
+  key: string; phenomenonName: string; significancyCode: string; forecastLabel: string;
+  displaySeverity: "officialL1" | "officialL2" | "officialL3" | "officialL4" | "officialL5" | "nonLevelAdvisory" | "nonLevelWarning" | "nonLevelSpecial" | "unknown" | "release";
+  severity: StandbySeverity; targets: DisplayWeatherWarningForecastTargetV1[];
+}
+export interface DisplayWeatherWarningForecastCardDataV1 {
+  groups: DisplayWeatherWarningForecastGroupV1[];
+}
+
 export type ActiveStandbyCardV1 =
   | (ActiveStandbyBaseV1 & {
       kind: "volcano";
@@ -1027,6 +1047,11 @@ export type ActiveStandbyCardV1 =
       kind: "nankaiTrough";
       surface: "clock-below";
       data: { statusCode: string; label: string };
+    })
+  | (ActiveStandbyBaseV1 & {
+      kind: "weatherWarningForecast";
+      surface: "corner-right";
+      data: DisplayWeatherWarningForecastCardDataV1;
     })
   | (ActiveStandbyBaseV1 & {
       kind: "briefing";

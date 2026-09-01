@@ -8,7 +8,7 @@ export const TIME_SLICE_PERIOD_MS = 15_000;
 export const TIME_SLICE_TRANSITION_DEADLINE_MS = 500;
 
 type Timer = ReturnType<typeof setTimeout>;
-const PAGEABLE_KEYS = ["quake", "weather", "briefing", "flood", "tornado"] as const satisfies readonly PageableKey[];
+const PAGEABLE_KEYS = ["quake", "weather", "weatherWarningForecast", "briefing", "flood", "tornado"] as const satisfies readonly PageableKey[];
 
 export interface MonotonicClock {
   now(): number;
@@ -439,12 +439,12 @@ export class CardPageCoordinator {
   private readonly clock: MonotonicClock;
   private readonly periodMs: number;
   private readonly tickOverride: number | null;
-  private runtime: Record<PageableKey, CardPageRuntime> = { quake: EMPTY_RUNTIME(), weather: EMPTY_RUNTIME(), briefing: EMPTY_RUNTIME(), flood: EMPTY_RUNTIME(), tornado: EMPTY_RUNTIME() };
-  private substates: Record<PageableKey, CardPageSubstate> = { quake: EMPTY_SUBSTATE(), weather: EMPTY_SUBSTATE(), briefing: EMPTY_SUBSTATE(), flood: EMPTY_SUBSTATE(), tornado: EMPTY_SUBSTATE() };
-  private labels: Record<PageableKey, string[]> = { quake: [], weather: [], briefing: [], flood: [], tornado: [] };
-  private fingerprints: Record<PageableKey, string[]> = { quake: [], weather: [], briefing: [], flood: [], tornado: [] };
+  private runtime: Record<PageableKey, CardPageRuntime> = { quake: EMPTY_RUNTIME(), weather: EMPTY_RUNTIME(), weatherWarningForecast: EMPTY_RUNTIME(), briefing: EMPTY_RUNTIME(), flood: EMPTY_RUNTIME(), tornado: EMPTY_RUNTIME() };
+  private substates: Record<PageableKey, CardPageSubstate> = { quake: EMPTY_SUBSTATE(), weather: EMPTY_SUBSTATE(), weatherWarningForecast: EMPTY_SUBSTATE(), briefing: EMPTY_SUBSTATE(), flood: EMPTY_SUBSTATE(), tornado: EMPTY_SUBSTATE() };
+  private labels: Record<PageableKey, string[]> = { quake: [], weather: [], weatherWarningForecast: [], briefing: [], flood: [], tornado: [] };
+  private fingerprints: Record<PageableKey, string[]> = { quake: [], weather: [], weatherWarningForecast: [], briefing: [], flood: [], tornado: [] };
   private holdComplete: Record<PageableKey, ((identity: string) => void) | undefined> = {
-    quake: undefined, weather: undefined, briefing: undefined, flood: undefined, tornado: undefined,
+    quake: undefined, weather: undefined, weatherWarningForecast: undefined, briefing: undefined, flood: undefined, tornado: undefined,
   };
   private timer: Timer | null = null;
   private epochHeld = false;
@@ -748,6 +748,7 @@ export class CardPageCoordinator {
       cards: {
         quake: { ...this.cardDiagnostics("quake"), ...this.substates.quake, ...this.runtime.quake },
         weather: { ...this.cardDiagnostics("weather"), ...this.substates.weather, ...this.runtime.weather },
+        weatherWarningForecast: { ...this.cardDiagnostics("weatherWarningForecast"), ...this.substates.weatherWarningForecast, ...this.runtime.weatherWarningForecast },
         flood: { ...this.cardDiagnostics("flood"), ...this.substates.flood, ...this.runtime.flood },
         tornado: { ...this.cardDiagnostics("tornado"), ...this.substates.tornado, ...this.runtime.tornado },
         briefing: { ...this.cardDiagnostics("briefing"), ...this.substates.briefing, ...this.runtime.briefing },
@@ -766,12 +767,12 @@ export class CardPageCoordinator {
     this.tickPending = false;
     this.epochHeld = false;
     this.pendingAppearanceKeys.clear();
-    this.runtime = { quake: EMPTY_RUNTIME(), weather: EMPTY_RUNTIME(), briefing: EMPTY_RUNTIME(), flood: EMPTY_RUNTIME(), tornado: EMPTY_RUNTIME() };
-    this.substates = { quake: EMPTY_SUBSTATE(), weather: EMPTY_SUBSTATE(), briefing: EMPTY_SUBSTATE(), flood: EMPTY_SUBSTATE(), tornado: EMPTY_SUBSTATE() };
-    this.labels = { quake: [], weather: [], briefing: [], flood: [], tornado: [] };
-    this.fingerprints = { quake: [], weather: [], briefing: [], flood: [], tornado: [] };
+    this.runtime = { quake: EMPTY_RUNTIME(), weather: EMPTY_RUNTIME(), weatherWarningForecast: EMPTY_RUNTIME(), briefing: EMPTY_RUNTIME(), flood: EMPTY_RUNTIME(), tornado: EMPTY_RUNTIME() };
+    this.substates = { quake: EMPTY_SUBSTATE(), weather: EMPTY_SUBSTATE(), weatherWarningForecast: EMPTY_SUBSTATE(), briefing: EMPTY_SUBSTATE(), flood: EMPTY_SUBSTATE(), tornado: EMPTY_SUBSTATE() };
+    this.labels = { quake: [], weather: [], weatherWarningForecast: [], briefing: [], flood: [], tornado: [] };
+    this.fingerprints = { quake: [], weather: [], weatherWarningForecast: [], briefing: [], flood: [], tornado: [] };
     this.holdComplete = {
-      quake: undefined, weather: undefined, briefing: undefined, flood: undefined, tornado: undefined,
+      quake: undefined, weather: undefined, weatherWarningForecast: undefined, briefing: undefined, flood: undefined, tornado: undefined,
     };
     this.notify();
   }

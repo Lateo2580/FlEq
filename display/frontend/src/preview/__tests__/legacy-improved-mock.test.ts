@@ -322,7 +322,7 @@ describe("legacy improved standby mock v26", () => {
   it.each([
     ["legacyMock2=4&ladder=0", "4", 1, 3, 0, 4],
     ["legacyMock2=7&ladder=0", "7", 2, 5, 0, 7],
-    ["legacyMock2=max&ladder=0", "max", 2, 5, 2, 9],
+    ["legacyMock2=max&ladder=0", "max", 2, 6, 2, 10],
   ] as const)("renders %s with the fixed tier and no paging", (query, scenario, left, right, suppressed, inputCount) => {
     const { rendered, root } = renderMock(query);
 
@@ -350,7 +350,7 @@ describe("legacy improved standby mock v26", () => {
     expect(root.dataset.placementSurplusUse).toBeDefined();
     expect(root.dataset.centerGapPx).toBeDefined();
     expect(root.dataset.centerNaturalHeightPx).toBeDefined();
-    expect(root.dataset.centerEligibleKeys).toBe("weather,flood,typhoon,volcano");
+    expect(root.dataset.centerEligibleKeys).toBe("weather,weatherWarningForecast,briefing,flood,typhoon,volcano");
     expect(root.dataset.clockMode).toBe("viewport-center");
     expect(rendered.container.querySelector("[data-clock-landmark]")).toBeTruthy();
     expect(Number(root.dataset.measurementReadCount)).toBeGreaterThan(0);
@@ -400,7 +400,7 @@ describe("legacy improved standby mock v26", () => {
     expect(stage).toBeGreaterThanOrEqual(0);
     expect(stage).toBeLessThanOrEqual(3);
     expect(root.dataset.layoutUnresolved).toBe("false");
-    expect(rendered.container.querySelectorAll("[data-mock-card]").length).toBe(7);
+    expect(rendered.container.querySelectorAll("[data-mock-card]").length).toBe(8);
   });
 
   it("exposes expansion metadata for earthquake and weather fixtures when measured space permits", () => {
@@ -760,7 +760,7 @@ describe("legacy improved standby mock v26", () => {
     for (const key of centerKeys) {
       expect(rendered.container.querySelector<HTMLElement>(`[data-mock-card="${key}"]`)?.dataset.centerEligible).toBe("true");
     }
-    expect(root.dataset.centerEligibleKeys).toBe("weather,flood,typhoon,volcano");
+    expect(root.dataset.centerEligibleKeys).toBe("weather,weatherWarningForecast,briefing,flood,typhoon,volcano");
     expect(mockSource).toContain('from "../lib/legacy-standby/solver"');
     expect(mockSource).toContain("makeColumnPlan as solveColumnPlan");
   });
@@ -1359,7 +1359,7 @@ describe("legacy improved standby mock v26", () => {
 
   it("separates DOM settle and rotation candidate counters", () => {
     expect(mockSource).toContain("const MAX_SETTLE_PASSES = 4;");
-    expect(solverSource).toContain("const MAX_ROTATION_CANDIDATE_PASSES = 6;");
+    expect(solverSource).toContain("export const MAX_ROTATION_CANDIDATE_PASSES = 7;");
     expect(solverSource).toMatch(/pass < MAX_ROTATION_CANDIDATE_PASSES[^\n]*displayed\.length \+ failed\.length/);
   });
 
@@ -1463,7 +1463,7 @@ describe("legacy improved standby mock v26", () => {
     vi.useFakeTimers();
     const restoreMeasuredLayout = installMeasuredLayout({ capacityPx: 90, baseCardPx: 40, prefixRowPx: 10 });
     try {
-      const { rendered, root } = renderMock("legacyMock2=max&fixtureRemove=volcano,heat&fixtureRemoveAt=1000");
+      const { rendered, root } = renderMock("legacyMock2=max&fixtureRemove=weatherWarningForecast,volcano,heat&fixtureRemoveAt=1000");
       await settleMockMeasurements(320);
       expect(root.dataset.ladderAuto).toBe("true");
       expect(root.dataset.ladderStage).toBe("3");
@@ -1474,6 +1474,7 @@ describe("legacy improved standby mock v26", () => {
       expect(Number(root.dataset.ladderStage)).toBeLessThan(3);
       expect(rendered.container.querySelector('[data-mock-card="volcano"]')).toBeNull();
       expect(rendered.container.querySelector('[data-mock-card="heat"]')).toBeNull();
+      expect(rendered.container.querySelector('[data-mock-card="weatherWarningForecast"]')).toBeNull();
       expect(root.dataset.rotationKeys).toBe("");
       expect(schedulerState(root).rotation.timerActive).toBe(false);
       rendered.unmount();
@@ -1526,11 +1527,9 @@ describe("legacy improved standby mock v26", () => {
       expect(rendered.container.querySelector('[data-mock-card="quake"]')).toBeNull();
       expect(rendered.container.querySelector('[data-mock-card="weather"]')).toBeNull();
       expect(afterExit.activeSubstateKeys).toEqual([]);
-      // Unit 1 extends the mock's independent pager record without changing
-      // the three existing layout-card substates.
-      expect(afterExit.activeKeys).toEqual({ quake: null, weather: null, flood: null, tornado: null });
-      expect(afterExit.pendingKeys).toEqual({ quake: [], weather: [], flood: [], tornado: [] });
-      expect(afterExit.cycleOriginKeys).toEqual({ quake: null, weather: null, flood: null, tornado: null });
+      expect(afterExit.activeKeys).toEqual({ quake: null, weather: null, weatherWarningForecast: null, briefing: null, flood: null, tornado: null });
+      expect(afterExit.pendingKeys).toEqual({ quake: [], weather: [], weatherWarningForecast: [], briefing: [], flood: [], tornado: [] });
+      expect(afterExit.cycleOriginKeys).toEqual({ quake: null, weather: null, weatherWarningForecast: null, briefing: null, flood: null, tornado: null });
       expect(afterExit.previousPageCounts).toMatchObject({ tornado: 0 });
       expect(afterExit.substates.tornado).toMatchObject({ mode: "real", pageCount: 0, processedTick: 0 });
       expect(afterExit.timerActive).toBe(false);
@@ -1552,7 +1551,7 @@ describe("legacy improved standby mock v26", () => {
     const restoreMeasuredLayout = installMeasuredLayout({ capacityPx: 90, baseCardPx: 40, prefixRowPx: 10 });
     try {
       const { rendered, root } = renderMock(
-        "legacyMock2=max&rotationKeys=weather&fixtureRemove=volcano,heat&fixtureRemoveAt=1000",
+        "legacyMock2=max&rotationKeys=weather&fixtureRemove=weatherWarningForecast,volcano,heat&fixtureRemoveAt=1000",
       );
       await settleMockMeasurements(320);
       expect(root.dataset.ladderStage).toBe("3");

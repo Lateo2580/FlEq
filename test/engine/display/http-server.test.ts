@@ -4,11 +4,14 @@ import { tmpdir } from "node:os";
 import { basename, join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { degradeSnapshotToBudget, degradeSyncedStateToBudget } from "../../../src/engine/display/http-server";
+import { encodeSseGuarded } from "../../../src/engine/display/sse-clients";
 import { InfoDisplayHub } from "../../../src/engine/display/hub";
 import { DisplayStateStore } from "../../../src/engine/display/state-store";
 import { InProcessSseDisplayTransport } from "../../../src/engine/display/transport";
 import { weatherAlertsFromVpww56 } from "../../../src/engine/display/weather-alert-view";
 import { DISPLAY_PROTOCOL_VERSION } from "../../../src/engine/display/types";
+import type { ActiveStandbyCardV1 } from "../../../src/engine/display/protocol";
+import { vpwp50StableKey } from "../../../src/engine/presentation/weather-severity-pyramid";
 import type { PresentationEvent } from "../../../src/engine/presentation/types";
 import type { Vpws50CurrentAreasForDisplay } from "../../../src/types";
 import { displayEventDto, displaySnapshot } from "../../helpers/display-fixtures";
@@ -94,6 +97,75 @@ function hugeRecentTicker(): DisplayEventDtoV1[] {
   return Array.from({ length: 1000 }, (_, i) =>
     displayEventDto({ seq: i, id: `m${i}`, eventKey: `k${i}`, title: longTitle }),
   );
+}
+
+function maxValidVpwp50Card(): Extract<ActiveStandbyCardV1, { kind: "weatherWarningForecast" }> {
+  const subject = "weatherTimeseries:VPWP50-HTTP:200000";
+  const groupKey = vpwp50StableKey("group", [
+    "土砂災害危険度", "31", "土砂災害（警戒レベル3相当）の予測", "officialL3",
+  ]);
+  const reportTimeMs = Date.parse("2026-09-01T00:00:00.000Z");
+  const startsAt = "2026-09-01T01:00:00.000Z";
+  const endsAt = "2026-09-01T02:00:00.000Z";
+  const build = (
+    sourceExtra: number,
+    nameExtras: readonly number[],
+  ): Extract<ActiveStandbyCardV1, { kind: "weatherWarningForecast" }> => ({
+    kind: "weatherWarningForecast",
+    surface: "corner-right",
+    key: "weatherWarningForecast:active",
+    sourceEventIds: [`h${"x".repeat(sourceExtra)}`],
+    updatedAt: new Date(reportTimeMs).toISOString(),
+    expiresAt: endsAt,
+    restored: false,
+    severity: "warning",
+    data: { groups: [{
+      key: groupKey,
+      phenomenonName: "土砂災害危険度",
+      significancyCode: "31",
+      forecastLabel: "土砂災害（警戒レベル3相当）の予測",
+      displaySeverity: "officialL3",
+      severity: "warning",
+      targets: Array.from({ length: 128 }, (_, index) => {
+        const name = `a${index.toString(36)}${"x".repeat(nameExtras[index] ?? 0)}`;
+        const targetKey = vpwp50StableKey("target", [subject, "area", `name:${name}`]);
+        return {
+          key: targetKey,
+          scope: "area" as const,
+          name,
+          parentAreaName: name,
+          areaCode: null,
+          localCode: null,
+          periods: [{
+            key: vpwp50StableKey("period", [groupKey, targetKey, 1, "3h", startsAt, endsAt]),
+            tsNum: 1 as const,
+            series: "3h" as const,
+            startsAt,
+            endsAt,
+            label: "9月1日 10:00–11:00",
+            pagerAnchorKey: vpwp50StableKey("anchor", [
+              subject, reportTimeMs, "1", groupKey, targetKey, 0,
+            ]),
+            pagerAnchorOrdinal: 0,
+            pagerSlot: 0 as const,
+          }],
+        };
+      }),
+    }] },
+  });
+  const nameExtras = Array.from({ length: 128 }, () => 0);
+  let remaining = 64 * 1024 - Buffer.byteLength(JSON.stringify(build(0, nameExtras)), "utf8");
+  if (remaining < 0) throw new Error("VPWP50 HTTP fixture base exceeds wire budget");
+  const sourceExtra = remaining % 2;
+  remaining -= sourceExtra;
+  for (let index = 0; index < nameExtras.length && remaining > 0; index += 1) {
+    const baseNameLength = `a${index.toString(36)}`.length;
+    const characters = Math.min(256 - baseNameLength, remaining / 2);
+    nameExtras[index] = characters;
+    remaining -= characters * 2;
+  }
+  if (remaining !== 0) throw new Error("VPWP50 HTTP fixture filler capacity exhausted");
+  return build(sourceExtra, nameExtras);
 }
 
 function tsunamiWarningPresentationEvent(): PresentationEvent {
@@ -311,6 +383,21 @@ function mapEvent(
 }
 
 describe("degradeSnapshotToBudget (純関数、初回 snapshot と定期 state 配信の共通安全弁)", () => {
+  it("最大 VPWP50 card を snapshot 縮退で変更せず snapshot/state wire へ通す", () => {
+    const card = maxValidVpwp50Card();
+    expect(card.data.groups.flatMap((group) => group.targets.flatMap((target) => target.periods))).toHaveLength(128);
+    expect(Buffer.byteLength(JSON.stringify(card), "utf8")).toBe(64 * 1024);
+    const oversized = baseSnapshot({ standbyItems: [card], recentTicker: hugeRecentTicker() });
+    const snapshotResult = degradeSnapshotToBudget(oversized, "snapshot");
+    const stateResult = degradeSnapshotToBudget(oversized, "state");
+    expect(snapshotResult).not.toBeNull();
+    expect(stateResult).not.toBeNull();
+    expect(snapshotResult!.snapshot.standbyItems).toEqual([card]);
+    expect(stateResult!.snapshot.standbyItems).toEqual([card]);
+    expect(encodeSseGuarded({ type: "snapshot", snapshot: snapshotResult!.snapshot })).not.toBeNull();
+    expect(encodeSseGuarded({ type: "state", snapshot: stateResult!.snapshot })).not.toBeNull();
+  });
+
   it("snapshot budget では展開候補をカード本体より先に落とし、現行表示分と flag を残す", () => {
     const latestQuake: DisplayLatestQuakeStateV1 = {
       eventId: "candidate-budget",

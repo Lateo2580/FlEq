@@ -16,7 +16,18 @@ import type { DisplayRuntime } from "../../../src/engine/display/runtime";
 import type { PresentationEvent } from "../../../src/engine/presentation/types";
 import { createShutdownHandler } from "../../../src/engine/monitor/shutdown";
 import * as shutdownModule from "../../../src/engine/monitor/shutdown";
-import { DEFAULT_CONFIG, type ParsedHeatAlertInfo, type ParsedTornadoAdvisory } from "../../../src/types";
+import { WEATHER_TIMESERIES_RETENTION_MS } from "../../../src/engine/messages/revision-family-registry";
+import {
+  createMockWsDataMessageFromXml,
+  FIXTURE_VPWP50_LOCAL_IDENTITY,
+  readFixture,
+} from "../../helpers/mock-message";
+import {
+  DEFAULT_CONFIG,
+  type ParsedHeatAlertInfo,
+  type ParsedTornadoAdvisory,
+  type WsDataMessage,
+} from "../../../src/types";
 
 const mockStartDisplayRuntime = vi.fn();
 const mockSetActiveDisplayRuntime = vi.fn();
@@ -216,7 +227,8 @@ describe("standby monitor wiring", () => {
 
   it("startMonitor の実 restore→post-expiry coupling→sweep は両fileを一度だけrewriteし、変更なしは0回", async () => {
     vi.useFakeTimers();
-    vi.setSystemTime(T0);
+    const monitorNowMs = Date.parse("2026-06-06T00:30:00.000Z");
+    vi.setSystemTime(monitorNowMs);
     const root = mkdtempSync(join(tmpdir(), "fleq-standby-monitor-rewrite-"));
     tempRoots.push(root);
     const runtimeDir = join(root, "data", "runtime");
@@ -228,7 +240,7 @@ describe("standby monitor wiring", () => {
       entries: [], cancellations: [], watermarks: [],
       rawAliases: [{
         source: "vpoa50", sourceEventId: "expired-alias", semanticKey: "canonical",
-        revision: { reportTimeMs: T0 - 1, serial: "1" }, expiresAtMs: T0,
+        revision: { reportTimeMs: monitorNowMs - 1, serial: "1" }, expiresAtMs: monitorNowMs,
       }],
     };
     const persistPath = join(runtimeDir, "display-active-state-v1.json");
@@ -246,12 +258,17 @@ describe("standby monitor wiring", () => {
         scheduledPersistence = this;
         return originalSchedule.call(this, value);
       });
+    const monitorShutdowns: Array<() => Promise<unknown>> = [];
     const registerShutdownSignals = vi.spyOn(shutdownModule, "registerShutdownSignals")
-      .mockImplementation(() => undefined);
+      .mockImplementation((shutdown) => { monitorShutdowns.push(shutdown); });
     const connect = vi.fn().mockResolvedValue(undefined);
+    let managerOnData: ((message: WsDataMessage) => void) | null = null;
 
     vi.doMock("../../../src/dmdata/multi-connection-manager", () => {
       class FakeMultiConnectionManager {
+        constructor(_config: unknown, events: { onData: (message: WsDataMessage) => void }) {
+          managerOnData = events.onData;
+        }
         connect = connect;
         close = vi.fn();
         startBackup = vi.fn().mockResolvedValue("started");
@@ -272,7 +289,21 @@ describe("standby monitor wiring", () => {
       restoreVolcanoState: vi.fn().mockResolvedValue("failed"),
     }));
     vi.doMock("../../../src/engine/notification/notifier", () => ({
-      Notifier: class FakeNotifier {},
+      Notifier: class FakeNotifier {
+        notifyWeatherWarningTimeseries = vi.fn();
+      },
+    }));
+    // This integration owns the standby writer clock. The unrelated detail-cache
+    // debounce uses the same fake timer and otherwise starts an async filesystem
+    // write while this test is advancing the 60-second standby sweep.
+    vi.doMock("../../../src/engine/messages/vpwp50-detail-cache", () => ({
+      Vpwp50DetailCache: class FakeVpwp50DetailCache {
+        readonly category = "vpwp50";
+        readonly emptyMessage = "empty";
+        rememberLatest = vi.fn();
+        getDetail = vi.fn(() => null);
+        flush = vi.fn();
+      },
     }));
     vi.doMock("../../../src/ui/display-adapter", () => ({
       createDisplayAdapter: () => ({
@@ -290,6 +321,8 @@ describe("standby monitor wiring", () => {
         setSummaryTimerControl = vi.fn();
         start = vi.fn();
         stop = vi.fn();
+        beforeDisplayMessage = vi.fn();
+        afterDisplayMessage = vi.fn();
       },
     }));
 
@@ -307,6 +340,53 @@ describe("standby monitor wiring", () => {
     expect(rewrittenV1.briefingCritical).toBeUndefined();
     expect(rewrittenV2.briefingCritical).toBeUndefined();
 
+    const longForecastXml = readFixture(FIXTURE_VPWP50_LOCAL_IDENTITY)
+      .replaceAll("<Duration>PT3H</Duration>", "<Duration>P8D</Duration>");
+    schedule.mockClear();
+    (managerOnData as ((message: WsDataMessage) => void) | null)?.(
+      createMockWsDataMessageFromXml(longForecastXml, "VPWP50"),
+    );
+    expect(schedule).toHaveBeenCalledTimes(1);
+    (scheduledPersistence as StandbyPersistence | null)?.flush();
+    const accepted = JSON.parse(readFileSync(standbyPersistenceV2Path(persistPath), "utf8")) as {
+      weatherWarningForecasts?: unknown[];
+      telegramFoundation: { standbyDomains: { gateEntries: Array<{ revisionFamily: string }> } };
+    };
+    expect(accepted.weatherWarningForecasts).toHaveLength(1);
+    expect(accepted.telegramFoundation.standbyDomains.gateEntries
+      .filter((entry) => entry.revisionFamily === "VPWP50")).toHaveLength(1);
+
+    schedule.mockClear();
+    vi.setSystemTime(monitorNowMs + WEATHER_TIMESERIES_RETENTION_MS + 1);
+    const invalidSerialXml = longForecastXml.replace("<Serial>01</Serial>", "<Serial>invalid</Serial>");
+    (managerOnData as ((message: WsDataMessage) => void) | null)?.(
+      createMockWsDataMessageFromXml(invalidSerialXml, "VPWP50"),
+    );
+    expect(schedule).toHaveBeenCalledTimes(1);
+    (scheduledPersistence as StandbyPersistence | null)?.flush();
+    const rejectedAfterExpiry = JSON.parse(readFileSync(standbyPersistenceV2Path(persistPath), "utf8")) as {
+      weatherWarningForecasts?: unknown[];
+      telegramFoundation: { standbyDomains: { gateEntries: Array<{ revisionFamily: string }> } };
+    };
+    expect(rejectedAfterExpiry.weatherWarningForecasts).toBeUndefined();
+    expect(rejectedAfterExpiry.telegramFoundation.standbyDomains.gateEntries
+      .filter((entry) => entry.revisionFamily === "VPWP50")).toEqual([]);
+
+    schedule.mockClear();
+    (managerOnData as ((message: WsDataMessage) => void) | null)?.(
+      createMockWsDataMessageFromXml(`${longForecastXml}\n`, "VPWP50"),
+    );
+    expect(schedule).toHaveBeenCalledTimes(1);
+    // Commit the admission reservation before advancing the shared timer. This
+    // leaves only the sweep-created reservation for the assertion below.
+    (scheduledPersistence as StandbyPersistence | null)?.flush();
+    schedule.mockClear();
+    vi.setSystemTime(monitorNowMs + 2 * WEATHER_TIMESERIES_RETENTION_MS - 59_999);
+    vi.advanceTimersByTime(60_000);
+    expect(schedule).toHaveBeenCalledTimes(1);
+    (scheduledPersistence as StandbyPersistence | null)?.flush();
+    await monitorShutdowns[0]?.();
+
     const unchangedRoot = mkdtempSync(join(tmpdir(), "fleq-standby-monitor-unchanged-"));
     tempRoots.push(unchangedRoot);
     const unchangedRuntimeDir = join(unchangedRoot, "data", "runtime");
@@ -323,5 +403,6 @@ describe("standby monitor wiring", () => {
 
     expect(schedule).not.toHaveBeenCalled();
     expect(scheduledPersistence).toBeNull();
+    await monitorShutdowns[1]?.();
   });
 });

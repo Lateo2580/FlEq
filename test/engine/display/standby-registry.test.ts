@@ -18,7 +18,7 @@ function card(kind: ActiveStandbyCardV1["kind"], updatedAt = new Date(T0).toISOS
 describe("standby-registry", () => {
   it("全 kind の policy が定義されている", () => {
     expect(Object.keys(STANDBY_CARD_REGISTRY).sort()).toEqual(
-      ["flood", "heat", "longPeriod", "nankaiTrough", "tornado", "typhoon", "volcano"].sort(),
+      ["flood", "heat", "longPeriod", "nankaiTrough", "tornado", "typhoon", "volcano", "weatherWarningForecast"].sort(),
     );
   });
 
@@ -26,6 +26,7 @@ describe("standby-registry", () => {
     const r = STANDBY_CARD_REGISTRY;
     expect(r.tornado.priority).toBeGreaterThan(r.flood.priority);
     expect(r.flood.priority).toBeGreaterThan(r.volcano.priority);
+    expect(r.weatherWarningForecast.priority).toBeGreaterThan(r.volcano.priority);
     expect(r.volcano.priority).toBeGreaterThan(r.typhoon.priority);
     expect(r.typhoon.priority).toBeGreaterThan(r.heat.priority);
   });

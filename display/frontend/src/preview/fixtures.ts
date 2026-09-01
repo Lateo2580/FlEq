@@ -2563,9 +2563,103 @@ const attentionVisibilityHeatAreas = [
   "徳島県", "香川県", "愛媛県", "高知県", "福岡県", "佐賀県", "長崎県", "熊本県", "大分県", "宮崎県",
 ];
 
+function forecastPreviewKey(prefix: string, index = 0): string {
+  return `${prefix}_${index.toString(36)}`.padEnd(43, "x").slice(0, 43);
+}
+
+function forecastPreviewPeriodLabel(startsAt: string, endsAt: string): string {
+  const parts = (iso: string) => {
+    const value = new Date(Date.parse(iso) + 9 * 60 * 60_000);
+    return {
+      year: value.getUTCFullYear(), month: value.getUTCMonth() + 1, day: value.getUTCDate(),
+      hour: String(value.getUTCHours()).padStart(2, "0"),
+      minute: String(value.getUTCMinutes()).padStart(2, "0"),
+    };
+  };
+  const start = parts(startsAt), end = parts(endsAt);
+  const short = (value: ReturnType<typeof parts>) => `${value.month}月${value.day}日 ${value.hour}:${value.minute}`;
+  if (start.year === end.year && start.month === end.month && start.day === end.day) return `${short(start)}–${end.hour}:${end.minute}`;
+  if (start.year === end.year) return `${short(start)}–${short(end)}`;
+  return `${start.year}年${short(start)}–${end.year}年${short(end)}`;
+}
+
+function forecastPreviewPeriods(
+  prefix: string,
+  count: number,
+  offset: number,
+  tsNum: 1 | 2 | 3,
+  series: "3h" | "24h" | "day",
+) {
+  return Array.from({ length: count }, (_, index) => {
+    const startsAt = new Date(Date.UTC(2026, 8, 1, 0) + (offset + index) * 2 * 60 * 60_000).toISOString();
+    const endsAt = new Date(Date.parse(startsAt) + 60 * 60_000).toISOString();
+    const ordinal = Math.floor(index / 4);
+    return {
+      key: forecastPreviewKey(`${prefix}period`, index),
+      tsNum,
+      series,
+      startsAt,
+      endsAt,
+      label: forecastPreviewPeriodLabel(startsAt, endsAt),
+      pagerAnchorKey: forecastPreviewKey(`${prefix}anchor`, ordinal),
+      pagerAnchorOrdinal: ordinal,
+      pagerSlot: (index % 4) as 0 | 1 | 2 | 3,
+    };
+  });
+}
+
+/** Code 21 / 22 と Area / Local label を含む、128-period / 32-atom preview。 */
+export const legacyImprovedWeatherWarningForecast: Extract<ActiveStandbyCardV1, { kind: "weatherWarningForecast" }> = {
+  ...STANDBY_ITEM_BASE,
+  kind: "weatherWarningForecast",
+  surface: "corner-right",
+  key: "weatherWarningForecast:active",
+  sourceEventIds: ["preview-vpwp50-21", "preview-vpwp50-22"],
+  severity: "normal",
+  data: {
+    groups: [
+      {
+        key: forecastPreviewKey("group21"),
+        phenomenonName: "土砂災害危険度",
+        significancyCode: "21",
+        forecastLabel: "土砂災害（警戒レベル2）の予測",
+        displaySeverity: "officialL2",
+        severity: "normal",
+        targets: [{
+          key: forecastPreviewKey("targetArea"),
+          scope: "area",
+          name: "長野県北部",
+          parentAreaName: "長野県北部",
+          areaCode: "200010",
+          localCode: null,
+          periods: forecastPreviewPeriods("area", 64, 0, 1, "3h"),
+        }],
+      },
+      {
+        key: forecastPreviewKey("group22"),
+        phenomenonName: "土砂災害危険度",
+        significancyCode: "22",
+        forecastLabel: "土砂災害（警戒レベル2相当）の予測",
+        displaySeverity: "officialL2",
+        severity: "normal",
+        targets: [{
+          key: forecastPreviewKey("targetLocal"),
+          scope: "local",
+          name: "沿岸",
+          parentAreaName: "長野県南部",
+          areaCode: "200020",
+          localCode: "001",
+          periods: forecastPreviewPeriods("local", 64, 64, 2, "24h"),
+        }],
+      },
+    ],
+  },
+};
+
 export const legacyImprovedMaxItems: ActiveStandbyCardV1[] = [
   ...standbyItemsShowcase.filter((item) =>
     item.kind === "flood" || item.kind === "tornado" || item.kind === "longPeriod" || item.kind === "nankaiTrough"),
+  legacyImprovedWeatherWarningForecast,
   {
     ...STANDBY_ITEM_BASE,
     kind: "volcano",
