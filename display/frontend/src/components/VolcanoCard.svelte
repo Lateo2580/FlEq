@@ -165,19 +165,19 @@
   }
 
   function summaryOnly(volcano: VolcanoEntry): VolcanoEntry {
-    return { ...structuredClone(volcano), ashfall: null };
+    return { ...$state.snapshot(volcano), ashfall: null };
   }
 
   function ashfallOnly(volcano: VolcanoEntry): VolcanoEntry {
     return {
-      ...structuredClone(volcano),
+      ...$state.snapshot(volcano),
       alertLevel: null,
       warningKind: null,
       targetKinds: [],
       alertClass: null,
       latestEvent: null,
       ashfall: volcano.ashfall == null ? null : {
-        ...structuredClone(volcano.ashfall),
+        ...$state.snapshot(volcano.ashfall),
         groups: [],
         omittedGroupCount: 0,
       },
@@ -226,12 +226,12 @@
         if (sourceGroup == null) continue;
         let pageGroup = pageAshfall.groups.find((group) => group.ashCode === sourceGroup.ashCode);
         if (pageGroup == null) {
-          pageGroup = { ...structuredClone(sourceGroup), areas: [], omittedAreaCount: 0 };
+          pageGroup = { ...$state.snapshot(sourceGroup), areas: [], omittedAreaCount: 0 };
           pageAshfall.groups.push(pageGroup);
         }
         if (atom.kind === "area") {
           const area = sourceGroup.areas[atom.areaIndex ?? -1];
-          if (area != null) pageGroup.areas.push(structuredClone(area));
+          if (area != null) pageGroup.areas.push($state.snapshot(area));
         } else if (atom.kind === "omitted-area") {
           pageGroup.omittedAreaCount = sourceGroup.omittedAreaCount;
         }
