@@ -898,7 +898,7 @@ export class StandbyPersistenceAdmissionCoordinator {
     const pair = this.serializePair(captured.domains, envelope);
     if (pair.v2.byteLength > STANDBY_PERSISTENCE_MAX_BYTES_PER_FILE
       || pair.v1.byteLength > STANDBY_PERSISTENCE_MAX_BYTES_PER_FILE) {
-      throw new Error("standby persistence serialized pair exceeds 4MiB");
+      throw new Error("standby persistence serialized pair exceeds the full-file byte limit");
     }
     if (!tokenEquals(captured.token, this.currentToken())) {
       throw new Error("standby persistence serialized pair became stale");

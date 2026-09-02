@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "fullFileByteLimit": 4194304,
+  "fullFileByteLimit": 16777216,
   "countMaximum": {
     "weather:VPWS50": 129,
     "weather:VPWW56": 128,
@@ -38,8 +38,8 @@
     },
     "all-domains-max-admissible": {
       "expectedAdmission": "commit-and-lossless-reload",
-      "v2MaximumBytes": 4194304,
-      "v1MaximumBytes": 4194304,
+      "v2MaximumBytes": 16777216,
+      "v1MaximumBytes": 16777216,
       "logicalGeneration": "18446744073709551615",
       "savedAt": "+275760-09-13T00:00:00.000Z",
       "bytes": {

@@ -8,7 +8,7 @@
     "rollbackRecords": 128,
     "sourceEventIdsPerComposite": 4096,
     "volcanoSubtreeBytesPerFile": 1048576,
-    "standbyFileBytesPerFile": 4194304,
+    "standbyFileBytesPerFile": 16777216,
     "wireAshfallSlices": 64,
     "volcanoCardBytes": 65536
   },

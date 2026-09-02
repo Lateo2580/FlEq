@@ -10,8 +10,14 @@ export const MAX_SNAPSHOT_BYTES = 256 * 1024;
 export const VOLCANO_ASHFALL_MAX_WIRE_SLICES = 64;
 export const VOLCANO_CARD_MAX_WIRE_BYTES = 64 * 1024;
 export const VOLCANO_PERSISTENCE_MAX_SUBTREE_BYTES_PER_FILE = 1024 * 1024;
-export const STANDBY_PERSISTENCE_MAX_BYTES_PER_FILE = 4 * 1024 * 1024;
-export const STANDBY_READER_MAX_RAW_FILE_BYTES_PER_SOURCE = 4 * 1024 * 1024;
+/** standby 永続 pair (v2 / v1) の 1 file 上限。writer / reader を同値に保つ。
+ *  4MiB では VPWS50 の正当な最大構成 (全国 current + history 8 件 +
+ *  VPWW55-61 官署別 partialStreams / partialHistory) が実測 5.2MB に達して
+ *  admission reject → 気象電文 suppressed になったため 16MiB へ引き上げた
+ *  (2026-09-02, Pi 実機の旧版 v2 5,202,939 bytes を観測)。
+ *  火山 subtree 1MiB・salvage backup・v1 mirror の各上限は据え置き。 */
+export const STANDBY_PERSISTENCE_MAX_BYTES_PER_FILE = 16 * 1024 * 1024;
+export const STANDBY_READER_MAX_RAW_FILE_BYTES_PER_SOURCE = 16 * 1024 * 1024;
 export const MAX_WRITABLE_LENGTH = 128 * 1024;
 export const MAX_BLOCKED_MS = 5_000;
 export const HEARTBEAT_MS = 15_000;

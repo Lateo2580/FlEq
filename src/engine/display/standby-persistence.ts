@@ -1496,7 +1496,7 @@ export class StandbyPersistence {
   /**
    * Build the exact pair that the writer would emit without reserving a
    * generation and without touching the filesystem.  The all-domain admission
-   * coordinator uses this for its prospective 4 MiB check.
+   * coordinator uses this for its prospective full-file byte check.
    */
   serializeProspectivePair(
     state: PersistedStandbyState,

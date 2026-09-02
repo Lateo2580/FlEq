@@ -7,6 +7,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createDisplayController } from "../../../src/engine/display/controller";
 import {
   STANDBY_PERSISTENCE_MAX_BYTES_PER_FILE,
+  STANDBY_READER_MAX_RAW_FILE_BYTES_PER_SOURCE,
   SWEEP_INTERVAL_MS,
   VOLCANO_ASHFALL_MAX_WIRE_SLICES,
   VOLCANO_CARD_MAX_WIRE_BYTES,
@@ -54,7 +55,13 @@ import {
   TelegramRevisionGate,
   type TelegramRevisionGateSnapshot,
 } from "../../../src/engine/messages/telegram-revision-gate";
-import { Vpws50StateHolder } from "../../../src/engine/messages/vpws50-state";
+import {
+  Vpws50StateHolder,
+  VPWS50_SNAPSHOT_GENERATION,
+  type PersistedVpws50KindV2,
+  type PersistedVpws50SnapshotV2,
+  type PersistedVpws50StateV2,
+} from "../../../src/engine/messages/vpws50-state";
 import { Vpww56StateHolder } from "../../../src/engine/messages/vpww56-state";
 import { TsunamiStateHolder } from "../../../src/engine/messages/tsunami-state";
 import {
@@ -1115,11 +1122,15 @@ describe("standby monitor wiring", () => {
       v2VolcanoSubtreeBytes: countMaximum.bytes!.v2VolcanoSubtree,
       v1VolcanoSubtreeBytes: countMaximum.bytes!.v1VolcanoSubtree,
     });
-    expect(measurement.v2FileBytes).toBeGreaterThan(STANDBY_PERSISTENCE_MAX_BYTES_PER_FILE);
+    // full-file 上限 16MiB 引き上げ後、全 domain count 最大でも full-file は収まる。
+    // 原子的 rejection を担うのは据え置きの火山 subtree 1MiB 上限。
+    expect(measurement.v2FileBytes).toBeLessThanOrEqual(STANDBY_PERSISTENCE_MAX_BYTES_PER_FILE);
+    expect(measurement.v2VolcanoSubtreeBytes)
+      .toBeGreaterThan(VOLCANO_PERSISTENCE_MAX_SUBTREE_BYTES_PER_FILE);
     expect(() => serializeStandbyAdmissionPair(persistence, domains, {
       logicalGeneration: countMaximum.logicalGeneration!,
       savedAt: countMaximum.savedAt!,
-    })).toThrow("standby persistence full-file byte limit exceeded");
+    })).toThrow("standby persistence volcano subtree byte limit exceeded");
   });
 
   it("all-domain max-admissible fixtureはactual pairを両上限内でlossless save/reloadする", () => {
@@ -1198,7 +1209,7 @@ describe("standby monitor wiring", () => {
     expect(reloaded?.briefingCritical?.rawAliases).toHaveLength(512);
   }, 15_000);
 
-  it("dense VTSE51約4.85MB＋small volcanoがactual full-file上限を超える", () => {
+  it("dense VTSE51約4.85MB＋small volcanoは16MiB上限内でactual pairを組める", () => {
     const root = mkdtempSync(join(tmpdir(), "fleq-dense-tsunami-"));
     tempRoots.push(root);
     const path = join(root, "display-active-state-v1.json");
@@ -1213,17 +1224,195 @@ describe("standby monitor wiring", () => {
     expect(dense.tsunamiState.observationGroups.VTSE51).toHaveLength(1_024);
     expect(measurement.v2FileBytes).toBeGreaterThan(4_800_000);
     expect(measurement.v2FileBytes).toBeLessThan(4_900_000);
-    expect(measurement.v2FileBytes).toBeGreaterThan(STANDBY_PERSISTENCE_MAX_BYTES_PER_FILE);
-    expect(() => serializeStandbyAdmissionPair(persistence, dense, envelope))
-      .toThrow("standby persistence full-file byte limit exceeded");
+    // 旧 4MiB 上限では reject されていた密な観測点構成が、16MiB では受理される。
+    expect(measurement.v2FileBytes).toBeGreaterThan(4 * 1024 * 1024);
+    expect(measurement.v2FileBytes).toBeLessThanOrEqual(STANDBY_PERSISTENCE_MAX_BYTES_PER_FILE);
+    expect(measurement.v1FileBytes).toBeLessThanOrEqual(STANDBY_PERSISTENCE_MAX_BYTES_PER_FILE);
+    expect(measurement.v2VolcanoSubtreeBytes)
+      .toBeLessThanOrEqual(VOLCANO_PERSISTENCE_MAX_SUBTREE_BYTES_PER_FILE);
+    const densePair = serializeStandbyAdmissionPair(persistence, dense, envelope);
+    expect(densePair.v2.byteLength).toBe(measurement.v2FileBytes);
+    expect(densePair.v1.byteLength).toBe(measurement.v1FileBytes);
   }, 15_000);
+
+  const VPWS50_HEAVY_KINDS: PersistedVpws50KindV2[] = [
+    {
+      phenomenonKey: "大雨", kindCode: "33", kindName: "大雨特別警報",
+      severity: "specialWarning", displaySeverity: "officialL5",
+      officialAlertLevel: 5, resolutionSource: "map",
+    },
+    {
+      phenomenonKey: "洪水", kindCode: "18", kindName: "洪水警報",
+      severity: "warning", displaySeverity: "officialL3",
+      officialAlertLevel: 3, resolutionSource: "map",
+    },
+    {
+      phenomenonKey: "暴風雪", kindCode: "12", kindName: "暴風雪注意報",
+      severity: "advisory", displaySeverity: "officialL2",
+      officialAlertLevel: 2, resolutionSource: "map",
+    },
+  ];
+
+  function vpws50HeavySnapshot(areaCount: number, tag: string): PersistedVpws50SnapshotV2 {
+    return {
+      generation: VPWS50_SNAPSHOT_GENERATION,
+      areas: Array.from({ length: areaCount }, (_, index) => ({
+        areaCode: `${tag}-${1_000_000 + index}`,
+        areaName: `${tag}第${index}市町村`,
+        kinds: VPWS50_HEAVY_KINDS.map((kind) => ({ ...kind })),
+      })),
+    };
+  }
+
+  /**
+   * Pi 実機 (旧版が書いた v2, 5,202,939 bytes) と同型の「正当な最大構成」。
+   * 全国 VPWS50 の current + history 8 件に加えて、VPWW55-61 の官署別
+   * partialStreams 108 件 / partialHistory 84 群を持つ。
+   */
+  function vpws50NationalCapacityDomains(
+    nationalAreas: number,
+    partialAreas: number,
+  ): StandbyPersistenceDomainSnapshots {
+    const { coordinator } = admissionHarness();
+    const domains = structuredClone(
+      coordinator.capture().domains,
+    ) as StandbyPersistenceDomainSnapshots;
+    const currentAtMs = Date.parse("2026-08-31T09:00:00.000Z");
+    const identityOf = (atMs: number) => ({
+      reportDateTime: new Date(atMs).toISOString(),
+      serial: "1",
+    });
+    const partialSubjects = Array.from(
+      { length: 108 },
+      (_, index) => `weather:VPWW55:o${index}`,
+    );
+    const activeGate = (subject: string) => cancelledCapacityGate(
+      "weather",
+      "VPWS50",
+      subject,
+      VPWS50_REVISION_FAMILY_POLICY.tombstoneRetentionMs,
+      currentAtMs,
+      false,
+    );
+    domains.telegramRevisionGate.states.push(
+      activeGate("weather:vpws50"),
+      ...partialSubjects.map((subject) => activeGate(subject)),
+    );
+    const state: PersistedVpws50StateV2 = {
+      current: {
+        messageId: "vpws50-current",
+        identity: identityOf(currentAtMs),
+        snapshot: vpws50HeavySnapshot(nationalAreas, "全国"),
+      },
+      history: Array.from({ length: 8 }, (_, index) => ({
+        messageId: `vpws50-history-${index}`,
+        identity: identityOf(currentAtMs - (8 - index) * 60 * 60_000),
+        snapshot: vpws50HeavySnapshot(nationalAreas, `履歴${index}`),
+      })),
+      partialStreams: partialSubjects.map((subjectKey, index) => ({
+        subjectKey,
+        messageId: `vpww55-${index}`,
+        identity: identityOf(currentAtMs),
+        snapshot: vpws50HeavySnapshot(partialAreas, `官署${index}`),
+      })),
+      partialHistory: partialSubjects.slice(0, 84).map((subjectKey, index) => ({
+        subjectKey,
+        entries: [{
+          messageId: `vpww55-prev-${index}`,
+          identity: identityOf(currentAtMs - 60 * 60_000),
+          snapshot: vpws50HeavySnapshot(partialAreas, `官署履歴${index}`),
+        }],
+      })),
+      lastSuccessfulFullDisplayAt: new Date(currentAtMs).toISOString(),
+    };
+    domains.vpws50State = { version: 2, state };
+    return domains;
+  }
+
+  it("Pi実機相当の正当なVPWS50最大構成 (約5.2MB) がfull-file上限内でsave/reloadできる", () => {
+    const domains = vpws50NationalCapacityDomains(690, 12);
+    const envelope = {
+      logicalGeneration: "18446744073709551615",
+      savedAt: "+275760-09-13T00:00:00.000Z",
+    };
+    const measurePersistence = new StandbyPersistence(
+      join(tmpdir(), "fleq-vpws50-national-not-written.json"),
+    );
+    const measurement = measureStandbyAdmissionPair(measurePersistence, domains, envelope);
+    // 旧 4MiB 上限では reject されていた実サイズ帯であることを固定する。
+    expect(measurement.v2FileBytes).toBeGreaterThan(4 * 1024 * 1024);
+    expect(measurement.v2FileBytes).toBeGreaterThan(4_800_000);
+    expect(measurement.v2FileBytes).toBeLessThan(6_000_000);
+    expect(measurement.v2FileBytes).toBeLessThanOrEqual(STANDBY_PERSISTENCE_MAX_BYTES_PER_FILE);
+    expect(measurement.v1FileBytes).toBeLessThanOrEqual(STANDBY_PERSISTENCE_MAX_BYTES_PER_FILE);
+
+    const root = mkdtempSync(join(tmpdir(), "fleq-vpws50-national-"));
+    tempRoots.push(root);
+    const path = join(root, "display-active-state-v1.json");
+    const writer = new StandbyPersistence(path);
+    const writeEnvelope = writer.reserveSerializationEnvelope("2026-08-31T09:00:00.000Z");
+    const pair = serializeStandbyAdmissionPair(writer, domains, writeEnvelope);
+    expect(writer.saveSerializedPair(pair).kind).toBe("written");
+
+    const reader = new StandbyPersistence(path);
+    const reloaded = reader.load(Date.parse("2026-08-31T09:00:00.000Z"));
+    const loadResult = reader.lastLoadResult();
+    expect(loadResult?.startup).toEqual({ kind: "restored", selectedSource: "v2" });
+    expect(loadResult?.sourceStates.v2).toBe("valid");
+    expect(reloaded?.telegramFoundation.vpws50.state?.history).toHaveLength(8);
+    expect(reloaded?.telegramFoundation.vpws50.state?.current?.snapshot.areas)
+      .toHaveLength(690);
+    expect(reloaded?.telegramFoundation.vpws50.state?.partialStreams).toHaveLength(108);
+    expect(reloaded?.telegramFoundation.vpws50.state?.partialHistory).toHaveLength(84);
+  }, 30_000);
+
+  it("readerのraw source上限はちょうど16MiBを受理し、+1でoversized降格する", () => {
+    const root = mkdtempSync(join(tmpdir(), "fleq-raw-source-boundary-"));
+    tempRoots.push(root);
+    const path = join(root, "display-active-state-v1.json");
+    const writer = new StandbyPersistence(path);
+    const domains = vpws50NationalCapacityDomains(690, 12);
+    const envelope = writer.reserveSerializationEnvelope("2026-08-31T00:00:00.000Z");
+    const pair = serializeStandbyAdmissionPair(writer, domains, envelope);
+    expect(writer.saveSerializedPair(pair).kind).toBe("written");
+
+    const v2Path = standbyPersistenceV2Path(path);
+    const padTo = (totalBytes: number): void => {
+      const parsed = JSON.parse(readFileSync(v2Path, "utf8")) as {
+        telegramFoundation: { vpws50: { state: PersistedVpws50StateV2 } };
+      };
+      // areaName は自由文字列なので、foundation 整合を壊さずに 1 byte 単位で
+      // ファイル長を狙える唯一のパディング点。
+      const area = parsed.telegramFoundation.vpws50.state.current!.snapshot.areas[0]!;
+      area.areaName = "";
+      const base = Buffer.byteLength(JSON.stringify(parsed), "utf8");
+      area.areaName = "x".repeat(totalBytes - base);
+      const bytes = Buffer.from(JSON.stringify(parsed), "utf8");
+      expect(bytes.byteLength).toBe(totalBytes);
+      writeFileSync(v2Path, bytes);
+    };
+
+    padTo(STANDBY_READER_MAX_RAW_FILE_BYTES_PER_SOURCE);
+    const exact = new StandbyPersistence(path);
+    exact.load(Date.parse("2026-08-31T00:00:00.000Z"));
+    expect(exact.lastLoadResult()?.sourceStates.v2).toBe("valid");
+    expect(exact.lastLoadResult()?.startup)
+      .toEqual({ kind: "restored", selectedSource: "v2" });
+
+    padTo(STANDBY_READER_MAX_RAW_FILE_BYTES_PER_SOURCE + 1);
+    const overflow = new StandbyPersistence(path);
+    overflow.load(Date.parse("2026-08-31T00:00:00.000Z"));
+    expect(overflow.lastLoadResult()?.sourceStates.v2).toBe("oversized");
+    expect(overflow.lastLoadResult()?.startup)
+      .toEqual({ kind: "restored", selectedSource: "v1" });
+  }, 30_000);
 
   it.each([
     ["VTSE51", "tsunami", "tsunamiObservation:VTSE51", FIXTURE_VTSE51_OBSERVATION_MAXHEIGHT],
     ["VPTA50", "typhoonProbability", "typhoonProbability:VPTA50", FIXTURE_VPTA50_DAMREY],
     ["VPWP50", "weatherWarningTimeseries", "weatherWarningTimeseries:VPWP50", FIXTURE_VPWP50_LOCAL_IDENTITY],
   ] as const)(
-    "%s real processor入口はactual prospective pair 4MiB+1をstate-neutrally拒否する",
+    "%s real processor入口はactual prospective pair full-file上限+1をstate-neutrally拒否する",
     (headType, route, targetFamily, fixture) => {
       const { owners, coordinator } = admissionHarness({
         serializePair: (domains) => {
