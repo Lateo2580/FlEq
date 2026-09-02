@@ -518,7 +518,7 @@
   let cardPageEpochBusy = false;
   let cardPageTickPending = false;
   let cardPageSchedulerStage: LadderStage | null = null;
-  let cardPageSchedulerPageCounts: Record<PageableCardKey, number> = { quake: 0, weather: 0, weatherWarningForecast: 0, briefing: 0, flood: 0, tornado: 0 };
+  let cardPageSchedulerPageCounts: Record<PageableCardKey, number> = { quake: 0, weather: 0, weatherWarningForecast: 0, briefing: 0, flood: 0, tornado: 0, volcano: 0 };
   let cardPageSchedulerSubstates = $state<Record<PageableCardKey, CardPageSchedulerSubstate>>({
     quake: { mode: "real", phaseStartedAtMs: 0, processedTick: 0, pageCount: 0 },
     weather: { mode: "real", phaseStartedAtMs: 0, processedTick: 0, pageCount: 0 },
@@ -526,6 +526,7 @@
     briefing: { mode: "real", phaseStartedAtMs: 0, processedTick: 0, pageCount: 0 },
     flood: { mode: "real", phaseStartedAtMs: 0, processedTick: 0, pageCount: 0 },
     tornado: { mode: "real", phaseStartedAtMs: 0, processedTick: 0, pageCount: 0 },
+    volcano: { mode: "real", phaseStartedAtMs: 0, processedTick: 0, pageCount: 0 },
   });
   let schedulerDiagnosticRevision = $state(0);
 
@@ -541,6 +542,7 @@
     briefing: { activeKey: null, knownKeys: [], pendingKeys: [], cycleOriginKey: null },
     flood: { activeKey: null, knownKeys: [], pendingKeys: [], cycleOriginKey: null },
     tornado: { activeKey: null, knownKeys: [], pendingKeys: [], cycleOriginKey: null },
+    volcano: { activeKey: null, knownKeys: [], pendingKeys: [], cycleOriginKey: null },
   });
 
   function captureMeasure(node: HTMLElement, id: string): { destroy: () => void } {
@@ -771,6 +773,7 @@
       briefing: 0,
       flood: pageCardIsVisible("flood") ? cardPagePartitions.flood.pages.length : 0,
       tornado: pageCardIsVisible("tornado") ? cardPagePartitions.tornado.pages.length : 0,
+      volcano: 0,
     };
     const initialScheduler = cardPageSchedulerStage == null;
     const nowMs = monotonicNowMs();
@@ -848,7 +851,7 @@
     cardPageTick = 0;
     cardPageEpochBusy = false;
     cardPageTickPending = false;
-    cardPageSchedulerPageCounts = { quake: 0, weather: 0, weatherWarningForecast: 0, briefing: 0, flood: 0, tornado: 0 };
+    cardPageSchedulerPageCounts = { quake: 0, weather: 0, weatherWarningForecast: 0, briefing: 0, flood: 0, tornado: 0, volcano: 0 };
     cardPageSchedulerSubstates = {
       quake: { mode: "real", phaseStartedAtMs: 0, processedTick: 0, pageCount: 0 },
       weather: { mode: "real", phaseStartedAtMs: 0, processedTick: 0, pageCount: 0 },
@@ -856,6 +859,7 @@
       briefing: { mode: "real", phaseStartedAtMs: 0, processedTick: 0, pageCount: 0 },
       flood: { mode: "real", phaseStartedAtMs: 0, processedTick: 0, pageCount: 0 },
       tornado: { mode: "real", phaseStartedAtMs: 0, processedTick: 0, pageCount: 0 },
+      volcano: { mode: "real", phaseStartedAtMs: 0, processedTick: 0, pageCount: 0 },
     };
     cardPageRuntime = {
       quake: { activeKey: null, knownKeys: [], pendingKeys: [], cycleOriginKey: null },
@@ -864,6 +868,7 @@
       briefing: { activeKey: null, knownKeys: [], pendingKeys: [], cycleOriginKey: null },
       flood: { activeKey: null, knownKeys: [], pendingKeys: [], cycleOriginKey: null },
       tornado: { activeKey: null, knownKeys: [], pendingKeys: [], cycleOriginKey: null },
+      volcano: { activeKey: null, knownKeys: [], pendingKeys: [], cycleOriginKey: null },
     };
     touchSchedulerDiagnostics();
   }
