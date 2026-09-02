@@ -747,7 +747,7 @@ eruption expiry は同じscratch内で holder eruption を先に削除し、そ�
 - ashfall gate retention は acceptedAt+7日ちょうどを保持し、+1msで削除する。
 - repeated sweep は idempotent。
 - durable change が一件以上ならglobal callback／schedule一回。
-- preflight／version failureは全sweep candidateをstate-neutralに破棄してdiagnosticを出す。直前の正常commitが4MiB以内である以上、容量を減らすだけのsweepがbyte超過する場合はserializer invariant failureとして扱う。
+- preflight／version failureは全sweep candidateをstate-neutralに破棄してdiagnosticを出す。直前の正常commitが16MiB以内である以上、容量を減らすだけのsweepがbyte超過する場合はserializer invariant failureとして扱う。
 
 ## 11. browser protocol と UI
 
@@ -892,7 +892,7 @@ VOLCANO_MAX_ACTIVE_COMPOSITES = 128
 VOLCANO_ROLLBACK_MAX_RECORDS = 128
 VOLCANO_MAX_SOURCE_EVENT_IDS_PER_COMPOSITE = 4096
 VOLCANO_PERSISTENCE_MAX_SUBTREE_BYTES_PER_FILE = 1024 * 1024
-STANDBY_PERSISTENCE_MAX_BYTES_PER_FILE = 4 * 1024 * 1024
+STANDBY_PERSISTENCE_MAX_BYTES_PER_FILE = 16 * 1024 * 1024
 ```
 
 flat source ID 4,096 は旧四 domain×1,024 の total ceiling を保った単純化である。実効容量は1MiBとの積集合なので、長い ID を4,096件保持できる保証ではない。
@@ -924,19 +924,23 @@ v2 fileのcombined volcano subtreeは次を含めて1MiB以下とする。
 
 standalone v1 fileはroot volcanoes、seen、alert／ashfall gate metadata、repair stateを含むcombined volcano subtreeを1MiB以下とする。
 
-これとは独立に、完成したv2 file全体とstandalone v1 file全体をそれぞれ4MiB以下とする。4MiBはwriterが実際にwriteするencoded buffer全体のUTF-8 byte上限であり、trailing newline等を出すならそれも含む。volcano subtreeだけの上限ではない。
+これとは独立に、完成したv2 file全体とstandalone v1 file全体をそれぞれ16MiB以下とする。16MiBはwriterが実際にwriteするencoded buffer全体のUTF-8 byte上限であり、trailing newline等を出すならそれも含む。volcano subtreeだけの上限ではない。
+
+この16MiBはparse前の入力資源上限であり、容量不変条件ではない。上限は正当なruntime stateが必ず収まる余裕を持たなければならない。admissionが正当なstateを拒否すると、それは容量保護ではなく可用性障害（当該domainのmutation拒否＝電文のsuppressed化）になる。実測では、VPWS50のhistory 8件×300〜430KBの全国スナップショットにpartialHistory 128 subject×8とpartialStreams 128を加えた正当な最大構成が約5.2MBに達する。16MiBはその約3倍の余裕を取った値である。この値はSD書込み頻度、SSE snapshotの256KB、volcano subtreeの1MiBとは独立に決まり、それらを連動させて変更しない。
 
 - v2 と v1 の byte を合算しない。
 - v2 内の二 rollback copy は実在する二 copy として二重計上する。
 - count と byte は AND である。
 - alert／eruption admissionもcompleted VolcanoCard、両volcano subtree、両file全体をpreflightする。
-- tsunami、weather、flood、heatその他のpersisted domainも、stateful mutation前に同じ完成v2／v1 serializerを使って4MiB全file上限を検査する。volcano routeだけに検査を置いてはならない。
-- 全domain共通のprospective persistence admissionはruntime mutationより前に行う。writerで初めて4MiB超過を発見して、正常runtime stateを保存不能にしてはならない。
-- 既存subject更新も含め、いずれか一方のfileが4MiBを1 byteでも超えるcandidateは当該domain mutation全体をfail-closedに拒否する。4MiBちょうどは許可する。
+- tsunami、weather、flood、heatその他のpersisted domainも、stateful mutation前に同じ完成v2／v1 serializerを使って16MiB全file上限を検査する。volcano routeだけに検査を置いてはならない。
+- 全domain共通のprospective persistence admissionはruntime mutationより前に行う。writerで初めて16MiB超過を発見して、正常runtime stateを保存不能にしてはならない。
+- 既存subject更新も含め、いずれか一方のfileが16MiBを1 byteでも超えるcandidateは当該domain mutation全体をfail-closedに拒否する。16MiBちょうどは許可する。
 - prospective full-file serializerはwriterと同じJSON shape／UTF-8 byte定義を使い、root `logicalGeneration`には最大20桁の`"18446744073709551615"`を入れて測る。次saveの桁上がりによってadmission時のbyte見積りを超えてはならない。`savedAt`はECMAScript `toISOString()`の最大27 code unitsを占めるplaceholderで測る。
 - last committed／reserved logical generationがuint64最大で新しいsave世代を予約できない場合も、全domain durable mutationをruntime変更前にfail-closedとする。writerだけでoverflowを発見しない。
 
-最大fixtureはalert 128＋eruption 128＋ashfall 128を同じ128 codeへ重ねたvolcano最大に加え、全persisted domainと`briefingCritical`の各count最大を持つrejection candidateと、4MiB以内のmax-admissible candidateを分ける。v2／v1のvolcano subtree、全file、minimum cardのexact byteをstatic JSONへ固定する。reviewで例示された津波観測の密な約4.85MB candidateは全file admissionでcommit前に拒否され、4MiB以内の最大正常fixtureはreaderが全recordを再読込できなければならない。
+最大fixtureはalert 128＋eruption 128＋ashfall 128を同じ128 codeへ重ねたvolcano最大に加え、全persisted domainと`briefingCritical`の各count最大を持つrejection candidateと、16MiB以内のmax-admissible candidateを分ける。v2／v1のvolcano subtree、全file、minimum cardのexact byteをstatic JSONへ固定する。rejection candidateは16MiBを超えるよう構成した上で全file admissionによりcommit前に拒否され、16MiB以内の最大正常fixtureはreaderが全recordを再読込できなければならない。reviewで例示された津波観測の密な約4.85MB candidateは16MiB以下なのでrejection側ではなくadmissible側の実例である。
+
+max-admissible fixtureはVPWS50の正当な最大shape、すなわちhistory 8件×全国areas約1,080件、partialHistory 128 subject×8、partialStreams 128を含める。この実serializer出力が16MiB以下であることを固定し、正当な最大構成がadmissionを通ることを回帰で守る。
 
 定数選定のsanity checkは次である。これは受入判定ではなく、受入判定はactual serializerのexact byteとする。
 
@@ -1096,7 +1100,7 @@ test欄の`phase*.test.ts`は全て実在する`test/engine/telegram-foundation/
 | `standby:briefingCritical`／VPBS50・VPOA50 | gate（transientを含む）、standby内briefing全state | normal ingestはrouterの`reduceBriefingCandidate`、late counterpartはcomposition root注入の`reduceBriefingReconcileCandidate`を呼ぶ | `gateTransientOutcome`のreal gate commit＋display sink `applyEvent／reconcileBriefingCard`によるcritical entry、cancel、watermark、alias mutation | `test/engine/display/standby-state-store.test.ts`、`standby-persistence.test.ts`、`standby-wiring.test.ts` |
 | `standby:quakeHost` | gate（transientを含む）、standby内quake host＋revision guard | routerのdurable presentation reducer | earthquake transient gate commit＋display sink `applyEvent()`のpost-gate mutation | `test/engine/display/standby-state-store.test.ts`、`standby-wiring.test.ts` |
 
-`briefingCritical`はcommon gate policyの`durable:false`とは独立にpair fileへ保存されるdurable familyである。count fixtureはactive＋cancellation合計128、watermark 512、raw alias 512、各entryのnested limitを含める。`quakeHost`もcommon gate自体はtransientだがpair fileへ書かれるため同じadmissionを通す。いずれも4MiB rejection後にtransient watermarkだけを残して再送を抑止しないよう、gate mutationも同candidateへ入れる。root `seen`はstandby snapshotの一部として上記全rowで検査し、独立した抜け道を持たない。`typhoonProbability`とweather timeseriesはprojection／gateがpair fileへ書かれるため上表のcoordinator transactionへ入れる。Nankai information、VFVO53などpair fileへ書かれないtransient stateはこのmatrixへ入れない。
+`briefingCritical`はcommon gate policyの`durable:false`とは独立にpair fileへ保存されるdurable familyである。count fixtureはactive＋cancellation合計128、watermark 512、raw alias 512、各entryのnested limitを含める。`quakeHost`もcommon gate自体はtransientだがpair fileへ書かれるため同じadmissionを通す。いずれも16MiB rejection後にtransient watermarkだけを残して再送を抑止しないよう、gate mutationも同candidateへ入れる。root `seen`はstandby snapshotの一部として上記全rowで検査し、独立した抜け道を持たない。`typhoonProbability`とweather timeseriesはprojection／gateがpair fileへ書かれるため上表のcoordinator transactionへ入れる。Nankai information、VFVO53などpair fileへ書かれないtransient stateはこのmatrixへ入れない。
 
 weather reducerはscratch holder更新後に既存pure helper `weatherAlertsFromVpws50／weatherAlertsFromVpww56`を呼び、scratch standbyへ`applyWeatherAlerts`相当を適用する。flood reducerはaccepted outcome相当のpure `projectFloodUpdate`を同じscratch standbyへ適用する。これらをpresentation eventのpost-commit display sinkまで遅らせない。standby-domain／briefing／quake-hostはparser outcomeからpure presentation eventを先に作り、そのeventをscratch `StandbyStateStore` reducerとcommit後side effectの双方へ使う。
 
@@ -1105,13 +1109,13 @@ weather reducerはscratch holder更新後に既存pure helper `weatherAlertsFrom
 1. parse、formatter用計算、REST awaitはcoordinator外で行う。
 2. `capture()`で全ownerを一同期区間にexportし、composition／owner versionを固定する。対象rowのownerだけmutable scratch cloneにし、他ownerはimmutable snapshotとして完成file生成に使う。
 3. reducerはscratch gateの通常`decide`とscratch holder／standby mutatorを呼ぶ。scratch内callback／listener／I/O／clock取得は禁止する。station item、VFVO51 multi-subject、standby gate＋projectionを一candidateへまとめる。reducer後、`expectedTouchedOwners`外のsnapshotがbaseとdeep equalでなければrejectする。
-4. candidate overlayから実writerと同じserializerでprospective v2／standalone v1を完成させ、domain count、briefing count、volcano subtree 1MiB、両full-file 4MiB、wireを検査する。logical generation／`savedAt`は§13.2の最大placeholderを使う。
+4. candidate overlayから実writerと同じserializerでprospective v2／standalone v1を完成させ、domain count、briefing count、volcano subtree 1MiB、両full-file 16MiB、wireを検査する。logical generation／`savedAt`は§13.2の最大placeholderを使う。
 5. `touchedOwners`のowner versionとcomposition versionを再確認する。untouched ownerもcomposition versionで一括保護されるため、古いother-domain snapshotを使えない。
 6. await、clock、I/O、callbackを挟まず各`replacePrevalidated()`を固定owner順で実行する。replaceはthrowしないpure swapとし、全owner version、volcano runtime version、composition versionを各一回増やす。
 7. commit後にglobal durable callbackを一回発行する。monitorはそこでlatest coherent snapshotをdirtyにする。domain別旧`on*RevisionDecision`から直接`schedule()`しない。
 8. notifier、CLI、ticker、display hub、weather promotion、tornado detail cacheなどfallible side effectはdurable callback後に行う。display sinkはcommit済みstandbyを再mutationしない。
 
-version mismatch、count／byte failure、reducer exceptionはcandidateを破棄してstate-neutral rejectとする。現在のmutate-in-place public APIはscratch adapterからだけ呼べるようprivate化するか、clone receiver上でだけ使用する。commit済みstateをtruncate／evictして4MiBへ戻すことは禁止する。
+version mismatch、count／byte failure、reducer exceptionはcandidateを破棄してstate-neutral rejectとする。現在のmutate-in-place public APIはscratch adapterからだけ呼べるようprivate化するか、clone receiver上でだけ使用する。commit済みstateをtruncate／evictして16MiBへ戻すことは禁止する。
 
 startup、sweep、RESTも同じ入口を使う。
 
@@ -1120,7 +1124,7 @@ startup、sweep、RESTも同じ入口を使う。
 - `restoreTsunamiState`のREST itemと§16のvolcano REST rebaseはawait後に新しいtokenでcandidateを作る。startup時の古いsnapshotへ直接restoreしない。
 - shutdown saveはcoordinatorの`captureSerializedPair()`を一回だけ使い、holder／gate／standbyを別時点でexportしない。
 
-最大fixtureはregistryの全durable family、standby root、`briefingCritical`の上記count ceilingを列挙した`all-domains-count-maximum` candidateと、4MiB以内へ収まる`all-domains-max-admissible` candidateを別に持つ。前者が4MiBを超える場合の期待値はatomic rejectionであり、count ceilingを下げたり先頭N件へ切らない。dense VTSE51／52とbriefing maximumのどちらもfull-file byte計測へ含める。
+最大fixtureはregistryの全durable family、standby root、`briefingCritical`の上記count ceilingを列挙した`all-domains-count-maximum` candidateと、16MiB以内へ収まる`all-domains-max-admissible` candidateを別に持つ。前者が16MiBを超える場合の期待値はatomic rejectionであり、count ceilingを下げたり先頭N件へ切らない。dense VTSE51／52とbriefing maximumのどちらもfull-file byte計測へ含める。
 
 count-maximum fixtureのfamily単位は次で固定する。nested holder／projection containerも各既存writer上限の最大shapeを使う。
 
@@ -1274,7 +1278,7 @@ composition rootは`status()`と上記resolveだけを持つ`VolcanoRepairAdmini
 - `acknowledgeDomainLoss`はdomain-scope omissionだけを除き、slice／gateを合成しない。
 - action名とscopeが合わない、fingerprintが変わった、既にlive supersession済み、matching bundleが崩れている場合はstate-neutral rejectとする。
 - `resolvedAtMs`はrequest validation後に一度だけ取得し、resolution IDはUTF-8 `JSON.stringify([omissionFingerprint, action, reason, resolvedAtMs, "local-repl"])`のSHA-256とする。wall clockはrevision orderingやlogical generationへ使わない。
-- scratchでomission除去、slice／gate変更、監査record追加、standby再射影を行い、通常のcount、volcano 1MiB、両full-file 4MiB、wire preflightを通す。version一致時だけ一回commitし、durable callback完了後にstructured audit logとREPL successを出す。preflight／save予約失敗を成功表示しない。
+- scratchでomission除去、slice／gate変更、監査record追加、standby再射影を行い、通常のcount、volcano 1MiB、両full-file 16MiB、wire preflightを通す。version一致時だけ一回commitし、durable callback完了後にstructured audit logとREPL successを出す。preflight／save予約失敗を成功表示しない。
 - このcommandは`vfvo50Repairable`／`ashfallRepairable`をclearしない。利用可能なREST coverageとoperatorによる履歴欠損の受容を別の事実として保つ。
 
 composition rootはcoordinatorの`VolcanoRuntimeSnapshot`を一回だけ取得し、そこから一つの`VolcanoPersistenceSnapshot`を作る。holder／gate／repairを個別exportして時点一致を後から推測しない。
@@ -1371,7 +1375,7 @@ unknown field は canonical へ転記しない。ISO mirror が存在する lega
 fileのJSON parse、deep validation、duplicate grouping、dedupe、migrationより前に、source file全体のraw UTF-8 byteを検査する。その後、containerを展開する前に各raw array countを検査する。
 
 ```ts
-STANDBY_READER_MAX_RAW_FILE_BYTES_PER_SOURCE = 4 * 1024 * 1024
+STANDBY_READER_MAX_RAW_FILE_BYTES_PER_SOURCE = 16 * 1024 * 1024
 VOLCANO_READER_MAX_RAW_CANONICAL_COMPOSITES = 2048
 VOLCANO_READER_MAX_RAW_ROLLBACK_VOLCANOES = 2048
 VOLCANO_READER_MAX_RAW_ALERT_GATES = 1024
@@ -1388,9 +1392,11 @@ VOLCANO_READER_MAX_RAW_GATE_METADATA_TOTAL = 1536
 VOLCANO_READER_MAX_RAW_SOURCE_EVENT_IDS_PER_RECORD = 8192
 ```
 
-4MiBはv2 source file全体またはstandalone v1 source file全体のbyte長であり、volcano subtreeのbyte長ではない。§13.2のnew writerも同じserializer byte定義と4MiB上限を使うため、他domainを含む正常writer出力をraw readerがbyte上限だけで拒否することはない。v2とv1は別sourceとして各4MiBを検査し、合算しない。
+16MiBはv2 source file全体またはstandalone v1 source file全体のbyte長であり、volcano subtreeのbyte長ではない。§13.2のnew writerも同じserializer byte定義と16MiB上限を使うため、他domainを含む正常writer出力をraw readerがbyte上限だけで拒否することはない。v2とv1は別sourceとして各16MiBを検査し、合算しない。
 
-特に各canonical／rollback recordのflat `sourceEventIds.length`をelement validation前に検査する。4MiBだけに依存しない。8,192はraw scan許容、canonical 4,096はwriter許容である。
+readerの16MiBもwriterと同じくparse前の入力資源上限であり、§13.2と同値でなければならない。writer側だけを緩めると正常writer出力がstartupでoversized扱いになり、reader側だけを緩めるとadmissionが正当なstateを拒否したまま残る。値の根拠（正当なVPWS50最大構成の実測約5.2MBに対する約3倍の余裕）は§13.2に置き、両者を同時に変更する。
+
+特に各canonical／rollback recordのflat `sourceEventIds.length`をelement validation前に検査する。16MiBだけに依存しない。8,192はraw scan許容、canonical 4,096はwriter許容である。
 
 - generation 1の`sourceEventIds`はtrim済みnonblank、256 code units以下、unique、code-unit辞書順を要求する。
 - pre-generation inputのvalid flat IDsはunique sortしてrewriteできる。
@@ -1421,9 +1427,9 @@ reader は最小単位を claim してから salvage する。
 - active sliceのない orphan compositeを除外する。
 - malformed一火山が正常な別火山や他 domain を消してはならない。
 
-source file全体のraw 4MiB超過はparse前の`oversized`であり、他方がusableな場合だけそのsourceへfallbackする。oversized sourceをcanonical snapshotで置換する場合も、raw本文をparseせずstream copyする§14.6のbackup成功を先に要求する。両sourceがoversized、またはoversized＋missing／invalid／ioErrorでusable sourceがない場合は§14.7のfatal startupであり、empty runtimeやvolcano quarantineを作らない。
+source file全体のraw 16MiB超過はparse前の`oversized`であり、他方がusableな場合だけそのsourceへfallbackする。oversized sourceをcanonical snapshotで置換する場合も、raw本文をparseせずstream copyする§14.6のbackup成功を先に要求する。両sourceがoversized、またはoversized＋missing／invalid／ioErrorでusable sourceがない場合は§14.7のfatal startupであり、empty runtimeやvolcano quarantineを作らない。
 
-combined volcano subtree invalid、canonical active composite 129件、family 129 subject、volcano subtree 1MiB超過、minimum card 64KiB超過など、raw上限内の選択sourceから他domainを安全に読め、record-local salvage後もvolcano条件だけを満たせない場合に限ってvolcano domain全体をterminal quarantineする。他domainは選択sourceのnormalized snapshotとdeep equalで維持し、rewrite後の完成file全体が4MiB以内であることも要求する。parse不能なfull-file sourceに対して「他domain deep equal」を主張しない。
+combined volcano subtree invalid、canonical active composite 129件、family 129 subject、volcano subtree 1MiB超過、minimum card 64KiB超過など、raw上限内の選択sourceから他domainを安全に読め、record-local salvage後もvolcano条件だけを満たせない場合に限ってvolcano domain全体をterminal quarantineする。他domainは選択sourceのnormalized snapshotとdeep equalで維持し、rewrite後の完成file全体が16MiB以内であることも要求する。parse不能なfull-file sourceに対して「他domain deep equal」を主張しない。
 
 quarantine canonical form:
 
@@ -1475,7 +1481,7 @@ pendingBackup -> scheduledRetry -> backedUp -> rewrite -> clean
 
 ### 14.7 writer
 
-writerはv2とstandalone v1をmemory上で完成させ、schema、mirror coupling、count、volcano subtree 1MiB、full-file 4MiB、wire invariantを全て検証してからI/Oを始める。invalid runtime stateをtruncateしない。
+writerはv2とstandalone v1をmemory上で完成させ、schema、mirror coupling、count、volcano subtree 1MiB、full-file 16MiB、wire invariantを全て検証してからI/Oを始める。invalid runtime stateをtruncateしない。
 
 二fileは独立snapshotであり、readerはfieldを相互mergeしない。外部commit manifestは設けないが、部分commitの新旧判定用に両rootへ同じlogical generationを保存する。
 
@@ -1538,7 +1544,7 @@ type StandbyStartupDisposition =
     };
 ```
 
-- `missing`は`ENOENT`だけ、`oversized`はraw 4MiB超過、`invalid`はraw上限内だがJSON／root schema／logical generation等がsource-level invalid、`salvageable`は§14.6のbounded salvageから完全snapshotを構成できるsource、`ioError`はpermissionを含むread failureである。I/O errorをmissingへ変換しない。
+- `missing`は`ENOENT`だけ、`oversized`はraw 16MiB超過、`invalid`はraw上限内だがJSON／root schema／logical generation等がsource-level invalid、`salvageable`は§14.6のbounded salvageから完全snapshotを構成できるsource、`ioError`はpermissionを含むread failureである。I/O errorをmissingへ変換しない。
 - `ioError`が一方でもあれば、他方がusableでもsource置換の安全性を証明できないため`kind:"fatal"`とする。それ以外で少なくとも一方がvalid／salvageableなら、その集合内だけでlogical generation規則を適用して一つを選び、`kind:"restored"`とする。oversized／invalidな他方のfieldをmergeしない。
 - 両方がmissingの場合だけ、全ownerのcanonical empty snapshotを`restorePrevalidated()`し`kind:"freshEmpty"`とする。missingだけを理由に即時rewriteせず、最初のdurable mutationまたは正常shutdown saveでgeneration 1を作る。
 - usable sourceが一つもなく、少なくとも一方がoversized／invalid／I/O errorなら`kind:"fatal"`である。新規empty runtime、volcano quarantine、部分domain salvageへfallbackしない。`startMonitor`はowner replace、REPL、display、REST、WebSocket、timer開始より前にtyped startup errorを返し、entrypointはnon-zeroで終了する。元file、temp、backup、canonical fileを一byteも変更しない。
@@ -1724,7 +1730,9 @@ journal はrepair targetの再構築と順序証明だけに使う。全stateful
 
 ### 16.4 pagination と lower coverage
 
-VFVO50、VFVO54、VFVO55 を別 query とし、各 page で `type`、`limit=100`、`formatMode=raw`を維持し、opaque `nextToken` を次 request の `cursorToken`へ渡す。
+VFVO50、VFVO54、VFVO55 を別 query とし、各 page で `type`、`limit=100`、`formatMode=raw`、`xmlReport=true` を維持し、opaque `nextToken` を次 request の `cursorToken`へ渡す。
+
+一覧応答は本文を含まない。revision／identity は `xmlReport.head` から構築する。`xmlReport=true` が無い場合は `reportDateTime`／`serial`／`infoType`／`eventId` が全て空になり identity 構築が必ず失敗するため、repair の list query は既定に頼らず毎回 `xmlReport=true` を明示する。実応答では `serial` が null の family（VFVO50）があり、`control.dateTime` は Z 表記、`head.reportDateTime` は +09:00 表記で届く。表記差を吸収するため revision 比較は epoch へ正規化した値で行う。
 
 familyごとに checked arithmetic で lower boundary を定義する。
 
@@ -1746,8 +1754,23 @@ inclusive limits:
 
 - 128 pageでterminalなら成功、129 page目が必要なら失敗。
 - type当たり12,800 relevant itemまで成功、12,801件目が必要なら失敗。
-- blank／repeated token、loop、endpoint error、body欠落、strict receivedTime／revision／identity構築失敗はfailure。
+- Telegram Data 取得失敗（権限欠如、404、非 XML content-type、サイズ上限超過、network）、blank／repeated token、loop、endpoint error、strict receivedTime／revision／identity構築失敗はfailure。一覧 item に本文 field が無いこと自体は failure ではない（実 API の正常形である）。
 - 同じtype queryの全historical pageを一つの`HistoricalPaginationUnion(type)`とし、そのunion内で同じitem IDが二回現れた場合は、同一page内／page間を問わずduplicate failureとする。
+
+### 16.4.1 本文取得
+
+一覧は本文を持たないため、replay に要る本文は Telegram Data v1 から別途取得する。
+
+- **endpoint**: `https://data.api.dmdata.jp/v1/<id>`。一覧と同じ Basic 認証を使う。`Accept` は XML、`Accept-Encoding` は `identity` を明示する。
+- **URL の組み立て**: id は一覧 item の `id` から自前で組む。item に `url` がある場合は組んだ URL と一致することを検証し、不一致なら取得失敗として扱う。外部応答の文字列をそのまま fetch 先にしない。
+- **応答形**: 成功は HTTP 200／`application/xml`／生 XML（gzip なし）。404 は HTTP 404／`text/plain`／本文 `404 Not Found` で返り、JSON エラー形式ではない。したがって失敗判定は status code と content-type だけで行い、本文の形に依存させない。
+- **取得対象**: coverage 窓内（relevant）の historical item のうち repair journal に無いものだけ。journal にある item は journal 側の normalized input を replay に使うので取得しない。head sample では一件も取得しない。
+- **キャッシュ**: 同一 id は repair 1 回につき最大 1 リクエストとする。成功・失敗のいずれもキャッシュし、失敗した id を再取得しない。キャッシュは repair 呼び出し 1 回にスコープし、process 寿命に載せない。公式指針の「同じ id へ短期間に繰り返しリクエストしない」への対応である。
+- **取得順**: 逐次とし、並列化しない。
+- **上限**: 1 repair あたり 256 件、1 本文 4 MiB。inclusive 判定とし、超過は failure。
+- **位置**: historical pagination 完了直後、head 安定ループ（ordinal 2 以降）の開始前に行う。取得の前後で transport（subscription generation）を再検証し、await 中の generation 変化を見逃さない。§16.5 手順 7 の「final scratch plan から同期 commit まで await を挟まない」は本文取得を pagination 側へ置くことで維持する。
+- **失敗の扱い**: target 単位 fail-closed とする。reason は `forbidden`／`notFound`／`contentType`／`tooLarge`／`network`／`fetchLimitExceeded` を短い識別子として repair journal の failure reason に載せる。
+- **権限欠如**: `telegram.data` 権限が無い契約では 403 が返る。この場合も target 単位 fail-closed であり、runtime state と repairable flag を変更しない。403 の failure reason は権限欠如の可能性を名指しする。
 
 ### 16.5 upper coverage
 
@@ -1763,14 +1786,16 @@ local／remote clockの比較ではなく、subscription generation と transpor
 
 4回目で安定すれば成功、5回目が必要ならfailure。REST `receivedTimeMs` と local subscription時刻を比較しないため、host clock skewでitemを取りこぼす分岐はない。
 
-head fingerprintはrelevant itemの`[itemId, receivedTimeMs]`をitem IDのcode-unit辞書順へcanonicalizeした配列のhashとする。body内容やREST配列順をfingerprintの順序根拠にしない。
+head **sample** fingerprint はrelevant itemの`[itemId, receivedTimeMs]`をitem IDのcode-unit辞書順へcanonicalizeした配列のhashとする。body内容やREST配列順をfingerprintの順序根拠にしない。これは head 応答が安定したことの判定に使う値である。
+
+item head fingerprint はこれとは別の値であり、item 一件の identity を表す。`[headType, reportDateTime.epochMs, serial.raw, infoType.raw, eventId.raw]` の hash とし、cross-set 整合の照合軸とする。REST 側は `xmlReport.head` から、WS journal 側は parse 済み meta から同じ関数で作る。`reportDateTime` は Z 表記と +09:00 表記が混在するため raw 文字列ではなく epoch で比較する。両者は名前が紛らわしいので、実装では head sample 側と item 側を別名で表す。
 
 duplicate判定のproof集合は次へ限定する。
 
 - 一回のhead responseを`HeadSample(type, ordinal)`という独立集合とする。同じitem IDが単一sample内に二回現れた場合だけ、そのhead sampleのduplicate failureである。
 - 別ordinalのhead sample間で同じitem IDが再出現することは安定性proofの前提であり、duplicateではない。
 - `HistoricalPaginationUnion(type)`は§16.4の全pageを跨ぐ一集合であり、その内部の重複だけをhistorical duplicate failureとする。
-- head sample、historical union、WS journalという異なるproof集合間の同一ID overlapはupper coverage／dedupeに必要であり、duplicateではない。同じIDの`receivedTimeMs`／head type／取得できる場合のbody fingerprintが集合間で食い違う場合はduplicateではなくtransport inconsistency failureとする。
+- head sample、historical union、WS journalという異なるproof集合間の同一ID overlapはupper coverage／dedupeに必要であり、duplicateではない。同じIDの`receivedTimeMs`／head type／item head fingerprint／取得できる場合のbody fingerprintが集合間で食い違う場合はduplicateではなくtransport inconsistency failureとする。item head fingerprint は両側で必ず作れる主照合軸であり、body fingerprint は両側に本文があるときだけ照合する任意軸とする。
 - journal内の同一ID再送はnormal ingressのduplicate規則で一度だけ処理し、proofでは最初のmatching sequenceを使う。identical再送そのものをREST duplicate failureへ読み替えない。
 
 ### 16.6 replay order と同時刻群
@@ -1795,13 +1820,13 @@ REST collection完了後、awaitなしの同期区間で次を行う。
 1. current `VolcanoRuntimeSnapshot`、derived standby snapshot、全domain persistence composition snapshotを各versionとともに取得する。
 2. holder、gate、repairを含むcurrent runtime snapshotをscratch cloneする。
 3. ashfall両endpointのfull coverage成立時は、baselineのashfall sliceとashfall gateをscratch内だけで全件除き、baseline flat source IDsをcode別のscratch候補へ退避する。alert／eruptionとruntime実stateは変更しない。
-4. ordering済みhistorical itemを三時計付きで通常と同じ transaction reducerへ適用する。
+4. ordering済みhistorical itemを三時計付きで通常と同じ transaction reducerへ適用する。subject／volcanoCode は `xmlReport.head` に無く本文からしか取れないため、その抽出と検査は§16.4.1 の本文取得後のこの commit 段で行う。抽出不能な item は proof failure ではなく target replay rejection として扱い、target 単位で fail-closed する。repairable flag は消さない。
 5. REST集合にないjournal inputをsequence順で同じscratch reducerへ適用する。REST／journal同一item IDは一度だけ適用する。
 6. final compositeが存続するcodeだけ、手順3のbaseline flat source IDsと再構築中のsource IDsをunique sortしてmergeする。H0／GA／GTだけならrecordを新設せず候補を捨てる。
 7. VFVO50 repairはcurrent safe baselineへRESTをrebaseする。alert sliceだけが欠け、matching non-cancelled gateのprovenanceが`sourceFamily:"VFVO50"`の場合に限り、subject、revision、semantic key、payloadが完全一致するREST itemからsliceを再構成する。VFVO51／VFSVii／unknown gateをこの分岐で再構成または成功判定しない。このrepair-only分岐はgate、acceptedAt、TTL、semantic historyを更新せず、通常live duplicate規則には開放しない。
 8. target外slice、gate、source IDs、全unrecoverable omissionと、REST開始後に通常ingressで成立したnewer target stateをscratchで維持する。
 9. full coverageと必要なrepair-only reconstructionを満たしたtargetだけ、scratch内の対応する`vfvo50Repairable`／`ashfallRepairable`をfalseにする。unrecoverable omission arrayは変更しない。
-10. scratchと手順1の他domain snapshotからcompleted v2、v1、両full-file 4MiB、wire、global snapshotを通常liveと同じpreflightへ通す。
+10. scratchと手順1の他domain snapshotからcompleted v2、v1、両full-file 16MiB、wire、global snapshotを通常liveと同じpreflightへ通す。
 11. volcano runtime versionと全domain composition versionの双方が一致するときだけ、holder、gate、repairを含む完成`VolcanoRuntimeSnapshot`へ同期replaceし、その結果からstandbyをreplaceしてcomposition versionを一回増やす。
 12. REST historical／journal replayのnotification、CLI、ticker、stats、sound、display eventはゼロ。
 
@@ -1897,11 +1922,11 @@ diagnosticは reason、typed family、code／subjectのbounded representation、
 | file | 変更内容 |
 |---|---|
 | `src/types.ts` | admission clocks、comparison variant、ashfall DTO、repair envelope |
-| `src/dmdata/rest-client.ts` | cursor pagination、head refetch、query維持 |
+| `src/dmdata/rest-client.ts` | cursor pagination、head refetch、query維持、`xmlReport=true`、Telegram Data v1 本文取得 |
 | `src/dmdata/connection-manager.ts` | subscription acknowledgement／generationの公開 |
 | `src/dmdata/ws-client.ts` | repair journal用transport identity／normalized input |
 | `src/dmdata/multi-connection-manager.ts` | primary repair中のbackup開始順 |
-| `src/engine/startup/telegram-adapter.ts` | REST receivedTimeとstartup clock分離 |
+| `src/engine/startup/telegram-adapter.ts` | REST receivedTimeとstartup clock分離、REST 生 XML の WsDataMessage 化 |
 | `src/dmdata/telegram-meta.ts` | serial normalization helper |
 | `src/engine/messages/revision-family-registry.ts` | VFVO53分離、VFVO54/55 durable family、128上限 |
 | `src/engine/messages/telegram-revision-gate.ts` | clone／version／semantic key32上限、volcano provenance |
@@ -1923,12 +1948,12 @@ diagnosticは reason、typed family、code／subjectのbounded representation、
 | `src/engine/presentation/events/from-volcano.ts` | internal field copy |
 | `src/engine/display/project-standby.ts` | ashfall update、VFVO53除外 |
 | `src/engine/display/standby-state-store.ts` | full snapshot／prevalidated replace、derived ashfall、briefingCritical、restore、sweep |
-| `src/engine/display/standby-persistence-admission.ts` | 全owner version token、candidate reducer、4MiB prospective admission |
+| `src/engine/display/standby-persistence-admission.ts` | 全owner version token、candidate reducer、16MiB prospective admission |
 | `src/engine/monitor/display-sink.ts` | durable post-commit mutationを除去し、hub side effectだけにする |
 | `src/engine/display/volcano-card-projection.ts` | tone、wire fixpoint、JST label |
 | `src/engine/display/protocol.ts` | ashfall DTO、tone、omitted count |
 | `src/engine/display/constants.ts` | wire limits |
-| `src/engine/display/standby-persistence.ts` | generation 1、logical generation、v1 rollback、4MiB full-file reader／writer、backup retry |
+| `src/engine/display/standby-persistence.ts` | generation 1、logical generation、v1 rollback、16MiB full-file reader／writer、backup retry |
 | `src/engine/startup/tsunami-initializer.ts` | REST restoreをcoordinator candidateへ接続 |
 | `src/engine/startup/volcano-initializer.ts` | REST coverage、repair journal、scratch rebase |
 | `src/engine/monitor/monitor.ts` | coordinator wiring、fatal startup、versioned repair state、backup timer／shutdown retry、save aggregation |
@@ -2073,15 +2098,16 @@ parameterized test:
 - preflight failureでruntime gate／holder／repair／standby／generation／source IDs／callback／file不変
 - candidate rejectionでもadmission前expiry dirtyを維持
 - v2／v1 volcano subtree 1MiB exact／+1
-- 全domain完成v2／v1 file 4MiB exact／+1。4MiB+1 candidateは発生domainを問わずruntime mutation前に拒否
+- 全domain完成v2／v1 file 16MiB exact／+1。16MiB+1 candidateは発生domainを問わずruntime mutation前に拒否
 - full-file preflightはlogical generation 9→10／最大20桁でもwriter実byte以上となる
-- 約4.85MBのdense tsunami candidate＋small volcanoを拒否し、4MiB以内のlarge other-domain＋最大許容volcanoをsave／reload
-- VPWS50、VPWW56、VTSE41、VTSE51、VTSE52、volcano三family、flood、tornado、heat、typhoon、Nankai、long-period、briefingCritical、quakeHostの各実processor入口で4MiB+1を作り、gate／全holder／standby／callbackがdeep equalのまま拒否される
+- 16MiBを超えるdense tsunami candidate＋small volcanoを拒否し、16MiB以内のlarge other-domain＋最大許容volcanoをsave／reload。約4.85MBのdense tsunami candidateはadmissible側として通ることを確認する
+- VPWS50の正当な最大shape（history 8×全国areas約1,080件、partialHistory 128×8、partialStreams 128）を含むmax-admissible fixtureがadmissionを通り、save→reloadで全record保持される
+- VPWS50、VPWW56、VTSE41、VTSE51、VTSE52、volcano三family、flood、tornado、heat、typhoon、Nankai、long-period、briefingCritical、quakeHostの各実processor入口で16MiB+1を作り、gate／全holder／standby／callbackがdeep equalのまま拒否される
 - `briefingCritical` active＋cancellation合計128、watermark 512、raw alias 512をall-domain maximum fixtureへ含め、count内byte超過とbyte内count超過を別々に検証する
-- `all-domains-count-maximum`は4MiB超過ならatomic reject、`all-domains-max-admissible`はv2／v1 save→reload後に全owner意味一致とし、超過fixtureをtruncateして成功fixtureへ変えない
+- `all-domains-count-maximum`は16MiB超過ならatomic reject、`all-domains-max-admissible`はv2／v1 save→reload後に全owner意味一致とし、超過fixtureをtruncateして成功fixtureへ変えない
 - completed card 64KiB exact／+1
 - count内byte超過、byte内count超過
-- maximum 128 volcano fixtureと全domain count-maximum fixtureのexact byteを固定し、4MiB以内fixtureだけsave→reload全件保持、超過fixtureはatomic reject
+- maximum 128 volcano fixtureと全domain count-maximum fixtureのexact byteを固定し、16MiB以内fixtureだけsave→reload全件保持、超過fixtureはatomic reject
 - pre-mutation snapshotから`trackedBefore`／`renotificationBefore`／presentationを固定し、commit後stateで再評価しない
 - commit→durable callback→notifier／CLI／ticker／displayの順をspyで検証し、各fallible side effect throwでもdirty flagを保持
 
@@ -2095,7 +2121,7 @@ parameterized test:
 - current operational-v2 active alertはgeneric gate type `volcanoAlert`、holderの`lastInfo`欠落、rollbackのtime／serial-onlyという実shapeから内容を維持し、`operationalV2Unknown` slice＋gate、code-level omission、`vfvo50Repairable:true`へ移行する
 - operational-v2 holder／gate／rollbackのunique結合成功、duplicate、field mismatch、gate-only、cancelled、code不能domain collapseを固定fixtureで検証し、generic comparison typeからVFVO50／51／VFSViiを推測しない
 - unresolved operational-v2 bundleはVFVO50 full coverage後もomissionが残る。strictly newer known-family live inputは同codeだけをsupersedeしてomissionを消し、equal／older／REST replayは消さない
-- `volcanorepair status`、accept、clear、acknowledge-domainを検証する。stale fingerprint／version／scope不一致／4MiB rejectionではruntime、omission、audit、file、success出力が不変である
+- `volcanorepair status`、accept、clear、acknowledge-domainを検証する。stale fingerprint／version／scope不一致／16MiB rejectionではruntime、omission、audit、file、success出力が不変である
 - acceptはactiveを維持、clearはalert sliceを除いてgate-only watermarkを維持、domain acknowledgeはcontentを合成しない。各成功はresolution auditをv2／v1へ保存し、reload後もID／reason／actor／actionが一致する
 - old identity-only eruption migration success／missing／duplicate／mismatch
 - malformed nested ashfall、group、area、identity、count、revision
@@ -2107,7 +2133,7 @@ parameterized test:
 - repair state欠落／malformedをcompleteへ既定化せずdomain-scope alert／eruption degradedへsalvage
 - sourceEventIds raw 8,192／8,193をdeep validation前に判定
 - canonical source IDs 4,096／4,097
-- raw container limitsとfull-file raw 4MiB exact／+1。writerの4MiB exact outputをreaderが受理
+- raw container limitsとfull-file raw 16MiB exact／+1。writerの16MiB exact outputをreaderが受理
 - v1 oversized×v2 oversizedはfatal、v1 oversized×v2 validはv2を選択してoversized v1 backup後にlatest snapshotからpair rewrite、v1 oversized×v2 missingはfatalとする
 - 対称なv2 oversized×v1 valid／oversized／missing、oversized×invalid、両missingも検証する。両missingだけfreshEmpty、usable sourceなしは全てstartup abortでowner／REPL／REST／WS／temp／backup／canonical writeなしとする
 - 一方でもioErrorなら他方がvalidでもstartup abortし、permission failureをmissingまたはbackup retryへ読み替えない
@@ -2154,7 +2180,17 @@ parameterized test:
 - vfvo50-only、ashfall-only、both repair。unrecoverable omissionだけなら取得可能REST targetなし
 - main-only repairでもnormal WS ingressが先行し、live mutationを保存
 - VFVO53はnormal aggregator、live54/55でimmediate silent flush
-- type／limit100／formatMode raw／cursor維持
+- type／limit100／formatMode raw／xmlReport true／cursor維持
+- 一覧 item に body キーが無い実採取 fixture を流して proof が成立する
+- `xmlReport` 欠落応答では identity 構築が failure になり、runtime state が不変
+- 本文は relevant かつ journal 未収の item だけ取得し、head sample では 0 件
+- 同一 id は 1 回だけ取得する（成功・失敗とも id キャッシュ）
+- `item.url` と組み立て URL の不一致は取得失敗
+- data API の 404（HTTP 404／`text/plain`）と非 XML content-type をそれぞれ failure として識別する
+- `telegram.data` 権限欠如（403）で target が fail-closed し runtime state と repairable flag が不変
+- 本文取得上限 256／257 件、本文サイズ 4MiB／+1
+- 本文取得の前後で transport を再検証し、取得中の generation 変化を failure にする
+- subject／volcanoCode 抽出不能は proof failure ではなく target replay rejection
 - coverageStart checked arithmetic、boundary included、older sentinel非適用
 - terminal／empty terminal、empty＋next、token loop、newest-first違反
 - page128 success／129 required failure、item12,800／12,801
@@ -2163,7 +2199,7 @@ parameterized test:
 - head4回目stable success／5回目required failure
 - 単一head sample内duplicateはfailure、同じIDの別head sample再出現はstable proofとして成功
 - historical同一page内／page間duplicateはunion failure、head／historical／journal間の同一ID overlapは成功
-- proof集合間の同一IDでreceivedTime／head type／body fingerprint不一致はtransport inconsistency failure
+- proof集合間の同一IDでreceivedTime／head type／item head fingerprint不一致はtransport inconsistency failure。body fingerprint は両側にあるときだけ照合する
 - REST/local clock offsetを変えてもcoverage結果不変
 - same receivedTime groupをdedupe前unionで判定
 - group全件journalならsequence順、一部journalならfailure
@@ -2209,10 +2245,10 @@ parameterized test:
 - [ ] H0/H54/H55/GA/GT、EventID、cancellation、generation規則を満たす。
 - [ ] alert／eruption／ashfallの80 cross-productが他slice不変を証明する。
 - [ ] current source IDとflat cumulative source IDsを区別し、composite消滅まで保持する。
-- [ ] countとbyteをANDでgate commit前に検査し、全domain mutationがv2／v1 full-file 4MiB admissionを通る。
+- [ ] countとbyteをANDでgate commit前に検査し、全domain mutationがv2／v1 full-file 16MiB admissionを通る。
 - [ ] 全durable familyとbriefingCritical／quakeHostのowner、processor reducer、version token、startup／sweep／REST入口が§13.3のmatrixどおり一つのcoordinatorへ接続され、post-commit holder mutationがない。
 - [ ] family128／composite128／rollback128の最大fixtureが算術・serializationとも成立する。
-- [ ] volcano subtree 1MiBと全file 4MiBのscopeが分離され、writerの全domain正常出力をreaderが全件再読込できる。
+- [ ] volcano subtree 1MiBと全file 16MiBのscopeが分離され、writerの全domain正常出力をreaderが全件再読込できる。
 - [ ] flat rollback `sourceEventIds` にraw count hard limitがある。
 - [ ] generation 1 canonical、full eruption、gate provenance、versioned repair stateのownerとschemaが一意である。
 - [ ] alert slice／gateがVFVO50／VFVO51／VFSVii provenanceを保持し、VFVO50 repairableとunrecoverable alert omissionを混同しない。
@@ -2273,7 +2309,7 @@ npm run typecheck:test
 
 | # | 解消方針 |
 |---:|---|
-| 1 | volcano subtree 1MiBとは別にv1／v2 full-file writer／readerを4MiBへ統一し、全domain mutationでprospective admissionする |
+| 1 | volcano subtree 1MiBとは別にv1／v2 full-file writer／readerを16MiBへ統一し、全domain mutationでprospective admissionする |
 | 2 | 両file rootへwall clock非依存のuint64 decimal `logicalGeneration`を保存し、`savedAt`比較をlegacy fallbackだけへ限定する |
 | 3 | alert slice／gateへsource familyを保存し、VFVO50 repairableとunrecoverable alert omissionを分離。eruption omissionも永続degraded化する |
 | 4 | `VolcanoRepairStateV1`をcoordinatorのversioned runtime snapshotへ正式に含め、二正本宣言をdomain content限定とした |
@@ -2289,3 +2325,13 @@ npm run typecheck:test
 | 1 | 現行operational-v2のgeneric `volcanoAlert` comparison、`lastInfo`なしholder、time／serial-only rollbackを正式inputとし、active内容を`operationalV2Unknown` baselineで保持した。strictly newer live supersessionと、fingerprint付きlocal REPL transaction・永続audit・対象file／testを定義した |
 | 2 | `StandbyPersistenceDomainSnapshots`、owner version token、全durable family＋briefingCritical／quakeHostのprocessor／holder／standby matrix、single commit API、startup／sweep／REST／shutdown経路、実test pathとmaximum fixtureを定義した |
 | 3 | source classificationをdiscriminated union化し、両missingだけfresh empty、usable sourceなしはstartup abort、valid fallback時だけbackup後に選択source基準のlatest canonical pairをrewriteする組合せ試験を追加した |
+
+## 24. 未解決事項
+
+本 spec の範囲では決めず、別項目として持ち越す。
+
+| # | 内容 |
+|---:|---|
+| 1 | §12 は REST historical input の `acceptedAtMs` を `item.receivedTime` 由来と書くが、実装は `item.head.time` を parse している。実応答では `head.time` が分単位で丸く、`receivedTime` はミリ秒まで入るため、`head.time` を使うと同時刻 group が増え ordering proof が落ちやすい。時刻軸は現状どおり `head.time` のまま（WS journal と両側一貫）とし、§12 の記述との不一致は本 spec では書き換えない。どちらを正とするかは別項目で裁定する |
+| 2 | 津波 VTSE41 の startup restore と legacy な volcano restore も同じ list query 経路を通り、`xmlReport` 無しでは meta が空になる同型の欠陥を持つ。本 spec の対象外として別項目で扱う |
+| 3 | 旧版（full-file 上限なし）が書いた v2 を新版が読むときの互換は 16MiB 化で解消する。16MiB を超える旧 file は従来どおり oversized → v1 fallback → usable source なしなら fatal であり、本 spec で追加の移行経路は設けない |
