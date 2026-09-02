@@ -99,4 +99,30 @@ describe("VolcanoStateHolder accepted mutation", () => {
       { volcanoCode: "306", eventId: null },
     ]);
   });
+
+  it("同一火山の alert clear は legacy eruption identity を消さず、eruption clear だけが消す", () => {
+    const state = new VolcanoStateHolder();
+    state.seedLegacyEruptionIdentities([{ volcanoCode: "506", eventId: "eruption-506" }]);
+    state.applyAcceptedAlert(alert({ volcanoCode: "506", volcanoName: "桜島" }));
+
+    expect(state.clearAlert("506", "alert-cancel")).toBe(true);
+    expect(state.resolveEruptionCancellation("eruption-506")).toBe("506");
+
+    expect(state.clearEruption("506", "eruption-cancel")).toBe(true);
+    expect(state.resolveEruptionCancellation("eruption-506")).toBeNull();
+  });
+
+  it("accepted slice clear は nonblank canonical volcano name だけを採用する", () => {
+    const state = new VolcanoStateHolder();
+    expect(state.applyAcceptedAlert(alert({
+      volcanoCode: "506",
+      volcanoName: "Old Name",
+    }))).toBe(true);
+
+    expect(state.clearAshfall("506", "ashfall-ga", "  New\u3000Name  ")).toBe(true);
+    expect(state.composite("506")?.volcanoName).toBe("New Name");
+
+    expect(state.clearAshfall("506", "ashfall-ga-2", "   ")).toBe(true);
+    expect(state.composite("506")?.volcanoName).toBe("New Name");
+  });
 });

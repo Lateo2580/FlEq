@@ -14,6 +14,7 @@ import { TelegramRevisionGate } from "../../../../src/engine/messages/telegram-r
 import { TyphoonProbabilityStateHolder } from "../../../../src/engine/messages/typhoon-probability-state";
 import {
   createMockWsDataMessage,
+  FIXTURE_VFVO54_ASH_RAPID,
   FIXTURE_VXSE53_ENCHI,
   FIXTURE_VTSE41_WARN,
 } from "../../../helpers/mock-message";
@@ -71,5 +72,15 @@ describe("toPresentationEvent", () => {
     expect(event.domain).toBe("tsunami");
     expect(event.tsunamiKinds).toBeDefined();
     expect(event.stateSnapshot?.kind).toBe("tsunami");
+  });
+
+  it("volcano coordinator の projection commit を common sink acknowledgement へ映す", () => {
+    const msg = createMockWsDataMessage(FIXTURE_VFVO54_ASH_RAPID);
+    const outcome = processMessage(msg, "volcano", makeDeps())!;
+    outcome.presentation.volcanoStandbyProjectionCommitted = true;
+
+    const event = toPresentationEvent(outcome);
+
+    expect(event.standbyStateProjectionCommitted).toBe(true);
   });
 });

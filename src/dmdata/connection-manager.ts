@@ -1,4 +1,4 @@
-import { WsManagerStatus } from "./ws-client";
+import { WsManagerStatus, type WsSubscriptionAcknowledgement } from "./ws-client";
 import type { DeliveryCapabilities } from "./delivery-capabilities";
 
 /**
@@ -10,5 +10,7 @@ export interface ConnectionManager {
   getStatus(): WsManagerStatus;
   /** 配送 capability。旧実装・UI 用 mock との互換性のため optional な additive API とする。 */
   getDeliveryCapabilities?(): DeliveryCapabilities;
+  getSubscriptionAcknowledgement?(): WsSubscriptionAcknowledgement | null;
+  waitForSubscriptionAcknowledgement?(): Promise<WsSubscriptionAcknowledgement>;
   close(): void;
 }

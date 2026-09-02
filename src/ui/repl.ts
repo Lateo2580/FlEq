@@ -18,6 +18,7 @@ import { createNoopDisplayController, type DisplayController } from "../engine/d
 import type { CommandEntry, ReplContext } from "./repl-handlers/types";
 import { COMMAND_ALIASES, resolveCommand } from "./repl-handlers/info-handlers";
 import { buildCommandMap } from "./repl-handlers/command-definitions";
+import type { VolcanoRepairAdministration } from "../engine/messages/volcano-transaction-coordinator";
 
 /** レーベンシュタイン距離 (typo候補用) */
 function levenshtein(a: string, b: string): number {
@@ -61,6 +62,7 @@ export class ReplHandler {
   private summaryTimerControl: SummaryTimerControl | null = null;
   private summaryIntervalMin: number | null = null;
   private displayController: DisplayController;
+  private volcanoRepairAdministration: VolcanoRepairAdministration | null;
   private filterExpr: string | null = null;
   private filterUpdatedAt: Date | null = null;
   private focusExpr: string | null = null;
@@ -78,6 +80,7 @@ export class ReplHandler {
     pipelineController?: PipelineController,
     summaryTracker?: SummaryWindowTracker,
     displayController?: DisplayController,
+    volcanoRepairAdministration?: VolcanoRepairAdministration,
   ) {
     this.config = config;
     this.wsManager = wsManager;
@@ -90,6 +93,7 @@ export class ReplHandler {
     this.pipelineController = pipelineController ?? null;
     this.summaryTracker = summaryTracker ?? null;
     this.displayController = displayController ?? createNoopDisplayController();
+    this.volcanoRepairAdministration = volcanoRepairAdministration ?? null;
     this.summaryIntervalMin = config.summaryInterval ?? null;
     this.statusLine = new StatusLine();
     this.statusLine.setClockMode(this.config.promptClock);
@@ -281,6 +285,7 @@ export class ReplHandler {
       pipelineController: this.pipelineController,
       summaryTracker: this.summaryTracker,
       displayController: this.displayController,
+      volcanoRepairAdministration: this.volcanoRepairAdministration,
       commands: this.commands,
       onQuit: this.onQuit,
 

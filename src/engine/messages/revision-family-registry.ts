@@ -289,20 +289,18 @@ export const LEGACY_COUNTERPART_REVISION_FAMILY_POLICY: RevisionFamilyPolicy<Par
   fragmentMerge: false,
 };
 
-export const VOLCANO_ASHFALL_REVISION_FAMILY_POLICY: RevisionFamilyPolicy<ParsedVolcanoInfo> = {
+export const VOLCANO_ASHFALL_SCHEDULED_REVISION_FAMILY_POLICY: RevisionFamilyPolicy<ParsedVolcanoInfo> = {
   domain: "volcano",
-  revisionFamily: "volcanoAshfall",
-  headTypes: ["VFVO53", "VFVO54", "VFVO55"],
+  revisionFamily: "volcanoAshfallScheduled",
+  headTypes: ["VFVO53"],
   comparator: "reportDateTimeThenSerial",
   extractStateSubjectKey: (meta, parsed) => {
     const code = nonBlank(parsed.volcanoCode);
-    const type = meta.type.valid ? nonBlank(meta.type.value) : null;
-    return code == null || type == null ? null : `volcano:ashfall:${type}:${code}`;
+    return code == null ? null : `volcano:ashfall-scheduled:${code}`;
   },
   extractCancellationTarget: (meta, parsed) => {
     const code = nonBlank(parsed.volcanoCode);
-    const type = meta.type.valid ? nonBlank(meta.type.value) : null;
-    return code == null || type == null ? null : [`volcano:ashfall:${type}:${code}`];
+    return code == null ? null : [`volcano:ashfall-scheduled:${code}`];
   },
   cancellationPolicy: "markCancelled",
   terminalPredicate: () => false,
@@ -313,6 +311,37 @@ export const VOLCANO_ASHFALL_REVISION_FAMILY_POLICY: RevisionFamilyPolicy<Parsed
   allowMissingSerial: true,
   fragmentMerge: false,
 };
+
+/** VFVO54/55 は火山コードごとの一つの durable lifecycle を共有する。 */
+export const VOLCANO_ASHFALL_REVISION_FAMILY_POLICY: RevisionFamilyPolicy<ParsedVolcanoInfo> = {
+  domain: "volcano",
+  revisionFamily: "volcanoAshfall",
+  headTypes: ["VFVO54", "VFVO55"],
+  comparator: "reportDateTimeThenSerialThenVariant",
+  extractStateSubjectKey: (_meta, parsed) => volcanoAshfallSubjectKey(parsed.volcanoCode),
+  extractCancellationTarget: (_meta, parsed) => {
+    const subject = volcanoAshfallSubjectKey(parsed.volcanoCode);
+    return subject == null ? null : [subject];
+  },
+  cancellationPolicy: "clearCurrent",
+  terminalPredicate: () => false,
+  deactivationPredicate: () => false,
+  durable: true,
+  tombstoneRetentionMs: 7 * 24 * 60 * 60_000,
+  maxSubjects: 128,
+  allowMissingSerial: true,
+  familyCapacityMode: "rejectNewSubject",
+  fragmentMerge: false,
+};
+
+export function volcanoAshfallSubjectKey(volcanoCode: string): string | null {
+  const normalized = volcanoCode.normalize("NFC");
+  if (/\p{Cc}/u.test(normalized)) return null;
+  const code = normalized.trim();
+  return code === "" || code.length > 32
+    ? null
+    : `volcano:ashfall:${code}`;
+}
 
 export const VOLCANO_TRANSIENT_REVISION_FAMILY_POLICY = transientEventPolicy<ParsedVolcanoInfo>({
   domain: "volcano",
@@ -533,18 +562,22 @@ export const FLOOD_FORECAST_REVISION_FAMILY_POLICY: RevisionFamilyPolicy<ParsedF
   maxSubjects: FLOOD_FORECAST_MAX_SUBJECTS,
   fragmentMerge: false,
 };
-export const VOLCANO_MAX_SUBJECTS = 512;
+export const VOLCANO_MAX_SUBJECTS = 128;
 export const VOLCANO_ALERT_TOMBSTONE_RETENTION_MS = 30 * 24 * 60 * 60_000;
 export const VOLCANO_ERUPTION_TOMBSTONE_RETENTION_MS = 2 * 24 * 60 * 60_000;
 
 export function volcanoAlertSubjectKey(volcanoCode: string): string | null {
-  const code = volcanoCode.trim();
-  return code === "" ? null : `volcano:alert:${code}`;
+  const normalized = volcanoCode.normalize("NFC");
+  if (/\p{Cc}/u.test(normalized)) return null;
+  const code = normalized.trim();
+  return code === "" || code.length > 32 ? null : `volcano:alert:${code}`;
 }
 
 export function volcanoEruptionSubjectKey(volcanoCode: string): string | null {
-  const code = volcanoCode.trim();
-  return code === "" ? null : `volcano:eruption:${code}`;
+  const normalized = volcanoCode.normalize("NFC");
+  if (/\p{Cc}/u.test(normalized)) return null;
+  const code = normalized.trim();
+  return code === "" || code.length > 32 ? null : `volcano:eruption:${code}`;
 }
 
 function volcanoAlertSubjects(parsed: ParsedVolcanoInfo): string | readonly string[] | null {
@@ -625,6 +658,7 @@ export const VOLCANO_ALERT_REVISION_FAMILY_POLICY: RevisionFamilyPolicy<ParsedVo
   durable: true,
   tombstoneRetentionMs: VOLCANO_ALERT_TOMBSTONE_RETENTION_MS,
   maxSubjects: VOLCANO_MAX_SUBJECTS,
+  familyCapacityMode: "rejectNewSubject",
   allowMissingSerial: true,
   fragmentMerge: false,
 };
@@ -648,6 +682,7 @@ export const VOLCANO_ERUPTION_REVISION_FAMILY_POLICY: RevisionFamilyPolicy<Parse
   durable: true,
   tombstoneRetentionMs: VOLCANO_ERUPTION_TOMBSTONE_RETENTION_MS,
   maxSubjects: VOLCANO_MAX_SUBJECTS,
+  familyCapacityMode: "rejectNewSubject",
   allowMissingSerial: true,
   fragmentMerge: false,
 };
@@ -901,6 +936,7 @@ export const ALL_REVISION_FAMILY_POLICIES = [
   ...Object.values(TSUNAMI_REVISION_FAMILY_POLICIES),
   VOLCANO_ALERT_REVISION_FAMILY_POLICY,
   VOLCANO_ERUPTION_REVISION_FAMILY_POLICY,
+  VOLCANO_ASHFALL_SCHEDULED_REVISION_FAMILY_POLICY,
   VOLCANO_ASHFALL_REVISION_FAMILY_POLICY,
   VOLCANO_TRANSIENT_REVISION_FAMILY_POLICY,
   FLOOD_FORECAST_REVISION_FAMILY_POLICY,
@@ -983,6 +1019,9 @@ export function volcanoRevisionFamilyPolicy(
   }
   if (VOLCANO_ASHFALL_REVISION_FAMILY_POLICY.headTypes.includes(headType)) {
     return VOLCANO_ASHFALL_REVISION_FAMILY_POLICY;
+  }
+  if (VOLCANO_ASHFALL_SCHEDULED_REVISION_FAMILY_POLICY.headTypes.includes(headType)) {
+    return VOLCANO_ASHFALL_SCHEDULED_REVISION_FAMILY_POLICY;
   }
   if (VOLCANO_TRANSIENT_REVISION_FAMILY_POLICY.headTypes.includes(headType)) {
     return VOLCANO_TRANSIENT_REVISION_FAMILY_POLICY;

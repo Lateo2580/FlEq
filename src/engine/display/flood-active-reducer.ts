@@ -16,6 +16,10 @@ interface FloodEventState {
   restored: boolean;
 }
 
+export interface FloodActiveReducerSnapshot {
+  events: Array<[string, FloodEventState]>;
+}
+
 export interface PersistedFloodEventState {
   eventId: string;
   revision: StandbyRevision;
@@ -140,6 +144,14 @@ export class FloodActiveReducer {
       })),
       seen: [],
     };
+  }
+
+  cloneSnapshot(): FloodActiveReducerSnapshot {
+    return { events: structuredClone([...this.events]) };
+  }
+
+  replacePrevalidated(snapshot: FloodActiveReducerSnapshot): void {
+    this.events = new Map(structuredClone(snapshot.events));
   }
 
   activeEventIds(): string[] {

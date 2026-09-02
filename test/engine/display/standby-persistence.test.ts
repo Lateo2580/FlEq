@@ -1,4 +1,5 @@
 import fs, { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
+import { createHash } from "node:crypto";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -1871,7 +1872,9 @@ describe("StandbyPersistence", () => {
     expect(loaded).not.toBeNull();
     expect(loaded?.heat.map((entry) => entry.key)).toEqual(["heat-a", "heat-b"]);
     expect(loaded?.typhoons.map((entry) => entry.typhoon.typhoonKey)).toEqual(["TC-A", "TC-B"]);
-    expect(loaded?.volcanoes.map((entry) => entry.code)).toEqual(["V-A", "V-B"]);
+    // Metadata/seen のない旧 v1 volcano record は generation 1 の
+    // gate/slice couplingを証明できないため、全件 fail-closed で除外する。
+    expect(loaded?.volcanoes.map((entry) => entry.code)).toEqual([]);
     expect(loaded?.tornado?.map((entry) => entry.publishingOffice)).toEqual(["office-a", "office-b"]);
     expect(loaded?.longPeriod?.map((entry) => entry.eventId)).toEqual(["lg-a", "lg-b"]);
     expect(loaded?.seen.map((entry) => entry.key)).toEqual(["heat:a", "tornado:b"]);
@@ -2035,6 +2038,45 @@ describe("StandbyPersistence", () => {
     expect(new StandbyPersistence(path).load()?.savedAt).toBe("latest");
   });
 
+  it("backup 初回 failure は後続電文なしの timer だけで退避を再試行する", async () => {
+    vi.useFakeTimers({ now: T0 });
+    const path = tempPath();
+    mkdirSync(dirname(path), { recursive: true });
+    const original = Buffer.from(JSON.stringify({ ...state(), heat: [{ key: "broken" }] }), "utf8");
+    writeFileSync(path, original);
+    const persistence = new StandbyPersistence(path, 10_000);
+    expect(persistence.load()?.heat).toEqual([]);
+    const originalOpenSync = fs.openSync;
+    let blocked = true;
+    const openSync = vi.spyOn(fs, "openSync").mockImplementation((file, flags, ...args) => {
+      if (blocked && typeof file === "string" && file.endsWith(".salvage-backup") && flags === "wx") {
+        const error = new Error("backup blocked") as NodeJS.ErrnoException;
+        error.code = "EACCES";
+        throw error;
+      }
+      return originalOpenSync(file, flags, ...args);
+    });
+
+    persistence.startSalvageBackupWorkflow();
+    expect(persistence.salvageBackupDiagnostics().pendingSources).toBe(1);
+    blocked = false;
+    await vi.advanceTimersByTimeAsync(999);
+    expect(persistence.salvageBackupDiagnostics().pendingSources).toBe(1);
+    await vi.advanceTimersByTimeAsync(1);
+
+    expect(persistence.salvageBackupDiagnostics()).toEqual({
+      persistenceSalvageBackupBlocked: 1,
+      persistenceSalvageBackupRecovered: 1,
+      pendingSources: 0,
+    });
+    const backups = readdirSync(dirname(path)).filter((name) => name.endsWith(".salvage-backup"));
+    expect(backups).toHaveLength(1);
+    expect(readFileSync(join(dirname(path), backups[0]!))).toEqual(original);
+    expect(readFileSync(path)).toEqual(original);
+    openSync.mockRestore();
+    persistence.dispose();
+  });
+
   it("salvage backup の同一 timestamp 衝突は wx suffix で回避する", async () => {
     vi.useFakeTimers({ now: T0 });
     const path = tempPath();
@@ -2109,13 +2151,12 @@ describe("StandbyPersistence", () => {
     persistence.schedule(state());
     await persistence.__test_writePending();
 
-    expect(openSync.mock.calls.map(([target]) => target)).toEqual([
-      expect.stringMatching(/\.salvage-backup$/),
-      dirname(path),
-    ]);
-    expect(fsyncSync).toHaveBeenCalledTimes(2);
-    expect(fsyncSync.mock.calls[0]?.[0]).toBe(openSync.mock.results[0]?.value);
-    expect(fsyncSync.mock.calls[1]?.[0]).toBe(openSync.mock.results[1]?.value);
+    const opens = openSync.mock.calls.map(([target]) => String(target));
+    const backupIndex = opens.findIndex((target) => target.endsWith(".salvage-backup"));
+    expect(backupIndex).toBeGreaterThanOrEqual(0);
+    expect(opens[backupIndex + 1]).toBe(dirname(path));
+    expect(fsyncSync.mock.calls[0]?.[0]).toBe(openSync.mock.results[backupIndex]?.value);
+    expect(fsyncSync.mock.calls[1]?.[0]).toBe(openSync.mock.results[backupIndex + 1]?.value);
     fsyncSync.mockRestore();
     openSync.mockRestore();
   });
@@ -3239,6 +3280,12 @@ describe("StandbyStateStore persistence", () => {
         eventExpiresAtMs: T0 + 24 * 60 * 60_000,
         sourceEventIds: ["volcano-1"], alertRevision: null,
         eventRevision: { reportTimeMs: T0, serial: "1" },
+        latestEventId: "event-V-1",
+      }],
+      seen: [{
+        key: "volcano:event:event-V-1",
+        revision: { reportTimeMs: T0, serial: "1" },
+        forgetAtMs: T0 + 2 * 24 * 60 * 60_000 + 1,
       }],
     };
     mkdirSync(dirname(path), { recursive: true });
@@ -3297,11 +3344,18 @@ describe("StandbyStateStore persistence", () => {
     mkdirSync(dirname(path), { recursive: true });
     writeFileSync(path, JSON.stringify(state({
       volcanoes: [volcano("V-1", 2500, invalidSemantic), volcano("V-2", 3000)] as never,
-      seen: [{
-        key: "volcano:event:tombstone",
-        revision: { reportTimeMs: T0, serial: "2" },
-        forgetAtMs: T0 + 2 * 24 * 60 * 60_000,
-      }],
+      seen: [
+        ...["V-1", "V-2"].map((code) => ({
+          key: `volcano:event:event-${code}`,
+          revision: { reportTimeMs: T0, serial: "1" },
+          forgetAtMs: T0 + 2 * 24 * 60 * 60_000 + 1,
+        })),
+        {
+          key: "volcano:event:tombstone",
+          revision: { reportTimeMs: T0, serial: "2" },
+          forgetAtMs: T0 + 2 * 24 * 60 * 60_000,
+        },
+      ],
     })), "utf8");
 
     const loaded = new StandbyPersistence(path).load()!;
@@ -3494,10 +3548,10 @@ describe("StandbyStateStore persistence", () => {
     const volcano = store.snapshotItems().find((item) => item.kind === "volcano");
     expect(volcano).toEqual(expect.objectContaining({
       restored: true,
-      data: { volcanoes: [expect.objectContaining({
+      data: expect.objectContaining({ volcanoes: [expect.objectContaining({
         alertLevel: null,
         latestEvent: expect.objectContaining({ label: "flash" }),
-      })] },
+      })] }),
     }));
   });
 
@@ -3948,6 +4002,458 @@ describe("briefing operational persistence fixtures", () => {
   });
 });
 
+describe("operational-v2 active volcano migration fixture", () => {
+  const fixturePath = join(
+    process.cwd(),
+    "test",
+    "fixtures",
+    "standby-persistence",
+    "operational-v2-active-alert.json",
+  );
+
+  it("generic volcanoAlert gateをactual head typeへ推測せずlossless unknown baselineとしてv2/v1往復する", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime("2026-09-01T00:00:00.000Z");
+    try {
+      const path = tempPath();
+      mkdirSync(dirname(path), { recursive: true });
+      writeFileSync(standbyPersistenceV2Path(path), readFileSync(fixturePath));
+      const persistence = new StandbyPersistence(path);
+      const loaded = persistence.load();
+      expect(loaded).not.toBeNull();
+      const volcano = loaded!.telegramFoundation.volcano;
+      expect(volcano).toMatchObject({
+        authoritative: false,
+        ashfallSchemaGeneration: 1,
+        repairState: {
+          schemaGeneration: 1,
+          vfvo50Repairable: true,
+          ashfallRepairable: true,
+          unrecoverableAlertOmissions: [expect.objectContaining({
+            scope: "volcano",
+            volcanoCode: "506",
+            sourceFamily: "unknown",
+            reason: "operationalV2ProvenanceLost",
+          })],
+          operationalV2AlertResolutions: [],
+        },
+        gateEntries: [expect.objectContaining({
+          revisionFamily: "volcanoAlert",
+          stateSubjectKey: "volcano:alert:506",
+          volcanoProvenance: {
+            kind: "alert",
+            sourceFamily: "operationalV2Unknown",
+          },
+        })],
+      });
+      expect(volcano.state).toMatchObject({
+        generation: 1,
+        volcanoes: [expect.objectContaining({
+          volcanoCode: "506",
+          sourceEventIds: ["operational-v2-source-506"],
+          alert: expect.objectContaining({
+            sourceFamily: "operationalV2Unknown",
+            revision: { reportTimeMs: 1788134400000, serial: "1" },
+            appliedSemanticKey: "発表:4706bcc888f15853fcf08839c11e8a8f3f5b0e2755c1b16d9f218788d8146201",
+          }),
+        })],
+      });
+
+      expect(persistence.save(loaded!)).toMatchObject({ kind: "written" });
+      const writtenV2 = JSON.parse(readFileSync(standbyPersistenceV2Path(path), "utf8"));
+      const writtenV1 = JSON.parse(readFileSync(path, "utf8"));
+      expect(writtenV2.telegramFoundation.volcano.state.volcanoes[0].alert.sourceFamily)
+        .toBe("operationalV2Unknown");
+      expect(writtenV1.volcanoes[0]).toMatchObject({
+        alertSourceFamily: "operationalV2Unknown",
+        sourceEventIds: ["operational-v2-source-506"],
+      });
+      expect(writtenV1.volcanoAlertGateMetadata[0]).toMatchObject({
+        sourceFamily: "operationalV2Unknown",
+        semanticKeys: ["発表:4706bcc888f15853fcf08839c11e8a8f3f5b0e2755c1b16d9f218788d8146201"],
+      });
+      expect(writtenV1.volcanoRepairState.unrecoverableAlertOmissions[0])
+        .toMatchObject({ reason: "operationalV2ProvenanceLost", volcanoCode: "506" });
+      expect(new StandbyPersistence(path).load()?.telegramFoundation.volcano.state)
+        .toMatchObject({
+          generation: 1,
+          volcanoes: [expect.objectContaining({
+            alert: expect.objectContaining({ sourceFamily: "operationalV2Unknown" }),
+          })],
+        });
+
+      const fallbackPath = tempPath();
+      mkdirSync(dirname(fallbackPath), { recursive: true });
+      writeFileSync(fallbackPath, JSON.stringify(writtenV1), "utf8");
+      expect(new StandbyPersistence(fallbackPath).load()?.telegramFoundation.volcano.state)
+        .toMatchObject({
+          generation: 1,
+          volcanoes: [expect.objectContaining({
+            alert: expect.objectContaining({ sourceFamily: "operationalV2Unknown" }),
+          })],
+        });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});
+
+describe("StandbyPersistence logical generation source selection", () => {
+  function writtenPair(): {
+    path: string;
+    v2: Record<string, unknown>;
+    v1: Record<string, unknown>;
+  } {
+    const path = tempPath();
+    expect(new StandbyPersistence(path).save(state())).toMatchObject({ kind: "written" });
+    return {
+      path,
+      v2: JSON.parse(readFileSync(standbyPersistenceV2Path(path), "utf8")) as Record<string, unknown>,
+      v1: JSON.parse(readFileSync(path, "utf8")) as Record<string, unknown>,
+    };
+  }
+
+  function installPair(
+    fixture: ReturnType<typeof writtenPair>,
+    v2: Record<string, unknown>,
+    v1: Record<string, unknown>,
+  ): void {
+    writeFileSync(standbyPersistenceV2Path(fixture.path), JSON.stringify(v2), "utf8");
+    writeFileSync(fixture.path, JSON.stringify(v1), "utf8");
+  }
+
+  it("chooses the greater generation without consulting a reversed wall clock", () => {
+    const fixture = writtenPair();
+    installPair(
+      fixture,
+      { ...fixture.v2, logicalGeneration: "8", savedAt: "2026-07-21T00:00:00.000Z" },
+      { ...fixture.v1, logicalGeneration: "9", savedAt: "2026-07-20T00:00:00.000Z" },
+    );
+
+    const result = new StandbyPersistence(fixture.path).loadWithResult(T0);
+    expect(result).toMatchObject({
+      startup: { kind: "restored", selectedSource: "v1" },
+      selectedLogicalGeneration: "9",
+      canonicalRewriteRequired: true,
+    });
+  });
+
+  it("chooses v2 on an equal coherent generation and requires no envelope rewrite", () => {
+    const fixture = writtenPair();
+    installPair(
+      fixture,
+      { ...fixture.v2, logicalGeneration: "9", savedAt: "2026-07-20T00:00:00.000Z" },
+      { ...fixture.v1, logicalGeneration: "9", savedAt: "2026-07-21T00:00:00.000Z" },
+    );
+
+    const persistence = new StandbyPersistence(fixture.path);
+    const result = persistence.loadWithResult(T0);
+    expect(result).toMatchObject({
+      startup: { kind: "restored", selectedSource: "v2" },
+      selectedLogicalGeneration: "9",
+      canonicalRewriteRequired: false,
+    });
+    expect(persistence.takeMigrationConflictCount()).toBe(0);
+  });
+
+  it("selects v2 deterministically and rewrites when an equal generation differs", () => {
+    const fixture = writtenPair();
+    const v1Heat = structuredClone(fixture.v1.heat) as Array<Record<string, unknown>>;
+    v1Heat[0] = { ...v1Heat[0], sourceEventIds: ["different-source"] };
+    installPair(
+      fixture,
+      { ...fixture.v2, logicalGeneration: "9" },
+      { ...fixture.v1, heat: v1Heat, logicalGeneration: "9" },
+    );
+
+    const persistence = new StandbyPersistence(fixture.path);
+    const result = persistence.loadWithResult(T0);
+    expect(result).toMatchObject({
+      startup: { kind: "restored", selectedSource: "v2" },
+      selectedLogicalGeneration: "9",
+      canonicalRewriteRequired: true,
+    });
+    expect(persistence.takeMigrationConflictCount()).toBe(1);
+  });
+
+  it("allows only a strictly later markerless rollback snapshot to beat a generated source", () => {
+    const fixture = writtenPair();
+    const markerlessV1: Record<string, unknown> = {
+      ...fixture.v1,
+      savedAt: "2026-07-21T01:00:00.000Z",
+    };
+    delete markerlessV1.logicalGeneration;
+    installPair(
+      fixture,
+      { ...fixture.v2, logicalGeneration: "7", savedAt: "2026-07-21T00:00:00.000Z" },
+      markerlessV1,
+    );
+
+    expect(new StandbyPersistence(fixture.path).loadWithResult(T0)).toMatchObject({
+      startup: { kind: "restored", selectedSource: "v1" },
+      selectedLogicalGeneration: null,
+      canonicalRewriteRequired: true,
+    });
+
+    markerlessV1.savedAt = "2026-07-21T00:00:00.000Z";
+    installPair(
+      fixture,
+      { ...fixture.v2, logicalGeneration: "7", savedAt: markerlessV1.savedAt },
+      markerlessV1,
+    );
+    expect(new StandbyPersistence(fixture.path).loadWithResult(T0)).toMatchObject({
+      startup: { kind: "restored", selectedSource: "v2" },
+      selectedLogicalGeneration: "7",
+      canonicalRewriteRequired: true,
+    });
+  });
+
+  it("uses savedAt only while both usable sources are markerless, with v2 winning ties", () => {
+    const fixture = writtenPair();
+    const v2: Record<string, unknown> = {
+      ...fixture.v2,
+      savedAt: "2026-07-21T00:00:00.000Z",
+    };
+    const v1: Record<string, unknown> = {
+      ...fixture.v1,
+      savedAt: "2026-07-21T01:00:00.000Z",
+    };
+    delete v2.logicalGeneration;
+    delete v1.logicalGeneration;
+    installPair(fixture, v2, v1);
+    expect(new StandbyPersistence(fixture.path).loadWithResult(T0)).toMatchObject({
+      startup: { kind: "restored", selectedSource: "v1" },
+      canonicalRewriteRequired: true,
+    });
+
+    v1.savedAt = v2.savedAt;
+    installPair(fixture, v2, v1);
+    expect(new StandbyPersistence(fixture.path).loadWithResult(T0)).toMatchObject({
+      startup: { kind: "restored", selectedSource: "v2" },
+      canonicalRewriteRequired: true,
+    });
+  });
+
+  it("classifies a present-invalid generation as invalid and never treats it as legacy", () => {
+    const fixture = writtenPair();
+    installPair(
+      fixture,
+      { ...fixture.v2, logicalGeneration: "01" },
+      { ...fixture.v1, logicalGeneration: "4" },
+    );
+
+    expect(new StandbyPersistence(fixture.path).loadWithResult(T0)).toMatchObject({
+      startup: { kind: "restored", selectedSource: "v1" },
+      sourceStates: { v2: "invalid", v1: "valid" },
+      selectedLogicalGeneration: "4",
+      canonicalRewriteRequired: true,
+      backupStates: { v2: "pendingBackup" },
+    });
+  });
+});
+
+describe("pinned v3.4.0 writer volcano migration fixture", () => {
+  const fixtureRoot = join(process.cwd(), "test", "fixtures", "standby-persistence");
+  const inputPath = join(fixtureRoot, "v3.4.0-writer-input.json");
+  const outputPath = join(fixtureRoot, "v3.4.0-writer-output.json");
+  const provenancePath = join(fixtureRoot, "v3.4.0-writer-provenance.json");
+  const sha256 = (path: string): string =>
+    createHash("sha256").update(readFileSync(path)).digest("hex");
+
+  it("artifact provenance pins input/output bytes and the legacy writer drop surface", () => {
+    const provenance = JSON.parse(readFileSync(provenancePath, "utf8")) as {
+      artifact: {
+        packageVersion: string;
+        baseOid: string;
+        nodeVersion: string;
+        fixedClock: string;
+        assuranceBoundary: string;
+      };
+      input: { path: string; sha256: string };
+      output: { path: string; sha256: string };
+      droppedTopLevelProperties: string[];
+    };
+    expect(provenance).toMatchObject({
+      artifact: {
+        packageVersion: "3.4.0",
+        baseOid: "3c19768e52fe9e9d325e8199555d540fd0de004d",
+        nodeVersion: "22.23.2",
+        fixedClock: "2021-05-14T03:41:00.000Z",
+        assuranceBoundary: "The guarantee is limited to safe migration from the declared golden bytes; execution of the legacy writer is not reproduced.",
+      },
+      input: { path: "v3.4.0-writer-input.json" },
+      output: { path: "v3.4.0-writer-output.json" },
+      droppedTopLevelProperties: [
+        "logicalGeneration",
+        "volcanoAlertGateMetadata",
+        "volcanoAshfallGateMetadata",
+        "volcanoRepairState",
+      ],
+    });
+    expect(sha256(inputPath)).toBe(provenance.input.sha256);
+    expect(sha256(outputPath)).toBe(provenance.output.sha256);
+
+    const input = JSON.parse(readFileSync(inputPath, "utf8")) as Record<string, unknown>;
+    const output = JSON.parse(readFileSync(outputPath, "utf8")) as Record<string, unknown>;
+    for (const property of provenance.droppedTopLevelProperties) delete input[property];
+    expect(output).toEqual(input);
+  });
+
+  it("metadataを落としたactive ashfallを復元せずreserved GTと保守的repairへ移す", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime("2021-05-14T03:52:00.000Z");
+    try {
+      const path = tempPath();
+      mkdirSync(dirname(path), { recursive: true });
+      writeFileSync(path, readFileSync(outputPath));
+      const persistence = new StandbyPersistence(path);
+      const loaded = persistence.load();
+      expect(loaded).not.toBeNull();
+      expect(loaded!.volcanoes).toEqual([]);
+      expect(loaded!.telegramFoundation.volcano.state).toEqual({
+        generation: 1,
+        volcanoes: [],
+      });
+      expect(loaded!.telegramFoundation.volcano.gateEntries).toEqual([
+        expect.objectContaining({
+          domain: "volcano",
+          revisionFamily: "volcanoAshfall",
+          stateSubjectKey: "volcano:ashfall:506",
+          semanticKeys: [],
+          cancelled: true,
+          acceptedAtMs: 1620963600000,
+          volcanoProvenance: {
+            kind: "ashfall",
+            actualEventId: null,
+            sourceType: null,
+          },
+          comparison: expect.objectContaining({
+            stateSubjectKey: "volcano:ashfall:506",
+            variantRank: 1,
+            revision: expect.objectContaining({
+              infoType: { raw: "取消", value: "取消", valid: true },
+            }),
+          }),
+        }),
+      ]);
+      expect(loaded!.telegramFoundation.volcano.repairState).toEqual({
+        schemaGeneration: 1,
+        vfvo50Repairable: true,
+        ashfallRepairable: true,
+        unrecoverableAlertOmissions: [{
+          scope: "domain",
+          volcanoCode: null,
+          sourceFamily: "unknown",
+          lastKnownComparison: null,
+          reason: "provenanceMissing",
+        }],
+        unrecoverableEruptionOmissions: [],
+        operationalV2AlertResolutions: [],
+      });
+      expect(persistence.hasPendingSalvageRepair()).toBe(true);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("volcano acceptedAt future skew accepts +15m and rejects +15m+1 in v1 migration and generation-1", () => {
+    const reportTimeMs = Date.parse("2021-05-14T03:40:00.000Z");
+    const startupNowMs = reportTimeMs - 15 * 60_000;
+    const retentionMs = 7 * 24 * 60 * 60_000;
+    const legacySource = JSON.parse(readFileSync(inputPath, "utf8")) as Record<string, unknown>;
+    const loadLegacy = (offsetMs: number) => {
+      const path = tempPath();
+      mkdirSync(dirname(path), { recursive: true });
+      const source = structuredClone(legacySource) as {
+        seen: Array<{ key: string; forgetAtMs: number }>;
+      };
+      source.seen[0]!.forgetAtMs = reportTimeMs + offsetMs + retentionMs + 1;
+      writeFileSync(path, JSON.stringify(source), "utf8");
+      return new StandbyPersistence(path).loadWithResult(startupNowMs);
+    };
+
+    const exactLegacy = loadLegacy(0);
+    expect(exactLegacy.state?.telegramFoundation.volcano.gateEntries).toEqual([
+      expect.objectContaining({
+        revisionFamily: "volcanoAshfall",
+        acceptedAtMs: reportTimeMs,
+      }),
+    ]);
+    expect(loadLegacy(1).state?.telegramFoundation.volcano.gateEntries).toEqual([]);
+
+    const generationPath = tempPath();
+    expect(new StandbyPersistence(generationPath).save(exactLegacy.state!))
+      .toMatchObject({ kind: "written" });
+    rmSync(generationPath);
+    const v2Path = standbyPersistenceV2Path(generationPath);
+    const generationSource = JSON.parse(readFileSync(v2Path, "utf8")) as {
+      telegramFoundation: { volcano: { gateEntries: Array<{ acceptedAtMs: number }> } };
+      seen: Array<{ key: string; forgetAtMs: number }>;
+    };
+    const installGenerationOffset = (offsetMs: number) => {
+      generationSource.telegramFoundation.volcano.gateEntries[0]!.acceptedAtMs =
+        reportTimeMs + offsetMs;
+      generationSource.seen.find((entry) => entry.key === "volcano:ashfall:506")!.forgetAtMs =
+        reportTimeMs + offsetMs + retentionMs + 1;
+      writeFileSync(v2Path, JSON.stringify(generationSource), "utf8");
+      return new StandbyPersistence(generationPath).loadWithResult(startupNowMs);
+    };
+    expect(installGenerationOffset(0).state?.telegramFoundation.volcano.gateEntries)
+      .toHaveLength(1);
+    expect(installGenerationOffset(1).state?.telegramFoundation.volcano.gateEntries)
+      .toEqual([]);
+  });
+
+  it("volcanoRepairStateをabsent／valid object／present-invalidでown-property分類する", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime("2021-05-14T03:52:00.000Z");
+    try {
+      const source = JSON.parse(readFileSync(outputPath, "utf8")) as Record<string, unknown>;
+      const minimal = {
+        ...source,
+        volcanoes: [],
+        seen: [],
+        volcanoAlertGateMetadata: [],
+        volcanoAshfallGateMetadata: [],
+      };
+      const emptyRepair = {
+        schemaGeneration: 1,
+        vfvo50Repairable: false,
+        ashfallRepairable: false,
+        unrecoverableAlertOmissions: [],
+        unrecoverableEruptionOmissions: [],
+        operationalV2AlertResolutions: [],
+      };
+      const loadRepair = (repair: unknown, present: boolean) => {
+        const path = tempPath();
+        mkdirSync(dirname(path), { recursive: true });
+        const candidate = { ...minimal } as Record<string, unknown>;
+        if (present) candidate.volcanoRepairState = repair;
+        writeFileSync(path, JSON.stringify(candidate), "utf8");
+        return new StandbyPersistence(path).load()!.telegramFoundation.volcano.repairState;
+      };
+
+      expect(loadRepair(undefined, false)).toEqual({
+        ...emptyRepair,
+        vfvo50Repairable: true,
+        unrecoverableAlertOmissions: [expect.objectContaining({
+          scope: "domain", sourceFamily: "unknown", reason: "provenanceMissing",
+        })],
+      });
+      expect(loadRepair(emptyRepair, true)).toEqual(emptyRepair);
+      expect(loadRepair(null, true)).toEqual({
+        ...emptyRepair,
+        vfvo50Repairable: true,
+        ashfallRepairable: true,
+        unrecoverableAlertOmissions: [expect.objectContaining({ scope: "domain" })],
+        unrecoverableEruptionOmissions: [expect.objectContaining({ scope: "domain" })],
+      });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});
+
 describe("StandbyPersistence の遅延保存", () => {
   it("schedule しただけでは書かない (同期 I/O を受信経路から外す)", () => {
     const path = tempPath();
@@ -4049,6 +4555,52 @@ describe("StandbyPersistence の書き込み順序", () => {
     expect(JSON.parse(readFileSync(path, "utf8")).savedAt).toBe("pending-after-failure");
     expect(persistence.lastFailure()).toBeNull();
     expect(persistence.isUnhealthy()).toBe(false);
+  });
+
+  it("sync directory fsync failure は両 rename 後の unknown partial commit として返す", () => {
+    const path = tempPath();
+    const persistence = new StandbyPersistence(path, 10_000);
+    const realFsync = fs.fsyncSync.bind(fs);
+    const fsync = vi.spyOn(fs, "fsyncSync").mockImplementation((fd) => {
+      if (fs.fstatSync(fd).isDirectory()) throw new Error("directory fsync failed");
+      realFsync(fd);
+    });
+    try {
+      expect(persistence.save(state({ savedAt: "renamed-but-not-fsynced" }))).toMatchObject({
+        kind: "failed",
+        stage: "directoryFsync",
+        pendingRetained: true,
+        partialCommit: "unknown",
+        cause: expect.objectContaining({ message: "directory fsync failed" }),
+      });
+      expect(existsSync(path)).toBe(true);
+      expect(existsSync(standbyPersistenceV2Path(path))).toBe(true);
+    } finally {
+      fsync.mockRestore();
+    }
+  });
+
+  it("async directory fsync failure は typed failure と同一 snapshot retry を保持する", async () => {
+    const path = tempPath();
+    const persistence = new StandbyPersistence(path, 10_000);
+    const realFsync = fs.fsyncSync.bind(fs);
+    const fsync = vi.spyOn(fs, "fsyncSync").mockImplementation((fd) => {
+      if (fs.fstatSync(fd).isDirectory()) throw new Error("directory fsync failed");
+      realFsync(fd);
+    });
+    persistence.schedule(state({ savedAt: "retry-same-snapshot" }));
+    await persistence.__test_writePending();
+    expect(persistence.lastFailure()).toMatchObject({
+      kind: "failed",
+      stage: "directoryFsync",
+      pendingRetained: true,
+      partialCommit: "unknown",
+    });
+
+    fsync.mockRestore();
+    await persistence.__test_writePending();
+    expect(JSON.parse(readFileSync(path, "utf8")).savedAt).toBe("retry-same-snapshot");
+    expect(persistence.lastFailure()).toBeNull();
   });
 
   it("追い越された書き込みは rename しない (同期保存が後勝ちされない)", async () => {

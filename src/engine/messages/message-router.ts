@@ -59,6 +59,8 @@ import type {
   VolcanoBatchOutcome,
 } from "../presentation/types";
 import { VolcanoRouteHandler } from "./volcano-route-handler";
+import type { VolcanoTransactionCoordinator } from "./volcano-transaction-coordinator";
+import type { StandbyPersistenceAdmissionCoordinator } from "../display/standby-persistence-admission";
 import type { DisplayCallbacks } from "./display-callbacks";
 import type { DisplayIngestSink } from "../display/types";
 import { TelegramTransportDeduplicator } from "./telegram-transport-dedup";
@@ -733,6 +735,8 @@ export interface MessageHandlerOptions {
   typhoonProbabilityState?: TyphoonProbabilityStateHolder;
   /** durable revision watermark の復元用。 */
   revisionGate?: TelegramRevisionGate;
+  persistenceAdmission?: StandbyPersistenceAdmissionCoordinator;
+  volcanoTransactionCoordinator?: VolcanoTransactionCoordinator;
   /** 最初の durable domain が v1 表示復元状態を脱したことを monitor へ伝える。 */
   onVpws50RevisionDecision?: (decision: TelegramRevisionDecision) => void;
   /** VPNO50 cross-type clear/watermark の commit 完了を persistence owner へ伝える。 */
@@ -953,6 +957,7 @@ export function createMessageHandler(options?: MessageHandlerOptions): MessageHa
     tornadoDetailProvider,
     typhoonProbabilityState,
     revisionGate,
+    persistenceAdmission: options?.persistenceAdmission,
     onRevisionDecision: recordRevisionDecision,
     onVpws50RevisionDecision: options?.onVpws50RevisionDecision,
     onVpws50StateMutationAccepted: options?.onVpws50StateMutationAccepted,
@@ -1653,6 +1658,7 @@ export function createMessageHandler(options?: MessageHandlerOptions): MessageHa
     runDisplayPipeline,
     display,
     revisionGate,
+    volcanoTransactionCoordinator: options?.volcanoTransactionCoordinator,
     onRevisionDecision: recordRevisionDecision,
     onVolcanoRevisionDecision: options?.onVolcanoRevisionDecision,
     onFoundationNotified: (isCorrection) => {

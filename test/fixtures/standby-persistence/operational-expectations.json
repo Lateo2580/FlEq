@@ -28,10 +28,12 @@
       ],
       "savedV2ChangeAllowlist": [
         "/floods",
+        "/logicalGeneration",
         "/telegramFoundation"
       ],
       "savedV1ChangeAllowlist": [
-        "/floods"
+        "/floods",
+        "/logicalGeneration"
       ],
       "reloadedV2ChangeAllowlist": [],
       "reloadedV1ChangeAllowlist": [
@@ -57,11 +59,13 @@
       ],
       "savedV2ChangeAllowlist": [
         "/briefingCritical/rawAliases",
-        "/floods"
+        "/floods",
+        "/logicalGeneration"
       ],
       "savedV1ChangeAllowlist": [
         "/briefingCritical/rawAliases",
         "/floods",
+        "/logicalGeneration",
         "/telegramFoundation"
       ],
       "reloadedV2ChangeAllowlist": [],

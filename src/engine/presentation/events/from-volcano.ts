@@ -78,6 +78,7 @@ function fromSingleVolcanoOutcome(outcome: VolcanoOutcome): PresentationEvent {
     soundLevel: outcome.presentation.soundLevel,
     notifyCategory: outcome.presentation.notifyCategory,
     volcanoStateMutationAccepted: outcome.presentation.volcanoStateMutationAccepted,
+    volcanoStandbyProjectionCommitted: outcome.presentation.volcanoStandbyProjectionCommitted,
     volcanoAcceptedSubjects: outcome.presentation.volcanoAcceptedSubjects == null
       ? undefined
       : [...outcome.presentation.volcanoAcceptedSubjects],

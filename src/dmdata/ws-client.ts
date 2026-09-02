@@ -13,6 +13,7 @@ import {
   DeliveryCapabilities,
 } from "./delivery-capabilities";
 import * as log from "../logger";
+import { normalizeTelegramMessage } from "./telegram-ingress";
 
 export interface WsManagerStatus {
   connected: boolean;
@@ -22,9 +23,23 @@ export interface WsManagerStatus {
 }
 
 export interface WsManagerEvents {
-  onData: (msg: WsDataMessage) => void;
+  onData: (msg: WsDataMessage, transport?: WsTransportIdentity) => void;
   onConnected: () => void;
   onDisconnected: (reason: string) => void;
+}
+
+/** start acknowledgement に固定された repair proof 用 transport identity。 */
+export interface WsSubscriptionAcknowledgement {
+  subscriptionGeneration: number;
+  socketId: number;
+  transportId: string;
+  acknowledgedAtMs: number;
+  classifications: string[];
+}
+
+/** 一つの data message が属する acknowledged subscription。 */
+export interface WsTransportIdentity extends WsSubscriptionAcknowledgement {
+  receivedAtMs: number;
 }
 
 /** WebSocketManager の接続時計・世代を差し替えるための依存性注入。 */
@@ -122,6 +137,11 @@ export class WebSocketManager implements ConnectionManager {
   private effectiveClassifications: readonly string[] = [];
   private latchedStart: WsCapabilityStartMessage | null = null;
   private invalidatedSocketGeneration: number | null = null;
+  private acknowledgement: WsSubscriptionAcknowledgement | null = null;
+  private readonly acknowledgementWaiters = new Set<{
+    resolve: (value: WsSubscriptionAcknowledgement) => void;
+    reject: (reason: Error) => void;
+  }>();
 
   constructor(
     config: AppConfig,
@@ -162,6 +182,25 @@ export class WebSocketManager implements ConnectionManager {
       reconnectAttempt: this.reconnectAttempt,
       heartbeatDeadlineAt: this.heartbeatDeadlineAt,
     };
+  }
+
+  /** 現行 primary subscription の start acknowledgement。 */
+  getSubscriptionAcknowledgement(): WsSubscriptionAcknowledgement | null {
+    return this.acknowledgement == null ? null : structuredClone(this.acknowledgement);
+  }
+
+  /**
+   * open ではなく server の start acknowledgement まで待つ。
+   * 切断・世代交代・不正 start は pending proof を明示的に失敗させる。
+   */
+  waitForSubscriptionAcknowledgement(): Promise<WsSubscriptionAcknowledgement> {
+    if (this.acknowledgement != null) {
+      return Promise.resolve(structuredClone(this.acknowledgement));
+    }
+    if (!this.shouldRun) return Promise.reject(new Error("WebSocket manager is closed"));
+    return new Promise((resolve, reject) => {
+      this.acknowledgementWaiters.add({ resolve, reject });
+    });
   }
 
   /** 現行 socket の start と契約情報から配送 capability を返す。 */
@@ -211,6 +250,7 @@ export class WebSocketManager implements ConnectionManager {
       this.ws = null;
     }
     this.heartbeatDeadlineAt = null;
+    this.rejectAcknowledgementWaiters("subscription closed");
     this.resetDeliveryCapability();
   }
 
@@ -227,11 +267,15 @@ export class WebSocketManager implements ConnectionManager {
 
   /** 新しい WebSocket 世代を開始し、start 確認前の unknown へ戻す。 */
   private beginSocketGeneration(generation: number): void {
+    if (this.activeSocketGeneration != null) {
+      this.rejectAcknowledgementWaiters("subscription generation changed");
+    }
     this.activeSocketGeneration = generation;
     this.startConfirmedGeneration = null;
     this.effectiveClassifications = [];
     this.latchedStart = null;
     this.invalidatedSocketGeneration = null;
+    this.acknowledgement = null;
   }
 
   /** start の保証根拠を破棄する。transport の切断・再接続開始時に必ず呼ぶ。 */
@@ -241,6 +285,18 @@ export class WebSocketManager implements ConnectionManager {
     this.effectiveClassifications = [];
     this.latchedStart = null;
     this.invalidatedSocketGeneration = null;
+    this.acknowledgement = null;
+  }
+
+  private rejectAcknowledgementWaiters(reason: string): void {
+    const error = new Error(reason);
+    for (const waiter of this.acknowledgementWaiters) waiter.reject(error);
+    this.acknowledgementWaiters.clear();
+  }
+
+  private resolveAcknowledgementWaiters(value: WsSubscriptionAcknowledgement): void {
+    for (const waiter of this.acknowledgementWaiters) waiter.resolve(structuredClone(value));
+    this.acknowledgementWaiters.clear();
   }
 
   /** 現行 socket 世代を unknown に固定する。切断までは後続 start で回復させない。 */
@@ -249,6 +305,8 @@ export class WebSocketManager implements ConnectionManager {
     this.startConfirmedGeneration = null;
     this.effectiveClassifications = [];
     this.invalidatedSocketGeneration = socketGeneration;
+    this.acknowledgement = null;
+    this.rejectAcknowledgementWaiters("subscription acknowledgement invalidated");
   }
 
   /** 再接続タイマーと CONNECTING 中のソケットを中止する */
@@ -271,6 +329,7 @@ export class WebSocketManager implements ConnectionManager {
   /** close/error 共通の切断後処理 */
   private onDisconnect(reason: string): void {
     this.clearTimers();
+    this.rejectAcknowledgementWaiters(`subscription disconnected: ${reason}`);
     this.resetDeliveryCapability();
     this.ws = null;
     this.previousSocketId = this.socketId;
@@ -400,7 +459,7 @@ export class WebSocketManager implements ConnectionManager {
         break;
 
       case "data":
-        this.handleDataMessage(parsed);
+        this.handleDataMessage(parsed, socketGeneration);
         break;
 
       case "error":
@@ -443,6 +502,15 @@ export class WebSocketManager implements ConnectionManager {
     this.socketId = parsed.socketId;
     this.startConfirmedGeneration = socketGeneration;
     this.effectiveClassifications = [...parsed.classifications];
+    const acknowledgement: WsSubscriptionAcknowledgement = {
+      subscriptionGeneration: socketGeneration,
+      socketId: parsed.socketId,
+      transportId: `socket:${parsed.socketId}:generation:${socketGeneration}`,
+      acknowledgedAtMs: this.now(),
+      classifications: [...parsed.classifications],
+    };
+    this.acknowledgement = acknowledgement;
+    this.resolveAcknowledgementWaiters(acknowledgement);
     log.info(`セッション開始: socketId=${parsed.socketId}`);
     log.info(`区分: [${parsed.classifications.join(", ")}]`);
   }
@@ -456,16 +524,27 @@ export class WebSocketManager implements ConnectionManager {
     this.sendPong(parsed.pingId);
   }
 
-  private handleDataMessage(parsed: unknown): void {
+  private handleDataMessage(parsed: unknown, socketGeneration: number): void {
     if (!isWsDataMessage(parsed)) {
       log.warn("data メッセージのスキーマが不正です (id/head/head.type が欠落)");
       return;
     }
+    const receivedAtMs = this.now();
+    // `meta` is locally owned.  Never accept a transport-supplied object that
+    // could replace the receipt clock used by revision retention and repair.
+    const { meta: _untrustedMeta, ...transportMessage } = parsed;
+    const normalized = normalizeTelegramMessage(transportMessage, receivedAtMs).message;
     this.resetHeartbeat();
     log.debug(
-      `データ受信: type=${parsed.head.type}, id=${parsed.id.slice(0, 16)}...`
+      `データ受信: type=${normalized.head.type}, id=${normalized.id.slice(0, 16)}...`
     );
-    this.events.onData(parsed);
+    const acknowledged = this.acknowledgement;
+    const transport = acknowledged != null
+      && acknowledged.subscriptionGeneration === socketGeneration
+      ? { ...structuredClone(acknowledged), receivedAtMs }
+      : undefined;
+    if (transport == null) this.events.onData(normalized);
+    else this.events.onData(normalized, transport);
   }
 
   private logServerError(messageObject: Record<string, unknown>): void {

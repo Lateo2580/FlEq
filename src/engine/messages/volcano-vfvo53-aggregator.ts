@@ -109,6 +109,11 @@ export class VolcanoVfvo53Aggregator {
     this.clearTimer();
   }
 
+  /** Live VFVO54/55 admission barrier: publish pending scheduled data first. */
+  interruptPending(): void {
+    if (!this.disposed && this.items.size > 0) this.flush("interrupt", { notify: false });
+  }
+
   // ── private ──
 
   private buffer(info: ParsedVolcanoAshfallInfo, msg?: WsDataMessage): void {

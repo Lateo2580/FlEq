@@ -305,6 +305,18 @@ export function buildCommandMap(getCtx: () => ReplContext): Record<string, Comma
       },
       handler: (args) => ops.handleDisplay(getCtx(), args),
     },
+    volcanorepair: {
+      description: "火山 operational-v2 provenance 欠損の確認・明示解決",
+      detail: "volcanorepair status: 未解決項目を表示\n  volcanorepair accept <fingerprint> <reason...>: 現在内容を受容\n  volcanorepair clear <fingerprint> <reason...>: 現在 alert を明示解除\n  volcanorepair acknowledge-domain <fingerprint> <reason...>: domain 欠損を受容",
+      category: "operation",
+      subcommands: {
+        status: { description: "未解決の provenance 欠損を表示" },
+        accept: { description: "現在の code-level alert 内容を受容" },
+        clear: { description: "現在の code-level alert を解除" },
+        "acknowledge-domain": { description: "domain-level 履歴欠損を受容" },
+      },
+      handler: (args) => ops.handleVolcanoRepair(getCtx(), args),
+    },
     quit: {
       description: "アプリケーションを終了",
       category: "operation",

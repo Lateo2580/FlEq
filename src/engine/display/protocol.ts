@@ -855,6 +855,50 @@ export interface DisplayVolcanoEntryV1 {
   alertClass?: DisplayVolcanoAlertClassV1 | null;
   /** 直近の噴火観測。旧 protocol snapshot との互換のため省略可。 */
   latestEvent?: DisplayVolcanoEventV1 | null;
+  /** VFVO54/55 compact slice. Absence is the legacy-wire shape. */
+  ashfall?: DisplayVolcanoAshfallV1 | null;
+}
+
+export interface DisplayVolcanoAshfallAreaV1 {
+  identityKey: string;
+  code: string | null;
+  name: string;
+  displayLabel: string;
+}
+
+export interface DisplayVolcanoAshfallGroupV1 {
+  hazardClass: "ash" | "ballistic" | "unknown";
+  ashCode: string;
+  ashName: string;
+  areas: DisplayVolcanoAshfallAreaV1[];
+  omittedAreaCount: number;
+}
+
+export interface DisplayVolcanoAshfallV1 {
+  kind: "rapid" | "detailed";
+  label: "降灰速報" | "降灰予報（詳細）";
+  eventId: string;
+  sourceEventId: string;
+  forecastEndsAt: string;
+  forecastEndLabel: string;
+  groups: DisplayVolcanoAshfallGroupV1[];
+  omittedGroupCount: number;
+  generation: number;
+}
+
+export type VolcanoHeaderToneV1 =
+  | "muted"
+  | "advisory"
+  | "warning"
+  | "red"
+  | "emergency";
+
+export interface DisplayVolcanoCardDataV1 {
+  volcanoes: DisplayVolcanoEntryV1[];
+  /** Required for every new-producer card carrying ashfall semantics. */
+  headerTone?: VolcanoHeaderToneV1;
+  /** Active ashfall slices whose detail was removed by the wire fixpoint. */
+  ashfallOmittedCount?: number;
 }
 
 export interface DisplayVolcanoAlertClassV1 {
@@ -1014,7 +1058,7 @@ export type ActiveStandbyCardV1 =
   | (ActiveStandbyBaseV1 & {
       kind: "volcano";
       surface: "corner-right";
-      data: { volcanoes: DisplayVolcanoEntryV1[] };
+      data: DisplayVolcanoCardDataV1;
     })
   | (ActiveStandbyBaseV1 & {
       kind: "typhoon";

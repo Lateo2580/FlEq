@@ -104,6 +104,8 @@ export interface ProcessOutcomeBase {
     weatherStateRevision?: { reportDateTime: string; serial: string | null } | null;
     /** volcano の durable holder/gate mutation が authoritative に commit 済みか。 */
     volcanoStateMutationAccepted?: boolean;
+    /** Canonical transaction already replaced the derived standby mirror. */
+    volcanoStandbyProjectionCommitted?: boolean;
     /** 同一電文内で gate を通過した火山 subject。standby projection の対象限定に使う。 */
     volcanoAcceptedSubjects?: string[];
     volcanoActiveAlertSubjects?: string[];
@@ -116,6 +118,8 @@ export interface ProcessOutcomeBase {
     floodAppliedSemanticKey?: string;
     /** Phase 3B standby family gate result. false is display/ticker-only fail-open. */
     standbyStateMutationAccepted?: boolean;
+    /** The all-domain admission transaction already applied the standby projection. */
+    standbyStateProjectionCommitted?: boolean;
     standbyStateSubject?: string | null;
     standbyActiveSubjects?: string[];
     standbyAppliedSemanticKey?: string | null;
@@ -476,6 +480,7 @@ export interface PresentationEvent {
   weatherStateRevision?: { reportDateTime: string; serial: string | null } | null;
   /** fail-open 表示と durable volcano mutation を後段で分離する内部フラグ。 */
   volcanoStateMutationAccepted?: boolean;
+  volcanoStandbyProjectionCommitted?: boolean;
   /** gate 通過済みの alert/eruption subject。 */
   volcanoAcceptedSubjects?: string[];
   volcanoActiveAlertSubjects?: string[];
@@ -485,6 +490,7 @@ export interface PresentationEvent {
   floodActiveEventIds?: string[];
   floodAppliedSemanticKey?: string;
   standbyStateMutationAccepted?: boolean;
+  standbyStateProjectionCommitted?: boolean;
   standbyStateSubject?: string | null;
   standbyActiveSubjects?: string[];
   standbyAppliedSemanticKey?: string | null;

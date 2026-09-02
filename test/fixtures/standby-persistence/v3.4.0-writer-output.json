@@ -1,0 +1,97 @@
+{
+  "version": 1,
+  "savedAt": "2021-05-14T03:41:00.000Z",
+  "heat": [],
+  "typhoons": [],
+  "volcanoes": [
+    {
+      "code": "506",
+      "name": "桜島",
+      "alertLevel": null,
+      "alertExpiresAtMs": null,
+      "latestEvent": null,
+      "latestEventId": null,
+      "eventExpiresAtMs": null,
+      "sourceEventIds": [
+        "fixture:66_01_02_210514_VFVO54.xml"
+      ],
+      "alertRevision": null,
+      "eventRevision": null,
+      "ashfall": {
+        "kind": "rapid",
+        "label": "降灰速報",
+        "eventId": "506",
+        "sourceEventId": "fixture:66_01_02_210514_VFVO54.xml",
+        "forecastEndsAt": "2021-05-14T04:31:00.000Z",
+        "forecastEndLabel": "2021年5月14日 13:31まで",
+        "groups": [
+          {
+            "hazardClass": "ash",
+            "ashCode": "71",
+            "ashName": "少量の降灰",
+            "areas": [
+              {
+                "identityKey": "area:code:46201",
+                "code": "46201",
+                "name": "鹿児島市",
+                "displayLabel": "鹿児島市（46201）"
+              }
+            ],
+            "omittedAreaCount": 0
+          }
+        ],
+        "omittedGroupCount": 0,
+        "generation": 1
+      },
+      "ashfallExpiresAtMs": 1620966660000,
+      "ashfallRevision": {
+        "reportTimeMs": 1620963600000,
+        "serial": "1"
+      },
+      "ashfallProjection": {
+        "stateSubjectKey": "volcano:ashfall:506",
+        "volcanoCode": "506",
+        "volcanoName": "桜島",
+        "eventId": "506",
+        "sourceType": "VFVO54",
+        "sourceEventId": "fixture:66_01_02_210514_VFVO54.xml",
+        "forecastStartsAtMs": 1620963060000,
+        "forecastEndsAtMs": 1620966660000,
+        "groups": [
+          {
+            "hazardClass": "ash",
+            "ashCode": "71",
+            "ashName": "少量の降灰",
+            "areaCount": 1,
+            "topAreas": [
+              {
+                "identityKey": "area:code:46201",
+                "code": "46201",
+                "name": "鹿児島市",
+                "firstForecastEndAtMs": 1620966660000
+              }
+            ],
+            "omittedAreaCount": 0
+          }
+        ],
+        "omittedGroupCount": 0,
+        "revision": {
+          "reportTimeMs": 1620963600000,
+          "serial": "1"
+        },
+        "appliedSemanticKey": "発表:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "generation": 1
+      }
+    }
+  ],
+  "seen": [
+    {
+      "key": "volcano:ashfall:506",
+      "revision": {
+        "reportTimeMs": 1620963600000,
+        "serial": "1"
+      },
+      "forgetAtMs": 1621568400001
+    }
+  ]
+}

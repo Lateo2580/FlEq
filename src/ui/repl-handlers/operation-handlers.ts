@@ -263,6 +263,60 @@ export async function handleDisplay(ctx: ReplContext, args: string): Promise<voi
   console.log(chalk.yellow("  使い方: display / display on / display off"));
 }
 
+export function handleVolcanoRepair(ctx: ReplContext, args: string): void {
+  const administration = ctx.volcanoRepairAdministration;
+  if (administration == null) {
+    console.log(chalk.yellow("  火山修復管理はこの構成では利用できません"));
+    return;
+  }
+  const parts = args.trim().split(/\s+/u).filter(Boolean);
+  const subcommand = parts.shift()?.toLowerCase() ?? "status";
+  const status = administration.status();
+  if (subcommand === "status") {
+    if (status.length === 0) {
+      console.log(chalk.gray("  未解決の operational-v2 provenance 欠損はありません"));
+      return;
+    }
+    console.log(chalk.cyan.bold("  火山 provenance 修復待ち:"));
+    for (const item of status) {
+      const target = item.scope === "domain" ? "domain" : `code=${item.volcanoCode ?? "?"}`;
+      const comparison = item.lastKnownComparison == null
+        ? "comparison=unknown"
+        : `report=${item.lastKnownComparison.revision.reportDateTime.raw ?? "?"} serial=${item.lastKnownComparison.revision.serial.raw ?? "-"}`;
+      console.log(chalk.white(`    ${target} ${comparison}`));
+      console.log(chalk.gray(`      fingerprint=${item.omissionFingerprint}`));
+      console.log(chalk.gray(`      actions=${item.actions.join(",")} version=${item.expectedRuntimeVersion}`));
+    }
+    return;
+  }
+  const action = subcommand === "accept" ? "acceptCurrent" as const
+    : subcommand === "clear" ? "clearCurrent" as const
+      : subcommand === "acknowledge-domain" ? "acknowledgeDomainLoss" as const
+        : null;
+  const fingerprint = parts.shift() ?? "";
+  const reason = parts.join(" ");
+  if (action == null || fingerprint === "" || reason === "") {
+    console.log(chalk.yellow("  使い方: volcanorepair status | accept/clear/acknowledge-domain <fingerprint> <reason...>"));
+    return;
+  }
+  const current = status.find((item) => item.omissionFingerprint === fingerprint);
+  if (current == null) {
+    console.log(chalk.yellow("  指定 fingerprint は現在の未解決一覧にありません"));
+    return;
+  }
+  const result = administration.resolveOperationalV2AlertOmission({
+    omissionFingerprint: fingerprint,
+    action,
+    reason,
+    expectedRuntimeVersion: current.expectedRuntimeVersion,
+  });
+  if (result.kind === "committed") {
+    console.log(chalk.green(`  火山 provenance 修復を記録しました (${result.resolutionId})`));
+    return;
+  }
+  console.log(chalk.yellow(`  火山 provenance 修復は適用されませんでした (${result.kind})`));
+}
+
 export async function handleQuit(ctx: ReplContext): Promise<void> {
   ctx.stop();
   await ctx.onQuit();

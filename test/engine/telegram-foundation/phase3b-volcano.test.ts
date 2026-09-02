@@ -187,9 +187,14 @@ describe("Phase 3B volcano foundation", () => {
     expect(volcanoRevisionFamilyPolicy("VFVO52")?.revisionFamily).toBe("volcanoEruption");
     expect(volcanoRevisionFamilyPolicy("VFVO56")?.revisionFamily).toBe("volcanoEruption");
     expect(volcanoRevisionFamilyPolicy("VFVO53")).toMatchObject({
-      revisionFamily: "volcanoAshfall",
+      revisionFamily: "volcanoAshfallScheduled",
       cancellationPolicy: "markCancelled",
       durable: false,
+    });
+    expect(volcanoRevisionFamilyPolicy("VFVO54")).toMatchObject({
+      revisionFamily: "volcanoAshfall",
+      cancellationPolicy: "clearCurrent",
+      durable: true,
     });
   });
 
@@ -814,7 +819,11 @@ describe("Phase 3B volcano foundation", () => {
 
     const v2Path = standbyPersistenceV2Path(persistPath);
     const raw = JSON.parse(readFileSync(v2Path, "utf8")) as PersistedStandbyStateV2;
-    const broken = raw.telegramFoundation.volcano.state?.alerts.find((entry) => entry.volcanoCode === "506");
+    const canonical = raw.telegramFoundation.volcano.state;
+    expect(canonical != null && "generation" in canonical ? canonical.generation : null).toBe(1);
+    if (canonical == null || !("generation" in canonical) || canonical.generation !== 1) return;
+    const broken = canonical.volcanoes
+      .find((entry) => entry.volcanoCode === "506")?.alert;
     expect(broken).toBeDefined();
     if (broken == null) return;
     broken.reportDateTime = "not-a-report-date";
@@ -827,16 +836,30 @@ describe("Phase 3B volcano foundation", () => {
     const warn = vi.spyOn(log, "warn").mockImplementation(() => undefined);
 
     const loaded = new StandbyPersistence(persistPath).load();
+    const loadedCanonical = loaded?.telegramFoundation.volcano.state;
+    expect(loadedCanonical != null && "generation" in loadedCanonical
+      ? loadedCanonical.generation
+      : null).toBe(1);
+    if (loadedCanonical == null
+      || !("generation" in loadedCanonical)
+      || loadedCanonical.generation !== 1) return;
     expect(loaded?.telegramFoundation.volcano.active.map((entry) => entry.code)).toEqual(["306"]);
-    expect(loaded?.telegramFoundation.volcano.state?.alerts.map((entry) => entry.volcanoCode)).toEqual(["306"]);
+    expect(loadedCanonical.volcanoes
+      .filter((entry) => entry.alert != null)
+      .map((entry) => entry.volcanoCode)).toEqual(["306"]);
     expect(loaded?.volcanoes.map((entry) => entry.code)).toEqual(["306"]);
     expect(loaded?.telegramFoundation.volcano.gateEntries).toEqual([
       expect.objectContaining({ stateSubjectKey: "volcano:alert:306" }),
+      // 破損した slice の watermark は旧報復活防止のため gate-only で維持する。
+      expect.objectContaining({ stateSubjectKey: "volcano:alert:506" }),
     ]);
     expect(warn).toHaveBeenCalledWith(
       "[standby-persistence] salvage source=display-active-state-v2.json domain=foundation.volcano unit=code discarded=1 retained=1 reason=coupling-mismatch",
     );
-    expect(warn).toHaveBeenCalledTimes(1);
+    expect(warn).toHaveBeenCalledWith(
+      "[standby-persistence] persistenceMigrationConflict: sameGenerationConflict",
+    );
+    expect(warn).toHaveBeenCalledTimes(2);
   });
 
   it("VFVO51 訂正内の同一 subject は最後の entry を一度だけ適用する", () => {
@@ -1057,7 +1080,11 @@ describe("Phase 3B volcano foundation", () => {
     const loaded = new StandbyPersistence(path).load()!;
     expect(loaded.telegramFoundation.volcano).toMatchObject({ authoritative: true });
     expect(loaded.telegramFoundation.volcano.active[0]).toMatchObject({ code: "506", alertLevel: 3 });
-    expect(loaded.telegramFoundation.volcano.state?.alerts[0]).toMatchObject({ volcanoCode: "506" });
+    const canonical = loaded.telegramFoundation.volcano.state;
+    expect(canonical != null && "generation" in canonical ? canonical.generation : null).toBe(1);
+    if (canonical == null || !("generation" in canonical) || canonical.generation !== 1) return;
+    expect(canonical.volcanoes[0]?.alert)
+      .toMatchObject({ volcanoCode: "506" });
 
     const v2Path = standbyPersistenceV2Path(path);
     const originalV1 = readFileSync(path, "utf8");
@@ -1075,22 +1102,31 @@ describe("Phase 3B volcano foundation", () => {
     writeFileSync(v2Path, originalV2, "utf8");
 
     const broken = JSON.parse(readFileSync(v2Path, "utf8"));
-    broken.telegramFoundation.volcano.state.alerts[0].reportDateTime = "invalid";
+    broken.telegramFoundation.volcano.state.volcanoes[0].alert.reportDateTime = "invalid";
     writeFileSync(v2Path, JSON.stringify(broken), "utf8");
     const salvaged = new StandbyPersistence(path).load()!;
-    expect(salvaged.telegramFoundation.volcano).toEqual({
-      authoritative: true, state: null, active: [], gateEntries: [],
-    });
+    expect(salvaged.telegramFoundation.volcano).toEqual(expect.objectContaining({
+      authoritative: false,
+      ashfallSchemaGeneration: 1,
+      state: { generation: 1, volcanoes: [] },
+      active: [],
+      gateEntries: [expect.objectContaining({ stateSubjectKey: "volcano:alert:506" })],
+      repairState: expect.objectContaining({
+        schemaGeneration: 1,
+        vfvo50Repairable: true,
+        unrecoverableAlertOmissions: [],
+      }),
+    }));
     expect(salvaged.telegramFoundation.vpws50).toEqual({
       authoritative: true, state: null, gateEntries: [],
     });
     expect(salvaged.volcanoes).toEqual([]);
   });
 
-  it("subject 上限超過時も gate・holder・standby が同じ LRU 順で退場する", () => {
+  it("subject 128件目を保持し129件目を gate・holder・standby 全体で拒否する", () => {
     const h = createHarness();
     const initialTime = new Date(T0).toISOString();
-    for (let index = 0; index < 512; index++) {
+    for (let index = 0; index < 128; index++) {
       const code = index.toString().padStart(3, "0");
       const id = `initial-${code}`;
       const item = alert(id, code, initialTime, "1");
@@ -1099,23 +1135,23 @@ describe("Phase 3B volcano foundation", () => {
     }
     const nextTime = new Date(T0 + 60_000).toISOString();
     const refreshed = alert("refresh-000", "000", nextTime, "2", { alertLevel: 4 });
-    const added = alert("add-512", "512", nextTime, "1");
+    const added = alert("add-128", "128", nextTime, "1");
     currentParsed.set("refresh-000", refreshed);
-    currentParsed.set("add-512", added);
+    currentParsed.set("add-128", added);
     h.handler.handle(message("refresh-000", "VFVO50", nextTime));
-    h.handler.handle(message("add-512", "VFVO50", nextTime));
+    h.handler.handle(message("add-128", "VFVO50", nextTime));
 
     const gateCodes = h.gate.activeRevisionFamilySubjects("volcano", "volcanoAlert")
       .map((subject) => subject.replace("volcano:alert:", ""));
     const holderCodes = h.holder.exportPersistedState().alerts.map((entry) => entry.volcanoCode);
     const standbyCodes = h.standby.exportActiveState().volcanoes.map((entry) => entry.code);
-    expect(gateCodes).toHaveLength(512);
-    expect(holderCodes).toEqual(gateCodes);
+    expect(gateCodes).toHaveLength(128);
+    expect(holderCodes).toEqual([...gateCodes].sort());
     expect(new Set(standbyCodes)).toEqual(new Set(gateCodes));
     expect(gateCodes).toContain("000");
-    expect(gateCodes).toContain("512");
-    expect(gateCodes).not.toContain("001");
-    expect(standbyCodes).not.toContain("001");
+    expect(gateCodes).not.toContain("128");
+    expect(gateCodes).toContain("001");
+    expect(standbyCodes).toContain("001");
     expect(T0 + 60_000).toBeLessThan(T0 + VOLCANO_ALERT_TOMBSTONE_RETENTION_MS);
   });
 

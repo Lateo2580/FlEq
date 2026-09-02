@@ -651,7 +651,7 @@
     return 2 + (heatItem?.data.areas.length ?? 0);
   }
   function pageFormattingActive(key: CardKey): boolean {
-    const page = key === "quake" || key === "weather" || key === "weatherWarningForecast" || key === "briefing"
+    const page = key === "quake" || key === "weather" || key === "weatherWarningForecast" || key === "briefing" || key === "volcano"
       ? cardPageCoordinator.cardDiagnostics(key).page : "0/0";
     const pageCount = Number(page.split("/")[1] ?? 0);
     if (pageCount > 1) return true;
@@ -1040,6 +1040,7 @@
     if (tornadoItem == null) cardPageCoordinator.unregister("tornado");
     if (floodItem == null) cardPageCoordinator.unregister("flood");
     if (briefingItem == null || briefingItem.data.entries.length === 0) cardPageCoordinator.unregister("briefing");
+    if (volcanoItem == null) cardPageCoordinator.unregister("volcano");
   });
 
   function liveBorderBoxHeight(node: HTMLElement): number {
@@ -1937,7 +1938,17 @@
       />
     {/if}
   {:else if key === "typhoon" && typhoonItem != null}<TyphoonCard item={typhoonItem} displayMode={variant === "full" ? "full" : "compact"} />
-  {:else if key === "volcano" && volcanoItem != null}<VolcanoCard item={volcanoItem} />
+  {:else if key === "volcano" && volcanoItem != null}
+    <VolcanoCard
+      item={volcanoItem}
+      pageCoordinator={measuring ? undefined : cardPageCoordinator}
+      rotationMember={!measuring && renderPlan.rotationKeys.includes("volcano")}
+      pageScheduling={!measuring}
+      measurementMaxPage={measuring}
+      partitionProbe={measuring ? undefined : pagePartitionProbe("volcano", placement === "center" ? "center" : "side")}
+      pagePlacement={placement === "center" ? "center" : "side"}
+      displayMode={variant === "full" ? "full" : "compact"}
+    />
   {:else if key === "heat" && heatItem != null}<HeatAlertCard item={heatItem} {reducedMotion} />
   {/if}
 {/snippet}
@@ -1962,6 +1973,8 @@
     <!-- The envelope includes the complete current weather candidate set, so
          a rider range is never accepted against an unrelated empty shell. -->
     <WeatherAlertCard alerts={weatherWithSelection(entry.weatherSelectionRows ?? 0)} tornado={tornadoItem} pageScheduling={false} measurementRange={entry.weatherRange} measurementTornadoRange={entry} tornadoAggregateProbe={entry.tornadoAggregateFallback} pagePlacement={entry.placement} forceTornadoPagingContract={tornadoPagingContractActive()} />
+  {:else if entry.key === "volcano" && volcanoItem != null}
+    <VolcanoCard item={volcanoItem} pageScheduling={false} measurementRange={entry} pagePlacement={entry.placement} />
   {/if}
 {/snippet}
 
@@ -2049,6 +2062,11 @@
   data-briefing-page-host={cardPageCoordinator.diagnostics().cards.briefing.appearanceHost ?? ""}
   data-briefing-page-mode={cardPageCoordinator.diagnostics().cards.briefing.mode}
   data-briefing-page-pending-appearance={cardPageCoordinator.diagnostics().pendingAppearanceKeys.includes("briefing") ? "true" : "false"}
+  data-volcano-page={cardPageCoordinator.cardDiagnostics("volcano").page}
+  data-volcano-page-keys={JSON.stringify(cardPageCoordinator.cardDiagnostics("volcano").keys)}
+  data-volcano-page-identities={JSON.stringify(cardPageCoordinator.cardDiagnostics("volcano").identities)}
+  data-volcano-page-host={cardPageCoordinator.diagnostics().cards.volcano.appearanceHost ?? ""}
+  data-volcano-page-mode={cardPageCoordinator.diagnostics().cards.volcano.mode}
   data-weather-warning-forecast-page={cardPageCoordinator.cardDiagnostics("weatherWarningForecast").page}
   data-weather-warning-forecast-page-keys={JSON.stringify(cardPageCoordinator.cardDiagnostics("weatherWarningForecast").keys)}
   data-weather-warning-forecast-page-identities={JSON.stringify(cardPageCoordinator.cardDiagnostics("weatherWarningForecast").identities)}
@@ -2115,6 +2133,11 @@
         {#if floodItem.surface === "clock-top-wide"}<FloodWideCard item={floodItem} partitionProbe={pagePartitionProbe("flood", "side", floodWideFixedHeightPx, "wide")} pagePlacement="side" measurementFixedHeightPx={floodWideFixedHeightPx} />{/if}
       </div>
     {/if}
+    {#if volcanoItem != null}
+      <div class="partition-preflight">
+        <VolcanoCard item={volcanoItem} pageScheduling={false} partitionProbe={pagePartitionProbe("volcano", "side")} pagePlacement="side" />
+      </div>
+    {/if}
     {#each prefixMeasureEntries.filter((entry) => entry.placement === "side") as entry (entry.id)}
       <div class="measure-item prefix-measure-item" data-prefix-measure={entry.id} data-page-probe-composition={entry.composition} data-prefix-rows={entry.end} data-page-probe={entry.purpose === "page" ? "true" : undefined} data-page-probe-fit={pageProbeFit(entry)} use:capturePrefixMeasure={entry.id}>{@render renderPrefixProbe(entry)}</div>
     {/each}
@@ -2144,6 +2167,11 @@
       <div class="flood-partition-preflight">
         <FloodCard item={floodItem} partitionProbe={pagePartitionProbe("flood", "center", 200, "compact")} pagePlacement="center" />
         {#if floodItem.surface === "clock-top-wide"}<FloodWideCard item={floodItem} partitionProbe={pagePartitionProbe("flood", "center", floodWideFixedHeightPx, "wide")} pagePlacement="center" measurementFixedHeightPx={floodWideFixedHeightPx} />{/if}
+      </div>
+    {/if}
+    {#if volcanoItem != null}
+      <div class="partition-preflight">
+        <VolcanoCard item={volcanoItem} pageScheduling={false} partitionProbe={pagePartitionProbe("volcano", "center")} pagePlacement="center" />
       </div>
     {/if}
     {#each prefixMeasureEntries.filter((entry) => entry.placement === "center") as entry (entry.id)}

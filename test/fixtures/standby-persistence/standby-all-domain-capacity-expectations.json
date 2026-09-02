@@ -1,0 +1,53 @@
+{
+  "schemaVersion": 1,
+  "fullFileByteLimit": 4194304,
+  "countMaximum": {
+    "weather:VPWS50": 129,
+    "weather:VPWW56": 128,
+    "tsunami:VTSE41": 512,
+    "tsunamiObservation:VTSE51": 1025,
+    "tsunamiObservation:VTSE52": 1025,
+    "volcano:volcanoAlert": 128,
+    "volcano:volcanoEruption": 128,
+    "volcano:volcanoAshfall": 128,
+    "floodForecast:floodForecast": 512,
+    "standby:tornado": 128,
+    "standby:heatAlert": 256,
+    "standby:typhoonAnalysis": 64,
+    "typhoonProbability:VPTA50": 256,
+    "weatherWarningTimeseries:VPWP50": 512,
+    "standby:nankaiTrough": 1,
+    "standby:lgObservation": 256,
+    "standby:briefingCritical.activeAndCancellation": 128,
+    "standby:briefingCritical.watermark": 512,
+    "standby:briefingCritical.rawAlias": 512,
+    "standby:quakeHost": 1
+  },
+  "fixtures": {
+    "all-domains-count-maximum": {
+      "expectedAdmission": "atomic-rejection-if-over-byte-limit",
+      "truncationAllowed": false,
+      "logicalGeneration": "18446744073709551615",
+      "savedAt": "+275760-09-13T00:00:00.000Z",
+      "bytes": {
+        "v2File": 5828167,
+        "v1File": 1480365,
+        "v2VolcanoSubtree": 1114646,
+        "v1VolcanoSubtree": 418070
+      }
+    },
+    "all-domains-max-admissible": {
+      "expectedAdmission": "commit-and-lossless-reload",
+      "v2MaximumBytes": 4194304,
+      "v1MaximumBytes": 4194304,
+      "logicalGeneration": "18446744073709551615",
+      "savedAt": "+275760-09-13T00:00:00.000Z",
+      "bytes": {
+        "v2File": 3999117,
+        "v1File": 922322,
+        "v2VolcanoSubtree": 963366,
+        "v1VolcanoSubtree": 388282
+      }
+    }
+  }
+}

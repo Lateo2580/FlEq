@@ -36,6 +36,11 @@ export interface PersistedVpww56StateV2 {
   pendingSubjects?: string[];
 }
 
+export interface Vpww56StateSnapshot {
+  version: number;
+  state: PersistedVpww56StateV2;
+}
+
 /** project-event の ticker group と同じ `(type, publishingOffice)` 粒度。 */
 export function vpww56StateSubjectKey(
   type: string,
@@ -59,6 +64,36 @@ export class Vpww56StateHolder {
   private readonly pendingSubjects = new Set<string>();
   private unionCache: Vpws50CurrentAreasForDisplay | undefined;
   private unionCacheValid = false;
+  private ownerVersion = 0;
+  private ownerFingerprint: string | null = null;
+
+  private refreshVersion(): void {
+    const next = JSON.stringify(this.exportPersistedState());
+    if (this.ownerFingerprint != null && this.ownerFingerprint !== next) this.ownerVersion += 1;
+    this.ownerFingerprint = next;
+  }
+
+  version(): number { this.refreshVersion(); return this.ownerVersion; }
+
+  cloneSnapshot(): Vpww56StateSnapshot {
+    this.refreshVersion();
+    return { version: this.ownerVersion, state: structuredClone(this.exportPersistedState()) };
+  }
+
+  static fromSnapshot(snapshot: Vpww56StateSnapshot): Vpww56StateHolder {
+    const holder = new Vpww56StateHolder();
+    holder.loadSnapshot(snapshot, false);
+    return holder;
+  }
+
+  replacePrevalidated(snapshot: Vpww56StateSnapshot): void { this.loadSnapshot(snapshot, true); }
+
+  private loadSnapshot(snapshot: Vpww56StateSnapshot, commit: boolean): void {
+    this.restorePersistedState(structuredClone(snapshot.state));
+    this.ownerVersion = commit ? this.ownerVersion + 1 : snapshot.version;
+    this.ownerFingerprint = null;
+    this.refreshVersion();
+  }
 
   applyAccepted(info: ParsedWeatherWarning, subjectKey: string): void {
     this.pendingSubjects.delete(subjectKey);
@@ -113,7 +148,7 @@ export class Vpww56StateHolder {
     return [...this.pendingSubjects];
   }
 
-  retainActiveSubjects(subjectKeys: readonly string[]): void {
+  retainActiveSubjects(subjectKeys: readonly string[]): boolean {
     const retained = new Set(subjectKeys);
     let changed = false;
     for (const subjectKey of this.streams.keys()) {
@@ -123,9 +158,13 @@ export class Vpww56StateHolder {
       }
     }
     for (const subjectKey of this.pendingSubjects) {
-      if (!retained.has(subjectKey)) this.pendingSubjects.delete(subjectKey);
+      if (!retained.has(subjectKey)) {
+        this.pendingSubjects.delete(subjectKey);
+        changed = true;
+      }
     }
     if (changed) this.unionCacheValid = false;
+    return changed;
   }
 
   exportPersistedState(): PersistedVpww56StateV2 {

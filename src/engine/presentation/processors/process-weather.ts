@@ -4,13 +4,106 @@ import { parseWeatherWarning } from "../../../dmdata/weather-parser";
 import { weatherFrameLevel, weatherSoundLevel } from "../level-helpers";
 import type { ProcessDeps } from "./process-message";
 import * as log from "../../../logger";
-import type { WeatherReportIdentity } from "../../messages/vpws50-state";
+import { Vpws50StateHolder, type WeatherReportIdentity } from "../../messages/vpws50-state";
+import { Vpww56StateHolder } from "../../messages/vpww56-state";
 import { weatherRevisionFamilyPolicy } from "../../messages/revision-family-registry";
-import { semanticPayloadFingerprint } from "../../messages/telegram-revision-gate";
+import { semanticPayloadFingerprint, TelegramRevisionGate } from "../../messages/telegram-revision-gate";
 import { isVpws50StateHeadType } from "../../messages/weather-stream-key";
+import { StandbyStateStore } from "../../display/standby-state-store";
+import { weatherAlertsFromVpws50, weatherAlertsFromVpww56 } from "../../display/weather-alert-view";
+import { sweepStandbyBeforeAdmission } from "../../display/standby-persistence-admission";
 
 /** processWeather の戻り値。抑制とパース失敗を呼び出し側で区別する。 */
 export type WeatherProcessResult = SuppressibleProcessResult<WeatherOutcome>;
+
+type WeatherProcessDeps = Pick<
+  ProcessDeps,
+  "vpws50State" | "vpww56State" | "revisionGate" | "onRevisionDecision"
+  | "onVpws50RevisionDecision" | "onVpww56RevisionDecision" | "persistenceAdmission"
+>;
+
+/** Run the complete gate/holder/standby mutation on scratch owners before publish. */
+function processWeatherWithAdmission(
+  msg: WsDataMessage,
+  deps: WeatherProcessDeps,
+): WeatherProcessResult {
+  const coordinator = deps.persistenceAdmission!;
+  const key = msg.head.type === "VPWW56" ? "weather:VPWW56" : "weather:VPWS50";
+  const parsed = parseWeatherWarning(msg);
+  if (parsed == null) return { kind: "parse-failed" };
+  if (!sweepStandbyBeforeAdmission(coordinator, key, parsed.meta.receivedAtMs)) {
+    return { kind: "suppressed" };
+  }
+  const touched = key === "weather:VPWW56"
+    ? ["telegramRevisionGate", "standbyStateStore", "vpww56State"] as const
+    : ["telegramRevisionGate", "standbyStateStore", "vpws50State"] as const;
+  const callbacks: Array<() => void> = [];
+  const transaction = coordinator.transact(key, touched, (draft) => {
+    const gate = TelegramRevisionGate.fromSnapshot(draft.telegramRevisionGate);
+    const vpws50 = Vpws50StateHolder.fromSnapshot(draft.vpws50State);
+    const vpww56 = Vpww56StateHolder.fromSnapshot(draft.vpww56State);
+    const result = processWeather(msg, {
+      vpws50State: vpws50,
+      vpww56State: vpww56,
+      revisionGate: gate,
+      onRevisionDecision: deps.onRevisionDecision == null
+        ? undefined
+        : (decision) => callbacks.push(() => deps.onRevisionDecision!(decision)),
+      onVpws50RevisionDecision: deps.onVpws50RevisionDecision == null
+        ? undefined
+        : (decision) => callbacks.push(() => deps.onVpws50RevisionDecision!(decision)),
+      onVpww56RevisionDecision: deps.onVpww56RevisionDecision == null
+        ? undefined
+        : (decision) => callbacks.push(() => deps.onVpww56RevisionDecision!(decision)),
+      persistenceAdmission: undefined,
+    });
+    draft.telegramRevisionGate = gate.cloneSnapshot();
+    draft.vpws50State = vpws50.cloneSnapshot();
+    draft.vpww56State = vpww56.cloneSnapshot();
+
+    if (result.kind === "ok" && result.outcome.presentation.weatherStateMutationAccepted === true) {
+      const standby = StandbyStateStore.fromSnapshot(draft.standbyStateStore);
+      const info = result.outcome.parsed;
+      const nowMs = info.meta.receivedAtMs;
+      if (isVpws50StateHeadType(msg.head.type)) {
+        const activeIdentity = info.meta.infoType.value === "取消"
+          ? vpws50.getCurrentIdentity()
+          : null;
+        const reportDateTime = activeIdentity?.reportDateTime ?? info.reportDateTime;
+        standby.applyWeatherAlerts(
+          "vpws50",
+          weatherAlertsFromVpws50(vpws50.getCurrentAreasForDisplay(), reportDateTime),
+          reportDateTime,
+          activeIdentity?.serial ?? msg.xmlReport?.head.serial ?? null,
+          nowMs,
+          info.meta.infoType.value === "訂正",
+        );
+      } else if (msg.head.type === "VPWW56") {
+        const activeRevision = result.outcome.presentation.weatherStateRevision;
+        const reportDateTime = activeRevision?.reportDateTime ?? info.reportDateTime;
+        standby.applyWeatherAlerts(
+          "vpww56",
+          weatherAlertsFromVpww56(vpww56.getCurrentAreasForDisplay(), reportDateTime),
+          reportDateTime,
+          activeRevision?.serial ?? msg.xmlReport?.head.serial ?? null,
+          nowMs,
+          info.meta.infoType.value === "訂正",
+        );
+      }
+      draft.standbyStateStore = standby.cloneSnapshot();
+    }
+    return { kind: "accepted", value: result, durableChanged: true };
+  });
+  if (transaction.kind !== "committed") {
+    log.warn(`[standby-admission] key=${key} reason=${transaction.kind === "rejected" ? transaction.reason : "staleVersion"}`);
+    return { kind: "suppressed" };
+  }
+  for (const callback of callbacks) callback();
+  if (transaction.value.kind === "ok") {
+    transaction.value.outcome.presentation.standbyStateProjectionCommitted = true;
+  }
+  return transaction.value;
+}
 
 /**
  * 気象警報・注意報電文 (VPWW55-61, VPWS50) を処理し WeatherOutcome を返す。
@@ -29,8 +122,9 @@ export type WeatherProcessResult = SuppressibleProcessResult<WeatherOutcome>;
  */
 export function processWeather(
   msg: WsDataMessage,
-  deps?: Pick<ProcessDeps, "vpws50State" | "vpww56State" | "revisionGate" | "onRevisionDecision" | "onVpws50RevisionDecision" | "onVpww56RevisionDecision">,
+  deps?: WeatherProcessDeps,
 ): WeatherProcessResult {
+  if (deps?.persistenceAdmission != null) return processWeatherWithAdmission(msg, deps);
   const info = parseWeatherWarning(msg);
   if (!info) return { kind: "parse-failed" };
 

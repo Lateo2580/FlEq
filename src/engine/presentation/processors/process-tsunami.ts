@@ -13,10 +13,14 @@ import {
 } from "../../messages/revision-family-registry";
 import {
   semanticPayloadFingerprint,
+  TelegramRevisionGate,
   type TelegramRevisionGateInput,
 } from "../../messages/telegram-revision-gate";
 import type { ProcessDeps } from "./process-message";
 import { tsunamiFrameLevel, tsunamiSoundLevel } from "../level-helpers";
+import { TsunamiStateHolder } from "../../messages/tsunami-state";
+import * as log from "../../../logger";
+import { sweepStandbyBeforeAdmission } from "../../display/standby-persistence-admission";
 
 /** processTsunami の戻り値。抑制とパース失敗を呼び出し側で区別する。 */
 export type TsunamiProcessResult = SuppressibleProcessResult<TsunamiOutcome>;
@@ -24,10 +28,59 @@ export type TsunamiProcessResult = SuppressibleProcessResult<TsunamiOutcome>;
 type TsunamiProcessDeps = Pick<
   ProcessDeps,
   "tsunamiState" | "revisionGate" | "onRevisionDecision" | "onTsunamiRevisionDecision"
+  | "persistenceAdmission"
 > & {
   /** 起動時 REST が persisted watermark と重複した場合だけ holder を再構成する。 */
   restoreStateOnDuplicate?: boolean;
 };
+
+function processTsunamiWithAdmission(
+  msg: WsDataMessage,
+  deps: TsunamiProcessDeps,
+): TsunamiProcessResult {
+  const key = msg.head.type === "VTSE41"
+    ? "tsunami:VTSE41"
+    : msg.head.type === "VTSE51"
+      ? "tsunamiObservation:VTSE51"
+      : "tsunamiObservation:VTSE52";
+  const parsed = parseTsunamiTelegram(msg);
+  if (parsed == null) return { kind: "parse-failed" };
+  if (!sweepStandbyBeforeAdmission(
+    deps.persistenceAdmission!,
+    key,
+    parsed.meta.receivedAtMs,
+  )) return { kind: "suppressed" };
+  const callbacks: Array<() => void> = [];
+  const transaction = deps.persistenceAdmission!.transact(
+    key,
+    ["telegramRevisionGate", "tsunamiState"],
+    (draft) => {
+      const gate = TelegramRevisionGate.fromSnapshot(draft.telegramRevisionGate);
+      const state = TsunamiStateHolder.fromSnapshot(draft.tsunamiState);
+      const result = processTsunami(msg, {
+        tsunamiState: state,
+        revisionGate: gate,
+        onRevisionDecision: deps.onRevisionDecision == null
+          ? undefined
+          : (decision) => callbacks.push(() => deps.onRevisionDecision!(decision)),
+        onTsunamiRevisionDecision: deps.onTsunamiRevisionDecision == null
+          ? undefined
+          : (decision) => callbacks.push(() => deps.onTsunamiRevisionDecision!(decision)),
+        restoreStateOnDuplicate: deps.restoreStateOnDuplicate,
+        persistenceAdmission: undefined,
+      });
+      draft.telegramRevisionGate = gate.cloneSnapshot();
+      draft.tsunamiState = state.cloneSnapshot();
+      return { kind: "accepted", value: result, durableChanged: true };
+    },
+  );
+  if (transaction.kind !== "committed") {
+    log.warn(`[standby-admission] key=${key} reason=${transaction.kind === "rejected" ? transaction.reason : "staleVersion"}`);
+    return { kind: "suppressed" };
+  }
+  for (const callback of callbacks) callback();
+  return transaction.value;
+}
 
 function semanticTsunamiPayload(
   info: ParsedTsunamiInfo,
@@ -70,6 +123,7 @@ export function processTsunami(
   msg: WsDataMessage,
   deps: TsunamiProcessDeps,
 ): TsunamiProcessResult {
+  if (deps.persistenceAdmission != null) return processTsunamiWithAdmission(msg, deps);
   const parsed = parseTsunamiTelegram(msg);
   if (!parsed) return { kind: "parse-failed" };
 

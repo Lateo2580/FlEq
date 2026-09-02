@@ -1013,6 +1013,19 @@ describe("Phase 3B clearCurrent cancellation latch", () => {
       maxSubjects: policy.maxSubjects,
       allowMissingSerial: policy.allowMissingSerial,
       payloadFingerprint: semanticPayloadFingerprint(payload),
+      ...(policy.domain === "volcano" && policy.revisionFamily === "volcanoAlert"
+        ? { volcanoProvenance: { kind: "alert" as const, sourceFamily: "VFVO50" as const } }
+        : {}),
+      ...(policy.domain === "volcano" && policy.revisionFamily === "volcanoAshfall"
+        ? {
+            variantRank: 0 as const,
+            volcanoProvenance: {
+              kind: "ashfall" as const,
+              actualEventId: "event-1",
+              sourceType: "VFVO54" as const,
+            },
+          }
+        : {}),
     });
     expect(gate.decide(input("発表", "1", "active")).accepted).toBe(true);
     expect(gate.decide(input("取消", "2", "cancel")).kind).toBe("clearCurrent");

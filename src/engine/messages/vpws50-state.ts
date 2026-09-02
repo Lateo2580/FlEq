@@ -129,6 +129,11 @@ export interface PersistedVpws50StateV2 {
   lastSuccessfulFullDisplayAt: string | null;
 }
 
+export interface Vpws50StateSnapshot {
+  version: number;
+  state: PersistedVpws50StateV2;
+}
+
 function serializeSnapshot(snapshot: Snapshot): PersistedVpws50SnapshotV2 {
   return {
     generation: VPWS50_SNAPSHOT_GENERATION,
@@ -646,6 +651,36 @@ function hasWarningOrHigher(snap: Snapshot | null): boolean {
 }
 
 export class Vpws50StateHolder implements DetailProvider<"vpws50"> {
+  private ownerVersion = 0;
+  private ownerFingerprint: string | null = null;
+
+  private refreshOwnerVersion(): void {
+    const next = JSON.stringify(this.exportPersistedState());
+    if (this.ownerFingerprint != null && this.ownerFingerprint !== next) this.ownerVersion += 1;
+    this.ownerFingerprint = next;
+  }
+
+  version(): number { this.refreshOwnerVersion(); return this.ownerVersion; }
+
+  cloneSnapshot(): Vpws50StateSnapshot {
+    this.refreshOwnerVersion();
+    return { version: this.ownerVersion, state: structuredClone(this.exportPersistedState()) };
+  }
+
+  static fromSnapshot(snapshot: Vpws50StateSnapshot): Vpws50StateHolder {
+    const holder = new Vpws50StateHolder();
+    holder.loadSnapshot(snapshot, false);
+    return holder;
+  }
+
+  replacePrevalidated(snapshot: Vpws50StateSnapshot): void { this.loadSnapshot(snapshot, true); }
+
+  private loadSnapshot(snapshot: Vpws50StateSnapshot, commit: boolean): void {
+    this.restorePersistedState(structuredClone(snapshot.state));
+    this.ownerVersion = commit ? this.ownerVersion + 1 : snapshot.version;
+    this.ownerFingerprint = null;
+    this.refreshOwnerVersion();
+  }
   readonly category = "vpws50";
   readonly emptyMessage = "VPWS50 の最新電文を受信していません";
 
@@ -870,6 +905,34 @@ export class Vpws50StateHolder implements DetailProvider<"vpws50"> {
       }
     }
     this.trimPartialSubjects();
+  }
+
+  /**
+   * Runtime sweep coupling for the complete VPWS50 family.  Unlike the
+   * migration helper above, an expired durable gate cannot keep a restored
+   * stream pending indefinitely.
+   */
+  retainActiveSubjects(subjectKeys: readonly string[]): boolean {
+    const before = JSON.stringify(this.exportPersistedState());
+    const retained = new Set(subjectKeys);
+    if (!retained.has("weather:vpws50")) {
+      this.current = null;
+      this.currentMessageId = null;
+      this.currentIdentity = null;
+      this.history = [];
+      this.lastSuccessfulFullDisplayAt = null;
+    }
+    for (const subjectKey of [...this.partialStreams.keys()]) {
+      if (!retained.has(subjectKey)) this.partialStreams.delete(subjectKey);
+    }
+    for (const subjectKey of [...this.partialHistory.keys()]) {
+      if (!retained.has(subjectKey)) this.partialHistory.delete(subjectKey);
+    }
+    for (const subjectKey of [...this.restoredPartialSubjects]) {
+      if (!retained.has(subjectKey)) this.restoredPartialSubjects.delete(subjectKey);
+    }
+    this.trimPartialSubjects();
+    return before !== JSON.stringify(this.exportPersistedState());
   }
 
   /** 容量判断は gate の印ではなく、holder に現存する部分警報で行う。 */

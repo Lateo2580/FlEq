@@ -14,6 +14,14 @@ export interface RevisionGuardDeps {
   monotonicNow?: () => number;
 }
 
+export interface RevisionGuardSnapshot {
+  seen: Array<[string, {
+    revision: StandbyRevision;
+    forgetAtMs: number;
+    expiresAtMonotonicMs: number | null;
+  }]>;
+}
+
 export class RevisionGuard {
   private seen = new Map<string, {
     revision: StandbyRevision;
@@ -77,6 +85,14 @@ export class RevisionGuard {
 
   export(): PersistedSeenEntry[] {
     return [...this.seen].map(([key, entry]) => ({ key, revision: { ...entry.revision }, forgetAtMs: entry.forgetAtMs }));
+  }
+
+  cloneSnapshot(): RevisionGuardSnapshot {
+    return { seen: structuredClone([...this.seen]) };
+  }
+
+  replacePrevalidated(snapshot: RevisionGuardSnapshot): void {
+    this.seen = new Map(structuredClone(snapshot.seen));
   }
 
   restore(entries: PersistedSeenEntry[], nowMs: number): void {

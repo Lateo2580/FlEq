@@ -90,6 +90,10 @@ import { EewEventLogger } from "../../src/engine/eew/eew-logger";
 import { AppConfig, DEFAULT_CONFIG } from "../../src/types";
 import { TelegramStats } from "../../src/engine/messages/telegram-stats";
 import * as themeModule from "../../src/ui/theme";
+import type {
+  ResolveOperationalV2AlertOmissionResult,
+  VolcanoRepairAdministration,
+} from "../../src/engine/messages/volcano-transaction-coordinator";
 
 const mockListEarthquakes = vi.mocked(listEarthquakes);
 const mockListContracts = vi.mocked(listContracts);
@@ -800,6 +804,101 @@ describe("ReplHandler", () => {
       expect(output).toContain("電文統計");
 
       handler.stop();
+    });
+  });
+
+  describe("volcanorepair コマンド", () => {
+    const fingerprint = `sha256:${"a".repeat(64)}`;
+
+    function administration(
+      result: ResolveOperationalV2AlertOmissionResult = {
+        kind: "committed",
+        resolutionId: `sha256:${"b".repeat(64)}`,
+      },
+    ): VolcanoRepairAdministration & {
+      status: ReturnType<typeof vi.fn>;
+      resolveOperationalV2AlertOmission: ReturnType<typeof vi.fn>;
+    } {
+      return {
+        status: vi.fn(() => [{
+          omissionFingerprint: fingerprint,
+          scope: "volcano" as const,
+          volcanoCode: "506",
+          lastKnownComparison: null,
+          actions: ["acceptCurrent" as const, "clearCurrent" as const],
+          expectedRuntimeVersion: 7,
+        }]),
+        resolveOperationalV2AlertOmission: vi.fn(() => result),
+      };
+    }
+
+    function repairHandler(admin: VolcanoRepairAdministration): ReplHandler {
+      return new ReplHandler(
+        createConfig(),
+        createMockWsManager(),
+        new Notifier(),
+        new EewEventLogger(),
+        vi.fn(),
+        new TelegramStats(),
+        [],
+        [],
+        undefined,
+        undefined,
+        undefined,
+        admin,
+      );
+    }
+
+    it("status は fingerprint・scope・comparison・version だけを表示する", () => {
+      const admin = administration();
+      const handler = repairHandler(admin);
+      handler.start();
+
+      simulateLine("volcanorepair status");
+
+      const output = consoleSpy.mock.calls.map((call) => String(call[0])).join("\n");
+      expect(output).toContain("code=506");
+      expect(output).toContain("comparison=unknown");
+      expect(output).toContain(`fingerprint=${fingerprint}`);
+      expect(output).toContain("version=7");
+      expect(output).not.toContain("sourceEventId");
+      handler.stop();
+    });
+
+    it("accept は status と同じ version で facade を一度だけ呼び committed だけ成功表示する", () => {
+      const admin = administration();
+      const handler = repairHandler(admin);
+      handler.start();
+
+      simulateLine(`volcanorepair accept ${fingerprint} 現況を確認済み`);
+
+      expect(admin.status).toHaveBeenCalledTimes(1);
+      expect(admin.resolveOperationalV2AlertOmission).toHaveBeenCalledWith({
+        omissionFingerprint: fingerprint,
+        action: "acceptCurrent",
+        reason: "現況を確認済み",
+        expectedRuntimeVersion: 7,
+      });
+      const output = consoleSpy.mock.calls.map((call) => String(call[0])).join("\n");
+      expect(output).toContain("火山 provenance 修復を記録しました");
+      handler.stop();
+    });
+
+    it("stale/admission reject と scope 不一致は成功表示しない", () => {
+      for (const kind of ["staleVersion", "admissionRejected", "invalidAction"] as const) {
+        consoleSpy.mockClear();
+        const admin = administration({ kind });
+        const handler = repairHandler(admin);
+        handler.start();
+
+        simulateLine(`volcanorepair clear ${fingerprint} reject-${kind}`);
+
+        const output = consoleSpy.mock.calls.map((call) => String(call[0])).join("\n");
+        expect(output).toContain(`適用されませんでした (${kind})`);
+        expect(String(consoleSpy.mock.calls.at(-1)?.[0]))
+          .toContain(`適用されませんでした (${kind})`);
+        handler.stop();
+      }
     });
   });
 

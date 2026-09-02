@@ -40,6 +40,16 @@ export interface TsunamiObservationGroups {
   VTSE52: TsunamiObservationStation[];
 }
 
+export interface TsunamiStateSnapshot {
+  version: number;
+  currentLevel: TsunamiLevelLabel | null;
+  lastInfo: ParsedTsunamiInfo | null;
+  keyedForecasts: Array<[string, { eventId: string; item: TsunamiForecastItem }]>;
+  eventInfos: Array<[string, ParsedTsunamiInfo]>;
+  legacyRestoredInfo: ParsedTsunamiInfo | null;
+  observationGroups: TsunamiObservationGroups;
+}
+
 function emptyObservationGroups(): TsunamiObservationGroups {
   return { VTSE51: [], VTSE52: [] };
 }
@@ -86,6 +96,61 @@ export class TsunamiStateHolder
   private eventInfos = new Map<string, ParsedTsunamiInfo>();
   private legacyRestoredInfo: ParsedTsunamiInfo | null = null;
   private observationGroups = emptyObservationGroups();
+  private ownerVersion = 0;
+  private ownerFingerprint: string | null = null;
+
+  private refreshVersion(): void {
+    const next = JSON.stringify({
+      currentLevel: this.currentLevel,
+      lastInfo: this.lastInfo,
+      keyedForecasts: [...this.keyedForecasts],
+      eventInfos: [...this.eventInfos],
+      legacyRestoredInfo: this.legacyRestoredInfo,
+      observationGroups: this.observationGroups,
+    });
+    if (this.ownerFingerprint != null && this.ownerFingerprint !== next) this.ownerVersion += 1;
+    this.ownerFingerprint = next;
+  }
+
+  version(): number {
+    this.refreshVersion();
+    return this.ownerVersion;
+  }
+
+  cloneSnapshot(): TsunamiStateSnapshot {
+    this.refreshVersion();
+    return structuredClone({
+      version: this.ownerVersion,
+      currentLevel: this.currentLevel,
+      lastInfo: this.lastInfo,
+      keyedForecasts: [...this.keyedForecasts],
+      eventInfos: [...this.eventInfos],
+      legacyRestoredInfo: this.legacyRestoredInfo,
+      observationGroups: this.observationGroups,
+    });
+  }
+
+  static fromSnapshot(snapshot: TsunamiStateSnapshot): TsunamiStateHolder {
+    const holder = new TsunamiStateHolder();
+    holder.loadSnapshot(snapshot, false);
+    return holder;
+  }
+
+  replacePrevalidated(snapshot: TsunamiStateSnapshot): void {
+    this.loadSnapshot(snapshot, true);
+  }
+
+  private loadSnapshot(snapshot: TsunamiStateSnapshot, commit: boolean): void {
+    this.currentLevel = snapshot.currentLevel;
+    this.lastInfo = structuredClone(snapshot.lastInfo);
+    this.keyedForecasts = new Map(structuredClone(snapshot.keyedForecasts));
+    this.eventInfos = new Map(structuredClone(snapshot.eventInfos));
+    this.legacyRestoredInfo = structuredClone(snapshot.legacyRestoredInfo);
+    this.observationGroups = structuredClone(snapshot.observationGroups);
+    this.ownerVersion = commit ? this.ownerVersion + 1 : snapshot.version;
+    this.ownerFingerprint = null;
+    this.refreshVersion();
+  }
 
   /** 現在の警報レベルを返す (テスト用) */
   getLevel(): TsunamiLevelLabel | null {
@@ -357,6 +422,32 @@ export class TsunamiStateHolder
         (info.forecast ?? []).map((item) => item.kind),
       ) != null)
       .map(([eventId]) => eventId);
+  }
+
+  /** Remove VTSE41 holder content whose durable family subject has expired. */
+  retainActiveEventIds(eventIds: readonly string[]): boolean {
+    const retained = new Set(eventIds);
+    const before = JSON.stringify({
+      keyedForecasts: [...this.keyedForecasts],
+      eventInfos: [...this.eventInfos],
+      legacyRestoredInfo: this.legacyRestoredInfo,
+    });
+    for (const [key, entry] of [...this.keyedForecasts]) {
+      if (!retained.has(entry.eventId)) this.keyedForecasts.delete(key);
+    }
+    for (const eventId of [...this.eventInfos.keys()]) {
+      if (!retained.has(eventId)) this.eventInfos.delete(eventId);
+    }
+    const legacyId = this.legacyRestoredInfo == null
+      ? null
+      : tsunamiEventId(this.legacyRestoredInfo);
+    if (legacyId != null && !retained.has(legacyId)) this.legacyRestoredInfo = null;
+    this.rebuildActiveState();
+    return before !== JSON.stringify({
+      keyedForecasts: [...this.keyedForecasts],
+      eventInfos: [...this.eventInfos],
+      legacyRestoredInfo: this.legacyRestoredInfo,
+    });
   }
 
   /** holder 全体を明示的にリセットする。 */

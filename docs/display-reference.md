@@ -1380,6 +1380,20 @@ NO_COLOR snapshot (`VFVO60-plume @ standard=140`) からの逐語転記。風向
 
 VFVO54（速報）は period 数が最大1、VFVO55（詳細）・VFVO53（定時）は複数期間になり得るが、いずれも同じ engine テーブルを使う（期間数の違いのみ）。
 
+VFVO54/VFVO55 は CLI の一過性表示に加えて、standby の火山カードへ durable な compact projection を保存する。火山ごとに forecast end、ash／ballistic 別の最悪 code、上位3地域、地域・group omission 数を保持し、同一 EventID では詳細（VFVO55）が速報（VFVO54）より優先される。VFVO53 はこの permanent projection には入らない。
+
+### standby 火山カードの降灰表示
+
+| 項目 | 契約 |
+|------|------|
+| ヘッダー tone | alert／eruption／ashfall の最大値。降灰速報は warning、詳細は muted |
+| 期間表示 | forecast end を Asia/Tokyo で `YYYY年M月D日 HH:mmまで` と表示 |
+| 本文 | ash／ballistic group ごとに上位3地域を code 付きで表示し、省略地域・省略group数を明示 |
+| pager | 既存 volcano page coordinator に登録し、alert／eruption／ashfall を同じカード内で巡回 |
+| wire 上限 | ashfall slice は優先順に最大64件。カードが64 KiBを超える場合は低優先 sliceだけを除外し、`ashfallOmittedCount`を表示 |
+
+outer card の火山 entry、source EventID、tone、restored は ashfall detail の除外では削られない。alert／eruption／ashfall のいずれかが独立表示条件を満たす火山だけをカードへ投影する。
+
 ### 表示構成: 降灰予報バッチ (VFVO53 複数火山)
 
 VFVO53 は複数火山が1電文に含まれる場合、単発表示ではなくバッチ表示（行=火山）になる。
@@ -1468,12 +1482,15 @@ Display Studio ではバッチ variant は非対応（単発 variant のみプ�
 
 ### 火山状態管理 (VolcanoStateHolder)
 
-`VolcanoStateHolder` が alert 系電文 (VFVO50/VFSVii) の状態を追跡します。
+`VolcanoStateHolder` は generation 1 の canonical owner として、`volcanoCode` ごとに alert（VFVO50/VFVO51/VFSVii）、eruption（VFVO52/VFVO56）、ashfall（VFVO54/VFVO55）の三 sliceを一つの compositeで追跡する。
 
-- 複数火山の同時追跡に対応 (`volcanoCode` をキーとする Map)
-- 取消報・解除・Lv1継続 → エントリ削除（通常状態復帰）
-- REPL プロンプトに最もレベルの高い火山警報を表示
-- `detail volcano` コマンドで全継続中火山警報を一覧表示
+- 各 family と active composite は128件、compositeの canonical source EventIDは4096件が上限
+- 取消は対象 sliceだけを解除し、他の二 slice、revision、source lineageを維持
+- eruptionは発表から24時間、ashfallはforecast endまで保持し、sweep後のstandby／永続snapshotへ再出現させない
+- standbyはholderからだけ導出し、v2／v1 pair fileへlogical generation付きで保存
+- 起動時 repairは必要なVFVO50／VFVO54／VFVO55だけをREST取得し、WebSocket journalとcoverageを確認してlive stateへrebase
+- operational-v2由来で警報familyを確定できない状態はomissionとして保持し、local REPLの`volcanorepair status|accept|clear|acknowledge-domain`だけでfingerprint付き解決を監査記録する
+- REPLプロンプトには最もレベルの高い火山警報を表示し、`detail volcano`で継続中警報を一覧表示
 
 ---
 

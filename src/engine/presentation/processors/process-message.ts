@@ -1,10 +1,10 @@
 import type { WsDataMessage } from "../../../types";
-import type { ProcessOutcome } from "../types";
+import type { LegacyCounterpartOutcome, ProcessOutcome, ProcessOutcomeBase } from "../types";
 import type { EewTracker } from "../../eew/eew-tracker";
 import type { EewEventLogger } from "../../eew/eew-logger";
 import type { TsunamiStateHolder } from "../../messages/tsunami-state";
 import type { VolcanoStateHolder } from "../../messages/volcano-state";
-import type { Vpws50StateHolder } from "../../messages/vpws50-state";
+import { Vpws50StateHolder } from "../../messages/vpws50-state";
 import type { Vpww56StateHolder } from "../../messages/vpww56-state";
 import type { Vpwp50DetailCache } from "../../messages/vpwp50-detail-cache";
 import type { TornadoDetailProvider } from "../../messages/tornado-detail-provider";
@@ -63,7 +63,6 @@ import {
   type RevisionFamilyPolicy,
 } from "../../messages/revision-family-registry";
 import { processStandbyFoundation, standbyFoundationPresentation } from "./process-standby-foundation";
-import type { ProcessOutcomeBase } from "../types";
 import { nankaiBadgeAction } from "../../display/nankai-status";
 import { gateRawOutcome, gateTransientOutcome } from "./process-transient-foundation";
 import { weatherOfficeWatermarkKey } from "../../messages/weather-stream-key";
@@ -89,6 +88,16 @@ import {
   requireVptaRouterOwnerToken,
 } from "../../display/types";
 import * as log from "../../../logger";
+import type {
+  StandbyCandidateReducer,
+  StandbyDurableMutationKey,
+  StandbyPersistenceAdmissionCoordinator,
+} from "../../display/standby-persistence-admission";
+import { sweepStandbyBeforeAdmission } from "../../display/standby-persistence-admission";
+import { TelegramRevisionGate as ScratchTelegramRevisionGate } from "../../messages/telegram-revision-gate";
+import { StandbyStateStore } from "../../display/standby-state-store";
+import { toPresentationEvent } from "../events/to-presentation-event";
+import { weatherAlertsFromVpws50 } from "../../display/weather-alert-view";
 
 /** processMessage に必要な依存群 */
 export interface ProcessDeps {
@@ -104,6 +113,8 @@ export interface ProcessDeps {
   /** 指定河川洪水予報 (VXKO50-89 / VXSU50-59) の差分検出 state holder (Task 25b で dispatch を追加) */
   floodForecastState: FloodForecastStateHolder;
   revisionGate: TelegramRevisionGate;
+  /** Pair-persisted domains must commit through this all-owner admission boundary. */
+  persistenceAdmission?: StandbyPersistenceAdmissionCoordinator;
   onRevisionDecision?: (decision: TelegramRevisionDecision) => void;
   onVpws50RevisionDecision?: (decision: TelegramRevisionDecision) => void;
   onVpws50StateMutationAccepted?: () => void;
@@ -194,9 +205,248 @@ function gateStandbyOutcome<
   policy: RevisionFamilyPolicy<TParsed>,
   deps: ProcessDeps,
 ): TOutcome | null {
+  const durableKey: StandbyDurableMutationKey | null =
+    policy.domain === "tornado" && policy.revisionFamily === "tornado"
+      ? "standby:tornado"
+      : policy.domain === "heatAlert" && policy.revisionFamily === "VPFT50"
+        ? "standby:heatAlert"
+        : policy.domain === "typhoonAnalysis" && policy.revisionFamily === "typhoonAnalysis"
+          ? "standby:typhoonAnalysis"
+          : policy.domain === "weatherWarningTimeseries" && policy.revisionFamily === "VPWP50"
+            ? "weatherWarningTimeseries:VPWP50"
+          : policy.domain === "nankaiTrough" && policy.revisionFamily === "nankaiTrough"
+            ? "standby:nankaiTrough"
+            : policy.domain === "lgObservation" && policy.revisionFamily === "VXSE62"
+              ? "standby:lgObservation"
+              : null;
+  if (deps.persistenceAdmission != null && durableKey != null) {
+    const completionOwnsFamilySweep = durableKey === "weatherWarningTimeseries:VPWP50";
+    if (!completionOwnsFamilySweep && !sweepStandbyBeforeAdmission(
+      deps.persistenceAdmission,
+      durableKey,
+      outcome.parsed.meta.receivedAtMs,
+    )) return null;
+    const callbacks: Array<() => void> = [];
+    const completionCallbacks: Array<() => void> = [];
+    const reduce: StandbyCandidateReducer<{
+      result: ReturnType<typeof processStandbyFoundation<TParsed>>;
+      presentation: ReturnType<typeof standbyFoundationPresentation>;
+    }> = (draft) => {
+        const gate = ScratchTelegramRevisionGate.fromSnapshot(draft.telegramRevisionGate);
+        const standby = StandbyStateStore.fromSnapshot(draft.standbyStateStore);
+        const result = processStandbyFoundation(outcome.msg, outcome.parsed, policy, {
+          revisionGate: gate,
+          onRevisionDecision: deps.onRevisionDecision == null
+            ? undefined
+            : (decision) => callbacks.push(() => deps.onRevisionDecision!(decision)),
+          onStandbyRevisionDecision: deps.onStandbyRevisionDecision == null
+            ? undefined
+            : (decision, context) => {
+                const callback = () => deps.onStandbyRevisionDecision!(decision, context);
+                if (completionOwnsFamilySweep) completionCallbacks.push(callback);
+                else callbacks.push(callback);
+              },
+          activeWeatherWarningForecastSubjects: (nowMs) =>
+            standby.activeWeatherWarningForecastSubjects(nowMs),
+          maintainWeatherWarningForecastSubjects: (nowMs, subjects) =>
+            standby.maintainWeatherWarningForecastSubjects(nowMs, subjects),
+        });
+        draft.telegramRevisionGate = gate.cloneSnapshot();
+        const presentation = standbyFoundationPresentation(result);
+        let projectionDurableChanged = false;
+        if (result.kind !== "suppressed") {
+          const candidate = {
+            ...outcome,
+            presentation: { ...outcome.presentation, ...presentation },
+          } as TOutcome;
+          projectionDurableChanged = standby.applyEvent(
+            toPresentationEvent(candidate as unknown as ProcessOutcome),
+            outcome.parsed.meta.receivedAtMs,
+          ).durableChanged;
+        }
+        draft.standbyStateStore = standby.cloneSnapshot();
+        return {
+          kind: "accepted",
+          value: { result, presentation },
+          durableChanged: result.preAdmissionDurableChanged
+            || result.decision?.accepted === true
+            || projectionDurableChanged,
+        };
+      };
+    const transaction = completionOwnsFamilySweep
+      && deps.onStandbyRevisionDecision != null
+      ? deps.persistenceAdmission.transactDeferred(
+          durableKey,
+          ["telegramRevisionGate", "standbyStateStore"],
+          reduce,
+        )
+      : deps.persistenceAdmission.transact(
+          durableKey,
+          ["telegramRevisionGate", "standbyStateStore"],
+          reduce,
+        );
+    if (transaction.kind !== "committed") {
+      log.warn(`[standby-admission] key=${durableKey} reason=${transaction.kind === "rejected" ? transaction.reason : "staleVersion"}`);
+      return null;
+    }
+    for (const callback of completionCallbacks) callback();
+    for (const callback of callbacks) callback();
+    if (transaction.value.result.kind === "suppressed") return null;
+    Object.assign(outcome.presentation, transaction.value.presentation, {
+      standbyStateProjectionCommitted: true,
+    });
+    return outcome;
+  }
   const result = processStandbyFoundation(outcome.msg, outcome.parsed, policy, deps);
   if (result.kind === "suppressed") return null;
   Object.assign(outcome.presentation, standbyFoundationPresentation(result));
+  return outcome;
+}
+
+function gateDurablePresentationOutcome<
+  TParsed extends { meta: import("../../../types").TelegramMeta },
+  TOutcome extends ProcessOutcomeBase & { parsed: TParsed },
+>(
+  outcome: TOutcome,
+  policy: RevisionFamilyPolicy<TParsed>,
+  key: "standby:briefingCritical" | "standby:quakeHost",
+  deps: ProcessDeps,
+): TOutcome | null {
+  if (deps.persistenceAdmission == null) return gateTransientOutcome(outcome, policy, deps);
+  if (!sweepStandbyBeforeAdmission(
+    deps.persistenceAdmission,
+    key,
+    outcome.parsed.meta.receivedAtMs,
+  )) return null;
+  const callbacks: Array<() => void> = [];
+  const transaction = deps.persistenceAdmission.transact(
+    key,
+    ["telegramRevisionGate", "standbyStateStore"],
+    (draft) => {
+      const gate = ScratchTelegramRevisionGate.fromSnapshot(draft.telegramRevisionGate);
+      const standby = StandbyStateStore.fromSnapshot(draft.standbyStateStore);
+      const candidate = {
+        ...outcome,
+        presentation: { ...outcome.presentation },
+      } as TOutcome;
+      const gated = gateTransientOutcome(candidate, policy, {
+        revisionGate: gate,
+        onRevisionDecision: deps.onRevisionDecision == null
+          ? undefined
+          : (decision) => callbacks.push(() => deps.onRevisionDecision!(decision)),
+      });
+      draft.telegramRevisionGate = gate.cloneSnapshot();
+      let durableChanged = false;
+      if (gated != null) {
+        const mutation = standby.applyEvent(
+          toPresentationEvent(gated as unknown as ProcessOutcome),
+          outcome.parsed.meta.receivedAtMs,
+        );
+        durableChanged = mutation.durableChanged;
+      }
+      draft.standbyStateStore = standby.cloneSnapshot();
+      return { kind: "accepted", value: gated, durableChanged };
+    },
+  );
+  if (transaction.kind !== "committed") {
+    log.warn(`[standby-admission] key=${key} reason=${transaction.kind === "rejected" ? transaction.reason : "staleVersion"}`);
+    return null;
+  }
+  for (const callback of callbacks) callback();
+  if (transaction.value == null) return null;
+  Object.assign(outcome.presentation, transaction.value.presentation, {
+    standbyStateProjectionCommitted: true,
+  });
+  return outcome;
+}
+
+function gateVpno50EmergencyClear(
+  outcome: LegacyCounterpartOutcome,
+  deps: ProcessDeps,
+): LegacyCounterpartOutcome | null {
+  if (deps.persistenceAdmission == null) {
+    const gated = gateTransientOutcome(outcome, LEGACY_COUNTERPART_REVISION_FAMILY_POLICY, deps);
+    if (gated == null) return null;
+    const update = deps.vpws50State.clearEmergencyPartialAreas(
+      weatherOfficeWatermarkKey(gated.parsed.publishingOffice)!,
+      gated.parsed.areas.map((area) => area.code),
+      {
+        reportDateTime: gated.parsed.reportDateTime,
+        serial: gated.msg.xmlReport?.head.serial ?? null,
+      },
+    );
+    gated.presentation.weatherDiff = update.diff;
+    gated.presentation.weatherChangeDiff = update.displayDiff ?? undefined;
+    gated.presentation.weatherStateMutationAccepted = update.diff.confidence === "confirmed";
+    deps.onVpws50StateMutationAccepted?.();
+    return gated;
+  }
+
+  if (!sweepStandbyBeforeAdmission(
+    deps.persistenceAdmission,
+    "weather:VPWS50",
+    outcome.parsed.meta.receivedAtMs,
+  )) return null;
+  const callbacks: Array<() => void> = [];
+  const transaction = deps.persistenceAdmission.transact(
+    "weather:VPWS50",
+    ["telegramRevisionGate", "standbyStateStore", "vpws50State"],
+    (draft) => {
+      const gate = ScratchTelegramRevisionGate.fromSnapshot(draft.telegramRevisionGate);
+      const vpws50 = Vpws50StateHolder.fromSnapshot(draft.vpws50State);
+      const standby = StandbyStateStore.fromSnapshot(draft.standbyStateStore);
+      const candidate = {
+        ...outcome,
+        presentation: { ...outcome.presentation },
+      } as LegacyCounterpartOutcome;
+      const gated = gateTransientOutcome(candidate, LEGACY_COUNTERPART_REVISION_FAMILY_POLICY, {
+        revisionGate: gate,
+        onRevisionDecision: deps.onRevisionDecision == null
+          ? undefined
+          : (decision) => callbacks.push(() => deps.onRevisionDecision!(decision)),
+      });
+      let durableChanged = false;
+      if (gated != null) {
+        const update = vpws50.clearEmergencyPartialAreas(
+          weatherOfficeWatermarkKey(gated.parsed.publishingOffice)!,
+          gated.parsed.areas.map((area) => area.code),
+          {
+            reportDateTime: gated.parsed.reportDateTime,
+            serial: gated.msg.xmlReport?.head.serial ?? null,
+          },
+        );
+        gated.presentation.weatherDiff = update.diff;
+        gated.presentation.weatherChangeDiff = update.displayDiff ?? undefined;
+        gated.presentation.weatherStateMutationAccepted = update.diff.confidence === "confirmed";
+        durableChanged = gated.presentation.weatherStateMutationAccepted;
+        if (deps.onVpws50StateMutationAccepted != null) {
+          callbacks.push(() => deps.onVpws50StateMutationAccepted!());
+        }
+        const identity = vpws50.getCurrentIdentity();
+        const reportDateTime = identity?.reportDateTime ?? gated.parsed.reportDateTime;
+        standby.applyWeatherAlerts(
+          "vpws50",
+          weatherAlertsFromVpws50(vpws50.getCurrentAreasForDisplay(), reportDateTime),
+          reportDateTime,
+          identity?.serial ?? gated.msg.xmlReport?.head.serial ?? null,
+          gated.parsed.meta.receivedAtMs,
+        );
+      }
+      draft.telegramRevisionGate = gate.cloneSnapshot();
+      draft.vpws50State = vpws50.cloneSnapshot();
+      draft.standbyStateStore = standby.cloneSnapshot();
+      return { kind: "accepted", value: gated, durableChanged };
+    },
+  );
+  if (transaction.kind !== "committed") {
+    log.warn(`[standby-admission] key=weather:VPWS50 reason=${transaction.kind === "rejected" ? transaction.reason : "staleVersion"}`);
+    return null;
+  }
+  for (const callback of callbacks) callback();
+  if (transaction.value == null) return null;
+  Object.assign(outcome.presentation, transaction.value.presentation, {
+    standbyStateProjectionCommitted: true,
+  });
   return outcome;
 }
 
@@ -215,7 +465,14 @@ const PROCESSOR_TABLE = {
   },
   earthquake: (msg, deps, cat) => {
     const outcome = processEarthquake(msg);
-    return outcome == null ? processRaw(msg, cat) : gateTransientOutcome(outcome, EARTHQUAKE_REVISION_FAMILY_POLICY, deps);
+    return outcome == null
+      ? processRaw(msg, cat)
+      : gateDurablePresentationOutcome(
+          outcome,
+          EARTHQUAKE_REVISION_FAMILY_POLICY,
+          "standby:quakeHost",
+          deps,
+        );
   },
   seismicText: (msg, deps, cat) => {
     const outcome = processSeismicText(msg);
@@ -266,7 +523,14 @@ const PROCESSOR_TABLE = {
   },
   briefing: (msg, deps, cat) => {
     const outcome = processBriefing(msg);
-    return outcome == null ? processRaw(msg, cat) : gateTransientOutcome(outcome, BRIEFING_REVISION_FAMILY_POLICY, deps);
+    return outcome == null
+      ? processRaw(msg, cat)
+      : gateDurablePresentationOutcome(
+          outcome,
+          BRIEFING_REVISION_FAMILY_POLICY,
+          "standby:briefingCritical",
+          deps,
+        );
   },
   earlyWeather: (msg, deps, cat) => {
     const outcome = processEarlyWeather(msg);
@@ -338,6 +602,245 @@ const PROCESSOR_TABLE = {
       const outcome = createTyphoonProbabilityOutcomeBaseline(msg, parsed, canonicalInfoType.value);
       stage = "projector";
       const classification = projectTyphoonProbability(parsed, canonicalInfoType.value, classificationNowMs);
+
+      if (deps.persistenceAdmission != null) {
+        const durableKey = "typhoonProbability:VPTA50" as const;
+        if (deps.onVptaAdmissionCompletion == null) {
+          throw new Error("VPTA50 persistence completion is not configured");
+        }
+        const ownerToken = requireVptaRouterOwnerToken();
+        type CoordinatedVptaResult =
+          | {
+              kind: "suppressed";
+              decision: TelegramRevisionDecision;
+              changes: VptaDurableChangeFlags;
+            }
+          | {
+              kind: "accepted";
+              decision: TelegramRevisionDecision;
+              command: VptaDisplayIngestCommand;
+              finalized: ReturnType<typeof finalizeTyphoonProbabilityClassification>;
+              changes: VptaDurableChangeFlags;
+            };
+        const transaction = deps.persistenceAdmission.transactDeferred<CoordinatedVptaResult>(
+          durableKey,
+          ["telegramRevisionGate", "standbyStateStore"],
+          (draft) => {
+            const gate = ScratchTelegramRevisionGate.fromSnapshot(draft.telegramRevisionGate);
+            const standby = StandbyStateStore.fromSnapshot(draft.standbyStateStore);
+            const candidateChanges: VptaDurableChangeFlags = {
+              gateExpiry: gate.expireRevisionFamily(
+                "typhoonProbability",
+                "VPTA50",
+                classificationNowMs,
+                TYPHOON_PROBABILITY_RETENTION_MS,
+              ),
+              projectionCleanup: false,
+              incomingGate: false,
+              projectionOrRetention: false,
+            };
+            const gateActiveBefore = gate.activeRevisionFamilySubjects(
+              "typhoonProbability",
+              "VPTA50",
+            );
+            candidateChanges.projectionCleanup = standby.maintainTyphoonProbabilitySubjects(
+              classificationNowMs,
+              gateActiveBefore,
+            ).durableChanged;
+            const activeFamilySubjects = standby.activeTyphoonProbabilitySubjects(
+              classificationNowMs,
+            );
+            const validSubjects = [...new Set(activeFamilySubjects)];
+            if (validSubjects.length !== activeFamilySubjects.length
+              || validSubjects.some((subject, index) => {
+                if (!subject.startsWith("typhoonProbability:")) return true;
+                const id = subject.slice("typhoonProbability:".length);
+                return validateTyphoonProbabilityEventId(id) !== id
+                  || index > 0 && validSubjects[index - 1]! >= subject;
+              })) {
+              return { kind: "rejected", reason: "vpta50ProtectionSnapshotInvalid" };
+            }
+
+            const serial = normalizeVpta50Serial(parsed.meta.serial.raw);
+            if (serial.kind === "invalid") {
+              return { kind: "rejected", reason: "vpta50SerialCanonicalization" };
+            }
+            const gateMeta = {
+              ...parsed.meta,
+              serial: serial.kind === "missing"
+                ? { raw: null, numeric: null, valid: false }
+                : { raw: serial.canonicalRaw, numeric: serial.numeric, valid: true },
+              infoType: {
+                raw: canonicalInfoType.value,
+                value: canonicalInfoType.value,
+                valid: true,
+              },
+            };
+            const { meta: _meta, ...semanticPayload } = parsed;
+            const stateSubjectKey = `typhoonProbability:${eventId}`;
+            const candidateKind = classification.result.kind;
+            const gateInput: TelegramRevisionGateInput = {
+              domain: "typhoonProbability",
+              revisionFamily: "VPTA50",
+              stateSubjectKey,
+              meta: gateMeta,
+              comparator: "reportDateTimeThenSerial",
+              cancellationPolicy: "clearCurrent",
+              terminal: false,
+              deactivation: candidateKind === "cancel" || candidateKind === "deactivateAllZero",
+              cancellationTargetMatches: true,
+              durable: true,
+              tombstoneRetentionMs: TYPHOON_PROBABILITY_RETENTION_MS,
+              maxSubjects: TYPHOON_PROBABILITY_REVISION_FAMILY_POLICY.maxSubjects,
+              activeFamilySubjects: validSubjects,
+              allowMissingSerial: true,
+              fragmentMerge: false,
+              payloadFingerprint: semanticPayloadFingerprint({
+                ...semanticPayload,
+                eventId,
+                serial: serial.kind === "numeric" ? serial.canonicalRaw : null,
+                infoType: canonicalInfoType.value,
+              }),
+              legacyRevisionKey: eventId,
+              legacyRevisionKeyProvenance: "eventId",
+            };
+            const capacityPlan = gate.planTyphoonProbabilityCapacity(
+              gateInput,
+              candidateKind,
+            );
+            const gateResult = gate.decideTyphoonProbability(
+              gateInput,
+              candidateKind,
+              capacityPlan,
+            );
+            if (gateResult.kind === "suppressed") {
+              draft.telegramRevisionGate = gate.cloneSnapshot();
+              draft.standbyStateStore = standby.cloneSnapshot();
+              return {
+                kind: "accepted",
+                value: {
+                  kind: "suppressed" as const,
+                  decision: gateResult.decision,
+                  changes: candidateChanges,
+                },
+                durableChanged: vptaDurableChanged(candidateChanges),
+              };
+            }
+            const commit = gateResult.commit;
+            candidateChanges.incomingGate = true;
+            const expectedCancelled = candidateKind === "cancel"
+              || candidateKind === "deactivateAllZero";
+            if (
+              commit.cancelled !== expectedCancelled
+              || (canonicalInfoType.value === "取消") !== (candidateKind === "cancel")
+              || commit.comparison.revision.infoType.raw !== canonicalInfoType.value
+              || commit.comparison.revision.infoType.value !== canonicalInfoType.value
+            ) return { kind: "rejected", reason: "vpta50GateCommitInvariant" };
+            const finalized = finalizeTyphoonProbabilityClassification(
+              classification,
+              commit.binding.revision,
+              commit.binding.appliedSemanticKey,
+            );
+            const activeAfter = gate.activeRevisionFamilySubjects(
+              "typhoonProbability",
+              "VPTA50",
+            );
+            const command: VptaDisplayIngestCommand = {
+              domain: "typhoonProbability",
+              ownerToken,
+              finalized,
+              commit,
+              activeSubjects: Object.freeze([...activeAfter]),
+            };
+            const projected = standby.applyTyphoonProbabilityCommand(command);
+            const retained = standby.maintainTyphoonProbabilitySubjects(
+              classificationNowMs,
+              activeAfter,
+            );
+            candidateChanges.projectionOrRetention = projected.durableChanged
+              || retained.durableChanged;
+            draft.telegramRevisionGate = gate.cloneSnapshot();
+            draft.standbyStateStore = standby.cloneSnapshot();
+            return {
+              kind: "accepted",
+              value: {
+                kind: "accepted" as const,
+                decision: commit.decision,
+                command,
+                finalized,
+                changes: candidateChanges,
+              },
+              durableChanged: vptaDurableChanged(candidateChanges),
+            };
+          },
+        );
+        if (transaction.kind !== "committed") {
+          log.warn(
+            `[standby-admission] key=${durableKey} reason=${transaction.kind === "rejected" ? transaction.reason : "staleVersion"}`,
+          );
+          return null;
+        }
+        Object.assign(changes, transaction.value.changes);
+        if (transaction.durableChanged !== vptaDurableChanged(changes)) {
+          throw new Error("VPTA50 deferred durability invariant");
+        }
+        if (transaction.value.kind === "accepted") {
+          committed = true;
+          if (classification.result.kind === "expired"
+            || classification.result.kind === "nonProjectable") {
+            const reason = classification.result.kind === "expired"
+              ? "expired"
+              : classification.result.reason;
+            log.warn(
+              `[vpta50-admission] eventId=${eventId} reportTimeMs=${transaction.value.command.commit.binding.revision.reportTimeMs} serial=${transaction.value.command.commit.binding.revision.serial ?? "(missing)"} reason=${reason}`,
+            );
+          }
+        }
+        stage = "genericRevisionCallback";
+        deps.onRevisionDecision?.(transaction.value.decision);
+        deps.assertRouterSerializerHealthy?.();
+        stage = "standbyRevisionObserver";
+        deps.onVptaStandbyRevisionDecision?.(transaction.value.decision);
+        deps.assertRouterSerializerHealthy?.();
+        if (transaction.value.kind === "suppressed") {
+          const durableChanged = vptaDurableChanged(changes);
+          const completion: VptaAdmissionCompletion = durableChanged
+            ? {
+                kind: "suppressed", nowMs: classificationNowMs, durableChanged: true,
+                persistence: "deferred", changes: { ...changes },
+              }
+            : {
+                kind: "suppressed", nowMs: classificationNowMs, durableChanged: false,
+                persistence: "none", changes: { ...changes },
+              };
+          completionEmitted = true;
+          completeVptaAdmission(deps, completion);
+          return null;
+        }
+        stage = "notificationHolder";
+        const holderDiff = deps.typhoonProbabilityState.applyAcceptedClassification(
+          eventId,
+          transaction.value.finalized,
+        );
+        if (holderDiff.isUnchangedZero && !holderDiff.shouldRecap) {
+          outcome.presentation.soundLevel = "info";
+          outcome.presentation.suppressNotify = true;
+        }
+        stage = "outcomeBinding";
+        outcome.presentation.acceptedCorrection = transaction.value.decision.isCorrection;
+        outcome.presentation.standbyStateProjectionCommitted = true;
+        vptaInternalCommands.set(outcome, {
+          vptaDisplayCommand: transaction.value.command,
+          completion: {
+            kind: "accepted",
+            nowMs: classificationNowMs,
+            durableChanged: true,
+            persistence: "deferred",
+            changes: { ...changes },
+          },
+        });
+        return outcome;
+      }
 
       stage = "admissionGateExpiry";
       changes.gateExpiry = deps.revisionGate.expireRevisionFamily(
@@ -531,31 +1034,22 @@ const PROCESSOR_TABLE = {
   },
   legacyCounterpart: (msg, deps, cat) => {
     const outcome = processLegacyCounterpart(msg);
-    const gated = outcome == null
-      ? processRaw(msg, cat)
+    if (outcome == null) return processRaw(msg, cat);
+    const vpnoEmergencyClear = outcome.parsed.type === "VPNO50"
+      && outcome.parsed.publishingOffice.trim() !== ""
+      && outcome.parsed.areas.length > 0
+      && outcome.parsed.kinds.some((kind) => kind.code === "00" || kind.name === "解除");
+    if (vpnoEmergencyClear) return gateVpno50EmergencyClear(outcome, deps);
+    const gated = outcome.parsed.type === "VPOA50"
+      ? gateDurablePresentationOutcome(
+          outcome,
+          LEGACY_COUNTERPART_REVISION_FAMILY_POLICY,
+          "standby:briefingCritical",
+          deps,
+        )
       : gateTransientOutcome(outcome, LEGACY_COUNTERPART_REVISION_FAMILY_POLICY, deps);
     // VPNO50 は特別警報の終了通知であって、後続の警報内容を持たない。府県予報区の
     // 「解除」だけを同官署の受理済み VPWW55-61 overlay へ反映し、通常警報の権威は後続 VPWW55-61/VPWS50 に残す。
-    if (
-      gated?.domain === "legacyCounterpart"
-      && gated.parsed.type === "VPNO50"
-      && gated.parsed.publishingOffice.trim() !== ""
-      && gated.parsed.areas.length > 0
-      && gated.parsed.kinds.some((kind) => kind.code === "00" || kind.name === "解除")
-    ) {
-      const update = deps.vpws50State.clearEmergencyPartialAreas(
-        weatherOfficeWatermarkKey(gated.parsed.publishingOffice)!,
-        gated.parsed.areas.map((area) => area.code),
-        {
-          reportDateTime: gated.parsed.reportDateTime,
-          serial: gated.msg.xmlReport?.head.serial ?? null,
-        },
-      );
-      gated.presentation.weatherDiff = update.diff;
-      gated.presentation.weatherChangeDiff = update.displayDiff ?? undefined;
-      gated.presentation.weatherStateMutationAccepted = update.diff.confidence === "confirmed";
-      deps.onVpws50StateMutationAccepted?.();
-    }
     return gated;
   },
 } satisfies Record<LinearRoute, ProcessorAdapter>;

@@ -1,23 +1,47 @@
 import { testTelegramMeta } from "../helpers/telegram-meta";
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { restoreVolcanoState } from "../../src/engine/startup/volcano-initializer";
-import { VolcanoStateHolder } from "../../src/engine/messages/volcano-state";
+import {
+  fetchVolcanoHistoricalPaginationUnion,
+  proveVolcanoTypeCoverage,
+  repairVolcanoState,
+  restoreVolcanoState,
+  VolcanoRepairJournal,
+} from "../../src/engine/startup/volcano-initializer";
+import {
+  emptyVolcanoRepairState,
+  VOLCANO_MAX_SOURCE_EVENT_IDS_PER_COMPOSITE,
+  VolcanoStateHolder,
+} from "../../src/engine/messages/volcano-state";
+import { StandbyStateStore } from "../../src/engine/display/standby-state-store";
+import { StandbyPersistenceAdmissionCoordinator } from "../../src/engine/display/standby-persistence-admission";
+import { FloodForecastStateHolder } from "../../src/engine/messages/flood-forecast-state";
+import { TsunamiStateHolder } from "../../src/engine/messages/tsunami-state";
+import { VolcanoTransactionCoordinator } from "../../src/engine/messages/volcano-transaction-coordinator";
+import { Vpws50StateHolder } from "../../src/engine/messages/vpws50-state";
+import { Vpww56StateHolder } from "../../src/engine/messages/vpww56-state";
 import { createTelegramMeta } from "../../src/dmdata/telegram-meta";
+import { normalizeTelegramMessage } from "../../src/dmdata/telegram-ingress";
 import {
   volcanoRevisionFamilyPolicy,
 } from "../../src/engine/messages/revision-family-registry";
 import {
   semanticPayloadFingerprint,
+  telegramRevisionSemanticKey,
   TelegramRevisionGate,
   type TelegramRevisionGateInput,
 } from "../../src/engine/messages/telegram-revision-gate";
 import * as restClient from "../../src/dmdata/rest-client";
 import {
+  ParsedVolcanoAshfallInfo,
   ParsedVolcanoAlertInfo,
   TelegramListItem,
   TelegramListResponse,
   WsDataMessage,
 } from "../../src/types";
+import type {
+  WsSubscriptionAcknowledgement,
+  WsTransportIdentity,
+} from "../../src/dmdata/ws-client";
 
 // sound-player をモック
 vi.mock("../../src/engine/notification/sound-player", () => ({
@@ -153,6 +177,7 @@ function foundationInput(info: ParsedVolcanoAlertInfo): TelegramRevisionGateInpu
     maxSubjects: policy.maxSubjects,
     allowMissingSerial: policy.allowMissingSerial,
     payloadFingerprint: semanticPayloadFingerprint(payload),
+    volcanoProvenance: { kind: "alert", sourceFamily: "VFVO50" },
   };
 }
 
@@ -315,5 +340,440 @@ describe("restoreVolcanoState", () => {
     expect(await restoreVolcanoState("test-key", volcanoState, gate, true)).toBe("success");
 
     expect(volcanoState.getEntry("506")).toMatchObject({ alertLevel: 3 });
+  });
+});
+
+const REPAIR_NOW = Date.parse("2026-07-10T00:00:00.000Z");
+const REPAIR_RETENTION_MS = 24 * 60 * 60_000;
+const REPAIR_ACK: WsSubscriptionAcknowledgement = {
+  subscriptionGeneration: 1,
+  socketId: 42,
+  transportId: "socket:42:generation:1",
+  acknowledgedAtMs: REPAIR_NOW - 60_000,
+  classifications: ["telegram.volcano"],
+};
+
+function mockNormalizedAlertParser(): void {
+  mockParseVolcano.mockImplementation((msg: WsDataMessage) => {
+    const receivedAtMs = msg.meta?.receivedAtMs;
+    if (receivedAtMs == null) return null;
+    const reportDateTime = new Date(receivedAtMs).toISOString();
+    return createFoundationAlert(msg.id, reportDateTime, "1", {
+      meta: createTelegramMeta({
+        messageId: msg.id,
+        eventId: "volcano-506",
+        type: "VFVO50",
+        reportDateTime,
+        serial: "1",
+        infoType: "発表",
+        receivedAtMs,
+        status: "通常",
+        isTest: false,
+      }),
+    });
+  });
+}
+
+function repairItem(id: string, receivedTimeMs: number): TelegramListItem {
+  return createTelegramItem(id, new Date(receivedTimeMs).toISOString());
+}
+
+function repairAshfallItem(
+  id: string,
+  receivedTimeMs: number,
+  headType: "VFVO54" | "VFVO55",
+): TelegramListItem {
+  const item = repairItem(id, receivedTimeMs);
+  return { ...item, head: { ...item.head, type: headType } };
+}
+
+function createRepairAshfallCancellation(
+  id: string,
+  receivedTimeMs: number,
+): ParsedVolcanoAshfallInfo {
+  const reportDateTime = new Date(receivedTimeMs).toISOString();
+  return {
+    meta: createTelegramMeta({
+      messageId: id,
+      eventId: "volcano-506",
+      type: "VFVO54",
+      reportDateTime,
+      serial: "1",
+      infoType: "取消",
+      receivedAtMs: receivedTimeMs,
+      status: "通常",
+      isTest: false,
+    }),
+    domain: "volcano",
+    kind: "ashfall",
+    type: "VFVO54",
+    subKind: "rapid",
+    infoType: "取消",
+    title: "降灰予報（速報）",
+    reportDateTime,
+    eventDateTime: null,
+    headline: null,
+    publishingOffice: "気象庁",
+    volcanoName: "桜島",
+    volcanoCode: "506",
+    coordinate: null,
+    isTest: false,
+    craterName: null,
+    ashForecasts: [],
+    plumeHeight: null,
+    plumeDirection: null,
+    bodyText: "",
+  };
+}
+
+function liveRepairMessage(id: string, serverTimeMs: number, localTimeMs: number): WsDataMessage {
+  const item = repairItem(id, serverTimeMs);
+  return normalizeTelegramMessage({
+    type: "data",
+    version: "2.0",
+    classification: item.classification,
+    id: item.id,
+    passing: [],
+    head: item.head,
+    xmlReport: {
+      control: {
+        title: "火山",
+        dateTime: new Date(localTimeMs).toISOString(),
+        status: "通常",
+        editorialOffice: "気象庁",
+        publishingOffice: "気象庁",
+      },
+      head: {
+        title: "噴火警報・予報",
+        reportDateTime: new Date(localTimeMs).toISOString(),
+        targetDateTime: new Date(localTimeMs).toISOString(),
+        eventId: "volcano-506",
+        serial: "1",
+        infoType: "発表",
+        infoKind: "火山",
+        infoKindVersion: "1.0_0",
+        headline: null,
+      },
+    },
+    format: item.format,
+    compression: item.compression,
+    encoding: item.encoding,
+    body: item.body!,
+  }, localTimeMs).message;
+}
+
+describe("volcano REST repair coverage", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockNormalizedAlertParser();
+  });
+
+  it("includes the exact lower boundary and follows an opaque cursor until an older sentinel", async () => {
+    const boundary = REPAIR_NOW - REPAIR_RETENTION_MS;
+    const loadPage = vi.fn()
+      .mockResolvedValueOnce({
+        ...createResponse([
+          repairItem("newer", boundary + 1),
+          repairItem("boundary", boundary),
+        ]),
+        nextToken: "opaque-token",
+      })
+      .mockResolvedValueOnce(createResponse([
+        repairItem("older-sentinel", boundary - 1),
+      ]));
+
+    const result = await fetchVolcanoHistoricalPaginationUnion({
+      apiKey: "key",
+      headType: "VFVO50",
+      startupNowMs: REPAIR_NOW,
+      retentionMs: REPAIR_RETENTION_MS,
+      loadPage,
+    });
+
+    expect(result.pages).toBe(2);
+    expect(result.items.map((item) => item.itemId)).toEqual(["newer", "boundary"]);
+    expect(loadPage).toHaveBeenNthCalledWith(2, "key", {
+      type: "VFVO50",
+      limit: 100,
+      formatMode: "raw",
+      cursorToken: "opaque-token",
+    });
+  });
+
+  it("continues through an empty page and rejects repeated cursor tokens", async () => {
+    const loadPage = vi.fn()
+      .mockResolvedValueOnce({ ...createResponse([]), nextToken: "same-token" })
+      .mockResolvedValueOnce({ ...createResponse([]), nextToken: "same-token" });
+
+    await expect(fetchVolcanoHistoricalPaginationUnion({
+      apiKey: "key",
+      headType: "VFVO50",
+      startupNowMs: REPAIR_NOW,
+      retentionMs: REPAIR_RETENTION_MS,
+      loadPage,
+    })).rejects.toThrow("historicalNextTokenLoop");
+  });
+
+  it("rejects a historical response that exceeds the requested 100-item page", async () => {
+    const items = Array.from({ length: 101 }, (_, index) =>
+      repairItem(`history-${index}`, REPAIR_NOW - index));
+    await expect(fetchVolcanoHistoricalPaginationUnion({
+      apiKey: "key",
+      headType: "VFVO50",
+      startupNowMs: REPAIR_NOW,
+      retentionMs: REPAIR_RETENTION_MS,
+      loadPage: vi.fn().mockResolvedValue(createResponse(items)),
+    })).rejects.toThrow("historicalPageSizeExceeded");
+  });
+
+  it("rejects a head response that exceeds the requested 100-item page", async () => {
+    const items = Array.from({ length: 101 }, (_, index) =>
+      repairItem(`head-${index}`, REPAIR_NOW - index));
+    const journal = new VolcanoRepairJournal(REPAIR_ACK, ["vfvo50"]);
+    await expect(proveVolcanoTypeCoverage({
+      apiKey: "key",
+      headType: "VFVO50",
+      startupNowMs: REPAIR_NOW,
+      retentionMs: REPAIR_RETENTION_MS,
+      journal,
+      getAcknowledgement: () => REPAIR_ACK,
+      loadPage: vi.fn().mockResolvedValue(createResponse(items)),
+    })).rejects.toThrow("headPageLimitExceeded");
+  });
+
+  it("fails when the first relevant head item is absent from history and journal", async () => {
+    const head = repairItem("head-only", REPAIR_NOW - 1_000);
+    const loadPage = vi.fn()
+      .mockResolvedValueOnce(createResponse([head]))
+      .mockResolvedValueOnce(createResponse([]));
+    const journal = new VolcanoRepairJournal(REPAIR_ACK, ["vfvo50"]);
+
+    await expect(proveVolcanoTypeCoverage({
+      apiKey: "key",
+      headType: "VFVO50",
+      startupNowMs: REPAIR_NOW,
+      retentionMs: REPAIR_RETENTION_MS,
+      journal,
+      getAcknowledgement: () => REPAIR_ACK,
+      loadPage,
+    })).rejects.toThrow("lowerCoverageHeadGap");
+  });
+
+  it("refreshes journal evidence after each awaited head request", async () => {
+    const first = repairItem("first", REPAIR_NOW - 2_000);
+    const arrived = repairItem("arrived", REPAIR_NOW - 1_000);
+    const journal = new VolcanoRepairJournal(REPAIR_ACK, ["vfvo50"]);
+    const localReceipt = REPAIR_NOW + 30_000;
+    const transport: WsTransportIdentity = { ...REPAIR_ACK, receivedAtMs: localReceipt };
+    let call = 0;
+    const loadPage = vi.fn(async () => {
+      call += 1;
+      if (call === 1) return createResponse([first]);
+      if (call === 2) return createResponse([first]);
+      if (call === 3) {
+        expect(journal.record(
+          liveRepairMessage("arrived", REPAIR_NOW - 1_000, localReceipt),
+          transport,
+        )).toEqual({ kind: "recorded" });
+      }
+      return createResponse([arrived, first]);
+    });
+
+    await expect(proveVolcanoTypeCoverage({
+      apiKey: "key",
+      headType: "VFVO50",
+      startupNowMs: REPAIR_NOW,
+      retentionMs: REPAIR_RETENTION_MS,
+      journal,
+      getAcknowledgement: () => REPAIR_ACK,
+      loadPage,
+    })).resolves.toMatchObject({ headSamples: 3 });
+  });
+
+  it("fails target proof on an invalid journal transport ID without parsing it", () => {
+    const journal = new VolcanoRepairJournal(REPAIR_ACK, ["vfvo50"]);
+    const localReceipt = REPAIR_NOW + 1;
+    const message = liveRepairMessage("valid-id", REPAIR_NOW, localReceipt);
+    const invalid = { ...message, id: "bad\nid", meta: { ...message.meta!, messageId: "bad\nid" } };
+    mockParseVolcano.mockClear();
+
+    expect(journal.record(invalid, { ...REPAIR_ACK, receivedAtMs: localReceipt })).toEqual({
+      kind: "proofFailed",
+      target: "vfvo50",
+      reason: "targetTransportInvalid",
+    });
+    expect(mockParseVolcano).not.toHaveBeenCalled();
+  });
+
+  it("uses the first journal sequence and fails an inconsistent repeated transport ID", () => {
+    const journal = new VolcanoRepairJournal(REPAIR_ACK, ["vfvo50"]);
+    const localReceipt = REPAIR_NOW + 1;
+    const transport: WsTransportIdentity = { ...REPAIR_ACK, receivedAtMs: localReceipt };
+    const message = liveRepairMessage("repeat-id", REPAIR_NOW, localReceipt);
+
+    expect(journal.record(message, transport)).toEqual({ kind: "recorded" });
+    expect(journal.record(message, transport)).toEqual({ kind: "duplicate" });
+    expect(journal.snapshot("vfvo50")).toHaveLength(1);
+    expect(journal.record({ ...message, body: "different-body" }, transport)).toEqual({
+      kind: "proofFailed",
+      target: "vfvo50",
+      reason: "transportInconsistency",
+    });
+    expect(mockParseVolcano).toHaveBeenCalledTimes(1);
+  });
+
+  it("canonicalizes REST and journal source transport IDs before proof identity", async () => {
+    const decomposed = "source-e\u0301";
+    const canonical = "source-é";
+    const localReceipt = REPAIR_NOW + 1;
+    const journal = new VolcanoRepairJournal(REPAIR_ACK, ["vfvo50"]);
+    const live = liveRepairMessage(`  ${decomposed}  `, REPAIR_NOW, localReceipt);
+
+    expect(journal.record(live, { ...REPAIR_ACK, receivedAtMs: localReceipt }))
+      .toEqual({ kind: "recorded" });
+    expect(journal.snapshot("vfvo50")[0]).toMatchObject({
+      itemId: canonical,
+      normalizedInput: { sourceEventId: canonical },
+    });
+
+    const historical = await fetchVolcanoHistoricalPaginationUnion({
+      apiKey: "key",
+      headType: "VFVO50",
+      startupNowMs: REPAIR_NOW,
+      retentionMs: REPAIR_RETENTION_MS,
+      loadPage: vi.fn().mockResolvedValue(createResponse([
+        repairItem(` ${decomposed} `, REPAIR_NOW),
+      ])),
+    });
+    expect(historical.items[0]).toMatchObject({
+      itemId: canonical,
+      normalizedInput: { sourceEventId: canonical },
+    });
+  });
+
+  it("rebases complete VFVO50 coverage onto a safe current VFVO50 baseline", async () => {
+    const current = createFoundationAlert(
+      "baseline-live",
+      "2026-07-09T23:00:00.000Z",
+      "7",
+    );
+    const gate = new TelegramRevisionGate();
+    const gateInput = foundationInput(current);
+    expect(gate.decide(gateInput).accepted).toBe(true);
+    const holder = new VolcanoStateHolder();
+    expect(holder.applyAcceptedAlert(current, {
+      sourceEventId: "baseline-live",
+      revision: {
+        reportTimeMs: current.meta.reportDateTime.epochMs!,
+        serial: current.meta.serial.raw,
+      },
+      appliedSemanticKey: telegramRevisionSemanticKey(gateInput),
+    })).toBe(true);
+    const standby = new StandbyStateStore();
+    standby.replaceVolcanoDerived(holder.snapshot());
+    const repair = emptyVolcanoRepairState();
+    repair.vfvo50Repairable = true;
+    const admission = new StandbyPersistenceAdmissionCoordinator({
+      owners: {
+        telegramRevisionGate: gate,
+        standbyStateStore: standby,
+        vpws50State: new Vpws50StateHolder(),
+        vpww56State: new Vpww56StateHolder(),
+        tsunamiState: new TsunamiStateHolder(),
+        volcanoState: holder,
+        floodForecastState: new FloodForecastStateHolder(),
+      },
+      repairState: repair,
+    });
+    const coordinator = new VolcanoTransactionCoordinator(admission);
+    const before = coordinator.snapshot();
+    const journal = new VolcanoRepairJournal(REPAIR_ACK, ["vfvo50"]);
+
+    await expect(repairVolcanoState({
+      apiKey: "key",
+      startupNowMs: REPAIR_NOW,
+      coordinator,
+      journal,
+      getAcknowledgement: () => REPAIR_ACK,
+      // first head, historical terminal, and stable second head are all empty.
+      loadPage: vi.fn().mockResolvedValue(createResponse([])),
+    })).resolves.toEqual({ targets: [{ target: "vfvo50", kind: "committed" }] });
+
+    const after = coordinator.snapshot();
+    const { version: _beforeHolderVersion, ...beforeHolder } = before.holder;
+    const { version: _afterHolderVersion, ...afterHolder } = after.holder;
+    expect(afterHolder).toEqual(beforeHolder);
+    const { version: _beforeGateVersion, ...beforeGates } = before.gates;
+    const { version: _afterGateVersion, ...afterGates } = after.gates;
+    expect(afterGates).toEqual(beforeGates);
+    expect(after.repair).toEqual({ ...before.repair, vfvo50Repairable: false });
+  });
+
+  it("rejects an ashfall REST cancellation when another slice keeps saturated lineage", async () => {
+    const current = createFoundationAlert(
+      "baseline-alert",
+      "2026-07-09T23:00:00.000Z",
+      "7",
+    );
+    const gate = new TelegramRevisionGate();
+    const gateInput = foundationInput(current);
+    expect(gate.decide(gateInput).accepted).toBe(true);
+    const holder = new VolcanoStateHolder();
+    expect(holder.applyAcceptedAlert(current, {
+      sourceEventId: "baseline-alert",
+      revision: {
+        reportTimeMs: current.meta.reportDateTime.epochMs!,
+        serial: current.meta.serial.raw,
+      },
+      appliedSemanticKey: telegramRevisionSemanticKey(gateInput),
+    })).toBe(true);
+    const saturated = holder.snapshot();
+    saturated.composites[0]!.sourceEventIds = [
+      "baseline-alert",
+      ...Array.from(
+        { length: VOLCANO_MAX_SOURCE_EVENT_IDS_PER_COMPOSITE - 1 },
+        (_, index) => `repair-source-${index.toString().padStart(4, "0")}`,
+      ),
+    ].sort();
+    holder.replacePrevalidated(saturated);
+    const standby = new StandbyStateStore();
+    standby.replaceVolcanoDerived(holder.snapshot());
+    const repair = emptyVolcanoRepairState();
+    repair.ashfallRepairable = true;
+    const admission = new StandbyPersistenceAdmissionCoordinator({
+      owners: {
+        telegramRevisionGate: gate,
+        standbyStateStore: standby,
+        vpws50State: new Vpws50StateHolder(),
+        vpww56State: new Vpww56StateHolder(),
+        tsunamiState: new TsunamiStateHolder(),
+        volcanoState: holder,
+        floodForecastState: new FloodForecastStateHolder(),
+      },
+      repairState: repair,
+    });
+    const coordinator = new VolcanoTransactionCoordinator(admission);
+    const before = coordinator.snapshot();
+    const cancellationId = "ashfall-rest-cancellation";
+    const cancellation = repairAshfallItem(cancellationId, REPAIR_NOW - 1_000, "VFVO54");
+    mockParseVolcano.mockImplementation((msg) => msg.id === cancellationId
+      ? createRepairAshfallCancellation(cancellationId, REPAIR_NOW - 1_000)
+      : null);
+    const journal = new VolcanoRepairJournal(REPAIR_ACK, ["ashfall"]);
+    const loadPage = vi.fn(async (_apiKey, query) => createResponse(
+      query.type === "VFVO54" ? [cancellation] : [],
+    ));
+
+    await expect(repairVolcanoState({
+      apiKey: "key",
+      startupNowMs: REPAIR_NOW,
+      coordinator,
+      journal,
+      getAcknowledgement: () => REPAIR_ACK,
+      loadPage,
+    })).resolves.toEqual({
+      targets: [{ target: "ashfall", kind: "failed", reason: "ashfallReplayRejected" }],
+    });
+    expect(coordinator.snapshot()).toEqual(before);
   });
 });

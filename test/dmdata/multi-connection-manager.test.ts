@@ -406,6 +406,36 @@ describe("MultiConnectionManager", () => {
   });
 
   describe("重複排除", () => {
+    it("primary transport proof sees repeated IDs before normal-ingress dedupe", async () => {
+      const onData = vi.fn();
+      const onPrimaryTransportData = vi.fn();
+      const manager = new MultiConnectionManager(createConfig(), {
+        onData,
+        onPrimaryTransportData,
+        onConnected: vi.fn(),
+        onDisconnected: vi.fn(),
+      });
+      await manager.connect();
+      const transport = {
+        subscriptionGeneration: 1,
+        socketId: 7,
+        transportId: "socket:7:generation:1",
+        acknowledgedAtMs: 1_700_000_000_000,
+        classifications: ["telegram.volcano"],
+        receivedAtMs: 1_700_000_000_001,
+      };
+      const message = createMockMsg("primary-repeat");
+
+      capturedPrimaryEvents.onData(message, transport);
+      capturedPrimaryEvents.onData(
+        { ...message, body: "different transport payload" },
+        { ...transport, receivedAtMs: transport.receivedAtMs + 1 },
+      );
+
+      expect(onPrimaryTransportData).toHaveBeenCalledTimes(2);
+      expect(onData).toHaveBeenCalledTimes(1);
+    });
+
     it("primary と backup の両方から同じ msg.id が来た場合、onData は 1 回だけ発火", async () => {
       const onData = vi.fn();
       const manager = new MultiConnectionManager(createConfig(), {

@@ -1,0 +1,144 @@
+{
+  "version": 2,
+  "savedAt": "2026-08-31T00:00:00.000Z",
+  "heat": [],
+  "typhoons": [],
+  "volcanoes": [
+    {
+      "code": "506",
+      "name": "桜島",
+      "alertLevel": 3,
+      "alertClass": null,
+      "warningKind": "噴火警報（火口周辺）",
+      "targetKinds": ["火口周辺警報"],
+      "alertExpiresAtMs": null,
+      "latestEvent": null,
+      "latestEventId": null,
+      "eventExpiresAtMs": null,
+      "sourceEventIds": ["operational-v2-source-506"],
+      "alertRevision": {
+        "reportTimeMs": 1788134400000,
+        "serial": "1"
+      },
+      "eventRevision": null
+    }
+  ],
+  "weatherAlerts": [],
+  "tornado": [],
+  "longPeriod": [],
+  "quakeHost": null,
+  "nankaiTrough": null,
+  "seen": [],
+  "telegramFoundation": {
+    "vpws50": {
+      "authoritative": true,
+      "state": null,
+      "gateEntries": []
+    },
+    "vpww56": {
+      "generation": 1,
+      "authoritative": true,
+      "state": null,
+      "gateEntries": []
+    },
+    "tsunami": {
+      "keyedActive": [],
+      "legacyActive": null,
+      "observations": {
+        "VTSE51": [],
+        "VTSE52": []
+      },
+      "gateEntries": []
+    },
+    "volcano": {
+      "authoritative": true,
+      "state": {
+        "alerts": [
+          {
+            "volcanoCode": "506",
+            "volcanoName": "桜島",
+            "alertLevel": 3,
+            "alertLevelCode": "13",
+            "action": "issue",
+            "reportDateTime": "2026-08-31T00:00:00.000Z",
+            "alertClass": null,
+            "warningKind": "噴火警報（火口周辺）",
+            "targetKinds": ["火口周辺警報"]
+          }
+        ],
+        "eruptions": []
+      },
+      "active": [
+        {
+          "code": "506",
+          "name": "桜島",
+          "alertLevel": 3,
+          "alertClass": null,
+          "warningKind": "噴火警報（火口周辺）",
+          "targetKinds": ["火口周辺警報"],
+          "alertExpiresAtMs": null,
+          "latestEvent": null,
+          "latestEventId": null,
+          "eventExpiresAtMs": null,
+          "sourceEventIds": ["operational-v2-source-506"],
+          "alertRevision": {
+            "reportTimeMs": 1788134400000,
+            "serial": "1"
+          },
+          "eventRevision": null
+        }
+      ],
+      "gateEntries": [
+        {
+          "domain": "volcano",
+          "revisionFamily": "volcanoAlert",
+          "stateSubjectKey": "volcano:alert:506",
+          "comparison": {
+            "revision": {
+              "eventId": {
+                "raw": "volcano:alert:506",
+                "value": "volcano:alert:506",
+                "valid": true
+              },
+              "type": {
+                "raw": "volcanoAlert",
+                "value": "volcanoAlert",
+                "valid": true
+              },
+              "reportDateTime": {
+                "raw": "2026-08-31T00:00:00.000Z",
+                "epochMs": 1788134400000,
+                "valid": true
+              },
+              "serial": {
+                "raw": "1",
+                "numeric": 1,
+                "valid": true
+              },
+              "infoType": {
+                "raw": "発表",
+                "value": "発表",
+                "valid": true
+              }
+            },
+            "stateSubjectKey": "volcano:alert:506"
+          },
+          "semanticKeys": ["発表:operational-v2-active-506"],
+          "cancelled": false,
+          "acceptedAtMs": 1788134400000,
+          "tombstoneRetentionMs": 2592000000,
+          "legacyRevisionKey": "volcano:alert:506",
+          "legacyRevisionKeyProvenance": "codeFallback"
+        }
+      ]
+    },
+    "floodForecast": {
+      "authoritative": true,
+      "active": [],
+      "gateEntries": []
+    },
+    "standbyDomains": {
+      "gateEntries": []
+    }
+  }
+}

@@ -6,6 +6,7 @@ import type {
 } from "../../types";
 import {
   compareTelegramRevisions,
+  normalizeVolcanoAshfallSerial,
   telegramRevision,
   type TelegramRevisionComparator,
 } from "../../dmdata/telegram-meta";
@@ -93,7 +94,22 @@ export interface TelegramRevisionGateInput {
   legacyRevisionKey?: string | null;
   /** rollback key の由来。EventID 逆引きは eventId 由来だけに許可する。 */
   legacyRevisionKeyProvenance?: "eventId" | "codeFallback" | null;
+  /** VFVO54/55 の同時 revision ordering。ほかの family は渡してはならない。 */
+  variantRank?: 0 | 1;
+  volcanoProvenance?: PersistedVolcanoGateProvenanceV1;
 }
+
+export type PersistedVolcanoGateProvenanceV1 =
+  | {
+      kind: "alert";
+      sourceFamily: "VFVO50" | "VFVO51" | "VFSVii" | "operationalV2Unknown" | "unknown";
+      operationalV2ResolutionId?: string;
+    }
+  | {
+      kind: "ashfall";
+      actualEventId: string | null;
+      sourceType: "VFVO54" | "VFVO55" | null;
+    };
 
 interface AcceptedRevisionState {
   comparison: TelegramRevisionComparisonInput;
@@ -105,6 +121,34 @@ interface AcceptedRevisionState {
   retainForFamilyCapacity: boolean;
   legacyRevisionKey: string | null;
   legacyRevisionKeyProvenance: "eventId" | "codeFallback" | null;
+  volcanoProvenance?: PersistedVolcanoGateProvenanceV1;
+}
+
+export interface TelegramRevisionGateSnapshot {
+  version: number;
+  states: Array<{
+    key: string;
+    comparison: TelegramRevisionComparisonInput;
+    semanticKeys: string[];
+    cancelled: boolean;
+    acceptedAtMs: number;
+    durable: boolean;
+    tombstoneRetentionMs: number | null;
+    retainForFamilyCapacity: boolean;
+    legacyRevisionKey: string | null;
+    legacyRevisionKeyProvenance: "eventId" | "codeFallback" | null;
+    volcanoProvenance?: PersistedVolcanoGateProvenanceV1;
+  }>;
+  transientStates: Array<{
+    key: string;
+    semanticKey: string;
+    acceptedAtMs: number;
+    domain: string;
+    revisionFamily: string;
+    retentionMs: number;
+  }>;
+  transientSemanticKeys: Array<[string, string]>;
+  warnedFamilyCapacity: Array<[string, number]>;
 }
 
 export interface AcceptedTyphoonProbabilityBinding {
@@ -196,6 +240,7 @@ export interface PersistedTelegramRevisionGateEntryV2 {
   tombstoneRetentionMs?: number | null;
   legacyRevisionKey?: string | null;
   legacyRevisionKeyProvenance?: "eventId" | "codeFallback" | null;
+  volcanoProvenance?: PersistedVolcanoGateProvenanceV1;
 }
 
 export interface RevisionFamilyExpiryResult {
@@ -377,14 +422,21 @@ function compareWithSerialPolicy(
   const incomingDate = incoming.revision.reportDateTime;
   const currentDate = current.revision.reportDateTime;
   if (
-    input.comparator !== "reportDateTimeThenSerial"
+    (input.comparator !== "reportDateTimeThenSerial"
+      && input.comparator !== "reportDateTimeThenSerialThenVariant")
     || !incomingDate.valid
     || !currentDate.valid
     || incomingDate.epochMs == null
     || currentDate.epochMs == null
     || incomingDate.epochMs !== currentDate.epochMs
   ) return relation;
-  return serialIsMissing(incoming) && serialIsMissing(current) ? "equal" : "unordered";
+  if (!(serialIsMissing(incoming) && serialIsMissing(current))) return "unordered";
+  if (input.comparator !== "reportDateTimeThenSerialThenVariant") return "equal";
+  if (incoming.variantRank == null && current.variantRank == null) return "equal";
+  if (incoming.variantRank == null || current.variantRank == null) return "unordered";
+  return incoming.variantRank === current.variantRank
+    ? "equal"
+    : incoming.variantRank > current.variantRank ? "newer" : "older";
 }
 
 /**
@@ -413,6 +465,7 @@ export class TelegramRevisionGate {
     }
   >();
   private readonly transientSemanticKeys = new Map<string, string>();
+  private ownerVersion = 0;
 
   constructor(
     private readonly onCapacityError: (message: string) => void = (message) => log.warn(message),
@@ -428,7 +481,10 @@ export class TelegramRevisionGate {
 
   /** Revision decision を確定し、watermark / tombstone を更新する。 */
   decide(input: TelegramRevisionGateInput): TelegramRevisionDecision {
-    return this.decideInternal(input, true);
+    const before = this.mutationFingerprint();
+    const decision = this.decideInternal(input, true);
+    if (this.mutationFingerprint() !== before) this.ownerVersion += 1;
+    return decision;
   }
 
   private buildTyphoonProbabilityCapacityData(
@@ -636,6 +692,7 @@ export class TelegramRevisionGate {
     this.states.delete(key);
     this.states.set(key, canonicalState);
     this.rearmCapacityWarning(input.domain, input.revisionFamily);
+    this.ownerVersion += 1;
     return { kind: "accepted", commit };
   }
 
@@ -648,6 +705,8 @@ export class TelegramRevisionGate {
     if (!infoType.valid || infoType.value == null) {
       return reject("invalidMeta", null);
     }
+    const provenanceValid = this.validateVolcanoLiveInput(input);
+    if (!provenanceValid) return reject("invalidMeta", null);
     if (
       !input.meta.type.valid
       || input.meta.type.value == null
@@ -748,6 +807,14 @@ export class TelegramRevisionGate {
 
     const key = `${input.domain}:${input.revisionFamily}:${input.stateSubjectKey}`;
     const rawRevision = telegramRevision(input.meta);
+    const ashfallSerial = input.domain === "volcano" && input.revisionFamily === "volcanoAshfall"
+      ? normalizeVolcanoAshfallSerial(rawRevision.serial.raw)
+      : null;
+    const comparisonSerial = ashfallSerial?.kind === "numeric"
+      ? { raw: ashfallSerial.canonicalRaw, numeric: ashfallSerial.numeric, valid: true }
+      : ashfallSerial?.kind === "missing"
+        ? { raw: null, numeric: null, valid: false }
+        : rawRevision.serial;
     const vptaEventId = input.domain === "typhoonProbability"
       && input.revisionFamily === "VPTA50"
       && input.stateSubjectKey.startsWith("typhoonProbability:")
@@ -758,7 +825,7 @@ export class TelegramRevisionGate {
       // 含める family は subject extractor 側で組み込むため、EventID 欠落を一律拒否しない。
       revision: {
         ...rawRevision,
-        serial: rawRevision.serial,
+        serial: comparisonSerial,
         eventId: {
           raw: vptaEventId ?? input.stateSubjectKey,
           value: vptaEventId ?? input.stateSubjectKey,
@@ -767,6 +834,7 @@ export class TelegramRevisionGate {
         type: { raw: input.revisionFamily, value: input.revisionFamily, valid: true },
       },
       stateSubjectKey: input.stateSubjectKey,
+      ...(input.variantRank == null ? {} : { variantRank: input.variantRank }),
     };
     const stored = this.states.get(key);
     const existing = stored != null
@@ -817,6 +885,9 @@ export class TelegramRevisionGate {
           retainForFamilyCapacity: input.retainForFamilyCapacity === true,
           legacyRevisionKey: input.legacyRevisionKey ?? null,
           legacyRevisionKeyProvenance: input.legacyRevisionKeyProvenance ?? null,
+          ...(input.volcanoProvenance == null
+            ? {}
+            : { volcanoProvenance: structuredClone(input.volcanoProvenance) }),
         });
         this.enforceFamilyLimit(input.domain, input.revisionFamily, input.maxSubjects, input.activeFamilySubjects);
         this.sweep(input.meta.receivedAtMs);
@@ -834,6 +905,14 @@ export class TelegramRevisionGate {
     const relation = compareWithSerialPolicy(incomingComparison, existing.comparison, input);
     if (relation === "older") return reject("stale", relation);
     if (relation === "unordered") return reject("invalidRevision", relation);
+    if (
+      input.domain === "volcano"
+      && input.revisionFamily === "volcanoAshfall"
+      && existing.volcanoProvenance?.kind === "ashfall"
+      && input.volcanoProvenance?.kind === "ashfall"
+      && existing.volcanoProvenance.actualEventId !== input.volcanoProvenance.actualEventId
+      && (cancellationTriggered || relation !== "newer")
+    ) return reject("cancelTargetMismatch", relation);
     if (
       cancellationTriggered
       && input.cancellationPolicy === "restorePrevious"
@@ -907,11 +986,22 @@ export class TelegramRevisionGate {
         return reject("stale", relation);
       }
       if (cancellationTriggered && existing.cancelled) {
-        return rejectMatchedSemanticKey("semanticDuplicate")
-          ?? reject("semanticDuplicate", relation);
+        const duplicate = rejectMatchedSemanticKey("semanticDuplicate");
+        if (duplicate != null) return duplicate;
+        if (!(input.domain === "volcano" && input.revisionFamily === "volcanoAshfall")) {
+          return reject("semanticDuplicate", relation);
+        }
+        if (existing.semanticKeys.size >= TELEGRAM_REVISION_MAX_SEMANTIC_KEYS) {
+          return reject("capacityExceeded", relation);
+        }
       }
       const matchedSemanticDecision = rejectMatchedSemanticKey("semanticDuplicate");
       if (matchedSemanticDecision != null) return matchedSemanticDecision;
+      if (
+        input.domain === "volcano"
+        && input.revisionFamily === "volcanoAshfall"
+        && existing.semanticKeys.size >= TELEGRAM_REVISION_MAX_SEMANTIC_KEYS
+      ) return reject("capacityExceeded", relation);
       const kind = acceptedKind(input, resolvedTrigger);
       if (commit) {
         rememberSemanticKey(existing, nextSemanticKey);
@@ -926,6 +1016,9 @@ export class TelegramRevisionGate {
         if (input.legacyRevisionKey != null) {
           existing.legacyRevisionKey = input.legacyRevisionKey;
           existing.legacyRevisionKeyProvenance = input.legacyRevisionKeyProvenance ?? null;
+        }
+        if (input.volcanoProvenance != null) {
+          existing.volcanoProvenance = structuredClone(input.volcanoProvenance);
         }
         this.touchState(key, existing);
         this.enforceFamilyLimit(input.domain, input.revisionFamily, input.maxSubjects, input.activeFamilySubjects);
@@ -955,6 +1048,9 @@ export class TelegramRevisionGate {
         retainForFamilyCapacity: input.retainForFamilyCapacity === true,
         legacyRevisionKey: input.legacyRevisionKey ?? null,
         legacyRevisionKeyProvenance: input.legacyRevisionKeyProvenance ?? null,
+        ...(input.volcanoProvenance == null
+          ? {}
+          : { volcanoProvenance: structuredClone(input.volcanoProvenance) }),
       });
       this.enforceFamilyLimit(input.domain, input.revisionFamily, input.maxSubjects, input.activeFamilySubjects);
       this.sweep(input.meta.receivedAtMs);
@@ -966,6 +1062,151 @@ export class TelegramRevisionGate {
       isCorrection: infoType.value === "訂正",
       isTerminal: input.terminal,
       resolvedTrigger,
+    };
+  }
+
+  private validateVolcanoLiveInput(input: TelegramRevisionGateInput): boolean {
+    const isAlert = input.domain === "volcano" && input.revisionFamily === "volcanoAlert";
+    const isAshfall = input.domain === "volcano" && input.revisionFamily === "volcanoAshfall";
+    if (!isAlert && !isAshfall) {
+      return input.variantRank == null && input.volcanoProvenance == null;
+    }
+    if (isAlert) {
+      const provenance = input.volcanoProvenance;
+      return input.variantRank == null
+        && provenance?.kind === "alert"
+        && (provenance.sourceFamily === "VFVO50"
+          || provenance.sourceFamily === "VFVO51"
+          || provenance.sourceFamily === "VFSVii")
+        && input.meta.type.value === provenance.sourceFamily
+        && provenance.operationalV2ResolutionId == null;
+    }
+    const provenance = input.volcanoProvenance;
+    const normalizedEventId = input.meta.eventId.value?.normalize("NFC") ?? "";
+    const eventId = /\p{Cc}/u.test(normalizedEventId) ? null : normalizedEventId.trim();
+    return (input.variantRank === 0 || input.variantRank === 1)
+      && provenance?.kind === "ashfall"
+      && eventId !== ""
+      && eventId != null
+      && eventId.length <= 128
+      && provenance.actualEventId === eventId
+      && input.meta.type.value === provenance.sourceType
+      && ((provenance.sourceType === "VFVO54" && input.variantRank === 0)
+        || (provenance.sourceType === "VFVO55" && input.variantRank === 1));
+  }
+
+  private mutationFingerprint(): string {
+    return JSON.stringify({
+      states: [...this.states].map(([key, state]) => [
+        key,
+        state.comparison,
+        [...state.semanticKeys],
+        state.cancelled,
+        state.acceptedAtMs,
+        state.durable,
+        state.tombstoneRetentionMs,
+        state.retainForFamilyCapacity,
+        state.legacyRevisionKey,
+        state.legacyRevisionKeyProvenance,
+        state.volcanoProvenance ?? null,
+      ]),
+      transientStates: [...this.transientStates],
+      transientSemanticKeys: [...this.transientSemanticKeys],
+    });
+  }
+
+  version(): number {
+    return this.ownerVersion;
+  }
+
+  cloneSnapshot(): TelegramRevisionGateSnapshot {
+    return structuredClone({
+      version: this.ownerVersion,
+      states: [...this.states].map(([key, state]) => ({
+        key,
+        comparison: structuredClone(state.comparison),
+        semanticKeys: [...state.semanticKeys],
+        cancelled: state.cancelled,
+        acceptedAtMs: state.acceptedAtMs,
+        durable: state.durable,
+        tombstoneRetentionMs: state.tombstoneRetentionMs,
+        retainForFamilyCapacity: state.retainForFamilyCapacity,
+        legacyRevisionKey: state.legacyRevisionKey,
+        legacyRevisionKeyProvenance: state.legacyRevisionKeyProvenance,
+        ...(state.volcanoProvenance == null
+          ? {}
+          : { volcanoProvenance: structuredClone(state.volcanoProvenance) }),
+      })),
+      transientStates: [...this.transientStates].map(([key, state]) => ({ key, ...state })),
+      transientSemanticKeys: [...this.transientSemanticKeys],
+      warnedFamilyCapacity: [...this.warnedFamilyCapacity],
+    });
+  }
+
+  /** Construct a listener-free scratch gate for a coordinator candidate. */
+  static fromSnapshot(snapshot: TelegramRevisionGateSnapshot): TelegramRevisionGate {
+    const gate = new TelegramRevisionGate(() => undefined);
+    gate.loadSnapshot(snapshot, false);
+    return gate;
+  }
+
+  replacePrevalidated(snapshot: TelegramRevisionGateSnapshot): void {
+    this.loadSnapshot(snapshot, true);
+  }
+
+  private loadSnapshot(snapshot: TelegramRevisionGateSnapshot, commit: boolean): void {
+    this.states.clear();
+    this.transientStates.clear();
+    this.transientSemanticKeys.clear();
+    this.warnedFamilyCapacity.clear();
+    for (const entry of snapshot.states) {
+      this.states.set(entry.key, {
+        comparison: structuredClone(entry.comparison),
+        semanticKeys: new Set(entry.semanticKeys),
+        cancelled: entry.cancelled,
+        acceptedAtMs: entry.acceptedAtMs,
+        durable: entry.durable,
+        tombstoneRetentionMs: entry.tombstoneRetentionMs,
+        retainForFamilyCapacity: entry.retainForFamilyCapacity,
+        legacyRevisionKey: entry.legacyRevisionKey,
+        legacyRevisionKeyProvenance: entry.legacyRevisionKeyProvenance,
+        ...(entry.volcanoProvenance == null
+          ? {}
+          : { volcanoProvenance: structuredClone(entry.volcanoProvenance) }),
+      });
+    }
+    for (const entry of snapshot.transientStates) {
+      const { key, ...state } = entry;
+      this.transientStates.set(key, structuredClone(state));
+    }
+    for (const [key, value] of snapshot.transientSemanticKeys) {
+      this.transientSemanticKeys.set(key, value);
+    }
+    for (const [key, value] of snapshot.warnedFamilyCapacity) {
+      this.warnedFamilyCapacity.set(key, value);
+    }
+    this.ownerVersion = commit ? this.ownerVersion + 1 : snapshot.version;
+  }
+
+  volcanoBinding(
+    revisionFamily: "volcanoAlert" | "volcanoAshfall",
+    stateSubjectKey: string,
+  ): {
+    comparison: TelegramRevisionComparisonInput;
+    semanticKeys: string[];
+    cancelled: boolean;
+    acceptedAtMs: number;
+    volcanoProvenance: PersistedVolcanoGateProvenanceV1 | null;
+  } | null {
+    const state = this.states.get(`volcano:${revisionFamily}:${stateSubjectKey}`);
+    return state == null ? null : {
+      comparison: structuredClone(state.comparison),
+      semanticKeys: [...state.semanticKeys],
+      cancelled: state.cancelled,
+      acceptedAtMs: state.acceptedAtMs,
+      volcanoProvenance: state.volcanoProvenance == null
+        ? null
+        : structuredClone(state.volcanoProvenance),
     };
   }
 
@@ -1231,10 +1472,11 @@ export class TelegramRevisionGate {
       return;
     }
     if (domain == null || revisionFamily == null || stateSubjectKey == null) return;
-    this.states.delete(`${domain}:${revisionFamily}:${stateSubjectKey}`);
+    const regularChanged = this.states.delete(`${domain}:${revisionFamily}:${stateSubjectKey}`);
     const transientKey = `${domain}:${revisionFamily}:${stateSubjectKey}`;
     const transientState = this.transientStates.get(transientKey);
     if (transientState != null) this.deleteTransientState(transientKey, transientState);
+    if (regularChanged || transientState != null) this.ownerVersion += 1;
     this.rearmCapacityWarning(domain, revisionFamily);
   }
 
@@ -1247,15 +1489,18 @@ export class TelegramRevisionGate {
     const retainedKeys = new Set(
       retainedStateSubjectKeys.map((stateSubjectKey) => `${prefix}${stateSubjectKey}`),
     );
+    let changed = false;
     for (const key of this.states.keys()) {
-      if (key.startsWith(prefix) && !retainedKeys.has(key)) this.states.delete(key);
+      if (key.startsWith(prefix) && !retainedKeys.has(key)) changed = this.states.delete(key) || changed;
     }
     for (const [key, state] of [...this.transientStates]) {
       if (key.startsWith(prefix) && !retainedKeys.has(key)) {
         this.deleteTransientState(key, state);
+        changed = true;
       }
     }
     this.rearmCapacityWarning(domain, revisionFamily);
+    if (changed) this.ownerVersion += 1;
   }
 
   clearFamily(domain: string, revisionFamily: string): void {
@@ -1263,10 +1508,13 @@ export class TelegramRevisionGate {
   }
 
   clearAll(): void {
+    const changed = this.states.size > 0 || this.transientStates.size > 0
+      || this.transientSemanticKeys.size > 0 || this.warnedFamilyCapacity.size > 0;
     this.states.clear();
     this.transientStates.clear();
     this.transientSemanticKeys.clear();
     this.warnedFamilyCapacity.clear();
+    if (changed) this.ownerVersion += 1;
   }
 
   /** Finite-lifecycle domain の active watermark と tombstone を同じ期限で退場させる。 */
@@ -1305,6 +1553,7 @@ export class TelegramRevisionGate {
     }
     this.rearmCapacityWarning(domain, revisionFamily);
     const unique = [...new Set(expiredStateSubjectKeys)].sort(compareCodeUnit);
+    if (unique.length > 0) this.ownerVersion += 1;
     return { changed: unique.length > 0, expiredStateSubjectKeys: unique };
   }
 
@@ -1405,12 +1654,16 @@ export class TelegramRevisionGate {
         ...(state.legacyRevisionKeyProvenance == null
           ? {}
           : { legacyRevisionKeyProvenance: state.legacyRevisionKeyProvenance }),
+        ...(state.volcanoProvenance == null
+          ? {}
+          : { volcanoProvenance: structuredClone(state.volcanoProvenance) }),
       });
     }
     return result;
   }
 
   restoreDurableEntries(entries: readonly PersistedTelegramRevisionGateEntryV2[]): void {
+    let changed = false;
     for (const entry of entries) {
       const key = `${entry.domain}:${entry.revisionFamily}:${entry.stateSubjectKey}`;
       if (
@@ -1419,6 +1672,10 @@ export class TelegramRevisionGate {
       ) {
         this.warnCapacityRejected("restore", "durable", TELEGRAM_REVISION_MAX_ENTRIES);
         continue;
+      }
+      if (entry.domain === "volcano" && entry.revisionFamily === "volcanoAshfall"
+        && entry.semanticKeys.length > TELEGRAM_REVISION_MAX_SEMANTIC_KEYS) {
+        throw new Error("volcano ashfall semantic key capacity exceeded");
       }
       this.states.set(key, {
         comparison: structuredClone(entry.comparison),
@@ -1443,8 +1700,13 @@ export class TelegramRevisionGate {
         legacyRevisionKey: entry.legacyRevisionKey ?? null,
         // pre-provenance v2 は EventID と code fallback を区別できないため逆引き対象外。
         legacyRevisionKeyProvenance: entry.legacyRevisionKeyProvenance ?? null,
+        ...(entry.volcanoProvenance == null
+          ? {}
+          : { volcanoProvenance: structuredClone(entry.volcanoProvenance) }),
       });
+      changed = true;
     }
+    if (changed) this.ownerVersion += 1;
   }
 
   private sweep(nowMs: number): void {

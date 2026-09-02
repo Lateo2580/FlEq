@@ -2,6 +2,7 @@ import type {
   ParsedHeatAlertInfo,
   ParsedTyphoonAnalysis,
   ParsedVolcanoInfo,
+  ParsedVolcanoAshfallInfo,
   SpecialValue,
 } from "../../types";
 import type { PresentationEvent } from "../presentation/types";
@@ -9,6 +10,8 @@ import { volcanoTextAlertStateEntries } from "../messages/revision-family-regist
 import { typhoonNumericValueFromLegacyScalar } from "../typhoon-numeric-persistence";
 import type { DisplayHeatAreaV1, DisplayTyphoonV1, DisplayVolcanoEntryV1 } from "./protocol";
 import { projectPlumeHeightSemantic } from "./plume-height-semantic";
+import { projectVolcanoAshfall } from "../messages/volcano-ashfall-projector";
+import { displayVolcanoAshfall } from "./volcano-card-projection";
 
 export interface HeatUpdate {
   sourceEventId: string;
@@ -130,7 +133,7 @@ export interface VolcanoUpdate {
   sourceEventId: string;
   reportDateTime: string;
   serial: string | null;
-  kind: "alert" | "eruption";
+  kind: "alert" | "eruption" | "ashfall";
   isCancellation: boolean;
   isCorrection: boolean;
 }
@@ -138,10 +141,39 @@ export interface VolcanoUpdate {
 export function projectVolcanoUpdates(event: PresentationEvent): VolcanoUpdate[] {
   if (event.domain !== "volcano" || event.raw == null || Array.isArray(event.raw)) return [];
   if (event.volcanoStateMutationAccepted === false) return [];
+  if (event.volcanoStandbyProjectionCommitted === true) return [];
   const acceptedSubjects = event.volcanoAcceptedSubjects == null
     ? null
     : new Set(event.volcanoAcceptedSubjects);
   const raw = event.raw as ParsedVolcanoInfo;
+  if (raw.kind === "ashfall") {
+    if (raw.type === "VFVO53") return [];
+    const compact = projectVolcanoAshfall(raw as ParsedVolcanoAshfallInfo, {
+      classificationNowMs: raw.meta.receivedAtMs,
+      appliedSemanticKey: "presentation",
+      generation: 1,
+    });
+    if (compact.kind === "transient") return [];
+    const ashfall = compact.kind === "active" ? displayVolcanoAshfall(compact.projection) : null;
+    const code = raw.volcanoCode.trim();
+    if (code === "") return [];
+    return [{
+      volcano: {
+        code,
+        name: raw.volcanoName,
+        alertLevel: null,
+        latestEvent: null,
+        ashfall,
+      },
+      eventId: raw.meta.eventId.value,
+      sourceEventId: event.id,
+      reportDateTime: event.reportDateTime,
+      serial: event.serial ?? null,
+      kind: "ashfall",
+      isCancellation: compact.kind !== "active",
+      isCorrection: event.infoType === "訂正" || raw.infoType === "訂正",
+    }];
+  }
   if (raw.kind === "text") {
     return volcanoTextAlertStateEntries(raw).flatMap((entry) => {
       const subject = `volcano:alert:${entry.volcanoCode.trim()}`;

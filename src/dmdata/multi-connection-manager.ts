@@ -2,6 +2,8 @@ import { AppConfig, WsDataMessage, Classification } from "../types";
 import { ConnectionManager } from "./connection-manager";
 import {
   WebSocketManager,
+  type WsSubscriptionAcknowledgement,
+  type WsTransportIdentity,
   WsManagerOptions,
   WsManagerStatus,
   WsManagerEvents,
@@ -31,6 +33,15 @@ const EEW_CLASSIFICATIONS: Classification[] = ["eew.forecast", "eew.warning"];
 /** 複線 manager の capability 解決へ渡す依存性注入。 */
 export interface MultiConnectionManagerOptions extends WsManagerOptions {}
 
+export interface MultiConnectionManagerEvents extends WsManagerEvents {
+  /**
+   * Observes every primary transport delivery before cross-connection
+   * duplicate suppression.  Startup repair uses this proof-only stream while
+   * normal ingress continues to receive each message ID at most once.
+   */
+  onPrimaryTransportData?: (msg: WsDataMessage, transport: WsTransportIdentity) => void;
+}
+
 /**
  * 複線接続管理。primary (通常回線) に加え、backup (EEW 副回線) を動的に起動/停止できる。
  * backup からの受信は msg.id で重複排除した上で、同じ onData イベントに委譲する。
@@ -39,7 +50,7 @@ export class MultiConnectionManager implements ConnectionManager {
   private primary: WebSocketManager;
   private backup: WebSocketManager | null = null;
   private config: AppConfig;
-  private events: WsManagerEvents;
+  private events: MultiConnectionManagerEvents;
   private seenIds = new Set<string>();
   private seenOrder: string[] = [];
   private readonly verifiedContractClassifications: readonly string[] | null;
@@ -49,7 +60,7 @@ export class MultiConnectionManager implements ConnectionManager {
 
   constructor(
     config: AppConfig,
-    events: WsManagerEvents,
+    events: MultiConnectionManagerEvents,
     options?: MultiConnectionManagerOptions,
   ) {
     this.config = config;
@@ -68,7 +79,7 @@ export class MultiConnectionManager implements ConnectionManager {
     this.primary = new WebSocketManager(
       config,
       {
-        onData: (msg) => this.handleData(msg),
+        onData: (msg, transport) => this.handleData(msg, transport),
         onConnected: events.onConnected,
         onDisconnected: events.onDisconnected,
       },
@@ -89,6 +100,15 @@ export class MultiConnectionManager implements ConnectionManager {
   /** primary の接続状態を返す */
   getStatus(): WsManagerStatus {
     return this.primary.getStatus();
+  }
+
+  /** startup repair は primary の acknowledged generation だけを根拠にする。 */
+  getSubscriptionAcknowledgement(): WsSubscriptionAcknowledgement | null {
+    return this.primary.getSubscriptionAcknowledgement();
+  }
+
+  waitForSubscriptionAcknowledgement(): Promise<WsSubscriptionAcknowledgement> {
+    return this.primary.waitForSubscriptionAcknowledgement();
   }
 
   /** primary と、存在する backup の全経路を保守的に合成した capability。 */
@@ -198,6 +218,7 @@ export class MultiConnectionManager implements ConnectionManager {
     };
 
     this.backup = new WebSocketManager(backupConfig, {
+      // backup は normal ingress には合流するが primary repair proof には使わない。
       onData: (msg) => this.handleData(msg),
       onConnected: () => {
         log.info("副回線: 接続成功");
@@ -229,7 +250,8 @@ export class MultiConnectionManager implements ConnectionManager {
   }
 
   /** 重複排除付きデータハンドラ */
-  private handleData(msg: WsDataMessage): void {
+  private handleData(msg: WsDataMessage, transport?: WsTransportIdentity): void {
+    if (transport != null) this.events.onPrimaryTransportData?.(msg, transport);
     if (this.seenIds.has(msg.id)) {
       log.debug(`重複排除: id=${msg.id.slice(0, 16)}...`);
       return;
@@ -243,7 +265,8 @@ export class MultiConnectionManager implements ConnectionManager {
       if (oldest) this.seenIds.delete(oldest);
     }
 
-    this.events.onData(msg);
+    if (transport == null) this.events.onData(msg);
+    else this.events.onData(msg, transport);
   }
 
   private readDeliveryCapabilities(manager: WebSocketManager): DeliveryCapabilities {

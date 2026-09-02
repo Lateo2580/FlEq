@@ -77,6 +77,12 @@ export interface DisplaySinkDeps {
       isCorrection?: boolean,
     ): unknown;
   };
+  /** Pair-persisted briefing reconciliation admission owned by the composition root. */
+  reconcileBriefingCardAdmission?(
+    sourceKey: string,
+    canonicalEvent: PresentationEvent,
+    nowMs: number,
+  ): CardReconcileResult;
   /** monitor 所有の昇格 lifecycle */
   promotions: WeatherPromotionStore;
   /** 震度 7 の 12 時間保持。display off 中も電文受理と同時に更新する。 */
@@ -113,11 +119,17 @@ function reconcileBriefingCardState(
   const sourceKey = context?.sourceEvent == null
     ? null
     : briefingCardIdentity(context.sourceEvent);
-  if (sourceKey == null || deps.standby.reconcileBriefingCard == null) return {};
+  if (
+    sourceKey == null
+    || deps.reconcileBriefingCardAdmission == null
+      && deps.standby.reconcileBriefingCard == null
+  ) return {};
 
   let cardResult: CardReconcileResult;
   try {
-    cardResult = deps.standby.reconcileBriefingCard(sourceKey, event, nowMs);
+    cardResult = deps.reconcileBriefingCardAdmission != null
+      ? deps.reconcileBriefingCardAdmission(sourceKey, event, nowMs)
+      : deps.standby.reconcileBriefingCard!(sourceKey, event, nowMs);
   } catch {
     return { cardResult: { kind: "failure", status: "failure", applied: false, reason: "cardReconcileFailed" } };
   }
@@ -175,7 +187,7 @@ export function createDisplaySink(deps: DisplaySinkDeps): DisplayIngestSink {
   ): DisplayIngestResult | DisplayIngestOutcome | void | number => {
       const nowMs = now();
       let vptaMutation: { viewChanged: boolean; durableChanged: boolean } | undefined;
-      if (internalCommand != null) {
+      if (internalCommand != null && event.standbyStateProjectionCommitted !== true) {
         try {
           const mutation = deps.standby.applyTyphoonProbabilityCommand?.(internalCommand);
           vptaMutation = typeof mutation === "object" && mutation != null
@@ -203,7 +215,9 @@ export function createDisplaySink(deps: DisplaySinkDeps): DisplayIngestSink {
       }
       try {
       const beforeCardGeneration = deps.standby.briefingCardGeneration?.();
-      const standbyMutation = deps.standby.applyEvent(event, nowMs);
+      const standbyMutation = event.standbyStateProjectionCommitted === true
+        ? undefined
+        : deps.standby.applyEvent(event, nowMs);
       const cardResult = briefingCardIngestResult(
         event,
         beforeCardGeneration,
@@ -216,7 +230,12 @@ export function createDisplaySink(deps: DisplaySinkDeps): DisplayIngestSink {
         || event.weatherStateMutationAccepted === true;
       const acceptedVpww56Mutation = event.type !== "VPWW56"
         || event.weatherStateMutationAccepted === true;
-      if ((isVpws50StateHeadType(event.type) || event.type === "VPNO50") && !unsafeVpws50 && acceptedVpws50Mutation) {
+      if (
+        event.standbyStateProjectionCommitted !== true
+        && (isVpws50StateHeadType(event.type) || event.type === "VPNO50")
+        && !unsafeVpws50
+        && acceptedVpws50Mutation
+      ) {
         const activeIdentity = event.infoType === "取消" || event.type === "VPNO50" ? deps.vpws50Identity?.() : null;
         const activeReportDateTime = activeIdentity?.reportDateTime ?? event.reportDateTime;
         deps.standby.applyWeatherAlerts?.(
@@ -227,7 +246,11 @@ export function createDisplaySink(deps: DisplaySinkDeps): DisplayIngestSink {
           nowMs,
           ...(event.infoType === "訂正" ? [true] as const : []),
         );
-      } else if (event.type === "VPWW56" && acceptedVpww56Mutation) {
+      } else if (
+        event.standbyStateProjectionCommitted !== true
+        && event.type === "VPWW56"
+        && acceptedVpww56Mutation
+      ) {
         const activeRevision = event.weatherStateRevision;
         const activeReportDateTime = activeRevision?.reportDateTime ?? event.reportDateTime;
         deps.standby.applyWeatherAlerts?.(
@@ -249,7 +272,8 @@ export function createDisplaySink(deps: DisplaySinkDeps): DisplayIngestSink {
       // monitor 側で先に更新した store は hub の state-store からは差分に見えない。
       // 特に取消・下方修正を即時に snapshot へ反映するため、外部 dirty を明示する。
       const commandViewChanged = vptaMutation?.viewChanged === true;
-      if (commandViewChanged || quakeExtremeChanged || quakeDisplayChanged || dailyQuakeChanged) {
+      if (event.standbyStateProjectionCommitted === true
+        || commandViewChanged || quakeExtremeChanged || quakeDisplayChanged || dailyQuakeChanged) {
         hub?.markExternalStateDirty?.();
       }
       const tickerResult = tickerResultOf(hub?.ingest(event));

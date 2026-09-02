@@ -196,6 +196,8 @@ export interface TelegramRevision {
 export interface TelegramRevisionComparisonInput {
   revision: TelegramRevision;
   stateSubjectKey: string | null;
+  /** VFVO54/55 の同時刻・同一 serial のみを順序付ける rank。 */
+  variantRank?: 0 | 1;
 }
 
 export type RevisionRelation =
@@ -1928,6 +1930,39 @@ export interface AshArea {
   thickness: number | null;
   plumeDirection: string | null;  // 降灰/噴石の方向 (description 属性の詳細語。例「東（鹿屋市輝北方向）」)
   distanceKm: number | null;      // 到達距離 km (例 100, 5)
+}
+
+/** Browser と persistence に共有する、VFVO54/55 の小さな降灰 projection。 */
+export interface VolcanoAshfallTopAreaV1 {
+  identityKey: string;
+  code: string | null;
+  name: string;
+  firstForecastEndAtMs: number;
+}
+
+export interface VolcanoAshfallGroupV1 {
+  hazardClass: "ash" | "ballistic" | "unknown";
+  ashCode: string;
+  ashName: string;
+  areaCount: number;
+  topAreas: VolcanoAshfallTopAreaV1[];
+  omittedAreaCount: number;
+}
+
+export interface VolcanoAshfallProjectionV1 {
+  stateSubjectKey: string;
+  volcanoCode: string;
+  volcanoName: string;
+  eventId: string;
+  sourceType: "VFVO54" | "VFVO55";
+  sourceEventId: string;
+  forecastStartsAtMs: number;
+  forecastEndsAtMs: number;
+  groups: VolcanoAshfallGroupV1[];
+  omittedGroupCount: number;
+  revision: { reportTimeMs: number; serial: string | null };
+  appliedSemanticKey: string;
+  generation: number;
 }
 
 /** 風向データ */

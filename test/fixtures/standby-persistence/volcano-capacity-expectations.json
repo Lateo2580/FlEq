@@ -1,0 +1,38 @@
+{
+  "schemaVersion": 1,
+  "limits": {
+    "alertSubjects": 128,
+    "eruptionSubjects": 128,
+    "ashfallSubjects": 128,
+    "activeComposites": 128,
+    "rollbackRecords": 128,
+    "sourceEventIdsPerComposite": 4096,
+    "volcanoSubtreeBytesPerFile": 1048576,
+    "standbyFileBytesPerFile": 4194304,
+    "wireAshfallSlices": 64,
+    "volcanoCardBytes": 65536
+  },
+  "fixture": {
+    "name": "same-128-code-three-family-maximum",
+    "reportDateTime": "2026-08-31T00:00:00.000Z",
+    "logicalGeneration": "18446744073709551615",
+    "savedAt": "+275760-09-13T00:00:00.000Z",
+    "counts": {
+      "alertSubjects": 128,
+      "eruptionSubjects": 128,
+      "ashfallSubjects": 128,
+      "activeComposites": 128,
+      "v2RollbackRecords": 128,
+      "v1RollbackRecords": 128,
+      "wireAshfallSlices": 64,
+      "wireOmittedAshfallSlices": 64
+    },
+    "bytes": {
+      "v2VolcanoSubtree": 1114646,
+      "v1VolcanoSubtree": 418070,
+      "v2File": 1115344,
+      "v1File": 418288,
+      "completedVolcanoCard": 55017
+    }
+  }
+}

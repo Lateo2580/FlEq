@@ -235,7 +235,9 @@ describe("standby integration", () => {
       isFlashReport: true, phenomenonName: "噴火速報",
     } }), T0 + 180_000);
     expect(store.snapshotItems()[0]).toEqual(expect.objectContaining({
-      kind: "volcano", data: { volcanoes: [expect.objectContaining({ alertLevel: 4, latestEvent: null })] },
+      kind: "volcano", data: expect.objectContaining({
+        volcanoes: [expect.objectContaining({ alertLevel: 4, latestEvent: null })],
+      }),
     }));
 
     const eventOnly = new StandbyStateStore();
@@ -245,12 +247,12 @@ describe("standby integration", () => {
       alertLevel: null, alertLevelCode: null, previousLevelCode: "4",
     } }), T0 + 60_000);
     expect(eventOnly.snapshotItems()[0]).toEqual(expect.objectContaining({
-      kind: "volcano", data: {
+      kind: "volcano", data: expect.objectContaining({
         volcanoes: [expect.objectContaining({
           alertLevel: null,
           latestEvent: expect.objectContaining({ label: "噴火速報" }),
         })],
-      },
+      }),
     }));
   });
 
@@ -268,14 +270,14 @@ describe("standby integration", () => {
     expect(store.snapshotItems()).toEqual([
       expect.objectContaining({
         kind: "volcano",
-        data: {
+        data: expect.objectContaining({
           volcanoes: [expect.objectContaining({
             alertLevel: null,
             alertClass: { code: "23", name: "入山危険", severity: "warning", isActive: true },
             warningKind: "噴火警報（火口周辺）",
             targetKinds: ["入山規制"],
           })],
-        },
+        }),
       }),
     ]);
   });

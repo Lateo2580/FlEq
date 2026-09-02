@@ -220,17 +220,59 @@ export async function listEarthquakes(
   return res;
 }
 
-/** 電文リストを取得 (GET /v2/telegram) */
+export interface TelegramListQuery {
+  type: string;
+  limit?: number;
+  /** Repair callers keep this explicit on every page/head request. */
+  formatMode?: "raw";
+  /** dmdata の opaque nextToken をそのまま渡す。内容を解釈しない。 */
+  cursorToken?: string;
+}
+
+function normalizeTelegramListQuery(
+  typeOrQuery: string | TelegramListQuery,
+  legacyLimit: number,
+  legacyCursorToken?: string,
+): Required<Pick<TelegramListQuery, "type" | "limit" | "formatMode">>
+  & Pick<TelegramListQuery, "cursorToken"> {
+  const query = typeof typeOrQuery === "string"
+    ? { type: typeOrQuery, limit: legacyLimit, formatMode: "raw" as const, cursorToken: legacyCursorToken }
+    : {
+        type: typeOrQuery.type,
+        limit: typeOrQuery.limit ?? 1,
+        formatMode: typeOrQuery.formatMode ?? "raw",
+        cursorToken: typeOrQuery.cursorToken,
+      };
+  if (query.type.trim() === "") throw new Error("Telegram List type must not be blank");
+  if (!Number.isSafeInteger(query.limit) || query.limit < 1 || query.limit > 100) {
+    throw new Error("Telegram List limit must be an integer from 1 to 100");
+  }
+  if (query.cursorToken != null && query.cursorToken.trim() === "") {
+    throw new Error("Telegram List cursorToken must not be blank");
+  }
+  return query;
+}
+
+/**
+ * 電文リストを一 page 取得する (GET /v2/telegram)。
+ *
+ * string/limit の旧呼び出しを維持しつつ、repair は query object を使う。
+ * pagination 中も type/limit/formatMode を毎回明示し、nextToken は加工せず
+ * cursorToken へだけ写す。
+ */
 export async function listTelegrams(
   apiKey: string,
-  type: string,
-  limit = 1
+  typeOrQuery: string | TelegramListQuery,
+  limit = 1,
+  cursorToken?: string,
 ): Promise<TelegramListResponse> {
+  const query = normalizeTelegramListQuery(typeOrQuery, limit, cursorToken);
   const params = new URLSearchParams({
-    type,
-    limit: String(limit),
-    formatMode: "raw",
+    type: query.type,
+    limit: String(query.limit),
+    formatMode: query.formatMode,
   });
+  if (query.cursorToken != null) params.set("cursorToken", query.cursorToken);
   log.debug(`GET /v2/telegram?${params}`);
   const res = (await request(
     "GET",

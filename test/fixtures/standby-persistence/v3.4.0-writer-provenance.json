@@ -1,0 +1,34 @@
+{
+  "artifact": {
+    "package": "@sayue_ltr/fleq",
+    "packageVersion": "3.4.0",
+    "baseOid": "3c19768e52fe9e9d325e8199555d540fd0de004d",
+    "nodeVersion": "22.23.2",
+    "platform": "darwin-arm64",
+    "fixedClock": "2021-05-14T03:41:00.000Z",
+    "writer": "StandbyPersistence.save version-1 compatibility output",
+    "serialization": "JSON.stringify without trailing newline",
+    "assuranceBoundary": "The guarantee is limited to safe migration from the declared golden bytes; execution of the legacy writer is not reproduced."
+  },
+  "input": {
+    "path": "v3.4.0-writer-input.json",
+    "sha256": "4b4128cdd5eb581200a905aa1f97264bf85be48f8a67beb0f0588f3f5de65e72"
+  },
+  "output": {
+    "path": "v3.4.0-writer-output.json",
+    "sha256": "af39167b1e9d26b4f7aa57685709b67ec9b111d3bb67aa3ce41af889e2a3c4e9"
+  },
+  "droppedTopLevelProperties": [
+    "logicalGeneration",
+    "volcanoAlertGateMetadata",
+    "volcanoAshfallGateMetadata",
+    "volcanoRepairState"
+  ],
+  "expectedMigration": {
+    "activeAshfallRestored": false,
+    "reservedAshfallTombstone": true,
+    "vfvo50Repairable": true,
+    "unknownAlertOmission": true,
+    "ashfallRepairable": true
+  }
+}

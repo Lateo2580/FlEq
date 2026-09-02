@@ -3,7 +3,7 @@ export type CardKey = "tsunami" | "quake" | "weather" | "weatherWarningForecast"
 /** Keys used only for paging partition/probe measurements, including dependent riders. */
 export type PagePartitionKey = CardKey | "tornado";
 /** Keys with independent page-coordinator runtime state. */
-export type PageableKey = "quake" | "weather" | "weatherWarningForecast" | "briefing" | "flood" | "tornado";
+export type PageableKey = "quake" | "weather" | "weatherWarningForecast" | "briefing" | "flood" | "tornado" | "volcano";
 export type CardVariant = "compact" | "expanded" | "full";
 export type TyphoonVariant = "compact" | "full";
 

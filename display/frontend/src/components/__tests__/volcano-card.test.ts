@@ -19,6 +19,7 @@ import type {
   DisplayPlumeHeightSemanticV1,
   DisplayVolcanoEventV1,
 } from "../../lib/protocol";
+import type { PartitionProbe } from "../../lib/legacy-standby/page-partition";
 import { VOLCANO_LEVEL_LABELS } from "../../lib/standby-cards";
 
 function eruptionEvent(over: Partial<DisplayVolcanoEventV1> = {}): DisplayVolcanoEventV1 {
@@ -64,6 +65,51 @@ function volcanoItem(over: Partial<Extract<ActiveStandbyCardV1, { kind: "volcano
     updatedAt: "2026-07-21T00:00:00.000Z", expiresAt: null, restored: false, severity: "critical",
     data: { volcanoes: [{ code: "V-1", name: "Mount Test", alertLevel: 4, latestEvent: eruptionEvent() }] }, ...over,
   };
+}
+
+function ashfallItem(over: {
+  sourceEventId?: string;
+  generation?: number;
+  headerTone?: "muted" | "advisory" | "warning" | "red" | "emergency" | null;
+  alertLevel?: number | null;
+} = {}): Extract<ActiveStandbyCardV1, { kind: "volcano" }> {
+  const headerTone = over.headerTone === undefined ? "warning" : over.headerTone;
+  return volcanoItem({
+    sourceEventIds: ["alert-source", over.sourceEventId ?? "ash-source-1"],
+    restored: true,
+    data: {
+      ...(headerTone == null ? {} : { headerTone }),
+      volcanoes: [{
+        code: "506",
+        name: "桜島",
+        alertLevel: over.alertLevel ?? null,
+        warningKind: over.alertLevel == null ? null : "噴火警報（火口周辺）",
+        targetKinds: [],
+        alertClass: null,
+        latestEvent: null,
+        ashfall: {
+          kind: "rapid",
+          label: "降灰速報",
+          eventId: "event-ash-1",
+          sourceEventId: over.sourceEventId ?? "ash-source-1",
+          forecastEndsAt: "2026-08-31T03:00:00.000Z",
+          forecastEndLabel: "2026年8月31日 12:00まで",
+          groups: [{
+            hazardClass: "ash",
+            ashCode: "02",
+            ashName: "多量",
+            areas: [
+              { identityKey: "code:46201", code: "46201", name: "鹿児島市", displayLabel: "鹿児島市（46201）" },
+              { identityKey: "code:46206", code: "46206", name: "阿久根市", displayLabel: "阿久根市（46206）" },
+            ],
+            omittedAreaCount: 3,
+          }],
+          omittedGroupCount: 2,
+          generation: over.generation ?? 1,
+        },
+      }],
+    },
+  });
 }
 
 describe("VolcanoCard", () => {
@@ -514,5 +560,94 @@ describe("VolcanoCard", () => {
   it("marks a restored card as synchronizing", () => {
     const { container } = render(VolcanoCard, { item: volcanoItem({ restored: true }) });
     expect(container.querySelector(".restored-chip")?.textContent).toBe("同期中");
+  });
+
+  it("engine tone と compact ashfall body を表示し、地域の code identity を ARIA に残す", () => {
+    const { container } = render(VolcanoCard, { item: ashfallItem({ headerTone: "warning" }) });
+    const card = container.querySelector<HTMLElement>(".volcano-card");
+    expect(card?.classList.contains("band-warning")).toBe(true);
+    expect(container.querySelector(".ashfall")?.getAttribute("aria-label"))
+      .toBe("降灰速報 2026年8月31日 12:00まで");
+    expect(container.querySelector(".ashfall-group")?.textContent).toContain("多量");
+    expect(container.querySelector('[data-ashfall-area-identity="code:46201"]')?.getAttribute("aria-label"))
+      .toBe("鹿児島市（46201）");
+    expect(container.textContent).toContain("ほか 3 地域");
+    expect(container.textContent).toContain("ほか 2 区分");
+    expect(container.querySelector(".restored-chip")?.textContent).toBe("同期中");
+  });
+
+  it("ashfall semantics の tone 欠落は muted、既知 alert tone は維持する", () => {
+    const missing = render(VolcanoCard, { item: ashfallItem({ headerTone: null }) });
+    expect(missing.container.querySelector(".volcano-card")?.classList.contains("band-muted")).toBe(true);
+    expect(missing.container.querySelector(".standby-card-header")?.classList.contains("standby-card-header--muted"))
+      .toBe(true);
+
+    const knownAlert = render(VolcanoCard, {
+      item: ashfallItem({ headerTone: null, alertLevel: 3 }),
+    });
+    expect(knownAlert.container.querySelector(".volcano-card")?.classList.contains("band-warning")).toBe(true);
+    expect(knownAlert.container.querySelector(".standby-card-header")?.classList.contains("standby-card-header--muted"))
+      .toBe(false);
+  });
+
+  it("geometry probe で summary/group/area/omission atom を分割し、group label を各 page で再表示する", () => {
+    const oneAtomProbe: PartitionProbe = (_key, _placement, range) =>
+      range.end - range.start <= 1 ? 0 : 2;
+    const item = ashfallItem();
+    const first = render(VolcanoCard, {
+      item,
+      pageIndexOverride: 0,
+      partitionProbe: oneAtomProbe,
+    });
+    const firstCard = first.container.querySelector<HTMLElement>(".volcano-card");
+    expect(firstCard?.dataset.cardPage).toBe("1/5");
+    expect(firstCard?.dataset.volcanoPageRange).toBe("0:1");
+    expect(firstCard?.dataset.volcanoPageIdentity)
+      .toBe("volcano:ashfall:506|ash-source-1|1|02|group-label");
+    expect(first.container.querySelector(".ashfall-group")?.textContent).toContain("多量");
+    expect(first.container.querySelector(".ashfall-area")).toBeNull();
+
+    const second = render(VolcanoCard, {
+      item,
+      pageIndexOverride: 1,
+      partitionProbe: oneAtomProbe,
+    });
+    const secondCard = second.container.querySelector<HTMLElement>(".volcano-card");
+    expect(secondCard?.dataset.cardPage).toBe("2/5");
+    expect(secondCard?.dataset.volcanoPageIdentity)
+      .toBe("volcano:ashfall:506|ash-source-1|1|02|code:46201");
+    expect(second.container.querySelector(".ashfall-group")?.textContent).toContain("多量");
+    expect(second.container.querySelector(".ashfall-area")?.textContent).toBe("鹿児島市（46201）");
+    expect(second.container.querySelector("[data-card-page-footer]")).not.toBeNull();
+  });
+
+  it("forced range probe は live と同じ atom DOM/footer を使う", () => {
+    const { container } = render(VolcanoCard, {
+      item: ashfallItem(),
+      measurementRange: { start: 1, end: 3, tails: [], omittedAreaCount: 0 },
+      pagePlacement: "center",
+      displayMode: "full",
+    });
+    const card = container.querySelector<HTMLElement>(".volcano-card");
+    expect(card?.dataset.volcanoPageRange).toBe("1:3");
+    expect(card?.hasAttribute("data-page-probe-card")).toBe(true);
+    expect(card?.hasAttribute("data-page-probe-readable")).toBe(true);
+    expect(container.querySelectorAll(".ashfall-area")).toHaveLength(2);
+    expect(container.querySelector("[data-card-page-indicator]")?.textContent).toBe("2/2");
+  });
+
+  it("sourceEventId または logical generation の correction で pager identity を更新する", () => {
+    const oneAtomProbe: PartitionProbe = (_key, _placement, range) =>
+      range.end - range.start <= 1 ? 0 : 2;
+    const identity = (item: ReturnType<typeof ashfallItem>): string | undefined => {
+      const rendered = render(VolcanoCard, { item, pageIndexOverride: 1, partitionProbe: oneAtomProbe });
+      return rendered.container.querySelector<HTMLElement>(".volcano-card")?.dataset.volcanoPageIdentity;
+    };
+    expect(identity(ashfallItem({ sourceEventId: "ash-source-1", generation: 1 })))
+      .toBe("volcano:ashfall:506|ash-source-1|1|02|code:46201");
+    expect(identity(ashfallItem({ sourceEventId: "ash-source-2", generation: 1 })))
+      .toBe("volcano:ashfall:506|ash-source-2|1|02|code:46201");
+    expect(identity(ashfallItem({ sourceEventId: "ash-source-2", generation: 2 })))
+      .toBe("volcano:ashfall:506|ash-source-2|2|02|code:46201");
   });
 });

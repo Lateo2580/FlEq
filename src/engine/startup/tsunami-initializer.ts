@@ -5,6 +5,7 @@ import { TelegramRevisionGate } from "../messages/telegram-revision-gate";
 import { processTsunami } from "../presentation/processors/process-tsunami";
 import { toWsDataMessage } from "./telegram-adapter";
 import * as log from "../../logger";
+import type { StandbyPersistenceAdmissionCoordinator } from "../display/standby-persistence-admission";
 
 /**
  * 起動時に最新の VTSE41 電文を取得し、津波警報状態を復元する。
@@ -15,6 +16,7 @@ export async function restoreTsunamiState(
   tsunamiState: TsunamiStateHolder,
   revisionGate: TelegramRevisionGate,
   onAcceptedRevision?: () => void,
+  persistenceAdmission?: StandbyPersistenceAdmissionCoordinator,
 ): Promise<ParsedTsunamiInfo | null> {
   try {
     const res = await listTelegrams(apiKey, "VTSE41", 1);
@@ -38,6 +40,7 @@ export async function restoreTsunamiState(
       revisionGate,
       onTsunamiRevisionDecision: onAcceptedRevision,
       restoreStateOnDuplicate: true,
+      persistenceAdmission,
     });
     if (result.kind !== "ok") {
       if (result.kind === "suppressed" && tsunamiState.getLastInfo() != null) {

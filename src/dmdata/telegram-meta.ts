@@ -30,7 +30,29 @@ export interface TelegramMetaInput {
 
 export type TelegramRevisionComparator =
   | "reportDateTimeThenSerial"
+  | "reportDateTimeThenSerialThenVariant"
   | "serialOnly";
+
+export type NormalizedVolcanoAshfallSerial =
+  | { kind: "missing" }
+  | { kind: "numeric"; numeric: number; canonicalRaw: string }
+  | { kind: "invalid" };
+
+/**
+ * VFVO54/55 use a deliberately stricter serial grammar than the generic
+ * display adapters.  In particular whitespace is not a missing serial and is
+ * never trimmed into a valid one.
+ */
+export function normalizeVolcanoAshfallSerial(
+  raw: string | null,
+): NormalizedVolcanoAshfallSerial {
+  if (raw == null || raw === "") return { kind: "missing" };
+  if (!/^\d+$/.test(raw)) return { kind: "invalid" };
+  const numeric = Number(raw);
+  return Number.isSafeInteger(numeric)
+    ? { kind: "numeric", numeric, canonicalRaw: String(numeric) }
+    : { kind: "invalid" };
+}
 
 export type TelegramDateDiagnosticReason =
   | "invalidReportDateTime"
@@ -210,7 +232,7 @@ export function compareTelegramRevisions(
     || currentRevision.reportDateTime.epochMs == null
   ) return "unordered";
 
-  if (comparator === "reportDateTimeThenSerial") {
+  if (comparator === "reportDateTimeThenSerial" || comparator === "reportDateTimeThenSerialThenVariant") {
     const dateRelation = relationFromNumbers(
       incomingRevision.reportDateTime.epochMs,
       currentRevision.reportDateTime.epochMs,
@@ -218,14 +240,31 @@ export function compareTelegramRevisions(
     if (dateRelation !== "equal") return dateRelation;
   }
 
-  if (
-    !incomingRevision.serial.valid
-    || !currentRevision.serial.valid
-    || incomingRevision.serial.numeric == null
-    || currentRevision.serial.numeric == null
-  ) return "unordered";
-  return relationFromNumbers(
-    incomingRevision.serial.numeric,
-    currentRevision.serial.numeric,
-  );
+  let serialRelation: RevisionRelation;
+  if (comparator === "reportDateTimeThenSerialThenVariant") {
+    const incomingSerial = normalizeVolcanoAshfallSerial(incomingRevision.serial.raw);
+    const currentSerial = normalizeVolcanoAshfallSerial(currentRevision.serial.raw);
+    if (incomingSerial.kind === "invalid" || currentSerial.kind === "invalid") return "unordered";
+    if (incomingSerial.kind !== currentSerial.kind) return "unordered";
+    serialRelation = incomingSerial.kind === "missing"
+      ? "equal"
+      : relationFromNumbers(incomingSerial.numeric, (currentSerial as Extract<NormalizedVolcanoAshfallSerial, { kind: "numeric" }>).numeric);
+  } else {
+    if (
+      !incomingRevision.serial.valid
+      || !currentRevision.serial.valid
+      || incomingRevision.serial.numeric == null
+      || currentRevision.serial.numeric == null
+    ) return "unordered";
+    serialRelation = relationFromNumbers(
+      incomingRevision.serial.numeric,
+      currentRevision.serial.numeric,
+    );
+  }
+  if (serialRelation !== "equal" || comparator !== "reportDateTimeThenSerialThenVariant") {
+    return serialRelation;
+  }
+  if (incoming.variantRank == null && current.variantRank == null) return "equal";
+  if (incoming.variantRank == null || current.variantRank == null) return "unordered";
+  return relationFromNumbers(incoming.variantRank, current.variantRank);
 }

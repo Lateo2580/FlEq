@@ -76,6 +76,13 @@ export function toPresentationEvent(outcome: ProcessOutcome): PresentationEvent 
   // Other standby domains retain their established public event contract.
   if (outcome.domain !== "typhoonProbability") {
     event.standbyStateMutationAccepted = outcome.presentation.standbyStateMutationAccepted;
+    // Volcano owns its canonical holder projection in the global admission
+    // transaction.  Surface that domain-specific acknowledgement through the
+    // common sink flag so display ingestion cannot mutate standby a second
+    // time after the durable callback has already run.
+    event.standbyStateProjectionCommitted =
+      outcome.presentation.standbyStateProjectionCommitted
+      ?? outcome.presentation.volcanoStandbyProjectionCommitted;
     event.standbyStateSubject = outcome.presentation.standbyStateSubject;
     event.standbyActiveSubjects = outcome.presentation.standbyActiveSubjects;
     event.standbyAppliedSemanticKey = outcome.presentation.standbyAppliedSemanticKey;

@@ -707,9 +707,14 @@ export const CANCELLATION_CHARACTERIZATION = {
       targetPolicy: "clearCurrent", stateOwners: ["VolcanoStateHolder", "StandbyStateStore"],
     },
     {
-      family: "volcanoAshfall", headTypes: ["VFVO53", "VFVO54", "VFVO55"],
+      family: "volcanoAshfallScheduled", headTypes: ["VFVO53"],
       currentBehavior: "durable current を持たず transient aggregation／表示に留める",
       targetPolicy: "markCancelled", stateOwners: ["VolcanoVfvo53Aggregator"],
+    },
+    {
+      family: "volcanoAshfall", headTypes: ["VFVO54", "VFVO55"],
+      currentBehavior: "火山コードと実 EventID を照合して durable ashfall slice だけを解除する",
+      targetPolicy: "clearCurrent", stateOwners: ["VolcanoStateHolder", "StandbyStateStore"],
     },
     {
       family: "volcanoTransient", headTypes: ["VZVO40", "VFVO60"],
@@ -806,7 +811,7 @@ export const STATE_HOLDER_CHARACTERIZATION = [
   { owner: "StandbyStateStore", sourceFile: "src/engine/display/standby-state-store.ts", domains: ["earthquake", "lgObservation", "volcano", "nankaiTrough", "weather", "tornado", "heatAlert", "typhoonAnalysis", "floodForecast"], cancellationRole: "standby active card state and tombstones" },
   { owner: "TsunamiStateHolder", sourceFile: "src/engine/messages/tsunami-state.ts", domains: ["tsunami"], cancellationRole: "accepted active level; watermark is owned by TelegramRevisionGate" },
   { owner: "TyphoonProbabilityStateHolder", sourceFile: "src/engine/messages/typhoon-probability-state.ts", domains: ["typhoonProbability"], cancellationRole: "EventID probability cache" },
-  { owner: "VolcanoStateHolder", sourceFile: "src/engine/messages/volcano-state.ts", domains: ["volcano"], cancellationRole: "accepted active alert and eruption EventID mapping; watermark is owned by TelegramRevisionGate" },
+  { owner: "VolcanoStateHolder", sourceFile: "src/engine/messages/volcano-state.ts", domains: ["volcano"], cancellationRole: "accepted active alert, eruption, and VFVO54/55 ashfall composite; watermark is owned by TelegramRevisionGate" },
   { owner: "VolcanoVfvo53Aggregator", sourceFile: "src/engine/messages/volcano-vfvo53-aggregator.ts", domains: ["volcano"], cancellationRole: "VFVO53 batch window; transient aggregation only" },
   { owner: "Vpwp50DetailCache", sourceFile: "src/engine/messages/vpwp50-detail-cache.ts", domains: ["weatherWarningTimeseries"], cancellationRole: "source detail cache" },
   { owner: "Vpws50StateHolder", sourceFile: "src/engine/messages/vpws50-state.ts", domains: ["weather"], cancellationRole: "current/previous snapshots for restorePrevious" },
@@ -959,11 +964,14 @@ export const CANCELLATION_MUTATION_EVIDENCE = [
     sources: [
       {
         sourceFile: "src/engine/messages/volcano-route-handler.ts",
-        needles: ['if (decision.kind === "clearCurrent") this.volcanoState.clearAlert'],
+        needles: ['decision.kind === "clearCurrent"', "this.volcanoState.clearAlert"],
       },
       {
         sourceFile: "src/engine/messages/volcano-state.ts",
-        needles: ["clearAlert(volcanoCode: string): void {", "this.entries.delete(volcanoCode);"],
+        needles: [
+          "clearAlert(volcanoCode: string, sourceEventId?: string, volcanoName?: string): boolean {",
+          "this.deleteIfEmpty(code);",
+        ],
       },
     ],
   },
@@ -981,11 +989,14 @@ export const CANCELLATION_MUTATION_EVIDENCE = [
     sources: [
       {
         sourceFile: "src/engine/messages/volcano-route-handler.ts",
-        needles: ['if (decision.kind === "clearCurrent") this.volcanoState.clearEruption'],
+        needles: ['decision.kind === "clearCurrent"', "this.volcanoState.clearEruption"],
       },
       {
         sourceFile: "src/engine/messages/volcano-state.ts",
-        needles: ["clearEruption(volcanoCode: string): void {", "this.eruptions.delete(volcanoCode);"],
+        needles: [
+          "clearEruption(volcanoCode: string, sourceEventId?: string, volcanoName?: string): boolean {",
+          "this.deleteIfEmpty(code);",
+        ],
       },
     ],
   },
@@ -998,11 +1009,39 @@ export const CANCELLATION_MUTATION_EVIDENCE = [
     }],
   },
   {
-    domain: "volcano", family: "volcanoAshfall", owner: "VolcanoVfvo53Aggregator",
+    domain: "volcano", family: "volcanoAshfallScheduled", owner: "VolcanoVfvo53Aggregator",
     behavior: "取消火山を VFVO53 集約 buffer から削除",
     sources: [{
       sourceFile: "src/engine/messages/volcano-vfvo53-aggregator.ts",
       needles: ['if (info.infoType === "取消") {', "this.removeCancelled(info);", "this.items.delete(info.volcanoCode);"],
+    }],
+  },
+  {
+    domain: "volcano", family: "volcanoAshfall", owner: "VolcanoStateHolder",
+    behavior: "共通 clearCurrent decision を火山コード単位の ashfall slice 削除へ適用",
+    sources: [
+      {
+        sourceFile: "src/engine/messages/volcano-route-handler.ts",
+        needles: ['policy.revisionFamily === "volcanoAshfall"', "this.volcanoState.clearAshfall("],
+      },
+      {
+        sourceFile: "src/engine/messages/volcano-state.ts",
+        needles: [
+          "clearAshfall(volcanoCode: string, sourceEventId?: string, volcanoName?: string): boolean {",
+          "this.deleteIfEmpty(code);",
+        ],
+      },
+    ],
+  },
+  {
+    domain: "volcano", family: "volcanoAshfall", owner: "StandbyStateStore",
+    behavior: "canonical holder から ashfall を含む volcano mirror 全体を再導出する",
+    sources: [{
+      sourceFile: "src/engine/display/standby-state-store.ts",
+      needles: [
+        "replaceVolcanoDerived(snapshot: VolcanoHolderSnapshot): boolean {",
+        "ashfall: composite.ashfall == null ? null : displayVolcanoAshfall(composite.ashfall)",
+      ],
     }],
   },
   {

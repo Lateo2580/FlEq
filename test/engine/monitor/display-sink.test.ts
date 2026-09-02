@@ -168,6 +168,27 @@ describe("createDisplaySink (monitor の実配線)", () => {
     expect(h.sink.ingest(weatherEvent({ type: "VPWS50" }))).toBe(result);
   });
 
+  it("coordinator が先に standby projection を commit した電文は snapshot dirty を通知する", () => {
+    const applyEvent = vi.fn();
+    const markDirty = vi.fn();
+    const sink = createDisplaySink({
+      standby: { applyEvent },
+      promotions: new WeatherPromotionStore(),
+      weatherViews: { vpws50: () => undefined, vpww56: () => undefined },
+      getHub: () => ({ ingest: () => undefined, markExternalStateDirty: markDirty }),
+      now: () => T0,
+    });
+
+    sink.ingest(weatherEvent({
+      domain: "volcano",
+      type: "VFVO54",
+      standbyStateProjectionCommitted: true,
+    }));
+
+    expect(applyEvent).not.toHaveBeenCalled();
+    expect(markDirty).toHaveBeenCalledTimes(1);
+  });
+
   it("late reconcile の ticker result は card result と分離して hub へ転送する", () => {
     const result: DisplayIngestResult = { kind: "applied", delivery: "delivered" };
     const reconcile = vi.fn(() => result);

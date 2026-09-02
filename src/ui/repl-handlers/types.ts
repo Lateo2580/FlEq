@@ -9,6 +9,7 @@ import { TelegramStats } from "../../engine/messages/telegram-stats";
 import { SummaryWindowTracker } from "../../engine/messages/summary-tracker";
 import type { SummaryTimerControl } from "../../engine/monitor/monitor";
 import type { DisplayController } from "../../engine/display/controller";
+import type { VolcanoRepairAdministration } from "../../engine/messages/volcano-transaction-coordinator";
 
 /** コマンドのカテゴリ */
 export type CommandCategory = "info" | "status" | "settings" | "operation";
@@ -47,6 +48,7 @@ export interface ReplContext {
   pipelineController: PipelineController | null;
   summaryTracker: SummaryWindowTracker | null;
   displayController: DisplayController;
+  volcanoRepairAdministration?: VolcanoRepairAdministration | null;
   summaryTimerControl: SummaryTimerControl | null;
   summaryIntervalMin: number | null;
   filterExpr: string | null;

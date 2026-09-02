@@ -10,3 +10,19 @@ describe("detail command definitions", () => {
     expect(detail.subcommands?.tornado?.description).toBe("竜巻注意情報の全対象地域を再表示");
   });
 });
+
+describe("volcanorepair command definition", () => {
+  it("公開する四つの local operational-v2 管理操作を固定する", () => {
+    const command = buildCommandMap(() => ({}) as never).volcanorepair!;
+
+    expect(command.category).toBe("operation");
+    expect(Object.keys(command.subcommands ?? {})).toEqual([
+      "status",
+      "accept",
+      "clear",
+      "acknowledge-domain",
+    ]);
+    expect(command.detail).toContain("volcanorepair accept <fingerprint> <reason...>");
+    expect(command.detail).toContain("volcanorepair acknowledge-domain <fingerprint> <reason...>");
+  });
+});
