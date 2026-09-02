@@ -786,9 +786,22 @@ export interface TelegramListItem {
       headline: string | null;
     };
   };
+  /** dmdata が電文を受信した時刻 (ISO8601)。実応答には常にあるが WS 版には無い。 */
+  receivedTime?: string;
   format: "xml" | "a/n" | "binary" | "json" | null;
+  /**
+   * 実 API の一覧応答には**存在しない** (Telegram Data v1 のリクエスト条件を表す欄)。
+   * 我々が実際に受け取った表現ではないので、本文取得経路では読まないこと。
+   */
   compression: "gzip" | "zip" | null;
+  /** 実 API の一覧応答には**存在しない**。上の compression と同じ扱い。 */
   encoding: "base64" | "utf-8" | null;
+  /** Telegram Data v1 の本文取得 URL。実 API の一覧応答にあるが本文そのものは無い。 */
+  url?: string;
+  /**
+   * 実 API の一覧応答には**存在しない**。WS 由来の item を同じ型で扱う経路のためだけに残す。
+   * 一覧から本文を取る実装を書かないこと (2026-09-02 実採取で確認)。
+   */
   body?: string;
 }
 

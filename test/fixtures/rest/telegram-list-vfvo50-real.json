@@ -1,0 +1,114 @@
+{
+  "responseId": "52886ecd47e91d54",
+  "responseTime": "2026-09-02T12:58:23.655Z",
+  "status": "ok",
+  "items": [
+    {
+      "serial": 53456065,
+      "id": "e34c5754b921e7bd6f2514d519727e4af820b08170273f079c44c288318c7a322887f729371e026b22266d91269eabbf",
+      "classification": "telegram.volcano",
+      "head": {
+        "type": "VFVO50",
+        "author": "JPFK",
+        "time": "2026-09-01T07:00:00.000Z",
+        "designation": null,
+        "test": false
+      },
+      "receivedTime": "2026-09-01T07:00:24.105Z",
+      "xmlReport": {
+        "head": {
+          "title": "火山名  阿蘇山  噴火警報（火口周辺）",
+          "serial": null,
+          "eventId": "503",
+          "headline": "＜阿蘇山に火口周辺警報（噴火警戒レベル２、火口周辺規制）を発表＞\n　中岳第一火口から１ｋｍを超え、概ね２ｋｍの範囲に影響を及ぼす噴火が発生する可能性は低くなりました。\n＜噴火警戒レベルを３（入山規制）から２（火口周辺規制）に引下げ＞",
+          "infoKind": "噴火警報・予報",
+          "infoType": "発表",
+          "reportDateTime": "2026-09-01T16:00:00+09:00",
+          "targetDateTime": "2026-09-01T16:00:00+09:00",
+          "infoKindVersion": "1.0_0"
+        },
+        "control": {
+          "title": "噴火警報・予報",
+          "status": "通常",
+          "dateTime": "2026-09-01T07:00:23Z",
+          "editorialOffice": "福岡管区気象台",
+          "publishingOffice": "福岡管区気象台"
+        }
+      },
+      "format": "xml",
+      "url": "https://data.api.dmdata.jp/v1/e34c5754b921e7bd6f2514d519727e4af820b08170273f079c44c288318c7a322887f729371e026b22266d91269eabbf"
+    },
+    {
+      "serial": 53322341,
+      "id": "4473e29f7ae2d14bd639da5fcb4250804130d42d7d2395ad6a80c6361478ca27289d57420f70cba8e06edc1f00279880",
+      "classification": "telegram.volcano",
+      "head": {
+        "type": "VFVO50",
+        "author": "JPSN",
+        "time": "2026-08-27T02:00:00.000Z",
+        "designation": null,
+        "test": false
+      },
+      "receivedTime": "2026-08-27T02:00:17.202Z",
+      "xmlReport": {
+        "head": {
+          "title": "火山名  岩手山  噴火予報：警報解除",
+          "serial": null,
+          "eventId": "207",
+          "headline": "＜岩手山に噴火予報（噴火警戒レベル１、活火山であることに留意）：警報解除を発表＞\n　西岩手山の想定火口から概ね２ｋｍの範囲に影響を及ぼす噴火の可能性は低くなりました。\n＜噴火警戒レベルを２（火口周辺規制）から１（活火山であることに留意）に引下げ＞",
+          "infoKind": "噴火警報・予報",
+          "infoType": "発表",
+          "reportDateTime": "2026-08-27T11:00:00+09:00",
+          "targetDateTime": "2026-08-27T11:00:00+09:00",
+          "infoKindVersion": "1.0_0"
+        },
+        "control": {
+          "title": "噴火警報・予報",
+          "status": "通常",
+          "dateTime": "2026-08-27T02:00:16Z",
+          "editorialOffice": "仙台管区気象台",
+          "publishingOffice": "仙台管区気象台"
+        }
+      },
+      "format": "xml",
+      "url": "https://data.api.dmdata.jp/v1/4473e29f7ae2d14bd639da5fcb4250804130d42d7d2395ad6a80c6361478ca27289d57420f70cba8e06edc1f00279880"
+    },
+    {
+      "serial": 52991917,
+      "id": "d2ae15f61d7b83a34c5a5426dd7acefba4a2c6fdd9835b78a939e4bfdc7cf362c08b1e79f6d297b0d79a73a4e20e73d9",
+      "classification": "telegram.volcano",
+      "head": {
+        "type": "VFVO50",
+        "author": "JPFK",
+        "time": "2026-08-14T06:45:00.000Z",
+        "designation": null,
+        "test": false
+      },
+      "receivedTime": "2026-08-14T06:45:17.308Z",
+      "xmlReport": {
+        "head": {
+          "title": "火山名  阿蘇山  噴火警報（火口周辺）",
+          "serial": null,
+          "eventId": "503",
+          "headline": "＜阿蘇山に火口周辺警報（噴火警戒レベル３、入山規制）を発表＞\n　中岳第一火口から概ね２ｋｍの範囲では、噴火に伴う大きな噴石及び火砕流に警戒してください。\n＜噴火警戒レベルを２（火口周辺規制）から３（入山規制）に引上げ＞",
+          "infoKind": "噴火警報・予報",
+          "infoType": "発表",
+          "reportDateTime": "2026-08-14T15:45:00+09:00",
+          "targetDateTime": "2026-08-14T15:45:00+09:00",
+          "infoKindVersion": "1.0_0"
+        },
+        "control": {
+          "title": "噴火警報・予報",
+          "status": "通常",
+          "dateTime": "2026-08-14T06:45:16Z",
+          "editorialOffice": "福岡管区気象台",
+          "publishingOffice": "福岡管区気象台"
+        }
+      },
+      "format": "xml",
+      "url": "https://data.api.dmdata.jp/v1/d2ae15f61d7b83a34c5a5426dd7acefba4a2c6fdd9835b78a939e4bfdc7cf362c08b1e79f6d297b0d79a73a4e20e73d9"
+    }
+  ],
+  "nextPooling": "cG9sbGluZyAgICAgNTM0NTYwNjU",
+  "nextPoolingInterval": 1150
+}

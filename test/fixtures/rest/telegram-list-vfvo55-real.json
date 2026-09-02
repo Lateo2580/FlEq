@@ -1,0 +1,117 @@
+{
+  "responseId": "907e24f8cfa3346a",
+  "responseTime": "2026-09-02T12:58:23.845Z",
+  "status": "ok",
+  "items": [
+    {
+      "serial": 53019233,
+      "id": "23cc9ddb371dc980e6d56ca52b339b80658d9d2128c0d24e1c311f7ee78c15b6b25e9f8e4577086b40cbe10842f5fc38",
+      "classification": "telegram.volcano",
+      "head": {
+        "type": "VFVO55",
+        "author": "RJTD",
+        "time": "2026-08-15T03:43:00.000Z",
+        "designation": null,
+        "test": false
+      },
+      "receivedTime": "2026-08-15T03:43:28.492Z",
+      "xmlReport": {
+        "head": {
+          "title": "火山名　桜島　降灰予報（詳細）",
+          "serial": "1",
+          "eventId": "506",
+          "headline": "　１５日１０時１９分から桜島（南岳山頂火口）で継続していた連続噴火は停止したもようです。１５日１０時１９分から１５日１８時までの降灰量は鹿児島市（桜島）ではやや多量となり、降灰は鹿児島県阿久根市まで予想されます。",
+          "infoKind": "降灰予報",
+          "infoType": "発表",
+          "validDateTime": "2026-08-15T18:00:00+09:00",
+          "reportDateTime": "2026-08-15T12:43:00+09:00",
+          "targetDateTime": "2026-08-15T11:50:00+09:00",
+          "infoKindVersion": "1.1_0"
+        },
+        "control": {
+          "title": "降灰予報（詳細）",
+          "status": "通常",
+          "dateTime": "2026-08-15T03:43:00Z",
+          "editorialOffice": "気象庁本庁",
+          "publishingOffice": "気象庁"
+        }
+      },
+      "format": "xml",
+      "url": "https://data.api.dmdata.jp/v1/23cc9ddb371dc980e6d56ca52b339b80658d9d2128c0d24e1c311f7ee78c15b6b25e9f8e4577086b40cbe10842f5fc38"
+    },
+    {
+      "serial": 53018509,
+      "id": "92e0d240f45df811fe7f29d11041bc30d038266819756697c9214e2b5d45bd057299237a939e6097dbeca6e4a26037dc",
+      "classification": "telegram.volcano",
+      "head": {
+        "type": "VFVO55",
+        "author": "RJTD",
+        "time": "2026-08-15T02:20:00.000Z",
+        "designation": null,
+        "test": false
+      },
+      "receivedTime": "2026-08-15T02:20:42.624Z",
+      "xmlReport": {
+        "head": {
+          "title": "火山名　桜島　降灰予報（詳細）",
+          "serial": "1",
+          "eventId": "506",
+          "headline": "　１５日１０時１９分に桜島（南岳山頂火口）で発生した噴火は現在も継続しています。今後も噴火が継続した場合、１５日１０時１９分から１５日１７時までに鹿児島市（桜島）ではやや多量の降灰があり、降灰は鹿児島県長島町まで予想されます。",
+          "infoKind": "降灰予報",
+          "infoType": "発表",
+          "validDateTime": "2026-08-15T17:00:00+09:00",
+          "reportDateTime": "2026-08-15T11:20:00+09:00",
+          "targetDateTime": "2026-08-15T10:49:00+09:00",
+          "infoKindVersion": "1.1_0"
+        },
+        "control": {
+          "title": "降灰予報（詳細）",
+          "status": "通常",
+          "dateTime": "2026-08-15T02:20:00Z",
+          "editorialOffice": "気象庁本庁",
+          "publishingOffice": "気象庁"
+        }
+      },
+      "format": "xml",
+      "url": "https://data.api.dmdata.jp/v1/92e0d240f45df811fe7f29d11041bc30d038266819756697c9214e2b5d45bd057299237a939e6097dbeca6e4a26037dc"
+    },
+    {
+      "serial": 52916225,
+      "id": "7f45d922f2cb8b6918ff9b4f95112c96e46a2747c016fb7f3dae25fb2ab6a7ce546c07e1075f13898d8d90e2d2d765c9",
+      "classification": "telegram.volcano",
+      "head": {
+        "type": "VFVO55",
+        "author": "RJTD",
+        "time": "2026-08-11T17:44:00.000Z",
+        "designation": null,
+        "test": false
+      },
+      "receivedTime": "2026-08-11T17:44:02.924Z",
+      "xmlReport": {
+        "head": {
+          "title": "火山名　桜島　降灰予報（詳細）",
+          "serial": "1",
+          "eventId": "506",
+          "headline": "　１２日００時２０分から桜島（南岳山頂火口）で継続していた連続噴火は噴火基準未満となりました。１２日００時２０分から１２日０８時までの降灰量は鹿児島市（桜島）、鹿屋市、垂水市、大崎町、志布志市、東串良町、肝付町では少量となり、降灰は鹿児島県肝付町まで予想されます。",
+          "infoKind": "降灰予報",
+          "infoType": "発表",
+          "validDateTime": "2026-08-12T08:00:00+09:00",
+          "reportDateTime": "2026-08-12T02:44:00+09:00",
+          "targetDateTime": "2026-08-12T01:50:00+09:00",
+          "infoKindVersion": "1.1_0"
+        },
+        "control": {
+          "title": "降灰予報（詳細）",
+          "status": "通常",
+          "dateTime": "2026-08-11T17:44:00Z",
+          "editorialOffice": "気象庁本庁",
+          "publishingOffice": "気象庁"
+        }
+      },
+      "format": "xml",
+      "url": "https://data.api.dmdata.jp/v1/7f45d922f2cb8b6918ff9b4f95112c96e46a2747c016fb7f3dae25fb2ab6a7ce546c07e1075f13898d8d90e2d2d765c9"
+    }
+  ],
+  "nextPooling": "cG9sbGluZyAgICAgNTMwMTkyMzM",
+  "nextPoolingInterval": 1150
+}

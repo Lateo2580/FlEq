@@ -27,9 +27,38 @@ export function toWsDataMessage(
     head: item.head,
     xmlReport: item.xmlReport,
     format: item.format,
-    compression: item.compression,
-    encoding: item.encoding,
+    compression: item.compression ?? null,
+    encoding: item.encoding ?? null,
     body,
+  };
+  return normalizeTelegramMessage(message, receivedAtMs).message;
+}
+
+/**
+ * Telegram Data v1 から取得した生 XML を WsDataMessage 互換の形へ包む。
+ *
+ * 一覧 item の `compression` / `encoding` は**読まない**。あれは data API 側の
+ * リクエスト条件を表す欄であって、我々が実際に受け取った表現ではない
+ * (実採取 2026-09-02: 一覧 item に両欄は存在しない)。data API は生 XML を
+ * 無圧縮で返すので `compression: null` / `encoding: "utf-8"` を固定で立てる。
+ */
+export function toWsDataMessageFromRestBody(
+  item: TelegramListItem,
+  xml: string,
+  receivedAtMs?: number,
+): WsDataMessage {
+  const message: WsDataMessage = {
+    type: "data",
+    version: "2.0",
+    classification: item.classification,
+    id: item.id,
+    passing: [],
+    head: item.head,
+    xmlReport: item.xmlReport,
+    format: item.format ?? "xml",
+    compression: null,
+    encoding: "utf-8",
+    body: xml,
   };
   return normalizeTelegramMessage(message, receivedAtMs).message;
 }

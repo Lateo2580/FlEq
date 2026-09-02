@@ -137,6 +137,24 @@ function requestOnce(
   });
 }
 
+/** 指数バックオフ + ジッターの待ち時間を算出する (429 は Retry-After を尊重) */
+function computeRetryDelayMs(attempt: number, retryAfterMs: number | null): number {
+  const exponentialDelay = RETRY_BASE_DELAY_MS * Math.pow(2, attempt);
+  const jitter = Math.floor(Math.random() * RETRY_MAX_JITTER_MS);
+  const baseDelay = retryAfterMs != null
+    ? Math.max(retryAfterMs, exponentialDelay)
+    : exponentialDelay;
+  return baseDelay + jitter;
+}
+
+/** 429 応答の Retry-After ヘッダーをミリ秒に直す (無い/不正なら null) */
+function parseRetryAfterMs(headers: Record<string, string | string[] | undefined>): number | null {
+  const retryAfter = headers["retry-after"];
+  if (retryAfter == null) return null;
+  const seconds = Number(Array.isArray(retryAfter) ? retryAfter[0] : retryAfter);
+  return Number.isNaN(seconds) ? null : seconds * 1_000;
+}
+
 /** 指数バックオフ + ジッター付きリトライでリクエストを実行 */
 async function request(
   method: "GET" | "POST" | "DELETE",
@@ -160,12 +178,7 @@ async function request(
       }
 
       // バックオフ遅延の算出: 指数バックオフ + ジッター、429 の場合は Retry-After を尊重
-      const exponentialDelay = RETRY_BASE_DELAY_MS * Math.pow(2, attempt);
-      const jitter = Math.floor(Math.random() * RETRY_MAX_JITTER_MS);
-      const baseDelay = err.retryAfterMs != null
-        ? Math.max(err.retryAfterMs, exponentialDelay)
-        : exponentialDelay;
-      const delay = baseDelay + jitter;
+      const delay = computeRetryDelayMs(attempt, err.retryAfterMs);
 
       log.warn(
         `${method} ${new URL(url).pathname}: HTTP ${err.statusCode} — ${delay}ms 後にリトライします (${attempt + 1}/${RETRY_MAX_ATTEMPTS})`
@@ -225,6 +238,12 @@ export interface TelegramListQuery {
   limit?: number;
   /** Repair callers keep this explicit on every page/head request. */
   formatMode?: "raw";
+  /**
+   * Head 情報 (reportDateTime/serial/infoType/eventId) を items に載せる。
+   * 既定 true。これが無いと item の meta が空のまま parse され、
+   * 復元経路が identity を組めない (2026-09-02 に発覚した欠陥)。
+   */
+  xmlReport?: boolean;
   /** dmdata の opaque nextToken をそのまま渡す。内容を解釈しない。 */
   cursorToken?: string;
 }
@@ -233,14 +252,21 @@ function normalizeTelegramListQuery(
   typeOrQuery: string | TelegramListQuery,
   legacyLimit: number,
   legacyCursorToken?: string,
-): Required<Pick<TelegramListQuery, "type" | "limit" | "formatMode">>
+): Required<Pick<TelegramListQuery, "type" | "limit" | "formatMode" | "xmlReport">>
   & Pick<TelegramListQuery, "cursorToken"> {
   const query = typeof typeOrQuery === "string"
-    ? { type: typeOrQuery, limit: legacyLimit, formatMode: "raw" as const, cursorToken: legacyCursorToken }
+    ? {
+        type: typeOrQuery,
+        limit: legacyLimit,
+        formatMode: "raw" as const,
+        xmlReport: true,
+        cursorToken: legacyCursorToken,
+      }
     : {
         type: typeOrQuery.type,
         limit: typeOrQuery.limit ?? 1,
         formatMode: typeOrQuery.formatMode ?? "raw",
+        xmlReport: typeOrQuery.xmlReport ?? true,
         cursorToken: typeOrQuery.cursorToken,
       };
   if (query.type.trim() === "") throw new Error("Telegram List type must not be blank");
@@ -272,6 +298,8 @@ export async function listTelegrams(
     limit: String(query.limit),
     formatMode: query.formatMode,
   });
+  // false のときはパラメータ自体を出さない (dmdata 側の xmlReport=false 解釈が未確認のため)
+  if (query.xmlReport) params.set("xmlReport", "true");
   if (query.cursorToken != null) params.set("cursorToken", query.cursorToken);
   log.debug(`GET /v2/telegram?${params}`);
   const res = (await request(
@@ -286,6 +314,175 @@ export async function listTelegrams(
     );
   }
   return res;
+}
+
+// ── Telegram Data v1 (本文取得) ──
+
+/** Telegram Data v1 のベース URL。一覧 API (api.dmdata.jp/v2) とはホストが別。 */
+export const TELEGRAM_DATA_BASE = "https://data.api.dmdata.jp/v1";
+
+/**
+ * 本文の受信上限。火山電文の実測は 7.5 KB なので 4 MiB で十分に広い。
+ * `decodeTelegramBody` の 10 MiB より厳しく取り、超過は受信途中で打ち切る。
+ */
+export const TELEGRAM_BODY_MAX_BYTES = 4 * 1024 * 1024;
+
+/** dmdata の電文 id は英数字のみ (実測 95〜96 文字のハッシュ)。 */
+const TELEGRAM_ID_PATTERN = /^[A-Za-z0-9]{1,256}$/;
+
+/**
+ * 本文取得の結果。throw ではなく判別共用体で返す。
+ * 呼び出し側は target 単位の fail-closed 理由を `reason` から組み立てる。
+ */
+export type TelegramBodyResult =
+  | { kind: "ok"; xml: string }
+  | {
+      kind: "failed";
+      reason: "forbidden" | "notFound" | "contentType" | "tooLarge" | "network";
+    };
+
+/** 応答 content-type が XML を名乗っているか */
+function isXmlContentType(contentType: string): boolean {
+  const normalized = contentType.trim().toLowerCase();
+  return normalized.startsWith("application/xml") || normalized.startsWith("text/xml");
+}
+
+/**
+ * 本文を 1 回だけ取りに行く。
+ *
+ * リトライ対象 (429/5xx) だけ `HttpError` で reject し、それ以外の終着は
+ * すべて `TelegramBodyResult` で resolve する。
+ */
+function fetchTelegramBodyOnce(url: string, apiKey: string): Promise<TelegramBodyResult> {
+  return new Promise((resolve, reject) => {
+    const parsed = new URL(url);
+    const options: https.RequestOptions = {
+      hostname: parsed.hostname,
+      port: 443,
+      path: parsed.pathname + parsed.search,
+      method: "GET",
+      agent: getKeepAliveAgent(),
+      headers: {
+        Accept: "application/xml",
+        // gzip を受け取ると自前展開の経路が増える。実採取で無圧縮の生 XML を確認済み。
+        "Accept-Encoding": "identity",
+        Authorization: buildAuthorizationHeader(apiKey),
+      },
+    };
+
+    let settled = false;
+    const settle = (run: () => void): void => {
+      if (settled) return;
+      settled = true;
+      run();
+    };
+
+    const req = https.request(options, (res) => {
+      const statusCode = res.statusCode ?? 0;
+      const chunks: Buffer[] = [];
+      let totalBytes = 0;
+
+      res.on("data", (chunk: Buffer | string) => {
+        if (settled) return;
+        const buf = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk, "utf-8");
+        totalBytes += buf.length;
+        if (totalBytes > TELEGRAM_BODY_MAX_BYTES) {
+          settle(() => {
+            req.destroy();
+            resolve({ kind: "failed", reason: "tooLarge" });
+          });
+          return;
+        }
+        chunks.push(buf);
+      });
+
+      res.on("end", () => {
+        if (settled) return;
+        if (RETRYABLE_STATUS_CODES.has(statusCode)) {
+          settle(() =>
+            reject(
+              new HttpError(
+                `GET ${parsed.pathname}: HTTP ${statusCode}`,
+                statusCode,
+                parseRetryAfterMs(res.headers),
+              ),
+            ),
+          );
+          return;
+        }
+        if (statusCode === 403) {
+          log.warn(
+            `GET ${parsed.pathname}: HTTP 403 — 契約に telegram.data 権限が無い可能性があります`,
+          );
+          settle(() => resolve({ kind: "failed", reason: "forbidden" }));
+          return;
+        }
+        if (statusCode === 404) {
+          settle(() => resolve({ kind: "failed", reason: "notFound" }));
+          return;
+        }
+        if (statusCode < 200 || statusCode >= 300) {
+          settle(() => resolve({ kind: "failed", reason: "network" }));
+          return;
+        }
+        const contentType = res.headers["content-type"] ?? "";
+        if (!isXmlContentType(Array.isArray(contentType) ? contentType[0] ?? "" : contentType)) {
+          settle(() => resolve({ kind: "failed", reason: "contentType" }));
+          return;
+        }
+        settle(() => resolve({ kind: "ok", xml: Buffer.concat(chunks).toString("utf-8") }));
+      });
+    });
+
+    req.on("error", () => {
+      settle(() => resolve({ kind: "failed", reason: "network" }));
+    });
+    req.setTimeout(REQUEST_TIMEOUT_MS, () => {
+      req.destroy(new Error(`Request timeout (${REQUEST_TIMEOUT_MS / 1000}s)`));
+    });
+    req.end();
+  });
+}
+
+/**
+ * Telegram Data v1 から電文本文 (生 XML) を取得する。
+ *
+ * URL は id から自分で組む。`expectedUrl` (一覧 item の `url`) を渡した場合は
+ * 組んだ URL と一致することを検証し、不一致なら送信せずに失敗させる
+ * ——外部応答の文字列をそのまま fetch 先にすると、汚染時に任意ホストへ
+ * Basic 認証ヘッダーを送ることになるため。
+ */
+export async function fetchTelegramBody(
+  apiKey: string,
+  id: string,
+  expectedUrl?: string,
+): Promise<TelegramBodyResult> {
+  if (!TELEGRAM_ID_PATTERN.test(id)) {
+    log.warn(`Telegram Data: 電文 id の形が想定外です (len=${id.length})`);
+    return { kind: "failed", reason: "network" };
+  }
+  const url = `${TELEGRAM_DATA_BASE}/${id}`;
+  if (expectedUrl != null && expectedUrl !== url) {
+    log.warn(`Telegram Data: 一覧の url が想定と一致しません (id=${id})`);
+    return { kind: "failed", reason: "network" };
+  }
+
+  for (let attempt = 0; attempt <= RETRY_MAX_ATTEMPTS; attempt++) {
+    try {
+      log.debug(`GET /v1/${id}`);
+      return await fetchTelegramBodyOnce(url, apiKey);
+    } catch (err) {
+      if (!(err instanceof HttpError) || attempt >= RETRY_MAX_ATTEMPTS) {
+        return { kind: "failed", reason: "network" };
+      }
+      const delay = computeRetryDelayMs(attempt, err.retryAfterMs);
+      log.warn(
+        `GET /v1/${id}: HTTP ${err.statusCode} — ${delay}ms 後にリトライします (${attempt + 1}/${RETRY_MAX_ATTEMPTS})`,
+      );
+      await new Promise((r) => setTimeout(r, delay));
+    }
+  }
+  return { kind: "failed", reason: "network" };
 }
 
 /** 既存のオープンソケットを取得 */

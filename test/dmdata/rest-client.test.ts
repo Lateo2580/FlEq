@@ -85,10 +85,16 @@ import {
   listContracts,
   listEarthquakes,
   listSockets,
+  listTelegrams,
   closeSocket,
   startSocket,
+  fetchTelegramBody,
+  TELEGRAM_DATA_BASE,
+  TELEGRAM_BODY_MAX_BYTES,
 } from "../../src/dmdata/rest-client";
-import { AppConfig, DEFAULT_CONFIG } from "../../src/types";
+import { AppConfig, DEFAULT_CONFIG, TelegramListResponse } from "../../src/types";
+import { readFileSync } from "fs";
+import { resolve } from "path";
 
 function respondWith(
   statusCode: number,
@@ -484,6 +490,196 @@ describe("REST Client", () => {
       const result = await promise;
       expect(result.items).toHaveLength(1);
       expect(requestCount).toBe(2);
+    });
+  });
+
+  // ── 単位 1 / 2: xmlReport と Telegram Data v1 本文取得 ──
+
+  /** 生テキスト応答（content-type を明示指定する）を返す */
+  function respondWithText(
+    statusCode: number,
+    contentType: string,
+    body: string | Buffer[],
+  ): void {
+    lastMockRes = createMockResponse(statusCode, { "content-type": contentType });
+    requestCallback!(lastMockRes);
+    for (const chunk of Array.isArray(body) ? body : [Buffer.from(body, "utf-8")]) {
+      lastMockRes.emit("data", chunk);
+    }
+    lastMockRes.emit("end");
+  }
+
+  const TELEGRAM_LIST_OK = {
+    responseId: "r1",
+    responseTime: "2026-09-01T00:00:00Z",
+    status: "ok" as const,
+    items: [],
+  };
+
+  function requestPath(): string {
+    return String((lastRequestOptions ?? {}).path ?? "");
+  }
+
+  describe("listTelegrams の xmlReport", () => {
+    it("legacy string 形でも xmlReport=true が付く", async () => {
+      const promise = listTelegrams(TEST_API_KEY, "VTSE41", 1);
+      respondWith(200, TELEGRAM_LIST_OK);
+      await promise;
+      expect(requestPath()).toContain("xmlReport=true");
+      expect(requestPath()).toContain("type=VTSE41");
+    });
+
+    it("query object 形でも xmlReport=true が付く", async () => {
+      const promise = listTelegrams(TEST_API_KEY, {
+        type: "VFVO54",
+        limit: 100,
+        formatMode: "raw",
+        cursorToken: "tok",
+      });
+      respondWith(200, TELEGRAM_LIST_OK);
+      await promise;
+      expect(requestPath()).toContain("xmlReport=true");
+      expect(requestPath()).toContain("cursorToken=tok");
+    });
+
+    it("xmlReport: false を明示するとパラメータ自体が出ない", async () => {
+      const promise = listTelegrams(TEST_API_KEY, { type: "VFVO50", xmlReport: false });
+      respondWith(200, TELEGRAM_LIST_OK);
+      await promise;
+      expect(requestPath()).not.toContain("xmlReport");
+    });
+  });
+
+  describe("実 API 応答の形 (2026-09-02 採取)", () => {
+    const REAL_LIST_FIXTURES = ["vfvo50", "vfvo54", "vfvo55"] as const;
+
+    function loadRealList(slug: string): TelegramListResponse {
+      const raw: unknown = JSON.parse(
+        readFileSync(resolve(__dirname, `../fixtures/rest/telegram-list-${slug}-real.json`), "utf-8"),
+      );
+      return raw as TelegramListResponse;
+    }
+
+    it.each(REAL_LIST_FIXTURES)("%s: 一覧 item に body キーが存在しない", (slug) => {
+      const res = loadRealList(slug);
+      expect(res.items.length).toBeGreaterThan(0);
+      for (const item of res.items) {
+        // 実 API は一覧に本文を載せない。body 前提のコードはここで止める。
+        expect(Object.prototype.hasOwnProperty.call(item, "body")).toBe(false);
+        expect(Object.prototype.hasOwnProperty.call(item, "compression")).toBe(false);
+        expect(Object.prototype.hasOwnProperty.call(item, "encoding")).toBe(false);
+      }
+    });
+
+    it.each(REAL_LIST_FIXTURES)("%s: xmlReport / receivedTime / url が載る", (slug) => {
+      const res = loadRealList(slug);
+      for (const item of res.items) {
+        expect(item.xmlReport?.head.infoType).toBeTruthy();
+        expect(item.receivedTime).toMatch(/^\d{4}-\d{2}-\d{2}T/);
+        expect(item.url).toBe(`${TELEGRAM_DATA_BASE}/${item.id}`);
+        expect(item.format).toBe("xml");
+      }
+    });
+
+    it("VFVO50 の xmlReport.head.serial は null、VFVO54/55 は文字列", () => {
+      expect(loadRealList("vfvo50").items[0]!.xmlReport!.head.serial).toBeNull();
+      expect(loadRealList("vfvo54").items[0]!.xmlReport!.head.serial).toBe("1");
+      expect(loadRealList("vfvo55").items[0]!.xmlReport!.head.serial).toBe("1");
+    });
+  });
+
+  describe("fetchTelegramBody", () => {
+    const ID = "e34c5754b921e7bd6f2514d519727e4af820b08170273f079c44c288318c7a322887f729371e026b22266d91269eabbf";
+    const XML = '<?xml version="1.0" encoding="UTF-8"?>\n<Report><Head/></Report>';
+
+    it("application/xml の生 XML をそのまま返す", async () => {
+      const promise = fetchTelegramBody(TEST_API_KEY, ID);
+      respondWithText(200, "application/xml", XML);
+      await expect(promise).resolves.toEqual({ kind: "ok", xml: XML });
+    });
+
+    it("data.api.dmdata.jp/v1/<id> を Accept: application/xml で叩く", async () => {
+      const promise = fetchTelegramBody(TEST_API_KEY, ID);
+      respondWithText(200, "application/xml; charset=utf-8", XML);
+      await promise;
+      expect(lastRequestOptions).toMatchObject({
+        hostname: "data.api.dmdata.jp",
+        path: `/v1/${ID}`,
+        method: "GET",
+        headers: expect.objectContaining({
+          Accept: "application/xml",
+          "Accept-Encoding": "identity",
+          Authorization: `Basic ${Buffer.from(`${TEST_API_KEY}:`).toString("base64")}`,
+        }),
+      });
+    });
+
+    it("expectedUrl が別ホストのとき送信せずに失敗する", async () => {
+      const result = await fetchTelegramBody(TEST_API_KEY, ID, `https://evil.example.com/v1/${ID}`);
+      expect(result).toEqual({ kind: "failed", reason: "network" });
+      expect(requestCount).toBe(0);
+    });
+
+    it("expectedUrl が一致すれば送信する", async () => {
+      const promise = fetchTelegramBody(TEST_API_KEY, ID, `${TELEGRAM_DATA_BASE}/${ID}`);
+      respondWithText(200, "application/xml", XML);
+      await expect(promise).resolves.toEqual({ kind: "ok", xml: XML });
+    });
+
+    it("id が英数字以外を含むとき送信せずに失敗する", async () => {
+      const result = await fetchTelegramBody(TEST_API_KEY, "../v2/contract");
+      expect(result).toEqual({ kind: "failed", reason: "network" });
+      expect(requestCount).toBe(0);
+    });
+
+    it("403 は forbidden", async () => {
+      const promise = fetchTelegramBody(TEST_API_KEY, ID);
+      respondWithText(403, "application/json", '{"error":{"code":403}}');
+      await expect(promise).resolves.toEqual({ kind: "failed", reason: "forbidden" });
+    });
+
+    it("404 は notFound (本文は text/plain で JSON ではない)", async () => {
+      const promise = fetchTelegramBody(TEST_API_KEY, ID);
+      respondWithText(404, "text/plain", "404 Not Found");
+      await expect(promise).resolves.toEqual({ kind: "failed", reason: "notFound" });
+    });
+
+    it("200 でも content-type が JSON なら contentType 失敗", async () => {
+      const promise = fetchTelegramBody(TEST_API_KEY, ID);
+      respondWithText(200, "application/json", "{}");
+      await expect(promise).resolves.toEqual({ kind: "failed", reason: "contentType" });
+    });
+
+    it("4 MiB 超過は tooLarge で受信を打ち切る", async () => {
+      const promise = fetchTelegramBody(TEST_API_KEY, ID);
+      const chunk = Buffer.alloc(TELEGRAM_BODY_MAX_BYTES / 2 + 1, 0x61);
+      respondWithText(200, "application/xml", [chunk, chunk]);
+      await expect(promise).resolves.toEqual({ kind: "failed", reason: "tooLarge" });
+      expect(lastMockReq.destroy).toHaveBeenCalled();
+    });
+
+    it("ネットワークエラーは network", async () => {
+      const promise = fetchTelegramBody(TEST_API_KEY, ID);
+      lastMockReq.emit("error", new Error("ECONNREFUSED"));
+      await expect(promise).resolves.toEqual({ kind: "failed", reason: "network" });
+    });
+
+    it("503 は既存と同じバックオフでリトライする", async () => {
+      vi.useFakeTimers();
+      try {
+        const promise = fetchTelegramBody(TEST_API_KEY, ID);
+        respondWithText(503, "text/plain", "Service Unavailable");
+        await vi.advanceTimersByTimeAsync(2_000);
+        const cb = requestCallbacks[1]!;
+        const res = createMockResponse(200, { "content-type": "application/xml" });
+        cb(res);
+        res.emit("data", Buffer.from(XML, "utf-8"));
+        res.emit("end");
+        await expect(promise).resolves.toEqual({ kind: "ok", xml: XML });
+        expect(requestCount).toBe(2);
+      } finally {
+        vi.useRealTimers();
+      }
     });
   });
 });

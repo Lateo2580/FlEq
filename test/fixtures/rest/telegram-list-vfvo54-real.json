@@ -1,0 +1,117 @@
+{
+  "responseId": "bdea745c84c4d58e",
+  "responseTime": "2026-09-02T12:58:23.745Z",
+  "status": "ok",
+  "items": [
+    {
+      "serial": 52677309,
+      "id": "be8b4c4386382a5c6e0f6aba79ec8180f2c4eff941aed6188c11158ac01b931543d66816547fa66475bcda3618f77b59",
+      "classification": "telegram.volcano",
+      "head": {
+        "type": "VFVO54",
+        "author": "RJTD",
+        "time": "2026-08-02T14:58:00.000Z",
+        "designation": null,
+        "test": false
+      },
+      "receivedTime": "2026-08-02T14:58:07.697Z",
+      "xmlReport": {
+        "head": {
+          "title": "火山名　桜島　降灰予報（速報）",
+          "serial": "1",
+          "eventId": "506",
+          "headline": "　１時間以内に鹿児島市（桜島）ではやや多量の降灰があり、降灰は鹿児島県鹿児島市（桜島）まで予想されます。\n　また、火口から南西方向およそ３ｋｍまでの範囲では、小さな噴石が風に流されて降るおそれがあります。",
+          "infoKind": "降灰予報",
+          "infoType": "発表",
+          "validDateTime": "2026-08-03T00:34:00+09:00",
+          "reportDateTime": "2026-08-02T23:58:00+09:00",
+          "targetDateTime": "2026-08-02T23:34:00+09:00",
+          "infoKindVersion": "1.1_0"
+        },
+        "control": {
+          "title": "降灰予報（速報）",
+          "status": "通常",
+          "dateTime": "2026-08-02T14:58:00Z",
+          "editorialOffice": "気象庁本庁",
+          "publishingOffice": "気象庁"
+        }
+      },
+      "format": "xml",
+      "url": "https://data.api.dmdata.jp/v1/be8b4c4386382a5c6e0f6aba79ec8180f2c4eff941aed6188c11158ac01b931543d66816547fa66475bcda3618f77b59"
+    },
+    {
+      "serial": 52651282,
+      "id": "2aed521007be26eea6b67db2a37640bb96607ae0544c9ee35c5e11913e1e9ba303fcafebd749b549248e3a9e539f1fbf",
+      "classification": "telegram.volcano",
+      "head": {
+        "type": "VFVO54",
+        "author": "RJTD",
+        "time": "2026-08-01T15:09:00.000Z",
+        "designation": null,
+        "test": false
+      },
+      "receivedTime": "2026-08-01T15:09:29.844Z",
+      "xmlReport": {
+        "head": {
+          "title": "火山名　桜島　降灰予報（速報）",
+          "serial": "1",
+          "eventId": "506",
+          "headline": "　１時間以内に鹿児島市（桜島）ではやや多量の降灰があり、降灰は鹿児島県垂水市まで予想されます。\n　また、火口から南方向およそ２ｋｍまでの範囲では、小さな噴石が風に流されて降るおそれがあります。",
+          "infoKind": "降灰予報",
+          "infoType": "発表",
+          "validDateTime": "2026-08-02T01:02:00+09:00",
+          "reportDateTime": "2026-08-02T00:09:00+09:00",
+          "targetDateTime": "2026-08-02T00:02:00+09:00",
+          "infoKindVersion": "1.1_0"
+        },
+        "control": {
+          "title": "降灰予報（速報）",
+          "status": "通常",
+          "dateTime": "2026-08-01T15:09:00Z",
+          "editorialOffice": "気象庁本庁",
+          "publishingOffice": "気象庁"
+        }
+      },
+      "format": "xml",
+      "url": "https://data.api.dmdata.jp/v1/2aed521007be26eea6b67db2a37640bb96607ae0544c9ee35c5e11913e1e9ba303fcafebd749b549248e3a9e539f1fbf"
+    },
+    {
+      "serial": 52651162,
+      "id": "5de464f9d9a35574efa66d42c3e0f43c9320259f4b6335ef3f60e7bfd09b6a1f91cdffe77ff6585dc5e9eb777b3ae449",
+      "classification": "telegram.volcano",
+      "head": {
+        "type": "VFVO54",
+        "author": "RJTD",
+        "time": "2026-08-01T14:59:00.000Z",
+        "designation": null,
+        "test": false
+      },
+      "receivedTime": "2026-08-01T14:59:06.000Z",
+      "xmlReport": {
+        "head": {
+          "title": "火山名　桜島　降灰予報（速報）",
+          "serial": "1",
+          "eventId": "506",
+          "headline": "　１時間以内に鹿児島市（桜島）ではやや多量の降灰があり、降灰は鹿児島県垂水市まで予想されます。\n　また、火口から南方向およそ４ｋｍまでの範囲では、小さな噴石が風に流されて降るおそれがあります。",
+          "infoKind": "降灰予報",
+          "infoType": "発表",
+          "validDateTime": "2026-08-02T00:45:00+09:00",
+          "reportDateTime": "2026-08-01T23:59:00+09:00",
+          "targetDateTime": "2026-08-01T23:45:00+09:00",
+          "infoKindVersion": "1.1_0"
+        },
+        "control": {
+          "title": "降灰予報（速報）",
+          "status": "通常",
+          "dateTime": "2026-08-01T14:59:00Z",
+          "editorialOffice": "気象庁本庁",
+          "publishingOffice": "気象庁"
+        }
+      },
+      "format": "xml",
+      "url": "https://data.api.dmdata.jp/v1/5de464f9d9a35574efa66d42c3e0f43c9320259f4b6335ef3f60e7bfd09b6a1f91cdffe77ff6585dc5e9eb777b3ae449"
+    }
+  ],
+  "nextPooling": "cG9sbGluZyAgICAgNTI2NzczMDk",
+  "nextPoolingInterval": 1150
+}
