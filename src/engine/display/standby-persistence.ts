@@ -7342,6 +7342,50 @@ function terminalVolcanoQuarantine(): PersistedTelegramFoundationV2["volcano"] {
 }
 
 /**
+ * Canonical serial form for volcano revisions (spec §5.4): "01" and "1" are the
+ * same revision, whose canonical raw is "1".  Pre-generation bundles were written
+ * with the telegram's own zero-padded serial, so both the join comparison and the
+ * migrated slice have to go through this single function; the canonical bundle
+ * validator (`canonicalVolcanoRevision`) rejects any other form.
+ */
+function canonicalVolcanoMigrationSerial(
+  raw: unknown,
+): { ok: true; serial: string | null } | { ok: false } {
+  if (raw == null) return { ok: true, serial: null };
+  if (typeof raw !== "string") return { ok: false };
+  const parsed = parseTelegramSerial(raw);
+  return parsed.valid && parsed.numeric != null
+    ? { ok: true, serial: String(parsed.numeric) }
+    : { ok: false };
+}
+
+/** Revision identity is compared on the canonical serial, never the stored raw. */
+function volcanoMigrationSerialsMatch(left: unknown, right: unknown): boolean {
+  const canonicalLeft = canonicalVolcanoMigrationSerial(left);
+  const canonicalRight = canonicalVolcanoMigrationSerial(right);
+  return canonicalLeft.ok && canonicalRight.ok && canonicalLeft.serial === canonicalRight.serial;
+}
+
+function canonicalVolcanoMigrationRevision(revision: StandbyRevision): StandbyRevision {
+  const canonical = canonicalVolcanoMigrationSerial(revision.serial);
+  return canonical.ok ? { ...revision, serial: canonical.serial } : { ...revision };
+}
+
+/**
+ * The canonical writer couples a composite slice to its gate on the raw serial
+ * string, so a gate joined into a migrated composite has to carry the same
+ * canonical form.  Mutates a gate entry the caller already cloned.
+ */
+function canonicalizeVolcanoMigrationGateSerial(
+  gate: PersistedTelegramRevisionGateEntryV2,
+): void {
+  const canonical = canonicalVolcanoMigrationSerial(gate.comparison.revision.serial.raw);
+  if (canonical.ok && canonical.serial != null) {
+    gate.comparison.revision.serial.raw = canonical.serial;
+  }
+}
+
+/**
  * One-way conversion of the pre-generation operational v2 bundle.  The old
  * common gate deliberately stored the registry identity (`volcanoAlert`) in
  * comparison.type, so a missing explicit provenance can only become the
@@ -7575,7 +7619,8 @@ function migratePreGenerationVolcanoFoundation(
       && ids != null && semanticTail != null
       && displayAlertMatches(holder, rollback)
       && rollback.alertRevision!.reportTimeMs === gate.comparison.revision.reportDateTime.epochMs
-      && rollback.alertRevision!.serial === gate.comparison.revision.serial.raw
+      && volcanoMigrationSerialsMatch(
+        rollback.alertRevision!.serial, gate.comparison.revision.serial.raw)
       && Date.parse(holder.reportDateTime) === rollback.alertRevision!.reportTimeMs;
     if (joined) {
       const sourceFamily = explicitFamily ?? "operationalV2Unknown";
@@ -7583,12 +7628,13 @@ function migratePreGenerationVolcanoFoundation(
         ...structuredClone(gate),
         volcanoProvenance: { kind: "alert", sourceFamily },
       };
+      canonicalizeVolcanoMigrationGateSerial(migratedGate);
       const composite = ensureComposite(code, holder.volcanoName, ids);
       if (composite != null) {
         composite.alert = {
           ...structuredClone(holder),
           sourceFamily,
-          revision: { ...rollback.alertRevision! },
+          revision: canonicalVolcanoMigrationRevision(rollback.alertRevision!),
           appliedSemanticKey: semanticTail,
         };
         migratedGates.push(migratedGate);
@@ -7653,10 +7699,13 @@ function migratePreGenerationVolcanoFoundation(
       && ids != null && semanticTail != null && rollback.eventRevision != null
       && isVolcanoEvent(rollback.latestEvent) && identity.eventId === (rollback.latestEventId ?? null)
       && rollback.eventRevision.reportTimeMs === gate.comparison.revision.reportDateTime.epochMs
-      && rollback.eventRevision.serial === gate.comparison.revision.serial.raw
+      && volcanoMigrationSerialsMatch(
+        rollback.eventRevision.serial, gate.comparison.revision.serial.raw)
       && Number.isSafeInteger(expiry) && rollback.eventExpiresAtMs === expiry
       && identityMatches;
     if (joined) {
+      const migratedGate = structuredClone(gate);
+      canonicalizeVolcanoMigrationGateSerial(migratedGate);
       const composite = ensureComposite(code, rollback.name, ids);
       if (composite != null) {
         composite.eruption = {
@@ -7664,11 +7713,11 @@ function migratePreGenerationVolcanoFoundation(
           latestEvent: structuredClone(rollback.latestEvent) as DisplayVolcanoEventV1,
           latestEventId: rollback.latestEventId ?? null,
           eventExpiresAtMs: rollback.eventExpiresAtMs!,
-          revision: { ...rollback.eventRevision! },
+          revision: canonicalVolcanoMigrationRevision(rollback.eventRevision!),
           appliedSemanticKey: semanticTail,
           legacyV1Fallback: true,
         };
-        migratedGates.push(structuredClone(gate));
+        migratedGates.push(migratedGate);
         continue;
       }
     }
@@ -7709,7 +7758,8 @@ function migratePreGenerationVolcanoFoundation(
     const gate = gateBySubject.get(`volcano:ashfall:${code}`);
     if (projection != null && gate != null && !gate.cancelled
       && gate.comparison.revision.reportDateTime.epochMs === projection.revision.reportTimeMs
-      && gate.comparison.revision.serial.raw === projection.revision.serial
+      && volcanoMigrationSerialsMatch(
+        gate.comparison.revision.serial.raw, projection.revision.serial)
       && gate.semanticKeys.at(-1) === projection.appliedSemanticKey) {
       const expectedRank = projection.sourceType === "VFVO54" ? 0 : 1;
       const existing = gate.volcanoProvenance;
@@ -7719,6 +7769,7 @@ function migratePreGenerationVolcanoFoundation(
       if (provenanceMatches && (gate.comparison.variantRank == null
         || gate.comparison.variantRank === expectedRank)) {
         const migratedGate = structuredClone(gate);
+        canonicalizeVolcanoMigrationGateSerial(migratedGate);
         migratedGate.comparison.variantRank = expectedRank;
         migratedGate.volcanoProvenance = {
           kind: "ashfall", actualEventId: projection.eventId,

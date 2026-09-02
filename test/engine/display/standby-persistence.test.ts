@@ -19,6 +19,7 @@ import { StandbyStateStore } from "../../../src/engine/display/standby-state-sto
 import { DisplayStateStore } from "../../../src/engine/display/state-store";
 import { FloodActiveReducer } from "../../../src/engine/display/flood-active-reducer";
 import { VPWW56_SNAPSHOT_GENERATION } from "../../../src/engine/messages/vpww56-state";
+import type { PersistedVolcanoStateV2 } from "../../../src/engine/messages/volcano-state";
 import { parseFloodForecast } from "../../../src/dmdata/flood-forecast-parser";
 import { parseVolcanoTelegram } from "../../../src/dmdata/volcano-parser";
 import { parseWeatherWarningTimeseries } from "../../../src/dmdata/weather-warning-timeseries-parser";
@@ -4095,6 +4096,82 @@ describe("operational-v2 active volcano migration fixture", () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+});
+
+describe("pre-generation volcano migration serial canonicalization", () => {
+  const fixturePath = join(
+    process.cwd(),
+    "test",
+    "fixtures",
+    "standby-persistence",
+    "operational-v2-active-alert.json",
+  );
+
+  type PaddedFixtureOptions = { gateSerialRaw: string };
+
+  function paddedSerialFixture(options: PaddedFixtureOptions): Record<string, unknown> {
+    const fixture = JSON.parse(readFileSync(fixturePath, "utf8")) as Record<string, unknown>;
+    const rollbackSerial = "080";
+    const volcanoes = fixture.volcanoes as { alertRevision: { serial: string } }[];
+    volcanoes[0]!.alertRevision.serial = rollbackSerial;
+    const foundation = fixture.telegramFoundation as {
+      volcano: {
+        active: { alertRevision: { serial: string } }[];
+        gateEntries: {
+          comparison: {
+            revision: { serial: { raw: string; numeric: number; valid: boolean } };
+          };
+        }[];
+      };
+    };
+    foundation.volcano.active[0]!.alertRevision.serial = rollbackSerial;
+    foundation.volcano.gateEntries[0]!.comparison.revision.serial = {
+      raw: options.gateSerialRaw,
+      numeric: 80,
+      valid: true,
+    };
+    return fixture;
+  }
+
+  function loadPadded(options: PaddedFixtureOptions): {
+    quarantined: boolean;
+    volcanoes: PersistedVolcanoStateV2["volcanoes"];
+  } {
+    const path = tempPath();
+    mkdirSync(dirname(path), { recursive: true });
+    writeFileSync(
+      standbyPersistenceV2Path(path),
+      JSON.stringify(paddedSerialFixture(options)),
+      "utf8",
+    );
+    const result = new StandbyPersistence(path)
+      .loadWithResult(Date.parse("2026-09-01T00:00:00.000Z"));
+    if (result.startup.kind === "fatal" || result.state == null) {
+      throw new Error("expected a restored standby state");
+    }
+    const volcano = result.state.telegramFoundation.volcano;
+    const state = volcano.state as PersistedVolcanoStateV2 | null;
+    return { quarantined: result.volcanoDomainQuarantined, volcanoes: state?.volcanoes ?? [] };
+  }
+
+  it("zero-padded な旧 v2 alert serial を canonical 化して quarantine させない", () => {
+    const { quarantined, volcanoes } = loadPadded({ gateSerialRaw: "080" });
+    expect(quarantined).toBe(false);
+    expect(volcanoes).toHaveLength(1);
+    expect(volcanoes[0]?.alert).toMatchObject({
+      volcanoCode: "506",
+      revision: { reportTimeMs: 1788134400000, serial: "80" },
+    });
+  });
+
+  it("rollback serial \"080\" と gate serial \"80\" を同一 revision として join する", () => {
+    const { quarantined, volcanoes } = loadPadded({ gateSerialRaw: "80" });
+    expect(quarantined).toBe(false);
+    expect(volcanoes).toHaveLength(1);
+    expect(volcanoes[0]?.alert).toMatchObject({
+      revision: { reportTimeMs: 1788134400000, serial: "80" },
+    });
   });
 });
 
