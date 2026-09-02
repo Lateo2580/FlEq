@@ -191,6 +191,10 @@ const VPBS_KIND_PRIORITY: readonly VpbsPhenomenonKind[] = [
   "shortSnow",
 ];
 
+function rawBriefingKey(source: "vpbs50" | "vpoa50", sourceEventId: string): string {
+  return `card:briefing:${JSON.stringify(["raw", source, sourceEventId])}`;
+}
+
 function expectedVpbsSemantic(fixture: string): {
   editorialOffice: string;
   phenomenonKind: VpbsPhenomenonKind;
@@ -296,7 +300,7 @@ async function expectCanonicalCard(
   expect(card.data.entries).toHaveLength(1);
   const semantic = expectedSource === "vpbs50" ? expectedVpbsSemantic(counterpartFixture) : null;
   expect(card.data.entries[0]).toMatchObject({
-    key: semantic?.semanticKey ?? `card:vpoa:${meta.eventId}`,
+    key: semantic?.semanticKey ?? rawBriefingKey(expectedSource, meta.eventId),
     source: expectedSource,
     sourceEventId: meta.eventId,
     reportDateTime: meta.reportDateTime,
@@ -496,7 +500,10 @@ describe("Phase 6B legacy card production-shaped gate", () => {
     unrelatedSource.handler.handler(messageAt(first[0], "production:unrelated:source", sourceMeta.reportDateTimeMs));
     vi.advanceTimersByTime(LEGACY_SOURCE_HOLDBACK_MS + 1);
     unrelatedSource.handler.handler(messageAt(unrelatedCounterpart, "production:unrelated:counterpart", sourceMeta.reportDateTimeMs + LEGACY_SOURCE_HOLDBACK_MS + 1));
-    expect(cardOf(unrelatedSource)?.data.entries.map((entry) => entry.source)).toEqual(["vpbs50", "vpoa50"]);
+    expect(cardOf(unrelatedSource)?.data.entries).toHaveLength(2);
+    expect(new Set(cardOf(unrelatedSource)?.data.entries.map((entry) => entry.source))).toEqual(
+      new Set(["vpbs50", "vpoa50"]),
+    );
     expect(unrelatedSource.handler.stats.getSnapshot(Date.now()).foundation.legacyCardReconciled).toBe(0);
     await expectFrontendSnapshotCard(unrelatedSource);
     unrelatedSource.handler.disposeLegacyCounterpartCorrelator();
@@ -535,28 +542,40 @@ describe("Phase 6B legacy card production-shaped gate", () => {
     harness.startHub();
     vi.setSystemTime(reportDateTimeMs + 1);
     harness.handler.handler(messageAt("synthetic_VPBS50_multi.xml", "production:revision:normal", reportDateTimeMs + 1));
-    const semantic = expectedVpbsSemantic("synthetic_VPBS50_multi.xml");
+    // 多 kind の VPBS50 は semantic subject を立てず typed raw identity へ fail-open する
+    // （代表 kind の選択が再起動跨ぎで identity drift を起こすため）。
+    const rawKey = rawBriefingKey("vpbs50", eventId);
+    expect(cardOf(harness)?.data.entries).toHaveLength(1);
     expect(cardOf(harness)?.data.entries[0]).toMatchObject({
-      ...semantic,
-      key: semantic.semanticKey,
+      key: rawKey,
+      source: "vpbs50",
       sourceEventId: eventId,
+      phenomenonKind: null,
+      semanticKey: null,
+      serial: "6",
       infoType: "発表",
     });
     const firstGeneration = cardOf(harness)?.data.generation;
     harness.handler.handler(xmlMessageAt(correctionXml, "VPBS50", "production:revision:correction", reportDateTimeMs + 2));
+    expect(cardOf(harness)?.data.entries).toHaveLength(1);
     expect(cardOf(harness)?.data.entries[0]).toMatchObject({
-      ...semantic,
-      key: semantic.semanticKey,
+      key: rawKey,
+      source: "vpbs50",
       sourceEventId: eventId,
+      phenomenonKind: null,
+      semanticKey: null,
       serial: "7",
       infoType: "訂正",
     });
     expect(cardOf(harness)?.data.generation).toBeGreaterThan(firstGeneration ?? 0);
     harness.handler.handler(xmlMessageAt(cancelXml, "VPBS50", "production:revision:cancel", reportDateTimeMs + 3));
+    expect(cardOf(harness)?.data.entries).toHaveLength(1);
     expect(cardOf(harness)?.data.entries[0]).toMatchObject({
-      ...semantic,
-      key: semantic.semanticKey,
+      key: rawKey,
+      source: "vpbs50",
       sourceEventId: eventId,
+      phenomenonKind: null,
+      semanticKey: null,
       serial: "8",
       infoType: "取消",
       frameLevel: "cancel",
@@ -566,6 +585,61 @@ describe("Phase 6B legacy card production-shaped gate", () => {
     expect(harness.standby.sweep(Date.now()).viewChanged).toBe(true);
     expect(cardOf(harness)).toBeNull();
     expect(normalXml).toContain(eventId);
+    expect(harness.handler.stats.getSnapshot(Date.now()).foundation.legacyCardDisplayed).toBeGreaterThanOrEqual(3);
+    harness.handler.disposeLegacyCounterpartCorrelator();
+  });
+
+  it("単一 kind の実 VPBS50 の訂正／取消は semantic subject を置換し、取消 TTL 境界で消える", async () => {
+    vi.useFakeTimers();
+    const fixture = FIXTURE_PHASE6B_VPBS50_KJPTC202608221709_202608221709;
+    const normalXml = readFixture(fixture);
+    const meta = fixtureMeta(fixture);
+    const semantic = expectedVpbsSemantic(fixture);
+    const correctionXml = normalXml
+      .replace(/<InfoType>発表<\/InfoType>/, "<InfoType>訂正</InfoType>")
+      .replace(/<Serial>1<\/Serial>/, "<Serial>2</Serial>");
+    const cancelXml = normalXml
+      .replace(/<InfoType>発表<\/InfoType>/, "<InfoType>取消</InfoType>")
+      .replace(/<Serial>1<\/Serial>/, "<Serial>3</Serial>");
+    const harness = productionHarness();
+    harness.startHub();
+    vi.setSystemTime(meta.reportDateTimeMs + 1);
+    harness.handler.handler(messageAt(fixture, "production:semantic-revision:normal", meta.reportDateTimeMs + 1));
+    expect(cardOf(harness)?.data.entries).toHaveLength(1);
+    expect(cardOf(harness)?.data.entries[0]).toMatchObject({
+      ...semantic,
+      key: semantic.semanticKey,
+      source: "vpbs50",
+      sourceEventId: meta.eventId,
+      infoType: "発表",
+    });
+    const firstGeneration = cardOf(harness)?.data.generation;
+    harness.handler.handler(xmlMessageAt(correctionXml, "VPBS50", "production:semantic-revision:correction", meta.reportDateTimeMs + 2));
+    expect(cardOf(harness)?.data.entries).toHaveLength(1);
+    expect(cardOf(harness)?.data.entries[0]).toMatchObject({
+      ...semantic,
+      key: semantic.semanticKey,
+      source: "vpbs50",
+      sourceEventId: meta.eventId,
+      serial: "2",
+      infoType: "訂正",
+    });
+    expect(cardOf(harness)?.data.generation).toBeGreaterThan(firstGeneration ?? 0);
+    harness.handler.handler(xmlMessageAt(cancelXml, "VPBS50", "production:semantic-revision:cancel", meta.reportDateTimeMs + 3));
+    expect(cardOf(harness)?.data.entries).toHaveLength(1);
+    expect(cardOf(harness)?.data.entries[0]).toMatchObject({
+      ...semantic,
+      key: semantic.semanticKey,
+      source: "vpbs50",
+      sourceEventId: meta.eventId,
+      serial: "3",
+      infoType: "取消",
+      frameLevel: "cancel",
+    });
+    await expectFrontendSnapshotCard(harness);
+    vi.setSystemTime(meta.reportDateTimeMs + BRIEFING_CARD_CANCEL_TTL_MS);
+    expect(harness.standby.sweep(Date.now()).viewChanged).toBe(true);
+    expect(cardOf(harness)).toBeNull();
     expect(harness.handler.stats.getSnapshot(Date.now()).foundation.legacyCardDisplayed).toBeGreaterThanOrEqual(3);
     harness.handler.disposeLegacyCounterpartCorrelator();
   });
