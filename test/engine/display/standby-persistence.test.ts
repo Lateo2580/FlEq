@@ -4813,6 +4813,74 @@ describe("generation-1 volcano salvage serial canonicalization", () => {
       ?.revision.serial).toEqual({ raw: "80", numeric: 80, valid: true });
   });
 
+  // gate だけが残り slice が一切ない経路（末尾 gate ループ）。uniqueGateComparison も
+  // eruption 側の byComparison も通らないので、canonical 化は omission の入口でしか
+  // 効かせられない。
+  const operationalV2AlertGate = (serial: string | null): Record<string, unknown> => ({
+    ...alertGate(serial),
+    volcanoProvenance: { kind: "alert", sourceFamily: "operationalV2Unknown" },
+  });
+
+  it("slice の無い operationalV2Unknown alert gate \"080\" も canonical \"80\" で記録する", () => {
+    const loaded = loadBundle(foundationVolcano({
+      gates: [operationalV2AlertGate("080")],
+    }));
+    expect(loaded.quarantined).toBe(false);
+    expect(loaded.repairState.unrecoverableAlertOmissions).toEqual([
+      expect.objectContaining({
+        scope: "volcano",
+        volcanoCode: "506",
+        sourceFamily: "unknown",
+        reason: "provenanceMissing",
+      }),
+    ]);
+    expect(loaded.repairState.unrecoverableAlertOmissions[0]?.lastKnownComparison?.revision.serial)
+      .toEqual({ raw: "80", numeric: 80, valid: true });
+  });
+
+  it("slice の無い eruption gate \"080\" も canonical \"80\" で記録する", () => {
+    const loaded = loadBundle(foundationVolcano({
+      gates: [eruptionGate("080")],
+    }));
+    expect(loaded.quarantined).toBe(false);
+    expect(loaded.repairState.unrecoverableEruptionOmissions).toEqual([
+      expect.objectContaining({
+        scope: "volcano",
+        volcanoCode: "506",
+        reason: "sliceCorrupt",
+      }),
+    ]);
+    expect(loaded.repairState.unrecoverableEruptionOmissions[0]?.lastKnownComparison
+      ?.revision.serial).toEqual({ raw: "80", numeric: 80, valid: true });
+  });
+
+  it("slice の無い alert gate の空文字 serial も canonical null に落ちる", () => {
+    const loaded = loadBundle(foundationVolcano({
+      gates: [operationalV2AlertGate("")],
+    }));
+    expect(loaded.quarantined).toBe(false);
+    expect(loaded.repairState.unrecoverableAlertOmissions[0]?.lastKnownComparison?.revision.serial)
+      .toEqual({ raw: null, numeric: null, valid: false });
+  });
+
+  it("invalid serial の gate は isGateEntry で落ち comparison 無しの gateCorrupt になる", () => {
+    // " 8 " は parseTelegramSerial / normalizeVolcanoAshfallSerial の双方が拒む。
+    // isGateEntry の時点で候補から外れるので、invalid serial が omission の
+    // lastKnownComparison に到達する経路はそもそも存在しない（repairSafe の
+    // null 降格は uniqueGateComparison 側の防波堤として残る）。
+    const loaded = loadBundle(foundationVolcano({
+      gates: [operationalV2AlertGate(" 8 ")],
+    }));
+    expect(loaded.quarantined).toBe(false);
+    expect(loaded.repairState.unrecoverableAlertOmissions).toEqual([
+      expect.objectContaining({
+        scope: "volcano",
+        volcanoCode: "506",
+        reason: "gateCorrupt",
+        lastKnownComparison: null,
+      }),
+    ]);
+  });
   it("salvage → 書き出し → 再読込の 2 巡目で omission と pending 状態が安定する", () => {
     const first = loadBundle(foundationVolcano({
       alert: alertSlice("80"),

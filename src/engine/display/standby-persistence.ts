@@ -7971,11 +7971,16 @@ function salvageGenerationOneVolcanoFoundation(
     reason: VolcanoRepairStateV1["unrecoverableAlertOmissions"][number]["reason"],
     comparison: TelegramRevisionComparisonInput | null,
   ): void => {
+    // 入口で一元的に canonical 化する。末尾の gate ループのように slice を持たない
+    // 経路は `uniqueGateComparison` を通らないため、呼び出し側ごとの canonical 化では
+    // zero-padded serial ("080") が無加工で omission に残る。既に canonical 化済みの
+    // comparison を渡す経路もあるが、この変換は冪等なので二重適用しても値は動かない。
+    const safe = repairSafeVolcanoMigrationComparison(comparison);
     if (!repair.unrecoverableAlertOmissions.some((item) =>
       item.scope === "volcano" && item.volcanoCode === code && item.sourceFamily === sourceFamily)) {
       repair.unrecoverableAlertOmissions.push({
         scope: "volcano", volcanoCode: code, sourceFamily,
-        lastKnownComparison: structuredClone(comparison), reason,
+        lastKnownComparison: structuredClone(safe), reason,
       });
     }
   };
@@ -8003,11 +8008,13 @@ function salvageGenerationOneVolcanoFoundation(
     reason: VolcanoRepairStateV1["unrecoverableEruptionOmissions"][number]["reason"],
     comparison: TelegramRevisionComparisonInput | null,
   ): void => {
+    // `addAlertOmission` と同じ入口一元化（冪等）。
+    const safe = repairSafeVolcanoMigrationComparison(comparison);
     if (!repair.unrecoverableEruptionOmissions.some((item) =>
       item.scope === "volcano" && item.volcanoCode === code)) {
       repair.unrecoverableEruptionOmissions.push({
         scope: "volcano", volcanoCode: code,
-        lastKnownComparison: structuredClone(comparison), reason,
+        lastKnownComparison: structuredClone(safe), reason,
       });
     }
   };
