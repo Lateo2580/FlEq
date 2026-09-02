@@ -65,6 +65,8 @@ export const VOLCANO_REPAIR_PAGE_LIMIT = 100;
 export const VOLCANO_REPAIR_MAX_PAGES = 128;
 export const VOLCANO_REPAIR_MAX_ITEMS_PER_TYPE = 12_800;
 export const VOLCANO_REPAIR_MAX_HEAD_SAMPLES = 4;
+/** Telegram Data v1 requests allowed per repair, across targets and head types. */
+export const VOLCANO_REPAIR_MAX_BODY_FETCHES = 256;
 export const VOLCANO_ASHFALL_RETENTION_MS = 7 * 24 * 60 * 60_000;
 
 export type VolcanoRepairHeadType = "VFVO50" | "VFVO54" | "VFVO55";
@@ -271,10 +273,24 @@ export class VolcanoRepairJournal {
       return { kind: "proofFailed", target, reason: "targetTransportInvalid" };
     }
     const bodyFingerprint = sha256(msg.body);
+    // Built from `xmlReport.head` alone so the duplicate branch can compare head
+    // revisions without parsing — the same axis the REST list proves.
+    const headFingerprint = itemHeadFingerprint(headType, createTelegramMeta({
+      messageId: itemId,
+      eventId: msg.xmlReport?.head.eventId ?? null,
+      type: msg.head.type,
+      reportDateTime: msg.xmlReport?.head.reportDateTime ?? null,
+      serial: msg.xmlReport?.head.serial ?? null,
+      infoType: msg.xmlReport?.head.infoType ?? null,
+      receivedAtMs: receivedTimeMs,
+      status: msg.xmlReport?.control?.status ?? null,
+      isTest: msg.head.test === true,
+    }));
     const existing = this.firstById[target].get(itemId);
     if (existing != null) {
       if (existing.receivedTimeMs !== receivedTimeMs
         || existing.normalizedInput.headType !== headType
+        || existing.normalizedInput.itemHeadFingerprint !== headFingerprint
         || existing.normalizedInput.bodyFingerprint !== bodyFingerprint) {
         this.fail(target, "transportInconsistency");
         return { kind: "proofFailed", target, reason: "transportInconsistency" };
@@ -290,7 +306,7 @@ export class VolcanoRepairJournal {
       headType,
       sourceEventId: itemId,
       bodyFingerprint,
-      itemHeadFingerprint: itemHeadFingerprint(headType, parsed.meta),
+      itemHeadFingerprint: headFingerprint,
       parsed: structuredClone(parsed),
     };
     const candidate = journalRecordBytes({
@@ -667,19 +683,32 @@ export async function proveVolcanoTypeCoverage(options: {
   // stability loop — so the sample taken after this await still has to justify
   // anything that arrived over WebSocket while the bodies were in flight.
   if (!validateTransport()) throw new Error("subscriptionGenerationChanged");
-  const bodyStageJournal = new Map(options.journal.snapshot(journalTarget)
-    .filter((item) => item.normalizedInput.headType === options.headType)
-    .map((item) => [item.itemId, item]));
+  const snapshotBodyStageJournal = (): Map<string, VolcanoRepairJournalItem> =>
+    new Map(options.journal.snapshot(journalTarget)
+      .filter((item) => item.normalizedInput.headType === options.headType)
+      .map((item) => [item.itemId, item]));
+  let bodyStageJournal = snapshotBodyStageJournal();
   const historicalItems: PreparedRepairItem[] = [];
   for (const identity of historical.items) {
     // Normal ingress already holds this item's normalized input; the commit
     // replays that one, so its body never has to be fetched again.
-    const recorded = bodyStageJournal.get(identity.itemId);
+    let recorded = bodyStageJournal.get(identity.itemId);
+    if (recorded == null) {
+      // WS ingress continues while every body request awaits, so an item that
+      // reached the journal since the last snapshot must not be fetched either.
+      bodyStageJournal = snapshotBodyStageJournal();
+      recorded = bodyStageJournal.get(identity.itemId);
+    }
     if (recorded != null) {
       historicalItems.push(preparedJournalItem(recorded));
       continue;
     }
     const cached = bodyCache.get(identity.itemId);
+    // The cache holds exactly the ids this repair already requested, so its
+    // size is the per-repair request count that §16.4.1 caps.
+    if (cached == null && bodyCache.size >= VOLCANO_REPAIR_MAX_BODY_FETCHES) {
+      throw new Error("historicalBodyUnavailable:fetchLimitExceeded");
+    }
     const result = cached ?? await loadBody(
       options.apiKey,
       identity.itemId,
@@ -1030,6 +1059,29 @@ function preparedJournalItem(item: VolcanoRepairJournalItem): PreparedRepairItem
   };
 }
 
+/**
+ * Commit-stage rebase onto the live journal.  The proof stage cross-checked the
+ * journal it saw, but ingress keeps running until the synchronous commit, so a
+ * REST item and the journal record that later claimed the same ID are compared
+ * again here.  `null` means the two transports disagree on one item's identity.
+ */
+function rebaseOntoLiveJournal(
+  items: readonly PreparedRepairItem[],
+  liveJournalById: ReadonlyMap<string, PreparedRepairItem>,
+): PreparedRepairItem[] | null {
+  const rebased: PreparedRepairItem[] = [];
+  for (const item of items) {
+    const live = liveJournalById.get(item.itemId);
+    if (live == null) {
+      rebased.push(item);
+      continue;
+    }
+    if (!crossSetConsistent(item, live)) return null;
+    rebased.push(live);
+  }
+  return rebased;
+}
+
 function mergeBaselineSourceIds(
   holder: VolcanoStateHolder,
   baseline: ReadonlyMap<string, readonly string[]>,
@@ -1078,7 +1130,9 @@ function commitVfvo50Proof(
   // Keep the REST union position (and its before-dedupe ordering proof), but
   // replay the journal-normalized input so rebuilding cannot reinterpret that
   // live mutation with the older startup classification clock.
-  historical = historical.map((item) => liveJournalById.get(item.itemId) ?? item);
+  const rebased = rebaseOntoLiveJournal(historical, liveJournalById);
+  if (rebased == null) return { kind: "failed", reason: "transportInconsistency" };
+  historical = rebased;
   const historicalIds = new Set(historical.map((item) => item.itemId));
   const journalTail = journalItems
     .filter((item) => !historicalIds.has(item.itemId))
@@ -1188,7 +1242,9 @@ function commitAshfallProof(
     item.itemId,
     preparedJournalItem(item),
   ]));
-  historical = historical.map((item) => liveJournalById.get(item.itemId) ?? item);
+  const rebased = rebaseOntoLiveJournal(historical, liveJournalById);
+  if (rebased == null) return { kind: "failed", reason: "transportInconsistency" };
+  historical = rebased;
   const historicalIds = new Set(historical.map((item) => item.itemId));
   const journalTail = journalItems
     .filter((item) => !historicalIds.has(item.itemId))

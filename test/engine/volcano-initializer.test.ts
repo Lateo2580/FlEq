@@ -1179,3 +1179,219 @@ describe("volcano REST repair body failure isolation", () => {
     },
   );
 });
+
+describe("volcano REST repair body fetch budget", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockNormalizedAlertParser();
+  });
+
+  /** 1 ページ 100 件の newest-first ページ列を作る */
+  function historicalPages(count: number): TelegramListResponse[] {
+    const items = Array.from({ length: count }, (_, index) =>
+      repairItem(`bulk-${String(index).padStart(4, "0")}`, REPAIR_NOW - 1_000 - index));
+    const pages: TelegramListResponse[] = [];
+    for (let offset = 0; offset < items.length; offset += 100) {
+      const slice = items.slice(offset, offset + 100);
+      const hasMore = offset + 100 < items.length;
+      pages.push(hasMore
+        ? { ...createResponse(slice), nextToken: `token-${offset}` } as TelegramListResponse
+        : createResponse(slice));
+    }
+    return pages;
+  }
+
+  /** call 1 = head sample、続く N 回 = historical pages、以降 = head sample */
+  function sequencedLoadPage(pages: TelegramListResponse[]) {
+    let call = 0;
+    return vi.fn(async () => {
+      call += 1;
+      if (call === 1) return createResponse([]);
+      const pageIndex = call - 2;
+      return pageIndex < pages.length ? pages[pageIndex]! : createResponse([]);
+    });
+  }
+
+  it("loads exactly 256 bodies for one repair without failing", async () => {
+    const loadBody = mockBodyLoader();
+
+    const proof = await proveVolcanoTypeCoverage({
+      apiKey: "key",
+      headType: "VFVO50",
+      startupNowMs: REPAIR_NOW,
+      retentionMs: REPAIR_RETENTION_MS,
+      journal: new VolcanoRepairJournal(REPAIR_ACK, ["vfvo50"]),
+      getAcknowledgement: () => REPAIR_ACK,
+      loadPage: sequencedLoadPage(historicalPages(256)),
+      loadBody,
+    });
+
+    expect(proof.historical.items).toHaveLength(256);
+    expect(loadBody).toHaveBeenCalledTimes(256);
+  });
+
+  it("fails the target on the 257th body of one repair without issuing the request", async () => {
+    // 別 head type が既に 256 件取得済みの repair scope を模す
+    const bodyCache = new Map<string, restClient.TelegramBodyResult>(
+      Array.from({ length: 256 }, (_, index) => [
+        `other-type-${index}`,
+        { kind: "ok" as const, xml: "<Report/>" },
+      ]),
+    );
+    const loadBody = mockBodyLoader();
+
+    await expect(proveVolcanoTypeCoverage({
+      apiKey: "key",
+      headType: "VFVO50",
+      startupNowMs: REPAIR_NOW,
+      retentionMs: REPAIR_RETENTION_MS,
+      journal: new VolcanoRepairJournal(REPAIR_ACK, ["vfvo50"]),
+      getAcknowledgement: () => REPAIR_ACK,
+      loadPage: vi.fn().mockResolvedValue(createResponse([
+        repairItem("over-budget", REPAIR_NOW - 1_000),
+      ])),
+      loadBody,
+      bodyCache,
+    })).rejects.toThrow("historicalBodyUnavailable:fetchLimitExceeded");
+
+    expect(loadBody).not.toHaveBeenCalled();
+  });
+
+  it("skips the body of an item that reached the journal during an earlier body load", async () => {
+    const journal = new VolcanoRepairJournal(REPAIR_ACK, ["vfvo50"]);
+    const localReceipt = REPAIR_NOW + 5_000;
+    const loadBody = vi.fn(async (_apiKey: string, id: string) => {
+      if (id === "first") {
+        // 本文取得の await 中に WS ingress が "late" を journal へ入れる
+        expect(journal.record(
+          liveRepairMessage("late", REPAIR_NOW - 2_000, localReceipt),
+          { ...REPAIR_ACK, receivedAtMs: localReceipt },
+        )).toEqual({ kind: "recorded" });
+      }
+      return { kind: "ok" as const, xml: `<Report id="${id}"/>` };
+    });
+
+    const proof = await proveVolcanoTypeCoverage({
+      apiKey: "key",
+      headType: "VFVO50",
+      startupNowMs: REPAIR_NOW,
+      retentionMs: REPAIR_RETENTION_MS,
+      journal,
+      getAcknowledgement: () => REPAIR_ACK,
+      loadPage: vi.fn().mockResolvedValue(createResponse([
+        repairItem("first", REPAIR_NOW - 1_000),
+        repairItem("late", REPAIR_NOW - 2_000),
+      ])),
+      loadBody,
+    });
+
+    expect(loadBody.mock.calls.map((call) => call[1])).toEqual(["first"]);
+    const late = proof.historical.items.find((item) => item.itemId === "late")!;
+    expect(late.normalizedInput.parsed.meta.receivedAtMs).toBe(localReceipt);
+  });
+});
+
+describe("volcano REST repair head revision cross-checks", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  function liveAshfallMessage(
+    id: string,
+    serverTimeMs: number,
+    localTimeMs: number,
+    headType: "VFVO54" | "VFVO55",
+    xmlHead: Partial<TelegramListXmlHead> = {},
+  ): WsDataMessage {
+    const base = liveRepairMessage(id, serverTimeMs, localTimeMs, xmlHead);
+    return normalizeTelegramMessage(
+      { ...base, meta: undefined, head: { ...base.head, type: headType } },
+      localTimeMs,
+    ).message;
+  }
+
+  function ashfallRepairFixture() {
+    const gate = new TelegramRevisionGate();
+    const holder = new VolcanoStateHolder();
+    const standby = new StandbyStateStore();
+    standby.replaceVolcanoDerived(holder.snapshot());
+    const repair = emptyVolcanoRepairState();
+    repair.ashfallRepairable = true;
+    const admission = new StandbyPersistenceAdmissionCoordinator({
+      owners: {
+        telegramRevisionGate: gate,
+        standbyStateStore: standby,
+        vpws50State: new Vpws50StateHolder(),
+        vpww56State: new Vpww56StateHolder(),
+        tsunamiState: new TsunamiStateHolder(),
+        volcanoState: holder,
+        floodForecastState: new FloodForecastStateHolder(),
+      },
+      repairState: repair,
+    });
+    return { coordinator: new VolcanoTransactionCoordinator(admission), standby, repair };
+  }
+
+  it("fails the journal duplicate branch on a head revision difference without parsing it", () => {
+    mockNormalizedAlertParser();
+    const journal = new VolcanoRepairJournal(REPAIR_ACK, ["vfvo50"]);
+    const localReceipt = REPAIR_NOW + 1;
+    const transport: WsTransportIdentity = { ...REPAIR_ACK, receivedAtMs: localReceipt };
+
+    expect(journal.record(
+      liveRepairMessage("head-drift", REPAIR_NOW, localReceipt, { serial: "1" }),
+      transport,
+    )).toEqual({ kind: "recorded" });
+    // 受信時刻も本文も同一だが head revision (serial) だけが違う再送
+    expect(journal.record(
+      liveRepairMessage("head-drift", REPAIR_NOW, localReceipt, { serial: "2" }),
+      transport,
+    )).toEqual({
+      kind: "proofFailed",
+      target: "vfvo50",
+      reason: "transportInconsistency",
+    });
+    expect(mockParseVolcano).toHaveBeenCalledTimes(1);
+  });
+
+  it("fails the ashfall commit when the journal gained a conflicting head after its proof", async () => {
+    mockParseVolcano.mockImplementation(ashfallFromXmlReport);
+    const { coordinator, standby, repair } = ashfallRepairFixture();
+    const standbyBefore = standby.cloneSnapshot();
+    const before = coordinator.snapshot();
+    const journal = new VolcanoRepairJournal(REPAIR_ACK, ["ashfall"]);
+    const localReceipt = REPAIR_NOW + 5_000;
+    let injected = false;
+
+    const result = await repairVolcanoState({
+      apiKey: "key",
+      startupNowMs: REPAIR_NOW,
+      coordinator,
+      journal,
+      getAcknowledgement: () => REPAIR_ACK,
+      loadPage: vi.fn(async (_apiKey, query) => {
+        if (query.type === "VFVO55" && !injected) {
+          injected = true;
+          // VFVO54 の proof 完了後、同一 id が別 head revision で journal へ入る
+          expect(journal.record(
+            liveAshfallMessage("drift-x", REPAIR_NOW - 1_000, localReceipt, "VFVO54", {
+              serial: "2",
+            }),
+            { ...REPAIR_ACK, receivedAtMs: localReceipt },
+          )).toEqual({ kind: "recorded" });
+        }
+        return createResponse(query.type === "VFVO54"
+          ? [repairAshfallItem("drift-x", REPAIR_NOW - 1_000, "VFVO54", { serial: "1" })]
+          : []);
+      }),
+      loadBody: mockBodyLoader(),
+    });
+
+    expect(result).toEqual({
+      targets: [{ target: "ashfall", kind: "failed", reason: "transportInconsistency" }],
+    });
+    expect(coordinator.snapshot()).toEqual(before);
+    expect(repair.ashfallRepairable).toBe(true);
+    expect(standby.cloneSnapshot()).toEqual(standbyBefore);
+  });
+});
