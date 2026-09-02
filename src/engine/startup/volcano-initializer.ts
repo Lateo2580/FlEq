@@ -1,5 +1,10 @@
 import { createHash } from "node:crypto";
-import { listTelegrams, type TelegramListQuery } from "../../dmdata/rest-client";
+import {
+  fetchTelegramBody,
+  listTelegrams,
+  type TelegramBodyResult,
+  type TelegramListQuery,
+} from "../../dmdata/rest-client";
 import { parseVolcanoTelegram } from "../../dmdata/volcano-parser";
 import {
   VOLCANO_MAX_SOURCE_EVENT_IDS_PER_COMPOSITE,
@@ -7,8 +12,15 @@ import {
   type VolcanoRepairStateV1,
   type VolcanoRepairTarget,
 } from "../messages/volcano-state";
-import { strictRestReceivedTimeMs, toWsDataMessage } from "./telegram-adapter";
-import { FUTURE_REPORT_DATETIME_SKEW_MS } from "../../dmdata/telegram-meta";
+import {
+  strictRestReceivedTimeMs,
+  toWsDataMessage,
+  toWsDataMessageFromRestBody,
+} from "./telegram-adapter";
+import {
+  createTelegramMeta,
+  FUTURE_REPORT_DATETIME_SKEW_MS,
+} from "../../dmdata/telegram-meta";
 import * as log from "../../logger";
 import {
   VOLCANO_ALERT_TOMBSTONE_RETENTION_MS,
@@ -27,6 +39,7 @@ import type {
   ParsedVolcanoInfo,
   TelegramListItem,
   TelegramListResponse,
+  TelegramMeta,
   WsDataMessage,
 } from "../../types";
 import type {
@@ -60,6 +73,8 @@ export interface NormalizedVolcanoInput {
   headType: VolcanoRepairHeadType;
   sourceEventId: string;
   bodyFingerprint: string;
+  /** Head revision identity.  REST list items prove this without any body. */
+  itemHeadFingerprint: string;
   parsed: ParsedVolcanoAlertInfo | ParsedVolcanoAshfallInfo;
 }
 
@@ -105,6 +120,26 @@ function normalizeSourceTransportId(value: unknown): string | null {
   if (/\p{Cc}/u.test(normalized)) return null;
   const trimmed = normalized.trim();
   return trimmed === "" || trimmed.length > 256 ? null : trimmed;
+}
+
+/**
+ * Head revision identity shared by the REST list and the WebSocket journal.
+ *
+ * The list API never returns a body, so proof identity has to come from the
+ * `xmlReport` head alone.  `reportDateTime` is compared as an epoch because the
+ * two transports are not required to agree on the ISO offset spelling.
+ */
+function itemHeadFingerprint(
+  headType: VolcanoRepairHeadType,
+  meta: TelegramMeta,
+): string {
+  return sha256(canonicalJson([
+    headType,
+    meta.reportDateTime.epochMs,
+    meta.serial.raw,
+    meta.infoType.raw,
+    meta.eventId.raw,
+  ]));
 }
 
 function isTrulyBlankVolcanoCode(value: string): boolean {
@@ -255,6 +290,7 @@ export class VolcanoRepairJournal {
       headType,
       sourceEventId: itemId,
       bodyFingerprint,
+      itemHeadFingerprint: itemHeadFingerprint(headType, parsed.meta),
       parsed: structuredClone(parsed),
     };
     const candidate = journalRecordBytes({
@@ -290,29 +326,53 @@ export class VolcanoRepairJournal {
   }
 }
 
+/** Proof stage.  Provable from the list `xmlReport` head alone, no body needed. */
+interface RepairItemIdentity {
+  itemId: string;
+  receivedTimeMs: number;
+  headType: VolcanoRepairHeadType;
+  itemHeadFingerprint: string;
+  /** Kept so the commit stage can load this item's body from its own URL. */
+  listItem: TelegramListItem;
+}
+
+/** Commit stage.  Only reachable after the body was fetched and parsed. */
 interface PreparedRepairItem {
   itemId: string;
   receivedTimeMs: number;
   headType: VolcanoRepairHeadType;
+  itemHeadFingerprint: string;
   bodyFingerprint: string;
   normalizedInput: NormalizedVolcanoInput;
 }
 
+/** Axes the head sample, pagination union, and journal are all cross-checked on. */
+type CrossSetItem = {
+  itemId: string;
+  receivedTimeMs: number;
+  headType: VolcanoRepairHeadType;
+  itemHeadFingerprint: string;
+  bodyFingerprint?: string;
+};
+
 interface HeadSample {
   fingerprint: string;
-  items: PreparedRepairItem[];
+  items: RepairItemIdentity[];
 }
 
-export interface VolcanoHistoricalPaginationUnion {
+interface VolcanoHistoricalUnion<Item> {
   headType: VolcanoRepairHeadType;
   coverageStartMs: number;
   pages: number;
-  items: PreparedRepairItem[];
+  items: Item[];
 }
+
+/** Pagination proves identity only; bodies are loaded afterwards. */
+export type VolcanoHistoricalPaginationUnion = VolcanoHistoricalUnion<RepairItemIdentity>;
 
 export interface VolcanoTypeRepairProof {
   headType: VolcanoRepairHeadType;
-  historical: VolcanoHistoricalPaginationUnion;
+  historical: VolcanoHistoricalUnion<PreparedRepairItem>;
   headSamples: number;
 }
 
@@ -320,6 +380,13 @@ type TelegramPageLoader = (
   apiKey: string,
   query: TelegramListQuery,
 ) => Promise<TelegramListResponse>;
+
+/** Telegram Data v1 body loader.  Injected so tests never touch the network. */
+type TelegramBodyLoader = (
+  apiKey: string,
+  id: string,
+  expectedUrl?: string,
+) => Promise<TelegramBodyResult>;
 
 function checkedCoverageStart(startupNowMs: number, retentionMs: number): number | null {
   if (!Number.isSafeInteger(startupNowMs)
@@ -331,26 +398,67 @@ function checkedCoverageStart(startupNowMs: number, retentionMs: number): number
     : null;
 }
 
-function prepareRepairItem(
+/**
+ * Proof-stage preparation.  The real `GET /v2/telegram` response carries no
+ * body, so identity is built from `xmlReport` head fields only.  Subject and
+ * volcano code checks need the body and therefore belong to the commit stage.
+ */
+function prepareRepairIdentity(
   item: TelegramListItem,
   expectedType: VolcanoRepairHeadType,
-): PreparedRepairItem | null {
+): RepairItemIdentity | null {
   const itemId = normalizeSourceTransportId(item.id);
-  if (itemId == null
-    || item.head.type !== expectedType
-    || item.body == null) return null;
+  if (itemId == null || item.head.type !== expectedType) return null;
   const receivedTimeMs = strictRestReceivedTimeMs(item.head.time);
   if (receivedTimeMs == null) return null;
+  const head = item.xmlReport?.head;
+  if (head == null) return null;
+  const meta = createTelegramMeta({
+    messageId: itemId,
+    eventId: head.eventId,
+    type: item.head.type,
+    reportDateTime: head.reportDateTime,
+    serial: head.serial,
+    infoType: head.infoType,
+    receivedAtMs: receivedTimeMs,
+    status: item.xmlReport?.control?.status ?? null,
+    isTest: item.head.test === true,
+  });
+  if (!meta.reportDateTime.valid || !meta.infoType.valid || !meta.type.valid) return null;
+  return {
+    itemId,
+    receivedTimeMs,
+    headType: expectedType,
+    itemHeadFingerprint: itemHeadFingerprint(expectedType, meta),
+    listItem: item,
+  };
+}
+
+/**
+ * Commit-stage preparation.  The body arrives from Telegram Data v1, so the
+ * head it carries is re-derived and compared with the proven list identity —
+ * a body whose head disagrees with the list is never accepted silently.
+ */
+function prepareRepairBody(
+  identity: RepairItemIdentity,
+  xml: string,
+): PreparedRepairItem | null {
+  const expectedType = identity.headType;
   let parsed: ParsedVolcanoInfo | null;
   try {
-    parsed = parseVolcanoTelegram(toWsDataMessage(item, item.body, receivedTimeMs));
+    parsed = parseVolcanoTelegram(
+      toWsDataMessageFromRestBody(identity.listItem, xml, identity.receivedTimeMs),
+    );
   } catch {
     return null;
   }
   if (!isNormalizedRepairParsed(parsed, expectedType)
     || !parsed.meta.reportDateTime.valid
     || !parsed.meta.infoType.valid
-    || !parsed.meta.type.valid) return null;
+    || !parsed.meta.type.valid
+    || itemHeadFingerprint(expectedType, parsed.meta) !== identity.itemHeadFingerprint) {
+    return null;
+  }
   const policy = volcanoRevisionFamilyPolicy(expectedType);
   const subject = policy?.extractStateSubjectKey(parsed.meta, parsed);
   const ashfallCancellationWithoutCode = (expectedType === "VFVO54" || expectedType === "VFVO55")
@@ -364,16 +472,18 @@ function prepareRepairItem(
         || !ashfallCancellationWithoutCode && volcanoAshfallSubjectKey(parsed.volcanoCode) == null)) {
     return null;
   }
-  const bodyFingerprint = sha256(item.body);
+  const bodyFingerprint = sha256(xml);
   return {
-    itemId,
-    receivedTimeMs,
+    itemId: identity.itemId,
+    receivedTimeMs: identity.receivedTimeMs,
     headType: expectedType,
+    itemHeadFingerprint: identity.itemHeadFingerprint,
     bodyFingerprint,
     normalizedInput: {
       headType: expectedType,
-      sourceEventId: itemId,
+      sourceEventId: identity.itemId,
       bodyFingerprint,
+      itemHeadFingerprint: identity.itemHeadFingerprint,
       parsed: structuredClone(parsed),
     },
   };
@@ -386,7 +496,7 @@ function responseItems(response: TelegramListResponse): TelegramListItem[] | nul
 }
 
 function assertNewestFirst(
-  items: readonly PreparedRepairItem[],
+  items: readonly { receivedTimeMs: number }[],
   previousOldestMs: number | null,
 ): number | null {
   let previous = previousOldestMs;
@@ -397,15 +507,19 @@ function assertNewestFirst(
   return previous;
 }
 
-function crossSetConsistent(
-  left: Pick<PreparedRepairItem, "itemId" | "receivedTimeMs" | "headType" | "bodyFingerprint">,
-  right: Pick<PreparedRepairItem, "itemId" | "receivedTimeMs" | "headType" | "bodyFingerprint">,
-): boolean {
-  return left.itemId !== right.itemId || (
-    left.receivedTimeMs === right.receivedTimeMs
-    && left.headType === right.headType
-    && left.bodyFingerprint === right.bodyFingerprint
-  );
+/**
+ * Head identity is mandatory on every axis the list can prove.  The body
+ * fingerprint is compared only when both sides actually hold one, because the
+ * list API cannot produce it.
+ */
+function crossSetConsistent(left: CrossSetItem, right: CrossSetItem): boolean {
+  if (left.itemId !== right.itemId) return true;
+  if (left.receivedTimeMs !== right.receivedTimeMs) return false;
+  if (left.headType !== right.headType) return false;
+  if (left.itemHeadFingerprint !== right.itemHeadFingerprint) return false;
+  return left.bodyFingerprint == null
+    || right.bodyFingerprint == null
+    || left.bodyFingerprint === right.bodyFingerprint;
 }
 
 async function fetchHeadSample(
@@ -422,9 +536,9 @@ async function fetchHeadSample(
   const rawItems = responseItems(response);
   if (rawItems == null) throw new Error("headResponseMissingBody");
   if (rawItems.length > VOLCANO_REPAIR_PAGE_LIMIT) throw new Error("headPageLimitExceeded");
-  const items = rawItems.map((item) => prepareRepairItem(item, headType));
+  const items = rawItems.map((item) => prepareRepairIdentity(item, headType));
   if (items.some((item) => item == null)) throw new Error("headItemInvalid");
-  const prepared = items as PreparedRepairItem[];
+  const prepared = items as RepairItemIdentity[];
   if (assertNewestFirst(prepared, null) == null && prepared.length > 1) {
     throw new Error("headNewestFirstViolation");
   }
@@ -453,7 +567,7 @@ export async function fetchVolcanoHistoricalPaginationUnion(options: {
   const loadPage = options.loadPage ?? ((apiKey, query) => listTelegrams(apiKey, query));
   const seenTokens = new Set<string>();
   const seenIds = new Set<string>();
-  const relevant: PreparedRepairItem[] = [];
+  const relevant: RepairItemIdentity[] = [];
   let cursorToken: string | undefined;
   let previousOldestMs: number | null = null;
   for (let page = 1; page <= VOLCANO_REPAIR_MAX_PAGES; page += 1) {
@@ -470,9 +584,9 @@ export async function fetchVolcanoHistoricalPaginationUnion(options: {
     if (rawItems.length > VOLCANO_REPAIR_PAGE_LIMIT) {
       throw new Error("historicalPageSizeExceeded");
     }
-    const prepared = rawItems.map((item) => prepareRepairItem(item, options.headType));
+    const prepared = rawItems.map((item) => prepareRepairIdentity(item, options.headType));
     if (prepared.some((item) => item == null)) throw new Error("historicalItemInvalid");
-    const pageItems = prepared as PreparedRepairItem[];
+    const pageItems = prepared as RepairItemIdentity[];
     const nextOldest = assertNewestFirst(pageItems, previousOldestMs);
     if (nextOldest == null && (pageItems.length > 0 || previousOldestMs != null)) {
       throw new Error("historicalNewestFirstViolation");
@@ -520,8 +634,14 @@ export async function proveVolcanoTypeCoverage(options: {
   journal: VolcanoRepairJournal;
   getAcknowledgement: () => WsSubscriptionAcknowledgement | null;
   loadPage?: TelegramPageLoader;
+  loadBody?: TelegramBodyLoader;
+  /** Shared across targets and head types so one id is fetched at most once. */
+  bodyCache?: Map<string, TelegramBodyResult>;
 }): Promise<VolcanoTypeRepairProof> {
   const loadPage = options.loadPage ?? ((apiKey, query) => listTelegrams(apiKey, query));
+  const loadBody = options.loadBody
+    ?? ((apiKey, id, expectedUrl) => fetchTelegramBody(apiKey, id, expectedUrl));
+  const bodyCache = options.bodyCache ?? new Map<string, TelegramBodyResult>();
   const coverageStartMs = checkedCoverageStart(options.startupNowMs, options.retentionMs);
   if (coverageStartMs == null) throw new Error("coverageStartInvalid");
   const validateTransport = (): boolean =>
@@ -543,29 +663,56 @@ export async function proveVolcanoTypeCoverage(options: {
     validateTransport,
   });
   const journalTarget = repairTargetForHeadType(options.headType)!;
+  // Bodies are loaded here — after pagination proved identity, before the head
+  // stability loop — so the sample taken after this await still has to justify
+  // anything that arrived over WebSocket while the bodies were in flight.
+  if (!validateTransport()) throw new Error("subscriptionGenerationChanged");
+  const bodyStageJournal = new Map(options.journal.snapshot(journalTarget)
+    .filter((item) => item.normalizedInput.headType === options.headType)
+    .map((item) => [item.itemId, item]));
+  const historicalItems: PreparedRepairItem[] = [];
+  for (const identity of historical.items) {
+    // Normal ingress already holds this item's normalized input; the commit
+    // replays that one, so its body never has to be fetched again.
+    const recorded = bodyStageJournal.get(identity.itemId);
+    if (recorded != null) {
+      historicalItems.push(preparedJournalItem(recorded));
+      continue;
+    }
+    const cached = bodyCache.get(identity.itemId);
+    const result = cached ?? await loadBody(
+      options.apiKey,
+      identity.itemId,
+      identity.listItem.url,
+    );
+    bodyCache.set(identity.itemId, result);
+    if (result.kind === "failed") {
+      throw new Error(`historicalBodyUnavailable:${result.reason}`);
+    }
+    const prepared = prepareRepairBody(identity, result.xml);
+    if (prepared == null) throw new Error("historicalItemInvalid");
+    historicalItems.push(prepared);
+  }
+  if (!validateTransport()) throw new Error("subscriptionGenerationChanged");
+  const historicalProof: VolcanoHistoricalUnion<PreparedRepairItem> = {
+    ...historical,
+    items: historicalItems,
+  };
   let journalItems = options.journal.snapshot(journalTarget)
     .filter((item) => item.normalizedInput.headType === options.headType);
   let journalById = new Map(journalItems.map((item) => [item.itemId, item]));
   const firstIds = new Set(first.items.map((item) => item.itemId));
-  const consistency = new Map<string, PreparedRepairItem>();
-  const addConsistency = (item: PreparedRepairItem): void => {
+  const consistency = new Map<string, CrossSetItem>();
+  const addConsistency = (item: CrossSetItem): void => {
     const previous = consistency.get(item.itemId);
     if (previous != null && !crossSetConsistent(previous, item)) {
       throw new Error("transportInconsistency");
     }
     consistency.set(item.itemId, item);
   };
-  for (const item of [...first.items, ...historical.items]) addConsistency(item);
-  for (const item of journalItems) {
-    addConsistency({
-      itemId: item.itemId,
-      receivedTimeMs: item.receivedTimeMs,
-      headType: item.normalizedInput.headType,
-      bodyFingerprint: item.normalizedInput.bodyFingerprint,
-      normalizedInput: item.normalizedInput,
-    });
-  }
-  const historicalIds = new Set(historical.items.map((item) => item.itemId));
+  for (const item of [...first.items, ...historicalProof.items]) addConsistency(item);
+  for (const item of journalItems) addConsistency(preparedJournalItem(item));
+  const historicalIds = new Set(historicalProof.items.map((item) => item.itemId));
   for (const item of first.items) {
     if (!historicalIds.has(item.itemId) && !journalById.has(item.itemId)) {
       throw new Error("lowerCoverageHeadGap");
@@ -598,7 +745,7 @@ export async function proveVolcanoTypeCoverage(options: {
     if (sample.fingerprint === previous.fingerprint) {
       const proof = options.journal.state(journalTarget);
       if (proof.kind === "failed") throw new Error(proof.reason);
-      return { headType: options.headType, historical, headSamples: ordinal };
+      return { headType: options.headType, historical: historicalProof, headSamples: ordinal };
     }
     previous = sample;
   }
@@ -877,6 +1024,7 @@ function preparedJournalItem(item: VolcanoRepairJournalItem): PreparedRepairItem
     itemId: item.itemId,
     receivedTimeMs: item.receivedTimeMs,
     headType: item.normalizedInput.headType,
+    itemHeadFingerprint: item.normalizedInput.itemHeadFingerprint,
     bodyFingerprint: item.normalizedInput.bodyFingerprint,
     normalizedInput: item.normalizedInput,
   };
@@ -1113,13 +1261,18 @@ export async function repairVolcanoState(options: {
   journal: VolcanoRepairJournal;
   getAcknowledgement: () => WsSubscriptionAcknowledgement | null;
   loadPage?: TelegramPageLoader;
+  loadBody?: TelegramBodyLoader;
 }): Promise<VolcanoStartupRepairResult> {
   const targets = volcanoRepairTargets(options.coordinator.snapshot().repair);
   const results: VolcanoRepairTargetResult[] = [];
+  // One cache for the whole repair: an id is fetched at most once, whether the
+  // fetch succeeded or failed, across both targets and all three head types.
+  const bodyCache = new Map<string, TelegramBodyResult>();
   if (targets.includes("vfvo50")) {
     try {
       const proof = await proveVolcanoTypeCoverage({
         ...options,
+        bodyCache,
         headType: "VFVO50",
         retentionMs: VOLCANO_ALERT_TOMBSTONE_RETENTION_MS,
       });
@@ -1142,11 +1295,13 @@ export async function repairVolcanoState(options: {
     try {
       const vfvo54 = await proveVolcanoTypeCoverage({
         ...options,
+        bodyCache,
         headType: "VFVO54",
         retentionMs: VOLCANO_ASHFALL_RETENTION_MS,
       });
       const vfvo55 = await proveVolcanoTypeCoverage({
         ...options,
+        bodyCache,
         headType: "VFVO55",
         retentionMs: VOLCANO_ASHFALL_RETENTION_MS,
       });

@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { testTelegramMeta } from "../helpers/telegram-meta";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import {
@@ -61,11 +62,19 @@ import { parseVolcanoTelegram } from "../../src/dmdata/volcano-parser";
 const mockListTelegrams = vi.mocked(restClient.listTelegrams);
 const mockParseVolcano = vi.mocked(parseVolcanoTelegram);
 
-/** テスト用 TelegramListItem を生成 (id と head.time で電文を区別する) */
+type TelegramListXmlHead = NonNullable<TelegramListItem["xmlReport"]>["head"];
+
+/**
+ * テスト用 TelegramListItem を生成 (id と head.time で電文を区別する)。
+ *
+ * 実 API の一覧応答に合わせて `body` / `compression` / `encoding` を**持たない**。
+ * 本文は Telegram Data v1 (`url`) から取る。
+ */
 function createTelegramItem(
   id: string,
   time: string,
-  overrides: Partial<TelegramListItem> = {}
+  overrides: Partial<TelegramListItem> = {},
+  xmlHead: Partial<TelegramListXmlHead> = {},
 ): TelegramListItem {
   return {
     serial: 1,
@@ -78,7 +87,45 @@ function createTelegramItem(
       test: false,
       xml: true,
     },
+    receivedTime: time,
+    xmlReport: {
+      control: {
+        title: "火山",
+        dateTime: time,
+        status: "通常",
+        editorialOffice: "気象庁",
+        publishingOffice: "気象庁",
+      },
+      head: {
+        title: "噴火警報・予報",
+        reportDateTime: time,
+        targetDateTime: time,
+        eventId: "volcano-506",
+        serial: "1",
+        infoType: "発表",
+        infoKind: "火山",
+        infoKindVersion: "1.0_0",
+        headline: null,
+        ...xmlHead,
+      },
+    },
     format: "xml",
+    url: `https://data.api.dmdata.jp/v1/${id}`,
+    ...overrides,
+  };
+}
+
+/**
+ * 旧 `restoreVolcanoState` 経路だけが使う、一覧 item に body が同梱された形。
+ * 実 API はこの形を返さない (同型欠陥は別項目として起票済み)。
+ */
+function createLegacyTelegramItem(
+  id: string,
+  time: string,
+  overrides: Partial<TelegramListItem> = {}
+): TelegramListItem {
+  return {
+    ...createTelegramItem(id, time),
     compression: "gzip",
     encoding: "base64",
     body: "dGVzdA==",
@@ -197,8 +244,8 @@ describe("restoreVolcanoState", () => {
   it("複数火山の警報が窓に混在 → 両火山とも復元される", async () => {
     // API は新しい順で返す想定
     const items = [
-      createTelegramItem("tg-asama", "2026-07-02T00:00:00+09:00"),
-      createTelegramItem("tg-sakura", "2026-07-01T00:00:00+09:00"),
+      createLegacyTelegramItem("tg-asama", "2026-07-02T00:00:00+09:00"),
+      createLegacyTelegramItem("tg-sakura", "2026-07-01T00:00:00+09:00"),
     ];
     mockListTelegrams.mockResolvedValue(createResponse(items));
     mockParserByIds({
@@ -218,8 +265,8 @@ describe("restoreVolcanoState", () => {
     // 新しい順の返却: 解除 (t2) が先頭、発表 (t1) が後ろ。
     // ソートせず返却順のまま replay すると「解除→発表」の順になり警報が残ってしまう
     const items = [
-      createTelegramItem("tg-release", "2026-07-02T00:00:00+09:00"),
-      createTelegramItem("tg-issue", "2026-07-01T00:00:00+09:00"),
+      createLegacyTelegramItem("tg-release", "2026-07-02T00:00:00+09:00"),
+      createLegacyTelegramItem("tg-issue", "2026-07-01T00:00:00+09:00"),
     ];
     mockListTelegrams.mockResolvedValue(createResponse(items));
     mockParserByIds({
@@ -235,8 +282,8 @@ describe("restoreVolcanoState", () => {
 
   it("途中の電文に body がない → skip して他火山は復元される", async () => {
     const items = [
-      createTelegramItem("tg-broken", "2026-07-02T00:00:00+09:00", { body: undefined }),
-      createTelegramItem("tg-sakura", "2026-07-01T00:00:00+09:00"),
+      createLegacyTelegramItem("tg-broken", "2026-07-02T00:00:00+09:00", { body: undefined }),
+      createLegacyTelegramItem("tg-sakura", "2026-07-01T00:00:00+09:00"),
     ];
     mockListTelegrams.mockResolvedValue(createResponse(items));
     mockParserByIds({
@@ -253,8 +300,8 @@ describe("restoreVolcanoState", () => {
 
   it("途中の電文がパース不能 → skip して他火山は復元される", async () => {
     const items = [
-      createTelegramItem("tg-unparsable", "2026-07-02T00:00:00+09:00"),
-      createTelegramItem("tg-sakura", "2026-07-01T00:00:00+09:00"),
+      createLegacyTelegramItem("tg-unparsable", "2026-07-02T00:00:00+09:00"),
+      createLegacyTelegramItem("tg-sakura", "2026-07-01T00:00:00+09:00"),
     ];
     mockListTelegrams.mockResolvedValue(createResponse(items));
     mockParserByIds({
@@ -270,8 +317,8 @@ describe("restoreVolcanoState", () => {
 
   it("窓内に Lv3 発表 → Lv1 引下げ (lower) → entries に残らない", async () => {
     const items = [
-      createTelegramItem("tg-lower", "2026-07-02T00:00:00+09:00"),
-      createTelegramItem("tg-issue3", "2026-07-01T00:00:00+09:00"),
+      createLegacyTelegramItem("tg-lower", "2026-07-02T00:00:00+09:00"),
+      createLegacyTelegramItem("tg-issue3", "2026-07-01T00:00:00+09:00"),
     ];
     mockListTelegrams.mockResolvedValue(createResponse(items));
     mockParserByIds({
@@ -311,7 +358,7 @@ describe("restoreVolcanoState", () => {
     expect(gate.decide(foundationInput(issue)).accepted).toBe(true);
     expect(gate.decide(foundationInput(cancel)).kind).toBe("clearCurrent");
     mockListTelegrams.mockResolvedValue(createResponse([
-      createTelegramItem("rest-old", issue.reportDateTime),
+      createLegacyTelegramItem("rest-old", issue.reportDateTime),
     ]));
     mockParserByIds({ "rest-old": { ...issue, meta: { ...issue.meta, messageId: "rest-old" } } });
 
@@ -333,7 +380,7 @@ describe("restoreVolcanoState", () => {
     const active = createFoundationAlert("active", "2026-07-01T00:00:00+09:00", "1");
     expect(gate.decide(foundationInput(active)).accepted).toBe(true);
     mockListTelegrams.mockResolvedValue(createResponse([
-      createTelegramItem("rest-active", active.reportDateTime),
+      createLegacyTelegramItem("rest-active", active.reportDateTime),
     ]));
     mockParserByIds({ "rest-active": { ...active, meta: { ...active.meta, messageId: "rest-active" } } });
 
@@ -353,37 +400,64 @@ const REPAIR_ACK: WsSubscriptionAcknowledgement = {
   classifications: ["telegram.volcano"],
 };
 
-function mockNormalizedAlertParser(): void {
-  mockParseVolcano.mockImplementation((msg: WsDataMessage) => {
-    const receivedAtMs = msg.meta?.receivedAtMs;
-    if (receivedAtMs == null) return null;
-    const reportDateTime = new Date(receivedAtMs).toISOString();
-    return createFoundationAlert(msg.id, reportDateTime, "1", {
-      meta: createTelegramMeta({
-        messageId: msg.id,
-        eventId: "volcano-506",
-        type: "VFVO50",
-        reportDateTime,
-        serial: "1",
-        infoType: "発表",
-        receivedAtMs,
-        status: "通常",
-        isTest: false,
-      }),
-    });
+/**
+ * 本物の `parseVolcanoTelegram` と同じく、meta を **body ではなく xmlReport.head から**
+ * 組む (`normalizeTelegramMessage` の性質)。identity 段の fingerprint と
+ * commit 段の fingerprint が一致する条件をテスト側でも守るため。
+ */
+function alertFromXmlReport(msg: WsDataMessage): ParsedVolcanoAlertInfo | null {
+  const receivedAtMs = msg.meta?.receivedAtMs;
+  const head = msg.xmlReport?.head;
+  if (receivedAtMs == null || head == null) return null;
+  // createFoundationAlert は meta を自前で組み直すので使えない (head 値が消える)
+  return createVolcanoAlert({
+    infoType: head.infoType as "発表" | "訂正" | "取消",
+    reportDateTime: head.reportDateTime,
+    meta: createTelegramMeta({
+      messageId: msg.id,
+      eventId: head.eventId,
+      type: msg.head.type,
+      reportDateTime: head.reportDateTime,
+      serial: head.serial,
+      infoType: head.infoType,
+      receivedAtMs,
+      status: "通常",
+      isTest: false,
+    }),
   });
 }
 
-function repairItem(id: string, receivedTimeMs: number): TelegramListItem {
-  return createTelegramItem(id, new Date(receivedTimeMs).toISOString());
+function mockNormalizedAlertParser(): void {
+  mockParseVolcano.mockImplementation(alertFromXmlReport);
+}
+
+/** 本文取得モック: id ごとに区別できる XML を返す */
+function mockBodyLoader() {
+  return vi.fn(async (
+    _apiKey: string,
+    id: string,
+    _expectedUrl?: string,
+  ): Promise<restClient.TelegramBodyResult> => ({
+    kind: "ok",
+    xml: `<Report id="${id}"/>`,
+  }));
+}
+
+function repairItem(
+  id: string,
+  receivedTimeMs: number,
+  xmlHead: Partial<TelegramListXmlHead> = {},
+): TelegramListItem {
+  return createTelegramItem(id, new Date(receivedTimeMs).toISOString(), {}, xmlHead);
 }
 
 function repairAshfallItem(
   id: string,
   receivedTimeMs: number,
   headType: "VFVO54" | "VFVO55",
+  xmlHead: Partial<TelegramListXmlHead> = {},
 ): TelegramListItem {
-  const item = repairItem(id, receivedTimeMs);
+  const item = repairItem(id, receivedTimeMs, xmlHead);
   return { ...item, head: { ...item.head, type: headType } };
 }
 
@@ -426,8 +500,17 @@ function createRepairAshfallCancellation(
   };
 }
 
-function liveRepairMessage(id: string, serverTimeMs: number, localTimeMs: number): WsDataMessage {
-  const item = repairItem(id, serverTimeMs);
+/**
+ * WS 由来の同一電文。`xmlReport.head` は REST 一覧と同じ値でなければならない
+ * (発表時刻は配信経路によらず同じ)。localTimeMs は受信ローカル時刻だけに効く。
+ */
+function liveRepairMessage(
+  id: string,
+  serverTimeMs: number,
+  localTimeMs: number,
+  xmlHead: Partial<TelegramListXmlHead> = {},
+): WsDataMessage {
+  const item = repairItem(id, serverTimeMs, xmlHead);
   return normalizeTelegramMessage({
     type: "data",
     version: "2.0",
@@ -436,29 +519,13 @@ function liveRepairMessage(id: string, serverTimeMs: number, localTimeMs: number
     passing: [],
     head: item.head,
     xmlReport: {
-      control: {
-        title: "火山",
-        dateTime: new Date(localTimeMs).toISOString(),
-        status: "通常",
-        editorialOffice: "気象庁",
-        publishingOffice: "気象庁",
-      },
-      head: {
-        title: "噴火警報・予報",
-        reportDateTime: new Date(localTimeMs).toISOString(),
-        targetDateTime: new Date(localTimeMs).toISOString(),
-        eventId: "volcano-506",
-        serial: "1",
-        infoType: "発表",
-        infoKind: "火山",
-        infoKindVersion: "1.0_0",
-        headline: null,
-      },
+      ...item.xmlReport!,
+      control: { ...item.xmlReport!.control, dateTime: new Date(localTimeMs).toISOString() },
     },
     format: item.format,
-    compression: item.compression,
-    encoding: item.encoding,
-    body: item.body!,
+    compression: null,
+    encoding: "utf-8",
+    body: `<Report id="${id}"/>`,
   }, localTimeMs).message;
 }
 
@@ -556,6 +623,7 @@ describe("volcano REST repair coverage", () => {
       journal,
       getAcknowledgement: () => REPAIR_ACK,
       loadPage,
+      loadBody: mockBodyLoader(),
     })).rejects.toThrow("lowerCoverageHeadGap");
   });
 
@@ -587,6 +655,7 @@ describe("volcano REST repair coverage", () => {
       journal,
       getAcknowledgement: () => REPAIR_ACK,
       loadPage,
+      loadBody: mockBodyLoader(),
     })).resolves.toMatchObject({ headSamples: 3 });
   });
 
@@ -645,7 +714,22 @@ describe("volcano REST repair coverage", () => {
         repairItem(` ${decomposed} `, REPAIR_NOW),
       ])),
     });
-    expect(historical.items[0]).toMatchObject({
+    expect(historical.items[0]).toMatchObject({ itemId: canonical });
+
+    // 本文取得を通した commit 入力側でも canonical id が使われる
+    const proof = await proveVolcanoTypeCoverage({
+      apiKey: "key",
+      headType: "VFVO50",
+      startupNowMs: REPAIR_NOW,
+      retentionMs: REPAIR_RETENTION_MS,
+      journal: new VolcanoRepairJournal(REPAIR_ACK, ["vfvo50"]),
+      getAcknowledgement: () => REPAIR_ACK,
+      loadPage: vi.fn().mockResolvedValue(createResponse([
+        repairItem(` ${decomposed} `, REPAIR_NOW),
+      ])),
+      loadBody: mockBodyLoader(),
+    });
+    expect(proof.historical.items[0]).toMatchObject({
       itemId: canonical,
       normalizedInput: { sourceEventId: canonical },
     });
@@ -697,6 +781,7 @@ describe("volcano REST repair coverage", () => {
       getAcknowledgement: () => REPAIR_ACK,
       // first head, historical terminal, and stable second head are all empty.
       loadPage: vi.fn().mockResolvedValue(createResponse([])),
+      loadBody: mockBodyLoader(),
     })).resolves.toEqual({ targets: [{ target: "vfvo50", kind: "committed" }] });
 
     const after = coordinator.snapshot();
@@ -755,7 +840,9 @@ describe("volcano REST repair coverage", () => {
     const coordinator = new VolcanoTransactionCoordinator(admission);
     const before = coordinator.snapshot();
     const cancellationId = "ashfall-rest-cancellation";
-    const cancellation = repairAshfallItem(cancellationId, REPAIR_NOW - 1_000, "VFVO54");
+    const cancellation = repairAshfallItem(cancellationId, REPAIR_NOW - 1_000, "VFVO54", {
+      infoType: "取消",
+    });
     mockParseVolcano.mockImplementation((msg) => msg.id === cancellationId
       ? createRepairAshfallCancellation(cancellationId, REPAIR_NOW - 1_000)
       : null);
@@ -771,9 +858,324 @@ describe("volcano REST repair coverage", () => {
       journal,
       getAcknowledgement: () => REPAIR_ACK,
       loadPage,
+      loadBody: mockBodyLoader(),
     })).resolves.toEqual({
       targets: [{ target: "ashfall", kind: "failed", reason: "ashfallReplayRejected" }],
     });
     expect(coordinator.snapshot()).toEqual(before);
   });
+});
+
+// ── 実採取した /v2/telegram 応答 (2026-09-02, xmlReport=true) ──
+// 一覧 API は本文を返さない。この形を試験で固定しておかないと、
+// 「一覧に body がある」前提の実装が再び緑のまま通る。
+function readRestFixture(name: string): TelegramListResponse {
+  // vitest は repo ルートを cwd にして走る
+  return JSON.parse(
+    readFileSync(`test/fixtures/rest/${name}`, "utf8"),
+  ) as TelegramListResponse;
+}
+
+const REAL_LIST_FIXTURES = {
+  VFVO50: readRestFixture("telegram-list-vfvo50-real.json"),
+  VFVO54: readRestFixture("telegram-list-vfvo54-real.json"),
+  VFVO55: readRestFixture("telegram-list-vfvo55-real.json"),
+} as const;
+
+const REAL_FIXTURE_NOW = Date.parse("2026-09-02T13:00:00.000Z");
+const REAL_FIXTURE_RETENTION_MS = 40 * 24 * 60 * 60_000;
+
+function ashfallFromXmlReport(msg: WsDataMessage): ParsedVolcanoAshfallInfo {
+  const head = msg.xmlReport!.head;
+  return {
+    meta: createTelegramMeta({
+      messageId: msg.id,
+      eventId: head.eventId,
+      type: msg.head.type,
+      reportDateTime: head.reportDateTime,
+      serial: head.serial,
+      infoType: head.infoType,
+      receivedAtMs: msg.meta!.receivedAtMs,
+      status: "通常",
+      isTest: false,
+    }),
+    domain: "volcano",
+    kind: "ashfall",
+    type: msg.head.type as "VFVO54" | "VFVO55",
+    subKind: msg.head.type === "VFVO54" ? "rapid" : "detailed",
+    infoType: "発表",
+    title: "降灰予報",
+    reportDateTime: head.reportDateTime,
+    eventDateTime: null,
+    headline: null,
+    publishingOffice: "気象庁",
+    volcanoName: "桜島",
+    volcanoCode: "506",
+    coordinate: null,
+    isTest: false,
+    craterName: null,
+    ashForecasts: [],
+    plumeHeight: null,
+    plumeDirection: null,
+    bodyText: "",
+  };
+}
+
+describe("volcano REST repair against real telegram list responses", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("fixes that the real telegram list carries no body, compression, or encoding", () => {
+    for (const response of Object.values(REAL_LIST_FIXTURES)) {
+      expect(response.items.length).toBeGreaterThan(0);
+      for (const item of response.items) {
+        expect(item).not.toHaveProperty("body");
+        expect(item).not.toHaveProperty("compression");
+        expect(item).not.toHaveProperty("encoding");
+        expect(item.url).toMatch(/^https:\/\/data\.api\.dmdata\.jp\/v1\//);
+        expect(item.xmlReport?.head.reportDateTime).toEqual(expect.any(String));
+      }
+    }
+  });
+
+  it.each(["VFVO50", "VFVO54", "VFVO55"] as const)(
+    "proves %s coverage from the real list page and loads every body from its url",
+    async (headType) => {
+      mockParseVolcano.mockImplementation((msg) => headType === "VFVO50"
+        ? alertFromXmlReport(msg)
+        : ashfallFromXmlReport(msg));
+      const response = REAL_LIST_FIXTURES[headType];
+      const loadBody = mockBodyLoader();
+
+      const proof = await proveVolcanoTypeCoverage({
+        apiKey: "key",
+        headType,
+        startupNowMs: REAL_FIXTURE_NOW,
+        retentionMs: REAL_FIXTURE_RETENTION_MS,
+        journal: new VolcanoRepairJournal(REPAIR_ACK, [
+          headType === "VFVO50" ? "vfvo50" : "ashfall",
+        ]),
+        getAcknowledgement: () => REPAIR_ACK,
+        loadPage: vi.fn().mockResolvedValue(response),
+        loadBody,
+      });
+
+      expect(proof.historical.items.map((item) => item.itemId))
+        .toEqual(response.items.map((item) => item.id));
+      expect(loadBody.mock.calls.map((call) => [call[1], call[2]]))
+        .toEqual(response.items.map((item) => [item.id, item.url]));
+    },
+  );
+});
+
+describe("volcano REST repair body loading", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockNormalizedAlertParser();
+  });
+
+  it("loads bodies only for window items missing from the journal", async () => {
+    const journal = new VolcanoRepairJournal(REPAIR_ACK, ["vfvo50"]);
+    const localReceipt = REPAIR_NOW + 5_000;
+    expect(journal.record(
+      liveRepairMessage("known", REPAIR_NOW - 2_000, localReceipt),
+      { ...REPAIR_ACK, receivedAtMs: localReceipt },
+    )).toEqual({ kind: "recorded" });
+    const loadBody = mockBodyLoader();
+
+    await proveVolcanoTypeCoverage({
+      apiKey: "key",
+      headType: "VFVO50",
+      startupNowMs: REPAIR_NOW,
+      retentionMs: REPAIR_RETENTION_MS,
+      journal,
+      getAcknowledgement: () => REPAIR_ACK,
+      loadPage: vi.fn().mockResolvedValue(createResponse([
+        repairItem("fresh", REPAIR_NOW - 1_000),
+        repairItem("known", REPAIR_NOW - 2_000),
+        repairItem("stale", REPAIR_NOW - REPAIR_RETENTION_MS - 1),
+      ])),
+      loadBody,
+    });
+
+    // journal 収録済み "known" と窓外 "stale" は取りに行かない。
+    // head sample が 2 回以上走っても "fresh" は 1 回だけ。
+    expect(loadBody.mock.calls.map((call) => call[1])).toEqual(["fresh"]);
+  });
+
+  it("loads a body at most once per id even when the load failed", async () => {
+    const bodyCache = new Map<string, restClient.TelegramBodyResult>();
+    const loadBody = vi.fn(async () => ({ kind: "failed" as const, reason: "forbidden" as const }));
+    const options = {
+      apiKey: "key",
+      headType: "VFVO50" as const,
+      startupNowMs: REPAIR_NOW,
+      retentionMs: REPAIR_RETENTION_MS,
+      getAcknowledgement: () => REPAIR_ACK,
+      loadPage: vi.fn().mockResolvedValue(createResponse([
+        repairItem("repeat", REPAIR_NOW - 1_000),
+      ])),
+      loadBody,
+      bodyCache,
+    };
+
+    await expect(proveVolcanoTypeCoverage({
+      ...options,
+      journal: new VolcanoRepairJournal(REPAIR_ACK, ["vfvo50"]),
+    })).rejects.toThrow("historicalBodyUnavailable:forbidden");
+    await expect(proveVolcanoTypeCoverage({
+      ...options,
+      journal: new VolcanoRepairJournal(REPAIR_ACK, ["vfvo50"]),
+    })).rejects.toThrow("historicalBodyUnavailable:forbidden");
+
+    expect(loadBody).toHaveBeenCalledTimes(1);
+  });
+
+  it("revalidates the subscription after the awaited body load", async () => {
+    let bodyLoaded = false;
+    const loadBody = vi.fn(async (_apiKey: string, id: string) => {
+      bodyLoaded = true;
+      return { kind: "ok" as const, xml: `<Report id="${id}"/>` };
+    });
+
+    await expect(proveVolcanoTypeCoverage({
+      apiKey: "key",
+      headType: "VFVO50",
+      startupNowMs: REPAIR_NOW,
+      retentionMs: REPAIR_RETENTION_MS,
+      journal: new VolcanoRepairJournal(REPAIR_ACK, ["vfvo50"]),
+      getAcknowledgement: () => bodyLoaded
+        ? { ...REPAIR_ACK, subscriptionGeneration: 2 }
+        : REPAIR_ACK,
+      loadPage: vi.fn().mockResolvedValue(createResponse([
+        repairItem("during-body", REPAIR_NOW - 1_000),
+      ])),
+      loadBody,
+    })).rejects.toThrow("subscriptionGenerationChanged");
+
+    expect(loadBody).toHaveBeenCalledTimes(1);
+  });
+
+  it("detects a head revision difference between the journal and the REST list", async () => {
+    const journal = new VolcanoRepairJournal(REPAIR_ACK, ["vfvo50"]);
+    const localReceipt = REPAIR_NOW + 5_000;
+    expect(journal.record(
+      liveRepairMessage("drifted", REPAIR_NOW - 1_000, localReceipt, { serial: "1" }),
+      { ...REPAIR_ACK, receivedAtMs: localReceipt },
+    )).toEqual({ kind: "recorded" });
+
+    await expect(proveVolcanoTypeCoverage({
+      apiKey: "key",
+      headType: "VFVO50",
+      startupNowMs: REPAIR_NOW,
+      retentionMs: REPAIR_RETENTION_MS,
+      journal,
+      getAcknowledgement: () => REPAIR_ACK,
+      // 同一 id・同一 receivedTime だが Head revision (serial) が違う
+      loadPage: vi.fn().mockResolvedValue(createResponse([
+        repairItem("drifted", REPAIR_NOW - 1_000, { serial: "2" }),
+      ])),
+      loadBody: mockBodyLoader(),
+    })).rejects.toThrow("transportInconsistency");
+  });
+});
+
+describe("volcano REST repair body failure isolation", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockNormalizedAlertParser();
+  });
+
+  function repairFixture(targets: { vfvo50: boolean; ashfall: boolean }) {
+    const gate = new TelegramRevisionGate();
+    const holder = new VolcanoStateHolder();
+    const standby = new StandbyStateStore();
+    standby.replaceVolcanoDerived(holder.snapshot());
+    const repair = emptyVolcanoRepairState();
+    repair.vfvo50Repairable = targets.vfvo50;
+    repair.ashfallRepairable = targets.ashfall;
+    const admission = new StandbyPersistenceAdmissionCoordinator({
+      owners: {
+        telegramRevisionGate: gate,
+        standbyStateStore: standby,
+        vpws50State: new Vpws50StateHolder(),
+        vpww56State: new Vpww56StateHolder(),
+        tsunamiState: new TsunamiStateHolder(),
+        volcanoState: holder,
+        floodForecastState: new FloodForecastStateHolder(),
+      },
+      repairState: repair,
+    });
+    return { coordinator: new VolcanoTransactionCoordinator(admission), standby, repair };
+  }
+
+  it("fails only the ashfall target when its body load is forbidden", async () => {
+    const { coordinator, standby, repair } = repairFixture({ vfvo50: true, ashfall: true });
+    const standbyBefore = standby.cloneSnapshot();
+    const before = coordinator.snapshot();
+    const journal = new VolcanoRepairJournal(REPAIR_ACK, ["vfvo50", "ashfall"]);
+
+    const result = await repairVolcanoState({
+      apiKey: "key",
+      startupNowMs: REPAIR_NOW,
+      coordinator,
+      journal,
+      getAcknowledgement: () => REPAIR_ACK,
+      loadPage: vi.fn(async (_apiKey, query) => createResponse(
+        query.type === "VFVO54"
+          ? [repairAshfallItem("ashfall-body", REPAIR_NOW - 1_000, "VFVO54")]
+          : [],
+      )),
+      loadBody: vi.fn(async () => ({ kind: "failed" as const, reason: "forbidden" as const })),
+    });
+
+    expect(result).toEqual({
+      targets: [
+        { target: "vfvo50", kind: "committed" },
+        {
+          target: "ashfall",
+          kind: "failed",
+          reason: "historicalBodyUnavailable:forbidden",
+        },
+      ],
+    });
+    // 失敗した target 側は holder / gate / standby / repair フラグを動かさない
+    expect(coordinator.snapshot().repair).toEqual({ ...before.repair, vfvo50Repairable: false });
+    expect(repair.ashfallRepairable).toBe(true);
+    expect(standby.cloneSnapshot()).toEqual(standbyBefore);
+  });
+
+  it.each(["notFound", "contentType", "tooLarge", "network"] as const)(
+    "keeps every ashfall owner untouched when the body load fails with %s",
+    async (reason) => {
+      const { coordinator, standby, repair } = repairFixture({ vfvo50: false, ashfall: true });
+      const standbyBefore = standby.cloneSnapshot();
+      const before = coordinator.snapshot();
+
+      await expect(repairVolcanoState({
+        apiKey: "key",
+        startupNowMs: REPAIR_NOW,
+        coordinator,
+        journal: new VolcanoRepairJournal(REPAIR_ACK, ["ashfall"]),
+        getAcknowledgement: () => REPAIR_ACK,
+        loadPage: vi.fn(async (_apiKey, query) => createResponse(
+          query.type === "VFVO55"
+            ? [repairAshfallItem("ashfall-body", REPAIR_NOW - 1_000, "VFVO55")]
+            : [],
+        )),
+        loadBody: vi.fn(async () => ({ kind: "failed" as const, reason })),
+      })).resolves.toEqual({
+        targets: [{
+          target: "ashfall",
+          kind: "failed",
+          reason: `historicalBodyUnavailable:${reason}`,
+        }],
+      });
+
+      expect(coordinator.snapshot()).toEqual(before);
+      expect(repair.ashfallRepairable).toBe(true);
+      expect(standby.cloneSnapshot()).toEqual(standbyBefore);
+    },
+  );
 });

@@ -793,9 +793,9 @@ export interface TelegramListItem {
    * 実 API の一覧応答には**存在しない** (Telegram Data v1 のリクエスト条件を表す欄)。
    * 我々が実際に受け取った表現ではないので、本文取得経路では読まないこと。
    */
-  compression: "gzip" | "zip" | null;
+  compression?: "gzip" | "zip" | null;
   /** 実 API の一覧応答には**存在しない**。上の compression と同じ扱い。 */
-  encoding: "base64" | "utf-8" | null;
+  encoding?: "base64" | "utf-8" | null;
   /** Telegram Data v1 の本文取得 URL。実 API の一覧応答にあるが本文そのものは無い。 */
   url?: string;
   /**
