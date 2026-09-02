@@ -7682,16 +7682,19 @@ function migratePreGenerationVolcanoFoundation(
             sourceFamily: "operationalV2Unknown" as const,
           },
         };
+        canonicalizeVolcanoMigrationGateSerial(migratedGate);
         migratedGates.push(migratedGate);
         ensureOperationalLoss(code, gate.comparison);
       } else {
         const known = explicitFamily;
-        migratedGates.push({
+        const migratedGate: PersistedTelegramRevisionGateEntryV2 = {
           ...structuredClone(gate),
           volcanoProvenance: known == null
             ? { kind: "alert", sourceFamily: "unknown" }
             : { kind: "alert", sourceFamily: known },
-        });
+        };
+        canonicalizeVolcanoMigrationGateSerial(migratedGate);
+        migratedGates.push(migratedGate);
         if (!gate.cancelled || known == null) {
           ensureAlertLoss(code, known ?? "unknown", "provenanceMissing", gate.comparison);
         }
@@ -7750,7 +7753,9 @@ function migratePreGenerationVolcanoFoundation(
       }
     }
     if (gate != null) {
-      migratedGates.push(structuredClone(gate));
+      const migratedGate = structuredClone(gate);
+      canonicalizeVolcanoMigrationGateSerial(migratedGate);
+      migratedGates.push(migratedGate);
       if (!gate.cancelled) ensureEruptionLoss(code, gate.comparison);
     } else if (identities.length > 0 || rollbackCandidates.length > 0) {
       ensureEruptionLoss(code, null);
@@ -7823,9 +7828,13 @@ function migratePreGenerationVolcanoFoundation(
       && gate.comparison.variantRank === (existing.sourceType === "VFVO54" ? 0 : 1);
     const reserved = gate.cancelled && gate.semanticKeys.length === 0
       && gate.comparison.revision.infoType.value === "取消";
-    if (fullIdentity) migratedGates.push(structuredClone(gate));
-    else if (reserved) {
+    if (fullIdentity) {
       const migratedGate = structuredClone(gate);
+      canonicalizeVolcanoMigrationGateSerial(migratedGate);
+      migratedGates.push(migratedGate);
+    } else if (reserved) {
+      const migratedGate = structuredClone(gate);
+      canonicalizeVolcanoMigrationGateSerial(migratedGate);
       migratedGate.comparison.variantRank = 1;
       migratedGate.volcanoProvenance = {
         kind: "ashfall", actualEventId: null, sourceType: null,

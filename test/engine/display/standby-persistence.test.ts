@@ -4263,6 +4263,111 @@ describe("pre-generation volcano migration serial canonicalization", () => {
       revision: { reportTimeMs: 1788134400000, serial: null },
     });
   });
+
+  type GateOnlyFamily = "volcanoAlert" | "volcanoEruption" | "volcanoAshfall";
+
+  const MISSING_SERIAL = { raw: "", numeric: null, valid: false };
+
+  function gateOnlyFixture(family: GateOnlyFamily): Record<string, unknown> {
+    const fixture = JSON.parse(readFileSync(fixturePath, "utf8")) as Record<string, unknown>;
+    const foundation = fixture.telegramFoundation as {
+      volcano: { gateEntries: Record<string, unknown>[] };
+    };
+    const alertGate = foundation.volcano.gateEntries[0]! as unknown as {
+      comparison: {
+        revision: {
+          eventId: { raw: string; value: string; valid: boolean };
+          type: { raw: string; value: string; valid: boolean };
+          serial: { raw: string | null; numeric: number | null; valid: boolean };
+          infoType: { raw: string; value: string };
+        };
+        stateSubjectKey: string;
+        variantRank?: number;
+      };
+      stateSubjectKey: string;
+      revisionFamily: string;
+      semanticKeys: string[];
+      volcanoProvenance?: Record<string, unknown>;
+      legacyRevisionKey?: string;
+      legacyRevisionKeyProvenance?: string;
+      tombstoneRetentionMs?: number;
+    };
+    if (family === "volcanoAlert") {
+      // rollback は numeric serial のまま残し、gate だけを missing にして join を落とす。
+      alertGate.comparison.revision.serial = { ...MISSING_SERIAL };
+      return fixture;
+    }
+    const subject = family === "volcanoEruption"
+      ? "volcano:eruption:506"
+      : "volcano:ashfall:506";
+    const extra = JSON.parse(JSON.stringify(alertGate)) as typeof alertGate;
+    extra.revisionFamily = family;
+    extra.stateSubjectKey = subject;
+    extra.comparison.stateSubjectKey = subject;
+    extra.comparison.revision.eventId = { raw: subject, value: subject, valid: true };
+    extra.comparison.revision.type = { raw: family, value: family, valid: true };
+    extra.comparison.revision.serial = { ...MISSING_SERIAL };
+    extra.semanticKeys = [`発表:${family}-506`];
+    delete extra.legacyRevisionKey;
+    delete extra.legacyRevisionKeyProvenance;
+    delete extra.tombstoneRetentionMs;
+    if (family === "volcanoAshfall") {
+      extra.comparison.variantRank = 0;
+      extra.volcanoProvenance = {
+        kind: "ashfall",
+        actualEventId: "ashfall-event-506",
+        sourceType: "VFVO54",
+      };
+    }
+    foundation.volcano.gateEntries.push(extra as unknown as Record<string, unknown>);
+    return fixture;
+  }
+
+  function loadGateOnly(family: GateOnlyFamily): {
+    quarantined: boolean;
+    serials: (string | null | undefined)[];
+  } {
+    const path = tempPath();
+    mkdirSync(dirname(path), { recursive: true });
+    writeFileSync(
+      standbyPersistenceV2Path(path),
+      JSON.stringify(gateOnlyFixture(family)),
+      "utf8",
+    );
+    const result = new StandbyPersistence(path)
+      .loadWithResult(Date.parse("2026-09-01T00:00:00.000Z"));
+    if (result.startup.kind === "fatal" || result.state == null) {
+      throw new Error("expected a restored standby state");
+    }
+    const volcano = result.state.telegramFoundation.volcano;
+    const subject = family === "volcanoAlert"
+      ? "volcano:alert:506"
+      : family === "volcanoEruption" ? "volcano:eruption:506" : "volcano:ashfall:506";
+    return {
+      quarantined: result.volcanoDomainQuarantined,
+      serials: volcano.gateEntries
+        .filter((entry) => entry.stateSubjectKey === subject)
+        .map((entry) => entry.comparison.revision.serial.raw),
+    };
+  }
+
+  it("join に失敗した alert gate の空文字 serial も canonical null へ寄せる", () => {
+    const { quarantined, serials } = loadGateOnly("volcanoAlert");
+    expect(quarantined).toBe(false);
+    expect(serials).toEqual([null]);
+  });
+
+  it("join に失敗した eruption gate の空文字 serial も canonical null へ寄せる", () => {
+    const { quarantined, serials } = loadGateOnly("volcanoEruption");
+    expect(quarantined).toBe(false);
+    expect(serials).toEqual([null]);
+  });
+
+  it("join に失敗した ashfall gate の空文字 serial も canonical null へ寄せる", () => {
+    const { quarantined, serials } = loadGateOnly("volcanoAshfall");
+    expect(quarantined).toBe(false);
+    expect(serials).toEqual([null]);
+  });
 });
 
 describe("StandbyPersistence logical generation source selection", () => {
