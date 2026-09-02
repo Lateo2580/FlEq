@@ -1,0 +1,333 @@
+{
+  "version": 1,
+  "savedAt": "2026-09-01T00:00:00.000Z",
+  "heat": null,
+  "typhoons": [],
+  "volcanoes": [
+    {
+      "code": "506",
+      "name": "桜島",
+      "alertLevel": 3,
+      "alertClass": {
+        "code": "1",
+        "name": "噴火警報（火口周辺）",
+        "severity": "warning",
+        "isActive": true
+      },
+      "warningKind": "火口周辺警報",
+      "targetKinds": [
+        "火口周辺"
+      ],
+      "alertExpiresAtMs": null,
+      "latestEvent": null,
+      "latestEventId": null,
+      "eventExpiresAtMs": null,
+      "sourceEventIds": [
+        "fixture:vfvo50-506"
+      ],
+      "alertRevision": {
+        "reportTimeMs": 1788220800000,
+        "serial": "80"
+      },
+      "alertSourceFamily": "VFVO50",
+      "eventRevision": null
+    },
+    {
+      "code": "507",
+      "name": "有珠山",
+      "alertLevel": 3,
+      "alertClass": {
+        "code": "1",
+        "name": "噴火警報（火口周辺）",
+        "severity": "warning",
+        "isActive": true
+      },
+      "warningKind": "火口周辺警報",
+      "targetKinds": [
+        "火口周辺"
+      ],
+      "alertExpiresAtMs": null,
+      "latestEvent": null,
+      "latestEventId": null,
+      "eventExpiresAtMs": null,
+      "sourceEventIds": [
+        "fixture:vfvo50-507"
+      ],
+      "alertRevision": {
+        "reportTimeMs": 1788220800000,
+        "serial": "80"
+      },
+      "alertSourceFamily": "VFVO50",
+      "eventRevision": null
+    },
+    {
+      "code": "508",
+      "name": "浅間山",
+      "alertLevel": null,
+      "alertExpiresAtMs": null,
+      "latestEvent": {
+        "label": "噴火",
+        "craterName": "山頂火口",
+        "eventDateTime": "2026-09-01T00:00:00.000Z",
+        "plumeHeightM": 1000,
+        "plumeHeightUnknown": false,
+        "plumeDirection": "東"
+      },
+      "latestEventId": "20260901000000-508",
+      "eventExpiresAtMs": 1788307200000,
+      "sourceEventIds": [
+        "fixture:vfvo51-508"
+      ],
+      "alertRevision": null,
+      "eventRevision": {
+        "reportTimeMs": 1788220800000,
+        "serial": "80"
+      }
+    },
+    {
+      "code": "509",
+      "name": "三宅島",
+      "alertLevel": null,
+      "alertExpiresAtMs": null,
+      "latestEvent": null,
+      "latestEventId": null,
+      "eventExpiresAtMs": null,
+      "sourceEventIds": [
+        "fixture:vfvo54-509"
+      ],
+      "alertRevision": null,
+      "eventRevision": null,
+      "ashfall": {
+        "kind": "rapid",
+        "label": "降灰速報",
+        "eventId": "509",
+        "sourceEventId": "fixture:vfvo54-509",
+        "forecastEndsAt": "2026-09-01T01:00:00.000Z",
+        "forecastEndLabel": "2026年9月1日 10:00まで",
+        "groups": [
+          {
+            "hazardClass": "ash",
+            "ashCode": "71",
+            "ashName": "少量の降灰",
+            "areas": [
+              {
+                "identityKey": "area:code:13381",
+                "code": "13381",
+                "name": "三宅村",
+                "displayLabel": "三宅村（13381）"
+              }
+            ],
+            "omittedAreaCount": 0
+          }
+        ],
+        "omittedGroupCount": 0,
+        "generation": 1
+      },
+      "ashfallExpiresAtMs": 1788224400000,
+      "ashfallRevision": {
+        "reportTimeMs": 1788220800000,
+        "serial": "80"
+      },
+      "ashfallProjection": {
+        "stateSubjectKey": "volcano:ashfall:509",
+        "volcanoCode": "509",
+        "volcanoName": "三宅島",
+        "eventId": "509",
+        "sourceType": "VFVO54",
+        "sourceEventId": "fixture:vfvo54-509",
+        "forecastStartsAtMs": 1788220800000,
+        "forecastEndsAtMs": 1788224400000,
+        "groups": [
+          {
+            "hazardClass": "ash",
+            "ashCode": "71",
+            "ashName": "少量の降灰",
+            "areaCount": 1,
+            "topAreas": [
+              {
+                "identityKey": "area:code:13381",
+                "code": "13381",
+                "name": "三宅村",
+                "firstForecastEndAtMs": 1788224400000
+              }
+            ],
+            "omittedAreaCount": 0
+          }
+        ],
+        "omittedGroupCount": 0,
+        "revision": {
+          "reportTimeMs": 1788220800000,
+          "serial": "80"
+        },
+        "appliedSemanticKey": "発表:8faac3a1acd9f94fc08fe2fca3d3530785994d40ac6643531ae73634b12554cb",
+        "generation": 1
+      }
+    }
+  ],
+  "seen": [
+    {
+      "key": "volcano:alert:506",
+      "revision": {
+        "reportTimeMs": 1788220800000,
+        "serial": "80"
+      },
+      "forgetAtMs": 1790812800001
+    },
+    {
+      "key": "volcano:alert:507",
+      "revision": {
+        "reportTimeMs": 1788220800000,
+        "serial": "80"
+      },
+      "forgetAtMs": 1790812800001
+    },
+    {
+      "key": "volcano:event:20260901000000-508",
+      "revision": {
+        "reportTimeMs": 1788220800000,
+        "serial": "80"
+      },
+      "forgetAtMs": 1788393600001
+    },
+    {
+      "key": "volcano:ashfall:509",
+      "revision": {
+        "reportTimeMs": 1788220800000,
+        "serial": "80"
+      },
+      "forgetAtMs": 1788825600001
+    }
+  ],
+  "volcanoAlertGateMetadata": [
+    {
+      "stateSubjectKey": "volcano:alert:506",
+      "sourceFamily": "VFVO50",
+      "comparison": {
+        "stateSubjectKey": "volcano:alert:506",
+        "revision": {
+          "eventId": {
+            "raw": "volcano:alert:506",
+            "value": "volcano:alert:506",
+            "valid": true
+          },
+          "type": {
+            "raw": "volcanoAlert",
+            "value": "volcanoAlert",
+            "valid": true
+          },
+          "reportDateTime": {
+            "raw": "2026-09-01T00:00:00.000Z",
+            "epochMs": 1788220800000,
+            "valid": true
+          },
+          "serial": {
+            "raw": "80",
+            "numeric": 80,
+            "valid": true
+          },
+          "infoType": {
+            "raw": "発表",
+            "value": "発表",
+            "valid": true
+          }
+        }
+      },
+      "semanticKeys": [
+        "発表:efcbb61169f63fdf86cede531d905cd1d74e8d3df4363cb129e8537fe62ed969"
+      ],
+      "cancelled": false,
+      "acceptedAtMs": 1788220800000,
+      "tombstoneRetentionMs": 2592000000
+    },
+    {
+      "stateSubjectKey": "volcano:alert:507",
+      "sourceFamily": "VFVO50",
+      "comparison": {
+        "stateSubjectKey": "volcano:alert:507",
+        "revision": {
+          "eventId": {
+            "raw": "volcano:alert:507",
+            "value": "volcano:alert:507",
+            "valid": true
+          },
+          "type": {
+            "raw": "volcanoAlert",
+            "value": "volcanoAlert",
+            "valid": true
+          },
+          "reportDateTime": {
+            "raw": "2026-09-01T00:00:00.000Z",
+            "epochMs": 1788220800000,
+            "valid": true
+          },
+          "serial": {
+            "raw": "80",
+            "numeric": 80,
+            "valid": true
+          },
+          "infoType": {
+            "raw": "発表",
+            "value": "発表",
+            "valid": true
+          }
+        }
+      },
+      "semanticKeys": [
+        "発表:3acf424d8ea613d5a80376f02ef084a79af35c0141e8a2b5b9f8e16ef4614afd"
+      ],
+      "cancelled": false,
+      "acceptedAtMs": 1788220800000,
+      "tombstoneRetentionMs": 2592000000
+    }
+  ],
+  "volcanoAshfallGateMetadata": [
+    {
+      "stateSubjectKey": "volcano:ashfall:509",
+      "actualEventId": "509",
+      "sourceType": "VFVO54",
+      "comparison": {
+        "stateSubjectKey": "volcano:ashfall:509",
+        "variantRank": 0,
+        "revision": {
+          "eventId": {
+            "raw": "volcano:ashfall:509",
+            "value": "volcano:ashfall:509",
+            "valid": true
+          },
+          "type": {
+            "raw": "volcanoAshfall",
+            "value": "volcanoAshfall",
+            "valid": true
+          },
+          "reportDateTime": {
+            "raw": "2026-09-01T00:00:00.000Z",
+            "epochMs": 1788220800000,
+            "valid": true
+          },
+          "serial": {
+            "raw": "80",
+            "numeric": 80,
+            "valid": true
+          },
+          "infoType": {
+            "raw": "発表",
+            "value": "発表",
+            "valid": true
+          }
+        }
+      },
+      "semanticKeys": [
+        "発表:8faac3a1acd9f94fc08fe2fca3d3530785994d40ac6643531ae73634b12554cb"
+      ],
+      "cancelled": false
+    }
+  ],
+  "volcanoRepairState": {
+    "schemaGeneration": 1,
+    "vfvo50Repairable": false,
+    "ashfallRepairable": false,
+    "unrecoverableAlertOmissions": [],
+    "unrecoverableEruptionOmissions": [],
+    "operationalV2AlertResolutions": []
+  }
+}

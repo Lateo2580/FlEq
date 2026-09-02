@@ -19,7 +19,7 @@ import { StandbyStateStore } from "../../../src/engine/display/standby-state-sto
 import { DisplayStateStore } from "../../../src/engine/display/state-store";
 import { FloodActiveReducer } from "../../../src/engine/display/flood-active-reducer";
 import { VPWW56_SNAPSHOT_GENERATION } from "../../../src/engine/messages/vpww56-state";
-import type { PersistedVolcanoStateV2 } from "../../../src/engine/messages/volcano-state";
+import type { PersistedVolcanoStateV2, VolcanoRepairStateV1 } from "../../../src/engine/messages/volcano-state";
 import { parseFloodForecast } from "../../../src/dmdata/flood-forecast-parser";
 import { parseVolcanoTelegram } from "../../../src/dmdata/volcano-parser";
 import { parseWeatherWarningTimeseries } from "../../../src/dmdata/weather-warning-timeseries-parser";
@@ -4367,6 +4367,476 @@ describe("pre-generation volcano migration serial canonicalization", () => {
     const { quarantined, serials } = loadGateOnly("volcanoAshfall");
     expect(quarantined).toBe(false);
     expect(serials).toEqual([null]);
+  });
+});
+
+describe("v1 volcano migration serial canonicalization", () => {
+  const fixturePath = join(
+    process.cwd(),
+    "test",
+    "fixtures",
+    "standby-persistence",
+    "v1-volcano-serial.json",
+  );
+  const NOW_MS = Date.parse("2026-09-01T01:00:00.000Z");
+  const REPORT_MS = Date.parse("2026-09-01T00:00:00.000Z");
+
+  type SerialCell = { raw: string | null; numeric: number | null; valid: boolean };
+  type Revision = { reportTimeMs: number; serial: string | null };
+  type V1Fixture = {
+    volcanoes: {
+      code: string;
+      alertRevision: Revision | null;
+      eventRevision: Revision | null;
+      ashfallProjection?: { revision: Revision };
+    }[];
+    seen: { key: string; revision: Revision }[];
+    volcanoAlertGateMetadata: {
+      stateSubjectKey: string;
+      comparison: { revision: { serial: SerialCell } };
+    }[];
+    volcanoAshfallGateMetadata: {
+      stateSubjectKey: string;
+      comparison: { revision: { serial: SerialCell } };
+    }[];
+  };
+
+  const cell = (raw: string | null): SerialCell => raw == null || raw === ""
+    ? { raw, numeric: null, valid: false }
+    : { raw, numeric: Number(raw), valid: true };
+
+  const readFixture = (): V1Fixture =>
+    JSON.parse(readFileSync(fixturePath, "utf8")) as V1Fixture;
+
+  const volcanoOf = (fixture: V1Fixture, code: string) =>
+    fixture.volcanoes.find((entry) => entry.code === code)!;
+  const seenOf = (fixture: V1Fixture, key: string) =>
+    fixture.seen.find((entry) => entry.key === key)!;
+  const alertMetadataOf = (fixture: V1Fixture, code: string) =>
+    fixture.volcanoAlertGateMetadata.find((entry) =>
+      entry.stateSubjectKey === `volcano:alert:${code}`)!;
+
+  function loadV1(mutate: (fixture: V1Fixture) => void): {
+    quarantined: boolean;
+    authoritative: boolean;
+    volcanoes: PersistedVolcanoStateV2["volcanoes"];
+    repairState: VolcanoRepairStateV1;
+    gateSerials: Map<string, string | null>;
+  } {
+    const fixture = readFixture();
+    mutate(fixture);
+    const path = tempPath();
+    mkdirSync(dirname(path), { recursive: true });
+    writeFileSync(path, JSON.stringify(fixture), "utf8");
+    const result = new StandbyPersistence(path).loadWithResult(NOW_MS);
+    if (result.startup.kind === "fatal" || result.state == null) {
+      throw new Error("expected a restored standby state");
+    }
+    const volcano = result.state.telegramFoundation.volcano;
+    const state = volcano.state as PersistedVolcanoStateV2 | null;
+    return {
+      quarantined: result.volcanoDomainQuarantined,
+      authoritative: volcano.authoritative,
+      volcanoes: state?.volcanoes ?? [],
+      repairState: volcano.repairState!,
+      gateSerials: new Map(volcano.gateEntries.map((entry) =>
+        [entry.stateSubjectKey, entry.comparison.revision.serial.raw])),
+    };
+  }
+
+  const codesOf = (volcanoes: PersistedVolcanoStateV2["volcanoes"]): string[] =>
+    volcanoes.map((composite) => composite.volcanoCode);
+
+  it("canonical な v1 bundle は 4 火山すべてを migration できる (基準線)", () => {
+    const loaded = loadV1(() => {});
+    expect(loaded.quarantined).toBe(false);
+    expect(loaded.authoritative).toBe(true);
+    expect(codesOf(loaded.volcanoes)).toEqual(["506", "507", "508", "509"]);
+    expect(loaded.volcanoes[0]?.alert?.revision).toEqual({
+      reportTimeMs: REPORT_MS,
+      serial: "80",
+    });
+    expect(loaded.volcanoes[2]?.eruption?.revision).toEqual({
+      reportTimeMs: REPORT_MS,
+      serial: "80",
+    });
+    expect(loaded.volcanoes[3]?.ashfall?.revision).toEqual({
+      reportTimeMs: REPORT_MS,
+      serial: "80",
+    });
+  });
+
+  it("zero-padded serial の 1 火山が火山ドメイン全体を空にしない (全損回帰)", () => {
+    const loaded = loadV1((fixture) => {
+      volcanoOf(fixture, "506").alertRevision!.serial = "080";
+      seenOf(fixture, "volcano:alert:506").revision.serial = "080";
+      alertMetadataOf(fixture, "506").comparison.revision.serial = cell("080");
+    });
+    expect(loaded.quarantined).toBe(false);
+    expect(loaded.authoritative).toBe(true);
+    // 修正前はここで normalizeVolcanoFoundationForWrite が throw し、catch が
+    // 火山ドメインを丸ごと空にしていた (composites 0 件 / authoritative false)。
+    expect(codesOf(loaded.volcanoes)).toEqual(["506", "507", "508", "509"]);
+    expect(loaded.volcanoes[0]?.alert?.revision).toEqual({
+      reportTimeMs: REPORT_MS,
+      serial: "80",
+    });
+    expect(loaded.gateSerials.get("volcano:alert:506")).toBe("80");
+    expect(loaded.volcanoes[1]?.alert?.revision.serial).toBe("80");
+  });
+
+  it("record \"080\" × gate \"80\" を同一 revision として join する", () => {
+    const loaded = loadV1((fixture) => {
+      volcanoOf(fixture, "506").alertRevision!.serial = "080";
+    });
+    expect(loaded.quarantined).toBe(false);
+    expect(codesOf(loaded.volcanoes)).toEqual(["506", "507", "508", "509"]);
+    expect(loaded.volcanoes[0]?.alert?.revision.serial).toBe("80");
+  });
+
+  it("record \"80\" × gate \"080\" の逆向きでも join する", () => {
+    const loaded = loadV1((fixture) => {
+      seenOf(fixture, "volcano:alert:506").revision.serial = "080";
+      alertMetadataOf(fixture, "506").comparison.revision.serial = cell("080");
+    });
+    expect(loaded.quarantined).toBe(false);
+    expect(codesOf(loaded.volcanoes)).toEqual(["506", "507", "508", "509"]);
+    expect(loaded.volcanoes[0]?.alert?.revision.serial).toBe("80");
+    expect(loaded.gateSerials.get("volcano:alert:506")).toBe("80");
+  });
+
+  it("gate 側 null と record 側空文字を missing 同士として join し null で書き出す", () => {
+    const loaded = loadV1((fixture) => {
+      volcanoOf(fixture, "506").alertRevision!.serial = "";
+      seenOf(fixture, "volcano:alert:506").revision.serial = "";
+      alertMetadataOf(fixture, "506").comparison.revision.serial = cell(null);
+    });
+    expect(loaded.quarantined).toBe(false);
+    expect(codesOf(loaded.volcanoes)).toEqual(["506", "507", "508", "509"]);
+    expect(loaded.volcanoes[0]?.alert?.revision).toEqual({
+      reportTimeMs: REPORT_MS,
+      serial: null,
+    });
+    expect(loaded.gateSerials.get("volcano:alert:506")).toBeNull();
+  });
+
+  it("eruption の zero-padded serial も canonical 化して全損させない", () => {
+    const loaded = loadV1((fixture) => {
+      volcanoOf(fixture, "508").eventRevision!.serial = "080";
+      seenOf(fixture, "volcano:event:20260901000000-508").revision.serial = "080";
+    });
+    expect(loaded.quarantined).toBe(false);
+    expect(codesOf(loaded.volcanoes)).toEqual(["506", "507", "508", "509"]);
+    expect(loaded.volcanoes[2]?.eruption?.revision).toEqual({
+      reportTimeMs: REPORT_MS,
+      serial: "80",
+    });
+    expect(loaded.gateSerials.get("volcano:eruption:508")).toBe("80");
+  });
+
+  it("ashfall gate の zero-padded serial を canonical 化して projection と join する", () => {
+    const loaded = loadV1((fixture) => {
+      seenOf(fixture, "volcano:ashfall:509").revision.serial = "080";
+      fixture.volcanoAshfallGateMetadata[0]!.comparison.revision.serial = cell("080");
+    });
+    expect(loaded.quarantined).toBe(false);
+    expect(codesOf(loaded.volcanoes)).toEqual(["506", "507", "508", "509"]);
+    expect(loaded.volcanoes[3]?.ashfall?.revision).toEqual({
+      reportTimeMs: REPORT_MS,
+      serial: "80",
+    });
+    expect(loaded.gateSerials.get("volcano:ashfall:509")).toBe("80");
+    expect(loaded.repairState.ashfallRepairable).toBe(false);
+  });
+
+  for (const [label, serial] of [
+    ["空文字", ""],
+    ["whitespace", " 8 "],
+    ["非数値", "abc"],
+  ] as const) {
+    it(`invalid serial (${label}) は該当火山の omission に閉じ、他火山を残す`, () => {
+      const loaded = loadV1((fixture) => {
+        volcanoOf(fixture, "506").alertRevision!.serial = serial;
+      });
+      expect(loaded.quarantined).toBe(false);
+      // 506 の alert だけが repair 対象へ落ち、他 3 火山と gate は残る。
+      expect(codesOf(loaded.volcanoes)).toEqual(["507", "508", "509"]);
+      expect(loaded.repairState.unrecoverableAlertOmissions).toEqual([
+        expect.objectContaining({
+          scope: "volcano",
+          volcanoCode: "506",
+          lastKnownComparison: null,
+        }),
+      ]);
+      expect(loaded.repairState.unrecoverableEruptionOmissions).toEqual([]);
+      expect(loaded.gateSerials.get("volcano:alert:506")).toBe("80");
+      expect(loaded.volcanoes[0]?.alert?.revision.serial).toBe("80");
+    });
+  }
+
+  it("zero-padded gate が join に失敗しても omission は canonical serial で記録される", () => {
+    const loaded = loadV1((fixture) => {
+      volcanoOf(fixture, "506").alertRevision!.serial = "080";
+      seenOf(fixture, "volcano:alert:506").revision.serial = "080";
+      alertMetadataOf(fixture, "506").comparison.revision.serial = cell("081");
+    });
+    expect(loaded.quarantined).toBe(false);
+    expect(codesOf(loaded.volcanoes)).toEqual(["507", "508", "509"]);
+    expect(loaded.gateSerials.has("volcano:alert:506")).toBe(false);
+    const serials = loaded.repairState.unrecoverableAlertOmissions
+      .map((omission) => omission.lastKnownComparison?.revision.serial);
+    expect(serials).toEqual([
+      { raw: "80", numeric: 80, valid: true },
+      { raw: "81", numeric: 81, valid: true },
+    ]);
+    expect(loaded.repairState.unrecoverableAlertOmissions.every((omission) =>
+      omission.scope === "volcano" && omission.volcanoCode === "506")).toBe(true);
+  });
+});
+
+describe("generation-1 volcano salvage serial canonicalization", () => {
+  const basePath = join(
+    process.cwd(),
+    "test",
+    "fixtures",
+    "standby-persistence",
+    "operational-v2-active-alert.json",
+  );
+  const REPORT_RAW = "2026-08-31T00:00:00.000Z";
+  const REPORT_MS = 1788134400000;
+  const ALERT_RETENTION_MS = 30 * 24 * 60 * 60_000;
+  const ERUPTION_RETENTION_MS = 2 * 24 * 60 * 60_000;
+  const digest = (label: string): string =>
+    `発表:${createHash("sha256").update(label).digest("hex")}`;
+  const ALERT_SEMANTIC = digest("salvage-alert-506");
+  const ERUPTION_SEMANTIC = digest("salvage-eruption-506");
+  const EVENT_ID = "20260831000000-506";
+
+  const serialCell = (raw: string | null): Record<string, unknown> =>
+    raw == null || raw === ""
+      ? { raw, numeric: null, valid: false }
+      : { raw, numeric: Number(raw), valid: true };
+
+  const comparisonOf = (subject: string, family: string, serial: string | null) => ({
+    stateSubjectKey: subject,
+    revision: {
+      eventId: { raw: subject, value: subject, valid: true },
+      type: { raw: family, value: family, valid: true },
+      reportDateTime: { raw: REPORT_RAW, epochMs: REPORT_MS, valid: true },
+      serial: serialCell(serial),
+      infoType: { raw: "発表", value: "発表", valid: true },
+    },
+  });
+
+  const alertGate = (serial: string | null): Record<string, unknown> => ({
+    domain: "volcano",
+    revisionFamily: "volcanoAlert",
+    stateSubjectKey: "volcano:alert:506",
+    comparison: comparisonOf("volcano:alert:506", "volcanoAlert", serial),
+    semanticKeys: [ALERT_SEMANTIC],
+    cancelled: false,
+    acceptedAtMs: REPORT_MS,
+    tombstoneRetentionMs: ALERT_RETENTION_MS,
+    legacyRevisionKey: "volcano:alert:506",
+    legacyRevisionKeyProvenance: "codeFallback",
+    volcanoProvenance: { kind: "alert", sourceFamily: "VFVO51" },
+  });
+
+  const eruptionGate = (serial: string | null): Record<string, unknown> => ({
+    domain: "volcano",
+    revisionFamily: "volcanoEruption",
+    stateSubjectKey: "volcano:eruption:506",
+    comparison: comparisonOf("volcano:eruption:506", "volcanoEruption", serial),
+    semanticKeys: [ERUPTION_SEMANTIC],
+    cancelled: false,
+    acceptedAtMs: REPORT_MS,
+    tombstoneRetentionMs: ERUPTION_RETENTION_MS,
+    legacyRevisionKey: `volcano:event:${EVENT_ID}`,
+    legacyRevisionKeyProvenance: "eventId",
+  });
+
+  const alertSlice = (serial: string | null): Record<string, unknown> => ({
+    volcanoCode: "506",
+    volcanoName: "桜島",
+    alertLevel: 3,
+    alertLevelCode: null,
+    action: "continue",
+    reportDateTime: REPORT_RAW,
+    alertClass: null,
+    warningKind: "噴火警報（火口周辺）",
+    targetKinds: ["火口周辺警報"],
+    sourceFamily: "VFVO51",
+    revision: { reportTimeMs: REPORT_MS, serial },
+    appliedSemanticKey: ALERT_SEMANTIC,
+  });
+
+  const eruptionSlice = (serial: string | null): Record<string, unknown> => ({
+    volcanoName: "桜島",
+    latestEvent: {
+      label: "噴火",
+      craterName: "南岳山頂火口",
+      eventDateTime: REPORT_RAW,
+      plumeHeightM: 1000,
+      plumeHeightUnknown: false,
+      plumeDirection: "東",
+    },
+    latestEventId: EVENT_ID,
+    eventExpiresAtMs: REPORT_MS + 86_400_000,
+    revision: { reportTimeMs: REPORT_MS, serial },
+    appliedSemanticKey: ERUPTION_SEMANTIC,
+  });
+
+  function foundationVolcano(options: {
+    alert?: Record<string, unknown> | null;
+    eruption?: Record<string, unknown> | null;
+    gates: Record<string, unknown>[];
+  }): Record<string, unknown> {
+    return {
+      authoritative: true,
+      ashfallSchemaGeneration: 1,
+      repairState: {
+        schemaGeneration: 1,
+        vfvo50Repairable: false,
+        ashfallRepairable: false,
+        unrecoverableAlertOmissions: [],
+        unrecoverableEruptionOmissions: [],
+        operationalV2AlertResolutions: [],
+      },
+      state: {
+        generation: 1,
+        volcanoes: [{
+          volcanoCode: "506",
+          volcanoName: "桜島",
+          sourceEventIds: ["operational-v2-source-506"],
+          alert: options.alert ?? null,
+          eruption: options.eruption ?? null,
+          ashfall: null,
+        }],
+      },
+      active: [],
+      gateEntries: options.gates,
+    };
+  }
+
+  function writeBundle(volcano: Record<string, unknown>): string {
+    const fixture = JSON.parse(readFileSync(basePath, "utf8")) as Record<string, unknown>;
+    (fixture.telegramFoundation as Record<string, unknown>).volcano = volcano;
+    const path = tempPath();
+    mkdirSync(dirname(path), { recursive: true });
+    writeFileSync(standbyPersistenceV2Path(path), JSON.stringify(fixture), "utf8");
+    return path;
+  }
+
+  function loadBundle(volcano: Record<string, unknown>): {
+    path: string;
+    persistence: StandbyPersistence;
+    quarantined: boolean;
+    repairState: VolcanoRepairStateV1;
+    volcanoes: PersistedVolcanoStateV2["volcanoes"];
+    state: Parameters<StandbyPersistence["save"]>[0];
+  } {
+    const path = writeBundle(volcano);
+    const persistence = new StandbyPersistence(path);
+    const result = persistence.loadWithResult(Date.parse("2026-08-31T01:00:00.000Z"));
+    if (result.startup.kind === "fatal" || result.state == null) {
+      throw new Error("expected a restored standby state");
+    }
+    const foundation = result.state.telegramFoundation.volcano;
+    const state = foundation.state as PersistedVolcanoStateV2 | null;
+    return {
+      path,
+      persistence,
+      quarantined: result.volcanoDomainQuarantined,
+      repairState: foundation.repairState!,
+      volcanoes: state?.volcanoes ?? [],
+      state: result.state,
+    };
+  }
+
+  it("空文字 serial の alert gate でも salvage が例外なく完走し omission を canonical null で残す", () => {
+    // slice を壊して sliceCorrupt にし、omission の comparison を gate から採らせる。
+    const brokenAlert = { ...alertSlice("1"), appliedSemanticKey: "" };
+    const loaded = loadBundle(foundationVolcano({
+      alert: brokenAlert,
+      gates: [alertGate("")],
+    }));
+    // 修正前は空文字 serial が lastKnownComparison に入って書き込み検証が throw し、
+    // 救済のための salvage 自身が terminal quarantine へ落ちていた。
+    expect(loaded.quarantined).toBe(false);
+    expect(loaded.repairState.unrecoverableAlertOmissions).toEqual([
+      expect.objectContaining({
+        scope: "volcano",
+        volcanoCode: "506",
+        sourceFamily: "VFVO51",
+        reason: "sliceCorrupt",
+      }),
+    ]);
+    expect(loaded.repairState.unrecoverableAlertOmissions[0]?.lastKnownComparison?.revision.serial)
+      .toEqual({ raw: null, numeric: null, valid: false });
+  });
+
+  it("gate \"080\" × slice \"80\" を 1 候補に束ねて canonical \"80\" で記録する", () => {
+    const loaded = loadBundle(foundationVolcano({
+      alert: alertSlice("80"),
+      gates: [alertGate("080")],
+    }));
+    expect(loaded.quarantined).toBe(false);
+    expect(loaded.repairState.unrecoverableAlertOmissions[0]?.lastKnownComparison?.revision.serial)
+      .toEqual({ raw: "80", numeric: 80, valid: true });
+  });
+
+  it("空文字 gate と null gate の同居は canonical 化後に同一視され comparison が残る (順序証明)", () => {
+    // JSON.stringify の一意性鍵を canonical 化の前に作ると "" と null が別候補になり、
+    // size !== 1 で lastKnownComparison が黙って null に落ちる。
+    const brokenAlert = { ...alertSlice("1"), appliedSemanticKey: "" };
+    const loaded = loadBundle(foundationVolcano({
+      alert: brokenAlert,
+      gates: [alertGate(""), alertGate(null)],
+    }));
+    expect(loaded.quarantined).toBe(false);
+    expect(loaded.repairState.unrecoverableAlertOmissions[0]?.lastKnownComparison)
+      .not.toBeNull();
+    expect(loaded.repairState.unrecoverableAlertOmissions[0]?.lastKnownComparison?.revision.serial)
+      .toEqual({ raw: null, numeric: null, valid: false });
+  });
+
+  it("eruption 側も gate \"080\" × slice \"80\" を canonical \"80\" で記録する", () => {
+    const loaded = loadBundle(foundationVolcano({
+      eruption: eruptionSlice("80"),
+      gates: [eruptionGate("080")],
+    }));
+    expect(loaded.quarantined).toBe(false);
+    expect(loaded.repairState.unrecoverableEruptionOmissions).toEqual([
+      expect.objectContaining({ scope: "volcano", volcanoCode: "506" }),
+    ]);
+    expect(loaded.repairState.unrecoverableEruptionOmissions[0]?.lastKnownComparison
+      ?.revision.serial).toEqual({ raw: "80", numeric: 80, valid: true });
+  });
+
+  it("salvage → 書き出し → 再読込の 2 巡目で omission と pending 状態が安定する", () => {
+    const first = loadBundle(foundationVolcano({
+      alert: alertSlice("80"),
+      gates: [alertGate("080")],
+    }));
+    expect(first.persistence.hasPendingSalvageRepair()).toBe(true);
+    expect(first.persistence.save(first.state)).toMatchObject({ kind: "written" });
+
+    const warn = vi.spyOn(log, "warn").mockImplementation(() => undefined);
+    try {
+      const second = new StandbyPersistence(first.path);
+      const reloaded = second.loadWithResult(Date.parse("2026-08-31T02:00:00.000Z"));
+      if (reloaded.startup.kind === "fatal" || reloaded.state == null) {
+        throw new Error("expected a restored standby state");
+      }
+      expect(reloaded.volcanoDomainQuarantined).toBe(false);
+      expect(reloaded.state.telegramFoundation.volcano.repairState)
+        .toEqual(first.repairState);
+      // 2 巡目は火山ドメインの salvage を再発火させない (canonical 形で書けている)。
+      expect(warn.mock.calls.map((call) => String(call[0]))
+        .filter((line) => line.includes("domain=foundation.volcano"))).toEqual([]);
+    } finally {
+      warn.mockRestore();
+    }
   });
 });
 

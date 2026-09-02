@@ -7414,6 +7414,23 @@ function canonicalVolcanoMigrationComparison(
 }
 
 /**
+ * `canonicalVolcanoMigrationComparison` deliberately leaves an *invalid* serial
+ * (whitespace or a non-numeric body) untouched, because canonicalization has no
+ * defined answer for it.  Repair records cannot carry that value: the write
+ * validator (`canonicalVolcanoComparison`) rejects it, and the throw escapes
+ * `normalizeVolcanoFoundationForWrite` and empties the whole volcano domain.  A
+ * single volcano's broken serial must stay inside that volcano's omission, so the
+ * omission is still recorded while its `lastKnownComparison` degrades to null.
+ */
+function repairSafeVolcanoMigrationComparison(
+  comparison: TelegramRevisionComparisonInput | null,
+): TelegramRevisionComparisonInput | null {
+  if (comparison == null) return null;
+  if (!canonicalVolcanoMigrationSerial(comparison.revision.serial.raw).ok) return null;
+  return canonicalVolcanoMigrationComparison(comparison);
+}
+
+/**
  * One-way conversion of the pre-generation operational v2 bundle.  The old
  * common gate deliberately stored the registry identity (`volcanoAlert`) in
  * comparison.type, so a missing explicit provenance can only become the
@@ -7935,9 +7952,17 @@ function salvageGenerationOneVolcanoFoundation(
       && alertGateFamily(gate) === family
       && (slice == null
         || gate.comparison.revision.reportDateTime.epochMs === slice.revision.reportTimeMs
-          && gate.comparison.revision.serial.raw === slice.revision.serial));
-    const values = new Map(candidates.map((gate) =>
-      [JSON.stringify(gate.comparison), gate.comparison] as const));
+          && volcanoMigrationSerialsMatch(
+            gate.comparison.revision.serial.raw, slice.revision.serial)));
+    // Canonicalize *before* keying: an empty and a null serial are the same
+    // revision, and keying the raw clones would count them as two candidates and
+    // silently drop the repair hint.  An un-canonicalizable serial makes the whole
+    // set ambiguous rather than being written out as-is.
+    const canonicalized = candidates.map((gate) =>
+      repairSafeVolcanoMigrationComparison(gate.comparison));
+    if (canonicalized.some((comparison) => comparison == null)) return null;
+    const values = new Map(canonicalized.map((comparison) =>
+      [JSON.stringify(comparison), comparison!] as const));
     return values.size === 1 ? structuredClone([...values.values()][0]!) : null;
   };
   const addAlertOmission = (
@@ -8110,9 +8135,15 @@ function salvageGenerationOneVolcanoFoundation(
         && gate.stateSubjectKey === `volcano:eruption:${code}`
         && (validatedEruption == null
           || gate.comparison.revision.reportDateTime.epochMs === validatedEruption.revision.reportTimeMs
-            && gate.comparison.revision.serial.raw === validatedEruption.revision.serial));
-      const byComparison = new Map(comparisons.map((gate) =>
-        [JSON.stringify(gate.comparison), gate.comparison] as const));
+            && volcanoMigrationSerialsMatch(
+              gate.comparison.revision.serial.raw, validatedEruption.revision.serial)));
+      // Same ordering constraint as `uniqueGateComparison`: canonicalize, then key.
+      const canonicalComparisons = comparisons.map((gate) =>
+        repairSafeVolcanoMigrationComparison(gate.comparison));
+      const byComparison = canonicalComparisons.some((comparison) => comparison == null)
+        ? new Map<string, TelegramRevisionComparisonInput>()
+        : new Map(canonicalComparisons.map((comparison) =>
+          [JSON.stringify(comparison), comparison!] as const));
       addEruptionOmission(
         code,
         validatedEruption == null ? "sliceCorrupt" : "gateCorrupt",
@@ -10178,15 +10209,17 @@ function migrateV1VolcanoFoundation(
       const expectedForgetAt = metadata.acceptedAtMs + metadata.tombstoneRetentionMs + 1;
       if (seen == null || seen.forgetAtMs !== expectedForgetAt
         || seen.revision.reportTimeMs !== metadata.comparison.revision.reportDateTime.epochMs
-        || seen.revision.serial !== metadata.comparison.revision.serial.raw
+        || !volcanoMigrationSerialsMatch(
+          seen.revision.serial, metadata.comparison.revision.serial.raw)
         || !validPersistenceEpoch(metadata.acceptedAtMs)) {
         const code = metadata.stateSubjectKey.slice("volcano:alert:".length);
         const family = metadata.sourceFamily === "operationalV2Unknown"
           ? "unknown" : metadata.sourceFamily;
-        ensureV1AlertOmission(repair, code, family, metadata.comparison);
+        ensureV1AlertOmission(
+          repair, code, family, repairSafeVolcanoMigrationComparison(metadata.comparison));
         continue;
       }
-      gates.push({
+      const alertGate: PersistedTelegramRevisionGateEntryV2 = {
         domain: "volcano",
         revisionFamily: "volcanoAlert",
         stateSubjectKey: metadata.stateSubjectKey,
@@ -10206,7 +10239,9 @@ function migrateV1VolcanoFoundation(
             ? {}
             : { operationalV2ResolutionId: metadata.operationalV2ResolutionId }),
         },
-      });
+      };
+      canonicalizeVolcanoMigrationGateSerial(alertGate);
+      gates.push(alertGate);
     }
   } else if (alertMode === "absent") {
     for (const [key] of seenByKey) {
@@ -10218,13 +10253,15 @@ function migrateV1VolcanoFoundation(
         - VOLCANO_ALERT_REVISION_FAMILY_POLICY.tombstoneRetentionMs! - 1;
       const comparison = legacyVolcanoComparison(key, "volcanoAlert", seen.revision, true);
       if (!validPersistenceEpoch(acceptedAtMs) || comparison == null) continue;
-      gates.push({
+      const alertGate: PersistedTelegramRevisionGateEntryV2 = {
         domain: "volcano", revisionFamily: "volcanoAlert", stateSubjectKey: key,
         comparison, semanticKeys: [], cancelled: true, acceptedAtMs,
         tombstoneRetentionMs: VOLCANO_ALERT_REVISION_FAMILY_POLICY.tombstoneRetentionMs,
         legacyRevisionKey: key, legacyRevisionKeyProvenance: "codeFallback",
         volcanoProvenance: { kind: "alert", sourceFamily: "unknown" },
-      });
+      };
+      canonicalizeVolcanoMigrationGateSerial(alertGate);
+      gates.push(alertGate);
     }
   }
   if (ashfallMode === "present-array" && base.volcanoAshfallGateMetadata != null) {
@@ -10235,10 +10272,11 @@ function migrateV1VolcanoFoundation(
         - VOLCANO_ASHFALL_REVISION_FAMILY_POLICY.tombstoneRetentionMs! - 1;
       if (!validVolcanoAcceptedAt(acceptedAtMs, nowMs)
         || seen.revision.reportTimeMs !== metadata.comparison.revision.reportDateTime.epochMs
-        || seen.revision.serial !== metadata.comparison.revision.serial.raw) {
+        || !volcanoMigrationSerialsMatch(
+          seen.revision.serial, metadata.comparison.revision.serial.raw)) {
         repair.ashfallRepairable = true; continue;
       }
-      gates.push({
+      const ashfallGate: PersistedTelegramRevisionGateEntryV2 = {
         domain: "volcano", revisionFamily: "volcanoAshfall",
         stateSubjectKey: metadata.stateSubjectKey,
         comparison: structuredClone(metadata.comparison),
@@ -10252,7 +10290,9 @@ function migrateV1VolcanoFoundation(
           actualEventId: metadata.actualEventId,
           sourceType: metadata.sourceType,
         },
-      });
+      };
+      canonicalizeVolcanoMigrationGateSerial(ashfallGate);
+      gates.push(ashfallGate);
     }
   } else if (ashfallMode === "absent") {
     for (const [key] of seenByKey) {
@@ -10264,13 +10304,15 @@ function migrateV1VolcanoFoundation(
         - VOLCANO_ASHFALL_REVISION_FAMILY_POLICY.tombstoneRetentionMs! - 1;
       const comparison = legacyVolcanoComparison(key, "volcanoAshfall", seen.revision, true, 1);
       if (!validVolcanoAcceptedAt(acceptedAtMs, nowMs) || comparison == null) continue;
-      gates.push({
+      const ashfallGate: PersistedTelegramRevisionGateEntryV2 = {
         domain: "volcano", revisionFamily: "volcanoAshfall", stateSubjectKey: key,
         comparison, semanticKeys: [], cancelled: true, acceptedAtMs,
         tombstoneRetentionMs: VOLCANO_ASHFALL_REVISION_FAMILY_POLICY.tombstoneRetentionMs,
         legacyRevisionKey: key, legacyRevisionKeyProvenance: "codeFallback",
         volcanoProvenance: { kind: "ashfall", actualEventId: null, sourceType: null },
-      });
+      };
+      canonicalizeVolcanoMigrationGateSerial(ashfallGate);
+      gates.push(ashfallGate);
     }
   }
 
@@ -10329,7 +10371,8 @@ function migrateV1VolcanoFoundation(
       && alertGate.volcanoProvenance?.kind === "alert"
       && alertGate.volcanoProvenance.sourceFamily !== "unknown"
       && alertGate.comparison.revision.reportDateTime.epochMs === record.alertRevision.reportTimeMs
-      && alertGate.comparison.revision.serial.raw === record.alertRevision.serial
+      && volcanoMigrationSerialsMatch(
+        alertGate.comparison.revision.serial.raw, record.alertRevision.serial)
       && alertGate.semanticKeys.at(-1) != null) {
       alert = {
         volcanoCode: code, volcanoName: record.name,
@@ -10343,7 +10386,7 @@ function migrateV1VolcanoFoundation(
         ...(alertGate.volcanoProvenance.operationalV2ResolutionId == null
           ? {}
           : { operationalV2ResolutionId: alertGate.volcanoProvenance.operationalV2ResolutionId }),
-        revision: { ...record.alertRevision },
+        revision: canonicalVolcanoMigrationRevision(record.alertRevision),
         appliedSemanticKey: alertGate.semanticKeys.at(-1)!,
       };
     }
@@ -10353,7 +10396,8 @@ function migrateV1VolcanoFoundation(
       const sourceFamily = record.alertSourceFamily == null
         || record.alertSourceFamily === "operationalV2Unknown"
         ? "unknown" : record.alertSourceFamily;
-      ensureV1AlertOmission(repair, code, sourceFamily, comparison, "provenanceMissing");
+      ensureV1AlertOmission(repair, code, sourceFamily,
+        repairSafeVolcanoMigrationComparison(comparison), "provenanceMissing");
     }
     let eruption: VolcanoCompositeV2["eruption"] = null;
     if (record.latestEvent != null && typeof record.latestEvent !== "string"
@@ -10362,7 +10406,7 @@ function migrateV1VolcanoFoundation(
       const eventKey = record.latestEventId?.trim();
       const seen = eventKey == null || eventKey === "" ? null : uniqueSeen(`volcano:event:${eventKey}`);
       if (seen != null && seen.revision.reportTimeMs === record.eventRevision.reportTimeMs
-        && seen.revision.serial === record.eventRevision.serial) {
+        && volcanoMigrationSerialsMatch(seen.revision.serial, record.eventRevision.serial)) {
         const subject = `volcano:eruption:${code}`;
         const comparison = legacyVolcanoComparison(subject, "volcanoEruption", record.eventRevision, false);
         const acceptedAtMs = seen.forgetAtMs
@@ -10376,13 +10420,14 @@ function migrateV1VolcanoFoundation(
             legacyRevisionKey: `volcano:event:${eventKey}`,
             legacyRevisionKeyProvenance: "eventId",
           };
+          canonicalizeVolcanoMigrationGateSerial(gate);
           gates.push(gate); gateBySubject.set(subject, gate);
           eruption = {
             volcanoName: record.name,
             latestEvent: structuredClone(record.latestEvent),
             latestEventId: eventKey!,
             eventExpiresAtMs: record.eventExpiresAtMs,
-            revision: { ...record.eventRevision },
+            revision: canonicalVolcanoMigrationRevision(record.eventRevision),
             appliedSemanticKey: semantic,
             legacyV1Fallback: true,
           };
@@ -10392,22 +10437,27 @@ function migrateV1VolcanoFoundation(
     if (hasEruptionEvidence && eruption == null) {
       const comparison = record.eventRevision == null ? null
         : legacyVolcanoComparison(`volcano:eruption:${code}`, "volcanoEruption", record.eventRevision, false);
-      ensureV1EruptionOmission(repair, code, comparison);
+      ensureV1EruptionOmission(repair, code, repairSafeVolcanoMigrationComparison(comparison));
     }
     let ashfall: VolcanoCompositeV2["ashfall"] = null;
     const ashGate = gateBySubject.get(`volcano:ashfall:${code}`);
-    if (record.ashfallProjection != null && ashGate != null && !ashGate.cancelled
-      && validateVolcanoAshfallProjection(record.ashfallProjection) == null
-      && ashGate.semanticKeys.at(-1) === record.ashfallProjection.appliedSemanticKey
-      && ashGate.comparison.revision.reportDateTime.epochMs
-        === record.ashfallProjection.revision.reportTimeMs
-      && ashGate.comparison.revision.serial.raw === record.ashfallProjection.revision.serial
-      && ashGate.volcanoProvenance?.kind === "ashfall"
-      && ashGate.volcanoProvenance.actualEventId === record.ashfallProjection.eventId
-      && ashGate.volcanoProvenance.sourceType === record.ashfallProjection.sourceType) {
-      ashfall = structuredClone(record.ashfallProjection);
-      if (!ids.includes(ashfall.sourceEventId)) {
-        ashfall = null;
+    if (record.ashfallProjection != null && ashGate != null && !ashGate.cancelled) {
+      // `validateVolcanoAshfallProjection` demands the canonical serial form, so the
+      // clone is canonicalized *before* validation; validating the stored zero-padded
+      // serial would reject an otherwise intact projection as `invalidRevision`.
+      const projection = structuredClone(record.ashfallProjection);
+      projection.revision = canonicalVolcanoMigrationRevision(projection.revision);
+      if (validateVolcanoAshfallProjection(projection) == null
+        && ashGate.semanticKeys.at(-1) === projection.appliedSemanticKey
+        && ashGate.comparison.revision.reportDateTime.epochMs === projection.revision.reportTimeMs
+        && volcanoMigrationSerialsMatch(
+          ashGate.comparison.revision.serial.raw, projection.revision.serial)
+        && ashGate.volcanoProvenance?.kind === "ashfall"
+        && ashGate.volcanoProvenance.actualEventId === projection.eventId
+        && ashGate.volcanoProvenance.sourceType === projection.sourceType
+        && ids.includes(projection.sourceEventId)) {
+        ashfall = projection;
+      } else {
         repair.ashfallRepairable = true;
       }
     }
