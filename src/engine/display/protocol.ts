@@ -475,7 +475,11 @@ export interface DisplayEventDtoV1 {
   emergency: DisplayEmergencyInputV1 | null;
   recentQuake: DisplayRecentQuakeV1 | null;
   latestQuake: DisplayLatestQuakeInputV1 | null;
-  tickerDetail: string | null;  // テロップ用詳細文 (headline + 地域列挙)。summary より粒度が高い
+  /** テロップ用詳細文 (headline + 地域列挙)。summary より粒度が高い。
+   *  tickerSentence が非空のときは null (フロントの fallbackText が参照しない死荷重を
+   *  ワイヤから落とすため)。tickerSentence が空になり得る経路のためだけに残す。
+   *  フィールド自体は旧入力 fallback 互換のため nullable で保持し、削除しない */
+  tickerDetail: string | null;
   /** テロップ左端の種別ラベル (「気象警報・注意報（全国集約）」等)。optional は protocol 移行の安全化 */
   tickerCategory?: string | null;
   /** テロップ本文の文章体。null/欠落時はフロントが従来連結にフォールバックする */

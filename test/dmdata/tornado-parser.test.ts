@@ -10,7 +10,7 @@ import {
   FIXTURE_VPHW51_SIGHTING,
   encodeXml,
 } from "../helpers/mock-message";
-import { projectDisplayEvent } from "../../src/engine/display/project-event";
+import { buildTickerDetail, projectDisplayEvent } from "../../src/engine/display/project-event";
 
 describe("selectPreferredTornadoLayer", () => {
   it("空配列なら undefined", () => {
@@ -163,7 +163,7 @@ describe("Phase D: 2 系統フィールド", () => {
 // ── route / process / event の配線スモーク ──
 
 describe("tornado route integration smoke", () => {
-  it("優先粒度の全対象地域だけを tickerDetail へ上限なく列挙し、官署単位の groupKey を付ける", async () => {
+  it("優先粒度の全対象地域だけを詳細文へ上限なく列挙し、官署単位の groupKey を付ける", async () => {
     const { processTornado } = await import(
       "../../src/engine/presentation/processors/process-tornado"
     );
@@ -180,9 +180,13 @@ describe("tornado route integration smoke", () => {
     expect(preferredNames.length).toBeGreaterThan(0);
     expect(event.areaItems.map((area) => area.name)).toEqual(preferredNames);
 
+    const detail = buildTickerDetail(event);
+    for (const name of preferredNames) expect(detail).toContain(name);
+
     const dto = projectDisplayEvent(event, "竜巻注意情報");
     expect(dto.groupKey).toBe(`tornado:${event.publishingOffice}`);
-    for (const name of preferredNames) expect(dto.tickerDetail).toContain(name);
+    // tickerSentence が非空なのでワイヤには詳細文を載せない (ticker-schedule fallbackText 未参照)。
+    expect(dto.tickerDetail).toBeNull();
   });
 
   it("VPHW51 が processTornado → fromTornadoOutcome を通って critical frame になる", async () => {

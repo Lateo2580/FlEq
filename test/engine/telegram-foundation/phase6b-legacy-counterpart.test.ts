@@ -12,7 +12,7 @@ import {
   PRODUCTION_LEGACY_COUNTERPART_SEVERITY_RULES,
 } from "../../../src/engine/presentation/processors/process-legacy-counterpart";
 import { toPresentationEvent } from "../../../src/engine/presentation/events/to-presentation-event";
-import { projectDisplayEvent } from "../../../src/engine/display/project-event";
+import { buildTickerDetail, projectDisplayEvent } from "../../../src/engine/display/project-event";
 import { InfoDisplayHub } from "../../../src/engine/display/hub";
 import { DisplayStateStore } from "../../../src/engine/display/state-store";
 import { WeatherPromotionStore } from "../../../src/engine/display/weather-promotion-store";
@@ -1592,7 +1592,8 @@ describe("Phase 6B legacy counterpart route and VPOA50 production slice", () => 
     );
     expect(dto.groupKey).toBeNull();
     expect(dto.tickerCategory).toBe("旧形式防災情報");
-    expect(dto.tickerDetail).not.toContain("対応電文未確認");
+    expect(dto.tickerDetail).toBeNull();
+    expect(buildTickerDetail(event)).not.toContain("対応電文未確認");
     expect(dto.tickerSentence).not.toContain("対応電文未確認");
     const dtoJson = JSON.stringify(dto);
     expect(dtoJson).not.toContain(secretMarker);
@@ -1648,11 +1649,14 @@ describe("Phase 6B legacy counterpart route and VPOA50 production slice", () => 
     const dto = projectDisplayEvent(event, summary);
     expect(dto.title).toBe("旧形式 タイトル赤");
     expect(dto.headline).toBe("見出し 続き緑");
-    expect(dto.tickerDetail).toContain("見出し 続き緑");
-    expect(dto.tickerDetail).toContain("北 地域青（01CODE）");
+    // ワイヤの tickerDetail は tickerSentence が非空なので null。正規化の証明は builder 直呼びで残す。
+    expect(dto.tickerDetail).toBeNull();
+    const detail = buildTickerDetail(event);
+    expect(detail).toContain("見出し 続き緑");
+    expect(detail).toContain("北 地域青（01CODE）");
     expect(dto.tickerSentence).toContain("見出し 続き緑");
     expect(dto.tickerSentence).toContain("北 地域青（01CODE）");
-    expect(dto.tickerDetail).not.toMatch(/[\x00-\x1F\x7F-\x9F]/);
+    expect(detail).not.toMatch(/[\x00-\x1F\x7F-\x9F]/);
     expect(dto.tickerSentence).not.toMatch(/[\x00-\x1F\x7F-\x9F]/);
     expect(JSON.stringify(dto)).not.toContain("\x1B[999m");
 

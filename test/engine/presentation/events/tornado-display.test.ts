@@ -8,7 +8,7 @@ import {
   readFixture,
 } from "../../../helpers/mock-message";
 import { selectPreferredTornadoLayer } from "../../../../src/dmdata/tornado-parser";
-import { projectDisplayEvent } from "../../../../src/engine/display/project-event";
+import { buildTickerDetail, projectDisplayEvent } from "../../../../src/engine/display/project-event";
 import { StandbyStateStore } from "../../../../src/engine/display/standby-state-store";
 import { fromTornadoOutcome } from "../../../../src/engine/presentation/events/from-tornado";
 import { toPresentationEvent } from "../../../../src/engine/presentation/events/to-presentation-event";
@@ -104,7 +104,9 @@ describe("tornado Body coverage reader", () => {
     expect(event.areaItems.map((area) => area.name)).toEqual(["金沢市", "野々市市"]);
     expect(event.areaNames).toEqual(["金沢市", "野々市市"]);
     expect(event.areaCount).toBe(2);
-    expect(projectDisplayEvent(event, "竜巻注意情報").tickerDetail).toContain("金沢市");
+    // 詳細文自体は従来どおり地域を列挙する。DTO 側は tickerSentence が非空なので載せない。
+    expect(buildTickerDetail(event)).toContain("金沢市");
+    expect(projectDisplayEvent(event, "竜巻注意情報").tickerDetail).toBeNull();
   });
 
   it("長崎だけを集約し、東京 VPHW50/VPHW51 は細粒度へ fail-closed する", () => {

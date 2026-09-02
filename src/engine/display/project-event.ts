@@ -718,6 +718,10 @@ export function projectDisplayEvent(
     (priority === "low" || priority === "mid") && tickerBody != null
       ? extractTickerEmphasis(tickerBody, priority)
       : [];
+  // テロップ本文の一文。フロント (ticker-schedule fallbackText) はこれが非空なら
+  // tickerDetail を一切見ないため、非空のときは tickerDetail を null にして
+  // SSE snapshot から重複情報を落とす (縮退段 3 常態化の主因、実測 31%)。
+  const tickerSentence = buildTickerSentence(event);
   const recentQuakeObservation = projectRecentQuake(event);
   const latestQuakeObservation = projectLatestQuake(event);
   const stableId = event.domain === "legacyCounterpart"
@@ -758,12 +762,14 @@ export function projectDisplayEvent(
     summary: { text: stripAnsi(summaryText), role: summaryRole(event) },
     emergency: projectEmergency(event, quakeMapCommand),
     recentQuake: event.isCancellation ? null : recentQuakeObservation,
-    tickerDetail: buildTickerDetail(event),
+    // tickerSentence が非空なら描画で使われないので載せない。空になり得る経路
+    // (headline/title が両方空) だけ従来どおり詳細文を載せる。
+    tickerDetail: tickerSentence.length > 0 ? null : buildTickerDetail(event),
     tickerCategory: tickerCategoryOf(event),
     tickerSubject: tickerSubjectOf(event),
     tickerSuppressed,
     tickerSurface: tickerSurface(event),
-    tickerSentence: buildTickerSentence(event),
+    tickerSentence,
     tickerPriority: priority,
     tickerBody,
     tickerEmphasis: emphasis.length > 0 ? emphasis : null,

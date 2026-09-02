@@ -1608,3 +1608,40 @@ describe("tickerSuppressed (情報ゼロ電文の抑制、spec 2026-07-23 T5-2)"
     expect(dto.tickerSuppressed).toBe(false);
   });
 });
+
+describe("projectDisplayEvent tickerDetail のワイヤ節約 (SSE snapshot 縮退対策)", () => {
+  it("tickerSentence が非空なら tickerDetail をワイヤに載せない", () => {
+    const event = baseEvent({
+      domain: "earthquake",
+      headline: "強い揺れに警戒してください",
+      areaItems: [
+        { kind: "震度3", name: "石巻市" },
+        { kind: "震度3", name: "東松島市" },
+      ],
+    } as Partial<PresentationEvent>);
+    // 詳細文自体は従来どおり組める (builder は無傷)
+    expect(buildTickerDetail(event)).toContain("石巻市");
+
+    const dto = projectDisplayEvent(event, "地震情報");
+    expect(dto.tickerSentence).not.toBe("");
+    expect(dto.tickerSentence!.length).toBeGreaterThan(0);
+    // フロント (ticker-schedule fallbackText) は tickerSentence 非空なら detail を見ない
+    expect(dto.tickerDetail).toBeNull();
+  });
+
+  it("tickerSentence が空になる経路では tickerDetail を従来どおり載せる", () => {
+    // headline も title も空だと fallbackTickerText が空文字を返す (ticker-sentence.ts ensurePeriod)
+    const event = baseEvent({
+      domain: "nankaiTrough",
+      type: "VYSE50",
+      title: "",
+      headline: "",
+      areaItems: [{ kind: "対象", name: "静岡県" }],
+    } as Partial<PresentationEvent>);
+
+    const dto = projectDisplayEvent(event, "南海トラフ");
+    expect(dto.tickerSentence).toBe("");
+    expect(dto.tickerDetail).toBe(buildTickerDetail(event));
+    expect(dto.tickerDetail).toContain("静岡県");
+  });
+});

@@ -677,7 +677,7 @@ function sendInitialSnapshot(res: ServerResponse, deps: DisplayRequestHandlerDep
     return;
   }
   if (result.level > 0) {
-    deps.log.info(`display server: snapshot が上限を超えたため縮退段 ${result.level} まで縮退して送信しました`);
+    deps.log.info(`display server: snapshot が上限を超えたため縮退段 ${result.level} まで縮退して送信しました (縮退前 ${Buffer.byteLength(JSON.stringify({ type: "snapshot", snapshot: full }), "utf8")} bytes)`);
   }
   deps.clients.sendTo(res, { type: "snapshot", snapshot: result.snapshot });
 }

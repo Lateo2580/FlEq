@@ -1921,7 +1921,9 @@ describe("standby monitor wiring", () => {
       "tornado:不明官署",
       "tornado:不明官署",
     ]);
-    expect(revisions[0]?.tickerDetail).toContain("新宿区");
+    // tickerSentence が非空なので tickerDetail はワイヤに載らない (フロント未参照の死荷重)。
+    expect(revisions[0]?.tickerDetail).toBeNull();
+    expect((revisions[0]?.tickerSentence ?? "").length).toBeGreaterThan(0);
 
     nowMs = expiresAt;
     vi.advanceTimersByTime(SWEEP_INTERVAL_MS);
