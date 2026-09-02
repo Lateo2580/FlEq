@@ -383,13 +383,16 @@ REST historical input は次とする。
 
 ```ts
 {
-  acceptedAtMs: item.receivedTimeMs,
+  acceptedAtMs: item.head.time の epoch,
   classificationNowMs: startupNowMs,
   expiryNowMs: startupNowMs,
 }
 ```
 
-- REST `receivedTime` は timezone を持つ strict ISO として parse する。
+- `acceptedAtMs` は REST 一覧 item の `head.time`（epoch ms）を証明軸とする。一覧の `receivedTime` field は WS data message 側に存在せず、journal 側の対応値がローカル時計しか持てないため、証明軸には採らない（§16.1 参照）。
+- `head.time` は REST 一覧・WS journal の両側で取得できる唯一の server 時刻であり、cross-set 照合・coverage 境界・head sample fingerprint・`acceptedAtMs` を一貫してこの一軸で行う。
+- `head.time` は timezone を持つ strict ISO として parse する。実応答では分単位に丸められ、秒以下は `00.000` で届く。
+- `head.time` 軸により lower coverage 境界は実受信時刻より最大 60 秒早く判定され得るが、`>=` 判定により余分に含む方向であり安全側（7 日 retention に対して無視できる差）。
 - replay で accepted time を startup 時刻へ延長しない。
 - restore／migration は persisted accepted time を維持し、classification／expiry に固定 `startupNowMs` を渡す。
 - 同じ admission 内で `Date.now()` を再取得しない。
@@ -2332,6 +2335,6 @@ npm run typecheck:test
 
 | # | 内容 |
 |---:|---|
-| 1 | §12 は REST historical input の `acceptedAtMs` を `item.receivedTime` 由来と書くが、実装は `item.head.time` を parse している。実応答では `head.time` が分単位で丸く、`receivedTime` はミリ秒まで入るため、`head.time` を使うと同時刻 group が増え ordering proof が落ちやすい。時刻軸は現状どおり `head.time` のまま（WS journal と両側一貫）とし、§12 の記述との不一致は本 spec では書き換えない。どちらを正とするかは別項目で裁定する |
+| 1 | §6 の `acceptedAtMs` 記述は `item.head.time` を証明軸とするよう改訂済み（旧稿は誤って `item.receivedTime` 由来と書いていた。参照番号も旧稿の「§12」から §6 へ訂正）。実応答では `head.time` が分単位で丸く、`receivedTime` はミリ秒まで入るため、`head.time` を使うと同時刻 group が増え ordering proof が落ちやすい。この穴は未解決のまま残す: 同分に複数件の historical item（例: 同一火山の VFVO54 と VFVO55 が同分）が journal 未収のとき、§16.6 の group ordering proof が成立せず `sameTimeGroupOrderingUnproven` で ashfall repair target が丸ごと fail-closed する（runtime state は不変、`ashfallRepairable` は true のまま維持）。REST 一覧の `receivedTime`／`serial` による同分 group 内 tiebreak（A+ 案）を将来採る場合は、(a) REST 側の値だけで total order を証明できること、(b) journal 側に対応 sequence があり競合した場合は journal を優先し tiebreak 側を採らず fail-closed とすること、(c) 混在 group（一部だけ journal 収録）で根拠なく順序を選ばないこと、の 3 条件を前提とする |
 | 2 | 津波 VTSE41 の startup restore と legacy な volcano restore も同じ list query 経路を通り、`xmlReport` 無しでは meta が空になる同型の欠陥を持つ。本 spec の対象外として別項目で扱う |
 | 3 | 旧版（full-file 上限なし）が書いた v2 を新版が読むときの互換は 16MiB 化で解消する。16MiB を超える旧 file は従来どおり oversized → v1 fallback → usable source なしなら fatal であり、本 spec で追加の移行経路は設けない |
