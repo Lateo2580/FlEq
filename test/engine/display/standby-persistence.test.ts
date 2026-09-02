@@ -4173,6 +4173,96 @@ describe("pre-generation volcano migration serial canonicalization", () => {
       revision: { reportTimeMs: 1788134400000, serial: "80" },
     });
   });
+
+  type MissingFixtureOptions = {
+    gateSerialRaw: string | null;
+    rollbackSerial: string | null;
+  };
+
+  function missingSerialFixture(options: MissingFixtureOptions): Record<string, unknown> {
+    const fixture = JSON.parse(readFileSync(fixturePath, "utf8")) as Record<string, unknown>;
+    const volcanoes = fixture.volcanoes as { alertRevision: { serial: string | null } }[];
+    volcanoes[0]!.alertRevision.serial = options.rollbackSerial;
+    const foundation = fixture.telegramFoundation as {
+      volcano: {
+        active: { alertRevision: { serial: string | null } }[];
+        gateEntries: {
+          comparison: {
+            revision: {
+              serial: { raw: string | null; numeric: number | null; valid: boolean };
+            };
+          };
+        }[];
+      };
+    };
+    foundation.volcano.active[0]!.alertRevision.serial = options.rollbackSerial;
+    foundation.volcano.gateEntries[0]!.comparison.revision.serial = {
+      raw: options.gateSerialRaw,
+      numeric: null,
+      valid: false,
+    };
+    return fixture;
+  }
+
+  function loadMissing(options: MissingFixtureOptions): {
+    quarantined: boolean;
+    volcanoes: PersistedVolcanoStateV2["volcanoes"];
+  } {
+    const path = tempPath();
+    mkdirSync(dirname(path), { recursive: true });
+    writeFileSync(
+      standbyPersistenceV2Path(path),
+      JSON.stringify(missingSerialFixture(options)),
+      "utf8",
+    );
+    const result = new StandbyPersistence(path)
+      .loadWithResult(Date.parse("2026-09-01T00:00:00.000Z"));
+    if (result.startup.kind === "fatal" || result.state == null) {
+      throw new Error("expected a restored standby state");
+    }
+    const volcano = result.state.telegramFoundation.volcano;
+    const state = volcano.state as PersistedVolcanoStateV2 | null;
+    return { quarantined: result.volcanoDomainQuarantined, volcanoes: state?.volcanoes ?? [] };
+  }
+
+  it("gate 側の空文字 serial と rollback 側の null を missing 同士として join する", () => {
+    const { quarantined, volcanoes } = loadMissing({
+      gateSerialRaw: "",
+      rollbackSerial: null,
+    });
+    expect(quarantined).toBe(false);
+    expect(volcanoes).toHaveLength(1);
+    expect(volcanoes[0]?.alert).toMatchObject({
+      volcanoCode: "506",
+      revision: { reportTimeMs: 1788134400000, serial: null },
+    });
+  });
+
+  it("rollback 側の空文字 serial と gate 側の null を missing 同士として join する", () => {
+    const { quarantined, volcanoes } = loadMissing({
+      gateSerialRaw: null,
+      rollbackSerial: "",
+    });
+    expect(quarantined).toBe(false);
+    expect(volcanoes).toHaveLength(1);
+    expect(volcanoes[0]?.alert).toMatchObject({
+      volcanoCode: "506",
+      revision: { reportTimeMs: 1788134400000, serial: null },
+    });
+  });
+
+  it("空文字 serial 同士でも quarantine させず canonical な null へ寄せる", () => {
+    const { quarantined, volcanoes } = loadMissing({
+      gateSerialRaw: "",
+      rollbackSerial: "",
+    });
+    expect(quarantined).toBe(false);
+    expect(volcanoes).toHaveLength(1);
+    expect(volcanoes[0]?.alert).toMatchObject({
+      volcanoCode: "506",
+      revision: { reportTimeMs: 1788134400000, serial: null },
+    });
+  });
 });
 
 describe("StandbyPersistence logical generation source selection", () => {

@@ -36,6 +36,7 @@ import type {
 import {
   createTelegramMeta,
   FUTURE_REPORT_DATETIME_SKEW_MS,
+  normalizeVolcanoAshfallSerial,
   parseStrictReportDateTime,
   parseTelegramSerial,
 } from "../../dmdata/telegram-meta";
@@ -7347,15 +7348,21 @@ function terminalVolcanoQuarantine(): PersistedTelegramFoundationV2["volcano"] {
  * with the telegram's own zero-padded serial, so both the join comparison and the
  * migrated slice have to go through this single function; the canonical bundle
  * validator (`canonicalVolcanoRevision`) rejects any other form.
+ *
+ * The missing/invalid split is delegated to the shared volcano normalizer so that
+ * live, REST, v1 migration and v2 restore agree: an empty serial is *missing*
+ * (`isGateEntry` accepts it as such in pre-generation bundles) and only whitespace
+ * or a non-numeric body is invalid.
  */
 function canonicalVolcanoMigrationSerial(
   raw: unknown,
 ): { ok: true; serial: string | null } | { ok: false } {
   if (raw == null) return { ok: true, serial: null };
   if (typeof raw !== "string") return { ok: false };
-  const parsed = parseTelegramSerial(raw);
-  return parsed.valid && parsed.numeric != null
-    ? { ok: true, serial: String(parsed.numeric) }
+  const normalized = normalizeVolcanoAshfallSerial(raw);
+  if (normalized.kind === "missing") return { ok: true, serial: null };
+  return normalized.kind === "numeric"
+    ? { ok: true, serial: normalized.canonicalRaw }
     : { ok: false };
 }
 
@@ -7380,9 +7387,30 @@ function canonicalizeVolcanoMigrationGateSerial(
   gate: PersistedTelegramRevisionGateEntryV2,
 ): void {
   const canonical = canonicalVolcanoMigrationSerial(gate.comparison.revision.serial.raw);
-  if (canonical.ok && canonical.serial != null) {
-    gate.comparison.revision.serial.raw = canonical.serial;
+  if (!canonical.ok) return;
+  gate.comparison.revision.serial = canonical.serial == null
+    ? { raw: null, numeric: null, valid: false }
+    : { raw: canonical.serial, numeric: Number(canonical.serial), valid: true };
+}
+
+/**
+ * Repair records keep the last known comparison, and the write validator
+ * (`canonicalVolcanoComparison`) demands the same canonical serial form as the
+ * bundle.  A pre-generation gate may still carry the empty missing serial, so the
+ * clone stored for the operator has to be canonicalized here as well.
+ */
+function canonicalVolcanoMigrationComparison(
+  comparison: TelegramRevisionComparisonInput | null,
+): TelegramRevisionComparisonInput | null {
+  if (comparison == null) return null;
+  const cloned = structuredClone(comparison);
+  const canonical = canonicalVolcanoMigrationSerial(cloned.revision.serial.raw);
+  if (canonical.ok) {
+    cloned.revision.serial = canonical.serial == null
+      ? { raw: null, numeric: null, valid: false }
+      : { raw: canonical.serial, numeric: Number(canonical.serial), valid: true };
   }
+  return cloned;
 }
 
 /**
@@ -7436,7 +7464,7 @@ function migratePreGenerationVolcanoFoundation(
       && omission.sourceFamily === sourceFamily)) {
       repair.unrecoverableAlertOmissions.push({
         scope: "volcano", volcanoCode: code, sourceFamily,
-        lastKnownComparison: structuredClone(comparison), reason,
+        lastKnownComparison: canonicalVolcanoMigrationComparison(comparison), reason,
       });
     }
   };
@@ -7450,7 +7478,7 @@ function migratePreGenerationVolcanoFoundation(
       && omission.reason === "operationalV2ProvenanceLost")) {
       repair.unrecoverableAlertOmissions.push({
         scope: "volcano", volcanoCode: code, sourceFamily: "unknown",
-        lastKnownComparison: structuredClone(comparison),
+        lastKnownComparison: canonicalVolcanoMigrationComparison(comparison),
         reason: "operationalV2ProvenanceLost",
       });
     }
@@ -7463,7 +7491,7 @@ function migratePreGenerationVolcanoFoundation(
       omission.scope === "volcano" && omission.volcanoCode === code)) {
       repair.unrecoverableEruptionOmissions.push({
         scope: "volcano", volcanoCode: code,
-        lastKnownComparison: structuredClone(comparison), reason: "provenanceMissing",
+        lastKnownComparison: canonicalVolcanoMigrationComparison(comparison), reason: "provenanceMissing",
       });
     }
   };
