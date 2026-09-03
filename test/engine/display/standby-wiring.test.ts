@@ -2044,7 +2044,6 @@ describe("standby monitor wiring", () => {
       restoreTsunamiState: vi.fn().mockResolvedValue(null),
     }));
     vi.doMock("../../../src/engine/startup/volcano-initializer", () => ({
-      restoreVolcanoState: vi.fn().mockResolvedValue("failed"),
       volcanoRepairTargets: vi.fn(() => []),
       repairVolcanoState: vi.fn().mockResolvedValue({ targets: [] }),
       VolcanoRepairJournal: class FakeVolcanoRepairJournal {},

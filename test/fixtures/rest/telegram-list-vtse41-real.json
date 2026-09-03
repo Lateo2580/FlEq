@@ -1,0 +1,115 @@
+{
+  "responseId": "51c0b02f7947cf59",
+  "responseTime": "2026-09-02T22:54:26.750Z",
+  "status": "ok",
+  "items": [
+    {
+      "serial": 52535293,
+      "id": "cd2b4608d7f01207a123d02767ea64606cc281075978167181195e13b7d155599ca421fbcde6edfdb64b7eacefd87c51",
+      "classification": "telegram.earthquake",
+      "head": {
+        "type": "VTSE41",
+        "author": "JPOS",
+        "time": "2026-07-28T09:10:00.000Z",
+        "designation": null,
+        "test": false
+      },
+      "receivedTime": "2026-07-28T09:10:11.291Z",
+      "xmlReport": {
+        "head": {
+          "title": "津波予報",
+          "serial": null,
+          "eventId": "20260728162718",
+          "headline": "津波注意報を解除しました。",
+          "infoKind": "津波警報・注意報・予報",
+          "infoType": "発表",
+          "reportDateTime": "2026-07-28T18:10:00+09:00",
+          "targetDateTime": "2026-07-28T18:10:00+09:00",
+          "infoKindVersion": "1.0_1"
+        },
+        "control": {
+          "title": "津波警報・注意報・予報a",
+          "status": "通常",
+          "dateTime": "2026-07-28T09:10:10Z",
+          "editorialOffice": "大阪管区気象台",
+          "publishingOffice": "気象庁"
+        }
+      },
+      "format": "xml",
+      "url": "https://data.api.dmdata.jp/v1/cd2b4608d7f01207a123d02767ea64606cc281075978167181195e13b7d155599ca421fbcde6edfdb64b7eacefd87c51"
+    },
+    {
+      "serial": 52526017,
+      "id": "efed4a180f82f75bd98ee4694b89b153587aadb45b53dbc5953a3fb4e8b5f783084d82e1d60e94652adc4bca3a2f50c3",
+      "classification": "telegram.earthquake",
+      "head": {
+        "type": "VTSE41",
+        "author": "JPOS",
+        "time": "2026-07-28T07:29:00.000Z",
+        "designation": null,
+        "test": false
+      },
+      "receivedTime": "2026-07-28T07:29:15.074Z",
+      "xmlReport": {
+        "head": {
+          "title": "津波注意報・津波予報",
+          "serial": null,
+          "eventId": "20260728162718",
+          "headline": "津波注意報を発表しました。",
+          "infoKind": "津波警報・注意報・予報",
+          "infoType": "発表",
+          "reportDateTime": "2026-07-28T16:29:00+09:00",
+          "targetDateTime": "2026-07-28T16:29:00+09:00",
+          "infoKindVersion": "1.0_1"
+        },
+        "control": {
+          "title": "津波警報・注意報・予報a",
+          "status": "通常",
+          "dateTime": "2026-07-28T07:29:13Z",
+          "editorialOffice": "大阪管区気象台",
+          "publishingOffice": "気象庁"
+        }
+      },
+      "format": "xml",
+      "url": "https://data.api.dmdata.jp/v1/efed4a180f82f75bd98ee4694b89b153587aadb45b53dbc5953a3fb4e8b5f783084d82e1d60e94652adc4bca3a2f50c3"
+    },
+    {
+      "serial": 51923825,
+      "id": "c50d0c66c6aea7859a2e88c83ecda7c5b8c7075e51122bcea2c424b79aed481b3aa49962e39457abc52a1da320c17f82",
+      "classification": "telegram.earthquake",
+      "head": {
+        "type": "VTSE41",
+        "author": "JPOS",
+        "time": "2026-07-03T04:14:00.000Z",
+        "designation": null,
+        "test": false
+      },
+      "receivedTime": "2026-07-03T04:14:27.239Z",
+      "xmlReport": {
+        "head": {
+          "title": "津波予報",
+          "serial": null,
+          "eventId": "20260703130504",
+          "headline": "津波予報（若干の海面変動）を発表しました。",
+          "infoKind": "津波警報・注意報・予報",
+          "infoType": "発表",
+          "validDateTime": "2026-07-03T17:00:00+09:00",
+          "reportDateTime": "2026-07-03T13:14:00+09:00",
+          "targetDateTime": "2026-07-03T13:14:00+09:00",
+          "infoKindVersion": "1.0_1"
+        },
+        "control": {
+          "title": "津波警報・注意報・予報a",
+          "status": "通常",
+          "dateTime": "2026-07-03T04:14:25Z",
+          "editorialOffice": "大阪管区気象台",
+          "publishingOffice": "気象庁"
+        }
+      },
+      "format": "xml",
+      "url": "https://data.api.dmdata.jp/v1/c50d0c66c6aea7859a2e88c83ecda7c5b8c7075e51122bcea2c424b79aed481b3aa49962e39457abc52a1da320c17f82"
+    }
+  ],
+  "nextPooling": "cG9sbGluZyAgICAgNTI1MzUyOTM",
+  "nextPoolingInterval": 1150
+}

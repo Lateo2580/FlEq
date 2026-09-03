@@ -264,7 +264,7 @@ async function startMonitor(config: AppConfig, pipelineController?: PipelineCont
 5. REPL ハンドラを dynamic import で遅延ロードし、先に起動（接続中もコマンド入力可能）
 6. シグナルハンドラ登録（`SIGINT`, `SIGTERM`, 非 Windows なら `SIGHUP`）
 7. 定期要約タイマー (`SummaryTimerControl`) を生成し、REPL に注入。`config.summaryInterval` が設定済みなら自動起動
-8. 津波・火山状態の起動時復元 (`restoreTsunamiState`, `restoreVolcanoState`)
+8. 津波状態の起動時復元 (`restoreTsunamiState`) と火山 repair (`repairVolcanoState`、repair target がある場合のみ)
 9. `manager.connect()` でバックグラウンド接続開始
 10. `config.backup` が有効なら `manager.startBackup()` で副回線を起動（失敗は警告のみ）
 
@@ -312,7 +312,7 @@ display runtime は REPL の `display on/off` で作り直されるため、**�
 | `../../dmdata/multi-connection-manager` | `MultiConnectionManager` |
 | `../messages/message-router` | `createMessageHandler` |
 | `../startup/tsunami-initializer` | `restoreTsunamiState` |
-| `../startup/volcano-initializer` | `restoreVolcanoState` |
+| `../startup/volcano-initializer` | `repairVolcanoState`, `volcanoRepairTargets`, `VolcanoRepairJournal` |
 | `../../ui/terminal-title` | `resetTerminalTitle` |
 | `../../ui/formatter` | `formatTimestamp` |
 | `../../ui/summary-interval-formatter` | `formatSummaryInterval` |
@@ -1059,25 +1059,29 @@ Linux で canberra-gtk-play が使えない場合、`\x07` (BEL) を stdout に�
 
 ### エクスポート API
 
-#### `restoreTsunamiState(apiKey: string, tsunamiState: TsunamiStateHolder): Promise<ParsedTsunamiInfo | null>`
+#### `restoreTsunamiState(apiKey, tsunamiState, revisionGate, onAcceptedRevision?, persistenceAdmission?): Promise<ParsedTsunamiInfo | null>`
 
-最新の VTSE41 電文を `GET /v2/telegram?type=VTSE41&limit=1&formatMode=raw` で取得し、パース後に `tsunamiState.update()` を呼ぶ。
+1. 最新の VTSE41 を `GET /v2/telegram?type=VTSE41&limit=1&formatMode=raw&xmlReport=true` で 1 件取得する。一覧 item は本文を持たない (実採取 2026-09-03、`test/fixtures/rest/telegram-list-vtse41-real.json`)。
+2. item の `id` と `url` で `fetchTelegramBody()` (Telegram Data v1) から生 XML を取得する。`url` は expectedUrl として渡し、組んだ URL と一致しなければ送信しない。
+3. `toWsDataMessageFromRestBody(item, xml, strictRestReceivedTimeMs(item.head.time))` で `WsDataMessage` に包み、`processTsunami()` に `restoreStateOnDuplicate: true` で流す。receivedAtMs を `head.time` 由来にするのは、admission transaction の pre-admission sweep 時刻をローカル時計にしないため。
+
+戻り値:
 
 - 警報状態が復元された場合: パース済みの `ParsedTsunamiInfo` を返す
 - 警報なし（取消報、津波予報のみ、電文なし）の場合: `null` を返す
-- API エラー・パースエラー: `null` を返し、例外は throw しない
-
-内部で `TelegramListItem` を `WsDataMessage` 互換オブジェクトに変換し、既存の `parseTsunamiTelegram()` をそのまま利用する。
+- API エラー・本文取得失敗・パースエラー: `null` を返し、例外は throw しない。本文取得失敗は `reason` (forbidden / notFound / contentType / tooLarge / network) と id 付きの `log.warn` を出す (silent skip にしない)
 
 ### 依存関係
 
-- **インポート元**: `../../types` (`ParsedTsunamiInfo`), `../../dmdata/rest-client` (`listTelegrams`), `../../dmdata/telegram-parser` (`parseTsunamiTelegram`), `../messages/tsunami-state` (`TsunamiStateHolder`), `./telegram-adapter` (`toWsDataMessage`), `../../logger`
-- **接続先**: `engine/monitor/monitor.ts` の `startMonitor()` から WebSocket 接続前に呼ばれる
+- **インポート元**: `../../types` (`ParsedTsunamiInfo`), `../../dmdata/rest-client` (`listTelegrams`, `fetchTelegramBody`), `../messages/tsunami-state` (`TsunamiStateHolder`), `../messages/telegram-revision-gate` (`TelegramRevisionGate`), `../presentation/processors/process-tsunami` (`processTsunami`), `./telegram-adapter` (`toWsDataMessageFromRestBody`, `strictRestReceivedTimeMs`), `../../logger`
+- **接続先**: `engine/monitor/monitor.ts` の `startMonitor()` から `manager.connect()` の後・火山 repair の前に呼ばれる
 
 ### 設計ノート
 
-- `TelegramListItem` → `WsDataMessage` 変換は `startup/telegram-adapter.ts` の共有 `toWsDataMessage()` で行う (volcano-initializer と共用)。`type: "data"`, `version: "2.0"`, `passing: []` を補完する。
-- VTSE41 が取消報の場合は `tsunamiState.update()` 内部で `clear()` されるため、呼び出し側で判定する必要がない。
+- `TelegramListItem` → `WsDataMessage` 変換は `startup/telegram-adapter.ts` の共有 `toWsDataMessageFromRestBody()` で行う (volcano-initializer と共用)。一覧 item の `compression` / `encoding` は読まず、`compression: null` / `encoding: "utf-8"` を固定で立てる。
+- 実採取の VTSE41 は `xmlReport.head.serial` が null。VTSE41 の revision family は `allowMissingSerial: true` なので identity は EventID と reportDateTime で立つ。
+- gate の判定は `processTsunami()` に集約する。persisted watermark と同一の REST 報は duplicate として suppressed になり、holder が空の場合だけ `restoreStateOnDuplicate` で再構成する。取消 tombstone・訂正済み active は REST の旧報で巻き戻さない。
+- `persistenceAdmission` がある場合、REST 結果は `processTsunami()` の admission transaction を通る。transaction は REST await 後の最新 composition を capture して candidate を作り、token が進んでいれば `staleVersion` で reject する。永続復元済み state や REST 待ちの間に届いた live VTSE41 (REST より新しい) は上書きされない (gate が REST を stale として拒否する)。
 - REST API 呼び出しは起動時の 1 回のみ。以降は WebSocket 経由のリアルタイム更新に任せる。
 
 ---
@@ -1088,34 +1092,14 @@ Phase 3B 以降、火山の durable state は standby persistence v2 の `telegr
 
 ### 概要
 
-起動時に dmdata.jp REST API から直近の VFVO50 電文履歴 (窓 = 100 件) を取得し、古い順に replay して火山警報状態 (`VolcanoStateHolder`) を復元する。WebSocket 接続が確立される前に実行され、接続前に発表済みの複数火山の警報をプロンプトに表示できるようにする。
+起動時の火山 REST 復元は `repairVolcanoState()` (repair target がある場合だけ走る coverage / scratch rebase / sync commit、仕様は `docs/specs/2026-08-31-vfvo54-ashfall-slice.md` §16) に一本化されている。一覧 item から本文を読む旧 `restoreVolcanoState()` (VFVO50 窓 100 件の昇順 replay) は、一覧 API が本文を返さないため常時空振りしており、呼び出し元も無かったので 2026-09-03 に削除した。
 
-エラー発生時は警告ログのみ出力し、アプリケーションの起動を妨げない設計。
-
-### エクスポート API
-
-#### `restoreVolcanoState(apiKey, volcanoState, revisionGate?, foundationAuthoritative?, onMutation?): Promise<"success" | "failed">`
-
-直近の VFVO50 電文を `GET /v2/telegram?type=VFVO50&limit=100&formatMode=raw` (`VOLCANO_RESTORE_WINDOW = 100`) で取得し、`head.time` 昇順の安定ソート後に 1 件ずつ共通 revision gate へ replay する。v2 が authoritative の場合、duplicate は persisted active と semantic 一致し、かつ holder に対応 entry がない場合だけ再構成に使う。新しい受理報の解除・取消・レベル1復帰は `clearCurrent`、active report は `applyAcceptedAlert()` へ適用する。
-
-- 個別電文の body 欠落・パース失敗: デバッグログを出して skip し、残りの replay を続行
-- 警報状態が復元された場合: ログ出力 (`火山警報状態を復元しました (N 火山 / M 電文を replay)`)
-- 警報なし（解除・平常・電文なし）の場合: デバッグログのみ
-- API エラー: 警告ログを出力し、例外は throw しない
-- 既知の制約: 窓 (直近 100 件) より古い長期継続警報は復元されない (見逃し側の fail。詳細は設計文書の復元方針表を参照)
-
-内部で `TelegramListItem` を `WsDataMessage` 互換オブジェクトに変換し、既存の `parseVolcanoTelegram()` をそのまま利用する。
+本文は Telegram Data v1 (`fetchTelegramBody`) から id 単位で取得し、`toWsDataMessageFromRestBody()` で `WsDataMessage` に包んでから既存の `parseVolcanoTelegram()` に渡す (tsunami-initializer と同じ経路)。
 
 ### 依存関係
 
-- **インポート元**: `../../dmdata/rest-client` (`listTelegrams`), `../../dmdata/volcano-parser` (`parseVolcanoTelegram`), `../messages/volcano-state` (`VolcanoStateHolder`), `./telegram-adapter` (`toWsDataMessage`), `../../logger`
-- **接続先**: `engine/monitor/monitor.ts` の `startMonitor()` から WebSocket 接続前に呼ばれる (津波状態復元の直後)
-
-### 設計ノート
-
-- `TelegramListItem` → `WsDataMessage` 変換は `startup/telegram-adapter.ts` の共有 `toWsDataMessage()` で行う (tsunami-initializer と共用)。`type: "data"`, `version: "2.0"`, `passing: []` を補完する。
-- v2 が非 authoritative の旧 state だけを読む場合に限り、互換 helper `volcanoState.update()` で REST replay する。通常は共通 gate の subject/comparator/cancellation policy を使う。
-- REST API 呼び出しは起動時の 1 回のみ。以降は WebSocket 経由のリアルタイム更新に任せる。
+- **インポート元**: `../../dmdata/rest-client` (`listTelegrams`, `fetchTelegramBody`), `../../dmdata/volcano-parser` (`parseVolcanoTelegram`), `../messages/volcano-state` (`VolcanoStateHolder`), `../messages/volcano-transaction-coordinator`, `./telegram-adapter` (`toWsDataMessageFromRestBody`, `strictRestReceivedTimeMs`), `../../logger`
+- **接続先**: `engine/monitor/monitor.ts` の `startMonitor()` から `restoreTsunamiState` の直後に呼ばれる (repair target がある場合のみ)
 
 ---
 

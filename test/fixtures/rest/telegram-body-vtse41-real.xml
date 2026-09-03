@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Report xmlns="http://xml.kishou.go.jp/jmaxml1/" xmlns:jmx="http://xml.kishou.go.jp/jmaxml1/">
+<Control>
+	<Title>津波警報・注意報・予報a</Title>
+	<DateTime>2026-07-28T09:10:10Z</DateTime>
+	<Status>通常</Status>
+	<EditorialOffice>大阪管区気象台</EditorialOffice>
+	<PublishingOffice>気象庁</PublishingOffice>
+</Control>
+<Head xmlns="http://xml.kishou.go.jp/jmaxml1/informationBasis1/">
+	<Title>津波予報</Title>
+	<ReportDateTime>2026-07-28T18:10:00+09:00</ReportDateTime>
+	<TargetDateTime>2026-07-28T18:10:00+09:00</TargetDateTime>
+	<EventID>20260728162718</EventID>
+	<InfoType>発表</InfoType>
+	<Serial></Serial>
+	<InfoKind>津波警報・注意報・予報</InfoKind>
+	<InfoKindVersion>1.0_1</InfoKindVersion>
+	<Headline>
+		<Text>津波注意報を解除しました。</Text>
+	</Headline>
+</Head>
+<Body xmlns="http://xml.kishou.go.jp/jmaxml1/body/seismology1/" xmlns:jmx_eb="http://xml.kishou.go.jp/jmaxml1/elementBasis1/">
+	<Tsunami>
+	<Forecast>
+		<CodeDefine>
+			<Type xpath="Item/Area/Code">津波予報区</Type>
+			<Type xpath="Item/Category/Kind/Code">警報等情報要素／津波警報・注意報・予報</Type>
+			<Type xpath="Item/Category/LastKind/Code">警報等情報要素／津波警報・注意報・予報</Type>
+		</CodeDefine>
+		<Item>
+			<Area><Name>有明・八代海</Name><Code>712</Code></Area>
+			<Category>
+				<Kind><Name>津波注意報解除</Name><Code>60</Code></Kind>
+				<LastKind><Name>津波注意報</Name><Code>62</Code></LastKind>
+			</Category>
+		</Item>
+	</Forecast>
+	</Tsunami>
+	<Earthquake>
+		<OriginTime>2026-07-28T16:27:00+09:00</OriginTime>
+		<ArrivalTime>2026-07-28T16:27:00+09:00</ArrivalTime>
+		<Hypocenter>
+			<Area>
+				<Name>熊本県熊本地方</Name>
+				<Code type="震央地名">741</Code>
+				<jmx_eb:Coordinate description="北緯３２．６度　東経１３０．７度　深さ　１０ｋｍ">+32.6+130.7-10000/</jmx_eb:Coordinate>
+				<NameFromMark>長崎の東８０ｋｍ付近</NameFromMark>
+				<MarkCode type="震央補助">705</MarkCode>
+				<Direction>東</Direction>
+				<Distance unit="km">80</Distance>
+			</Area>
+		</Hypocenter>
+		<jmx_eb:Magnitude type="Mj" description="Ｍ７．１">7.1</jmx_eb:Magnitude>
+	</Earthquake>
+	<Comments>
+		<WarningComment codeType="固定付加文">
+			<Text>現在、大津波警報・津波警報・津波注意報を発表している沿岸はありません。</Text>
+			<Code>0107</Code>
+		</WarningComment>
+	</Comments>
+</Body>
+</Report>

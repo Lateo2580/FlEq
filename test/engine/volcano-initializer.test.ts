@@ -5,7 +5,6 @@ import {
   fetchVolcanoHistoricalPaginationUnion,
   proveVolcanoTypeCoverage,
   repairVolcanoState,
-  restoreVolcanoState,
   VolcanoRepairJournal,
 } from "../../src/engine/startup/volcano-initializer";
 import {
@@ -115,24 +114,6 @@ function createTelegramItem(
   };
 }
 
-/**
- * 旧 `restoreVolcanoState` 経路だけが使う、一覧 item に body が同梱された形。
- * 実 API はこの形を返さない (同型欠陥は別項目として起票済み)。
- */
-function createLegacyTelegramItem(
-  id: string,
-  time: string,
-  overrides: Partial<TelegramListItem> = {}
-): TelegramListItem {
-  return {
-    ...createTelegramItem(id, time),
-    compression: "gzip",
-    encoding: "base64",
-    body: "dGVzdA==",
-    ...overrides,
-  };
-}
-
 /** テスト用レスポンスを生成 */
 function createResponse(items: TelegramListItem[]): TelegramListResponse {
   return {
@@ -232,163 +213,6 @@ function foundationInput(info: ParsedVolcanoAlertInfo): TelegramRevisionGateInpu
 function mockParserByIds(infoById: Record<string, ParsedVolcanoAlertInfo | null>): void {
   mockParseVolcano.mockImplementation((msg: WsDataMessage) => infoById[msg.id] ?? null);
 }
-
-describe("restoreVolcanoState", () => {
-  let volcanoState: VolcanoStateHolder;
-
-  beforeEach(() => {
-    volcanoState = new VolcanoStateHolder();
-    vi.clearAllMocks();
-  });
-
-  it("複数火山の警報が窓に混在 → 両火山とも復元される", async () => {
-    // API は新しい順で返す想定
-    const items = [
-      createLegacyTelegramItem("tg-asama", "2026-07-02T00:00:00+09:00"),
-      createLegacyTelegramItem("tg-sakura", "2026-07-01T00:00:00+09:00"),
-    ];
-    mockListTelegrams.mockResolvedValue(createResponse(items));
-    mockParserByIds({
-      "tg-sakura": createVolcanoAlert({ volcanoCode: "506", volcanoName: "桜島" }),
-      "tg-asama": createVolcanoAlert({ volcanoCode: "306", volcanoName: "浅間山", alertLevel: 2, alertLevelCode: "22" }),
-    });
-
-    await restoreVolcanoState("test-key", volcanoState);
-
-    expect(volcanoState.size()).toBe(2);
-    expect(volcanoState.getEntry("506")).toBeDefined();
-    expect(volcanoState.getEntry("306")).toBeDefined();
-    expect(mockListTelegrams).toHaveBeenCalledWith("test-key", "VFVO50", 100);
-  });
-
-  it("同一火山の発表→解除が窓に含まれる → entries に残らない (昇順 replay の検証)", async () => {
-    // 新しい順の返却: 解除 (t2) が先頭、発表 (t1) が後ろ。
-    // ソートせず返却順のまま replay すると「解除→発表」の順になり警報が残ってしまう
-    const items = [
-      createLegacyTelegramItem("tg-release", "2026-07-02T00:00:00+09:00"),
-      createLegacyTelegramItem("tg-issue", "2026-07-01T00:00:00+09:00"),
-    ];
-    mockListTelegrams.mockResolvedValue(createResponse(items));
-    mockParserByIds({
-      "tg-issue": createVolcanoAlert({ volcanoCode: "506" }),
-      "tg-release": createVolcanoAlert({ volcanoCode: "506", action: "release", alertLevel: 1, alertLevelCode: "11" }),
-    });
-
-    await restoreVolcanoState("test-key", volcanoState);
-
-    expect(volcanoState.size()).toBe(0);
-    expect(volcanoState.getEntry("506")).toBeUndefined();
-  });
-
-  it("途中の電文に body がない → skip して他火山は復元される", async () => {
-    const items = [
-      createLegacyTelegramItem("tg-broken", "2026-07-02T00:00:00+09:00", { body: undefined }),
-      createLegacyTelegramItem("tg-sakura", "2026-07-01T00:00:00+09:00"),
-    ];
-    mockListTelegrams.mockResolvedValue(createResponse(items));
-    mockParserByIds({
-      "tg-sakura": createVolcanoAlert({ volcanoCode: "506" }),
-    });
-
-    await restoreVolcanoState("test-key", volcanoState);
-
-    expect(volcanoState.size()).toBe(1);
-    expect(volcanoState.getEntry("506")).toBeDefined();
-    // body なしの電文はパーサまで到達しない
-    expect(mockParseVolcano).toHaveBeenCalledTimes(1);
-  });
-
-  it("途中の電文がパース不能 → skip して他火山は復元される", async () => {
-    const items = [
-      createLegacyTelegramItem("tg-unparsable", "2026-07-02T00:00:00+09:00"),
-      createLegacyTelegramItem("tg-sakura", "2026-07-01T00:00:00+09:00"),
-    ];
-    mockListTelegrams.mockResolvedValue(createResponse(items));
-    mockParserByIds({
-      "tg-sakura": createVolcanoAlert({ volcanoCode: "506" }),
-      "tg-unparsable": null,
-    });
-
-    await restoreVolcanoState("test-key", volcanoState);
-
-    expect(volcanoState.size()).toBe(1);
-    expect(volcanoState.getEntry("506")).toBeDefined();
-  });
-
-  it("窓内に Lv3 発表 → Lv1 引下げ (lower) → entries に残らない", async () => {
-    const items = [
-      createLegacyTelegramItem("tg-lower", "2026-07-02T00:00:00+09:00"),
-      createLegacyTelegramItem("tg-issue3", "2026-07-01T00:00:00+09:00"),
-    ];
-    mockListTelegrams.mockResolvedValue(createResponse(items));
-    mockParserByIds({
-      "tg-issue3": createVolcanoAlert({ volcanoCode: "506" }),
-      "tg-lower": createVolcanoAlert({ volcanoCode: "506", action: "lower", alertLevel: 1, alertLevelCode: "11" }),
-    });
-
-    await restoreVolcanoState("test-key", volcanoState);
-
-    expect(volcanoState.size()).toBe(0);
-  });
-
-  it("VFVO50 電文が 0 件 → 何もせず正常終了", async () => {
-    mockListTelegrams.mockResolvedValue(createResponse([]));
-
-    await restoreVolcanoState("test-key", volcanoState);
-
-    expect(volcanoState.size()).toBe(0);
-  });
-
-  it("API エラー → 例外を throw せず状態は空のまま", async () => {
-    mockListTelegrams.mockRejectedValue(new Error("API error"));
-
-    await expect(
-      restoreVolcanoState("test-key", volcanoState)
-    ).resolves.toBe("failed");
-    expect(volcanoState.size()).toBe(0);
-  });
-
-  it("persisted 取消 tombstone を REST の取消前報で復活させない", async () => {
-    const gate = new TelegramRevisionGate();
-    const issue = createFoundationAlert("issue", new Date(Date.now() - 120_000).toISOString(), "1");
-    const cancel = createFoundationAlert("cancel", new Date(Date.now() - 60_000).toISOString(), "2", {
-      infoType: "取消",
-      action: "cancel",
-    });
-    expect(gate.decide(foundationInput(issue)).accepted).toBe(true);
-    expect(gate.decide(foundationInput(cancel)).kind).toBe("clearCurrent");
-    mockListTelegrams.mockResolvedValue(createResponse([
-      createLegacyTelegramItem("rest-old", issue.reportDateTime),
-    ]));
-    mockParserByIds({ "rest-old": { ...issue, meta: { ...issue.meta, messageId: "rest-old" } } });
-
-    expect(await restoreVolcanoState("test-key", volcanoState, gate, true)).toBe("success");
-
-    expect(volcanoState.getEntry("506")).toBeUndefined();
-    expect(gate.exportDurableEntries()).toEqual([
-      expect.objectContaining({
-        domain: "volcano",
-        revisionFamily: "volcanoAlert",
-        stateSubjectKey: "volcano:alert:506",
-        cancelled: true,
-      }),
-    ]);
-  });
-
-  it("persisted active と semantic 一致する REST 報だけで空 holder を再構成する", async () => {
-    const gate = new TelegramRevisionGate();
-    const active = createFoundationAlert("active", "2026-07-01T00:00:00+09:00", "1");
-    expect(gate.decide(foundationInput(active)).accepted).toBe(true);
-    mockListTelegrams.mockResolvedValue(createResponse([
-      createLegacyTelegramItem("rest-active", active.reportDateTime),
-    ]));
-    mockParserByIds({ "rest-active": { ...active, meta: { ...active.meta, messageId: "rest-active" } } });
-
-    expect(await restoreVolcanoState("test-key", volcanoState, gate, true)).toBe("success");
-
-    expect(volcanoState.getEntry("506")).toMatchObject({ alertLevel: 3 });
-  });
-});
 
 const REPAIR_NOW = Date.parse("2026-07-10T00:00:00.000Z");
 const REPAIR_RETENTION_MS = 24 * 60 * 60_000;

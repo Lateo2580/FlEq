@@ -1,15 +1,27 @@
 import { ParsedTsunamiInfo } from "../../types";
-import { listTelegrams } from "../../dmdata/rest-client";
+import { fetchTelegramBody, listTelegrams } from "../../dmdata/rest-client";
 import { TsunamiStateHolder } from "../messages/tsunami-state";
 import { TelegramRevisionGate } from "../messages/telegram-revision-gate";
 import { processTsunami } from "../presentation/processors/process-tsunami";
-import { toWsDataMessage } from "./telegram-adapter";
+import {
+  strictRestReceivedTimeMs,
+  toWsDataMessageFromRestBody,
+} from "./telegram-adapter";
 import * as log from "../../logger";
 import type { StandbyPersistenceAdmissionCoordinator } from "../display/standby-persistence-admission";
 
 /**
  * 起動時に最新の VTSE41 電文を取得し、津波警報状態を復元する。
- * エラー時は警告ログのみ出力し、アプリの起動を妨げない。
+ *
+ * 一覧 API (`/v2/telegram`) の item は本文を持たない (実採取 2026-09-03 で確定)。
+ * 本文は Telegram Data v1 から item の `id` で別途取得し、一覧の `url` と
+ * 突き合わせてから `processTsunami` へ流す。取得失敗は reason 付き warn に留め、
+ * アプリの起動を妨げない。
+ *
+ * `persistenceAdmission` がある場合、REST 結果は `processTsunami` の admission
+ * transaction を通る。transaction は await 後の最新 composition を capture して
+ * candidate を作るので、永続復元済み state や REST 待ちの間に届いた live 電文を
+ * 上書きしない (stale なら staleVersion で reject)。
  */
 export async function restoreTsunamiState(
   apiKey: string,
@@ -19,7 +31,7 @@ export async function restoreTsunamiState(
   persistenceAdmission?: StandbyPersistenceAdmissionCoordinator,
 ): Promise<ParsedTsunamiInfo | null> {
   try {
-    const res = await listTelegrams(apiKey, "VTSE41", 1);
+    const res = await listTelegrams(apiKey, { type: "VTSE41", limit: 1 });
 
     if (res.items.length === 0) {
       log.debug("VTSE41 電文なし: 津波状態の復元をスキップ");
@@ -27,13 +39,16 @@ export async function restoreTsunamiState(
     }
 
     const item = res.items[0];
-
-    if (!item.body) {
-      log.debug("VTSE41 電文に body が含まれていません: 津波状態の復元をスキップ");
+    const body = await fetchTelegramBody(apiKey, item.id, item.url);
+    if (body.kind === "failed") {
+      log.warn(
+        `VTSE41 本文の取得に失敗しました (reason=${body.reason}, id=${item.id}): 津波状態の復元をスキップ`,
+      );
       return null;
     }
 
-    const msg = toWsDataMessage(item, item.body);
+    const receivedAtMs = strictRestReceivedTimeMs(item.head.time);
+    const msg = toWsDataMessageFromRestBody(item, body.xml, receivedAtMs ?? undefined);
     const hadPersistedActive = tsunamiState.getLastInfo() != null;
     const result = processTsunami(msg, {
       tsunamiState,
@@ -59,7 +74,7 @@ export async function restoreTsunamiState(
       return info;
     }
 
-    log.debug("最新の VTSE41 は警報なし (取消または津波予報のみ)");
+    log.debug("最新の VTSE41 は警報なし (取消・解除または津波予報のみ)");
     return null;
   } catch (err) {
     log.warn(
