@@ -435,6 +435,48 @@ describe("tsunamiFrameLevel", () => {
     ).toBe("normal");
   });
 
+  it("returns info for 解除 のみ (Kind Code 60 を警報へ誤昇格させない)", () => {
+    for (const kind of ["津波注意報解除", "津波警報解除", "大津波警報解除"]) {
+      expect(
+        tsunamiFrameLevel(
+          tsunami({
+            forecast: [
+              {
+                areaName: "三陸沿岸",
+                kind,
+                maxHeightDescription: "",
+                firstHeight: "",
+              },
+            ],
+          }),
+        ),
+      ).toBe("info");
+    }
+  });
+
+  it("解除と発表が混在するときは発表側の最高レベルを採る", () => {
+    expect(
+      tsunamiFrameLevel(
+        tsunami({
+          forecast: [
+            {
+              areaName: "三陸沿岸",
+              kind: "津波警報解除",
+              maxHeightDescription: "",
+              firstHeight: "",
+            },
+            {
+              areaName: "伊豆諸島",
+              kind: "大津波警報",
+              maxHeightDescription: "10m超",
+              firstHeight: "すぐ来る",
+            },
+          ],
+        }),
+      ),
+    ).toBe("critical");
+  });
+
   it("returns normal when no forecast", () => {
     expect(tsunamiFrameLevel(tsunami())).toBe("normal");
   });

@@ -41,6 +41,20 @@ describe("summarizeTsunamiLevels", () => {
     expect(summarizeTsunamiLevels(coasts)).toEqual([{ level: "warning", label: "津波警報", count: 1 }]);
   });
 
+  it("解除 kind (Kind Code 60) はカウントに含めない", () => {
+    const coasts: Coasts = [
+      coast("大阪府", "津波注意報解除"),
+      coast("和歌山県", "大津波警報解除"),
+      coast("宮崎県", "津波警報"),
+    ];
+    expect(summarizeTsunamiLevels(coasts)).toEqual([{ level: "warning", label: "津波警報", count: 1 }]);
+  });
+
+  it("解除のみなら空配列 (継続バナーを点灯させない)", () => {
+    const coasts: Coasts = [coast("大阪府", "津波注意報解除"), coast("宮崎県", "津波警報解除")];
+    expect(summarizeTsunamiLevels(coasts)).toEqual([]);
+  });
+
   it("coasts が空なら空配列を返す", () => {
     expect(summarizeTsunamiLevels([])).toEqual([]);
   });

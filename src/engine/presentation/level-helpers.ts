@@ -215,8 +215,13 @@ export function earthquakeFrameLevel(info: ParsedEarthquakeInfo): FrameLevel {
 export function tsunamiFrameLevel(info: ParsedTsunamiInfo): FrameLevel {
   if (info.infoType === "取消") return "cancel";
   const kinds = (info.forecast || []).map((f) => f.kind);
-  if (kinds.some((kind) => kind.includes("大津波警報"))) return "critical";
-  if (kinds.some((kind) => kind.includes("津波警報"))) return "warning";
+  // 解除 kind (Kind Code 60: 「津波警報解除」等) を先に除外する。
+  // includes 判定のままだと「津波警報解除」が "津波警報" に当たって warning へ誤昇格する。
+  const active = kinds.filter((kind) => !kind.includes("解除"));
+  if (active.some((kind) => kind.includes("大津波警報"))) return "critical";
+  if (active.some((kind) => kind.includes("津波警報"))) return "warning";
+  // 解除のみ (active が空で kinds は非空) → info (weatherFrameLevel の「解除のみ等 → info」と同じ扱い)
+  if (active.length === 0 && kinds.length > 0) return "info";
   return "normal";
 }
 

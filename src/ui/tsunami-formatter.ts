@@ -49,16 +49,16 @@ export interface TsunamiSeverityResult {
 }
 
 /**
- * kind 文字列 → 表示用 severity。includes マッチは tsunamiFrameLevel と同じ優先順。
+ * kind 文字列 → 表示用 severity。解除 (Kind Code 60) は最優先で判定する:
+ * 後ろに置くと「津波注意報解除」が "津波注意報" に当たり解除分岐が到達不能になるため。
  * 未知 kind は raw 表示 + 最低 warning 昇格 (forecast への silent downgrade は採らない)。
  */
 export function tsunamiSeverityOf(kind: string): TsunamiSeverityResult {
+  if (kind.includes("解除")) return { severity: "forecast", known: true };
   if (kind.includes("大津波警報")) return { severity: "major", known: true };
   if (kind.includes("津波警報")) return { severity: "warning", known: true };
   if (kind.includes("津波注意報")) return { severity: "advisory", known: true };
-  if (kind.includes("津波予報") || kind.includes("津波なし") || kind.includes("解除")) {
-    return { severity: "forecast", known: true };
-  }
+  if (kind.includes("津波予報") || kind.includes("津波なし")) return { severity: "forecast", known: true };
   return { severity: "warning", known: false };
 }
 

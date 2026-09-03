@@ -15,8 +15,11 @@ const LEVEL_LABEL: Record<DisplayTsunamiLevel, string> = {
  * 接尾辞 (「大津波警報：発表」等) は既に正規化済みのはずだが、起動時 seed 復元など古い形の state に
  * 備え前方一致で判定する (server 側と同方針)。「大津波警報」を「津波警報」に誤判定しないよう
  * 大津波警報 → 津波警報 → 津波注意報 の順で判定する。
+ * 解除 (Kind Code 60: 「津波注意報解除」等) は前方一致だと発表扱いになってしまうため、
+ * 最初に弾いて null (未分類) にする。継続バナーの件数・グルーピングから外れる。
  */
 function classifyKind(kind: string): DisplayTsunamiLevel | null {
+  if (kind.includes("解除")) return null;
   if (kind.startsWith("大津波警報")) return "majorWarning";
   if (kind.startsWith("津波警報")) return "warning";
   if (kind.startsWith("津波注意報")) return "advisory";

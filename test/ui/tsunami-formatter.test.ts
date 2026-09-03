@@ -34,11 +34,17 @@ describe("tsunamiSeverityOf (表示用 severity 写像)", () => {
     expect(tsunamiSeverityOf("大津波警報")).toEqual({ severity: "major", known: true });
     expect(tsunamiSeverityOf("大津波警報：発表")).toEqual({ severity: "major", known: true });
     expect(tsunamiSeverityOf("津波警報")).toEqual({ severity: "warning", known: true });
-    expect(tsunamiSeverityOf("津波警報解除")).toEqual({ severity: "warning", known: true });
+    expect(tsunamiSeverityOf("津波警報解除")).toEqual({ severity: "forecast", known: true });
     expect(tsunamiSeverityOf("津波注意報")).toEqual({ severity: "advisory", known: true });
     expect(tsunamiSeverityOf("津波予報（若干の海面変動）")).toEqual({ severity: "forecast", known: true });
     expect(tsunamiSeverityOf("津波なし")).toEqual({ severity: "forecast", known: true });
     expect(tsunamiSeverityOf("警報解除")).toEqual({ severity: "forecast", known: true });
+  });
+
+  it("解除 kind は警報に分類せず forecast へ落とす (Kind Code 60)", () => {
+    expect(tsunamiSeverityOf("津波注意報解除")).toEqual({ severity: "forecast", known: true });
+    expect(tsunamiSeverityOf("大津波警報解除")).toEqual({ severity: "forecast", known: true });
+    expect(tsunamiSeverityOf("津波警報解除")).toEqual({ severity: "forecast", known: true });
   });
 
   it("未知 kind は known=false で最低 warning へ昇格する", () => {
@@ -444,9 +450,9 @@ describe("severity 整合 (acceptance 9: 枠は tsunamiFrameLevel 由来)", () =
     // 大津波警報：発表 → frame critical / row major
     expect(tsunamiFrameLevel(mk("大津波警報：発表"))).toBe("critical");
     expect(buildTsunamiForecastRows(mk("大津波警報：発表").forecast!)[0].severity).toBe("major");
-    // 津波警報解除 → frame warning / row warning (includes 判定が両層で一致)
-    expect(tsunamiFrameLevel(mk("津波警報解除"))).toBe("warning");
-    expect(buildTsunamiForecastRows(mk("津波警報解除").forecast!)[0].severity).toBe("warning");
+    // 津波警報解除 → frame info (解除のみ) / row forecast (解除は警報として扱わない)
+    expect(tsunamiFrameLevel(mk("津波警報解除"))).toBe("info");
+    expect(buildTsunamiForecastRows(mk("津波警報解除").forecast!)[0].severity).toBe("forecast");
     // 津波予報（若干の海面変動） → frame normal / row forecast
     expect(tsunamiFrameLevel(mk("津波予報（若干の海面変動）"))).toBe("normal");
     expect(buildTsunamiForecastRows(mk("津波予報（若干の海面変動）").forecast!)[0].severity).toBe("forecast");
