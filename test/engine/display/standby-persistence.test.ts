@@ -6085,6 +6085,60 @@ describe("backup generation pruning", () => {
     expect(generations(dir, V2_BASE, ".manual-backup")).toHaveLength(3);
   });
 
+  it("`${base}.other.…` のような別 base 派生名は剪定対象にならない", () => {
+    const { path, v2Path, dir } = seedBothMirrors();
+    const derived = `${V2_BASE}.other.2026-09-01T00-00-00-000Z.0.manual-backup`;
+    const deeper = `${V2_BASE}.other.nested.2026-09-01T00-00-01-000Z.1.manual-backup`;
+    writeFileSync(join(dir, derived), "derived-base", "utf8");
+    writeFileSync(join(dir, deeper), "deeper-base", "utf8");
+
+    [0, 1, 2, 3].forEach((round) => manualRound(path, v2Path, round));
+
+    expect(existsSync(join(dir, derived))).toBe(true);
+    expect(existsSync(join(dir, deeper))).toBe(true);
+    expect(
+      readdirSync(dir).filter((name) => /^display-active-state-v2\.json\.[^.]+\.\d+\.manual-backup$/.test(name)),
+    ).toHaveLength(3);
+  });
+
+  it("timestamp が固定幅でない手書き名は剪定対象にならない", () => {
+    const { path, v2Path, dir } = seedBothMirrors();
+    const shortStamp = `${V2_BASE}.2026-9-1T0-0-0-0Z.0.manual-backup`;
+    const paddedIndex = `${V2_BASE}.2026-09-01T00-00-00-000Z.00.manual-backup`;
+    const noIndex = `${V2_BASE}.2026-09-01T00-00-00-000Z.manual-backup`;
+    for (const name of [shortStamp, paddedIndex, noIndex]) writeFileSync(join(dir, name), name, "utf8");
+
+    [0, 1, 2, 3].forEach((round) => manualRound(path, v2Path, round));
+
+    for (const name of [shortStamp, paddedIndex, noIndex]) {
+      expect(existsSync(join(dir, name))).toBe(true);
+    }
+    expect(generations(dir, V2_BASE, ".manual-backup")).toHaveLength(6);
+  });
+
+  it("同一 timestamp の collision index は数値順に新しく、新規 .11 自身は消えない", () => {
+    const { path, v2Path, dir } = seedBothMirrors();
+    const stampMs = Date.parse("2026-09-01T00:00:00.000Z");
+    const stamp = new Date(stampMs).toISOString().replace(/[:.]/g, "-");
+    for (const index of [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10]) {
+      writeFileSync(join(dir, `${V2_BASE}.${stamp}.${index}.manual-backup`), `collision-${index}`, "utf8");
+    }
+    vi.useFakeTimers();
+    vi.setSystemTime(stampMs);
+
+    const files = expectBackedUp(new StandbyPersistence(path, 0).backupCurrentMirrors("manual"));
+
+    const v2Name = nameOf(files[0]!.path);
+    expect(v2Name).toBe(`${V2_BASE}.${stamp}.11.manual-backup`);
+    expect(existsSync(files[0]!.path)).toBe(true);
+    expect(readFileSync(files[0]!.path)).toEqual(readFileSync(v2Path));
+    expect(generations(dir, V2_BASE, ".manual-backup").sort()).toEqual([
+      `${V2_BASE}.${stamp}.10.manual-backup`,
+      `${V2_BASE}.${stamp}.11.manual-backup`,
+      `${V2_BASE}.${stamp}.9.manual-backup`,
+    ].sort());
+  });
+
   it("既存 backup を再利用したときは剪定しない", () => {
     const { path, v2Path, dir } = seedBothMirrors();
     const v1Bytes = readFileSync(path);

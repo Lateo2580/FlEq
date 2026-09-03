@@ -211,6 +211,36 @@ const PERSIST_SCHEMA_VERSION = 2;
  */
 const BACKUP_GENERATIONS_PER_KIND = 3;
 
+/**
+ * `writeBackupFile` の `new Date().toISOString().replace(/[:.]/g, "-")` が作る固定幅 timestamp。
+ * `2026-09-03T12-34-56-789Z` の形だけを backup と認める（桁が欠けた手書き名は対象外）。
+ */
+const BACKUP_TIMESTAMP_SOURCE = "\\d{4}-\\d{2}-\\d{2}T\\d{2}-\\d{2}-\\d{2}-\\d{3}Z";
+
+function escapeRegExpLiteral(literal: string): string {
+  return literal.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+/**
+ * `${base}.${timestamp}.${collisionIndex}.${extension}` を厳密に parse する。
+ * base と extension は完全一致（`${base}.other.…` のような派生名は別 base なので null）、
+ * timestamp は固定幅、collisionIndex は先頭ゼロ無しの 10 進数だけを認める。
+ */
+function parseBackupFileName(
+  name: string,
+  base: string,
+  extension: string,
+): { timestamp: string; index: number } | null {
+  const pattern = new RegExp(
+    `^${escapeRegExpLiteral(`${base}.`)}(${BACKUP_TIMESTAMP_SOURCE})\\.(0|[1-9]\\d*)${escapeRegExpLiteral(`.${extension}`)}$`,
+  );
+  const match = pattern.exec(name);
+  if (match == null) return null;
+  const index = Number(match[2]!);
+  if (!Number.isSafeInteger(index)) return null;
+  return { timestamp: match[1]!, index };
+}
+
 export type PersistenceLogicalGeneration = string;
 export const PERSISTENCE_LOGICAL_GENERATION_PATTERN = /^(0|[1-9]\d{0,19})$/;
 export const PERSISTENCE_LOGICAL_GENERATION_MAX = 18_446_744_073_709_551_615n;
@@ -2466,7 +2496,7 @@ export class StandbyPersistence {
       }
       throw err;
     }
-    this.pruneBackupGenerations(directory, base, extension);
+    this.pruneBackupGenerations(directory, base, extension, backupPath);
     return { path: backupPath, reused: false };
   }
 
@@ -2474,18 +2504,19 @@ export class StandbyPersistence {
    * 同じ source base かつ同じ extension の backup を新しい順に
    * `BACKUP_GENERATIONS_PER_KIND` 件だけ残し、それより古いものを削除する。
    *
-   * ファイル名は `${base}.${timestamp}.${collisionIndex}.${extension}` で timestamp は
-   * 固定幅の ISO 文字列なので、名前の降順がそのまま新しい順になる。
-   * 別 base（v1 / v2）・別 extension（salvage / manual）・backup 以外のファイルは対象外。
+   * 対象は `parseBackupFileName` が `${base}.${timestamp}.${collisionIndex}.${extension}` として
+   * 厳密に parse できた名前だけ。別 base（v1 / v2 / `${base}.other…` 派生）・別 extension
+   * （salvage / manual）・timestamp 桁が違う手書き名・backup 以外のファイルは対象外。
+   * 並びは timestamp 降順、同 timestamp は collisionIndex の**数値**降順（`.10` は `.9` より新しい）。
+   * `keepPath` に渡した「今書いたばかりの backup」は並び順に依らず削除しない。
    * 削除失敗は握り潰さず warn して続行する（backup 本体の成功は取り消さない）。
    */
   private pruneBackupGenerations(
     directory: string,
     base: string,
     extension: "salvage-backup" | "manual-backup",
+    keepPath?: string,
   ): void {
-    const prefix = `${base}.`;
-    const tail = `.${extension}`;
     let names: string[];
     try {
       names = fs.readdirSync(directory);
@@ -2495,12 +2526,18 @@ export class StandbyPersistence {
       );
       return;
     }
+    const keepName = keepPath == null ? null : path.basename(keepPath);
     const generations = names
-      .filter((name) =>
-        name.length > prefix.length + tail.length && name.startsWith(prefix) && name.endsWith(tail))
-      .sort()
-      .reverse();
-    for (const name of generations.slice(BACKUP_GENERATIONS_PER_KIND)) {
+      .map((name) => ({ name, parsed: parseBackupFileName(name, base, extension) }))
+      .filter((entry): entry is { name: string; parsed: { timestamp: string; index: number } } =>
+        entry.parsed != null)
+      .sort((left, right) =>
+        left.parsed.timestamp === right.parsed.timestamp
+          ? right.parsed.index - left.parsed.index
+          : (left.parsed.timestamp < right.parsed.timestamp ? 1 : -1));
+    for (const { name } of generations.slice(BACKUP_GENERATIONS_PER_KIND)) {
+      // 今書いた backup は「証拠が残った」と報告済みなので、並び順に依らず消さない。
+      if (keepName != null && name === keepName) continue;
       try {
         fs.unlinkSync(path.join(directory, name));
       } catch (err) {
