@@ -5980,3 +5980,175 @@ describe("StandbyPersistence の書き込み順序", () => {
     expect(existsSync(join(dir, "unrelated.txt"))).toBe(true);
   });
 });
+
+describe("backup generation pruning", () => {
+  const V1_BASE = "display-active-state-v1.json";
+  const V2_BASE = "display-active-state-v2.json";
+
+  function nameOf(filePath: string): string {
+    return filePath.slice(dirname(filePath).length + 1);
+  }
+
+  function generations(runtimeDir: string, base: string, extension: string): string[] {
+    return readdirSync(runtimeDir)
+      .filter((name) => name.startsWith(`${base}.`) && name.endsWith(extension))
+      .sort();
+  }
+
+  function expectBackedUp(
+    result: VolcanoManualBackupResult,
+  ): { source: "v2" | "v1"; path: string; reused: boolean }[] {
+    if (result.kind !== "backedUp") throw new Error(`expected backedUp but got ${JSON.stringify(result)}`);
+    return result.files;
+  }
+
+  function seedBothMirrors(): { path: string; v2Path: string; dir: string } {
+    const path = tempPath();
+    const seed = new StandbyPersistence(path, 0);
+    seed.save(state());
+    const v2Path = standbyPersistenceV2Path(path);
+    expect(existsSync(path)).toBe(true);
+    expect(existsSync(v2Path)).toBe(true);
+    return { path, v2Path, dir: dirname(path) };
+  }
+
+  /** 内容を毎回変えて dedup 再利用を避け、新規 backup を 1 世代進める。 */
+  function manualRound(path: string, v2Path: string, round: number): { v2: string; v1: string } {
+    writeFileSync(v2Path, `{"round":${round},"mirror":"v2"}`, "utf8");
+    writeFileSync(path, `{"round":${round},"mirror":"v1"}`, "utf8");
+    const files = expectBackedUp(new StandbyPersistence(path, 0).backupCurrentMirrors("manual"));
+    expect(files.map((file) => file.reused)).toEqual([false, false]);
+    return { v2: nameOf(files[0]!.path), v1: nameOf(files[1]!.path) };
+  }
+
+  async function salvageRound(path: string, round: number): Promise<void> {
+    const raw = Buffer.from(
+      `${JSON.stringify({ ...state(), heat: [{ key: `broken-${round}` }] }, null, 2)}\n`,
+      "utf8",
+    );
+    // v2 mirror が生きていると load が v1 まで降りず salvage が起きない。
+    rmSync(standbyPersistenceV2Path(path), { force: true });
+    writeFileSync(path, raw);
+    const persistence = new StandbyPersistence(path, 0);
+    expect(persistence.load()?.heat).toEqual([]);
+    persistence.schedule(state());
+    await persistence.__test_writePending();
+  }
+
+  it("4 世代目の書き込みで最古が消え 3 件だけ残る", () => {
+    const { path, v2Path, dir } = seedBothMirrors();
+
+    const rounds = [0, 1, 2, 3].map((round) => manualRound(path, v2Path, round));
+
+    const kept = generations(dir, V2_BASE, ".manual-backup");
+    expect(kept).toHaveLength(3);
+    expect(kept).not.toContain(rounds[0]!.v2);
+    expect(kept.sort()).toEqual([rounds[1]!.v2, rounds[2]!.v2, rounds[3]!.v2].sort());
+    expect(readFileSync(join(dir, rounds[3]!.v2), "utf8")).toBe(`{"round":3,"mirror":"v2"}`);
+  });
+
+  it("v1 と v2 は別々に 3 世代ずつ数える", () => {
+    const { path, v2Path, dir } = seedBothMirrors();
+
+    const rounds = [0, 1, 2, 3].map((round) => manualRound(path, v2Path, round));
+
+    expect(generations(dir, V2_BASE, ".manual-backup")).toHaveLength(3);
+    const v1Kept = generations(dir, V1_BASE, ".manual-backup");
+    expect(v1Kept).toHaveLength(3);
+    expect(v1Kept).not.toContain(rounds[0]!.v1);
+    expect(v1Kept.sort()).toEqual([rounds[1]!.v1, rounds[2]!.v1, rounds[3]!.v1].sort());
+  });
+
+  it(".salvage-backup と .manual-backup は別々に 3 世代ずつ数える", async () => {
+    const { path, v2Path, dir } = seedBothMirrors();
+    [0, 1, 2].forEach((round) => manualRound(path, v2Path, round));
+    expect(generations(dir, V1_BASE, ".manual-backup")).toHaveLength(3);
+
+    for (const round of [0, 1, 2, 3]) await salvageRound(path, round);
+
+    expect(generations(dir, V1_BASE, ".salvage-backup")).toHaveLength(3);
+    expect(generations(dir, V1_BASE, ".manual-backup")).toHaveLength(3);
+    expect(generations(dir, V2_BASE, ".manual-backup")).toHaveLength(3);
+  });
+
+  it("別 base・別 extension・backup 以外のファイルは剪定しない", () => {
+    const { path, v2Path, dir } = seedBothMirrors();
+    writeFileSync(join(dir, `${V2_BASE}.2026-09-01T00-00-00-000Z.pre-restore`), "pre-restore", "utf8");
+    writeFileSync(join(dir, `${V2_BASE}.2026-09-01T00-00-01-000Z.0.other-backup`), "other", "utf8");
+    writeFileSync(join(dir, "unrelated.txt"), "unrelated", "utf8");
+
+    [0, 1, 2, 3].forEach((round) => manualRound(path, v2Path, round));
+
+    expect(existsSync(join(dir, `${V2_BASE}.2026-09-01T00-00-00-000Z.pre-restore`))).toBe(true);
+    expect(existsSync(join(dir, `${V2_BASE}.2026-09-01T00-00-01-000Z.0.other-backup`))).toBe(true);
+    expect(existsSync(join(dir, "unrelated.txt"))).toBe(true);
+    expect(generations(dir, V2_BASE, ".manual-backup")).toHaveLength(3);
+  });
+
+  it("既存 backup を再利用したときは剪定しない", () => {
+    const { path, v2Path, dir } = seedBothMirrors();
+    const v1Bytes = readFileSync(path);
+    const v2Bytes = readFileSync(v2Path);
+    for (const index of [0, 1, 2, 3, 4]) {
+      const stamp = `2026-09-0${index + 1}T00-00-00-000Z`;
+      writeFileSync(join(dir, `${V1_BASE}.${stamp}.0.manual-backup`), index === 0 ? v1Bytes : Buffer.from(`v1-${index}`));
+      writeFileSync(join(dir, `${V2_BASE}.${stamp}.0.manual-backup`), index === 0 ? v2Bytes : Buffer.from(`v2-${index}`));
+    }
+
+    const files = expectBackedUp(new StandbyPersistence(path, 0).backupCurrentMirrors("manual"));
+
+    expect(files.map((file) => file.reused)).toEqual([true, true]);
+    expect(generations(dir, V1_BASE, ".manual-backup")).toHaveLength(5);
+    expect(generations(dir, V2_BASE, ".manual-backup")).toHaveLength(5);
+  });
+
+  it("unlink 失敗は warn して続行し、backup 本体の成功を壊さない", () => {
+    const { path, v2Path, dir } = seedBothMirrors();
+    const warn = vi.spyOn(log, "warn").mockImplementation(() => undefined);
+    const originalUnlinkSync = fs.unlinkSync;
+    vi.spyOn(fs, "unlinkSync").mockImplementation(((target: unknown, ...args: unknown[]) => {
+      if (typeof target === "string" && target.endsWith(".manual-backup")) {
+        const error = new Error("unlink blocked") as NodeJS.ErrnoException;
+        error.code = "EACCES";
+        throw error;
+      }
+      return (originalUnlinkSync as (...inner: unknown[]) => unknown)(target, ...args);
+    }) as typeof fs.unlinkSync);
+
+    const rounds = [0, 1, 2, 3].map((round) => manualRound(path, v2Path, round));
+
+    expect(generations(dir, V2_BASE, ".manual-backup")).toHaveLength(4);
+    expect(readFileSync(join(dir, rounds[3]!.v2), "utf8")).toBe(`{"round":3,"mirror":"v2"}`);
+    expect(warn.mock.calls.map(([message]) => message)).toEqual(expect.arrayContaining([
+      expect.stringMatching(/^\[standby-persistence\] backup prune failed file=display-active-state-v2\.json\..+\.manual-backup: unlink blocked$/),
+    ]));
+  });
+
+  it("readdir 失敗は warn して続行し、backup 本体の成功を壊さない", () => {
+    const { path } = seedBothMirrors();
+    const warn = vi.spyOn(log, "warn").mockImplementation(() => undefined);
+    const originalReaddirSync = fs.readdirSync;
+    let backupWritten = false;
+    vi.spyOn(fs, "readdirSync").mockImplementation(((target: unknown, ...args: unknown[]) => {
+      if (backupWritten) {
+        const error = new Error("readdir blocked") as NodeJS.ErrnoException;
+        error.code = "EACCES";
+        throw error;
+      }
+      return (originalReaddirSync as (...inner: unknown[]) => unknown)(target, ...args);
+    }) as typeof fs.readdirSync);
+    const originalOpenSync = fs.openSync;
+    vi.spyOn(fs, "openSync").mockImplementation(((file: unknown, ...args: unknown[]) => {
+      const fd = (originalOpenSync as (...inner: unknown[]) => number)(file, ...args);
+      if (typeof file === "string" && file.endsWith(".manual-backup")) backupWritten = true;
+      return fd;
+    }) as typeof fs.openSync);
+
+    const files = expectBackedUp(new StandbyPersistence(path, 0).backupCurrentMirrors("manual"));
+
+    expect(files.map((file) => file.reused)).toEqual([false, false]);
+    expect(warn.mock.calls.map(([message]) => message)).toEqual(expect.arrayContaining([
+      expect.stringMatching(/^\[standby-persistence\] backup prune listing failed dir=.+ extension=manual-backup: readdir blocked$/),
+    ]));
+  });
+});

@@ -202,6 +202,15 @@ import {
 
 const PERSIST_SCHEMA_VERSION = 2;
 
+/**
+ * 1 つの source base × backup extension あたりに残す backup の世代数。
+ *
+ * 剪定は新規 backup を作成した直後にだけ走る（既存 backup の起動時一括削除はしない）。
+ * Pi では起動ごとに salvage backup が積み上がって data/runtime が肥大していたため、
+ * 「証拠は数世代あれば足りる」という運用判断で上限を設けている。
+ */
+const BACKUP_GENERATIONS_PER_KIND = 3;
+
 export type PersistenceLogicalGeneration = string;
 export const PERSISTENCE_LOGICAL_GENERATION_PATTERN = /^(0|[1-9]\d{0,19})$/;
 export const PERSISTENCE_LOGICAL_GENERATION_MAX = 18_446_744_073_709_551_615n;
@@ -2457,7 +2466,49 @@ export class StandbyPersistence {
       }
       throw err;
     }
+    this.pruneBackupGenerations(directory, base, extension);
     return { path: backupPath, reused: false };
+  }
+
+  /**
+   * 同じ source base かつ同じ extension の backup を新しい順に
+   * `BACKUP_GENERATIONS_PER_KIND` 件だけ残し、それより古いものを削除する。
+   *
+   * ファイル名は `${base}.${timestamp}.${collisionIndex}.${extension}` で timestamp は
+   * 固定幅の ISO 文字列なので、名前の降順がそのまま新しい順になる。
+   * 別 base（v1 / v2）・別 extension（salvage / manual）・backup 以外のファイルは対象外。
+   * 削除失敗は握り潰さず warn して続行する（backup 本体の成功は取り消さない）。
+   */
+  private pruneBackupGenerations(
+    directory: string,
+    base: string,
+    extension: "salvage-backup" | "manual-backup",
+  ): void {
+    const prefix = `${base}.`;
+    const tail = `.${extension}`;
+    let names: string[];
+    try {
+      names = fs.readdirSync(directory);
+    } catch (err) {
+      log.warn(
+        `[standby-persistence] backup prune listing failed dir=${directory} extension=${extension}: ${err instanceof Error ? err.message : String(err)}`,
+      );
+      return;
+    }
+    const generations = names
+      .filter((name) =>
+        name.length > prefix.length + tail.length && name.startsWith(prefix) && name.endsWith(tail))
+      .sort()
+      .reverse();
+    for (const name of generations.slice(BACKUP_GENERATIONS_PER_KIND)) {
+      try {
+        fs.unlinkSync(path.join(directory, name));
+      } catch (err) {
+        log.warn(
+          `[standby-persistence] backup prune failed file=${name}: ${err instanceof Error ? err.message : String(err)}`,
+        );
+      }
+    }
   }
 
   private fsyncBackupDirectory(directory: string): void {
