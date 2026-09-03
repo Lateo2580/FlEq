@@ -16,7 +16,8 @@ const LEVEL_LABEL: Record<DisplayTsunamiLevel, string> = {
  * 備え前方一致で判定する (server 側と同方針)。「大津波警報」を「津波警報」に誤判定しないよう
  * 大津波警報 → 津波警報 → 津波注意報 の順で判定する。
  * 解除 (Kind Code 60: 「津波注意報解除」等) は前方一致だと発表扱いになってしまうため、
- * 最初に弾いて null (未分類) にする。継続バナーの件数・グルーピングから外れる。
+ * 最初に弾いて null にする。継続バナーの件数からは外れるが、テロップでは isReleasedKind で
+ * 拾い直して独立した「解除」グループとして表示する (混在報でどこが解除されたかを残すため)。
  */
 function classifyKind(kind: string): DisplayTsunamiLevel | null {
   if (kind.includes("解除")) return null;
@@ -25,6 +26,17 @@ function classifyKind(kind: string): DisplayTsunamiLevel | null {
   if (kind.startsWith("津波注意報")) return "advisory";
   return null;
 }
+
+/**
+ * 解除 (Kind Code 60: 「津波注意報解除」等) かどうか。classifyKind が解除を null に落とすため、
+ * 「解除された沿岸」と「そもそも分類対象でない沿岸 (津波予報等)」を区別するにはこちらで判定する。
+ */
+function isReleasedKind(kind: string): boolean {
+  return kind.includes("解除");
+}
+
+/** 解除グループの見出しラベル。LEVEL_LABEL (警報区分の正式名) とは別語彙 */
+const RELEASED_LABEL = "解除";
 
 export interface TsunamiLevelSummary {
   level: DisplayTsunamiLevel;
@@ -67,23 +79,40 @@ export function shortLevelLabel(level: DisplayTsunamiLevel): string {
   return "注意報";
 }
 
-export interface CoastGroup {
-  /** 分類できなかった coasts (津波予報等) は null。marquee ではラベルなしでそのまま並べる */
-  level: DisplayTsunamiLevel | null;
-  label: string | null;
-  names: string[];
-}
+/**
+ * marquee テロップ用の沿岸グループ。3 種を判別共用体で分ける:
+ * - `level`: 発表中の警報区分 (大津波警報 / 津波警報 / 津波注意報)
+ * - `released`: 解除された沿岸。件数チップには載らないが、混在報でどこが解除されたかを読めるよう
+ *   テロップには「【解除】…」として残す
+ * - `unclassified`: 分類対象外 (津波予報「若干の海面変動」等)。ラベルなしでそのまま並べる
+ * 解除と未分類はどちらも level=null だが、label の有無が異なるため型で取り違えられないようにする。
+ */
+export type CoastGroup =
+  | { kind: "level"; level: DisplayTsunamiLevel; label: string; names: string[] }
+  | { kind: "released"; level: null; label: string; names: string[] }
+  | { kind: "unclassified"; level: null; label: null; names: string[] };
 
 /**
- * marquee テロップ用に coasts をレベル別にグルーピングする (レベル降順、未分類は末尾)。
- * どの地域がどの警報区分かを判別できるよう、各グループの見出しラベルをテロップ側で付与する。
+ * marquee テロップ用に coasts をグルーピングする。
+ * 並びはレベル降順 → 解除 → 未分類。どの地域がどの区分かを判別できるよう、
+ * 各グループの見出しラベルをテロップ側で付与する。
  */
 export function groupCoastsByLevel(
   coasts: DisplayTsunamiStateV1["coasts"],
 ): CoastGroup[] {
-  const byLevel = new Map<DisplayTsunamiLevel | null, string[]>();
+  const byLevel = new Map<DisplayTsunamiLevel, string[]>();
+  const released: string[] = [];
+  const unclassified: string[] = [];
   for (const c of coasts) {
+    if (isReleasedKind(c.kind)) {
+      released.push(c.name);
+      continue;
+    }
     const level = classifyKind(c.kind);
+    if (level == null) {
+      unclassified.push(c.name);
+      continue;
+    }
     const names = byLevel.get(level) ?? [];
     names.push(c.name);
     byLevel.set(level, names);
@@ -91,9 +120,13 @@ export function groupCoastsByLevel(
   const groups: CoastGroup[] = [];
   for (const level of LEVEL_ORDER) {
     const names = byLevel.get(level);
-    if (names != null) groups.push({ level, label: LEVEL_LABEL[level], names });
+    if (names != null) groups.push({ kind: "level", level, label: LEVEL_LABEL[level], names });
   }
-  const unclassified = byLevel.get(null);
-  if (unclassified != null) groups.push({ level: null, label: null, names: unclassified });
+  if (released.length > 0) {
+    groups.push({ kind: "released", level: null, label: RELEASED_LABEL, names: released });
+  }
+  if (unclassified.length > 0) {
+    groups.push({ kind: "unclassified", level: null, label: null, names: unclassified });
+  }
   return groups;
 }

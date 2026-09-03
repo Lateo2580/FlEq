@@ -44,3 +44,12 @@ describe("standby-marquee-pages", () => {
     }
   });
 });
+
+describe("standby-marquee-pages (解除の混在報)", () => {
+  it("静止ページでも解除沿岸が【解除】見出し付きで巡回する", () => {
+    expect(tsunamiStaticPages([
+      { name: "宮崎県", kind: "津波警報", maxHeight: null, firstHeight: null },
+      { name: "大阪府", kind: "津波注意報解除", maxHeight: null, firstHeight: null },
+    ])).toEqual(["【津波警報】", "宮崎県", "【解除】", "大阪府"]);
+  });
+});

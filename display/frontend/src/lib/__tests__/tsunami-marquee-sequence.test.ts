@@ -7,12 +7,18 @@ import {
   joinMarqueeSegments,
   nextSegmentIndex,
 } from "../tsunami-marquee-sequence";
+import { groupCoastsByLevel } from "../tsunami-banner";
 import type { CoastGroup } from "../tsunami-banner";
+import type { DisplayTsunamiStateV1 } from "../protocol";
+
+function coast(name: string, kind: string): DisplayTsunamiStateV1["coasts"][number] {
+  return { name, kind, maxHeight: null, firstHeight: null };
+}
 
 const groups: CoastGroup[] = [
-  { level: "majorWarning", label: "大津波警報", names: ["宮崎県", "高知県"] },
-  { level: "warning", label: "津波警報", names: ["大分県瀬戸内海沿岸"] },
-  { level: "advisory", label: "津波注意報", names: ["沖縄本島地方"] },
+  { kind: "level", level: "majorWarning", label: "大津波警報", names: ["宮崎県", "高知県"] },
+  { kind: "level", level: "warning", label: "津波警報", names: ["大分県瀬戸内海沿岸"] },
+  { kind: "level", level: "advisory", label: "津波注意報", names: ["沖縄本島地方"] },
 ];
 
 describe("buildMarqueeSegments", () => {
@@ -26,7 +32,7 @@ describe("buildMarqueeSegments", () => {
   });
 
   it("label が null (未分類) のグループはラベルなしでそのまま並べる", () => {
-    const segments = buildMarqueeSegments([{ level: null, label: null, names: ["大阪府"] }]);
+    const segments = buildMarqueeSegments([{ kind: "unclassified", level: null, label: null, names: ["大阪府"] }]);
     expect(segments).toEqual([{ level: null, text: "大阪府" }]);
   });
 });
@@ -96,5 +102,30 @@ describe("isChipEmphasized", () => {
   it("未分類セグメント巡回中 (currentLevel=null) は差をつけない (常時強調のまま)", () => {
     expect(isChipEmphasized("majorWarning", null, true)).toBe(true);
     expect(isChipEmphasized("warning", null, true)).toBe(true);
+  });
+});
+
+describe("buildMarqueeSegments (解除の混在報)", () => {
+  it("継続沿岸の【津波警報】と解除沿岸の【解除】が双方テロップに出る", () => {
+    const segments = buildMarqueeSegments(groupCoastsByLevel([
+      coast("宮崎県", "津波警報"),
+      coast("大阪府", "津波注意報解除"),
+      coast("和歌山県", "津波注意報解除"),
+      coast("福井県", "津波予報（若干の海面変動）"),
+    ]));
+    expect(segments).toEqual([
+      { level: "warning", text: "【津波警報】宮崎県" },
+      { level: null, text: "【解除】大阪府・和歌山県" },
+      { level: null, text: "福井県" },
+    ]);
+    expect(joinMarqueeSegments(segments)).toBe("【津波警報】宮崎県　【解除】大阪府・和歌山県　福井県");
+  });
+
+  it("解除のみの報でも【解除】付きで地域名が出る (地域名だけにならない)", () => {
+    const segments = buildMarqueeSegments(groupCoastsByLevel([
+      coast("大阪府", "津波注意報解除"),
+      coast("宮崎県", "津波警報解除"),
+    ]));
+    expect(segments).toEqual([{ level: null, text: "【解除】大阪府・宮崎県" }]);
   });
 });
