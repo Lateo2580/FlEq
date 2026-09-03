@@ -5,6 +5,8 @@ import type { TestTableEntry } from "../test-samples";
 import * as log from "../../logger";
 import type { ReplContext } from "./types";
 import { hasBackupSupport } from "./info-handlers";
+import type { VolcanoRepairAdministration } from "../../engine/messages/volcano-transaction-coordinator";
+import type { VolcanoRepairTarget } from "../../engine/messages/volcano-state";
 
 /** test table 電文タイプ名のエイリアス (短縮形 → 正式名) */
 const TABLE_TYPE_ALIASES: Record<string, string> = {
@@ -263,7 +265,114 @@ export async function handleDisplay(ctx: ReplContext, args: string): Promise<voi
   console.log(chalk.yellow("  使い方: display / display on / display off"));
 }
 
-export function handleVolcanoRepair(ctx: ReplContext, args: string): void {
+const VOLCANO_REST_REPAIR_USAGE =
+  "  使い方: volcanorepair rest [vfvo50|ashfall|all] [--dry-run] --confirm <理由...>";
+
+/** `--confirm` 以降は reason 本文なので、option としては解釈しない（spec §4.1）。 */
+interface VolcanoRestRepairArgs {
+  targets: VolcanoRepairTarget[];
+  dryRun: boolean;
+  reason: string;
+}
+
+function parseVolcanoRestRepairArgs(parts: string[]): VolcanoRestRepairArgs | null {
+  let index = 0;
+  let targets: VolcanoRepairTarget[] = ["vfvo50"];
+  const first = parts[0]?.toLowerCase();
+  if (first != null && !first.startsWith("--")) {
+    if (first === "vfvo50") targets = ["vfvo50"];
+    else if (first === "ashfall") targets = ["ashfall"];
+    else if (first === "all") targets = ["vfvo50", "ashfall"];
+    else return null;
+    index = 1;
+  }
+  let dryRun = false;
+  let confirmed = false;
+  let reason = "";
+  for (; index < parts.length; index += 1) {
+    const token = parts[index]!;
+    if (token === "--dry-run") {
+      dryRun = true;
+      continue;
+    }
+    if (token === "--confirm") {
+      const tail = parts.slice(index + 1);
+      // `--confirm` より後の `--dry-run` は完全一致でだけ usage error にする。
+      if (tail.includes("--dry-run")) return null;
+      reason = tail.join(" ").trim();
+      confirmed = true;
+      break;
+    }
+    return null;
+  }
+  if (!dryRun && !confirmed) return null;
+  if (confirmed && reason === "") return null;
+  return { targets, dryRun, reason };
+}
+
+async function handleVolcanoRestRepair(
+  administration: VolcanoRepairAdministration,
+  parts: string[],
+): Promise<void> {
+  const restRepair = administration.restRepair;
+  if (restRepair == null) {
+    console.log(chalk.yellow("  火山 REST repair はこの構成では利用できません"));
+    return;
+  }
+  const parsed = parseVolcanoRestRepairArgs(parts);
+  if (parsed == null) {
+    console.log(chalk.yellow(VOLCANO_REST_REPAIR_USAGE));
+    return;
+  }
+  if (parsed.targets.includes("ashfall")) {
+    console.log(chalk.yellow("  警告: ashfall force は現在の降灰 slice と gate を全削除してから 7 日窓を replay します。"));
+    console.log(chalk.yellow("        窓外・REST 取得漏れの降灰情報は復元されません。"));
+  }
+  console.log(chalk.cyan(`  火山 REST repair: targets=${parsed.targets.join(",")} mode=${parsed.dryRun ? "dry-run" : "commit"}`));
+  const result = await restRepair({
+    targets: parsed.targets,
+    dryRun: parsed.dryRun,
+    reason: parsed.reason,
+  });
+  if (result.kind === "busy") {
+    console.log(chalk.yellow("  火山 repair が実行中です (busy)"));
+    return;
+  }
+  if (result.kind === "cooldown") {
+    console.log(chalk.yellow(`  クールダウン中です (残り ${Math.ceil(result.remainingMs / 1000)} 秒)`));
+    return;
+  }
+  if (result.kind === "notConnected") {
+    console.log(chalk.yellow("  WebSocket 未接続のため実行できません (notConnected)"));
+    return;
+  }
+  if (result.kind === "backupFailed") {
+    console.log(chalk.yellow(`  永続 mirror の退避に失敗したため中止しました (backupFailed: ${result.reason})`));
+    console.log(chalk.gray(`    ${result.detail}`));
+    return;
+  }
+  if (result.backupFiles.length === 0) {
+    console.log(chalk.gray("  backup: なし"));
+  } else {
+    for (const file of result.backupFiles) {
+      console.log(chalk.gray(`  backup: ${file.source} ${file.reused ? "既存再利用" : "新規作成"} ${file.path}`));
+    }
+  }
+  for (const target of result.targets) {
+    if (target.kind === "committed") {
+      console.log(chalk.green(`  ${target.target}: committed`));
+    } else if (target.kind === "proved") {
+      console.log(chalk.cyan(`  ${target.target}: proved (historical=${target.historicalCount ?? 0} journal=${target.journalCount ?? 0})`));
+    } else {
+      const reason = target.reason === "subscriptionGenerationChanged"
+        ? "ackChanged"
+        : `failed(${target.reason ?? "unknown"})`;
+      console.log(chalk.yellow(`  ${target.target}: ${reason}`));
+    }
+  }
+}
+
+export async function handleVolcanoRepair(ctx: ReplContext, args: string): Promise<void> {
   const administration = ctx.volcanoRepairAdministration;
   if (administration == null) {
     console.log(chalk.yellow("  火山修復管理はこの構成では利用できません"));
@@ -271,6 +380,10 @@ export function handleVolcanoRepair(ctx: ReplContext, args: string): void {
   }
   const parts = args.trim().split(/\s+/u).filter(Boolean);
   const subcommand = parts.shift()?.toLowerCase() ?? "status";
+  if (subcommand === "rest") {
+    await handleVolcanoRestRepair(administration, parts);
+    return;
+  }
   const status = administration.status();
   if (subcommand === "status") {
     if (status.length === 0) {

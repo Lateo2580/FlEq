@@ -93,6 +93,7 @@ import * as themeModule from "../../src/ui/theme";
 import type {
   ResolveOperationalV2AlertOmissionResult,
   VolcanoRepairAdministration,
+  VolcanoRestRepairResult,
 } from "../../src/engine/messages/volcano-transaction-coordinator";
 
 const mockListEarthquakes = vi.mocked(listEarthquakes);
@@ -881,6 +882,256 @@ describe("ReplHandler", () => {
       });
       const output = consoleSpy.mock.calls.map((call) => String(call[0])).join("\n");
       expect(output).toContain("火山 provenance 修復を記録しました");
+      handler.stop();
+    });
+
+    // ---- spec §14.1 volcanorepair rest ----
+
+    /** rest 用: restRepair mock 付き administration */
+    function restAdministration(
+      result: VolcanoRestRepairResult = {
+        kind: "completed",
+        dryRun: false,
+        backupFiles: [{ source: "v2", path: "/tmp/standby.v2.json.1.0.manual-backup", reused: false }],
+        targets: [{ target: "vfvo50", kind: "committed" }],
+      },
+    ): VolcanoRepairAdministration & { restRepair: ReturnType<typeof vi.fn> } {
+      return {
+        ...administration(),
+        restRepair: vi.fn(async () => result),
+      };
+    }
+
+    /** handler の Promise が解決するまでマイクロタスクを流す */
+    async function flush(): Promise<void> {
+      await new Promise((resolve) => setImmediate(resolve));
+    }
+
+    function outputText(): string {
+      return consoleSpy.mock.calls.map((call) => String(call[0])).join("\n");
+    }
+
+    it("spec §14.1 #1: rest の target 省略時は vfvo50 だけを既定にする", async () => {
+      const admin = restAdministration();
+      const handler = repairHandler(admin);
+      handler.start();
+
+      simulateLine("volcanorepair rest --confirm 既定確認");
+      await flush();
+
+      expect(admin.restRepair).toHaveBeenCalledTimes(1);
+      expect(admin.restRepair.mock.calls[0]![0]).toEqual({
+        targets: ["vfvo50"],
+        dryRun: false,
+        reason: "既定確認",
+      });
+      // VFVO50 単独では破壊性の警告を出さない
+      expect(outputText()).not.toContain("警告: ashfall force");
+      handler.stop();
+    });
+
+    it("spec §14.1 #2: rest ashfall / rest all は target を解決し破壊性の警告を出す", async () => {
+      for (const [token, targets] of [
+        ["ashfall", ["ashfall"]],
+        ["all", ["vfvo50", "ashfall"]],
+      ] as const) {
+        consoleSpy.mockClear();
+        const admin = restAdministration();
+        const handler = repairHandler(admin);
+        handler.start();
+
+        simulateLine(`volcanorepair rest ${token} --confirm 破壊確認`);
+        await flush();
+
+        expect(admin.restRepair.mock.calls[0]![0].targets).toEqual(targets);
+        const output = outputText();
+        expect(output).toContain("警告: ashfall force は現在の降灰 slice と gate を全削除してから 7 日窓を replay します。");
+        expect(output).toContain("窓外・REST 取得漏れの降灰情報は復元されません。");
+        handler.stop();
+      }
+    });
+
+    it("spec §14.1 #3: 未知 target token は使い方表示だけで restRepair を呼ばない", async () => {
+      const admin = restAdministration();
+      const handler = repairHandler(admin);
+      handler.start();
+
+      simulateLine("volcanorepair rest vfvo51 --confirm 未知");
+      await flush();
+
+      expect(admin.restRepair).not.toHaveBeenCalled();
+      expect(outputText()).toContain("使い方: volcanorepair rest");
+      handler.stop();
+    });
+
+    it("spec §14.1 #4: --confirm 無しの非 dry-run は使い方表示だけで終わる", async () => {
+      const admin = restAdministration();
+      const handler = repairHandler(admin);
+      handler.start();
+
+      simulateLine("volcanorepair rest all");
+      await flush();
+
+      expect(admin.restRepair).not.toHaveBeenCalled();
+      expect(outputText()).toContain("使い方: volcanorepair rest");
+      handler.stop();
+    });
+
+    it("spec §14.1 #5: --confirm の reason が空なら使い方表示だけで終わる", async () => {
+      const admin = restAdministration();
+      const handler = repairHandler(admin);
+      handler.start();
+
+      simulateLine("volcanorepair rest --confirm    ");
+      await flush();
+
+      expect(admin.restRepair).not.toHaveBeenCalled();
+      expect(outputText()).toContain("使い方: volcanorepair rest");
+      handler.stop();
+    });
+
+    it("spec §14.1 #6: --dry-run は --confirm 無しでも restRepair を呼ぶ", async () => {
+      const admin = restAdministration({
+        kind: "completed",
+        dryRun: true,
+        backupFiles: [],
+        targets: [{ target: "vfvo50", kind: "proved", historicalCount: 3, journalCount: 1 }],
+      });
+      const handler = repairHandler(admin);
+      handler.start();
+
+      simulateLine("volcanorepair rest --dry-run");
+      await flush();
+
+      expect(admin.restRepair).toHaveBeenCalledWith({
+        targets: ["vfvo50"],
+        dryRun: true,
+        reason: "",
+      });
+      expect(outputText()).toContain("vfvo50: proved (historical=3 journal=1)");
+      handler.stop();
+    });
+
+    it("spec §14.1 #7: rest all --dry-run --confirm <理由> を受理する", async () => {
+      const admin = restAdministration({
+        kind: "completed",
+        dryRun: true,
+        backupFiles: [],
+        targets: [],
+      });
+      const handler = repairHandler(admin);
+      handler.start();
+
+      simulateLine("volcanorepair rest all --dry-run --confirm 動作確認");
+      await flush();
+
+      expect(admin.restRepair).toHaveBeenCalledWith({
+        targets: ["vfvo50", "ashfall"],
+        dryRun: true,
+        reason: "動作確認",
+      });
+      handler.stop();
+    });
+
+    it("spec §14.1 #8: --confirm より後の --dry-run は使い方表示で終わる", async () => {
+      const admin = restAdministration();
+      const handler = repairHandler(admin);
+      handler.start();
+
+      simulateLine("volcanorepair rest all --confirm 動作確認 --dry-run");
+      await flush();
+
+      expect(admin.restRepair).not.toHaveBeenCalled();
+      expect(outputText()).toContain("使い方: volcanorepair rest");
+      handler.stop();
+    });
+
+    it("spec §14.1 #9: --dry-run=1 は完全一致しないので reason 本文として通す", async () => {
+      const admin = restAdministration();
+      const handler = repairHandler(admin);
+      handler.start();
+
+      simulateLine("volcanorepair rest all --confirm 手順 --dry-run=1");
+      await flush();
+
+      expect(admin.restRepair).toHaveBeenCalledWith({
+        targets: ["vfvo50", "ashfall"],
+        dryRun: false,
+        reason: "手順 --dry-run=1",
+      });
+      handler.stop();
+    });
+
+    it("spec §14.1 #10: administration や restRepair が無い構成では利用できませんと出す", async () => {
+      const withoutAdministration = new ReplHandler(
+        createConfig(), createMockWsManager(), new Notifier(), new EewEventLogger(), vi.fn(),
+        new TelegramStats(),
+      );
+      withoutAdministration.start();
+      expect(() => simulateLine("volcanorepair rest --confirm 未提供")).not.toThrow();
+      await flush();
+      expect(outputText()).toContain("火山修復管理はこの構成では利用できません");
+      withoutAdministration.stop();
+
+      consoleSpy.mockClear();
+      const handler = repairHandler(administration());
+      handler.start();
+      expect(() => simulateLine("volcanorepair rest --confirm 未実装")).not.toThrow();
+      await flush();
+      expect(outputText()).toContain("火山 REST repair はこの構成では利用できません");
+      handler.stop();
+    });
+
+    it("spec §14.1 #11: handler の Promise を repl が await して commandRunning を解除する", async () => {
+      let release: (() => void) | null = null;
+      const admin: VolcanoRepairAdministration = {
+        ...administration(),
+        restRepair: vi.fn(() => new Promise<VolcanoRestRepairResult>((resolve) => {
+          release = () => resolve({
+            kind: "completed", dryRun: true, backupFiles: [], targets: [],
+          });
+        })),
+      };
+      const handler = repairHandler(admin);
+      handler.start();
+      mockRl.prompt.mockClear();
+
+      simulateLine("volcanorepair rest --dry-run");
+      await flush();
+      // await 中はプロンプトを描き直さない (commandRunning = true)
+      expect(mockRl.prompt).not.toHaveBeenCalled();
+
+      release!();
+      await flush();
+      expect(mockRl.prompt).toHaveBeenCalled();
+      handler.stop();
+    });
+
+    it("spec §14.1 #12: 既存 status / accept / clear / acknowledge-domain の挙動は変わらない", async () => {
+      const admin = restAdministration();
+      const handler = repairHandler(admin);
+      handler.start();
+
+      simulateLine("volcanorepair status");
+      await flush();
+      expect(outputText()).toContain(`fingerprint=${fingerprint}`);
+
+      consoleSpy.mockClear();
+      simulateLine(`volcanorepair accept ${fingerprint} 現況を確認済み`);
+      await flush();
+      expect(admin.resolveOperationalV2AlertOmission).toHaveBeenCalledWith({
+        omissionFingerprint: fingerprint,
+        action: "acceptCurrent",
+        reason: "現況を確認済み",
+        expectedRuntimeVersion: 7,
+      });
+
+      consoleSpy.mockClear();
+      simulateLine("volcanorepair accept");
+      await flush();
+      expect(outputText())
+        .toContain("使い方: volcanorepair status | accept/clear/acknowledge-domain <fingerprint> <reason...>");
+      expect(admin.restRepair).not.toHaveBeenCalled();
       handler.stop();
     });
 

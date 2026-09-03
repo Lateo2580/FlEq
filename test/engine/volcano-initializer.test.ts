@@ -6,6 +6,7 @@ import {
   proveVolcanoTypeCoverage,
   repairVolcanoState,
   VolcanoRepairJournal,
+  type VolcanoStartupRepairResult,
 } from "../../src/engine/startup/volcano-initializer";
 import {
   emptyVolcanoRepairState,
@@ -376,7 +377,7 @@ describe("volcano REST repair coverage", () => {
     const result = await fetchVolcanoHistoricalPaginationUnion({
       apiKey: "key",
       headType: "VFVO50",
-      startupNowMs: REPAIR_NOW,
+      nowMs: REPAIR_NOW,
       retentionMs: REPAIR_RETENTION_MS,
       loadPage,
     });
@@ -399,7 +400,7 @@ describe("volcano REST repair coverage", () => {
     await expect(fetchVolcanoHistoricalPaginationUnion({
       apiKey: "key",
       headType: "VFVO50",
-      startupNowMs: REPAIR_NOW,
+      nowMs: REPAIR_NOW,
       retentionMs: REPAIR_RETENTION_MS,
       loadPage,
     })).rejects.toThrow("historicalNextTokenLoop");
@@ -411,7 +412,7 @@ describe("volcano REST repair coverage", () => {
     await expect(fetchVolcanoHistoricalPaginationUnion({
       apiKey: "key",
       headType: "VFVO50",
-      startupNowMs: REPAIR_NOW,
+      nowMs: REPAIR_NOW,
       retentionMs: REPAIR_RETENTION_MS,
       loadPage: vi.fn().mockResolvedValue(createResponse(items)),
     })).rejects.toThrow("historicalPageSizeExceeded");
@@ -424,7 +425,7 @@ describe("volcano REST repair coverage", () => {
     await expect(proveVolcanoTypeCoverage({
       apiKey: "key",
       headType: "VFVO50",
-      startupNowMs: REPAIR_NOW,
+      nowMs: REPAIR_NOW,
       retentionMs: REPAIR_RETENTION_MS,
       journal,
       getAcknowledgement: () => REPAIR_ACK,
@@ -442,7 +443,7 @@ describe("volcano REST repair coverage", () => {
     await expect(proveVolcanoTypeCoverage({
       apiKey: "key",
       headType: "VFVO50",
-      startupNowMs: REPAIR_NOW,
+      nowMs: REPAIR_NOW,
       retentionMs: REPAIR_RETENTION_MS,
       journal,
       getAcknowledgement: () => REPAIR_ACK,
@@ -474,7 +475,7 @@ describe("volcano REST repair coverage", () => {
     await expect(proveVolcanoTypeCoverage({
       apiKey: "key",
       headType: "VFVO50",
-      startupNowMs: REPAIR_NOW,
+      nowMs: REPAIR_NOW,
       retentionMs: REPAIR_RETENTION_MS,
       journal,
       getAcknowledgement: () => REPAIR_ACK,
@@ -532,7 +533,7 @@ describe("volcano REST repair coverage", () => {
     const historical = await fetchVolcanoHistoricalPaginationUnion({
       apiKey: "key",
       headType: "VFVO50",
-      startupNowMs: REPAIR_NOW,
+      nowMs: REPAIR_NOW,
       retentionMs: REPAIR_RETENTION_MS,
       loadPage: vi.fn().mockResolvedValue(createResponse([
         repairItem(` ${decomposed} `, REPAIR_NOW),
@@ -544,7 +545,7 @@ describe("volcano REST repair coverage", () => {
     const proof = await proveVolcanoTypeCoverage({
       apiKey: "key",
       headType: "VFVO50",
-      startupNowMs: REPAIR_NOW,
+      nowMs: REPAIR_NOW,
       retentionMs: REPAIR_RETENTION_MS,
       journal: new VolcanoRepairJournal(REPAIR_ACK, ["vfvo50"]),
       getAcknowledgement: () => REPAIR_ACK,
@@ -599,7 +600,7 @@ describe("volcano REST repair coverage", () => {
 
     await expect(repairVolcanoState({
       apiKey: "key",
-      startupNowMs: REPAIR_NOW,
+      nowMs: REPAIR_NOW,
       coordinator,
       journal,
       getAcknowledgement: () => REPAIR_ACK,
@@ -677,7 +678,7 @@ describe("volcano REST repair coverage", () => {
 
     await expect(repairVolcanoState({
       apiKey: "key",
-      startupNowMs: REPAIR_NOW,
+      nowMs: REPAIR_NOW,
       coordinator,
       journal,
       getAcknowledgement: () => REPAIR_ACK,
@@ -775,7 +776,7 @@ describe("volcano REST repair against real telegram list responses", () => {
       const proof = await proveVolcanoTypeCoverage({
         apiKey: "key",
         headType,
-        startupNowMs: REAL_FIXTURE_NOW,
+        nowMs: REAL_FIXTURE_NOW,
         retentionMs: REAL_FIXTURE_RETENTION_MS,
         journal: new VolcanoRepairJournal(REPAIR_ACK, [
           headType === "VFVO50" ? "vfvo50" : "ashfall",
@@ -811,7 +812,7 @@ describe("volcano REST repair body loading", () => {
     await proveVolcanoTypeCoverage({
       apiKey: "key",
       headType: "VFVO50",
-      startupNowMs: REPAIR_NOW,
+      nowMs: REPAIR_NOW,
       retentionMs: REPAIR_RETENTION_MS,
       journal,
       getAcknowledgement: () => REPAIR_ACK,
@@ -834,7 +835,7 @@ describe("volcano REST repair body loading", () => {
     const options = {
       apiKey: "key",
       headType: "VFVO50" as const,
-      startupNowMs: REPAIR_NOW,
+      nowMs: REPAIR_NOW,
       retentionMs: REPAIR_RETENTION_MS,
       getAcknowledgement: () => REPAIR_ACK,
       loadPage: vi.fn().mockResolvedValue(createResponse([
@@ -866,7 +867,7 @@ describe("volcano REST repair body loading", () => {
     await expect(proveVolcanoTypeCoverage({
       apiKey: "key",
       headType: "VFVO50",
-      startupNowMs: REPAIR_NOW,
+      nowMs: REPAIR_NOW,
       retentionMs: REPAIR_RETENTION_MS,
       journal: new VolcanoRepairJournal(REPAIR_ACK, ["vfvo50"]),
       getAcknowledgement: () => bodyLoaded
@@ -892,7 +893,7 @@ describe("volcano REST repair body loading", () => {
     await expect(proveVolcanoTypeCoverage({
       apiKey: "key",
       headType: "VFVO50",
-      startupNowMs: REPAIR_NOW,
+      nowMs: REPAIR_NOW,
       retentionMs: REPAIR_RETENTION_MS,
       journal,
       getAcknowledgement: () => REPAIR_ACK,
@@ -942,7 +943,7 @@ describe("volcano REST repair body failure isolation", () => {
 
     const result = await repairVolcanoState({
       apiKey: "key",
-      startupNowMs: REPAIR_NOW,
+      nowMs: REPAIR_NOW,
       coordinator,
       journal,
       getAcknowledgement: () => REPAIR_ACK,
@@ -979,7 +980,7 @@ describe("volcano REST repair body failure isolation", () => {
 
       await expect(repairVolcanoState({
         apiKey: "key",
-        startupNowMs: REPAIR_NOW,
+        nowMs: REPAIR_NOW,
         coordinator,
         journal: new VolcanoRepairJournal(REPAIR_ACK, ["ashfall"]),
         getAcknowledgement: () => REPAIR_ACK,
@@ -1042,7 +1043,7 @@ describe("volcano REST repair body fetch budget", () => {
     const proof = await proveVolcanoTypeCoverage({
       apiKey: "key",
       headType: "VFVO50",
-      startupNowMs: REPAIR_NOW,
+      nowMs: REPAIR_NOW,
       retentionMs: REPAIR_RETENTION_MS,
       journal: new VolcanoRepairJournal(REPAIR_ACK, ["vfvo50"]),
       getAcknowledgement: () => REPAIR_ACK,
@@ -1067,7 +1068,7 @@ describe("volcano REST repair body fetch budget", () => {
     await expect(proveVolcanoTypeCoverage({
       apiKey: "key",
       headType: "VFVO50",
-      startupNowMs: REPAIR_NOW,
+      nowMs: REPAIR_NOW,
       retentionMs: REPAIR_RETENTION_MS,
       journal: new VolcanoRepairJournal(REPAIR_ACK, ["vfvo50"]),
       getAcknowledgement: () => REPAIR_ACK,
@@ -1098,7 +1099,7 @@ describe("volcano REST repair body fetch budget", () => {
     const proof = await proveVolcanoTypeCoverage({
       apiKey: "key",
       headType: "VFVO50",
-      startupNowMs: REPAIR_NOW,
+      nowMs: REPAIR_NOW,
       retentionMs: REPAIR_RETENTION_MS,
       journal,
       getAcknowledgement: () => REPAIR_ACK,
@@ -1189,7 +1190,7 @@ describe("volcano REST repair head revision cross-checks", () => {
 
     const result = await repairVolcanoState({
       apiKey: "key",
-      startupNowMs: REPAIR_NOW,
+      nowMs: REPAIR_NOW,
       coordinator,
       journal,
       getAcknowledgement: () => REPAIR_ACK,
@@ -1217,5 +1218,475 @@ describe("volcano REST repair head revision cross-checks", () => {
     expect(coordinator.snapshot()).toEqual(before);
     expect(repair.ashfallRepairable).toBe(true);
     expect(standby.cloneSnapshot()).toEqual(standbyBefore);
+  });
+});
+
+// ── spec §14.3 / §14.4: 手動 force・二段階 commit・dry-run ──
+
+describe("volcano manual force repair (spec §14.3 / §14.4)", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockParseVolcano.mockImplementation((msg: WsDataMessage) => msg.head.type === "VFVO50"
+      ? alertFromXmlReport(msg)
+      : ashfallFromXmlReport(msg));
+  });
+
+  /** repairable が両方 false の coordinator（force の前提） */
+  function forceFixture(flags: { vfvo50?: boolean; ashfall?: boolean } = {}) {
+    const gate = new TelegramRevisionGate();
+    const holder = new VolcanoStateHolder();
+    const standby = new StandbyStateStore();
+    standby.replaceVolcanoDerived(holder.snapshot());
+    const repair = emptyVolcanoRepairState();
+    repair.vfvo50Repairable = flags.vfvo50 === true;
+    repair.ashfallRepairable = flags.ashfall === true;
+    const admission = new StandbyPersistenceAdmissionCoordinator({
+      owners: {
+        telegramRevisionGate: gate,
+        standbyStateStore: standby,
+        vpws50State: new Vpws50StateHolder(),
+        vpww56State: new Vpww56StateHolder(),
+        tsunamiState: new TsunamiStateHolder(),
+        volcanoState: holder,
+        floodForecastState: new FloodForecastStateHolder(),
+      },
+      repairState: repair,
+    });
+    return { coordinator: new VolcanoTransactionCoordinator(admission), standby, repair };
+  }
+
+  const emptyPages = () => vi.fn(async () => createResponse([]));
+
+  // spec §14.3 #27
+  it("spec §14.3 #27: repairable が両方 false でも targets 指定で VFVO50 を commit する", async () => {
+    const { coordinator, repair } = forceFixture();
+    expect(repair.vfvo50Repairable).toBe(false);
+    const requestedTypes: string[] = [];
+    const loadPage = vi.fn(async (_apiKey: string, query: { type: string }) => {
+      requestedTypes.push(query.type);
+      return createResponse([]);
+    });
+
+    const result = await repairVolcanoState({
+      apiKey: "key",
+      nowMs: REPAIR_NOW,
+      coordinator,
+      journal: new VolcanoRepairJournal(REPAIR_ACK, ["vfvo50"]),
+      getAcknowledgement: () => REPAIR_ACK,
+      targets: ["vfvo50"],
+      commitPolicy: "twoPhase",
+      loadPage: loadPage as never,
+      loadBody: mockBodyLoader(),
+    });
+
+    expect(result).toEqual({ targets: [{ target: "vfvo50", kind: "committed" }] });
+    expect(new Set(requestedTypes)).toEqual(new Set(["VFVO50"]));
+    expect(coordinator.snapshot().repair.vfvo50Repairable).toBe(false);
+  });
+
+  // spec §14.3 #28
+  it("spec §14.3 #28: ashfall は VFVO54/55 の両 proof を走らせ片方失敗なら commit しない", async () => {
+    const { coordinator } = forceFixture();
+    const before = coordinator.snapshot();
+    const seen: string[] = [];
+    const loadPage = vi.fn(async (_apiKey: string, query: { type: string }) => {
+      seen.push(query.type);
+      if (query.type === "VFVO55") throw new Error("historicalResponseMissingBody");
+      return createResponse([]);
+    });
+
+    const result = await repairVolcanoState({
+      apiKey: "key",
+      nowMs: REPAIR_NOW,
+      coordinator,
+      journal: new VolcanoRepairJournal(REPAIR_ACK, ["ashfall"]),
+      getAcknowledgement: () => REPAIR_ACK,
+      targets: ["ashfall"],
+      commitPolicy: "twoPhase",
+      loadPage: loadPage as never,
+      loadBody: mockBodyLoader(),
+    });
+
+    expect(new Set(seen)).toEqual(new Set(["VFVO54", "VFVO55"]));
+    expect(result.targets).toEqual([
+      { target: "ashfall", kind: "failed", reason: "historicalResponseMissingBody" },
+    ]);
+    expect(coordinator.snapshot()).toEqual(before);
+  });
+
+  // spec §14.3 #29
+  it("spec §14.3 #29: targets 両指定で target ごとに独立して成功・失敗する", async () => {
+    const { coordinator } = forceFixture();
+
+    const result = await repairVolcanoState({
+      apiKey: "key",
+      nowMs: REPAIR_NOW,
+      coordinator,
+      journal: new VolcanoRepairJournal(REPAIR_ACK, ["vfvo50", "ashfall"]),
+      getAcknowledgement: () => REPAIR_ACK,
+      targets: ["vfvo50", "ashfall"],
+      loadPage: vi.fn(async (_apiKey, query) => {
+        if (query.type === "VFVO55") throw new Error("historicalResponseMissingBody");
+        return createResponse([]);
+      }),
+      loadBody: mockBodyLoader(),
+    });
+
+    expect(result.targets).toEqual([
+      { target: "vfvo50", kind: "committed" },
+      { target: "ashfall", kind: "failed", reason: "historicalResponseMissingBody" },
+    ]);
+  });
+
+  // spec §14.3 #30
+  it("spec §14.3 #30: twoPhase は VFVO54 prove 中の ack 変更で VFVO50 も commit しない", async () => {
+    const twoPhase = forceFixture();
+    let ack: WsSubscriptionAcknowledgement = REPAIR_ACK;
+    const before = twoPhase.coordinator.snapshot();
+
+    const result = await repairVolcanoState({
+      apiKey: "key",
+      nowMs: REPAIR_NOW,
+      coordinator: twoPhase.coordinator,
+      journal: new VolcanoRepairJournal(REPAIR_ACK, ["vfvo50", "ashfall"]),
+      getAcknowledgement: () => ack,
+      targets: ["vfvo50", "ashfall"],
+      commitPolicy: "twoPhase",
+      loadPage: vi.fn(async (_apiKey, query) => {
+        if (query.type === "VFVO54") ack = { ...REPAIR_ACK, subscriptionGeneration: 2 };
+        return createResponse([]);
+      }),
+      loadBody: mockBodyLoader(),
+    });
+
+    expect(result.targets).toEqual([
+      { target: "vfvo50", kind: "failed", reason: "subscriptionGenerationChanged" },
+      { target: "ashfall", kind: "failed", reason: "subscriptionGenerationChanged" },
+    ]);
+    // 二段階化の要点: runtimeVersion が実行前後で不変
+    expect(twoPhase.coordinator.snapshot().runtimeVersion).toBe(before.runtimeVersion);
+
+    // 同条件を commitPolicy 無し（起動時挙動）で走らせると VFVO50 だけ committed になる
+    const sequential = forceFixture();
+    let ackSeq: WsSubscriptionAcknowledgement = REPAIR_ACK;
+    const sequentialResult = await repairVolcanoState({
+      apiKey: "key",
+      nowMs: REPAIR_NOW,
+      coordinator: sequential.coordinator,
+      journal: new VolcanoRepairJournal(REPAIR_ACK, ["vfvo50", "ashfall"]),
+      getAcknowledgement: () => ackSeq,
+      targets: ["vfvo50", "ashfall"],
+      loadPage: vi.fn(async (_apiKey, query) => {
+        if (query.type === "VFVO54") ackSeq = { ...REPAIR_ACK, subscriptionGeneration: 2 };
+        return createResponse([]);
+      }),
+      loadBody: mockBodyLoader(),
+    });
+    expect(sequentialResult.targets[0]).toEqual({ target: "vfvo50", kind: "committed" });
+    expect(sequentialResult.targets[1]!.kind).toBe("failed");
+  });
+
+  // spec §14.3 #31
+  it("spec §14.3 #31: commit phase は await も ack 検査も挟まない", async () => {
+    const { coordinator } = forceFixture();
+    const events: string[] = [];
+    let ack: WsSubscriptionAcknowledgement = REPAIR_ACK;
+    const transact = coordinator.transact.bind(coordinator);
+    vi.spyOn(coordinator, "transact").mockImplementation((family, mutate) => {
+      events.push("commit");
+      // 最初の commit と同時に ack 世代が変わっても commit phase は完走する
+      ack = { ...REPAIR_ACK, subscriptionGeneration: 9 };
+      return transact(family, mutate);
+    });
+
+    const result = await repairVolcanoState({
+      apiKey: "key",
+      nowMs: REPAIR_NOW,
+      coordinator,
+      journal: new VolcanoRepairJournal(REPAIR_ACK, ["vfvo50", "ashfall"]),
+      getAcknowledgement: () => {
+        events.push("ack");
+        return ack;
+      },
+      targets: ["vfvo50", "ashfall"],
+      commitPolicy: "twoPhase",
+      loadPage: emptyPages(),
+      loadBody: mockBodyLoader(),
+    });
+
+    expect(result.targets).toEqual([
+      { target: "vfvo50", kind: "committed" },
+      { target: "ashfall", kind: "committed" },
+    ]);
+    // commit phase 以降に ack 検査が 1 度も無いこと
+    expect(events.lastIndexOf("ack")).toBeLessThan(events.indexOf("commit"));
+  });
+
+  // spec §14.3 #32
+  it("spec §14.3 #32: twoPhase で VFVO50 の proof 失敗は ashfall の commit を妨げない", async () => {
+    const { coordinator } = forceFixture();
+
+    const result = await repairVolcanoState({
+      apiKey: "key",
+      nowMs: REPAIR_NOW,
+      coordinator,
+      journal: new VolcanoRepairJournal(REPAIR_ACK, ["vfvo50", "ashfall"]),
+      getAcknowledgement: () => REPAIR_ACK,
+      targets: ["vfvo50", "ashfall"],
+      commitPolicy: "twoPhase",
+      loadPage: vi.fn(async (_apiKey, query) => {
+        if (query.type === "VFVO50") throw new Error("historicalResponseMissingBody");
+        return createResponse([]);
+      }),
+      loadBody: mockBodyLoader(),
+    });
+
+    expect(result.targets).toEqual([
+      { target: "vfvo50", kind: "failed", reason: "historicalResponseMissingBody" },
+      { target: "ashfall", kind: "committed" },
+    ]);
+  });
+
+  // spec §14.3 #33
+  it("spec §14.3 #33: commitPolicy 無しの起動時経路は逐次順序を保つ", async () => {
+    const { coordinator } = forceFixture({ vfvo50: true, ashfall: true });
+    const order: string[] = [];
+    const transact = coordinator.transact.bind(coordinator);
+    vi.spyOn(coordinator, "transact").mockImplementation((family, mutate) => {
+      order.push(`commit:${family}`);
+      return transact(family, mutate);
+    });
+
+    await repairVolcanoState({
+      apiKey: "key",
+      nowMs: REPAIR_NOW,
+      coordinator,
+      journal: new VolcanoRepairJournal(REPAIR_ACK, ["vfvo50", "ashfall"]),
+      getAcknowledgement: () => REPAIR_ACK,
+      loadPage: vi.fn(async (_apiKey, query) => {
+        const last = order.at(-1);
+        if (last !== `prove:${query.type}`) order.push(`prove:${query.type}`);
+        return createResponse([]);
+      }),
+      loadBody: mockBodyLoader(),
+    });
+
+    expect(order).toEqual([
+      "prove:VFVO50",
+      "commit:volcanoAlert",
+      "prove:VFVO54",
+      "prove:VFVO55",
+      "commit:volcanoAshfall",
+    ]);
+  });
+
+  // spec §14.3 #34
+  it("spec §14.3 #34: force commit 後も unrecoverableAlertOmissions が不変である", async () => {
+    const { coordinator } = forceFixture();
+    const before = JSON.stringify(coordinator.snapshot().repair.unrecoverableAlertOmissions);
+
+    await repairVolcanoState({
+      apiKey: "key",
+      nowMs: REPAIR_NOW,
+      coordinator,
+      journal: new VolcanoRepairJournal(REPAIR_ACK, ["vfvo50"]),
+      getAcknowledgement: () => REPAIR_ACK,
+      targets: ["vfvo50"],
+      commitPolicy: "twoPhase",
+      loadPage: emptyPages(),
+      loadBody: mockBodyLoader(),
+    });
+
+    expect(JSON.stringify(coordinator.snapshot().repair.unrecoverableAlertOmissions)).toBe(before);
+  });
+
+  // spec §14.3 #35 / #39
+  it("spec §14.3 #35 #39: VFVO50 force は gate family を expire せず holder も sweep しない", async () => {
+    const { coordinator } = forceFixture();
+    const expireSpy = vi.spyOn(TelegramRevisionGate.prototype, "expireRevisionFamily");
+    const sweepSpy = vi.spyOn(VolcanoStateHolder.prototype, "sweep");
+    const clearSpy = vi.spyOn(VolcanoStateHolder.prototype, "clearAshfall");
+    const retainSpy = vi.spyOn(VolcanoStateHolder.prototype, "retainActiveSubjects");
+
+    // 起動から 30 日進んだ nowMs を渡しても VFVO50 は expiry を動かさない
+    await repairVolcanoState({
+      apiKey: "key",
+      nowMs: REPAIR_NOW + 30 * 24 * 60 * 60_000,
+      coordinator,
+      journal: new VolcanoRepairJournal(REPAIR_ACK, ["vfvo50"]),
+      getAcknowledgement: () => REPAIR_ACK,
+      targets: ["vfvo50"],
+      commitPolicy: "twoPhase",
+      loadPage: emptyPages(),
+      loadBody: mockBodyLoader(),
+    });
+
+    expect(expireSpy).not.toHaveBeenCalled();
+    expect(sweepSpy).not.toHaveBeenCalled();
+    expect(clearSpy).not.toHaveBeenCalled();
+    // 非破壊の要: active subject の温存だけを行う
+    expect(retainSpy).toHaveBeenCalled();
+
+    // 対照: ashfall force は expire も sweep も通る
+    expireSpy.mockClear();
+    sweepSpy.mockClear();
+    await repairVolcanoState({
+      apiKey: "key",
+      nowMs: REPAIR_NOW,
+      coordinator,
+      journal: new VolcanoRepairJournal(REPAIR_ACK, ["ashfall"]),
+      getAcknowledgement: () => REPAIR_ACK,
+      targets: ["ashfall"],
+      commitPolicy: "twoPhase",
+      loadPage: emptyPages(),
+      loadBody: mockBodyLoader(),
+    });
+    expect(expireSpy).toHaveBeenCalled();
+    expect(sweepSpy).toHaveBeenCalled();
+  });
+
+  /** VFVO54 を 1 件（または 0 件）replay して ashfall gate を作り直す */
+  function forceAshfall(
+    coordinator: VolcanoTransactionCoordinator,
+    nowMs: number,
+    items: TelegramListItem[],
+  ): Promise<VolcanoStartupRepairResult> {
+    return repairVolcanoState({
+      apiKey: "key",
+      nowMs,
+      coordinator,
+      journal: new VolcanoRepairJournal(REPAIR_ACK, ["ashfall"]),
+      getAcknowledgement: () => REPAIR_ACK,
+      targets: ["ashfall"],
+      commitPolicy: "twoPhase",
+      loadPage: vi.fn(async (_apiKey, query) =>
+        createResponse(query.type === "VFVO54" ? items : [])),
+      loadBody: mockBodyLoader(),
+    });
+  }
+
+  function ashfallGateKeys(coordinator: VolcanoTransactionCoordinator): string[] {
+    return coordinator.snapshot().gates.states
+      .map((entry) => entry.key)
+      .filter((key) => key.startsWith("volcano:volcanoAshfall:"));
+  }
+
+  // spec §14.3 #36
+  it("spec §14.3 #36: ashfall force は既存の降灰 gate を全削除してから窓内だけ replay する", async () => {
+    const { coordinator } = forceFixture();
+    const itemReceivedMs = REPAIR_NOW - 1_000;
+
+    const seeded = await forceAshfall(coordinator, REPAIR_NOW,
+      [repairAshfallItem("seed-ash", itemReceivedMs, "VFVO54")]);
+    expect(seeded.targets).toEqual([{ target: "ashfall", kind: "committed" }]);
+    expect(ashfallGateKeys(coordinator).length).toBeGreaterThan(0);
+
+    // REST が 1 件も返さない再実行 = 全削除だけが残る（破壊的であることの固定）
+    await forceAshfall(coordinator, REPAIR_NOW, []);
+    expect(ashfallGateKeys(coordinator)).toEqual([]);
+  });
+
+  // spec §14.3 #37
+  it("spec §14.3 #37: nowMs を実行時刻で渡すと coverage 窓が動いて古い item が外れる", async () => {
+    const retentionMs = 7 * 24 * 60 * 60_000;
+    const itemReceivedMs = REPAIR_NOW - 1_000;
+    const items = [repairAshfallItem("window-ash", itemReceivedMs, "VFVO54")];
+
+    async function provedCount(nowMs: number): Promise<number> {
+      const { coordinator } = forceFixture();
+      const result = await repairVolcanoState({
+        apiKey: "key",
+        nowMs,
+        coordinator,
+        journal: new VolcanoRepairJournal(REPAIR_ACK, ["ashfall"]),
+        getAcknowledgement: () => REPAIR_ACK,
+        targets: ["ashfall"],
+        dryRun: true,
+        commitPolicy: "twoPhase",
+        loadPage: vi.fn(async (_apiKey, query) =>
+          createResponse(query.type === "VFVO54" ? items : [])),
+        loadBody: mockBodyLoader(),
+      });
+      return result.targets[0]!.historicalCount ?? -1;
+    }
+
+    // 境界ちょうどは窓内、1 ms 超過で窓外
+    expect(await provedCount(itemReceivedMs + retentionMs)).toBe(1);
+    expect(await provedCount(itemReceivedMs + retentionMs + 1)).toBe(0);
+  });
+
+  // spec §14.3 #38
+  it("spec §14.3 #38: ashfall gate の tombstone 期限は nowMs 基準の境界で保持/削除される", async () => {
+    const retentionMs = 7 * 24 * 60 * 60_000;
+    const itemReceivedMs = REPAIR_NOW - 1_000;
+    const items = [repairAshfallItem("boundary-ash", itemReceivedMs, "VFVO54")];
+
+    // 境界ちょうど: coverage に入り expireRevisionFamily でも消えない
+    const onBoundary = forceFixture();
+    await forceAshfall(onBoundary.coordinator, itemReceivedMs + retentionMs, items);
+    expect(ashfallGateKeys(onBoundary.coordinator).length).toBeGreaterThan(0);
+
+    // 1 ms 超過: 窓外かつ期限切れで残らない
+    const past = forceFixture();
+    await forceAshfall(past.coordinator, itemReceivedMs + retentionMs + 1, items);
+    expect(ashfallGateKeys(past.coordinator)).toEqual([]);
+  });
+
+  // spec §14.3 #40
+  it("spec §14.3 #40: targets の空配列・重複・未知値は実行前に拒否される", async () => {
+    const loadPage = emptyPages();
+    for (const targets of [[], ["vfvo50", "vfvo50"], ["vfvo51"]] as const) {
+      const { coordinator } = forceFixture();
+      await expect(repairVolcanoState({
+        apiKey: "key",
+        nowMs: REPAIR_NOW,
+        coordinator,
+        journal: new VolcanoRepairJournal(REPAIR_ACK, ["vfvo50"]),
+        getAcknowledgement: () => REPAIR_ACK,
+        targets: targets as never,
+        commitPolicy: "twoPhase",
+        loadPage,
+        loadBody: mockBodyLoader(),
+      })).rejects.toThrow("invalidRepairTargets");
+    }
+    expect(loadPage).not.toHaveBeenCalled();
+  });
+
+  // spec §14.4 #41 / #42 / #45
+  it("spec §14.4 #41 #42 #45: dry-run は commit せず状態を変えず件数を返す", async () => {
+    const { coordinator, standby } = forceFixture();
+    const transactSpy = vi.spyOn(coordinator, "transact");
+    const before = JSON.stringify(coordinator.snapshot());
+    const standbyBefore = JSON.stringify(standby.cloneSnapshot());
+    const journal = new VolcanoRepairJournal(REPAIR_ACK, ["vfvo50"]);
+    const localReceipt = REPAIR_NOW + 3_000;
+    journal.record(
+      liveRepairMessage("live-dry", REPAIR_NOW - 500, localReceipt),
+      { ...REPAIR_ACK, receivedAtMs: localReceipt },
+    );
+
+    const result = await repairVolcanoState({
+      apiKey: "key",
+      nowMs: REPAIR_NOW,
+      coordinator,
+      journal,
+      getAcknowledgement: () => REPAIR_ACK,
+      targets: ["vfvo50"],
+      dryRun: true,
+      commitPolicy: "twoPhase",
+      loadPage: vi.fn(async () => createResponse([
+        repairItem("hist-1", REPAIR_NOW - 1_000),
+        repairItem("hist-2", REPAIR_NOW - 2_000),
+      ])),
+      loadBody: mockBodyLoader(),
+    });
+
+    expect(result.targets).toEqual([
+      { target: "vfvo50", kind: "proved", historicalCount: 2, journalCount: 1 },
+    ]);
+    // commit を 1 つも呼ばない（transaction が 1 度も開かれない）
+    expect(transactSpy).not.toHaveBeenCalled();
+    expect(JSON.stringify(coordinator.snapshot())).toBe(before);
+    expect(JSON.stringify(standby.cloneSnapshot())).toBe(standbyBefore);
   });
 });

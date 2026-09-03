@@ -8,6 +8,7 @@ import {
   type VolcanoOperationalV2ResolutionAction,
   type VolcanoOperationalV2AlertResolutionV1,
   type VolcanoRepairStateV1,
+  type VolcanoRepairTarget,
 } from "./volcano-state";
 import { StandbyStateStore } from "../display/standby-state-store";
 import {
@@ -349,9 +350,49 @@ export class VolcanoTransactionCoordinator {
   }
 }
 
+/** REPL `volcanorepair rest` の 1 回の実行要求。 */
+export interface VolcanoRestRepairRequest {
+  targets: readonly VolcanoRepairTarget[];
+  dryRun: boolean;
+  /** 監査 log にだけ載る。永続 state へは書かない。 */
+  reason: string;
+}
+
+/** target ごとの結果。`repairVolcanoState` の結果と構造的に一致する。 */
+export interface VolcanoRestRepairTargetOutcome {
+  target: VolcanoRepairTarget;
+  kind: "committed" | "failed" | "proved";
+  reason?: string;
+  historicalCount?: number;
+  journalCount?: number;
+}
+
+export interface VolcanoRestRepairBackupFile {
+  source: "v2" | "v1";
+  path: string;
+  reused: boolean;
+}
+
+export type VolcanoRestRepairResult =
+  | {
+      kind: "completed";
+      dryRun: boolean;
+      backupFiles: readonly VolcanoRestRepairBackupFile[];
+      targets: readonly VolcanoRestRepairTargetOutcome[];
+    }
+  | { kind: "busy" }
+  | { kind: "cooldown"; remainingMs: number }
+  | { kind: "notConnected" }
+  | { kind: "backupFailed"; reason: string; detail: string };
+
 export interface VolcanoRepairAdministration {
   status(): VolcanoRepairStatusItem[];
   resolveOperationalV2AlertOmission(
     request: ResolveOperationalV2AlertOmissionRequest,
   ): ResolveOperationalV2AlertOmissionResult;
+  /**
+   * 手動 force。composition root（`monitor.ts`）だけが実装を渡す。
+   * 未提供の構成では REPL が「利用できません」で終わる。
+   */
+  restRepair?: (request: VolcanoRestRepairRequest) => Promise<VolcanoRestRepairResult>;
 }

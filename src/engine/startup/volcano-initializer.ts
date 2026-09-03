@@ -400,11 +400,11 @@ type TelegramBodyLoader = (
   expectedUrl?: string,
 ) => Promise<TelegramBodyResult>;
 
-function checkedCoverageStart(startupNowMs: number, retentionMs: number): number | null {
-  if (!Number.isSafeInteger(startupNowMs)
+function checkedCoverageStart(nowMs: number, retentionMs: number): number | null {
+  if (!Number.isSafeInteger(nowMs)
     || !Number.isSafeInteger(retentionMs)
     || retentionMs < 0) return null;
-  const result = startupNowMs - retentionMs;
+  const result = nowMs - retentionMs;
   return Number.isSafeInteger(result) && Math.abs(result) <= 8_640_000_000_000_000
     ? result
     : null;
@@ -569,12 +569,12 @@ async function fetchHeadSample(
 export async function fetchVolcanoHistoricalPaginationUnion(options: {
   apiKey: string;
   headType: VolcanoRepairHeadType;
-  startupNowMs: number;
+  nowMs: number;
   retentionMs: number;
   loadPage?: TelegramPageLoader;
   validateTransport?: () => boolean;
 }): Promise<VolcanoHistoricalPaginationUnion> {
-  const coverageStartMs = checkedCoverageStart(options.startupNowMs, options.retentionMs);
+  const coverageStartMs = checkedCoverageStart(options.nowMs, options.retentionMs);
   if (coverageStartMs == null) throw new Error("coverageStartInvalid");
   const loadPage = options.loadPage ?? ((apiKey, query) => listTelegrams(apiKey, query));
   const seenTokens = new Set<string>();
@@ -641,7 +641,7 @@ export async function fetchVolcanoHistoricalPaginationUnion(options: {
 export async function proveVolcanoTypeCoverage(options: {
   apiKey: string;
   headType: VolcanoRepairHeadType;
-  startupNowMs: number;
+  nowMs: number;
   retentionMs: number;
   journal: VolcanoRepairJournal;
   getAcknowledgement: () => WsSubscriptionAcknowledgement | null;
@@ -654,7 +654,7 @@ export async function proveVolcanoTypeCoverage(options: {
   const loadBody = options.loadBody
     ?? ((apiKey, id, expectedUrl) => fetchTelegramBody(apiKey, id, expectedUrl));
   const bodyCache = options.bodyCache ?? new Map<string, TelegramBodyResult>();
-  const coverageStartMs = checkedCoverageStart(options.startupNowMs, options.retentionMs);
+  const coverageStartMs = checkedCoverageStart(options.nowMs, options.retentionMs);
   if (coverageStartMs == null) throw new Error("coverageStartInvalid");
   const validateTransport = (): boolean =>
     options.journal.validateAcknowledgement(options.getAcknowledgement());
@@ -669,7 +669,7 @@ export async function proveVolcanoTypeCoverage(options: {
   const historical = await fetchVolcanoHistoricalPaginationUnion({
     apiKey: options.apiKey,
     headType: options.headType,
-    startupNowMs: options.startupNowMs,
+    nowMs: options.nowMs,
     retentionMs: options.retentionMs,
     loadPage,
     validateTransport,
@@ -1095,21 +1095,21 @@ function mergeBaselineSourceIds(
 
 function coupleVolcanoGateAndHolder(
   scratch: VolcanoScratchRuntime,
-  startupNowMs: number,
+  nowMs: number,
 ): void {
   scratch.holder.retainActiveSubjects(
     scratch.gate.activeRevisionFamilySubjects("volcano", "volcanoAlert"),
     scratch.gate.activeRevisionFamilySubjects("volcano", "volcanoEruption"),
     scratch.gate.activeRevisionFamilySubjects("volcano", "volcanoAshfall"),
   );
-  scratch.holder.sweep(startupNowMs);
+  scratch.holder.sweep(nowMs);
 }
 
 function commitVfvo50Proof(
   coordinator: VolcanoTransactionCoordinator,
   proof: VolcanoTypeRepairProof,
   journal: VolcanoRepairJournal,
-  startupNowMs: number,
+  nowMs: number,
 ): { kind: "committed" } | { kind: "failed"; reason: string } {
   const journalItems = journal.snapshot("vfvo50");
   let historical: PreparedRepairItem[];
@@ -1162,7 +1162,7 @@ function commitVfvo50Proof(
     for (const item of [...historical, ...journalTail]) {
       const expiryNowMs = liveJournalById.has(item.itemId)
         ? item.normalizedInput.parsed.meta.receivedAtMs
-        : startupNowMs;
+        : nowMs;
       if (!repairReplayTimesValid(item.normalizedInput, expiryNowMs)) {
         return { kind: "rejected" as const, reason: "vfvo50ReplayClockInvalid" };
       }
@@ -1212,7 +1212,7 @@ function commitAshfallProof(
   coordinator: VolcanoTransactionCoordinator,
   proofs: readonly [VolcanoTypeRepairProof, VolcanoTypeRepairProof],
   journal: VolcanoRepairJournal,
-  startupNowMs: number,
+  nowMs: number,
 ): { kind: "committed" } | { kind: "failed"; reason: string } {
   const union: PreparedRepairItem[] = [];
   const byId = new Map<string, PreparedRepairItem>();
@@ -1259,7 +1259,7 @@ function commitAshfallProof(
     for (const item of [...historical, ...journalTail]) {
       const classificationNowMs = liveJournalById.has(item.itemId)
         ? item.normalizedInput.parsed.meta.receivedAtMs
-        : startupNowMs;
+        : nowMs;
       if (!repairReplayTimesValid(item.normalizedInput, classificationNowMs)) {
         return { kind: "rejected" as const, reason: "ashfallReplayClockInvalid" };
       }
@@ -1270,10 +1270,10 @@ function commitAshfallProof(
     scratch.gate.expireRevisionFamily(
       "volcano",
       "volcanoAshfall",
-      startupNowMs,
+      nowMs,
       VOLCANO_ASHFALL_RETENTION_MS,
     );
-    coupleVolcanoGateAndHolder(scratch, startupNowMs);
+    coupleVolcanoGateAndHolder(scratch, nowMs);
     if (!mergeBaselineSourceIds(scratch.holder, baseline)) {
       return { kind: "rejected" as const, reason: "ashfallSourceCapacityExceeded" };
     }
@@ -1287,8 +1287,12 @@ function commitAshfallProof(
 
 export interface VolcanoRepairTargetResult {
   target: VolcanoRepairTarget;
-  kind: "committed" | "failed";
+  kind: "committed" | "failed" | "proved";
   reason?: string;
+  /** `proved`（dry-run）のときだけ載る REST historical union の件数。 */
+  historicalCount?: number;
+  /** `proved`（dry-run）のときだけ載る journal 収録件数。 */
+  journalCount?: number;
 }
 
 export interface VolcanoStartupRepairResult {
@@ -1303,38 +1307,150 @@ export function volcanoRepairTargets(repair: VolcanoRepairStateV1): VolcanoRepai
 }
 
 /**
- * Runs target-local REST proofs.  Every await happens before the synchronous
- * rebase transaction; normal WebSocket ingress continues through the journal.
+ * 手動入口が渡す明示 target を検査して正規順（vfvo50 → ashfall）へ整える。
+ * 空配列・重複・未知値は実行前に拒否する（spec §14.3 #40）。
  */
-export async function repairVolcanoState(options: {
+function checkedManualTargets(
+  targets: readonly VolcanoRepairTarget[],
+): VolcanoRepairTarget[] {
+  if (targets.length === 0
+    || new Set(targets).size !== targets.length
+    || targets.some((target) => target !== "vfvo50" && target !== "ashfall")) {
+    throw new Error("invalidRepairTargets");
+  }
+  return [
+    ...(targets.includes("vfvo50") ? ["vfvo50" as const] : []),
+    ...(targets.includes("ashfall") ? ["ashfall" as const] : []),
+  ];
+}
+
+export interface VolcanoRepairStateOptions {
   apiKey: string;
-  startupNowMs: number;
+  nowMs: number;
   coordinator: VolcanoTransactionCoordinator;
   journal: VolcanoRepairJournal;
   getAcknowledgement: () => WsSubscriptionAcknowledgement | null;
   loadPage?: TelegramPageLoader;
   loadBody?: TelegramBodyLoader;
-}): Promise<VolcanoStartupRepairResult> {
-  const targets = volcanoRepairTargets(options.coordinator.snapshot().repair);
-  const results: VolcanoRepairTargetResult[] = [];
+  /**
+   * 手動 force 用。省略時だけ `repairable` フラグから target を導出する。
+   * フラグを書き戻さずに force を成立させる唯一の入口である。
+   */
+  targets?: readonly VolcanoRepairTarget[];
+  /** proof だけ行い commit を一切呼ばない。 */
+  dryRun?: boolean;
+  /**
+   * `twoPhase` は手動入口専用。全 target の prove を先に完走させ、ack 最終検査の後に
+   * await を挟まず commit する。起動時経路（既定 `sequential`）の逐次挙動は変えない。
+   */
+  commitPolicy?: "sequential" | "twoPhase";
+}
+
+/**
+ * Runs target-local REST proofs.  Every await happens before the synchronous
+ * rebase transaction; normal WebSocket ingress continues through the journal.
+ */
+export async function repairVolcanoState(
+  options: VolcanoRepairStateOptions,
+): Promise<VolcanoStartupRepairResult> {
+  const targets = options.targets == null
+    ? volcanoRepairTargets(options.coordinator.snapshot().repair)
+    : checkedManualTargets(options.targets);
+  const dryRun = options.dryRun === true;
   // One cache for the whole repair: an id is fetched at most once, whether the
   // fetch succeeded or failed, across both targets and all three head types.
   const bodyCache = new Map<string, TelegramBodyResult>();
+  const prove = (
+    headType: VolcanoRepairHeadType,
+    retentionMs: number,
+  ): Promise<VolcanoTypeRepairProof> => proveVolcanoTypeCoverage({
+    ...options,
+    bodyCache,
+    headType,
+    retentionMs,
+  });
+  const provedResult = (
+    target: VolcanoRepairTarget,
+    proofs: readonly VolcanoTypeRepairProof[],
+  ): VolcanoRepairTargetResult => ({
+    target,
+    kind: "proved",
+    historicalCount: new Set(proofs.flatMap((proof) =>
+      proof.historical.items.map((item) => item.itemId))).size,
+    journalCount: options.journal.snapshot(target).length,
+  });
+
+  if (options.commitPolicy === "twoPhase") {
+    const failures = new Map<VolcanoRepairTarget, string>();
+    let vfvo50Proof: VolcanoTypeRepairProof | null = null;
+    let ashfallProofs: [VolcanoTypeRepairProof, VolcanoTypeRepairProof] | null = null;
+    // prove phase: commit は 1 つも行わない。
+    for (const target of targets) {
+      try {
+        if (target === "vfvo50") {
+          vfvo50Proof = await prove("VFVO50", VOLCANO_ALERT_TOMBSTONE_RETENTION_MS);
+        } else {
+          const vfvo54 = await prove("VFVO54", VOLCANO_ASHFALL_RETENTION_MS);
+          const vfvo55 = await prove("VFVO55", VOLCANO_ASHFALL_RETENTION_MS);
+          ashfallProofs = [vfvo54, vfvo55];
+        }
+      } catch (error) {
+        failures.set(target, error instanceof Error ? error.message : String(error));
+      }
+    }
+    if (dryRun) {
+      return {
+        targets: targets.map((target) => {
+          const failure = failures.get(target);
+          if (failure != null) return { target, kind: "failed" as const, reason: failure };
+          return provedResult(
+            target,
+            target === "vfvo50" ? [vfvo50Proof!] : ashfallProofs!,
+          );
+        }),
+      };
+    }
+    // ack 最終検査。破れていれば commit を 1 つも行わない（片側 commit を作らない）。
+    if (!options.journal.validateAcknowledgement(options.getAcknowledgement())) {
+      return {
+        targets: targets.map((target) => ({
+          target,
+          kind: "failed" as const,
+          reason: failures.get(target) ?? "subscriptionGenerationChanged",
+        })),
+      };
+    }
+    // commit phase: await を挟まない同期区間。
+    const results: VolcanoRepairTargetResult[] = [];
+    for (const target of targets) {
+      const failure = failures.get(target);
+      if (failure != null) {
+        results.push({ target, kind: "failed", reason: failure });
+        continue;
+      }
+      const committed = target === "vfvo50"
+        ? commitVfvo50Proof(options.coordinator, vfvo50Proof!, options.journal, options.nowMs)
+        : commitAshfallProof(options.coordinator, ashfallProofs!, options.journal, options.nowMs);
+      results.push({ target, ...committed });
+    }
+    return { targets: results };
+  }
+
+  const results: VolcanoRepairTargetResult[] = [];
   if (targets.includes("vfvo50")) {
     try {
-      const proof = await proveVolcanoTypeCoverage({
-        ...options,
-        bodyCache,
-        headType: "VFVO50",
-        retentionMs: VOLCANO_ALERT_TOMBSTONE_RETENTION_MS,
-      });
-      const committed = commitVfvo50Proof(
-        options.coordinator,
-        proof,
-        options.journal,
-        options.startupNowMs,
-      );
-      results.push({ target: "vfvo50", ...committed });
+      const proof = await prove("VFVO50", VOLCANO_ALERT_TOMBSTONE_RETENTION_MS);
+      if (dryRun) {
+        results.push(provedResult("vfvo50", [proof]));
+      } else {
+        const committed = commitVfvo50Proof(
+          options.coordinator,
+          proof,
+          options.journal,
+          options.nowMs,
+        );
+        results.push({ target: "vfvo50", ...committed });
+      }
     } catch (error) {
       results.push({
         target: "vfvo50",
@@ -1345,25 +1461,19 @@ export async function repairVolcanoState(options: {
   }
   if (targets.includes("ashfall")) {
     try {
-      const vfvo54 = await proveVolcanoTypeCoverage({
-        ...options,
-        bodyCache,
-        headType: "VFVO54",
-        retentionMs: VOLCANO_ASHFALL_RETENTION_MS,
-      });
-      const vfvo55 = await proveVolcanoTypeCoverage({
-        ...options,
-        bodyCache,
-        headType: "VFVO55",
-        retentionMs: VOLCANO_ASHFALL_RETENTION_MS,
-      });
-      const committed = commitAshfallProof(
-        options.coordinator,
-        [vfvo54, vfvo55],
-        options.journal,
-        options.startupNowMs,
-      );
-      results.push({ target: "ashfall", ...committed });
+      const vfvo54 = await prove("VFVO54", VOLCANO_ASHFALL_RETENTION_MS);
+      const vfvo55 = await prove("VFVO55", VOLCANO_ASHFALL_RETENTION_MS);
+      if (dryRun) {
+        results.push(provedResult("ashfall", [vfvo54, vfvo55]));
+      } else {
+        const committed = commitAshfallProof(
+          options.coordinator,
+          [vfvo54, vfvo55],
+          options.journal,
+          options.nowMs,
+        );
+        results.push({ target: "ashfall", ...committed });
+      }
     } catch (error) {
       results.push({
         target: "ashfall",

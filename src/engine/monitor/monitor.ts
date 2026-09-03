@@ -10,6 +10,8 @@ import {
   VolcanoRepairJournal,
   volcanoRepairTargets,
 } from "../startup/volcano-initializer";
+import { fetchTelegramBody, listTelegrams } from "../../dmdata/rest-client";
+import type { WsSubscriptionAcknowledgement } from "../../dmdata/ws-client";
 import { resetTerminalTitle } from "../../ui/terminal-title";
 import { formatTimestamp } from "../../ui/formatter";
 import { withReplDisplay, updateReplConnectionState } from "./repl-coordinator";
@@ -27,6 +29,7 @@ import type { DisplayRuntime } from "../display/runtime";
 import {
   StandbyPersistence,
   type StandbyPersistenceSaveResult,
+  type VolcanoManualBackupResult,
 } from "../display/standby-persistence";
 import { StandbyStateStore } from "../display/standby-state-store";
 import {
@@ -34,7 +37,12 @@ import {
   serializeStandbyAdmissionPair,
   sweepStandbyBeforeAdmission,
 } from "../display/standby-persistence-admission";
-import { VolcanoTransactionCoordinator } from "../messages/volcano-transaction-coordinator";
+import {
+  VolcanoTransactionCoordinator,
+  type VolcanoRepairAdministration,
+  type VolcanoRestRepairRequest,
+  type VolcanoRestRepairResult,
+} from "../messages/volcano-transaction-coordinator";
 import { WeatherPromotionPersistence } from "../display/weather-promotion-persistence";
 import { WeatherPromotionStore } from "../display/weather-promotion-store";
 import { QuakeExtremePersistence } from "../display/quake-extreme-persistence";
@@ -68,6 +76,115 @@ import { formatSummaryInterval } from "../../ui/summary-interval-formatter";
 import { WINDOW_MINUTES, type SummaryWindowTracker } from "../messages/summary-tracker";
 
 import type { ReplHandler as ReplHandlerType } from "../../ui/repl";
+
+/**
+ * 手動 REST repair の連打クールダウン。process 内のメモリだけで管理し永続化しない。
+ * REST request を 1 本以上発行した試行だけがこの時計を進める。
+ */
+export const VOLCANO_REST_REPAIR_COOLDOWN_MS = 60_000;
+
+/** 起動時 repair と手動 repair が共有する派生フラグの式（spec §5.6）。 */
+export function volcanoFoundationAuthoritativeFrom(repair: VolcanoRepairStateV1): boolean {
+  return !repair.vfvo50Repairable && repair.unrecoverableAlertOmissions.length === 0;
+}
+
+export interface VolcanoRestRepairAdapterDeps {
+  apiKey: string;
+  coordinator: VolcanoTransactionCoordinator;
+  /** composition root の shared `volcanoRepairJournal`。起動時 repair と排他するための唯一の真実源。 */
+  getJournal: () => VolcanoRepairJournal | null;
+  setJournal: (journal: VolcanoRepairJournal | null) => void;
+  getAcknowledgement: () => WsSubscriptionAcknowledgement | null;
+  backupCurrentMirrors: () => VolcanoManualBackupResult;
+  applyRepairState: (repair: VolcanoRepairStateV1, authoritative: boolean) => void;
+  scheduleStandbyPersistence: () => void;
+  now?: () => number;
+  loadPage?: typeof listTelegrams;
+  loadBody?: typeof fetchTelegramBody;
+}
+
+/**
+ * 手動 REST repair の adapter。shared journal の install / 解除、in-flight、
+ * クールダウン、manual backup、派生状態の再計算をここに閉じ込める。
+ * `monitor.ts` の外へは出さない（composition root だけが生成する）。
+ */
+export function createVolcanoRestRepair(
+  deps: VolcanoRestRepairAdapterDeps,
+): (request: VolcanoRestRepairRequest) => Promise<VolcanoRestRepairResult> {
+  const now = deps.now ?? (() => Date.now());
+  const loadPage = deps.loadPage ?? listTelegrams;
+  const loadBody = deps.loadBody ?? fetchTelegramBody;
+  let inFlight = false;
+  let cooldownUntilMs = 0;
+
+  return async (request: VolcanoRestRepairRequest): Promise<VolcanoRestRepairResult> => {
+    // busy 検査と in-flight 代入の間に await を挟まない（spec §5.1 手順 3）。
+    if (deps.getJournal() != null || inFlight) return { kind: "busy" };
+    const nowMs = now();
+    const cooldownRemainingMs = cooldownUntilMs - nowMs;
+    // クールダウンは manual backup より前。拒否時はファイルを 1 本も作らない。
+    if (cooldownRemainingMs > 0) return { kind: "cooldown", remainingMs: cooldownRemainingMs };
+    inFlight = true;
+    let restIssued = false;
+    try {
+      const acknowledgement = deps.getAcknowledgement();
+      if (acknowledgement == null) return { kind: "notConnected" };
+      let journal: VolcanoRepairJournal;
+      try {
+        journal = new VolcanoRepairJournal(acknowledgement, request.targets);
+      } catch {
+        return { kind: "notConnected" };
+      }
+      deps.setJournal(journal);
+      // journal install 後・最初の REST 前。失敗なら REST を 1 本も出さず fail-closed。
+      const backup = deps.backupCurrentMirrors();
+      if (backup.kind === "failed") {
+        log.warn(`[volcano-repair] manual rest repair backup failed reason=${backup.reason} detail=${backup.detail}`);
+        return { kind: "backupFailed", reason: backup.reason, detail: backup.detail };
+      }
+      const runtimeVersionBefore = deps.coordinator.snapshot().runtimeVersion;
+      const repair = await repairVolcanoState({
+        apiKey: deps.apiKey,
+        nowMs,
+        coordinator: deps.coordinator,
+        journal,
+        getAcknowledgement: deps.getAcknowledgement,
+        targets: request.targets,
+        dryRun: request.dryRun,
+        commitPolicy: "twoPhase",
+        loadPage: (apiKey, query) => {
+          restIssued = true;
+          return loadPage(apiKey, query);
+        },
+        loadBody: (apiKey, id, expectedUrl) => {
+          restIssued = true;
+          return loadBody(apiKey, id, expectedUrl);
+        },
+      });
+      if (!request.dryRun && repair.targets.some((result) => result.kind === "committed")) {
+        const repairState = deps.coordinator.snapshot().repair;
+        deps.applyRepairState(repairState, volcanoFoundationAuthoritativeFrom(repairState));
+        deps.scheduleStandbyPersistence();
+      }
+      const backupSummary = backup.files.length === 0
+        ? "none"
+        : backup.files.map((file: { source: string; reused: boolean }) =>
+          `${file.source}:${file.reused ? "reused" : "new"}`).join(",");
+      log.info(`[volcano-repair] manual rest repair mode=${request.dryRun ? "dryRun" : "commit"} targets=${request.targets.join(",")} reason=${request.reason.slice(0, 160)} backup=${backupSummary} result=${repair.targets.map((result) => `${result.target}:${result.kind}${result.reason == null ? "" : `(${result.reason})`}`).join(",")} runtimeVersion=${runtimeVersionBefore}->${deps.coordinator.snapshot().runtimeVersion}`);
+      return {
+        kind: "completed",
+        dryRun: request.dryRun,
+        backupFiles: backup.files,
+        targets: repair.targets,
+      };
+    } finally {
+      // in-flight を true にした後の全離脱経路がここを通る。
+      deps.setJournal(null);
+      inFlight = false;
+      if (restIssued) cooldownUntilMs = now() + VOLCANO_REST_REPAIR_COOLDOWN_MS;
+    }
+  };
+}
 
 /** REPL から定期要約タイマーを制御するためのインターフェース */
 export interface SummaryTimerControl {
@@ -906,7 +1023,27 @@ export async function startMonitor(config: AppConfig, pipelineController?: Pipel
   const shutdownFromRepl = async (): Promise<void> => {
     await runShutdownAndRecordExitCode(shutdown);
   };
-  replHandler = new ReplHandler(config, manager, notifier, eewLogger, shutdownFromRepl, stats, [tsunamiState, volcanoState], [tsunamiState, volcanoState, tornadoDetailProvider, vpws50State, vpwp50Cache], pipelineController, summaryTracker, displayController, volcanoTransactionCoordinator);
+  const volcanoRestRepair = createVolcanoRestRepair({
+    apiKey: config.apiKey,
+    coordinator: volcanoTransactionCoordinator,
+    getJournal: () => volcanoRepairJournal,
+    setJournal: (journal) => { volcanoRepairJournal = journal; },
+    getAcknowledgement: () => manager?.getSubscriptionAcknowledgement() ?? null,
+    backupCurrentMirrors: () => standbyPersistence.backupCurrentMirrors("manual"),
+    applyRepairState: (repair, authoritative) => {
+      volcanoRepairState = repair;
+      volcanoFoundationAuthoritative = authoritative;
+    },
+    scheduleStandbyPersistence: () => { scheduleLatestStandbyPersistence(); },
+  });
+  const volcanoRepairAdministration: VolcanoRepairAdministration = {
+    status: () => volcanoTransactionCoordinator.status(),
+    resolveOperationalV2AlertOmission: (request) =>
+      volcanoTransactionCoordinator.resolveOperationalV2AlertOmission(request),
+    restRepair: volcanoRestRepair,
+  };
+
+  replHandler = new ReplHandler(config, manager, notifier, eewLogger, shutdownFromRepl, stats, [tsunamiState, volcanoState], [tsunamiState, volcanoState, tornadoDetailProvider, vpws50State, vpwp50Cache], pipelineController, summaryTracker, displayController, volcanoRepairAdministration);
 
   registerShutdownSignals(shutdown);
 
@@ -943,7 +1080,7 @@ export async function startMonitor(config: AppConfig, pipelineController?: Pipel
     if (volcanoRepairJournal != null) {
       const repair = await repairVolcanoState({
         apiKey: config.apiKey,
-        startupNowMs,
+        nowMs: startupNowMs,
         coordinator: volcanoTransactionCoordinator,
         journal: volcanoRepairJournal,
         getAcknowledgement: () => manager?.getSubscriptionAcknowledgement() ?? null,
@@ -956,8 +1093,7 @@ export async function startMonitor(config: AppConfig, pipelineController?: Pipel
       volcanoRepairJournal = null;
     }
     volcanoRepairState = volcanoTransactionCoordinator.snapshot().repair;
-    volcanoFoundationAuthoritative = !volcanoRepairState.vfvo50Repairable
-      && volcanoRepairState.unrecoverableAlertOmissions.length === 0;
+    volcanoFoundationAuthoritative = volcanoFoundationAuthoritativeFrom(volcanoRepairState);
 
     // restore/sweep/salvage/repair と repair await 中の live dirty を最大一予約へ合流する。
     startupPersistenceSchedulingSuppressed = false;
