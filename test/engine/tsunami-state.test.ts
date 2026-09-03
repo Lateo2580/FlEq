@@ -8,6 +8,8 @@ import {
   type LegacyParsedTsunamiInfoInput,
 } from "../../src/dmdata/tsunami-legacy-adapter";
 import { createTelegramMeta } from "../../src/dmdata/telegram-meta";
+import { parseTsunamiTelegram } from "../../src/dmdata/telegram-parser";
+import { createMockWsDataMessage } from "../helpers/mock-message";
 
 // sound-player をモック
 vi.mock("../../src/engine/notification/sound-player", () => ({
@@ -505,6 +507,133 @@ describe("TsunamiStateHolder", () => {
 
     it("emptyMessage が定義されている", () => {
       expect(holder.emptyMessage).toBe("現在、継続中の津波情報はありません。");
+    });
+  });
+
+  // 解除報 (Kind Code 60 系) は InfoType=発表 で届くため applyAccepted 経路を通る。
+  // normalizeTsunamiKind が「津波注意報解除」を「津波注意報」へ潰していた頃は
+  // rebuildActiveState の level が解除後も残り、永続化・display 緊急カードへ漏れていた。
+  describe("解除報 (Kind Code 60) による level 解消", () => {
+    it("注意報 (62) → 解除 (60) で level / lastInfo / 永続 active がすべて null になる", () => {
+      holder.applyAccepted(eventInfo(
+        "release-event",
+        [forecast("712", "62", "有明・八代海", "津波注意報")],
+      ));
+      expect(holder.getLevel()).toBe("津波注意報");
+      expect(holder.getPersistedActive()).not.toBeNull();
+
+      holder.applyAccepted(eventInfo(
+        "release-event",
+        [forecast("712", "60", "有明・八代海", "津波注意報解除")],
+        "2025-01-01T00:10:00+09:00",
+      ));
+
+      expect(holder.getLevel()).toBeNull();
+      expect(holder.getLastInfo()).toBeNull();
+      expect(holder.getPersistedActive()).toBeNull();
+      expect(holder.getPromptStatus()).toBeNull();
+      // 観測を積んでいない前提での確認。applyAccepted は observationGroups をクリアしないため
+      // (クリアするのは InfoType=取消 の clearAccepted のみ)、積んだ状態での解除は別項目。
+      expect(holder.getObservationGroups()).toEqual({ VTSE51: [], VTSE52: [] });
+    });
+
+    it("注意報 → 解除 → 同 EventID の再発表 (62) で level が再点灯する", () => {
+      holder.applyAccepted(eventInfo(
+        "relight-event",
+        [forecast("712", "62", "有明・八代海", "津波注意報")],
+      ));
+      holder.applyAccepted(eventInfo(
+        "relight-event",
+        [forecast("712", "60", "有明・八代海", "津波注意報解除")],
+        "2025-01-01T00:10:00+09:00",
+      ));
+      expect(holder.getLevel()).toBeNull();
+
+      holder.applyAccepted(eventInfo(
+        "relight-event",
+        [forecast("712", "62", "有明・八代海", "津波注意報")],
+        "2025-01-01T00:20:00+09:00",
+      ));
+
+      expect(holder.getLevel()).toBe("津波注意報");
+      expect(holder.getLastInfo()?.forecast).toEqual([
+        expect.objectContaining({ areaCode: "712", kindCode: "62", kind: "津波注意報" }),
+      ]);
+      expect(holder.getPersistedActive()).not.toBeNull();
+    });
+
+    it("5 予報区中 2 区解除・3 区継続なら level を維持し、永続 active に解除 item も含む", () => {
+      const areas = ["311", "312", "320", "330", "340"];
+      holder.applyAccepted(eventInfo(
+        "partial-event",
+        areas.map((code) => forecast(code, "62", `区域${code}`, "津波注意報")),
+      ));
+      expect(holder.getLevel()).toBe("津波注意報");
+
+      holder.applyAccepted(eventInfo(
+        "partial-event",
+        [
+          forecast("311", "60", "区域311", "津波注意報解除"),
+          forecast("312", "60", "区域312", "津波注意報解除"),
+          forecast("320", "62", "区域320", "津波注意報"),
+          forecast("330", "62", "区域330", "津波注意報"),
+          forecast("340", "62", "区域340", "津波注意報"),
+        ],
+        "2025-01-01T00:10:00+09:00",
+      ));
+
+      expect(holder.getLevel()).toBe("津波注意報");
+      const persisted = holder.getPersistedActive();
+      expect(persisted).not.toBeNull();
+      // keyed 全置換の仕様どおり、最新報の 5 item (解除 2 件を含む) がそのまま残る
+      expect(persisted!.forecast?.map((item) => item.kindCode).sort())
+        .toEqual(["60", "60", "62", "62", "62"]);
+      expect(holder.activeEventIds()).toEqual(["partial-event"]);
+    });
+
+    it("activeEventIds は全解除済みイベントを返さない", () => {
+      holder.applyAccepted(eventInfo(
+        "cleared-event",
+        [forecast("712", "62", "有明・八代海", "津波注意報")],
+      ));
+      holder.applyAccepted(eventInfo(
+        "kept-event",
+        [forecast("100", "62", "北海道太平洋沿岸東部", "津波注意報")],
+      ));
+      expect(holder.activeEventIds().sort()).toEqual(["cleared-event", "kept-event"]);
+
+      holder.applyAccepted(eventInfo(
+        "cleared-event",
+        [forecast("712", "60", "有明・八代海", "津波注意報解除")],
+        "2025-01-01T00:10:00+09:00",
+      ));
+
+      expect(holder.activeEventIds()).toEqual(["kept-event"]);
+      expect(holder.getLevel()).toBe("津波注意報");
+    });
+
+    it("実 fixture (5 予報区の全解除 VTSE41) を parse → applyAccepted で level が null になる", () => {
+      const released = parseTsunamiTelegram(
+        createMockWsDataMessage("32-39_13_07_250206_VTSE41.xml"),
+      );
+      expect(released).not.toBeNull();
+      expect(released!.forecast?.length).toBeGreaterThan(0);
+      expect(released!.forecast?.every((item) => item.kind.includes("解除"))).toBe(true);
+
+      // 同 EventID の注意報を先に立ててから、実解除報を流し込む
+      const eventId = released!.meta.eventId.value!;
+      holder.applyAccepted(eventInfo(
+        eventId,
+        (released!.forecast ?? []).map((item) =>
+          forecast(item.areaCode, "62", item.areaName, "津波注意報")),
+      ));
+      expect(holder.getLevel()).toBe("津波注意報");
+
+      holder.applyAccepted(released!);
+
+      expect(holder.getLevel()).toBeNull();
+      expect(holder.getLastInfo()).toBeNull();
+      expect(holder.getPersistedActive()).toBeNull();
     });
   });
 });

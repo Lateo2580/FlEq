@@ -889,7 +889,11 @@ describe("restoreTsunamiState", () => {
       expect(parsed!.meta.serial.raw).toBeNull();
     });
 
-    it("永続復元済みの津波注意報に対し、停止中の解除電文が REST 経由で受理され holder が最新報へ更新される", async () => {
+    // 全解除後は holder の level/lastInfo が null になるため、gate 通過の証明は
+    // persist 呼び出し・gate watermark の前進・restoreTsunamiState の返り値で立てる
+    // (旧版は getLastInfo() が解除報を保持する前提だったが、それは
+    //  normalizeTsunamiKind が「津波注意報解除」を「津波注意報」へ潰していた頃の挙動)。
+    it("永続復元済みの津波注意報が、停止中の解除電文を REST 経由で受理して解ける", async () => {
       const persisted = realEventAdvisory("persisted-advisory-1629");
       mockParseTsunami.mockReturnValueOnce(persisted);
       expect(processTsunami(toWsDataMessageFromRestBody(
@@ -906,37 +910,30 @@ describe("restoreTsunamiState", () => {
       mockRestResponse(REAL_RELEASE_ITEM, REAL_RELEASE_XML);
       const persist = vi.fn();
 
-      await restoreTsunamiState("test-key", restartedState, restartedGate, persist);
-
-      // 18:10 の解除報 (同一 EventID・reportDateTime が新しい) が gate を通過し holder を置換する
+      // 18:10 の解除報 (同一 EventID・reportDateTime が新しい) が gate を通過する
+      expect(
+        await restoreTsunamiState("test-key", restartedState, restartedGate, persist),
+      ).toBeNull();
       expect(persist).toHaveBeenCalledTimes(1);
-      const last = restartedState.getLastInfo();
-      expect(last?.reportDateTime).toBe("2026-07-28T18:10:00+09:00");
-      expect(last?.meta.messageId).toBe(REAL_RELEASE_ITEM.id);
-      expect(last?.forecast).toEqual([
-        expect.objectContaining({ areaCode: "712", kindCode: "60", kind: "津波注意報解除" }),
+
+      // gate watermark が解除報まで前進している
+      expect(restartedGate.exportDurableEntries()).toEqual([
+        expect.objectContaining({
+          domain: "tsunami",
+          revisionFamily: "VTSE41",
+          stateSubjectKey: "tsunami:20260728162718",
+          comparison: expect.objectContaining({
+            revision: expect.objectContaining({
+              reportDateTime: expect.objectContaining({ raw: "2026-07-28T18:10:00+09:00" }),
+            }),
+          }),
+        }),
       ]);
-    });
 
-    // 既知の不整合 (契約外・未修正): `normalizeTsunamiKind` が「津波注意報解除」を前方一致で
-    // 「津波注意報」へ正規化するため、解除報を受理しても holder の level が null にならない。
-    // REST 復元経路だけでなく live WS 経路も同じ holder を通る。修正は津波状態機械側の判断。
-    it.fails("永続復元済みの津波注意報が停止中の解除電文で解ける (level が null になる)", async () => {
-      const persisted = realEventAdvisory("persisted-advisory-for-release");
-      mockParseTsunami.mockReturnValueOnce(persisted);
-      expect(processTsunami(toWsDataMessageFromRestBody(
-        createTelegramItem({ id: "persisted-advisory-for-release" }),
-        FAKE_XML,
-      ), { tsunamiState, revisionGate }).kind).toBe("ok");
-
-      const restartedState = new TsunamiStateHolder();
-      restartedState.restorePersistedState(null, { VTSE51: [], VTSE52: [] }, [persisted]);
-      const restartedGate = new TelegramRevisionGate();
-      restartedGate.restoreDurableEntries(revisionGate.exportDurableEntries());
-      mockRestResponse(REAL_RELEASE_ITEM, REAL_RELEASE_XML);
-
-      expect(await restoreTsunamiState("test-key", restartedState, restartedGate)).toBeNull();
+      // 全解除なので active state は解ける
       expect(restartedState.getLevel()).toBeNull();
+      expect(restartedState.getLastInfo()).toBeNull();
+      expect(restartedState.getPersistedActive()).toBeNull();
     });
   });
 
@@ -981,14 +978,22 @@ describe("restoreTsunamiState", () => {
       await restoreTsunamiState("test-key", state, gate, persist, admission);
 
       expect(persist).toHaveBeenCalledTimes(1);
-      expect(state.getLastInfo()?.reportDateTime).toBe("2026-07-28T18:10:00+09:00");
-      expect(state.getLastInfo()?.meta.messageId).toBe(REAL_RELEASE_ITEM.id);
-      // gate の watermark も同じ transaction で進む
+      // 合流対象は 18:10 の全解除報なので、holder の active state は解ける
+      // (旧版は getLastInfo() が解除報を保持する前提だった。normalizeTsunamiKind が
+      //  「津波注意報解除」を「津波注意報」へ潰していた頃の挙動)。
+      expect(state.getLevel()).toBeNull();
+      expect(state.getLastInfo()).toBeNull();
+      // gate の watermark も同じ transaction で 18:10 まで進む
       expect(gate.exportDurableEntries()).toEqual([
         expect.objectContaining({
           domain: "tsunami",
           revisionFamily: "VTSE41",
           stateSubjectKey: "tsunami:20260728162718",
+          comparison: expect.objectContaining({
+            revision: expect.objectContaining({
+              reportDateTime: expect.objectContaining({ raw: "2026-07-28T18:10:00+09:00" }),
+            }),
+          }),
         }),
       ]);
     });

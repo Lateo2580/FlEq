@@ -63,3 +63,38 @@ describe("resolveTsunamiLevel", () => {
     });
   });
 });
+
+describe("解除 kind (Kind Code 60 系) の扱い", () => {
+  it("「〜解除」を含む kind は canonical ラベルへ潰さない", () => {
+    expect(normalizeTsunamiKind("津波注意報解除")).toBe("津波注意報解除");
+    expect(normalizeTsunamiKind("津波警報解除")).toBe("津波警報解除");
+    expect(normalizeTsunamiKind("大津波警報解除")).toBe("大津波警報解除");
+  });
+
+  it("解除 kind も前後の空白は trim する", () => {
+    expect(normalizeTsunamiKind("  津波注意報解除 ")).toBe("津波注意報解除");
+    expect(normalizeTsunamiKind("\t津波警報解除\n")).toBe("津波警報解除");
+  });
+
+  it("解除のみの kind 列は level を立てない (解除報が警報として数えられない)", () => {
+    expect(resolveTsunamiLevel(["津波注意報解除"])).toBeNull();
+    expect(resolveTsunamiLevel(["津波警報解除"])).toBeNull();
+    expect(resolveTsunamiLevel(["大津波警報解除"])).toBeNull();
+    expect(resolveTsunamiLevel(["津波注意報解除", "津波注意報解除"])).toBeNull();
+  });
+
+  it("一部解除・他継続では継続分の level を維持する", () => {
+    expect(resolveTsunamiLevel(["津波警報", "津波注意報解除"])).toEqual({
+      level: "warning",
+      label: "津波警報",
+    });
+    expect(resolveTsunamiLevel(["津波注意報解除", "津波注意報"])).toEqual({
+      level: "advisory",
+      label: "津波注意報",
+    });
+    expect(resolveTsunamiLevel(["津波警報解除", "大津波警報：発表"])).toEqual({
+      level: "majorWarning",
+      label: "大津波警報",
+    });
+  });
+});
