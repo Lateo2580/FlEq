@@ -225,6 +225,13 @@ scheduleLatestStandbyPersistence();
 ```
 
 4. dry-run または全 target 失敗のときは上記 3 を行わない（§8）。
+5. **commit 区間の予約の畳み込み**。`persistenceAdmission.onDurable` は commit ごとに
+   `scheduleLatestStandbyPersistence()` を呼ぶため、素朴に書くと VFVO50 単独で 2 回、
+   `all` で 3 回予約されてしまう。そこで §5.5 の**同期 commit 区間だけ**通常の durable
+   予約を畳み（`ManualRepairCommitScope`）、畳んだ要求を finalizing で 1 回だけ予約に
+   変える。抑止の範囲は `coordinator.transact` の同期呼び出しに限る——prove phase の
+   await 中に届く live ingress の予約は畳まず、その場で通常どおり予約する。
+   commit が throw しても `finally` で抑止は解け、畳んだ要求は取り出されて 1 回予約される。
 
 `finally` は例外経路（proof の throw、commit の throw、REPL の中断）でも必ず通る。`repl.ts:178-189` の `.catch().finally()` は handler の外側であり、journal 解除を REPL に依存させてはならない。解除は adapter 自身の `try/finally` で行う。
 
@@ -597,7 +604,7 @@ src 約 265 行、テスト込み 600〜700 行。**実装を 2 委譲に分割�
 18. `finally` で journal が null に戻ること（成功・proof 失敗・commit reject・throw の 4 経路）。
 19. **`finally` で `volcanoRestRepairInFlight` が false に戻ること**。in-flight を true にした後に到達しうる全経路を列挙して検査する: 成功 / proof 失敗 / commit reject / throw / `notConnected` / journal ctor throw / `backupFailed`。各経路の直後に 2 本目を実行して `busy` にならないことで確認する（§5.6）。
 20. **`onDisconnected` 後の fail-closed と解除**。prove の await 中に `monitor.ts:851` の `onDisconnected` 相当（`journal.failAll("subscriptionDisconnected")`）を発火させると、当該実行が失敗し commit が 1 つも行われず、かつ `finally` で journal と in-flight の両方が解除されること。解除後に次の実行が受理されること。
-21. commit 成功後に `volcanoRepairState` / `volcanoFoundationAuthoritative` が起動時と同じ式で再計算され、`schedule()` が 1 回だけ呼ばれること。
+21. commit 成功後に `volcanoRepairState` / `volcanoFoundationAuthoritative` が起動時と同じ式で再計算され、`schedule()` が 1 回だけ呼ばれること。**試験 harness は production と同じ `persistenceAdmission.onDurable` 配線を持つこと**（配線が無いと commit ごとの予約が見えない）。VFVO50 単独と `all`（commit 2 本）の両方で 1 回に畳まれること、prove phase の await 中に届いた live ingress の予約は畳まれず即時に 1 回通ること（§5.6 手順 5）。
 22. 全 target 失敗時に `schedule()` が 0 回であること。
 23. クールダウン中の再実行が `cooldown` を返し、REST を発行せず、`.manual-backup` ファイルも 1 本も作らないこと（判定順序 §12.3）。
 24. **preflight failure がクールダウン時計を進めないこと**。`notConnected` で拒否された直後に、接続を回復させて即座に実行すると `cooldown` にならず受理されること。

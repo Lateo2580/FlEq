@@ -88,6 +88,52 @@ export function volcanoFoundationAuthoritativeFrom(repair: VolcanoRepairStateV1)
   return !repair.vfvo50Repairable && repair.unrecoverableAlertOmissions.length === 0;
 }
 
+/**
+ * 手動 REST repair の同期 commit 区間だけ、通常の durable 予約を畳むためのスコープ。
+ *
+ * commit phase（`repairVolcanoState` の `commitPolicy: "twoPhase"` 区間）は await を
+ * 一つも含まない同期区間なので、`run()` の外へ抑止が漏れることはない。prove phase の
+ * await 中に届く live ingress の予約は素通しであり、平常運転を止めない（spec §5.5 / §5.6）。
+ */
+export interface ManualRepairCommitScope {
+  /** 同期 commit を包む。await を含む callback を渡してはならない。 */
+  run<T>(commit: () => T): T;
+  /**
+   * 抑止中なら予約要求を latch して true を返す。durable callback は true の間だけ
+   * 予約を見送り、finalizing の 1 回にまとめる。
+   */
+  deferReservation(): boolean;
+  /** latch した予約要求を 1 回だけ取り出す（取り出しで latch は落ちる）。 */
+  takeDeferredReservation(): boolean;
+}
+
+/** `ManualRepairCommitScope` の唯一の実装。composition root と試験の両方がこれを使う。 */
+export function createManualRepairCommitScope(): ManualRepairCommitScope {
+  let depth = 0;
+  let deferred = false;
+  return {
+    run(commit) {
+      depth += 1;
+      try {
+        return commit();
+      } finally {
+        // 同期区間なので、この finally は必ず同じ tick で走る。
+        depth -= 1;
+      }
+    },
+    deferReservation() {
+      if (depth === 0) return false;
+      deferred = true;
+      return true;
+    },
+    takeDeferredReservation() {
+      const pending = deferred;
+      deferred = false;
+      return pending;
+    },
+  };
+}
+
 export interface VolcanoRestRepairAdapterDeps {
   apiKey: string;
   coordinator: VolcanoTransactionCoordinator;
@@ -98,6 +144,11 @@ export interface VolcanoRestRepairAdapterDeps {
   backupCurrentMirrors: () => VolcanoManualBackupResult;
   applyRepairState: (repair: VolcanoRepairStateV1, authoritative: boolean) => void;
   scheduleStandbyPersistence: () => void;
+  /**
+   * commit phase の `coordinator.transact` を包み、その同期区間だけ通常の durable 予約を
+   * 畳むスコープ。畳んだ要求は finalizing で 1 回だけ予約に変える（spec §5.6 / §14.2 #21）。
+   */
+  commitScope: ManualRepairCommitScope;
   now?: () => number;
   loadPage?: typeof listTelegrams;
   loadBody?: typeof fetchTelegramBody;
@@ -126,6 +177,8 @@ export function createVolcanoRestRepair(
     if (cooldownRemainingMs > 0) return { kind: "cooldown", remainingMs: cooldownRemainingMs };
     inFlight = true;
     let restIssued = false;
+    // commit 成功で確定する予約要求。commit 区間で畳んだ要求と OR で 1 回にまとめる。
+    let reservationPending = false;
     try {
       const acknowledgement = deps.getAcknowledgement();
       if (acknowledgement == null) return { kind: "notConnected" };
@@ -143,10 +196,20 @@ export function createVolcanoRestRepair(
         return { kind: "backupFailed", reason: backup.reason, detail: backup.detail };
       }
       const runtimeVersionBefore = deps.coordinator.snapshot().runtimeVersion;
+      // commit phase の transact だけを抑止スコープで包む。prove phase の await は
+      // 素通しなので、その間に届く live ingress の予約は畳まれない（spec §5.5）。
+      const commitScopedCoordinator = new Proxy(deps.coordinator, {
+        get(target, property) {
+          if (property !== "transact") return Reflect.get(target, property, target);
+          const transact: VolcanoTransactionCoordinator["transact"] = (family, reduce) =>
+            deps.commitScope.run(() => target.transact(family, reduce));
+          return transact;
+        },
+      });
       const repair = await repairVolcanoState({
         apiKey: deps.apiKey,
         nowMs,
-        coordinator: deps.coordinator,
+        coordinator: commitScopedCoordinator,
         journal,
         getAcknowledgement: deps.getAcknowledgement,
         targets: request.targets,
@@ -164,7 +227,7 @@ export function createVolcanoRestRepair(
       if (!request.dryRun && repair.targets.some((result) => result.kind === "committed")) {
         const repairState = deps.coordinator.snapshot().repair;
         deps.applyRepairState(repairState, volcanoFoundationAuthoritativeFrom(repairState));
-        deps.scheduleStandbyPersistence();
+        reservationPending = true;
       }
       const backupSummary = backup.files.length === 0
         ? "none"
@@ -182,6 +245,10 @@ export function createVolcanoRestRepair(
       deps.setJournal(null);
       inFlight = false;
       if (restIssued) cooldownUntilMs = now() + VOLCANO_REST_REPAIR_COOLDOWN_MS;
+      // 畳んだ要求は成功・throw のどちらでも必ず取り出す（latch を跨がせない）。
+      // 予約自体は commit が durable を動かしたときだけ 1 回行う（spec §14.2 #21 / #22）。
+      const deferred = deps.commitScope.takeDeferredReservation();
+      if (deferred || reservationPending) deps.scheduleStandbyPersistence();
     }
   };
 }
@@ -295,6 +362,8 @@ export async function startMonitor(config: AppConfig, pipelineController?: Pipel
   // startup save reservation へ畳み込む。
   let startupPersistenceSchedulingSuppressed = true;
   let startupPersistenceDirty = false;
+  // 手動 REST repair の同期 commit 区間だけ予約を畳む（起動時の畳み込みとは別軸）。
+  const manualRepairCommitScope = createManualRepairCommitScope();
   const captureLatestStandbyPersistencePair = () => {
     const envelope = standbyPersistence.reserveSerializationEnvelope();
     return persistenceAdmission.captureSerializedPair(envelope);
@@ -320,7 +389,8 @@ export async function startMonitor(config: AppConfig, pipelineController?: Pipel
   };
   const scheduleLatestStandbyPersistence = (): void => {
     if (startupPersistenceSchedulingSuppressed) startupPersistenceDirty = true;
-    else {
+    // 手動 repair の commit 区間中は adapter の finalizing が 1 回にまとめて予約する。
+    else if (!manualRepairCommitScope.deferReservation()) {
       try {
         scheduleCapturedStandbyPersistence();
       } catch (error) {
@@ -1035,6 +1105,7 @@ export async function startMonitor(config: AppConfig, pipelineController?: Pipel
       volcanoFoundationAuthoritative = authoritative;
     },
     scheduleStandbyPersistence: () => { scheduleLatestStandbyPersistence(); },
+    commitScope: manualRepairCommitScope,
   });
   const volcanoRepairAdministration: VolcanoRepairAdministration = {
     status: () => volcanoTransactionCoordinator.status(),

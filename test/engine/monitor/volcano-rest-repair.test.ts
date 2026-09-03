@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { testTelegramMeta } from "../../helpers/telegram-meta";
 import {
+  createManualRepairCommitScope,
   createVolcanoRestRepair,
   VOLCANO_REST_REPAIR_COOLDOWN_MS,
   volcanoFoundationAuthoritativeFrom,
@@ -167,7 +168,24 @@ function coordinatorFixture() {
     },
     repairState: repair,
   });
-  return { coordinator: new VolcanoTransactionCoordinator(admission), holder, repair };
+  return { coordinator: new VolcanoTransactionCoordinator(admission), holder, repair, admission };
+}
+
+/**
+ * production の配線（`monitor.ts` の `persistenceAdmission.onDurable` →
+ * `scheduleLatestStandbyPersistence`）を試験でも同型に組む。これが無いと
+ * commit ごとの予約が見えず、予約回数の回帰を取り逃がす。
+ */
+function wireProductionPersistenceScheduling(
+  admission: StandbyPersistenceAdmissionCoordinator,
+  scope: ReturnType<typeof createManualRepairCommitScope>,
+  schedule: () => void,
+): () => void {
+  const scheduleLatest = (): void => {
+    if (!scope.deferReservation()) schedule();
+  };
+  admission.onDurable(scheduleLatest);
+  return scheduleLatest;
 }
 
 interface Harness {
@@ -182,6 +200,10 @@ interface Harness {
   applyRepairState: ReturnType<typeof vi.fn>;
   ack: { current: WsSubscriptionAcknowledgement | null };
   clock: { now: number };
+  /** live ingress 相当の durable 予約を起こす（commit 区間の外で呼ぶ） */
+  scheduleLatest: () => void;
+  admission: StandbyPersistenceAdmissionCoordinator;
+  holderForLive: VolcanoStateHolder;
 }
 
 /** `completed` を型で確定させてから targets を読む */
@@ -202,7 +224,7 @@ function harness(overrides: {
   loadBody?: ReturnType<typeof vi.fn>;
   backup?: ReturnType<typeof vi.fn>;
 } = {}): Harness {
-  const { coordinator, holder } = coordinatorFixture();
+  const { coordinator, holder, admission } = coordinatorFixture();
   const journal: { current: VolcanoRepairJournal | null } = { current: null };
   const ack: { current: WsSubscriptionAcknowledgement | null } = { current: ACK };
   const clock = { now: NOW };
@@ -212,6 +234,8 @@ function harness(overrides: {
   const backup = overrides.backup ?? vi.fn(() => BACKED_UP);
   const schedule = vi.fn();
   const applyRepairState = vi.fn();
+  const commitScope = createManualRepairCommitScope();
+  const scheduleLatest = wireProductionPersistenceScheduling(admission, commitScope, schedule);
   const restRepair = createVolcanoRestRepair({
     apiKey: "key",
     coordinator,
@@ -220,7 +244,8 @@ function harness(overrides: {
     getAcknowledgement: () => ack.current,
     backupCurrentMirrors: backup as unknown as () => VolcanoManualBackupResult,
     applyRepairState,
-    scheduleStandbyPersistence: schedule,
+    scheduleStandbyPersistence: scheduleLatest,
+    commitScope,
     now: () => clock.now,
     loadPage: loadPage as never,
     loadBody: loadBody as never,
@@ -228,6 +253,7 @@ function harness(overrides: {
   return {
     restRepair, journal, coordinator, holder,
     loadPage, loadBody, backup, schedule, applyRepairState, ack, clock,
+    scheduleLatest, admission, holderForLive: holder,
   };
 }
 
@@ -273,6 +299,7 @@ describe("volcano manual REST repair adapter", () => {
       backupCurrentMirrors: () => BACKED_UP,
       applyRepairState: vi.fn(),
       scheduleStandbyPersistence: vi.fn(),
+      commitScope: createManualRepairCommitScope(),
       now: () => NOW,
       loadPage: loadPage as never,
     });
@@ -430,6 +457,52 @@ describe("volcano manual REST repair adapter", () => {
     expect(repairState.vfvo50Repairable).toBe(false);
   });
 
+  // 独立レビュー指摘（2026-09-03）: commit ごとの durable 予約と finalizing の予約が二重になる
+  it("spec §14.2 #21: all 実行でも予約は 1 回に畳まれる（commit 2 本 + finalizing）", async () => {
+    const h = harness();
+
+    const result = await h.restRepair({ targets: ["vfvo50", "ashfall"], dryRun: false, reason: "適用" });
+
+    expect(result).toMatchObject({ kind: "completed" });
+    // commit された target が 2 本あっても予約は 1 回
+    expect(completedTargets(result).filter((target) => target.kind === "committed").length)
+      .toBeGreaterThanOrEqual(1);
+    expect(h.schedule).toHaveBeenCalledTimes(1);
+  });
+
+  // spec §5.5: 抑止は同期 commit 区間のみ。prove phase の await は平常運転のまま
+  it("spec §5.5: prove phase の await 中に届いた live ingress の予約は畳まれない", async () => {
+    // 内側の観測は変数に記録して外で判定する（mock 内の expect は proof 失敗に化ける）
+    const scheduledBeforeLive: number[] = [];
+    const scheduledAfterLive: number[] = [];
+    let liveIngressDone = false;
+    const loadPage = vi.fn(async () => {
+      if (!liveIngressDone) {
+        liveIngressDone = true;
+        scheduledBeforeLive.push(h.schedule.mock.calls.length);
+        // repair の await 中に別の電文が admission を通った状況
+        h.coordinator.transact("volcanoAlert", (scratch) => ({
+          kind: "accepted",
+          value: null,
+          durableChanged: scratch.holder.applyAcceptedAlert(
+            volcanoAlert({ volcanoCode: "999", volcanoName: "live", alertLevel: 2 }),
+          ),
+        }));
+        scheduledAfterLive.push(h.schedule.mock.calls.length);
+      }
+      return emptyResponse();
+    });
+    const h = harness({ loadPage });
+
+    await h.restRepair({ targets: ["vfvo50"], dryRun: false, reason: "適用" });
+
+    // live 予約は commit 区間の外なので、その場で 1 回だけ通る（畳まれない）
+    expect(scheduledAfterLive[0]! - scheduledBeforeLive[0]!).toBe(1);
+    // live の 1 回 + repair commit 区間を畳んだ 1 回
+    expect(h.schedule).toHaveBeenCalledTimes(scheduledAfterLive[0]! + 1);
+    expect(h.schedule).toHaveBeenCalledTimes(2);
+  });
+
   // spec §14.2 #22
   it("spec §14.2 #22: 全 target 失敗時は schedule を呼ばない", async () => {
     const h = harness({
@@ -541,6 +614,7 @@ describe("volcano manual REST repair adapter", () => {
       backupCurrentMirrors: () => persistence.backupCurrentMirrors("manual"),
       applyRepairState: vi.fn(),
       scheduleStandbyPersistence: vi.fn(),
+      commitScope: createManualRepairCommitScope(),
       now: () => NOW,
       loadPage: (async () => emptyResponse()) as never,
     });
@@ -559,6 +633,37 @@ describe("volcano manual REST repair adapter", () => {
     expect(added.every((name) => name.endsWith(".manual-backup"))).toBe(true);
 
     fs.rmSync(directory, { recursive: true, force: true });
+  });
+
+  describe("ManualRepairCommitScope", () => {
+    it("run の外では畳まず、run の中だけ latch する", () => {
+      const scope = createManualRepairCommitScope();
+
+      expect(scope.deferReservation()).toBe(false);
+      expect(scope.takeDeferredReservation()).toBe(false);
+
+      scope.run(() => {
+        expect(scope.deferReservation()).toBe(true);
+        expect(scope.deferReservation()).toBe(true);
+      });
+
+      expect(scope.deferReservation()).toBe(false);
+      // 畳んだ要求は 1 回だけ取り出せる
+      expect(scope.takeDeferredReservation()).toBe(true);
+      expect(scope.takeDeferredReservation()).toBe(false);
+    });
+
+    it("run 内の throw でも finally で抑止が解ける", () => {
+      const scope = createManualRepairCommitScope();
+
+      expect(() => scope.run(() => {
+        scope.deferReservation();
+        throw new Error("commit failed");
+      })).toThrow("commit failed");
+
+      expect(scope.deferReservation()).toBe(false);
+      expect(scope.takeDeferredReservation()).toBe(true);
+    });
   });
 
   // spec §14.4 #43（adapter 側）
