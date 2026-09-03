@@ -13,6 +13,7 @@ import {
   type PersistedStandbyStateV1,
   type PersistedTelegramFoundationInputV2,
   type PersistedWeatherWarningForecastStateV1,
+  type VolcanoManualBackupResult,
 } from "../../../src/engine/display/standby-persistence";
 import type { DisplayBriefingEntryV1 } from "../../../src/engine/display/protocol";
 import { StandbyStateStore } from "../../../src/engine/display/standby-state-store";
@@ -2523,6 +2524,189 @@ describe("StandbyPersistence", () => {
     expect(restored.snapshotItems()).toEqual(expect.arrayContaining([
       expect.objectContaining({ kind: "longPeriod", severity: "critical" }),
     ]));
+  });
+});
+
+describe("manual backup of current mirrors", () => {
+  function backupNames(path: string, extension: string): string[] {
+    return readdirSync(dirname(path)).filter((name) => name.endsWith(extension)).sort();
+  }
+
+  function expectBackedUp(
+    result: VolcanoManualBackupResult,
+  ): { source: "v2" | "v1"; path: string; reused: boolean }[] {
+    if (result.kind !== "backedUp") throw new Error(`expected backedUp but got ${JSON.stringify(result)}`);
+    return result.files;
+  }
+
+  function seedBothMirrors(): { path: string; v2Path: string } {
+    const path = tempPath();
+    const seed = new StandbyPersistence(path, 0);
+    seed.save(state());
+    const v2Path = standbyPersistenceV2Path(path);
+    expect(existsSync(path)).toBe(true);
+    expect(existsSync(v2Path)).toBe(true);
+    return { path, v2Path };
+  }
+
+  it("v2 と v1 の両方があれば v2 → v1 の順に 2 本退避する", () => {
+    const { path, v2Path } = seedBothMirrors();
+
+    const files = expectBackedUp(new StandbyPersistence(path, 0).backupCurrentMirrors("manual"));
+
+    expect(files.map((file) => file.source)).toEqual(["v2", "v1"]);
+    expect(files.map((file) => file.reused)).toEqual([false, false]);
+    expect(backupNames(path, ".manual-backup")).toHaveLength(2);
+    expect(readFileSync(files[0]!.path)).toEqual(readFileSync(v2Path));
+    expect(readFileSync(files[1]!.path)).toEqual(readFileSync(path));
+    expect(backupNames(path, ".salvage-backup")).toEqual([]);
+  });
+
+  it("v2 だけがあれば v2 の 1 本を退避する", () => {
+    const { path, v2Path } = seedBothMirrors();
+    rmSync(path);
+
+    const files = expectBackedUp(new StandbyPersistence(path, 0).backupCurrentMirrors("manual"));
+
+    expect(files.map((file) => file.source)).toEqual(["v2"]);
+    expect(readFileSync(files[0]!.path)).toEqual(readFileSync(v2Path));
+    expect(backupNames(path, ".manual-backup")).toHaveLength(1);
+  });
+
+  it("v1 だけがあれば v1 の 1 本を退避する", () => {
+    const { path, v2Path } = seedBothMirrors();
+    rmSync(v2Path);
+
+    const files = expectBackedUp(new StandbyPersistence(path, 0).backupCurrentMirrors("manual"));
+
+    expect(files.map((file) => file.source)).toEqual(["v1"]);
+    expect(readFileSync(files[0]!.path)).toEqual(readFileSync(path));
+    expect(backupNames(path, ".manual-backup")).toHaveLength(1);
+  });
+
+  it("mirror が 1 本も無ければ noMirrorPresent で fail-closed する", () => {
+    const path = tempPath();
+    mkdirSync(dirname(path), { recursive: true });
+
+    const result = new StandbyPersistence(path, 0).backupCurrentMirrors("manual");
+
+    expect(result).toEqual({
+      kind: "failed",
+      reason: "noMirrorPresent",
+      detail: `${standbyPersistenceV2Path(path)}, ${path}`,
+    });
+    expect(backupNames(path, ".manual-backup")).toEqual([]);
+  });
+
+  it("同一内容での再実行は既存 backup を reused として返しファイルを増やさない", () => {
+    const { path } = seedBothMirrors();
+    const persistence = new StandbyPersistence(path, 0);
+    const first = expectBackedUp(persistence.backupCurrentMirrors("manual"));
+    const created = backupNames(path, ".manual-backup");
+
+    const second = expectBackedUp(persistence.backupCurrentMirrors("manual"));
+
+    expect(second.map((file) => file.reused)).toEqual([true, true]);
+    expect(second.map((file) => file.path)).toEqual(first.map((file) => file.path));
+    expect(backupNames(path, ".manual-backup")).toEqual(created);
+  });
+
+  it("同一 sha256 の .salvage-backup があっても .manual-backup は新規作成する", () => {
+    const { path, v2Path } = seedBothMirrors();
+    const stamp = new Date(T0).toISOString().replace(/[:.]/g, "-");
+    writeFileSync(join(dirname(path), `display-active-state-v1.json.${stamp}.0.salvage-backup`), readFileSync(path));
+    writeFileSync(join(dirname(path), `display-active-state-v2.json.${stamp}.0.salvage-backup`), readFileSync(v2Path));
+    expect(backupNames(path, ".salvage-backup")).toHaveLength(2);
+
+    const files = expectBackedUp(new StandbyPersistence(path, 0).backupCurrentMirrors("manual"));
+
+    expect(files.map((file) => file.reused)).toEqual([false, false]);
+    expect(backupNames(path, ".manual-backup")).toHaveLength(2);
+    expect(backupNames(path, ".salvage-backup")).toHaveLength(2);
+  });
+
+  it("同一 sha256 の .manual-backup があっても salvage backup は .salvage-backup を作る", async () => {
+    const path = tempPath();
+    mkdirSync(dirname(path), { recursive: true });
+    const raw = Buffer.from(`${JSON.stringify({ ...state(), heat: [{ key: "broken" }] }, null, 2)}\n`, "utf8");
+    writeFileSync(path, raw);
+    const manual = expectBackedUp(new StandbyPersistence(path, 0).backupCurrentMirrors("manual"));
+    expect(readFileSync(manual[0]!.path)).toEqual(raw);
+
+    const persistence = new StandbyPersistence(path, 0);
+    expect(persistence.load()?.heat).toEqual([]);
+    persistence.schedule(state());
+    await persistence.__test_writePending();
+
+    const salvage = backupNames(path, ".salvage-backup");
+    expect(salvage).toHaveLength(1);
+    expect(readFileSync(join(dirname(path), salvage[0]!))).toEqual(raw);
+    expect(backupNames(path, ".manual-backup")).toHaveLength(1);
+    expect(persistence.salvageBackupDiagnostics()).toEqual({
+      persistenceSalvageBackupBlocked: 0,
+      persistenceSalvageBackupRecovered: 0,
+      pendingSources: 0,
+    });
+  });
+
+  it("backup 書き込み不可なら writeFailed を返し例外を漏らさない", () => {
+    const { path } = seedBothMirrors();
+    const originalOpenSync = fs.openSync;
+    vi.spyOn(fs, "openSync").mockImplementation((file, flags, ...args) => {
+      if (typeof file === "string" && file.endsWith(".manual-backup") && flags === "wx") {
+        const error = new Error("backup blocked") as NodeJS.ErrnoException;
+        error.code = "EACCES";
+        throw error;
+      }
+      return originalOpenSync(file, flags, ...args);
+    });
+
+    const result = new StandbyPersistence(path, 0).backupCurrentMirrors("manual");
+
+    expect(result.kind).toBe("failed");
+    expect(result).toMatchObject({ reason: "writeFailed", source: "v2" });
+    expect(backupNames(path, ".manual-backup")).toEqual([]);
+  });
+
+  it("ENOENT 以外の read error は readFailed で即中止する", () => {
+    const { path, v2Path } = seedBothMirrors();
+    const originalReadFileSync = fs.readFileSync;
+    vi.spyOn(fs, "readFileSync").mockImplementation(((file: unknown, ...args: unknown[]) => {
+      if (file === v2Path) {
+        const error = new Error("read blocked") as NodeJS.ErrnoException;
+        error.code = "EACCES";
+        throw error;
+      }
+      return (originalReadFileSync as (...inner: unknown[]) => unknown)(file, ...args);
+    }) as typeof fs.readFileSync);
+
+    const result = new StandbyPersistence(path, 0).backupCurrentMirrors("manual");
+
+    expect(result.kind).toBe("failed");
+    expect(result).toMatchObject({ reason: "readFailed", source: "v2" });
+    vi.restoreAllMocks();
+    expect(backupNames(path, ".manual-backup")).toEqual([]);
+  });
+
+  it("manual backup も wx 作成 → file fsync → directory fsync の順で durable に書く", () => {
+    const { path } = seedBothMirrors();
+    const openSync = vi.spyOn(fs, "openSync");
+    const fsyncSync = vi.spyOn(fs, "fsyncSync").mockImplementation(() => undefined);
+
+    const files = expectBackedUp(new StandbyPersistence(path, 0).backupCurrentMirrors("manual"));
+
+    const backupOpen = openSync.mock.calls.findIndex(([file, flags]) =>
+      typeof file === "string" && file.endsWith(".manual-backup") && flags === "wx");
+    expect(backupOpen).toBeGreaterThanOrEqual(0);
+    expect(openSync.mock.calls[backupOpen]?.[0]).toBe(files[0]!.path);
+    expect(openSync.mock.calls[backupOpen + 1]?.[0]).toBe(dirname(path));
+    expect(fsyncSync.mock.calls[0]?.[0]).toBe(openSync.mock.results[backupOpen]?.value);
+    expect(fsyncSync.mock.calls[1]?.[0]).toBe(openSync.mock.results[backupOpen + 1]?.value);
+    const secondOpen = openSync.mock.calls.findIndex(([file, flags], index) =>
+      index > backupOpen + 1 && typeof file === "string" && file.endsWith(".manual-backup") && flags === "wx");
+    expect(secondOpen).toBeGreaterThan(backupOpen + 1);
+    expect(openSync.mock.calls[secondOpen]?.[0]).toBe(files[1]!.path);
+    expect(openSync.mock.calls[secondOpen + 1]?.[0]).toBe(dirname(path));
   });
 });
 

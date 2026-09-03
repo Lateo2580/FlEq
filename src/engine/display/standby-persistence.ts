@@ -737,6 +737,16 @@ export type StandbyPersistenceBackupState =
   | "backedUp"
   | "rewrite";
 
+/** `backupCurrentMirrors()` の結果。現在ディスク上の mirror を `.manual-backup` に退避した記録。 */
+export type VolcanoManualBackupResult =
+  | { kind: "backedUp"; files: { source: "v2" | "v1"; path: string; reused: boolean }[] }
+  | {
+      kind: "failed";
+      reason: "noMirrorPresent" | "readFailed" | "writeFailed";
+      source?: "v2" | "v1";
+      detail: string;
+    };
+
 interface StandbyPersistenceLoadResultBase {
   state: PersistedStandbyStateV2 | null;
   startup: StandbyStartupDisposition;
@@ -2327,7 +2337,72 @@ export class StandbyPersistence {
     return false;
   }
 
+  /**
+   * 現在ディスク上の v2 / v1 mirror を `.manual-backup` として退避する。
+   *
+   * salvage backup と違い、破損 source（`repairSources`）ではなく「いまディスクにあるもの」を
+   * そのまま退避する。debounce 中の pending write が後からこれを上書きするのは正常である。
+   * 存在する mirror すべての退避に成功したときだけ `backedUp` を返す（fail-closed）。
+   */
+  backupCurrentMirrors(label: "manual"): VolcanoManualBackupResult {
+    const targets = [
+      { source: "v2" as const, path: standbyPersistenceV2Path(this.persistPath) },
+      { source: "v1" as const, path: this.persistPath },
+    ];
+    const present: { source: "v2" | "v1"; path: string; bytes: Buffer }[] = [];
+    for (const target of targets) {
+      let bytes: Buffer;
+      try {
+        bytes = fs.readFileSync(target.path);
+      } catch (err) {
+        if ((err as NodeJS.ErrnoException).code === "ENOENT") continue;
+        return {
+          kind: "failed",
+          reason: "readFailed",
+          source: target.source,
+          detail: `${target.path}: ${err instanceof Error ? err.message : String(err)}`,
+        };
+      }
+      present.push({ ...target, bytes });
+    }
+    if (present.length === 0) {
+      return {
+        kind: "failed",
+        reason: "noMirrorPresent",
+        detail: targets.map((target) => target.path).join(", "),
+      };
+    }
+    const files: { source: "v2" | "v1"; path: string; reused: boolean }[] = [];
+    for (const entry of present) {
+      try {
+        const written = this.writeBackupFile(entry.path, entry.bytes, `${label}-backup`);
+        files.push({ source: entry.source, path: written.path, reused: written.reused });
+      } catch (err) {
+        return {
+          kind: "failed",
+          reason: "writeFailed",
+          source: entry.source,
+          detail: `${entry.path}: ${err instanceof Error ? err.message : String(err)}`,
+        };
+      }
+    }
+    return { kind: "backedUp", files };
+  }
+
   private writeSalvageBackup(sourcePath: string, bytes: Buffer): void {
+    this.writeBackupFile(sourcePath, bytes, "salvage-backup");
+  }
+
+  /**
+   * `${base}.${timestamp}.${collisionIndex}.${extension}` に bytes を durable に退避する。
+   * dedup は同じ extension の backup だけを見る。種別ごとに証拠を分けて残すため、
+   * `.manual-backup` は同一内容の `.salvage-backup` があっても新規作成する（逆も同じ）。
+   */
+  private writeBackupFile(
+    sourcePath: string,
+    bytes: Buffer,
+    extension: "salvage-backup" | "manual-backup",
+  ): { path: string; reused: boolean } {
     const directory = path.dirname(sourcePath);
     const base = path.basename(sourcePath);
     const fingerprint = createHash("sha256").update(bytes).digest("hex");
@@ -2335,12 +2410,14 @@ export class StandbyPersistence {
     // Reuse that evidence instead of multiplying backups on every restart.
     try {
       for (const name of fs.readdirSync(directory)) {
-        if (!name.startsWith(`${base}.`) || !name.endsWith(".salvage-backup")) continue;
+        if (!name.startsWith(`${base}.`) || !name.endsWith(`.${extension}`)) continue;
         const candidate = path.join(directory, name);
         const stat = fs.statSync(candidate);
         if (!stat.isFile() || stat.size !== bytes.byteLength) continue;
         const existing = fs.readFileSync(candidate);
-        if (createHash("sha256").update(existing).digest("hex") === fingerprint) return;
+        if (createHash("sha256").update(existing).digest("hex") === fingerprint) {
+          return { path: candidate, reused: true };
+        }
       }
     } catch {
       // The normal wx path below owns diagnostics and retry classification.
@@ -2351,7 +2428,7 @@ export class StandbyPersistence {
     let created = false;
     try {
       for (let suffix = 0; ; suffix++) {
-        backupPath = path.join(directory, `${base}.${timestamp}.${suffix}.salvage-backup`);
+        backupPath = path.join(directory, `${base}.${timestamp}.${suffix}.${extension}`);
         try {
           fd = fs.openSync(backupPath, "wx");
           created = true;
@@ -2380,6 +2457,7 @@ export class StandbyPersistence {
       }
       throw err;
     }
+    return { path: backupPath, reused: false };
   }
 
   private fsyncBackupDirectory(directory: string): void {
