@@ -2509,6 +2509,8 @@ export class StandbyPersistence {
    * （salvage / manual）・timestamp 桁が違う手書き名・backup 以外のファイルは対象外。
    * 並びは timestamp 降順、同 timestamp は collisionIndex の**数値**降順（`.10` は `.9` より新しい）。
    * `keepPath` に渡した「今書いたばかりの backup」は並び順に依らず削除しない。
+   * 時計後退で keepPath が並びの後方に来ても世代数は増やさない（keep を 1 件と数え、
+   * keep 以外の新しい `BACKUP_GENERATIONS_PER_KIND - 1` 件だけを併せて残す）。
    * 削除失敗は握り潰さず warn して続行する（backup 本体の成功は取り消さない）。
    */
   private pruneBackupGenerations(
@@ -2535,9 +2537,20 @@ export class StandbyPersistence {
         left.parsed.timestamp === right.parsed.timestamp
           ? right.parsed.index - left.parsed.index
           : (left.parsed.timestamp < right.parsed.timestamp ? 1 : -1));
-    for (const { name } of generations.slice(BACKUP_GENERATIONS_PER_KIND)) {
-      // 今書いた backup は「証拠が残った」と報告済みなので、並び順に依らず消さない。
-      if (keepName != null && name === keepName) continue;
+    // 今書いた backup は「証拠が残った」と報告済みなので、並び順に依らず残す。
+    // 時計が戻って keep が並びの後方に来た場合でも、keep を数に含めたうえで
+    // 「keep ＋ keep 以外の新しい (BACKUP_GENERATIONS_PER_KIND - 1) 件」を残し、
+    // 世代数の契約が 1 件ぶん緩まないようにする。
+    const survivors = new Set<string>();
+    if (keepName != null && generations.some((entry) => entry.name === keepName)) {
+      survivors.add(keepName);
+    }
+    for (const { name } of generations) {
+      if (survivors.size >= BACKUP_GENERATIONS_PER_KIND) break;
+      survivors.add(name);
+    }
+    for (const { name } of generations) {
+      if (survivors.has(name)) continue;
       try {
         fs.unlinkSync(path.join(directory, name));
       } catch (err) {

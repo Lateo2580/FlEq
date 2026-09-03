@@ -6139,6 +6139,42 @@ describe("backup generation pruning", () => {
     ].sort());
   });
 
+  it("時計が戻って新規 backup が既存より古くても 3 世代契約を守る", () => {
+    const { path, v2Path, dir } = seedBothMirrors();
+    // 時刻補正前に書かれた「未来 timestamp」の backup が 3 世代ある状態を作る。
+    const futureStamps = [
+      "2030-01-01T00-00-00-000Z",
+      "2030-01-02T00-00-00-000Z",
+      "2030-01-03T00-00-00-000Z",
+    ];
+    for (const [index, stamp] of futureStamps.entries()) {
+      writeFileSync(join(dir, `${V2_BASE}.${stamp}.0.manual-backup`), `future-v2-${index}`, "utf8");
+      writeFileSync(join(dir, `${V1_BASE}.${stamp}.0.manual-backup`), `future-v1-${index}`, "utf8");
+    }
+    // 時計が過去へ戻ったあとに新規 backup を作る（並び順では最古になる）。
+    const nowMs = Date.parse("2026-09-01T00:00:00.000Z");
+    const nowStamp = new Date(nowMs).toISOString().replace(/[:.]/g, "-");
+    vi.useFakeTimers();
+    vi.setSystemTime(nowMs);
+    writeFileSync(v2Path, `{"clock":"back","mirror":"v2"}`, "utf8");
+    writeFileSync(path, `{"clock":"back","mirror":"v1"}`, "utf8");
+
+    const files = expectBackedUp(new StandbyPersistence(path, 0).backupCurrentMirrors("manual"));
+
+    expect(files.map((file) => file.reused)).toEqual([false, false]);
+    const keptV2 = nameOf(files[0]!.path);
+    expect(keptV2).toBe(`${V2_BASE}.${nowStamp}.0.manual-backup`);
+    // 新規（keep）と未来側の新しい 2 件が残り、未来側の最古が消える。
+    expect(generations(dir, V2_BASE, ".manual-backup").sort()).toEqual([
+      keptV2,
+      `${V2_BASE}.${futureStamps[1]!}.0.manual-backup`,
+      `${V2_BASE}.${futureStamps[2]!}.0.manual-backup`,
+    ].sort());
+    expect(existsSync(join(dir, `${V2_BASE}.${futureStamps[0]!}.0.manual-backup`))).toBe(false);
+    expect(readFileSync(files[0]!.path, "utf8")).toBe(`{"clock":"back","mirror":"v2"}`);
+    expect(generations(dir, V1_BASE, ".manual-backup")).toHaveLength(3);
+  });
+
   it("既存 backup を再利用したときは剪定しない", () => {
     const { path, v2Path, dir } = seedBothMirrors();
     const v1Bytes = readFileSync(path);
