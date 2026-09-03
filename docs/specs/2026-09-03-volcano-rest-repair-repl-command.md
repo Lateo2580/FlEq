@@ -94,6 +94,7 @@ volcanorepair rest [vfvo50|ashfall|all] [--dry-run] [--confirm <reason...>]
   - したがって `--dry-run` は `--confirm` **より前**にのみ書ける。`--confirm` 以降に `--dry-run` という token が現れた場合は**使い方表示で終わる**（reason に紛れ込ませない。`rest --confirm 再現手順 --dry-run` を「dry-run のつもりだったが本実行される」と誤読する事故を型で潰す）。
   - `--confirm` 以降の `--dry-run` 検出は完全一致でのみ行う。`--dry-run=1` のような token は reason 本文として通す。
 - `--dry-run` 指定時は `--confirm` を要求しない。指定されていれば reason として log に載せる。
+- `--confirm` より前に `--dry-run` が複数回指定されても受理する（usage error にしない）。フラグを重ねて立てるだけで、2 回目以降は no-op として扱う（`parseVolcanoRestRepairArgs`、`operation-handlers.ts:294-297`）。
 - `--dry-run` 以外では `--confirm <reason>` が必須。reason が空文字（`--confirm` の後が無い、または空白のみ）なら使い方表示で終わる。検証規則は既存 `accept` / `clear` / `acknowledge-domain` と同一とする（`operation-handlers.ts:295-300` の「action・fingerprint・reason のいずれかが空なら使い方表示」と同じ形）。
 - 受理する順序は `[target] [--dry-run] [--confirm <reason...>]` の 1 通りだけである。`rest --dry-run --confirm r` は受理、`rest --confirm r --dry-run` は usage error。両方をテストで固定する（§14.1 #4a / #4b）。
 - 既存サブコマンド `status` / `accept` / `clear` / `acknowledge-domain` の構文と挙動は変更しない。`rest` は排他的な新サブコマンドである。
@@ -149,7 +150,7 @@ idle
 
 同期区間で次を順に行う。1 つでも満たさなければ journal を install せずに終わる。
 
-1. `ctx.volcanoRepairAdministration?.restRepair` が未提供なら `unavailable`（「この構成では利用できません」）。
+1. `ctx.volcanoRepairAdministration?.restRepair` が未提供なら `unavailable`。表示文言は 2 種に分かれる: `administration` 自体が null のとき既存文言「火山修復管理はこの構成では利用できません」（`handleVolcanoRepair`、`operation-handlers.ts:378`、既存 `status`/`accept`/`clear`/`acknowledge-domain` と共通）、`administration` はあるが `restRepair` が未提供のとき新設文言「火山 REST repair はこの構成では利用できません」（`handleVolcanoRestRepair`、`operation-handlers.ts:319`）。
 2. 引数検証（§4.1）。不正なら使い方表示。
 3. `monitor` 側 adapter が `volcanoRepairJournal != null` または `volcanoRestRepairInFlight === true` を見たら `busy`。**この検査と `volcanoRestRepairInFlight = true` の代入は同一の同期区間で行う**（await を挟まない）。起動時 repair 進行中もこの検査で弾かれる。
 4. クールダウン検査（§12）。`cooldown` は **manual backup より前**に判定する。cooldown で拒否された試行はファイルを 1 本も作らない。
@@ -256,7 +257,7 @@ scheduleLatestStandbyPersistence();
 
 ### 6.1 責務
 
-`monitor.ts` の composition root に、shared 変数を閉じ込めた adapter を 1 つ置く。
+`monitor.ts` の composition root に、shared 変数を閉じ込めた adapter を 1 つ置く。adapter の実装を別モジュールへ移さない。テストのための factory export（`createVolcanoRestRepair`、`monitor.ts:111`）は `monitor.ts` 内に留める限り可とする——`test/engine/monitor/volcano-rest-repair.test.ts` はこの factory を直接呼んで adapter を単体検査しており、その用途に限って `monitor.ts` からの export を認める。shared 変数（`volcanoRepairJournal` に相当するもの、in-flight フラグ、cooldown 時計）は get/set closure（`VolcanoRestRepairAdapterDeps` の `getJournal` / `setJournal` 等）で factory に渡し、`volcano-initializer.ts` や `operation-handlers.ts` など外部モジュールは shared 変数そのものへ触れない。
 
 ```ts
 const volcanoRestRepairAdapter = {
@@ -286,7 +287,7 @@ const volcanoRestRepairAdapter = {
 - shared 変数 `volcanoRepairJournal` の宣言（`monitor.ts:825`）と `onPrimaryTransportData`（`:827-829`）は変更しない。
 - `volcanoRestRepairInFlight` と `volcanoRestRepairCooldownUntilMs` は adapter と同じ closure に閉じ込める。`monitor.ts` の外から参照できる形で export しない。
 - `restIssued` の判定は `repairVolcanoState` の戻り値に含めるか、`loadPage` / `loadBody` を wrap した counter で取る。どちらでもよいが「REST を 1 本も出していない試行では false」であることが受入条件である（§14.2 #24-26）。
-- adapter は `monitor.ts` の外へ出さない。`volcano-initializer.ts` や `operation-handlers.ts` が shared 変数へ直接触れることを禁止する。
+- adapter の実装を `monitor.ts` の外へ移さない（§6.1）。テストのための factory export に限って `monitor.ts` からの export を認めるが、`volcano-initializer.ts` や `operation-handlers.ts` が shared 変数へ直接触れることは禁止する。
 - REPL へ渡すのは `VolcanoRepairAdministration` を満たしつつ `restRepair` を持つ合成オブジェクトである。`monitor.ts:909` の `volcanoTransactionCoordinator` 直渡しを、`{ status: ..., resolveOperationalV2AlertOmission: ..., restRepair: ... }` へ置き換える。coordinator の 2 メソッドは bind して委譲する。
 
 ### 6.2 起動時 repair との排他
@@ -582,7 +583,7 @@ src 約 265 行、テスト込み 600〜700 行。**実装を 2 委譲に分割�
 7. `rest all --dry-run --confirm 動作確認` が受理され、`dryRun === true` / `reason === "動作確認"` で `restRepair` に渡ること（順序：option が `--confirm` より前）。
 8. `rest all --confirm 動作確認 --dry-run` が**使い方表示のみで終わり** `restRepair` を呼ばないこと（`--confirm` は option 終端。§4.1）。
 9. `rest all --confirm 手順 --dry-run=1` は受理され、reason が `"手順 --dry-run=1"` になること（完全一致でのみ usage error にする）。
-10. `ctx.volcanoRepairAdministration` が null、または `restRepair` 未提供のとき「利用できません」を出し例外を出さない。
+10. `ctx.volcanoRepairAdministration` が null、または `restRepair` 未提供のとき「利用できません」を出し例外を出さない。前者は既存文言「火山修復管理はこの構成では利用できません」、後者は新設文言「火山 REST repair はこの構成では利用できません」であり、2 経路を個別に検査する（§5.1 手順 1）。
 11. handler が Promise を返し、`repl.ts` が await して `commandRunning` を解除する（`repl.ts:176-190` の既存 async 経路の回帰）。
 12. 既存 `status` / `accept` / `clear` / `acknowledge-domain` の挙動が変わらない（回帰）。
 
@@ -616,7 +617,7 @@ src 約 265 行、テスト込み 600〜700 行。**実装を 2 委譲に分割�
 35. VFVO50 force が非破壊であること: 窓外 alert・非 VFVO50 provenance の alert・既存 `sourceEventIds` が保持される。
 36. ashfall force が破壊的であること: force 前に存在した窓外 ashfall が消え、窓内が replay される（§9.2 の明文化を試験で固定する）。
 37. `nowMs` を起動時刻ではなく実行時刻で渡したとき、coverage 窓が移動して古い item が除外されること。
-38. **ashfall tombstone expiry の境界**（`expireRevisionFamily(..., nowMs, VOLCANO_ASHFALL_RETENTION_MS)` `:1274-1279`）。`lastUpdatedMs === nowMs - VOLCANO_ASHFALL_RETENTION_MS` ちょうどの ashfall gate entry は**保持**され、そこから 1 ms 超過した entry は**削除**されること。`coupleVolcanoGateAndHolder`（`:1280`）を経て holder 側も同じ境界で追従すること。
+38. **ashfall tombstone expiry の境界**（`expireRevisionFamily(..., nowMs, VOLCANO_ASHFALL_RETENTION_MS)` `:1274-1279`）。`lastUpdatedMs === nowMs - VOLCANO_ASHFALL_RETENTION_MS` ちょうどの ashfall gate entry は**保持**され、そこから 1 ms 超過した entry は**削除**されること。観測点は gate の `volcano:volcanoAshfall:` エントリ（`coordinator.snapshot().gates.states` を同プレフィクスで filter したもの）に限定する。holder composite は降灰予報の有効期間（`classificationNowMs >= periods.endsAtMs` で expired）と gate 期限が混線し、この境界だけを切り出して観測できないため、holder 側の追従は本項の受入条件に含めない（`test/engine/volcano-initializer.test.ts` の `ashfallGateKeys` ヘルパが実装している観測方法）。
 39. **VFVO50 commit は gate family を expire しないこと**。`commitVfvo50Proof` に大きく進んだ `nowMs` を渡しても、既存の `volcanoAlert` gate entry と holder composite が expire・sweep されないこと（`expireRevisionFamily` / `coupleVolcanoGateAndHolder` が呼ばれないことを spy で確認）。`nowMs` が VFVO50 で変えるのは coverage 起点と分類時計だけである（§10.2.1）。
 40. `targets` に空配列・重複・未知値を渡すと実行前に拒否されること。
 
@@ -709,6 +710,15 @@ src 約 265 行、テスト込み 600〜700 行。**実装を 2 委譲に分割�
 5. **`repl.ts` の async 対応行**。§4 は `repl.ts:180-197` とするが、Promise 判定と `.finally()` は `:177-190` である（1 画面差、実害なし）。
 6. **`monitor.ts` の行番号**。§4 は journal 配線を `:832-975` とするが、shared 変数宣言は `:827`、`onPrimaryTransportData` は `:829-831`、journal 生成は `:944`、解除は `:957`、派生再計算は `:958-960` である。
 7. **規模見積もり**。§4 は「src 約 200 行」と見積もるが、`nowMs` 改名（§10.1）と二段階 commit（§5.5）を含めると src 約 265 行になる。`isBackupActive` の追加は §11 の決定により不要になった。
+
+### 17-1. 第 2 段実装時の同期 4 点（2026-09-03）
+
+第 2 段実装（`972e78c`）と本書 v1.1 の食い違いを実装側を正として反映した点。
+
+1. **§6.1 adapter の所在**: 「`monitor.ts` の外へ出さない」を、テストのための factory export（`createVolcanoRestRepair`、`monitor.ts:111`）は `monitor.ts` 内に留める限り可、shared 変数は get/set closure で渡し外部モジュールは触れない、へ改めた（`test/engine/monitor/volcano-rest-repair.test.ts` が factory を直接呼んで単体検査している）。
+2. **§14.3 #38（ashfall tombstone 境界）**: 観測点を holder composite から gate の `volcano:volcanoAshfall:` エントリへ限定した。holder composite は降灰予報の有効期間（`classificationNowMs >= periods.endsAtMs`、`volcano-ashfall-projector.ts:260`）と gate 期限が混線し境界を単独観測できないため（実装は `ashfallGateKeys` ヘルパで gate のみ見ている）。
+3. **§4.1 引数解析**: `--dry-run` の重複指定（`--confirm` より前）は usage error にせず受理する旨を明記した（`parseVolcanoRestRepairArgs`、`operation-handlers.ts:294-297` はフラグを重ね立てするだけで拒否しない）。
+4. **§5.1 手順 1 / §14.1 #10 の `unavailable` 文言**: `administration == null` は既存文言「火山修復管理はこの構成では利用できません」（`operation-handlers.ts:378`）、`restRepair == null` は新設文言「火山 REST repair はこの構成では利用できません」（`operation-handlers.ts:319`）の 2 種に分かれる旨を明記した。
 
 ## 18. 独立レビュー（2026-09-03）での訂正
 
