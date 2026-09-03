@@ -4370,6 +4370,267 @@ describe("pre-generation volcano migration serial canonicalization", () => {
   });
 });
 
+describe("pre-generation volcano migration の alertClass 由来 warningKind", () => {
+  const fixturePath = join(
+    process.cwd(),
+    "test",
+    "fixtures",
+    "standby-persistence",
+    "operational-v2-active-alert.json",
+  );
+  const REPORT_RAW = "2026-08-31T00:00:00.000Z";
+  const REPORT_MS = 1788134400000;
+  const RETAIN_CLASS = {
+    code: "00",
+    name: "活火山であることに留意",
+    severity: "info" as const,
+    isActive: true,
+  };
+
+  type AlertClassInput = {
+    code: string;
+    name: string;
+    severity: "warning" | "info";
+    isActive: boolean;
+  };
+
+  type VolcanoSpec = {
+    code: string;
+    name: string;
+    alertLevel: number | null;
+    alertClass: AlertClassInput | null;
+    holderWarningKind: string;
+    rollbackWarningKind: string | null;
+    serial: string;
+    /** null にすると gate の provenance が不明になり operationalV2ProvenanceLost が付く。 */
+    gateSourceFamily?: "VFVO50" | null;
+  };
+
+  function buildFixture(specs: VolcanoSpec[]): Record<string, unknown> {
+    const fixture = JSON.parse(readFileSync(fixturePath, "utf8")) as Record<string, unknown>;
+    const foundation = fixture.telegramFoundation as {
+      volcano: {
+        state: Record<string, unknown>;
+        active: Record<string, unknown>[];
+        gateEntries: Record<string, unknown>[];
+      };
+    };
+    const baseGate = foundation.volcano.gateEntries[0]!;
+    const rollbacks = specs.map((spec) => ({
+      code: spec.code,
+      name: spec.name,
+      alertLevel: spec.alertLevel,
+      alertClass: spec.alertClass,
+      warningKind: spec.rollbackWarningKind,
+      targetKinds: ["火口周辺警報"],
+      alertExpiresAtMs: null,
+      latestEvent: null,
+      latestEventId: null,
+      eventExpiresAtMs: null,
+      sourceEventIds: [`operational-v2-source-${spec.code}`],
+      alertRevision: { reportTimeMs: REPORT_MS, serial: spec.serial },
+      eventRevision: null,
+    }));
+    const alerts = specs.map((spec) => ({
+      volcanoCode: spec.code,
+      volcanoName: spec.name,
+      alertLevel: spec.alertLevel,
+      alertLevelCode: null,
+      action: "issue",
+      reportDateTime: REPORT_RAW,
+      alertClass: spec.alertClass,
+      warningKind: spec.holderWarningKind,
+      targetKinds: ["火口周辺警報"],
+    }));
+    const gates = specs.map((spec) => {
+      const gate = JSON.parse(JSON.stringify(baseGate)) as {
+        stateSubjectKey: string;
+        semanticKeys: string[];
+        legacyRevisionKey?: string;
+        comparison: {
+          stateSubjectKey: string;
+          revision: {
+            eventId: { raw: string; value: string; valid: boolean };
+            serial: { raw: string; numeric: number; valid: boolean };
+          };
+        };
+      };
+      const subject = `volcano:alert:${spec.code}`;
+      gate.stateSubjectKey = subject;
+      gate.comparison.stateSubjectKey = subject;
+      gate.comparison.revision.eventId = { raw: subject, value: subject, valid: true };
+      gate.comparison.revision.serial = {
+        raw: spec.serial,
+        numeric: Number(spec.serial),
+        valid: true,
+      };
+      gate.semanticKeys = [`発表:operational-v2-active-${spec.code}`];
+      gate.legacyRevisionKey = subject;
+      const family = spec.gateSourceFamily === undefined ? "VFVO50" : spec.gateSourceFamily;
+      const record = gate as unknown as Record<string, unknown>;
+      if (family == null) delete record.volcanoProvenance;
+      else record.volcanoProvenance = { kind: "alert", sourceFamily: family };
+      return record;
+    });
+    fixture.volcanoes = rollbacks;
+    foundation.volcano.state = { alerts, eruptions: [] };
+    foundation.volcano.active = rollbacks as unknown as Record<string, unknown>[];
+    foundation.volcano.gateEntries = gates;
+    return fixture;
+  }
+
+  function loadSpecs(specs: VolcanoSpec[]): {
+    path: string;
+    persistence: StandbyPersistence;
+    quarantined: boolean;
+    authoritative: boolean;
+    repairState: VolcanoRepairStateV1;
+    volcanoes: PersistedVolcanoStateV2["volcanoes"];
+    state: Parameters<StandbyPersistence["save"]>[0];
+  } {
+    const path = tempPath();
+    mkdirSync(dirname(path), { recursive: true });
+    writeFileSync(standbyPersistenceV2Path(path), JSON.stringify(buildFixture(specs)), "utf8");
+    const persistence = new StandbyPersistence(path);
+    const result = persistence.loadWithResult(Date.parse("2026-09-01T00:00:00.000Z"));
+    if (result.startup.kind === "fatal" || result.state == null) {
+      throw new Error("expected a restored standby state");
+    }
+    const foundation = result.state.telegramFoundation.volcano;
+    const state = foundation.state as PersistedVolcanoStateV2 | null;
+    return {
+      path,
+      persistence,
+      quarantined: result.volcanoDomainQuarantined,
+      authoritative: foundation.authoritative,
+      repairState: foundation.repairState!,
+      volcanoes: state?.volcanoes ?? [],
+      state: result.state,
+    };
+  }
+
+  const omissionReasons = (repair: VolcanoRepairStateV1): Record<string, number> => {
+    const counts: Record<string, number> = {};
+    for (const omission of repair.unrecoverableAlertOmissions) {
+      counts[omission.reason] = (counts[omission.reason] ?? 0) + 1;
+    }
+    return counts;
+  };
+
+  const RETAIN_SPEC: VolcanoSpec = {
+    code: "101",
+    name: "アトサヌプリ",
+    alertLevel: null,
+    alertClass: RETAIN_CLASS,
+    holderWarningKind: "活火山であることに留意",
+    rollbackWarningKind: null,
+    serial: "8",
+  };
+  const LEVELED_SPEC: VolcanoSpec = {
+    code: "506",
+    name: "桜島",
+    alertLevel: 3,
+    alertClass: null,
+    holderWarningKind: "噴火警報（火口周辺）",
+    rollbackWarningKind: "噴火警報（火口周辺）",
+    serial: "1",
+  };
+
+  it("レベルなし火山の holder 文字列 × rollback null を join して alert を復元する", () => {
+    const loaded = loadSpecs([RETAIN_SPEC]);
+    expect(loaded.quarantined).toBe(false);
+    expect(loaded.authoritative).toBe(true);
+    expect(loaded.volcanoes).toHaveLength(1);
+    expect(loaded.volcanoes[0]?.alert).toMatchObject({
+      volcanoCode: "101",
+      alertLevel: null,
+      warningKind: "活火山であることに留意",
+      alertClass: RETAIN_CLASS,
+      revision: { reportTimeMs: REPORT_MS, serial: "8" },
+    });
+    expect(loaded.repairState.unrecoverableAlertOmissions).toEqual([]);
+  });
+
+  it("レベルなし 1 件とレベル持ち 1 件の混在で 2 件とも復元する", () => {
+    const loaded = loadSpecs([RETAIN_SPEC, LEVELED_SPEC]);
+    expect(loaded.quarantined).toBe(false);
+    expect(loaded.volcanoes.map((composite) => composite.volcanoCode).sort())
+      .toEqual(["101", "506"]);
+    expect(loaded.volcanoes.every((composite) => composite.alert != null)).toBe(true);
+    expect(loaded.repairState.unrecoverableAlertOmissions).toEqual([]);
+  });
+
+  it("provenance 不明 gate では provenanceMissing が operationalV2ProvenanceLost へ置き換わる", () => {
+    // 本修正の副作用境界。join が通っても gate に explicit な sourceFamily が無ければ
+    // sourceFamily=operationalV2Unknown となり operationalV2ProvenanceLost が積まれる。
+    // つまり omission の総数は変わらず reason だけが移る（alert 自体は復元される）。
+    const loaded = loadSpecs([
+      { ...RETAIN_SPEC, gateSourceFamily: null },
+      { ...LEVELED_SPEC, gateSourceFamily: null },
+    ]);
+    expect(loaded.quarantined).toBe(false);
+    expect(loaded.volcanoes.map((composite) => composite.volcanoCode).sort())
+      .toEqual(["101", "506"]);
+    expect(omissionReasons(loaded.repairState))
+      .toEqual({ operationalV2ProvenanceLost: 2 });
+  });
+
+  it("holder.warningKind が alertClass.name と異なるなら従来どおり join に失敗する", () => {
+    const loaded = loadSpecs([{
+      ...RETAIN_SPEC,
+      holderWarningKind: "噴火警報（火口周辺）",
+      gateSourceFamily: null,
+    }]);
+    expect(loaded.quarantined).toBe(false);
+    expect(loaded.volcanoes).toEqual([]);
+    expect(loaded.repairState.unrecoverableAlertOmissions).toEqual([
+      expect.objectContaining({
+        scope: "volcano",
+        volcanoCode: "101",
+        sourceFamily: "unknown",
+        reason: "provenanceMissing",
+      }),
+    ]);
+  });
+
+  it("holder.alertClass が null なら rollback null を許容せず従来どおり落ちる", () => {
+    const loaded = loadSpecs([{
+      ...LEVELED_SPEC,
+      rollbackWarningKind: null,
+      gateSourceFamily: null,
+    }]);
+    expect(loaded.quarantined).toBe(false);
+    expect(loaded.volcanoes).toEqual([]);
+    expect(loaded.repairState.unrecoverableAlertOmissions).toEqual([
+      expect.objectContaining({
+        scope: "volcano",
+        volcanoCode: "506",
+        sourceFamily: "unknown",
+        reason: "provenanceMissing",
+      }),
+    ]);
+  });
+
+  it("保存 → 再読込の 2 巡目でも omission が再発しない (冪等)", () => {
+    const first = loadSpecs([RETAIN_SPEC, LEVELED_SPEC]);
+    expect(first.repairState.unrecoverableAlertOmissions).toEqual([]);
+    expect(first.persistence.save(first.state)).toMatchObject({ kind: "written" });
+
+    const second = new StandbyPersistence(first.path);
+    const reloaded = second.loadWithResult(Date.parse("2026-09-01T01:00:00.000Z"));
+    if (reloaded.startup.kind === "fatal" || reloaded.state == null) {
+      throw new Error("expected a restored standby state");
+    }
+    const foundation = reloaded.state.telegramFoundation.volcano;
+    const state = foundation.state as PersistedVolcanoStateV2 | null;
+    expect(reloaded.volcanoDomainQuarantined).toBe(false);
+    expect(foundation.repairState?.unrecoverableAlertOmissions).toEqual([]);
+    expect((state?.volcanoes ?? []).map((composite) => composite.volcanoCode).sort())
+      .toEqual(["101", "506"]);
+  });
+});
+
+
 describe("v1 volcano migration serial canonicalization", () => {
   const fixturePath = join(
     process.cwd(),

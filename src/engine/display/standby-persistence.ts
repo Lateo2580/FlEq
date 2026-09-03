@@ -7635,7 +7635,14 @@ function migratePreGenerationVolcanoFoundation(
     && holder.volcanoName === rollback.name
     && holder.alertLevel === rollback.alertLevel
     && JSON.stringify(holder.alertClass ?? null) === JSON.stringify(rollback.alertClass ?? null)
-    && holder.warningKind === (rollback.warningKind ?? null)
+    // rollback/legacy mirror は alertClass を持つ entry の warningKind を意図的に
+    // null で書く（project-standby.ts:190）。holder 側は alertClass.name をそのまま
+    // warningKind に載せるので、レベルなし火山（「活火山であることに留意」等）では
+    // 両者が構造的に食い違う。alertClass の完全一致は上の JSON 比較で既に要求済みな
+    // ので、mirror 側の欠落を holder.alertClass.name で補うのは捏造ではなく復元。
+    && (holder.warningKind === (rollback.warningKind ?? null)
+      || rollback.warningKind == null && holder.alertClass != null
+        && holder.warningKind === holder.alertClass.name)
     && JSON.stringify(holder.targetKinds) === JSON.stringify(rollback.targetKinds ?? []);
 
   const allAlertCodes = new Set<string>([
