@@ -1081,7 +1081,7 @@ Linux で canberra-gtk-play が使えない場合、`\x07` (BEL) を stdout に�
 - `TelegramListItem` → `WsDataMessage` 変換は `startup/telegram-adapter.ts` の共有 `toWsDataMessageFromRestBody()` で行う (volcano-initializer と共用)。一覧 item の `compression` / `encoding` は読まず、`compression: null` / `encoding: "utf-8"` を固定で立てる。
 - 実採取の VTSE41 は `xmlReport.head.serial` が null。VTSE41 の revision family は `allowMissingSerial: true` なので identity は EventID と reportDateTime で立つ。
 - gate の判定は `processTsunami()` に集約する。persisted watermark と同一の REST 報は duplicate として suppressed になり、holder が空の場合だけ `restoreStateOnDuplicate` で再構成する。取消 tombstone・訂正済み active は REST の旧報で巻き戻さない。
-- `persistenceAdmission` がある場合、REST 結果は `processTsunami()` の admission transaction を通る。transaction は REST await 後の最新 composition を capture して candidate を作り、token が進んでいれば `staleVersion` で reject する。永続復元済み state や REST 待ちの間に届いた live VTSE41 (REST より新しい) は上書きされない (gate が REST を stale として拒否する)。
+- `persistenceAdmission` がある場合、REST 結果は `processTsunami()` の admission transaction を通る。REST の一覧/本文取得の await 中に live VTSE41 が届いても、REST 側が transaction に入る（`transact()` を呼ぶ）のはその await が終わった後であり、transaction はその時点の最新 holder/gate を capture する。永続復元済み state や REST 待ちの間に届いた live VTSE41 (REST より新しい) は、capture された revision gate が古い REST 報を stale として抑止するため上書きされない。`staleVersion` はこの順序保証そのものではなく、capture 後に同期的に割り込む再入 mutation に対する防衛である。
 - REST API 呼び出しは起動時の 1 回のみ。以降は WebSocket 経由のリアルタイム更新に任せる。
 
 ---

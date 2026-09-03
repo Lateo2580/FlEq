@@ -19,9 +19,12 @@ import type { StandbyPersistenceAdmissionCoordinator } from "../display/standby-
  * アプリの起動を妨げない。
  *
  * `persistenceAdmission` がある場合、REST 結果は `processTsunami` の admission
- * transaction を通る。transaction は await 後の最新 composition を capture して
- * candidate を作るので、永続復元済み state や REST 待ちの間に届いた live 電文を
- * 上書きしない (stale なら staleVersion で reject)。
+ * transaction を通る。REST の list/body 取得の await 中に live 電文が届いても、
+ * REST 側が transaction に入る (`transact()` を呼ぶ) のはその await が終わった後であり、
+ * transaction はその時点の最新 holder/gate を capture する。永続復元済み state や REST
+ * 待ちの間に届いた live 電文は、capture された revision gate が古い REST 報を stale
+ * として抑止するため上書きされない (`staleVersion` はこの順序保証そのものではなく、
+ * capture 後に同期的に割り込む再入 mutation に対する防衛)。
  */
 export async function restoreTsunamiState(
   apiKey: string,

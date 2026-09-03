@@ -21,7 +21,7 @@
 
 ### 1.2 非目標
 
-- **`restoreVolcanoState` の流用禁止**。`src/engine/startup/volcano-initializer.ts:1387` の legacy `restoreVolcanoState` は呼び出し元が存在せず、一覧 item の `item.body`（実 API に存在しないキー）に依存する死んだ経路である（`:1409-1412`）。本コマンドはこれを一切使わない。復活・再配線・部分流用のいずれも禁止する。
+- **`restoreVolcanoState` の復活禁止**。`src/engine/startup/volcano-initializer.ts` にあった legacy `restoreVolcanoState`（旧 `:1387`、一覧 item の `item.body`〔実 API に存在しないキー〕に依存する死んだ経路、`item.body` 分岐は旧 `:1409-1412`、呼び出し元なし）は `08f3965` で削除済みである。本コマンドはこれを一切使わない。削除済みの legacy 経路を復活・再配線・部分流用するいずれも禁止する。
 - **`repairable` フラグの書き戻し禁止**。force 実行のために `vfvo50Repairable` / `ashfallRepairable` を true に書いてから既存経路を走らせる実装は禁止する。target は外から渡す（§3.1）。
 - **永続 schema 不変**。`PersistedStandbyStateV2` / `VolcanoRepairStateV1` およびその deep 形状に field を足さない。監査は log だけに置く（裁定済み）。移行セットが不要であることが本コマンドを 1 委譲に収めるための前提である（memory `feedback_schema_change_needs_migration`）。
 - **proof ロジック不変**。`crossSetConsistent`・coverage 境界・fingerprint・`acceptedAtMs` の算出・`orderHistoricalBeforeDedupe` を変更しない。
@@ -662,7 +662,7 @@ src 約 265 行、テスト込み 600〜700 行。**実装を 2 委譲に分割�
 3. `npm run test:shuffle` が緑である。
 4. `npm run test:phase6b-production` の結果が本変更の前後で同一である（本変更で新たな赤を増やさない。既存赤 2 件は別件）。
 5. §14 のテスト 60 件が存在し緑である。番号ごとに `it` が 1 つ以上対応する。
-6. `grep -n "restoreVolcanoState" src/engine/monitor/ src/ui/` が 0 件である（非目標 §1.2 の機械的確認）。
+6. `grep -n "restoreVolcanoState" src/` が 0 件である（`08f3965` で削除済み。非目標 §1.2 の機械的確認）。
 7. `grep -n "Repairable = true" src/` が 0 件である（`repairable` 書き戻しの禁止）。
 8. `grep -n "backupLineActive\|isBackupActive" src/` が 0 件である（§11 の削除決定の機械的確認）。
 9. `git diff` に `PersistedStandbyStateV2` / `VolcanoRepairStateV1` の型定義変更が含まれない。
@@ -705,7 +705,7 @@ src 約 265 行、テスト込み 600〜700 行。**実装を 2 委譲に分割�
 1. **REST 呼び出し量は「未設計」ではない**。§4 未確認欄は「REST 呼び出し量（最大 128 ページ・body 256 件）。連打クールダウンは未設計」と書くが、1 repair あたりの上限は `VOLCANO_REPAIR_MAX_PAGES=128`（`volcano-initializer.ts:65`）・`VOLCANO_REPAIR_MAX_BODY_FETCHES=256`（`:69`）・`VOLCANO_REPAIR_MAX_ITEMS_PER_TYPE`（`:616`）として実装済みである。未設計なのは実行間隔だけ（§12）。
 2. **`writeSalvageBackup` の `suffix` は種別ラベルではない**。`:2353` の `suffix` は `EEXIST` 衝突回避の連番であり、「suffix 引数化で共用する案」はそのままでは成立しない。共用するなら拡張子の引数化になる（§7.3）。加えて dedup 走査（`:2337-2346`）が拡張子で絞っているため、拡張子を引数化しないと種別を跨いだ誤 dedup が起きる。
 3. **副回線の危険は存在しない（本書 v1.0 の誤りを v1.1 で訂正）**。§4 未確認欄は「副回線稼働中は `onPrimaryTransportData` が primary のみ journal に流す差」と書き、本書 v1.0 はそれを「実データ喪失」まで拡大解釈して実行ガード（`backupLineActive`）を要求した。**どちらも誤りである**。`multi-connection-manager.ts:204-206` の `EEW_CLASSIFICATIONS` filter により副回線は `eew.forecast` / `eew.warning` しか購読せず、火山電文を 1 件も受けない。したがって「journal に残らない火山電文」は発生せず、ガードは不要である（§11）。訂正の詳細は §18-1。
-4. **`restoreVolcanoState` の行番号**。§4 と §1 は `volcano-initializer.ts:1409-1412` を挙げるが、関数定義は `:1387`、`item.body` 分岐は `:1409-1412` である（§1 の記述の方が正確）。呼び出し元なしは確認した。
+4. **`restoreVolcanoState` の行番号（起草時点）**。§4 と §1 は `volcano-initializer.ts:1409-1412` を挙げるが、起草時点で関数定義は `:1387`、`item.body` 分岐は `:1409-1412` であった（§1 の記述の方が正確）。呼び出し元なしは確認済み。**この legacy 関数自体は `08f3965` で削除済み**であり、上記行番号は削除前の履歴上の位置を指す（§1.2 参照）。
 5. **`repl.ts` の async 対応行**。§4 は `repl.ts:180-197` とするが、Promise 判定と `.finally()` は `:177-190` である（1 画面差、実害なし）。
 6. **`monitor.ts` の行番号**。§4 は journal 配線を `:832-975` とするが、shared 変数宣言は `:827`、`onPrimaryTransportData` は `:829-831`、journal 生成は `:944`、解除は `:957`、派生再計算は `:958-960` である。
 7. **規模見積もり**。§4 は「src 約 200 行」と見積もるが、`nowMs` 改名（§10.1）と二段階 commit（§5.5）を含めると src 約 265 行になる。`isBackupActive` の追加は §11 の決定により不要になった。
