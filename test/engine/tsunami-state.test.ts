@@ -4,6 +4,7 @@ import { TsunamiStateHolder } from "../../src/engine/messages/tsunami-state";
 import { ParsedTsunamiInfo } from "../../src/types";
 import {
   canonicalizeLegacyTsunamiInfo,
+  canonicalizeLegacyTsunamiObservation,
   type LegacyTsunamiForecastItemInput,
   type LegacyParsedTsunamiInfoInput,
 } from "../../src/dmdata/tsunami-legacy-adapter";
@@ -80,6 +81,21 @@ function forecast(
     maxHeightDescription: "3m",
     firstHeight: "到達中と推測",
   };
+}
+
+/** 潮位観測点 (VTSE51/52) のテスト用 station */
+function station(stationCode: string, name: string) {
+  return canonicalizeLegacyTsunamiObservation({
+    areaName: "岩手県",
+    areaCode: "340",
+    stationCode,
+    name,
+    sensor: "検潮所",
+    arrivalTime: "2025-01-01T00:05:00+09:00",
+    initial: "押し",
+    maxHeightCondition: "観測中",
+    maxHeightValue: "1.0m",
+  });
 }
 
 describe("TsunamiStateHolder", () => {
@@ -532,8 +548,6 @@ describe("TsunamiStateHolder", () => {
       expect(holder.getLastInfo()).toBeNull();
       expect(holder.getPersistedActive()).toBeNull();
       expect(holder.getPromptStatus()).toBeNull();
-      // 観測を積んでいない前提での確認。applyAccepted は observationGroups をクリアしないため
-      // (クリアするのは InfoType=取消 の clearAccepted のみ)、積んだ状態での解除は別項目。
       expect(holder.getObservationGroups()).toEqual({ VTSE51: [], VTSE52: [] });
     });
 
@@ -634,6 +648,112 @@ describe("TsunamiStateHolder", () => {
       expect(holder.getLevel()).toBeNull();
       expect(holder.getLastInfo()).toBeNull();
       expect(holder.getPersistedActive()).toBeNull();
+    });
+
+    it("観測を積んだ状態の解除 (60) で observation groups も空になる", () => {
+      holder.applyAccepted(eventInfo(
+        "obs-release-event",
+        [forecast("712", "62", "有明・八代海", "津波注意報")],
+      ));
+      holder.applyAcceptedObservations("VTSE51", [station("21001", "宮古")]);
+      holder.applyAcceptedObservations("VTSE52", [station("22002", "石巻")]);
+      expect(holder.getObservationGroups().VTSE51).toHaveLength(1);
+      expect(holder.getObservationGroups().VTSE52).toHaveLength(1);
+
+      holder.applyAccepted(eventInfo(
+        "obs-release-event",
+        [forecast("712", "60", "有明・八代海", "津波注意報解除")],
+        "2025-01-01T00:10:00+09:00",
+      ));
+
+      expect(holder.getLevel()).toBeNull();
+      expect(holder.getPersistedActive()).toBeNull();
+      expect(holder.getObservationGroups()).toEqual({ VTSE51: [], VTSE52: [] });
+    });
+
+    it("解除後の同 EventID 再発表では古い観測が混ざらない", () => {
+      holder.applyAccepted(eventInfo(
+        "obs-relight-event",
+        [forecast("712", "62", "有明・八代海", "津波注意報")],
+      ));
+      holder.applyAcceptedObservations("VTSE51", [station("21001", "宮古")]);
+
+      holder.applyAccepted(eventInfo(
+        "obs-relight-event",
+        [forecast("712", "60", "有明・八代海", "津波注意報解除")],
+        "2025-01-01T00:10:00+09:00",
+      ));
+      holder.applyAccepted(eventInfo(
+        "obs-relight-event",
+        [forecast("712", "62", "有明・八代海", "津波注意報")],
+        "2025-01-01T00:20:00+09:00",
+      ));
+
+      expect(holder.getLevel()).toBe("津波注意報");
+      // 再点灯時点では観測は空から始まり、新しい観測だけが積まれる
+      expect(holder.getObservationGroups()).toEqual({ VTSE51: [], VTSE52: [] });
+      holder.applyAcceptedObservations("VTSE51", [station("23003", "銚子")]);
+      expect(holder.getObservationGroups().VTSE51.map((item) => item.stationCode))
+        .toEqual(["23003"]);
+    });
+
+    it("一部解除・他区継続 (level 維持) では observation groups を消さない", () => {
+      holder.applyAccepted(eventInfo(
+        "obs-partial-event",
+        [
+          forecast("311", "62", "区域311", "津波注意報"),
+          forecast("320", "62", "区域320", "津波注意報"),
+        ],
+      ));
+      holder.applyAcceptedObservations("VTSE51", [station("21001", "宮古")]);
+
+      holder.applyAccepted(eventInfo(
+        "obs-partial-event",
+        [
+          forecast("311", "60", "区域311", "津波注意報解除"),
+          forecast("320", "62", "区域320", "津波注意報"),
+        ],
+        "2025-01-01T00:10:00+09:00",
+      ));
+
+      expect(holder.getLevel()).toBe("津波注意報");
+      expect(holder.getObservationGroups().VTSE51.map((item) => item.stationCode))
+        .toEqual(["21001"]);
+    });
+
+    it("別 EventID の警報が継続している間は解除報で observation groups を消さない", () => {
+      holder.applyAccepted(eventInfo(
+        "obs-cleared-event",
+        [forecast("712", "62", "有明・八代海", "津波注意報")],
+      ));
+      holder.applyAccepted(eventInfo(
+        "obs-kept-event",
+        [forecast("100", "62", "北海道太平洋沿岸東部", "津波注意報")],
+      ));
+      holder.applyAcceptedObservations("VTSE51", [station("21001", "宮古")]);
+
+      holder.applyAccepted(eventInfo(
+        "obs-cleared-event",
+        [forecast("712", "60", "有明・八代海", "津波注意報解除")],
+        "2025-01-01T00:10:00+09:00",
+      ));
+
+      expect(holder.getLevel()).toBe("津波注意報");
+      expect(holder.getObservationGroups().VTSE51).toHaveLength(1);
+    });
+
+    it("InfoType=取消 (clearAccepted) 経路の observation クリアは従来どおり", () => {
+      holder.applyAccepted(eventInfo(
+        "obs-cancel-event",
+        [forecast("712", "62", "有明・八代海", "津波注意報")],
+      ));
+      holder.applyAcceptedObservations("VTSE51", [station("21001", "宮古")]);
+      expect(holder.getObservationGroups().VTSE51).toHaveLength(1);
+
+      holder.clearAccepted(eventInfo("obs-cancel-event", [], "2025-01-01T00:10:00+09:00"));
+
+      expect(holder.getLevel()).toBeNull();
+      expect(holder.getObservationGroups()).toEqual({ VTSE51: [], VTSE52: [] });
     });
   });
 });

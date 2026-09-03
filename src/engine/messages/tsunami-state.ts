@@ -367,6 +367,10 @@ export class TsunamiStateHolder
     }
     // item があるのに照合可能 key がゼロなら fail-open 表示だけに留める。
     this.rebuildActiveState();
+    // 解除報 (Kind Code 60) は InfoType=発表 でこの経路を通る。全予報区が解除されて
+    // level が消えたら、取消 (clearAccepted) と同じく潮位観測も畳む。残すと後続の
+    // 再発表で古い観測点が holder と永続 snapshot に混ざる。
+    this.clearObservationsIfInactive();
   }
 
   /**
@@ -406,7 +410,7 @@ export class TsunamiStateHolder
       }
     }
     this.rebuildActiveState();
-    if (this.currentLevel == null) this.observationGroups = emptyObservationGroups();
+    this.clearObservationsIfInactive();
   }
 
   /** 共通 clearCurrent decision を active state へ反映する。watermark は registry が保持する。 */
@@ -454,6 +458,11 @@ export class TsunamiStateHolder
   clear(): void {
     this.clearActiveState();
     this.observationGroups = emptyObservationGroups();
+  }
+
+  /** 継続中の警報レベルが無くなったら潮位観測も畳む。 */
+  private clearObservationsIfInactive(): void {
+    if (this.currentLevel == null) this.observationGroups = emptyObservationGroups();
   }
 
   private clearActiveState(): void {
