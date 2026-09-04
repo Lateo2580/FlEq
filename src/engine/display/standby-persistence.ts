@@ -1199,15 +1199,19 @@ export class StandbyPersistence {
       const usable = (source: PersistedReadResult): boolean =>
         source.state != null && (source.sourceState === "valid" || source.sourceState === "salvageable");
       let selected: { source: "v2" | "v1"; read: PersistedReadResult } | null = null;
-      let sameGenerationConflict = false;
+      let pairConflictRecorded = false;
       if (sourceStates.v2 === "ioError" || sourceStates.v1 === "ioError") {
         selected = null;
       } else if (usable(v2) && usable(v1)) {
         if (v2.logicalGeneration != null && v1.logicalGeneration != null) {
-          if (v2.logicalGeneration > v1.logicalGeneration) selected = { source: "v2", read: v2 };
-          else if (v1.logicalGeneration > v2.logicalGeneration) selected = { source: "v1", read: v1 };
-          else {
-            selected = { source: "v2", read: v2 };
+          // v2 is the canonical snapshot.  In particular, v1 ahead of v2 is
+          // the recoverable footprint of the former v1-first writer, not an
+          // authority transfer to the rollback mirror.
+          selected = { source: "v2", read: v2 };
+          if (v1.logicalGeneration > v2.logicalGeneration) {
+            pairConflictRecorded = true;
+            this.recordMigrationConflict("rollbackMirrorAheadOfCanonicalV2");
+          } else if (v1.logicalGeneration === v2.logicalGeneration) {
             const v2VolcanoState = v2.state!.telegramFoundation.volcano.state;
             const strictVolcanoControl = v2VolcanoState != null
               && "generation" in v2VolcanoState && v2VolcanoState.generation === 1;
@@ -1216,7 +1220,7 @@ export class StandbyPersistence {
               this.toV1(v1.state!),
               !strictVolcanoControl,
             )) {
-              sameGenerationConflict = true;
+              pairConflictRecorded = true;
               this.recordMigrationConflict("sameGenerationConflict");
             }
           }
@@ -1300,11 +1304,11 @@ export class StandbyPersistence {
         // A generated source promises a complete two-file snapshot.  A missing
         // or unreadable counterpart is therefore a partial-commit diagnostic,
         // even though the selected file remains independently usable.
-        if (selected.read.logicalGeneration != null) {
+        if (selected.read.logicalGeneration != null && !pairConflictRecorded) {
           this.recordMigrationConflict("logical generation counterpart unavailable");
         }
       }
-      if (selected.read.migrationConflict && !sameGenerationConflict) {
+      if (selected.read.migrationConflict && !pairConflictRecorded) {
         this.recordMigrationConflict("telegram foundation envelope fields differ");
       }
       if (this.repairSources.size > 0) {
@@ -2172,10 +2176,10 @@ export class StandbyPersistence {
         v2Committed: true, v1Committed: true,
       };
     }
-    try { fs.renameSync(v1TmpPath, this.persistPath); }
-    catch (cause) { return failure("renameV1", cause); }
     try { fs.renameSync(v2TmpPath, v2Path); }
-    catch (cause) { return failure("renameV2", cause, "v1Only"); }
+    catch (cause) { return failure("renameV2", cause); }
+    try { fs.renameSync(v1TmpPath, this.persistPath); }
+    catch (cause) { return failure("renameV1", cause, "v2Only"); }
     try { this.fsyncBackupDirectory(path.dirname(this.persistPath)); }
     catch (cause) { return failure("directoryFsync", cause, "unknown"); }
     this.renamedSeq = seq;
@@ -2298,11 +2302,11 @@ export class StandbyPersistence {
         fs.rmSync(v1TmpPath, { force: true });
         return;
       }
-      stage = "renameV1";
-      fs.renameSync(v1TmpPath, this.persistPath);
-      partialCommit = "v1Only";
       stage = "renameV2";
       fs.renameSync(v2TmpPath, v2Path);
+      partialCommit = "v2Only";
+      stage = "renameV1";
+      fs.renameSync(v1TmpPath, this.persistPath);
       partialCommit = "unknown";
       stage = "directoryFsync";
       this.fsyncBackupDirectory(path.dirname(this.persistPath));

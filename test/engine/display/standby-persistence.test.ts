@@ -11,6 +11,7 @@ import {
   type PersistedBriefingCriticalEntryV1,
   type PersistedBriefingCriticalStateV1,
   type PersistedStandbyStateV1,
+  type PersistedStandbyStateV2,
   type PersistedTelegramFoundationInputV2,
   type PersistedWeatherWarningForecastStateV1,
   type VolcanoManualBackupResult,
@@ -18,8 +19,12 @@ import {
 import type { DisplayBriefingEntryV1 } from "../../../src/engine/display/protocol";
 import { StandbyStateStore } from "../../../src/engine/display/standby-state-store";
 import { DisplayStateStore } from "../../../src/engine/display/state-store";
+import { weatherAlertsFromVpww56 } from "../../../src/engine/display/weather-alert-view";
 import { FloodActiveReducer } from "../../../src/engine/display/flood-active-reducer";
-import { VPWW56_SNAPSHOT_GENERATION } from "../../../src/engine/messages/vpww56-state";
+import { VPWW56_SNAPSHOT_GENERATION, Vpww56StateHolder } from "../../../src/engine/messages/vpww56-state";
+import { TsunamiStateHolder } from "../../../src/engine/messages/tsunami-state";
+import { FloodForecastStateHolder } from "../../../src/engine/messages/flood-forecast-state";
+import { TelegramRevisionGate } from "../../../src/engine/messages/telegram-revision-gate";
 import type { PersistedVolcanoStateV2, VolcanoRepairStateV1 } from "../../../src/engine/messages/volcano-state";
 import { parseFloodForecast } from "../../../src/dmdata/flood-forecast-parser";
 import { parseVolcanoTelegram } from "../../../src/dmdata/volcano-parser";
@@ -33,6 +38,9 @@ import {
 } from "../../../src/engine/display/weather-warning-forecast-active-reducer";
 import { WEATHER_TIMESERIES_RETENTION_MS } from "../../../src/engine/messages/revision-family-registry";
 import { fromFloodForecastOutcome } from "../../../src/engine/presentation/events/from-flood-forecast";
+import { processFloodForecast } from "../../../src/engine/presentation/processors/process-flood-forecast";
+import { processTsunami } from "../../../src/engine/presentation/processors/process-tsunami";
+import { processWeather } from "../../../src/engine/presentation/processors/process-weather";
 import {
   vpwp50ForecastLabel,
   vpwp50StableKey,
@@ -48,8 +56,13 @@ import {
   createMockWsDataMessage,
   FIXTURE_VFVO56_FLASH_1,
   FIXTURE_VFVO56_FLASH_4,
+  FIXTURE_VPWW56_DOSHA,
   FIXTURE_VPWP50_LOCAL_IDENTITY,
+  FIXTURE_VTSE41_WARN,
+  FIXTURE_VTSE51_OBSERVATION_MAXHEIGHT,
+  FIXTURE_VTSE52_OFFSHORE,
 } from "../../helpers/mock-message";
+import { makeProcessDeps } from "../../helpers/process-deps";
 
 const T0 = Date.parse("2026-07-21T05:00:00+09:00");
 const roots: string[] = [];
@@ -5368,6 +5381,98 @@ describe("StandbyPersistence logical generation source selection", () => {
     };
   }
 
+  function richWrittenPair(): ReturnType<typeof writtenPair> {
+    const path = tempPath();
+    const revisionGate = new TelegramRevisionGate();
+    const tsunamiState = new TsunamiStateHolder();
+    const vpww56State = new Vpww56StateHolder();
+    const floodForecastState = new FloodForecastStateHolder();
+    const deps = makeProcessDeps({ revisionGate, tsunamiState, vpww56State, floodForecastState });
+
+    for (const fixture of [
+      FIXTURE_VTSE41_WARN,
+      FIXTURE_VTSE51_OBSERVATION_MAXHEIGHT,
+      FIXTURE_VTSE52_OFFSHORE,
+    ]) {
+      expect(processTsunami(createMockWsDataMessage(fixture), deps).kind).toBe("ok");
+    }
+    expect(processWeather(createMockWsDataMessage(FIXTURE_VPWW56_DOSHA), deps).kind).toBe("ok");
+
+    const floodMessage = createMockWsDataMessage("16_10_01_260312_VXKO50.xml");
+    const parsedFlood = parseFloodForecast(floodMessage);
+    expect(parsedFlood).not.toBeNull();
+    const floodResult = processFloodForecast(floodMessage, deps, Date.parse(parsedFlood!.reportDateTime));
+    expect(floodResult.kind).toBe("ok");
+    if (floodResult.kind !== "ok") throw new Error(`expected flood fixture, got ${floodResult.kind}`);
+    const floodStore = new StandbyStateStore();
+    floodStore.applyEvent({
+      ...fromFloodForecastOutcome(floodResult.outcome),
+      reportDateTime: floodResult.outcome.parsed.reportDateTime,
+    }, Date.parse(floodResult.outcome.parsed.reportDateTime));
+    const floodActive = floodStore.exportActiveState().floods?.events ?? [];
+    const vpww56GateEntries = revisionGate.exportDurableEntries().filter((entry) =>
+      entry.domain === "weather" && entry.revisionFamily === "VPWW56");
+    const latestVpww56 = [...vpww56GateEntries].sort((left, right) => {
+      const timeOrder = right.comparison.revision.reportDateTime.epochMs!
+        - left.comparison.revision.reportDateTime.epochMs!;
+      return timeOrder !== 0 ? timeOrder : right.acceptedAtMs - left.acceptedAtMs;
+    })[0];
+    const vpww56ReportTimeMs = latestVpww56?.comparison.revision.reportDateTime.epochMs;
+    if (latestVpww56 == null || vpww56ReportTimeMs == null) {
+      throw new Error("expected a valid VPWW56 revision");
+    }
+    const vpww56Serial = latestVpww56.comparison.revision.serial.raw;
+
+    const foundation: PersistedTelegramFoundationInputV2 = {
+      vpws50: { authoritative: true, state: null, gateEntries: [] },
+      vpww56: {
+        generation: VPWW56_SNAPSHOT_GENERATION,
+        authoritative: true,
+        state: vpww56State.exportPersistedState(),
+        gateEntries: vpww56GateEntries,
+      },
+      tsunami: {
+        keyedActive: tsunamiState.getPersistedKeyedActive(),
+        legacyActive: tsunamiState.getPersistedLegacyActive(),
+        observations: tsunamiState.getObservationGroups(),
+        gateEntries: revisionGate.exportDurableEntries().filter((entry) =>
+          entry.domain === "tsunami" || entry.domain === "tsunamiObservation"),
+      },
+      volcano: { authoritative: false, state: null, active: [], gateEntries: [] },
+      floodForecast: {
+        authoritative: true,
+        active: floodActive,
+        gateEntries: revisionGate.exportDurableEntries().filter((entry) =>
+          entry.domain === "floodForecast"),
+      },
+      standbyDomains: { gateEntries: [] },
+    };
+    expect(foundation.tsunami?.keyedActive).not.toHaveLength(0);
+    expect(foundation.tsunami?.observations.VTSE51).not.toHaveLength(0);
+    expect(foundation.tsunami?.observations.VTSE52).not.toHaveLength(0);
+    expect(foundation.vpww56?.state?.streams).not.toHaveLength(0);
+    expect(foundation.floodForecast?.active).not.toHaveLength(0);
+    expect(foundation.floodForecast?.gateEntries).not.toHaveLength(0);
+
+    expect(new StandbyPersistence(path, 0, () => foundation).save(state({
+      floods: { events: structuredClone(floodActive), seen: [] },
+      weatherAlerts: [{
+        source: "vpww56",
+        alerts: weatherAlertsFromVpww56(
+          vpww56State.getCurrentAreasForDisplay(),
+          new Date(vpww56ReportTimeMs).toISOString(),
+        ),
+        revision: { reportTimeMs: vpww56ReportTimeMs, serial: vpww56Serial },
+        expiresAtMs: vpww56ReportTimeMs + 86_400_000,
+      }],
+    }))).toMatchObject({ kind: "written" });
+    return {
+      path,
+      v2: JSON.parse(readFileSync(standbyPersistenceV2Path(path), "utf8")) as Record<string, unknown>,
+      v1: JSON.parse(readFileSync(path, "utf8")) as Record<string, unknown>,
+    };
+  }
+
   function installPair(
     fixture: ReturnType<typeof writtenPair>,
     v2: Record<string, unknown>,
@@ -5377,20 +5482,138 @@ describe("StandbyPersistence logical generation source selection", () => {
     writeFileSync(fixture.path, JSON.stringify(v1), "utf8");
   }
 
-  it("chooses the greater generation without consulting a reversed wall clock", () => {
+  it("keeps every rich v2 foundation domain through an old v1-first partial commit and N+1 rewrite", () => {
+    const fixture = richWrittenPair();
+    const newerV1Heat = structuredClone(fixture.v1.heat) as Array<Record<string, unknown>>;
+    newerV1Heat[0] = { ...newerV1Heat[0], sourceEventIds: ["v1-newer-root-content"] };
+    const oldCanonicalV2: Record<string, unknown> = {
+      ...fixture.v2,
+      logicalGeneration: "8",
+      savedAt: "2026-07-21T00:00:00.000Z",
+    };
+    const newerRollbackV1 = {
+      ...fixture.v1,
+      heat: newerV1Heat,
+      logicalGeneration: "9",
+      savedAt: "2026-07-21T01:00:00.000Z",
+    };
+    installPair(
+      fixture,
+      oldCanonicalV2,
+      newerRollbackV1,
+    );
+
+    const persistence = new StandbyPersistence(fixture.path);
+    const warn = vi.spyOn(log, "warn").mockImplementation(() => undefined);
+    try {
+      const expectedFoundation = oldCanonicalV2.telegramFoundation as PersistedStandbyStateV2["telegramFoundation"];
+      const result = persistence.loadWithResult(T0);
+      expect(result).toMatchObject({
+        startup: { kind: "restored", selectedSource: "v2" },
+        selectedLogicalGeneration: "8",
+        canonicalRewriteRequired: true,
+      });
+      expect(persistence.takeMigrationConflictCount()).toBe(1);
+      const conflict = "[standby-persistence] persistenceMigrationConflict: rollbackMirrorAheadOfCanonicalV2";
+      expect(warn.mock.calls.map(([message]) => message).filter((message) => message === conflict))
+        .toEqual([conflict]);
+      expect(result.state).not.toBeNull();
+      expect(result.state?.heat).toEqual(fixture.v2.heat);
+      expect(result.state?.heat).not.toEqual(newerV1Heat);
+      expect(result.state?.telegramFoundation.vpww56).toEqual(expectedFoundation.vpww56);
+      expect(result.state?.telegramFoundation.tsunami.keyedActive).toEqual(expectedFoundation.tsunami.keyedActive);
+      expect(result.state?.telegramFoundation.tsunami.observations.VTSE51)
+        .toEqual(expectedFoundation.tsunami.observations.VTSE51);
+      expect(result.state?.telegramFoundation.tsunami.observations.VTSE52)
+        .toEqual(expectedFoundation.tsunami.observations.VTSE52);
+      expect(result.state?.telegramFoundation.floodForecast).toEqual(expectedFoundation.floodForecast);
+      expect(persistence.save(result.state!)).toMatchObject({ kind: "written" });
+      const rewrittenV2 = JSON.parse(readFileSync(standbyPersistenceV2Path(fixture.path), "utf8"));
+      const rewrittenV1 = JSON.parse(readFileSync(fixture.path, "utf8"));
+      expect(rewrittenV2).toMatchObject({ logicalGeneration: "10" });
+      expect(rewrittenV1).toMatchObject({ logicalGeneration: "10" });
+      expect(rewrittenV2.telegramFoundation.vpww56).toEqual(expectedFoundation.vpww56);
+      expect(rewrittenV2.telegramFoundation.tsunami.keyedActive).toEqual(expectedFoundation.tsunami.keyedActive);
+      expect(rewrittenV2.telegramFoundation.tsunami.observations).toEqual(expectedFoundation.tsunami.observations);
+      expect(rewrittenV2.telegramFoundation.floodForecast).toEqual(expectedFoundation.floodForecast);
+      expect(rewrittenV1.heat).toEqual(fixture.v1.heat);
+      expect(rewrittenV1.heat).not.toEqual(newerV1Heat);
+      const reloadPersistence = new StandbyPersistence(fixture.path);
+      const reloaded = reloadPersistence.loadWithResult(T0);
+      expect(reloaded).toMatchObject({
+        startup: { kind: "restored", selectedSource: "v2" }, selectedLogicalGeneration: "10",
+        canonicalRewriteRequired: false,
+      });
+      expect(reloadPersistence.takeMigrationConflictCount()).toBe(0);
+      expect(reloaded.state?.telegramFoundation.vpww56).toEqual(result.state?.telegramFoundation.vpww56);
+      expect(reloaded.state?.telegramFoundation.tsunami.keyedActive)
+        .toEqual(result.state?.telegramFoundation.tsunami.keyedActive);
+      expect(reloaded.state?.telegramFoundation.tsunami.observations)
+        .toEqual(result.state?.telegramFoundation.tsunami.observations);
+      expect(reloaded.state?.telegramFoundation.floodForecast)
+        .toEqual(result.state?.telegramFoundation.floodForecast);
+    } finally {
+      warn.mockRestore();
+    }
+  });
+
+  it("records one fixed rollback conflict when the ahead v1 mirror is salvageable", () => {
     const fixture = writtenPair();
     installPair(
       fixture,
-      { ...fixture.v2, logicalGeneration: "8", savedAt: "2026-07-21T00:00:00.000Z" },
-      { ...fixture.v1, logicalGeneration: "9", savedAt: "2026-07-20T00:00:00.000Z" },
+      { ...fixture.v2, logicalGeneration: "8" },
+      {
+        ...fixture.v1,
+        heat: [...fixture.v1.heat as unknown[], { key: "invalid-heat-entry" }],
+        logicalGeneration: "9",
+      },
     );
 
-    const result = new StandbyPersistence(fixture.path).loadWithResult(T0);
-    expect(result).toMatchObject({
-      startup: { kind: "restored", selectedSource: "v1" },
-      selectedLogicalGeneration: "9",
-      canonicalRewriteRequired: true,
-    });
+    const persistence = new StandbyPersistence(fixture.path);
+    const warn = vi.spyOn(log, "warn").mockImplementation(() => undefined);
+    try {
+      expect(persistence.loadWithResult(T0)).toMatchObject({
+        startup: { kind: "restored", selectedSource: "v2" },
+        sourceStates: { v2: "valid", v1: "salvageable" },
+        selectedLogicalGeneration: "8",
+        canonicalRewriteRequired: true,
+      });
+      expect(persistence.takeMigrationConflictCount()).toBe(1);
+      const conflict = "[standby-persistence] persistenceMigrationConflict: rollbackMirrorAheadOfCanonicalV2";
+      expect(warn.mock.calls.map(([message]) => message)
+        .filter((message) => String(message).includes("persistenceMigrationConflict")))
+        .toEqual([conflict]);
+    } finally {
+      warn.mockRestore();
+    }
+  });
+
+  it("records the foundation envelope conflict independently for a valid v2-only fallback", () => {
+    const fixture = richWrittenPair();
+    writeFileSync(standbyPersistenceV2Path(fixture.path), JSON.stringify({
+      ...fixture.v2,
+      weatherAlerts: [],
+    }), "utf8");
+    rmSync(fixture.path);
+
+    const persistence = new StandbyPersistence(fixture.path);
+    const warn = vi.spyOn(log, "warn").mockImplementation(() => undefined);
+    try {
+      expect(persistence.loadWithResult(T0)).toMatchObject({
+        startup: { kind: "restored", selectedSource: "v2" },
+        sourceStates: { v2: "valid", v1: "missing" },
+        canonicalRewriteRequired: true,
+      });
+      expect(persistence.takeMigrationConflictCount()).toBe(2);
+      expect(warn.mock.calls.map(([message]) => message)
+        .filter((message) => String(message).includes("persistenceMigrationConflict")))
+        .toEqual([
+          "[standby-persistence] persistenceMigrationConflict: logical generation counterpart unavailable",
+          "[standby-persistence] persistenceMigrationConflict: telegram foundation envelope fields differ",
+        ]);
+    } finally {
+      warn.mockRestore();
+    }
   });
 
   it("chooses v2 on an equal coherent generation and requires no envelope rewrite", () => {
@@ -5407,6 +5630,23 @@ describe("StandbyPersistence logical generation source selection", () => {
       startup: { kind: "restored", selectedSource: "v2" },
       selectedLogicalGeneration: "9",
       canonicalRewriteRequired: false,
+    });
+    expect(persistence.takeMigrationConflictCount()).toBe(0);
+  });
+
+  it("keeps v2 canonical without a conflict when the rollback mirror is one generation behind", () => {
+    const fixture = writtenPair();
+    installPair(
+      fixture,
+      { ...fixture.v2, logicalGeneration: "9" },
+      { ...fixture.v1, logicalGeneration: "8" },
+    );
+
+    const persistence = new StandbyPersistence(fixture.path);
+    expect(persistence.loadWithResult(T0)).toMatchObject({
+      startup: { kind: "restored", selectedSource: "v2" },
+      selectedLogicalGeneration: "9",
+      canonicalRewriteRequired: true,
     });
     expect(persistence.takeMigrationConflictCount()).toBe(0);
   });
@@ -5786,6 +6026,92 @@ describe("StandbyPersistence の書き込み順序", () => {
   const tmpFiles = (path: string): string[] =>
     readdirSync(dirname(path)).filter((name) => name.endsWith(".tmp"));
 
+  function renameFailureFixture(failingDestination: "v2" | "v1"): {
+    path: string;
+    v2Path: string;
+    persistence: StandbyPersistence;
+    newState: PersistedStandbyStateV1;
+    oldV2: Record<string, unknown>;
+    oldV1: Record<string, unknown>;
+    expectedV2: Record<string, unknown>;
+    expectedV1: Record<string, unknown>;
+    primaryCause: Error;
+    allowRename(): void;
+    cleanupFailureCount(): number;
+    renameDestinations(): string[];
+    restoreSpies(): void;
+  } {
+    const oldState = state({ savedAt: "old" });
+    oldState.heat[0] = { ...oldState.heat[0]!, sourceEventIds: ["old-content"] };
+    const newState = state({ savedAt: "new" });
+    newState.heat[0] = { ...newState.heat[0]!, sourceEventIds: ["new-content"] };
+
+    const expectedPath = tempPath();
+    const expectedPersistence = new StandbyPersistence(expectedPath, 10_000);
+    expect(expectedPersistence.save(oldState)).toMatchObject({ kind: "written" });
+    expect(expectedPersistence.save(newState)).toMatchObject({ kind: "written" });
+    const expectedV2 = JSON.parse(readFileSync(standbyPersistenceV2Path(expectedPath), "utf8"));
+    const expectedV1 = JSON.parse(readFileSync(expectedPath, "utf8"));
+
+    const path = tempPath();
+    const persistence = new StandbyPersistence(path, 10_000);
+    expect(persistence.save(oldState)).toMatchObject({ kind: "written" });
+    const v2Path = standbyPersistenceV2Path(path);
+    const oldV2 = JSON.parse(readFileSync(v2Path, "utf8"));
+    const oldV1 = JSON.parse(readFileSync(path, "utf8"));
+    const originalRename = fs.renameSync;
+    const originalRm = fs.rmSync;
+    let fail = true;
+    let cleanupFailures = 0;
+    const primaryCause = new Error(`${failingDestination} rename blocked`);
+    const rename = vi.spyOn(fs, "renameSync").mockImplementation((source, destination) => {
+      const target = failingDestination === "v2" ? v2Path : path;
+      if (fail && destination === target) throw primaryCause;
+      return originalRename(source, destination);
+    });
+    const cleanup = vi.spyOn(fs, "rmSync").mockImplementation((target, options) => {
+      originalRm(target, options);
+      if (fail && String(target).endsWith(".tmp")) {
+        cleanupFailures += 1;
+        throw new Error("cleanup blocked after removal");
+      }
+    });
+    return {
+      path,
+      v2Path,
+      persistence,
+      newState,
+      oldV2,
+      oldV1,
+      expectedV2,
+      expectedV1,
+      primaryCause,
+      allowRename: () => { fail = false; },
+      cleanupFailureCount: () => cleanupFailures,
+      renameDestinations: () => rename.mock.calls.map(([, destination]) => String(destination)),
+      restoreSpies: () => {
+        cleanup.mockRestore();
+        rename.mockRestore();
+      },
+    };
+  }
+
+  function diskSnapshot(filePath: string): Record<string, unknown> {
+    return JSON.parse(readFileSync(filePath, "utf8")) as Record<string, unknown>;
+  }
+
+  function expectRenameRetryCompleted(fixture: ReturnType<typeof renameFailureFixture>): void {
+    expect(diskSnapshot(fixture.v2Path)).toEqual(fixture.expectedV2);
+    expect(diskSnapshot(fixture.path)).toEqual(fixture.expectedV1);
+    expect(diskSnapshot(fixture.v2Path)).toMatchObject({ logicalGeneration: "2" });
+    expect(diskSnapshot(fixture.path)).toMatchObject({ logicalGeneration: "2" });
+    expect(fixture.persistence.lastFailure()).toBeNull();
+    expect(fixture.persistence.flushThrough(2)).toEqual({
+      kind: "alreadyWritten", requiredSeq: 2, writtenSeq: 2,
+    });
+    expect(tmpFiles(fixture.path)).toEqual([]);
+  }
+
   it("async debounce failure は typed lastFailure と pending を保持し、自動成功扱いにしない", async () => {
     const path = tempPath();
     const persistence = new StandbyPersistence(path, 10_000);
@@ -5810,6 +6136,106 @@ describe("StandbyPersistence の書き込み順序", () => {
     expect(JSON.parse(readFileSync(path, "utf8")).savedAt).toBe("pending-after-failure");
     expect(persistence.lastFailure()).toBeNull();
     expect(persistence.isUnhealthy()).toBe(false);
+  });
+
+  it("sync renameV2 failure は両 mirror を旧世代のまま保持し、同じ pending を v2→v1 で再試行する", () => {
+    const fixture = renameFailureFixture("v2");
+    try {
+      const failure = fixture.persistence.save(fixture.newState);
+      expect(failure).toMatchObject({
+        kind: "failed", stage: "renameV2", partialCommit: "none", pendingRetained: true,
+      });
+      expect(failure.kind === "failed" ? failure.cause : null).toBe(fixture.primaryCause);
+      expect(fixture.cleanupFailureCount()).toBeGreaterThan(0);
+      expect(diskSnapshot(fixture.v2Path)).toEqual(fixture.oldV2);
+      expect(diskSnapshot(fixture.path)).toEqual(fixture.oldV1);
+      expect(tmpFiles(fixture.path)).toEqual([]);
+
+      fixture.allowRename();
+      fixture.persistence.flush();
+      expectRenameRetryCompleted(fixture);
+      expect(fixture.renameDestinations()
+        .filter((destination) => destination === fixture.v2Path || destination === fixture.path))
+        .toEqual([fixture.v2Path, fixture.v2Path, fixture.path]);
+    } finally {
+      fixture.restoreSpies();
+    }
+  });
+
+  it("sync renameV1 failure は v2Only を保持し、同じ pending を v2→v1 で再試行する", () => {
+    const fixture = renameFailureFixture("v1");
+    try {
+      const failure = fixture.persistence.save(fixture.newState);
+      expect(failure).toMatchObject({
+        kind: "failed", stage: "renameV1", partialCommit: "v2Only", pendingRetained: true,
+      });
+      expect(failure.kind === "failed" ? failure.cause : null).toBe(fixture.primaryCause);
+      expect(fixture.cleanupFailureCount()).toBeGreaterThan(0);
+      expect(diskSnapshot(fixture.v2Path)).toEqual(fixture.expectedV2);
+      expect(diskSnapshot(fixture.path)).toEqual(fixture.oldV1);
+      expect(tmpFiles(fixture.path)).toEqual([]);
+
+      fixture.allowRename();
+      fixture.persistence.flush();
+      expectRenameRetryCompleted(fixture);
+      expect(fixture.renameDestinations()
+        .filter((destination) => destination === fixture.v2Path || destination === fixture.path))
+        .toEqual([fixture.v2Path, fixture.path, fixture.v2Path, fixture.path]);
+    } finally {
+      fixture.restoreSpies();
+    }
+  });
+
+  it("async renameV2 failure は両 mirror を旧世代のまま保持し、同じ pending を v2→v1 で再試行する", async () => {
+    const fixture = renameFailureFixture("v2");
+    try {
+      fixture.persistence.schedule(fixture.newState);
+      await fixture.persistence.__test_writePending();
+      const failure = fixture.persistence.lastFailure();
+      expect(failure).toMatchObject({
+        kind: "failed", stage: "renameV2", partialCommit: "none", pendingRetained: true,
+      });
+      expect(failure?.cause).toBe(fixture.primaryCause);
+      expect(fixture.cleanupFailureCount()).toBeGreaterThan(0);
+      expect(diskSnapshot(fixture.v2Path)).toEqual(fixture.oldV2);
+      expect(diskSnapshot(fixture.path)).toEqual(fixture.oldV1);
+      expect(tmpFiles(fixture.path)).toEqual([]);
+
+      fixture.allowRename();
+      await fixture.persistence.__test_writePending();
+      expectRenameRetryCompleted(fixture);
+      expect(fixture.renameDestinations()
+        .filter((destination) => destination === fixture.v2Path || destination === fixture.path))
+        .toEqual([fixture.v2Path, fixture.v2Path, fixture.path]);
+    } finally {
+      fixture.restoreSpies();
+    }
+  });
+
+  it("async renameV1 failure は v2Only を保持し、同じ pending を v2→v1 で再試行する", async () => {
+    const fixture = renameFailureFixture("v1");
+    try {
+      fixture.persistence.schedule(fixture.newState);
+      await fixture.persistence.__test_writePending();
+      const failure = fixture.persistence.lastFailure();
+      expect(failure).toMatchObject({
+        kind: "failed", stage: "renameV1", partialCommit: "v2Only", pendingRetained: true,
+      });
+      expect(failure?.cause).toBe(fixture.primaryCause);
+      expect(fixture.cleanupFailureCount()).toBeGreaterThan(0);
+      expect(diskSnapshot(fixture.v2Path)).toEqual(fixture.expectedV2);
+      expect(diskSnapshot(fixture.path)).toEqual(fixture.oldV1);
+      expect(tmpFiles(fixture.path)).toEqual([]);
+
+      fixture.allowRename();
+      await fixture.persistence.__test_writePending();
+      expectRenameRetryCompleted(fixture);
+      expect(fixture.renameDestinations()
+        .filter((destination) => destination === fixture.v2Path || destination === fixture.path))
+        .toEqual([fixture.v2Path, fixture.path, fixture.v2Path, fixture.path]);
+    } finally {
+      fixture.restoreSpies();
+    }
   });
 
   it("sync directory fsync failure は両 rename 後の unknown partial commit として返す", () => {
