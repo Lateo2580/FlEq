@@ -194,6 +194,23 @@ export class TsunamiStateHolder
     return [...this.eventInfos.values()].map((info) => structuredClone(info));
   }
 
+  /** canonical EventID envelope の有無だけを調べる。aggregate lastInfo は使わない。 */
+  hasPersistedEvent(eventId: string): boolean {
+    return this.eventInfos.has(eventId);
+  }
+
+  /**
+   * persisted duplicate anchor が gate で抑制された場合にも、live の holder mutation と
+   * 同じ transport 順へ aggregate envelope を移す。forecast 内容は変更しない。
+   */
+  replayPersistedEventEnvelope(eventId: string): void {
+    const envelope = this.eventInfos.get(eventId);
+    if (envelope == null) return;
+    this.eventInfos.delete(eventId);
+    this.eventInfos.set(eventId, envelope);
+    this.rebuildActiveState();
+  }
+
   /** 名称-only の旧 snapshot は表示専用の legacy payload として分離する。 */
   getPersistedLegacyActive(): ParsedTsunamiInfo | null {
     return this.legacyRestoredInfo == null

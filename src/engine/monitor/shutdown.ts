@@ -65,6 +65,8 @@ export interface ShutdownContext {
   stopDisplayRuntime?: () => Promise<void>;
   /** monitor 所有 standby sweep の停止 + active-state 最終保存 */
   stopStandbySweep?: () => StandbyPersistenceSaveResult | void;
+  /** in-flight を generation latch で無効化し、津波 REST retry を同期停止する */
+  stopTsunamiRestoreRetry?: () => void;
   /** VPWP50 詳細 cache の予約済み保存を書き切る */
   flushDetailCaches?: () => void;
   /** 気象警報 昇格 lifecycle の最終保存 */
@@ -105,6 +107,8 @@ export function createShutdownHandler(ctx: ShutdownContext): () => Promise<Shutd
     const safely = (operation: () => void): void => {
       try { operation(); } catch { failures.push({ operation: "shutdown", stage: "unexpected" }); }
     };
+    // 最初の await と最終 persistence 保存の双方より前に mutation source を止める。
+    safely(() => ctx.stopTsunamiRestoreRetry?.());
     log.info("シャットダウン中...");
     safely(() => ctx.stopSummaryTimer?.());
     safely(() => ctx.flushAndDisposeVolcanoBuffer?.());

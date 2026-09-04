@@ -6,6 +6,10 @@ import { createUnknownDeliveryCapabilities } from "../../dmdata/delivery-capabil
 import { createMessageHandler } from "../messages/message-router";
 import { restoreTsunamiState } from "../startup/tsunami-initializer";
 import {
+  createTsunamiRestoreRetryController,
+  type TsunamiRestoreRetryController,
+} from "../startup/tsunami-restore-retry";
+import {
   repairVolcanoState,
   VolcanoRepairJournal,
   volcanoRepairTargets,
@@ -82,6 +86,22 @@ import type { ReplHandler as ReplHandlerType } from "../../ui/repl";
  * REST request を 1 本以上発行した試行だけがこの時計を進める。
  */
 export const VOLCANO_REST_REPAIR_COOLDOWN_MS = 60_000;
+
+/**
+ * 初回津波 restore と火山 startup repair の phase barrier。
+ * background retry は火山側の cleanup (resolve/reject 共通) より前には arm しない。
+ */
+export async function runTsunamiRestoreStartupPhase(
+  retry: TsunamiRestoreRetryController,
+  runVolcanoRepair: () => Promise<void>,
+): Promise<void> {
+  await retry.runInitial();
+  try {
+    await runVolcanoRepair();
+  } finally {
+    retry.enableBackgroundRetries();
+  }
+}
 
 /** 起動時 repair と手動 repair が共有する派生フラグの式（spec §5.6）。 */
 export function volcanoFoundationAuthoritativeFrom(repair: VolcanoRepairStateV1): boolean {
@@ -861,9 +881,6 @@ export async function startMonitor(config: AppConfig, pipelineController?: Pipel
 
   const pipeline = pipelineController?.getPipeline();
   let manager: MultiConnectionManager | null = null;
-  const persistAcceptedTsunamiRevision = () => {
-    scheduleLatestStandbyPersistence();
-  };
   const persistVptaAdmissionCompletion = (
     completion: VptaAdmissionCompletion,
   ): VptaPersistenceCompletionAck => {
@@ -1064,6 +1081,17 @@ export async function startMonitor(config: AppConfig, pipelineController?: Pipel
     },
   });
 
+  const tsunamiRestoreRetry = createTsunamiRestoreRetryController({
+    attempt: ({ isCurrent }) => restoreTsunamiState(
+      config.apiKey,
+      tsunamiState,
+      revisionGate,
+      undefined,
+      persistenceAdmission,
+      { isCurrent },
+    ),
+  });
+
   // グレースフルシャットダウン
   const shutdown = createShutdownHandler({
     apiKey: config.apiKey,
@@ -1077,6 +1105,7 @@ export async function startMonitor(config: AppConfig, pipelineController?: Pipel
     stopDisplayRuntime: async () => {
       await displayController.stop();
     },
+    stopTsunamiRestoreRetry: () => tsunamiRestoreRetry.stop(),
     stopStandbySweep: () => {
       stopStandbySweep();
       // export / validation が失敗しても debounce callback を shutdown 中に走らせない。
@@ -1161,29 +1190,23 @@ export async function startMonitor(config: AppConfig, pipelineController?: Pipel
 
     // Await 後に coordinator が最新 composition を capture するので、この間の
     // weather/briefing/flood/live tsunami mutation を上書きしない。
-    await restoreTsunamiState(
-      config.apiKey,
-      tsunamiState,
-      revisionGate,
-      persistAcceptedTsunamiRevision,
-      persistenceAdmission,
-    );
-
-    if (volcanoRepairJournal != null) {
-      const repair = await repairVolcanoState({
-        apiKey: config.apiKey,
-        nowMs: startupNowMs,
-        coordinator: volcanoTransactionCoordinator,
-        journal: volcanoRepairJournal,
-        getAcknowledgement: () => manager?.getSubscriptionAcknowledgement() ?? null,
-      });
-      for (const result of repair.targets) {
-        if (result.kind === "failed") {
-          log.warn(`火山 ${result.target} repair proof failed: ${result.reason ?? "unknown"}`);
+    await runTsunamiRestoreStartupPhase(tsunamiRestoreRetry, async () => {
+      if (volcanoRepairJournal != null) {
+        const repair = await repairVolcanoState({
+          apiKey: config.apiKey,
+          nowMs: startupNowMs,
+          coordinator: volcanoTransactionCoordinator,
+          journal: volcanoRepairJournal,
+          getAcknowledgement: () => manager?.getSubscriptionAcknowledgement() ?? null,
+        });
+        for (const result of repair.targets) {
+          if (result.kind === "failed") {
+            log.warn(`火山 ${result.target} repair proof failed: ${result.reason ?? "unknown"}`);
+          }
         }
+        volcanoRepairJournal = null;
       }
-      volcanoRepairJournal = null;
-    }
+    });
     volcanoRepairState = volcanoTransactionCoordinator.snapshot().repair;
     volcanoFoundationAuthoritative = volcanoFoundationAuthoritativeFrom(volcanoRepairState);
 

@@ -94,6 +94,24 @@ describe("shutdown legacy counterpart disposal", () => {
     });
   });
 
+  it("§5.22 tsunami retry stop runs once before the first await and final persistence save", async () => {
+    const order: string[] = [];
+    let resolveFlush: (() => void) | undefined;
+    const fixture = context({
+      stopTsunamiRestoreRetry: () => { order.push("retry-stop"); },
+      eewLogger: {
+        closeAll: vi.fn(() => { order.push("logger-close"); }),
+        flush: vi.fn(() => new Promise<void>((resolve) => { resolveFlush = resolve; })),
+      } as unknown as EewEventLogger,
+      stopStandbySweep: () => { order.push("persistence-save"); },
+    });
+    const pending = createShutdownHandler(fixture.context)();
+    expect(order).toEqual(["retry-stop", "logger-close"]);
+    resolveFlush?.();
+    await pending;
+    expect(order).toEqual(["retry-stop", "logger-close", "persistence-save"]);
+  });
+
   it.each([
     "validation", "salvageBackup", "mkdir", "writeV2Temp", "writeV1Temp", "renameV2", "renameV1",
   ] as const)("standby %s failure returns exitCode 1 and still runs every cleanup", async (stage) => {

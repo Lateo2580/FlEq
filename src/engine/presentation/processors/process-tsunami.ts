@@ -116,19 +116,16 @@ function isKeylessVtse41Cancellation(info: ParsedTsunamiInfo): boolean {
 }
 
 /**
- * 津波電文を共通 revision gate の後で state/presentation へ反映する。
- * VTSE51/52 は whole-message gate の equal を item gate へ送り、観測点単位で補完する。
+ * VTSE41 startup restore と live ingress が同じ semantic payload identity を使うための
+ * gate input builder。restore 側は baseline gate の current payload proof にも使う。
  */
-export function processTsunami(
-  msg: WsDataMessage,
-  deps: TsunamiProcessDeps,
-): TsunamiProcessResult {
-  if (deps.persistenceAdmission != null) return processTsunamiWithAdmission(msg, deps);
-  const parsed = parseTsunamiTelegram(msg);
-  if (!parsed) return { kind: "parse-failed" };
-
-  const policy = tsunamiRevisionFamilyPolicy(msg.head.type);
-  if (policy == null) return { kind: "parse-failed" };
+export function createTsunamiRevisionGateInput(
+  parsed: ParsedTsunamiInfo,
+  tsunamiState: TsunamiStateHolder,
+  headType: string = parsed.type,
+): TelegramRevisionGateInput | null {
+  const policy = tsunamiRevisionFamilyPolicy(headType);
+  if (policy == null) return null;
 
   const extractedSubject = policy.extractStateSubjectKey(parsed.meta, parsed);
   const subject = typeof extractedSubject === "string" ? extractedSubject : null;
@@ -140,9 +137,9 @@ export function processTsunami(
     || (
       parsed.type === "VTSE41"
       && parsed.meta.infoType.value === "取消"
-      && deps.tsunamiState.retainsEventAfterCancellation(parsed)
+      && tsunamiState.retainsEventAfterCancellation(parsed)
     );
-  const gateInput: TelegramRevisionGateInput = {
+  return {
     domain: policy.domain,
     revisionFamily: policy.revisionFamily,
     stateSubjectKey: subject,
@@ -159,14 +156,33 @@ export function processTsunami(
     tombstoneRetentionMs: policy.tombstoneRetentionMs,
     maxSubjects: policy.maxSubjects,
     // EventID の保護根拠は gate の残存印ではなく、holder の active forecast。
-    retainForFamilyCapacity: msg.head.type !== "VTSE41",
-    activeFamilySubjects: msg.head.type === "VTSE41"
-      ? deps.tsunamiState.activeEventIds().map((eventId) => `tsunami:${eventId}`)
+    retainForFamilyCapacity: headType !== "VTSE41",
+    activeFamilySubjects: headType === "VTSE41"
+      ? tsunamiState.activeEventIds().map((eventId) => `tsunami:${eventId}`)
       : undefined,
     allowMissingSerial: policy.allowMissingSerial,
     fragmentMerge: policy.fragmentMerge,
     payloadFingerprint: semanticPayloadFingerprint(semanticTsunamiPayload(parsed, policy)),
   };
+}
+
+/**
+ * 津波電文を共通 revision gate の後で state/presentation へ反映する。
+ * VTSE51/52 は whole-message gate の equal を item gate へ送り、観測点単位で補完する。
+ */
+export function processTsunami(
+  msg: WsDataMessage,
+  deps: TsunamiProcessDeps,
+): TsunamiProcessResult {
+  if (deps.persistenceAdmission != null) return processTsunamiWithAdmission(msg, deps);
+  const parsed = parseTsunamiTelegram(msg);
+  if (!parsed) return { kind: "parse-failed" };
+
+  const policy = tsunamiRevisionFamilyPolicy(msg.head.type);
+  if (policy == null) return { kind: "parse-failed" };
+  const keylessCancellation = isKeylessVtse41Cancellation(parsed);
+  const gateInput = createTsunamiRevisionGateInput(parsed, deps.tsunamiState, msg.head.type);
+  if (gateInput == null) return { kind: "parse-failed" };
 
   const evaluation = deps.revisionGate.evaluate(gateInput);
   if (!evaluation.accepted) {
@@ -178,7 +194,10 @@ export function processTsunami(
       // startup holder の再構成に使わず、取消のまま suppressed に留める。
       && parsed.meta.infoType.value !== "取消"
       && (evaluation.kind === "duplicate" || evaluation.kind === "semanticDuplicate")
-      && deps.tsunamiState.getLastInfo() == null
+      && parsed.meta.eventId.valid
+      && parsed.meta.eventId.value != null
+      && parsed.meta.eventId.value.trim() !== ""
+      && !deps.tsunamiState.hasPersistedEvent(parsed.meta.eventId.value)
       && deps.revisionGate.matchesCurrentAcceptedPayload(gateInput)
     ) {
       deps.tsunamiState.applyAccepted(parsed);

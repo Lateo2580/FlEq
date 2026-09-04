@@ -68,6 +68,11 @@ import {
   TSUNAMI_OBSERVATION_MAX_STATIONS_PER_FAMILY,
 } from "../messages/tsunami-state";
 import {
+  compareTsunamiRevisionIdentity,
+  tsunamiActiveMatchesGate,
+  tsunamiInfoTypePrecedence,
+} from "../messages/tsunami-persistence-identity";
+import {
   compactPersistedSemanticKeys,
   normalizeVptaPersistedSemanticKeys,
   selectVptaCapacityBundles,
@@ -5679,53 +5684,6 @@ function isPersistedTsunamiCancellationUnknown(value: unknown): boolean {
     && value.meta.infoType.value === "取消";
 }
 
-function tsunamiActiveMatchesGate(
-  active: ParsedTsunamiInfo,
-  gateEntry: PersistedTelegramRevisionGateEntryV2,
-): boolean {
-  // 取消 payload は表示 state ではない。revision が一致しても active projection
-  // として復元せず、gate / tombstone だけを残す。
-  if (active.meta.infoType.value === "取消") return false;
-  const revision = gateEntry.comparison.revision;
-  const exactSubject = gateEntry.stateSubjectKey === tsunamiStateSubjectKey(active.meta);
-  const subjectMatches = exactSubject
-    // v2 の固定 subject は migration 前 snapshot を読めるように残す。
-    || gateEntry.stateSubjectKey === "tsunami:current";
-  const sameRevision = revision.reportDateTime.raw === active.meta.reportDateTime.raw
-    && revision.serial.raw === active.meta.serial.raw
-    && revision.infoType.value === active.meta.infoType.value;
-  const gateReportMs = revision.reportDateTime.epochMs;
-  const activeReportMs = active.meta.reportDateTime.epochMs;
-  const gateSerialMissing = revision.serial.raw == null || revision.serial.raw === "";
-  const activeSerialMissing = active.meta.serial.raw == null || active.meta.serial.raw === "";
-  const watermarkDoesNotPrecedeActive = gateReportMs != null
-    && activeReportMs != null
-    && (
-      gateReportMs > activeReportMs
-      || gateReportMs === activeReportMs
-      && (
-        gateSerialMissing && activeSerialMissing
-        || !gateSerialMissing
-        && !activeSerialMissing
-        && revision.serial.valid
-        && active.meta.serial.valid
-        && revision.serial.numeric != null
-        && active.meta.serial.numeric != null
-        && revision.serial.numeric >= active.meta.serial.numeric
-      )
-    );
-  // 部分取消・照合不能取消・unkeyed 通常続報は、holder を変えずに
-  // revision だけを non-cancel watermark として進める。正式 comparator と同じく
-  // 同一日時は Serial 順を要求し、片側だけ欠落する unordered な組は拒否する。
-  const retainedActivePrecedesWatermark = exactSubject
-    && !gateEntry.cancelled
-    && watermarkDoesNotPrecedeActive;
-  return gateEntry.domain === "tsunami"
-    && gateEntry.revisionFamily === "VTSE41"
-    && subjectMatches
-    && (sameRevision || retainedActivePrecedesWatermark);
-}
-
 function isTsunamiVtse41Subject(subject: string): boolean {
   return subject === "tsunami:current" || /^tsunami:\S+$/.test(subject);
 }
@@ -5853,73 +5811,14 @@ function isDisplayableLegacyTsunamiActive(active: ParsedTsunamiInfo): boolean {
     && resolveTsunamiLevel(forecast.map((item) => item.kind)) != null;
 }
 
-function comparePersistedTsunamiRevision(
-  incoming: ParsedTsunamiInfo,
-  current: ParsedTsunamiInfo,
-): "newer" | "equal" | "older" | "unordered" {
-  const incomingMs = incoming.meta.reportDateTime.epochMs;
-  const currentMs = current.meta.reportDateTime.epochMs;
-  if (incomingMs == null || currentMs == null) return "unordered";
-  if (incomingMs !== currentMs) return incomingMs > currentMs ? "newer" : "older";
-  const incomingMissing = incoming.meta.serial.raw == null || incoming.meta.serial.raw === "";
-  const currentMissing = current.meta.serial.raw == null || current.meta.serial.raw === "";
-  if (incomingMissing || currentMissing) {
-    return incomingMissing && currentMissing ? "equal" : "unordered";
-  }
-  const incomingSerial = incoming.meta.serial.numeric;
-  const currentSerial = current.meta.serial.numeric;
-  if (
-    !incoming.meta.serial.valid
-    || !current.meta.serial.valid
-    || incomingSerial == null
-    || currentSerial == null
-  ) return "unordered";
-  if (incomingSerial === currentSerial) return "equal";
-  return incomingSerial > currentSerial ? "newer" : "older";
-}
-
-function comparePersistedTsunamiGateRevision(
-  incoming: PersistedTelegramRevisionGateEntryV2,
-  current: PersistedTelegramRevisionGateEntryV2,
-): "newer" | "equal" | "older" | "unordered" {
-  const incomingRevision = incoming.comparison.revision;
-  const currentRevision = current.comparison.revision;
-  const incomingMs = incomingRevision.reportDateTime.epochMs;
-  const currentMs = currentRevision.reportDateTime.epochMs;
-  if (incomingMs == null || currentMs == null) return "unordered";
-  if (incomingMs !== currentMs) return incomingMs > currentMs ? "newer" : "older";
-  const incomingMissing = incomingRevision.serial.raw == null || incomingRevision.serial.raw === "";
-  const currentMissing = currentRevision.serial.raw == null || currentRevision.serial.raw === "";
-  if (incomingMissing || currentMissing) {
-    return incomingMissing && currentMissing ? "equal" : "unordered";
-  }
-  const incomingSerial = incomingRevision.serial.numeric;
-  const currentSerial = currentRevision.serial.numeric;
-  if (
-    !incomingRevision.serial.valid
-    || !currentRevision.serial.valid
-    || incomingSerial == null
-    || currentSerial == null
-  ) return "unordered";
-  if (incomingSerial === currentSerial) return "equal";
-  return incomingSerial > currentSerial ? "newer" : "older";
-}
-
-function tsunamiInfoTypePrecedence(entry: PersistedTelegramRevisionGateEntryV2): number {
-  switch (entry.comparison.revision.infoType.value) {
-    case "取消": return 2;
-    case "訂正": return 1;
-    default: return 0;
-  }
-}
-
 function mergeEqualTsunamiGateEntries(
   current: PersistedTelegramRevisionGateEntryV2,
   incoming: PersistedTelegramRevisionGateEntryV2,
 ): PersistedTelegramRevisionGateEntryV2 {
   const incomingWins = incoming.cancelled !== current.cancelled
     ? incoming.cancelled
-    : tsunamiInfoTypePrecedence(incoming) > tsunamiInfoTypePrecedence(current);
+    : tsunamiInfoTypePrecedence(incoming.comparison.revision.infoType.value)
+      > tsunamiInfoTypePrecedence(current.comparison.revision.infoType.value);
   const winner = incomingWins ? incoming : current;
   return {
     ...structuredClone(winner),
@@ -5947,7 +5846,10 @@ function collapseTsunamiGateEntries(
     let unordered = false;
     for (let left = 0; left < group.length && !unordered; left++) {
       for (let right = left + 1; right < group.length; right++) {
-        if (comparePersistedTsunamiGateRevision(group[left], group[right]) === "unordered") {
+        if (compareTsunamiRevisionIdentity(
+          group[left].comparison.revision,
+          group[right].comparison.revision,
+        ) === "unordered") {
           unordered = true;
           break;
         }
@@ -5959,7 +5861,10 @@ function collapseTsunamiGateEntries(
     }
     let retained = group[0];
     for (const incoming of group.slice(1)) {
-      const order = comparePersistedTsunamiGateRevision(incoming, retained);
+      const order = compareTsunamiRevisionIdentity(
+        incoming.comparison.revision,
+        retained.comparison.revision,
+      );
       if (order === "newer") retained = incoming;
       else if (order === "equal") retained = mergeEqualTsunamiGateEntries(retained, incoming);
     }
@@ -5993,7 +5898,7 @@ function retainNewestKeyedTsunamiActive(
     let unordered = false;
     for (let left = 0; left < group.length && !unordered; left++) {
       for (let right = left + 1; right < group.length; right++) {
-        if (comparePersistedTsunamiRevision(group[left], group[right]) === "unordered") {
+        if (compareTsunamiRevisionIdentity(group[left].meta, group[right].meta) === "unordered") {
           unordered = true;
           break;
         }
@@ -6007,7 +5912,7 @@ function retainNewestKeyedTsunamiActive(
     // 決め、その一件が gate と結合できなければ subject 全体を拒否する。
     let retained = group[0];
     for (const incoming of group.slice(1)) {
-      const order = comparePersistedTsunamiRevision(incoming, retained);
+      const order = compareTsunamiRevisionIdentity(incoming.meta, retained.meta);
       const incomingCorrection = incoming.meta.infoType.value === "訂正";
       const currentCorrection = retained.meta.infoType.value === "訂正";
       if (
