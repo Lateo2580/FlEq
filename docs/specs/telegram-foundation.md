@@ -1263,7 +1263,7 @@ v2 reader は shape 検証だけでなく、次の invariant を検証する。
 
 - `eventId`／`type` など identity の `valid:true` と値の一致。invalid identity を trusted gate entry として復元しない。
 - strict ReportDateTime、family policy に整合する serial、subject key、`maxSubjects`、semantic key 32件上限。
-- holder／active projection と gate の一対一対応。non-cancelled watermark は current identity と一致し、cancelled watermark は復元 current より新しいこと。
+- holder／active projection と gate の一対一対応。non-cancelled watermark は current identity と一致し、cancelled watermark は復元 current より新しいこと。ただし VTSE41 の Code 60 only は、non-cancel holder/gate の一対一に後記の gate-only carve-out を適用する。
 - `restorePrevious` history の revision が strictly increasing であり、訂正前 snapshot を別履歴段として積まないこと。
 - whole subject と item watermark、active item、取消 tombstone、legacy provenance の cross-field invariant。
 
@@ -1280,9 +1280,9 @@ tsunami: {
 ```
 
 - canonical writer は `keyedActive`／`legacyActive` だけを書き、旧 scalar `active` を書き戻さない。`active` は旧 v2 を一方向 migration する reader 入力である。
-- `keyedActive` は EventID ごとの snapshot 配列とし、各 forecast item が `EventID + Area.Code + Kind.Code` で keyable でなければならない。警報レベルがなくても非空の正規 keyed state は保存・復元し、forecast が空の state と unkeyed item は保存しない。
+- `keyedActive` は EventID ごとの snapshot 配列とし、各 forecast item が `EventID + Area.Code + Kind.Code` で keyable でなければならない。警報レベルがなくても非空の正規 keyed state は保存・復元し、forecast が空の state と unkeyed item は保存しない。唯一の carve-out として、forecast が非空かつ全 item の trim 済み `Kind.Code` が厳密に `60` である VTSE41 は全解除の既知の空 holder とし、`keyedActive` に保存しない。Code 60 と他 code の混在、Code 71 only、forecast 空はこの carve-out に含めない。
 - keyed snapshot と non-cancel gate は `reportDateTimeThenSerial` で結合する。重複 active は EventID 内の全候補から最新を先に選び、その候補が gate と結合できなければ subject 全体を拒否する。片側 Serial 欠落など `unordered` な組は active／gate とも subject 単位で拒否する。
-- reader は壊れた EventID／subject だけを除外し、正常な別 EventID と検証済み取消 tombstone を salvage する。VTSE41 の EventID gate と `keyedActive` は上限512 subjectの同じ retained 集合で compact し、holder／gate の一対一を維持する。
+- reader は壊れた EventID／subject だけを除外し、正常な別 EventID と検証済み取消 tombstone を salvage する。VTSE41 の EventID gate と `keyedActive` は上限512 subjectの同じ retained 集合で compact し、holder／gate の一対一を維持する。ただし Code 60 only の受理時、又は load migration で payload との exact coupling を検証した `cancelled:false` gate は、対応 `keyedActive` のない gate-only を正規形として保持する。この semantic carve-out は JSON shape／schema version を変更しない。また gate-only という形だけでは次回起動時に全解除由来を再証明できないため、REST coverage target からは除外しない。詳細な holder、migration、coverage 契約は `docs/specs/2026-09-05-tsunami-release-only-event-pruning.md` に従う。
 - `legacyActive` は code 不完全な名称-only snapshot の表示専用領域である。取消照合、revision gate、新報の置換・通知判定へ参加させず、同 EventID の正規通常報で退場させる。完全 keyed payload が `legacyActive` に入った入力は gate と結合できる場合だけ `keyedActive` へ昇格し、結合不能なら除外する。
 - 旧固定 subject `tsunami:current` は、有効な EventID を持つ旧 scalar／`legacyActive` を材料に canonical `tsunami:<EventID>` へ一方向 migration する。名称-only legacy と併存する固定 gate は `cancelled:true` の tombstone だけを移行して表示を残し、non-cancel gate は legacy mutation gate にしない。canonical tombstone は stale active や同 EventID の legacy 表示と併存しても保持し、再起動後の取消以前の遅延報を拒否する。
 - persisted 取消 payload 自体は `keyedActive`／`legacyActive` の表示 state に採用せず、検証済み tombstone だけを残す。旧形式への書き戻しは行わない。
