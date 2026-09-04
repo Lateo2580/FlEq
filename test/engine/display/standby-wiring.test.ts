@@ -1983,7 +1983,7 @@ describe("standby monitor wiring", () => {
     expect(reloaded?.briefingCritical?.cancellations).toHaveLength(64);
     expect(reloaded?.briefingCritical?.watermarks).toHaveLength(512);
     expect(reloaded?.briefingCritical?.rawAliases).toHaveLength(512);
-  }, 15_000);
+  }, 60_000); // CI (ubuntu-latest 2 コア) で 27 秒かかる実測あり (2026-09-04)
 
   it("dense VTSE51約4.85MB＋small volcanoは16MiB上限内でactual pairを組める", () => {
     const root = mkdtempSync(join(tmpdir(), "fleq-dense-tsunami-"));
@@ -2009,7 +2009,7 @@ describe("standby monitor wiring", () => {
     const densePair = serializeStandbyAdmissionPair(persistence, dense, envelope);
     expect(densePair.v2.byteLength).toBe(measurement.v2FileBytes);
     expect(densePair.v1.byteLength).toBe(measurement.v1FileBytes);
-  }, 15_000);
+  }, 60_000);
 
   const VPWS50_HEAVY_KINDS: PersistedVpws50KindV2[] = [
     {
