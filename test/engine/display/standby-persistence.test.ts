@@ -27,6 +27,8 @@ import { FloodForecastStateHolder } from "../../../src/engine/messages/flood-for
 import { TelegramRevisionGate } from "../../../src/engine/messages/telegram-revision-gate";
 import type { PersistedVolcanoStateV2, VolcanoRepairStateV1 } from "../../../src/engine/messages/volcano-state";
 import { parseFloodForecast } from "../../../src/dmdata/flood-forecast-parser";
+import { parseTsunamiTelegram } from "../../../src/dmdata/telegram-parser";
+import { createTelegramMeta } from "../../../src/dmdata/telegram-meta";
 import { parseVolcanoTelegram } from "../../../src/dmdata/volcano-parser";
 import { parseWeatherWarningTimeseries } from "../../../src/dmdata/weather-warning-timeseries-parser";
 import { classifySignificancyCode } from "../../../src/dmdata/weather-warning-timeseries-significancy";
@@ -40,6 +42,7 @@ import { WEATHER_TIMESERIES_RETENTION_MS } from "../../../src/engine/messages/re
 import { fromFloodForecastOutcome } from "../../../src/engine/presentation/events/from-flood-forecast";
 import { processFloodForecast } from "../../../src/engine/presentation/processors/process-flood-forecast";
 import { processTsunami } from "../../../src/engine/presentation/processors/process-tsunami";
+import { toWsDataMessageFromRestBody } from "../../../src/engine/startup/telegram-adapter";
 import { processWeather } from "../../../src/engine/presentation/processors/process-weather";
 import {
   vpwp50ForecastLabel,
@@ -47,13 +50,14 @@ import {
 } from "../../../src/engine/presentation/weather-severity-pyramid";
 import * as log from "../../../src/logger";
 import type { FloodForecastOutcome, PresentationEvent } from "../../../src/engine/presentation/types";
-import type { SpecialValue } from "../../../src/types";
+import type { SpecialValue, TelegramListResponse } from "../../../src/types";
 import {
   legacyDisplayPlumeHeightSemantics,
   projectPlumeHeightSemantic,
 } from "../../../src/engine/display/plume-height-semantic";
 import {
   createMockWsDataMessage,
+  createMockWsDataMessageFromXml,
   FIXTURE_VFVO56_FLASH_1,
   FIXTURE_VFVO56_FLASH_4,
   FIXTURE_VPWW56_DOSHA,
@@ -5363,6 +5367,207 @@ describe("generation-1 volcano salvage serial canonicalization", () => {
     } finally {
       warn.mockRestore();
     }
+  });
+});
+
+describe("release-only tsunami keyedActive load migration", () => {
+  function realReleaseFixture() {
+    const realList = JSON.parse(
+      readFileSync("test/fixtures/rest/telegram-list-vtse41-real.json", "utf8"),
+    ) as TelegramListResponse;
+    const xml = readFileSync("test/fixtures/rest/telegram-body-vtse41-real.xml", "utf8");
+    const realItem = realList.items[0];
+    const acceptedAtMs = Date.parse(realItem.head.time);
+    const message = toWsDataMessageFromRestBody(realItem, xml, acceptedAtMs);
+    const release = parseTsunamiTelegram(message)!;
+    const holder = new TsunamiStateHolder();
+    const gate = new TelegramRevisionGate();
+    expect(processTsunami(message, { tsunamiState: holder, revisionGate: gate }).kind).toBe("ok");
+    expect(holder.getPersistedKeyedActive()).toEqual([]);
+    return { release, gateEntries: gate.exportDurableEntries(), xml, acceptedAtMs };
+  }
+
+  function installLegacyReleaseRaw(keyedActive: unknown[]) {
+    const path = tempPath();
+    expect(new StandbyPersistence(path).save(state())).toMatchObject({ kind: "written" });
+    const v2Path = standbyPersistenceV2Path(path);
+    const v2 = JSON.parse(readFileSync(v2Path, "utf8")) as PersistedStandbyStateV2;
+    const fixture = realReleaseFixture();
+    const raw = {
+      ...v2,
+      telegramFoundation: {
+        ...v2.telegramFoundation,
+        tsunami: {
+          ...v2.telegramFoundation.tsunami,
+          active: keyedActive.length === 1 ? keyedActive[0] : null,
+          keyedActive,
+          legacyActive: null,
+          observations: { VTSE51: [], VTSE52: [] },
+          gateEntries: fixture.gateEntries,
+        },
+      },
+    };
+    const bytes = Buffer.from(JSON.stringify(raw), "utf8");
+    writeFileSync(v2Path, bytes);
+    return { path, v2Path, raw, bytes, ...fixture };
+  }
+
+  it("Pi fixture を一度だけ剪定し backup barrier 後に N+1 pair へ rewrite して stale を維持する", async () => {
+    const fixture = realReleaseFixture();
+    expect(fixture.release.meta.eventId.value).toBe("20260728162718");
+    expect(fixture.release.meta.reportDateTime.raw).toBe("2026-07-28T18:10:00+09:00");
+    expect(fixture.release.forecast).toHaveLength(1);
+    expect(fixture.release.forecast![0]).toMatchObject({ areaCode: "712", kindCode: "60" });
+    expect(fixture.release.warningComment).toBe("現在、大津波警報・津波警報・津波注意報を発表している沿岸はありません。");
+    expect(fixture.acceptedAtMs).toBe(1785229800000);
+
+    const installed = installLegacyReleaseRaw([fixture.release]);
+    const rawV1Before = readFileSync(installed.path);
+    const warn = vi.spyOn(log, "warn").mockImplementation(() => undefined);
+    const persistence = new StandbyPersistence(installed.path, 0);
+    const loaded = persistence.loadWithResult(installed.acceptedAtMs + 60_000);
+    expect(loaded).toMatchObject({
+      startup: { kind: "restored", selectedSource: "v2" },
+      sourceStates: { v2: "salvageable", v1: "valid" },
+      canonicalRewriteRequired: true,
+    });
+    expect(loaded.state?.telegramFoundation.tsunami).toMatchObject({
+      active: null,
+      keyedActive: [],
+      legacyActive: null,
+      observations: { VTSE51: [], VTSE52: [] },
+      gateEntries: [expect.objectContaining({
+        stateSubjectKey: "tsunami:20260728162718",
+        cancelled: false,
+        acceptedAtMs: 1785229800000,
+      })],
+    });
+    const pruningLine = "[standby-persistence] salvage source=display-active-state-v2.json domain=foundation.tsunami unit=eventId discarded=1 retained=0 reason=release-only-active";
+    expect(warn.mock.calls.map(([line]) => line).filter((line) => line === pruningLine))
+      .toEqual([pruningLine]);
+
+    const originalOpenSync = fs.openSync;
+    const openSync = vi.spyOn(fs, "openSync").mockImplementation((file, flags, ...args) => {
+      if (typeof file === "string" && file.endsWith(".salvage-backup") && flags === "wx") {
+        const error = new Error("backup blocked") as NodeJS.ErrnoException;
+        error.code = "EACCES";
+        throw error;
+      }
+      return originalOpenSync(file, flags, ...args);
+    });
+    expect(persistence.save(loaded.state!)).toMatchObject({ kind: "failed", stage: "salvageBackup" });
+    expect(readFileSync(installed.v2Path)).toEqual(installed.bytes);
+    expect(readFileSync(installed.path)).toEqual(rawV1Before);
+    openSync.mockRestore();
+    await persistence.__test_writePending();
+
+    const rewrittenV2Bytes = readFileSync(installed.v2Path);
+    const rewrittenV2 = JSON.parse(rewrittenV2Bytes.toString("utf8")) as PersistedStandbyStateV2;
+    const rewrittenV1 = JSON.parse(readFileSync(installed.path, "utf8")) as PersistedStandbyStateV1 & { logicalGeneration?: string };
+    const initialGeneration = BigInt(String(installed.raw.logicalGeneration));
+    expect(rewrittenV2.logicalGeneration).toBe((initialGeneration + 1n).toString());
+    expect(rewrittenV1.logicalGeneration).toBe(rewrittenV2.logicalGeneration);
+    expect(rewrittenV2.telegramFoundation.tsunami.keyedActive).toEqual([]);
+    expect(rewrittenV2.telegramFoundation.tsunami.gateEntries).toEqual(fixture.gateEntries);
+    const backups = readdirSync(dirname(installed.path)).filter((name) => name.endsWith(".salvage-backup"));
+    expect(backups).toHaveLength(1);
+    expect(readFileSync(join(dirname(installed.path), backups[0]!))).toEqual(installed.bytes);
+
+    warn.mockClear();
+    const reloadedPersistence = new StandbyPersistence(installed.path);
+    const reloaded = reloadedPersistence.loadWithResult(installed.acceptedAtMs + 60_000);
+    expect(reloaded).toMatchObject({
+      sourceStates: { v2: "valid", v1: "valid" },
+      canonicalRewriteRequired: false,
+    });
+    expect(reloaded.state?.telegramFoundation.tsunami.keyedActive).toEqual([]);
+    expect(reloaded.state?.telegramFoundation.tsunami.gateEntries).toEqual(fixture.gateEntries);
+    expect(warn.mock.calls.map(([line]) => line).filter((line) => line === pruningLine)).toEqual([]);
+    expect(reloadedPersistence.salvageBackupDiagnostics().pendingSources).toBe(0);
+
+    const restoredHolder = new TsunamiStateHolder();
+    restoredHolder.restorePersistedState(
+      reloaded.state!.telegramFoundation.tsunami.active ?? null,
+      reloaded.state!.telegramFoundation.tsunami.observations,
+      reloaded.state!.telegramFoundation.tsunami.keyedActive,
+      reloaded.state!.telegramFoundation.tsunami.legacyActive,
+    );
+    const restoredGate = new TelegramRevisionGate();
+    restoredGate.restoreDurableEntries(reloaded.state!.telegramFoundation.tsunami.gateEntries);
+    const gateBefore = JSON.stringify(restoredGate.exportDurableEntries());
+    const warningXml = fixture.xml
+      .replace("2026-07-28T18:10:00+09:00", "2026-07-28T18:00:00+09:00")
+      .replace("<Kind><Name>津波注意報解除</Name><Code>60</Code></Kind>", "<Kind><Name>津波注意報</Name><Code>62</Code></Kind>");
+    const delayedWarning = createMockWsDataMessageFromXml(warningXml, "VTSE41");
+    const decisions: string[] = [];
+    const persisted = vi.fn();
+    expect(processTsunami(
+      { ...delayedWarning, head: { ...delayedWarning.head, time: "2026-07-29T00:00:00.000Z" } },
+      {
+        tsunamiState: restoredHolder,
+        revisionGate: restoredGate,
+        onRevisionDecision: (decision) => decisions.push(decision.kind),
+        onTsunamiRevisionDecision: persisted,
+      },
+    )).toEqual({ kind: "suppressed" });
+    expect(decisions).toEqual(["stale"]);
+    expect(persisted).not.toHaveBeenCalled();
+    expect(restoredHolder.getPersistedKeyedActive()).toEqual([]);
+    expect(JSON.stringify(restoredGate.exportDurableEntries())).toBe(gateBefore);
+    expect(readFileSync(installed.v2Path)).toEqual(rewrittenV2Bytes);
+    warn.mockRestore();
+  });
+
+  it("最新 release-only candidate を選んだ後に剪定し古い警報を復活させない", () => {
+    const fixture = realReleaseFixture();
+    const oldWarning = {
+      ...structuredClone(fixture.release),
+      meta: createTelegramMeta({
+        messageId: "old-warning",
+        eventId: "20260728162718",
+        type: "VTSE41",
+        reportDateTime: "2026-07-28T18:00:00+09:00",
+        serial: null,
+        infoType: "発表",
+        receivedAtMs: fixture.acceptedAtMs - 600_000,
+        status: "通常",
+        isTest: false,
+      }),
+      reportDateTime: "2026-07-28T18:00:00+09:00",
+      forecast: fixture.release.forecast!.map((item) => ({
+        ...item,
+        kindCode: "62",
+        kindName: "津波注意報",
+        kind: "津波注意報",
+      })),
+    };
+    const installed = installLegacyReleaseRaw([oldWarning, fixture.release]);
+    const loaded = new StandbyPersistence(installed.path).loadWithResult(installed.acceptedAtMs + 60_000);
+    expect(loaded.state?.telegramFoundation.tsunami.keyedActive).toEqual([]);
+    expect(loaded.state?.telegramFoundation.tsunami.gateEntries).toEqual(fixture.gateEntries);
+  });
+
+  it("canonical writer は release-only keyed input を validation failure にする", () => {
+    const fixture = realReleaseFixture();
+    const path = tempPath();
+    const persistence = new StandbyPersistence(path);
+    const foundation: PersistedTelegramFoundationInputV2 = {
+      vpws50: { authoritative: true, state: null, gateEntries: [] },
+      vpww56: { authoritative: true, state: null, gateEntries: [] },
+      tsunami: {
+        keyedActive: [fixture.release],
+        legacyActive: null,
+        observations: { VTSE51: [], VTSE52: [] },
+        gateEntries: fixture.gateEntries,
+      },
+      volcano: { authoritative: false, state: null, active: [], gateEntries: [] },
+      floodForecast: { authoritative: true, active: [], gateEntries: [] },
+      standbyDomains: { gateEntries: [] },
+    };
+    expect(() => persistence.serializeProspectivePair(state(), foundation, {
+      logicalGeneration: "1",
+      savedAt: "2026-07-28T09:11:00.000Z",
+    })).toThrow("invalid persisted tsunami writer state");
   });
 });
 

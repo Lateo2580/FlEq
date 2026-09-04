@@ -237,7 +237,7 @@ describe("restoreTsunamiState bounded multi-event batch", () => {
     install([a0, b0, release]);
     const state = new TsunamiStateHolder(); const gate = new TelegramRevisionGate(); seed(a0, state, gate); seed(b0, state, gate);
     expect((await restore(state, gate)).kind).toBe("complete");
-    expect(state.getPersistedKeyedActive().find((x) => x.meta.eventId.value === "A")?.forecast?.every((x) => x.kind === "津波予報")).toBe(true);
+    expect(state.hasPersistedEvent("A")).toBe(false);
     expect(state.hasPersistedEvent("B")).toBe(true);
   });
 
@@ -279,11 +279,26 @@ describe("restoreTsunamiState bounded multi-event batch", () => {
     mockList.mockResolvedValue(response([realItem]));
     mockBody.mockResolvedValue({ kind: "ok", xml });
     mockParse.mockImplementation(actualParser.parseTsunamiTelegram);
-    const result = await restoreTsunamiState("key", new TsunamiStateHolder(), new TelegramRevisionGate(), undefined, undefined, {
+    const state = new TsunamiStateHolder();
+    const gate = new TelegramRevisionGate();
+    const result = await restoreTsunamiState("key", state, gate, undefined, undefined, {
       now: () => Date.parse(realItem.head.time) + 60_000,
     });
-    expect(result).toEqual(expect.objectContaining({ kind: "complete" }));
+    const release = actualParser.parseTsunamiTelegram(
+      toWsDataMessageFromRestBody(realItem, xml, Date.parse(realItem.head.time)),
+    )!;
+    expect(result).toEqual(expect.objectContaining({ kind: "complete", changed: true, active: null }));
+    expect(release.meta.eventId.value).toBe("20260728162718");
+    expect(release.meta.reportDateTime.raw).toBe("2026-07-28T18:10:00+09:00");
+    expect(release.forecast).toHaveLength(1);
+    expect(release.forecast![0]).toMatchObject({ areaCode: "712", kindCode: "60" });
+    expect(release.warningComment).toBe("現在、大津波警報・津波警報・津波注意報を発表している沿岸はありません。");
+    expect(Date.parse(realItem.head.time)).toBe(1785229800000);
     expect(realItem.xmlReport?.head.serial).toBeNull();
+    expect(state.getPersistedKeyedActive()).toEqual([]);
+    expect(gate.exportDurableEntries()).toEqual([
+      expect.objectContaining({ stateSubjectKey: "tsunami:20260728162718", cancelled: false, acceptedAtMs: 1785229800000 }),
+    ]);
   });
 
   it("§5.9 empty Serial is missing but non-empty invalid Serial is listItemInvalid", async () => {
@@ -366,17 +381,89 @@ describe("restoreTsunamiState bounded multi-event batch", () => {
     expect(state.hasPersistedEvent("A")).toBe(true); expect(state.hasPersistedEvent("B")).toBe(true); expect(persist).toHaveBeenCalledTimes(1);
   });
 
-  it("review #3 / §5.13 gate-only full release reconstructs canonical EventID state although lastInfo is null", async () => {
+  it("release-only gate-only duplicate proves an empty holder without callback", async () => {
     const release = active("release", "A", "2026-07-28T20:00:00Z", NOW - 10_000, "津波予報");
     const seedState = new TsunamiStateHolder(); const seedGate = new TelegramRevisionGate(); seed(release, seedState, seedGate);
     const state = new TsunamiStateHolder(); const gate = new TelegramRevisionGate();
     gate.restoreDurableEntries(seedGate.exportDurableEntries()); install([release]);
     const callback = vi.fn();
     expect(await restoreTsunamiState("key", state, gate, callback, undefined, { now: () => NOW }))
-      .toEqual(expect.objectContaining({ kind: "complete", changed: true, active: null }));
-    expect(state.hasPersistedEvent("A")).toBe(true);
+      .toEqual(expect.objectContaining({ kind: "complete", changed: false, active: null }));
+    expect(state.hasPersistedEvent("A")).toBe(false);
     expect(state.getLastInfo()).toBeNull();
+    expect(callback).not.toHaveBeenCalled();
+  });
+
+  it("release-only isolated base proves an empty holder for an unkeyed exact anchor", async () => {
+    const release = active("release-base", "A", "2026-07-28T20:00:00Z", NOW - 20_000, "津波予報");
+    const anchor = active("unkeyed-anchor", "A", "2026-07-28T20:01:00Z", NOW - 10_000);
+    anchor.forecast![0].areaCode = null;
+    const seedState = new TsunamiStateHolder(); const seedGate = new TelegramRevisionGate();
+    seed(release, seedState, seedGate); seed(anchor, seedState, seedGate);
+    const state = new TsunamiStateHolder(); const gate = new TelegramRevisionGate();
+    gate.restoreDurableEntries(seedGate.exportDurableEntries()); install([release, anchor]);
+    const beforeGate = JSON.stringify(gate.cloneSnapshot()); const callback = vi.fn();
+
+    expect(await restoreTsunamiState("key", state, gate, callback, undefined, { now: () => NOW }))
+      .toEqual(expect.objectContaining({ kind: "complete", changed: false, active: null }));
+    expect(state.getPersistedKeyedActive()).toEqual([]);
+    expect(gate.cloneSnapshot()).toEqual(JSON.parse(beforeGate));
+    expect(callback).not.toHaveBeenCalled();
+  });
+
+  it("gate-only release-only anchor permits a later active snapshot", async () => {
+    const release = active("release-anchor", "A", "2026-07-28T20:00:00Z", NOW - 20_000, "津波予報");
+    const warning = active("later-warning", "A", "2026-07-28T20:01:00Z", NOW - 10_000);
+    const seedState = new TsunamiStateHolder(); const seedGate = new TelegramRevisionGate();
+    seed(release, seedState, seedGate);
+    const state = new TsunamiStateHolder(); const gate = new TelegramRevisionGate();
+    gate.restoreDurableEntries(seedGate.exportDurableEntries()); install([release, warning]);
+    const callback = vi.fn();
+
+    expect(await restoreTsunamiState("key", state, gate, callback, undefined, { now: () => NOW }))
+      .toEqual(expect.objectContaining({ kind: "complete", changed: true }));
+    expect(state.hasPersistedEvent("A")).toBe(true);
+    expect(state.getLastInfo()?.meta.messageId).toBe("later-warning");
+    expect(gate.exportDurableEntries()).toEqual([
+      expect.objectContaining({ stateSubjectKey: "tsunami:A", acceptedAtMs: NOW - 10_000 }),
+    ]);
     expect(callback).toHaveBeenCalledTimes(1);
+  });
+
+  it("gate-only activeSnapshot anchor permits a later release-only update", async () => {
+    const warning = active("warning-anchor", "A", "2026-07-28T20:00:00Z", NOW - 20_000);
+    const release = active("later-release", "A", "2026-07-28T20:01:00Z", NOW - 10_000, "津波予報");
+    const seedState = new TsunamiStateHolder(); const seedGate = new TelegramRevisionGate();
+    seed(warning, seedState, seedGate);
+    const state = new TsunamiStateHolder(); const gate = new TelegramRevisionGate();
+    gate.restoreDurableEntries(seedGate.exportDurableEntries()); install([warning, release]);
+    const callback = vi.fn();
+
+    expect(await restoreTsunamiState("key", state, gate, callback, undefined, { now: () => NOW }))
+      .toEqual(expect.objectContaining({ kind: "complete", changed: true, active: null }));
+    expect(state.hasPersistedEvent("A")).toBe(false);
+    expect(gate.exportDurableEntries()).toEqual([
+      expect.objectContaining({ stateSubjectKey: "tsunami:A", acceptedAtMs: NOW - 10_000 }),
+    ]);
+    expect(callback).toHaveBeenCalledTimes(1);
+  });
+
+  it("isolated gate restoration preserves following VTSE41 gate order", async () => {
+    const releaseA = active("release-a", "A", "2026-07-28T20:00:00Z", NOW - 30_000, "津波予報");
+    const anchorA = active("unkeyed-a", "A", "2026-07-28T20:01:00Z", NOW - 20_000);
+    anchorA.forecast![0].areaCode = null;
+    const releaseB = active("release-b", "B", "2026-07-28T20:02:00Z", NOW - 10_000, "津波予報");
+    const seedState = new TsunamiStateHolder(); const seedGate = new TelegramRevisionGate();
+    seed(releaseA, seedState, seedGate); seed(anchorA, seedState, seedGate); seed(releaseB, seedState, seedGate);
+    const state = new TsunamiStateHolder(); const gate = new TelegramRevisionGate();
+    gate.restoreDurableEntries(seedGate.exportDurableEntries()); install([releaseA, anchorA, releaseB]);
+    const beforeGate = JSON.stringify(gate.cloneSnapshot()); const callback = vi.fn();
+
+    expect(await restoreTsunamiState("key", state, gate, callback, undefined, { now: () => NOW }))
+      .toEqual(expect.objectContaining({ kind: "complete", changed: false, active: null }));
+    expect(state.getPersistedKeyedActive()).toEqual([]);
+    expect(JSON.stringify(gate.cloneSnapshot())).toBe(beforeGate);
+    expect(callback).not.toHaveBeenCalled();
   });
 
   it.each(["partial-cancel", "unkeyed-normal"] as const)("§5.14 gate-only %s reconstructs only from an isolated base trace", async (mode) => {
@@ -813,6 +900,9 @@ describe("restoreTsunamiState bounded multi-event batch", () => {
     if (mode === "whole-cancel") {
       expect(state.hasPersistedEvent(`NEW-${mode}`)).toBe(false);
       expect(gate.exportDurableEntries()[0]?.cancelled).toBe(true);
+    } else if (mode === "full-release") {
+      expect(state.hasPersistedEvent(`NEW-${mode}`)).toBe(false);
+      expect(gate.exportDurableEntries()[0]?.cancelled).toBe(false);
     } else {
       expect(state.hasPersistedEvent(`NEW-${mode}`)).toBe(true);
     }

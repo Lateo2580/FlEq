@@ -9,6 +9,7 @@ import {
   TsunamiObservationStation,
 } from "../../types";
 import {
+  isTsunamiReleaseOnlyForecast,
   resolveTsunamiLevel,
   type TsunamiLevelLabel,
 } from "../../utils/tsunami-kind";
@@ -348,6 +349,12 @@ export class TsunamiStateHolder
   /** 共通 revision gate が受理した VTSE41 を active state へ反映する。 */
   applyAccepted(info: ParsedTsunamiInfo): void {
     const eventId = tsunamiEventId(info);
+    if (eventId != null && isTsunamiReleaseOnlyForecast(info.forecast)) {
+      this.removeEvent(eventId);
+      this.rebuildActiveState();
+      this.clearObservationsIfInactive();
+      return;
+    }
     const keyed = new Map<string, KeyedTsunamiForecastItem>();
     for (const item of info.forecast ?? []) {
       const key = eventId == null ? null : tsunamiForecastStateKey(eventId, item);
@@ -407,23 +414,25 @@ export class TsunamiStateHolder
     );
     // コード欠落 item 付き取消は全体取消ではない。照合不能なら mutation しない。
     if (!clearsWholeEvent && targetKeys.size === 0) return;
+    if (clearsWholeEvent) {
+      this.removeEvent(eventId);
+      this.rebuildActiveState();
+      this.clearObservationsIfInactive();
+      return;
+    }
     for (const [key, entry] of this.keyedForecasts) {
-      if (entry.eventId === eventId && (clearsWholeEvent || targetKeys.has(key))) {
+      if (entry.eventId === eventId && targetKeys.has(key)) {
         this.keyedForecasts.delete(key);
       }
     }
-    if (clearsWholeEvent) {
+    const envelope = this.eventInfos.get(eventId);
+    if (envelope != null) {
+      const remaining = [...this.keyedForecasts.values()]
+        .filter((entry) => entry.eventId === eventId)
+        .map((entry) => entry.item);
       this.eventInfos.delete(eventId);
-    } else {
-      const envelope = this.eventInfos.get(eventId);
-      if (envelope != null) {
-        const remaining = [...this.keyedForecasts.values()]
-          .filter((entry) => entry.eventId === eventId)
-          .map((entry) => entry.item);
-        this.eventInfos.delete(eventId);
-        if (remaining.length > 0) {
-          this.eventInfos.set(eventId, { ...envelope, forecast: remaining });
-        }
+      if (remaining.length > 0) {
+        this.eventInfos.set(eventId, { ...envelope, forecast: remaining });
       }
     }
     this.rebuildActiveState();
@@ -488,6 +497,13 @@ export class TsunamiStateHolder
     this.keyedForecasts.clear();
     this.eventInfos.clear();
     this.legacyRestoredInfo = null;
+  }
+
+  private removeEvent(eventId: string): void {
+    for (const [key, entry] of this.keyedForecasts) {
+      if (entry.eventId === eventId) this.keyedForecasts.delete(key);
+    }
+    this.eventInfos.delete(eventId);
   }
 
   private rebuildActiveState(): void {

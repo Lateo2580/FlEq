@@ -9,6 +9,7 @@ import { TelegramRevisionGate, type PersistedTelegramRevisionGateEntryV2, type T
 import { TsunamiStateHolder, type TsunamiStateSnapshot } from "../messages/tsunami-state";
 import { createTsunamiRevisionGateInput, processTsunami } from "../presentation/processors/process-tsunami";
 import { strictRestReceivedTimeMs, toWsDataMessageFromRestBody } from "./telegram-adapter";
+import { isTsunamiReleaseOnlyForecast } from "../../utils/tsunami-kind";
 
 const DATE_LIMIT_MS = 8_640_000_000_000_000;
 const STALE_EPOCH_REASON = "tsunamiRestoreStaleEpoch";
@@ -60,8 +61,10 @@ interface CoveragePlan {
   selectedIds: Set<string>;
   isolatedAnchors: Map<string, PersistedTelegramRevisionGateEntryV2>;
   gateOnlyAnchors: Map<string, PersistedTelegramRevisionGateEntryV2>;
+  gateOnlyHolderPostconditions: Map<string, boolean>;
   holderAnchors: Set<string>;
 }
+type ReconstructibleBaseKind = "activeSnapshot" | "wholeCancellation" | "releaseOnly";
 class Failure { constructor(readonly failure: TsunamiRestoreFailure) {} }
 class Abandoned {}
 
@@ -239,11 +242,26 @@ const hasKeyedForecastItem = (info: ParsedTsunamiInfo): boolean => {
   return (info.forecast ?? []).some((x) => x.areaCode != null && x.areaCode.trim() !== ""
     && x.kindCode != null && x.kindCode.trim() !== "");
 };
-function base(info: ParsedTsunamiInfo): boolean {
+function base(info: ParsedTsunamiInfo): ReconstructibleBaseKind | null {
   const forecast = info.forecast ?? [];
-  if (info.meta.infoType.value === "取消") return forecast.length === 0;
-  return (info.meta.infoType.value === "発表" || info.meta.infoType.value === "訂正")
-    && (forecast.length === 0 || keyable(info));
+  if (info.meta.infoType.value === "取消") {
+    return forecast.length === 0 ? "wholeCancellation" : null;
+  }
+  if (
+    (info.meta.infoType.value !== "発表" && info.meta.infoType.value !== "訂正")
+    || forecast.length === 0
+    || !keyable(info)
+  ) return null;
+  return isTsunamiReleaseOnlyForecast(forecast) ? "releaseOnly" : "activeSnapshot";
+}
+
+function traceHasPersistedEvent(eventId: string, items: readonly StagedItem[]): boolean {
+  const state = new TsunamiStateHolder();
+  for (const item of items) {
+    if (item.parsed.meta.infoType.value === "取消") state.clearAccepted(item.parsed);
+    else state.applyAccepted(item.parsed);
+  }
+  return state.hasPersistedEvent(eventId);
 }
 
 function projection(state: TsunamiStateSnapshot, gate: TelegramRevisionGateSnapshot): unknown {
@@ -280,6 +298,7 @@ function planCoverage(items: readonly StagedItem[], state: TsunamiStateHolder, g
   const selectedIds = new Set<string>();
   const isolatedAnchors = new Map<string, PersistedTelegramRevisionGateEntryV2>();
   const gateOnlyAnchors = new Map<string, PersistedTelegramRevisionGateEntryV2>();
+  const gateOnlyHolderPostconditions = new Map<string, boolean>();
   const holderAnchors = new Set<string>();
   for (const [eventId, target] of targets) {
     if (target.gate.acceptedAtMs < startMs) fail("baselineOutsideRestoreWindow");
@@ -289,25 +308,30 @@ function planCoverage(items: readonly StagedItem[], state: TsunamiStateHolder, g
     if (target.active != null) {
       for (const item of eventItems) if (item.receivedAtMs >= target.gate.acceptedAtMs) selectedIds.add(item.id);
       holderAnchors.add(anchor.id);
-    } else if (base(anchor.parsed)) {
+    } else if (base(anchor.parsed) != null) {
       for (const item of eventItems) if (item.receivedAtMs >= anchor.receivedAtMs) selectedIds.add(item.id);
       gateOnlyAnchors.set(anchor.id, target.gate);
+      gateOnlyHolderPostconditions.set(anchor.id, base(anchor.parsed) === "activeSnapshot");
     } else {
       const anchorIndex = eventItems.indexOf(anchor);
       let baseIndex = -1;
-      for (let index = anchorIndex; index >= 0; index -= 1) if (base(eventItems[index].parsed)) { baseIndex = index; break; }
+      for (let index = anchorIndex; index >= 0; index -= 1) if (base(eventItems[index].parsed) != null) { baseIndex = index; break; }
       if (baseIndex < 0) { stats.missingEventIds.push(eventId); fail("coverageMissingGateOnlyBase"); }
       for (let index = baseIndex; index < eventItems.length; index += 1) selectedIds.add(eventItems[index].id);
       isolatedAnchors.set(anchor.id, target.gate);
       gateOnlyAnchors.set(anchor.id, target.gate);
+      gateOnlyHolderPostconditions.set(
+        anchor.id,
+        traceHasPersistedEvent(eventId, eventItems.slice(baseIndex, anchorIndex + 1)),
+      );
     }
     selectedIds.add(anchor.id);
   }
   for (const [eventId, eventItems] of byEvent) if (!targets.has(eventId)) {
-    if (!base(eventItems[0].parsed)) { stats.missingEventIds.push(eventId); fail("coverageMissingNewEventBase"); }
+    if (base(eventItems[0].parsed) == null) { stats.missingEventIds.push(eventId); fail("coverageMissingNewEventBase"); }
     for (const item of eventItems) selectedIds.add(item.id);
   }
-  return { selectedIds, isolatedAnchors, gateOnlyAnchors, holderAnchors };
+  return { selectedIds, isolatedAnchors, gateOnlyAnchors, gateOnlyHolderPostconditions, holderAnchors };
 }
 
 function snapshotEntry(snapshot: TelegramRevisionGateSnapshot, subject: string): PersistedTelegramRevisionGateEntryV2 | null {
@@ -319,21 +343,31 @@ function withoutIsolated(snapshot: TelegramRevisionGateSnapshot, isolated: Reado
   const keys = new Set([...isolated.values()].map((x) => `tsunami:VTSE41:${x.stateSubjectKey}`));
   return { ...structuredClone(snapshot), states: snapshot.states.filter((x) => !keys.has(x.key)) };
 }
-function putEntry(snapshot: TelegramRevisionGateSnapshot, baseline: PersistedTelegramRevisionGateEntryV2): TelegramRevisionGateSnapshot {
+function putEntry(
+  snapshot: TelegramRevisionGateSnapshot,
+  baseline: PersistedTelegramRevisionGateEntryV2,
+  original: TelegramRevisionGateSnapshot,
+): TelegramRevisionGateSnapshot {
   const key = `${baseline.domain}:${baseline.revisionFamily}:${baseline.stateSubjectKey}`;
-  const restored = {
-    key, comparison: structuredClone(baseline.comparison), semanticKeys: [...baseline.semanticKeys], cancelled: baseline.cancelled,
-    acceptedAtMs: baseline.acceptedAtMs, durable: true, tombstoneRetentionMs: baseline.tombstoneRetentionMs ?? null,
-    retainForFamilyCapacity: false, legacyRevisionKey: baseline.legacyRevisionKey ?? null,
-    legacyRevisionKeyProvenance: baseline.legacyRevisionKeyProvenance ?? null,
-  };
-  let replaced = false;
-  const states = snapshot.states.map((entry) => {
-    if (entry.key !== key) return entry;
-    replaced = true;
-    return restored;
-  });
-  if (!replaced) states.push(restored);
+  const originalIndex = original.states.findIndex((entry) => entry.key === key);
+  const originalState = original.states[originalIndex];
+  const restored = originalState == null
+    ? {
+        key, comparison: structuredClone(baseline.comparison), semanticKeys: [...baseline.semanticKeys], cancelled: baseline.cancelled,
+        acceptedAtMs: baseline.acceptedAtMs, durable: true, tombstoneRetentionMs: baseline.tombstoneRetentionMs ?? null,
+        retainForFamilyCapacity: false, legacyRevisionKey: baseline.legacyRevisionKey ?? null,
+        legacyRevisionKeyProvenance: baseline.legacyRevisionKeyProvenance ?? null,
+      }
+    : structuredClone(originalState);
+  const states = snapshot.states.filter((entry) => entry.key !== key);
+  const originalPositions = new Map(original.states.map((entry, index) => [entry.key, index] as const));
+  const successorIndex = originalIndex < 0
+    ? -1
+    : states.findIndex((entry) => {
+        const position = originalPositions.get(entry.key);
+        return position != null && position > originalIndex;
+      });
+  states.splice(successorIndex < 0 ? states.length : successorIndex, 0, restored);
   return { ...snapshot, states };
 }
 type ReplayResult = { kind: "success"; state: TsunamiStateSnapshot; gate: TelegramRevisionGateSnapshot; changed: boolean }
@@ -367,15 +401,17 @@ function replayBatch(stateSnapshot: TsunamiStateSnapshot, gateSnapshot: Telegram
       const generated = snapshotEntry(gate.cloneSnapshot(), baseline.stateSubjectKey);
       if (generated == null || !exactGate(item, generated) || anchorInput == null
         || !gate.matchesCurrentAcceptedPayload(anchorInput)) return { kind: "failure", reason: "baselineGateMismatch" };
-      gate = TelegramRevisionGate.fromSnapshot(putEntry(gate.cloneSnapshot(), baseline));
+      gate = TelegramRevisionGate.fromSnapshot(putEntry(gate.cloneSnapshot(), baseline, gateSnapshot));
     }
-    if (gateOnlyBaseline != null && !state.hasPersistedEvent(item.eventId)) {
+    const expectedHolder = coverage.gateOnlyHolderPostconditions.get(item.id);
+    if (gateOnlyBaseline != null && expectedHolder !== state.hasPersistedEvent(item.eventId)) {
       return { kind: "failure", reason: "coverageMissingGateOnlyBase" };
     }
   }
   for (const baseline of coverage.gateOnlyAnchors.values()) {
-    const eventId = baseline.stateSubjectKey.slice(8);
-    if (snapshotEntry(gate.cloneSnapshot(), baseline.stateSubjectKey) == null || !state.hasPersistedEvent(eventId)) return { kind: "failure", reason: "coverageMissingGateOnlyBase" };
+    if (snapshotEntry(gate.cloneSnapshot(), baseline.stateSubjectKey) == null) {
+      return { kind: "failure", reason: "coverageMissingGateOnlyBase" };
+    }
   }
   const stateAfter = state.cloneSnapshot(); const gateAfter = gate.cloneSnapshot();
   return { kind: "success", state: stateAfter, gate: gateAfter, changed: before !== identity(projection(stateAfter, gateAfter)) };

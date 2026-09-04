@@ -1,3 +1,5 @@
+import type { TsunamiForecastItem } from "../types";
+
 /** 津波種別の canonical ラベル (優先度順: 大津波警報 > 津波警報 > 津波注意報) */
 export const TSUNAMI_LEVEL_LABELS = ["大津波警報", "津波警報", "津波注意報"] as const;
 export type TsunamiLevelLabel = (typeof TSUNAMI_LEVEL_LABELS)[number];
@@ -31,6 +33,15 @@ export function normalizeTsunamiKind(kind: string): string {
 export interface TsunamiLevelInfo {
   level: "majorWarning" | "warning" | "advisory";
   label: TsunamiLevelLabel;
+}
+
+/** Code 60 だけから成る VTSE41 全解除 forecast を識別する。 */
+export function isTsunamiReleaseOnlyForecast(
+  forecast: readonly Pick<TsunamiForecastItem, "kindCode">[] | null | undefined,
+): boolean {
+  const items = forecast ?? [];
+  return items.length > 0
+    && items.every((item) => item.kindCode?.trim() === "60");
 }
 
 /**

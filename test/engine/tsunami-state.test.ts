@@ -547,8 +547,36 @@ describe("TsunamiStateHolder", () => {
       expect(holder.getLevel()).toBeNull();
       expect(holder.getLastInfo()).toBeNull();
       expect(holder.getPersistedActive()).toBeNull();
+      expect(holder.getPersistedKeyedActive()).toEqual([]);
+      expect(holder.hasPersistedEvent("release-event")).toBe(false);
       expect(holder.getPromptStatus()).toBeNull();
+      expect(holder.getDetail()).toBeNull();
       expect(holder.getObservationGroups()).toEqual({ VTSE51: [], VTSE52: [] });
+    });
+
+    it("初見の全解除は holder に EventID envelope を作らない", () => {
+      holder.applyAccepted(eventInfo(
+        "first-release-event",
+        [forecast("712", "60", "有明・八代海", "津波注意報解除")],
+      ));
+
+      expect(holder.getPersistedKeyedActive()).toEqual([]);
+      expect(holder.hasPersistedEvent("first-release-event")).toBe(false);
+      expect(holder.getLastInfo()).toBeNull();
+      expect(holder.getDetail()).toBeNull();
+      expect(holder.getPromptStatus()).toBeNull();
+    });
+
+    it("restorePersistedState は旧 release-only keyed payload を復元しない", () => {
+      const release = eventInfo(
+        "persisted-release-event",
+        [forecast("712", "60", "有明・八代海", "津波注意報解除")],
+      );
+      holder.restorePersistedState(null, { VTSE51: [], VTSE52: [] }, [release]);
+
+      expect(holder.getPersistedKeyedActive()).toEqual([]);
+      expect(holder.hasPersistedEvent("persisted-release-event")).toBe(false);
+      expect(holder.getLastInfo()).toBeNull();
     });
 
     it("注意報 → 解除 → 同 EventID の再発表 (62) で level が再点灯する", () => {
@@ -623,6 +651,8 @@ describe("TsunamiStateHolder", () => {
       ));
 
       expect(holder.activeEventIds()).toEqual(["kept-event"]);
+      expect(holder.hasPersistedEvent("cleared-event")).toBe(false);
+      expect(holder.hasPersistedEvent("kept-event")).toBe(true);
       expect(holder.getLevel()).toBe("津波注意報");
     });
 

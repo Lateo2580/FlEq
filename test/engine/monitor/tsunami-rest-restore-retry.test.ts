@@ -1,4 +1,6 @@
 import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   createTsunamiRestoreRetryController,
@@ -10,6 +12,15 @@ import { runTsunamiRestoreStartupPhase } from "../../../src/engine/monitor/monit
 import { createShutdownHandler } from "../../../src/engine/monitor/shutdown";
 import { TelegramRevisionGate } from "../../../src/engine/messages/telegram-revision-gate";
 import { TsunamiStateHolder } from "../../../src/engine/messages/tsunami-state";
+import { processTsunami } from "../../../src/engine/presentation/processors/process-tsunami";
+import { toWsDataMessageFromRestBody } from "../../../src/engine/startup/telegram-adapter";
+import { parseTsunamiTelegram } from "../../../src/dmdata/telegram-parser";
+import {
+  StandbyPersistence,
+  standbyPersistenceV2Path,
+  type PersistedStandbyStateV1,
+  type PersistedStandbyStateV2,
+} from "../../../src/engine/display/standby-persistence";
 import type { TelegramListResponse } from "../../../src/types";
 import type { ConnectionManager } from "../../../src/dmdata/connection-manager";
 import type { EewEventLogger } from "../../../src/engine/eew/eew-logger";
@@ -52,9 +63,9 @@ describe("tsunami REST restore retry controller", () => {
     expect(controller.status().pending).toBe(false);
   });
 
-  it("§5.20 stops immediately on non-retryable failure", async () => {
+  it.each(["parseFailed", "baselineOutsideRestoreWindow"] as const)("§5.20 stops immediately on non-retryable failure: %s", async (reason) => {
     const attempt = vi.fn(async (): Promise<TsunamiRestoreAttemptResult> => ({
-      kind: "incomplete", changed: false, retryable: false, reason: "parseFailed",
+      kind: "incomplete", changed: false, retryable: false, reason,
     }));
     const controller = createTsunamiRestoreRetryController({ attempt });
     await controller.runInitial(); controller.enableBackgroundRetries();
@@ -112,7 +123,86 @@ describe("tsunami REST restore retry controller", () => {
     expect(attempt).toHaveBeenCalledTimes(2);
     expect(loadPage).toHaveBeenCalledTimes(10);
     expect(callback).toHaveBeenCalledTimes(1);
-    expect(state.hasPersistedEvent(REAL_ITEM.xmlReport!.head.eventId!)).toBe(true);
+    expect(state.hasPersistedEvent(REAL_ITEM.xmlReport!.head.eventId!)).toBe(false);
+  });
+
+  it("Pi payload の rewrite/reload 後の窓外 startup は warn 一行だけで background retry しない", async () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), "fleq-tsunami-retry-release-"));
+    const persistencePath = path.join(root, "display-active-state-v1.json");
+    const emptyState: PersistedStandbyStateV1 = {
+      version: 1,
+      savedAt: new Date(REST_NOW).toISOString(),
+      heat: [], typhoons: [], volcanoes: [], floods: { events: [], seen: [] },
+      weatherAlerts: [], tornado: [], longPeriod: [], quakeHost: null,
+      nankaiTrough: null, seen: [],
+    };
+    expect(new StandbyPersistence(persistencePath).save(emptyState)).toMatchObject({ kind: "written" });
+    const message = toWsDataMessageFromRestBody(REAL_ITEM, REAL_XML, Date.parse(REAL_ITEM.head.time));
+    const release = parseTsunamiTelegram(message)!;
+    const seedState = new TsunamiStateHolder(); const seedGate = new TelegramRevisionGate();
+    expect(processTsunami(message, { tsunamiState: seedState, revisionGate: seedGate }).kind).toBe("ok");
+    const v2Path = standbyPersistenceV2Path(persistencePath);
+    const raw = JSON.parse(fs.readFileSync(v2Path, "utf8")) as PersistedStandbyStateV2;
+    raw.telegramFoundation.tsunami = {
+      ...raw.telegramFoundation.tsunami,
+      active: release,
+      keyedActive: [release],
+      legacyActive: null,
+      observations: { VTSE51: [], VTSE52: [] },
+      gateEntries: seedGate.exportDurableEntries(),
+    };
+    fs.writeFileSync(v2Path, JSON.stringify(raw), "utf8");
+    const migrator = new StandbyPersistence(persistencePath);
+    const migrated = migrator.loadWithResult(REST_NOW);
+    expect(migrated).toMatchObject({
+      sourceStates: { v2: "salvageable", v1: "valid" },
+      canonicalRewriteRequired: true,
+    });
+    expect(migrator.save(migrated.state!)).toMatchObject({ kind: "written" });
+    const reloadPersistence = new StandbyPersistence(persistencePath);
+    const reloaded = reloadPersistence.loadWithResult(REST_NOW);
+    expect(reloaded).toMatchObject({
+      sourceStates: { v2: "valid", v1: "valid" },
+      canonicalRewriteRequired: false,
+    });
+    const state = new TsunamiStateHolder(); const gate = new TelegramRevisionGate();
+    const tsunami = reloaded.state!.telegramFoundation.tsunami;
+    state.restorePersistedState(
+      tsunami.active ?? null,
+      tsunami.observations,
+      tsunami.keyedActive ?? [],
+      tsunami.legacyActive ?? null,
+    );
+    gate.restoreDurableEntries(tsunami.gateEntries);
+    expect(state.getPersistedKeyedActive()).toEqual([]);
+    const logWarn = vi.spyOn(log, "warn").mockImplementation(() => undefined);
+    const retryWarn = vi.fn();
+    const attempt = vi.fn(() => restoreTsunamiState(
+      "key", state, gate, undefined, undefined,
+      {
+        now: () => Date.parse(REAL_ITEM.head.time) + 8 * 24 * 60 * 60_000,
+        loadPage: async () => listResponse([]),
+        loadBody: async () => ({ kind: "ok", xml: REAL_XML }),
+      },
+    ));
+    const controller = createTsunamiRestoreRetryController({ attempt, warn: retryWarn });
+
+    expect(await controller.runInitial()).toEqual(expect.objectContaining({
+      kind: "incomplete",
+      reason: "baselineOutsideRestoreWindow",
+      retryable: false,
+      changed: false,
+    }));
+    controller.enableBackgroundRetries();
+    await vi.runAllTimersAsync();
+    expect(attempt).toHaveBeenCalledTimes(1);
+    expect(controller.status().pending).toBe(false);
+    expect(retryWarn).not.toHaveBeenCalled();
+    expect(logWarn.mock.calls.map(([line]) => String(line)).filter((line) =>
+      line.includes("[tsunami-restore] incomplete reason=baselineOutsideRestoreWindow")))
+      .toHaveLength(1);
+    expect(state.getPersistedKeyedActive()).toEqual([]);
+    fs.rmSync(root, { recursive: true, force: true });
   });
 
   it("§5.20 ignores duplicate starts while an attempt is in flight", async () => {

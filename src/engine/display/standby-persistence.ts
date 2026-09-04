@@ -96,7 +96,10 @@ import {
   WEATHER_TIMESERIES_REVISION_FAMILY_POLICY,
 } from "../messages/revision-family-registry";
 import { weatherAlertsFromVpws50, weatherAlertsFromVpww56 } from "./weather-alert-view";
-import { resolveTsunamiLevel } from "../../utils/tsunami-kind";
+import {
+  isTsunamiReleaseOnlyForecast,
+  resolveTsunamiLevel,
+} from "../../utils/tsunami-kind";
 import {
   depthValueFromLegacyScalar,
   magnitudeValueFromLegacyScalar,
@@ -975,7 +978,7 @@ type SalvageDomain =
   | "foundation.vpws50" | "foundation.vpww56" | "foundation.tsunami" | "foundation.volcano"
   | "foundation.floodForecast" | "foundation.standbyDomains";
 type SalvageUnit = "entry" | "source" | "eventId" | "code" | "subject" | "identity" | "stationCode" | "family" | "singleton" | "domain";
-type SalvageReason = "invalid-entry" | "invalid-container" | "coupling-mismatch" | "duplicate-subject" | "limit-exceeded";
+type SalvageReason = "invalid-entry" | "invalid-container" | "coupling-mismatch" | "duplicate-subject" | "limit-exceeded" | "release-only-active";
 
 interface RepairMetric {
   units: Set<SalvageUnit>;
@@ -1007,7 +1010,7 @@ interface RepairSource {
 }
 
 const REPAIR_REASON_PRIORITY: readonly SalvageReason[] = [
-  "invalid-container", "invalid-entry", "duplicate-subject", "coupling-mismatch", "limit-exceeded",
+  "invalid-container", "invalid-entry", "duplicate-subject", "coupling-mismatch", "limit-exceeded", "release-only-active",
 ];
 
 let activeRepairCollector: RepairCollector | null = null;
@@ -5996,7 +5999,9 @@ function normalizeTsunamiFoundationForWrite(
     keyedInputCandidates,
     vtse41Candidates,
   );
-  const candidateKeyedActive = candidateSelection.active;
+  const candidateKeyedActive = candidateSelection.active.filter(
+    (active) => !isTsunamiReleaseOnlyForecast(active.forecast),
+  );
   const keyedSubjects = new Set(candidateKeyedActive.flatMap((active) => {
     const subject = tsunamiStateSubjectKey(active.meta);
     return subject == null ? [] : [subject];
@@ -6245,10 +6250,25 @@ function sanitizeTsunamiFoundation(
     parsedKeyedCandidates,
     vtse41Candidates,
   );
-  const matchedKeyedActive = matchedSelection.active;
+  const releaseOnlyActive = matchedSelection.active.filter(
+    (active) => isTsunamiReleaseOnlyForecast(active.forecast),
+  );
+  const matchedKeyedActive = matchedSelection.active.filter(
+    (active) => !isTsunamiReleaseOnlyForecast(active.forecast),
+  );
   for (const subject of matchedSelection.rejectedSubjects) rejectedActiveSubjects.add(subject);
-  if (matchedKeyedActive.length !== parsedKeyedCandidates.length) {
-    recordRepair("foundation.tsunami", "eventId", parsedKeyedCandidates.length - matchedKeyedActive.length, matchedKeyedActive.length, "coupling-mismatch");
+  const couplingDiscarded = parsedKeyedCandidates.length - matchedSelection.active.length;
+  if (couplingDiscarded > 0) {
+    recordRepair("foundation.tsunami", "eventId", couplingDiscarded, matchedSelection.active.length, "coupling-mismatch");
+  }
+  if (releaseOnlyActive.length > 0) {
+    recordRepair(
+      "foundation.tsunami",
+      "eventId",
+      releaseOnlyActive.length,
+      matchedKeyedActive.length,
+      "release-only-active",
+    );
   }
   const keyedSubjectsBeforeCompaction = new Set(matchedKeyedActive.flatMap((active) => {
     const subject = tsunamiStateSubjectKey(active.meta);

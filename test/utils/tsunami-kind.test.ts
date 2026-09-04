@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import {
+  isTsunamiReleaseOnlyForecast,
   normalizeTsunamiKind,
   resolveTsunamiLevel,
 } from "../../src/utils/tsunami-kind";
@@ -65,6 +66,22 @@ describe("resolveTsunamiLevel", () => {
 });
 
 describe("解除 kind (Kind Code 60 系) の扱い", () => {
+  it.each([
+    { label: "Code 60 only", forecast: [{ kindCode: "60" }, { kindCode: " 60 " }], expected: true },
+    { label: "Code 60 + 62", forecast: [{ kindCode: "60" }, { kindCode: "62" }], expected: false },
+    { label: "Code 71 only", forecast: [{ kindCode: "71" }], expected: false },
+    { label: "empty", forecast: [], expected: false },
+    { label: "missing code", forecast: [{ kindCode: null }], expected: false },
+    { label: "unknown code", forecast: [{ kindCode: "999" }], expected: false },
+  ])("release-only predicate: $label => $expected", ({ forecast, expected }) => {
+    expect(isTsunamiReleaseOnlyForecast(forecast)).toBe(expected);
+  });
+
+  it("名称だけが解除でも unknown code は release-only と推測しない", () => {
+    const nameOnlyRelease = [{ kindCode: "999", kind: "津波注意報解除" }];
+    expect(isTsunamiReleaseOnlyForecast(nameOnlyRelease)).toBe(false);
+  });
+
   it("「〜解除」を含む kind は canonical ラベルへ潰さない", () => {
     expect(normalizeTsunamiKind("津波注意報解除")).toBe("津波注意報解除");
     expect(normalizeTsunamiKind("津波警報解除")).toBe("津波警報解除");

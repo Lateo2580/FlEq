@@ -280,6 +280,45 @@ describe("Phase 3B tsunami common registry", () => {
     });
   });
 
+  it("EventID A の全解除は同居する B の holder/card/level を維持する", () => {
+    const shared = deps();
+    const store = new DisplayStateStore();
+    const apply = (result: ReturnType<typeof run>, now: number): void => {
+      expect(result.kind).toBe("ok");
+      if (result.kind !== "ok") return;
+      const event = fromTsunamiOutcome(result.outcome);
+      store.applyEvent(
+        projectDisplayEvent(event, "津波警報・注意報"),
+        now,
+        event.tsunamiObservations,
+        null,
+        event.tsunamiObservationGroups,
+      );
+    };
+    apply(run(info({ eventId: "event-a", areaCode: "210", at: T1 }), shared), Date.parse(T1));
+    apply(run(info({
+      eventId: "event-b",
+      areaCode: "220",
+      kindCode: "62",
+      kind: "津波注意報",
+      at: T2,
+    }), shared), Date.parse(T2));
+    const release = run(info({
+      eventId: "event-a",
+      areaCode: "210",
+      kindCode: "60",
+      kind: "津波注意報解除",
+      at: T3,
+      messageId: "event-a-release",
+    }), shared);
+    apply(release, Date.parse(T3));
+
+    expect(shared.tsunamiState.hasPersistedEvent("event-a")).toBe(false);
+    expect(shared.tsunamiState.hasPersistedEvent("event-b")).toBe(true);
+    expect(shared.tsunamiState.getLevel()).toBe("津波注意報");
+    expect(store.snapshot(1, Date.parse(T3)).tsunami).toMatchObject({ level: "advisory" });
+  });
+
   it("unkeyed VTSE41 は state・永続化に入れず Presentation→DisplayStateStore へ fail-open 表示する", () => {
     const shared = deps();
     const result = run(info({
@@ -1097,6 +1136,46 @@ describe("Phase 3B tsunami common registry", () => {
     expect(loaded.keyedActive).toEqual([]);
     expect(loaded.gateEntries).toEqual([
       expect.objectContaining({ stateSubjectKey: "tsunami:sea-level-only", cancelled: false }),
+    ]);
+  });
+
+  it("release-only は processor→persistence→restart で gate-only のまま往復する", () => {
+    const shared = deps();
+    expect(run(info({
+      eventId: "release-only",
+      areaCode: "712",
+      kindCode: "60",
+      kind: "津波注意報解除",
+      at: T2,
+      messageId: "release-only",
+    }), shared).kind).toBe("ok");
+    expect(shared.tsunamiState.getPersistedKeyedActive()).toEqual([]);
+    expect(shared.revisionGate.exportDurableEntries()).toEqual([
+      expect.objectContaining({ stateSubjectKey: "tsunami:release-only", cancelled: false }),
+    ]);
+
+    const file = persistencePath();
+    const persistence = new StandbyPersistence(file, 0, () => ({
+      vpws50: { authoritative: true, state: null, gateEntries: [] },
+      tsunami: {
+        keyedActive: shared.tsunamiState.getPersistedKeyedActive(),
+        legacyActive: shared.tsunamiState.getPersistedLegacyActive(),
+        observations: shared.tsunamiState.getObservationGroups(),
+        gateEntries: shared.revisionGate.exportDurableEntries(),
+      },
+    }));
+    expect(persistence.save(legacyState())).toMatchObject({ kind: "written" });
+    const loaded = new StandbyPersistence(file).load()!.telegramFoundation.tsunami;
+    const restarted = new TsunamiStateHolder();
+    restarted.restorePersistedState(
+      loaded.active ?? null,
+      loaded.observations,
+      loaded.keyedActive ?? [],
+      loaded.legacyActive ?? null,
+    );
+    expect(restarted.getPersistedKeyedActive()).toEqual([]);
+    expect(loaded.gateEntries).toEqual([
+      expect.objectContaining({ stateSubjectKey: "tsunami:release-only", cancelled: false }),
     ]);
   });
 

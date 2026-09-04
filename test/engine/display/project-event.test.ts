@@ -1,3 +1,4 @@
+import fs from "node:fs";
 import { describe, expect, it } from "vitest";
 import {
   buildTickerDetail,
@@ -9,7 +10,14 @@ import {
   tickerSurface,
 } from "../../../src/engine/display/project-event";
 import type { PresentationEvent } from "../../../src/engine/presentation/types";
-import type { JmaIntensity, JmaLgIntensity, SpecialValue } from "../../../src/types";
+import type { JmaIntensity, JmaLgIntensity, SpecialValue, TelegramListResponse } from "../../../src/types";
+import { TsunamiStateHolder } from "../../../src/engine/messages/tsunami-state";
+import { TelegramRevisionGate } from "../../../src/engine/messages/telegram-revision-gate";
+import { processTsunami } from "../../../src/engine/presentation/processors/process-tsunami";
+import { fromTsunamiOutcome } from "../../../src/engine/presentation/events/from-tsunami";
+import { DisplayStateStore } from "../../../src/engine/display/state-store";
+import { toWsDataMessageFromRestBody } from "../../../src/engine/startup/telegram-adapter";
+import { createMockWsDataMessageFromXml } from "../../helpers/mock-message";
 
 describe("normalizeDepth", () => {
   it("null/undefined は null になる", () => {
@@ -960,6 +968,63 @@ describe("projectDisplayEvent", () => {
       "取消要約",
     );
     expect(dto.emergency).toBeNull();
+  });
+
+  it("actual Pi release outcome は既存カードを消し、空状態には新規カードを作らない", () => {
+    const realList = JSON.parse(
+      fs.readFileSync("test/fixtures/rest/telegram-list-vtse41-real.json", "utf8"),
+    ) as TelegramListResponse;
+    const releaseXml = fs.readFileSync("test/fixtures/rest/telegram-body-vtse41-real.xml", "utf8");
+    const warningXml = releaseXml
+      .replace("2026-07-28T18:10:00+09:00", "2026-07-28T18:00:00+09:00")
+      .replace("<Kind><Name>津波注意報解除</Name><Code>60</Code></Kind>", "<Kind><Name>津波注意報</Name><Code>62</Code></Kind>");
+    const tsunamiState = new TsunamiStateHolder();
+    const revisionGate = new TelegramRevisionGate();
+    const deps = { tsunamiState, revisionGate };
+    const warning = processTsunami(createMockWsDataMessageFromXml(warningXml, "VTSE41"), deps);
+    expect(warning.kind).toBe("ok");
+    if (warning.kind !== "ok") throw new Error("expected warning outcome");
+    const store = new DisplayStateStore();
+    const warningEvent = fromTsunamiOutcome(warning.outcome);
+    expect(store.applyEvent(
+      projectDisplayEvent(warningEvent, "津波警報・注意報"),
+      Date.parse(warningEvent.reportDateTime),
+      warningEvent.tsunamiObservations,
+      null,
+      warningEvent.tsunamiObservationGroups,
+    )).toBe(true);
+    expect(store.snapshot(1, Date.parse(warningEvent.reportDateTime)).tsunami).not.toBeNull();
+
+    const realItem = realList.items[0];
+    const release = processTsunami(
+      toWsDataMessageFromRestBody(realItem, releaseXml, Date.parse(realItem.head.time)),
+      deps,
+    );
+    expect(release.kind).toBe("ok");
+    if (release.kind !== "ok") throw new Error("expected release outcome");
+    const releaseEvent = fromTsunamiOutcome(release.outcome);
+    const releaseDto = projectDisplayEvent(releaseEvent, "津波警報・注意報");
+    expect(releaseDto.emergency).toBeNull();
+    expect(store.applyEvent(
+      releaseDto,
+      Date.parse(realItem.head.time),
+      releaseEvent.tsunamiObservations,
+      null,
+      releaseEvent.tsunamiObservationGroups,
+    )).toBe(true);
+    expect(store.snapshot(2, Date.parse(realItem.head.time)).tsunami).toBeNull();
+    expect(tsunamiState.getDetail()).toBeNull();
+    expect(tsunamiState.getPromptStatus()).toBeNull();
+
+    const emptyStore = new DisplayStateStore();
+    expect(emptyStore.applyEvent(
+      releaseDto,
+      Date.parse(realItem.head.time),
+      releaseEvent.tsunamiObservations,
+      null,
+      releaseEvent.tsunamiObservationGroups,
+    )).toBe(false);
+    expect(emptyStore.snapshot(1, Date.parse(realItem.head.time)).tsunami).toBeNull();
   });
 
   it.each([null, "", "   "])("津波 EventID %j は episode として推測せず null を投影する", (eventId) => {
