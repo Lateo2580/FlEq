@@ -2,7 +2,7 @@ import type { DisplayMutation } from "../display/standby-registry";
 import type { StandbyStateStore } from "../display/standby-state-store";
 import type { FloodForecastStateHolder } from "./flood-forecast-state";
 import {
-  FLOOD_FORECAST_RETENTION_MS,
+  FLOOD_FORECAST_REVISION_FAMILY_POLICY,
 } from "./revision-family-registry";
 import type { TelegramRevisionGate } from "./telegram-revision-gate";
 
@@ -17,13 +17,16 @@ export function sweepFloodForecastFoundation(
   standby: StandbyStateStore,
   nowMs: number,
 ): FloodFoundationSweepResult {
-  const foundationChanged = revisionGate.expireRevisionFamily(
-    "floodForecast",
-    "floodForecast",
+  const expiry = revisionGate.expireRevisionFamilyByLifecycle(
+    FLOOD_FORECAST_REVISION_FAMILY_POLICY.domain,
+    FLOOD_FORECAST_REVISION_FAMILY_POLICY.revisionFamily,
     nowMs,
-    FLOOD_FORECAST_RETENTION_MS,
+    {
+      tombstoneRetentionMs: FLOOD_FORECAST_REVISION_FAMILY_POLICY.tombstoneRetentionMs,
+      activeRetentionMs: FLOOD_FORECAST_REVISION_FAMILY_POLICY.activeRetentionMs,
+    },
   );
-  if (!foundationChanged) {
+  if (!expiry.changed) {
     return { viewChanged: false, durableChanged: false, foundationChanged: false };
   }
   const eventIds = revisionGate.activeRevisionFamilySubjects(

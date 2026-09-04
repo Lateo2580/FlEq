@@ -843,11 +843,27 @@ describe("S7 capacity warning latch rearm", () => {
     const onCapacityError = vi.fn();
     const gate = new TelegramRevisionGate(onCapacityError);
     gate.decide(capacityInput({ id: "expire-1", stateSubjectKey: "expire-1" }));
+    const versionAfterFill = gate.version();
     expect(gate.decide(capacityInput({ id: "expire-reject-1", stateSubjectKey: "expire-reject-1" })).kind)
       .toBe("capacityExceeded");
+    expect(onCapacityError).toHaveBeenCalledTimes(1);
 
-    expect(gate.expireRevisionFamily("synthetic", "CAPACITY", RECEIVED_AT + 101, 100))
-      .toBe(true);
+    expect(gate.expireRevisionFamilyByLifecycle("synthetic", "CAPACITY", RECEIVED_AT + 100, {
+      activeRetentionMs: 100,
+      tombstoneRetentionMs: null,
+    })).toEqual({ changed: false, expiredStateSubjectKeys: [] });
+    expect(gate.version()).toBe(versionAfterFill);
+    expect(gate.decide(capacityInput({
+      id: "expire-boundary-reject",
+      stateSubjectKey: "expire-boundary-reject",
+      receivedAtMs: RECEIVED_AT + 100,
+    })).kind).toBe("capacityExceeded");
+    expect(onCapacityError).toHaveBeenCalledTimes(1);
+    expect(gate.expireRevisionFamilyByLifecycle("synthetic", "CAPACITY", RECEIVED_AT + 101, {
+      activeRetentionMs: 100,
+      tombstoneRetentionMs: null,
+    })).toEqual({ changed: true, expiredStateSubjectKeys: ["expire-1"] });
+    expect(gate.version()).toBe(versionAfterFill + 1);
     expect(gate.decide(capacityInput({
       id: "expire-2",
       stateSubjectKey: "expire-2",
@@ -969,6 +985,191 @@ describe("S7 capacity warning latch rearm", () => {
     expect(gate.decide(capacityInput({ id: "all-clear-reject-2", stateSubjectKey: "all-clear-reject-2" })).kind)
       .toBe("capacityExceeded");
     expect(onCapacityError).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe("revision family policy lifecycle expiry", () => {
+  const DAY_MS = 24 * 60 * 60_000;
+  const domain = "lifecycle";
+  const family = "LIFE";
+
+  function seededLifecycleGate(): TelegramRevisionGate {
+    const seed = new TelegramRevisionGate();
+    expect(seed.decide(capacityInput({
+      id: "lifecycle-source",
+      domain,
+      revisionFamily: family,
+      stateSubjectKey: "source",
+      maxSubjects: 8,
+      receivedAtMs: RECEIVED_AT,
+    })).accepted).toBe(true);
+    const snapshot = seed.cloneSnapshot();
+    const source = snapshot.states[0]!;
+    snapshot.version = 17;
+    // Intentionally reverse seed order: result ordering is part of the API contract.
+    snapshot.states = [
+      { ...source, key: `${domain}:${family}:z-active`, cancelled: false },
+      { ...source, key: `${domain}:${family}:a-tombstone`, cancelled: true },
+    ];
+    snapshot.transientStates = [{
+      key: `${domain}:${family}:m-transient`,
+      semanticKey: "lifecycle:transient",
+      acceptedAtMs: RECEIVED_AT,
+      domain,
+      revisionFamily: family,
+      retentionMs: 40 * DAY_MS,
+    }];
+    snapshot.transientSemanticKeys = [["lifecycle:transient", `${domain}:${family}:m-transient`]];
+    return TelegramRevisionGate.fromSnapshot(snapshot);
+  }
+
+  it("separates active and tombstone TTLs, preserves entry-local transient TTL, and increments once", () => {
+    const gate = seededLifecycleGate();
+    const transientBefore = structuredClone({
+      states: gate.cloneSnapshot().transientStates,
+      semanticKeys: gate.cloneSnapshot().transientSemanticKeys,
+    });
+    expect(gate.expireRevisionFamilyByLifecycle(domain, family, RECEIVED_AT + 7 * DAY_MS, {
+      activeRetentionMs: 7 * DAY_MS,
+      tombstoneRetentionMs: 30 * DAY_MS,
+    })).toEqual({ changed: false, expiredStateSubjectKeys: [] });
+    expect(gate.version()).toBe(17);
+
+    expect(gate.expireRevisionFamilyByLifecycle(domain, family, RECEIVED_AT + 7 * DAY_MS + 1, {
+      activeRetentionMs: 7 * DAY_MS,
+      tombstoneRetentionMs: 30 * DAY_MS,
+    })).toEqual({ changed: true, expiredStateSubjectKeys: ["z-active"] });
+    expect(gate.version()).toBe(18);
+    expect(gate.revisionFamilySubjectKeys(domain, family)).toEqual(["a-tombstone", "m-transient"]);
+    expect({
+      states: gate.cloneSnapshot().transientStates,
+      semanticKeys: gate.cloneSnapshot().transientSemanticKeys,
+    }).toEqual(transientBefore);
+
+    expect(gate.expireRevisionFamilyByLifecycle(domain, family, RECEIVED_AT + 30 * DAY_MS + 1, {
+      activeRetentionMs: 7 * DAY_MS,
+      tombstoneRetentionMs: 30 * DAY_MS,
+    })).toEqual({ changed: true, expiredStateSubjectKeys: ["a-tombstone"] });
+    expect(gate.version()).toBe(19);
+    expect(gate.revisionFamilySubjectKeys(domain, family)).toEqual(["m-transient"]);
+    expect({
+      states: gate.cloneSnapshot().transientStates,
+      semanticKeys: gate.cloneSnapshot().transientSemanticKeys,
+    }).toEqual(transientBefore);
+
+    expect(gate.expireRevisionFamilyByLifecycle(domain, family, RECEIVED_AT + 40 * DAY_MS, {
+      activeRetentionMs: 7 * DAY_MS,
+      tombstoneRetentionMs: 30 * DAY_MS,
+    })).toEqual({ changed: false, expiredStateSubjectKeys: [] });
+    expect(gate.version()).toBe(19);
+    expect(gate.expireRevisionFamilyByLifecycle(domain, family, RECEIVED_AT + 40 * DAY_MS + 1, {
+      activeRetentionMs: 7 * DAY_MS,
+      tombstoneRetentionMs: 30 * DAY_MS,
+    })).toEqual({ changed: true, expiredStateSubjectKeys: ["m-transient"] });
+    expect(gate.version()).toBe(20);
+  });
+
+  it("does not infer an active TTL from thirty-day tombstone retention", () => {
+    const noActive = seededLifecycleGate();
+    expect(noActive.expireRevisionFamilyByLifecycle(domain, family, RECEIVED_AT + 30 * DAY_MS, {
+      tombstoneRetentionMs: 30 * DAY_MS,
+    })).toEqual({ changed: false, expiredStateSubjectKeys: [] });
+    expect(noActive.version()).toBe(17);
+    expect(noActive.expireRevisionFamilyByLifecycle(domain, family, RECEIVED_AT + 31 * DAY_MS, {
+      tombstoneRetentionMs: 30 * DAY_MS,
+    })).toEqual({ changed: true, expiredStateSubjectKeys: ["a-tombstone"] });
+    expect(noActive.version()).toBe(18);
+    expect(noActive.revisionFamilySubjectKeys(domain, family)).toEqual(["m-transient", "z-active"]);
+  });
+
+  it("keeps a null tombstone while expiring active after the inclusive seven-day boundary", () => {
+    const nullTombstone = seededLifecycleGate();
+    expect(nullTombstone.expireRevisionFamilyByLifecycle(domain, family, RECEIVED_AT + 7 * DAY_MS, {
+      activeRetentionMs: 7 * DAY_MS,
+      tombstoneRetentionMs: null,
+    })).toEqual({ changed: false, expiredStateSubjectKeys: [] });
+    expect(nullTombstone.version()).toBe(17);
+    expect(nullTombstone.expireRevisionFamilyByLifecycle(domain, family, RECEIVED_AT + 8 * DAY_MS, {
+      activeRetentionMs: 7 * DAY_MS,
+      tombstoneRetentionMs: null,
+    })).toEqual({ changed: true, expiredStateSubjectKeys: ["z-active"] });
+    expect(nullTombstone.version()).toBe(18);
+    expect(nullTombstone.revisionFamilySubjectKeys(domain, family)).toEqual(["a-tombstone", "m-transient"]);
+  });
+
+  it("expires active independently at eight days while retaining a thirty-day tombstone", () => {
+    const gate = seededLifecycleGate();
+    expect(gate.expireRevisionFamilyByLifecycle(domain, family, RECEIVED_AT + 8 * DAY_MS, {
+      activeRetentionMs: 7 * DAY_MS,
+      tombstoneRetentionMs: 30 * DAY_MS,
+    })).toEqual({ changed: true, expiredStateSubjectKeys: ["z-active"] });
+    expect(gate.version()).toBe(18);
+    expect(gate.revisionFamilySubjectKeys(domain, family)).toEqual(["a-tombstone", "m-transient"]);
+  });
+
+  it("sorts simultaneous active and tombstone expiry and increments the owner version exactly once", () => {
+    const gate = seededLifecycleGate();
+    expect(gate.expireRevisionFamilyByLifecycle(domain, family, RECEIVED_AT + 8 * DAY_MS, {
+      activeRetentionMs: 7 * DAY_MS,
+      tombstoneRetentionMs: 7 * DAY_MS,
+    })).toEqual({
+      changed: true,
+      expiredStateSubjectKeys: ["a-tombstone", "z-active"],
+    });
+    expect(gate.version()).toBe(18);
+    expect(gate.revisionFamilySubjectKeys(domain, family)).toEqual(["m-transient"]);
+  });
+
+  it("deduplicates a simultaneous regular and transient subject union and increments once", () => {
+    const snapshot = seededLifecycleGate().cloneSnapshot();
+    const active = snapshot.states.find((entry) => entry.key.endsWith(":z-active"))!;
+    snapshot.version = 29;
+    snapshot.states = [{ ...active, key: `${domain}:${family}:same` }];
+    snapshot.transientStates = [{
+      key: `${domain}:${family}:same`,
+      semanticKey: "lifecycle:same",
+      acceptedAtMs: RECEIVED_AT,
+      domain,
+      revisionFamily: family,
+      retentionMs: 7 * DAY_MS,
+    }];
+    snapshot.transientSemanticKeys = [["lifecycle:same", `${domain}:${family}:same`]];
+    const gate = TelegramRevisionGate.fromSnapshot(snapshot);
+    expect(gate.expireRevisionFamilyByLifecycle(domain, family, RECEIVED_AT + 7 * DAY_MS + 1, {
+      activeRetentionMs: 7 * DAY_MS,
+      tombstoneRetentionMs: 30 * DAY_MS,
+    })).toEqual({ changed: true, expiredStateSubjectKeys: ["same"] });
+    expect(gate.version()).toBe(30);
+    expect(gate.revisionFamilySubjectKeys(domain, family)).toEqual([]);
+  });
+
+  it("uses the entry-local transient TTL in the receive-time general sweep", () => {
+    const gate = seededLifecycleGate();
+    const transientAtBoundary = structuredClone({
+      states: gate.cloneSnapshot().transientStates,
+      semanticKeys: gate.cloneSnapshot().transientSemanticKeys,
+    });
+    expect(gate.expireRevisionFamilyByLifecycle(domain, family, RECEIVED_AT + 40 * DAY_MS, {
+      activeRetentionMs: 7 * DAY_MS,
+      tombstoneRetentionMs: 30 * DAY_MS,
+    })).toEqual({ changed: true, expiredStateSubjectKeys: ["a-tombstone", "z-active"] });
+    expect({
+      states: gate.cloneSnapshot().transientStates,
+      semanticKeys: gate.cloneSnapshot().transientSemanticKeys,
+    }).toEqual(transientAtBoundary);
+
+    const versionBeforeReceive = gate.version();
+    expect(gate.decide(capacityInput({
+      id: "general-sweep-trigger",
+      domain: "other",
+      revisionFamily: "OTHER",
+      stateSubjectKey: "trigger",
+      maxSubjects: 8,
+      receivedAtMs: RECEIVED_AT + 40 * DAY_MS + 1,
+    })).accepted).toBe(true);
+    expect(gate.cloneSnapshot().transientStates).toEqual([]);
+    expect(gate.cloneSnapshot().transientSemanticKeys).toEqual([]);
+    expect(gate.version()).toBe(versionBeforeReceive + 1);
   });
 });
 
@@ -1216,7 +1417,7 @@ describe("VPWP50 durable retention and reject-new-subject capacity", () => {
     expect(gate.revisionFamilySubjectKeys(DOMAIN, FAMILY)).not.toContain("weatherTimeseries:office:512");
   });
 
-  it("uses the same strict-greater-than boundary for active watermarks and tombstones", () => {
+  it("VPWP50 policy keeps active watermarks and tombstones through the shared seven-day boundary", () => {
     const gate = new TelegramRevisionGate();
     const active = "weatherTimeseries:active";
     const cancelled = "weatherTimeseries:cancelled";
@@ -1227,15 +1428,21 @@ describe("VPWP50 durable retention and reject-new-subject capacity", () => {
       accepted: true,
     });
 
-    expect(gate.expireRevisionFamilyDetailed(
+    expect(gate.expireRevisionFamilyByLifecycle(
       DOMAIN, FAMILY, acceptedAtMs + WEATHER_TIMESERIES_RETENTION_MS,
-      WEATHER_TIMESERIES_RETENTION_MS,
+      {
+        tombstoneRetentionMs: WEATHER_TIMESERIES_REVISION_FAMILY_POLICY.tombstoneRetentionMs,
+        activeRetentionMs: WEATHER_TIMESERIES_REVISION_FAMILY_POLICY.activeRetentionMs,
+      },
     )).toEqual({ changed: false, expiredStateSubjectKeys: [] });
     expect(gate.revisionFamilySubjectKeys(DOMAIN, FAMILY)).toEqual([active, cancelled]);
 
-    expect(gate.expireRevisionFamilyDetailed(
+    expect(gate.expireRevisionFamilyByLifecycle(
       DOMAIN, FAMILY, acceptedAtMs + WEATHER_TIMESERIES_RETENTION_MS + 1,
-      WEATHER_TIMESERIES_RETENTION_MS,
+      {
+        tombstoneRetentionMs: WEATHER_TIMESERIES_REVISION_FAMILY_POLICY.tombstoneRetentionMs,
+        activeRetentionMs: WEATHER_TIMESERIES_REVISION_FAMILY_POLICY.activeRetentionMs,
+      },
     )).toEqual({ changed: true, expiredStateSubjectKeys: [active, cancelled] });
     expect(gate.revisionFamilySubjectKeys(DOMAIN, FAMILY)).toEqual([]);
     expect(gate.decide(vpwp50Input({

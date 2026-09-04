@@ -221,6 +221,8 @@ function gateStandbyOutcome<
               : null;
   if (deps.persistenceAdmission != null && durableKey != null) {
     const completionOwnsFamilySweep = durableKey === "weatherWarningTimeseries:VPWP50";
+    const ownsVpwp50Projection = policy.domain === "weatherWarningTimeseries"
+      && policy.revisionFamily === "VPWP50";
     if (!completionOwnsFamilySweep && !sweepStandbyBeforeAdmission(
       deps.persistenceAdmission,
       durableKey,
@@ -246,10 +248,12 @@ function gateStandbyOutcome<
                 if (completionOwnsFamilySweep) completionCallbacks.push(callback);
                 else callbacks.push(callback);
               },
-          activeWeatherWarningForecastSubjects: (nowMs) =>
-            standby.activeWeatherWarningForecastSubjects(nowMs),
-          maintainWeatherWarningForecastSubjects: (nowMs, subjects) =>
-            standby.maintainWeatherWarningForecastSubjects(nowMs, subjects),
+          activeWeatherWarningForecastSubjects: !ownsVpwp50Projection
+            ? undefined
+            : (nowMs) => standby.activeWeatherWarningForecastSubjects(nowMs),
+          maintainWeatherWarningForecastSubjects: !ownsVpwp50Projection
+            ? undefined
+            : (nowMs, subjects) => standby.maintainWeatherWarningForecastSubjects(nowMs, subjects),
         });
         draft.telegramRevisionGate = gate.cloneSnapshot();
         const presentation = standbyFoundationPresentation(result);
@@ -297,7 +301,17 @@ function gateStandbyOutcome<
     });
     return outcome;
   }
-  const result = processStandbyFoundation(outcome.msg, outcome.parsed, policy, deps);
+  const ownsVpwp50Projection = policy.domain === "weatherWarningTimeseries"
+    && policy.revisionFamily === "VPWP50";
+  const result = processStandbyFoundation(outcome.msg, outcome.parsed, policy, {
+    ...deps,
+    activeWeatherWarningForecastSubjects: ownsVpwp50Projection
+      ? deps.activeWeatherWarningForecastSubjects
+      : undefined,
+    maintainWeatherWarningForecastSubjects: ownsVpwp50Projection
+      ? deps.maintainWeatherWarningForecastSubjects
+      : undefined,
+  });
   if (result.kind === "suppressed") return null;
   Object.assign(outcome.presentation, standbyFoundationPresentation(result));
   return outcome;
@@ -629,12 +643,15 @@ const PROCESSOR_TABLE = {
             const gate = ScratchTelegramRevisionGate.fromSnapshot(draft.telegramRevisionGate);
             const standby = StandbyStateStore.fromSnapshot(draft.standbyStateStore);
             const candidateChanges: VptaDurableChangeFlags = {
-              gateExpiry: gate.expireRevisionFamily(
-                "typhoonProbability",
-                "VPTA50",
+              gateExpiry: gate.expireRevisionFamilyByLifecycle(
+                TYPHOON_PROBABILITY_REVISION_FAMILY_POLICY.domain,
+                TYPHOON_PROBABILITY_REVISION_FAMILY_POLICY.revisionFamily,
                 classificationNowMs,
-                TYPHOON_PROBABILITY_RETENTION_MS,
-              ),
+                {
+                  tombstoneRetentionMs: TYPHOON_PROBABILITY_REVISION_FAMILY_POLICY.tombstoneRetentionMs,
+                  activeRetentionMs: TYPHOON_PROBABILITY_REVISION_FAMILY_POLICY.activeRetentionMs,
+                },
+              ).changed,
               projectionCleanup: false,
               incomingGate: false,
               projectionOrRetention: false,
@@ -843,9 +860,15 @@ const PROCESSOR_TABLE = {
       }
 
       stage = "admissionGateExpiry";
-      changes.gateExpiry = deps.revisionGate.expireRevisionFamily(
-        "typhoonProbability", "VPTA50", classificationNowMs, TYPHOON_PROBABILITY_RETENTION_MS,
-      );
+      changes.gateExpiry = deps.revisionGate.expireRevisionFamilyByLifecycle(
+        TYPHOON_PROBABILITY_REVISION_FAMILY_POLICY.domain,
+        TYPHOON_PROBABILITY_REVISION_FAMILY_POLICY.revisionFamily,
+        classificationNowMs,
+        {
+          tombstoneRetentionMs: TYPHOON_PROBABILITY_REVISION_FAMILY_POLICY.tombstoneRetentionMs,
+          activeRetentionMs: TYPHOON_PROBABILITY_REVISION_FAMILY_POLICY.activeRetentionMs,
+        },
+      ).changed;
       stage = "activeSubjectSnapshot";
       const gateActiveBefore = deps.revisionGate.activeRevisionFamilySubjects(
         "typhoonProbability", "VPTA50",

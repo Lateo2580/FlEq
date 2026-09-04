@@ -43,14 +43,19 @@ export function processStandbyFoundation<TParsed>(
   let expiredStateSubjectKeys: readonly string[] = [];
   let activeFamilySubjects: readonly string[] | undefined;
   let familySubjectCount: number | null = null;
-  if (policy.activeRetentionMs != null) {
-    const expiry = deps.revisionGate.expireRevisionFamilyDetailed(
-      policy.domain,
-      policy.revisionFamily,
-      parsed.meta.receivedAtMs,
-      policy.activeRetentionMs,
-    );
-    expiredStateSubjectKeys = expiry.expiredStateSubjectKeys;
+  const expiry = deps.revisionGate.expireRevisionFamilyByLifecycle(
+    policy.domain,
+    policy.revisionFamily,
+    parsed.meta.receivedAtMs,
+    {
+      tombstoneRetentionMs: policy.tombstoneRetentionMs,
+      activeRetentionMs: policy.activeRetentionMs,
+    },
+  );
+  expiredStateSubjectKeys = expiry.expiredStateSubjectKeys;
+  const ownsVpwp50Projection = policy.domain === "weatherWarningTimeseries"
+    && policy.revisionFamily === "VPWP50";
+  if (ownsVpwp50Projection) {
     const gateSubjects = deps.revisionGate.revisionFamilySubjectKeys(
       policy.domain,
       policy.revisionFamily,
@@ -60,12 +65,12 @@ export function processStandbyFoundation<TParsed>(
       parsed.meta.receivedAtMs,
       gateSubjects,
     );
-    preAdmissionDurableChanged = expiry.changed
-      || projectionMutation?.durableChanged === true;
+    preAdmissionDurableChanged = projectionMutation?.durableChanged === true;
     activeFamilySubjects = deps.activeWeatherWarningForecastSubjects?.(
       parsed.meta.receivedAtMs,
     );
   }
+  preAdmissionDurableChanged = preAdmissionDurableChanged || expiry.changed;
   const targets = policy.extractCancellationTarget(parsed.meta, parsed);
   const historyKey = policy.extractRevisionHistoryKey?.(parsed.meta, parsed) ?? null;
   const historyTargetMatches = policy.extractRevisionHistoryKey == null

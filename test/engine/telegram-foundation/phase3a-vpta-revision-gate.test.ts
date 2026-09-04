@@ -7,6 +7,7 @@ import {
   TelegramRevisionGate,
   type VptaCapacityBundle,
 } from "../../../src/engine/messages/telegram-revision-gate";
+import { TYPHOON_PROBABILITY_REVISION_FAMILY_POLICY } from "../../../src/engine/messages/revision-family-registry";
 
 type CandidateKind = Parameters<TelegramRevisionGate["decideTyphoonProbability"]>[1];
 
@@ -152,15 +153,64 @@ describe("VPTA50 authoritative gate commit", () => {
       vptaInput("TC2606", "active", 0, [], T0),
       "active",
     ).kind).toBe("accepted");
-    expect(gate.expireRevisionFamily(
+    expect(gate.expireRevisionFamilyByLifecycle(
       "typhoonProbability", "VPTA50", T0 + TYPHOON_PROBABILITY_RETENTION_MS,
-      TYPHOON_PROBABILITY_RETENTION_MS,
-    )).toBe(false);
+      {
+        tombstoneRetentionMs: TYPHOON_PROBABILITY_REVISION_FAMILY_POLICY.tombstoneRetentionMs,
+        activeRetentionMs: TYPHOON_PROBABILITY_REVISION_FAMILY_POLICY.activeRetentionMs,
+      },
+    ).changed).toBe(false);
     expect(gate.exportDurableEntries()).toHaveLength(1);
-    expect(gate.expireRevisionFamily(
+    expect(gate.expireRevisionFamilyByLifecycle(
       "typhoonProbability", "VPTA50", T0 + TYPHOON_PROBABILITY_RETENTION_MS + 1,
-      TYPHOON_PROBABILITY_RETENTION_MS,
-    )).toBe(true);
+      {
+        tombstoneRetentionMs: TYPHOON_PROBABILITY_REVISION_FAMILY_POLICY.tombstoneRetentionMs,
+        activeRetentionMs: TYPHOON_PROBABILITY_REVISION_FAMILY_POLICY.activeRetentionMs,
+      },
+    ).changed).toBe(true);
+    expect(gate.exportDurableEntries()).toEqual([]);
+  });
+
+  it("expires active and cancelled VPTA50 subjects together at seven days +1ms", () => {
+    const gate = new TelegramRevisionGate();
+    expect(gate.decideTyphoonProbability(
+      vptaInput("TC-ACTIVE", "active", 0, [], T0),
+      "active",
+    ).kind).toBe("accepted");
+    expect(gate.decideTyphoonProbability(
+      vptaInput("TC-CANCELLED", "active", 0, [], T0),
+      "active",
+    ).kind).toBe("accepted");
+    expect(gate.decideTyphoonProbability(
+      vptaInput("TC-CANCELLED", "cancel", 1, [], T0),
+      "cancel",
+    ).kind).toBe("accepted");
+    expect(gate.exportDurableEntries().map((entry) => [entry.stateSubjectKey, entry.cancelled]))
+      .toEqual([
+        [subject("TC-ACTIVE"), false],
+        [subject("TC-CANCELLED"), true],
+      ]);
+
+    const beforeVersion = gate.version();
+    expect(gate.expireRevisionFamilyByLifecycle(
+      "typhoonProbability", "VPTA50", T0 + TYPHOON_PROBABILITY_RETENTION_MS,
+      {
+        tombstoneRetentionMs: TYPHOON_PROBABILITY_REVISION_FAMILY_POLICY.tombstoneRetentionMs,
+        activeRetentionMs: TYPHOON_PROBABILITY_REVISION_FAMILY_POLICY.activeRetentionMs,
+      },
+    )).toEqual({ changed: false, expiredStateSubjectKeys: [] });
+    expect(gate.version()).toBe(beforeVersion);
+    expect(gate.expireRevisionFamilyByLifecycle(
+      "typhoonProbability", "VPTA50", T0 + TYPHOON_PROBABILITY_RETENTION_MS + 1,
+      {
+        tombstoneRetentionMs: TYPHOON_PROBABILITY_REVISION_FAMILY_POLICY.tombstoneRetentionMs,
+        activeRetentionMs: TYPHOON_PROBABILITY_REVISION_FAMILY_POLICY.activeRetentionMs,
+      },
+    )).toEqual({
+      changed: true,
+      expiredStateSubjectKeys: [subject("TC-ACTIVE"), subject("TC-CANCELLED")],
+    });
+    expect(gate.version()).toBe(beforeVersion + 1);
     expect(gate.exportDurableEntries()).toEqual([]);
   });
 

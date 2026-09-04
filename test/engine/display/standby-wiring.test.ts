@@ -19,6 +19,7 @@ import {
   STANDBY_WRITER_ROOT_DURABLE_KEYS,
   standbyPersistenceV2Path,
   type PersistedBriefingCriticalStateV1,
+  type PersistedStandbyStateV2,
 } from "../../../src/engine/display/standby-persistence";
 import {
   STANDBY_EXPECTED_TOUCHED_OWNERS,
@@ -46,10 +47,13 @@ import {
   TSUNAMI_REVISION_FAMILY_POLICIES,
   TYPHOON_ANALYSIS_REVISION_FAMILY_POLICY,
   TYPHOON_PROBABILITY_REVISION_FAMILY_POLICY,
+  VOLCANO_ASHFALL_REVISION_FAMILY_POLICY,
   VOLCANO_ALERT_REVISION_FAMILY_POLICY,
+  VOLCANO_ERUPTION_REVISION_FAMILY_POLICY,
   VPWS50_REVISION_FAMILY_POLICY,
   VPWW56_REVISION_FAMILY_POLICY,
   WEATHER_TIMESERIES_RETENTION_MS,
+  WEATHER_TIMESERIES_REVISION_FAMILY_POLICY,
 } from "../../../src/engine/messages/revision-family-registry";
 import {
   TelegramRevisionGate,
@@ -81,12 +85,20 @@ import {
 } from "../../../src/engine/presentation/processors/process-message";
 import { makeProcessDeps } from "../../helpers/process-deps";
 import {
+  createMockWsDataMessage,
   createMockWsDataMessageFromXml,
+  FIXTURE_VPHW50_TOKYO,
+  FIXTURE_VPFT50_SAITAMA,
+  FIXTURE_VPWW56_DOSHA,
+  FIXTURE_VXSE62_LGOBS,
   FIXTURE_VPTA50_DAMREY,
+  FIXTURE_VPTA50_JANGMI_APPROACH,
   FIXTURE_VPWP50_LOCAL_IDENTITY,
+  FIXTURE_VTSE41_WARN,
   FIXTURE_VTSE51_OBSERVATION_MAXHEIGHT,
   readFixture,
 } from "../../helpers/mock-message";
+import * as log from "../../../src/logger";
 import {
   DEFAULT_CONFIG,
   type ParsedHeatAlertInfo,
@@ -152,12 +164,13 @@ function tornadoEvent(
 
 function admissionHarness(options: {
   canReserve?: () => boolean;
+  onCapacityError?: (message: string) => void;
   serializePair?: (
     domains: Readonly<StandbyPersistenceDomainSnapshots>,
   ) => { v2: Uint8Array; v1: Uint8Array };
 } = {}) {
   const owners = {
-    telegramRevisionGate: new TelegramRevisionGate(),
+    telegramRevisionGate: new TelegramRevisionGate(options.onCapacityError),
     standbyStateStore: new StandbyStateStore(),
     vpws50State: new Vpws50StateHolder(),
     vpww56State: new Vpww56StateHolder(),
@@ -346,6 +359,100 @@ function maximumVolcanoCapacityDomains(
   return { domains, standby };
 }
 
+function volcanoAlertLifecycleDomains(
+  acceptedAtMs: number,
+  includeCancelledProjection = false,
+): StandbyPersistenceDomainSnapshots {
+  const { domains } = maximumVolcanoCapacityDomains("active-all-slices", 2);
+  domains.telegramRevisionGate.states = domains.telegramRevisionGate.states
+    .filter((entry) => entry.key.startsWith("volcano:volcanoAlert:"));
+  for (const entry of domains.telegramRevisionGate.states) {
+    entry.acceptedAtMs = acceptedAtMs;
+    entry.comparison.revision.reportDateTime = {
+      raw: new Date(acceptedAtMs).toISOString(),
+      epochMs: acceptedAtMs,
+      valid: true,
+    };
+  }
+  const cancelled = domains.telegramRevisionGate.states.find((entry) =>
+    entry.key === "volcano:volcanoAlert:volcano:alert:1");
+  if (cancelled == null) throw new Error("cancelled volcanoAlert seed missing");
+  cancelled.cancelled = true;
+  cancelled.comparison.revision.infoType = { raw: "取消", value: "取消", valid: true };
+  domains.volcanoHolderAndRepair.holder.composites = domains.volcanoHolderAndRepair.holder.composites
+    .filter((entry) => includeCancelledProjection || entry.volcanoCode === "0")
+    .map((entry) => ({
+      ...entry,
+      alert: entry.alert == null
+        ? null
+        : {
+            ...entry.alert,
+            reportDateTime: new Date(acceptedAtMs).toISOString(),
+            revision: { ...entry.alert.revision, reportTimeMs: acceptedAtMs },
+          },
+      eruption: null,
+      ashfall: null,
+    }));
+  domains.volcanoHolderAndRepair.holder.restored = domains.volcanoHolderAndRepair.holder.restored
+    .filter((entry) => includeCancelledProjection || entry.volcanoCode === "0")
+    .map((entry) => ({ ...entry, eruption: false, ashfall: false }));
+  const standby = new StandbyStateStore();
+  standby.replaceVolcanoDerived(domains.volcanoHolderAndRepair.holder);
+  domains.standbyStateStore = standby.cloneSnapshot();
+  return domains;
+}
+
+function restoreVolcanoPersistenceState(
+  harness: ReturnType<typeof admissionHarness>,
+  state: PersistedStandbyStateV2,
+  nowMs: number,
+): void {
+  const gate = new TelegramRevisionGate();
+  gate.restoreDurableEntries(state.telegramFoundation.volcano.gateEntries);
+  const standby = new StandbyStateStore();
+  standby.restoreActiveState(state, nowMs);
+  const volcano = new VolcanoStateHolder();
+  if (state.telegramFoundation.volcano.state != null) {
+    volcano.restorePersistedState(state.telegramFoundation.volcano.state, nowMs);
+  }
+  standby.replaceVolcanoDerived(volcano.snapshot());
+  const domains = structuredClone(
+    harness.coordinator.capture().domains,
+  ) as StandbyPersistenceDomainSnapshots;
+  domains.telegramRevisionGate = gate.cloneSnapshot();
+  domains.standbyStateStore = standby.cloneSnapshot();
+  domains.volcanoHolderAndRepair = {
+    runtimeVersion: volcano.version(),
+    holder: volcano.snapshot(),
+    repair: structuredClone(
+      state.telegramFoundation.volcano.repairState ?? emptyVolcanoRepairState(),
+    ),
+  };
+  harness.coordinator.restorePrevalidated(domains);
+}
+
+function expectPersistedActiveVolcanoAlert(
+  state: PersistedStandbyStateV2,
+  volcanoCode = "0",
+): void {
+  expect(state.telegramFoundation.volcano.gateEntries).toEqual(expect.arrayContaining([
+    expect.objectContaining({
+      stateSubjectKey: `volcano:alert:${volcanoCode}`,
+      cancelled: false,
+    }),
+  ]));
+  const canonical = state.telegramFoundation.volcano.state;
+  expect(canonical).not.toBeNull();
+  if (canonical == null || !("volcanoes" in canonical)) {
+    throw new Error("canonical volcano state missing");
+  }
+  expect(canonical.volcanoes.find((entry) => entry.volcanoCode === volcanoCode)?.alert)
+    .toEqual(expect.objectContaining({ volcanoCode }));
+  expect(state.telegramFoundation.volcano.active.find((entry) => entry.code === volcanoCode))
+    .toBeDefined();
+  expect(state.volcanoes.find((entry) => entry.code === volcanoCode)).toBeDefined();
+}
+
 function cancelledCapacityGate(
   domain: string,
   revisionFamily: string,
@@ -380,6 +487,24 @@ function cancelledCapacityGate(
   };
 }
 
+function vpww56LifecycleMessage(
+  office: string,
+  reportDateTime: string,
+  serial: string,
+): WsDataMessage {
+  const xml = readFixture(FIXTURE_VPWW56_DOSHA)
+    .replace(
+      /<PublishingOffice>[^<]*<\/PublishingOffice>/,
+      `<PublishingOffice>${office}</PublishingOffice>`,
+    )
+    .replace(
+      /<ReportDateTime>[^<]*<\/ReportDateTime>/,
+      `<ReportDateTime>${reportDateTime}</ReportDateTime>`,
+    )
+    .replace(/<Serial(?:\s*\/|>[^<]*<\/Serial)>/, `<Serial>${serial}</Serial>`);
+  return createMockWsDataMessageFromXml(xml, "VPWW56", { publishingOffice: office });
+}
+
 function completionOwnedCancelledCapacityGate(
   family: "VPTA50" | "VPWP50",
   subject: string,
@@ -401,7 +526,12 @@ function completionOwnedCancelledCapacityGate(
     true,
     family === "VPTA50" ? eventId : null,
   );
-  gate.comparison.revision.eventId = { raw: eventId, value: eventId, valid: true };
+  const comparisonEventId = family === "VPTA50" ? eventId : subject;
+  gate.comparison.revision.eventId = {
+    raw: comparisonEventId,
+    value: comparisonEventId,
+    valid: true,
+  };
   gate.comparison.revision.type = { raw: family, value: family, valid: true };
   gate.semanticKeys = [`取消:${"f".repeat(64)}`];
   if (family === "VPWP50") {
@@ -875,6 +1005,652 @@ afterEach(() => {
 });
 
 describe("standby monitor wiring", () => {
+  const VPWP50_ISOLATION_NOW_MS = Date.parse("2026-06-06T00:30:00.000Z");
+  const vpwp50IsolationCases = [
+    ["tornado", "tornado", "VPHW50", FIXTURE_VPHW50_TOKYO],
+    ["heatAlert", "heatAlert", "VPFT50", FIXTURE_VPFT50_SAITAMA],
+    ["VXSE62", "lgObservation", "VXSE62", FIXTURE_VXSE62_LGOBS],
+  ] as const;
+
+  function seedVpwp50IsolationState(
+    harness: ReturnType<typeof admissionHarness>,
+    capacityWarning: ReturnType<typeof vi.fn>,
+  ): void {
+    const deps = makeProcessDeps({
+      revisionGate: harness.owners.telegramRevisionGate,
+      vpws50State: harness.owners.vpws50State,
+      vpww56State: harness.owners.vpww56State,
+      tsunamiState: harness.owners.tsunamiState,
+      volcanoState: harness.owners.volcanoState,
+      floodForecastState: harness.owners.floodForecastState,
+      persistenceAdmission: harness.coordinator,
+    });
+    expect(processMessage(
+      createMockWsDataMessage(FIXTURE_VPWP50_LOCAL_IDENTITY),
+      "weatherWarningTimeseries",
+      deps,
+    )).not.toBeNull();
+    const seeded = structuredClone(
+      harness.coordinator.capture().domains,
+    ) as StandbyPersistenceDomainSnapshots;
+    const vpwp50Gate = seeded.telegramRevisionGate.states.find((entry) =>
+      entry.key.startsWith("weatherWarningTimeseries:VPWP50:"));
+    if (vpwp50Gate == null) throw new Error("VPWP50 isolation gate missing");
+    for (let index = 1; index < WEATHER_TIMESERIES_REVISION_FAMILY_POLICY.maxSubjects!; index += 1) {
+      const subject = `weatherTimeseries:synthetic:${String(index).padStart(3, "0")}`;
+      seeded.telegramRevisionGate.states.push({
+        ...structuredClone(vpwp50Gate),
+        key: `weatherWarningTimeseries:VPWP50:${subject}`,
+        comparison: {
+          ...structuredClone(vpwp50Gate.comparison),
+          stateSubjectKey: subject,
+        },
+        legacyRevisionKey: subject,
+      });
+    }
+    seeded.telegramRevisionGate.warnedFamilyCapacity = [[
+      "weatherWarningTimeseries:VPWP50",
+      WEATHER_TIMESERIES_REVISION_FAMILY_POLICY.maxSubjects!,
+    ]];
+    harness.coordinator.restorePrevalidated(seeded);
+    expect(capacityWarning).not.toHaveBeenCalled();
+  }
+
+  function vpwp50IsolationSnapshot(harness: ReturnType<typeof admissionHarness>) {
+    const domains = harness.coordinator.capture().domains;
+    const standby = StandbyStateStore.fromSnapshot(domains.standbyStateStore);
+    return {
+      gate: domains.telegramRevisionGate.states.filter((entry) =>
+        entry.key.startsWith("weatherWarningTimeseries:VPWP50:")),
+      projection: structuredClone(domains.standbyStateStore.data.weatherWarningForecasts),
+      activeSubjects: standby.activeWeatherWarningForecastSubjects(VPWP50_ISOLATION_NOW_MS),
+      capacityLatch: domains.telegramRevisionGate.warnedFamilyCapacity.filter(([family]) =>
+        family === "weatherWarningTimeseries:VPWP50"),
+    };
+  }
+
+  function coordinatedProcessDeps(harness: ReturnType<typeof admissionHarness>) {
+    const standby = harness.owners.standbyStateStore;
+    return makeProcessDeps({
+      revisionGate: harness.owners.telegramRevisionGate,
+      vpws50State: harness.owners.vpws50State,
+      vpww56State: harness.owners.vpww56State,
+      tsunamiState: harness.owners.tsunamiState,
+      volcanoState: harness.owners.volcanoState,
+      floodForecastState: harness.owners.floodForecastState,
+      persistenceAdmission: harness.coordinator,
+      vpwp50Cache: { rememberLatest: vi.fn() } as never,
+      onVptaAdmissionCompletion: vi.fn(),
+      activeTyphoonProbabilitySubjects: (nowMs) =>
+        standby.activeTyphoonProbabilitySubjects(nowMs),
+      maintainTyphoonProbabilitySubjects: (nowMs, subjects) =>
+        standby.maintainTyphoonProbabilitySubjects(nowMs, subjects),
+      reconcileTyphoonProbabilitySubject: (eventId) =>
+        standby.reconcileTyphoonProbabilitySubject(eventId),
+      activeWeatherWarningForecastSubjects: (nowMs) =>
+        standby.activeWeatherWarningForecastSubjects(nowMs),
+      maintainWeatherWarningForecastSubjects: (nowMs, subjects) =>
+        standby.maintainWeatherWarningForecastSubjects(nowMs, subjects),
+    });
+  }
+
+  function seedVptaProjection(harness: ReturnType<typeof admissionHarness>): string {
+    const result = withVptaRouterOwnerToken(
+      createVptaRouterOwnerToken(),
+      () => processMessageInternal(
+        createMockWsDataMessage(FIXTURE_VPTA50_JANGMI_APPROACH),
+        "typhoonProbability",
+        coordinatedProcessDeps(harness),
+      ),
+    );
+    expect(result?.outcome.presentation.standbyStateProjectionCommitted).toBe(true);
+    const subjects = harness.owners.telegramRevisionGate.activeRevisionFamilySubjects(
+      "typhoonProbability",
+      "VPTA50",
+    );
+    expect(subjects).toHaveLength(1);
+    expect(harness.owners.standbyStateStore.activeTyphoonProbabilitySubjects(Date.now()))
+      .toEqual(subjects);
+    return subjects[0]!;
+  }
+
+  function seedVpwp50Projection(harness: ReturnType<typeof admissionHarness>): string {
+    const result = processMessage(
+      createMockWsDataMessage(FIXTURE_VPWP50_LOCAL_IDENTITY),
+      "weatherWarningTimeseries",
+      coordinatedProcessDeps(harness),
+    );
+    expect(result?.presentation.standbyStateProjectionCommitted).toBe(true);
+    const subjects = harness.owners.telegramRevisionGate.activeRevisionFamilySubjects(
+      "weatherWarningTimeseries",
+      "VPWP50",
+    );
+    expect(subjects).toHaveLength(1);
+    expect(harness.owners.standbyStateStore.activeWeatherWarningForecastSubjects(Date.now()))
+      .toEqual(subjects);
+    return subjects[0]!;
+  }
+
+  it.each(vpwp50IsolationCases)(
+    "%s coordinator transaction cannot touch VPWP50 projection callbacks, gate, active set, latch, or warning",
+    (_label, route, headType, fixture) => {
+      vi.useFakeTimers({ now: VPWP50_ISOLATION_NOW_MS, toFake: ["Date"] });
+      const capacityWarning = vi.fn();
+      const harness = admissionHarness({ onCapacityError: capacityWarning });
+      seedVpwp50IsolationState(harness, capacityWarning);
+      const before = vpwp50IsolationSnapshot(harness);
+      expect(before.activeSubjects).toHaveLength(1);
+      const activeSubjects = vi.fn(() => before.activeSubjects);
+      const maintainSubjects = vi.fn(() => ({ viewChanged: false, durableChanged: false }));
+      const warn = vi.spyOn(log, "warn");
+      const vpwpWarningCount = (): number => warn.mock.calls.filter(([message]) =>
+        String(message).includes("[VPWP50] vpwp50ActiveBeyondGateRetention")).length;
+      const warningsBefore = vpwpWarningCount();
+      const deps = makeProcessDeps({
+        revisionGate: harness.owners.telegramRevisionGate,
+        vpws50State: harness.owners.vpws50State,
+        vpww56State: harness.owners.vpww56State,
+        tsunamiState: harness.owners.tsunamiState,
+        volcanoState: harness.owners.volcanoState,
+        floodForecastState: harness.owners.floodForecastState,
+        persistenceAdmission: harness.coordinator,
+        activeWeatherWarningForecastSubjects: activeSubjects,
+        maintainWeatherWarningForecastSubjects: maintainSubjects,
+      });
+      expect(processMessage(createMockWsDataMessage(fixture), route, deps)).not.toBeNull();
+      expect(activeSubjects).not.toHaveBeenCalled();
+      expect(maintainSubjects).not.toHaveBeenCalled();
+      expect(vpwp50IsolationSnapshot(harness)).toEqual(before);
+      expect(capacityWarning).not.toHaveBeenCalled();
+      expect(vpwpWarningCount()).toBe(warningsBefore);
+    },
+  );
+
+  it.each(vpwp50IsolationCases)(
+    "%s direct branch overrides both VPWP50 callbacks to undefined and preserves its state",
+    (_label, route, _headType, fixture) => {
+      vi.useFakeTimers({ now: VPWP50_ISOLATION_NOW_MS, toFake: ["Date"] });
+      const capacityWarning = vi.fn();
+      const harness = admissionHarness({ onCapacityError: capacityWarning });
+      seedVpwp50IsolationState(harness, capacityWarning);
+      const before = vpwp50IsolationSnapshot(harness);
+      const activeSubjects = vi.fn(() => before.activeSubjects);
+      const maintainSubjects = vi.fn(() => ({ viewChanged: false, durableChanged: false }));
+      const warn = vi.spyOn(log, "warn");
+      const warningsBefore = warn.mock.calls.filter(([message]) =>
+        String(message).includes("[VPWP50] vpwp50ActiveBeyondGateRetention")).length;
+      const deps = makeProcessDeps({
+        revisionGate: harness.owners.telegramRevisionGate,
+        persistenceAdmission: undefined,
+        activeWeatherWarningForecastSubjects: activeSubjects,
+        maintainWeatherWarningForecastSubjects: maintainSubjects,
+      });
+      expect(processMessage(createMockWsDataMessage(fixture), route, deps)).not.toBeNull();
+      expect(activeSubjects).toHaveBeenCalledTimes(0);
+      expect(maintainSubjects).toHaveBeenCalledTimes(0);
+      expect(vpwp50IsolationSnapshot(harness)).toEqual(before);
+      expect(capacityWarning).not.toHaveBeenCalled();
+      expect(warn.mock.calls.filter(([message]) =>
+        String(message).includes("[VPWP50] vpwp50ActiveBeyondGateRetention")).length)
+        .toBe(warningsBefore);
+    },
+  );
+
+  it("coordinated family policy lifecycle table keeps only the audited active TTLs", () => {
+    const DAY_MS = 24 * 60 * 60_000;
+    const indefinite = [
+      [VPWS50_REVISION_FAMILY_POLICY, 7 * DAY_MS],
+      [TSUNAMI_REVISION_FAMILY_POLICIES.VTSE41, 7 * DAY_MS],
+      [TSUNAMI_REVISION_FAMILY_POLICIES.VTSE51, null],
+      [TSUNAMI_REVISION_FAMILY_POLICIES.VTSE52, null],
+      [VOLCANO_ALERT_REVISION_FAMILY_POLICY, 30 * DAY_MS],
+      [VOLCANO_ERUPTION_REVISION_FAMILY_POLICY, 2 * DAY_MS],
+      [TYPHOON_ANALYSIS_REVISION_FAMILY_POLICY, 7 * DAY_MS],
+      [NANKAI_REVISION_FAMILY_POLICY, 30 * DAY_MS],
+    ] as const;
+    for (const [policy, tombstoneRetentionMs] of indefinite) {
+      expect(Object.hasOwn(policy, "activeRetentionMs")).toBe(false);
+      expect(policy.tombstoneRetentionMs).toBe(tombstoneRetentionMs);
+    }
+
+    const finite = [
+      [VPWW56_REVISION_FAMILY_POLICY, 6 * 60 * 60_000],
+      [VOLCANO_ASHFALL_REVISION_FAMILY_POLICY, 7 * DAY_MS],
+      [FLOOD_FORECAST_REVISION_FAMILY_POLICY, 36 * 60 * 60_000],
+      [TORNADO_REVISION_FAMILY_POLICY, 36 * 60 * 60_000],
+      [HEAT_ALERT_REVISION_FAMILY_POLICY, 3 * DAY_MS],
+      [TYPHOON_PROBABILITY_REVISION_FAMILY_POLICY, 7 * DAY_MS],
+      [WEATHER_TIMESERIES_REVISION_FAMILY_POLICY, 7 * DAY_MS],
+      [LG_OBSERVATION_REVISION_FAMILY_POLICY, 36 * 60 * 60_000],
+    ] as const;
+    for (const [policy, retentionMs] of finite) {
+      expect(policy.activeRetentionMs).toBe(retentionMs);
+      expect(policy.tombstoneRetentionMs).toBe(retentionMs);
+    }
+  });
+
+  it.each([
+    ["VPWS50", VPWS50_REVISION_FAMILY_POLICY, 7 * 24 * 60 * 60_000],
+    ["VTSE41", TSUNAMI_REVISION_FAMILY_POLICIES.VTSE41, 7 * 24 * 60 * 60_000],
+    ["VTSE51", TSUNAMI_REVISION_FAMILY_POLICIES.VTSE51, null],
+    ["VTSE52", TSUNAMI_REVISION_FAMILY_POLICIES.VTSE52, null],
+    ["volcanoAlert", VOLCANO_ALERT_REVISION_FAMILY_POLICY, 30 * 24 * 60 * 60_000],
+    ["volcanoEruption", VOLCANO_ERUPTION_REVISION_FAMILY_POLICY, 2 * 24 * 60 * 60_000],
+    ["typhoonAnalysis", TYPHOON_ANALYSIS_REVISION_FAMILY_POLICY, 7 * 24 * 60 * 60_000],
+    ["nankaiTrough", NANKAI_REVISION_FAMILY_POLICY, 30 * 24 * 60 * 60_000],
+  ] as const)("%s coordinator sweep retains active and expires only finite tombstones", (
+    _label,
+    policy,
+    tombstoneRetentionMs,
+  ) => {
+    const { coordinator } = admissionHarness();
+    const domains = structuredClone(coordinator.capture().domains) as StandbyPersistenceDomainSnapshots;
+    domains.telegramRevisionGate.states = [
+      cancelledCapacityGate(
+        policy.domain, policy.revisionFamily, "z-active", policy.tombstoneRetentionMs, T0, false,
+      ),
+      cancelledCapacityGate(
+        policy.domain, policy.revisionFamily, "a-cancelled", policy.tombstoneRetentionMs, T0, true,
+      ),
+    ];
+    coordinator.restorePrevalidated(domains);
+    const beforeVersion = coordinator.capture().domains.telegramRevisionGate.version;
+    const nowMs = T0 + (tombstoneRetentionMs ?? 365 * 24 * 60 * 60_000) + 1;
+    expect(coordinator.sweepAll(nowMs).kind).toBe("committed");
+    const gate = TelegramRevisionGate.fromSnapshot(
+      coordinator.capture().domains.telegramRevisionGate,
+    );
+    expect(gate.revisionFamilySubjectKeys(policy.domain, policy.revisionFamily)).toEqual(
+      tombstoneRetentionMs == null ? ["a-cancelled", "z-active"] : ["z-active"],
+    );
+    expect(gate.version()).toBe(beforeVersion + (tombstoneRetentionMs == null ? 0 : 1));
+  });
+
+  it.each([
+    ["VPWW56", VPWW56_REVISION_FAMILY_POLICY, 6 * 60 * 60_000],
+    ["volcanoAshfall", VOLCANO_ASHFALL_REVISION_FAMILY_POLICY, 7 * 24 * 60 * 60_000],
+    ["floodForecast", FLOOD_FORECAST_REVISION_FAMILY_POLICY, 36 * 60 * 60_000],
+    ["tornado", TORNADO_REVISION_FAMILY_POLICY, 36 * 60 * 60_000],
+    ["heatAlert", HEAT_ALERT_REVISION_FAMILY_POLICY, 3 * 24 * 60 * 60_000],
+    ["VPTA50", TYPHOON_PROBABILITY_REVISION_FAMILY_POLICY, 7 * 24 * 60 * 60_000],
+    ["VPWP50", WEATHER_TIMESERIES_REVISION_FAMILY_POLICY, 7 * 24 * 60 * 60_000],
+    ["VXSE62", LG_OBSERVATION_REVISION_FAMILY_POLICY, 36 * 60 * 60_000],
+  ] as const)("%s coordinator sweep keeps both lifecycle states at boundary and expires both at +1ms", (
+    _label,
+    policy,
+    retentionMs,
+  ) => {
+    const { coordinator } = admissionHarness();
+    const domains = structuredClone(coordinator.capture().domains) as StandbyPersistenceDomainSnapshots;
+    domains.telegramRevisionGate.states = [
+      cancelledCapacityGate(
+        policy.domain, policy.revisionFamily, "z-active", policy.tombstoneRetentionMs, T0, false,
+      ),
+      cancelledCapacityGate(
+        policy.domain, policy.revisionFamily, "a-cancelled", policy.tombstoneRetentionMs, T0, true,
+      ),
+    ];
+    coordinator.restorePrevalidated(domains);
+    const boundaryVersion = coordinator.capture().domains.telegramRevisionGate.version;
+    expect(coordinator.sweepAll(T0 + retentionMs).kind).toBe("committed");
+    let gate = TelegramRevisionGate.fromSnapshot(
+      coordinator.capture().domains.telegramRevisionGate,
+    );
+    expect(gate.revisionFamilySubjectKeys(policy.domain, policy.revisionFamily))
+      .toEqual(["a-cancelled", "z-active"]);
+    expect(gate.version()).toBe(boundaryVersion);
+
+    expect(coordinator.sweepAll(T0 + retentionMs + 1).kind).toBe("committed");
+    gate = TelegramRevisionGate.fromSnapshot(coordinator.capture().domains.telegramRevisionGate);
+    expect(gate.revisionFamilySubjectKeys(policy.domain, policy.revisionFamily)).toEqual([]);
+    expect(gate.version()).toBe(boundaryVersion + 1);
+  });
+
+  it("VPTA50 runtime sweep expires active and cancelled gates with the projection at seven days +1ms", () => {
+    const seedNowMs = Date.parse("2026-05-31T01:00:00.000Z");
+    vi.useFakeTimers({ now: seedNowMs, toFake: ["Date"] });
+    const harness = admissionHarness();
+    const activeSubject = seedVptaProjection(harness);
+    const seeded = structuredClone(
+      harness.coordinator.capture().domains,
+    ) as StandbyPersistenceDomainSnapshots;
+    seeded.telegramRevisionGate.states.push(completionOwnedCancelledCapacityGate(
+      "VPTA50",
+      "typhoonProbability:TC9999",
+      "TC9999",
+      seedNowMs,
+    ));
+    harness.coordinator.restorePrevalidated(seeded);
+    expect(harness.owners.telegramRevisionGate.revisionFamilySubjectKeys(
+      "typhoonProbability", "VPTA50",
+    )).toEqual([activeSubject, "typhoonProbability:TC9999"].sort());
+    expect(harness.owners.standbyStateStore.activeTyphoonProbabilitySubjects(seedNowMs))
+      .toEqual([activeSubject]);
+
+    const runtimeNowMs = seedNowMs + TYPHOON_PROBABILITY_REVISION_FAMILY_POLICY.activeRetentionMs! + 1;
+    vi.setSystemTime(runtimeNowMs);
+    expect(harness.coordinator.sweepAll(runtimeNowMs)).toMatchObject({
+      kind: "committed",
+      value: {
+        changedKeys: expect.arrayContaining(["typhoonProbability:VPTA50"]),
+        durableChanged: true,
+      },
+    });
+    expect(harness.owners.telegramRevisionGate.revisionFamilySubjectKeys(
+      "typhoonProbability", "VPTA50",
+    )).toEqual([]);
+    expect(harness.owners.standbyStateStore.cloneSnapshot().data.typhoonProbabilities.size)
+      .toBe(0);
+  });
+
+  it("VPTA50 admission-before expiry removes old active, cancelled, and projection before a new subject", () => {
+    const seedNowMs = Date.parse("2026-05-31T01:00:00.000Z");
+    vi.useFakeTimers({ now: seedNowMs, toFake: ["Date"] });
+    const harness = admissionHarness();
+    const activeSubject = seedVptaProjection(harness);
+    const seeded = structuredClone(
+      harness.coordinator.capture().domains,
+    ) as StandbyPersistenceDomainSnapshots;
+    seeded.telegramRevisionGate.states.push(completionOwnedCancelledCapacityGate(
+      "VPTA50",
+      "typhoonProbability:TC9999",
+      "TC9999",
+      seedNowMs,
+    ));
+    harness.coordinator.restorePrevalidated(seeded);
+
+    const admissionNowMs = seedNowMs
+      + TYPHOON_PROBABILITY_REVISION_FAMILY_POLICY.activeRetentionMs! + 1;
+    vi.setSystemTime(admissionNowMs);
+    const nextXml = readFixture(FIXTURE_VPTA50_JANGMI_APPROACH)
+      .replace("<EventID>TC2606</EventID>", "<EventID>TC2607</EventID>");
+    const result = withVptaRouterOwnerToken(
+      createVptaRouterOwnerToken(),
+      () => processMessageInternal(
+        createMockWsDataMessageFromXml(nextXml, "VPTA50"),
+        "typhoonProbability",
+        coordinatedProcessDeps(harness),
+      ),
+    );
+    expect(result).not.toBeNull();
+    const remaining = harness.owners.telegramRevisionGate.revisionFamilySubjectKeys(
+      "typhoonProbability", "VPTA50",
+    );
+    expect(remaining).not.toContain(activeSubject);
+    expect(remaining).not.toContain("typhoonProbability:TC9999");
+    expect(harness.owners.standbyStateStore.cloneSnapshot().data.typhoonProbabilities.has("TC2606"))
+      .toBe(false);
+  });
+
+  it("VPWP50 receive-before expiry removes old active, cancelled, and projection before a new subject", () => {
+    const seedNowMs = Date.parse("2026-06-06T00:30:00.000Z");
+    vi.useFakeTimers({ now: seedNowMs, toFake: ["Date"] });
+    const harness = admissionHarness();
+    const activeSubject = seedVpwp50Projection(harness);
+    const seeded = structuredClone(
+      harness.coordinator.capture().domains,
+    ) as StandbyPersistenceDomainSnapshots;
+    const cancelledSubject = "weatherTimeseries:取消官署:code:010000";
+    seeded.telegramRevisionGate.states.push(completionOwnedCancelledCapacityGate(
+      "VPWP50",
+      cancelledSubject,
+      "VPWP50-CANCELLED",
+      seedNowMs,
+    ));
+    harness.coordinator.restorePrevalidated(seeded);
+
+    const admissionNowMs = seedNowMs + WEATHER_TIMESERIES_RETENTION_MS + 1;
+    vi.setSystemTime(admissionNowMs);
+    expect(processMessage(
+      createMockWsDataMessage(
+        FIXTURE_VPWP50_LOCAL_IDENTITY,
+        undefined,
+        { publishingOffice: "期限後の別官署" },
+      ),
+      "weatherWarningTimeseries",
+      coordinatedProcessDeps(harness),
+    )).not.toBeNull();
+    const remaining = harness.owners.telegramRevisionGate.revisionFamilySubjectKeys(
+      "weatherWarningTimeseries", "VPWP50",
+    );
+    expect(remaining).not.toContain(activeSubject);
+    expect(remaining).not.toContain(cancelledSubject);
+    expect(harness.owners.standbyStateStore.cloneSnapshot().data.weatherWarningForecasts
+      .has(activeSubject)).toBe(false);
+  });
+
+  it("VTSE41 keeps its seven-day-old active warning and observations while expiring only cancelled", () => {
+    vi.useFakeTimers({ now: T0, toFake: ["Date"] });
+    const harness = admissionHarness();
+    const deps = coordinatedProcessDeps(harness);
+    expect(processMessage(
+      createMockWsDataMessage(FIXTURE_VTSE41_WARN),
+      "tsunami",
+      deps,
+    )).not.toBeNull();
+    expect(processMessage(
+      createMockWsDataMessage(FIXTURE_VTSE51_OBSERVATION_MAXHEIGHT),
+      "tsunami",
+      deps,
+    )).not.toBeNull();
+    const activeSubjects = harness.owners.telegramRevisionGate.activeRevisionFamilySubjects(
+      "tsunami", "VTSE41",
+    );
+    expect(activeSubjects).toHaveLength(1);
+    const holderBefore = {
+      activeEventIds: harness.owners.tsunamiState.activeEventIds(),
+      keyed: harness.owners.tsunamiState.getPersistedKeyedActive(),
+      observations: harness.owners.tsunamiState.getObservationGroups(),
+    };
+    expect(holderBefore.activeEventIds).toHaveLength(1);
+    expect(holderBefore.observations.VTSE51.length).toBeGreaterThan(0);
+    const seeded = structuredClone(
+      harness.coordinator.capture().domains,
+    ) as StandbyPersistenceDomainSnapshots;
+    const cancelledSubject = "tsunami:cancelled-event";
+    seeded.telegramRevisionGate.states.push(cancelledCapacityGate(
+      "tsunami",
+      "VTSE41",
+      cancelledSubject,
+      TSUNAMI_REVISION_FAMILY_POLICIES.VTSE41.tombstoneRetentionMs,
+      T0,
+    ));
+    harness.coordinator.restorePrevalidated(seeded);
+
+    const nowMs = T0 + TSUNAMI_REVISION_FAMILY_POLICIES.VTSE41.tombstoneRetentionMs! + 1;
+    expect(harness.coordinator.sweepAll(nowMs).kind).toBe("committed");
+    expect(harness.owners.telegramRevisionGate.revisionFamilySubjectKeys(
+      "tsunami", "VTSE41",
+    )).toEqual(activeSubjects);
+    expect(harness.owners.telegramRevisionGate.revisionFamilySubjectKeys(
+      "tsunami", "VTSE41",
+    )).not.toContain(cancelledSubject);
+    expect({
+      activeEventIds: harness.owners.tsunamiState.activeEventIds(),
+      keyed: harness.owners.tsunamiState.getPersistedKeyedActive(),
+      observations: harness.owners.tsunamiState.getObservationGroups(),
+    }).toEqual(holderBefore);
+  });
+
+  it("VPWW56 processWeather -> processWeatherWithAdmission keeps both states at six hours and removes them at +1ms without touching VPWP50", () => {
+    const seedNowMs = Date.parse("2026-06-06T00:30:00.000Z");
+    const retentionMs = VPWW56_REVISION_FAMILY_POLICY.activeRetentionMs!;
+    for (const elapsedMs of [retentionMs, retentionMs + 1]) {
+      vi.useFakeTimers({ now: seedNowMs, toFake: ["Date"] });
+      const harness = admissionHarness();
+      const deps = coordinatedProcessDeps(harness);
+      const longForecastXml = readFixture(FIXTURE_VPWP50_LOCAL_IDENTITY)
+        .replaceAll("<Duration>PT3H</Duration>", "<Duration>P8D</Duration>");
+      expect(processMessage(
+        createMockWsDataMessageFromXml(longForecastXml, "VPWP50"),
+        "weatherWarningTimeseries",
+        deps,
+      )).not.toBeNull();
+      expect(processMessage(
+        vpww56LifecycleMessage("境界元官署", new Date(seedNowMs).toISOString(), "1"),
+        "weather",
+        deps,
+      )).not.toBeNull();
+      const activeSubject = harness.owners.vpww56State.activeSubjectKeys()[0]!;
+      const cancelledSubject = "weather:VPWW56:取消官署";
+      const seeded = structuredClone(
+        harness.coordinator.capture().domains,
+      ) as StandbyPersistenceDomainSnapshots;
+      seeded.telegramRevisionGate.states.push(cancelledCapacityGate(
+        "weather",
+        "VPWW56",
+        cancelledSubject,
+        VPWW56_REVISION_FAMILY_POLICY.tombstoneRetentionMs,
+        seedNowMs,
+      ));
+      harness.coordinator.restorePrevalidated(seeded);
+      const vpwp50Before = vpwp50IsolationSnapshot(harness);
+      expect(vpwp50Before.activeSubjects).toHaveLength(1);
+
+      vi.setSystemTime(seedNowMs + elapsedMs);
+      expect(processMessage(
+        vpww56LifecycleMessage(
+          `境界先官署-${elapsedMs}`,
+          new Date(seedNowMs + elapsedMs).toISOString(),
+          "1",
+        ),
+        "weather",
+        coordinatedProcessDeps(harness),
+      )).not.toBeNull();
+      const familySubjects = harness.owners.telegramRevisionGate.revisionFamilySubjectKeys(
+        "weather", "VPWW56",
+      );
+      if (elapsedMs === retentionMs) {
+        expect(familySubjects).toContain(activeSubject);
+        expect(familySubjects).toContain(cancelledSubject);
+        expect(harness.owners.vpww56State.activeSubjectKeys()).toContain(activeSubject);
+      } else {
+        expect(familySubjects).not.toContain(activeSubject);
+        expect(familySubjects).not.toContain(cancelledSubject);
+        expect(harness.owners.vpww56State.activeSubjectKeys()).not.toContain(activeSubject);
+      }
+      expect(vpwp50IsolationSnapshot(harness)).toEqual(vpwp50Before);
+      vi.useRealTimers();
+    }
+  });
+
+  it("volcanoAlert sweepAll keeps a 31-day active gate, holder, and projection while removing only another cancelled subject", () => {
+    const acceptedAtMs = Date.parse("2026-08-01T00:00:00.000Z");
+    const nowMs = acceptedAtMs + 31 * 24 * 60 * 60_000 + 1;
+    expect(Object.hasOwn(VOLCANO_ALERT_REVISION_FAMILY_POLICY, "activeRetentionMs"))
+      .toBe(false);
+    const harness = admissionHarness();
+    harness.coordinator.restorePrevalidated(volcanoAlertLifecycleDomains(acceptedAtMs, true));
+    const activeGateBefore = harness.owners.telegramRevisionGate.cloneSnapshot().states.find(
+      (entry) => entry.key === "volcano:volcanoAlert:volcano:alert:0",
+    );
+    const versionBefore = harness.owners.telegramRevisionGate.version();
+    expect(harness.owners.volcanoState.snapshot().composites.map((entry) => entry.volcanoCode))
+      .toEqual(["0", "1"]);
+    expect(harness.owners.standbyStateStore.exportActiveState().volcanoes.map((entry) => entry.code))
+      .toEqual(["0", "1"]);
+
+    expect(harness.coordinator.sweepAll(nowMs)).toMatchObject({
+      kind: "committed",
+      value: {
+        changedKeys: expect.arrayContaining(["volcano:volcanoAlert"]),
+        durableChanged: true,
+      },
+    });
+    const gateAfter = harness.owners.telegramRevisionGate.cloneSnapshot();
+    expect(gateAfter.states.find((entry) =>
+      entry.key === "volcano:volcanoAlert:volcano:alert:0")).toEqual(activeGateBefore);
+    expect(gateAfter.states.some((entry) =>
+      entry.key === "volcano:volcanoAlert:volcano:alert:1")).toBe(false);
+    expect(harness.owners.telegramRevisionGate.version()).toBe(versionBefore + 1);
+    expect(harness.owners.volcanoState.snapshot().composites).toEqual([
+      expect.objectContaining({
+        volcanoCode: "0",
+        alert: expect.objectContaining({ volcanoCode: "0" }),
+      }),
+    ]);
+    const projected = harness.owners.standbyStateStore.exportActiveState().volcanoes;
+    expect(projected.map((entry) => entry.code)).toEqual(["0"]);
+    expect(projected.some((entry) => entry.code === "1")).toBe(false);
+  });
+
+  it("31-day active volcanoAlert survives save, loadWithResult, restore, startup sweep, save, and reload", () => {
+    const acceptedAtMs = Date.parse("2026-08-01T00:00:00.000Z");
+    const nowMs = acceptedAtMs + 31 * 24 * 60 * 60_000 + 1;
+    const root = mkdtempSync(join(tmpdir(), "fleq-volcano-alert-lifecycle-"));
+    tempRoots.push(root);
+    const path = join(root, "display-active-state-v1.json");
+    const initialDomains = volcanoAlertLifecycleDomains(acceptedAtMs);
+    const activeLogicalContent = {
+      gate: initialDomains.telegramRevisionGate.states.find((entry) =>
+        entry.key === "volcano:volcanoAlert:volcano:alert:0"),
+      holder: initialDomains.volcanoHolderAndRepair.holder.composites.find((entry) =>
+        entry.volcanoCode === "0")?.alert,
+      projection: StandbyStateStore.fromSnapshot(initialDomains.standbyStateStore)
+        .exportActiveState().volcanoes.find((entry) => entry.code === "0"),
+    };
+    const initialWriter = new StandbyPersistence(path);
+    const initialEnvelope = initialWriter.reserveSerializationEnvelope(
+      new Date(acceptedAtMs).toISOString(),
+    );
+    const initialPair = serializeStandbyAdmissionPair(
+      initialWriter,
+      initialDomains,
+      initialEnvelope,
+    );
+    expect(initialWriter.saveSerializedPair(initialPair).kind).toBe("written");
+    expectPersistedActiveVolcanoAlert(
+      JSON.parse(readFileSync(standbyPersistenceV2Path(path), "utf8")) as PersistedStandbyStateV2,
+    );
+
+    const loader = new StandbyPersistence(path);
+    const loaded = loader.loadWithResult(nowMs);
+    expect(loaded.startup).toEqual({ kind: "restored", selectedSource: "v2" });
+    expect(loaded.state).not.toBeNull();
+    if (loaded.state == null) throw new Error("volcano lifecycle load failed");
+    expectPersistedActiveVolcanoAlert(loaded.state);
+
+    const restored = admissionHarness();
+    restoreVolcanoPersistenceState(restored, loaded.state, nowMs);
+    const beforeStartupSweep = restored.coordinator.capture().domains;
+    expect({
+      gate: beforeStartupSweep.telegramRevisionGate.states.find((entry) =>
+        entry.key === "volcano:volcanoAlert:volcano:alert:0"),
+      holder: beforeStartupSweep.volcanoHolderAndRepair.holder.composites.find((entry) =>
+        entry.volcanoCode === "0")?.alert,
+      projection: StandbyStateStore.fromSnapshot(beforeStartupSweep.standbyStateStore)
+        .exportActiveState().volcanoes.find((entry) => entry.code === "0"),
+    }).toEqual(activeLogicalContent);
+    expect(restored.coordinator.sweepAll(nowMs).kind).toBe("committed");
+    const restoredDomains = restored.coordinator.capture().domains;
+    expect({
+      gate: restoredDomains.telegramRevisionGate.states.find((entry) =>
+        entry.key === "volcano:volcanoAlert:volcano:alert:0"),
+      holder: restoredDomains.volcanoHolderAndRepair.holder.composites.find((entry) =>
+        entry.volcanoCode === "0")?.alert,
+      projection: StandbyStateStore.fromSnapshot(restoredDomains.standbyStateStore)
+        .exportActiveState().volcanoes.find((entry) => entry.code === "0"),
+    }).toEqual(activeLogicalContent);
+    expect(restoredDomains.telegramRevisionGate.states.some((entry) =>
+      entry.key === "volcano:volcanoAlert:volcano:alert:1")).toBe(false);
+
+    const postWriter = new StandbyPersistence(path);
+    postWriter.loadWithResult(nowMs);
+    const postEnvelope = postWriter.reserveSerializationEnvelope(new Date(nowMs).toISOString());
+    const postPair = serializeStandbyAdmissionPair(postWriter, restoredDomains, postEnvelope);
+    expect(postWriter.saveSerializedPair(postPair).kind).toBe("written");
+    expectPersistedActiveVolcanoAlert(
+      JSON.parse(readFileSync(standbyPersistenceV2Path(path), "utf8")) as PersistedStandbyStateV2,
+    );
+    const reloaded = new StandbyPersistence(path).loadWithResult(nowMs);
+    expect(reloaded.startup).toEqual({ kind: "restored", selectedSource: "v2" });
+    expect(reloaded.state).not.toBeNull();
+    if (reloaded.state == null) throw new Error("volcano lifecycle reload failed");
+    expectPersistedActiveVolcanoAlert(reloaded.state);
+    expect(reloaded.state.telegramFoundation.volcano.gateEntries.some((entry) =>
+      entry.stateSubjectKey === "volcano:alert:1")).toBe(false);
+  });
+
   it("same 128 codeの三family最大fixtureをactual pair serializerとwire projectionで固定する", () => {
     const fixturePath = join(
       process.cwd(),
@@ -1688,7 +2464,7 @@ describe("standby monitor wiring", () => {
     coordinator.restorePrevalidated(seeded);
     const durable = vi.fn();
     coordinator.onDurable(durable);
-    const expiryNowMs = T0 + HEAT_ALERT_REVISION_FAMILY_POLICY.tombstoneRetentionMs! + 1;
+    const expiryNowMs = T0 + HEAT_ALERT_REVISION_FAMILY_POLICY.activeRetentionMs! + 1;
 
     expect(sweepStandbyBeforeAdmission(
       coordinator,
@@ -1983,7 +2759,7 @@ describe("standby monitor wiring", () => {
     expect(result).toEqual({ kind: "completed", exitCode: 0 });
   });
 
-  it("startMonitor の実 restore→post-expiry coupling→sweep は両fileを一度だけrewriteし、変更なしは0回", async () => {
+  it("startMonitor startup expires VPTA50/VPWP50 active, cancelled, and projections before a no-op sweep while preserving a 31-day volcanoAlert", async () => {
     vi.useFakeTimers();
     const monitorNowMs = Date.parse("2026-06-06T00:30:00.000Z");
     vi.setSystemTime(monitorNowMs);
@@ -2167,5 +2943,95 @@ describe("standby monitor wiring", () => {
     expect(scheduledPersistence).not.toBeNull();
     (scheduledPersistence as StandbyPersistence | null)?.flush();
     await monitorShutdowns[1]?.();
+
+    const compositionNowMs = Date.parse("2026-10-03T00:00:00.000Z");
+    const compositionRoot = mkdtempSync(join(tmpdir(), "fleq-volcano-monitor-composition-"));
+    tempRoots.push(compositionRoot);
+    const compositionRuntimeDir = join(compositionRoot, "data", "runtime");
+    mkdirSync(compositionRuntimeDir, { recursive: true });
+    const compositionPath = join(compositionRuntimeDir, "display-active-state-v1.json");
+    const compositionHarness = admissionHarness();
+    const volcanoDomains = volcanoAlertLifecycleDomains(
+      compositionNowMs - 31 * 24 * 60 * 60_000 - 1,
+    );
+    volcanoDomains.telegramRevisionGate.states = volcanoDomains.telegramRevisionGate.states
+      .filter((entry) => !entry.cancelled);
+    compositionHarness.coordinator.restorePrevalidated(volcanoDomains);
+    vi.setSystemTime(Date.parse("2026-05-31T01:00:00.000Z"));
+    seedVptaProjection(compositionHarness);
+    vi.setSystemTime(Date.parse("2026-06-06T00:30:00.000Z"));
+    seedVpwp50Projection(compositionHarness);
+    const compositionDomains = structuredClone(
+      compositionHarness.coordinator.capture().domains,
+    ) as StandbyPersistenceDomainSnapshots;
+    const expiredAcceptedAtMs = compositionNowMs - WEATHER_TIMESERIES_RETENTION_MS - 1;
+    for (const entry of compositionDomains.telegramRevisionGate.states) {
+      if (entry.key.startsWith("typhoonProbability:VPTA50:")
+        || entry.key.startsWith("weatherWarningTimeseries:VPWP50:")) {
+        entry.acceptedAtMs = expiredAcceptedAtMs;
+      }
+    }
+    compositionDomains.telegramRevisionGate.states.push(
+      completionOwnedCancelledCapacityGate(
+        "VPTA50",
+        "typhoonProbability:TC9999",
+        "TC9999",
+        expiredAcceptedAtMs,
+      ),
+      completionOwnedCancelledCapacityGate(
+        "VPWP50",
+        "weatherTimeseries:取消官署:code:010000",
+        "VPWP50-CANCELLED",
+        expiredAcceptedAtMs,
+      ),
+    );
+    expect(compositionDomains.telegramRevisionGate.states.filter((entry) =>
+      entry.key.startsWith("typhoonProbability:VPTA50:")).map((entry) => entry.cancelled).sort())
+      .toEqual([false, true]);
+    expect(compositionDomains.telegramRevisionGate.states.filter((entry) =>
+      entry.key.startsWith("weatherWarningTimeseries:VPWP50:")).map((entry) => entry.cancelled).sort())
+      .toEqual([false, true]);
+    expect(compositionDomains.standbyStateStore.data.typhoonProbabilities.size).toBe(1);
+    expect(compositionDomains.standbyStateStore.data.weatherWarningForecasts.size).toBe(1);
+    vi.setSystemTime(compositionNowMs);
+    const compositionPersistence = new StandbyPersistence(compositionPath);
+    const compositionEnvelope = compositionPersistence.reserveSerializationEnvelope(
+      new Date(compositionNowMs).toISOString(),
+    );
+    const compositionPair = serializeStandbyAdmissionPair(
+      compositionPersistence,
+      compositionDomains,
+      compositionEnvelope,
+    );
+    // v2-only seed forces the first post-startup canonical pair save without
+    // introducing a domain mutation into the coordinator startup sweep.
+    writeFileSync(standbyPersistenceV2Path(compositionPath), compositionPair.v2);
+    cwd.mockReturnValue(compositionRoot);
+    schedule.mockClear();
+    scheduledPersistence = null;
+    const startupSweep = vi.spyOn(
+      StandbyPersistenceAdmissionCoordinator.prototype,
+      "sweepAll",
+    );
+    vi.setSystemTime(compositionNowMs);
+    await startMonitor({ ...DEFAULT_CONFIG, apiKey: "test" });
+
+    expect(startupSweep.mock.results[0]?.value).toMatchObject({
+      kind: "committed",
+      value: { durableChanged: false },
+    });
+    expect(schedule).toHaveBeenCalledTimes(1);
+    expect(scheduledPersistence).not.toBeNull();
+    (scheduledPersistence as StandbyPersistence | null)?.flush();
+    const canonical = JSON.parse(
+      readFileSync(standbyPersistenceV2Path(compositionPath), "utf8"),
+    ) as PersistedStandbyStateV2;
+    expectPersistedActiveVolcanoAlert(canonical);
+    expect(canonical.telegramFoundation.standbyDomains.gateEntries.filter((entry) =>
+      entry.revisionFamily === "VPTA50" || entry.revisionFamily === "VPWP50"))
+      .toEqual([]);
+    expect(canonical.typhoonProbabilities).toBeUndefined();
+    expect(canonical.weatherWarningForecasts).toBeUndefined();
+    await monitorShutdowns[2]?.();
   });
 });

@@ -65,11 +65,11 @@ import {
 } from "../messages/volcano-state";
 import { FloodForecastStateHolder } from "../messages/flood-forecast-state";
 import {
-  FLOOD_FORECAST_RETENTION_MS,
-  WEATHER_TIMESERIES_RETENTION_MS,
+  FLOOD_FORECAST_REVISION_FAMILY_POLICY,
+  TYPHOON_PROBABILITY_REVISION_FAMILY_POLICY,
+  WEATHER_TIMESERIES_REVISION_FAMILY_POLICY,
 } from "../messages/revision-family-registry";
 import { sweepFloodForecastFoundation } from "../messages/flood-forecast-lifecycle";
-import { TYPHOON_PROBABILITY_RETENTION_MS } from "../display/project-typhoon-probability";
 import { TyphoonProbabilityStateHolder } from "../messages/typhoon-probability-state";
 
 import { formatSummaryInterval } from "../../ui/summary-interval-formatter";
@@ -463,15 +463,24 @@ export async function startMonitor(config: AppConfig, pipelineController?: Pipel
     startupGate.restoreDurableEntries(
       persistedStandby.telegramFoundation.standbyDomains.gateEntries,
     );
-    startupVpwp50GateChanged = startupGate.expireRevisionFamily(
-      "weatherWarningTimeseries",
-      "VPWP50",
+    startupVpwp50GateChanged = startupGate.expireRevisionFamilyByLifecycle(
+      WEATHER_TIMESERIES_REVISION_FAMILY_POLICY.domain,
+      WEATHER_TIMESERIES_REVISION_FAMILY_POLICY.revisionFamily,
       startupNowMs,
-      WEATHER_TIMESERIES_RETENTION_MS,
-    );
-    startupVptaGateChanged = startupGate.expireRevisionFamily(
-      "typhoonProbability", "VPTA50", startupNowMs, TYPHOON_PROBABILITY_RETENTION_MS,
-    );
+      {
+        tombstoneRetentionMs: WEATHER_TIMESERIES_REVISION_FAMILY_POLICY.tombstoneRetentionMs,
+        activeRetentionMs: WEATHER_TIMESERIES_REVISION_FAMILY_POLICY.activeRetentionMs,
+      },
+    ).changed;
+    startupVptaGateChanged = startupGate.expireRevisionFamilyByLifecycle(
+      TYPHOON_PROBABILITY_REVISION_FAMILY_POLICY.domain,
+      TYPHOON_PROBABILITY_REVISION_FAMILY_POLICY.revisionFamily,
+      startupNowMs,
+      {
+        tombstoneRetentionMs: TYPHOON_PROBABILITY_REVISION_FAMILY_POLICY.tombstoneRetentionMs,
+        activeRetentionMs: TYPHOON_PROBABILITY_REVISION_FAMILY_POLICY.activeRetentionMs,
+      },
+    ).changed;
     briefingCriticalRewriteRequired = startupStandby
       .restoreActiveState(persistedStandby, restoredAtMs).briefingCriticalRewriteRequired;
     const persistedVpws50 = persistedStandby.telegramFoundation.vpws50;
@@ -527,11 +536,14 @@ export async function startMonitor(config: AppConfig, pipelineController?: Pipel
     const persistedFlood = persistedStandby.telegramFoundation.floodForecast;
     floodFoundationAuthoritative = persistedFlood.authoritative;
     startupGate.restoreDurableEntries(persistedFlood.gateEntries);
-    startupGate.expireRevisionFamily(
-      "floodForecast",
-      "floodForecast",
+    startupGate.expireRevisionFamilyByLifecycle(
+      FLOOD_FORECAST_REVISION_FAMILY_POLICY.domain,
+      FLOOD_FORECAST_REVISION_FAMILY_POLICY.revisionFamily,
       restoredAtMs,
-      FLOOD_FORECAST_RETENTION_MS,
+      {
+        tombstoneRetentionMs: FLOOD_FORECAST_REVISION_FAMILY_POLICY.tombstoneRetentionMs,
+        activeRetentionMs: FLOOD_FORECAST_REVISION_FAMILY_POLICY.activeRetentionMs,
+      },
     );
     if (persistedFlood.authoritative) {
       startupStandby.restoreCanonicalFloods(
@@ -567,15 +579,24 @@ export async function startMonitor(config: AppConfig, pipelineController?: Pipel
     }
   }
   if (persistedStandby == null) {
-    startupVptaGateChanged = startupGate.expireRevisionFamily(
-      "typhoonProbability", "VPTA50", startupNowMs, TYPHOON_PROBABILITY_RETENTION_MS,
-    );
-    startupVpwp50GateChanged = startupGate.expireRevisionFamily(
-      "weatherWarningTimeseries",
-      "VPWP50",
+    startupVptaGateChanged = startupGate.expireRevisionFamilyByLifecycle(
+      TYPHOON_PROBABILITY_REVISION_FAMILY_POLICY.domain,
+      TYPHOON_PROBABILITY_REVISION_FAMILY_POLICY.revisionFamily,
       startupNowMs,
-      WEATHER_TIMESERIES_RETENTION_MS,
-    );
+      {
+        tombstoneRetentionMs: TYPHOON_PROBABILITY_REVISION_FAMILY_POLICY.tombstoneRetentionMs,
+        activeRetentionMs: TYPHOON_PROBABILITY_REVISION_FAMILY_POLICY.activeRetentionMs,
+      },
+    ).changed;
+    startupVpwp50GateChanged = startupGate.expireRevisionFamilyByLifecycle(
+      WEATHER_TIMESERIES_REVISION_FAMILY_POLICY.domain,
+      WEATHER_TIMESERIES_REVISION_FAMILY_POLICY.revisionFamily,
+      startupNowMs,
+      {
+        tombstoneRetentionMs: WEATHER_TIMESERIES_REVISION_FAMILY_POLICY.tombstoneRetentionMs,
+        activeRetentionMs: WEATHER_TIMESERIES_REVISION_FAMILY_POLICY.activeRetentionMs,
+      },
+    ).changed;
   }
   persistenceAdmission.restorePrevalidated({
     telegramRevisionGate: startupGate.cloneSnapshot(),

@@ -11,7 +11,6 @@ import {
   type FloodForecastDiff,
 } from "../../messages/flood-forecast-state";
 import {
-  FLOOD_FORECAST_RETENTION_MS,
   floodForecastHasUnderstoodStations,
   floodForecastRevisionFamilyPolicy,
 } from "../../messages/revision-family-registry";
@@ -103,11 +102,14 @@ export function processFloodForecast(
 
   const policy = floodForecastRevisionFamilyPolicy(msg.head.type);
   if (policy == null) return { kind: "parse-failed" };
-  deps.revisionGate.expireRevisionFamily(
+  deps.revisionGate.expireRevisionFamilyByLifecycle(
     policy.domain,
     policy.revisionFamily,
     nowMs,
-    FLOOD_FORECAST_RETENTION_MS,
+    {
+      tombstoneRetentionMs: policy.tombstoneRetentionMs,
+      activeRetentionMs: policy.activeRetentionMs,
+    },
   );
 
   const extractedSubject = policy.extractStateSubjectKey(info.meta, info);

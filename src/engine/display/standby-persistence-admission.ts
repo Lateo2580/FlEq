@@ -693,16 +693,20 @@ export class StandbyPersistenceAdmissionCoordinator {
     const expiredGateKeys = new Set<StandbyDurableMutationKey>();
     for (const policy of ALL_REVISION_FAMILY_POLICIES) {
       const familyKey = `${policy.domain}:${policy.revisionFamily}`;
-      if (policy.tombstoneRetentionMs == null
-        || !COORDINATED_SWEEP_FAMILIES.has(familyKey)) continue;
-      const changed = gate.expireRevisionFamily(
+      if (!COORDINATED_SWEEP_FAMILIES.has(familyKey)) continue;
+      const changed = gate.expireRevisionFamilyByLifecycle(
         policy.domain,
         policy.revisionFamily,
         nowMs,
-        policy.tombstoneRetentionMs,
+        {
+          tombstoneRetentionMs: policy.tombstoneRetentionMs,
+          activeRetentionMs: "activeRetentionMs" in policy
+            ? policy.activeRetentionMs
+            : undefined,
+        },
       );
       const durableKey = STANDBY_PERSISTED_FAMILY_DURABLE_KEYS[familyKey];
-      if (changed && durableKey != null) expiredGateKeys.add(durableKey);
+      if (changed.changed && durableKey != null) expiredGateKeys.add(durableKey);
     }
     draft.telegramRevisionGate = gate.cloneSnapshot();
     const volcano = VolcanoStateHolder.fromSnapshot(draft.volcanoHolderAndRepair.holder);

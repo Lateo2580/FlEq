@@ -328,6 +328,7 @@ export const VOLCANO_ASHFALL_REVISION_FAMILY_POLICY: RevisionFamilyPolicy<Parsed
   deactivationPredicate: () => false,
   durable: true,
   tombstoneRetentionMs: 7 * 24 * 60 * 60_000,
+  activeRetentionMs: 7 * 24 * 60 * 60_000,
   maxSubjects: 128,
   allowMissingSerial: true,
   familyCapacityMode: "rejectNewSubject",
@@ -401,7 +402,8 @@ export const TORNADO_REVISION_FAMILY_POLICY: RevisionFamilyPolicy<ParsedTornadoA
   extractCancellationTarget: (_meta, parsed) => [tornadoStateSubjectKey(parsed)],
   cancellationPolicy: "clearCurrent", terminalPredicate: () => false,
   deactivationPredicate: (_meta, parsed) => parsed.activeAreaCount === 0,
-  durable: true, tombstoneRetentionMs: STANDBY_DOMAIN_RETENTION_MS, maxSubjects: 128,
+  durable: true, tombstoneRetentionMs: STANDBY_DOMAIN_RETENTION_MS,
+  activeRetentionMs: STANDBY_DOMAIN_RETENTION_MS, maxSubjects: 128,
   allowMissingSerial: true, fragmentMerge: false,
 };
 
@@ -413,7 +415,8 @@ export const HEAT_ALERT_REVISION_FAMILY_POLICY: RevisionFamilyPolicy<ParsedHeatA
     const key = heatAlertStateSubjectKey(parsed); return key == null ? null : [key];
   },
   cancellationPolicy: "clearCurrent", terminalPredicate: () => false, deactivationPredicate: () => false,
-  durable: true, tombstoneRetentionMs: HEAT_RETENTION_MS, maxSubjects: 256,
+  durable: true, tombstoneRetentionMs: HEAT_RETENTION_MS,
+  activeRetentionMs: HEAT_RETENTION_MS, maxSubjects: 256,
   allowMissingSerial: true, fragmentMerge: false,
 };
 
@@ -440,6 +443,7 @@ export const TYPHOON_PROBABILITY_REVISION_FAMILY_POLICY: RevisionFamilyPolicy<Pa
   },
   cancellationPolicy: "clearCurrent", terminalPredicate: () => false, deactivationPredicate: () => false,
   durable: true, tombstoneRetentionMs: TYPHOON_PROBABILITY_RETENTION_MS,
+  activeRetentionMs: TYPHOON_PROBABILITY_RETENTION_MS,
   maxSubjects: TYPHOON_PROBABILITY_MAX_SUBJECTS,
   allowMissingSerial: true, fragmentMerge: false,
 };
@@ -497,7 +501,8 @@ export const LG_OBSERVATION_REVISION_FAMILY_POLICY: RevisionFamilyPolicy<ParsedL
     const key = longPeriodStateSubjectKey(meta); return key == null ? null : [key];
   },
   cancellationPolicy: "markCancelled", terminalPredicate: () => false, deactivationPredicate: () => false,
-  durable: true, tombstoneRetentionMs: STANDBY_DOMAIN_RETENTION_MS, maxSubjects: 256,
+  durable: true, tombstoneRetentionMs: STANDBY_DOMAIN_RETENTION_MS,
+  activeRetentionMs: STANDBY_DOMAIN_RETENTION_MS, maxSubjects: 256,
   allowMissingSerial: true, fragmentMerge: false,
 };
 export const FLOOD_FORECAST_MAX_SUBJECTS = 512;
@@ -559,6 +564,7 @@ export const FLOOD_FORECAST_REVISION_FAMILY_POLICY: RevisionFamilyPolicy<ParsedF
   deactivationPredicate: (_meta, parsed) => floodForecastDeactivatesState(parsed),
   durable: true,
   tombstoneRetentionMs: FLOOD_FORECAST_RETENTION_MS,
+  activeRetentionMs: FLOOD_FORECAST_RETENTION_MS,
   maxSubjects: FLOOD_FORECAST_MAX_SUBJECTS,
   fragmentMerge: false,
 };
@@ -807,6 +813,7 @@ export const VPWW56_REVISION_FAMILY_POLICY: RevisionFamilyPolicy<ParsedWeatherWa
   durable: true,
   // 旧 holder の dormant watermark と同じ 6 時間。可変 subject の無期限化はしない。
   tombstoneRetentionMs: VPWW56_TOMBSTONE_RETENTION_MS,
+  activeRetentionMs: VPWW56_TOMBSTONE_RETENTION_MS,
   maxSubjects: VPWW56_MAX_SUBJECTS,
   // VPWW56 の実 fixture は Serial 空を許す。
   allowMissingSerial: true,

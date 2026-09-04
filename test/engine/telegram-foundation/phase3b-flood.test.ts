@@ -9,6 +9,7 @@ import {
   type PersistedStandbyStateV2,
 } from "../../../src/engine/display/standby-persistence";
 import { StandbyStateStore } from "../../../src/engine/display/standby-state-store";
+import { StandbyPersistenceAdmissionCoordinator } from "../../../src/engine/display/standby-persistence-admission";
 import { DisplayStateStore } from "../../../src/engine/display/state-store";
 import { InfoDisplayHub } from "../../../src/engine/display/hub";
 import { SWEEP_INTERVAL_MS } from "../../../src/engine/display/constants";
@@ -22,6 +23,10 @@ import {
   type PersistedTelegramRevisionGateEntryV2,
 } from "../../../src/engine/messages/telegram-revision-gate";
 import { FloodForecastStateHolder } from "../../../src/engine/messages/flood-forecast-state";
+import { Vpws50StateHolder } from "../../../src/engine/messages/vpws50-state";
+import { Vpww56StateHolder } from "../../../src/engine/messages/vpww56-state";
+import { TsunamiStateHolder } from "../../../src/engine/messages/tsunami-state";
+import { VolcanoStateHolder } from "../../../src/engine/messages/volcano-state";
 import { sweepFloodForecastFoundation } from "../../../src/engine/messages/flood-forecast-lifecycle";
 import { createMessageHandler } from "../../../src/engine/messages/message-router";
 import { Notifier } from "../../../src/engine/notification/notifier";
@@ -623,6 +628,61 @@ describe("Phase 3B flood common registry", () => {
     expect(gate.activeRevisionFamilySubjects("floodForecast", "floodForecast")).toEqual([]);
     expect(holder.activeEventIds()).toEqual([]);
     hub.stop();
+  });
+
+  it("coordinator expires active and cancelled flood gates with holder and projection in one 36-hour transaction", () => {
+    const gate = new TelegramRevisionGate();
+    const holder = new FloodForecastStateHolder();
+    const standby = new StandbyStateStore();
+    const acceptedAtMs = Date.parse(T1);
+    const deps = makeProcessDeps({ revisionGate: gate, floodForecastState: holder });
+    const apply = (incoming: ReturnType<typeof message>, nowMs: number): void => {
+      if (incoming.meta == null) throw new Error("flood fixture meta missing");
+      incoming.meta.receivedAtMs = nowMs;
+      const result = processFloodForecast(incoming, deps, nowMs);
+      expect(result.kind).toBe("ok");
+      if (result.kind === "ok") standby.applyEvent(toPresentationEvent(result.outcome), nowMs);
+    };
+    apply(message(T1, "1", "発表", "flood-active"), acceptedAtMs);
+    apply(message(T1, "1", "発表", "flood-cancelled"), acceptedAtMs);
+    apply(message(T2, "2", "取消", "flood-cancelled"), acceptedAtMs + 1);
+    expect(gate.exportDurableEntries().map((entry) => [entry.stateSubjectKey, entry.cancelled]))
+      .toEqual([
+        ["flood:event:flood-active", false],
+        ["flood:event:flood-cancelled", true],
+      ]);
+    expect(holder.activeEventIds()).toEqual(["flood-active"]);
+    expect(standby.exportActiveState().floods?.events.map((entry) => entry.eventId))
+      .toEqual(["flood-active"]);
+    const latestAcceptedAtMs = Math.max(
+      ...gate.exportDurableEntries().map((entry) => entry.acceptedAtMs),
+    );
+
+    const coordinator = new StandbyPersistenceAdmissionCoordinator({
+      owners: {
+        telegramRevisionGate: gate,
+        standbyStateStore: standby,
+        vpws50State: new Vpws50StateHolder(),
+        vpww56State: new Vpww56StateHolder(),
+        tsunamiState: new TsunamiStateHolder(),
+        volcanoState: new VolcanoStateHolder(),
+        floodForecastState: holder,
+      },
+    });
+    const sweep = coordinator.sweepAll(
+      latestAcceptedAtMs + FLOOD_FORECAST_RETENTION_MS + 1,
+    );
+    expect(sweep).toMatchObject({
+      kind: "committed",
+      value: {
+        changedKeys: expect.arrayContaining(["floodForecast:floodForecast"]),
+        durableChanged: true,
+      },
+    });
+    expect(gate.exportDurableEntries().filter((entry) => entry.domain === "floodForecast"))
+      .toEqual([]);
+    expect(holder.activeEventIds()).toEqual([]);
+    expect(standby.exportActiveState().floods?.events ?? []).toEqual([]);
   });
 
   it("missing EventID is display-only and cannot mutate standby projection", () => {

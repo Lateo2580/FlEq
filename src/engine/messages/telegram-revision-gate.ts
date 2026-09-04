@@ -58,6 +58,12 @@ export interface TelegramRevisionDecision {
   expiredStateSubjectKeys?: readonly string[];
 }
 
+/** Policy lifecycle: active watermark と cancellation tombstone は別の保持期間を持つ。 */
+export interface RevisionFamilyLifecycleRetention {
+  tombstoneRetentionMs: number | null;
+  activeRetentionMs?: number;
+}
+
 export interface TelegramRevisionGateInput {
   domain: string;
   revisionFamily: string;
@@ -1549,6 +1555,46 @@ export class TelegramRevisionGate {
       ) {
         this.deleteTransientState(subjectKey, state);
         expiredStateSubjectKeys.push(subjectKey.startsWith(prefix) ? subjectKey.slice(prefix.length) : subjectKey);
+      }
+    }
+    this.rearmCapacityWarning(domain, revisionFamily);
+    const unique = [...new Set(expiredStateSubjectKeys)].sort(compareCodeUnit);
+    if (unique.length > 0) this.ownerVersion += 1;
+    return { changed: unique.length > 0, expiredStateSubjectKeys: unique };
+  }
+
+  /**
+   * Policy-owned lifecycle compaction.  Active watermark を tombstone TTL で
+   * 補完してはならない。Transient dedupe state は entry 固有 TTL のみで回収する。
+   */
+  expireRevisionFamilyByLifecycle(
+    domain: string,
+    revisionFamily: string,
+    nowMs: number,
+    retention: RevisionFamilyLifecycleRetention,
+  ): RevisionFamilyExpiryResult {
+    const prefix = `${domain}:${revisionFamily}:`;
+    const expiredStateSubjectKeys: string[] = [];
+    for (const [key, state] of this.states) {
+      if (!key.startsWith(prefix)) continue;
+      const retentionMs = state.cancelled
+        ? retention.tombstoneRetentionMs
+        : retention.activeRetentionMs;
+      if (retentionMs != null && nowMs - state.acceptedAtMs > retentionMs) {
+        this.states.delete(key);
+        expiredStateSubjectKeys.push(key.slice(prefix.length));
+      }
+    }
+    for (const [subjectKey, state] of [...this.transientStates]) {
+      if (
+        state.domain === domain
+        && state.revisionFamily === revisionFamily
+        && nowMs - state.acceptedAtMs > state.retentionMs
+      ) {
+        this.deleteTransientState(subjectKey, state);
+        expiredStateSubjectKeys.push(subjectKey.startsWith(prefix)
+          ? subjectKey.slice(prefix.length)
+          : subjectKey);
       }
     }
     this.rearmCapacityWarning(domain, revisionFamily);
