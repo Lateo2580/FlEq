@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, vi, beforeAll, beforeEach, afterEach } from "vitest";
 import { restoreTsunamiState } from "../../src/engine/startup/tsunami-initializer";
 import { TsunamiStateHolder } from "../../src/engine/messages/tsunami-state";
 import { TelegramRevisionGate } from "../../src/engine/messages/telegram-revision-gate";
@@ -50,9 +50,13 @@ vi.mock("../../src/dmdata/telegram-parser", async (importOriginal) => {
 
 import { parseTsunamiTelegram } from "../../src/dmdata/telegram-parser";
 
-const actualParser = await vi.importActual<typeof import("../../src/dmdata/telegram-parser")>(
-  "../../src/dmdata/telegram-parser",
-);
+let actualParser: typeof import("../../src/dmdata/telegram-parser");
+
+beforeAll(async () => {
+  actualParser = await vi.importActual<typeof import("../../src/dmdata/telegram-parser")>(
+    "../../src/dmdata/telegram-parser",
+  );
+});
 
 const mockListTelegrams = vi.mocked(restClient.listTelegrams);
 const mockFetchTelegramBody = vi.mocked(restClient.fetchTelegramBody);
