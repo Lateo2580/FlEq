@@ -1,17 +1,17 @@
 # 実電文リプレイ注入基盤（最小版）
 
-> **裁定（2026-09-06 朝、ご主人）**: §3 の裁定点はすべて推奨案を採用。独立 DOC レビュー（Sol high、新規 read-only スレッド）2 巡で DOC-OK。
+> **裁定（2026-09-06、ご主人）**: §3 の方式は推奨案を採用する。追加裁定 **3A** により、Phase 1 は VPBS50 2 電文（予測→発生）を実 router → CLI → display で確認する範囲だけに固定する。独立 DOC レビュー（Sol high、新規 read-only スレッド）2 巡は DOC-OK。
 
 
-Status: draft / decision required
+Status: Phase 1 approved / scope locked by decision 3A
 
 ## 1. 目的と非対象
 
 ### 1.1 目的
 
-ローカルにある実 XML fixture を、dmdata WebSocket で受ける `WsDataMessage` と同じ封筒へ包み、通常の message router とその後段の engine、CLI 表示、実 display へ順番に注入する。これにより、実電文の発令を待たずに、少数の電文列が最終状態をどう置換するかを手元で再現・観察できるようにする。
+Phase 1 の目的は一つだけである。既存の `VPBS50_HJPNA202608270258.xml`（線状降水帯の直前予測）と `VPBS50_HJPNB202608270308.xml`（発生）を、dmdata WebSocket の `WsDataMessage` と同じ封筒へ無改変で包み、引数順に本番 message router 入口へ注入し、本番 formatter の CLI 出力と実 HTTP/SSE display が「予測 → 発生」の置換を示すことを再現・機械確認する。既存 helper も同じ対を実受信として扱っている（`test/helpers/mock-message.ts:354-356`）。
 
-最初の利用者は、VPBS50 の線状降水帯「直前予測 → 発生」置換である。候補 fixture は既存の `VPBS50_HJPNA202608270258.xml`（予測）と `VPBS50_HJPNB202608270308.xml`（発生）であり、既存 helper も同じ対を実受信として扱っている（`test/helpers/mock-message.ts:354-356`）。最小版はこの 2 通を、実 router と実 display で確認できればよい。
+Phase 1 は汎用 fixture replay の提供を目的にしない。受け付けるのは明示した 2 本・2 通・この順序だけであり、3 通以上の列、別の VPBS50 組合せ、別 head type、route 横断の TTL 整合は Phase 2 以降で改めて設計・監査する。ただし、この 2 通が到達する本番 router/CLI/display 経路は迂回せず、隔離、仮想 business time、SSE 同期点、quiescence は Phase 1 の成立条件とする。
 
 本機能はローカル fixture を同一マシン上の自画面へ流すだけであり、dmdata の受信電文を第三者へ再配信せず、外部へ listen もしない（loopback bind 固定）。dmdata 利用規約は「ユーザー以外に配信・報知」を二次利用と定義し、気象庁情報は特則がない限り二次利用可能とする一方、個人契約等での EEW 公開 API・第三者表示等には別の制限を置いている（[dmdata 利用規約](https://dmdata.jp/terms/)）。従って「loopback だから規約対象外」とは断定せず、最小版の利用を契約ユーザー本人のローカル確認に限定する。fixture、snapshot、transcript、capture の共有・配布、LAN bind、外部 API 化は機能外とし、EEW fixture を対象に加える段階で契約種別と最新規約を再確認する。
 
@@ -33,7 +33,7 @@ replay はこの二つを置き換えない。preview は速い視覚回帰、pr
 - CI 全面統合。本最小版ではローカルの明示実行と、狭い自動 test を追加するに留める。
 - 実 dmdata 接続、契約照会、REST 初期化・復元、更新確認、外部通知・音・外部送信。
 - OS 時刻の変更、または XML 内 `ReportDateTime` 等を現在へ雑に書き換えること。
-- Phase 1 での VPBS50 以外の処理。envelope は汎用形を保ってよいが、CLI は head type allowlist を `VPBS50` に固定し、未対応 type は runtime 構築前に fail-closed で拒否する。対象を増やす前に、その route 固有の clock/timer/副作用を別途監査する。
+- Phase 1 での汎用 fixture replay、任意の VPBS50、3 通以上の入力、VPBS50 以外の route。adapter は上記 2 fixture に必要な Control/Head 抽出だけを実装し、汎用 registry、type plugin、scenario abstraction を先回りで作らない。入力の件数・path・SHA-256・head type を runtime 構築前に fail-closed で検証し、対象を増やすときは route 固有の clock/timer/副作用を別途監査する。
 
 ## 2. 現行構造
 
@@ -98,7 +98,7 @@ raw JSON を偽 WebSocket へ流し、`WebSocketManager.handleDataMessage()` を
 
 **実装境界**
 
-`startMonitor()` の中に閉じている composition を、REST/WS import を持たない transport-neutral な `monitor-core` へ薄く抽出する。core factory は `inject(message)`、`flushReplayState()`、`snapshot()`、`stop()` を返す。通常 path の `monitor.ts` だけが `MultiConnectionManager` / REST 初期化群を import・生成して `inject` に委譲し、replay path は core だけを import する。これにより「constructor/connect/API call が 0」だけでなく、replay の静的 dependency graph に REST/WS module が無いことも module graph test で固定する。router 単体を外部から叩く構造にはせず、CLI formatter、display、persistence、shutdown の寿命は core が所有する。
+Phase 1 では `startMonitor()` 全体や transport-neutral `monitor-core` を抽出しない。VPBS50 専用の小さな replay runner が、production の `createMessageHandler` と CLI formatter/display sink、既存 display runtime を直接 composition し、`inject(message)`、`flushReplayState()`、`snapshot()`、`stop()` の寿命をこの case に限って所有する。runner は `monitor.ts`、REST/WS client、connection manager を import せず、通常 `startMonitor()` も変更しない。従って本番 router 以降は通しながら、静的 dependency graph と runtime spy の双方で外部接続を 0 にできる。二つ目の route を追加して共通 seam が実証された段階でのみ、Phase 2 で monitor composition の汎用抽出を裁定する。
 
 ### 3.2 裁定 2: 仮想時計と frontend の整合
 
@@ -106,26 +106,34 @@ raw JSON を偽 WebSocket へ流し、`WebSocketManager.handleDataMessage()` を
 
 `ReplayClock` は epoch milliseconds を一つだけ持ち、各 fixture 注入前に XML の `ReportDateTime` へ advance する。欠損・不正・時刻逆行は CLI error とし、`--allow-time-regression` は作らない。XML 本体は一切書き換えない。`--interval` は人が遷移を見るための **wall-clock pacing** だけであり、business time には使わない。同じ入力なら pacing 値にかかわらず同じ final state になる。
 
-clock と対になる `ReplayScheduler` も DI する。clock advance のたびに deadline、登録 ordinal の順で「現在の virtual time までに due になった callback」を同期 drain する。最終 flush は message aggregator / correlator と display dirty state を明示的に flush するが、将来の TTL まで時計を進めない。通常実行の default は `Date.now` / native timer のままとする。環境変数や process-wide fake timer は使わない。
+clock と対になる小さな `ReplayScheduler` も DI する。これは Phase 1 の 2 通から実際に到達する correlator と display dirty state のためだけのもので、全 route の timer abstraction ではない。clock advance のたびに deadline、登録 ordinal の順で「現在の virtual time までに due になった callback」を同期 drain する。最終 flush は到達済み buffer と display dirty state を明示的に flush するが、将来の TTL まで時計を進めない。通常実行の default は `Date.now` / native timer のままとする。環境変数や process-wide fake timer は使わない。
 
-Phase 1 の支配範囲は次で固定する。非 test source にある全ての `Date.now()` を機械的に置換する計画ではない。代わりに VPBS50 path と、その path から到達可能な state/timer を仮想時計へ入れ、未監査 route は allowlist で拒否する。
+Phase 1 の支配範囲は次で固定する。非 test source にある全ての `Date.now()` を機械的に置換せず、固定した VPBS50 2 通の実行で到達する state/timer だけを仮想時計へ入れる。この表は全 route の TTL 整合を保証するものではない。
 
 | 箇所 | Phase 1 の分類 | 実装・理由 |
 | --- | --- | --- |
 | fixture envelope の receipt、router envelope の `ingressObservedAtMs`、router stats/admission | **仮想時計** | `WsDataMessage.meta.receivedAtMs` と router clock を同じ `ReplayClock` にする。router の現行 direct read（`src/engine/messages/message-router.ts:1878-1882`）も DI 対象。 |
 | `SummaryWindowTracker` / `DailyQuakeCounter` | **仮想時計** | VPBS50 を含む全 outcome の共通経路で、router は現在時刻を省略して両者の `record()` を呼ぶ（`src/engine/messages/message-router.ts:1070-1073`）。replay では `DailyQuakeCounter` constructor、両 `record()`、両 `getSnapshot()` に必ず `ReplayClock.nowMs()` を渡し、optional 引数の `Date.now()` fallback（`src/engine/messages/summary-tracker.ts:33-34, 60-62`、`src/engine/messages/daily-quake-counter.ts:44-45, 54-56, 109-110`）を一度も通さない。 |
-| VPBS50 parse/revision、briefing active state、standby TTL/sweep、persistence timestamp | **仮想時計** | 今回の business state。XML report time と receipt time の双方を無改変・明示管理する。periodic sweep は止め、clock advance 時と final flush 時だけ実行する。 |
+| 固定 2 通の VPBS50 parse/revision、briefing active state、当該 entry の TTL/sweep、persistence timestamp | **仮想時計** | 今回の business state に限定する。XML report time と receipt time の双方を無改変・明示管理する。periodic sweep は起動せず、この entry について clock advance 時と final flush 時だけ評価する。 |
 | legacy counterpart correlator | **仮想時計 + ReplayScheduler** | VPBS50 path から到達し得る one-shot timer。現行 timer owner（`src/engine/messages/legacy-counterpart-correlator.ts:147`）へ clock/scheduler を渡し、final flush hook を持たせる。 |
-| display receipt、hub/store、transport が生成する SSE timestamp、state debounce/retry/sweep | **仮想時計 + ReplayScheduler** | `generatedAt`、expiry、最終 `state` frame を同じ clock にする。hub の debounce/retry は native timer を使わず、`flushReplayState()` で明示 drain する。 |
-| frontend の中央/帯時計、mode/expiry/date 導出、HeatAlert の日付更新 | **仮想時計** | protocol に `clock: { mode: "replay", now }` を追加し、`createClock()` と `HeatAlertCard` の `now` をそこから受ける。replay mode の日次 4 時 reload は無効化する（HeatAlert の現行 direct read は `display/frontend/src/components/HeatAlertCard.svelte:16-20`）。 |
-| VPWS50 recap timestamp | **Phase 1 非対応・fail-closed** | business state に影響する現行 direct read（`src/engine/messages/vpws50-state.ts:753`）がある。DI と test を追加するまで `VPWS50` を allowlist に入れない。wall clock のまま replay することは許可しない。 |
-| volcano VFVO53 batch timer | **Phase 1 非対応・fail-closed** | batch deadline/scheduler（`src/engine/messages/volcano-vfvo53-aggregator.ts:127`）を DI するまで volcano type を許可しない。wall clock のまま replay することは許可しない。 |
+| 固定 2 通で変化する display receipt、hub/store、SSE timestamp、state debounce/retry | **仮想時計 + ReplayScheduler** | `generatedAt`、当該 briefing の expiry、最終 `state` frame を同じ clock にする。hub の pending dirty/debounce/retry は native timer に残さず、`flushReplayState()` で明示 drain する。 |
+| frontend の中央時計と、固定 2 通の briefing 表示に使う mode/expiry/date 導出 | **仮想時計** | protocol に `clock: { mode: "replay", now }` を追加し、App の business `now` を server から受ける。固定 case に現れない card 固有時計や全画面の TTL までは Phase 1 の保証対象にしない。 |
 | HTTP listen/close、SSE heartbeat、`--interval` pacing、Ctrl-C 待ち | **wall clock 許容** | business state / canonical artifact に値を入れない I/O 制御だけに使う。SSE heartbeat は `ping` だけを送り、probe は比較対象から除外する。timeout は canonical JSON に含めない。 |
 | CSS animation、`requestAnimationFrame`、ticker lane の移動、capture/font settle | **wall clock 許容** | 視覚的な進行だけに使用し、mode/expiry/date/final snapshot を決めない。capture を gate に上げる段階では browser/font を固定する。 |
 
+Phase 2 以降へ送る clock 対象は次のとおりである。Phase 1 では「wall clock のまま replay 可能」とはせず、そもそも入力を受け付けない。
+
+| Phase 2 以降の対象 | 送る理由 |
+| --- | --- |
+| 任意の VPBS50 列と、standby 全体の TTL/sweep | 固定 2 通以外の revision、取消、expiry をまだ検証しないため。 |
+| VPWS50 recap timestamp | 現行 direct read（`src/engine/messages/vpws50-state.ts:753`）と route 固有 test が必要なため。 |
+| volcano VFVO53 batch timer | batch deadline/scheduler（`src/engine/messages/volcano-vfvo53-aggregator.ts:127`）の DI が必要なため。 |
+| HeatAlert の日付更新、その他 card/route の mode・expiry・timer | 現行 direct read（例: `display/frontend/src/components/HeatAlertCard.svelte:16-20`）を route ごとに棚卸しし、backend と一組で test する必要があるため。 |
+| 全 route 共通の clock/scheduler abstraction、全 TTL 整合 | 二つ目以降の実例から共通境界を抽出し、未使用の抽象化を先回りで作らないため。 |
+
 router は多くの統計/入場処理で `msg.meta.receivedAtMs` を優先する（例: `src/engine/messages/message-router.ts:1782-1862`）が、それだけでは足りない。display receipt clock（`src/engine/messages/message-router.ts:803-819`）、hub の `now` / `monotonicNow`、timer scheduler まで同じ replay control plane に載せる。
 
-frontend は OS 時刻を変えない。server の additive clock field を表示 business time の真実源にし、通常 mode の browser wall clock は従来どおり保つ。最も難しい点は、backend の TTL/expiry と frontend の日付・expiry を揃えつつ、animation と I/O の wall time を分離することである。この表の「wall clock 許容」は、その値が canonical state または表示上の業務日時へ流入しないことを test で証明できる場合に限る。
+frontend は OS 時刻を変えない。server の additive clock field を表示 business time の真実源にし、通常 mode の browser wall clock は従来どおり保つ。Phase 1 で最も難しい点は、固定 briefing の backend TTL/expiry と frontend の日付・expiry を揃えつつ、animation と I/O の wall time を分離することである。この表の「wall clock 許容」は、その値が固定 case の canonical state または表示上の業務日時へ流入しないことを test で証明できる場合に限る。
 
 wire は `DisplayStateSnapshotV1` に optional additive fields `clock: { mode: "replay"; now: string }` と `replay: { step: number; total: number; inputDigest: string }` を加える。通常 runtime は両 field を省略し、既存 client との互換を保つ。initial `snapshot` は step 0、各 inject 後は step を進め、final `state` は step === total とする。`inputDigest` は順序付き fixture bytes と head type から作るため run ごとに変わらない。
 
@@ -145,10 +153,10 @@ wire は `DisplayStateSnapshotV1` に optional additive fields `clock: { mode: "
 
 **選択肢 B — 専用 `fleq replay` subcommand（推奨）**
 
-`fleq replay <fixture.xml> [fixture.xml ...]` を root command とは別に定義する。replay 専用 options は次だけに絞る。
+`fleq replay <prediction.xml> <occurrence.xml>` を root command とは別に定義する。Phase 1 は positional argument をちょうど 2 本に固定し、既知 path/SHA-256、`VPBS50` head type、時刻順を runtime 構築前に検査する。replay 専用 options は次だけに絞る。
 
 ```text
-fleq replay <fixture.xml> [fixture.xml ...]
+fleq replay <prediction.xml> <occurrence.xml>
   --state-dir <dir>       必須。空の専用 directory
   --display-port <port>   既定 0（OS が空き port を選ぶ）。7788 は常に拒否
   --interval <ms>         電文間の wall-clock 待ち。既定 1000、test は 0
@@ -174,7 +182,7 @@ REST client、WebSocket client、`MultiConnectionManager` は replay dependency 
 
 **選択肢 A — 引数列挙 + `--interval` のみ（推奨）**
 
-最小版は CLI に書いた順をそのまま順序とする。XML 内の report time は fixture 本文に残し、clock policy は 3.2 の規則で決める。初回は次のように実行する。
+Phase 1 は CLI に書いた 2 引数の順をそのまま順序とし、1 本目を既知の予測 fixture、2 本目を既知の発生 fixture に固定する。XML 内の report time は fixture 本文に残し、clock policy は 3.2 の規則で決める。実行形は次だけである。
 
 ```sh
 fleq replay \
@@ -184,13 +192,13 @@ fleq replay \
   --display-port 0 --hold
 ```
 
-`--interval` は注入間の wall-clock pacing であって、business clock の相対 offset や XML 改変機能ではない。各注入の直前に business clock はその XML の `ReportDateTime` へ進む。fixture path は checkout 内の `test/fixtures/` または引数で明示したローカル XML に限り、directory 走査・glob 展開はしない。
+`--interval` は注入間の wall-clock pacing であって、business clock の相対 offset や XML 改変機能ではない。各注入の直前に business clock はその XML の `ReportDateTime` へ進む。Phase 1 は上記 checkout 内の 2 file だけを受け付け、directory 走査、glob、別 path の同名 file、任意ローカル XML は受け付けない。
 
 **選択肢 B — 最小 scenario file**
 
 YAML/JSON に fixtures と interval を書く。繰返しには便利だが、schema、読込元、相対 path、将来の assert 項目を決め始めると最小版を越える。初回の予測→発生は 2 引数で十分なので後回しにする。
 
-最小版では A だけを実装する。3 本以上の代表シナリオを手で回す段階で、引数列を losslessly 表せる JSONL manifest を検討する。その時も DSL にはしない。
+Phase 1 では A のうち固定 2 引数だけを実装する。任意の引数列と最小 JSONL manifest の比較は Phase 2 へ送り、その時も DSL にはしない。
 
 ### 3.5 裁定 5: 検証の形
 
@@ -206,7 +214,7 @@ runner 自身が loopback HTTP client を持ち、server 起動後に次の barr
 2. runner 内部の probe client が `GET /events` へ接続し、最初の **`snapshot`** event（注入前、`replay.step === 0`）を受け取る。ここを `replay.ready` とする。
 3. fixture を注入する。`--hold` のときだけ、internal probe とは別の外部 SSE client が 1 件接続するまで fixture step 1 を始めないため、人が予測→発生の遷移を見られる。
 4. 最終注入後に `flushReplayState()` を呼ぶ。これは router/persistence の同期 work、due 済みの `ReplayScheduler` task、message buffer、hub の pending dirty/debounce/retry を bounded loop で drain し、将来の TTL へ時計を進めず、最終 **`state`** event を 1 回強制送信する。
-5. internal probe が `state` event のうち `replay.step === total`、`inputDigest`、`seq` が flush result と一致する frame を受け取るまで待つ。その frame の JSON `snapshot` member を固定 `<state-dir>/final-state.json` として保存し、core の authoritative snapshot と canonical equality を確認する。
+5. internal probe が `state` event のうち `replay.step === total`、`inputDigest`、`seq` が flush result と一致する frame を受け取るまで待つ。その frame の JSON `snapshot` member を固定 `<state-dir>/final-state.json` として保存し、replay runtime の authoritative snapshot と canonical equality を確認する。
 
 この内部 probe により、`--hold` なしで server がすぐ閉じても subprocess harness が観測競争を起こさない。また初回の空 `snapshot` を final state と誤認しない。外側の test harness は process exit 後に固定 artifact と transcript を検証できる。`/events` は既存 endpoint のままで、新たな HTTP snapshot endpoint は増やさない。
 
@@ -218,34 +226,31 @@ canonicalization は object key 順だけを正規化し、意味のある時刻
 
 ### 3.6 実行順と停止
 
-1. CLI は fixture 引数、`VPBS50` allowlist、state directory、port を validate する。この時点で 7788、non-loopback、通常 runtime root、API key/config fallback を拒否する。
+1. CLI は 2 fixture の件数・既知 path/SHA-256・`VPBS50` head type・時刻順、state directory、port を validate する。この時点で入力差異、7788、non-loopback、通常 runtime root、API key/config fallback を拒否する。
 2. fixture XML を UTF-8 で読み、XML envelope から Head/Control を取得して stable ID 付き `WsDataMessage` に包む。本文は無圧縮 UTF-8 とし、adapter と router の両方で `normalizeTelegramMessage` を通す。gzip/base64 の test helper を流用しない（helper は test convenience であり、`passing.time` に壁時計も使う。`test/helpers/mock-message.ts:627-680`）。
 3. replay runtime を空の state root、state-dir 指定 cache、no-op EEW logger/notifier、`ReplayClock` / `ReplayScheduler` で組み立てる。REPL、通常 manager、REST startup、periodic business timer は起動しない。実 CLI 出力は production router の formatter 経路で stdout と固定 `cli.txt` に出す。
 4. display server を loopback / dynamic port で起動する。actual port が 7788 なら publish 前に close/retry する。内部 client が `/healthz` と注入前 SSE `snapshot` を観測してから `replay.ready` URL を出す。`--hold` なら外部 SSE client をもう 1 件待つ。
 5. fixture を引数順に一通ずつ処理する。XML report time へ clock を advance、due task drain、inject、`--interval` の wall wait、の順に行う。各 inject 後に `replay.injected` JSONL record（ordinal, fixture hash, business time, router route）を state dir に残す。
-6. `flushReplayState()` で quiescence を確定し、内部 probe が対応する最終 SSE `state` を受け取る。その JSON の `snapshot` member を固定 `final-state.json` へ保存して core snapshot と比較し、state-dir 相対 path だけを持つ `replay.final` を `events.jsonl` の3行目に書く。
+6. `flushReplayState()` で quiescence を確定し、内部 probe が対応する最終 SSE `state` を受け取る。その JSON の `snapshot` member を固定 `final-state.json` へ保存して replay runtime snapshot と比較し、state-dir 相対 path だけを持つ `replay.final` を `events.jsonl` の3行目に書く。
 7. `--hold` なしなら display/runtime を orderly stop して exit 0。`--hold` なら Ctrl-C まで最終表示を維持し、終了時も専用 state dir だけを flush する。
 
 ## 4. 対象ファイル
 
-実装時に想定する最小変更範囲。命名は実装時に近傍の style に合わせる。
+追加裁定 3A 後の Phase 1 変更範囲である。命名と同居/分割は実装時に近傍の style に合わせるが、汎用化のためだけに file を増やさない。
 
 | 区分 | 対象 | 役割 |
 | --- | --- | --- |
-| CLI | `src/engine/cli/cli.ts` | `replay` subcommand を root run から独立して登録する。通常の display options は現在 root command にある（`src/engine/cli/cli.ts:62-80`）。 |
-| CLI | `src/engine/cli/cli-replay.ts`（新規） | 引数/allowlist/隔離 validation、runner 起動、内部 HTTP/SSE probe、固定 artifact 出力。`cli-run.ts` を再利用しない。 |
-| envelope | `src/engine/replay/fixture-envelope.ts`（新規） | XML → 正規化済み `WsDataMessage`、stable ID、classification 推定、strict report time。 |
-| clock | `src/engine/replay/replay-clock.ts`, `replay-scheduler.ts`（新規） | 明示的に advance する clock、due task の順序付き drain、wall pacing との分離。 |
-| composition | `src/engine/monitor/monitor-core.ts`（新規）、`monitor.ts` | REST/WS-free core を抽出し、通常 transport と local inject が同じ router/display composition を使う。通常接続の入口は現状 `startMonitor`（`src/engine/monitor/monitor.ts:284-307`）。 |
-| router | `src/engine/messages/message-router.ts` | ingress/statistics/display receipt clock、scheduler、cache、EEW logger、notifier の DI。実三者は現在ここで無条件生成される（`src/engine/messages/message-router.ts:803-828`）。 |
-| buffer | `src/engine/messages/legacy-counterpart-correlator.ts` | VPBS50 path の clock/scheduler と final flush hook。 |
-| cache/side effects | `src/engine/messages/vpwp50-detail-cache.ts`、`src/engine/replay/replay-side-effects.ts`（新規） | cache root を state-dir へ向け、no-op EEW logger/notifier を提供する。前者は現行 `persistRoot` をそのまま利用できる場合は参照・test 対象のみ。 |
-| persistence | `src/engine/monitor/monitor-core.ts` と関係する persistence constructors | `process.cwd()/data/runtime` 直書きを injected state root に集約する。 |
-| display backend | `src/engine/display/runtime.ts`, `hub.ts`, `transport.ts`, protocol | now/monotonic clock/scheduler、explicit quiescence flush、actual port 7788 guard、replay metadata。hub 自体は既に `deps.now` を受けられる（`src/engine/display/hub.ts:114-126`）。 |
-| display frontend | `display/frontend/src/lib/clock.svelte.ts`, `App.svelte`, `components/HeatAlertCard.svelte`, protocol mirror | server business clock の受領、expiry/date への配線、replay 中の日次 reload 抑止。 |
-| tests | `test/engine/replay/*.test.ts`、display 側の最小 test | envelope、module graph/side-effect 隔離、clock/scheduler/quiescence、SSE barrier、2 XML final state、7788 explicit/actual guard を固定する。 |
+| CLI | `src/engine/cli/cli.ts`、`src/engine/cli/cli-replay.ts`（新規） | root run と独立した固定 2 引数 command、隔離 validation、runner 起動、内部 HTTP/SSE probe、固定 artifact 出力。`cli-run.ts` を再利用しない。通常の display options は現在 root command にある（`src/engine/cli/cli.ts:62-80`）。 |
+| VPBS50 replay | `src/engine/replay/vpbs50-envelope.ts`、`vpbs50-runner.ts`（新規、単一 file への同居可） | 既知 2 fixture の XML → 正規化済み `WsDataMessage`、stable ID、strict report time と、router/CLI/display の限定 composition。汎用 classification registry は作らない。 |
+| replay control | `src/engine/replay/replay-clock.ts`、`replay-side-effects.ts`（新規、単一 file への同居可） | 固定 case で到達する clock/scheduler、state-dir root、no-op EEW logger/notifier、quiescence ownership。 |
+| router | `src/engine/messages/message-router.ts` | 固定 path の ingress/statistics/display receipt clock、cache、EEW logger、notifier の DI。実三者は現在ここで無条件生成される（`src/engine/messages/message-router.ts:803-828`）。 |
+| buffer | `src/engine/messages/legacy-counterpart-correlator.ts` | 固定 VPBS50 path の clock/scheduler と final flush hook。 |
+| cache contract | `src/engine/messages/vpwp50-detail-cache.ts` | 既存 `persistRoot` を state-dir へ渡す契約の参照/test 対象。契約が足りる限り production file は変更せず、変更 file 数にも数えない。 |
+| display backend | `src/engine/display/runtime.ts`, `hub.ts`, `types.ts`。`transport.ts` は原則参照/test 対象 | 固定 case の now handoff、explicit quiescence flush、SSE replay metadata。actual port は既存 `transport.port()`（`src/engine/display/transport.ts:109-111`）を runner が start 直後に検査して close/retry し、契約が足りる限り transport 自体は変更しない。hub は既に `deps.now` を受けられる（`src/engine/display/hub.ts:114-126`）。 |
+| display frontend | `display/frontend/src/lib/clock.svelte.ts`, `lib/protocol.ts`, `App.svelte` | server business clock を固定 VPBS50 briefing の表示へ渡す。`HeatAlertCard` その他 route/card は変更しない。 |
+| tests | `test/engine/replay/*.test.ts`、display/frontend 側の固定 case test | 既知 2 envelope、module graph/side-effect 隔離、到達 clock/quiescence、SSE barrier、final state、7788 explicit/actual guard を固定する。 |
 
-対象外の既存 fixture XML、preview fixture、capture baseline をこの段階で変更しない。
+対象外の既存 fixture XML、preview fixture、capture baseline をこの段階で変更しない。`monitor.ts` / `monitor-core` の汎用 composition 抽出、`VPWS50`・火山等の route owner、`HeatAlertCard`、全 TTL の frontend/backend 配線も Phase 2 以降であり、Phase 1 の対象ファイル数に含めない。
 
 ## 5. 受入条件
 
@@ -253,10 +258,10 @@ canonicalization は object key 順だけを正規化し、意味のある時刻
 
 ### 5.1 封筒と経路
 
-- allowlist 内の VPBS50 fixture XML 1 本から作った値が `WsDataMessage` の必須 fields を満たし、`format === "xml"`、`compression === null`、`encoding === "utf-8"`、正規化済み `meta.receivedAtMs` を持つ。
+- 既知の VPBS50 fixture 2 本から個別に作った値が `WsDataMessage` の必須 fields を満たし、`format === "xml"`、`compression === null`、`encoding === "utf-8"`、正規化済み `meta.receivedAtMs` を持つ。
 - その message は router の public handler に 1 回渡り、route tap に 1 回だけ記録される。parser/processor を直接 call してはならない。
 - VPBS50 の予測→発生 2 本を順序どおりに渡すと、final snapshot の briefing/standby entry は発生状態を示し、予測の stale entry を残さない。`events.jsonl` は `replay.injected` 2 records と `replay.final` 1 record の順で、合計 3 records になる。
-- `VPWS50`、火山、EEW を含む VPBS50 以外の fixture は、state/cache/runtime を作る前に unsupported type として non-zero exit する。
+- 引数 1/3 本、逆順、既知 path/SHA-256 と異なる VPBS50、`VPWS50`、火山、EEW は、state/cache/runtime を作る前に unsupported scenario として non-zero exit する。
 
 ### 5.2 隔離の証明
 
@@ -271,49 +276,49 @@ canonicalization は object key 順だけを正規化し、意味のある時刻
 
 - XML bytes は起動前後で完全一致する。`ReportDateTime`、`EventID`、serial を rewrite しない。
 - 同じ fixture sequence を別の空 state dir で 2 回実行し、一方は `--interval 0`、他方は非ゼロにする。canonical `final-state.json` と、相対 path だけを持つ全3 records の `events.jsonl` の SHA-256 が一致し、wall pacing や state-dir absolute path が business state に混入しない。
-- snapshot の `generatedAt` と replay clock field、各 injected message の `meta.receivedAtMs` は、選んだ clock policy に従い一致する。frontend の日付・時計表示も同じ ISO/JST 時刻を読む unit/integration test を持つ。
+- snapshot の `generatedAt` と replay clock field、各 injected message の `meta.receivedAtMs` は、選んだ clock policy に従い一致する。固定 briefing と frontend 中央時計も同じ ISO/JST 時刻を読む unit/integration test を持つ。固定 case に現れない card/route の時刻はこの assertion に含めない。
 - VPBS50 outcome でも `SummaryWindowTracker.record/getSnapshot` と `DailyQuakeCounter` constructor/record/getSnapshot が受け取る時刻はすべて replay clock と一致し、時刻省略 fallback を spy で 0 call と確認する。
 - host の時刻を変更せずに過去 fixture を実行しても、TTL が直ちに失効して空表示にならない。business clock を最終電文時刻で止めた snapshot が残る。
 - final `flushReplayState()` 後は router queue、due `ReplayScheduler` tasks、message buffers、persistence reservation、hub dirty/debounce/retry が空である。同じ clock のまま 2 回目の flush を呼んでも snapshot hash/seq は不変で、新しい SSE `state` event を送らない。
-- wall clock を 2 種類の大きく異なる値へ stub して同じ run を行っても canonical state は一致する。3.2 の「wall clock 許容」以外で direct read が起きた場合は test を失敗させる。
+- wall clock を 2 種類の大きく異なる値へ stub して同じ run を行っても canonical state は一致する。固定 2 通から到達する経路で、3.2 の「wall clock 許容」以外の direct read が起きた場合は test を失敗させる。この条件を未到達 route 全体の Clock 対応済み宣言には使わない。
 
 ### 5.4 CLI と実 display
 
 - `fleq replay ... --display-port 0` は ready URL、actual port、final snapshot path を stdout に明示する。
 - runner 内部の `GET <url>/healthz` は 200 と `{ "ok": true }` を返し、その後に SSE 接続を開始する。
 - `GET <url>/events` の最初の event は注入前の `snapshot` / step 0 である。注入はこの受信後にしか始まらない。
-- final 比較対象は「最初の state」ではなく、`step === total`、`inputDigest`、`seq` が flush result と一致する注入後の `state` event である。その JSON の `snapshot` member が `final-state.json` および core snapshot と canonical equality になる。これを「実 display server へ届いた」機械的証拠とする。
-- 最小 VPBS50 case の `snapshot` / `state` は SSE size ladder の縮退 level 0 で送られ、wire の snapshot member と core snapshot が同形である。
+- final 比較対象は「最初の state」ではなく、`step === total`、`inputDigest`、`seq` が flush result と一致する注入後の `state` event である。その JSON の `snapshot` member が `final-state.json` および replay runtime snapshot と canonical equality になる。これを「実 display server へ届いた」機械的証拠とする。
+- 最小 VPBS50 case の `snapshot` / `state` は SSE size ladder の縮退 level 0 で送られ、wire の snapshot member と replay runtime snapshot が同形である。
 - `--hold` 実行では internal probe 以外の SSE client 接続後に初回 inject し、browser が予測→発生の両 step と最終 state を受け取れる。最小版の capture は手動でよいが、将来 gate 化するときは browser executable/version、viewport、font assets、reduced-motion、settle 条件を固定する。
 
 ## 6. 段階
 
-### Phase 1 — 最小版
+### Phase 1 — 裁定 3A: 固定 VPBS50 2 通
 
-`fleq replay`、XML envelope adapter、専用 state root/cache、loopback dynamic display port、no-op EEW logger/notifier、明示 clock/scheduler、quiescence flush、SSE `snapshot`/`state` barrier を実装する。対象は VPBS50 の予測→発生 2 本のみで、他 type は fail-closed にする。通常 `fleq`、preview、production gate の仕様は変えない。
+`fleq replay` は既知の予測・発生 fixture をこの順にちょうど 2 本だけ受ける。VPBS50 専用 envelope/runner、実 router/CLI/display、専用 state root へ明示 DI した `Vpwp50DetailCache`、DI した no-op EEW logger/notifier、loopback dynamic port と actual-7788 guard、到達範囲だけの clock/scheduler、SSE 注入前 `snapshot` barrier・注入後 correlated `state`、冪等 quiescence flush を一体で実装・test する。固定 pair の CLI transcript と発生へ置換された final state を機械確認できた時点で完了とし、通常 `fleq`、preview、production gate は変えない。
 
-### Phase 2 — 線状降水帯ケースを定着
+### Phase 2 — 汎用化と route ごとの Clock 拡張
 
-予測→発生の snapshot expectation を専用 integration test として固定し、`--interval` の有無を検証する。実 display URL を使う小さな capture recipe を docs に足す。ここでも scenario DSL は追加しない。
+任意のローカル fixture、任意の VPBS50 列、3 通以上の列を初めて検討し、引数列または最小 manifest を裁定する。追加する route ごとに backend/frontend の business clock、TTL、scheduler、永続化、副作用を棚卸しし、まず VPBS50 の取消・更新、次に VPWS50 recap、HeatAlert 等を個別に仮想時計へ入れる。二つ目の route で共通化の根拠が得られた場合だけ、transport-neutral monitor composition や汎用 fixture envelope を抽出する。
 
 ### Phase 3 — 代表シナリオ追加
 
-地震、津波、火山、気象警報などから、置換・取消・寿命判定を代表する少数の引数列を追加する。3 本以上で引数列の可読性が限界になった場合だけ、引数列を lossless に保存する最小 JSONL manifest を裁定する。CI/capture 全面統合はその後に別 spec とする。
+地震、津波、火山、気象警報などから、置換・取消・寿命判定を代表する少数の列を追加する。火山 batch 等の route 固有 timer は各 scenario と同時に DI/test し、全 TTL 整合を route 横断で宣言するのはこの棚卸し完了後とする。capture の二段 gate、全 capture suite 移行、CI 全面統合は別裁定・別 spec とする。
 
-## 7. 裁定ラベル（案）
+## 7. 裁定ラベル
 
 ### 7.1 一括裁定する 6 要素
 
-朝の一括裁定用。各ラベルは実装 issue の acceptance heading にそのまま使える。
+採択済みの方式と追加裁定 3A の境界を、実装 issue の acceptance heading にそのまま使える形で固定する。
 
-| Label | 決めること | 提案 |
+| Label | 決めること | 採択内容 |
 | --- | --- | --- |
 | R1 `ingress` | 注入点 | A: connection manager 直後の `routeMessage` 入口 |
-| R2 `clock` | business time の所有と frontend handoff | A: 明示 Clock DI + protocol の replay clock field |
+| R2 `clock` | business time の所有と frontend handoff | A: 明示 Clock DI + protocol の replay clock field。ただし Phase 1 は固定 2 通から到達する owner だけ |
 | R3 `isolation` | state/cache/events/logger/notifier/port の境界 | B: 専用 `fleq replay`、state dir 必須、loopback + guarded port 0、実 sinks 無生成 |
-| R4 `input` | 電文列の記法 | A: fixture 引数順 + wall pacing の optional `--interval` のみ |
+| R4 `input` | 電文列の記法 | A/3A: 既知の予測・発生 fixture を順序固定の 2 引数 + optional wall pacing `--interval`。任意列は Phase 2 |
 | R5 `verification` | 最小の end-to-end gate | B: `/healthz` + 注入前 SSE `snapshot` barrier + 注入後 final `state` compare |
-| R6 `first-case` | 最初に固定する業務ケース | VPBS50 線状降水帯の予測→発生、2 fixture、XML は無改変 |
+| R6 `first-case` | 最初に固定する業務ケース | **3A 採択**: VPBS50 線状降水帯の予測→発生 2 fixture だけ。XML 無改変、汎用 replay・他 route・全 TTL は Phase 2 以降 |
 
 ### 7.2 独立 DOC レビュー指摘の反映方針
 
@@ -325,12 +330,12 @@ canonicalization は object key 順だけを正規化し、意味のある時刻
 | D2 / High: subprocess 観測 race | **a** | runner 内部 SSE probe の接続・initial `snapshot` 受信を inject 前 barrier にした。`--hold` は外部 client も待つ（§3.5, §3.6）。 |
 | D3 / High: `Vpwp50DetailCache` 隔離 | **a** | default constructor/path/cleanup を禁止し、state-dir 指定 cache を DI する。通常 root の file list/hash/mtime も検査する（§2.2, §3.3, §5.2）。 |
 | D4 / High: EEW logger / Notifier 隔離 | **a** | 両者を DI port 化し、replay では実 constructor を呼ばない no-op sink にする（§3.3, §4, §5.2）。 |
-| D5 / High: Clock DI 到達範囲 | **a** | Phase 1 の virtual clock/scheduler、共通 owner の `SummaryWindowTracker` / `DailyQuakeCounter`、unsupported fail-closed、wall clock 許容を表で分離した（§3.2, §5.3）。 |
+| D5 / High: Clock DI 到達範囲 | **a** | Phase 1 固定 2 通の virtual clock/scheduler、共通 owner の `SummaryWindowTracker` / `DailyQuakeCounter`、wall clock 許容を表で分離した。VPWS50/火山/HeatAlert 等は 3A に従い Phase 2 以降の要監査項目として列挙した（§3.2, §5.3）。 |
 | D6 / High: `--snapshot-out` 越境 | **a** | option を削除し、`<state-dir>/final-state.json` 固定にした（§3.3, §5.2）。 |
 | D7 / Medium: port 0 が 7788 | **a** | bind 後 actual port も検査し、注入前 close/retry、3 回で失敗する（§3.3, §3.6, §5.2）。 |
-| D8 / Medium: REST/WS import graph | **a** | transport-neutral core を別 module へ抽出し、replay graph から REST/WS import を除く。module graph と runtime spy の二段で証明する（§3.1, §3.3, §5.2）。 |
+| D8 / Medium: REST/WS import graph | **a** | Phase 1 専用 runner を `monitor.ts` から独立させ、replay graph から REST/WS import を除く。module graph と runtime spy の二段で証明し、汎用 core 抽出自体は 3A により Phase 2 へ送る（§3.1, §3.3, §5.2）。 |
 | D9 / Medium: quiescence 不足 | **a** | manual scheduler と冪等 `flushReplayState()`、最終 `state` correlation を必須にした（§3.2, §3.5, §5.3）。 |
-| D10 / Medium: 見積りが楽観的 | **a** | cache/sinks/scheduler/core extraction/frontend 配線と対象ファイル表の字面を含む規模へ更新した（「概算」）。 |
+| D10 / Medium: 見積りが楽観的 | **a** | 隔離、到達 clock/scheduler、quiescence/SSE、固定 case の frontend 配線を残し、3A で外した汎用 core・他 route・全 TTL を除いて再積算した（§4, 「概算」）。 |
 | D11 / Medium: 規約の断定 | **a** | 対象外と断定せず、本人・loopback 限定、共有機能外、EEW 追加時の再確認に修正した（§1.1）。 |
 
 ### 7.3 再レビュー残点の反映方針
@@ -339,8 +344,14 @@ canonicalization は object key 順だけを正規化し、意味のある時刻
 | --- | --- | --- |
 | RD1 / Medium: 共通 clock owner | **a** | `SummaryWindowTracker` と `DailyQuakeCounter` の constructor/record/snapshot を replay clock に固定し、fallback 0 call を受入条件にした（§3.2, §5.3）。 |
 | RD2 / Medium: `events.jsonl` count/path | **a** | `replay.injected` 2 + `replay.final` 1 の全3 records、fixture は checkout-relative・cache/artifact は state-dir-relative、固定順を schema と受入条件にした（§3.3, §3.6, §5.1--5.3）。 |
-| RD3 / Low: file-count 上限 | **a** | 対象ファイル表の既知最大19 files を包含する 18--20 files へ概算を更新した。既存 `Vpwp50DetailCache` は変更不要なら参照/test 対象のみと注記した（§4, 「概算」）。 |
+| RD3 / Low: file-count 上限 | **a** | 3A 後の対象表を再集計し、同居/分割と既存 transport 契約の再利用を含む production 12--15 files とした。既存 `Vpwp50DetailCache` は変更不要なら参照/test 対象のみで、変更数に含めない（§4, 「概算」）。 |
+
+### 7.4 追加裁定の反映方針
+
+| ID | 方針 | 反映内容 |
+| --- | --- | --- |
+| Decision 3A / Phase 1 scope | **a** | Phase 1 を既知 VPBS50 2 通の実 router → CLI → display E2E に固定した。汎用 fixture replay、任意列、全 TTL、VPWS50/火山等の route Clock、汎用 monitor core を Phase 2 以降へ移し、隔離・7788 guard・SSE barrier・quiescence は Phase 1 に残した（§1, §3, §4, §6, §7）。 |
 
 ## 概算
 
-VPBS50 2 電文だけへ fail-closed に絞っても、Phase 1 は production code **18--20 files**（新規 6 前後、既存 12--14）と test **6--8 files**、計およそ **1,600--2,400 行**を見込む。対象ファイル表の字面上の既知最大は新規6 + 既存13 = 19 files であり、この範囲に収まる。増分の中心は transport-neutral core 抽出、cache/logger/notifier DI、共通 owner を含む clock + scheduler、hub quiescence/SSE probe、frontend business-clock 配線である。VPWS50 recap、火山 batch、EEW 等の replay 対応はこの見積りに含めない。
+追加裁定 3A の Phase 1 は production code **12--15 files**（新規 3--5、既存 9--10）と test **4--6 files**、合計 **16--21 files / 約 900--1,500 行**を見込む。新規 file 数の幅は envelope/runner と clock/side-effects を同居させるか、既存 file 数の幅は `transport.port()` 契約を無変更で再利用できるかで生じる。増分の中心は固定 2 通 runner、cache/logger/notifier DI、共通 owner を含む到達 clock、actual-7788 guard、hub quiescence/SSE probe、固定 briefing だけの frontend clock handoff である。汎用 fixture replay、monitor core 抽出、任意 VPBS50、全 TTL、VPWS50 recap、HeatAlert、火山 batch、EEW route は含めず Phase 2 以降で別途見積もる。
