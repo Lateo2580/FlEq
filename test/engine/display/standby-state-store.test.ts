@@ -3491,6 +3491,7 @@ describe("StandbyStateStore: linear-rain observed forecast replacement", () => {
 
   it("older observedとsame-revision conflictはprediction・watermark・generation・callbackを変えない", () => {
     const warn = vi.spyOn(log, "warn").mockImplementation(() => undefined);
+    warn.mockClear();
     const store = new StandbyStateStore();
     store.applyEvent(linearRainBriefingEvent("observed", "o-a", t(12), "1", [A]), Date.parse(t(12)));
     store.applyEvent(linearRainBriefingEvent("predicted", "p-b", t(10), "1", [B]), Date.parse(t(12)) + 1);
@@ -3628,6 +3629,7 @@ describe("StandbyStateStore: linear-rain observed forecast replacement", () => {
     const beforeCard = structuredClone(store.snapshotBriefingCard());
     const generation = store.briefingCardGeneration();
     const warn = vi.spyOn(log, "warn").mockImplementation(() => undefined);
+    warn.mockClear();
 
     expect(store.applyBriefingCardEvent(linearRainBriefingEvent(
       "predicted", "p-oversized", t(10), "1", areas,
@@ -3813,6 +3815,7 @@ describe("StandbyStateStore: linear-rain observed forecast replacement", () => {
       store.exportActiveState().briefingCritical!.linearRainForecastReplacementWatermarks,
     );
     const warn = vi.spyOn(log, "warn").mockImplementation(() => undefined);
+    warn.mockClear();
 
     store.applyBriefingCardEvent(linearRainBriefingEvent("observed", "o-cap", t(11), "1", [A]), Date.parse(t(11)));
 
@@ -3850,6 +3853,7 @@ describe("StandbyStateStore: linear-rain observed forecast replacement", () => {
     const predictionBefore = structuredClone(entry(store, "linearRainPredicted"));
     const replacementsBefore = structuredClone(internals.linearRainForecastReplacementWatermarks);
     const warn = vi.spyOn(log, "warn").mockImplementation(() => undefined);
+    warn.mockClear();
 
     const result = store.applyBriefingCardEvent(
       linearRainBriefingEvent("observed", "o-entry-capacity", t(11), "1", [A]),
