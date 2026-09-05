@@ -66,6 +66,8 @@ npm run start:lowmem # メモリ最適化モードで実行
 - **実装委譲時は作業契約を必須とする**: 目的・完了条件・対象/非対象範囲・allowed_paths・base_oid 固定・禁止 git 操作・成果物は patch のみ（`git diff --binary --no-ext-diff`）。検証不能時は blocked 報告を認める（成功扱いにしない）
 - 委譲環境は使い捨て clone で用意し、依存準備は `npm ci --ignore-scripts` を標準とする
 - 委譲の段階導入・意味的手直し率の判定閾値は運用側メモ（memory `reference_model_division_v1`）を参照
+- **display/frontend の実装委譲は Phase 0（規範読み込み）を最初の成果物にする**: `docs/specs/display-design-system.md`・`theme.css`・header/footer 統一 spec・錨カードを読み、使うトークンと倣う錨の file:line を申告してから実装（2026-09-05、規範を読まない類推実装で乖離 11 件が積み上がった経緯）
+- **ブラウザ capture の実走は親（Liebe）が担う**: 子の sandbox は listen 不可。子は records に対する `--assert-from` で assertion を検証する
 - **スコープ**: repo 全体ではなく diff 単位に絞る
 - **形式**: file:line 付きの構造化出力・確信度を求める。スタイルのみの指摘は不要と伝える
 - **最終判断**: 人間が採否を決める
