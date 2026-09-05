@@ -39,7 +39,7 @@
       {@const visual = intensityVisual(q.maxIntSemantic, formatIntShort(q.maxInt), q.maxIntRank)}
       {@const magnitude = magnitudeVisual(q.magnitudeSemantic, q.magnitude)}
       {@const depth = depthVisual(q.depthSemantic, q.depth)}
-      <li>
+      <li data-recent-quake-id={recentQuakeId(q)}>
         <button class="row" type="button" onclick={(e) => handleClick(e, q)}>
           <span class="row-main">
             {#if visual.render}<span class="int-chip int-r{visual.colorRank ?? 0}" class:special-unknown={visual.colorClass === "quake-map-unknown"} class:special-empty={visual.colorClass === "quake-map-neutral"} title={visual.tooltip ?? undefined} aria-label={visual.ariaLabel ?? undefined}>{visual.label ?? ""}{#if visual.badge != null}<b class="semantic-badge">{visual.badge}</b>{/if}</span>{/if}

@@ -137,7 +137,13 @@ export const DOCUMENT_CAPTURE_EXPRESSION = String.raw`(async () => {
     attentionVisible: document.querySelector('[data-preview-attention-visibility]')?.getAttribute('data-preview-attention-visibility') === 'true',
     emergencyPanelCount: panels.length,
     emergencyGeometryValid,
-    viewport: { innerWidth: window.innerWidth, innerHeight: window.innerHeight, devicePixelRatio: window.devicePixelRatio },
+    viewport: {
+      innerWidth: window.innerWidth,
+      innerHeight: window.innerHeight,
+      clientWidth: document.documentElement.clientWidth,
+      clientHeight: document.documentElement.clientHeight,
+      devicePixelRatio: window.devicePixelRatio,
+    },
     dom: doctype + document.documentElement.outerHTML,
     stableDom: doctype + stableRoot.outerHTML,
   };

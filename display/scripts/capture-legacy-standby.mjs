@@ -37,7 +37,7 @@ const MIME_TYPES = new Map([
 
 function usage(message) {
   if (message != null) process.stderr.write(`${message}\n`);
-  process.stderr.write("Usage: node scripts/capture-legacy-standby.mjs [--report] [--write-report PATH] [--assert-capture-report PATH] [--expect-suite normal|design-alignment] [--expect-viewport-mode legacy-control|calibrated] [--expect-cells N] [--expect-mismatches N] [--verify-legacy-expectation-digest SHA256] [--viewport-mode legacy-control|calibrated] [--suite design-alignment] [--write-baseline PATH|--baseline-report PATH] [--assert-from PATH] [--fixture overflow|rotation|cluster|cluster-calm|tornado-pages|tornado-aggregate|tornado-clip|tornado-epoch-release|recent-quakes-narrow|attention-visibility-standby|attention-visibility-emergency|attention-visibility-reduced-motion|briefing-pages|briefing-single-page] [--url URL] [--scenario quiet|4|7|max|max-floodWide] [--viewport WIDTHxHEIGHT] [--out-dir PATH]\n");
+  process.stderr.write("Usage: node scripts/capture-legacy-standby.mjs [--report] [--write-report PATH] [--assert-capture-report PATH] [--expect-suite normal|design-alignment|center-stack-pregate] [--expect-viewport-mode legacy-control|calibrated] [--expect-cells N] [--expect-mismatches N] [--verify-legacy-expectation-digest SHA256] [--viewport-mode legacy-control|calibrated] [--suite design-alignment|center-stack-pregate] [--write-baseline PATH|--baseline-report PATH] [--assert-from PATH] [--fixture overflow|rotation|cluster|cluster-calm|tornado-pages|tornado-aggregate|tornado-clip|tornado-epoch-release|recent-quakes-narrow|attention-visibility-standby|attention-visibility-emergency|attention-visibility-reduced-motion|briefing-pages|briefing-single-page] [--url URL] [--scenario quiet|4|7|max|max-floodWide] [--viewport WIDTHxHEIGHT] [--out-dir PATH]\n");
   process.exitCode = 2;
 }
 
@@ -85,7 +85,7 @@ export function parseCaptureArgs(argv) {
 }
 
 export function viewportModeForSuite(options) {
-  return options.suite === "design-alignment" && !options.viewportModeExplicit ? "calibrated" : options.viewportMode;
+  return ["design-alignment", "center-stack-pregate"].includes(options.suite) && !options.viewportModeExplicit ? "calibrated" : options.viewportMode;
 }
 
 function parseViewport(value) {
@@ -329,6 +329,137 @@ export async function collectNormalSnapshot({ evaluate }) {
   return withDocumentEvidence(await evaluate(atomicSnapshotExpression({
     document: DOCUMENT_CAPTURE_EXPRESSION,
     liveGeometry: LIVE_GEOMETRY_EXPRESSION,
+  })));
+}
+
+export const CENTER_STACK_PREGATE_SUITE = "center-stack-pregate";
+export const CENTER_STACK_PREGATE_MANIFEST = Object.freeze(
+  ["1920x1080", "1280x720", "960x620"].flatMap((viewport) => [1, 2].map((repetition) => ({
+    recordKey: `standby-briefing-${viewport}-repeat-${repetition}`,
+    scenario: "standby-briefing",
+    viewport,
+    repetition,
+  }))),
+);
+
+const CENTER_STACK_PREGATE_EXPRESSION = String.raw`(async () => {
+  await (document.fonts?.ready ?? Promise.resolve());
+  const rect = (node) => node == null ? null : (() => {
+    const value = node.getBoundingClientRect();
+    return {
+      x: value.x, y: value.y, left: value.left, top: value.top,
+      right: value.right, bottom: value.bottom, width: value.width, height: value.height,
+      clientWidth: node.clientWidth, clientHeight: node.clientHeight,
+      scrollWidth: node.scrollWidth, scrollHeight: node.scrollHeight,
+    };
+  })();
+  const union = (boxes) => boxes.length === 0 ? null : {
+    x: Math.min(...boxes.map((box) => box.left)),
+    y: Math.min(...boxes.map((box) => box.top)),
+    left: Math.min(...boxes.map((box) => box.left)),
+    top: Math.min(...boxes.map((box) => box.top)),
+    right: Math.max(...boxes.map((box) => box.right)),
+    bottom: Math.max(...boxes.map((box) => box.bottom)),
+    width: Math.max(...boxes.map((box) => box.right)) - Math.min(...boxes.map((box) => box.left)),
+    height: Math.max(...boxes.map((box) => box.bottom)) - Math.min(...boxes.map((box) => box.top)),
+  };
+  const identities = (root) => root == null ? [] : [...root.querySelectorAll('[data-recent-quake-id]')]
+    .map((node) => node.getAttribute('data-recent-quake-id'));
+  const root = document.querySelector('.standby');
+  const screenArea = document.querySelector('.screen-area');
+  const tickerFrame = document.querySelector('.ticker-frame');
+  const tickerRoot = tickerFrame?.querySelector('.ticker') ?? null;
+  const tickerRows = [...(tickerFrame?.querySelectorAll('.ticker-row') ?? [])];
+  const tickerRowRects = tickerRows.map(rect).filter((value) => value != null);
+  const shelfRecent = root?.querySelector('.center-measure-shelf > .quakes-card') ?? null;
+  const shelfStats = root?.querySelector('.center-measure-shelf > .instrument-row-wrap') ?? null;
+  const liveRecentCandidates = [...(root?.querySelectorAll('[data-layout-motion-card="recent-quakes:center"]') ?? [])];
+  const liveRecent = liveRecentCandidates[0] ?? null;
+  const liveStats = root?.querySelector('[data-layout-motion-card="stats:center"]') ?? null;
+  const liveConnection = root?.querySelector('[data-layout-motion-card="connection:center"]') ?? null;
+  const clock = root?.querySelector('.clock-face') ?? null;
+  const nankai = root?.querySelector('.nankai-ticker') ?? null;
+  const activeLiveSelector = liveRecent?.closest('.clock-landmark') != null
+    ? '.clock-landmark [data-layout-motion-card="recent-quakes:center"]'
+    : liveRecent?.closest('.center-card-region') != null
+      ? '.center-card-region [data-layout-motion-card="recent-quakes:center"]'
+      : null;
+  const centerWidth = (node) => node == null ? null : ({
+    token: getComputedStyle(node).getPropertyValue('--center-width').trim(),
+    resolvedPx: node.getBoundingClientRect().width,
+  });
+  const surface = (node) => node == null ? null : (() => {
+    const style = getComputedStyle(node);
+    return {
+      compressed: node.closest('.standby')?.classList.contains('ladder-compressed') ?? null,
+      tokens: Object.fromEntries(['--edge', '--gap', '--space-1', '--space-2', '--space-3', '--space-4', '--space-5', '--center-width']
+        .map((name) => [name, style.getPropertyValue(name).trim()])),
+    };
+  })();
+  const fonts = [...(document.fonts ?? [])]
+    .map((font) => ({ family: font.family, style: font.style, weight: font.weight, stretch: font.stretch, status: font.status }))
+    .sort((left, right) => JSON.stringify(left).localeCompare(JSON.stringify(right)));
+  const attributes = (node, names) => Object.fromEntries(names.map((name) => [name, node?.getAttribute(name) ?? null]));
+  const diagnostics = attributes(root, [
+    'data-ladder-stage', 'data-layout-unresolved', 'data-measurement-settled',
+    'data-measurement-nonconverged', 'data-measurement-epoch', 'data-measurement-pass',
+    'data-geometry-violation-count', 'data-center-cluster-hidden',
+    'data-placement-left', 'data-placement-right', 'data-placement-center',
+    'data-rotation-keys', 'data-rotation-active-key', 'data-rotation-position',
+  ]);
+  return {
+    screenArea: rect(screenArea),
+    standby: rect(root),
+    ticker: {
+      frame: rect(tickerFrame), root: rect(tickerRoot), rows: tickerRowRects, rowUnion: union(tickerRowRects),
+    },
+    centerStack: {
+      clock: rect(clock),
+      shelf: { recent: rect(shelfRecent), stats: rect(shelfStats), connection: null },
+      live: { recent: rect(liveRecent), stats: rect(liveStats), connection: rect(liveConnection) },
+      activeLiveSelector,
+      activeLiveCount: liveRecentCandidates.length,
+      quakes: {
+        shelfIdentities: identities(shelfRecent),
+        liveIdentities: identities(liveRecent),
+        shelfCount: identities(shelfRecent).length,
+        liveCount: identities(liveRecent).length,
+        orderMatches: JSON.stringify(identities(shelfRecent)) === JSON.stringify(identities(liveRecent)),
+      },
+      surface: { shelf: surface(shelfRecent), live: surface(liveRecent) },
+      centerWidth: { shelf: centerWidth(shelfRecent), live: centerWidth(liveRecent) },
+      nankai: rect(nankai),
+      diagnostics,
+      plan: {
+        stage: diagnostics['data-ladder-stage'],
+        placement: {
+          left: diagnostics['data-placement-left'],
+          right: diagnostics['data-placement-right'],
+          center: diagnostics['data-placement-center'],
+        },
+        rotation: {
+          keys: diagnostics['data-rotation-keys'],
+          activeKey: diagnostics['data-rotation-active-key'],
+          position: diagnostics['data-rotation-position'],
+        },
+        hidden: diagnostics['data-center-cluster-hidden'],
+      },
+    },
+    fonts: { status: document.fonts?.status ?? null, signature: fonts },
+    payload: {
+      hash: window.location.hash,
+      search: window.location.search,
+      previewMode: document.querySelector('.preview-screen')?.getAttribute('data-preview-mode') ?? null,
+      tier: document.querySelector('.preview-screen')?.getAttribute('data-tier') ?? null,
+      backgroundTone: document.querySelector('.preview-screen')?.getAttribute('data-background-tone') ?? null,
+    },
+  };
+})()`;
+
+export async function collectCenterStackPregateSnapshot({ evaluate }) {
+  return withDocumentEvidence(await evaluate(atomicSnapshotExpression({
+    document: DOCUMENT_CAPTURE_EXPRESSION,
+    pregateGeometry: CENTER_STACK_PREGATE_EXPRESSION,
   })));
 }
 
@@ -869,6 +1000,300 @@ export function assertCaptureRecordSchemaV2(record, label = "capture record") {
   assertViewportContract(record.capture.viewportMode, record.viewport, measured);
 }
 
+function pregateApprox(actual, expected, tolerance, label) {
+  if (!Number.isFinite(actual) || !Number.isFinite(expected) || Math.abs(actual - expected) > tolerance) {
+    throw new Error(`${label}: expected ${expected} ±${tolerance}, got ${actual}`);
+  }
+}
+
+function pregateRequiredDiagnostic(diagnostics, name, label, { allowEmpty = false } = {}) {
+  const raw = diagnostics?.[name];
+  if (typeof raw !== "string" || (!allowEmpty && raw === "")) throw new Error(`${label}: ${name} missing`);
+  return raw;
+}
+
+function pregateNonNegativeIntegerDiagnostic(diagnostics, name, label) {
+  const raw = pregateRequiredDiagnostic(diagnostics, name, label);
+  if (!/^(0|[1-9]\d*)$/.test(raw)) throw new Error(`${label}: ${name} must be a canonical non-negative integer`);
+  return Number(raw);
+}
+
+function pregateStageDiagnostic(diagnostics, label) {
+  const raw = pregateRequiredDiagnostic(diagnostics, "data-ladder-stage", label);
+  if (!/^[0-3]$/.test(raw)) throw new Error(`${label}: data-ladder-stage must be one of 0, 1, 2, or 3`);
+  return Number(raw);
+}
+
+function pregateRect(box, label) {
+  if (box == null) throw new Error(`${label}: rect missing`);
+  for (const key of ["left", "top", "right", "bottom", "width", "height"]) {
+    if (!Number.isFinite(box[key])) throw new Error(`${label}.${key}: non-finite rect`);
+  }
+  return box;
+}
+
+function pregateContains(outer, inner, tolerance, label) {
+  if (inner.left < outer.left - tolerance || inner.top < outer.top - tolerance
+    || inner.right > outer.right + tolerance || inner.bottom > outer.bottom + tolerance) {
+    throw new Error(`${label}: inner rect escapes outer rect`);
+  }
+}
+
+function pregateRectUnion(rects) {
+  const boxes = rects.filter((box) => box != null);
+  if (boxes.length === 0) return null;
+  const left = Math.min(...boxes.map((box) => box.left));
+  const top = Math.min(...boxes.map((box) => box.top));
+  const right = Math.max(...boxes.map((box) => box.right));
+  const bottom = Math.max(...boxes.map((box) => box.bottom));
+  return { x: left, y: top, left, top, right, bottom, width: right - left, height: bottom - top };
+}
+
+function pregateIntersectionArea(left, right) {
+  return Math.max(0, Math.min(left.right, right.right) - Math.max(left.left, right.left))
+    * Math.max(0, Math.min(left.bottom, right.bottom) - Math.max(left.top, right.top));
+}
+
+export function deriveCenterStackPregateMetrics(record) {
+  const geometry = record?.geometry;
+  const ticker = geometry?.ticker;
+  const center = geometry?.centerStack;
+  const standby = pregateRect(geometry?.standby, "pregate standby");
+  const frame = pregateRect(ticker?.frame, "pregate ticker frame");
+  const root = pregateRect(ticker?.root, "pregate ticker root");
+  const rowUnion = pregateRect(ticker?.rowUnion, "pregate ticker row union");
+  const clock = pregateRect(center?.clock, "pregate clock");
+  const recentShelf = pregateRect(center?.shelf?.recent, "pregate recent shelf");
+  const recentLive = pregateRect(center?.live?.recent, "pregate recent live");
+  const tickerOccupiedRect = pregateRectUnion([frame, root, rowUnion]);
+  if (tickerOccupiedRect == null) throw new Error("pregate ticker occupied rect missing");
+  const boundaryTopPx = center?.nankai == null ? standby.bottom : pregateRect(center.nankai, "pregate nankai").top;
+  const lowerCapacityPx = Math.max(0, boundaryTopPx - clock.bottom);
+  const lowerRequiredPx = (center?.shelf?.stats?.height ?? 0) + recentShelf.height;
+  const lowerDeficitPx = Math.max(0, lowerRequiredPx - lowerCapacityPx);
+  const lowerLiveOverflowPx = Math.max(0, recentLive.bottom - boundaryTopPx);
+  const connection = center?.live?.connection;
+  const upperCapacityPx = Math.max(0, clock.top - standby.top);
+  const upperRequiredPx = connection == null ? 0 : Math.max(0, clock.top - pregateRect(connection, "pregate connection").top);
+  const upperDeficitPx = Math.max(0, upperRequiredPx - upperCapacityPx);
+  return {
+    tickerOccupiedRect,
+    tickerOccupiedTop: tickerOccupiedRect.top,
+    recentTickerOverlapAreaPx: pregateIntersectionArea(recentLive, tickerOccupiedRect),
+    budget: {
+      boundaryTopPx,
+      lower: { capacityPx: lowerCapacityPx, requiredPx: lowerRequiredPx, deficitPx: lowerDeficitPx, liveOverflowPx: lowerLiveOverflowPx },
+      upper: { capacityPx: upperCapacityPx, requiredPx: upperRequiredPx, deficitPx: upperDeficitPx },
+    },
+  };
+}
+
+function assertPregateDerivedFields(record, derived, label) {
+  pregateApprox(record.geometry?.ticker?.occupiedTop, derived.tickerOccupiedTop, 1, `${label} ticker occupied top`);
+  pregateApprox(record.geometry?.ticker?.recentOverlapAreaPx, derived.recentTickerOverlapAreaPx, 1, `${label} recent/ticker overlap area`);
+  const stored = record.geometry?.centerStack?.budget;
+  pregateApprox(stored?.boundaryTopPx, derived.budget.boundaryTopPx, 1, `${label} boundary top`);
+  for (const side of ["lower", "upper"]) {
+    for (const field of ["capacityPx", "requiredPx", "deficitPx"]) {
+      pregateApprox(stored?.[side]?.[field], derived.budget[side][field], 1, `${label} ${side} ${field}`);
+    }
+  }
+  pregateApprox(stored?.lower?.liveOverflowPx, derived.budget.lower.liveOverflowPx, 1, `${label} lower live overflow`);
+}
+
+function assertPregateRecord(record, label) {
+  assertCaptureRecordSchemaV2(record, label);
+  if (record.capture?.viewportMode !== "calibrated") throw new Error(`${label}: calibrated capture required`);
+  if (typeof record.recordKey !== "string" || record.recordKey === "") throw new Error(`${label}: recordKey missing`);
+  if (![1, 2].includes(record.repetition)) throw new Error(`${label}: repetition missing`);
+  const viewport = record.geometry.viewport;
+  for (const [field, expected] of [["innerWidth", record.viewport.width], ["innerHeight", record.viewport.height], ["clientWidth", record.viewport.width], ["clientHeight", record.viewport.height]]) {
+    pregateApprox(viewport[field], expected, 1, `${label} viewport ${field}`);
+  }
+  if (viewport.devicePixelRatio !== 1) throw new Error(`${label}: DPR must be 1`);
+  const readiness = record.geometry.readiness;
+  if (readiness.fontsLoaded !== true || readiness.stableSampleCount !== 2 || readiness.measurementSettled !== true) throw new Error(`${label}: stable readiness incomplete`);
+  const evidence = record.captureEvidence;
+  if (evidence?.stableSampleCount !== 2 || evidence.stableSamplesMatch !== true || evidence.screenshotStateMatch !== true
+    || !Array.isArray(evidence.stableSampleHashes) || evidence.stableSampleHashes.length !== 2
+    || evidence.stableSampleHashes[0] !== evidence.stableSampleHashes[1]
+    || evidence.preScreenshotHash !== evidence.postScreenshotHash) {
+    throw new Error(`${label}: screenshot/stable sample evidence incomplete`);
+  }
+  if (record.geometry.fonts?.status !== "loaded" || !Array.isArray(record.geometry.fonts?.signature)) throw new Error(`${label}: font status/signature missing`);
+  const center = record.geometry.centerStack;
+  const diagnostics = center?.diagnostics;
+  if (diagnostics?.["data-measurement-settled"] !== "true" || diagnostics?.["data-measurement-nonconverged"] !== "false") {
+    throw new Error(`${label}: settled/nonconverged diagnostics invalid`);
+  }
+  if (diagnostics?.["data-layout-unresolved"] !== "false") throw new Error(`${label}: unresolved diagnostic invalid`);
+  const stage = pregateStageDiagnostic(diagnostics, label);
+  pregateNonNegativeIntegerDiagnostic(diagnostics, "data-measurement-epoch", label);
+  pregateNonNegativeIntegerDiagnostic(diagnostics, "data-measurement-pass", label);
+  pregateNonNegativeIntegerDiagnostic(diagnostics, "data-geometry-violation-count", label);
+  pregateRequiredDiagnostic(diagnostics, "data-center-cluster-hidden", label, { allowEmpty: true });
+  for (const name of ["data-placement-left", "data-placement-right", "data-placement-center", "data-rotation-keys"]) {
+    pregateRequiredDiagnostic(diagnostics, name, label, { allowEmpty: true });
+  }
+  for (const name of ["data-rotation-active-key", "data-rotation-position"]) {
+    const raw = diagnostics?.[name];
+    if (raw != null && typeof raw !== "string") throw new Error(`${label}: ${name} must be a string or null`);
+  }
+  const expectedPlan = {
+    stage: diagnostics["data-ladder-stage"],
+    placement: {
+      left: diagnostics["data-placement-left"], right: diagnostics["data-placement-right"], center: diagnostics["data-placement-center"],
+    },
+    rotation: {
+      keys: diagnostics["data-rotation-keys"], activeKey: diagnostics["data-rotation-active-key"], position: diagnostics["data-rotation-position"],
+    },
+    hidden: diagnostics["data-center-cluster-hidden"],
+  };
+  if (canonicalJsonStringify(center.plan) !== canonicalJsonStringify(expectedPlan)) throw new Error(`${label}: plan evidence mismatch`);
+  const screenArea = pregateRect(record.geometry.screenArea, `${label} screenArea`);
+  const standby = pregateRect(record.geometry.standby, `${label} standby`);
+  const frame = pregateRect(record.geometry.ticker?.frame, `${label} ticker frame`);
+  const tickerRoot = pregateRect(record.geometry.ticker?.root, `${label} ticker root`);
+  const rows = record.geometry.ticker?.rows;
+  if (!Array.isArray(rows) || rows.length !== 2) throw new Error(`${label}: exactly two ticker rows required`);
+  rows.forEach((row, index) => pregateContains(frame, pregateRect(row, `${label} ticker row ${index}`), 1, `${label} ticker row ${index}`));
+  const rowUnion = pregateRect(record.geometry.ticker?.rowUnion, `${label} ticker row union`);
+  pregateContains(frame, tickerRoot, 1, `${label} ticker root`);
+  pregateContains(frame, rowUnion, 1, `${label} ticker row union`);
+  if (!Number.isFinite(tickerRoot.clientHeight) || !Number.isFinite(tickerRoot.scrollHeight)
+    || tickerRoot.scrollHeight > tickerRoot.clientHeight + 1) throw new Error(`${label}: ticker root scroll overflow`);
+  pregateApprox(screenArea.bottom, standby.bottom, 1, `${label} screenArea/standby boundary`);
+  pregateApprox(standby.bottom, frame.top, 1, `${label} standby/ticker frame boundary`);
+  const derived = deriveCenterStackPregateMetrics(record);
+  pregateApprox(standby.bottom, derived.tickerOccupiedTop, 1, `${label} standby/ticker occupied boundary`);
+  assertPregateDerivedFields(record, derived, label);
+  const recentShelf = pregateRect(center?.shelf?.recent, `${label} recent shelf`);
+  const recentLive = pregateRect(center?.live?.recent, `${label} recent live`);
+  pregateApprox(recentShelf.width, recentLive.width, 1, `${label} recent shelf/live width`);
+  pregateApprox(recentShelf.height, recentLive.height, 1, `${label} recent shelf/live height`);
+  const quakes = center?.quakes;
+  if (!Array.isArray(quakes?.shelfIdentities) || quakes.shelfIdentities.length !== 5
+    || quakes.shelfCount !== 5 || quakes.liveCount !== 5 || quakes.orderMatches !== true
+    || canonicalJsonStringify(quakes.shelfIdentities) !== canonicalJsonStringify(quakes.liveIdentities)) {
+    throw new Error(`${label}: shelf/live quake identity count/order mismatch`);
+  }
+  const expectedSelector = stage === 0
+    ? '.clock-landmark [data-layout-motion-card="recent-quakes:center"]'
+    : '.center-card-region [data-layout-motion-card="recent-quakes:center"]';
+  if (center.activeLiveCount !== 1 || center.activeLiveSelector !== expectedSelector) throw new Error(`${label}: active live selector mismatch`);
+  const shelfSurface = center.surface?.shelf;
+  const liveSurface = center.surface?.live;
+  if (typeof shelfSurface?.compressed !== "boolean" || typeof liveSurface?.compressed !== "boolean") throw new Error(`${label}: compressed surface evidence missing`);
+  if (shelfSurface.compressed !== liveSurface.compressed) throw new Error(`${label}: compressed surface mismatch`);
+  const surfaceTokenNames = ["--edge", "--gap", "--space-1", "--space-2", "--space-3", "--space-4", "--space-5", "--center-width"];
+  for (const [surfaceName, observed] of [["shelf", shelfSurface], ["live", liveSurface]]) {
+    for (const name of surfaceTokenNames) {
+      if (typeof observed.tokens?.[name] !== "string" || observed.tokens[name] === "") throw new Error(`${label}: ${surfaceName} surface token ${name} missing`);
+    }
+  }
+  if (canonicalJsonStringify(shelfSurface.tokens) !== canonicalJsonStringify(liveSurface.tokens)) throw new Error(`${label}: computed surface token mismatch`);
+  const shelfWidth = center.centerWidth?.shelf;
+  const liveWidth = center.centerWidth?.live;
+  if (typeof shelfWidth?.token !== "string" || shelfWidth.token === "" || shelfWidth.token !== liveWidth?.token) throw new Error(`${label}: --center-width token mismatch`);
+  pregateApprox(shelfWidth.resolvedPx, recentShelf.width, 1, `${label} shelf --center-width`);
+  pregateApprox(liveWidth?.resolvedPx, recentLive.width, 1, `${label} live --center-width`);
+  return derived;
+}
+
+function pregateNumericProjection(value, path = "", result = {}) {
+  if (typeof value === "number") result[path] = value;
+  else if (Array.isArray(value)) value.forEach((entry, index) => pregateNumericProjection(entry, `${path}[${index}]`, result));
+  else if (value != null && typeof value === "object") {
+    for (const [key, entry] of Object.entries(value)) pregateNumericProjection(entry, path === "" ? key : `${path}.${key}`, result);
+  }
+  return result;
+}
+
+function assertPregateRepetitionPair(records, viewport) {
+  if (records.length !== 2) throw new Error(`${viewport} repetitions: expected exactly two records`);
+  const [first, second] = records;
+  const label = `${viewport} repetitions`;
+  for (const [field, project] of [
+    ["browser", (record) => record.browser],
+    ["font signature", (record) => record.geometry.fonts],
+    ["payload", (record) => record.geometry.payload],
+    ["quake identity/order", (record) => record.geometry.centerStack.quakes],
+    ["active surface", (record) => ({ selector: record.geometry.centerStack.activeLiveSelector, surface: record.geometry.centerStack.surface })],
+    ["plan", (record) => record.geometry.centerStack.plan],
+  ]) {
+    if (canonicalJsonStringify(project(first)) !== canonicalJsonStringify(project(second))) throw new Error(`${label}: ${field} mismatch`);
+  }
+  const left = pregateNumericProjection(first.geometry);
+  const right = pregateNumericProjection(second.geometry);
+  if (canonicalJsonStringify(Object.keys(left).sort()) !== canonicalJsonStringify(Object.keys(right).sort())) throw new Error(`${label}: numeric field placement mismatch`);
+  for (const key of Object.keys(left)) pregateApprox(right[key], left[key], 1, `${label} ${key}`);
+}
+
+function pregateGeometryViolationCount(record) {
+  return pregateNonNegativeIntegerDiagnostic(
+    record.geometry?.centerStack?.diagnostics,
+    "data-geometry-violation-count",
+    record.recordKey ?? "center-stack-pregate record",
+  );
+}
+
+function assertPregateManifestRecord(record, entry, label) {
+  const expectedViewport = parseViewport(entry.viewport);
+  if (record.recordKey !== entry.recordKey || record.scenario !== entry.scenario || record.repetition !== entry.repetition || record.fixture !== null) {
+    throw new Error(`${label}: manifest identity mismatch`);
+  }
+  if (record.viewport?.label !== expectedViewport.label || record.viewport?.width !== expectedViewport.width || record.viewport?.height !== expectedViewport.height) {
+    throw new Error(`${label}: manifest viewport mismatch`);
+  }
+  if (record.urlIdentity !== "/preview.html?nav=0#standby-briefing") throw new Error(`${label}: target URL identity mismatch`);
+  const payload = record.geometry?.payload;
+  if (payload?.hash !== "#standby-briefing" || payload?.search !== "?nav=0" || payload?.previewMode !== "standby") {
+    throw new Error(`${label}: target payload mismatch`);
+  }
+  if (record.capture?.sessionRole !== "primary") throw new Error(`${label}: primary capture session required`);
+}
+
+export function assertCenterStackPregateReport(report) {
+  if (report?.schemaVersion !== CAPTURE_SCHEMA_VERSION || report?.suite !== CENTER_STACK_PREGATE_SUITE || !Array.isArray(report.records)) {
+    throw new Error("invalid center-stack-pregate report");
+  }
+  const expectedKeys = CENTER_STACK_PREGATE_MANIFEST.map((entry) => entry.recordKey);
+  const actualKeys = report.records.map((record) => record.recordKey);
+  if (canonicalJsonStringify(actualKeys) !== canonicalJsonStringify(expectedKeys)) throw new Error("center-stack-pregate manifest coverage/order mismatch");
+  const derivedByKey = new Map();
+  report.records.forEach((record, index) => {
+    const label = `center-stack-pregate record ${index}`;
+    assertPregateManifestRecord(record, CENTER_STACK_PREGATE_MANIFEST[index], label);
+    derivedByKey.set(record.recordKey, assertPregateRecord(record, label));
+  });
+  for (const viewport of ["1920x1080", "1280x720", "960x620"]) {
+    assertPregateRepetitionPair(report.records.filter((record) => record.viewport.label === viewport), viewport);
+  }
+  const hd = report.records.filter((record) => record.viewport.label === "1280x720");
+  const isN = hd.every((record) => {
+    const derived = derivedByKey.get(record.recordKey);
+    return record.geometry.centerStack.live.recent.bottom <= derived.tickerOccupiedTop + 1
+      && derived.recentTickerOverlapAreaPx === 0 && derived.budget.lower.deficitPx <= 1
+      && pregateGeometryViolationCount(record) === 0;
+  });
+  const isR = hd.every((record) => {
+    const derived = derivedByKey.get(record.recordKey);
+    return record.geometry.centerStack.live.recent.bottom > derived.tickerOccupiedTop + 1
+      && derived.recentTickerOverlapAreaPx > 0 && derived.budget.lower.deficitPx > 1
+      && record.geometry.centerStack.diagnostics["data-ladder-stage"] === "0"
+      && Math.abs(derived.budget.lower.deficitPx - derived.budget.lower.liveOverflowPx) <= 1;
+  });
+  if (isN) {
+    for (const record of report.records.filter((entry) => entry.viewport.label === "1920x1080")) {
+      const derived = derivedByKey.get(record.recordKey);
+      if (derived.recentTickerOverlapAreaPx !== 0 || pregateGeometryViolationCount(record) !== 0) throw new Error("1920x1080 N branch geometry gate failed");
+    }
+    return { branch: "N", records: report.records };
+  }
+  if (isR) return { branch: "R", records: report.records };
+  throw new Error("center-stack-pregate 1280x720 is neither a valid N nor R branch");
+}
+
 export function assertCaptureReport(report, expectations = {}) {
   if (report?.schemaVersion !== CAPTURE_SCHEMA_VERSION) throw new Error("capture report wrapper schemaVersion must be 2");
   const suite = report.suite ?? "normal";
@@ -879,13 +1304,14 @@ export function assertCaptureReport(report, expectations = {}) {
   if (expectations.expectViewportMode != null && records.some((record) => record.capture.viewportMode !== expectations.expectViewportMode)) throw new Error(`capture report viewport mode mismatch: expected ${expectations.expectViewportMode}`);
   if (expectations.expectCells != null && records.length !== expectations.expectCells) throw new Error(`capture report cell count mismatch: expected ${expectations.expectCells}, got ${records.length}`);
   for (const [index, record] of records.entries()) {
-    const expectedPolicy = suite === "design-alignment" ? "fixture-assertions-only" : captureExpectationPolicy(record.fixture, record.scenario, record.viewport.label);
+    const expectedPolicy = ["design-alignment", CENTER_STACK_PREGATE_SUITE].includes(suite) ? "fixture-assertions-only" : captureExpectationPolicy(record.fixture, record.scenario, record.viewport.label);
     if (record.expectationPolicy !== expectedPolicy) throw new Error(`${suite} record ${index}: expectation policy mismatch`);
     if (!Array.isArray(record.mismatches)) throw new Error(`${suite} record ${index}: mismatches missing`);
   }
   const mismatchCount = records.reduce((sum, record) => sum + record.mismatches.length, 0);
   if (expectations.expectMismatches != null && mismatchCount !== expectations.expectMismatches) throw new Error(`capture report mismatch count: expected ${expectations.expectMismatches}, got ${mismatchCount}`);
-  return { suite, records, mismatchCount };
+  const pregate = suite === CENTER_STACK_PREGATE_SUITE ? assertCenterStackPregateReport(report) : null;
+  return { suite, records, mismatchCount, ...(pregate == null ? {} : { branch: pregate.branch }) };
 }
 
 export function standardReportExitCode(records) {
@@ -1861,6 +2287,82 @@ async function captureDesignAlignmentPage({ chrome, profileDir, url, viewport, v
     geometry, expectationPolicy: "fixture-assertions-only", mismatches: [],
   };
   assertCaptureRecordSchemaV2(record);
+  return record;
+}
+
+function centerStackPregateUrl(baseUrl) {
+  const url = new URL(baseUrl);
+  url.search = "nav=0";
+  url.hash = "standby-briefing";
+  return url.toString();
+}
+
+function pregateSnapshotHash(snapshot) {
+  return createHash("sha256").update(Buffer.from(canonicalJsonStringify(captureStableProjection(snapshot)), "utf8")).digest("hex");
+}
+
+export function runCenterStackPregateCaptureSession({ chrome, profileDir, url, viewport, entry, sessionRunner = runCaptureBrowserSession }) {
+  return sessionRunner({
+    chrome, profileDir, url, requestedViewport: viewport, viewportMode: "calibrated", readinessKind: "standby",
+    virtualTimeBudgetMs: null, sessionRole: "primary", label: `center-stack-pregate ${entry.recordKey}`,
+    collectSnapshot: collectCenterStackPregateSnapshot, stableProjection: captureStableProjection,
+  });
+}
+
+async function captureCenterStackPregatePage({ chrome, profileDir, baseUrl, outDir, entry }) {
+  const viewport = parseViewport(entry.viewport);
+  const url = centerStackPregateUrl(baseUrl);
+  const pngPath = join(outDir, `center-stack-pregate-${entry.viewport}-repeat-${entry.repetition}.png`);
+  const jsonPath = join(outDir, `center-stack-pregate-${entry.viewport}-repeat-${entry.repetition}.json`);
+  const session = await runCenterStackPregateCaptureSession({ chrome, profileDir, url, viewport, entry });
+  const snapshot = session.preScreenshot;
+  const draft = {
+    schemaVersion: CAPTURE_SCHEMA_VERSION,
+    recordKey: entry.recordKey,
+    repetition: entry.repetition,
+    scenario: entry.scenario,
+    fixture: null,
+    viewport,
+    urlIdentity: `${new URL(url).pathname}${new URL(url).search}${new URL(url).hash}`,
+    pngPath,
+    jsonPath,
+    browser: session.browser,
+    capture: session.capture,
+    captureEvidence: {
+      stableSampleCount: session.stable.length,
+      stableSampleHashes: session.stable.map(pregateSnapshotHash),
+      stableSamplesMatch: pregateSnapshotHash(session.stable[0]) === pregateSnapshotHash(session.stable[1]),
+      preScreenshotHash: pregateSnapshotHash(session.preScreenshot),
+      postScreenshotHash: pregateSnapshotHash(session.postScreenshot),
+      screenshotStateMatch: pregateSnapshotHash(session.preScreenshot) === pregateSnapshotHash(session.postScreenshot),
+    },
+    geometry: {
+      ...snapshot.pregateGeometry,
+      viewport: snapshot.document.viewport,
+      readiness: readinessFor(snapshot.document, "standby"),
+    },
+    expectationPolicy: "fixture-assertions-only",
+    mismatches: [],
+  };
+  const derived = deriveCenterStackPregateMetrics(draft);
+  const record = {
+    ...draft,
+    geometry: {
+      ...draft.geometry,
+      ticker: {
+        ...draft.geometry.ticker,
+        occupiedTop: derived.tickerOccupiedTop,
+        occupiedRect: derived.tickerOccupiedRect,
+        recentOverlapAreaPx: derived.recentTickerOverlapAreaPx,
+      },
+      centerStack: { ...draft.geometry.centerStack, budget: derived.budget },
+    },
+  };
+  await rm(pngPath, { force: true });
+  await writeFile(pngPath, Buffer.from(session.screenshotData, "base64"));
+  assertCompletePng(await readFile(pngPath));
+  assertPregateRecord(record, entry.recordKey);
+  await writeFile(jsonPath, `${JSON.stringify(record, null, 2)}\n`);
   return record;
 }
 
@@ -2878,6 +3380,30 @@ async function runDesignAlignmentSuite({ options, chrome, profileDir, baseUrl, o
   process.stdout.write(`${JSON.stringify(report, null, 2)}\n`);
 }
 
+async function runCenterStackPregateSuite({ options, chrome, profileDir, baseUrl, outDir }) {
+  if (options.writeBaseline == null) throw new Error("center-stack-pregate suite requires --write-baseline");
+  if (options.baselineReport != null || options.assertFrom != null) throw new Error("center-stack-pregate suite does not use --baseline-report or --assert-from");
+  if (options.viewportModeExplicit && options.viewportMode !== "calibrated") throw new Error("center-stack-pregate suite requires calibrated viewport mode");
+  const records = [];
+  for (const entry of CENTER_STACK_PREGATE_MANIFEST) {
+    records.push(await captureCenterStackPregatePage({ chrome, profileDir, baseUrl, outDir, entry }));
+  }
+  const recordsArtifactPath = join(outDir, "center-stack-pregate-records.json");
+  const reportPath = resolve(options.writeBaseline);
+  const report = { schemaVersion: CAPTURE_SCHEMA_VERSION, suite: CENTER_STACK_PREGATE_SUITE, recordsArtifactPath, records };
+  await Promise.all([
+    writeFile(recordsArtifactPath, `${JSON.stringify(report, null, 2)}\n`),
+    mkdir(dirname(reportPath), { recursive: true }).then(() => writeFile(reportPath, `${JSON.stringify(report, null, 2)}\n`)),
+  ]);
+  const assertion = assertCenterStackPregateReport(report);
+  const assertedReport = { ...report, branch: assertion.branch };
+  await Promise.all([
+    writeFile(recordsArtifactPath, `${JSON.stringify(assertedReport, null, 2)}\n`),
+    writeFile(reportPath, `${JSON.stringify(assertedReport, null, 2)}\n`),
+  ]);
+  process.stdout.write(`${JSON.stringify(assertedReport, null, 2)}\n`);
+}
+
 async function main() {
   let options;
   try { options = parseCaptureArgs(process.argv.slice(2)); } catch (error) { usage(error.message); return; }
@@ -2890,10 +3416,10 @@ async function main() {
   if (options.assertCaptureReport != null) {
     const report = JSON.parse(await readFile(resolve(options.assertCaptureReport), "utf8"));
     const result = assertCaptureReport(report, options);
-    process.stdout.write(`${JSON.stringify({ schemaVersion: CAPTURE_SCHEMA_VERSION, asserted: resolve(options.assertCaptureReport), suite: result.suite, cells: result.records.length, mismatches: result.mismatchCount }, null, 2)}\n`);
+    process.stdout.write(`${JSON.stringify({ schemaVersion: CAPTURE_SCHEMA_VERSION, asserted: resolve(options.assertCaptureReport), suite: result.suite, cells: result.records.length, mismatches: result.mismatchCount, ...(result.branch == null ? {} : { branch: result.branch }) }, null, 2)}\n`);
     return;
   }
-  if (options.suite != null && options.suite !== "design-alignment") throw new Error("unknown suite");
+  if (options.suite != null && !["design-alignment", CENTER_STACK_PREGATE_SUITE].includes(options.suite)) throw new Error("unknown suite");
   if (resolveDesignAlignmentExecutionMode(options) === "assert-from") {
     await runDesignAlignmentAssertionsFromFile(options);
     return;
@@ -2928,6 +3454,10 @@ async function main() {
   try {
     if (options.suite === "design-alignment") {
       await runDesignAlignmentSuite({ options, chrome, profileDir, baseUrl, outDir, viewportMode });
+      return;
+    }
+    if (options.suite === CENTER_STACK_PREGATE_SUITE) {
+      await runCenterStackPregateSuite({ options, chrome, profileDir, baseUrl, outDir });
       return;
     }
     const results = [];

@@ -3,6 +3,16 @@
 > **裁定（2026-09-06 朝、ご主人）**: §3 の裁定点はすべて推奨案を採用。独立 DOC レビュー（Sol high、新規 read-only スレッド）2 巡で DOC-OK。
 
 
+
+> **状態: closed（capture 校正後 non-repro、経路 N）— 2026-09-06 06:07 ご主人裁定 2A の前段 gate 実走結果**
+>
+> - 実走: Stage ① capture contract（main `adee542`）の上に `--suite center-stack-pregate` を実装し、実 Chrome（macOS、/Applications/Google Chrome.app）で二反復採取。独立レビュー 2 巡後の最終 suite（diagnostic fail-closed・surface 独立採取・manifest binding・placement/rotation/epoch 証拠つき）で再採取した `display/artifacts/center-stack-pregate/run-3.json` / `run-4.json` が正本（untracked scratch、tracked にしない）。各 run 6 cell（3 viewport × 2 反復）・mismatch 0・`branch: N`。初回 suite の run-1 / run-2 は旧 schema のため新 assertion では fail-closed になり、根拠に使わない
+> - 実 viewport: 1920×1080 / 1280×720 / 960×620 とも `innerWidth/innerHeight` が requested と一致、DPR=1、calibrated
+> - **1280×720（二反復同値）**: clock 292.35〜427.65、RecentQuakes live 445.65〜620.27、`budget.lower.deficitPx = 0`、`upper.deficitPx = 0`。RecentQuakes 下端はテロップ帯の上にあり侵入なし → §5.2-N 成立。旧観測（2026-09-05 ご主人 preview 1280×720 で「めり込む」）は、当時の従来 capture 経路が 577px viewport で走っていたことと同根の可能性が高い（校正で説明できる差）
+> - 1920×1080（二反復同値）: RecentQuakes live 715.65〜890.27、lower/upper deficit 0
+> - **960×620（二反復同値）: `budget.lower.deficitPx = 94.30`**、RecentQuakes live 下端 634.30 が viewport 620 を超える。§5.2-N の規定どおり **960 単独の新しい問題として別項目に記録**し、本 spec を製品実装へ戻す根拠にはしない（バックログ「960 幅 RecentQuakes」へ追記）
+> - 製品ファイル・solver・期待表の diff は 0（pre-gate 採取のために `RecentQuakes.svelte` へ非表示の `data-recent-quake-id` を付与、§4 の許容範囲）。§5.3〜5.6 は N/A
+
 - 日付: 2026-09-06
 - 状態: 再調査済み・実装前仕様（校正後 pre-gate とご主人裁定待ち）
 - 作業基準 HEAD: `e9f40e5e22358670ba77a428dd74a5cfeb8bbc1a`
@@ -178,7 +188,11 @@ RecentQuakes shelf と active live の双方は、fixture 由来の安定 quake 
 - `display/frontend/src/components/RecentQuakes.svelte` — shelf/live identity 比較用の非表示意味を変えない `data-recent-quake-id` のみ。
 - `display/frontend/src/components/__tests__/standby.test.ts` — deficit、上側 connection、hysteresis、signature、非隠蔽、terminal latch。
 - `display/scripts/capture-legacy-standby.mjs` — 校正済み `#standby-briefing` manifest、ticker paint / target rect / probe-live / typography / plan assertion。
+- `display/scripts/capture-browser-session.mjs` — schema v2 共通 viewport 証拠へ `documentElement.clientWidth/clientHeight` を追加する capture helper。
 - `display/frontend/src/components/__tests__/capture-design-alignment.test.ts` — record schema、manifest、既存 assertion 保護、negative case。
+- `display/frontend/src/components/__tests__/capture-center-stack-pregate.test.ts` — pre-gate 固有 schema、negative case、N/R raw-rect oracle、二反復一致の unit test。
+
+この2ファイルは calibrated pre-gate の共通 viewport 証拠と独立 offline assertion を固定するため、capture 専用の対象へ明示追加する。
 
 `App.svelte`、`PreviewApp.svelte`、`Ticker.svelte`、`Clock.svelte`、`theme.css`、card footer/header component、parser、engine、wire、永続化、通知、CLI、pager/scheduler/partition 意味論は対象外である。`#standby-briefing` と parent/ticker の現 DOM/CSS は真実源として読むが、親 boundary prop や新 `ResizeObserver` は追加しない。
 
@@ -272,7 +286,7 @@ npm --prefix display run typecheck
 ### 6.2 六要素の実装ラベル
 
 - **対象**: 校正後も再現する場合の stage 0 時計上下部分予算、solver guard、同一 epoch の収束/diagnostics、RecentQuakes identity、三 viewport target capture。
-- **許容変更**: §4 の7ファイル内で、§3のbudget/solver/diagnostic/assertionとそのtestだけ。target 1280/960 の exact plan差はR3-A裁定後に限る。
+- **許容変更**: §4 の対象ファイル内で、§3のbudget/solver/diagnostic/assertionとそのtestだけ。target 1280/960 の exact plan差はR3-A裁定後に限る。
 - **禁止変更**: §3.7、対象外ファイル、既存card/footer/candidate/payload/pager/plan assertionの削除・緩和、未裁定の期待表更新。
 - **配送先（main → personal → Pi）**: calibrationを先に全配送し、経路Rならmainで§5を受入後、同一差分をpersonal、Piへ順に配送する。Piで実運用1920×1080と問題の1280×720を確認する。
 - **ロールバック**: 本修正の単一製品commitを逆順にrevertし、calibration commitとcard design/footer commitは巻き戻さない。経路Nは製品commitがない。
