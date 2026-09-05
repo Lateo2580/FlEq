@@ -8,10 +8,19 @@
  *   node scripts/capture-legacy-standby.mjs --url http://127.0.0.1:5199/preview.html
  */
 import { createServer } from "node:http";
-import { mkdir, mkdtemp, open, readFile, readdir, rm, stat, writeFile } from "node:fs/promises";
+import { createHash } from "node:crypto";
+import { mkdir, mkdtemp, readFile, readdir, rm, stat, writeFile } from "node:fs/promises";
 import { dirname, extname, join, normalize, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { spawn } from "node:child_process";
+import {
+  CAPTURE_SCHEMA_VERSION,
+  CaptureAssertionError,
+  DOCUMENT_CAPTURE_EXPRESSION,
+  assertViewportContract,
+  canonicalJsonStringify,
+  readinessFor,
+  runCaptureBrowserSession,
+} from "./capture-browser-session.mjs";
 
 const DISPLAY_DIR = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const DIST_DIR = join(DISPLAY_DIR, "dist");
@@ -28,16 +37,21 @@ const MIME_TYPES = new Map([
 
 function usage(message) {
   if (message != null) process.stderr.write(`${message}\n`);
-  process.stderr.write("Usage: node scripts/capture-legacy-standby.mjs [--report] [--suite design-alignment] [--write-baseline PATH|--baseline-report PATH] [--assert-from PATH] [--fixture overflow|rotation|cluster|cluster-calm|tornado-pages|tornado-aggregate|tornado-clip|tornado-epoch-release|recent-quakes-narrow|attention-visibility-standby|attention-visibility-emergency|attention-visibility-reduced-motion|briefing-pages|briefing-single-page] [--url URL] [--scenario quiet|4|7|max|max-floodWide] [--viewport WIDTHxHEIGHT] [--out-dir PATH]\n");
+  process.stderr.write("Usage: node scripts/capture-legacy-standby.mjs [--report] [--write-report PATH] [--assert-capture-report PATH] [--expect-suite normal|design-alignment] [--expect-viewport-mode legacy-control|calibrated] [--expect-cells N] [--expect-mismatches N] [--verify-legacy-expectation-digest SHA256] [--viewport-mode legacy-control|calibrated] [--suite design-alignment] [--write-baseline PATH|--baseline-report PATH] [--assert-from PATH] [--fixture overflow|rotation|cluster|cluster-calm|tornado-pages|tornado-aggregate|tornado-clip|tornado-epoch-release|recent-quakes-narrow|attention-visibility-standby|attention-visibility-emergency|attention-visibility-reduced-motion|briefing-pages|briefing-single-page] [--url URL] [--scenario quiet|4|7|max|max-floodWide] [--viewport WIDTHxHEIGHT] [--out-dir PATH]\n");
   process.exitCode = 2;
 }
 
 export function parseCaptureArgs(argv) {
-  const result = { url: null, scenarios: [], viewports: [], outDir: null, report: false, fixture: null, suite: null, writeBaseline: null, baselineReport: null, assertFrom: null };
+  const result = {
+    url: null, scenarios: [], viewports: [], outDir: null, report: false, fixture: null, suite: null,
+    writeBaseline: null, baselineReport: null, assertFrom: null, viewportMode: "legacy-control", viewportModeExplicit: false,
+    writeReport: null, assertCaptureReport: null, verifyLegacyExpectationDigest: null,
+    expectSuite: null, expectViewportMode: null, expectCells: null, expectMismatches: null,
+  };
   for (let index = 0; index < argv.length; index += 1) {
     const argument = argv[index];
     const value = argv[index + 1];
-    if (argument === "--url" || argument === "--scenario" || argument === "--viewport" || argument === "--out-dir" || argument === "--fixture" || argument === "--suite" || argument === "--write-baseline" || argument === "--baseline-report" || argument === "--assert-from") {
+    if (["--url", "--scenario", "--viewport", "--out-dir", "--fixture", "--suite", "--write-baseline", "--baseline-report", "--assert-from", "--viewport-mode", "--write-report", "--assert-capture-report", "--verify-legacy-expectation-digest", "--expect-suite", "--expect-viewport-mode", "--expect-cells", "--expect-mismatches"].includes(argument)) {
       if (value == null) throw new Error(`${argument} requires a value`);
       index += 1;
       if (argument === "--url") result.url = value;
@@ -49,61 +63,35 @@ export function parseCaptureArgs(argv) {
       if (argument === "--write-baseline") result.writeBaseline = value;
       if (argument === "--baseline-report") result.baselineReport = value;
       if (argument === "--assert-from") result.assertFrom = value;
+      if (argument === "--viewport-mode") { result.viewportMode = value; result.viewportModeExplicit = true; }
+      if (argument === "--write-report") result.writeReport = value;
+      if (argument === "--assert-capture-report") result.assertCaptureReport = value;
+      if (argument === "--verify-legacy-expectation-digest") result.verifyLegacyExpectationDigest = value;
+      if (argument === "--expect-suite") result.expectSuite = value;
+      if (argument === "--expect-viewport-mode") result.expectViewportMode = value;
+      if (argument === "--expect-cells") result.expectCells = Number(value);
+      if (argument === "--expect-mismatches") result.expectMismatches = Number(value);
       continue;
     }
     if (argument === "--help" || argument === "-h") return null;
     if (argument === "--report") { result.report = true; continue; }
     throw new Error(`unknown argument: ${argument}`);
   }
+  if (!["legacy-control", "calibrated"].includes(result.viewportMode)) throw new Error("--viewport-mode must be legacy-control or calibrated");
+  for (const [flag, value] of [["--expect-cells", result.expectCells], ["--expect-mismatches", result.expectMismatches]]) {
+    if (value != null && (!Number.isInteger(value) || value < 0)) throw new Error(`${flag} must be a non-negative integer`);
+  }
   return result;
+}
+
+export function viewportModeForSuite(options) {
+  return options.suite === "design-alignment" && !options.viewportModeExplicit ? "calibrated" : options.viewportMode;
 }
 
 function parseViewport(value) {
   const match = /^(\d+)x(\d+)$/.exec(value);
   if (match == null) throw new Error(`invalid viewport: ${value}`);
   return { label: value, width: Number(match[1]), height: Number(match[2]) };
-}
-
-function run(command, args, stdoutFd = null, watchPath = null) {
-  return new Promise((resolveRun, rejectRun) => {
-    // macOS Chrome can abort when its headless output is connected to a pipe.
-    // Dump DOM to a regular file instead, keeping the browser process isolated.
-    const child = spawn(command, args, { stdio: ["ignore", stdoutFd ?? "ignore", "ignore"] });
-    // The gate page keeps timers running, so headless Chrome never exits on
-    // its own after writing the artifact. Only a non-empty artifact whose
-    // size stays unchanged across consecutive polls may satisfy the watchdog.
-    let watchdogKilled = false;
-    let timedOut = false;
-    let pollTimer = null;
-    let previousSize = -1;
-    let stablePolls = 0;
-    const deadlineTimer = watchPath == null ? null : setTimeout(() => {
-      timedOut = true;
-      child.kill("SIGKILL");
-    }, 120_000);
-    if (watchPath != null) {
-      pollTimer = setInterval(() => {
-        stat(watchPath).then((info) => {
-          if (info.size === 0) { previousSize = 0; stablePolls = 0; return; }
-          stablePolls = info.size === previousSize ? stablePolls + 1 : 0;
-          previousSize = info.size;
-          if (stablePolls < 3) return;
-          clearInterval(pollTimer);
-          watchdogKilled = child.kill("SIGTERM");
-        }, () => {});
-      }, 250);
-    }
-    child.on("error", rejectRun);
-    child.on("close", (code, signal) => {
-      if (pollTimer != null) clearInterval(pollTimer);
-      if (deadlineTimer != null) clearTimeout(deadlineTimer);
-      // The deadline outranks the watchdog: a SIGTERM that never took effect
-      // must not read as success just because the artifact once looked stable.
-      if (timedOut) rejectRun(new Error(`${command} timed out ${code ?? signal ?? "unknown"}`));
-      else if (code === 0 || watchdogKilled) resolveRun();
-      else rejectRun(new Error(`${command} exited ${code ?? signal ?? "unknown"}`));
-    });
-  });
 }
 
 async function startStaticServer() {
@@ -136,92 +124,7 @@ async function startStaticServer() {
   };
 }
 
-function wait(ms) {
-  return new Promise((resolveWait) => setTimeout(resolveWait, ms));
-}
-
-function createCdpPipe(child) {
-  const input = child.stdio[3];
-  const output = child.stdio[4];
-  if (input == null || output == null) throw new Error("Chrome remote-debugging-pipe was not opened");
-  let nextId = 1;
-  let buffer = "";
-  let terminalError = null;
-  const pending = new Map();
-  output.setEncoding("utf8");
-  output.on("data", (chunk) => {
-    buffer += chunk;
-    let boundary = buffer.indexOf("\0");
-    while (boundary >= 0) {
-      const raw = buffer.slice(0, boundary);
-      buffer = buffer.slice(boundary + 1);
-      if (raw !== "") {
-        const message = JSON.parse(raw);
-        const request = pending.get(message.id);
-        if (request != null) {
-          pending.delete(message.id);
-          if (message.error != null) request.reject(new Error(`${request.method}: ${message.error.message ?? JSON.stringify(message.error)}`));
-          else request.resolve(message.result);
-        }
-      }
-      boundary = buffer.indexOf("\0");
-    }
-  });
-  const rejectPending = (error) => {
-    terminalError = error;
-    for (const request of pending.values()) request.reject(error);
-    pending.clear();
-  };
-  output.on("error", rejectPending);
-  child.on("error", rejectPending);
-  return {
-    command(method, params = {}, sessionId = undefined) {
-      const id = nextId++;
-      return new Promise((resolveCommand, rejectCommand) => {
-        if (terminalError != null) {
-          rejectCommand(terminalError);
-          return;
-        }
-        pending.set(id, { method, resolve: resolveCommand, reject: rejectCommand });
-        input.write(`${JSON.stringify({ id, method, params, ...(sessionId == null ? {} : { sessionId }) })}\0`);
-      });
-    },
-    close() { rejectPending(new Error("Chrome remote-debugging-pipe closed")); },
-  };
-}
-
-async function captureLiveGeometry({ chrome, profileDir, url, viewport }) {
-  const geometryProfile = join(profileDir, `.geometry-${Date.now()}`);
-  const child = spawn(chrome, [
-    "--headless=new", "--no-sandbox", "--no-first-run", "--disable-gpu", "--hide-scrollbars", "--force-device-scale-factor=1",
-    "--remote-debugging-pipe", `--user-data-dir=${geometryProfile}`, `--window-size=${viewport.width},${viewport.height}`, url,
-  ], { stdio: ["ignore", "ignore", "ignore", "pipe", "pipe"] });
-  const cdp = createCdpPipe(child);
-  try {
-    let page = null;
-    for (let attempt = 0; attempt < 40; attempt += 1) {
-      try {
-        const targets = await cdp.command("Target.getTargets");
-        page = targets.targetInfos.find((candidate) => candidate.type === "page" && candidate.url === url)
-          ?? targets.targetInfos.find((candidate) => candidate.type === "page")
-          ?? null;
-      } catch {
-        // Chrome has not opened its first page target yet.
-      }
-      if (page != null) break;
-      await wait(100);
-    }
-    if (page == null) throw new Error("Chrome DevTools page target did not become ready");
-    const attached = await cdp.command("Target.attachToTarget", { targetId: page.targetId, flatten: true });
-    await wait(500);
-    // Panels animate on entry (height reveal) and re-partition on fonts.ready.
-    // A single early sample reads a mid-animation body as a containment
-    // violation, so wait for the web font and require two identical
-    // consecutive samples before trusting the geometry.
-    const evaluateGeometry = () => cdp.command("Runtime.evaluate", {
-      awaitPromise: true,
-      returnByValue: true,
-      expression: `(async () => {
+export const LIVE_GEOMETRY_EXPRESSION = String.raw`(async () => {
         await (document.fonts?.ready ?? Promise.resolve());
         const pick = (selector) => [...document.querySelectorAll(selector)]
           .filter((node) => node.clientWidth > 0 && node.clientHeight > 0)
@@ -360,27 +263,73 @@ async function captureLiveGeometry({ chrome, profileDir, url, viewport }) {
             metaChildren,
           };
         });
-        return { heat: measure(pick('.heat-card')), tsunamiBanner: measure(pick('.tsunami-banner')), panels, briefingCards, forecastCards, standbyHeaders };
-      })()`,
-    }, attached.sessionId);
-    // Entry animations (height reveal) can hold a mid-flight value for several
-    // hundred ms, so space the samples wider than any single transition.
-    await wait(1500);
-    let previous = null;
-    let latest = null;
-    for (let sample = 0; sample < 15; sample += 1) {
-      const result = await evaluateGeometry();
-      latest = result.result.value;
-      const serialized = JSON.stringify(latest);
-      if (previous === serialized) break;
-      previous = serialized;
-      await wait(1500);
-    }
-    return latest;
-  } finally {
-    cdp.close();
-    child.kill("SIGTERM");
+        const signatureRoot = document.querySelector('.standby');
+        const previewRoot = document.querySelector('main.preview-screen');
+        const query = new URL(window.location.href).searchParams;
+        const parseFiniteAttribute = (name) => {
+          const raw = signatureRoot?.getAttribute(name) ?? null;
+          const value = raw == null || raw === '' ? null : Number(raw);
+          return Number.isFinite(value) ? value : null;
+        };
+        const candidateCountMap = new Map();
+        for (const candidate of document.querySelectorAll('[data-layout-motion-card]')) {
+          const key = candidate.getAttribute('data-layout-motion-card') ?? '';
+          candidateCountMap.set(key, (candidateCountMap.get(key) ?? 0) + 1);
+        }
+        const fonts = [...(document.fonts ?? [])]
+          .map((font) => ({ family: font.family, style: font.style, weight: font.weight, stretch: font.stretch, status: font.status }))
+          .sort((left, right) => {
+            const a = [left.family, left.style, left.weight, left.stretch, left.status];
+            const b = [right.family, right.style, right.weight, right.stretch, right.status];
+            for (let index = 0; index < a.length; index += 1) {
+              if (a[index] < b[index]) return -1;
+              if (a[index] > b[index]) return 1;
+            }
+            return 0;
+          });
+        const payloadAttribute = previewRoot?.getAttribute('data-design-alignment-payload-signature') ?? null;
+        const payload = payloadAttribute == null ? {
+          gateScenario: query.get('gateScenario'), gateFixture: query.get('gateFixture'),
+          rotationTick: query.get('rotationTick'), cardPageTick: query.get('cardPageTick'),
+          previewMode: previewRoot?.getAttribute('data-preview-mode') ?? null,
+          tier: previewRoot?.getAttribute('data-tier') ?? null,
+          backgroundTone: previewRoot?.getAttribute('data-background-tone') ?? null,
+        } : JSON.parse(payloadAttribute);
+        const signatures = {
+          fonts,
+          payload,
+          candidates: [...candidateCountMap].map(([key, count]) => ({ key, count })).sort((left, right) => left.key < right.key ? -1 : left.key > right.key ? 1 : 0),
+          capacity: {
+            left: parseFiniteAttribute('data-left-capacity-px'), right: parseFiniteAttribute('data-right-capacity-px'), center: parseFiniteAttribute('data-center-capacity-px'),
+            leftNaturalHeight: parseFiniteAttribute('data-left-natural-height-px'), rightNaturalHeight: parseFiniteAttribute('data-right-natural-height-px'), centerNaturalHeight: parseFiniteAttribute('data-center-natural-height-px'),
+          },
+        };
+        return { heat: measure(pick('.heat-card')), tsunamiBanner: measure(pick('.tsunami-banner')), panels, briefingCards, forecastCards, standbyHeaders, signatures };
+      })()`;
+
+export function atomicSnapshotExpression(expressions) {
+  const entries = Object.entries(expressions);
+  if (entries.length === 0 || entries.some(([key, expression]) => !/^[A-Za-z_$][\w$]*$/.test(key) || typeof expression !== "string" || expression === "")) {
+    throw new Error("atomic snapshot expressions must be named non-empty JavaScript expressions");
   }
+  return `(async () => ({${entries.map(([key, expression]) => `${key}: await (${expression})`).join(",")}}))()`;
+}
+
+function withDocumentEvidence(snapshot) {
+  const stableDom = snapshot.document.stableDom;
+  if (typeof stableDom !== "string") throw new Error("capture document stableDom missing");
+  return {
+    ...snapshot,
+    document: { ...snapshot.document, domSha256: createHash("sha256").update(Buffer.from(stableDom, "utf8")).digest("hex") },
+    diagnostics: diagnosticsFromDom(snapshot.document.dom),
+  };
+}
+
+export async function collectNormalSnapshot({ evaluate }) {
+  return withDocumentEvidence(await evaluate(atomicSnapshotExpression({
+    document: DOCUMENT_CAPTURE_EXPRESSION,
+    liveGeometry: LIVE_GEOMETRY_EXPRESSION,
+  })));
 }
 
 function gateUrl(baseUrl, scenario, rotationTick = null, fixture = null, cardPageTick = null) {
@@ -466,6 +415,11 @@ function diagnosticsFromDom(dom) {
   }));
   if (diagnostics["data-preview-mode"] !== "emergency" && diagnostics["data-measurement-settled"] !== "true") throw new Error(`measurement did not settle: ${JSON.stringify(diagnostics)}`);
   return diagnostics;
+}
+
+export function captureStableProjection(snapshot) {
+  const { dom: _dom, stableDom: _stableDom, ...document } = snapshot.document;
+  return { ...snapshot, document };
 }
 
 function expectEqual(actual, expected, label) {
@@ -604,7 +558,7 @@ function assertNankaiSeparation(diagnostics) {
 
 function assertCardContainment(diagnostics) {
   const overflow = numberDiagnostic(diagnostics, "data-card-overflow-count");
-  if (overflow !== 0) throw new Error(`card scroll containment invalid: ${overflow} overflowing card(s): ${diagnostics["data-card-overflow-keys"]}; paged viewport: ${diagnostics["data-page-viewport-overflow-keys"]}`);
+  if (overflow !== 0) throw new CaptureAssertionError("CARD_SCROLL_CONTAINMENT", `card scroll containment invalid: ${overflow} overflowing card(s): ${diagnostics["data-card-overflow-keys"]}; paged viewport: ${diagnostics["data-page-viewport-overflow-keys"]}`);
 }
 
 export function assertForecastContinuationGeometry(geometry, diagnostics) {
@@ -772,7 +726,7 @@ function assertRotationDiagnostics(diagnostics, rotationTick) {
   const viewport = numberDiagnostic(diagnostics, "data-rotation-card-viewport-rect-height-px");
   const footer = numberDiagnostic(diagnostics, "data-rotation-footer-rect-height-px");
   const overlap = numberDiagnostic(diagnostics, "data-rotation-viewport-footer-overlap-px");
-  if (viewport <= 0 || footer <= 0 || overlap > 0) throw new Error(`rotation viewport/footer geometry invalid: viewport=${viewport}, footer=${footer}, overlap=${overlap}`);
+  if (viewport <= 0 || footer <= 0 || overlap > 0) throw new CaptureAssertionError("ROTATION_VIEWPORT_FOOTER_GEOMETRY", `rotation viewport/footer geometry invalid: viewport=${viewport}, footer=${footer}, overlap=${overlap}`);
 }
 
 const FLOOD_NONE = { floodForm: "none", floodPage: "0/0", floodPageKeys: "[]", floodPageIdentities: "[]", floodPageFooter: "false", floodVisibleCount: "0", floodInfeasible: "false" };
@@ -828,7 +782,29 @@ const UTIL_EXPECTATIONS = {
   max: { "1920x1080": ["compact", "card", 4, 3, 24, 0, 21, "false"], "1512x982": ["compact", "card", 4, 3, 24, 0, 21, "false"], "1280x720": ["compact", "card", 4, 3, 3, 21, 0, "false"], "960x620": ["compact", "card", 4, 3, 3, 21, 0, "false"] },
 };
 
-function tableMismatches(diagnostics, scenario, viewport, fixture = null) {
+export function legacyExpectationDigest() {
+  const expectations = { TABLE_EXPECTATIONS, UTIL_EXPECTATIONS, FLOOD_WIDE_EXPECTATIONS, TORNADO_EXPECTATIONS, TORNADO_FIXTURE_EXPECTATIONS };
+  return createHash("sha256").update(Buffer.from(canonicalJsonStringify(expectations), "utf8")).digest("hex");
+}
+
+export function verifyLegacyExpectationDigest(expected) {
+  const actual = legacyExpectationDigest();
+  if (actual !== expected) throw new Error(`legacy expectation digest mismatch: expected ${expected}, got ${actual}`);
+  return actual;
+}
+
+const EXPECTED_FAILURE_FIXTURES = new Set(["overflow", "rotation"]);
+
+export function captureExpectationPolicy(fixture, scenario, viewportLabel) {
+  if (fixture == null) return "normal-table";
+  if (EXPECTED_FAILURE_FIXTURES.has(fixture)) return "expected-failure";
+  if (TORNADO_FIXTURE_EXPECTATIONS[fixture]?.[scenario]?.[viewportLabel] != null) return "fixture-table";
+  return "fixture-assertions-only";
+}
+
+export function tableMismatches(diagnostics, scenario, viewport, fixture = null) {
+  const expectationPolicy = captureExpectationPolicy(fixture, scenario, viewport.label);
+  if (expectationPolicy === "fixture-assertions-only" || expectationPolicy === "expected-failure") return [];
   const fixtureExpected = fixture == null ? null : TORNADO_FIXTURE_EXPECTATIONS[fixture]?.[scenario]?.[viewport.label];
   const baseExpected = scenario === "max-floodWide"
     ? FLOOD_WIDE_EXPECTATIONS[viewport.label]
@@ -877,6 +853,78 @@ function tableMismatches(diagnostics, scenario, viewport, fixture = null) {
   ];
 }
 
+export function assertCaptureRecordSchemaV2(record, label = "capture record") {
+  if (record?.schemaVersion !== CAPTURE_SCHEMA_VERSION) throw new Error(`${label}: schemaVersion must be 2`);
+  for (const field of ["requestedBinary", "protocolVersion", "product", "revision", "userAgent", "jsVersion"]) {
+    if (typeof record.browser?.[field] !== "string" || record.browser[field] === "") throw new Error(`${label}: browser.${field} missing`);
+  }
+  if (typeof record.viewport?.label !== "string" || !Number.isFinite(record.viewport?.width) || !Number.isFinite(record.viewport?.height)) throw new Error(`${label}: requested viewport missing`);
+  const measured = record.geometry?.viewport;
+  if (![measured?.innerWidth, measured?.innerHeight, measured?.devicePixelRatio].every((value) => Number.isFinite(value))) throw new Error(`${label}: measured viewport missing`);
+  const readiness = record.geometry?.readiness;
+  if (!['standby', 'emergency'].includes(readiness?.kind) || readiness.fontsLoaded !== true || readiness.stableSampleCount !== 2) throw new Error(`${label}: readiness missing`);
+  if (readiness.kind === "standby" && readiness.measurementSettled !== true) throw new Error(`${label}: standby readiness incomplete`);
+  if (readiness.kind === "emergency" && readiness.measurementSettled !== null) throw new Error(`${label}: emergency readiness invalid`);
+  if (!["legacy-control", "calibrated"].includes(record.capture?.viewportMode)) throw new Error(`${label}: capture.viewportMode missing`);
+  assertViewportContract(record.capture.viewportMode, record.viewport, measured);
+}
+
+export function assertCaptureReport(report, expectations = {}) {
+  if (report?.schemaVersion !== CAPTURE_SCHEMA_VERSION) throw new Error("capture report wrapper schemaVersion must be 2");
+  const suite = report.suite ?? "normal";
+  if (expectations.expectSuite != null && suite !== expectations.expectSuite) throw new Error(`capture report suite mismatch: expected ${expectations.expectSuite}, got ${suite}`);
+  const records = Array.isArray(report.cells) ? report.cells : Array.isArray(report.records) ? report.records : null;
+  if (records == null) throw new Error("capture report records missing");
+  records.forEach((record, index) => assertCaptureRecordSchemaV2(record, `${suite} record ${index}`));
+  if (expectations.expectViewportMode != null && records.some((record) => record.capture.viewportMode !== expectations.expectViewportMode)) throw new Error(`capture report viewport mode mismatch: expected ${expectations.expectViewportMode}`);
+  if (expectations.expectCells != null && records.length !== expectations.expectCells) throw new Error(`capture report cell count mismatch: expected ${expectations.expectCells}, got ${records.length}`);
+  for (const [index, record] of records.entries()) {
+    const expectedPolicy = suite === "design-alignment" ? "fixture-assertions-only" : captureExpectationPolicy(record.fixture, record.scenario, record.viewport.label);
+    if (record.expectationPolicy !== expectedPolicy) throw new Error(`${suite} record ${index}: expectation policy mismatch`);
+    if (!Array.isArray(record.mismatches)) throw new Error(`${suite} record ${index}: mismatches missing`);
+  }
+  const mismatchCount = records.reduce((sum, record) => sum + record.mismatches.length, 0);
+  if (expectations.expectMismatches != null && mismatchCount !== expectations.expectMismatches) throw new Error(`capture report mismatch count: expected ${expectations.expectMismatches}, got ${mismatchCount}`);
+  return { suite, records, mismatchCount };
+}
+
+export function standardReportExitCode(records) {
+  return records.some((record) => ["normal-table", "fixture-table"].includes(record.expectationPolicy) && record.mismatches.length > 0) ? 1 : 0;
+}
+
+export function createStandardReportResult({ results, reportMode, outDir }) {
+  const cells = results.filter((result) => result.rotationTick === 0);
+  return {
+    report: reportMode
+      ? { schemaVersion: CAPTURE_SCHEMA_VERSION, suite: "normal", outDir, cells }
+      : { schemaVersion: CAPTURE_SCHEMA_VERSION, suite: "normal", outDir, results },
+    exitCode: reportMode ? standardReportExitCode(results) : 0,
+  };
+}
+
+export function createAttentionComparatorRecord({ primaryRecordKey, primaryBrowser, requestedViewport, viewportMode, session, snapshot, urlIdentity }) {
+  if (session.capture?.sessionRole !== "comparator") throw new Error("attention comparator sessionRole must be comparator");
+  if (session.capture.viewportMode !== viewportMode) throw new Error("attention comparator viewport mode mismatch");
+  if (canonicalJsonStringify(session.browser) !== canonicalJsonStringify(primaryBrowser)) throw new Error("attention comparator browser metadata mismatch");
+  const record = {
+    schemaVersion: CAPTURE_SCHEMA_VERSION,
+    primaryRecordKey,
+    browser: session.browser,
+    viewport: requestedViewport,
+    // The former source contract was `geometry: attentionGeometry`; schema v2
+    // keeps that live payload while adding viewport/readiness at the fixed path.
+    geometry: {
+      viewport: snapshot.document.viewport,
+      readiness: readinessFor(snapshot.document, "standby"),
+      ...snapshot.liveGeometry,
+    },
+    capture: session.capture,
+    urlIdentity,
+  };
+  assertCaptureRecordSchemaV2(record, "attention comparator");
+  return record;
+}
+
 function assertTableDiagnostics(diagnostics, scenario, viewport, fixture = null) {
   const mismatches = tableMismatches(diagnostics, scenario, viewport, fixture);
   if (mismatches.length > 0) throw new Error(`${viewport.label} scenario-${scenario} table mismatch: ${JSON.stringify(mismatches)}`);
@@ -896,51 +944,54 @@ function assertFloodWideDiagnostics(diagnostics, scenario, viewport) {
   if (viewport.label === "1280x720") expectEqual(diagnostics["data-flood-readable-overflow-keys"], "", "1280x720 flood station/kind readability");
 }
 
-async function capture({ chrome, profileDir, url, scenario, viewport, outDir, rotationTick = null, cardPageTick = null, assertTable = true, fixture = null }) {
+async function capture({ chrome, profileDir, url, scenario, viewport, outDir, viewportMode = "legacy-control", rotationTick = null, cardPageTick = null, assertTable = true, fixture = null }) {
   const tickSuffix = rotationTick == null ? "" : `-tick-${rotationTick}`;
   const cardPageTickSuffix = cardPageTick == null ? "" : `-page-tick-${cardPageTick}`;
   const fixtureSuffix = fixture == null ? "" : `-${fixture}`;
   const stem = `legacy-standby-${scenario}-${viewport.label}${fixtureSuffix}${tickSuffix}${cardPageTickSuffix}`;
   const pngPath = join(outDir, `${stem}.png`);
   const jsonPath = join(outDir, `${stem}.json`);
-  const domPath = join(outDir, `${stem}.dom.html`);
-  const chromeArgs = [
-    "--headless=new", "--no-sandbox", "--no-first-run", "--disable-gpu", "--hide-scrollbars", "--force-device-scale-factor=1",
-    `--user-data-dir=${profileDir}`,
-    `--window-size=${viewport.width},${viewport.height}`, "--virtual-time-budget=10000", url,
-  ];
+  const readinessKind = fixture === "attention-visibility-emergency" ? "emergency" : "standby";
+  const collectSnapshot = collectNormalSnapshot;
+  const primarySession = await runCaptureBrowserSession({
+    chrome, profileDir, url, requestedViewport: viewport, viewportMode, readinessKind,
+    virtualTimeBudgetMs: 10_000, sessionRole: "primary", collectSnapshot, label: stem,
+    initialDelayMs: 1_500, sampleDelayMs: 1_500, maxSamples: 15, stableProjection: captureStableProjection,
+  });
+  const snapshot = primarySession.preScreenshot;
+  const dom = snapshot.document.dom;
+  const attentionGeometry = snapshot.liveGeometry;
   await rm(pngPath, { force: true });
-  await run(chrome, [...chromeArgs.slice(0, -1), `--screenshot=${pngPath}`, url], null, pngPath);
+  await writeFile(pngPath, Buffer.from(primarySession.screenshotData, "base64"));
   assertCompletePng(await readFile(pngPath));
-  const domFile = await open(domPath, "w");
-  try {
-    await run(chrome, [...chromeArgs.slice(0, -1), "--dump-dom", url], domFile.fd, domPath);
-  } finally {
-    await domFile.close();
-  }
-  const dom = await readFile(domPath, "utf8");
   assertCompleteDom(dom);
   const diagnostics = diagnosticsFromDom(dom);
   const attentionFixture = fixture != null && ATTENTION_VISIBILITY_FIXTURES.has(fixture);
   const clusterFixture = url.includes("gateFixture=cluster");
   const clusterCalmFixture = url.includes("gateFixture=cluster-calm");
-  let attentionGeometry = null;
   const forecastContinuationCapture = scenario === "max" && viewport.label === "960x620";
-  if (attentionFixture || fixture === "briefing-pages" || fixture === "briefing-single-page" || forecastContinuationCapture || process.argv.includes("--report")) {
-    attentionGeometry = await captureLiveGeometry({ chrome, profileDir, url, viewport });
-    if (attentionFixture) {
-      const baselineUrl = new URL(url);
-      baselineUrl.search = "nav=0";
-      baselineUrl.hash = "standby-cards";
-      const baselineGeometry = fixture === "attention-visibility-emergency"
-        ? null
-        : await captureLiveGeometry({ chrome, profileDir, url: baselineUrl.toString(), viewport });
-      assertAttentionVisibilityFixture(dom, diagnostics, fixture, attentionGeometry, baselineGeometry);
-    } else if (fixture === "briefing-pages" || fixture === "briefing-single-page") {
-      assertBriefingPagingFixture(attentionGeometry, fixture === "briefing-pages"
-        ? { expectedPage: `${(cardPageTick ?? 0) + 1}/${BRIEFING_PAGING_PAGE_COUNT}`, expectedFooter: true, expectedEntryBoundary: true, expectTokenizedVpoa: true }
-        : { expectedPage: "1/1", expectedFooter: false, expectedEntryBoundary: false, expectTokenizedVpoa: false });
+  let comparator = null;
+  if (attentionFixture) {
+    const baselineUrl = new URL(url);
+    baselineUrl.search = "nav=0";
+    baselineUrl.hash = "standby-cards";
+    if (fixture !== "attention-visibility-emergency") {
+      const comparatorSession = await runCaptureBrowserSession({
+        chrome, profileDir, url: baselineUrl.toString(), requestedViewport: viewport, viewportMode, readinessKind: "standby",
+        virtualTimeBudgetMs: 10_000, sessionRole: "comparator", collectSnapshot, label: `${stem}-comparator`,
+        initialDelayMs: 1_500, sampleDelayMs: 1_500, maxSamples: 15, stableProjection: captureStableProjection,
+      });
+      comparator = createAttentionComparatorRecord({
+        primaryRecordKey: stem, primaryBrowser: primarySession.browser, requestedViewport: viewport, viewportMode,
+        session: comparatorSession, snapshot: comparatorSession.preScreenshot,
+        urlIdentity: normalizeDesignAlignmentUrl(baselineUrl.toString()),
+      });
     }
+    assertAttentionVisibilityFixture(dom, diagnostics, fixture, attentionGeometry, comparator?.geometry ?? null);
+  } else if (fixture === "briefing-pages" || fixture === "briefing-single-page") {
+    assertBriefingPagingFixture(attentionGeometry, fixture === "briefing-pages"
+      ? { expectedPage: `${(cardPageTick ?? 0) + 1}/${BRIEFING_PAGING_PAGE_COUNT}`, expectedFooter: true, expectedEntryBoundary: true, expectTokenizedVpoa: true }
+      : { expectedPage: "1/1", expectedFooter: false, expectedEntryBoundary: false, expectTokenizedVpoa: false });
   }
   // EmergencyScreen has no StandbyScreen layout tracks. It instead runs the live panel
   // containment and indicator-overlap checks above; only track-specific probes are inapplicable.
@@ -955,21 +1006,35 @@ async function capture({ chrome, profileDir, url, scenario, viewport, outDir, ro
     // through to the generic containment counterexample.
     assertFloodReadability(diagnostics);
     assertCardContainment(diagnostics);
-    if (attentionGeometry != null) assertForecastContinuationGeometry(attentionGeometry, diagnostics);
+    if (forecastContinuationCapture) assertForecastContinuationGeometry(attentionGeometry, diagnostics);
     if (fixture === "recent-quakes-narrow") assertRecentQuakesNarrowFixture(diagnostics);
     assertGeometry(diagnostics, { skipWeatherHeight: clusterFixture });
     if (clusterFixture) assertClusterFixture(diagnostics, { requirePreRotation: clusterCalmFixture });
     assertClockHandoff(dom, diagnostics);
     if (!clusterFixture) assertRotationDiagnostics(diagnostics, rotationTick);
-    if (assertTable && fixture == null) {
+    if (assertTable && ["normal-table", "fixture-table"].includes(captureExpectationPolicy(fixture, scenario, viewport.label))) {
       assertTableDiagnostics(diagnostics, scenario, viewport, fixture);
       assertFloodWideDiagnostics(diagnostics, scenario, viewport);
     }
   }
-  const report = { scenario, fixture, rotationTick, viewport: { width: viewport.width, height: viewport.height }, url, pngPath, diagnostics, geometry: attentionGeometry, mismatches: tableMismatches(diagnostics, scenario, viewport, fixture) };
-  await writeFile(jsonPath, `${JSON.stringify(report, null, 2)}\n`);
-  await rm(domPath, { force: true });
-  return { scenario, fixture, viewport, rotationTick, cardPageTick, pngPath, jsonPath, diagnostics, geometry: attentionGeometry, mismatches: tableMismatches(diagnostics, scenario, viewport, fixture) };
+  const expectationPolicy = captureExpectationPolicy(fixture, scenario, viewport.label);
+  const mismatches = tableMismatches(diagnostics, scenario, viewport, fixture);
+  const record = {
+    schemaVersion: CAPTURE_SCHEMA_VERSION,
+    scenario, fixture, rotationTick, cardPageTick, viewport, url, pngPath, jsonPath, diagnostics,
+    browser: primarySession.browser,
+    capture: primarySession.capture,
+    geometry: {
+      viewport: snapshot.document.viewport,
+      readiness: readinessFor(snapshot.document, readinessKind),
+      ...attentionGeometry,
+    },
+    expectationPolicy, mismatches,
+    ...(comparator == null ? {} : { comparator }),
+  };
+  assertCaptureRecordSchemaV2(record);
+  await writeFile(jsonPath, `${JSON.stringify(record, null, 2)}\n`);
+  return record;
 }
 
 const DESIGN_ALIGNMENT_CANDIDATE_COUNTS = {
@@ -1738,7 +1803,7 @@ export const DESIGN_ALIGNMENT_REPORT_EXPRESSION = String.raw`(async () => {
   });
   return {
     ready: document.fonts?.status === 'loaded', settled: root.getAttribute('data-measurement-settled') === 'true',
-    viewport: { width: window.innerWidth, height: window.innerHeight },
+    viewport: { innerWidth: window.innerWidth, innerHeight: window.innerHeight, devicePixelRatio: window.devicePixelRatio },
     rootFontSize: numeric(getComputedStyle(root).fontSize),
     layout: {
       ladderStage: attrNumber('data-ladder-stage'), measurementGeometryStage: attrNumber('data-measurement-geometry-stage'),
@@ -1759,73 +1824,44 @@ export const DESIGN_ALIGNMENT_REPORT_EXPRESSION = String.raw`(async () => {
   };
 })()`;
 
-async function captureDesignAlignmentPage({ chrome, profileDir, url, viewport, outDir, entry }) {
+export async function collectDesignSnapshot({ evaluate }) {
+  return withDocumentEvidence(await evaluate(atomicSnapshotExpression({
+    document: DOCUMENT_CAPTURE_EXPRESSION,
+    designGeometry: DESIGN_ALIGNMENT_REPORT_EXPRESSION,
+  })));
+}
+
+export function runDesignCaptureSession({ chrome, profileDir, url, viewport, viewportMode, entry, sessionRunner = runCaptureBrowserSession }) {
+  return sessionRunner({
+    chrome, profileDir, url, requestedViewport: viewport, viewportMode, readinessKind: "standby",
+    virtualTimeBudgetMs: null, sessionRole: "primary", label: `design-alignment ${manifestKey(entry)}`,
+    collectSnapshot: collectDesignSnapshot,
+    stableProjection: captureStableProjection,
+  });
+}
+
+async function captureDesignAlignmentPage({ chrome, profileDir, url, viewport, viewportMode, outDir, entry }) {
   const suffix = `r${entry.rotationTick ?? "x"}-p${entry.cardPageTick ?? "x"}`;
   const pngPath = join(outDir, `design-alignment-${entry.scenario}-${viewport.label}-${suffix}.png`);
-  const browserProfile = join(profileDir, `.suite-${entry.scenario}-${viewport.label}-${suffix}`);
-  const child = spawn(chrome, [
-    "--headless=new", "--no-sandbox", "--no-first-run", "--disable-gpu", "--hide-scrollbars", "--force-device-scale-factor=1",
-    "--remote-debugging-pipe", `--user-data-dir=${browserProfile}`, `--window-size=${viewport.width},${viewport.height}`, url,
-  ], { stdio: ["ignore", "ignore", "ignore", "pipe", "pipe"] });
-  const cdp = createCdpPipe(child);
-  try {
-    let page = null;
-    for (let attempt = 0; attempt < 50; attempt += 1) {
-      try {
-        const targets = await cdp.command("Target.getTargets");
-        page = targets.targetInfos.find((candidate) => candidate.type === "page" && candidate.url === url)
-          ?? targets.targetInfos.find((candidate) => candidate.type === "page") ?? null;
-      } catch {
-        // Chrome has not opened the target yet.
-      }
-      if (page != null) break;
-      await wait(100);
-    }
-    if (page == null) throw new Error(`design-alignment ${manifestKey(entry)}: page target did not become ready`);
-    const attached = await cdp.command("Target.attachToTarget", { targetId: page.targetId, flatten: true });
-    await cdp.command("Page.enable", {}, attached.sessionId);
-    await cdp.command("Runtime.enable", {}, attached.sessionId);
-    await cdp.command("Emulation.setDeviceMetricsOverride", {
-      width: viewport.width, height: viewport.height, deviceScaleFactor: 1, mobile: false,
-    }, attached.sessionId);
-    const evaluate = async () => {
-      const result = await cdp.command("Runtime.evaluate", {
-        awaitPromise: true, returnByValue: true, expression: DESIGN_ALIGNMENT_REPORT_EXPRESSION,
-      }, attached.sessionId);
-      if (result.exceptionDetails != null) throw new Error(`design-alignment browser evaluation failed: ${JSON.stringify(result.exceptionDetails)}`);
-      return result.result.value;
-    };
-    await wait(750);
-    let previous = null;
-    let geometry = null;
-    for (let attempt = 0; attempt < 30; attempt += 1) {
-      const candidate = await evaluate();
-      const serialized = JSON.stringify(candidate);
-      if (candidate?.ready && candidate?.settled && previous === serialized) {
-        geometry = candidate;
-        break;
-      }
-      previous = candidate?.ready && candidate?.settled ? serialized : null;
-      await wait(400);
-    }
-    if (geometry == null) throw new Error(`design-alignment ${manifestKey(entry)}: geometry did not settle`);
-    const screenshot = await cdp.command("Page.captureScreenshot", { format: "png", fromSurface: true, captureBeyondViewport: false }, attached.sessionId);
-    const confirmed = await evaluate();
-    if (JSON.stringify(confirmed) !== JSON.stringify(geometry)) {
-      throw new Error(`design-alignment ${manifestKey(entry)}: DOM state changed while capturing screenshot`);
-    }
-    await rm(pngPath, { force: true });
-    await writeFile(pngPath, Buffer.from(screenshot.data, "base64"));
-    assertCompletePng(await readFile(pngPath));
-    return {
-      manifestKey: manifestKey(entry), scenario: entry.scenario, viewport: { label: viewport.label, width: viewport.width, height: viewport.height },
-      rotationTick: entry.rotationTick, cardPageTick: entry.cardPageTick, query: entry.query,
-      urlIdentity: normalizeDesignAlignmentUrl(url), pngPath, geometry,
-    };
-  } finally {
-    cdp.close();
-    child.kill("SIGTERM");
-  }
+  const session = await runDesignCaptureSession({ chrome, profileDir, url, viewport, viewportMode, entry });
+  const snapshot = session.preScreenshot;
+  const geometry = {
+    ...snapshot.designGeometry,
+    viewport: snapshot.document.viewport,
+    readiness: readinessFor(snapshot.document, "standby"),
+  };
+  await rm(pngPath, { force: true });
+  await writeFile(pngPath, Buffer.from(session.screenshotData, "base64"));
+  assertCompletePng(await readFile(pngPath));
+  const record = {
+    schemaVersion: CAPTURE_SCHEMA_VERSION,
+    manifestKey: manifestKey(entry), scenario: entry.scenario, fixture: null,
+    viewport, rotationTick: entry.rotationTick, cardPageTick: entry.cardPageTick, query: entry.query,
+    urlIdentity: normalizeDesignAlignmentUrl(url), pngPath, browser: session.browser, capture: session.capture,
+    geometry, expectationPolicy: "fixture-assertions-only", mismatches: [],
+  };
+  assertCaptureRecordSchemaV2(record);
+  return record;
 }
 
 function stableJson(value) {
@@ -1931,7 +1967,7 @@ function assertRequiredReport(record, { allowLegacyTyphoonNodes = false } = {}) 
   const report = record.geometry;
   if (report == null || report.ready !== true || report.settled !== true) throw new Error(`${record.manifestKey}: font/layout not ready`);
   assertDesignAlignmentApprox(report.rootFontSize, 16, 0.1, `${record.manifestKey} root font-size`);
-  if (report.viewport.width !== record.viewport.width || report.viewport.height !== record.viewport.height) throw new Error(`${record.manifestKey}: viewport mismatch`);
+  if (report.viewport.innerWidth !== record.viewport.width || report.viewport.innerHeight !== record.viewport.height || report.viewport.devicePixelRatio !== 1) throw new Error(`${record.manifestKey}: viewport mismatch`);
   for (const key of ["pageFooters", "naturalHeightProbes", "pagerContracts", "weatherCards"]) {
     if (!Array.isArray(report[key])) throw new Error(`${record.manifestKey}: required ${key} report field missing`);
   }
@@ -2754,7 +2790,7 @@ export function resolveDesignAlignmentExecutionMode({ suite, assertFrom, writeBa
 }
 
 export function createDesignAlignmentRecordsArtifact({ mode, records, baseline }) {
-  return { suite: "design-alignment", mode, records, baseline };
+  return { schemaVersion: CAPTURE_SCHEMA_VERSION, suite: "design-alignment", mode, records, baseline };
 }
 
 export function isDesignAlignmentScreenshotArtifact(name) {
@@ -2804,8 +2840,11 @@ export function assertDesignAlignmentManifest(records, { mode, baseline = null }
 export function assertDesignAlignmentSavedRecords(saved, baseline) {
   if (saved == null || saved.suite !== "design-alignment" || !Array.isArray(saved.records)) throw new Error("invalid design-alignment records file");
   if (saved.mode != null && saved.mode !== "after") throw new Error("design-alignment records file is not an after capture");
+  const viewportMode = saved.records[0]?.capture?.viewportMode;
+  assertCaptureReport(saved, { expectSuite: "design-alignment", expectViewportMode: viewportMode });
+  assertCaptureReport(baseline, { expectSuite: "design-alignment", expectViewportMode: viewportMode });
   const baseAfterComparison = assertDesignAlignmentManifest(saved.records, { mode: "after", baseline });
-  return { suite: "design-alignment", mode: "after", records: saved.records, baseAfterComparison };
+  return { schemaVersion: CAPTURE_SCHEMA_VERSION, suite: "design-alignment", mode: "after", records: saved.records, baseAfterComparison };
 }
 
 async function runDesignAlignmentAssertionsFromFile(options) {
@@ -2819,21 +2858,22 @@ async function runDesignAlignmentAssertionsFromFile(options) {
   process.stdout.write(`${JSON.stringify(report, null, 2)}\n`);
 }
 
-async function runDesignAlignmentSuite({ options, chrome, profileDir, baseUrl, outDir }) {
+async function runDesignAlignmentSuite({ options, chrome, profileDir, baseUrl, outDir, viewportMode }) {
   const mode = resolveDesignAlignmentCaptureMode(options);
   await cleanDesignAlignmentScreenshots(outDir);
   const records = [];
   for (const entry of DESIGN_ALIGNMENT_MANIFEST) {
     const url = designAlignmentUrl(baseUrl, entry);
     records.push(await captureDesignAlignmentPage({
-      chrome, profileDir, url, viewport: parseViewport(entry.viewport), outDir, entry,
+      chrome, profileDir, url, viewport: parseViewport(entry.viewport), viewportMode, outDir, entry,
     }));
   }
   const baseline = options.baselineReport == null ? null : JSON.parse(await readFile(options.baselineReport, "utf8"));
+  if (baseline != null) assertCaptureReport(baseline, { expectSuite: "design-alignment", expectViewportMode: viewportMode });
   const recordsArtifactPath = join(outDir, "design-alignment-records.json");
   await writeFile(recordsArtifactPath, `${JSON.stringify(createDesignAlignmentRecordsArtifact({ mode, records, baseline }), null, 2)}\n`);
   const baseAfterComparison = assertDesignAlignmentManifest(records, { mode, baseline });
-  const report = { suite: "design-alignment", mode, recordsArtifactPath, records, ...(baseAfterComparison == null ? {} : { baseAfterComparison }) };
+  const report = { schemaVersion: CAPTURE_SCHEMA_VERSION, suite: "design-alignment", mode, recordsArtifactPath, records, ...(baseAfterComparison == null ? {} : { baseAfterComparison }) };
   if (options.writeBaseline != null) await writeFile(options.writeBaseline, `${JSON.stringify(report, null, 2)}\n`);
   process.stdout.write(`${JSON.stringify(report, null, 2)}\n`);
 }
@@ -2842,6 +2882,17 @@ async function main() {
   let options;
   try { options = parseCaptureArgs(process.argv.slice(2)); } catch (error) { usage(error.message); return; }
   if (options == null) { usage(); return; }
+  if (options.verifyLegacyExpectationDigest != null) {
+    const actual = verifyLegacyExpectationDigest(options.verifyLegacyExpectationDigest);
+    process.stdout.write(`${actual}\n`);
+    return;
+  }
+  if (options.assertCaptureReport != null) {
+    const report = JSON.parse(await readFile(resolve(options.assertCaptureReport), "utf8"));
+    const result = assertCaptureReport(report, options);
+    process.stdout.write(`${JSON.stringify({ schemaVersion: CAPTURE_SCHEMA_VERSION, asserted: resolve(options.assertCaptureReport), suite: result.suite, cells: result.records.length, mismatches: result.mismatchCount }, null, 2)}\n`);
+    return;
+  }
   if (options.suite != null && options.suite !== "design-alignment") throw new Error("unknown suite");
   if (resolveDesignAlignmentExecutionMode(options) === "assert-from") {
     await runDesignAlignmentAssertionsFromFile(options);
@@ -2870,12 +2921,13 @@ async function main() {
   const outDir = resolve(options.outDir ?? join(DISPLAY_DIR, "artifacts", "legacy-standby"));
   await mkdir(outDir, { recursive: true });
   const chrome = process.env.CHROME_BIN ?? "chrome";
+  const viewportMode = viewportModeForSuite(options);
   const staticServer = options.url == null ? await startStaticServer() : null;
   const baseUrl = options.url ?? staticServer.url;
   const profileDir = await mkdtemp(join(outDir, ".chrome-profile-"));
   try {
     if (options.suite === "design-alignment") {
-      await runDesignAlignmentSuite({ options, chrome, profileDir, baseUrl, outDir });
+      await runDesignAlignmentSuite({ options, chrome, profileDir, baseUrl, outDir, viewportMode });
       return;
     }
     const results = [];
@@ -2887,7 +2939,7 @@ async function main() {
       const viewports = viewportLabels.map(parseViewport);
       for (const viewport of viewports) {
         const initialCardPageTick = options.fixture === "briefing-pages" || options.fixture === "briefing-single-page" ? 0 : null;
-        const first = await capture({ chrome, profileDir, url: gateUrl(baseUrl, scenario, 0, options.fixture, initialCardPageTick), scenario, viewport, outDir, rotationTick: 0, cardPageTick: initialCardPageTick, assertTable: !options.report, fixture: options.fixture });
+        const first = await capture({ chrome, profileDir, url: gateUrl(baseUrl, scenario, 0, options.fixture, initialCardPageTick), scenario, viewport, outDir, viewportMode, rotationTick: 0, cardPageTick: initialCardPageTick, assertTable: !options.report, fixture: options.fixture });
         results.push(first);
         if (options.fixture === "briefing-pages") {
           // Deterministically drive the real page coordinator through every
@@ -2896,27 +2948,30 @@ async function main() {
           for (let pageTick = 1; pageTick < BRIEFING_PAGING_PAGE_COUNT; pageTick += 1) {
             results.push(await capture({
               chrome, profileDir, url: gateUrl(baseUrl, scenario, 0, options.fixture, pageTick), scenario, viewport, outDir,
-              rotationTick: 0, cardPageTick: pageTick, assertTable: !options.report, fixture: options.fixture,
+              viewportMode, rotationTick: 0, cardPageTick: pageTick, assertTable: !options.report, fixture: options.fixture,
             }));
           }
           results.push(await capture({
             chrome, profileDir, url: gateUrl(baseUrl, scenario, 0, "briefing-single-page", 0), scenario, viewport, outDir,
-            rotationTick: 0, cardPageTick: 0, assertTable: !options.report, fixture: "briefing-single-page",
+            viewportMode, rotationTick: 0, cardPageTick: 0, assertTable: !options.report, fixture: "briefing-single-page",
           }));
         }
         const rotationKeys = (first.diagnostics["data-rotation-keys"] ?? "").split(",").filter(Boolean);
         if (first.diagnostics["data-ladder-stage"] === "3") {
           for (let rotationTick = 1; rotationTick < rotationKeys.length; rotationTick += 1) {
-            results.push(await capture({ chrome, profileDir, url: gateUrl(baseUrl, scenario, rotationTick, options.fixture), scenario, viewport, outDir, rotationTick, assertTable: !options.report, fixture: options.fixture }));
+            results.push(await capture({ chrome, profileDir, url: gateUrl(baseUrl, scenario, rotationTick, options.fixture), scenario, viewport, outDir, viewportMode, rotationTick, assertTable: !options.report, fixture: options.fixture }));
           }
         }
       }
     }
-    const cells = results.filter((result) => result.rotationTick === 0).map((result) => ({
-      scenario: result.scenario, viewport: result.viewport, match: result.mismatches.length === 0,
-      mismatches: result.mismatches, diagnostics: result.diagnostics, geometry: result.geometry,
-    }));
-    process.stdout.write(`${JSON.stringify(options.report ? { outDir, cells } : { outDir, results }, null, 2)}\n`);
+    const { report, exitCode } = createStandardReportResult({ results, reportMode: options.report, outDir });
+    if (options.writeReport != null) {
+      const writeReportPath = resolve(options.writeReport);
+      await mkdir(dirname(writeReportPath), { recursive: true });
+      await writeFile(writeReportPath, `${JSON.stringify(report, null, 2)}\n`);
+    }
+    process.stdout.write(`${JSON.stringify(report, null, 2)}\n`);
+    if (options.report) process.exitCode = exitCode;
   } finally {
     // A SIGTERM-ed Chrome may still be flushing its profile while the recursive
     // rm walks it, surfacing ENOTEMPTY on macOS. Retry briefly, then leave the
@@ -2937,7 +2992,8 @@ async function main() {
 const directlyInvoked = process.argv[1] != null && resolve(process.argv[1]) === fileURLToPath(import.meta.url);
 if (directlyInvoked) {
   main().catch((error) => {
-    process.stderr.write(`${error instanceof Error ? error.stack ?? error.message : String(error)}\n`);
+    if (error instanceof CaptureAssertionError) process.stderr.write(`${JSON.stringify({ name: error.name, code: error.code, message: error.message })}\n`);
+    else process.stderr.write(`${error instanceof Error ? error.stack ?? error.message : String(error)}\n`);
     process.exitCode = 1;
   });
 }

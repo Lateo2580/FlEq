@@ -113,6 +113,8 @@ interface CaptureOptions {
   assertFrom: string | null;
   writeBaseline: string | null;
   baselineReport: string | null;
+  viewportMode: "legacy-control" | "calibrated";
+  viewportModeExplicit: boolean;
 }
 
 const captureScriptPath = join(__dirname, "../../../../scripts/capture-legacy-standby.mjs");
@@ -339,7 +341,7 @@ function baselineStructureRecords() {
       viewport: { label: viewport, width, height },
       urlIdentity: `/preview.html?nav=0#${entry.scenario}`,
       geometry: {
-        ready: true, settled: true, rootFontSize: 16, viewport: { width, height },
+        ready: true, settled: true, rootFontSize: 16, viewport: { innerWidth: width, innerHeight: height, devicePixelRatio: 1 },
         tokens: { roleMuted: "rgb(120, 120, 120)" },
         layout: {
           ladderStage: plan?.stage ?? 0, measurementGeometryStage: plan?.stage ?? 0, compressed,
@@ -911,7 +913,7 @@ describe("design-alignment capture contract", () => {
     expect(() => capture.resolveDesignAlignmentExecutionMode({ ...options, baselineReport: null })).toThrow(/requires --baseline-report/);
     const baseline = { suite: "design-alignment", mode: "baseline", records: [{ id: "base" }] };
     expect(capture.createDesignAlignmentRecordsArtifact({ mode: "after", records: [{ id: "after" }], baseline })).toEqual({
-      suite: "design-alignment", mode: "after", records: [{ id: "after" }], baseline,
+      schemaVersion: 2, suite: "design-alignment", mode: "after", records: [{ id: "after" }], baseline,
     });
     const source = readFileSync(captureScriptPath, "utf8");
     expect(source.indexOf("if (resolveDesignAlignmentExecutionMode(options) === \"assert-from\")"))
@@ -955,7 +957,7 @@ describe("design-alignment capture contract", () => {
     missingGeometry[0]!.geometry = null as never;
     expect(() => capture.assertDesignAlignmentManifest(missingGeometry, { mode: "baseline" })).toThrow(/font\/layout not ready/);
     const wrongViewport = structuredClone(records);
-    wrongViewport[0]!.geometry.viewport.width -= 1;
+    wrongViewport[0]!.geometry.viewport.innerWidth -= 1;
     expect(() => capture.assertDesignAlignmentManifest(wrongViewport, { mode: "baseline" })).toThrow(/viewport mismatch/);
     const missingField = structuredClone(records);
     missingField[0]!.geometry.layout.visibleCards = null as never;
