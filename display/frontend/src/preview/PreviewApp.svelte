@@ -2,6 +2,7 @@
   import type { EmergencyPanelModel } from "../lib/derive";
   import type { DisplayEventDtoV1, DisplayLargeQuakeInputV1, DisplayStateSnapshotV1, DisplayTsunamiInputV1 } from "../lib/protocol";
   import StandbyScreen from "../components/StandbyScreen.svelte";
+  import WeatherAlertCard from "../components/WeatherAlertCard.svelte";
   import EmergencyScreen from "../components/EmergencyScreen.svelte";
   import Ticker from "../components/Ticker.svelte";
   import TierOverlay from "../components/TierOverlay.svelte";
@@ -36,6 +37,7 @@
     designAlignmentRiderReserveCounts,
     designAlignmentCompressedLatestQuake,
     designAlignmentCompressedWeatherExpandedKinds,
+    legacyImprovedMaxWeatherAlerts,
     legacyImprovedMaxWeatherAlertsCompact,
     standbyItemsRightStackBudget,
     standbyItemsFloodWide,
@@ -85,6 +87,8 @@
     "standby-vpta50-probability-muted",
     "standby-vpta50-probability-normal",
     "standby-design-alignment-compressed",
+    "weatherAutoFooterNormal",
+    "weatherAutoFooterCompressed",
     "standby-active-wide",
     "standby-right-stack-budget",
     "standby-tier-critical",
@@ -142,12 +146,15 @@
   const gateFixture = $derived.by(() => {
     if (!legacyStandbyGate) return undefined;
     const value = new URLSearchParams(window.location.search).get("gateFixture");
-    return value === "overflow" || value === "overlap" || value === "rotation" || value === "cluster" || value === "cluster-calm"
+    return value === "overflow" || value === "rotation" || value === "cluster" || value === "cluster-calm"
       || value === "tornado-pages" || value === "tornado-aggregate" || value === "tornado-clip" || value === "tornado-epoch-release" || value === "recent-quakes-narrow" || value === "attention-visibility-standby"
       || value === "briefing-pages" || value === "briefing-single-page"
       ? value as LegacyStandbyGateFixture : undefined;
   });
   let standbyStage = $state<0 | 1 | 2 | 3>(0);
+  const weatherAutoFooterProbe = $derived(scenario === "weatherAutoFooterNormal" || scenario === "weatherAutoFooterCompressed");
+  const weatherAutoFooterCompressed = $derived(scenario === "weatherAutoFooterCompressed");
+  const weatherAutoFooterRange = { start: 0, end: 1, tails: [], omittedAreaCount: 0 };
 
   const PREVIEW_TIPS = [
     "震度は「ある場所の揺れの強さ」、マグニチュードは「地震そのものの規模」です。",
@@ -682,6 +689,25 @@
   </section>
 {:else if scenario === "legacy-improved-mock"}
   <LegacyImprovedMock />
+{:else if weatherAutoFooterProbe}
+  <main class="preview-screen weather-auto-screen" data-preview-mode="standby">
+    <div
+      class="standby weather-auto-footer-probe"
+      class:ladder-compressed={weatherAutoFooterCompressed}
+      data-weather-auto-footer-probe={scenario}
+      data-weather-auto-forced-range={JSON.stringify(weatherAutoFooterRange)}
+      data-measurement-settled="true"
+      data-layout-unresolved="false"
+      data-measurement-nonconverged="false"
+    >
+      <WeatherAlertCard
+        alerts={legacyImprovedMaxWeatherAlerts}
+        pageScheduling={true}
+        measurementRange={weatherAutoFooterRange}
+        measurementPageFooter={true}
+      />
+    </div>
+  </main>
 {:else}
 <main
   class="preview-screen"
@@ -735,6 +761,15 @@
     width: 100vw;
     height: 100vh;
     overflow: hidden;
+  }
+  .weather-auto-screen { display: grid; place-items: center; background: var(--bg); }
+  .weather-auto-footer-probe { width: min(360px, 28vw); }
+  .weather-auto-footer-probe.ladder-compressed {
+    --space-1: 2px;
+    --space-2: 4px;
+    --space-3: 6px;
+    --space-4: 8px;
+    --space-5: 10px;
   }
   .screen-area {
     position: absolute;

@@ -312,6 +312,28 @@ h3,
   border-bottom: 0;
 }
 
+/* 待機画面カードの改ページ表示。footer は計測対象となる通常フロー行である。 */
+.card-page-footer {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: flex-end;
+  padding: var(--space-1) var(--space-4);
+  border-top: 1px solid var(--hairline);
+  pointer-events: none;
+}
+.card-page-indicator {
+  box-sizing: border-box;
+  padding: 1px var(--space-2);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-s);
+  background: transparent;
+  color: var(--role-muted);
+  font-size: var(--type-label-xs-size);
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
 /* 散文 (折り返して読ませる文章ブロック) は行間を戻す (spec D2)。グローバル 1.3 は
    データ密度優先の kiosk 例外 (緊急パネル収容制約) — 散文には適用しない */
 .prose {

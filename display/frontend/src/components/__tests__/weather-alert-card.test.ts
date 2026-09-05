@@ -622,7 +622,7 @@ describe("WeatherAlertCard", () => {
     expect(src).not.toContain("clip-hidden");
   });
 
-  it("測定棚ではページ番号を本文とriderの間の補償済み隙間へゼロ高 footer で組版する", () => {
+  it("測定棚ではページ番号を本文とriderの間の通常フロー footer で組版する", () => {
     const { container } = render(WeatherAlertCard, {
       alerts: [weatherAlert({ items: [{
         kind: "大雨警報", displaySeverity: "warning", rank: "warning", shownAreas: ["宮崎市"], omittedAreaCount: 3,
@@ -641,13 +641,10 @@ describe("WeatherAlertCard", () => {
     expect(body?.contains(footer ?? null)).toBe(false);
     expect(footer?.nextElementSibling).toBe(rider);
     const source = readFileSync(join(__dirname, "..", "WeatherAlertCard.svelte"), "utf-8");
-    expect(source).toMatch(/\.card-page-footer\s*\{[^}]*display:\s*flex;[^}]*flex:\s*0 0 0;[^}]*height:\s*0;/s);
-    expect(source).toMatch(/\.weather-card\.has-page-footer ul\s*\{[^}]*padding-top:\s*calc\(var\(--space-2\) - 4px\);[^}]*padding-bottom:\s*calc\(var\(--space-3\) - 6px\);/s);
-    expect(source).toMatch(/\.weather-card\.has-page-footer\.has-tornado \.tornado-rider\s*\{[^}]*margin-top:\s*var\(--card-page-indicator-block-size\);[^}]*padding-top:\s*calc\(var\(--space-2\) - 3px\);[^}]*padding-bottom:\s*calc\(var\(--space-2\) - 3px\);/s);
-    expect(source).toMatch(/\.weather-card\.has-page-footer:not\(\.has-tornado\)\s*\{[^}]*padding-bottom:\s*var\(--card-page-indicator-block-size\);/s);
-    expect(source).toMatch(/\.card-page-indicator\s*\{[^}]*block-size:\s*var\(--card-page-indicator-block-size\);[^}]*line-height:\s*1;/s);
-    expect(source).not.toMatch(/\.card-page-footer\s*\{[^}]*transform:/s);
-    expect(source).not.toMatch(/\.card-page-indicator\s*\{[^}]*position:\s*absolute;/s);
+    expect(source).toMatch(/\.weather-card\s*\{[^}]*grid-template-rows:\s*auto minmax\(0, 1fr\) auto auto;[^}]*grid-template-areas:\s*"header"\s*"body"\s*"footer"\s*"rider";/s);
+    expect(source).toMatch(/\.weather-page-footer\s*\{[^}]*grid-area:\s*footer;/s);
+    expect(source).toMatch(/\.tornado-rider\s*\{[^}]*grid-area:\s*rider;[^}]*border-bottom-left-radius:\s*calc\(var\(--radius-standby\) - 1px\);/s);
+    expect(source).not.toContain("--card-page-indicator-block-size");
   });
 
   it("通常変異の測定棚は live と同じく truncate 時だけ 1/1 footer を持つ", () => {

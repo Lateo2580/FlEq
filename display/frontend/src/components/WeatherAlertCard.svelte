@@ -171,6 +171,16 @@
       ? [{ kindKey: item.kindKey, area: `tail-${item.kindKey}`, areaCode: null, occurrenceIndex: 0, tailOnly: true }]
       : []),
   ]));
+  const weatherPagerLogicalItems = $derived(items.flatMap((item) => [
+    ...item.shownAreas.map((area, occurrenceIndex) => pageIdentity({
+      kindKey: item.kindKey,
+      area,
+      areaCode: item.shownAreaCodes[occurrenceIndex] ?? null,
+      occurrenceIndex,
+    })),
+    ["omittedAreaCount", item.kindKey, item.omittedAreaCount] as const,
+  ]));
+  const weatherPagerKindKeys = $derived(items.map((item) => item.kindKey));
   const lastAreaIndexByKind = $derived.by(() => {
     const indices = new Map<string, number>();
     for (const [index, entry] of pageCandidates.entries()) if (!entry.tailOnly) indices.set(entry.kindKey, index);
@@ -215,6 +225,7 @@
   });
   const currentPageIndex = $derived(pageCoordinator.activeIndex("weather"));
   const currentPage = $derived(weatherPages[currentPageIndex] ?? weatherPages[0] ?? { entries: [], tails: [] });
+  const currentWeatherRange = $derived(weatherPages[currentPageIndex]?.range ?? weatherPages[0]?.range ?? null);
   const visibleItems = $derived.by(() => {
     // A shelf probe is a forced [start, end) composition even when that
     // local range makes one page. Never fall back to the static all-items
@@ -266,6 +277,7 @@
   );
 
   const tornadoAreas = $derived(tornado?.data.areas ?? []);
+  const tornadoPagerLogicalItems = $derived(tornadoPageAreaEntries(tornadoAreas).map((entry) => pageIdentity(entry)));
   let previousTornadoSighted = $state(false);
   let tornadoEscalationGeneration = $state(0);
   $effect(() => {
@@ -391,7 +403,22 @@
     data-card-page={pageDiagnostics.page}
     data-card-page-keys={JSON.stringify(pageDiagnostics.keys)}
     data-card-page-identities={JSON.stringify(pageDiagnostics.identities)}
+    data-card-page-active-identity={pageDiagnostics.activeKey ?? undefined}
+    data-weather-pager-namespace="card-page-coordinator"
+    data-weather-pager-key="weather"
+    data-weather-pager-logical-items={JSON.stringify(weatherPagerLogicalItems)}
+    data-weather-pager-logical-fingerprints={JSON.stringify(weatherPagerLogicalItems)}
+    data-weather-pager-reset-items={JSON.stringify(weatherPagerLogicalItems)}
+    data-weather-pager-logical-source-count={weatherPagerLogicalItems.length}
+    data-weather-pager-kind-keys={JSON.stringify(weatherPagerKindKeys)}
+    data-tornado-pager-namespace="card-page-coordinator"
+    data-tornado-pager-key="tornado"
+    data-tornado-pager-logical-items={JSON.stringify(tornadoPagerLogicalItems)}
+    data-tornado-pager-logical-fingerprints={JSON.stringify(tornadoPagerLogicalItems)}
+    data-tornado-pager-reset-items={JSON.stringify(tornadoAreas)}
+    data-tornado-pager-logical-source-count={tornadoPagerLogicalItems.length}
     data-card-page-truncated={pageTruncated ? "true" : "false"}
+    data-weather-page-range={currentWeatherRange == null ? "" : `${currentWeatherRange.start}:${currentWeatherRange.end}`}
     data-partition-probe-count={pagePartition.probeCount}
     data-card-page-infeasible={pagePartition.infeasible ? "true" : "false"}
     data-card-page-pending={pagePartition.pending.length > 0 ? "true" : "false"}
@@ -403,7 +430,7 @@
     data-tornado-page-fallback={tornado == null ? undefined : resolvedTornadoInfeasible ?? (resolvedTornadoAggregatePending ? "aggregate-pending" : "false")}
   >
     <header
-      class="standby-card-header"
+      class="standby-card-header weather-card-header"
       style="--standby-header-container: {headerContainerVar(topRole)}; --standby-header-on: {headerOnVar(topRole)}; --standby-header-band: {headerBandVar(topRole)}"
     ><span class="standby-card-header__title">{headerLabel(topRole, alerts)}</span><span class="standby-card-header__meta"><UpdatedStamp iso={latestUpdatedAt} /></span></header>
     {#if alerts.length > 0}<ul data-page-probe-body data-page-probe-readable>
@@ -429,7 +456,7 @@
         </li>
       {/each}
     </ul>{/if}
-    {#if showPageIndicator}<div class="card-page-footer" data-card-page-footer><span class="card-page-indicator" data-card-page-indicator>{pageIndicatorLabel}</span></div>{/if}
+    {#if showPageIndicator}<div class="card-page-footer weather-page-footer" data-card-page-footer><span class="card-page-indicator" data-card-page-indicator>{pageIndicatorLabel}</span></div>{/if}
     {#if tornado != null}<div class:sighted={tornado.data.isSighted} class:clip-rider={resolvedTornadoInfeasible === "clip"} class="tornado-rider" data-page-probe-readable><span data-tornado-rider-text>⚠ {#if resolvedTornadoInfeasible != null || tornadoAggregateProbe}{tornadoRiderText}{:else}竜巻{tornado.data.isSighted ? "目撃情報" : "注意情報"}（{#if visibleTornadoAreas.length > 0}{#each visibleTornadoAreas as area, index (area)}<span data-tornado-visible-area>{area}</span>{#if index < visibleTornadoAreas.length - 1}、{/if}{/each}{:else}対象地域{/if}）{/if}</span>{#if showTornadoPageMarker}<span class="tornado-page-marker" data-tornado-page-marker>対象地域 {resolvedTornadoPage}/{resolvedTornadoPageCount}</span>{/if}{#if tornado.restored}<RestoredChip />{/if}</div>{/if}
   </div>
 {/if}
@@ -444,8 +471,9 @@
     position: relative;
     width: min(360px, 28vw);
     max-height: min(44vh, 280px);
-    display: flex;
-    flex-direction: column;
+    display: grid;
+    grid-template-rows: auto minmax(0, 1fr) auto auto;
+    grid-template-areas: "header" "body" "footer" "rider";
     color: var(--fg);
   }
   /* Paging, provisional probes, and either infeasible fallback share the same
@@ -454,11 +482,9 @@
   .weather-card.paging-contract {
     height: min(44vh, 280px);
   }
-  .weather-card.has-page-footer {
-    /* label-xs 12px at line-height:1 + 1px block padding + 1px border on each side. */
-    --card-page-indicator-block-size: calc(var(--type-label-xs-size) + 4px);
-  }
+  .weather-card-header { grid-area: header; }
   ul {
+    grid-area: body;
     list-style: none;
     margin: 0;
     padding: var(--space-2) var(--space-4) var(--space-3);
@@ -474,33 +500,9 @@
     padding: 6px 0;
     font-size: max(14px, var(--type-label-l-fluid)); /* spec D1: 層1 (安全・常設 14px 以上) */
   }
-  .tornado-rider { border-top: 1px solid var(--hairline); padding: var(--space-2) var(--space-4); color: var(--role-weatherWarning); font-size: max(14px, var(--type-label-l-fluid)); font-weight: var(--type-body-weight-emphasized); }
+  .tornado-rider { grid-area: rider; border-top: 1px solid var(--hairline); padding: var(--space-2) var(--space-4); color: var(--role-weatherWarning); font-size: max(14px, var(--type-label-l-fluid)); font-weight: var(--type-body-weight-emphasized); border-bottom-left-radius: calc(var(--radius-standby) - 1px); border-bottom-right-radius: calc(var(--radius-standby) - 1px); }
   .tornado-rider.clip-rider [data-tornado-rider-text] { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .tornado-page-marker { display: inline; margin-inline-start: 0.5em; white-space: nowrap; font-size: var(--type-label-xs-size); font-weight: var(--type-body-weight-regular); color: var(--role-muted); }
-  /* The zero-height footer paints downward into a real gap immediately above
-     the rider. Fund that gap from existing fixed vertical whitespace so the
-     weather card's measured height stays identical: ul -10px + rider -6px +
-     margin +16px = 0px. The arithmetic is resolution-independent even when
-     standby swaps --space-* tokens at compressed ladder stages. */
-  .weather-card.has-page-footer ul {
-    padding-top: calc(var(--space-2) - 4px);
-    padding-bottom: calc(var(--space-3) - 6px);
-  }
-  .weather-card.has-page-footer.has-tornado .tornado-rider {
-    margin-top: var(--card-page-indicator-block-size);
-    padding-top: calc(var(--space-2) - 3px);
-    padding-bottom: calc(var(--space-2) - 3px);
-  }
-  /* A paged card without a tornado rider still needs the same post-body paint
-     gap. Reclaim the remaining 6px from the header, then expose all 16px as
-     card bottom padding; total measured height again stays unchanged. */
-  .weather-card.has-page-footer:not(.has-tornado) {
-    padding-bottom: var(--card-page-indicator-block-size);
-  }
-  .weather-card.has-page-footer:not(.has-tornado) .standby-card-header {
-    padding-top: calc(var(--space-2) - 3px);
-    padding-bottom: calc(var(--space-2) - 3px);
-  }
   .tornado-rider.sighted { color: var(--role-weatherEmergency); background: color-mix(in srgb, var(--role-weatherEmergency) 10%, var(--surface-standby)); }
   .kind {
     font-weight: var(--type-body-weight-emphasized);
@@ -551,32 +553,5 @@
     color: var(--role-muted);
     font-size: var(--type-label-xs-size);
   }
-  .card-page-footer {
-    /* The legacy solver measures the weather shell without the page badge:
-       its zero-height boundary starts the compensated pre-rider gap, so the
-       badge paints downward without adding its own measured row. */
-    display: flex;
-    flex: 0 0 0;
-    justify-content: flex-end;
-    box-sizing: border-box;
-    height: 0;
-    min-height: 0;
-    padding: 0 var(--space-4);
-    overflow: visible;
-    pointer-events: none;
-    position: relative;
-    z-index: 1;
-  }
-  .card-page-indicator {
-    box-sizing: border-box;
-    block-size: var(--card-page-indicator-block-size);
-    padding: 1px var(--space-2);
-    border: 1px solid var(--hairline);
-    border-radius: var(--radius-s);
-    background: color-mix(in srgb, var(--surface-standby) 92%, transparent);
-    color: var(--role-muted);
-    font-size: var(--type-label-xs-size);
-    line-height: 1;
-    font-variant-numeric: tabular-nums;
-  }
+  .weather-page-footer { grid-area: footer; }
 </style>

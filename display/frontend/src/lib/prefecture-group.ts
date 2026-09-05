@@ -42,6 +42,12 @@ export function prefectureFromMunicipalityCode(areaCode: string | null | undefin
   return PREFECTURE_BY_CODE[areaCode.slice(0, 2)] ?? null;
 }
 
+/** VPWP50 parent Area.Code の6桁形式だけを受ける表示用の判定。 */
+export function prefectureFromSixDigitAreaCode(areaCode: string | null | undefined): string | null {
+  if (areaCode == null || !/^\d{6}$/.test(areaCode)) return null;
+  return PREFECTURE_BY_CODE[areaCode.slice(0, 2)] ?? null;
+}
+
 /**
  * 緊急気象パネル用の、identity と入力位置を失わない地域 entry。
  * `areaName` は wire 原文、`displayName` は県見出し配下だけで使う表示名である。

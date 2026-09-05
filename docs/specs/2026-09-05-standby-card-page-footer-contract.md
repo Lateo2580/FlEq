@@ -87,7 +87,7 @@ indicator は右寄せし、その下端とカード内側下端の間に必ず 
 
 固定 shell / max-height 内で footer が実高を使う結果、Briefing / WeatherAlert / Volcano の一ページ当たり表示量と partition range は変わってよい。production partition の range、`data-card-page-identities`、active identity、page count、range 由来の page key は、各 card pager（WeatherAlert は weather pager / tornado pager を分離）の base / after を記録する診断値であり、通常の受入 gate で完全一致を要求しない。
 
-固定するのは、partition range から作らない pager namespace / key と、scheduler reset の元になる全論理項目列である。各 pager の列は論理項目 key を出現順に並べ、base / after 同一、重複0、欠落0とする。Weather の列は occurrence-aware area key を原順序で保持し、kind ごとに `["omittedAreaCount", kind, omittedAreaCount]` sentinel を加える。同値な別 field で比較する場合も kind と count の組を固定しなければならない。情報の削除、period / entry の並べ替え、ellipsis 以外の切詰め、scroll 化、固定高を超える描画で吸収してはならない。range と page identity を完全一致させる例外は、自然高差を切り出す §3.6 の専用 forced-range auto-height probe だけとする。既存期待値を変える場合は §3.7 を先に満たす。
+固定するのは、partition range から作らない pager namespace / key と、scheduler reset の元になる全論理項目列である。各 pager の列は論理項目 key を出現順に並べ、after では重複0・欠落0・spec の生成規則どおりを単独で検査し、base / after 同一の比較は baseline（旧 DOM）側で同 pager の完全 field（`data-pager-*`）が採れた場合だけ行う（2026-09-05 実測: 旧カード DOM は scheduler の paging.cards と page diagnostics を持つが `data-pager-*` を持たない。これは検証手段の制約で、製品契約の緩和ではない）。Weather の列は occurrence-aware area key を原順序で保持し、kind ごとに `["omittedAreaCount", kind, omittedAreaCount]` sentinel を加える。同値な別 field で比較する場合も kind と count の組を固定しなければならない。情報の削除、period / entry の並べ替え、ellipsis 以外の切詰め、scroll 化、固定高を超える描画で吸収してはならない。range と page identity を完全一致させる例外は、自然高差を切り出す §3.6 の専用 forced-range auto-height probe だけとする。既存期待値を変える場合は §3.7 を先に満たす。
 
 ### 3.3 VPWP50 の「続き」削除
 
@@ -139,10 +139,10 @@ WeatherAlertCard の DOM では rider が常に最下段である。footer が�
 
 | plan | viewport | stage | compressed | 比較契約 |
 |---|---|---:|---|---|
-| `fhdMax` | 1920×1080 | 1 | false | baseline 採取時の placement、pager namespace / key、reset 元の全論理項目列と after を一致。page range / identity / count は診断値 |
+| `fhdMax` | 1920×1080 | 0 | false | baseline 採取時と after で、表示カードの集合（left ∪ right ∪ center）、rotation なし、omitted 0 を一致。pager namespace / key と reset 元の全論理項目列は after 対 fixture 由来 oracle で検査し、baseline 完全 field 時のみ追加比較。**列の割当（left / right の並び）は診断値**（2026-09-05 実測: footer を実在行にした結果、VPWP50 と火山が左右を入れ替えた。solver の再配分であり欠陥ではない。**この緩和は製品の見え方に関わるため 2026-09-05 にご主人が A（許容）を裁定**）。page range / identity / count は診断値 |
 | `hdMax` | 1280×720 | 3 | true | 既存 `DESIGN_ALIGNMENT_MAX_PLAN` の placement / rotation / Typhoon variant / omitted と base / after を完全一致 |
 
-capture 実装では単数 `DESIGN_ALIGNMENT_MAX_PLAN` を viewport keyed の max plans または同等の別定義へ分ける。comparison policy は各 record が属する plan の `compressed` を期待し、すべての `legacy-standby-gate` record に `compressed=true` を一律要求しない。`fhdMax` は base / after の ladder / measurement stage 1と `compressed=false`、`hdMax` は両 stage 3と `compressed=true` を固定する。既存 compressed scenario の1280 / 960 plan は別枠のまま維持する。
+capture 実装では単数 `DESIGN_ALIGNMENT_MAX_PLAN` を viewport keyed の max plans または同等の別定義へ分ける。comparison policy は各 record が属する plan の `compressed` を期待し、すべての `legacy-standby-gate` record に `compressed=true` を一律要求しない。`fhdMax` は base / after の ladder / measurement stage 0と `compressed=false`、`hdMax` は両 stage 3と `compressed=true` を固定する。既存 compressed scenario の1280 / 960 plan は別枠のまま維持する。
 
 WeatherAlertCard の高さ差専用に、tornado なし・weather footer あり・`.paging-contract` なし・explicit height なしの `weatherAutoFooterNormal` / `weatherAutoFooterCompressed` target を design-alignment manifest へ明示する。通常 geometry と compressed geometry ごとに alert payload、literal な forced `measurementRange`、page count、`data-card-page-identities`、active identity、page key を manifest で固定し、base / after の同じ論理項目範囲を測る。この専用 fixture だけは range と page identity を完全一致させ、production partition の合否条件へ横展開しない。
 
@@ -170,7 +170,7 @@ report へ、対象 footer ごとに次を追加する。
 - VPWP50 の可視 `.continuation` は0、footer は1、表示地名は area / local の規則どおり、完全名称には従来の code が残る。
 - client / scroll overflow は1px以内、font ready / measurement settled、measurement shelf と live の幅一致、period / entry の論理 identity、pager namespace / key、reset 元の全論理項目列の保持を満たす。
 - auto-height weather probe は tornado / `.paging-contract` / explicit height を持たず、base / after で manifest の同じ forced range を測る。双方で `scrollHeight <= clientHeight + 1`、computed max-height が数値に解決すること、border-box 高がその max-height より1px超低く非 clamp であることを先に assert する。fixed tornado shell はこの自然高 assertionへ流用しない。
-- production partition では range、page count、`data-card-page-identities`、active identity、range 由来 page key の差だけで失敗させない。各 card pager（WeatherAlert は weather / tornado を分離）で pager namespace / key と reset 元の全論理項目列が base / after 同一、順序維持、重複0、欠落0、各ページの overflow が1px以内であることを assert する。Weather の列は occurrence-aware area key と kind 別 `omittedAreaCount` sentinel を含む。
+- production partition では range、page count、`data-card-page-identities`、active identity、range 由来 page key の差だけで失敗させない。各 card pager（WeatherAlert は weather / tornado を分離）で、pager namespace / key と reset 元の全論理項目列を **fixture（生データ）から component と独立に生成した期待列（oracle）** と after で完全一致（順序維持、重複0、欠落0）させ、各ページの overflow が1px以内であることを assert する。DOM 自身から採った列を期待値にしてはならない（欠落しても件数が一緒に減り常に一致する）。base / after 比較は baseline 側で `data-pager-*` の完全 field が採れた pager だけ追加で行う。Weather の列は occurrence-aware area key と kind 別 `omittedAreaCount` sentinel を含む。
 
 前弾 suite の期待値で本弾により変わる箇所は次のとおりである。実装前に main `8b63f1441` の fresh baseline を採り、古い baseline JSON を流用しない。
 
@@ -184,7 +184,7 @@ report へ、対象 footer ごとに次を追加する。
 
 履歴上の前弾変更前 baseline と連続比較する資料を残す場合、VPWP50 の累積自然高差は通常 `+21px ±1px`（前弾 +12、本弾 +9）、圧縮 `+11px ±1px`（前弾 +6、本弾 +5）となる。ただし自動 gate の正本は本弾直前の fresh baseline に対する `+9 / +5` とする。
 
-前弾で固定した `#standby-design-alignment-compressed` の candidate / rider / reserve 件数、128 period / 32 atom / 最大4 period、1280 / 960 の stage、placement、rotation key、Typhoon variant、omitted count は base / after 完全一致を維持する。`fhdMax` / `hdMax` も各 plan の stage、compressed、placement、pager namespace / key と reset 元の全論理項目列・順序を一致させる。production の page range、`data-card-page-identities`、active identity、page count、range 由来の page key、単一 tick のページ内表示件数は診断値とし、変化だけでは失敗させない。page identity の完全一致は §3.6 の専用 forced-range probe だけに要求する。それ以外の固定値が高さ変化で変わった場合は期待表を黙って更新せず §3.7 へ進む。
+前弾で固定した `#standby-design-alignment-compressed` の candidate / rider / reserve 件数、128 period / 32 atom / 最大4 period、1280 / 960 の stage、placement、rotation key、Typhoon variant、omitted count は base / after 完全一致を維持する。`hdMax` は plan の stage、compressed、placement、rotation を完全一致させる。`fhdMax` は stage、compressed、表示カード集合、rotation なし、omitted 0 を一致させ、列割当は診断値とする（ご主人裁定 A）。pager namespace / key と論理項目列は fixture 由来 oracle と after の一致で検査し、base 比較は完全 field が採れた場合のみ。production の page range、`data-card-page-identities`、active identity、page count、range 由来の page key、単一 tick のページ内表示件数は診断値とし、変化だけでは失敗させない。page identity の完全一致は §3.6 の専用 forced-range probe だけに要求する。それ以外の固定値が高さ変化で変わった場合は期待表を黙って更新せず §3.7 へ進む。
 
 ### 3.7 実装時裁定の報告
 
@@ -364,11 +364,11 @@ node display/scripts/capture-legacy-standby.mjs --suite design-alignment --repor
 
 前弾 `design-alignment` の Briefing 2×2、VPTA NumberUnit、candidate / payload signature、font readiness、measurement/live width、1280 / 960 compressed plan、1280 max comparison の assertion は削らず併走させる。VPWP50 の自然高 delta だけは §3.6 の fresh baseline 値へ置き換える。三解像度の card / readable overflow は1px以内、footer / body / rider overlap は0、`data-layout-unresolved=false`、measurement nonconverged=false、rotation omitted count 0とする。
 
-max comparison は `fhdMax(1920)` と `hdMax(1280)` を plan key で引く。`fhdMax` は ladder / measurement stage 1、`compressed=false`、base / after placement一致を要求する。`hdMax` は既存 stage 3、`compressed=true` と既存 placement / rotationを要求する。compressed assertion は `plan.compressed` との一致として実装し、scenario 名だけで true を決めない。
+max comparison は `fhdMax(1920)` と `hdMax(1280)` を plan key で引く。`fhdMax` は ladder / measurement stage 0（2026-09-05 親の真 viewport 実測。旧 gate 表の stage 1 は viewport 高 577px 時代の値）、`compressed=false`、base / after で表示カード集合・rotation なし・omitted 0 の一致を要求し、left / right の列割当は診断値として記録する（完全一致は要求しない）。`hdMax` は既存 stage 3、`compressed=true` と既存 placement / rotationを要求する。compressed assertion は `plan.compressed` との一致として実装し、scenario 名だけで true を決めない。
 
 WeatherAlert の `+25 / +21` は manifest 上の専用 auto-height probeだけで判定する。probe report は `tornadoPresent=false`、`pagingContract=false`、explicit heightなし、footerあり、manifest literal の forced range / page count / `data-card-page-identities` / active identity / page key の base / after 一致を必須 field とする。通常 / 圧縮の各 before / after で card rect / `clientHeight` / `scrollHeight`、computed `max-height`、max-height までの gap を記録し、差分比較の前に双方の `scrollHeight <= clientHeight + 1` と `border-box height < computed max-height - 1px` を要求する。manifest はこれを満たす forced range を固定し、非 clamp 条件不成立の record で `+25px ±1px` / `+21px ±1px` を判定しない。page identity の完全一致はこの専用 forced-range probe だけに要求する。tornado あり fixed shell は outer rect / scrollHeight差 `0px ±1px`、`header + ul row + footer + rider` の内側占有高が content box以内、footer / rider overlap 0を別 assertionにする。production の weather / tornado は partition range / page identity / active identity / page count を別々に base / after へ記録するが診断値とし、完全一致を要求しない。
 
-stage、placement、rotation key / active position、pager namespace / key、Typhoon variant が base / after で変わった場合は非0終了し、§3.7 の裁定を求める。production の page range、`data-card-page-identities`、active identity、page count、range 由来の page key、単一 tick のページ内表示件数は pager 別の診断値とし、差だけでは失敗させない。代わりに、各 pager の scheduler reset 元となる全論理項目列を比較し、base / after 同一、順序維持、重複0、欠落0、各ページの overflow 1px以内を要求する。Weather の列には occurrence-aware area key と kind 別 `omittedAreaCount` sentinel を含める。range と page identity の完全一致は、非 clamp を before / after で先に確認する専用 auto-height probe に限る。
+stage、compressed、rotation key / active position、Typhoon variant が base / after で変わった場合は非0終了し、§3.7 の裁定を求める。placement は hdMax と圧縮 fixture で完全一致、fhdMax は表示カード集合の一致（列割当は診断値、ご主人裁定 A）。pager namespace / key は after 対 fixture 由来 oracle で検査し、baseline に完全 field がある pager だけ base / after 比較を追加する。production の page range、`data-card-page-identities`、active identity、page count、range 由来の page key、単一 tick のページ内表示件数は pager 別の診断値とし、差だけでは失敗させない。代わりに、各 pager の scheduler reset 元となる全論理項目列を fixture 由来の独立 oracle と比較し、after で完全一致（順序維持、重複0、欠落0）、各ページの overflow 1px以内を要求する。base / after 同一の比較は baseline に完全 field がある pager だけ行う。fhdMax の列割当は診断値（ご主人裁定 A）、hdMax の placement は完全一致。Weather の列には occurrence-aware area key と kind 別 `omittedAreaCount` sentinel を含める。range と page identity の完全一致は、非 clamp を before / after で先に確認する専用 auto-height probe に限る。
 
 ### 5.4 全体ゲート
 

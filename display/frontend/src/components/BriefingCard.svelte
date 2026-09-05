@@ -452,6 +452,7 @@
   // Content revisions retain their entry key and therefore the current page;
   // a real source-to-canonical replacement is an identity change, not a text heuristic.
   const resetKey = $derived(blocks.map((block) => block.identity).join(","));
+  const pagerLogicalItems = $derived(blocks.map((block) => block.identity));
   $effect(() => {
     if (!pageScheduling || pagePartition.pending.length > 0) return;
     pageCoordinator.register({
@@ -533,13 +534,12 @@
         </div>
       </article>
     {/each}
-    {#if hasFooter}<footer class="card-page-footer" data-card-page-footer><span class="card-page-indicator" data-card-page-indicator>{footerLabel}</span></footer>{/if}
+    {#if hasFooter}<footer class="card-page-footer briefing-page-footer" data-card-page-footer><span class="card-page-indicator" data-card-page-indicator>{footerLabel}</span></footer>{/if}
   </div>
 {/snippet}
 
 <section
   class="briefing-card"
-  class:has-page-footer={showPageIndicator}
   style={`${measurementRange == null ? `height: ${shellHeightPx}px;` : ""}${probeWidth == null ? "" : ` width: ${probeWidth}px; max-width: ${probeWidth}px;`}`}
   data-briefing-card
   data-briefing-top-frame={topFrameLevel}
@@ -548,6 +548,13 @@
   data-card-page-pending={pagePartition.pending.length > 0 ? "true" : "false"}
   data-card-page-keys={JSON.stringify(diagnostics.keys)}
   data-card-page-identities={JSON.stringify(diagnostics.identities)}
+  data-card-page-active-identity={diagnostics.activeKey ?? undefined}
+  data-pager-namespace="card-page-coordinator"
+  data-pager-key="briefing"
+  data-pager-logical-items={JSON.stringify(pagerLogicalItems)}
+  data-pager-logical-fingerprints={JSON.stringify(pagerLogicalItems)}
+  data-pager-reset-items={JSON.stringify(pagerLogicalItems)}
+  data-pager-logical-source-count={pagerLogicalItems.length}
   data-briefing-page-range={currentRange == null ? "" : `${currentRange.start}:${currentRange.end}`}
   data-briefing-generation={item.data.generation}
   data-briefing-shell-height-px={shellHeightPx}
@@ -566,7 +573,8 @@
 </section>
 
 <style>
-  .briefing-card { position: relative; box-sizing: border-box; width: 100%; max-width: 100%; overflow: hidden; border: 1px solid var(--hairline); border-radius: var(--radius-standby); background: var(--surface-standby); box-shadow: var(--elevation-2); color: var(--fg); }
+  .briefing-card { position: relative; box-sizing: border-box; width: 100%; max-width: 100%; overflow: hidden; border: 1px solid var(--hairline); border-radius: var(--radius-standby); background: var(--surface-standby); box-shadow: var(--elevation-2); color: var(--fg); display: flex; flex-direction: column; }
+  [data-briefing-page-atom] { display: flex; flex: 1 1 auto; min-height: 0; flex-direction: column; }
   .briefing-entry { min-height: 0; }
   .briefing-entry.entry-divider { border-top: 1px solid var(--hairline); }
   .body { padding: var(--space-2) var(--space-4); }
@@ -597,11 +605,5 @@
   .cities { display: inline-flex; flex-wrap: wrap; padding-left: 0.5em; gap: 0.5em; color: var(--role-muted); font-size: max(14px, var(--type-label-s-fluid)); }
   .city-name { white-space: nowrap; }
   .omitted { display: block; margin-top: var(--space-1); padding-left: 1em; color: var(--role-muted); font-size: var(--type-label-xs-size); }
-  .briefing-card.has-page-footer { --card-page-indicator-block-size: calc(var(--type-label-xs-size) + 4px); padding-bottom: var(--card-page-indicator-block-size); }
-  .briefing-card.has-page-footer .standby-card-header { padding-top: calc(var(--space-2) - 3px); padding-bottom: calc(var(--space-2) - 3px); }
-  /* The card reserves this slot with has-page-footer padding. Keep the
-     indicator inside it: a zero-height, visible-overflow footer inflates
-     scrollHeight by its 16px content and falsely rejects probe ranges. */
-  .card-page-footer { position: absolute; inset-inline: 0; bottom: 0; display: flex; align-items: center; justify-content: flex-end; box-sizing: border-box; height: var(--card-page-indicator-block-size); min-height: var(--card-page-indicator-block-size); padding: 0 var(--space-4); overflow: hidden; pointer-events: none; z-index: 1; }
-  .card-page-indicator { box-sizing: border-box; block-size: var(--card-page-indicator-block-size); padding: 1px var(--space-2); border: 1px solid var(--hairline); border-radius: var(--radius-s); background: color-mix(in srgb, var(--surface-standby) 92%, transparent); color: var(--role-muted); font-size: var(--type-label-xs-size); line-height: 1; font-variant-numeric: tabular-nums; }
+  .briefing-page-footer { margin-top: auto; }
 </style>

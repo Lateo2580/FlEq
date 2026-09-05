@@ -52,7 +52,7 @@
     rotationTick?: number;
     cardPageTick?: number;
     /** Preview gate only; production App never supplies this. */
-    gateFixture?: "overflow" | "overlap" | "rotation" | "cluster" | "cluster-calm" | "tornado-pages" | "tornado-aggregate" | "tornado-clip" | "tornado-epoch-release" | "recent-quakes-narrow" | "attention-visibility-standby" | "briefing-pages" | "briefing-single-page";
+    gateFixture?: "overflow" | "rotation" | "cluster" | "cluster-calm" | "tornado-pages" | "tornado-aggregate" | "tornado-clip" | "tornado-epoch-release" | "recent-quakes-narrow" | "attention-visibility-standby" | "briefing-pages" | "briefing-single-page";
     /** Preview-only partition telemetry; production App never enables this. */
     partitionDebug?: boolean;
   } = $props();
@@ -1980,7 +1980,7 @@
 
 <div
   bind:this={standbyEl}
-  class="standby" class:dim class:ladder-compressed={measurementGeometryStage >= 2} class:gate-overflow={gateFixture === "overflow"} class:gate-overlap={gateFixture === "overlap"} class:gate-rotation={gateFixture === "rotation"} class:gate-cluster={gateFixture === "cluster" || gateFixture === "cluster-calm"} class:gate-tornado-aggregate={gateFixture === "tornado-aggregate"} class:gate-tornado-clip={gateFixture === "tornado-clip"} style={`--nankai-reserve: ${nankaiHeightPx}px; --cluster-gap: ${clusterGapPx}px; --cluster-flow-height: ${clusterFlowHeightPx}px`}
+  class="standby" class:dim class:ladder-compressed={measurementGeometryStage >= 2} class:gate-overflow={gateFixture === "overflow"} class:gate-rotation={gateFixture === "rotation"} class:gate-cluster={gateFixture === "cluster" || gateFixture === "cluster-calm"} class:gate-tornado-aggregate={gateFixture === "tornado-aggregate"} class:gate-tornado-clip={gateFixture === "tornado-clip"} style={`--nankai-reserve: ${nankaiHeightPx}px; --cluster-gap: ${clusterGapPx}px; --cluster-flow-height: ${clusterFlowHeightPx}px`}
   data-ladder-stage={renderStage}
   data-solver-stage={stage}
   data-layout-unresolved={renderPlan.unresolved ? "true" : "false"}
@@ -2308,10 +2308,6 @@
      have no self overflow while their max-height root hides the lower rows. */
   .standby.gate-overflow :global(.flood-card),
   .standby.gate-overflow :global(.flood-wide-card) { height: 1px !important; min-height: 1px !important; max-height: 1px !important; overflow: hidden; }
-  /* E-gate counterexample: remove only the compensated badge gap. The page
-     indicator then paints directly into the tornado rider, so the production
-     rect-overlap diagnostic (not an injected value) must turn red. */
-  .standby.gate-overlap :global(.weather-card.has-page-footer.has-tornado .tornado-rider) { margin-top: 0; }
   /* Capture fixtures constrain forced shelves only.  The aggregate label fits
      in one line after an individual pathological area fails; clip rejects the
      aggregate too.  Live final forms retain their production CSS. */

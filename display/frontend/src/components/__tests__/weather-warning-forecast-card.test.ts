@@ -11,6 +11,7 @@ import type {
 } from "../../lib/protocol";
 import {
   buildWeatherWarningForecastAtoms,
+  vpwp50ForecastTargetDisplayLabel,
   vpwp50ForecastTargetLabel,
 } from "../../lib/weather-warning-forecast";
 import { createCardPageCoordinator } from "../../lib/legacy-standby/time-slice-scheduler.svelte";
@@ -119,21 +120,47 @@ describe("WeatherWarningForecastCard", () => {
     expect(vpwp50ForecastTargetLabel(target)).toBe(expected);
   });
 
-  it("renders the engine labels, full target label, JST period, restoration, continuation, and ARIA", () => {
+  it("renders the engine labels, visible target label, JST period, restoration, footer, and ARIA", () => {
     const item = forecastCard();
     const { container } = render(WeatherWarningForecastCard, { item, pageIndexOverride: 2 });
     const root = container.querySelector("[data-weather-warning-forecast-card]");
     expect(root?.textContent).toContain("気象警報予測");
     expect(root?.textContent).toContain("土砂災害（警戒レベル2相当）の予測");
-    expect(root?.textContent).toContain("長野県南部（200020） / 沿岸（001）");
+    expect(root?.textContent).toContain("長野県南部 沿岸");
+    expect(root?.textContent).not.toContain("続き 3/3");
     expect(root?.textContent).toContain("6月6日 09:00–12:00");
-    expect(root?.textContent).toContain("続き 3/3");
     expect(root?.textContent).toContain("同期中");
     expect(root?.querySelector(".restored-chip")).toBeTruthy();
     expect(root?.getAttribute("aria-label")).toContain("長野県南部（200020） / 沿岸（001）");
     expect(root?.getAttribute("aria-label")).toContain("6月6日 09:00–12:00");
     expect(root?.getAttribute("data-card-page")).toBe("3/3");
     expect(root?.querySelector("[data-card-page-footer]")).toBeTruthy();
+  });
+
+  it.each([
+    [{ scope: "area", parentAreaName: "北部", name: "北部", areaCode: "200010", localCode: null }, "長野県 北部", "北部（200010）"],
+    [{ scope: "local", parentAreaName: "稚内市", name: "稚内海岸", areaCode: "0121400", localCode: "L001" }, "北海道 稚内市 稚内海岸", "稚内市（0121400） / 稚内海岸（L001）"],
+    [{ scope: "local", parentAreaName: "長野県 北部", name: "菅平周辺", areaCode: "200010", localCode: "L001" }, "長野県 北部 菅平周辺", "長野県 北部（200010） / 菅平周辺（L001）"],
+    [{ scope: "area", parentAreaName: "北部（長野県）", name: "北部（長野県）", areaCode: "200010", localCode: null }, "長野県 北部（長野県）", "北部（長野県）（200010）"],
+    [{ scope: "local", parentAreaName: "宗谷地方", name: "沿岸", areaCode: null, localCode: null }, "宗谷地方 沿岸", "宗谷地方 / 沿岸"],
+  ] as const)("renders each A-plan case with code-free visible text and code-preserving title/ARIA", (fields, visibleLabel, fullLabel) => {
+    const item = forecastCard(false);
+    const target = {
+      key: "target-matrix",
+      periods: [period("matrix-period", "matrix-anchor", 0, 0)],
+      ...fields,
+    } as DisplayWeatherWarningForecastTargetV1;
+    item.data.groups = [{ ...item.data.groups[0]!, targets: [target] }];
+    const { container } = render(WeatherWarningForecastCard, { item, pageIndexOverride: 0 });
+    const root = container.querySelector<HTMLElement>("[data-weather-warning-forecast-card]");
+    const atom = root?.querySelector<HTMLElement>("[data-forecast-atom]");
+    const visible = atom?.querySelector<HTMLElement>(".target");
+    expect(vpwp50ForecastTargetDisplayLabel(target)).toBe(visibleLabel);
+    expect(visible?.textContent).toBe(visibleLabel);
+    expect(visible?.textContent).not.toMatch(/200010|0121400|L001/);
+    expect(visible?.getAttribute("title")).toBe(fullLabel);
+    expect(atom?.getAttribute("aria-label")).toContain(fullLabel);
+    expect(root?.getAttribute("aria-label")).toContain(fullLabel);
   });
 
   it("registers each immutable anchor as one independently reachable pager atom", async () => {
@@ -273,6 +300,7 @@ describe("WeatherWarningForecastCard", () => {
     const source = readFileSync(join(__dirname, "..", "WeatherWarningForecastCard.svelte"), "utf8");
     expect(source).toContain(".periods { display: grid; gap: var(--space-1); }");
     expect(source).not.toMatch(/has-page-footer\s+\.standby-card-header/);
-    expect(source).toMatch(/\.forecast-card\.has-page-footer\s*\{[^}]*padding-bottom:\s*var\(--card-page-indicator-block-size\);/s);
+    expect(source).not.toContain("--card-page-indicator-block-size");
+    expect(source).not.toContain('class="continuation"');
   });
 });

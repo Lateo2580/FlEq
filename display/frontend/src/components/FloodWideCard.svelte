@@ -55,6 +55,8 @@
   })));
   const pageLabels = $derived(pagePartition.ranges.map((range, index) => pageEntries[range.start]?.area ?? `page-${index + 1}`));
   const resetKey = $derived(`${pageForm}:${item.data.rivers.map((river) => river.riverKey).join(",")}`);
+  const pagerLogicalItems = $derived(pageEntries.map((entry) => pageIdentity(entry)));
+  const pagerResetItems = $derived(item.data.rivers.map((river) => river.riverKey));
   $effect(() => {
     // Pending composition is deliberately rendered, but never registered as
     // a one-page scheduler state.  The old confirmed partition remains live
@@ -115,7 +117,7 @@
   );
 </script>
 
-<section class="standby-card flood-wide-card band-{band}" class:paged-flood={paginationActive} data-page-probe-card={measurementRange != null ? "" : undefined} data-page-probe-body={measurementRange != null ? "" : undefined} data-partition-probe-count={measurementPartition.probeCount} data-card-page={pageDiagnostics.page} data-card-page-keys={JSON.stringify(pageDiagnostics.keys)} data-card-page-identities={JSON.stringify(pageDiagnostics.identities)} data-flood-page-range={currentRange == null ? "" : `${currentRange.start}:${currentRange.end}`} data-card-page-infeasible={pagePartition.infeasible ? aggregateClipped ? "clip" : "aggregate" : "false"}>
+<section class="standby-card flood-wide-card band-{band}" class:paged-flood={paginationActive} data-page-probe-card={measurementRange != null ? "" : undefined} data-page-probe-body={measurementRange != null ? "" : undefined} data-partition-probe-count={measurementPartition.probeCount} data-card-page={pageDiagnostics.page} data-card-page-keys={JSON.stringify(pageDiagnostics.keys)} data-card-page-identities={JSON.stringify(pageDiagnostics.identities)} data-card-page-active-identity={pageDiagnostics.activeKey ?? undefined} data-pager-namespace="card-page-coordinator" data-pager-key="flood" data-pager-logical-items={JSON.stringify(pagerLogicalItems)} data-pager-logical-fingerprints={JSON.stringify(pagerLogicalItems)} data-pager-reset-items={JSON.stringify(pagerResetItems)} data-pager-logical-source-count={pagerLogicalItems.length} data-flood-page-range={currentRange == null ? "" : `${currentRange.start}:${currentRange.end}`} data-card-page-infeasible={pagePartition.infeasible ? aggregateClipped ? "clip" : "aggregate" : "false"}>
   <header class="standby-card-header" style={headerStyle}><span class="standby-card-header__title">河川洪水情報</span>{#if item.restored}<span class="standby-card-header__meta"><RestoredChip /></span>{/if}</header>
   <div class="river-grid-wrap" style={gridWrapStyle}>
   <div class="river-grid" use:measureBorderHeight={(height) => (gridHeightPx = height)}>
@@ -235,9 +237,6 @@
   .flood-graph { width: 100%; height: 36px; }
   .more-rivers { grid-column: 1 / -1; color: var(--role-muted); text-align: center; font-size: max(14px, var(--type-label-l-fluid)); white-space: nowrap; }
   .critical-river .river-line { color: var(--role-weatherEmergency); }
-  .card-page-footer { display: flex; justify-content: flex-end; padding: var(--space-1) var(--space-4); border-top: 1px solid var(--hairline); }
-  .card-page-indicator { padding: 1px var(--space-2); border: 1px solid var(--hairline); border-radius: var(--radius-s); color: var(--role-muted); font-size: var(--type-label-xs-size); line-height: 1; font-variant-numeric: tabular-nums; }
-
   /* 720p の side/rotation track では wide card 自体が約 320px まで狭まる。
      外側の二河川並列は保ちつつ、各セル内だけを一列へ動的に組み替え、観測所名・
      水位・kind を省略せず読めるようにする。36rem center track (1920px gate) は

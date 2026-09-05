@@ -4,6 +4,10 @@ import type {
   DisplayWeatherWarningForecastPeriodV1,
   DisplayWeatherWarningForecastTargetV1,
 } from "./protocol";
+import {
+  prefectureFromMunicipalityCode,
+  prefectureFromSixDigitAreaCode,
+} from "./prefecture-group";
 
 export const WEATHER_WARNING_FORECAST_PERIODS_PER_ATOM = 4;
 
@@ -31,6 +35,18 @@ export function vpwp50ForecastTargetLabel(
     ? target.name
     : `${target.name}（${target.localCode}）`;
   return `${parent} / ${local}`;
+}
+
+/** VPWP50 card 上の短い対象地名。完全名称・読み上げは targetLabel が担当する。 */
+export function vpwp50ForecastTargetDisplayLabel(
+  target: DisplayWeatherWarningForecastTargetV1,
+): string {
+  const prefectureName = prefectureFromSixDigitAreaCode(target.areaCode)
+    ?? prefectureFromMunicipalityCode(target.areaCode);
+  const parent = prefectureName != null && !target.parentAreaName.startsWith(prefectureName)
+    ? `${prefectureName} ${target.parentAreaName}`
+    : target.parentAreaName;
+  return target.scope === "area" ? parent : `${parent} ${target.name}`;
 }
 
 function periodOrder(

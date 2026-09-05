@@ -2722,9 +2722,9 @@ export const legacyImprovedWeatherWarningForecast: Extract<ActiveStandbyCardV1, 
         targets: [{
           key: forecastPreviewKey("targetArea"),
           scope: "area",
-          name: "長野県北部",
-          parentAreaName: "長野県北部",
-          areaCode: "200010",
+          name: "稚内市",
+          parentAreaName: "稚内市",
+          areaCode: "0121400",
           localCode: null,
           periods: forecastPreviewPeriods("area", 64, 0, 1, "3h"),
         }],
@@ -2739,10 +2739,10 @@ export const legacyImprovedWeatherWarningForecast: Extract<ActiveStandbyCardV1, 
         targets: [{
           key: forecastPreviewKey("targetLocal"),
           scope: "local",
-          name: "沿岸",
-          parentAreaName: "長野県南部",
-          areaCode: "200020",
-          localCode: "001",
+          name: "稚内海岸",
+          parentAreaName: "稚内市",
+          areaCode: "0121400",
+          localCode: "L001",
           periods: forecastPreviewPeriods("local", 64, 64, 2, "24h"),
         }],
       },
@@ -2838,7 +2838,6 @@ function legacyStandbyGateWeatherExpandedKinds(
  */
 export type LegacyStandbyGateFixture =
   | "overflow"
-  | "overlap"
   | "rotation"
   | "cluster"
   | "cluster-calm"

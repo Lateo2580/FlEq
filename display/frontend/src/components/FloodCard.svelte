@@ -55,6 +55,8 @@
   })));
   const pageLabels = $derived(pagePartition.ranges.map((range, index) => pageEntries[range.start]?.area ?? `page-${index + 1}`));
   const resetKey = $derived(`${pageForm}:${item.data.rivers.map((river) => river.riverKey).join(",")}`);
+  const pagerLogicalItems = $derived(pageEntries.map((entry) => pageIdentity(entry)));
+  const pagerResetItems = $derived(item.data.rivers.map((river) => river.riverKey));
   $effect(() => {
     // A provisional range is visible so the card never blanks during a new
     // measurement epoch, but it is not a scheduler fact.  Keeping the last
@@ -88,6 +90,13 @@
   data-card-page={pageDiagnostics.page}
   data-card-page-keys={JSON.stringify(pageDiagnostics.keys)}
   data-card-page-identities={JSON.stringify(pageDiagnostics.identities)}
+  data-card-page-active-identity={pageDiagnostics.activeKey ?? undefined}
+  data-pager-namespace="card-page-coordinator"
+  data-pager-key="flood"
+  data-pager-logical-items={JSON.stringify(pagerLogicalItems)}
+  data-pager-logical-fingerprints={JSON.stringify(pagerLogicalItems)}
+  data-pager-reset-items={JSON.stringify(pagerResetItems)}
+  data-pager-logical-source-count={pagerLogicalItems.length}
   data-flood-page-range={currentRange == null ? "" : `${currentRange.start}:${currentRange.end}`}
   data-card-page-infeasible={pagePartition.infeasible ? aggregateClipped ? "clip" : "aggregate" : "false"}
 >
@@ -136,9 +145,6 @@
   .trend-rising { color: var(--role-tsunamiWarning); }
   .trend-steady { color: var(--role-muted); }
   .trend-falling { color: var(--role-connectionOk); }
-  .card-page-footer { display: flex; justify-content: flex-end; padding: var(--space-1) var(--space-4); border-top: 1px solid var(--hairline); }
-  .card-page-indicator { padding: 1px var(--space-2); border: 1px solid var(--hairline); border-radius: var(--radius-s); color: var(--role-muted); font-size: var(--type-label-xs-size); line-height: 1; font-variant-numeric: tabular-nums; }
-
   /* 960px gate の side card (約 269px) だけ折返しを許可する。折返しで自然高が
      増える分、先頭 1 河川 + 集約行へ切り替えて 200px の可読領域を守る。 */
   @container (max-width: 320px) {

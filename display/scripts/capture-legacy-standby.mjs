@@ -28,7 +28,7 @@ const MIME_TYPES = new Map([
 
 function usage(message) {
   if (message != null) process.stderr.write(`${message}\n`);
-  process.stderr.write("Usage: node scripts/capture-legacy-standby.mjs [--report] [--suite design-alignment] [--write-baseline PATH|--baseline-report PATH] [--assert-from PATH] [--fixture overflow|overlap|rotation|cluster|cluster-calm|tornado-pages|tornado-aggregate|tornado-clip|tornado-epoch-release|recent-quakes-narrow|attention-visibility-standby|attention-visibility-emergency|attention-visibility-reduced-motion|briefing-pages|briefing-single-page] [--url URL] [--scenario quiet|4|7|max|max-floodWide] [--viewport WIDTHxHEIGHT] [--out-dir PATH]\n");
+  process.stderr.write("Usage: node scripts/capture-legacy-standby.mjs [--report] [--suite design-alignment] [--write-baseline PATH|--baseline-report PATH] [--assert-from PATH] [--fixture overflow|rotation|cluster|cluster-calm|tornado-pages|tornado-aggregate|tornado-clip|tornado-epoch-release|recent-quakes-narrow|attention-visibility-standby|attention-visibility-emergency|attention-visibility-reduced-motion|briefing-pages|briefing-single-page] [--url URL] [--scenario quiet|4|7|max|max-floodWide] [--viewport WIDTHxHEIGHT] [--out-dir PATH]\n");
   process.exitCode = 2;
 }
 
@@ -318,9 +318,13 @@ async function captureLiveGeometry({ chrome, profileDir, url, viewport }) {
               header: measure(card.querySelector('.standby-card-header')),
               atom: measure(atom),
               footer: measure(footer),
+              footerCount: card.querySelectorAll('[data-card-page-footer]').length,
+              footerText: card.querySelector('[data-card-page-indicator]')?.textContent ?? '',
               atomFooterOverlap: overlap(atom, footer),
               periodCount: card.querySelectorAll('[data-forecast-period]').length,
               continuation: card.querySelector('.continuation')?.textContent ?? '',
+              continuationVisibleCount: [...card.querySelectorAll('.continuation')]
+                .filter((node) => node.getBoundingClientRect().width > 0 && node.getBoundingClientRect().height > 0).length,
             };
           });
         const standbyHeaders = [...document.querySelectorAll('.standby-card-header')].map((header) => {
@@ -603,7 +607,7 @@ function assertCardContainment(diagnostics) {
   if (overflow !== 0) throw new Error(`card scroll containment invalid: ${overflow} overflowing card(s): ${diagnostics["data-card-overflow-keys"]}; paged viewport: ${diagnostics["data-page-viewport-overflow-keys"]}`);
 }
 
-function assertForecastContinuationGeometry(geometry, diagnostics) {
+export function assertForecastContinuationGeometry(geometry, diagnostics) {
   if (diagnostics["data-rotation-active-key"] !== "weatherWarningForecast") return;
   const cards = geometry?.forecastCards ?? [];
   const visible = cards.filter((entry) => !entry.shelf
@@ -616,7 +620,8 @@ function assertForecastContinuationGeometry(geometry, diagnostics) {
     throw new Error(`forecast continuation containment failed: ${JSON.stringify(entry)}`);
   }
   if (!/^\d+\/32$/.test(entry.page) || entry.periodCount < 1 || entry.periodCount > 4
-    || entry.atomFooterOverlap > 0 || !/^続き \d+\/32$/.test(entry.continuation)) {
+    || entry.atomFooterOverlap > 0 || entry.continuationVisibleCount !== 0 || entry.continuation !== ""
+    || entry.footerCount !== 1 || entry.footerText !== entry.page || !/^\d+\/32$/.test(entry.footerText)) {
     throw new Error(`forecast continuation contract failed: ${JSON.stringify(entry)}`);
   }
   expectEqual(diagnostics["data-weather-warning-forecast-page"], entry.page, "forecast page diagnostic");
@@ -972,18 +977,22 @@ const DESIGN_ALIGNMENT_CANDIDATE_COUNTS = {
   flood: 1, typhoon: 1, volcano: 1, heat: 1,
 };
 const DESIGN_ALIGNMENT_RIDER_COUNTS = { tornado: 1, longPeriod: 1, nankaiTrough: 1 };
-export const DESIGN_ALIGNMENT_MAX_PLAN = {
-  viewport: "1280x720",
-  stage: 3,
-  compressed: true,
-  placementLeft: ["tsunami", "quake", "weatherWarningForecast"],
-  placementRight: ["weather"],
-  placementCenter: ["flood"],
-  rotationKeys: ["typhoon", "volcano", "heat"],
-  typhoonVariant: "compact",
-  rotationOmittedCount: 0,
-  captureTickCount: 6,
+export const DESIGN_ALIGNMENT_MAX_PLANS = {
+  fhdMax: {
+    viewport: "1920x1080",
+    stage: 0,
+    compressed: false,
+    captureTickCount: 1,
+  },
+  hdMax: {
+    viewport: "1280x720",
+    stage: 3,
+    compressed: true,
+    captureTickCount: 3,
+  },
 };
+/* 旧 import 利用者向けの hd alias。capture の正本は viewport keyed plans。 */
+export const DESIGN_ALIGNMENT_MAX_PLAN = DESIGN_ALIGNMENT_MAX_PLANS.hdMax;
 export const DESIGN_ALIGNMENT_COMPRESSED_PLANS = {
   "1280x720": {
     stage: 3,
@@ -1024,29 +1033,260 @@ export const DESIGN_ALIGNMENT_PAYLOAD_SIGNATURE = {
   heatAreaCount: 30,
 };
 
+const DESIGN_ALIGNMENT_FIXTURE_UPDATED_AT = "2026-07-07T14:32:00+09:00";
+const DESIGN_ALIGNMENT_FIXTURE_WEATHER_AREAS = [
+  "北海道石狩地方", "青森県津軽", "岩手県内陸北部", "宮城県北部", "秋田県沿岸", "山形県最上",
+  "福島県会津", "茨城県北部", "栃木県北部", "群馬県北部", "埼玉県秩父地方", "東京都多摩西部",
+  "神奈川県西部", "新潟県上越", "富山県東部", "石川県加賀", "福井県嶺北", "長野県北部",
+  "岐阜県飛騨", "静岡県西部", "愛知県東部", "三重県北部", "滋賀県北部", "京都府北部",
+];
+
+/** Capture-side snapshot of the preview/gate raw inputs.  This intentionally
+ * does not consume any card DOM field: those fields are the system under test. */
+export const DESIGN_ALIGNMENT_PAGER_FIXTURE_SOURCE = {
+  weather: {
+    displaySeverity: "officialL3", kind: "大雨警報(土砂災害)",
+    shownAreas: DESIGN_ALIGNMENT_FIXTURE_WEATHER_AREAS, omittedAreaCount: 0, compactShownAreaCount: 3,
+  },
+  tornado: { areas: ["宮崎県南部平野部", "宮崎県北部平野部"] },
+  flood: { rivers: [
+    { riverKey: "8303040001", riverName: "大淀川", kindName: "氾濫危険情報" },
+    { riverKey: "8303040002", riverName: "小丸川", kindName: "氾濫警戒情報" },
+    { riverKey: "8303040003", riverName: "五ヶ瀬川", kindName: "氾濫警戒情報" },
+  ] },
+  volcano: { codes: ["506", "550", "509", "501", "101"] },
+  briefing: {
+    key: "card:vpbs:design-alignment", title: "富山県気象防災速報（記録的短時間大雨）",
+    targetAreaCodes: ["160020", "160010"],
+    summaryItems: [{ sourceOrdinal: 0, facts: [
+      { kind: "precipitation", locationCode: "11100" },
+      { kind: "precipitation", locationCode: "01543" },
+    ] }],
+  },
+  weatherWarningForecast: {
+    sourceEventIds: ["preview-vpwp50-21", "preview-vpwp50-22"], updatedAt: DESIGN_ALIGNMENT_FIXTURE_UPDATED_AT,
+    groups: [
+      {
+        keyPrefix: "group21", forecastLabel: "土砂災害（警戒レベル2）の予測", severity: "normal",
+        target: { keyPrefix: "targetArea", scope: "area", name: "稚内市", parentAreaName: "稚内市", areaCode: "0121400", localCode: null,
+          periods: { prefix: "area", count: 64, offset: 0, tsNum: 1, series: "3h" } },
+      },
+      {
+        keyPrefix: "group22", forecastLabel: "土砂災害（警戒レベル2相当）の予測", severity: "normal",
+        target: { keyPrefix: "targetLocal", scope: "local", name: "稚内海岸", parentAreaName: "稚内市", areaCode: "0121400", localCode: "L001",
+          periods: { prefix: "local", count: 64, offset: 64, tsNum: 2, series: "24h" } },
+      },
+    ],
+  },
+};
+
+function fixturePageIdentity({ kindKey, area, areaCode = null, occurrenceIndex }) {
+  const base = `${kindKey}|${area}|${occurrenceIndex}`;
+  return areaCode == null || areaCode === "" ? base : `${base}|code:${areaCode}`;
+}
+
+function fixtureForecastKey(prefix, index = 0) {
+  return `${prefix}_${index.toString(36)}`.padEnd(43, "x").slice(0, 43);
+}
+
+function fixtureForecastPeriodLabel(startsAt, endsAt) {
+  const parts = (iso) => {
+    const value = new Date(Date.parse(iso) + 9 * 60 * 60_000);
+    return { year: value.getUTCFullYear(), month: value.getUTCMonth() + 1, day: value.getUTCDate(), hour: String(value.getUTCHours()).padStart(2, "0"), minute: String(value.getUTCMinutes()).padStart(2, "0") };
+  };
+  const start = parts(startsAt);
+  const end = parts(endsAt);
+  const short = (value) => `${value.month}月${value.day}日 ${value.hour}:${value.minute}`;
+  if (start.year === end.year && start.month === end.month && start.day === end.day) return `${short(start)}–${end.hour}:${end.minute}`;
+  if (start.year === end.year) return `${short(start)}–${short(end)}`;
+  return `${start.year}年${short(start)}–${end.year}年${short(end)}`;
+}
+
+function fixtureForecastPeriods({ prefix, count, offset, tsNum, series }) {
+  return Array.from({ length: count }, (_, index) => {
+    const startsAt = new Date(Date.UTC(2026, 8, 1, 0) + (offset + index) * 2 * 60 * 60_000).toISOString();
+    const endsAt = new Date(Date.parse(startsAt) + 60 * 60_000).toISOString();
+    const pagerAnchorOrdinal = Math.floor(index / 4);
+    return {
+      key: fixtureForecastKey(`${prefix}period`, index), label: fixtureForecastPeriodLabel(startsAt, endsAt),
+      startsAt, endsAt, tsNum, series, pagerAnchorKey: fixtureForecastKey(`${prefix}anchor`, pagerAnchorOrdinal),
+      pagerAnchorOrdinal, pagerSlot: index % 4,
+    };
+  });
+}
+
+function fixtureForecastTargetLabel(target) {
+  const parent = target.areaCode == null ? target.parentAreaName : `${target.parentAreaName}（${target.areaCode}）`;
+  if (target.scope === "area") return parent;
+  const local = target.localCode == null ? target.name : `${target.name}（${target.localCode}）`;
+  return `${parent} / ${local}`;
+}
+
+function buildFixtureForecastAtoms(source) {
+  const atoms = source.groups.flatMap((groupSource) => {
+    const group = { key: fixtureForecastKey(groupSource.keyPrefix), forecastLabel: groupSource.forecastLabel, severity: groupSource.severity };
+    const target = { ...groupSource.target, key: fixtureForecastKey(groupSource.target.keyPrefix) };
+    const byAnchor = new Map();
+    for (const period of fixtureForecastPeriods(groupSource.target.periods)) {
+      const values = byAnchor.get(period.pagerAnchorKey) ?? [];
+      values.push(period);
+      byAnchor.set(period.pagerAnchorKey, values);
+    }
+    return [...byAnchor].sort((left, right) => left[1][0].pagerAnchorOrdinal - right[1][0].pagerAnchorOrdinal).map(([pagerAnchorKey, periods]) => ({
+      identity: JSON.stringify([group.key, target.key, pagerAnchorKey]),
+      label: `${group.forecastLabel} / ${fixtureForecastTargetLabel(target)}`,
+      group, target, periods, pagerAnchorKey, pagerAnchorOrdinal: periods[0].pagerAnchorOrdinal,
+    }));
+  });
+  return atoms.map((atom, index) => ({
+    identity: atom.identity,
+    fingerprint: JSON.stringify([
+      atom.group.key, atom.target.key, atom.label, atom.pagerAnchorKey, atom.pagerAnchorOrdinal, atom.group.severity,
+      ...atom.periods.map((period) => [period.key, period.label, period.startsAt, period.endsAt, period.tsNum, period.series, period.pagerSlot]),
+      `続き ${index + 1}/${atoms.length}`,
+    ]),
+  }));
+}
+
+function cloneFixtureSequence(items) {
+  return items.map((item) => Array.isArray(item) ? [...item] : item);
+}
+
+function pagerOracle(key, logicalItems, { logicalFingerprints = logicalItems, resetItems = logicalItems, kindKeys = null } = {}) {
+  return {
+    namespace: "card-page-coordinator",
+    key,
+    logicalItems: cloneFixtureSequence(logicalItems),
+    logicalFingerprints: cloneFixtureSequence(logicalFingerprints),
+    resetItems: cloneFixtureSequence(resetItems),
+    sourceCount: logicalItems.length,
+    kindKeys: kindKeys == null ? null : [...kindKeys],
+  };
+}
+
+function buildFixtureWeatherPagerOracle(source, shownAreaCount = source.shownAreas.length) {
+  const shownAreas = source.shownAreas.slice(0, shownAreaCount);
+  const weatherKindKey = `${source.displaySeverity}|${source.kind}`;
+  const weatherItems = [
+    ...shownAreas.map((area, occurrenceIndex) => fixturePageIdentity({ kindKey: weatherKindKey, area, occurrenceIndex })),
+    ["omittedAreaCount", weatherKindKey, source.omittedAreaCount + source.shownAreas.length - shownAreas.length],
+  ];
+  return pagerOracle("weather", weatherItems, { resetItems: weatherItems, kindKeys: [weatherKindKey] });
+}
+
+function buildDesignAlignmentPagerOracles(source) {
+  const tornadoOccurrences = new Map();
+  const tornadoItems = source.tornado.areas.map((area) => {
+    const occurrenceIndex = tornadoOccurrences.get(area) ?? 0;
+    tornadoOccurrences.set(area, occurrenceIndex + 1);
+    return fixturePageIdentity({ kindKey: "tornado", area, occurrenceIndex });
+  });
+  const floodOccurrences = new Map();
+  const floodItems = source.flood.rivers.map((river) => {
+    const occurrenceKey = `${river.kindName}\0${river.riverName}`;
+    const occurrenceIndex = floodOccurrences.get(occurrenceKey) ?? 0;
+    floodOccurrences.set(occurrenceKey, occurrenceIndex + 1);
+    return fixturePageIdentity({ kindKey: river.kindName, area: river.riverName, areaCode: river.riverKey, occurrenceIndex });
+  });
+  const briefingContext = /^(.+?[都道府県])気象防災速報/.exec(source.briefing.title)?.[1];
+  if (briefingContext == null) throw new Error("design-alignment Briefing fixture title has no prefecture context");
+  const briefingItems = [
+    ...source.briefing.summaryItems.map((item) => `${source.briefing.key}:lead:lead:${item.sourceOrdinal}:0`),
+    `${source.briefing.key}:areaContext:prefecture-context:0`,
+    `${source.briefing.key}:area:area:${source.briefing.targetAreaCodes.join(",")}:0`,
+    `${source.briefing.key}:meta:meta:0`,
+    ...source.briefing.summaryItems.flatMap((item) => item.facts.map((fact, index) =>
+      `${source.briefing.key}:fact:fact:${item.sourceOrdinal}:${fact.kind}:${fact.locationCode}:${index}:0`)),
+  ];
+  const forecastAtoms = buildFixtureForecastAtoms(source.weatherWarningForecast);
+  const forecastItems = forecastAtoms.map((atom) => atom.identity);
+  return {
+    weather: buildFixtureWeatherPagerOracle(source.weather),
+    tornado: pagerOracle("tornado", tornadoItems, { resetItems: source.tornado.areas }),
+    weatherWarningForecast: pagerOracle("weatherWarningForecast", forecastItems, {
+      logicalFingerprints: forecastAtoms.map((atom) => atom.fingerprint),
+      resetItems: [...source.weatherWarningForecast.sourceEventIds, source.weatherWarningForecast.updatedAt],
+    }),
+    briefing: pagerOracle("briefing", briefingItems),
+    flood: pagerOracle("flood", floodItems, { resetItems: source.flood.rivers.map((river) => river.riverKey) }),
+    volcano: pagerOracle("volcano", source.volcano.codes.map((code) => `volcano:${code}|summary`)),
+  };
+}
+
+export const DESIGN_ALIGNMENT_PAGER_ORACLES = buildDesignAlignmentPagerOracles(DESIGN_ALIGNMENT_PAGER_FIXTURE_SOURCE);
+const DESIGN_ALIGNMENT_COMPACT_WEATHER_PAGER_ORACLE = buildFixtureWeatherPagerOracle(
+  DESIGN_ALIGNMENT_PAGER_FIXTURE_SOURCE.weather,
+  DESIGN_ALIGNMENT_PAGER_FIXTURE_SOURCE.weather.compactShownAreaCount,
+);
+
+const WEATHER_AUTO_PAGE_IDENTITY = "officialL3|大雨警報(土砂災害)|北海道石狩地方|0";
+export const DESIGN_ALIGNMENT_WEATHER_AUTO_PROBES = {
+  weatherAutoFooterNormal: {
+    viewport: "1280x720", compressed: false,
+    forcedRange: { start: 0, end: 1, tails: [], omittedAreaCount: 0 },
+    page: "1/1", pageCount: 1, pageIdentities: [WEATHER_AUTO_PAGE_IDENTITY],
+    activeIdentity: WEATHER_AUTO_PAGE_IDENTITY, pageKey: WEATHER_AUTO_PAGE_IDENTITY,
+    naturalHeightDelta: 25,
+  },
+  weatherAutoFooterCompressed: {
+    viewport: "1280x720", compressed: true,
+    forcedRange: { start: 0, end: 1, tails: [], omittedAreaCount: 0 },
+    page: "1/1", pageCount: 1, pageIdentities: [WEATHER_AUTO_PAGE_IDENTITY],
+    activeIdentity: WEATHER_AUTO_PAGE_IDENTITY, pageKey: WEATHER_AUTO_PAGE_IDENTITY,
+    naturalHeightDelta: 21,
+  },
+};
+
+const DESIGN_ALIGNMENT_ALL_PAGER_CAPTURE_KEYS = ["weather", "tornado", "weatherWarningForecast", "briefing", "flood", "volcano"];
+export const DESIGN_ALIGNMENT_PAGER_CAPTURE_KEYS_BY_SCENARIO = {
+  "standby-briefing-design-alignment": ["briefing"],
+  "standby-vpwp50-forecast": ["weatherWarningForecast"],
+  "standby-vpta50-probability-muted": [],
+  "standby-vpta50-probability-normal": [],
+  weatherAutoFooterNormal: [],
+  weatherAutoFooterCompressed: [],
+  "standby-design-alignment-compressed": DESIGN_ALIGNMENT_ALL_PAGER_CAPTURE_KEYS,
+  "legacy-standby-gate": ["weather", "tornado", "weatherWarningForecast", "flood", "volcano"],
+};
+
 function designAlignmentEntry(scenario, viewport, rotationTick = null, cardPageTick = null, query = null) {
-  return { scenario, viewport, rotationTick, cardPageTick, query };
+  const pagerCaptureKeys = DESIGN_ALIGNMENT_PAGER_CAPTURE_KEYS_BY_SCENARIO[scenario];
+  if (pagerCaptureKeys == null) throw new Error(`design-alignment pager capture keys missing for scenario: ${scenario}`);
+  return { scenario, viewport, rotationTick, cardPageTick, query, pagerCaptureKeys: [...pagerCaptureKeys] };
 }
 
 export const DESIGN_ALIGNMENT_MANIFEST = [
   ...[0, 1, 2].map((page) => designAlignmentEntry("standby-briefing-design-alignment", "1280x720", null, page)),
-  designAlignmentEntry("standby-vpwp50-forecast", "1280x720", null, 0),
+  ...[0, 16].map((page) => designAlignmentEntry("standby-vpwp50-forecast", "1280x720", null, page)),
   designAlignmentEntry("standby-vpta50-probability-muted", "1280x720", null, 0),
   designAlignmentEntry("standby-vpta50-probability-normal", "1280x720", null, 0),
+  ...Object.entries(DESIGN_ALIGNMENT_WEATHER_AUTO_PROBES).map(([scenario, probe]) =>
+    designAlignmentEntry(scenario, probe.viewport, null, 0)),
   ...["1280x720", "960x620"].flatMap((viewport) => {
     const plan = DESIGN_ALIGNMENT_COMPRESSED_PLANS[viewport];
     return [
       ...plan.rotationKeys.map((_, tick) => designAlignmentEntry("standby-design-alignment-compressed", viewport, tick, 0)),
       designAlignmentEntry("standby-design-alignment-compressed", viewport, plan.briefingCaptureTick, 1),
       designAlignmentEntry("standby-design-alignment-compressed", viewport, plan.briefingCaptureTick, 2),
+      designAlignmentEntry("standby-design-alignment-compressed", viewport, plan.forecastCaptureTick, 16),
     ];
   }),
-  ...Array.from({ length: DESIGN_ALIGNMENT_MAX_PLAN.captureTickCount }, (_, tick) => designAlignmentEntry("legacy-standby-gate", DESIGN_ALIGNMENT_MAX_PLAN.viewport, tick, 0, "gateScenario=max")),
+  ...Object.entries(DESIGN_ALIGNMENT_MAX_PLANS).flatMap(([planKey, plan]) =>
+    Array.from({ length: plan.captureTickCount }, (_, tick) => designAlignmentEntry("legacy-standby-gate", plan.viewport, tick, 0, `gateScenario=max&maxPlan=${planKey}`))),
 ];
 
 function manifestKey(value) {
   const viewport = typeof value.viewport === "string" ? value.viewport : value.viewport?.label;
   return [value.scenario, viewport, value.rotationTick ?? "-", value.cardPageTick ?? "-", value.query ?? ""].join("|");
+}
+
+const DESIGN_ALIGNMENT_MANIFEST_BY_KEY = new Map(DESIGN_ALIGNMENT_MANIFEST.map((entry) => [manifestKey(entry), entry]));
+
+function expectedPagerCaptureKeysForRecord(record) {
+  const key = record.manifestKey ?? manifestKey(record);
+  const entry = DESIGN_ALIGNMENT_MANIFEST_BY_KEY.get(key);
+  if (entry == null) throw new Error(`${key}: pager captureKey manifest entry missing`);
+  return entry.pagerCaptureKeys;
 }
 
 export function normalizeDesignAlignmentUrl(value) {
@@ -1080,6 +1320,11 @@ export const DESIGN_ALIGNMENT_REPORT_EXPRESSION = String.raw`(async () => {
   const splitAttr = (name) => (root.getAttribute(name) ?? '').split(',').filter(Boolean);
   const clean = (value) => (value ?? '').replace(/\s+/g, ' ').trim();
   const compactText = (value) => clean(value).replace(/\s+/g, '');
+  const jsonAttr = (node, name, fallback = null) => {
+    const raw = node?.getAttribute?.(name);
+    if (raw == null) return fallback;
+    try { return JSON.parse(raw); } catch { return { parseError: raw }; }
+  };
   const rect = (node) => {
     if (node == null) return null;
     const box = node.getBoundingClientRect();
@@ -1160,11 +1405,24 @@ export const DESIGN_ALIGNMENT_REPORT_EXPRESSION = String.raw`(async () => {
   });
   const fragment = (node) => textMeasure(node);
   const briefingCard = liveComponent('briefing');
-  const briefing = briefingCard == null ? null : {
+  const briefing = briefingCard == null ? null : (() => {
+    const pageAtom = briefingCard.querySelector('[data-briefing-page-atom]');
+    const pageAtomStyle = pageAtom == null ? null : getComputedStyle(pageAtom);
+    const cardStyle = getComputedStyle(briefingCard);
+    return {
     page: briefingCard.getAttribute('data-card-page') ?? '',
     pageKeys: JSON.parse(briefingCard.getAttribute('data-card-page-keys') ?? '[]'),
     pageIdentities: JSON.parse(briefingCard.getAttribute('data-card-page-identities') ?? '[]'),
+    activeIdentity: briefingCard.getAttribute('data-card-page-active-identity'),
+    range: briefingCard.getAttribute('data-briefing-page-range') ?? '',
     card: measure(briefingCard),
+    cardDisplay: cardStyle.display,
+    cardFlexDirection: cardStyle.flexDirection,
+    pageAtom: pageAtom == null ? null : {
+      node: measure(pageAtom), display: pageAtomStyle.display, flexGrow: numeric(pageAtomStyle.flexGrow),
+      flexShrink: numeric(pageAtomStyle.flexShrink), flexBasis: pageAtomStyle.flexBasis,
+      minHeight: numeric(pageAtomStyle.minHeight),
+    },
     grids: all('.briefing-fact-grid', briefingCard).map((grid) => {
       const body = grid.closest('.body');
       const gridStyle = getComputedStyle(grid);
@@ -1196,19 +1454,22 @@ export const DESIGN_ALIGNMENT_REPORT_EXPRESSION = String.raw`(async () => {
         stats,
       };
     }),
-  };
+    };
+  })();
   const forecastCard = liveComponent('weatherWarningForecast');
   const forecast = forecastCard == null ? null : (() => {
     const header = forecastCard.querySelector('.standby-card-header');
     const atom = forecastCard.querySelector('[data-forecast-atom]');
     const footer = forecastCard.querySelector('[data-card-page-footer]');
     const periods = forecastCard.querySelector('.periods');
+    const target = forecastCard.querySelector('.target');
     const headerStyle = header == null ? null : getComputedStyle(header);
     const cardStyle = getComputedStyle(forecastCard);
     return {
       page: forecastCard.getAttribute('data-card-page') ?? '',
       pageKeys: JSON.parse(forecastCard.getAttribute('data-card-page-keys') ?? '[]'),
       pageIdentities: JSON.parse(forecastCard.getAttribute('data-card-page-identities') ?? '[]'),
+      activeIdentity: forecastCard.getAttribute('data-card-page-active-identity'),
       identity: atom?.getAttribute('data-forecast-atom') ?? null,
       card: measure(forecastCard), header: measure(header), atom: measure(atom), footer: measure(footer), periods: measure(periods),
       headerPadding: headerStyle == null ? null : {
@@ -1219,6 +1480,11 @@ export const DESIGN_ALIGNMENT_REPORT_EXPRESSION = String.raw`(async () => {
       periodKeys: all('[data-forecast-period]', forecastCard).map((period) => period.getAttribute('data-forecast-period')),
       periodCount: all('[data-forecast-period]', forecastCard).length,
       atomFooterOverlap: overlap(atom, footer),
+      footerCount: all('[data-card-page-footer]', forecastCard).length,
+      continuationVisibleCount: all('.continuation', forecastCard).filter(painted).length,
+      visibleTarget: clean(target?.textContent), targetTitle: target?.getAttribute('title') ?? null,
+      atomAccessibleName: atom?.getAttribute('aria-label') ?? null,
+      cardAccessibleName: forecastCard.getAttribute('aria-label'),
       naturalHeight: forecastCard.scrollHeight + (numeric(cardStyle.borderTopWidth) ?? 0) + (numeric(cardStyle.borderBottomWidth) ?? 0),
     };
   })();
@@ -1289,11 +1555,187 @@ export const DESIGN_ALIGNMENT_REPORT_EXPRESSION = String.raw`(async () => {
       roles: roles.filter(Boolean),
     };
   })();
+  const describeWeatherCard = (card, host = null) => {
+    if (card == null) return null;
+    const style = getComputedStyle(card);
+    const header = card.querySelector(':scope > .weather-card-header');
+    const body = card.querySelector(':scope > ul');
+    const footer = card.querySelector(':scope > .weather-page-footer');
+    const rider = card.querySelector(':scope > .tornado-rider');
+    const row = (node) => node == null ? null : {
+      node: measure(node), gridArea: getComputedStyle(node).gridArea,
+    };
+    const children = [...card.children];
+    const kindOf = (node) => node === header ? 'header' : node === body ? 'body'
+      : node === footer ? 'footer' : node === rider ? 'rider' : 'other';
+    const cardBox = measure(card);
+    const maxHeight = numeric(style.maxHeight);
+    const headerRow = row(header);
+    const bodyRow = row(body);
+    const footerRow = row(footer);
+    const riderRow = row(rider);
+    const innerOccupiedHeight = [headerRow, bodyRow, footerRow, riderRow]
+      .reduce((sum, entry) => sum + (entry?.node?.rect?.height ?? 0), 0);
+    return {
+      host: host?.getAttribute?.('data-layout-motion-card') ?? null,
+      shelf: card.closest('.measure-shelf, .center-measure-shelf') != null,
+      painted: painted(card), card: cardBox,
+      gridTemplateRows: style.gridTemplateRows,
+      gridTemplateAreas: style.gridTemplateAreas,
+      gridRowCount: style.gridTemplateRows.trim() === '' ? 0 : style.gridTemplateRows.trim().split(/\s+/).length,
+      explicitHeight: card.style.height.trim() !== '', pagingContract: card.classList.contains('paging-contract'),
+      maxHeight, maxHeightGap: cardBox == null || maxHeight == null ? null : maxHeight - cardBox.rect.height,
+      nonClamped: cardBox != null && maxHeight != null && cardBox.rect.height < maxHeight - 1
+        && cardBox.scrollHeight <= cardBox.clientHeight + 1,
+      innerOccupiedHeight, innerContentHeight: cardBox?.clientHeight ?? null,
+      footerCount: all(':scope > [data-card-page-footer]', card).length,
+      riderCount: all(':scope > .tornado-rider', card).length,
+      childOrder: children.map(kindOf),
+      header: headerRow, body: bodyRow, footer: footerRow, rider: riderRow,
+    };
+  };
+  const weatherCards = all('[data-layout-motion-card]', root).flatMap((host) => {
+    const token = host.getAttribute('data-layout-motion-card') ?? '';
+    if (token.split(':')[0] !== 'weather') return [];
+    const card = componentIn(host, 'weather');
+    return card == null ? [] : [describeWeatherCard(card, host)];
+  });
+  const naturalHeightProbes = all('[data-prefix-measure]', root).flatMap((probe) => {
+    const card = probe.querySelector('.flood-card, .flood-wide-card, .briefing-card, .volcano-card');
+    if (card == null) return [];
+    const cardKind = card.matches('.flood-wide-card') ? 'floodWide' : card.matches('.flood-card') ? 'flood'
+      : card.matches('.briefing-card') ? 'briefing' : 'volcano';
+    const range = card.getAttribute('data-flood-page-range') ?? card.getAttribute('data-briefing-page-range')
+      ?? card.getAttribute('data-volcano-page-range') ?? '';
+    const cardStyle = getComputedStyle(card);
+    return [{
+      probeId: probe.getAttribute('data-prefix-measure') ?? '',
+      composition: probe.getAttribute('data-page-probe-composition'),
+      fit: probe.getAttribute('data-page-probe-fit'), cardKind, range,
+      card: measure(card), naturalHeight: card.getBoundingClientRect().height,
+      footerCount: all('[data-card-page-footer]', card).length,
+      explicitHeight: card.style.height.trim() !== '', maxHeight: numeric(cardStyle.maxHeight),
+    }];
+  });
+  const schedulerState = jsonAttr(root, 'data-scheduler-state', null);
+  const layoutComponentFor = (kind) => {
+    for (const host of all('[data-layout-motion-card]', root)) {
+      const token = host.getAttribute('data-layout-motion-card') ?? '';
+      if (token.split(':')[0] !== kind) continue;
+      const component = componentIn(host, kind);
+      if (component != null) return component;
+    }
+    return null;
+  };
+  const expectedPagerCaptureKeys = ${JSON.stringify(DESIGN_ALIGNMENT_PAGER_CAPTURE_KEYS_BY_SCENARIO)}[window.location.hash.replace(/^#/, '')] ?? [];
+  const pagerDefinitions = [
+    { key: 'weather', kind: 'weather', prefix: 'weather' },
+    { key: 'tornado', kind: 'weather', prefix: 'tornado' },
+    { key: 'weatherWarningForecast', kind: 'weatherWarningForecast', prefix: 'pager' },
+    { key: 'briefing', kind: 'briefing', prefix: 'pager' },
+    { key: 'flood', kind: 'flood', prefix: 'pager' },
+    { key: 'volcano', kind: 'volcano', prefix: 'pager' },
+  ];
+  const pagerContracts = pagerDefinitions.filter((definition) => expectedPagerCaptureKeys.includes(definition.key)).map((definition) => {
+    const state = schedulerState?.paging?.cards?.[definition.key];
+    if (state == null || !Number.isFinite(state.pageCount) || state.pageCount <= 0) return { captureKey: definition.key, missingSchedulerState: true };
+    const card = layoutComponentFor(definition.kind);
+    if (card == null) return { captureKey: definition.key, missingComponent: true };
+    const baseName = definition.prefix === 'pager' ? 'data-pager-' : 'data-' + definition.prefix + '-pager-';
+    const logicalItems = jsonAttr(card, baseName + 'logical-items', null);
+    const logicalFingerprints = jsonAttr(card, baseName + 'logical-fingerprints', null);
+    const resetItems = jsonAttr(card, baseName + 'reset-items', null);
+    const sourceCount = numeric(card.getAttribute(baseName + 'logical-source-count'));
+    const itemKeys = Array.isArray(logicalItems) ? logicalItems.map((item) => JSON.stringify(item)) : [];
+    const duplicateCount = itemKeys.length - new Set(itemKeys).size;
+    const nullCount = Array.isArray(logicalItems) ? logicalItems.filter((item) => item == null).length : null;
+    const pageRange = definition.key === 'weather' ? card.getAttribute('data-weather-page-range')
+      : definition.key === 'tornado' ? card.getAttribute('data-tornado-page-range')
+        : definition.key === 'briefing' ? card.getAttribute('data-briefing-page-range')
+          : definition.key === 'flood' ? card.getAttribute('data-flood-page-range')
+            : definition.key === 'volcano' ? card.getAttribute('data-volcano-page-range') : null;
+    return {
+      captureKey: definition.key,
+      namespace: card.getAttribute(baseName + 'namespace'), key: card.getAttribute(baseName + 'key'),
+      logicalItems, logicalFingerprints, resetItems, sourceCount,
+      duplicateCount, nullCount,
+      missingCount: Array.isArray(logicalItems) && Number.isFinite(sourceCount) ? Math.max(0, sourceCount - logicalItems.length) : null,
+      kindKeys: definition.key === 'weather' ? jsonAttr(card, 'data-weather-pager-kind-keys', null) : null,
+      diagnostics: {
+        page: state.page, pageCount: state.pageCount, pageKeys: state.keys, pageIdentities: state.identities,
+        activeIdentity: state.activeKey, rangeDerivedPageKey: state.activeKey, resetKey: state.resetKey,
+        pageRange,
+      },
+    };
+  });
+  const weatherAutoRoot = root.hasAttribute('data-weather-auto-footer-probe') ? root : null;
+  const weatherAutoCard = weatherAutoRoot?.querySelector(':scope > .weather-card') ?? null;
+  const weatherAutoDescription = describeWeatherCard(weatherAutoCard);
+  const weatherAutoPage = weatherAutoCard?.getAttribute('data-card-page') ?? '';
+  const weatherAuto = weatherAutoRoot == null || weatherAutoCard == null ? null : {
+    target: weatherAutoRoot.getAttribute('data-weather-auto-footer-probe'),
+    compressed: weatherAutoRoot.classList.contains('ladder-compressed'),
+    forcedRange: jsonAttr(weatherAutoRoot, 'data-weather-auto-forced-range', null),
+    page: weatherAutoPage,
+    pageCount: Number.parseInt(weatherAutoPage.split('/')[1] ?? '', 10),
+    pageIdentities: jsonAttr(weatherAutoCard, 'data-card-page-identities', null),
+    activeIdentity: weatherAutoCard.getAttribute('data-card-page-active-identity'),
+    pageKey: weatherAutoCard.getAttribute('data-card-page-active-identity'),
+    tornadoCount: all(':scope > .tornado-rider', weatherAutoCard).length,
+    ...weatherAutoDescription,
+  };
   const parsePreviewJson = (name) => {
     const raw = preview.getAttribute(name);
     if (raw == null) return null;
     try { return JSON.parse(raw); } catch { return { parseError: raw }; }
   };
+  const pageFooters = all('[data-card-page-footer]').map((footer) => {
+    const card = footer.closest('.flood-card, .flood-wide-card, .briefing-card, [data-weather-warning-forecast-card], .volcano-card, .weather-card');
+    const indicator = footer.querySelector('[data-card-page-indicator]');
+    const rider = footer.nextElementSibling?.matches('.tornado-rider') ? footer.nextElementSibling : null;
+    const style = getComputedStyle(footer);
+    const indicatorStyle = indicator == null ? null : getComputedStyle(indicator);
+    const riderStyle = rider == null ? null : getComputedStyle(rider);
+    const previous = footer.previousElementSibling;
+    const cardMeasure = measure(card);
+    const footerMeasure = measure(footer);
+    const indicatorMeasure = measure(indicator);
+    const flowParent = footer.parentElement;
+    const children = flowParent == null ? [] : [...flowParent.children];
+    const footerIndex = children.indexOf(footer);
+    const riderIndex = rider == null ? -1 : children.indexOf(rider);
+    const probe = card?.closest('[data-prefix-measure]') ?? null;
+    return {
+      cardKind: card?.matches('.briefing-card') ? 'briefing' : card?.matches('[data-weather-warning-forecast-card]') ? 'weatherWarningForecast'
+        : card?.matches('.volcano-card') ? 'volcano' : card?.matches('.weather-card') ? 'weather'
+          : card?.matches('.flood-wide-card') ? 'floodWide' : 'flood',
+      card: cardMeasure, footer: footerMeasure, indicator: indicatorMeasure, body: measure(previous), rider: measure(rider),
+      footerCount: card == null ? 0 : all('[data-card-page-footer]', card).length,
+      indicatorCount: card == null ? 0 : all('[data-card-page-indicator]', card).length,
+      indicatorText: clean(indicator?.textContent), siblingOrder: [previous?.className ?? previous?.tagName ?? '', footer.className, rider?.className ?? rider?.tagName ?? ''],
+      footerIndex, riderIndex, childCount: children.length,
+      footerIsLast: footerIndex >= 0 && footerIndex === children.length - 1,
+      riderIsLast: riderIndex >= 0 && riderIndex === children.length - 1,
+      probeId: probe?.getAttribute('data-prefix-measure') ?? null,
+      range: card?.getAttribute('data-flood-page-range') ?? card?.getAttribute('data-briefing-page-range')
+        ?? card?.getAttribute('data-volcano-page-range') ?? card?.getAttribute('data-weather-page-range') ?? null,
+      shelf: card?.closest('.measure-shelf, .center-measure-shelf') != null,
+      painted: painted(card) && painted(footer) && painted(indicator),
+      position: style.position, paddingTop: numeric(style.paddingTop), paddingRight: numeric(style.paddingRight), paddingBottom: numeric(style.paddingBottom), paddingLeft: numeric(style.paddingLeft),
+      borderTop: numeric(style.borderTopWidth), background: style.backgroundColor,
+      indicatorFontSize: indicatorStyle == null ? null : numeric(indicatorStyle.fontSize), indicatorColor: indicatorStyle?.color ?? null,
+      indicatorLineHeight: indicatorStyle == null ? null : numeric(indicatorStyle.lineHeight), indicatorBackground: indicatorStyle?.backgroundColor ?? null,
+      bodyFooterOverlap: overlap(previous, footer), footerRiderOverlap: overlap(footer, rider), indicatorBodyOverlap: overlap(indicator, previous), indicatorRiderOverlap: overlap(indicator, rider),
+      footerBottomInset: cardMeasure == null || footerMeasure == null ? null : cardMeasure.rect.bottom - cardMeasure.borderBottom - footerMeasure.rect.bottom,
+      indicatorBottomPaddingDelta: footerMeasure == null || indicatorMeasure == null ? null : footerMeasure.rect.bottom - (numeric(style.paddingBottom) ?? 0) - indicatorMeasure.rect.bottom,
+      riderBottomInset: cardMeasure == null || rider == null ? null : cardMeasure.rect.bottom - cardMeasure.borderBottom - rider.getBoundingClientRect().bottom,
+      riderRadiusTopLeft: riderStyle == null ? null : numeric(riderStyle.borderTopLeftRadius),
+      riderRadiusTopRight: riderStyle == null ? null : numeric(riderStyle.borderTopRightRadius),
+      riderRadiusBottomLeft: riderStyle == null ? null : numeric(riderStyle.borderBottomLeftRadius),
+      riderRadiusBottomRight: riderStyle == null ? null : numeric(riderStyle.borderBottomRightRadius),
+      riderBackground: riderStyle?.backgroundColor ?? null,
+    };
+  });
   return {
     ready: document.fonts?.status === 'loaded', settled: root.getAttribute('data-measurement-settled') === 'true',
     viewport: { width: window.innerWidth, height: window.innerHeight },
@@ -1312,7 +1754,8 @@ export const DESIGN_ALIGNMENT_REPORT_EXPRESSION = String.raw`(async () => {
     },
     riderReserveCounts: parsePreviewJson('data-design-alignment-rider-reserve-counts'),
     payloadSignature: parsePreviewJson('data-design-alignment-payload-signature'),
-    briefing, forecast, typhoon,
+    tokens: { roleMuted: resolveRoleMuted() },
+    briefing, forecast, typhoon, weatherCards, weatherAuto, naturalHeightProbes, pagerContracts, pageFooters,
   };
 })()`;
 
@@ -1415,6 +1858,27 @@ function assertNoOverflow(box, label) {
   if (box.overflowX > 1 || box.overflowY > 1) throw new Error(`${label}: client/scroll overflow ${box.overflowX}x${box.overflowY}`);
 }
 
+export function assertDesignAlignmentWeatherAutoBaselineProbe(record, expectation, label = record?.manifestKey ?? "weather auto baseline probe") {
+  const probe = record?.geometry?.weatherAuto;
+  if (probe == null) throw new Error(`${label}: weather auto-height report missing`);
+  if (probe.target !== record.scenario || probe.compressed !== expectation.compressed) throw new Error(`${label}: target/compressed mismatch`);
+  assertDeepEqual(probe.forcedRange, expectation.forcedRange, `${label}: forced measurementRange`);
+  if (probe.tornadoCount !== 0 || probe.pagingContract !== false || probe.explicitHeight !== false) throw new Error(`${label}: auto-height probe must have no tornado/paging-contract/explicit height`);
+  if (probe.page !== expectation.page || probe.pageCount !== expectation.pageCount) throw new Error(`${label}: forced page count mismatch`);
+  assertDeepEqual(probe.pageIdentities, expectation.pageIdentities, `${label}: data-card-page-identities`);
+  if (probe.footerCount !== 1) throw new Error(`${label}: forced weather footer missing`);
+  assertNoOverflow(probe.card, `${label}: card`);
+  if (!Number.isFinite(probe.maxHeight) || !Number.isFinite(probe.maxHeightGap)
+    || probe.maxHeightGap <= 1 || probe.nonClamped !== true) throw new Error(`${label}: auto-height probe is clamped or max-height is unresolved`);
+  return probe;
+}
+
+export function assertDesignAlignmentWeatherAutoProbe(record, expectation, label = record?.manifestKey ?? "weather auto probe") {
+  const probe = assertDesignAlignmentWeatherAutoBaselineProbe(record, expectation, label);
+  if (probe.activeIdentity !== expectation.activeIdentity || probe.pageKey !== expectation.pageKey) throw new Error(`${label}: forced active identity/page key mismatch`);
+  if (probe.footer?.node == null) throw new Error(`${label}: forced weather footer missing`);
+}
+
 export function isDesignAlignmentSingleVisualLine(node, fragments = []) {
   if (node?.lineCount === 1) return true;
   const fragmentHeight = Math.max(...fragments.map((fragment) => fragment?.rect?.height).filter(Number.isFinite), 0);
@@ -1435,6 +1899,11 @@ export function assertDesignAlignmentManifestCoverage(records) {
 export function assertDesignAlignmentBaselineStructure(records) {
   assertDesignAlignmentManifestCoverage(records);
   for (const record of records) assertRequiredReport(record, { allowLegacyTyphoonNodes: true });
+  for (const [scenario, expectation] of Object.entries(DESIGN_ALIGNMENT_WEATHER_AUTO_PROBES)) {
+    const record = findRecords(records, scenario, expectation.viewport)[0];
+    if (record == null) throw new Error(`${scenario}: baseline auto-height record missing`);
+    assertDesignAlignmentWeatherAutoBaselineProbe(record, expectation, `${scenario}: baseline`);
+  }
   for (const viewport of ["1280x720", "960x620"]) {
     const plan = DESIGN_ALIGNMENT_COMPRESSED_PLANS[viewport];
     const cells = findRecords(records, "standby-design-alignment-compressed", viewport);
@@ -1445,11 +1914,14 @@ export function assertDesignAlignmentBaselineStructure(records) {
       assertDesignAlignmentCompressedStage(layout, plan, `${record.manifestKey}: baseline`);
     }
   }
-  const maxCells = findRecords(records, "legacy-standby-gate", DESIGN_ALIGNMENT_MAX_PLAN.viewport);
-  assertDeepEqual(maxCells.map((record) => record.rotationTick), [...Array(DESIGN_ALIGNMENT_MAX_PLAN.captureTickCount).keys()], "baseline max rotation tick coverage");
-  for (const record of maxCells) {
-    const layout = record.geometry.layout;
-    if (layout.ladderStage < 2 || layout.measurementGeometryStage < 2 || layout.compressed !== true) throw new Error(`${record.manifestKey}: baseline max compressed stage contract failed`);
+  for (const [planKey, plan] of Object.entries(DESIGN_ALIGNMENT_MAX_PLANS)) {
+    const maxCells = findRecords(records, "legacy-standby-gate", plan.viewport)
+      .filter((record) => new URLSearchParams(record.query ?? "").get("maxPlan") === planKey);
+    assertDeepEqual(maxCells.map((record) => record.rotationTick), [...Array(plan.captureTickCount).keys()], `${planKey} baseline max rotation tick coverage`);
+    for (const record of maxCells) {
+      const layout = record.geometry.layout;
+      if (layout.ladderStage !== plan.stage || layout.measurementGeometryStage !== plan.stage || layout.compressed !== plan.compressed) throw new Error(`${record.manifestKey}: baseline max stage/compressed contract failed`);
+    }
   }
   assertBaselineForecastCoverage(records);
   assertBaselineTyphoonCoverage(records);
@@ -1460,6 +1932,14 @@ function assertRequiredReport(record, { allowLegacyTyphoonNodes = false } = {}) 
   if (report == null || report.ready !== true || report.settled !== true) throw new Error(`${record.manifestKey}: font/layout not ready`);
   assertDesignAlignmentApprox(report.rootFontSize, 16, 0.1, `${record.manifestKey} root font-size`);
   if (report.viewport.width !== record.viewport.width || report.viewport.height !== record.viewport.height) throw new Error(`${record.manifestKey}: viewport mismatch`);
+  for (const key of ["pageFooters", "naturalHeightProbes", "pagerContracts", "weatherCards"]) {
+    if (!Array.isArray(report[key])) throw new Error(`${record.manifestKey}: required ${key} report field missing`);
+  }
+  if (typeof report.tokens?.roleMuted !== "string" || report.tokens.roleMuted === "") throw new Error(`${record.manifestKey}: role-muted token report missing`);
+  if (Object.hasOwn(DESIGN_ALIGNMENT_WEATHER_AUTO_PROBES, record.scenario)) {
+    if (report.weatherAuto == null) throw new Error(`${record.manifestKey}: required weather auto-height report missing`);
+    return;
+  }
   for (const key of ["ladderStage", "measurementGeometryStage", "rotationOmittedCount", "sideMeasureShelfWidth"]) {
     if (!Number.isFinite(report.layout[key])) throw new Error(`${record.manifestKey} layout.${key}: missing/non-finite`);
   }
@@ -1476,9 +1956,11 @@ function assertRequiredReport(record, { allowLegacyTyphoonNodes = false } = {}) 
     ? report.layout.rotationActiveKey : record.scenario === "standby-briefing-design-alignment" ? "briefing"
       : record.scenario === "standby-vpwp50-forecast" ? "weatherWarningForecast"
         : record.scenario.startsWith("standby-vpta50-") ? "typhoon" : null;
-  if (activeKind === "briefing") {
+  if (activeKind === "briefing" || report.briefing != null) {
     if (report.briefing == null || !Array.isArray(report.briefing.grids) || !Array.isArray(report.briefing.pageKeys) || !Array.isArray(report.briefing.pageIdentities)) throw new Error(`${record.manifestKey}: required Briefing report fields missing`);
     assertBox(report.briefing.card, `${record.manifestKey} briefing card`);
+    if (report.briefing.pageAtom == null || typeof report.briefing.cardDisplay !== "string" || typeof report.briefing.cardFlexDirection !== "string") throw new Error(`${record.manifestKey}: Briefing flex ownership report missing`);
+    assertBox(report.briefing.pageAtom.node, `${record.manifestKey} briefing page atom`);
     for (const [gridIndex, grid] of report.briefing.grids.entries()) {
       assertBox(grid.body, `${record.manifestKey} briefing grid ${gridIndex} body`);
       assertBox(grid.grid, `${record.manifestKey} briefing grid ${gridIndex}`);
@@ -1490,10 +1972,13 @@ function assertRequiredReport(record, { allowLegacyTyphoonNodes = false } = {}) 
       }
     }
   }
-  if (activeKind === "weatherWarningForecast") {
+  if (activeKind === "weatherWarningForecast" || report.forecast != null) {
     if (report.forecast == null || !Array.isArray(report.forecast.periodKeys) || !Array.isArray(report.forecast.pageKeys) || !Array.isArray(report.forecast.pageIdentities)) throw new Error(`${record.manifestKey}: required forecast report fields missing`);
     for (const [name, box] of [["card", report.forecast.card], ["header", report.forecast.header], ["atom", report.forecast.atom], ["footer", report.forecast.footer], ["periods", report.forecast.periods]]) assertBox(box, `${record.manifestKey} forecast ${name}`);
     if (!Number.isFinite(report.forecast.naturalHeight) || !Number.isFinite(report.forecast.periodCount) || report.forecast.headerPadding == null) throw new Error(`${record.manifestKey}: forecast numeric fields missing`);
+    for (const key of ["visibleTarget", "targetTitle", "atomAccessibleName", "cardAccessibleName", "footerCount", "continuationVisibleCount"]) {
+      if (!Object.hasOwn(report.forecast, key) || report.forecast[key] == null) throw new Error(`${record.manifestKey}: forecast ${key} report missing`);
+    }
   }
   if (activeKind === "typhoon") {
     if (report.typhoon == null || report.typhoon.scenario !== record.scenario || report.typhoon.header == null || !Array.isArray(report.typhoon.roles)) throw new Error(`${record.manifestKey}: required Typhoon report fields missing`);
@@ -1564,21 +2049,16 @@ function assertCompressedPlan(records, viewport) {
 }
 
 export function assertDesignAlignmentMaxFixture(records) {
-  const plan = DESIGN_ALIGNMENT_MAX_PLAN;
-  const cells = findRecords(records, "legacy-standby-gate", plan.viewport);
-  assertDeepEqual(cells.map((record) => record.rotationTick), [...Array(plan.captureTickCount).keys()], "max rotation tick coverage");
-  for (const record of cells) {
-    const { layout } = record.geometry;
-    if (layout.ladderStage !== plan.stage || layout.measurementGeometryStage !== plan.stage || layout.compressed !== plan.compressed) throw new Error(`${record.manifestKey}: max stage/compressed mismatch`);
-    assertDeepEqual(layout.placementLeft, plan.placementLeft, `${record.manifestKey} max left placement`);
-    assertDeepEqual(layout.placementRight, plan.placementRight, `${record.manifestKey} max right placement`);
-    assertDeepEqual(layout.placementCenter, plan.placementCenter, `${record.manifestKey} max center placement`);
-    assertDeepEqual(layout.rotationKeys, plan.rotationKeys, `${record.manifestKey} max rotation keys`);
-    if (layout.rotationOmittedCount !== plan.rotationOmittedCount || layout.typhoonVariant !== plan.typhoonVariant) throw new Error(`${record.manifestKey}: max omitted rotation or Typhoon variant mismatch`);
-    const activeIndex = record.rotationTick % plan.rotationKeys.length;
-    const expected = plan.rotationKeys[activeIndex];
-    if (layout.rotationActiveKey !== expected || layout.rotationPosition !== `${activeIndex + 1}/${plan.rotationKeys.length}`) throw new Error(`${record.manifestKey}: max active rotation mismatch`);
-    assertDesignAlignmentLiveMeasurementWidths(record);
+  for (const [planKey, plan] of Object.entries(DESIGN_ALIGNMENT_MAX_PLANS)) {
+    const cells = findRecords(records, "legacy-standby-gate", plan.viewport)
+      .filter((record) => new URLSearchParams(record.query ?? "").get("maxPlan") === planKey);
+    if (cells.length === 0) continue;
+    assertDeepEqual(cells.map((record) => record.rotationTick), [...Array(plan.captureTickCount).keys()], `${planKey} max rotation tick coverage`);
+    for (const record of cells) {
+      const { layout } = record.geometry;
+      if (layout.ladderStage !== plan.stage || layout.measurementGeometryStage !== plan.stage || layout.compressed !== plan.compressed) throw new Error(`${record.manifestKey}: max stage/compressed mismatch`);
+      assertDesignAlignmentLiveMeasurementWidths(record);
+    }
   }
 }
 
@@ -1732,9 +2212,9 @@ function assertForecastGeometry(forecast, compressed, label) {
 
 function assertForecast(records, baseline) {
   const targets = [
-    { scenario: "standby-vpwp50-forecast", viewport: "1280x720", tick: null, delta: 12, compressed: false },
-    { scenario: "standby-design-alignment-compressed", viewport: "1280x720", tick: DESIGN_ALIGNMENT_COMPRESSED_PLANS["1280x720"].forecastCaptureTick, delta: 6, compressed: true },
-    { scenario: "standby-design-alignment-compressed", viewport: "960x620", tick: DESIGN_ALIGNMENT_COMPRESSED_PLANS["960x620"].forecastCaptureTick, delta: 6, compressed: true },
+    { scenario: "standby-vpwp50-forecast", viewport: "1280x720", tick: null, footerDelta: 9, compressed: false },
+    { scenario: "standby-design-alignment-compressed", viewport: "1280x720", tick: DESIGN_ALIGNMENT_COMPRESSED_PLANS["1280x720"].forecastCaptureTick, footerDelta: 5, compressed: true },
+    { scenario: "standby-design-alignment-compressed", viewport: "960x620", tick: DESIGN_ALIGNMENT_COMPRESSED_PLANS["960x620"].forecastCaptureTick, footerDelta: 5, compressed: true },
   ];
   for (const target of targets) {
     const afterRecord = findRecords(records, target.scenario, target.viewport).find((record) => record.rotationTick === target.tick && record.cardPageTick === 0);
@@ -1748,7 +2228,12 @@ function assertForecast(records, baseline) {
     assertDeepEqual(after.pageKeys, before.pageKeys, `${target.scenario}/${target.viewport} page keys`);
     assertDeepEqual(after.pageIdentities, before.pageIdentities, `${target.scenario}/${target.viewport} page identities`);
     if (after.identity !== before.identity) throw new Error(`${target.scenario}/${target.viewport}: atom identity changed`);
-    assertDesignAlignmentApprox(after.naturalHeight - before.naturalHeight, target.delta, 1, `${target.scenario}/${target.viewport} natural height delta`);
+    assertDesignAlignmentApprox(after.header.rect.height - before.header.rect.height, 0, 1, `${target.scenario}/${target.viewport} forecast header height delta`);
+    assertDesignAlignmentApprox(after.periods.rect.height - before.periods.rect.height, 0, 1, `${target.scenario}/${target.viewport} forecast periods height delta`);
+    const footerDelta = after.footer.rect.height - before.footer.rect.height;
+    assertDesignAlignmentApprox(footerDelta, target.footerDelta, 1, `${target.scenario}/${target.viewport} forecast footer height delta`);
+    assertDesignAlignmentApprox(after.atom.rect.height - before.atom.rect.height, 0, 1, `${target.scenario}/${target.viewport} forecast atom height delta`);
+    assertDesignAlignmentApprox(after.naturalHeight - before.naturalHeight, target.footerDelta, 1, `${target.scenario}/${target.viewport} forecast natural height delta`);
   }
 }
 
@@ -1836,6 +2321,10 @@ function placementSnapshot(layout) {
   };
 }
 
+function placementMemberKeys(placement) {
+  return [...placement.left, ...placement.right, ...placement.center].sort();
+}
+
 function rotationSnapshot(layout) {
   return {
     keys: Array.isArray(layout?.rotationKeys) ? layout.rotationKeys : [],
@@ -1892,6 +2381,7 @@ export function buildDesignAlignmentComparison(records, baselineRecords) {
       viewport: afterRecord.viewport,
       rotationTick: afterRecord.rotationTick,
       cardPageTick: afterRecord.cardPageTick,
+      query: afterRecord.query ?? null,
       stages: {
         ladder: numericComparison(before.layout?.ladderStage, after.layout?.ladderStage),
         measurementGeometry: numericComparison(before.layout?.measurementGeometryStage, after.layout?.measurementGeometryStage),
@@ -1908,6 +2398,12 @@ export function buildDesignAlignmentComparison(records, baselineRecords) {
       visibleCards: { base: baseVisibleCards, after: afterVisibleCards, changed: stableJson(baseVisibleCards) !== stableJson(afterVisibleCards) },
       cardHeights: heightComparison(before.layout, after.layout),
       forecastNaturalHeight: numericComparison(before.forecast?.naturalHeight, after.forecast?.naturalHeight),
+      forecastGeometry: {
+        header: numericComparison(before.forecast?.header?.rect?.height, after.forecast?.header?.rect?.height),
+        atom: numericComparison(before.forecast?.atom?.rect?.height, after.forecast?.atom?.rect?.height),
+        periods: numericComparison(before.forecast?.periods?.rect?.height, after.forecast?.periods?.rect?.height),
+        footer: numericComparison(before.forecast?.footer?.rect?.height, after.forecast?.footer?.rect?.height),
+      },
     };
   });
 }
@@ -1917,21 +2413,328 @@ export function assertDesignAlignmentComparisonPolicy(comparisons) {
     for (const [name, stage] of Object.entries(comparison.stages)) {
       if (stage.base == null || stage.after == null || stage.delta !== 0) throw new Error(`${comparison.manifestKey}: base/after ${name} stage must remain unchanged`);
     }
-    for (const [name, snapshot] of [["placement", comparison.placement], ["rotation", comparison.rotation], ["Typhoon variant", comparison.typhoonVariant], ["visible cards", comparison.visibleCards]]) {
-      if (snapshot.changed) throw new Error(`${comparison.manifestKey}: base/after ${name} changed`);
+    const maxPlanKey = comparison.scenario === "legacy-standby-gate"
+      ? new URLSearchParams(comparison.query ?? "").get("maxPlan") : null;
+    const maxPlan = maxPlanKey == null ? null : DESIGN_ALIGNMENT_MAX_PLANS[maxPlanKey];
+    const expectedCompressed = comparison.scenario === "standby-design-alignment-compressed" ? true : maxPlan?.compressed;
+    if (expectedCompressed == null || (maxPlan != null && comparison.viewport.label !== maxPlan.viewport)) throw new Error(`${comparison.manifestKey}: max plan/comparison mismatch`);
+    if (maxPlanKey === "fhdMax") {
+      assertDeepEqual(placementMemberKeys(comparison.placement.base), placementMemberKeys(comparison.placement.after), `${comparison.manifestKey}: base/after visible placement set`);
+      if (comparison.rotation.changed) throw new Error(`${comparison.manifestKey}: base/after rotation changed`);
+      for (const [phase, rotation] of [["base", comparison.rotation.base], ["after", comparison.rotation.after]]) {
+        if (rotation.keys.length !== 0 || rotation.omittedCount !== 0 || rotation.activeKey !== "" || rotation.position !== "") throw new Error(`${comparison.manifestKey}: ${phase} fhdMax rotation must remain empty`);
+      }
+    } else {
+      for (const [name, snapshot] of [["placement", comparison.placement], ["rotation", comparison.rotation], ["visible cards", comparison.visibleCards]]) {
+        if (snapshot.changed) throw new Error(`${comparison.manifestKey}: base/after ${name} changed`);
+      }
     }
-    if (comparison.compressed.base !== true || comparison.compressed.after !== true || comparison.compressed.changed) throw new Error(`${comparison.manifestKey}: base/after compressed state changed`);
-    if (comparison.rotationOmittedCount.base == null || comparison.rotationOmittedCount.after == null || comparison.rotationOmittedCount.delta !== 0) throw new Error(`${comparison.manifestKey}: base/after omitted rotation count changed`);
+    if (comparison.typhoonVariant.changed) throw new Error(`${comparison.manifestKey}: base/after Typhoon variant changed`);
+    if (comparison.compressed.base !== expectedCompressed || comparison.compressed.after !== expectedCompressed || comparison.compressed.changed) throw new Error(`${comparison.manifestKey}: base/after compressed state changed; expected ${expectedCompressed}`);
+    const expectedOmittedCount = maxPlanKey === "fhdMax" ? 0 : comparison.rotationOmittedCount.base;
+    if (expectedOmittedCount == null || comparison.rotationOmittedCount.base !== expectedOmittedCount || comparison.rotationOmittedCount.after !== expectedOmittedCount || comparison.rotationOmittedCount.delta !== 0) throw new Error(`${comparison.manifestKey}: base/after omitted rotation count changed`);
   }
   for (const target of [
-    { scenario: "standby-vpwp50-forecast", viewport: "1280x720", tick: null, delta: 12 },
-    { scenario: "standby-design-alignment-compressed", viewport: "1280x720", tick: DESIGN_ALIGNMENT_COMPRESSED_PLANS["1280x720"].forecastCaptureTick, delta: 6 },
-    { scenario: "standby-design-alignment-compressed", viewport: "960x620", tick: DESIGN_ALIGNMENT_COMPRESSED_PLANS["960x620"].forecastCaptureTick, delta: 6 },
+    { scenario: "standby-vpwp50-forecast", viewport: "1280x720", tick: null, footerDelta: 9 },
+    { scenario: "standby-design-alignment-compressed", viewport: "1280x720", tick: DESIGN_ALIGNMENT_COMPRESSED_PLANS["1280x720"].forecastCaptureTick, footerDelta: 5 },
+    { scenario: "standby-design-alignment-compressed", viewport: "960x620", tick: DESIGN_ALIGNMENT_COMPRESSED_PLANS["960x620"].forecastCaptureTick, footerDelta: 5 },
   ]) {
     const comparison = comparisons.find((entry) => entry.scenario === target.scenario
       && entry.viewport.label === target.viewport && entry.rotationTick === target.tick && entry.cardPageTick === 0);
     if (comparison == null) throw new Error(`${target.scenario}/${target.viewport}: forecast comparison record missing`);
-    assertDesignAlignmentApprox(comparison.forecastNaturalHeight.delta, target.delta, 1, `${target.scenario}/${target.viewport} natural height delta`);
+    assertDesignAlignmentApprox(comparison.forecastGeometry.header.delta, 0, 1, `${target.scenario}/${target.viewport} forecast header height delta`);
+    assertDesignAlignmentApprox(comparison.forecastGeometry.periods.delta, 0, 1, `${target.scenario}/${target.viewport} forecast periods height delta`);
+    assertDesignAlignmentApprox(comparison.forecastGeometry.footer.delta, target.footerDelta, 1, `${target.scenario}/${target.viewport} forecast footer height delta`);
+    assertDesignAlignmentApprox(comparison.forecastGeometry.atom.delta, 0, 1, `${target.scenario}/${target.viewport} forecast atom height delta`);
+    assertDesignAlignmentApprox(comparison.forecastNaturalHeight.delta, target.footerDelta, 1, `${target.scenario}/${target.viewport} forecast natural height delta`);
+  }
+}
+
+export function assertDesignAlignmentPageFooters(records) {
+  const viewportCoverage = new Set();
+  for (const record of records) {
+    if (!Array.isArray(record.geometry?.pageFooters)) throw new Error(`${record.manifestKey}: pageFooters report missing`);
+    for (const [index, footer] of record.geometry.pageFooters.entries()) {
+      for (const key of [
+        "cardKind", "card", "footer", "indicator", "body", "rider", "footerCount", "indicatorCount",
+        "indicatorText", "siblingOrder", "footerIndex", "riderIndex", "childCount", "footerIsLast",
+        "riderIsLast", "probeId", "range", "shelf", "painted", "position", "paddingTop", "paddingRight",
+        "paddingBottom", "paddingLeft", "borderTop", "background", "indicatorFontSize", "indicatorColor",
+        "indicatorLineHeight", "indicatorBackground", "bodyFooterOverlap", "footerRiderOverlap",
+        "indicatorBodyOverlap", "indicatorRiderOverlap", "footerBottomInset", "indicatorBottomPaddingDelta",
+        "riderBottomInset", "riderRadiusTopLeft", "riderRadiusTopRight", "riderRadiusBottomLeft",
+        "riderRadiusBottomRight", "riderBackground",
+      ]) {
+        if (!Object.hasOwn(footer, key)) throw new Error(`${record.manifestKey}: footer ${index} ${key} report missing (field absent)`);
+      }
+      if (!Array.isArray(footer.siblingOrder)) throw new Error(`${record.manifestKey}: footer ${index} siblingOrder report invalid`);
+      assertBox(footer.card, `${record.manifestKey}: footer ${index} card`);
+      assertBox(footer.footer, `${record.manifestKey}: footer ${index} footer`);
+      assertBox(footer.indicator, `${record.manifestKey}: footer ${index} indicator`);
+      if (footer.body != null) assertBox(footer.body, `${record.manifestKey}: footer ${index} body`);
+      if (footer.rider != null) assertBox(footer.rider, `${record.manifestKey}: footer ${index} rider`);
+    }
+    const compressed = record.geometry.layout?.compressed === true;
+    const visibleRects = [
+      ...(record.geometry.layout?.visibleCards ?? []).flatMap((card) => [card.component?.rect, card.host?.rect]),
+      record.geometry.weatherAuto?.card?.rect,
+    ].filter(Boolean);
+    const liveFooters = record.geometry.pageFooters.filter((footer) => visibleRects.some((rect) =>
+      ["left", "top", "width", "height"].every((key) => Math.abs(rect[key] - footer.card?.rect?.[key]) <= 1)));
+    for (const footer of liveFooters) {
+      viewportCoverage.add(record.viewport.label);
+      if (footer.painted !== true || footer.footerCount !== 1 || footer.indicatorCount !== 1 || !/^\d+\/\d+$/.test(footer.indicatorText)) throw new Error(`${record.manifestKey}: footer count/text/paint contract failed`);
+      if (footer.position !== "static") throw new Error(`${record.manifestKey}: footer is not normal flow`);
+      const block = compressed ? 2 : 4;
+      const inline = compressed ? 8 : 16;
+      assertDesignAlignmentApprox(footer.paddingTop, block, 0.1, `${record.manifestKey}: footer padding-top`);
+      assertDesignAlignmentApprox(footer.paddingBottom, block, 0.1, `${record.manifestKey}: footer padding-bottom`);
+      assertDesignAlignmentApprox(footer.paddingLeft, inline, 0.1, `${record.manifestKey}: footer padding-left`);
+      assertDesignAlignmentApprox(footer.paddingRight, inline, 0.1, `${record.manifestKey}: footer padding-right`);
+      assertDesignAlignmentApprox(footer.borderTop, 1, 0.1, `${record.manifestKey}: footer border`);
+      assertDesignAlignmentApprox(footer.indicatorFontSize, 12, 0.1, `${record.manifestKey}: indicator font-size`);
+      assertDesignAlignmentApprox(footer.indicatorLineHeight, 12, 0.1, `${record.manifestKey}: indicator line-height`);
+      if (footer.indicatorColor !== record.geometry.tokens.roleMuted) throw new Error(`${record.manifestKey}: indicator color is not role-muted`);
+      if (footer.indicatorBackground !== "rgba(0, 0, 0, 0)" || footer.background !== "rgba(0, 0, 0, 0)") throw new Error(`${record.manifestKey}: footer/indicator background must be transparent`);
+      if (footer.bodyFooterOverlap > 1 || footer.footerRiderOverlap > 1 || footer.indicatorBodyOverlap > 1 || footer.indicatorRiderOverlap > 1) throw new Error(`${record.manifestKey}: footer overlap`);
+      if (footer.rider == null) {
+        if (footer.footerIsLast !== true || footer.riderIsLast !== false) throw new Error(`${record.manifestKey}: footer is not the final flow child`);
+        assertDesignAlignmentApprox(footer.footerBottomInset, 0, 1, `${record.manifestKey}: footer card inset`);
+        assertDesignAlignmentApprox(footer.indicatorBottomPaddingDelta, 0, 1, `${record.manifestKey}: indicator bottom padding`);
+      } else {
+        if (footer.riderIsLast !== true || footer.riderIndex !== footer.footerIndex + 1 || footer.footer.rect.bottom > footer.rider.rect.top + 1) throw new Error(`${record.manifestKey}: footer/rider sibling order changed`);
+        assertDesignAlignmentApprox(footer.riderBottomInset, 0, 1, `${record.manifestKey}: rider card inset`);
+        assertDesignAlignmentApprox(footer.riderRadiusTopLeft, 0, 0.1, `${record.manifestKey}: rider top-left radius`);
+        assertDesignAlignmentApprox(footer.riderRadiusTopRight, 0, 0.1, `${record.manifestKey}: rider top-right radius`);
+        assertDesignAlignmentApprox(footer.riderRadiusBottomLeft, 15, 1, `${record.manifestKey}: rider bottom-left radius`);
+        assertDesignAlignmentApprox(footer.riderRadiusBottomRight, 15, 1, `${record.manifestKey}: rider bottom-right radius`);
+        if (typeof footer.riderBackground !== "string" || footer.riderBackground === "") throw new Error(`${record.manifestKey}: rider background report missing`);
+      }
+    }
+  }
+  for (const viewport of ["1920x1080", "1280x720", "960x620"]) if (!viewportCoverage.has(viewport)) throw new Error(`${viewport}: normal-flow footer was not captured`);
+}
+
+export function assertDesignAlignmentBriefingFlex(records) {
+  let count = 0;
+  for (const record of records) {
+    const briefing = record.geometry?.briefing;
+    if (briefing == null) continue;
+    count += 1;
+    if (briefing.cardDisplay !== "flex" || briefing.cardFlexDirection !== "column") throw new Error(`${record.manifestKey}: Briefing card flex ownership changed`);
+    const atom = briefing.pageAtom;
+    if (atom?.display !== "flex" || atom.flexGrow !== 1 || atom.flexShrink !== 1 || atom.flexBasis !== "auto" || atom.minHeight !== 0) throw new Error(`${record.manifestKey}: Briefing page atom does not own residual height`);
+    assertNoOverflow(atom.node, `${record.manifestKey}: Briefing page atom`);
+  }
+  if (count === 0) throw new Error("Briefing flex ownership was not captured");
+}
+
+export function assertDesignAlignmentWeatherGrid(records) {
+  const riderFooterCoverage = new Set();
+  for (const record of records) {
+    if (!Array.isArray(record.geometry?.weatherCards)) throw new Error(`${record.manifestKey}: weatherCards report missing`);
+    for (const weather of record.geometry.weatherCards.filter((entry) => entry?.painted === true && entry.shelf === false)) {
+      assertNoOverflow(weather.card, `${record.manifestKey}: Weather card`);
+      if (weather.gridRowCount !== 4 || weather.gridTemplateAreas.replace(/\s+/g, " ").trim() !== '"header" "body" "footer" "rider"') throw new Error(`${record.manifestKey}: Weather four-row grid contract failed`);
+      for (const [name, expectedArea] of [["header", "header"], ["body", "body"], ["footer", "footer"], ["rider", "rider"]]) {
+        const row = weather[name];
+        if (row != null && row.gridArea !== expectedArea) throw new Error(`${record.manifestKey}: Weather ${name} grid-area changed`);
+      }
+      const expectedOrder = ["header", ...(weather.body == null ? [] : ["body"]), ...(weather.footer == null ? [] : ["footer"]), ...(weather.rider == null ? [] : ["rider"] )];
+      if (stableJson(weather.childOrder.filter((kind) => kind !== "other")) !== stableJson(expectedOrder)) throw new Error(`${record.manifestKey}: Weather child order changed`);
+      if (weather.footerCount === 1 && weather.riderCount === 1) riderFooterCoverage.add(record.viewport.label);
+    }
+  }
+  for (const viewport of ["1920x1080", "1280x720", "960x620"]) if (!riderFooterCoverage.has(viewport)) throw new Error(`${viewport}: Weather footer+rider was not captured together`);
+}
+
+export function assertDesignAlignmentWeatherFixedShell(records, baseline) {
+  const baselineByKey = new Map((baseline?.records ?? []).map((record) => [record.manifestKey, record]));
+  const viewportCoverage = new Set();
+  const fixedShells = (record) => (record?.geometry?.weatherCards ?? []).filter((weather) =>
+    weather?.painted === true && weather.shelf === false && weather.pagingContract === true
+      && weather.footerCount === 1 && weather.riderCount === 1);
+  for (const afterRecord of records) {
+    const beforeRecord = baselineByKey.get(afterRecord.manifestKey);
+    if (beforeRecord == null) throw new Error(`${afterRecord.manifestKey}: baseline Weather fixed-shell record missing`);
+    const afterShells = fixedShells(afterRecord);
+    const beforeShells = fixedShells(beforeRecord);
+    if (afterShells.length !== beforeShells.length) throw new Error(`${afterRecord.manifestKey}: Weather fixed-shell count changed`);
+    for (const [index, after] of afterShells.entries()) {
+      const before = beforeShells[index];
+      if (before == null) throw new Error(`${afterRecord.manifestKey}: baseline Weather fixed shell ${index} missing`);
+      viewportCoverage.add(afterRecord.viewport.label);
+      for (const [phase, weather] of [["baseline", before], ["after", after]]) {
+        assertNoOverflow(weather.card, `${afterRecord.manifestKey}: ${phase} Weather fixed shell`);
+        if (!Number.isFinite(weather.innerOccupiedHeight) || !Number.isFinite(weather.innerContentHeight)
+          || weather.innerOccupiedHeight > weather.innerContentHeight + 1) {
+          throw new Error(`${afterRecord.manifestKey}: ${phase} Weather fixed-shell rows exceed the inner content box`);
+        }
+      }
+      assertDesignAlignmentApprox(after.card.rect.width - before.card.rect.width, 0, 1, `${afterRecord.manifestKey}: Weather fixed-shell width delta`);
+      assertDesignAlignmentApprox(after.card.rect.height - before.card.rect.height, 0, 1, `${afterRecord.manifestKey}: Weather fixed-shell height delta`);
+      assertDesignAlignmentApprox(after.card.clientHeight - before.card.clientHeight, 0, 1, `${afterRecord.manifestKey}: Weather fixed-shell clientHeight delta`);
+      assertDesignAlignmentApprox(after.card.scrollHeight - before.card.scrollHeight, 0, 1, `${afterRecord.manifestKey}: Weather fixed-shell scrollHeight delta`);
+    }
+  }
+  for (const viewport of ["1920x1080", "1280x720", "960x620"]) if (!viewportCoverage.has(viewport)) throw new Error(`${viewport}: Weather fixed footer+rider shell had zero comparison coverage`);
+}
+
+function recordCell(records, scenario, viewport, rotationTick = null, cardPageTick = 0) {
+  return findRecords(records, scenario, viewport).find((record) => record.rotationTick === rotationTick && record.cardPageTick === cardPageTick);
+}
+
+function naturalProbeFor(record, target) {
+  const candidates = (record?.geometry?.naturalHeightProbes ?? []).filter((probe) =>
+    target.cardKinds.includes(probe.cardKind)
+      && probe.range === "0:1"
+      && probe.probeId.includes(":page-fit:0:1:")
+      && probe.probeId.includes(":placement:side")
+      && probe.footerCount === 1
+      && probe.explicitHeight === false
+      && (target.composition == null || probe.composition?.includes(target.composition)));
+  return candidates.sort((left, right) => left.probeId.localeCompare(right.probeId))[0] ?? null;
+}
+
+export function assertDesignAlignmentNaturalHeightDeltaMatrix(records, baseline) {
+  const targets = [
+    { label: "Flood normal", scenario: "legacy-standby-gate", viewport: "1920x1080", tick: 0, cardKinds: ["flood", "floodWide"], delta: 0 },
+    { label: "Flood compressed", scenario: "standby-design-alignment-compressed", viewport: "1280x720", tick: 0, cardKinds: ["flood", "floodWide"], delta: 0 },
+    { label: "Volcano normal", scenario: "legacy-standby-gate", viewport: "1920x1080", tick: 0, cardKinds: ["volcano"], delta: 9 },
+    { label: "Volcano compressed", scenario: "standby-design-alignment-compressed", viewport: "1280x720", tick: 0, cardKinds: ["volcano"], delta: 5 },
+    { label: "Briefing normal", scenario: "standby-briefing-design-alignment", viewport: "1280x720", tick: null, cardKinds: ["briefing"], composition: "briefing-footer:present", delta: 15 },
+    { label: "Briefing compressed", scenario: "standby-design-alignment-compressed", viewport: "1280x720", tick: 0, cardKinds: ["briefing"], composition: "briefing-footer:present", delta: 11 },
+  ];
+  for (const target of targets) {
+    const afterRecord = recordCell(records, target.scenario, target.viewport, target.tick, 0);
+    const beforeRecord = baseline?.records?.find((record) => record.manifestKey === afterRecord?.manifestKey);
+    const after = naturalProbeFor(afterRecord, target);
+    const before = naturalProbeFor(beforeRecord, target);
+    if (after == null || before == null) throw new Error(`${target.label}: forced-range natural-height probe missing`);
+    if (after.cardKind !== before.cardKind || after.range !== before.range) throw new Error(`${target.label}: forced-range probe identity changed`);
+    assertNoOverflow(after.card, `${target.label}: after probe`);
+    assertNoOverflow(before.card, `${target.label}: baseline probe`);
+    for (const [phase, probe] of [["baseline", before], ["after", after]]) {
+      if (Number.isFinite(probe.maxHeight) && probe.card.rect.height >= probe.maxHeight - 1) throw new Error(`${target.label}: ${phase} forced-range probe is max-height clamped`);
+    }
+    assertDesignAlignmentApprox(after.naturalHeight - before.naturalHeight, target.delta, 1, `${target.label} natural height delta`);
+  }
+}
+
+export function assertDesignAlignmentWeatherAutoMatrix(records, baseline) {
+  for (const [scenario, expectation] of Object.entries(DESIGN_ALIGNMENT_WEATHER_AUTO_PROBES)) {
+    const after = findRecords(records, scenario, expectation.viewport)[0];
+    const before = baseline?.records?.find((record) => record.manifestKey === after?.manifestKey);
+    if (after == null || before == null) throw new Error(`${scenario}: base/after record missing`);
+    assertDesignAlignmentWeatherAutoBaselineProbe(before, expectation, `${scenario}: baseline`);
+    assertDesignAlignmentWeatherAutoProbe(after, expectation, `${scenario}: after`);
+    assertDesignAlignmentApprox(
+      after.geometry.weatherAuto.card.rect.height - before.geometry.weatherAuto.card.rect.height,
+      expectation.naturalHeightDelta, 1, `${scenario}: natural height delta`,
+    );
+  }
+}
+
+export function assertDesignAlignmentForecastLabels(records) {
+  const targets = [
+    { page: 0, visible: "北海道 稚内市", full: "稚内市（0121400）" },
+    { page: 16, visible: "北海道 稚内市 稚内海岸", full: "稚内市（0121400） / 稚内海岸（L001）" },
+  ];
+  const cells = [
+    ...targets.map((target) => ({ ...target, scenario: "standby-vpwp50-forecast", viewport: "1280x720", tick: null })),
+    ...["1280x720", "960x620"].flatMap((viewport) => targets.map((target) => ({
+      ...target, scenario: "standby-design-alignment-compressed", viewport,
+      tick: DESIGN_ALIGNMENT_COMPRESSED_PLANS[viewport].forecastCaptureTick,
+    }))),
+  ];
+  for (const target of cells) {
+    const forecast = recordCell(records, target.scenario, target.viewport, target.tick, target.page)?.geometry?.forecast;
+    if (forecast == null) throw new Error(`${target.scenario}/${target.viewport}/page ${target.page}: forecast label report missing`);
+    if (forecast.visibleTarget !== target.visible || forecast.targetTitle !== target.full
+      || !forecast.atomAccessibleName?.includes(target.full) || !forecast.cardAccessibleName?.includes(target.full)) {
+      throw new Error(`${target.scenario}/${target.viewport}/page ${target.page}: VPWP50 visible/title/ARIA contract failed`);
+    }
+    if (/0121400|L001/.test(forecast.visibleTarget) || forecast.continuationVisibleCount !== 0
+      || forecast.footerCount !== 1 || !/^\d+\/32$/.test(forecast.page)) {
+      throw new Error(`${target.scenario}/${target.viewport}/page ${target.page}: VPWP50 footer/continuation contract failed`);
+    }
+  }
+}
+
+function pagerInvariant(contract) {
+  return {
+    namespace: contract.namespace,
+    key: contract.key,
+    logicalItems: contract.logicalItems,
+    logicalFingerprints: contract.logicalFingerprints,
+    resetItems: contract.resetItems,
+    sourceCount: contract.sourceCount,
+    kindKeys: contract.kindKeys,
+  };
+}
+
+function assertPagerContractShape(contract, expectedKey, label) {
+  if (contract?.missingSchedulerState === true) throw new Error(`${label}: required scheduler state missing`);
+  if (contract?.missingComponent === true || contract?.namespace !== "card-page-coordinator" || contract?.key !== expectedKey) throw new Error(`${label}: pager namespace/key missing or mismatched`);
+  for (const key of ["logicalItems", "logicalFingerprints", "resetItems"]) if (!Array.isArray(contract[key])) throw new Error(`${label}: pager ${key} missing`);
+  if (contract.logicalItems.length === 0 || contract.resetItems.length === 0 || contract.sourceCount !== contract.logicalItems.length
+    || contract.duplicateCount !== 0 || contract.missingCount !== 0 || contract.nullCount !== 0) throw new Error(`${label}: pager logical sequence has duplicate/missing items`);
+  if (contract.logicalFingerprints.length !== contract.logicalItems.length) throw new Error(`${label}: pager logical fingerprint sequence length changed`);
+  if (contract.key === "weather") {
+    if (!Array.isArray(contract.kindKeys) || contract.kindKeys.length === 0 || new Set(contract.kindKeys).size !== contract.kindKeys.length) throw new Error(`${label}: Weather kind keys missing/duplicated`);
+    const sentinels = contract.logicalItems.filter(Array.isArray);
+    const items = contract.logicalItems.filter((item) => typeof item === "string");
+    if (sentinels.length !== contract.kindKeys.length || sentinels.some((item) => item.length !== 3 || item[0] !== "omittedAreaCount" || !contract.kindKeys.includes(item[1]) || !Number.isFinite(item[2]))) throw new Error(`${label}: Weather omittedAreaCount sentinels invalid`);
+    if (items.length === 0 || items.some((item) => !contract.kindKeys.some((kind) => item.startsWith(kind + "|") && /\|\d+(?:\|code:.*)?$/.test(item)))) throw new Error(`${label}: Weather occurrence-aware area keys invalid`);
+  }
+}
+
+function pagerContractsByCaptureKey(contracts, label, { requireKeys }) {
+  const keyedContracts = contracts.filter((contract) => typeof contract?.captureKey === "string" && contract.captureKey !== "");
+  if (requireKeys && keyedContracts.length !== contracts.length) throw new Error(`${label}: pager capture key missing`);
+  const byKey = new Map(keyedContracts.map((contract) => [contract.captureKey, contract]));
+  if (byKey.size !== keyedContracts.length) throw new Error(`${label}: duplicate pager capture keys`);
+  return byKey;
+}
+
+function hasCompletePagerFields(contract) {
+  return typeof contract?.namespace === "string" && typeof contract?.key === "string"
+    && Array.isArray(contract.logicalItems) && Array.isArray(contract.logicalFingerprints)
+    && Array.isArray(contract.resetItems) && Number.isFinite(contract.sourceCount)
+    && (contract.key !== "weather" || Array.isArray(contract.kindKeys));
+}
+
+function pagerOracleForRecord(record, key) {
+  if (key === "weather" && record.scenario === "standby-design-alignment-compressed" && record.viewport?.label === "960x620") {
+    return DESIGN_ALIGNMENT_COMPACT_WEATHER_PAGER_ORACLE;
+  }
+  return DESIGN_ALIGNMENT_PAGER_ORACLES[key];
+}
+
+export function assertDesignAlignmentPagerContracts(records, baseline) {
+  const baselineByKey = new Map((baseline?.records ?? []).map((record) => [record.manifestKey, record]));
+  for (const afterRecord of records) {
+    const beforeRecord = baselineByKey.get(afterRecord.manifestKey);
+    if (beforeRecord == null) throw new Error(`${afterRecord.manifestKey}: baseline pager record missing`);
+    const afterContracts = afterRecord.geometry?.pagerContracts;
+    const beforeContracts = beforeRecord.geometry?.pagerContracts;
+    if (!Array.isArray(afterContracts) || !Array.isArray(beforeContracts)) throw new Error(`${afterRecord.manifestKey}: pagerContracts report missing`);
+    const afterByKey = pagerContractsByCaptureKey(afterContracts, `${afterRecord.manifestKey}: after`, { requireKeys: true });
+    const expectedCaptureKeys = expectedPagerCaptureKeysForRecord(afterRecord);
+    assertDeepEqual([...afterByKey.keys()].sort(), [...expectedCaptureKeys].sort(), `${afterRecord.manifestKey}: after pager captureKey set`);
+    const beforeByKey = pagerContractsByCaptureKey(beforeContracts, `${afterRecord.manifestKey}: baseline`, { requireKeys: false });
+    for (const key of expectedCaptureKeys) {
+      const after = afterByKey.get(key);
+      assertPagerContractShape(after, key, `${afterRecord.manifestKey}: after ${key}`);
+      const oracle = pagerOracleForRecord(afterRecord, key);
+      if (oracle == null) throw new Error(`${afterRecord.manifestKey}: ${key} pager oracle missing`);
+      assertDeepEqual(pagerInvariant(after), oracle, `${afterRecord.manifestKey}: ${key} fixture pager oracle`);
+      const before = beforeByKey.get(key);
+      if (before != null && hasCompletePagerFields(before)) {
+        assertPagerContractShape(before, key, `${afterRecord.manifestKey}: baseline ${key}`);
+        assertDeepEqual(pagerInvariant(after), pagerInvariant(before), `${afterRecord.manifestKey}: ${key} baseline pager invariant`);
+      }
+    }
   }
 }
 
@@ -1985,8 +2788,16 @@ export function assertDesignAlignmentManifest(records, { mode, baseline = null }
   const comparison = buildDesignAlignmentComparison(records, baseline.records);
   assertDesignAlignmentComparisonPolicy(comparison);
   assertBriefingMatrix(records);
+  assertDesignAlignmentBriefingFlex(records);
   assertForecast(records, baseline);
+  assertDesignAlignmentForecastLabels(records);
   assertTyphoon(records);
+  assertDesignAlignmentPageFooters(records);
+  assertDesignAlignmentWeatherGrid(records);
+  assertDesignAlignmentWeatherFixedShell(records, baseline);
+  assertDesignAlignmentWeatherAutoMatrix(records, baseline);
+  assertDesignAlignmentNaturalHeightDeltaMatrix(records, baseline);
+  assertDesignAlignmentPagerContracts(records, baseline);
   return comparison;
 }
 
@@ -2036,10 +2847,6 @@ async function main() {
     await runDesignAlignmentAssertionsFromFile(options);
     return;
   }
-  // The overlap counterexample needs the first paged weather+tornado cell.
-  // Scenario 7 / 960 is that deterministic surface; starting from quiet would
-  // exercise no badge at all and could leave the rider diagnostic unproven.
-  const overlapDefault = options.fixture === "overlap" && options.scenarios.length === 0;
   const fixtureDefaults = {
     "tornado-pages": { scenario: "7", viewport: "1280x720" },
     "tornado-aggregate": { scenario: "7", viewport: "960x620" },
@@ -2054,10 +2861,10 @@ async function main() {
   };
   const fixtureDefault = options.fixture == null ? null : fixtureDefaults[options.fixture] ?? null;
   const scenarios = options.scenarios.length === 0
-    ? fixtureDefault?.scenario != null ? [fixtureDefault.scenario] : overlapDefault ? ["7"] : DEFAULT_SCENARIOS
+    ? fixtureDefault?.scenario != null ? [fixtureDefault.scenario] : DEFAULT_SCENARIOS
     : options.scenarios;
   if (scenarios.some((scenario) => !SUPPORTED_SCENARIOS.includes(scenario))) throw new Error("scenario must be quiet, 4, 7, max, or max-floodWide");
-  if (options.fixture != null && !["overflow", "overlap", "rotation", "cluster", "cluster-calm", "tornado-pages", "tornado-aggregate", "tornado-clip", "tornado-epoch-release", "recent-quakes-narrow", "attention-visibility-standby", "attention-visibility-emergency", "attention-visibility-reduced-motion", "briefing-pages", "briefing-single-page"].includes(options.fixture)) throw new Error("unknown fixture");
+  if (options.fixture != null && !["overflow", "rotation", "cluster", "cluster-calm", "tornado-pages", "tornado-aggregate", "tornado-clip", "tornado-epoch-release", "recent-quakes-narrow", "attention-visibility-standby", "attention-visibility-emergency", "attention-visibility-reduced-motion", "briefing-pages", "briefing-single-page"].includes(options.fixture)) throw new Error("unknown fixture");
   if (options.fixture === "cluster-calm" && (scenarios.length !== 1 || scenarios[0] !== "4")) throw new Error("cluster-calm fixture requires --scenario 4: quiet has no fixed cluster to reduce");
   const requestedViewports = options.viewports.length === 0 ? null : options.viewports.map(parseViewport);
   const outDir = resolve(options.outDir ?? join(DISPLAY_DIR, "artifacts", "legacy-standby"));
@@ -2075,7 +2882,6 @@ async function main() {
     for (const scenario of scenarios) {
       const viewportLabels = requestedViewports == null
         ? fixtureDefault?.viewport != null ? [fixtureDefault.viewport]
-          : overlapDefault ? ["960x620"]
           : scenario === "max-floodWide" ? FLOOD_WIDE_VIEWPORTS : options.report ? DEFAULT_VIEWPORTS : scenario === "quiet" ? ["960x620"] : DEFAULT_VIEWPORTS
         : requestedViewports.map((viewport) => viewport.label);
       const viewports = viewportLabels.map(parseViewport);

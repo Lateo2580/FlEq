@@ -6,9 +6,19 @@ import {
   groupByPrefectureOrRegion,
   PREFECTURES,
   PREFECTURE_BY_CODE,
+  prefectureFromSixDigitAreaCode,
   prefectureFromMunicipalityCode,
   weatherAreaGroupKey,
 } from "../prefecture-group";
+
+describe("prefecture code helpers", () => {
+  it("keeps six-digit parent areas separate from seven-digit municipality codes", () => {
+    expect(prefectureFromSixDigitAreaCode("200010")).toBe("長野県");
+    expect(prefectureFromSixDigitAreaCode("0121400")).toBeNull();
+    expect(prefectureFromMunicipalityCode("0121400")).toBe("北海道");
+    expect(prefectureFromMunicipalityCode("200010")).toBeNull();
+  });
+});
 
 describe("groupCodedAreasByPrefecture", () => {
   it("7桁市区町村コードで連続する福井県地域を group 化し、県名接頭辞だけを表示名から除く", () => {

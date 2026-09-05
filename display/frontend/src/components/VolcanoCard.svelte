@@ -276,6 +276,9 @@
   }
 
   const atoms = $derived(buildAtoms(item));
+  const pagerLogicalItems = $derived(atoms.map((atom) => atom.identity));
+  const pagerLogicalFingerprints = $derived(atoms.map((atom) => atom.identity));
+  const pagerResetItems = $derived(atoms.map((atom) => atom.identity));
   const partition = $derived.by(() => {
     if (measurementRange != null) {
       return { ranges: [measurementRange], pending: [], infeasible: false, probeCount: 1 };
@@ -447,7 +450,6 @@
 
 <section
   class="standby-card volcano-card band-{band}"
-  class:has-page-footer={showFooter}
   class:paged-volcano={pagedRender && (pages.length > 1 || measurementRange != null)}
   class:measurement-range={measurementRange != null}
   data-page-probe-card={measurementRange != null ? "" : undefined}
@@ -461,6 +463,13 @@
   data-card-page={pageLabel}
   data-card-page-keys={JSON.stringify(diagnostics.keys)}
   data-card-page-identities={JSON.stringify(diagnostics.identities)}
+  data-card-page-active-identity={diagnostics.activeKey ?? undefined}
+  data-pager-namespace="card-page-coordinator"
+  data-pager-key="volcano"
+  data-pager-logical-items={JSON.stringify(pagerLogicalItems)}
+  data-pager-logical-fingerprints={JSON.stringify(pagerLogicalFingerprints)}
+  data-pager-reset-items={JSON.stringify(pagerResetItems)}
+  data-pager-logical-source-count={pagerLogicalItems.length}
   data-volcano-page-identity={activePage?.identity}
 >
   <header class="standby-card-header" class:standby-card-header--muted={band === "muted"} style={headerStyle}><span class="standby-card-header__title">火山情報</span><span class="standby-card-header__meta">{#if item.restored}<RestoredChip />{/if}<UpdatedStamp iso={item.updatedAt} /></span></header>
@@ -556,7 +565,4 @@
   .ashfall-end, .ashfall-omitted { color: var(--role-muted); font-size: var(--type-label-xs-size); }
   .ashfall-group { display: grid; grid-template-columns: minmax(5em, auto) 1fr; gap: var(--space-2); font-size: max(12px, var(--type-label-s-fluid)); }
   .ashfall-wire-omitted { padding: var(--space-2) var(--space-4); border-top: 1px solid var(--hairline); color: var(--role-muted); font-size: var(--type-label-xs-size); }
-  .volcano-card.has-page-footer { --card-page-indicator-block-size: calc(var(--type-label-xs-size) + 4px); position: relative; padding-bottom: var(--card-page-indicator-block-size); }
-  .card-page-footer { position: absolute; inset-inline: 0; bottom: 0; display: flex; align-items: center; justify-content: flex-end; box-sizing: border-box; height: var(--card-page-indicator-block-size); min-height: var(--card-page-indicator-block-size); padding: 0 var(--space-4); overflow: hidden; pointer-events: none; z-index: 1; }
-  .card-page-indicator { box-sizing: border-box; block-size: var(--card-page-indicator-block-size); padding: 1px var(--space-2); border: 1px solid var(--hairline); border-radius: var(--radius-s); background: color-mix(in srgb, var(--surface-standby) 92%, transparent); color: var(--role-muted); font-size: var(--type-label-xs-size); line-height: 1; font-variant-numeric: tabular-nums; }
 </style>

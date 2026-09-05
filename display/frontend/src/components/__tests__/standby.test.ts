@@ -295,14 +295,6 @@ describe("StandbyScreen legacy-improved skeleton", () => {
     expect(previewSource).toContain("legacyStandbyGate");
   });
 
-  it("pins the overlap fixture to a real page-indicator/tornado-rider intersection", () => {
-    const source = readFileSync(join(__dirname, "..", "StandbyScreen.svelte"), "utf8");
-    const runner = readFileSync(join(__dirname, "..", "..", "..", "..", "scripts", "capture-legacy-standby.mjs"), "utf8");
-    expect(source).toMatch(/gate-overlap :global\(\.weather-card\.has-page-footer\.has-tornado \.tornado-rider\) \{ margin-top: 0; \}/);
-    expect(runner).toContain('overlapDefault ? ["7"]');
-    expect(runner).toContain('overlapDefault ? ["960x620"]');
-  });
-
   it("guarantees readable side tracks at 960px and measures shelves against the same track widths", async () => {
     const source = readFileSync(join(__dirname, "..", "StandbyScreen.svelte"), "utf8");
     expect(source).toContain("--side-readable-width: 17.5rem");
@@ -2114,7 +2106,7 @@ describe("Standby card header contract", () => {
     ] as const;
     for (const [file, token, hasMeta] of cards) {
       const source = readFileSync(join(__dirname, "..", file), "utf8");
-      expect(source).toContain('class="standby-card-header"');
+      expect(source).toMatch(/class="standby-card-header(?:\s+weather-card-header)?"/);
       expect(source).toContain("standby-card-header__title");
       expect(source.includes("standby-card-header__meta")).toBe(hasMeta);
       expect(source).toContain(token);
