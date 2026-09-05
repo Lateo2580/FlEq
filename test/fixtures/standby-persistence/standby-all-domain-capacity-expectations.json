@@ -21,6 +21,7 @@
     "standby:briefingCritical.activeAndCancellation": 128,
     "standby:briefingCritical.watermark": 512,
     "standby:briefingCritical.rawAlias": 512,
+    "standby:briefingCritical.linearRainForecastReplacementWatermark": 512,
     "standby:quakeHost": 1
   },
   "fixtures": {
@@ -30,8 +31,8 @@
       "logicalGeneration": "18446744073709551615",
       "savedAt": "+275760-09-13T00:00:00.000Z",
       "bytes": {
-        "v2File": 5828167,
-        "v1File": 1480365,
+        "v2File": 5910935,
+        "v1File": 1563133,
         "v2VolcanoSubtree": 1114646,
         "v1VolcanoSubtree": 418070
       }
@@ -43,8 +44,8 @@
       "logicalGeneration": "18446744073709551615",
       "savedAt": "+275760-09-13T00:00:00.000Z",
       "bytes": {
-        "v2File": 3999117,
-        "v1File": 922322,
+        "v2File": 4081885,
+        "v1File": 1005090,
         "v2VolcanoSubtree": 963366,
         "v1VolcanoSubtree": 388282
       }

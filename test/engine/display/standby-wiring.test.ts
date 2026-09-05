@@ -747,6 +747,12 @@ function allDomainCapacityDomains(
       revision: { reportTimeMs: acceptedAtMs, serial: "1" },
       expiresAtMs,
     })),
+    linearRainForecastReplacementWatermarks: Array.from({ length: 512 }, (_, index) => ({
+      editorialOffice: `replacement-office-${index}`,
+      areaCode: `replacement-area-${index}`,
+      revision: { reportTimeMs: acceptedAtMs, serial: "1" },
+      expiresAtMs,
+    })),
   };
   const standby = StandbyStateStore.fromSnapshot(domains.standbyStateStore);
   const projection = standby.exportActiveState();
@@ -1782,6 +1788,7 @@ describe("standby monitor wiring", () => {
       "standby:briefingCritical.activeAndCancellation": 128,
       "standby:briefingCritical.watermark": 512,
       "standby:briefingCritical.rawAlias": 512,
+      "standby:briefingCritical.linearRainForecastReplacementWatermark": 512,
       "standby:quakeHost": 1,
     });
     const manifestDomains = allDomainMaxAdmissibleDomains();
@@ -1844,6 +1851,7 @@ describe("standby monitor wiring", () => {
         "standby:briefingCritical.activeAndCancellation",
         "standby:briefingCritical.watermark",
         "standby:briefingCritical.rawAlias",
+        "standby:briefingCritical.linearRainForecastReplacementWatermark",
       ].every((subkey) => Object.hasOwn(expected.countMaximum, subkey))))
       .toBe(true);
     const countMaximum = expected.fixtures["all-domains-count-maximum"]!;
@@ -1885,6 +1893,8 @@ describe("standby monitor wiring", () => {
         + (active.briefingCritical?.cancellations.length ?? 0),
       "standby:briefingCritical.watermark": active.briefingCritical?.watermarks.length ?? 0,
       "standby:briefingCritical.rawAlias": active.briefingCritical?.rawAliases?.length ?? 0,
+      "standby:briefingCritical.linearRainForecastReplacementWatermark":
+        active.briefingCritical?.linearRainForecastReplacementWatermarks?.length ?? 0,
       "standby:quakeHost": active.quakeHost == null ? 0 : 1,
     }).toEqual(expected.countMaximum);
     const persistence = new StandbyPersistence(join(tmpdir(), "fleq-all-domain-not-written.json"));
@@ -1983,6 +1993,7 @@ describe("standby monitor wiring", () => {
     expect(reloaded?.briefingCritical?.cancellations).toHaveLength(64);
     expect(reloaded?.briefingCritical?.watermarks).toHaveLength(512);
     expect(reloaded?.briefingCritical?.rawAliases).toHaveLength(512);
+    expect(reloaded?.briefingCritical?.linearRainForecastReplacementWatermarks).toHaveLength(512);
   }, 60_000); // CI (ubuntu-latest 2 コア) で 27 秒かかる実測あり (2026-09-04)
 
   it("dense VTSE51約4.85MB＋small volcanoは16MiB上限内でactual pairを組める", () => {
@@ -2425,6 +2436,61 @@ describe("standby monitor wiring", () => {
     expect(first).toHaveBeenCalledTimes(1);
     expect(second).toHaveBeenCalledTimes(1);
     expect(coordinator.capture().domains.standbyStateStore.data.briefingGeneration).toBe(1);
+  });
+
+  it("replacement watermarkだけの追加・更新・no-op・pruneをbriefingCritical changed-keyへ束ねる", () => {
+    const { coordinator } = admissionHarness();
+    const durable = vi.fn();
+    coordinator.onDurable(durable);
+    const token = JSON.stringify(["試験地方気象台", "A"]);
+    const expectOnlyReplacementFieldChanged = (
+      before: ReturnType<StandbyPersistenceAdmissionCoordinator["capture"]>,
+      after: ReturnType<StandbyPersistenceAdmissionCoordinator["capture"]>,
+    ) => {
+      expect({ ...after.domains, standbyStateStore: before.domains.standbyStateStore })
+        .toEqual(before.domains);
+      const {
+        linearRainForecastReplacementWatermarks: beforeReplacements,
+        ...beforeStandbyFields
+      } = before.domains.standbyStateStore.data;
+      const {
+        linearRainForecastReplacementWatermarks: afterReplacements,
+        ...afterStandbyFields
+      } = after.domains.standbyStateStore.data;
+      expect(afterStandbyFields).toEqual(beforeStandbyFields);
+      expect(afterReplacements).not.toEqual(beforeReplacements);
+    };
+    const transact = (operation: "add" | "update" | "noop" | "prune") => coordinator.transact(
+      "standby:briefingCritical",
+      ["telegramRevisionGate", "standbyStateStore"],
+      (draft) => {
+        const replacements = draft.standbyStateStore.data.linearRainForecastReplacementWatermarks!;
+        if (operation === "prune") replacements.delete(token);
+        else if (operation !== "noop") replacements.set(token, {
+          revision: { reportTimeMs: 1, serial: operation === "update" ? "2" : "1" },
+          expiresAtMs: operation === "update" ? 3 : 2,
+        });
+        return { kind: "accepted" as const, value: operation, durableChanged: true };
+      },
+    );
+
+    const beforeAdd = coordinator.capture();
+    expect(transact("add")).toMatchObject({ kind: "committed", value: "add" });
+    expectOnlyReplacementFieldChanged(beforeAdd, coordinator.capture());
+    expect(durable).toHaveBeenCalledTimes(1);
+    const beforeUpdate = coordinator.capture();
+    expect(transact("update")).toMatchObject({ kind: "committed", value: "update" });
+    expectOnlyReplacementFieldChanged(beforeUpdate, coordinator.capture());
+    expect(durable).toHaveBeenCalledTimes(2);
+    const beforeNoop = coordinator.capture();
+    expect(transact("noop")).toMatchObject({ kind: "committed", value: "noop" });
+    expect(coordinator.capture()).toEqual(beforeNoop);
+    expect(durable).toHaveBeenCalledTimes(2);
+    expect(coordinator.sweepAll(3)).toMatchObject({
+      kind: "committed",
+      value: { changedKeys: ["standby:briefingCritical"], durableChanged: true },
+    });
+    expect(durable).toHaveBeenCalledTimes(3);
   });
 
   it("incoming candidate rejection does not roll back expiry committed before admission", () => {

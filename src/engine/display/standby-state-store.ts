@@ -29,6 +29,7 @@ import type {
   PersistedTelegramFoundationV2,
   PersistedBriefingCriticalStateV1,
   PersistedBriefingCriticalRawAliasV1,
+  PersistedLinearRainForecastReplacementWatermarkV1,
   PersistedStandbyState,
   PersistedStandbyStateV1,
   PersistedTyphoonProbabilityStateV1,
@@ -51,6 +52,7 @@ import {
   BRIEFING_CARD_MAX_ENTRIES,
   BRIEFING_CARD_TTL_MS,
   BRIEFING_CRITICAL_WATERMARK_MAX_SUBJECTS,
+  BRIEFING_LINEAR_RAIN_FORECAST_REPLACEMENT_MAX_AREAS,
   BRIEFING_RAW_ALIAS_MAX_LINEAGES,
   NO_MUTATION,
   compareRevision,
@@ -350,6 +352,7 @@ export interface StandbyStateStoreSnapshot {
     revisionGuard: RevisionGuardSnapshot;
     briefingEntries: Map<string, BriefingCardEntryState>;
     briefingRevisionWatermarks: Map<string, BriefingRevisionWatermark>;
+    linearRainForecastReplacementWatermarks?: Map<string, BriefingRevisionWatermark>;
     rawCriticalProvenance: Map<string, RawBriefingCriticalProvenance>;
     rawBriefingAliases: Map<string, RawBriefingAliasTombstone>;
     briefingGeneration: number;
@@ -383,8 +386,11 @@ export class StandbyStateStore {
    * older VPBS50 report cannot resurrect the cancelled subject.
    */
   private readonly briefingRevisionWatermarks = new Map<string, BriefingRevisionWatermark>();
+  private readonly linearRainForecastReplacementWatermarks = new Map<string, BriefingRevisionWatermark>();
   private readonly rawCriticalProvenance = new Map<string, RawBriefingCriticalProvenance>();
   private readonly rawBriefingAliases = new Map<string, RawBriefingAliasTombstone>();
+  /** Candidate plans may temporarily exceed the visible entry limit until cross-subject replacement is resolved. */
+  private briefingEntryCapacityDeferred = false;
   private briefingGeneration = 0;
   private briefingDurableGeneration = 0;
   private readonly changeListeners: Array<() => void> = [];
@@ -412,6 +418,7 @@ export class StandbyStateStore {
       revisionGuard: this.revisionGuard.cloneSnapshot(),
       briefingEntries: this.briefingEntries,
       briefingRevisionWatermarks: this.briefingRevisionWatermarks,
+      linearRainForecastReplacementWatermarks: this.linearRainForecastReplacementWatermarks,
       rawCriticalProvenance: this.rawCriticalProvenance,
       rawBriefingAliases: this.rawBriefingAliases,
       briefingGeneration: this.briefingGeneration,
@@ -473,6 +480,10 @@ export class StandbyStateStore {
     for (const [key, value] of data.briefingEntries) this.briefingEntries.set(key, value);
     this.briefingRevisionWatermarks.clear();
     for (const [key, value] of data.briefingRevisionWatermarks) this.briefingRevisionWatermarks.set(key, value);
+    this.linearRainForecastReplacementWatermarks.clear();
+    for (const [key, value] of data.linearRainForecastReplacementWatermarks ?? []) {
+      this.linearRainForecastReplacementWatermarks.set(key, value);
+    }
     this.rawCriticalProvenance.clear();
     for (const [key, value] of data.rawCriticalProvenance) this.rawCriticalProvenance.set(key, value);
     this.rawBriefingAliases.clear();
@@ -848,8 +859,8 @@ export class StandbyStateStore {
    * card-only tests and for the later typed reconcile sink.
    */
   applyBriefingCardEvent(event: PresentationEvent, nowMs: number): BriefingCardMutationResult {
-    const candidate = briefingCardEntryCandidate(event, nowMs);
-    if (candidate == null) {
+    const originalCandidate = briefingCardEntryCandidate(event, nowMs);
+    if (originalCandidate == null) {
       return {
         kind: "ignored", status: "ignored", applied: false,
         generation: this.briefingGeneration, evictedKey: null, reason: "notBriefing",
@@ -858,7 +869,47 @@ export class StandbyStateStore {
     const durableBefore = this.briefingDurableFingerprint();
     const pruned = this.pruneBriefingLifecycle(nowMs);
     const generation = this.briefingGeneration + 1;
-    const outcome = this.applyBriefingLifecycleCandidate(candidate, nowMs, generation);
+    let outcome = this.rejectBriefingCandidateBeforeProjection(originalCandidate, nowMs);
+    if (outcome == null) {
+      const prospective = this.forkBriefingCandidatePlan();
+      const candidate = prospective.projectLinearRainPredictionCandidate(originalCandidate);
+      if (candidate == null) {
+        outcome = this.ignoredBriefingOutcome("older");
+      } else {
+        const observed = isLinearRainObservedCandidate(candidate);
+        prospective.briefingEntryCapacityDeferred = observed;
+        try {
+          outcome = prospective.applyBriefingLifecycleCandidate(candidate, nowMs, generation);
+        } finally {
+          prospective.briefingEntryCapacityDeferred = false;
+        }
+        if (observed && outcome.changed) {
+          const observedCodes = nonBlankBriefingTargetCodes(candidate.entry);
+          const newKeys = observedCodes.filter((areaCode) =>
+            !prospective.linearRainForecastReplacementWatermarks.has(
+              linearRainForecastReplacementToken(candidate.entry.editorialOffice!, areaCode),
+            ));
+          const replacementCapacityAvailable = prospective.linearRainForecastReplacementWatermarks.size
+            + newKeys.length <= BRIEFING_LINEAR_RAIN_FORECAST_REPLACEMENT_MAX_AREAS;
+          if (replacementCapacityAvailable) {
+            outcome.viewChanged = prospective.applyLinearRainForecastReplacement(
+              candidate,
+              observedCodes,
+              nowMs,
+            ) || outcome.viewChanged;
+          } else {
+            log.warn("[briefing-card] linearRainForecastReplacementCapacityRejected");
+          }
+          const protectedKeys = new Set([
+            candidate.semanticKeyCandidate!,
+            briefingSemanticKey(candidate.entry.editorialOffice!, "linearRainPredicted"),
+          ]);
+          outcome.evictedKey = prospective.enforceBriefingEntryCapacity(protectedKeys)
+            ?? outcome.evictedKey;
+        }
+        if (outcome.changed) this.commitBriefingCandidatePlan(prospective);
+      }
+    }
     const changed = pruned.changed || outcome.changed;
     if (changed) this.briefingGeneration = generation;
     const durableChanged = durableBefore !== this.briefingDurableFingerprint();
@@ -884,11 +935,10 @@ export class StandbyStateStore {
     return { changed: false, viewChanged: false, evictedKey: null, reason };
   }
 
-  private applyBriefingLifecycleCandidate(
+  private rejectBriefingCandidateBeforeProjection(
     candidate: BriefingCardEntryCandidate,
     nowMs: number,
-    generation: number,
-  ): BriefingCandidateOutcome {
+  ): BriefingCandidateOutcome | null {
     if (candidate.entry.frameLevel !== "cancel" && candidate.expiresAtMs <= nowMs) {
       return this.ignoredBriefingOutcome("expired");
     }
@@ -896,6 +946,114 @@ export class StandbyStateStore {
       log.warn("[briefing-card] nested payload capacity rejected");
       return this.ignoredBriefingOutcome("unchanged");
     }
+    return null;
+  }
+
+  private forkBriefingCandidatePlan(): StandbyStateStore {
+    const prospective = new StandbyStateStore();
+    const state = structuredClone({
+      entries: this.briefingEntries,
+      watermarks: this.briefingRevisionWatermarks,
+      replacements: this.linearRainForecastReplacementWatermarks,
+      provenance: this.rawCriticalProvenance,
+      aliases: this.rawBriefingAliases,
+    });
+    for (const [key, value] of state.entries) prospective.briefingEntries.set(key, value);
+    for (const [key, value] of state.watermarks) prospective.briefingRevisionWatermarks.set(key, value);
+    for (const [key, value] of state.replacements) {
+      prospective.linearRainForecastReplacementWatermarks.set(key, value);
+    }
+    for (const [key, value] of state.provenance) prospective.rawCriticalProvenance.set(key, value);
+    for (const [key, value] of state.aliases) prospective.rawBriefingAliases.set(key, value);
+    prospective.briefingGeneration = this.briefingGeneration;
+    prospective.briefingDurableGeneration = this.briefingDurableGeneration;
+    return prospective;
+  }
+
+  private commitBriefingCandidatePlan(prospective: StandbyStateStore): void {
+    const state = structuredClone({
+      entries: prospective.briefingEntries,
+      watermarks: prospective.briefingRevisionWatermarks,
+      replacements: prospective.linearRainForecastReplacementWatermarks,
+      provenance: prospective.rawCriticalProvenance,
+      aliases: prospective.rawBriefingAliases,
+    });
+    this.briefingEntries.clear();
+    for (const [key, value] of state.entries) this.briefingEntries.set(key, value);
+    this.briefingRevisionWatermarks.clear();
+    for (const [key, value] of state.watermarks) this.briefingRevisionWatermarks.set(key, value);
+    this.linearRainForecastReplacementWatermarks.clear();
+    for (const [key, value] of state.replacements) {
+      this.linearRainForecastReplacementWatermarks.set(key, value);
+    }
+    this.rawCriticalProvenance.clear();
+    for (const [key, value] of state.provenance) this.rawCriticalProvenance.set(key, value);
+    this.rawBriefingAliases.clear();
+    for (const [key, value] of state.aliases) this.rawBriefingAliases.set(key, value);
+  }
+
+  private projectLinearRainPredictionCandidate(
+    candidate: BriefingCardEntryCandidate,
+  ): BriefingCardEntryCandidate | null {
+    if (!isLinearRainPredictedCandidate(candidate)) return candidate;
+    const codes = replaceableLinearRainPredictionCodes(candidate.entry);
+    if (codes == null) return candidate;
+    const retained = new Set([...codes].filter((areaCode) => {
+      const floor = this.linearRainForecastReplacementWatermarks.get(
+        linearRainForecastReplacementToken(candidate.entry.editorialOffice!, areaCode),
+      );
+      return floor == null || compareRevision(candidate.revision!, floor.revision) > 0;
+    }));
+    if (retained.size === codes.size) return candidate;
+    if (retained.size === 0) return null;
+    const entry = projectLinearRainPredictionEntry(candidate.entry, retained);
+    return { ...candidate, entry, fingerprint: briefingPayloadFingerprint(entry) };
+  }
+
+  private applyLinearRainForecastReplacement(
+    candidate: BriefingCardEntryCandidate,
+    observedCodes: readonly string[],
+    nowMs: number,
+  ): boolean {
+    const revision = candidate.revision!;
+    const editorialOffice = candidate.entry.editorialOffice!;
+    for (const areaCode of observedCodes) {
+      const token = linearRainForecastReplacementToken(editorialOffice, areaCode);
+      const previous = this.linearRainForecastReplacementWatermarks.get(token);
+      if (previous == null || compareRevision(revision, previous.revision) > 0) {
+        this.linearRainForecastReplacementWatermarks.set(token, {
+          revision: { ...revision },
+          expiresAtMs: nowMs + BRIEFING_CARD_TTL_MS,
+        });
+      }
+    }
+
+    const predictedKey = briefingSemanticKey(editorialOffice, "linearRainPredicted");
+    const predicted = this.briefingEntries.get(predictedKey);
+    if (predicted == null || !isReplaceableLinearRainPredictionEntry(predicted.entry)) return false;
+    const predictedRevision = strictBriefingRevision(predicted.entry);
+    if (predictedRevision == null || compareRevision(revision, predictedRevision) <= 0) return false;
+    const predictedCodes = replaceableLinearRainPredictionCodes(predicted.entry);
+    if (predictedCodes == null) return false;
+    const observed = new Set(observedCodes);
+    const retained = new Set([...predictedCodes].filter((areaCode) => !observed.has(areaCode)));
+    if (retained.size === predictedCodes.size) return false;
+    if (retained.size === 0) {
+      this.briefingEntries.delete(predictedKey);
+      return true;
+    }
+    this.briefingEntries.set(predictedKey, {
+      ...predicted,
+      entry: projectLinearRainPredictionEntry(predicted.entry, retained),
+    });
+    return true;
+  }
+
+  private applyBriefingLifecycleCandidate(
+    candidate: BriefingCardEntryCandidate,
+    nowMs: number,
+    generation: number,
+  ): BriefingCandidateOutcome {
     if (candidate.isCancellation) {
       return this.applyBriefingCancellation(candidate, nowMs, generation);
     }
@@ -1389,7 +1547,8 @@ export class StandbyStateStore {
     restored: boolean,
   ): string | null {
     let evictedKey: string | null = null;
-    if (!this.briefingEntries.has(entry.key) && this.briefingEntries.size >= BRIEFING_CARD_MAX_ENTRIES) {
+    if (!this.briefingEntryCapacityDeferred
+      && !this.briefingEntries.has(entry.key) && this.briefingEntries.size >= BRIEFING_CARD_MAX_ENTRIES) {
       const victim = [...this.briefingEntries.values()].sort((left, right) =>
         left.updatedAtMs - right.updatedAtMs
         || briefingEntryIdentityToken(left.entry).localeCompare(briefingEntryIdentityToken(right.entry)))[0];
@@ -1399,6 +1558,20 @@ export class StandbyStateStore {
       }
     }
     this.briefingEntries.set(entry.key, { entry, updatedAtMs, expiresAtMs, restored });
+    return evictedKey;
+  }
+
+  private enforceBriefingEntryCapacity(protectedKeys: ReadonlySet<string>): string | null {
+    let evictedKey: string | null = null;
+    while (this.briefingEntries.size > BRIEFING_CARD_MAX_ENTRIES) {
+      const victim = [...this.briefingEntries.values()]
+        .filter((state) => !protectedKeys.has(state.entry.key))
+        .sort((left, right) => left.updatedAtMs - right.updatedAtMs
+          || briefingEntryIdentityToken(left.entry).localeCompare(briefingEntryIdentityToken(right.entry)))[0];
+      if (victim == null) throw new Error("briefing prospective capacity has no evictable entry");
+      this.briefingEntries.delete(victim.entry.key);
+      evictedKey ??= victim.entry.key;
+    }
     return evictedKey;
   }
 
@@ -1442,6 +1615,12 @@ export class StandbyStateStore {
       changed = true;
       durableChanged = true;
     }
+    for (const [key, watermark] of [...this.linearRainForecastReplacementWatermarks]) {
+      if (watermark.expiresAtMs > nowMs) continue;
+      this.linearRainForecastReplacementWatermarks.delete(key);
+      changed = true;
+      durableChanged = true;
+    }
     return { changed, viewChanged, durableChanged };
   }
 
@@ -1455,7 +1634,9 @@ export class StandbyStateStore {
       .sort((left, right) => briefingEntryIdentityToken(left.entry).localeCompare(briefingEntryIdentityToken(right.entry)));
     const watermarks = [...this.briefingRevisionWatermarks.entries()].sort(([left], [right]) => left.localeCompare(right));
     const aliases = [...this.rawBriefingAliases.entries()].sort(([left], [right]) => left.localeCompare(right));
-    return stableCanonicalJson({ entries, watermarks, aliases });
+    const replacements = [...this.linearRainForecastReplacementWatermarks.entries()]
+      .sort(([left], [right]) => left.localeCompare(right));
+    return stableCanonicalJson({ entries, watermarks, aliases, replacements });
   }
 
   /**
@@ -2830,13 +3011,27 @@ export class StandbyStateStore {
       source: alias.identity.source, sourceEventId: alias.identity.sourceEventId,
       semanticKey: alias.semanticKey, revision: { ...alias.revision }, expiresAtMs: alias.expiresAtMs,
     }));
-    if (entries.length === 0 && cancellations.length === 0 && watermarks.length === 0 && rawAliases.length === 0) return null;
+    const linearRainForecastReplacementWatermarks: PersistedLinearRainForecastReplacementWatermarkV1[] =
+      [...this.linearRainForecastReplacementWatermarks].map(([token, watermark]) => {
+        const [editorialOffice, areaCode] = parseLinearRainForecastReplacementToken(token);
+        return {
+          editorialOffice,
+          areaCode,
+          revision: { ...watermark.revision },
+          expiresAtMs: watermark.expiresAtMs,
+        };
+      });
+    if (entries.length === 0 && cancellations.length === 0 && watermarks.length === 0
+      && rawAliases.length === 0 && linearRainForecastReplacementWatermarks.length === 0) return null;
     return validateBriefingCriticalForWrite({
       generation: this.briefingDurableGeneration,
       entries,
       cancellations,
       watermarks,
       ...(rawAliases.length === 0 ? {} : { rawAliases }),
+      ...(linearRainForecastReplacementWatermarks.length === 0 ? {} : {
+        linearRainForecastReplacementWatermarks,
+      }),
     });
   }
 
@@ -2856,6 +3051,7 @@ export class StandbyStateStore {
     this.legacyFloodEventIds.clear();
     this.briefingEntries.clear();
     this.briefingRevisionWatermarks.clear();
+    this.linearRainForecastReplacementWatermarks.clear();
     this.rawCriticalProvenance.clear();
     this.rawBriefingAliases.clear();
     this.briefingGeneration = 0;
@@ -3015,6 +3211,8 @@ export class StandbyStateStore {
     this.briefingGeneration = state.generation;
     this.briefingDurableGeneration = state.generation;
     let rewriteRequired = state.rawAliases != null && state.rawAliases.length === 0;
+    rewriteRequired ||= state.linearRainForecastReplacementWatermarks != null
+      && state.linearRainForecastReplacementWatermarks.length === 0;
     for (const watermark of state.watermarks) {
       if (watermark.expiresAtMs <= nowMs) {
         rewriteRequired = true;
@@ -3033,6 +3231,16 @@ export class StandbyStateStore {
       this.rawBriefingAliases.set(briefingCriticalIdentityToken(identity), {
         identity, semanticKey: alias.semanticKey, revision: { ...alias.revision }, expiresAtMs: alias.expiresAtMs,
       });
+    }
+    for (const watermark of state.linearRainForecastReplacementWatermarks ?? []) {
+      if (watermark.expiresAtMs <= nowMs) {
+        rewriteRequired = true;
+        continue;
+      }
+      this.linearRainForecastReplacementWatermarks.set(
+        linearRainForecastReplacementToken(watermark.editorialOffice, watermark.areaCode),
+        { revision: { ...watermark.revision }, expiresAtMs: watermark.expiresAtMs },
+      );
     }
     for (const persisted of [...state.entries, ...state.cancellations]) {
       if (persisted.expiresAtMs <= nowMs) {
@@ -3143,6 +3351,98 @@ function briefingPhenomenonKinds(info: ParsedWeatherBriefing | null): DisplayBri
 
 function briefingSemanticKey(editorialOffice: string, phenomenonKind: DisplayBriefingKindV1): string {
   return `card:vpbs:semantic:${phenomenonKind}:${editorialOffice}`;
+}
+
+function linearRainForecastReplacementToken(editorialOffice: string, areaCode: string): string {
+  return JSON.stringify([editorialOffice, areaCode]);
+}
+
+function parseLinearRainForecastReplacementToken(token: string): [string, string] {
+  const parsed = JSON.parse(token) as unknown;
+  if (!Array.isArray(parsed) || parsed.length !== 2
+    || typeof parsed[0] !== "string" || typeof parsed[1] !== "string") {
+    throw new Error("invalid linear-rain replacement token");
+  }
+  return [parsed[0], parsed[1]];
+}
+
+function nonBlankBriefingTargetCodes(entry: DisplayBriefingEntryV1): string[] {
+  return [...new Set(entry.targetAreas.flatMap((area) => {
+    const code = nonBlank(area.code);
+    return code == null ? [] : [code];
+  }))];
+}
+
+function isLinearRainObservedCandidate(candidate: BriefingCardEntryCandidate): candidate is BriefingCardEntryCandidate & {
+  revision: StandbyRevision;
+} {
+  const summary = candidate.entry.summary;
+  return !candidate.isCancellation
+    && candidate.entry.source === "vpbs50"
+    && candidate.phenomenonKinds.length === 1
+    && candidate.phenomenonKinds[0] === "linearRainObserved"
+    && candidate.entry.phenomenonKind === "linearRainObserved"
+    && candidate.semanticKeyCandidate != null
+    && candidate.revision != null
+    && nonBlank(candidate.entry.editorialOffice) != null
+    && (candidate.entry.infoType === "発表" || candidate.entry.infoType === "訂正")
+    && summary?.mode === "structured"
+    && !summary.hasUnknownKind
+    && summary.items.length === 1
+    && summary.items[0]?.kind === "linearRainObserved";
+}
+
+function isLinearRainPredictedCandidate(candidate: BriefingCardEntryCandidate): candidate is BriefingCardEntryCandidate & {
+  revision: StandbyRevision;
+} {
+  return !candidate.isCancellation
+    && candidate.entry.source === "vpbs50"
+    && candidate.phenomenonKinds.length === 1
+    && candidate.phenomenonKinds[0] === "linearRainPredicted"
+    && candidate.entry.phenomenonKind === "linearRainPredicted"
+    && candidate.semanticKeyCandidate != null
+    && candidate.revision != null
+    && nonBlank(candidate.entry.editorialOffice) != null
+    && replaceableLinearRainPredictionCodes(candidate.entry) != null;
+}
+
+function isReplaceableLinearRainPredictionEntry(entry: DisplayBriefingEntryV1): boolean {
+  return entry.source === "vpbs50"
+    && entry.phenomenonKind === "linearRainPredicted"
+    && entry.semanticKey === briefingSemanticKey(entry.editorialOffice ?? "", "linearRainPredicted")
+    && nonBlank(entry.editorialOffice) != null
+    && strictBriefingRevision(entry) != null
+    && replaceableLinearRainPredictionCodes(entry) != null;
+}
+
+function replaceableLinearRainPredictionCodes(entry: DisplayBriefingEntryV1): Set<string> | null {
+  const summary = entry.summary;
+  if (summary?.mode !== "structured" || summary.hasUnknownKind || summary.items.length !== 1
+    || summary.items[0]?.kind !== "linearRainPredicted" || entry.targetAreas.length === 0) return null;
+  const targetCodes = entry.targetAreas.map((area) => nonBlank(area.code));
+  if (targetCodes.some((code) => code == null)) return null;
+  const facts = summary.items[0].facts;
+  if (facts.length === 0 || facts.some((fact) => fact.kind !== "event" || nonBlank(fact.areaCode) == null)) {
+    return null;
+  }
+  const targets = new Set(targetCodes as string[]);
+  const factCodes = new Set(facts.map((fact) => fact.kind === "event" ? fact.areaCode! : ""));
+  if (targets.size !== factCodes.size || [...targets].some((code) => !factCodes.has(code))) return null;
+  return targets;
+}
+
+function projectLinearRainPredictionEntry(
+  entry: DisplayBriefingEntryV1,
+  retainedCodes: ReadonlySet<string>,
+): DisplayBriefingEntryV1 {
+  const projected = copyBriefingEntry(entry);
+  projected.targetAreas = projected.targetAreas.filter((area) => retainedCodes.has(area.code));
+  if (projected.summary?.mode === "structured" && projected.summary.items.length === 1
+    && projected.summary.items[0]?.kind === "linearRainPredicted") {
+    projected.summary.items[0].facts = projected.summary.items[0].facts.filter((fact) =>
+      fact.kind === "event" && fact.areaCode != null && retainedCodes.has(fact.areaCode));
+  }
+  return projected;
 }
 
 export function briefingCriticalIdentityToken(identity: BriefingCriticalIdentity): string {
@@ -3332,7 +3632,7 @@ function observationFacts(
         kind: "event" as const,
         label: kind === "linearRainObserved" ? "発生" as const : "予想" as const,
         areaName: observation.locationName,
-        areaCode: observation.locationCode,
+        areaCode: observation.locationCode ?? null,
         at: observation.time,
       }));
   }

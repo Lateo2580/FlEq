@@ -3873,6 +3873,111 @@ describe("briefing critical persistence", () => {
     expect(explicit.rawAliases).toBeUndefined();
   });
 
+  it("replacement watermarkをcanonical順でround tripし、欠落・明示emptyを省略する", () => {
+    const path = tempPath();
+    const replacements = [
+      { editorialOffice: "官署B", areaCode: "002", revision: { reportTimeMs: T0 + 1, serial: "002" }, expiresAtMs: T0 + 60 * 60_000 },
+      { editorialOffice: "官署A", areaCode: "001", revision: { reportTimeMs: T0, serial: "001" }, expiresAtMs: T0 + 60 * 60_000 },
+    ];
+    const slice = {
+      ...semanticBriefingSlice(),
+      linearRainForecastReplacementWatermarks: replacements,
+    };
+    const persistence = new StandbyPersistence(path);
+    persistence.save(state({ briefingCritical: slice }));
+    const v1 = JSON.parse(readFileSync(path, "utf8"));
+    const v2 = JSON.parse(readFileSync(standbyPersistenceV2Path(path), "utf8"));
+
+    expect(v1.briefingCritical).toEqual(v2.briefingCritical);
+    expect(v1.briefingCritical.linearRainForecastReplacementWatermarks).toEqual([
+      { ...replacements[1], revision: { reportTimeMs: T0, serial: "1" } },
+      { ...replacements[0], revision: { reportTimeMs: T0 + 1, serial: "2" } },
+    ]);
+    expect(persistence.load()?.briefingCritical).toEqual(v1.briefingCritical);
+    expect(validateBriefingCriticalForWrite(semanticBriefingSlice())
+      .linearRainForecastReplacementWatermarks).toBeUndefined();
+    expect(validateBriefingCriticalForWrite({
+      ...semanticBriefingSlice(), linearRainForecastReplacementWatermarks: [],
+    }).linearRainForecastReplacementWatermarks).toBeUndefined();
+  });
+
+  it("replacement watermarkのidentity・revision・expiry・512/513境界を検証する", () => {
+    const replacements = Array.from({ length: 513 }, (_, index) => ({
+      editorialOffice: `官署${index}`,
+      areaCode: `code-${index}`,
+      revision: { reportTimeMs: T0, serial: "1" },
+      expiresAtMs: T0 + 60 * 60_000,
+    }));
+    expect(validateBriefingCriticalForWrite({
+      ...semanticBriefingSlice(), linearRainForecastReplacementWatermarks: replacements.slice(0, 512),
+    }).linearRainForecastReplacementWatermarks).toHaveLength(512);
+    expect(() => validateBriefingCriticalForWrite({
+      ...semanticBriefingSlice(), linearRainForecastReplacementWatermarks: replacements,
+    })).toThrow("limit-exceeded");
+    for (const mutate of [
+      (item: Record<string, unknown>) => { item.editorialOffice = ""; },
+      (item: Record<string, unknown>) => { item.areaCode = ""; },
+      (item: Record<string, unknown>) => { item.revision = { reportTimeMs: T0, serial: "x" }; },
+      (item: Record<string, unknown>) => { item.expiresAtMs = Number.NaN; },
+    ]) {
+      const replacement = structuredClone(replacements[0]!) as unknown as Record<string, unknown>;
+      mutate(replacement);
+      expect(() => validateBriefingCriticalForWrite({
+        ...semanticBriefingSlice(),
+        linearRainForecastReplacementWatermarks: [replacement] as never[],
+      })).toThrow(BriefingCriticalPersistenceInvariantError);
+    }
+    expect(() => validateBriefingCriticalForWrite({
+      ...semanticBriefingSlice(),
+      linearRainForecastReplacementWatermarks: [replacements[0]!, { ...replacements[0]! }],
+    })).toThrow(BriefingCriticalPersistenceInvariantError);
+  });
+
+  it("外部replacement watermarkのmalformed・duplicateをreader repairしcanonical rewriteする", () => {
+    const valid = {
+      editorialOffice: "官署B", areaCode: "002",
+      revision: { reportTimeMs: T0, serial: "1" }, expiresAtMs: T0 + 60 * 60_000,
+    };
+    const duplicate = {
+      editorialOffice: "官署A", areaCode: "001",
+      revision: { reportTimeMs: T0, serial: "1" }, expiresAtMs: T0 + 60 * 60_000,
+    };
+    const loaded = loadExternalBriefing({
+      ...semanticBriefingSlice(),
+      linearRainForecastReplacementWatermarks: [
+        valid,
+        duplicate,
+        { ...duplicate, revision: { reportTimeMs: T0 + 1, serial: "2" } },
+        { ...valid, editorialOffice: "" },
+      ],
+    });
+    expect(loaded?.briefingCritical?.linearRainForecastReplacementWatermarks).toEqual([valid]);
+  });
+
+  it("外部replacement watermarkの非canonical順をreader repairする", () => {
+    const path = tempPath();
+    const later = {
+      editorialOffice: "官署B", areaCode: "002",
+      revision: { reportTimeMs: T0 + 1, serial: "2" }, expiresAtMs: T0 + 60 * 60_000,
+    };
+    const earlier = {
+      editorialOffice: "官署A", areaCode: "001",
+      revision: { reportTimeMs: T0, serial: "1" }, expiresAtMs: T0 + 60 * 60_000,
+    };
+    mkdirSync(dirname(path), { recursive: true });
+    writeFileSync(path, JSON.stringify(state({
+      briefingCritical: {
+        ...semanticBriefingSlice(),
+        linearRainForecastReplacementWatermarks: [later, earlier],
+      },
+    })), "utf8");
+    const persistence = new StandbyPersistence(path);
+
+    expect(persistence.load()?.briefingCritical?.linearRainForecastReplacementWatermarks)
+      .toEqual([earlier, later]);
+    expect(persistence.hasPendingSalvageRepair()).toBe(true);
+  });
+
   it("外部配列orderingと明示empty rawAliasesはcanonical rewriteを要求し、保存後に解消する", () => {
     const path = tempPath();
     const external = state({
@@ -4193,11 +4298,17 @@ describe("briefing operational persistence fixtures", () => {
       if (expected.path.includes("v1")) {
         expect(source.briefingCritical).toBeDefined();
         expect((source.briefingCritical as Record<string, unknown>).rawAliases).toBeUndefined();
+        expect((source.briefingCritical as Record<string, unknown>)
+          .linearRainForecastReplacementWatermarks).toBeUndefined();
         expect(writtenV2.briefingCritical.rawAliases).toBeUndefined();
         expect(writtenV1.briefingCritical.rawAliases).toBeUndefined();
+        expect(writtenV2.briefingCritical.linearRainForecastReplacementWatermarks).toBeUndefined();
+        expect(writtenV1.briefingCritical.linearRainForecastReplacementWatermarks).toBeUndefined();
       } else {
         expect(restore.briefingCriticalRewriteRequired).toBe(true);
       }
+      expect(reloadedStore.exportActiveState().briefingCritical).toEqual(writtenV2.briefingCritical);
+      expect(fallbackStore.exportActiveState().briefingCritical).toEqual(writtenV1.briefingCritical);
     } finally {
       vi.useRealTimers();
     }

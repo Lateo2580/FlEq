@@ -297,6 +297,37 @@ function semanticBriefingEvent(
   };
 }
 
+function linearRainBriefingEvent(
+  kind: "observed" | "predicted",
+  eventId: string,
+  reportDateTime: string,
+  serial: string,
+  areas: ReadonlyArray<{ name: string; code: string }>,
+  editorialOffice = "試験地方気象台",
+): PresentationEvent {
+  const condition = kind === "observed" ? "線状降水帯発生" : "線状降水帯直前";
+  const event = semanticBriefingEvent(eventId, reportDateTime, serial, condition, editorialOffice);
+  const raw = event.raw as ParsedWeatherBriefing;
+  const template = raw.observations.find((observation) => observation.partKind === "event");
+  if (template == null) throw new Error("linear-rain observation template missing");
+  const observations = areas.map((area) => ({
+    ...template,
+    description: kind === "observed" ? "線状降水帯発生" : "線状降水帯予想",
+    locationName: area.name,
+    locationCode: area.code,
+  }));
+  const targetAreas = areas.map((area) => ({ ...area }));
+  return {
+    ...event,
+    areaNames: targetAreas.map((area) => area.name),
+    areaCount: targetAreas.length,
+    areaItems: targetAreas.map((area) => ({ name: area.name, code: area.code, kind: condition })),
+    observationNames: observations.map((observation) => observation.locationName!),
+    observationCount: observations.length,
+    raw: { ...raw, targetAreas, observations },
+  };
+}
+
 function rawLifecycleBriefingEvent(
   eventId: string,
   reportDateTime: string,
@@ -3337,6 +3368,559 @@ describe("StandbyStateStore: independent briefing card", () => {
   });
 });
 
+describe("StandbyStateStore: linear-rain observed forecast replacement", () => {
+  const A = { name: "A地域", code: "A" };
+  const B = { name: "B地域", code: "B" };
+  const C = { name: "C地域", code: "C" };
+  const t = (minute: number) => new Date(Date.parse("2026-09-06T00:00:00.000Z") + minute * 60_000).toISOString();
+  const entries = (store: StandbyStateStore) => store.snapshotBriefingCard()?.data.entries ?? [];
+  const entry = (store: StandbyStateStore, kind: "linearRainObserved" | "linearRainPredicted") =>
+    entries(store).find((item) => item.phenomenonKind === kind);
+  const eventFactCodes = (store: StandbyStateStore, kind: "linearRainObserved" | "linearRainPredicted") =>
+    entry(store, kind)?.summary?.items.flatMap((item) => item.facts.flatMap((fact) =>
+      fact.kind === "event" && fact.areaCode != null ? [fact.areaCode] : [])) ?? [];
+
+  it("observed先着でも地域watermarkを作り、遅着した古いpredictionを表示しない", () => {
+    const store = new StandbyStateStore();
+    store.applyBriefingCardEvent(linearRainBriefingEvent("observed", "o-11", t(11), "1", [A]), Date.parse(t(11)));
+    store.applyBriefingCardEvent(linearRainBriefingEvent("predicted", "p-10", t(10), "1", [A]), Date.parse(t(11)) + 1);
+
+    expect(entry(store, "linearRainPredicted")).toBeUndefined();
+    expect(eventFactCodes(store, "linearRainPredicted")).toEqual([]);
+    expect(entry(store, "linearRainObserved")?.targetAreas).toEqual([A]);
+    expect(store.exportActiveState().briefingCritical?.linearRainForecastReplacementWatermarks)
+      .toEqual([expect.objectContaining({ editorialOffice: "試験地方気象台", areaCode: "A",
+        revision: { reportTimeMs: Date.parse(t(11)), serial: "1" } })]);
+  });
+
+  it("完全一致・部分一致・包含をcode差集合で置換しtargetとfactを同期する", () => {
+    const exact = new StandbyStateStore();
+    exact.applyBriefingCardEvent(linearRainBriefingEvent("predicted", "p-exact", t(10), "1", [A]), Date.parse(t(10)));
+    exact.applyBriefingCardEvent(linearRainBriefingEvent("observed", "o-exact", t(11), "1", [A]), Date.parse(t(11)));
+    expect(entry(exact, "linearRainPredicted")).toBeUndefined();
+    expect(eventFactCodes(exact, "linearRainPredicted")).toEqual([]);
+    expect(entry(exact, "linearRainObserved")?.targetAreas).toEqual([A]);
+    expect(eventFactCodes(exact, "linearRainObserved")).toEqual(["A"]);
+    expect(exact.exportActiveState().briefingCritical?.linearRainForecastReplacementWatermarks)
+      .toEqual([expect.objectContaining({
+        editorialOffice: "試験地方気象台",
+        areaCode: "A",
+        revision: { reportTimeMs: Date.parse(t(11)), serial: "1" },
+      })]);
+
+    const partial = new StandbyStateStore();
+    partial.applyBriefingCardEvent(linearRainBriefingEvent("predicted", "p-partial", t(10), "1", [A, B]), Date.parse(t(10)));
+    partial.applyBriefingCardEvent(linearRainBriefingEvent("observed", "o-partial", t(11), "1", [A, C]), Date.parse(t(11)));
+    expect(entry(partial, "linearRainPredicted")?.targetAreas).toEqual([B]);
+    expect(eventFactCodes(partial, "linearRainPredicted")).toEqual(["B"]);
+    expect(entry(partial, "linearRainObserved")?.targetAreas).toEqual([A, C]);
+    expect(eventFactCodes(partial, "linearRainObserved")).toEqual(["A", "C"]);
+    for (const rawEventId of ["p-partial", "p-partial-other-lineage"]) {
+      partial.applyBriefingCardEvent(
+        linearRainBriefingEvent("predicted", rawEventId, t(9), "1", [A, B]),
+        Date.parse(t(11)) + 1,
+      );
+      expect(entry(partial, "linearRainPredicted")?.targetAreas).toEqual([B]);
+      expect(eventFactCodes(partial, "linearRainPredicted")).toEqual(["B"]);
+    }
+    expect(partial.exportActiveState().briefingCritical?.rawAliases).toBeUndefined();
+    expect(partial.exportActiveState().briefingCritical?.linearRainForecastReplacementWatermarks)
+      .toHaveLength(2);
+
+    const included = new StandbyStateStore();
+    included.applyBriefingCardEvent(linearRainBriefingEvent("predicted", "p-included", t(10), "1", [A]), Date.parse(t(10)));
+    included.applyBriefingCardEvent(linearRainBriefingEvent("observed", "o-included", t(11), "1", [A, B]), Date.parse(t(11)));
+    expect(entry(included, "linearRainPredicted")).toBeUndefined();
+  });
+
+  it("非重複・別EditorialOffice・newer predictionを維持し、地域別floorを適用する", () => {
+    const store = new StandbyStateStore();
+    const firstPrediction = linearRainBriefingEvent("predicted", "p-first", t(10), "1", [A, B]);
+    store.applyBriefingCardEvent(firstPrediction, Date.parse(t(10)));
+    const before = structuredClone(entry(store, "linearRainPredicted"));
+    store.applyBriefingCardEvent(linearRainBriefingEvent("observed", "o-c", t(11), "1", [C]), Date.parse(t(11)));
+    expect(entry(store, "linearRainPredicted")).toEqual(before);
+    expect(JSON.stringify(entry(store, "linearRainPredicted"))).toBe(JSON.stringify(before));
+
+    store.applyBriefingCardEvent(linearRainBriefingEvent("observed", "o-a", t(13), "1", [A]), Date.parse(t(13)));
+    store.applyBriefingCardEvent(linearRainBriefingEvent("predicted", "p-mid", t(12), "1", [A, B]), Date.parse(t(13)) + 1);
+    expect(entry(store, "linearRainPredicted")?.targetAreas).toEqual([B]);
+    expect(eventFactCodes(store, "linearRainPredicted")).toEqual(["B"]);
+    store.applyBriefingCardEvent(linearRainBriefingEvent("predicted", "p-new", t(14), "1", [A, B]), Date.parse(t(14)));
+    expect(entry(store, "linearRainPredicted")?.targetAreas).toEqual([A, B]);
+
+    const otherOffice = new StandbyStateStore();
+    otherOffice.applyBriefingCardEvent(linearRainBriefingEvent("predicted", "p-other", t(10), "1", [A], "別地方気象台"), Date.parse(t(10)));
+    const otherOfficeBefore = structuredClone(entry(otherOffice, "linearRainPredicted"));
+    otherOffice.applyBriefingCardEvent(linearRainBriefingEvent("observed", "o-main", t(11), "1", [A]), Date.parse(t(11)));
+    expect(entry(otherOffice, "linearRainPredicted")).toEqual(otherOfficeBefore);
+    expect(JSON.stringify(entry(otherOffice, "linearRainPredicted"))).toBe(JSON.stringify(otherOfficeBefore));
+  });
+
+  it("地域ごとに異なるreplacement floorで同一predictionを射影する", () => {
+    const store = new StandbyStateStore();
+    store.applyBriefingCardEvent(linearRainBriefingEvent("observed", "o-b-floor", t(11), "1", [B]), Date.parse(t(11)));
+    store.applyBriefingCardEvent(linearRainBriefingEvent("observed", "o-a-floor", t(13), "1", [A]), Date.parse(t(13)));
+
+    store.applyBriefingCardEvent(linearRainBriefingEvent("predicted", "p-between", t(12), "1", [A, B]), Date.parse(t(13)) + 1);
+    expect(entry(store, "linearRainPredicted")?.targetAreas).toEqual([B]);
+    expect(eventFactCodes(store, "linearRainPredicted")).toEqual(["B"]);
+
+    store.applyBriefingCardEvent(linearRainBriefingEvent("predicted", "p-above", t(14), "1", [A, B]), Date.parse(t(14)));
+    expect(entry(store, "linearRainPredicted")?.targetAreas).toEqual([A, B]);
+    expect(eventFactCodes(store, "linearRainPredicted")).toEqual(["A", "B"]);
+  });
+
+  it("observedが既存predictionより古くてもwatermarkを作り、floor以下だけを抑止する", () => {
+    const store = new StandbyStateStore();
+    store.applyBriefingCardEvent(linearRainBriefingEvent("predicted", "p-12", t(12), "1", [A]), Date.parse(t(12)));
+    const newerPrediction = structuredClone(entry(store, "linearRainPredicted"));
+    store.applyBriefingCardEvent(linearRainBriefingEvent("observed", "o-11", t(11), "1", [A]), Date.parse(t(12)) + 1);
+    expect(entry(store, "linearRainPredicted")).toEqual(newerPrediction);
+    expect(store.exportActiveState().briefingCritical?.linearRainForecastReplacementWatermarks)
+      .toEqual([expect.objectContaining({ areaCode: "A", revision: { reportTimeMs: Date.parse(t(11)), serial: "1" } })]);
+    const beforeBlocked = structuredClone(store.exportActiveState().briefingCritical);
+    const generation = store.briefingCardGeneration();
+    store.applyBriefingCardEvent(linearRainBriefingEvent("predicted", "p-10", t(10), "1", [A]), Date.parse(t(12)) + 2);
+    expect(entry(store, "linearRainPredicted")).toEqual(newerPrediction);
+    expect(store.exportActiveState().briefingCritical).toEqual(beforeBlocked);
+    expect(store.briefingCardGeneration()).toBe(generation);
+    store.applyBriefingCardEvent(linearRainBriefingEvent("predicted", "p-13", t(13), "1", [A]), Date.parse(t(13)));
+    expect(entry(store, "linearRainPredicted")?.sourceEventId).toBe("p-13");
+  });
+
+  it("older observedとsame-revision conflictはprediction・watermark・generation・callbackを変えない", () => {
+    const warn = vi.spyOn(log, "warn").mockImplementation(() => undefined);
+    const store = new StandbyStateStore();
+    store.applyEvent(linearRainBriefingEvent("observed", "o-a", t(12), "1", [A]), Date.parse(t(12)));
+    store.applyEvent(linearRainBriefingEvent("predicted", "p-b", t(10), "1", [B]), Date.parse(t(12)) + 1);
+    const before = structuredClone(store.exportActiveState().briefingCritical);
+    const beforeCard = structuredClone(store.snapshotBriefingCard());
+    const generation = store.briefingCardGeneration();
+    const direct = StandbyStateStore.fromSnapshot(store.cloneSnapshot());
+    expect(direct.applyBriefingCardEvent(
+      linearRainBriefingEvent("observed", "o-b-old-direct", t(11), "1", [B]),
+      Date.parse(t(12)) + 2,
+    )).toMatchObject({
+      kind: "ignored", status: "ignored", applied: false, reason: "older",
+      generation, durableChanged: false, viewChanged: false,
+    });
+    expect(direct.applyBriefingCardEvent(
+      linearRainBriefingEvent("observed", "o-b-conflict-direct", t(12), "1", [B]),
+      Date.parse(t(12)) + 3,
+    )).toMatchObject({
+      kind: "ignored", status: "ignored", applied: false, reason: "older",
+      generation, durableChanged: false, viewChanged: false,
+    });
+    expect(direct.exportActiveState().briefingCritical).toEqual(before);
+    expect(direct.snapshotBriefingCard()).toEqual(beforeCard);
+    expect(direct.briefingCardGeneration()).toBe(generation);
+    expect(warn).toHaveBeenCalledTimes(1);
+    warn.mockClear();
+    let changes = 0;
+    let durable = 0;
+    store.onChange(() => { changes += 1; });
+    store.onDurable(() => { durable += 1; });
+
+    expect(store.applyEvent(linearRainBriefingEvent("observed", "o-b-old", t(11), "1", [B]), Date.parse(t(12)) + 2))
+      .toEqual({ viewChanged: false, durableChanged: false });
+    expect(store.applyEvent(linearRainBriefingEvent("observed", "o-b-conflict", t(12), "1", [B]), Date.parse(t(12)) + 3))
+      .toEqual({ viewChanged: false, durableChanged: false });
+    expect(store.exportActiveState().briefingCritical).toEqual(before);
+    expect(store.snapshotBriefingCard()).toEqual(beforeCard);
+    expect(store.briefingCardGeneration()).toBe(generation);
+    expect({ changes, durable }).toEqual({ changes: 0, durable: 0 });
+    expect(warn).toHaveBeenCalledTimes(1);
+    expect(warn).toHaveBeenCalledWith(
+      "[briefing-card] same revision payload conflict key=card:vpbs:semantic:linearRainObserved:試験地方気象台",
+    );
+    warn.mockRestore();
+  });
+
+  it("target/fact code不整合のpredictionはfail-openで維持しobserved watermarkだけを作る", () => {
+    const predicted = linearRainBriefingEvent("predicted", "p-invalid", t(10), "1", [A, B]);
+    const raw = predicted.raw as ParsedWeatherBriefing;
+    const invalid = {
+      ...predicted,
+      raw: { ...raw, observations: raw.observations.filter((observation) => observation.locationCode === "A") },
+    };
+    const store = new StandbyStateStore();
+    store.applyBriefingCardEvent(invalid, Date.parse(t(10)));
+    const before = structuredClone(entry(store, "linearRainPredicted"));
+    store.applyBriefingCardEvent(linearRainBriefingEvent("observed", "o-invalid", t(11), "1", [A]), Date.parse(t(11)));
+
+    expect(entry(store, "linearRainPredicted")).toEqual(before);
+    expect(store.exportActiveState().briefingCritical?.linearRainForecastReplacementWatermarks)
+      .toEqual([expect.objectContaining({ areaCode: "A" })]);
+  });
+
+  it.each(["extraFact", "nullFactCode", "missingFactCode"] as const)(
+    "%s のtarget/fact不整合predictionは全payloadをfail-openで維持する",
+    (variant) => {
+      const predicted = linearRainBriefingEvent("predicted", `p-${variant}`, t(10), "1", [A, B]);
+      const raw = structuredClone(predicted.raw as ParsedWeatherBriefing);
+      if (variant === "extraFact") {
+        raw.observations.push({ ...raw.observations[0]!, locationName: "X地域", locationCode: "X" });
+      } else if (variant === "nullFactCode") {
+        raw.observations[1] = { ...raw.observations[1]!, locationCode: null };
+      } else {
+        const { locationCode: _locationCode, ...withoutCode } = raw.observations[1]!;
+        raw.observations[1] = withoutCode as unknown as typeof raw.observations[number];
+      }
+      const candidate = { ...predicted, raw };
+      const store = new StandbyStateStore();
+      store.applyBriefingCardEvent(candidate, Date.parse(t(10)));
+      const before = structuredClone(entry(store, "linearRainPredicted"));
+
+      store.applyBriefingCardEvent(linearRainBriefingEvent("observed", `o-${variant}`, t(11), "1", [A]), Date.parse(t(11)));
+
+      expect(entry(store, "linearRainPredicted")).toEqual(before);
+      expect(store.exportActiveState().briefingCritical?.linearRainForecastReplacementWatermarks)
+        .toEqual([expect.objectContaining({ areaCode: "A" })]);
+    },
+  );
+
+  it("observedのvalid codeだけを採用し、VPOA50にはreplacement副作用を作らない", () => {
+    const store = new StandbyStateStore();
+    store.applyBriefingCardEvent(linearRainBriefingEvent("predicted", "p-mixed-code", t(10), "1", [A]), Date.parse(t(10)));
+    store.applyBriefingCardEvent(linearRainBriefingEvent(
+      "observed", "o-mixed-code", t(11), "1", [A, { name: "空code", code: "" }],
+    ), Date.parse(t(11)));
+    expect(entry(store, "linearRainPredicted")).toBeUndefined();
+    expect(store.exportActiveState().briefingCritical?.linearRainForecastReplacementWatermarks)
+      .toEqual([expect.objectContaining({ areaCode: "A" })]);
+
+    const legacy = new StandbyStateStore();
+    const vpoa = vpoaEvent(FIXTURE_PHASE6B_VPOA50_JPTK202608221709_202608221709);
+    legacy.applyBriefingCardEvent(vpoa, Date.parse(vpoa.reportDateTime) + 1);
+    expect(legacy.exportActiveState().briefingCritical?.linearRainForecastReplacementWatermarks)
+      .toBeUndefined();
+  });
+
+  it("raw aliasとreplacement watermarkを同時に保持してidentity namespaceを分離する", () => {
+    const store = new StandbyStateStore();
+    const rawEventId = JSON.stringify(["試験地方気象台", "A"]);
+    store.applyBriefingCardEvent(rawizeSemanticBriefing(linearRainBriefingEvent(
+      "observed", rawEventId, t(10), "1", [A],
+    )), Date.parse(t(10)));
+    store.applyBriefingCardEvent(linearRainBriefingEvent(
+      "observed", rawEventId, t(11), "2", [A],
+    ), Date.parse(t(11)));
+
+    expect(store.exportActiveState().briefingCritical).toMatchObject({
+      rawAliases: [expect.objectContaining({ source: "vpbs50", sourceEventId: rawEventId })],
+      linearRainForecastReplacementWatermarks: [expect.objectContaining({
+        editorialOffice: "試験地方気象台", areaCode: "A",
+      })],
+    });
+  });
+
+  it("oversized predictionはreplacement projection前のnested capacityで拒否する", () => {
+    const store = new StandbyStateStore();
+    const areas = Array.from({ length: 2_049 }, (_, index) => ({
+      name: `地域${index}`,
+      code: `code-${index}`,
+    }));
+    store.applyBriefingCardEvent(linearRainBriefingEvent(
+      "observed", "o-capacity-floor", t(11), "1", [areas[0]!],
+    ), Date.parse(t(11)));
+    const before = structuredClone(store.exportActiveState().briefingCritical);
+    const beforeCard = structuredClone(store.snapshotBriefingCard());
+    const generation = store.briefingCardGeneration();
+    const warn = vi.spyOn(log, "warn").mockImplementation(() => undefined);
+
+    expect(store.applyBriefingCardEvent(linearRainBriefingEvent(
+      "predicted", "p-oversized", t(10), "1", areas,
+    ), Date.parse(t(11)) + 1)).toMatchObject({
+      kind: "ignored", reason: "unchanged", durableChanged: false, viewChanged: false,
+    });
+    expect(store.exportActiveState().briefingCritical).toEqual(before);
+    expect(store.snapshotBriefingCard()).toEqual(beforeCard);
+    expect(store.briefingCardGeneration()).toBe(generation);
+    expect(warn).toHaveBeenCalledTimes(1);
+    expect(warn).toHaveBeenCalledWith("[briefing-card] nested payload capacity rejected");
+    warn.mockRestore();
+  });
+
+  it.each(["invalidSerial", "invalidDate", "emptyCode", "emptyOffice", "mixed", "unknown", "rawHeadline"] as const)(
+    "%s observedはreplacement副作用を作らない",
+    (variant) => {
+      const store = new StandbyStateStore();
+      store.applyBriefingCardEvent(linearRainBriefingEvent("predicted", `p-${variant}`, t(10), "1", [A]), Date.parse(t(10)));
+      const before = structuredClone(entry(store, "linearRainPredicted"));
+      let observed = linearRainBriefingEvent("observed", `o-${variant}`, t(11), "1", [A]);
+      const raw = observed.raw as ParsedWeatherBriefing;
+      if (variant === "invalidSerial") observed = { ...observed, serial: "x", raw: { ...raw, serial: "x" } };
+      if (variant === "invalidDate") observed = { ...observed, reportDateTime: "invalid", raw: { ...raw, reportDateTime: "invalid" } };
+      if (variant === "emptyCode") observed = linearRainBriefingEvent("observed", `o-${variant}`, t(11), "1", [{ name: "empty", code: "" }]);
+      if (variant === "emptyOffice") observed = linearRainBriefingEvent("observed", `o-${variant}`, t(11), "1", [A], "");
+      if (variant === "mixed") observed = { ...observed, raw: {
+        ...raw,
+        briefingConditions: [...raw.briefingConditions, "記録的短時間大雨"],
+        briefingSeverityEvidence: [...raw.briefingSeverityEvidence, {
+          ...raw.briefingSeverityEvidence[0]!, condition: "記録的短時間大雨", tag: "recordRain",
+        }],
+      } };
+      if (variant === "unknown") observed = { ...observed, raw: {
+        ...raw,
+        briefingConditions: [...raw.briefingConditions, "未知種別"],
+        briefingSeverityEvidence: [...raw.briefingSeverityEvidence, {
+          ...raw.briefingSeverityEvidence[0]!, condition: "未知種別", tag: "other",
+        }],
+      } };
+      if (variant === "rawHeadline") observed = { ...observed, title: "気象防災速報", raw: {
+        ...raw, title: "気象防災速報", briefingConditions: [], briefingSeverityEvidence: [],
+      } };
+
+      store.applyBriefingCardEvent(observed, Date.parse(t(11)));
+      expect(entry(store, "linearRainPredicted")).toEqual(before);
+      expect(store.exportActiveState().briefingCritical?.linearRainForecastReplacementWatermarks)
+        .toBeUndefined();
+    },
+  );
+
+  it("observed取消でpredictionを復活せず、訂正は列挙codeだけのwatermarkを前進させる", () => {
+    const store = new StandbyStateStore();
+    const observed = linearRainBriefingEvent("observed", "o-correct", t(10), "1", [A, B]);
+    store.applyBriefingCardEvent(observed, Date.parse(t(10)));
+    const initial = store.exportActiveState().briefingCritical!.linearRainForecastReplacementWatermarks!;
+    const initialA = initial.find((watermark) => watermark.areaCode === "A")!;
+    const initialB = initial.find((watermark) => watermark.areaCode === "B")!;
+    const cancellation = semanticBriefingFrame(
+      linearRainBriefingEvent("observed", "o-correct", t(11), "2", [A, B]),
+      "cancel",
+    );
+    store.applyBriefingCardEvent(cancellation, Date.parse(t(11)));
+    expect(Date.parse(entry(store, "linearRainObserved")!.expiresAt))
+      .toBe(Date.parse(t(11)) + BRIEFING_CARD_CANCEL_TTL_MS);
+    expect(store.exportActiveState().briefingCritical!.linearRainForecastReplacementWatermarks)
+      .toEqual(initial);
+
+    const correctionBase = linearRainBriefingEvent("observed", "o-correct", t(12), "3", [A]);
+    const correctionRaw = correctionBase.raw as ParsedWeatherBriefing;
+    const correction = { ...correctionBase, infoType: "訂正", raw: { ...correctionRaw, infoType: "訂正" } };
+    store.applyBriefingCardEvent(correction, Date.parse(t(12)));
+    const corrected = store.exportActiveState().briefingCritical!.linearRainForecastReplacementWatermarks!;
+    expect(corrected.find((watermark) => watermark.areaCode === "A")).toMatchObject({
+      revision: { reportTimeMs: Date.parse(t(12)), serial: "3" },
+      expiresAtMs: Date.parse(t(12)) + BRIEFING_CARD_TTL_MS,
+    });
+    expect(corrected.find((watermark) => watermark.areaCode === "B")).toEqual(initialB);
+    expect(initialA.revision.serial).toBe("1");
+    store.applyBriefingCardEvent(linearRainBriefingEvent("predicted", "p-after-cancel", t(9), "1", [A, B]), Date.parse(t(12)) + 1);
+    expect(entry(store, "linearRainPredicted")).toBeUndefined();
+  });
+
+  it("replacement watermarkをrestart後も保持し、equal replayでexpiryを延長せず境界でpruneする", () => {
+    const reportMs = Date.parse(t(10));
+    const live = new StandbyStateStore();
+    const observed = linearRainBriefingEvent("observed", "o-restart", t(10), "2", [A]);
+    live.applyBriefingCardEvent(
+      linearRainBriefingEvent("predicted", "p-before-restart", t(9), "1", [A]),
+      Date.parse(t(9)),
+    );
+    const beforeReplacementCard = structuredClone(live.snapshotBriefingCard());
+    live.applyBriefingCardEvent(observed, reportMs);
+    const afterReplacementCard = structuredClone(live.snapshotBriefingCard());
+    expect(beforeReplacementCard?.data.entries.map((candidate) => candidate.phenomenonKind))
+      .toEqual(["linearRainPredicted"]);
+    expect(afterReplacementCard?.data.entries.map((candidate) => candidate.phenomenonKind))
+      .toEqual(["linearRainObserved"]);
+    const persisted = live.exportActiveState();
+    const expiry = persisted.briefingCritical!.linearRainForecastReplacementWatermarks![0]!.expiresAtMs;
+    const equalCard = structuredClone(live.snapshotBriefingCard());
+    const equalDurable = structuredClone(persisted.briefingCritical);
+    const equalGeneration = live.briefingCardGeneration();
+    expect(live.applyBriefingCardEvent(observed, reportMs + 1)).toMatchObject({
+      kind: "ignored", reason: "unchanged", durableChanged: false, viewChanged: false,
+    });
+    expect(live.exportActiveState().briefingCritical!.linearRainForecastReplacementWatermarks![0]!.expiresAtMs)
+      .toBe(expiry);
+    expect(live.snapshotBriefingCard()).toEqual(equalCard);
+    expect(live.exportActiveState().briefingCritical).toEqual(equalDurable);
+    expect(live.briefingCardGeneration()).toBe(equalGeneration);
+
+    const restored = new StandbyStateStore();
+    restored.restoreActiveState(persisted, reportMs + 1);
+    const restoredCard = structuredClone(restored.snapshotBriefingCard());
+    expect({ ...restoredCard, restored: false }).toEqual(equalCard);
+    expect(restored.exportActiveState().briefingCritical).toEqual(equalDurable);
+    expect(restored.briefingCardGeneration()).toBe(equalGeneration);
+    const restoredSnapshot = structuredClone(restored.cloneSnapshot().data);
+    expect(restored.applyBriefingCardEvent(
+      linearRainBriefingEvent("predicted", "p-old", t(10), "1", [A]), reportMs + 2,
+    )).toMatchObject({ kind: "ignored", reason: "older", durableChanged: false, viewChanged: false });
+    expect(entry(restored, "linearRainPredicted")).toBeUndefined();
+    expect(restored.snapshotBriefingCard()).toEqual(restoredCard);
+    expect(restored.exportActiveState().briefingCritical).toEqual(equalDurable);
+    expect(restored.cloneSnapshot().data).toEqual(restoredSnapshot);
+    expect(restored.briefingCardGeneration()).toBe(equalGeneration);
+
+    const watermarkOnlyState = structuredClone(persisted);
+    watermarkOnlyState.briefingCritical = {
+      ...watermarkOnlyState.briefingCritical!,
+      entries: [], cancellations: [], watermarks: [],
+    };
+    const watermarkOnly = new StandbyStateStore();
+    watermarkOnly.restoreActiveState(watermarkOnlyState, reportMs + 1);
+    const watermarkOnlySnapshot = structuredClone(watermarkOnly.cloneSnapshot().data);
+    const watermarkOnlyDurable = structuredClone(watermarkOnly.exportActiveState().briefingCritical);
+    expect(watermarkOnly.snapshotBriefingCard()).toBeNull();
+    expect(watermarkOnly.applyBriefingCardEvent(
+      linearRainBriefingEvent("predicted", "p-old-watermark-only", t(10), "1", [A]), expiry - 1,
+    )).toMatchObject({ kind: "ignored", reason: "older", durableChanged: false, viewChanged: false });
+    expect(watermarkOnly.snapshotBriefingCard()).toBeNull();
+    expect(watermarkOnly.exportActiveState().briefingCritical).toEqual(watermarkOnlyDurable);
+    expect(watermarkOnly.cloneSnapshot().data).toEqual(watermarkOnlySnapshot);
+
+    const candidatePrune = new StandbyStateStore();
+    candidatePrune.restoreActiveState(persisted, reportMs + 1);
+    candidatePrune.applyBriefingCardEvent(linearRainBriefingEvent(
+      "predicted", "p-at-expiry", new Date(reportMs + 1).toISOString(), "3", [A],
+    ), expiry);
+    expect(candidatePrune.exportActiveState().briefingCritical?.linearRainForecastReplacementWatermarks)
+      .toBeUndefined();
+    expect(entry(candidatePrune, "linearRainPredicted")?.targetAreas).toEqual([A]);
+
+    expect(restored.sweep(expiry)).toEqual({ viewChanged: true, durableChanged: true });
+    expect(restored.exportActiveState().briefingCritical?.linearRainForecastReplacementWatermarks).toBeUndefined();
+    restored.applyBriefingCardEvent(linearRainBriefingEvent(
+      "predicted", "p-after", new Date(reportMs + 1).toISOString(), "3", [A],
+    ), expiry);
+    expect(entry(restored, "linearRainPredicted")?.targetAreas).toEqual([A]);
+  });
+
+  it("replacement容量超過時はobservedだけ受理しpredictionと全watermarkを不変にする", () => {
+    const nowMs = Date.parse(t(10));
+    const state = new StandbyStateStore().exportActiveState();
+    state.briefingCritical = {
+      generation: 1,
+      entries: [],
+      cancellations: [],
+      watermarks: [],
+      linearRainForecastReplacementWatermarks: Array.from({ length: 512 }, (_, index) => ({
+        editorialOffice: `官署${index}`,
+        areaCode: `code-${index}`,
+        revision: { reportTimeMs: nowMs - 60_000, serial: "1" },
+        expiresAtMs: nowMs + BRIEFING_CARD_TTL_MS,
+      })),
+    };
+    const store = new StandbyStateStore();
+    store.restoreActiveState(state, nowMs);
+    store.applyBriefingCardEvent(linearRainBriefingEvent("predicted", "p-cap", t(10), "1", [A]), nowMs);
+    const beforePrediction = structuredClone(entry(store, "linearRainPredicted"));
+    const beforeReplacements = structuredClone(
+      store.exportActiveState().briefingCritical!.linearRainForecastReplacementWatermarks,
+    );
+    const warn = vi.spyOn(log, "warn").mockImplementation(() => undefined);
+
+    store.applyBriefingCardEvent(linearRainBriefingEvent("observed", "o-cap", t(11), "1", [A]), Date.parse(t(11)));
+
+    expect(entry(store, "linearRainObserved")?.targetAreas).toEqual([A]);
+    expect(entry(store, "linearRainPredicted")).toEqual(beforePrediction);
+    expect(store.exportActiveState().briefingCritical!.linearRainForecastReplacementWatermarks)
+      .toEqual(beforeReplacements);
+    expect(warn).toHaveBeenCalledTimes(1);
+    expect(warn).toHaveBeenCalledWith("[briefing-card] linearRainForecastReplacementCapacityRejected");
+    warn.mockRestore();
+  });
+
+  it("entry 128件とreplacement 512件の複合境界でもobserved-only planが対象predictionをevictしない", () => {
+    const nowMs = Date.parse(t(11));
+    const store = new StandbyStateStore();
+    store.applyBriefingCardEvent(linearRainBriefingEvent("predicted", "p-oldest", t(0), "1", [A]), Date.parse(t(0)));
+    for (let index = 0; index < BRIEFING_CARD_MAX_ENTRIES - 1; index += 1) {
+      store.applyBriefingCardEvent(rawLifecycleBriefingEvent(
+        `entry-filler-${index}`, t(10), "1", "warning",
+      ), Date.parse(t(10)));
+    }
+    expect(store.briefingCardEntryCount()).toBe(BRIEFING_CARD_MAX_ENTRIES);
+    const internals = store as unknown as {
+      linearRainForecastReplacementWatermarks: Map<string, {
+        revision: { reportTimeMs: number; serial: string };
+        expiresAtMs: number;
+      }>;
+    };
+    for (let index = 0; index < 512; index += 1) {
+      internals.linearRainForecastReplacementWatermarks.set(
+        JSON.stringify([`官署${index}`, `code-${index}`]),
+        { revision: { reportTimeMs: Date.parse(t(1)), serial: "1" }, expiresAtMs: nowMs + BRIEFING_CARD_TTL_MS },
+      );
+    }
+    const predictionBefore = structuredClone(entry(store, "linearRainPredicted"));
+    const replacementsBefore = structuredClone(internals.linearRainForecastReplacementWatermarks);
+    const warn = vi.spyOn(log, "warn").mockImplementation(() => undefined);
+
+    const result = store.applyBriefingCardEvent(
+      linearRainBriefingEvent("observed", "o-entry-capacity", t(11), "1", [A]),
+      nowMs,
+    );
+
+    expect(result).toMatchObject({ kind: "applied", action: "upsert", durableChanged: true, viewChanged: true });
+    expect(entry(store, "linearRainObserved")?.targetAreas).toEqual([A]);
+    expect(entry(store, "linearRainPredicted")).toEqual(predictionBefore);
+    expect(store.briefingCardEntryCount()).toBe(BRIEFING_CARD_MAX_ENTRIES);
+    expect(internals.linearRainForecastReplacementWatermarks).toEqual(replacementsBefore);
+    expect(warn).toHaveBeenCalledTimes(1);
+    expect(warn).toHaveBeenCalledWith("[briefing-card] linearRainForecastReplacementCapacityRejected");
+    warn.mockRestore();
+  });
+
+  it("replacement容量511/512・既存更新・複数地域all-or-nothing・candidate前pruneを固定する", () => {
+    const nowMs = Date.parse(t(11));
+    const replacementState = (count: number, includeA = false) => {
+      const state = new StandbyStateStore().exportActiveState();
+      state.briefingCritical = {
+        generation: 1, entries: [], cancellations: [], watermarks: [],
+        linearRainForecastReplacementWatermarks: Array.from({ length: count }, (_, index) => ({
+          editorialOffice: includeA && index === 0 ? "試験地方気象台" : `官署${index}`,
+          areaCode: includeA && index === 0 ? "A" : `code-${index}`,
+          revision: { reportTimeMs: nowMs - 60_000, serial: "1" },
+          expiresAtMs: nowMs + BRIEFING_CARD_TTL_MS,
+        })),
+      };
+      return state;
+    };
+
+    const from511 = new StandbyStateStore();
+    from511.restoreActiveState(replacementState(511), nowMs - 1);
+    from511.applyBriefingCardEvent(linearRainBriefingEvent("observed", "o-512", t(11), "1", [A]), nowMs);
+    expect(from511.exportActiveState().briefingCritical!.linearRainForecastReplacementWatermarks)
+      .toHaveLength(512);
+
+    const existing512 = new StandbyStateStore();
+    existing512.restoreActiveState(replacementState(512, true), nowMs - 1);
+    existing512.applyBriefingCardEvent(linearRainBriefingEvent("observed", "o-update", t(11), "2", [A]), nowMs);
+    const updated = existing512.exportActiveState().briefingCritical!.linearRainForecastReplacementWatermarks!;
+    expect(updated).toHaveLength(512);
+    expect(updated.find((watermark) => watermark.editorialOffice === "試験地方気象台"
+      && watermark.areaCode === "A")?.revision).toEqual({ reportTimeMs: nowMs, serial: "2" });
+
+    const multi = new StandbyStateStore();
+    multi.restoreActiveState(replacementState(511), nowMs - 1);
+    multi.applyBriefingCardEvent(linearRainBriefingEvent("predicted", "p-multi-cap", t(10), "1", [A, B]), nowMs - 1);
+    const beforePrediction = structuredClone(entry(multi, "linearRainPredicted"));
+    const beforeReplacements = structuredClone(
+      multi.exportActiveState().briefingCritical!.linearRainForecastReplacementWatermarks,
+    );
+    multi.applyBriefingCardEvent(linearRainBriefingEvent("observed", "o-multi-cap", t(11), "1", [A, B]), nowMs);
+    expect(entry(multi, "linearRainPredicted")).toEqual(beforePrediction);
+    expect(multi.exportActiveState().briefingCritical!.linearRainForecastReplacementWatermarks)
+      .toEqual(beforeReplacements);
+
+    const prePruneState = replacementState(512);
+    prePruneState.briefingCritical!.linearRainForecastReplacementWatermarks![0]!.expiresAtMs = nowMs;
+    const prePrune = new StandbyStateStore();
+    prePrune.restoreActiveState(prePruneState, nowMs - 1);
+    expect(prePrune.cloneSnapshot().data.linearRainForecastReplacementWatermarks?.size).toBe(512);
+    prePrune.applyBriefingCardEvent(linearRainBriefingEvent("observed", "o-prune", t(11), "1", [A]), nowMs);
+    const afterPrune = prePrune.exportActiveState().briefingCritical!.linearRainForecastReplacementWatermarks!;
+    expect(afterPrune).toHaveLength(512);
+    expect(afterPrune.some((watermark) => watermark.areaCode === "code-0")).toBe(false);
+    expect(afterPrune.some((watermark) => watermark.areaCode === "A")).toBe(true);
+  });
+});
+
 describe("briefing critical acceptance matrices", () => {
   type AdmissionState = "none" | "active" | "downgraded" | "cancelled"
     | "alias" | "semantic" | "watermark-only" | "promotion";
@@ -3360,6 +3944,7 @@ describe("briefing critical acceptance matrices", () => {
     }>;
     rawBriefingAliases: Map<string, { expiresAtMs: number }>;
     briefingRevisionWatermarks: Map<string, { expiresAtMs: number }>;
+    linearRainForecastReplacementWatermarks: Map<string, { expiresAtMs: number }>;
   }
 
   function admissionInternals(store: StandbyStateStore): AdmissionInternals {
@@ -3379,6 +3964,7 @@ describe("briefing critical acceptance matrices", () => {
     }
     for (const state of internals.rawBriefingAliases.values()) state.expiresAtMs = futureMs;
     for (const state of internals.briefingRevisionWatermarks.values()) state.expiresAtMs = futureMs;
+    for (const state of internals.linearRainForecastReplacementWatermarks.values()) state.expiresAtMs = futureMs;
   }
 
   function expiryAdmissionScenario(

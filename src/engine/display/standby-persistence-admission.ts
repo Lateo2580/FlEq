@@ -852,6 +852,7 @@ export class StandbyPersistenceAdmissionCoordinator {
       if (
         changedField("briefingEntries")
         || changedField("briefingRevisionWatermarks")
+        || changedField("linearRainForecastReplacementWatermarks")
         || changedField("rawCriticalProvenance")
         || changedField("rawBriefingAliases")
         || changedField("briefingGeneration")

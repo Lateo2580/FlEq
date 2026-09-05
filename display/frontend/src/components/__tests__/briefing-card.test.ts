@@ -626,6 +626,39 @@ describe("BriefingCard", () => {
     for (const area of entry.targetAreas) expect(renderedEntry?.textContent).not.toContain(area.code);
   });
 
+  it("engineの部分置換wireは除外地域をpredictionのtarget regionとevent factの両DOMから消す", () => {
+    const predictedOutcome = processBriefing(createMockWsDataMessage(FIXTURE_VPBS50_YJPNA202608270448));
+    const observedOutcome = processBriefing(createMockWsDataMessage(FIXTURE_VPBS50_HJPNA202608270258));
+    if (predictedOutcome == null || observedOutcome == null) throw new Error("linear-rain corpus did not process");
+    const predicted = fromBriefingOutcome(predictedOutcome);
+    const observedBase = fromBriefingOutcome(observedOutcome);
+    const observedAt = "2026-08-27T05:00:00+09:00";
+    const observed = {
+      ...observedBase,
+      reportDateTime: observedAt,
+      serial: "2",
+      raw: {
+        ...observedOutcome.parsed,
+        reportDateTime: observedAt,
+        serial: "2",
+      },
+    };
+    const store = new StandbyStateStore();
+    store.applyEvent(predicted, Date.parse(predicted.reportDateTime) + 1);
+    store.applyEvent(observed, Date.parse(observedAt) + 1);
+    const item = store.snapshotBriefingCard();
+    if (item == null) throw new Error("linear-rain replacement did not reach wire");
+    const { container } = render(BriefingCard, { item, shellHeightPx: 1_000 });
+    const prediction = container.querySelector<HTMLElement>('[data-briefing-entry*="linearRainPredicted"]');
+    const occurrence = container.querySelector<HTMLElement>('[data-briefing-entry*="linearRainObserved"]');
+
+    expect(prediction?.querySelector("[data-briefing-target-regions]")?.textContent).toContain("東部");
+    expect(prediction?.querySelector("[data-briefing-event-fact]")?.textContent).toContain("東部");
+    expect(prediction?.textContent).not.toContain("西部");
+    expect(occurrence?.querySelector("[data-briefing-target-regions]")?.textContent).toContain("西部");
+    expect(occurrence?.querySelector("[data-briefing-event-fact]")?.textContent).toContain("西部");
+  });
+
   it("Head.Title から県名を安全に抽出できない場合は対象地域名だけを描画する", () => {
     const item = briefing();
     const entry = item.data.entries[0]!;

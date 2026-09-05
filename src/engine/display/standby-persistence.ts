@@ -21,7 +21,11 @@ import type {
 } from "./protocol";
 import type { PersistedFloodEventState, PersistedFloodState } from "./flood-active-reducer";
 import type { PersistedSeenEntry } from "./revision-guard";
-import { compareRevision, type StandbyRevision } from "./standby-registry";
+import {
+  BRIEFING_LINEAR_RAIN_FORECAST_REPLACEMENT_MAX_AREAS,
+  compareRevision,
+  type StandbyRevision,
+} from "./standby-registry";
 import type {
   ParsedTsunamiInfo,
   SpecialValue,
@@ -385,12 +389,20 @@ export interface PersistedBriefingCriticalRawAliasV1 {
   expiresAtMs: number;
 }
 
+export interface PersistedLinearRainForecastReplacementWatermarkV1 {
+  editorialOffice: string;
+  areaCode: string;
+  revision: StandbyRevision;
+  expiresAtMs: number;
+}
+
 export interface PersistedBriefingCriticalStateV1 {
   generation: number;
   entries: PersistedBriefingCriticalEntryV1[];
   cancellations: PersistedBriefingCriticalEntryV1[];
   watermarks: PersistedBriefingCriticalWatermarkV1[];
   rawAliases?: PersistedBriefingCriticalRawAliasV1[];
+  linearRainForecastReplacementWatermarks?: PersistedLinearRainForecastReplacementWatermarkV1[];
 }
 
 export class BriefingCriticalPersistenceInvariantError extends Error {
@@ -1781,6 +1793,7 @@ export class StandbyPersistence {
         && validatedBriefingCritical.cancellations.length === 0
         && validatedBriefingCritical.watermarks.length === 0
         && (validatedBriefingCritical.rawAliases?.length ?? 0) === 0
+        && (validatedBriefingCritical.linearRainForecastReplacementWatermarks?.length ?? 0) === 0
       ? undefined
       : validatedBriefingCritical;
     const foundation = foundationOverride ?? this.foundationProvider?.()
@@ -4695,6 +4708,10 @@ function canonicalRawBriefingKey(source: string, sourceEventId: string): string 
   return `card:briefing:${rawBriefingToken(source, sourceEventId)}`;
 }
 
+function linearRainForecastReplacementToken(editorialOffice: string, areaCode: string): string {
+  return JSON.stringify([editorialOffice, areaCode]);
+}
+
 function canonicalBriefingSemanticKey(entry: DisplayBriefingEntryV1): string | null {
   return entry.source === "vpbs50" && nonBlankString(entry.editorialOffice)
     && entry.phenomenonKind != null && BRIEFING_KINDS.has(entry.phenomenonKind)
@@ -4726,11 +4743,17 @@ function validateBriefingCriticalState(value: unknown, failLoud: boolean): Persi
   };
   if (!isRecord(value) || !Number.isSafeInteger(value.generation) || (value.generation as number) < 0
     || !Array.isArray(value.entries) || !Array.isArray(value.cancellations) || !Array.isArray(value.watermarks)
-    || value.rawAliases != null && !Array.isArray(value.rawAliases)) return invalidDomain("invalid-container");
+    || value.rawAliases != null && !Array.isArray(value.rawAliases)
+    || value.linearRainForecastReplacementWatermarks != null
+      && !Array.isArray(value.linearRainForecastReplacementWatermarks)) return invalidDomain("invalid-container");
   if (value.entries.length > BRIEFING_ENTRY_MAX || value.cancellations.length > BRIEFING_ENTRY_MAX
     || value.entries.length + value.cancellations.length > BRIEFING_ENTRY_MAX
     || value.watermarks.length > BRIEFING_PROTECTION_MAX
-    || (value.rawAliases?.length ?? 0) > BRIEFING_PROTECTION_MAX) return invalidDomain("limit-exceeded");
+    || (value.rawAliases?.length ?? 0) > BRIEFING_PROTECTION_MAX
+    || (value.linearRainForecastReplacementWatermarks?.length ?? 0)
+      > BRIEFING_LINEAR_RAIN_FORECAST_REPLACEMENT_MAX_AREAS) {
+    return invalidDomain("limit-exceeded");
+  }
   const generation = value.generation as number;
   const entries = value.entries.map((item) => parsedBriefingUnit(item, "critical", generation));
   const cancellations = value.cancellations.map((item) => parsedBriefingUnit(item, "cancel", generation));
@@ -4746,14 +4769,30 @@ function validateBriefingCriticalState(value: unknown, failLoud: boolean): Persi
     return revision == null ? null : { source: item.source, sourceEventId: item.sourceEventId,
       semanticKey: item.semanticKey, revision, expiresAtMs: item.expiresAtMs };
   });
+  const replacements = (value.linearRainForecastReplacementWatermarks ?? [])
+    .map((item): PersistedLinearRainForecastReplacementWatermarkV1 | null => {
+      if (!isRecord(item) || !nonBlankString(item.editorialOffice)
+        || !nonBlankString(item.areaCode) || !validEpochMs(item.expiresAtMs)) return null;
+      const revision = canonicalStrictRevision(item.revision);
+      return revision == null ? null : {
+        editorialOffice: item.editorialOffice,
+        areaCode: item.areaCode,
+        revision,
+        expiresAtMs: item.expiresAtMs,
+      };
+    });
   const malformed = entries.filter((item) => item == null).length + cancellations.filter((item) => item == null).length
-    + watermarks.filter((item) => item == null).length + aliases.filter((item) => item == null).length;
+    + watermarks.filter((item) => item == null).length + aliases.filter((item) => item == null).length
+    + replacements.filter((item) => item == null).length;
   if (failLoud && malformed > 0) throw new BriefingCriticalPersistenceInvariantError("malformed briefing unit");
 
   const goodEntries = entries.filter((item): item is PersistedBriefingCriticalEntryV1 => item != null);
   const goodCancellations = cancellations.filter((item): item is PersistedBriefingCriticalEntryV1 => item != null);
   const goodWatermarks = watermarks.filter((item): item is PersistedBriefingCriticalWatermarkV1 => item != null);
   const goodAliases = aliases.filter((item): item is PersistedBriefingCriticalRawAliasV1 => item != null);
+  const goodReplacements = replacements.filter(
+    (item): item is PersistedLinearRainForecastReplacementWatermarkV1 => item != null,
+  );
   const malformedAliasTokens = new Set<string>();
   for (const [index, valueAlias] of (value.rawAliases ?? []).entries()) {
     if (aliases[index] != null) continue;
@@ -4764,6 +4803,7 @@ function validateBriefingCriticalState(value: unknown, failLoud: boolean): Persi
   const watermarkMultiplicity = new Map<string, number>();
   const rawMultiplicity = new Map<string, number>();
   const aliasMultiplicity = new Map<string, number>();
+  const replacementMultiplicity = new Map<string, number>();
   for (const unit of [...goodEntries, ...goodCancellations]) {
     const key = unit.entry.semanticKey == null
       ? rawBriefingToken(unit.entry.source, unit.entry.sourceEventId)
@@ -4779,6 +4819,10 @@ function validateBriefingCriticalState(value: unknown, failLoud: boolean): Persi
     const key = rawBriefingToken(unit.source, unit.sourceEventId);
     if (malformedAliasTokens.has(key)) continue;
     aliasMultiplicity.set(key, (aliasMultiplicity.get(key) ?? 0) + 1);
+  }
+  for (const unit of goodReplacements) {
+    const key = linearRainForecastReplacementToken(unit.editorialOffice, unit.areaCode);
+    replacementMultiplicity.set(key, (replacementMultiplicity.get(key) ?? 0) + 1);
   }
   const invalidSemantic = new Set([...semanticMultiplicity, ...watermarkMultiplicity]
     .filter(([key]) => (semanticMultiplicity.get(key) ?? 0) > 1 || (watermarkMultiplicity.get(key) ?? 0) !== 1)
@@ -4799,19 +4843,28 @@ function validateBriefingCriticalState(value: unknown, failLoud: boolean): Persi
   const coupledWatermarks = goodWatermarks.filter((wm) => !invalidSemantic.has(semanticBriefingToken(wm.semanticKey)));
   const invalidAlias = new Set([...invalidRaw, ...malformedAliasTokens]);
   const coupledAliases = goodAliases.filter((alias) => !invalidAlias.has(rawBriefingToken(alias.source, alias.sourceEventId)));
+  const coupledReplacements = goodReplacements.filter((replacement) =>
+    replacementMultiplicity.get(linearRainForecastReplacementToken(
+      replacement.editorialOffice,
+      replacement.areaCode,
+    )) === 1);
   if (failLoud && (coupledEntries.length !== goodEntries.length || coupledCancellations.length !== goodCancellations.length
-    || coupledWatermarks.length !== goodWatermarks.length || coupledAliases.length !== goodAliases.length)) {
+    || coupledWatermarks.length !== goodWatermarks.length || coupledAliases.length !== goodAliases.length
+    || coupledReplacements.length !== goodReplacements.length)) {
     throw new BriefingCriticalPersistenceInvariantError(
       `briefing identity or coupling invariant entries=${coupledEntries.length}/${goodEntries.length}`
       + ` cancellations=${coupledCancellations.length}/${goodCancellations.length}`
       + ` watermarks=${coupledWatermarks.length}/${goodWatermarks.length}`
-      + ` aliases=${coupledAliases.length}/${goodAliases.length}`,
+      + ` aliases=${coupledAliases.length}/${goodAliases.length}`
+      + ` replacements=${coupledReplacements.length}/${goodReplacements.length}`,
     );
   }
   const discarded = malformed + goodEntries.length - coupledEntries.length + goodCancellations.length - coupledCancellations.length
-    + goodWatermarks.length - coupledWatermarks.length + goodAliases.length - coupledAliases.length;
+    + goodWatermarks.length - coupledWatermarks.length + goodAliases.length - coupledAliases.length
+    + goodReplacements.length - coupledReplacements.length;
   if (!failLoud && discarded > 0) recordRepair("root.briefingCritical", "identity", discarded,
-    coupledEntries.length + coupledCancellations.length + coupledWatermarks.length + coupledAliases.length, "coupling-mismatch");
+    coupledEntries.length + coupledCancellations.length + coupledWatermarks.length + coupledAliases.length
+      + coupledReplacements.length, "coupling-mismatch");
   const rawUnion = new Set([
     ...coupledEntries.filter((unit) => unit.entry.semanticKey == null)
       .map((unit) => rawBriefingToken(unit.entry.source, unit.entry.sourceEventId)),
@@ -4822,20 +4875,30 @@ function validateBriefingCriticalState(value: unknown, failLoud: boolean): Persi
   const cancellationOrder = coupledCancellations.map(briefingPersistedUnitToken).join("\n");
   const watermarkOrder = coupledWatermarks.map((item) => semanticBriefingToken(item.semanticKey)).join("\n");
   const aliasOrder = coupledAliases.map((item) => rawBriefingToken(item.source, item.sourceEventId)).join("\n");
+  const replacementOrder = coupledReplacements.map((item) =>
+    linearRainForecastReplacementToken(item.editorialOffice, item.areaCode)).join("\n");
   coupledEntries.sort((a, b) => briefingPersistedUnitToken(a).localeCompare(briefingPersistedUnitToken(b)));
   coupledCancellations.sort((a, b) => briefingPersistedUnitToken(a).localeCompare(briefingPersistedUnitToken(b)));
   coupledWatermarks.sort((a, b) => semanticBriefingToken(a.semanticKey).localeCompare(semanticBriefingToken(b.semanticKey)));
   coupledAliases.sort((a, b) => rawBriefingToken(a.source, a.sourceEventId).localeCompare(rawBriefingToken(b.source, b.sourceEventId)));
+  coupledReplacements.sort((a, b) => linearRainForecastReplacementToken(a.editorialOffice, a.areaCode)
+    .localeCompare(linearRainForecastReplacementToken(b.editorialOffice, b.areaCode)));
   if (!failLoud && activeRepairCollector != null
     && (entryOrder !== coupledEntries.map(briefingPersistedUnitToken).join("\n")
       || cancellationOrder !== coupledCancellations.map(briefingPersistedUnitToken).join("\n")
       || watermarkOrder !== coupledWatermarks.map((item) => semanticBriefingToken(item.semanticKey)).join("\n")
       || aliasOrder !== coupledAliases.map((item) => rawBriefingToken(item.source, item.sourceEventId)).join("\n")
-      || Object.hasOwn(value, "rawAliases") && coupledAliases.length === 0)) {
+      || replacementOrder !== coupledReplacements.map((item) =>
+        linearRainForecastReplacementToken(item.editorialOffice, item.areaCode)).join("\n")
+      || Object.hasOwn(value, "rawAliases") && coupledAliases.length === 0
+      || Object.hasOwn(value, "linearRainForecastReplacementWatermarks") && coupledReplacements.length === 0)) {
     activeRepairCollector.canonicalRewriteRequired = true;
   }
   return { generation, entries: coupledEntries, cancellations: coupledCancellations, watermarks: coupledWatermarks,
-    ...(coupledAliases.length === 0 ? {} : { rawAliases: coupledAliases }) };
+    ...(coupledAliases.length === 0 ? {} : { rawAliases: coupledAliases }),
+    ...(coupledReplacements.length === 0 ? {} : {
+      linearRainForecastReplacementWatermarks: coupledReplacements,
+    }) };
 }
 
 export function validateBriefingCriticalForWrite(
