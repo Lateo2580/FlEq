@@ -130,6 +130,7 @@ describe("RecentQuakes 狭幅 reflow", () => {
     expect(main.querySelector(".tsunami-mark")?.textContent).toBe("津波");
     expect([...row.children].map((child) => child.classList[0])).toEqual(["row-main", "stats"]);
     expect([...stats.children].map((child) => child.classList[0])).toEqual(["magnitude", "depth", "time"]);
+    expect(stats.textContent).toBe("M5.2 30km 8/27 13:18");
     expect(stats.textContent).toContain("5.2");
     expect(stats.textContent).toContain("30km");
     expect(stats.textContent).toContain("8/27 13:18");
@@ -148,6 +149,7 @@ describe("RecentQuakes 狭幅 reflow", () => {
     expect(narrow).toMatch(/\.row\s*\{[^}]*grid-template-columns:\s*minmax\(0, 1fr\);/s);
     expect(narrow).toMatch(/\.hypocenter\s*\{[^}]*min-width:\s*0;[^}]*white-space:\s*normal;[^}]*overflow-wrap:\s*anywhere;/s);
     expect(narrow).toMatch(/\.stats\s*\{[^}]*grid-column:\s*1;[^}]*flex-wrap:\s*wrap;[^}]*justify-content:\s*flex-end;/s);
+    expect(narrow).toMatch(/\.stats\s*\{[^}]*row-gap:\s*var\(--space-1\);[^}]*column-gap:\s*var\(--space-2\);/s);
     expect(narrow).toMatch(/\.magnitude,[\s\S]*\.time\s*\{[^}]*min-width:\s*0;[^}]*max-width:\s*100%;[^}]*overflow-wrap:\s*anywhere;/s);
     expect(source).not.toContain("@container (max-width: 960px)");
     expect(source).not.toMatch(/min-width:\s*max-content/);

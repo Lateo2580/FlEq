@@ -212,7 +212,8 @@
       min-width: 0;
       flex-wrap: wrap;
       justify-content: flex-end;
-      gap: var(--space-1);
+      row-gap: var(--space-1);
+      column-gap: var(--space-2);
     }
     .magnitude,
     .depth,

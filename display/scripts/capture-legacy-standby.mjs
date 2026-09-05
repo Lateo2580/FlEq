@@ -28,6 +28,7 @@ const DEFAULT_SCENARIOS = ["quiet", "4", "7", "max", "max-floodWide"];
 const SUPPORTED_SCENARIOS = [...DEFAULT_SCENARIOS];
 const DEFAULT_VIEWPORTS = ["1920x1080", "1512x982", "1280x720", "960x620"];
 const FLOOD_WIDE_VIEWPORTS = ["1920x1080", "1280x720"];
+const RECENT_QUAKES_GAP_SUITE = "recent-quakes-gap";
 const BRIEFING_PAGING_PAGE_COUNT = 3;
 const ATTENTION_VISIBILITY_FIXTURES = new Set(["attention-visibility-standby", "attention-visibility-emergency", "attention-visibility-reduced-motion"]);
 const MIME_TYPES = new Map([
@@ -37,7 +38,7 @@ const MIME_TYPES = new Map([
 
 function usage(message) {
   if (message != null) process.stderr.write(`${message}\n`);
-  process.stderr.write("Usage: node scripts/capture-legacy-standby.mjs [--report] [--write-report PATH] [--assert-capture-report PATH] [--expect-suite normal|design-alignment|center-stack-pregate] [--expect-viewport-mode legacy-control|calibrated] [--expect-cells N] [--expect-mismatches N] [--verify-legacy-expectation-digest SHA256] [--viewport-mode legacy-control|calibrated] [--suite design-alignment|center-stack-pregate] [--write-baseline PATH|--baseline-report PATH] [--assert-from PATH] [--fixture overflow|rotation|cluster|cluster-calm|tornado-pages|tornado-aggregate|tornado-clip|tornado-epoch-release|recent-quakes-narrow|attention-visibility-standby|attention-visibility-emergency|attention-visibility-reduced-motion|briefing-pages|briefing-single-page] [--url URL] [--scenario quiet|4|7|max|max-floodWide] [--viewport WIDTHxHEIGHT] [--out-dir PATH]\n");
+  process.stderr.write("Usage: node scripts/capture-legacy-standby.mjs [--report] [--write-report PATH] [--assert-capture-report PATH] [--expect-suite normal|design-alignment|recent-quakes-gap|center-stack-pregate] [--expect-viewport-mode legacy-control|calibrated] [--expect-cells N] [--expect-mismatches N] [--verify-legacy-expectation-digest SHA256] [--viewport-mode legacy-control|calibrated] [--suite design-alignment|recent-quakes-gap|center-stack-pregate] [--write-baseline PATH|--baseline-report PATH] [--assert-from PATH] [--fixture overflow|rotation|cluster|cluster-calm|tornado-pages|tornado-aggregate|tornado-clip|tornado-epoch-release|recent-quakes-narrow|attention-visibility-standby|attention-visibility-emergency|attention-visibility-reduced-motion|briefing-pages|briefing-single-page] [--url URL] [--scenario quiet|4|7|max|max-floodWide] [--viewport WIDTHxHEIGHT] [--out-dir PATH]\n");
   process.exitCode = 2;
 }
 
@@ -85,7 +86,7 @@ export function parseCaptureArgs(argv) {
 }
 
 export function viewportModeForSuite(options) {
-  return ["design-alignment", "center-stack-pregate"].includes(options.suite) && !options.viewportModeExplicit ? "calibrated" : options.viewportMode;
+  return ["design-alignment", RECENT_QUAKES_GAP_SUITE, "center-stack-pregate"].includes(options.suite) && !options.viewportModeExplicit ? "calibrated" : options.viewportMode;
 }
 
 function parseViewport(value) {
@@ -1304,7 +1305,7 @@ export function assertCaptureReport(report, expectations = {}) {
   if (expectations.expectViewportMode != null && records.some((record) => record.capture.viewportMode !== expectations.expectViewportMode)) throw new Error(`capture report viewport mode mismatch: expected ${expectations.expectViewportMode}`);
   if (expectations.expectCells != null && records.length !== expectations.expectCells) throw new Error(`capture report cell count mismatch: expected ${expectations.expectCells}, got ${records.length}`);
   for (const [index, record] of records.entries()) {
-    const expectedPolicy = ["design-alignment", CENTER_STACK_PREGATE_SUITE].includes(suite) ? "fixture-assertions-only" : captureExpectationPolicy(record.fixture, record.scenario, record.viewport.label);
+    const expectedPolicy = ["design-alignment", RECENT_QUAKES_GAP_SUITE, CENTER_STACK_PREGATE_SUITE].includes(suite) ? "fixture-assertions-only" : captureExpectationPolicy(record.fixture, record.scenario, record.viewport.label);
     if (record.expectationPolicy !== expectedPolicy) throw new Error(`${suite} record ${index}: expectation policy mismatch`);
     if (!Array.isArray(record.mismatches)) throw new Error(`${suite} record ${index}: mismatches missing`);
   }
@@ -1765,6 +1766,28 @@ export const DESIGN_ALIGNMENT_MANIFEST = [
   ...Object.entries(DESIGN_ALIGNMENT_MAX_PLANS).flatMap(([planKey, plan]) =>
     Array.from({ length: plan.captureTickCount }, (_, tick) => designAlignmentEntry("legacy-standby-gate", plan.viewport, tick, 0, `gateScenario=max&maxPlan=${planKey}`))),
 ];
+
+const RECENT_QUAKES_GAP_TARGETS = [
+  { name: "fhdMax", scenario: "legacy-standby-gate", viewport: "1920x1080", maxPlan: "fhdMax", narrow: false },
+  { name: "hdMax", scenario: "legacy-standby-gate", viewport: "1280x720", maxPlan: "hdMax", narrow: false },
+  {
+    name: "compressed960", scenario: "standby-design-alignment-compressed", viewport: "960x620", maxPlan: null, narrow: true,
+    stage: 3, compressed: true, resolvedSpaces: { resolvedSpace1: 2, resolvedSpace2: 4, resolvedSpace3: 6 },
+  },
+];
+
+function matchesRecentQuakesGapTarget(value, target) {
+  const viewport = typeof value.viewport === "string" ? value.viewport : value.viewport?.label;
+  return value.scenario === target.scenario && viewport === target.viewport
+    && value.rotationTick === 0 && value.cardPageTick === 0
+    && new URLSearchParams(value.query ?? "").get("maxPlan") === target.maxPlan;
+}
+
+export const RECENT_QUAKES_GAP_MANIFEST = RECENT_QUAKES_GAP_TARGETS.map((target) => {
+  const matches = DESIGN_ALIGNMENT_MANIFEST.filter((entry) => matchesRecentQuakesGapTarget(entry, target));
+  if (matches.length !== 1) throw new Error(`${target.name}: expected exactly one shared design-alignment cell, got ${matches.length}`);
+  return matches[0];
+});
 
 function manifestKey(value) {
   const viewport = typeof value.viewport === "string" ? value.viewport : value.viewport?.label;
@@ -2227,10 +2250,49 @@ export const DESIGN_ALIGNMENT_REPORT_EXPRESSION = String.raw`(async () => {
       riderBackground: riderStyle?.backgroundColor ?? null,
     };
   });
+  const scenario = window.location.hash.replace(/^#/, '');
+  const query = new URLSearchParams(window.location.search);
+  const rotationTick = Number.parseInt(query.get('rotationTick') ?? '', 10);
+  const cardPageTick = Number.parseInt(query.get('cardPageTick') ?? '', 10);
+  const maxPlan = query.get('maxPlan');
+  const recentQuakesTarget = ${JSON.stringify(RECENT_QUAKES_GAP_TARGETS)}.some((target) =>
+    scenario === target.scenario && window.innerWidth + 'x' + window.innerHeight === target.viewport
+      && rotationTick === 0 && cardPageTick === 0 && maxPlan === target.maxPlan);
+  const recentQuakes = !recentQuakesTarget ? null : (() => {
+    const host = all('[data-layout-motion-card="recent-quakes:center"]', root).find(painted) ?? null;
+    const component = host?.querySelector('.recent-quakes') ?? null;
+    const firstRow = component?.querySelector('.row') ?? null;
+    const rowMain = firstRow?.querySelector('.row-main') ?? null;
+    const stats = firstRow?.querySelector('.stats') ?? null;
+    const magnitude = stats?.querySelector(':scope > .magnitude') ?? null;
+    const depth = stats?.querySelector(':scope > .depth') ?? null;
+    const time = stats?.querySelector(':scope > .time') ?? null;
+    const componentStyle = component == null ? null : getComputedStyle(component);
+    const statsStyle = stats == null ? null : getComputedStyle(stats);
+    return {
+      root: measure(component), firstRow: measure(firstRow), rowMain: measure(rowMain), stats: measure(stats),
+      magnitude: measure(magnitude), depth: measure(depth), time: measure(time),
+      rootInlineSize: componentStyle == null ? null : numeric(componentStyle.inlineSize),
+      rowGap: statsStyle == null ? null : numeric(statsStyle.rowGap),
+      columnGap: statsStyle == null ? null : numeric(statsStyle.columnGap),
+      resolvedSpace1: componentStyle == null ? null : numeric(componentStyle.getPropertyValue('--space-1')),
+      resolvedSpace2: componentStyle == null ? null : numeric(componentStyle.getPropertyValue('--space-2')),
+      resolvedSpace3: componentStyle == null ? null : numeric(componentStyle.getPropertyValue('--space-3')),
+      fontFamily: componentStyle?.fontFamily ?? null,
+      statsFontFamily: statsStyle?.fontFamily ?? null,
+      statOrder: stats == null ? [] : [...stats.children].map((child) => child.classList[0] ?? ''),
+    };
+  })();
   return {
     ready: document.fonts?.status === 'loaded', settled: root.getAttribute('data-measurement-settled') === 'true',
     viewport: { innerWidth: window.innerWidth, innerHeight: window.innerHeight, devicePixelRatio: window.devicePixelRatio },
     rootFontSize: numeric(getComputedStyle(root).fontSize),
+    fontSignature: {
+      status: document.fonts?.status ?? null,
+      rootFamily: getComputedStyle(root).fontFamily,
+      recentQuakesFamily: recentQuakes?.fontFamily ?? null,
+      recentQuakesStatsFamily: recentQuakes?.statsFontFamily ?? null,
+    },
     layout: {
       ladderStage: attrNumber('data-ladder-stage'), measurementGeometryStage: attrNumber('data-measurement-geometry-stage'),
       compressed: root.classList.contains('ladder-compressed'), unresolved: root.getAttribute('data-layout-unresolved'),
@@ -2246,7 +2308,7 @@ export const DESIGN_ALIGNMENT_REPORT_EXPRESSION = String.raw`(async () => {
     riderReserveCounts: parsePreviewJson('data-design-alignment-rider-reserve-counts'),
     payloadSignature: parsePreviewJson('data-design-alignment-payload-signature'),
     tokens: { roleMuted: resolveRoleMuted() },
-    briefing, forecast, typhoon, weatherCards, weatherAuto, naturalHeightProbes, pagerContracts, pageFooters,
+    briefing, forecast, typhoon, weatherCards, weatherAuto, naturalHeightProbes, pagerContracts, pageFooters, recentQuakes,
   };
 })()`;
 
@@ -2266,9 +2328,9 @@ export function runDesignCaptureSession({ chrome, profileDir, url, viewport, vie
   });
 }
 
-async function captureDesignAlignmentPage({ chrome, profileDir, url, viewport, viewportMode, outDir, entry }) {
+async function captureDesignAlignmentPage({ chrome, profileDir, url, viewport, viewportMode, outDir, entry, artifactPrefix = "design-alignment" }) {
   const suffix = `r${entry.rotationTick ?? "x"}-p${entry.cardPageTick ?? "x"}`;
-  const pngPath = join(outDir, `design-alignment-${entry.scenario}-${viewport.label}-${suffix}.png`);
+  const pngPath = join(outDir, `${artifactPrefix}-${entry.scenario}-${viewport.label}-${suffix}.png`);
   const session = await runDesignCaptureSession({ chrome, profileDir, url, viewport, viewportMode, entry });
   const snapshot = session.preScreenshot;
   const geometry = {
@@ -2376,6 +2438,29 @@ function assertDeepEqual(actual, expected, label) {
   if (stableJson(actual) !== stableJson(expected)) throw new Error(`${label}: expected ${JSON.stringify(expected)}, got ${JSON.stringify(actual)}`);
 }
 
+function designAlignmentCaptureEnvironmentSignature(record, label = record?.manifestKey ?? "design-alignment record") {
+  const browser = {};
+  for (const field of ["product", "revision"]) {
+    const value = record?.browser?.[field];
+    if (typeof value !== "string" || value === "") throw new Error(`${label}: browser.${field} missing`);
+    browser[field] = value;
+  }
+  const devicePixelRatio = record?.geometry?.viewport?.devicePixelRatio;
+  if (devicePixelRatio !== 1) throw new Error(`${label}: DPR must be 1, got ${devicePixelRatio}`);
+  const fontSignature = record?.geometry?.fontSignature;
+  if (fontSignature?.status !== "loaded") throw new Error(`${label}: font status must be loaded`);
+  if (typeof fontSignature.rootFamily !== "string" || fontSignature.rootFamily === "") throw new Error(`${label}: root font family missing`);
+  const hasRecentQuakes = record?.geometry?.recentQuakes != null;
+  for (const field of ["recentQuakesFamily", "recentQuakesStatsFamily"]) {
+    if (!Object.hasOwn(fontSignature, field)) throw new Error(`${label}: ${field} missing`);
+    const value = fontSignature[field];
+    if (hasRecentQuakes ? typeof value !== "string" || value === "" : value !== null) {
+      throw new Error(`${label}: ${field} does not match the RecentQuakes report`);
+    }
+  }
+  return { browser, fonts: fontSignature, devicePixelRatio };
+}
+
 export function assertDesignAlignmentApprox(actual, expected, tolerance, label) {
   if (!Number.isFinite(actual) || Math.abs(actual - expected) > tolerance) throw new Error(`${label}: expected ${expected} ±${tolerance}, got ${actual}`);
 }
@@ -2394,6 +2479,92 @@ function assertBox(box, label) {
 function assertNoOverflow(box, label) {
   assertBox(box, label);
   if (box.overflowX > 1 || box.overflowY > 1) throw new Error(`${label}: client/scroll overflow ${box.overflowX}x${box.overflowY}`);
+}
+
+function recentQuakesTargetRecord(records, target) {
+  const matches = records.filter((record) => matchesRecentQuakesGapTarget(record, target));
+  if (matches.length !== 1) throw new Error(`${target.name}: expected exactly one RecentQuakes target record, got ${matches.length}`);
+  return matches[0];
+}
+
+function actualHorizontalGap(left, right) {
+  const value = right?.rect?.left - left?.rect?.right;
+  return Number.isFinite(value) ? value : null;
+}
+
+function assertRecentQuakesGapPlanReport(record, target, label) {
+  const layout = record.geometry?.layout;
+  const plan = target.maxPlan == null ? target : DESIGN_ALIGNMENT_MAX_PLANS[target.maxPlan];
+  if (layout == null || plan == null) throw new Error(`${label}: plan report missing`);
+  if (layout.ladderStage !== plan.stage || layout.measurementGeometryStage !== plan.stage || layout.compressed !== plan.compressed) {
+    throw new Error(`${label}: ${target.maxPlan == null ? "960 compressed" : "max"} stage/compressed contract failed`);
+  }
+  if (target.maxPlan == null) return;
+  for (const name of ["placementLeft", "placementRight", "placementCenter", "rotationKeys", "visibleCards"]) {
+    if (!Array.isArray(layout[name])) throw new Error(`${label}: ${name} report missing`);
+  }
+  if (!Number.isFinite(layout.rotationOmittedCount) || typeof layout.rotationActiveKey !== "string"
+    || typeof layout.rotationPosition !== "string" || typeof layout.typhoonVariant !== "string") {
+    throw new Error(`${label}: rotation/variant report missing`);
+  }
+  if (target.maxPlan === "fhdMax" && (layout.rotationKeys.length !== 0 || layout.rotationOmittedCount !== 0
+    || layout.rotationActiveKey !== "" || layout.rotationPosition !== "")) {
+    throw new Error(`${label}: fhdMax rotation must remain empty`);
+  }
+}
+
+export function assertDesignAlignmentRecentQuakesReports(records, { mode }) {
+  if (mode !== "baseline" && mode !== "after") throw new Error(`unknown RecentQuakes assertion mode: ${mode}`);
+  for (const target of RECENT_QUAKES_GAP_TARGETS) {
+    const record = recentQuakesTargetRecord(records, target);
+    const report = record.geometry?.recentQuakes;
+    const label = `${record.manifestKey}: RecentQuakes`;
+    if (report == null) throw new Error(`${label} report missing`);
+    designAlignmentCaptureEnvironmentSignature(record, label);
+    assertRecentQuakesGapPlanReport(record, target, label);
+    for (const name of ["root", "firstRow", "rowMain", "stats", "magnitude", "depth", "time"]) {
+      assertNoOverflow(report[name], `${label} ${name}`);
+      if (report[name].scrollWidth > report[name].clientWidth + 1 || report[name].scrollHeight > report[name].clientHeight + 1) {
+        throw new Error(`${label} ${name}: scroll/client overflow`);
+      }
+    }
+    for (const name of ["rootInlineSize", "rowGap", "columnGap", "resolvedSpace1", "resolvedSpace2", "resolvedSpace3"]) {
+      if (!Number.isFinite(report[name])) throw new Error(`${label}.${name}: missing/non-finite`);
+    }
+    assertDesignAlignmentApprox(report.rootInlineSize, report.root.rect.width, 0.1, `${label} root inline-size`);
+    assertDeepEqual(report.statOrder, ["magnitude", "depth", "time"], `${label} DOM order`);
+    if (target.narrow) {
+      for (const [name, expected] of Object.entries(target.resolvedSpaces)) {
+        assertDesignAlignmentApprox(report[name], expected, 0.1, `${label} ${name}`);
+      }
+      if (report.rootInlineSize > 420) throw new Error(`${label}: 420px container query must match`);
+      if (report.stats.rect.top <= report.rowMain.rect.top + 0.5 || report.stats.rect.top + 0.5 < report.rowMain.rect.bottom) {
+        throw new Error(`${label}: row-main/stats must occupy different grid rows`);
+      }
+      for (const node of [report.depth, report.time]) {
+        assertDesignAlignmentApprox(node.rect.top, report.magnitude.rect.top, 0.5, `${label} statistics top alignment`);
+        assertDesignAlignmentApprox(node.rect.bottom, report.magnitude.rect.bottom, 0.5, `${label} statistics bottom alignment`);
+      }
+      assertDesignAlignmentApprox(report.rowGap, report.resolvedSpace1, 0.1, `${label} row gap`);
+      if (mode === "baseline") {
+        assertDesignAlignmentApprox(report.columnGap, report.resolvedSpace1, 0.1, `${label} baseline column gap`);
+      } else {
+        assertDesignAlignmentApprox(report.columnGap, report.resolvedSpace2, 0.1, `${label} column gap`);
+        const expectedGap = Math.max(report.columnGap, report.resolvedSpace2);
+        for (const [name, left, right] of [
+          ["magnitude/depth", report.magnitude, report.depth],
+          ["depth/time", report.depth, report.time],
+        ]) {
+          const gap = actualHorizontalGap(left, right);
+          if (!Number.isFinite(gap) || gap < 0 || gap + 0.5 < expectedGap) throw new Error(`${label} ${name}: adjacent gap ${gap} is below ${expectedGap}`);
+        }
+      }
+    } else {
+      if (report.rootInlineSize <= 420) throw new Error(`${label}: 420px container query must not match`);
+      assertDesignAlignmentApprox(report.rowGap, report.resolvedSpace3, 0.1, `${label} row gap`);
+      assertDesignAlignmentApprox(report.columnGap, report.resolvedSpace3, 0.1, `${label} column gap`);
+    }
+  }
 }
 
 export function assertDesignAlignmentWeatherAutoBaselineProbe(record, expectation, label = record?.manifestKey ?? "weather auto baseline probe") {
@@ -2434,6 +2605,13 @@ export function assertDesignAlignmentManifestCoverage(records) {
   if (new Set(actual).size !== actual.length) throw new Error("design-alignment manifest contains duplicate keys");
 }
 
+export function assertRecentQuakesGapManifestCoverage(records) {
+  const expected = RECENT_QUAKES_GAP_MANIFEST.map(manifestKey);
+  const actual = records.map((record) => record.manifestKey ?? manifestKey(record));
+  assertDeepEqual(actual, expected, "recent-quakes-gap manifest keys");
+  if (new Set(actual).size !== actual.length) throw new Error("recent-quakes-gap manifest contains duplicate keys");
+}
+
 export function assertDesignAlignmentBaselineStructure(records) {
   assertDesignAlignmentManifestCoverage(records);
   for (const record of records) assertRequiredReport(record, { allowLegacyTyphoonNodes: true });
@@ -2470,6 +2648,7 @@ function assertRequiredReport(record, { allowLegacyTyphoonNodes = false } = {}) 
   if (report == null || report.ready !== true || report.settled !== true) throw new Error(`${record.manifestKey}: font/layout not ready`);
   assertDesignAlignmentApprox(report.rootFontSize, 16, 0.1, `${record.manifestKey} root font-size`);
   if (report.viewport.innerWidth !== record.viewport.width || report.viewport.innerHeight !== record.viewport.height || report.viewport.devicePixelRatio !== 1) throw new Error(`${record.manifestKey}: viewport mismatch`);
+  if (report.fontSignature != null) designAlignmentCaptureEnvironmentSignature(record);
   for (const key of ["pageFooters", "naturalHeightProbes", "pagerContracts", "weatherCards"]) {
     if (!Array.isArray(report[key])) throw new Error(`${record.manifestKey}: required ${key} report field missing`);
   }
@@ -2841,6 +3020,11 @@ export function assertDesignAlignmentBaselineIdentity(records, baselineRecords) 
       if (before[key] !== after[key]) throw new Error(`${after.manifestKey}: baseline ${key} mismatch`);
     }
     assertDeepEqual(before.viewport, after.viewport, `${after.manifestKey} baseline viewport`);
+    const afterEnvironment = after.geometry?.fontSignature == null ? null : designAlignmentCaptureEnvironmentSignature(after);
+    const beforeEnvironment = before.geometry?.fontSignature == null ? null : designAlignmentCaptureEnvironmentSignature(before);
+    if (afterEnvironment != null && beforeEnvironment != null) {
+      assertDeepEqual(afterEnvironment, beforeEnvironment, `${after.manifestKey}: baseline/after Chrome/font/DPR`);
+    }
   }
   if (beforeByKey.size !== records.length) throw new Error("design-alignment baseline has extra records");
 }
@@ -2900,6 +3084,28 @@ function heightComparison(beforeLayout, afterLayout) {
   return { base, after, delta };
 }
 
+function recentQuakesComparison(before, after) {
+  if (before == null || after == null) return null;
+  const rects = {};
+  for (const name of ["root", "firstRow", "rowMain", "stats", "magnitude", "depth", "time"]) {
+    rects[name] = Object.fromEntries(["x", "y", "left", "right", "top", "bottom", "width", "height"]
+      .map((key) => [key, numericComparison(before[name]?.rect?.[key], after[name]?.rect?.[key])]));
+  }
+  return {
+    rects,
+    rootInlineSize: numericComparison(before.rootInlineSize, after.rootInlineSize),
+    rowGap: numericComparison(before.rowGap, after.rowGap),
+    columnGap: numericComparison(before.columnGap, after.columnGap),
+    resolvedSpace1: numericComparison(before.resolvedSpace1, after.resolvedSpace1),
+    resolvedSpace2: numericComparison(before.resolvedSpace2, after.resolvedSpace2),
+    resolvedSpace3: numericComparison(before.resolvedSpace3, after.resolvedSpace3),
+    actualGaps: {
+      magnitudeDepth: numericComparison(actualHorizontalGap(before.magnitude, before.depth), actualHorizontalGap(after.magnitude, after.depth)),
+      depthTime: numericComparison(actualHorizontalGap(before.depth, before.time), actualHorizontalGap(after.depth, after.time)),
+    },
+  };
+}
+
 export function buildDesignAlignmentComparison(records, baselineRecords) {
   assertDesignAlignmentBaselineIdentity(records, baselineRecords);
   const beforeByKey = new Map(baselineRecords.map((record) => [record.manifestKey, record]));
@@ -2942,35 +3148,40 @@ export function buildDesignAlignmentComparison(records, baselineRecords) {
         periods: numericComparison(before.forecast?.periods?.rect?.height, after.forecast?.periods?.rect?.height),
         footer: numericComparison(before.forecast?.footer?.rect?.height, after.forecast?.footer?.rect?.height),
       },
+      recentQuakes: recentQuakesComparison(before.recentQuakes, after.recentQuakes),
     };
   });
 }
 
+function assertDesignAlignmentPlanComparison(comparison) {
+  for (const [name, stage] of Object.entries(comparison.stages)) {
+    if (stage.base == null || stage.after == null || stage.delta !== 0) throw new Error(`${comparison.manifestKey}: base/after ${name} stage must remain unchanged`);
+  }
+  const maxPlanKey = comparison.scenario === "legacy-standby-gate"
+    ? new URLSearchParams(comparison.query ?? "").get("maxPlan") : null;
+  const maxPlan = maxPlanKey == null ? null : DESIGN_ALIGNMENT_MAX_PLANS[maxPlanKey];
+  const expectedCompressed = comparison.scenario === "standby-design-alignment-compressed" ? true : maxPlan?.compressed;
+  if (expectedCompressed == null || (maxPlan != null && comparison.viewport.label !== maxPlan.viewport)) throw new Error(`${comparison.manifestKey}: max plan/comparison mismatch`);
+  if (maxPlanKey === "fhdMax") {
+    assertDeepEqual(placementMemberKeys(comparison.placement.base), placementMemberKeys(comparison.placement.after), `${comparison.manifestKey}: base/after visible placement set`);
+    if (comparison.rotation.changed) throw new Error(`${comparison.manifestKey}: base/after rotation changed`);
+    for (const [phase, rotation] of [["base", comparison.rotation.base], ["after", comparison.rotation.after]]) {
+      if (rotation.keys.length !== 0 || rotation.omittedCount !== 0 || rotation.activeKey !== "" || rotation.position !== "") throw new Error(`${comparison.manifestKey}: ${phase} fhdMax rotation must remain empty`);
+    }
+  } else {
+    for (const [name, snapshot] of [["placement", comparison.placement], ["rotation", comparison.rotation], ["visible cards", comparison.visibleCards]]) {
+      if (snapshot.changed) throw new Error(`${comparison.manifestKey}: base/after ${name} changed`);
+    }
+  }
+  if (comparison.typhoonVariant.changed) throw new Error(`${comparison.manifestKey}: base/after Typhoon variant changed`);
+  if (comparison.compressed.base !== expectedCompressed || comparison.compressed.after !== expectedCompressed || comparison.compressed.changed) throw new Error(`${comparison.manifestKey}: base/after compressed state changed; expected ${expectedCompressed}`);
+  const expectedOmittedCount = maxPlanKey === "fhdMax" ? 0 : comparison.rotationOmittedCount.base;
+  if (expectedOmittedCount == null || comparison.rotationOmittedCount.base !== expectedOmittedCount || comparison.rotationOmittedCount.after !== expectedOmittedCount || comparison.rotationOmittedCount.delta !== 0) throw new Error(`${comparison.manifestKey}: base/after omitted rotation count changed`);
+}
+
 export function assertDesignAlignmentComparisonPolicy(comparisons) {
   for (const comparison of comparisons.filter((entry) => entry.scenario === "standby-design-alignment-compressed" || entry.scenario === "legacy-standby-gate")) {
-    for (const [name, stage] of Object.entries(comparison.stages)) {
-      if (stage.base == null || stage.after == null || stage.delta !== 0) throw new Error(`${comparison.manifestKey}: base/after ${name} stage must remain unchanged`);
-    }
-    const maxPlanKey = comparison.scenario === "legacy-standby-gate"
-      ? new URLSearchParams(comparison.query ?? "").get("maxPlan") : null;
-    const maxPlan = maxPlanKey == null ? null : DESIGN_ALIGNMENT_MAX_PLANS[maxPlanKey];
-    const expectedCompressed = comparison.scenario === "standby-design-alignment-compressed" ? true : maxPlan?.compressed;
-    if (expectedCompressed == null || (maxPlan != null && comparison.viewport.label !== maxPlan.viewport)) throw new Error(`${comparison.manifestKey}: max plan/comparison mismatch`);
-    if (maxPlanKey === "fhdMax") {
-      assertDeepEqual(placementMemberKeys(comparison.placement.base), placementMemberKeys(comparison.placement.after), `${comparison.manifestKey}: base/after visible placement set`);
-      if (comparison.rotation.changed) throw new Error(`${comparison.manifestKey}: base/after rotation changed`);
-      for (const [phase, rotation] of [["base", comparison.rotation.base], ["after", comparison.rotation.after]]) {
-        if (rotation.keys.length !== 0 || rotation.omittedCount !== 0 || rotation.activeKey !== "" || rotation.position !== "") throw new Error(`${comparison.manifestKey}: ${phase} fhdMax rotation must remain empty`);
-      }
-    } else {
-      for (const [name, snapshot] of [["placement", comparison.placement], ["rotation", comparison.rotation], ["visible cards", comparison.visibleCards]]) {
-        if (snapshot.changed) throw new Error(`${comparison.manifestKey}: base/after ${name} changed`);
-      }
-    }
-    if (comparison.typhoonVariant.changed) throw new Error(`${comparison.manifestKey}: base/after Typhoon variant changed`);
-    if (comparison.compressed.base !== expectedCompressed || comparison.compressed.after !== expectedCompressed || comparison.compressed.changed) throw new Error(`${comparison.manifestKey}: base/after compressed state changed; expected ${expectedCompressed}`);
-    const expectedOmittedCount = maxPlanKey === "fhdMax" ? 0 : comparison.rotationOmittedCount.base;
-    if (expectedOmittedCount == null || comparison.rotationOmittedCount.base !== expectedOmittedCount || comparison.rotationOmittedCount.after !== expectedOmittedCount || comparison.rotationOmittedCount.delta !== 0) throw new Error(`${comparison.manifestKey}: base/after omitted rotation count changed`);
+    assertDesignAlignmentPlanComparison(comparison);
   }
   for (const target of [
     { scenario: "standby-vpwp50-forecast", viewport: "1280x720", tick: null, footerDelta: 9 },
@@ -2985,6 +3196,47 @@ export function assertDesignAlignmentComparisonPolicy(comparisons) {
     assertDesignAlignmentApprox(comparison.forecastGeometry.footer.delta, target.footerDelta, 1, `${target.scenario}/${target.viewport} forecast footer height delta`);
     assertDesignAlignmentApprox(comparison.forecastGeometry.atom.delta, 0, 1, `${target.scenario}/${target.viewport} forecast atom height delta`);
     assertDesignAlignmentApprox(comparison.forecastNaturalHeight.delta, target.footerDelta, 1, `${target.scenario}/${target.viewport} forecast natural height delta`);
+  }
+}
+
+export function assertRecentQuakesGapComparisonPolicy(comparisons) {
+  if (comparisons.length !== RECENT_QUAKES_GAP_TARGETS.length) throw new Error(`recent-quakes-gap comparison count: expected ${RECENT_QUAKES_GAP_TARGETS.length}, got ${comparisons.length}`);
+  for (const target of RECENT_QUAKES_GAP_TARGETS) {
+    const matches = comparisons.filter((comparison) => matchesRecentQuakesGapTarget(comparison, target));
+    if (matches.length !== 1) throw new Error(`${target.name}: expected exactly one RecentQuakes comparison, got ${matches.length}`);
+    const comparison = matches[0];
+    const recentQuakes = comparison.recentQuakes;
+    if (recentQuakes == null) throw new Error(`${comparison.manifestKey}: RecentQuakes comparison missing`);
+    for (const [name, token] of Object.entries({
+      space1: recentQuakes.resolvedSpace1,
+      space2: recentQuakes.resolvedSpace2,
+      space3: recentQuakes.resolvedSpace3,
+    })) {
+      if (token.base == null || token.after == null || token.delta !== 0) throw new Error(`${comparison.manifestKey}: RecentQuakes ${name} base/after changed`);
+    }
+    if (target.narrow) {
+      assertDesignAlignmentApprox(recentQuakes.columnGap.base, recentQuakes.resolvedSpace1.base, 0.1, `${comparison.manifestKey}: baseline column gap`);
+      assertDesignAlignmentApprox(recentQuakes.columnGap.after, recentQuakes.resolvedSpace2.after, 0.1, `${comparison.manifestKey}: after column gap`);
+      for (const [name, gap] of Object.entries(recentQuakes.actualGaps)) {
+        const expectedGap = Math.max(recentQuakes.columnGap.after, recentQuakes.resolvedSpace2.after);
+        if (!Number.isFinite(gap.after) || gap.after < 0 || gap.after + 0.5 < expectedGap) throw new Error(`${comparison.manifestKey}: RecentQuakes ${name} after gap ${gap.after} is below ${expectedGap}`);
+      }
+    } else {
+      for (const [node, properties] of Object.entries(recentQuakes.rects)) {
+        for (const [property, value] of Object.entries(properties)) {
+          if (value.base == null || value.after == null || value.delta !== 0) throw new Error(`${comparison.manifestKey}: RecentQuakes ${node}.${property} base/after must remain 0px`);
+        }
+      }
+    }
+    const plan = target.maxPlan == null ? target : DESIGN_ALIGNMENT_MAX_PLANS[target.maxPlan];
+    for (const [name, stage] of Object.entries(comparison.stages)) {
+      if (stage.base !== plan.stage || stage.after !== plan.stage) throw new Error(`${comparison.manifestKey}: RecentQuakes ${name} stage must remain ${plan.stage}`);
+    }
+    if (target.maxPlan != null) {
+      assertDesignAlignmentPlanComparison(comparison);
+    } else if (comparison.compressed.base !== plan.compressed || comparison.compressed.after !== plan.compressed || comparison.compressed.changed) {
+      throw new Error(`${comparison.manifestKey}: RecentQuakes compressed state must remain ${plan.compressed}`);
+    }
   }
 }
 
@@ -3276,16 +3528,16 @@ export function assertDesignAlignmentPagerContracts(records, baseline) {
   }
 }
 
-export function resolveDesignAlignmentCaptureMode({ writeBaseline, baselineReport }) {
+export function resolveDesignAlignmentCaptureMode({ writeBaseline, baselineReport }, suite = "design-alignment") {
   if (writeBaseline != null && baselineReport != null) throw new Error("choose either --write-baseline or --baseline-report");
   if (writeBaseline != null) return "baseline";
   if (baselineReport != null) return "after";
-  throw new Error("design-alignment suite requires --write-baseline or --baseline-report");
+  throw new Error(`${suite} suite requires --write-baseline or --baseline-report`);
 }
 
 export function resolveDesignAlignmentExecutionMode({ suite, assertFrom, writeBaseline, baselineReport }) {
   if (assertFrom == null) return "capture";
-  if (suite !== "design-alignment") throw new Error("--assert-from requires --suite design-alignment");
+  if (!["design-alignment", RECENT_QUAKES_GAP_SUITE].includes(suite)) throw new Error("--assert-from requires --suite design-alignment or recent-quakes-gap");
   if (writeBaseline != null) throw new Error("--assert-from cannot be combined with --write-baseline");
   if (baselineReport == null) throw new Error("--assert-from requires --baseline-report");
   return "assert-from";
@@ -3295,14 +3547,29 @@ export function createDesignAlignmentRecordsArtifact({ mode, records, baseline }
   return { schemaVersion: CAPTURE_SCHEMA_VERSION, suite: "design-alignment", mode, records, baseline };
 }
 
+export function createRecentQuakesGapRecordsArtifact({ mode, records, baseline }) {
+  return { schemaVersion: CAPTURE_SCHEMA_VERSION, suite: RECENT_QUAKES_GAP_SUITE, mode, records, baseline };
+}
+
 export function isDesignAlignmentScreenshotArtifact(name) {
   return name.startsWith("design-alignment-") && name.endsWith(".png");
+}
+
+export function isRecentQuakesGapScreenshotArtifact(name) {
+  return name.startsWith(`${RECENT_QUAKES_GAP_SUITE}-`) && name.endsWith(".png");
 }
 
 async function cleanDesignAlignmentScreenshots(outDir) {
   const entries = await readdir(outDir, { withFileTypes: true });
   await Promise.all(entries
     .filter((entry) => entry.isFile() && isDesignAlignmentScreenshotArtifact(entry.name))
+    .map((entry) => rm(join(outDir, entry.name), { force: true })));
+}
+
+async function cleanRecentQuakesGapScreenshots(outDir) {
+  const entries = await readdir(outDir, { withFileTypes: true });
+  await Promise.all(entries
+    .filter((entry) => entry.isFile() && isRecentQuakesGapScreenshotArtifact(entry.name))
     .map((entry) => rm(join(outDir, entry.name), { force: true })));
 }
 
@@ -3339,6 +3606,21 @@ export function assertDesignAlignmentManifest(records, { mode, baseline = null }
   return comparison;
 }
 
+export function assertRecentQuakesGapManifest(records, { mode, baseline = null }) {
+  if (mode !== "baseline" && mode !== "after") throw new Error(`unknown recent-quakes-gap assertion mode: ${mode}`);
+  assertRecentQuakesGapManifestCoverage(records);
+  assertDesignAlignmentRecentQuakesReports(records, { mode });
+  if (mode === "baseline") return null;
+  if (baseline == null || baseline.suite !== RECENT_QUAKES_GAP_SUITE) throw new Error("recent-quakes-gap baseline suite mismatch");
+  if (baseline.mode != null && baseline.mode !== "baseline") throw new Error("recent-quakes-gap baseline mode mismatch");
+  const baselineRecords = baseline.records ?? [];
+  assertRecentQuakesGapManifestCoverage(baselineRecords);
+  assertDesignAlignmentRecentQuakesReports(baselineRecords, { mode: "baseline" });
+  const comparison = buildDesignAlignmentComparison(records, baselineRecords);
+  assertRecentQuakesGapComparisonPolicy(comparison);
+  return comparison;
+}
+
 export function assertDesignAlignmentSavedRecords(saved, baseline) {
   if (saved == null || saved.suite !== "design-alignment" || !Array.isArray(saved.records)) throw new Error("invalid design-alignment records file");
   if (saved.mode != null && saved.mode !== "after") throw new Error("design-alignment records file is not an after capture");
@@ -3360,6 +3642,27 @@ async function runDesignAlignmentAssertionsFromFile(options) {
   process.stdout.write(`${JSON.stringify(report, null, 2)}\n`);
 }
 
+export function assertRecentQuakesGapSavedRecords(saved, baseline) {
+  if (saved == null || saved.suite !== RECENT_QUAKES_GAP_SUITE || !Array.isArray(saved.records)) throw new Error("invalid recent-quakes-gap records file");
+  if (saved.mode != null && saved.mode !== "after") throw new Error("recent-quakes-gap records file is not an after capture");
+  const viewportMode = saved.records[0]?.capture?.viewportMode;
+  assertCaptureReport(saved, { expectSuite: RECENT_QUAKES_GAP_SUITE, expectViewportMode: viewportMode });
+  assertCaptureReport(baseline, { expectSuite: RECENT_QUAKES_GAP_SUITE, expectViewportMode: viewportMode });
+  const baseAfterComparison = assertRecentQuakesGapManifest(saved.records, { mode: "after", baseline });
+  return { schemaVersion: CAPTURE_SCHEMA_VERSION, suite: RECENT_QUAKES_GAP_SUITE, mode: "after", records: saved.records, baseAfterComparison };
+}
+
+async function runRecentQuakesGapAssertionsFromFile(options) {
+  const assertFrom = resolve(options.assertFrom);
+  const baselineReport = resolve(options.baselineReport);
+  const [saved, baseline] = await Promise.all([
+    readFile(assertFrom, "utf8").then(JSON.parse),
+    readFile(baselineReport, "utf8").then(JSON.parse),
+  ]);
+  const report = { ...assertRecentQuakesGapSavedRecords(saved, baseline), assertFrom, baselineReport };
+  process.stdout.write(`${JSON.stringify(report, null, 2)}\n`);
+}
+
 async function runDesignAlignmentSuite({ options, chrome, profileDir, baseUrl, outDir, viewportMode }) {
   const mode = resolveDesignAlignmentCaptureMode(options);
   await cleanDesignAlignmentScreenshots(outDir);
@@ -3376,6 +3679,27 @@ async function runDesignAlignmentSuite({ options, chrome, profileDir, baseUrl, o
   await writeFile(recordsArtifactPath, `${JSON.stringify(createDesignAlignmentRecordsArtifact({ mode, records, baseline }), null, 2)}\n`);
   const baseAfterComparison = assertDesignAlignmentManifest(records, { mode, baseline });
   const report = { schemaVersion: CAPTURE_SCHEMA_VERSION, suite: "design-alignment", mode, recordsArtifactPath, records, ...(baseAfterComparison == null ? {} : { baseAfterComparison }) };
+  if (options.writeBaseline != null) await writeFile(options.writeBaseline, `${JSON.stringify(report, null, 2)}\n`);
+  process.stdout.write(`${JSON.stringify(report, null, 2)}\n`);
+}
+
+async function runRecentQuakesGapSuite({ options, chrome, profileDir, baseUrl, outDir, viewportMode }) {
+  const mode = resolveDesignAlignmentCaptureMode(options, RECENT_QUAKES_GAP_SUITE);
+  await cleanRecentQuakesGapScreenshots(outDir);
+  const records = [];
+  for (const entry of RECENT_QUAKES_GAP_MANIFEST) {
+    const url = designAlignmentUrl(baseUrl, entry);
+    records.push(await captureDesignAlignmentPage({
+      chrome, profileDir, url, viewport: parseViewport(entry.viewport), viewportMode, outDir, entry,
+      artifactPrefix: RECENT_QUAKES_GAP_SUITE,
+    }));
+  }
+  const baseline = options.baselineReport == null ? null : JSON.parse(await readFile(options.baselineReport, "utf8"));
+  if (baseline != null) assertCaptureReport(baseline, { expectSuite: RECENT_QUAKES_GAP_SUITE, expectViewportMode: viewportMode });
+  const recordsArtifactPath = join(outDir, `${RECENT_QUAKES_GAP_SUITE}-records.json`);
+  await writeFile(recordsArtifactPath, `${JSON.stringify(createRecentQuakesGapRecordsArtifact({ mode, records, baseline }), null, 2)}\n`);
+  const baseAfterComparison = assertRecentQuakesGapManifest(records, { mode, baseline });
+  const report = { schemaVersion: CAPTURE_SCHEMA_VERSION, suite: RECENT_QUAKES_GAP_SUITE, mode, recordsArtifactPath, records, ...(baseAfterComparison == null ? {} : { baseAfterComparison }) };
   if (options.writeBaseline != null) await writeFile(options.writeBaseline, `${JSON.stringify(report, null, 2)}\n`);
   process.stdout.write(`${JSON.stringify(report, null, 2)}\n`);
 }
@@ -3419,9 +3743,10 @@ async function main() {
     process.stdout.write(`${JSON.stringify({ schemaVersion: CAPTURE_SCHEMA_VERSION, asserted: resolve(options.assertCaptureReport), suite: result.suite, cells: result.records.length, mismatches: result.mismatchCount, ...(result.branch == null ? {} : { branch: result.branch }) }, null, 2)}\n`);
     return;
   }
-  if (options.suite != null && !["design-alignment", CENTER_STACK_PREGATE_SUITE].includes(options.suite)) throw new Error("unknown suite");
+  if (options.suite != null && !["design-alignment", RECENT_QUAKES_GAP_SUITE, CENTER_STACK_PREGATE_SUITE].includes(options.suite)) throw new Error("unknown suite");
   if (resolveDesignAlignmentExecutionMode(options) === "assert-from") {
-    await runDesignAlignmentAssertionsFromFile(options);
+    if (options.suite === RECENT_QUAKES_GAP_SUITE) await runRecentQuakesGapAssertionsFromFile(options);
+    else await runDesignAlignmentAssertionsFromFile(options);
     return;
   }
   const fixtureDefaults = {
@@ -3454,6 +3779,10 @@ async function main() {
   try {
     if (options.suite === "design-alignment") {
       await runDesignAlignmentSuite({ options, chrome, profileDir, baseUrl, outDir, viewportMode });
+      return;
+    }
+    if (options.suite === RECENT_QUAKES_GAP_SUITE) {
+      await runRecentQuakesGapSuite({ options, chrome, profileDir, baseUrl, outDir, viewportMode });
       return;
     }
     if (options.suite === CENTER_STACK_PREGATE_SUITE) {

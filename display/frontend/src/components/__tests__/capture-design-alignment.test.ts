@@ -106,6 +106,16 @@ interface DesignAlignmentComparison {
   cardHeights: { delta: Record<string, number | null> };
   forecastNaturalHeight: NumericComparison;
   forecastGeometry: Record<"header" | "atom" | "periods" | "footer", NumericComparison>;
+  recentQuakes: {
+    rects: Record<string, Record<string, NumericComparison>>;
+    rootInlineSize: NumericComparison;
+    rowGap: NumericComparison;
+    columnGap: NumericComparison;
+    resolvedSpace1: NumericComparison;
+    resolvedSpace2: NumericComparison;
+    resolvedSpace3: NumericComparison;
+    actualGaps: Record<string, NumericComparison>;
+  } | null;
 }
 
 interface CaptureOptions {
@@ -121,6 +131,7 @@ const captureScriptPath = join(__dirname, "../../../../scripts/capture-legacy-st
 const captureModuleUrl = pathToFileURL(captureScriptPath).href;
 const capture = await import(/* @vite-ignore */ captureModuleUrl) as unknown as {
   DESIGN_ALIGNMENT_MANIFEST: ManifestEntry[];
+  RECENT_QUAKES_GAP_MANIFEST: ManifestEntry[];
   DESIGN_ALIGNMENT_COMPRESSED_PLANS: Record<"1280x720" | "960x620", CompressedPlan>;
   DESIGN_ALIGNMENT_MAX_PLANS: Record<"fhdMax" | "hdMax", MaxPlan>;
   DESIGN_ALIGNMENT_MAX_PLAN: MaxPlan;
@@ -129,6 +140,7 @@ const capture = await import(/* @vite-ignore */ captureModuleUrl) as unknown as 
   DESIGN_ALIGNMENT_WEATHER_AUTO_PROBES: Record<"weatherAutoFooterNormal" | "weatherAutoFooterCompressed", WeatherAutoProbePlan>;
   DESIGN_ALIGNMENT_REPORT_EXPRESSION: string;
   parseCaptureArgs(argv: string[]): CaptureOptions;
+  viewportModeForSuite(options: CaptureOptions): "legacy-control" | "calibrated";
   normalizeDesignAlignmentUrl(value: string): string;
   assertDesignAlignmentManifestCoverage(records: Array<Record<string, unknown>>): void;
   assertDesignAlignmentBaselineStructure(records: Array<Record<string, unknown>>): void;
@@ -147,13 +159,19 @@ const capture = await import(/* @vite-ignore */ captureModuleUrl) as unknown as 
   assertForecastContinuationGeometry(geometry: Record<string, unknown>, diagnostics: Record<string, string>): void;
   assertDesignAlignmentCompressedStage(layout: Record<string, unknown>, plan: CompressedPlan, label: string): void;
   assertDesignAlignmentLiveMeasurementWidths(record: Record<string, unknown>): void;
+  assertDesignAlignmentRecentQuakesReports(records: Array<Record<string, unknown>>, options: { mode: "baseline" | "after" }): void;
+  assertRecentQuakesGapManifestCoverage(records: Array<Record<string, unknown>>): void;
+  assertRecentQuakesGapManifest(records: Array<Record<string, unknown>>, options: { mode: "baseline" | "after"; baseline?: Record<string, unknown> | null }): DesignAlignmentComparison[] | null;
+  assertRecentQuakesGapComparisonPolicy(comparisons: DesignAlignmentComparison[]): void;
   buildDesignAlignmentComparison(records: Array<Record<string, unknown>>, baseline: Array<Record<string, unknown>>): DesignAlignmentComparison[];
   assertDesignAlignmentComparisonPolicy(comparisons: DesignAlignmentComparison[]): void;
   resolveDesignAlignmentCaptureMode(options: { writeBaseline?: string | null; baselineReport?: string | null }): "baseline" | "after";
   resolveDesignAlignmentExecutionMode(options: CaptureOptions): "capture" | "assert-from";
   createDesignAlignmentRecordsArtifact(options: { mode: "baseline" | "after"; records: Array<Record<string, unknown>>; baseline: Record<string, unknown> | null }): Record<string, unknown>;
+  createRecentQuakesGapRecordsArtifact(options: { mode: "baseline" | "after"; records: Array<Record<string, unknown>>; baseline: Record<string, unknown> | null }): Record<string, unknown>;
   requiresDesignAlignmentWidthMatch(card: { key: string; surface: string }): boolean;
   isDesignAlignmentScreenshotArtifact(name: string): boolean;
+  isRecentQuakesGapScreenshotArtifact(name: string): boolean;
   isDesignAlignmentSingleVisualLine(node: Record<string, unknown>, fragments?: Array<Record<string, unknown>>): boolean;
   assertDesignAlignmentManifest(records: Array<Record<string, unknown>>, options: { mode: "baseline" | "after"; baseline?: Record<string, unknown> | null }): DesignAlignmentComparison[] | null;
   assertDesignAlignmentBriefingGrid(grid: Record<string, unknown>, expectation: Record<string, number>, label?: string): void;
@@ -171,6 +189,46 @@ function box(left: number, top: number, width: number, height: number) {
     rect: { x: left, y: top, left, right: left + width, top, bottom: top + height, width, height },
     clientWidth: width, scrollWidth: width, clientHeight: height, scrollHeight: height,
     overflowX: 0, overflowY: 0, borderTop: 0, borderRight: 0, borderBottom: 0, borderLeft: 0,
+  };
+}
+
+const TEST_FONT_FAMILY = '"Noto Sans JP Var", sans-serif';
+
+function captureBrowser() {
+  return { product: "Chrome/140.0.0.0", revision: "fixture-revision" };
+}
+
+function fontSignature(hasRecentQuakes: boolean) {
+  return {
+    status: "loaded",
+    rootFamily: TEST_FONT_FAMILY,
+    recentQuakesFamily: hasRecentQuakes ? TEST_FONT_FAMILY : null,
+    recentQuakesStatsFamily: hasRecentQuakes ? TEST_FONT_FAMILY : null,
+  };
+}
+
+function recentQuakesGeometry(narrow: boolean, compressed: boolean, columnGap: number | null = null) {
+  const space1 = compressed ? 2 : 4;
+  const space2 = compressed ? 4 : 8;
+  const space3 = compressed ? 6 : 12;
+  const gap = columnGap ?? (narrow ? space1 : space3);
+  const statsTop = narrow ? 22 : 0;
+  const magnitude = box(180, statsTop, 38, 16);
+  const depth = box(218 + gap, statsTop, 42, 16);
+  const time = box(260 + gap * 2, statsTop, 90, 16);
+  return {
+    root: box(0, 0, narrow ? 400 : 576, narrow ? 42 : 22),
+    firstRow: box(0, 0, narrow ? 400 : 576, narrow ? 42 : 22),
+    rowMain: box(0, 0, narrow ? 400 : 170, 16),
+    stats: box(180, statsTop, 170 + gap * 2, 16),
+    magnitude, depth, time,
+    rootInlineSize: narrow ? 400 : 576,
+    rowGap: narrow ? space1 : space3,
+    columnGap: gap,
+    resolvedSpace1: space1,
+    resolvedSpace2: space2,
+    resolvedSpace3: space3,
+    statOrder: ["magnitude", "depth", "time"],
   };
 }
 
@@ -333,6 +391,10 @@ function baselineStructureRecords() {
       || (entry.scenario === "standby-design-alignment-compressed" && viewport === "960x620" && entry.rotationTick === compressedPlan?.forecastCaptureTick);
     const briefingNeeded = entry.scenario === "standby-briefing-design-alignment" || activeKey === "briefing";
     const typhoonNeeded = entry.scenario.startsWith("standby-vpta50-") || activeKey === "typhoon";
+    const recentQuakesTarget = entry.rotationTick === 0 && entry.cardPageTick === 0 && (
+      (entry.scenario === "legacy-standby-gate" && (entry.query?.includes("maxPlan=fhdMax") || entry.query?.includes("maxPlan=hdMax")))
+      || (entry.scenario === "standby-design-alignment-compressed" && viewport === "960x620")
+    );
     const tone = entry.scenario === "standby-vpta50-probability-normal" ? "normal"
       : entry.scenario === "standby-vpta50-probability-muted" ? "muted" : null;
     return {
@@ -340,8 +402,10 @@ function baselineStructureRecords() {
       manifestKey: [entry.scenario, viewport, entry.rotationTick ?? "-", entry.cardPageTick ?? "-", entry.query ?? ""].join("|"),
       viewport: { label: viewport, width, height },
       urlIdentity: `/preview.html?nav=0#${entry.scenario}`,
+      browser: captureBrowser(),
       geometry: {
         ready: true, settled: true, rootFontSize: 16, viewport: { innerWidth: width, innerHeight: height, devicePixelRatio: 1 },
+        fontSignature: fontSignature(recentQuakesTarget),
         tokens: { roleMuted: "rgb(120, 120, 120)" },
         layout: {
           ladderStage: plan?.stage ?? 0, measurementGeometryStage: plan?.stage ?? 0, compressed,
@@ -355,10 +419,28 @@ function baselineStructureRecords() {
         forecast: forecastNeeded ? baselineForecast() : null,
         typhoon: typhoonNeeded ? baselineTyphoon(entry.scenario, compressed ? "compact" : "full", tone) : null,
         weatherAuto: weatherAutoScenario == null ? null : legacyBaselineWeatherAuto(weatherAutoScenario),
+        recentQuakes: recentQuakesTarget ? recentQuakesGeometry(viewport === "960x620", compressed) : null,
         pageFooters: [], naturalHeightProbes: [], pagerContracts: [], weatherCards: [],
       },
     };
   });
+}
+
+function recentQuakesGapRecords(mode: "baseline" | "after") {
+  const records = baselineStructureRecords();
+  const selected = capture.RECENT_QUAKES_GAP_MANIFEST.map((entry) => {
+    const record = records.find((candidate) => candidate.scenario === entry.scenario
+      && candidate.viewport.label === entry.viewport && candidate.rotationTick === entry.rotationTick
+      && candidate.cardPageTick === entry.cardPageTick && candidate.query === entry.query);
+    if (record == null) throw new Error(`RecentQuakes shared fixture missing: ${entry.scenario}/${entry.viewport}`);
+    return record;
+  });
+  if (mode === "after") {
+    const narrow = selected.find((record) => record.viewport.label === "960x620");
+    if (narrow == null) throw new Error("960 RecentQuakes shared fixture missing");
+    narrow.geometry.recentQuakes = recentQuakesGeometry(true, true, 4);
+  }
+  return selected;
 }
 
 function comparisonRecord({ scenario, viewport, tick, naturalHeight, headerHeight, atomHeight, periodsHeight, footerHeight }: {
@@ -384,7 +466,11 @@ function comparisonRecord({ scenario, viewport, tick, naturalHeight, headerHeigh
     cardPageTick: 0,
     query: null,
     urlIdentity: `/preview.html?nav=0${tick == null ? "" : `&rotationTick=${tick}`}#${scenario}`,
+    browser: captureBrowser(),
     geometry: {
+      viewport: { innerWidth: width, innerHeight: height, devicePixelRatio: 1 },
+      fontSignature: fontSignature(false),
+      recentQuakes: null,
       layout: {
         ladderStage: compressed ? 3 : 0,
         measurementGeometryStage: compressed ? 3 : 0,
@@ -441,16 +527,22 @@ function maxComparisonRecords() {
         viewport: { label: plan.viewport, width, height },
         rotationTick, cardPageTick: 0, query,
         urlIdentity: `/preview.html?nav=0&${query}#legacy-standby-gate`,
-        geometry: { layout: {
-          ladderStage: plan.stage, measurementGeometryStage: plan.stage, compressed: plan.compressed,
-          placementLeft: observation.placementLeft, placementRight: observation.placementRight,
-          placementCenter: observation.placementCenter, rotationKeys: observation.rotationKeys,
-          rotationOmittedCount: 0,
-          rotationActiveKey: activeKey,
-          rotationPosition: activeIndex < 0 ? "" : `${activeIndex + 1}/${observation.rotationKeys.length}`,
-          typhoonVariant: observation.typhoonVariant, visibleCards,
-          measurementWidths: Object.fromEntries(visibleCards.map((card) => [card.key, 300])),
-        } },
+        browser: captureBrowser(),
+        geometry: {
+          viewport: { innerWidth: width, innerHeight: height, devicePixelRatio: 1 },
+          fontSignature: fontSignature(rotationTick === 0),
+          recentQuakes: rotationTick === 0 ? recentQuakesGeometry(false, plan.compressed) : null,
+          layout: {
+            ladderStage: plan.stage, measurementGeometryStage: plan.stage, compressed: plan.compressed,
+            placementLeft: observation.placementLeft, placementRight: observation.placementRight,
+            placementCenter: observation.placementCenter, rotationKeys: observation.rotationKeys,
+            rotationOmittedCount: 0,
+            rotationActiveKey: activeKey,
+            rotationPosition: activeIndex < 0 ? "" : `${activeIndex + 1}/${observation.rotationKeys.length}`,
+            typhoonVariant: observation.typhoonVariant, visibleCards,
+            measurementWidths: Object.fromEntries(visibleCards.map((card) => [card.key, 300])),
+          },
+        },
       };
     });
   });
@@ -573,6 +665,9 @@ function forecastLabelRecord(scenario: string, viewport: "1280x720" | "960x620",
 describe("design-alignment capture contract", () => {
   it("pins every page/rotation manifest cell and ignores only URL origin", () => {
     expect(() => new Function(`return ${capture.DESIGN_ALIGNMENT_REPORT_EXPRESSION}`)).not.toThrow();
+    expect(capture.DESIGN_ALIGNMENT_REPORT_EXPRESSION).toContain("fontSignature: {");
+    expect(capture.DESIGN_ALIGNMENT_REPORT_EXPRESSION).toContain("status: document.fonts?.status ?? null");
+    expect(capture.DESIGN_ALIGNMENT_REPORT_EXPRESSION).toContain("recentQuakesStatsFamily: recentQuakes?.statsFontFamily ?? null");
     const records = capture.DESIGN_ALIGNMENT_MANIFEST.map((entry) => ({ ...entry, viewport: { label: entry.viewport } }));
     expect(() => capture.assertDesignAlignmentManifestCoverage(records)).not.toThrow();
     expect(() => capture.assertDesignAlignmentManifestCoverage(records.slice(1))).toThrow(/manifest keys/);
@@ -614,6 +709,13 @@ describe("design-alignment capture contract", () => {
     });
     expect(capture.DESIGN_ALIGNMENT_MANIFEST.filter((entry) => entry.scenario === "legacy-standby-gate").map((entry) => [entry.viewport, entry.rotationTick, entry.query]))
       .toEqual([["1920x1080", 0, "gateScenario=max&maxPlan=fhdMax"], ["1280x720", 0, "gateScenario=max&maxPlan=hdMax"], ["1280x720", 1, "gateScenario=max&maxPlan=hdMax"], ["1280x720", 2, "gateScenario=max&maxPlan=hdMax"]]);
+    expect(capture.RECENT_QUAKES_GAP_MANIFEST.map((entry) => [entry.scenario, entry.viewport, entry.rotationTick, entry.cardPageTick, entry.query]))
+      .toEqual([
+        ["legacy-standby-gate", "1920x1080", 0, 0, "gateScenario=max&maxPlan=fhdMax"],
+        ["legacy-standby-gate", "1280x720", 0, 0, "gateScenario=max&maxPlan=hdMax"],
+        ["standby-design-alignment-compressed", "960x620", 0, 0, null],
+      ]);
+    expect(capture.RECENT_QUAKES_GAP_MANIFEST.every((entry) => capture.DESIGN_ALIGNMENT_MANIFEST.includes(entry))).toBe(true);
     expect(capture.DESIGN_ALIGNMENT_MANIFEST.filter((entry) => entry.scenario === "standby-vpwp50-forecast").map((entry) => entry.cardPageTick)).toEqual([0, 16]);
     expect(capture.DESIGN_ALIGNMENT_MANIFEST.filter((entry) => Object.hasOwn(capture.DESIGN_ALIGNMENT_WEATHER_AUTO_PROBES, entry.scenario)).map((entry) => entry.scenario))
       .toEqual(["weatherAutoFooterNormal", "weatherAutoFooterCompressed"]);
@@ -635,11 +737,38 @@ describe("design-alignment capture contract", () => {
   });
 
   it("compares baseline identity without binding the ephemeral origin", () => {
-    const after = [{ manifestKey: "a", scenario: "s", rotationTick: 0, cardPageTick: 0, query: null, urlIdentity: "/preview.html?nav=0#s", viewport: { label: "1280x720", width: 1280, height: 720 } }];
+    const after = [{
+      manifestKey: "a", scenario: "s", rotationTick: 0, cardPageTick: 0, query: null,
+      urlIdentity: "/preview.html?nav=0#s", viewport: { label: "1280x720", width: 1280, height: 720 },
+      browser: captureBrowser(),
+      geometry: {
+        viewport: { innerWidth: 1280, innerHeight: 720, devicePixelRatio: 1 },
+        fontSignature: fontSignature(false), recentQuakes: null,
+      },
+    }];
     const before = structuredClone(after);
     expect(() => capture.assertDesignAlignmentBaselineIdentity(after, before)).not.toThrow();
+    const legacyBaseline = structuredClone(after);
+    delete (legacyBaseline[0]!.geometry as Record<string, unknown>).fontSignature;
+    expect(() => capture.assertDesignAlignmentBaselineIdentity(after, legacyBaseline)).not.toThrow();
     before[0]!.urlIdentity = "/preview.html?nav=1#s";
     expect(() => capture.assertDesignAlignmentBaselineIdentity(after, before)).toThrow(/urlIdentity/);
+
+    const differentProduct = structuredClone(after);
+    differentProduct[0]!.browser.product = "Chrome/141.0.0.0";
+    expect(() => capture.assertDesignAlignmentBaselineIdentity(after, differentProduct)).toThrow(/Chrome\/font\/DPR/);
+    const differentRevision = structuredClone(after);
+    differentRevision[0]!.browser.revision = "other-revision";
+    expect(() => capture.assertDesignAlignmentBaselineIdentity(after, differentRevision)).toThrow(/Chrome\/font\/DPR/);
+    const differentFontFamily = structuredClone(after);
+    differentFontFamily[0]!.geometry.fontSignature.rootFamily = "sans-serif";
+    expect(() => capture.assertDesignAlignmentBaselineIdentity(after, differentFontFamily)).toThrow(/Chrome\/font\/DPR/);
+    const differentFontStatus = structuredClone(after);
+    differentFontStatus[0]!.geometry.fontSignature.status = "loading";
+    expect(() => capture.assertDesignAlignmentBaselineIdentity(after, differentFontStatus)).toThrow(/font status/);
+    const differentDpr = structuredClone(after);
+    differentDpr[0]!.geometry.viewport.devicePixelRatio = 2;
+    expect(() => capture.assertDesignAlignmentBaselineIdentity(after, differentDpr)).toThrow(/DPR/);
   });
 
   it("pins only stage, compressed state, and tick coverage for max plans", () => {
@@ -915,6 +1044,14 @@ describe("design-alignment capture contract", () => {
     expect(capture.createDesignAlignmentRecordsArtifact({ mode: "after", records: [{ id: "after" }], baseline })).toEqual({
       schemaVersion: 2, suite: "design-alignment", mode: "after", records: [{ id: "after" }], baseline,
     });
+    const gapOptions = capture.parseCaptureArgs([
+      "--suite", "recent-quakes-gap", "--assert-from", "gap-after.json", "--baseline-report", "gap-baseline.json",
+    ]);
+    expect(capture.resolveDesignAlignmentExecutionMode(gapOptions)).toBe("assert-from");
+    expect(capture.viewportModeForSuite(gapOptions)).toBe("calibrated");
+    expect(capture.createRecentQuakesGapRecordsArtifact({ mode: "after", records: [{ id: "after" }], baseline })).toEqual({
+      schemaVersion: 2, suite: "recent-quakes-gap", mode: "after", records: [{ id: "after" }], baseline,
+    });
     const source = readFileSync(captureScriptPath, "utf8");
     expect(source.indexOf("if (resolveDesignAlignmentExecutionMode(options) === \"assert-from\")"))
       .toBeLessThan(source.indexOf("const chrome = process.env.CHROME_BIN"));
@@ -925,6 +1062,8 @@ describe("design-alignment capture contract", () => {
     expect(capture.isDesignAlignmentScreenshotArtifact("design-alignment-standby-r2-p1.png")).toBe(true);
     expect(capture.isDesignAlignmentScreenshotArtifact("design-alignment-records.json")).toBe(false);
     expect(capture.isDesignAlignmentScreenshotArtifact("legacy-standby-max.png")).toBe(false);
+    expect(capture.isRecentQuakesGapScreenshotArtifact("recent-quakes-gap-standby-r0-p0.png")).toBe(true);
+    expect(capture.isRecentQuakesGapScreenshotArtifact("design-alignment-standby-r0-p0.png")).toBe(false);
     const source = readFileSync(captureScriptPath, "utf8");
     expect(source.indexOf("await cleanDesignAlignmentScreenshots(outDir)"))
       .toBeLessThan(source.indexOf("const records = []"));
@@ -936,6 +1075,10 @@ describe("design-alignment capture contract", () => {
     expect(() => capture.resolveDesignAlignmentCaptureMode({ writeBaseline: "a", baselineReport: "b" })).toThrow(/either/);
     const records = baselineStructureRecords();
     expect(capture.assertDesignAlignmentManifest(records, { mode: "baseline" })).toBeNull();
+    const legacyEnvironment = structuredClone(records);
+    for (const record of legacyEnvironment) delete (record.geometry as Record<string, unknown>).fontSignature;
+    expect(capture.assertDesignAlignmentManifest(legacyEnvironment, { mode: "baseline" })).toBeNull();
+    expect(() => capture.buildDesignAlignmentComparison(records, legacyEnvironment)).not.toThrow();
     const wrongFhdStage = structuredClone(records);
     const fhd = wrongFhdStage.find((record) => record.scenario === "legacy-standby-gate" && record.viewport.label === "1920x1080");
     if (fhd == null) throw new Error("fhd max structural record missing");
@@ -977,6 +1120,137 @@ describe("design-alignment capture contract", () => {
     expect(() => capture.assertDesignAlignmentManifest(missingLegacyTyphoon, { mode: "baseline" })).toThrow(/legacy probability node/);
   });
 
+  it("requires the three RecentQuakes geometry records and rejects missing or non-finite schema fields", () => {
+    const records = recentQuakesGapRecords("baseline");
+    expect(() => capture.assertRecentQuakesGapManifestCoverage(records)).not.toThrow();
+    expect(() => capture.assertDesignAlignmentRecentQuakesReports(records, { mode: "baseline" })).not.toThrow();
+    expect(records).toHaveLength(3);
+
+    const missing = structuredClone(records);
+    const missingTarget = missing.find((record) => record.query?.includes("maxPlan=fhdMax"));
+    if (missingTarget == null) throw new Error("fhdMax RecentQuakes fixture missing");
+    missingTarget.geometry.recentQuakes = null;
+    expect(() => capture.assertDesignAlignmentRecentQuakesReports(missing, { mode: "baseline" })).toThrow(/RecentQuakes report missing/);
+
+    const nonFinite = structuredClone(records);
+    const nonFiniteTarget = nonFinite.find((record) => record.query?.includes("maxPlan=hdMax") && record.rotationTick === 0);
+    if (nonFiniteTarget?.geometry.recentQuakes == null) throw new Error("hdMax RecentQuakes fixture missing");
+    nonFiniteTarget.geometry.recentQuakes.depth.rect.right = Number.NaN;
+    expect(() => capture.assertDesignAlignmentRecentQuakesReports(nonFinite, { mode: "baseline" })).toThrow(/non-finite geometry/);
+
+    const missingFontFamily = structuredClone(records);
+    const missingFontTarget = missingFontFamily.find((record) => record.query?.includes("maxPlan=fhdMax"));
+    if (missingFontTarget == null) throw new Error("fhdMax font signature fixture missing");
+    delete (missingFontTarget.geometry.fontSignature as Record<string, unknown>).recentQuakesStatsFamily;
+    expect(() => capture.assertDesignAlignmentRecentQuakesReports(missingFontFamily, { mode: "baseline" }))
+      .toThrow(/recentQuakesStatsFamily missing/);
+
+    const missingPlan = structuredClone(records);
+    const missingPlanTarget = missingPlan.find((record) => record.query?.includes("maxPlan=hdMax"));
+    if (missingPlanTarget == null) throw new Error("hdMax plan fixture missing");
+    delete (missingPlanTarget.geometry.layout as Record<string, unknown>).placementRight;
+    expect(() => capture.assertDesignAlignmentRecentQuakesReports(missingPlan, { mode: "baseline" })).toThrow(/placementRight report missing/);
+
+    const legacyBaseline = recentQuakesGapRecords("baseline");
+    const legacyTarget = legacyBaseline.find((record) => record.query?.includes("maxPlan=fhdMax"));
+    if (legacyTarget == null) throw new Error("legacy baseline target missing");
+    delete (legacyTarget.geometry as Record<string, unknown>).recentQuakes;
+    expect(() => capture.assertRecentQuakesGapManifest(recentQuakesGapRecords("after"), {
+      mode: "after", baseline: { suite: "recent-quakes-gap", mode: "baseline", records: legacyBaseline },
+    })).toThrow(/RecentQuakes report missing/);
+  });
+
+  it("fails closed on the 960 RecentQuakes gap, row, order, and overflow contracts", () => {
+    const after = recentQuakesGapRecords("after");
+    const target = after.find((record) => record.scenario === "standby-design-alignment-compressed"
+      && record.viewport.label === "960x620" && record.rotationTick === 0 && record.cardPageTick === 0);
+    if (target == null) throw new Error("960 RecentQuakes fixture missing");
+    expect(() => capture.assertDesignAlignmentRecentQuakesReports(after, { mode: "after" })).not.toThrow();
+
+    for (const field of ["ladderStage", "measurementGeometryStage"] as const) {
+      const wrongStage = structuredClone(after);
+      const wrongTarget = wrongStage.find((record) => record.manifestKey === target.manifestKey);
+      if (wrongTarget == null) throw new Error("960 stage fixture missing");
+      wrongTarget.geometry.layout[field] = 2;
+      expect(() => capture.assertDesignAlignmentRecentQuakesReports(wrongStage, { mode: "after" }))
+        .toThrow(/960 compressed stage\/compressed contract/);
+    }
+    const notCompressed = structuredClone(after);
+    const notCompressedTarget = notCompressed.find((record) => record.manifestKey === target.manifestKey);
+    if (notCompressedTarget == null) throw new Error("960 compressed fixture missing");
+    notCompressedTarget.geometry.layout.compressed = false;
+    expect(() => capture.assertDesignAlignmentRecentQuakesReports(notCompressed, { mode: "after" }))
+      .toThrow(/960 compressed stage\/compressed contract/);
+
+    for (const field of ["resolvedSpace1", "resolvedSpace2", "resolvedSpace3"] as const) {
+      const wrongToken = structuredClone(after);
+      const wrongReport = wrongToken.find((record) => record.manifestKey === target.manifestKey)?.geometry.recentQuakes;
+      if (wrongReport == null) throw new Error("960 resolved token fixture missing");
+      wrongReport[field] += 1;
+      expect(() => capture.assertDesignAlignmentRecentQuakesReports(wrongToken, { mode: "after" }))
+        .toThrow(new RegExp(field));
+    }
+
+    const shortGap = structuredClone(after);
+    const shortGapReport = shortGap.find((record) => record.manifestKey === target.manifestKey)?.geometry.recentQuakes;
+    if (shortGapReport == null) throw new Error("960 gap fixture missing");
+    shortGapReport.depth.rect.left = shortGapReport.magnitude.rect.right + 3;
+    expect(() => capture.assertDesignAlignmentRecentQuakesReports(shortGap, { mode: "after" })).toThrow(/adjacent gap/);
+
+    const wrapped = structuredClone(after);
+    const wrappedReport = wrapped.find((record) => record.manifestKey === target.manifestKey)?.geometry.recentQuakes;
+    if (wrappedReport == null) throw new Error("960 wrap fixture missing");
+    wrappedReport.time.rect.top += 18;
+    wrappedReport.time.rect.bottom += 18;
+    expect(() => capture.assertDesignAlignmentRecentQuakesReports(wrapped, { mode: "after" })).toThrow(/statistics top alignment/);
+
+    const reordered = structuredClone(after);
+    const reorderedReport = reordered.find((record) => record.manifestKey === target.manifestKey)?.geometry.recentQuakes;
+    if (reorderedReport == null) throw new Error("960 order fixture missing");
+    reorderedReport.statOrder = ["depth", "magnitude", "time"];
+    expect(() => capture.assertDesignAlignmentRecentQuakesReports(reordered, { mode: "after" })).toThrow(/DOM order/);
+
+    const overflowing = structuredClone(after);
+    const overflowingReport = overflowing.find((record) => record.manifestKey === target.manifestKey)?.geometry.recentQuakes;
+    if (overflowingReport == null) throw new Error("960 overflow fixture missing");
+    overflowingReport.stats.overflowX = 2;
+    expect(() => capture.assertDesignAlignmentRecentQuakesReports(overflowing, { mode: "after" })).toThrow(/client\/scroll overflow/);
+  });
+
+  it("compares only the RecentQuakes gap contract in its dedicated baseline suite", () => {
+    const baselineRecords = recentQuakesGapRecords("baseline");
+    const baseline = { suite: "recent-quakes-gap", mode: "baseline", records: baselineRecords };
+    const after = recentQuakesGapRecords("after");
+    const comparisons = capture.assertRecentQuakesGapManifest(after, { mode: "after", baseline });
+    expect(comparisons).toHaveLength(3);
+    const postFixBaseline = { suite: "recent-quakes-gap", mode: "baseline", records: recentQuakesGapRecords("after") };
+    expect(() => capture.assertRecentQuakesGapManifest(postFixBaseline.records, { mode: "baseline" }))
+      .toThrow(/baseline column gap/);
+    expect(() => capture.assertRecentQuakesGapManifest(after, { mode: "after", baseline: postFixBaseline }))
+      .toThrow(/baseline column gap/);
+
+    const changedFont = structuredClone(after);
+    const changedFontTarget = changedFont.find((record) => record.viewport.label === "960x620");
+    if (changedFontTarget == null) throw new Error("960 font signature fixture missing");
+    changedFontTarget.geometry.fontSignature.recentQuakesFamily = "serif";
+    expect(() => capture.assertRecentQuakesGapManifest(changedFont, { mode: "after", baseline }))
+      .toThrow(/Chrome\/font\/DPR/);
+
+    const shifted = structuredClone(after);
+    const shiftedFhd = shifted.find((record) => record.query?.includes("maxPlan=fhdMax"));
+    if (shiftedFhd?.geometry.recentQuakes == null) throw new Error("fhdMax RecentQuakes fixture missing");
+    shiftedFhd.geometry.recentQuakes.root.rect.x += 1;
+    expect(() => capture.assertRecentQuakesGapManifest(shifted, { mode: "after", baseline }))
+      .toThrow(/RecentQuakes root\.x base\/after must remain 0px/);
+
+    const changedHdPlan = structuredClone(after);
+    const hd = changedHdPlan.find((record) => record.query?.includes("maxPlan=hdMax"));
+    if (hd == null) throw new Error("hdMax RecentQuakes fixture missing");
+    (hd.geometry.layout.placementRight as string[]).push("after-only");
+    expect(() => capture.assertRecentQuakesGapManifest(changedHdPlan, { mode: "after", baseline }))
+      .toThrow(/base\/after placement changed/);
+  });
+
   it("compares the measured viewport plans and forecast heights at their actual capture ticks", () => {
     const targets = [
       { scenario: "standby-vpwp50-forecast", viewport: "1280x720", tick: null, baseHeight: 100, afterHeight: 109, headerHeight: 20, periodsHeight: 40, baseAtomHeight: 60, afterAtomHeight: 60, baseFooterHeight: 16, afterFooterHeight: 25 },
@@ -1006,6 +1280,9 @@ describe("design-alignment capture contract", () => {
     const wrongHeight = structuredClone(comparisons);
     wrongHeight[1]!.forecastNaturalHeight.delta = 3;
     expect(() => capture.assertDesignAlignmentComparisonPolicy(wrongHeight)).toThrow(/natural height delta/);
+    const missingFooterDelta = structuredClone(comparisons);
+    missingFooterDelta[0]!.forecastGeometry.footer.delta = 0;
+    expect(() => capture.assertDesignAlignmentComparisonPolicy(missingFooterDelta)).toThrow(/forecast footer height delta/);
     const reassignedMaxAfter = structuredClone(after);
     const reassignedFhd = reassignedMaxAfter.find((record) => record.query?.includes("maxPlan=fhdMax"));
     if (reassignedFhd == null) throw new Error("fhd max comparison record missing");
