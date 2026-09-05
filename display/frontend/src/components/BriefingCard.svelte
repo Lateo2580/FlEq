@@ -571,28 +571,23 @@
   .briefing-entry.entry-divider { border-top: 1px solid var(--hairline); }
   .body { padding: var(--space-2) var(--space-4); }
   .entry-label { display: flex; justify-content: space-between; gap: var(--space-2); color: var(--role-muted); font-size: var(--type-label-s-fluid); font-weight: var(--type-body-weight-emphasized); }
-  .source { color: inherit; font-size: var(--type-label-s-fluid); font-weight: var(--type-body-weight-regular); }
+  .source { color: inherit; font-size: var(--type-label-s-fluid); font-weight: var(--type-body-weight); }
   h2, p { margin: 0; }
   h2 { font-size: var(--type-label-l-fluid); line-height: 1.35; }
   .lead { color: var(--role-weatherWarning); }
   .headline { margin-top: var(--space-1); font-size: var(--type-body-s-fluid); line-height: 1.45; white-space: pre-wrap; overflow-wrap: anywhere; }
   .vpoa-headline-segment { display: inline; }
   .conditions, .fact, .meta { margin-top: var(--space-1); color: var(--role-muted); font-size: var(--type-label-s-fluid); line-height: 1.35; }
-  .fact { color: var(--role-text); }
+  .fact { color: var(--fg); }
   .briefing-event-fact { break-inside: avoid; }
   .briefing-fact-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(min(100%, 9rem), 1fr));
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: var(--space-1) var(--space-3);
-    /* Keep the specified 9rem cell floor even in the narrow side card. The
-       body has 4-space inline padding, which otherwise leaves just under two
-       9rem columns and turns one atomic observation into four tall rows.
-       Borrow that horizontal gutter for the grid only; the stat cells remain
-       9rem-or-wider and the observation stays one indivisible page atom. */
-    margin: var(--space-1) calc(-1 * var(--space-4)) 0;
+    margin-top: var(--space-1);
     break-inside: avoid;
   }
-  .briefing-fact-stat { display: flex; min-width: 0; flex-direction: column; gap: 2px; }
+  .briefing-fact-stat { display: flex; min-width: 0; flex-direction: column; gap: var(--space-1); }
   .briefing-fact-label { display: inline-block; align-self: flex-start; white-space: nowrap; color: var(--role-muted); font-size: var(--type-label-xs-size); }
   .briefing-fact-value { display: flex; flex-wrap: wrap; gap: 0 var(--space-1); min-width: 0; color: var(--fg); font-size: max(14px, var(--type-body-l-fluid)); font-weight: var(--num-weight); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
   .briefing-fact-token { display: inline-block; white-space: nowrap; }

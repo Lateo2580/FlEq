@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { describe, expect, it, vi } from "vitest";
 import { render } from "@testing-library/svelte";
 import { tick } from "svelte";
@@ -827,5 +829,32 @@ describe("BriefingCard", () => {
     expect(headlines[0]?.querySelectorAll("[data-briefing-vpoa-token]")).toHaveLength(0);
     expect(headlines[1]?.querySelectorAll("[data-briefing-vpoa-token]")).toHaveLength(0);
     expect([...headlines[2]?.querySelectorAll<HTMLElement>("[data-briefing-vpoa-token]") ?? []].map((node) => node.textContent)).toEqual(["１時間に約１００ミリ"]);
+  });
+
+  it("記録的短時間大雨の4 statをDOM順の2×2 token gridとして固定する", () => {
+    const { container } = render(BriefingCard, {
+      item: recordRainItem({
+        kind: "precipitation", locationName: "さいたま市", locationCode: "11100",
+        description: "約１００ミリ", value: 100, unit: "mm",
+        at: "2026-08-25T13:10:00+09:00", duration: "1時間", approximation: "approx",
+      }),
+      shellHeightPx: 260,
+    });
+    const grid = container.querySelector<HTMLElement>("[data-briefing-precipitation-stat]");
+    expect([...grid?.children ?? []].map((node) => [...node.attributes].find((attribute) =>
+      attribute.name.startsWith("data-briefing-precipitation-") && attribute.name !== "data-briefing-precipitation-stat",
+    )?.name)).toEqual([
+      "data-briefing-precipitation-location", "data-briefing-precipitation-amount",
+      "data-briefing-precipitation-time", "data-briefing-precipitation-duration",
+    ]);
+    expect(grid?.querySelector(".briefing-fact-token .nu-value")?.textContent).toBe("100");
+    expect(grid?.querySelector(".briefing-fact-token .nu-unit")?.textContent).toBe("mm");
+
+    const source = readFileSync(join(__dirname, "..", "BriefingCard.svelte"), "utf8");
+    expect(source).toMatch(/\.briefing-fact-grid\s*\{[^}]*grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\);[^}]*gap:\s*var\(--space-1\) var\(--space-3\);[^}]*margin-top:\s*var\(--space-1\);/s);
+    expect(source).toMatch(/\.briefing-fact-stat\s*\{[^}]*gap:\s*var\(--space-1\);/s);
+    expect(source).toMatch(/\.source\s*\{[^}]*font-weight:\s*var\(--type-body-weight\);/s);
+    expect(source).toContain(".fact { color: var(--fg); }");
+    expect(source).not.toContain("calc(-1 * var(--space-4))");
   });
 });

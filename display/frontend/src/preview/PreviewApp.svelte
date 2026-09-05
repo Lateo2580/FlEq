@@ -27,6 +27,16 @@
     standbyItemsShowcase,
     briefingStandbyItems,
     briefingPagingStandbyItems,
+    briefingDesignAlignmentStandbyItems,
+    legacyImprovedWeatherWarningForecast,
+    vpta50ProbabilityMutedStandbyItems,
+    vpta50ProbabilityNormalStandbyItems,
+    designAlignmentCompressedStandbyItems,
+    designAlignmentCompressedPayloadSignature,
+    designAlignmentRiderReserveCounts,
+    designAlignmentCompressedLatestQuake,
+    designAlignmentCompressedWeatherExpandedKinds,
+    legacyImprovedMaxWeatherAlertsCompact,
     standbyItemsRightStackBudget,
     standbyItemsFloodWide,
     motionStandbyFloodPhases,
@@ -70,6 +80,11 @@
     "standby-active-cards",
     "standby-briefing",
     "standby-briefing-pages",
+    "standby-briefing-design-alignment",
+    "standby-vpwp50-forecast",
+    "standby-vpta50-probability-muted",
+    "standby-vpta50-probability-normal",
+    "standby-design-alignment-compressed",
     "standby-active-wide",
     "standby-right-stack-budget",
     "standby-tier-critical",
@@ -224,6 +239,17 @@
   // VPOA50 の未確認 qualifier、取消を一枚の header と本文区切りで確認する。
   const briefingSnapshot = standbySnapshot({ standbyItems: briefingStandbyItems });
   const briefingPagingSnapshot = standbySnapshot({ standbyItems: briefingPagingStandbyItems });
+  const briefingDesignAlignmentSnapshot = standbySnapshot({ standbyItems: briefingDesignAlignmentStandbyItems });
+  const vpwp50ForecastSnapshot = standbySnapshot({ standbyItems: [legacyImprovedWeatherWarningForecast] });
+  const vpta50ProbabilityMutedSnapshot = standbySnapshot({ standbyItems: vpta50ProbabilityMutedStandbyItems });
+  const vpta50ProbabilityNormalSnapshot = standbySnapshot({ standbyItems: vpta50ProbabilityNormalStandbyItems });
+  const designAlignmentCompressedSnapshot = standbySnapshot({
+    tsunami: tsunamiBanner,
+    latestQuake: designAlignmentCompressedLatestQuake,
+    weatherAlerts: legacyImprovedMaxWeatherAlertsCompact,
+    weatherExpandedKinds: designAlignmentCompressedWeatherExpandedKinds,
+    standbyItems: designAlignmentCompressedStandbyItems,
+  });
   // standby-active-wide: 洪水 5 河川で時計上ワイド表示へ移行した状態
   const activeWideSnapshot = standbySnapshot({
     latestQuake: latestQuakeStandbyCards,
@@ -302,6 +328,16 @@
                   ? briefingSnapshot
                 : scenario === "standby-briefing-pages"
                   ? briefingPagingSnapshot
+                : scenario === "standby-briefing-design-alignment"
+                  ? briefingDesignAlignmentSnapshot
+                : scenario === "standby-vpwp50-forecast"
+                  ? vpwp50ForecastSnapshot
+                : scenario === "standby-vpta50-probability-muted"
+                  ? vpta50ProbabilityMutedSnapshot
+                : scenario === "standby-vpta50-probability-normal"
+                  ? vpta50ProbabilityNormalSnapshot
+                : scenario === "standby-design-alignment-compressed"
+                  ? designAlignmentCompressedSnapshot
                 : scenario === "standby-active-wide"
                   ? activeWideSnapshot
                 : scenario === "standby-right-stack-budget"
@@ -654,6 +690,8 @@
   data-preview-attention-visibility={attentionVisibilityPreviewFixture ? "true" : undefined}
   data-preview-reduced-motion={reducedMotionForPreview ? "true" : undefined}
   data-preview-mode={mode}
+  data-design-alignment-payload-signature={scenario === "standby-design-alignment-compressed" ? JSON.stringify(designAlignmentCompressedPayloadSignature) : undefined}
+  data-design-alignment-rider-reserve-counts={scenario === "standby-design-alignment-compressed" ? JSON.stringify(designAlignmentRiderReserveCounts) : undefined}
 >
   <div class="screen-area">
     {#if mode === "standby"}

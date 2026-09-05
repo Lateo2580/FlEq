@@ -389,7 +389,7 @@
       : band === "warning"
         ? "--standby-header-container: var(--header-weatherWarning-container); --standby-header-on: var(--header-weatherWarning-on); --standby-header-band: var(--header-band-weatherWarning)"
         : band === "muted"
-          ? "--standby-header-container: var(--surface-standby); --standby-header-on: var(--fg); --standby-header-band: var(--surface-standby)"
+          ? ""
           : "--standby-header-container: var(--header-weatherAdvisory-container); --standby-header-on: var(--header-weatherAdvisory-on); --standby-header-band: var(--header-band-weatherAdvisory)");
 
   function compactLevelText(value: string): string {

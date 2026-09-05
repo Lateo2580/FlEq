@@ -2327,6 +2327,89 @@ export const briefingSinglePageStandbyItems: ActiveStandbyCardV1[] = [{
   },
 }];
 
+/** Design-alignment gate: valid, distinct precipitation values must stay in a 2×2 grid. */
+export const briefingDesignAlignmentStandbyItems: ActiveStandbyCardV1[] = [{
+  ...briefingPagingBase,
+  key: "briefing:design-alignment",
+  sourceEventIds: ["card:vpbs:design-alignment"],
+  data: {
+    generation: 6,
+    entries: [{
+      ...briefingPagingBase.data.entries[0]!,
+      key: "card:vpbs:design-alignment",
+      sourceEventId: "VPBS50-design-alignment",
+      summary: {
+        mode: "structured", hasUnknownKind: false,
+        items: [{ kind: "recordRain", lead: "記録的短時間大雨", sourceOrdinal: 0, facts: [
+          { kind: "precipitation", locationName: "さいたま市", locationCode: "11100", description: "約１００ミリ", value: 100, unit: "mm", at: "2026-07-07T14:20:00+09:00", duration: "1時間", approximation: "approx" },
+          { kind: "precipitation", locationName: "美幌町", locationCode: "01543", description: "１２０ミリ以上", value: 120, unit: "mm", at: "2026-07-07T14:25:00+09:00", duration: "1時間", approximation: "atLeast" },
+        ] }],
+      },
+    }],
+  },
+}];
+
+const DESIGN_ALIGNMENT_PROBABILITY = {
+  baseTime: "2026-07-07T09:00:00+09:00",
+  forecastEndsAt: "2026-07-12T09:00:00+09:00",
+  reportDateTime: NOW_ISO,
+  maxFiveDayProbability: 80,
+  activePrefectureCount: 8,
+  topPrefectures: [
+    { prefectureCode: "13", prefectureName: "東京都", fiveDayProbability: 80 },
+    { prefectureCode: "14", prefectureName: "神奈川県", fiveDayProbability: 70 },
+    { prefectureCode: "12", prefectureName: "千葉県", fiveDayProbability: 60 },
+    { prefectureCode: "11", prefectureName: "埼玉県", fiveDayProbability: 50 },
+    { prefectureCode: "08", prefectureName: "茨城県", fiveDayProbability: 40 },
+    { prefectureCode: "09", prefectureName: "栃木県", fiveDayProbability: 30 },
+  ],
+  worstArea: { areaCode: "130010", areaName: "東京地方", prefectureCode: "13", prefectureName: "東京都", fiveDayProbability: 80, peakAt: "2026-07-08T09:00:00+09:00" },
+};
+
+/** §5.3 capture が DOM と照合する、圧縮 scenario の固定 payload 署名。 */
+export const designAlignmentCompressedPayloadSignature = {
+  weatherWarningForecast: {
+    periodCount: 128,
+    atomCount: 32,
+    maxPeriodsPerAtom: 4,
+    multipleAtomFooter: true,
+  },
+  briefingFacts: [
+    { locationName: "さいたま市", approximation: "approx", value: 100, unit: "mm", visibleText: "約100mm", at: "2026-07-07T14:20:00+09:00", duration: "1時間" },
+    { locationName: "美幌町", approximation: "atLeast", value: 120, unit: "mm", visibleText: "120mm以上", at: "2026-07-07T14:25:00+09:00", duration: "1時間" },
+  ],
+  floodRiverCount: 3,
+  typhoon: {
+    count: 2,
+    probabilityTyphoonKey: "TC2618",
+    maxFiveDayProbability: 80,
+    activePrefectureCount: 8,
+    topPrefectures: [
+      ["東京都", 80], ["神奈川県", 70], ["千葉県", 60],
+      ["埼玉県", 50], ["茨城県", 40], ["栃木県", 30],
+    ],
+    worstArea: ["東京地方", 80],
+  },
+  volcanoCount: 5,
+  heatAreaCount: 30,
+} as const;
+
+export const designAlignmentRiderReserveCounts = {
+  tornado: 1,
+  longPeriod: 1,
+  nankaiTrough: 1,
+} as const;
+
+export const vpta50ProbabilityMutedStandbyItems: ActiveStandbyCardV1[] = [{
+  ...STANDBY_ITEM_BASE, kind: "typhoon", surface: "corner-right", key: "typhoon:vpta50-muted", severity: "normal",
+  data: { typhoons: [{ typhoonKey: "TC2618", name: "TALIM", nameKana: "タリム", remark: "台風発生予想", typhoonNumber: "2618", category: null, location: null, pressureHpa: null, maxWindMs: null, maxGustMs: null, moveDirection: null, moveSpeedKmh: null, reportDateTime: NOW_ISO, probability: DESIGN_ALIGNMENT_PROBABILITY }] },
+}];
+
+export const vpta50ProbabilityNormalStandbyItems: ActiveStandbyCardV1[] = [{
+  ...STANDBY_ITEM_BASE, kind: "typhoon", surface: "corner-right", key: "typhoon:vpta50-normal", severity: "warning",
+  data: { typhoons: [{ typhoonKey: "TC2618", name: "TALIM", nameKana: "タリム", remark: null, typhoonNumber: "2618", category: "台風(TY)", sizeClass: null, intensityClass: "非常に強い", location: null, pressureHpa: null, maxWindMs: null, maxGustMs: null, moveDirection: null, moveSpeedKmh: null, reportDateTime: NOW_ISO, probability: DESIGN_ALIGNMENT_PROBABILITY }] },
+}];
+
 /** v10 の気象カード mock 用: WeatherAlertCard の「ほか」省略を展開して全対象地域を見せる。 */
 export const legacyImprovedTornadoFullAreas = [
   "宮崎県南部平野部",
@@ -2550,6 +2633,17 @@ export const legacyImprovedMaxWeatherAlertsCompact: DisplayWeatherAlertV1[] = [
   },
 ];
 
+/** §3.8 圧縮 scenario は既存 max と同じ compact 表示 / canonical 候補を使う。 */
+export const designAlignmentCompressedWeatherExpandedKinds = legacyStandbyGateWeatherExpandedKinds(legacyImprovedMaxWeatherAlerts);
+export const designAlignmentCompressedLatestQuake = {
+  ...latestQuakeStandbyCards,
+  intensityGroups: latestQuakeStandbyCards.intensityGroups.map((group, index) => ({
+    ...group,
+    expandedAreas: [...(legacyImprovedExpandedLatestQuake.intensityGroups[index]?.areas ?? group.areas)],
+    candidateTruncated: false,
+  })),
+};
+
 const legacyImprovedMaxHeatAreas = [
   "宮城県", "福島県", "茨城県", "栃木県", "群馬県", "埼玉県", "千葉県", "東京都", "神奈川県",
   "新潟県", "富山県", "石川県", "福井県", "山梨県", "長野県", "岐阜県", "静岡県", "愛知県",
@@ -2691,7 +2785,7 @@ export const legacyImprovedMaxItems: ActiveStandbyCardV1[] = [
     key: "typhoon:legacy-improved-max",
     severity: "warning",
     data: { typhoons: [
-      { typhoonKey: "TC2618", name: "TALIM", nameKana: "タリム", remark: null, typhoonNumber: "2618", category: "台風(TY)", location: "沖縄の南", pressureHpa: 940, maxWindMs: 45, maxGustMs: 65, moveDirection: "北北西", moveSpeedKmh: 20, reportDateTime: NOW_ISO },
+      { typhoonKey: "TC2618", name: "TALIM", nameKana: "タリム", remark: null, typhoonNumber: "2618", category: "台風(TY)", location: "沖縄の南", pressureHpa: 940, maxWindMs: 45, maxGustMs: 65, moveDirection: "北北西", moveSpeedKmh: 20, reportDateTime: NOW_ISO, probability: DESIGN_ALIGNMENT_PROBABILITY },
       { typhoonKey: "TC2619", name: null, nameKana: null, remark: "台風発生予想", typhoonNumber: null, category: "熱帯低気圧(TD)", location: "マリアナ諸島", pressureHpa: 1002, maxWindMs: 15, maxGustMs: 25, moveDirection: "西", moveSpeedKmh: 15, reportDateTime: NOW_ISO },
     ] },
   },
@@ -2706,6 +2800,13 @@ export const legacyImprovedMaxItems: ActiveStandbyCardV1[] = [
       areas: legacyImprovedMaxHeatAreas.map((areaName) => ({ areaName, isSpecial: false })),
     },
   },
+];
+
+/** Fixed dense scenario for compressed-layout inspection.  Riders remain in the
+ * source set; each solver candidate kind is supplied at most once. */
+export const designAlignmentCompressedStandbyItems: ActiveStandbyCardV1[] = [
+  ...legacyImprovedMaxItems,
+  ...briefingDesignAlignmentStandbyItems,
 ];
 
 /** max scenario の「入力には存在するが描画しない」未知系カード。 */

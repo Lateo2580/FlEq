@@ -581,6 +581,10 @@ describe("VolcanoCard", () => {
     expect(missing.container.querySelector(".volcano-card")?.classList.contains("band-muted")).toBe(true);
     expect(missing.container.querySelector(".standby-card-header")?.classList.contains("standby-card-header--muted"))
       .toBe(true);
+    const mutedStyle = missing.container.querySelector(".standby-card-header")?.getAttribute("style") ?? "";
+    for (const variable of ["--standby-header-container", "--standby-header-on", "--standby-header-band"]) {
+      expect(mutedStyle).not.toContain(variable);
+    }
 
     const knownAlert = render(VolcanoCard, {
       item: ashfallItem({ headerTone: null, alertLevel: 3 }),
@@ -588,6 +592,10 @@ describe("VolcanoCard", () => {
     expect(knownAlert.container.querySelector(".volcano-card")?.classList.contains("band-warning")).toBe(true);
     expect(knownAlert.container.querySelector(".standby-card-header")?.classList.contains("standby-card-header--muted"))
       .toBe(false);
+    const warningStyle = knownAlert.container.querySelector(".standby-card-header")?.getAttribute("style") ?? "";
+    for (const variable of ["--standby-header-container", "--standby-header-on", "--standby-header-band"]) {
+      expect(warningStyle).toContain(variable);
+    }
   });
 
   it("geometry probe で summary/group/area/omission atom を分割し、group label を各 page で再表示する", () => {

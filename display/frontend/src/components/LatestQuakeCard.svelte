@@ -401,7 +401,7 @@
     color: #fff;
   }
   .int-chip.special-unknown,
-  .g-int.special-unknown { color: var(--c-raspberry); border-color: currentColor; }
+  .g-int.special-unknown { color: var(--role-cancel); border-color: currentColor; }
   .int-chip.special-empty,
   .g-int.special-empty { color: var(--role-muted); border-color: currentColor; }
   .hypocenter {
@@ -409,7 +409,7 @@
     font-size: var(--type-title-s-fluid);
   }
   .tsunami-mark {
-    color: var(--c-jma-red);
+    color: var(--role-tsunamiWarning);
     font-weight: var(--type-body-weight-emphasized);
   }
   .meta {

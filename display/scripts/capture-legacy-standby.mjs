@@ -8,7 +8,7 @@
  *   node scripts/capture-legacy-standby.mjs --url http://127.0.0.1:5199/preview.html
  */
 import { createServer } from "node:http";
-import { mkdir, mkdtemp, open, readFile, rm, stat, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, open, readFile, readdir, rm, stat, writeFile } from "node:fs/promises";
 import { dirname, extname, join, normalize, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { spawn } from "node:child_process";
@@ -28,16 +28,16 @@ const MIME_TYPES = new Map([
 
 function usage(message) {
   if (message != null) process.stderr.write(`${message}\n`);
-  process.stderr.write("Usage: node scripts/capture-legacy-standby.mjs [--report] [--fixture overflow|overlap|rotation|cluster|cluster-calm|tornado-pages|tornado-aggregate|tornado-clip|tornado-epoch-release|recent-quakes-narrow|attention-visibility-standby|attention-visibility-emergency|attention-visibility-reduced-motion|briefing-pages|briefing-single-page] [--url URL] [--scenario quiet|4|7|max|max-floodWide] [--viewport WIDTHxHEIGHT] [--out-dir PATH]\n");
+  process.stderr.write("Usage: node scripts/capture-legacy-standby.mjs [--report] [--suite design-alignment] [--write-baseline PATH|--baseline-report PATH] [--assert-from PATH] [--fixture overflow|overlap|rotation|cluster|cluster-calm|tornado-pages|tornado-aggregate|tornado-clip|tornado-epoch-release|recent-quakes-narrow|attention-visibility-standby|attention-visibility-emergency|attention-visibility-reduced-motion|briefing-pages|briefing-single-page] [--url URL] [--scenario quiet|4|7|max|max-floodWide] [--viewport WIDTHxHEIGHT] [--out-dir PATH]\n");
   process.exitCode = 2;
 }
 
-function parseArgs(argv) {
-  const result = { url: null, scenarios: [], viewports: [], outDir: null, report: false, fixture: null };
+export function parseCaptureArgs(argv) {
+  const result = { url: null, scenarios: [], viewports: [], outDir: null, report: false, fixture: null, suite: null, writeBaseline: null, baselineReport: null, assertFrom: null };
   for (let index = 0; index < argv.length; index += 1) {
     const argument = argv[index];
     const value = argv[index + 1];
-    if (argument === "--url" || argument === "--scenario" || argument === "--viewport" || argument === "--out-dir" || argument === "--fixture") {
+    if (argument === "--url" || argument === "--scenario" || argument === "--viewport" || argument === "--out-dir" || argument === "--fixture" || argument === "--suite" || argument === "--write-baseline" || argument === "--baseline-report" || argument === "--assert-from") {
       if (value == null) throw new Error(`${argument} requires a value`);
       index += 1;
       if (argument === "--url") result.url = value;
@@ -45,6 +45,10 @@ function parseArgs(argv) {
       if (argument === "--viewport") result.viewports.push(value);
       if (argument === "--out-dir") result.outDir = value;
       if (argument === "--fixture") result.fixture = value;
+      if (argument === "--suite") result.suite = value;
+      if (argument === "--write-baseline") result.writeBaseline = value;
+      if (argument === "--baseline-report") result.baselineReport = value;
+      if (argument === "--assert-from") result.assertFrom = value;
       continue;
     }
     if (argument === "--help" || argument === "-h") return null;
@@ -963,10 +967,1075 @@ async function capture({ chrome, profileDir, url, scenario, viewport, outDir, ro
   return { scenario, fixture, viewport, rotationTick, cardPageTick, pngPath, jsonPath, diagnostics, geometry: attentionGeometry, mismatches: tableMismatches(diagnostics, scenario, viewport, fixture) };
 }
 
+const DESIGN_ALIGNMENT_CANDIDATE_COUNTS = {
+  tsunami: 1, quake: 1, weather: 1, weatherWarningForecast: 1, briefing: 1,
+  flood: 1, typhoon: 1, volcano: 1, heat: 1,
+};
+const DESIGN_ALIGNMENT_RIDER_COUNTS = { tornado: 1, longPeriod: 1, nankaiTrough: 1 };
+export const DESIGN_ALIGNMENT_MAX_PLAN = {
+  viewport: "1280x720",
+  stage: 3,
+  compressed: true,
+  placementLeft: ["tsunami", "quake", "weatherWarningForecast"],
+  placementRight: ["weather"],
+  placementCenter: ["flood"],
+  rotationKeys: ["typhoon", "volcano", "heat"],
+  typhoonVariant: "compact",
+  rotationOmittedCount: 0,
+  captureTickCount: 6,
+};
+export const DESIGN_ALIGNMENT_COMPRESSED_PLANS = {
+  "1280x720": {
+    stage: 3,
+    placementLeft: ["tsunami", "quake", "weatherWarningForecast"],
+    placementRight: ["briefing"],
+    placementCenter: ["weather"],
+    rotationKeys: ["flood", "typhoon", "volcano", "heat"],
+    typhoonVariant: "compact",
+    briefingCaptureTick: 0,
+    forecastCaptureTick: 0,
+    typhoonCaptureTick: 1,
+  },
+  "960x620": {
+    stage: 3,
+    placementLeft: ["tsunami", "quake"],
+    placementRight: [],
+    placementCenter: [],
+    rotationKeys: ["weather", "weatherWarningForecast", "briefing", "flood", "typhoon", "volcano", "heat"],
+    typhoonVariant: "compact",
+    briefingCaptureTick: 2,
+    forecastCaptureTick: 1,
+    typhoonCaptureTick: 4,
+  },
+};
+export const DESIGN_ALIGNMENT_PAYLOAD_SIGNATURE = {
+  weatherWarningForecast: { periodCount: 128, atomCount: 32, maxPeriodsPerAtom: 4, multipleAtomFooter: true },
+  briefingFacts: [
+    { locationName: "さいたま市", approximation: "approx", value: 100, unit: "mm", visibleText: "約100mm", at: "2026-07-07T14:20:00+09:00", duration: "1時間" },
+    { locationName: "美幌町", approximation: "atLeast", value: 120, unit: "mm", visibleText: "120mm以上", at: "2026-07-07T14:25:00+09:00", duration: "1時間" },
+  ],
+  floodRiverCount: 3,
+  typhoon: {
+    count: 2, probabilityTyphoonKey: "TC2618", maxFiveDayProbability: 80, activePrefectureCount: 8,
+    topPrefectures: [["東京都", 80], ["神奈川県", 70], ["千葉県", 60], ["埼玉県", 50], ["茨城県", 40], ["栃木県", 30]],
+    worstArea: ["東京地方", 80],
+  },
+  volcanoCount: 5,
+  heatAreaCount: 30,
+};
+
+function designAlignmentEntry(scenario, viewport, rotationTick = null, cardPageTick = null, query = null) {
+  return { scenario, viewport, rotationTick, cardPageTick, query };
+}
+
+export const DESIGN_ALIGNMENT_MANIFEST = [
+  ...[0, 1, 2].map((page) => designAlignmentEntry("standby-briefing-design-alignment", "1280x720", null, page)),
+  designAlignmentEntry("standby-vpwp50-forecast", "1280x720", null, 0),
+  designAlignmentEntry("standby-vpta50-probability-muted", "1280x720", null, 0),
+  designAlignmentEntry("standby-vpta50-probability-normal", "1280x720", null, 0),
+  ...["1280x720", "960x620"].flatMap((viewport) => {
+    const plan = DESIGN_ALIGNMENT_COMPRESSED_PLANS[viewport];
+    return [
+      ...plan.rotationKeys.map((_, tick) => designAlignmentEntry("standby-design-alignment-compressed", viewport, tick, 0)),
+      designAlignmentEntry("standby-design-alignment-compressed", viewport, plan.briefingCaptureTick, 1),
+      designAlignmentEntry("standby-design-alignment-compressed", viewport, plan.briefingCaptureTick, 2),
+    ];
+  }),
+  ...Array.from({ length: DESIGN_ALIGNMENT_MAX_PLAN.captureTickCount }, (_, tick) => designAlignmentEntry("legacy-standby-gate", DESIGN_ALIGNMENT_MAX_PLAN.viewport, tick, 0, "gateScenario=max")),
+];
+
+function manifestKey(value) {
+  const viewport = typeof value.viewport === "string" ? value.viewport : value.viewport?.label;
+  return [value.scenario, viewport, value.rotationTick ?? "-", value.cardPageTick ?? "-", value.query ?? ""].join("|");
+}
+
+export function normalizeDesignAlignmentUrl(value) {
+  const url = new URL(value);
+  return `${url.pathname}${url.search}${url.hash}`;
+}
+
+function designAlignmentUrl(baseUrl, entry) {
+  const url = new URL(baseUrl);
+  url.searchParams.set("nav", "0");
+  if (entry.query != null) {
+    for (const [key, value] of new URLSearchParams(entry.query)) url.searchParams.set(key, value);
+  }
+  if (entry.rotationTick != null) url.searchParams.set("rotationTick", String(entry.rotationTick));
+  if (entry.cardPageTick != null) url.searchParams.set("cardPageTick", String(entry.cardPageTick));
+  url.hash = entry.scenario;
+  return url.toString();
+}
+
+export const DESIGN_ALIGNMENT_REPORT_EXPRESSION = String.raw`(async () => {
+  await (document.fonts?.ready ?? Promise.resolve());
+  const root = document.querySelector('.standby');
+  const preview = document.querySelector('main.preview-screen');
+  if (root == null || preview == null) return { ready: false, reason: 'standby root missing' };
+  const all = (selector, parent = document) => [...parent.querySelectorAll(selector)];
+  const numeric = (value) => {
+    const parsed = Number.parseFloat(value ?? '');
+    return Number.isFinite(parsed) ? parsed : null;
+  };
+  const attrNumber = (name) => numeric(root.getAttribute(name));
+  const splitAttr = (name) => (root.getAttribute(name) ?? '').split(',').filter(Boolean);
+  const clean = (value) => (value ?? '').replace(/\s+/g, ' ').trim();
+  const compactText = (value) => clean(value).replace(/\s+/g, '');
+  const rect = (node) => {
+    if (node == null) return null;
+    const box = node.getBoundingClientRect();
+    return { x: box.x, y: box.y, left: box.left, right: box.right, top: box.top, bottom: box.bottom, width: box.width, height: box.height };
+  };
+  const lineCount = (node) => {
+    if (node == null) return null;
+    const range = document.createRange();
+    range.selectNodeContents(node);
+    const rows = [];
+    for (const box of range.getClientRects()) {
+      if (box.width <= 0 || box.height <= 0) continue;
+      const row = rows.find((candidate) => box.top < candidate.bottom - 1 && box.bottom > candidate.top + 1);
+      if (row == null) rows.push({ top: box.top, bottom: box.bottom });
+      else {
+        row.top = Math.min(row.top, box.top);
+        row.bottom = Math.max(row.bottom, box.bottom);
+      }
+    }
+    return rows.length;
+  };
+  const measure = (node) => {
+    if (node == null) return null;
+    const style = getComputedStyle(node);
+    return {
+      rect: rect(node), clientWidth: node.clientWidth, scrollWidth: node.scrollWidth,
+      clientHeight: node.clientHeight, scrollHeight: node.scrollHeight,
+      overflowX: Math.max(0, node.scrollWidth - node.clientWidth),
+      overflowY: Math.max(0, node.scrollHeight - node.clientHeight),
+      borderTop: numeric(style.borderTopWidth) ?? 0, borderRight: numeric(style.borderRightWidth) ?? 0,
+      borderBottom: numeric(style.borderBottomWidth) ?? 0, borderLeft: numeric(style.borderLeftWidth) ?? 0,
+    };
+  };
+  const textMeasure = (node) => node == null ? null : {
+    ...measure(node), text: clean(node.textContent), compactText: compactText(node.textContent), lineCount: lineCount(node),
+    fontSize: numeric(getComputedStyle(node).fontSize), fontWeight: getComputedStyle(node).fontWeight,
+    fontVariantNumeric: getComputedStyle(node).fontVariantNumeric,
+  };
+  const overlap = (left, right) => {
+    if (left == null || right == null) return 0;
+    const a = left.getBoundingClientRect(), b = right.getBoundingClientRect();
+    return Math.max(0, Math.min(a.right, b.right) - Math.max(a.left, b.left))
+      * Math.max(0, Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top));
+  };
+  const painted = (node) => node != null && node.closest('[hidden], [aria-hidden="true"], [inert]') == null
+    && node.getBoundingClientRect().width > 0 && node.getBoundingClientRect().height > 0;
+  const liveHosts = all('[data-layout-motion-card]', root).filter(painted);
+  const componentSelectors = {
+    tsunami: '.tsunami-banner', quake: '.quake-card', weather: '.weather-card',
+    weatherWarningForecast: '[data-weather-warning-forecast-card]', briefing: '[data-briefing-card]',
+    flood: '.flood-card, .flood-wide-card', typhoon: '.typhoon-card', volcano: '.volcano-card', heat: '.heat-card',
+  };
+  const componentIn = (parent, kind) => parent?.matches?.(componentSelectors[kind]) ? parent : parent?.querySelector?.(componentSelectors[kind]) ?? null;
+  const liveComponent = (kind) => {
+    for (const host of liveHosts) {
+      const key = (host.getAttribute('data-layout-motion-card') ?? '').split(':')[0];
+      if (key === kind) return componentIn(host, kind);
+    }
+    return null;
+  };
+  const sideShelf = root.querySelector(':scope > .measure-shelf');
+  const compactMeasureItems = sideShelf == null ? [] : all(':scope > .measure-item[data-measure-variant="compact"]', sideShelf);
+  const candidateCounts = {};
+  const measurementWidths = {};
+  for (const item of compactMeasureItems) {
+    const kind = Object.keys(componentSelectors).find((candidate) => componentIn(item, candidate) != null) ?? null;
+    if (kind == null) continue;
+    candidateCounts[kind] = (candidateCounts[kind] ?? 0) + 1;
+    measurementWidths[kind] = componentIn(item, kind).getBoundingClientRect().width;
+  }
+  const visibleCards = liveHosts.map((host) => {
+    const token = host.getAttribute('data-layout-motion-card') ?? '';
+    const boundary = token.lastIndexOf(':');
+    const key = boundary < 0 ? token : token.slice(0, boundary);
+    const surface = boundary < 0 ? '' : token.slice(boundary + 1);
+    const component = componentIn(host, key);
+    return { key, surface, host: measure(host), component: measure(component) };
+  });
+  const fragment = (node) => textMeasure(node);
+  const briefingCard = liveComponent('briefing');
+  const briefing = briefingCard == null ? null : {
+    page: briefingCard.getAttribute('data-card-page') ?? '',
+    pageKeys: JSON.parse(briefingCard.getAttribute('data-card-page-keys') ?? '[]'),
+    pageIdentities: JSON.parse(briefingCard.getAttribute('data-card-page-identities') ?? '[]'),
+    card: measure(briefingCard),
+    grids: all('.briefing-fact-grid', briefingCard).map((grid) => {
+      const body = grid.closest('.body');
+      const gridStyle = getComputedStyle(grid);
+      const stats = all(':scope > .briefing-fact-stat', grid).map((stat) => {
+        const role = stat.hasAttribute('data-briefing-precipitation-location') ? 'location'
+          : stat.hasAttribute('data-briefing-precipitation-amount') ? 'amount'
+          : stat.hasAttribute('data-briefing-precipitation-time') ? 'time'
+          : stat.hasAttribute('data-briefing-precipitation-duration') ? 'duration' : 'unknown';
+        const value = stat.querySelector('.briefing-fact-value');
+        const token = stat.querySelector('.briefing-fact-token');
+        return {
+          role, stat: measure(stat), gap: numeric(getComputedStyle(stat).gap),
+          label: clean(stat.querySelector('.briefing-fact-label')?.textContent), value: textMeasure(value),
+          numberUnit: token == null ? null : { wrapper: textMeasure(token), value: fragment(token.querySelector('.nu-value')), unit: fragment(token.querySelector('.nu-unit')) },
+        };
+      });
+      const location = stats.find((stat) => stat.role === 'location')?.value?.text ?? '';
+      const amount = stats.find((stat) => stat.role === 'amount')?.value?.compactText ?? '';
+      return {
+        location, amount,
+        approximation: amount.startsWith('約') ? 'approx' : amount.endsWith('以上') ? 'atLeast' : null,
+        body: measure(body), bodyPadding: body == null ? null : {
+          top: numeric(getComputedStyle(body).paddingTop), right: numeric(getComputedStyle(body).paddingRight),
+          bottom: numeric(getComputedStyle(body).paddingBottom), left: numeric(getComputedStyle(body).paddingLeft),
+        },
+        grid: measure(grid), gridTemplateColumns: gridStyle.gridTemplateColumns,
+        rowGap: numeric(gridStyle.rowGap), columnGap: numeric(gridStyle.columnGap),
+        margin: { top: numeric(gridStyle.marginTop), right: numeric(gridStyle.marginRight), bottom: numeric(gridStyle.marginBottom), left: numeric(gridStyle.marginLeft) },
+        stats,
+      };
+    }),
+  };
+  const forecastCard = liveComponent('weatherWarningForecast');
+  const forecast = forecastCard == null ? null : (() => {
+    const header = forecastCard.querySelector('.standby-card-header');
+    const atom = forecastCard.querySelector('[data-forecast-atom]');
+    const footer = forecastCard.querySelector('[data-card-page-footer]');
+    const periods = forecastCard.querySelector('.periods');
+    const headerStyle = header == null ? null : getComputedStyle(header);
+    const cardStyle = getComputedStyle(forecastCard);
+    return {
+      page: forecastCard.getAttribute('data-card-page') ?? '',
+      pageKeys: JSON.parse(forecastCard.getAttribute('data-card-page-keys') ?? '[]'),
+      pageIdentities: JSON.parse(forecastCard.getAttribute('data-card-page-identities') ?? '[]'),
+      identity: atom?.getAttribute('data-forecast-atom') ?? null,
+      card: measure(forecastCard), header: measure(header), atom: measure(atom), footer: measure(footer), periods: measure(periods),
+      headerPadding: headerStyle == null ? null : {
+        top: numeric(headerStyle.paddingTop), right: numeric(headerStyle.paddingRight),
+        bottom: numeric(headerStyle.paddingBottom), left: numeric(headerStyle.paddingLeft),
+      },
+      periodGap: periods == null ? null : numeric(getComputedStyle(periods).rowGap),
+      periodKeys: all('[data-forecast-period]', forecastCard).map((period) => period.getAttribute('data-forecast-period')),
+      periodCount: all('[data-forecast-period]', forecastCard).length,
+      atomFooterOverlap: overlap(atom, footer),
+      naturalHeight: forecastCard.scrollHeight + (numeric(cardStyle.borderTopWidth) ?? 0) + (numeric(cardStyle.borderBottomWidth) ?? 0),
+    };
+  })();
+  const resolveCustomFontWeight = (context) => {
+    if (context == null) return null;
+    const probe = document.createElement('span');
+    probe.style.cssText = 'position:absolute;visibility:hidden;font-weight:var(--num-weight)';
+    context.append(probe);
+    const result = getComputedStyle(probe).fontWeight;
+    probe.remove();
+    return result;
+  };
+  const resolveRoleMuted = () => {
+    const probe = document.createElement('span');
+    probe.style.cssText = 'position:absolute;visibility:hidden;color:var(--role-muted)';
+    root.append(probe);
+    const result = getComputedStyle(probe).color;
+    probe.remove();
+    return result;
+  };
+  const probabilityRole = (role, context, label) => {
+    if (context == null) return null;
+    const probabilityNumber = context.matches?.('.probability-number') ? context : context.querySelector('.probability-number');
+    const nuValue = probabilityNumber?.querySelector('.nu-value') ?? null;
+    const nuUnit = probabilityNumber?.querySelector('.nu-unit') ?? null;
+    const legacyMatch = compactText(context.textContent).match(/(\d+)%/);
+    return {
+      role, label, legacyNode: textMeasure(context), probabilityNumber: textMeasure(probabilityNumber),
+      nuValue: fragment(nuValue), nuUnit: fragment(nuUnit),
+      value: nuValue == null ? (legacyMatch == null ? null : Number(legacyMatch[1])) : Number(clean(nuValue.textContent)),
+      unit: nuUnit == null ? (legacyMatch == null ? null : '%') : clean(nuUnit.textContent),
+    };
+  };
+  const typhoonCard = liveComponent('typhoon');
+  const typhoon = typhoonCard == null ? null : (() => {
+    const header = typhoonCard.querySelector('.standby-card-header');
+    const headerStyle = header == null ? null : getComputedStyle(header);
+    const compact = typhoonCard.classList.contains('compact');
+    const roles = [];
+    if (compact) {
+      const summary = typhoonCard.querySelector('.probability-compact-summary');
+      roles.push(probabilityRole('maximum', summary?.querySelector(':scope > .probability-number, :scope > strong') ?? null, 'maximum'));
+      for (const prefecture of all('.probability-prefectures > span:not(.probability-omitted)', typhoonCard)) {
+        roles.push(probabilityRole('prefecture', prefecture, clean(prefecture.childNodes[0]?.textContent)));
+      }
+    } else {
+      roles.push(probabilityRole('maximum', typhoonCard.querySelector('.probability-maximum'), 'maximum'));
+      for (const prefecture of all('.probability-prefecture-list > li', typhoonCard)) {
+        roles.push(probabilityRole('prefecture', prefecture, clean(prefecture.firstElementChild?.textContent)));
+      }
+    }
+    const worst = typhoonCard.querySelector('.probability-worst');
+    roles.push(probabilityRole('worst', worst, clean(worst?.textContent).replace(/\s*\d+%.*$/, '')));
+    const styleAttribute = header?.getAttribute('style') ?? '';
+    return {
+      scenario: window.location.hash.replace(/^#/, ''),
+      displayMode: compact ? 'compact' : 'full', card: measure(typhoonCard), resolvedNumWeight: resolveCustomFontWeight(typhoonCard),
+      header: header == null ? null : {
+        node: measure(header), className: header.className, style: styleAttribute,
+        customProperties: {
+          container: header.style.getPropertyValue('--standby-header-container'),
+          on: header.style.getPropertyValue('--standby-header-on'),
+          band: header.style.getPropertyValue('--standby-header-band'),
+        },
+        background: headerStyle.backgroundColor, color: headerStyle.color,
+        bandWidth: numeric(headerStyle.borderBottomWidth), roleMuted: resolveRoleMuted(),
+      },
+      roles: roles.filter(Boolean),
+    };
+  })();
+  const parsePreviewJson = (name) => {
+    const raw = preview.getAttribute(name);
+    if (raw == null) return null;
+    try { return JSON.parse(raw); } catch { return { parseError: raw }; }
+  };
+  return {
+    ready: document.fonts?.status === 'loaded', settled: root.getAttribute('data-measurement-settled') === 'true',
+    viewport: { width: window.innerWidth, height: window.innerHeight },
+    rootFontSize: numeric(getComputedStyle(root).fontSize),
+    layout: {
+      ladderStage: attrNumber('data-ladder-stage'), measurementGeometryStage: attrNumber('data-measurement-geometry-stage'),
+      compressed: root.classList.contains('ladder-compressed'), unresolved: root.getAttribute('data-layout-unresolved'),
+      nonconverged: root.getAttribute('data-measurement-nonconverged'),
+      placementLeft: splitAttr('data-placement-left'), placementRight: splitAttr('data-placement-right'), placementCenter: splitAttr('data-placement-center'),
+      rotationKeys: splitAttr('data-rotation-keys'), rotationOmittedCount: attrNumber('data-rotation-omitted-count'),
+      rotationActiveKey: root.getAttribute('data-rotation-active-key') ?? '', rotationPosition: root.getAttribute('data-rotation-position') ?? '',
+      typhoonVariant: root.getAttribute('data-typhoon-variant') ?? '',
+      cardOverflowKeys: splitAttr('data-card-overflow-keys'), readableOverflowKeys: splitAttr('data-page-viewport-overflow-keys'),
+      visibleCards, candidateCounts, measurementWidths,
+      sideMeasureShelfWidth: attrNumber('data-side-measure-shelf-rect-width-px'),
+    },
+    riderReserveCounts: parsePreviewJson('data-design-alignment-rider-reserve-counts'),
+    payloadSignature: parsePreviewJson('data-design-alignment-payload-signature'),
+    briefing, forecast, typhoon,
+  };
+})()`;
+
+async function captureDesignAlignmentPage({ chrome, profileDir, url, viewport, outDir, entry }) {
+  const suffix = `r${entry.rotationTick ?? "x"}-p${entry.cardPageTick ?? "x"}`;
+  const pngPath = join(outDir, `design-alignment-${entry.scenario}-${viewport.label}-${suffix}.png`);
+  const browserProfile = join(profileDir, `.suite-${entry.scenario}-${viewport.label}-${suffix}`);
+  const child = spawn(chrome, [
+    "--headless=new", "--no-sandbox", "--no-first-run", "--disable-gpu", "--hide-scrollbars", "--force-device-scale-factor=1",
+    "--remote-debugging-pipe", `--user-data-dir=${browserProfile}`, `--window-size=${viewport.width},${viewport.height}`, url,
+  ], { stdio: ["ignore", "ignore", "ignore", "pipe", "pipe"] });
+  const cdp = createCdpPipe(child);
+  try {
+    let page = null;
+    for (let attempt = 0; attempt < 50; attempt += 1) {
+      try {
+        const targets = await cdp.command("Target.getTargets");
+        page = targets.targetInfos.find((candidate) => candidate.type === "page" && candidate.url === url)
+          ?? targets.targetInfos.find((candidate) => candidate.type === "page") ?? null;
+      } catch {
+        // Chrome has not opened the target yet.
+      }
+      if (page != null) break;
+      await wait(100);
+    }
+    if (page == null) throw new Error(`design-alignment ${manifestKey(entry)}: page target did not become ready`);
+    const attached = await cdp.command("Target.attachToTarget", { targetId: page.targetId, flatten: true });
+    await cdp.command("Page.enable", {}, attached.sessionId);
+    await cdp.command("Runtime.enable", {}, attached.sessionId);
+    await cdp.command("Emulation.setDeviceMetricsOverride", {
+      width: viewport.width, height: viewport.height, deviceScaleFactor: 1, mobile: false,
+    }, attached.sessionId);
+    const evaluate = async () => {
+      const result = await cdp.command("Runtime.evaluate", {
+        awaitPromise: true, returnByValue: true, expression: DESIGN_ALIGNMENT_REPORT_EXPRESSION,
+      }, attached.sessionId);
+      if (result.exceptionDetails != null) throw new Error(`design-alignment browser evaluation failed: ${JSON.stringify(result.exceptionDetails)}`);
+      return result.result.value;
+    };
+    await wait(750);
+    let previous = null;
+    let geometry = null;
+    for (let attempt = 0; attempt < 30; attempt += 1) {
+      const candidate = await evaluate();
+      const serialized = JSON.stringify(candidate);
+      if (candidate?.ready && candidate?.settled && previous === serialized) {
+        geometry = candidate;
+        break;
+      }
+      previous = candidate?.ready && candidate?.settled ? serialized : null;
+      await wait(400);
+    }
+    if (geometry == null) throw new Error(`design-alignment ${manifestKey(entry)}: geometry did not settle`);
+    const screenshot = await cdp.command("Page.captureScreenshot", { format: "png", fromSurface: true, captureBeyondViewport: false }, attached.sessionId);
+    const confirmed = await evaluate();
+    if (JSON.stringify(confirmed) !== JSON.stringify(geometry)) {
+      throw new Error(`design-alignment ${manifestKey(entry)}: DOM state changed while capturing screenshot`);
+    }
+    await rm(pngPath, { force: true });
+    await writeFile(pngPath, Buffer.from(screenshot.data, "base64"));
+    assertCompletePng(await readFile(pngPath));
+    return {
+      manifestKey: manifestKey(entry), scenario: entry.scenario, viewport: { label: viewport.label, width: viewport.width, height: viewport.height },
+      rotationTick: entry.rotationTick, cardPageTick: entry.cardPageTick, query: entry.query,
+      urlIdentity: normalizeDesignAlignmentUrl(url), pngPath, geometry,
+    };
+  } finally {
+    cdp.close();
+    child.kill("SIGTERM");
+  }
+}
+
+function stableJson(value) {
+  if (Array.isArray(value)) return `[${value.map(stableJson).join(",")}]`;
+  if (value != null && typeof value === "object") return `{${Object.keys(value).sort().map((key) => `${JSON.stringify(key)}:${stableJson(value[key])}`).join(",")}}`;
+  return JSON.stringify(value);
+}
+
+function assertDeepEqual(actual, expected, label) {
+  if (stableJson(actual) !== stableJson(expected)) throw new Error(`${label}: expected ${JSON.stringify(expected)}, got ${JSON.stringify(actual)}`);
+}
+
+export function assertDesignAlignmentApprox(actual, expected, tolerance, label) {
+  if (!Number.isFinite(actual) || Math.abs(actual - expected) > tolerance) throw new Error(`${label}: expected ${expected} ±${tolerance}, got ${actual}`);
+}
+
+function assertBox(box, label) {
+  if (box == null) throw new Error(`${label}: missing box`);
+  for (const key of ["clientWidth", "scrollWidth", "clientHeight", "scrollHeight", "overflowX", "overflowY"]) {
+    if (!Number.isFinite(box[key])) throw new Error(`${label}.${key}: non-finite geometry`);
+  }
+  if (box.rect == null) throw new Error(`${label}.rect: missing`);
+  for (const key of ["x", "y", "left", "right", "top", "bottom", "width", "height"]) {
+    if (!Number.isFinite(box.rect[key])) throw new Error(`${label}.rect.${key}: non-finite geometry`);
+  }
+}
+
+function assertNoOverflow(box, label) {
+  assertBox(box, label);
+  if (box.overflowX > 1 || box.overflowY > 1) throw new Error(`${label}: client/scroll overflow ${box.overflowX}x${box.overflowY}`);
+}
+
+export function isDesignAlignmentSingleVisualLine(node, fragments = []) {
+  if (node?.lineCount === 1) return true;
+  const fragmentHeight = Math.max(...fragments.map((fragment) => fragment?.rect?.height).filter(Number.isFinite), 0);
+  return Number.isFinite(node?.rect?.height) && fragmentHeight > 0 && node.rect.height <= fragmentHeight + 1;
+}
+
+function findRecords(records, scenario, viewport) {
+  return records.filter((record) => record.scenario === scenario && record.viewport.label === viewport);
+}
+
+export function assertDesignAlignmentManifestCoverage(records) {
+  const expected = DESIGN_ALIGNMENT_MANIFEST.map(manifestKey);
+  const actual = records.map((record) => record.manifestKey ?? manifestKey(record));
+  assertDeepEqual(actual, expected, "design-alignment manifest keys");
+  if (new Set(actual).size !== actual.length) throw new Error("design-alignment manifest contains duplicate keys");
+}
+
+export function assertDesignAlignmentBaselineStructure(records) {
+  assertDesignAlignmentManifestCoverage(records);
+  for (const record of records) assertRequiredReport(record, { allowLegacyTyphoonNodes: true });
+  for (const viewport of ["1280x720", "960x620"]) {
+    const plan = DESIGN_ALIGNMENT_COMPRESSED_PLANS[viewport];
+    const cells = findRecords(records, "standby-design-alignment-compressed", viewport);
+    const tickZeroPages = cells.filter((record) => record.cardPageTick === 0);
+    assertDeepEqual(tickZeroPages.map((record) => record.rotationTick), [...Array(plan.rotationKeys.length).keys()], `${viewport} baseline rotation tick coverage`);
+    for (const record of cells) {
+      const layout = record.geometry.layout;
+      assertDesignAlignmentCompressedStage(layout, plan, `${record.manifestKey}: baseline`);
+    }
+  }
+  const maxCells = findRecords(records, "legacy-standby-gate", DESIGN_ALIGNMENT_MAX_PLAN.viewport);
+  assertDeepEqual(maxCells.map((record) => record.rotationTick), [...Array(DESIGN_ALIGNMENT_MAX_PLAN.captureTickCount).keys()], "baseline max rotation tick coverage");
+  for (const record of maxCells) {
+    const layout = record.geometry.layout;
+    if (layout.ladderStage < 2 || layout.measurementGeometryStage < 2 || layout.compressed !== true) throw new Error(`${record.manifestKey}: baseline max compressed stage contract failed`);
+  }
+  assertBaselineForecastCoverage(records);
+  assertBaselineTyphoonCoverage(records);
+}
+
+function assertRequiredReport(record, { allowLegacyTyphoonNodes = false } = {}) {
+  const report = record.geometry;
+  if (report == null || report.ready !== true || report.settled !== true) throw new Error(`${record.manifestKey}: font/layout not ready`);
+  assertDesignAlignmentApprox(report.rootFontSize, 16, 0.1, `${record.manifestKey} root font-size`);
+  if (report.viewport.width !== record.viewport.width || report.viewport.height !== record.viewport.height) throw new Error(`${record.manifestKey}: viewport mismatch`);
+  for (const key of ["ladderStage", "measurementGeometryStage", "rotationOmittedCount", "sideMeasureShelfWidth"]) {
+    if (!Number.isFinite(report.layout[key])) throw new Error(`${record.manifestKey} layout.${key}: missing/non-finite`);
+  }
+  for (const key of ["placementLeft", "placementRight", "placementCenter", "rotationKeys", "cardOverflowKeys", "readableOverflowKeys", "visibleCards"]) {
+    if (!Array.isArray(report.layout[key])) throw new Error(`${record.manifestKey} layout.${key}: missing`);
+  }
+  for (const visible of report.layout.visibleCards) {
+    assertBox(visible.host, `${record.manifestKey} visible ${visible.key}:${visible.surface} host`);
+    if (visible.component != null) assertBox(visible.component, `${record.manifestKey} visible ${visible.key}:${visible.surface} component`);
+  }
+  if (report.layout.unresolved !== "false" || report.layout.nonconverged !== "false") throw new Error(`${record.manifestKey}: unresolved/nonconverged layout`);
+  if (report.layout.cardOverflowKeys.length !== 0 || report.layout.readableOverflowKeys.length !== 0) throw new Error(`${record.manifestKey}: generic containment failed`);
+  const activeKind = record.scenario === "standby-design-alignment-compressed" || record.scenario === "legacy-standby-gate"
+    ? report.layout.rotationActiveKey : record.scenario === "standby-briefing-design-alignment" ? "briefing"
+      : record.scenario === "standby-vpwp50-forecast" ? "weatherWarningForecast"
+        : record.scenario.startsWith("standby-vpta50-") ? "typhoon" : null;
+  if (activeKind === "briefing") {
+    if (report.briefing == null || !Array.isArray(report.briefing.grids) || !Array.isArray(report.briefing.pageKeys) || !Array.isArray(report.briefing.pageIdentities)) throw new Error(`${record.manifestKey}: required Briefing report fields missing`);
+    assertBox(report.briefing.card, `${record.manifestKey} briefing card`);
+    for (const [gridIndex, grid] of report.briefing.grids.entries()) {
+      assertBox(grid.body, `${record.manifestKey} briefing grid ${gridIndex} body`);
+      assertBox(grid.grid, `${record.manifestKey} briefing grid ${gridIndex}`);
+      if (!Array.isArray(grid.stats)) throw new Error(`${record.manifestKey}: briefing grid stats missing`);
+      for (const stat of grid.stats) {
+        assertBox(stat.stat, `${record.manifestKey} briefing ${stat.role} stat`);
+        assertBox(stat.value, `${record.manifestKey} briefing ${stat.role} value`);
+        if (stat.role === "amount" && stat.numberUnit == null) throw new Error(`${record.manifestKey}: briefing amount NumberUnit report missing`);
+      }
+    }
+  }
+  if (activeKind === "weatherWarningForecast") {
+    if (report.forecast == null || !Array.isArray(report.forecast.periodKeys) || !Array.isArray(report.forecast.pageKeys) || !Array.isArray(report.forecast.pageIdentities)) throw new Error(`${record.manifestKey}: required forecast report fields missing`);
+    for (const [name, box] of [["card", report.forecast.card], ["header", report.forecast.header], ["atom", report.forecast.atom], ["footer", report.forecast.footer], ["periods", report.forecast.periods]]) assertBox(box, `${record.manifestKey} forecast ${name}`);
+    if (!Number.isFinite(report.forecast.naturalHeight) || !Number.isFinite(report.forecast.periodCount) || report.forecast.headerPadding == null) throw new Error(`${record.manifestKey}: forecast numeric fields missing`);
+  }
+  if (activeKind === "typhoon") {
+    if (report.typhoon == null || report.typhoon.scenario !== record.scenario || report.typhoon.header == null || !Array.isArray(report.typhoon.roles)) throw new Error(`${record.manifestKey}: required Typhoon report fields missing`);
+    assertBox(report.typhoon.card, `${record.manifestKey} typhoon card`);
+    for (const role of report.typhoon.roles) {
+      for (const key of ["legacyNode", "probabilityNumber", "nuValue", "nuUnit"]) {
+        if (!Object.hasOwn(role, key)) throw new Error(`${record.manifestKey}: Typhoon ${role.role}.${key} key missing`);
+      }
+      if (role.legacyNode != null) assertBox(role.legacyNode, `${record.manifestKey} Typhoon ${role.role} legacy node`);
+      for (const key of ["probabilityNumber", "nuValue", "nuUnit"]) {
+        if (role[key] == null) {
+          if (!allowLegacyTyphoonNodes) throw new Error(`${record.manifestKey}: Typhoon ${role.role}.${key} missing`);
+        } else assertBox(role[key], `${record.manifestKey} Typhoon ${role.role} ${key}`);
+      }
+    }
+  }
+}
+
+export function requiresDesignAlignmentWidthMatch({ key, surface }) {
+  return key === "briefing" || key === "weatherWarningForecast" || surface === "right" || surface === "rotation";
+}
+
+export function assertDesignAlignmentLiveMeasurementWidths(record) {
+  const layout = record.geometry?.layout;
+  if (layout == null || !Array.isArray(layout.visibleCards) || layout.measurementWidths == null) throw new Error(`${record.manifestKey}: width report missing`);
+  for (const visible of layout.visibleCards.filter((card) => Object.hasOwn(DESIGN_ALIGNMENT_CANDIDATE_COUNTS, card.key) && requiresDesignAlignmentWidthMatch(card))) {
+    const measuredWidth = layout.measurementWidths[visible.key];
+    assertDesignAlignmentApprox(visible.component?.rect?.width, measuredWidth, 1, `${record.manifestKey} ${visible.key} live/measurement width`);
+  }
+}
+
+export function assertDesignAlignmentCompressedStage(layout, plan, label) {
+  if (layout?.ladderStage !== plan.stage || layout?.measurementGeometryStage !== plan.stage || layout.compressed !== true) {
+    throw new Error(`${label}: compressed stage contract failed; expected ladder/measurement stage ${plan.stage}`);
+  }
+}
+
+function assertCompressedPlan(records, viewport) {
+  const plan = DESIGN_ALIGNMENT_COMPRESSED_PLANS[viewport];
+  if (plan == null) throw new Error(`${viewport}: compressed plan missing`);
+  const cells = findRecords(records, "standby-design-alignment-compressed", viewport);
+  const expectedTicks = [...Array(plan.rotationKeys.length).keys()];
+  const tickZeroPages = cells.filter((record) => record.cardPageTick === 0);
+  assertDeepEqual(tickZeroPages.map((record) => record.rotationTick), expectedTicks, `${viewport} rotation tick coverage`);
+  for (const record of cells) {
+    const { layout } = record.geometry;
+    assertDesignAlignmentCompressedStage(layout, plan, record.manifestKey);
+    assertDeepEqual(layout.placementLeft, plan.placementLeft, `${record.manifestKey} left placement`);
+    assertDeepEqual(layout.placementRight, plan.placementRight, `${record.manifestKey} right placement`);
+    assertDeepEqual(layout.placementCenter, plan.placementCenter, `${record.manifestKey} center placement`);
+    assertDeepEqual(layout.rotationKeys, plan.rotationKeys, `${record.manifestKey} rotation keys`);
+    if (layout.rotationOmittedCount !== 0 || layout.typhoonVariant !== plan.typhoonVariant) throw new Error(`${record.manifestKey}: omitted rotation or Typhoon variant mismatch`);
+    assertDeepEqual(layout.candidateCounts, DESIGN_ALIGNMENT_CANDIDATE_COUNTS, `${record.manifestKey} candidate counts`);
+    assertDeepEqual(record.geometry.riderReserveCounts, DESIGN_ALIGNMENT_RIDER_COUNTS, `${record.manifestKey} rider/reserve counts`);
+    assertDeepEqual(record.geometry.payloadSignature, DESIGN_ALIGNMENT_PAYLOAD_SIGNATURE, `${record.manifestKey} payload signature`);
+    const active = plan.rotationKeys[record.rotationTick % plan.rotationKeys.length];
+    if (layout.rotationActiveKey !== active || layout.rotationPosition !== `${record.rotationTick + 1}/${plan.rotationKeys.length}`) throw new Error(`${record.manifestKey}: active rotation mismatch`);
+    const visibleCandidates = layout.visibleCards.filter((card) => Object.hasOwn(DESIGN_ALIGNMENT_CANDIDATE_COUNTS, card.key)).map(({ key, surface }) => ({ key, surface }));
+    const expectedVisibleCount = plan.placementLeft.length + plan.placementRight.length + plan.placementCenter.length + 1;
+    if (visibleCandidates.length !== expectedVisibleCount) throw new Error(`${record.manifestKey}: visible candidate count mismatch`);
+    for (const [surface, expectedKeys] of [
+      ["left", plan.placementLeft], ["right", plan.placementRight], ["center", plan.placementCenter], ["rotation", [active]],
+    ]) {
+      assertDeepEqual(visibleCandidates.filter((card) => card.surface === surface).map((card) => card.key), expectedKeys, `${record.manifestKey} visible ${surface} placement`);
+    }
+    assertDesignAlignmentLiveMeasurementWidths(record);
+  }
+}
+
+export function assertDesignAlignmentMaxFixture(records) {
+  const plan = DESIGN_ALIGNMENT_MAX_PLAN;
+  const cells = findRecords(records, "legacy-standby-gate", plan.viewport);
+  assertDeepEqual(cells.map((record) => record.rotationTick), [...Array(plan.captureTickCount).keys()], "max rotation tick coverage");
+  for (const record of cells) {
+    const { layout } = record.geometry;
+    if (layout.ladderStage !== plan.stage || layout.measurementGeometryStage !== plan.stage || layout.compressed !== plan.compressed) throw new Error(`${record.manifestKey}: max stage/compressed mismatch`);
+    assertDeepEqual(layout.placementLeft, plan.placementLeft, `${record.manifestKey} max left placement`);
+    assertDeepEqual(layout.placementRight, plan.placementRight, `${record.manifestKey} max right placement`);
+    assertDeepEqual(layout.placementCenter, plan.placementCenter, `${record.manifestKey} max center placement`);
+    assertDeepEqual(layout.rotationKeys, plan.rotationKeys, `${record.manifestKey} max rotation keys`);
+    if (layout.rotationOmittedCount !== plan.rotationOmittedCount || layout.typhoonVariant !== plan.typhoonVariant) throw new Error(`${record.manifestKey}: max omitted rotation or Typhoon variant mismatch`);
+    const activeIndex = record.rotationTick % plan.rotationKeys.length;
+    const expected = plan.rotationKeys[activeIndex];
+    if (layout.rotationActiveKey !== expected || layout.rotationPosition !== `${activeIndex + 1}/${plan.rotationKeys.length}`) throw new Error(`${record.manifestKey}: max active rotation mismatch`);
+    assertDesignAlignmentLiveMeasurementWidths(record);
+  }
+}
+
+function statByRole(grid, role) {
+  return grid.stats.find((stat) => stat.role === role);
+}
+
+function assertBriefingCaptureCoverage(records) {
+  for (const [scenario, viewport, tick] of [
+    ["standby-briefing-design-alignment", "1280x720", null],
+    ["standby-design-alignment-compressed", "1280x720", DESIGN_ALIGNMENT_COMPRESSED_PLANS["1280x720"].briefingCaptureTick],
+    ["standby-design-alignment-compressed", "960x620", DESIGN_ALIGNMENT_COMPRESSED_PLANS["960x620"].briefingCaptureTick],
+  ]) {
+    const cells = findRecords(records, scenario, viewport);
+    if (scenario === "standby-design-alignment-compressed" && viewport === "1280x720" && cells.some((record) => record.geometry.briefing == null)) {
+      throw new Error(`${scenario}/${viewport}: side Briefing was not visible for every rotation tick`);
+    }
+    const reports = cells
+      .filter((record) => scenario !== "standby-design-alignment-compressed" || record.rotationTick === tick)
+      .map((record) => record.geometry.briefing).filter(Boolean);
+    const facts = reports.flatMap((report) => report.grids).map(({ location, amount, approximation }) => ({ location, amount, approximation }));
+    for (const expected of [
+      { location: "さいたま市", amount: "約100mm", approximation: "approx" },
+      { location: "美幌町", amount: "120mm以上", approximation: "atLeast" },
+    ]) {
+      if (!facts.some((fact) => stableJson(fact) === stableJson(expected))) throw new Error(`${scenario}/${viewport}: required precipitation fact was not captured: ${JSON.stringify(expected)}`);
+    }
+  }
+}
+
+function assertBaselineForecastCoverage(records) {
+  for (const [scenario, viewport, tick] of [
+    ["standby-vpwp50-forecast", "1280x720", null],
+    ["standby-design-alignment-compressed", "1280x720", DESIGN_ALIGNMENT_COMPRESSED_PLANS["1280x720"].forecastCaptureTick],
+    ["standby-design-alignment-compressed", "960x620", DESIGN_ALIGNMENT_COMPRESSED_PLANS["960x620"].forecastCaptureTick],
+  ]) {
+    const cells = findRecords(records, scenario, viewport);
+    if (scenario === "standby-design-alignment-compressed" && viewport === "1280x720" && cells.some((record) => record.geometry.forecast == null)) {
+      throw new Error(`${scenario}/${viewport}: side forecast was not visible for every rotation tick`);
+    }
+    const forecast = cells.find((record) => record.rotationTick === tick && record.cardPageTick === 0)?.geometry.forecast;
+    if (forecast == null || forecast.periodCount !== 4 || forecast.periodKeys.length !== 4 || forecast.footer == null || !/^\d+\/32$/.test(forecast.page)) throw new Error(`${scenario}/${viewport}: 128-period forecast max atom/footer was not captured`);
+  }
+}
+
+function assertBaselineTyphoonCoverage(records) {
+  const targets = [
+    { scenario: "standby-vpta50-probability-muted", viewport: "1280x720", tick: null, mode: "full", prefectures: 5, tone: "muted" },
+    { scenario: "standby-vpta50-probability-normal", viewport: "1280x720", tick: null, mode: "full", prefectures: 5, tone: "normal" },
+    { scenario: "standby-design-alignment-compressed", viewport: "1280x720", tick: DESIGN_ALIGNMENT_COMPRESSED_PLANS["1280x720"].typhoonCaptureTick, mode: "compact", prefectures: 3, tone: null },
+    { scenario: "standby-design-alignment-compressed", viewport: "960x620", tick: DESIGN_ALIGNMENT_COMPRESSED_PLANS["960x620"].typhoonCaptureTick, mode: "compact", prefectures: 3, tone: null },
+  ];
+  for (const target of targets) {
+    const typhoon = findRecords(records, target.scenario, target.viewport).find((record) => record.rotationTick === target.tick && record.cardPageTick === 0)?.geometry.typhoon;
+    if (typhoon == null || typhoon.displayMode !== target.mode) throw new Error(`${target.scenario}/${target.viewport}: ${target.mode} Typhoon was not captured`);
+    const counts = Object.fromEntries(["maximum", "prefecture", "worst"].map((role) => [role, typhoon.roles.filter((entry) => entry.role === role).length]));
+    assertDeepEqual(counts, { maximum: 1, prefecture: target.prefectures, worst: 1 }, `${target.scenario}/${target.viewport} baseline probability roles`);
+    if (typhoon.roles.some((role) => role.legacyNode == null || role.unit !== "%")) throw new Error(`${target.scenario}/${target.viewport}: legacy probability node/value missing`);
+    if (target.tone === "muted") {
+      if (!typhoon.header.className.split(/\s+/).includes("standby-card-header--muted") || typhoon.header.customProperties.container !== "" || typhoon.header.customProperties.on !== "" || typhoon.header.customProperties.band !== "") throw new Error(`${target.scenario}: muted header fixture mismatch`);
+    } else if (target.tone === "normal") {
+      if ([typhoon.header.customProperties.container, typhoon.header.customProperties.on, typhoon.header.customProperties.band].some((value) => value === "") || typhoon.header.bandWidth !== 4) throw new Error(`${target.scenario}: VPTW header fixture mismatch`);
+    }
+  }
+}
+
+export function assertDesignAlignmentBriefingGrid(grid, expectation, label = "briefing grid") {
+  if (grid == null) throw new Error(`${label}: missing`);
+  assertNoOverflow(grid.body, `${label} body`);
+  assertNoOverflow(grid.grid, `${label} grid`);
+  assertDesignAlignmentApprox(grid.bodyPadding.left, expectation.padding, 0.1, `${label} body padding-left`);
+  assertDesignAlignmentApprox(grid.bodyPadding.right, expectation.padding, 0.1, `${label} body padding-right`);
+  assertDesignAlignmentApprox(grid.rowGap, expectation.rowGap, 0.1, `${label} row gap`);
+  assertDesignAlignmentApprox(grid.columnGap, expectation.columnGap, 0.1, `${label} column gap`);
+  assertDesignAlignmentApprox(grid.margin.left, 0, 0.1, `${label} margin-left`);
+  assertDesignAlignmentApprox(grid.margin.right, 0, 0.1, `${label} margin-right`);
+  const columns = grid.gridTemplateColumns.trim().split(/\s+/).map(Number.parseFloat);
+  if (columns.length !== 2 || columns.some((column) => !Number.isFinite(column))) throw new Error(`${label}: grid did not resolve to exactly two columns`);
+  for (const [index, column] of columns.entries()) assertDesignAlignmentApprox(column, expectation.statWidth, 1, `${label} grid column ${index + 1}`);
+  assertDesignAlignmentApprox(grid.grid.rect.left, grid.body.rect.left + grid.bodyPadding.left, 1, `${label} left gutter`);
+  assertDesignAlignmentApprox(grid.grid.rect.right, grid.body.rect.right - grid.bodyPadding.right, 1, `${label} right gutter`);
+  assertDeepEqual(grid.stats.map((stat) => stat.role), ["location", "amount", "time", "duration"], `${label} stat DOM order`);
+  const [location, amount, time, duration] = grid.stats;
+  for (const stat of grid.stats) {
+    assertNoOverflow(stat.stat, `${label} ${stat.role}`);
+    assertDesignAlignmentApprox(stat.stat.rect.width, expectation.statWidth, 1, `${label} ${stat.role} width`);
+    assertDesignAlignmentApprox(stat.gap, expectation.statGap, 0.1, `${label} ${stat.role} gap`);
+    assertNoOverflow(stat.value, `${label} ${stat.role} value`);
+  }
+  assertDesignAlignmentApprox(location.stat.rect.top, amount.stat.rect.top, 1, `${label} first row`);
+  assertDesignAlignmentApprox(time.stat.rect.top, duration.stat.rect.top, 1, `${label} second row`);
+  if (time.stat.rect.top <= location.stat.rect.top + 1) throw new Error(`${label}: rows did not resolve as 2x2`);
+  assertDesignAlignmentApprox(location.stat.rect.left, time.stat.rect.left, 1, `${label} left column`);
+  assertDesignAlignmentApprox(amount.stat.rect.left, duration.stat.rect.left, 1, `${label} right column`);
+  if (location.value.lineCount !== 1 || !isDesignAlignmentSingleVisualLine(amount.value, [amount.numberUnit?.value, amount.numberUnit?.unit])) throw new Error(`${label}: location/amount wrapped`);
+  if (amount.numberUnit == null) throw new Error(`${label}: amount NumberUnit missing`);
+  for (const [name, node] of Object.entries(amount.numberUnit)) {
+    assertNoOverflow(node, `${label} NumberUnit ${name}`);
+    const fragments = name === "wrapper" ? [amount.numberUnit.value, amount.numberUnit.unit] : [];
+    if (!isDesignAlignmentSingleVisualLine(node, fragments)) throw new Error(`${label} NumberUnit ${name}: wrapped`);
+  }
+}
+
+function assertBriefingMatrix(records) {
+  const matrix = [
+    { scenario: "standby-briefing-design-alignment", viewport: "1280x720", cardWidth: 307.2, padding: 16, rowGap: 4, columnGap: 12, statWidth: 130.6, statGap: 4 },
+    { scenario: "standby-design-alignment-compressed", viewport: "1280x720", cardWidth: 321.28, padding: 8, rowGap: 2, columnGap: 6, statWidth: 148.64, statGap: 2 },
+    { scenario: "standby-design-alignment-compressed", viewport: "960x620", cardWidth: 280, padding: 8, rowGap: 2, columnGap: 6, statWidth: 128, statGap: 2 },
+  ];
+  for (const condition of matrix) {
+    const briefingTick = condition.scenario === "standby-design-alignment-compressed"
+      ? DESIGN_ALIGNMENT_COMPRESSED_PLANS[condition.viewport].briefingCaptureTick : null;
+    const relevant = findRecords(records, condition.scenario, condition.viewport)
+      .filter((record) => condition.scenario !== "standby-design-alignment-compressed" || record.rotationTick === briefingTick);
+    const briefingReports = relevant.map((record) => record.geometry.briefing).filter(Boolean);
+    const grids = briefingReports.flatMap((briefing) => briefing.grids);
+    const byLocation = new Map(grids.map((grid) => [grid.location, grid]));
+    if (!byLocation.has("さいたま市") || !byLocation.has("美幌町")) throw new Error(`${condition.scenario}/${condition.viewport}: both real precipitation facts were not captured`);
+    for (const [location, expectedAmount] of [["さいたま市", "約100mm"], ["美幌町", "120mm以上"]]) {
+      const grid = byLocation.get(location);
+      if (grid.amount !== expectedAmount) throw new Error(`${condition.scenario}/${condition.viewport}/${location}: expected ${expectedAmount}, got ${grid.amount}`);
+      assertDesignAlignmentBriefingGrid(grid, condition, `${condition.scenario}/${condition.viewport}/${location}`);
+      const amountStat = statByRole(grid, "amount");
+      const expectedNumber = location === "さいたま市" ? "100" : "120";
+      if (grid.approximation !== (location === "さいたま市" ? "approx" : "atLeast")
+        || amountStat?.numberUnit?.value?.text !== expectedNumber || amountStat?.numberUnit?.unit?.text !== "mm") {
+        throw new Error(`${condition.scenario}/${condition.viewport}/${location}: precipitation value/qualifier changed`);
+      }
+      const card = briefingReports.find((report) => report.grids.includes(grid))?.card;
+      assertDesignAlignmentApprox(card?.rect?.width, condition.cardWidth, 1, `${condition.scenario}/${condition.viewport} card width`);
+    }
+    const measuredWidth = relevant[0]?.geometry.layout.measurementWidths.briefing;
+    const liveWidth = briefingReports.find((report) => report.grids.length > 0)?.card?.rect?.width;
+    assertDesignAlignmentApprox(liveWidth, measuredWidth, 1, `${condition.scenario}/${condition.viewport} briefing live/measurement width`);
+  }
+}
+
+function assertForecastGeometry(forecast, compressed, label) {
+  if (forecast == null) throw new Error(`${label}: forecast missing`);
+  for (const [name, box] of [["card", forecast.card], ["header", forecast.header], ["atom", forecast.atom], ["footer", forecast.footer], ["periods", forecast.periods]]) assertNoOverflow(box, `${label} ${name}`);
+  const block = compressed ? 4 : 8;
+  const inline = compressed ? 8 : 16;
+  assertDesignAlignmentApprox(forecast.headerPadding.top, block, 0.1, `${label} header padding-top`);
+  assertDesignAlignmentApprox(forecast.headerPadding.bottom, block, 0.1, `${label} header padding-bottom`);
+  assertDesignAlignmentApprox(forecast.headerPadding.left, inline, 0.1, `${label} header padding-left`);
+  assertDesignAlignmentApprox(forecast.headerPadding.right, inline, 0.1, `${label} header padding-right`);
+  assertDesignAlignmentApprox(forecast.periodGap, compressed ? 2 : 4, 0.1, `${label} period gap`);
+  if (forecast.periodCount !== 4 || forecast.periodKeys.length !== 4 || forecast.footer == null || !/^\d+\/32$/.test(forecast.page)) throw new Error(`${label}: max atom/footer contract failed`);
+  if (forecast.atomFooterOverlap > 1) throw new Error(`${label}: atom/footer overlap ${forecast.atomFooterOverlap}`);
+}
+
+function assertForecast(records, baseline) {
+  const targets = [
+    { scenario: "standby-vpwp50-forecast", viewport: "1280x720", tick: null, delta: 12, compressed: false },
+    { scenario: "standby-design-alignment-compressed", viewport: "1280x720", tick: DESIGN_ALIGNMENT_COMPRESSED_PLANS["1280x720"].forecastCaptureTick, delta: 6, compressed: true },
+    { scenario: "standby-design-alignment-compressed", viewport: "960x620", tick: DESIGN_ALIGNMENT_COMPRESSED_PLANS["960x620"].forecastCaptureTick, delta: 6, compressed: true },
+  ];
+  for (const target of targets) {
+    const afterRecord = findRecords(records, target.scenario, target.viewport).find((record) => record.rotationTick === target.tick && record.cardPageTick === 0);
+    const beforeRecord = baseline.records.find((record) => record.manifestKey === afterRecord?.manifestKey);
+    if (afterRecord == null || beforeRecord == null) throw new Error(`${target.scenario}/${target.viewport}: forecast comparison record missing`);
+    const after = afterRecord.geometry.forecast;
+    const before = beforeRecord.geometry.forecast;
+    assertForecastGeometry(after, target.compressed, `${target.scenario}/${target.viewport}`);
+    if (before == null) throw new Error(`${target.scenario}/${target.viewport}: baseline forecast missing`);
+    assertDeepEqual(after.periodKeys, before.periodKeys, `${target.scenario}/${target.viewport} period keys`);
+    assertDeepEqual(after.pageKeys, before.pageKeys, `${target.scenario}/${target.viewport} page keys`);
+    assertDeepEqual(after.pageIdentities, before.pageIdentities, `${target.scenario}/${target.viewport} page identities`);
+    if (after.identity !== before.identity) throw new Error(`${target.scenario}/${target.viewport}: atom identity changed`);
+    assertDesignAlignmentApprox(after.naturalHeight - before.naturalHeight, target.delta, 1, `${target.scenario}/${target.viewport} natural height delta`);
+  }
+}
+
+export function assertDesignAlignmentTyphoonProbability(typhoon, { mode, valueFontSize, prefectureCount, header }, label = "typhoon") {
+  if (typhoon == null || typhoon.displayMode !== mode) throw new Error(`${label}: expected ${mode} Typhoon`);
+  assertNoOverflow(typhoon.card, `${label} card`);
+  const counts = Object.fromEntries(["maximum", "prefecture", "worst"].map((role) => [role, typhoon.roles.filter((entry) => entry.role === role).length]));
+  assertDeepEqual(counts, { maximum: 1, prefecture: prefectureCount, worst: 1 }, `${label} probability roles`);
+  for (const role of typhoon.roles) {
+    for (const [name, node] of [["probabilityNumber", role.probabilityNumber], ["nuValue", role.nuValue], ["nuUnit", role.nuUnit]]) {
+      assertNoOverflow(node, `${label} ${role.role}/${role.label} ${name}`);
+      const fragments = name === "probabilityNumber" ? [role.nuValue, role.nuUnit] : [];
+      if (!isDesignAlignmentSingleVisualLine(node, fragments)) throw new Error(`${label} ${role.role}/${role.label} ${name}: wrapped`);
+    }
+    if (role.unit !== "%") throw new Error(`${label} ${role.role}/${role.label}: unit is not %`);
+    assertDesignAlignmentApprox(role.nuValue.fontSize, valueFontSize, 0.1, `${label} ${role.role}/${role.label} value font-size`);
+    assertDesignAlignmentApprox(role.nuUnit.fontSize, 12, 0.1, `${label} ${role.role}/${role.label} unit font-size`);
+    if (role.nuValue.fontWeight !== typhoon.resolvedNumWeight) throw new Error(`${label} ${role.role}/${role.label}: --num-weight mismatch`);
+    if (!role.nuValue.fontVariantNumeric.split(/\s+/).includes("tabular-nums") || role.nuUnit.fontVariantNumeric !== "normal") throw new Error(`${label} ${role.role}/${role.label}: NumberUnit font-variant hierarchy mismatch`);
+  }
+  const tone = typhoon.header;
+  if (tone == null) throw new Error(`${label}: header missing`);
+  if (header === "muted") {
+    if (tone.customProperties.container !== "" || tone.customProperties.on !== "" || tone.customProperties.band !== "") throw new Error(`${label}: muted header has semantic custom properties`);
+    if (!tone.className.split(/\s+/).includes("standby-card-header--muted") || tone.background !== "rgba(0, 0, 0, 0)" || tone.color !== tone.roleMuted || tone.bandWidth !== 0) throw new Error(`${label}: muted header rendering mismatch`);
+  } else if (header === "normal") {
+    if ([tone.customProperties.container, tone.customProperties.on, tone.customProperties.band].some((value) => value === "") || tone.background === "rgba(0, 0, 0, 0)") throw new Error(`${label}: VPTW header variables/background missing`);
+    assertDesignAlignmentApprox(tone.bandWidth, 4, 0.1, `${label} header band`);
+  }
+}
+
+function roleValues(typhoon) {
+  return typhoon.roles.map(({ role, label, value, unit }) => ({ role, label, value, unit }));
+}
+
+function assertTyphoon(records) {
+  const muted = findRecords(records, "standby-vpta50-probability-muted", "1280x720")[0]?.geometry.typhoon;
+  const normal = findRecords(records, "standby-vpta50-probability-normal", "1280x720")[0]?.geometry.typhoon;
+  assertDesignAlignmentTyphoonProbability(muted, { mode: "full", valueFontSize: 19, prefectureCount: 5, header: "muted" }, "VPTA muted");
+  assertDesignAlignmentTyphoonProbability(normal, { mode: "full", valueFontSize: 19, prefectureCount: 5, header: "normal" }, "VPTA normal");
+  assertDeepEqual(roleValues(muted), roleValues(normal), "VPTA probability/header independence");
+  assertDeepEqual(muted.roles.map(({ role, value }) => ({ role, value })), [
+    { role: "maximum", value: 80 },
+    { role: "prefecture", value: 80 }, { role: "prefecture", value: 70 }, { role: "prefecture", value: 60 },
+    { role: "prefecture", value: 50 }, { role: "prefecture", value: 40 },
+    { role: "worst", value: 80 },
+  ], "VPTA full visible values");
+  for (const viewport of ["1280x720", "960x620"]) {
+    const tick = DESIGN_ALIGNMENT_COMPRESSED_PLANS[viewport].typhoonCaptureTick;
+    const compact = findRecords(records, "standby-design-alignment-compressed", viewport).find((record) => record.rotationTick === tick && record.cardPageTick === 0)?.geometry.typhoon;
+    assertDesignAlignmentTyphoonProbability(compact, { mode: "compact", valueFontSize: 14, prefectureCount: 3, header: null }, `VPTA compact ${viewport}`);
+    assertDeepEqual(compact.roles.map(({ role, value }) => ({ role, value })), [
+      { role: "maximum", value: 80 },
+      { role: "prefecture", value: 80 }, { role: "prefecture", value: 70 }, { role: "prefecture", value: 60 },
+      { role: "worst", value: 80 },
+    ], `VPTA compact ${viewport} visible values`);
+  }
+}
+
+export function assertDesignAlignmentBaselineIdentity(records, baselineRecords) {
+  if (!Array.isArray(baselineRecords)) throw new Error("design-alignment baseline records missing");
+  const beforeByKey = new Map(baselineRecords.map((record) => [record.manifestKey, record]));
+  for (const after of records) {
+    const before = beforeByKey.get(after.manifestKey);
+    if (before == null) throw new Error(`${after.manifestKey}: baseline record missing`);
+    for (const key of ["scenario", "rotationTick", "cardPageTick", "query", "urlIdentity"]) {
+      if (before[key] !== after[key]) throw new Error(`${after.manifestKey}: baseline ${key} mismatch`);
+    }
+    assertDeepEqual(before.viewport, after.viewport, `${after.manifestKey} baseline viewport`);
+  }
+  if (beforeByKey.size !== records.length) throw new Error("design-alignment baseline has extra records");
+}
+
+function numericComparison(before, after) {
+  const base = Number.isFinite(before) ? before : null;
+  const current = Number.isFinite(after) ? after : null;
+  return { base, after: current, delta: base == null || current == null ? null : current - base };
+}
+
+function placementSnapshot(layout) {
+  return {
+    left: Array.isArray(layout?.placementLeft) ? layout.placementLeft : [],
+    right: Array.isArray(layout?.placementRight) ? layout.placementRight : [],
+    center: Array.isArray(layout?.placementCenter) ? layout.placementCenter : [],
+  };
+}
+
+function rotationSnapshot(layout) {
+  return {
+    keys: Array.isArray(layout?.rotationKeys) ? layout.rotationKeys : [],
+    omittedCount: Number.isFinite(layout?.rotationOmittedCount) ? layout.rotationOmittedCount : null,
+    activeKey: layout?.rotationActiveKey ?? null,
+    position: layout?.rotationPosition ?? null,
+  };
+}
+
+function visibleCardSnapshot(layout) {
+  if (!Array.isArray(layout?.visibleCards)) return [];
+  return layout.visibleCards.map(({ key, surface }) => ({ key, surface }));
+}
+
+function visibleCardHeights(layout) {
+  if (!Array.isArray(layout?.visibleCards)) return {};
+  return Object.fromEntries(layout.visibleCards.map((card) => [
+    card.key,
+    Number.isFinite(card.component?.rect?.height) ? card.component.rect.height
+      : Number.isFinite(card.host?.rect?.height) ? card.host.rect.height : null,
+  ]));
+}
+
+function scalarComparison(before, after) {
+  const base = before ?? null;
+  const current = after ?? null;
+  return { base, after: current, changed: base !== current };
+}
+
+function heightComparison(beforeLayout, afterLayout) {
+  const base = visibleCardHeights(beforeLayout);
+  const after = visibleCardHeights(afterLayout);
+  const delta = {};
+  for (const key of new Set([...Object.keys(base), ...Object.keys(after)])) delta[key] = numericComparison(base[key], after[key]).delta;
+  return { base, after, delta };
+}
+
+export function buildDesignAlignmentComparison(records, baselineRecords) {
+  assertDesignAlignmentBaselineIdentity(records, baselineRecords);
+  const beforeByKey = new Map(baselineRecords.map((record) => [record.manifestKey, record]));
+  return records.map((afterRecord) => {
+    const beforeRecord = beforeByKey.get(afterRecord.manifestKey);
+    const before = beforeRecord.geometry;
+    const after = afterRecord.geometry;
+    const basePlacement = placementSnapshot(before.layout);
+    const afterPlacement = placementSnapshot(after.layout);
+    const baseRotation = rotationSnapshot(before.layout);
+    const afterRotation = rotationSnapshot(after.layout);
+    const baseVisibleCards = visibleCardSnapshot(before.layout);
+    const afterVisibleCards = visibleCardSnapshot(after.layout);
+    return {
+      manifestKey: afterRecord.manifestKey,
+      scenario: afterRecord.scenario,
+      viewport: afterRecord.viewport,
+      rotationTick: afterRecord.rotationTick,
+      cardPageTick: afterRecord.cardPageTick,
+      stages: {
+        ladder: numericComparison(before.layout?.ladderStage, after.layout?.ladderStage),
+        measurementGeometry: numericComparison(before.layout?.measurementGeometryStage, after.layout?.measurementGeometryStage),
+      },
+      compressed: scalarComparison(before.layout?.compressed, after.layout?.compressed),
+      rotationOmittedCount: numericComparison(before.layout?.rotationOmittedCount, after.layout?.rotationOmittedCount),
+      placement: { base: basePlacement, after: afterPlacement, changed: stableJson(basePlacement) !== stableJson(afterPlacement) },
+      rotation: { base: baseRotation, after: afterRotation, changed: stableJson(baseRotation) !== stableJson(afterRotation) },
+      typhoonVariant: {
+        base: before.layout?.typhoonVariant ?? null,
+        after: after.layout?.typhoonVariant ?? null,
+        changed: before.layout?.typhoonVariant !== after.layout?.typhoonVariant,
+      },
+      visibleCards: { base: baseVisibleCards, after: afterVisibleCards, changed: stableJson(baseVisibleCards) !== stableJson(afterVisibleCards) },
+      cardHeights: heightComparison(before.layout, after.layout),
+      forecastNaturalHeight: numericComparison(before.forecast?.naturalHeight, after.forecast?.naturalHeight),
+    };
+  });
+}
+
+export function assertDesignAlignmentComparisonPolicy(comparisons) {
+  for (const comparison of comparisons.filter((entry) => entry.scenario === "standby-design-alignment-compressed" || entry.scenario === "legacy-standby-gate")) {
+    for (const [name, stage] of Object.entries(comparison.stages)) {
+      if (stage.base == null || stage.after == null || stage.delta !== 0) throw new Error(`${comparison.manifestKey}: base/after ${name} stage must remain unchanged`);
+    }
+    for (const [name, snapshot] of [["placement", comparison.placement], ["rotation", comparison.rotation], ["Typhoon variant", comparison.typhoonVariant], ["visible cards", comparison.visibleCards]]) {
+      if (snapshot.changed) throw new Error(`${comparison.manifestKey}: base/after ${name} changed`);
+    }
+    if (comparison.compressed.base !== true || comparison.compressed.after !== true || comparison.compressed.changed) throw new Error(`${comparison.manifestKey}: base/after compressed state changed`);
+    if (comparison.rotationOmittedCount.base == null || comparison.rotationOmittedCount.after == null || comparison.rotationOmittedCount.delta !== 0) throw new Error(`${comparison.manifestKey}: base/after omitted rotation count changed`);
+  }
+  for (const target of [
+    { scenario: "standby-vpwp50-forecast", viewport: "1280x720", tick: null, delta: 12 },
+    { scenario: "standby-design-alignment-compressed", viewport: "1280x720", tick: DESIGN_ALIGNMENT_COMPRESSED_PLANS["1280x720"].forecastCaptureTick, delta: 6 },
+    { scenario: "standby-design-alignment-compressed", viewport: "960x620", tick: DESIGN_ALIGNMENT_COMPRESSED_PLANS["960x620"].forecastCaptureTick, delta: 6 },
+  ]) {
+    const comparison = comparisons.find((entry) => entry.scenario === target.scenario
+      && entry.viewport.label === target.viewport && entry.rotationTick === target.tick && entry.cardPageTick === 0);
+    if (comparison == null) throw new Error(`${target.scenario}/${target.viewport}: forecast comparison record missing`);
+    assertDesignAlignmentApprox(comparison.forecastNaturalHeight.delta, target.delta, 1, `${target.scenario}/${target.viewport} natural height delta`);
+  }
+}
+
+export function resolveDesignAlignmentCaptureMode({ writeBaseline, baselineReport }) {
+  if (writeBaseline != null && baselineReport != null) throw new Error("choose either --write-baseline or --baseline-report");
+  if (writeBaseline != null) return "baseline";
+  if (baselineReport != null) return "after";
+  throw new Error("design-alignment suite requires --write-baseline or --baseline-report");
+}
+
+export function resolveDesignAlignmentExecutionMode({ suite, assertFrom, writeBaseline, baselineReport }) {
+  if (assertFrom == null) return "capture";
+  if (suite !== "design-alignment") throw new Error("--assert-from requires --suite design-alignment");
+  if (writeBaseline != null) throw new Error("--assert-from cannot be combined with --write-baseline");
+  if (baselineReport == null) throw new Error("--assert-from requires --baseline-report");
+  return "assert-from";
+}
+
+export function createDesignAlignmentRecordsArtifact({ mode, records, baseline }) {
+  return { suite: "design-alignment", mode, records, baseline };
+}
+
+export function isDesignAlignmentScreenshotArtifact(name) {
+  return name.startsWith("design-alignment-") && name.endsWith(".png");
+}
+
+async function cleanDesignAlignmentScreenshots(outDir) {
+  const entries = await readdir(outDir, { withFileTypes: true });
+  await Promise.all(entries
+    .filter((entry) => entry.isFile() && isDesignAlignmentScreenshotArtifact(entry.name))
+    .map((entry) => rm(join(outDir, entry.name), { force: true })));
+}
+
+export function assertDesignAlignmentManifest(records, { mode, baseline = null }) {
+  if (mode === "baseline") {
+    assertDesignAlignmentBaselineStructure(records);
+    return null;
+  }
+  if (mode !== "after") throw new Error(`unknown design-alignment assertion mode: ${mode}`);
+  if (baseline == null || baseline.suite !== "design-alignment") throw new Error("design-alignment baseline suite mismatch");
+  if (baseline.mode != null && baseline.mode !== "baseline") throw new Error("design-alignment baseline mode mismatch");
+  assertDesignAlignmentBaselineStructure(baseline.records ?? []);
+  assertDesignAlignmentManifestCoverage(records);
+  for (const record of records) assertRequiredReport(record);
+  assertCompressedPlan(records, "1280x720");
+  assertCompressedPlan(records, "960x620");
+  assertDesignAlignmentMaxFixture(records);
+  assertBriefingCaptureCoverage(records);
+  assertBaselineForecastCoverage(records);
+  assertBaselineTyphoonCoverage(records);
+  const comparison = buildDesignAlignmentComparison(records, baseline.records);
+  assertDesignAlignmentComparisonPolicy(comparison);
+  assertBriefingMatrix(records);
+  assertForecast(records, baseline);
+  assertTyphoon(records);
+  return comparison;
+}
+
+export function assertDesignAlignmentSavedRecords(saved, baseline) {
+  if (saved == null || saved.suite !== "design-alignment" || !Array.isArray(saved.records)) throw new Error("invalid design-alignment records file");
+  if (saved.mode != null && saved.mode !== "after") throw new Error("design-alignment records file is not an after capture");
+  const baseAfterComparison = assertDesignAlignmentManifest(saved.records, { mode: "after", baseline });
+  return { suite: "design-alignment", mode: "after", records: saved.records, baseAfterComparison };
+}
+
+async function runDesignAlignmentAssertionsFromFile(options) {
+  const assertFrom = resolve(options.assertFrom);
+  const baselineReport = resolve(options.baselineReport);
+  const [saved, baseline] = await Promise.all([
+    readFile(assertFrom, "utf8").then(JSON.parse),
+    readFile(baselineReport, "utf8").then(JSON.parse),
+  ]);
+  const report = { ...assertDesignAlignmentSavedRecords(saved, baseline), assertFrom, baselineReport };
+  process.stdout.write(`${JSON.stringify(report, null, 2)}\n`);
+}
+
+async function runDesignAlignmentSuite({ options, chrome, profileDir, baseUrl, outDir }) {
+  const mode = resolveDesignAlignmentCaptureMode(options);
+  await cleanDesignAlignmentScreenshots(outDir);
+  const records = [];
+  for (const entry of DESIGN_ALIGNMENT_MANIFEST) {
+    const url = designAlignmentUrl(baseUrl, entry);
+    records.push(await captureDesignAlignmentPage({
+      chrome, profileDir, url, viewport: parseViewport(entry.viewport), outDir, entry,
+    }));
+  }
+  const baseline = options.baselineReport == null ? null : JSON.parse(await readFile(options.baselineReport, "utf8"));
+  const recordsArtifactPath = join(outDir, "design-alignment-records.json");
+  await writeFile(recordsArtifactPath, `${JSON.stringify(createDesignAlignmentRecordsArtifact({ mode, records, baseline }), null, 2)}\n`);
+  const baseAfterComparison = assertDesignAlignmentManifest(records, { mode, baseline });
+  const report = { suite: "design-alignment", mode, recordsArtifactPath, records, ...(baseAfterComparison == null ? {} : { baseAfterComparison }) };
+  if (options.writeBaseline != null) await writeFile(options.writeBaseline, `${JSON.stringify(report, null, 2)}\n`);
+  process.stdout.write(`${JSON.stringify(report, null, 2)}\n`);
+}
+
 async function main() {
   let options;
-  try { options = parseArgs(process.argv.slice(2)); } catch (error) { usage(error.message); return; }
+  try { options = parseCaptureArgs(process.argv.slice(2)); } catch (error) { usage(error.message); return; }
   if (options == null) { usage(); return; }
+  if (options.suite != null && options.suite !== "design-alignment") throw new Error("unknown suite");
+  if (resolveDesignAlignmentExecutionMode(options) === "assert-from") {
+    await runDesignAlignmentAssertionsFromFile(options);
+    return;
+  }
   // The overlap counterexample needs the first paged weather+tornado cell.
   // Scenario 7 / 960 is that deterministic surface; starting from quiet would
   // exercise no badge at all and could leave the rider diagnostic unproven.
@@ -998,6 +2067,10 @@ async function main() {
   const baseUrl = options.url ?? staticServer.url;
   const profileDir = await mkdtemp(join(outDir, ".chrome-profile-"));
   try {
+    if (options.suite === "design-alignment") {
+      await runDesignAlignmentSuite({ options, chrome, profileDir, baseUrl, outDir });
+      return;
+    }
     const results = [];
     for (const scenario of scenarios) {
       const viewportLabels = requestedViewports == null
@@ -1055,7 +2128,10 @@ async function main() {
   }
 }
 
-main().catch((error) => {
-  process.stderr.write(`${error instanceof Error ? error.stack ?? error.message : String(error)}\n`);
-  process.exitCode = 1;
-});
+const directlyInvoked = process.argv[1] != null && resolve(process.argv[1]) === fileURLToPath(import.meta.url);
+if (directlyInvoked) {
+  main().catch((error) => {
+    process.stderr.write(`${error instanceof Error ? error.stack ?? error.message : String(error)}\n`);
+    process.exitCode = 1;
+  });
+}

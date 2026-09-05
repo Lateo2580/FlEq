@@ -142,7 +142,7 @@
   }
   .semantic-badge { margin-left: 0.25em; font-weight: var(--type-label-weight-emphasized); }
   .int-chip.special-unknown,
-  .g-int.special-unknown { color: var(--c-raspberry); border: 1px dashed currentColor; }
+  .g-int.special-unknown { color: var(--role-cancel); border: 1px dashed currentColor; }
   .int-chip.special-empty,
   .g-int.special-empty { color: var(--role-muted); border: 1px dotted currentColor; }
   .hypocenter {
@@ -150,7 +150,7 @@
     font-size: var(--type-title-s-fluid);
   }
   .tsunami-mark {
-    color: var(--c-jma-red);
+    color: var(--role-tsunamiWarning);
     font-weight: var(--type-body-weight-emphasized);
   }
   .meta {

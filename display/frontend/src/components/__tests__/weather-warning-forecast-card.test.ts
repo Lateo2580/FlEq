@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { render } from "@testing-library/svelte";
 import { tick } from "svelte";
@@ -265,5 +267,12 @@ describe("WeatherWarningForecastCard", () => {
     expect(root).not.toBeNull();
     const all = [...dtoStrings, ...renderedStrings(root!)];
     for (const value of all) for (const token of forbidden) expect(value).not.toContain(token);
+  });
+
+  it("period spacingをtoken化し、複数atomでも共通header paddingを上書きしない", () => {
+    const source = readFileSync(join(__dirname, "..", "WeatherWarningForecastCard.svelte"), "utf8");
+    expect(source).toContain(".periods { display: grid; gap: var(--space-1); }");
+    expect(source).not.toMatch(/has-page-footer\s+\.standby-card-header/);
+    expect(source).toMatch(/\.forecast-card\.has-page-footer\s*\{[^}]*padding-bottom:\s*var\(--card-page-indicator-block-size\);/s);
   });
 });

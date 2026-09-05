@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { describe, it, expect, vi } from "vitest";
 import { render, screen } from "@testing-library/svelte";
 import QuakeReplayCard from "../QuakeReplayCard.svelte";
@@ -165,5 +167,11 @@ describe("QuakeReplayCard", () => {
     });
     // 予算 8 → 表示 8、残り 2 + サーバ cap 3 = 5 地域を省略
     expect(container.querySelector(".g-omitted")?.textContent).toContain("ほか5地域");
+  });
+
+  it("unknownと津波markをsemantic roleへ接続する", () => {
+    const source = readFileSync(join(__dirname, "..", "QuakeReplayCard.svelte"), "utf8");
+    expect(source).toMatch(/\.int-chip\.special-unknown,[\s\S]*?\.g-int\.special-unknown\s*\{\s*color:\s*var\(--role-cancel\)/);
+    expect(source).toMatch(/\.tsunami-mark\s*\{[^}]*color:\s*var\(--role-tsunamiWarning\);/s);
   });
 });

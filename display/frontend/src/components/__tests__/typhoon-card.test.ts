@@ -599,6 +599,39 @@ describe("TyphoonCard", () => {
       .toContain("5日以内 最大80%");
   });
 
+  it("full/compactの全probability roleをNumberUnit構造とtoken spacingで描画する", () => {
+    const assertNumberUnits = (root: HTMLElement, expectedCount: number): void => {
+      const wrappers = [...root.querySelectorAll<HTMLElement>(".probability-number")];
+      expect(wrappers).toHaveLength(expectedCount);
+      for (const wrapper of wrappers) {
+        const value = wrapper.querySelector<HTMLElement>(".nu-value");
+        const unit = wrapper.querySelector<HTMLElement>(".nu-unit");
+        expect(value).not.toBeNull();
+        expect(unit?.textContent).toBe("%");
+        expect(value?.nextElementSibling).toBe(unit);
+      }
+    };
+    const item = typhoonItem([typhoon({ probability: probability() })]);
+    const full = render(TyphoonCard, { item });
+    assertNumberUnits(full.container, 7);
+    expect(full.container.querySelector(".probability-maximum .probability-number")).not.toBeNull();
+    expect(full.container.querySelectorAll(".probability-prefecture-list .probability-number")).toHaveLength(5);
+    expect(full.container.querySelector(".probability-worst .probability-number")).not.toBeNull();
+    full.unmount();
+    const compact = render(TyphoonCard, { item, displayMode: "compact" });
+    assertNumberUnits(compact.container, 5);
+    expect(compact.container.querySelector(".probability-compact-summary > .probability-number")).not.toBeNull();
+    expect(compact.container.querySelectorAll(".probability-prefectures .probability-number")).toHaveLength(3);
+    expect(compact.container.querySelector(".probability-worst--compact .probability-number")).not.toBeNull();
+
+    const source = readFileSync(join(__dirname, "..", "TyphoonCard.svelte"), "utf8");
+    const numberUnit = readFileSync(join(__dirname, "..", "NumberUnit.svelte"), "utf8");
+    expect(numberUnit).toMatch(/\.nu-value\s*\{[^}]*font-weight:\s*var\(--num-weight\);/s);
+    expect(source).toMatch(/\.probability-prefecture-list\s*\{[^}]*gap:\s*var\(--space-1\) var\(--space-3\);/s);
+    expect(source).toMatch(/\.probability-peak\s*\{[^}]*margin-top:\s*var\(--space-1\);/s);
+    expect(source).toMatch(/\.probability-worst--compact\s*\{[^}]*margin-top:\s*var\(--space-1\);/s);
+  });
+
   it("worst area と peak を JST 表示し、null peak は明示する", () => {
     const exact = render(TyphoonCard, {
       item: typhoonItem([typhoon({ probability: probability() })]),

@@ -263,7 +263,8 @@ describe("LatestQuakeCard", () => {
     const rankEnd = source.lastIndexOf(".int-r9");
     const unknownRule = source.indexOf(".int-chip.special-unknown");
     expect(unknownRule).toBeGreaterThan(rankEnd);
-    expect(source).toMatch(/\.int-chip\.special-unknown,[\s\S]*?\.g-int\.special-unknown\s*\{\s*color: var\(--c-raspberry\)/);
+    expect(source).toMatch(/\.int-chip\.special-unknown,[\s\S]*?\.g-int\.special-unknown\s*\{\s*color: var\(--role-cancel\)/);
+    expect(source).toMatch(/\.tsunami-mark\s*\{[^}]*color:\s*var\(--role-tsunamiWarning\);/s);
   });
 
   // T7 回帰修正 (spec §2-b の静的リスト例「震度6強 宮崎市 日南市」どおり): 県名で始まらない

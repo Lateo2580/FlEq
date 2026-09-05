@@ -143,11 +143,10 @@
   .target-row { display: flex; min-width: 0; align-items: baseline; justify-content: space-between; gap: var(--space-2); }
   .target { min-width: 0; overflow: hidden; font-size: var(--type-label-s-fluid); text-overflow: ellipsis; white-space: nowrap; }
   .continuation { flex: none; color: var(--role-muted); font-size: var(--type-label-xs-size); }
-  .periods { display: grid; gap: 2px; }
+  .periods { display: grid; gap: var(--space-1); }
   .period { display: grid; grid-template-columns: 3.2rem minmax(0, 1fr); gap: var(--space-2); color: var(--role-muted); font-size: var(--type-label-s-fluid); white-space: nowrap; }
   .period span:last-child { overflow: hidden; text-overflow: ellipsis; }
   .forecast-card.has-page-footer { --card-page-indicator-block-size: calc(var(--type-label-xs-size) + 4px); padding-bottom: var(--card-page-indicator-block-size); }
-  .forecast-card.has-page-footer .standby-card-header { padding-top: calc(var(--space-2) - 3px); padding-bottom: calc(var(--space-2) - 3px); }
   .card-page-footer { position: absolute; inset-inline: 0; bottom: 0; display: flex; align-items: center; justify-content: flex-end; box-sizing: border-box; height: var(--card-page-indicator-block-size); min-height: var(--card-page-indicator-block-size); padding: 0 var(--space-4); overflow: hidden; pointer-events: none; z-index: 1; }
   .card-page-indicator { box-sizing: border-box; block-size: var(--card-page-indicator-block-size); padding: 1px var(--space-2); border: 1px solid var(--hairline); border-radius: var(--radius-s); background: color-mix(in srgb, var(--surface-standby) 92%, transparent); color: var(--role-muted); font-size: var(--type-label-xs-size); line-height: 1; font-variant-numeric: tabular-nums; }
 </style>

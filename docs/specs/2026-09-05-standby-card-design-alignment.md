@@ -282,14 +282,14 @@ VPTA50 の二 scenario は同じ probability payload を使い、VPTW 実況の�
 
 rider / reserve は同じ max payload の `tornado`、`longPeriod`、`nankaiTrough` を各一件維持するが、これらを別の solver candidate と数えない。`heat` を含む同 kind の複製は追加しない。専用 scenario のために parser / wire fixtureを増やさない。
 
-1280×720と960×620の期待 plan は次で固定する。stage の受入表現は双方とも「圧縮段 stage 2 以上」とし、`data-ladder-stage >= 2`、`data-measurement-geometry-stage >= 2`、`.ladder-compressed` 成立を一組で要求する。
+1280×720と960×620の期待 plan は、Chrome の真の viewport を `Emulation.setDeviceMetricsOverride` で設定し、`document.fonts.ready` 後かつ measurement settled で得た次の実測値へ固定する。両 viewport とも stage は厳密に3、`.ladder-compressed` は成立する。stage 2 以上という一般契約だけで表の不一致を許容しない。
 
-| viewport | side-left | side-right | center | rotation（canonical順） | Typhoon variant |
-|---|---|---|---|---|---|
-| 1280×720 | `tsunami,quake` | 空 | 空 | `weather,weatherWarningForecast,briefing,flood,typhoon,volcano,heat` | `compact` |
-| 960×620 | `tsunami,quake` | 空 | 空 | `weather,weatherWarningForecast,briefing,flood,typhoon,volcano,heat` | `compact` |
+| viewport | stage | compressed | side-left | side-right | center | rotation（canonical順） | Typhoon variant | omitted |
+|---|---:|---|---|---|---|---|---|---:|
+| 1280×720 | `3` | `true` | `tsunami,quake,weatherWarningForecast` | `briefing` | `weather` | `flood,typhoon,volcano,heat` | `compact` | `0` |
+| 960×620 | `3` | `true` | `tsunami,quake` | 空 | 空 | `weather,weatherWarningForecast,briefing,flood,typhoon,volcano,heat` | `compact` | `0` |
 
-capture は全対象を side measurement shelf で測り、全 rotation tick を進めて BriefingCard、WeatherWarningForecastCard、TyphoonCard を side幅の live rotation surface で捕捉する。base / after の厳密な stage 値と上表の placement / rotation / variant は一致させるが、外部契約として固定する stage 下限は2である。強制圧縮 prop / query、`gateFixture` の新値、本番 `StandbyScreen` APIは新設せず、各 scenario はURLから安定して選択できなければならない。
+capture は全対象を side measurement shelf で測る。1280×720では WeatherWarningForecastCard を左列、BriefingCard を右列の常時可視 side surface で捕捉し、4 rotation tickを進めてcompact TyphoonCardを捕捉する。960×620では7 rotation tickを進めて BriefingCard、WeatherWarningForecastCard、compact TyphoonCardをそれぞれ live rotation surface で捕捉する。base / after の stage、compressed、placement、rotation、variant、omitted は上表と完全一致させる。強制圧縮 prop / query、`gateFixture` の新値、本番 `StandbyScreen` APIは新設せず、各 scenario はURLから安定して選択できなければならない。
 
 ### 3.9 `display-design-system.md §5` のカタログ追記
 
@@ -347,6 +347,8 @@ engine の standbyItems 配列順は kind 間の描画順を変更しない。
 2. 実測値または失敗した機械検証。
 3. 採用したい代替案と、gutter、2×2、header、semantic role、情報欠落への影響。
 4. spec 本文を同じ弾で更新するか、未解決として止めるか。
+
+本改訂での適用事例として、§3.8 の期待 plan は CSS 見積りと高さ577pxの初期観測で起草されたが、真の1280×720 viewport実測で覆し、実測値を正として本文と受入条件を更新した。
 
 実装時コメントだけで裁定を完結させてはならない。特に負の margin、raw px、未定義 token、primitive 直参照、共通 header の局所縮小は、明示承認なしに再導入しない。
 
@@ -483,7 +485,7 @@ line count は対象 text node / fragment の `Range.getClientRects()` の異な
 
 #### 幅・2×2・gutter matrix
 
-1280×720通常段は単独 `#standby-briefing-design-alignment`、圧縮二条件は `#standby-design-alignment-compressed` を使う。前者は BriefingCard を右側列に置いて `.ladder-compressed` なし、後者の期待 stage は一貫して「圧縮段 stage 2 以上」とし、`data-ladder-stage >= 2`、`data-measurement-geometry-stage >= 2`、`.ladder-compressed` 成立を必須とする。standalone URLを圧縮証拠に流用しない。三条件ともroot computed font-sizeは16px、measurement shelfとliveのBriefingCard幅は1px以内で一致しなければならない。
+1280×720通常段は単独 `#standby-briefing-design-alignment`、圧縮二条件は `#standby-design-alignment-compressed` を使う。前者は BriefingCard を右側列に置いて `.ladder-compressed` なし、後者は `data-ladder-stage=3`、`data-measurement-geometry-stage=3`、`.ladder-compressed` 成立を必須とする。standalone URLを圧縮証拠に流用せず、真の viewport を `Emulation.setDeviceMetricsOverride` で設定して `document.fonts.ready` と measurement settled を待つ。三条件ともroot computed font-sizeは16px、measurement shelfとliveのBriefingCard幅は1px以内で一致しなければならない。
 
 | 条件 | card幅 | body padding-inline | grid row gap | grid column gap | stat列幅 | stat gap |
 |---|---:|---:|---:|---:|---:|---:|
@@ -497,29 +499,29 @@ line count は対象 text node / fragment の `Range.getClientRects()` の異な
 
 `#standby-design-alignment-compressed` のcandidate kind別件数は `tsunami=1, quake=1, weather=1, weatherWarningForecast=1, briefing=1, flood=1, typhoon=1, volcano=1, heat=1` と完全一致させる。rider / reserveは `tornado=1, longPeriod=1, nankaiTrough=1` とし、同 kind の二件目、特に `heat×2` は失敗とする。payload signature は§3.8の表と完全一致し、WeatherWarningForecastCard は単一atom化せず `legacyImprovedWeatherWarningForecast` の128 period / 32 atom / 最大4 periodと複数atom footerを維持する。
 
-| viewport | `data-placement-left` | `data-placement-right` | `data-placement-center` | `data-rotation-keys` | `data-typhoon-variant` |
-|---|---|---|---|---|---|
-| 1280×720 | `tsunami,quake` | 空文字 | 空文字 | `weather,weatherWarningForecast,briefing,flood,typhoon,volcano,heat` | `compact` |
-| 960×620 | `tsunami,quake` | 空文字 | 空文字 | `weather,weatherWarningForecast,briefing,flood,typhoon,volcano,heat` | `compact` |
+| viewport | stage / compressed | `data-placement-left` | `data-placement-right` | `data-placement-center` | `data-rotation-keys` | `data-typhoon-variant` | omitted |
+|---|---|---|---|---|---|---|---:|
+| 1280×720 | `3` / `true` | `tsunami,quake,weatherWarningForecast` | `briefing` | `weather` | `flood,typhoon,volcano,heat` | `compact` | `0` |
+| 960×620 | `3` / `true` | `tsunami,quake` | 空文字 | 空文字 | `weather,weatherWarningForecast,briefing,flood,typhoon,volcano,heat` | `compact` | `0` |
 
-両 viewport で上表を属性値として完全一致させ、rotation omitted countは0、全7 tickのactive key / positionは同じcanonical順を一巡する。各tickで対象cardのlive幅は対応するside measurement幅と1px以内で一致させる。stageは `data-ladder-stage >= 2` かつ `data-measurement-geometry-stage >= 2`、classは `.ladder-compressed`、Typhoonは両viewportともcompactでなければならない。base / after は上記下限をそれぞれ満たしたうえで、実際に解決したstage値、placement、rotation、variantを完全一致させる。
+両 viewport で上表を属性値として完全一致させ、`data-ladder-stage` / `data-measurement-geometry-stage` はともに3、`.ladder-compressed` はtrue、rotation omitted countは0とする。1280×720は4 tick、960×620は7 tickのactive key / positionを各 `data-rotation-keys` のcanonical順で一巡させる。1280では WeatherWarningForecastCardを左列、BriefingCardを右列で常時捕捉し、960では両cardをrotationで捕捉する。compact TyphoonCardは両viewportのrotationで捕捉する。各捕捉時のlive幅は対応するside measurement幅と1px以内で一致させ、base / after はstage、compressed、placement、rotation、variant、omittedを上表どおり完全一致させる。
 
 #### VPWP50 の高さと max fixture 比較
 
 通常段の `#standby-vpwp50-forecast` と圧縮段の `#standby-design-alignment-compressed` は、どちらも同じ `legacyImprovedWeatherWarningForecast`（128 period / 32 atom、最大4 period / atom）を使う。最大atomを捕捉した通常段はheader padding `8px 16px`、period gap 4px、圧縮段はheader padding `4px 8px`、period gap 2pxとし、両方で複数atom footerが存在しなければならない。footer / atom overlapは0、すべてのclient / scroll overflowは1px以内、period countは4、identity / key / 順序はbaseと同一とする。変更前baseに対する自然高差は通常段 `+12px ±1px`、圧縮段 `+6px ±1px` とする。
 
-header復元が選抜へ与える副作用は、既存の1280×720 `?nav=0&gateScenario=max#legacy-standby-gate` を表示変更の直前と直後に同じChrome・font・viewportで採取して比較する。加えて `#standby-design-alignment-compressed` も1280×720 / 960×620の双方でbase / after比較し、Briefing gridとVPTA probabilityの高さ変更を含めて次を完全一致させる。
+header復元は一般には選抜を変え得るため、既存の1280×720 `?nav=0&gateScenario=max#legacy-standby-gate` を表示変更の直前と直後に同じChrome・font・真のviewportで採取して比較する。加えて `#standby-design-alignment-compressed` も1280×720 / 960×620の双方でbase / after比較し、Briefing gridとVPTA probabilityの高さ変更を含めて次を完全一致させる。注記として、1280×720の実測ではbase / afterとも stage 3、左 `tsunami,quake,weatherWarningForecast`、右 `briefing`、中央 `weather`、rotation `flood,typhoon,volcano,heat` であり、header復元による配置変化は起きなかった。この同一性も受入値とし、比較自体は省略しない。
 
-- `data-ladder-stage` と `data-measurement-geometry-stage`（圧縮fixtureは双方2以上で、base / afterの実値も同一）
+- `data-ladder-stage=3`、`data-measurement-geometry-stage=3`、`.ladder-compressed=true`
 - side-left / side-right / center / rotationを区別したvisible card keyとその順序（圧縮fixtureは§5.3の期待表と完全一致）
-- rotation keyとその順序、rotation omitted count
-- rotation全tickのactive key / position
+- rotation keyとその順序、rotation omitted count 0
+- 1280×720は4 tick、960×620は7 tickのactive key / position
 
 after側はさらに `data-layout-unresolved=false`、measurement nonconverged=false、card / readable overflow 0、footer overlap 0を満たす。いずれかが変わった場合、期待表を更新して通してはならず、実装を停止して §3.11 の裁定を求める。
 
 #### VPTA50 の二状態
 
-`#standby-vpta50-probability-muted` と `#standby-vpta50-probability-normal` の両方をcaptureする。最大値、表示府県の全値、worst areaの全roleで `.nu-value` / `.nu-unit` が一組あり、unit textは `%`、valueのfont-weightは同じcard / tierで解決した `--num-weight` と一致し、wrapperのoverflowは0とする。通常二scenarioのfullはvalue 19px / unit 12px、圧縮scenarioのcompactは1280 / 960ともvalue 14px / unit 12pxを0.1px以内で満たす。mutedはstyleにheader三変数なし、transparent、`--role-muted`相当、band 0px、normalはVPTW由来の三変数とbandを持つ。両scenarioで同じ確率値がheader toneを変えないことをassertする。通常二scenarioでfull、圧縮scenarioは1280 / 960の両条件でcompactを捕捉し、いずれもmaximum / prefecture / worstの該当roleを検査する。
+`#standby-vpta50-probability-muted` と `#standby-vpta50-probability-normal` の両方をcaptureする。最大値、表示府県の全値、worst areaの全roleで `.nu-value` / `.nu-unit` が一組あり、unit textは `%`、valueのfont-weightは同じcard / tierで解決した `--num-weight` と一致し、wrapperのoverflowは0とする。通常二scenarioのfullはvalue 19px / unit 12px、圧縮scenarioのcompactは1280 / 960ともvalue 14px / unit 12pxを0.1px以内で満たす。mutedはstyleにheader三変数なし、transparent、`--role-muted`相当、band 0px、normalはVPTW由来の三変数とbandを持つ。両scenarioで同じ確率値がheader toneを変えないことをassertする。通常二scenarioでfull、圧縮scenarioは1280 / 960の両条件でrotation中のcompact TyphoonCardを捕捉し、いずれもmaximum / prefecture / worstの該当roleを検査する。
 
 必須captureはbaseline manifestの記録 / 比較を含む次の一括gateから実行できるようにする。capture / fixture実装後、component表示変更前に一つ目を実行し、表示変更後に二つ目を実行する。
 
@@ -547,9 +549,9 @@ npm --prefix display run docs:design:check
 
 ## 6. 裁定ラベル
 
-- **対象**: BriefingCard の下限なし2×2 grid / gutter / 誤 token、WeatherWarningForecastCard の token spacing / 共通 header、TyphoonCard の VPTA50 NumberUnitとprobability内spacing、VolcanoCard の muted header、LatestQuakeCard / QuakeReplayCard の意味色、主対象4カードのcatalog、StandbyScreen / §5.1 の実幅tokenと `spill → center → 圧縮 → rotation` solver説明、通常4 scenario、§3.8のdistinct-kind圧縮scenario、必須capture suite / base比較 / 対象テスト。
+- **対象**: BriefingCard の下限なし2×2 grid / gutter / 誤 token、WeatherWarningForecastCard の token spacing / 共通 header、TyphoonCard の VPTA50 NumberUnitとprobability内spacing、VolcanoCard の muted header、LatestQuakeCard / QuakeReplayCard の意味色、主対象4カードのcatalog、StandbyScreen / §5.1 の実幅tokenと `spill → center → 圧縮 → rotation` solver説明、通常4 scenario、§3.8のdistinct-kind圧縮scenarioと真のviewport実測plan、必須capture suite / base比較 / 対象テスト。
 - **許容変更**: §3 の DOM wrapper / CSS、固定名preview scenario、既存 max payloadを基礎にcandidate 9 kindとrider / reserve 3 kindを各一件だけ持つ混雑fixture、capture script内だけの `design-alignment` suite / payload signature / geometry report / 非0終了assertion / base比較と、§5を満たす対象テスト更新。spec逸脱や追加の既存期待値変更は、変更前に §3.11 の根拠を報告した場合だけ許容する。
 - **禁止変更**: parser、engine、wire、永続化、通知、severity / header tone の意味、VPWP50の4期間/atom・identity・順序・総数、NumberUnit本体、theme token値、solver / stage API、preview / 本番の強制圧縮APIや `gateFixture` 新値、圧縮fixtureの同kind複製・単一atom forecast・両修飾同時の合成雨量、対象外カード、§8 generated領域、負margin・列下限・未定義token・semantic primitive直参照・§3.10以外のraw spacingの追加、design-systemに `StandbyOverflowSummary` / `--standby-card-width` の旧契約を残すこと。
 - **配送先（main → personal → Pi）**: main で本弾を受入後、同一差分を personal、Pi の順に配送し、各段で §5 の該当 gate と実機 preview を確認する。
 - **ロールバック**: 本弾の単一修正 commit を revert し、main → personal → Pi の順に再配送する。
-- **受入条件**: §5 のselector別静的契約、対象vitest、実在二雨量だけを使う三幅条件、二つのVPTA状態、圧縮段stage 2以上と1280 / 960の固定placement / rotation / compact variant、1280 `max` と圧縮scenarioのbase比較、全体gateをすべて満たし、未申告のspec逸脱がないこと。
+- **受入条件**: §5 のselector別静的契約、対象vitest、実在二雨量だけを使う三幅条件、二つのVPTA状態、1280 / 960圧縮fixtureのstage 3・`.ladder-compressed`・固定placement、1280の4 rotation tick / 960の7 rotation tick、両viewportのcompact Typhoon、1280 `max` と圧縮scenarioのbase比較、全体gateをすべて満たし、未申告のspec逸脱がないこと。
