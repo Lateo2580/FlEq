@@ -9,7 +9,9 @@ Status: Phase 1 approved / scope locked by decision 3A
 
 ### 1.1 目的
 
-Phase 1 の目的は一つだけである。既存の `VPBS50_HJPNA202608270258.xml`（線状降水帯の直前予測）と `VPBS50_HJPNB202608270308.xml`（発生）を、dmdata WebSocket の `WsDataMessage` と同じ封筒へ無改変で包み、引数順に本番 message router 入口へ注入し、本番 formatter の CLI 出力と実 HTTP/SSE display が「予測 → 発生」の置換を示すことを再現・機械確認する。既存 helper も同じ対を実受信として扱っている（`test/helpers/mock-message.ts:354-356`）。
+Phase 1 の目的は一つだけである。`test/fixtures/replay/VPBS50_YJPNB202608270448.xml`（線状降水帯の直前予測）と `test/fixtures/replay/VPBS50_HJPNB202608270458.xml`（発生）を、dmdata WebSocket の `WsDataMessage` と同じ封筒へ replay 実行中は無改変で包み、引数順に本番 message router 入口へ注入し、本番 formatter の CLI 出力と実 HTTP/SSE display が「予測 → 発生」の置換を示すことを再現・機械確認する。
+
+実 corpus 4 本は、発生が 02:58 富山・03:08 金沢、その後の予測が 04:48 富山・金沢であり、時系列どおりの同一 subject の予測→発生対を持たない。このため Phase 1 固定対は検証機構のための合成派生物とする。予測は能登だけを対象とする実 `VPBS50_YJPNB202608270448.xml` の byte-identical copy、発生は加賀・能登を対象とする同じ金沢地方気象台の実 `VPBS50_HJPNB202608270308.xml` について日時 field だけを一律 1 時間 50 分進め、Report/Target を 04:58、現象時刻を 04:50 としたものとする。`codes(prediction) ⊂ codes(occurrence)` により予測は全削除され、final は発生 1 件になる。元・派生双方の filename/SHA-256、目的、変更した全 field の旧値・新値は `test/fixtures/replay/provenance.json` に固定し、それ以外の byte が不変であることを test する。replay はこの合成対の path/hash/kind/順序だけを受理し、実 corpus 4 本の直接指定は unsupported scenario として拒否する。
 
 Phase 1 は汎用 fixture replay の提供を目的にしない。受け付けるのは明示した 2 本・2 通・この順序だけであり、3 通以上の列、別の VPBS50 組合せ、別 head type、route 横断の TTL 整合は Phase 2 以降で改めて設計・監査する。ただし、この 2 通が到達する本番 router/CLI/display 経路は迂回せず、隔離、仮想 business time、SSE 同期点、quiescence は Phase 1 の成立条件とする。
 
@@ -186,8 +188,8 @@ Phase 1 は CLI に書いた 2 引数の順をそのまま順序とし、1 本�
 
 ```sh
 fleq replay \
-  test/fixtures/VPBS50_HJPNA202608270258.xml \
-  test/fixtures/VPBS50_HJPNB202608270308.xml \
+  test/fixtures/replay/VPBS50_YJPNB202608270448.xml \
+  test/fixtures/replay/VPBS50_HJPNB202608270458.xml \
   --state-dir .tmp/replay-linear-rain \
   --display-port 0 --hold
 ```
@@ -248,6 +250,7 @@ canonicalization は object key 順だけを正規化し、意味のある時刻
 | cache contract | `src/engine/messages/vpwp50-detail-cache.ts` | 既存 `persistRoot` を state-dir へ渡す契約の参照/test 対象。契約が足りる限り production file は変更せず、変更 file 数にも数えない。 |
 | display backend | `src/engine/display/runtime.ts`, `hub.ts`, `types.ts`。`transport.ts` は原則参照/test 対象 | 固定 case の now handoff、explicit quiescence flush、SSE replay metadata。actual port は既存 `transport.port()`（`src/engine/display/transport.ts:109-111`）を runner が start 直後に検査して close/retry し、契約が足りる限り transport 自体は変更しない。hub は既に `deps.now` を受けられる（`src/engine/display/hub.ts:114-126`）。 |
 | display frontend | `display/frontend/src/lib/clock.svelte.ts`, `lib/protocol.ts`, `App.svelte` | server business clock を固定 VPBS50 briefing の表示へ渡す。`HeatAlertCard` その他 route/card は変更しない。 |
+| replay fixture | `test/fixtures/replay/VPBS50_YJPNB202608270448.xml`、`VPBS50_HJPNB202608270458.xml`、`provenance.json` | byte-identical な予測と日時 field だけを進めた発生の固定合成対、および元・派生 hash と全変更 field の来歴。 |
 | tests | `test/engine/replay/*.test.ts`、display/frontend 側の固定 case test | 既知 2 envelope、module graph/side-effect 隔離、到達 clock/quiescence、SSE barrier、final state、7788 explicit/actual guard を固定する。 |
 
 対象外の既存 fixture XML、preview fixture、capture baseline をこの段階で変更しない。`monitor.ts` / `monitor-core` の汎用 composition 抽出、`VPWS50`・火山等の route owner、`HeatAlertCard`、全 TTL の frontend/backend 配線も Phase 2 以降であり、Phase 1 の対象ファイル数に含めない。
@@ -258,10 +261,10 @@ canonicalization は object key 順だけを正規化し、意味のある時刻
 
 ### 5.1 封筒と経路
 
-- 既知の VPBS50 fixture 2 本から個別に作った値が `WsDataMessage` の必須 fields を満たし、`format === "xml"`、`compression === null`、`encoding === "utf-8"`、正規化済み `meta.receivedAtMs` を持つ。
+- 固定合成 VPBS50 fixture 2 本から個別に作った値が `WsDataMessage` の必須 fields を満たし、`format === "xml"`、`compression === null`、`encoding === "utf-8"`、正規化済み `meta.receivedAtMs` を持つ。`provenance.json` は目的、各 role、派生 filename/SHA-256、元 filename/path/SHA-256、derivation、変更した全 field の旧値・新値を持ち、予測の byte identity と発生の記載外 byte 不変を test する。
 - その message は router の public handler に 1 回渡り、route tap に 1 回だけ記録される。parser/processor を直接 call してはならない。
-- VPBS50 の予測→発生 2 本を順序どおりに渡すと、final snapshot の briefing/standby entry は発生状態を示し、予測の stale entry を残さない。`events.jsonl` は `replay.injected` 2 records と `replay.final` 1 record の順で、合計 3 records になる。
-- 引数 1/3 本、逆順、既知 path/SHA-256 と異なる VPBS50、`VPWS50`、火山、EEW は、state/cache/runtime を作る前に unsupported scenario として non-zero exit する。
+- 固定合成 VPBS50 の予測→発生 2 本を順序どおりに渡すと、final snapshot の briefing/standby entry は発生 1 件だけを示し、予測の stale entry を残さない。`events.jsonl` は `replay.injected` 2 records と `replay.final` 1 record の順で、合計 3 records になる。
+- 引数 1/3 本、逆順、既知 path/SHA-256 と異なる VPBS50、実 corpus 4 本、`VPWS50`、火山、EEW は、state/cache/runtime を作る前に unsupported scenario として non-zero exit する。
 
 ### 5.2 隔離の証明
 
@@ -274,7 +277,7 @@ canonicalization は object key 順だけを正規化し、意味のある時刻
 
 ### 5.3 時刻と決定性
 
-- XML bytes は起動前後で完全一致する。`ReportDateTime`、`EventID`、serial を rewrite しない。
+- 固定合成 XML bytes は replay 起動前後で完全一致し、replay runtime は `ReportDateTime`、`EventID`、serial その他を rewrite しない。合成前の変更は `provenance.json` に列挙した日時 field だけとし、予測は元 XML と byte-identical、発生は列挙した旧値への逆置換で元 XML と byte-identical になることを test する。
 - 同じ fixture sequence を別の空 state dir で 2 回実行し、一方は `--interval 0`、他方は非ゼロにする。canonical `final-state.json` と、相対 path だけを持つ全3 records の `events.jsonl` の SHA-256 が一致し、wall pacing や state-dir absolute path が business state に混入しない。
 - snapshot の `generatedAt` と replay clock field、各 injected message の `meta.receivedAtMs` は、選んだ clock policy に従い一致する。固定 briefing と frontend 中央時計も同じ ISO/JST 時刻を読む unit/integration test を持つ。固定 case に現れない card/route の時刻はこの assertion に含めない。
 - VPBS50 outcome でも `SummaryWindowTracker.record/getSnapshot` と `DailyQuakeCounter` constructor/record/getSnapshot が受け取る時刻はすべて replay clock と一致し、時刻省略 fallback を spy で 0 call と確認する。

@@ -15,7 +15,7 @@ import { formatLevelLabel } from "../../dmdata/weather-warning-level";
 import { buildTsunamiObservations } from "../presentation/events/tsunami-observations";
 import { DISPLAY_SUMMARY_WIDTH } from "./constants";
 import { createFrontendBuildIdReader } from "./frontend-build-id";
-import { InfoDisplayHub } from "./hub";
+import { InfoDisplayHub, type DisplayTimeoutScheduler } from "./hub";
 import { DisplayStateStore } from "./state-store";
 import type { DisplayQuakeLifecyclePersistedV1 } from "./state-store";
 import { weatherAlertsFromVpws50, weatherAlertsFromVpww56 } from "./weather-alert-view";
@@ -44,6 +44,17 @@ export interface DisplayRuntime {
   hub: InfoDisplayHub;
   transport: InProcessSseDisplayTransport;
   stop(): Promise<void>;
+}
+
+export interface DisplayRuntimeOptions {
+  now?: () => number;
+  timeoutScheduler?: DisplayTimeoutScheduler;
+  replayMetadata?: () => {
+    clock?: { mode: "replay"; now: string };
+    replay?: { step: number; total: number; inputDigest: string };
+  };
+  /** replay は periodic business sweep を起動せず、明示 flush が所有する。 */
+  startTimers?: boolean;
 }
 
 export interface DisplaySeedSources {
@@ -147,7 +158,9 @@ export async function startDisplayRuntime(
   seeds: DisplaySeedSources,
   /** kill switch (onFatal) 発火時にも呼び出し元の runtime 参照を後始末させるための通知 */
   onStopped?: () => void,
+  runtimeOptions: DisplayRuntimeOptions = {},
 ): Promise<DisplayRuntime | null> {
+  const now = runtimeOptions.now ?? Date.now;
   const store = new DisplayStateStore(
     seeds.standbyItems,
     seeds.weatherPromotions?.(),
@@ -166,6 +179,9 @@ export async function startDisplayRuntime(
     frontendBuildId,
     standbySweep: seeds.standbySweep,
     standbyTickerGroupKeys: seeds.standbyTickerGroupKeys,
+    now,
+    timeoutScheduler: runtimeOptions.timeoutScheduler,
+    replayMetadata: runtimeOptions.replayMetadata,
     // spec §4: 表示系の連続障害では hub (kill switch が stop 済み) に加えて transport も止め、
     // monitor 本体だけを継続する。registry も外して REPL コマンドから死んだ runtime を参照させない。
     // transport.stop() (server.close) の完了を待ってから参照クリア・onStopped を行うことで、
@@ -207,7 +223,7 @@ export async function startDisplayRuntime(
   hub.attachTransport(transport);
 
   // 起動時 seed: 津波は restore 済み state から、気象警報は現況 (通常は未受信で空)
-  const nowMs = Date.now();
+  const nowMs = now();
   const quakeLifecycle = seeds.quakeLifecycle?.();
   if (quakeLifecycle != null) store.restoreQuakeLifecycle(quakeLifecycle, nowMs);
   const initialStats = seeds.stats?.();
@@ -248,12 +264,12 @@ export async function startDisplayRuntime(
   }
   // 起動失敗では lifecycle に触れない。HTTP/SSE が実際に開始できた時点だけを display on とし、
   // off 中に残った active な点灯へここから表示時間を与える (spec 追補 C6)。
-  const displayOnAtMs = Date.now();
+  const displayOnAtMs = now();
   store.resumeWeatherPromotions(displayOnAtMs);
   // display on のフルリセットとは別に、runtime 稼働中の SSE 無客区間は保持時計から除外する。
   // transport.start() とこの同期区間の間に await は無いため、初期人数との競合は起きない
   hub.startSseClientTracking(transport.clientCount(), displayOnAtMs);
-  hub.startTimers();
+  if (runtimeOptions.startTimers !== false) hub.startTimers();
   if (displayToken != null) {
     log.info(`情報ディスプレイ: http://${config.displayHost}:${transport.port()}/?token=${encodeURIComponent(displayToken)}`);
     log.info("非 loopback からの閲覧には上記 URL のトークンが必要です (loopback からの接続は不要)");

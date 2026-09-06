@@ -77,6 +77,22 @@ export interface InfoDisplayHubDeps {
   standbySweep?: (nowMs: number) => DisplayMutation;
   /** standby state と寿命を共有する ticker の active groupKey */
   standbyTickerGroupKeys?: () => ReadonlySet<string>;
+  /** replay の debounce/retry を virtual scheduler に載せる。 */
+  timeoutScheduler?: DisplayTimeoutScheduler;
+  /** 通常 snapshot には存在しない replay control-plane metadata。 */
+  replayMetadata?: () => Pick<DisplayStateSnapshotV1, "clock" | "replay">;
+}
+
+export interface DisplayTimeoutScheduler {
+  set(delayMs: number, callback: () => void): unknown;
+  clear(handle: unknown): void;
+}
+
+export interface ReplayStateFlushResult {
+  emitted: boolean;
+  seq: number;
+  snapshot: DisplayStateSnapshotV1;
+  degradationLevel: number;
 }
 
 // 電文 1 件を「射影 → 状態適用 → ring buffer → transport broadcast」に束ねる中枢。
@@ -90,14 +106,14 @@ export class InfoDisplayHub implements DisplayIngestSink {
   private stopped = false;
   private sweepTimer: NodeJS.Timeout | null = null;
   private stateDirty = false;
-  private stateTimer: NodeJS.Timeout | null = null;
+  private stateTimer: unknown | null = null;
   /** sweepTicker が recentTicker の構成を変えたら true。次の state 配信で一発同期し、
    *  配信が実際に broadcast されるまで保持する (縮退で送信スキップされた場合は次回に持ち越す、spec §3-2) */
   private tickerSyncPending = false;
   /** pending 中に完全同期を送れなかった (縮退で持ち越し or fail-loud スキップ) ときの明示的な
    *  再試行タイマー。定期 state は dirty 駆動なので、外部 dirty が偶然来なければ pending が永久に
    *  残る恐れがある (spec §3-5、レビュー R3 Important 対応) */
-  private tickerSyncRetryTimer: NodeJS.Timeout | null = null;
+  private tickerSyncRetryTimer: unknown | null = null;
   private lastStatsJson: string | null = null;
   /** クライアントへ実際に配信している安定 buildId。新しい観測値は連続 2 回 (sweep 2 周期) 同一を
    *  確認してからこの値へ昇格させ、ビルド書き込み途中の中間状態や mtime 揺れによるフラッピングを
@@ -113,6 +129,7 @@ export class InfoDisplayHub implements DisplayIngestSink {
   private unseenSinceMonotonicMs: number | null = null;
   private readonly now: () => number;
   private readonly monotonicNow: () => number;
+  private readonly timeoutScheduler: DisplayTimeoutScheduler;
 
   constructor(
     private readonly store: DisplayStateStore,
@@ -120,6 +137,14 @@ export class InfoDisplayHub implements DisplayIngestSink {
   ) {
     this.now = deps.now ?? Date.now;
     this.monotonicNow = deps.monotonicNow ?? (() => performance.now());
+    this.timeoutScheduler = deps.timeoutScheduler ?? {
+      set: (delayMs, callback) => {
+        const timer = setTimeout(callback, delayMs);
+        timer.unref();
+        return timer;
+      },
+      clear: (handle) => clearTimeout(handle as ReturnType<typeof setTimeout>),
+    };
   }
 
   attachTransport(t: DisplayTransport): void {
@@ -310,7 +335,14 @@ export class InfoDisplayHub implements DisplayIngestSink {
     const snap = this.store.snapshot(this.seq, this.now());
     snap.recentTicker = this.recent.map((e) => e.dto).reverse();
     this.stampFrontendBuildId(snap);
+    this.stampReplayMetadata(snap);
     return snap;
+  }
+
+  private stampReplayMetadata(snap: DisplayStateSnapshotV1): void {
+    const metadata = this.deps.replayMetadata?.();
+    if (metadata?.clock != null) snap.clock = { ...metadata.clock };
+    if (metadata?.replay != null) snap.replay = { ...metadata.replay };
   }
 
   /** transport 起動成功後、現在の SSE 人数を基準に無客時計の追跡を始める。 */
@@ -433,6 +465,7 @@ export class InfoDisplayHub implements DisplayIngestSink {
       snap.recentTicker = [];
     }
     this.stampFrontendBuildId(snap);
+    this.stampReplayMetadata(snap);
     return snap;
   }
 
@@ -463,7 +496,7 @@ export class InfoDisplayHub implements DisplayIngestSink {
       this.sweepTimer = null;
     }
     if (this.stateTimer != null) {
-      clearTimeout(this.stateTimer);
+      this.timeoutScheduler.clear(this.stateTimer);
       this.stateTimer = null;
     }
     this.clearTickerSyncRetry();
@@ -473,17 +506,16 @@ export class InfoDisplayHub implements DisplayIngestSink {
    *  (多重張り防止、spec §3-5)。発火時点でも pending が残っていれば markStateDirty で再試行する */
   private scheduleTickerSyncRetry(): void {
     if (this.stopped || this.tickerSyncRetryTimer != null) return;
-    this.tickerSyncRetryTimer = setTimeout(() => {
+    this.tickerSyncRetryTimer = this.timeoutScheduler.set(TICKER_SYNC_RETRY_MS, () => {
       this.tickerSyncRetryTimer = null;
       if (this.stopped || !this.tickerSyncPending) return;
       this.markStateDirty();
-    }, TICKER_SYNC_RETRY_MS);
-    this.tickerSyncRetryTimer.unref();
+    });
   }
 
   private clearTickerSyncRetry(): void {
     if (this.tickerSyncRetryTimer != null) {
-      clearTimeout(this.tickerSyncRetryTimer);
+      this.timeoutScheduler.clear(this.tickerSyncRetryTimer);
       this.tickerSyncRetryTimer = null;
     }
   }
@@ -502,10 +534,42 @@ export class InfoDisplayHub implements DisplayIngestSink {
     this.markStateDirty();
   }
 
+  /** replay 終端で dirty state を完全 snapshot として一度だけ同期配信する。 */
+  flushReplayState(): ReplayStateFlushResult {
+    if (this.stateTimer != null) {
+      this.timeoutScheduler.clear(this.stateTimer);
+      this.stateTimer = null;
+    }
+    const snapshot = this.buildSnapshot();
+    if (!this.stateDirty || this.stopped) {
+      return { emitted: false, seq: snapshot.seq, snapshot, degradationLevel: 0 };
+    }
+    this.stateDirty = false;
+    const result = degradeSnapshotToBudget(snapshot, "state");
+    if (result == null) throw new Error("replay final state exceeds display byte budget");
+    this.transport?.broadcast({ type: "state", snapshot: result.snapshot });
+    this.tickerSyncPending = false;
+    this.clearTickerSyncRetry();
+    return {
+      emitted: true,
+      seq: result.snapshot.seq,
+      snapshot: result.snapshot,
+      degradationLevel: result.level,
+    };
+  }
+
+  getReplayQuiescence(): { stateDirty: boolean; stateTimer: boolean; tickerSyncRetry: boolean } {
+    return {
+      stateDirty: this.stateDirty,
+      stateTimer: this.stateTimer != null,
+      tickerSyncRetry: this.tickerSyncRetryTimer != null,
+    };
+  }
+
   private markStateDirty(): void {
     this.stateDirty = true;
     if (this.stateTimer != null) return; // 実行待ちタイマーは再スケジュールしない (debounce)
-    this.stateTimer = setTimeout(() => {
+    this.stateTimer = this.timeoutScheduler.set(STATE_DEBOUNCE_MS, () => {
       this.stateTimer = null;
       if (!this.stateDirty || this.stopped) return;
       this.stateDirty = false;
@@ -553,7 +617,6 @@ export class InfoDisplayHub implements DisplayIngestSink {
         // timer callback からの throw は uncaughtException として monitor を殺すためここで握る。
         // ingest 経路の連続エラーカウンタとは独立 (state 配信は次の dirty で再試行される)
       }
-    }, STATE_DEBOUNCE_MS);
-    this.stateTimer.unref();
+    });
   }
 }

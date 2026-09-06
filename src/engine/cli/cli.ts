@@ -9,6 +9,7 @@ import {
 } from "../../config";
 import * as log from "../../logger";
 import type { RunMonitorOptions } from "./cli-run";
+import { registerReplayCommand } from "./cli-replay";
 
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const { version: VERSION } = require("../../../package.json") as {
@@ -78,6 +79,8 @@ export function buildProgram(): Command {
       const { runMonitor } = await import("./cli-run");
       return runMonitor(opts);
     });
+
+  registerReplayCommand(program);
 
   // init コマンド
   program

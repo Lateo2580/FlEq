@@ -775,6 +775,16 @@ export interface MessageHandlerOptions {
   displayReceiptClock?: DisplayReceiptClock;
   /** 6B後半の display receipt timer 用 scheduler DI。省略時は setTimeout。 */
   displayReceiptTimerScheduler?: DisplayReceiptTimerScheduler;
+  /** replay など、process wall clock と業務時刻を分離する composition root 用。 */
+  clock?: DisplayReceiptClock;
+  /** replay は実 logger constructor を呼ばず、明示した隔離 sink を渡す。 */
+  eewLogger?: EewEventLogger;
+  /** replay は実 notifier constructor を呼ばず、明示した隔離 sink を渡す。 */
+  notifier?: Notifier;
+  /** replay は必ず専用 persistRoot を持つ cache を渡す。 */
+  vpwp50Cache?: Vpwp50DetailCache;
+  /** replay clock を constructor fallback へ漏らさないための明示 instance。 */
+  summaryTracker?: SummaryWindowTracker;
 }
 
 /** createMessageHandler の戻り値 */
@@ -798,6 +808,8 @@ export interface MessageHandlerResult {
   flushAndDisposeVolcanoBuffer: () => void;
   /** handler 所有の legacy correlator／timerを冪等に破棄する唯一の口。 */
   disposeLegacyCounterpartCorrelator: () => void;
+  /** replay final flush が router の同期 queue を確認するための read-only hook。 */
+  getReplayQuiescence: () => { pendingEnvelopes: number; serializerOwnerActive: boolean };
 }
 
 /** 受信データのハンドリング */
@@ -805,9 +817,9 @@ export function createMessageHandler(options?: MessageHandlerOptions): MessageHa
   const pipeline: FilterTemplatePipeline = options?.pipeline ?? { filter: null, template: null, focus: null };
   const display = options?.display;
   const displaySink = options?.displaySink;
-  const displayReceiptClock: DisplayReceiptClock = options?.displayReceiptClock ?? {
-    nowMs: () => Date.now(),
-  };
+  const hasInjectedBusinessClock = options?.clock != null;
+  const routerClock: DisplayReceiptClock = options?.clock ?? { nowMs: () => Date.now() };
+  const displayReceiptClock: DisplayReceiptClock = options?.displayReceiptClock ?? routerClock;
   const displayReceiptTimerScheduler: DisplayReceiptTimerScheduler =
     options?.displayReceiptTimerScheduler ?? {
       set: (delayMs, callback) => setTimeout(callback, delayMs),
@@ -819,20 +831,21 @@ export function createMessageHandler(options?: MessageHandlerOptions): MessageHa
   );
   const routeTaps = options?.routeTaps;
   const outcomeTaps = options?.outcomeTaps;
-  const eewLogger = new EewEventLogger();
-  const notifier = new Notifier();
+  const eewLogger = options?.eewLogger ?? new EewEventLogger();
+  const notifier = options?.notifier ?? new Notifier();
   const tsunamiState = options?.tsunamiState ?? new TsunamiStateHolder();
   const volcanoState = options?.volcanoState ?? new VolcanoStateHolder();
   const vpws50State = options?.vpws50State ?? new Vpws50StateHolder();
   const vpww56State = options?.vpww56State ?? new Vpww56StateHolder();
-  const vpwp50Cache = new Vpwp50DetailCache();
+  const vpwp50Cache = options?.vpwp50Cache ?? new Vpwp50DetailCache();
   const tornadoDetailProvider = new TornadoDetailProvider();
   const typhoonProbabilityState = options?.typhoonProbabilityState
     ?? new TyphoonProbabilityStateHolder();
   const floodForecastState = options?.floodForecastState ?? new FloodForecastStateHolder();
   const stats = new TelegramStats();
-  const summaryTracker = new SummaryWindowTracker();
-  const dailyQuakeCounter = options?.dailyQuakeCounter ?? new DailyQuakeCounter();
+  const summaryTracker = options?.summaryTracker ?? new SummaryWindowTracker();
+  const dailyQuakeCounter = options?.dailyQuakeCounter
+    ?? (hasInjectedBusinessClock ? new DailyQuakeCounter(routerClock.nowMs()) : new DailyQuakeCounter());
   const diffStore = new PresentationDiffStore();
   const vptaDisplayCommands = new WeakMap<ProcessOutcome, VptaDisplayIngestCommand>();
   const vptaAdmissionCompletions = new WeakMap<ProcessOutcome, Extract<VptaAdmissionCompletion, { kind: "accepted" }>>();
@@ -868,7 +881,7 @@ export function createMessageHandler(options?: MessageHandlerOptions): MessageHa
     return lastStatsNowMs;
   };
   let activeMessageStatsNowMs: number | null = null;
-  const callbackStatsNowMs = (): number => statsNowMs(activeMessageStatsNowMs ?? Date.now());
+  const callbackStatsNowMs = (): number => statsNowMs(activeMessageStatsNowMs ?? routerClock.nowMs());
   const withMessageStatsTime = <T>(nowMs: number, callback: () => T): T => {
     activeMessageStatsNowMs = nowMs;
     try {
@@ -876,6 +889,20 @@ export function createMessageHandler(options?: MessageHandlerOptions): MessageHa
     } finally {
       activeMessageStatsNowMs = null;
     }
+  };
+  const recordWindowTrackers = (
+    event: PresentationEvent,
+    displayed: boolean,
+    injectedNowMs?: number,
+  ): void => {
+    if (!hasInjectedBusinessClock) {
+      summaryTracker.record(event, displayed);
+      dailyQuakeCounter.record(event);
+      return;
+    }
+    const trackerNowMs = injectedNowMs ?? activeMessageStatsNowMs ?? routerClock.nowMs();
+    summaryTracker.record(event, displayed, trackerNowMs);
+    dailyQuakeCounter.record(event, trackerNowMs);
   };
   let highestCardMutationGeneration = 0;
   const emitCardMutationApplied = (event: DisplayCardMutationMetricEvent | undefined): void => {
@@ -1069,8 +1096,7 @@ export function createMessageHandler(options?: MessageHandlerOptions): MessageHa
     const event = diffStore.apply(rawEvent);
 
     const displayed = shouldDisplay(event, pipeline);
-    summaryTracker.record(event, displayed);   // ← ingest より先 (1 イベント遅れ防止)
-    dailyQuakeCounter.record(event);
+    recordWindowTrackers(event, displayed, statsAtMs); // ← ingest より先 (1 イベント遅れ防止)
     try {
       const isVolcanoBatch =
         outcome.domain === "volcano" && "isBatch" in outcome && outcome.isBatch === true;
@@ -1263,8 +1289,7 @@ export function createMessageHandler(options?: MessageHandlerOptions): MessageHa
       const diffed = diffStore.apply(event);
       event = diffed;
       displayed = shouldDisplay(diffed, pipeline);
-      summaryTracker.record(diffed, displayed);
-      dailyQuakeCounter.record(diffed);
+      recordWindowTrackers(diffed, displayed, actionNowMs);
       assertSerializerHealthy();
 
       stage = "standbyReducer";
@@ -1646,6 +1671,7 @@ export function createMessageHandler(options?: MessageHandlerOptions): MessageHa
   };
   const legacyCounterpartCorrelator = options?.legacyCounterpartCorrelatorFactory == null
     ? new LegacyCounterpartCorrelator({
+      ...(hasInjectedBusinessClock ? { clock: routerClock } : {}),
       onAction: legacyCounterpartCorrelatorContext.actionSink,
       onLifecycleEvent: legacyCounterpartCorrelatorContext.lifecycleEventSink,
     })
@@ -1662,11 +1688,11 @@ export function createMessageHandler(options?: MessageHandlerOptions): MessageHa
     onRevisionDecision: recordRevisionDecision,
     onVolcanoRevisionDecision: options?.onVolcanoRevisionDecision,
     onFoundationNotified: (isCorrection) => {
-      const nowMs = statsNowMs(Date.now());
+      const nowMs = statsNowMs(routerClock.nowMs());
       stats.recordFoundation("notified", nowMs);
       if (isCorrection) stats.recordFoundation("correctionNotified", nowMs);
     },
-    onFoundationPresented: () => stats.recordFoundation("presented", statsNowMs(Date.now())),
+    onFoundationPresented: () => stats.recordFoundation("presented", statsNowMs(routerClock.nowMs())),
   });
 
   const processEnvelope = (envelope: RouterEnvelope): void => {
@@ -1674,7 +1700,7 @@ export function createMessageHandler(options?: MessageHandlerOptions): MessageHa
     // Existing parsers are read-only but accept the historical mutable type.
     const msg = envelope.message as WsDataMessage;
     if (envelope.diagnostics.testMetadataMismatch) {
-      stats.recordTestMetadataMismatch(statsNowMs(msg.meta?.receivedAtMs ?? Date.now()));
+      stats.recordTestMetadataMismatch(statsNowMs(msg.meta?.receivedAtMs ?? routerClock.nowMs()));
     }
 
     const route = envelope.route;
@@ -1781,7 +1807,7 @@ export function createMessageHandler(options?: MessageHandlerOptions): MessageHa
     let vptaDisplayCommand: VptaDisplayIngestCommand | undefined;
     let vptaAdmissionCompletion: Extract<VptaAdmissionCompletion, { kind: "accepted" }> | undefined;
     let vptaTransient = false;
-    const messageStatsNowMs = msg.meta?.receivedAtMs ?? Date.now();
+    const messageStatsNowMs = msg.meta?.receivedAtMs ?? routerClock.nowMs();
     if (processingRoute === "volcano") {
       const result = withMessageStatsTime(messageStatsNowMs, () => volcanoHandler.handle(msg));
       if (result.kind === "accepted") {
@@ -1789,7 +1815,7 @@ export function createMessageHandler(options?: MessageHandlerOptions): MessageHa
           headType: msg.head.type,
           category: routeToCategory(processingRoute),
           eventId: msg.xmlReport?.head.eventId ?? null,
-        }, statsNowMs(msg.meta?.receivedAtMs ?? Date.now()));
+        }, statsNowMs(msg.meta?.receivedAtMs ?? routerClock.nowMs()));
         return;
       }
       if (result.kind === "suppressed") return;
@@ -1844,7 +1870,7 @@ export function createMessageHandler(options?: MessageHandlerOptions): MessageHa
         outcome,
         command,
         completion,
-        statsNowMs(outcome.msg.meta?.receivedAtMs ?? Date.now()),
+        statsNowMs(outcome.msg.meta?.receivedAtMs ?? routerClock.nowMs()),
       );
       return;
     }
@@ -1858,7 +1884,7 @@ export function createMessageHandler(options?: MessageHandlerOptions): MessageHa
       return;
     }
 
-    const outcomeAdmissionNowMs = statsNowMs(outcome.msg.meta?.receivedAtMs ?? Date.now());
+    const outcomeAdmissionNowMs = statsNowMs(outcome.msg.meta?.receivedAtMs ?? routerClock.nowMs());
     recordStats(outcome, stats, outcomeAdmissionNowMs);
     // VPNO50 の府県予報区解除は VPWW55 の緊急 overlay を直ちに降格させる state transition。
     // legacy counterpart の holdback を通すと常設表示の更新まで 60 秒遅れるため、この受理済み
@@ -1877,7 +1903,7 @@ export function createMessageHandler(options?: MessageHandlerOptions): MessageHa
 
   const createEnvelope = (incoming: WsDataMessage): RouterEnvelope => {
     assertSerializerHealthy();
-    const ingressObservedAtMs = Date.now();
+    const ingressObservedAtMs = routerClock.nowMs();
     try {
       const normalized = normalizeTelegramMessage(incoming, ingressObservedAtMs);
       const message = deepFreezeRouterSnapshot(structuredClone(normalized.message));
@@ -2041,7 +2067,7 @@ export function createMessageHandler(options?: MessageHandlerOptions): MessageHa
       stats,
       dailyQuakeCounter,
       options?.getPersistenceSalvageDiagnostics,
-      statsNowMs(now ?? Date.now()),
+      statsNowMs(now ?? routerClock.nowMs()),
     ),
     flushAndDisposeVolcanoBuffer: () => volcanoHandler.flushAndDispose(),
     disposeLegacyCounterpartCorrelator: () => {
@@ -2049,5 +2075,9 @@ export function createMessageHandler(options?: MessageHandlerOptions): MessageHa
       displayReceipts.dispose();
       legacyCounterpartCorrelator.dispose();
     },
+    getReplayQuiescence: () => ({
+      pendingEnvelopes: pendingEnvelopes.length,
+      serializerOwnerActive,
+    }),
   };
 }

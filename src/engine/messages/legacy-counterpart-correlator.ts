@@ -415,6 +415,12 @@ export class LegacyCounterpartCorrelator {
     };
   }
 
+  /** 現在の clock までに期限が来た record だけを同期評価する。未来へは進めない。 */
+  flushDue(): void {
+    if (this.disposed) return;
+    this.prune(this.clock.nowMs());
+  }
+
   dispose(): void {
     if (this.disposed) return;
     this.disposed = true;

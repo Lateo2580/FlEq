@@ -1,4 +1,13 @@
 export * from "./protocol";
+
+declare module "./protocol" {
+  interface DisplayStateSnapshotV1 {
+    /** replay business clock。通常 runtime では欠落する additive field。 */
+    clock?: { mode: "replay"; now: string };
+    /** 固定 replay の現在 step と入力同一性。通常 runtime では欠落する。 */
+    replay?: { step: number; total: number; inputDigest: string };
+  }
+}
 import type { PresentationEvent } from "../presentation/types";
 import type {
   ActiveStandbyCardV1,

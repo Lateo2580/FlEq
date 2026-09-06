@@ -1,0 +1,59 @@
+{
+  "schemaVersion": 1,
+  "purpose": "Phase 1 fixed VPBS50 prediction-to-occurrence replay pair",
+  "fixtures": [
+    {
+      "role": "prediction",
+      "file": "VPBS50_YJPNB202608270448.xml",
+      "sha256": "414b76ead006df1223e6503db12de8e8bc3636288e8730ebedf59f35aa6fe859",
+      "sourcePath": "test/fixtures/VPBS50_YJPNB202608270448.xml",
+      "sourceFile": "VPBS50_YJPNB202608270448.xml",
+      "sourceSha256": "414b76ead006df1223e6503db12de8e8bc3636288e8730ebedf59f35aa6fe859",
+      "derivation": "byte-identical-copy",
+      "shiftedFields": []
+    },
+    {
+      "role": "occurrence",
+      "file": "VPBS50_HJPNB202608270458.xml",
+      "sha256": "5ddd21f38f69bfcec04f4a0b55a8643ef1da65fa410e8e897122675820fa52b4",
+      "sourcePath": "test/fixtures/VPBS50_HJPNB202608270308.xml",
+      "sourceFile": "VPBS50_HJPNB202608270308.xml",
+      "sourceSha256": "58e42add58835e6015ed36141568f1a4ebea7566691b04cbaf4ed7be4428cd57",
+      "derivation": "datetime-shift",
+      "shift": "PT1H50M",
+      "otherBytesUnchanged": true,
+      "shiftedFields": [
+        {
+          "field": "/Report/Control/DateTime",
+          "from": "2026-08-26T18:08:35Z",
+          "to": "2026-08-26T19:58:35Z"
+        },
+        {
+          "field": "/Report/Head/ReportDateTime",
+          "from": "2026-08-27T03:08:00+09:00",
+          "to": "2026-08-27T04:58:00+09:00"
+        },
+        {
+          "field": "/Report/Head/TargetDateTime",
+          "from": "2026-08-27T03:08:00+09:00",
+          "to": "2026-08-27T04:58:00+09:00"
+        },
+        {
+          "field": "/Report/Body/MeteorologicalInfos/MeteorologicalInfo/DateTime",
+          "from": "2026-08-27T03:08:00+09:00",
+          "to": "2026-08-27T04:58:00+09:00"
+        },
+        {
+          "field": "/Report/Body/MeteorologicalInfos/MeteorologicalInfo/Item[1]/Kind/Property/EventPart/Event/Time",
+          "from": "2026-08-27T03:00:00+09:00",
+          "to": "2026-08-27T04:50:00+09:00"
+        },
+        {
+          "field": "/Report/Body/MeteorologicalInfos/MeteorologicalInfo/Item[2]/Kind/Property/EventPart/Event/Time",
+          "from": "2026-08-27T03:00:00+09:00",
+          "to": "2026-08-27T04:50:00+09:00"
+        }
+      ]
+    }
+  ]
+}

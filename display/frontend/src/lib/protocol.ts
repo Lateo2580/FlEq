@@ -1156,6 +1156,12 @@ export type DisplayServerMessage =
 
 // PROTOCOL-SYNC-END
 
+/** Phase 1 replay の additive wire fields。同期 marker 外で server 型と declaration merge する。 */
+export interface DisplayStateSnapshotV1 {
+  clock?: { mode: "replay"; now: string };
+  replay?: { step: number; total: number; inputDigest: string };
+}
+
 /** 空白だけの EventID は EventID 未知として扱う frontend 共通の正規化。 */
 export function normalizeTsunamiEventId(eventId: string | null | undefined): string | null {
   const normalized = eventId?.trim();

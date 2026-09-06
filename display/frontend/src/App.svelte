@@ -62,6 +62,11 @@
   });
   $effect(() => () => clock.stop());
 
+  $effect(() => {
+    const replayClock = connection.state.snapshot?.clock;
+    clock.setReplayNow(replayClock?.mode === "replay" ? replayClock.now : null);
+  });
+
   const nowMs = $derived(clock.now.getTime());
   const mode = $derived(deriveMode(connection.state, nowMs));
   const quakeMapEvent = $derived(
