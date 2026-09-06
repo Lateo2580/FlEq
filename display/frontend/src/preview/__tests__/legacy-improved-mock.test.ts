@@ -4,7 +4,7 @@ import { cleanup, render } from "@testing-library/svelte";
 import { tick } from "svelte";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import LegacyImprovedMock from "../LegacyImprovedMock.svelte";
-import { legacyImprovedMaxItems, legacyStandbyGateSnapshot } from "../fixtures";
+import { legacyImprovedMaxItems, legacyStandbyGateSnapshot, syntheticWeatherKindAreaAlerts, syntheticWeatherKindAreaFooterBoundaryAlerts } from "../fixtures";
 
 const mockSource = readFileSync(join(__dirname, "..", "LegacyImprovedMock.svelte"), "utf8");
 const solverSource = readFileSync(join(__dirname, "..", "..", "lib", "legacy-standby", "solver.ts"), "utf8");
@@ -288,6 +288,30 @@ function installAnimationProbe(): { animations: AnimationProbe[]; restore: () =>
 }
 
 describe("legacy improved standby mock v26", () => {
+  it("keeps synthetic weather kind-area observation and <=8 footer-boundary fixtures distinct from actual corpus", () => {
+    expect(syntheticWeatherKindAreaAlerts[0]?.label).toContain("synthetic");
+    expect(syntheticWeatherKindAreaAlerts[0]?.items.map((item) => item.kind)).toEqual(["L4 土砂災害危険警報", "洪水警報"]);
+    expect(syntheticWeatherKindAreaAlerts[0]?.items.map((item) => item.shownAreas)).toEqual([
+      ["秋田県秋田市", "秋田県能代市"],
+      ["富山県富山市", "富山県高岡市"],
+    ]);
+    expect(legacyStandbyGateSnapshot("quiet", "weather-kind-area").weatherExpandedKinds?.map((kind) => kind.areaCodes)).toEqual([
+      ["0520100", "0520200"], ["1620100", "1620200"],
+    ]);
+    expect(syntheticWeatherKindAreaFooterBoundaryAlerts[0]?.items.reduce((sum, item) => sum + item.shownAreas.length, 0)).toBe(8);
+    expect(legacyStandbyGateSnapshot("quiet", "weather-kind-area").weatherAlerts).toEqual(syntheticWeatherKindAreaAlerts);
+    const boundary = legacyStandbyGateSnapshot("quiet", "weather-kind-area-footer-boundary");
+    expect(boundary.weatherAlerts).toEqual(syntheticWeatherKindAreaFooterBoundaryAlerts);
+    expect(boundary.weatherAlerts.flatMap((alert) => alert.items.flatMap((item) => item.shownAreas))).toEqual([
+      "秋田県秋田市河辺岩見", "青森県青森市浪岡地区", "岩手県盛岡市玉山地区", "宮城県仙台市青葉区",
+      "富山県富山市八尾町", "石川県金沢市湯涌地区", "福井県福井市美山地区", "新潟県新潟市秋葉区",
+    ]);
+    expect((boundary.standbyItems ?? []).some((item) => item.kind === "tornado")).toBe(true);
+    expect((boundary.standbyItems ?? []).map((item) => item.kind)).toEqual([
+      "flood", "tornado", "longPeriod", "nankaiTrough", "weatherWarningForecast",
+    ]);
+    expect(boundary.latestQuake).not.toBeNull();
+  });
   it("keeps the attention-visibility fixture long enough to exercise every C6 path", () => {
     const snapshot = legacyStandbyGateSnapshot("max", "attention-visibility-standby");
     expect(snapshot.tsunami?.coasts.length).toBeGreaterThan(1);

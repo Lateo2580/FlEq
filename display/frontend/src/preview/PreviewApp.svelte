@@ -22,6 +22,8 @@
     largeQuakeInput,
     tsunamiBanner,
     weatherAlertsStandbyCards,
+    syntheticWeatherKindAreaAlerts,
+    syntheticWeatherKindAreaFooterBoundaryAlerts,
     weatherWarningOnlyStandbyCards,
     weatherAdvisoryOnlyStandbyCards,
     latestQuakeStandbyCards,
@@ -87,6 +89,8 @@
     "standby-vpta50-probability-muted",
     "standby-vpta50-probability-normal",
     "standby-design-alignment-compressed",
+    "standby-weather-kind-area",
+    "standby-weather-kind-area-footer-boundary",
     "weatherAutoFooterNormal",
     "weatherAutoFooterCompressed",
     "standby-active-wide",
@@ -148,7 +152,7 @@
     const value = new URLSearchParams(window.location.search).get("gateFixture");
     return value === "overflow" || value === "rotation" || value === "cluster" || value === "cluster-calm"
       || value === "tornado-pages" || value === "tornado-aggregate" || value === "tornado-clip" || value === "tornado-epoch-release" || value === "recent-quakes-narrow" || value === "attention-visibility-standby"
-      || value === "briefing-pages" || value === "briefing-single-page"
+      || value === "briefing-pages" || value === "briefing-single-page" || value === "weather-kind-area" || value === "weather-kind-area-footer-boundary"
       ? value as LegacyStandbyGateFixture : undefined;
   });
   let standbyStage = $state<0 | 1 | 2 | 3>(0);
@@ -257,6 +261,14 @@
     weatherExpandedKinds: designAlignmentCompressedWeatherExpandedKinds,
     standbyItems: designAlignmentCompressedStandbyItems,
   });
+  const weatherKindAreaSnapshot = standbySnapshot({
+    weatherAlerts: syntheticWeatherKindAreaAlerts,
+    weatherExpandedKinds: legacyStandbyGateSnapshot("quiet", "weather-kind-area").weatherExpandedKinds,
+  });
+  const weatherKindAreaFooterBoundarySnapshot = standbySnapshot({
+    weatherAlerts: syntheticWeatherKindAreaFooterBoundaryAlerts,
+    weatherExpandedKinds: legacyStandbyGateSnapshot("quiet", "weather-kind-area-footer-boundary").weatherExpandedKinds,
+  });
   // standby-active-wide: 洪水 5 河川で時計上ワイド表示へ移行した状態
   const activeWideSnapshot = standbySnapshot({
     latestQuake: latestQuakeStandbyCards,
@@ -345,6 +357,10 @@
                   ? vpta50ProbabilityNormalSnapshot
                 : scenario === "standby-design-alignment-compressed"
                   ? designAlignmentCompressedSnapshot
+                : scenario === "standby-weather-kind-area"
+                  ? weatherKindAreaSnapshot
+                : scenario === "standby-weather-kind-area-footer-boundary"
+                  ? weatherKindAreaFooterBoundarySnapshot
                 : scenario === "standby-active-wide"
                   ? activeWideSnapshot
                 : scenario === "standby-right-stack-budget"
@@ -703,8 +719,7 @@
       <WeatherAlertCard
         alerts={legacyImprovedMaxWeatherAlerts}
         pageScheduling={true}
-        measurementRange={weatherAutoFooterRange}
-        measurementPageFooter={true}
+        measurement={{ kind: "weather-page", range: weatherAutoFooterRange, footer: "present", pageIndex: 1, pageCount: 1 }}
       />
     </div>
   </main>

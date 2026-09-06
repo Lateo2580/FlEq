@@ -31,6 +31,22 @@ const FLOOD_WIDE_VIEWPORTS = ["1920x1080", "1280x720"];
 const RECENT_QUAKES_GAP_SUITE = "recent-quakes-gap";
 const BRIEFING_PAGING_PAGE_COUNT = 3;
 const ATTENTION_VISIBILITY_FIXTURES = new Set(["attention-visibility-standby", "attention-visibility-emergency", "attention-visibility-reduced-motion"]);
+const WEATHER_KIND_AREA_FIXTURES = new Set(["weather-kind-area", "weather-kind-area-footer-boundary"]);
+const WEATHER_DELTA_REASONS = new Set(["none", "weather-kind-group-page-metadata"]);
+const WEATHER_LOGICAL_ORACLES = Object.freeze({
+  "weather-kind-area": {
+    kinds: [
+      { kindKey: "officialL4|landslide", areas: [{ name: "秋田県秋田市", code: "0520100" }, { name: "秋田県能代市", code: "0520200" }] },
+      { kindKey: "nonLevelWarning|flood", areas: [{ name: "富山県富山市", code: "1620100" }, { name: "富山県高岡市", code: "1620200" }] },
+    ], totalAreas: 4,
+  },
+  "weather-kind-area-footer-boundary": {
+    kinds: [
+      { kindKey: "officialL4|landslide", areas: [{ name: "秋田県秋田市河辺岩見", code: "0520100" }, { name: "青森県青森市浪岡地区", code: "0220100" }, { name: "岩手県盛岡市玉山地区", code: "0320100" }, { name: "宮城県仙台市青葉区", code: "0410000" }] },
+      { kindKey: "nonLevelWarning|flood", areas: [{ name: "富山県富山市八尾町", code: "1620100" }, { name: "石川県金沢市湯涌地区", code: "1720100" }, { name: "福井県福井市美山地区", code: "1820100" }, { name: "新潟県新潟市秋葉区", code: "1510000" }] },
+    ], totalAreas: 8,
+  },
+});
 const MIME_TYPES = new Map([
   [".css", "text/css"], [".html", "text/html"], [".js", "text/javascript"],
   [".map", "application/json"], [".svg", "image/svg+xml"], [".woff2", "font/woff2"],
@@ -38,7 +54,7 @@ const MIME_TYPES = new Map([
 
 function usage(message) {
   if (message != null) process.stderr.write(`${message}\n`);
-  process.stderr.write("Usage: node scripts/capture-legacy-standby.mjs [--report] [--write-report PATH] [--assert-capture-report PATH] [--expect-suite normal|design-alignment|recent-quakes-gap|center-stack-pregate] [--expect-viewport-mode legacy-control|calibrated] [--expect-cells N] [--expect-mismatches N] [--verify-legacy-expectation-digest SHA256] [--viewport-mode legacy-control|calibrated] [--suite design-alignment|recent-quakes-gap|center-stack-pregate] [--write-baseline PATH|--baseline-report PATH] [--assert-from PATH] [--fixture overflow|rotation|cluster|cluster-calm|tornado-pages|tornado-aggregate|tornado-clip|tornado-epoch-release|recent-quakes-narrow|attention-visibility-standby|attention-visibility-emergency|attention-visibility-reduced-motion|briefing-pages|briefing-single-page] [--url URL] [--scenario quiet|4|7|max|max-floodWide] [--viewport WIDTHxHEIGHT] [--out-dir PATH]\n");
+  process.stderr.write("Usage: node scripts/capture-legacy-standby.mjs [--report] [--write-report PATH] [--assert-capture-report PATH] [--expect-suite normal|design-alignment|recent-quakes-gap|center-stack-pregate] [--expect-viewport-mode legacy-control|calibrated] [--expect-cells N] [--expect-mismatches N] [--verify-legacy-expectation-digest SHA256] [--viewport-mode legacy-control|calibrated] [--suite design-alignment|recent-quakes-gap|center-stack-pregate] [--write-baseline PATH|--baseline-report PATH] [--assert-from PATH] [--fixture overflow|rotation|cluster|cluster-calm|tornado-pages|tornado-aggregate|tornado-clip|tornado-epoch-release|recent-quakes-narrow|attention-visibility-standby|attention-visibility-emergency|attention-visibility-reduced-motion|briefing-pages|briefing-single-page|weather-kind-area|weather-kind-area-footer-boundary] [--url URL] [--scenario quiet|4|7|max|max-floodWide] [--viewport WIDTHxHEIGHT] [--out-dir PATH]\n");
   process.exitCode = 2;
 }
 
@@ -48,11 +64,12 @@ export function parseCaptureArgs(argv) {
     writeBaseline: null, baselineReport: null, assertFrom: null, viewportMode: "legacy-control", viewportModeExplicit: false,
     writeReport: null, assertCaptureReport: null, verifyLegacyExpectationDigest: null,
     expectSuite: null, expectViewportMode: null, expectCells: null, expectMismatches: null,
+    phase: null, allowedDeltaReason: "none",
   };
   for (let index = 0; index < argv.length; index += 1) {
     const argument = argv[index];
     const value = argv[index + 1];
-    if (["--url", "--scenario", "--viewport", "--out-dir", "--fixture", "--suite", "--write-baseline", "--baseline-report", "--assert-from", "--viewport-mode", "--write-report", "--assert-capture-report", "--verify-legacy-expectation-digest", "--expect-suite", "--expect-viewport-mode", "--expect-cells", "--expect-mismatches"].includes(argument)) {
+    if (["--url", "--scenario", "--viewport", "--out-dir", "--fixture", "--suite", "--write-baseline", "--baseline-report", "--assert-from", "--viewport-mode", "--write-report", "--assert-capture-report", "--verify-legacy-expectation-digest", "--expect-suite", "--expect-viewport-mode", "--expect-cells", "--expect-mismatches", "--phase", "--allowed-delta-reason"].includes(argument)) {
       if (value == null) throw new Error(`${argument} requires a value`);
       index += 1;
       if (argument === "--url") result.url = value;
@@ -72,6 +89,8 @@ export function parseCaptureArgs(argv) {
       if (argument === "--expect-viewport-mode") result.expectViewportMode = value;
       if (argument === "--expect-cells") result.expectCells = Number(value);
       if (argument === "--expect-mismatches") result.expectMismatches = Number(value);
+      if (argument === "--phase") result.phase = value;
+      if (argument === "--allowed-delta-reason") result.allowedDeltaReason = value;
       continue;
     }
     if (argument === "--help" || argument === "-h") return null;
@@ -82,6 +101,8 @@ export function parseCaptureArgs(argv) {
   for (const [flag, value] of [["--expect-cells", result.expectCells], ["--expect-mismatches", result.expectMismatches]]) {
     if (value != null && (!Number.isInteger(value) || value < 0)) throw new Error(`${flag} must be a non-negative integer`);
   }
+  if (result.phase != null && !["base", "after"].includes(result.phase)) throw new Error("--phase must be base or after");
+  if (!WEATHER_DELTA_REASONS.has(result.allowedDeltaReason)) throw new Error("--allowed-delta-reason must be none or weather-kind-group-page-metadata");
   return result;
 }
 
@@ -264,6 +285,71 @@ export const LIVE_GEOMETRY_EXPRESSION = String.raw`(async () => {
             metaChildren,
           };
         });
+        const weatherCards = [...document.querySelectorAll('.weather-card')].map((card) => {
+          const shelf = card.closest('.measure-shelf, .center-measure-shelf');
+          const surface = card.closest('[data-layout-motion-card]')?.getAttribute('data-layout-motion-card') ?? null;
+          const placement = card.getAttribute('data-weather-page-placement')
+            ?? (shelf?.classList.contains('center-measure-shelf') || surface?.endsWith(':center') ? 'center' : 'side');
+          const body = card.querySelector(':scope > [data-page-probe-body]');
+          const groupNodes = [...card.querySelectorAll(':scope > [data-page-probe-body] > li[data-weather-kind-group]')];
+          const groups = groupNodes.map((group) => {
+            const labelId = group.getAttribute('aria-labelledby') ?? '';
+            const label = labelId === '' ? null : document.getElementById(labelId);
+            const kind = group.querySelector(':scope > .weather-kind-group__kind');
+            const firstArea = group.querySelector(':scope > .weather-kind-group__areas > .pref-group, :scope > .weather-kind-group__areas > .omitted');
+            const kindRect = kind?.getBoundingClientRect() ?? null;
+            const areaRect = firstArea?.getBoundingClientRect() ?? null;
+            const blockAxisIntersection = kindRect == null || areaRect == null ? null
+              : Math.max(0, Math.min(kindRect.bottom, areaRect.bottom) - Math.max(kindRect.top, areaRect.top));
+            return {
+              kindKey: group.getAttribute('data-kind-key'), labelId,
+              labelDocumentCount: labelId === '' ? 0 : [...document.querySelectorAll('[id]')].filter((node) => node.id === labelId).length,
+              labelTargetWithinGroup: label != null && label.parentElement === group,
+              prefGroupCount: group.querySelectorAll(':scope > .weather-kind-group__areas > .pref-group').length,
+              omittedCount: group.querySelectorAll(':scope > .weather-kind-group__areas > .omitted').length,
+              box: measure(group), kind: styled(kind, ['display', 'white-space']), firstArea: styled(firstArea, ['display']), blockAxisIntersection,
+            };
+          });
+          const footer = card.querySelector(':scope > [data-card-page-footer]');
+          const rider = card.querySelector(':scope > .tornado-rider');
+          return {
+            shelf: shelf != null,
+            forcedProbe: card.hasAttribute('data-page-probe-card'),
+            placement,
+            probeId: card.closest('[data-prefix-measure]')?.getAttribute('data-prefix-measure') ?? null,
+            probeFit: card.closest('[data-prefix-measure]')?.getAttribute('data-page-probe-fit') ?? null,
+            probeComposition: card.closest('[data-prefix-measure]')?.getAttribute('data-page-probe-composition') ?? null,
+            surface,
+            measurementKind: card.getAttribute('data-weather-measurement-kind'),
+            measurementFooter: card.getAttribute('data-weather-measurement-footer'),
+            measurementPageIndex: Number(card.getAttribute('data-weather-measurement-page-index') ?? 0),
+            measurementPageCount: Number(card.getAttribute('data-weather-measurement-page-count') ?? 0),
+            tornadoMeasurementPageIndex: Number(card.getAttribute('data-tornado-measurement-page-index') ?? 0),
+            tornadoMeasurementPageCount: Number(card.getAttribute('data-tornado-measurement-page-count') ?? 0),
+            layout: card.getAttribute('data-weather-kind-layout'),
+            page: card.getAttribute('data-card-page') ?? '', range: card.getAttribute('data-weather-page-range') ?? '',
+            ranges: card.getAttribute('data-weather-page-ranges') == null
+              ? (card.getAttribute('data-weather-page-range') == null ? [] : [card.getAttribute('data-weather-page-range')])
+              : JSON.parse(card.getAttribute('data-weather-page-ranges')),
+            visibleLogicalItems: JSON.parse(card.getAttribute('data-weather-visible-logical-items') ?? '[]'),
+            visibleTails: JSON.parse(card.getAttribute('data-weather-visible-tails') ?? '[]'),
+            tornadoRanges: card.getAttribute('data-tornado-page-ranges') == null
+              ? (card.getAttribute('data-tornado-page-range') == null ? [] : [card.getAttribute('data-tornado-page-range')])
+              : JSON.parse(card.getAttribute('data-tornado-page-ranges')),
+            tornadoPage: card.getAttribute('data-tornado-page') ?? '',
+            footerMode: card.getAttribute('data-weather-footer-mode'), footerGeneration: card.getAttribute('data-weather-footer-generation'),
+            logicalItems: JSON.parse(card.getAttribute('data-weather-pager-logical-items') ?? '[]'),
+            kindKeys: JSON.parse(card.getAttribute('data-weather-pager-kind-keys') ?? '[]'),
+            pageIdentities: JSON.parse(card.getAttribute('data-card-page-identities') ?? '[]'),
+            card: measure(card), body: measure(body), footer: measure(footer), rider: measure(rider),
+            readable: [...card.querySelectorAll('[data-page-probe-readable]')].map(measure),
+            footerCount: card.querySelectorAll(':scope > [data-card-page-footer]').length,
+            bodyFooterOverlap: overlap(body, footer), footerRiderOverlap: overlap(footer, rider),
+            groupOverlapArea: groupNodes.flatMap((left, index) => groupNodes.slice(index + 1).map((right) => overlap(left, right))).reduce((sum, value) => sum + value, 0),
+            columnCount: body == null ? null : getComputedStyle(body).columnCount,
+            groups,
+          };
+        });
         const signatureRoot = document.querySelector('.standby');
         const previewRoot = document.querySelector('main.preview-screen');
         const query = new URL(window.location.href).searchParams;
@@ -305,7 +391,12 @@ export const LIVE_GEOMETRY_EXPRESSION = String.raw`(async () => {
             leftNaturalHeight: parseFiniteAttribute('data-left-natural-height-px'), rightNaturalHeight: parseFiniteAttribute('data-right-natural-height-px'), centerNaturalHeight: parseFiniteAttribute('data-center-natural-height-px'),
           },
         };
-        return { heat: measure(pick('.heat-card')), tsunamiBanner: measure(pick('.tsunami-banner')), panels, briefingCards, forecastCards, standbyHeaders, signatures };
+        const weatherLayoutState = {
+          stage: signatureRoot?.getAttribute('data-ladder-stage') ?? null,
+          compressed: signatureRoot?.classList.contains('ladder-compressed') ?? null,
+          typhoonVariant: signatureRoot?.getAttribute('data-typhoon-variant') ?? null,
+        };
+        return { heat: measure(pick('.heat-card')), tsunamiBanner: measure(pick('.tsunami-banner')), panels, briefingCards, forecastCards, standbyHeaders, weatherCards, weatherLayoutState, signatures };
       })()`;
 
 export function atomicSnapshotExpression(expressions) {
@@ -502,7 +593,8 @@ function diagnosticsFromDom(dom) {
   const attributes = [
     "data-ladder-stage", "data-measurement-settled", "data-layout-unresolved", "data-measurement-nonconverged",
     "data-settle-trace",
-    "data-rotation-keys", "data-flood-form", "data-expanded-counts", "data-placement-surplus-use",
+    "data-rotation-keys", "data-rotation-omitted-count", "data-flood-form", "data-expanded-counts", "data-placement-surplus-use",
+    "data-placement-left", "data-placement-right", "data-placement-center",
     "data-left-track-width-px", "data-center-track-width-px", "data-right-track-width-px",
     "data-side-measure-shelf-width-px", "data-center-measure-shelf-width-px",
     "data-left-track-rect-width-px", "data-center-track-rect-width-px", "data-right-track-rect-width-px",
@@ -530,6 +622,7 @@ function diagnosticsFromDom(dom) {
     "data-typhoon-title-misalignment-px", "data-page-indicator-body-overlap-px", "data-page-indicator-rider-overlap-px",
     "data-flood-visibility-violation-keys", "data-flood-readable-overflow-keys",
     "data-flood-page", "data-flood-page-keys", "data-flood-page-identities", "data-flood-page-infeasible", "data-flood-page-footer", "data-flood-page-visible-count",
+    "data-weather-page", "data-weather-page-keys", "data-weather-page-identities", "data-weather-page-footer",
     "data-tornado-page", "data-tornado-page-keys", "data-tornado-page-identities", "data-tornado-page-infeasible", "data-tornado-page-footer", "data-tornado-page-visible-count",
     "data-tornado-page-host", "data-tornado-page-mode", "data-tornado-page-pending-appearance",
     "data-weather-warning-forecast-page", "data-weather-warning-forecast-page-keys", "data-weather-warning-forecast-page-identities",
@@ -1371,7 +1464,454 @@ function assertFloodWideDiagnostics(diagnostics, scenario, viewport) {
   if (viewport.label === "1280x720") expectEqual(diagnostics["data-flood-readable-overflow-keys"], "", "1280x720 flood station/kind readability");
 }
 
-async function capture({ chrome, profileDir, url, scenario, viewport, outDir, viewportMode = "legacy-control", rotationTick = null, cardPageTick = null, assertTable = true, fixture = null }) {
+function weatherOracleRowsFrom(logicalOracle) {
+  return logicalOracle.kinds.flatMap((kind) => kind.areas.map((area, occurrenceIndex) => ({
+    kindKey: kind.kindKey, name: area.name, code: area.code ?? null, occurrenceIndex,
+  })));
+}
+
+function weatherOracleRows(fixture) {
+  return weatherOracleRowsFrom(WEATHER_LOGICAL_ORACLES[fixture]);
+}
+
+export function assertWeatherAfterLogicalOracle(rows, logicalOracle) {
+  if (!Array.isArray(rows) || !Array.isArray(logicalOracle?.kinds)) throw new Error("weather after logical oracle input invalid");
+  const expectedRows = weatherOracleRowsFrom(logicalOracle);
+  const expectedKinds = logicalOracle.kinds.map((kind) => kind.kindKey);
+  const actualKinds = [...new Set(rows.map((row) => row?.kindKey))];
+  if (canonicalJsonStringify(actualKinds) !== canonicalJsonStringify(expectedKinds)) {
+    throw new Error(`weather after kind set does not match independent oracle: actual=${JSON.stringify(actualKinds)} expected=${JSON.stringify(expectedKinds)}`);
+  }
+  for (const kindKey of expectedKinds) {
+    const actual = rows.filter((row) => row.kindKey === kindKey);
+    const expected = expectedRows.filter((row) => row.kindKey === kindKey);
+    if (canonicalJsonStringify(actual) !== canonicalJsonStringify(expected)) {
+      throw new Error(`weather after kind-area association does not match independent oracle for ${kindKey}: actual=${JSON.stringify(actual)} expected=${JSON.stringify(expected)}`);
+    }
+  }
+  if (canonicalJsonStringify(rows) !== canonicalJsonStringify(expectedRows)) {
+    throw new Error(`weather after kind-area order does not match independent oracle: actual=${JSON.stringify(rows)} expected=${JSON.stringify(expectedRows)}`);
+  }
+  return true;
+}
+
+function parseWeatherLogicalIdentity(value) {
+  if (typeof value !== "string") throw new Error("weather logical area identity must be a string");
+  const match = /^(.*)\|([^|]+)\|(\d+)(?:\|code:(.*))?$/.exec(value);
+  if (match == null) throw new Error(`weather logical area identity invalid: ${value}`);
+  return { kindKey: match[1], name: match[2], code: match[4] ?? null, occurrenceIndex: Number(match[3]) };
+}
+
+function parseWeatherLogicalRow(value, fixture, kindAssociationRequired = true) {
+  const parsed = parseWeatherLogicalIdentity(value);
+  if (!kindAssociationRequired) return { kindKey: null, legacyKindKey: parsed.kindKey, name: parsed.name, code: parsed.code, occurrenceIndex: parsed.occurrenceIndex };
+  const kindKey = WEATHER_LOGICAL_ORACLES[fixture].kinds
+    .map((kind) => kind.kindKey)
+    .sort((left, right) => right.length - left.length)
+    .find((candidate) => value.startsWith(`${candidate}|`));
+  if (kindKey == null) throw new Error(`weather logical area has unknown kind: ${value}`);
+  return { kindKey, name: parsed.name, code: parsed.code, occurrenceIndex: parsed.occurrenceIndex };
+}
+
+function weatherAreaIdentityVector(rows) {
+  return rows.map((row) => row.code == null || row.code === "" ? `name:${row.name}` : `code:${row.code}`);
+}
+
+function weatherLegacyProjection(rows) {
+  const seen = new Set();
+  return rows.filter((row) => {
+    const identity = weatherAreaIdentityVector([row])[0];
+    if (seen.has(identity)) return false;
+    seen.add(identity);
+    return true;
+  });
+}
+
+function weatherProjectionContract(phase) {
+  return phase === "base"
+    ? { mode: "legacy-union", identity: "code-else-name", dedupe: "cross-kind-first", order: "legacy-display" }
+    : { mode: "kind-area", identity: "kind+code-else-name", dedupe: "within-kind", order: "kind-then-area" };
+}
+
+function weatherOmittedProjection(logicalItems, fixture, phase) {
+  const expectedKinds = WEATHER_LOGICAL_ORACLES[fixture].kinds.map((kind) => kind.kindKey);
+  const sourceEntries = logicalItems
+    .filter((item) => Array.isArray(item) && item[0] === "omittedAreaCount")
+    .map((item) => ({ sourceKindKey: item[1], omittedAreaCount: item[2] }));
+  return {
+    mode: phase === "base" ? "legacy-order-to-oracle-kind" : "kind-key",
+    entries: sourceEntries.map((entry, index) => ({
+      canonicalKindKey: phase === "base" ? expectedKinds[index] ?? null : entry.sourceKindKey,
+      ...entry,
+    })),
+  };
+}
+
+function assertWeatherOmittedProjection(record, expectedKinds) {
+  const projection = record.omittedAreaCountProjection;
+  const expectedMode = record.phase === "base" ? "legacy-order-to-oracle-kind" : "kind-key";
+  if (projection?.mode !== expectedMode || !Array.isArray(projection.entries) || projection.entries.length !== expectedKinds.length) {
+    throw new Error("weather omitted projection contract invalid");
+  }
+  if (canonicalJsonStringify(projection.entries.map((entry) => entry.canonicalKindKey)) !== canonicalJsonStringify(expectedKinds)) {
+    throw new Error("weather omitted canonical kind set/order invalid");
+  }
+  const sourceEntries = Object.entries(record.omittedAreaCountByKind);
+  if (canonicalJsonStringify(projection.entries.map((entry) => [entry.sourceKindKey, entry.omittedAreaCount])) !== canonicalJsonStringify(sourceEntries)) {
+    throw new Error("weather omitted projection/source vector mismatch");
+  }
+  if (projection.entries.some((entry) => typeof entry.sourceKindKey !== "string" || !Number.isInteger(entry.omittedAreaCount) || entry.omittedAreaCount < 0)) {
+    throw new Error("weather omitted projection entry invalid");
+  }
+  if (record.phase === "after" && projection.entries.some((entry) => entry.sourceKindKey !== entry.canonicalKindKey)) {
+    throw new Error("weather after omitted kind association invalid");
+  }
+  return new Map(projection.entries.map((entry) => [entry.canonicalKindKey, entry.omittedAreaCount]));
+}
+
+export function weatherLogicalRowsForPhase(values, fixture, phase) {
+  if (!WEATHER_KIND_AREA_FIXTURES.has(fixture) || !["base", "after"].includes(phase) || !Array.isArray(values)) throw new Error("weather logical row phase input invalid");
+  const rows = values.map((value) => parseWeatherLogicalRow(value, fixture, phase === "after"));
+  return phase === "base" ? weatherLegacyProjection(rows) : rows;
+}
+
+function weatherRangeBounds(range) {
+  const match = /^(\d+):(\d+)$/.exec(range ?? "");
+  return match == null ? null : { start: Number(match[1]), end: Number(match[2]) };
+}
+
+function resolvedWeatherRanges(live, probeCards, selectedCount) {
+  const pageCount = Number(/^(\d+)\/(\d+)$/.exec(live?.page ?? "")?.[2] ?? 0);
+  if (pageCount > 0 && live?.ranges?.length === pageCount) return live.ranges;
+  const fitRanges = probeCards.flatMap((card) => {
+    const match = /^weather:page-fit:(\d+):(\d+)(?::|$)/.exec(card.probeId ?? "");
+    return card.placement === live?.placement && card.probeFit === "true" && match != null
+      ? [{ start: Number(match[1]), end: Number(match[2]) }] : [];
+  });
+  const ranges = [];
+  for (let start = 0; start < selectedCount;) {
+    const end = Math.max(-1, ...fitRanges.filter((range) => range.start === start).map((range) => range.end));
+    if (end <= start) break;
+    ranges.push(`${start}:${end}`);
+    start = end;
+  }
+  return pageCount > 0 && ranges.length === pageCount ? ranges : live?.ranges ?? [];
+}
+
+function weatherKindAreaReportFields({ fixture, viewport, rotationTick, cardPageTick, phase, allowedDeltaReason, diagnostics, geometry }) {
+  const live = geometry.weatherCards.find((card) => card.shelf === false && card.surface != null) ?? null;
+  const logicalItems = live?.logicalItems ?? [];
+  const kindAssociationRequired = phase === "after";
+  const selectedWeatherRows = weatherLogicalRowsForPhase(logicalItems.filter((item) => typeof item === "string"), fixture, phase);
+  const selectedWeatherKindAssociation = kindAssociationRequired
+    ? { status: "complete", reason: null }
+    : { status: "unavailable", reason: "legacy-product-dom" };
+  const selectedWeatherProjection = weatherProjectionContract(phase);
+  const omittedAreaCountByKind = Object.fromEntries(logicalItems
+    .filter((item) => Array.isArray(item) && item[0] === "omittedAreaCount")
+    .map((item) => [item[1], item[2]]));
+  const omittedAreaCountProjection = weatherOmittedProjection(logicalItems, fixture, phase);
+  const visibleWeatherRows = live?.visibleLogicalItems?.length > 0
+    ? weatherLogicalRowsForPhase(live.visibleLogicalItems, fixture, phase)
+    : (() => {
+      const bounds = weatherRangeBounds(live?.range);
+      return bounds == null ? [] : selectedWeatherRows.slice(bounds.start, bounds.end);
+    })();
+  const visibleWeatherTails = Array.isArray(live?.visibleTails) ? live.visibleTails : [];
+  const list = (name) => (diagnostics[name] ?? "").split(",").filter(Boolean);
+  const visibleCards = [...new Set([...list("data-placement-left"), ...list("data-placement-right"), ...list("data-placement-center")])].sort();
+  const probeCards = geometry.weatherCards.filter((card) => card.shelf === true);
+  const forcedWeatherProbes = probeCards.filter((card) => card.measurementKind === "weather-page");
+  const observedFooterModes = [...new Set(forcedWeatherProbes.map((card) => card.measurementFooter).filter((mode) => mode === "absent" || mode === "present"))].sort();
+  const exploratoryTornadoCompositions = probeCards
+    .filter((card) => card.measurementKind === "tornado-page")
+    .map((card) => ({
+      placement: card.placement, weatherRange: card.range, tornadoRange: card.tornadoRanges[0] ?? "",
+      footer: card.measurementFooter, fit: card.probeFit, probeId: card.probeId, composition: card.probeComposition,
+      weatherPageIndex: card.measurementPageIndex, weatherPageCount: card.measurementPageCount,
+      tornadoPageIndex: card.tornadoMeasurementPageIndex, tornadoPageCount: card.tornadoMeasurementPageCount,
+    }));
+  const finalTornadoRanges = live?.tornadoRanges ?? [];
+  const finalWeatherRanges = resolvedWeatherRanges(live, probeCards, selectedWeatherRows.length);
+  const preflightByPlacement = Object.fromEntries(["side", "center"].map((placement) => {
+    const card = probeCards.find((candidate) => candidate.placement === placement && candidate.measurementKind == null && candidate.forcedProbe === false && candidate.probeId == null);
+    return [placement, card ?? null];
+  }));
+  const finalWeatherRangesByPlacement = Object.fromEntries(["side", "center"].map((placement) => [placement, preflightByPlacement[placement]?.ranges ?? (placement === live?.placement ? finalWeatherRanges : [])]));
+  const finalTornadoRangesByPlacement = Object.fromEntries(["side", "center"].map((placement) => [placement, preflightByPlacement[placement]?.tornadoRanges ?? (placement === live?.placement ? finalTornadoRanges : [])]));
+  const finalCartesianCompositions = exploratoryTornadoCompositions.filter((entry) =>
+    entry.fit === "true" && entry.footer === live?.footerMode && entry.composition?.endsWith(":preflight")
+      && finalWeatherRangesByPlacement[entry.placement]?.includes(entry.weatherRange)
+      && finalTornadoRangesByPlacement[entry.placement]?.includes(entry.tornadoRange));
+  const partitionOutcome = phase === "base" ? "legacy-base"
+    : live?.footerMode === "absent" && (live?.ranges?.length ?? 0) === 1 ? "provisional-is-final"
+      : live?.footerMode === "present" ? "footer-present-final" : "unresolved";
+  const reachedStage = diagnostics["data-ladder-stage"];
+  const rotationMembers = list("data-rotation-keys");
+  const rotationSurface = reachedStage === "3" && rotationMembers.includes("weather") ? "reachable" : "unreachable";
+  return {
+    fixtureId: fixture, fixtureProvenance: "synthetic", viewport, rotationTick, cardPageTick,
+    phase, allowedDeltaReason, logicalOracle: structuredClone(WEATHER_LOGICAL_ORACLES[fixture]),
+    selectedWeatherRows, selectedWeatherKindAssociation, selectedWeatherProjection, omittedAreaCountByKind, omittedAreaCountProjection, visibleWeatherRows, visibleWeatherTails, visibleCards,
+    rotationSurface,
+    rotationSurfaceReason: rotationSurface === "reachable" ? null : {
+      reason: reachedStage === "3" ? "weather-not-rotation-member" : "stage-before-rotation",
+      reachedStage,
+      rotationMembers,
+    },
+    rotation: {
+      keys: rotationMembers, active: diagnostics["data-rotation-active-key"] ?? "",
+      stage: reachedStage, compressed: geometry.weatherLayoutState?.compressed,
+      typhoonVariant: diagnostics["data-typhoon-variant"], placements: {
+        left: list("data-placement-left"), right: list("data-placement-right"), center: list("data-placement-center"),
+      },
+    },
+    failureCount: Number(diagnostics["data-rotation-omitted-count"] ?? 0),
+    omittedCount: Number(diagnostics["data-rotation-omitted-count"] ?? 0),
+    overflow: {
+      cards: list("data-card-overflow-keys"), pages: list("data-page-viewport-overflow-keys"),
+      card: live?.card == null ? null : { x: live.card.scrollWidth - live.card.clientWidth, y: live.card.scrollHeight - live.card.clientHeight },
+      body: live?.body == null ? null : { x: live.body.scrollWidth - live.body.clientWidth, y: live.body.scrollHeight - live.body.clientHeight },
+      readable: (live?.readable ?? []).map((box) => ({ x: box.scrollWidth - box.clientWidth, y: box.scrollHeight - box.clientHeight })),
+    },
+    unresolved: diagnostics["data-layout-unresolved"],
+    weatherFooterChrome: live == null ? null : {
+      mode: live.footerMode, generation: live.footerGeneration, count: live.footerCount,
+      observedFooterModes, partitionOutcome, card: live.card, footer: live.footer,
+    },
+    finalWeatherRanges, finalTornadoRanges, finalWeatherRangesByPlacement, finalTornadoRangesByPlacement,
+    finalCartesianCompositions, exploratoryTornadoCompositions,
+  };
+}
+
+export function assertForcedMeasurementPageOrdinals(cards, ranges, rangeField = "range", indexField = "measurementPageIndex", countField = "measurementPageCount", label = "weather") {
+  if (!Array.isArray(cards) || !Array.isArray(ranges) || ranges.length === 0) throw new Error(`${label} forced shelf ordinal input invalid`);
+  for (const [index, range] of ranges.entries()) {
+    const matching = cards.filter((card) => card?.[rangeField] === range);
+    if (matching.length === 0) throw new Error(`${label} forced shelf final range missing: ${range}`);
+    const invalid = matching.find((card) => card?.[indexField] !== index + 1 || card?.[countField] !== ranges.length);
+    if (invalid != null) {
+      const context = {
+        placement: invalid.placement ?? null,
+        width: invalid.card?.width ?? null,
+        footerMode: invalid.measurementFooter ?? null,
+        layoutMode: invalid.layout ?? null,
+        cacheKey: invalid.probeId ?? null,
+        generation: invalid.footerGeneration ?? null,
+      };
+      throw new Error(`${label} forced shelf ordinal invalid for ${range}: actual=${invalid[indexField]}/${invalid[countField]} expected=${index + 1}/${ranges.length} context=${JSON.stringify(context)}`);
+    }
+  }
+  return true;
+}
+
+export function assertWeatherKindAreaRecord(record) {
+  if (!WEATHER_KIND_AREA_FIXTURES.has(record?.fixtureId)) throw new Error("weather fixtureId missing or invalid");
+  const required = ["fixtureProvenance", "viewport", "rotationTick", "cardPageTick", "phase", "allowedDeltaReason", "logicalOracle", "selectedWeatherRows", "selectedWeatherKindAssociation", "selectedWeatherProjection", "omittedAreaCountByKind", "omittedAreaCountProjection", "visibleWeatherRows", "visibleWeatherTails", "visibleCards", "rotation", "rotationSurface", "rotationSurfaceReason", "failureCount", "omittedCount", "overflow", "unresolved", "weatherFooterChrome", "finalWeatherRanges", "finalTornadoRanges", "finalWeatherRangesByPlacement", "finalTornadoRangesByPlacement", "finalCartesianCompositions", "exploratoryTornadoCompositions"];
+  for (const field of required) if (!Object.hasOwn(record, field)) throw new Error(`weather report ${field} missing`);
+  if (record.fixtureProvenance !== "synthetic" || !["base", "after"].includes(record.phase) || !WEATHER_DELTA_REASONS.has(record.allowedDeltaReason)) throw new Error("weather report provenance/phase/reason invalid");
+  if (canonicalJsonStringify(record.logicalOracle) !== canonicalJsonStringify(WEATHER_LOGICAL_ORACLES[record.fixtureId])) throw new Error("weather logicalOracle must come from the fixture contract");
+  if (!Array.isArray(record.selectedWeatherRows) || !Array.isArray(record.visibleWeatherRows) || !Array.isArray(record.visibleWeatherTails) || !Array.isArray(record.visibleCards) || !Array.isArray(record.finalWeatherRanges) || !Array.isArray(record.finalTornadoRanges) || !Array.isArray(record.finalCartesianCompositions) || !Array.isArray(record.exploratoryTornadoCompositions) || !["side", "center"].every((placement) => Array.isArray(record.finalWeatherRangesByPlacement?.[placement]) && Array.isArray(record.finalTornadoRangesByPlacement?.[placement]))) throw new Error("weather report collection field invalid");
+  const expectedRows = weatherOracleRows(record.fixtureId);
+  const expectedSelectedRows = record.phase === "base" ? weatherLegacyProjection(expectedRows) : expectedRows;
+  const actualAreaVector = weatherAreaIdentityVector(record.selectedWeatherRows);
+  const expectedAreaVector = weatherAreaIdentityVector(expectedSelectedRows);
+  if (canonicalJsonStringify(actualAreaVector) !== canonicalJsonStringify(expectedAreaVector)) throw new Error(`weather selected area identity vector does not match independent oracle: actual=${JSON.stringify(actualAreaVector)} expected=${JSON.stringify(expectedAreaVector)}`);
+  if (canonicalJsonStringify(record.selectedWeatherProjection) !== canonicalJsonStringify(weatherProjectionContract(record.phase))) throw new Error("weather selected projection contract invalid");
+  if (record.phase === "after") {
+    if (canonicalJsonStringify(record.selectedWeatherKindAssociation) !== canonicalJsonStringify({ status: "complete", reason: null })) throw new Error("weather after kind association recovery incomplete");
+    assertWeatherAfterLogicalOracle(record.selectedWeatherRows, record.logicalOracle);
+  } else {
+    if (canonicalJsonStringify(record.selectedWeatherKindAssociation) !== canonicalJsonStringify({ status: "unavailable", reason: "legacy-product-dom" })) throw new Error("weather base kind association limitation was not recorded");
+    if (record.selectedWeatherRows.some((row) => row.kindKey !== null || typeof row.legacyKindKey !== "string")) throw new Error("weather base row must preserve only legacy kind evidence");
+  }
+  if (record.logicalOracle.totalAreas !== expectedRows.length) throw new Error("weather logical oracle total invalid");
+  const expectedKinds = record.logicalOracle.kinds.map((kind) => kind.kindKey);
+  if (record.phase === "after" && canonicalJsonStringify(Object.keys(record.omittedAreaCountByKind)) !== canonicalJsonStringify(expectedKinds)) throw new Error("weather omitted kind set invalid");
+  if (record.phase === "base" && Object.keys(record.omittedAreaCountByKind).length !== expectedKinds.length) throw new Error("weather base omitted vector length invalid");
+  if (Object.values(record.omittedAreaCountByKind).some((count) => !Number.isInteger(count) || count < 0)) throw new Error("weather omitted count invalid");
+  assertWeatherOmittedProjection(record, expectedKinds);
+  if (!Number.isFinite(record.failureCount) || !Number.isFinite(record.omittedCount) || typeof record.omittedAreaCountByKind !== "object") throw new Error("weather report count field invalid");
+  for (const field of ["keys", "active", "stage", "compressed", "typhoonVariant", "placements"]) if (!Object.hasOwn(record.rotation, field)) throw new Error(`weather report rotation.${field} missing`);
+  const expectedRotationSurface = record.rotation.stage === "3" && record.rotation.keys.includes("weather") ? "reachable" : "unreachable";
+  const expectedRotationSurfaceReason = expectedRotationSurface === "reachable" ? null : {
+    reason: record.rotation.stage === "3" ? "weather-not-rotation-member" : "stage-before-rotation",
+    reachedStage: record.rotation.stage,
+    rotationMembers: record.rotation.keys,
+  };
+  if (record.rotationSurface !== expectedRotationSurface
+    || canonicalJsonStringify(record.rotationSurfaceReason) !== canonicalJsonStringify(expectedRotationSurfaceReason)) {
+    throw new Error(`weather rotation surface evidence invalid: actual=${JSON.stringify({ rotationSurface: record.rotationSurface, rotationSurfaceReason: record.rotationSurfaceReason })} expected=${JSON.stringify({ rotationSurface: expectedRotationSurface, rotationSurfaceReason: expectedRotationSurfaceReason })}`);
+  }
+  for (const field of ["cards", "pages", "card", "body", "readable"]) if (!Object.hasOwn(record.overflow, field)) throw new Error(`weather report overflow.${field} missing`);
+  if (!Array.isArray(record.overflow.readable)) throw new Error("weather report overflow.readable invalid");
+  if (record.weatherFooterChrome == null || !["mode", "generation", "count", "observedFooterModes", "partitionOutcome", "card", "footer"].every((field) => Object.hasOwn(record.weatherFooterChrome, field))) throw new Error("weather report footer chrome missing");
+  if (!Array.isArray(record.weatherFooterChrome.observedFooterModes) || !["legacy-base", "provisional-is-final", "footer-present-final", "unresolved"].includes(record.weatherFooterChrome.partitionOutcome)) throw new Error("weather report footer outcome invalid");
+  if (record.finalWeatherRanges.length === 0 || !record.finalWeatherRanges.every((range) => weatherRangeBounds(range) != null)) throw new Error("weather final range vector invalid");
+  const liveRange = weatherRangeBounds(record.geometry?.weatherCards?.find((card) => card.shelf === false && card.surface != null)?.range);
+  const expectedVisibleRows = liveRange == null ? [] : expectedSelectedRows.slice(liveRange.start, liveRange.end);
+  const visibleRowsMatch = record.phase === "after"
+    ? canonicalJsonStringify(record.visibleWeatherRows) === canonicalJsonStringify(expectedVisibleRows)
+    : canonicalJsonStringify(weatherAreaIdentityVector(record.visibleWeatherRows)) === canonicalJsonStringify(weatherAreaIdentityVector(expectedVisibleRows));
+  if (liveRange == null || !visibleRowsMatch) throw new Error("weather visible page does not match logical range/oracle");
+  if (record.phase === "after") {
+    const live = record.geometry?.weatherCards?.find((card) => card.shelf === false && card.surface != null);
+    if (live == null || live.layout !== "multi" || !["1", "auto"].includes(live.columnCount)) throw new Error("weather multi layout geometry missing");
+    const samePayloadCards = record.geometry.weatherCards.filter((card) => canonicalJsonStringify(card.logicalItems) === canonicalJsonStringify(live.logicalItems));
+    if (samePayloadCards.length === 0 || samePayloadCards.some((card) => card.layout !== "multi" || !["1", "auto"].includes(card.columnCount))) throw new Error("weather layout mode changed across surfaces");
+    const groups = samePayloadCards.flatMap((card) => card.groups);
+    if (groups.length === 0 || groups.some((group) => group.labelDocumentCount !== 1 || group.labelTargetWithinGroup !== true || !(group.blockAxisIntersection > 0))) throw new Error("weather group geometry/label contract failed");
+    if (samePayloadCards.some((card) => card.groupOverlapArea > 1 || card.bodyFooterOverlap > 1 || card.footerRiderOverlap > 1)) throw new Error("weather group/footer/rider overlap");
+    for (const box of [record.overflow.card, record.overflow.body, ...record.overflow.readable].filter(Boolean)) if (box.x > 1 || box.y > 1) throw new Error("weather card/readable overflow");
+    if (record.unresolved !== "false" || record.overflow.cards.length !== 0 || record.overflow.pages.length !== 0) throw new Error("weather layout unresolved/overflow diagnostics");
+    const measurementCards = samePayloadCards.filter((card) => card.measurementFooter === "absent" || card.measurementFooter === "present");
+    if (measurementCards.some((card) => card.footerCount !== (card.measurementFooter === "present" ? 1 : 0))) throw new Error("weather forced measurement footer differs from actual DOM");
+    for (const placement of ["side", "center"]) {
+      if (!samePayloadCards.some((card) => card.shelf && card.placement === placement && card.measurementKind === "normal")) throw new Error(`weather ${placement} normal shelf missing`);
+      if (!samePayloadCards.some((card) => card.shelf && card.placement === placement && card.measurementKind === "weather-page")) throw new Error(`weather ${placement} forced shelf missing`);
+    }
+    const finalPageCount = record.finalWeatherRanges.length;
+    const finalForced = samePayloadCards.filter((card) => card.measurementKind === "weather-page" && card.measurementFooter === live.footerMode && record.finalWeatherRanges.includes(card.range));
+    if (finalForced.length === 0 || finalForced.some((card) => card.measurementPageCount !== finalPageCount || card.probeFit !== "true")) throw new Error("weather forced shelf page count/fit differs from final partition");
+    assertForcedMeasurementPageOrdinals(finalForced, record.finalWeatherRanges);
+    const liveSurfaceShelves = samePayloadCards.filter((card) => card.measurementKind === "normal" && card.placement === live.placement && card.measurementFooter === live.footerMode);
+    if (liveSurfaceShelves.length === 0 || liveSurfaceShelves.every((card) => Math.abs(card.card.width - live.card.width) > 1 || Math.abs(card.card.height - live.card.height) > 1)) throw new Error("weather normal shelf/live geometry mismatch");
+    const observedModes = new Set(record.weatherFooterChrome.observedFooterModes);
+    if (!observedModes.has("absent")) throw new Error("weather footer-absent provisional generation was not captured");
+    if (record.fixtureId === "weather-kind-area") {
+      if (record.finalWeatherRanges.length !== 1 || record.weatherFooterChrome.mode !== "absent" || record.weatherFooterChrome.generation !== "1" || record.weatherFooterChrome.count !== 0 || record.weatherFooterChrome.partitionOutcome !== "provisional-is-final") throw new Error("weather one-page provisional generation was not recorded as final");
+    } else if (!observedModes.has("present") || record.finalWeatherRanges.length < 2 || record.weatherFooterChrome.mode !== "present" || record.weatherFooterChrome.generation !== "2" || record.weatherFooterChrome.count !== 1 || record.weatherFooterChrome.partitionOutcome !== "footer-present-final") {
+      throw new Error("weather footer boundary did not capture both generations and resolve to multiple pages");
+    }
+    if (record.fixtureId === "weather-kind-area-footer-boundary") {
+      if (record.finalTornadoRanges.length === 0) throw new Error("weather tornado final ranges missing");
+      const expectedCartesian = ["side", "center"].flatMap((placement) => record.finalWeatherRangesByPlacement[placement].flatMap((weatherRange) => record.finalTornadoRangesByPlacement[placement].map((tornadoRange) => `${placement}|${weatherRange}|${tornadoRange}`))).sort();
+      const observedCartesian = record.finalCartesianCompositions.map((entry) => `${entry.placement}|${entry.weatherRange}|${entry.tornadoRange}`).sort();
+      if (canonicalJsonStringify(observedCartesian) !== canonicalJsonStringify(expectedCartesian) || new Set(observedCartesian).size !== observedCartesian.length) throw new Error("weather tornado final Cartesian compositions incomplete or duplicated");
+      for (const placement of ["side", "center"]) {
+        const compositions = record.finalCartesianCompositions.filter((entry) => entry.placement === placement);
+        assertForcedMeasurementPageOrdinals(compositions, record.finalWeatherRangesByPlacement[placement], "weatherRange", "weatherPageIndex", "weatherPageCount", `${placement} weather`);
+        assertForcedMeasurementPageOrdinals(compositions, record.finalTornadoRangesByPlacement[placement], "tornadoRange", "tornadoPageIndex", "tornadoPageCount", `${placement} tornado`);
+      }
+    }
+  }
+  return record;
+}
+
+export function weatherVisibleRotationTicks(stage, keys) {
+  if (stage !== "3") return [0];
+  if (keys.includes("weather")) return keys.map((key, index) => key === "weather" ? index : -1).filter((index) => index >= 0);
+  return [0];
+}
+
+export function assertWeatherStageTickCoverage(cells, viewport) {
+  if (!Array.isArray(cells) || cells.length === 0) throw new Error(`weather stage coverage has no cells: ${viewport}`);
+  const stage = cells[0]?.rotation?.stage;
+  const keys = cells[0]?.rotation?.keys;
+  if (!["0", "1", "2", "3"].includes(stage) || !Array.isArray(keys)) throw new Error(`weather reached stage/rotation keys invalid: ${viewport}`);
+  if (cells.some((record) => record.rotation.stage !== stage || canonicalJsonStringify(record.rotation.keys) !== canonicalJsonStringify(keys))) throw new Error(`weather reached stage/rotation keys changed across cells: ${viewport}`);
+  if (stage !== "3" && keys.length !== 0) throw new Error(`weather non-rotation stage published rotation keys: ${viewport}`);
+  const expectedTicks = weatherVisibleRotationTicks(stage, keys);
+  const observedTicks = [...new Set(cells.map((record) => record.rotationTick))].sort((left, right) => left - right);
+  if (canonicalJsonStringify(observedTicks) !== canonicalJsonStringify(expectedTicks)) throw new Error(`weather-visible rotation tick coverage invalid: ${viewport}`);
+  if (cells.some((record) => record.rotation.keys.includes("weather") && record.rotation.active !== "weather")) throw new Error(`weather-hidden rotation tick captured: ${viewport}`);
+  return { stage, ticks: observedTicks };
+}
+
+export function assertWeatherMatrixPressure(records, fixture) {
+  if (!Array.isArray(records) || !WEATHER_KIND_AREA_FIXTURES.has(fixture)) throw new Error("weather fixture matrix pressure input invalid");
+  const pressureCells = records.filter((record) => ["1", "2", "3"].includes(record?.rotation?.stage));
+  if (fixture === "weather-kind-area-footer-boundary" && pressureCells.length === 0) {
+    throw new Error("weather fixture matrix must contain a stage >= 1 cell");
+  }
+  return pressureCells.length;
+}
+
+export function assertWeatherKindAreaReport(report) {
+  const records = Array.isArray(report?.records) ? report.records.map(assertWeatherKindAreaRecord) : null;
+  if (report?.schemaVersion !== CAPTURE_SCHEMA_VERSION || report?.suite !== "weather-kind-area" || records == null || records.length === 0) throw new Error("invalid or empty weather capture report");
+  const fixtures = [...new Set(records.map((record) => record.fixtureId))];
+  const phases = [...new Set(records.map((record) => record.phase))];
+  if (fixtures.length !== 1 || phases.length !== 1) throw new Error("weather report fixture/phase must be uniform");
+  const viewportLabels = [...new Set(records.map((record) => record.viewport?.label))].sort();
+  if (canonicalJsonStringify(viewportLabels) !== canonicalJsonStringify(["1280x720", "1920x1080"])) throw new Error("weather report requires the 1920x1080 and 1280x720 viewport matrix");
+  const outerKeys = [...new Set(records.map((record) => `${record.viewport.label}|${record.rotationTick}`))];
+  for (const outerKey of outerKeys) {
+    const cells = records.filter((record) => `${record.viewport.label}|${record.rotationTick}` === outerKey).sort((left, right) => left.cardPageTick - right.cardPageTick);
+    const pageCount = cells[0].finalWeatherRanges.length;
+    if (canonicalJsonStringify(cells.map((record) => record.cardPageTick)) !== canonicalJsonStringify([...Array(pageCount).keys()])) throw new Error(`weather page tick coverage incomplete: ${outerKey}`);
+    if (cells.some((record) => canonicalJsonStringify(record.finalWeatherRanges) !== canonicalJsonStringify(cells[0].finalWeatherRanges))) throw new Error(`weather final ranges changed across page ticks: ${outerKey}`);
+    const reached = cells.flatMap((record) => record.visibleWeatherRows);
+    const oracleRows = weatherOracleRows(cells[0].fixtureId);
+    const expectedRows = cells[0].phase === "base" ? weatherLegacyProjection(oracleRows) : oracleRows;
+    const reachedMatches = cells[0].phase === "after"
+      ? canonicalJsonStringify(reached) === canonicalJsonStringify(expectedRows)
+      : canonicalJsonStringify(weatherAreaIdentityVector(reached)) === canonicalJsonStringify(weatherAreaIdentityVector(expectedRows));
+    if (!reachedMatches) throw new Error(`weather logical oracle was not reached exactly once in order: ${outerKey}; actual=${JSON.stringify(cells[0].phase === "base" ? weatherAreaIdentityVector(reached) : reached)} expected=${JSON.stringify(cells[0].phase === "base" ? weatherAreaIdentityVector(expectedRows) : expectedRows)}`);
+    const tails = cells.flatMap((record, pageIndex) => record.visibleWeatherTails.map((tail) => ({ ...tail, pageIndex })));
+    for (const [kindKey, omittedAreaCount] of Object.entries(cells[0].omittedAreaCountByKind)) {
+      const observed = tails.filter((tail) => tail.kindKey === kindKey);
+      if (omittedAreaCount === 0 ? observed.length !== 0 : observed.length !== 1 || observed[0].omittedAreaCount !== omittedAreaCount) throw new Error(`weather tail reach invalid: ${outerKey}:${kindKey}`);
+    }
+  }
+  const byViewport = new Map(viewportLabels.map((viewport) => [viewport, records.filter((record) => record.viewport.label === viewport)]));
+  for (const [viewport, cells] of byViewport) {
+    assertWeatherStageTickCoverage(cells, viewport);
+  }
+  const reachableRotationSurfaceCells = records.filter((record) => record.rotationSurface === "reachable");
+  const pressureCells = assertWeatherMatrixPressure(records, fixtures[0]);
+  return {
+    fixture: fixtures[0], phase: phases[0], records: records.length, outerCells: outerKeys.length,
+    reachableRotationSurfaceCells: reachableRotationSurfaceCells.length, pressureCells,
+  };
+}
+
+export function assertWeatherKindAreaComparison(baseReport, afterReport) {
+  const baseSummary = assertWeatherKindAreaReport(baseReport);
+  const afterSummary = assertWeatherKindAreaReport(afterReport);
+  if (baseSummary.fixture !== afterSummary.fixture || baseSummary.phase !== "base" || afterSummary.phase !== "after") throw new Error("weather comparison fixture/phase mismatch");
+  const records = (report) => report.records;
+  const outerKey = (record) => `${record.fixtureId}|${record.viewport.label}|${record.rotationTick}`;
+  const firstByOuter = (report) => new Map(records(report).filter((record) => record.cardPageTick === 0).map((record) => [outerKey(record), record]));
+  const baseByKey = firstByOuter(baseReport);
+  const afterByKey = firstByOuter(afterReport);
+  if (canonicalJsonStringify([...baseByKey.keys()].sort()) !== canonicalJsonStringify([...afterByKey.keys()].sort())) throw new Error("weather comparison outer cell coverage mismatch");
+  let compared = 0;
+  for (const [cellKey, after] of afterByKey) {
+    const before = baseByKey.get(cellKey);
+    if (before == null) throw new Error(`weather comparison base cell missing: ${cellKey}`);
+    compared += 1;
+    for (const field of ["logicalOracle", "visibleCards", "failureCount", "omittedCount", "unresolved"]) if (canonicalJsonStringify(after[field]) !== canonicalJsonStringify(before[field])) throw new Error(`weather non-regression field changed: ${field}`);
+    for (const field of ["rotationSurface", "rotationSurfaceReason"]) if (canonicalJsonStringify(after[field]) !== canonicalJsonStringify(before[field])) throw new Error(`weather non-regression field changed: ${field}`);
+    for (const field of ["keys", "active", "stage", "compressed", "typhoonVariant"]) if (canonicalJsonStringify(after.rotation[field]) !== canonicalJsonStringify(before.rotation[field])) throw new Error(`weather non-regression rotation field changed: ${field}`);
+    if (after.viewport.label === "1280x720" && canonicalJsonStringify(after.rotation.placements) !== canonicalJsonStringify(before.rotation.placements)) throw new Error("weather non-regression placement changed at 1280x720");
+    for (const field of ["cards", "pages"]) if (canonicalJsonStringify(after.overflow[field]) !== canonicalJsonStringify(before.overflow[field])) throw new Error(`weather non-regression overflow changed: ${field}`);
+    for (const [phase, overflow] of [["base", before.overflow], ["after", after.overflow]]) {
+      if ([overflow.card, overflow.body, ...overflow.readable].filter(Boolean).some((box) => box.x > 1 || box.y > 1)) throw new Error(`weather ${phase} readable overflow`);
+    }
+    if (before.selectedWeatherKindAssociation.status !== "unavailable" || after.selectedWeatherKindAssociation.status !== "complete" || before.selectedWeatherProjection.mode !== "legacy-union" || after.selectedWeatherProjection.mode !== "kind-area") throw new Error("weather comparison kind association/projection phase contract invalid");
+    assertWeatherAfterLogicalOracle(after.selectedWeatherRows, after.logicalOracle);
+    const beforeAreaProjection = weatherAreaIdentityVector(before.selectedWeatherRows);
+    const afterAreaProjection = weatherAreaIdentityVector(weatherLegacyProjection(after.selectedWeatherRows));
+    if (canonicalJsonStringify(afterAreaProjection) !== canonicalJsonStringify(beforeAreaProjection)) {
+      throw new Error(`weather base/after legacy area projection changed: base=${JSON.stringify(beforeAreaProjection)} after=${JSON.stringify(afterAreaProjection)}`);
+    }
+    if (after.selectedWeatherRows.length < before.selectedWeatherRows.length || before.logicalOracle.totalAreas !== after.logicalOracle.totalAreas) throw new Error("weather selected rows/logical total regressed");
+    const beforeOmitted = assertWeatherOmittedProjection(before, before.logicalOracle.kinds.map((kind) => kind.kindKey));
+    const afterOmitted = assertWeatherOmittedProjection(after, after.logicalOracle.kinds.map((kind) => kind.kindKey));
+    for (const kind of after.logicalOracle.kinds) {
+      const beforeCount = beforeOmitted.get(kind.kindKey);
+      const afterCount = afterOmitted.get(kind.kindKey);
+      if (!Number.isInteger(beforeCount) || !Number.isInteger(afterCount) || afterCount > beforeCount) throw new Error(`weather omitted count regressed for ${kind.kindKey}`);
+    }
+    const pageMetadataChanged = canonicalJsonStringify({ ranges: after.finalWeatherRanges, count: after.finalWeatherRanges.length }) !== canonicalJsonStringify({ ranges: before.finalWeatherRanges, count: before.finalWeatherRanges.length });
+    if (after.allowedDeltaReason === "none" && pageMetadataChanged) throw new Error("weather page metadata changed without an allowed reason");
+    if (after.allowedDeltaReason === "weather-kind-group-page-metadata" && !pageMetadataChanged) throw new Error("weather page metadata reason used without a page metadata change");
+  }
+  return { compared, baseRecords: records(baseReport).length, afterRecords: records(afterReport).length };
+}
+
+async function capture({ chrome, profileDir, url, scenario, viewport, outDir, viewportMode = "legacy-control", rotationTick = null, cardPageTick = null, assertTable = true, fixture = null, phase = null, allowedDeltaReason = "none" }) {
   const tickSuffix = rotationTick == null ? "" : `-tick-${rotationTick}`;
   const cardPageTickSuffix = cardPageTick == null ? "" : `-page-tick-${cardPageTick}`;
   const fixtureSuffix = fixture == null ? "" : `-${fixture}`;
@@ -1394,6 +1934,7 @@ async function capture({ chrome, profileDir, url, scenario, viewport, outDir, vi
   assertCompleteDom(dom);
   const diagnostics = diagnosticsFromDom(dom);
   const attentionFixture = fixture != null && ATTENTION_VISIBILITY_FIXTURES.has(fixture);
+  const weatherKindAreaFixture = fixture != null && WEATHER_KIND_AREA_FIXTURES.has(fixture);
   const clusterFixture = url.includes("gateFixture=cluster");
   const clusterCalmFixture = url.includes("gateFixture=cluster-calm");
   const forecastContinuationCapture = scenario === "max" && viewport.label === "960x620";
@@ -1423,7 +1964,7 @@ async function capture({ chrome, profileDir, url, scenario, viewport, outDir, vi
   // EmergencyScreen has no StandbyScreen layout tracks. It instead runs the live panel
   // containment and indicator-overlap checks above; only track-specific probes are inapplicable.
   if (fixture !== "attention-visibility-emergency") {
-    if (!clusterFixture) assertNarrowGeometry(diagnostics, scenario, viewport);
+    if (!clusterFixture && !weatherKindAreaFixture) assertNarrowGeometry(diagnostics, scenario, viewport);
     assertNankaiSeparation(diagnostics);
     assertStageZeroClock(diagnostics);
     // With an explicit flood-bearing scenario (for example
@@ -1439,7 +1980,7 @@ async function capture({ chrome, profileDir, url, scenario, viewport, outDir, vi
     if (clusterFixture) assertClusterFixture(diagnostics, { requirePreRotation: clusterCalmFixture });
     assertClockHandoff(dom, diagnostics);
     if (!clusterFixture) assertRotationDiagnostics(diagnostics, rotationTick);
-    if (assertTable && ["normal-table", "fixture-table"].includes(captureExpectationPolicy(fixture, scenario, viewport.label))) {
+    if (!weatherKindAreaFixture && assertTable && ["normal-table", "fixture-table"].includes(captureExpectationPolicy(fixture, scenario, viewport.label))) {
       assertTableDiagnostics(diagnostics, scenario, viewport, fixture);
       assertFloodWideDiagnostics(diagnostics, scenario, viewport);
     }
@@ -1459,6 +2000,10 @@ async function capture({ chrome, profileDir, url, scenario, viewport, outDir, vi
     expectationPolicy, mismatches,
     ...(comparator == null ? {} : { comparator }),
   };
+  if (fixture != null && WEATHER_KIND_AREA_FIXTURES.has(fixture)) {
+    Object.assign(record, weatherKindAreaReportFields({ fixture, viewport, rotationTick, cardPageTick, phase, allowedDeltaReason, diagnostics, geometry: attentionGeometry }));
+    assertWeatherKindAreaRecord(record);
+  }
   assertCaptureRecordSchemaV2(record);
   await writeFile(jsonPath, `${JSON.stringify(record, null, 2)}\n`);
   return record;
@@ -2090,6 +2635,20 @@ export const DESIGN_ALIGNMENT_REPORT_EXPRESSION = String.raw`(async () => {
     const riderRow = row(rider);
     const innerOccupiedHeight = [headerRow, bodyRow, footerRow, riderRow]
       .reduce((sum, entry) => sum + (entry?.node?.rect?.height ?? 0), 0);
+    const groups = all(':scope > ul > li[data-weather-kind-group]', card).map((group) => {
+      const labelId = group.getAttribute('aria-labelledby') ?? '';
+      const label = labelId === '' ? null : document.getElementById(labelId);
+      const kind = group.querySelector(':scope > .weather-kind-group__kind');
+      const area = group.querySelector(':scope > .weather-kind-group__areas > .pref-group, :scope > .weather-kind-group__areas > .omitted');
+      const kindRect = kind?.getBoundingClientRect() ?? null;
+      const areaRect = area?.getBoundingClientRect() ?? null;
+      return {
+        kindKey: group.getAttribute('data-kind-key'), labelId,
+        labelDocumentCount: labelId === '' ? 0 : all('[id]').filter((node) => node.id === labelId).length,
+        labelTargetWithinGroup: label != null && label.parentElement === group,
+        blockAxisIntersection: kindRect == null || areaRect == null ? null : Math.max(0, Math.min(kindRect.bottom, areaRect.bottom) - Math.max(kindRect.top, areaRect.top)),
+      };
+    });
     return {
       host: host?.getAttribute?.('data-layout-motion-card') ?? null,
       shelf: card.closest('.measure-shelf, .center-measure-shelf') != null,
@@ -2103,6 +2662,10 @@ export const DESIGN_ALIGNMENT_REPORT_EXPRESSION = String.raw`(async () => {
         && cardBox.scrollHeight <= cardBox.clientHeight + 1,
       innerOccupiedHeight, innerContentHeight: cardBox?.clientHeight ?? null,
       footerCount: all(':scope > [data-card-page-footer]', card).length,
+      layout: card.getAttribute('data-weather-kind-layout'), footerMode: card.getAttribute('data-weather-footer-mode'),
+      footerGeneration: card.getAttribute('data-weather-footer-generation'), range: card.getAttribute('data-weather-page-range') ?? '',
+      ranges: jsonAttr(card, 'data-weather-page-ranges', []), logicalItems: jsonAttr(card, 'data-weather-pager-logical-items', []), groups,
+      columnCount: body == null ? null : getComputedStyle(body).columnCount,
       riderCount: all(':scope > .tornado-rider', card).length,
       childOrder: children.map(kindOf),
       header: headerRow, body: bodyRow, footer: footerRow, rider: riderRow,
@@ -2115,12 +2678,12 @@ export const DESIGN_ALIGNMENT_REPORT_EXPRESSION = String.raw`(async () => {
     return card == null ? [] : [describeWeatherCard(card, host)];
   });
   const naturalHeightProbes = all('[data-prefix-measure]', root).flatMap((probe) => {
-    const card = probe.querySelector('.flood-card, .flood-wide-card, .briefing-card, .volcano-card');
+    const card = probe.querySelector('.flood-card, .flood-wide-card, .briefing-card, .volcano-card, .weather-card');
     if (card == null) return [];
     const cardKind = card.matches('.flood-wide-card') ? 'floodWide' : card.matches('.flood-card') ? 'flood'
-      : card.matches('.briefing-card') ? 'briefing' : 'volcano';
+      : card.matches('.briefing-card') ? 'briefing' : card.matches('.weather-card') ? 'weather' : 'volcano';
     const range = card.getAttribute('data-flood-page-range') ?? card.getAttribute('data-briefing-page-range')
-      ?? card.getAttribute('data-volcano-page-range') ?? '';
+      ?? card.getAttribute('data-volcano-page-range') ?? card.getAttribute('data-weather-page-range') ?? '';
     const cardStyle = getComputedStyle(card);
     return [{
       probeId: probe.getAttribute('data-prefix-measure') ?? '',
@@ -3743,6 +4306,13 @@ async function main() {
     process.stdout.write(`${JSON.stringify({ schemaVersion: CAPTURE_SCHEMA_VERSION, asserted: resolve(options.assertCaptureReport), suite: result.suite, cells: result.records.length, mismatches: result.mismatchCount, ...(result.branch == null ? {} : { branch: result.branch }) }, null, 2)}\n`);
     return;
   }
+  if (options.fixture != null && WEATHER_KIND_AREA_FIXTURES.has(options.fixture) && options.assertFrom != null) {
+    if (options.baselineReport == null) throw new Error("weather comparison requires --baseline-report");
+    const [afterReport, baseReport] = await Promise.all([options.assertFrom, options.baselineReport].map((path) => readFile(resolve(path), "utf8").then(JSON.parse)));
+    const comparison = assertWeatherKindAreaComparison(baseReport, afterReport);
+    process.stdout.write(`${JSON.stringify({ schemaVersion: CAPTURE_SCHEMA_VERSION, fixture: options.fixture, comparison }, null, 2)}\n`);
+    return;
+  }
   if (options.suite != null && !["design-alignment", RECENT_QUAKES_GAP_SUITE, CENTER_STACK_PREGATE_SUITE].includes(options.suite)) throw new Error("unknown suite");
   if (resolveDesignAlignmentExecutionMode(options) === "assert-from") {
     if (options.suite === RECENT_QUAKES_GAP_SUITE) await runRecentQuakesGapAssertionsFromFile(options);
@@ -3760,15 +4330,22 @@ async function main() {
     "attention-visibility-reduced-motion": { scenario: "max", viewport: "1280x720" },
     "briefing-pages": { scenario: "4", viewport: "1280x720" },
     "briefing-single-page": { scenario: "4", viewport: "1280x720" },
+    "weather-kind-area": { scenario: "4", viewports: ["1920x1080", "1280x720"] },
+    "weather-kind-area-footer-boundary": { scenario: "4", viewports: ["1920x1080", "1280x720"] },
   };
   const fixtureDefault = options.fixture == null ? null : fixtureDefaults[options.fixture] ?? null;
   const scenarios = options.scenarios.length === 0
     ? fixtureDefault?.scenario != null ? [fixtureDefault.scenario] : DEFAULT_SCENARIOS
     : options.scenarios;
   if (scenarios.some((scenario) => !SUPPORTED_SCENARIOS.includes(scenario))) throw new Error("scenario must be quiet, 4, 7, max, or max-floodWide");
-  if (options.fixture != null && !["overflow", "rotation", "cluster", "cluster-calm", "tornado-pages", "tornado-aggregate", "tornado-clip", "tornado-epoch-release", "recent-quakes-narrow", "attention-visibility-standby", "attention-visibility-emergency", "attention-visibility-reduced-motion", "briefing-pages", "briefing-single-page"].includes(options.fixture)) throw new Error("unknown fixture");
+  if (options.fixture != null && !["overflow", "rotation", "cluster", "cluster-calm", "tornado-pages", "tornado-aggregate", "tornado-clip", "tornado-epoch-release", "recent-quakes-narrow", "attention-visibility-standby", "attention-visibility-emergency", "attention-visibility-reduced-motion", "briefing-pages", "briefing-single-page", "weather-kind-area", "weather-kind-area-footer-boundary"].includes(options.fixture)) throw new Error("unknown fixture");
+  if (options.fixture != null && WEATHER_KIND_AREA_FIXTURES.has(options.fixture) && options.phase == null) throw new Error("weather fixture requires --phase base or after");
   if (options.fixture === "cluster-calm" && (scenarios.length !== 1 || scenarios[0] !== "4")) throw new Error("cluster-calm fixture requires --scenario 4: quiet has no fixed cluster to reduce");
   const requestedViewports = options.viewports.length === 0 ? null : options.viewports.map(parseViewport);
+  if (options.fixture != null && WEATHER_KIND_AREA_FIXTURES.has(options.fixture) && requestedViewports != null) {
+    const labels = [...new Set(requestedViewports.map((viewport) => viewport.label))].sort();
+    if (canonicalJsonStringify(labels) !== canonicalJsonStringify(["1280x720", "1920x1080"])) throw new Error("weather fixture requires exactly --viewport 1920x1080 and --viewport 1280x720");
+  }
   const outDir = resolve(options.outDir ?? join(DISPLAY_DIR, "artifacts", "legacy-standby"));
   await mkdir(outDir, { recursive: true });
   const chrome = process.env.CHROME_BIN ?? "chrome";
@@ -3792,38 +4369,54 @@ async function main() {
     const results = [];
     for (const scenario of scenarios) {
       const viewportLabels = requestedViewports == null
-        ? fixtureDefault?.viewport != null ? [fixtureDefault.viewport]
+        ? fixtureDefault?.viewports != null ? fixtureDefault.viewports
+          : fixtureDefault?.viewport != null ? [fixtureDefault.viewport]
           : scenario === "max-floodWide" ? FLOOD_WIDE_VIEWPORTS : options.report ? DEFAULT_VIEWPORTS : scenario === "quiet" ? ["960x620"] : DEFAULT_VIEWPORTS
         : requestedViewports.map((viewport) => viewport.label);
       const viewports = viewportLabels.map(parseViewport);
       for (const viewport of viewports) {
-        const initialCardPageTick = options.fixture === "briefing-pages" || options.fixture === "briefing-single-page" ? 0 : null;
-        const first = await capture({ chrome, profileDir, url: gateUrl(baseUrl, scenario, 0, options.fixture, initialCardPageTick), scenario, viewport, outDir, viewportMode, rotationTick: 0, cardPageTick: initialCardPageTick, assertTable: !options.report, fixture: options.fixture });
+        const weatherFixture = options.fixture != null && WEATHER_KIND_AREA_FIXTURES.has(options.fixture);
+        const initialCardPageTick = options.fixture === "briefing-pages" || options.fixture === "briefing-single-page" || weatherFixture ? 0 : null;
+        const captureCell = (rotationTick, cardPageTick = null, fixture = options.fixture) => capture({
+          chrome, profileDir, url: gateUrl(baseUrl, scenario, rotationTick, fixture, cardPageTick), scenario, viewport, outDir,
+          viewportMode, rotationTick, cardPageTick, assertTable: !options.report, fixture,
+          phase: options.phase, allowedDeltaReason: options.allowedDeltaReason,
+        });
+        const first = await captureCell(0, initialCardPageTick);
         results.push(first);
+        const weatherPageCount = (record) => {
+          const live = record.geometry?.weatherCards?.find((card) => card.shelf === false && card.surface != null);
+          const match = /^(\d+)\/(\d+)$/.exec(live?.page ?? "");
+          return match == null ? 0 : Number(match[2]);
+        };
+        if (weatherFixture) for (let pageTick = 1; pageTick < weatherPageCount(first); pageTick += 1) results.push(await captureCell(0, pageTick));
         if (options.fixture === "briefing-pages") {
           // Deterministically drive the real page coordinator through every
           // resolved briefing page, then prove the no-footer one-page branch
           // on its own live browser fixture.
           for (let pageTick = 1; pageTick < BRIEFING_PAGING_PAGE_COUNT; pageTick += 1) {
-            results.push(await capture({
-              chrome, profileDir, url: gateUrl(baseUrl, scenario, 0, options.fixture, pageTick), scenario, viewport, outDir,
-              viewportMode, rotationTick: 0, cardPageTick: pageTick, assertTable: !options.report, fixture: options.fixture,
-            }));
+            results.push(await captureCell(0, pageTick));
           }
-          results.push(await capture({
-            chrome, profileDir, url: gateUrl(baseUrl, scenario, 0, "briefing-single-page", 0), scenario, viewport, outDir,
-            viewportMode, rotationTick: 0, cardPageTick: 0, assertTable: !options.report, fixture: "briefing-single-page",
-          }));
+          results.push(await captureCell(0, 0, "briefing-single-page"));
         }
         const rotationKeys = (first.diagnostics["data-rotation-keys"] ?? "").split(",").filter(Boolean);
         if (first.diagnostics["data-ladder-stage"] === "3") {
-          for (let rotationTick = 1; rotationTick < rotationKeys.length; rotationTick += 1) {
-            results.push(await capture({ chrome, profileDir, url: gateUrl(baseUrl, scenario, rotationTick, options.fixture), scenario, viewport, outDir, viewportMode, rotationTick, assertTable: !options.report, fixture: options.fixture }));
+          const weatherVisibleTicks = weatherFixture
+            ? weatherVisibleRotationTicks(first.diagnostics["data-ladder-stage"], rotationKeys)
+            : [...Array(rotationKeys.length).keys()];
+          for (const rotationTick of weatherFixture ? weatherVisibleTicks.filter((tick) => tick > 0) : [...Array(Math.max(0, rotationKeys.length - 1)).keys()].map((tick) => tick + 1)) {
+            const rotated = await captureCell(rotationTick, weatherFixture ? 0 : null);
+            results.push(rotated);
+            if (weatherFixture) for (let pageTick = 1; pageTick < weatherPageCount(rotated); pageTick += 1) results.push(await captureCell(rotationTick, pageTick));
           }
         }
       }
     }
-    const { report, exitCode } = createStandardReportResult({ results, reportMode: options.report, outDir });
+    const weatherFixture = options.fixture != null && WEATHER_KIND_AREA_FIXTURES.has(options.fixture);
+    const { report, exitCode } = weatherFixture
+      ? { report: { schemaVersion: CAPTURE_SCHEMA_VERSION, suite: "weather-kind-area", outDir, records: results }, exitCode: 0 }
+      : createStandardReportResult({ results, reportMode: options.report, outDir });
+    if (weatherFixture) assertWeatherKindAreaReport(report);
     if (options.writeReport != null) {
       const writeReportPath = resolve(options.writeReport);
       await mkdir(dirname(writeReportPath), { recursive: true });

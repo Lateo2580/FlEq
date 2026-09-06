@@ -213,6 +213,44 @@ export const weatherAlerts: DisplayWeatherAlertV1[] = [
   },
 ];
 
+/** 2026-08-27 の観測形を、実 corpus と混同しない表示専用 synthetic data で固定する。 */
+export const syntheticWeatherKindAreaAlerts: DisplayWeatherAlertV1[] = [{
+  source: "vpww56",
+  label: "気象危険警報（synthetic）",
+  role: "weatherWarning",
+  totalAreas: 4,
+  items: [
+    {
+      kind: "L4 土砂災害危険警報", phenomenonKey: "landslide", displaySeverity: "officialL4", rank: "warning",
+      shownAreas: ["秋田県秋田市", "秋田県能代市"], shownAreaCodes: ["0520100", "0520200"], omittedAreaCount: 0,
+    },
+    {
+      kind: "洪水警報", phenomenonKey: "flood", displaySeverity: "nonLevelWarning", rank: "warning",
+      shownAreas: ["富山県富山市", "富山県高岡市"], shownAreaCodes: ["1620100", "1620200"], omittedAreaCount: 0,
+    },
+  ],
+  updatedAt: NOW_ISO,
+}];
+
+/** legacy 2列では一 page、multi-kind の縦積み実高では二 page になる 8 candidate 境界。 */
+export const syntheticWeatherKindAreaFooterBoundaryAlerts: DisplayWeatherAlertV1[] = [{
+  ...syntheticWeatherKindAreaAlerts[0],
+  label: "気象危険警報 footer 境界（synthetic）",
+  totalAreas: 8,
+  items: [
+    {
+      ...syntheticWeatherKindAreaAlerts[0]!.items[0]!,
+      shownAreas: ["秋田県秋田市河辺岩見", "青森県青森市浪岡地区", "岩手県盛岡市玉山地区", "宮城県仙台市青葉区"],
+      shownAreaCodes: ["0520100", "0220100", "0320100", "0410000"],
+    },
+    {
+      ...syntheticWeatherKindAreaAlerts[0]!.items[1]!,
+      shownAreas: ["富山県富山市八尾町", "石川県金沢市湯涌地区", "福井県福井市美山地区", "新潟県新潟市秋葉区"],
+      shownAreaCodes: ["1620100", "1720100", "1820100", "1510000"],
+    },
+  ],
+}];
+
 // standby-cards シナリオ用: 気象警報カードの全ロール (特別警報/警報×2) を一望する。
 // サーバは注意報 (weatherAdvisory) を気象カードに載せず警報・特別警報のみ配信するため
 // 注意報バケツは含めない (注意報はテロップが伝える)。
@@ -2827,6 +2865,7 @@ function legacyStandbyGateWeatherExpandedKinds(
     // StandbyScreen が正本として参照する kindKey を使う。label 文字列を自作しない。
     kindKey: kindKeys[index]!,
     areas: [...item.shownAreas],
+    ...(item.shownAreaCodes == null ? {} : { areaCodes: [...item.shownAreaCodes] }),
     totalAreaCount: Math.max(item.shownAreas.length + item.omittedAreaCount, item.shownAreas.length),
     candidateTruncated: false,
   }));
@@ -2848,12 +2887,15 @@ export type LegacyStandbyGateFixture =
   | "recent-quakes-narrow"
   | "attention-visibility-standby"
   | "briefing-pages"
-  | "briefing-single-page";
+  | "briefing-single-page"
+  | "weather-kind-area"
+  | "weather-kind-area-footer-boundary";
 
 export function legacyStandbyGateSnapshot(
   scenario: LegacyStandbyGateScenario,
   fixture?: LegacyStandbyGateFixture,
 ): DisplayStateSnapshotV1 {
+  const weatherMatrix = fixture === "weather-kind-area-footer-boundary";
   if (fixture === "briefing-pages") {
     return standbySnapshot({ standbyItems: briefingPagingStandbyItems, recentQuakes: [], recentTicker: [] });
   }
@@ -2863,14 +2905,29 @@ export function legacyStandbyGateSnapshot(
   if (fixture === "recent-quakes-narrow") {
     return standbySnapshot({ recentQuakes: recentQuakesNarrowGate, recentTicker: [] });
   }
-  if (scenario === "quiet") {
+  if (fixture === "weather-kind-area") {
+    const weatherAlerts = syntheticWeatherKindAreaAlerts;
+    return standbySnapshot({
+      weatherAlerts,
+      weatherExpandedKinds: legacyStandbyGateWeatherExpandedKinds(weatherAlerts),
+      recentQuakes: [],
+      recentTicker: [],
+      standbyItems: [],
+      stats: null,
+    });
+  }
+  if (scenario === "quiet" && !weatherMatrix) {
     return standbySnapshot({ recentQuakes: [], recentTicker: [] });
   }
-  const isMax = scenario === "max" || scenario === "max-floodWide";
-  const weatherCandidates = isMax
+  const isMax = scenario === "max" || scenario === "max-floodWide" || weatherMatrix;
+  const weatherCandidates = weatherMatrix
+    ? syntheticWeatherKindAreaFooterBoundaryAlerts
+    : isMax
     ? legacyImprovedMaxWeatherAlerts
     : legacyImprovedWeatherAlertsExpanded;
-  const weatherAlerts = isMax
+  const weatherAlerts = weatherMatrix
+    ? syntheticWeatherKindAreaFooterBoundaryAlerts
+    : isMax
     ? legacyImprovedMaxWeatherAlertsCompact
     : legacyImprovedWeatherAlertsCompact;
   const expandedQuake = legacyImprovedExpandedLatestQuake;
@@ -2882,7 +2939,13 @@ export function legacyStandbyGateSnapshot(
       candidateTruncated: false,
     })),
   };
-  const sourceItems = fixture === "attention-visibility-standby"
+  const sourceItems = weatherMatrix
+    ? legacyImprovedMaxItems.filter((item) => item.kind === "flood"
+      || item.kind === "tornado"
+      || item.kind === "longPeriod"
+      || item.kind === "nankaiTrough"
+      || item.kind === "weatherWarningForecast")
+    : fixture === "attention-visibility-standby"
     ? legacyImprovedMaxItems
     : scenario === "4"
     ? standbyItemsShowcase.filter((item) => item.kind !== "flood" && item.kind !== "typhoon")
@@ -2892,7 +2955,7 @@ export function legacyStandbyGateSnapshot(
       ? legacyImprovedMaxItems
       : standbyItemsShowcase;
   const impossibleRiderArea = "宮崎県南部平野部（竜巻注意情報の可読性とページ分割を確認するための極端に長い対象地域名）".repeat(8);
-  const tornadoFixtureAreas = fixture === "tornado-pages" || fixture === "tornado-epoch-release"
+  const tornadoFixtureAreas = fixture === "tornado-pages" || fixture === "tornado-epoch-release" || weatherMatrix
     ? ["宮崎県南部平野部", "宮崎県北部平野部", "鹿児島県大隅地方", "熊本県球磨地方", "大分県佐伯市"]
     : fixture === "tornado-aggregate" || fixture === "tornado-clip"
       ? [impossibleRiderArea, "宮崎県北部平野部", "鹿児島県大隅地方"]
@@ -2909,7 +2972,7 @@ export function legacyStandbyGateSnapshot(
     : fixtureItems;
 
   return standbySnapshot({
-    tsunami: scenario === "4" ? null : tsunamiBanner,
+    tsunami: scenario === "4" && !weatherMatrix ? null : tsunamiBanner,
     latestQuake,
     weatherAlerts,
     weatherExpandedKinds: legacyStandbyGateWeatherExpandedKinds(weatherCandidates),
@@ -2918,7 +2981,7 @@ export function legacyStandbyGateSnapshot(
     // 意味値 badge・津波印を集める。
     recentQuakes: fixture === "attention-visibility-standby"
       ? recentQuakesNarrowGate
-      : recentQuakesRich.slice(0, scenario === "4" ? 3 : 5),
+      : recentQuakesRich.slice(0, scenario === "4" && !weatherMatrix ? 3 : 5),
     stats: statsStandbyCards,
     standbyItems: attentionFixtureItems,
   });

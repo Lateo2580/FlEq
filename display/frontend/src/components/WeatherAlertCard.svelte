@@ -10,7 +10,18 @@
   import RestoredChip from "./RestoredChip.svelte";
   import UpdatedStamp from "./UpdatedStamp.svelte";
 
-  let { alerts, tornado = null, pageCoordinator: suppliedPageCoordinator, rotationMember = false, pageScheduling = false, partitionProbe, tornadoPartitionProbe, pagePlacement = "side", measurementRange, measurementPageFooter = false, measurementTornadoRange, tornadoPageIndex, tornadoPageCount, tornadoPending = false, tornadoAggregatePending = false, tornadoAggregateProbe = false, tornadoInfeasible = null, forceTornadoPagingContract = false }: {
+  type WeatherMeasurement =
+    | { kind: "normal"; footer: "absent" | "present"; pageIndex: number; pageCount: number }
+    | { kind: "weather-page"; range: PageRange; footer: "absent" | "present"; pageIndex: number; pageCount: number }
+    | { kind: "tornado-page"; weatherRange: PageRange; tornadoRange: PageRange; footer: "absent" | "present"; weatherPageIndex: number; weatherPageCount: number; tornadoPageIndex: number; tornadoPageCount: number; aggregateProbe?: boolean };
+  interface WeatherPartitionProbes {
+    absent: PartitionProbe;
+    present: PartitionProbe;
+    revision: string;
+    epoch: string;
+  }
+
+  let { alerts, tornado = null, pageCoordinator: suppliedPageCoordinator, rotationMember = false, pageScheduling = false, partitionProbe, partitionProbes, tornadoPartitionProbe, pagePlacement = "side", measurement, tornadoPending = false, tornadoAggregatePending = false, tornadoInfeasible = null, forceTornadoPagingContract = false }: {
     alerts: DisplayWeatherAlertV1[];
     tornado?: Extract<ActiveStandbyCardV1, { kind: "tornado" }> | null;
     pageCoordinator?: CardPageCoordinator;
@@ -18,32 +29,31 @@
     pageScheduling?: boolean;
     /** U3 shelf-backed actual page composition probe. */
     partitionProbe?: PartitionProbe;
+    /** The two exact chrome generations are supplied atomically. */
+    partitionProbes?: WeatherPartitionProbes;
     /** The rider is independently partitioned but measured in the same shell. */
     tornadoPartitionProbe?: (tornadoRange: PageRange, weatherRange: PageRange) => number | null;
     pagePlacement?: "side" | "center";
-    /** A single shelf probe renders exactly this candidate range. */
-    measurementRange?: PageRange;
-    /** This is a non-scheduled ordinary-variant shelf, not a live card. */
-    measurementPageFooter?: boolean;
-    /** A forced rider probe renders only this tornado-area range. */
-    measurementTornadoRange?: PageRange;
-    /** The published tornado pager coordinates; shelves may provide these directly. */
-    tornadoPageIndex?: number;
-    tornadoPageCount?: number;
+    /** A shelf is one discriminated, internally consistent chrome contract. */
+    measurement?: WeatherMeasurement;
     /** A provisional rider range is still readable, but not yet registered. */
     tornadoPending?: boolean;
     /** The aggregate fallback is on the shelf but its fit result is not confirmed. */
     tornadoAggregatePending?: boolean;
-    /** Forced shelf form for the aggregate fallback before its fit is known. */
-    tornadoAggregateProbe?: boolean;
     /** The rider-side result of the aggregate then clip infeasible defence. */
     tornadoInfeasible?: "aggregate" | "clip" | null;
     /** Live scheduling can be pending before a range is confirmed. */
     forceTornadoPagingContract?: boolean;
   } = $props();
+  const measurementRange = $derived(measurement?.kind === "weather-page" ? measurement.range
+    : measurement?.kind === "tornado-page" ? measurement.weatherRange : undefined);
+  const measurementTornadoRange = $derived(measurement?.kind === "tornado-page" ? measurement.tornadoRange : undefined);
+  const measurementFooterMode = $derived(measurement?.footer ?? "auto");
+  const tornadoAggregateProbe = $derived(measurement?.kind === "tornado-page" && measurement.aggregateProbe === true);
   const initialPageCoordinator = untrack(() => suppliedPageCoordinator);
   const pageCoordinator = initialPageCoordinator ?? createCardPageCoordinator();
   const ownsPageCoordinator = initialPageCoordinator == null;
+  const componentInstanceId = $props.id();
 
   type CandidateTruncatedWeatherItem = DisplayWeatherAlertItemV1 & { candidateTruncated?: boolean };
   type WeatherCardItem = Omit<CandidateTruncatedWeatherItem, "shownAreaCodes"> & {
@@ -181,6 +191,8 @@
     ["omittedAreaCount", item.kindKey, item.omittedAreaCount] as const,
   ]));
   const weatherPagerKindKeys = $derived(items.map((item) => item.kindKey));
+  const weatherKindLayout = $derived(items.length > 1 ? "multi" : "single");
+  const pageTruncated = $derived(items.some((item) => item.omittedAreaCount > 0 || item.candidateTruncated === true));
   const lastAreaIndexByKind = $derived.by(() => {
     const indices = new Map<string, number>();
     for (const [index, entry] of pageCandidates.entries()) if (!entry.tailOnly) indices.set(entry.kindKey, index);
@@ -195,15 +207,47 @@
     });
   }
   const pagePartition = $derived.by(() => {
-    if (measurementRange != null) return { ranges: [measurementRange], pending: [], infeasible: false, probeCount: 1 };
-    if (partitionProbe != null) return sequentialPartitionRanges(
-      "weather", pagePlacement, pageCandidates.length, 1, partitionProbe, tailsForRange,
-    );
-    return sequentialPartitionRanges(
+    const revision = partitionProbes?.revision ?? "";
+    const epoch = partitionProbes?.epoch ?? "0";
+    if (measurement?.kind === "normal") {
+      const bareRange = { start: 0, end: pageCandidates.length, tails: [], omittedAreaCount: 0 };
+      const tails = tailsForRange(bareRange);
+      const range = { ...bareRange, tails, omittedAreaCount: tails.reduce((total, tail) => total + tail.omittedAreaCount, 0) };
+      return {
+        ranges: pageCandidates.length > 0 || range.tails.length > 0 ? [range] : [], pending: [], infeasible: false, probeCount: 0,
+        footerPresent: measurement.footer === "present", chromeGeneration: measurement.footer === "present" ? 2 : 1, revision, epoch,
+      };
+    }
+    if (measurementRange != null) return {
+      ranges: [measurementRange], pending: [], infeasible: false, probeCount: 1,
+      footerPresent: measurementFooterMode === "present",
+      chromeGeneration: measurementFooterMode === "present" ? 2 : 1, revision, epoch,
+    };
+    const absentProbe = partitionProbes?.absent ?? partitionProbe;
+    const presentProbe = partitionProbes?.present ?? partitionProbe;
+    if (absentProbe != null) {
+      const withoutFooter = sequentialPartitionRanges(
+        "weather", pagePlacement, pageCandidates.length, 1, absentProbe, tailsForRange,
+      );
+      const needsFooter = withoutFooter.ranges.length > 1 || pageTruncated;
+      if (withoutFooter.pending.length > 0 || !needsFooter || presentProbe == null) return {
+        ...withoutFooter, footerPresent: needsFooter && presentProbe == null,
+        chromeGeneration: 1, revision, epoch,
+      };
+      // Footer chrome changes the available body height. Re-run from candidate
+      // zero with an independently keyed cache generation; never reuse ranges.
+      return {
+        ...sequentialPartitionRanges(
+          "weather", pagePlacement, pageCandidates.length, 1, presentProbe, tailsForRange,
+        ),
+        footerPresent: true, chromeGeneration: 2, revision, epoch,
+      };
+    }
+    return { ...sequentialPartitionRanges(
       "weather", pagePlacement, pageCandidates.length, WEATHER_PAGE_AREA_CAPACITY,
       (_key, _placement, range) => range.end - range.start,
       tailsForRange,
-    );
+    ), footerPresent: pageCandidates.length > WEATHER_PAGE_AREA_CAPACITY || pageTruncated, chromeGeneration: 0, revision, epoch };
   });
   const weatherPages = $derived(pagePartition.ranges.map((range) => ({
     range, entries: pageCandidates.slice(range.start, range.end), tails: range.tails,
@@ -252,28 +296,23 @@
   });
   const pageDiagnostics = $derived(pageCoordinator.cardDiagnostics("weather"));
   const tornadoDiagnostics = $derived(pageCoordinator.cardDiagnostics("tornado"));
-  const pageTruncated = $derived(items.some((item) => item.omittedAreaCount > 0 || item.candidateTruncated === true));
-  const measurementHasMultiplePages = $derived(
-    measurementRange != null && (measurementRange.start > 0 || measurementRange.end < pageCandidates.length),
-  );
-  const measurementNeedsPageIndicator = $derived(measurementRange != null && (measurementHasMultiplePages || pageTruncated));
-  // A normal variant shelf has no local scheduler.  It still needs the same
-  // 1/1 footer as live only when live pagination/truncation would draw one;
-  // never add that surface to an ordinary one-page, untruncated measurement.
-  const measurementNeedsLiveFooter = $derived(
-    measurementPageFooter && (pageCandidates.length > WEATHER_PAGE_AREA_CAPACITY || pageTruncated),
-  );
+  // Forced shelves obey their declared generation exactly. In particular an
+  // absent first pass must not infer a footer from a truncated local range.
+  const measurementNeedsPageIndicator = $derived(measurement != null && measurement.footer === "present");
   const showPageIndicator = $derived(
-    measurementNeedsPageIndicator
-      || measurementNeedsLiveFooter
-      || (pageDiagnostics.page !== "0/0" && (weatherPages.length > 1 || pageTruncated)),
+    measurement != null
+      ? measurementNeedsPageIndicator
+      : (pageDiagnostics.page !== "0/0" && pagePartition.footerPresent)
+        || (pageDiagnostics.page === "0/0" && (partitionProbe != null || partitionProbes != null) && pagePartition.footerPresent),
   );
   const pageIndicatorLabel = $derived(
-    pageDiagnostics.page !== "0/0"
+    measurement?.kind === "normal" || measurement?.kind === "weather-page"
+      ? `${measurement.pageIndex}/${measurement.pageCount}`
+      : measurement?.kind === "tornado-page"
+        ? `${measurement.weatherPageIndex}/${measurement.weatherPageCount}`
+    : pageDiagnostics.page !== "0/0"
       ? pageDiagnostics.page
-      : measurementRange != null || measurementNeedsLiveFooter
-        ? `${(measurementRange?.start ?? 0) > 0 ? 2 : 1}/${measurementHasMultiplePages ? 2 : 1}`
-        : "",
+      : "",
   );
 
   const tornadoAreas = $derived(tornado?.data.areas ?? []);
@@ -363,12 +402,8 @@
     ? { start: 0, end: Math.min(1, tornadoAreas.length), tails: [], omittedAreaCount: 0 }
     : confirmedTornadoPages[currentTornadoPageIndex] ?? confirmedTornadoPages[0] ?? { start: 0, end: tornadoAreas.length, tails: [], omittedAreaCount: 0 }));
   const visibleTornadoAreas = $derived((tornadoPending || pagePartition.pending.length > 0 || tornadoPartition.pending.length > 0 || resolvedTornadoAggregatePending ? tornadoAreas : confirmedTornadoAreas).slice(activeTornadoRange.start, activeTornadoRange.end));
-  const inferredTornadoPage = $derived(activeTornadoRange.start > 0 ? 2 : 1);
-  const inferredTornadoPageCount = $derived(
-    activeTornadoRange.end < tornadoAreas.length ? inferredTornadoPage + 1 : inferredTornadoPage,
-  );
-  const resolvedTornadoPage = $derived(tornadoPageIndex ?? (measurementTornadoRange == null ? currentTornadoPageIndex + 1 : inferredTornadoPage));
-  const resolvedTornadoPageCount = $derived(tornadoPageCount ?? (measurementTornadoRange == null ? confirmedTornadoPages.length : inferredTornadoPageCount));
+  const resolvedTornadoPage = $derived(measurement?.kind === "tornado-page" ? measurement.tornadoPageIndex : currentTornadoPageIndex + 1);
+  const resolvedTornadoPageCount = $derived(measurement?.kind === "tornado-page" ? measurement.tornadoPageCount : confirmedTornadoPages.length);
   const showTornadoPageMarker = $derived(tornado != null && resolvedTornadoInfeasible == null && resolvedTornadoPageCount > 1);
   const tornadoPagingContract = $derived(
     tornado != null && (tornadoPending || tornadoPartition.pending.length > 0 || resolvedTornadoAggregatePending || resolvedTornadoInfeasible != null || resolvedTornadoPageCount > 1),
@@ -389,6 +424,7 @@
     return visibleItems.map((item) => ({
       item,
       groups: groupByPrefectureOrRegion(item.shownAreas, item.shownAreaCodes).map((group) => ({ group })),
+      labelId: `${componentInstanceId}-weather-kind-${items.findIndex((candidate) => candidate.kindKey === item.kindKey)}`,
     }));
   });
 
@@ -411,12 +447,28 @@
     data-weather-pager-reset-items={JSON.stringify(weatherPagerLogicalItems)}
     data-weather-pager-logical-source-count={weatherPagerLogicalItems.length}
     data-weather-pager-kind-keys={JSON.stringify(weatherPagerKindKeys)}
+    data-weather-kind-layout={weatherKindLayout}
+    data-weather-page-placement={pagePlacement}
+    data-weather-measurement-kind={measurement?.kind}
+    data-weather-measurement-footer={measurement?.footer}
+    data-weather-measurement-page-index={measurement?.kind === "tornado-page" ? measurement.weatherPageIndex : measurement?.pageIndex}
+    data-weather-measurement-page-count={measurement?.kind === "tornado-page" ? measurement.weatherPageCount : measurement?.pageCount}
+    data-tornado-measurement-page-index={measurement?.kind === "tornado-page" ? measurement.tornadoPageIndex : undefined}
+    data-tornado-measurement-page-count={measurement?.kind === "tornado-page" ? measurement.tornadoPageCount : undefined}
+    data-weather-footer-mode={pagePartition.footerPresent ? "present" : "absent"}
+    data-weather-footer-generation={pagePartition.chromeGeneration}
+    data-weather-partition-epoch={pagePartition.epoch}
+    data-weather-partition-revision={pagePartition.revision}
+    data-weather-page-ranges={JSON.stringify(pagePartition.ranges.map((range) => `${range.start}:${range.end}`))}
+    data-weather-visible-logical-items={JSON.stringify(currentPage.entries.filter((entry) => !entry.tailOnly).map((entry) => pageIdentity(entry)))}
+    data-weather-visible-tails={JSON.stringify(currentPage.tails)}
     data-tornado-pager-namespace="card-page-coordinator"
     data-tornado-pager-key="tornado"
     data-tornado-pager-logical-items={JSON.stringify(tornadoPagerLogicalItems)}
     data-tornado-pager-logical-fingerprints={JSON.stringify(tornadoPagerLogicalItems)}
     data-tornado-pager-reset-items={JSON.stringify(tornadoAreas)}
     data-tornado-pager-logical-source-count={tornadoPagerLogicalItems.length}
+    data-tornado-page-ranges={JSON.stringify(confirmedTornadoPages.map((range) => `${range.start}:${range.end}`))}
     data-card-page-truncated={pageTruncated ? "true" : "false"}
     data-weather-page-range={currentWeatherRange == null ? "" : `${currentWeatherRange.start}:${currentWeatherRange.end}`}
     data-partition-probe-count={pagePartition.probeCount}
@@ -433,12 +485,13 @@
       class="standby-card-header weather-card-header"
       style="--standby-header-container: {headerContainerVar(topRole)}; --standby-header-on: {headerOnVar(topRole)}; --standby-header-band: {headerBandVar(topRole)}"
     ><span class="standby-card-header__title">{headerLabel(topRole, alerts)}</span><span class="standby-card-header__meta"><UpdatedStamp iso={latestUpdatedAt} /></span></header>
-    {#if alerts.length > 0}<ul data-page-probe-body data-page-probe-readable>
+    {#if alerts.length > 0}<ul data-page-probe-body data-page-probe-readable data-weather-kind-layout={weatherKindLayout}>
       {#each displayItems as entry (entry.item.kindKey)}
-        <li class="rank-{entry.item.rank}" data-kind-key={entry.item.kindKey}>
-          <span class="kind">{entry.item.kind}</span>
-          {#each entry.groups as grouped (grouped.group.pref)}
-            <div class="pref-group">
+        <li class="rank-{entry.item.rank}" data-weather-kind-group data-kind-key={entry.item.kindKey} aria-labelledby={entry.labelId}>
+          <span id={entry.labelId} class="kind weather-kind-group__kind">{entry.item.kind}</span>
+          <div class="weather-kind-group__areas">
+            {#each entry.groups as grouped (grouped.group.pref)}
+              <div class="pref-group">
               <!-- 県名前方一致しない地域 (例: 沖縄本島地方・宗谷地方) も groupByPrefectureOrRegion
                    により県名見出しと同格の独立見出しとして展開されるため、pref は常に non-null
                    (実機フィードバックバックログ §1) -->
@@ -448,11 +501,12 @@
                   {#each grouped.group.cities as city (city)}<span class="city-name">{city}</span>{/each}
                 </span>
               {/if}
-            </div>
-          {/each}
-          {#if entry.item.omittedAreaCount > 0}
-            <span class="omitted">ほか{entry.item.omittedAreaCount}地域</span>
-          {/if}
+              </div>
+            {/each}
+            {#if entry.item.omittedAreaCount > 0}
+              <span class="omitted">ほか{entry.item.omittedAreaCount}地域</span>
+            {/if}
+          </div>
         </li>
       {/each}
     </ul>{/if}
@@ -490,9 +544,16 @@
     padding: var(--space-2) var(--space-4) var(--space-3);
     overflow: hidden;
     position: relative;
-    column-count: 2;
     column-gap: var(--space-3);
     column-fill: balance;
+  }
+  ul[data-weather-kind-layout="single"] { column-count: 2; }
+  ul[data-weather-kind-layout="multi"] {
+    /* column-count:1 remains a multicol container and may create overflow
+       continuation columns when the grid row has a finite block size. */
+    column-count: auto;
+    column-width: auto;
+    column-fill: auto;
   }
   li {
     display: block;
@@ -500,6 +561,22 @@
     padding: 6px 0;
     font-size: max(14px, var(--type-label-l-fluid)); /* spec D1: 層1 (安全・常設 14px 以上) */
   }
+  [data-weather-kind-layout="single"] .weather-kind-group__areas { display: contents; }
+  [data-weather-kind-layout="multi"] > li[data-weather-kind-group] {
+    display: grid;
+    grid-template-columns: max-content minmax(0, 1fr);
+    column-gap: var(--space-3);
+    align-items: start;
+    box-sizing: border-box;
+    width: 100%;
+    min-width: 0;
+    break-inside: avoid;
+  }
+  [data-weather-kind-layout="multi"] .weather-kind-group__areas {
+    width: 100%;
+    min-width: 0;
+  }
+  [data-weather-kind-layout="multi"] .weather-kind-group__areas > :first-child { margin-top: 0; }
   .tornado-rider { grid-area: rider; border-top: 1px solid var(--hairline); padding: var(--space-2) var(--space-4); color: var(--role-weatherWarning); font-size: max(14px, var(--type-label-l-fluid)); font-weight: var(--type-body-weight-emphasized); border-bottom-left-radius: calc(var(--radius-standby) - 1px); border-bottom-right-radius: calc(var(--radius-standby) - 1px); }
   .tornado-rider.clip-rider [data-tornado-rider-text] { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .tornado-page-marker { display: inline; margin-inline-start: 0.5em; white-space: nowrap; font-size: var(--type-label-xs-size); font-weight: var(--type-body-weight-regular); color: var(--role-muted); }
@@ -545,6 +622,19 @@
   }
   .city-name {
     white-space: nowrap;
+  }
+  [data-weather-kind-layout="multi"] .pref-group,
+  [data-weather-kind-layout="multi"] .cities,
+  [data-weather-kind-layout="multi"] .city-name {
+    box-sizing: border-box;
+    min-width: 0;
+    max-width: 100%;
+  }
+  [data-weather-kind-layout="multi"] .pref-group { width: 100%; }
+  [data-weather-kind-layout="multi"] .cities { flex: 1 1 0; }
+  [data-weather-kind-layout="multi"] .city-name {
+    white-space: normal;
+    overflow-wrap: anywhere;
   }
   .omitted {
     display: block;

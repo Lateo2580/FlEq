@@ -3,13 +3,13 @@
   import type { ActiveStandbyCardV1, DisplayLatestQuakeStateV1, DisplayRecentQuakeV1, DisplayStateSnapshotV1, DisplayTsunamiLevel } from "../lib/protocol";
   import { recentQuakeId } from "../lib/format";
   import { resolveWeatherKindKeys, weatherAreaIdentity } from "../lib/weather-expanded-kinds";
-  import { floodPartitionProbeSentinel } from "../lib/standby-cards";
+  import { floodPartitionProbeSentinel, tornadoPageAreaEntries } from "../lib/standby-cards";
   import { makeColumnPlan, promoteAndExpand, type SolverContext } from "../lib/legacy-standby/solver";
   import { SPRING_SPATIAL_DEFAULT_MS } from "../lib/motion";
   import { createEpochCoordinator, type EpochCoordinator, type EpochCoordinatorControl } from "../lib/legacy-standby/epoch-coordinator";
   import { nextCenterClusterHidden, type CenterClusterItem } from "../lib/legacy-standby/center-cluster";
   import { createLayoutMotionCoordinator, type LayoutMotionIdentity } from "../lib/legacy-standby/layout-motion.svelte";
-  import { sequentialPartitionRanges, type PartitionProbe } from "../lib/legacy-standby/page-partition";
+  import { pageIdentity, sequentialPartitionRanges, type PartitionProbe } from "../lib/legacy-standby/page-partition";
   import { createCardPageCoordinator, createRotationScheduler } from "../lib/legacy-standby/time-slice-scheduler.svelte";
   import type { CardCandidate, CardKey, CardVariant, ColumnPlan, DisplaySelection, LadderStage, PagePartitionKey, PageRange, PlacementChoice } from "../lib/legacy-standby/types";
   import Clock from "./Clock.svelte";
@@ -52,7 +52,7 @@
     rotationTick?: number;
     cardPageTick?: number;
     /** Preview gate only; production App never supplies this. */
-    gateFixture?: "overflow" | "rotation" | "cluster" | "cluster-calm" | "tornado-pages" | "tornado-aggregate" | "tornado-clip" | "tornado-epoch-release" | "recent-quakes-narrow" | "attention-visibility-standby" | "briefing-pages" | "briefing-single-page";
+    gateFixture?: "overflow" | "rotation" | "cluster" | "cluster-calm" | "tornado-pages" | "tornado-aggregate" | "tornado-clip" | "tornado-epoch-release" | "recent-quakes-narrow" | "attention-visibility-standby" | "briefing-pages" | "briefing-single-page" | "weather-kind-area" | "weather-kind-area-footer-boundary";
     /** Preview-only partition telemetry; production App never enables this. */
     partitionDebug?: boolean;
   } = $props();
@@ -94,8 +94,12 @@
   type MeasureId = `${CardKey}:${CardVariant}:${Placement}`;
   type PrefixCardKey = PagePartitionKey;
   type FloodProbeForm = "compact" | "wide";
+  type WeatherMeasurementContract =
+    | { kind: "normal"; footer: "absent" | "present"; pageIndex: number; pageCount: number }
+    | { kind: "weather-page"; range: PageRange; footer: "absent" | "present"; pageIndex: number; pageCount: number }
+    | { kind: "tornado-page"; weatherRange: PageRange; tornadoRange: PageRange; footer: "absent" | "present"; weatherPageIndex: number; weatherPageCount: number; tornadoPageIndex: number; tornadoPageCount: number; aggregateProbe: boolean };
   interface PrefixTail { kindKey: string; omittedAreaCount: number }
-  interface PrefixMeasureEntry {
+  interface PrefixMeasureEntryBase {
     id: string;
     key: PrefixCardKey;
     placement: PrefixPlacement;
@@ -105,23 +109,29 @@
     selectionRows?: number;
     tails: PrefixTail[];
     omittedAreaCount: number;
-    purpose?: "prefix" | "page";
-    /** Flood's page-shell contract budget; absent for quake/weather's 1px sentinel. */
-    fixedHeightPx?: number;
-    floodForm?: FloodProbeForm;
-    floodAggregateFallback?: boolean;
     /** A rider probe is keyed by the weather shell context it shares. */
     composition?: string;
-    /**
-     * Briefing's cache identity includes the settled footer contract.  Keep
-     * the rendered probe footer with that entry, rather than reading the
-     * coordinator's later page state while reusing an older cache key.
-     */
-    briefingMeasurementPageFooter?: boolean;
-    weatherRange?: PageRange;
-    weatherSelectionRows?: number;
-    tornadoAggregateFallback?: boolean;
+    weatherMeasurementFooterMode?: "absent" | "present";
   }
+  type PrefixMeasureEntry = PrefixMeasureEntryBase & (
+    | {
+      purpose: "prefix";
+      fixedHeightPx?: never; floodForm?: never; floodAggregateFallback?: never;
+      briefingMeasurementPageFooter?: never; weatherRange?: never; weatherSelectionRows?: never; tornadoAggregateFallback?: never;
+    }
+    | {
+      purpose: "page";
+      /** Flood's page-shell contract budget; weather/tornado use a 1px sentinel. */
+      fixedHeightPx: number;
+      floodForm?: FloodProbeForm;
+      floodAggregateFallback?: boolean;
+      /** Exact settled chrome belongs to this cache entry, not later coordinator state. */
+      briefingMeasurementPageFooter?: boolean;
+      weatherRange?: PageRange;
+      weatherSelectionRows?: number;
+      tornadoAggregateFallback?: boolean;
+    }
+  );
   interface SettleTraceEntry {
     pass: number;
     step: number;
@@ -159,6 +169,8 @@
   let measurements = $state<Record<string, number>>({});
   let prefixMeasurements = $state<Record<string, number>>({});
   let prefixMeasureEntries = $state<PrefixMeasureEntry[]>([]);
+  const weatherMeasurementContracts = new Map<string, WeatherMeasurementContract>();
+  const weatherPartitionProbeContracts = new Map<string, { absent: PartitionProbe; present: PartitionProbe; revision: string; epoch: string }>();
   let layoutWidthPx = $state(0);
   let layoutHeightPx = $state(0);
   let leftTrackWidthPx = $state(0);
@@ -380,6 +392,165 @@
       }];
     }));
   });
+  let confirmedWeatherMeasurementPageCount = $state(1);
+  let confirmedWeatherMeasurementPageFooter = $state<boolean | undefined>(undefined);
+  $effect(() => {
+    const page = cardPageCoordinator.cardDiagnostics("weather").page;
+    if (page === "0/0") return;
+    const pageCount = Math.max(1, Number(page.split("/")[1] ?? 1));
+    const footer = pageCount > 1 || [...weatherDisplayGroups.values()].some((group) =>
+      group.candidateTruncated || group.totalAreaCount > group.areas.length);
+    if (confirmedWeatherMeasurementPageCount !== pageCount) confirmedWeatherMeasurementPageCount = pageCount;
+    if (confirmedWeatherMeasurementPageFooter !== footer) confirmedWeatherMeasurementPageFooter = footer;
+  });
+  const weatherMeasurementPageFooter = $derived(confirmedWeatherMeasurementPageFooter);
+  const weatherMeasurementPageCount = $derived(confirmedWeatherMeasurementPageCount);
+  function confirmedPageRanges(key: "weather" | "tornado", candidateIdentities: readonly string[]): Array<Pick<PageRange, "start" | "end">> {
+    const pageIdentities = cardPageCoordinator.cardDiagnostics(key).identities;
+    if (pageIdentities.length === 0 || candidateIdentities.length === 0) return [];
+    const starts = pageIdentities.map((identity) => candidateIdentities.indexOf(identity));
+    if (starts[0] !== 0 || starts.some((start, index) => start < 0 || (index > 0 && start <= starts[index - 1]!))) return [];
+    return starts.map((start, index) => ({ start, end: starts[index + 1] ?? candidateIdentities.length }));
+  }
+  function confirmedPageIndex(range: Pick<PageRange, "start" | "end">, ranges: readonly Pick<PageRange, "start" | "end">[]): number {
+    const index = ranges.findIndex((candidate) => candidate.start === range.start && candidate.end === range.end);
+    // Exploratory ranges have no final ordinal. They use page 1 only until the
+    // coordinator publishes the exact range vector; the index is part of the
+    // cache key below, so that provisional contract cannot survive publication.
+    return index < 0 ? 1 : index + 1;
+  }
+  function weatherMeasurementCandidates(rows: number) {
+    const candidates = weatherWithSelection(rows).flatMap((alert) => alert.items.flatMap((item) => {
+      const kindKey = weatherKindKey(item);
+      if (item.shownAreas.length === 0 && item.omittedAreaCount > 0) {
+        return [{ kindKey, area: `tail-${kindKey}`, areaCode: null, occurrenceIndex: 0, tailOnly: true }];
+      }
+      return item.shownAreas.map((area, occurrenceIndex) => ({
+        kindKey, area, areaCode: item.shownAreaCodes?.[occurrenceIndex] ?? null, occurrenceIndex, tailOnly: false,
+      }));
+    }));
+    const omittedByKind = new Map<string, number>();
+    for (const alert of weatherWithSelection(rows)) for (const item of alert.items) {
+      const kindKey = weatherKindKey(item);
+      omittedByKind.set(kindKey, (omittedByKind.get(kindKey) ?? 0) + item.omittedAreaCount);
+    }
+    const lastAreaIndexByKind = new Map<string, number>();
+    for (const [index, candidate] of candidates.entries()) if (!candidate.tailOnly) lastAreaIndexByKind.set(candidate.kindKey, index);
+    const tailsForRange = (range: PageRange): PrefixTail[] => [...omittedByKind].flatMap(([kindKey, omittedAreaCount]) => {
+      const last = lastAreaIndexByKind.get(kindKey);
+      return omittedAreaCount > 0 && last != null && last >= range.start && last < range.end
+        ? [{ kindKey, omittedAreaCount }]
+        : [];
+    });
+    return { candidates, tailsForRange };
+  }
+  function weatherCandidateIdentities(rows: number): string[] {
+    return weatherMeasurementCandidates(rows).candidates.map((candidate) => pageIdentity(candidate));
+  }
+  function weatherMeasurementRanges(placement: PrefixPlacement, rows: number, footer: "absent" | "present"): PageRange[] {
+    const { candidates, tailsForRange } = weatherMeasurementCandidates(rows);
+    const composition = weatherChromeSignature(placement, rows, footer);
+    const result = sequentialPartitionRanges(
+      "weather", placement, candidates.length, 1,
+      (_key, _placement, range, tails) => cachedPagePartitionMeasurement(
+        "weather", placement, range, tails, undefined, composition, undefined, rows,
+      ),
+      tailsForRange,
+    );
+    return result.pending.length === 0 && !result.infeasible ? result.ranges : [];
+  }
+  function weatherMeasurementFallbackRanges(rows: number): PageRange[] {
+    const candidates = weatherMeasurementCandidates(rows);
+    return confirmedPageRanges("weather", candidates.candidates.map((candidate) => pageIdentity(candidate))).map((range) => {
+      const tails = candidates.tailsForRange({ ...range, tails: [], omittedAreaCount: 0 });
+      return { ...range, tails, omittedAreaCount: tails.reduce((total, tail) => total + tail.omittedAreaCount, 0) };
+    });
+  }
+  const tornadoMeasurementPageCount = $derived.by(() => {
+    const match = /^(\d+)\/(\d+)$/.exec(cardPageCoordinator.cardDiagnostics("tornado").page);
+    return Math.max(1, match == null ? 1 : Number(match[2]));
+  });
+  function stableWeatherMeasurement(key: string, create: () => WeatherMeasurementContract): WeatherMeasurementContract {
+    const existing = weatherMeasurementContracts.get(key);
+    if (existing != null) return existing;
+    const measurement = create();
+    weatherMeasurementContracts.set(key, measurement);
+    return measurement;
+  }
+  function normalWeatherMeasurement(placement: PrefixPlacement, rows: number) {
+    const footer = weatherMeasurementPageFooter === true ? "present" as const : "absent" as const;
+    const ranges = weatherMeasurementRanges(placement, rows, footer);
+    const pageCount = Math.max(1, ranges.length || weatherMeasurementPageCount);
+    return stableWeatherMeasurement(`normal:${weatherChromeSignature(placement, rows, footer)}:${pageCount}`, () => ({
+      kind: "normal" as const,
+      footer,
+      pageIndex: 1,
+      pageCount,
+    }));
+  }
+  function weatherPrefixMeasurement(entry: PrefixMeasureEntry) {
+    const footer = entry.weatherMeasurementFooterMode ?? "absent";
+    const rows = entry.weatherSelectionRows ?? entry.selectionRows ?? entry.end;
+    const placementRanges = weatherMeasurementRanges(entry.placement, rows, footer);
+    const pageCount = Math.max(1, placementRanges.length || weatherMeasurementPageCount);
+    if (entry.purpose === "prefix") return stableWeatherMeasurement(`${entry.id}:normal:${footer}:${pageCount}`, () => ({
+      kind: "normal" as const, footer, pageIndex: 1, pageCount,
+    }));
+    const ranges = placementRanges.length > 0 ? placementRanges : weatherMeasurementFallbackRanges(rows);
+    const pageIndex = confirmedPageIndex(entry, ranges);
+    return stableWeatherMeasurement(`${entry.id}:weather:${footer}:${pageIndex}:${pageCount}`, () => ({
+      kind: "weather-page" as const, range: entry, footer,
+      pageIndex, pageCount,
+    }));
+  }
+  function tornadoMeasurementRanges(entry: PrefixMeasureEntry, weatherRanges: readonly PageRange[], rows: number, footer: "absent" | "present"): PageRange[] {
+    const areaCount = tornadoItem?.data.areas.length ?? 0;
+    if (areaCount === 0 || weatherRanges.length === 0 || entry.tornadoAggregateFallback === true) return [];
+    const preflight = entry.composition?.endsWith(":preflight") === true;
+    const result = sequentialPartitionRanges(
+      "tornado", entry.placement, areaCount, 1,
+      (_key, _placement, tornadoRange, tails) => {
+        const measurements = weatherRanges.map((weatherRange) => cachedPagePartitionMeasurement(
+          "tornado", entry.placement, tornadoRange, tails, undefined,
+          tornadoMeasurementComposition(entry.placement, rows, footer, weatherRange, preflight),
+          weatherRange, rows,
+        ));
+        return measurements.some((measurement) => measurement == null)
+          ? null
+          : Math.max(...(measurements as number[]));
+      },
+      () => [],
+    );
+    return result.pending.length === 0 && !result.infeasible ? result.ranges : [];
+  }
+  function tornadoPrefixMeasurement(entry: PrefixMeasureEntry) {
+    const weatherRange = entry.weatherRange ?? { start: 0, end: 0, tails: [], omittedAreaCount: 0 };
+    const footer = entry.weatherMeasurementFooterMode ?? (weatherMeasurementPageFooter === true ? "present" as const : "absent" as const);
+    const rows = entry.weatherSelectionRows ?? 0;
+    const measuredWeatherRanges = weatherMeasurementRanges(entry.placement, rows, footer);
+    const weatherRanges = measuredWeatherRanges.length > 0 ? measuredWeatherRanges : weatherMeasurementFallbackRanges(rows);
+    if (weatherRanges.length === 0) weatherRanges.push({ start: 0, end: 0, tails: [], omittedAreaCount: 0 });
+    const weatherPageCount = Math.max(1, measuredWeatherRanges.length || weatherMeasurementPageCount);
+    const weatherPageIndex = confirmedPageIndex(weatherRange, weatherRanges);
+    const measuredTornadoRanges = tornadoMeasurementRanges(entry, weatherRanges, rows, footer);
+    const fallbackTornadoRanges = confirmedPageRanges(
+      "tornado", tornadoPageAreaEntries(tornadoItem?.data.areas ?? []).map((candidate) => pageIdentity(candidate)),
+    );
+    const tornadoRanges = measuredTornadoRanges.length > 0 ? measuredTornadoRanges : fallbackTornadoRanges;
+    const tornadoPageCount = Math.max(1, measuredTornadoRanges.length || tornadoMeasurementPageCount);
+    const tornadoPageIndex = confirmedPageIndex(entry, tornadoRanges);
+    return stableWeatherMeasurement(`${entry.id}:tornado:${footer}:${weatherPageIndex}:${weatherPageCount}:${tornadoPageIndex}:${tornadoPageCount}`, () => ({
+      kind: "tornado-page" as const,
+      weatherRange,
+      tornadoRange: entry,
+      footer,
+      weatherPageIndex,
+      weatherPageCount,
+      tornadoPageIndex,
+      tornadoPageCount,
+      aggregateProbe: entry.tornadoAggregateFallback === true,
+    }));
+  }
 
   function quakeWithSelection(rows: number): DisplayLatestQuakeStateV1 | null {
     const quake = snapshot.latestQuake;
@@ -465,12 +636,53 @@
     const tailPart = tails.length === 0 ? "" : `:omitted:${omitted}:tails:${prefixTailSignature(tails)}`;
     return `${key}:${purpose}:${start}:${end}${tailPart}:placement:${placement}${floodForm == null ? "" : `:form:${floodForm}`}${composition == null ? "" : `:with:${composition}`}`;
   }
+  function weatherTornadoIdentity(rows: number): string {
+    return weatherWithSelection(rows).flatMap((alert) => alert.items.map((item) =>
+      `${weatherKindKey(item)}=${item.shownAreas.map((area) => encodeURIComponent(area)).join(",")};omitted=${item.omittedAreaCount}`,
+    )).join("|");
+  }
+  function tornadoMeasurementComposition(placement: PrefixPlacement, rows: number, footer: "absent" | "present", weatherRange: PageRange, preflight: boolean): string {
+    const chrome = weatherChromeSignature(placement, rows, footer);
+    if (preflight) return `${chrome}:range:${weatherRange.start}:${weatherRange.end}:preflight`;
+    const tailContext = weatherRange.tails.map((tail) => `${tail.kindKey}:${tail.omittedAreaCount}`).join(",");
+    return `${chrome}:range:${weatherRange.start}:${weatherRange.end}:tails:${tailContext}:identity:${encodeURIComponent(weatherTornadoIdentity(rows))}:form:normal`;
+  }
+  function pagePartitionProbeIds(key: PrefixCardKey, placement: PrefixPlacement, range: PageRange, tails: readonly PrefixTail[], floodForm?: FloodProbeForm, composition?: string, weatherRange?: PageRange, weatherSelectionRows?: number) {
+    const id = prefixMeasureId("page-fit", key, placement, range.start, range.end, tails, floodForm, composition);
+    const legacyId = prefixMeasureId("page-fit", key, placement, range.start, range.end, tails, floodForm);
+    const legacyTornadoId = key === "tornado" && weatherRange != null
+      ? prefixMeasureId(
+        "page-fit", key, placement, range.start, range.end, tails, floodForm,
+        `weather:${weatherRange.start}:${weatherRange.end}:rows:${weatherSelectionRows ?? 0}:tails:${weatherRange.tails.map((tail) => `${tail.kindKey}:${tail.omittedAreaCount}`).join(",")}:identity:${encodeURIComponent(weatherTornadoIdentity(weatherSelectionRows ?? 0))}:form:normal`,
+      )
+      : null;
+    return { id, legacyId, legacyTornadoId };
+  }
+  function cachedPagePartitionMeasurement(key: PrefixCardKey, placement: PrefixPlacement, range: PageRange, tails: readonly PrefixTail[], floodForm?: FloodProbeForm, composition?: string, weatherRange?: PageRange, weatherSelectionRows?: number): number | null {
+    const override = typeof testMeasurementOverride === "function"
+      ? testMeasurementOverride(measurementPass)
+      : testMeasurementOverride;
+    const { id, legacyId, legacyTornadoId } = pagePartitionProbeIds(
+      key, placement, range, tails, floodForm, composition, weatherRange, weatherSelectionRows,
+    );
+    const genericOverride = override?.[`${key}:prefix:${range.end}:${placement}`];
+    if (override?.[id] != null || override?.[legacyId] != null || (legacyTornadoId != null && override?.[legacyTornadoId] != null) || genericOverride != null) {
+      return override?.[id] ?? override?.[legacyId] ?? (legacyTornadoId == null ? undefined : override?.[legacyTornadoId]) ?? genericOverride ?? null;
+    }
+    if (key === "tornado" && (gateFixture === "tornado-pages" || gateFixture === "tornado-epoch-release")) {
+      return range.end - range.start <= 1 ? 0 : 2;
+    }
+    if (typeof ResizeObserver === "undefined") return 0;
+    return prefixMeasurements[id] ?? null;
+  }
   function prefixHeight(key: PrefixCardKey, rows: number, placement: Placement): number | null {
     const tails = prefixTails(key, rows);
     // The left and right columns share one shelf and width.  Keep their B
     // cache entries identical too; only the center needs its own geometry.
     const measurePlacement: PrefixPlacement = placement === "center" ? "center" : "side";
-    const id = prefixMeasureId("prefix", key, measurePlacement, 0, prefixRenderedEnd(key, rows), tails);
+    const weatherFooter = weatherMeasurementPageFooter === true ? "present" : "absent";
+    const composition = key === "weather" ? weatherSolverChromeSignature(measurePlacement, rows, weatherFooter) : undefined;
+    const id = prefixMeasureId("prefix", key, measurePlacement, 0, prefixRenderedEnd(key, rows), tails, undefined, composition);
     const cached = prefixMeasurements[id];
     if (cached != null) return cached;
     // The first render precedes the mount/input effect that opens epoch 1.
@@ -479,29 +691,22 @@
     if (epoch === 0) return null;
     coordinator.enqueueProbe(id, () => {
       if (prefixMeasureEntries.some((entry) => entry.id === id)) return;
-      prefixMeasureEntries = [...prefixMeasureEntries, { id, key, placement: measurePlacement, start: 0, end: prefixRenderedEnd(key, rows), selectionRows: rows, tails, omittedAreaCount: tails.reduce((total, tail) => total + tail.omittedAreaCount, 0), purpose: "prefix" }];
+      if (key === "weather") {
+        const staleIds = new Set(prefixMeasureEntries
+          .filter((entry) => entry.key === "weather" && entry.purpose === "prefix" && entry.placement === measurePlacement && entry.selectionRows === rows && entry.composition !== composition)
+          .map((entry) => entry.id));
+        prefixMeasureEntries = prefixMeasureEntries.filter((entry) => !staleIds.has(entry.id));
+        prefixMeasurements = Object.fromEntries(Object.entries(prefixMeasurements).filter(([entryId]) => !staleIds.has(entryId)));
+      }
+      prefixMeasureEntries = [...prefixMeasureEntries, { id, key, placement: measurePlacement, start: 0, end: prefixRenderedEnd(key, rows), selectionRows: rows, tails, omittedAreaCount: tails.reduce((total, tail) => total + tail.omittedAreaCount, 0), purpose: "prefix", composition, weatherMeasurementFooterMode: key === "weather" ? weatherFooter : undefined }];
     });
     return null;
   }
   function pagePartitionProbe(key: PrefixCardKey, placement: PrefixPlacement, fixedHeightPx = 1, floodForm?: FloodProbeForm, composition?: string, weatherRange?: PageRange, weatherSelectionRows?: number): PartitionProbe {
     return (_cardKey, _probePlacement, range, tails) => {
-      const override = typeof testMeasurementOverride === "function"
-        ? testMeasurementOverride(measurementPass)
-        : testMeasurementOverride;
-      const id = prefixMeasureId("page-fit", key, placement, range.start, range.end, tails, floodForm, composition);
-      const genericOverride = override?.[`${key}:prefix:${range.end}:${placement}`];
-      if (override?.[id] != null || genericOverride != null) return override?.[id] ?? genericOverride ?? null;
-      // Capture-only multi-page fixtures exercise a one-area fit / two-area
-      // fail boundary without depending on a particular font rasterizer.
-      // Aggregate and clip use physical forced-shelf overflow below instead.
-      if (key === "tornado" && (gateFixture === "tornado-pages" || gateFixture === "tornado-epoch-release")) {
-        return range.end - range.start <= 1 ? 0 : 2;
-      }
-      // jsdom has no layout engine. Returning a fitting measurement here keeps
-      // its U3 settle contract deterministic; browsers enter the shelf path.
-      if (typeof ResizeObserver === "undefined") return 0;
-      const cached = prefixMeasurements[id];
-      if (cached != null) return cached;
+      const { id } = pagePartitionProbeIds(key, placement, range, tails, floodForm, composition, weatherRange, weatherSelectionRows);
+      const measured = cachedPagePartitionMeasurement(key, placement, range, tails, floodForm, composition, weatherRange, weatherSelectionRows);
+      if (measured != null) return measured;
       if (epoch === 0) return null;
       coordinator.enqueueProbe(id, () => {
         if (prefixMeasureEntries.some((entry) => entry.id === id)) return;
@@ -529,6 +734,10 @@
             : composition?.startsWith("briefing-footer:present") ? true
             : composition?.startsWith("briefing-footer:absent") ? false
             : undefined,
+          weatherMeasurementFooterMode: !["weather", "tornado"].includes(key) ? undefined
+            : composition?.includes("weather-footer:present") ? "present"
+            : composition?.includes("weather-footer:absent") ? "absent"
+            : undefined,
           weatherRange,
           weatherSelectionRows,
           tornadoAggregateFallback: key === "tornado" && range.start === 0 && range.end === 0 && range.omittedAreaCount > 0,
@@ -541,7 +750,7 @@
       // falls back to one atom per page. Start a successor epoch for that
       // post-release queue. requestSettle clears measurementSettled before
       // another caller can schedule a duplicate successor.
-      if (key === "briefing" && measurementSettled) scheduleBriefingProbeSettle();
+      if ((key === "briefing" || key === "weather") && measurementSettled) scheduleBriefingProbeSettle();
       return null;
     };
   }
@@ -687,6 +896,46 @@
     .sort(([left], [right]) => left.localeCompare(right))
     .map(([id, value]) => `${id}:${value}`)
     .join("|"));
+  const weatherPartitionRevision = $derived(Object.entries(prefixMeasurements)
+    .filter(([id]) => id.startsWith("weather:page-fit:"))
+    .sort(([left], [right]) => left.localeCompare(right))
+    .map(([id, value]) => `${id}:${value}`)
+    .join("|"));
+  function weatherProbeWidth(placement: PrefixPlacement): number {
+    const trackWidth = placement === "center" ? centerTrackWidthPx : rightTrackWidthPx;
+    return Math.max(0, Math.round(placement === "center" ? trackWidth : Math.min(480, trackWidth)));
+  }
+  function weatherPayloadFingerprint(rows: number): string {
+    return weatherWithSelection(rows).flatMap((alert) => alert.items.map((item) => {
+      const areas = item.shownAreas.map((area, index) => weatherAreaIdentity(area, item.shownAreaCodes?.[index] ?? null));
+      return `${weatherKindKey(item)}=${areas.join(",")};omitted=${item.omittedAreaCount}`;
+    })).join("|");
+  }
+  function weatherChromeSignature(placement: PrefixPlacement, rows: number, footer: "absent" | "present"): string {
+    const layout = weatherDisplayGroups.size > 1 ? "multi" : "single";
+    const generation = footer === "absent" ? 1 : 2;
+    return `weather-footer:${footer}:generation:${generation}:placement:${placement}:width:${weatherProbeWidth(placement)}:layout:${layout}:selected:${rows}:payload:${encodeURIComponent(weatherPayloadFingerprint(rows))}`;
+  }
+  function weatherSolverChromeSignature(placement: PrefixPlacement, rows: number, footer: "absent" | "present"): string {
+    const layout = weatherDisplayGroups.size > 1 ? "multi" : "single";
+    const generation = footer === "absent" ? 1 : 2;
+    return `weather-solver-footer:${footer}:generation:${generation}:placement:${placement}:width:${weatherProbeWidth(placement)}:layout:${layout}:selected:${rows}:payload:${encodeURIComponent(weatherPayloadFingerprint(rows))}`;
+  }
+  function weatherPartitionProbeContract(placement: PrefixPlacement, rows: number) {
+    const absentSignature = weatherChromeSignature(placement, rows, "absent");
+    const presentSignature = weatherChromeSignature(placement, rows, "present");
+    const key = `${absentSignature}|${presentSignature}|revision:${weatherPartitionRevision}`;
+    const existing = weatherPartitionProbeContracts.get(key);
+    if (existing != null) return existing;
+    const contract = {
+      absent: pagePartitionProbe("weather", placement, 1, undefined, absentSignature, undefined, rows),
+      present: pagePartitionProbe("weather", placement, 1, undefined, presentSignature, undefined, rows),
+      revision: weatherPartitionRevision,
+      epoch: epochKey,
+    };
+    weatherPartitionProbeContracts.set(key, contract);
+    return contract;
+  }
   function briefingProbeWidth(placement: PrefixPlacement): number | undefined {
     // The shelf is deliberately outside the grid. Its percentage width can be
     // unresolved while the grid track has already been measured; use the
@@ -719,7 +968,9 @@
     if (rows > 0 && (card.key === "quake" || card.key === "weather")) {
       const tails = prefixTails(card.key, rows);
       const prefixPlacement: PrefixPlacement = placement === "center" ? "center" : "side";
-      const id = prefixMeasureId("prefix", card.key, prefixPlacement, 0, prefixRenderedEnd(card.key, rows), tails);
+      const weatherFooter = weatherMeasurementPageFooter === true ? "present" : "absent";
+      const composition = card.key === "weather" ? weatherSolverChromeSignature(prefixPlacement, rows, weatherFooter) : undefined;
+      const id = prefixMeasureId("prefix", card.key, prefixPlacement, 0, prefixRenderedEnd(card.key, rows), tails, undefined, composition);
       // B が採用するのは prefixHeight と同じ棚の実測値。描画側で probe を
       // 追加せず、未確定時だけ variant 棚へ安全に戻す。
       return prefixMeasurements[id] ?? measured(card.key, selectedVariant(card.key, renderSelection), measurementPlacement);
@@ -1010,7 +1261,8 @@
     if (renderSelection.weatherRows <= 0) return "";
     const placement: PrefixPlacement = renderPlan.center.some((card) => card.key === "weather") ? "center" : "side";
     const tails = prefixTails("weather", renderSelection.weatherRows);
-    return prefixMeasureId("prefix", "weather", placement, 0, prefixRenderedEnd("weather", renderSelection.weatherRows), tails);
+    const footer = weatherMeasurementPageFooter === true ? "present" : "absent";
+    return prefixMeasureId("prefix", "weather", placement, 0, prefixRenderedEnd("weather", renderSelection.weatherRows), tails, undefined, weatherSolverChromeSignature(placement, renderSelection.weatherRows, footer));
   });
   function snapshotPlan(source: ColumnPlan): ColumnPlan {
     return {
@@ -1730,6 +1982,10 @@
   function requestSettle(): void {
     epoch += 1;
     epochKey = String(epoch);
+    // These object-stability caches are epoch-local. Payload/revision keys can
+    // otherwise accumulate indefinitely during a long-running display.
+    weatherMeasurementContracts.clear();
+    weatherPartitionProbeContracts.clear();
     layoutMotionCoordinator.preEpochCapture(epochKey);
     coordinator.begin(epochKey);
     rotationScheduler.holdForEpoch();
@@ -1865,27 +2121,25 @@
       pagePlacement={placement === "center" ? "center" : "side"}
     />
   {:else if key === "weather"}
+    {@const weatherRows = measuring
+      ? (variant === "expanded" ? candidates().find((candidate) => candidate.key === "weather")?.maxRegionRows ?? 0 : 0)
+      : selected.weatherRows}
     <!-- A normal weather shelf entry needs the live 1/1 footer/rider surface,
          but must not start a private scheduler whose registration adds a
          post-measurement settle pass. -->
     <WeatherAlertCard
-      alerts={weatherWithSelection(measuring
-        ? (variant === "expanded" ? candidates().find((candidate) => candidate.key === "weather")?.maxRegionRows ?? 0 : 0)
-        : selected.weatherRows)}
+      alerts={weatherWithSelection(weatherRows)}
       tornado={tornadoItem}
       pageCoordinator={measuring ? undefined : cardPageCoordinator}
       rotationMember={!measuring && renderPlan.rotationKeys.includes("weather")}
       pageScheduling={!measuring}
       forceTornadoPagingContract={tornadoPagingContractActive()}
-      measurementPageFooter={measuring}
-      partitionProbe={measuring ? undefined : pagePartitionProbe("weather", placement === "center" ? "center" : "side")}
+      measurement={measuring ? normalWeatherMeasurement(placement === "center" ? "center" : "side", weatherRows) : undefined}
+      partitionProbes={measuring ? undefined : weatherPartitionProbeContract(placement === "center" ? "center" : "side", selected.weatherRows)}
       tornadoPartitionProbe={measuring ? undefined : (tornadoRange, weatherRange) => {
         const probePlacement = placement === "center" ? "center" : "side";
-        const weatherContext = weatherWithSelection(selected.weatherRows).flatMap((alert) => alert.items.map((item) =>
-          `${weatherKindKey(item)}=${item.shownAreas.map((area) => encodeURIComponent(area)).join(",")};omitted=${item.omittedAreaCount}`,
-        )).join("|");
-        const tailContext = weatherRange.tails.map((tail) => `${tail.kindKey}:${tail.omittedAreaCount}`).join(",");
-        const composition = `weather:${weatherRange.start}:${weatherRange.end}:rows:${selected.weatherRows}:tails:${tailContext}:identity:${encodeURIComponent(weatherContext)}:form:normal`;
+        const footer = weatherMeasurementPageFooter === true ? "present" : "absent";
+        const composition = tornadoMeasurementComposition(probePlacement, selected.weatherRows, footer, weatherRange, false);
         return pagePartitionProbe("tornado", probePlacement, 1, undefined, composition, weatherRange, selected.weatherRows)("tornado", probePlacement, tornadoRange, []);
       }}
       pagePlacement={placement === "center" ? "center" : "side"}
@@ -1957,10 +2211,10 @@
   {#if entry.key === "quake" && snapshot.latestQuake != null}
     <LatestQuakeCard quake={quakeWithSelection(MAX_PREFIX_ROWS) ?? snapshot.latestQuake} longPeriod={longPeriodItem == null || longPeriodItem.data.eventId !== snapshot.latestQuake.eventId ? null : { ...longPeriodItem.data, restored: longPeriodItem.restored }} pageScheduling={false} measurementRange={entry} pagePlacement={entry.placement} />
   {:else if entry.key === "weather"}
-    <!-- Keep the probe's omitted-tail rows identical to the live B prefix.
-         Passing MAX_PREFIX_ROWS here erased the live "ほか n地域" rider and
-         under-measured a grouped weather card by its omitted-row height. -->
-    <WeatherAlertCard alerts={weatherWithSelection(entry.selectionRows ?? entry.end)} tornado={tornadoItem} pageScheduling={true} measurementRange={entry} pagePlacement={entry.placement} forceTornadoPagingContract={tornadoPagingContractActive()} />
+    <!-- A forced range still receives the complete candidate payload that
+         produced the final partition. The range itself selects the visible
+         atom; using range.end as B would give later pages a different pager. -->
+    <WeatherAlertCard alerts={weatherWithSelection(entry.weatherSelectionRows ?? entry.selectionRows ?? entry.end)} tornado={tornadoItem} pageScheduling={true} measurement={weatherPrefixMeasurement(entry)} pagePlacement={entry.placement} forceTornadoPagingContract={tornadoPagingContractActive()} />
   {:else if entry.key === "briefing" && briefingItem != null}
     <BriefingCard item={briefingItem} pageCoordinator={cardPageCoordinator} pageScheduling={false} measurementRange={entry} partitionRevision={briefingPartitionRevision} partitionEpoch={epochKey} measurementWidthPx={briefingProbeWidth(entry.placement)} measurementPageFooter={entry.briefingMeasurementPageFooter} shellHeightPx={briefingPageShellHeight} pagePlacement={entry.placement} />
   {:else if entry.key === "flood" && floodItem != null}
@@ -1972,7 +2226,7 @@
   {:else if entry.key === "tornado"}
     <!-- The envelope includes the complete current weather candidate set, so
          a rider range is never accepted against an unrelated empty shell. -->
-    <WeatherAlertCard alerts={weatherWithSelection(entry.weatherSelectionRows ?? 0)} tornado={tornadoItem} pageScheduling={false} measurementRange={entry.weatherRange} measurementTornadoRange={entry} tornadoAggregateProbe={entry.tornadoAggregateFallback} pagePlacement={entry.placement} forceTornadoPagingContract={tornadoPagingContractActive()} />
+    <WeatherAlertCard alerts={weatherWithSelection(entry.weatherSelectionRows ?? 0)} tornado={tornadoItem} pageScheduling={false} measurement={tornadoPrefixMeasurement(entry)} pagePlacement={entry.placement} forceTornadoPagingContract={tornadoPagingContractActive()} />
   {:else if entry.key === "volcano" && volcanoItem != null}
     <VolcanoCard item={volcanoItem} pageScheduling={false} measurementRange={entry} pagePlacement={entry.placement} />
   {/if}
@@ -2047,6 +2301,10 @@
   data-flood-page-infeasible={floodPageInfeasible}
   data-flood-page-footer={floodPageFooter}
   data-flood-page-visible-count={floodVisibleCount}
+  data-weather-page={cardPageCoordinator.cardDiagnostics("weather").page}
+  data-weather-page-keys={JSON.stringify(cardPageCoordinator.cardDiagnostics("weather").keys)}
+  data-weather-page-identities={JSON.stringify(cardPageCoordinator.cardDiagnostics("weather").identities)}
+  data-weather-page-footer={Number(cardPageCoordinator.cardDiagnostics("weather").page.split("/")[1] ?? 0) > 1 ? "true" : "false"}
   data-tornado-page={cardPageCoordinator.cardDiagnostics("tornado").page}
   data-tornado-page-keys={JSON.stringify(cardPageCoordinator.cardDiagnostics("tornado").keys)}
   data-tornado-page-identities={JSON.stringify(cardPageCoordinator.cardDiagnostics("tornado").identities)}
@@ -2115,7 +2373,7 @@
       <!-- Keep the rotation-slot (side geometry) page partition ready before
            stage 3 changes weather from a permanent card into a slot member. -->
       <div class="partition-preflight">
-        <WeatherAlertCard alerts={weatherWithSelection(MAX_PREFIX_ROWS)} tornado={tornadoItem} pageScheduling={false} partitionProbe={pagePartitionProbe("weather", "side")} tornadoPartitionProbe={(tornadoRange, weatherRange) => pagePartitionProbe("tornado", "side", 1, undefined, "preflight:weather+tornado", weatherRange, MAX_PREFIX_ROWS)("tornado", "side", tornadoRange, [])} pagePlacement="side" />
+        <WeatherAlertCard alerts={weatherWithSelection(MAX_PREFIX_ROWS)} tornado={tornadoItem} pageScheduling={false} partitionProbes={weatherPartitionProbeContract("side", MAX_PREFIX_ROWS)} tornadoPartitionProbe={(tornadoRange, weatherRange) => { const footer = weatherMeasurementPageFooter === true ? "present" : "absent"; return pagePartitionProbe("tornado", "side", 1, undefined, tornadoMeasurementComposition("side", MAX_PREFIX_ROWS, footer, weatherRange, true), weatherRange, MAX_PREFIX_ROWS)("tornado", "side", tornadoRange, []); }} pagePlacement="side" />
       </div>
     {/if}
     {#if briefingItem != null}
@@ -2155,7 +2413,7 @@
            its center-width page partition while the measurement shelf is
            already active, so the final placement flush has no new probe chain. -->
       <div class="partition-preflight">
-        <WeatherAlertCard alerts={weatherWithSelection(MAX_PREFIX_ROWS)} tornado={tornadoItem} pageScheduling={false} partitionProbe={pagePartitionProbe("weather", "center")} tornadoPartitionProbe={(tornadoRange, weatherRange) => pagePartitionProbe("tornado", "center", 1, undefined, "preflight:weather+tornado", weatherRange, MAX_PREFIX_ROWS)("tornado", "center", tornadoRange, [])} pagePlacement="center" />
+        <WeatherAlertCard alerts={weatherWithSelection(MAX_PREFIX_ROWS)} tornado={tornadoItem} pageScheduling={false} partitionProbes={weatherPartitionProbeContract("center", MAX_PREFIX_ROWS)} tornadoPartitionProbe={(tornadoRange, weatherRange) => { const footer = weatherMeasurementPageFooter === true ? "present" : "absent"; return pagePartitionProbe("tornado", "center", 1, undefined, tornadoMeasurementComposition("center", MAX_PREFIX_ROWS, footer, weatherRange, true), weatherRange, MAX_PREFIX_ROWS)("tornado", "center", tornadoRange, []); }} pagePlacement="center" />
       </div>
     {/if}
     {#if briefingItem != null}

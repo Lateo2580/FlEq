@@ -165,6 +165,8 @@ describe("parseWeatherWarning", () => {
 
     expect(result).not.toBeNull();
     expect(result!.type).toBe("VPWS50");
+    // 2019-10-12 の補助 corpus。2026-08-27 秋田・富山 L4 の再現資料ではない。
+    expect(result!.reportDateTime).toBe("2019-10-12T09:09:00+09:00");
     expect(result!.layers.length).toBeGreaterThan(0);
     // 全国規模なので地域数は多い
     const totalAreas = result!.layers.reduce(
@@ -172,6 +174,14 @@ describe("parseWeatherWarning", () => {
       0,
     );
     expect(totalAreas).toBeGreaterThan(100);
+    const code49Areas = result!.layers.flatMap((layer) => layer.items)
+      .filter((item) => item.kinds.some((kind) => kind.code === "49"))
+      .map((item) => item.areaName);
+    expect(code49Areas).toContain("茨城県");
+    expect(code49Areas).toContain("山梨県");
+    const preferred = selectPreferredWeatherLayer(result!.layers);
+    expect(preferred?.type).toContain("市町村等");
+    expect(preferred?.type).not.toContain("まとめた");
   });
 
   it("publishingOffice / editorialOffice / controlTitle が取得される", () => {

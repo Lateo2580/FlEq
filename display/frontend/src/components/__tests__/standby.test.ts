@@ -165,7 +165,7 @@ describe("StandbyScreen legacy-improved skeleton", () => {
     const dispatchEnd = source.indexOf("{/snippet}", dispatchStart);
     const dispatch = source.slice(dispatchStart, dispatchEnd);
     expect(dispatch).toContain('{:else if entry.key === "tornado"}');
-    expect(dispatch).toMatch(/entry\.key === "tornado"[\s\S]*WeatherAlertCard[\s\S]*measurementTornadoRange=\{entry\}/);
+    expect(dispatch).toMatch(/entry\.key === "tornado"[\s\S]*WeatherAlertCard[\s\S]*measurement=\{tornadoPrefixMeasurement\(entry\)\}/);
   });
 
   it("live weather shell registers tornado pages and renders only the active rider range", async () => {
@@ -1672,16 +1672,14 @@ describe("StandbyScreen prefix probes and fixed-center geometry", () => {
     };
     vi.stubGlobal("ResizeObserver", TestResizeObserver);
     const pageFitOverrides = Object.fromEntries(
-      Array.from({ length: 9 }, (_, index) => [
-        [`weather:page-fit:${index}:${index + 1}:placement:side`, 0],
-        ...(index < 8 ? [[`weather:page-fit:${index}:${index + 2}:placement:side`, 2]] : []),
-      ]).flat(),
+      Array.from({ length: 9 }, (_, start) => Array.from(
+        { length: Math.min(4, 9 - start) },
+        (_, offset) => [`weather:page-fit:${start}:${start + offset + 1}:placement:side`, offset < 3 ? 0 : 2],
+      )).flat(),
     );
     const testMeasurementOverride = {
       layoutWidthPx: 1280, layoutHeightPx: 10_000, baselineGapPx: 10,
       "weather:compact:right": 77, "weather:expanded:right": 88, "weather:full:right": 88,
-      // Weather prefix end is rendered-area count (current + B additions),
-      // so the 9-area final page must receive the same measured fixed height.
       ...Object.fromEntries(Array.from({ length: 9 }, (_, index) => [`weather:prefix:${index + 1}:side`, 133])),
       ...pageFitOverrides,
     };
@@ -1699,7 +1697,8 @@ describe("StandbyScreen prefix probes and fixed-center geometry", () => {
       const card = view.container.querySelector<HTMLElement>(".legacy-layout .weather-card")!;
       const shell = card.closest<HTMLElement>(".legacy-card")!;
       const expanded = JSON.parse(view.container.querySelector(".standby")?.getAttribute("data-expanded-counts") ?? "{}") as { weather?: Record<string, { count: number }> };
-      const result = { page: card.dataset.cardPage, fixedHeight: shell.dataset.cardPageFixedHeight, rectHeight: shell.getBoundingClientRect().height, selectedCount: expanded.weather?.["大雨警報"]?.count };
+      const finalRanges = JSON.parse(card.dataset.weatherPageRanges ?? "[]") as string[];
+      const result = { page: card.dataset.cardPage, fixedHeight: shell.dataset.cardPageFixedHeight, rectHeight: shell.getBoundingClientRect().height, selectedCount: expanded.weather?.["大雨警報"]?.count, finalRanges };
       view.unmount();
       return result;
     }
@@ -1708,6 +1707,7 @@ describe("StandbyScreen prefix probes and fixed-center geometry", () => {
       const second = await pageShell(1);
       expect(first.page).toMatch(/^1\/[2-9]$/);
       expect(second.page).toBe(first.page?.replace(/^1\//, "2/"));
+      expect(first.finalRanges).toEqual(["0:3", "3:6", "6:9"]);
       expect(first.selectedCount).toBe(9);
       expect(first.fixedHeight).toBe("133");
       expect(second.fixedHeight).toBe("133");
@@ -1728,8 +1728,11 @@ describe("StandbyScreen prefix probes and fixed-center geometry", () => {
     try {
       const { container } = render(StandbyScreen, {
         snapshot: baseSnapshot({ weatherAlerts: [weather({ items: [{
-          kind: "大雨警報", displaySeverity: "warning", rank: "warning",
+          kind: "大雨警報", phenomenonKey: "heavy-rain", displaySeverity: "warning", rank: "warning",
           shownAreas: ["先頭地域", "後続地域"], omittedAreaCount: 0,
+        }, {
+          kind: "洪水警報", phenomenonKey: "flood", displaySeverity: "warning", rank: "warning",
+          shownAreas: ["第三地域"], omittedAreaCount: 0,
         }] })] }),
         now, dim: false, sseConnected: true,
         testMeasurementOverride: { layoutWidthPx: 1280, layoutHeightPx: 10_000, baselineGapPx: 10 },
@@ -1740,9 +1743,36 @@ describe("StandbyScreen prefix probes and fixed-center geometry", () => {
       expect(probe).toBeTruthy();
       expect(probe?.querySelector("[data-page-probe-body]")?.textContent).toContain("先頭地域");
       expect(probe?.querySelector("[data-page-probe-body]")?.textContent).not.toContain("後続地域");
+      const live = container.querySelector(".legacy-layout .weather-card");
+      const sideNormal = container.querySelector('.measure-shelf .weather-card[data-weather-measurement-kind="normal"]');
+      const centerNormal = container.querySelector('.center-measure-shelf .weather-card[data-weather-measurement-kind="normal"]');
+      const forced = container.querySelector('.weather-card[data-weather-measurement-kind="weather-page"]');
+      expect([live, sideNormal, centerNormal, forced].every(Boolean)).toBe(true);
+      const cards = Array.from(container.querySelectorAll<HTMLElement>(".weather-card"));
+      expect(cards.every((card) => card.dataset.weatherKindLayout === "multi")).toBe(true);
+      const groups = cards.flatMap((card) => Array.from(card.querySelectorAll<HTMLElement>("li[data-weather-kind-group]")));
+      const ids = groups.map((group) => group.getAttribute("aria-labelledby") ?? "");
+      expect(new Set(ids).size).toBe(ids.length);
+      expect(groups.every((group) => document.getElementById(group.getAttribute("aria-labelledby") ?? "")?.parentElement === group)).toBe(true);
+      expect(cards.filter((card) => card.dataset.weatherMeasurementFooter === "absent").every((card) => card.querySelector("[data-card-page-footer]") == null)).toBe(true);
     } finally {
       vi.unstubAllGlobals();
     }
+  });
+
+  it("weather footer の absent/present generation を side/center で分離し index 0 から再探索する", () => {
+    const source = readFileSync(join(__dirname, "..", "StandbyScreen.svelte"), "utf8");
+    expect(source).toMatch(/weatherChromeSignature\(placement:[\s\S]*weather-footer:\$\{footer\}:generation:\$\{generation\}:placement:\$\{placement\}:width:\$\{weatherProbeWidth\(placement\)\}:layout:\$\{layout\}:selected:\$\{rows\}:payload:/);
+    expect(source).toMatch(/function weatherPartitionProbeContract[\s\S]*absent: pagePartitionProbe\("weather"[\s\S]*present: pagePartitionProbe\("weather"/);
+    expect(source).toContain('partitionProbes={weatherPartitionProbeContract("side", MAX_PREFIX_ROWS)}');
+    expect(source).toContain('partitionProbes={weatherPartitionProbeContract("center", MAX_PREFIX_ROWS)}');
+    expect(source).toMatch(/function prefixHeight[\s\S]*weatherSolverChromeSignature\(measurePlacement, rows, weatherFooter\)[\s\S]*prefixMeasureId\("prefix"[\s\S]*composition/);
+    expect(source).toMatch(/function confirmedPageIndex[\s\S]*ranges\.findIndex\(\(candidate\) => candidate\.start === range\.start && candidate\.end === range\.end\)[\s\S]*index \+ 1/);
+    expect(source).toMatch(/function weatherPrefixMeasurement[\s\S]*weatherMeasurementRanges\(entry\.placement, rows, footer\)[\s\S]*pageCount = Math\.max\(1, placementRanges\.length \|\| weatherMeasurementPageCount\)/);
+    expect(source).toMatch(/function tornadoPrefixMeasurement[\s\S]*weatherMeasurementRanges\(entry\.placement, rows, footer\)[\s\S]*tornadoMeasurementRanges\(entry, weatherRanges, rows, footer\)/);
+    expect(source).toMatch(/function tornadoMeasurementRanges[\s\S]*weatherRanges\.map\(\(weatherRange\) => cachedPagePartitionMeasurement\([\s\S]*tornadoMeasurementComposition\(entry\.placement, rows, footer, weatherRange, preflight\)/);
+    expect(source).toMatch(/function weatherPartitionProbeContract[\s\S]*pagePartitionProbe\("weather", placement, 1, undefined, absentSignature, undefined, rows\)[\s\S]*pagePartitionProbe\("weather", placement, 1, undefined, presentSignature, undefined, rows\)/);
+    expect(source).toMatch(/function requestSettle[\s\S]*weatherMeasurementContracts\.clear\(\)[\s\S]*weatherPartitionProbeContracts\.clear\(\)[\s\S]*prefixMeasurements = \{\}/);
   });
 
   it("fixed-height に収まらない page range は専用棚 body を実測して infeasible にする", async () => {

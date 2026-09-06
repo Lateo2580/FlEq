@@ -6,6 +6,7 @@ import { tick } from "svelte";
 import WeatherAlertCard from "../WeatherAlertCard.svelte";
 import type { ActiveStandbyCardV1, DisplayWeatherAlertV1 } from "../../lib/protocol";
 import { createCardPageCoordinator } from "../../lib/legacy-standby/time-slice-scheduler.svelte";
+import type { PageRange } from "../../lib/legacy-standby/types";
 import { collectWeatherExpandedKinds } from "../../lib/weather-expanded-kinds";
 
 function weatherAlert(over: Partial<DisplayWeatherAlertV1> = {}): DisplayWeatherAlertV1 {
@@ -345,21 +346,22 @@ describe("WeatherAlertCard", () => {
     const { container } = render(WeatherAlertCard, {
       alerts: [],
       tornado: { ...restoredTornado(), data: { areas: ["同名地域", "同名地域", "後続地域"], isSighted: false } },
-      measurementTornadoRange: { start: 1, end: 2, tails: [], omittedAreaCount: 0 },
-      tornadoPageIndex: 2,
-      tornadoPageCount: 3,
+      measurement: { kind: "tornado-page", weatherRange: { start: 0, end: 0, tails: [], omittedAreaCount: 0 }, tornadoRange: { start: 1, end: 2, tails: [], omittedAreaCount: 0 }, footer: "absent", weatherPageIndex: 1, weatherPageCount: 1, tornadoPageIndex: 2, tornadoPageCount: 3 },
     });
     const rider = container.querySelector<HTMLElement>(".tornado-rider");
     expect(rider?.textContent).toContain("同名地域");
     expect(rider?.textContent).not.toContain("後続地域");
     expect(rider?.querySelector("[data-tornado-page-marker]")?.textContent).toBe("対象地域 2/3");
-    expect(container.querySelector<HTMLElement>(".weather-card")?.dataset.tornadoPageRange).toBe("1:2");
+    const card = container.querySelector<HTMLElement>(".weather-card");
+    expect(card?.dataset.tornadoPageRange).toBe("1:2");
+    expect(card?.dataset.tornadoMeasurementPageIndex).toBe("2");
+    expect(card?.dataset.tornadoMeasurementPageCount).toBe("3");
   });
 
   it("tornado 単独 forced shelf は card root と rider の両方を probe 対象にする", () => {
     const { container } = render(WeatherAlertCard, {
       alerts: [], tornado: restoredTornado(),
-      measurementTornadoRange: { start: 0, end: 1, tails: [], omittedAreaCount: 0 },
+      measurement: { kind: "tornado-page", weatherRange: { start: 0, end: 0, tails: [], omittedAreaCount: 0 }, tornadoRange: { start: 0, end: 1, tails: [], omittedAreaCount: 0 }, footer: "absent", weatherPageIndex: 1, weatherPageCount: 1, tornadoPageIndex: 1, tornadoPageCount: 2 },
     });
     const card = container.querySelector<HTMLElement>(".weather-card");
     expect(card?.hasAttribute("data-page-probe-card")).toBe(true);
@@ -383,8 +385,7 @@ describe("WeatherAlertCard", () => {
     const { container } = render(WeatherAlertCard, {
       alerts: [],
       tornado: { ...restoredTornado(), data: { areas, isSighted: true } },
-      measurementTornadoRange: { start: 0, end: Math.min(1, count), tails: [], omittedAreaCount: 0 },
-      tornadoPageCount: count > 1 ? count : 1,
+      measurement: { kind: "tornado-page", weatherRange: { start: 0, end: 0, tails: [], omittedAreaCount: 0 }, tornadoRange: { start: 0, end: Math.min(1, count), tails: [], omittedAreaCount: 0 }, footer: "absent", weatherPageIndex: 1, weatherPageCount: 1, tornadoPageIndex: 1, tornadoPageCount: count > 1 ? count : 1 },
     });
     const rider = container.querySelector<HTMLElement>(".tornado-rider");
     expect(rider?.classList.contains("sighted")).toBe(true);
@@ -396,7 +397,7 @@ describe("WeatherAlertCard", () => {
   it("empty tornado rider keeps an empty forced range without fallback", () => {
     const { container } = render(WeatherAlertCard, {
       alerts: [], tornado: { ...restoredTornado(), data: { areas: [], isSighted: false } },
-      measurementTornadoRange: { start: 0, end: 0, tails: [], omittedAreaCount: 0 },
+      measurement: { kind: "tornado-page", weatherRange: { start: 0, end: 0, tails: [], omittedAreaCount: 0 }, tornadoRange: { start: 0, end: 0, tails: [], omittedAreaCount: 0 }, footer: "absent", weatherPageIndex: 1, weatherPageCount: 1, tornadoPageIndex: 1, tornadoPageCount: 1 },
     });
     expect(container.querySelector<HTMLElement>(".weather-card")?.dataset.tornadoPageRange).toBe("0:0");
     expect(container.querySelector(".tornado-rider")?.textContent).toContain("対象地域");
@@ -408,9 +409,7 @@ describe("WeatherAlertCard", () => {
         kind: "大雨警報", displaySeverity: "warning", rank: "warning", shownAreas: ["宮崎市", "都城市"], omittedAreaCount: 0,
       }] })],
       tornado: { ...restoredTornado(), data: { areas: ["宮崎県", "鹿児島県"], isSighted: false } },
-      measurementRange: { start: 0, end: 1, tails: [], omittedAreaCount: 0 },
-      measurementTornadoRange: { start: 0, end: 1, tails: [], omittedAreaCount: 0 },
-      tornadoPageCount: 2,
+      measurement: { kind: "tornado-page", weatherRange: { start: 0, end: 1, tails: [], omittedAreaCount: 0 }, tornadoRange: { start: 0, end: 1, tails: [], omittedAreaCount: 0 }, footer: "present", weatherPageIndex: 1, weatherPageCount: 2, tornadoPageIndex: 1, tornadoPageCount: 2 },
     });
     const readable = container.querySelectorAll("[data-page-probe-readable]");
     expect(readable).toHaveLength(2);
@@ -422,7 +421,7 @@ describe("WeatherAlertCard", () => {
   it("tornado marker は複数ページだけ rider 行末に inline で表示する", () => {
     const multi = render(WeatherAlertCard, {
       alerts: [], tornado: restoredTornado(),
-      measurementTornadoRange: { start: 0, end: 1, tails: [], omittedAreaCount: 0 }, tornadoPageCount: 2,
+      measurement: { kind: "tornado-page", weatherRange: { start: 0, end: 0, tails: [], omittedAreaCount: 0 }, tornadoRange: { start: 0, end: 1, tails: [], omittedAreaCount: 0 }, footer: "absent", weatherPageIndex: 1, weatherPageCount: 1, tornadoPageIndex: 1, tornadoPageCount: 2 },
     });
     expect(multi.container.querySelector("[data-tornado-page-marker]")?.textContent).toBe("対象地域 1/2");
     multi.unmount();
@@ -435,13 +434,13 @@ describe("WeatherAlertCard", () => {
   it("paging, pending, and confirmation keep the fixed outer-height contract", async () => {
     const view = render(WeatherAlertCard, {
       alerts: [], tornado: restoredTornado(),
-      measurementTornadoRange: { start: 0, end: 1, tails: [], omittedAreaCount: 0 }, tornadoPageCount: 2, tornadoPending: true,
+      measurement: { kind: "tornado-page", weatherRange: { start: 0, end: 0, tails: [], omittedAreaCount: 0 }, tornadoRange: { start: 0, end: 1, tails: [], omittedAreaCount: 0 }, footer: "absent", weatherPageIndex: 1, weatherPageCount: 1, tornadoPageIndex: 1, tornadoPageCount: 2 }, tornadoPending: true,
     });
     const card = view.container.querySelector<HTMLElement>(".weather-card");
     expect(card?.classList.contains("paging-contract")).toBe(true);
     await view.rerender({
       alerts: [], tornado: restoredTornado(),
-      measurementTornadoRange: { start: 0, end: 1, tails: [], omittedAreaCount: 0 }, tornadoPageCount: 2, tornadoPending: false,
+      measurement: { kind: "tornado-page", weatherRange: { start: 0, end: 0, tails: [], omittedAreaCount: 0 }, tornadoRange: { start: 0, end: 1, tails: [], omittedAreaCount: 0 }, footer: "absent", weatherPageIndex: 1, weatherPageCount: 1, tornadoPageIndex: 1, tornadoPageCount: 2 }, tornadoPending: false,
     });
     expect(card?.classList.contains("paging-contract")).toBe(true);
     const source = readFileSync(join(__dirname, "..", "WeatherAlertCard.svelte"), "utf-8");
@@ -487,7 +486,7 @@ describe("WeatherAlertCard", () => {
   it("infeasible rider は aggregate と final clip を区別し、provisional range を保つ", async () => {
     const view = render(WeatherAlertCard, {
       alerts: [], tornado: restoredTornado(),
-      measurementTornadoRange: { start: 0, end: 1, tails: [], omittedAreaCount: 0 }, tornadoPending: true,
+      measurement: { kind: "tornado-page", weatherRange: { start: 0, end: 0, tails: [], omittedAreaCount: 0 }, tornadoRange: { start: 0, end: 1, tails: [], omittedAreaCount: 0 }, footer: "absent", weatherPageIndex: 1, weatherPageCount: 1, tornadoPageIndex: 1, tornadoPageCount: 2 }, tornadoPending: true,
     });
     const card = view.container.querySelector<HTMLElement>(".weather-card");
     expect(card?.dataset.tornadoPagePending).toBe("true");
@@ -546,8 +545,9 @@ describe("WeatherAlertCard", () => {
         return tornadoRange.end - tornadoRange.start > 1 ? 2 : 0;
       },
     });
-    expect(combinations).toContain("0:1/0:1");
-    expect(combinations).toContain("1:2/0:1");
+    const finalCombinations = combinations.filter((entry) => entry.endsWith("/0:1") || entry.endsWith("/1:2"));
+    expect(finalCombinations.sort()).toEqual(["0:1/0:1", "0:1/1:2", "1:2/0:1", "1:2/1:2"]);
+    expect(new Set(finalCombinations).size).toBe(finalCombinations.length);
     expect(container.querySelector<HTMLElement>(".weather-card")?.dataset.tornadoPage).toBe("1/2");
   });
 
@@ -584,6 +584,33 @@ describe("WeatherAlertCard", () => {
     view.unmount(); coordinator.dispose();
   });
 
+  it("weather/tornado probe pending 中は直前の confirmed identities と page count を維持する", async () => {
+    const coordinator = createCardPageCoordinator({ tickOverride: 0 });
+    let pending = false;
+    const probe = (_tornadoRange: PageRange, _weatherRange: PageRange) => pending ? null : 0;
+    const alerts = [weatherAlert({ items: [{ kind: "大雨警報", displaySeverity: "warning", rank: "warning", shownAreas: ["宮崎市"], omittedAreaCount: 0 }] })];
+    const initialTornado = { ...restoredTornado(), data: { areas: ["宮崎県", "鹿児島県"], isSighted: false } };
+    const view = render(WeatherAlertCard, { alerts, tornado: initialTornado, pageCoordinator: coordinator, pageScheduling: true, tornadoPartitionProbe: probe });
+    await tick(); await tick();
+    const before = coordinator.cardDiagnostics("tornado");
+    expect(before.identities).toHaveLength(1);
+
+    pending = true;
+    const nextTornado = { ...initialTornado, data: { ...initialTornado.data, areas: ["熊本県", "鹿児島県", "大分県"] } };
+    await view.rerender({ alerts, tornado: nextTornado, pageCoordinator: coordinator, pageScheduling: true, tornadoPartitionProbe: probe });
+    await tick(); await tick();
+    const during = coordinator.cardDiagnostics("tornado");
+    expect(during.identities).toEqual(before.identities);
+    expect(during.page).toBe(before.page);
+    expect(during.activeKey).toBe(before.activeKey);
+
+    pending = false;
+    await view.rerender({ alerts, tornado: { ...nextTornado }, pageCoordinator: coordinator, pageScheduling: true, tornadoPartitionProbe: probe });
+    await tick(); await tick();
+    expect(coordinator.cardDiagnostics("tornado").identities).not.toEqual(before.identities);
+    view.unmount(); coordinator.dispose();
+  });
+
   it("weather infeasible は同一 full-body shell の probe 確定後に tornado を公開する", () => {
     const { container } = render(WeatherAlertCard, {
       alerts: [weatherAlert()], tornado: { ...restoredTornado(), data: { areas: ["先頭", "未証明"], isSighted: false } },
@@ -615,7 +642,11 @@ describe("WeatherAlertCard", () => {
 
   it("対象地域は2列に組版し、pref-groupを列境界で分断せず旧clip機構を持たない", () => {
     const src = readFileSync(join(__dirname, "..", "WeatherAlertCard.svelte"), "utf-8");
-    expect(src).toMatch(/ul\s*\{[^}]*column-count:\s*2;[^}]*column-gap:/s);
+    expect(src).toMatch(/ul\s*\{[^}]*column-gap:/s);
+    expect(src).toMatch(/ul\[data-weather-kind-layout="single"\]\s*\{\s*column-count:\s*2;/s);
+    expect(src).toMatch(/ul\[data-weather-kind-layout="multi"\]\s*\{[\s\S]*?column-count:\s*auto;[\s\S]*?column-width:\s*auto;/);
+    expect(src).toMatch(/\[data-weather-kind-layout="multi"\]\s*>\s*li\[data-weather-kind-group\]\s*\{[^}]*display:\s*grid;[^}]*grid-template-columns:\s*max-content minmax\(0,\s*1fr\);/s);
+    expect(src).toMatch(/\[data-weather-kind-layout="multi"\]\s+\.city-name\s*\{[^}]*white-space:\s*normal;[^}]*overflow-wrap:\s*anywhere;/s);
     expect(src).toMatch(/\.pref-group\s*\{[^}]*break-inside:\s*avoid;/s);
     expect(src).not.toContain("clipWeatherRows");
     expect(src).not.toContain("clip-summary");
@@ -628,8 +659,7 @@ describe("WeatherAlertCard", () => {
         kind: "大雨警報", displaySeverity: "warning", rank: "warning", shownAreas: ["宮崎市"], omittedAreaCount: 3,
       }] })],
       tornado: restoredTornado(),
-      measurementPageFooter: true,
-      measurementRange: { start: 0, end: 1, tails: [{ kindKey: "warning|大雨警報", omittedAreaCount: 3 }], omittedAreaCount: 3 },
+      measurement: { kind: "weather-page", range: { start: 0, end: 1, tails: [{ kindKey: "warning|大雨警報", omittedAreaCount: 3 }], omittedAreaCount: 3 }, footer: "present", pageIndex: 1, pageCount: 1 },
     });
     const card = container.querySelector<HTMLElement>(".weather-card");
     const body = card?.querySelector<HTMLElement>("[data-page-probe-body]");
@@ -653,7 +683,7 @@ describe("WeatherAlertCard", () => {
         kind: "大雨警報", displaySeverity: "warning", rank: "warning", shownAreas: ["宮崎市"], omittedAreaCount: 3,
       }] })],
       tornado: restoredTornado(),
-      measurementPageFooter: true,
+      measurement: { kind: "normal", footer: "present", pageIndex: 1, pageCount: 1 },
     });
     const card = container.querySelector<HTMLElement>(".weather-card");
     expect(card?.classList.contains("has-page-footer")).toBe(true);
@@ -666,7 +696,7 @@ describe("WeatherAlertCard", () => {
         kind: "大雨警報", displaySeverity: "warning", rank: "warning", shownAreas: ["宮崎市"], omittedAreaCount: 0,
       }] })],
       tornado: restoredTornado(),
-      measurementPageFooter: true,
+      measurement: { kind: "normal", footer: "absent", pageIndex: 1, pageCount: 1 },
     });
     const card = container.querySelector<HTMLElement>(".weather-card");
     expect(card?.classList.contains("has-page-footer")).toBe(false);
@@ -842,6 +872,106 @@ describe("WeatherAlertCard", () => {
     const { container } = render(WeatherAlertCard, { alerts: [alert] });
     const kinds = Array.from(container.querySelectorAll(".kind")).map((el) => el.textContent);
     expect(kinds).toEqual(["洪水警報", "強風注意報"]);
+  });
+
+  it("multi-kind は種別と地域を aria-labelledby 付きの一意な縦 group に閉じ込める", () => {
+    const alerts = [weatherAlert({ items: [
+      { kind: "L4 土砂災害危険警報", phenomenonKey: "landslide", displaySeverity: "officialL4", rank: "warning", shownAreas: ["秋田県秋田市", "秋田県能代市"], omittedAreaCount: 0 },
+      { kind: "洪水警報", phenomenonKey: "flood", displaySeverity: "nonLevelWarning", rank: "warning", shownAreas: ["富山県富山市", "富山県高岡市"], omittedAreaCount: 2 },
+    ] })];
+    const views = Array.from({ length: 4 }, () => render(WeatherAlertCard, { alerts }));
+    const groups = Array.from(document.querySelectorAll<HTMLElement>("li[data-weather-kind-group]"));
+    const ids = groups.map((group) => group.getAttribute("aria-labelledby") ?? "");
+    expect(groups).toHaveLength(8);
+    expect(new Set(ids).size).toBe(ids.length);
+    for (const group of groups) {
+      const labelId = group.getAttribute("aria-labelledby")!;
+      expect(document.getElementById(labelId)?.parentElement).toBe(group);
+      expect(group.querySelectorAll(":scope > .weather-kind-group__areas > .pref-group, :scope > .weather-kind-group__areas > .omitted").length).toBeGreaterThan(0);
+    }
+    for (const view of views) view.unmount();
+  });
+
+  it("global multi-kind の続ページが一種別だけでも layout mode と種別見出しを再掲する", async () => {
+    const coordinator = createCardPageCoordinator({ tickOverride: 1 });
+    const view = render(WeatherAlertCard, {
+      alerts: [weatherAlert({ items: [
+        { kind: "大雨警報", phenomenonKey: "heavy-rain", displaySeverity: "warning", rank: "warning", shownAreas: ["地域1", "地域2"], omittedAreaCount: 0 },
+        { kind: "洪水警報", phenomenonKey: "flood", displaySeverity: "warning", rank: "warning", shownAreas: ["地域3"], omittedAreaCount: 0 },
+      ] })],
+      pageCoordinator: coordinator, pageScheduling: true,
+      partitionProbe: (_key, _placement, range) => range.end - range.start > 1 ? 2 : 0,
+    });
+    await tick();
+    const card = view.container.querySelector<HTMLElement>(".weather-card")!;
+    expect(card.dataset.weatherKindLayout).toBe("multi");
+    expect(card.dataset.cardPage).toBe("2/3");
+    expect(card.querySelector("ul")?.dataset.weatherKindLayout).toBe("multi");
+    expect(card.querySelector(".kind")?.textContent).toBe("大雨警報");
+    expect(card.textContent).toContain("地域2");
+    view.unmount(); coordinator.dispose();
+  });
+
+  it("複数 source bucket が同じ kind へ union されたとき layout mode は single のまま", () => {
+    const first = weatherAlert({ source: "vpws50", items: [{ kind: "大雨警報", phenomenonKey: "heavy-rain", displaySeverity: "warning", rank: "warning", shownAreas: ["秋田県"], omittedAreaCount: 0 }] });
+    const second = weatherAlert({ source: "vpww56", items: [{ kind: "大雨警報", phenomenonKey: "heavy-rain", displaySeverity: "warning", rank: "warning", shownAreas: ["富山県"], omittedAreaCount: 0 }] });
+    const { container } = render(WeatherAlertCard, { alerts: [first, second] });
+    expect(container.querySelector<HTMLElement>(".weather-card")?.dataset.weatherKindLayout).toBe("single");
+    expect(container.querySelectorAll("li[data-weather-kind-group]")).toHaveLength(1);
+  });
+
+  it("8 candidate 以下でも footer absent から別 generation の present probe へ先頭から再探索する", () => {
+    const absent: string[] = [];
+    const present: string[] = [];
+    const alerts = [weatherAlert({ items: [
+      { kind: "大雨警報", phenomenonKey: "heavy-rain", displaySeverity: "warning", rank: "warning", shownAreas: ["A", "B"], omittedAreaCount: 0 },
+      { kind: "洪水警報", phenomenonKey: "flood", displaySeverity: "warning", rank: "warning", shownAreas: ["C", "D"], omittedAreaCount: 0 },
+    ] })];
+    const { container } = render(WeatherAlertCard, {
+      alerts, pageScheduling: true,
+      partitionProbes: {
+        absent: (_key, _placement, range) => { absent.push(`${range.start}:${range.end}`); return range.end - range.start > 2 ? 2 : 0; },
+        present: (_key, _placement, range) => { present.push(`${range.start}:${range.end}`); return range.end - range.start > 1 ? 2 : 0; },
+        revision: "test", epoch: "1",
+      },
+    });
+    const card = container.querySelector<HTMLElement>(".weather-card")!;
+    expect(absent).toContain("0:1");
+    expect(present).toContain("0:1");
+    expect(card.dataset.weatherFooterMode).toBe("present");
+    expect(card.dataset.weatherFooterGeneration).toBe("2");
+    expect(JSON.parse(card.dataset.weatherPageRanges ?? "[]")).toEqual(["0:1", "1:2", "2:3", "3:4"]);
+    expect(card.querySelectorAll("[data-card-page-footer]")).toHaveLength(1);
+  });
+
+  it("footer-absent forced probe は range が部分範囲でも footer を描かない", () => {
+    const range = { start: 0, end: 1, tails: [], omittedAreaCount: 0 };
+    const { container } = render(WeatherAlertCard, {
+      alerts: [weatherAlert({ items: [
+        { kind: "大雨警報", displaySeverity: "warning", rank: "warning", shownAreas: ["A", "B"], omittedAreaCount: 0 },
+      ] })],
+      measurement: { kind: "weather-page", range, footer: "absent", pageIndex: 1, pageCount: 2 },
+    });
+    const card = container.querySelector<HTMLElement>(".weather-card")!;
+    expect(card.dataset.weatherMeasurementFooter).toBe("absent");
+    expect(card.dataset.weatherMeasurementPageIndex).toBe("1");
+    expect(card.dataset.weatherMeasurementPageCount).toBe("2");
+    expect(card.querySelector("[data-card-page-footer]")).toBeNull();
+  });
+
+  it("weather pager は pending provisional range を登録し resetKey を空のまま保つ", async () => {
+    const coordinator = createCardPageCoordinator({ tickOverride: 0 });
+    const register = vi.spyOn(coordinator, "register");
+    const view = render(WeatherAlertCard, {
+      alerts: [weatherAlert({ items: [{ kind: "大雨警報", displaySeverity: "warning", rank: "warning", shownAreas: ["A", "B"], omittedAreaCount: 0 }] })],
+      pageCoordinator: coordinator, pageScheduling: true, partitionProbe: () => null,
+    });
+    await tick();
+    const weatherRegistration = register.mock.calls.find(([entry]) => entry.key === "weather")?.[0];
+    expect(weatherRegistration?.identities.length).toBeGreaterThan(0);
+    expect(weatherRegistration?.resetKey ?? "").toBe("");
+    expect(view.container.querySelector<HTMLElement>(".weather-card")?.dataset.cardPagePending).toBe("true");
+    view.unmount(); coordinator.dispose();
   });
 
   it("共有 coordinator の weather substate が地域リスト内容をページ単位で差し替える", async () => {
