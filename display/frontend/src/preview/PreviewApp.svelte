@@ -66,11 +66,13 @@
     tickerLinesLongRun,
     tickerLine,
     weatherEmergencyInput,
+    weatherChangeDensityInputForTransport,
     weatherSyncingInput,
     backgroundTonePreviewFixtures,
     legacyStandbyGateSnapshot,
     type LegacyStandbyGateScenario,
     type LegacyStandbyGateFixture,
+    type WeatherChangeDensityTransportMode,
   } from "./fixtures";
   import { createTipsFeeder } from "../lib/tips-feeder.svelte";
 
@@ -114,6 +116,8 @@
     "emergency-weather",
     "emergency-weather-mix",
     "emergency-weather-syncing",
+    "emergency-weather-change-density",
+    "emergency-weather-change-density-mix",
     "motion-enter",
     "motion-panels",
     "motion-card-grow",
@@ -141,11 +145,26 @@
   let currentHash = $state(window.location.hash);
   let scenario = $state<Scenario>(parseScenario(window.location.hash));
   let now = $state(new Date());
-  const showNav = new URLSearchParams(window.location.search).get("nav") !== "0";
-  const gateScenarioParam = new URLSearchParams(window.location.search).get("gateScenario");
+  const previewQuery = new URLSearchParams(window.location.search);
+  const showNav = previewQuery.get("nav") !== "0";
+  // design-alignment capture は card geometry の検証中に無関係な ticker の完走境界を
+  // 跨がないよう、preview CSS だけで現在 lane を静止する。製品 scheduler は変更しない。
+  const captureTickerFrozen = previewQuery.get("captureTicker") === "frozen";
+  const gateScenarioParam = previewQuery.get("gateScenario");
   const gateScenario: LegacyStandbyGateScenario = gateScenarioParam === "quiet" || gateScenarioParam === "7" || gateScenarioParam === "max" || gateScenarioParam === "max-floodWide"
     ? gateScenarioParam
     : "4";
+  const changeDensityTransportParam = previewQuery.get("changeDensityTransport");
+  const changeDensityTransport: WeatherChangeDensityTransportMode = changeDensityTransportParam === "degraded-12"
+    || changeDensityTransportParam === "degraded-4" || changeDensityTransportParam === "degraded-2"
+    || changeDensityTransportParam === "null" ? changeDensityTransportParam : "full";
+  const weatherChangeDensityTransportInput = weatherChangeDensityInputForTransport(changeDensityTransport);
+  const changeDensityWireChangeCount = weatherChangeDensityTransportInput.change?.changes.length ?? 0;
+  const changeDensityWireOmittedCount = Object.values(weatherChangeDensityTransportInput.change?.omitted ?? {})
+    .reduce((sum, count) => sum + (count ?? 0), 0);
+  const changeDensityScenario = $derived(
+    scenario === "emergency-weather-change-density" || scenario === "emergency-weather-change-density-mix",
+  );
   const legacyStandbyGate = $derived(currentHash === "#legacy-standby-gate");
   const gateFixture = $derived.by(() => {
     if (!legacyStandbyGate) return undefined;
@@ -318,6 +337,8 @@
       scenario === "emergency-weather" ||
       scenario === "emergency-weather-mix" ||
       scenario === "emergency-weather-syncing" ||
+      scenario === "emergency-weather-change-density" ||
+      scenario === "emergency-weather-change-density-mix" ||
       scenario === "attention-visibility-emergency" ||
       scenario === "motion-panels" ||
       scenario === "motion-card-grow" ||
@@ -382,13 +403,15 @@
   );
   const dim = $derived(scenario === "standby-dim" || scenario === "standby-attention-visibility-dim");
   const reducedMotionForPreview = $derived(
-    reducedMotion || scenario === "standby-attention-visibility-reduced-motion",
+    reducedMotion || scenario === "standby-attention-visibility-reduced-motion" || changeDensityScenario,
   );
   const attentionVisibilityPreviewFixture = $derived(
     scenario.includes("attention-visibility") || gateFixture === "attention-visibility-standby",
   );
   // この fixture は OS の media query を変えず単独で reduced-motion 契約を再現する。
-  const forcedReducedMotionFixture = $derived(scenario === "standby-attention-visibility-reduced-motion");
+  const forcedReducedMotionFixture = $derived(
+    scenario === "standby-attention-visibility-reduced-motion" || changeDensityScenario,
+  );
   const fixtureTransitionDuration = $derived(forcedReducedMotionFixture ? 0 : undefined);
   // standby-rich は数字チップ・深さ・時刻・津波マークに加え、切断バッジの見た目も一望できるようにする
   const sseConnected = $derived(scenario !== "standby-disconnected" && scenario !== "standby-rich");
@@ -443,6 +466,16 @@
     }
     if (scenario === "emergency-weather-syncing") {
       return [{ key: "weather:current", input: weatherSyncingInput }];
+    }
+    if (scenario === "emergency-weather-change-density") {
+      return [{ key: "weather:change-density", input: weatherChangeDensityTransportInput }];
+    }
+    if (scenario === "emergency-weather-change-density-mix") {
+      return [
+        { key: "tsunami:change-density", input: tsunamiWarningInput },
+        { key: "weather:change-density", input: weatherChangeDensityTransportInput },
+        { key: "eew:change-density", input: eewForecastInput },
+      ];
     }
     if (scenario === "motion-enter") {
       // 待機↔緊急の往復。緊急側は初期パネル群 (パネル外枠は opacity を触らず frame-1 可視、
@@ -706,7 +739,11 @@
 {:else if scenario === "legacy-improved-mock"}
   <LegacyImprovedMock />
 {:else if weatherAutoFooterProbe}
-  <main class="preview-screen weather-auto-screen" data-preview-mode="standby">
+  <main
+    class="preview-screen weather-auto-screen"
+    data-preview-mode="standby"
+    data-capture-ticker-frozen={captureTickerFrozen ? "true" : undefined}
+  >
     <div
       class="standby weather-auto-footer-probe"
       class:ladder-compressed={weatherAutoFooterCompressed}
@@ -731,6 +768,11 @@
   data-preview-attention-visibility={attentionVisibilityPreviewFixture ? "true" : undefined}
   data-preview-reduced-motion={reducedMotionForPreview ? "true" : undefined}
   data-preview-mode={mode}
+  data-capture-ticker-frozen={captureTickerFrozen ? "true" : undefined}
+  data-change-density-transport={changeDensityScenario ? changeDensityTransport : undefined}
+  data-change-density-wire-change-count={changeDensityScenario ? changeDensityWireChangeCount : undefined}
+  data-change-density-wire-omitted-count={changeDensityScenario ? changeDensityWireOmittedCount : undefined}
+  data-change-density-wire-null={changeDensityScenario ? weatherChangeDensityTransportInput.change == null : undefined}
   data-design-alignment-payload-signature={scenario === "standby-design-alignment-compressed" ? JSON.stringify(designAlignmentCompressedPayloadSignature) : undefined}
   data-design-alignment-rider-reserve-counts={scenario === "standby-design-alignment-compressed" ? JSON.stringify(designAlignmentRiderReserveCounts) : undefined}
 >
@@ -811,6 +853,18 @@
     right: 0;
     height: calc(var(--ticker-row-h) * var(--ticker-rows));
     background: var(--bg);
+  }
+  /* Capture-only determinism: keep the initially assigned ticker lane readable
+     but prevent animationend from advancing its scheduler during screenshots. */
+  .preview-screen[data-capture-ticker-frozen="true"] .ticker-frame :global(.ticker-line) {
+    position: static;
+    top: auto;
+    left: auto;
+    transform: none;
+    display: flex;
+    align-items: center;
+    height: 100%;
+    animation: none !important;
   }
   .preview-nav {
     position: fixed;

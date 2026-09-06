@@ -76,7 +76,7 @@
 | 1 | **a) 採用** | 指摘された token 名は現行 `theme.css` に存在せず、錨にも物理的な上端 band はない。Phase 0 と 3.3 を実在する `--header-weatherWarning-container` / `--header-weatherWarning-on` / `--header-band-weatherWarning`（親は weatherEmergency の対応三変数）、DOM-only 錨、小型 fixed type に訂正した。 |
 | 2 | **a) 採用** | hero、action、alert names、sub section と change 外側 inset は可変または border-box 外だった。3.2 で全非変更部分の同型 reserve shell、margin を廃した inset wrapper、panel 実高・確定 budget・内容 fingerprint を含む key に置換した。 |
 | 3 | **a) 採用** | `buildDegradeAttempts` は full を先に試し、最後は 0 件 DTO でなく `null` にする。2.1、3.2、5.1 を **full → 12 → 4 → 2 → null** へ訂正し、12 / 4 を frontend 固有上限として分離した。 |
-| 4 | **a) 採用** | code-only `kindChanged` は store で DTO 化前に除外される。3.5 と 5.2/5.7 で engine 14件、表示可能13件、wire、chip、省略の oracle を別 field にした。 |
+| 4 | **a) 事実訂正** | 現行の実データ経路では code-only `kindChanged` は生成不能だった。`computeDisplayDiff` は同一 phenomenon・同一 display severity で code または短縮名が変わった場合だけ `kindChanged` にする（`src/engine/messages/vpws50-state.ts:468-491`）。しかし既知 code の同一 phenomenon 内は code ごとに severity が全て異なり（`src/dmdata/weather-phenomenon-key.ts:14-35`; `src/dmdata/weather-warning-level.ts:102-115,145-168`）、未知 code は code ごとに別 phenomenon key となる（`weather-phenomenon-key.ts:39-50`）。同一 code かつ同一短縮名なら差分条件自体を満たさない。3.5 と 5.2/5.7 を engine 13件・表示可能13件・code-only 0件へ同期する。 |
 | 5 | **a) 採用** | 現行診断属性と alignment gate は unresolved、nonconverged、visible set、rotation omitted、全 tick を検査する。5.3〜5.6 に同じ gate と compact 文字下限を追加した。 |
 | 6 | **a) 採用** | fragment key と cycler reset key は range/partition 由来であり、物理 page identity は再分割で変わる。3.4 と 5.6 で不変対象を論理地域 identity / 順序へ限定し、key 再生成・index 収束・追加地域初期 page を明記した。 |
 | 7 | **a) 採用** | 種別⇔地域 spec と preview / capture / corpus が競合する。3.6、4、5.8、6 で同 spec を先行統合し、その合格 HEAD を本仕様の base とする直列化と単一 ownership を定めた。 |
@@ -139,7 +139,7 @@
 - 一件以上を省略した場合、chip 群の末尾に一つだけ `ほか N 件` を表示する。これはページ操作ではなく、省略数を示す非対話の tail だ。
 - 区分別総数は summary に残す。ある区分から表示 chip が 0 件になっても、`解除 3件` のように存在を確認できること。
 - chip を一つも安全に置けない場合だけ summary-only を許す。初回測定が未確定の間も summary-only を保守 fallback とし、推測寸法で全件を描画しない。
-- 1920×1080 と 1280×720 の受入 fixture では、`upgraded` と `released` が共存する限り両方を 1 件以上表示する。これを満たせない geometry は合格にしない。
+- 1920×1080 の二つの受入 fixture では、`upgraded` と `released` が共存する限り両方を 1 件以上表示する。1280×720 の非 null transport は 2026-09-06 ご主人裁定 A により、既存予約寸法で summary-only 候補さえ収まらない理由付き `infeasible` を受け入れる（詳細は §5.4）。
 - UI の論理総数は `受信 changes 数 + 受信 omitted 各区分の合計` とする。wire が full / 縮退 12 / 4 / 2 のどれでも、server が保持した omitted を UI fit 由来の omitted に加算し、`ほか N 件` を元の表示可能総数へ一致させる。`weatherChange: null` なら更新欄自体を表示しない。
 - 本裁定は `docs/specs/emergency-change-display.md:236-258` の frontend 表示上限 4 / 2 を置換する。wire の full / 縮退 12 / 4 / 2 / null、TTL、代表優先順、非対話性は置換しない。
 
@@ -149,12 +149,12 @@
 2. shelf に **非変更部分の同型 reserve shell** を置く。live と同じ width、`compact`、入力内容、class、font、CSS を使い、主 heading、hero、alert names、通常時 action、sub section、`.tiles` の block padding、全 gap / border を含める（実在 DOM: `WeatherEmergencyPanel.svelte:458-555`; CSS: 同 `:747-850`）。`.tile-where` は同じ border / padding / header chrome を持ち、`max(computed min-height: 5em, 見出し + 最小一断片を含む合法な一ページの自然高)` を reserve する。reserve shell は block-size を auto とし、flex の余剰高さを測定値へ混ぜない。この border-box 占有高を `Hreserve` とする。
 3. 現行 `.weather-change` の外側 margin は section の border-box に入らない（同 `:686-695`）。実装では margin を撤去し、live / shelf 共通の `.weather-change-slot` wrapper が inline inset と下端 gap を Phase 0 の spacing token による padding として所有する。section 本体、外側 inset、下端 gap を含む wrapper の border-box 高を候補高 `Hcandidate(n)` とする。
 4. candidate-independent budget を `B = Hpanel - Hreserve` と定義し、`B >= 0 && Hcandidate(n) <= B` を満たす最大の `n` を選ぶ。`Hreserve` に選択中の change DOM、高さ、対象地域の現在の flex 割当を入れない。これにより `大きい候補 → 対象地域縮小 → 小さい候補 → 対象地域拡大` の feedback loop を閉じる。
-5. summary-only も `n=0` の実在候補として wrapper 込みで測る。それすら収まらない場合は `data-change-layout-unresolved="true"` とし、clip / scroll で成功に見せない。対象四 viewport ではこの状態を不合格とする。
+5. summary-only も `n=0` の実在候補として wrapper 込みで測る。それすら収まらない場合は `data-change-layout-unresolved="true"` とし、clip / scroll で成功に見せない。1920×1080 の二シナリオではこの状態を不合格とする。1280×720 の二シナリオは非 null transport に限り、既存予約寸法の限界として reserve 内訳、`Hcandidate(0)`、`Hreserve + Hcandidate(0) - Hpanel`、対象地域の available 高と最小断片高・fit を構造化 record に全て残せた場合だけ理由付き `infeasible` として合格にする。`weatherChange=null` は候補測定自体を行わない。
 6. measurement identity は少なくとも `changeKey`、`activationKey`、`compact`、panel border-box width / height、確定 `B`、`Hreserve`、非変更内容 fingerprint、change の表示可能論理 fingerprint、font epoch、layout-settling epoch を含む。非変更内容 fingerprint は level、heading / trigger、alert names、action の有無、sub kinds / counts、最小 where chrome/fragment を含める。
 7. panel width / height、上記 fingerprint、font epoch のどれかが変われば旧候補を cache hit させず再測定する。pending 中は同じ identity の直前確定 layout だけを保持し、identity が異なる初回は summary-only とする。
 8. 各 outer fit epoch で `n=0..limit` の全 change candidate を同じ shelf batch に render・測定し、測定が揃ってから `{Bq, selected n}` を一度 publish する。`Bq = round(B * devicePixelRatio) / devicePixelRatio` とし、subpixel noise を別値にしない。measurement identity が変わったら counter を 0 へ reset し、`data-change-measurement-pass` は初回 publish を 1、その後は `{Bq, selected n}` の公開値が前回から変わったときだけ増やす。`ResizeObserver` 通知だけ、同値 publish、font/layout pending は数えない。
 9. publish 後に、実際に残った `whereFrame` の border-box を既存 `ResizeObserver` で測り直し、対象地域を再 partition する。既存の `layoutState=pending`、fragment candidate の測定、split-only refinement、そのための effect / `ResizeObserver` 反復は **outer fit pass に数えず**、既存 partition 自身の `ready` または `infeasible` まで待つ（現行: `WeatherEmergencyPanel.svelte:318-380`）。この内部反復へ新しい4回上限を掛けない。
-10. `layoutState=ready` 後に同じ measurement identity、`Bq`、selected `n`、partition signature が連続二 sample 一致したら収束とする。local 上限 `MAX_CHANGE_FIT_PASSES = 4` は outer publish の変化だけに適用し、5回目の異なる `{Bq, selected n}` を publish しようとした場合だけ `data-change-measurement-nonconverged="true"` とする。partition が正当に5回以上 split refinement したことを nonconverged 理由にしてはならない。各 outer publish と内部 refinement は capture trace の `outerFitPublishes` / `partitionRefinementCount` へ分けて記録する。
+10. `layoutState=ready` 後に同じ measurement identity、`Bq`、selected `n`、partition signature が連続二 sample 一致したら収束とする。local 上限 `MAX_CHANGE_FIT_PASSES = 4` は outer publish の変化だけに適用し、5回目の異なる `{Bq, selected n}` を publish しようとした場合だけ `data-change-measurement-nonconverged="true"` とする。partition が正当に5回以上 split refinement したことを nonconverged 理由にしてはならない。各 outer publish と内部 refinement は capture trace の `outerFitPublishes` / `partitionRefinementCount` へ分けて記録する。例外として 1280×720 の非 null transport は、outer publish 済み・`layoutState=infeasible`・`unresolved=true`・`settled=false`・`nonconverged=false` が安定し、§5.4 の理由 record が完全な場合を capture の終端とする。これは `ready` 収束への偽装ではなく、予約寸法見直しを別 spec へ送った裁定結果である。
 
 ### 3.3 裁定 3 — リボンの扱い
 
@@ -179,7 +179,7 @@
 ### 3.4 probe / live、ページ送り、stage / rotation の契約
 
 - measurement shelf は live と同じ grouped-header / chip / tail component または同一 snippet を render する。probe 専用の短縮 DOM、別 padding、別 font、別 `display` を作らない。
-- shelf 自体は既存どおり `aria-hidden`、`inert`、`pointer-events: none` とし、画面外に置く。測定対象を `display: none` にしない。
+- shelf 自体は `aria-hidden`、`inert`、`pointer-events: none` とし、zero-size の size/layout containment と `overflow: clip` で親の `scrollWidth` / `scrollHeight` から隔離する。測定対象の box と ResizeObserver は維持し、`display: none` にしない。
 - 更新欄全体と group atom の測定は `measureBorderHeight` を使い、content-box 高や `scrollHeight` を意思決定の主値にしない。
 - 確定後の probe と live は width / height とも差が 1 CSS px 以下でなければならない。
 - 対象地域の既存 cycler 以外に pager、interval、rotation reset key を追加しない。更新欄の縮約は静的 atom である。
@@ -201,7 +201,7 @@
 
 #### 大量変更 synthetic fixture
 
-**必須だ。** engine 差分 14 件の before/after pair を作る。その内訳を **表示可能な論理変更 13 件 + DTO 化前に除外される code-only `kindChanged` 1 件** とし、frontend 候補上限 12 の境界を跨ぐ。code-only 除外点は `src/engine/display/weather-change-store.ts:53-68`、frontend の防御的な同値判定は `display/frontend/src/lib/weather-panel.ts:715-721` である。
+**必須だ。** engine 差分・表示可能な論理変更とも 13 件の before/after pair を作り、frontend 候補上限 12 の境界を跨ぐ。`codeOnlyCount` は 0 とする。現行の parsed VPWS50 では、snapshot の phenomenon key は code map で決まり（`src/engine/messages/vpws50-state.ts:329-368`）、同一 phenomenon 内の別 code は必ず異なる display severity なので upgraded / downgraded になる。未知の別 code は別 phenomenon になる。同一 code で生名称だけを変えても、`shortKindName` が同値なら `computeDisplayDiff` の code/短縮名条件を満たさない（同 `:317-326,468-491`）。したがって store の防御的 filter（`src/engine/display/weather-change-store.ts:53-68`）へ到達する code-only 1件を実電文形から作る、という旧条件を事実訂正する。
 
 fixture は次を全て含む。
 
@@ -209,10 +209,10 @@ fixture は次を全て含む。
 - 秋田・富山の地域名。
 - `upgraded` と `released` の共存。
 - 折返しを起こし得る長い地域名または警報種別。
-- 表示対象になる `kindChanged` を表示可能 13 件の内側に含め、code だけが変わり表示上は同値となる非表示 `kindChanged` 1 件を別枠にする。
-- fixture から DOM と独立に生成した oracle。最低限 `engineDiffCount=14`、`codeOnlyCount=1`、`displayableLogicalCount=13`、区分別表示可能総数、transport mode、wire `changes.length`、wire omitted 合計、表示 chip 数、UI omitted 数を別々に持つ。
+- 表示対象になる `kindChanged` を表示可能 13 件の内側に含める。同一 code・同一短縮名の生名称差を負の対照として置き、engine 差分へ入らないことを確認する。
+- fixture から DOM と独立に生成した oracle。最低限 `engineDiffCount=13`、`codeOnlyCount=0`、`displayableLogicalCount=13`、区分別表示可能総数、transport mode、wire `changes.length`、wire omitted 合計、表示 chip 数、UI omitted 数を別々に持つ。
 
-wire oracle は次を固定する。full が payload 予算内なら 13 件を受信できる。縮退時は 12 / 4 / 2 件と区分別 omitted を受信し、最終段は `weatherChange=null` である。非 null の各段で `wire changes.length + wire omitted 合計 = 13`、UI で `表示 chip 数 + UI omitted 数 = 13` を満たす。code-only 1 件はどちらの 13 にも加えない。
+wire oracle は次を固定する。full が payload 予算内なら 13 件を受信できる。縮退時は 12 / 4 / 2 件と区分別 omitted を受信し、最終段は `weatherChange=null` である。非 null の各段で `wire changes.length + wire omitted 合計 = 13`、UI で `表示 chip 数 + UI omitted 数 = 13` を満たす。
 
 各 capture record は、先行 schema の `phase=base|after` を変更せず、統合点を示す別 field `checkpoint=kind-area-after|change-density-after` を追加する。本仕様の比較では base record を `phase=base, checkpoint=kind-area-after`、after record を `phase=after, checkpoint=change-density-after` とする。そのうえで `fixtureId`、`fixtureProvenance=actual|synthetic`、`baselineOid`、`manifestHash`、`viewport`、`panelMode=normal|compact`、`transportMode=full|degraded-12|degraded-4|degraded-2|null`、`engineDiffCount`、`codeOnlyCount`、`displayableLogicalCount`、区分別 logical count、`wireChangeCount`、`wireOmittedCount`、`uiChipCount`、`uiOmittedCount`、`allowedDeltaReason` を必須 field とする。field 欠落、`phase` 値の拡張、phase/checkpoint の不正な組合せ、DOM から逆算した logical oracle、上の恒等式不成立は capture command の非 0 終了とする。
 
@@ -246,9 +246,9 @@ preview には単独 weather panel（通常）と mixed emergency panel（compac
 - `display/scripts/capture-legacy-standby.mjs`
   - `kind-area-after` の report schema を保ったまま、weather emergency panel、change surface、reserve shell、全 fit candidate の geometry / overflow / probe-live、独立 oracle、許容理由 enum を追記する。
 - `test/fixtures/weather-alert-kind-area/synthetic-vpws50-change-density-before.xml`, `test/fixtures/weather-alert-kind-area/synthetic-vpws50-change-density-after.xml`
-  - engine 14 件 / 表示可能 13 件を作る本仕様固有 pair。先行 fixture と名前を共有しない。
+  - engine 13 件 / 表示可能 13 件 / code-only 0 件を作る本仕様固有 pair。先行 fixture と名前を共有しない。
 - 必要なら `test/engine/messages/vpws50-state-display.test.ts`
-  - fixture を通した五区分、engine 14 / DTO 13 件境界、code-only 除外の確認だけ。分類ロジックの変更はしない。
+  - fixture を通した五区分、engine / DTO 13 件境界、code-only 生成不能の確認だけ。分類ロジックの変更はしない。
 
 ### 4.2 原則変更しないファイル
 
@@ -275,11 +275,11 @@ preview には単独 weather panel（通常）と mixed emergency panel（compac
 
 ### 5.2 密度・縮約
 
-- [ ] synthetic before/after が engine 差分 14 件を生成し、そのうち code-only 1 件を除いた表示可能論理変更 13 件が五区分に属する。通常と compact の双方で `ほか N 件` が表示され、`N = 13 - 表示 chip 数` が成立する。
+- [ ] synthetic before/after が engine 差分 13 件を生成し、表示可能論理変更 13 件・code-only 0 件が五区分に属する。同一 code・同一短縮名の負の対照は engine 差分へ入らない。通常と compact の双方で `ほか N 件` が表示され、`N = 13 - 表示 chip 数` が成立する。
 - [ ] full / 縮退 12 / 4 / 2 の各非 null transport case で、`wire changes + wire omitted = 13`、`表示 chip + UI omitted = 13` を満たす。full wire の `changes.length=13` を許容し、null case では更新欄が存在しない。
 - [ ] 表示可能 13 件 fixture で全件を無条件に縦積みせず、縮約が実際に起きる。本仕様では内部改ページを合格代替にしない。
 - [ ] 通常は最大 12、compact は最大 4 から fit 探索を始め、budget 内の最大候補を選ぶ。
-- [ ] `upgraded` と `released` が共存する target viewport では、両区分の chip を最低 1 件ずつ表示する。
+- [ ] `upgraded` と `released` が共存する 1920×1080 target viewport では、両区分の chip を最低 1 件ずつ表示する。1280×720 の理由付き `infeasible` はこの表示件数 gate の対象外とする。
 - [ ] summary-only は未測定初回または chip 1 件も安全に置けない geometry だけである。
 
 ### 5.3 意匠
@@ -290,27 +290,38 @@ preview には単独 weather panel（通常）と mixed emergency panel（compac
 - [ ] 親 panel header は L4 で `--header-weatherWarning-container` / `--header-weatherWarning-on` / `--header-band-weatherWarning` に一致し、L5 で既存 cascade 後の正規化済み computed background が white (`rgb(255, 255, 255)`)、color / bottom-border-color が black (`rgb(0, 0, 0)`) に一致する。更新欄 `.change-header` は `.heading` class を持たず、L4/L5 とも weatherWarning 三変数のままである。
 - [ ] surface、hairline、radius、elevation、spacing、type に Phase 0 の token を使い、新しい raw color / 同義 token を追加していない。
 - [ ] outer surface が radius と clipping を担い、内側 header に独自 radius がない。
-- [ ] 4 capture すべてで chip の computed font-size は 14px 以上、summary / meta / omitted tail は 12px 以上である（`docs/specs/display-design-system.md:303-312`）。
+- [ ] 4 capture すべてで、存在する chip の computed font-size は 14px 以上、summary / meta / omitted tail は 12px 以上である（`docs/specs/display-design-system.md:303-312`）。
 - [ ] capture は `--panel-scale` の出典を `runtime-1.5 | consumer-fallback-1` として記録する。full layout は inherited custom property `1.5`、それ以外は property 未注入かつ consumer の computed geometry が倍率 `1` であり、theme root 由来と報告しない。
 
 ### 5.4 真の viewport と overflow
 
 capture は browser の outer size ではなく `window.innerWidth × window.innerHeight` が次の値になったことを記録し、`document.fonts.ready` と layout settling 完了後の連続安定 sample で判定する。
 
+**2026-09-06 ご主人裁定 A:** 1280×720 の weather 単独 normal と mixed emergency compact は、今回変更の外にある既存予約寸法（主見出し、action、対象地域最小一ページ）の限界として `infeasible` を認める。実 Chrome の根拠値は normal が `Hpanel=616 / Hreserve=500.6 / target available=16`、mixed が `Hpanel=302 / Hreserve=316.7 / target available=22`。base の旧 DOM も normal で `layoutState=infeasible`、可視 fragment 0、where-body 10.5px であり、PNG では「対象地域・区分」が legacy 変更欄の下へ隠れる重なりとして破綻していた。一方、base panel 自体の `clientHeight=scrollHeight=616` であり、after で観測した 33px の scroll 差は hidden measurement shelf の最大候補が親 scroll extent へ漏れた別の測定副作用である。予約寸法の見直しは別 spec（バックログ新規項目）へ送る。viewport は受入から削除せず、理由付き record を採取する。裁定 A は明記した reasoned-infeasible の状態組（`layoutState=infeasible`・`settled=false`・`unresolved=true`・理由完備）を許すが、shelf 除外済み live overflow 0 は緩和しない。2026-09-06 実走 23 では document / panel / change / target の全てで 0 を実測した。
+
 | viewport | scenario | 必須状態 |
 | --- | --- | --- |
 | 1920×1080 | weather 単独 / normal | 表示可能 13 件 synthetic が縮約され、更新欄と対象地域が可視 |
 | 1920×1080 | mixed emergency / compact | 表示可能 13 件 synthetic が縮約され、予約二区分が可視 |
-| 1280×720 | weather 単独 / normal | 縮約後も対象地域最低高を維持 |
-| 1280×720 | mixed emergency / compact | summary-only に逃げず、予約二区分が可視 |
+| 1280×720 | weather 単独 / normal | 既存 reserve 限界の reasoned-infeasible 状態組と理由完備を認めるが、live overflow 0 は必須 |
+| 1280×720 | mixed emergency / compact | 同じ reasoned-infeasible 状態組と理由完備を認めるが、live overflow 0 は必須 |
 
-各 capture で次を数値出力し、すべて 0 を要求する。
+各 capture で次を数値出力し、すべて 0 を要求する。裁定 A の理由付き `infeasible` は対象地域の意味的な非可行状態を認めるが、hidden measurement shelf の box を除いた live DOM の overflow 免除には使わない。
 
 - document の横・縦 overflow。
 - `.weather-panel`, `.weather-change`, change header, group list, 各 group, 各 chip, omitted tail, 対象地域 frame の `max(0, scrollWidth - clientWidth)` と `max(0, scrollHeight - clientHeight)`。
 - viewport 外へ出た bounding rect の左右上下差分。
 
-さらに 4 capture すべてで `data-change-layout-unresolved="false"`、`data-change-measurement-nonconverged="false"`、`data-change-measurement-settled="true"` を要求する。属性欠落を false とみなさない。
+1280×720 の理由付き `infeasible` でも、after の document / panel / 変更欄 / 対象地域 overflow を同 viewport・同 transport の base 実測値以下とする。base に対応する完全な値がなければ比較を合格条件にせず、`record-only` と理由 `base-overflow-unavailable` を report に残す。panel border-box の非退行比較は `clientWidth` / `clientHeight` / ancestor chain / class identity の完全一致と、after の raw `scrollWidth` / `scrollHeight` が base 以下であることを要求する。base の旧 shelf / 重なり由来の scroll extent が after で縮む改善は合格とし、width / height の差分と `improved` 判定を artifact に残す。document は viewport identity と overflow vector、変更欄と対象地域は意図的な自然高変更を許すため border-box 全体の完全一致ではなく overflow vector を同じ after ≤ base の向きで比較する。measurement shelf は親の scroll extent に寄与しないことを別途 fail-closed に確認し、1920×1080 を含む全 viewport の live overflow 0 契約は変えない。
+
+さらに 1920×1080 の二 capture は `data-change-layout-unresolved="false"`、`data-change-measurement-nonconverged="false"`、`data-change-measurement-settled="true"` を要求する。1280×720 は ready なら同じ契約、非 null change が `infeasible` なら `unresolved="true"`、`settled="false"`、`nonconverged="false"` と、次の構造化理由を要求する。属性欠落や CLI 自己申告を合格にしない。
+
+- `Hpanel`、`Hreserve`、`B=Hpanel-Hreserve` と reserve shell 各構成要素の border-box。
+- 実測した `n=0` 候補の高さ・fit、live summary-only との 1px 以内の probe/live 一致、`Hreserve + Hcandidate(0) - Hpanel > 0`。
+- 対象地域の algorithm available 高、合法な最小一断片の高さ・`fit=false`、全 minimum-one-page fragment の測定結果。
+- outer pass 済み、selected `n=0`、`layoutState=infeasible` と、裁定 ID `2026-09-06-owner-ruling-A`。
+
+`weatherChange=null` は変更欄、reserve shell、候補 batch が存在しないため、上の変更欄 `infeasible` 理由契約を適用しない。`wireChangeCount=wireOmittedCount=0`、surface / reserve / candidate 不在、outer pass 0、selected 0、`settled=true`、`unresolved=false`、`nonconverged=false` を要求し、1280×720 の target `infeasible` は base と同じ終端状態として理由付きで record する。full / degraded-12 / degraded-4 / degraded-2 はいずれも変更欄が存在するため、この例外へ入れてはならない。
 
 ### 5.5 border-box 測定と probe/live 一致
 
@@ -321,16 +332,17 @@ capture は browser の outer size ではなく `window.innerWidth × window.inn
 - [ ] font/layout settling 中の値を確定せず、pending 中は直前の確定 layout、初回だけ summary-only を表示する。
 - [ ] candidate-independent budget を使い、同じ fixture で候補数が二値振動しない。一つの outer epoch で `n=0..limit` の候補を同一 batch で測り、一度だけ選択を publish する。安定 sample 中に表示数、change height、対象地域 page count が不変である。
 - [ ] measurement identity report に change / activation key、compact、panel border-box width / height、`B`、`Hreserve`、非変更内容 fingerprint、表示可能論理 fingerprint、font / settling epoch が揃う。各 field を一つずつ変えた test で旧 cache result を hit しない。
+- [ ] measurement identity と overflow に使う panel border-box は live 内容だけの値であり、measurement shelf の reserve / candidate box は測定可能なまま親 panel の `scrollWidth` / `scrollHeight` へ寄与しない。
 - [ ] `data-change-measurement-pass` は measurement identity ごとに 0 へ reset し、異なる `{Bq, selected n}` の outer publish だけを数える。初回は1、同値 `ResizeObserver` 通知、`layoutState=pending`、fragment candidate 測定、split-only refinement は増分0である。report の `Bq` は `round(B * devicePixelRatio) / devicePixelRatio` と一致する。
 - [ ] 5回以上の正常な partition split を必要とする fixture が、outer pass 1のまま `layoutState=ready` と連続二 sample 一致へ到達し、`data-change-measurement-nonconverged="false"` になる。別 fixture で5回目の異なる outer publish を試みた場合だけ nonconverged=true・非0終了になる。
 
 ### 5.6 ページ送り・stage・期待表
 
-- [ ] 更新欄の自然高変更後に対象地域を再分割し、全論理地域 identity が既存順でちょうど一度、いずれかの page range に含まれる。物理 page identity の一致は要求しない。
-- [ ] page count / range が変わる case で fragment key、partition signature、cycler reset key が新 range から再生成され、旧 key と異なる。active index は範囲内へ収束し、新 activation の初期 page は追加地域を含む既存選択規則に一致する。
-- [ ] 変更前後の対象地域 page count / ranges / range-derived keys / active index を test と capture artifact に記録する。変化があれば許容理由 enum と自然高差を添える。
+- [ ] `layoutState=ready` の capture では、更新欄の自然高変更後に対象地域を再分割し、全論理地域 identity が既存順でちょうど一度、いずれかの page range に含まれる。物理 page identity の一致は要求しない。1280×720 の理由付き `infeasible` は §5.4 の target fit 診断へ置換する。
+- [ ] ready かつ page count / range が変わる case で fragment key、partition signature、cycler reset key が新 range から再生成され、旧 key と異なる。active index は範囲内へ収束し、新 activation の初期 page は追加地域を含む既存選択規則に一致する。
+- [ ] ready の変更前後は対象地域 page count / ranges / range-derived keys / active index を test と capture artifact に記録する。変化があれば許容理由 enum と自然高差を添える。1280×720 の非 null transport の理由付き `infeasible` は比較 mode と完全な理由 record、null transport は `no-change-target-infeasible` mode と target 終端状態を artifact に記録する。panel border-box identity / overflow の base-after 比較には §5.5 の shelf 隔離済み live 値だけを使い、固定 identity の一致、raw scroll extent の after ≤ base、差分と改善判定を全 cell に保存する。
 - [ ] 更新欄用の page、timer、rotation reset key、standby stage を追加していない。
-- [ ] standby design-alignment の既存 viewport matrix を **全 rotation tick** で走査し、`kind-area-after` に対して stage / compressed / placement、visible card の集合と順序、rotation keys / active key / position、failure count、omitted count を完全一致させる。baseline が 0 の failure / omitted は after も 0 とする。
+- [ ] density 専用 `change-density-design-alignment` suite は standby design-alignment の既存 manifest / viewport matrix を共有して **全 rotation tick** を走査し、`kind-area-after` に対して stage / compressed / placement、visible card の集合と順序、rotation keys / active key / position、failure count、omitted count を完全一致させる。baseline が 0 の failure / omitted は after も 0 とする。page-footer 変更前を前提とする design-alignment 本体の plan 差分はこの非退行比較へ適用しない。
 - [ ] 各 standby tick で `data-layout-unresolved="false"`、`data-measurement-settled="true"`、`data-measurement-nonconverged="false"`、card/readable overflow 0 を満たす（現行属性: `display/frontend/src/components/StandbyScreen.svelte:1982-2005`; 規範: `docs/specs/2026-09-05-standby-card-design-alignment.md:513-520`）。単一 tick の成功で代用しない。
 - [ ] capture schema の `allowedDeltaReason` は先行値を保って `none | weather-kind-group-page-metadata | vpws50-change-target-area-repartition` に拡張する。本仕様の base/after record で許せる非 `none` は最後の値だけで、対象地域 page count / ranges、range-derived fragment key / partition signature / cycler reset key / initial active index 以外の差を免除しない。
 - [ ] 既存期待表を更新する場合は、fixture から独立生成した oracle、旧期待、実測前後、上記理由 enum、論理データ不変の証拠を同じ変更に残す。DOM を oracle にすること、enum 外の理由、assertion の削除、許容差だけの拡大、理由なしの snapshot 更新を合格にしない（`docs/specs/2026-09-05-standby-card-page-footer-contract.md:189-200`; `docs/specs/2026-09-05-standby-card-design-alignment.md:513-520`）。
@@ -340,7 +352,7 @@ capture は browser の outer size ではなく `window.innerWidth × window.inn
 
 - [ ] 2026-08-27 秋田・富山 L4 の順序付き raw before/after pair が共有 directory と単一 provenance manifest に存在する。存在しなければ本項を未充足として報告し、重複 fixture を作らない。
 - [ ] 2019-10-12 corpus を使う場合、補助回帰と明記し、2026-08-27 corpus と誤記しない。
-- [ ] synthetic fixture は engine 14 件 = 表示可能 13 件 + code-only 1 件で、五区分、秋田、富山、長文、予約二区分、表示可能 / 非表示の `kindChanged` を含む。oracle は fixture source から生成し、DOM 集計値から生成しない。
+- [ ] synthetic fixture は engine 13 件 = 表示可能 13 件 + code-only 0 件で、五区分、秋田、富山、長文、予約二区分、表示可能な `kindChanged` と同一 code・同一短縮名の負の対照を含む。oracle は fixture source から生成し、DOM 集計値から生成しない。
 - [ ] `npm run build`
 - [ ] `npm test`
 - [ ] `npm run test:shuffle`（module scope の可変状態、共有 timer、永続化を触った場合は必須）
@@ -358,6 +370,7 @@ capture は browser の outer size ではなく `window.innerWidth × window.inn
 - [ ] shared preview fixture / PreviewApp / capture script に両 spec の未統合差分が同時存在しない。
 - [ ] report schema は先行する `phase=base|after` を保つ。base は `phase=base, checkpoint=kind-area-after`、after は `phase=after, checkpoint=change-density-after` の完全一致とし、旧 reader が `phase` をそのまま解釈できる。
 - [ ] `change-density-after` は同一環境で `kind-area-after` と比較され、5.6 の非退行 gate を満たす。先行 spec または共有 manifest の hash が変わった record は stale として失敗する。
+- [ ] change-density の `--assert-from` は `change-density-design-alignment` の base / after report を必須入力にし、共有した全 manifest・全 rotation tick の density 非退行 assertion を同じ合格経路で実行する。結果へ両 report ID と一致確認済み Chrome / font / DPR environment identity を記録する。design-alignment 本体の base / after comparator と運用は変更しない。
 
 ## 6. 裁定ラベル（案）
 
@@ -368,4 +381,4 @@ capture は browser の outer size ではなく `window.innerWidth × window.inn
 | **禁止変更** | engine の差分意味、TTL、wire/schema と full / 縮退段、standby solver、更新欄内ページ送り、意味色追加、clip/scroll による隠蔽、論理地域の欠落・順序変更、種別⇔地域 spec と共有物を並行編集すること、raw corpus / provenance の複製。 |
 | **配送先** | 最終対象は **main / personal / Pi のすべて**。種別⇔地域変更を main へ先行統合し、その合格 HEAD から本変更を main へ統合する。その後 personal で真の 1920×1080・1280×720 capture、合格 artifact 確認後に Pi。Pi は実機 viewport / font / 全 fit 診断の安定を gate とする。 |
 | **ロールバック** | grouped change surface と fit 選択を一単位で戻し、既存 4 / 2 行表示へ戻す。engine/store/protocol を触らないため、データ移行や wire rollback は不要。 |
-| **受入条件** | 5 章の全項目。特に直列 baseline、4 viewport/scenario の overflow 0・unresolved / nonconverged false、engine 14 / 表示可能 13 件での縮約、probe/live 1px 以内、compact 文字下限、対象地域全件保持、全 rotation tick の visible / failure / omitted 一致を必須 gate とする。 |
+| **受入条件** | 5 章の全項目。特に直列 baseline、全 viewport の shelf 除外済み live overflow 0（1280×720 の reasoned-infeasible でも必須。実走 23 で document / panel / change / target の全て 0）、1920×1080 二シナリオの unresolved / nonconverged false・settled true、1280×720 の非 null 四 transport における裁定 A の状態組（`layoutState=infeasible`・`settled=false`・`unresolved=true`・理由完備）、null transport における変更欄 fit 非適用と target 終端 record、base 比 document / panel overflow 非退行（base 値欠落時は理由付き record-only）、engine 13 / 表示可能 13 / code-only 0 件での縮約、probe/live 1px 以内、compact 文字下限、ready 時の対象地域全件保持、全 rotation tick の visible / failure / omitted 一致を必須 gate とする。予約寸法の見直しは別 spec とする。 |

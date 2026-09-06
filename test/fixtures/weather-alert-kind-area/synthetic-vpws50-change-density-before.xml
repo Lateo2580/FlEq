@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Report xmlns="http://xml.kishou.go.jp/jmaxml1/">
+  <Control><Title>気象警報・注意報</Title><DateTime>2026-09-06T01:00:00Z</DateTime><Status>通常</Status><EditorialOffice>気象庁</EditorialOffice><PublishingOffice>気象庁</PublishingOffice></Control>
+  <Head xmlns="http://xml.kishou.go.jp/jmaxml1/informationBasis1/">
+    <Title>気象警報・注意報</Title><ReportDateTime>2026-09-06T10:00:00+09:00</ReportDateTime><TargetDateTime>2026-09-06T10:00:00+09:00</TargetDateTime><EventID/><InfoType>発表</InfoType><Serial>1</Serial><InfoKind>気象警報・注意報</InfoKind><InfoKindVersion>1.5_0</InfoKindVersion>
+    <Headline><Text>VPWS50 change-density synthetic before</Text><Information type="気象警報・注意報（市町村等）">
+      <Item><Kind><Name>大雨注意報</Name><Code>10</Code></Kind><Areas><Area><Name>秋田県秋田市</Name><Code>0520100</Code></Area></Areas></Item>
+      <Item><Kind><Name>高潮注意報</Name><Code>19</Code></Kind><Areas><Area><Name>富山県富山市</Name><Code>1620100</Code></Area></Areas></Item>
+      <Item><Kind><Name>土砂災害注意報</Name><Code>29</Code></Kind><Areas><Area><Name>鹿児島県奄美市名瀬の長い地域名称</Name><Code>4622200</Code></Area></Areas></Item>
+      <Item><Kind><Name>大雨警報</Name><Code>03</Code></Kind><Areas><Area><Name>北海道稚内市</Name><Code>0121400</Code></Area></Areas></Item>
+      <Item><Kind><Name>大雨警報</Name><Code>03</Code></Kind><Areas><Area><Name>山形県山形市</Name><Code>0620100</Code></Area></Areas></Item>
+      <Item><Kind><Name>洪水警報</Name><Code>04</Code></Kind><Areas><Area><Name>福島県福島市</Name><Code>0720100</Code></Area></Areas></Item>
+      <Item><Kind><Name>大雨特別警報</Name><Code>33</Code></Kind><Areas><Area><Name>新潟県新潟市</Name><Code>1510000</Code></Area></Areas></Item>
+      <Item><Kind><Name>高潮特別警報</Name><Code>38</Code></Kind><Areas><Area><Name>石川県金沢市</Name><Code>1720100</Code></Area></Areas></Item>
+      <Item><Kind><Name>大雪警報</Name><Code>06</Code></Kind><Areas><Area><Name>福井県福井市</Name><Code>1820100</Code></Area></Areas></Item>
+      <Item><Kind><Name>暴風雪警報</Name><Code>02</Code></Kind><Areas><Area><Name>長野県長野市</Name><Code>2020100</Code></Area></Areas></Item>
+      <Item><Kind><Name>大雨警報</Name><Code>03</Code></Kind><Areas><Area><Name>同一canonical非差分検証地域</Name><Code>9990100</Code></Area></Areas></Item>
+    </Information></Headline>
+  </Head><Body xmlns="http://xml.kishou.go.jp/jmaxml1/body/meteorology1/"/>
+</Report>

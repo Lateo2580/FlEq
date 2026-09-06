@@ -12,6 +12,7 @@ import { createHash } from "node:crypto";
 import { mkdir, mkdtemp, readFile, readdir, rm, stat, writeFile } from "node:fs/promises";
 import { dirname, extname, join, normalize, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { JSDOM } from "jsdom";
 import {
   CAPTURE_SCHEMA_VERSION,
   CaptureAssertionError,
@@ -23,16 +24,63 @@ import {
 } from "./capture-browser-session.mjs";
 
 const DISPLAY_DIR = resolve(dirname(fileURLToPath(import.meta.url)), "..");
+const REPO_DIR = resolve(DISPLAY_DIR, "..");
 const DIST_DIR = join(DISPLAY_DIR, "dist");
 const DEFAULT_SCENARIOS = ["quiet", "4", "7", "max", "max-floodWide"];
 const SUPPORTED_SCENARIOS = [...DEFAULT_SCENARIOS];
 const DEFAULT_VIEWPORTS = ["1920x1080", "1512x982", "1280x720", "960x620"];
 const FLOOD_WIDE_VIEWPORTS = ["1920x1080", "1280x720"];
 const RECENT_QUAKES_GAP_SUITE = "recent-quakes-gap";
+const CHANGE_DENSITY_DESIGN_ALIGNMENT_SUITE = "change-density-design-alignment";
 const BRIEFING_PAGING_PAGE_COUNT = 3;
 const ATTENTION_VISIBILITY_FIXTURES = new Set(["attention-visibility-standby", "attention-visibility-emergency", "attention-visibility-reduced-motion"]);
 const WEATHER_KIND_AREA_FIXTURES = new Set(["weather-kind-area", "weather-kind-area-footer-boundary"]);
-const WEATHER_DELTA_REASONS = new Set(["none", "weather-kind-group-page-metadata"]);
+const CHANGE_DENSITY_FIXTURES = new Set(["vpws50-change-density-normal", "vpws50-change-density-mixed"]);
+const CHANGE_DENSITY_FIXTURE_LEVELS = Object.freeze({
+  "vpws50-change-density-normal": 4,
+  "vpws50-change-density-mixed": 4,
+});
+const CHANGE_DENSITY_TRANSPORT_MODES = ["full", "degraded-12", "degraded-4", "degraded-2", "null"];
+const CHANGE_DENSITY_BASELINE_OID = "fc9f5e4728a1942d5651a15dbfea63c58ecd732c";
+const CHANGE_DENSITY_FIXTURE_PATHS = [
+  join(REPO_DIR, "test", "fixtures", "weather-alert-kind-area", "synthetic-vpws50-change-density-before.xml"),
+  join(REPO_DIR, "test", "fixtures", "weather-alert-kind-area", "synthetic-vpws50-change-density-after.xml"),
+];
+const WEATHER_DELTA_REASONS = new Set(["none", "weather-kind-group-page-metadata", "vpws50-change-target-area-repartition"]);
+const CHANGE_DENSITY_ORACLE = Object.freeze({
+  fixtureId: "synthetic-vpws50-change-density",
+  fixtureProvenance: "synthetic",
+  engineDiffCount: 13,
+  codeOnlyCount: 0,
+  displayableLogicalCount: 13,
+  logicalCounts: { upgraded: 4, added: 3, kindChanged: 2, downgraded: 2, released: 2 },
+});
+const CHANGE_DENSITY_TARGET_ORACLE = Object.freeze({
+  logicalAreaNameOrder: ["秋田市", "富山市", "奄美市"],
+  logicalAreaNames: ["奄美市", "富山市", "秋田市"],
+  logicalAreaIdentities: ["code:0520100:0", "code:1620100:1", "code:4622200:2"],
+  initiallySelectedIdentity: "code:1620100:1",
+  initiallySelectedName: "富山市",
+});
+const CHANGE_DENSITY_TARGET_IDENTITY_BY_NAME = Object.freeze({
+  "秋田市": "code:0520100:0",
+  "富山市": "code:1620100:1",
+  "奄美市": "code:4622200:2",
+});
+const CHANGE_DENSITY_INFEASIBLE_POLICY = "vpws50-change-density-1280x720-reasoned-infeasible-v1";
+const CHANGE_DENSITY_INFEASIBLE_RULING = "2026-09-06-owner-ruling-A";
+const CHANGE_DENSITY_LIVE_OVERFLOW_INVARIANT = "owner ruling A permits the documented reasoned-infeasible state tuple (layoutState=infeasible, settled=false, unresolved=true, complete reasons); zero live overflow remains mandatory";
+const CHANGE_DENSITY_BASE_UNAVAILABLE = Object.freeze([
+  ["change.groupChipStructure", "kind-area-after renders legacy change rows, not grouped chips"],
+  ["measurement.identity", "kind-area-after does not emit data-change measurement identity fields"],
+  ["measurement.budget", "kind-area-after has no candidate-independent change budget or reserve shell"],
+  ["measurement.convergence", "kind-area-after has no outer change-fit pass contract"],
+  ["targetPagination.pageRanges", "kind-area-after does not emit change-owned page ranges"],
+  ["targetPagination.partitionSignature", "kind-area-after does not emit the change-owned partition signature"],
+  ["targetPagination.cyclerResetKey", "kind-area-after does not emit the change-owned cycler reset key"],
+  ["targetPagination.contractLogicalAreaIdentities", "kind-area-after area nodes have no data-area-identity attribute"],
+  ["targetPagination.completeLogicalAreaIdentityOrder", "kind-area-after compact DOM exposes only the currently rendered legacy page slice"],
+]);
 const WEATHER_LOGICAL_ORACLES = Object.freeze({
   "weather-kind-area": {
     kinds: [
@@ -54,22 +102,23 @@ const MIME_TYPES = new Map([
 
 function usage(message) {
   if (message != null) process.stderr.write(`${message}\n`);
-  process.stderr.write("Usage: node scripts/capture-legacy-standby.mjs [--report] [--write-report PATH] [--assert-capture-report PATH] [--expect-suite normal|design-alignment|recent-quakes-gap|center-stack-pregate] [--expect-viewport-mode legacy-control|calibrated] [--expect-cells N] [--expect-mismatches N] [--verify-legacy-expectation-digest SHA256] [--viewport-mode legacy-control|calibrated] [--suite design-alignment|recent-quakes-gap|center-stack-pregate] [--write-baseline PATH|--baseline-report PATH] [--assert-from PATH] [--fixture overflow|rotation|cluster|cluster-calm|tornado-pages|tornado-aggregate|tornado-clip|tornado-epoch-release|recent-quakes-narrow|attention-visibility-standby|attention-visibility-emergency|attention-visibility-reduced-motion|briefing-pages|briefing-single-page|weather-kind-area|weather-kind-area-footer-boundary] [--url URL] [--scenario quiet|4|7|max|max-floodWide] [--viewport WIDTHxHEIGHT] [--out-dir PATH]\n");
+  process.stderr.write("Usage: node scripts/capture-legacy-standby.mjs [--report] [--write-report PATH] [--assert-capture-report PATH] [--expect-suite normal|design-alignment|recent-quakes-gap|change-density-design-alignment|center-stack-pregate] [--expect-viewport-mode legacy-control|calibrated] [--expect-cells N] [--expect-mismatches N] [--verify-legacy-expectation-digest SHA256] [--viewport-mode legacy-control|calibrated] [--suite design-alignment|recent-quakes-gap|change-density-design-alignment|center-stack-pregate] [--write-baseline PATH|--baseline-report PATH] [--assert-from PATH] [--design-baseline-report PATH --design-after-report PATH] [--fixture overflow|rotation|cluster|cluster-calm|tornado-pages|tornado-aggregate|tornado-clip|tornado-epoch-release|recent-quakes-narrow|attention-visibility-standby|attention-visibility-emergency|attention-visibility-reduced-motion|briefing-pages|briefing-single-page|weather-kind-area|weather-kind-area-footer-boundary|vpws50-change-density-normal|vpws50-change-density-mixed] [--phase base|after] [--checkpoint kind-area-after|change-density-after] [--baseline-oid OID] [--manifest-hash SHA256] [--transport-mode all|full|degraded-12|degraded-4|degraded-2|null] [--url URL] [--scenario quiet|4|7|max|max-floodWide] [--viewport WIDTHxHEIGHT] [--out-dir PATH]\n");
   process.exitCode = 2;
 }
 
 export function parseCaptureArgs(argv) {
   const result = {
     url: null, scenarios: [], viewports: [], outDir: null, report: false, fixture: null, suite: null,
-    writeBaseline: null, baselineReport: null, assertFrom: null, viewportMode: "legacy-control", viewportModeExplicit: false,
+    writeBaseline: null, baselineReport: null, assertFrom: null, designBaselineReport: null, designAfterReport: null,
+    viewportMode: "legacy-control", viewportModeExplicit: false,
     writeReport: null, assertCaptureReport: null, verifyLegacyExpectationDigest: null,
     expectSuite: null, expectViewportMode: null, expectCells: null, expectMismatches: null,
-    phase: null, allowedDeltaReason: "none",
+    phase: null, checkpoint: null, baselineOid: null, manifestHash: null, transportMode: "full", allowedDeltaReason: "none",
   };
   for (let index = 0; index < argv.length; index += 1) {
     const argument = argv[index];
     const value = argv[index + 1];
-    if (["--url", "--scenario", "--viewport", "--out-dir", "--fixture", "--suite", "--write-baseline", "--baseline-report", "--assert-from", "--viewport-mode", "--write-report", "--assert-capture-report", "--verify-legacy-expectation-digest", "--expect-suite", "--expect-viewport-mode", "--expect-cells", "--expect-mismatches", "--phase", "--allowed-delta-reason"].includes(argument)) {
+    if (["--url", "--scenario", "--viewport", "--out-dir", "--fixture", "--suite", "--write-baseline", "--baseline-report", "--assert-from", "--design-baseline-report", "--design-after-report", "--viewport-mode", "--write-report", "--assert-capture-report", "--verify-legacy-expectation-digest", "--expect-suite", "--expect-viewport-mode", "--expect-cells", "--expect-mismatches", "--phase", "--checkpoint", "--baseline-oid", "--manifest-hash", "--transport-mode", "--allowed-delta-reason"].includes(argument)) {
       if (value == null) throw new Error(`${argument} requires a value`);
       index += 1;
       if (argument === "--url") result.url = value;
@@ -81,6 +130,8 @@ export function parseCaptureArgs(argv) {
       if (argument === "--write-baseline") result.writeBaseline = value;
       if (argument === "--baseline-report") result.baselineReport = value;
       if (argument === "--assert-from") result.assertFrom = value;
+      if (argument === "--design-baseline-report") result.designBaselineReport = value;
+      if (argument === "--design-after-report") result.designAfterReport = value;
       if (argument === "--viewport-mode") { result.viewportMode = value; result.viewportModeExplicit = true; }
       if (argument === "--write-report") result.writeReport = value;
       if (argument === "--assert-capture-report") result.assertCaptureReport = value;
@@ -90,6 +141,10 @@ export function parseCaptureArgs(argv) {
       if (argument === "--expect-cells") result.expectCells = Number(value);
       if (argument === "--expect-mismatches") result.expectMismatches = Number(value);
       if (argument === "--phase") result.phase = value;
+      if (argument === "--checkpoint") result.checkpoint = value;
+      if (argument === "--baseline-oid") result.baselineOid = value;
+      if (argument === "--manifest-hash") result.manifestHash = value;
+      if (argument === "--transport-mode") result.transportMode = value;
       if (argument === "--allowed-delta-reason") result.allowedDeltaReason = value;
       continue;
     }
@@ -102,18 +157,28 @@ export function parseCaptureArgs(argv) {
     if (value != null && (!Number.isInteger(value) || value < 0)) throw new Error(`${flag} must be a non-negative integer`);
   }
   if (result.phase != null && !["base", "after"].includes(result.phase)) throw new Error("--phase must be base or after");
-  if (!WEATHER_DELTA_REASONS.has(result.allowedDeltaReason)) throw new Error("--allowed-delta-reason must be none or weather-kind-group-page-metadata");
+  if (!WEATHER_DELTA_REASONS.has(result.allowedDeltaReason)) throw new Error("--allowed-delta-reason is invalid");
+  if (result.checkpoint != null && !["kind-area-after", "change-density-after"].includes(result.checkpoint)) throw new Error("--checkpoint is invalid");
+  if (!["all", ...CHANGE_DENSITY_TRANSPORT_MODES].includes(result.transportMode)) throw new Error("--transport-mode is invalid");
   return result;
 }
 
 export function viewportModeForSuite(options) {
-  return ["design-alignment", RECENT_QUAKES_GAP_SUITE, "center-stack-pregate"].includes(options.suite) && !options.viewportModeExplicit ? "calibrated" : options.viewportMode;
+  const requiresCalibrated = ["design-alignment", RECENT_QUAKES_GAP_SUITE, CHANGE_DENSITY_DESIGN_ALIGNMENT_SUITE, "center-stack-pregate"].includes(options.suite)
+    || CHANGE_DENSITY_FIXTURES.has(options.fixture);
+  return requiresCalibrated && !options.viewportModeExplicit ? "calibrated" : options.viewportMode;
 }
 
 function parseViewport(value) {
   const match = /^(\d+)x(\d+)$/.exec(value);
   if (match == null) throw new Error(`invalid viewport: ${value}`);
   return { label: value, width: Number(match[1]), height: Number(match[2]) };
+}
+
+async function changeDensityFixtureManifestHash() {
+  const hash = createHash("sha256");
+  for (const path of CHANGE_DENSITY_FIXTURE_PATHS) hash.update(await readFile(path));
+  return hash.digest("hex");
 }
 
 async function startStaticServer() {
@@ -350,8 +415,249 @@ export const LIVE_GEOMETRY_EXPRESSION = String.raw`(async () => {
             groups,
           };
         });
+        const weatherEmergencyPanels = [...document.querySelectorAll('.weather-panel')]
+          .filter((panel) => panel.clientWidth > 0 && panel.clientHeight > 0)
+          .map((panel) => {
+            const liveChange = panel.querySelector(':scope > .weather-change-slot .weather-change')
+              ?? panel.querySelector(':scope > .weather-change');
+            const liveWhere = panel.querySelector(':scope > .activation-stack .activation:last-child .tile-where');
+            const reserve = panel.querySelector('.change-reserve-shell');
+            const liveSlot = liveChange?.closest('.weather-change-slot') ?? liveChange;
+            const overflow = (node) => node == null ? null : (() => {
+              const rect = node.getBoundingClientRect();
+              return {
+                horizontal: Math.max(0, node.scrollWidth - node.clientWidth),
+                vertical: Math.max(0, node.scrollHeight - node.clientHeight),
+                viewport: {
+                  left: Math.max(0, -rect.left), top: Math.max(0, -rect.top),
+                  right: Math.max(0, rect.right - window.innerWidth), bottom: Math.max(0, rect.bottom - window.innerHeight),
+                },
+              };
+            })();
+            const candidateBudgetRaw = panel.getAttribute('data-change-budget');
+            const candidateBudget = candidateBudgetRaw == null || candidateBudgetRaw === ''
+              ? null
+              : Number(candidateBudgetRaw);
+            const candidates = [...panel.querySelectorAll('.change-candidate')].map((candidate) => {
+              const slot = measure(candidate);
+              const height = slot?.height ?? null;
+              return {
+                n: Number(candidate.getAttribute('data-change-candidate')),
+                height,
+                fit: Number.isFinite(candidateBudget) && height != null ? height <= candidateBudget : null,
+                slot,
+                change: measure(candidate.querySelector('.weather-change')),
+                groups: [...candidate.querySelectorAll('.change-group')].map(measure),
+              };
+            });
+            const groups = [...(liveChange?.querySelectorAll('.change-group') ?? [])];
+            const chips = [...(liveChange?.querySelectorAll('.change-chip') ?? [])];
+            const changeContent = liveChange?.querySelector('.change-content') ?? null;
+            const fragmentLogicalAreaIdentities = {};
+            for (const row of panel.querySelectorAll('.measurement-fragments .where-row[data-fragment-key]')) {
+              const key = row.getAttribute('data-fragment-key');
+              if (key == null) continue;
+              const identities = [...row.querySelectorAll('[data-area-identity]')]
+                .map((area) => area.getAttribute('data-area-identity')).filter(Boolean);
+              if (!(key in fragmentLogicalAreaIdentities)) fragmentLogicalAreaIdentities[key] = identities;
+            }
+            const measuredFragments = [...panel.querySelectorAll('.measurement-fragments > .where-row[data-fragment-key]')]
+              .map((row) => ({
+                key: row.getAttribute('data-fragment-key'),
+                height: row.getBoundingClientRect().height,
+                areaCount: row.querySelectorAll('[data-area-identity]').length,
+              }))
+              .filter((entry) => entry.key != null);
+            const whereBodyHeight = liveWhere?.querySelector('.where-body')?.getBoundingClientRect().height ?? null;
+            const algorithmAvailableRaw = panel.getAttribute('data-change-target-available-height');
+            const algorithmAvailableHeight = algorithmAvailableRaw == null || algorithmAvailableRaw === ''
+              ? null
+              : Number(algorithmAvailableRaw);
+            const reserveMinimumRow = reserve?.querySelector('.change-reserve-where-body .where-row[data-fragment-key]') ?? null;
+            const reserveMinimumHeight = reserveMinimumRow?.getBoundingClientRect().height ?? null;
+            const reserveMinimumFragment = reserveMinimumRow == null ? null : {
+              key: reserveMinimumRow.getAttribute('data-fragment-key'),
+              height: reserveMinimumHeight,
+              areaCount: reserveMinimumRow.querySelectorAll('[data-area-identity]').length,
+              fit: Number.isFinite(algorithmAvailableHeight) && reserveMinimumHeight > 0
+                ? reserveMinimumHeight <= algorithmAvailableHeight
+                : null,
+            };
+            const measuredFragmentFits = measuredFragments.map((entry) => ({
+              ...entry,
+              fit: Number.isFinite(algorithmAvailableHeight) && entry.height > 0
+                ? entry.height <= algorithmAvailableHeight
+                : null,
+            }));
+            const projectedPageRanges = (() => {
+              if (!(whereBodyHeight > 0) || measuredFragments.length === 0
+                || measuredFragments.some((entry) => !(entry.height > 0) || entry.height > whereBodyHeight)) return null;
+              const pages = [];
+              let page = [];
+              let usedHeight = 0;
+              for (const fragment of measuredFragments) {
+                if (page.length > 0 && usedHeight + fragment.height > whereBodyHeight) {
+                  pages.push(page);
+                  page = [];
+                  usedHeight = 0;
+                }
+                page.push(fragment.key);
+                usedHeight += fragment.height;
+              }
+              if (page.length > 0) pages.push(page);
+              return pages;
+            })();
+            const visibleFragmentKeys = [...(liveWhere?.querySelectorAll('.where-row') ?? [])]
+              .map((row) => row.getAttribute('data-fragment-key')).filter(Boolean);
+            const projectedActiveIndex = projectedPageRanges == null
+              ? null
+              : projectedPageRanges.findIndex((page) => JSON.stringify(page) === JSON.stringify(visibleFragmentKeys));
+            const orderedUniqueText = (nodes) => {
+              const values = [];
+              for (const node of nodes) {
+                const value = (node.textContent ?? '').trim();
+                if (value !== '' && !values.includes(value)) values.push(value);
+              }
+              return values;
+            };
+            const measuredAreaNameOrder = orderedUniqueText(panel.querySelectorAll('.measurement-shelf .measurement-fragments .area-name'));
+            const visibleAreaNameOrder = orderedUniqueText(liveWhere?.querySelectorAll('.area-name') ?? []);
+            const logicalAreaNameOrder = measuredAreaNameOrder.length > 0 ? measuredAreaNameOrder : visibleAreaNameOrder;
+            const targetLayoutState = liveWhere?.getAttribute('data-layout-state') ?? null;
+            const pageDots = liveWhere?.querySelector('.page-dots') ?? null;
+            const pageTotalMatch = /全(\d+)ページ/.exec(pageDots?.getAttribute('aria-label') ?? '');
+            const hasLogicalPage = liveWhere?.querySelector('.where-row[data-fragment-key]') != null;
+            const legacyDomPageCount = pageTotalMatch != null
+              ? Number(pageTotalMatch[1])
+              : hasLogicalPage ? 1 : null;
+            const activePageLabel = pageDots?.querySelector('.page-dot[aria-current="true"]')?.getAttribute('aria-label') ?? '';
+            const activePageMatch = /^(\d+)\/(\d+)ページ$/.exec(activePageLabel);
+            const legacyDomActiveIndex = activePageMatch != null
+              ? Number(activePageMatch[1]) - 1
+              : legacyDomPageCount === 1 ? 0 : null;
+            const style = getComputedStyle(panel);
+            const levelClass = [...panel.classList].find((name) => /^level-[1-5]$/.test(name)) ?? null;
+            const level = levelClass == null ? null : Number(levelClass.slice("level-".length));
+            const normalizedVariableColor = (name) => {
+              const probe = document.createElement('span');
+              probe.style.color = 'var(' + name + ')';
+              panel.append(probe);
+              const value = getComputedStyle(probe).color;
+              probe.remove();
+              return value;
+            };
+            const levelCascadeProbe = (() => {
+              const originalClass = panel.getAttribute('class');
+              panel.classList.remove('level-4');
+              panel.classList.add('level-5');
+              const result = {
+                parent: styled(panel.querySelector(':scope .heading'), ['background-color', 'color', 'border-bottom-color']),
+                local: styled(liveChange?.querySelector('.change-header'), ['background-color', 'color', 'border-bottom-color']),
+                localHasHeadingClass: liveChange?.querySelector('.change-header')?.classList.contains('heading') ?? null,
+              };
+              if (originalClass == null) panel.removeAttribute('class');
+              else panel.setAttribute('class', originalClass);
+              return result;
+            })();
+            return {
+              compact: panel.classList.contains('compact'),
+              level,
+              devicePixelRatio: window.devicePixelRatio,
+              panel: measure(panel),
+              documentOverflow: overflow(document.documentElement),
+              panelOverflow: overflow(panel),
+              liveSlot: measure(liveSlot),
+              liveChange: measure(liveChange),
+              liveOverflow: overflow(liveChange),
+              surfaceStyle: styled(liveChange, ['border-top-width', 'border-right-width', 'border-bottom-width', 'border-left-width', 'border-radius', 'overflow']),
+              header: styled(liveChange?.querySelector('.change-header'), ['background-color', 'color', 'border-top-width', 'border-bottom-width', 'border-bottom-color', 'border-left-width', 'border-right-width', 'border-radius']),
+              headerOverflow: overflow(liveChange?.querySelector('.change-header')),
+              groupListOverflow: overflow(liveChange?.querySelector('.change-groups')),
+              parentHeader: styled(panel.querySelector(':scope .heading'), ['background-color', 'color', 'border-bottom-color']),
+              meta: styled(liveChange?.querySelector('.change-meta'), ['font-size']),
+              summary: styled(liveChange?.querySelector('.change-summary'), ['font-size']),
+              tail: styled(liveChange?.querySelector('.change-omitted-tail'), ['font-size']),
+              tailOverflow: overflow(liveChange?.querySelector('.change-omitted-tail')),
+              groups: groups.map((group) => ({
+                box: measure(group), overflow: overflow(group), kind: group.getAttribute('data-change-kind'),
+                label: group.querySelector('.change-group-label')?.textContent ?? null,
+                totalText: group.querySelector('.change-group-count')?.textContent ?? null,
+                chipCount: group.querySelectorAll('.change-chip').length,
+              })),
+              chips: chips.map((chip) => ({ text: chip.textContent ?? '', box: measure(chip), overflow: overflow(chip), fontSize: getComputedStyle(chip).fontSize })),
+              uiChipCount: chips.length,
+              uiOmittedCount: Number(liveChange?.getAttribute('data-change-omitted') ?? liveChange?.querySelector('.change-omitted-tail')?.textContent?.match(/\d+/)?.[0] ?? 0),
+              interaction: {
+                interactiveCount: liveChange?.querySelectorAll('button, a[href], input, select, textarea, [tabindex]').length ?? 0,
+                pageControlCount: liveChange?.querySelectorAll('.page-dots, [data-page-control]').length ?? 0,
+                contentOverflowX: changeContent == null ? null : getComputedStyle(changeContent).overflowX,
+                contentOverflowY: changeContent == null ? null : getComputedStyle(changeContent).overflowY,
+              },
+              legacyRows: [...(liveChange?.querySelectorAll('.change-row') ?? [])].map((row) => ({ kind: row.getAttribute('data-change-kind'), text: row.textContent ?? '' })),
+              summaryText: liveChange?.querySelector('.change-summary')?.textContent ?? '',
+              metaText: liveChange?.querySelector('.change-meta')?.textContent ?? '',
+              targetArea: {
+                layoutState: targetLayoutState,
+                frame: measure(liveWhere),
+                overflow: overflow(liveWhere),
+                referenceTotal: Number(liveWhere?.getAttribute('data-pager-reference-total') ?? 0),
+                pageDotTotal: liveWhere?.querySelectorAll('.page-dot').length || 1,
+                activeIndex: [...(liveWhere?.querySelectorAll('.page-dot') ?? [])].findIndex((dot) => dot.getAttribute('aria-current') === 'true'),
+                legacyDomPageCount,
+                legacyDomActiveIndex,
+                visibleFragmentKeys,
+                visibleLogicalAreaIdentities: [...(liveWhere?.querySelectorAll('[data-area-identity]') ?? [])].map((area) => area.getAttribute('data-area-identity')).filter(Boolean),
+                visibleAddedAreaNames: [...(liveWhere?.querySelectorAll('.area-name.added') ?? [])].map((area) => area.textContent ?? ''),
+                visibleAreaNameOrder,
+                logicalAreaNameOrder,
+                logicalAreaNames: [...logicalAreaNameOrder].sort(),
+                pageRanges: JSON.parse(panel.getAttribute('data-change-page-ranges') ?? 'null'),
+                logicalAreaIdentities: JSON.parse(panel.getAttribute('data-change-logical-area-identities') ?? 'null'),
+                fragmentLogicalAreaIdentities,
+                projectedPageRanges,
+                projectedPartitionSignature: projectedPageRanges == null ? null : JSON.stringify(['weather-area-partition-v1', projectedPageRanges]),
+                projectedCyclerResetKey: projectedPageRanges == null ? null : JSON.stringify(['weather-area-cycle-v2', JSON.stringify(['weather-area-partition-v1', projectedPageRanges])]),
+                projectedActiveIndex,
+                whereBodyHeight,
+                algorithmAvailableHeight,
+                measuredFragments: measuredFragmentFits,
+                minimumOnePageFragments: measuredFragmentFits.filter((entry) => entry.areaCount === 1),
+                fitFormula: 'fragment border-box height <= algorithm available where-body height',
+              },
+              reserve: {
+                shell: measure(reserve), heading: measure(reserve?.querySelector('.heading')),
+                hero: measure(reserve?.querySelector('.hero')), alertNames: measure(reserve?.querySelector('.alert-names')),
+                action: measure(reserve?.querySelector('.tile-action')), sub: measure(reserve?.querySelector('.tile-sub')),
+                tiles: measure(reserve?.querySelector('.tiles')), where: measure(reserve?.querySelector('.tile-where')),
+                whereHead: measure(reserve?.querySelector('.where-head')),
+                whereBody: measure(reserve?.querySelector('.where-body')),
+                pageDots: measure(reserve?.querySelector('.page-dots')),
+                pageDotCount: reserve?.querySelectorAll('.page-dot').length ?? 0,
+                minimumFragment: reserveMinimumFragment,
+              },
+              diagnostics: Object.fromEntries([...panel.attributes]
+                .filter(({ name }) => name.startsWith('data-change-'))
+                .map(({ name, value }) => [name, value])),
+              candidates,
+              panelScale: style.getPropertyValue('--panel-scale').trim() || null,
+              panelScaleSource: style.getPropertyValue('--panel-scale').trim() === '1.5' ? 'runtime-1.5' : 'consumer-fallback-1',
+              semanticHeader: {
+                background: normalizedVariableColor('--header-weatherWarning-container'),
+                color: normalizedVariableColor('--header-weatherWarning-on'),
+                band: normalizedVariableColor('--header-band-weatherWarning'),
+              },
+              levelCascadeProbe,
+            };
+          });
         const signatureRoot = document.querySelector('.standby');
         const previewRoot = document.querySelector('main.preview-screen');
+        const changeDensityTransport = {
+          mode: previewRoot?.getAttribute('data-change-density-transport') ?? null,
+          wireChangeCount: Number(previewRoot?.getAttribute('data-change-density-wire-change-count') ?? Number.NaN),
+          wireOmittedCount: Number(previewRoot?.getAttribute('data-change-density-wire-omitted-count') ?? Number.NaN),
+          wireNull: previewRoot?.getAttribute('data-change-density-wire-null') === 'true',
+          source: 'preview-input-dto',
+        };
         const query = new URL(window.location.href).searchParams;
         const parseFiniteAttribute = (name) => {
           const raw = signatureRoot?.getAttribute(name) ?? null;
@@ -396,7 +702,7 @@ export const LIVE_GEOMETRY_EXPRESSION = String.raw`(async () => {
           compressed: signatureRoot?.classList.contains('ladder-compressed') ?? null,
           typhoonVariant: signatureRoot?.getAttribute('data-typhoon-variant') ?? null,
         };
-        return { heat: measure(pick('.heat-card')), tsunamiBanner: measure(pick('.tsunami-banner')), panels, briefingCards, forecastCards, standbyHeaders, weatherCards, weatherLayoutState, signatures };
+        return { heat: measure(pick('.heat-card')), tsunamiBanner: measure(pick('.tsunami-banner')), panels, briefingCards, forecastCards, standbyHeaders, weatherCards, weatherEmergencyPanels, weatherLayoutState, signatures, changeDensityTransport };
       })()`;
 
 export function atomicSnapshotExpression(expressions) {
@@ -422,6 +728,433 @@ export async function collectNormalSnapshot({ evaluate }) {
     document: DOCUMENT_CAPTURE_EXPRESSION,
     liveGeometry: LIVE_GEOMETRY_EXPRESSION,
   })));
+}
+
+function readinessCondition(name, expected, actual, satisfied) {
+  return { name, expected, actual, satisfied };
+}
+
+function parseReadinessJson(value) {
+  if (typeof value !== "string") return null;
+  try {
+    return JSON.parse(value);
+  } catch {
+    return { parseError: true, raw: value };
+  }
+}
+
+function densityViewportDimensions(viewport) {
+  return {
+    width: finiteDensityNumber(viewport?.innerWidth ?? viewport?.width),
+    height: finiteDensityNumber(viewport?.innerHeight ?? viewport?.height),
+  };
+}
+
+function completeDensityBox(value) {
+  return value != null && Number.isFinite(value.width) && value.width > 0
+    && Number.isFinite(value.height) && value.height > 0;
+}
+
+/** Owner ruling A keeps both 1280x720 cells in the capture matrix, but accepts
+ * the existing weather reserve limit only when its complete measured proof is
+ * present. This is deliberately derived from geometry, never a CLI claim. */
+export function changeDensityInfeasibleAcceptance(panel, viewport, phase = "after") {
+  const dimensions = densityViewportDimensions(viewport);
+  const data = panel?.diagnostics ?? {};
+  const panelContentHeight = finiteDensityNumber(data["data-change-panel-content-height"]);
+  const reserveHeight = finiteDensityNumber(data["data-change-reserve-height"]);
+  const budget = finiteDensityNumber(data["data-change-budget"]);
+  const measurementPass = finiteDensityNumber(data["data-change-measurement-pass"]);
+  const selected = finiteDensityNumber(data["data-change-selected"]);
+  const summaryCandidateSource = (panel?.candidates ?? []).find((candidate) => candidate.n === 0) ?? null;
+  const summaryCandidateHeight = finiteDensityNumber(summaryCandidateSource?.height ?? summaryCandidateSource?.slot?.height);
+  const summaryCandidateFit = summaryCandidateSource?.fit ?? (
+    budget == null || summaryCandidateHeight == null ? null : summaryCandidateHeight <= budget
+  );
+  const summaryCandidateSlot = summaryCandidateSource?.slot ?? null;
+  const liveChangeSlot = panel?.liveSlot ?? null;
+  const minimumFragment = panel?.reserve?.minimumFragment ?? null;
+  const minimumTargetFragmentHeight = finiteDensityNumber(minimumFragment?.height);
+  const targetAvailableHeight = finiteDensityNumber(data["data-change-target-available-height"]);
+  const minimumOnePageFragments = (panel?.targetArea?.minimumOnePageFragments ?? []).map((fragment) => ({
+    key: fragment.key ?? null,
+    height: finiteDensityNumber(fragment.height),
+    areaCount: finiteDensityNumber(fragment.areaCount),
+    fit: fragment.fit ?? null,
+  }));
+  const minimumCombinedHeight = reserveHeight == null || summaryCandidateHeight == null
+    ? null
+    : reserveHeight + summaryCandidateHeight;
+  const minimumCombinedDeficit = panelContentHeight == null || minimumCombinedHeight == null
+    ? null
+    : minimumCombinedHeight - panelContentHeight;
+  const requiredReserveBoxes = [
+    "shell", "heading", "hero", "alertNames", "tiles", "where", "whereHead", "whereBody",
+    ...((panel?.targetArea?.referenceTotal ?? 0) > 1 ? ["pageDots"] : []),
+    ...(panel?.compact ? [] : ["action"]),
+  ];
+  const missingReserveBoxes = requiredReserveBoxes.filter((name) => !completeDensityBox(panel?.reserve?.[name]));
+  const budgetIdentity = panelContentHeight != null && reserveHeight != null && budget != null
+    && Math.abs(budget - (panelContentHeight - reserveHeight)) <= 0.01;
+  const targetMinimumDoesNotFit = targetAvailableHeight != null && minimumTargetFragmentHeight != null
+    && minimumTargetFragmentHeight > targetAvailableHeight && minimumFragment?.fit === false;
+  const summaryCandidateDoesNotFit = budget != null && summaryCandidateHeight != null
+    && summaryCandidateHeight > budget && summaryCandidateFit === false;
+  const probeLiveWithinOnePx = completeDensityBox(summaryCandidateSlot) && completeDensityBox(liveChangeSlot)
+    && Math.abs(summaryCandidateSlot.width - liveChangeSlot.width) <= 1
+    && Math.abs(summaryCandidateSlot.height - liveChangeSlot.height) <= 1;
+  const overflow = {
+    document: panel?.documentOverflow ?? null,
+    panel: panel?.panelOverflow ?? null,
+    change: panel?.liveOverflow ?? null,
+    target: panel?.targetArea?.overflow ?? null,
+  };
+  const checks = {
+    eligibleViewport: dimensions.width === 1280 && dimensions.height === 720,
+    afterPhase: phase === "after",
+    changeSurfacePresent: panel?.liveChange != null,
+    terminalTargetState: panel?.targetArea?.layoutState === "infeasible",
+    measurementPublished: Number.isInteger(measurementPass) && measurementPass > 0,
+    summaryOnlySelected: selected === 0,
+    unresolved: data["data-change-layout-unresolved"] === "true",
+    terminalUnsettled: data["data-change-measurement-settled"] === "false",
+    nonconvergedFalse: data["data-change-measurement-nonconverged"] === "false",
+    budgetIdentity,
+    reserveBreakdownComplete: missingReserveBoxes.length === 0,
+    summaryCandidateMeasured: summaryCandidateHeight != null && summaryCandidateHeight > 0,
+    summaryCandidateDoesNotFit,
+    probeLiveWithinOnePx,
+    combinedDeficitPositive: minimumCombinedDeficit != null && minimumCombinedDeficit > 0,
+    targetFitEvidenceComplete: minimumOnePageFragments.length > 0
+      && minimumOnePageFragments.every((fragment) => fragment.height != null && fragment.height > 0
+        && fragment.areaCount === 1 && fragment.fit === false),
+    targetMinimumDoesNotFit,
+    overflowRecorded: Object.values(overflow).every(completeDensityOverflow),
+    liveOverflowZero: Object.values(overflow).every((value) => completeDensityOverflow(value)
+      && densityOverflowVector(value).every((entry) => entry === 0)),
+  };
+  const applicable = checks.eligibleViewport && checks.afterPhase
+    && checks.changeSurfacePresent && checks.terminalTargetState;
+  const complete = applicable && Object.values(checks).every((value) => value === true);
+  return {
+    policy: CHANGE_DENSITY_INFEASIBLE_POLICY,
+    ruling: CHANGE_DENSITY_INFEASIBLE_RULING,
+    applicable,
+    complete,
+    status: complete ? "accepted" : applicable ? "incomplete" : "not-applicable",
+    viewport: dimensions,
+    state: {
+      targetLayoutState: panel?.targetArea?.layoutState ?? null,
+      measurementPass,
+      selected,
+      settled: data["data-change-measurement-settled"] ?? null,
+      unresolved: data["data-change-layout-unresolved"] ?? null,
+      nonconverged: data["data-change-measurement-nonconverged"] ?? null,
+    },
+    reserve: {
+      height: reserveHeight,
+      requiredBoxes: requiredReserveBoxes,
+      missingBoxes: missingReserveBoxes,
+      occupancy: panel?.reserve ?? null,
+    },
+    change: {
+      budget,
+      summaryCandidate: summaryCandidateSource == null ? null : {
+        n: 0,
+        height: summaryCandidateHeight,
+        fit: summaryCandidateFit,
+        slot: summaryCandidateSlot,
+      },
+      liveSlot: liveChangeSlot,
+    },
+    combined: {
+      panelContentHeight,
+      minimumCombinedHeight,
+      deficit: minimumCombinedDeficit,
+    },
+    targetFit: {
+      formula: panel?.targetArea?.fitFormula ?? "fragment border-box height <= algorithm available where-body height",
+      availableHeight: targetAvailableHeight,
+      minimumFragment: minimumFragment == null ? null : {
+        key: minimumFragment.key ?? null,
+        height: minimumTargetFragmentHeight,
+        areaCount: finiteDensityNumber(minimumFragment.areaCount),
+        fit: minimumFragment.fit ?? null,
+      },
+      minimumOnePageFragments,
+    },
+    overflow: {
+      policy: "record-all; compare-document-and-panel-to-base-when-available",
+      invariant: CHANGE_DENSITY_LIVE_OVERFLOW_INVARIANT,
+      ...overflow,
+    },
+    reasonCodes: [
+      ...(summaryCandidateDoesNotFit ? ["summary-candidate-exceeds-budget"] : []),
+      ...(targetMinimumDoesNotFit ? ["target-minimum-fragment-exceeds-available-height"] : []),
+      ...(applicable ? ["existing-weather-reserve-geometry-limit"] : []),
+    ],
+    checks,
+  };
+}
+
+/** The base build has only the legacy change rows and weather partition state;
+ * data-change-* belongs exclusively to the after product. Keep those two
+ * readiness contracts separate so the schema-only baseline can settle. */
+export function changeDensityReadinessState(snapshot, phase) {
+  if (!["base", "after"].includes(phase)) throw new Error(`unknown change-density readiness phase: ${phase}`);
+  const panels = snapshot.liveGeometry?.weatherEmergencyPanels ?? [];
+  const panel = panels[0] ?? null;
+  const transport = snapshot.liveGeometry?.changeDensityTransport ?? {};
+  const diagnostics = panel?.diagnostics ?? {};
+  const targetLayoutState = panel?.targetArea?.layoutState ?? null;
+  const targetLayoutReady = targetLayoutState === "ready";
+  const infeasibleAcceptance = changeDensityInfeasibleAcceptance(
+    panel,
+    snapshot.document?.viewport,
+    phase,
+  );
+  const livePresenceMatches = transport.wireNull === true
+    ? panel?.liveChange == null
+    : panel?.liveChange != null;
+  const legacyRowCount = panel?.legacyRows?.length ?? 0;
+  const legacyProjectionObserved = transport.wireNull === true
+    ? panel?.liveChange == null
+    : panel?.liveChange != null && legacyRowCount > 0;
+  const transportObserved = CHANGE_DENSITY_TRANSPORT_MODES.includes(transport.mode)
+    && transport.source === "preview-input-dto"
+    && Number.isFinite(transport.wireChangeCount)
+    && Number.isFinite(transport.wireOmittedCount);
+  const commonConditions = [
+    readinessCondition("document.fontsLoaded", true, snapshot.document?.fontsLoaded ?? null, snapshot.document?.fontsLoaded === true),
+    readinessCondition("document.previewPresent", true, snapshot.document?.previewPresent ?? null, snapshot.document?.previewPresent === true),
+    readinessCondition("document.previewMode", "emergency", snapshot.document?.previewMode ?? null, snapshot.document?.previewMode === "emergency"),
+    readinessCondition("weatherPanel.count", 1, panels.length, panels.length === 1),
+    readinessCondition("transport.actualDtoObserved", true, transportObserved, transportObserved),
+    readinessCondition("change.presenceMatchesTransport", true, livePresenceMatches, livePresenceMatches),
+  ];
+  const readyAfterConditions = [
+    readinessCondition("after.targetLayoutState", "ready", targetLayoutState, targetLayoutReady),
+    readinessCondition(
+      "after.data-change-measurement-settled",
+      "true",
+      diagnostics["data-change-measurement-settled"] ?? null,
+      diagnostics["data-change-measurement-settled"] === "true",
+    ),
+    readinessCondition(
+      "after.data-change-layout-unresolved",
+      "false",
+      diagnostics["data-change-layout-unresolved"] ?? null,
+      diagnostics["data-change-layout-unresolved"] === "false",
+    ),
+    readinessCondition(
+      "after.data-change-measurement-nonconverged",
+      "false",
+      diagnostics["data-change-measurement-nonconverged"] ?? null,
+      diagnostics["data-change-measurement-nonconverged"] === "false",
+    ),
+  ];
+  const reasonedInfeasibleAfterConditions = [
+    readinessCondition("after.1280x720.targetLayoutState", "infeasible", targetLayoutState, targetLayoutState === "infeasible"),
+    readinessCondition(
+      "after.1280x720.data-change-measurement-settled",
+      "false",
+      diagnostics["data-change-measurement-settled"] ?? null,
+      diagnostics["data-change-measurement-settled"] === "false",
+    ),
+    readinessCondition(
+      "after.1280x720.data-change-layout-unresolved",
+      "true",
+      diagnostics["data-change-layout-unresolved"] ?? null,
+      diagnostics["data-change-layout-unresolved"] === "true",
+    ),
+    readinessCondition(
+      "after.1280x720.data-change-measurement-nonconverged",
+      "false",
+      diagnostics["data-change-measurement-nonconverged"] ?? null,
+      diagnostics["data-change-measurement-nonconverged"] === "false",
+    ),
+    readinessCondition(
+      "after.1280x720.infeasibleReasonComplete",
+      true,
+      infeasibleAcceptance.complete,
+      infeasibleAcceptance.complete === true,
+    ),
+  ];
+  const nullTargetTerminal = targetLayoutReady
+    || (infeasibleAcceptance.checks.eligibleViewport && targetLayoutState === "infeasible");
+  const nullTransportAfterConditions = [
+    readinessCondition("after.null.changeSurfaceAbsent", true, panel?.liveChange == null, panel?.liveChange == null),
+    readinessCondition(
+      "after.null.targetLayoutState",
+      infeasibleAcceptance.checks.eligibleViewport ? "ready|infeasible" : "ready",
+      targetLayoutState,
+      nullTargetTerminal,
+    ),
+    readinessCondition(
+      "after.null.data-change-measurement-settled",
+      "true",
+      diagnostics["data-change-measurement-settled"] ?? null,
+      diagnostics["data-change-measurement-settled"] === "true",
+    ),
+    readinessCondition(
+      "after.null.data-change-layout-unresolved",
+      "false",
+      diagnostics["data-change-layout-unresolved"] ?? null,
+      diagnostics["data-change-layout-unresolved"] === "false",
+    ),
+    readinessCondition(
+      "after.null.data-change-measurement-nonconverged",
+      "false",
+      diagnostics["data-change-measurement-nonconverged"] ?? null,
+      diagnostics["data-change-measurement-nonconverged"] === "false",
+    ),
+    readinessCondition(
+      "after.null.data-change-measurement-pass",
+      0,
+      finiteDensityNumber(diagnostics["data-change-measurement-pass"]),
+      finiteDensityNumber(diagnostics["data-change-measurement-pass"]) === 0,
+    ),
+    readinessCondition(
+      "after.null.data-change-selected",
+      0,
+      finiteDensityNumber(diagnostics["data-change-selected"]),
+      finiteDensityNumber(diagnostics["data-change-selected"]) === 0,
+    ),
+    readinessCondition("after.null.candidateCount", 0, panel?.candidates?.length ?? null, panel?.candidates?.length === 0),
+    readinessCondition("after.null.reserveShellAbsent", true, panel?.reserve?.shell == null, panel?.reserve?.shell == null),
+    readinessCondition(
+      "after.null.infeasibleReason",
+      "not-applicable",
+      infeasibleAcceptance.status,
+      infeasibleAcceptance.applicable === false && infeasibleAcceptance.status === "not-applicable",
+    ),
+  ];
+  const phaseConditions = phase === "base"
+    ? [
+        readinessCondition(
+          "legacy.changeRowsPresentOrNullTransport",
+          true,
+          { wireNull: transport.wireNull === true, liveChangePresent: panel?.liveChange != null, legacyRowCount },
+          legacyProjectionObserved,
+        ),
+        readinessCondition(
+          "legacy.targetLayoutState",
+          "ready|infeasible",
+          targetLayoutState,
+          ["ready", "infeasible"].includes(targetLayoutState),
+        ),
+      ]
+    : transport.wireNull === true
+      ? nullTransportAfterConditions
+      : targetLayoutReady
+        ? readyAfterConditions
+        : infeasibleAcceptance.checks.eligibleViewport
+          ? reasonedInfeasibleAfterConditions
+          : readyAfterConditions;
+  const waitedConditions = [...commonConditions, ...phaseConditions];
+  const terminalFitState = phaseConditions.every((condition) => condition.satisfied);
+  const ready = waitedConditions.every((condition) => condition.satisfied);
+  const measurement = {
+    batchKey: diagnostics["data-change-batch-key"] ?? null,
+    activeBatchKey: diagnostics["data-change-active-batch-key"] ?? null,
+    identity: diagnostics["data-change-measurement-key"] ?? null,
+    pass: finiteDensityNumber(diagnostics["data-change-measurement-pass"]),
+    budget: finiteDensityNumber(diagnostics["data-change-budget"]),
+    budgetQuantized: finiteDensityNumber(diagnostics["data-change-budget-quantized"]),
+    reserveHeight: finiteDensityNumber(diagnostics["data-change-reserve-height"]),
+    selected: finiteDensityNumber(diagnostics["data-change-selected"]),
+    candidateMeasurements: parseReadinessJson(diagnostics["data-change-candidate-measurements"]),
+    observedCandidates: panel?.candidates ?? [],
+  };
+  const panelContentHeight = finiteDensityNumber(diagnostics["data-change-panel-content-height"]);
+  const reserveMeasuredHeight = finiteDensityNumber(diagnostics["data-change-reserve-height"]);
+  const summaryCandidate = (panel?.candidates ?? []).find((candidate) => candidate.n === 0) ?? null;
+  const summaryCandidateHeight = finiteDensityNumber(summaryCandidate?.height ?? summaryCandidate?.slot?.height);
+  const minimumTargetFragmentHeight = finiteDensityNumber(panel?.reserve?.minimumFragment?.height);
+  const minimumCombinedHeight = reserveMeasuredHeight == null || summaryCandidateHeight == null
+    ? null
+    : reserveMeasuredHeight + summaryCandidateHeight;
+  const minimumCombinedDeficit = panelContentHeight == null || minimumCombinedHeight == null
+    ? null
+    : minimumCombinedHeight - panelContentHeight;
+  const feasibility = {
+    formula: "Hcandidate(0) <= B = Hpanel - Hreserve; target fragment height <= target available height",
+    panelContentHeight,
+    reserveHeight: reserveMeasuredHeight,
+    budget: finiteDensityNumber(diagnostics["data-change-budget"]),
+    summaryCandidateHeight,
+    minimumCombinedHeight,
+    minimumCombinedDeficit,
+    targetAvailableHeight: finiteDensityNumber(diagnostics["data-change-target-available-height"]),
+    minimumTargetFragmentHeight,
+    targetLayoutState,
+    terminalNoFit: measurement.pass != null
+      && measurement.pass > 0
+      && diagnostics["data-change-layout-unresolved"] === "true"
+      && targetLayoutState === "infeasible",
+  };
+  return {
+    source: "weather-emergency-contract",
+    phase,
+    ready,
+    weatherPanelCount: panels.length,
+    targetLayoutState,
+    targetLayoutReady,
+    acceptedLayoutOutcome: transport.wireNull === true && !targetLayoutReady && nullTargetTerminal
+      ? "no-change-target-infeasible"
+      : targetLayoutReady
+        ? "ready"
+        : infeasibleAcceptance.complete ? "reasoned-infeasible" : null,
+    infeasibleAcceptance,
+    livePresenceMatches,
+    legacyProjectionObserved,
+    terminalFitState,
+    transportObserved,
+    waitedConditions,
+    panelChangeAttributes: diagnostics,
+    measurement,
+    reserveOccupancy: panel?.reserve ?? null,
+    feasibility,
+    targetArea: panel?.targetArea ?? null,
+    genericEmergency: {
+      attentionVisible: snapshot.document.attentionVisible,
+      emergencyPanelCount: snapshot.document.emergencyPanelCount,
+      emergencyGeometryValid: snapshot.document.emergencyGeometryValid,
+    },
+  };
+}
+
+/** Generic emergency readiness expects tsunami + quake panels. Density-normal is
+ * intentionally weather-only, so adapt that runner gate from measured weather
+ * state while retaining the untouched generic fields as explicit evidence. */
+export async function collectChangeDensitySnapshot(context, phase) {
+  const snapshot = await collectNormalSnapshot(context);
+  const changeDensityReadiness = changeDensityReadinessState(snapshot, phase);
+  return {
+    ...snapshot,
+    changeDensityReadiness,
+    // These three fields are the fixed interface consumed by capture-browser-session.
+    // The density-specific facts that justify them remain above and are asserted.
+    document: {
+      ...snapshot.document,
+      attentionVisible: changeDensityReadiness.ready,
+      emergencyPanelCount: changeDensityReadiness.ready ? 2 : 0,
+      emergencyGeometryValid: changeDensityReadiness.ready,
+    },
+  };
+}
+
+export function formatChangeDensityReadinessTimeout(label, observation) {
+  const stableCondition = readinessCondition(
+    "stableProjection.consecutiveSamples",
+    2,
+    observation?.consecutiveStableSamples ?? 0,
+    (observation?.consecutiveStableSamples ?? 0) >= 2,
+  );
+  const conditions = [...(observation?.waitedConditions ?? []), stableCondition];
+  const waitedConditions = conditions.map(({ name, expected }) => ({ name, expected }));
+  const finalObserved = Object.fromEntries(conditions.map(({ name, actual, satisfied }) => [name, { actual, satisfied }]));
+  return `${label}: change-density readiness did not settle; phase=${JSON.stringify(observation?.phase ?? null)} waitedConditions=${JSON.stringify(waitedConditions)} finalObserved=${JSON.stringify(finalObserved)} panelChangeAttributes=${JSON.stringify(observation?.panelChangeAttributes ?? null)} measurement=${JSON.stringify(observation?.measurement ?? null)} reserveOccupancy=${JSON.stringify(observation?.reserveOccupancy ?? null)} feasibility=${JSON.stringify(observation?.feasibility ?? null)} targetArea=${JSON.stringify(observation?.targetArea ?? null)} infeasibleAcceptance=${JSON.stringify(observation?.infeasibleAcceptance ?? null)} overflowPolicy=${JSON.stringify(CHANGE_DENSITY_LIVE_OVERFLOW_INVARIANT)}`;
 }
 
 export const CENTER_STACK_PREGATE_SUITE = "center-stack-pregate";
@@ -555,17 +1288,24 @@ export async function collectCenterStackPregateSnapshot({ evaluate }) {
   })));
 }
 
-function gateUrl(baseUrl, scenario, rotationTick = null, fixture = null, cardPageTick = null) {
+function gateUrl(baseUrl, scenario, rotationTick = null, fixture = null, cardPageTick = null, transportMode = null) {
   const url = new URL(baseUrl);
   url.searchParams.set("nav", "0");
   url.searchParams.set("gateScenario", scenario);
   if (rotationTick != null) url.searchParams.set("rotationTick", String(rotationTick));
   if (fixture != null) url.searchParams.set("gateFixture", fixture);
+  if (fixture != null && CHANGE_DENSITY_FIXTURES.has(fixture) && transportMode != null) {
+    url.searchParams.set("changeDensityTransport", transportMode);
+  }
   // The release of an epoch-held logical appearance consumes one, and only
   // one, dependent page step.  The fixture pins that post-release coordinate.
   if (fixture === "tornado-epoch-release") url.searchParams.set("cardPageTick", "1");
   else if (cardPageTick != null) url.searchParams.set("cardPageTick", String(cardPageTick));
-  url.hash = fixture === "attention-visibility-emergency"
+  url.hash = fixture === "vpws50-change-density-normal"
+    ? "emergency-weather-change-density"
+    : fixture === "vpws50-change-density-mixed"
+      ? "emergency-weather-change-density-mix"
+      : fixture === "attention-visibility-emergency"
     ? fixture
     : fixture === "attention-visibility-reduced-motion"
       ? "standby-attention-visibility-reduced-motion"
@@ -721,6 +1461,1133 @@ function assertAttentionVisibilityFixture(dom, diagnostics, fixture, geometry = 
     if (["magnitude", "depth", "time"].some((token) => !new RegExp(`class="${token}(?=["\\s])`).test(dom))) throw new Error("RecentQuakes statistics three columns missing");
     expectEqual(diagnostics["data-preview-reduced-motion"], fixture === "attention-visibility-reduced-motion" ? "true" : null, "attention reduced-motion marker");
   }
+}
+
+function changeDensityContext(record) {
+  const panel = record.geometry?.weatherEmergencyPanels?.[0] ?? null;
+  const data = panel?.diagnostics ?? {};
+  return {
+    fixture: record.fixture,
+    phase: record.phase,
+    transportMode: record.transportMode,
+    viewport: record.viewport?.label,
+    width: panel?.panel?.width ?? null,
+    compact: panel?.compact ?? null,
+    budgetB: Number(data["data-change-budget"] ?? Number.NaN),
+    budgetBq: Number(data["data-change-budget-quantized"] ?? Number.NaN),
+    reserveHeight: Number(data["data-change-reserve-height"] ?? Number.NaN),
+    selectedN: finiteDensityNumber(data["data-change-selected"])
+      ?? (panel?.uiChipCount || panel?.legacyRows?.length || 0),
+    footerMode: "none",
+    layoutMode: panel?.compact ? "compact" : "normal",
+    cacheKey: data["data-change-measurement-key"] ?? null,
+    generation: "synthetic-vpws50-change-density:2",
+    stage: record.diagnostics?.["data-ladder-stage"] ?? null,
+    rotationMembers: (record.diagnostics?.["data-rotation-keys"] ?? "").split(",").filter(Boolean),
+  };
+}
+
+function densityMismatch(record, label, actual, expected) {
+  throw new Error(`${label}: actual=${JSON.stringify(actual)} expected=${JSON.stringify(expected)} context=${JSON.stringify(changeDensityContext(record))}`);
+}
+
+function densityPreflightMismatch(options, label, actual, expected) {
+  densityMismatch({
+    fixture: options.fixture,
+    phase: options.phase,
+    transportMode: options.transportMode,
+    viewport: { label: options.viewports.length === 0 ? "1920x1080,1280x720" : options.viewports.join(",") },
+    panelMode: options.fixture === "vpws50-change-density-mixed" ? "compact" : "normal",
+    geometry: { weatherEmergencyPanels: [{ compact: options.fixture === "vpws50-change-density-mixed", panel: null, diagnostics: {} }] },
+    diagnostics: {},
+  }, label, actual, expected);
+}
+
+function finiteDensityNumber(value) {
+  const numeric = Number(value);
+  return value == null || value === "" || !Number.isFinite(numeric) ? null : numeric;
+}
+
+function changeDensitySampleProjection(snapshot) {
+  const panel = snapshot?.liveGeometry?.weatherEmergencyPanels?.[0] ?? null;
+  const data = panel?.diagnostics ?? {};
+  const livePresent = panel?.liveChange != null;
+  return {
+    livePresent,
+    selectedN: finiteDensityNumber(data["data-change-selected"])
+      ?? (livePresent ? (panel.uiChipCount || panel.legacyRows?.length || 0) : 0),
+    changeHeight: panel?.liveChange?.height ?? null,
+    pageCount: finiteDensityNumber(data["data-change-page-count"]) ?? panel?.targetArea?.legacyDomPageCount ?? null,
+    activeIndex: finiteDensityNumber(data["data-change-active-index"]) ?? panel?.targetArea?.legacyDomActiveIndex ?? null,
+    measurementKey: data["data-change-measurement-key"] ?? null,
+    measurementPass: finiteDensityNumber(data["data-change-measurement-pass"]),
+    partitionSignature: data["data-change-partition-signature"] ?? null,
+  };
+}
+
+function changeDensityStableEvidence(session) {
+  const stableSamples = session.stable.map(changeDensitySampleProjection);
+  const preScreenshot = changeDensitySampleProjection(session.preScreenshot);
+  const postScreenshot = changeDensitySampleProjection(session.postScreenshot);
+  return {
+    stableSampleCount: stableSamples.length,
+    stableSamples,
+    stableSamplesMatch: canonicalJsonStringify(stableSamples[0]) === canonicalJsonStringify(stableSamples[1]),
+    preScreenshot,
+    postScreenshot,
+    screenshotStateMatch: canonicalJsonStringify(preScreenshot) === canonicalJsonStringify(postScreenshot),
+  };
+}
+
+function completeDensityOverflow(value) {
+  return value != null
+    && [value.horizontal, value.vertical, value.viewport?.left, value.viewport?.top, value.viewport?.right, value.viewport?.bottom]
+      .every((entry) => Number.isFinite(entry) && entry >= 0);
+}
+
+function densityOverflowVector(value) {
+  return [value.horizontal, value.vertical, value.viewport.left, value.viewport.top, value.viewport.right, value.viewport.bottom];
+}
+
+export function compareChangeDensityOverflow(label, beforeOverflow, afterOverflow) {
+  const baseAvailable = completeDensityOverflow(beforeOverflow);
+  const afterAvailable = completeDensityOverflow(afterOverflow);
+  const regressed = baseAvailable && afterAvailable
+    ? densityOverflowVector(afterOverflow).some((value, index) => value > densityOverflowVector(beforeOverflow)[index])
+    : null;
+  return {
+    label,
+    mode: baseAvailable ? "non-regression" : "record-only",
+    reason: baseAvailable ? null : "base-overflow-unavailable",
+    baseAvailable,
+    afterAvailable,
+    regressed,
+    before: beforeOverflow ?? null,
+    after: afterOverflow ?? null,
+  };
+}
+
+const CHANGE_DENSITY_BORDER_BOX_IDENTITY_FIELDS = Object.freeze([
+  "clientWidth", "clientHeight", "chain", "cls",
+]);
+
+function completeDensityBorderBox(value) {
+  return value != null
+    && [value.clientWidth, value.clientHeight, value.scrollWidth, value.scrollHeight].every(Number.isFinite)
+    && Array.isArray(value.chain)
+    && typeof value.cls === "string";
+}
+
+export function compareChangeDensityBorderBox(label, beforeBox, afterBox) {
+  const baseAvailable = completeDensityBorderBox(beforeBox);
+  const afterAvailable = completeDensityBorderBox(afterBox);
+  const identityDifferences = baseAvailable && afterAvailable
+    ? CHANGE_DENSITY_BORDER_BOX_IDENTITY_FIELDS
+      .filter((field) => canonicalJsonStringify(afterBox[field]) !== canonicalJsonStringify(beforeBox[field]))
+      .map((field) => ({ field, before: beforeBox[field], after: afterBox[field] }))
+    : [];
+  const scrollExtentDelta = baseAvailable && afterAvailable ? {
+    width: afterBox.scrollWidth - beforeBox.scrollWidth,
+    height: afterBox.scrollHeight - beforeBox.scrollHeight,
+  } : null;
+  return {
+    label,
+    mode: baseAvailable ? "non-regression" : "record-only",
+    reason: baseAvailable ? null : "base-border-box-unavailable",
+    baseAvailable,
+    afterAvailable,
+    identityFields: CHANGE_DENSITY_BORDER_BOX_IDENTITY_FIELDS,
+    identityMatches: baseAvailable && afterAvailable ? identityDifferences.length === 0 : null,
+    identityDifferences,
+    scrollExtentDelta,
+    improved: scrollExtentDelta == null ? null : scrollExtentDelta.width < 0 || scrollExtentDelta.height < 0,
+    regressed: scrollExtentDelta == null ? null : scrollExtentDelta.width > 0 || scrollExtentDelta.height > 0,
+    before: beforeBox ?? null,
+    after: afterBox ?? null,
+  };
+}
+
+function unavailableDensityFields(availability) {
+  return new Set((availability?.unavailable ?? []).map((entry) => entry.field));
+}
+
+function assertAfterDensityCommonContract(record, panel) {
+  const diagnosticExpected = {
+    "data-change-layout-unresolved": "false",
+    "data-change-measurement-nonconverged": "false",
+    "data-change-measurement-settled": "true",
+  };
+  for (const [name, expected] of Object.entries(diagnosticExpected)) {
+    if (panel.diagnostics[name] !== expected) densityMismatch(record, `change-density ${name}`, panel.diagnostics[name], expected);
+  }
+  const pageCount = finiteDensityNumber(panel.diagnostics["data-change-page-count"]);
+  const activeIndex = finiteDensityNumber(panel.diagnostics["data-change-active-index"]);
+  const pageRanges = panel.targetArea.pageRanges;
+  const logicalAreaIdentities = panel.targetArea.logicalAreaIdentities;
+  const fragmentKeys = Array.isArray(pageRanges) ? pageRanges.flat() : [];
+  const fragmentIdentityMap = panel.targetArea.fragmentLogicalAreaIdentities ?? {};
+  const rangeLogicalAreaIdentities = fragmentKeys.flatMap((key) => fragmentIdentityMap[key] ?? []);
+  const expectedPartitionSignature = JSON.stringify(["weather-area-partition-v1", pageRanges]);
+  const expectedCyclerResetKey = JSON.stringify(["weather-area-cycle-v2", expectedPartitionSignature]);
+  const activeLogicalAreaIdentities = Array.isArray(pageRanges?.[activeIndex])
+    ? pageRanges[activeIndex].flatMap((key) => fragmentIdentityMap[key] ?? [])
+    : [];
+  if (!Number.isInteger(pageCount) || pageCount < 1 || !Number.isInteger(activeIndex) || activeIndex < 0 || activeIndex >= pageCount
+    || !Array.isArray(pageRanges) || pageRanges.length !== pageCount || pageRanges.some((range) => !Array.isArray(range) || range.length === 0)
+    || new Set(fragmentKeys).size !== fragmentKeys.length
+    || canonicalJsonStringify(logicalAreaIdentities) !== canonicalJsonStringify(CHANGE_DENSITY_TARGET_ORACLE.logicalAreaIdentities)
+    || canonicalJsonStringify(rangeLogicalAreaIdentities) !== canonicalJsonStringify(CHANGE_DENSITY_TARGET_ORACLE.logicalAreaIdentities)
+    || canonicalJsonStringify(panel.targetArea.logicalAreaNameOrder) !== canonicalJsonStringify(CHANGE_DENSITY_TARGET_ORACLE.logicalAreaNameOrder)
+    || canonicalJsonStringify(panel.targetArea.logicalAreaNames) !== canonicalJsonStringify(CHANGE_DENSITY_TARGET_ORACLE.logicalAreaNames)
+    || canonicalJsonStringify(pageRanges) !== canonicalJsonStringify(panel.targetArea.projectedPageRanges)
+    || activeIndex !== panel.targetArea.projectedActiveIndex
+    || panel.diagnostics["data-change-partition-signature"] !== expectedPartitionSignature
+    || panel.diagnostics["data-change-cycler-reset-key"] !== expectedCyclerResetKey
+    || !activeLogicalAreaIdentities.includes(CHANGE_DENSITY_TARGET_ORACLE.initiallySelectedIdentity)
+    || !panel.targetArea.visibleAddedAreaNames.includes(CHANGE_DENSITY_TARGET_ORACLE.initiallySelectedName)
+    || canonicalJsonStringify(panel.targetArea.visibleLogicalAreaIdentities) !== canonicalJsonStringify(activeLogicalAreaIdentities)) {
+    densityMismatch(record, "change-density target pagination", {
+      ...panel.targetArea, rangeLogicalAreaIdentities, expectedPartitionSignature, expectedCyclerResetKey, activeLogicalAreaIdentities,
+    }, "complete ordered identities exactly once, range-derived keys, and initial added-area page");
+  }
+}
+
+export function assertAfterDensityInfeasibleContract(record, panel) {
+  const expected = changeDensityInfeasibleAcceptance(panel, record.geometry?.viewport, "after");
+  const actual = record.infeasibleAcceptance;
+  if (expected.complete !== true || canonicalJsonStringify(actual) !== canonicalJsonStringify(expected)
+    || canonicalJsonStringify(record.changeDensityReadiness?.infeasibleAcceptance) !== canonicalJsonStringify(expected)
+    || record.changeDensityReadiness?.acceptedLayoutOutcome !== "reasoned-infeasible") {
+    densityMismatch(record, "change-density 1280x720 infeasible reason", {
+      report: actual,
+      readiness: record.changeDensityReadiness?.infeasibleAcceptance,
+      outcome: record.changeDensityReadiness?.acceptedLayoutOutcome,
+    }, expected);
+  }
+  if (record.transportMode === "null" || panel.liveChange == null
+    || record.uiChipCount !== 0 || record.uiOmittedCount !== 13
+    || panel.uiChipCount !== 0 || panel.uiOmittedCount !== 13
+    || panel.groups.length !== 0 || panel.chips.length !== 0
+    || panel.metaText.trim() !== "VPWS50 · 13件"
+    || panel.summaryText.trim() !== "悪化 4件・追加 3件・種別変更 2件・緩和 2件・解除 2件") {
+    densityMismatch(record, "change-density 1280x720 summary-only evidence", {
+      transportMode: record.transportMode,
+      liveChangePresent: panel.liveChange != null,
+      uiChipCount: record.uiChipCount,
+      uiOmittedCount: record.uiOmittedCount,
+      domChipCount: panel.uiChipCount,
+      domOmittedCount: panel.uiOmittedCount,
+      groupCount: panel.groups.length,
+      chipCount: panel.chips.length,
+      meta: panel.metaText,
+      summary: panel.summaryText,
+    }, "non-null transport with zero chips, all 13 omitted, and complete category summary");
+  }
+  const liveOverflows = {
+    document: panel.documentOverflow,
+    panel: panel.panelOverflow,
+    change: panel.liveOverflow,
+    target: panel.targetArea.overflow,
+  };
+  if (Object.values(liveOverflows).some((overflow) => !completeDensityOverflow(overflow)
+    || densityOverflowVector(overflow).some((value) => value !== 0))) {
+    densityMismatch(
+      record,
+      "change-density 1280x720 shelf-excluded live overflow",
+      liveOverflows,
+      `complete zero document/panel/change/target overflow after measurement-shelf isolation; ${CHANGE_DENSITY_LIVE_OVERFLOW_INVARIANT}`,
+    );
+  }
+  return expected;
+}
+
+export function assertAfterDensityNullTransportContract(record, panel) {
+  const targetLayoutState = panel?.targetArea?.layoutState ?? null;
+  const eligibleInfeasible = record.viewport?.label === "1280x720" && targetLayoutState === "infeasible";
+  const expectedOutcome = eligibleInfeasible ? "no-change-target-infeasible" : "ready";
+  if (record.transportMode !== "null" || record.wireNull !== true
+    || record.wireChangeCount !== 0 || record.wireOmittedCount !== 0
+    || record.uiChipCount !== 0 || record.uiOmittedCount !== 0
+    || panel?.liveChange != null || panel?.liveSlot != null
+    || panel?.candidates?.length !== 0 || panel?.reserve?.shell != null
+    || !["ready", ...(record.viewport?.label === "1280x720" ? ["infeasible"] : [])].includes(targetLayoutState)
+    || record.infeasibleAcceptance?.applicable !== false
+    || record.infeasibleAcceptance?.status !== "not-applicable"
+    || record.changeDensityReadiness?.acceptedLayoutOutcome !== expectedOutcome) {
+    densityMismatch(record, "change-density null transport terminal state", {
+      transportMode: record.transportMode,
+      wireNull: record.wireNull,
+      wireCounts: [record.wireChangeCount, record.wireOmittedCount],
+      uiCounts: [record.uiChipCount, record.uiOmittedCount],
+      liveChangePresent: panel?.liveChange != null,
+      liveSlotPresent: panel?.liveSlot != null,
+      candidateCount: panel?.candidates?.length ?? null,
+      reserveShellPresent: panel?.reserve?.shell != null,
+      targetLayoutState,
+      infeasibleAcceptance: record.infeasibleAcceptance,
+      acceptedLayoutOutcome: record.changeDensityReadiness?.acceptedLayoutOutcome,
+    }, "no change surface or fit diagnostics; terminal ready, or recorded 1280x720 target infeasible");
+  }
+  const overflows = {
+    document: panel.documentOverflow,
+    panel: panel.panelOverflow,
+    target: panel.targetArea.overflow,
+  };
+  if (Object.values(overflows).some((overflow) => !completeDensityOverflow(overflow)
+    || densityOverflowVector(overflow).some((value) => value !== 0))) {
+    densityMismatch(
+      record,
+      "change-density null transport live overflow",
+      overflows,
+      `complete zero document/panel/target overflow (change surface absent); ${CHANGE_DENSITY_LIVE_OVERFLOW_INVARIANT}`,
+    );
+  }
+  return {
+    outcome: expectedOutcome,
+    targetLayoutState,
+    infeasibleAcceptance: record.infeasibleAcceptance,
+    overflows,
+  };
+}
+
+function changeDensityHeaderColorProjection(value) {
+  if (value == null) return null;
+  return {
+    "background-color": value["background-color"] ?? null,
+    color: value.color ?? null,
+    "border-bottom-color": value["border-bottom-color"] ?? null,
+  };
+}
+
+export function assertChangeDensityHeaderCascade(record, panel) {
+  const fixtureLevel = CHANGE_DENSITY_FIXTURE_LEVELS[record.fixture] ?? null;
+  const semanticExpected = {
+    "background-color": panel?.semanticHeader?.background ?? null,
+    color: panel?.semanticHeader?.color ?? null,
+    "border-bottom-color": panel?.semanticHeader?.band ?? null,
+  };
+  const level5Expected = {
+    "background-color": "rgb(255, 255, 255)",
+    color: "rgb(0, 0, 0)",
+    "border-bottom-color": "rgb(0, 0, 0)",
+  };
+  const actual = {
+    fixtureLevel: panel?.level ?? null,
+    current: {
+      parent: changeDensityHeaderColorProjection(panel?.parentHeader),
+      local: changeDensityHeaderColorProjection(panel?.header),
+    },
+    forcedLevel5: {
+      parent: changeDensityHeaderColorProjection(panel?.levelCascadeProbe?.parent),
+      local: changeDensityHeaderColorProjection(panel?.levelCascadeProbe?.local),
+      localHasHeadingClass: panel?.levelCascadeProbe?.localHasHeadingClass ?? null,
+    },
+  };
+  const expected = {
+    fixtureLevel,
+    current: {
+      parent: fixtureLevel === 5 ? level5Expected : semanticExpected,
+      local: semanticExpected,
+    },
+    forcedLevel5: {
+      parent: level5Expected,
+      local: semanticExpected,
+      localHasHeadingClass: false,
+    },
+  };
+  if (fixtureLevel == null || canonicalJsonStringify(actual) !== canonicalJsonStringify(expected)) {
+    densityMismatch(record, "change-density header cascade", actual, expected);
+  }
+  return actual;
+}
+
+export function assertChangeDensityRecord(record) {
+  const required = [
+    "fixtureId", "fixtureProvenance", "baselineOid", "manifestHash", "viewport", "panelMode", "transportMode",
+    "engineDiffCount", "codeOnlyCount", "displayableLogicalCount", "logicalCounts", "wireChangeCount",
+    "wireOmittedCount", "wireNull", "transportEvidenceSource", "requestedTransportMode",
+    "uiChipCount", "uiOmittedCount", "phase", "checkpoint", "allowedDeltaReason", "measurement",
+    "changeDensityReadiness", "changeDensityStableEvidence", "infeasibleAcceptance",
+  ];
+  const missing = required.filter((field) => record[field] == null);
+  if (missing.length > 0) densityMismatch(record, "change-density required fields", missing, []);
+  const expectedCheckpoint = record.phase === "base" ? "kind-area-after" : "change-density-after";
+  if (!["base", "after"].includes(record.phase) || record.checkpoint !== expectedCheckpoint) {
+    densityMismatch(record, "change-density phase/checkpoint", [record.phase, record.checkpoint], [record.phase, expectedCheckpoint]);
+  }
+  const expectedReasons = record.phase === "base" ? ["none"] : ["none", "vpws50-change-target-area-repartition"];
+  if (!expectedReasons.includes(record.allowedDeltaReason)) {
+    densityMismatch(record, "change-density allowed delta", record.allowedDeltaReason, expectedReasons);
+  }
+  for (const field of ["fixtureId", "fixtureProvenance", "engineDiffCount", "codeOnlyCount", "displayableLogicalCount", "logicalCounts"]) {
+    const expected = CHANGE_DENSITY_ORACLE[field];
+    if (canonicalJsonStringify(record[field]) !== canonicalJsonStringify(expected)) densityMismatch(record, `change-density ${field}`, record[field], expected);
+  }
+  const transport = {
+    full: [13, 0], "degraded-12": [12, 1], "degraded-4": [4, 9], "degraded-2": [2, 11], null: [0, 0],
+  }[record.transportMode];
+  if (transport == null) densityMismatch(record, "change-density transport", record.transportMode, ["full", "degraded-12", "degraded-4", "degraded-2", "null"]);
+  if (record.transportMode !== record.requestedTransportMode || record.transportEvidenceSource !== "preview-input-dto"
+    || record.wireChangeCount !== transport[0] || record.wireOmittedCount !== transport[1]
+    || record.wireNull !== (record.transportMode === "null")
+    || (record.transportMode !== "null" && record.wireChangeCount + record.wireOmittedCount !== 13)) {
+    densityMismatch(record, "change-density wire identity", [record.wireChangeCount, record.wireOmittedCount], transport);
+  }
+  const measuredViewport = record.geometry?.viewport ?? {};
+  if (record.capture?.viewportMode !== "calibrated"
+    || measuredViewport.innerWidth !== record.viewport.width || measuredViewport.innerHeight !== record.viewport.height
+    || measuredViewport.clientWidth !== record.viewport.width || measuredViewport.clientHeight !== record.viewport.height
+    || measuredViewport.devicePixelRatio !== 1) {
+    densityMismatch(record, "change-density true viewport", { mode: record.capture?.viewportMode, measuredViewport }, { mode: "calibrated", ...record.viewport, devicePixelRatio: 1 });
+  }
+  const stable = record.changeDensityStableEvidence;
+  if (stable?.stableSampleCount !== 2 || stable.stableSamples?.length !== 2
+    || stable.stableSamplesMatch !== true || stable.screenshotStateMatch !== true
+    || canonicalJsonStringify(stable.stableSamples[0]) !== canonicalJsonStringify(stable.stableSamples[1])
+    || canonicalJsonStringify(stable.preScreenshot) !== canonicalJsonStringify(stable.postScreenshot)) {
+    densityMismatch(record, "change-density stable samples", stable, "two equal samples and unchanged screenshot state");
+  }
+  const densityReadiness = record.changeDensityReadiness;
+  const readinessConditions = densityReadiness?.waitedConditions ?? [];
+  const reasonedInfeasible = record.phase === "after"
+    && record.infeasibleAcceptance?.complete === true
+    && densityReadiness?.acceptedLayoutOutcome === "reasoned-infeasible";
+  const noChangeTargetTerminal = record.phase === "after"
+    && record.transportMode === "null" && record.wireNull === true
+    && densityReadiness?.acceptedLayoutOutcome === "no-change-target-infeasible";
+  if (densityReadiness?.source !== "weather-emergency-contract" || densityReadiness.ready !== true
+    || densityReadiness.phase !== record.phase || densityReadiness.weatherPanelCount !== 1
+    || densityReadiness.livePresenceMatches !== true || densityReadiness.terminalFitState !== true
+    || densityReadiness.transportObserved !== true || !Array.isArray(readinessConditions)
+    || readinessConditions.length === 0 || readinessConditions.some((condition) => condition.satisfied !== true)
+    || (record.phase === "base" && densityReadiness.legacyProjectionObserved !== true)
+    || (record.phase === "after" && densityReadiness.targetLayoutReady !== true
+      && !reasonedInfeasible && !noChangeTargetTerminal)) {
+    densityMismatch(record, "change-density readiness adapter", densityReadiness, "phase-specific satisfied conditions backed by observed DTO transport");
+  }
+  const panel = record.geometry?.weatherEmergencyPanels?.[0] ?? null;
+  const expectedCompact = record.panelMode === "compact";
+  if (panel == null || panel.compact !== expectedCompact) densityMismatch(record, "change-density panel mode", panel?.compact, expectedCompact);
+  const availability = record.measurement?.availability;
+  const unavailableFields = unavailableDensityFields(availability);
+  if (record.phase === "base") {
+    const requiredUnavailable = CHANGE_DENSITY_BASE_UNAVAILABLE.map(([field]) => field);
+    if (availability?.source !== "kind-area-after-legacy-dom" || !Array.isArray(availability.requiredFields)
+      || requiredUnavailable.some((field) => !unavailableFields.has(field))) {
+      densityMismatch(record, "change-density base field availability", availability, { source: "kind-area-after-legacy-dom", unavailableAtLeast: requiredUnavailable });
+    }
+    const basePagination = record.measurement.targetPagination;
+    if (!["ready", "infeasible"].includes(panel.targetArea.layoutState)
+      || basePagination.layoutState !== panel.targetArea.layoutState) {
+      densityMismatch(record, "change-density base target layout", basePagination.layoutState, "recorded terminal legacy ready|infeasible state");
+    }
+    const expectedAreaNames = Object.keys(CHANGE_DENSITY_TARGET_IDENTITY_BY_NAME);
+    const expectedAreaIdentities = CHANGE_DENSITY_TARGET_ORACLE.logicalAreaIdentities;
+    const expectedIdentitySlice = basePagination.logicalAreaNameOrder
+      ?.map((name) => CHANGE_DENSITY_TARGET_IDENTITY_BY_NAME[name] ?? null) ?? [];
+    const allowedIdentitySources = basePagination.layoutState === "infeasible"
+      ? ["legacy-visible-page-area-name-slice+fixture-identity-oracle", "legacy-rendered-area-name-slice+fixture-identity-oracle"]
+      : ["legacy-visible-page-area-name-slice+fixture-identity-oracle"];
+    if (!isOrderedContiguousSlice(basePagination.logicalAreaNameOrder, expectedAreaNames)
+      || !isOrderedContiguousSlice(basePagination.logicalAreaIdentities, expectedAreaIdentities)
+      || canonicalJsonStringify(basePagination.logicalAreaIdentities) !== canonicalJsonStringify(expectedIdentitySlice)
+      || basePagination.logicalAreaIdentityCoverage !== "ordered-contiguous-slice"
+      || !allowedIdentitySources.includes(basePagination.logicalAreaIdentitySource)) {
+      densityMismatch(record, "change-density base logical identity order", {
+        names: basePagination.logicalAreaNameOrder,
+        identities: basePagination.logicalAreaIdentities,
+        source: basePagination.logicalAreaIdentitySource,
+        coverage: basePagination.logicalAreaIdentityCoverage,
+      }, { names: "non-empty ordered contiguous slice of fixture order", identities: "matching ordered contiguous slice", sources: allowedIdentitySources });
+    }
+    if (basePagination.pageRanges !== null || basePagination.partitionSignature !== null || basePagination.cyclerResetKey !== null) {
+      densityMismatch(record, "change-density base unavailable pagination fields", basePagination, "pageRanges/partitionSignature/cyclerResetKey are null with recorded reasons");
+    }
+    if (basePagination.pageCount == null) {
+      if (!unavailableFields.has("targetPagination.pageCount") || !unavailableFields.has("targetPagination.activeIndex")
+        || basePagination.activeIndex != null) {
+        densityMismatch(record, "change-density base unavailable page count", { availability, basePagination }, "page count and active index unavailable with reasons");
+      }
+    } else if (!Number.isInteger(basePagination.pageCount) || basePagination.pageCount < 1
+      || !Number.isInteger(basePagination.activeIndex) || basePagination.activeIndex < 0 || basePagination.activeIndex >= basePagination.pageCount) {
+      densityMismatch(record, "change-density base DOM page", basePagination, "positive DOM page count and in-range active index");
+    }
+    const baseOverflows = [panel.documentOverflow, panel.panelOverflow, panel.targetArea.overflow];
+    if (baseOverflows.some((overflow) => !completeDensityOverflow(overflow))) {
+      densityMismatch(record, "change-density base overflow measurements", baseOverflows, "complete legacy document/panel/target overflow values");
+    }
+    if (record.transportMode === "null") {
+      if (panel.liveChange != null) densityMismatch(record, "change-density null surface", true, false);
+      return;
+    }
+    if (panel.liveChange == null) densityMismatch(record, "change-density base live panel", panel, "present legacy change surface");
+    if (panel.legacyRows.length === 0) densityMismatch(record, "change-density base legacy projection", panel.legacyRows, "non-empty");
+    if (!Number.isFinite(basePagination.naturalChangeHeight) || !completeDensityOverflow(panel.liveOverflow)) {
+      densityMismatch(record, "change-density base change measurements", {
+        naturalChangeHeight: basePagination.naturalChangeHeight, overflow: panel.liveOverflow,
+      }, "finite legacy change natural height and complete overflow values");
+    }
+    return;
+  }
+  if (availability?.source !== "change-density-data-attributes" || !Array.isArray(availability.requiredFields)
+    || !Array.isArray(availability.unavailable) || availability.unavailable.length !== 0) {
+    densityMismatch(record, "change-density after field availability", availability, "all after contract fields available");
+  }
+  if (record.transportMode === "null") {
+    assertAfterDensityNullTransportContract(record, panel);
+    if (panel.targetArea.layoutState === "ready") assertAfterDensityCommonContract(record, panel);
+    return;
+  }
+  if (record.viewport?.label === "1280x720" && panel.targetArea.layoutState === "infeasible") {
+    assertAfterDensityInfeasibleContract(record, panel);
+    return;
+  }
+  assertAfterDensityCommonContract(record, panel);
+  if (panel == null || panel.liveChange == null) densityMismatch(record, "change-density live panel", panel, "present");
+  if (record.uiChipCount + record.uiOmittedCount !== 13) {
+    densityMismatch(record, "change-density UI identity", record.uiChipCount + record.uiOmittedCount, 13);
+  }
+  if (record.uiChipCount !== panel.uiChipCount || record.uiOmittedCount !== panel.uiOmittedCount) {
+    densityMismatch(record, "change-density UI DOM evidence", [record.uiChipCount, record.uiOmittedCount], [panel.uiChipCount, panel.uiOmittedCount]);
+  }
+  const maximum = record.panelMode === "compact" ? 4 : 12;
+  if (!(record.uiChipCount > 0 && record.uiChipCount <= maximum) || record.uiOmittedCount <= 0) {
+    densityMismatch(record, "change-density fit range", [record.uiChipCount, record.uiOmittedCount], `1..${maximum} chips with omission`);
+  }
+  const kinds = panel.groups.map((group) => group.kind);
+  if (!kinds.includes("upgraded") || !kinds.includes("released")) densityMismatch(record, "change-density reserved kinds", kinds, ["upgraded", "released"]);
+  const orderedKinds = Object.keys(CHANGE_DENSITY_ORACLE.logicalCounts).filter((kind) => kinds.includes(kind));
+  const kindLabels = { upgraded: "悪化", added: "追加", kindChanged: "種別変更", downgraded: "緩和", released: "解除" };
+  if (new Set(kinds).size !== kinds.length || canonicalJsonStringify(kinds) !== canonicalJsonStringify(orderedKinds)
+    || panel.groups.some((group) => group.chipCount < 1 || group.label !== kindLabels[group.kind]
+      || group.totalText !== `${CHANGE_DENSITY_ORACLE.logicalCounts[group.kind]}件`)
+    || panel.metaText.trim() !== "VPWS50 · 13件"
+    || panel.summaryText.trim() !== "悪化 4件・追加 3件・種別変更 2件・緩和 2件・解除 2件") {
+    densityMismatch(record, "change-density grouped text", { kinds, groups: panel.groups, meta: panel.metaText, summary: panel.summaryText }, "ordered non-empty groups plus source, total, and all category totals");
+  }
+  const measurementPass = Number(panel.diagnostics["data-change-measurement-pass"]);
+  const outerFitPublishes = Number(panel.diagnostics["data-change-outer-fit-publishes"]);
+  if (measurementPass !== 1 || outerFitPublishes !== measurementPass) {
+    densityMismatch(record, "change-density outer fit publishes", { measurementPass, outerFitPublishes }, { measurementPass: 1, outerFitPublishes: 1 });
+  }
+  if (panel.interaction?.interactiveCount !== 0 || panel.interaction?.pageControlCount !== 0
+    || [panel.interaction?.contentOverflowX, panel.interaction?.contentOverflowY].some((value) => value === "auto" || value === "scroll")) {
+    densityMismatch(record, "change-density interaction contract", panel.interaction, "no controls, tab stops, pager, or scroll container");
+  }
+  const identity = record.measurement.identity;
+  const budgetMeasurement = record.measurement.budget;
+  const expectedIdentityKey = JSON.stringify(["weather-change-fit-v1", {
+    changeKey: identity.changeKey,
+    activationKey: identity.activationKey,
+    compact: identity.compact,
+    panelWidth: identity.panelWidth,
+    panelHeight: identity.panelHeight,
+    budget: identity.budgetB,
+    reserveHeight: identity.reserveHeight,
+    reserveFingerprint: identity.reserveFingerprint,
+    changeFingerprint: identity.changeFingerprint,
+    fontEpoch: identity.fontEpoch,
+    settlingEpoch: identity.settlingEpoch,
+  }]);
+  const identityValues = Object.values(identity);
+  if (identityValues.some((value) => value == null) || identity.compositeKey !== expectedIdentityKey
+    || identity.compact !== expectedCompact || identity.budgetB !== budgetMeasurement.budgetB
+    || identity.budgetBq !== budgetMeasurement.budgetBq || identity.reserveHeight !== budgetMeasurement.reserveHeight
+    || identity.panelWidth !== budgetMeasurement.panelBorderBoxWidth || identity.panelHeight !== budgetMeasurement.panelBorderBoxHeight) {
+    densityMismatch(record, "change-density measurement identity", identity, expectedIdentityKey);
+  }
+  const selected = Number(panel.diagnostics["data-change-selected"]);
+  const probe = panel.candidates.find((candidate) => candidate.n === selected);
+  if (probe == null || panel.liveSlot == null || Math.abs(probe.slot.width - panel.liveSlot.width) > 1
+    || Math.abs(probe.slot.height - panel.liveSlot.height) > 1) {
+    densityMismatch(record, "change-density probe/live", { probe: probe?.slot, live: panel.liveSlot }, "width/height delta <= 1px");
+  }
+  const budget = Number(panel.diagnostics["data-change-budget"]);
+  const budgetQuantized = Number(panel.diagnostics["data-change-budget-quantized"]);
+  const ratio = Number(panel.devicePixelRatio || 1);
+  const expectedBudgetQuantized = Math.round(budget * ratio) / ratio;
+  const reserveDiagnostic = Number(panel.diagnostics["data-change-reserve-height"]);
+  const expectedBudget = budgetMeasurement.panelContentHeight - budgetMeasurement.reserveHeight;
+  const requiredReserve = [
+    "shell", "heading", "hero", "alertNames", "tiles", "where", "whereHead", "whereBody",
+    ...(panel.targetArea.referenceTotal > 1 ? ["pageDots"] : []),
+    ...(expectedCompact ? [] : ["action"]),
+  ];
+  const missingReserve = requiredReserve.filter((name) => {
+    const box = budgetMeasurement.reserveOccupancy?.[name];
+    return box == null || !(box.width > 0) || !(box.height > 0);
+  });
+  const minimumFragment = panel.reserve?.minimumFragment ?? null;
+  const reservePagerMissing = panel.targetArea.referenceTotal > 1 && !(panel.reserve?.pageDotCount > 0);
+  if (budgetMeasurement.panelContentHeight == null || budgetMeasurement.reserveHeight == null
+    || !Number.isFinite(budget) || budgetQuantized !== expectedBudgetQuantized
+    || !Number.isFinite(expectedBudget) || Math.abs(budget - expectedBudget) > 0.01
+    || panel.reserve?.shell == null || Math.abs(panel.reserve.shell.height - reserveDiagnostic) > 1
+    || missingReserve.length > 0
+    || reservePagerMissing
+    || !Number.isFinite(panel.targetArea.algorithmAvailableHeight)
+    || minimumFragment == null || minimumFragment.areaCount !== 1 || minimumFragment.fit !== true
+    || probe.slot.height > budget
+    || panel.candidates.some((candidate) => candidate.n > selected && candidate.slot.height <= budget)) {
+    densityMismatch(record, "change-density measured fit", {
+      budget, expectedBudget, budgetQuantized, expectedBudgetQuantized, reserve: panel.reserve, reserveDiagnostic,
+      missingReserve, reservePagerMissing, algorithmAvailableHeight: panel.targetArea.algorithmAvailableHeight,
+      selected, candidates: panel.candidates.map((candidate) => [candidate.n, candidate.slot.height]),
+    }, "border-box reserve and maximum fitting candidate");
+  }
+  const overflows = [panel.documentOverflow, panel.panelOverflow, panel.liveOverflow, panel.headerOverflow,
+    panel.groupListOverflow, panel.tailOverflow, panel.targetArea.overflow,
+    ...panel.groups.map((group) => group.overflow), ...panel.chips.map((chip) => chip.overflow)];
+  if (overflows.some((overflow) => overflow == null || overflow.horizontal > 0 || overflow.vertical > 0
+    || Object.values(overflow.viewport).some((value) => value > 0))) densityMismatch(record, "change-density overflow", overflows, "all zero");
+  if (panel.chips.some((chip) => Number.parseFloat(chip.fontSize) < 14)
+    || [panel.meta, panel.summary, panel.tail].filter(Boolean).some((entry) => Number.parseFloat(entry["font-size"]) < 12)) {
+    densityMismatch(record, "change-density readable type", { chips: panel.chips.map((chip) => chip.fontSize), meta: panel.meta, summary: panel.summary, tail: panel.tail }, "chips >=14px, meta/summary/tail >=12px");
+  }
+  if (panel.header == null || panel.header["background-color"] !== panel.semanticHeader.background
+    || panel.header.color !== panel.semanticHeader.color || panel.header["border-bottom-color"] !== panel.semanticHeader.band
+    || panel.header["border-top-width"] !== "0px" || panel.header["border-left-width"] !== "0px"
+    || panel.header["border-right-width"] !== "0px" || panel.header["border-radius"] !== "0px"
+    || !(Number.parseFloat(panel.header["border-bottom-width"]) > 0)) {
+    densityMismatch(record, "change-density header semantic", panel.header, panel.semanticHeader);
+  }
+  const surfaceBorderWidth = Number.parseFloat(panel.surfaceStyle?.["border-left-width"] ?? Number.NaN);
+  if (panel.surfaceStyle == null || !(surfaceBorderWidth > 0 && surfaceBorderWidth < 4)
+    || panel.surfaceStyle["border-left-width"] !== panel.surfaceStyle["border-right-width"]
+    || panel.surfaceStyle["border-left-width"] !== panel.surfaceStyle["border-top-width"]
+    || panel.surfaceStyle["border-left-width"] !== panel.surfaceStyle["border-bottom-width"]
+    || panel.surfaceStyle["border-radius"] === "0px" || panel.surfaceStyle.overflow !== "hidden") {
+    densityMismatch(record, "change-density outer surface", panel.surfaceStyle, "equal hairline borders and overflow hidden");
+  }
+  assertChangeDensityHeaderCascade(record, panel);
+  const expectedScale = expectedCompact
+    ? { panelScale: null, panelScaleSource: "consumer-fallback-1" }
+    : { panelScale: "1.5", panelScaleSource: "runtime-1.5" };
+  if (panel.panelScale !== expectedScale.panelScale || panel.panelScaleSource !== expectedScale.panelScaleSource) {
+    densityMismatch(record, "change-density panel scale", { panelScale: panel.panelScale, panelScaleSource: panel.panelScaleSource }, expectedScale);
+  }
+}
+
+export function isOrderedContiguousSlice(candidate, full) {
+  if (!Array.isArray(candidate) || !Array.isArray(full) || candidate.length === 0 || candidate.length > full.length) return false;
+  return full.some((_, start) => start + candidate.length <= full.length
+    && candidate.every((value, index) => value === full[start + index]));
+}
+
+function legacyTargetAreaNameEvidence(panel) {
+  const visibleNames = panel?.targetArea?.visibleAreaNameOrder ?? [];
+  if (visibleNames.length > 0) {
+    return { names: visibleNames, source: "legacy-visible-page-area-name-slice+fixture-identity-oracle" };
+  }
+  return {
+    names: panel?.targetArea?.logicalAreaNameOrder ?? [],
+    source: "legacy-rendered-area-name-slice+fixture-identity-oracle",
+  };
+}
+
+function legacyTargetIdentityOrder(panel) {
+  const names = legacyTargetAreaNameEvidence(panel).names;
+  return names.map((name) => CHANGE_DENSITY_TARGET_IDENTITY_BY_NAME[name] ?? null);
+}
+
+function changeDensityFieldAvailability(panel, phase) {
+  if (phase === "after") {
+    const changeFields = panel?.liveChange == null ? [] : ["change.groupChipStructure", "measurement.identity", "measurement.budget"];
+    return {
+      source: "change-density-data-attributes",
+      requiredFields: [
+        ...changeFields, "measurement.convergence",
+        "targetPagination.pageCount", "targetPagination.pageRanges", "targetPagination.partitionSignature",
+        "targetPagination.cyclerResetKey", "targetPagination.logicalAreaIdentities",
+      ],
+      unavailable: [],
+    };
+  }
+  const unavailable = CHANGE_DENSITY_BASE_UNAVAILABLE.map(([field, reason]) => ({ field, reason }));
+  if (panel?.targetArea?.legacyDomPageCount == null) {
+    unavailable.push({ field: "targetPagination.pageCount", reason: "legacy DOM has no logical page dots or keyed visible row" });
+  }
+  if (panel?.targetArea?.legacyDomActiveIndex == null) {
+    unavailable.push({ field: "targetPagination.activeIndex", reason: "legacy DOM has no logical active page" });
+  }
+  const legacyIdentities = legacyTargetIdentityOrder(panel);
+  if (legacyIdentities.length === 0 || legacyIdentities.some((identity) => identity == null)) {
+    unavailable.push({ field: "targetPagination.logicalAreaIdentitySlice", reason: "legacy rendered area-name slice could not be mapped to the fixture identity oracle" });
+  }
+  return {
+    source: "kind-area-after-legacy-dom",
+    requiredFields: [
+      "panel.compact", "panel.borderBox", "panel.scale", "change.legacyRows", "change.naturalHeight",
+      "target.layoutState", "target.logicalAreaIdentitySlice", "target.visibleFragmentKeys",
+      "target.pageCountWhenPresent", "target.activeIndexWhenPresent",
+      "overflow.document", "overflow.panel", "overflow.changeWhenPresent", "overflow.target",
+    ],
+    unavailable,
+  };
+}
+
+export function changeDensityMeasurementReport(panel, phase) {
+  if (!["base", "after"].includes(phase)) throw new Error(`unknown change-density measurement phase: ${phase}`);
+  const data = panel?.diagnostics ?? {};
+  const base = phase === "base";
+  const legacyAreaEvidence = base ? legacyTargetAreaNameEvidence(panel) : null;
+  return {
+    availability: changeDensityFieldAvailability(panel, phase),
+    identity: {
+      compositeKey: base ? null : data["data-change-measurement-key"] ?? null,
+      changeKey: base ? null : data["data-change-key"] ?? null,
+      activationKey: base ? null : data["data-change-activation-key"] ?? null,
+      compact: panel?.compact ?? null,
+      panelWidth: base ? null : finiteDensityNumber(data["data-change-panel-width"]),
+      panelHeight: base ? null : finiteDensityNumber(data["data-change-panel-height"]),
+      budgetB: base ? null : finiteDensityNumber(data["data-change-budget"]),
+      budgetBq: base ? null : finiteDensityNumber(data["data-change-budget-quantized"]),
+      reserveHeight: base ? null : finiteDensityNumber(data["data-change-reserve-height"]),
+      reserveFingerprint: base ? null : data["data-change-reserve-fingerprint"] ?? null,
+      changeFingerprint: base ? null : data["data-change-logical-fingerprint"] ?? null,
+      fontEpoch: base ? null : finiteDensityNumber(data["data-change-font-epoch"]),
+      settlingEpoch: base ? null : finiteDensityNumber(data["data-change-settling-epoch"]),
+    },
+    budget: {
+      panelBorderBoxWidth: base ? null : finiteDensityNumber(data["data-change-panel-width"]),
+      panelBorderBoxHeight: base ? null : finiteDensityNumber(data["data-change-panel-height"]),
+      panelContentHeight: base ? null : finiteDensityNumber(data["data-change-panel-content-height"]),
+      reserveHeight: base ? null : finiteDensityNumber(data["data-change-reserve-height"]),
+      budgetB: base ? null : finiteDensityNumber(data["data-change-budget"]),
+      budgetBq: base ? null : finiteDensityNumber(data["data-change-budget-quantized"]),
+      devicePixelRatio: panel?.devicePixelRatio ?? null,
+      reserveOccupancy: base ? null : panel?.reserve ?? null,
+    },
+    convergence: {
+      measurementPass: base ? null : finiteDensityNumber(data["data-change-measurement-pass"]),
+      outerFitPublishes: base ? null : finiteDensityNumber(data["data-change-outer-fit-publishes"]),
+      partitionRefinementCount: base ? null : finiteDensityNumber(data["data-change-partition-refinements"]),
+      settled: base ? null : data["data-change-measurement-settled"] ?? null,
+      unresolved: base ? null : data["data-change-layout-unresolved"] ?? null,
+      nonconverged: base ? null : data["data-change-measurement-nonconverged"] ?? null,
+    },
+    targetPagination: {
+      layoutState: panel?.targetArea?.layoutState ?? null,
+      pageCount: base ? panel?.targetArea?.legacyDomPageCount ?? null : finiteDensityNumber(data["data-change-page-count"]),
+      pageCountSource: base ? "legacy-page-dots-or-keyed-row" : "data-change-page-count",
+      pageRanges: base ? null : panel?.targetArea?.pageRanges ?? null,
+      partitionSignature: base ? null : data["data-change-partition-signature"] ?? null,
+      cyclerResetKey: base ? null : data["data-change-cycler-reset-key"] ?? null,
+      activeIndex: base ? panel?.targetArea?.legacyDomActiveIndex ?? null : finiteDensityNumber(data["data-change-active-index"]),
+      logicalAreaIdentities: base ? legacyTargetIdentityOrder(panel) : panel?.targetArea?.logicalAreaIdentities ?? null,
+      logicalAreaIdentitySource: base ? legacyAreaEvidence.source : "data-change-logical-area-identities",
+      logicalAreaIdentityCoverage: base ? "ordered-contiguous-slice" : "complete",
+      logicalAreaNameOrder: base ? legacyAreaEvidence.names : panel?.targetArea?.logicalAreaNameOrder ?? [],
+      visibleFragmentKeys: panel?.targetArea?.visibleFragmentKeys ?? null,
+      naturalChangeHeight: panel?.liveChange?.height ?? null,
+    },
+  };
+}
+
+function changeDensityReportFields({ fixture, phase, checkpoint, baselineOid, manifestHash, transportMode, allowedDeltaReason, geometry, readiness }) {
+  const panel = geometry.weatherEmergencyPanels?.[0] ?? null;
+  const transport = geometry.changeDensityTransport ?? {};
+  return {
+    ...CHANGE_DENSITY_ORACLE,
+    phase,
+    checkpoint,
+    baselineOid,
+    manifestHash,
+    panelMode: fixture === "vpws50-change-density-mixed" ? "compact" : "normal",
+    transportMode: transport.mode,
+    requestedTransportMode: transportMode,
+    transportEvidenceSource: transport.source,
+    wireChangeCount: transport.wireChangeCount,
+    wireOmittedCount: transport.wireOmittedCount,
+    wireNull: transport.wireNull,
+    uiChipCount: phase === "base" ? panel?.legacyRows?.length ?? 0 : panel?.uiChipCount ?? 0,
+    uiOmittedCount: transport.wireNull ? 0 : phase === "base" ? 13 - (panel?.legacyRows?.length ?? 0) : panel?.uiOmittedCount ?? 0,
+    measurement: changeDensityMeasurementReport(panel, phase),
+    infeasibleAcceptance: readiness?.infeasibleAcceptance ?? null,
+    allowedDeltaReason,
+  };
+}
+
+export function assertChangeDensityReport(report) {
+  const records = Array.isArray(report?.records) ? report.records.map((record) => (assertChangeDensityRecord(record), record)) : [];
+  if (report?.schemaVersion !== CAPTURE_SCHEMA_VERSION || report?.suite !== "vpws50-change-density" || records.length === 0) {
+    densityMismatch(records[0] ?? {}, "change-density report", [report?.schemaVersion, report?.suite, records.length], [CAPTURE_SCHEMA_VERSION, "vpws50-change-density", "non-empty"]);
+  }
+  const fixtures = [...new Set(records.map((record) => record.fixtureId))];
+  const scenarios = [...new Set(records.map((record) => record.fixture))];
+  const phases = [...new Set(records.map((record) => record.phase))];
+  const panelModes = [...new Set(records.map((record) => record.panelMode))];
+  const reasons = [...new Set(records.map((record) => record.allowedDeltaReason))];
+  const baselineOids = [...new Set(records.map((record) => record.baselineOid))];
+  const manifestHashes = [...new Set(records.map((record) => record.manifestHash))];
+  const viewports = [...new Set(records.map((record) => record.viewport?.label))].sort();
+  const transports = [...new Set(records.map((record) => record.transportMode))];
+  const expectedScenario = panelModes[0] === "compact" ? "vpws50-change-density-mixed" : "vpws50-change-density-normal";
+  if (fixtures.length !== 1 || scenarios.length !== 1 || scenarios[0] !== expectedScenario
+    || phases.length !== 1 || panelModes.length !== 1 || reasons.length !== 1
+    || baselineOids.length !== 1 || baselineOids[0] !== CHANGE_DENSITY_BASELINE_OID
+    || manifestHashes.length !== 1 || !/^[0-9a-f]{64}$/.test(manifestHashes[0] ?? "")) {
+    densityMismatch(records[0], "change-density uniform report identity", {
+      fixtures, scenarios, phases, panelModes, reasons, baselineOids, manifestHashes,
+    }, "one matching fixture, phase, panel mode, reason, pinned base OID, and manifest hash");
+  }
+  if (canonicalJsonStringify(viewports) !== canonicalJsonStringify(["1280x720", "1920x1080"])) {
+    densityMismatch(records[0], "change-density viewport matrix", viewports, ["1280x720", "1920x1080"]);
+  }
+  if (canonicalJsonStringify(transports.sort()) !== canonicalJsonStringify([...CHANGE_DENSITY_TRANSPORT_MODES].sort())) {
+    densityMismatch(records[0], "change-density transport matrix", transports, CHANGE_DENSITY_TRANSPORT_MODES);
+  }
+  const cells = records.map((record) => `${record.viewport.label}|${record.transportMode}`);
+  const expectedCells = viewports.flatMap((viewport) => CHANGE_DENSITY_TRANSPORT_MODES.map((mode) => `${viewport}|${mode}`));
+  if (new Set(cells).size !== cells.length || canonicalJsonStringify([...cells].sort()) !== canonicalJsonStringify(expectedCells.sort())) {
+    densityMismatch(records[0], "change-density capture cells", cells, expectedCells);
+  }
+  const browserSignatures = new Set(records.map((record) => canonicalJsonStringify(record.browser)));
+  const fontSignatures = new Set(records.map((record) => canonicalJsonStringify(record.geometry?.signatures?.fonts)));
+  if (browserSignatures.size !== 1 || fontSignatures.size !== 1
+    || !Array.isArray(records[0].geometry?.signatures?.fonts) || records[0].geometry.signatures.fonts.length === 0
+    || records.some((record) => record.rotationTick !== 0)) {
+    densityMismatch(records[0], "change-density capture environment", {
+      browserSignatures: [...browserSignatures], fontSignatures: [...fontSignatures], rotationTicks: records.map((record) => record.rotationTick),
+    }, "one Chrome/font signature and deterministic initial tick");
+  }
+  const expectedReportId = createHash("sha256").update(Buffer.from(canonicalJsonStringify(records), "utf8")).digest("hex");
+  if (report.reportId !== expectedReportId) densityMismatch(records[0], "change-density report id", report.reportId, expectedReportId);
+  return { records, fixture: scenarios[0], phase: phases[0], panelMode: panelModes[0], reportId: report.reportId };
+}
+
+export function assertChangeDensityComparison(baseReport, afterReport) {
+  const baseSummary = assertChangeDensityReport(baseReport);
+  const afterSummary = assertChangeDensityReport(afterReport);
+  const baseRecords = baseSummary.records;
+  const afterRecords = afterSummary.records;
+  if (baseRecords.length === 0 || afterRecords.length === 0) {
+    densityMismatch(afterRecords[0] ?? baseRecords[0] ?? {}, "change-density comparison records", [baseRecords.length, afterRecords.length], "both non-empty");
+  }
+  if (baseSummary.fixture !== afterSummary.fixture || baseSummary.phase !== "base" || afterSummary.phase !== "after"
+    || baseSummary.panelMode !== afterSummary.panelMode) {
+    densityMismatch(afterRecords[0], "change-density report comparison identity", [baseSummary.fixture, afterSummary.fixture, baseSummary.phase, afterSummary.phase, baseSummary.panelMode, afterSummary.panelMode], "same fixture/mode and base to after");
+  }
+  const keyOf = (record) => `${record.viewport.label}|${record.panelMode}|${record.transportMode}`;
+  const baseByKey = new Map(baseRecords.map((record) => [keyOf(record), record]));
+  let compared = 0;
+  let rangeChangedCount = 0;
+  const cells = [];
+  for (const after of afterRecords) {
+    const key = keyOf(after);
+    const before = baseByKey.get(key);
+    if (before == null) densityMismatch(after, "change-density base cell", null, key);
+    if (before.phase !== "base" || after.phase !== "after"
+      || before.baselineOid !== after.baselineOid || before.manifestHash !== after.manifestHash) {
+      densityMismatch(after, "change-density baseline identity", [before.phase, after.phase, before.baselineOid, after.baselineOid, before.manifestHash, after.manifestHash], ["base", "after", "same oid", "same oid", "same hash", "same hash"]);
+    }
+    for (const field of ["fixtureId", "fixtureProvenance", "engineDiffCount", "codeOnlyCount", "displayableLogicalCount", "logicalCounts", "panelMode", "transportMode", "requestedTransportMode", "transportEvidenceSource", "wireChangeCount", "wireOmittedCount", "wireNull"]) {
+      if (canonicalJsonStringify(before[field]) !== canonicalJsonStringify(after[field])) densityMismatch(after, `change-density non-regression ${field}`, after[field], before[field]);
+    }
+    for (const [label, beforeValue, afterValue] of [
+      ["browser", before.browser, after.browser],
+      ["font signature", before.geometry?.signatures?.fonts, after.geometry?.signatures?.fonts],
+      ["viewport", before.geometry?.viewport, after.geometry?.viewport],
+      ["capture profile", before.capture, after.capture],
+      ["stage/rotation", {
+        stage: before.diagnostics?.["data-ladder-stage"], rotationKeys: before.diagnostics?.["data-rotation-keys"],
+      }, {
+        stage: after.diagnostics?.["data-ladder-stage"], rotationKeys: after.diagnostics?.["data-rotation-keys"],
+      }],
+    ]) {
+      if (canonicalJsonStringify(beforeValue) !== canonicalJsonStringify(afterValue)) {
+        densityMismatch(after, `change-density environment ${label}`, afterValue, beforeValue);
+      }
+    }
+    const beforePanel = before.geometry.weatherEmergencyPanels[0];
+    const afterPanel = after.geometry.weatherEmergencyPanels[0];
+    const panelBorderBoxComparison = compareChangeDensityBorderBox("panel", beforePanel.panel, afterPanel.panel);
+    if (!panelBorderBoxComparison.baseAvailable || !panelBorderBoxComparison.afterAvailable) {
+      densityMismatch(after, "change-density non-regression panel border-box availability", {
+        before: beforePanel.panel, after: afterPanel.panel,
+      }, "complete base and after panel border-box records");
+    }
+    if (!panelBorderBoxComparison.identityMatches) {
+      densityMismatch(after, "change-density non-regression panel border-box identity", panelBorderBoxComparison.identityDifferences, []);
+    }
+    if (panelBorderBoxComparison.regressed) {
+      densityMismatch(after, "change-density non-regression panel scroll extent", afterPanel.panel, beforePanel.panel);
+    }
+    for (const [label, beforeValue, afterValue] of [
+      ["panel scale", { value: beforePanel.panelScale, source: beforePanel.panelScaleSource }, { value: afterPanel.panelScale, source: afterPanel.panelScaleSource }],
+      ["target reference total", beforePanel.targetArea.referenceTotal, afterPanel.targetArea.referenceTotal],
+    ]) {
+      if (canonicalJsonStringify(beforeValue) !== canonicalJsonStringify(afterValue)) {
+        densityMismatch(after, `change-density non-regression ${label}`, afterValue, beforeValue);
+      }
+    }
+    const beforePagination = before.measurement.targetPagination;
+    const afterPagination = after.measurement.targetPagination;
+    if (after.wireNull === true && afterPanel.targetArea.layoutState === "infeasible") {
+      if (beforePanel.liveChange != null || afterPanel.liveChange != null
+        || beforePanel.targetArea.layoutState !== "infeasible"
+        || after.changeDensityReadiness?.acceptedLayoutOutcome !== "no-change-target-infeasible"
+        || after.infeasibleAcceptance?.status !== "not-applicable") {
+        densityMismatch(after, "change-density null target infeasible comparison", {
+          beforeLiveChange: beforePanel.liveChange,
+          afterLiveChange: afterPanel.liveChange,
+          beforeTargetLayoutState: beforePanel.targetArea.layoutState,
+          afterTargetLayoutState: afterPanel.targetArea.layoutState,
+          outcome: after.changeDensityReadiness?.acceptedLayoutOutcome,
+          infeasibleAcceptance: after.infeasibleAcceptance,
+        }, "no change surface and matching recorded base/after target infeasible state");
+      }
+      const overflowComparison = {};
+      for (const [label, beforeOverflow, afterOverflow] of [
+        ["document", beforePanel.documentOverflow, afterPanel.documentOverflow],
+        ["panel", beforePanel.panelOverflow, afterPanel.panelOverflow],
+        ["target", beforePanel.targetArea.overflow, afterPanel.targetArea.overflow],
+      ]) {
+        const comparison = compareChangeDensityOverflow(label, beforeOverflow, afterOverflow);
+        overflowComparison[label] = comparison;
+        if (!comparison.afterAvailable) {
+          densityMismatch(after, `change-density null ${label} overflow record`, afterOverflow, "complete measured overflow vector");
+        }
+        if (comparison.regressed === true) {
+          densityMismatch(after, `change-density null ${label} overflow regression`, afterOverflow, beforeOverflow);
+        }
+      }
+      cells.push({
+        key,
+        comparisonMode: "no-change-target-infeasible",
+        paginationChanged: null,
+        comparable: { pageCount: false, activeIndex: false, visibleFragmentKeys: false },
+        borderBoxComparison: { panel: panelBorderBoxComparison },
+        overflowComparison,
+        naturalHeightDelta: null,
+        baseUnavailable: before.measurement.availability.unavailable,
+        infeasibleAcceptance: after.infeasibleAcceptance,
+        before: {
+          targetLayoutState: beforePanel.targetArea.layoutState,
+          pageCount: beforePagination.pageCount,
+          activeIndex: beforePagination.activeIndex,
+          visibleFragmentKeys: beforePagination.visibleFragmentKeys,
+          logicalAreaIdentities: beforePagination.logicalAreaIdentities,
+        },
+        after: {
+          targetLayoutState: afterPanel.targetArea.layoutState,
+          pageCount: afterPagination.pageCount,
+          pageRanges: afterPagination.pageRanges,
+          partitionSignature: afterPagination.partitionSignature,
+          cyclerResetKey: afterPagination.cyclerResetKey,
+          activeIndex: afterPagination.activeIndex,
+          visibleFragmentKeys: afterPagination.visibleFragmentKeys,
+          logicalAreaIdentities: afterPagination.logicalAreaIdentities,
+        },
+      });
+      compared += 1;
+      continue;
+    }
+    if (after.infeasibleAcceptance?.complete === true) {
+      const overflowComparison = {};
+      for (const [label, beforeOverflow, afterOverflow] of [
+        ["document", beforePanel.documentOverflow, afterPanel.documentOverflow],
+        ["panel", beforePanel.panelOverflow, afterPanel.panelOverflow],
+        ["target", beforePanel.targetArea.overflow, afterPanel.targetArea.overflow],
+        ["change", beforePanel.liveOverflow, afterPanel.liveOverflow],
+      ]) {
+        const comparison = compareChangeDensityOverflow(label, beforeOverflow, afterOverflow);
+        overflowComparison[label] = comparison;
+        if (!comparison.afterAvailable) {
+          densityMismatch(after, `change-density ${label} overflow record`, afterOverflow, "complete measured overflow vector");
+        }
+        if (comparison.regressed === true) {
+          densityMismatch(after, `change-density ${label} overflow regression`, afterOverflow, beforeOverflow);
+        }
+      }
+      const beforeHeight = beforePagination.naturalChangeHeight;
+      const afterHeight = afterPagination.naturalChangeHeight;
+      const naturalHeightDelta = Number.isFinite(beforeHeight) && Number.isFinite(afterHeight)
+        ? afterHeight - beforeHeight
+        : null;
+      if (before.wireNull !== true && naturalHeightDelta == null) {
+        densityMismatch(after, "change-density common natural height", { beforeHeight, afterHeight }, "finite before/after natural heights");
+      }
+      cells.push({
+        key,
+        comparisonMode: "reasoned-infeasible",
+        paginationChanged: null,
+        comparable: { pageCount: false, activeIndex: false, visibleFragmentKeys: false },
+        borderBoxComparison: { panel: panelBorderBoxComparison },
+        overflowComparison,
+        naturalHeightDelta,
+        baseUnavailable: before.measurement.availability.unavailable,
+        infeasibleAcceptance: after.infeasibleAcceptance,
+        before: {
+          pageCount: beforePagination.pageCount,
+          activeIndex: beforePagination.activeIndex,
+          visibleFragmentKeys: beforePagination.visibleFragmentKeys,
+          logicalAreaIdentities: beforePagination.logicalAreaIdentities,
+        },
+        after: {
+          pageCount: afterPagination.pageCount,
+          pageRanges: afterPagination.pageRanges,
+          partitionSignature: afterPagination.partitionSignature,
+          cyclerResetKey: afterPagination.cyclerResetKey,
+          activeIndex: afterPagination.activeIndex,
+          visibleFragmentKeys: afterPagination.visibleFragmentKeys,
+          logicalAreaIdentities: afterPagination.logicalAreaIdentities,
+        },
+      });
+      compared += 1;
+      continue;
+    }
+    if (!isOrderedContiguousSlice(beforePagination.logicalAreaNameOrder, afterPagination.logicalAreaNameOrder)
+      || !isOrderedContiguousSlice(beforePagination.logicalAreaIdentities, afterPagination.logicalAreaIdentities)) {
+      densityMismatch(after, "change-density common visible logical identity slice", {
+        names: beforePagination.logicalAreaNameOrder,
+        identities: beforePagination.logicalAreaIdentities,
+      }, {
+        names: "ordered contiguous slice of after logical order",
+        identities: "matching ordered contiguous slice of after logical order",
+      });
+    }
+    const overflowComparison = {};
+    for (const [label, beforeOverflow, afterOverflow] of [
+      ["document", beforePanel.documentOverflow, afterPanel.documentOverflow],
+      ["panel", beforePanel.panelOverflow, afterPanel.panelOverflow],
+      ["target", beforePanel.targetArea.overflow, afterPanel.targetArea.overflow],
+      ["change", beforePanel.liveOverflow, afterPanel.liveOverflow],
+    ]) {
+      if (beforeOverflow == null && afterOverflow == null) {
+        overflowComparison[label] = { label, mode: "not-applicable", reason: "both-unavailable", before: null, after: null };
+        continue;
+      }
+      if (!completeDensityOverflow(beforeOverflow) || !completeDensityOverflow(afterOverflow)) {
+        densityMismatch(after, `change-density common ${label} overflow availability`, { before: beforeOverflow, after: afterOverflow }, "both complete or both unavailable");
+      }
+      const comparison = compareChangeDensityOverflow(label, beforeOverflow, afterOverflow);
+      overflowComparison[label] = comparison;
+      if (comparison.regressed === true) {
+        densityMismatch(after, `change-density ${label} overflow regression`, afterOverflow, beforeOverflow);
+      }
+    }
+    const pageCountComparable = Number.isInteger(beforePagination.pageCount) && Number.isInteger(afterPagination.pageCount);
+    const activeIndexComparable = pageCountComparable
+      && Number.isInteger(beforePagination.activeIndex) && Number.isInteger(afterPagination.activeIndex);
+    const visibleKeysComparable = pageCountComparable
+      && Array.isArray(beforePagination.visibleFragmentKeys) && beforePagination.visibleFragmentKeys.length > 0
+      && Array.isArray(afterPagination.visibleFragmentKeys);
+    const pageCountChanged = pageCountComparable && beforePagination.pageCount !== afterPagination.pageCount;
+    const activeIndexChanged = activeIndexComparable && beforePagination.activeIndex !== afterPagination.activeIndex;
+    const visibleKeysChanged = visibleKeysComparable
+      && canonicalJsonStringify(beforePagination.visibleFragmentKeys) !== canonicalJsonStringify(afterPagination.visibleFragmentKeys);
+    const paginationChanged = pageCountChanged || activeIndexChanged || visibleKeysChanged;
+    const beforeHeight = beforePagination.naturalChangeHeight;
+    const afterHeight = afterPagination.naturalChangeHeight;
+    const naturalHeightDelta = Number.isFinite(beforeHeight) && Number.isFinite(afterHeight) ? afterHeight - beforeHeight : null;
+    if (before.wireNull !== true && naturalHeightDelta == null) {
+      densityMismatch(after, "change-density common natural height", { beforeHeight, afterHeight }, "finite before/after natural heights");
+    }
+    if (paginationChanged && (naturalHeightDelta == null || Math.abs(naturalHeightDelta) <= 1)) {
+      densityMismatch(after, "change-density justified common pagination change", {
+        pageCountChanged, activeIndexChanged, visibleKeysChanged, naturalHeightDelta,
+      }, "a common DOM pagination change with >1px natural-height delta");
+    }
+    if (after.allowedDeltaReason === "none" && paginationChanged) {
+      densityMismatch(after, "change-density unexpected common pagination change", {
+        pageCount: afterPagination.pageCount, activeIndex: afterPagination.activeIndex, visibleFragmentKeys: afterPagination.visibleFragmentKeys,
+      }, {
+        pageCount: beforePagination.pageCount, activeIndex: beforePagination.activeIndex, visibleFragmentKeys: beforePagination.visibleFragmentKeys,
+      });
+    }
+    if (paginationChanged) rangeChangedCount += 1;
+    cells.push({
+      key,
+      paginationChanged,
+      comparable: { pageCount: pageCountComparable, activeIndex: activeIndexComparable, visibleFragmentKeys: visibleKeysComparable },
+      borderBoxComparison: { panel: panelBorderBoxComparison },
+      overflowComparison,
+      naturalHeightDelta,
+      baseUnavailable: before.measurement.availability.unavailable,
+      before: {
+        pageCount: beforePagination.pageCount, activeIndex: beforePagination.activeIndex,
+        visibleFragmentKeys: beforePagination.visibleFragmentKeys, logicalAreaIdentities: beforePagination.logicalAreaIdentities,
+      },
+      after: {
+        pageCount: afterPagination.pageCount, pageRanges: afterPagination.pageRanges,
+        partitionSignature: afterPagination.partitionSignature, cyclerResetKey: afterPagination.cyclerResetKey,
+        activeIndex: afterPagination.activeIndex, visibleFragmentKeys: afterPagination.visibleFragmentKeys,
+        logicalAreaIdentities: afterPagination.logicalAreaIdentities,
+      },
+    });
+    compared += 1;
+  }
+  if (compared !== baseRecords.length) {
+    densityMismatch(afterRecords.at(-1) ?? baseRecords.at(-1) ?? {}, "change-density viewport matrix", compared, baseRecords.length);
+  }
+  const reason = afterRecords[0].allowedDeltaReason;
+  if (reason === "vpws50-change-target-area-repartition" && rangeChangedCount === 0) {
+    densityMismatch(afterRecords[0], "change-density unused allowed delta", reason, "at least one range change");
+  }
+  return {
+    compared, baseRecords: baseRecords.length, afterRecords: afterRecords.length,
+    baseReportId: baseSummary.reportId, afterReportId: afterSummary.reportId,
+    allowedDeltaReason: reason, rangeChangedCount, cells,
+  };
+}
+
+export function assertChangeDensityDesignAlignmentGate({
+  baseDensityReport,
+  afterDensityReport,
+  designBaselineReport,
+  designAfterReport,
+}) {
+  const contextRecord = afterDensityReport?.records?.[0] ?? baseDensityReport?.records?.[0] ?? {};
+  let asserted;
+  try {
+    asserted = assertChangeDensityDesignAlignmentSavedRecords(designAfterReport, designBaselineReport);
+  } catch (error) {
+    densityMismatch(
+      contextRecord,
+      "change-density design-alignment all-tick gate",
+      error instanceof Error ? error.message : String(error),
+      `${CHANGE_DENSITY_DESIGN_ALIGNMENT_SUITE} passes every shared manifest and rotation tick`,
+    );
+  }
+  const expectedRotationTickCellCount = DESIGN_ALIGNMENT_MANIFEST.filter((entry) => entry.rotationTick != null).length;
+  if (asserted.manifestCellCount !== DESIGN_ALIGNMENT_MANIFEST.length
+    || asserted.rotationTickCellCount !== expectedRotationTickCellCount) {
+    densityMismatch(contextRecord, "change-density design-alignment coverage", {
+      manifestCellCount: asserted.manifestCellCount,
+      rotationTickCellCount: asserted.rotationTickCellCount,
+    }, {
+      manifestCellCount: DESIGN_ALIGNMENT_MANIFEST.length,
+      rotationTickCellCount: expectedRotationTickCellCount,
+    });
+  }
+  const environmentIdentity = asserted.environmentIdentity;
+  for (const record of [...(baseDensityReport?.records ?? []), ...(afterDensityReport?.records ?? [])]) {
+    const densityBrowser = { product: record.browser?.product, revision: record.browser?.revision };
+    const densityDpr = record.geometry?.viewport?.devicePixelRatio;
+    if (canonicalJsonStringify(densityBrowser) !== canonicalJsonStringify(environmentIdentity.browser)
+      || densityDpr !== environmentIdentity.devicePixelRatio) {
+      densityMismatch(record, "change-density/design-alignment environment identity", {
+        browser: densityBrowser,
+        devicePixelRatio: densityDpr,
+      }, {
+        browser: environmentIdentity.browser,
+        devicePixelRatio: environmentIdentity.devicePixelRatio,
+      });
+    }
+  }
+  return {
+    status: "passed",
+    baseReportId: asserted.baselineReportId,
+    afterReportId: asserted.reportId,
+    environmentIdentity,
+    manifestCellCount: asserted.manifestCellCount,
+    rotationTickCellCount: asserted.rotationTickCellCount,
+    densityReportIds: {
+      base: baseDensityReport?.reportId ?? null,
+      after: afterDensityReport?.reportId ?? null,
+    },
+  };
 }
 
 function assertNarrowGeometry(diagnostics, scenario, viewport) {
@@ -1398,7 +3265,7 @@ export function assertCaptureReport(report, expectations = {}) {
   if (expectations.expectViewportMode != null && records.some((record) => record.capture.viewportMode !== expectations.expectViewportMode)) throw new Error(`capture report viewport mode mismatch: expected ${expectations.expectViewportMode}`);
   if (expectations.expectCells != null && records.length !== expectations.expectCells) throw new Error(`capture report cell count mismatch: expected ${expectations.expectCells}, got ${records.length}`);
   for (const [index, record] of records.entries()) {
-    const expectedPolicy = ["design-alignment", RECENT_QUAKES_GAP_SUITE, CENTER_STACK_PREGATE_SUITE].includes(suite) ? "fixture-assertions-only" : captureExpectationPolicy(record.fixture, record.scenario, record.viewport.label);
+    const expectedPolicy = ["design-alignment", RECENT_QUAKES_GAP_SUITE, CHANGE_DENSITY_DESIGN_ALIGNMENT_SUITE, CENTER_STACK_PREGATE_SUITE].includes(suite) ? "fixture-assertions-only" : captureExpectationPolicy(record.fixture, record.scenario, record.viewport.label);
     if (record.expectationPolicy !== expectedPolicy) throw new Error(`${suite} record ${index}: expectation policy mismatch`);
     if (!Array.isArray(record.mismatches)) throw new Error(`${suite} record ${index}: mismatches missing`);
   }
@@ -1911,20 +3778,51 @@ export function assertWeatherKindAreaComparison(baseReport, afterReport) {
   return { compared, baseRecords: records(baseReport).length, afterRecords: records(afterReport).length };
 }
 
-async function capture({ chrome, profileDir, url, scenario, viewport, outDir, viewportMode = "legacy-control", rotationTick = null, cardPageTick = null, assertTable = true, fixture = null, phase = null, allowedDeltaReason = "none" }) {
+async function capture({ chrome, profileDir, url, scenario, viewport, outDir, viewportMode = "legacy-control", rotationTick = null, cardPageTick = null, assertTable = true, fixture = null, phase = null, checkpoint = null, baselineOid = null, manifestHash = null, transportMode = "full", allowedDeltaReason = "none" }) {
+  const changeDensityFixture = fixture != null && CHANGE_DENSITY_FIXTURES.has(fixture);
   const tickSuffix = rotationTick == null ? "" : `-tick-${rotationTick}`;
   const cardPageTickSuffix = cardPageTick == null ? "" : `-page-tick-${cardPageTick}`;
   const fixtureSuffix = fixture == null ? "" : `-${fixture}`;
-  const stem = `legacy-standby-${scenario}-${viewport.label}${fixtureSuffix}${tickSuffix}${cardPageTickSuffix}`;
+  const transportSuffix = changeDensityFixture ? `-${transportMode}` : "";
+  const stem = `legacy-standby-${scenario}-${viewport.label}${fixtureSuffix}${transportSuffix}${tickSuffix}${cardPageTickSuffix}`;
   const pngPath = join(outDir, `${stem}.png`);
   const jsonPath = join(outDir, `${stem}.json`);
-  const readinessKind = fixture === "attention-visibility-emergency" ? "emergency" : "standby";
-  const collectSnapshot = collectNormalSnapshot;
-  const primarySession = await runCaptureBrowserSession({
-    chrome, profileDir, url, requestedViewport: viewport, viewportMode, readinessKind,
-    virtualTimeBudgetMs: 10_000, sessionRole: "primary", collectSnapshot, label: stem,
-    initialDelayMs: 1_500, sampleDelayMs: 1_500, maxSamples: 15, stableProjection: captureStableProjection,
-  });
+  const readinessKind = fixture === "attention-visibility-emergency" || changeDensityFixture ? "emergency" : "standby";
+  let lastReadinessProjection = null;
+  let consecutiveStableSamples = 0;
+  let readinessObservation = null;
+  const collectSnapshot = changeDensityFixture
+    ? async (context) => {
+        const snapshot = await collectChangeDensitySnapshot(context, phase);
+        const serialized = canonicalJsonStringify(captureStableProjection(snapshot));
+        if (snapshot.changeDensityReadiness.ready) {
+          consecutiveStableSamples = serialized === lastReadinessProjection ? consecutiveStableSamples + 1 : 1;
+          lastReadinessProjection = serialized;
+        } else {
+          consecutiveStableSamples = 0;
+          lastReadinessProjection = null;
+        }
+        readinessObservation = {
+          ...snapshot.changeDensityReadiness,
+          consecutiveStableSamples,
+        };
+        return snapshot;
+      }
+    : collectNormalSnapshot;
+  let primarySession;
+  try {
+    primarySession = await runCaptureBrowserSession({
+      chrome, profileDir, url, requestedViewport: viewport, viewportMode, readinessKind,
+      virtualTimeBudgetMs: 10_000, sessionRole: "primary", collectSnapshot, label: stem,
+      initialDelayMs: 1_500, sampleDelayMs: 1_500, maxSamples: 15, stableProjection: captureStableProjection,
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    if (changeDensityFixture && (message.includes("readiness did not settle") || message.includes("capture timed out"))) {
+      throw new Error(formatChangeDensityReadinessTimeout(stem, readinessObservation), { cause: error });
+    }
+    throw error;
+  }
   const snapshot = primarySession.preScreenshot;
   const dom = snapshot.document.dom;
   const attentionGeometry = snapshot.liveGeometry;
@@ -1963,7 +3861,7 @@ async function capture({ chrome, profileDir, url, scenario, viewport, outDir, vi
   }
   // EmergencyScreen has no StandbyScreen layout tracks. It instead runs the live panel
   // containment and indicator-overlap checks above; only track-specific probes are inapplicable.
-  if (fixture !== "attention-visibility-emergency") {
+  if (fixture !== "attention-visibility-emergency" && !changeDensityFixture) {
     if (!clusterFixture && !weatherKindAreaFixture) assertNarrowGeometry(diagnostics, scenario, viewport);
     assertNankaiSeparation(diagnostics);
     assertStageZeroClock(diagnostics);
@@ -1992,6 +3890,8 @@ async function capture({ chrome, profileDir, url, scenario, viewport, outDir, vi
     scenario, fixture, rotationTick, cardPageTick, viewport, url, pngPath, jsonPath, diagnostics,
     browser: primarySession.browser,
     capture: primarySession.capture,
+    ...(changeDensityFixture ? { changeDensityStableEvidence: changeDensityStableEvidence(primarySession) } : {}),
+    ...(changeDensityFixture ? { changeDensityReadiness: snapshot.changeDensityReadiness } : {}),
     geometry: {
       viewport: snapshot.document.viewport,
       readiness: readinessFor(snapshot.document, readinessKind),
@@ -2003,6 +3903,14 @@ async function capture({ chrome, profileDir, url, scenario, viewport, outDir, vi
   if (fixture != null && WEATHER_KIND_AREA_FIXTURES.has(fixture)) {
     Object.assign(record, weatherKindAreaReportFields({ fixture, viewport, rotationTick, cardPageTick, phase, allowedDeltaReason, diagnostics, geometry: attentionGeometry }));
     assertWeatherKindAreaRecord(record);
+  }
+  if (changeDensityFixture) {
+    Object.assign(record, changeDensityReportFields({
+      fixture, phase, checkpoint, baselineOid, manifestHash, transportMode, allowedDeltaReason,
+      geometry: attentionGeometry,
+      readiness: record.changeDensityReadiness,
+    }));
+    assertChangeDensityRecord(record);
   }
   assertCaptureRecordSchemaV2(record);
   await writeFile(jsonPath, `${JSON.stringify(record, null, 2)}\n`);
@@ -2353,9 +4261,10 @@ export function normalizeDesignAlignmentUrl(value) {
   return `${url.pathname}${url.search}${url.hash}`;
 }
 
-function designAlignmentUrl(baseUrl, entry) {
+export function designAlignmentUrl(baseUrl, entry) {
   const url = new URL(baseUrl);
   url.searchParams.set("nav", "0");
+  url.searchParams.set("captureTicker", "frozen");
   if (entry.query != null) {
     for (const [key, value] of new URLSearchParams(entry.query)) url.searchParams.set(key, value);
   }
@@ -2371,6 +4280,11 @@ export const DESIGN_ALIGNMENT_REPORT_EXPRESSION = String.raw`(async () => {
   const preview = document.querySelector('main.preview-screen');
   if (root == null || preview == null) return { ready: false, reason: 'standby root missing' };
   const all = (selector, parent = document) => [...parent.querySelectorAll(selector)];
+  const captureTickerFrozen = preview.getAttribute('data-capture-ticker-frozen') === 'true';
+  const tickerLineAnimations = all('.ticker-line', preview).map((line, index) => ({
+    index,
+    animationName: getComputedStyle(line).animationName,
+  }));
   const numeric = (value) => {
     const parsed = Number.parseFloat(value ?? '');
     return Number.isFinite(parsed) ? parsed : null;
@@ -2549,20 +4463,13 @@ export const DESIGN_ALIGNMENT_REPORT_EXPRESSION = String.raw`(async () => {
   })();
   const resolveCustomFontWeight = (context) => {
     if (context == null) return null;
-    const probe = document.createElement('span');
-    probe.style.cssText = 'position:absolute;visibility:hidden;font-weight:var(--num-weight)';
-    context.append(probe);
-    const result = getComputedStyle(probe).fontWeight;
-    probe.remove();
-    return result;
+    const value = context.matches?.('.nu-value') ? context : context.querySelector('.nu-value');
+    if (value != null) return getComputedStyle(value).fontWeight;
+    return getComputedStyle(context).getPropertyValue('--num-weight').trim() || null;
   };
   const resolveRoleMuted = () => {
-    const probe = document.createElement('span');
-    probe.style.cssText = 'position:absolute;visibility:hidden;color:var(--role-muted)';
-    root.append(probe);
-    const result = getComputedStyle(probe).color;
-    probe.remove();
-    return result;
+    const value = getComputedStyle(document.documentElement).getPropertyValue('--role-muted').trim();
+    return value === '' ? null : value;
   };
   const probabilityRole = (role, context, label) => {
     if (context == null) return null;
@@ -2871,9 +4778,82 @@ export const DESIGN_ALIGNMENT_REPORT_EXPRESSION = String.raw`(async () => {
     riderReserveCounts: parsePreviewJson('data-design-alignment-rider-reserve-counts'),
     payloadSignature: parsePreviewJson('data-design-alignment-payload-signature'),
     tokens: { roleMuted: resolveRoleMuted() },
-    briefing, forecast, typhoon, weatherCards, weatherAuto, naturalHeightProbes, pagerContracts, pageFooters, recentQuakes,
+    captureTickerFrozen, tickerLineAnimations, briefing, forecast, typhoon, weatherCards, weatherAuto, naturalHeightProbes, pagerContracts, pageFooters, recentQuakes,
   };
 })()`;
+
+/** Parse the already-recorded stable DOM only after a failed capture. This keeps
+ * diagnostics out of the browser sampling path and cannot publish layout. */
+export function designDomTraceFromHtml(html) {
+  if (typeof html !== "string") return [];
+  const dom = new JSDOM(html);
+  const { document } = dom.window;
+  const selector = (node) => {
+    const segments = [];
+    for (let current = node; current != null; current = current.parentElement) {
+      const tag = current.localName;
+      const siblings = current.parentElement == null
+        ? [current]
+        : [...current.parentElement.children].filter((candidate) => candidate.localName === tag);
+      segments.unshift(`${tag}:nth-of-type(${siblings.indexOf(current) + 1})`);
+    }
+    return segments.join(" > ");
+  };
+  const directText = (node) => {
+    return [...node.childNodes]
+      .filter((child) => child.nodeType === 3)
+      .map((child) => child.nodeValue ?? "")
+      .join(" ")
+      .replace(/\s+/g, " ")
+      .trim();
+  };
+  const trace = [...document.querySelectorAll("*")].map((node) => ({
+    selector: selector(node),
+    attributes: Object.fromEntries([...node.attributes]
+      .map((attribute) => [attribute.name, attribute.value])
+      .sort(([left], [right]) => left < right ? -1 : left > right ? 1 : 0)),
+    text: directText(node),
+  }));
+  dom.window.close();
+  return trace;
+}
+
+export function diffDesignDomTrace(beforeTrace, afterTrace, limit = 32) {
+  const beforeBySelector = new Map((Array.isArray(beforeTrace) ? beforeTrace : [])
+    .filter((entry) => typeof entry?.selector === "string")
+    .map((entry) => [entry.selector, entry]));
+  const afterBySelector = new Map((Array.isArray(afterTrace) ? afterTrace : [])
+    .filter((entry) => typeof entry?.selector === "string")
+    .map((entry) => [entry.selector, entry]));
+  const selectors = [...new Set([...beforeBySelector.keys(), ...afterBySelector.keys()])].sort();
+  const differences = [];
+  const add = (selector, attributeName, beforeValue, afterValue) => {
+    if (differences.length < limit) differences.push({ selector, attributeName, beforeValue, afterValue });
+  };
+  for (const selector of selectors) {
+    const before = beforeBySelector.get(selector) ?? null;
+    const after = afterBySelector.get(selector) ?? null;
+    if (before == null || after == null) {
+      add(selector, "<node>", before == null ? null : "present", after == null ? null : "present");
+      continue;
+    }
+    const beforeAttributes = before.attributes != null && typeof before.attributes === "object" ? before.attributes : {};
+    const afterAttributes = after.attributes != null && typeof after.attributes === "object" ? after.attributes : {};
+    for (const attributeName of [...new Set([...Object.keys(beforeAttributes), ...Object.keys(afterAttributes)])].sort()) {
+      const beforeValue = Object.hasOwn(beforeAttributes, attributeName) ? beforeAttributes[attributeName] : null;
+      const afterValue = Object.hasOwn(afterAttributes, attributeName) ? afterAttributes[attributeName] : null;
+      if (beforeValue !== afterValue) add(selector, attributeName, beforeValue, afterValue);
+    }
+    const beforeText = typeof before.text === "string" ? before.text : "";
+    const afterText = typeof after.text === "string" ? after.text : "";
+    if (beforeText !== afterText) add(selector, "#text", beforeText, afterText);
+  }
+  return differences;
+}
+
+export function diffDesignDomHtml(beforeHtml, afterHtml, limit = 32) {
+  return diffDesignDomTrace(designDomTraceFromHtml(beforeHtml), designDomTraceFromHtml(afterHtml), limit);
+}
 
 export async function collectDesignSnapshot({ evaluate }) {
   return withDocumentEvidence(await evaluate(atomicSnapshotExpression({
@@ -2882,13 +4862,34 @@ export async function collectDesignSnapshot({ evaluate }) {
   })));
 }
 
-export function runDesignCaptureSession({ chrome, profileDir, url, viewport, viewportMode, entry, sessionRunner = runCaptureBrowserSession }) {
-  return sessionRunner({
-    chrome, profileDir, url, requestedViewport: viewport, viewportMode, readinessKind: "standby",
-    virtualTimeBudgetMs: null, sessionRole: "primary", label: `design-alignment ${manifestKey(entry)}`,
-    collectSnapshot: collectDesignSnapshot,
-    stableProjection: captureStableProjection,
-  });
+export async function runDesignCaptureSession({ chrome, profileDir, url, viewport, viewportMode, entry, sessionRunner = runCaptureBrowserSession }) {
+  const observations = [];
+  const collectSnapshot = async (options) => {
+    const snapshot = await collectDesignSnapshot(options);
+    observations.push(snapshot);
+    if (observations.length > 4) observations.shift();
+    return snapshot;
+  };
+  try {
+    return await sessionRunner({
+      chrome, profileDir, url, requestedViewport: viewport, viewportMode, readinessKind: "standby",
+      virtualTimeBudgetMs: null, sessionRole: "primary", label: `design-alignment ${manifestKey(entry)}`,
+      collectSnapshot,
+      stableProjection: captureStableProjection,
+    });
+  } catch (error) {
+    if (!(error instanceof Error) || !error.message.includes("DOM state changed while capturing screenshot")) throw error;
+    const before = observations.at(-2) ?? null;
+    const after = observations.at(-1) ?? null;
+    const differences = diffDesignDomHtml(before?.document?.stableDom, after?.document?.stableDom);
+    const domDiff = differences.length > 0 ? differences : [{
+      selector: "document",
+      attributeName: "stableDomSha256",
+      beforeValue: before?.document?.domSha256 ?? null,
+      afterValue: after?.document?.domSha256 ?? null,
+    }];
+    throw new Error(`${error.message}; domDiff=${JSON.stringify(domDiff)}`, { cause: error });
+  }
 }
 
 async function captureDesignAlignmentPage({ chrome, profileDir, url, viewport, viewportMode, outDir, entry, artifactPrefix = "design-alignment" }) {
@@ -2912,6 +4913,7 @@ async function captureDesignAlignmentPage({ chrome, profileDir, url, viewport, v
     geometry, expectationPolicy: "fixture-assertions-only", mismatches: [],
   };
   assertCaptureRecordSchemaV2(record);
+  assertDesignCaptureTickerFreeze(record);
   return record;
 }
 
@@ -2997,6 +4999,39 @@ function stableJson(value) {
   return JSON.stringify(value);
 }
 
+export function cssColorSignature(value) {
+  if (typeof value !== "string") return null;
+  const normalized = value.trim().toLowerCase();
+  if (normalized === "") return null;
+  const hex = /^#([0-9a-f]{3}|[0-9a-f]{4}|[0-9a-f]{6}|[0-9a-f]{8})$/.exec(normalized)?.[1];
+  if (hex != null) {
+    const expanded = hex.length <= 4 ? [...hex].map((digit) => `${digit}${digit}`).join("") : hex;
+    const channels = [0, 2, 4].map((offset) => Number.parseInt(expanded.slice(offset, offset + 2), 16));
+    const alpha = expanded.length === 8 ? Number.parseInt(expanded.slice(6, 8), 16) / 255 : 1;
+    return `rgba(${channels.join(",")},${Math.round(alpha * 1_000_000) / 1_000_000})`;
+  }
+  const functional = /^rgba?\((.*)\)$/.exec(normalized)?.[1];
+  if (functional != null) {
+    const [channelSource, slashAlpha] = functional.split(/\s*\/\s*/, 2);
+    const tokens = channelSource.includes(",") ? channelSource.split(/\s*,\s*/) : channelSource.trim().split(/\s+/);
+    const alphaSource = slashAlpha ?? (tokens.length === 4 ? tokens.pop() : "1");
+    if (tokens.length === 3) {
+      const channels = tokens.map((token) => token.endsWith("%") ? Number.parseFloat(token) * 2.55 : Number.parseFloat(token));
+      const alpha = alphaSource.endsWith("%") ? Number.parseFloat(alphaSource) / 100 : Number.parseFloat(alphaSource);
+      if ([...channels, alpha].every(Number.isFinite)) {
+        const rounded = channels.map((channel) => Math.round(channel * 1_000_000) / 1_000_000);
+        return `rgba(${rounded.join(",")},${Math.round(alpha * 1_000_000) / 1_000_000})`;
+      }
+    }
+  }
+  return `literal:${normalized}`;
+}
+
+export function sameCssColor(left, right) {
+  const leftSignature = cssColorSignature(left);
+  return leftSignature != null && leftSignature === cssColorSignature(right);
+}
+
 function assertDeepEqual(actual, expected, label) {
   if (stableJson(actual) !== stableJson(expected)) throw new Error(`${label}: expected ${JSON.stringify(expected)}, got ${JSON.stringify(actual)}`);
 }
@@ -3022,6 +5057,65 @@ function designAlignmentCaptureEnvironmentSignature(record, label = record?.mani
     }
   }
   return { browser, fonts: fontSignature, devicePixelRatio };
+}
+
+function createDesignSuiteReportEvidence({ suite, mode, records }) {
+  if (!["baseline", "after"].includes(mode) || !Array.isArray(records) || records.length === 0) {
+    throw new Error(`${suite} report evidence requires baseline|after mode and non-empty records`);
+  }
+  const environmentCells = records.map((record) => ({
+    manifestKey: record.manifestKey ?? manifestKey(record),
+    environment: designAlignmentCaptureEnvironmentSignature(record),
+  }));
+  const browsers = [...new Set(environmentCells.map((cell) => canonicalJsonStringify(cell.environment.browser)))];
+  const rootFamilies = [...new Set(environmentCells.map((cell) => cell.environment.fonts.rootFamily))];
+  if (browsers.length !== 1 || rootFamilies.length !== 1) {
+    throw new Error(`${suite} report environment is not uniform: browsers=${JSON.stringify(browsers)} rootFamilies=${JSON.stringify(rootFamilies)}`);
+  }
+  const reportId = createHash("sha256").update(Buffer.from(canonicalJsonStringify({
+    schemaVersion: CAPTURE_SCHEMA_VERSION,
+    suite,
+    mode,
+    records,
+  }), "utf8")).digest("hex");
+  const environmentIdentity = {
+    algorithm: "sha256",
+    digest: createHash("sha256").update(Buffer.from(canonicalJsonStringify(environmentCells), "utf8")).digest("hex"),
+    cellCount: environmentCells.length,
+    browser: environmentCells[0].environment.browser,
+    rootFamily: rootFamilies[0],
+    devicePixelRatio: 1,
+  };
+  return { reportId, environmentIdentity };
+}
+
+function assertDesignSuiteReportEvidence(report, expectedMode, suite) {
+  if (report == null || report.schemaVersion !== CAPTURE_SCHEMA_VERSION || report.suite !== suite
+    || report.mode !== expectedMode || !Array.isArray(report.records)) {
+    throw new Error(`${suite} ${expectedMode} report identity is invalid`);
+  }
+  const expected = createDesignSuiteReportEvidence({ suite, mode: expectedMode, records: report.records });
+  if (report.reportId !== expected.reportId) {
+    throw new Error(`${suite} ${expectedMode} reportId: expected ${expected.reportId}, got ${report.reportId}`);
+  }
+  assertDeepEqual(report.environmentIdentity, expected.environmentIdentity, `${suite} ${expectedMode} environment identity`);
+  return expected;
+}
+
+export function createDesignAlignmentReportEvidence({ mode, records }) {
+  return createDesignSuiteReportEvidence({ suite: "design-alignment", mode, records });
+}
+
+export function assertDesignAlignmentReportEvidence(report, expectedMode) {
+  return assertDesignSuiteReportEvidence(report, expectedMode, "design-alignment");
+}
+
+export function createChangeDensityDesignAlignmentReportEvidence({ mode, records }) {
+  return createDesignSuiteReportEvidence({ suite: CHANGE_DENSITY_DESIGN_ALIGNMENT_SUITE, mode, records });
+}
+
+export function assertChangeDensityDesignAlignmentReportEvidence(report, expectedMode) {
+  return assertDesignSuiteReportEvidence(report, expectedMode, CHANGE_DENSITY_DESIGN_ALIGNMENT_SUITE);
 }
 
 export function assertDesignAlignmentApprox(actual, expected, tolerance, label) {
@@ -3206,9 +5300,46 @@ export function assertDesignAlignmentBaselineStructure(records) {
   assertBaselineTyphoonCoverage(records);
 }
 
+export function assertDesignCaptureTickerFreeze(record) {
+  const label = record?.manifestKey ?? "design-alignment record";
+  let url;
+  try {
+    url = new URL(record?.urlIdentity ?? "", "https://capture.invalid");
+  } catch {
+    throw new Error(`${label}: design capture URL identity is invalid`);
+  }
+  const captureTickerValues = url.searchParams.getAll("captureTicker");
+  if (captureTickerValues.length !== 1 || captureTickerValues[0] !== "frozen") {
+    throw new Error(`${label}: design capture URL requires captureTicker=frozen`);
+  }
+  const report = record?.geometry;
+  if (report?.captureTickerFrozen !== true) {
+    throw new Error(`${label}: data-capture-ticker-frozen was not observed`);
+  }
+  const animations = report.tickerLineAnimations;
+  if (!Array.isArray(animations)) throw new Error(`${label}: ticker line animation report missing`);
+  const tickerExpected = !Object.hasOwn(DESIGN_ALIGNMENT_WEATHER_AUTO_PROBES, record?.scenario ?? "");
+  if (tickerExpected && animations.length === 0) throw new Error(`${label}: ticker line animation report is empty`);
+  for (let index = 0; index < animations.length; index += 1) {
+    const animation = animations[index];
+    if (animation?.index !== index || animation.animationName !== "none") {
+      throw new Error(`${label}: ticker line ${index} animationName expected none, got ${JSON.stringify(animation)}`);
+    }
+  }
+  return {
+    urlParameter: "frozen",
+    attribute: true,
+    animationNames: animations.map((animation) => animation.animationName),
+  };
+}
+
 function assertRequiredReport(record, { allowLegacyTyphoonNodes = false } = {}) {
   const report = record.geometry;
   if (report == null || report.ready !== true || report.settled !== true) throw new Error(`${record.manifestKey}: font/layout not ready`);
+  // Saved reports pass assertCaptureReport first and therefore always carry
+  // schemaVersion=2. Schema-less records exist only in the in-module geometry
+  // fixture tests and are not an accepted artifact shape.
+  if (record.schemaVersion === CAPTURE_SCHEMA_VERSION) assertDesignCaptureTickerFreeze(record);
   assertDesignAlignmentApprox(report.rootFontSize, 16, 0.1, `${record.manifestKey} root font-size`);
   if (report.viewport.innerWidth !== record.viewport.width || report.viewport.innerHeight !== record.viewport.height || report.viewport.devicePixelRatio !== 1) throw new Error(`${record.manifestKey}: viewport mismatch`);
   if (report.fontSignature != null) designAlignmentCaptureEnvironmentSignature(record);
@@ -3538,7 +5669,7 @@ export function assertDesignAlignmentTyphoonProbability(typhoon, { mode, valueFo
   if (tone == null) throw new Error(`${label}: header missing`);
   if (header === "muted") {
     if (tone.customProperties.container !== "" || tone.customProperties.on !== "" || tone.customProperties.band !== "") throw new Error(`${label}: muted header has semantic custom properties`);
-    if (!tone.className.split(/\s+/).includes("standby-card-header--muted") || tone.background !== "rgba(0, 0, 0, 0)" || tone.color !== tone.roleMuted || tone.bandWidth !== 0) throw new Error(`${label}: muted header rendering mismatch`);
+    if (!tone.className.split(/\s+/).includes("standby-card-header--muted") || tone.background !== "rgba(0, 0, 0, 0)" || !sameCssColor(tone.color, tone.roleMuted) || tone.bandWidth !== 0) throw new Error(`${label}: muted header rendering mismatch`);
   } else if (header === "normal") {
     if ([tone.customProperties.container, tone.customProperties.on, tone.customProperties.band].some((value) => value === "") || tone.background === "rgba(0, 0, 0, 0)") throw new Error(`${label}: VPTW header variables/background missing`);
     assertDesignAlignmentApprox(tone.bandWidth, 4, 0.1, `${label} header band`);
@@ -3716,6 +5847,60 @@ export function buildDesignAlignmentComparison(records, baselineRecords) {
   });
 }
 
+export function changeDensityDesignAlignmentSnapshot(record) {
+  const layout = record?.geometry?.layout;
+  const rotationFailureCount = Number.isFinite(layout?.rotationOmittedCount) ? layout.rotationOmittedCount : null;
+  return {
+    stage: {
+      ladder: Number.isFinite(layout?.ladderStage) ? layout.ladderStage : null,
+      measurementGeometry: Number.isFinite(layout?.measurementGeometryStage) ? layout.measurementGeometryStage : null,
+    },
+    compressed: typeof layout?.compressed === "boolean" ? layout.compressed : null,
+    placement: placementSnapshot(layout),
+    visibleCards: visibleCardSnapshot(layout),
+    rotation: {
+      keys: Array.isArray(layout?.rotationKeys) ? layout.rotationKeys : null,
+      activeKey: typeof layout?.rotationActiveKey === "string" ? layout.rotationActiveKey : null,
+      position: typeof layout?.rotationPosition === "string" ? layout.rotationPosition : null,
+    },
+    typhoonVariant: typeof layout?.typhoonVariant === "string" ? layout.typhoonVariant : null,
+    failureCount: rotationFailureCount,
+    omittedCount: rotationFailureCount,
+    convergence: {
+      settled: typeof record?.geometry?.settled === "boolean" ? record.geometry.settled : null,
+      unresolved: typeof layout?.unresolved === "string" ? layout.unresolved : null,
+      nonconverged: typeof layout?.nonconverged === "string" ? layout.nonconverged : null,
+    },
+    overflow: {
+      cards: Array.isArray(layout?.cardOverflowKeys) ? layout.cardOverflowKeys : null,
+      readable: Array.isArray(layout?.readableOverflowKeys) ? layout.readableOverflowKeys : null,
+    },
+  };
+}
+
+export function assertChangeDensityDesignAlignmentComparison(records, baselineRecords) {
+  assertDesignAlignmentBaselineIdentity(records, baselineRecords);
+  const beforeByKey = new Map(baselineRecords.map((record) => [record.manifestKey, record]));
+  return records.map((afterRecord) => {
+    const beforeRecord = beforeByKey.get(afterRecord.manifestKey);
+    const before = changeDensityDesignAlignmentSnapshot(beforeRecord);
+    const after = changeDensityDesignAlignmentSnapshot(afterRecord);
+    assertDeepEqual(after, before, `${afterRecord.manifestKey}: change-density standby non-regression`);
+    if (before.failureCount != null && before.failureCount !== 0) {
+      throw new Error(`${afterRecord.manifestKey}: change-density baseline failure/omitted count must be 0`);
+    }
+    return {
+      manifestKey: afterRecord.manifestKey,
+      scenario: afterRecord.scenario,
+      viewport: afterRecord.viewport,
+      rotationTick: afterRecord.rotationTick,
+      cardPageTick: afterRecord.cardPageTick,
+      status: "equal",
+      snapshot: after,
+    };
+  });
+}
+
 function assertDesignAlignmentPlanComparison(comparison) {
   for (const [name, stage] of Object.entries(comparison.stages)) {
     if (stage.base == null || stage.after == null || stage.delta !== 0) throw new Error(`${comparison.manifestKey}: base/after ${name} stage must remain unchanged`);
@@ -3847,7 +6032,7 @@ export function assertDesignAlignmentPageFooters(records) {
       assertDesignAlignmentApprox(footer.borderTop, 1, 0.1, `${record.manifestKey}: footer border`);
       assertDesignAlignmentApprox(footer.indicatorFontSize, 12, 0.1, `${record.manifestKey}: indicator font-size`);
       assertDesignAlignmentApprox(footer.indicatorLineHeight, 12, 0.1, `${record.manifestKey}: indicator line-height`);
-      if (footer.indicatorColor !== record.geometry.tokens.roleMuted) throw new Error(`${record.manifestKey}: indicator color is not role-muted`);
+      if (!sameCssColor(footer.indicatorColor, record.geometry.tokens.roleMuted)) throw new Error(`${record.manifestKey}: indicator color is not role-muted`);
       if (footer.indicatorBackground !== "rgba(0, 0, 0, 0)" || footer.background !== "rgba(0, 0, 0, 0)") throw new Error(`${record.manifestKey}: footer/indicator background must be transparent`);
       if (footer.bodyFooterOverlap > 1 || footer.footerRiderOverlap > 1 || footer.indicatorBodyOverlap > 1 || footer.indicatorRiderOverlap > 1) throw new Error(`${record.manifestKey}: footer overlap`);
       if (footer.rider == null) {
@@ -4100,7 +6285,9 @@ export function resolveDesignAlignmentCaptureMode({ writeBaseline, baselineRepor
 
 export function resolveDesignAlignmentExecutionMode({ suite, assertFrom, writeBaseline, baselineReport }) {
   if (assertFrom == null) return "capture";
-  if (!["design-alignment", RECENT_QUAKES_GAP_SUITE].includes(suite)) throw new Error("--assert-from requires --suite design-alignment or recent-quakes-gap");
+  if (!["design-alignment", RECENT_QUAKES_GAP_SUITE, CHANGE_DENSITY_DESIGN_ALIGNMENT_SUITE].includes(suite)) {
+    throw new Error("--assert-from requires a design-alignment comparison suite");
+  }
   if (writeBaseline != null) throw new Error("--assert-from cannot be combined with --write-baseline");
   if (baselineReport == null) throw new Error("--assert-from requires --baseline-report");
   return "assert-from";
@@ -4114,12 +6301,20 @@ export function createRecentQuakesGapRecordsArtifact({ mode, records, baseline }
   return { schemaVersion: CAPTURE_SCHEMA_VERSION, suite: RECENT_QUAKES_GAP_SUITE, mode, records, baseline };
 }
 
+export function createChangeDensityDesignAlignmentRecordsArtifact({ mode, records, baseline }) {
+  return { schemaVersion: CAPTURE_SCHEMA_VERSION, suite: CHANGE_DENSITY_DESIGN_ALIGNMENT_SUITE, mode, records, baseline };
+}
+
 export function isDesignAlignmentScreenshotArtifact(name) {
   return name.startsWith("design-alignment-") && name.endsWith(".png");
 }
 
 export function isRecentQuakesGapScreenshotArtifact(name) {
   return name.startsWith(`${RECENT_QUAKES_GAP_SUITE}-`) && name.endsWith(".png");
+}
+
+export function isChangeDensityDesignAlignmentScreenshotArtifact(name) {
+  return name.startsWith(`${CHANGE_DENSITY_DESIGN_ALIGNMENT_SUITE}-`) && name.endsWith(".png");
 }
 
 async function cleanDesignAlignmentScreenshots(outDir) {
@@ -4133,6 +6328,13 @@ async function cleanRecentQuakesGapScreenshots(outDir) {
   const entries = await readdir(outDir, { withFileTypes: true });
   await Promise.all(entries
     .filter((entry) => entry.isFile() && isRecentQuakesGapScreenshotArtifact(entry.name))
+    .map((entry) => rm(join(outDir, entry.name), { force: true })));
+}
+
+async function cleanChangeDensityDesignAlignmentScreenshots(outDir) {
+  const entries = await readdir(outDir, { withFileTypes: true });
+  await Promise.all(entries
+    .filter((entry) => entry.isFile() && isChangeDensityDesignAlignmentScreenshotArtifact(entry.name))
     .map((entry) => rm(join(outDir, entry.name), { force: true })));
 }
 
@@ -4184,14 +6386,44 @@ export function assertRecentQuakesGapManifest(records, { mode, baseline = null }
   return comparison;
 }
 
+export function assertChangeDensityDesignAlignmentManifest(records, { mode, baseline = null }) {
+  if (mode === "baseline") {
+    assertDesignAlignmentBaselineStructure(records);
+    return null;
+  }
+  if (mode !== "after") throw new Error(`unknown ${CHANGE_DENSITY_DESIGN_ALIGNMENT_SUITE} assertion mode: ${mode}`);
+  if (baseline == null || baseline.suite !== CHANGE_DENSITY_DESIGN_ALIGNMENT_SUITE) {
+    throw new Error(`${CHANGE_DENSITY_DESIGN_ALIGNMENT_SUITE} baseline suite mismatch`);
+  }
+  if (baseline.mode !== "baseline") throw new Error(`${CHANGE_DENSITY_DESIGN_ALIGNMENT_SUITE} baseline mode mismatch`);
+  assertDesignAlignmentBaselineStructure(baseline.records ?? []);
+  assertDesignAlignmentManifestCoverage(records);
+  for (const record of records) assertRequiredReport(record);
+  return assertChangeDensityDesignAlignmentComparison(records, baseline.records);
+}
+
 export function assertDesignAlignmentSavedRecords(saved, baseline) {
   if (saved == null || saved.suite !== "design-alignment" || !Array.isArray(saved.records)) throw new Error("invalid design-alignment records file");
   if (saved.mode != null && saved.mode !== "after") throw new Error("design-alignment records file is not an after capture");
   const viewportMode = saved.records[0]?.capture?.viewportMode;
   assertCaptureReport(saved, { expectSuite: "design-alignment", expectViewportMode: viewportMode });
   assertCaptureReport(baseline, { expectSuite: "design-alignment", expectViewportMode: viewportMode });
+  const afterEvidence = assertDesignAlignmentReportEvidence(saved, "after");
+  const baselineEvidence = assertDesignAlignmentReportEvidence(baseline, "baseline");
+  assertDeepEqual(afterEvidence.environmentIdentity, baselineEvidence.environmentIdentity, "design-alignment base/after environment identity");
   const baseAfterComparison = assertDesignAlignmentManifest(saved.records, { mode: "after", baseline });
-  return { schemaVersion: CAPTURE_SCHEMA_VERSION, suite: "design-alignment", mode: "after", records: saved.records, baseAfterComparison };
+  return {
+    schemaVersion: CAPTURE_SCHEMA_VERSION,
+    suite: "design-alignment",
+    mode: "after",
+    reportId: afterEvidence.reportId,
+    baselineReportId: baselineEvidence.reportId,
+    environmentIdentity: afterEvidence.environmentIdentity,
+    manifestCellCount: baseAfterComparison.length,
+    rotationTickCellCount: baseAfterComparison.filter((cell) => cell.rotationTick != null).length,
+    records: saved.records,
+    baseAfterComparison,
+  };
 }
 
 async function runDesignAlignmentAssertionsFromFile(options) {
@@ -4215,6 +6447,32 @@ export function assertRecentQuakesGapSavedRecords(saved, baseline) {
   return { schemaVersion: CAPTURE_SCHEMA_VERSION, suite: RECENT_QUAKES_GAP_SUITE, mode: "after", records: saved.records, baseAfterComparison };
 }
 
+export function assertChangeDensityDesignAlignmentSavedRecords(saved, baseline) {
+  if (saved == null || saved.suite !== CHANGE_DENSITY_DESIGN_ALIGNMENT_SUITE || !Array.isArray(saved.records)) {
+    throw new Error(`invalid ${CHANGE_DENSITY_DESIGN_ALIGNMENT_SUITE} records file`);
+  }
+  if (saved.mode !== "after") throw new Error(`${CHANGE_DENSITY_DESIGN_ALIGNMENT_SUITE} records file is not an after capture`);
+  const viewportMode = saved.records[0]?.capture?.viewportMode;
+  assertCaptureReport(saved, { expectSuite: CHANGE_DENSITY_DESIGN_ALIGNMENT_SUITE, expectViewportMode: viewportMode, expectMismatches: 0 });
+  assertCaptureReport(baseline, { expectSuite: CHANGE_DENSITY_DESIGN_ALIGNMENT_SUITE, expectViewportMode: viewportMode, expectMismatches: 0 });
+  const afterEvidence = assertChangeDensityDesignAlignmentReportEvidence(saved, "after");
+  const baselineEvidence = assertChangeDensityDesignAlignmentReportEvidence(baseline, "baseline");
+  assertDeepEqual(afterEvidence.environmentIdentity, baselineEvidence.environmentIdentity, `${CHANGE_DENSITY_DESIGN_ALIGNMENT_SUITE} base/after environment identity`);
+  const baseAfterComparison = assertChangeDensityDesignAlignmentManifest(saved.records, { mode: "after", baseline });
+  return {
+    schemaVersion: CAPTURE_SCHEMA_VERSION,
+    suite: CHANGE_DENSITY_DESIGN_ALIGNMENT_SUITE,
+    mode: "after",
+    reportId: afterEvidence.reportId,
+    baselineReportId: baselineEvidence.reportId,
+    environmentIdentity: afterEvidence.environmentIdentity,
+    manifestCellCount: baseAfterComparison.length,
+    rotationTickCellCount: baseAfterComparison.filter((cell) => cell.rotationTick != null).length,
+    records: saved.records,
+    baseAfterComparison,
+  };
+}
+
 async function runRecentQuakesGapAssertionsFromFile(options) {
   const assertFrom = resolve(options.assertFrom);
   const baselineReport = resolve(options.baselineReport);
@@ -4223,6 +6481,17 @@ async function runRecentQuakesGapAssertionsFromFile(options) {
     readFile(baselineReport, "utf8").then(JSON.parse),
   ]);
   const report = { ...assertRecentQuakesGapSavedRecords(saved, baseline), assertFrom, baselineReport };
+  process.stdout.write(`${JSON.stringify(report, null, 2)}\n`);
+}
+
+async function runChangeDensityDesignAlignmentAssertionsFromFile(options) {
+  const assertFrom = resolve(options.assertFrom);
+  const baselineReport = resolve(options.baselineReport);
+  const [saved, baseline] = await Promise.all([
+    readFile(assertFrom, "utf8").then(JSON.parse),
+    readFile(baselineReport, "utf8").then(JSON.parse),
+  ]);
+  const report = { ...assertChangeDensityDesignAlignmentSavedRecords(saved, baseline), assertFrom, baselineReport };
   process.stdout.write(`${JSON.stringify(report, null, 2)}\n`);
 }
 
@@ -4237,11 +6506,25 @@ async function runDesignAlignmentSuite({ options, chrome, profileDir, baseUrl, o
     }));
   }
   const baseline = options.baselineReport == null ? null : JSON.parse(await readFile(options.baselineReport, "utf8"));
-  if (baseline != null) assertCaptureReport(baseline, { expectSuite: "design-alignment", expectViewportMode: viewportMode });
+  if (baseline != null) {
+    assertDesignAlignmentReportEvidence(baseline, "baseline");
+    assertCaptureReport(baseline, { expectSuite: "design-alignment", expectViewportMode: viewportMode });
+  }
   const recordsArtifactPath = join(outDir, "design-alignment-records.json");
-  await writeFile(recordsArtifactPath, `${JSON.stringify(createDesignAlignmentRecordsArtifact({ mode, records, baseline }), null, 2)}\n`);
+  await writeFile(recordsArtifactPath, `${JSON.stringify({
+    ...createDesignAlignmentRecordsArtifact({ mode, records, baseline }),
+    ...createDesignAlignmentReportEvidence({ mode, records }),
+  }, null, 2)}\n`);
   const baseAfterComparison = assertDesignAlignmentManifest(records, { mode, baseline });
-  const report = { schemaVersion: CAPTURE_SCHEMA_VERSION, suite: "design-alignment", mode, recordsArtifactPath, records, ...(baseAfterComparison == null ? {} : { baseAfterComparison }) };
+  const report = {
+    schemaVersion: CAPTURE_SCHEMA_VERSION,
+    suite: "design-alignment",
+    mode,
+    ...createDesignAlignmentReportEvidence({ mode, records }),
+    recordsArtifactPath,
+    records,
+    ...(baseAfterComparison == null ? {} : { baseAfterComparison }),
+  };
   if (options.writeBaseline != null) await writeFile(options.writeBaseline, `${JSON.stringify(report, null, 2)}\n`);
   process.stdout.write(`${JSON.stringify(report, null, 2)}\n`);
 }
@@ -4263,6 +6546,41 @@ async function runRecentQuakesGapSuite({ options, chrome, profileDir, baseUrl, o
   await writeFile(recordsArtifactPath, `${JSON.stringify(createRecentQuakesGapRecordsArtifact({ mode, records, baseline }), null, 2)}\n`);
   const baseAfterComparison = assertRecentQuakesGapManifest(records, { mode, baseline });
   const report = { schemaVersion: CAPTURE_SCHEMA_VERSION, suite: RECENT_QUAKES_GAP_SUITE, mode, recordsArtifactPath, records, ...(baseAfterComparison == null ? {} : { baseAfterComparison }) };
+  if (options.writeBaseline != null) await writeFile(options.writeBaseline, `${JSON.stringify(report, null, 2)}\n`);
+  process.stdout.write(`${JSON.stringify(report, null, 2)}\n`);
+}
+
+async function runChangeDensityDesignAlignmentSuite({ options, chrome, profileDir, baseUrl, outDir, viewportMode }) {
+  const mode = resolveDesignAlignmentCaptureMode(options, CHANGE_DENSITY_DESIGN_ALIGNMENT_SUITE);
+  await cleanChangeDensityDesignAlignmentScreenshots(outDir);
+  const records = [];
+  for (const entry of DESIGN_ALIGNMENT_MANIFEST) {
+    const url = designAlignmentUrl(baseUrl, entry);
+    records.push(await captureDesignAlignmentPage({
+      chrome, profileDir, url, viewport: parseViewport(entry.viewport), viewportMode, outDir, entry,
+      artifactPrefix: CHANGE_DENSITY_DESIGN_ALIGNMENT_SUITE,
+    }));
+  }
+  const baseline = options.baselineReport == null ? null : JSON.parse(await readFile(options.baselineReport, "utf8"));
+  if (baseline != null) {
+    assertChangeDensityDesignAlignmentReportEvidence(baseline, "baseline");
+    assertCaptureReport(baseline, { expectSuite: CHANGE_DENSITY_DESIGN_ALIGNMENT_SUITE, expectViewportMode: viewportMode, expectMismatches: 0 });
+  }
+  const recordsArtifactPath = join(outDir, `${CHANGE_DENSITY_DESIGN_ALIGNMENT_SUITE}-records.json`);
+  await writeFile(recordsArtifactPath, `${JSON.stringify({
+    ...createChangeDensityDesignAlignmentRecordsArtifact({ mode, records, baseline }),
+    ...createChangeDensityDesignAlignmentReportEvidence({ mode, records }),
+  }, null, 2)}\n`);
+  const baseAfterComparison = assertChangeDensityDesignAlignmentManifest(records, { mode, baseline });
+  const report = {
+    schemaVersion: CAPTURE_SCHEMA_VERSION,
+    suite: CHANGE_DENSITY_DESIGN_ALIGNMENT_SUITE,
+    mode,
+    ...createChangeDensityDesignAlignmentReportEvidence({ mode, records }),
+    recordsArtifactPath,
+    records,
+    ...(baseAfterComparison == null ? {} : { baseAfterComparison }),
+  };
   if (options.writeBaseline != null) await writeFile(options.writeBaseline, `${JSON.stringify(report, null, 2)}\n`);
   process.stdout.write(`${JSON.stringify(report, null, 2)}\n`);
 }
@@ -4313,9 +6631,49 @@ async function main() {
     process.stdout.write(`${JSON.stringify({ schemaVersion: CAPTURE_SCHEMA_VERSION, fixture: options.fixture, comparison }, null, 2)}\n`);
     return;
   }
-  if (options.suite != null && !["design-alignment", RECENT_QUAKES_GAP_SUITE, CENTER_STACK_PREGATE_SUITE].includes(options.suite)) throw new Error("unknown suite");
+  if (options.fixture != null && CHANGE_DENSITY_FIXTURES.has(options.fixture) && options.assertFrom != null) {
+    if (options.baselineReport == null) throw new Error("change-density comparison requires --baseline-report");
+    if (options.designBaselineReport == null || options.designAfterReport == null) {
+      densityPreflightMismatch(options, "change-density design-alignment report inputs", {
+        designBaselineReport: options.designBaselineReport,
+        designAfterReport: options.designAfterReport,
+      }, {
+        designBaselineReport: "path",
+        designAfterReport: "path",
+      });
+    }
+    const [afterReport, baseReport, designAfterReport, designBaselineReport] = await Promise.all([
+      options.assertFrom,
+      options.baselineReport,
+      options.designAfterReport,
+      options.designBaselineReport,
+    ].map((path) => readFile(resolve(path), "utf8").then(JSON.parse)));
+    const currentManifestHash = await changeDensityFixtureManifestHash();
+    for (const report of [baseReport, afterReport]) {
+      const record = report?.records?.[0] ?? {};
+      if (record.manifestHash !== currentManifestHash) {
+        densityMismatch(record, "change-density stale fixture manifest", record.manifestHash, currentManifestHash);
+      }
+    }
+    const comparison = assertChangeDensityComparison(baseReport, afterReport);
+    const designAlignmentGate = assertChangeDensityDesignAlignmentGate({
+      baseDensityReport: baseReport,
+      afterDensityReport: afterReport,
+      designBaselineReport,
+      designAfterReport,
+    });
+    process.stdout.write(`${JSON.stringify({
+      schemaVersion: CAPTURE_SCHEMA_VERSION,
+      fixture: options.fixture,
+      comparison,
+      designAlignmentGate,
+    }, null, 2)}\n`);
+    return;
+  }
+  if (options.suite != null && !["design-alignment", RECENT_QUAKES_GAP_SUITE, CHANGE_DENSITY_DESIGN_ALIGNMENT_SUITE, CENTER_STACK_PREGATE_SUITE].includes(options.suite)) throw new Error("unknown suite");
   if (resolveDesignAlignmentExecutionMode(options) === "assert-from") {
     if (options.suite === RECENT_QUAKES_GAP_SUITE) await runRecentQuakesGapAssertionsFromFile(options);
+    else if (options.suite === CHANGE_DENSITY_DESIGN_ALIGNMENT_SUITE) await runChangeDensityDesignAlignmentAssertionsFromFile(options);
     else await runDesignAlignmentAssertionsFromFile(options);
     return;
   }
@@ -4332,19 +6690,40 @@ async function main() {
     "briefing-single-page": { scenario: "4", viewport: "1280x720" },
     "weather-kind-area": { scenario: "4", viewports: ["1920x1080", "1280x720"] },
     "weather-kind-area-footer-boundary": { scenario: "4", viewports: ["1920x1080", "1280x720"] },
+    "vpws50-change-density-normal": { scenario: "4", viewports: ["1920x1080", "1280x720"] },
+    "vpws50-change-density-mixed": { scenario: "4", viewports: ["1920x1080", "1280x720"] },
   };
   const fixtureDefault = options.fixture == null ? null : fixtureDefaults[options.fixture] ?? null;
   const scenarios = options.scenarios.length === 0
     ? fixtureDefault?.scenario != null ? [fixtureDefault.scenario] : DEFAULT_SCENARIOS
     : options.scenarios;
   if (scenarios.some((scenario) => !SUPPORTED_SCENARIOS.includes(scenario))) throw new Error("scenario must be quiet, 4, 7, max, or max-floodWide");
-  if (options.fixture != null && !["overflow", "rotation", "cluster", "cluster-calm", "tornado-pages", "tornado-aggregate", "tornado-clip", "tornado-epoch-release", "recent-quakes-narrow", "attention-visibility-standby", "attention-visibility-emergency", "attention-visibility-reduced-motion", "briefing-pages", "briefing-single-page", "weather-kind-area", "weather-kind-area-footer-boundary"].includes(options.fixture)) throw new Error("unknown fixture");
+  if (options.fixture != null && !["overflow", "rotation", "cluster", "cluster-calm", "tornado-pages", "tornado-aggregate", "tornado-clip", "tornado-epoch-release", "recent-quakes-narrow", "attention-visibility-standby", "attention-visibility-emergency", "attention-visibility-reduced-motion", "briefing-pages", "briefing-single-page", "weather-kind-area", "weather-kind-area-footer-boundary", "vpws50-change-density-normal", "vpws50-change-density-mixed"].includes(options.fixture)) throw new Error("unknown fixture");
   if (options.fixture != null && WEATHER_KIND_AREA_FIXTURES.has(options.fixture) && options.phase == null) throw new Error("weather fixture requires --phase base or after");
+  if (options.fixture != null && CHANGE_DENSITY_FIXTURES.has(options.fixture)) {
+    if (options.phase == null || options.checkpoint == null || options.baselineOid == null || options.manifestHash == null) throw new Error("change-density fixture requires --phase, --checkpoint, --baseline-oid, and --manifest-hash");
+    if (options.transportMode !== "all") densityPreflightMismatch(options, "change-density transport matrix", options.transportMode, "all");
+    if (options.viewportModeExplicit && options.viewportMode !== "calibrated") densityPreflightMismatch(options, "change-density viewport mode", options.viewportMode, "calibrated");
+    const expectedCheckpoint = options.phase === "base" ? "kind-area-after" : "change-density-after";
+    if (options.checkpoint !== expectedCheckpoint) {
+      densityPreflightMismatch(options, "change-density phase/checkpoint", [options.phase, options.checkpoint], [options.phase, expectedCheckpoint]);
+    }
+    if (options.baselineOid !== CHANGE_DENSITY_BASELINE_OID) {
+      densityPreflightMismatch(options, "change-density baseline OID", options.baselineOid, CHANGE_DENSITY_BASELINE_OID);
+    }
+    const fixtureManifestHash = await changeDensityFixtureManifestHash();
+    if (options.manifestHash !== fixtureManifestHash) {
+      densityPreflightMismatch(options, "change-density fixture manifest", options.manifestHash, fixtureManifestHash);
+    }
+  }
   if (options.fixture === "cluster-calm" && (scenarios.length !== 1 || scenarios[0] !== "4")) throw new Error("cluster-calm fixture requires --scenario 4: quiet has no fixed cluster to reduce");
   const requestedViewports = options.viewports.length === 0 ? null : options.viewports.map(parseViewport);
-  if (options.fixture != null && WEATHER_KIND_AREA_FIXTURES.has(options.fixture) && requestedViewports != null) {
+  if (options.fixture != null && (WEATHER_KIND_AREA_FIXTURES.has(options.fixture) || CHANGE_DENSITY_FIXTURES.has(options.fixture)) && requestedViewports != null) {
     const labels = [...new Set(requestedViewports.map((viewport) => viewport.label))].sort();
-    if (canonicalJsonStringify(labels) !== canonicalJsonStringify(["1280x720", "1920x1080"])) throw new Error("weather fixture requires exactly --viewport 1920x1080 and --viewport 1280x720");
+    if (canonicalJsonStringify(labels) !== canonicalJsonStringify(["1280x720", "1920x1080"])) {
+      if (CHANGE_DENSITY_FIXTURES.has(options.fixture)) densityPreflightMismatch(options, "change-density viewport matrix", labels, ["1280x720", "1920x1080"]);
+      throw new Error("weather fixture requires exactly --viewport 1920x1080 and --viewport 1280x720");
+    }
   }
   const outDir = resolve(options.outDir ?? join(DISPLAY_DIR, "artifacts", "legacy-standby"));
   await mkdir(outDir, { recursive: true });
@@ -4362,6 +6741,10 @@ async function main() {
       await runRecentQuakesGapSuite({ options, chrome, profileDir, baseUrl, outDir, viewportMode });
       return;
     }
+    if (options.suite === CHANGE_DENSITY_DESIGN_ALIGNMENT_SUITE) {
+      await runChangeDensityDesignAlignmentSuite({ options, chrome, profileDir, baseUrl, outDir, viewportMode });
+      return;
+    }
     if (options.suite === CENTER_STACK_PREGATE_SUITE) {
       await runCenterStackPregateSuite({ options, chrome, profileDir, baseUrl, outDir });
       return;
@@ -4376,12 +6759,35 @@ async function main() {
       const viewports = viewportLabels.map(parseViewport);
       for (const viewport of viewports) {
         const weatherFixture = options.fixture != null && WEATHER_KIND_AREA_FIXTURES.has(options.fixture);
+        const densityTransportModes = options.fixture != null && CHANGE_DENSITY_FIXTURES.has(options.fixture)
+          ? CHANGE_DENSITY_TRANSPORT_MODES
+          : [options.transportMode];
+        for (const activeTransportMode of densityTransportModes) {
         const initialCardPageTick = options.fixture === "briefing-pages" || options.fixture === "briefing-single-page" || weatherFixture ? 0 : null;
-        const captureCell = (rotationTick, cardPageTick = null, fixture = options.fixture) => capture({
-          chrome, profileDir, url: gateUrl(baseUrl, scenario, rotationTick, fixture, cardPageTick), scenario, viewport, outDir,
-          viewportMode, rotationTick, cardPageTick, assertTable: !options.report, fixture,
-          phase: options.phase, allowedDeltaReason: options.allowedDeltaReason,
-        });
+        const captureCell = async (rotationTick, cardPageTick = null, fixture = options.fixture) => {
+          try {
+            return await capture({
+              chrome, profileDir, url: gateUrl(baseUrl, scenario, rotationTick, fixture, cardPageTick, activeTransportMode), scenario, viewport, outDir,
+              viewportMode, rotationTick, cardPageTick, assertTable: !options.report, fixture,
+              phase: options.phase, allowedDeltaReason: options.allowedDeltaReason,
+              checkpoint: options.checkpoint, baselineOid: options.baselineOid, manifestHash: options.manifestHash,
+              transportMode: activeTransportMode,
+            });
+          } catch (error) {
+            const message = error instanceof Error ? error.message : String(error);
+            if (fixture == null || !CHANGE_DENSITY_FIXTURES.has(fixture)
+              || (message.includes("actual=") && message.includes("expected=") && message.includes("context="))) throw error;
+            const context = {
+              viewport: viewport.label, width: viewport.width,
+              compact: fixture === "vpws50-change-density-mixed",
+              budgetB: null, budgetBq: null, reserveHeight: null, selectedN: null,
+              footerMode: "none", layoutMode: fixture === "vpws50-change-density-mixed" ? "compact" : "normal",
+              cacheKey: null, generation: "synthetic-vpws50-change-density:2",
+              phase: options.phase, transportMode: activeTransportMode, stage: null, rotationMembers: [],
+            };
+            throw new Error(`change-density capture: actual=${JSON.stringify(message)} expected="successful capture" context=${JSON.stringify(context)}`, { cause: error });
+          }
+        };
         const first = await captureCell(0, initialCardPageTick);
         results.push(first);
         const weatherPageCount = (record) => {
@@ -4410,13 +6816,25 @@ async function main() {
             if (weatherFixture) for (let pageTick = 1; pageTick < weatherPageCount(rotated); pageTick += 1) results.push(await captureCell(rotationTick, pageTick));
           }
         }
+        }
       }
     }
     const weatherFixture = options.fixture != null && WEATHER_KIND_AREA_FIXTURES.has(options.fixture);
+    const changeDensityFixture = options.fixture != null && CHANGE_DENSITY_FIXTURES.has(options.fixture);
+    const densityReport = (() => {
+      const draft = { schemaVersion: CAPTURE_SCHEMA_VERSION, suite: "vpws50-change-density", outDir, records: results };
+      return {
+        ...draft,
+        reportId: createHash("sha256").update(Buffer.from(canonicalJsonStringify(results), "utf8")).digest("hex"),
+      };
+    })();
     const { report, exitCode } = weatherFixture
       ? { report: { schemaVersion: CAPTURE_SCHEMA_VERSION, suite: "weather-kind-area", outDir, records: results }, exitCode: 0 }
+      : changeDensityFixture
+        ? { report: densityReport, exitCode: 0 }
       : createStandardReportResult({ results, reportMode: options.report, outDir });
     if (weatherFixture) assertWeatherKindAreaReport(report);
+    if (changeDensityFixture) assertChangeDensityReport(report);
     if (options.writeReport != null) {
       const writeReportPath = resolve(options.writeReport);
       await mkdir(dirname(writeReportPath), { recursive: true });

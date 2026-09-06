@@ -1,8 +1,18 @@
 import { testTelegramMeta } from "../../helpers/telegram-meta";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { describe, it, expect } from "vitest";
+import { parseWeatherWarning } from "../../../src/dmdata/weather-parser";
+import { __phenomenonKey_internals, kindCodeToPhenomenonKey } from "../../../src/dmdata/weather-phenomenon-key";
 import { Vpws50StateHolder } from "../../../src/engine/messages/vpws50-state";
+import { createMockWsDataMessageFromXml } from "../../helpers/mock-message";
 import { classifyWeatherPromotion } from "../../../src/engine/display/weather-promotion";
-import { computeMaxDisplaySeverity, computeMaxSoundLevel } from "../../../src/dmdata/weather-warning-level";
+import {
+  computeMaxDisplaySeverity,
+  computeMaxSoundLevel,
+  resolveDisplaySeverity,
+  resolvePhenomenonFamily,
+} from "../../../src/dmdata/weather-warning-level";
 import type { ParsedWeatherWarning, WeatherItem, WeatherKind } from "../../../src/types";
 
 function makeKind(code: string, severity: WeatherKind["severity"], name?: string): WeatherKind {
@@ -121,5 +131,60 @@ describe("Vpws50StateHolder.getCurrentAreasForDisplay", () => {
       { areaName: "市町村B", areaCode: "120002" },
     ]);
     expect(classifyWeatherPromotion(state.getCurrentAreasForDisplay(), "vpws50")?.level).toBe(4);
+  });
+
+  it("change-density synthetic raw pair は五区分・13表示変更を parser から生成する", () => {
+    const fixture = (name: string) => readFileSync(join(
+      __dirname,
+      "..",
+      "..",
+      "fixtures",
+      "weather-alert-kind-area",
+      name,
+    ), "utf8");
+    const before = parseWeatherWarning(createMockWsDataMessageFromXml(
+      fixture("synthetic-vpws50-change-density-before.xml"),
+      "VPWS50",
+    ));
+    const after = parseWeatherWarning(createMockWsDataMessageFromXml(
+      fixture("synthetic-vpws50-change-density-after.xml"),
+      "VPWS50",
+    ));
+    expect(before).not.toBeNull();
+    expect(after).not.toBeNull();
+    const state = new Vpws50StateHolder();
+    state.diffAndUpdate(before!, "change-density-before");
+    const { displayDiff } = state.diffAndUpdateWithDisplay(
+      after!,
+      "change-density-after",
+      { reportDateTime: "2026-09-06T12:01:00+09:00", serial: "2" },
+    );
+    expect(displayDiff).not.toBeNull();
+    const count = (kind: keyof NonNullable<typeof displayDiff>) =>
+      displayDiff![kind].reduce((sum, area) => sum + area.changes.length, 0);
+    expect({
+      upgraded: count("upgraded"),
+      added: count("added"),
+      kindChanged: count("kindChanged"),
+      downgraded: count("downgraded"),
+      released: count("released"),
+    }).toEqual({ upgraded: 4, added: 3, kindChanged: 2, downgraded: 2, released: 2 });
+    expect(Object.values(displayDiff!).flat().some((area) => area.areaCode === "9990100")).toBe(false);
+  });
+
+  it("既知 code の同一 phenomenon 内に同一 display severity の別 code 対は存在しない", () => {
+    const codesByPhenomenon = new Map<string, string[]>();
+    for (const [code, phenomenon] of Object.entries(__phenomenonKey_internals.KIND_CODE_TO_PHENOMENON)) {
+      codesByPhenomenon.set(phenomenon, [...(codesByPhenomenon.get(phenomenon) ?? []), code]);
+    }
+    for (const codes of codesByPhenomenon.values()) {
+      const severities = codes.map((code) => resolveDisplaySeverity(
+        code,
+        "synthetic",
+        resolvePhenomenonFamily(code, "synthetic"),
+      ).displaySeverity);
+      expect(new Set(severities).size).toBe(codes.length);
+    }
+    expect(kindCodeToPhenomenonKey("98")).not.toBe(kindCodeToPhenomenonKey("99"));
   });
 });

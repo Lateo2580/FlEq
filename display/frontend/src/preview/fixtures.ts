@@ -1,6 +1,6 @@
 // デザイン目視ゲート用フィクスチャ。SSE 接続を使わず、現実的な日本語コンテンツで
 // 各画面パターンを再現する。protocol.ts の型に厳密準拠する (any 禁止)。
-import type { WeatherEmergencyInputV1 } from "../lib/weather-panel";
+import { selectWeatherChangeItems, type WeatherEmergencyInputV1 } from "../lib/weather-panel";
 import { resolveWeatherKindKeys } from "../lib/weather-expanded-kinds";
 import {
   DISPLAY_PROTOCOL_VERSION,
@@ -24,6 +24,7 @@ import {
   type DisplayWeatherAlertItemV1,
   type DisplayWeatherAlertV1,
   type DisplayWeatherExpandedKindV1,
+  type DisplayWeatherChangeItemV1,
 } from "../lib/protocol";
 
 const NOW_ISO = "2026-07-07T14:32:00+09:00";
@@ -2596,6 +2597,94 @@ export const weatherEmergencyInput: WeatherEmergencyInputV1 = {
     },
   ],
 };
+
+const CHANGE_DENSITY_KINDS = [
+  ["upgraded", "秋田県秋田市", "0520100", "大雨", ["大雨", "10", "officialL2", 2], ["大雨", "03", "officialL3", 3]],
+  ["upgraded", "富山県富山市", "1620100", "高潮", ["高潮", "19", "officialL2", 2], ["高潮", "08", "officialL3", 3]],
+  ["upgraded", "鹿児島県奄美市名瀬の長い地域名称", "4622200", "土砂災害", ["土砂災害", "29", "officialL2", 2], ["土砂災害", "09", "officialL3", 3]],
+  ["upgraded", "北海道稚内市", "0121400", "大雨", ["大雨", "03", "officialL3", 3], ["大雨", "43", "officialL4", 4]],
+  ["added", "青森県青森市", "0220100", "洪水", null, ["洪水", "04", "nonLevelWarning", null]],
+  ["added", "岩手県盛岡市", "0320100", "暴風", null, ["暴風", "05", "nonLevelWarning", null]],
+  ["added", "宮城県仙台市", "0410000", "波浪", null, ["波浪", "07", "nonLevelWarning", null]],
+  ["kindChanged", "山形県山形市", "0620100", "大雨", ["大雨", "03", "officialL3", 3], ["大雨危険情報", "03", "officialL3", 3]],
+  ["kindChanged", "福島県福島市", "0720100", "洪水", ["洪水", "04", "nonLevelWarning", null], ["洪水危険情報", "04", "nonLevelWarning", null]],
+  ["downgraded", "新潟県新潟市", "1510000", "大雨", ["大雨", "33", "officialL5", 5], ["大雨", "43", "officialL4", 4]],
+  ["downgraded", "石川県金沢市", "1720100", "高潮", ["高潮", "38", "officialL5", 5], ["高潮", "08", "officialL3", 3]],
+  ["released", "福井県福井市", "1820100", "大雪", ["大雪", "06", "nonLevelWarning", null], null],
+  ["released", "長野県長野市", "2020100", "暴風雪", ["暴風雪", "02", "nonLevelWarning", null], null],
+] as const;
+
+const changeDensityItems: DisplayWeatherChangeItemV1[] = CHANGE_DENSITY_KINDS.map(([
+  kind, areaName, areaCode, phenomenonKey, before, after,
+]) => ({
+  areaCode,
+  areaName,
+  phenomenonKey,
+  kind,
+  before: before == null ? null : {
+    kindShortName: before[0],
+    kindCode: before[1],
+    displaySeverity: before[2],
+    officialAlertLevel: before[3],
+  },
+  after: after == null ? null : {
+    kindShortName: after[0],
+    kindCode: after[1],
+    displaySeverity: after[2],
+    officialAlertLevel: after[3],
+  },
+}));
+
+/** VPWS50 change-density capture 専用。現行 engine が生成できる表示変更 13件。 */
+export const weatherChangeDensityInput: WeatherEmergencyInputV1 = {
+  ...weatherEmergencyInput,
+  level: 4,
+  generation: "synthetic-vpws50-change-density:2",
+  activationKey: "synthetic-vpws50-change-density:2",
+  firstPageRowKey: "vpws50:change-density:rain",
+  items: [{
+    key: "vpws50:change-density:rain", source: "vpws50", kind: "L4 大雨警報", level: 4,
+    shownAreas: ["秋田県秋田市", "富山県富山市", "鹿児島県奄美市"],
+    shownAreaCodes: ["0520100", "1620100", "4622200"],
+    omittedAreaCount: 0,
+    addedAreas: ["富山県富山市"],
+    addedAreaCodes: ["1620100"],
+  }],
+  change: {
+    source: "vpws50",
+    changeKey: "synthetic-vpws50-change-density:2",
+    reportDateTime: "2026-09-06T10:01:00+09:00",
+    issuedAt: "2026-09-06T01:01:00.000Z",
+    expiresAt: "2099-09-06T01:02:00.000Z",
+    changes: changeDensityItems,
+    omitted: {},
+  },
+};
+
+export type WeatherChangeDensityTransportMode = "full" | "degraded-12" | "degraded-4" | "degraded-2" | "null";
+
+/** capture の wire 段を report 上だけでなく実際の入力 DTO に反映する。 */
+export function weatherChangeDensityInputForTransport(
+  mode: WeatherChangeDensityTransportMode,
+): WeatherEmergencyInputV1 {
+  if (mode === "null") return { ...weatherChangeDensityInput, change: null };
+  const limit = mode === "full" ? 13 : mode === "degraded-12" ? 12 : mode === "degraded-4" ? 4 : 2;
+  const selection = selectWeatherChangeItems(weatherChangeDensityInput.change, limit);
+  return {
+    ...weatherChangeDensityInput,
+    change: weatherChangeDensityInput.change == null ? null : {
+      ...weatherChangeDensityInput.change,
+      changes: selection.items,
+      omitted: {
+        upgraded: selection.totals.upgraded - selection.displayed.upgraded,
+        added: selection.totals.added - selection.displayed.added,
+        kindChanged: selection.totals.kindChanged - selection.displayed.kindChanged,
+        downgraded: selection.totals.downgraded - selection.displayed.downgraded,
+        released: selection.totals.released - selection.displayed.released,
+      },
+    },
+  };
+}
 
 /** 復元直後など、engine は昇格中だがフロントがまだ item を組めていない窓 (同期中表示の確認用) */
 export const weatherSyncingInput: WeatherEmergencyInputV1 = {

@@ -75,8 +75,9 @@ export const WEATHER_PAGE_ROW_CAPACITY = 4;
 export const WEATHER_ROW_AREA_MAX = 12;
 /** compact スロット (狭い右列) での地域名上限の fallback */
 export const WEATHER_ROW_AREA_MAX_COMPACT = 6;
-export const WEATHER_CHANGE_ROW_CAPACITY = 4;
-export const WEATHER_CHANGE_ROW_CAPACITY_COMPACT = 2;
+/** frontend fit 探索の候補上限。wire の縮退段とは別の表示上限。 */
+export const WEATHER_CHANGE_ROW_CAPACITY = 12;
+export const WEATHER_CHANGE_ROW_CAPACITY_COMPACT = 4;
 
 export function weatherChangeFadeDuration(reducedMotion: boolean): number {
   return reducedMotion ? 0 : SPRING_EFFECTS_DEFAULT_MS;
@@ -704,7 +705,7 @@ export function selectSubKinds(
   return { kinds: shown, hiddenKindCount: hidden.size };
 }
 
-const WEATHER_CHANGE_KIND_ORDER: readonly DisplayWeatherChangeKindV1[] = [
+export const WEATHER_CHANGE_KIND_ORDER: readonly DisplayWeatherChangeKindV1[] = [
   "upgraded",
   "added",
   "kindChanged",
@@ -726,6 +727,39 @@ export interface WeatherChangeSelectionV1 {
   totals: Record<DisplayWeatherChangeKindV1, number>;
   displayed: Record<DisplayWeatherChangeKindV1, number>;
 }
+
+export interface WeatherChangeReserveFingerprintInputV1 {
+  level: DisplayWeatherPromotionLevelV1;
+  headingLabel: string;
+  triggerLabel: string | null;
+  updatedAt: string | null;
+  restored: boolean;
+  compact: boolean;
+  actionMode: "inline" | "tile";
+  actionLabel: string;
+  alertNames: readonly string[];
+  subSectionPresent: boolean;
+  subKinds: readonly string[];
+  subAddedKinds: readonly string[];
+  subAddedCount: number;
+  hiddenSubKindCount: number;
+  baseContentFingerprint: string;
+}
+
+export interface WeatherChangeGroupV1 {
+  kind: DisplayWeatherChangeKindV1;
+  label: string;
+  total: number;
+  items: DisplayWeatherChangeItemV1[];
+}
+
+const WEATHER_CHANGE_KIND_LABELS: Record<DisplayWeatherChangeKindV1, string> = {
+  upgraded: "悪化",
+  added: "追加",
+  kindChanged: "種別変更",
+  downgraded: "緩和",
+  released: "解除",
+};
 
 /** wire と UI の双方の縮退で、カテゴリ代表枠を予約して内容の消失を明示する。 */
 export function selectWeatherChangeItems(
@@ -774,6 +808,68 @@ export function selectWeatherChangeItems(
   return { items, totals, displayed };
 }
 
+/** change 外側の同型 reserve shell を構成する可変内容を、全て identity に含める。 */
+export function weatherChangeReserveFingerprint(
+  input: WeatherChangeReserveFingerprintInputV1,
+): string {
+  return JSON.stringify(["weather-change-reserve-v2", input]);
+}
+
+function weatherChangeValueFingerprint(
+  value: DisplayWeatherChangeItemV1["before"],
+): readonly [string, string, string, number | null] | null {
+  if (value == null) return null;
+  return [
+    value.kindShortName,
+    value.kindCode,
+    value.displaySeverity,
+    value.officialAlertLevel ?? null,
+  ];
+}
+
+/** chip/group/tail の描画に関与する全論理値を cache identity へ直列化する。 */
+export function weatherChangeLogicalFingerprint(
+  change: DisplayWeatherChangeV1 | null | undefined,
+  selection: WeatherChangeSelectionV1,
+): string {
+  return JSON.stringify([
+    "weather-change-logical-v2",
+    change?.source ?? null,
+    change?.changeKey ?? null,
+    WEATHER_CHANGE_KIND_ORDER.map((kind) => [kind, selection.totals[kind]]),
+    selection.items.map((item) => [
+      item.areaName,
+      item.areaCode,
+      item.phenomenonKey,
+      item.kind,
+      weatherChangeValueFingerprint(item.before),
+      weatherChangeValueFingerprint(item.after),
+    ]),
+  ]);
+}
+
+/** 0 件区分を除き、表示順を固定した group projection を返す。 */
+export function groupWeatherChangeItems(
+  selection: WeatherChangeSelectionV1,
+): WeatherChangeGroupV1[] {
+  return WEATHER_CHANGE_KIND_ORDER
+    .filter((kind) => selection.displayed[kind] > 0)
+    .map((kind) => ({
+      kind,
+      label: WEATHER_CHANGE_KIND_LABELS[kind],
+      total: selection.totals[kind],
+      items: selection.items.filter((item) => item.kind === kind),
+    }));
+}
+
+export function weatherChangeLogicalTotal(selection: WeatherChangeSelectionV1): number {
+  return WEATHER_CHANGE_KIND_ORDER.reduce((sum, kind) => sum + selection.totals[kind], 0);
+}
+
+export function weatherChangeOmittedCount(selection: WeatherChangeSelectionV1): number {
+  return Math.max(0, weatherChangeLogicalTotal(selection) - selection.items.length);
+}
+
 export function weatherChangeValueLabel(
   value: DisplayWeatherChangeItemV1["before"],
 ): string {
@@ -792,26 +888,60 @@ export function weatherChangeValueLabel(
 export function weatherChangeRowText(item: DisplayWeatherChangeItemV1): string {
   const before = weatherChangeValueLabel(item.before);
   const after = weatherChangeValueLabel(item.after);
-  if (item.kind === "added") return `${item.areaName} — 追加: ${after}`;
-  if (item.kind === "released") return `${item.areaName} — 解除: ${before}`;
-  return `${item.areaName} — 種別: ${before} → ${after}`;
+  if (item.kind === "added") return `${item.areaName}　${after}`;
+  if (item.kind === "released") return `${item.areaName}　${before}`;
+  return `${item.areaName}　${before} → ${after}`;
 }
 
-/** wire 縮退・normal/compact の UI 縮退で落ちた件数をカテゴリ別に明示する。 */
+/** chip の有無に依存せず、受信した五区分の論理総数を常に text で残す。 */
 export function weatherChangeSummary(selection: WeatherChangeSelectionV1): string {
-  const labels: Record<DisplayWeatherChangeKindV1, string> = {
-    upgraded: "悪化",
-    added: "追加",
-    kindChanged: "種別変更",
-    downgraded: "緩和",
-    released: "解除",
-  };
-  const omitted = WEATHER_CHANGE_KIND_ORDER
-    .filter((kind) => selection.totals[kind] > selection.displayed[kind])
-    .map((kind) => `${labels[kind]} ${selection.totals[kind]}件（表示 ${selection.displayed[kind]}件）`);
-  return omitted.length > 0
-    ? omitted.join("・")
-    : `変更 ${selection.items.length}件`;
+  return WEATHER_CHANGE_KIND_ORDER
+    .filter((kind) => selection.totals[kind] > 0)
+    .map((kind) => `${WEATHER_CHANGE_KIND_LABELS[kind]} ${selection.totals[kind]}件`)
+    .join("・");
+}
+
+export interface WeatherChangeFitInputV1 {
+  budget: number | null;
+  candidateHeights: ReadonlyMap<number, number>;
+  limit: number;
+}
+
+/** 同一 batch の border-box 実高から、budget 内に収まる最大候補を選ぶ。 */
+export function selectWeatherChangeFitCandidate({
+  budget,
+  candidateHeights,
+  limit,
+}: WeatherChangeFitInputV1): { selected: number; unresolved: boolean } | null {
+  if (budget == null || !Number.isFinite(budget)) return null;
+  if (budget < 0) return { selected: 0, unresolved: true };
+  const upper = Math.max(0, Math.floor(limit));
+  for (let candidate = upper; candidate >= 0; candidate -= 1) {
+    const height = candidateHeights.get(candidate);
+    if (height == null || !Number.isFinite(height) || height <= 0) return null;
+    if (height <= budget) return { selected: candidate, unresolved: false };
+  }
+  return { selected: 0, unresolved: true };
+}
+
+export interface WeatherChangeMeasurementIdentityInputV1 {
+  changeKey: string;
+  activationKey: string;
+  compact: boolean;
+  panelWidth: number;
+  panelHeight: number;
+  budget: number;
+  reserveHeight: number;
+  reserveFingerprint: string;
+  changeFingerprint: string;
+  fontEpoch: number;
+  settlingEpoch: number;
+}
+
+export function weatherChangeMeasurementIdentity(
+  input: WeatherChangeMeasurementIdentityInputV1,
+): string {
+  return JSON.stringify(["weather-change-fit-v1", input]);
 }
 
 function isWeatherChangeKind(value: unknown): value is DisplayWeatherChangeKindV1 {

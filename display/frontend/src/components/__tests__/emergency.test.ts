@@ -1,5 +1,6 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
+import { pathToFileURL } from "node:url";
 import { describe, it, expect, vi } from "vitest";
 import { render, screen } from "@testing-library/svelte";
 import { flushSync, tick } from "svelte";
@@ -26,6 +27,10 @@ function settleFade(): void {
 }
 
 interface WeatherGeometryOptions {
+  panelWidth?: number;
+  panelHeight?: number;
+  reserveHeight?: number;
+  changeCandidateHeight?: (candidate: number) => number;
   frameWidth?: number;
   frameHeight?: number;
   bodyWidth?: number;
@@ -33,6 +38,8 @@ interface WeatherGeometryOptions {
   areaWidth?: number;
   fontSize?: number;
   measureFragments?: boolean;
+  measureChangeCandidates?: boolean;
+  notifyInitialResize?: boolean;
   rowHeight?: (row: Element) => number;
 }
 
@@ -41,13 +48,17 @@ function installWeatherGeometry(options: WeatherGeometryOptions = {}) {
   const originalResizeObserver = globalThis.ResizeObserver;
   const originalRect = Element.prototype.getBoundingClientRect;
   const originalComputedStyle = window.getComputedStyle;
+  let panelWidth = options.panelWidth ?? 1_000;
+  let panelHeight = options.panelHeight ?? 800;
+  const reserveHeight = options.reserveHeight ?? 500;
   const frameWidth = options.frameWidth ?? 800;
   const frameHeight = options.frameHeight ?? 260;
   const bodyWidth = options.bodyWidth ?? 600;
-  const bodyHeight = options.bodyHeight ?? 120;
+  let bodyHeight = options.bodyHeight ?? 120;
   const areaWidth = options.areaWidth ?? 480;
   const fontSize = options.fontSize ?? 20;
   let measureFragments = options.measureFragments ?? true;
+  let measureChangeCandidates = options.measureChangeCandidates ?? true;
   const observed: Array<{
     target: Element;
     observer: GeometryResizeObserver;
@@ -56,7 +67,19 @@ function installWeatherGeometry(options: WeatherGeometryOptions = {}) {
   const rectOf = (element: Element): DOMRect => {
     let width = 0;
     let height = 0;
-    if (element.classList.contains("tile-where")) {
+    if (element.classList.contains("weather-panel")) {
+      width = panelWidth;
+      height = panelHeight;
+    } else if (element.classList.contains("change-reserve-shell")) {
+      width = panelWidth;
+      height = reserveHeight;
+    } else if (element.classList.contains("change-candidate")) {
+      const candidate = Number((element as HTMLElement).dataset.changeCandidate ?? 0);
+      width = panelWidth;
+      height = measureChangeCandidates
+        ? (options.changeCandidateHeight?.(candidate) ?? 80 + candidate * 20)
+        : 0;
+    } else if (element.classList.contains("tile-where")) {
       width = frameWidth;
       height = frameHeight;
     } else if (element.classList.contains("where-body")) {
@@ -116,7 +139,7 @@ function installWeatherGeometry(options: WeatherGeometryOptions = {}) {
       }
       observed.push({ target, observer: this });
       // 実ブラウザ同様、observe() の呼出しスタックを抜けてから callback を届ける。
-      queueMicrotask(() => this.notify(target));
+      if (options.notifyInitialResize !== false) queueMicrotask(() => this.notify(target));
     }
     unobserve(): void {}
     disconnect(): void {
@@ -124,6 +147,12 @@ function installWeatherGeometry(options: WeatherGeometryOptions = {}) {
     }
     notify(target: Element): void {
       if (!this.active) return;
+      if (target.classList.contains("where-body")) {
+        Object.defineProperties(target, {
+          clientWidth: { configurable: true, value: bodyWidth },
+          clientHeight: { configurable: true, value: bodyHeight },
+        });
+      }
       const rect = rectOf(target);
       this.callback([{
         target,
@@ -135,8 +164,18 @@ function installWeatherGeometry(options: WeatherGeometryOptions = {}) {
   globalThis.ResizeObserver = GeometryResizeObserver as unknown as typeof ResizeObserver;
 
   return {
+    setPanelSize(width: number, height: number): void {
+      panelWidth = width;
+      panelHeight = height;
+    },
+    setBodyHeight(height: number): void {
+      bodyHeight = height;
+    },
     setMeasureFragments(value: boolean): void {
       measureFragments = value;
+    },
+    setMeasureChangeCandidates(value: boolean): void {
+      measureChangeCandidates = value;
     },
     fireAll(): void {
       for (const { target, observer } of [...observed]) observer.notify(target);
@@ -420,26 +459,39 @@ describe("EmergencyScreen", () => {
       expect(p.classList.contains("role-weatherWarning")).toBe(true);
     });
 
-    it("今回の変更を現況と別 surface に表示し、normal は最大4件で悪化・解除を代表表示する", () => {
-      const { container } = render(WeatherEmergencyPanel, {
+    it("今回の変更を現況と別 surface に表示し、normal は最大4件で悪化・解除を代表表示する", async () => {
+      // 2026-08-27 観測に基づく幅利用と、本仕様の測定式上限へ置換。
+      const geometry = installWeatherGeometry();
+      const rendered = render(WeatherEmergencyPanel, {
         input: weatherInput({ change: weatherChange() }),
       });
-      const changeSurface = container.querySelector(".weather-change")!;
-      expect(changeSurface).toBeTruthy();
-      expect(changeSurface.querySelector(".change-heading")?.textContent)
-        .toBe("気象警報（VPWS50）の今回の変更");
-      expect(changeSurface.querySelectorAll(".change-row")).toHaveLength(4);
-      expect(changeSurface.textContent).toContain("悪化地域");
-      expect(changeSurface.textContent).toContain("解除地域");
-      expect(changeSurface.querySelector(".change-summary")?.textContent).toContain("緩和");
-      expect(container.querySelector(".tile-where")?.textContent).not.toContain("解除地域");
+      try {
+        await settleWeatherLayout();
+        const changeSurface = rendered.container.querySelector(":scope > .weather-panel > .weather-change-slot .weather-change")!;
+        expect(changeSurface).toBeTruthy();
+        expect(changeSurface.querySelector(".change-heading")?.textContent).toBe("今回の変更");
+        expect(changeSurface.querySelector(".change-meta")?.textContent).toBe("VPWS50 · 5件");
+        expect(changeSurface.querySelectorAll(".change-chip")).toHaveLength(5);
+        expect(changeSurface.querySelector("button, a[href], input, select, textarea, [tabindex]")).toBeFalsy();
+        expect(changeSurface.querySelector(".page-dots")).toBeFalsy();
+        expect(Array.from(changeSurface.querySelectorAll(".change-group")).map((group) => group.getAttribute("data-change-kind")))
+          .toEqual(["upgraded", "added", "kindChanged", "downgraded", "released"]);
+        expect(changeSurface.textContent).toContain("悪化地域");
+        expect(changeSurface.textContent).toContain("解除地域");
+        expect(changeSurface.querySelector(".change-summary")?.textContent).toContain("緩和 1件");
+        expect(rendered.container.querySelector(".tile-where")?.textContent).not.toContain("解除地域");
+      } finally {
+        rendered.unmount();
+        geometry.restore();
+      }
     });
 
-    it("compact は最大2件でも upgraded と released を残し、同一ラベル kindChanged は描かない", () => {
+    it("compact は最大2件でも upgraded と released を残し、同一ラベル kindChanged は描かない", async () => {
       const codeOnly = changeItem("kindChanged", "同一ラベル", 1);
       codeOnly.before = { ...codeOnly.before!, kindShortName: "大雨" };
       codeOnly.after = { ...codeOnly.after!, kindShortName: "大雨" };
-      const { container } = render(WeatherEmergencyPanel, {
+      const geometry = installWeatherGeometry();
+      const rendered = render(WeatherEmergencyPanel, {
         input: weatherInput({
           change: weatherChange({ changes: [
             changeItem("upgraded", "悪化", 0),
@@ -450,11 +502,1310 @@ describe("EmergencyScreen", () => {
         }),
         compact: true,
       });
-      const surface = container.querySelector(".weather-change")!;
-      expect(surface.querySelectorAll(".change-row")).toHaveLength(2);
-      expect(surface.textContent).toContain("悪化");
-      expect(surface.textContent).toContain("解除");
-      expect(surface.textContent).not.toContain("同一ラベル");
+      try {
+        await settleWeatherLayout();
+        const surface = rendered.container.querySelector(":scope > .weather-panel > .weather-change-slot .weather-change")!;
+        expect(surface.querySelectorAll(".change-chip")).toHaveLength(3);
+        expect(surface.textContent).toContain("悪化");
+        expect(surface.textContent).toContain("解除");
+        expect(surface.textContent).not.toContain("同一ラベル");
+      } finally {
+        rendered.unmount();
+        geometry.restore();
+      }
+    });
+
+    it.each([
+      ["normal", false, 11],
+      ["compact", true, 4],
+    ] as const)("13件 synthetic を %s の実測上限で縮約し、予約二区分と tail を保つ", async (
+      _label,
+      compact,
+      expectedChips,
+    ) => {
+      const changes = [
+        ...Array.from({ length: 4 }, (_, index) => changeItem("upgraded", `悪化${index}`, index)),
+        ...Array.from({ length: 3 }, (_, index) => changeItem("added", `追加${index}`, index)),
+        ...Array.from({ length: 2 }, (_, index) => changeItem("kindChanged", `種別変更${index}`, index)),
+        ...Array.from({ length: 2 }, (_, index) => changeItem("downgraded", `緩和${index}`, index)),
+        ...Array.from({ length: 2 }, (_, index) => changeItem("released", `解除${index}`, index)),
+      ];
+      const geometry = installWeatherGeometry();
+      const rendered = render(WeatherEmergencyPanel, {
+        input: weatherInput({ change: weatherChange({ changes }) }),
+        compact,
+        reducedMotionInput: true,
+      });
+      try {
+        await settleWeatherLayout();
+        const panel = rendered.container.querySelector<HTMLElement>(".weather-panel")!;
+        const live = panel.querySelector(":scope > .weather-change-slot .weather-change")!;
+        expect(live.querySelectorAll(".change-chip")).toHaveLength(expectedChips);
+        expect(live.querySelector('[data-change-kind="upgraded"] .change-chip')).toBeTruthy();
+        expect(live.querySelector('[data-change-kind="released"] .change-chip')).toBeTruthy();
+        expect(live.querySelector(".change-omitted-tail")?.textContent).toBe(`ほか ${13 - expectedChips} 件`);
+        expect(panel.dataset.changeLayoutUnresolved).toBe("false");
+        expect(panel.dataset.changeMeasurementNonconverged).toBe("false");
+        expect(Number(panel.dataset.changeMeasurementPass)).toBe(1);
+        expect(Number(panel.dataset.changeBudget)).toBe(
+          Number(panel.dataset.changePanelContentHeight) - Number(panel.dataset.changeReserveHeight),
+        );
+        expect(Number(panel.dataset.changeBudgetQuantized)).toBe(
+          Math.round(Number(panel.dataset.changeBudget) * window.devicePixelRatio) / window.devicePixelRatio,
+        );
+        for (const field of [
+          "changeKey", "changeActivationKey", "changeReserveFingerprint", "changeLogicalFingerprint",
+          "changeFontEpoch", "changeSettlingEpoch", "changeMeasurementKey",
+        ]) expect(panel.dataset[field]).not.toBeUndefined();
+      } finally {
+        rendered.unmount();
+        geometry.restore();
+      }
+    });
+
+    it("ResizeObserver の初回通知なしでも候補の自然高を採寸して一度だけ fit を publish する", async () => {
+      const changes = [
+        ...Array.from({ length: 4 }, (_, index) => changeItem("upgraded", `悪化${index}`, index)),
+        ...Array.from({ length: 3 }, (_, index) => changeItem("added", `追加${index}`, index)),
+        ...Array.from({ length: 2 }, (_, index) => changeItem("kindChanged", `種別変更${index}`, index)),
+        ...Array.from({ length: 2 }, (_, index) => changeItem("downgraded", `緩和${index}`, index)),
+        ...Array.from({ length: 2 }, (_, index) => changeItem("released", `解除${index}`, index)),
+      ];
+      const geometry = installWeatherGeometry({ notifyInitialResize: false });
+      const rendered = render(WeatherEmergencyPanel, {
+        input: weatherInput({ change: weatherChange({ changes }) }),
+        reducedMotionInput: true,
+      });
+      try {
+        await settleWeatherLayout();
+        const panel = rendered.container.querySelector<HTMLElement>(".weather-panel")!;
+        const measurements = JSON.parse(panel.dataset.changeCandidateMeasurements ?? "[]") as Array<{
+          n: number;
+          height: number | null;
+          fit: boolean | null;
+        }>;
+        expect(Number(panel.dataset.changeMeasurementPass)).toBe(1);
+        expect(panel.dataset.changeLayoutUnresolved).toBe("false");
+        expect(Number(panel.dataset.changeSelected)).toBe(11);
+        expect(measurements).toHaveLength(13);
+        expect(measurements[0]).toEqual({ n: 0, height: 80, fit: true });
+        expect(measurements[11]).toEqual({ n: 11, height: 300, fit: true });
+        expect(measurements[12]).toEqual({ n: 12, height: 320, fit: false });
+        const source = readFileSync(join(__dirname, "..", "WeatherEmergencyPanel.svelte"), "utf-8");
+        expect(source).toMatch(/\.change-candidate\s*\{[^}]*align-self:\s*start/s);
+      } finally {
+        rendered.unmount();
+        geometry.restore();
+      }
+    });
+
+    it("Bq の切上がりで raw budget を超える候補を選ばず対象地域の最小一ページを守る", async () => {
+      const changes = [
+        ...Array.from({ length: 4 }, (_, index) => changeItem("upgraded", `悪化${index}`, index)),
+        ...Array.from({ length: 3 }, (_, index) => changeItem("added", `追加${index}`, index)),
+        ...Array.from({ length: 2 }, (_, index) => changeItem("kindChanged", `種別変更${index}`, index)),
+        ...Array.from({ length: 2 }, (_, index) => changeItem("downgraded", `緩和${index}`, index)),
+        ...Array.from({ length: 2 }, (_, index) => changeItem("released", `解除${index}`, index)),
+      ];
+      const geometry = installWeatherGeometry({
+        panelHeight: 976,
+        reserveHeight: 496.125,
+        changeCandidateHeight: (candidate) => 340 + candidate * 20,
+      });
+      const rendered = render(WeatherEmergencyPanel, {
+        input: weatherInput({ change: weatherChange({ changes }) }),
+        reducedMotionInput: true,
+      });
+      try {
+        await settleWeatherLayout();
+        const panel = rendered.container.querySelector<HTMLElement>(".weather-panel")!;
+        const measurements = JSON.parse(panel.dataset.changeCandidateMeasurements ?? "[]") as Array<{
+          n: number;
+          height: number | null;
+          fit: boolean | null;
+        }>;
+        const identity = JSON.parse(panel.dataset.changeMeasurementKey ?? "null") as [string, { budget: number }];
+        expect(Number(panel.dataset.changeBudget)).toBe(479.875);
+        expect(Number(panel.dataset.changeBudgetQuantized)).toBe(480);
+        expect(identity[1].budget).toBe(479.875);
+        expect(Number(panel.dataset.changeSelected)).toBe(6);
+        expect(measurements[6]).toEqual({ n: 6, height: 460, fit: true });
+        expect(measurements[7]).toEqual({ n: 7, height: 480, fit: false });
+        expect(panel.dataset.changeLayoutUnresolved).toBe("false");
+        expect(panel.querySelector(".tile-where")?.getAttribute("data-layout-state")).toBe("ready");
+        const reserveDots = panel.querySelectorAll(".change-reserve-shell .page-dot");
+        const referenceDots = panel.querySelectorAll(".measurement-reference .page-dot");
+        expect(reserveDots.length).toBeGreaterThan(0);
+        expect(reserveDots).toHaveLength(referenceDots.length);
+        expect(Number(panel.dataset.changeTargetAvailableHeight)).toBe(120);
+        expect(Number(panel.dataset.changeTargetFrameHeight)).toBe(260);
+      } finally {
+        rendered.unmount();
+        geometry.restore();
+      }
+    });
+
+    it("初回未測定は summary-only とし、0件候補も budget 外なら unresolved を明示する", async () => {
+      const initial = render(WeatherEmergencyPanel, {
+        input: weatherInput({ change: weatherChange() }),
+        reducedMotionInput: true,
+      });
+      const initialPanel = initial.container.querySelector<HTMLElement>(".weather-panel")!;
+      expect(initialPanel.dataset.changeLayoutUnresolved).toBe("false");
+      expect(Number(initialPanel.dataset.changeMeasurementPass)).toBe(0);
+      expect(initial.container.querySelector(":scope > .weather-panel > .weather-change-slot .change-chip")).toBeFalsy();
+      expect(initial.container.querySelector(":scope > .weather-panel > .weather-change-slot .change-omitted-tail")?.textContent)
+        .toBe("ほか 5 件");
+      initial.unmount();
+
+      const geometry = installWeatherGeometry({ panelHeight: 540, reserveHeight: 500 });
+      const rendered = render(WeatherEmergencyPanel, {
+        input: weatherInput({ change: weatherChange() }),
+        reducedMotionInput: true,
+      });
+      try {
+        await settleWeatherLayout();
+        const panel = rendered.container.querySelector<HTMLElement>(".weather-panel")!;
+        expect(panel.dataset.changeLayoutUnresolved).toBe("true");
+        expect(panel.querySelector(":scope > .weather-change-slot .change-chip")).toBeFalsy();
+      } finally {
+        rendered.unmount();
+        geometry.restore();
+      }
+    });
+
+    it("activationKey 更新後も panel observer は新 token で geometry と fit identity を更新する", async () => {
+      const geometry = installWeatherGeometry();
+      const rendered = render(WeatherEmergencyPanel, {
+        input: weatherInput({ activationKey: "a1", change: weatherChange({ changeKey: "boot:1" }) }),
+        reducedMotionInput: true,
+      });
+      try {
+        await settleWeatherLayout();
+        const panel = rendered.container.querySelector<HTMLElement>(".weather-panel")!;
+        const beforeKey = panel.dataset.changeMeasurementKey;
+        expect(Number(panel.dataset.changePanelWidth)).toBe(1_000);
+        geometry.setPanelSize(720, 700);
+        await rendered.rerender({
+          input: weatherInput({ activationKey: "a2", change: weatherChange({ changeKey: "boot:2" }) }),
+          compact: false,
+          layoutSettling: false,
+          reducedMotionInput: true,
+        });
+        geometry.fireAll();
+        await settleWeatherLayout();
+        expect(Number(panel.dataset.changePanelWidth)).toBe(720);
+        expect(panel.dataset.changeMeasurementKey).not.toBe(beforeKey);
+        expect(Number(panel.dataset.changeMeasurementPass)).toBe(1);
+      } finally {
+        rendered.unmount();
+        geometry.restore();
+      }
+    });
+
+    it("identity reset・pending・同値 ResizeObserver は outer fit pass を余分に数えない", async () => {
+      const geometry = installWeatherGeometry();
+      const firstInput = weatherInput({ activationKey: "a1", change: weatherChange({ changeKey: "boot:1" }) });
+      const secondInput = weatherInput({ activationKey: "a2", change: weatherChange({ changeKey: "boot:2" }) });
+      const rendered = render(WeatherEmergencyPanel, { input: firstInput, reducedMotionInput: true });
+      try {
+        await settleWeatherLayout();
+        const panel = rendered.container.querySelector<HTMLElement>(".weather-panel")!;
+        expect(Number(panel.dataset.changeMeasurementPass)).toBe(1);
+        geometry.fireAll();
+        await settleWeatherLayout();
+        expect(Number(panel.dataset.changeMeasurementPass)).toBe(1);
+        await rendered.rerender({ input: secondInput, compact: false, layoutSettling: true, reducedMotionInput: true });
+        flushSync();
+        expect(Number(panel.dataset.changeMeasurementPass)).toBe(0);
+        expect(Number(panel.dataset.changeSelected)).toBe(0);
+        await rendered.rerender({ input: secondInput, compact: false, layoutSettling: false, reducedMotionInput: true });
+        geometry.fireAll();
+        await settleWeatherLayout();
+        expect(Number(panel.dataset.changeMeasurementPass)).toBe(1);
+      } finally {
+        rendered.unmount();
+        geometry.restore();
+      }
+    });
+
+    it("5回以上の partition split は outer fit pass に数えず ready へ収束する", async () => {
+      const geometry = installWeatherGeometry({
+        areaWidth: 1_200,
+        bodyHeight: 45,
+        rowHeight: (row) => 20 + row.querySelectorAll(".area-name").length * 25,
+      });
+      const areas = Array.from({ length: 8 }, (_, index) => `福井県地域${index}`);
+      const areaCodes = Array.from({ length: 8 }, (_, index) => `1820${String(index).padStart(3, "0")}`);
+      const rendered = render(WeatherEmergencyPanel, {
+        input: weatherInput({
+          items: [weatherItem({ key: "many-splits", kind: "L5 大雨特別警報", shownAreas: areas, shownAreaCodes: areaCodes })],
+          change: weatherChange(),
+        }),
+        reducedMotionInput: true,
+      });
+      try {
+        await settleWeatherLayout();
+        await settleWeatherLayout();
+        const panel = rendered.container.querySelector<HTMLElement>(".weather-panel")!;
+        expect(Number(panel.dataset.changePartitionRefinements)).toBeGreaterThanOrEqual(5);
+        expect(Number(panel.dataset.changeOuterFitPublishes)).toBe(1);
+        expect(panel.querySelector(".tile-where")?.getAttribute("data-layout-state")).toBe("ready");
+        expect(panel.dataset.changeMeasurementNonconverged).toBe("false");
+        const ranges = JSON.parse(panel.dataset.changePageRanges ?? "[]") as string[][];
+        const identities = JSON.parse(panel.dataset.changeLogicalAreaIdentities ?? "[]") as string[];
+        expect(ranges).toHaveLength(Number(panel.dataset.changePageCount));
+        expect(identities).toHaveLength(8);
+        expect(new Set(identities).size).toBe(8);
+      } finally {
+        rendered.unmount();
+        geometry.restore();
+      }
+    });
+
+    it("change 高さ後の where 再分割は論理 identity を保ち range 由来 key を再生成する", async () => {
+      const geometry = installWeatherGeometry({
+        areaWidth: 1_200,
+        bodyHeight: 120,
+        rowHeight: (row) => 20 + row.querySelectorAll(".area-name").length * 25,
+      });
+      const shownAreas = ["福井県福井市", "敦賀市", "大野市", "勝山市"];
+      const shownAreaCodes = ["1820100", "1820200", "1820500", "1820600"];
+      const rendered = render(WeatherEmergencyPanel, {
+        input: weatherInput({
+          items: [weatherItem({
+            key: "repartition",
+            kind: "L4 大雨警報",
+            level: 4,
+            shownAreas,
+            shownAreaCodes,
+            addedAreas: ["勝山市"],
+            addedAreaCodes: ["1820600"],
+          })],
+          firstPageRowKey: "repartition",
+          change: weatherChange(),
+        }),
+        reducedMotionInput: true,
+      });
+      try {
+        await settleWeatherLayout();
+        const panel = rendered.container.querySelector<HTMLElement>(".weather-panel")!;
+        const beforeRanges = JSON.parse(panel.dataset.changePageRanges ?? "[]") as string[][];
+        const beforeIdentities = JSON.parse(panel.dataset.changeLogicalAreaIdentities ?? "[]") as string[];
+        const beforePartition = panel.dataset.changePartitionSignature;
+        const beforeResetKey = panel.dataset.changeCyclerResetKey;
+        expect(beforeRanges).toHaveLength(1);
+
+        geometry.setBodyHeight(70);
+        geometry.fireAll();
+        await settleWeatherLayout();
+        await settleWeatherLayout();
+
+        const afterRanges = JSON.parse(panel.dataset.changePageRanges ?? "[]") as string[][];
+        const afterIdentities = JSON.parse(panel.dataset.changeLogicalAreaIdentities ?? "[]") as string[];
+        expect(afterRanges).toHaveLength(2);
+        expect(afterIdentities).toEqual(beforeIdentities);
+        expect(new Set(afterIdentities).size).toBe(shownAreas.length);
+        expect(afterRanges).not.toEqual(beforeRanges);
+        expect(panel.dataset.changePartitionSignature).not.toBe(beforePartition);
+        expect(panel.dataset.changeCyclerResetKey).not.toBe(beforeResetKey);
+        expect(panel.dataset.changePartitionSignature)
+          .toBe(JSON.stringify(["weather-area-partition-v1", afterRanges]));
+        expect(panel.dataset.changeCyclerResetKey)
+          .toBe(JSON.stringify(["weather-area-cycle-v2", panel.dataset.changePartitionSignature]));
+        const activeIndex = Number(panel.dataset.changeActiveIndex);
+        expect(activeIndex).toBeGreaterThanOrEqual(0);
+        expect(activeIndex).toBeLessThan(afterRanges.length);
+      } finally {
+        rendered.unmount();
+        geometry.restore();
+      }
+    });
+
+    it("change fit の最終 partition 後に新 activation の追加地域 page を一度だけ選ぶ", async () => {
+      const geometry = installWeatherGeometry({
+        areaWidth: 1_200,
+        bodyHeight: 120,
+        measureChangeCandidates: false,
+        rowHeight: () => 30,
+      });
+      const rendered = render(WeatherEmergencyPanel, {
+        input: weatherInput({
+          level: 4,
+          items: [weatherItem({
+            key: "density-target",
+            kind: "L4 大雨警報",
+            level: 4,
+            shownAreas: ["秋田県秋田市", "富山県富山市", "鹿児島県奄美市"],
+            shownAreaCodes: ["0520100", "1620100", "4622200"],
+            addedAreas: ["富山県富山市"],
+            addedAreaCodes: ["1620100"],
+          })],
+          firstPageRowKey: "density-target",
+          change: weatherChange(),
+        }),
+        compact: true,
+        reducedMotionInput: true,
+      });
+      try {
+        await settleWeatherLayout();
+        const panel = rendered.container.querySelector<HTMLElement>(".weather-panel")!;
+        expect(Number(panel.dataset.changeMeasurementPass)).toBe(0);
+        expect(Number(panel.dataset.changePageCount)).toBe(1);
+
+        // 実 Chrome と同じ順序: target は暫定高で一度 ready、その後 change fit publish により
+        // where が三分割される。activation は後者の安定 partition まで消費してはならない。
+        geometry.setBodyHeight(35);
+        geometry.setMeasureChangeCandidates(true);
+        geometry.fireAll();
+        await settleWeatherLayout();
+        await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+        await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+        await settleWeatherLayout();
+
+        expect(Number(panel.dataset.changeMeasurementPass)).toBe(1);
+        expect(panel.dataset.changeMeasurementSettled).toBe("true");
+        expect(Number(panel.dataset.changePageCount)).toBe(3);
+        expect(Number(panel.dataset.changeActiveIndex)).toBe(1);
+        expect(panel.querySelector(".tile-where .area-name.added")?.textContent).toBe("富山市");
+      } finally {
+        rendered.unmount();
+        geometry.restore();
+      }
+    });
+
+    it("5回目の異なる outer fit publish だけを nonconverged にする", async () => {
+      let fittingLimit = 4;
+      const geometry = installWeatherGeometry({
+        changeCandidateHeight: (candidate) => candidate <= fittingLimit ? 100 : 500,
+      });
+      const rendered = render(WeatherEmergencyPanel, {
+        input: weatherInput({ change: weatherChange() }),
+        reducedMotionInput: true,
+      });
+      try {
+        await settleWeatherLayout();
+        const panel = rendered.container.querySelector<HTMLElement>(".weather-panel")!;
+        expect(Number(panel.dataset.changeMeasurementPass)).toBe(1);
+        for (const next of [3, 2, 1]) {
+          fittingLimit = next;
+          geometry.fireAll();
+          await settleWeatherLayout();
+        }
+        expect(Number(panel.dataset.changeMeasurementPass)).toBe(4);
+        expect(panel.dataset.changeMeasurementNonconverged).toBe("false");
+        fittingLimit = 0;
+        geometry.fireAll();
+        await settleWeatherLayout();
+        expect(Number(panel.dataset.changeMeasurementPass)).toBe(4);
+        expect(panel.dataset.changeMeasurementNonconverged).toBe("true");
+      } finally {
+        rendered.unmount();
+        geometry.restore();
+      }
+    });
+
+    it("change-density capture readiness は base の legacy DOM と after の新属性を分離する", async () => {
+      const capturePath = join(__dirname, "..", "..", "..", "..", "scripts", "capture-legacy-standby.mjs");
+      const capture = await import(/* @vite-ignore */ pathToFileURL(capturePath).href) as unknown as {
+        changeDensityReadinessState(snapshot: Record<string, unknown>, phase: "base" | "after"): {
+          ready: boolean;
+          targetLayoutReady: boolean;
+          acceptedLayoutOutcome: "ready" | "reasoned-infeasible" | "no-change-target-infeasible" | null;
+          waitedConditions: Array<{ name: string; expected: unknown; actual: unknown; satisfied: boolean }>;
+          infeasibleAcceptance: {
+            policy: string;
+            ruling: string;
+            applicable: boolean;
+            complete: boolean;
+            status: string;
+            reasonCodes: string[];
+            checks: Record<string, boolean>;
+          };
+          feasibility: {
+            minimumCombinedDeficit: number | null;
+            targetAvailableHeight: number | null;
+            minimumTargetFragmentHeight: number | null;
+            terminalNoFit: boolean;
+          };
+        };
+        changeDensityMeasurementReport(panel: Record<string, unknown>, phase: "base" | "after"): {
+          availability: { source: string; unavailable: Array<{ field: string; reason: string }> };
+          targetPagination: Record<string, unknown>;
+        };
+        isOrderedContiguousSlice(candidate: unknown[], full: unknown[]): boolean;
+        formatChangeDensityReadinessTimeout(label: string, observation: Record<string, unknown>): string;
+        assertChangeDensityHeaderCascade(
+          record: Record<string, unknown>,
+          panel: Record<string, unknown>,
+        ): Record<string, unknown>;
+        assertAfterDensityInfeasibleContract(
+          record: Record<string, unknown>,
+          panel: Record<string, unknown>,
+        ): Record<string, unknown>;
+        assertAfterDensityNullTransportContract(
+          record: Record<string, unknown>,
+          panel: Record<string, unknown>,
+        ): Record<string, unknown>;
+        compareChangeDensityOverflow(
+          label: string,
+          beforeOverflow: Record<string, unknown> | null,
+          afterOverflow: Record<string, unknown>,
+        ): {
+          mode: "non-regression" | "record-only";
+          reason: string | null;
+          baseAvailable: boolean;
+          afterAvailable: boolean;
+          regressed: boolean | null;
+        };
+        compareChangeDensityBorderBox(
+          label: string,
+          beforeBox: Record<string, unknown> | null,
+          afterBox: Record<string, unknown>,
+        ): {
+          mode: "non-regression" | "record-only";
+          baseAvailable: boolean;
+          afterAvailable: boolean;
+          identityMatches: boolean | null;
+          identityDifferences: Array<{ field: string; before: unknown; after: unknown }>;
+          scrollExtentDelta: { width: number; height: number } | null;
+          improved: boolean | null;
+          regressed: boolean | null;
+        };
+      };
+      const legacyPanel = {
+        liveChange: { height: 120 },
+        legacyRows: [{ text: "legacy" }],
+        targetArea: { layoutState: "infeasible" },
+        diagnostics: {},
+      };
+      const baseSnapshot = {
+        document: { fontsLoaded: true, previewPresent: true, previewMode: "emergency", attentionVisible: false, emergencyPanelCount: 0, emergencyGeometryValid: false },
+        liveGeometry: {
+          weatherEmergencyPanels: [legacyPanel],
+          changeDensityTransport: { mode: "full", source: "preview-input-dto", wireNull: false, wireChangeCount: 13, wireOmittedCount: 0 },
+        },
+      };
+      const base = capture.changeDensityReadinessState(baseSnapshot, "base");
+      expect(base.ready).toBe(true);
+      expect(base.waitedConditions.map(({ name }) => name)).toContain("legacy.targetLayoutState");
+      expect(base.waitedConditions.map(({ name }) => name).some((name) => name.startsWith("after.data-change-"))).toBe(false);
+      const pendingSnapshot = {
+        ...baseSnapshot,
+        liveGeometry: {
+          ...baseSnapshot.liveGeometry,
+          weatherEmergencyPanels: [{ ...legacyPanel, targetArea: { layoutState: "pending" } }],
+        },
+      };
+      expect(capture.changeDensityReadinessState(pendingSnapshot, "base").ready).toBe(false);
+
+      const afterMissing = capture.changeDensityReadinessState(baseSnapshot, "after");
+      expect(afterMissing.ready).toBe(false);
+      expect(afterMissing.waitedConditions.find(({ name }) => name === "after.data-change-measurement-settled")?.actual).toBeNull();
+      const afterSnapshot = {
+        ...baseSnapshot,
+        liveGeometry: {
+          ...baseSnapshot.liveGeometry,
+          weatherEmergencyPanels: [{
+            ...legacyPanel,
+            targetArea: { layoutState: "ready" },
+            diagnostics: {
+              "data-change-measurement-settled": "true",
+              "data-change-layout-unresolved": "false",
+              "data-change-measurement-nonconverged": "false",
+            },
+          }],
+        },
+      };
+      expect(capture.changeDensityReadinessState(afterSnapshot, "after").ready).toBe(true);
+      const zeroOverflow = {
+        horizontal: 0,
+        vertical: 0,
+        viewport: { left: 0, top: 0, right: 0, bottom: 0 },
+      };
+      const observedShelfOverflow = {
+        ...zeroOverflow,
+        vertical: 33,
+      };
+      const noFitSnapshot = {
+        ...afterSnapshot,
+        liveGeometry: {
+          ...afterSnapshot.liveGeometry,
+          weatherEmergencyPanels: [{
+            ...legacyPanel,
+            compact: false,
+            uiChipCount: 0,
+            uiOmittedCount: 13,
+            groups: [],
+            chips: [],
+            metaText: "VPWS50 · 13件",
+            summaryText: "悪化 4件・追加 3件・種別変更 2件・緩和 2件・解除 2件",
+            documentOverflow: zeroOverflow,
+            panelOverflow: zeroOverflow,
+            liveOverflow: zeroOverflow,
+            liveSlot: { width: 100, height: 186 },
+            candidates: [{ n: 0, height: 186, fit: false, slot: { width: 100, height: 186 } }],
+            reserve: {
+              shell: { width: 100, height: 500.625 },
+              heading: { width: 100, height: 100 },
+              hero: { width: 60, height: 50 },
+              alertNames: { width: 60, height: 30 },
+              tiles: { width: 100, height: 400.625 },
+              where: { width: 100, height: 120 },
+              whereHead: { width: 90, height: 20 },
+              whereBody: { width: 90, height: 86 },
+              pageDots: { width: 40, height: 12 },
+              action: { width: 40, height: 60 },
+              minimumFragment: { key: "minimum", height: 86, areaCount: 1, fit: false },
+            },
+            targetArea: {
+              layoutState: "infeasible",
+              referenceTotal: 3,
+              overflow: zeroOverflow,
+              fitFormula: "fragment border-box height <= algorithm available where-body height",
+              minimumOnePageFragments: [{ key: "minimum", height: 86, areaCount: 1, fit: false }],
+            },
+            diagnostics: {
+              "data-change-measurement-settled": "false",
+              "data-change-layout-unresolved": "true",
+              "data-change-measurement-nonconverged": "false",
+              "data-change-measurement-pass": "1",
+              "data-change-selected": "0",
+              "data-change-panel-content-height": "616",
+              "data-change-reserve-height": "500.625",
+              "data-change-budget": "115.375",
+              "data-change-target-available-height": "16",
+            },
+          }],
+        },
+      };
+      const noFitOutsideRuling = capture.changeDensityReadinessState(noFitSnapshot, "after");
+      expect(noFitOutsideRuling.ready).toBe(false);
+      expect(noFitOutsideRuling.infeasibleAcceptance.status).toBe("not-applicable");
+      const noFit720Snapshot = {
+        ...noFitSnapshot,
+        document: {
+          ...noFitSnapshot.document,
+          viewport: { innerWidth: 1280, innerHeight: 720 },
+        },
+      };
+      const noFit = capture.changeDensityReadinessState(noFit720Snapshot, "after");
+      expect(noFit.ready).toBe(true);
+      expect(noFit.targetLayoutReady).toBe(false);
+      expect(noFit.acceptedLayoutOutcome).toBe("reasoned-infeasible");
+      expect(noFit.infeasibleAcceptance).toMatchObject({
+        policy: "vpws50-change-density-1280x720-reasoned-infeasible-v1",
+        ruling: "2026-09-06-owner-ruling-A",
+        applicable: true,
+        complete: true,
+        status: "accepted",
+        reasonCodes: [
+          "summary-candidate-exceeds-budget",
+          "target-minimum-fragment-exceeds-available-height",
+          "existing-weather-reserve-geometry-limit",
+        ],
+      });
+      expect(Object.values(noFit.infeasibleAcceptance.checks).every(Boolean)).toBe(true);
+      expect(noFit.infeasibleAcceptance).toMatchObject({
+        overflow: {
+          policy: "record-all; compare-document-and-panel-to-base-when-available",
+          document: zeroOverflow,
+          panel: zeroOverflow,
+          change: zeroOverflow,
+          target: zeroOverflow,
+        },
+        checks: { overflowRecorded: true, liveOverflowZero: true },
+      });
+      const noFitPanel = noFit720Snapshot.liveGeometry.weatherEmergencyPanels[0];
+      expect(capture.assertAfterDensityInfeasibleContract({
+        phase: "after",
+        viewport: { label: "1280x720", width: 1280, height: 720 },
+        transportMode: "full",
+        uiChipCount: 0,
+        uiOmittedCount: 13,
+        infeasibleAcceptance: noFit.infeasibleAcceptance,
+        changeDensityReadiness: noFit,
+        geometry: {
+          viewport: { innerWidth: 1280, innerHeight: 720 },
+          weatherEmergencyPanels: [noFitPanel],
+        },
+      }, noFitPanel)).toMatchObject({ complete: true, status: "accepted" });
+      for (const [mode, wireChangeCount, wireOmittedCount] of [
+        ["full", 13, 0],
+        ["degraded-12", 12, 1],
+        ["degraded-4", 4, 9],
+        ["degraded-2", 2, 11],
+      ] as const) {
+        const state = capture.changeDensityReadinessState({
+          ...noFit720Snapshot,
+          liveGeometry: {
+            ...noFit720Snapshot.liveGeometry,
+            changeDensityTransport: {
+              mode,
+              source: "preview-input-dto",
+              wireNull: false,
+              wireChangeCount,
+              wireOmittedCount,
+            },
+          },
+        }, "after");
+        expect(state).toMatchObject({
+          ready: true,
+          acceptedLayoutOutcome: "reasoned-infeasible",
+          infeasibleAcceptance: {
+            applicable: true,
+            complete: true,
+            status: "accepted",
+            checks: { changeSurfacePresent: true },
+          },
+        });
+      }
+      const nullPanel = {
+        ...noFitPanel,
+        liveChange: null,
+        liveSlot: null,
+        liveOverflow: null,
+        candidates: [],
+        uiChipCount: 0,
+        uiOmittedCount: 0,
+        metaText: "",
+        summaryText: "",
+        reserve: { shell: null },
+        diagnostics: {
+          "data-change-measurement-settled": "true",
+          "data-change-layout-unresolved": "false",
+          "data-change-measurement-nonconverged": "false",
+          "data-change-measurement-pass": "0",
+          "data-change-selected": "0",
+        },
+      };
+      const nullSnapshot = {
+        ...noFit720Snapshot,
+        liveGeometry: {
+          ...noFit720Snapshot.liveGeometry,
+          weatherEmergencyPanels: [nullPanel],
+          changeDensityTransport: {
+            mode: "null",
+            source: "preview-input-dto",
+            wireNull: true,
+            wireChangeCount: 0,
+            wireOmittedCount: 0,
+          },
+        },
+      };
+      const nullState = capture.changeDensityReadinessState(nullSnapshot, "after");
+      expect(nullState).toMatchObject({
+        ready: true,
+        targetLayoutReady: false,
+        acceptedLayoutOutcome: "no-change-target-infeasible",
+        infeasibleAcceptance: {
+          applicable: false,
+          complete: false,
+          status: "not-applicable",
+          checks: { changeSurfacePresent: false },
+        },
+      });
+      expect(nullState.waitedConditions.map(({ name }) => name)).toContain("after.null.changeSurfaceAbsent");
+      expect(nullState.waitedConditions.map(({ name }) => name).some((name) => name === "after.1280x720.infeasibleReasonComplete")).toBe(false);
+      expect(capture.assertAfterDensityNullTransportContract({
+        phase: "after",
+        viewport: { label: "1280x720", width: 1280, height: 720 },
+        transportMode: "null",
+        wireNull: true,
+        wireChangeCount: 0,
+        wireOmittedCount: 0,
+        uiChipCount: 0,
+        uiOmittedCount: 0,
+        infeasibleAcceptance: nullState.infeasibleAcceptance,
+        changeDensityReadiness: nullState,
+      }, nullPanel)).toMatchObject({
+        outcome: "no-change-target-infeasible",
+        targetLayoutState: "infeasible",
+      });
+      const missingNonNullChange = capture.changeDensityReadinessState({
+        ...nullSnapshot,
+        liveGeometry: {
+          ...nullSnapshot.liveGeometry,
+          changeDensityTransport: {
+            mode: "degraded-2",
+            source: "preview-input-dto",
+            wireNull: false,
+            wireChangeCount: 2,
+            wireOmittedCount: 11,
+          },
+        },
+      }, "after");
+      expect(missingNonNullChange.ready).toBe(false);
+      expect(missingNonNullChange.acceptedLayoutOutcome).toBeNull();
+      expect(capture.compareChangeDensityOverflow("panel", {
+        ...zeroOverflow,
+        vertical: 40,
+      }, observedShelfOverflow)).toMatchObject({
+        mode: "non-regression",
+        baseAvailable: true,
+        afterAvailable: true,
+        regressed: false,
+      });
+      expect(capture.compareChangeDensityOverflow("panel", null, observedShelfOverflow)).toMatchObject({
+        mode: "record-only",
+        reason: "base-overflow-unavailable",
+        baseAvailable: false,
+        afterAvailable: true,
+        regressed: null,
+      });
+      expect(capture.compareChangeDensityOverflow("panel", zeroOverflow, observedShelfOverflow)).toMatchObject({
+        mode: "non-regression",
+        regressed: true,
+      });
+      const basePanelBox = {
+        clientWidth: 724,
+        clientHeight: 482,
+        scrollWidth: 724,
+        scrollHeight: 515,
+        chain: ["panel-slot", "preview-screen"],
+        cls: "weather-panel compact",
+      };
+      const improvedPanelBox = { ...basePanelBox, scrollHeight: 482 };
+      expect(capture.compareChangeDensityBorderBox("panel", basePanelBox, improvedPanelBox)).toMatchObject({
+        mode: "non-regression",
+        baseAvailable: true,
+        afterAvailable: true,
+        identityMatches: true,
+        identityDifferences: [],
+        scrollExtentDelta: { width: 0, height: -33 },
+        improved: true,
+        regressed: false,
+      });
+      expect(capture.compareChangeDensityBorderBox("panel", basePanelBox, {
+        ...improvedPanelBox,
+        scrollHeight: 516,
+      })).toMatchObject({ identityMatches: true, improved: false, regressed: true });
+      expect(capture.compareChangeDensityBorderBox("panel", basePanelBox, {
+        ...improvedPanelBox,
+        clientHeight: 481,
+      })).toMatchObject({
+        identityMatches: false,
+        identityDifferences: [{ field: "clientHeight", before: 482, after: 481 }],
+        regressed: false,
+      });
+      const incomplete720Snapshot = {
+        ...noFit720Snapshot,
+        liveGeometry: {
+          ...noFit720Snapshot.liveGeometry,
+          weatherEmergencyPanels: [{
+            ...noFitPanel,
+            reserve: { ...noFitPanel.reserve, action: null },
+          }],
+        },
+      };
+      const incomplete720 = capture.changeDensityReadinessState(incomplete720Snapshot, "after");
+      expect(incomplete720.ready).toBe(false);
+      expect(incomplete720.infeasibleAcceptance).toMatchObject({
+        applicable: true,
+        complete: false,
+        status: "incomplete",
+      });
+      expect(incomplete720.infeasibleAcceptance.checks.reserveBreakdownComplete).toBe(false);
+      const mixedNoFitPanel = {
+        ...noFitPanel,
+        compact: true,
+        liveSlot: { width: 100, height: 120 },
+        candidates: [{ n: 0, height: 120, fit: false, slot: { width: 100, height: 120 } }],
+        reserve: {
+          ...noFitPanel.reserve,
+          shell: { width: 100, height: 316.7 },
+          tiles: { width: 100, height: 216.7 },
+          action: null,
+          minimumFragment: { key: "minimum", height: 58.78, areaCount: 1, fit: false },
+        },
+        targetArea: {
+          ...noFitPanel.targetArea,
+          minimumOnePageFragments: [{ key: "minimum", height: 58.78, areaCount: 1, fit: false }],
+        },
+        diagnostics: {
+          ...noFitPanel.diagnostics,
+          "data-change-panel-content-height": "302",
+          "data-change-reserve-height": "316.7",
+          "data-change-budget": "-14.7",
+          "data-change-target-available-height": "22",
+        },
+      };
+      const mixedNoFit = capture.changeDensityReadinessState({
+        ...noFit720Snapshot,
+        liveGeometry: {
+          ...noFit720Snapshot.liveGeometry,
+          weatherEmergencyPanels: [mixedNoFitPanel],
+        },
+      }, "after");
+      expect(mixedNoFit).toMatchObject({
+        ready: true,
+        targetLayoutReady: false,
+        acceptedLayoutOutcome: "reasoned-infeasible",
+        infeasibleAcceptance: { applicable: true, complete: true, status: "accepted" },
+      });
+      expect(noFit.feasibility).toMatchObject({
+        minimumCombinedDeficit: 70.625,
+        targetAvailableHeight: 16,
+        minimumTargetFragmentHeight: 86,
+        terminalNoFit: true,
+      });
+      const timeout = capture.formatChangeDensityReadinessTimeout("cell", {
+        phase: "after",
+        waitedConditions: afterMissing.waitedConditions,
+        consecutiveStableSamples: 1,
+        panelChangeAttributes: {
+          "data-change-measurement-key": "identity-1",
+          "data-change-measurement-pass": "0",
+          "data-change-candidate-measurements": '[{"n":0,"height":320,"fit":false}]',
+        },
+        measurement: {
+          identity: "identity-1",
+          pass: 0,
+          candidateMeasurements: [{ n: 0, height: 320, fit: false }],
+        },
+        reserveOccupancy: { shell: { height: 500.625 } },
+        feasibility: noFit.feasibility,
+      });
+      expect(timeout).toContain("waitedConditions=");
+      expect(timeout).toContain("finalObserved=");
+      expect(timeout).toContain("panelChangeAttributes=");
+      expect(timeout).toContain("reserveOccupancy=");
+      expect(timeout).toContain("feasibility=");
+      expect(timeout).toContain('"terminalNoFit":true');
+      expect(timeout).toContain('"identity":"identity-1"');
+      expect(timeout).toContain('"candidateMeasurements":[{"n":0,"height":320,"fit":false}]');
+      expect(timeout).toContain('"after.data-change-measurement-settled":{"actual":null,"satisfied":false}');
+
+      const semanticHeader = {
+        background: "rgb(58, 38, 0)",
+        color: "rgb(255, 214, 138)",
+        band: "rgb(230, 159, 0)",
+      };
+      const semanticStyle = {
+        rect: { width: 100, height: 20 },
+        "background-color": semanticHeader.background,
+        color: semanticHeader.color,
+        "border-bottom-color": semanticHeader.band,
+      };
+      const level5Style = {
+        rect: { width: 100, height: 40 },
+        "background-color": "rgb(255, 255, 255)",
+        color: "rgb(0, 0, 0)",
+        "border-bottom-color": "rgb(0, 0, 0)",
+      };
+      expect(capture.assertChangeDensityHeaderCascade(
+        { fixture: "vpws50-change-density-normal" },
+        {
+          level: 4,
+          semanticHeader,
+          parentHeader: semanticStyle,
+          header: semanticStyle,
+          levelCascadeProbe: {
+            parent: level5Style,
+            local: semanticStyle,
+            localHasHeadingClass: false,
+          },
+        },
+      )).toMatchObject({
+        fixtureLevel: 4,
+        current: {
+          parent: { "background-color": semanticHeader.background },
+          local: { "border-bottom-color": semanticHeader.band },
+        },
+        forcedLevel5: {
+          parent: { "background-color": "rgb(255, 255, 255)" },
+          local: { "background-color": semanticHeader.background },
+          localHasHeadingClass: false,
+        },
+      });
+
+      const baseMeasurement = capture.changeDensityMeasurementReport({
+        compact: false,
+        devicePixelRatio: 1,
+        liveChange: { height: 266.703125 },
+        diagnostics: {},
+        targetArea: {
+          layoutState: "infeasible",
+          legacyDomPageCount: null,
+          legacyDomActiveIndex: null,
+          visibleAreaNameOrder: ["秋田市", "富山市"],
+          logicalAreaNameOrder: ["秋田市", "富山市"],
+          visibleFragmentKeys: [],
+        },
+      }, "base");
+      expect(baseMeasurement.availability.source).toBe("kind-area-after-legacy-dom");
+      expect(baseMeasurement.availability.unavailable.map(({ field }) => field)).toEqual(expect.arrayContaining([
+        "measurement.identity", "measurement.budget", "measurement.convergence",
+        "targetPagination.pageRanges", "targetPagination.partitionSignature", "targetPagination.cyclerResetKey",
+        "targetPagination.completeLogicalAreaIdentityOrder",
+        "targetPagination.pageCount", "targetPagination.activeIndex",
+      ]));
+      expect(baseMeasurement.targetPagination).toMatchObject({
+        pageCount: null,
+        pageRanges: null,
+        partitionSignature: null,
+        cyclerResetKey: null,
+        activeIndex: null,
+        logicalAreaIdentities: ["code:0520100:0", "code:1620100:1"],
+        logicalAreaIdentitySource: "legacy-visible-page-area-name-slice+fixture-identity-oracle",
+        logicalAreaIdentityCoverage: "ordered-contiguous-slice",
+      });
+      expect(capture.isOrderedContiguousSlice(
+        baseMeasurement.targetPagination.logicalAreaIdentities as unknown[],
+        ["code:0520100:0", "code:1620100:1", "code:4622200:2"],
+      )).toBe(true);
+      expect(capture.isOrderedContiguousSlice(["秋田市", "奄美市"], ["秋田市", "富山市", "奄美市"])).toBe(false);
+      const afterMeasurementWithoutContract = capture.changeDensityMeasurementReport({
+        compact: false,
+        devicePixelRatio: 1,
+        liveChange: { height: 200 },
+        diagnostics: {},
+        targetArea: {
+          layoutState: "ready",
+          projectedPageRanges: [["legacy-projection-must-not-be-used"]],
+          projectedPartitionSignature: "legacy-projection-must-not-be-used",
+          projectedCyclerResetKey: "legacy-projection-must-not-be-used",
+          projectedActiveIndex: 0,
+          logicalAreaNameOrder: ["秋田市", "富山市", "奄美市"],
+          visibleFragmentKeys: ["legacy-projection-must-not-be-used"],
+        },
+      }, "after");
+      expect(afterMeasurementWithoutContract.availability.unavailable).toEqual([]);
+      expect(afterMeasurementWithoutContract.targetPagination).toMatchObject({
+        pageCount: null, pageRanges: null, partitionSignature: null, cyclerResetKey: null, activeIndex: null,
+      });
+    });
+
+    it("1280x720 は reasoned-infeasible の状態組を許すが live overflow 0 は緩和しない", async () => {
+      const capturePath = join(__dirname, "..", "..", "..", "..", "scripts", "capture-legacy-standby.mjs");
+      const capture = await import(/* @vite-ignore */ pathToFileURL(capturePath).href) as unknown as {
+        changeDensityInfeasibleAcceptance(
+          panel: Record<string, unknown>,
+          viewport: Record<string, unknown>,
+          phase: "after",
+        ): {
+          complete: boolean;
+          status: string;
+          state: { unresolved: string | null };
+          checks: { liveOverflowZero: boolean };
+        };
+        formatChangeDensityReadinessTimeout(label: string, observation: Record<string, unknown>): string;
+      };
+      const zeroOverflow = {
+        horizontal: 0,
+        vertical: 0,
+        viewport: { left: 0, top: 0, right: 0, bottom: 0 },
+      };
+      const box = { width: 100, height: 20 };
+      const panel = {
+        compact: false,
+        liveChange: { width: 100, height: 186 },
+        liveSlot: { width: 100, height: 186 },
+        liveOverflow: zeroOverflow,
+        documentOverflow: zeroOverflow,
+        panelOverflow: zeroOverflow,
+        candidates: [{ n: 0, height: 186, fit: false, slot: { width: 100, height: 186 } }],
+        reserve: {
+          shell: { width: 100, height: 500.625 },
+          heading: box,
+          hero: box,
+          alertNames: box,
+          tiles: box,
+          where: box,
+          whereHead: box,
+          whereBody: box,
+          pageDots: box,
+          action: box,
+          minimumFragment: { key: "minimum", height: 86, areaCount: 1, fit: false },
+        },
+        targetArea: {
+          layoutState: "infeasible",
+          referenceTotal: 3,
+          overflow: zeroOverflow,
+          fitFormula: "fragment border-box height <= algorithm available where-body height",
+          minimumOnePageFragments: [{ key: "minimum", height: 86, areaCount: 1, fit: false }],
+        },
+        diagnostics: {
+          "data-change-panel-content-height": "616",
+          "data-change-reserve-height": "500.625",
+          "data-change-budget": "115.375",
+          "data-change-measurement-pass": "1",
+          "data-change-selected": "0",
+          "data-change-layout-unresolved": "true",
+          "data-change-measurement-settled": "false",
+          "data-change-measurement-nonconverged": "false",
+          "data-change-target-available-height": "16",
+        },
+      };
+      const viewport = { innerWidth: 1280, innerHeight: 720 };
+      const accepted = capture.changeDensityInfeasibleAcceptance(panel, viewport, "after");
+      expect(accepted).toMatchObject({
+        complete: true,
+        status: "accepted",
+        state: { unresolved: "true" },
+        checks: { liveOverflowZero: true },
+      });
+
+      const rejected = capture.changeDensityInfeasibleAcceptance({
+        ...panel,
+        panelOverflow: { ...zeroOverflow, vertical: 1 },
+      }, viewport, "after");
+      expect(rejected).toMatchObject({
+        complete: false,
+        status: "incomplete",
+        state: { unresolved: "true" },
+        checks: { liveOverflowZero: false },
+      });
+      expect(capture.formatChangeDensityReadinessTimeout("720p-cell", {
+        phase: "after",
+        waitedConditions: [],
+        infeasibleAcceptance: rejected,
+      })).toContain("owner ruling A permits the documented reasoned-infeasible state tuple (layoutState=infeasible, settled=false, unresolved=true, complete reasons); zero live overflow remains mandatory");
+    });
+
+    it("change-density assert-from は design-alignment report ID と環境 identity の入力を保持する", async () => {
+      const capturePath = join(__dirname, "..", "..", "..", "..", "scripts", "capture-legacy-standby.mjs");
+      const capture = await import(/* @vite-ignore */ pathToFileURL(capturePath).href) as unknown as {
+        parseCaptureArgs(argv: string[]): {
+          designBaselineReport: string | null;
+          designAfterReport: string | null;
+        } | null;
+        createDesignAlignmentReportEvidence(input: {
+          mode: "baseline" | "after";
+          records: Array<Record<string, unknown>>;
+        }): { reportId: string; environmentIdentity: Record<string, unknown> };
+        createChangeDensityDesignAlignmentReportEvidence(input: {
+          mode: "baseline" | "after";
+          records: Array<Record<string, unknown>>;
+        }): { reportId: string; environmentIdentity: Record<string, unknown> };
+        assertDesignAlignmentReportEvidence(
+          report: Record<string, unknown>,
+          expectedMode: "baseline" | "after",
+        ): { reportId: string; environmentIdentity: Record<string, unknown> };
+        assertChangeDensityDesignAlignmentReportEvidence(
+          report: Record<string, unknown>,
+          expectedMode: "baseline" | "after",
+        ): { reportId: string; environmentIdentity: Record<string, unknown> };
+        assertChangeDensityDesignAlignmentComparison(
+          records: Array<Record<string, unknown>>,
+          baselineRecords: Array<Record<string, unknown>>,
+        ): Array<Record<string, unknown>>;
+        resolveDesignAlignmentExecutionMode(options: Record<string, unknown>): "capture" | "assert-from";
+      };
+      const parsed = capture.parseCaptureArgs([
+        "--fixture", "vpws50-change-density-normal",
+        "--assert-from", "density-after.json",
+        "--baseline-report", "density-base.json",
+        "--design-baseline-report", "design-base.json",
+        "--design-after-report", "design-after.json",
+      ]);
+      expect(parsed).toMatchObject({
+        designBaselineReport: "design-base.json",
+        designAfterReport: "design-after.json",
+      });
+      const captureSource = readFileSync(capturePath, "utf-8");
+      const densityGateSource = captureSource.slice(
+        captureSource.indexOf("export function assertChangeDensityDesignAlignmentGate"),
+        captureSource.indexOf("function assertNarrowGeometry"),
+      );
+      expect(densityGateSource).toContain("assertChangeDensityDesignAlignmentSavedRecords");
+      expect(densityGateSource).not.toContain("assertDesignAlignmentSavedRecords(designAfterReport");
+      expect(capture.resolveDesignAlignmentExecutionMode({
+        suite: "change-density-design-alignment",
+        assertFrom: "design-after.json",
+        writeBaseline: null,
+        baselineReport: "design-base.json",
+      })).toBe("assert-from");
+
+      const record = {
+        manifestKey: "synthetic-design-cell",
+        browser: { product: "Chrome/1", revision: "revision-1" },
+        geometry: {
+          viewport: { devicePixelRatio: 1 },
+          fontSignature: {
+            status: "loaded",
+            rootFamily: "sans-serif",
+            recentQuakesFamily: null,
+            recentQuakesStatsFamily: null,
+          },
+          recentQuakes: null,
+        },
+      };
+      const evidence = capture.createDesignAlignmentReportEvidence({ mode: "baseline", records: [record] });
+      expect(evidence.reportId).toMatch(/^[0-9a-f]{64}$/);
+      expect(evidence.environmentIdentity).toMatchObject({ cellCount: 1, devicePixelRatio: 1 });
+      expect(capture.assertDesignAlignmentReportEvidence({
+        schemaVersion: 2,
+        suite: "design-alignment",
+        mode: "baseline",
+        records: [record],
+        ...evidence,
+      }, "baseline")).toEqual(evidence);
+      expect(() => capture.assertDesignAlignmentReportEvidence({
+        schemaVersion: 2,
+        suite: "design-alignment",
+        mode: "baseline",
+        records: [record],
+        ...evidence,
+        reportId: "tampered",
+      }, "baseline")).toThrow(/reportId/);
+
+      const densityEvidence = capture.createChangeDensityDesignAlignmentReportEvidence({ mode: "baseline", records: [record] });
+      expect(capture.assertChangeDensityDesignAlignmentReportEvidence({
+        schemaVersion: 2,
+        suite: "change-density-design-alignment",
+        mode: "baseline",
+        records: [record],
+        ...densityEvidence,
+      }, "baseline")).toEqual(densityEvidence);
+
+      const layout = {
+        ladderStage: 3,
+        measurementGeometryStage: 3,
+        compressed: true,
+        placementLeft: ["tsunami", "quake"],
+        placementRight: [],
+        placementCenter: [],
+        rotationKeys: ["weather", "flood"],
+        rotationOmittedCount: 0,
+        rotationActiveKey: "weather",
+        rotationPosition: "1/2",
+        typhoonVariant: "compact",
+        cardOverflowKeys: [] as string[],
+        readableOverflowKeys: [] as string[],
+        unresolved: "false",
+        nonconverged: "false",
+        visibleCards: [
+          { key: "tsunami", surface: "left" },
+          { key: "quake", surface: "left" },
+          { key: "weather", surface: "rotation" },
+        ],
+      };
+      const baselineCell = {
+        manifestKey: "density-design-cell",
+        scenario: "standby-design-alignment-compressed",
+        rotationTick: 0,
+        cardPageTick: 0,
+        query: "",
+        urlIdentity: "/preview.html?nav=0&captureTicker=frozen#standby-design-alignment-compressed",
+        viewport: { label: "1280x720", width: 1280, height: 720 },
+        mismatches: [],
+        geometry: { settled: true, layout, forecast: { footer: { rect: { height: 20 } } } },
+      };
+      const afterCell = structuredClone(baselineCell);
+      expect(capture.assertChangeDensityDesignAlignmentComparison([afterCell], [baselineCell]))
+        .toEqual([expect.objectContaining({ manifestKey: "density-design-cell", status: "equal" })]);
+      const changedVisibleOrder = structuredClone(afterCell);
+      changedVisibleOrder.geometry.layout.visibleCards.reverse();
+      expect(() => capture.assertChangeDensityDesignAlignmentComparison([changedVisibleOrder], [baselineCell]))
+        .toThrow(/visibleCards/);
+      const changedOverflow = structuredClone(afterCell);
+      changedOverflow.geometry.layout.cardOverflowKeys = ["weather"];
+      expect(() => capture.assertChangeDensityDesignAlignmentComparison([changedOverflow], [baselineCell]))
+        .toThrow(/overflow/);
+    });
+
+    it("design-alignment 採取は DOM を変更せず pre/post 差分を selector と属性値で診断する", async () => {
+      const capturePath = join(__dirname, "..", "..", "..", "..", "scripts", "capture-legacy-standby.mjs");
+      const capture = await import(/* @vite-ignore */ pathToFileURL(capturePath).href) as unknown as {
+        DESIGN_ALIGNMENT_REPORT_EXPRESSION: string;
+        designAlignmentUrl(baseUrl: string, entry: Record<string, unknown>): string;
+        assertDesignCaptureTickerFreeze(record: Record<string, unknown>): Record<string, unknown>;
+        sameCssColor(left: unknown, right: unknown): boolean;
+        diffDesignDomHtml(before: string, after: string): Array<Record<string, unknown>>;
+        diffDesignDomTrace(before: unknown[], after: unknown[]): Array<Record<string, unknown>>;
+        runDesignCaptureSession(options: Record<string, unknown>): Promise<unknown>;
+      };
+      expect(capture.DESIGN_ALIGNMENT_REPORT_EXPRESSION).not.toContain("createElement");
+      expect(capture.DESIGN_ALIGNMENT_REPORT_EXPRESSION).not.toContain(".append(");
+      expect(capture.DESIGN_ALIGNMENT_REPORT_EXPRESSION).toContain("captureTickerFrozen");
+      expect(capture.DESIGN_ALIGNMENT_REPORT_EXPRESSION).toContain("getComputedStyle(document.documentElement).getPropertyValue('--role-muted')");
+      expect(capture.sameCssColor("#b4c2cf", "rgb(180, 194, 207)")).toBe(true);
+      expect(capture.sameCssColor("#b4c2cf", "rgb(180 194 207 / 100%)")).toBe(true);
+      expect(capture.sameCssColor("#b4c2cf", "rgb(181, 194, 207)")).toBe(false);
+      const designUrl = new URL(capture.designAlignmentUrl("https://capture.invalid/preview.html", {
+        scenario: "standby-design-alignment-compressed", viewport: "1280x720",
+        rotationTick: 0, cardPageTick: 1, query: null,
+      }));
+      expect(designUrl.searchParams.get("captureTicker")).toBe("frozen");
+      const previewSource = readFileSync(join(__dirname, "..", "..", "preview", "PreviewApp.svelte"), "utf-8");
+      expect(previewSource).toContain('data-capture-ticker-frozen={captureTickerFrozen ? "true" : undefined}');
+      expect(previewSource.match(/data-capture-ticker-frozen=\{captureTickerFrozen \? "true" : undefined\}/g)).toHaveLength(2);
+      expect(previewSource).toMatch(/data-capture-ticker-frozen="true"[^}]*\.ticker-line[\s\S]*animation: none !important/);
+      const captureSource = readFileSync(capturePath, "utf-8");
+      const requiredReportSource = captureSource.slice(
+        captureSource.indexOf("function assertRequiredReport"),
+        captureSource.indexOf("export function assertDesignAlignmentCompressedStage"),
+      );
+      expect(requiredReportSource).toContain("assertDesignCaptureTickerFreeze(record)");
+      const frozenRecord = {
+        schemaVersion: 2,
+        manifestKey: "standby-design-alignment-compressed|1280x720|0|1|",
+        scenario: "standby-design-alignment-compressed",
+        urlIdentity: "/preview.html?nav=0&captureTicker=frozen#standby-design-alignment-compressed",
+        geometry: {
+          captureTickerFrozen: true,
+          tickerLineAnimations: [
+            { index: 0, animationName: "none" },
+            { index: 1, animationName: "none" },
+          ],
+        },
+      };
+      expect(capture.assertDesignCaptureTickerFreeze(frozenRecord)).toEqual({
+        urlParameter: "frozen", attribute: true, animationNames: ["none", "none"],
+      });
+      expect(() => capture.assertDesignCaptureTickerFreeze({
+        ...frozenRecord,
+        urlIdentity: "/preview.html?nav=0#standby-design-alignment-compressed",
+      })).toThrow(/captureTicker=frozen/);
+      expect(() => capture.assertDesignCaptureTickerFreeze({
+        ...frozenRecord,
+        geometry: { ...frozenRecord.geometry, captureTickerFrozen: false },
+      })).toThrow(/data-capture-ticker-frozen/);
+      expect(() => capture.assertDesignCaptureTickerFreeze({
+        ...frozenRecord,
+        geometry: { ...frozenRecord.geometry, tickerLineAnimations: [{ index: 0, animationName: "ticker-scroll" }] },
+      })).toThrow(/animationName expected none/);
+      expect(capture.diffDesignDomTrace(
+        [{ selector: "html:nth-of-type(1) > body:nth-of-type(1)", attributes: { "data-stage": "2" }, text: "前" }],
+        [{ selector: "html:nth-of-type(1) > body:nth-of-type(1)", attributes: { "data-stage": "3" }, text: "後" }],
+      )).toEqual([
+        {
+          selector: "html:nth-of-type(1) > body:nth-of-type(1)",
+          attributeName: "data-stage", beforeValue: "2", afterValue: "3",
+        },
+        {
+          selector: "html:nth-of-type(1) > body:nth-of-type(1)",
+          attributeName: "#text", beforeValue: "前", afterValue: "後",
+        },
+      ]);
+      expect(capture.diffDesignDomHtml(
+        '<html data-stage="2"><body>前</body></html>',
+        '<html data-stage="3"><body>後</body></html>',
+      )).toEqual(expect.arrayContaining([
+        expect.objectContaining({ selector: "html:nth-of-type(1)", attributeName: "data-stage", beforeValue: "2", afterValue: "3" }),
+        expect.objectContaining({ attributeName: "#text", beforeValue: "前", afterValue: "後" }),
+      ]));
+
+      const documents = ["before", "after"].map((state) => ({
+        document: {
+          dom: `<html data-preview-mode="emergency" data-stage="${state}"></html>`,
+          stableDom: `<html data-preview-mode="emergency" data-stage="${state}"></html>`,
+        },
+        designGeometry: { ready: true },
+      }));
+      await expect(capture.runDesignCaptureSession({
+        chrome: "chrome", profileDir: "/capture-profile", url: "https://capture.invalid/",
+        viewport: { label: "1280x720", width: 1280, height: 720 }, viewportMode: "calibrated",
+        entry: { scenario: "standby-design-alignment-compressed", viewport: "1280x720", rotationTick: 0, cardPageTick: 1, query: "" },
+        sessionRunner: async (options: Record<string, unknown>) => {
+          const collectSnapshot = options.collectSnapshot as (input: {
+            evaluate(expression: string): Promise<Record<string, unknown>>;
+          }) => Promise<Record<string, unknown>>;
+          for (const rawSnapshot of documents) await collectSnapshot({ evaluate: async () => rawSnapshot });
+          throw new Error("design-alignment cell: DOM state changed while capturing screenshot");
+        },
+      })).rejects.toThrow(/domDiff=.*"selector":"html:nth-of-type\(1\)".*"attributeName":"data-stage".*"beforeValue":"before".*"afterValue":"after"/);
     });
 
     it("変更 item が code-only だけなら surface 全体を隠す", () => {
@@ -473,7 +1824,7 @@ describe("EmergencyScreen", () => {
       ["upgraded", "悪化地域 — 種別: L4 大雨警報 → L5 大雨特別警報"],
       ["downgraded", "緩和地域 — 種別: L5 大雨特別警報 → L4 大雨警報"],
       ["kindChanged", "変更地域 — 種別: L4 洪水警報 → L4 大雨警報"],
-    ] as const)("%s の前後文言を DOM に固定する", (kind, expected) => {
+    ] as const)("%s の前後文言を DOM に固定する", async (kind, expected) => {
       const entry = changeItem(kind, expected.slice(0, 4), 0);
       if (kind === "added") {
         entry.after = { kindShortName: "大雨警報", kindCode: "03", displaySeverity: "officialL4", officialAlertLevel: 4 };
@@ -489,10 +1840,18 @@ describe("EmergencyScreen", () => {
         entry.before = { kindShortName: "洪水警報", kindCode: "04", displaySeverity: "officialL4", officialAlertLevel: 4 };
         entry.after = { kindShortName: "大雨警報", kindCode: "03", displaySeverity: "officialL4", officialAlertLevel: 4 };
       }
-      const { container } = render(WeatherEmergencyPanel, {
+      const geometry = installWeatherGeometry();
+      const rendered = render(WeatherEmergencyPanel, {
         input: weatherInput({ change: weatherChange({ changes: [entry] }) }),
       });
-      expect(container.querySelector(".change-row")?.textContent).toBe(expected);
+      try {
+        await settleWeatherLayout();
+        expect(rendered.container.querySelector(":scope > .weather-panel > .weather-change-slot .change-chip")?.textContent)
+          .toBe(expected.replace(" — 追加: ", "　").replace(" — 解除: ", "　").replace(" — 種別: ", "　"));
+      } finally {
+        rendered.unmount();
+        geometry.restore();
+      }
     });
 
     it("reduced-motion でも changeKey 差し替え後の変更内容を省略しない", async () => {
@@ -507,6 +1866,7 @@ describe("EmergencyScreen", () => {
         removeEventListener: vi.fn(),
         dispatchEvent: vi.fn(() => true),
       })) as unknown as typeof window.matchMedia;
+      const geometry = installWeatherGeometry();
       try {
         const { container, rerender } = render(WeatherEmergencyPanel, {
           input: weatherInput({ change: weatherChange({ changeKey: "boot:1" }) }),
@@ -515,9 +1875,12 @@ describe("EmergencyScreen", () => {
         await rerender({
           input: weatherInput({ change: weatherChange({ changeKey: "boot:2" }) }),
         });
+        await settleWeatherLayout();
         flushSync();
-        expect(container.querySelector(".weather-change")?.textContent).toContain("悪化地域");
+        expect(container.querySelector(":scope > .weather-panel > .weather-change-slot .weather-change")?.textContent)
+          .toContain("悪化地域");
       } finally {
+        geometry.restore();
         window.matchMedia = originalMatchMedia;
       }
     });
@@ -1653,6 +3016,7 @@ describe("EmergencyScreen", () => {
       expect(src).toContain("inert");
       expect(src).toContain("use:measureFragment");
       expect(src).toMatch(/\.measurement-shelf\s*\{[^}]*position: absolute;[^}]*visibility: hidden;[^}]*pointer-events: none;/);
+      expect(src).toMatch(/\.measurement-shelf\s*\{[^}]*inline-size: 0;[^}]*block-size: 0;[^}]*contain: size layout;[^}]*overflow: clip;/);
     });
 
     it("1 ページに収まるときはページャを出さない", () => {

@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Report xmlns="http://xml.kishou.go.jp/jmaxml1/">
+  <Control><Title>気象警報・注意報</Title><DateTime>2026-09-06T01:01:00Z</DateTime><Status>通常</Status><EditorialOffice>気象庁</EditorialOffice><PublishingOffice>気象庁</PublishingOffice></Control>
+  <Head xmlns="http://xml.kishou.go.jp/jmaxml1/informationBasis1/">
+    <Title>気象警報・注意報</Title><ReportDateTime>2026-09-06T10:01:00+09:00</ReportDateTime><TargetDateTime>2026-09-06T10:01:00+09:00</TargetDateTime><EventID/><InfoType>発表</InfoType><Serial>2</Serial><InfoKind>気象警報・注意報</InfoKind><InfoKindVersion>1.5_0</InfoKindVersion>
+    <Headline><Text>VPWS50 change-density synthetic after</Text><Information type="気象警報・注意報（市町村等）">
+      <Item><Kind><Name>大雨警報</Name><Code>03</Code></Kind><Areas><Area><Name>秋田県秋田市</Name><Code>0520100</Code></Area></Areas></Item>
+      <Item><Kind><Name>高潮警報</Name><Code>08</Code></Kind><Areas><Area><Name>富山県富山市</Name><Code>1620100</Code></Area></Areas></Item>
+      <Item><Kind><Name>土砂災害警報</Name><Code>09</Code></Kind><Areas><Area><Name>鹿児島県奄美市名瀬の長い地域名称</Name><Code>4622200</Code></Area></Areas></Item>
+      <Item><Kind><Name>レベル４大雨危険警報</Name><Code>43</Code></Kind><Areas><Area><Name>北海道稚内市</Name><Code>0121400</Code></Area></Areas></Item>
+      <Item><Kind><Name>洪水警報</Name><Code>04</Code></Kind><Areas><Area><Name>青森県青森市</Name><Code>0220100</Code></Area></Areas></Item>
+      <Item><Kind><Name>暴風警報</Name><Code>05</Code></Kind><Areas><Area><Name>岩手県盛岡市</Name><Code>0320100</Code></Area></Areas></Item>
+      <Item><Kind><Name>波浪警報</Name><Code>07</Code></Kind><Areas><Area><Name>宮城県仙台市</Name><Code>0410000</Code></Area></Areas></Item>
+      <Item><Kind><Name>大雨危険情報</Name><Code>03</Code></Kind><Areas><Area><Name>山形県山形市</Name><Code>0620100</Code></Area></Areas></Item>
+      <Item><Kind><Name>洪水危険情報</Name><Code>04</Code></Kind><Areas><Area><Name>福島県福島市</Name><Code>0720100</Code></Area></Areas></Item>
+      <Item><Kind><Name>レベル４大雨危険警報</Name><Code>43</Code></Kind><Areas><Area><Name>新潟県新潟市</Name><Code>1510000</Code></Area></Areas></Item>
+      <Item><Kind><Name>高潮警報</Name><Code>08</Code></Kind><Areas><Area><Name>石川県金沢市</Name><Code>1720100</Code></Area></Areas></Item>
+      <Item><Kind><Name>レベル３大雨警報</Name><Code>03</Code></Kind><Areas><Area><Name>同一canonical非差分検証地域</Name><Code>9990100</Code></Area></Areas></Item>
+    </Information></Headline>
+  </Head><Body xmlns="http://xml.kishou.go.jp/jmaxml1/body/meteorology1/"/>
+</Report>

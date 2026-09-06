@@ -5,6 +5,7 @@
     buildWeatherBaseFragments,
     evaluateWeatherFragmentRefinement,
     finitePositiveOrNull,
+    groupWeatherChangeItems,
     packWeatherFragmentsByHeight,
     provisionalMinimumWeatherFragments,
     resolveWeatherInitialPageIndex,
@@ -16,7 +17,13 @@
     weatherBaseLayoutEpochKey,
     weatherChangeRowText,
     weatherChangeFadeDuration,
+    weatherChangeLogicalFingerprint,
+    weatherChangeLogicalTotal,
+    weatherChangeMeasurementIdentity,
+    weatherChangeOmittedCount,
+    weatherChangeReserveFingerprint,
     weatherChangeSummary,
+    selectWeatherChangeFitCandidate,
     weatherEmergencyHeading,
     weatherInfeasiblePages,
     weatherPageCyclerResetKey,
@@ -24,16 +31,19 @@
     weatherReferenceGeometrySourceKey,
     weatherRowAreaMax,
     weatherSyncingPages,
+    WEATHER_CHANGE_ROW_CAPACITY,
+    WEATHER_CHANGE_ROW_CAPACITY_COMPACT,
     type WeatherAreaGroupFragment,
     type WeatherEmergencyInputV1,
     type WeatherGroupFragment,
     type WeatherPublicEntry,
+    type WeatherChangeSelectionV1,
   } from "../lib/weather-panel";
   import { measureBorderHeight, observeResize } from "../lib/measure-height";
   import { createPageCycler } from "../lib/page-cycler.svelte";
   import { SPRING_EFFECTS_DEFAULT_MS, springEffectsOut } from "../lib/motion";
   import { fade } from "svelte/transition";
-  import { onDestroy, untrack } from "svelte";
+  import { onDestroy, onMount, untrack } from "svelte";
   import PageDots from "./PageDots.svelte";
   import RestoredChip from "./RestoredChip.svelte";
   import UpdatedStamp from "./UpdatedStamp.svelte";
@@ -60,14 +70,13 @@
   const triggerLabel = $derived(
     input.trigger === "new" ? "新規発表" : input.trigger === "update" ? "更新発表" : null,
   );
-  const changeSelection = $derived(
-    selectWeatherChangeItems(
-      input.change,
-      compact ? 2 : 4,
-    ),
-  );
-  const changeVisible = $derived(input.change != null && changeSelection.items.length > 0);
-  const changeSummary = $derived(weatherChangeSummary(changeSelection));
+  const changeLimit = $derived(compact ? WEATHER_CHANGE_ROW_CAPACITY_COMPACT : WEATHER_CHANGE_ROW_CAPACITY);
+  const completeChangeSelection = $derived(selectWeatherChangeItems(input.change, Number.MAX_SAFE_INTEGER));
+  const changeCandidateLimit = $derived(Math.min(changeLimit, completeChangeSelection.items.length));
+  const changeLogicalTotal = $derived(weatherChangeLogicalTotal(completeChangeSelection));
+  let selectedChangeCount = $state(0);
+  const changeSelection = $derived(selectWeatherChangeItems(input.change, selectedChangeCount));
+  const changeVisible = $derived(input.change != null && changeLogicalTotal > 0);
 
   // 主レベルの行 (「何が」の対象)。種別名は L 接頭辞を落とす (ユーザー指摘 2026-07-26):
   // 主レベルは「警戒レベル N 相当」で一度示しているので行ごとの L は情報を足さず、
@@ -149,6 +158,10 @@
     fragmentKey: string;
     activationKey: string;
   }
+  interface ChangeMeasurementToken {
+    batchKey: string;
+    candidate: number;
+  }
 
   let referenceMeasurements = $state(new Map<string, ReferenceMeasurement>());
   let activeBaseEpochKey = $state<string | null>(null);
@@ -157,6 +170,101 @@
   let candidateHeights = $state(new Map<string, number>());
   let candidateFragment = $state<WeatherAreaGroupFragment | null>(null);
   let layoutState = $state<"pending" | "ready" | "infeasible">("pending");
+  let partitionRefinementCount = $state(0);
+  let panelElement = $state<HTMLElement | null>(null);
+  let panelWidth = $state<number | null>(null);
+  let panelHeight = $state<number | null>(null);
+  let panelContentHeight = $state<number | null>(null);
+  let reserveHeight = $state<number | null>(null);
+  let changeCandidateHeights = $state(new Map<number, number>());
+  let activeChangeBatchKey = $state<string | null>(null);
+  let changeMeasurementPass = $state(0);
+  let changeLayoutUnresolved = $state(false);
+  let changeMeasurementNonconverged = $state(false);
+  let changeMeasurementSettled = $state(false);
+  let fontEpoch = $state(0);
+  let settlingEpoch = $state(0);
+
+  function readPanel(node: HTMLElement, token: string): void {
+    if (!acceptsMeasurement(token, input.activationKey, layoutSettling)) return;
+    const rect = node.getBoundingClientRect();
+    const style = getComputedStyle(node);
+    const verticalInsets = [
+      style.borderTopWidth,
+      style.borderBottomWidth,
+      style.paddingTop,
+      style.paddingBottom,
+    ].reduce((sum, value) => sum + (Number.parseFloat(value) || 0), 0);
+    panelWidth = finitePositiveOrNull(rect.width);
+    panelHeight = finitePositiveOrNull(rect.height);
+    panelContentHeight = finitePositiveOrNull(rect.height - verticalInsets);
+  }
+
+  function observePanel(node: HTMLElement, token: string) {
+    let currentToken = token;
+    panelElement = node;
+    readPanel(node, currentToken);
+    const handle: MeasureHandle = observeResize(node, () => readPanel(node, currentToken));
+    return {
+      update(next: string): void {
+        currentToken = next;
+        queueMicrotask(() => readPanel(node, currentToken));
+      },
+      destroy(): void {
+        if (panelElement === node) panelElement = null;
+        handle.destroy?.();
+      },
+    };
+  }
+
+  function measureReserve(node: HTMLElement, token: string) {
+    let currentToken = token;
+    const record = (height: number): void => {
+      if (currentToken !== changeBatchKey || layoutSettling) return;
+      reserveHeight = finitePositiveOrNull(height);
+    };
+    const immediate = node.getBoundingClientRect().height;
+    if (immediate > 0) record(immediate);
+    queueMicrotask(() => record(node.getBoundingClientRect().height));
+    const handle = measureBorderHeight(node, record);
+    return {
+      update(next: string): void {
+        currentToken = next;
+        queueMicrotask(() => record(node.getBoundingClientRect().height));
+      },
+      destroy: () => handle.destroy?.(),
+    };
+  }
+
+  function measureChangeCandidate(node: HTMLElement, token: ChangeMeasurementToken) {
+    let currentToken = token;
+    const record = (height: number): void => {
+      if (currentToken.batchKey !== changeBatchKey || layoutSettling) return;
+      const measured = finitePositiveOrNull(height);
+      if (measured == null || changeCandidateHeights.get(currentToken.candidate) === measured) return;
+      changeCandidateHeights = new Map(changeCandidateHeights).set(currentToken.candidate, measured);
+    };
+    const immediate = node.getBoundingClientRect().height;
+    if (immediate > 0) record(immediate);
+    queueMicrotask(() => record(node.getBoundingClientRect().height));
+    const handle = measureBorderHeight(node, record);
+    return {
+      update(next: ChangeMeasurementToken): void {
+        currentToken = next;
+        queueMicrotask(() => record(node.getBoundingClientRect().height));
+      },
+      destroy: () => handle.destroy?.(),
+    };
+  }
+
+  onMount(() => {
+    let cancelled = false;
+    const fontsReady = document.fonts?.ready ?? Promise.resolve();
+    void fontsReady.then(() => {
+      if (!cancelled) fontEpoch += 1;
+    });
+    return () => { cancelled = true; };
+  });
 
   function readWhereFrame(node: HTMLElement, token: string): void {
     if (!acceptsMeasurement(token, input.activationKey, layoutSettling)) return;
@@ -213,6 +321,79 @@
   // 一瞬も公開しない。active key が一致するまでは外向きには pending として扱う。
   const baseEpochIsActive = $derived(activeBaseEpochKey === baseLayoutEpochKey);
   const publicLayoutState = $derived(baseEpochIsActive ? layoutState : "pending");
+  const reserveFingerprint = $derived(weatherChangeReserveFingerprint({
+    level: input.level,
+    headingLabel,
+    triggerLabel,
+    updatedAt: input.updatedAt,
+    restored: input.restored,
+    compact,
+    actionMode: compact ? "inline" : "tile",
+    actionLabel: actionOf(input.level),
+    alertNames,
+    subSectionPresent: subItems.length > 0,
+    subKinds,
+    subAddedKinds: subKinds.filter((kind) => subAddedKinds.has(kind)),
+    subAddedCount,
+    hiddenSubKindCount,
+    baseContentFingerprint,
+  }));
+  const changeFingerprint = $derived(
+    weatherChangeLogicalFingerprint(input.change, completeChangeSelection),
+  );
+  const changeBudget = $derived(
+    panelContentHeight == null || reserveHeight == null
+      ? null
+      : panelContentHeight - reserveHeight,
+  );
+  const changeBudgetQuantized = $derived.by(() => {
+    if (changeBudget == null) return null;
+    const ratio = typeof window === "undefined" ? 1 : Math.max(1, window.devicePixelRatio || 1);
+    return Math.round(changeBudget * ratio) / ratio;
+  });
+  const changeBatchKey = $derived(JSON.stringify([
+    input.change?.changeKey ?? null,
+    input.activationKey,
+    compact,
+    panelWidth,
+    panelHeight,
+    changeBudgetQuantized,
+    reserveHeight,
+    reserveFingerprint,
+    changeFingerprint,
+    fontEpoch,
+    settlingEpoch,
+  ]));
+  const changeMeasurementKey = $derived(
+    input.change == null || panelWidth == null || panelHeight == null
+      || changeBudget == null || changeBudgetQuantized == null || reserveHeight == null
+      ? null
+      : weatherChangeMeasurementIdentity({
+        changeKey: input.change.changeKey,
+        activationKey: input.activationKey,
+        compact,
+        panelWidth,
+        panelHeight,
+        budget: changeBudget,
+        reserveHeight,
+        reserveFingerprint,
+        changeFingerprint,
+        fontEpoch,
+        settlingEpoch,
+      }),
+  );
+  const changeCandidateMeasurements = $derived.by(() => (
+    Array.from({ length: changeCandidateLimit + 1 }, (_, candidate) => {
+      const height = changeCandidateHeights.get(candidate) ?? null;
+      return {
+        n: candidate,
+        height,
+        fit: changeBudget == null || height == null
+          ? null
+          : height <= changeBudget,
+      };
+    })
+  ));
 
   function readReferenceBody(node: HTMLElement, token: ReferenceMeasurementToken): void {
     if (
@@ -300,6 +481,68 @@
     });
   });
 
+  let previousLayoutSettling = false;
+  $effect(() => {
+    const settling = layoutSettling;
+    untrack(() => {
+      if (previousLayoutSettling && !settling) settlingEpoch += 1;
+      previousLayoutSettling = settling;
+    });
+  });
+
+  // fit identity が変わったら旧候補を破棄し、初回は summary-only へ戻す。
+  $effect(() => {
+    const batchKey = changeBatchKey;
+    untrack(() => {
+      if (activeChangeBatchKey === batchKey) return;
+      activeChangeBatchKey = batchKey;
+      changeCandidateHeights = new Map();
+      selectedChangeCount = 0;
+      changeMeasurementPass = 0;
+      changeLayoutUnresolved = false;
+      changeMeasurementNonconverged = false;
+      changeMeasurementSettled = false;
+    });
+  });
+
+  // n=0..limit の同一 batch がすべて揃ってから、一度だけ最大 fitting 候補を publish する。
+  // Bq は subpixel noise を同一 publish とみなすための値で、fit 自体は reserve を侵食しない
+  // raw B に対して行う（round(B) は最大 0.5px の過配分になり得る）。
+  $effect(() => {
+    const batchKey = changeBatchKey;
+    const measurementKey = changeMeasurementKey;
+    const budget = changeBudget;
+    const heights = changeCandidateHeights;
+    const limit = changeCandidateLimit;
+    const settling = layoutSettling;
+    untrack(() => {
+      if (
+        !changeVisible
+        || settling
+        || activeChangeBatchKey !== batchKey
+        || measurementKey == null
+        || Array.from({ length: limit + 1 }, (_, candidate) => candidate)
+          .some((candidate) => !heights.has(candidate))
+      ) return;
+      const result = selectWeatherChangeFitCandidate({ budget, candidateHeights: heights, limit });
+      if (result == null) return;
+      const nextSelected = result.unresolved ? 0 : result.selected;
+      const changed = changeMeasurementPass === 0
+        || selectedChangeCount !== nextSelected
+        || changeLayoutUnresolved !== result.unresolved;
+      if (!changed) return;
+      if (changeMeasurementPass >= 4) {
+        changeMeasurementNonconverged = true;
+        changeMeasurementSettled = false;
+        return;
+      }
+      selectedChangeCount = nextSelected;
+      changeLayoutUnresolved = result.unresolved;
+      changeMeasurementPass += 1;
+      changeMeasurementSettled = false;
+    });
+  });
+
   // base epoch の変更だけが refinement と infeasible を原子的に初期化する。
   $effect(() => {
     const epochKey = baseLayoutEpochKey;
@@ -312,6 +555,7 @@
       fragmentHeights = new Map();
       candidateHeights = new Map();
       candidateFragment = null;
+      partitionRefinementCount = 0;
     });
   });
 
@@ -353,6 +597,7 @@
         candidateHeights = new Map();
         candidateFragment = null;
         layoutState = "pending";
+        partitionRefinementCount += 1;
         return;
       }
       candidateFragment = null;
@@ -381,6 +626,44 @@
   });
   const partitionSignature = $derived(weatherPartitionSignature(publicPages));
   const pageCyclerResetKey = $derived(weatherPageCyclerResetKey(partitionSignature));
+  const changePageRanges = $derived(publicPages.map((page) => page.map((fragment) => fragment.key)));
+  const changeLogicalAreaIdentities = $derived(publicPages.flatMap((page) => page.flatMap((fragment) =>
+    fragment.fragmentType === "group"
+      ? fragment.areas.map((area) => `${area.identity}:${area.sourceIndex}`)
+      : [],
+  )));
+
+  // 公開 fit と最終 partition が二つの animation frame で不変なら settled とする。
+  $effect(() => {
+    const signature = JSON.stringify([
+      changeMeasurementKey,
+      changeBudgetQuantized,
+      selectedChangeCount,
+      partitionSignature,
+      publicLayoutState,
+    ]);
+    if (!changeVisible || layoutSettling || changeMeasurementPass === 0
+      || changeLayoutUnresolved || changeMeasurementNonconverged || publicLayoutState !== "ready") {
+      changeMeasurementSettled = false;
+      return;
+    }
+    let cancelled = false;
+    const first = requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        if (!cancelled && signature === JSON.stringify([
+          changeMeasurementKey,
+          changeBudgetQuantized,
+          selectedChangeCount,
+          partitionSignature,
+          publicLayoutState,
+        ])) changeMeasurementSettled = true;
+      });
+    });
+    return () => {
+      cancelled = true;
+      cancelAnimationFrame(first);
+    };
+  });
 
   const cycler = createPageCycler({
     pageCount: () => publicPages.length,
@@ -398,8 +681,13 @@
     const syncing = isSyncingContent;
     const state = publicLayoutState;
     const pageList = finalPages;
+    // change fit の publish 前に一度 ready になった暫定 partition で activation を消費すると、
+    // change 自然高を反映した再 partition の resetKey が cycler を 0 へ戻しても、追加地域 page
+    // へ再 jump できない。更新欄がある場合は outer fit と最終 partition の連続安定 sample まで
+    // 待ち、新 activation の初期 page を最終 range に対して一度だけ選ぶ。
+    const presentationSettled = !changeVisible || changeMeasurementSettled;
     untrack(() => {
-      if (syncing || state !== "ready" || pageList.length === 0) return;
+      if (syncing || state !== "ready" || pageList.length === 0 || !presentationSettled) return;
       if (consumedActivationKey === activationKey) return;
       const targetIndex = resolveWeatherInitialPageIndex(pageList, firstPageRowKey);
       cycler.jumpTo(targetIndex, { immediate: false });
@@ -433,7 +721,8 @@
           <span class="municipalities">
             {#each fragment.areas as area (`${area.identity}:${area.sourceIndex}`)}<span
                 class="area-name"
-                class:added={area.added}>{area.displayName}</span
+                class:added={area.added}
+                data-area-identity={`${area.identity}:${area.sourceIndex}`}>{area.displayName}</span
               >{/each}
           </span>
         </div>
@@ -443,11 +732,87 @@
   </div>
 {/snippet}
 
+{#snippet weatherChangeSurface(selection: WeatherChangeSelectionV1)}
+  <section
+    class="weather-change"
+    aria-label="気象警報（VPWS50）の今回の変更"
+    data-change-selected={selection.items.length}
+    data-change-logical-total={weatherChangeLogicalTotal(selection)}
+    data-change-omitted={weatherChangeOmittedCount(selection)}
+  >
+    <header class="change-header">
+      <h2 class="change-heading">今回の変更</h2>
+      <span class="change-meta">VPWS50 · {weatherChangeLogicalTotal(selection)}件</span>
+    </header>
+    <div class="change-content">
+      <p class="change-summary" aria-live="polite">{weatherChangeSummary(selection)}</p>
+      {#if selection.items.length > 0}
+        <div class="change-groups">
+          {#each groupWeatherChangeItems(selection) as group (group.kind)}
+            <div class="change-group" data-change-kind={group.kind}>
+              <div class="change-group-heading">
+                <span class="change-group-label">{group.label}</span>
+                <span class="change-group-count">{group.total}件</span>
+              </div>
+              <div class="change-chips">
+                {#each group.items as item (item.areaCode + ":" + item.phenomenonKey)}
+                  <span class="change-chip">{weatherChangeRowText(item)}</span>
+                {/each}
+              </div>
+            </div>
+          {/each}
+        </div>
+      {/if}
+      {#if weatherChangeOmittedCount(selection) > 0}
+        <div class="change-omitted-tail">ほか {weatherChangeOmittedCount(selection)} 件</div>
+      {/if}
+    </div>
+  </section>
+{/snippet}
+
 <!-- 再点灯演出 (spec 追補 C1): 外側の panel key は固定のまま、activationKey が変わったら
      **中身だけ**を差し替えて短い fade-in を掛ける (旧内容は outro を持たないので重ねない
      片方向フェード。地図的な位置が変わらない差し替えなので、重ねるより素直に出す)。
      外側 key に混ぜるとレイアウト補間と実測状態が壊れるので、演出は必ずこの内側でやる -->
-<div class="weather-panel role-{role} level-{input.level}" class:compact>
+<div
+  class="weather-panel role-{role} level-{input.level}"
+  class:compact
+  use:observePanel={input.activationKey}
+  data-change-layout-unresolved={changeLayoutUnresolved}
+  data-change-measurement-nonconverged={changeMeasurementNonconverged}
+  data-change-measurement-settled={changeVisible ? changeMeasurementSettled : true}
+  data-change-measurement-pass={changeMeasurementPass}
+  data-change-selected={selectedChangeCount}
+  data-change-limit={changeLimit}
+  data-change-budget={changeBudget ?? undefined}
+  data-change-budget-quantized={changeBudgetQuantized ?? undefined}
+  data-change-reserve-height={reserveHeight ?? undefined}
+  data-change-panel-width={panelWidth ?? undefined}
+  data-change-panel-height={panelHeight ?? undefined}
+  data-change-panel-content-height={panelContentHeight ?? undefined}
+  data-change-batch-key={changeBatchKey}
+  data-change-active-batch-key={activeChangeBatchKey ?? undefined}
+  data-change-measurement-key={changeMeasurementKey ?? undefined}
+  data-change-candidate-measurements={JSON.stringify(changeCandidateMeasurements)}
+  data-change-key={input.change?.changeKey ?? undefined}
+  data-change-activation-key={input.activationKey}
+  data-change-reserve-fingerprint={reserveFingerprint}
+  data-change-logical-fingerprint={changeFingerprint}
+  data-change-font-epoch={fontEpoch}
+  data-change-settling-epoch={settlingEpoch}
+  data-change-partition-signature={partitionSignature}
+  data-change-cycler-reset-key={pageCyclerResetKey}
+  data-change-target-layout-state={publicLayoutState}
+  data-change-target-available-height={stableWhereBodyHeight ?? undefined}
+  data-change-target-frame-width={whereFrameWidth ?? undefined}
+  data-change-target-frame-height={whereFrameHeight ?? undefined}
+  data-change-active-index={cycler.index}
+  data-change-page-count={publicPages.length}
+  data-change-page-ranges={JSON.stringify(changePageRanges)}
+  data-change-logical-area-identities={JSON.stringify(changeLogicalAreaIdentities)}
+  data-change-outer-fit-publishes={changeMeasurementPass}
+  data-change-partition-refinements={partitionRefinementCount}
+>
   <div class="activation-stack">
   {#key input.activationKey}
   <div
@@ -627,24 +992,89 @@
         </div>
       {/key}
     {/if}
+
+    {#if changeVisible && panelWidth != null}
+      <div
+        class="change-reserve-shell"
+        style:width={`${panelWidth}px`}
+        use:measureReserve={changeBatchKey}
+      >
+        <div class="heading">
+          <span class="heading-title">
+            <span class="heading-text">{headingLabel}</span>
+            {#if triggerLabel != null}<span class="trigger-badge">{triggerLabel}</span>{/if}
+          </span>
+          <UpdatedStamp iso={input.updatedAt} />
+        </div>
+        <div class="tiles">
+          <div class="tile tile-what">
+            <div class="hero" class:merged={compact}>
+              <span class="level-label">警戒レベル{input.level}<span class="level-suffix">相当</span></span>
+              {#if compact}<span class="hero-sep">—</span><span class="action-main">{actionOf(input.level)}</span>{/if}
+            </div>
+            <div class="alert-names">
+              {#each alertNames as name (name)}<span class="alert-name">{name}</span>{/each}{#if input.restored}<RestoredChip />{/if}
+            </div>
+          </div>
+          {#if !compact}
+            <div class="tile tile-action">
+              <div class="action-main">{actionOf(input.level)}</div>
+              <div class="action-note">自治体が発令する避難指示とは別の防災気象情報です</div>
+            </div>
+          {/if}
+          <div class="tile tile-where change-reserve-where">
+            <div class="where-head">
+              <span class="section-label">対象地域・区分</span>
+              <!-- pending 時の live / reference と同じ pager chrome を reserve する。これを
+                   欠くと 24px の dot 行ぶん available body を過大評価する。 -->
+              <PageDots
+                total={pagerReferenceTotal}
+                current={0}
+                onJump={() => {}}
+                windowed={true}
+              />
+            </div>
+            <div class="where-body change-reserve-where-body">
+              {#if provisionalMinimumFragments[0] != null}
+                {@render weatherFragmentRow(provisionalMinimumFragments[0], null)}
+              {:else}
+                <div class="syncing" role="status">対象地域を同期中です</div>
+              {/if}
+            </div>
+          </div>
+          {#if subItems.length > 0}
+            <div class="tile tile-sub">
+              <div class="sub-head"><span class="sub-level">警戒レベル4相当</span><span class="sub-action">{actionOf(4)}</span></div>
+              <div class="sub-kinds">
+                {#each subKinds as kind (kind)}<span class="kind" class:added={subAddedKinds.has(kind)}>{kind}</span>{/each}{#if subAddedCount > 0}<span class="sub-added">＋{subAddedCount}地域</span>{/if}{#if hiddenSubKindCount > 0}<span class="sub-omitted">ほか{hiddenSubKindCount}種別</span>{/if}
+              </div>
+            </div>
+          {/if}
+        </div>
+      </div>
+      <div class="change-candidate-batch" style:width={`${panelWidth}px`}>
+        {#each Array.from({ length: changeCandidateLimit + 1 }, (_, candidate) => candidate) as candidate (candidate)}
+          <div
+            class="change-candidate weather-change-slot"
+            data-change-candidate={candidate}
+            use:measureChangeCandidate={{ batchKey: changeBatchKey, candidate }}
+          >
+            {@render weatherChangeSurface(selectWeatherChangeItems(input.change, candidate))}
+          </div>
+        {/each}
+      </div>
+    {/if}
     {/key}
   </div>
 
   {#if changeVisible && input.change != null}
     {#key input.change.changeKey}
-      <section
-        class="weather-change"
-        aria-label="気象警報（VPWS50）の今回の変更"
+      <div
+        class="weather-change-slot"
         in:fade={{ duration: weatherChangeFadeDuration(reducedMotion), easing: springEffectsOut }}
       >
-        <h2 class="change-heading" aria-live="polite">気象警報（VPWS50）の今回の変更</h2>
-        <p class="change-summary" aria-live="polite">{changeSummary}</p>
-        <div class="change-rows">
-          {#each changeSelection.items as item (item.areaCode + ":" + item.phenomenonKey)}
-            <div class="change-row" data-change-kind={item.kind}>{weatherChangeRowText(item)}</div>
-          {/each}
-        </div>
-      </section>
+        {@render weatherChangeSurface(changeSelection)}
+      </div>
     {/key}
   {/if}
 </div>
@@ -683,47 +1113,119 @@
   .activation:not(:last-child) {
     pointer-events: none;
   }
-  .weather-change {
+  .weather-change-slot {
     flex: 0 0 auto;
-    margin: 0 calc(28px * var(--panel-scale, 1)) calc(18px * var(--panel-scale, 1));
-    padding: calc(10px * var(--panel-scale, 1)) calc(14px * var(--panel-scale, 1));
+    box-sizing: border-box;
+    padding: 0 calc(var(--space-7) * var(--panel-scale, 1))
+      calc(var(--space-5) * var(--panel-scale, 1));
+  }
+  .weather-change {
     background: var(--surface-panel-raised);
     border: 1px solid var(--hairline);
-    border-left: calc(4px * var(--panel-scale, 1)) solid var(--header-band-weatherWarning);
     border-radius: var(--radius-m);
     box-shadow: var(--elevation-1);
+    overflow: hidden;
+  }
+  .change-header {
+    display: flex;
+    align-items: center;
+    gap: calc(var(--space-3) * var(--panel-scale, 1));
+    padding: calc(var(--space-2) * var(--panel-scale, 1))
+      calc(var(--space-4) * var(--panel-scale, 1));
+    background: var(--header-weatherWarning-container);
+    color: var(--header-weatherWarning-on);
+    border-bottom: var(--header-band-width) solid var(--header-band-weatherWarning);
   }
   .change-heading,
   .change-summary {
     margin: 0;
   }
   .change-heading {
-    color: var(--fg);
+    min-width: 0;
+    flex: 1 1 auto;
     font-size: calc(var(--type-label-l-size) * var(--panel-scale, 1));
-    font-weight: var(--type-headline-weight-emphasized);
+    font-weight: var(--type-label-weight-emphasized);
+  }
+  .change-meta {
+    flex: 0 0 auto;
+    margin-left: auto;
+    font-size: calc(var(--type-label-xs-size) * var(--panel-scale, 1));
+    font-weight: var(--type-label-weight);
+  }
+  .change-content {
+    display: grid;
+    gap: calc(var(--space-2) * var(--panel-scale, 1));
+    padding: calc(var(--space-3) * var(--panel-scale, 1))
+      calc(var(--space-4) * var(--panel-scale, 1));
   }
   .change-summary {
-    margin-top: var(--space-1);
     color: var(--role-muted);
     font-size: calc(var(--type-label-m-size) * var(--panel-scale, 1));
+    font-weight: var(--type-label-weight);
   }
-  .change-rows {
+  .change-groups {
     display: grid;
-    gap: var(--space-1);
-    margin-top: var(--space-2);
+    gap: calc(var(--space-2) * var(--panel-scale, 1));
   }
-  .change-row {
+  .change-group {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    gap: calc(var(--space-1) * var(--panel-scale, 1))
+      calc(var(--space-3) * var(--panel-scale, 1));
     min-width: 0;
+  }
+  .change-group-heading {
+    display: inline-flex;
+    align-items: baseline;
+    gap: calc(var(--space-1) * var(--panel-scale, 1));
+    flex: 0 0 auto;
+    font-size: calc(var(--type-label-m-size) * var(--panel-scale, 1));
+    font-weight: var(--type-label-weight-emphasized);
+  }
+  .change-group-count {
+    color: var(--role-muted);
+    font-weight: var(--type-label-weight);
+  }
+  .change-chips {
+    display: flex;
+    flex: 1 1 auto;
+    flex-wrap: wrap;
+    gap: calc(var(--space-1) * var(--panel-scale, 1));
+    min-width: 0;
+  }
+  .change-chip {
+    min-width: 0;
+    max-width: 100%;
+    padding: calc(var(--space-1) * var(--panel-scale, 1))
+      calc(var(--space-2) * var(--panel-scale, 1));
     color: var(--fg);
+    background: var(--surface-highest);
+    border: 1px solid var(--hairline);
+    border-radius: var(--radius-s);
     font-size: calc(var(--type-body-s-size) * var(--panel-scale, 1));
+    font-weight: var(--type-body-weight);
     line-height: 1.35;
     overflow-wrap: anywhere;
   }
-  .compact .weather-change {
-    margin-left: calc(14px * var(--panel-scale, 1));
-    margin-right: calc(14px * var(--panel-scale, 1));
-    margin-bottom: calc(10px * var(--panel-scale, 1));
-    padding: calc(7px * var(--panel-scale, 1)) calc(10px * var(--panel-scale, 1));
+  .change-omitted-tail {
+    color: var(--role-muted);
+    font-size: calc(var(--type-label-xs-size) * var(--panel-scale, 1));
+    font-weight: var(--type-label-weight);
+  }
+  .compact .weather-change-slot {
+    padding-right: calc(var(--space-4) * var(--panel-scale, 1));
+    padding-bottom: calc(var(--space-3) * var(--panel-scale, 1));
+    padding-left: calc(var(--space-4) * var(--panel-scale, 1));
+  }
+  .compact .change-header {
+    padding: calc(var(--space-1) * var(--panel-scale, 1))
+      calc(var(--space-3) * var(--panel-scale, 1));
+  }
+  .compact .change-content {
+    gap: calc(var(--space-1) * var(--panel-scale, 1));
+    padding: calc(var(--space-2) * var(--panel-scale, 1))
+      calc(var(--space-3) * var(--panel-scale, 1));
   }
   /* 新規/更新バッジ。見出し帯の on 色を継承し、輪郭だけで存在を示す
      (帯の container/on ペアは監査済み。独自の文字色・面を作らない) */
@@ -1009,14 +1511,17 @@
     align-self: flex-end;
   }
 
-  /* 基準 geometry と断片の測定棚。absolute + visibility:hidden により、実レイアウト高と
-     accessibility tree の双方へ参加しない。 */
+  /* 基準 geometry と断片の測定棚。子の box は layout / ResizeObserver 用に残す一方、
+     zero-size containment + clip で親 panel の scroll extent には参加させない。 */
   .measurement-shelf {
     position: absolute;
     inset: 0 auto auto 0;
+    inline-size: 0;
+    block-size: 0;
+    contain: size layout;
     visibility: hidden;
     pointer-events: none;
-    overflow: visible;
+    overflow: clip;
     z-index: -1;
   }
   .measurement-reference {
@@ -1032,6 +1537,39 @@
   .measurement-area-probe .where-row,
   .measurement-fragments .where-row {
     box-sizing: border-box;
+  }
+  .change-reserve-shell {
+    box-sizing: border-box;
+    position: absolute;
+    inset: 0 auto auto 0;
+    display: flex;
+    flex-direction: column;
+  }
+  .change-reserve-shell > .tiles {
+    flex: 0 0 auto;
+  }
+  .change-reserve-shell .change-reserve-where {
+    flex: 0 0 auto;
+    block-size: auto;
+  }
+  .change-reserve-where-body {
+    position: static;
+    flex: 0 0 auto;
+    overflow: visible;
+  }
+  .change-candidate-batch,
+  .change-candidate {
+    box-sizing: border-box;
+  }
+  .change-candidate-batch {
+    position: absolute;
+    inset: 0 auto auto 0;
+    display: grid;
+  }
+  .change-candidate {
+    grid-area: 1 / 1;
+    /* 同一 grid row の最大候補高へ stretch させず、各候補の自然高を測る。 */
+    align-self: start;
   }
   /* どうする: 面ではなく role 色の縦レールで主張する行動レール (主役スロットのみ) */
   .tile-action {
