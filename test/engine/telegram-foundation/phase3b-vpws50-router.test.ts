@@ -2,6 +2,13 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { DisplayIngestSink } from "../../../src/engine/display/types";
 import type { DisplayCallbacks } from "../../../src/engine/messages/display-callbacks";
 import { createMessageHandler } from "../../../src/engine/messages/message-router";
+import {
+  TelegramRevisionGate,
+  type TelegramRevisionDecision,
+} from "../../../src/engine/messages/telegram-revision-gate";
+import { Vpws50StateHolder } from "../../../src/engine/messages/vpws50-state";
+import { Vpww56StateHolder } from "../../../src/engine/messages/vpww56-state";
+import { processWeather } from "../../../src/engine/presentation/processors/process-weather";
 import type { PresentationEvent } from "../../../src/engine/presentation/types";
 import type { WsDataMessage } from "../../../src/types";
 import { notifyMock } from "../../setup";
@@ -100,4 +107,137 @@ describe("Phase 3B VPWS50 router", () => {
       presented: 2,
     });
   }, 20_000);
+});
+
+// ── Issue #11: stale partial が容量を占有して新規 subject を恒久拒否する回帰 ──
+
+/** 最小構成の VPWW55 / VPWS50 電文。官署と区域だけを差し替えて 129 subject を合成する。 */
+function weatherXml(opts: {
+  office: string;
+  areaName: string;
+  areaCode: string;
+  reportDateTime: string;
+  kindName?: string;
+  kindCode?: string;
+}): string {
+  return [
+    `<?xml version="1.0" encoding="utf-8"?>`,
+    `<Report xmlns="http://xml.kishou.go.jp/jmaxml1/" xmlns:jmx="http://xml.kishou.go.jp/jmaxml1/" xmlns:jmx_add="http://xml.kishou.go.jp/jmaxml1/addition1/">`,
+    `<Control>`,
+    `<Title>気象警報・注意報</Title>`,
+    `<DateTime>${opts.reportDateTime}</DateTime>`,
+    `<Status>通常</Status>`,
+    `<EditorialOffice>${opts.office}</EditorialOffice>`,
+    `<PublishingOffice>${opts.office}</PublishingOffice>`,
+    `</Control>`,
+    `<Head xmlns="http://xml.kishou.go.jp/jmaxml1/informationBasis1/">`,
+    `<Title>気象警報・注意報</Title>`,
+    `<ReportDateTime>${opts.reportDateTime}</ReportDateTime>`,
+    `<TargetDateTime>${opts.reportDateTime}</TargetDateTime>`,
+    `<EventID/>`,
+    `<InfoType>発表</InfoType>`,
+    `<Serial/>`,
+    `<InfoKind>気象警報・注意報</InfoKind>`,
+    `<InfoKindVersion>1.5_0</InfoKindVersion>`,
+    `<Headline>`,
+    `<Text/>`,
+    `<Information type="気象警報・注意報（府県予報区等）">`,
+    `<Item>`,
+    `<Kind><Name>${opts.kindName ?? "レベル３大雨警報"}</Name><Code>${opts.kindCode ?? "03"}</Code></Kind>`,
+    `<Areas codeType="気象情報／府県予報区・細分区域等">`,
+    `<Area><Name>${opts.areaName}</Name><Code>${opts.areaCode}</Code></Area>`,
+    `</Areas>`,
+    `</Item>`,
+    `</Information>`,
+    `</Headline>`,
+    `</Head>`,
+    `</Report>`,
+  ].join("\n");
+}
+
+function syntheticMessage(type: string, xml: string): WsDataMessage {
+  return { ...createMockWsDataMessageFromXml(xml, type), meta: undefined };
+}
+
+describe("Issue #11 VPWS50 family capacity", () => {
+  const BASE_1 = "2026-09-01T00:00:00+09:00";
+  const BASE_2 = "2026-09-05T00:00:00+09:00";
+
+  function deps(): {
+    vpws50State: Vpws50StateHolder;
+    vpww56State: Vpww56StateHolder;
+    revisionGate: TelegramRevisionGate;
+    decisions: TelegramRevisionDecision[];
+  } {
+    const decisions: TelegramRevisionDecision[] = [];
+    return {
+      vpws50State: new Vpws50StateHolder(),
+      vpww56State: new Vpww56StateHolder(),
+      revisionGate: new TelegramRevisionGate(),
+      decisions,
+    };
+  }
+
+  function feed(
+    d: ReturnType<typeof deps>,
+    type: string,
+    xml: string,
+  ): ReturnType<typeof processWeather> {
+    return processWeather(syntheticMessage(type, xml), {
+      vpws50State: d.vpws50State,
+      vpww56State: d.vpww56State,
+      revisionGate: d.revisionGate,
+      onRevisionDecision: (decision) => d.decisions.push(decision),
+    });
+  }
+
+  function nationwide(reportDateTime: string): string {
+    return weatherXml({
+      office: "気象庁",
+      areaName: "全国区域",
+      areaCode: "010000",
+      reportDateTime,
+    });
+  }
+
+  function partial(index: number, reportDateTime: string): string {
+    return weatherXml({
+      office: `架空第${index.toString().padStart(3, "0")}気象台`,
+      areaName: `架空区域${index.toString().padStart(3, "0")}`,
+      areaCode: `${(700000 + index).toString()}`,
+      reportDateTime,
+    });
+  }
+
+  it("新しい全国報を受理すると古い partial は active 扱いから外れ、129 件目の新規 subject が受理される", () => {
+    const d = deps();
+    // 1. base VPWS50 を受理
+    expect(feed(d, "VPWS50", nationwide(BASE_1)).kind).toBe("ok");
+    // 2. distinct な部分報 subject を 128 件受理する
+    for (let i = 1; i <= 128; i += 1) {
+      const result = feed(d, "VPWW55", partial(i, "2026-09-02T00:00:00+09:00"));
+      expect(result.kind, `partial ${i}`).toBe("ok");
+    }
+    expect(d.vpws50State.activePartialSubjects()).toHaveLength(128);
+
+    // 3. それらより新しい全国 VPWS50 を受理する
+    expect(feed(d, "VPWS50", nationwide(BASE_2)).kind).toBe("ok");
+
+    // 4. 古い partial は active 扱いされない
+    expect(d.vpws50State.activePartialSubjects()).toHaveLength(0);
+
+    // 5. 129 件目の新規 subject が capacityExceeded ではなく受理され、表示 state に載る
+    d.decisions.length = 0;
+    const fresh = feed(d, "VPWW55", partial(129, "2026-09-06T00:00:00+09:00"));
+    expect(d.decisions.map((decision) => decision.kind)).not.toContain("capacityExceeded");
+    expect(fresh.kind).toBe("ok");
+    const areaCodes = d.vpws50State.getCurrentAreasForDisplay()?.kinds
+      .flatMap((kind) => kind.areas.map((area) => area.areaCode)) ?? [];
+    expect(areaCodes).toContain("700129");
+
+    // 6. base より新しく実際に表示へ寄与している partial は active のまま守られる
+    expect(d.vpws50State.activePartialSubjects()).toEqual([
+      "weather:VPWW55:架空第129気象台",
+    ]);
+  }, 60_000);
 });

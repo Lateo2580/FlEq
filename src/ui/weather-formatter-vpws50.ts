@@ -790,6 +790,21 @@ function displayVpws50List(
     return;
   }
 
+  // (1b) stale current からの再同期: spec 2026-09-07 §6-2 A
+  // 8 日ぶんの差分は released が 1,000 件級になりうる。差分描画は出さず、
+  // 要約 1 行と現況再掲だけにする。
+  if (diff?.isStaleResync === true) {
+    renderSubline("再同期 — 保持していた現況が古いため新報で置き換えました", level, width, buf, colors);
+    buf.push(bodyDivider(level, width, colors));
+    if (diff.currentAreasForDisplay != null) {
+      renderCurrentSummaryFromDisplay(diff.currentAreasForDisplay, level, width, buf, colors);
+    } else {
+      renderCurrentSummary(info, level, width, buf, colors);
+    }
+    renderLegend(level, width, buf, colors);
+    return;
+  }
+
   // (2) 取消ロールバック: §4.8 (colors は head=tail=release 単色で注入される)
   if (diff?.isCancelRollback) {
     renderSubline("取消報 — 直前報を巻き戻し", level, width, buf, colors);
@@ -887,6 +902,15 @@ function displayVpws50Compact(
     console.log(
       [levelLabel, info.type, typeLabel, "解析不能 — state を更新せず維持"].join("  "),
     );
+    return;
+  }
+  if (diff?.isStaleResync === true) {
+    const parts: string[] = [levelLabel, info.type, typeLabel, "再同期 — 保持していた現況が古いため新報で置き換えました"];
+    const display = diff.currentAreasForDisplay;
+    if (display != null) {
+      parts.push(`特${display.specialAreas} / 警${display.warningAreas} / 注${display.advisoryAreas}`);
+    }
+    console.log(parts.join("  "));
     return;
   }
   if (diff?.isCancelRollback) {

@@ -1332,6 +1332,12 @@ export interface Vpws50Diff {
   confidence: "confirmed" | "unsafe";
   /** unsafe の理由 (表示用) */
   unsafeReason?: "layer_missing" | "abnormal_release_rate";
+  /**
+   * 保持していた current が新報より著しく古かったため、解除率防御を適用外にして
+   * 新報で置き換えた報 (spec 2026-09-07 §3.1)。差分は数千件規模になりうるので
+   * added/released は空にし、formatter は要約 1 行と currentAreasForDisplay を出す。
+   */
+  isStaleResync?: boolean;
   added: Vpws50AreaChange[];
   upgraded: Vpws50AreaChange[];
   downgraded: Vpws50AreaChange[];

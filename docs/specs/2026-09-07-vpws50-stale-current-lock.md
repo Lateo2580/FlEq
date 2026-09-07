@@ -1,6 +1,9 @@
 # VPWS50 stale current 自己ロックの解除 spec
 
 > **裁定（2026-09-07 19:45、ご主人）**: §6 の 7 分岐は 6-1〜6-7 すべて A（T=30 分／再同期は要約 1 行＋現況再掲／通知 info／gate は holder 側限定／脱出時 history クリア／restore 時 prune あり／fixture は匿名化して main）。本 spec は実装 spec として有効。対応 Issue #17（#11 同時対処）。
+>
+> **訂正履歴 (a) 測定事実の訂正**
+> - **2026-09-07（実装後の独立レビュー）**: §3.2 の prune 対象から `partialStreams` を外した。`partialStreams` は表示 overlay だけでなく、次の部分報の解除範囲を決める台帳（`mergePartialWithDisplay()` の `ownedPhenomena` 復元）でもあり、消すと kind code 00 の解除報が base 側の現象を解除できなくなる。prune は `partialHistory` / `restoredPartialSubjects` に限る。§3.2 と §4.10 を書き換えた。
 
 > **対応 issue**: **GitHub Issue #17**（本件。VPWS50 の全国報 8 日間恒久拒否）。§5 は #17 の完了条件チェックリストと対応させる（§5.6 に対応表）。
 > **同時に扱う既知 issue**: **GitHub Issue #11**（stale partial subject の容量保護）。同じ holder・同じ revision family の同一機序のため本 spec に統合する。#11 の筋書きと実状態のズレは §1.3 を見る。
@@ -204,11 +207,13 @@ activePartialSubjects(): string[]
 
 これは `effectiveSnapshot()` の overlay filter（同 `:996-998`）と**同じ述語**であり、保護集合と実効集合を一致させる。述語は 1 箇所に切り出して両方から呼び、二重定義にしない。
 
-加えて、**全国 base を受理した時点で古くなった partial を holder から prune する**。prune 対象は `partialStreams` / `partialHistory` / `restoredPartialSubjects` の 3 つを同時に、同じ subjectKey 集合で落とす（3 者が食い違うと復元時に history-only subject が残る。`retainActivePartialSubjects()` の既存コメント `:900-901` と同じ懸念）。
+加えて、**全国 base を受理した時点で古くなった partial の「復元台帳」を holder から prune する**。prune 対象は `partialHistory` と `restoredPartialSubjects` の 2 つで、同じ subjectKey 集合を同時に落とす（食い違うと復元時に history-only subject が残る。`retainActivePartialSubjects()` の既存コメント `:900-901` と同じ懸念）。
+
+**`partialStreams` は prune しない（2026-09-07 訂正）。** `partialStreams` は表示 overlay であると同時に、その官署 stream が何を所有しているかの台帳でもある。`mergePartialWithDisplay()` は kind code 00 の解除 placeholder を受けたとき、直前の stream entry が持つ kind から `ownedPhenomena` を復元して `clearedPhenomena` を組む（同 `:800-812`）。stream を消すと解除報が 1 件も解除を記録できず、base 側の現象が残留する。stream の表示からの除外は `effectiveSnapshot()` の freshness filter が、件数の上限は既存の LRU 128 上限（`trimPartialSubjects()`）が担う。容量保護から外れるのは `activePartialSubjects()` の述語だけで足り、holder から消す必要は無い。
 
 prune の安全性:
 
-- prune 対象の partial は **既に表示に寄与していない**（`effectiveSnapshot()` の filter で落ちている）。したがって prune は表示契約を変えない。§4 でこれを不変条件として固定する。
+- prune 対象の**台帳**は **既に表示に寄与していない**（戻した先が base より古く、`effectiveSnapshot()` の filter で落ちる）。したがって prune は表示契約を変えない。§4 でこれを不変条件として固定する。
 - 影響を受けるのは `restorePreviousPartial()`（同 `:1139-1155`）の復元先だけ。base より古い partial の取消報が来ても、その partial はもう表示に効いていないので、復元しても表示は変わらない。この契約変更は spec 本文と test 名に明記する。
 - gate 側の entry は**明示的に消さない**。`activeFamilySubjects` から外れた entry は `isFamilyEvictable()` で eviction 可能になるため、容量が要求されたときに gate 自身が退場させる。tombstone 化や `activeRevisionFamilySubjects()` との双方向 compact は入れない（§6-4 の推奨 A）。
 
@@ -300,7 +305,9 @@ base 更新後、prune された subject が `partialStreams` / `partialHistory`
 
 ### 4.10 prune が表示を変えない
 
-prune の直前と直後で `getCurrentAreasForDisplay()` が完全一致すること（prune 対象は既に overlay 対象外なので、これは不変条件）。
+prune の直前と直後で `getCurrentAreasForDisplay()` が完全一致すること（prune 対象の台帳は既に overlay 対象外なので、これは不変条件）。
+
+加えて（2026-09-07 訂正で追加）、**`partialStreams` を台帳として保つことの回帰**を固定する。base が 1 周期進んで stream が base より古くなった後に、その stream から kind code 00 の解除報（明示 `clearedPhenomena` なし）が届いたとき、`ownedPhenomena` の復元が働いて base 側の当該現象が解除されること。stream を prune する実装ではこれが赤になる。
 
 ### 4.11 Issue #11 の容量回帰
 

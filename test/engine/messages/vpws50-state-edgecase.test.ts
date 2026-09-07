@@ -32,14 +32,14 @@ function makeItem(
   return { areaName, areaCode, kinds, statuses: [] };
 }
 
-function makeInfo(items: WeatherItem[]): ParsedWeatherWarning {
+function makeInfo(items: WeatherItem[], reportDateTime?: string): ParsedWeatherWarning {
   const layers = [{ type: "気象警報・注意報（府県予報区等）", items }];
   return {
     meta: testTelegramMeta(false),
     type: "VPWS50",
     infoType: "発表",
     title: "気象警報・注意報",
-    reportDateTime: "2026-06-05T15:18:00+09:00",
+    reportDateTime: reportDateTime ?? "2026-06-05T15:18:00+09:00",
     headline: null,
     publishingOffice: "気象庁",
     editorialOffice: "気象庁",
@@ -187,5 +187,52 @@ describe("R1/R2 ガードレール: parser 異常時の safety", () => {
     expect(state.rollback("msg-2")).toBeNull();
     expect(state.rollback("unknown-report")).toBeNull();
     expect(state.getCurrentAreasForDisplay()?.totalAreas).toBe(1);
+  });
+});
+
+/**
+ * §4.3 / §4.4 stale 脱出 (spec 2026-09-07) の非退行ガードレール。
+ * 「current が古い」という第 3 の状態を足したあとも、閾値内の防御と layer_missing が
+ * 1 ビットも変わらないことを、上のガードレール群と独立に固定する。
+ */
+describe("R3 ガードレール: stale 脱出は閾値内の防御を緩めない", () => {
+  const CURRENT_AT = "2026-09-01T12:00:00+09:00";
+  const areas = (count: number): WeatherItem[] => Array.from({ length: count }, (_, i) => makeItem(
+    `県${i}`,
+    `${i.toString().padStart(2, "0")}0000`,
+    [makeKind("03", "warning")],
+  ));
+
+  function seeded(): Vpws50StateHolder {
+    const state = new Vpws50StateHolder();
+    state.diffAndUpdate(
+      makeInfo(areas(10), CURRENT_AT),
+      "msg-1",
+      { reportDateTime: CURRENT_AT, serial: null },
+    );
+    return state;
+  }
+
+  it("§4.3 current が新報の 10 分前なら、明示解除なき大量消失は従来どおり拒否する", () => {
+    const state = seeded();
+    const next = "2026-09-01T12:10:00+09:00";
+    const diff = state.diffAndUpdate(makeInfo(areas(1), next), "msg-2", {
+      reportDateTime: next,
+      serial: null,
+    });
+    expect(diff?.confidence).toBe("unsafe");
+    expect(diff?.unsafeReason).toBe("abnormal_release_rate");
+    // ガード発火時は current を更新しない (異常電文防御は維持)
+    expect(state.getCurrentAreasForDisplay()?.totalAreas).toBe(10);
+  });
+
+  it("§4.4 current が 8 日前でも layer を抽出できない新報は layer_missing で拒否する", () => {
+    const state = seeded();
+    const next = "2026-09-09T12:00:00+09:00";
+    const broken: ParsedWeatherWarning = { ...makeInfo([], next), layers: [] };
+    const diff = state.diffAndUpdate(broken, "msg-2", { reportDateTime: next, serial: null });
+    expect(diff?.confidence).toBe("unsafe");
+    expect(diff?.unsafeReason).toBe("layer_missing");
+    expect(state.getCurrentAreasForDisplay()?.totalAreas).toBe(10);
   });
 });

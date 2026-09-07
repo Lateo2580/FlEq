@@ -1,0 +1,1176 @@
+{
+ "current": {
+  "messageId": "2026-08-30T13:00:00+09:00",
+  "identity": {
+   "reportDateTime": "2026-08-30T13:00:00+09:00",
+   "serial": null
+  },
+  "snapshot": {
+   "generation": 1,
+   "areas": [
+    {
+     "areaCode": "9100001",
+     "areaName": "架空区域01",
+     "kinds": [
+      {
+       "phenomenonKey": "大雨",
+       "kindCode": "43",
+       "kindName": "レベル４大雨危険警報",
+       "severity": "warning",
+       "displaySeverity": "officialL4",
+       "officialAlertLevel": 4,
+       "resolutionSource": "map"
+      },
+      {
+       "phenomenonKey": "土砂災害",
+       "kindCode": "49",
+       "kindName": "レベル４土砂災害危険警報",
+       "severity": "warning",
+       "displaySeverity": "officialL4",
+       "officialAlertLevel": 4,
+       "resolutionSource": "map"
+      },
+      {
+       "phenomenonKey": "雷",
+       "kindCode": "14",
+       "kindName": "雷注意報",
+       "severity": "advisory",
+       "displaySeverity": "nonLevelAdvisory",
+       "officialAlertLevel": null,
+       "resolutionSource": "map"
+      }
+     ]
+    },
+    {
+     "areaCode": "9100002",
+     "areaName": "架空区域02",
+     "kinds": [
+      {
+       "phenomenonKey": "大雨",
+       "kindCode": "43",
+       "kindName": "レベル４大雨危険警報",
+       "severity": "warning",
+       "displaySeverity": "officialL4",
+       "officialAlertLevel": 4,
+       "resolutionSource": "map"
+      },
+      {
+       "phenomenonKey": "土砂災害",
+       "kindCode": "49",
+       "kindName": "レベル４土砂災害危険警報",
+       "severity": "warning",
+       "displaySeverity": "officialL4",
+       "officialAlertLevel": 4,
+       "resolutionSource": "map"
+      },
+      {
+       "phenomenonKey": "雷",
+       "kindCode": "14",
+       "kindName": "雷注意報",
+       "severity": "advisory",
+       "displaySeverity": "nonLevelAdvisory",
+       "officialAlertLevel": null,
+       "resolutionSource": "map"
+      }
+     ]
+    },
+    {
+     "areaCode": "9100003",
+     "areaName": "架空区域03",
+     "kinds": [
+      {
+       "phenomenonKey": "大雨",
+       "kindCode": "43",
+       "kindName": "レベル４大雨危険警報",
+       "severity": "warning",
+       "displaySeverity": "officialL4",
+       "officialAlertLevel": 4,
+       "resolutionSource": "map"
+      },
+      {
+       "phenomenonKey": "土砂災害",
+       "kindCode": "49",
+       "kindName": "レベル４土砂災害危険警報",
+       "severity": "warning",
+       "displaySeverity": "officialL4",
+       "officialAlertLevel": 4,
+       "resolutionSource": "map"
+      },
+      {
+       "phenomenonKey": "雷",
+       "kindCode": "14",
+       "kindName": "雷注意報",
+       "severity": "advisory",
+       "displaySeverity": "nonLevelAdvisory",
+       "officialAlertLevel": null,
+       "resolutionSource": "map"
+      }
+     ]
+    },
+    {
+     "areaCode": "9100004",
+     "areaName": "架空区域04",
+     "kinds": [
+      {
+       "phenomenonKey": "土砂災害",
+       "kindCode": "49",
+       "kindName": "レベル４土砂災害危険警報",
+       "severity": "warning",
+       "displaySeverity": "officialL4",
+       "officialAlertLevel": 4,
+       "resolutionSource": "map"
+      },
+      {
+       "phenomenonKey": "大雨",
+       "kindCode": "03",
+       "kindName": "レベル３大雨警報",
+       "severity": "warning",
+       "displaySeverity": "officialL3",
+       "officialAlertLevel": 3,
+       "resolutionSource": "map"
+      },
+      {
+       "phenomenonKey": "雷",
+       "kindCode": "14",
+       "kindName": "雷注意報",
+       "severity": "advisory",
+       "displaySeverity": "nonLevelAdvisory",
+       "officialAlertLevel": null,
+       "resolutionSource": "map"
+      }
+     ]
+    },
+    {
+     "areaCode": "9100005",
+     "areaName": "架空区域05",
+     "kinds": [
+      {
+       "phenomenonKey": "土砂災害",
+       "kindCode": "49",
+       "kindName": "レベル４土砂災害危険警報",
+       "severity": "warning",
+       "displaySeverity": "officialL4",
+       "officialAlertLevel": 4,
+       "resolutionSource": "map"
+      },
+      {
+       "phenomenonKey": "大雨",
+       "kindCode": "03",
+       "kindName": "レベル３大雨警報",
+       "severity": "warning",
+       "displaySeverity": "officialL3",
+       "officialAlertLevel": 3,
+       "resolutionSource": "map"
+      },
+      {
+       "phenomenonKey": "雷",
+       "kindCode": "14",
+       "kindName": "雷注意報",
+       "severity": "advisory",
+       "displaySeverity": "nonLevelAdvisory",
+       "officialAlertLevel": null,
+       "resolutionSource": "map"
+      }
+     ]
+    },
+    {
+     "areaCode": "9100006",
+     "areaName": "架空区域06",
+     "kinds": [
+      {
+       "phenomenonKey": "土砂災害",
+       "kindCode": "49",
+       "kindName": "レベル４土砂災害危険警報",
+       "severity": "warning",
+       "displaySeverity": "officialL4",
+       "officialAlertLevel": 4,
+       "resolutionSource": "map"
+      },
+      {
+       "phenomenonKey": "大雨",
+       "kindCode": "03",
+       "kindName": "レベル３大雨警報",
+       "severity": "warning",
+       "displaySeverity": "officialL3",
+       "officialAlertLevel": 3,
+       "resolutionSource": "map"
+      },
+      {
+       "phenomenonKey": "雷",
+       "kindCode": "14",
+       "kindName": "雷注意報",
+       "severity": "advisory",
+       "displaySeverity": "nonLevelAdvisory",
+       "officialAlertLevel": null,
+       "resolutionSource": "map"
+      }
+     ]
+    },
+    {
+     "areaCode": "9100007",
+     "areaName": "架空区域07",
+     "kinds": [
+      {
+       "phenomenonKey": "大雨",
+       "kindCode": "43",
+       "kindName": "レベル４大雨危険警報",
+       "severity": "warning",
+       "displaySeverity": "officialL4",
+       "officialAlertLevel": 4,
+       "resolutionSource": "map"
+      },
+      {
+       "phenomenonKey": "土砂災害",
+       "kindCode": "49",
+       "kindName": "レベル４土砂災害危険警報",
+       "severity": "warning",
+       "displaySeverity": "officialL4",
+       "officialAlertLevel": 4,
+       "resolutionSource": "map"
+      },
+      {
+       "phenomenonKey": "雷",
+       "kindCode": "14",
+       "kindName": "雷注意報",
+       "severity": "advisory",
+       "displaySeverity": "nonLevelAdvisory",
+       "officialAlertLevel": null,
+       "resolutionSource": "map"
+      }
+     ]
+    },
+    {
+     "areaCode": "9100008",
+     "areaName": "架空区域08",
+     "kinds": [
+      {
+       "phenomenonKey": "大雨",
+       "kindCode": "43",
+       "kindName": "レベル４大雨危険警報",
+       "severity": "warning",
+       "displaySeverity": "officialL4",
+       "officialAlertLevel": 4,
+       "resolutionSource": "map"
+      },
+      {
+       "phenomenonKey": "土砂災害",
+       "kindCode": "49",
+       "kindName": "レベル４土砂災害危険警報",
+       "severity": "warning",
+       "displaySeverity": "officialL4",
+       "officialAlertLevel": 4,
+       "resolutionSource": "map"
+      },
+      {
+       "phenomenonKey": "雷",
+       "kindCode": "14",
+       "kindName": "雷注意報",
+       "severity": "advisory",
+       "displaySeverity": "nonLevelAdvisory",
+       "officialAlertLevel": null,
+       "resolutionSource": "map"
+      }
+     ]
+    },
+    {
+     "areaCode": "9100009",
+     "areaName": "架空区域09",
+     "kinds": [
+      {
+       "phenomenonKey": "土砂災害",
+       "kindCode": "49",
+       "kindName": "レベル４土砂災害危険警報",
+       "severity": "warning",
+       "displaySeverity": "officialL4",
+       "officialAlertLevel": 4,
+       "resolutionSource": "map"
+      },
+      {
+       "phenomenonKey": "大雨",
+       "kindCode": "03",
+       "kindName": "レベル３大雨警報",
+       "severity": "warning",
+       "displaySeverity": "officialL3",
+       "officialAlertLevel": 3,
+       "resolutionSource": "map"
+      },
+      {
+       "phenomenonKey": "雷",
+       "kindCode": "14",
+       "kindName": "雷注意報",
+       "severity": "advisory",
+       "displaySeverity": "nonLevelAdvisory",
+       "officialAlertLevel": null,
+       "resolutionSource": "map"
+      }
+     ]
+    },
+    {
+     "areaCode": "9100010",
+     "areaName": "架空区域10",
+     "kinds": [
+      {
+       "phenomenonKey": "雷",
+       "kindCode": "14",
+       "kindName": "雷注意報",
+       "severity": "advisory",
+       "displaySeverity": "nonLevelAdvisory",
+       "officialAlertLevel": null,
+       "resolutionSource": "map"
+      },
+      {
+       "phenomenonKey": "乾燥",
+       "kindCode": "21",
+       "kindName": "乾燥注意報",
+       "severity": "advisory",
+       "displaySeverity": "nonLevelAdvisory",
+       "officialAlertLevel": null,
+       "resolutionSource": "map"
+      }
+     ]
+    },
+    {
+     "areaCode": "9100011",
+     "areaName": "架空区域11",
+     "kinds": [
+      {
+       "phenomenonKey": "雷",
+       "kindCode": "14",
+       "kindName": "雷注意報",
+       "severity": "advisory",
+       "displaySeverity": "nonLevelAdvisory",
+       "officialAlertLevel": null,
+       "resolutionSource": "map"
+      },
+      {
+       "phenomenonKey": "乾燥",
+       "kindCode": "21",
+       "kindName": "乾燥注意報",
+       "severity": "advisory",
+       "displaySeverity": "nonLevelAdvisory",
+       "officialAlertLevel": null,
+       "resolutionSource": "map"
+      }
+     ]
+    },
+    {
+     "areaCode": "9100012",
+     "areaName": "架空区域12",
+     "kinds": [
+      {
+       "phenomenonKey": "雷",
+       "kindCode": "14",
+       "kindName": "雷注意報",
+       "severity": "advisory",
+       "displaySeverity": "nonLevelAdvisory",
+       "officialAlertLevel": null,
+       "resolutionSource": "map"
+      },
+      {
+       "phenomenonKey": "乾燥",
+       "kindCode": "21",
+       "kindName": "乾燥注意報",
+       "severity": "advisory",
+       "displaySeverity": "nonLevelAdvisory",
+       "officialAlertLevel": null,
+       "resolutionSource": "map"
+      }
+     ]
+    }
+   ]
+  }
+ },
+ "history": [
+  {
+   "messageId": "2026-08-30T11:40:00+09:00",
+   "identity": {
+    "reportDateTime": "2026-08-30T11:40:00+09:00",
+    "serial": null
+   },
+   "snapshot": {
+    "generation": 1,
+    "areas": [
+     {
+      "areaCode": "9100001",
+      "areaName": "架空区域01",
+      "kinds": [
+       {
+        "phenomenonKey": "大雨",
+        "kindCode": "33",
+        "kindName": "レベル５大雨特別警報",
+        "severity": "specialWarning",
+        "displaySeverity": "officialL5",
+        "officialAlertLevel": 5,
+        "resolutionSource": "map"
+       },
+       {
+        "phenomenonKey": "土砂災害",
+        "kindCode": "49",
+        "kindName": "レベル４土砂災害危険警報",
+        "severity": "warning",
+        "displaySeverity": "officialL4",
+        "officialAlertLevel": 4,
+        "resolutionSource": "map"
+       },
+       {
+        "phenomenonKey": "雷",
+        "kindCode": "14",
+        "kindName": "雷注意報",
+        "severity": "advisory",
+        "displaySeverity": "nonLevelAdvisory",
+        "officialAlertLevel": null,
+        "resolutionSource": "map"
+       }
+      ]
+     },
+     {
+      "areaCode": "9100002",
+      "areaName": "架空区域02",
+      "kinds": [
+       {
+        "phenomenonKey": "大雨",
+        "kindCode": "33",
+        "kindName": "レベル５大雨特別警報",
+        "severity": "specialWarning",
+        "displaySeverity": "officialL5",
+        "officialAlertLevel": 5,
+        "resolutionSource": "map"
+       },
+       {
+        "phenomenonKey": "土砂災害",
+        "kindCode": "49",
+        "kindName": "レベル４土砂災害危険警報",
+        "severity": "warning",
+        "displaySeverity": "officialL4",
+        "officialAlertLevel": 4,
+        "resolutionSource": "map"
+       },
+       {
+        "phenomenonKey": "雷",
+        "kindCode": "14",
+        "kindName": "雷注意報",
+        "severity": "advisory",
+        "displaySeverity": "nonLevelAdvisory",
+        "officialAlertLevel": null,
+        "resolutionSource": "map"
+       }
+      ]
+     },
+     {
+      "areaCode": "9100003",
+      "areaName": "架空区域03",
+      "kinds": [
+       {
+        "phenomenonKey": "大雨",
+        "kindCode": "33",
+        "kindName": "レベル５大雨特別警報",
+        "severity": "specialWarning",
+        "displaySeverity": "officialL5",
+        "officialAlertLevel": 5,
+        "resolutionSource": "map"
+       },
+       {
+        "phenomenonKey": "土砂災害",
+        "kindCode": "49",
+        "kindName": "レベル４土砂災害危険警報",
+        "severity": "warning",
+        "displaySeverity": "officialL4",
+        "officialAlertLevel": 4,
+        "resolutionSource": "map"
+       },
+       {
+        "phenomenonKey": "雷",
+        "kindCode": "14",
+        "kindName": "雷注意報",
+        "severity": "advisory",
+        "displaySeverity": "nonLevelAdvisory",
+        "officialAlertLevel": null,
+        "resolutionSource": "map"
+       }
+      ]
+     },
+     {
+      "areaCode": "9100004",
+      "areaName": "架空区域04",
+      "kinds": [
+       {
+        "phenomenonKey": "土砂災害",
+        "kindCode": "49",
+        "kindName": "レベル４土砂災害危険警報",
+        "severity": "warning",
+        "displaySeverity": "officialL4",
+        "officialAlertLevel": 4,
+        "resolutionSource": "map"
+       },
+       {
+        "phenomenonKey": "大雨",
+        "kindCode": "03",
+        "kindName": "レベル３大雨警報",
+        "severity": "warning",
+        "displaySeverity": "officialL3",
+        "officialAlertLevel": 3,
+        "resolutionSource": "map"
+       },
+       {
+        "phenomenonKey": "雷",
+        "kindCode": "14",
+        "kindName": "雷注意報",
+        "severity": "advisory",
+        "displaySeverity": "nonLevelAdvisory",
+        "officialAlertLevel": null,
+        "resolutionSource": "map"
+       }
+      ]
+     },
+     {
+      "areaCode": "9100005",
+      "areaName": "架空区域05",
+      "kinds": [
+       {
+        "phenomenonKey": "土砂災害",
+        "kindCode": "49",
+        "kindName": "レベル４土砂災害危険警報",
+        "severity": "warning",
+        "displaySeverity": "officialL4",
+        "officialAlertLevel": 4,
+        "resolutionSource": "map"
+       },
+       {
+        "phenomenonKey": "大雨",
+        "kindCode": "03",
+        "kindName": "レベル３大雨警報",
+        "severity": "warning",
+        "displaySeverity": "officialL3",
+        "officialAlertLevel": 3,
+        "resolutionSource": "map"
+       },
+       {
+        "phenomenonKey": "雷",
+        "kindCode": "14",
+        "kindName": "雷注意報",
+        "severity": "advisory",
+        "displaySeverity": "nonLevelAdvisory",
+        "officialAlertLevel": null,
+        "resolutionSource": "map"
+       }
+      ]
+     },
+     {
+      "areaCode": "9100006",
+      "areaName": "架空区域06",
+      "kinds": [
+       {
+        "phenomenonKey": "土砂災害",
+        "kindCode": "49",
+        "kindName": "レベル４土砂災害危険警報",
+        "severity": "warning",
+        "displaySeverity": "officialL4",
+        "officialAlertLevel": 4,
+        "resolutionSource": "map"
+       },
+       {
+        "phenomenonKey": "大雨",
+        "kindCode": "03",
+        "kindName": "レベル３大雨警報",
+        "severity": "warning",
+        "displaySeverity": "officialL3",
+        "officialAlertLevel": 3,
+        "resolutionSource": "map"
+       },
+       {
+        "phenomenonKey": "雷",
+        "kindCode": "14",
+        "kindName": "雷注意報",
+        "severity": "advisory",
+        "displaySeverity": "nonLevelAdvisory",
+        "officialAlertLevel": null,
+        "resolutionSource": "map"
+       }
+      ]
+     },
+     {
+      "areaCode": "9100007",
+      "areaName": "架空区域07",
+      "kinds": [
+       {
+        "phenomenonKey": "大雨",
+        "kindCode": "43",
+        "kindName": "レベル４大雨危険警報",
+        "severity": "warning",
+        "displaySeverity": "officialL4",
+        "officialAlertLevel": 4,
+        "resolutionSource": "map"
+       },
+       {
+        "phenomenonKey": "土砂災害",
+        "kindCode": "49",
+        "kindName": "レベル４土砂災害危険警報",
+        "severity": "warning",
+        "displaySeverity": "officialL4",
+        "officialAlertLevel": 4,
+        "resolutionSource": "map"
+       },
+       {
+        "phenomenonKey": "雷",
+        "kindCode": "14",
+        "kindName": "雷注意報",
+        "severity": "advisory",
+        "displaySeverity": "nonLevelAdvisory",
+        "officialAlertLevel": null,
+        "resolutionSource": "map"
+       }
+      ]
+     },
+     {
+      "areaCode": "9100008",
+      "areaName": "架空区域08",
+      "kinds": [
+       {
+        "phenomenonKey": "大雨",
+        "kindCode": "43",
+        "kindName": "レベル４大雨危険警報",
+        "severity": "warning",
+        "displaySeverity": "officialL4",
+        "officialAlertLevel": 4,
+        "resolutionSource": "map"
+       },
+       {
+        "phenomenonKey": "土砂災害",
+        "kindCode": "49",
+        "kindName": "レベル４土砂災害危険警報",
+        "severity": "warning",
+        "displaySeverity": "officialL4",
+        "officialAlertLevel": 4,
+        "resolutionSource": "map"
+       },
+       {
+        "phenomenonKey": "雷",
+        "kindCode": "14",
+        "kindName": "雷注意報",
+        "severity": "advisory",
+        "displaySeverity": "nonLevelAdvisory",
+        "officialAlertLevel": null,
+        "resolutionSource": "map"
+       }
+      ]
+     },
+     {
+      "areaCode": "9100009",
+      "areaName": "架空区域09",
+      "kinds": [
+       {
+        "phenomenonKey": "土砂災害",
+        "kindCode": "49",
+        "kindName": "レベル４土砂災害危険警報",
+        "severity": "warning",
+        "displaySeverity": "officialL4",
+        "officialAlertLevel": 4,
+        "resolutionSource": "map"
+       },
+       {
+        "phenomenonKey": "大雨",
+        "kindCode": "03",
+        "kindName": "レベル３大雨警報",
+        "severity": "warning",
+        "displaySeverity": "officialL3",
+        "officialAlertLevel": 3,
+        "resolutionSource": "map"
+       },
+       {
+        "phenomenonKey": "雷",
+        "kindCode": "14",
+        "kindName": "雷注意報",
+        "severity": "advisory",
+        "displaySeverity": "nonLevelAdvisory",
+        "officialAlertLevel": null,
+        "resolutionSource": "map"
+       }
+      ]
+     },
+     {
+      "areaCode": "9100010",
+      "areaName": "架空区域10",
+      "kinds": [
+       {
+        "phenomenonKey": "雷",
+        "kindCode": "14",
+        "kindName": "雷注意報",
+        "severity": "advisory",
+        "displaySeverity": "nonLevelAdvisory",
+        "officialAlertLevel": null,
+        "resolutionSource": "map"
+       },
+       {
+        "phenomenonKey": "乾燥",
+        "kindCode": "21",
+        "kindName": "乾燥注意報",
+        "severity": "advisory",
+        "displaySeverity": "nonLevelAdvisory",
+        "officialAlertLevel": null,
+        "resolutionSource": "map"
+       }
+      ]
+     },
+     {
+      "areaCode": "9100011",
+      "areaName": "架空区域11",
+      "kinds": [
+       {
+        "phenomenonKey": "雷",
+        "kindCode": "14",
+        "kindName": "雷注意報",
+        "severity": "advisory",
+        "displaySeverity": "nonLevelAdvisory",
+        "officialAlertLevel": null,
+        "resolutionSource": "map"
+       },
+       {
+        "phenomenonKey": "乾燥",
+        "kindCode": "21",
+        "kindName": "乾燥注意報",
+        "severity": "advisory",
+        "displaySeverity": "nonLevelAdvisory",
+        "officialAlertLevel": null,
+        "resolutionSource": "map"
+       }
+      ]
+     },
+     {
+      "areaCode": "9100012",
+      "areaName": "架空区域12",
+      "kinds": [
+       {
+        "phenomenonKey": "雷",
+        "kindCode": "14",
+        "kindName": "雷注意報",
+        "severity": "advisory",
+        "displaySeverity": "nonLevelAdvisory",
+        "officialAlertLevel": null,
+        "resolutionSource": "map"
+       },
+       {
+        "phenomenonKey": "乾燥",
+        "kindCode": "21",
+        "kindName": "乾燥注意報",
+        "severity": "advisory",
+        "displaySeverity": "nonLevelAdvisory",
+        "officialAlertLevel": null,
+        "resolutionSource": "map"
+       }
+      ]
+     }
+    ]
+   }
+  }
+ ],
+ "partialStreams": [
+  {
+   "subjectKey": "weather:VPWW55:架空第01気象台",
+   "messageId": "2026-09-03T18:44:00+09:00",
+   "identity": {
+    "reportDateTime": "2026-09-03T18:44:00+09:00",
+    "serial": null
+   },
+   "snapshot": {
+    "generation": 1,
+    "areas": [
+     {
+      "areaCode": "9100001",
+      "areaName": "架空区域01",
+      "kinds": []
+     },
+     {
+      "areaCode": "9100002",
+      "areaName": "架空区域02",
+      "kinds": []
+     },
+     {
+      "areaCode": "9100003",
+      "areaName": "架空区域03",
+      "kinds": []
+     },
+     {
+      "areaCode": "9100004",
+      "areaName": "架空区域04",
+      "kinds": []
+     },
+     {
+      "areaCode": "9100005",
+      "areaName": "架空区域05",
+      "kinds": []
+     },
+     {
+      "areaCode": "9100006",
+      "areaName": "架空区域06",
+      "kinds": []
+     },
+     {
+      "areaCode": "9100007",
+      "areaName": "架空区域07",
+      "kinds": []
+     },
+     {
+      "areaCode": "9100008",
+      "areaName": "架空区域08",
+      "kinds": []
+     },
+     {
+      "areaCode": "9100009",
+      "areaName": "架空区域09",
+      "kinds": []
+     }
+    ],
+    "clearedPhenomena": [
+     {
+      "areaCode": "9100001",
+      "phenomenonKeys": [
+       "大雨"
+      ]
+     },
+     {
+      "areaCode": "9100002",
+      "phenomenonKeys": [
+       "大雨"
+      ]
+     },
+     {
+      "areaCode": "9100003",
+      "phenomenonKeys": [
+       "大雨"
+      ]
+     },
+     {
+      "areaCode": "9100004",
+      "phenomenonKeys": [
+       "大雨"
+      ]
+     },
+     {
+      "areaCode": "9100005",
+      "phenomenonKeys": [
+       "大雨"
+      ]
+     },
+     {
+      "areaCode": "9100006",
+      "phenomenonKeys": [
+       "大雨"
+      ]
+     },
+     {
+      "areaCode": "9100007",
+      "phenomenonKeys": [
+       "大雨"
+      ]
+     },
+     {
+      "areaCode": "9100008",
+      "phenomenonKeys": [
+       "大雨"
+      ]
+     },
+     {
+      "areaCode": "9100009",
+      "phenomenonKeys": [
+       "大雨"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "subjectKey": "weather:VPWW55:架空第02気象台",
+   "messageId": "2026-09-07T16:21:00+09:00",
+   "identity": {
+    "reportDateTime": "2026-09-07T16:21:00+09:00",
+    "serial": null
+   },
+   "snapshot": {
+    "generation": 1,
+    "areas": [
+     {
+      "areaCode": "9100013",
+      "areaName": "架空区域22",
+      "kinds": [
+       {
+        "phenomenonKey": "大雨",
+        "kindCode": "43",
+        "kindName": "レベル４大雨危険警報",
+        "severity": "warning",
+        "displaySeverity": "officialL4",
+        "officialAlertLevel": 4,
+        "resolutionSource": "map"
+       }
+      ]
+     },
+     {
+      "areaCode": "9100014",
+      "areaName": "架空区域23",
+      "kinds": [
+       {
+        "phenomenonKey": "大雨",
+        "kindCode": "43",
+        "kindName": "レベル４大雨危険警報",
+        "severity": "warning",
+        "displaySeverity": "officialL4",
+        "officialAlertLevel": 4,
+        "resolutionSource": "map"
+       }
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "subjectKey": "weather:VPWW55:架空第03気象台",
+   "messageId": "2026-08-30T12:00:00+09:00",
+   "identity": {
+    "reportDateTime": "2026-08-30T12:00:00+09:00",
+    "serial": null
+   },
+   "snapshot": {
+    "generation": 1,
+    "areas": [
+     {
+      "areaCode": "9100015",
+      "areaName": "架空区域24",
+      "kinds": []
+     },
+     {
+      "areaCode": "9100016",
+      "areaName": "架空区域25",
+      "kinds": []
+     }
+    ]
+   }
+  },
+  {
+   "subjectKey": "weather:VPWW61:架空第04気象台",
+   "messageId": "2026-09-02T06:47:00+09:00",
+   "identity": {
+    "reportDateTime": "2026-09-02T06:47:00+09:00",
+    "serial": null
+   },
+   "snapshot": {
+    "generation": 1,
+    "areas": [
+     {
+      "areaCode": "9100010",
+      "areaName": "架空区域10",
+      "kinds": [
+       {
+        "phenomenonKey": "雷",
+        "kindCode": "14",
+        "kindName": "雷注意報",
+        "severity": "advisory",
+        "displaySeverity": "nonLevelAdvisory",
+        "officialAlertLevel": null,
+        "resolutionSource": "map"
+       },
+       {
+        "phenomenonKey": "乾燥",
+        "kindCode": "21",
+        "kindName": "乾燥注意報",
+        "severity": "advisory",
+        "displaySeverity": "nonLevelAdvisory",
+        "officialAlertLevel": null,
+        "resolutionSource": "map"
+       }
+      ]
+     },
+     {
+      "areaCode": "9100011",
+      "areaName": "架空区域11",
+      "kinds": [
+       {
+        "phenomenonKey": "雷",
+        "kindCode": "14",
+        "kindName": "雷注意報",
+        "severity": "advisory",
+        "displaySeverity": "nonLevelAdvisory",
+        "officialAlertLevel": null,
+        "resolutionSource": "map"
+       },
+       {
+        "phenomenonKey": "乾燥",
+        "kindCode": "21",
+        "kindName": "乾燥注意報",
+        "severity": "advisory",
+        "displaySeverity": "nonLevelAdvisory",
+        "officialAlertLevel": null,
+        "resolutionSource": "map"
+       }
+      ]
+     }
+    ]
+   }
+  }
+ ],
+ "partialHistory": [
+  {
+   "subjectKey": "weather:VPWW55:架空第01気象台",
+   "entries": [
+    {
+     "messageId": "2026-09-03T11:36:00+09:00",
+     "identity": {
+      "reportDateTime": "2026-09-03T11:36:00+09:00",
+      "serial": null
+     },
+     "snapshot": {
+      "generation": 1,
+      "areas": [
+       {
+        "areaCode": "9100001",
+        "areaName": "架空区域01",
+        "kinds": [
+         {
+          "phenomenonKey": "大雨",
+          "kindCode": "10",
+          "kindName": "レベル２大雨注意報",
+          "severity": "advisory",
+          "displaySeverity": "officialL2",
+          "officialAlertLevel": 2,
+          "resolutionSource": "map"
+         }
+        ]
+       },
+       {
+        "areaCode": "9100002",
+        "areaName": "架空区域02",
+        "kinds": [
+         {
+          "phenomenonKey": "大雨",
+          "kindCode": "10",
+          "kindName": "レベル２大雨注意報",
+          "severity": "advisory",
+          "displaySeverity": "officialL2",
+          "officialAlertLevel": 2,
+          "resolutionSource": "map"
+         }
+        ]
+       },
+       {
+        "areaCode": "9100003",
+        "areaName": "架空区域03",
+        "kinds": [
+         {
+          "phenomenonKey": "大雨",
+          "kindCode": "10",
+          "kindName": "レベル２大雨注意報",
+          "severity": "advisory",
+          "displaySeverity": "officialL2",
+          "officialAlertLevel": 2,
+          "resolutionSource": "map"
+         }
+        ]
+       },
+       {
+        "areaCode": "9100004",
+        "areaName": "架空区域04",
+        "kinds": [
+         {
+          "phenomenonKey": "大雨",
+          "kindCode": "10",
+          "kindName": "レベル２大雨注意報",
+          "severity": "advisory",
+          "displaySeverity": "officialL2",
+          "officialAlertLevel": 2,
+          "resolutionSource": "map"
+         }
+        ]
+       },
+       {
+        "areaCode": "9100005",
+        "areaName": "架空区域05",
+        "kinds": [
+         {
+          "phenomenonKey": "大雨",
+          "kindCode": "10",
+          "kindName": "レベル２大雨注意報",
+          "severity": "advisory",
+          "displaySeverity": "officialL2",
+          "officialAlertLevel": 2,
+          "resolutionSource": "map"
+         }
+        ]
+       },
+       {
+        "areaCode": "9100006",
+        "areaName": "架空区域06",
+        "kinds": [
+         {
+          "phenomenonKey": "大雨",
+          "kindCode": "10",
+          "kindName": "レベル２大雨注意報",
+          "severity": "advisory",
+          "displaySeverity": "officialL2",
+          "officialAlertLevel": 2,
+          "resolutionSource": "map"
+         }
+        ]
+       },
+       {
+        "areaCode": "9100007",
+        "areaName": "架空区域07",
+        "kinds": [
+         {
+          "phenomenonKey": "大雨",
+          "kindCode": "10",
+          "kindName": "レベル２大雨注意報",
+          "severity": "advisory",
+          "displaySeverity": "officialL2",
+          "officialAlertLevel": 2,
+          "resolutionSource": "map"
+         }
+        ]
+       },
+       {
+        "areaCode": "9100008",
+        "areaName": "架空区域08",
+        "kinds": [
+         {
+          "phenomenonKey": "大雨",
+          "kindCode": "10",
+          "kindName": "レベル２大雨注意報",
+          "severity": "advisory",
+          "displaySeverity": "officialL2",
+          "officialAlertLevel": 2,
+          "resolutionSource": "map"
+         }
+        ]
+       },
+       {
+        "areaCode": "9100009",
+        "areaName": "架空区域09",
+        "kinds": [
+         {
+          "phenomenonKey": "大雨",
+          "kindCode": "10",
+          "kindName": "レベル２大雨注意報",
+          "severity": "advisory",
+          "displaySeverity": "officialL2",
+          "officialAlertLevel": 2,
+          "resolutionSource": "map"
+         }
+        ]
+       }
+      ]
+     }
+    }
+   ]
+  }
+ ],
+ "emergencyClearTombstones": [
+  {
+   "officeKey": "weather:office:架空第05気象台",
+   "areaCodes": [
+    "910017"
+   ],
+   "identity": {
+    "reportDateTime": "2026-09-05T11:30:00+09:00",
+    "serial": null
+   }
+  }
+ ],
+ "lastSuccessfulFullDisplayAt": "2026-09-07T10:02:50.669Z"
+}

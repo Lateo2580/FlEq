@@ -37,6 +37,9 @@ const RECAP_INTERVAL_MS = 60 * 60 * 1000;
 // 比率だけで正当な広域解除を拒まない。明示解除が無いまま 4 key 以上失われる payload だけを
 // 異常候補とし、完全電文の解除 evidence があれば件数を問わず受理する。
 const ABNORMAL_UNEXPLAINED_RELEASE_MIN = 4;
+// 定時周期 10 分の 3 周期ぶん。瞬断 1 回・処理遅延では防御を外さず、3 周期落としたら
+// 「保持している current 自体が信用できない」と見て解除率判定を適用外にする (spec §6-1 A)。
+const STALE_CURRENT_THRESHOLD_MS = 30 * 60 * 1000;
 
 type AreaSnapshot = Map<string, {
   phenomenonKey: PhenomenonKey;
@@ -561,6 +564,33 @@ function hasExplicitReleasesForAllMissing(
   return true;
 }
 
+/**
+ * 保持している current が新報より著しく古いか。
+ * 時刻が読めない・identity が無い・新報が過去のときは false を返し、防御を外さない。
+ */
+function isStaleCurrent(
+  info: ParsedWeatherWarning | undefined,
+  currentIdentity: WeatherReportIdentity | null,
+): boolean {
+  if (info == null || currentIdentity == null) return false;
+  const nextMs = Date.parse(info.reportDateTime);
+  const currentMs = Date.parse(currentIdentity.reportDateTime);
+  if (!Number.isFinite(nextMs) || !Number.isFinite(currentMs)) return false;
+  return nextMs - currentMs > STALE_CURRENT_THRESHOLD_MS;
+}
+
+/**
+ * 部分報 overlay が全国 base に対して有効か。
+ * 容量保護集合 (activePartialSubjects) と実効集合 (effectiveSnapshot) はこの述語を共有する。
+ */
+function isPartialOverlayActive(
+  partialIdentity: WeatherReportIdentity,
+  baseIdentity: WeatherReportIdentity | null,
+): boolean {
+  return baseIdentity == null
+    || (compareWeatherReportIdentity(partialIdentity, baseIdentity) ?? -1) > 0;
+}
+
 function prefecturePrefix(areaCode: string): string | null {
   const normalized = areaCode.trim();
   return /^\d{6}$/.test(normalized) && normalized.endsWith("0000")
@@ -676,7 +706,9 @@ export class Vpws50StateHolder implements DetailProvider<"vpws50"> {
   replacePrevalidated(snapshot: Vpws50StateSnapshot): void { this.loadSnapshot(snapshot, true); }
 
   private loadSnapshot(snapshot: Vpws50StateSnapshot, commit: boolean): void {
-    this.restorePersistedState(structuredClone(snapshot.state));
+    // owner snapshot の in-memory clone は bit 一致が契約 (standby-persistence-admission の
+    // assertLosslessOwnerSnapshot)。ここで復元台帳を prune すると復元が非可逆になる。
+    this.restorePersistedState(structuredClone(snapshot.state), { pruneStalePartialLedgers: false });
     this.ownerVersion = commit ? this.ownerVersion + 1 : snapshot.version;
     this.ownerFingerprint = null;
     this.refreshOwnerVersion();
@@ -733,9 +765,10 @@ export class Vpws50StateHolder implements DetailProvider<"vpws50"> {
   ): { diff: Vpws50Diff; displayDiff: Vpws50DisplayDiff | null } {
     const previousEffective = this.effectiveSnapshot();
     const newSnap = infoToSnapshot(info);
-    const unsafeReason = this.unsafeReasonFor(newSnap, info);
+    const { reason: unsafeReason, isStaleResync } = this.classifyUpdate(newSnap, info);
     if (unsafeReason != null) return { diff: this.buildUnsafeDiff(unsafeReason), displayDiff: null };
     if (newSnap == null) return { diff: this.buildUnsafeDiff("layer_missing"), displayDiff: null };
+    if (isStaleResync) return this.applyStaleResync(newSnap, messageId, identity ?? null, info);
 
     const isFirstReport = previousEffective == null;
     const nextEffective = this.effectiveSnapshot(newSnap, identity ?? null) ?? newSnap;
@@ -768,6 +801,7 @@ export class Vpws50StateHolder implements DetailProvider<"vpws50"> {
     this.current = newSnap;
     this.currentMessageId = messageId;
     this.currentIdentity = identity ?? null;
+    this.prunePartialLedgersOlderThanBase();
 
     if (!isUnchanged || shouldRecap || isFirstReport) {
       this.lastSuccessfulFullDisplayAt = new Date();
@@ -784,6 +818,77 @@ export class Vpws50StateHolder implements DetailProvider<"vpws50"> {
       },
       displayDiff,
     };
+  }
+
+  /**
+   * stale current からの脱出 (spec §3.1)。
+   * history をクリアしてから current を置換する。これをやらないと直後の取消報が
+   * restorePrevious で 8 日前の snapshot を復活させる (§6-5 A)。
+   * 差分は数千件規模になりうるので描画へ流さず、要約 1 行と現況再掲だけを返す (§6-2 A)。
+   */
+  private applyStaleResync(
+    newSnap: Snapshot,
+    messageId: string,
+    identity: WeatherReportIdentity | null,
+    info: ParsedWeatherWarning,
+  ): { diff: Vpws50Diff; displayDiff: Vpws50DisplayDiff | null } {
+    log.warn(
+      "[vpws50-state] stale current detected; resynchronising with the new report"
+      + ` (current=${this.currentIdentity?.reportDateTime ?? ""}, next=${info.reportDateTime})`,
+    );
+    this.history = [];
+    this.current = newSnap;
+    this.currentMessageId = messageId;
+    this.currentIdentity = identity;
+    this.prunePartialLedgersOlderThanBase();
+    this.lastSuccessfulFullDisplayAt = new Date();
+    return {
+      diff: {
+        isFirstReport: false,
+        isUnchanged: false,
+        isCancelRollback: false,
+        shouldRecap: false,
+        confidence: "confirmed",
+        isStaleResync: true,
+        added: [], upgraded: [], downgraded: [], released: [],
+        currentAreasForDisplay: this.buildCurrentAreasForDisplay(),
+      },
+      displayDiff: null,
+    };
+  }
+
+  /**
+   * 全国 base より古くなった部分報の「復元台帳」だけを落とす。
+   *
+   * **`partialStreams` は prune しない。** stream は表示 overlay であると同時に、
+   * その官署 stream が何を所有しているかの台帳でもある。`mergePartialWithDisplay()` は
+   * kind code 00 の解除 placeholder を受けたとき、直前の stream entry が持つ kind から
+   * `ownedPhenomena` を復元して `clearedPhenomena` を組む。stream を消すと解除報が
+   * 何も解除できず、base 側の現象が残留する (2026-09-07 独立レビュー指摘)。
+   * 表示からの除外は `effectiveSnapshot()` の freshness filter が、
+   * 件数の上限は既存の LRU 128 上限が担う。
+   *
+   * 落とすのは `partialHistory` と `restoredPartialSubjects` の 2 集合だけ。どちらも
+   * 「取消で一報戻す」ための復元先で、戻した先が base より古ければ表示に寄与しない。
+   */
+  private prunePartialLedgersOlderThanBase(): boolean {
+    const baseIdentity = this.currentIdentity;
+    if (baseIdentity == null) return false;
+    let changed = false;
+    for (const [subjectKey, entries] of [...this.partialHistory]) {
+      const latest = entries[entries.length - 1];
+      if (latest != null && isPartialOverlayActive(latest.identity, baseIdentity)) continue;
+      this.partialHistory.delete(subjectKey);
+      this.restoredPartialSubjects.delete(subjectKey);
+      changed = true;
+    }
+    for (const subjectKey of [...this.restoredPartialSubjects]) {
+      const entry = this.partialStreams.get(subjectKey);
+      if (entry != null && isPartialOverlayActive(entry.identity, baseIdentity)) continue;
+      this.restoredPartialSubjects.delete(subjectKey);
+      changed = true;
+    }
+    return changed;
   }
 
   /** VPWW55-61 の受理済み部分報を官署・現象 stream 単位で重ね、他現象と他地域を保持する。 */
@@ -935,9 +1040,15 @@ export class Vpws50StateHolder implements DetailProvider<"vpws50"> {
     return before !== JSON.stringify(this.exportPersistedState());
   }
 
-  /** 容量判断は gate の印ではなく、holder に現存する部分警報で行う。 */
+  /**
+   * 容量判断は gate の印ではなく、holder に現存する部分警報で行う。
+   * ただし全国 base より古い stream は表示へ寄与しないので保護しない。
+   * 保護集合と実効集合 (effectiveSnapshot の overlay) を同じ述語で一致させる。
+   */
   activePartialSubjects(): string[] {
-    return [...this.partialStreams.keys()];
+    return [...this.partialStreams]
+      .filter(([, entry]) => isPartialOverlayActive(entry.identity, this.currentIdentity))
+      .map(([subjectKey]) => subjectKey);
   }
 
   private trimPartialSubjects(): void {
@@ -993,8 +1104,7 @@ export class Vpws50StateHolder implements DetailProvider<"vpws50"> {
     }
     const overlays = [...this.partialStreams]
       .map(([subjectKey, entry]) => ({ subjectKey, ...entry }))
-      .filter((entry) => baseIdentityOverride == null
-        || (compareWeatherReportIdentity(entry.identity, baseIdentityOverride) ?? -1) > 0)
+      .filter((entry) => isPartialOverlayActive(entry.identity, baseIdentityOverride))
       .sort((a, b) => compareWeatherReportIdentity(a.identity, b.identity) ?? 0);
     for (const overlay of overlays) {
       effective ??= { areas: new Map(), clearedPhenomena: new Map() };
@@ -1048,8 +1158,26 @@ export class Vpws50StateHolder implements DetailProvider<"vpws50"> {
 
   /** revision gate を確定する前に、state を変更せず安全性だけを判定する。 */
   previewUnsafe(info: ParsedWeatherWarning): Vpws50Diff | null {
-    const reason = this.unsafeReasonFor(infoToSnapshot(info), info);
+    const reason = this.classifyUpdate(infoToSnapshot(info), info).reason;
     return reason == null ? null : this.buildUnsafeDiff(reason);
+  }
+
+  /**
+   * 解除率防御の判定と、その判定を適用外にする stale 脱出を一度に決める。
+   * 脱出は「従来なら abnormal_release_rate を出す報」に対してだけ成立させる。
+   * 通常受理される報の表示・history を再同期扱いに巻き込まない。
+   */
+  private classifyUpdate(
+    newSnap: Snapshot | null,
+    info?: ParsedWeatherWarning,
+  ): {
+    reason: "layer_missing" | "abnormal_release_rate" | null;
+    isStaleResync: boolean;
+  } {
+    const reason = this.unsafeReasonFor(newSnap, info);
+    if (reason !== "abnormal_release_rate") return { reason, isStaleResync: false };
+    if (!isStaleCurrent(info, this.currentIdentity)) return { reason, isStaleResync: false };
+    return { reason: null, isStaleResync: true };
   }
 
   private unsafeReasonFor(
@@ -1191,7 +1319,10 @@ export class Vpws50StateHolder implements DetailProvider<"vpws50"> {
     };
   }
 
-  restorePersistedState(state: PersistedVpws50StateV2): void {
+  restorePersistedState(
+    state: PersistedVpws50StateV2,
+    options?: { pruneStalePartialLedgers?: boolean },
+  ): void {
     if (!isPersistedState(state)) {
       log.warn("[vpws50-state] persisted snapshot is incompatible; discarding it");
       this.current = null;
@@ -1249,6 +1380,9 @@ export class Vpws50StateHolder implements DetailProvider<"vpws50"> {
     this.lastSuccessfulFullDisplayAt = state.lastSuccessfulFullDisplayAt == null
       ? null
       : new Date(state.lastSuccessfulFullDisplayAt);
+    // 起動時の disk 復元では、base が fresh な通常ケースで古い復元台帳を落として
+    // state を小さく保つ (§6-6 A)。clone 経路だけは可逆性のため opt-out する。
+    if (options?.pruneStalePartialLedgers !== false) this.prunePartialLedgersOlderThanBase();
   }
 
   private buildCurrentAreasForDisplay(): Vpws50CurrentAreasForDisplay | undefined {

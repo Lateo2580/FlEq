@@ -902,6 +902,43 @@ describe("displayVpws50List 6 状態分岐 (新規)", () => {
     });
   });
 
+  // ── (1b) stale current からの再同期 (spec 2026-09-07 §6-2 A) ──
+  describe("isStaleResync", () => {
+    it("要約 1 行と現況再掲だけを出し、解析不能・差分セクションを出さない", () => {
+      const original = chalkRef.level;
+      chalkRef.level = 0;
+      try {
+        const display: Vpws50CurrentAreasForDisplay = {
+          totalAreas: 1,
+          specialAreas: 0,
+          warningAreas: 1,
+          advisoryAreas: 0,
+          kinds: [{
+            kindCode: "03",
+            kindShortName: "大雨",
+            kindName: "レベル３大雨警報",
+            displaySeverity: "officialL3",
+            officialAlertLevel: 3,
+            areas: [{ areaName: "茨城県", areaCode: "080000" }],
+          }],
+        };
+        const info = makeFakeInfo({ layers: [] });
+        const diff = makeDiff({ isStaleResync: true, currentAreasForDisplay: display });
+        const buf = createRenderBuffer();
+        displayVpws50List(info, diff, "info", 80, buf);
+        const joined = buf.lines.map((l: { text: string }) => l.text).join("\n");
+        expect(joined).toContain("再同期 — 保持していた現況が古いため新報で置き換えました");
+        expect(joined).toContain("■ 現況サマリ");
+        expect(joined).toContain("茨城県");
+        expect(joined).not.toContain("解析不能");
+        expect(joined).not.toContain("今回解除された");
+        expect(joined).not.toContain("更新報");
+      } finally {
+        chalkRef.level = original;
+      }
+    });
+  });
+
   // ── (3) unchanged-compact (defensive: 早期 return で本来ここまで来ない) ──
   describe("isUnchanged + !shouldRecap (defensive)", () => {
     it("displayVpws50Unchanged を間接呼び出し (console.log)", () => {

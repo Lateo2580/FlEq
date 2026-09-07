@@ -113,6 +113,7 @@ function processWeatherWithAdmission(
  * presentation.weatherDiff に乗せる。
  *   - 取消 (rollback): frameLevel/soundLevel = "cancel"
  *   - unsafe (layer_missing / abnormal_release_rate): frameLevel/soundLevel = "warning"
+ *   - stale current からの再同期 (isStaleResync): frameLevel/soundLevel = "info" (音なし)
  *   - isUnchanged かつ !shouldRecap: frameLevel/soundLevel = "info" (静音化)
  *   - その他: 通常の severity ベース判定 (weatherFrameLevel / weatherSoundLevel)
  *
@@ -252,6 +253,10 @@ export function processWeather(
         if (weatherDiff.confidence === "unsafe") {
           frameLevel = "warning";
           soundLevel = "warning";
+        } else if (weatherDiff.isStaleResync === true) {
+          // 再同期そのものは災害事象ではない。log.warn と CLI 1 行で足りる (spec §6-3 A)。
+          frameLevel = "info";
+          soundLevel = "info";
         } else if (weatherDiff.isUnchanged && !weatherDiff.shouldRecap) {
           frameLevel = "info";
           soundLevel = "info";

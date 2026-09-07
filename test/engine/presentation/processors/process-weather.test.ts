@@ -540,8 +540,10 @@ describe("processWeather - VPWS50/VPWW55/VPWW56 単調性抑制", () => {
 
   it("VPWS50: unsafe 報は watermark を消費せず、同一 revision の正常再送を受理する", () => {
     const deps = fakeDeps(new Vpws50StateHolder());
+    // base は unsafe 報の 10 分前。stale current 脱出の閾値 (30 分, spec 2026-09-07 §6-1 A)
+    // より内側に置き、この試験の主題である watermark 契約だけを見る。
     expect(processWeather(buildVpws50Msg(manyWarningKinds, {
-      id: "vpws-safe-base", reportDateTime: "2026-07-19T09:00:00+09:00", serial: "1",
+      id: "vpws-safe-base", reportDateTime: "2026-07-19T09:50:00+09:00", serial: "1",
     }), deps).kind).toBe("ok");
     const unsafe = requireWeatherOutcome(processWeather(buildVpws50Msg([manyWarningKinds[0]], {
       id: "vpws-unsafe", reportDateTime: "2026-07-19T10:00:00+09:00", serial: "2",

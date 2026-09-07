@@ -29,7 +29,13 @@ function makeItem(areaName: string, areaCode: string, kinds: WeatherKind[]): Wea
 
 function makeInfo(
   items: WeatherItem[],
-  opts: { infoType?: string; type?: string; publishingOffice?: string } = {},
+  opts: {
+    infoType?: string;
+    type?: string;
+    publishingOffice?: string;
+    /** stale current 判定は info.reportDateTime を読むので、時刻を固定できるようにする。 */
+    reportDateTime?: string;
+  } = {},
 ): ParsedWeatherWarning {
   const layers = [{ type: "気象警報・注意報（府県予報区等）", items }];
   return {
@@ -37,7 +43,7 @@ function makeInfo(
     type: opts.type ?? "VPWS50",
     infoType: opts.infoType ?? "発表",
     title: "気象警報・注意報",
-    reportDateTime: "2026-06-05T15:18:00+09:00",
+    reportDateTime: opts.reportDateTime ?? "2026-06-05T15:18:00+09:00",
     headline: null,
     publishingOffice: opts.publishingOffice ?? "気象庁",
     editorialOffice: "気象庁",
@@ -954,5 +960,293 @@ describe("Vpws50StateHolder.getDetail (DetailProvider)", () => {
     const snapshot = state.getDetail();
     expect(snapshot?.kind).toBe("vpws50");
     expect(snapshot?.display.kinds[0].areas[0].areaName).toBe("茨城県");
+  });
+});
+
+// ── stale current 自己ロックの解除 (Issue #17 / #11、spec 2026-09-07) ──
+
+/** 保持している current が新報より 30 分を超えて古いときだけ、解除率防御を適用外にする。 */
+const STALE_D0 = "2026-08-30T13:00:00+09:00";
+
+function areasWithKinds(count: number): WeatherItem[] {
+  return Array.from({ length: count }, (_, i) => makeItem(
+    `区域${i}`,
+    `${(i + 10).toString().padStart(2, "0")}0000`,
+    [makeKind("03", "warning")],
+  ));
+}
+
+function plusMinutes(base: string, minutes: number): string {
+  return new Date(Date.parse(base) + minutes * 60_000).toISOString();
+}
+
+/** current を 12 区域で満たし、identity 付きで固定する。 */
+function seedStaleBase(state: Vpws50StateHolder, at: string = STALE_D0): void {
+  state.diffAndUpdate(
+    makeInfo(areasWithKinds(12), { reportDateTime: at }),
+    "base",
+    identity(at),
+  );
+}
+
+/** 明示解除を持たず 10 kind が消える payload。従来判定では必ず abnormal_release_rate。 */
+function shrunkReport(at: string): ParsedWeatherWarning {
+  return makeInfo(areasWithKinds(2), { reportDateTime: at });
+}
+
+describe("§4.1 stale current からの脱出", () => {
+  it("current が 8 日前なら previewUnsafe は null を返し、新報で current を置換する", () => {
+    const state = new Vpws50StateHolder();
+    seedStaleBase(state);
+    const newAt = plusMinutes(STALE_D0, 8 * 24 * 60);
+    const info = shrunkReport(newAt);
+
+    expect(state.previewUnsafe(info)).toBeNull();
+
+    const update = state.diffAndUpdateWithDisplay(info, "resync", identity(newAt));
+    expect(update.diff.confidence).toBe("confirmed");
+    expect(update.diff.isStaleResync).toBe(true);
+    expect(state.getCurrentAreasForDisplay()?.totalAreas).toBe(2);
+  });
+
+  it("再同期報は差分描画を抑制し、要約 1 行と現況再掲だけを渡す (§6-2 A)", () => {
+    const state = new Vpws50StateHolder();
+    seedStaleBase(state);
+    const newAt = plusMinutes(STALE_D0, 8 * 24 * 60);
+    const update = state.diffAndUpdateWithDisplay(shrunkReport(newAt), "resync", identity(newAt));
+    expect(update.diff.released).toHaveLength(0);
+    expect(update.diff.added).toHaveLength(0);
+    expect(update.diff.isUnchanged).toBe(false);
+    expect(update.diff.isFirstReport).toBe(false);
+    expect(update.diff.currentAreasForDisplay?.totalAreas).toBe(2);
+    expect(update.displayDiff).toBeNull();
+  });
+});
+
+describe("§4.2 stale 判定の閾値境界 (T=30 分)", () => {
+  const cases: Array<[string, number, "unsafe" | "confirmed"]> = [
+    ["T-1 分は従来どおり拒否", 29, "unsafe"],
+    ["ちょうど T は拒否 (「超えたら」で判定)", 30, "unsafe"],
+    ["T+1 分で受理", 31, "confirmed"],
+    ["同時刻は拒否", 0, "unsafe"],
+    ["新報が過去なら拒否", -60, "unsafe"],
+  ];
+  for (const [label, minutes, expected] of cases) {
+    it(label, () => {
+      const state = new Vpws50StateHolder();
+      seedStaleBase(state);
+      const info = shrunkReport(plusMinutes(STALE_D0, minutes));
+      const preview = state.previewUnsafe(info);
+      if (expected === "unsafe") {
+        expect(preview?.confidence).toBe("unsafe");
+        expect(preview?.unsafeReason).toBe("abnormal_release_rate");
+      } else {
+        expect(preview).toBeNull();
+      }
+    });
+  }
+});
+
+describe("§4.4-§4.7 stale 脱出が壊してはいけない契約", () => {
+  it("§4.4 layer_missing は時間差と無関係に拒否する", () => {
+    const state = new Vpws50StateHolder();
+    seedStaleBase(state);
+    const newAt = plusMinutes(STALE_D0, 8 * 24 * 60);
+    const broken: ParsedWeatherWarning = {
+      ...makeInfo([], { reportDateTime: newAt }),
+      layers: [],
+    };
+    const preview = state.previewUnsafe(broken);
+    expect(preview?.confidence).toBe("unsafe");
+    expect(preview?.unsafeReason).toBe("layer_missing");
+    expect(state.getCurrentAreasForDisplay()?.totalAreas).toBe(12);
+  });
+
+  it("§4.5 全解除は 8 日前 current でも従来どおり受理し、再同期扱いにしない", () => {
+    const state = new Vpws50StateHolder();
+    seedStaleBase(state);
+    const newAt = plusMinutes(STALE_D0, 8 * 24 * 60);
+    const diff = state.diffAndUpdate(makeInfo([], { reportDateTime: newAt }), "clear-all", identity(newAt));
+    expect(diff?.confidence).toBe("confirmed");
+    expect(diff?.isStaleResync).toBeFalsy();
+    const view = state.getCurrentAreasForDisplay();
+    expect(view?.kinds).toHaveLength(0);
+    expect(view?.totalAreas).toBe(0);
+  });
+
+  it("§4.6 identity が無い current は脱出の根拠にしない (fail-safe)", () => {
+    const state = new Vpws50StateHolder();
+    // identity 無しの 2 引数経路。currentIdentity は null のまま。
+    state.diffAndUpdate(makeInfo(areasWithKinds(12)), "base");
+    const preview = state.previewUnsafe(shrunkReport(plusMinutes(STALE_D0, 8 * 24 * 60)));
+    expect(preview?.unsafeReason).toBe("abnormal_release_rate");
+  });
+
+  it("§4.6 reportDateTime が読めない新報は脱出させない (fail-safe)", () => {
+    const state = new Vpws50StateHolder();
+    seedStaleBase(state);
+    const preview = state.previewUnsafe(shrunkReport("not-a-date"));
+    expect(preview?.unsafeReason).toBe("abnormal_release_rate");
+  });
+
+  it("§4.7 脱出直後の取消は 8 日前の state を復活させない", () => {
+    const state = new Vpws50StateHolder();
+    // 8 日前の history を 1 件積んでおく。脱出時にこれが残ると取消で復活してしまう。
+    const older = plusMinutes(STALE_D0, -10);
+    state.diffAndUpdate(makeInfo(areasWithKinds(12), { reportDateTime: older }), "older", identity(older));
+    seedStaleBase(state);
+    expect(state.exportPersistedState().history).toHaveLength(1);
+    const newAt = plusMinutes(STALE_D0, 8 * 24 * 60);
+    state.diffAndUpdate(shrunkReport(newAt), "resync", identity(newAt));
+    expect(state.exportPersistedState().history).toHaveLength(0);
+
+    const rollback = state.restorePrevious();
+    expect(rollback.isCancelRollback).toBe(true);
+    expect(rollback.isFirstReport).toBe(true);
+    expect(state.getCurrentAreasForDisplay()).toBeUndefined();
+  });
+});
+
+describe("§4.8-§4.10 partial の freshness 限定と prune (Issue #11)", () => {
+  const D = "2026-09-01T00:00:00+09:00";
+
+  function mergePartialKinds(
+    state: Vpws50StateHolder,
+    office: string,
+    at: string,
+    areaCode: string,
+    kinds: WeatherKind[],
+  ): void {
+    state.mergePartialWithDisplay(
+      makeInfo([makeItem(`部分${office}`, areaCode, kinds)], {
+        type: "VPWW55",
+        publishingOffice: office,
+        reportDateTime: at,
+      }),
+      `partial-${office}-${at}`,
+      identity(at),
+      `weather:VPWW55:${office}`,
+    );
+  }
+
+  function mergePartial(state: Vpws50StateHolder, office: string, at: string, areaCode: string): void {
+    mergePartialKinds(state, office, at, areaCode, [makeKind("10", "advisory")]);
+  }
+
+  /** base を先に固定してから partial を積む。merge 自体は prune しないので filter だけを見られる。 */
+  function seedMixedPartials(state: Vpws50StateHolder): void {
+    seedStaleBase(state, plusMinutes(D, 24 * 60));
+    for (const i of [1, 2, 3]) mergePartial(state, `old${i}`, D, `9${i}00000`);
+    for (const i of [1, 2]) mergePartial(state, `new${i}`, plusMinutes(D, 48 * 60), `8${i}00000`);
+  }
+
+  it("§4.8 activePartialSubjects は base より新しい partial だけを返す", () => {
+    const state = new Vpws50StateHolder();
+    seedMixedPartials(state);
+    expect(state.activePartialSubjects().sort()).toEqual([
+      "weather:VPWW55:new1",
+      "weather:VPWW55:new2",
+    ]);
+  });
+
+  it("§4.8 base 未受信 (currentIdentity == null) なら全件を守る", () => {
+    const state = new Vpws50StateHolder();
+    for (const i of [1, 2, 3]) mergePartial(state, `old${i}`, D, `9${i}00000`);
+    expect(state.activePartialSubjects()).toHaveLength(3);
+  });
+
+  // 通常経路 (閾値内で受理される base 続報) の prune は router 側
+  // phase3b-vpws50-router.test.ts の容量回帰が実経路で見る。ここは resync 経路を見る。
+  it("§4.9 resync 経路の prune は history / restored を落とし、stream 台帳は残す", () => {
+    const state = new Vpws50StateHolder();
+    seedStaleBase(state, D);
+    mergePartial(state, "old1", plusMinutes(D, 10), "9100000");
+    mergePartial(state, "old1", plusMinutes(D, 20), "9100000");
+    state.restorePreviousPartial("weather:VPWW55:old1");
+    expect(state.exportPersistedState().restoredPartialSubjects).toEqual(["weather:VPWW55:old1"]);
+
+    const newAt = plusMinutes(D, 8 * 24 * 60);
+    state.diffAndUpdate(shrunkReport(newAt), "resync", identity(newAt));
+
+    const persisted = state.exportPersistedState();
+    // 復元台帳は落ちる
+    expect(persisted.partialHistory).toBeUndefined();
+    expect(persisted.restoredPartialSubjects).toBeUndefined();
+    // stream 自体は所有現象の台帳なので残す (解除報の ownedPhenomena 復元に要る)
+    expect(persisted.partialStreams).toHaveLength(1);
+    // ただし base より古いので容量保護からは外れる
+    expect(state.activePartialSubjects()).toHaveLength(0);
+  });
+
+  it("§4.10 落とすのは表示に寄与しない台帳だけなので、表示は prune の有無で変わらない", () => {
+    const withStale = new Vpws50StateHolder();
+    const control = new Vpws50StateHolder();
+    seedStaleBase(withStale, D);
+    seedStaleBase(control, D);
+    for (const i of [1, 2, 3]) mergePartial(withStale, `old${i}`, plusMinutes(D, i), `9${i}00000`);
+
+    const newAt = plusMinutes(D, 8 * 24 * 60);
+    const info = shrunkReport(newAt);
+    withStale.diffAndUpdate(info, "resync", identity(newAt));
+    control.diffAndUpdate(info, "resync", identity(newAt));
+
+    expect(withStale.getCurrentAreasForDisplay()).toEqual(control.getCurrentAreasForDisplay());
+  });
+
+  it("§4.12 永続 round-trip 後も freshness の性質が保たれる", () => {
+    const state = new Vpws50StateHolder();
+    seedMixedPartials(state);
+    const before = state.getCurrentAreasForDisplay();
+
+    const restored = new Vpws50StateHolder();
+    restored.restorePersistedState(state.exportPersistedState());
+
+    expect(restored.getCurrentAreasForDisplay()).toEqual(before);
+    expect(restored.activePartialSubjects().sort()).toEqual([
+      "weather:VPWW55:new1",
+      "weather:VPWW55:new2",
+    ]);
+    // stream 台帳は 5 件とも残る。容量保護から外れるだけ。
+    expect(restored.exportPersistedState().partialStreams).toHaveLength(5);
+  });
+
+  /**
+   * レビュー指摘の回帰 (2026-09-07)。
+   * `partialStreams` を prune すると、kind code 00 の解除 placeholder が
+   * `ownedPhenomena` を復元できず、base 側の現象を解除できなくなる。
+   */
+  it("base が 1 周期進んだ後でも、古い stream 由来の code-00 解除報が同 stream の kind を解除できる", () => {
+    const state = new Vpws50StateHolder();
+    const baseAt = D;
+    const area = "9100000";
+    // base: 大雨 + 雷
+    state.diffAndUpdate(
+      makeInfo([makeItem("対象区域", area, [makeKind("03", "warning"), makeKind("14", "advisory")])], {
+        reportDateTime: baseAt,
+      }),
+      "base",
+      identity(baseAt),
+    );
+    // 官署 stream が 大雨 を所有する
+    mergePartialKinds(state, "office1", plusMinutes(baseAt, 1), area, [makeKind("03", "warning")]);
+
+    // base が 1 周期 (10 分) 進み、stream は base より古くなる
+    const nextBaseAt = plusMinutes(baseAt, 10);
+    state.diffAndUpdate(
+      makeInfo([makeItem("対象区域", area, [makeKind("03", "warning"), makeKind("14", "advisory")])], {
+        reportDateTime: nextBaseAt,
+      }),
+      "base-2",
+      identity(nextBaseAt),
+    );
+    expect(state.activePartialSubjects()).toHaveLength(0);
+
+    // 同 stream の解除報 (kind code 00、明示 clearedPhenomena なし)
+    mergePartialKinds(state, "office1", plusMinutes(baseAt, 20), area, [makeKind("00", "release")]);
+
+    const kinds = state.getCurrentAreasForDisplay()?.kinds ?? [];
+    const shortNames = kinds.map((kind) => kind.kindShortName);
+    expect(shortNames).not.toContain("大雨");
+    expect(shortNames).toContain("雷");
   });
 });
