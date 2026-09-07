@@ -1603,6 +1603,35 @@ export class TelegramRevisionGate {
     return { changed: unique.length > 0, expiredStateSubjectKeys: unique };
   }
 
+  /**
+   * `expireRevisionFamilyByLifecycle(domain, revisionFamily, nowMs, retention)` が
+   * 何かを消すか。判定をそのまま鏡写しにした述語で、state は変更しない。
+   * 待機時 sweep ホットパス spec §3.3 の事前判定から呼ぶ。
+   */
+  hasDueRevisionFamilyLifecycleWork(
+    domain: string,
+    revisionFamily: string,
+    nowMs: number,
+    retention: RevisionFamilyLifecycleRetention,
+  ): boolean {
+    const prefix = `${domain}:${revisionFamily}:`;
+    for (const [key, state] of this.states) {
+      if (!key.startsWith(prefix)) continue;
+      const retentionMs = state.cancelled
+        ? retention.tombstoneRetentionMs
+        : retention.activeRetentionMs;
+      if (retentionMs != null && nowMs - state.acceptedAtMs > retentionMs) return true;
+    }
+    for (const state of this.transientStates.values()) {
+      if (
+        state.domain === domain
+        && state.revisionFamily === revisionFamily
+        && nowMs - state.acceptedAtMs > state.retentionMs
+      ) return true;
+    }
+    return false;
+  }
+
   /** Mutation-free family subject snapshot used by rejectNewSubject preflight. */
   revisionFamilySubjectKeys(domain: string, revisionFamily: string): string[] {
     const prefix = `${domain}:${revisionFamily}:`;

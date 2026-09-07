@@ -645,6 +645,21 @@ export class VolcanoStateHolder implements PromptStatusProvider, DetailProvider<
     return { changed, expiredEruptionCodes: expiredEruptionCodes.sort(compareCodeUnit), expiredAshfallCodes: expiredAshfallCodes.sort(compareCodeUnit) };
   }
 
+  /**
+   * `sweep(nowMs)` が composite を変えるか。`sweep` の判定を鏡写しにした述語で、
+   * 期限到来の噴火・降灰に加えて `deleteIfEmpty` が消す空 composite も見る
+   * (`sweep` の `changed` には空 composite の削除が乗らないため)。state は変更しない。
+   * 待機時 sweep ホットパス spec §3.3 の事前判定から呼ぶ。
+   */
+  hasDueSweepWork(nowMs: number): boolean {
+    for (const entry of this.composites.values()) {
+      if (entry.eruption != null && nowMs >= entry.eruption.eventExpiresAtMs) return true;
+      if (entry.ashfall != null && nowMs >= entry.ashfall.forecastEndsAtMs) return true;
+      if (entry.alert == null && entry.eruption == null && entry.ashfall == null) return true;
+    }
+    return false;
+  }
+
   sweepAshfall(nowMs: number): string[] { return this.sweep(nowMs).expiredAshfallCodes; }
 
   resolveEruptionCancellation(eventId: string): string | null {

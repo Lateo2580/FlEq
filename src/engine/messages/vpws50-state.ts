@@ -682,20 +682,49 @@ function hasWarningOrHigher(snap: Snapshot | null): boolean {
 
 export class Vpws50StateHolder implements DetailProvider<"vpws50"> {
   private ownerVersion = 0;
-  private ownerFingerprint: string | null = null;
+  private mutationDepth = 0;
 
-  private refreshOwnerVersion(): void {
-    const next = JSON.stringify(this.exportPersistedState());
-    if (this.ownerFingerprint != null && this.ownerFingerprint !== next) this.ownerVersion += 1;
-    this.ownerFingerprint = next;
+  /**
+   * 保存状態の指紋。旧 `refreshOwnerVersion()` が見ていた集合と同じだが、
+   * **読み取り経路 (`version()` / `cloneSnapshot()`) からは呼ばない**。
+   * 呼ぶのは mutation 入口だけで、`TelegramRevisionGate.decide` の
+   * `mutationFingerprint()` と同じ形 (telegram-revision-gate.ts の incremental 方式)。
+   */
+  private mutationFingerprint(): string {
+    return JSON.stringify(this.exportPersistedState());
   }
 
-  version(): number { this.refreshOwnerVersion(); return this.ownerVersion; }
+  /**
+   * mutation 入口を包み、保存状態が実際に変わったときだけ owner version を進める。
+   *
+   * 双方向不変条件 (spec §3.1): 指紋が変わったなら必ず進み、変わらないなら進まない。
+   * 入れ子の mutation 入口では外側だけが判定する (二重 bump を作らない)。
+   */
+  private bumpIfChanged<T>(mutate: () => T): T {
+    if (this.mutationDepth > 0) return mutate();
+    const before = this.mutationFingerprint();
+    this.mutationDepth += 1;
+    try {
+      return mutate();
+    } finally {
+      this.mutationDepth -= 1;
+      if (this.mutationFingerprint() !== before) this.ownerVersion += 1;
+    }
+  }
+
+  version(): number { return this.ownerVersion; }
 
   cloneSnapshot(): Vpws50StateSnapshot {
-    this.refreshOwnerVersion();
     return { version: this.ownerVersion, state: structuredClone(this.exportPersistedState()) };
   }
+
+  /**
+   * この holder は自前の時計駆動 sweep を持たない。VPWS50 の掃除は
+   * `retainActiveSubjects` による gate の active subject 集合への追従だけで、
+   * gate 側の変化は owner version の前進として `currentToken()` の比較に現れる。
+   * したがって「期限が来たか」を独立に見る必要がない (spec §3.3 の表)。
+   */
+  hasDueSweepWork(_nowMs: number): boolean { return false; }
 
   static fromSnapshot(snapshot: Vpws50StateSnapshot): Vpws50StateHolder {
     const holder = new Vpws50StateHolder();
@@ -706,12 +735,11 @@ export class Vpws50StateHolder implements DetailProvider<"vpws50"> {
   replacePrevalidated(snapshot: Vpws50StateSnapshot): void { this.loadSnapshot(snapshot, true); }
 
   private loadSnapshot(snapshot: Vpws50StateSnapshot, commit: boolean): void {
+    const base = this.ownerVersion;
     // owner snapshot の in-memory clone は bit 一致が契約 (standby-persistence-admission の
     // assertLosslessOwnerSnapshot)。ここで復元台帳を prune すると復元が非可逆になる。
     this.restorePersistedState(structuredClone(snapshot.state), { pruneStalePartialLedgers: false });
-    this.ownerVersion = commit ? this.ownerVersion + 1 : snapshot.version;
-    this.ownerFingerprint = null;
-    this.refreshOwnerVersion();
+    this.ownerVersion = commit ? base + 1 : snapshot.version;
   }
   readonly category = "vpws50";
   readonly emptyMessage = "VPWS50 の最新電文を受信していません";
@@ -744,7 +772,8 @@ export class Vpws50StateHolder implements DetailProvider<"vpws50"> {
     identity?: WeatherReportIdentity,
     options?: { replaceCurrentRevision?: boolean },
   ): Vpws50Diff | null {
-    return this.diffAndUpdateInternal(info, messageId, identity, options).diff;
+    return this.bumpIfChanged(() =>
+      this.diffAndUpdateInternal(info, messageId, identity, options)).diff;
   }
 
   /** 通知用 diff と緊急画面専用 diff を同じ state 遷移から原子的に生成する。 */
@@ -754,7 +783,8 @@ export class Vpws50StateHolder implements DetailProvider<"vpws50"> {
     identity: WeatherReportIdentity,
     options?: { replaceCurrentRevision?: boolean },
   ): { diff: Vpws50Diff; displayDiff: Vpws50DisplayDiff | null } {
-    return this.diffAndUpdateInternal(info, messageId, identity, options);
+    return this.bumpIfChanged(() =>
+      this.diffAndUpdateInternal(info, messageId, identity, options));
   }
 
   private diffAndUpdateInternal(
@@ -899,64 +929,70 @@ export class Vpws50StateHolder implements DetailProvider<"vpws50"> {
     subjectKey: string,
     options?: { replaceCurrentRevision?: boolean },
   ): { diff: Vpws50Diff; displayDiff: Vpws50DisplayDiff | null } {
-    const parsedPartial = infoToSnapshot(info);
-    const partial = parsedPartial == null ? null : cloneSnapshot(parsedPartial);
-    if (partial == null) return { diff: this.buildUnsafeDiff("layer_missing"), displayDiff: null };
-    const current = this.partialStreams.get(subjectKey);
-    const layer = selectPreferredWeatherLayer(info.layers);
-    for (const item of layer?.items ?? []) {
-      const isReleasePlaceholder = item.kinds.some((kind) =>
-        kind.code === "00" || kind.severity === "release" || kind.name.includes("解除"));
-      if (!isReleasePlaceholder || (partial.clearedPhenomena.get(item.areaCode)?.size ?? 0) > 0) continue;
-      const ownedPhenomena = new Set<PhenomenonKey>(
-        current?.snapshot.areas.get(item.areaCode)?.kinds.keys() ?? [],
-      );
-      for (const phenomenonKey of current?.snapshot.clearedPhenomena.get(item.areaCode) ?? []) {
-        ownedPhenomena.add(phenomenonKey);
+    return this.bumpIfChanged(() => {
+      const parsedPartial = infoToSnapshot(info);
+      const partial = parsedPartial == null ? null : cloneSnapshot(parsedPartial);
+      if (partial == null) return { diff: this.buildUnsafeDiff("layer_missing"), displayDiff: null };
+      const current = this.partialStreams.get(subjectKey);
+      const layer = selectPreferredWeatherLayer(info.layers);
+      for (const item of layer?.items ?? []) {
+        const isReleasePlaceholder = item.kinds.some((kind) =>
+          kind.code === "00" || kind.severity === "release" || kind.name.includes("解除"));
+        if (!isReleasePlaceholder || (partial.clearedPhenomena.get(item.areaCode)?.size ?? 0) > 0) continue;
+        const ownedPhenomena = new Set<PhenomenonKey>(
+          current?.snapshot.areas.get(item.areaCode)?.kinds.keys() ?? [],
+        );
+        for (const phenomenonKey of current?.snapshot.clearedPhenomena.get(item.areaCode) ?? []) {
+          ownedPhenomena.add(phenomenonKey);
+        }
+        if (ownedPhenomena.size === 0) continue;
+        partial.clearedPhenomena.set(item.areaCode, ownedPhenomena);
       }
-      if (ownedPhenomena.size === 0) continue;
-      partial.clearedPhenomena.set(item.areaCode, ownedPhenomena);
-    }
-    const previous = this.effectiveSnapshot();
-    if (current != null && options?.replaceCurrentRevision !== true) {
-      const history = this.partialHistory.get(subjectKey) ?? [];
-      history.push(current);
-      while (history.length > HISTORY_DEPTH) history.shift();
-      this.partialHistory.set(subjectKey, history);
-    }
-    this.restoredPartialSubjects.delete(subjectKey);
-    this.partialStreams.delete(subjectKey);
-    if (partial.areas.size > 0) {
-      this.partialStreams.set(subjectKey, { messageId, identity: { ...identity }, snapshot: partial });
-    }
-    this.trimPartialSubjects();
-    return this.partialTransition(previous);
+      const previous = this.effectiveSnapshot();
+      if (current != null && options?.replaceCurrentRevision !== true) {
+        const history = this.partialHistory.get(subjectKey) ?? [];
+        history.push(current);
+        while (history.length > HISTORY_DEPTH) history.shift();
+        this.partialHistory.set(subjectKey, history);
+      }
+      this.restoredPartialSubjects.delete(subjectKey);
+      this.partialStreams.delete(subjectKey);
+      if (partial.areas.size > 0) {
+        this.partialStreams.set(subjectKey, { messageId, identity: { ...identity }, snapshot: partial });
+      }
+      this.trimPartialSubjects();
+      return this.partialTransition(previous);
+    });
   }
 
   /** VPWW55-61 取消で当該官署・head type overlay だけを外し、全国 base と他 stream を保持する。 */
   clearPartial(subjectKey: string): { diff: Vpws50Diff; displayDiff: Vpws50DisplayDiff | null } {
-    const previous = this.effectiveSnapshot();
-    this.partialStreams.delete(subjectKey);
-    this.partialHistory.delete(subjectKey);
-    this.restoredPartialSubjects.delete(subjectKey);
-    return this.partialTransition(previous);
+    return this.bumpIfChanged(() => {
+      const previous = this.effectiveSnapshot();
+      this.partialStreams.delete(subjectKey);
+      this.partialHistory.delete(subjectKey);
+      this.restoredPartialSubjects.delete(subjectKey);
+      return this.partialTransition(previous);
+    });
   }
 
   /** VPWW55-61 取消の restorePrevious 契約。官署・head type stream 内だけを一報戻し、初報なら clear する。 */
   restorePreviousPartial(subjectKey: string): { diff: Vpws50Diff; displayDiff: Vpws50DisplayDiff | null } {
-    const previous = this.effectiveSnapshot();
-    const history = this.partialHistory.get(subjectKey);
-    const restored = history?.pop();
-    if (history != null && history.length === 0) this.partialHistory.delete(subjectKey);
-    if (restored == null) {
-      this.partialStreams.delete(subjectKey);
-      this.restoredPartialSubjects.delete(subjectKey);
-    } else {
-      this.partialStreams.set(subjectKey, restored);
-      this.restoredPartialSubjects.add(subjectKey);
-    }
-    this.trimPartialSubjects();
-    return this.partialTransition(previous);
+    return this.bumpIfChanged(() => {
+      const previous = this.effectiveSnapshot();
+      const history = this.partialHistory.get(subjectKey);
+      const restored = history?.pop();
+      if (history != null && history.length === 0) this.partialHistory.delete(subjectKey);
+      if (restored == null) {
+        this.partialStreams.delete(subjectKey);
+        this.restoredPartialSubjects.delete(subjectKey);
+      } else {
+        this.partialStreams.set(subjectKey, restored);
+        this.restoredPartialSubjects.add(subjectKey);
+      }
+      this.trimPartialSubjects();
+      return this.partialTransition(previous);
+    });
   }
 
   /**
@@ -969,47 +1005,51 @@ export class Vpws50StateHolder implements DetailProvider<"vpws50"> {
     areaCodes: readonly string[],
     identity: WeatherReportIdentity,
   ): { diff: Vpws50Diff; displayDiff: Vpws50DisplayDiff | null } {
-    const normalizedOfficeKey = normalizeWeatherOfficeWatermarkKey(officeWatermarkKey)
-      ?? officeWatermarkKey;
-    const targets = [...new Set(areaCodes.map((code) => code.trim()).filter((code) => code !== ""))].sort();
-    const previous = this.effectiveSnapshot();
-    if (targets.length > 0) {
-      const tombstone = {
-        officeKey: normalizedOfficeKey,
-        areaCodes: targets,
-        identity: { ...identity },
-      };
-      const key = emergencyTombstoneKey(tombstone);
-      const current = this.emergencyClearTombstones.get(key);
-      if (current == null || (compareWeatherReportIdentity(identity, current.identity) ?? -1) > 0) {
-        // Map.set は既存 key の挿入順を更新しない。新しい更新を LRU 末尾へ移す。
-        this.emergencyClearTombstones.delete(key);
-        this.emergencyClearTombstones.set(key, tombstone);
+    return this.bumpIfChanged(() => {
+      const normalizedOfficeKey = normalizeWeatherOfficeWatermarkKey(officeWatermarkKey)
+        ?? officeWatermarkKey;
+      const targets = [...new Set(areaCodes.map((code) => code.trim()).filter((code) => code !== ""))].sort();
+      const previous = this.effectiveSnapshot();
+      if (targets.length > 0) {
+        const tombstone = {
+          officeKey: normalizedOfficeKey,
+          areaCodes: targets,
+          identity: { ...identity },
+        };
+        const key = emergencyTombstoneKey(tombstone);
+        const current = this.emergencyClearTombstones.get(key);
+        if (current == null || (compareWeatherReportIdentity(identity, current.identity) ?? -1) > 0) {
+          // Map.set は既存 key の挿入順を更新しない。新しい更新を LRU 末尾へ移す。
+          this.emergencyClearTombstones.delete(key);
+          this.emergencyClearTombstones.set(key, tombstone);
+        }
       }
-    }
-    while (this.emergencyClearTombstones.size > PARTIAL_SUBJECT_LIMIT) {
-      const oldestKey = this.emergencyClearTombstones.keys().next().value as string | undefined;
-      if (oldestKey == null) break;
-      this.emergencyClearTombstones.delete(oldestKey);
-    }
-    return this.partialTransition(previous);
+      while (this.emergencyClearTombstones.size > PARTIAL_SUBJECT_LIMIT) {
+        const oldestKey = this.emergencyClearTombstones.keys().next().value as string | undefined;
+        if (oldestKey == null) break;
+        this.emergencyClearTombstones.delete(oldestKey);
+      }
+      return this.partialTransition(previous);
+    });
   }
 
   retainActivePartialSubjects(subjectKeys: readonly string[]): void {
-    const retained = new Set(subjectKeys);
-    for (const subjectKey of this.partialStreams.keys()) {
-      if (!retained.has(subjectKey) && !this.restoredPartialSubjects.has(subjectKey)) {
-        this.partialStreams.delete(subjectKey);
-        this.partialHistory.delete(subjectKey);
+    this.bumpIfChanged(() => {
+      const retained = new Set(subjectKeys);
+      for (const subjectKey of this.partialStreams.keys()) {
+        if (!retained.has(subjectKey) && !this.restoredPartialSubjects.has(subjectKey)) {
+          this.partialStreams.delete(subjectKey);
+          this.partialHistory.delete(subjectKey);
+        }
       }
-    }
-    // gate capacity eviction 後も history-only subject を残さないよう、stream と独立に active 集合へ同期する。
-    for (const subjectKey of this.partialHistory.keys()) {
-      if (!retained.has(subjectKey) && !this.restoredPartialSubjects.has(subjectKey)) {
-        this.partialHistory.delete(subjectKey);
+      // gate capacity eviction 後も history-only subject を残さないよう、stream と独立に active 集合へ同期する。
+      for (const subjectKey of this.partialHistory.keys()) {
+        if (!retained.has(subjectKey) && !this.restoredPartialSubjects.has(subjectKey)) {
+          this.partialHistory.delete(subjectKey);
+        }
       }
-    }
-    this.trimPartialSubjects();
+      this.trimPartialSubjects();
+    });
   }
 
   /**
@@ -1018,7 +1058,9 @@ export class Vpws50StateHolder implements DetailProvider<"vpws50"> {
    * stream pending indefinitely.
    */
   retainActiveSubjects(subjectKeys: readonly string[]): boolean {
-    const before = JSON.stringify(this.exportPersistedState());
+    // 既に前後比較を持っているので、owner version はその結果から直接進める
+    // (bumpIfChanged で包むと同じ指紋を 4 回取ることになる)。
+    const before = this.mutationFingerprint();
     const retained = new Set(subjectKeys);
     if (!retained.has("weather:vpws50")) {
       this.current = null;
@@ -1037,7 +1079,9 @@ export class Vpws50StateHolder implements DetailProvider<"vpws50"> {
       if (!retained.has(subjectKey)) this.restoredPartialSubjects.delete(subjectKey);
     }
     this.trimPartialSubjects();
-    return before !== JSON.stringify(this.exportPersistedState());
+    const changed = before !== this.mutationFingerprint();
+    if (changed) this.ownerVersion += 1;
+    return changed;
   }
 
   /**
@@ -1203,6 +1247,10 @@ export class Vpws50StateHolder implements DetailProvider<"vpws50"> {
   }
 
   rollback(target: string | WeatherReportIdentity): Vpws50Diff | null {
+    return this.bumpIfChanged(() => this.rollbackInternal(target));
+  }
+
+  private rollbackInternal(target: string | WeatherReportIdentity): Vpws50Diff | null {
     if (!this.matchesCurrentReport(target)) {
       const identityText = typeof target === "string"
         ? `messageId=${target}`
@@ -1252,6 +1300,10 @@ export class Vpws50StateHolder implements DetailProvider<"vpws50"> {
 
   /** 共通 revision gate が対象一致を確認した後に、一つ前の完全 snapshot へ戻す。 */
   restorePrevious(): Vpws50Diff {
+    return this.bumpIfChanged(() => this.restorePreviousInternal());
+  }
+
+  private restorePreviousInternal(): Vpws50Diff {
     const last = this.history.pop();
     if (last == null) {
       this.current = null;
@@ -1320,6 +1372,13 @@ export class Vpws50StateHolder implements DetailProvider<"vpws50"> {
   }
 
   restorePersistedState(
+    state: PersistedVpws50StateV2,
+    options?: { pruneStalePartialLedgers?: boolean },
+  ): void {
+    this.bumpIfChanged(() => this.restorePersistedStateInternal(state, options));
+  }
+
+  private restorePersistedStateInternal(
     state: PersistedVpws50StateV2,
     options?: { pruneStalePartialLedgers?: boolean },
   ): void {
@@ -1463,7 +1522,7 @@ export class Vpws50StateHolder implements DetailProvider<"vpws50"> {
   }
 
   __test_setLastSuccessfulFullDisplayAt(d: Date | null): void {
-    this.lastSuccessfulFullDisplayAt = d;
+    this.bumpIfChanged(() => { this.lastSuccessfulFullDisplayAt = d; });
   }
   __test_getLastSuccessfulFullDisplayAt(): Date | null {
     return this.lastSuccessfulFullDisplayAt;

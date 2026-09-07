@@ -65,20 +65,41 @@ export class Vpww56StateHolder {
   private unionCache: Vpws50CurrentAreasForDisplay | undefined;
   private unionCacheValid = false;
   private ownerVersion = 0;
-  private ownerFingerprint: string | null = null;
+  private mutationDepth = 0;
 
-  private refreshVersion(): void {
-    const next = JSON.stringify(this.exportPersistedState());
-    if (this.ownerFingerprint != null && this.ownerFingerprint !== next) this.ownerVersion += 1;
-    this.ownerFingerprint = next;
+  /**
+   * 保存状態の指紋。**読み取り経路からは呼ばない** (spec §3.1 の O(1) version)。
+   * 呼ぶのは mutation 入口だけ。
+   */
+  private mutationFingerprint(): string {
+    return JSON.stringify(this.exportPersistedState());
   }
 
-  version(): number { this.refreshVersion(); return this.ownerVersion; }
+  /** mutation 入口を包み、保存状態が実際に変わったときだけ owner version を進める。 */
+  private bumpIfChanged<T>(mutate: () => T): T {
+    if (this.mutationDepth > 0) return mutate();
+    const before = this.mutationFingerprint();
+    this.mutationDepth += 1;
+    try {
+      return mutate();
+    } finally {
+      this.mutationDepth -= 1;
+      if (this.mutationFingerprint() !== before) this.ownerVersion += 1;
+    }
+  }
+
+  version(): number { return this.ownerVersion; }
 
   cloneSnapshot(): Vpww56StateSnapshot {
-    this.refreshVersion();
     return { version: this.ownerVersion, state: structuredClone(this.exportPersistedState()) };
   }
+
+  /**
+   * 自前の時計駆動 sweep を持たない。掃除は `retainActiveSubjects` による
+   * gate の active subject 集合への追従だけで、gate の変化は owner version の
+   * 前進として `currentToken()` の比較に現れる (spec §3.3 の表)。
+   */
+  hasDueSweepWork(_nowMs: number): boolean { return false; }
 
   static fromSnapshot(snapshot: Vpww56StateSnapshot): Vpww56StateHolder {
     const holder = new Vpww56StateHolder();
@@ -89,33 +110,36 @@ export class Vpww56StateHolder {
   replacePrevalidated(snapshot: Vpww56StateSnapshot): void { this.loadSnapshot(snapshot, true); }
 
   private loadSnapshot(snapshot: Vpww56StateSnapshot, commit: boolean): void {
+    const base = this.ownerVersion;
     this.restorePersistedState(structuredClone(snapshot.state));
-    this.ownerVersion = commit ? this.ownerVersion + 1 : snapshot.version;
-    this.ownerFingerprint = null;
-    this.refreshVersion();
+    this.ownerVersion = commit ? base + 1 : snapshot.version;
   }
 
   applyAccepted(info: ParsedWeatherWarning, subjectKey: string): void {
-    this.pendingSubjects.delete(subjectKey);
-    const view = buildView(info);
-    if (view == null) {
-      this.clearSubject(subjectKey);
-      return;
-    }
-    // common gate と同じ最終受理順にする。上限超過時の退場対象も一致する。
-    this.streams.delete(subjectKey);
-    this.streams.set(subjectKey, view);
-    while (this.streams.size > VPWW56_MAX_SUBJECTS) {
-      const oldest = this.streams.keys().next().value as string | undefined;
-      if (oldest == null) break;
-      this.streams.delete(oldest);
-    }
-    this.unionCacheValid = false;
+    this.bumpIfChanged(() => {
+      this.pendingSubjects.delete(subjectKey);
+      const view = buildView(info);
+      if (view == null) {
+        this.clearSubject(subjectKey);
+        return;
+      }
+      // common gate と同じ最終受理順にする。上限超過時の退場対象も一致する。
+      this.streams.delete(subjectKey);
+      this.streams.set(subjectKey, view);
+      while (this.streams.size > VPWW56_MAX_SUBJECTS) {
+        const oldest = this.streams.keys().next().value as string | undefined;
+        if (oldest == null) break;
+        this.streams.delete(oldest);
+      }
+      this.unionCacheValid = false;
+    });
   }
 
   clearSubject(subjectKey: string): void {
-    this.pendingSubjects.delete(subjectKey);
-    if (this.streams.delete(subjectKey)) this.unionCacheValid = false;
+    this.bumpIfChanged(() => {
+      this.pendingSubjects.delete(subjectKey);
+      if (this.streams.delete(subjectKey)) this.unionCacheValid = false;
+    });
   }
 
   /** holder 単体利用の互換入口。revision 判定は行わず、受理済み mutation として適用する。 */
@@ -163,7 +187,10 @@ export class Vpww56StateHolder {
         changed = true;
       }
     }
-    if (changed) this.unionCacheValid = false;
+    if (changed) {
+      this.unionCacheValid = false;
+      this.ownerVersion += 1;
+    }
     return changed;
   }
 
@@ -180,6 +207,10 @@ export class Vpww56StateHolder {
   }
 
   restorePersistedState(state: PersistedVpww56StateV2): void {
+    this.bumpIfChanged(() => this.restorePersistedStateInternal(state));
+  }
+
+  private restorePersistedStateInternal(state: PersistedVpww56StateV2): void {
     if (!isPersistedState(state)) {
       log.warn("[vpww56-state] persisted snapshot is incompatible; discarding it");
       this.streams.clear();

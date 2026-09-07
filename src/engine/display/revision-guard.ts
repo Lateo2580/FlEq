@@ -83,6 +83,22 @@ export class RevisionGuard {
     return changed;
   }
 
+  /**
+   * `sweep(nowMs)` が何かを消すか。`sweep` の判定をそのまま鏡写しにした述語で、
+   * 壁時計 (`forgetAtMs`) と単調時計 (`expiresAtMonotonicMs`) の二系統を両方見る。
+   * 待機時 sweep ホットパス spec §3.3 の事前判定から呼ぶ。state は変更しない。
+   */
+  hasDueSweepWork(nowMs: number): boolean {
+    const monotonicMs = this.monotonicNow?.() ?? null;
+    for (const entry of this.seen.values()) {
+      const expired = monotonicMs == null || entry.expiresAtMonotonicMs == null
+        ? entry.forgetAtMs <= nowMs
+        : entry.expiresAtMonotonicMs <= monotonicMs;
+      if (expired) return true;
+    }
+    return false;
+  }
+
   export(): PersistedSeenEntry[] {
     return [...this.seen].map(([key, entry]) => ({ key, revision: { ...entry.revision }, forgetAtMs: entry.forgetAtMs }));
   }

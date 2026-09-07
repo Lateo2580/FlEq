@@ -172,6 +172,12 @@ export interface StandbyPersistenceAdmissionCoordinatorDeps {
     pair: Readonly<StandbySerializedPair>,
   ) => string | null;
   canReserveLogicalGeneration?: () => boolean;
+  /**
+   * テスト専用。`sweepAll` の事前判定 (spec §3.3) を無効化し、常に通常経路を通す
+   * 参照実装として使う。差分テスト (spec §4.3) が事前判定あり / なしを突き合わせる。
+   * 本番配線では設定しない。
+   */
+  disableSweepPrecheck?: boolean;
 }
 
 const OWNER_ORDER: readonly StandbyPersistenceOwnerKey[] = [
@@ -465,6 +471,16 @@ export class StandbyPersistenceAdmissionCoordinator {
   private volcanoRuntimeVersion: number;
   private compositionVersion = 0;
   private readonly durableCallbacks: Array<() => void> = [];
+  private readonly sweepPrecheckEnabled: boolean;
+  /**
+   * 直近の「何も変えなかった sweep」。ここに記録があるときだけ事前判定が働く。
+   *
+   * commit した sweep では**記録しない**。変更を起こした周期の次は必ず通常経路を通し、
+   * 収束 (同じ入力・同じ時計で二度目が no-op になること) をその場で確かめてから
+   * skip を再開する。これにより事前判定の健全性が「収束済み状態が時計前進だけでは
+   * 変わらない」という弱い前提だけに依存する (spec §2.6 / §3.3)。
+   */
+  private lastNoopSweep: { atMs: number; token: StandbyPersistenceVersionToken } | null = null;
 
   constructor(deps: StandbyPersistenceAdmissionCoordinatorDeps) {
     this.owners = deps.owners;
@@ -473,6 +489,7 @@ export class StandbyPersistenceAdmissionCoordinator {
     this.serializePair = deps.serializePair ?? defaultSerializePair;
     this.validateCandidate = deps.validateCandidate;
     this.canReserveLogicalGeneration = deps.canReserveLogicalGeneration ?? (() => true);
+    this.sweepPrecheckEnabled = deps.disableSweepPrecheck !== true;
   }
 
   onDurable(callback: () => void): void {
@@ -683,10 +700,62 @@ export class StandbyPersistenceAdmissionCoordinator {
     this.compositionVersion += 1;
   }
 
+  /**
+   * どの owner にも「今回やるべき仕事」が無いか。JSON も clone も使わない O(entries) の
+   * 述語を owner ごとに評価する (spec §3.3 分岐 1-A: キャッシュしない)。
+   *
+   * gate の active subject 集合に追従するだけの holder (vpws50 / vpww56 / tsunami) は
+   * 自前の時計駆動 sweep を持たない。その追従は gate の owner version 前進として
+   * 判定 3 の token 比較で捕まる。
+   */
+  private hasDueSweepWork(nowMs: number): boolean {
+    for (const policy of ALL_REVISION_FAMILY_POLICIES) {
+      if (!COORDINATED_SWEEP_FAMILIES.has(`${policy.domain}:${policy.revisionFamily}`)) continue;
+      if (this.owners.telegramRevisionGate.hasDueRevisionFamilyLifecycleWork(
+        policy.domain,
+        policy.revisionFamily,
+        nowMs,
+        {
+          tombstoneRetentionMs: policy.tombstoneRetentionMs,
+          activeRetentionMs: "activeRetentionMs" in policy ? policy.activeRetentionMs : undefined,
+        },
+      )) return true;
+    }
+    if (this.owners.volcanoState.hasDueSweepWork(nowMs)) return true;
+    if (this.owners.standbyStateStore.hasDueSweepWork(nowMs, {
+      includeLegacyCompletionFamilies: false,
+    })) return true;
+    // sweepAll は完了所有 family を maintain 系で別に掃除する。
+    if (this.owners.standbyStateStore.hasDueTyphoonProbabilityMaintenance(nowMs)) return true;
+    if (this.owners.standbyStateStore.hasDueWeatherWarningForecastMaintenance(nowMs)) return true;
+    if (this.owners.floodForecastState.hasDueSweepWork(nowMs)) return true;
+    if (this.owners.vpws50State.hasDueSweepWork(nowMs)) return true;
+    if (this.owners.vpww56State.hasDueSweepWork(nowMs)) return true;
+    if (this.owners.tsunamiState.hasDueSweepWork(nowMs)) return true;
+    return false;
+  }
+
   sweepAll(nowMs: number): StandbyTransactionResult<AllDomainSweepResult> {
     if (!Number.isSafeInteger(nowMs) || Math.abs(nowMs) > 8_640_000_000_000_000) {
       return { kind: "rejected", reason: "invalidSweepClock" };
     }
+    // capture の前に「今回やるべき仕事があるか」を安価に判定する (spec §3.3)。
+    // 判定 3 (入力変化) は段階 1 の O(1) owner version に依存する。
+    const lastNoop = this.lastNoopSweep;
+    if (this.sweepPrecheckEnabled && lastNoop != null
+      && nowMs >= lastNoop.atMs
+      && tokenEquals(lastNoop.token, this.currentToken())
+      && !this.hasDueSweepWork(nowMs)) {
+      this.lastNoopSweep = { atMs: nowMs, token: lastNoop.token };
+      return {
+        kind: "committed",
+        value: { changedKeys: [], durableChanged: false },
+        token: lastNoop.token,
+      };
+    }
+    // 通常経路に入った時点で基準を捨てる。rejected / staleVersion で抜けたときに
+    // 古い「収束済み」の印が残らないようにする。
+    this.lastNoopSweep = null;
     const captured = this.capture();
     const draft = structuredClone(captured.domains) as StandbyPersistenceDomainSnapshots;
     const gate = TelegramRevisionGate.fromSnapshot(draft.telegramRevisionGate);
@@ -861,6 +930,8 @@ export class StandbyPersistenceAdmissionCoordinator {
       ) changedKeys.push("standby:briefingCritical");
     }
     if (changed.length === 0) {
+      // 収束が確認できた周期だけを事前判定の基準にする。
+      this.lastNoopSweep = { atMs: nowMs, token: captured.token };
       return {
         kind: "committed",
         value: { changedKeys: [], durableChanged: false },

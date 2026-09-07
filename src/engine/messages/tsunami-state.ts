@@ -98,10 +98,14 @@ export class TsunamiStateHolder
   private legacyRestoredInfo: ParsedTsunamiInfo | null = null;
   private observationGroups = emptyObservationGroups();
   private ownerVersion = 0;
-  private ownerFingerprint: string | null = null;
+  private mutationDepth = 0;
 
-  private refreshVersion(): void {
-    const next = JSON.stringify({
+  /**
+   * 保存状態の指紋。**読み取り経路からは呼ばない** (spec §3.1 の O(1) version)。
+   * 呼ぶのは mutation 入口だけ。
+   */
+  private mutationFingerprint(): string {
+    return JSON.stringify({
       currentLevel: this.currentLevel,
       lastInfo: this.lastInfo,
       keyedForecasts: [...this.keyedForecasts],
@@ -109,17 +113,33 @@ export class TsunamiStateHolder
       legacyRestoredInfo: this.legacyRestoredInfo,
       observationGroups: this.observationGroups,
     });
-    if (this.ownerFingerprint != null && this.ownerFingerprint !== next) this.ownerVersion += 1;
-    this.ownerFingerprint = next;
+  }
+
+  /** mutation 入口を包み、保存状態が実際に変わったときだけ owner version を進める。 */
+  private bumpIfChanged<T>(mutate: () => T): T {
+    if (this.mutationDepth > 0) return mutate();
+    const before = this.mutationFingerprint();
+    this.mutationDepth += 1;
+    try {
+      return mutate();
+    } finally {
+      this.mutationDepth -= 1;
+      if (this.mutationFingerprint() !== before) this.ownerVersion += 1;
+    }
   }
 
   version(): number {
-    this.refreshVersion();
     return this.ownerVersion;
   }
 
+  /**
+   * 自前の時計駆動 sweep を持たない。掃除は `retainActiveEventIds` による
+   * gate の active subject 集合への追従だけで、gate の変化は owner version の
+   * 前進として `currentToken()` の比較に現れる (spec §3.3 の表)。
+   */
+  hasDueSweepWork(_nowMs: number): boolean { return false; }
+
   cloneSnapshot(): TsunamiStateSnapshot {
-    this.refreshVersion();
     return structuredClone({
       version: this.ownerVersion,
       currentLevel: this.currentLevel,
@@ -142,15 +162,14 @@ export class TsunamiStateHolder
   }
 
   private loadSnapshot(snapshot: TsunamiStateSnapshot, commit: boolean): void {
+    const base = this.ownerVersion;
     this.currentLevel = snapshot.currentLevel;
     this.lastInfo = structuredClone(snapshot.lastInfo);
     this.keyedForecasts = new Map(structuredClone(snapshot.keyedForecasts));
     this.eventInfos = new Map(structuredClone(snapshot.eventInfos));
     this.legacyRestoredInfo = structuredClone(snapshot.legacyRestoredInfo);
     this.observationGroups = structuredClone(snapshot.observationGroups);
-    this.ownerVersion = commit ? this.ownerVersion + 1 : snapshot.version;
-    this.ownerFingerprint = null;
-    this.refreshVersion();
+    this.ownerVersion = commit ? base + 1 : snapshot.version;
   }
 
   /** 現在の警報レベルを返す (テスト用) */
@@ -205,6 +224,10 @@ export class TsunamiStateHolder
    * 同じ transport 順へ aggregate envelope を移す。forecast 内容は変更しない。
    */
   replayPersistedEventEnvelope(eventId: string): void {
+    this.bumpIfChanged(() => this.replayPersistedEventEnvelopeInternal(eventId));
+  }
+
+  private replayPersistedEventEnvelopeInternal(eventId: string): void {
     const envelope = this.eventInfos.get(eventId);
     if (envelope == null) return;
     this.eventInfos.delete(eventId);
@@ -257,6 +280,14 @@ export class TsunamiStateHolder
     family: TsunamiObservationFamily,
     observations: readonly TsunamiObservationStation[],
   ): string[] {
+    return this.bumpIfChanged(() =>
+      this.applyAcceptedObservationsInternal(family, observations));
+  }
+
+  private applyAcceptedObservationsInternal(
+    family: TsunamiObservationFamily,
+    observations: readonly TsunamiObservationStation[],
+  ): string[] {
     const merged = new Map(
       this.observationGroups[family].flatMap((item) => {
         const code = item.stationCode?.trim();
@@ -284,10 +315,18 @@ export class TsunamiStateHolder
   }
 
   clearObservationFamily(family: TsunamiObservationFamily): void {
+    this.bumpIfChanged(() => this.clearObservationFamilyInternal(family));
+  }
+
+  private clearObservationFamilyInternal(family: TsunamiObservationFamily): void {
     this.observationGroups[family] = [];
   }
 
   restoreObservationGroups(groups: TsunamiObservationGroups): void {
+    this.bumpIfChanged(() => this.restoreObservationGroupsInternal(groups));
+  }
+
+  private restoreObservationGroupsInternal(groups: TsunamiObservationGroups): void {
     this.observationGroups = {
       VTSE51: structuredClone(groups.VTSE51.slice(-TSUNAMI_OBSERVATION_MAX_STATIONS_PER_FAMILY)),
       VTSE52: structuredClone(groups.VTSE52.slice(-TSUNAMI_OBSERVATION_MAX_STATIONS_PER_FAMILY)),
@@ -299,6 +338,16 @@ export class TsunamiStateHolder
     groups: TsunamiObservationGroups,
     keyedActive: readonly ParsedTsunamiInfo[] = [],
     legacyActive: ParsedTsunamiInfo | null = null,
+  ): void {
+    this.bumpIfChanged(() =>
+      this.restorePersistedStateInternal(active, groups, keyedActive, legacyActive));
+  }
+
+  private restorePersistedStateInternal(
+    active: ParsedTsunamiInfo | null,
+    groups: TsunamiObservationGroups,
+    keyedActive: readonly ParsedTsunamiInfo[],
+    legacyActive: ParsedTsunamiInfo | null,
   ): void {
     this.restoreObservationGroups(groups);
     this.clearActiveState();
@@ -348,6 +397,10 @@ export class TsunamiStateHolder
 
   /** 共通 revision gate が受理した VTSE41 を active state へ反映する。 */
   applyAccepted(info: ParsedTsunamiInfo): void {
+    this.bumpIfChanged(() => this.applyAcceptedInternal(info));
+  }
+
+  private applyAcceptedInternal(info: ParsedTsunamiInfo): void {
     const eventId = tsunamiEventId(info);
     if (eventId != null && isTsunamiReleaseOnlyForecast(info.forecast)) {
       this.removeEvent(eventId);
@@ -402,6 +455,10 @@ export class TsunamiStateHolder
    * item 名称は照合しない。コードを持たない item は解除対象にできない。
    */
   clearAccepted(info: ParsedTsunamiInfo): void {
+    this.bumpIfChanged(() => this.clearAcceptedInternal(info));
+  }
+
+  private clearAcceptedInternal(info: ParsedTsunamiInfo): void {
     const eventId = tsunamiEventId(info);
     if (eventId == null) return;
     const forecast = info.forecast ?? [];
@@ -441,6 +498,10 @@ export class TsunamiStateHolder
 
   /** 共通 clearCurrent decision を active state へ反映する。watermark は registry が保持する。 */
   clearActive(): void {
+    this.bumpIfChanged(() => this.clearActiveInternal());
+  }
+
+  private clearActiveInternal(): void {
     this.clearActiveState();
     this.observationGroups = emptyObservationGroups();
   }
@@ -454,14 +515,31 @@ export class TsunamiStateHolder
       .map(([eventId]) => eventId);
   }
 
-  /** Remove VTSE41 holder content whose durable family subject has expired. */
-  retainActiveEventIds(eventIds: readonly string[]): boolean {
-    const retained = new Set(eventIds);
-    const before = JSON.stringify({
+  /**
+   * 戻り値が見る集合は保持対象の 3 フィールドだけ。
+   *
+   * 全指紋 (currentLevel / lastInfo / observationGroups を含む 6 フィールド) にすると、
+   * 復元直後の導出値のずれだけで true になり、`sweepAll` が余分な durable key
+   * (`tsunami:VTSE41`) を立ててしまう。owner version の bump は choke point
+   * (`bumpIfChanged`) が担うので、ここは「保持対象を実際に減らしたか」という
+   * 旧来の意味を保つ。
+   */
+  private retainedSubjectFingerprint(): string {
+    return JSON.stringify({
       keyedForecasts: [...this.keyedForecasts],
       eventInfos: [...this.eventInfos],
       legacyRestoredInfo: this.legacyRestoredInfo,
     });
+  }
+
+  /** Remove VTSE41 holder content whose durable family subject has expired. */
+  retainActiveEventIds(eventIds: readonly string[]): boolean {
+    return this.bumpIfChanged(() => this.retainActiveEventIdsInternal(eventIds));
+  }
+
+  private retainActiveEventIdsInternal(eventIds: readonly string[]): boolean {
+    const retained = new Set(eventIds);
+    const before = this.retainedSubjectFingerprint();
     for (const [key, entry] of [...this.keyedForecasts]) {
       if (!retained.has(entry.eventId)) this.keyedForecasts.delete(key);
     }
@@ -473,15 +551,15 @@ export class TsunamiStateHolder
       : tsunamiEventId(this.legacyRestoredInfo);
     if (legacyId != null && !retained.has(legacyId)) this.legacyRestoredInfo = null;
     this.rebuildActiveState();
-    return before !== JSON.stringify({
-      keyedForecasts: [...this.keyedForecasts],
-      eventInfos: [...this.eventInfos],
-      legacyRestoredInfo: this.legacyRestoredInfo,
-    });
+    return before !== this.retainedSubjectFingerprint();
   }
 
   /** holder 全体を明示的にリセットする。 */
   clear(): void {
+    this.bumpIfChanged(() => this.clearInternal());
+  }
+
+  private clearInternal(): void {
     this.clearActiveState();
     this.observationGroups = emptyObservationGroups();
   }

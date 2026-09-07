@@ -106,20 +106,42 @@ export const FLOOD_FORECAST_MAX_EVENTS = 512;
 export class FloodForecastStateHolder {
   private events: Map<string, EventHistory> = new Map();
   private ownerVersion = 0;
-  private ownerFingerprint: string | null = null;
+  private mutationDepth = 0;
 
-  private refreshVersion(): void {
-    const next = JSON.stringify([...this.events].map(([eventId, history]) => [
+  /**
+   * 保存状態の指紋。**読み取り経路からは呼ばない** (spec §3.1 の O(1) version)。
+   * 呼ぶのは mutation 入口だけ。
+   */
+  private mutationFingerprint(): string {
+    return JSON.stringify([...this.events].map(([eventId, history]) => [
       eventId, history.lastSeenMs, [...history.stations],
     ]));
-    if (this.ownerFingerprint != null && this.ownerFingerprint !== next) this.ownerVersion += 1;
-    this.ownerFingerprint = next;
   }
 
-  version(): number { this.refreshVersion(); return this.ownerVersion; }
+  /** mutation 入口を包み、保存状態が実際に変わったときだけ owner version を進める。 */
+  private bumpIfChanged<T>(mutate: () => T): T {
+    if (this.mutationDepth > 0) return mutate();
+    const before = this.mutationFingerprint();
+    this.mutationDepth += 1;
+    try {
+      return mutate();
+    } finally {
+      this.mutationDepth -= 1;
+      if (this.mutationFingerprint() !== before) this.ownerVersion += 1;
+    }
+  }
+
+  version(): number { return this.ownerVersion; }
+
+  /** 期限到来 (lastSeenMs + TTL) の EventID が一つでもあるか。JSON も clone も使わない。 */
+  hasDueSweepWork(nowMs: number): boolean {
+    for (const history of this.events.values()) {
+      if (nowMs - history.lastSeenMs > FLOOD_FORECAST_HISTORY_TTL_MS) return true;
+    }
+    return false;
+  }
 
   cloneSnapshot(): FloodForecastStateSnapshot {
-    this.refreshVersion();
     return structuredClone({
       version: this.ownerVersion,
       events: [...this.events].map(([eventId, history]) => ({
@@ -139,13 +161,12 @@ export class FloodForecastStateHolder {
   replacePrevalidated(snapshot: FloodForecastStateSnapshot): void { this.loadSnapshot(snapshot, true); }
 
   private loadSnapshot(snapshot: FloodForecastStateSnapshot, commit: boolean): void {
+    const base = this.ownerVersion;
     this.events = new Map(snapshot.events.map((event) => [event.eventId, {
       lastSeenMs: event.lastSeenMs,
       stations: new Map(structuredClone(event.stations)),
     }]));
-    this.ownerVersion = commit ? this.ownerVersion + 1 : snapshot.version;
-    this.ownerFingerprint = null;
-    this.refreshVersion();
+    this.ownerVersion = commit ? base + 1 : snapshot.version;
   }
 
   diffAndUpdate(
@@ -153,6 +174,16 @@ export class FloodForecastStateHolder {
     digests: StationDigest[],
     receivedAt: string | null,
     nowMs: number = Date.now(),
+  ): FloodForecastDiff {
+    return this.bumpIfChanged(() =>
+      this.diffAndUpdateInternal(eventId, digests, receivedAt, nowMs));
+  }
+
+  private diffAndUpdateInternal(
+    eventId: string,
+    digests: StationDigest[],
+    receivedAt: string | null,
+    nowMs: number,
   ): FloodForecastDiff {
     // 空 eventId でも保持量の保証は効かせたいので、早期 return より先に掃除する
     this.sweepExpired(nowMs);
@@ -222,27 +253,31 @@ export class FloodForecastStateHolder {
    * (station 情報を持たない電文から dedup 履歴は組み立てられないため)。
    */
   touch(eventId: string, nowMs: number = Date.now()): void {
-    this.sweepExpired(nowMs);
-    if (eventId === "") return;
-    const history = this.events.get(eventId);
-    if (history != null) {
-      history.lastSeenMs = nowMs;
-      this.events.delete(eventId);
-      this.events.set(eventId, history);
-    }
+    this.bumpIfChanged(() => {
+      this.sweepExpired(nowMs);
+      if (eventId === "") return;
+      const history = this.events.get(eventId);
+      if (history != null) {
+        history.lastSeenMs = nowMs;
+        this.events.delete(eventId);
+        this.events.set(eventId, history);
+      }
+    });
   }
 
   /** 取消 (info.infoType==="取消") 時に呼ぶ。同一 eventId の履歴ごと削除する */
   rollback(eventId: string): void {
     if (eventId === "") return;
-    this.events.delete(eventId);
+    if (this.events.delete(eventId)) this.ownerVersion += 1;
   }
 
   retainActiveEventIds(eventIds: readonly string[]): void {
     const retained = new Set(eventIds);
-    for (const eventId of this.events.keys()) {
-      if (!retained.has(eventId)) this.events.delete(eventId);
+    let changed = false;
+    for (const eventId of [...this.events.keys()]) {
+      if (!retained.has(eventId) && this.events.delete(eventId)) changed = true;
     }
+    if (changed) this.ownerVersion += 1;
   }
 
   activeEventIds(): string[] {
@@ -252,7 +287,9 @@ export class FloodForecastStateHolder {
   sweep(nowMs: number): boolean {
     const before = this.events.size;
     this.sweepExpired(nowMs);
-    return this.events.size !== before;
+    const changed = this.events.size !== before;
+    if (changed) this.ownerVersion += 1;
+    return changed;
   }
 
   /** 最終更新から HISTORY_TTL_MS を過ぎた EventID を捨てる */

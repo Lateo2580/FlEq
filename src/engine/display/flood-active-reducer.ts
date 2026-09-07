@@ -95,6 +95,17 @@ export class FloodActiveReducer {
     return { viewChanged: before !== cardFingerprint(this.snapshotCard()), durableChanged: true };
   }
 
+  /**
+   * `sweep(nowMs)` が何かを消すか。`sweep` の判定をそのまま鏡写しにした述語。
+   * 待機時 sweep ホットパス spec §3.3 の事前判定から呼ぶ。state は変更しない。
+   */
+  hasDueSweepWork(nowMs: number): boolean {
+    for (const state of this.events.values()) {
+      if (state.expiresAtMs <= nowMs) return true;
+    }
+    return false;
+  }
+
   snapshotCard(): FloodCard | null {
     if (this.events.size === 0) return null;
     const selected = new Map<string, { river: DisplayFloodRiverV1; revision: StandbyRevision }>();

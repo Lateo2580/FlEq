@@ -2,6 +2,8 @@
 
 > **裁定（2026-09-07 19:45、ご主人）**: §6 の 5 分岐はすべて A（述語方式／owner version 比較／CI は回数ベースのみ／配送は段階 1＋3 を先に・2＋4 は次便／transactInternal の全文比較は残す）。本 spec は実装 spec として有効。対応 Issue #13。
 
+> **訂正履歴（2026-09-07、段階 1＋3 実装時）**: §3 冒頭の段階別見積もりを実測へ (a) 訂正、§3.1 の実装方式と受入 A5 を choke point 方式へ (b) 改訂、A9 / §4.4 を N/A と明記。
+
 > **前提**: 本 spec は Issue #13 のうち **Node 側の周期停止**だけを扱う。ブラウザ側の再計測負荷は #15、`vpwp50ProjectionRejected` の診断分離は #16 の担当で、本 spec の受入条件には含めない。Issue の完了条件「CLI 改善だけで完了とせず、ディスプレイの受信反映遅延と描画負荷を別々に再確認する」はレーン全体の条件として残す。
 >
 > **基準 SHA**: `7aabcf251e5776b3aec3f0913bb623a5604036bc`（branch personal）。Issue の静的調査基準 `a58a2f9` から `standby-persistence-admission.ts` / `vpws50-state.ts` / `standby-state-store.ts` の該当箇所に変更はない。
@@ -138,11 +140,13 @@ retainActiveSubjects(subjectKeys: readonly string[]): boolean {
 
 | 段階 | no-op から消える項目 | Mac M5 での目安 |
 |---|---|---|
-| 段階 1 | `refreshOwnerVersion()` の `JSON.stringify(exportPersistedState())` ×4 | −26ms |
+| 段階 1 | `refreshOwnerVersion()` の `JSON.stringify(exportPersistedState())` ×4 | −26ms（**実測 −15.6ms**: 226.6 → 211.0ms。下の訂正を見る） |
 | 段階 4 | draft の `structuredClone` 30ms ＋ `changedOwnerKeys` の `canonicalJson` 37ms | −67ms |
 | 段階 1＋4 の後に残る | capture の `cloneSnapshot` ×2（54ms）・`fromSnapshot` clone（27ms）・`retainActiveSubjects`（13ms） | **約 100ms** |
 
 Mac 219.5ms が Pi 実測 1.0〜1.4 秒に対応する（4.6〜6.4 倍）ので、**段階 1＋4 だけでは Pi の停止は約 0.5 秒残る**。半減はするが症状は消えない。no-op で capture に入らない段階 3 が入って初めて実質ゼロになる。
+
+**(a) 実測による訂正（2026-09-07、段階 1＋3 実装時）**: 段階 1 単独の効果は見積もり −26ms に対し**実測 −15.6ms**（同一機・同一状態で base を再ビルドして比較。clean wall median 226.6ms → 211.0ms）。3.1 の choke point 方式では `sweepAll` の通常経路が scratch holder に対して指紋を払うため、読み取り経路から消えたぶんの一部が書き込み側へ移る。段階 2 で正確な boolean へ置き換えれば取り戻せる。一方で**段階 1＋3 の合計は見積もりを大きく上回り、no-op は 226.6ms → 0.1ms**（1MB 超の `JSON.stringify` 8 回 → 0 回、`structuredClone` 4 回 → 0 回）。
 
 なお §1.2 の内訳は attribution であって直和ではない。`exportPersistedState` は `cloneSnapshot` と `refreshOwnerVersion` の内側から呼ばれるため、行を単純に足し引きすると二重計上になる。上表の目安値もそのつもりで読む。
 
@@ -157,14 +161,22 @@ Mac 219.5ms が Pi 実測 1.0〜1.4 秒に対応する（4.6〜6.4 倍）ので�
 
 ### 3.1 段階 1: owner version を O(1) にする
 
-5 owner の `refreshOwnerVersion()` / `refreshVersion()` を廃止し、`version()` は保持値を返すだけにする。状態を変える全経路が `ownerVersion += 1` する。
+5 owner の `refreshOwnerVersion()` / `refreshVersion()` を廃止し、`version()` は保持値を返すだけにする。
+
+**段階 1 で行うのは「指紋計算を読み取り経路から mutation 入口へ移す」ことである。** 指紋（旧実装と同じ集合の JSON 化）は private の `mutationFingerprint()` に残し、mutation 入口を包む単一の choke point `bumpIfChanged()` だけがそれを呼ぶ。`version()` / `cloneSnapshot()` / `loadSnapshot()` からは呼ばない。`TelegramRevisionGate.decide` が `mutationFingerprint()` の前後比較で条件付き bump している形（`src/engine/messages/telegram-revision-gate.ts:490-493`）と同じで、新方式ではない。
+
+この方式では **mutation 1 回あたり保存状態の `JSON.stringify` が 2 回残る**。ただしそれは電文受理・復元の経路であって、**待機時の no-op sweep からは完全に消える**（no-op は mutation を 1 つも起こさない）。JSON を経由しない正確な boolean への置換 — `Map.delete` / `Set.delete` の戻り値、`Map.size` の前後比較 — は段階 2 の仕事とする。既に正確な boolean を持っているメソッド（`Vpww56StateHolder.retainActiveSubjects`、`FloodForecastStateHolder.sweep` / `rollback` / `retainActiveEventIds`）は段階 1 の時点でそれを流用してよい。
 
 **不変条件（双方向）**:
 
 - **前進**: 保存状態（`exportPersistedState()` 相当 / `snapshotData()` 相当）が変わったなら `version()` は必ず進む
 - **不動**: 保存状態が変わらないなら `version()` は進んではならない
 
-後者は Issue のコメントには書かれていないが、本 spec では必須にする。過剰に version を進めると 3.3 の事前判定が毎周期「変化あり」と誤判定して効かなくなり、3.4 の owner 比較が毎周期 spurious commit を起こすため。`Map.delete` / `Set.delete` の戻り値、`Map.size` の前後比較など、**JSON を経由しない正確な判定**で条件付き bump にする。
+後者は Issue のコメントには書かれていないが、本 spec では必須にする。過剰に version を進めると 3.3 の事前判定が毎周期「変化あり」と誤判定して効かなくなり、3.4 の owner 比較が毎周期 spurious commit を起こすため。choke point 方式はこの双方向条件をメソッドごとの手作業ではなく**構造で**保証する。
+
+**例外は復元契約だけ**: `replacePrevalidated()` / `loadSnapshot(snapshot, commit)` は指紋が変わらなくても `commit ? ownerVersion + 1 : snapshot.version` とする。gate（同 `:1194`）と `VolcanoStateHolder`（`src/engine/messages/volcano-state.ts:391`）の既存挙動そのもので、3.3 の「復元は事前判定でスキップされない」要求とも一致する。A5 のテストではこれを `restore` 種別として分離し、契約を個別に固定する。
+
+**読み取り入口でも保存状態を変えうるものは choke point を通す**: `StandbyStateStore.floodLegacyEventIds()` は内部で `reconcileLegacyFloodEvents()` を呼び `legacyFloodEventIds` を縮めうる。旧実装では次の `version()` が指紋差から拾っていたが、O(1) version では取りこぼしになる。
 
 #### 3.1.1 `Vpws50StateHolder` の mutation 経路
 
@@ -364,9 +376,9 @@ Pi の実状態ファイルは実電文由来なのでリポジトリに置け�
 
 これは §2.6 の健全性根拠（「期限未到来かつ入力不変なら出力は前回と同一」）を機械的に検証するものなので、**述語の書き漏れは必ずこのテストで落ちる**。
 
-### 4.4 イベントループ遅延
+### 4.4 イベントループ遅延 — **N/A**
 
-大容量状態で `sweepAll` を 5 秒周期相当で繰り返す間、`perf_hooks` の `monitorEventLoopDelay` でヒストグラムを採り、`max` が閾値内であることを確認する。実行環境差があるので**閾値は緩めに置き、CI の合否には使わない**（§6 の分岐 3）。
+当初は `perf_hooks` の `monitorEventLoopDelay` でヒストグラムを採る想定だったが、§6 の分岐 3-A で「壁時計は CI の合否に使わない」と決めた時点で、このテストが守るものは残らない。**同じ情報は §5.2 の bench（`bench-sweep.mjs` の壁時計 median と 1MB 超呼び出し回数）が before / after で与える**ので、専用テストは作らない。
 
 ### 4.5 期限到来・取消・restore 後の更新
 
@@ -403,13 +415,13 @@ Pi で `/healthz` を 100ms 間隔・120 秒間叩き、§1.1 と同じ表を取
 | A2 | no-op `sweepAll` で 1MB 超の `structuredClone` 呼び出しが 0 回 | 4.2 のテスト |
 | A3 | no-op `sweepAll` で `serializePair` 呼び出しが 0 回 | 4.2 のテスト |
 | A4 | 事前判定あり / なしで `changedKeys`・`durableChanged`・全 owner snapshot が全時刻で一致 | 4.3 の差分テスト |
-| A5 | 各 owner の mutating メソッドについて「指紋変化 ⟺ version 前進」が双方向で成立 | 3.1.3 のテスト |
-| A6 | mutating メソッド表に載っていない prototype メソッドが存在しない | 3.1.3 の網羅チェック |
+| A5 | 各 owner の mutating メソッドについて「指紋変化 ⟺ version 前進」が双方向で成立（復元契約の `replacePrevalidated` は `restore` 種別として分離し、`commit ? +1 : snapshot.version` を個別に固定） | 3.1.3 のテスト |
+| A6 | 5 owner すべてで、表に載っていない prototype メソッドが存在しない（`Object.getOwnPropertyNames` と表の突き合わせ。private 内部ヘルパも分類して載せる） | 3.1.3 の網羅チェック |
 | A7 | 大容量状態 helper の VPWS50 `exportPersistedState()` JSON が 5MB 以上 | 4.1 のテスト |
 | A8 | 期限到来・取消・restore・時計巻き戻しの各ケースで通常経路が走る | 4.5 のテスト |
-| A9 | display on/off 反復で sweep タイマーの多重起動・停止漏れが無い | 4.6 のテスト |
+| A9 | **N/A**（段階 1＋3 は `startStandbySweep` / `stopStandbySweep` の配線を変更しない。`src/engine/monitor/monitor.ts:760-773` は null guard で多重起動を構造的に防いでおり、既存 `test/engine/display/standby-wiring.test.ts:2715-2823` が start / stop / shutdown を押さえている。新規テストは作らない） | — |
 | A10 | `npm run build` / `npm test` / `npm run test:shuffle` / `npm run typecheck:test` がすべて成功 | 実行ログ |
-| A11 | 既存テスト全体を 3.4.3 の strict モードで 1 度通して差分ゼロ | 実行ログ |
+| A11 | **段階 4 の項**。段階 1＋3 の配送では、代わりに 3.1.3 のテストが旧実装と同じ指紋を突き合わせて version 不変条件を固定する | 3.1.3 のテスト |
 
 ### 5.2 性能（環境依存のため CI 合否には使わない）
 

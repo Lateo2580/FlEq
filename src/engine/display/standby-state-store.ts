@@ -396,7 +396,7 @@ export class StandbyStateStore {
   private readonly changeListeners: Array<() => void> = [];
   private readonly durableListeners: Array<() => void> = [];
   private ownerVersion = 0;
-  private ownerFingerprint: string | null = null;
+  private mutationDepth = 0;
 
   private snapshotData(): StandbyStateStoreSnapshot["data"] {
     return structuredClone({
@@ -426,21 +426,160 @@ export class StandbyStateStore {
     });
   }
 
-  private refreshOwnerVersion(): void {
-    const data = this.snapshotData();
-    const next = JSON.stringify(data, (_key, value: unknown) =>
+  /**
+   * 保存状態の指紋。旧 `refreshOwnerVersion()` と同じ集合を見るが、
+   * **読み取り経路 (`version()` / `cloneSnapshot()`) からは呼ばない** (spec §3.1)。
+   * `snapshotData()` の structuredClone を経由せず、生の field をそのまま JSON 化する
+   * (指紋は返さないので隔離が要らない)。
+   */
+  private mutationFingerprint(): string {
+    return JSON.stringify({
+      heatAlerts: this.heatAlerts,
+      typhoons: this.typhoons,
+      typhoonProbabilities: this.typhoonProbabilities,
+      volcanoes: this.volcanoes,
+      managedVolcanoAlerts: this.managedVolcanoAlerts,
+      managedVolcanoEruptions: this.managedVolcanoEruptions,
+      tornadoByOffice: this.tornadoByOffice,
+      longPeriodByEvent: this.longPeriodByEvent,
+      quakeHost: this.quakeHost,
+      nankaiTrough: this.nankaiTrough,
+      weatherAlerts: this.weatherAlerts,
+      weatherWarningForecasts: this.weatherWarningForecasts,
+      floods: this.floods.cloneSnapshot(),
+      legacyFloodEventIds: this.legacyFloodEventIds,
+      managedStandbySubjects: this.managedStandbySubjects,
+      revisionGuard: this.revisionGuard.cloneSnapshot(),
+      briefingEntries: this.briefingEntries,
+      briefingRevisionWatermarks: this.briefingRevisionWatermarks,
+      linearRainForecastReplacementWatermarks: this.linearRainForecastReplacementWatermarks,
+      rawCriticalProvenance: this.rawCriticalProvenance,
+      rawBriefingAliases: this.rawBriefingAliases,
+      briefingGeneration: this.briefingGeneration,
+      briefingDurableGeneration: this.briefingDurableGeneration,
+    }, (_key, value: unknown) =>
       value instanceof Map ? { $map: [...value] }
         : value instanceof Set ? { $set: [...value] }
           : value);
-    if (this.ownerFingerprint != null && this.ownerFingerprint !== next) this.ownerVersion += 1;
-    this.ownerFingerprint = next;
   }
 
-  version(): number { this.refreshOwnerVersion(); return this.ownerVersion; }
+  /**
+   * mutation 入口を包み、保存状態が実際に変わったときだけ owner version を進める。
+   *
+   * 双方向不変条件 (spec §3.1) を構造的に保証する: 指紋が変わったなら必ず進み、
+   * 変わらないなら進まない。入れ子の入口では外側だけが判定する。
+   */
+  private bumpIfChanged<T>(mutate: () => T): T {
+    if (this.mutationDepth > 0) return mutate();
+    const before = this.mutationFingerprint();
+    this.mutationDepth += 1;
+    try {
+      return mutate();
+    } finally {
+      this.mutationDepth -= 1;
+      if (this.mutationFingerprint() !== before) this.ownerVersion += 1;
+    }
+  }
+
+  version(): number { return this.ownerVersion; }
 
   cloneSnapshot(): StandbyStateStoreSnapshot {
-    this.refreshOwnerVersion();
     return { version: this.ownerVersion, data: this.snapshotData() };
+  }
+
+  /**
+   * `sweep(nowMs, options)` が何かを消す期限に到達しているか。JSON も clone も使わない
+   * O(entries) の述語で、`sweep` の条件をそのまま鏡写しにする (spec §3.3 分岐 1-A)。
+   * キャッシュしないので無効化漏れが構造的に起こらない。
+   */
+  hasDueSweepWork(
+    nowMs: number,
+    options: { includeLegacyCompletionFamilies?: boolean } = {},
+  ): boolean {
+    const includeLegacyCompletionFamilies =
+      options.includeLegacyCompletionFamilies !== false;
+    for (const state of this.heatAlerts.values()) {
+      if (state.targetDateEndMs <= nowMs) return true;
+    }
+    for (const state of this.typhoons.values()) {
+      if (state.expiresAtMs <= nowMs) return true;
+    }
+    if (includeLegacyCompletionFamilies) {
+      for (const state of this.typhoonProbabilities.values()) {
+        if (state.expiresAtMs <= nowMs) return true;
+      }
+    }
+    for (const state of this.volcanoes.values()) {
+      if (state.eventExpiresAtMs != null && state.eventExpiresAtMs <= nowMs) return true;
+      if (state.ashfallExpiresAtMs != null && state.ashfallExpiresAtMs <= nowMs) return true;
+      // 活性 alert が無く期限も残っていない entry は時計に依らず即削除対象。
+      const hasActiveAlert = state.alertLevel != null || state.alertClass?.isActive === true;
+      if ((!hasActiveAlert || state.alertExpiresAtMs != null && state.alertExpiresAtMs <= nowMs)
+        && state.eventExpiresAtMs == null
+        && state.ashfallExpiresAtMs == null) return true;
+    }
+    for (const state of this.tornadoByOffice.values()) {
+      if (state.expiresAtMs <= nowMs) return true;
+    }
+    for (const state of this.longPeriodByEvent.values()) {
+      if (state.expiresAtMs <= nowMs) return true;
+    }
+    if (this.quakeHost != null && this.quakeHost.expiresAtMs <= nowMs) return true;
+    if (this.nankaiTrough != null && this.nankaiTrough.expiresAtMs <= nowMs) return true;
+    for (const state of this.weatherAlerts.values()) {
+      if (state.expiresAtMs <= nowMs) return true;
+    }
+    if (includeLegacyCompletionFamilies) {
+      for (const state of this.weatherWarningForecasts.values()) {
+        for (const group of state.groups) {
+          for (const target of group.targets) {
+            for (const period of target.periods) {
+              if (!(Date.parse(period.endsAt) > nowMs)) return true;
+            }
+          }
+        }
+      }
+    }
+    if (this.hasDueBriefingLifecycleWork(nowMs)) return true;
+    if (this.revisionGuard.hasDueSweepWork(nowMs)) return true;
+    if (this.floods.hasDueSweepWork(nowMs)) return true;
+    return false;
+  }
+
+  /** `pruneBriefingLifecycle(nowMs)` が何かを消すか。 */
+  private hasDueBriefingLifecycleWork(nowMs: number): boolean {
+    for (const state of this.briefingEntries.values()) {
+      if (state.expiresAtMs <= nowMs) return true;
+    }
+    for (const provenance of this.rawCriticalProvenance.values()) {
+      if (provenance.expiresAtMs <= nowMs) return true;
+    }
+    for (const alias of this.rawBriefingAliases.values()) {
+      if (alias.expiresAtMs <= nowMs) return true;
+    }
+    for (const watermark of this.briefingRevisionWatermarks.values()) {
+      if (watermark.expiresAtMs <= nowMs) return true;
+    }
+    for (const watermark of this.linearRainForecastReplacementWatermarks.values()) {
+      if (watermark.expiresAtMs <= nowMs) return true;
+    }
+    return false;
+  }
+
+  /** `maintainTyphoonProbabilitySubjects(nowMs, ...)` の時計駆動側が仕事を持つか。 */
+  hasDueTyphoonProbabilityMaintenance(nowMs: number): boolean {
+    for (const state of this.typhoonProbabilities.values()) {
+      if (state.expiresAtMs <= nowMs) return true;
+    }
+    return false;
+  }
+
+  /** `maintainWeatherWarningForecastSubjects(nowMs, ...)` の時計駆動側が仕事を持つか。 */
+  hasDueWeatherWarningForecastMaintenance(nowMs: number): boolean {
+    for (const state of this.weatherWarningForecasts.values()) {
+      if (state.expiresAtMs <= nowMs) return true;
+    }
+    return false;
   }
 
   static fromSnapshot(snapshot: StandbyStateStoreSnapshot): StandbyStateStore {
@@ -454,6 +593,7 @@ export class StandbyStateStore {
   }
 
   private loadSnapshot(snapshot: StandbyStateStoreSnapshot, commit: boolean): void {
+    const base = this.ownerVersion;
     const data = structuredClone(snapshot.data);
     this.heatAlerts = data.heatAlerts;
     this.typhoons = data.typhoons;
@@ -490,12 +630,14 @@ export class StandbyStateStore {
     for (const [key, value] of data.rawBriefingAliases) this.rawBriefingAliases.set(key, value);
     this.briefingGeneration = data.briefingGeneration;
     this.briefingDurableGeneration = data.briefingDurableGeneration;
-    this.ownerVersion = commit ? this.ownerVersion + 1 : snapshot.version;
-    this.ownerFingerprint = null;
-    this.refreshOwnerVersion();
+    this.ownerVersion = commit ? base + 1 : snapshot.version;
   }
 
   applyEvent(event: PresentationEvent, nowMs: number): DisplayMutation {
+    return this.bumpIfChanged(() => this.applyEventInternal(event, nowMs));
+  }
+
+  private applyEventInternal(event: PresentationEvent, nowMs: number): DisplayMutation {
     if (event.domain === "earthquake" && event.foundationMutationAccepted === false) {
       return NO_MUTATION;
     }
@@ -582,6 +724,14 @@ export class StandbyStateStore {
     nowMs: number,
     activeGateSubjects: readonly string[],
   ): DisplayMutation {
+    return this.bumpIfChanged(() =>
+      this.maintainWeatherWarningForecastSubjectsInternal(nowMs, activeGateSubjects));
+  }
+
+  private maintainWeatherWarningForecastSubjectsInternal(
+    nowMs: number,
+    activeGateSubjects: readonly string[],
+  ): DisplayMutation {
     const active = new Set(activeGateSubjects);
     let viewChanged = false;
     for (const [subject, state] of this.weatherWarningForecasts) {
@@ -602,6 +752,13 @@ export class StandbyStateStore {
    * one canonical persistence reservation is created.
    */
   reconcileWeatherWarningForecastGateBindings(
+    entries: readonly PersistedTelegramRevisionGateEntryV2[],
+  ): DisplayMutation {
+    return this.bumpIfChanged(() =>
+      this.reconcileWeatherWarningForecastGateBindingsInternal(entries));
+  }
+
+  private reconcileWeatherWarningForecastGateBindingsInternal(
     entries: readonly PersistedTelegramRevisionGateEntryV2[],
   ): DisplayMutation {
     const bindings = new Map<string, PersistedTelegramRevisionGateEntryV2 | null>();
@@ -733,6 +890,12 @@ export class StandbyStateStore {
   applyTyphoonProbabilityCommand(
     command: VptaDisplayIngestCommand,
   ): DisplayMutation {
+    return this.bumpIfChanged(() => this.applyTyphoonProbabilityCommandInternal(command));
+  }
+
+  private applyTyphoonProbabilityCommandInternal(
+    command: VptaDisplayIngestCommand,
+  ): DisplayMutation {
     assertVptaRouterOwnerToken(command.ownerToken);
     const { finalized, commit } = command;
     const prefix = "typhoonProbability:";
@@ -794,6 +957,12 @@ export class StandbyStateStore {
   reconcileTyphoonProbabilityCommand(
     command: VptaDisplayIngestCommand,
   ): DisplayMutation {
+    return this.bumpIfChanged(() => this.reconcileTyphoonProbabilityCommandInternal(command));
+  }
+
+  private reconcileTyphoonProbabilityCommandInternal(
+    command: VptaDisplayIngestCommand,
+  ): DisplayMutation {
     assertVptaRouterOwnerToken(command.ownerToken);
     const prefix = "typhoonProbability:";
     const eventId = command.commit.stateSubjectKey.startsWith(prefix)
@@ -820,6 +989,10 @@ export class StandbyStateStore {
   }
 
   reconcileTyphoonProbabilitySubject(eventId: string): DisplayMutation {
+    return this.bumpIfChanged(() => this.reconcileTyphoonProbabilitySubjectInternal(eventId));
+  }
+
+  private reconcileTyphoonProbabilitySubjectInternal(eventId: string): DisplayMutation {
     if (validateTyphoonProbabilityEventId(eventId) !== eventId) {
       throw new Error("invalid VPTA reconcile subject");
     }
@@ -837,6 +1010,14 @@ export class StandbyStateStore {
   }
 
   maintainTyphoonProbabilitySubjects(
+    nowMs: number,
+    activeGateSubjects: readonly string[],
+  ): DisplayMutation {
+    return this.bumpIfChanged(() =>
+      this.maintainTyphoonProbabilitySubjectsInternal(nowMs, activeGateSubjects));
+  }
+
+  private maintainTyphoonProbabilitySubjectsInternal(
     nowMs: number,
     activeGateSubjects: readonly string[],
   ): DisplayMutation {
@@ -859,6 +1040,13 @@ export class StandbyStateStore {
    * card-only tests and for the later typed reconcile sink.
    */
   applyBriefingCardEvent(event: PresentationEvent, nowMs: number): BriefingCardMutationResult {
+    return this.bumpIfChanged(() => this.applyBriefingCardEventInternal(event, nowMs));
+  }
+
+  private applyBriefingCardEventInternal(
+    event: PresentationEvent,
+    nowMs: number,
+  ): BriefingCardMutationResult {
     const originalCandidate = briefingCardEntryCandidate(event, nowMs);
     if (originalCandidate == null) {
       return {
@@ -1648,6 +1836,15 @@ export class StandbyStateStore {
     canonicalEvent: PresentationEvent,
     nowMs: number,
   ): CardReconcileResult {
+    return this.bumpIfChanged(() =>
+      this.reconcileBriefingCardInternal(sourceKey, canonicalEvent, nowMs));
+  }
+
+  private reconcileBriefingCardInternal(
+    sourceKey: string,
+    canonicalEvent: PresentationEvent,
+    nowMs: number,
+  ): CardReconcileResult {
     return this.reconcileBriefingCriticalLifecycle(sourceKey, canonicalEvent, nowMs);
   }
 
@@ -1956,6 +2153,18 @@ export class StandbyStateStore {
     nowMs: number,
     isCorrection = false,
   ): DisplayMutation {
+    return this.bumpIfChanged(() => this.applyWeatherAlertsInternal(
+      source, alerts, reportDateTime, serial, nowMs, isCorrection));
+  }
+
+  private applyWeatherAlertsInternal(
+    source: DisplayWeatherSourceV1,
+    alerts: DisplayWeatherAlertV1[],
+    reportDateTime: string,
+    serial: string | null,
+    nowMs: number,
+    isCorrection: boolean,
+  ): DisplayMutation {
     const key = `weather:${source}`;
     const revision = revisionOf(reportDateTime, serial, nowMs);
     // VPWS50 / VPWW56 は Phase 3B で共通 TelegramRevisionGate へ移行済み。
@@ -1995,6 +2204,15 @@ export class StandbyStateStore {
     reportDateTime: string | null,
     serial: string | null,
   ): void {
+    this.bumpIfChanged(() =>
+      this.restoreCanonicalVpws50AlertsInternal(alerts, reportDateTime, serial));
+  }
+
+  private restoreCanonicalVpws50AlertsInternal(
+    alerts: DisplayWeatherAlertV1[],
+    reportDateTime: string | null,
+    serial: string | null,
+  ): void {
     this.weatherAlerts.delete("vpws50");
     if (alerts.length === 0 || reportDateTime == null) return;
     const reportTimeMs = Date.parse(reportDateTime);
@@ -2012,6 +2230,15 @@ export class StandbyStateStore {
     nowMs: number,
     legacyEventIds: readonly string[] = [],
   ): void {
+    this.bumpIfChanged(() =>
+      this.restoreCanonicalFloodsInternal(events, nowMs, legacyEventIds));
+  }
+
+  private restoreCanonicalFloodsInternal(
+    events: PersistedFloodState["events"],
+    nowMs: number,
+    legacyEventIds: readonly string[],
+  ): void {
     this.floods.restoreState({ events, seen: [] }, nowMs);
     this.legacyFloodEventIds.clear();
     this.managedStandbySubjects.clear();
@@ -2022,6 +2249,10 @@ export class StandbyStateStore {
   }
 
   retainCanonicalFloodEvents(eventIds: readonly string[]): DisplayMutation {
+    return this.bumpIfChanged(() => this.retainCanonicalFloodEventsInternal(eventIds));
+  }
+
+  private retainCanonicalFloodEventsInternal(eventIds: readonly string[]): DisplayMutation {
     this.reconcileLegacyFloodEvents();
     const mutation = this.floods.retainActiveEventIds([
       ...eventIds,
@@ -2031,9 +2262,17 @@ export class StandbyStateStore {
     return mutation;
   }
 
+  /**
+   * 読み取り入口だが `reconcileLegacyFloodEvents()` が `legacyFloodEventIds`
+   * (保存状態) を実際に縮められるので、mutation 入口と同じ choke point を通す。
+   * 旧実装では次の `version()` 呼び出しが指紋差から拾っていたぶんが、
+   * O(1) version では取りこぼしになる (spec §3.1 の双方向不変条件)。
+   */
   floodLegacyEventIds(): string[] {
-    this.reconcileLegacyFloodEvents();
-    return [...this.legacyFloodEventIds];
+    return this.bumpIfChanged(() => {
+      this.reconcileLegacyFloodEvents();
+      return [...this.legacyFloodEventIds];
+    });
   }
 
   private reconcileLegacyFloodEvents(): void {
@@ -2045,6 +2284,15 @@ export class StandbyStateStore {
 
   /** v2 foundation の正規 VPWW56 union から起動時 view を再構築する。通知は発火しない。 */
   restoreCanonicalVpww56Alerts(
+    alerts: DisplayWeatherAlertV1[],
+    reportDateTime: string | null,
+    serial: string | null,
+  ): void {
+    this.bumpIfChanged(() =>
+      this.restoreCanonicalVpww56AlertsInternal(alerts, reportDateTime, serial));
+  }
+
+  private restoreCanonicalVpww56AlertsInternal(
     alerts: DisplayWeatherAlertV1[],
     reportDateTime: string | null,
     serial: string | null,
@@ -2401,6 +2649,10 @@ export class StandbyStateStore {
    * admission, while the real store is published only by replacePrevalidated().
    */
   replaceVolcanoDerived(snapshot: VolcanoHolderSnapshot): boolean {
+    return this.bumpIfChanged(() => this.replaceVolcanoDerivedInternal(snapshot));
+  }
+
+  private replaceVolcanoDerivedInternal(snapshot: VolcanoHolderSnapshot): boolean {
     const previous = JSON.stringify([...this.volcanoes]);
     const restored = new Map(snapshot.restored.map((entry) => [entry.volcanoCode, entry]));
     const next = new Map<string, StandbyVolcanoState>();
@@ -2442,6 +2694,10 @@ export class StandbyStateStore {
   }
 
   seedVolcanoAlerts(entries: VolcanoSeedEntry[], result: "success" | "failed", nowMs: number): DisplayMutation {
+    return this.bumpIfChanged(() => this.seedVolcanoAlertsInternal(entries, result, nowMs));
+  }
+
+  private seedVolcanoAlertsInternal(entries: VolcanoSeedEntry[], result: "success" | "failed", nowMs: number): DisplayMutation {
     if (result === "failed") return NO_MUTATION;
     const keys = new Set(entries.filter((entry) => entry.active !== false).map((entry) => entry.volcanoCode));
     let viewChanged = false;
@@ -2507,6 +2763,15 @@ export class StandbyStateStore {
 
   /** v2 volcano foundation を正として legacy volcano 表示 state を全置換する。 */
   restoreCanonicalVolcanoes(
+    states: readonly PersistedVolcanoStateV1[],
+    gateEntries: PersistedTelegramFoundationV2["volcano"]["gateEntries"],
+    nowMs: number,
+  ): void {
+    this.bumpIfChanged(() =>
+      this.restoreCanonicalVolcanoesInternal(states, gateEntries, nowMs));
+  }
+
+  private restoreCanonicalVolcanoesInternal(
     states: readonly PersistedVolcanoStateV1[],
     gateEntries: PersistedTelegramFoundationV2["volcano"]["gateEntries"],
     nowMs: number,
@@ -2609,6 +2874,13 @@ export class StandbyStateStore {
   sweep(
     nowMs: number,
     options: { includeLegacyCompletionFamilies?: boolean } = {},
+  ): DisplayMutation {
+    return this.bumpIfChanged(() => this.sweepInternal(nowMs, options));
+  }
+
+  private sweepInternal(
+    nowMs: number,
+    options: { includeLegacyCompletionFamilies?: boolean },
   ): DisplayMutation {
     const includeLegacyCompletionFamilies =
       options.includeLegacyCompletionFamilies !== false;
@@ -3036,6 +3308,10 @@ export class StandbyStateStore {
   }
 
   restoreActiveState(data: PersistedStandbyState, nowMs: number): RestoreActiveStateResult {
+    return this.bumpIfChanged(() => this.restoreActiveStateInternal(data, nowMs));
+  }
+
+  private restoreActiveStateInternal(data: PersistedStandbyState, nowMs: number): RestoreActiveStateResult {
     this.heatAlerts.clear();
     this.typhoons.clear();
     this.typhoonProbabilities.clear();
