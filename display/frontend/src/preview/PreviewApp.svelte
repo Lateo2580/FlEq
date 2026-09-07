@@ -8,6 +8,7 @@
   import TierOverlay from "../components/TierOverlay.svelte";
   import LegacyImprovedMock from "./LegacyImprovedMock.svelte";
   import MotionCatalog from "./MotionCatalog.svelte";
+  import { parseMetadataChurnMs } from "./metadata-churn";
   import { fade } from "svelte/transition";
   import { emergencyEnter } from "../lib/transitions";
   import { SPRING_SPATIAL_QUICK_MS, SPRING_EFFECTS_SLOW_MS, EXIT_MS } from "../lib/motion";
@@ -150,6 +151,18 @@
   // design-alignment capture は card geometry の検証中に無関係な ticker の完走境界を
   // 跨がないよう、preview CSS だけで現在 lane を静止する。製品 scheduler は変更しない。
   const captureTickerFrozen = previewQuery.get("captureTicker") === "frozen";
+  // Issue #15 の before/after 採取用ハーネス (spec §3.4, 分岐 5 A)。
+  // ?metadataChurnMs=<正整数> が与えられたときだけ、その間隔で generatedAt と seq **だけ** を
+  // 書き換えた snapshot を流し込む。実 state 配信 (500ms debounce) の metadata-only 更新を
+  // 模して「見た目が静止している時間帯の再計測」を測るためのもので、preview 限定・既定無効。
+  // production の App.svelte は一切変更しない。
+  const metadataChurnMs = parseMetadataChurnMs(previewQuery.get("metadataChurnMs"));
+  let metadataChurnTick = $state(0);
+  $effect(() => {
+    if (metadataChurnMs == null) return;
+    const timer = setInterval(() => { metadataChurnTick += 1; }, metadataChurnMs);
+    return () => clearInterval(timer);
+  });
   const gateScenarioParam = previewQuery.get("gateScenario");
   const gateScenario: LegacyStandbyGateScenario = gateScenarioParam === "quiet" || gateScenarioParam === "7" || gateScenarioParam === "max" || gateScenarioParam === "max-floodWide"
     ? gateScenarioParam
@@ -349,7 +362,7 @@
   $effect(() => {
     if (mode !== "standby") standbyStage = 0;
   });
-  const snapshot = $derived<DisplayStateSnapshotV1>(
+  const scenarioSnapshot = $derived<DisplayStateSnapshotV1>(
     legacyStandbyGate
       ? legacyStandbyGateSnapshot(gateScenario, gateFixture)
       : scenario === "standby-weather-warning"
@@ -400,6 +413,16 @@
                     : scenario === "standby-attention-visibility-critical"
                       ? attentionVisibilityCriticalSnapshot
                     : quietSnapshot,
+  );
+  // metadataChurnMs 未指定なら scenarioSnapshot をそのまま素通しする (既定は現行と完全に同一)。
+  const snapshot = $derived<DisplayStateSnapshotV1>(
+    metadataChurnMs == null
+      ? scenarioSnapshot
+      : {
+          ...scenarioSnapshot,
+          generatedAt: new Date(Date.now()).toISOString(),
+          seq: scenarioSnapshot.seq + metadataChurnTick,
+        },
   );
   const dim = $derived(scenario === "standby-dim" || scenario === "standby-attention-visibility-dim");
   const reducedMotionForPreview = $derived(

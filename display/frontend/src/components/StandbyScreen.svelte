@@ -9,6 +9,7 @@
   import { createEpochCoordinator, type EpochCoordinator, type EpochCoordinatorControl } from "../lib/legacy-standby/epoch-coordinator";
   import { nextCenterClusterHidden, type CenterClusterItem } from "../lib/legacy-standby/center-cluster";
   import { createLayoutMotionCoordinator, type LayoutMotionIdentity } from "../lib/legacy-standby/layout-motion.svelte";
+  import { standbyLayoutKey } from "../lib/legacy-standby/layout-key";
   import { pageIdentity, sequentialPartitionRanges, type PartitionProbe } from "../lib/legacy-standby/page-partition";
   import { createCardPageCoordinator, createRotationScheduler } from "../lib/legacy-standby/time-slice-scheduler.svelte";
   import type { CardCandidate, CardKey, CardVariant, ColumnPlan, DisplaySelection, LadderStage, PagePartitionKey, PageRange, PlacementChoice } from "../lib/legacy-standby/types";
@@ -2067,8 +2068,11 @@
               ])]),
             ]))}`
         : `${item.kind}:${item.updatedAt}`).join(",") ?? "";
-    const contentKey = [snapshot.generatedAt, snapshot.seq, snapshot.latestQuake?.updatedAtMs ?? "", selectedId ?? "", standbyContentIdentity, snapshot.weatherAlerts.map((alert) => alert.updatedAt).join(",")].join("|");
-    const input = [contentKey, sseConnected].join("|");
+    // 配信 metadata (generatedAt / seq) はレイアウト入力ではない。除外リスト方式の安定キーへ
+    // 置き換え、内容も寸法も変わらない state 配信では settle をやり直さない
+    // (Issue #15, docs/specs/2026-09-07-standby-metadata-resettle.md §3.2)。
+    const contentKey = standbyLayoutKey(snapshot, standbyContentIdentity);
+    const input = [contentKey, selectedId ?? "", sseConnected].join("|");
     if (input !== lastInputKey) {
       lastInputKey = input;
       contentDemotionRequested = lastContentKey !== "" && contentKey !== lastContentKey;
