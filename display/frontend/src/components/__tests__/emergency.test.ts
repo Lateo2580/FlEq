@@ -7,6 +7,7 @@ import { flushSync, tick } from "svelte";
 import EmergencyScreen from "../EmergencyScreen.svelte";
 import WeatherEmergencyPanel from "../WeatherEmergencyPanel.svelte";
 import { PAGE_HOLD_MS } from "../../lib/page-cycler.svelte";
+import { SPRING_SPATIAL_QUICK_MS } from "../../lib/motion";
 import { expectCurrentDot } from "./page-dots-test-utils";
 import type { EmergencyPanelModel } from "../../lib/derive";
 import type {
@@ -701,6 +702,313 @@ describe("EmergencyScreen", () => {
         rendered.unmount();
         geometry.restore();
       }
+    });
+
+    // ── Issue #18 / spec 2026-09-07: layoutSettling 解除後の panel geometry flush。
+    //    settling 中の測定は acceptsMeasurement が捨てるが、窓が閉じた時点で panel は既に安定して
+    //    いるため ResizeObserver がもう一度発火する保証がない。直前の 677-704 は setPanelSize の
+    //    直後に fireAll() を呼んでいるので「解除後に通知が来ない」条件を検証していない。
+    //    以下は解除ステップで fireAll() を呼ばないことで、Issue の成立条件を構造として再現する。
+    describe("layoutSettling 解除後の panel geometry flush (Issue #18)", () => {
+      // 候補 n の高さを 100+100n にすると、budget=700 (1000x800) では n=5、
+      // budget=200 (520x300) では n=1 が最大 fitting になる (§4.2 (d) の要求)。
+      const flushGeometryOptions = {
+        reserveHeight: 100,
+        changeCandidateHeight: (candidate: number): number => 100 + candidate * 100,
+      };
+
+      /** change fit の publish は 2 つの rAF を跨いでから settled になる (WeatherEmergencyPanel 637-666)。 */
+      async function settleWeatherFit(): Promise<void> {
+        await settleWeatherLayout();
+        await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+        await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+        await settleWeatherLayout();
+      }
+
+      it("(a) 解除後に ResizeObserver 通知が無くても新しい panel geometry を読み直す", async () => {
+        const geometry = installWeatherGeometry(flushGeometryOptions);
+        const input = weatherInput({ change: weatherChange() });
+        const rendered = render(WeatherEmergencyPanel, { input, reducedMotionInput: true });
+        try {
+          await settleWeatherLayout();
+          const panel = rendered.container.querySelector<HTMLElement>(".weather-panel")!;
+          expect(Number(panel.dataset.changePanelWidth)).toBe(1_000);
+          expect(Number(panel.dataset.changePanelHeight)).toBe(800);
+          const beforeMeasurementKey = panel.dataset.changeMeasurementKey;
+          const beforeBatchKey = panel.dataset.changeBatchKey;
+
+          await rendered.rerender({ input, compact: false, layoutSettling: true, reducedMotionInput: true });
+          flushSync();
+          geometry.setPanelSize(520, 300);
+          geometry.fireAll();
+          flushSync();
+
+          await rendered.rerender({ input, compact: false, layoutSettling: false, reducedMotionInput: true });
+          // C2: ここで geometry.fireAll() を呼んではいけない。
+          // 「解除後に ResizeObserver がもう一度来ない」ことが本テストの再現条件そのもの。
+          await settleWeatherLayout();
+
+          expect(Number(panel.dataset.changePanelWidth)).toBe(520);
+          expect(Number(panel.dataset.changePanelHeight)).toBe(300);
+          expect(Number(panel.dataset.changePanelContentHeight)).toBe(300);
+          expect(panel.dataset.changeMeasurementKey).not.toBe(beforeMeasurementKey);
+          expect(panel.dataset.changeBatchKey).not.toBe(beforeBatchKey);
+        } finally {
+          rendered.unmount();
+          geometry.restore();
+        }
+      });
+
+      it("(b) settling 中は ResizeObserver が発火しても過渡値を publish しない", async () => {
+        const geometry = installWeatherGeometry(flushGeometryOptions);
+        const input = weatherInput({ change: weatherChange() });
+        const rendered = render(WeatherEmergencyPanel, { input, reducedMotionInput: true });
+        try {
+          await settleWeatherLayout();
+          const panel = rendered.container.querySelector<HTMLElement>(".weather-panel")!;
+          const beforeMeasurementKey = panel.dataset.changeMeasurementKey;
+          const beforeBatchKey = panel.dataset.changeBatchKey;
+
+          await rendered.rerender({ input, compact: false, layoutSettling: true, reducedMotionInput: true });
+          flushSync();
+          geometry.setPanelSize(520, 300);
+          geometry.fireAll();
+          flushSync();
+
+          expect(Number(panel.dataset.changePanelWidth)).toBe(1_000);
+          expect(Number(panel.dataset.changePanelHeight)).toBe(800);
+          expect(panel.dataset.changeMeasurementKey).toBe(beforeMeasurementKey);
+          expect(panel.dataset.changeBatchKey).toBe(beforeBatchKey);
+        } finally {
+          rendered.unmount();
+          geometry.restore();
+        }
+      });
+
+      it("(c) 解除で change batch を二度リセットせず settled へ収束する", async () => {
+        const geometry = installWeatherGeometry(flushGeometryOptions);
+        const input = weatherInput({ change: weatherChange() });
+        const rendered = render(WeatherEmergencyPanel, { input, reducedMotionInput: true });
+        try {
+          await settleWeatherFit();
+          const panel = rendered.container.querySelector<HTMLElement>(".weather-panel")!;
+          const beforeActiveBatchKey = panel.dataset.changeActiveBatchKey;
+
+          await rendered.rerender({ input, compact: false, layoutSettling: true, reducedMotionInput: true });
+          flushSync();
+          geometry.setPanelSize(520, 300);
+          geometry.fireAll();
+          flushSync();
+          const passBeforeRelease = Number(panel.dataset.changeMeasurementPass);
+
+          await rendered.rerender({ input, compact: false, layoutSettling: false, reducedMotionInput: true });
+          // C2: ここで geometry.fireAll() を呼んではいけない。
+          // 「解除後に ResizeObserver がもう一度来ない」ことが本テストの再現条件そのもの。
+          // 解除の収束過程で active batch key が何個生まれたかを数える (§2.5: geometry が遅れて
+          // commit されると batch が二度リセットされ fit pass を余分に消費する)。
+          const observedBatchKeys = new Set<string>();
+          for (let index = 0; index < 8; index += 1) {
+            flushSync();
+            const key = panel.dataset.changeActiveBatchKey;
+            if (key != null) observedBatchKeys.add(key);
+            await tick();
+          }
+          await settleWeatherFit();
+          observedBatchKeys.add(panel.dataset.changeActiveBatchKey ?? "");
+          if (beforeActiveBatchKey != null) observedBatchKeys.delete(beforeActiveBatchKey);
+
+          expect(observedBatchKeys.size).toBeLessThanOrEqual(1);
+          expect(Number(panel.dataset.changeMeasurementPass) - passBeforeRelease).toBeLessThanOrEqual(1);
+          expect(panel.dataset.changeMeasurementSettled).toBe("true");
+        } finally {
+          rendered.unmount();
+          geometry.restore();
+        }
+      });
+
+      it("(d) 新 geometry の候補高で selectedChangeCount が再計算される", async () => {
+        const geometry = installWeatherGeometry(flushGeometryOptions);
+        const input = weatherInput({ change: weatherChange() });
+        const rendered = render(WeatherEmergencyPanel, { input, reducedMotionInput: true });
+        try {
+          await settleWeatherFit();
+          const panel = rendered.container.querySelector<HTMLElement>(".weather-panel")!;
+          // budget = 800 - 100 = 700 → 候補高 600 (n=5) まで収まる
+          expect(Number(panel.dataset.changeSelected)).toBe(5);
+
+          await rendered.rerender({ input, compact: false, layoutSettling: true, reducedMotionInput: true });
+          flushSync();
+          geometry.setPanelSize(520, 300);
+          geometry.fireAll();
+          flushSync();
+
+          await rendered.rerender({ input, compact: false, layoutSettling: false, reducedMotionInput: true });
+          // C2: ここで geometry.fireAll() を呼んではいけない。
+          // 「解除後に ResizeObserver がもう一度来ない」ことが本テストの再現条件そのもの。
+          await settleWeatherFit();
+
+          // budget = 300 - 100 = 200 → 候補高 200 (n=1) までしか収まらない
+          expect(Number(panel.dataset.changeSelected)).toBe(1);
+          expect(panel.dataset.changeMeasurementSettled).toBe("true");
+        } finally {
+          rendered.unmount();
+          geometry.restore();
+        }
+      });
+
+      // 系統 B (spec §1.2): 割込み遷移の窓が開いている最中に weather panel が追加されると、初回
+      // readPanel も初回 RO 通知も settling で破棄され panelWidth が null に固着する。
+      // 単体 render + rerender では再現できない: props を差し替える rerender 自体が
+      // use:observePanel の update() を呼び、その queueMicrotask が panel を読み直してしまう。
+      // 解除がタイマー由来 (EmergencyScreen の fallback) である実配線でのみ、この経路が現れる。
+      it("(e) 割込み遷移中に mount した panel の geometry が解除で初めて commit される", async () => {
+        const geometry = installWeatherGeometry(flushGeometryOptions);
+        vi.useFakeTimers();
+        const eew = panel("eew:E1", eewInput());
+        const quake = panel("quake:Q1", quakeInput());
+        const weather = panel("weather:current", weatherInput({ change: weatherChange() }));
+        const rendered = render(EmergencyScreen, { panels: [eew], reducedMotion: false });
+        try {
+          await settleWeatherLayout();
+          const settlingOf = (): string | null =>
+            rendered.container.querySelector(".panels")?.getAttribute("data-settling") ?? null;
+
+          // 1→2 枚で settling の窓が開く
+          await rendered.rerender({ panels: [eew, quake], reducedMotion: false });
+          flushSync();
+          expect(settlingOf()).toBe("true");
+
+          // 窓が閉じる前に 3 枚目として weather を足す (割込み遷移で fallback は張り直される)
+          vi.advanceTimersByTime(100);
+          await rendered.rerender({ panels: [eew, quake, weather], reducedMotion: false });
+          await settleWeatherLayout();
+          const weatherPanel = rendered.container.querySelector<HTMLElement>(".weather-panel")!;
+          expect(settlingOf()).toBe("true");
+          expect(weatherPanel.dataset.changePanelWidth).toBeUndefined();
+
+          vi.advanceTimersByTime(SPRING_SPATIAL_QUICK_MS + 80 + 1);
+          // C2: ここで geometry.fireAll() を呼んではいけない。
+          // 「解除後に ResizeObserver がもう一度来ない」ことが本テストの再現条件そのもの。
+          await settleWeatherLayout();
+          vi.advanceTimersByTime(100);
+          await settleWeatherLayout();
+
+          expect(settlingOf()).toBe("false");
+          expect(Number(weatherPanel.dataset.changePanelWidth)).toBe(1_000);
+          expect(Number(weatherPanel.dataset.changePanelHeight)).toBe(800);
+          expect(weatherPanel.dataset.changeMeasurementSettled).toBe("true");
+        } finally {
+          rendered.unmount();
+          vi.useRealTimers();
+          geometry.restore();
+        }
+      });
+
+      it("(f) EmergencyScreen の 1→2 枚遷移で、窓が閉じたら panel geometry が追従する", async () => {
+        const geometry = installWeatherGeometry(flushGeometryOptions);
+        vi.useFakeTimers();
+        const weather = panel("weather:current", weatherInput({ change: weatherChange() }));
+        const eew = panel("eew:E1", eewInput());
+        const rendered = render(EmergencyScreen, { panels: [weather], reducedMotion: false });
+        try {
+          await settleWeatherLayout();
+          const weatherPanel = rendered.container.querySelector<HTMLElement>(".weather-panel")!;
+          const settlingOf = (): string | null =>
+            rendered.container.querySelector(".panels")?.getAttribute("data-settling") ?? null;
+          expect(Number(weatherPanel.dataset.changePanelWidth)).toBe(1_000);
+
+          await rendered.rerender({ panels: [weather, eew], reducedMotion: false });
+          flushSync();
+          expect(settlingOf()).toBe("true");
+          geometry.setPanelSize(640, 420);
+          geometry.fireAll();
+          flushSync();
+          expect(Number(weatherPanel.dataset.changePanelWidth)).toBe(1_000);
+
+          vi.advanceTimersByTime(SPRING_SPATIAL_QUICK_MS + 80 + 1);
+          // C2: ここで geometry.fireAll() を呼んではいけない。
+          // 「解除後に ResizeObserver がもう一度来ない」ことが本テストの再現条件そのもの。
+          await settleWeatherLayout();
+
+          expect(settlingOf()).toBe("false");
+          expect(Number(weatherPanel.dataset.changePanelWidth)).toBe(640);
+          expect(Number(weatherPanel.dataset.changePanelHeight)).toBe(420);
+        } finally {
+          rendered.unmount();
+          vi.useRealTimers();
+          geometry.restore();
+        }
+      });
+
+      it("(g) EmergencyScreen で主役 → 副役(compact) へ移った panel geometry が追従する", async () => {
+        const geometry = installWeatherGeometry(flushGeometryOptions);
+        vi.useFakeTimers();
+        const weather = panel("weather:current", weatherInput({ change: weatherChange() }));
+        const eew = panel("eew:E1", eewInput());
+        const rendered = render(EmergencyScreen, { panels: [weather], reducedMotion: false });
+        try {
+          await settleWeatherLayout();
+          const weatherPanel = rendered.container.querySelector<HTMLElement>(".weather-panel")!;
+          expect(Number(weatherPanel.dataset.changePanelWidth)).toBe(1_000);
+
+          // weather を 0 番目から 1 番目へ (compactOf が true になる副役スロット)
+          await rendered.rerender({ panels: [eew, weather], reducedMotion: false });
+          flushSync();
+          geometry.setPanelSize(520, 300);
+          geometry.fireAll();
+          flushSync();
+
+          vi.advanceTimersByTime(SPRING_SPATIAL_QUICK_MS + 80 + 1);
+          // C2: ここで geometry.fireAll() を呼んではいけない。
+          // 「解除後に ResizeObserver がもう一度来ない」ことが本テストの再現条件そのもの。
+          await settleWeatherLayout();
+
+          expect(weatherPanel.classList.contains("compact")).toBe(true);
+          expect(Number(weatherPanel.dataset.changePanelWidth)).toBe(520);
+          expect(Number(weatherPanel.dataset.changePanelHeight)).toBe(300);
+        } finally {
+          rendered.unmount();
+          vi.useRealTimers();
+          geometry.restore();
+        }
+      });
+
+      it("(g) EmergencyScreen で副役(compact) → 主役へ戻った panel geometry が追従する", async () => {
+        const geometry = installWeatherGeometry({
+          ...flushGeometryOptions,
+          panelWidth: 520,
+          panelHeight: 300,
+        });
+        vi.useFakeTimers();
+        const weather = panel("weather:current", weatherInput({ change: weatherChange() }));
+        const eew = panel("eew:E1", eewInput());
+        const rendered = render(EmergencyScreen, { panels: [eew, weather], reducedMotion: false });
+        try {
+          await settleWeatherLayout();
+          const weatherPanel = rendered.container.querySelector<HTMLElement>(".weather-panel")!;
+          expect(Number(weatherPanel.dataset.changePanelWidth)).toBe(520);
+
+          // weather を 1 番目から 0 番目へ (主役スロットへ戻す)
+          await rendered.rerender({ panels: [weather], reducedMotion: false });
+          flushSync();
+          geometry.setPanelSize(1_000, 800);
+          geometry.fireAll();
+          flushSync();
+
+          vi.advanceTimersByTime(SPRING_SPATIAL_QUICK_MS + 80 + 1);
+          // C2: ここで geometry.fireAll() を呼んではいけない。
+          // 「解除後に ResizeObserver がもう一度来ない」ことが本テストの再現条件そのもの。
+          await settleWeatherLayout();
+
+          expect(weatherPanel.classList.contains("compact")).toBe(false);
+          expect(Number(weatherPanel.dataset.changePanelWidth)).toBe(1_000);
+          expect(Number(weatherPanel.dataset.changePanelHeight)).toBe(800);
+        } finally {
+          rendered.unmount();
+          vi.useRealTimers();
+          geometry.restore();
+        }
+      });
     });
 
     it("identity reset・pending・同値 ResizeObserver は outer fit pass を余分に数えない", async () => {

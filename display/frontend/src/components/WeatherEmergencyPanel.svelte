@@ -481,6 +481,22 @@
     });
   });
 
+  // 整定解除時は ResizeObserver の次回通知を待たず、panel 自身の border-box も読み直す (Issue #18)。
+  // 窓が閉じた時点で panel は既に安定しているため RO がもう一度発火する保証が無く、panel geometry には
+  // ここ以外に解除時の読み直し経路が無い (reserve 高・候補高は action token が changeBatchKey なので
+  // settlingEpoch の bump で自動的に再測定される)。割込み遷移で settling 中に mount し、初回読みも初回
+  // RO 通知も破棄された panel も、node さえあればここで初めて commit される。
+  // 宣言順が契約である: この commit は下の settlingEpoch bump **より前**に走る必要がある。先に geometry を
+  // 確定させることで、解除 1 回につき changeBatchKey は 1 個だけ新しくなり batch リセットも 1 回で済む。
+  $effect(() => {
+    const settling = layoutSettling;
+    const activationKey = input.activationKey;
+    const node = panelElement;
+    untrack(() => {
+      if (!settling && node != null) readPanel(node, activationKey);
+    });
+  });
+
   let previousLayoutSettling = false;
   $effect(() => {
     const settling = layoutSettling;

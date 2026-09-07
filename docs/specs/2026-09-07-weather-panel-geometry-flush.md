@@ -1,6 +1,7 @@
 # 緊急画面: layoutSettling 解除後に WeatherEmergencyPanel の panel geometry を必ず読み直す spec
 
 > **裁定（2026-09-07 21:15、ご主人）**: §6 の 4 分岐はすべて A（settling 解除時の明示 re-read／helper は emergency.test.ts に追記／EmergencyScreen 実配線テストを含める／panelElement は現行 action のまま）。本 spec は実装 spec として有効。対応 Issue #18。
+> **訂正（2026-09-07、実装後の実走で判明した測定事実に合わせる。製品挙動の緩和は含まない）**: §3.2 の C3 を「外形観測できない不変条件」へ、§4.2 の (e) を EmergencyScreen 実配線へ、§5.1 の赤の内訳を実測値へ訂正した。
 
 > **対象 Issue**: [#18](https://github.com/Lateo2580/FlEq/issues/18)（`display: layoutSettling 解除後に WeatherEmergencyPanel の panel geometry が再読込されず change fit が旧寸法で確定し得る`）
 > **基準 SHA**: Issue 本文は `a58a2f935b694cdbf26d0b054d3adfde9e9d040f`（VPWS50 change fit 探索の追加 commit）。本 spec は `65d6f9ba2c060836a9ebff0c0a36a53af9b7d8d8`（main, 2026-09-07）で全 file:line を実測し直した。
@@ -217,7 +218,7 @@ Issue が挙げた 2 案を比較する。
 
 - **C1（過渡値を publish しない）**: `layoutSettling=true` の間は、ResizeObserver が何回発火しても `panelWidth` / `panelHeight` / `panelContentHeight` と、そこから導かれる `data-change-panel-*` / `changeBatchKey` / `changeMeasurementKey` が変化しないこと。現行の `acceptsMeasurement` ガード（189）をそのまま維持する。
 - **C2（解除後に最終 geometry を必ず一度読む）**: `layoutSettling` が true → false へ遷移したとき、**追加の ResizeObserver 発火が一切無くても**、`panelElement` の現在の border-box から 3 寸法が読み直されること。`panelElement` が `null` のときは何もしない。
-- **C3（順序: geometry commit が settlingEpoch bump より先）**: C2 の読み直しは `settlingEpoch` を +1 する effect（484-491）より**前**に走ること。これにより解除 1 回につき `changeBatchKey` は 1 個だけ新しくなり、493-506 の batch リセットが 1 回で済む。外形的には「解除の前後で `data-change-measurement-pass` が 2 以上増えないこと」で観測する。
+- **C3（順序: geometry commit が settlingEpoch bump より先）**: C2 の読み直しは `settlingEpoch` を +1 する effect（484-491）より**前**に走ること。これにより解除 1 回につき `changeBatchKey` は 1 個だけ新しくなり、493-506 の batch リセットが 1 回で済む。**C3 は外形観測できない不変条件である。** geometry commit と epoch bump はどちらの順でも同一 flush に畳まれるため二重リセットは発生せず、`data-change-measurement-pass`（batch ごとに 0 へ戻る非累積カウンタなので前後差は構造上 1 を超えない）にも `data-change-active-batch-key` のサンプリングにも差が現れない。したがって C3 は**テストではなく、effect の宣言位置（where frame flush effect の直後・batch リセット effect より前）とコメントで守る**。
 
 実装上は、474-482 の where frame flush effect の直後・484 の `previousLayoutSettling` 宣言より前に、同じ形の effect を 1 つ足すのが最小である。where frame と 1 つの effect に相合してもよいが、その場合もコメントで両方の対象を明示すること。
 
@@ -231,7 +232,7 @@ parser / router / formatter / notifier、engine 側の全ファイル、display 
 
 ### 4.0 先に赤を確認する
 
-新規ファイル `display/frontend/src/components/__tests__/weather-panel-geometry-flush.test.ts` を起こす。**実装より先にこのファイルを書き、現行 `65d6f9b` で §4.2 の (a)(b)(c) が落ちることを実走で確認してから実装に入る**こと。Issue も本 spec もブラウザ再現を伴わない静的レビュー由来なので、「そもそも現行が落ちる」ことの確認が根因確定の代わりになる。落ちなかった場合は実装に進まず、テストが条件を再現できていないか根因の見立てが違うかを報告する（blocked 扱い）。
+新規ファイル `display/frontend/src/components/__tests__/weather-panel-geometry-flush.test.ts` を起こす。**実装より先にこのファイルを書き、現行 `65d6f9b` で §4.2 の (a)(d)(e)(f)(g) が落ちることを実走で確認してから実装に入る**こと（(b)(c) は §5.1 のとおり現行でも緑）。Issue も本 spec もブラウザ再現を伴わない静的レビュー由来なので、「そもそも現行が落ちる」ことの確認が根因確定の代わりになる。落ちなかった場合は実装に進まず、テストが条件を再現できていないか根因の見立てが違うかを報告する（blocked 扱い）。
 
 ### 4.1 使う helper と、既存テストとの違い
 
@@ -255,13 +256,15 @@ helper の要点は 3 つ。
 |---|---|---|---|---|
 | (a) | **解除後に RO 無しで新 geometry を読む**（Issue 案 1・2・4・5） | `panelWidth=1000, panelHeight=800`, `layoutSettling=false` で settle → `layoutSettling=true` へ rerender → `setPanelSize(520, 300)` → `fireAll()` を 1 回（settling 中の通知）→ `layoutSettling=false` へ rerender、**`fireAll()` を呼ばない** → `settleWeatherLayout()` | `data-change-panel-width` が `520`、`data-change-panel-height` が `300`、`data-change-panel-content-height` が 300 由来の値、`data-change-measurement-key` が settling 前の値と異なる、`data-change-batch-key` も異なる | C2 |
 | (b) | **settling 中は過渡値を publish しない**（Issue 案 3） | (a) の途中、`layoutSettling=true` かつ `setPanelSize(520,300)` かつ `fireAll()` の直後に `flushSync()` して読む | `data-change-panel-width` が `1000` のまま、`data-change-panel-height` が `800` のまま、`data-change-measurement-key` が settling 前と同値 | C1 |
-| (c) | **解除で fit pass を 2 個消費しない**（§2.5） | (a) と同じ手順で、解除の直前と `settleWeatherLayout()` 後の `data-change-measurement-pass` を比較 | 増分が 1 以下。かつ最終的に `data-change-measurement-settled` が `"true"` へ収束 | C3 |
+| (c) | **解除で fit pass を 2 個消費しない**（§2.5） | (a) と同じ手順で、解除の直前と `settleWeatherLayout()` 後の `data-change-measurement-pass` を比較 | 増分が 1 以下。かつ最終的に `data-change-measurement-settled` が `"true"` へ収束 | 現行でも緑。C3 の担保ではなく将来の誤実装ガード（§3.2 C3 のとおり C3 は外形観測できない） |
 | (d) | **新 geometry の候補高で `selectedChangeCount` が再計算される**（Issue 案 6） | `changeCandidateHeight` を候補番号の関数として与え、`reserveHeight` と panel 高の組を「1000×800 では n=k、520×300 では n<k が最大 fitting」になるよう選ぶ。(a) の手順を踏む | `data-change-selected` が旧 geometry の値から新 geometry の値へ変わる。`data-change-measurement-settled` が `"true"` | C2 + fit の再計算 |
-| (e) | **settling 中に mount した panel が解除で復帰する**（§1.2 / 系統 B） | `installWeatherGeometry({ notifyInitialResize: false })` で `layoutSettling: true` のまま `render()` → `settleWeatherLayout()` → `data-change-panel-width` が未定義であることを確認 → `layoutSettling=false` へ rerender、`fireAll()` 無し → `settleWeatherLayout()` | 解除前は `data-change-panel-width` が `undefined`（属性なし）、解除後は `1000`。かつ `data-change-measurement-settled` が `"true"` へ到達 | C2（初回 commit 欠落からの復帰） |
+| (e) | **割込み遷移中に mount した panel が解除で初めて commit される**（§1.2 / 系統 B） | **`EmergencyScreen` 実配線で書く。** `reducedMotion=false` + fake timer。EEW 1 枚で render → settle → EEW+地震の 2 枚へ rerender して settling 窓を開く → `vi.advanceTimersByTime(100)` で窓が閉じる前に weather を足して 3 枚へ rerender（この mount で初回 `readPanel` も初回 RO 通知も破棄される）→ `data-change-panel-width` が未定義であることを確認 → `vi.advanceTimersByTime(SPRING_SPATIAL_QUICK_MS + 80 + 1)` で fallback timer に解除させる、**`fireAll()` を呼ばない** → settle | 解除前は `data-change-panel-width` が `undefined`（属性なし）、解除後は `1000`。かつ `data-change-measurement-settled` が `"true"` へ到達 | C2（初回 commit 欠落からの復帰） |
 | (f) | **EmergencyScreen 経由の 1→2 枚遷移**（Issue 案 7） | `EmergencyScreen` を weather 1 枚で render → settle → panels に EEW を足して 2 枚へ rerender → `setPanelSize` で weather 側の寸法を compact 相当へ → `vi.advanceTimersByTime(SPRING_SPATIAL_QUICK_MS + 80 + 1)` で settling 窓を閉じる、**`fireAll()` を呼ばない** → settle | weather panel の `data-change-panel-width/height` が新値。`.panels[data-settling]` が `"false"` | C2 を実配線で |
 | (g) | **main → side(compact) / side → main** | (f) と同じ形で、`compactOf()` の結果が変わる並び替え（weather を 0 番目から 1 番目へ、および戻す）を 2 ケース | 各遷移後に `data-change-panel-width/height` が新値へ追従 | C2 を実配線で |
 
-(f)(g) は `emergency.test.ts` の既存 `EmergencyScreen` 描画テストの render 形（`data-testid={p.key}` で slot を取る形、`EmergencyScreen.svelte:196`）に倣う。`reducedMotion` は **false** にすること。true では `EmergencyScreen.svelte:154-157` が settling を即座に解除してしまい、窓が開かないので条件が再現しない。fake timer は既存の `settleFade()`（`emergency.test.ts:22-25`）と同じ流儀で進める。
+(e) を単体 `render()` + `rerender()` で書いてはならない。`rendered.rerender()` は props を差し替えるので `use:observePanel` の `update()` が呼ばれ、その `queueMicrotask` が `readPanel` を実行してしまう（`WeatherEmergencyPanel.svelte:211`）。そのため修正前でも `panelWidth` が commit されてしまい、系統 B が再現しない。加えて `notifyInitialResize: false` は where 側の測定まで飢餓させ、`layoutState` が `pending` のままで `data-change-measurement-settled` が `"true"` に到達しない。**解除がプロップ更新ではなくタイマー由来である実配線でだけ、この経路が現れる。**
+
+(e)(f)(g) は `emergency.test.ts` の既存 `EmergencyScreen` 描画テストの render 形（`data-testid={p.key}` で slot を取る形、`EmergencyScreen.svelte:196`）に倣う。`reducedMotion` は **false** にすること。true では `EmergencyScreen.svelte:154-157` が settling を即座に解除してしまい、窓が開かないので条件が再現しない。fake timer は既存の `settleFade()`（`emergency.test.ts:22-25`）と同じ流儀で進める。
 
 ### 4.3 「解除後に追加発火させない」の書き方
 
@@ -308,7 +311,7 @@ npm --prefix display run build && npm run build && npm test
 ```
 
 - §4.2 の (a)〜(g) が全件緑であること。
-- **実装前に (a)(b)(c) が赤であったことを、実走出力とともに報告に含めること**（§4.0）。(b) は現行でも緑になる可能性がある（現行は settling 中を捨てるので C1 は既に満たされている）。その場合は (b) を「維持確認」として扱い、(a)(c) の赤だけを根因の証拠とする。
+- **実装前に (a)(d)(e)(f)(g) が赤であったことを、実走出力とともに報告に含めること**（§4.0）。この 5 系統の赤が根因の証拠である。**(b)(c) は現行でも緑になる**ので、赤の要件から外す。(b) は現行が settling 中の測定を捨てており C1 を既に満たしているための「維持確認」、(c) は §3.2 C3 のとおり順序違反が外形観測できないための「将来の誤実装ガード」であり、どちらも根因の証拠には数えない。
 - §4.4 の既存テストが 1 件も赤にならないこと。
 - `grep -c "panelElement" display/frontend/src/components/WeatherEmergencyPanel.svelte` が 4 以上になること（現行 3 = 宣言・設定・解除のみ。参照が 1 つ以上増えたことの確認。案 B を採る場合はこの条件を pending buffer 変数名へ読み替える）。
 
@@ -350,4 +353,4 @@ B を採る場合、§5.1 の 1 番目のコマンドのパスをそのファイ
 - **禁止変更**: `acceptsMeasurement`（`weather-panel.ts:1291-1297`）とその呼び出し条件、`changeBatchKey` / `changeMeasurementKey` の構成要素、fit 探索・partition solver・probe 予算、`measureReserve` / `measureChangeCandidate` / `readReferenceBody` / `readAreaGeometry`、`EmergencyScreen` の settling 窓の長さと張り直し方式（分岐 3 の B で許すのはコメントのみ）、`QuakePanel` / `TsunamiPanel` / `EewPanel`、DOM 構造、CSS、theme token、engine 側の全ファイル、display protocol、`store.ts`、`package.json` / `package-lock.json`、永続化・通知・parser・router・formatter。
 - **配送先**: main → personal → Pi。main で §5.1 の 4 コマンドを満たし GitHub Actions 緑（§5.2）を確認してから personal へ rebase 追従、その後 Pi へ反映する。§4.5 の実 Chrome gate は Pi 反映後に親が実走する。
 - **ロールバック**: 本弾の単一実装 commit を revert し、main → personal → Pi の順に再配送する。DOM・CSS・wire・永続化のいずれも変更しないため data migration も再ビルド以外の後始末も不要。
-- **受入条件**: §5.1 の 4 コマンドが全て成功し、§4.2 の (a)〜(g) が全件緑、実装前の (a)(c) の赤が実走出力とともに報告されていること、§4.4 の既存テストが全件緑、`WeatherEmergencyPanel.svelte` 内の `panelElement` 参照が 1 つ以上増えていること、diff が「対象」に列挙したファイルの外へ出ていないこと。§4.5 は Pi 反映後の観測項目として別途報告する。
+- **受入条件**: §5.1 の 4 コマンドが全て成功し、§4.2 の (a)〜(g) が全件緑、実装前の (a)(d)(e)(f)(g) の赤が実走出力とともに報告されていること、§4.4 の既存テストが全件緑、`WeatherEmergencyPanel.svelte` 内の `panelElement` 参照が 1 つ以上増えていること、diff が「対象」に列挙したファイルの外へ出ていないこと。§4.5 は Pi 反映後の観測項目として別途報告する。
