@@ -450,6 +450,102 @@ function changedOwnerKeys(
   return OWNER_ORDER.filter((owner) => canonicalJson(base[owner]) !== canonicalJson(draft[owner]));
 }
 
+/**
+ * `sweepAll` 専用の owner 変更検出 (spec §3.4.2)。base の全文を作らずに、capture 時の
+ * owner version と draft snapshot の version を突き合わせる。正しさは段階 1 の
+ * 双方向不変条件 (保存状態が変わったなら version は必ず進み、変わらなければ進まない) に
+ * 依存する。`transactInternal` は分岐 5-A により全文比較 (`changedOwnerKeys`) のまま。
+ *
+ * `Record<StandbyPersistenceOwnerKey, number>` にしてあるので、owner が増えたら
+ * ここがコンパイルエラーになる (取りこぼしを型で防ぐ)。
+ */
+function draftOwnerVersions(
+  draft: StandbyPersistenceDomainSnapshots,
+): Record<StandbyPersistenceOwnerKey, number> {
+  return {
+    telegramRevisionGate: draft.telegramRevisionGate.version,
+    standbyStateStore: draft.standbyStateStore.version,
+    vpws50State: draft.vpws50State.version,
+    vpww56State: draft.vpww56State.version,
+    tsunamiState: draft.tsunamiState.version,
+    // volcano は holder の version ではなく coordinator の runtimeVersion が権威
+    // (`capture()` :522 / `commit()` :670 と同じ値を見る)。
+    volcanoHolderAndRepair: draft.volcanoHolderAndRepair.runtimeVersion,
+    floodForecastState: draft.floodForecastState.version,
+  };
+}
+
+function changedOwnerKeysByVersion(
+  token: StandbyPersistenceVersionToken,
+  draft: StandbyPersistenceDomainSnapshots,
+): StandbyPersistenceOwnerKey[] {
+  const draftVersions = draftOwnerVersions(draft);
+  return OWNER_ORDER.filter((owner) => token.ownerVersions[owner] !== draftVersions[owner]);
+}
+
+/** owner snapshot から version カウンタを落とす (strict モードの ground truth 用)。 */
+function withoutVersion<T extends { version: number }>(snapshot: T): Omit<T, "version"> {
+  const { version: _version, ...payload } = snapshot;
+  return payload;
+}
+
+/**
+ * strict モードの ground truth (spec §3.4.3)。**version カウンタを含めない** payload だけを
+ * owner ごとに canonical 比較する。`changedOwnerKeys` の全文比較は snapshot の `version` を
+ * 含むので「version が動いた ⟹ 全文も動く」が恒真になり、過剰 bump を素通りさせる。
+ *
+ * **volcano の `runtimeVersion` だけは落とさない。** これは owner 内部の派生カウンタではなく
+ * coordinator の外へ観測される値で、`VolcanoTransactionCoordinator` の楽観ロックが
+ * `expectedRuntimeVersion` として突き合わせ (`src/engine/messages/volcano-transaction-coordinator.ts:220,242,261`)、
+ * `monitor.ts:218,256` が repair ログに出す。`standby-persistence.ts` は参照しないので
+ * pair serializer には届かない。
+ * `sweepAll` は gate が volcano family を期限切れにしただけのとき (`volcanoGateChanged`)
+ * holder / repair が不変でも `runtimeVersion` を進める。従来の全文比較もこれを変更と
+ * 見て volcano owner を commit していたので、落とすと既存契約を壊す
+ * (実測: `standby-wiring.test.ts` の volcanoAlert / volcanoEruption / volcanoAshfall /
+ * 31 日 active の 4 test が `version=[telegramRevisionGate,volcanoHolderAndRepair]`
+ * `payload=[telegramRevisionGate]` で落ちる)。holder 内部の `version` だけ落とす。
+ * その代償として volcano の過剰 bump は strict では捕まらない。
+ */
+function changedOwnerPayloadKeys(
+  base: StandbyPersistenceDomainSnapshots,
+  draft: StandbyPersistenceDomainSnapshots,
+): StandbyPersistenceOwnerKey[] {
+  const payloads = (
+    domains: StandbyPersistenceDomainSnapshots,
+  ): Record<StandbyPersistenceOwnerKey, string> => ({
+    telegramRevisionGate: canonicalJson(withoutVersion(domains.telegramRevisionGate)),
+    standbyStateStore: canonicalJson(withoutVersion(domains.standbyStateStore)),
+    vpws50State: canonicalJson(withoutVersion(domains.vpws50State)),
+    vpww56State: canonicalJson(withoutVersion(domains.vpww56State)),
+    tsunamiState: canonicalJson(withoutVersion(domains.tsunamiState)),
+    volcanoHolderAndRepair: canonicalJson({
+      runtimeVersion: domains.volcanoHolderAndRepair.runtimeVersion,
+      holder: withoutVersion(domains.volcanoHolderAndRepair.holder),
+      repair: domains.volcanoHolderAndRepair.repair,
+    }),
+    floodForecastState: canonicalJson(withoutVersion(domains.floodForecastState)),
+  });
+  const basePayloads = payloads(base);
+  const draftPayloads = payloads(draft);
+  return OWNER_ORDER.filter((owner) => basePayloads[owner] !== draftPayloads[owner]);
+}
+
+/**
+ * テスト専用の検証モード (spec §3.4.3)。on のとき `sweepAll` は version 比較の結果を
+ * version 抜き payload の比較と突き合わせ、不一致なら throw する。既定 off。
+ * 環境変数 `FLEQ_STANDBY_SWEEP_STRICT=1` でも有効になる (テストスイート全体を
+ * strict で 1 度回すため)。
+ */
+let strictSweepOwnerDiff = process.env.FLEQ_STANDBY_SWEEP_STRICT === "1";
+
+/** テスト専用。strict モードを切り替え、直前の値を返す (finally で必ず戻すこと)。 */
+export function __test_setStandbySweepStrictOwnerDiff(enabled: boolean): boolean {
+  const previous = strictSweepOwnerDiff;
+  strictSweepOwnerDiff = enabled;
+  return previous;
+}
+
 function bytesEqual(left: Uint8Array, right: Uint8Array): boolean {
   if (left.byteLength !== right.byteLength) return false;
   for (let index = 0; index < left.byteLength; index++) {
@@ -511,7 +607,16 @@ export class StandbyPersistenceAdmissionCoordinator {
     };
   }
 
-  capture(): StandbyPersistenceAdmissionSnapshot {
+  /**
+   * `capture()` の実体。各 owner の `cloneSnapshot()` / `snapshot()` は複製を返すので、
+   * ここで作った `domains` は呼び出し側が自由に書き換えてよい (実 owner へ波及しない)。
+   * 公開 API の `capture()` は `Readonly<...>` へ狭めて返し、書き換えたい経路
+   * (`sweepAll` の draft / base) だけがこちらを使う。`as` で Readonly を剥がさない。
+   */
+  private captureMutable(): {
+    token: StandbyPersistenceVersionToken;
+    domains: StandbyPersistenceDomainSnapshots;
+  } {
     const domains: StandbyPersistenceDomainSnapshots = {
       telegramRevisionGate: this.owners.telegramRevisionGate.cloneSnapshot(),
       standbyStateStore: this.owners.standbyStateStore.cloneSnapshot(),
@@ -526,6 +631,10 @@ export class StandbyPersistenceAdmissionCoordinator {
       floodForecastState: this.owners.floodForecastState.cloneSnapshot(),
     };
     return { token: this.currentToken(), domains };
+  }
+
+  capture(): StandbyPersistenceAdmissionSnapshot {
+    return this.captureMutable();
   }
 
   transact<T>(
@@ -756,8 +865,12 @@ export class StandbyPersistenceAdmissionCoordinator {
     // 通常経路に入った時点で基準を捨てる。rejected / staleVersion で抜けたときに
     // 古い「収束済み」の印が残らないようにする。
     this.lastNoopSweep = null;
-    const captured = this.capture();
-    const draft = structuredClone(captured.domains) as StandbyPersistenceDomainSnapshots;
+    // spec §3.4.1: capture が返す snapshot はすでに複製済み (各 owner の cloneSnapshot)
+    // なので、draft にそのまま使う。base の全文が要るのは「変更あり」と分かった後の
+    // basePair 生成と changedField 比較だけなので、そこで 2 回目の capture を取る。
+    // token は 1 回目の capture の値を使い続ける (stale 判定の意味を変えない)。
+    const captured = this.captureMutable();
+    const draft = captured.domains;
     const gate = TelegramRevisionGate.fromSnapshot(draft.telegramRevisionGate);
     const expiredGateKeys = new Set<StandbyDurableMutationKey>();
     for (const policy of ALL_REVISION_FAMILY_POLICIES) {
@@ -849,10 +962,10 @@ export class StandbyPersistenceAdmissionCoordinator {
     ).flatMap((subject) => subject.startsWith("flood:event:")
       ? [subject.slice("flood:event:".length)]
       : []);
-    const floodBefore = canonicalJson(flood.cloneSnapshot());
-    flood.retainActiveEventIds(activeFloodIds);
-    flood.sweep(nowMs);
-    const floodChanged = floodBefore !== canonicalJson(flood.cloneSnapshot());
+    // spec §3.2: holder が実削除の有無を返すので、snapshot の前後 canonicalJson は要らない。
+    const floodRetained = flood.retainActiveEventIds(activeFloodIds);
+    const floodSwept = flood.sweep(nowMs);
+    const floodChanged = floodRetained || floodSwept;
     const floodStandbyMutation = standby.retainCanonicalFloodEvents(activeFloodIds);
     const vptaProjectionMutation = standby.maintainTyphoonProbabilitySubjects(
       nowMs,
@@ -869,7 +982,37 @@ export class StandbyPersistenceAdmissionCoordinator {
     });
     draft.standbyStateStore = standby.cloneSnapshot();
     draft.floodForecastState = flood.cloneSnapshot();
-    const changed = changedOwnerKeys(captured.domains as StandbyPersistenceDomainSnapshots, draft);
+    // spec §3.4.2: base の全文を作らず、capture 時の owner version と draft の version を比較する。
+    const changed = changedOwnerKeysByVersion(captured.token, draft);
+    let strictBase: StandbyPersistenceDomainSnapshots | null = null;
+    if (strictSweepOwnerDiff) {
+      // spec §3.4.3: テスト時だけ ground truth と突き合わせ、不一致なら止める。
+      // ground truth は **version カウンタを落とした payload** で取る。snapshot 全文で
+      // 比べると `version` 自体が payload に含まれるため「version が動いた ⟹ 全文も動く」が
+      // 恒真になり、捕まるのは取りこぼし (under-bump) だけになる。payload で比べることで
+      // 過剰 bump (version だけ進んで中身は不変) も捕まる。過剰 bump は spurious commit を
+      // 起こし、`lastNoopSweep` が立たないので段階 3 の事前判定を無効化する。
+      strictBase = this.captureMutable().domains;
+      const canonical = changedOwnerPayloadKeys(strictBase, draft);
+      if (canonical.join(",") !== changed.join(",")) {
+        throw new Error(
+          "[standby-admission] strict sweep owner diff mismatch: "
+          + `version=[${changed.join(",")}] payload=[${canonical.join(",")}]`,
+        );
+      }
+    }
+    if (changed.length === 0) {
+      // 収束が確認できた周期だけを事前判定の基準にする。
+      this.lastNoopSweep = { atMs: nowMs, token: captured.token };
+      return {
+        kind: "committed",
+        value: { changedKeys: [], durableChanged: false },
+        token: captured.token,
+      };
+    }
+    // 変更ありと分かったのでここで base を取る (no-op 経路では 1 度も取らない)。
+    // strict モードで既に取っていればそれを再利用する (commit 経路で capture は増えない)。
+    const base = strictBase ?? this.captureMutable().domains;
     const changedKeys: StandbyDurableMutationKey[] = [...expiredGateKeys];
     if (vpws50Changed) changedKeys.push("weather:VPWS50");
     if (vpww56Changed) changedKeys.push("weather:VPWW56");
@@ -891,7 +1034,7 @@ export class StandbyPersistenceAdmissionCoordinator {
       changedKeys.push("weatherWarningTimeseries:VPWP50");
     }
     if (standbyMutation.durableChanged) {
-      const before = captured.domains.standbyStateStore.data;
+      const before = base.standbyStateStore.data;
       const after = draft.standbyStateStore.data;
       const changedField = (field: keyof typeof before): boolean =>
         canonicalJson(before[field]) !== canonicalJson(after[field]);
@@ -929,21 +1072,12 @@ export class StandbyPersistenceAdmissionCoordinator {
         || changedField("revisionGuard")
       ) changedKeys.push("standby:briefingCritical");
     }
-    if (changed.length === 0) {
-      // 収束が確認できた周期だけを事前判定の基準にする。
-      this.lastNoopSweep = { atMs: nowMs, token: captured.token };
-      return {
-        kind: "committed",
-        value: { changedKeys: [], durableChanged: false },
-        token: captured.token,
-      };
-    }
     let candidatePair: StandbySerializedPair;
     let basePair: StandbySerializedPair;
     let failure: string | null;
     try {
       candidatePair = this.serializePair(draft, PREFLIGHT_ENVELOPE);
-      basePair = this.serializePair(captured.domains, PREFLIGHT_ENVELOPE);
+      basePair = this.serializePair(base, PREFLIGHT_ENVELOPE);
       failure = this.preflight(draft, candidatePair);
     } catch {
       failure = "candidateSerializationFailed";

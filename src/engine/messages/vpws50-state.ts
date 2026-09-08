@@ -738,7 +738,15 @@ export class Vpws50StateHolder implements DetailProvider<"vpws50"> {
     const base = this.ownerVersion;
     // owner snapshot の in-memory clone は bit 一致が契約 (standby-persistence-admission の
     // assertLosslessOwnerSnapshot)。ここで復元台帳を prune すると復元が非可逆になる。
-    this.restorePersistedState(structuredClone(snapshot.state), { pruneStalePartialLedgers: false });
+    //
+    // spec §3.2 補遺: public の `restorePersistedState()` ではなく内部経路を直接呼ぶ。
+    // 復元後の `ownerVersion` は次行で snapshot / commit 規約から無条件に決まるので、
+    // `bumpIfChanged` が払う保存状態全体の JSON 化 (5.9MB x 2) は結果を捨てるだけの
+    // 無駄になる。`sweepAll` は毎周期 `fromSnapshot` でこの経路を通る。
+    this.restorePersistedStateInternal(
+      structuredClone(snapshot.state),
+      { pruneStalePartialLedgers: false },
+    );
     this.ownerVersion = commit ? base + 1 : snapshot.version;
   }
   readonly category = "vpws50";
@@ -1058,11 +1066,19 @@ export class Vpws50StateHolder implements DetailProvider<"vpws50"> {
    * stream pending indefinitely.
    */
   retainActiveSubjects(subjectKeys: readonly string[]): boolean {
-    // 既に前後比較を持っているので、owner version はその結果から直接進める
-    // (bumpIfChanged で包むと同じ指紋を 4 回取ることになる)。
-    const before = this.mutationFingerprint();
+    // spec §3.2 (段階 2): 保存状態 5.9MB の前後 stringify をやめ、実削除の有無から
+    // 直接 boolean を組む。ここで触る保存状態は current 系 / history /
+    // lastSuccessfulFullDisplayAt / partialStreams / partialHistory /
+    // restoredPartialSubjects の 6 つだけで、emergencyClearTombstones は触らない。
     const retained = new Set(subjectKeys);
+    let changed = false;
     if (!retained.has("weather:vpws50")) {
+      // exportPersistedState() の current は current と currentIdentity が揃って
+      // いるときだけ非 null になる (:1332)。currentMessageId は単独では載らないので
+      // 判定に含めない (含めると「指紋が変わらないのに version が進む」過剰 bump になる)。
+      if (this.current != null && this.currentIdentity != null) changed = true;
+      if (this.history.length > 0) changed = true;
+      if (this.lastSuccessfulFullDisplayAt != null) changed = true;
       this.current = null;
       this.currentMessageId = null;
       this.currentIdentity = null;
@@ -1070,16 +1086,17 @@ export class Vpws50StateHolder implements DetailProvider<"vpws50"> {
       this.lastSuccessfulFullDisplayAt = null;
     }
     for (const subjectKey of [...this.partialStreams.keys()]) {
-      if (!retained.has(subjectKey)) this.partialStreams.delete(subjectKey);
+      if (!retained.has(subjectKey) && this.partialStreams.delete(subjectKey)) changed = true;
     }
     for (const subjectKey of [...this.partialHistory.keys()]) {
-      if (!retained.has(subjectKey)) this.partialHistory.delete(subjectKey);
+      if (!retained.has(subjectKey) && this.partialHistory.delete(subjectKey)) changed = true;
     }
     for (const subjectKey of [...this.restoredPartialSubjects]) {
-      if (!retained.has(subjectKey)) this.restoredPartialSubjects.delete(subjectKey);
+      if (!retained.has(subjectKey) && this.restoredPartialSubjects.delete(subjectKey)) {
+        changed = true;
+      }
     }
-    this.trimPartialSubjects();
-    const changed = before !== this.mutationFingerprint();
+    if (this.trimPartialSubjects()) changed = true;
     if (changed) this.ownerVersion += 1;
     return changed;
   }
@@ -1095,19 +1112,24 @@ export class Vpws50StateHolder implements DetailProvider<"vpws50"> {
       .map(([subjectKey]) => subjectKey);
   }
 
-  private trimPartialSubjects(): void {
+  /** 上限超過分を捨てる。実際に削除したかを返す (spec §3.2 の合成に使う)。 */
+  private trimPartialSubjects(): boolean {
+    let removed = false;
     while (this.partialStreams.size > PARTIAL_SUBJECT_LIMIT) {
       const oldestSubject = this.partialStreams.keys().next().value as string | undefined;
       if (oldestSubject == null) break;
       this.partialStreams.delete(oldestSubject);
       this.partialHistory.delete(oldestSubject);
       this.restoredPartialSubjects.delete(oldestSubject);
+      removed = true;
     }
     while (this.partialHistory.size > PARTIAL_SUBJECT_LIMIT) {
       const oldestSubject = this.partialHistory.keys().next().value as string | undefined;
       if (oldestSubject == null) break;
       this.partialHistory.delete(oldestSubject);
+      removed = true;
     }
+    return removed;
   }
 
   private partialTransition(

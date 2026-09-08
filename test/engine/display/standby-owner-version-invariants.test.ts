@@ -588,7 +588,6 @@ function seededTsunamiHolder(): TsunamiStateHolder {
 const TSUNAMI_ROWS: readonly MethodRow<TsunamiStateHolder>[] = [
   { method: "mutationFingerprint", kind: "internal", note: "mutation 入口の指紋。読み取り経路からは呼ばない" },
   { method: "bumpIfChanged", kind: "internal", note: "mutation 入口を包む owner version の choke point" },
-  { method: "retainedSubjectFingerprint", kind: "internal", note: "retainActiveEventIds の戻り値専用 (保持対象 3 集合)" },
   { method: "version", kind: "readonly", run: (h) => void h.version() },
   { method: "cloneSnapshot", kind: "readonly", run: (h) => void h.cloneSnapshot() },
   { method: "hasDueSweepWork", kind: "readonly", run: (h) => void h.hasDueSweepWork(DEADLINE_BASE_MS) },

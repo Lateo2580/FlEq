@@ -271,13 +271,18 @@ export class FloodForecastStateHolder {
     if (this.events.delete(eventId)) this.ownerVersion += 1;
   }
 
-  retainActiveEventIds(eventIds: readonly string[]): void {
+  /**
+   * gate の active EventID 集合へ追従する。実削除の有無を返すので、呼び出し側は
+   * snapshot の前後 canonicalJson 比較を持たなくてよい (spec §3.2)。
+   */
+  retainActiveEventIds(eventIds: readonly string[]): boolean {
     const retained = new Set(eventIds);
     let changed = false;
     for (const eventId of [...this.events.keys()]) {
       if (!retained.has(eventId) && this.events.delete(eventId)) changed = true;
     }
     if (changed) this.ownerVersion += 1;
+    return changed;
   }
 
   activeEventIds(): string[] {

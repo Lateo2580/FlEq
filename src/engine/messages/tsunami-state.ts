@@ -524,34 +524,34 @@ export class TsunamiStateHolder
    * (`bumpIfChanged`) が担うので、ここは「保持対象を実際に減らしたか」という
    * 旧来の意味を保つ。
    */
-  private retainedSubjectFingerprint(): string {
-    return JSON.stringify({
-      keyedForecasts: [...this.keyedForecasts],
-      eventInfos: [...this.eventInfos],
-      legacyRestoredInfo: this.legacyRestoredInfo,
-    });
-  }
-
   /** Remove VTSE41 holder content whose durable family subject has expired. */
   retainActiveEventIds(eventIds: readonly string[]): boolean {
     return this.bumpIfChanged(() => this.retainActiveEventIdsInternal(eventIds));
   }
 
+  /**
+   * spec §3.2 (段階 2): 保持対象 3 集合の前後 stringify をやめ、実削除の有無から
+   * boolean を組む。`rebuildActiveState()` は currentLevel / lastInfo しか書かないので
+   * (`:587-603`) この 3 集合の差分判定には影響しない。
+   */
   private retainActiveEventIdsInternal(eventIds: readonly string[]): boolean {
     const retained = new Set(eventIds);
-    const before = this.retainedSubjectFingerprint();
+    let changed = false;
     for (const [key, entry] of [...this.keyedForecasts]) {
-      if (!retained.has(entry.eventId)) this.keyedForecasts.delete(key);
+      if (!retained.has(entry.eventId) && this.keyedForecasts.delete(key)) changed = true;
     }
     for (const eventId of [...this.eventInfos.keys()]) {
-      if (!retained.has(eventId)) this.eventInfos.delete(eventId);
+      if (!retained.has(eventId) && this.eventInfos.delete(eventId)) changed = true;
     }
     const legacyId = this.legacyRestoredInfo == null
       ? null
       : tsunamiEventId(this.legacyRestoredInfo);
-    if (legacyId != null && !retained.has(legacyId)) this.legacyRestoredInfo = null;
+    if (legacyId != null && !retained.has(legacyId)) {
+      this.legacyRestoredInfo = null;
+      changed = true;
+    }
     this.rebuildActiveState();
-    return before !== this.retainedSubjectFingerprint();
+    return changed;
   }
 
   /** holder 全体を明示的にリセットする。 */

@@ -245,7 +245,20 @@ owner ごとに、`version()` を進めるべき / 進めるべきでないの�
 
 ### 3.2 段階 2: `retainActiveSubjects` の変更検出を実削除ベースにする
 
-`Vpws50StateHolder.retainActiveSubjects`（`src/engine/messages/vpws50-state.ts:915-937`）の前後 stringify をやめ、実際に消したか / null 化したかを boolean で積む。
+> **実装済み（2026-09-08、段階 2＋4 の便）**。`Vpws50StateHolder.retainActiveSubjects` は
+> 実削除の戻り値と current 系の事前判定で boolean を組む。`trimPartialSubjects()` は
+> `boolean` 返却へ変更。`FloodForecastStateHolder.retainActiveEventIds` は `boolean` 返却に
+> なり、`sweepAll` の `floodBefore` / `canonicalJson` 前後比較は削除した。
+> `TsunamiStateHolder` の `retainedSubjectFingerprint()`（保持対象 3 集合の前後 stringify）も
+> 実削除ベースへ置換して当該 private メソッドごと廃止した。`Vpww56StateHolder` は
+> 段階 1 の時点で既に実削除ベースだったため **N/A**。
+>
+> **exportPersistedState の罠**: VPWS50 の `current` は `current` と `currentIdentity` が
+> 揃っているときだけ非 null になる（`:1332`）。`currentMessageId` 単独は保存状態に載らないので
+> 判定に含めない。含めると「指紋が変わらないのに version が進む」過剰 bump になり、
+> §3.1 の双方向不変条件（不動側）を破る。
+
+`Vpws50StateHolder.retainActiveSubjects`（起草時 `src/engine/messages/vpws50-state.ts:915-937`。段階 1 実装で `:1060` へ、段階 2 実装後は `:1065` 起点へドリフトしている）の前後 stringify をやめ、実際に消したか / null 化したかを boolean で積む。
 
 - `this.partialStreams.delete(k)` / `this.partialHistory.delete(k)` / `this.restoredPartialSubjects.delete(k)` の戻り値
 - `current` 系は `this.current != null || this.currentMessageId != null || this.currentIdentity != null || this.history.length > 0 || this.lastSuccessfulFullDisplayAt != null` を先に見てから null 化
@@ -254,6 +267,31 @@ owner ごとに、`version()` を進めるべき / 進めるべきでないの�
 同型の前後比較は `sweepAll` の flood にもある（`src/engine/display/standby-persistence-admission.ts:783-786`）。`FloodForecastStateHolder.retainActiveEventIds` / `sweep` が変更 boolean を返すようにして、`canonicalJson` 前後比較を消す。`sweep` はすでに `this.events.size` の前後比較（`src/engine/messages/flood-forecast-state.ts:252-256`）なので、`retainActiveEventIds` 側を揃えるだけで済む可能性が高い。実装時に確認する。
 
 `Vpww56StateHolder` / `TsunamiStateHolder` に同型の stringify 前後比較があれば同じ扱いにする。無ければ N/A と明記する。
+
+#### 3.2.1 補遺: 復元時の指紋計算の省略（裁定 3-A、2026-09-08）
+
+`Vpws50StateHolder.loadSnapshot`（`:737-742`）は public の `restorePersistedState()` を呼んでいた。これは `bumpIfChanged` 包みなので、**保存状態全体の JSON 化を 2 回払う**。ところが直後の行が `ownerVersion = commit ? base + 1 : snapshot.version` で version を無条件に上書きするため、その指紋計算の結果は必ず捨てられる。
+
+`sweepAll` は毎周期 `Vpws50StateHolder.fromSnapshot(draft.vpws50State)` で scratch holder を作るので、**通常経路（電文受理直後の sweep）はこの無駄を毎回払っていた**。内部経路 `restorePersistedStateInternal()` を直接呼ぶ形に変える。public な `restorePersistedState()` の外部契約は変えない（disk からの復元は従来どおり `bumpIfChanged` を通る）。
+
+`Vpww56StateHolder.loadSnapshot`（`:112-116`）も同型なので同じ扱いにした。`TsunamiStateHolder` / `FloodForecastStateHolder` / `TelegramRevisionGate` / `StandbyStateStore` の `loadSnapshot` はフィールドへ直接書いていて指紋計算を通らないので **N/A**。
+
+**双方向不変条件（§3.1）との関係**: この変更は不変条件を弱めない。復元は §3.1 の「例外は復元契約だけ」に該当し、version は指紋ではなく `commit ? ownerVersion + 1 : snapshot.version` という別規約で決まる。`bumpIfChanged` の判定結果はもともと上書きで捨てられていたので、省いても version の値は 1 bit も変わらない。`standby-owner-version-invariants.test.ts` の `restore` 種別テストが同じ契約を引き続き固定する。
+
+**受入テストの期待値変更**: この補遺により、事前判定を無効化した参照実装でも 1MB 超の `JSON.stringify` が 0 回になる。段階 1＋3 の時点で「そこでは 1MB 超 stringify が発生する」ことを計測の妥当性の証拠にしていたテストは、期待値を 0 回へ更新し、証拠の役割は `structuredClone` 側に移した。
+
+**測定対象の但し書き**: この参照実装が測っているのは「通常経路に入りつつ変更ゼロで終わる周期」であって、電文受理直後の sweep ではない。`changed` が空なので base の 2 回目 `capture()`・`serializePair` ×2・`preflight` を通らない。電文受理直後は `changed` が非空になり、そのぶんが上乗せされる。測れているのは capture / scratch holder 再構築 / retain 系という、どちらの経路にも共通の土台部分。
+
+**段階 2＋4＋補遺の before / after**（Apple M5・Node v26.8.1、大容量合成状態、事前判定を無効化した経路の 15 回中央値、同一機・同一セッション）。**B3 が対象にする「電文受理直後」の値ではない**点は上の但し書きのとおり。
+
+| 指標 | base `f8e2c688`（段階 1＋3） | ＋段階 2＋4 | ＋§3.2.1 補遺 |
+|---|---|---|---|
+| `sweepAll` median | 141.8ms | 79.2ms | 72.5ms |
+| 同 min | 139.4ms | 76.0ms | 69.7ms |
+| 1MB 超 `JSON.stringify` | 5 回 | 1 回 | 0 回 |
+| 1MB 超 `structuredClone` | 4 回 | 3 回 | 3 回 |
+
+中列に残る 1 回が §3.2.1 の無駄そのもの。`bumpIfChanged` は前後 2 回の指紋を取るが、`fromSnapshot` は空の holder から始まるので「前」は小さく、1MB 超になるのは「後」の 1 回だけ。
 
 ### 3.3 段階 3: capture より前の安価な事前判定
 
@@ -310,6 +348,13 @@ dirty = this.observeFrontendBuildId() || dirty;                // buildId 観測
 
 ### 3.4 段階 4: base の遅延取得と owner 比較の O(1) 化
 
+> **実装済み（2026-09-08、段階 2＋4 の便）**。`sweepAll` は `capture()` の snapshot を
+> そのまま draft に使い、`base` は「変更あり」と判明した後の 2 回目の `capture()` で取る。
+> owner 変更検出は `changedOwnerKeysByVersion(captured.token, draft)`（`sweepAll` 限定）。
+> `transactInternal` の `changedOwnerKeys` 全文比較は分岐 5-A のとおり無変更。
+> strict モードは環境変数 `FLEQ_STANDBY_SWEEP_STRICT=1` と
+> `__test_setStandbySweepStrictOwnerDiff()` の両方から入り、既定 off。
+
 #### 3.4.1 draft の二重コピーをやめる
 
 `capture()` が返す snapshot はすでに複製済み（`Vpws50StateHolder.cloneSnapshot` は `structuredClone(this.exportPersistedState())`、`src/engine/messages/vpws50-state.ts:665-668`）。よって **capture の結果をそのまま draft に使い、base は必要になった時点で 2 回目の capture で取る**。
@@ -334,7 +379,11 @@ dirty = this.observeFrontendBuildId() || dirty;                // buildId 観測
 
 #### 3.4.3 検証用の strict モード
 
-`sweepAll` が算出した owner 変更集合を、テスト時だけ従来の `canonicalJson` 全文比較と突き合わせて不一致で throw する経路を用意する（既定 off、テスト専用フラグ）。既存テスト全体を strict モードで 1 度回して差が出ないことを確認する。
+`sweepAll` が算出した owner 変更集合を、テスト時だけ ground truth と突き合わせて不一致で throw する経路を用意する（既定 off、テスト専用フラグ）。既存テスト全体を strict モードで 1 度回して差が出ないことを確認する。
+
+> **実装済み（2026-09-08）。ground truth は「snapshot 全文」ではなく「version カウンタを落とした payload」**。全文比較は snapshot の `version` フィールドを含むため「version が動いた ⟹ 全文も動く」が恒真になり、過剰 bump（version だけ進んで中身は不変）を素通りさせる。過剰 bump は spurious commit を起こし、`lastNoopSweep` が立たないので段階 3 の事前判定を無効化する。
+>
+> **例外: volcano の `runtimeVersion` は落とさない。** これは owner 内部の派生カウンタではなく coordinator の外へ観測される値で、`VolcanoTransactionCoordinator` の楽観ロックが `expectedRuntimeVersion` として突き合わせ（`src/engine/messages/volcano-transaction-coordinator.ts:220,242,261`）、`monitor.ts:218,256` が repair ログに出す。`standby-persistence.ts` はこの値を参照しないので pair serializer には届かない。`sweepAll` は gate が volcano family を期限切れにしただけのとき（`volcanoGateChanged`）holder / repair が不変でも `runtimeVersion` を進める。従来の全文比較もこれを変更と見て volcano owner を commit していたので、落とすと既存契約を壊す。実測でも `standby-wiring.test.ts` の volcanoAlert / volcanoEruption / volcanoAshfall / 31 日 active の 4 test が `version=[telegramRevisionGate,volcanoHolderAndRepair]` `payload=[telegramRevisionGate]` で落ちた。**代償として volcano の過剰 bump は strict では捕まらない**（他 6 owner は捕まる）。
 
 ### 3.5 やらないこと（Issue の制約）
 
@@ -421,7 +470,7 @@ Pi で `/healthz` を 100ms 間隔・120 秒間叩き、§1.1 と同じ表を取
 | A8 | 期限到来・取消・restore・時計巻き戻しの各ケースで通常経路が走る | 4.5 のテスト |
 | A9 | **N/A**（段階 1＋3 は `startStandbySweep` / `stopStandbySweep` の配線を変更しない。`src/engine/monitor/monitor.ts:760-773` は null guard で多重起動を構造的に防いでおり、既存 `test/engine/display/standby-wiring.test.ts:2715-2823` が start / stop / shutdown を押さえている。新規テストは作らない） | — |
 | A10 | `npm run build` / `npm test` / `npm run test:shuffle` / `npm run typecheck:test` がすべて成功 | 実行ログ |
-| A11 | **段階 4 の項**。段階 1＋3 の配送では、代わりに 3.1.3 のテストが旧実装と同じ指紋を突き合わせて version 不変条件を固定する | 3.1.3 のテスト |
+| A11 | **段階 4 の項**。strict モード（`FLEQ_STANDBY_SWEEP_STRICT=1`）で `sweepAll` の version 比較を **version カウンタ抜きの payload 比較**と突き合わせ、不一致で throw する。snapshot 全文で比べると `version` 自体が payload に含まれるため「version が動いた ⟹ 全文も動く」が恒真になり、取りこぼし（under-bump）しか捕まらない。payload で比べることで過剰 bump も捕まる。**2026-09-08 に全テスト 298 file / 6,892 test を strict on で実行し、差ゼロ・全緑を確認**。strict が空回りでないことは (a) 判定を一時的に `if (true)` へ改変した実験で 7 test が期待どおり throw で赤くなること、(b) **no-op 経路で** base 取得の capture が 1 回増えることを数える回帰テスト（commit 経路では strict が取った base を再利用するので増えない）、(c) token 側 `version()` と snapshot 側 `cloneSnapshot().version` を desync させると throw する回帰テスト、(d) **取りこぼし（under-bump）**を直接模して — scratch holder が実際に event を消して payload を変えるのに version は base 据え置き — `version=[] payload=[floodForecastState]` で throw する回帰テスト、(e) **過剰 bump** を模して `version=[floodForecastState] payload=[]` で throw する回帰テスト、の 5 つで押さえる。(c) は token / snapshot の desync であって under-bump そのものではないので、(d) と対で置く。**例外**: volcano の `runtimeVersion` は payload から落とさない（下記 §3.4.3 の注記） | 3.4.3 の strict モード＋`standby-sweep-hot-path.test.ts` |
 
 ### 5.2 性能（環境依存のため CI 合否には使わない）
 

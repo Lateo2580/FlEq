@@ -111,7 +111,10 @@ export class Vpww56StateHolder {
 
   private loadSnapshot(snapshot: Vpww56StateSnapshot, commit: boolean): void {
     const base = this.ownerVersion;
-    this.restorePersistedState(structuredClone(snapshot.state));
+    // spec §3.2 補遺: 復元後の ownerVersion は次行で snapshot / commit 規約から無条件に
+    // 決まるので、public 経路の `bumpIfChanged` が払う指紋計算は結果を捨てるだけの
+    // 無駄になる (vpws50 と同型)。
+    this.restorePersistedStateInternal(structuredClone(snapshot.state));
     this.ownerVersion = commit ? base + 1 : snapshot.version;
   }
 
