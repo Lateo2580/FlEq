@@ -8,7 +8,16 @@
   import TierOverlay from "../components/TierOverlay.svelte";
   import LegacyImprovedMock from "./LegacyImprovedMock.svelte";
   import MotionCatalog from "./MotionCatalog.svelte";
-  import { parseMetadataChurnMs } from "./metadata-churn";
+  import type { ChurnProbeReadout } from "./metadata-churn";
+  import {
+    applyContentChurn,
+    applyMetadataChurn,
+    parseChurnProbeFlag,
+    parseContentChurnMs,
+    parseMetadataChurnMode,
+    parseMetadataChurnMs,
+    reparseSnapshot,
+  } from "./metadata-churn";
   import { fade } from "svelte/transition";
   import { emergencyEnter } from "../lib/transitions";
   import { SPRING_SPATIAL_QUICK_MS, SPRING_EFFECTS_SLOW_MS, EXIT_MS } from "../lib/motion";
@@ -162,6 +171,69 @@
     if (metadataChurnMs == null) return;
     const timer = setInterval(() => { metadataChurnTick += 1; }, metadataChurnMs);
     return () => clearInterval(timer);
+  });
+  // 第 2 便 spec (2026-09-08-standby-resettle-residual-load.md) §3.0 段階 0。
+  // ?metadataChurnMode=reparse は配信 snapshot を毎回 JSON.parse し直し、本番 (SSE の
+  // JSON.parse, lib/connection.svelte.ts:84) と同じく入れ子まで新オブジェクトにする。
+  // 既定 shared は現行と完全に同一。reparse が本番相当の主指標、shared は第 1 便との比較用。
+  const churnMode = parseMetadataChurnMode(previewQuery.get("metadataChurnMode"));
+  // ?contentChurnMs=<正整数> は実電文相当の内容変化を周期的に流し、1 epoch のコストを測る。
+  const contentChurnMs = parseContentChurnMs(previewQuery.get("contentChurnMs"));
+  let contentChurnTick = $state(0);
+  $effect(() => {
+    if (contentChurnMs == null) return;
+    const timer = setInterval(() => { contentChurnTick += 1; }, contentChurnMs);
+    return () => clearInterval(timer);
+  });
+  // ?churnProbe=1 のときだけ MutationObserver を張り、churn 1 回ぶんの DOM 再評価を
+  // 「計測シェルフ / .standby の診断属性 / それ以外の生きた DOM」の 3 つへ帰属させる。
+  // 観測自体が main thread を食うので既定 false。主指標は probe 無しで採る。
+  const churnProbeEnabled = parseChurnProbeFlag(previewQuery.get("churnProbe"));
+  let churnShelfMutations = $state(0);
+  let churnRootAttrMutations = $state(0);
+  let churnLiveMutations = $state(0);
+  let churnObservedEl = $state<HTMLElement | null>(null);
+  $effect(() => {
+    const target = churnObservedEl;
+    if (!churnProbeEnabled || target == null) return;
+    const observer = new MutationObserver((records) => {
+      let shelf = 0;
+      let rootAttr = 0;
+      let live = 0;
+      for (const record of records) {
+        const node = record.target;
+        const el = node instanceof Element ? node : node.parentElement;
+        if (el == null) continue;
+        if (el.closest(".measure-shelf, .center-measure-shelf") != null) shelf += 1;
+        else if (record.type === "attributes" && el.classList.contains("standby")) rootAttr += 1;
+        else live += 1;
+      }
+      churnShelfMutations += shelf;
+      churnRootAttrMutations += rootAttr;
+      churnLiveMutations += live;
+    });
+    // 観測対象は .screen-area 配下だけ。カウンタを載せる <main> は観測範囲の外なので、
+    // 自分の書き込みが自分を再発火させるフィードバックループにならない。
+    observer.observe(target, { subtree: true, childList: true, attributes: true, characterData: true });
+    return () => observer.disconnect();
+  });
+  function readChurnProbe(): ChurnProbeReadout {
+    return {
+      mode: churnMode,
+      metadataChurnMs: metadataChurnMs ?? 0,
+      metadataChurnTick,
+      contentChurnMs: contentChurnMs ?? 0,
+      contentChurnTick,
+      probe: churnProbeEnabled ? 1 : 0,
+      shelfMutations: churnShelfMutations,
+      rootAttrMutations: churnRootAttrMutations,
+      liveMutations: churnLiveMutations,
+    };
+  }
+  $effect(() => {
+    if (metadataChurnMs == null && contentChurnMs == null) return;
+    window.__fleqChurnProbe = readChurnProbe;
+    return () => { delete window.__fleqChurnProbe; };
   });
   const gateScenarioParam = previewQuery.get("gateScenario");
   const gateScenario: LegacyStandbyGateScenario = gateScenarioParam === "quiet" || gateScenarioParam === "7" || gateScenarioParam === "max" || gateScenarioParam === "max-floodWide"
@@ -414,16 +486,26 @@
                       ? attentionVisibilityCriticalSnapshot
                     : quietSnapshot,
   );
-  // metadataChurnMs 未指定なら scenarioSnapshot をそのまま素通しする (既定は現行と完全に同一)。
-  const snapshot = $derived<DisplayStateSnapshotV1>(
-    metadataChurnMs == null
+  // churn パラメータが 1 つも無ければ scenarioSnapshot をそのまま素通しする (既定は現行と完全に同一)。
+  // 有効なときは 内容変化 → metadata → 配信形状 の順に重ねる。reparse は最後に一度だけ掛ける。
+  const churnedSnapshot = $derived<DisplayStateSnapshotV1>(
+    contentChurnMs == null
       ? scenarioSnapshot
-      : {
-          ...scenarioSnapshot,
+      : applyContentChurn(scenarioSnapshot, {
+          tick: contentChurnTick,
           generatedAt: new Date(Date.now()).toISOString(),
-          seq: scenarioSnapshot.seq + metadataChurnTick,
-        },
+        }),
   );
+  const snapshot = $derived.by<DisplayStateSnapshotV1>(() => {
+    if (metadataChurnMs == null && contentChurnMs == null) return scenarioSnapshot;
+    const withMetadata = metadataChurnMs == null
+      ? churnedSnapshot
+      : applyMetadataChurn(churnedSnapshot, {
+          tick: metadataChurnTick,
+          generatedAt: new Date(Date.now()).toISOString(),
+        });
+    return churnMode === "reparse" ? reparseSnapshot(withMetadata) : withMetadata;
+  });
   const dim = $derived(scenario === "standby-dim" || scenario === "standby-attention-visibility-dim");
   const reducedMotionForPreview = $derived(
     reducedMotion || scenario === "standby-attention-visibility-reduced-motion" || changeDensityScenario,
@@ -798,8 +880,16 @@
   data-change-density-wire-null={changeDensityScenario ? weatherChangeDensityTransportInput.change == null : undefined}
   data-design-alignment-payload-signature={scenario === "standby-design-alignment-compressed" ? JSON.stringify(designAlignmentCompressedPayloadSignature) : undefined}
   data-design-alignment-rider-reserve-counts={scenario === "standby-design-alignment-compressed" ? JSON.stringify(designAlignmentRiderReserveCounts) : undefined}
+  data-churn-mode={metadataChurnMs != null || contentChurnMs != null ? churnMode : undefined}
+  data-churn-metadata-ms={metadataChurnMs ?? undefined}
+  data-churn-metadata-tick={metadataChurnMs != null ? metadataChurnTick : undefined}
+  data-churn-content-ms={contentChurnMs ?? undefined}
+  data-churn-content-tick={contentChurnMs != null ? contentChurnTick : undefined}
+  data-churn-shelf-mutations={churnProbeEnabled ? churnShelfMutations : undefined}
+  data-churn-root-attr-mutations={churnProbeEnabled ? churnRootAttrMutations : undefined}
+  data-churn-live-mutations={churnProbeEnabled ? churnLiveMutations : undefined}
 >
-  <div class="screen-area">
+  <div class="screen-area" bind:this={churnObservedEl}>
     {#if mode === "standby"}
       <div
         class="screen-layer"
