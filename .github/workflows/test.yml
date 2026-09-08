@@ -46,5 +46,14 @@ jobs:
       - name: Test (engine, shuffled order)
         run: npm run test:shuffle
 
+      # 待機 sweep の owner version 比較を version 抜き payload の全文比較と突き合わせ、
+      # 不一致なら throw する strict モード (#13 段階 4-3)。既定 off なので通常の
+      # npm test では回らない。owner に mutation 経路が増えて bump 漏れが出ると
+      # sweepAll が変更を取りこぼす (commit されない) ため、CI では常に通す (2026-09-09)
+      - name: Test (engine, strict sweep)
+        run: npm test
+        env:
+          FLEQ_STANDBY_SWEEP_STRICT: "1"
+
       - name: Test (display)
         run: npm test --prefix display
