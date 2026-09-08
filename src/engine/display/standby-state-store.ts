@@ -88,6 +88,7 @@ import {
 import {
   normalizeVpwp50RevisionSerial,
   reduceWeatherWarningForecast,
+  type Vpwp50ForecastProjectionResult,
   type WeatherWarningForecastState,
 } from "./weather-warning-forecast-active-reducer";
 import type { ParsedWeatherWarningTimeseriesInfo } from "../../types";
@@ -95,6 +96,7 @@ import {
   VPWP50_MAX_SOURCE_EVENT_ID_LENGTH,
   buildWeatherWarningForecastCard,
   weatherWarningForecastProjectionLimitReasons,
+  type Vpwp50ProjectionLimitReason,
 } from "./weather-warning-forecast-wire";
 import type { PersistedTelegramRevisionGateEntryV2 } from "../messages/telegram-revision-gate";
 import type { RevisionGuardSnapshot } from "./revision-guard";
@@ -120,6 +122,31 @@ function combineMutations(left: DisplayMutation, right: DisplayMutation): Displa
     ...(cardEvictedKey == null ? {} : { cardEvictedKey }),
   };
 }
+
+const VPWP50_REDUCER_THREW_DETAIL_LIMIT = 120;
+
+/**
+ * Keeps a thrown value's classification without letting a stack trace, a
+ * parsed payload, or a credential reach the log.
+ */
+function vpwp50ReducerThrewDetail(error: unknown): string {
+  const name = error instanceof Error ? error.name : typeof error;
+  const message = error instanceof Error ? error.message : "";
+  const joined = message === "" ? name : `${name}: ${message}`;
+  // Fold every C0/C1 control character plus the line and paragraph separators
+  // so a thrown message cannot break the single-line log record.
+  return joined.replace(/[\p{Cc}\p{Zl}\p{Zp}]+/gu, " ").slice(0, VPWP50_REDUCER_THREW_DETAIL_LIMIT);
+}
+
+/**
+ * A limit reason the reducer produced.  `origin` is mandatory here because two
+ * fields do not mean what they mean on a card-derived reason: `effectiveLimit`
+ * is null because nothing was searched (not because no truncation could save
+ * the candidate), and `violatingUnitCount` is always 1 because the reducer
+ * returns at the first violation.  Card-derived reasons keep their existing
+ * shape and carry no `origin`.
+ */
+type Vpwp50ReducerLimitReason = Vpwp50ProjectionLimitReason & { origin: "reducer" };
 
 interface HeatState {
   sourceEventIds: string[];
@@ -829,9 +856,9 @@ export class StandbyStateStore {
       return changed ? { viewChanged: true, durableChanged: true } : NO_MUTATION;
     }
     const revision = { reportTimeMs: parsedReportTime, serial: event.serial ?? null };
-    let state: WeatherWarningForecastState | null = null;
+    let result: Vpwp50ForecastProjectionResult;
     try {
-      state = reduceWeatherWarningForecast(
+      result = reduceWeatherWarningForecast(
         parsed,
         subjectKey,
         sourceEventId,
@@ -839,15 +866,57 @@ export class StandbyStateStore {
         semantic,
         nowMs,
       );
-    } catch {
+    } catch (error) {
       // An accepted durable gate must never leave an older projection behind
       // when a malformed parser payload makes projection construction throw.
+      result = { kind: "rejected", reason: { code: "reducerThrew", detail: vpwp50ReducerThrewDetail(error) } };
     }
-    if (state == null) {
-      const changed = this.weatherWarningForecasts.delete(subjectKey);
-      log.warn(`[VPWP50] vpwp50ProjectionRejected subject=${subjectKey.slice(0, 128)} revision=${JSON.stringify(revision)} existingProjectionDeleted=${changed}`);
-      return changed ? { viewChanged: true, durableChanged: true } : NO_MUTATION;
+    switch (result.kind) {
+      case "active":
+        break;
+      case "empty": {
+        const changed = this.weatherWarningForecasts.delete(subjectKey);
+        log.info(`[VPWP50] vpwp50ProjectionEmpty subject=${subjectKey.slice(0, 128)} reason=${result.reason} revision=${JSON.stringify(revision)} occurrences=${result.occurrences} resolvedSlots=${result.resolvedSlots} expiredSlots=${result.expiredSlots} existingProjectionDeleted=${changed}`);
+        return changed ? { viewChanged: true, durableChanged: true } : NO_MUTATION;
+      }
+      case "rejected": {
+        const changed = this.weatherWarningForecasts.delete(subjectKey);
+        const reason = result.reason;
+        if (reason.code === "capacityExceeded") {
+          const reducerReason: Vpwp50ReducerLimitReason = {
+            origin: "reducer",
+            code: reason.hierarchy,
+            actual: reason.actual,
+            declaredLimit: reason.declaredLimit,
+            effectiveLimit: null,
+            violatingUnitCount: 1,
+            limitingHierarchies: [reason.hierarchy],
+            samplePaths: [reason.samplePath],
+          };
+          const diagnostic = JSON.stringify({
+            subjectKey: subjectKey.slice(0, 128),
+            candidateRevision: revision,
+            existingProjectionDeleted: changed,
+            reasons: [reducerReason],
+          });
+          log.warn(`[VPWP50] vpwp50ProjectionCapacityExceeded ${diagnostic}`);
+        } else {
+          // `detail` is free text, so it is quoted like the other structured
+          // log values here; an unquoted message could forge `key=value` pairs.
+          const detail = reason.code === "invalidOccurrence" ? ` projectedOccurrenceIndex=${reason.projectedOccurrenceIndex}`
+            : reason.code === "identityCollision" ? ` scope=${reason.scope}`
+            : reason.code === "reducerThrew" ? ` detail=${JSON.stringify(reason.detail)}`
+            : "";
+          log.warn(`[VPWP50] vpwp50ProjectionRejected subject=${subjectKey.slice(0, 128)} reason=${reason.code} revision=${JSON.stringify(revision)} existingProjectionDeleted=${changed}${detail}`);
+        }
+        return changed ? { viewChanged: true, durableChanged: true } : NO_MUTATION;
+      }
+      default: {
+        const exhaustive: never = result;
+        return exhaustive;
+      }
     }
+    const state: WeatherWarningForecastState = result.state;
     const old = this.weatherWarningForecasts.get(subjectKey);
     const prospective = [...this.weatherWarningForecasts]
       .filter(([key]) => key !== subjectKey)

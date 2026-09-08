@@ -206,8 +206,8 @@ function vpwp50PersistenceProjection(): PersistedWeatherWarningForecastStateV1 {
     VPWP50_TEST_SEMANTIC,
     VPWP50_TEST_NOW_MS,
   );
-  if (runtime == null) throw new Error("VPWP50 local identity fixture did not reduce");
-  const { restored: _restored, ...projection } = runtime;
+  if (runtime.kind !== "active") throw new Error("VPWP50 local identity fixture did not reduce");
+  const { restored: _restored, ...projection } = runtime.state;
   return projection;
 }
 

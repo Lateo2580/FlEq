@@ -471,6 +471,10 @@ nestedまたはwire上限超過はgate受理後のfail-closed projection failure
 - period expiryによってcard budgetへ空きが生じた後も、既存gateよりnewerなreportだけがprojectionを再構築できる。
 - runtime invariantがこの経路以外から破られた場合、writerは§3.9の規則でfail-loudとする。
 
+reducer が候補を棄却した場合の診断は origin=reducer を名乗り、effectiveLimit は探索していないため null とする。
+card 集計に到達した候補の診断は origin を持たず、既存の Vpwp50ProjectionLimitReason の形をそのまま使う。
+表示対象 period が 0 件の新報は vpwp50ProjectionEmpty として記録し、vpwp50ProjectionRejected とは区別する。
+
 gate が受理した後に `sourceEventId` または `event.standbyAppliedSemanticKey` を解決できない場合も no-op にしない。
 
 - 既存 subject projection があれば削除する。

@@ -29,8 +29,10 @@ import {
   WEATHER_WARNING_FORECAST_MAX_PERIODS_PER_TARGET,
   WEATHER_WARNING_FORECAST_MAX_TARGETS_PER_GROUP,
   compareVpwp50NumericAware,
+  escapePath,
   periodCanonicalOrder,
   sortWeatherWarningForecastGroups,
+  type Vpwp50ProjectionLimitReasonCode,
 } from "./weather-warning-forecast-wire";
 
 export interface WeatherWarningForecastState {
@@ -44,6 +46,55 @@ export interface WeatherWarningForecastState {
   appliedSemanticKey: string;
   expiresAtMs: number;
   restored: boolean;
+}
+
+/** Hierarchies the reducer itself can detect before it gives up on a candidate. */
+export type Vpwp50ForecastRejectHierarchy = Extract<
+  Vpwp50ProjectionLimitReasonCode,
+  "groupsPerSubject" | "targetsPerGroup" | "periodsPerTarget" | "periodsPerSubject"
+>;
+
+/**
+ * Why a candidate projection was refused.  Each code names one independent
+ * check so an operator can tell "the telegram is odd" from "our own key
+ * generation is odd" without re-reading the source XML.
+ */
+export type Vpwp50ForecastRejectReason =
+  | { code: "invalidRevisionSerial" }
+  | { code: "invalidNowMs" }
+  | { code: "invalidReportTime" }
+  | { code: "invalidSubjectKey" }
+  | { code: "invalidSubjectPrefix" }
+  | { code: "invalidSourceEventId" }
+  | { code: "invalidPublishingOffice" }
+  | { code: "invalidTargetArea" }
+  | { code: "invalidSemanticKey" }
+  | { code: "invalidOccurrence"; projectedOccurrenceIndex: number }
+  | { code: "identityCollision"; scope: "group" | "target" | "occurrence" }
+  | {
+      code: "capacityExceeded";
+      hierarchy: Vpwp50ForecastRejectHierarchy;
+      actual: number;
+      declaredLimit: number;
+      samplePath: string;
+    }
+  // The reducer never returns this one.  It belongs to the same union so the
+  // store can build it from a caught exception without casting.
+  | { code: "reducerThrew"; detail: string };
+
+export type Vpwp50ForecastProjectionResult =
+  | { kind: "active"; state: WeatherWarningForecastState }
+  | {
+      kind: "empty";
+      reason: "noActivePeriods";
+      occurrences: number;
+      resolvedSlots: number;
+      expiredSlots: number;
+    }
+  | { kind: "rejected"; reason: Vpwp50ForecastRejectReason };
+
+function rejected(reason: Vpwp50ForecastRejectReason): Vpwp50ForecastProjectionResult {
+  return { kind: "rejected", reason };
 }
 
 const compareText = (left: string, right: string): number => left < right ? -1 : left > right ? 1 : 0;
@@ -166,7 +217,7 @@ export function reduceWeatherWarningForecast(
   revision: StandbyRevision,
   appliedSemanticKey: string,
   nowMs: number,
-): WeatherWarningForecastState | null {
+): Vpwp50ForecastProjectionResult {
   const normalizedSerial = normalizeVpwp50RevisionSerial(revision.serial);
   const normalizedSubject = subjectKey.trim();
   const normalizedSource = sourceEventId.trim();
@@ -175,19 +226,33 @@ export function reduceWeatherWarningForecast(
     ? null
     : parsed.targetArea.name.normalize("NFC").trim().replace(/\s+/gu, " ");
   const targetAreaCode = parsed.targetArea?.code.trim() || null;
-  if (normalizedSerial === undefined
-    || !Number.isSafeInteger(nowMs) || !Number.isSafeInteger(revision.reportTimeMs)
-    || !Number.isFinite(new Date(revision.reportTimeMs).getTime())
-    || !canonicalToken(normalizedSubject, VPWP50_MAX_SUBJECT_KEY_LENGTH)
-    || !normalizedSubject.startsWith("weatherTimeseries:")
-    || !canonicalToken(normalizedSource, VPWP50_MAX_SOURCE_EVENT_ID_LENGTH)
-    || !canonicalName(publishingOffice, VPWP50_MAX_PUBLISHING_OFFICE_LENGTH)
-    || targetAreaName != null && !canonicalName(targetAreaName, VPWP50_MAX_AREA_NAME_LENGTH)
-    || targetAreaCode != null && !canonicalToken(targetAreaCode, VPWP50_MAX_AREA_CODE_LENGTH)
-    || !/^(?:発表|訂正):[0-9a-f]{64}$/.test(appliedSemanticKey)) return null;
+  // The eleven header disjuncts stay in their original order and keep their
+  // original predicates; only the reporting granularity changes.
+  if (normalizedSerial === undefined) return rejected({ code: "invalidRevisionSerial" });
+  if (!Number.isSafeInteger(nowMs)) return rejected({ code: "invalidNowMs" });
+  if (!Number.isSafeInteger(revision.reportTimeMs)) return rejected({ code: "invalidReportTime" });
+  // Not absorbed by the safe-integer check above: 9e15 is a safe integer but
+  // exceeds the ECMAScript time value range, so getTime() yields NaN.
+  if (!Number.isFinite(new Date(revision.reportTimeMs).getTime())) return rejected({ code: "invalidReportTime" });
+  if (!canonicalToken(normalizedSubject, VPWP50_MAX_SUBJECT_KEY_LENGTH)) return rejected({ code: "invalidSubjectKey" });
+  if (!normalizedSubject.startsWith("weatherTimeseries:")) return rejected({ code: "invalidSubjectPrefix" });
+  if (!canonicalToken(normalizedSource, VPWP50_MAX_SOURCE_EVENT_ID_LENGTH)) return rejected({ code: "invalidSourceEventId" });
+  if (!canonicalName(publishingOffice, VPWP50_MAX_PUBLISHING_OFFICE_LENGTH)) return rejected({ code: "invalidPublishingOffice" });
+  if (targetAreaName != null && !canonicalName(targetAreaName, VPWP50_MAX_AREA_NAME_LENGTH)) return rejected({ code: "invalidTargetArea" });
+  if (targetAreaCode != null && !canonicalToken(targetAreaCode, VPWP50_MAX_AREA_CODE_LENGTH)) return rejected({ code: "invalidTargetArea" });
+  if (!/^(?:発表|訂正):[0-9a-f]{64}$/.test(appliedSemanticKey)) return rejected({ code: "invalidSemanticKey" });
+  // Sample paths are built only on a reject, so the accepted path pays for no
+  // escaping and no string joins.
+  const subjectPath = (): string => `subjects/${escapePath(normalizedSubject)}`;
+  const groupPathOf = (groupKey: string): string => `${subjectPath()}/groups/${escapePath(groupKey)}`;
   const allProjected = projectForecastOccurrences(parsed);
   const projected = allProjected.filter((entry) => entry.slot != null && Date.parse(entry.slot.endsAt) > nowMs);
-  if (projected.some((entry) => !validOccurrence(entry))) return null;
+  // The index is into `projected` (slot-resolved and unexpired), not into the
+  // source telegram's occurrence order.
+  const invalidIndex = projected.findIndex((entry) => !validOccurrence(entry));
+  if (invalidIndex !== -1) {
+    return rejected({ code: "invalidOccurrence", projectedOccurrenceIndex: invalidIndex });
+  }
   const groups = new Map<string, RuntimeForecastOccurrence[]>();
   const groupTuples = new Map<string, string>();
   const targetTuples = new Map<string, string>();
@@ -211,16 +276,37 @@ export function reduceWeatherWarningForecast(
     const encodedGroup = JSON.stringify(groupTuple);
     const encodedTarget = JSON.stringify(targetTuple);
     const encodedOccurrence = JSON.stringify(occurrenceTuple);
-    if (groupTuples.has(key) && groupTuples.get(key) !== encodedGroup
-      || targetTuples.has(targetKey) && targetTuples.get(targetKey) !== encodedTarget
-      || occurrenceTuples.has(occurrenceKey) && occurrenceTuples.get(occurrenceKey) !== encodedOccurrence) return null;
+    if (groupTuples.has(key) && groupTuples.get(key) !== encodedGroup) {
+      return rejected({ code: "identityCollision", scope: "group" });
+    }
+    if (targetTuples.has(targetKey) && targetTuples.get(targetKey) !== encodedTarget) {
+      return rejected({ code: "identityCollision", scope: "target" });
+    }
+    if (occurrenceTuples.has(occurrenceKey) && occurrenceTuples.get(occurrenceKey) !== encodedOccurrence) {
+      return rejected({ code: "identityCollision", scope: "occurrence" });
+    }
     groupTuples.set(key, encodedGroup);
     targetTuples.set(targetKey, encodedTarget);
     occurrenceTuples.set(occurrenceKey, encodedOccurrence);
     const values = groups.get(key) ?? [];
     values.push({ ...entry, occurrenceKey }); groups.set(key, values);
   }
-  if (groups.size > WEATHER_WARNING_FORECAST_MAX_GROUPS_PER_SUBJECT) return null;
+  // `actual` here counts the aggregation map, i.e. before empty targets and
+  // groups would be dropped, whereas the card-side countUnits() counts what
+  // survived.  Today the two always agree: mergePeriods() returns at least one
+  // period for any non-empty input, so every target reaches projectedTargets
+  // and every group reaches output.  Should a later period filter make empty
+  // targets possible, this reducer-side `actual` would read higher than the
+  // card-side one for the same candidate.
+  if (groups.size > WEATHER_WARNING_FORECAST_MAX_GROUPS_PER_SUBJECT) {
+    return rejected({
+      code: "capacityExceeded",
+      hierarchy: "groupsPerSubject",
+      actual: groups.size,
+      declaredLimit: WEATHER_WARNING_FORECAST_MAX_GROUPS_PER_SUBJECT,
+      samplePath: `${subjectPath()}/groups`,
+    });
+  }
   const output: DisplayWeatherWarningForecastGroupV1[] = [];
   for (const [key, entries] of groups) {
     const first = entries[0];
@@ -233,7 +319,15 @@ export function reduceWeatherWarningForecast(
       const values = targets.get(targetKey) ?? [];
       values.push(entry); targets.set(targetKey, values);
     }
-    if (targets.size > WEATHER_WARNING_FORECAST_MAX_TARGETS_PER_GROUP) return null;
+    if (targets.size > WEATHER_WARNING_FORECAST_MAX_TARGETS_PER_GROUP) {
+      return rejected({
+        code: "capacityExceeded",
+        hierarchy: "targetsPerGroup",
+        actual: targets.size,
+        declaredLimit: WEATHER_WARNING_FORECAST_MAX_TARGETS_PER_GROUP,
+        samplePath: `${groupPathOf(key)}/targets`,
+      });
+    }
     const projectedTargets: DisplayWeatherWarningForecastTargetV1[] = [];
     for (const [targetKey, targetEntries] of targets) {
       const targetFirst = targetEntries[0];
@@ -251,7 +345,15 @@ export function reduceWeatherWarningForecast(
         });
       }
       periods.sort(periodCanonicalOrder);
-      if (periods.length > WEATHER_WARNING_FORECAST_MAX_PERIODS_PER_TARGET) return null;
+      if (periods.length > WEATHER_WARNING_FORECAST_MAX_PERIODS_PER_TARGET) {
+        return rejected({
+          code: "capacityExceeded",
+          hierarchy: "periodsPerTarget",
+          actual: periods.length,
+          declaredLimit: WEATHER_WARNING_FORECAST_MAX_PERIODS_PER_TARGET,
+          samplePath: `${groupPathOf(key)}/targets/${escapePath(targetKey)}/periods`,
+        });
+      }
       for (const [ordinal, period] of periods.entries()) {
         period.pagerAnchorOrdinal = Math.floor(ordinal / 4);
         period.pagerSlot = (ordinal % 4) as 0 | 1 | 2 | 3;
@@ -273,7 +375,29 @@ export function reduceWeatherWarningForecast(
   }
   const canonicalOutput = sortWeatherWarningForecastGroups(output);
   const all = canonicalOutput.flatMap((group) => group.targets.flatMap((target) => target.periods));
-  if (all.length === 0) return null;
-  if (all.length > WEATHER_WARNING_FORECAST_MAX_PERIODS_PER_SUBJECT) return null;
-  return { subjectKey: normalizedSubject, sourceEventId: normalizedSource, publishingOffice, targetAreaName, targetAreaCode, groups: canonicalOutput, revision: { ...revision, serial: normalizedSerial }, appliedSemanticKey, expiresAtMs: Math.max(...all.map((period) => Date.parse(period.endsAt))), restored: false };
+  if (all.length === 0) {
+    // The extra O(n) scan runs only once the candidate is already known to be
+    // empty, so neither the accepted path nor any reject path pays for it.
+    const resolvedSlots = allProjected.filter((entry) => entry.slot != null).length;
+    return {
+      kind: "empty",
+      reason: "noActivePeriods",
+      occurrences: allProjected.length,
+      resolvedSlots,
+      expiredSlots: resolvedSlots - projected.length,
+    };
+  }
+  if (all.length > WEATHER_WARNING_FORECAST_MAX_PERIODS_PER_SUBJECT) {
+    return rejected({
+      code: "capacityExceeded",
+      hierarchy: "periodsPerSubject",
+      actual: all.length,
+      declaredLimit: WEATHER_WARNING_FORECAST_MAX_PERIODS_PER_SUBJECT,
+      samplePath: `${subjectPath()}/periods`,
+    });
+  }
+  return {
+    kind: "active",
+    state: { subjectKey: normalizedSubject, sourceEventId: normalizedSource, publishingOffice, targetAreaName, targetAreaCode, groups: canonicalOutput, revision: { ...revision, serial: normalizedSerial }, appliedSemanticKey, expiresAtMs: Math.max(...all.map((period) => Date.parse(period.endsAt))), restored: false },
+  };
 }

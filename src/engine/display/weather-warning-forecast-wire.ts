@@ -72,7 +72,8 @@ const REASON_ORDER: readonly Vpwp50ProjectionLimitReasonCode[] = [
 
 const severityRank: Record<StandbySeverity, number> = { info: 0, normal: 1, warning: 2, critical: 3 };
 const compareText = (left: string, right: string): number => left < right ? -1 : left > right ? 1 : 0;
-const escapePath = (value: string): string => value.replace(/~/g, "~0").replace(/\//g, "~1");
+/** Shared with the reducer so both sides spell a unit path with one rule. */
+export const escapePath = (value: string): string => value.replace(/~/g, "~0").replace(/\//g, "~1");
 
 export function weatherWarningForecastPeriodCount(
   groups: readonly DisplayWeatherWarningForecastGroupV1[],

@@ -767,11 +767,12 @@ describe("VPWP50 forecast reducer and wire invariant", () => {
         `発表:${"1".repeat(64)}`,
         nowMs,
       );
-    const state = reduce(parsed, forecastFixtureExpectations.nowMs);
+    const reduced = reduce(parsed, forecastFixtureExpectations.nowMs);
     const reversed = reduce(reverseForecastInput(parsed), forecastFixtureExpectations.nowMs);
-    expect(state).not.toBeNull();
-    expect(reversed).toEqual(state);
-    if (state == null) return;
+    expect(reduced.kind).toBe("active");
+    expect(reversed).toEqual(reduced);
+    if (reduced.kind !== "active") return;
+    const state = reduced.state;
     const code21 = state.groups.find((group) => group.significancyCode === "21");
     const code22 = state.groups.find((group) => group.significancyCode === "22");
     expect(code21?.key).toBe(forecastFixtureExpectations.stableKeys.group);
@@ -786,9 +787,12 @@ describe("VPWP50 forecast reducer and wire invariant", () => {
     expect(state.revision.serial).toBe("1");
     expect(state.expiresAtMs).toBe(Date.parse("2026-06-06T06:00:00.000Z"));
     const afterFirstSlot = reduce(parsed, Date.parse("2026-06-06T03:00:00.000Z"));
-    expect(afterFirstSlot?.groups.flatMap((group) => group.targets.flatMap((target) => target.periods))
-      .every((period) => Date.parse(period.endsAt) > Date.parse("2026-06-06T03:00:00.000Z"))).toBe(true);
-    expect(reduce(parsed, Date.parse("2026-06-06T06:00:00.000Z"))).toBeNull();
+    expect(afterFirstSlot.kind).toBe("active");
+    expect(afterFirstSlot.kind === "active"
+      && afterFirstSlot.state.groups.flatMap((group) => group.targets.flatMap((target) => target.periods))
+        .every((period) => Date.parse(period.endsAt) > Date.parse("2026-06-06T03:00:00.000Z"))).toBe(true);
+    expect(reduce(parsed, Date.parse("2026-06-06T06:00:00.000Z")))
+      .toMatchObject({ kind: "empty", reason: "noActivePeriods" });
   });
 
   it.each(forecastFixtureExpectations.jstLabels)("formats %s to %s in fixed JST", (startsAt, endsAt, label) => {
