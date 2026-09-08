@@ -75,6 +75,16 @@
   // out of ordinary settle epochs, especially the 128-candidate probe tests.
   const gateCapture = untrack(() => typeof window !== "undefined"
     && new URLSearchParams(window.location.search).has("gateScenario"));
+  // Issue #15 third dispatch, stage 1. The `gateScenario` parameter served
+  // three unrelated jobs at once: choosing the preview fixture, enabling the
+  // settle trace, and enabling the :1514 visual assertion. (The gateCapture
+  // const itself does not choose the fixture; PreviewApp reads the parameter
+  // separately.) So every measured epoch also paid the trace cost.
+  // `?settleTrace=0` drops only the recording and its serialization; fixture
+  // selection and the visual assertion stay on. Absent parameter keeps
+  // current behaviour.
+  const settleTraceCapture = untrack(() => gateCapture
+    && new URLSearchParams(window.location.search).get("settleTrace") !== "0");
   const cardPageCoordinator = createCardPageCoordinator({ epoch: coordinator, tickOverride: cardPageTickOverride });
   const rotationScheduler = createRotationScheduler({
     epoch: coordinator,
@@ -191,6 +201,32 @@
   let baselineGapPx = $state(12);
   let measurementPass = $state(0);
   let measurementReadCount = $state(0);
+  // Issue #15 third dispatch, stage 1: attribution of the 2.5s settle epoch.
+  // measurementReadCount is the instantaneous registered-node count; these two
+  // are the epoch-cumulative totals the spec's `read-ms / epoch total` ratio
+  // needs. Preview/gate only — see settleCostProbe.
+  let settleReadNodes = $state(0);
+  let settleReadMs = $state(0);
+  /** Cumulative prefix-node reads per partition key within the epoch. */
+  let settleReadKeyReads = $state<Record<string, number>>({});
+  /** Same guard shape as data-layout-motion-captured (:1996). App never enables it. */
+  const settleCostProbe = $derived(partitionDebug || gateFixture != null);
+  /**
+   * Per-key split of data-prefix-probe-count (:2350, total only). `entries` is
+   * the live registered count, `reads` the epoch-cumulative reads, which is what
+   * sizes a key-scoped prefix cache. Read only under settleCostProbe, so the
+   * production render never evaluates it.
+   */
+  const prefixProbeKeyCounts = $derived.by(() => {
+    const counts: Record<string, { entries: number; reads: number }> = {};
+    for (const entry of prefixMeasureEntries) {
+      counts[entry.key] = { entries: (counts[entry.key]?.entries ?? 0) + 1, reads: counts[entry.key]?.reads ?? 0 };
+    }
+    for (const [key, reads] of Object.entries(settleReadKeyReads)) {
+      counts[key] = { entries: counts[key]?.entries ?? 0, reads };
+    }
+    return counts;
+  });
   let measurementGeometryStage = $state<LadderStage>(0);
   let leftTrackRectWidthPx = $state(0);
   let centerTrackRectWidthPx = $state(0);
@@ -1306,7 +1342,27 @@
     if (live == null) return Math.round(node.getBoundingClientRect().height);
     return Math.round(Math.max(live.getBoundingClientRect().height, live.scrollHeight));
   }
+  /**
+   * Epoch-cumulative settle read cost. Called only from readMeasurements' tail
+   * under settleCostProbe, after the elapsed time is already taken, so this
+   * bookkeeping never lands inside data-settle-read-ms itself.
+   */
+  function recordSettleReadCost(elapsedMs: number): void {
+    settleReadMs += elapsedMs;
+    settleReadNodes += measurementReadCount;
+    // Every registered prefix node is read exactly once per pass, so a single
+    // walk of the node map reproduces the per-key read tally without touching
+    // the read loop's own content or order.
+    const keyById = new Map(prefixMeasureEntries.map((entry): [string, string] => [entry.id, entry.key]));
+    const nextReads = { ...settleReadKeyReads };
+    for (const id of prefixMeasureNodes.keys()) {
+      const key = keyById.get(id) ?? "unregistered";
+      nextReads[key] = (nextReads[key] ?? 0) + 1;
+    }
+    settleReadKeyReads = nextReads;
+  }
   function readMeasurements(): void {
+    const readStartedAt = settleCostProbe ? performance.now() : 0;
     const measurementOverride = typeof testMeasurementOverride === "function"
       ? testMeasurementOverride(measurementPass)
       : testMeasurementOverride;
@@ -1402,6 +1458,7 @@
       ?? (Math.max(0, Math.round(baselineGapMeasureEl?.getBoundingClientRect().width ?? 0)) || 12);
     measurementReadCount = measureNodes.size + prefixMeasureNodes.size + 14;
     measurementPass += 1;
+    if (settleCostProbe) recordSettleReadCost(performance.now() - readStartedAt);
   }
   function signature(): string {
     // Geometry 2 and 3 share the same compressed token surface. Only a
@@ -1420,7 +1477,7 @@
     return (hash >>> 0).toString(36);
   }
   function recordSettleTrace(pass: number, step: number): void {
-    if (!gateCapture) return;
+    if (!settleTraceCapture) return;
     const tracePlan = plan;
     const traceSelection = selection;
     settleTrace = [...settleTrace, {
@@ -1819,6 +1876,9 @@
     measurementSettled = false;
     measurementNonConverged = false;
     settleTrace = [];
+    settleReadNodes = 0;
+    settleReadMs = 0;
+    settleReadKeyReads = {};
     const activeEpoch = String(epoch);
     epochKey = activeEpoch;
     coordinator.begin(activeEpoch);
@@ -2250,9 +2310,11 @@
   data-layout-unresolved={renderPlan.unresolved ? "true" : "false"}
   data-measurement-settled={measurementSettled ? "true" : "false"}
   data-measurement-nonconverged={measurementNonConverged ? "true" : "false"}
-  data-settle-trace={gateCapture ? JSON.stringify(settleTrace) : undefined}
+  data-settle-trace={settleTraceCapture ? JSON.stringify(settleTrace) : undefined}
   data-measurement-pass={measurementPass}
   data-measurement-read-count={measurementReadCount}
+  data-settle-read-nodes={settleCostProbe ? settleReadNodes : undefined}
+  data-settle-read-ms={settleCostProbe ? Math.round(settleReadMs * 1000) / 1000 : undefined}
   data-layout-motion-duration={layoutMotionDuration}
   data-layout-motion-captured={partitionDebug || gateFixture != null ? layoutMotionCaptured : undefined}
   data-measurement-epoch={epochKey}
@@ -2348,6 +2410,7 @@
   data-scheduler-state={JSON.stringify({ rotation: rotationScheduler.diagnostics(), paging: cardPageCoordinator.diagnostics() })}
   data-expanded-counts={expandedCounts}
   data-prefix-probe-count={prefixMeasureEntries.length}
+  data-prefix-probe-key-counts={settleCostProbe ? JSON.stringify(prefixProbeKeyCounts) : undefined}
   data-typhoon-variant={renderTyphoonVariant}
   data-flood-form={renderFloodForm}
   data-flood-center-selected-height-px={floodItem == null ? undefined : renderedFloodContractHeight("center", renderSelection)}
