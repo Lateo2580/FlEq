@@ -264,6 +264,11 @@
   let lastInputKey = "";
   let lastContentKey = "";
   let fontsReady = typeof document === "undefined" || document.fonts == null;
+  // preEpochCapture が取った clone 枚数 (Issue #15, 分岐 7-A)。
+  // diagnostics().captured は runForEpoch が capture を捨てた時点で 0 に戻る一過性の値なので、
+  // preEpochCapture の直後に「その epoch の枚数」として控える。preview / gate でだけ書き、
+  // production では書き込みも属性出力も起きない (null のまま = 属性が生えない)。
+  let layoutMotionCaptured = $state<number | null>(null);
   const layoutMotionCoordinator = createLayoutMotionCoordinator({
     root: () => standbyEl,
     durationMs: layoutMotionDuration,
@@ -1988,6 +1993,7 @@
     weatherMeasurementContracts.clear();
     weatherPartitionProbeContracts.clear();
     layoutMotionCoordinator.preEpochCapture(epochKey);
+    if (partitionDebug || gateFixture != null) layoutMotionCaptured = layoutMotionCoordinator.diagnostics().captured;
     coordinator.begin(epochKey);
     rotationScheduler.holdForEpoch();
     cardPageCoordinator.holdForEpoch();
@@ -2248,6 +2254,7 @@
   data-measurement-pass={measurementPass}
   data-measurement-read-count={measurementReadCount}
   data-layout-motion-duration={layoutMotionDuration}
+  data-layout-motion-captured={partitionDebug || gateFixture != null ? layoutMotionCaptured : undefined}
   data-measurement-epoch={epochKey}
   data-suppressed-unknown-count={unknownInputs.length}
   data-left-natural-height-px={naturalColumnHeight(renderPlan.left)}

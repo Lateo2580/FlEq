@@ -8,6 +8,10 @@
 >
 > **見立ての訂正（重要）**: 引き継ぎメモは残り負荷を「`preEpochCapture` の全 clone・settle 時間上限」と名指ししていた。**コードを読んだ結果、churn 計測で観測された 6.5 秒/60 秒に `preEpochCapture` は 1 回も入っていない。** 理由は §2.1 に書く。`preEpochCapture` と settle 時間上限は「実内容が変わったときの 1 epoch あたりのコスト」という**別の症状**であり、本 spec ではそれを §2.4 以降で別立てにする。
 >
+> **分岐 7-A レビュー反映（2026-09-08、独立レビュー GO with fixes）**: §7 に「分岐 7-A 追加ラベル」を新設し段階 0 ラベルとの自己矛盾を解消（F6）。`fontsReady` ゲートにより**実機の初回 commit epoch は epoch 1 ではなく非 0 になる**ことを §3.0 と B6 に明記（F1）。A14 と §4.7 を追加（F7）。属性が瞬間値であること（F2）と `churnRootAttrMutations` への影響（F3）を §3.0 に追記。行番号を訂正（F8）。**F5 の「render 直後は属性が生えない」は実測で覆った**（`$effect.pre` が mount 前に epoch 1 を開くので render 直後から `"0"` が出る）ため、`"0"` が出ることの固定として §4.7 に読み替えた。
+>
+> **分岐 7 裁定反映（2026-09-08）**: ご主人裁定 **A**。`StandbyScreen.svelte` に `data-layout-motion-captured` を `partitionDebug || gateFixture != null` ガード付きで追加した（production DOM は不変）。§3.0 の「段階 0 では採れない」節を観測点の仕様と親の CDP 読み出し手順へ差し替え、B0 に clone 枚数を戻し、**B6 の保留を解除**した。
+>
 > **実装反映（2026-09-08、段階 0 実装後の独立レビュー GO with fixes）**: §3.0 に「preview 限定の観測点」節を新設し、`?churnProbe=1`・`window.__fleqChurnProbe`・`data-churn-*` 8 属性の名前と意味・既定 off・probe は計測を歪めるので別 run、を明記した。帰属の権威は Performance トレース Bottom-Up のままで、カウンタは突き合わせ材料と位置づける。**`preEpochCapture` の clone 枚数は段階 0 では採れない**ことを §3.0 に明記し、測定手段の可否を**分岐 7**（新設）に切り出して B0 から外し B6 を保留にした。§7 段階 0 の「対象」に本 spec 自身を足し（配送 diff は 4 ファイル）、「許容変更」に観測点を足した。
 >
 > **レビュー反映（2026-09-08、独立レビュー GO with fixes）**: §2.2 の伝播説明を Svelte 5 の pull 規則へ (a) 訂正（F8）。`requestSettle` の呼び出し点を 5 → 6 か所へ (a) 訂正（F1）。§3.1 の実現可能性の制約を追記（F2）。§5.2 の B4 / B5 を測れる形へ (b) 改訂（F4 / F5）。**構成そのものを「段階 0 を第 1 便にして価値判断してから先へ進む」へ変更**（分岐 6 の推奨を A → C）。分岐 1 は推奨を取り下げ保留とし、第 3 の候補（シェルフの settle 後 unmount）を追加（F13）。
@@ -147,9 +151,20 @@ Pi の SSE snapshot は 95KB（うち `standbyItems` 52KB）なので、直列�
 
 **観測自体が main thread を食うので、`churnProbe` は主指標の run では立てない。** 帰属 run を別に走らせ、主指標（reparse churn の long task 合計）は probe 無しの数字を使う。
 
-#### 段階 0 で採れないもの: `preEpochCapture` の clone 枚数
+#### `preEpochCapture` の clone 枚数の観測点（分岐 7-A、裁定 A で実装済み）
 
-`LayoutMotionCoordinator.diagnostics()` は `captured`（clone 枚数）を返すが（`layout-motion.svelte.ts:249`）、coordinator のインスタンスは `StandbyScreen.svelte:267-270` の内部に閉じていて DOM 属性としても公開されていない。読むには `components/` 配下（段階 0 の禁止変更）に観測点を足す必要がある。**したがって段階 0 では未取得とし、分岐 7 の裁定待ちとする。** 暫定の代理指標は、シェルフに載っている可視の登録カード枚数（§2.2 の DOM の量、最大 54 枚＋probe 群）である。
+`LayoutMotionCoordinator.diagnostics()` は `captured`（clone 枚数）を返すが（`layout-motion.svelte.ts:249`）、coordinator のインスタンスは `StandbyScreen.svelte` の内部に閉じていて DOM 属性としても公開されていなかった。**分岐 7 がご主人裁定 A（2026-09-08）で確定したので、`StandbyScreen.svelte` に観測点 1 行を置いた。**
+
+- **属性名**: `.standby` の `data-layout-motion-captured`（`StandbyScreen.svelte:2257`）
+- **ガード**: `partitionDebug || gateFixture != null`。`:2174` の briefing partition debug と同じ preview/gate 限定の前例に倣う。production の `App.svelte:284-294` はどちらの prop も渡さないので、**属性は生えず、値の書き込みも起きない**（`:1996` の書き込み側にも同じガードを置いた）
+- **値の意味**: 現在の計測 epoch の頭で `preEpochCapture` が clone した可視カードの枚数。`diagnostics().captured` は `runForEpoch` が `capture` を捨てた時点で 0 に戻る一過性の値なので、`requestSettle` の中で `preEpochCapture` の**直後**にスナップショットして `$state` に控える（`StandbyScreen.svelte:271,1996`）。次の epoch が開くまで値は据え置かれる
+- **基準は「フォント確定後の最初の settle epoch」であって epoch 1 ではない**（F1）。`settleMeasurements` は `fontsReady` が false の間は `:1816` で早期 return する。`fontsReady` の初期値は `document.fonts == null`（`:266`）なので、**実ブラウザでは false** で始まる。epoch 1 は mount 前の `$effect.pre`（`:2064`、`requestSettle()` 行は `:2087`）が開くが、登録カードがまだ無いので枚数 0 を書いたまま settle せずに終わる。実際に commit するのは `document.fonts.ready` 後の `requestSettle()`（`:2101`）が開く epoch で、**その時点ではカードが登録済みなので枚数は非 0** になる。jsdom は `document.fonts` を持たないため `fontsReady` が最初から true で、epoch 1 がそのまま settle して 0 を出す。**この 0 は jsdom 固有の姿であり、実機の期待値ではない**
+
+**親が CDP で読む方法**: 測定文脈は §5.2 の固定値（Chrome 152 headless / 1920×1080 / preview `#legacy-standby-gate` `gateScenario=max`）。preview は `PreviewApp.svelte:900` で `partitionDebug={true}` を常に渡すので、gate run ではガードが立つ。読むタイミングは **`data-measurement-settled="true"` になった直後**で、`document.querySelector('.standby').dataset.layoutMotionCaptured` を `data-measurement-epoch` と対にして採る。epoch ごとに 1 点ずつ、`?contentChurnMs` の周期に合わせてポーリングする。**属性が無い場合はガードが立っていないか、まだ 1 epoch も開いていない**のどちらかで、「clone 0 枚」とは区別すること（0 枚なら `"0"` が出る。Svelte の `set_attribute` は値が `== null` のときだけ `removeAttribute` するので、数値 0 は属性として残る）。
+
+**この属性は累計ではなく瞬間値である**（F2）。settle 中に `requestSettle` が重なると `preEpochCapture` はそのたび clone を取り直すが、属性に残るのは**最後の 1 回ぶんだけ**で、途中の epoch の枚数は上書きされて失われる。実機で 1 epoch あたりの総 clone 数を積みたくなっても、**累計カウンタは足さない**（観測自体が段階 3 の測りたい負荷を太らせる）。必要なら settled=true の各点をポーリングして親側で積む。
+
+**`?churnProbe=1` との相互作用**（F3）: この属性は `.standby` 自身の属性なので、値が変わるたび `churnRootAttrMutations`（`PreviewApp.svelte:229`、`data-churn-root-attr-mutations`）に epoch あたり 1 件乗る。分岐 7-A 追加**前**に採った `rootAttrMutations` の値とは直接比較できない。
 
 ハーネスの作りは第 1 便の `metadata-churn.ts`（`display/frontend/src/preview/metadata-churn.ts:12-16`）と `PreviewApp.svelte:154-165,417-426` に倣い、**production の `App.svelte` は一切変更しない**。段階 0 の成果物は数値表であり、製品コードの挙動は変わらない。
 
@@ -290,6 +305,17 @@ Pi の SSE snapshot は 95KB（うち `standbyItems` 52KB）なので、直列�
 
 **jsdom の緑は transition とレイアウトの証明にならない。** どの段階も、実 Chrome の採取が無ければ配送根拠にしない。測定文脈は §5.2 に固定値で書く。子エージェントの sandbox は listen できないので、**実走は親（Liebe）が担い、子は records に対する `--assert-from` で assertion を検証する**（memory `feedback_capture_diagnostics_in_contract`）。
 
+### 4.7 分岐 7-A: clone 枚数の観測点（jsdom）
+
+`display/frontend/src/components/__tests__/standby-layout-motion-captured.test.ts`。
+
+- **既定 props で `.standby` に `data-layout-motion-captured` が生えない**（production DOM 不変の固定）。同じケースで内容変更により epoch が実際に進んでいることと、coordinator 側の clone が実際に走っていること（mock で採った枚数が非 0）を併せて確認し、「属性が無いのは何も起きていないから」ではないことを示す
+- `gateFixture` 付き、および `partitionDebug` 単独（preview の実経路）で属性が生え、値が `diagnostics().captured` と一致する
+- **clone 0 枚の epoch では属性が消えず文字列 `"0"` が出る**（Svelte の `set_attribute` は `== null` のときだけ `removeAttribute` する）。jsdom では `fontsReady` が最初から true なので epoch 1 がそのまま settle し、この 0 を直接観測できる（§3.0 の F1 注記のとおり実機の姿とは異なる）
+- 内容変更後の epoch で値が 0 でない
+
+**この節は jsdom の値である。** 実機の枚数の妥当性は B6 で採る。
+
 ## 5. 受入条件
 
 ### 5.1 機械的に確認できるもの（A）
@@ -309,6 +335,7 @@ Pi の SSE snapshot は 95KB（うち `standbyItems` 52KB）なので、直列�
 | A11 | `layout-motion.test.ts` の既存ケースが全件緑 | 3 | 4.4 |
 | A12 | build / test（display・root）/ shuffle / typecheck:test が全部成功 | 0〜3 | 4.5 |
 | A13 | `display/frontend/src/App.svelte` に差分が無く、かつ production パス（`src/App.svelte` から到達するモジュール）に対する `metadata-churn` / `contentChurn` の grep が 0 件 | 0 | `git diff --stat` と grep |
+| A14 | 既定 props（`partitionDebug` false・`gateFixture` 未指定＝`App.svelte:284-294` と同じ形）で `.standby` に `data-layout-motion-captured` が**存在しない**。gate / preview props では存在し、値が coordinator の `diagnostics().captured` と一致する | 分岐 7-A | 4.7 |
 
 ### 5.2 実機（B、環境依存のため CI の合否には使わない）
 
@@ -316,13 +343,13 @@ Pi の SSE snapshot は 95KB（うち `standbyItems` 52KB）なので、直列�
 
 | # | 条件 | 段階 | 測定 |
 |---|---|---|---|
-| B0 | §3.0 の 3 種の数字（reparse churn / 帰属内訳 / 1 epoch コスト）が採れており、reparse モードが主指標として表になっている。**clone 枚数は含めない**（§3.0 のとおり段階 0 では採れない。分岐 7 の裁定後に B6 で採る） | 0 | 実 Chrome |
+| B0 | §3.0 の 3 種の数字（reparse churn / 帰属内訳 / 1 epoch コスト）が採れており、reparse モードが主指標として表になっている。**`preEpochCapture` の clone 枚数も `data-layout-motion-captured` から epoch 対で採る**（分岐 7-A 実装後。読み方は §3.0） | 0 | 実 Chrome |
 | B1 | `?metadataChurnMs=500&metadataChurnMode=reparse` の 60 秒で long task 合計が **段階 0 実測値の半分以下** | 1 | 実 Chrome |
 | B2 | 同条件で fps が 55 以上、100ms 超の long task が 0 件 | 1 | 実 Chrome |
 | B3 | churn 無指定の 60 秒で long task 0 件・fps 60（現状維持の回帰） | 1〜3 | 実 Chrome |
 | B4 | `?contentChurnMs` で 1 epoch が **2 個以上の task に分割され、最大の 1 片が epoch 総時間の 1/3 未満**（外側 5 pass の分割では 100ms 未満には届かない。§3.2 の限界を参照） | 2 | 実 Chrome |
 | B5 | 同条件で 1 epoch の総所要時間の増加が **絶対値 +120ms 以内**（rAF 5 回ぶんの約 83ms ＋余裕。相対 % は段階 1 が効くほど厳しくなるので使わない） | 2 | 実 Chrome |
-| B6 | `?contentChurnMs` で `preEpochCapture` の clone 枚数が、初回 commit の epoch で 0、2 epoch 目以降で 0 でない。**分岐 7 が A で裁定されるまで測定手段が無いので、それまでこの条件は保留する** | 3 | 診断属性（分岐 7 A の追加後） |
+| B6 | `?contentChurnMs` で `preEpochCapture` の clone 枚数が、**初回 commit の epoch**（実機ではフォント確定後の最初の settle epoch。epoch 1 ではない。§3.0 の F1 注記）で 0、それ以降の epoch で 0 でない。**分岐 7-A の `data-layout-motion-captured` で測定可能（保留解除、2026-09-08）**。段階 3 着手**前**の実機は初回 commit epoch でも非 0 になるのが正常で、この行は段階 3 の after でのみ判定する | 3 | 診断属性 `.standby[data-layout-motion-captured]` を `data-measurement-epoch` と対でポーリング |
 | B7 | Pi 実機で 10 分以上の連続観察中に Chrome の「応答なし」が出ず、**ローテーションが進み続ける**（`data-rotation-active-key` が観察窓の中で 2 回以上変化し、`data-rotation-position` が更新される。目視の印象ではなく属性の変化で判定する） | 1＋2＋3 | 実機・属性ポーリング |
 
 **before / after は同じ手順・同じ時間帯で採る。** after だけを載せない。第 1 便の before は main の build/test と同時刻に走って CPU 競合を含んでいたので、同じ轍を踏まない。
@@ -377,14 +404,14 @@ Pi の SSE snapshot は 95KB（うち `standbyItems` 52KB）なので、直列�
 - **A: 段階 0＋1 を第 1 便、段階 2＋3 を第 2 便。** 往復は減るが、段階 1 の方式が分岐 1 で保留されている以上、同じ便で決め切るには帰属の数字を先に採る必要があり、結局 C と同じ順序になる
 - **B: 段階 1＋2＋3 を 1 便で配送する。** 実機で退行が出たときに原因の切り分けが 3 段階ぶん増える
 
-### 分岐 7: `preEpochCapture` の clone 枚数をどう採るか
+### 分岐 7: `preEpochCapture` の clone 枚数をどう採るか — **裁定 A 確定（2026-09-08）**
 
-§3.0 のとおり `diagnostics().captured` は `StandbyScreen.svelte` の内部に閉じており、段階 0 の禁止変更に触れずには読めない。B6 の測定手段がこの分岐に依存する。
+§3.0 のとおり `diagnostics().captured` は `StandbyScreen.svelte` の内部に閉じており、段階 0 の禁止変更に触れずには読めなかった。B6 の測定手段がこの分岐に依存していた。
 
-- **A（推奨）: `StandbyScreen.svelte` に `data-layout-motion-captured` を 1 行足し、`partitionDebug || gateFixture != null` で囲う。** `:2168` の briefing partition debug と同じ preview/gate 限定の既存前例に倣う形で、production の DOM は変わらない。段階 3 の受入（A10・B6）は本来この数字を要求しているので、段階 3 に着手するなら遅かれ早かれ要る
-- **B: 諦める。** 段階 3 の効果は「捨てられることが確定している clone を除く」正しさの保全であって性能ではない（§2.4 のとおり Pi では `reducedMotion` 経路が発火しない）ので、枚数を測らずに jsdom の A9・A10 だけで受けるという選択もありうる。ただし実機での退行検出力は落ちる
+- **A（採用・ご主人裁定 2026-09-08）: `StandbyScreen.svelte` に `data-layout-motion-captured` を 1 行足し、`partitionDebug || gateFixture != null` で囲う。** `:2174` の briefing partition debug と同じ preview/gate 限定の既存前例に倣う形で、production の DOM は変わらない。段階 3 の受入（A10・B6）は本来この数字を要求しているので、段階 3 に着手するなら遅かれ早かれ要る
+- **B（不採用）: 諦める。** 段階 3 の効果は「捨てられることが確定している clone を除く」正しさの保全であって性能ではない（§2.4 のとおり Pi では `reducedMotion` 経路が発火しない）ので、枚数を測らずに jsdom の A9・A10 だけで受けるという選択もありえた。ただし実機での退行検出力は落ちる
 
-**この分岐は製品ファイル（`components/` 配下）への追記を含むので、Liebe は独断しない。** 段階 0 の他の数字を添えてご主人へ回す。
+**実装（2026-09-08）**: 属性・ガード・値の意味・親の読み方は §3.0 の「観測点」節にまとめた。受入テストは `display/frontend/src/components/__tests__/standby-layout-motion-captured.test.ts`（(a) 既定で属性が生えない／(b) gate・preview で coordinator の実値と一致／(c) 初回 0・2 epoch 目以降で非 0）。
 
 ## 7. 裁定ラベル案（段階ごと、6 要素）
 
@@ -403,11 +430,33 @@ Pi の SSE snapshot は 95KB（うち `standbyItems` 52KB）なので、直列�
           MutationObserver カウンタ、window.__fleqChurnProbe、<main> の data-churn-* 8 属性。
           いずれも既定 off・churn 無指定なら DOM に現れない。詳細は §3.0）
 禁止変更: display/frontend/src/App.svelte・components/ 配下・lib/ 配下の製品コード、layout-key.ts の分類
+          （分岐 7-A の観測点は本ラベルの対象外。別便・別ラベルとして下の
+            「分岐 7-A 追加ラベル」で配送する）
 配送先: main → personal → Pi（preview 限定なので Pi の表示挙動は不変）
 ロールバック: git revert <commit>
 受入条件: A13（App.svelte 差分ゼロ＋production パスへの grep 0 件）・A12（全ゲート緑）・
           パラメータ非指定時に preview の DOM が現行と一致すること（data-churn-* が 1 つも出ない）・
-          B0（3 種の数字が表になっていること。clone 枚数は分岐 7 の裁定後）
+          B0（3 種の数字が表になっていること。clone 枚数は分岐 7-A 配送後に同じ表へ足す）
+```
+
+### 分岐 7-A 追加ラベル（`preEpochCapture` clone 枚数の観測点）— **ご主人裁定 2026-09-08**
+
+段階 0 の禁止変更が `components/` 配下を閉じているため、観測点は**段階 0 とは別の便・別のラベル**で配送する。
+
+```
+対象: display/frontend/src/components/StandbyScreen.svelte
+      （partitionDebug || gateFixture != null ガード付きの観測点 1 行と書き込み 1 箇所、
+        および $state 宣言 1 行）
+      display/frontend/src/components/__tests__/standby-layout-motion-captured.test.ts（新規）
+      docs/specs/2026-09-08-standby-resettle-residual-load.md（本 spec 自身）
+許容変更: 上記の観測点と、書き込み側・描画側の両方に置くガードのみ
+禁止変更: ガード無しの属性出力、累計カウンタの追加、段階 1〜4 の先取り（凍結・unmount・
+          rAF 分割・clone 削減）、layout-motion.svelte.ts / layout-key.ts /
+          connection.svelte.ts / App.svelte の変更、package*.json
+配送先: main → personal → Pi（production の DOM は不変なので Pi の表示挙動は変わらない）
+ロールバック: git revert <commit>（単一 commit）
+受入条件: A14（既定 props で属性が生えない／gate・preview で実値と一致）・A12（全ゲート緑）・
+          B6（段階 3 の after で判定。着手前は非 0 が正常）
 ```
 
 ### 段階 1（churn 再点火の停止）— **方式が分岐 1 で保留のため配送不可**
@@ -476,3 +525,18 @@ Pi の SSE snapshot は 95KB（うち `standbyItems` 52KB）なので、直列�
 - session-log: `~/Obsidian/Liebe/Session-log/2026-09/2026-09-07-fleq-performance-root-cause.md`
 - ハンドオフ: `~/Obsidian/Liebe/Artifacts/Handoffs/2026-09-08-fleq-performance-lane-close-handoff.md`
 - memory: `feedback_observation_driven_debugging`・`feedback_capture_diagnostics_in_contract`・`feedback_headless_viewport_override`・`feedback_capture_needs_display_build`・`feedback_green_tests_not_proof`・`feedback_local_gate_low_parallel`
+
+## 段階 0 計測結果（2026-09-08 21:41〜21:46、Mac、Chrome 152 headless、1920×1080、各 60 秒）
+
+| run | churn | long task 合計 | >100ms | 最大片 | fps | captured |
+|---|---|---|---|---|---|---|
+| control | なし | 0ms | 0 | 0 | 60 | 8 |
+| shared | meta 500ms | 8,948ms | 0 | 82ms | 54.5 | 8 |
+| reparse（主指標） | meta 500ms | 10,204ms | 2 | 103ms | 54.2 | 8 |
+| probe | meta 500ms | 10,996ms | 1 | 112ms | 53.8 | 8 |
+| epoch | content 5000ms | 30,349ms | 12 | **2,616ms** | 30.2 | 8 |
+
+- 帰属カウンタ（probe run、churn 121 回）: shelfMutations **0**、rootAttrMutations 27、liveMutations 263（2.2 件/churn）。隠しシェルフの DOM 変異は起きていない。§2.2 の経路 (iii) は DOM 側では確認できず、churn コストは生きているカード側の再評価に帰属する見立てへ更新
+- 1 epoch: 内容変化 1 回につき single long task **2,487〜2,616ms**（epoch 10 件平均 3,035ms）、passΔ 107 / epoch、readCount ≈ 426、clone 8 枚。第 1 便 before の 2.7 秒と同水準で、電文が届くたびに約 2.5 秒描画が止まる
+- 結論: 段階 1（シェルフ凍結）の本番利得は小さい。次の優先は **1 epoch の settle コスト**（pass 数の削減・分割）。段階 1〜4 の裁定はこの結果を前提に行う
+- 生データ: scratchpad `stage0-results-2026-09-08T12-41-04.json`、スクリプト `stage0-measure.mjs`
