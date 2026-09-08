@@ -196,7 +196,8 @@ function countUnits(states: readonly WeatherWarningForecastState[]): CountUnit[]
   return units;
 }
 
-function cardConstraintsPass(states: readonly WeatherWarningForecastState[]): boolean {
+/** Exported so tests can pin the monotonicity the limit search relies on. */
+export function cardConstraintsPass(states: readonly WeatherWarningForecastState[]): boolean {
   const units = countUnits(states);
   if (units.some((unit) => unit.actual > unit.declaredLimit)) return false;
   const card = buildWeatherWarningForecastCard(states);
@@ -229,7 +230,8 @@ function limitReasonUnits(
     .sort((a, b) => compareText(a.path, b.path));
 }
 
-function truncateReasonUnits(
+/** Exported so tests can pin the monotonicity the limit search relies on. */
+export function truncateReasonUnits(
   statesInput: readonly WeatherWarningForecastState[],
   code: Exclude<Vpwp50ProjectionLimitReasonCode, "cardJsonBytes">,
   paths: ReadonlySet<string>,
@@ -280,6 +282,38 @@ function truncateReasonUnits(
   })).filter((state) => state.groups.length > 0);
 }
 
+/**
+ * Largest candidate in `0..declaredLimit` for which `pass` holds, or `null`
+ * when no candidate does.
+ *
+ * `pass` must be monotone: once it fails for some k it fails for every larger
+ * k. The truncation predicate this is called with satisfies that because a
+ * smaller limit always yields a subset of the projection (see the wire spec's
+ * monotonicity section). Taking the predicate as a parameter keeps the search
+ * testable — a module-internal call cannot be counted with a spy.
+ */
+export function findEffectiveLimit(
+  declaredLimit: number,
+  pass: (candidate: number) => boolean,
+): number | null {
+  let low = 0;
+  let high = declaredLimit;
+  let effectiveLimit: number | null = null;
+  while (low <= high) {
+    // `low + ((high - low) >> 1)` rather than `(low + high) >> 1`: this is an
+    // exported general-purpose search, so the midpoint must stay correct even
+    // for bounds a future caller might pass beyond the current 128.
+    const mid = low + ((high - low) >> 1);
+    if (pass(mid)) {
+      effectiveLimit = mid;
+      low = mid + 1;
+    } else {
+      high = mid - 1;
+    }
+  }
+  return effectiveLimit;
+}
+
 export function weatherWarningForecastProjectionLimitReasons(
   states: readonly WeatherWarningForecastState[],
 ): Vpwp50ProjectionLimitReason[] {
@@ -302,10 +336,10 @@ export function weatherWarningForecastProjectionLimitReasons(
     const units = limitReasonUnits(states, code);
     const paths = new Set(units.map((unit) => unit.path));
     const declaredLimit = units[0]!.declaredLimit;
-    let effectiveLimit: number | null = null;
-    for (let candidate = 0; candidate <= declaredLimit; candidate += 1) {
-      if (cardConstraintsPass(truncateReasonUnits(states, code, paths, candidate))) effectiveLimit = candidate;
-    }
+    const effectiveLimit = findEffectiveLimit(
+      declaredLimit,
+      (candidate) => cardConstraintsPass(truncateReasonUnits(states, code, paths, candidate)),
+    );
     const zeroReasons = effectiveLimit == null
       ? new Set(weatherWarningForecastProjectionLimitReasonsShallow(truncateReasonUnits(states, code, paths, 0)))
       : null;
