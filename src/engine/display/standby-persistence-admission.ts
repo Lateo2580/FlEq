@@ -1,4 +1,5 @@
 import * as log from "../../logger";
+import * as perf from "../perf/receipt-timing";
 import {
   TelegramRevisionGate,
   TELEGRAM_REVISION_MAX_ENTRIES,
@@ -582,7 +583,16 @@ export class StandbyPersistenceAdmissionCoordinator {
     this.owners = deps.owners;
     this.repairState = structuredClone(deps.repairState ?? emptyVolcanoRepairState());
     this.volcanoRuntimeVersion = deps.owners.volcanoState.version();
-    this.serializePair = deps.serializePair ?? defaultSerializePair;
+    // spec §3.3 P4: 呼び出し点 (:694 :695 :739 :1079 :1080 :1108) を 1 箇所で数える。
+    // `serializeStandbyAdmissionPair` (:412) ではなくここを包むのは、既定の
+    // `defaultSerializePair` が別実装で、テストではそちらしか動かないため (spec §2.3)。
+    const serializePair = deps.serializePair ?? defaultSerializePair;
+    this.serializePair = (domains, envelope) => {
+      perf.countSerializePair();
+      // 元の呼び出しは `this.serializePair(...)` で `this` が coordinator に束縛されていた。
+      // ラッパで bare call にすると `this` が undefined へ変わるので、`call` で復元する。
+      return serializePair.call(this, domains, envelope);
+    };
     this.validateCandidate = deps.validateCandidate;
     this.canReserveLogicalGeneration = deps.canReserveLogicalGeneration ?? (() => true);
     this.sweepPrecheckEnabled = deps.disableSweepPrecheck !== true;
@@ -664,7 +674,23 @@ export class StandbyPersistenceAdmissionCoordinator {
     return this.transactInternal(key, touchedOwners, reduce, true);
   }
 
+  /**
+   * spec §3.3 P3i: `admit=` は出口 1 箇所で決める。`transactInternalCore` は早期 return を
+   * 8 本持つので (:675 :683 :685 :688 :702 :709 :712 :714)、各 return に散らすと取りこぼす。
+   */
   private transactInternal<T>(
+    key: StandbyDurableMutationKey,
+    touchedOwners: readonly StandbyPersistenceOwnerKey[],
+    reduce: StandbyCandidateReducer<T>,
+    deferDurable: boolean,
+  ): StandbyDeferredTransactionResult<T> {
+    const result = this.transactInternalCore(key, touchedOwners, reduce, deferDurable);
+    if (result.kind === "rejected") perf.setAdmissionResult("rejected", result.reason);
+    else perf.setAdmissionResult(result.kind);
+    return result;
+  }
+
+  private transactInternalCore<T>(
     key: StandbyDurableMutationKey,
     touchedOwners: readonly StandbyPersistenceOwnerKey[],
     reduce: StandbyCandidateReducer<T>,
@@ -674,16 +700,22 @@ export class StandbyPersistenceAdmissionCoordinator {
     if (!sameOwnerList(touchedOwners, expected)) {
       return { kind: "rejected", reason: "invalidTouchedOwners" };
     }
-    const captured = this.capture();
-    const draft = structuredClone(captured.domains) as StandbyPersistenceDomainSnapshots;
+    const captured = perf.mark("cap", () => this.capture());
+    const draft = perf.mark(
+      "draft",
+      () => structuredClone(captured.domains),
+    ) as StandbyPersistenceDomainSnapshots;
     let reduced: ReturnType<StandbyCandidateReducer<T>>;
     try {
-      reduced = reduce(draft);
+      reduced = perf.mark("red", () => reduce(draft));
     } catch {
       return { kind: "rejected", reason: "reducerException" };
     }
     if (reduced.kind === "rejected") return reduced;
-    const changed = changedOwnerKeys(captured.domains as StandbyPersistenceDomainSnapshots, draft);
+    const changed = perf.mark(
+      "diff",
+      () => changedOwnerKeys(captured.domains as StandbyPersistenceDomainSnapshots, draft),
+    );
     if (changed.some((owner) => !expected.includes(owner))) {
       return { kind: "rejected", reason: "unexpectedOwnerMutation" };
     }
@@ -691,9 +723,12 @@ export class StandbyPersistenceAdmissionCoordinator {
     let basePair: StandbySerializedPair;
     let admissionFailure: string | null;
     try {
-      candidatePair = this.serializePair(draft, PREFLIGHT_ENVELOPE);
-      basePair = this.serializePair(captured.domains, PREFLIGHT_ENVELOPE);
-      admissionFailure = this.preflight(draft, candidatePair);
+      candidatePair = perf.mark("serD", () => this.serializePair(draft, PREFLIGHT_ENVELOPE));
+      basePair = perf.mark(
+        "serB",
+        () => this.serializePair(captured.domains, PREFLIGHT_ENVELOPE),
+      );
+      admissionFailure = perf.mark("pre", () => this.preflight(draft, candidatePair));
     } catch {
       admissionFailure = "candidateSerializationFailed";
       candidatePair = { v2: new Uint8Array(), v1: new Uint8Array() };
@@ -712,7 +747,7 @@ export class StandbyPersistenceAdmissionCoordinator {
       return { kind: "rejected", reason: "logicalGenerationExhausted" };
     }
     if (!tokenEquals(captured.token, this.currentToken())) return { kind: "staleVersion" };
-    if (changed.length > 0) this.commit(draft, changed);
+    if (changed.length > 0) perf.mark("commit", () => this.commit(draft, changed));
     const token = this.currentToken();
     if (durableChanged && !deferDurable) this.emitDurable();
     return { kind: "committed", value: reduced.value, token, durableChanged };
@@ -855,6 +890,8 @@ export class StandbyPersistenceAdmissionCoordinator {
       && nowMs >= lastNoop.atMs
       && tokenEquals(lastNoop.token, this.currentToken())
       && !this.hasDueSweepWork(nowMs)) {
+      // spec §3.3 P2': 成功出口 3 つは上 2 つの戻り値が同一で呼び出し側から区別できない。
+      perf.setSweepPath("precheck", 0, false);
       this.lastNoopSweep = { atMs: nowMs, token: lastNoop.token };
       return {
         kind: "committed",
@@ -1003,6 +1040,7 @@ export class StandbyPersistenceAdmissionCoordinator {
     }
     if (changed.length === 0) {
       // 収束が確認できた周期だけを事前判定の基準にする。
+      perf.setSweepPath("nochange", 0, false);
       this.lastNoopSweep = { atMs: nowMs, token: captured.token };
       return {
         kind: "committed",
@@ -1090,6 +1128,7 @@ export class StandbyPersistenceAdmissionCoordinator {
       return { kind: "rejected", reason: "logicalGenerationExhausted" };
     }
     if (!tokenEquals(captured.token, this.currentToken())) return { kind: "staleVersion" };
+    perf.setSweepPath("full", changed.length, durableChanged);
     this.commit(draft, changed);
     if (durableChanged) this.emitDurable();
     return {
@@ -1127,7 +1166,9 @@ export function sweepStandbyBeforeAdmission(
   key: StandbyDurableMutationKey,
   nowMs: number,
 ): boolean {
-  const sweep = coordinator.sweepAll(nowMs);
+  // spec §3.3 P2: 受理前 sweep は同じ電文の受理コールスタック上にある。5 秒タイマーの
+  // sweep は別 tick なので `[perf-sweep]` の独立行になる (spec §2.5)。
+  const sweep = perf.mark("sweepPre", () => coordinator.sweepAll(nowMs));
   if (sweep.kind === "committed") return true;
   log.warn(
     `[standby-admission] key=${key} preAdmissionSweep=${sweep.kind === "rejected" ? sweep.reason : "staleVersion"}`,

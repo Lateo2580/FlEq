@@ -4,6 +4,7 @@ import { parseWeatherWarning } from "../../../dmdata/weather-parser";
 import { weatherFrameLevel, weatherSoundLevel } from "../level-helpers";
 import type { ProcessDeps } from "./process-message";
 import * as log from "../../../logger";
+import * as perf from "../../perf/receipt-timing";
 import { Vpws50StateHolder, type WeatherReportIdentity } from "../../messages/vpws50-state";
 import { Vpww56StateHolder } from "../../messages/vpww56-state";
 import { weatherRevisionFamilyPolicy } from "../../messages/revision-family-registry";
@@ -126,7 +127,13 @@ export function processWeather(
   deps?: WeatherProcessDeps,
 ): WeatherProcessResult {
   if (deps?.persistenceAdmission != null) return processWeatherWithAdmission(msg, deps);
-  const info = parseWeatherWarning(msg);
+  // spec §3.3 P6: admission 経路の reducer は `persistenceAdmission` 抜きの deps で
+  // `processWeather` を呼び直すので、ここは `transactInternal` の `reduce` 区間の内側で
+  // 走る 2 回目の body decode + XML parse になる (`red` の内数、spec §2.2)。
+  // `redParse` は weather 経路にしか無い。他 domain の processor に同型の二重 parse が
+  // あるかは本 spec では調べていない — 行に `redParse=` が出ないのは「その経路には無い」
+  // ではなく「まだ計測点を置いていない」と読む。
+  const info = perf.mark("redParse", () => parseWeatherWarning(msg));
   if (!info) return { kind: "parse-failed" };
 
   const identity: WeatherReportIdentity = {

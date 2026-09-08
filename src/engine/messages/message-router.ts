@@ -21,6 +21,7 @@ import { TelegramStats, routeToCategory } from "./telegram-stats";
 import { classifyMessage } from "./route-catalog";
 import type { Route } from "./route-catalog";
 import { assertNever } from "../../utils/assert-never";
+import * as perf from "../perf/receipt-timing";
 import { SummaryWindowTracker } from "./summary-tracker";
 import { DailyQuakeCounter } from "./daily-quake-counter";
 import type {
@@ -1901,7 +1902,7 @@ export function createMessageHandler(options?: MessageHandlerOptions): MessageHa
     if (action != null) handleLegacyCounterpartAction(action);
   };
 
-  const createEnvelope = (incoming: WsDataMessage): RouterEnvelope => {
+  const buildEnvelope = (incoming: WsDataMessage): RouterEnvelope => {
     assertSerializerHealthy();
     const ingressObservedAtMs = routerClock.nowMs();
     try {
@@ -1932,6 +1933,11 @@ export function createMessageHandler(options?: MessageHandlerOptions): MessageHa
       throw poisonSerializer(cause);
     }
   };
+
+  // spec §3.3 P1: envelope 生成は turn 開始より前に走り、再入電文では別電文の receipt の
+  // 内側で走る。電文行の区間にはできないので `[perf-env]` の独立行として出す。
+  const createEnvelope = (incoming: WsDataMessage): RouterEnvelope =>
+    perf.measureEnvelope(() => buildEnvelope(incoming));
 
   const enqueueReentrant = (envelope: RouterEnvelope): void => {
     let nextBytes: number;
@@ -1977,6 +1983,8 @@ export function createMessageHandler(options?: MessageHandlerOptions): MessageHa
     }
 
     serializerOwnerActive = true;
+    // spec §3.3 P0: 再入 early return 経路 (:1974-1977) では turn を開かない。
+    perf.beginTurn();
     turnRequiredPersistenceSeq = 0;
     turnDurableFloorSatisfiedSeq = 0;
     turnPersistenceCause = null;
@@ -1984,67 +1992,86 @@ export function createMessageHandler(options?: MessageHandlerOptions): MessageHa
     const recoverableErrors: unknown[] = [];
     let current: RouterEnvelope | undefined = envelope;
     let drained = 0;
+    // spec §3.3 P0 / レビュー M2: drain の finally や flush ブロックから例外が抜けても
+    // turn を必ず閉じる。閉じ損ねると次の beginTurn が黙って上書きしてしまう。
     try {
-      while (current != null) {
-        if (serializerPoisonError != null) break;
-        if (drained >= ROUTER_MAX_DRAINED_ENVELOPES_PER_TURN) {
-          poisonSerializer(new Error("router drain step capacity exceeded"));
-          break;
-        }
-        drained += 1;
-        try {
-          const ownerToken = createVptaRouterOwnerToken();
-          withVptaRouterOwnerToken(ownerToken, () => {
-            if ((current!.route === "typhoonProbability"
-              || current!.route === "weatherWarningTimeseries")
-              && options?.withStandbyDurableNotificationsSuppressed != null) {
-              options.withStandbyDurableNotificationsSuppressed(() => processEnvelope(current!));
-            } else {
-              processEnvelope(current!);
-            }
-          });
-        } catch (cause) {
-          if (cause !== serializerPoisonError) recoverableErrors.push(cause);
-        }
-        if (serializerPoisonError != null) break;
-        const next = pendingEnvelopes.shift();
-        if (next == null) {
-          current = undefined;
-        } else {
-          pendingEnvelopeBytes -= next.byteLength;
-          if (!Number.isSafeInteger(pendingEnvelopeBytes) || pendingEnvelopeBytes < 0) {
-            poisonSerializer(new Error("router reentrant queue byte accounting invariant failed"));
+      try {
+        while (current != null) {
+          if (serializerPoisonError != null) break;
+          if (drained >= ROUTER_MAX_DRAINED_ENVELOPES_PER_TURN) {
+            poisonSerializer(new Error("router drain step capacity exceeded"));
             break;
           }
-          current = next;
+          drained += 1;
+          try {
+            const ownerToken = createVptaRouterOwnerToken();
+            // spec §3.3 P0': 電文 1 通 = 1 行。suppression 分岐 (:2001) と通常分岐 (:2003) の
+            // 両方を含む `withVptaRouterOwnerToken(...)` 呼び出し全体を包む。:2003 だけを
+            // 包むと VPWP50 / VPTA50 の行が 1 行も出ない (spec §2.1)。
+            perf.beginReceipt(
+              current!.message.id,
+              current!.message.head.type,
+              current!.route,
+              current!.byteLength,
+            );
+            try {
+              withVptaRouterOwnerToken(ownerToken, () => {
+                if ((current!.route === "typhoonProbability"
+                  || current!.route === "weatherWarningTimeseries")
+                  && options?.withStandbyDurableNotificationsSuppressed != null) {
+                  options.withStandbyDurableNotificationsSuppressed(() => processEnvelope(current!));
+                } else {
+                  processEnvelope(current!);
+                }
+              });
+            } finally {
+              perf.endReceipt();
+            }
+          } catch (cause) {
+            if (cause !== serializerPoisonError) recoverableErrors.push(cause);
+          }
+          if (serializerPoisonError != null) break;
+          const next = pendingEnvelopes.shift();
+          if (next == null) {
+            current = undefined;
+          } else {
+            pendingEnvelopeBytes -= next.byteLength;
+            if (!Number.isSafeInteger(pendingEnvelopeBytes) || pendingEnvelopeBytes < 0) {
+              poisonSerializer(new Error("router reentrant queue byte accounting invariant failed"));
+              break;
+            }
+            current = next;
+          }
+        }
+      } finally {
+        serializerOwnerActive = false;
+        if (serializerPoisonError != null) {
+          pendingEnvelopes.length = 0;
+          pendingEnvelopeBytes = 0;
         }
       }
+      if (
+        serializerPoisonError != null
+        && !turnPersistenceDispatchFailed
+        && turnRequiredPersistenceSeq > turnDurableFloorSatisfiedSeq
+      ) {
+        try {
+          const result = options?.flushStandbyThrough?.(turnRequiredPersistenceSeq);
+          if (result == null || result.kind === "failed" || result.writtenSeq < turnRequiredPersistenceSeq) {
+            turnPersistenceCause = result?.kind === "failed"
+              ? result.cause
+              : new Error("standby persistence durable floor was not satisfied");
+          } else {
+            turnDurableFloorSatisfiedSeq = result.writtenSeq;
+          }
+        } catch (cause) {
+          turnPersistenceCause = cause;
+        }
+      }
+      throwTurnErrors(recoverableErrors, serializerPoisonError, turnPersistenceCause);
     } finally {
-      serializerOwnerActive = false;
-      if (serializerPoisonError != null) {
-        pendingEnvelopes.length = 0;
-        pendingEnvelopeBytes = 0;
-      }
+      perf.endTurn(drained);
     }
-    if (
-      serializerPoisonError != null
-      && !turnPersistenceDispatchFailed
-      && turnRequiredPersistenceSeq > turnDurableFloorSatisfiedSeq
-    ) {
-      try {
-        const result = options?.flushStandbyThrough?.(turnRequiredPersistenceSeq);
-        if (result == null || result.kind === "failed" || result.writtenSeq < turnRequiredPersistenceSeq) {
-          turnPersistenceCause = result?.kind === "failed"
-            ? result.cause
-            : new Error("standby persistence durable floor was not satisfied");
-        } else {
-          turnDurableFloorSatisfiedSeq = result.writtenSeq;
-        }
-      } catch (cause) {
-        turnPersistenceCause = cause;
-      }
-    }
-    throwTurnErrors(recoverableErrors, serializerPoisonError, turnPersistenceCause);
   };
 
   return {

@@ -21,6 +21,7 @@ import { formatTimestamp } from "../../ui/formatter";
 import { withReplDisplay, updateReplConnectionState } from "./repl-coordinator";
 import { createShutdownHandler, registerShutdownSignals, runShutdownAndRecordExitCode } from "./shutdown";
 import * as log from "../../logger";
+import * as receiptPerf from "../perf/receipt-timing";
 import type { PipelineController } from "../filter-template/pipeline-controller";
 import type {
   DisplayConnectionStateV1,
@@ -384,10 +385,12 @@ export async function startMonitor(config: AppConfig, pipelineController?: Pipel
   let startupPersistenceDirty = false;
   // 手動 REST repair の同期 commit 区間だけ予約を畳む（起動時の畳み込みとは別軸）。
   const manualRepairCommitScope = createManualRepairCommitScope();
-  const captureLatestStandbyPersistencePair = () => {
+  // spec §3.3 P5: commit 後の 3 回目 serialize。1 電文で 2 回立ちうる (transact 由来と
+  // 受理前 sweep 由来) ので `save=` は加算で定義する (spec §2.4)。
+  const captureLatestStandbyPersistencePair = () => receiptPerf.mark("save", () => {
     const envelope = standbyPersistence.reserveSerializationEnvelope();
     return persistenceAdmission.captureSerializedPair(envelope);
-  };
+  });
   const scheduleCapturedStandbyPersistence = () => {
     const pair = captureLatestStandbyPersistencePair();
     return standbyPersistence.scheduleSerializedPair(pair);

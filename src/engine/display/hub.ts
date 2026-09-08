@@ -1,5 +1,6 @@
 import { performance } from "node:perf_hooks";
 import * as log from "../../logger";
+import * as perf from "../perf/receipt-timing";
 import type { PresentationEvent } from "../presentation/types";
 import { projectDisplayTsunamiObservations } from "./tsunami-observation-projection";
 import {
@@ -480,7 +481,14 @@ export class InfoDisplayHub implements DisplayIngestSink {
       const sweepWeatherPromotions =
         !this.sseClientTrackingStarted || this.unseenSinceMonotonicMs == null;
       let dirty = this.store.sweep(nowMs, sweepWeatherPromotions);
-      dirty = (this.deps.standbySweep?.(nowMs).viewChanged ?? false) || dirty;
+      // spec §3.3 P8: 5 秒タイマー経由の sweep 1 回 = `[perf-sweep]` 1 行。受理前 sweep は
+      // `[perf-receipt]` の `sweepPre=` に載るので、こちらには出ない。
+      perf.beginSweep();
+      try {
+        dirty = (this.deps.standbySweep?.(nowMs).viewChanged ?? false) || dirty;
+      } finally {
+        perf.endSweep();
+      }
       dirty = this.sweepTicker(nowMs) || dirty;
       // 無停止の display:build (プロセス継続で dist だけ差し替え) を電文契機に頼らず検知する。
       // publishedBuildId が昇格したときだけ dirty 化して新 buildId を state で届ける
@@ -579,11 +587,25 @@ export class InfoDisplayHub implements DisplayIngestSink {
         // (「同期 state は完全か、送らないか」の二値、spec §3-2、レビュー R2 Important 対応)。
         // それでも収まらなければ recentTicker を諦めた通常ラダーへフォールバックし、
         // pending は維持して次の dirty で改めて完全同期を試みる
-        let result = hadTickerSync ? degradeSyncedStateToBudget(this.buildStateSnapshot(true)) : null;
-        if (result == null) {
-          // 接続時 snapshot と同じ縮退ラダーを安全弁として通す (recentTicker を外した後も
-          // 気象警報の全国展開等でバイト上限を超えうる)
-          result = degradeSnapshotToBudget(this.buildStateSnapshot(false), "state");
+        // spec §3.3 P7: `buildStateSnapshot` + 縮退ラダーの所要。500ms debounce 後なので
+        // 電文行には載らない独立行 `[perf-state]`。`bytes=` は出さない — 縮退結果は wire
+        // バイト数を持たず、出すには新しい `JSON.stringify` が要るため (spec §2.6)。
+        let result: ReturnType<typeof degradeSnapshotToBudget> = null;
+        let ladders = 0;
+        perf.beginState();
+        try {
+          if (hadTickerSync) {
+            ladders += 1;
+            result = degradeSyncedStateToBudget(this.buildStateSnapshot(true));
+          }
+          if (result == null) {
+            // 接続時 snapshot と同じ縮退ラダーを安全弁として通す (recentTicker を外した後も
+            // 気象警報の全国展開等でバイト上限を超えうる)
+            ladders += 1;
+            result = degradeSnapshotToBudget(this.buildStateSnapshot(false), "state");
+          }
+        } finally {
+          perf.endState(result?.level ?? -1, ladders);
         }
         if (result == null) {
           log.warn("display hub: 縮退後も state が上限を超えたため配信をスキップしました");
