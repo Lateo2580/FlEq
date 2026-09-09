@@ -1060,17 +1060,54 @@ v2 バイト数を採っていないので判定できない**（B9）。次の�
 `sched` は 75.3ms で、しかも `serCalls=0` の行では 0 である。§3.2 の分岐 4-C
 （触らない）が実測で選ばれた形になる。**やらないとは決めない**が、順位は最後に回す。
 
-## 9. 段階 1.5: 残差の帰属分離（🌙自走OK 候補）
+## 9. 段階 1.5: 残差の帰属分離（**実装済み**、公開 main `179df2e` の上）
 
 **削減しない。計測点を足すだけ。** §8.3 の電文サイズ比例の残差が
 表示パイプラインか `outcomeTaps` かを 1 回の Pi 観測で確定させる。
 計測 spec（`2026-09-08-receipt-path-timing-log.md`）の枠組みをそのまま使う。
 
+> **進捗（2026-09-09）**: 観測点 Q1〜Q5 と内数の行末まとめを実装し、受入 **C1〜C5 は達成**
+> （`npm run build` / `npm test` 7,025 件 / `FLEQ_STANDBY_SWEEP_STRICT=1` / `test:shuffle` /
+> `typecheck:test` すべて緑。GitHub Actions は配送時に確認）。**C6〜C8 は Pi 観測待ち**で、
+> 帰属はまだ確定していない。段階 2・3 のどれにも進まない。
+>
+> 実装で入った訂正・判断は 4 点。
+>
+> 1. **`redParse` も内数側（`|` の右）へ移した。** §9.2 が名指ししたのは `serIn` / `serEnc`
+>    だけだが、§8.5 の入れ子表は `redParse` を `red` の内数と明記している。外数側に残すと
+>    `red` と二重計上になり、区切り記号の意味が壊れる
+> 2. **Q2 / Q3 の `mark` は `if (outcomeTaps)` の外に置いた。** 内側だと tap 未配線の構成
+>    （公開 main）でキーごと消え、読み手が「0」と「計測点が無い」を取り違える。外に置けば
+>    `tapA=0.0` / `tapB=0.0` が必ず出る（受入 C3 の「0 で出る」もこの形で満たす）
+> 3. **Q1 は薄いラッパから core を呼ぶ形にした**（本体を 1 段深くインデントし直さないため。
+>    計測 spec の P1 と同じ作法）。`runDisplayPipelineCore` へ本体を移し、
+>    `runDisplayPipeline` は `perf.mark("disp", ...)` だけを持つ
+> 4. **既存テストの期待値を 3 件変更した。** いずれも「`|` が入った行を読めるようにする」
+>    パーサ側の追従で、計測結果の期待値そのものは変えていない（§9.4 の詳細を参照）
+>
+> **開発機で観測した本線 1 行**（Apple M5 / Node v26.8.1、fixture
+> `15_18_01_250630_VPWS50.xml`、`displaySink` 未配線。**追補 Q6〜Q9 を入れた後**）。
+>
+> ```
+> [perf-receipt] id=w1 type=VPWS50 route=weather bytes=140995 admit=committed serCalls=2
+>   total=347.2 parse=272.7 sweepPre=6.0/nochange cap=0.0 draft=0.0 red=20.0 diff=2.4
+>   serD=1.5 serB=0.0 pre=0.1 commit=4.0 disp=39.5
+>   | dispatch=307.2 serIn=0.0 serEnc=1.4 tapA=0.0 pres=39.3 ingest=0.1
+> ```
+>
+> **外数の和 346.2 に対して `total` 347.2 で、残差は 1.0ms（0.3%）。** 追補前の同じ
+> fixture では残差 268.8ms（78%）だったので、**`parse=272.7` がそれを丸ごと説明した**。
+> `dispatch=307.2` は容器で `parse` ＋ transact 系を内包する（足さない）。
+> `disp=39.5` のうち `pres=39.3` が `toPresentationEvent` ＋ `diffStore.apply`。
+>
+> ただし開発機は `displaySink` も `outcomeTaps` の実体も無い測定で、**帰属の確定は
+> §9.5 の C6〜C8（Pi 観測）でのみ行う**。この数字で段階 2・3 の順位を決めない。
+
 ### 9.1 観測点（基準 SHA `40b3e6c` で確認済み）
 
 | # | file:line | 区間キー | 測る内容 |
 |---|---|---|---|
-| Q1 | `message-router.ts:1070`（`runDisplayPipeline` の本体全体を包む） | `disp` | 表示配信の総所要。**加算**（火山バッチ・reconcile で 1 電文に複数回立つ） |
+| Q1 | `message-router.ts:1070`（`runDisplayPipeline` を薄いラッパにし、本体は `runDisplayPipelineCore` へ移して包む） | `disp` | 表示配信の総所要。**加算**（火山バッチ・reconcile で 1 電文に複数回立つ） |
 | Q2 | `message-router.ts:1079-1094` の tap ループ | `tapA` | `outcomeTaps` の実行（`runDisplayPipeline` 入口）。**`disp` の内数** |
 | Q3 | `message-router.ts:1266-1283` の tap ループ | `tapB` | `outcomeTaps` の実行（notifier 後）。**`disp` の外**。加算 |
 | Q4 | `message-router.ts:1096-1097`（`toPresentationEvent` ＋ `diffStore.apply`） | `pres` | PresentationEvent 変換と差分適用。**`disp` の内数** |
@@ -1083,6 +1120,37 @@ v2 バイト数を採っていないので判定できない**（B9）。次の�
 
 `disp` = `tapA` ＋ `pres` ＋ `ingest` ＋ （`shouldDisplay` / `recordWindowTrackers` /
 formatter 描画）なので、**内数の和が `disp` に一致しない差分が formatter 側**になる。
+
+#### 9.1a 追補の観測点（独立レビューの指摘、2026-09-09）
+
+**Q1〜Q5 だけでは C6 に届かない。** レビューで残差の正体が特定された:
+`src/engine/presentation/processors/process-weather.ts:49` の
+`deps.parsed ?? parseWeatherWarning(msg)`（**受理経路 1 回目**の XML parse）が
+`sweepPre` より前・`transact` の外で、どの `mark` にも包まれていない。141KB で
+約 10 ms/KB、残差の傾き 13.6 ms/KB と同じ直線に乗り、109KB の残差 1,548ms のうち
+**約 1,100ms がこれ**。以下 4 本を同じ便で足した。
+
+| # | file:line | 区間キー | 位置づけ |
+|---|---|---|---|
+| Q6 | `process-weather.ts:53` | `parse` | **外数・加算**。`deps.parsed` 経由なら 0。`redParse`（2 回目）とは別 |
+| Q7 | `process-message.ts:1108`（`processMessage` を薄いラッパにし本体を `processMessageCore` へ） | `dispatch` | **内数（容器）**。weather 以外の domain の同型 parse も一括で拾う |
+| Q8 | `message-router.ts:1323` / `:1328` / `:1338` | `vptaPres` / `vptaDiff` / `vptaIng` | **外数**。VPTA50 は `runDisplayPipeline` を通らず `disp` / `pres` / `ingest` が立たない |
+| Q9 | `message-router.ts:1923` | `eewIng` | **外数**。EEW lifecycle-only の `displaySink.ingest` |
+
+> **`dispatch` を外数にしなかった理由（起草時の指定からの訂正）。** route adapter 全体は
+> `parse` と transact 系（`sweepPre` `cap` `draft` `red` `diff` `serD` `serB` `pre`
+> `commit`）を**丸ごと内側に含む**。外数として足すとそれらを二重計上し、§8.3 の残差計算が
+> 壊れる。§8.5 の規約（内数は `|` の右）に従って内数側へ置いた。**`dispatch` から内側の
+> 外数キーを引いた残りが「weather 以外の domain の同型 parse ＋ outcome 組み立て」**で、
+> 一括で拾うという狙いはこの引き算で果たせる。
+>
+> **引く外数キーは経路依存。** weather の committed 行は `transactInternalCore:923` の
+> `emitDurable()` が同期なので `save` / `sched` も `dispatch` の内側に入る（**引く**）。
+> VPTA50 / VPWP50 は `transactDeferred` で durable が `emitAcceptedVptaOutcome`
+> （`dispatch` の**外**）から出るので、`save` / `sched` は**引かない**。
+>
+> `parse` は `dispatch` の内側だが、他のどの外数キーとも重ならない（`sweepPre` の前に
+> 完結する）ので**外数のまま**で二重計上にならない。
 
 ### 9.2 出力形式
 
@@ -1105,10 +1173,25 @@ formatter 描画）なので、**内数の和が `disp` に一致しない差分
 - 計測とログのみ。**分岐・戻り値・引数・例外の伝播を変えない**
 - `mark` は `try` / `finally` で閉じ、例外はそのまま再 throw する。
   tap ループの既存の `try` / `catch`（`:1081-1091`、`:1268-1276`）の意味を変えない
-- **off のコストは現行と同等**: 分岐 1 回 ＋ クロージャ 1 個（計測 spec §3.1 と同じ）。
+- **off のコストは計測点 1 つあたり分岐 1 回 ＋ クロージャ 1 個**（計測 spec §3.1 と同じ）。
   `performance.now()` を呼ばず、collector も文字列も作らない
-- `Segment` union に `disp` / `tapA` / `tapB` / `pres` / `ingest` を足すだけで、
-  新しい伝播機構を作らない（module スコープの collector 1 個のまま）
+- `Segment` union に区間キーを足すだけで、新しい伝播機構を作らない
+  （module スコープの collector 1 個のまま）
+
+> **訂正（実装時）**: 起草時の「off のコストは**クロージャ 1 個**」は電文 1 通あたりの
+> 総量として読むと誤り。**実装後の off の実測コストは電文 1 通あたり以下**。
+>
+> | 経路 | off で作るクロージャ |
+> |---|---|
+> | `runDisplayPipeline` 1 回 | 4 個（`disp` のラッパ ＋ `tapA` / `pres` / `ingest`） |
+> | VPTA50 の emit 経路 | 4 個（`tapB` / `vptaPres` / `vptaDiff` / `vptaIng`） |
+> | route dispatch | 1 個（`dispatch`） |
+> | weather の admission | 1 個（`parse`） |
+> | EEW lifecycle-only | 1 個（`eewIng`） |
+>
+> `ingest` のクロージャは `event` / `displayIngestCapture` などを捉えるので
+> コンテキストを 1 個確保する。**Pi の受理 total が 1.9〜2.7 秒**であることに対して
+> これらは誤差だが、「1 個」という起草時の数字は実態と違うので直しておく。
 
 ### 9.4 テスト
 
@@ -1119,6 +1202,32 @@ formatter 描画）なので、**内数の和が `disp` に一致しない差分
 - 火山バッチ（`runDisplayPipeline` が複数回立つ経路）で `disp` が加算されること
 - off / on で受理結果・v2/v1 バイト列・`DisplayMutation` / `PresentationEvent` 列が一致
 - `npm run build` / `npm test` / `npm run test:shuffle` / `npm run typecheck:test`
+
+> **実装（2026-09-09）**: `test/engine/perf/receipt-timing.test.ts` に describe
+> 「§9 段階 1.5: 表示パイプラインの帰属分離」を新設し、13 件を追加した
+> （うち 5 件は §9.1a の追補キー Q6〜Q9 と包含固定）。
+>
+> - **仮想時計 helper を足した**（`withVirtualClock`）。既存の `withPerf` は 1 呼び 1 tick
+>   進む時計なので、`mark` を通ったキーは必ず 1.0 以上になり「区間が 0 か」を確かめられない。
+>   自動で進まず `advance(ms)` のぶんだけ進む時計を注入して、C3（`tapA` / `tapB` が 0.0）と
+>   「tap の中で費やした時間だけが載る」を分けて測る。**50ms の実 sleep は使わない**
+>   （壁時計に依存するテストにしない）
+> - **`routerHarness` に 3 つの opt-in を足した**: `wireOutcomeTaps: false`（`outcomeTaps` を
+>   渡さない公開 main 相当の構成）、`extraTaps`（仮想時計を進める tap）、
+>   `captureIngested`（ingest された `PresentationEvent` 列を拾う `displaySink`）。
+>   **いずれも既定 off** — 既存テストは `displaySink` 未配線のまま挙動を固定している
+> - **火山バッチ経路の fixture は用意しなかった。** 加算は `mark` の性質なので、1 receipt 内で
+>   `mark("disp")` を 2 回立てて和になることを直接固定した。**実バッチ経路で
+>   `runDisplayPipeline` が 2 回以上立つことは機械で確かめていない**（残存リスク）
+>
+> **既存テストの期待値変更 3 件**（すべて「`|` を含む行を読めるようにする」パーサ追従で、
+> 計測値の期待そのものは変えていない）。
+>
+> | # | 場所 | 変更 | 理由 |
+> |---|---|---|---|
+> | 1 | `receipt-timing.test.ts` の `RECEIPT_LINE` / `parseReceiptLine` | 区切り記号 `\| ` を受ける分岐を足し、戻り値を `segments`（外数）と `innerSegments`（内数）に分けた | §9.2 の出力形式変更。旧正規表現は `\|` を含む行を `unparsable` として throw する |
+> | 2 | 同 `A4: 区間キーの順序が固定されている` | `RECEIPT_SEGMENT_ORDER` を外数／内数の 2 本に分割し、両側の順序と「外数側に内数キーが混ざらないこと」を検査 | 順序固定の対象がキーの並びから「どちら側に出るか」へ増えた |
+> | 3 | 同 A6 の `redParse` 2 件 / `standby-serialize-reduction.test.ts` の `segmentKeys` | `redParse` を `innerSegments` から探す／キー列から `\|` トークンを除く | `redParse` を内数側へ移した（§9 の進捗記録 1） |
 
 ### 9.5 受入条件
 
@@ -1141,11 +1250,16 @@ formatter 描画）なので、**内数の和が `disp` に一致しない差分
 
 ```
 対象:
-  src/engine/messages/message-router.ts   （Q1〜Q5 の計測ラッパ）
-  src/engine/perf/receipt-timing.ts       （Segment に disp / tapA / tapB / pres / ingest
-                                            を追加、内数キーを行末へ並べ替え）
-  test/engine/perf/receipt-timing.test.ts （C1〜C4）
+  src/engine/messages/message-router.ts   （Q1〜Q5 ＋ Q8 / Q9 の計測ラッパ）
+  src/engine/presentation/processors/process-weather.ts （Q6 `parse`。追補で追加）
+  src/engine/presentation/processors/process-message.ts （Q7 `dispatch`。追補で追加）
+  src/engine/perf/receipt-timing.ts       （Segment に parse / dispatch / disp / tapA /
+                                            tapB / pres / ingest / vptaPres / vptaDiff /
+                                            vptaIng / eewIng を追加、内数キーを行末へ）
+  test/engine/perf/receipt-timing.test.ts （C1〜C4 ＋ 追補キー）
+  test/engine/display/standby-serialize-reduction.test.ts（区切り記号の読み飛ばし）
   docs/specs/2026-09-09-receipt-serialize-reduction.md（§8・§9 の追記）
+  docs/specs/2026-09-08-receipt-path-timing-log.md（§3.3 観測点表・§3.4 行形式）
 
 許容変更:
   FLEQ_PERF_RECEIPT=1 で有効化される計測ログの区間追加（既定 off）
@@ -1302,3 +1416,29 @@ formatter 描画）なので、**内数の和が `disp` に一致しない差分
    段階 1.5 の C8 で電文種別の内訳併記とあわせて採り直す
 
 `[perf-receipt-lost]` / `[perf-turn-lost]` は 0 行、`heapDeltaMB` は 52MB で横ばい。
+
+### 2026-09-09 段階 1.5 実装（公開 main `179df2e` の上、Pi 未反映）
+
+観測点 Q1〜Q5（`disp` / `tapA` / `tapB` / `pres` / `ingest`）を実装し、内数キーを `|` の
+右へまとめた。**削減は 1 行も入れていない。** 受入 C1〜C5 達成、C6〜C8 は Pi 観測待ちで
+**残差の帰属はまだ確定していない**。実装で入った訂正・判断 4 点と既存テストの期待値変更
+3 件は §9 の進捗記録と §9.4 に記載。計測 spec 側は §3.3 の観測点表に Q1〜Q5 を、§3.4 に
+`|` 区切りの行形式表を追記した。
+
+**同じ便で独立レビューの指摘を反映し、観測点を 4 本足した**（§9.1a、**(b) 検証機構の
+都合**の修正。製品挙動は 1 行も変えていない）。
+
+1. **残差の正体が特定された。** `process-weather.ts` の受理経路 1 回目の XML parse が
+   どの区間にも入っておらず、109KB の残差 1,548ms のうち約 1,100ms がこれ。`parse`
+   （外数）で包んだ
+2. **`dispatch`（route adapter 全体）を足した。** weather 以外の domain の同型 parse を
+   一括で拾う。ただし**起草時の指定「外数」は訂正して内数側へ置いた** — `parse` と
+   transact 系を丸ごと含む容器キーで、外数として足すと二重計上になるため
+3. **VPTA50 経路（`vptaPres` / `vptaDiff` / `vptaIng`）と EEW lifecycle-only（`eewIng`）**
+   を足した。この 2 経路は `runDisplayPipeline` を通らず、`disp` / `pres` / `ingest` が
+   立たないまま丸ごと未帰属だった
+4. **§9.3 の「off のコストはクロージャ 1 個」を実態に訂正**（表示パイプライン 1 回あたり
+   4 個ほか）。**§9.1 Q1 の「本体全体を包む」もラッパ方式に訂正**
+5. **テストの包含固定を埋めた。** `pres` / `ingest` は仮想時計で両方 0 を見ているだけ
+   だったので、`displaySink` で時間を使う経路と、`disp` の直前・直後に時間を使っても
+   `disp` に入らないことを足した

@@ -17,9 +17,24 @@ import * as log from "../../logger";
 /**
  * 電文行 `[perf-receipt]` に載る区間キー。出力順もこの並びで固定する。
  *
- * `serIn` / `serEnc` は `serD` / `serB` / `save` の**内数**で、1 電文ぶんを合算する
- * (`redParse` が `red` の内数なのと同じ読み方。入れ子は親から引かない)。
- * `sched` は `scheduleSerializedPair` — commit 後の pair を pending に載せるまで。
+ * 入れ子は親から引かない。**内数キーは区切り記号 `|` の右へまとめて出す**
+ * (削減 spec `2026-09-09-receipt-serialize-reduction.md` §8.5 / §9.2)。
+ * 左側だけを足せば残差が出る形にするための規約で、`|` の右を足すと二重計上になる。
+ *
+ * - `serIn` / `serEnc` は `serD` ＋ `serB` ＋ `save` の内数 (実測で差 0.4〜1.1ms)
+ * - `redParse` は `red` の内数 (段階 1 の E で受理経路からは消えた)
+ * - `sched` は `scheduleSerializedPair` — commit 後の pair を pending に載せるまで
+ * - `disp` は `runDisplayPipeline` 全体。`tapA` / `pres` / `ingest` はその内数
+ * - `tapB` は notifier 後の tap ループ (VPTA50 経路) で `disp` の**外**
+ * - `parse` は受理経路 1 回目の XML parse。`sweepPre` より前・`transact` の外
+ * - `vptaPres` / `vptaDiff` / `vptaIng` は VPTA50 専用の表示経路 (`disp` は立たない)
+ * - `eewIng` は EEW lifecycle-only の表示配信。`displaySink.ingest` だけでなく、
+ *   引数を作る `toPresentationEvent` も内包する
+ * - **`dispatch` だけは容器キー。** route adapter 全体なので `parse` と transact 系
+ *   (`sweepPre` `cap` `draft` `red` `diff` `serD` `serB` `pre` `commit`) を丸ごと内側に
+ *   含む。外数として足すとそれらを二重計上するので内数側に置く。`dispatch` から内側の
+ *   外数キーを引いた残りが「weather 以外の domain の同型 parse ＋ outcome 組み立て」。
+ *   **どのキーを引くかは経路依存** — 削減 spec §9.1a を参照
  */
 export type Segment =
   | "sweepPre"
@@ -35,23 +50,50 @@ export type Segment =
   | "pre"
   | "commit"
   | "save"
-  | "sched";
+  | "sched"
+  | "parse"
+  | "dispatch"
+  | "disp"
+  | "tapA"
+  | "tapB"
+  | "pres"
+  | "ingest"
+  | "vptaPres"
+  | "vptaDiff"
+  | "vptaIng"
+  | "eewIng";
 
-const RECEIPT_SEGMENT_ORDER: readonly Segment[] = [
+/** 外数 (加算して残差を出す対象)。この並びで `|` の左に出る。 */
+const RECEIPT_OUTER_SEGMENT_ORDER: readonly Segment[] = [
+  "parse",
   "sweepPre",
   "cap",
   "draft",
   "red",
-  "redParse",
   "diff",
   "serD",
   "serB",
-  "serIn",
-  "serEnc",
   "pre",
   "commit",
   "save",
   "sched",
+  "disp",
+  "tapB",
+  "vptaPres",
+  "vptaDiff",
+  "vptaIng",
+  "eewIng",
+];
+
+/** 内数 (親の中に含まれる)。この並びで `|` の右に出る。 */
+const RECEIPT_INNER_SEGMENT_ORDER: readonly Segment[] = [
+  "dispatch",
+  "redParse",
+  "serIn",
+  "serEnc",
+  "tapA",
+  "pres",
+  "ingest",
 ];
 
 /** `sweepAll` の成功出口 3 つ。到達しなかった場合 (rejected / staleVersion) は `skipped`。 */
@@ -248,7 +290,7 @@ export function endReceipt(): void {
     + ` route=${active.route} bytes=${active.bytes}`
     + ` admit=${active.admission ?? "none"} serCalls=${active.serCalls}`
     + ` total=${ms(total)}`;
-  for (const segment of RECEIPT_SEGMENT_ORDER) {
+  for (const segment of RECEIPT_OUTER_SEGMENT_ORDER) {
     const value = active.segments[segment];
     // 区間キーが立たなかった場合はそのキーごと出さない (値 0 と「未通過」を混同させない)。
     if (value == null) continue;
@@ -256,6 +298,14 @@ export function endReceipt(): void {
       ? ` sweepPre=${ms(value)}/${active.sweepPath ?? "skipped"}`
       : ` ${segment}=${ms(value)}`;
   }
+  // 内数は `|` の右へまとめる。1 つも立たなければ区切り記号ごと出さない。
+  let inner = "";
+  for (const segment of RECEIPT_INNER_SEGMENT_ORDER) {
+    const value = active.segments[segment];
+    if (value == null) continue;
+    inner += ` ${segment}=${ms(value)}`;
+  }
+  if (inner.length > 0) line += ` |${inner}`;
   log.info(line);
 }
 

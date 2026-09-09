@@ -349,7 +349,10 @@ function serCallsOf(lines: string[]): number {
 function segmentKeys(lines: string[]): string[] {
   const line = lines.find((entry) => entry.startsWith("[perf-receipt] "));
   if (line == null) throw new Error("no [perf-receipt] line");
-  return line.split(" ").slice(8).map((token) => token.split("=")[0]);
+  // 削減 spec §9.2 で内数キーが `|` の右へ移った。区切り記号そのものはキーではない。
+  return line.split(" ").slice(8)
+    .filter((token) => token !== "|")
+    .map((token) => token.split("=")[0]);
 }
 
 /**

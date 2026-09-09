@@ -46,7 +46,11 @@ function processWeatherWithAdmission(
 ): WeatherProcessResult {
   const coordinator = deps.persistenceAdmission!;
   const key = msg.head.type === "VPWW56" ? "weather:VPWW56" : "weather:VPWS50";
-  const parsed = deps.parsed ?? parseWeatherWarning(msg);
+  // 削減 spec `2026-09-09-receipt-serialize-reduction.md` §9 追補: 受理経路 **1 回目**の
+  // XML parse。`sweepPre` より前・`transact` の外なので、これまでどの区間にも入らず
+  // 残差 (電文サイズ比例、約 13.6 ms/KB) の主項になっていた。`deps.parsed` が来ている
+  // ときは何もしないので 0 で立つ。**`redParse` (reducer 内の 2 回目) とは別のキー。**
+  const parsed = perf.mark("parse", () => deps.parsed ?? parseWeatherWarning(msg));
   if (parsed == null) return { kind: "parse-failed" };
   if (!sweepStandbyBeforeAdmission(coordinator, key, parsed.meta.receivedAtMs)) {
     return { kind: "suppressed" };

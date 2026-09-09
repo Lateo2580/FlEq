@@ -24,7 +24,11 @@ import {
   mark,
   receiptPerfEnabled,
 } from "../../../src/engine/perf/receipt-timing";
-import { createMessageHandler } from "../../../src/engine/messages/message-router";
+import {
+  createMessageHandler,
+  type ProcessedOutcomeTap,
+} from "../../../src/engine/messages/message-router";
+import type { PresentationEvent } from "../../../src/engine/presentation/types";
 import { processWeather } from "../../../src/engine/presentation/processors/process-weather";
 import {
   StandbyPersistenceAdmissionCoordinator,
@@ -64,31 +68,64 @@ const SERIALIZATION_ENVELOPE = {
   savedAt: "2026-09-08T00:00:00.000Z",
 } as const;
 
-/** 電文行の必須 7 キーと、順序だけ固定した区間キー (§4.2)。 */
-const RECEIPT_SEGMENT_ORDER = [
+/**
+ * 電文行の必須 7 キーと、順序だけ固定した区間キー (§4.2)。
+ *
+ * 削減 spec `2026-09-09-receipt-serialize-reduction.md` §8.5 / §9.2 の入れ子規約で
+ * **外数と内数を `|` で分ける**ようになった。左が加算対象、右が親の内数。
+ */
+const RECEIPT_OUTER_SEGMENT_ORDER = [
+  // 削減 spec §9 追補。受理経路 1 回目の XML parse (`sweepPre` より前・transact の外)。
+  "parse",
   "sweepPre",
   "cap",
   "draft",
   "red",
-  "redParse",
   "diff",
   "serD",
   "serB",
-  // 削減 spec `2026-09-09-receipt-serialize-reduction.md` §3.1 M2 で足した内訳区間。
-  "serIn",
-  "serEnc",
   "pre",
   "commit",
   "save",
-  // 同 §3.1 M1。`scheduleSerializedPair` (validateCapturedPair) の所要。
+  // 削減 spec §3.1 M1。`scheduleSerializedPair` (validateCapturedPair) の所要。
   "sched",
+  // 同 §9.1 Q1 / Q3。`disp` は runDisplayPipeline 全体、`tapB` は notifier 後の tap。
+  "disp",
+  "tapB",
+  // 同 §9 追補。VPTA50 / EEW は `disp` を通らないので専用キーで拾う。
+  "vptaPres",
+  "vptaDiff",
+  "vptaIng",
+  "eewIng",
 ] as const;
+
+const RECEIPT_INNER_SEGMENT_ORDER = [
+  // 容器キー。`parse` と transact 系を丸ごと含むので外数として足せない (§9 追補)。
+  "dispatch",
+  "redParse",
+  // 削減 spec §3.1 M2 で足した内訳区間 (`serD` ＋ `serB` ＋ `save` の内数)。
+  "serIn",
+  "serEnc",
+  // 同 §9.1 Q2 / Q4 / Q5。いずれも `disp` の内数。
+  "tapA",
+  "pres",
+  "ingest",
+] as const;
+
+const SEGMENT_TOKENS = "(?: [A-Za-z]+=-?\\d+\\.\\d(?:/(?:precheck|nochange|full|skipped))?)*";
 
 const RECEIPT_LINE = new RegExp(
   "^\\[perf-receipt\\] id=(\\S*) type=(\\S+) route=(\\S+) bytes=(\\d+)"
   + " admit=(\\S+) serCalls=(\\d+) total=(-?\\d+\\.\\d)"
-  + "((?: [A-Za-z]+=-?\\d+\\.\\d(?:/(?:precheck|nochange|full|skipped))?)*)$",
+  + `(${SEGMENT_TOKENS})`
+  + `(?: \\|((?: [A-Za-z]+=-?\\d+\\.\\d)+))?$`,
 );
+
+interface Segment {
+  key: string;
+  value: number;
+  suffix: string | null;
+}
 
 interface ParsedReceipt {
   id: string;
@@ -98,19 +135,25 @@ interface ParsedReceipt {
   admit: string;
   serCalls: number;
   total: number;
-  segments: { key: string; value: number; suffix: string | null }[];
+  /** `|` の左 (外数)。 */
+  segments: Segment[];
+  /** `|` の右 (内数)。残差の計算には使わない。 */
+  innerSegments: Segment[];
+}
+
+function parseSegmentTail(tail: string | undefined): Segment[] {
+  const trimmed = (tail ?? "").trim();
+  if (trimmed.length === 0) return [];
+  return trimmed.split(" ").map((token) => {
+    const [key, raw] = token.split("=");
+    const [value, suffix] = raw.split("/");
+    return { key, value: Number(value), suffix: suffix ?? null };
+  });
 }
 
 function parseReceiptLine(line: string): ParsedReceipt {
   const matched = RECEIPT_LINE.exec(line);
   if (matched == null) throw new Error(`unparsable [perf-receipt] line: ${line}`);
-  const segments = (matched[8] ?? "").trim().length === 0
-    ? []
-    : matched[8].trim().split(" ").map((token) => {
-        const [key, raw] = token.split("=");
-        const [value, suffix] = raw.split("/");
-        return { key, value: Number(value), suffix: suffix ?? null };
-      });
   return {
     id: matched[1],
     type: matched[2],
@@ -119,7 +162,8 @@ function parseReceiptLine(line: string): ParsedReceipt {
     admit: matched[5],
     serCalls: Number(matched[6]),
     total: Number(matched[7]),
-    segments,
+    segments: parseSegmentTail(matched[8]),
+    innerSegments: parseSegmentTail(matched[9]),
   };
 }
 
@@ -148,6 +192,29 @@ function withPerf<T>(
   const captured = capturePerfLines();
   try {
     return run({ lines: captured.lines, clockCalls: () => clockCalls });
+  } finally {
+    captured.restore();
+    __test_setReceiptPerfClock(previousClock);
+    __test_setReceiptPerfEnabled(previousEnabled);
+  }
+}
+
+/**
+ * 仮想時計版の `withPerf`。時計は**自動では進まず**、`advance()` を呼んだぶんだけ進む。
+ *
+ * `withPerf` の 1 呼び 1 tick 時計だと「区間が 0 か」を確かめられない (mark を通ると
+ * 必ず 1.0 になる)。tap 未配線で `tapA=0.0` になること (C3) と、tap の中で費やした
+ * 時間だけが `tapA` / `tapB` に載ること (§9.4) を分けて測るために使う。
+ */
+function withVirtualClock<T>(
+  run: (ctx: { lines: string[]; advance: (ms: number) => void }) => T,
+): T {
+  let now = 0;
+  const previousEnabled = __test_setReceiptPerfEnabled(true);
+  const previousClock = __test_setReceiptPerfClock(() => now);
+  const captured = capturePerfLines();
+  try {
+    return run({ lines: captured.lines, advance: (delta) => { now += delta; } });
   } finally {
     captured.restore();
     __test_setReceiptPerfClock(previousClock);
@@ -342,13 +409,32 @@ function eewMessage(id = "vxse45-perf"): WsDataMessage {
 interface RouterHarness {
   handler: (message: WsDataMessage) => void;
   outcomes: unknown[];
+  ingested: PresentationEvent[];
   coordinator: StandbyPersistenceAdmissionCoordinator;
   depsCalls: () => number;
 }
 
-function routerHarness(options: { isolateEewLogger?: boolean } = {}): RouterHarness {
+function routerHarness(options: {
+  isolateEewLogger?: boolean;
+  /** 追加の tap。`wireOutcomeTaps: false` のときは配線しない。 */
+  extraTaps?: readonly ProcessedOutcomeTap[];
+  /** `false` で `outcomeTaps` を渡さない構成 (公開 main 相当)。既定は配線する。 */
+  wireOutcomeTaps?: boolean;
+  /**
+   * `true` で ingest された `PresentationEvent` 列を拾う sink を配線する。
+   * 既定 off — 既存テストは `displaySink` 未配線のまま挙動を固定している。
+   */
+  captureIngested?: boolean;
+  /** `captureIngested` の sink が呼ばれるたびに走る hook (仮想時計を進めるのに使う)。 */
+  onIngest?: () => void;
+} = {}): RouterHarness {
   const harness = makeHarness({ wireDurableSave: true });
   const outcomes: unknown[] = [];
+  const ingested: PresentationEvent[] = [];
+  const taps: ProcessedOutcomeTap[] = [
+    (outcome) => { outcomes.push(outcome); },
+    ...(options.extraTaps ?? []),
+  ];
   const router = createMessageHandler({
     clock: { nowMs: () => CLASSIFICATION_NOW },
     // 既定の `new EewEventLogger()` は作業ディレクトリの `eew-logs/` へ実書き込みし、
@@ -369,13 +455,24 @@ function routerHarness(options: { isolateEewLogger?: boolean } = {}): RouterHarn
     tsunamiState: harness.owners.tsunamiState,
     volcanoState: harness.owners.volcanoState,
     floodForecastState: harness.owners.floodForecastState,
-    outcomeTaps: [(outcome) => { outcomes.push(outcome); }],
+    ...(options.wireOutcomeTaps === false ? {} : { outcomeTaps: taps }),
+    ...(options.captureIngested === true
+      ? {
+          displaySink: {
+            ingest: (event: PresentationEvent) => {
+              ingested.push(event);
+              options.onIngest?.();
+            },
+          },
+        }
+      : {}),
     onVptaAdmissionCompletion: () => ({ kind: "notRequired" as const }),
     withStandbyDurableNotificationsSuppressed: (callback) => callback(),
   });
   return {
     handler: (message) => router.handler(message),
     outcomes,
+    ingested,
     coordinator: harness.coordinator,
     depsCalls: harness.depsCalls,
   };
@@ -442,11 +539,19 @@ describe("§4.2 on の行フォーマット検証", () => {
       return [...ctx.lines];
     });
     const parsed = parseReceiptLine(lines.filter((l) => l.startsWith("[perf-receipt] "))[0]);
-    const keys = parsed.segments.map((segment) => segment.key);
-    for (const key of keys) expect(RECEIPT_SEGMENT_ORDER).toContain(key);
-    const positions = keys.map((key) => RECEIPT_SEGMENT_ORDER.indexOf(key as never));
-    expect(positions).toEqual([...positions].sort((a, b) => a - b));
-    expect(new Set(keys).size).toBe(keys.length);
+    const outerKeys = parsed.segments.map((segment) => segment.key);
+    for (const key of outerKeys) expect(RECEIPT_OUTER_SEGMENT_ORDER).toContain(key);
+    const outerPositions = outerKeys.map((key) => RECEIPT_OUTER_SEGMENT_ORDER.indexOf(key as never));
+    expect(outerPositions).toEqual([...outerPositions].sort((a, b) => a - b));
+    expect(new Set(outerKeys).size).toBe(outerKeys.length);
+
+    // §9.2: 内数は `|` の右へまとまり、外数側には 1 つも混ざらない。
+    const innerKeys = parsed.innerSegments.map((segment) => segment.key);
+    for (const key of innerKeys) expect(RECEIPT_INNER_SEGMENT_ORDER).toContain(key);
+    const innerPositions = innerKeys.map((key) => RECEIPT_INNER_SEGMENT_ORDER.indexOf(key as never));
+    expect(innerPositions).toEqual([...innerPositions].sort((a, b) => a - b));
+    expect(new Set(innerKeys).size).toBe(innerKeys.length);
+    for (const key of outerKeys) expect(RECEIPT_INNER_SEGMENT_ORDER).not.toContain(key);
   });
 
   /**
@@ -463,7 +568,7 @@ describe("§4.2 on の行フォーマット検証", () => {
     const parsed = parseReceiptLine(lines.filter((l) => l.startsWith("[perf-receipt] "))[0]);
     const red = parsed.segments.find((segment) => segment.key === "red");
     expect(red).toBeDefined();
-    expect(parsed.segments.find((segment) => segment.key === "redParse")).toBeUndefined();
+    expect(parsed.innerSegments.find((segment) => segment.key === "redParse")).toBeUndefined();
     expect(parsed.segments.find((segment) => segment.key === "sweepPre")?.suffix).toBe("nochange");
   });
 
@@ -476,7 +581,8 @@ describe("§4.2 on の行フォーマット検証", () => {
     });
     const parsed = parseReceiptLine(lines.filter((l) => l.startsWith("[perf-receipt] "))[0]);
     const red = parsed.segments.find((segment) => segment.key === "red");
-    const redParse = parsed.segments.find((segment) => segment.key === "redParse");
+    // §8.5 の入れ子表どおり `redParse` は `red` の内数なので `|` の右に出る。
+    const redParse = parsed.innerSegments.find((segment) => segment.key === "redParse");
     expect(red).toBeDefined();
     expect(redParse).toBeDefined();
     // 入れ子は親から引かない。`red` のうち `redParse` が内数になる (§3.2)。
@@ -851,6 +957,235 @@ describe("§4.4 / §4.5 挙動不変の検証", () => {
     expect(off.bigStringifyCalls + off.bigStructuredCloneCalls).toBeGreaterThan(0);
     expect(on.bigStringifyCalls).toBe(off.bigStringifyCalls);
     expect(on.bigStructuredCloneCalls).toBe(off.bigStructuredCloneCalls);
+  });
+});
+
+// ── C1〜C4: 段階 1.5 の残差帰属 ───────────────────────────────
+
+/**
+ * 削減 spec `2026-09-09-receipt-serialize-reduction.md` §9 段階 1.5 の受入 C1〜C4。
+ *
+ * **削減はしない。計測点を足すだけ。** §8.3 の「電文サイズに比例する残差」が
+ * 表示パイプラインか `outcomeTaps` かを Pi 1 窓で切り分けるための区間を固定する。
+ */
+describe("§9 段階 1.5: 表示パイプラインの帰属分離", () => {
+  function receiptOf(lines: string[]): ParsedReceipt {
+    const receipts = lines.filter((line) => line.startsWith("[perf-receipt] "));
+    expect(receipts).toHaveLength(1);
+    return parseReceiptLine(receipts[0]);
+  }
+
+  function valueOf(segments: Segment[], key: string): number | undefined {
+    return segments.find((segment) => segment.key === key)?.value;
+  }
+
+  it("C1: off では disp / tapA / tapB / pres / ingest でも時計を 1 回も呼ばない", () => {
+    const captured = withPerf(false, (ctx) => {
+      const router = routerHarness({ captureIngested: true });
+      router.handler(vpws50Message("stage15-off"));
+      return { clockCalls: ctx.clockCalls(), lines: [...ctx.lines] };
+    });
+    expect(captured.clockCalls).toBe(0);
+    expect(captured.lines).toEqual([]);
+  });
+
+  it("C2: disp が外数に、pres / ingest / tapA が内数に出て和が disp を超えない", () => {
+    const lines = withPerf(true, (ctx) => {
+      const router = routerHarness({ captureIngested: true });
+      router.handler(vpws50Message("stage15-disp"));
+      return [...ctx.lines];
+    });
+    const parsed = receiptOf(lines);
+    const disp = valueOf(parsed.segments, "disp");
+    expect(disp).toBeDefined();
+    const tapA = valueOf(parsed.innerSegments, "tapA");
+    const pres = valueOf(parsed.innerSegments, "pres");
+    const ingest = valueOf(parsed.innerSegments, "ingest");
+    expect(tapA).toBeDefined();
+    expect(pres).toBeDefined();
+    expect(ingest).toBeDefined();
+    // 内数は親から引かない。和が親を超えたら包む範囲がずれている。
+    expect(tapA! + pres! + ingest!).toBeLessThanOrEqual(disp!);
+    // 外数側に内数キーが混ざっていないこと (§9.2 の区切り規約)。
+    for (const key of ["tapA", "pres", "ingest"]) {
+      expect(valueOf(parsed.segments, key)).toBeUndefined();
+    }
+  });
+
+  it("C3: outcomeTaps を渡さない構成 (main 相当) でも tapA が 0.0 で出る", () => {
+    const lines = withVirtualClock((ctx) => {
+      const router = routerHarness({ wireOutcomeTaps: false, captureIngested: true });
+      router.handler(vpws50Message("stage15-notaps"));
+      return [...ctx.lines];
+    });
+    const parsed = receiptOf(lines);
+    // キーごと消すのではなく 0.0 で出す。「0」と「計測点が無い」を取り違えさせない。
+    expect(valueOf(parsed.innerSegments, "tapA")).toBe(0);
+    expect(valueOf(parsed.segments, "disp")).toBe(0);
+  });
+
+  it("C3: outcomeTaps を渡さない VPTA50 経路でも tapB が 0.0 で出る", () => {
+    const lines = withVirtualClock((ctx) => {
+      const router = routerHarness({ wireOutcomeTaps: false, captureIngested: true });
+      router.handler(vpta50Message("stage15-notaps-vpta"));
+      return [...ctx.lines];
+    });
+    expect(valueOf(receiptOf(lines).segments, "tapB")).toBe(0);
+  });
+
+  it("§9.4: tap の中で費やした時間が tapA に載り、disp の内数になる", () => {
+    const lines = withVirtualClock((ctx) => {
+      const router = routerHarness({
+        captureIngested: true,
+        extraTaps: [() => { ctx.advance(50); }],
+      });
+      router.handler(vpws50Message("stage15-slowtap"));
+      return [...ctx.lines];
+    });
+    const parsed = receiptOf(lines);
+    expect(valueOf(parsed.innerSegments, "tapA")).toBeGreaterThanOrEqual(50);
+    expect(valueOf(parsed.segments, "disp")).toBeGreaterThanOrEqual(50);
+    // tapA 以外は仮想時計を進めていないので、disp のちょうど内数として立つ。
+    expect(valueOf(parsed.innerSegments, "pres")).toBe(0);
+    expect(valueOf(parsed.innerSegments, "ingest")).toBe(0);
+  });
+
+  it("§9.4: VPTA50 経路の tap は tapB に載り、disp の外数として立つ", () => {
+    const lines = withVirtualClock((ctx) => {
+      const router = routerHarness({
+        captureIngested: true,
+        extraTaps: [() => { ctx.advance(30); }],
+      });
+      router.handler(vpta50Message("stage15-slowtap-vpta"));
+      return [...ctx.lines];
+    });
+    const parsed = receiptOf(lines);
+    expect(valueOf(parsed.segments, "tapB")).toBeGreaterThanOrEqual(30);
+  });
+
+  it("§9.4: displaySink で費やした時間が ingest に載り、pres / tapA には載らない", () => {
+    const lines = withVirtualClock((ctx) => {
+      const router = routerHarness({
+        captureIngested: true,
+        onIngest: () => { ctx.advance(40); },
+      });
+      router.handler(vpws50Message("stage15-slowsink"));
+      return [...ctx.lines];
+    });
+    const parsed = receiptOf(lines);
+    expect(valueOf(parsed.innerSegments, "ingest")).toBeGreaterThanOrEqual(40);
+    expect(valueOf(parsed.segments, "disp")).toBeGreaterThanOrEqual(40);
+    // 同じ `disp` の中の別の内数へは漏れない (Q2 / Q4 / Q5 の切れ目の固定)。
+    expect(valueOf(parsed.innerSegments, "pres")).toBe(0);
+    expect(valueOf(parsed.innerSegments, "tapA")).toBe(0);
+  });
+
+  it("§9.3: disp の直前・直後に費やした時間は disp に入らない", () => {
+    const lines = withVirtualClock((ctx) => {
+      withReceipt({ id: "stage15-bounds" }, () => {
+        ctx.advance(11); // disp の手前
+        mark("disp", () => {
+          mark("pres", () => ctx.advance(3));
+          mark("ingest", () => ctx.advance(2));
+        });
+        ctx.advance(13); // disp の後ろ
+      });
+      return [...ctx.lines];
+    });
+    const parsed = receiptOf(lines);
+    // 内側で費やした 3 ＋ 2 ちょうど。前後の 11 / 13 は total 側にだけ乗る。
+    expect(valueOf(parsed.segments, "disp")).toBe(5);
+    expect(valueOf(parsed.innerSegments, "pres")).toBe(3);
+    expect(valueOf(parsed.innerSegments, "ingest")).toBe(2);
+    expect(parsed.total).toBe(29);
+  });
+
+  /**
+   * `parse` が立つのは admission 経路 (`processWeatherWithAdmission`) だけ。
+   * `processWeather` を deps 無しで直接呼ぶ経路は `redParse` 側 (2 回目) を通るので、
+   * ここは router 経由で確かめる。
+   */
+  it("§9 追補: 受理経路で 1 回目の XML parse が parse キーに載り、外数側に出る", () => {
+    const lines = withPerf(true, (ctx) => {
+      const router = routerHarness({ captureIngested: true });
+      router.handler(vpws50Message("stage15-dispatch"));
+      return [...ctx.lines];
+    });
+    const parsed = receiptOf(lines);
+    const parse = valueOf(parsed.segments, "parse");
+    expect(parse).toBeDefined();
+    // 容器キー `dispatch` は内数側。`parse` はその内側だが外数として 1 回だけ足す。
+    const dispatch = valueOf(parsed.innerSegments, "dispatch");
+    expect(dispatch).toBeDefined();
+    expect(parse!).toBeLessThanOrEqual(dispatch!);
+    expect(valueOf(parsed.segments, "dispatch")).toBeUndefined();
+    expect(valueOf(parsed.innerSegments, "parse")).toBeUndefined();
+    // `dispatch` は transact 系の外数キーも内側に含む。二重計上しない側にいること。
+    for (const key of ["sweepPre", "cap", "red", "serD"]) {
+      const outer = valueOf(parsed.segments, key);
+      if (outer != null) expect(outer).toBeLessThanOrEqual(dispatch!);
+    }
+  });
+
+  it("§9 追補: parse は時間を積まなくてもキーごと消えず 0.0 で出る", () => {
+    const lines = withVirtualClock((ctx) => {
+      const router = routerHarness({ captureIngested: true });
+      router.handler(vpws50Message("stage15-parse-reuse"));
+      return [...ctx.lines];
+    });
+    // 仮想時計を誰も進めないので、再利用でも新規 parse でも 0.0。
+    // ここで固定したいのは「キーが必ず立つ」ことの方 (0 と未通過を分ける)。
+    expect(valueOf(receiptOf(lines).segments, "parse")).toBe(0);
+  });
+
+  it("§9 追補: VPTA50 経路は disp を通らず vptaPres / vptaDiff / vptaIng で拾う", () => {
+    const lines = withVirtualClock((ctx) => {
+      const router = routerHarness({
+        captureIngested: true,
+        onIngest: () => { ctx.advance(25); },
+      });
+      router.handler(vpta50Message("stage15-vpta-keys"));
+      return [...ctx.lines];
+    });
+    const parsed = receiptOf(lines);
+    expect(valueOf(parsed.segments, "vptaPres")).toBeDefined();
+    expect(valueOf(parsed.segments, "vptaDiff")).toBeDefined();
+    expect(valueOf(parsed.segments, "vptaIng")).toBeGreaterThanOrEqual(25);
+    // この経路では汎用 pipeline を通らないので `disp` は立たない。
+    expect(valueOf(parsed.segments, "disp")).toBeUndefined();
+    for (const key of ["vptaPres", "vptaDiff", "vptaIng"]) {
+      expect(valueOf(parsed.innerSegments, key)).toBeUndefined();
+    }
+  });
+
+  it("§9.4: disp は加算される (1 電文で runDisplayPipeline が複数回立つ経路)", () => {
+    const lines = withVirtualClock((ctx) => {
+      withReceipt({ id: "stage15-accum" }, () => {
+        mark("disp", () => ctx.advance(10));
+        mark("disp", () => ctx.advance(7));
+      });
+      return [...ctx.lines];
+    });
+    expect(valueOf(receiptOf(lines).segments, "disp")).toBe(17);
+  });
+
+  it("C4: off / on で ingest された PresentationEvent 列が完全一致する", () => {
+    function runFixture(): string {
+      const router = routerHarness({ captureIngested: true });
+      router.handler(vpws50Message("stage15-invariance"));
+      return canonicalJson(router.ingested);
+    }
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-09-08T00:00:00.000Z"));
+    try {
+      const off = withPerf(false, () => runFixture());
+      const on = withPerf(true, () => runFixture());
+      // 「空 === 空」の検査にならないこと。
+      expect(off.length).toBeGreaterThan(2);
+      expect(on).toBe(off);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
 

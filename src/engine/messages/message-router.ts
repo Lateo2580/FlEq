@@ -1074,68 +1074,98 @@ export function createMessageHandler(options?: MessageHandlerOptions): MessageHa
     displayIngestOverride?: DisplayIngestOperation,
     displayIngestCapture?: DisplayIngestCapture,
   ): boolean {
+    // 削減 spec `2026-09-09-receipt-serialize-reduction.md` §9.1 Q1: 表示配信の総所要。
+    // 本体を 1 段深くインデントし直さないよう、薄いラッパから core を呼ぶ (P1 と同じ作法)。
+    // **加算**する — 火山バッチ・reconcile では 1 電文で複数回立つ。
+    return perf.mark("disp", () => runDisplayPipelineCore(
+      outcome,
+      displayFn,
+      statsAtMs,
+      displayIngestOverride,
+      displayIngestCapture,
+    ));
+  }
+
+  function runDisplayPipelineCore(
+    outcome: ProcessOutcome | VolcanoBatchOutcome,
+    displayFn: () => void,
+    statsAtMs?: number,
+    displayIngestOverride?: DisplayIngestOperation,
+    displayIngestCapture?: DisplayIngestCapture,
+  ): boolean {
     // 処理済み outcome の汎用 tap (filter 非適用: shouldDisplay の判定より前)。
     // 線形ルート・火山単発・火山バッチの全 outcome がここを通る。例外は本体へ波及させない。
-    if (outcomeTaps) {
-      for (const tap of outcomeTaps) {
-        try {
-          const result = tap(outcome) as unknown;
-          if (result instanceof Promise) {
-            result.catch((e: unknown) => {
-              log.warn(`[outcome-tap] async tap の reject: ${describeTapError(e)}`);
-            });
+    // §9.1 Q2 (`tapA`、`disp` の内数): mark は `if` の外に置く。tap 未配線の構成 (main 相当)
+    // でも `tapA=0.0` が出て、「0」と「計測点が無い」を読み手が取り違えないようにする。
+    perf.mark("tapA", () => {
+      if (outcomeTaps) {
+        for (const tap of outcomeTaps) {
+          try {
+            const result = tap(outcome) as unknown;
+            if (result instanceof Promise) {
+              result.catch((e: unknown) => {
+                log.warn(`[outcome-tap] async tap の reject: ${describeTapError(e)}`);
+              });
+            }
+          } catch (e) {
+            log.warn(`[outcome-tap] tap 実行で例外: ${describeTapError(e)}`);
           }
-        } catch (e) {
-          log.warn(`[outcome-tap] tap 実行で例外: ${describeTapError(e)}`);
+          // tap が同期再入 overload を捕捉しても sticky latch はここで必ず観測する。
+          assertSerializerHealthy();
         }
-        // tap が同期再入 overload を捕捉しても sticky latch はここで必ず観測する。
-        assertSerializerHealthy();
       }
-    }
+    });
 
-    const rawEvent: PresentationEvent = toPresentationEvent(outcome);
-    const event = diffStore.apply(rawEvent);
+    // §9.1 Q4 (`pres`、`disp` の内数): PresentationEvent 変換と差分適用。
+    const event = perf.mark("pres", (): PresentationEvent => {
+      const rawEvent: PresentationEvent = toPresentationEvent(outcome);
+      return diffStore.apply(rawEvent);
+    });
 
     const displayed = shouldDisplay(event, pipeline);
     recordWindowTrackers(event, displayed, statsAtMs); // ← ingest より先 (1 イベント遅れ防止)
-    try {
-      const isVolcanoBatch =
-        outcome.domain === "volcano" && "isBatch" in outcome && outcome.isBatch === true;
-      if (isVolcanoBatch && outcome.sources.length > 0) {
-        for (const volcanoEvent of expandVolcanoBatchForDisplay(outcome)) {
-          const result = displaySink?.ingest(volcanoEvent);
+    // §9.1 Q5 (`ingest`、`disp` の内数): displaySink への流し込みと SSE broadcast。
+    // 既存の `try` / `catch` の意味は変えない (表示系の障害を本体に波及させない)。
+    perf.mark("ingest", () => {
+      try {
+        const isVolcanoBatch =
+          outcome.domain === "volcano" && "isBatch" in outcome && outcome.isBatch === true;
+        if (isVolcanoBatch && outcome.sources.length > 0) {
+          for (const volcanoEvent of expandVolcanoBatchForDisplay(outcome)) {
+            const result = displaySink?.ingest(volcanoEvent);
+            const tickerResult = tickerResultOf(result);
+            const cardResult = cardResultOf(result);
+            if (displayIngestCapture != null) {
+              if (tickerResult != null) displayIngestCapture.result = tickerResult;
+              if (cardResult != null) displayIngestCapture.cardResult = cardResult;
+            }
+            emitCardMutationApplied(cardMutationMetric(cardResult, "ingest", volcanoEvent.type));
+          }
+        } else {
+          const vptaDisplayCommand = vptaDisplayCommands.get(outcome as ProcessOutcome);
+          const result = displayIngestOverride == null
+            ? displaySink?.ingest(event, vptaDisplayCommand)
+            : displayIngestOverride(event);
+          if (vptaDisplayCommand != null) vptaDisplayCommands.delete(outcome as ProcessOutcome);
           const tickerResult = tickerResultOf(result);
           const cardResult = cardResultOf(result);
           if (displayIngestCapture != null) {
             if (tickerResult != null) displayIngestCapture.result = tickerResult;
             if (cardResult != null) displayIngestCapture.cardResult = cardResult;
           }
-          emitCardMutationApplied(cardMutationMetric(cardResult, "ingest", volcanoEvent.type));
+          emitCardMutationApplied(cardMutationMetric(
+            cardResult,
+            displayIngestOverride == null ? "ingest" : "reconcile",
+            event.type,
+          ));
         }
-      } else {
-        const vptaDisplayCommand = vptaDisplayCommands.get(outcome as ProcessOutcome);
-        const result = displayIngestOverride == null
-          ? displaySink?.ingest(event, vptaDisplayCommand)
-          : displayIngestOverride(event);
-        if (vptaDisplayCommand != null) vptaDisplayCommands.delete(outcome as ProcessOutcome);
-        const tickerResult = tickerResultOf(result);
-        const cardResult = cardResultOf(result);
-        if (displayIngestCapture != null) {
-          if (tickerResult != null) displayIngestCapture.result = tickerResult;
-          if (cardResult != null) displayIngestCapture.cardResult = cardResult;
-        }
-        emitCardMutationApplied(cardMutationMetric(
-          cardResult,
-          displayIngestOverride == null ? "ingest" : "reconcile",
-          event.type,
+        displaySink?.publishStats?.(buildDisplayStats(
+          summaryTracker, stats, dailyQuakeCounter, options?.getPersistenceSalvageDiagnostics, statsAtMs,
         ));
+      } catch {
+        // 表示系の障害を本体に波及させない
       }
-      displaySink?.publishStats?.(buildDisplayStats(
-        summaryTracker, stats, dailyQuakeCounter, options?.getPersistenceSalvageDiagnostics, statsAtMs,
-      ));
-    } catch {
-      // 表示系の障害を本体に波及させない
-    }
+    });
     assertSerializerHealthy();
 
     if (!displayed) {
@@ -1263,38 +1293,52 @@ export function createMessageHandler(options?: MessageHandlerOptions): MessageHa
       if (notified) stats.recordFoundation("notified", actionNowMs);
       assertSerializerHealthy();
 
-      if (outcomeTaps) {
-        for (const tap of outcomeTaps) {
-          try {
-            const result = tap(outcome) as unknown;
-            if (result instanceof Promise) {
-              result.catch((error: unknown) => {
-                log.warn(`[outcome-tap] async tap の reject: ${describeTapError(error)}`);
-              });
+      // §9.1 Q3 (`tapB`): notifier 後の tap ループ。**`disp` の外**なので加算対象。
+      // Q2 と同じく mark は `if` の外に置き、tap 未配線でも `tapB=0.0` を出す。
+      // `stage` の書き換えと `throw` はクロージャを素通しし、既存の伝播を変えない。
+      perf.mark("tapB", () => {
+        if (outcomeTaps) {
+          for (const tap of outcomeTaps) {
+            try {
+              const result = tap(outcome) as unknown;
+              if (result instanceof Promise) {
+                result.catch((error: unknown) => {
+                  log.warn(`[outcome-tap] async tap の reject: ${describeTapError(error)}`);
+                });
+              }
+            } catch (error) {
+              log.warn(`[outcome-tap] tap 実行で例外: ${describeTapError(error)}`);
             }
-          } catch (error) {
-            log.warn(`[outcome-tap] tap 実行で例外: ${describeTapError(error)}`);
-          }
-          if (serializerPoisonError != null) {
-            stage = "outcomeTapPoison";
-            throw serializerPoisonError;
+            if (serializerPoisonError != null) {
+              stage = "outcomeTapPoison";
+              throw serializerPoisonError;
+            }
           }
         }
-      }
+      });
 
+      // VPTA50 経路は `runDisplayPipeline` を通らないので `disp` / `pres` / `ingest` が
+      // 立たない。同じ 3 段を専用キーで拾う (すべて外数。§9.1 Q3 の tapB と同じ扱い)。
       stage = "eventConversion";
-      event = toPresentationEvent(outcome);
+      const converted = perf.mark("vptaPres", () => toPresentationEvent(outcome));
+      event = converted;
       assertSerializerHealthy();
 
       stage = "displayPreprocess";
-      const diffed = diffStore.apply(event);
-      event = diffed;
-      displayed = shouldDisplay(diffed, pipeline);
-      recordWindowTrackers(diffed, displayed, actionNowMs);
+      const diffed = perf.mark("vptaDiff", (): PresentationEvent => {
+        const applied = diffStore.apply(converted);
+        // 代入は `diffStore.apply` の直後（元の順序）。mark の外へ出すと
+        // `shouldDisplay` / `recordWindowTrackers` が throw したとき `event` が
+        // `converted` のまま残り、失敗経路が見る event が 1 段古くなる。
+        event = applied;
+        displayed = shouldDisplay(applied, pipeline);
+        recordWindowTrackers(applied, displayed, actionNowMs);
+        return applied;
+      });
       assertSerializerHealthy();
 
       stage = "standbyReducer";
-      displayResult = displaySink?.ingest(diffed, command);
+      displayResult = perf.mark("vptaIng", () => displaySink?.ingest(diffed, command));
       const mutation = vptaMutationOf(displayResult);
       changes.projectionOrRetention ||= mutation?.durableChanged === true;
       const failure = vptaFailureOf(displayResult);
@@ -1878,7 +1922,8 @@ export function createMessageHandler(options?: MessageHandlerOptions): MessageHa
 
     if (outcome.domain === "eew" && outcome.displayLifecycleOnly === true) {
       try {
-        displaySink?.ingest(toPresentationEvent(outcome));
+        // EEW lifecycle-only もこの経路だけで `disp` を通らない (小さいが未帰属にしない)。
+        perf.mark("eewIng", () => displaySink?.ingest(toPresentationEvent(outcome)));
       } catch {
         // display lifecycle command の配送障害を受信本体へ波及させない。
       }

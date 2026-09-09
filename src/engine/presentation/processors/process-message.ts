@@ -28,6 +28,7 @@ import { processLgObservation } from "./process-lg-observation";
 import { processTsunami } from "./process-tsunami";
 import { processNankaiTrough } from "./process-nankai-trough";
 import { processWeather } from "./process-weather";
+import * as perf from "../../perf/receipt-timing";
 import { processTornado } from "./process-tornado";
 import { processBriefing } from "./process-briefing";
 import { processEarlyWeather } from "./process-early-weather";
@@ -1095,6 +1096,19 @@ function lookupAdapter(route: Route): ProcessorAdapter | undefined {
  * raw は adapter を持たず、そのまま processRaw フォールバックに落ちる。
  */
 export function processMessage(
+  msg: WsDataMessage,
+  route: Route,
+  deps: ProcessDeps,
+): ProcessOutcome | null {
+  // 削減 spec `2026-09-09-receipt-serialize-reduction.md` §9 追補: route dispatch 全体。
+  // weather 以外の domain にも同型の 1 回目 parse があるので、個別に計測点を置かず
+  // ここで一括して拾う。**容器キーなので内数側 (`|` の右) に出す** — `parse` と
+  // transact 系 (`sweepPre` / `cap` / `red` / `serD` …) を丸ごと内側に含んでおり、
+  // 外数として足すとそれらを二重計上する。本体は `processMessageCore`。
+  return perf.mark("dispatch", () => processMessageCore(msg, route, deps));
+}
+
+function processMessageCore(
   msg: WsDataMessage,
   route: Route,
   deps: ProcessDeps,

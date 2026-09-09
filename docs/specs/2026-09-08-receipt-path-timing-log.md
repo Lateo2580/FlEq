@@ -241,6 +241,28 @@ export function __test_setReceiptPerfClock(next: (() => number) | null): () => n
 | P6 | `src/engine/presentation/processors/process-weather.ts:129`（`parseWeatherWarning`） | `redParse` | reducer 内の 2 回目 body decode ＋ XML parse（§2.2 の罠）。**`red` の内数** |
 | P7 | `src/engine/display/hub.ts:572` の debounce コールバック内（`:582-587` を包む） | `state` | `buildStateSnapshot` ＋ 縮退ラダーの所要、縮退段数、ラダーを 2 本走らせたか。**500ms debounce 後なので電文行には載らない。独立行**（§3.4） |
 | P8 | `src/engine/display/hub.ts:483`（`this.deps.standbySweep?.(nowMs)` を包む） | — | `beginSweep` / `endSweep`。5 秒タイマー経由の sweep 1 回 = `[perf-sweep]` 1 行 |
+| Q1 | `message-router.ts:1070`（`runDisplayPipeline` の薄いラッパから core を包む） | `disp` | 表示配信の総所要。**加算**（火山バッチ・reconcile で 1 電文に複数回立つ） |
+| Q2 | 同 `:1100`（tap ループ全体。`if (outcomeTaps)` の**外**から包む） | `tapA` | `outcomeTaps` の実行（`runDisplayPipeline` 入口）。**`disp` の内数** |
+| Q3 | 同 `:1299`（notifier 後の tap ループ。同じく `if` の外から包む） | `tapB` | `outcomeTaps` の実行（VPTA50 経路）。**`disp` の外**。加算 |
+| Q4 | 同 `:1120`（`toPresentationEvent` ＋ `diffStore.apply`） | `pres` | PresentationEvent 変換と差分適用。**`disp` の内数** |
+| Q5 | 同 `:1129`（ingest ＋ `publishStats` の `try` ブロック） | `ingest` | displaySink への流し込みと SSE broadcast。**`disp` の内数** |
+| Q6 | `src/engine/presentation/processors/process-weather.ts:53` | `parse` | 受理経路 **1 回目**の XML parse。`sweepPre` より前・`transact` の外。`deps.parsed` 経由なら 0。**`redParse`（2 回目）とは別のキー** |
+| Q7 | `src/engine/presentation/processors/process-message.ts:1108`（`processMessage` を薄いラッパにし本体を `processMessageCore` へ） | `dispatch` | route adapter 全体。weather 以外の domain の同型 parse を一括で拾う。**容器キーなので内数側**（`parse` と transact 系を丸ごと含む） |
+| Q8 | `message-router.ts:1323` / `:1328` / `:1338` | `vptaPres` / `vptaDiff` / `vptaIng` | VPTA50 の表示 3 段。この経路は `runDisplayPipeline` を通らず `disp` / `pres` / `ingest` が立たない |
+| Q9 | `message-router.ts:1923` | `eewIng` | EEW lifecycle-only の `displaySink.ingest`。同じく `disp` を通らない |
+
+> **Q6〜Q9 は独立レビューの指摘で足した追補**（削減 spec §9.1a）。**Q6 が残差の主項**で、
+> 141KB の電文で約 10 ms/KB。§8.3 の傾き 13.6 ms/KB と同じ直線に乗る。
+
+> **Q1〜Q5 は削減 spec `2026-09-09-receipt-serialize-reduction.md` §9（段階 1.5）の観測点。**
+> 起草時の行番号は基準 SHA `40b3e6c`（`:1070` / `:1079-1094` / `:1266-1283` / `:1096-1097` /
+> `:1101-1136`）で、実装した `179df2e` でも router に差分は無かった。上の表の行番号は
+> **計測ラッパを入れた後**の位置。
+>
+> **Q2 / Q3 の mark は `if (outcomeTaps)` の外に置く。** 内側に置くと tap 未配線の構成
+> （公開 main）でキーごと消え、読み手が「0」と「計測点が無い」を取り違える。
+> 外に置けば `tapA=0.0` / `tapB=0.0` が必ず出て、personal の `outcomeTaps` 実装が乗った
+> ぶんだけ数字が増える形になる。**tap の実体名は main のコードにも計測にも書かない。**
 
 > **P3i の訂正（実装時の実測）**: 起草時は「地震・EEW 等は `admit=none`」と書いたが、
 > **地震（VXSE51）は `standby:quakeHost` で admission に入り `admit=committed serCalls=3` になる**。
@@ -279,6 +301,29 @@ export function __test_setReceiptPerfClock(next: (() => number) | null): () => n
 - `save=` は commit 後 serialize の**合計**。内訳が要るなら `saveTx=` / `saveSweep=` に分けてよい（実装者判断）
 - 区間キーが立たなかった場合はそのキーごと出さない（値 0 と「未通過」を混同させない）
 - `total` は P0' の begin/end の差。区間の和とは一致しない（計測していない隙間があるため）。**和が total に一致するとは書かない**
+
+> **2026-09-09 更新（削減 spec §8.5 / §9.2、段階 1.5）**: **内数キーを `|` の右へまとめた。**
+> 左が外数（加算して残差を出す対象）、右が内数（親の中に含まれる。足すと二重計上）。
+> 内数が 1 つも立たない行では区切り記号ごと出さない。
+>
+> ```
+> [perf-receipt] id=w1 type=VPWS50 route=weather bytes=140995 admit=committed serCalls=2
+>   total=347.2 parse=272.7 sweepPre=6.0/nochange cap=0.0 draft=0.0 red=20.0 diff=2.4
+>   serD=1.5 serB=0.0 pre=0.1 commit=4.0 disp=39.5
+>   | dispatch=307.2 serIn=0.0 serEnc=1.4 tapA=0.0 pres=39.3 ingest=0.1
+> ```
+>
+> 追補 Q6〜Q9 を入れた後の実測（Apple M5 / Node v26.8.1、`displaySink` 未配線）。
+> 外数の和 346.2 に対して `total` 347.2 で、**残差は 1.0ms（0.3%）**。
+>
+> | 位置 | キー（この順で固定） |
+> |---|---|
+> | 外数（`\|` の左） | `parse` `sweepPre` `cap` `draft` `red` `diff` `serD` `serB` `pre` `commit` `save` `sched` `disp` `tapB` `vptaPres` `vptaDiff` `vptaIng` `eewIng` |
+> | 内数（`\|` の右） | `dispatch`（`parse` ＋ transact 系を含む容器）／`redParse`（`red` の内数）／`serIn` `serEnc`（`serD`＋`serB`＋`save` の内数）／`tapA` `pres` `ingest`（`disp` の内数） |
+>
+> **`redParse` も内数側へ移した。** 削減 spec §8.5 の入れ子表が `red` の内数と明記して
+> おり、外数側に残すと `red` と二重計上になる。§9.2 が名指ししたのは `serIn` / `serEnc`
+> だけだが、同じ規約を `redParse` に適用しないと区切り記号の意味が壊れる。
 
 turn / envelope 生成 / sweep / state は別行にする。
 
