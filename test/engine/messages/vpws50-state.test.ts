@@ -1,9 +1,13 @@
 import { testTelegramMeta } from "../../helpers/telegram-meta";
 import { describe, it, expect, vi } from "vitest";
-import { Vpws50StateHolder } from "../../../src/engine/messages/vpws50-state";
+import {
+  Vpws50StateHolder,
+  VPWS50_SNAPSHOT_GENERATION,
+} from "../../../src/engine/messages/vpws50-state";
 import { computeMaxDisplaySeverity, computeMaxSoundLevel } from "../../../src/dmdata/weather-warning-level";
 import type { ParsedWeatherWarning, WeatherItem, WeatherKind } from "../../../src/types";
 import type {
+  PersistedVpws50SnapshotV2,
   PersistedVpws50StateV2,
   WeatherReportIdentity,
 } from "../../../src/engine/messages/vpws50-state";
@@ -339,6 +343,54 @@ describe("Vpws50StateHolder.rollback (history 深さ 2, R1-6/R2-3/段階 3-E)", 
     // history が尽きた 3 回目は last == null の既存経路に入る。
     expect(state.rollback("msg-2")?.isFirstReport).toBe(true);
     expect(state.getCurrentAreasForDisplay()).toBeUndefined();
+  });
+
+  // 段階 3-E の復元互換。旧版が書いた 8 段入り v2 を読んでも破棄・警告にはならず、
+  // slice(-2) で末尾 2 段に切り詰めるだけ。「末尾」を取ること自体を固定する
+  // (先頭 2 段を取ると、直後の取消が最も古い報を復活させる)。
+  it("旧 v2 形式の 8 段 history を restore すると末尾 2 段だけが最新側の順序で残る", () => {
+    const snapshotOf = (areaCode: string): PersistedVpws50SnapshotV2 => ({
+      generation: VPWS50_SNAPSHOT_GENERATION,
+      areas: [{
+        areaCode,
+        areaName: `区域${areaCode}`,
+        kinds: [{
+          phenomenonKey: "大雨",
+          kindCode: "03",
+          kindName: "大雨警報",
+          severity: "warning",
+          displaySeverity: "nonLevelWarning",
+          officialAlertLevel: null,
+          resolutionSource: "map",
+        }],
+      }],
+    });
+    const legacy: PersistedVpws50StateV2 = {
+      current: {
+        messageId: "hist-current",
+        identity: identity("2026-06-05T18:00:00+09:00", "9"),
+        snapshot: snapshotOf("900000"),
+      },
+      history: Array.from({ length: 8 }, (_value, index) => ({
+        messageId: `hist-${index}`,
+        identity: identity(`2026-06-05T1${index}:00:00+09:00`, String(index + 1)),
+        snapshot: snapshotOf(`${index}00000`),
+      })),
+      lastSuccessfulFullDisplayAt: null,
+    };
+
+    const state = new Vpws50StateHolder();
+    state.restorePersistedState(legacy);
+
+    const persisted = state.exportPersistedState();
+    expect(persisted.history.map((entry) => entry.messageId)).toEqual(["hist-6", "hist-7"]);
+    expect(persisted.current?.messageId).toBe("hist-current");
+
+    // 最新側の順序が保たれる = 取消は hist-7 → hist-6 の順に戻る。
+    expect(state.rollback("hist-current")?.isFirstReport).toBe(false);
+    expect(state.exportPersistedState().current?.messageId).toBe("hist-7");
+    expect(state.rollback("hist-7")?.isFirstReport).toBe(false);
+    expect(state.exportPersistedState().current?.messageId).toBe("hist-6");
   });
 });
 
