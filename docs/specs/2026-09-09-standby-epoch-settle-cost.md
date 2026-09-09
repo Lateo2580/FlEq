@@ -1,6 +1,6 @@
 # 待機画面 1 epoch の settle コスト削減 spec（GitHub Issue #15 第 3 便）
 
-> **状態**: 段階 1 配送・実測反映（2026-09-09）。**段階 2 は計測で否定され見送り。** 次の第 2 便候補は §3 の**段階 2'（外側 77% の帰属分離）**で、これも計測のみ。§6 の分岐がご主人裁定待ちで、うち分岐 5（段階 7）は (c) 製品緩和に該当する。
+> **状態**: 段階 1 配送・実測反映（2026-09-09）。**段階 2 は計測で否定され見送り。** **段階 2'（外側 77% の帰属分離）は実装済み・実機実測待ち**で、観測属性 5 区分／8 属性と受入テストが入り A2b・A12・A13・A14 は緑。B4b・B4c の採取手順は §4.8' にある。§6 の分岐がご主人裁定待ちで、うち分岐 5（段階 7）は (c) 製品緩和に該当する。
 >
 > **基準 SHA**: `b98caed5f677c61d554d7fe79a2a158c872b157f`（worktree `~/dev/fleq-layout`、branch main）。第 2 便（段階 0 の計測ハーネスと `data-layout-motion-captured`）が入った状態。
 >
@@ -8,7 +8,7 @@
 >
 > **意匠**: 本 spec は `docs/specs/display-design-system.md` のトークンにも header/footer 統一 spec にも触れない。**確定後の表示はどの段階でも不変**である。段階 5・6 だけが「確定に至る過程に中間フレームが出うる」という形で見え方に触れる。錨カードの参照は不要。
 >
-> **改訂履歴**: 2026-09-09 起草 → 同日 独立レビュー反映（GO with fixes、分岐 2 を A→B・段階 5/6 の入れ替え・算術訂正）→ 同日 **段階 1 実測反映（B2 = 0.179 で段階 2 見送り、段階 2' を新設、§10 に再構成材料）**。
+> **改訂履歴**: 2026-09-09 起草 → 同日 独立レビュー反映（GO with fixes、分岐 2 を A→B・段階 5/6 の入れ替え・算術訂正）→ 同日 **段階 1 実測反映（B2 = 0.179 で段階 2 見送り、段階 2' を新設、§10 に再構成材料）** → 同日 **段階 2' 実装（観測属性 5 区分／8 属性・計数器は非リアクティブな素の `let`・採取手順 §4.8' を追加）**。
 >
 > **見立ての位置づけ（重要）**: §2 の pass 内訳は `data-measurement-pass` / `data-measurement-read-count` の実測時系列とコード読了の突き合わせで**確定**した。一方 §2.7 のとおり、**2,526ms の中身がノード読み取りなのか pass 位置とともに増える別の項なのかは、段階 0 のデータからは分離できない**（rc 線形 0.813 / idx 線形 0.823 / idx 二次 0.849 / rc 二次 0.848 が並ぶ）。起草時点では段階 2 の効果を 0〜75% の幅でしか書けなかった。**段階 1 の実測（§9）でこの幅は潰れ、答えは「DOM 読みは 18% だけ」だった**（§2.9）。残る約 77% の内訳は依然として未知で、それを掘るのが段階 2' である。
 >
@@ -274,11 +274,15 @@ pass 間隔 dt を 4 つのモデルで当てる。10 epoch × 107 点 = 1,070 �
 
 **効果の見積もり（段階 1 実測で確定）**: 分岐 2-B で **上限 2.0%（約 45ms）**。全 key を対象にしても上限 13.7%。**見送り。**
 
-### 段階 2': 外側 77% を帰属分離する（計測のみ・製品コードの挙動は変えない）— **第 2 便候補**
+### 段階 2': 外側 77% を帰属分離する（計測のみ・製品コードの挙動は変えない）— **実装済み（2026-09-09）・実測待ち**
+
+> **実装状態**: 観測属性 5 区分／8 属性と `standby-settle-attribution-probe.test.ts` を投入済み。A2b・A12・A13・A14 は緑。**B4b・B4c は親の CDP 実走待ち**で、採取手順は §4.8' に置いた。
+>
+> 起草時の想定と 1 点違ったところがある。**計数器を `$state` にできない**。`weatherMeasurementRanges` / `tornadoMeasurementRanges` / `solvePlan` と 2 つの partition revision は `$derived` またはテンプレート式の中で走るので、そこで signal を書くと Svelte 5 が `state_unsafe_mutation` を投げる。加えて 1 epoch に数百回の signal 書き込みは可視ルートを無効化し、**測ろうとしている数値そのものを膨らませる**。そこで素の `let` に貯め、reaction の外（`recordSettleReadCost` の末尾と settled publish）で 1 本の `$state` ミラーへ写している。§3 の「観測自体が観測対象を汚さない形にする」の具体化であって、設計方針の変更ではない。
 
 **狙い**: §2.9 で「1 epoch の 77%（約 1,764ms）が `readMeasurements()` の外側にある」ことは確定したが、**その中の内訳は未知**である。段階 1 と同じ型（preview / gate 限定の累計 ms 属性）で 1 段掘る。ここを外すと、次の性能改修が段階 2 と同じく「上限 2% の対象」を掘り当てる。
 
-**採る 5 本**（すべて `partitionDebug || gateFixture != null` ガード、epoch 内の累計 ms と呼び出し回数）。
+**採る 5 区分**（すべて `partitionDebug || gateFixture != null` ガード、epoch 内の累計 ms と呼び出し回数）。ms と `-calls` を数えると **DOM 属性は 8 本**になる。以降「5 区分」と「8 属性」は同じものを指す。
 
 | 属性 | 何を計るか | 対応する §2.7 / §2.10 |
 |---|---|---|
@@ -375,7 +379,7 @@ pass 間隔 dt を 4 つのモデルで当てる。10 epoch × 107 点 = 1,070 �
 
 ### 4.2' 段階 2': 観測点（jsdom）
 
-`standby-settle-attribution-probe.test.ts`（新規）。段階 1 の `standby-settle-cost-probe.test.ts` と同型。
+`standby-settle-attribution-probe.test.ts`（**投入済み 2026-09-09**、10 ケース）。段階 1 の `standby-settle-cost-probe.test.ts` と同型。
 
 - 既定 props で段階 2' の 5 本（`data-settle-partition-ms` / `-calls`、`-revision-ms`、`-signature-ms` / `-calls`、`-flush-ms`、`-solve-ms` / `-calls`）が**存在しない**
 - gate / preview props では存在し、epoch 内で単調増加する
@@ -429,6 +433,58 @@ pass 間隔 dt を 4 つのモデルで当てる。10 epoch × 107 点 = 1,070 �
 ### 4.8 実機採取（親が CDP で実走）
 
 子の sandbox は listen 不可なので、`stage0-measure.mjs` の実走は親（Liebe）が担う。子は records に対する `--assert-from` で assertion を検証する。
+
+### 4.8' 段階 2' の採取手順（親が CDP で実走・B4b / B4c）
+
+測定文脈は §5.2 の固定条件をそのまま使う（Chrome 152 headless、`Emulation.setDeviceMetricsOverride` で 1920×1080、preview `#legacy-standby-gate` `gateScenario=max`、`?contentChurnMs=5000&metadataChurnMode=reparse`、60 秒、採取前に `npm --prefix display run build`）。**ただし段階 2' では URL に `&settleTrace=0` を必須で足す。**
+
+`gateScenario` が付くと `gateCapture`（`StandbyScreen.svelte:76-77`）が true になり、`settleTraceCapture`（`:86`）も既定で true になる。すると `recordSettleTrace`（`:1584`）が **probe step ごとに `signature()` を余分に呼ぶ**。この呼び出しは production には存在しないので、`settleTrace=0` を付けないと `data-settle-signature-ms` / `-calls` と `data-settle-flush-ms` が gate 専用のコストで膨らみ、B4c の判定を歪める。段階 1 の実測で on / off の差は 114.0ms（epoch の 5.0%）だった（§9 B3）。**分母も揃える**: `outer_total` は §9 の **off 列**（long task 合計 2,177.5ms、read-ms 407.7ms）を基準にする。
+
+**計測スクリプトに足す属性（5 区分／8 属性）**。段階 1 の 3 属性と同じく `data-measurement-settled` が true へ倒れた**直後の別 task（`setTimeout` 0）で epoch 末の値を 1 回だけ読む**。どれも epoch 内で単調に伸びるだけなので、MutationObserver の `attributeFilter` に入れて毎観測で読む必要はない（入れると観測コストが long task に乗る。§9 の計測手法メモ）。
+
+| 属性 | 型 | 意味 |
+|---|---|---|
+| `data-settle-partition-ms` / `-calls` | ms（小数 3 桁）/ 整数 | `weatherMeasurementRanges()` ＋ `tornadoMeasurementRanges()` の累計と回数 |
+| `data-settle-revision-ms` | ms | `briefingPartitionRevision` ＋ `weatherPartitionRevision` の導出 |
+| `data-settle-signature-ms` / `-calls` | ms / 整数 | `signature()` の累計と回数 |
+| `data-settle-flush-ms` | ms | 内側 probe ループの `await tick()` ×2 と `flushSync()` ×2 |
+| `data-settle-solve-ms` / `-calls` | ms / 整数 | `solvePlan()` の累計と回数 |
+
+**包含関係と差し引きの式**。`flush` は上位から他を包む。`signature` は `plan` を読むので、その pass で `plan` が無効化されていれば `solve` を内側に含む。`solve` は `weather` / `tornado` の 2 関数を含まない（`candidates()` は `measured()` しか読まない）。
+
+**`flush_ms` は上限値である。** `publishSettleAttribution()`（`:1444`）が pass ごとに `$state` ミラーを書くので、8 属性の再直列化が**次の flush に乗る**。つまり `flush_ms` は自分の結論を一部作っている。診断属性の直列化コストを含んだ上限として読み、「flush 支配」の判定に落ちたときは分岐 3-B の対象に段階 1・2' の観測属性自身も含めて数える。
+
+**計測されない `flushSync` が 4 箇所ある**（すべて残余に入る）。hidden 集合が変わった直後（`:2074`）、post-commit の drain 後（`:2115`）、確定 commit の `flushSync(cb)` 2 箇所（`:2091`, `:2147`）、`publishSettledGeometry` の `flushSync(cb)`（`:1925`）。いずれも外側 pass 境界に 1 回ずつしか出ないので内側ループの 107 回に比べれば小さいはずだが、**残余が大きく出たらここを疑う**のが最初の一手である。
+
+**3 番目の partition 探索が帰属の外にある。** `floodWidePartitionInfeasible`（`:1166-1174`）は `sequentialPartitionRanges` を呼ぶが、`renderFloodWide`（`:1304`）経由のテンプレート経路なので **partition にも solve にも入らない**（solver 側の `floodWideVisibleAllowed` は `floodWideProbeResult` を読むだけで探索しない）。flood の探索コストは残余に落ちる。したがって:
+
+```
+outer_total      = long_task_total − data-settle-read-ms          （§2.9 の約 1,764ms）
+flush_exclusive  = data-settle-flush-ms
+                   − (partition_in_flush + revision_in_flush + solve_in_flush)
+```
+
+`*_in_flush` は epoch 内で直接は割れない。**割らずに次の 2 通りの合計で上下を挟む**のが実用的である。
+
+```
+上限側（重複を許す合計）= partition_ms + revision_ms + signature_ms + flush_ms + solve_ms
+下限側（flush を代表に取る）= flush_ms + max(0, signature_ms − solve_ms) + 外側に出た分
+残余（未帰属）            = outer_total − flush_ms − max(0, signature_ms − solve_ms)
+```
+
+**5 区分の合計が outer_total を超えても異常ではない**（§3 段階 2' の但し書き）。報告では上限側・下限側・残余の 3 数を並べ、包含している項目を明示する。
+
+**依存集合の注記**: 2 本の revision と `plan` の `$derived` は body で `settleCostProbe` を読むので、依存に `partitionDebug` / `gateFixture` が加わる。どちらも実行時に変化しない props なので再計算のタイミングは変わらない。
+
+**判定 3 分岐（B4c、§3 段階 2' の再掲）**。分母は `outer_total`。
+
+| 観測 | 判定 | 次の一手 |
+|---|---|---|
+| 単一項目が **5 割以上** | 局所修正が届く | その項目を段階 3' として起票。`partition` が来たら `weatherMeasurementRanges` の pass 内メモ化が第 1 候補 |
+| どの項目も **3 割未満**で散る | 局所修正では届かない | §10 の再構成材料へ送る |
+| `flush_ms` が支配的 | 再レンダと 126 診断属性が主因 | 分岐 3-B（診断属性の production ガード）の価値が上がる。ご主人裁定へ回す |
+
+`-calls` は「1 epoch あたり何回走ったか」の裏取りに使う。§2.10 の見積もり（334 項目 × 107 pass ≈ 35,700 回）と `data-settle-partition-calls` が桁で合わなければ、**見立ての側を疑う**。
 
 ## 5. 受入条件
 
@@ -548,7 +604,7 @@ pass 間隔 dt を 4 つのモデルで当てる。10 epoch × 107 点 = 1,070 �
 受入条件: A1・A2・A12・A13・A14 の全件、B1〜B4 が実測で埋まっていること
 ```
 
-### 段階 2'（外側 77% の帰属分離・計測のみ）— **第 2 便候補・🌙自走OK 候補**
+### 段階 2'（外側 77% の帰属分離・計測のみ）— **実装済み 2026-09-09・配送待ち**
 
 ```
 対象: display/frontend/src/components/StandbyScreen.svelte（preview 限定の観測属性 5 本と

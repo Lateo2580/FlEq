@@ -227,6 +227,41 @@
     }
     return counts;
   });
+  /**
+   * Issue #15 third dispatch, stage 2': attribution of the ~77% of the epoch
+   * that sits *outside* readMeasurements() (spec §2.9 / §2.10).
+   *
+   * These eight are deliberately **plain, non-reactive** counters, not $state.
+   * Two reasons, both load-bearing:
+   *
+   * 1. weatherMeasurementRanges / tornadoMeasurementRanges / solvePlan and the
+   *    two partition revisions all run inside $derived or template expressions.
+   *    Writing a signal from there throws `state_unsafe_mutation`.
+   * 2. A signal write per call would invalidate the visible route hundreds of
+   *    times per epoch, so the probe would inflate the very number it measures.
+   *
+   * They are copied into the single reactive mirror below at points that are
+   * never inside a reaction — see publishSettleAttribution().
+   */
+  let settlePartitionMs = 0;
+  let settlePartitionCalls = 0;
+  let settleRevisionMs = 0;
+  let settleSignatureMs = 0;
+  let settleSignatureCalls = 0;
+  let settleFlushMs = 0;
+  let settleSolveMs = 0;
+  let settleSolveCalls = 0;
+  /**
+   * The one reactive mirror the visible route reads. Reassigned wholesale so a
+   * publish costs a single signal write regardless of how many counters moved.
+   */
+  let settleAttribution = $state({
+    partitionMs: 0, partitionCalls: 0,
+    revisionMs: 0,
+    signatureMs: 0, signatureCalls: 0,
+    flushMs: 0,
+    solveMs: 0, solveCalls: 0,
+  });
   let measurementGeometryStage = $state<LadderStage>(0);
   let leftTrackRectWidthPx = $state(0);
   let centerTrackRectWidthPx = $state(0);
@@ -490,6 +525,9 @@
     return weatherMeasurementCandidates(rows).candidates.map((candidate) => pageIdentity(candidate));
   }
   function weatherMeasurementRanges(placement: PrefixPlacement, rows: number, footer: "absent" | "present"): PageRange[] {
+    // Stage 2' measurement point 1 of 5 (spec §2.10). Entry/exit clock only;
+    // the body below is unchanged.
+    const partitionStartedAt = settleCostProbe ? performance.now() : 0;
     const { candidates, tailsForRange } = weatherMeasurementCandidates(rows);
     const composition = weatherChromeSignature(placement, rows, footer);
     const result = sequentialPartitionRanges(
@@ -499,7 +537,12 @@
       ),
       tailsForRange,
     );
-    return result.pending.length === 0 && !result.infeasible ? result.ranges : [];
+    const ranges = result.pending.length === 0 && !result.infeasible ? result.ranges : [];
+    if (settleCostProbe) {
+      settlePartitionMs += performance.now() - partitionStartedAt;
+      settlePartitionCalls += 1;
+    }
+    return ranges;
   }
   function weatherMeasurementFallbackRanges(rows: number): PageRange[] {
     const candidates = weatherMeasurementCandidates(rows);
@@ -546,8 +589,17 @@
     }));
   }
   function tornadoMeasurementRanges(entry: PrefixMeasureEntry, weatherRanges: readonly PageRange[], rows: number, footer: "absent" | "present"): PageRange[] {
+    // Stage 2' measurement point 1 of 5, second half. The early return keeps
+    // its own exit so a skipped search still counts as a call with ~0ms.
+    const partitionStartedAt = settleCostProbe ? performance.now() : 0;
     const areaCount = tornadoItem?.data.areas.length ?? 0;
-    if (areaCount === 0 || weatherRanges.length === 0 || entry.tornadoAggregateFallback === true) return [];
+    if (areaCount === 0 || weatherRanges.length === 0 || entry.tornadoAggregateFallback === true) {
+      if (settleCostProbe) {
+        settlePartitionMs += performance.now() - partitionStartedAt;
+        settlePartitionCalls += 1;
+      }
+      return [];
+    }
     const preflight = entry.composition?.endsWith(":preflight") === true;
     const result = sequentialPartitionRanges(
       "tornado", entry.placement, areaCount, 1,
@@ -563,7 +615,12 @@
       },
       () => [],
     );
-    return result.pending.length === 0 && !result.infeasible ? result.ranges : [];
+    const ranges = result.pending.length === 0 && !result.infeasible ? result.ranges : [];
+    if (settleCostProbe) {
+      settlePartitionMs += performance.now() - partitionStartedAt;
+      settlePartitionCalls += 1;
+    }
+    return ranges;
   }
   function tornadoPrefixMeasurement(entry: PrefixMeasureEntry) {
     const weatherRange = entry.weatherRange ?? { start: 0, end: 0, tails: [], omittedAreaCount: 0 };
@@ -933,16 +990,29 @@
   // BriefingCard's partition callback closes over prefixMeasurements. Pass a
   // stable, explicit revision into every live instance so its local derived
   // partition re-runs when a shelf candidate resolves.
-  const briefingPartitionRevision = $derived(Object.entries(prefixMeasurements)
-    .filter(([id]) => id.startsWith("briefing:page-fit:"))
-    .sort(([left], [right]) => left.localeCompare(right))
-    .map(([id, value]) => `${id}:${value}`)
-    .join("|"));
-  const weatherPartitionRevision = $derived(Object.entries(prefixMeasurements)
-    .filter(([id]) => id.startsWith("weather:page-fit:"))
-    .sort(([left], [right]) => left.localeCompare(right))
-    .map(([id, value]) => `${id}:${value}`)
-    .join("|"));
+  // Stage 2' measurement point 2 of 5 (spec §2.7 (c)). $derived(expr) becomes
+  // $derived.by(() => expr) purely to hold the entry/exit clock; the dependency
+  // set and the derived value are identical to the expression form.
+  const briefingPartitionRevision = $derived.by(() => {
+    const revisionStartedAt = settleCostProbe ? performance.now() : 0;
+    const revision = Object.entries(prefixMeasurements)
+      .filter(([id]) => id.startsWith("briefing:page-fit:"))
+      .sort(([left], [right]) => left.localeCompare(right))
+      .map(([id, value]) => `${id}:${value}`)
+      .join("|");
+    if (settleCostProbe) settleRevisionMs += performance.now() - revisionStartedAt;
+    return revision;
+  });
+  const weatherPartitionRevision = $derived.by(() => {
+    const revisionStartedAt = settleCostProbe ? performance.now() : 0;
+    const revision = Object.entries(prefixMeasurements)
+      .filter(([id]) => id.startsWith("weather:page-fit:"))
+      .sort(([left], [right]) => left.localeCompare(right))
+      .map(([id, value]) => `${id}:${value}`)
+      .join("|");
+    if (settleCostProbe) settleRevisionMs += performance.now() - revisionStartedAt;
+    return revision;
+  });
   function weatherProbeWidth(placement: PrefixPlacement): number {
     const trackWidth = placement === "center" ? centerTrackWidthPx : rightTrackWidthPx;
     return Math.max(0, Math.round(placement === "center" ? trackWidth : Math.min(480, trackWidth)));
@@ -1162,16 +1232,27 @@
     return compressed.stage === 2 && !compressed.unresolved ? compressed : baseline;
   }
   function solvePlan(solveFloor: LadderStage, capacityLimit = capacity, hidden: readonly CenterClusterItem[] = []): ColumnPlan {
-    const automatic = automaticPlan(capacityLimit, hidden);
-    if (automatic.stage >= solveFloor) return automatic;
-    const retainedGap = solveFloor >= 2 ? compressedGap() : baselineGapPx;
-    return makeColumnPlan({
-      candidates: candidates(),
-      ctx: solverContext(null, capacityLimit, retainedGap, hidden),
-      floorStage: solveFloor,
-      requestedLadder: solveFloor,
-      previousPlan: committedPlan,
-    });
+    // Stage 2' measurement point 5 of 5 (spec §3, "unclassified remainder").
+    // The IIFE holds the original two-branch body verbatim so the entry/exit
+    // clock can bracket both exits without reordering anything.
+    const solveStartedAt = settleCostProbe ? performance.now() : 0;
+    const solved = ((): ColumnPlan => {
+      const automatic = automaticPlan(capacityLimit, hidden);
+      if (automatic.stage >= solveFloor) return automatic;
+      const retainedGap = solveFloor >= 2 ? compressedGap() : baselineGapPx;
+      return makeColumnPlan({
+        candidates: candidates(),
+        ctx: solverContext(null, capacityLimit, retainedGap, hidden),
+        floorStage: solveFloor,
+        requestedLadder: solveFloor,
+        previousPlan: committedPlan,
+      });
+    })();
+    if (settleCostProbe) {
+      settleSolveMs += performance.now() - solveStartedAt;
+      settleSolveCalls += 1;
+    }
+    return solved;
   }
   const fixedCenter = $derived(centerFixed(committedCenterClusterHidden));
   const plan = $derived.by(() => solvePlan(floorStage, capacity, solvingCenterClusterHidden));
@@ -1360,6 +1441,23 @@
       nextReads[key] = (nextReads[key] ?? 0) + 1;
     }
     settleReadKeyReads = nextReads;
+    publishSettleAttribution();
+  }
+  /**
+   * Copy the stage-2' plain counters into their reactive mirror. Called from
+   * recordSettleReadCost's tail (once per readMeasurements pass, so the visible
+   * attributes rise monotonically through the epoch) and from the settled
+   * publish, which is the only place the epoch's last flush and signature are
+   * already accounted for. Never called from inside a $derived.
+   */
+  function publishSettleAttribution(): void {
+    settleAttribution = {
+      partitionMs: settlePartitionMs, partitionCalls: settlePartitionCalls,
+      revisionMs: settleRevisionMs,
+      signatureMs: settleSignatureMs, signatureCalls: settleSignatureCalls,
+      flushMs: settleFlushMs,
+      solveMs: settleSolveMs, solveCalls: settleSolveCalls,
+    };
   }
   function readMeasurements(): void {
     const readStartedAt = settleCostProbe ? performance.now() : 0;
@@ -1461,11 +1559,18 @@
     if (settleCostProbe) recordSettleReadCost(performance.now() - readStartedAt);
   }
   function signature(): string {
+    // Stage 2' measurement point 3 of 5 (spec §2.7 (d)).
+    const signatureStartedAt = settleCostProbe ? performance.now() : 0;
     // Geometry 2 and 3 share the same compressed token surface. Only a
     // crossing of that boundary changes any measured DOM, so the later 2→3
     // plan-number synchronization must not consume a settle confirmation pass.
     const compressedGeometry = isCompressedGeometry(measurementGeometryStage) ? 1 : 0;
-    return [stage, compressedGeometry, capacity, nankaiHeightPx, rotationIndicatorHeightPx, gapPx, baselineGapPx, plan.rotationKeys.join(","), ...Object.entries(measurements).sort(([a], [b]) => a.localeCompare(b)).map(([id, h]) => `${id}:${h}`), ...Object.entries(prefixMeasurements).sort(([a], [b]) => a.localeCompare(b)).map(([id, h]) => `${id}:${h}`)].join("|");
+    const value = [stage, compressedGeometry, capacity, nankaiHeightPx, rotationIndicatorHeightPx, gapPx, baselineGapPx, plan.rotationKeys.join(","), ...Object.entries(measurements).sort(([a], [b]) => a.localeCompare(b)).map(([id, h]) => `${id}:${h}`), ...Object.entries(prefixMeasurements).sort(([a], [b]) => a.localeCompare(b)).map(([id, h]) => `${id}:${h}`)].join("|");
+    if (settleCostProbe) {
+      settleSignatureMs += performance.now() - signatureStartedAt;
+      settleSignatureCalls += 1;
+    }
+    return value;
   }
   function isCompressedGeometry(stage: LadderStage): boolean { return stage >= 2; }
   function shortSignatureHash(value: string): string {
@@ -1866,6 +1971,10 @@
       floodVisibleCount = geometry.floodVisibleCount;
       measurementSettled = true;
       contentDemotionRequested = false;
+      // Stage 2': the epoch's last flush and last signature land after the
+      // final readMeasurements, so the per-pass mirror would miss them. This is
+      // the value the capture script reads once data-measurement-settled flips.
+      if (settleCostProbe) publishSettleAttribution();
       if (pendingStageChange != null) onStageChange?.(pendingStageChange);
     });
   }
@@ -1879,6 +1988,16 @@
     settleReadNodes = 0;
     settleReadMs = 0;
     settleReadKeyReads = {};
+    // Stage 2' counters are epoch-cumulative like the stage-1 pair above.
+    settlePartitionMs = 0;
+    settlePartitionCalls = 0;
+    settleRevisionMs = 0;
+    settleSignatureMs = 0;
+    settleSignatureCalls = 0;
+    settleFlushMs = 0;
+    settleSolveMs = 0;
+    settleSolveCalls = 0;
+    publishSettleAttribution();
     const activeEpoch = String(epoch);
     epochKey = activeEpoch;
     coordinator.begin(activeEpoch);
@@ -1892,7 +2011,14 @@
       // budget in the same epoch (128 × 2 candidates per card).
       const maxProbeSteps = MAX_PREFIX_ROWS * 4 + 1;
       do {
+        // Stage 2' measurement point 4 of 5 (spec §2.7 (e)): the two awaits and
+        // the two flushSync calls of the inner probe loop. Entry/exit clock only.
+        // The guard is read once, before the await: if it flipped across the
+        // suspension the exit would add an absolute timestamp to the total.
+        const tickProbing = settleCostProbe;
+        const tickStartedAt = tickProbing ? performance.now() : 0;
         await tick();
+        if (tickProbing) settleFlushMs += performance.now() - tickStartedAt;
         if (disposed) break;
         readMeasurements();
         // The final plan can cross the stage-2 compression boundary after
@@ -1906,8 +2032,11 @@
           // same epoch flips geometry 0→3→1→3 and exhausts all settle passes.
           if (plan.stage >= 2) floorStage = Math.max(floorStage, 2) as LadderStage;
           measurementGeometryStage = (plan.stage >= 2 ? Math.max(plan.stage, 2) : plan.stage) as LadderStage;
+          const geometryProbing = settleCostProbe;
+          const geometryFlushStartedAt = geometryProbing ? performance.now() : 0;
           flushSync();
           await tick();
+          if (geometryProbing) settleFlushMs += performance.now() - geometryFlushStartedAt;
           if (disposed) break;
           readMeasurements();
         }
@@ -1920,7 +2049,9 @@
         // Probe callbacks mount hidden shelf entries and can synchronously
         // register the next partition range. Flush those effects before the
         // pending check so the whole bounded probe chain stays in this pass.
+        const probeFlushStartedAt = settleCostProbe ? performance.now() : 0;
         flushSync();
+        if (settleCostProbe) settleFlushMs += performance.now() - probeFlushStartedAt;
         recordSettleTrace(pass, probeSteps);
         probeSteps += 1;
       } while (!disposed && coordinator.hasPendingProbes() && probeSteps < maxProbeSteps);
@@ -2315,6 +2446,14 @@
   data-measurement-read-count={measurementReadCount}
   data-settle-read-nodes={settleCostProbe ? settleReadNodes : undefined}
   data-settle-read-ms={settleCostProbe ? Math.round(settleReadMs * 1000) / 1000 : undefined}
+  data-settle-partition-ms={settleCostProbe ? Math.round(settleAttribution.partitionMs * 1000) / 1000 : undefined}
+  data-settle-partition-calls={settleCostProbe ? settleAttribution.partitionCalls : undefined}
+  data-settle-revision-ms={settleCostProbe ? Math.round(settleAttribution.revisionMs * 1000) / 1000 : undefined}
+  data-settle-signature-ms={settleCostProbe ? Math.round(settleAttribution.signatureMs * 1000) / 1000 : undefined}
+  data-settle-signature-calls={settleCostProbe ? settleAttribution.signatureCalls : undefined}
+  data-settle-flush-ms={settleCostProbe ? Math.round(settleAttribution.flushMs * 1000) / 1000 : undefined}
+  data-settle-solve-ms={settleCostProbe ? Math.round(settleAttribution.solveMs * 1000) / 1000 : undefined}
+  data-settle-solve-calls={settleCostProbe ? settleAttribution.solveCalls : undefined}
   data-layout-motion-duration={layoutMotionDuration}
   data-layout-motion-captured={partitionDebug || gateFixture != null ? layoutMotionCaptured : undefined}
   data-measurement-epoch={epochKey}
