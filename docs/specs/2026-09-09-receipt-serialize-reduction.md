@@ -1288,7 +1288,7 @@ VXKO72 1・VPWW61 1。**VPTA50 は窓に来なかった**ので suppression 出�
 
 | 順位 | 対象 | 効果（実測ベース） | 状態 |
 |---|---|---|---|
-| 1 | **段階 3-B**（base pair キャッシュ） | `serB` −278〜−305ms。**大型・小型の両方に効く**唯一の局所候補 | **ご主人裁定待ち**（§9.9） |
+| 1 | **段階 3-B**（base pair キャッシュ） | `serB` −278〜−305ms。**大型・小型の両方に効く**唯一の局所候補 | **実装済み**（裁定 14-A。実装記録は §9.10、Pi 窓 4 待ち） |
 | 2 | 段階 3-D（lossless assert 既定 off） | `serIn` 533〜546ms の内数。**A の実行時保証と相互作用**（§3.3） | B の実測後 |
 | 3 | 段階 2-F（`validateCapturedPair`） | `sched` 72〜85ms。最下位 | 据え置き |
 | — | `parse` 1,142ms（大型） | **局所最適化では削れない**。§7 の再構成材料へ | 再構成 |
@@ -1367,6 +1367,98 @@ volcano 成分だけ coordinator の `volcanoRuntimeVersion` で出所が違う�
     大型は 1,900ms 以下。未達なら「見積もり外れ」として報告し、段階 3-D へ進まない。
   Pi の生ログは計測 spec §4.7 の手順 5 で抽出してから Pi 上で消す。
 ```
+
+### 9.10 段階 3-B の実装記録（2026-09-09、base `39ea635`）
+
+**実装した形**（`standby-persistence-admission.ts` のみ。`monitor.ts` の配線変更は不要）。
+
+- 段階 1 A の `reusableBody` を **`lastCommitted { token, body, preflightPair }` へ統合した**。
+  A の中間表現と B の base pair はどちらも「commit 直後の保存状態と等価なもの」なので、
+  別々の欄・別々の token で持つと食い違ったときに気づけない。**欄 1 つ・token 1 つ・
+  1 世代**で同時に入れ替える（起草時の「二重保持しない」の実装解）
+- キャッシュしたのは **`serD` が作った pair そのもの**（body の再 encode ではない）。
+  base は毎回 `PREFLIGHT_ENVELOPE` なので `serD` の出力とバイト列が一致し、
+  `serB` から `serIn` も `serEnc` も丸ごと落ちる。body から encode し直す案は
+  `serEnc` ぶん（実測 3.6〜5.5ms／開発機 2MB 状態）を払い続けるので採らなかった
+- 判定は `tokenEquals(lastCommitted.token, captured.token)`。**`currentToken()` ではない** —
+  比べたいのは capture 時点の `captured.domains` であって、いまの owner 状態ではない
+- strict（`FLEQ_STANDBY_SWEEP_STRICT=1`）はヒット時も実 serialize を走らせて
+  バイト列を突き合わせ、違えば専用の番兵例外で throw する。この例外だけは
+  `candidateSerializationFailed` へ畳む catch で握らずに**再送出する**
+  （畳むと「キャッシュが壊れている」が `rejected` 1 件に化ける）
+- 試験用 setter `__test_setStandbyBasePairCacheEnabled(value): boolean` を追加
+
+**設計の訂正: キャッシュは本番配線（`serializePairSplit` dep）でだけ有効にした。**
+
+起草時は「serializer は `domains` と `envelope` の純関数」を前提にしていたが、
+**旧 dep 経路の `defaultSerializePair` では成り立たない**。`domains` をそのまま
+canonical JSON にするので owner snapshot の `version` 欄がバイト列に入り、
+`commit` の `replacePrevalidated` は draft の `version` 欄を採らず owner 自身の規則で
+決め直す。したがって **draft のバイト列は commit 後の base のバイト列と一致しない**。
+
+これは実装中に **strict 便が実際に捕まえた**（`volcano-ashfall-lifecycle` 8 件・
+`standby-wiring` 1 件・`volcano-initializer` 1 件が `base pair cache mismatch` で throw）。
+番兵が空回りでないことの実証でもある。段階 1 A が `serializePairSplit` の有無で
+再利用を切り分けているのと同じ線引きに揃えた（A の既存コメントは理由を `serCalls` の
+ずれとして書いていたが、**本当の理由はこの version 欄である**。コメントを訂正した）。
+回帰は `B10: 互換配線 (serializePair だけの dep) ではキャッシュを使わない` で固定。
+
+**受入（機械）の結果**
+
+| # | 条件 | 判定 |
+|---|---|---|
+| A11 | ミス経路で必ずフォールバック（restore / sweepAll commit / coordinator 外の owner 変異 / 互換配線） | 達成（B3・B4・B5・B10）。volcano だけは token に出ない性質を B5' で固定 |
+| A11 追補 | commit しなかった出口（`rejected` / `staleVersion` / `candidateSerializationFailed`）でキャッシュを書き換えない | 達成（B7'） |
+| A12 | strict がキャッシュ汚染で throw し、健全なら通す | 達成（B6・B7） |
+| A4 | 受理結果・`durableChanged`・owner snapshot が on / off で一致 | 達成（B8・B8'・B9） |
+| A1 相当 | 永続化バイト列がキャッシュヒット経路でも同一 | 達成（B8 が durable 3 本ぶんの v2 / v1 を base64 で全一致） |
+| A13 | build / test / test:shuffle / typecheck:test / strict 便 | 達成（304 file・7,041 test が 4 便とも緑） |
+| A15 | GitHub Actions 緑 | 未実施（統合担当の領分） |
+
+**開発機の実測**（状態 v2 = 2,020,996 B、`tornadoByOffice` を積む合成 transact 12 本の中央値）
+
+| | `serCalls` | `total` | `serD` | `serB` | `serIn` | `serEnc` |
+|---|---|---|---|---|---|---|
+| off | 2 | 82.4 | 26.0 | 25.7 | 47.7 | 5.5 |
+| on | 1 | **56.9** | 26.0 | **キーごと消滅** | 24.2 | 3.6 |
+
+`total` −25.5ms（−31%）。**`serB` は縮むのではなくキーごと消える**ので、
+Pi 窓 4 の読み手は「`serB` が無い行＝ヒット」と読んでよい。
+
+**残るリスク**
+
+- **volcano holder を coordinator の外で変異させる経路ができると token に出ない**
+  （`currentToken()` の volcano 成分は owner の `version()` ではなく
+  coordinator 自身の `volcanoRuntimeVersion`）。段階 1 A と同じ穴だが、
+  3-B では `durableChanged` の取りこぼしとして現れるので影響が重い。
+  性質そのものは受入テスト B5' で固定した（外部変異してもキャッシュがヒットする）。
+
+  **「該当経路は無い」は現状の断定であって、構造的な保証ではない。** 実際に
+  `volcano-route-handler.ts:263` の `this.volcanoState.update(info)` は coordinator を
+  経ない実 holder 変異である。いまは `handle(msg)` が `msg` 必須で `:249` の早期 return が
+  効くため到達しないが、**`emitSingle` / `aggregator.handle` の `msg?` が開いている** ——
+  ここを 1 本通す変更が入ると、静かに開く。volcano の受理経路を触るときは
+  「coordinator を経由しない holder 変異を足していないか」を必ず見る。
+  番兵は strict 便だけである（本番は既定 off）。
+
+  なお **「外部変異 → 必ずバイト列が食い違う」テストは書けなかった**。現行の外部から
+  触れる volcano API のうち `legacyEruptionIdentities` は永続化 projection に独立には出ず、
+  `composites` を動かすと `standby volcano mirror coupling mismatch` が `serD` で先に投げて
+  `candidateSerializationFailed` として**大きな音で**落ちる。静かに食い違う経路は
+  現行の配線には無い、というのが観測できた範囲の結論である
+- **メモリ**: 1 世代ぶんの v2 body に加えて PREFLIGHT 済みの v2 / v1 バイト列が
+  次の commit まで常駐する。Pi の 1.4MB 状態なら v2 ＋ v1 で数 MB 規模。
+  `--optimize-for-size` 運用なので §4.8 の Pi 観測で `heapDeltaMB` を見る
+- **ヒット状態での on / off バイト列一致を見ているのは B8 の合成 reducer 1 本だけである。**
+  実電文を router へ流す B8' は受理前 sweep が毎回 commit してヒットゼロになるので、
+  「ヒットしたうえでバイト列が一致する」ことの証拠になっていない。**実電文でヒットする
+  経路の一致確認は Pi 窓 4 が初めてになる**（受入 D1 の v2 / v1 バイト数と併せて見る）。
+  合成 reducer は `tornadoByOffice` 1 owner しか動かさないので、
+  複数 owner が同時に動く実電文の形は覆えていない
+- **ヒット率は受理前 sweep が commit するかに支配される。** jsdom で古い fixture を
+  固定時計に流すと sweep が毎回 `full` に落ちてヒットゼロになる（B8' に記録）。
+  Pi 窓 3 の実測は `precheck` 13 ／ `nochange` 2 ／ `full` 0 なので実機では
+  ほぼ毎回ヒットする見込みだが、**これは窓 4 で確かめる**
 
 ---
 
@@ -1517,3 +1609,12 @@ volcano 成分だけ coordinator の `volcanoRuntimeVersion` で出所が違う�
     段階 3-B の Pi 受入で **D1 として最初に採る**
 16. **VPTA50 が 3 窓とも来ていない。** suppression 出口での A のフォールバック頻度は
     まだ実機で観測できていない（§3.1 A の「この経路では A は効かない見込み」は未検証）
+
+### 2026-09-09 段階 3-B 実装（base `39ea635`、ご主人裁定 14-A）
+
+17. **base pair キャッシュを実装した**（実装記録は §9.10）。開発機 2MB 状態で
+    `total` 82.4 → 56.9ms（−31%）、`serB` はキーごと消滅、`serCalls` 2 → 1。
+    **起草時の「serializer は domains と envelope の純関数」は旧 dep 経路では
+    成り立たず**（owner の `version` 欄がバイト列に出る）、本番配線限定に絞った。
+    これを見つけたのは strict 便で、番兵が空回りでないことも同時に示された。
+    Pi 窓 4（受入 B・D1）は未採取

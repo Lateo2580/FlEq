@@ -447,6 +447,46 @@ body 再利用が働かない**ので、§4.3 本表（旧 harness）の値は 3
 `test/engine/perf/receipt-timing.test.ts` の A5 / A6 は旧 dep 経路の値を保ち、
 段階 1 後の本番値は `test/engine/display/standby-serialize-reduction.test.ts` が固定する。
 
+#### 4.3.2 削減 spec 段階 3-B 後の値（2026-09-09 実装で更新）
+
+段階 3-B（base pair キャッシュ）を入れると、`transactInternalCore` の base 側は
+前回 commit が残した PREFLIGHT_ENVELOPE 済み pair をそのまま使うので
+`this.serializePair` を通らない。**`serB` 区間そのものが立たなくなる**。
+
+> **キャッシュは本番配線（`serializePairSplit` dep がある構成）だけで効く。**
+> 旧 dep（`deps.serializePair` のみ）の `defaultSerializePair` は `domains` を
+> そのまま canonical JSON にするので owner snapshot の `version` 欄がバイト列に出る。
+> `commit` の `replacePrevalidated` は draft の `version` 欄を採らず owner 自身の規則で
+> 決め直すため、**draft のバイト列は commit 後の base のバイト列と一致しない**。
+> したがって §4.3 本表（旧 harness）の値は 3 / 2 のまま変わらない。段階 1 A と同じ線引き。
+
+| ケース | 段階 1 後 | 段階 3-B 後 | 理由 |
+|---|---|---|---|
+| 受理 commit ＋ durable 変化あり（**キャッシュヒット**） | 2 | **1** | base 側が `serializePair` を通らない。`serB` キーも立たない |
+| 受理 commit ＋ durable 変化あり（**ミス**: 直前が commit でない） | 2 | 2 | 従来どおり base を serialize する |
+| 受理 commit ＋ durable 変化なし（`changed` 非空・ヒット） | 2 | **1** | 同上 |
+| 受理 commit ＋ `changed.length === 0` | 0 | 0 | serialize 経路に入らない（strict では 2） |
+| `admissionFailure` / `staleVersion`（ヒット） | 2 | **1** | serialize は判定より前だが base はキャッシュから来る |
+| reducer の `rejected` / `invalidTouchedOwners` | 0 | 0 | serialize より前に抜ける |
+| 受理前 sweep が `precheck` / `nochange` | ＋0 | ＋0 | 変わらず |
+| 受理前 sweep が `full`（変更あり） | ＋2 | ＋2 | `sweepAll` はキャッシュを読まないし書かない |
+| 受理前 sweep が `full` かつ durable 変化あり | ＋3 | ＋3 | 同上 |
+| **strict（`FLEQ_STANDBY_SWEEP_STRICT=1`）でのヒット** | — | **段階 1 後と同値** | 突き合わせのため base を serialize し直す |
+
+**ミスする経路**（すべて `captured.token` の不一致で自動的に落ちる）: startup 復元・
+`restorePrevalidated`・受理前 sweep が `full` で commit した直後・coordinator の外で
+owner が動いた直後。`sweepAll` はキャッシュを書かないので、sweep が commit した次の
+transact は必ずミスする。
+
+**実測（開発機、状態 v2 = 2,020,996 B、`tornadoByOffice` を積む合成 transact 12 本の中央値）**
+
+| | `serCalls` | `total` | `serD` | `serB` | `serIn` | `serEnc` |
+|---|---|---|---|---|---|---|
+| キャッシュ off | 2 | 82.4 | 26.0 | 25.7 | 47.7 | 5.5 |
+| キャッシュ on | 1 | **56.9** | 26.0 | **キーごと消滅** | 24.2 | 3.6 |
+
+`total` −25.5ms（−31%）。Pi 実機の窓 4 は削減 spec §9.9 の受入 D1 で採る。
+
 ### 4.4 挙動不変の検証
 
 同一 fixture を off / on の両方で流し、次が完全一致することを assert する。

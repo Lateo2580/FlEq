@@ -222,7 +222,17 @@ export function mark<T>(segment: Segment, fn: () => T): T {
   }
 }
 
-/** `this.serializePair` の呼び出しを 1 回数える (P4、コンストラクタのラッパから)。 */
+/**
+ * `this.serializePair` の呼び出しを 1 回数える (P4、コンストラクタのラッパから)。
+ *
+ * **定義の変遷**: 削減 spec 段階 1 で「pair を最初から作った回数」から
+ * 「中間表現 (body) を build した回数」へ変わり (再利用が効いた `save` は encode だけを
+ * 走らせるので出ない)、**段階 3-B で base pair キャッシュのぶんがさらに落ちる** —
+ * `transactInternalCore` の base 側は前回 commit の pair をそのまま使うので
+ * `serializePair` を通らず、`serB` 区間ごと立たない。strict
+ * (`FLEQ_STANDBY_SWEEP_STRICT=1`) ではキャッシュと実 serialize を突き合わせるため
+ * ヒット行でも従来の値に戻る。表は計測 spec §4.3.2。
+ */
 export function countSerializePair(): void {
   if (collector !== null) collector.serCalls += 1;
 }

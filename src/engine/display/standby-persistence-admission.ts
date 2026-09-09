@@ -621,6 +621,32 @@ export function __test_setStandbyBodyReuseEnabled(enabled: boolean): boolean {
   return previous;
 }
 
+/**
+ * base pair キャッシュ (spec §3.3 B / §9.9)。既定 on。
+ *
+ * 受入は「キャッシュが効いた経路」と「フォールバックした経路」で `durableChanged` と
+ * 永続化バイト列が一致することを見るので、テストから off にできないと後者を安定して
+ * 作れない (`__test_setStandbyBodyReuseEnabled` と同じ理由)。
+ */
+let standbyBasePairCacheEnabled = true;
+
+/** テスト専用。base pair キャッシュを切り替え、直前の値を返す (finally で必ず戻すこと)。 */
+export function __test_setStandbyBasePairCacheEnabled(enabled: boolean): boolean {
+  const previous = standbyBasePairCacheEnabled;
+  standbyBasePairCacheEnabled = enabled;
+  return previous;
+}
+
+/**
+ * strict の base pair 突き合わせが不一致だったときの番兵 (spec §3.3 B)。
+ *
+ * `transactInternalCore` の serialize ブロックは throw を
+ * `candidateSerializationFailed` へ畳む catch に囲まれている。この例外だけは
+ * **握らずに再送出する** — 畳んでしまうと「キャッシュが壊れている」という最も
+ * 静かな失敗が `rejected` 1 件に化けて見えなくなる。
+ */
+class StandbyBasePairCacheMismatchError extends Error {}
+
 function bytesEqual(left: Uint8Array, right: Uint8Array): boolean {
   if (left.byteLength !== right.byteLength) return false;
   for (let index = 0; index < left.byteLength; index++) {
@@ -652,28 +678,53 @@ export class StandbyPersistenceAdmissionCoordinator {
     body: StandbyAdmissionSerializationBody,
     envelope: StandbySerializationEnvelope,
   ) => StandbySerializedPair;
-  /** `serializePairSplit` dep が渡されたときだけ body 再利用を許す (spec §3.1 A)。 */
+  /**
+   * `serializePairSplit` dep が渡されたときだけ commit 済み成果物の再利用を許す
+   * (段階 1 A の body 再利用と段階 3-B の base pair キャッシュの両方)。
+   *
+   * **互換 split (`deps.serializePair` だけを渡した構成) では再利用してはいけない。**
+   * 既定の `defaultSerializePair` は `domains` をそのまま canonical JSON にするので、
+   * owner snapshot の `version` 欄までバイト列に入る。`commit` の
+   * `replacePrevalidated` は draft の `version` 欄をそのまま採らず owner 自身の規則で
+   * 決め直すため、**draft のバイト列は commit 後の base のバイト列と一致しない** —
+   * キャッシュすると `durableChanged` が別の値になる。本番の split serializer は
+   * `exportActiveState` の projection を通すので owner の version 欄を含まず、
+   * 「draft を serialize したもの」＝「commit 後の base を serialize したもの」が成り立つ。
+   */
   private readonly bodyReuseSupported: boolean;
   /**
-   * 直近の commit が確定させた「現在の保存状態と等価な中間表現」。**1 世代だけ**持つ。
+   * 直近の commit が確定させた成果物。**1 世代だけ**持ち、**token 1 つで束ねる**
+   * (spec §3.1 A ＋ §3.3 B)。段階 1 の body 再利用と段階 3-B の base pair キャッシュは
+   * どちらも「commit 直後の保存状態と等価なもの」なので、別々の欄に分けて別々の token で
+   * 持つと 2 つが食い違ったときに気づけない。欄を 1 つにして同時に入れ替える。
    *
    * commit に到達しなかった transact では更新しない。無効化は `token` 判定に一本化する
-   * (`restorePrevalidated` / `rollback` / `sweepAll` の commit はすべて owner version か
-   * `compositionVersion` を進めるので、古い body は必ずミスする)。無効化点を列挙する
+   * (`restorePrevalidated` / `sweepAll` の commit はすべて owner version か
+   * `compositionVersion` を進めるので、古い成果物は必ずミスする)。無効化点を列挙する
    * 方式は漏れるが、token は漏れない (spec §3.1 A)。
    *
-   * **A の正しさは「coordinator を経由せずに holder を変異させる経路が無い」配線に
+   * **正しさは「coordinator を経由せずに holder を変異させる経路が無い」配線に
    * 依存する。** `currentToken()` の volcano 成分は holder の `version()` ではなく
    * coordinator 自身の `volcanoRuntimeVersion` なので、その経路ができると token に
-   * 現れない (spec §3.1 A の注記)。
+   * 現れない (spec §3.1 A の注記)。段階 3-B ではこの穴が
+   * 「`durableChanged` が false へ倒れて永続化を静かに取りこぼす」形で出るので、
+   * strict (`FLEQ_STANDBY_SWEEP_STRICT=1`) が実 serialize と突き合わせて throw する。
    *
-   * **memory**: v2 body 1 世代ぶんが次の commit まで常駐する (Pi では約 1.4MB)。
-   * 分割前は `serD` の直後から GC 対象だった。Pi は `--optimize-for-size` 運用なので、
-   * 常駐 heap の増分は §4.8 の Pi 観測項目で採る。1 世代しか持たないので上限は body 1 つ。
+   * **memory**: 次の commit まで 1 世代ぶんが常駐する。v2 body (Pi で約 1.4MB 相当の
+   * オブジェクト) に加えて、段階 3-B で PREFLIGHT_ENVELOPE 済みの v2 / v1 バイト列を持つ。
+   * 分割前はどちらも `serD` の直後から GC 対象だった。Pi は `--optimize-for-size` 運用
+   * なので、常駐 heap の増分は §4.8 の Pi 観測項目で採る。上限は 1 世代ぶん。
    */
-  private reusableBody: {
+  private lastCommitted: {
     token: StandbyPersistenceVersionToken;
+    /** 段階 1 A の再利用元 (envelope 抜きの中間表現)。 */
     body: StandbyAdmissionSerializationBody;
+    /**
+     * 段階 3-B のキャッシュ。`PREFLIGHT_ENVELOPE` で encode 済みなので、次の transact の
+     * base pair (`serB`) とバイト列が一致する — base は commit 直後の保存状態であり、
+     * `serD` はまさにその状態を同じ envelope で encode したものだから。
+     */
+    preflightPair: StandbySerializedPair;
   } | null = null;
   /**
    * 直近の「何も変えなかった sweep」。ここに記録があるときだけ事前判定が働く。
@@ -692,9 +743,16 @@ export class StandbyPersistenceAdmissionCoordinator {
     const serializePair = deps.serializePair ?? defaultSerializePair;
     // spec §3.1 A / M2: serializer を 2 段に割り、`serIn` / `serEnc` の内訳を採る。
     // split dep が無いときは旧 `serializePair` から互換 split を合成する
-    // (`build` は素通し、`encode` が全部やる)。この形では body 再利用を行わない —
-    // 旧 dep は「domains 1 つ + envelope 1 つ」しか受けないので、再利用しても
+    // (`build` は素通し、`encode` が全部やる)。この形では commit 済み成果物を
+    // 再利用しない — 旧 dep は「domains 1 つ + envelope 1 つ」しか受けないので
     // `serIn` 相当を省けず、deps 差し替えの計数と `serCalls` がずれるだけになる。
+    //
+    // **より重い理由は正しさの側にある** (段階 3-B 実装時に判明、spec §9.10)。
+    // 既定の `defaultSerializePair` は `domains` をそのまま canonical JSON にするので
+    // owner snapshot の `version` 欄までバイト列に入り、`commit` はその欄を draft から
+    // 採らずに owner 自身の規則で決め直す。**draft のバイト列は commit 後の base の
+    // バイト列と一致しない**ので、この構成でキャッシュすると `durableChanged` が
+    // 別の値になる。`bodyReuseSupported` の宣言側コメントも参照。
     const split: StandbyAdmissionSerializeSplit = deps.serializePairSplit ?? {
       build: (domains) => ({ kind: "domains", domains }),
       encode: (body, envelope) => {
@@ -879,6 +937,16 @@ export class StandbyPersistenceAdmissionCoordinator {
     let candidatePair: StandbySerializedPair;
     let basePair: StandbySerializedPair;
     let admissionFailure: string | null;
+    // spec §3.3 B: base は「前回 commit が確定させた保存状態」なので、その commit が
+    // 残した PREFLIGHT_ENVELOPE 済み pair をそのまま使える。判定は `currentToken()`
+    // ではなく **`captured.token`** に対して行う — 比較したいのは capture 時点の
+    // `captured.domains` であって、いまの owner 状態ではない。
+    const cachedBasePair = standbyBasePairCacheEnabled
+      && this.bodyReuseSupported
+      && this.lastCommitted !== null
+      && tokenEquals(this.lastCommitted.token, captured.token)
+      ? this.lastCommitted.preflightPair
+      : null;
     try {
       // body は commit 後の 3 回目 serialize (`save`) で再利用する (spec §3.1 A)。
       const built = perf.mark("serD", () => {
@@ -888,12 +956,33 @@ export class StandbyPersistenceAdmissionCoordinator {
       });
       candidateBody = built.body;
       candidatePair = built.pair;
-      basePair = perf.mark(
-        "serB",
-        () => this.serializePair(captured.domains, PREFLIGHT_ENVELOPE),
-      );
+      if (cachedBasePair === null) {
+        basePair = perf.mark(
+          "serB",
+          () => this.serializePair(captured.domains, PREFLIGHT_ENVELOPE),
+        );
+      } else {
+        basePair = cachedBasePair;
+        // strict はキャッシュを信用しない。実 serialize と突き合わせ、違えば throw する。
+        // ここを落とすと誤ヒットが `durableChanged` の false 化として現れ、
+        // 永続化を静かに取りこぼす (spec §9.9 のリスクの所在)。
+        if (strictSweepOwnerDiff) {
+          const verified = perf.mark(
+            "serB",
+            () => this.serializePair(captured.domains, PREFLIGHT_ENVELOPE),
+          );
+          if (!pairEqual(verified, cachedBasePair)) {
+            throw new StandbyBasePairCacheMismatchError(
+              "standby admission base pair cache mismatch:"
+              + ` cached v2=${cachedBasePair.v2.byteLength}B v1=${cachedBasePair.v1.byteLength}B`
+              + ` actual v2=${verified.v2.byteLength}B v1=${verified.v1.byteLength}B`,
+            );
+          }
+        }
+      }
       admissionFailure = perf.mark("pre", () => this.preflight(draft, candidatePair));
-    } catch {
+    } catch (error) {
+      if (error instanceof StandbyBasePairCacheMismatchError) throw error;
       admissionFailure = "candidateSerializationFailed";
       candidateBody = null;
       candidatePair = { v2: new Uint8Array(), v1: new Uint8Array() };
@@ -916,9 +1005,16 @@ export class StandbyPersistenceAdmissionCoordinator {
     const token = this.currentToken();
     // spec §3.1 A: commit 直後の保存状態は draft と等価 (`replacePrevalidated` →
     // `cloneSnapshot` の往復性。実行時の担保は `assertLosslessOwnerSnapshot`)。
-    // この token のまま `captureSerializedPair` が呼ばれたら body をそのまま encode する。
+    // この token のまま `captureSerializedPair` が呼ばれたら body をそのまま encode し
+    // (段階 1 A)、この token のまま次の transact が来たら pair を base に使う (段階 3-B)。
+    // ここに来るのは `changed.length > 0` の commit 済み経路だけなので、
+    // `candidateBody` / `candidatePair` は catch の空 pair ではない。
+    //
+    // **互換配線では 1 バイトも抱えない。** 読み手 (`:948` の base pair キャッシュと
+    // `:1455` の body 再利用) は両方とも `bodyReuseSupported` を要求するので、
+    // ここだけ緩めると v2 ＋ v1 のバイト列を次の commit まで常駐させて誰も読まない。
     if (this.bodyReuseSupported && candidateBody !== null) {
-      this.reusableBody = { token, body: candidateBody };
+      this.lastCommitted = { token, body: candidateBody, preflightPair: candidatePair };
     }
     if (durableChanged && !deferDurable) this.emitDurable();
     return { kind: "committed", value: reduced.value, token, durableChanged };
@@ -1354,7 +1450,7 @@ export class StandbyPersistenceAdmissionCoordinator {
     // 再利用が効く行でも 7 owner の deep clone (Pi 実測 約 55ms) を払い続ける。
     // `currentToken()` は owner の `version()` を読むだけで clone を伴わない。
     const reusable = this.bodyReuseSupported && standbyBodyReuseEnabled
-      ? this.reusableBody
+      ? this.lastCommitted
       : null;
     let token: StandbyPersistenceVersionToken;
     let pair: StandbySerializedPair;

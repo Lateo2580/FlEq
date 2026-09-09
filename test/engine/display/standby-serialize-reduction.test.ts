@@ -29,6 +29,7 @@ import {
 } from "../../../src/engine/perf/receipt-timing";
 import { StandbyPersistence } from "../../../src/engine/display/standby-persistence";
 import {
+  __test_setStandbyBasePairCacheEnabled,
   __test_setStandbyBodyReuseEnabled,
   __test_setStandbySweepStrictOwnerDiff,
   standbyAdmissionSerializeSplit,
@@ -104,6 +105,20 @@ function makeProductionHarness(tag: string, options: {
    * 常に false になり、「durable 変化なし」の serCalls を測れる。
    */
   constantEncode?: boolean;
+  /**
+   * 段階 3-B の strict 検証を試すための細工。`active` を true にすると、以降の encode が
+   * v2 の末尾に空白 1 バイトを足した別のバイト列を返す (JSON としては同値のまま)。
+   *
+   * commit 後に立てると「キャッシュに入っている pair」と「いま serialize し直した pair」が
+   * 食い違う状態を作れる — 誤ヒットの再現。テストが実行中に切り替えるのでオブジェクト
+   * 参照で渡す。
+   */
+  encodePoison?: { active: boolean };
+  /**
+   * `active` の間だけ build が投げる。`candidateSerializationFailed` の出口を
+   * 任意のタイミングで作れる (serializer の不変条件が破れた状態の代役)。
+   */
+  failBuild?: { active: boolean };
 } = {}) {
   const root = makeRoot(tag);
   const persistence = new StandbyPersistence(join(root, "display-active-state-v1.json"));
@@ -115,11 +130,22 @@ function makeProductionHarness(tag: string, options: {
     serializePairSplit: {
       build: (domains) => {
         buildCalls += 1;
+        if (options.failBuild?.active === true) {
+          throw new Error("standby volcano mirror coupling mismatch");
+        }
         return split.build(domains);
       },
-      encode: (body, envelope) => (options.constantEncode === true
-        ? { v2: new Uint8Array([1]), v1: new Uint8Array([1]) }
-        : split.encode(body, envelope)),
+      encode: (body, envelope) => {
+        if (options.constantEncode === true) {
+          return { v2: new Uint8Array([1]), v1: new Uint8Array([1]) };
+        }
+        const pair = split.encode(body, envelope);
+        if (options.encodePoison?.active !== true) return pair;
+        const v2 = new Uint8Array(pair.v2.byteLength + 1);
+        v2.set(pair.v2);
+        v2[pair.v2.byteLength] = 0x20;
+        return { v2, v1: pair.v1 };
+      },
     },
     ...(options.validateCandidate == null
       ? {}
@@ -188,6 +214,16 @@ function ownerFingerprint(
     out[owner] = JSON.stringify(domains[owner]);
   }
   return out;
+}
+
+/** base pair キャッシュ (段階 3-B) の on / off を必ず戻す。 */
+function withBasePairCache<T>(enabled: boolean, run: () => T): T {
+  const previous = __test_setStandbyBasePairCacheEnabled(enabled);
+  try {
+    return run();
+  } finally {
+    __test_setStandbyBasePairCacheEnabled(previous);
+  }
 }
 
 /** 再利用 on / off を必ず戻す。 */
@@ -794,5 +830,452 @@ describe("§4.6 A9: 1MB 超の重い呼び出しが段階 1 で単調減少す�
     expect(reused.stringify).toBeLessThanOrEqual(fallback.stringify);
     expect(reused.clone).toBeLessThanOrEqual(fallback.clone);
     expect(reused.parse).toBeLessThanOrEqual(fallback.parse);
+  });
+});
+
+// ── 段階 3-B: base pair キャッシュ ───────────────────────────
+
+/**
+ * 削減 spec **段階 3-B**（§3.3 B / §9.9）の受入。
+ *
+ * `transactInternalCore` の base 側 `serializePair` を、前回 commit が残した
+ * PREFLIGHT_ENVELOPE 済み pair で置き換える。判定は `captured.token` と
+ * 保存 token の `tokenEquals` 一致のみで、ミスすれば従来どおり serialize する。
+ *
+ * - B1 / B2: ヒット行で `serB` が立たず `serCalls` が 1 減る。off で従来値に戻る
+ * - B3〜B5: ミス 3 経路（restore / sweepAll の commit / coordinator 外の owner 変異）
+ * - B6 / B7: strict はヒット時も実 serialize と突き合わせ、食い違えば throw する
+ * - B8 / B9: `durableChanged` と永続化バイト列が on / off で一致する
+ */
+describe("§4.5 段階 3-B: base pair キャッシュ", () => {
+  const TOUCHED = ["telegramRevisionGate", "standbyStateStore"] as const;
+
+  /** transact 1 本を receipt 境界で包み、その行の `serCalls` と区間キー・build 差分を返す。 */
+  function measureOne(
+    harness: ProductionHarness,
+    reduce: Parameters<typeof harness.coordinator.transact>[2],
+    options: { strict?: boolean; cache?: boolean } = {},
+  ): { serCalls: number; buildCalls: number; keys: string[]; kind: string } {
+    const before = harness.buildCalls();
+    let kind = "";
+    const lines = withBasePairCache(options.cache !== false, () =>
+      withStrictMode(options.strict === true, () => withPerfLines((collected) => {
+        beginReceipt("basecache-probe", "PROBE", "probe", 0);
+        try {
+          kind = harness.coordinator.transact("standby:tornado", [...TOUCHED], reduce).kind;
+        } finally {
+          endReceipt();
+        }
+        return collected;
+      })));
+    return {
+      serCalls: serCallsOf(lines),
+      buildCalls: harness.buildCalls() - before,
+      keys: segmentKeys(lines),
+      kind,
+    };
+  }
+
+  it("B1: 2 本目の transact は base を serialize せず serCalls が 1 減る", () => {
+    const harness = makeProductionHarness("basecache-hit");
+    // 1 本目はキャッシュが空なので従来どおり serD + serB を払う。
+    const first = measureOne(harness, standbyMutation("hit-1"));
+    expect(first.kind).toBe("committed");
+    expect(first.serCalls).toBe(2);
+    expect(first.keys).toContain("serB");
+
+    // 2 本目は `captured.token` が 1 本目の commit token と一致するのでヒットする。
+    const second = measureOne(harness, standbyMutation("hit-2"));
+    expect(second.kind).toBe("committed");
+    expect(second.serCalls).toBe(1);
+    expect(second.buildCalls).toBe(second.serCalls);
+    expect(second.keys).toContain("serD");
+    expect(second.keys).not.toContain("serB");
+  });
+
+  it("B2: キャッシュを off にすると 2 本目も従来どおり serCalls=2 で serB が立つ", () => {
+    const harness = makeProductionHarness("basecache-off");
+    expect(measureOne(harness, standbyMutation("off-1"), { cache: false }).serCalls).toBe(2);
+    const second = measureOne(harness, standbyMutation("off-2"), { cache: false });
+    expect(second.kind).toBe("committed");
+    expect(second.serCalls).toBe(2);
+    expect(second.buildCalls).toBe(second.serCalls);
+    expect(second.keys).toContain("serB");
+  });
+
+  it("B3: restorePrevalidated のあとはミスして従来どおり serialize する", () => {
+    const harness = makeProductionHarness("basecache-restore");
+    expect(measureOne(harness, standbyMutation("restore-1")).kind).toBe("committed");
+    // restore は compositionVersion と volcanoRuntimeVersion を進めるので token が動く。
+    harness.coordinator.restorePrevalidated(
+      structuredClone(harness.coordinator.capture().domains) as StandbyPersistenceDomainSnapshots,
+    );
+    const after = measureOne(harness, standbyMutation("restore-2"));
+    expect(after.kind).toBe("committed");
+    expect(after.serCalls).toBe(2);
+    expect(after.keys).toContain("serB");
+  });
+
+  it("B4: sweepAll が commit したあとはミスする (sweep はキャッシュを書かない)", () => {
+    vi.useFakeTimers({ toFake: ["Date"], now: CLASSIFICATION_NOW });
+    try {
+      const harness = makeProductionHarness("basecache-sweep");
+      const router = weatherRouter(harness);
+      // 1 通目の受理でキャッシュが載る。
+      router.handler(fixtureMessage(FIXTURE_VPWS50_AGGREGATE, "VPWS50", "sweep-a"));
+      // 同じ電文の 2 通目は受理前 sweep が `full` に落ちて commit する。
+      router.handler(fixtureMessage(FIXTURE_VPWS50_AGGREGATE, "VPWS50", "sweep-b"));
+      const after = measureOne(harness, standbyMutation("after-sweep"));
+      expect(after.kind).toBe("committed");
+      expect(after.serCalls).toBe(2);
+      expect(after.keys).toContain("serB");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("B5: token に載る owner が transact の外で動いたらミスする", () => {
+    const harness = makeProductionHarness("basecache-outside");
+    expect(measureOne(harness, standbyMutation("outside-1")).kind).toBe("committed");
+    // standbyStateStore は `currentToken()` の `ownerVersions` に入っているので、
+    // coordinator を経由しない変異でも token に出る。**volcano だけは出ない** (B5')。
+    const snapshot = harness.owners.standbyStateStore.cloneSnapshot();
+    harness.owners.standbyStateStore.replacePrevalidated({
+      ...snapshot,
+      version: snapshot.version + 1,
+    });
+    const after = measureOne(harness, standbyMutation("outside-2"));
+    expect(after.kind).toBe("committed");
+    expect(after.serCalls).toBe(2);
+    expect(after.keys).toContain("serB");
+  });
+
+  it("B5': volcano holder の外部変異は token に出ないのでミスしない", () => {
+    /**
+     * `currentToken()` の volcano 成分は holder の `version()` ではなく coordinator 自身の
+     * `volcanoRuntimeVersion` (`:568` / `:585`、加算は `commit` と `restorePrevalidated`
+     * だけ) なので、**coordinator を経由しない holder 変異は token に現れない**。
+     * 段階 1 A から続く既知の穴で、段階 3-B では誤ヒット →
+     * `durableChanged` の取りこぼしとして出る。ここではその性質そのものを固定する。
+     *
+     * **「外部変異 → 必ずバイト列が食い違う」テストは書けなかった。** 現行の外部から
+     * 触れる volcano API のうち、`legacyEruptionIdentities` は永続化 projection に
+     * 独立には出ず、`composites` を動かすと `standby volcano mirror coupling mismatch`
+     * が serD で先に投げて `candidateSerializationFailed` として**大きな音で**落ちる。
+     * 静かに食い違う経路は現行の配線には無い。食い違ったときに拾うのは strict で、
+     * それは B7 が固定している。
+     */
+    const harness = makeProductionHarness("basecache-volcano");
+    expect(measureOne(harness, standbyMutation("volcano-1")).kind).toBe("committed");
+    const before = JSON.stringify(harness.owners.volcanoState.snapshot());
+    const snapshot = harness.owners.volcanoState.snapshot();
+    harness.owners.volcanoState.replacePrevalidated({
+      ...snapshot,
+      legacyEruptionIdentities: [
+        ...snapshot.legacyEruptionIdentities,
+        { volcanoCode: "999999", eventId: "outside-mutation", legacyV1Fallback: true },
+      ],
+    });
+    // 変異が空振りでないこと (同じなら以下の「ヒットした」が無意味になる)。
+    expect(JSON.stringify(harness.owners.volcanoState.snapshot())).not.toBe(before);
+    // それでもキャッシュはヒットする = token に出ていない。B5 (standbyStateStore) は 2。
+    const after = measureOne(harness, standbyMutation("volcano-2"));
+    expect(after.kind).toBe("committed");
+    expect(after.serCalls).toBe(1);
+    expect(after.keys).not.toContain("serB");
+  });
+
+  it("B6: strict はヒット行でも実 serialize と突き合わせ、健全なら通す", () => {
+    const harness = makeProductionHarness("basecache-strict-ok");
+    expect(measureOne(harness, standbyMutation("strict-1"), { strict: true }).kind)
+      .toBe("committed");
+    const second = measureOne(harness, standbyMutation("strict-2"), { strict: true });
+    expect(second.kind).toBe("committed");
+    // 突き合わせのために base を serialize し直すので、strict では従来の値に戻る。
+    expect(second.serCalls).toBe(2);
+    expect(second.keys).toContain("serB");
+  });
+
+  it("B7: 古いキャッシュを仕込むと strict が throw する (rejected へ畳まない)", () => {
+    const poison = { active: false };
+    const harness = makeProductionHarness("basecache-poison", { encodePoison: poison });
+    expect(measureOne(harness, standbyMutation("poison-1")).kind).toBe("committed");
+    // 以降の serialize だけ別のバイト列になる。キャッシュの中身は 1 本目のまま。
+    poison.active = true;
+    withBasePairCache(true, () => withStrictMode(true, () => {
+      expect(() => harness.coordinator.transact(
+        "standby:tornado",
+        [...TOUCHED],
+        standbyMutation("poison-2"),
+      )).toThrow(/base pair cache mismatch/);
+    }));
+    // strict off では throw しない (これがキャッシュを入れたことの代償で、
+    // だから CI は strict 便を恒久で持っている)。
+    expect(withBasePairCache(true, () => withStrictMode(false, () =>
+      harness.coordinator.transact(
+        "standby:tornado",
+        [...TOUCHED],
+        standbyMutation("poison-3"),
+      ).kind))).toBe("committed");
+  });
+
+  /**
+   * `tornadoByOffice` を動かす reducer。`exportActiveState` の `tornado` に出るので
+   * **base と candidate のバイト列が実際に食い違い**、`durableChanged` が true になる。
+   *
+   * `standbyMutation` (`briefingGeneration` を進めるだけ) は projection に出ないので
+   * `durableChanged` が false のままで、「誤ヒットで durable を取りこぼす」危険を
+   * 一度も踏まない — B8 はこちらを使う。
+   */
+  function tornadoMutation(tag: string) {
+    return (draft: StandbyPersistenceDomainSnapshots) => {
+      const tornado = new Map(draft.standbyStateStore.data.tornadoByOffice);
+      tornado.set(`office-${tag}`, {
+        publishingOffice: `office-${tag}`,
+        sourceEventId: `event-${tag}`,
+        areas: [`area-${tag}`],
+        isSighted: false,
+        revision: { reportTimeMs: CLASSIFICATION_NOW, serial: null },
+        expiresAtMs: CLASSIFICATION_NOW + 24 * 60 * 60_000,
+        restored: false,
+      });
+      draft.standbyStateStore = {
+        ...draft.standbyStateStore,
+        version: draft.standbyStateStore.version + 1,
+        data: { ...draft.standbyStateStore.data, tornadoByOffice: tornado },
+      };
+      return { kind: "accepted" as const, value: tag, durableChanged: true };
+    };
+  }
+
+  it("B7': commit しなかった出口はキャッシュを書き換えない", () => {
+    /**
+     * `rejected` / `staleVersion` / `candidateSerializationFailed` はいずれも
+     * `serD` の**あと**に抜けうる。そこで `candidatePair` を保存してしまうと、
+     * 「commit していない draft の pair」が次の transact の base になる —
+     * これは誤ヒットそのもので、`durableChanged` を静かに壊す。
+     *
+     * 観測は strict で採る。中断した transact の次を strict で流し、キャッシュが
+     * 汚れていれば `base pair cache mismatch` で throw する。throw しなければ
+     * 「1 本目の commit が残した正しい pair のまま」である。
+     */
+    function assertCacheSurvives(
+      tag: string,
+      harness: ProductionHarness,
+      broken: () => string,
+    ): void {
+      // 1 本目で正しいキャッシュを載せる。
+      expect(measureOne(harness, standbyMutation(`${tag}-1`)).kind).toBe("committed");
+      // 2 本目は commit せずに抜ける。
+      expect(broken()).not.toBe("committed");
+      // 3 本目を strict で流す。キャッシュが 2 本目の draft で上書きされていたら throw。
+      withBasePairCache(true, () => withStrictMode(true, () => {
+        expect(harness.coordinator.transact(
+          "standby:tornado",
+          [...TOUCHED],
+          standbyMutation(`${tag}-3`),
+        ).kind).toBe("committed");
+      }));
+    }
+
+    // (1) admissionFailure による rejected
+    let rejectReason: string | null = null;
+    const rejectHarness = makeProductionHarness("basecache-exit-reject", {
+      validateCandidate: () => rejectReason,
+    });
+    assertCacheSurvives("reject", rejectHarness, () => {
+      rejectReason = "volcanoSubtreeBytesExceeded";
+      try {
+        return rejectHarness.coordinator.transact(
+          "standby:tornado",
+          [...TOUCHED],
+          standbyMutation("reject-2"),
+        ).kind;
+      } finally {
+        rejectReason = null;
+      }
+    });
+
+    // (2) staleVersion
+    const staleHarness = makeProductionHarness("basecache-exit-stale");
+    assertCacheSurvives("stale", staleHarness, () => staleHarness.coordinator.transact(
+      "standby:tornado",
+      [...TOUCHED],
+      (draft) => {
+        const mutated = standbyMutation("stale-2")(draft);
+        // reducer の中から実 owner を動かして `captured.token` を古くする。
+        const snapshot = staleHarness.owners.standbyStateStore.cloneSnapshot();
+        staleHarness.owners.standbyStateStore.replacePrevalidated({
+          ...snapshot,
+          version: snapshot.version + 1,
+        });
+        return mutated;
+      },
+    ).kind);
+
+    // (3) candidateSerializationFailed
+    const failBuild = { active: false };
+    const failHarness = makeProductionHarness("basecache-exit-serfail", { failBuild });
+    assertCacheSurvives("serfail", failHarness, () => {
+      failBuild.active = true;
+      try {
+        return failHarness.coordinator.transact(
+          "standby:tornado",
+          [...TOUCHED],
+          standbyMutation("serfail-2"),
+        ).kind;
+      } finally {
+        failBuild.active = false;
+      }
+    });
+  });
+
+  it("B8: durable 変化のある連続 transact で永続化バイト列が on / off で一致する", () => {
+    function run(tag: string, cache: boolean) {
+      vi.useFakeTimers({ toFake: ["Date"], now: CLASSIFICATION_NOW });
+      try {
+        // strict はヒット時も base を serialize し直すので、build 回数で
+        // 「ヒットしたか」を測れなくなる。ここは明示的に off で採る。
+        return withStrictMode(false, () => withBasePairCache(cache, () => {
+          const harness = makeProductionHarness(tag);
+          // 2 本目以降が `captured.token` 一致でキャッシュに当たる。**当たった状態で
+          // durable 変化を起こす**のが本命 — 誤ヒットならここで `durableChanged` が
+          // false へ倒れ、save が 1 本落ちる。
+          for (const index of [1, 2, 3]) {
+            const result = harness.coordinator.transact(
+              "standby:tornado",
+              [...TOUCHED],
+              tornadoMutation(`b8-${index}`),
+            );
+            expect(result.kind).toBe("committed");
+          }
+          return {
+            pairs: harness.pairs,
+            fingerprint: ownerFingerprint(harness.coordinator),
+            failures: harness.durableFailures,
+            buildCalls: harness.buildCalls(),
+          };
+        }));
+      } finally {
+        vi.useRealTimers();
+      }
+    }
+    const cached = run("b8-on", true);
+    const plain = run("b8-off", false);
+    expect(cached.failures).toEqual([]);
+    expect(plain.failures).toEqual([]);
+    // `durableChanged` が誤って false へ倒れると save が 1 本減るので、件数も一致を見る。
+    expect(plain.pairs.length).toBe(3);
+    expect(cached.pairs.length).toBe(plain.pairs.length);
+    expect(cached.pairs).toEqual(plain.pairs);
+    expect(cached.fingerprint).toEqual(plain.fingerprint);
+    // キャッシュが実際にヒットしていることの証拠 (ヒットゼロなら build 回数が同数になる)。
+    expect(cached.buildCalls).toBeLessThan(plain.buildCalls);
+  });
+
+  it("B8': 実電文 3 通でも永続化バイト列と owner snapshot が on / off で一致する", () => {
+    /**
+     * router 経路では受理前 sweep が 2 通目以降 `full` に落ちて commit するので、
+     * **この fixture 列ではキャッシュがヒットしない**（古い fixture を固定時計で流すと
+     * gate の lifecycle 期限が毎回過ぎている）。Pi 窓 3 の実測は `precheck` 13 /
+     * `nochange` 2 / `full` 0 なので実機の傾向は逆。ここで見るのは
+     * 「ミスし続けても改修前と 1 バイトも変わらない」ことである。
+     */
+    function run(tag: string, cache: boolean) {
+      vi.useFakeTimers({ toFake: ["Date"], now: CLASSIFICATION_NOW });
+      try {
+        return withBasePairCache(cache, () => {
+          const harness = makeProductionHarness(tag);
+          const router = weatherRouter(harness);
+          router.handler(fixtureMessage(FIXTURE_VPWS50_AGGREGATE, "VPWS50", "b8-vpws50"));
+          router.handler(fixtureMessage(FIXTURE_VPWW55_OAME, "VPWW55", "b8-vpww55"));
+          router.handler(fixtureMessage(FIXTURE_VPWW56_DOSHA, "VPWW56", "b8-vpww56"));
+          return {
+            pairs: harness.pairs,
+            fingerprint: ownerFingerprint(harness.coordinator),
+            failures: harness.durableFailures,
+          };
+        });
+      } finally {
+        vi.useRealTimers();
+      }
+    }
+    const cached = run("b8r-on", true);
+    const plain = run("b8r-off", false);
+    expect(cached.failures).toEqual([]);
+    expect(plain.failures).toEqual([]);
+    expect(cached.pairs.length).toBe(plain.pairs.length);
+    expect(cached.pairs.length).toBeGreaterThan(0);
+    expect(cached.pairs).toEqual(plain.pairs);
+    expect(cached.fingerprint).toEqual(plain.fingerprint);
+  });
+
+  it("B10: 互換配線 (serializePair だけの dep) ではキャッシュを使わない", () => {
+    /**
+     * `defaultSerializePair` は `domains` をそのまま canonical JSON にするので、
+     * owner snapshot の `version` 欄がバイト列に出る。`commit` の
+     * `replacePrevalidated` は draft の `version` 欄を採らず owner 自身の規則で決め直す
+     * ため、**draft のバイト列は commit 後の base のバイト列と一致しない**。
+     * この構成でキャッシュを使うと strict が throw し、非 strict では
+     * `durableChanged` が別の値に倒れる。**そのため互換配線では常にミス扱いにする。**
+     *
+     * 2026-09-09 実装時に strict 便が実際にこれを捕まえた
+     * (`volcano-ashfall-lifecycle` ほか 10 件)。番兵はここで残す。
+     */
+    const root = makeRoot("basecache-compat");
+    const persistence = new StandbyPersistence(join(root, "display-active-state-v1.json"));
+    let serializeCalls = 0;
+    const coordinator = new StandbyPersistenceAdmissionCoordinator({
+      owners: makeOwners(),
+      serializePair: (domains, envelope) => {
+        serializeCalls += 1;
+        const body = JSON.stringify({ envelope, domains }, (_key, child: unknown) => {
+          if (child instanceof Map) return { $map: [...child] };
+          if (child instanceof Set) return { $set: [...child] };
+          return child;
+        });
+        const bytes = new TextEncoder().encode(body);
+        return { v2: bytes, v1: bytes };
+      },
+      canReserveLogicalGeneration: () => persistence.canReserveLogicalGeneration(),
+    });
+    withBasePairCache(true, () => withStrictMode(true, () => {
+      for (const tag of ["compat-1", "compat-2", "compat-3"]) {
+        expect(coordinator.transact("standby:tornado", [...TOUCHED], standbyMutation(tag)).kind)
+          .toBe("committed");
+      }
+    }));
+    // 3 本とも draft + base の 2 回ずつ払う。1 回でも減っていたらキャッシュが漏れている。
+    expect(serializeCalls).toBe(6);
+  });
+
+  it("B9: transactDeferred の durableChanged 判定が on / off で一致する", () => {
+    /**
+     * `transactDeferred` は申告した `durableChanged` と実測が食い違うと
+     * `deferredDurabilityMismatch` を返す。**申告 true / false の両方を投げて
+     * どちらが committed になるか**を on / off で比べれば、真の値を先に知らなくても
+     * 判定の一致を確かめられる。
+     */
+    function probe(tag: string, cache: boolean, declared: boolean, constantEncode: boolean) {
+      return withBasePairCache(cache, () => {
+        const harness = makeProductionHarness(tag, constantEncode ? { constantEncode } : {});
+        harness.coordinator.transact("standby:tornado", [...TOUCHED], standbyMutation("warm"));
+        const result = harness.coordinator.transactDeferred(
+          "typhoonProbability:VPTA50",
+          [...TOUCHED],
+          (draft) => ({ ...standbyMutation("probe")(draft), durableChanged: declared }),
+        );
+        return result.kind === "rejected" ? `rejected:${result.reason}` : result.kind;
+      });
+    }
+    // base ≠ candidate になりうる通常の serializer と、base = candidate 恒真の定数
+    // serializer の両方で採る。
+    for (const constantEncode of [false, true]) {
+      for (const declared of [false, true]) {
+        const tag = `b9-${constantEncode ? "const" : "real"}-${declared}`;
+        expect(probe(`${tag}-on`, true, declared, constantEncode))
+          .toBe(probe(`${tag}-off`, false, declared, constantEncode));
+      }
+    }
   });
 });
