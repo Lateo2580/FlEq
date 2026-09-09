@@ -1,6 +1,6 @@
 # 待機画面 1 epoch の settle コスト削減 spec（GitHub Issue #15 第 3 便）
 
-> **状態**: 段階 1 配送・実測反映（2026-09-09）。**段階 2 は計測で否定され見送り。** **段階 2'（外側 77% の帰属分離）は実装済み・実機実測待ち**で、観測属性 5 区分／8 属性と受入テストが入り A2b・A12・A13・A14 は緑。B4b・B4c の採取手順は §4.8' にある。§6 の分岐がご主人裁定待ちで、うち分岐 5（段階 7）は (c) 製品緩和に該当する。
+> **状態**: 段階 1・段階 2' 配送・実測反映（2026-09-09、HEAD `7fc2977`）。**段階 2 は計測で否定され見送り。** 帰属が割れたので、次の候補だった **段階 3' は独立レビューで案 (ii)（`solvePlan` のメモ化）が NO-GO**、案 (i) も weather 限定へ縮小された（§3 段階 3'）。**推奨は段階 3' を見送り §11 の再構成へ送ること。** ご主人裁定を要する。§6 の分岐も裁定待ちで、うち分岐 5（段階 7）は (c) 製品緩和に該当する。
 >
 > **基準 SHA**: `b98caed5f677c61d554d7fe79a2a158c872b157f`（worktree `~/dev/fleq-layout`、branch main）。第 2 便（段階 0 の計測ハーネスと `data-layout-motion-captured`）が入った状態。
 >
@@ -8,7 +8,7 @@
 >
 > **意匠**: 本 spec は `docs/specs/display-design-system.md` のトークンにも header/footer 統一 spec にも触れない。**確定後の表示はどの段階でも不変**である。段階 5・6 だけが「確定に至る過程に中間フレームが出うる」という形で見え方に触れる。錨カードの参照は不要。
 >
-> **改訂履歴**: 2026-09-09 起草 → 同日 独立レビュー反映（GO with fixes、分岐 2 を A→B・段階 5/6 の入れ替え・算術訂正）→ 同日 **段階 1 実測反映（B2 = 0.179 で段階 2 見送り、段階 2' を新設、§10 に再構成材料）** → 同日 **段階 2' 実装（観測属性 5 区分／8 属性・計数器は非リアクティブな素の `let`・採取手順 §4.8' を追加）**。
+> **改訂履歴**: 2026-09-09 起草 → 同日 独立レビュー反映（GO with fixes、分岐 2 を A→B・段階 5/6 の入れ替え・算術訂正）→ 同日 **段階 1 実測反映（B2 = 0.179 で段階 2 見送り、段階 2' を新設、再構成材料を新設）** → 同日 **段階 2' 実測反映（partition 33% ＋ solve 43% = 外側の 76%。段階 3' を新設、§10 に実測、§11 に再構成材料）** → 同日 **段階 3' 独立レビュー反映（案 (ii) 撤回＝`solvePlan` は純関数でなく引数タプルも恒久的に異なる。案 (i) は weather 限定へ縮小。推奨を「見送り→再構成」へ）**。
 >
 > **見立ての位置づけ（重要）**: §2 の pass 内訳は `data-measurement-pass` / `data-measurement-read-count` の実測時系列とコード読了の突き合わせで**確定**した。一方 §2.7 のとおり、**2,526ms の中身がノード読み取りなのか pass 位置とともに増える別の項なのかは、段階 0 のデータからは分離できない**（rc 線形 0.813 / idx 線形 0.823 / idx 二次 0.849 / rc 二次 0.848 が並ぶ）。起草時点では段階 2 の効果を 0〜75% の幅でしか書けなかった。**段階 1 の実測（§9）でこの幅は潰れ、答えは「DOM 読みは 18% だけ」だった**（§2.9）。残る約 77% の内訳は依然として未知で、それを掘るのが段階 2' である。
 >
@@ -202,7 +202,8 @@ pass 間隔 dt を 4 つのモデルで当てる。10 epoch × 107 点 = 1,070 �
 |---|---|---|---|---|
 | 1 | 帰属の分離（計測のみ） | 計測 | 変えない | **配送済み・実測 §9** |
 | 2 | prefix 計測のキャッシュ | 性能 | **上限 −2%** | **見送り（計測で否定）** |
-| **2'** | **外側 77% の帰属分離（計測のみ）** | **計測** | **変えない** | **第 2 便候補** |
+| **2'** | 外側 77% の帰属分離（計測のみ） | 計測 | 変えない | **配送済み・実測 §10** |
+| **3'** | weather partition の pass 内メモ化（(ii) は撤回） | 性能 | **上限 数百 ms（要事前計測）** | **推奨は見送り・ご主人裁定要** |
 | 3 | `find` の Map 化・revision 導出の差分化 | 性能 | 3-1 は 18% の内数、3-2 は外側 | 段階 2' の後 |
 | 4 | カード計測の差分化 | 性能 | 18% の内数（上限 −4%） | 優先度低下 |
 | 5 | 内側 probe ループの分割 | 応答性 | 変えない（総所要は増える） | 最大片を下げる唯一の手 |
@@ -274,15 +275,11 @@ pass 間隔 dt を 4 つのモデルで当てる。10 epoch × 107 点 = 1,070 �
 
 **効果の見積もり（段階 1 実測で確定）**: 分岐 2-B で **上限 2.0%（約 45ms）**。全 key を対象にしても上限 13.7%。**見送り。**
 
-### 段階 2': 外側 77% を帰属分離する（計測のみ・製品コードの挙動は変えない）— **実装済み（2026-09-09）・実測待ち**
-
-> **実装状態**: 観測属性 5 区分／8 属性と `standby-settle-attribution-probe.test.ts` を投入済み。A2b・A12・A13・A14 は緑。**B4b・B4c は親の CDP 実走待ち**で、採取手順は §4.8' に置いた。
->
-> 起草時の想定と 1 点違ったところがある。**計数器を `$state` にできない**。`weatherMeasurementRanges` / `tornadoMeasurementRanges` / `solvePlan` と 2 つの partition revision は `$derived` またはテンプレート式の中で走るので、そこで signal を書くと Svelte 5 が `state_unsafe_mutation` を投げる。加えて 1 epoch に数百回の signal 書き込みは可視ルートを無効化し、**測ろうとしている数値そのものを膨らませる**。そこで素の `let` に貯め、reaction の外（`recordSettleReadCost` の末尾と settled publish）で 1 本の `$state` ミラーへ写している。§3 の「観測自体が観測対象を汚さない形にする」の具体化であって、設計方針の変更ではない。
+### 段階 2': 外側 77% を帰属分離する（計測のみ・製品コードの挙動は変えない）— **配送済み 2026-09-09・結果は §10**
 
 **狙い**: §2.9 で「1 epoch の 77%（約 1,764ms）が `readMeasurements()` の外側にある」ことは確定したが、**その中の内訳は未知**である。段階 1 と同じ型（preview / gate 限定の累計 ms 属性）で 1 段掘る。ここを外すと、次の性能改修が段階 2 と同じく「上限 2% の対象」を掘り当てる。
 
-**採る 5 区分**（すべて `partitionDebug || gateFixture != null` ガード、epoch 内の累計 ms と呼び出し回数）。ms と `-calls` を数えると **DOM 属性は 8 本**になる。以降「5 区分」と「8 属性」は同じものを指す。
+**採る 5 本**（すべて `partitionDebug || gateFixture != null` ガード、epoch 内の累計 ms と呼び出し回数）。
 
 | 属性 | 何を計るか | 対応する §2.7 / §2.10 |
 |---|---|---|
@@ -298,13 +295,85 @@ pass 間隔 dt を 4 つのモデルで当てる。10 epoch × 107 点 = 1,070 �
 - **計測点は「時刻の差」だけを足す。** `performance.now()` の 2 回呼びを関数の入口と出口に置く形に限り、ロジックの順序も分岐も変えない。ガードが false のときは加算そのものを行わない
 - **`flushSync` の計測は上位からの包み込みになる**ので、他の 4 本と重複計上しうる。**重複を承知の上で「包含関係のある内訳」として報告し、差し引き算はレポート側でやる**。5 本の合計が 77% を超えても異常ではない
 
-**判定**（段階 2' の後に決めること）。
+**判定（起草時）と、実測がどう落ちたか**。
 
-- 単一の項目が **外側の 5 割以上** を占める → その項目に対する局所修正を段階 3' として起票する。§2.10 が当たっていれば `weatherMeasurementRanges` の pass 内メモ化（334 項目が同じ (placement, rows, footer) を何百回も計算し直している疑い）が候補になる
-- どの項目も 3 割に届かず散っている → **局所修正では届かない**。§10 の再構成材料へ送る
+- 単一の項目が **外側の 5 割以上** を占める → その項目に対する局所修正を段階 3' として起票する
+- どの項目も 3 割に届かず散っている → **局所修正では届かない**。§11 の再構成材料へ送る
 - `data-settle-flush-ms` が支配的 → 分岐 3-B（診断属性の production ガード）の価値が上がるので、その裁定をご主人へ回す
 
+**実測は機械判定で 3 番目（flush 53.3%）に落ちたが、そのままは採らなかった**（§10）。`flush_ms` は他を包む上限値で、包含されない partition 33.4% ＋ solve 43.3% = **76.8%** が実体である。したがって 1 番目として扱い、**段階 3'（この 2 つの pass 内メモ化）を起票した**。§2.10 の仮説も `-calls` 30,917 回で裏取りされた。
+
 **この段階は製品の挙動を 1 つも変えない。** 段階 1 と同じ理由で配送リスクが最小である。
+
+### 段階 3': weather partition の pass 内メモ化 — **独立レビューで縮小。推奨は見送り**
+
+段階 2' の実測（§10）を受けて「partition 599ms ＋ `solvePlan` 776ms ＝ 外側の 76% は、入力が変わらない pass で同じ計算をやり直している純関数」と見立てた。**独立レビューでコードを当たった結果、この見立ては半分が誤りだった。**
+
+#### 案 (ii) `solvePlan` のメモ化 — **撤回（実装不能）**
+
+3 つの理由がそれぞれ単独で致命である。
+
+**(ii)-1 引数タプルが恒久的に異なるので、メモは 1 度も hit しない。** 218 回の内訳は「`plan` が pass 内で 2 回無効化される」ではなかった。内側 do-while は 1 pass あたり必ず 2 回、**別々の引数で** `solvePlan` を呼ぶ。
+
+| 呼び出し | 引数 | file:line |
+|---|---|---|
+| `plan.stage` の pull | `(floorStage, capacity, solvingCenterClusterHidden)` | `:2029` が `plan`（`:1258`）を pull |
+| hysteresis の下限解 | `(0, capacity − baselineGapPx × 2 − 0.01, solvingCenterClusterHidden)` | `:2043-2045` |
+
+`hysteresisCapacity`（`:2044`）は `capacity` から常に約 24px 引いた値なので、2 つのタプルが一致することはない。`contentDemotionRequested` は内容変化 epoch の冒頭 `:2275` で真になり settle 中ずっと真のまま（リセットは `:1973` と `:2287`）なので、この分岐は毎 pass 通る。**107 × 2 ＋ 外側境界の 4 = 218** で実測と一致する。内容変化の無い epoch 2 が 123 calls / 28ms だったのがその裏取りである。**メモ化しても 776ms は 1ms も減らない。**
+
+**(ii)-2 `solvePlan` は純関数ではない。副作用が探索を進めている。** `makeColumnPlan` → `solverContext.measureSelection`（`:1189`）→ `selectedHeight()`（`:1121`）→ `prefixHeight()`（`:1133` から `:777`）→ **`coordinator.enqueueProbe()`**。つまり solve は「測れないものに出会ったら probe を登録する」ことで次の pass の DOM を用意している。**メモが hit すると probe 登録が飛び、`hasPendingProbes()` が偽になって内側ループが早く抜け、未計測のまま確定する。** spec が §3 で書いていた失敗モードそのものを、メモ化が直接引き起こす。
+
+**(ii)-3 メモ寿命の根拠が `solvePlan` には成り立たない。** 「`prefixMeasurements` の代入点 4 箇所にクリアを併置すれば構造的に取りこぼさない」は案 (i) の 2 関数には成り立つが、`solvePlan` は別系統の入力を 2 つ持つ。
+
+| 別系統の入力 | 経路 | 代入点 |
+|---|---|---|
+| `prefixMeasureEntries` | `measured()`（`:878`）→ `tornadoPagingOrProbing()`（`:984`） | `:797` `:800` `:822` `:827` `:2195` の **5 箇所**（`prefixMeasurements` の 4 箇所とは別） |
+| 生の DOM rect | `solverContext()` の `failureRowHeight`（`:1211`）ほか `getBoundingClientRect()` 直読み（`:1186` 近傍） | 代入点という概念が無い |
+
+**さらに Svelte の等価性で下流が止まる。** メモ hit で `plan` が参照等価になると、`$derived` の既定等価により `selection`（`:1259`）・`stage`（`:1260`）・`initialRenderPlan`（`:1264`）へ伝播しなくなる。これは禁止変更に挙げた「`plan` の `$derived` を手動キャッシュへ置き換えない」と実質的に同じ改変であり、A15 の deep-equal 比較では**検出できない**（値は等しく、伝播だけが止まる）。
+
+**よって案 (ii) は撤回する。** 起草時の見込み「390ms 削減」は **ゼロ**である。
+
+#### 案 (i) partition のメモ化 — **weather 限定で GO with fixes**
+
+対象を **`weatherMeasurementRanges(placement, rows, footer)`（`:527`）だけ**に絞る。
+
+**成り立つ部分**: この関数は `cachedPagePartitionMeasurement()`（`:760`）を通じて `prefixMeasurements[id]` を読むだけの純関数で、副作用が無い。メモ寿命を「`prefixMeasurements` の全代入点（`:798` `:823` `:1528` `:2194`）でクリア」に置く設計はこの関数には正しい。**ただしクリア点の根拠は「代入点に併置」ではなく「readMeasurements 内の全幾何代入（`:1529` 以下の幅・トラック代入）より後」である**——幅も chrome signature 経由で入力に入るため。
+
+**外す部分**: `tornadoMeasurementRanges(entry, weatherRanges, rows, footer)`（`:591`）は**畳めない**。
+
+- 生の引数タプル（`entry` の同一性）でキーを組むと、**180 個の tornado entry が全部別キーになって削減ゼロ**
+- 実際に読むのは 3 フィールドだけ（`entry.tornadoAggregateFallback` `:596`、`entry.composition` `:603`、`entry.placement` `:605-609`）だが、**「読むフィールドを列挙してキーにする」のは段階 2 で否定した設計そのもの**である。列挙漏れが古い ranges での確定に直結する
+- 第 2 引数 `weatherRanges` は配列なので、キーに含めるには直列化が要る。1 回あたり **0.0194ms** の関数に対して直列化コストが無視できない
+
+**削減見込み（要事前計測）**: `data-settle-partition-calls` の 30,917 回は 2 関数の合算で、**weather 分の内訳は未計測**である。しかも `tornadoPrefixMeasurement()`（`:591` の呼び出し元）も内部で `weatherMeasurementRanges()` を呼ぶので、weather 呼び出しは weather entry と tornado entry の両方から来る。**着手前に「1 pass あたりの weatherMeasurementRanges の呼び出し回数と、その相異なる引数タプル数」を段階 2' と同型の観測点で採る。** それが出るまで削減幅は「599ms のうち weather 分、上限で数百 ms」としか書けない。
+
+**起草時の B4d「partition 599 → 100ms 以下」は未達の公算が大きい**ので、目標値は事前計測の後に立て直す。
+
+**変更行数**: Map 1 本・キー生成 1・出し入れ 3・クリア 4 箇所 = **10 行前後**。
+
+#### 失敗モードと証明方法（案 (i) のみ）
+
+**失敗モード**: メモが 1 世代古い ranges を返し、古い `pageCount` で高さが確定して**実機にはみ出し・文字切れが出る**。
+
+**証明方法**: メモ有効／強制無効の 2 回を同一 `testMeasurementOverride` 列で走らせ、各 pass の weather 系 entry の ranges が **deep-equal**。加えて `-calls` を上限・下限の両方で固定（クリア漏れとキー爆発の両方を落とす）。**迷ったらクリアする**——クリアし過ぎて失うのは性能だけである。
+
+#### ご主人へ回す判断
+
+**推奨 B: 段階 3' を見送り、§11 の再構成へ送る。**
+
+- 案 (ii) が消えた時点で、局所修正の残りは「weather partition のメモ化で数百 ms（未確定）」だけになった。1 epoch 2,204ms（Pi で 11〜15 秒）に対して **1 割前後**である
+- その 1 割のために、事前計測 1 便 ＋ 実装 1 便 ＋ ご主人裁定 ＋ Pi 目視の検証サイクルを使う。**全面再構成が視野にあるなら、その工数は再構成側に置いたほうが効く**
+- **A（案 (i) を weather 限定で実装する）を採るのは、再構成が数ヶ月先で、それまでの体感を少しでも軽くしたい場合**に限る。ただしその目的なら段階 3' より **段階 5（内側 probe ループの分割）のほうが直接効く**。総量は減らないが、「2.2 秒の停止 1 回」を「数十 ms の停止を数十回」に変えるので、時計とローテーションが止まって見える症状そのものに効く
+
+#### やらないこと（段階 3' の範囲外）
+
+- `solvePlan` のメモ化（撤回。上記 (ii)-1〜3）
+- `tornadoMeasurementRanges` のメモ化（キーが畳めない）
+- 読むフィールドを列挙して無効化キーを組むこと（段階 2 で否定した設計）
+- `plan` の `$derived` を手動キャッシュへ置き換えること
+- partition アルゴリズム自体の変更（世代数 53 → 減らす）。§11 の再構成の領分
 
 ### 段階 3: pass に比例する非 DOM コストを潰す
 
@@ -379,12 +448,23 @@ pass 間隔 dt を 4 つのモデルで当てる。10 epoch × 107 点 = 1,070 �
 
 ### 4.2' 段階 2': 観測点（jsdom）
 
-`standby-settle-attribution-probe.test.ts`（**投入済み 2026-09-09**、10 ケース）。段階 1 の `standby-settle-cost-probe.test.ts` と同型。
+`standby-settle-attribution-probe.test.ts`（新規）。段階 1 の `standby-settle-cost-probe.test.ts` と同型。
 
 - 既定 props で段階 2' の 5 本（`data-settle-partition-ms` / `-calls`、`-revision-ms`、`-signature-ms` / `-calls`、`-flush-ms`、`-solve-ms` / `-calls`）が**存在しない**
 - gate / preview props では存在し、epoch 内で単調増加する
 - ガードが false のとき、計測用の `performance.now()` 呼び出しが 1 回も起きない（`vi.spyOn(performance, "now")` で計数）
 - 各 `-calls` が対応する関数の実呼び出し回数と一致する（`vi.spyOn` で突き合わせ）
+
+### 4.2'' 段階 3': メモ化しても出力が変わらないこと（jsdom）
+
+`standby-settle-memo-equivalence.test.ts`（新規）。**段階 3' の受入の芯である。**
+
+- **shadow 実行の同値**: 同一の `testMeasurementOverride` 列で、メモ有効／メモ強制無効の 2 回走らせ、各 pass の **weather 系 entry の ranges** が **deep-equal**。**`plan` / `selection` は対象外**（案 (ii) 撤回により `solvePlan` は触らないので変わりようがない）
+- **クリア点の網羅**: `prefixMeasurements` の代入点が 4 箇所（宣言 `:181` を除く。`readMeasurements` 内・weather stale prune・briefing stale prune・epoch リセット）であることを固定する。5 箇所目が増えたら落ちる
+- **クリアの位置**: `readMeasurements` 内のクリアが、幅・トラック寸法の全代入（`:1529` 以下）より**後**に置かれている。幅は chrome signature 経由で入力に入る
+- **probe callback の途中変更でメモが捨てられる**: weather / briefing の stale prune が走った pass で、その後の weather partition 呼び出しがメモを使わない
+- `-calls` の上限と下限を両方で固定（効きすぎ＝クリア漏れ、効かなさすぎ＝キー爆発の両方を落とす）。**期待値は B4d0 の事前計測から取る**
+- 最終確定した `committedPlan` / `committedSelection` がメモの有無で一致する
 
 ### 4.2 段階 2: 幾何世代キーの取りこぼしが無いこと（jsdom）— **見送りにつき着手しない**
 
@@ -434,58 +514,6 @@ pass 間隔 dt を 4 つのモデルで当てる。10 epoch × 107 点 = 1,070 �
 
 子の sandbox は listen 不可なので、`stage0-measure.mjs` の実走は親（Liebe）が担う。子は records に対する `--assert-from` で assertion を検証する。
 
-### 4.8' 段階 2' の採取手順（親が CDP で実走・B4b / B4c）
-
-測定文脈は §5.2 の固定条件をそのまま使う（Chrome 152 headless、`Emulation.setDeviceMetricsOverride` で 1920×1080、preview `#legacy-standby-gate` `gateScenario=max`、`?contentChurnMs=5000&metadataChurnMode=reparse`、60 秒、採取前に `npm --prefix display run build`）。**ただし段階 2' では URL に `&settleTrace=0` を必須で足す。**
-
-`gateScenario` が付くと `gateCapture`（`StandbyScreen.svelte:76-77`）が true になり、`settleTraceCapture`（`:86`）も既定で true になる。すると `recordSettleTrace`（`:1584`）が **probe step ごとに `signature()` を余分に呼ぶ**。この呼び出しは production には存在しないので、`settleTrace=0` を付けないと `data-settle-signature-ms` / `-calls` と `data-settle-flush-ms` が gate 専用のコストで膨らみ、B4c の判定を歪める。段階 1 の実測で on / off の差は 114.0ms（epoch の 5.0%）だった（§9 B3）。**分母も揃える**: `outer_total` は §9 の **off 列**（long task 合計 2,177.5ms、read-ms 407.7ms）を基準にする。
-
-**計測スクリプトに足す属性（5 区分／8 属性）**。段階 1 の 3 属性と同じく `data-measurement-settled` が true へ倒れた**直後の別 task（`setTimeout` 0）で epoch 末の値を 1 回だけ読む**。どれも epoch 内で単調に伸びるだけなので、MutationObserver の `attributeFilter` に入れて毎観測で読む必要はない（入れると観測コストが long task に乗る。§9 の計測手法メモ）。
-
-| 属性 | 型 | 意味 |
-|---|---|---|
-| `data-settle-partition-ms` / `-calls` | ms（小数 3 桁）/ 整数 | `weatherMeasurementRanges()` ＋ `tornadoMeasurementRanges()` の累計と回数 |
-| `data-settle-revision-ms` | ms | `briefingPartitionRevision` ＋ `weatherPartitionRevision` の導出 |
-| `data-settle-signature-ms` / `-calls` | ms / 整数 | `signature()` の累計と回数 |
-| `data-settle-flush-ms` | ms | 内側 probe ループの `await tick()` ×2 と `flushSync()` ×2 |
-| `data-settle-solve-ms` / `-calls` | ms / 整数 | `solvePlan()` の累計と回数 |
-
-**包含関係と差し引きの式**。`flush` は上位から他を包む。`signature` は `plan` を読むので、その pass で `plan` が無効化されていれば `solve` を内側に含む。`solve` は `weather` / `tornado` の 2 関数を含まない（`candidates()` は `measured()` しか読まない）。
-
-**`flush_ms` は上限値である。** `publishSettleAttribution()`（`:1444`）が pass ごとに `$state` ミラーを書くので、8 属性の再直列化が**次の flush に乗る**。つまり `flush_ms` は自分の結論を一部作っている。診断属性の直列化コストを含んだ上限として読み、「flush 支配」の判定に落ちたときは分岐 3-B の対象に段階 1・2' の観測属性自身も含めて数える。
-
-**計測されない `flushSync` が 4 箇所ある**（すべて残余に入る）。hidden 集合が変わった直後（`:2074`）、post-commit の drain 後（`:2115`）、確定 commit の `flushSync(cb)` 2 箇所（`:2091`, `:2147`）、`publishSettledGeometry` の `flushSync(cb)`（`:1925`）。いずれも外側 pass 境界に 1 回ずつしか出ないので内側ループの 107 回に比べれば小さいはずだが、**残余が大きく出たらここを疑う**のが最初の一手である。
-
-**3 番目の partition 探索が帰属の外にある。** `floodWidePartitionInfeasible`（`:1166-1174`）は `sequentialPartitionRanges` を呼ぶが、`renderFloodWide`（`:1304`）経由のテンプレート経路なので **partition にも solve にも入らない**（solver 側の `floodWideVisibleAllowed` は `floodWideProbeResult` を読むだけで探索しない）。flood の探索コストは残余に落ちる。したがって:
-
-```
-outer_total      = long_task_total − data-settle-read-ms          （§2.9 の約 1,764ms）
-flush_exclusive  = data-settle-flush-ms
-                   − (partition_in_flush + revision_in_flush + solve_in_flush)
-```
-
-`*_in_flush` は epoch 内で直接は割れない。**割らずに次の 2 通りの合計で上下を挟む**のが実用的である。
-
-```
-上限側（重複を許す合計）= partition_ms + revision_ms + signature_ms + flush_ms + solve_ms
-下限側（flush を代表に取る）= flush_ms + max(0, signature_ms − solve_ms) + 外側に出た分
-残余（未帰属）            = outer_total − flush_ms − max(0, signature_ms − solve_ms)
-```
-
-**5 区分の合計が outer_total を超えても異常ではない**（§3 段階 2' の但し書き）。報告では上限側・下限側・残余の 3 数を並べ、包含している項目を明示する。
-
-**依存集合の注記**: 2 本の revision と `plan` の `$derived` は body で `settleCostProbe` を読むので、依存に `partitionDebug` / `gateFixture` が加わる。どちらも実行時に変化しない props なので再計算のタイミングは変わらない。
-
-**判定 3 分岐（B4c、§3 段階 2' の再掲）**。分母は `outer_total`。
-
-| 観測 | 判定 | 次の一手 |
-|---|---|---|
-| 単一項目が **5 割以上** | 局所修正が届く | その項目を段階 3' として起票。`partition` が来たら `weatherMeasurementRanges` の pass 内メモ化が第 1 候補 |
-| どの項目も **3 割未満**で散る | 局所修正では届かない | §10 の再構成材料へ送る |
-| `flush_ms` が支配的 | 再レンダと 126 診断属性が主因 | 分岐 3-B（診断属性の production ガード）の価値が上がる。ご主人裁定へ回す |
-
-`-calls` は「1 epoch あたり何回走ったか」の裏取りに使う。§2.10 の見積もり（334 項目 × 107 pass ≈ 35,700 回）と `data-settle-partition-calls` が桁で合わなければ、**見立ての側を疑う**。
-
 ## 5. 受入条件
 
 ### 5.1 機械的に確認できるもの（A）
@@ -504,6 +532,10 @@ flush_exclusive  = data-settle-flush-ms
 | A9 | `briefingPartitionRevision` / `weatherPartitionRevision` の出力が差分化の前後で一致 | 3-2 | 4.4 |
 | A10 | 内側ループ分割で rAF が N step ごとに呼ばれ、supersede と `disposed` が正しく効き、確定結果が分割前と一致 | 5 | 4.5 |
 | A11 | 外側 pass 境界で rAF が pass 数 − 1 回、`continue` 経路でも入る | 6 | 4.6 |
+| A15 | メモ有効／無効の shadow 実行で、**weather 系 entry の ranges** が全 pass で deep-equal | 3'（案 i） | 4.2'' |
+| A16 | `weatherMeasurementRanges` の呼び出し回数が、事前計測で採った「1 pass あたりの相異なる引数タプル数 × 107」の **±10% 以内**（下限を割ればクリア漏れ、上回ればキー爆発）。**期待値は事前計測が出るまで空欄で、埋まるまで着手しない** | 3'（案 i） | 4.2'' |
+| A17 | `prefixMeasurements` の代入点が 4 箇所（宣言 `:181` を除く）であることが静的に固定されている。**クリアは `readMeasurements` 内の全幾何代入（`:1529` 以下）より後に置かれている** | 3'（案 i） | 4.2'' |
+| ~~A16b~~ | ~~`data-settle-solve-calls` を 218 → 130 以下にする~~ **撤回**。引数タプルが恒久的に異なるので達成不能（§3 段階 3' の (ii)-1） | - | - |
 | A12 | build / test（display・root）/ shuffle / typecheck:test が全部成功 | 1〜6 | 4.7 |
 | A13 | `display/frontend/src/App.svelte` に差分が無く、production パス（`src/App.svelte` から到達するモジュール）に対する **新 URL パラメータ名・`data-settle-read-nodes`・`data-settle-read-ms`・key 別 prefix 件数の属性名・段階 2' の 5 本の属性名** の grep が 0 件（既存の `settleTrace` 変数名 `:245` `:1821` は対象外） | 1・2' | `git diff --stat` と grep |
 | A14 | `docs/specs/display-design-system.md` と `theme.css` に差分が無い | 1〜6 | `git diff --stat` |
@@ -520,7 +552,11 @@ flush_exclusive  = data-settle-flush-ms
 | B4 | §2.2 の「外側 1 周目に約 106 読み」が `data-settle-trace` で裏取りされている | 1 | 実 Chrome |
 | B4b | 段階 2' の 5 本が実測で埋まり、外側 1,764ms の内訳が表になっている。**包含関係のある項目（flush 系）を明示して差し引きを示す** | 2' | 実 Chrome |
 | B4c | §3 段階 2' の判定 3 分岐のどれに落ちたかが明記されている | 2' | 実 Chrome |
-| B5 | 1 epoch の long task 合計が段階 1 実測（中央値 2,291.5ms）から減っている。削減幅の目標値は **段階 2' の内訳を見て着手時に確定する** | 3 | 実 Chrome |
+| B4d0 | **事前計測**: `weatherMeasurementRanges` の 1 pass あたり呼び出し回数と相異なる引数タプル数が実測で出ている。**これが無いと A16 の期待値が立たず、削減幅も見積もれない** | 3'（着手前） | 実 Chrome |
+| B4d | `stage0-measure.mjs --stage2` の before / after で `data-settle-partition-ms` が減っている。**目標値は B4d0 の後に立て直す**（起草時の「599 → 100ms 以下」は tornado を外したので未達の公算大）。`data-settle-solve-ms` は**変わらないのが正常**（案 (ii) 撤回） | 3'（案 i） | 実 Chrome |
+| B4e | 同 run で `data-settle-read-nodes` 28,100 と `data-measurement-pass` の増分 107 が**動かない**（動いたら帰属ではなく別要因） | 3'（案 i） | 実 Chrome |
+| B4f | Pi 実機で 1 epoch の停止時間が before / after で測られ、減っている。**属性ポーリングで `data-measurement-epoch` の変化から `data-measurement-settled` = true までを測る** | 3'（案 i） | 実機・CDP |
+| B5 | 1 epoch の long task 合計が段階 1 実測（中央値 2,291.5ms）から減っている。**削減幅は B4d0 の後に確定する**（起草時の 1,200〜1,400ms は案 (ii) 込みの値で、撤回により無効） | 3'（案 i） | 実 Chrome |
 | B6 | `data-settle-read-nodes` の epoch 増分が段階 1 実測（28,100 件）を**超えない** | 3 | 実 Chrome |
 | B7 | churn 無指定の 60 秒で long task 0 件・fps 60（現状維持の回帰） | 1〜6 | 実 Chrome |
 | B8 | metadata churn 500ms（reparse）の 60 秒で long task 合計が段階 0 実測（10,204ms）を**超えない** | 3〜6 | 実 Chrome |
@@ -556,7 +592,7 @@ flush_exclusive  = data-settle-flush-ms
 
 ### 分岐 3: 可視ルートの 126 診断属性（§2.7 (e)）をどう扱うか
 
-- **A（推奨・ただし段階 2' の結果次第で B へ倒れうる）: 本 spec では触らない。** Pi の観測手順が `data-rotation-*` / `data-measurement-*` に依存しており、外すと過去の観測資材が動かなくなる。**段階 2' の `data-settle-flush-ms` が外側の支配項だと出たら、この分岐の価値が上がる**ので、そのときご主人へ回す
+- **A（推奨・順序つき）: 段階 3' を先にやってから再評価する。** 段階 2' の機械判定は「flush 支配（outer の 53.3%）」だが、**`flush_ms` は上位から他を包む上限値**で、その中身の大半は partition と solve である（§10）。**partition と solve を消してから測り直さないと、診断属性の真の寄与は分からない。** さらに `flush_ms` には段階 1・2' が足した観測属性自身の直列化も乗っている。Pi の観測手順が `data-rotation-*` / `data-measurement-*` に依存している以上、外す判断はその測り直しの後で良い
 - **B: `JSON.stringify` を含む 16 属性だけを `partitionDebug || gateFixture != null` ガードへ移す。** production DOM が変わる。B11 の Pi 観測で使う属性は残るが、他の観測スクリプトが黙って空になる。**production gate（`npm run test:phase6b-production`）の追従が要る**
 
 ### 分岐 4: 配送をどこで切るか
@@ -604,7 +640,7 @@ flush_exclusive  = data-settle-flush-ms
 受入条件: A1・A2・A12・A13・A14 の全件、B1〜B4 が実測で埋まっていること
 ```
 
-### 段階 2'（外側 77% の帰属分離・計測のみ）— **実装済み 2026-09-09・配送待ち**
+### 段階 2'（外側 77% の帰属分離・計測のみ）— **第 2 便・配送済み 2026-09-09**
 
 ```
 対象: display/frontend/src/components/StandbyScreen.svelte（preview 限定の観測属性 5 本と
@@ -624,6 +660,37 @@ flush_exclusive  = data-settle-flush-ms
       （Pi 反映は不要。preview 限定で production DOM は不変）
 ロールバック: git revert <commit>（preview 限定なので production 影響なし）
 受入条件: A2b・A12・A13・A14 の全件、B4b・B4c が実測で埋まっていること
+```
+
+### 段階 3'（weather partition の pass 内メモ化）— **推奨は見送り。実施するならご主人裁定を要する（🌙自走OK にしない）**
+
+**推奨は B（見送り→ §11 の再構成）である。** 以下は A（実施する）を選んだ場合のラベルで、**着手前に B4d0 の事前計測が要る**（それ無しでは受入 A16 の期待値が立たない）。
+
+**なぜ自走 OK にしないか**: 段階 1・2' と違い、製品コードの実行結果に影響しうる。メモのクリア漏れは「古い `pageCount` で高さが確定 → 実機のはみ出し・文字切れ」という、jsdom では捕まえにくく Pi の目視でしか出ない失敗モードを持つ。
+
+```
+対象: display/frontend/src/components/StandbyScreen.svelte
+      （weatherMeasurementRanges :527 のメモ化と、prefixMeasurements 代入 4 箇所
+        :798 / :823 / :1528 / :2194 でのクリアのみ。行番号は HEAD 7fc2977）、
+      display/frontend/src/components/__tests__/standby-settle-memo-equivalence.test.ts（新規）、
+      docs/specs/2026-09-09-standby-epoch-settle-cost.md
+許容変更: weatherMeasurementRanges の引数タプルをキーにした pass 内メモ（Map 1 本）、
+      その 4 箇所でのクリア（readMeasurements 内は幅・トラック代入 :1529 以下より後）、
+      テストの新規追加、spec への実測追記。合計 10 行前後
+禁止変更: solvePlan のメモ化（撤回。純関数でなく引数タプルも恒久的に異なる）・
+      tornadoMeasurementRanges のメモ化（キーが畳めない）・
+      読むフィールドを列挙して無効化キーを組むこと（段階 2 で否定した設計）・
+      plan の $derived を手動キャッシュへ置き換えること・
+      対象関数の戻り値の内容・引数・呼び出し順序・呼び出し元・
+      data-solver-stage をテンプレートから外すこと・partition アルゴリズム自体・
+      settle ループの構造・readMeasurements の読み取り内容・可視 DOM・意匠トークン・
+      package.json / package-lock.json・layout-key.ts の除外リスト
+配送先: main → origin push → GitHub Actions 緑 → personal rebase → private push → Pi 反映
+ロールバック: git revert <commit> → npm --prefix display run build → fqu で Pi 再反映
+受入条件: 着手前に B4d0。実装後は A15・A16・A17・A12・A14 の全件、
+      B4d・B4e・B5・B7・B8 の全件、B4f・B11 を Pi で確認、B12 の目視。
+      test:shuffle 必須。
+      **B12（Pi 目視で実電文 1 通の到着にはみ出し・文字切れが出ない）を配送の必須条件に含める**
 ```
 
 ### 段階 2＋3（prefix キャッシュと非 DOM コストの削減）— **段階 2 は見送り。3 のみ段階 2' の後**
@@ -686,8 +753,10 @@ flush_exclusive  = data-settle-flush-ms
 - 第 1 便 spec: `docs/specs/2026-09-07-standby-sweep-hot-path.md`
 - 段階 0 の生データ: scratchpad `stage0-results-2026-09-08T12-41-04.json`（`rawLongTasks` / `rawObservations`）、報告 `stage0-report.md`、スクリプト `stage0-measure.mjs`
 - **段階 1 の生データ: scratchpad `stage1-results-2026-09-09T01-17-41.json`、報告 `stage1-report.md`**（§9 の一次資料）
+- **段階 2' の生データ: scratchpad `stage2-results-2026-09-09T03-55-23.json`、報告 `stage2-report.md`**（§10 の一次資料）
 - `page-partition.ts:264`（`sequentialPartitionRanges`）、`StandbyScreen.svelte:515-521`（`stableWeatherMeasurement`）
 - 実装の中心: `display/frontend/src/components/StandbyScreen.svelte`
+  - **以下の行番号は基準 SHA `b98caed` 時点のものである。** 段階 1・2' の観測点を入れた HEAD `7fc2977` ではファイルが 2,605 → 2,807 行に伸びて全部ずれている。段階 3' の作業では下の「HEAD `7fc2977` の錨」を使う
   - `readMeasurements()` `:1309-1405`（prefix ループ `:1316-1370`、固定読み `:1371-1402`、`measurementReadCount` `:1403`、`measurementPass` `:1404`）
   - `liveBorderBoxHeight()` `:1304-1308`、`signature()` `:1406-1421`
   - `settleMeasurements()` `:1815-1988`（外側ループ `:1829`、内側 do-while `:1830-1866`、圧縮境界の再読 `:1842-1853`、`nextHidden` の continue `:1881-1885`、非収束経路 `:1940-1986`）
@@ -698,6 +767,7 @@ flush_exclusive  = data-settle-flush-ms
   - prefix シェルフの描画 `:2410-2411`（side）/ `:2446-2447`（center）、`renderPrefixProbe` snippet `:2220-2243`、`renderCard` snippet `:2118`
   - 可視ルートの属性 `:2246-2373`、`ladder-compressed` `:2247` / CSS `:2522`、`data-prefix-probe-count` `:2350`
   - `prefixMeasureEntries = []` `:2004`
+- **HEAD `7fc2977` の錨（段階 3' 用）**: `weatherMeasurementCandidates()` `:499`、`weatherMeasurementRanges()` `:527`、`stableWeatherMeasurement()` `:558`、`tornadoMeasurementRanges()` `:591`、`cachedPagePartitionMeasurement()` `:760`、weather の stale prune `:798`、briefing の stale prune `:823`、`solvePlan()` `:1234`、`plan` `:1258`、`stage` `:1260`、`readMeasurements()` `:1462`（`measurements` 代入 `:1527` / `prefixMeasurements` 代入 `:1528`）、`publishSettleAttribution()` `:1453`、`settleCostProbe` `:213`、`prefixMeasurements = {}` `:2194`、`solvePlan` の直接呼び出し `:2045`（contentDemotion）と `:2065`（`nextCenterClusterHidden` の unresolved）、`data-solver-stage` `:2440`
 - `epoch-coordinator.ts:72-75`（`drainProbes`）
 - memory: `feedback_headless_viewport_override`（viewport override 必須）、`feedback_capture_needs_display_build`（capture 前の display build）、`feedback_probe_target_verification`（対象の実在と失敗件数を先に確定）、`feedback_spec_edit_classification`（(c) 製品緩和はご主人裁定）
 
@@ -750,7 +820,50 @@ on / off の差は **114.0ms（on の 5.0%）**。§2.7 (f) の二乗構造は�
 
 `data-settle-trace` と `data-prefix-probe-key-counts` は JSON 文字列なので、MutationObserver の `attributeFilter` に入れて毎観測で読むと**観測コストが settle の long task に乗って B3 を汚す**。段階 1 では両方を filter から外し、`data-measurement-settled` が true へ倒れた直後の別 task（`setTimeout` 0）で epoch 末の値を 1 回だけ採った。どちらも epoch 内で単調に伸びるだけなので epoch 末の値で足りる。**段階 2' の 5 本も同じ扱いにする。**
 
-## 10. レイアウト再構成へ送る材料
+## 10. 段階 2' 計測結果（2026-09-09、Mac、Chrome 152.0.7977.83 headless、1920×1080、`settleTrace=0`、60 秒）
+
+preview `#legacy-standby-gate` `gateScenario=max`、`?contentChurnMs=5000&metadataChurnMode=reparse`。完全に採取窓へ入った epoch 10 件。生データは scratchpad `stage2-results-2026-09-09T03-55-23.json`、報告は `stage2-report.md`。
+
+| 項目 | ms（中央値） | outer 比 | 備考 |
+|---|---|---|---|
+| 1 epoch の long task 合計 | 2,204.5 | - | 段階 2' の 8 属性ぶんの直列化を含む |
+| `data-settle-read-ms` | 410.9 | - | `readMeasurements()` の内側 |
+| **outer_total** | **1,790.3** | **100%** | LT 合計 − read-ms |
+| **partition** | **598.6** | **33.4%** | `weatherMeasurementRanges` ＋ `tornadoMeasurementRanges` |
+| **solve** | **775.5** | **43.3%** | `solvePlan()`。上の 2 関数は含まない |
+| flush | 954.7 | 53.3% | **上位から他を包む上限値** |
+| revision | 16.8 | 0.9% | 2 本の partition revision 導出 |
+| signature | 1.7 | 0.1% | 2 回 / epoch |
+| 残余（未帰属） | 825.8 | 46.1% | outer − 下限側（flush） |
+
+### `-calls` の裏取り
+
+| 計数器 | 1 epoch（中央値） | 1 回あたり | 見立てとの突き合わせ |
+|---|---|---|---|
+| `data-settle-partition-calls` | **30,917** | 0.0194ms | §2.10 の見積もり 35,700 回と**桁一致**。「probe の描画がパーティション探索をやり直す」は当たっていた |
+| `data-settle-solve-calls` | **218** | 3.56ms | pass 107 に対して約 2 回 / pass。`$derived` なら 1 回で足りるはずの倍 |
+| `data-settle-signature-calls` | 2 | 0.85ms | 外側 pass の数と一致（§9 の B4） |
+
+`data-settle-read-nodes` は 28,100、`data-measurement-pass` の増分は **107** で、段階 1 と 1 件も変わっていない（レポート表の「pass 804.5」は累計値と差分を並べた表示上のもので、`perEpoch` の `passMax` は 216 → 323 → 430 … と 107 刻みである）。**帰属を掘っただけで settle の構造は動いていない**ことの確認になる。
+
+### 機械判定と、その読み替え
+
+§3 段階 2' の判定は「最大項目 = flush（53.3%）→ 分岐 3-B の価値が上がる」と出た。**この機械判定はそのままでは採らない。**
+
+- **`flush_ms` は上限値である。** 上位から `partition` も `solve` も包む。さらに `publishSettleAttribution()`（`:1453`）が pass ごとに `$state` ミラーを書くので、**段階 1・2' が足した観測属性自身の直列化が次の flush に乗る**。flush は自分の結論を一部作っている
+- **包含されない 2 項目の和が実体である**: partition 598.6 ＋ solve 775.5 = **1,374ms、outer の 76.8%**。この 2 つはどちらも「入力が変わらない pass で同じ計算をやり直す純関数」で、段階 3' の対象になる
+- したがって判定は「flush 支配」ではなく **「partition ＋ solve 支配」**と読む。分岐 3-B は、この 2 つを消してから測り直して再評価する（分岐 3 の A）
+
+### 残余 825.8ms（46%）の候補
+
+下限側を flush で代表させた差し引きなので、この残余は「flush に含まれない外側」である。最初に疑う 2 つ。
+
+1. **計測されていない `flushSync()` が 4 箇所ある**——hidden 集合が変わった直後、post-commit の drain 後、確定 commit の 2 箇所、`publishSettledGeometry()`。段階 2' の `flush_ms` は内側ループの 2 箇所しか括っていない
+2. **`floodWidePartitionInfeasible` の探索**——テンプレート経路で走るので partition にも solve にも入らない
+
+**段階 3' で partition と solve を消したあと、この残余の帰属をやり直す。** 先に残余を掘っても、上の 1,374ms が乗ったままでは切り分けが利かない。
+
+## 11. レイアウト再構成へ送る材料
 
 局所修正で届く範囲が、段階 1 の実測で数値として確定した。**再構成の是非を検討するときはこの節を持っていく。**
 
@@ -761,6 +874,11 @@ on / off の差は **114.0ms（on の 5.0%）**。§2.7 (f) の二乗構造は�
 - **DOM 読みは 18%（414ms）しかない。** ノード読み 28,100 件という数の大きさは実在するが、時間の主因ではない
 - **残り約 77%（1,764ms）は settle ループの「pass ごとの再計算と再描画」**である。pass ごとに走るのは、`$derived` の再評価、`signature()` の全件 sort、2 本の partition revision の全件 sort、`flushSync()` による 2 面シェルフ（最大 412 ノード）の再レンダと可視ルート 126 属性の再評価、そして probe 描画側のパーティション再計算（§2.10、未計測）
 - **pass 数 107 は探索の構造で決まる。** `pagePartitionProbe` は未知の range に当たると `null` を返して探索を打ち切り、次の pass で 1 世代ぶんだけ DOM を生やす（§2.5）。約 53 世代 × 2 読み。**キャッシュも差分化も、この 107 を 1 回も減らさない**
+- **外側 1,790ms の内訳（§10）**: partition 599ms（33%）＋ `solvePlan` 776ms（43%）で **76%**。1 epoch で **`solvePlan` が 218 回、partition ranges の探索が 30,917 回**走っている
+- **pass ごとに全派生を作り直す構造がコストの本体である。** 107 回の pass それぞれで、レイアウトソルバを 2 回解き直し、334 個の prefix 項目が各自パーティション探索をやり直し、412 ノードのシェルフを描き直して 400 件超を sort し直している。**測っている量（28,100 件の DOM 読み）より、測るたびに作り直す派生の量のほうが 4 倍重い**
+- **`solvePlan` の 218 回は「無駄な再計算」ではない。ループ構造そのものである**（段階 3' のレビューで確定）。内側 do-while は 1 pass あたり必ず 2 回、**別々の引数で**解く——`plan` 本体（`(floorStage, capacity, hidden)`）と hysteresis の下限解（`(0, capacity − baselineGapPx×2 − 0.01, hidden)`、`:2043-2045`）。後者は内容変化 epoch では毎 pass 通る。**引数が恒久的に異なるのでメモ化は 1 度も hit しない**
+- **`solvePlan` は副作用で探索を進めている。** `makeColumnPlan` → `measureSelection`（`:1189`）→ `selectedHeight`（`:1121`）→ `prefixHeight`（`:777`）→ `coordinator.enqueueProbe()`。「測れないものに出会ったら probe を登録する」ことで次の pass の DOM を用意する設計で、**solve を skip すると探索そのものが止まる**。純関数として扱えない
+- **したがって 2.3 秒は「無駄な再計算の集積」ではなく「探索ループの回数 × 1 周の重さ」である。** 局所修正で削れるのは 1 周の重さの一部だけで、**その上限は weather partition のメモ化による数百 ms**（未確定）。回数 107 は 1 つも減らない
 
 ### 局所修正の限界
 
@@ -770,11 +888,13 @@ on / off の差は **114.0ms（on の 5.0%）**。§2.7 (f) の二乗構造は�
 | 全 prefix をキャッシュ（安全でない） | 13.7% | 18% × 76.4% |
 | カード計測の差分化（段階 4） | 4% | 18% × 23.6% |
 | `find` の Map 化ほか（段階 3-1・3-3） | 18% の内数、実質数十 ms | `readMeasurements()` の中で DOM 読みと分け合う |
+| `solvePlan` のメモ化（段階 3' 案 ii） | **0%** | 引数タプルが恒久的に異なり、かつ副作用が探索を進めている（撤回） |
+| weather partition のメモ化（段階 3' 案 i） | **1 割前後**（未確定） | 599ms のうち weather 分のみ。tornado は キーが畳めず対象外 |
 | gate トレースの停止（段階 1 で実施） | 5%（production には元から無い） | §9 の B3 |
 | 外側 pass 境界の rAF 分割（段階 6） | **0%**（2 片になるだけ） | §9 の B4 |
 | 内側 probe ループの分割（段階 5） | **0%**（総所要はむしろ増える） | 最大片は下がるが総量は不変 |
 
-**すべて足しても総量の 2 割に届かない。** 残り 8 割は「107 回の pass それぞれで、412 ノードのシェルフを描き直して全件を sort し直す」という**構造そのもの**が生んでいる。
+**すべて足しても総量の 2 割に届かない。** 起草時は段階 3' に約 40% を見込んでいたが、独立レビューで案 (ii) が撤回され、残ったのは weather partition のメモ化による 1 割前後（未確定）だけになった。**局所修正の底はここである。** 残るのは「107 回の pass それぞれで派生を作り直す」という**構造そのもの**で、メモ化は 1 周の単価を少し下げるだけで回数を 1 つも減らさない。
 
 ### 再構成が触るべき軸
 
@@ -783,4 +903,10 @@ on / off の差は **114.0ms（on の 5.0%）**。§2.7 (f) の二乗構造は�
 3. **pass ごとの全件 sort をやめる。** `signature()` と 2 本の partition revision が、毎 pass 400 件超を `localeCompare` で並べ替えている。増分更新できる構造にする
 4. **診断属性の量。** 可視ルートに 126 個、うち 16 個が `JSON.stringify`。`flushSync` のたびに再評価される（分岐 3）
 
-**この 4 つはどれも「今の設計の中の最適化」では届かない。** 段階 2' の内訳が「どの項目も 3 割に届かず散っている」と出たら、局所修正の打ち止めを宣言してこの節を再構成の入口にする。
+**この 4 つはどれも「今の設計の中の最適化」では届かない。** 段階 0 から 3' までで、局所修正の余地は測り尽くした——DOM 読みは 18%、gate トレースは 5%、`solvePlan` は構造で削れず、残るのは weather partition の 1 割前後だけである。**この節がそのまま再構成の入口になる。**
+
+### 再構成に持っていく 1 行
+
+> 待機画面の 1 epoch は Mac 2.2 秒 / Pi 11〜15 秒。その正体は「レイアウトを DOM で二分探索する」設計で、**測る → 解く → probe を 1 世代生やす**を 107 回繰り返す。1 回あたり `solvePlan` 2 回・partition 探索 289 回・412 ノードの再レンダ。**削れるのは 1 周の単価の一部だけで、107 という回数は今の設計では減らない。**
+
+- **2026-09-09 15:10 ご主人裁定 13 = B**: 段階 3'（partition / solvePlan のメモ化）は見送り。案 (ii) は settle ループが pass ごとに `solvePlan` を 2 回（本容量と hysteresis 容量）呼び probe 登録の副作用で探索を進める設計のため成立せず、案 (i) は weather 限定で 1 割前後の見込み。1 epoch 2.3 秒は無駄な再計算ではなくループ構造そのものとして §11 の再構成材料に送る。段階 5・6（分割）は当座の体感対策として保留（C 案）
