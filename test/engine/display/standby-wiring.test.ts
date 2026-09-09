@@ -2053,8 +2053,15 @@ describe("standby monitor wiring", () => {
 
   /**
    * Pi 実機 (旧版が書いた v2, 5,202,939 bytes) と同型の「正当な最大構成」。
-   * 全国 VPWS50 の current + history 8 件に加えて、VPWW55-61 の官署別
-   * partialStreams 108 件 / partialHistory 84 群を持つ。
+   * 全国 VPWS50 の current + history に加えて、VPWW55-61 の官署別
+   * partialStreams 108 件 / partialHistory 50 群を持つ。
+   *
+   * 段階 3-E で world history が 8 段 → WORLD_HISTORY_DEPTH=2 段になったので、
+   * 縮んだぶんは partialHistory を 1 段から PARTIAL_HISTORY_DEPTH=8 段
+   * (段階 3-E で変えていない合法上限) にして埋め、群数を 84 → 50 に調整して
+   * 元と同じ約 5.2MB 帯に戻している。この test の主題は
+   * 「旧 4MiB 上限では reject された実サイズ帯が 16MiB 上限で受理される」ことなので、
+   * 合法な最大構成のまま同じ帯に留める必要がある。
    */
   function vpws50NationalCapacityDomains(
     nationalAreas: number,
@@ -2091,9 +2098,9 @@ describe("standby monitor wiring", () => {
         identity: identityOf(currentAtMs),
         snapshot: vpws50HeavySnapshot(nationalAreas, "全国"),
       },
-      history: Array.from({ length: 8 }, (_, index) => ({
+      history: Array.from({ length: 2 }, (_, index) => ({
         messageId: `vpws50-history-${index}`,
-        identity: identityOf(currentAtMs - (8 - index) * 60 * 60_000),
+        identity: identityOf(currentAtMs - (2 - index) * 60 * 60_000),
         snapshot: vpws50HeavySnapshot(nationalAreas, `履歴${index}`),
       })),
       partialStreams: partialSubjects.map((subjectKey, index) => ({
@@ -2102,13 +2109,13 @@ describe("standby monitor wiring", () => {
         identity: identityOf(currentAtMs),
         snapshot: vpws50HeavySnapshot(partialAreas, `官署${index}`),
       })),
-      partialHistory: partialSubjects.slice(0, 84).map((subjectKey, index) => ({
+      partialHistory: partialSubjects.slice(0, 50).map((subjectKey, index) => ({
         subjectKey,
-        entries: [{
-          messageId: `vpww55-prev-${index}`,
-          identity: identityOf(currentAtMs - 60 * 60_000),
-          snapshot: vpws50HeavySnapshot(partialAreas, `官署履歴${index}`),
-        }],
+        entries: Array.from({ length: 8 }, (_, entryIndex) => ({
+          messageId: `vpww55-prev-${index}-${entryIndex}`,
+          identity: identityOf(currentAtMs - (8 - entryIndex) * 60 * 60_000),
+          snapshot: vpws50HeavySnapshot(partialAreas, `官署履歴${index}-${entryIndex}`),
+        })),
       })),
       lastSuccessfulFullDisplayAt: new Date(currentAtMs).toISOString(),
     };
@@ -2146,11 +2153,11 @@ describe("standby monitor wiring", () => {
     const loadResult = reader.lastLoadResult();
     expect(loadResult?.startup).toEqual({ kind: "restored", selectedSource: "v2" });
     expect(loadResult?.sourceStates.v2).toBe("valid");
-    expect(reloaded?.telegramFoundation.vpws50.state?.history).toHaveLength(8);
+    expect(reloaded?.telegramFoundation.vpws50.state?.history).toHaveLength(2);
     expect(reloaded?.telegramFoundation.vpws50.state?.current?.snapshot.areas)
       .toHaveLength(690);
     expect(reloaded?.telegramFoundation.vpws50.state?.partialStreams).toHaveLength(108);
-    expect(reloaded?.telegramFoundation.vpws50.state?.partialHistory).toHaveLength(84);
+    expect(reloaded?.telegramFoundation.vpws50.state?.partialHistory).toHaveLength(50);
   }, 30_000);
 
   it("readerのraw source上限はちょうど16MiBを受理し、+1でoversized降格する", () => {

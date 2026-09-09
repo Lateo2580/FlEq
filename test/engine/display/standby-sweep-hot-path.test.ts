@@ -148,9 +148,11 @@ function withCallCounters<T>(run: () => T): {
 }
 
 describe("§4.1 大容量の合法状態 helper", () => {
-  it("A7: VPWS50 の exportPersistedState JSON が 5MB 以上ある", () => {
+  // 段階 3-E で world history が 8 段 → 2 段になり、helper の合法最大は 6.8MB → 4.9MB に下がった。
+  // 計測対象 (1MB 超の stringify / clone が出るか) には十分な大きさなので閾値だけ追従させる。
+  it("A7: VPWS50 の exportPersistedState JSON が 4.5MB 以上ある", () => {
     const state = buildLargeVpws50PersistedState(DEADLINE_BASE_MS);
-    expect(JSON.stringify(state).length).toBeGreaterThanOrEqual(5 * 1_000_000);
+    expect(JSON.stringify(state).length).toBeGreaterThanOrEqual(4.5 * 1_000_000);
   });
 
   it("holder を往復しても canonical 一致する (assertLosslessOwnerSnapshot 相当)", () => {

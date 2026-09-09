@@ -286,7 +286,7 @@ describe("VPWS50 同一 rank の種別変更", () => {
   });
 });
 
-describe("Vpws50StateHolder.rollback (history 深さ 8, R1-6/R2-3)", () => {
+describe("Vpws50StateHolder.rollback (history 深さ 2, R1-6/R2-3/段階 3-E)", () => {
   it("通常 → 取消 で直前報の state に戻る", () => {
     const state = new Vpws50StateHolder();
     state.diffAndUpdate(makeInfo([
@@ -311,21 +311,34 @@ describe("Vpws50StateHolder.rollback (history 深さ 8, R1-6/R2-3)", () => {
     expect(state.getCurrentAreasForDisplay()).toBeUndefined();
   });
 
-  it("history 深さ 8 で 9 個目で古い entry が落ちる", () => {
+  // 段階 3-E: WORLD_HISTORY_DEPTH = 2。1 段が全国警報テーブルの完全複製なので、
+  // 深さがそのまま永続状態のサイズになる。実消費は取消 1 回ぶんの 1 段だけで、
+  // 連続取消の余裕として 1 段だけ残す。
+  it("更新を何度重ねても history は 2 段を超えない", () => {
     const state = new Vpws50StateHolder();
-    for (let i = 0; i < 9; i++) {
+    for (let i = 0; i < 5; i++) {
+      state.diffAndUpdate(makeInfo([
+        makeItem(`県${i}`, `${i.toString().padStart(2, "0")}0000`, [makeKind("03", "warning")]),
+      ]), `msg-${i}`);
+      expect(state.exportPersistedState().history.length).toBeLessThanOrEqual(2);
+    }
+    expect(state.exportPersistedState().history).toHaveLength(2);
+  });
+
+  it("連続取消は 2 回まで戻し、3 回目は current を空にする", () => {
+    const state = new Vpws50StateHolder();
+    for (let i = 0; i < 5; i++) {
       state.diffAndUpdate(makeInfo([
         makeItem(`県${i}`, `${i.toString().padStart(2, "0")}0000`, [makeKind("03", "warning")]),
       ]), `msg-${i}`);
     }
-    for (let i = 0; i < 9; i++) {
-      const diff = state.rollback(`msg-${8 - i}`);
-      if (i < 8) {
-        expect(diff?.isFirstReport).toBe(false);
-      } else {
-        expect(diff?.isFirstReport).toBe(true);
-      }
-    }
+    // rollback は現報にしか一致しないので、target は毎回そのときの current。
+    expect(state.rollback("msg-4")?.isFirstReport).toBe(false);
+    expect(state.rollback("msg-3")?.isFirstReport).toBe(false);
+    expect(state.exportPersistedState().history).toHaveLength(0);
+    // history が尽きた 3 回目は last == null の既存経路に入る。
+    expect(state.rollback("msg-2")?.isFirstReport).toBe(true);
+    expect(state.getCurrentAreasForDisplay()).toBeUndefined();
   });
 });
 

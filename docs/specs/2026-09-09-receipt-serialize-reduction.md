@@ -1483,6 +1483,67 @@ main `a63d642`（CI 緑）→ personal `da14d1b` → Pi。`FLEQ_PERF_RECEIPT` �
 効果を打ち消した**と読む。次の観測は `serD` と v2 サイズを対で見て、状態肥大そのもの
 （何が増えているか）を切り分ける必要がある。Pi は 20:23 に通常運用へ復帰した。
 
+### 9.11 段階 3-E: VPWS50 履歴深さの縮小（ご主人裁定 R1-A、2026-09-09）
+
+窓 4 で「小型が伸びないのは `serD` 側の状態肥大」と分かった、その状態肥大の主因を直す。
+
+**事実**（Pi 実機ファイルの実測。出典 Vault `Artifacts/2026-09-09-fleq-pi-state-growth-report.md`）
+
+- 永続状態 v2 は 1 日で 1.69MB → 3.08MB に振れた。**揺れは
+  `telegramFoundation.vpws50.state.history` 一箇所で説明できる**
+  （0 件 2B → 3 件 1,362,734B。総差分 1,393,481B の **97.8%**）
+- `history` の 1 段は全国警報テーブルの**完全複製**（`areas` 約 1,030〜1,057 件、
+  1 段あたり約 450KB）。差分ではない
+- 深さは `HISTORY_DEPTH = 8`（`vpws50-state.ts:34`）。理論上限は 8 段 × 約 450KB ≒ **3.6MB**
+- 消費側は `rollbackInternal`（`:1284`）と `restorePreviousInternal`（`:1329`）の `pop` だけで、
+  どちらも `matchesCurrentReport` が**現報と一致した取消にしか反応しない**。
+  1 回の取消で消えるのは常に 1 段なので、**実消費は 1 段**である
+
+**変更**
+
+- `HISTORY_DEPTH = 8` を 2 つに割る。`WORLD_HISTORY_DEPTH = 2`（全国 base `history`）と
+  `PARTIAL_HISTORY_DEPTH = 8`（官署別 `partialHistory`、**据え置き**）。
+  同じ定数が全国 base と官署 stream の両方を決めていたが、1 段の重さが 2 桁違う
+  （全国 約 450KB ／ 官署 数 KB）ので、縮めるのは全国側だけにする
+- 触るのは `push` 時の trim（`:837`）と復元時の `slice`（`:1424`）。
+  復元は元から `slice(-DEPTH)` なので追従は不要だった
+
+**製品挙動の変化**
+
+- **連続取消の 3 回目以降が戻せなくなる。** 2 回目までは従来どおり直前報へ戻り、
+  3 回目は `last == null` の既存経路に入って `current` が null になる
+  （`isFirstReport: true`・表示は空）。8 段のときも 9 回目で同じ経路に入っていたので、
+  経路が新設されるのではなく**発火が早まる**だけである
+- VPWS50 の取消は現報にしか一致しないので、実運用で連続取消 3 回が並ぶ形は観測されていない
+- 復元互換: 旧形式（8 段まで入った v2）を読んでも `slice(-2)` で切り詰めるだけで、
+  破棄にも警告にもならない
+
+**期待効果**: `serD` / `save` / `sweepPre` はいずれも状態サイズにほぼ比例するので、
+v2 の上限が 3.08MB → 約 2.1MB（history 満杯時の寄与 3.6MB → 0.9MB）に下がるぶん比例して縮む。
+窓 4 で `serD` 370ms を出した 3.06MB の状態は、同じ入電列なら約 2.1MB に留まる見込み。
+
+**裁定ラベル（段階 3-E、ご主人裁定 R1-A 済み）**
+
+```
+対象: src/engine/messages/vpws50-state.ts の履歴深さ定数と、追従する
+      test/helpers/standby-sweep-large-state.ts /
+      test/engine/messages/vpws50-state.test.ts /
+      test/engine/display/standby-wiring.test.ts /
+      test/engine/display/standby-sweep-hot-path.test.ts、本 spec §9.11
+許容変更: 全国 base history の深さを 8 → 2 にする。定数を全国用と官署用に分ける。
+          深さ変更で成り立たなくなった期待値の書き換え (理由をコメントに残す)
+禁止変更: 官署別 partialHistory の深さ・LRU 上限・stale-resync の閾値・
+          永続 schema の形・rollback / restorePrevious の契約
+配送先: main → origin push → GitHub Actions 緑 → personal rebase → Pi
+ロールバック: git revert → npm run build → fqu (Pi は次回書き込みで 2 段に収束する。
+              旧ファイルに 8 段残っていても復元側が slice(-2) するので追加操作は不要)
+受入条件:
+  - npm run build / npm test / npm run test:shuffle / npm run typecheck:test が緑
+  - 「更新を何度重ねても history は 2 段を超えない」「連続取消は 2 回まで戻し
+    3 回目は current を空にする」の 2 本が緑
+  - Pi 窓で display-active-state-v2.json の最大サイズが約 2.1MB 以下
+```
+
 ---
 
 ## 裁定ラベル（段階 1、**配送済み** `66e30f6`）

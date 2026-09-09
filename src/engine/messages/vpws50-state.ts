@@ -31,7 +31,17 @@ import {
 } from "./weather-stream-key";
 // Plan-R3: displayVpws50FromState は Task 6 で実装される。dynamic import で順序問題を回避
 
-const HISTORY_DEPTH = 8;
+/**
+ * 全国 base (`history`) の履歴段数 (spec §9.11 段階 3-E)。
+ *
+ * 1 段が全国警報テーブルの完全複製 (Pi 実測で約 450KB) なので、深さがそのまま
+ * 永続状態のサイズになる。消費側は `rollbackInternal` / `restorePreviousInternal` の
+ * `pop` だけで、取消は現報にしか一致しない (`matchesCurrentReport`) ため実消費は常に 1 段。
+ * 連続取消のために 1 段の余裕を残して 2 段とする。
+ */
+const WORLD_HISTORY_DEPTH = 2;
+/** 官署別 stream (`partialHistory`) の履歴段数。1 段が官署ぶんなので全国 base より軽い。 */
+const PARTIAL_HISTORY_DEPTH = 8;
 const PARTIAL_SUBJECT_LIMIT = 128;
 const RECAP_INTERVAL_MS = 60 * 60 * 1000;
 // 比率だけで正当な広域解除を拒まない。明示解除が無いまま 4 key 以上失われる payload だけを
@@ -238,7 +248,7 @@ function isPersistedState(value: unknown): value is PersistedVpws50StateV2 {
     && value.partialHistory.every((group) => isRecord(group)
       && typeof group.subjectKey === "string"
       && Array.isArray(group.entries)
-      && group.entries.length <= HISTORY_DEPTH
+      && group.entries.length <= PARTIAL_HISTORY_DEPTH
       && group.entries.every((entry) => isEntry(entry, true)));
   const restoredSubjectsValid = value.restoredPartialSubjects == null
     || Array.isArray(value.restoredPartialSubjects)
@@ -834,7 +844,7 @@ export class Vpws50StateHolder implements DetailProvider<"vpws50"> {
         identity: this.currentIdentity,
         snapshot: this.current,
       });
-      while (this.history.length > HISTORY_DEPTH) this.history.shift();
+      while (this.history.length > WORLD_HISTORY_DEPTH) this.history.shift();
     }
     this.current = newSnap;
     this.currentMessageId = messageId;
@@ -960,7 +970,7 @@ export class Vpws50StateHolder implements DetailProvider<"vpws50"> {
       if (current != null && options?.replaceCurrentRevision !== true) {
         const history = this.partialHistory.get(subjectKey) ?? [];
         history.push(current);
-        while (history.length > HISTORY_DEPTH) history.shift();
+        while (history.length > PARTIAL_HISTORY_DEPTH) history.shift();
         this.partialHistory.set(subjectKey, history);
       }
       this.restoredPartialSubjects.delete(subjectKey);
@@ -1421,7 +1431,7 @@ export class Vpws50StateHolder implements DetailProvider<"vpws50"> {
     this.current = state.current == null ? null : restoreSnapshot(state.current.snapshot);
     this.currentMessageId = state.current?.messageId ?? null;
     this.currentIdentity = state.current == null ? null : { ...state.current.identity };
-    this.history = state.history.slice(-HISTORY_DEPTH).map((entry) => ({
+    this.history = state.history.slice(-WORLD_HISTORY_DEPTH).map((entry) => ({
       messageId: entry.messageId,
       identity: entry.identity == null ? null : { ...entry.identity },
       snapshot: restoreSnapshot(entry.snapshot),
@@ -1432,7 +1442,7 @@ export class Vpws50StateHolder implements DetailProvider<"vpws50"> {
       snapshot: restoreSnapshot(entry.snapshot),
     }]));
     this.partialHistory = new Map((state.partialHistory ?? []).map((group) => [group.subjectKey,
-      group.entries.slice(-HISTORY_DEPTH).map((entry) => ({
+      group.entries.slice(-PARTIAL_HISTORY_DEPTH).map((entry) => ({
         messageId: entry.messageId,
         identity: { ...entry.identity },
         snapshot: restoreSnapshot(entry.snapshot),

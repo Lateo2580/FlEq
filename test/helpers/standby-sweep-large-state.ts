@@ -38,8 +38,10 @@ const BASE_KINDS_PER_AREA = 3;
 /** 官署別部分報 1 通あたりの区域数。 */
 const PARTIAL_AREA_COUNT = 5;
 const PARTIAL_KINDS_PER_AREA = 3;
-/** 全国 base の world history 段数と、官署 stream ごとの history 段数 (どちらも HISTORY_DEPTH)。 */
-const HISTORY_DEPTH = 8;
+/** 全国 base の world history 段数 (src の WORLD_HISTORY_DEPTH と揃える)。 */
+const WORLD_HISTORY_DEPTH = 2;
+/** 官署 stream ごとの history 段数 (src の PARTIAL_HISTORY_DEPTH と揃える)。 */
+const PARTIAL_HISTORY_DEPTH = 8;
 
 const SEVERITIES: readonly WeatherSeverity[] = ["advisory", "warning", "specialWarning"];
 const DISPLAY_SEVERITIES: readonly DisplaySeverity[] = [
@@ -130,9 +132,9 @@ export function buildLargeVpws50PersistedState(baseMs: number): PersistedVpws50S
       identity: identityAt(baseMs, 0, "1"),
       snapshot: buildSnapshot(BASE_AREA_COUNT, 0, 0),
     },
-    history: Array.from({ length: HISTORY_DEPTH }, (_value, index) => ({
+    history: Array.from({ length: WORLD_HISTORY_DEPTH }, (_value, index) => ({
       messageId: `vpws50-large-history-${index}`,
-      identity: identityAt(baseMs, -(HISTORY_DEPTH - index) * 600_000, String(index + 1)),
+      identity: identityAt(baseMs, -(WORLD_HISTORY_DEPTH - index) * 600_000, String(index + 1)),
       snapshot: buildSnapshot(BASE_AREA_COUNT, index * 11, index + 1),
     })),
     partialStreams: partialSubjectKeys.map((subjectKey, index) => ({
@@ -144,11 +146,11 @@ export function buildLargeVpws50PersistedState(baseMs: number): PersistedVpws50S
     })),
     partialHistory: partialSubjectKeys.map((subjectKey, index) => ({
       subjectKey,
-      entries: Array.from({ length: HISTORY_DEPTH }, (_value, entryIndex) => ({
+      entries: Array.from({ length: PARTIAL_HISTORY_DEPTH }, (_value, entryIndex) => ({
         messageId: `vpww55-large-history-${index}-${entryIndex}`,
         identity: identityAt(
           baseMs,
-          60_000 + index * 1_000 - (HISTORY_DEPTH - entryIndex) * 60,
+          60_000 + index * 1_000 - (PARTIAL_HISTORY_DEPTH - entryIndex) * 60,
           String(entryIndex + 1),
         ),
         snapshot: buildSnapshot(
