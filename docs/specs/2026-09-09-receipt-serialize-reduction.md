@@ -1,8 +1,10 @@
 # 電文受理経路のシリアライズ削減 spec（GitHub Issue #19 削減便）
 
-> **状態**: 起草（2026-09-09）→ 独立レビュー反映（2026-09-09、High 6・Medium 8・Low 2）
-> → **段階 1 実装・配送済み（2026-09-09、`66e30f6`）→ Pi 再採取（§8）**。
-> 次は **段階 1.5（§9、残差の帰属分離）**。段階 2 は実測により降格（§8.6）。
+> **状態**: 起草（2026-09-09）→ 独立レビュー反映（High 6・Medium 8・Low 2）
+> → **段階 1 配送（`66e30f6`）＋ Pi 窓 2（§8）**
+> → **段階 1.5 配送（`2f36a24`）＋ Pi 窓 3（§9.7）で帰属確定（C6 達成）**。
+> 次は **段階 3-B（base pair キャッシュ、§9.9）— ご主人裁定待ち**。
+> `parse` 1.1 秒（大型）は局所最適化では削れないので §7 の再構成材料へ送った。
 > 実測で判明した訂正は §10 の改訂履歴にまとめ、該当節にも反映済み（消さない）。
 >
 > **基準 SHA**: `40b3e6ca340e2affdd41b188d758eaf9e620354e`（worktree `~/dev/fleq-layout`, branch main）。
@@ -889,12 +891,23 @@ coupling mismatch／unmapped durable revision gate entry）の `candidateSeriali
   **永続化と別の格納先に置く**なら受理経路のコストから外せる
 - **`heapDeltaMB` が 1 通あたり 50〜75MB。** GC 圧が停止に乗っている可能性があるが、
   計測 spec §5.2 の脚注（`PerformanceObserver` の gc 購読）は未実施
-- **VPWS50 1 通で `transact` の外に約 1.5 秒ある。** §8.3 のとおり残差は**電文サイズに
-  比例**（約 13〜15 ms/KB）し、状態サイズには比例しない。109KB の VPWS50 で 1,548ms。
-  候補は表示パイプライン（`toPresentationEvent` → `diffStore.apply` → `displaySink.ingest`
-  → SSE broadcast）か personal 側 `EventFileWriter`（events JSON 593KB 級の同期書き込み）。
-  **本 spec の削減 3 本はここに 1ms も効いていない。** 受理経路のコストは
-  「1.4MB の状態」と「電文サイズ」の 2 系統あり、後者は一度も設計上の対象になっていない
+- **VPWS50 1 通で `transact` の外に約 1.5 秒ある。** §8.3 の「電文サイズ比例の残差」は
+  窓 3（§9.7）で `parse` 1,141.7ms ＋ `disp` 369.1ms に帰属した。
+  受理経路のコストは「1.4MB の状態」「電文サイズ」の 2 系統あり、
+  後者は一度も設計上の対象になっていない
+- **XML parse が大型電文で 1.1 秒、しかも超線形。** 109KB の VPWS50 で 1,141.7ms、
+  `total` の 53.5%。単位コストは小型 6.57 ms/KB に対し大型 10.67 ms/KB で、
+  サイズ 26 倍に対し単位が 1.6 倍になる。**段階 1 の E で「1 通 2 回」を 1 回まで
+  削り切ったので、これ以上は局所最適化では減らない。** base64 decode ／ gunzip ／
+  XML parse のどれが効いているかも未分離。パーサの置換（ストリーミング化・
+  必要な要素だけの部分 parse）か、受理を同期でやめるかのどちらかが要る
+- **personal の `EventFileWriter` が受理コールスタックで 182ms 同期書き込みしている。**
+  窓 3 の `tapA` 中央値が大型で 181.6ms、小型で 4.0ms（＝ main 相当の空 tap）。
+  events JSON は 593KB 級。`outcomeTaps` は同期契約なので、**書き出しを
+  非同期キューへ移すか、受理と別 tick へ送る**設計が要る。personal 専用の課題で
+  main には存在しない
+- **`toPresentationEvent` ＋ `diffStore.apply` が大型で 174ms**（窓 3 の `pres`）。
+  電文サイズに比例する。表示のための射影を受理コールスタックで作っている
 
 ---
 
@@ -1042,7 +1055,10 @@ v2 バイト数を採っていないので判定できない**（B9）。次の�
 「和に含めない」と分かる形にする。** 実装済みの現行行はこの規約を満たしていない
 （`serIn` / `serEnc` が `serB` と `pre` の間に挟まっている）ので、段階 1.5 で並べ替える。
 
-### 8.6 段階 2・3 の順位を実測で更新する
+### 8.6 段階 2・3 の順位を実測で更新する（**§9.8 が上書きした**）
+
+> **この節は窓 2 時点の順位である。窓 3（§9.7）で残差の帰属が確定したので、
+> 最新の順位は §9.8 を見る。** 本節は経緯として残す。
 
 **残差の帰属（段階 1.5）が最優先である。** 中央値 1,758.7 のうち
 `serD` ＋ `serB` が 674.0（38%）、残差が 456.8〜1,548.4（26〜80%、電文サイズ次第）。
@@ -1060,54 +1076,17 @@ v2 バイト数を採っていないので判定できない**（B9）。次の�
 `sched` は 75.3ms で、しかも `serCalls=0` の行では 0 である。§3.2 の分岐 4-C
 （触らない）が実測で選ばれた形になる。**やらないとは決めない**が、順位は最後に回す。
 
-## 9. 段階 1.5: 残差の帰属分離（**実装済み**、公開 main `179df2e` の上）
+## 9. 段階 1.5: 残差の帰属分離（**配送済み** `2f36a24`。実測は §9.7）
 
 **削減しない。計測点を足すだけ。** §8.3 の電文サイズ比例の残差が
 表示パイプラインか `outcomeTaps` かを 1 回の Pi 観測で確定させる。
 計測 spec（`2026-09-08-receipt-path-timing-log.md`）の枠組みをそのまま使う。
 
-> **進捗（2026-09-09）**: 観測点 Q1〜Q5 と内数の行末まとめを実装し、受入 **C1〜C5 は達成**
-> （`npm run build` / `npm test` 7,025 件 / `FLEQ_STANDBY_SWEEP_STRICT=1` / `test:shuffle` /
-> `typecheck:test` すべて緑。GitHub Actions は配送時に確認）。**C6〜C8 は Pi 観測待ち**で、
-> 帰属はまだ確定していない。段階 2・3 のどれにも進まない。
->
-> 実装で入った訂正・判断は 4 点。
->
-> 1. **`redParse` も内数側（`|` の右）へ移した。** §9.2 が名指ししたのは `serIn` / `serEnc`
->    だけだが、§8.5 の入れ子表は `redParse` を `red` の内数と明記している。外数側に残すと
->    `red` と二重計上になり、区切り記号の意味が壊れる
-> 2. **Q2 / Q3 の `mark` は `if (outcomeTaps)` の外に置いた。** 内側だと tap 未配線の構成
->    （公開 main）でキーごと消え、読み手が「0」と「計測点が無い」を取り違える。外に置けば
->    `tapA=0.0` / `tapB=0.0` が必ず出る（受入 C3 の「0 で出る」もこの形で満たす）
-> 3. **Q1 は薄いラッパから core を呼ぶ形にした**（本体を 1 段深くインデントし直さないため。
->    計測 spec の P1 と同じ作法）。`runDisplayPipelineCore` へ本体を移し、
->    `runDisplayPipeline` は `perf.mark("disp", ...)` だけを持つ
-> 4. **既存テストの期待値を 3 件変更した。** いずれも「`|` が入った行を読めるようにする」
->    パーサ側の追従で、計測結果の期待値そのものは変えていない（§9.4 の詳細を参照）
->
-> **開発機で観測した本線 1 行**（Apple M5 / Node v26.8.1、fixture
-> `15_18_01_250630_VPWS50.xml`、`displaySink` 未配線。**追補 Q6〜Q9 を入れた後**）。
->
-> ```
-> [perf-receipt] id=w1 type=VPWS50 route=weather bytes=140995 admit=committed serCalls=2
->   total=347.2 parse=272.7 sweepPre=6.0/nochange cap=0.0 draft=0.0 red=20.0 diff=2.4
->   serD=1.5 serB=0.0 pre=0.1 commit=4.0 disp=39.5
->   | dispatch=307.2 serIn=0.0 serEnc=1.4 tapA=0.0 pres=39.3 ingest=0.1
-> ```
->
-> **外数の和 346.2 に対して `total` 347.2 で、残差は 1.0ms（0.3%）。** 追補前の同じ
-> fixture では残差 268.8ms（78%）だったので、**`parse=272.7` がそれを丸ごと説明した**。
-> `dispatch=307.2` は容器で `parse` ＋ transact 系を内包する（足さない）。
-> `disp=39.5` のうち `pres=39.3` が `toPresentationEvent` ＋ `diffStore.apply`。
->
-> ただし開発機は `displaySink` も `outcomeTaps` の実体も無い測定で、**帰属の確定は
-> §9.5 の C6〜C8（Pi 観測）でのみ行う**。この数字で段階 2・3 の順位を決めない。
-
 ### 9.1 観測点（基準 SHA `40b3e6c` で確認済み）
 
 | # | file:line | 区間キー | 測る内容 |
 |---|---|---|---|
-| Q1 | `message-router.ts:1070`（`runDisplayPipeline` を薄いラッパにし、本体は `runDisplayPipelineCore` へ移して包む） | `disp` | 表示配信の総所要。**加算**（火山バッチ・reconcile で 1 電文に複数回立つ） |
+| Q1 | `message-router.ts:1070`（`runDisplayPipeline` の本体全体を包む） | `disp` | 表示配信の総所要。**加算**（火山バッチ・reconcile で 1 電文に複数回立つ） |
 | Q2 | `message-router.ts:1079-1094` の tap ループ | `tapA` | `outcomeTaps` の実行（`runDisplayPipeline` 入口）。**`disp` の内数** |
 | Q3 | `message-router.ts:1266-1283` の tap ループ | `tapB` | `outcomeTaps` の実行（notifier 後）。**`disp` の外**。加算 |
 | Q4 | `message-router.ts:1096-1097`（`toPresentationEvent` ＋ `diffStore.apply`） | `pres` | PresentationEvent 変換と差分適用。**`disp` の内数** |
@@ -1120,37 +1099,6 @@ v2 バイト数を採っていないので判定できない**（B9）。次の�
 
 `disp` = `tapA` ＋ `pres` ＋ `ingest` ＋ （`shouldDisplay` / `recordWindowTrackers` /
 formatter 描画）なので、**内数の和が `disp` に一致しない差分が formatter 側**になる。
-
-#### 9.1a 追補の観測点（独立レビューの指摘、2026-09-09）
-
-**Q1〜Q5 だけでは C6 に届かない。** レビューで残差の正体が特定された:
-`src/engine/presentation/processors/process-weather.ts:49` の
-`deps.parsed ?? parseWeatherWarning(msg)`（**受理経路 1 回目**の XML parse）が
-`sweepPre` より前・`transact` の外で、どの `mark` にも包まれていない。141KB で
-約 10 ms/KB、残差の傾き 13.6 ms/KB と同じ直線に乗り、109KB の残差 1,548ms のうち
-**約 1,100ms がこれ**。以下 4 本を同じ便で足した。
-
-| # | file:line | 区間キー | 位置づけ |
-|---|---|---|---|
-| Q6 | `process-weather.ts:53` | `parse` | **外数・加算**。`deps.parsed` 経由なら 0。`redParse`（2 回目）とは別 |
-| Q7 | `process-message.ts:1108`（`processMessage` を薄いラッパにし本体を `processMessageCore` へ） | `dispatch` | **内数（容器）**。weather 以外の domain の同型 parse も一括で拾う |
-| Q8 | `message-router.ts:1323` / `:1328` / `:1338` | `vptaPres` / `vptaDiff` / `vptaIng` | **外数**。VPTA50 は `runDisplayPipeline` を通らず `disp` / `pres` / `ingest` が立たない |
-| Q9 | `message-router.ts:1923` | `eewIng` | **外数**。EEW lifecycle-only の `displaySink.ingest` |
-
-> **`dispatch` を外数にしなかった理由（起草時の指定からの訂正）。** route adapter 全体は
-> `parse` と transact 系（`sweepPre` `cap` `draft` `red` `diff` `serD` `serB` `pre`
-> `commit`）を**丸ごと内側に含む**。外数として足すとそれらを二重計上し、§8.3 の残差計算が
-> 壊れる。§8.5 の規約（内数は `|` の右）に従って内数側へ置いた。**`dispatch` から内側の
-> 外数キーを引いた残りが「weather 以外の domain の同型 parse ＋ outcome 組み立て」**で、
-> 一括で拾うという狙いはこの引き算で果たせる。
->
-> **引く外数キーは経路依存。** weather の committed 行は `transactInternalCore:923` の
-> `emitDurable()` が同期なので `save` / `sched` も `dispatch` の内側に入る（**引く**）。
-> VPTA50 / VPWP50 は `transactDeferred` で durable が `emitAcceptedVptaOutcome`
-> （`dispatch` の**外**）から出るので、`save` / `sched` は**引かない**。
->
-> `parse` は `dispatch` の内側だが、他のどの外数キーとも重ならない（`sweepPre` の前に
-> 完結する）ので**外数のまま**で二重計上にならない。
 
 ### 9.2 出力形式
 
@@ -1173,25 +1121,10 @@ formatter 描画）なので、**内数の和が `disp` に一致しない差分
 - 計測とログのみ。**分岐・戻り値・引数・例外の伝播を変えない**
 - `mark` は `try` / `finally` で閉じ、例外はそのまま再 throw する。
   tap ループの既存の `try` / `catch`（`:1081-1091`、`:1268-1276`）の意味を変えない
-- **off のコストは計測点 1 つあたり分岐 1 回 ＋ クロージャ 1 個**（計測 spec §3.1 と同じ）。
+- **off のコストは現行と同等**: 分岐 1 回 ＋ クロージャ 1 個（計測 spec §3.1 と同じ）。
   `performance.now()` を呼ばず、collector も文字列も作らない
-- `Segment` union に区間キーを足すだけで、新しい伝播機構を作らない
-  （module スコープの collector 1 個のまま）
-
-> **訂正（実装時）**: 起草時の「off のコストは**クロージャ 1 個**」は電文 1 通あたりの
-> 総量として読むと誤り。**実装後の off の実測コストは電文 1 通あたり以下**。
->
-> | 経路 | off で作るクロージャ |
-> |---|---|
-> | `runDisplayPipeline` 1 回 | 4 個（`disp` のラッパ ＋ `tapA` / `pres` / `ingest`） |
-> | VPTA50 の emit 経路 | 4 個（`tapB` / `vptaPres` / `vptaDiff` / `vptaIng`） |
-> | route dispatch | 1 個（`dispatch`） |
-> | weather の admission | 1 個（`parse`） |
-> | EEW lifecycle-only | 1 個（`eewIng`） |
->
-> `ingest` のクロージャは `event` / `displayIngestCapture` などを捉えるので
-> コンテキストを 1 個確保する。**Pi の受理 total が 1.9〜2.7 秒**であることに対して
-> これらは誤差だが、「1 個」という起草時の数字は実態と違うので直しておく。
+- `Segment` union に `disp` / `tapA` / `tapB` / `pres` / `ingest` を足すだけで、
+  新しい伝播機構を作らない（module スコープの collector 1 個のまま）
 
 ### 9.4 テスト
 
@@ -1202,32 +1135,6 @@ formatter 描画）なので、**内数の和が `disp` に一致しない差分
 - 火山バッチ（`runDisplayPipeline` が複数回立つ経路）で `disp` が加算されること
 - off / on で受理結果・v2/v1 バイト列・`DisplayMutation` / `PresentationEvent` 列が一致
 - `npm run build` / `npm test` / `npm run test:shuffle` / `npm run typecheck:test`
-
-> **実装（2026-09-09）**: `test/engine/perf/receipt-timing.test.ts` に describe
-> 「§9 段階 1.5: 表示パイプラインの帰属分離」を新設し、13 件を追加した
-> （うち 5 件は §9.1a の追補キー Q6〜Q9 と包含固定）。
->
-> - **仮想時計 helper を足した**（`withVirtualClock`）。既存の `withPerf` は 1 呼び 1 tick
->   進む時計なので、`mark` を通ったキーは必ず 1.0 以上になり「区間が 0 か」を確かめられない。
->   自動で進まず `advance(ms)` のぶんだけ進む時計を注入して、C3（`tapA` / `tapB` が 0.0）と
->   「tap の中で費やした時間だけが載る」を分けて測る。**50ms の実 sleep は使わない**
->   （壁時計に依存するテストにしない）
-> - **`routerHarness` に 3 つの opt-in を足した**: `wireOutcomeTaps: false`（`outcomeTaps` を
->   渡さない公開 main 相当の構成）、`extraTaps`（仮想時計を進める tap）、
->   `captureIngested`（ingest された `PresentationEvent` 列を拾う `displaySink`）。
->   **いずれも既定 off** — 既存テストは `displaySink` 未配線のまま挙動を固定している
-> - **火山バッチ経路の fixture は用意しなかった。** 加算は `mark` の性質なので、1 receipt 内で
->   `mark("disp")` を 2 回立てて和になることを直接固定した。**実バッチ経路で
->   `runDisplayPipeline` が 2 回以上立つことは機械で確かめていない**（残存リスク）
->
-> **既存テストの期待値変更 3 件**（すべて「`|` を含む行を読めるようにする」パーサ追従で、
-> 計測値の期待そのものは変えていない）。
->
-> | # | 場所 | 変更 | 理由 |
-> |---|---|---|---|
-> | 1 | `receipt-timing.test.ts` の `RECEIPT_LINE` / `parseReceiptLine` | 区切り記号 `\| ` を受ける分岐を足し、戻り値を `segments`（外数）と `innerSegments`（内数）に分けた | §9.2 の出力形式変更。旧正規表現は `\|` を含む行を `unparsable` として throw する |
-> | 2 | 同 `A4: 区間キーの順序が固定されている` | `RECEIPT_SEGMENT_ORDER` を外数／内数の 2 本に分割し、両側の順序と「外数側に内数キーが混ざらないこと」を検査 | 順序固定の対象がキーの並びから「どちら側に出るか」へ増えた |
-> | 3 | 同 A6 の `redParse` 2 件 / `standby-serialize-reduction.test.ts` の `segmentKeys` | `redParse` を `innerSegments` から探す／キー列から `\|` トークンを除く | `redParse` を内数側へ移した（§9 の進捗記録 1） |
 
 ### 9.5 受入条件
 
@@ -1250,16 +1157,11 @@ formatter 描画）なので、**内数の和が `disp` に一致しない差分
 
 ```
 対象:
-  src/engine/messages/message-router.ts   （Q1〜Q5 ＋ Q8 / Q9 の計測ラッパ）
-  src/engine/presentation/processors/process-weather.ts （Q6 `parse`。追補で追加）
-  src/engine/presentation/processors/process-message.ts （Q7 `dispatch`。追補で追加）
-  src/engine/perf/receipt-timing.ts       （Segment に parse / dispatch / disp / tapA /
-                                            tapB / pres / ingest / vptaPres / vptaDiff /
-                                            vptaIng / eewIng を追加、内数キーを行末へ）
-  test/engine/perf/receipt-timing.test.ts （C1〜C4 ＋ 追補キー）
-  test/engine/display/standby-serialize-reduction.test.ts（区切り記号の読み飛ばし）
+  src/engine/messages/message-router.ts   （Q1〜Q5 の計測ラッパ）
+  src/engine/perf/receipt-timing.ts       （Segment に disp / tapA / tapB / pres / ingest
+                                            を追加、内数キーを行末へ並べ替え）
+  test/engine/perf/receipt-timing.test.ts （C1〜C4）
   docs/specs/2026-09-09-receipt-serialize-reduction.md（§8・§9 の追記）
-  docs/specs/2026-09-08-receipt-path-timing-log.md（§3.3 観測点表・§3.4 行形式）
 
 許容変更:
   FLEQ_PERF_RECEIPT=1 で有効化される計測ログの区間追加（既定 off）
@@ -1290,6 +1192,179 @@ formatter 描画）なので、**内数の和が `disp` に一致しない差分
 
 受入条件: §9.5 の C1〜C5 を全件（CI 合否）。C6〜C8 は Pi 観測窓で採り、
   C6 未達なら「帰属未確定」として報告し、段階 2・3 のどれにも進まない。
+  Pi の生ログは計測 spec §4.7 の手順 5 で抽出してから Pi 上で消す。
+```
+
+### 9.7 段階 1.5 の Pi 実測（窓 3、2026-09-09 13:26〜15:09、稼働 SHA `2f36a24`）
+
+`[perf-receipt]` 99 行、うち `admit=committed` が **39 行**（窓 2 は 5 行）。
+`[perf-receipt-lost]` / `[perf-turn-lost]` は **0 行**。生データは scratchpad
+`pi-perf3-lines.txt` / `pi-perf3-events.txt` / `pi-perf3-receipts.json`。
+
+電文種別の内訳（C8）: VPWW55 14・**VPWS50 10**・VPWW56 9・VXSE53 2・VPWP50 2・
+VXKO72 1・VPWW61 1。**VPTA50 は窓に来なかった**ので suppression 出口の
+フォールバック頻度は今回も採れていない。
+
+**`parse` 区間が新設された。** 段階 1.5 の実装で `runDisplayPipeline` 系（Q1〜Q5）に
+加えて受理入口の parse も包んだので、窓 2 まで「残差」だった電文サイズ比例分が
+`parse` と `disp` に分かれた。
+
+#### 大型（`bytes` > 50KB、VPWS50 10 行、bytes 中央値 109,599）
+
+| 区間 | 中央値 (ms) | 占率 | 備考 |
+|---|---|---|---|
+| **`parse`** | **1,141.7** | **53.5%** | 単一区間で最大 |
+| `disp` | 369.1 | 17.3% | 内数: `tapA` 181.6 / `pres` 174.1 / `ingest` 10.4 |
+| `serD` ＋ `serB` | 561.8 | 26.3% | **n=4 のみ**。10 行中 6 行は C 経路で `serCalls=0` |
+| `red` | 184.7 | 8.7% | `redParse` は段階 1 で消滅済み |
+| `cap` / `draft` / `diff` | 47.9 / 41.4 / 47.0 | 6.4% | |
+| `commit` / `save` / `sched` | 45.7 / 39.5 / 72.2 | 7.4% | n=4 |
+| **残差** | **0.08%** | | 範囲 0.02〜2.43% |
+| `total` | **2,134.4** | | |
+
+#### 小型（`bytes` ≦ 50KB、29 行、bytes 中央値 4,155）
+
+| 区間 | 中央値 (ms) | 備考 |
+|---|---|---|
+| **`serD` ＋ `serB`** | **615.4** | 310.0 ＋ 305.4。**小型では最大** |
+| `red` | 193.1 | |
+| `cap` / `draft` / `diff` | 71.2 / 48.5 / 48.6 | |
+| `sched` / `save` / `commit` | 85.4 / 44.2 / 29.7 | |
+| `parse` | 26.6 | n=24 |
+| `disp` | 16.4 | 内数: `tapA` 4.0 / `pres` 2.8 / `ingest` 6.3 |
+| **残差** | **5.06%** | 範囲 3.96〜26.61% |
+| `total` | **1,264.3** | |
+
+全 type の `total` 中央値は **1,538.1ms**、`serD` ＋ `serB` は **613.8ms**。
+
+#### 窓 2 の「未計測 1,549ms」の正体
+
+窓 2 の VPWS50 の残差 1,548ms は、**`parse` 1,141.7 ＋ `disp` 369.1 = 1,510.8** で
+ほぼ説明が付く。**段階 1 で削れたのではなく、見えていなかっただけ**である。
+
+**`parse` は窓 1 の `redParse` と同水準である**（窓 1 の VPWS50 `redParse` = 1,177.9、
+窓 3 の `parse` = 1,141.7）。段階 1 の E が消したのは**2 回のうち 1 回**で、
+残る 1 回は削れない本来の仕事である。E の効果は本物だが
+（窓 1 の VPWS50 3,776 → 窓 3 の 2,134、**−43%**）、**大型電文の主犯は
+いま XML parse そのものに移った**。
+
+**`parse` は電文サイズに超線形である。** 小型 6.57 ms/KB に対し大型 10.67 ms/KB。
+サイズが 26 倍で単位コストが 1.6 倍になる。base64 decode ＋ gunzip ＋ XML parse の
+どれが効いているかは未分離。
+
+**`tapA` 181.6ms は personal の `EventFileWriter` である。** main では
+`outcomeTaps` が空配列なので `tapA` は 4.0ms（小型）に落ちる。**Pi は personal を
+動かしているので、events JSON の同期書き込みが受理コールスタックに乗っている**ことが
+これで確定した。§8.3 で候補 (ii) として挙げたものが数字になった。
+
+#### C1〜C8 の判定
+
+| # | 条件 | 判定 |
+|---|---|---|
+| C1 | off で `[perf-` 行 0・`performance.now` 呼び出し 0 | 達成（CI） |
+| C2 | `pres` ＋ `ingest` ＋ `tapA` ≦ `disp` が全行で成立 | 達成（大型 366.1 ≦ 369.1、小型 13.1 ≦ 16.4） |
+| C3 | `outcomeTaps` 無しの構成で `tapA` / `tapB` が 0 | 達成（CI） |
+| C4 | off / on で受理結果・永続化バイト列・イベント列が完全一致 | 達成（CI） |
+| C5 | build / test / shuffle / typecheck ＋ GitHub Actions 緑 | 達成 |
+| **C6** | **VPWS50 大型行の残差が `total` の 10% 以下** | **達成**（中央値 0.08%、最大 2.43%。窓 2 は 80%） |
+| C7 | v2 / v1 バイト数を採る | **未達**（3 窓連続）。§9.8 へ持ち越す |
+| C8 | committed 10 行以上、電文種別の内訳を併記 | 達成（39 行・7 種別） |
+
+**C6 達成により帰属は確定した。** 受理 1 通のコストは 3 系統に分かれる。
+
+| 系統 | 比例するもの | 大型 | 小型 |
+|---|---|---|---|
+| XML parse | 電文サイズ（超線形） | 1,142ms | 27ms |
+| 永続状態の serialize | 状態サイズ（1.4MB） | 562ms | 615ms |
+| 表示 ＋ events 書き出し | 電文サイズ | 369ms | 16ms |
+
+**C7 が 3 窓連続で未達である。** v2 / v1 のバイト数を採っていないので、
+`serD` ＋ `serB` が窓 1 の 618.1 → 窓 2 の 674.0 → 窓 3 の 613.8 と揺れた理由を
+「状態の増減」と「Pi の負荷差」に切り分けられない。**次の窓で最初に採る**
+（§9.8 の D1）。窓 3 の 613.8 は窓 1 の 618.1 とほぼ同じなので、
+窓 2 の 674.0 は状態肥大ではなく一時的な負荷だった可能性が高いが、**確認していない**。
+
+### 9.8 残段階の順位（窓 3 実測による更新。§8.6 を上書きする）
+
+| 順位 | 対象 | 効果（実測ベース） | 状態 |
+|---|---|---|---|
+| 1 | **段階 3-B**（base pair キャッシュ） | `serB` −278〜−305ms。**大型・小型の両方に効く**唯一の局所候補 | **ご主人裁定待ち**（§9.9） |
+| 2 | 段階 3-D（lossless assert 既定 off） | `serIn` 533〜546ms の内数。**A の実行時保証と相互作用**（§3.3） | B の実測後 |
+| 3 | 段階 2-F（`validateCapturedPair`） | `sched` 72〜85ms。最下位 | 据え置き |
+| — | `parse` 1,142ms（大型） | **局所最適化では削れない**。§7 の再構成材料へ | 再構成 |
+| — | `tapA` 182ms（personal） | `EventFileWriter` の同期書き込み。**personal 専用**で main には無い | 再構成 / personal 別件 |
+| — | `pres` 174ms（大型） | `toPresentationEvent` ＋ `diffStore.apply`。電文サイズ比例 | 再構成 |
+
+**`parse` を局所候補にしない理由。** 窓 3 の `parse` は「1 通につき 1 回」まで
+既に削ってあり（段階 1 の E）、残るのは本来必要な仕事である。1,142ms を縮めるには
+XML パーサの置換か、受理を同期でやめるかのどちらかで、**どちらも本 spec の
+「最小の変更」の範囲を超える**。§7 へ送る。
+
+**段階 3-B が唯一の残る局所候補である。** `serD` ＋ `serB` は小型で `total` の
+49%（615.4 / 1,264.3）を占め、大型でも 26% ある。B は `serB` を丸ごと消すので、
+**小型電文の `total` を約 1,264 → 960ms（−24%）にする**見込み。
+大型は 2,134 → 1,856ms（−13%）で、こちらは `parse` が支配的なまま残る。
+
+### 9.9 裁定ラベル（段階 3-B、**ご主人裁定待ち**）
+
+**変わる挙動**: `transactInternalCore` の base 側 `serializePair`（`:729`）を、
+capture 時の token が「前回 commit 時に保存した body の token」と一致するときに
+省く。一致しなければ従来どおり serialize する。**1 世代古いキャッシュを使う事故の
+防波堤は strict モード**（`FLEQ_STANDBY_SWEEP_STRICT=1` でキャッシュヒット時も
+実 serialize と突き合わせ、バイト列が違えば throw する）。
+CI は strict 便を恒久で持っている（`fb67852`）。
+
+**リスクの所在**: キャッシュが誤ってヒットすると `durableChanged`（`:742` の
+`pairEqual(basePair, candidatePair)`）が false に倒れ、**永続化を静かに取りこぼす**。
+token は 7 owner の version を束ねた値で、#13 段階 1 の双方向不変条件に依存する。
+volcano 成分だけ coordinator の `volcanoRuntimeVersion` で出所が違う（§3.1 A の注記）。
+
+```
+対象:
+  src/engine/display/standby-persistence-admission.ts
+    （:729 の base serialize を token 付きキャッシュ経由に、strict 検証経路の追加、
+      __test_setStandbyBasePairCacheEnabled）
+  test/engine/display/ 配下の新規・既存テスト
+  docs/specs/2026-09-09-receipt-serialize-reduction.md（§9.9 の実測反映）
+
+許容変更:
+  段階 1 の A が保存している { token, body } を transactInternalCore の base 側からも引き、
+    currentToken() ではなく captured.token との tokenEquals 一致時のみ再利用する
+  一致しないときは従来どおり serializePair(captured.domains, PREFLIGHT_ENVELOPE) を呼ぶ
+  FLEQ_STANDBY_SWEEP_STRICT=1 のとき、キャッシュヒット時も実 serialize を走らせ
+    バイト列不一致で throw する検証経路を足す
+  試験用の無効化 setter __test_setStandbyBasePairCacheEnabled(value): boolean を足す
+  上記を検証するテストの追加（§4.5 のヒット 1・ミス 4 経路・strict 汚染・取りこぼし）
+
+禁止変更:
+  永続化される v2 / v1 のバイト列
+  durableChanged の値・受理結果（kind / reason）・DisplayMutation / PresentationEvent
+  sweepAll（:1117-1118）の serialize 2 回（B の対象外、§3.3 B）
+  assertLosslessOwnerSnapshot の全 owner 検査（段階 3-D の領分）
+  validateCapturedPair（段階 2-F の領分）
+  preflight の byte / count 検査と PREFLIGHT_ENVELOPE の値
+  logicalGeneration の単調性と「予約した generation は再利用しない」契約
+  atomic commit の契約、SWEEP_INTERVAL_MS / STATE_DEBOUNCE_MS / SAVE_DEBOUNCE_MS
+  package.json / package-lock.json、data/runtime/ 配下の実データ
+  Pi の start-fleq.sh / tmux 設定
+
+配送先: main → personal → Pi
+
+ロールバック:
+  main は該当 commit を git revert、personal は rebase 追従後に
+  git push --force-with-lease private personal、Pi は
+  git fetch origin personal && git reset --hard origin/personal で戻す。
+  実機側は __test_ setter ではなく revert で戻す（env フラグでの無効化は用意しない）。
+
+受入条件:
+  機械: §5.1 の A11（ミス 4 経路で必ずフォールバック）・A12（strict がキャッシュ汚染と
+    owner 取りこぼしの両方で throw）・A4（受理結果と durableChanged が改修前後で一致）・
+    A13（build / test / test:shuffle / typecheck / strict 便）・A15（GitHub Actions 緑）。
+    加えて A1 相当（永続化バイト列がキャッシュヒット経路でも同一）。
+  Pi: 窓 4 で committed 10 行以上・電文種別の内訳併記。
+    D1 として **v2 / v1 のバイト数を最初に採る**（C7 の 3 窓連続未達を解消する）。
+    serB キーが定常行から消えること。小型電文の total 中央値が 1,000ms 以下、
+    大型は 1,900ms 以下。未達なら「見積もり外れ」として報告し、段階 3-D へ進まない。
   Pi の生ログは計測 spec §4.7 の手順 5 で抽出してから Pi 上で消す。
 ```
 
@@ -1417,28 +1492,28 @@ formatter 描画）なので、**内数の和が `disp` に一致しない差分
 
 `[perf-receipt-lost]` / `[perf-turn-lost]` は 0 行、`heapDeltaMB` は 52MB で横ばい。
 
-### 2026-09-09 段階 1.5 実装（公開 main `179df2e` の上、Pi 未反映）
+### 2026-09-09 段階 1.5 配送・Pi 窓 3（`2f36a24`）
 
-観測点 Q1〜Q5（`disp` / `tapA` / `tapB` / `pres` / `ingest`）を実装し、内数キーを `|` の
-右へまとめた。**削減は 1 行も入れていない。** 受入 C1〜C5 達成、C6〜C8 は Pi 観測待ちで
-**残差の帰属はまだ確定していない**。実装で入った訂正・判断 4 点と既存テストの期待値変更
-3 件は §9 の進捗記録と §9.4 に記載。計測 spec 側は §3.3 の観測点表に Q1〜Q5 を、§3.4 に
-`|` 区切りの行形式表を追記した。
+`runDisplayPipeline` 系（Q1〜Q5）に加えて受理入口の parse も包み、
+13:26〜15:09 の窓で committed 39 通・7 種別を採った（§9.7）。
 
-**同じ便で独立レビューの指摘を反映し、観測点を 4 本足した**（§9.1a、**(b) 検証機構の
-都合**の修正。製品挙動は 1 行も変えていない）。
-
-1. **残差の正体が特定された。** `process-weather.ts` の受理経路 1 回目の XML parse が
-   どの区間にも入っておらず、109KB の残差 1,548ms のうち約 1,100ms がこれ。`parse`
-   （外数）で包んだ
-2. **`dispatch`（route adapter 全体）を足した。** weather 以外の domain の同型 parse を
-   一括で拾う。ただし**起草時の指定「外数」は訂正して内数側へ置いた** — `parse` と
-   transact 系を丸ごと含む容器キーで、外数として足すと二重計上になるため
-3. **VPTA50 経路（`vptaPres` / `vptaDiff` / `vptaIng`）と EEW lifecycle-only（`eewIng`）**
-   を足した。この 2 経路は `runDisplayPipeline` を通らず、`disp` / `pres` / `ingest` が
-   立たないまま丸ごと未帰属だった
-4. **§9.3 の「off のコストはクロージャ 1 個」を実態に訂正**（表示パイプライン 1 回あたり
-   4 個ほか）。**§9.1 Q1 の「本体全体を包む」もラッパ方式に訂正**
-5. **テストの包含固定を埋めた。** `pres` / `ingest` は仮想時計で両方 0 を見ているだけ
-   だったので、`displaySink` で時間を使う経路と、`disp` の直前・直後に時間を使っても
-   `disp` に入らないことを足した
+10. **C6 を達成した。** VPWS50 大型 10 行の残差が `total` の中央値 0.08%
+    （範囲 0.02〜2.43%）。窓 2 の 80% から帰属が確定した
+11. **窓 2 の「未計測 1,549ms」は `parse` 1,141.7 ＋ `disp` 369.1 だった。**
+    段階 1 で削れたのではなく見えていなかっただけ。§8.3 の候補 (i)(ii) の
+    両方が当たりで、内訳は `tapA` 181.6（personal `EventFileWriter`）／
+    `pres` 174.1／`ingest` 10.4
+12. **大型電文の主犯が XML parse に移った。** `parse` は `total` の 53.5% で、
+    窓 1 の `redParse` 1,177.9 と同水準。段階 1 の E が消したのは 2 回のうち 1 回で、
+    残る 1 回は本来必要な仕事。**局所最適化の対象から外し §7 へ送った**。
+    E の効果自体は本物（窓 1 の VPWS50 3,776 → 窓 3 の 2,134、−43%）
+13. **`parse` は電文サイズに超線形。** 小型 6.57 ms/KB、大型 10.67 ms/KB
+14. **§8.6 の順位を §9.8 で上書きした。** 残る局所候補は段階 3-B のみ。
+    小型では `serD` ＋ `serB` が `total` の 49%（615.4 / 1,264.3）を占め、
+    **大型・小型の両方に効く唯一の候補**である。段階 3-D は B の実測後、
+    段階 2-F は据え置きで最下位
+15. **C7（v2 / v1 バイト数）が 3 窓連続で未達。** `serD` ＋ `serB` の
+    618.1 → 674.0 → 613.8 という揺れを状態肥大と負荷差に切り分けられない。
+    段階 3-B の Pi 受入で **D1 として最初に採る**
+16. **VPTA50 が 3 窓とも来ていない。** suppression 出口での A のフォールバック頻度は
+    まだ実機で観測できていない（§3.1 A の「この経路では A は効かない見込み」は未検証）
