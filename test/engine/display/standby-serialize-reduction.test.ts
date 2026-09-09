@@ -293,6 +293,24 @@ describe("§4.1 A1: 再利用経路とフォールバック経路でバイト列
   });
 
   /**
+   * 段階 3-D (§9.12) で `assertLosslessOwnerSnapshot` が strict 限定になったので、
+   * A のバイト同一性を **strict off の本番配線で**採る 1 本を別に置く。
+   * 上の A1 も既定便では off で走るが、strict 便 (`FLEQ_STANDBY_SWEEP_STRICT=1`) では
+   * 反転してしまうので、env に依らず off を固定する。
+   */
+  it("A1: strict off (段階 3-D 後の本番配線) でもバイト列と owner snapshot が一致する", () => {
+    withStrictMode(false, () => {
+      const reused = runWeather("nostrict-reuse", true);
+      const fallback = runWeather("nostrict-fallback", false);
+      expect(reused.failures).toEqual([]);
+      expect(fallback.failures).toEqual([]);
+      expect(reused.pairs.length).toBeGreaterThan(0);
+      expect(reused.pairs).toEqual(fallback.pairs);
+      expect(reused.fingerprint).toEqual(fallback.fingerprint);
+    });
+  });
+
+  /**
    * A8': volcano owner だけ `assertLosslessOwnerSnapshot` による往復検査が無く
    * (`standby-persistence-admission.ts` の volcano 枝は code 集合の重複と対応しか
    * 見ていない)、Pi 実測 15 通も全部 `route=weather` だったので、A の健全性が

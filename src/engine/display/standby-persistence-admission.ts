@@ -293,6 +293,18 @@ function canonicalJson(value: unknown): string {
   });
 }
 
+/**
+ * owner snapshot が holder を往復して同一に戻るかの不変条件検査 (spec §3.3 D)。
+ *
+ * **呼び出し側は必ず `if (strictSweepOwnerDiff)` で囲むこと** (段階 3-D / D-ii)。
+ * 引数の `cloneSnapshot()` は状態全体の deep clone なので、評価そのものが
+ * 検査本体と同じだけ重い。囲まずに引数だけ作ると削減の半分を捨てる。
+ *
+ * 既定 off にできる根拠は「これが実データの検証ではなく owner 実装のバグを
+ * 捕まえる検査」であること。往復性は owner ごとの単体テスト
+ * (`standby-owner-snapshot-roundtrip.test.ts`) で固定し、実データ側の網は
+ * CI に恒久で載っている strict 便 (`FLEQ_STANDBY_SWEEP_STRICT=1`) が担う。
+ */
 function assertLosslessOwnerSnapshot(
   owner: StandbyPersistenceOwnerKey,
   input: unknown,
@@ -319,11 +331,13 @@ function standbyAdmissionSerializationInput(
   foundation: Parameters<StandbyPersistence["serializeProspectivePair"]>[1];
 } {
   const gate = TelegramRevisionGate.fromSnapshot(domains.telegramRevisionGate);
-  assertLosslessOwnerSnapshot(
-    "telegramRevisionGate",
-    domains.telegramRevisionGate,
-    gate.cloneSnapshot(),
-  );
+  if (strictSweepOwnerDiff) {
+    assertLosslessOwnerSnapshot(
+      "telegramRevisionGate",
+      domains.telegramRevisionGate,
+      gate.cloneSnapshot(),
+    );
+  }
   if (domains.telegramRevisionGate.states.length > TELEGRAM_REVISION_MAX_ENTRIES
     || domains.telegramRevisionGate.states.some((entry) =>
       entry.semanticKeys.length > TELEGRAM_REVISION_MAX_SEMANTIC_KEYS
@@ -333,18 +347,26 @@ function standbyAdmissionSerializationInput(
   const durableEntries = gate.exportDurableEntries();
   const standby = StandbyStateStore.fromSnapshot(domains.standbyStateStore);
   standby.snapshotItems();
-  assertLosslessOwnerSnapshot(
-    "standbyStateStore",
-    domains.standbyStateStore,
-    standby.cloneSnapshot(),
-  );
+  if (strictSweepOwnerDiff) {
+    assertLosslessOwnerSnapshot(
+      "standbyStateStore",
+      domains.standbyStateStore,
+      standby.cloneSnapshot(),
+    );
+  }
   const projection = standby.exportActiveState();
   const vpws50 = Vpws50StateHolder.fromSnapshot(domains.vpws50State);
-  assertLosslessOwnerSnapshot("vpws50State", domains.vpws50State, vpws50.cloneSnapshot());
+  if (strictSweepOwnerDiff) {
+    assertLosslessOwnerSnapshot("vpws50State", domains.vpws50State, vpws50.cloneSnapshot());
+  }
   const vpww56 = Vpww56StateHolder.fromSnapshot(domains.vpww56State);
-  assertLosslessOwnerSnapshot("vpww56State", domains.vpww56State, vpww56.cloneSnapshot());
+  if (strictSweepOwnerDiff) {
+    assertLosslessOwnerSnapshot("vpww56State", domains.vpww56State, vpww56.cloneSnapshot());
+  }
   const tsunami = TsunamiStateHolder.fromSnapshot(domains.tsunamiState);
-  assertLosslessOwnerSnapshot("tsunamiState", domains.tsunamiState, tsunami.cloneSnapshot());
+  if (strictSweepOwnerDiff) {
+    assertLosslessOwnerSnapshot("tsunamiState", domains.tsunamiState, tsunami.cloneSnapshot());
+  }
   const volcano = VolcanoStateHolder.fromSnapshot(
     domains.volcanoHolderAndRepair.holder,
   );
@@ -367,11 +389,13 @@ function standbyAdmissionSerializationInput(
     throw new Error("volcanoHolderAndRepair owner snapshot is not lossless");
   }
   const floodForecast = FloodForecastStateHolder.fromSnapshot(domains.floodForecastState);
-  assertLosslessOwnerSnapshot(
-    "floodForecastState",
-    domains.floodForecastState,
-    floodForecast.cloneSnapshot(),
-  );
+  if (strictSweepOwnerDiff) {
+    assertLosslessOwnerSnapshot(
+      "floodForecastState",
+      domains.floodForecastState,
+      floodForecast.cloneSnapshot(),
+    );
+  }
   const canonicalStandby = StandbyStateStore.fromSnapshot(domains.standbyStateStore);
   canonicalStandby.replaceVolcanoDerived(domains.volcanoHolderAndRepair.holder);
   if (canonicalJson(projection.volcanoes)
@@ -596,6 +620,10 @@ function changedOwnerPayloadKeys(
  * version 抜き payload の比較と突き合わせ、不一致なら throw する。既定 off。
  * 環境変数 `FLEQ_STANDBY_SWEEP_STRICT=1` でも有効になる (テストスイート全体を
  * strict で 1 度回すため)。
+ *
+ * この 1 つの boolean が strict 経路すべての入口である。段階 3-B の base pair
+ * 突き合わせ (§9.10) と段階 3-D の `assertLosslessOwnerSnapshot` (§9.12) も
+ * ここを読む。`process.env` を各所で読み直さない。
  */
 let strictSweepOwnerDiff = process.env.FLEQ_STANDBY_SWEEP_STRICT === "1";
 

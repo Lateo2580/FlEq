@@ -540,6 +540,8 @@ REST repair 直後・VPWP50 suppression 出口の直後。
 
 #### D: `assertLosslessOwnerSnapshot` を既定 off の検証に落とす
 
+**2026-09-09 ご主人裁定 R2-A で D-ii を実施（§9.12）。**
+
 `standbyAdmissionSerializationInput`（`:282-406`）の 6 箇所の
 `assertLosslessOwnerSnapshot` を、`FLEQ_STANDBY_SWEEP_STRICT=1` と
 テスト環境でのみ走る形にする。**検査そのものは消さない。**
@@ -1289,7 +1291,7 @@ VXKO72 1・VPWW61 1。**VPTA50 は窓に来なかった**ので suppression 出�
 | 順位 | 対象 | 効果（実測ベース） | 状態 |
 |---|---|---|---|
 | 1 | **段階 3-B**（base pair キャッシュ） | `serB` −278〜−305ms。**大型・小型の両方に効く**唯一の局所候補 | **実装済み**（裁定 14-A。Pi 窓 4 で受入 D 確認済み。§9.10） |
-| 2 | 段階 3-D（lossless assert 既定 off） | `serIn` 533〜546ms の内数。**A の実行時保証と相互作用**（§3.3） | B の実測後 → 裁定材料を採取中（2026-09-09 夜） |
+| 2 | 段階 3-D（lossless assert 既定 off） | `serIn` 533〜546ms の内数。**A の実行時保証と相互作用**（§3.3） | **実装済み**（裁定 R2-A で D-ii。§9.12） |
 | 3 | 段階 2-F（`validateCapturedPair`） | `sched` 72〜85ms。最下位 | 据え置き |
 | — | `parse` 1,142ms（大型） | **局所最適化では削れない**。§7 の再構成材料へ | 再構成 |
 | — | `tapA` 182ms（personal） | `EventFileWriter` の同期書き込み。**personal 専用**で main には無い | 再構成 / personal 別件 |
@@ -1542,6 +1544,68 @@ v2 の上限が 3.08MB → 約 2.1MB（history 満杯時の寄与 3.6MB → 0.9M
   - 「更新を何度重ねても history は 2 段を超えない」「連続取消は 2 回まで戻し
     3 回目は current を空にする」の 2 本が緑
   - Pi 窓で display-active-state-v2.json の最大サイズが約 2.1MB 以下
+```
+
+### 9.12 段階 3-D の実装記録（D-ii、ご主人裁定 R2-A、2026-09-09）
+
+**実装した形**（`standby-persistence-admission.ts` のみ）。
+
+- `standbyAdmissionSerializationInput` の 6 箇所の `assertLosslessOwnerSnapshot` を
+  **呼び出し側で `if (strictSweepOwnerDiff)` に囲んだ**。関数の中で早期 return する形は
+  採らなかった。実測レポートのとおり効果の半分は検査本体ではなく**引数を作る
+  `cloneSnapshot()`** にあり、引数を先に評価する形では削減の半分を捨てるため
+- 判定に使うのは段階 3-B と**同じ 1 つの `strictSweepOwnerDiff`**（`:624`）。
+  `process.env` を各所で読み直さない。テストからの切り替えも既存の
+  `__test_setStandbySweepStrictOwnerDiff` をそのまま使う
+- テスト環境で常に on にする細工は**入れていない**。strict 便（`FLEQ_STANDBY_SWEEP_STRICT=1`）が
+  CI に恒久で載っている（`fb67852`）ので、通常便は本番と同じ off で走る
+
+**テスト**
+
+- 新規 `test/engine/display/standby-owner-snapshot-roundtrip.test.ts` に往復単体テスト 7 本。
+  固定する契約は `Owner.fromSnapshot(s).cloneSnapshot() ≡ s`（canonical JSON 比較）で、
+  入力は空でなく中身のある合法状態を使う。既存 helper
+  （`buildLargeVpws50Snapshot` / `buildDeadlineScatteredDomains`）を使い回し、
+  新しい helper 体系は作っていない
+- `standby-serialize-reduction.test.ts` に **strict off を明示した A1** を 1 本追加。
+  既定便では元の A1 も off で走るが、strict 便では反転するので env に依らず固定する
+
+**volcano の非対称（実装中に判明した事実）**
+
+`VolcanoStateHolder.snapshot()`（`volcano-state.ts:361`）は `RuntimeComposite` を
+そのまま clone するので、型 `VolcanoCompositeV2` に無い runtime 専用の `restored` 欄が
+composite の中へ漏れて出る。復元側（`:379-386`）は composite 内の `restored` を読まず
+トップレベルの `restored` 配列だけを見るため、**手書きの合法 snapshot は不動点にならない**
+（漏れた欄が往復で足される）。volcano だけ `assertLosslessOwnerSnapshot` の対象外だったのは
+この非対称があるためである。admission が実際に渡すのは `captureMutable()` 経由で
+`snapshot()` が作ったものなので、往復テストもその形で固定した。
+**この漏れ自体は本 spec では直さない**（永続化 projection の形を変えることになる）。
+
+**残るリスク**
+
+- **本番では往復性が一度も検査されない。** 「本番データ特有の形」での破れは
+  strict 便が実データを流すまで見えない。破れ方は静かで、A のバイト再利用が
+  commit 後の base と食い違うバイト列を返す形で出る（§3.3「D と A の相互作用」）
+- 往復テストの入力は合成状態である。owner の restore 経路に「実データにしか無い形」が
+  あれば覆えていない
+
+**裁定ラベル（段階 3-D、ご主人裁定 R2-A 済み）**
+
+```
+対象: src/engine/display/standby-persistence-admission.ts、
+      test/engine/display/standby-owner-snapshot-roundtrip.test.ts (新規)、
+      test/engine/display/standby-serialize-reduction.test.ts、本 spec §3.3 / §9.8 / §9.12
+許容変更: assertLosslessOwnerSnapshot 6 箇所を strict 限定にする。往復単体テストの追加
+禁止変更: 検査そのものの削除・strict 判定の二重化 (process.env の再読み)・
+          volcano の永続化 projection の形・A / B のキャッシュ判定
+配送先: main → origin push → GitHub Actions 緑 (strict 便を含む) → personal rebase → Pi
+ロールバック: git revert → npm run build → fqu
+受入条件:
+  - A1 が strict off で緑 (バイト列・owner snapshot が再利用 / フォールバックで一致)
+  - 往復単体テスト 7 本が緑
+  - npm run build / npm test / npm run test:shuffle / npm run typecheck:test /
+    strict 便 (FLEQ_STANDBY_SWEEP_STRICT=1) がすべて緑
+  - Pi 窓で serIn が窓 4 比 −40% 以上
 ```
 
 ---
