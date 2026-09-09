@@ -1581,13 +1581,60 @@ export class StandbyPersistence {
       || !Number.isFinite(Date.parse(envelope.savedAt))) {
       throw new Error("invalid standby persistence serialization envelope");
     }
+    const pair = this.encodeProspectivePair(
+      this.buildProspectiveV2(state, foundation),
+      envelope,
+    );
+    return { v2: pair.v2, v1: pair.v1 };
+  }
+
+  /**
+   * envelope 適用**前**の中間表現を組み立てる (spec
+   * `docs/specs/2026-09-09-receipt-serialize-reduction.md` §3.1 A の前半)。
+   *
+   * `encodeProspectivePair` と対で使う。分割前の
+   * `{ ...this.toV2(...), logicalGeneration, savedAt }` と同じ spread 順序を
+   * `encodeProspectivePair` が保つので、同じ body を別 envelope で 2 回 encode しても
+   * 差が出るのは `logicalGeneration` / `savedAt` の 2 フィールドだけになる。
+   *
+   * **body は読み取り専用として共有してよい。** `toV1` は `state` を変異させず
+   * (destructuring と `structuredClone` だけで組み直す)、`encodeStatePair` も
+   * `JSON.stringify` しかしない。
+   */
+  buildProspectiveV2(
+    state: PersistedStandbyState,
+    foundation: PersistedTelegramFoundationInputV2,
+  ): PersistedStandbyStateV2 {
+    return this.toV2(state, foundation);
+  }
+
+  /**
+   * 中間表現に envelope を被せてバイト列にする (spec §3.1 A の後半)。
+   * `serializeStatePair` (encode + 上限検査) と同じ手順を踏むので、
+   * 分割前の `serializeProspectivePair` とバイト列は完全に一致する。
+   *
+   * **段階 1 ではバイト列だけを返す。** spec §3.1 A-1 は `v2Object` / `v1Object` も
+   * 返すよう書いているが、それを使うのは段階 2 の trusted 経路
+   * (`standbyVolcanoSubtreeByteLengths(v2, v1)` へ両オブジェクトを渡して `JSON.parse` を
+   * 避ける) だけで、段階 1 には読み手がいない。**足す前に引く**の原則に従い、
+   * 段階 2 の実装時に必要になった時点で足す。
+   */
+  encodeProspectivePair(
+    body: PersistedStandbyStateV2,
+    envelope: { logicalGeneration: PersistenceLogicalGeneration; savedAt: string },
+  ): { v2: Uint8Array; v1: Uint8Array } {
+    if (parsePersistenceLogicalGeneration(envelope.logicalGeneration) == null
+      || !Number.isFinite(Date.parse(envelope.savedAt))) {
+      throw new Error("invalid standby persistence serialization envelope");
+    }
     const v2 = {
-      ...this.toV2(state, foundation),
+      ...body,
       logicalGeneration: envelope.logicalGeneration,
       savedAt: envelope.savedAt,
     };
-    const pair = this.serializeStatePair(v2);
-    return { v2: pair.v2Bytes, v1: pair.v1Bytes };
+    const prepared = this.encodeStatePair(v2);
+    this.assertSerializedPairLimits(v2, prepared.v1, prepared.v2Bytes, prepared.v1Bytes);
+    return { v2: prepared.v2Bytes, v1: prepared.v1Bytes };
   }
 
   /**

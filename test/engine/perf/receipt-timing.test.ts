@@ -25,6 +25,7 @@ import {
   receiptPerfEnabled,
 } from "../../../src/engine/perf/receipt-timing";
 import { createMessageHandler } from "../../../src/engine/messages/message-router";
+import { processWeather } from "../../../src/engine/presentation/processors/process-weather";
 import {
   StandbyPersistenceAdmissionCoordinator,
   STANDBY_PERSISTENCE_OWNER_ORDER,
@@ -73,9 +74,14 @@ const RECEIPT_SEGMENT_ORDER = [
   "diff",
   "serD",
   "serB",
+  // 削減 spec `2026-09-09-receipt-serialize-reduction.md` §3.1 M2 で足した内訳区間。
+  "serIn",
+  "serEnc",
   "pre",
   "commit",
   "save",
+  // 同 §3.1 M1。`scheduleSerializedPair` (validateCapturedPair) の所要。
+  "sched",
 ] as const;
 
 const RECEIPT_LINE = new RegExp(
@@ -443,10 +449,29 @@ describe("§4.2 on の行フォーマット検証", () => {
     expect(new Set(keys).size).toBe(keys.length);
   });
 
-  it("P6: weather 経路では reducer 内の 2 回目 parse が redParse として red の内数で出る", () => {
+  /**
+   * P6 の期待値は削減 spec `2026-09-09-receipt-serialize-reduction.md` §3.1 E で反転した。
+   * 受理経路は 1 回目の parse 結果を reducer へ渡すので、`redParse` は**出ない**のが正しい
+   * (キーが消えたことを「計測点が壊れた」と読まないための固定。受入 A6)。
+   */
+  it("A6 (P6 更新): 受理経路は parsed を渡すので redParse が出ない", () => {
     const lines = withPerf(true, (ctx) => {
       const router = routerHarness();
       router.handler(vpws50Message("redparse-vpws50"));
+      return [...ctx.lines];
+    });
+    const parsed = parseReceiptLine(lines.filter((l) => l.startsWith("[perf-receipt] "))[0]);
+    const red = parsed.segments.find((segment) => segment.key === "red");
+    expect(red).toBeDefined();
+    expect(parsed.segments.find((segment) => segment.key === "redParse")).toBeUndefined();
+    expect(parsed.segments.find((segment) => segment.key === "sweepPre")?.suffix).toBe("nochange");
+  });
+
+  it("A6: parsed を渡さない processWeather は従来どおり redParse を red の内数で出す", () => {
+    const lines = withPerf(true, (ctx) => {
+      withReceipt({ id: "redparse-direct" }, () => {
+        mark("red", () => processWeather(vpws50Message("redparse-direct")));
+      });
       return [...ctx.lines];
     });
     const parsed = parseReceiptLine(lines.filter((l) => l.startsWith("[perf-receipt] "))[0]);
@@ -456,7 +481,6 @@ describe("§4.2 on の行フォーマット検証", () => {
     expect(redParse).toBeDefined();
     // 入れ子は親から引かない。`red` のうち `redParse` が内数になる (§3.2)。
     expect(redParse!.value).toBeLessThanOrEqual(red!.value);
-    expect(parsed.segments.find((segment) => segment.key === "sweepPre")?.suffix).toBe("nochange");
   });
 
   it("A3 (B1 回帰): :2001 の suppression 経路 (VPTA50 / VPWP50) でも 1 行出る", () => {

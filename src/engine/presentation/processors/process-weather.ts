@@ -17,11 +17,27 @@ import { sweepStandbyBeforeAdmission } from "../../display/standby-persistence-a
 /** processWeather の戻り値。抑制とパース失敗を呼び出し側で区別する。 */
 export type WeatherProcessResult = SuppressibleProcessResult<WeatherOutcome>;
 
+/**
+ * `ProcessDeps` に存在しないキーは `Pick` できないので**交差型**で足す
+ * (spec `docs/specs/2026-09-09-receipt-serialize-reduction.md` §3.1 E)。
+ * `process-message.ts` の `ProcessDeps` は変えないので、既存の
+ * `processWeather(msg, deps)` 呼び出しは構造的にそのまま通る。
+ */
 type WeatherProcessDeps = Pick<
   ProcessDeps,
   "vpws50State" | "vpww56State" | "revisionGate" | "onRevisionDecision"
   | "onVpws50RevisionDecision" | "onVpww56RevisionDecision" | "persistenceAdmission"
->;
+> & {
+  /**
+   * 受理経路の 1 回目の parse 結果。渡されたときは reducer 内の 2 回目 parse
+   * (`redParse`、VPWS50 115KB で Pi 実測 1,177.9ms) を行わない。
+   *
+   * **同じオブジェクトを共有する。** `process-weather.ts` 内に `parsed` / `info` への
+   * 代入は無く、outcome の `parsed:` フィールドとして router の外へ出たあとも
+   * 変異されないことを deepFreeze テストで機械的に固定している。
+   */
+  parsed?: NonNullable<ReturnType<typeof parseWeatherWarning>>;
+};
 
 /** Run the complete gate/holder/standby mutation on scratch owners before publish. */
 function processWeatherWithAdmission(
@@ -30,7 +46,7 @@ function processWeatherWithAdmission(
 ): WeatherProcessResult {
   const coordinator = deps.persistenceAdmission!;
   const key = msg.head.type === "VPWW56" ? "weather:VPWW56" : "weather:VPWS50";
-  const parsed = parseWeatherWarning(msg);
+  const parsed = deps.parsed ?? parseWeatherWarning(msg);
   if (parsed == null) return { kind: "parse-failed" };
   if (!sweepStandbyBeforeAdmission(coordinator, key, parsed.meta.receivedAtMs)) {
     return { kind: "suppressed" };
@@ -57,6 +73,8 @@ function processWeatherWithAdmission(
         ? undefined
         : (decision) => callbacks.push(() => deps.onVpww56RevisionDecision!(decision)),
       persistenceAdmission: undefined,
+      // spec §3.1 E: 1 回目の parse 結果を reducer へ渡し、二重 parse を 1 回にする。
+      parsed,
     });
     draft.telegramRevisionGate = gate.cloneSnapshot();
     draft.vpws50State = vpws50.cloneSnapshot();
@@ -128,12 +146,12 @@ export function processWeather(
 ): WeatherProcessResult {
   if (deps?.persistenceAdmission != null) return processWeatherWithAdmission(msg, deps);
   // spec §3.3 P6: admission 経路の reducer は `persistenceAdmission` 抜きの deps で
-  // `processWeather` を呼び直すので、ここは `transactInternal` の `reduce` 区間の内側で
-  // 走る 2 回目の body decode + XML parse になる (`red` の内数、spec §2.2)。
-  // `redParse` は weather 経路にしか無い。他 domain の processor に同型の二重 parse が
-  // あるかは本 spec では調べていない — 行に `redParse=` が出ないのは「その経路には無い」
-  // ではなく「まだ計測点を置いていない」と読む。
-  const info = perf.mark("redParse", () => parseWeatherWarning(msg));
+  // `processWeather` を呼び直す。削減 spec §3.1 E 以降、その経路は 1 回目の parse 結果を
+  // `deps.parsed` で渡してくるので**ここでは parse しない**。
+  // `redParse` が立つのは `parsed` を渡さない経路 (テスト・他 processor 経由) だけで、
+  // 受理経路の committed 行から `redParse=` が消えるのは削減が効いた印である。
+  // 他 domain の processor に同型の二重 parse があるかは本 spec では調べていない。
+  const info = deps?.parsed ?? perf.mark("redParse", () => parseWeatherWarning(msg));
   if (!info) return { kind: "parse-failed" };
 
   const identity: WeatherReportIdentity = {

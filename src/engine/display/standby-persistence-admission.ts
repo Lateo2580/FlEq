@@ -44,6 +44,7 @@ import {
   weatherAlertsFromVpww56,
 } from "./weather-alert-view";
 import type {
+  PersistedStandbyStateV2,
   StandbyPersistence,
   StandbyPersistencePairMeasurement,
 } from "./standby-persistence";
@@ -151,6 +152,32 @@ export interface StandbySerializedPair {
   v1: Uint8Array;
 }
 
+/**
+ * envelope 適用**前**の中間表現 (spec
+ * `docs/specs/2026-09-09-receipt-serialize-reduction.md` §3.1 A)。
+ *
+ * 実装ごとに形が違うので判別共用体にする。`prospectiveV2` が本番配線
+ * (`standbyAdmissionSerializeSplit`)、`domains` が旧 `serializePair` dep から
+ * 合成する互換 split。`encode` は自分が作った kind 以外を受けたら throw する
+ * (coordinator は生涯 1 つの split しか使わないので、混ざるのは配線の誤り)。
+ */
+export type StandbyAdmissionSerializationBody =
+  | { readonly kind: "prospectiveV2"; readonly v2: PersistedStandbyStateV2 }
+  | { readonly kind: "domains"; readonly domains: Readonly<StandbyPersistenceDomainSnapshots> };
+
+/**
+ * `serializePair` を「中間表現を作る段 (`serIn`)」と「envelope を被せてバイト列にする段
+ * (`serEnc`)」へ割ったもの。この dep を渡した coordinator だけが commit 後の body 再利用
+ * (spec §3.1 A) を行う。
+ */
+export interface StandbyAdmissionSerializeSplit {
+  build(domains: Readonly<StandbyPersistenceDomainSnapshots>): StandbyAdmissionSerializationBody;
+  encode(
+    body: StandbyAdmissionSerializationBody,
+    envelope: StandbySerializationEnvelope,
+  ): StandbySerializedPair;
+}
+
 export interface StandbyPersistenceAdmissionOwners {
   telegramRevisionGate: TelegramRevisionGate;
   standbyStateStore: StandbyStateStore;
@@ -168,6 +195,12 @@ export interface StandbyPersistenceAdmissionCoordinatorDeps {
     domains: Readonly<StandbyPersistenceDomainSnapshots>,
     envelope: StandbySerializationEnvelope,
   ) => StandbySerializedPair;
+  /**
+   * 2 段に割った serializer (spec §3.1 A)。**渡したときだけ** commit 後の body 再利用が
+   * 効く。渡さない場合は `serializePair` から互換 split を合成し、
+   * `captureSerializedPair` は従来どおり `capture()` + 全体 serialize を払う。
+   */
+  serializePairSplit?: StandbyAdmissionSerializeSplit;
   validateCandidate?: (
     domains: Readonly<StandbyPersistenceDomainSnapshots>,
     pair: Readonly<StandbySerializedPair>,
@@ -419,6 +452,32 @@ export function serializeStandbyAdmissionPair(
   return persistence.serializeProspectivePair(input.projection, input.foundation, envelope);
 }
 
+/**
+ * `serializeStandbyAdmissionPair` を 2 段へ割った本番配線 (spec §3.1 A)。
+ * `build` + `encode` の合成は `serializeStandbyAdmissionPair` とバイト列が一致する
+ * — 同じ `standbyAdmissionSerializationInput` を通し、`encodeProspectivePair` が
+ * 分割前と同じ spread 順序・同じ上限検査を踏むため。
+ */
+export function standbyAdmissionSerializeSplit(
+  persistence: Pick<StandbyPersistence, "buildProspectiveV2" | "encodeProspectivePair">,
+): StandbyAdmissionSerializeSplit {
+  return {
+    build: (domains) => {
+      const input = standbyAdmissionSerializationInput(domains);
+      return {
+        kind: "prospectiveV2",
+        v2: persistence.buildProspectiveV2(input.projection, input.foundation),
+      };
+    },
+    encode: (body, envelope) => {
+      if (body.kind !== "prospectiveV2") {
+        throw new Error("standby admission serialization body kind mismatch");
+      }
+      return persistence.encodeProspectivePair(body.v2, envelope);
+    },
+  };
+}
+
 /** Exact byte measurement for valid candidates, including rejected maxima. */
 export function measureStandbyAdmissionPair(
   persistence: Pick<StandbyPersistence, "measureProspectivePair">,
@@ -547,6 +606,21 @@ export function __test_setStandbySweepStrictOwnerDiff(enabled: boolean): boolean
   return previous;
 }
 
+/**
+ * commit 後の body 再利用 (spec §3.1 A)。既定 on。
+ *
+ * 受入 A1 は「再利用が効いた経路」と「フォールバックした経路」の**両方**でバイト列を
+ * 比べるので、テストから off にできないと後者を安定して作れない。
+ */
+let standbyBodyReuseEnabled = true;
+
+/** テスト専用。body 再利用を切り替え、直前の値を返す (finally で必ず戻すこと)。 */
+export function __test_setStandbyBodyReuseEnabled(enabled: boolean): boolean {
+  const previous = standbyBodyReuseEnabled;
+  standbyBodyReuseEnabled = enabled;
+  return previous;
+}
+
 function bytesEqual(left: Uint8Array, right: Uint8Array): boolean {
   if (left.byteLength !== right.byteLength) return false;
   for (let index = 0; index < left.byteLength; index++) {
@@ -569,6 +643,38 @@ export class StandbyPersistenceAdmissionCoordinator {
   private compositionVersion = 0;
   private readonly durableCallbacks: Array<() => void> = [];
   private readonly sweepPrecheckEnabled: boolean;
+  /** `serIn` 区間。domains から envelope 適用前の中間表現を組み立てる。 */
+  private readonly buildSerializationBody: (
+    domains: Readonly<StandbyPersistenceDomainSnapshots>,
+  ) => StandbyAdmissionSerializationBody;
+  /** `serEnc` 区間。中間表現に envelope を被せてバイト列にする。 */
+  private readonly encodeSerializationBody: (
+    body: StandbyAdmissionSerializationBody,
+    envelope: StandbySerializationEnvelope,
+  ) => StandbySerializedPair;
+  /** `serializePairSplit` dep が渡されたときだけ body 再利用を許す (spec §3.1 A)。 */
+  private readonly bodyReuseSupported: boolean;
+  /**
+   * 直近の commit が確定させた「現在の保存状態と等価な中間表現」。**1 世代だけ**持つ。
+   *
+   * commit に到達しなかった transact では更新しない。無効化は `token` 判定に一本化する
+   * (`restorePrevalidated` / `rollback` / `sweepAll` の commit はすべて owner version か
+   * `compositionVersion` を進めるので、古い body は必ずミスする)。無効化点を列挙する
+   * 方式は漏れるが、token は漏れない (spec §3.1 A)。
+   *
+   * **A の正しさは「coordinator を経由せずに holder を変異させる経路が無い」配線に
+   * 依存する。** `currentToken()` の volcano 成分は holder の `version()` ではなく
+   * coordinator 自身の `volcanoRuntimeVersion` なので、その経路ができると token に
+   * 現れない (spec §3.1 A の注記)。
+   *
+   * **memory**: v2 body 1 世代ぶんが次の commit まで常駐する (Pi では約 1.4MB)。
+   * 分割前は `serD` の直後から GC 対象だった。Pi は `--optimize-for-size` 運用なので、
+   * 常駐 heap の増分は §4.8 の Pi 観測項目で採る。1 世代しか持たないので上限は body 1 つ。
+   */
+  private reusableBody: {
+    token: StandbyPersistenceVersionToken;
+    body: StandbyAdmissionSerializationBody;
+  } | null = null;
   /**
    * 直近の「何も変えなかった sweep」。ここに記録があるときだけ事前判定が働く。
    *
@@ -583,15 +689,39 @@ export class StandbyPersistenceAdmissionCoordinator {
     this.owners = deps.owners;
     this.repairState = structuredClone(deps.repairState ?? emptyVolcanoRepairState());
     this.volcanoRuntimeVersion = deps.owners.volcanoState.version();
-    // spec §3.3 P4: 呼び出し点 (:694 :695 :739 :1079 :1080 :1108) を 1 箇所で数える。
-    // `serializeStandbyAdmissionPair` (:412) ではなくここを包むのは、既定の
-    // `defaultSerializePair` が別実装で、テストではそちらしか動かないため (spec §2.3)。
     const serializePair = deps.serializePair ?? defaultSerializePair;
+    // spec §3.1 A / M2: serializer を 2 段に割り、`serIn` / `serEnc` の内訳を採る。
+    // split dep が無いときは旧 `serializePair` から互換 split を合成する
+    // (`build` は素通し、`encode` が全部やる)。この形では body 再利用を行わない —
+    // 旧 dep は「domains 1 つ + envelope 1 つ」しか受けないので、再利用しても
+    // `serIn` 相当を省けず、deps 差し替えの計数と `serCalls` がずれるだけになる。
+    const split: StandbyAdmissionSerializeSplit = deps.serializePairSplit ?? {
+      build: (domains) => ({ kind: "domains", domains }),
+      encode: (body, envelope) => {
+        if (body.kind !== "domains") {
+          throw new Error("standby admission serialization body kind mismatch");
+        }
+        // 元の呼び出しは `this.serializePair(...)` で `this` が coordinator に
+        // 束縛されていた。ラッパで bare call にすると `this` が undefined へ変わるので、
+        // `call` で復元する。
+        return serializePair.call(this, body.domains, envelope);
+      },
+    };
+    this.bodyReuseSupported = deps.serializePairSplit != null;
+    this.buildSerializationBody = (domains) => perf.mark("serIn", () => split.build(domains));
+    this.encodeSerializationBody = (body, envelope) =>
+      perf.mark("serEnc", () => split.encode(body, envelope));
+    // 計測 spec §3.3 P4: `serializePair` の呼び出し点を 1 箇所で数える。
+    // `serializeStandbyAdmissionPair` ではなくここを包むのは、既定の
+    // `defaultSerializePair` が別実装で、テストではそちらしか動かないため (spec §2.3)。
+    //
+    // **削減 spec 段階 1 以降、この計数の意味は「body を build した回数」である。**
+    // 再利用が効いた `save` は `encodeSerializationBody` だけを呼ぶので、
+    // 1.4MB の `JSON.stringify` を 2 本実走しても `serCalls` には出ない
+    // (計測ログ spec §4.3.1 の定義変更)。
     this.serializePair = (domains, envelope) => {
       perf.countSerializePair();
-      // 元の呼び出しは `this.serializePair(...)` で `this` が coordinator に束縛されていた。
-      // ラッパで bare call にすると `this` が undefined へ変わるので、`call` で復元する。
-      return serializePair.call(this, domains, envelope);
+      return this.encodeSerializationBody(this.buildSerializationBody(domains), envelope);
     };
     this.validateCandidate = deps.validateCandidate;
     this.canReserveLogicalGeneration = deps.canReserveLogicalGeneration ?? (() => true);
@@ -719,11 +849,45 @@ export class StandbyPersistenceAdmissionCoordinator {
     if (changed.some((owner) => !expected.includes(owner))) {
       return { kind: "rejected", reason: "unexpectedOwnerMutation" };
     }
+    if (changed.length === 0) {
+      // spec §3.1 C: 全 owner が canonical 同一なので commit も durable 変化も起きない。
+      // `serD` / `serB` / `pre` を払わずに committed を返す。
+      //
+      // **消えるのは「検出」であって「状態」ではない。** base が既に壊れていた場合、
+      // 現行は何も変えないこの電文が `rejected` で通報していた。C 後は通報しない
+      // (実際に違反を捕まえるのは「次に何かを変える transact」だけ)。strict では
+      // 従来どおり serialize して検査し、壊れた base を throw で露出させる。
+      if (strictSweepOwnerDiff) {
+        this.assertNoopTransactSerialization(
+          captured.domains as StandbyPersistenceDomainSnapshots,
+          draft,
+        );
+      }
+      // `:743` の契約を必ず残す。VPTA50 / VPWP50 の `transactDeferred` がここに乗る。
+      if (deferDurable && reduced.durableChanged !== false) {
+        return { kind: "rejected", reason: "deferredDurabilityMismatch" };
+      }
+      if (!tokenEquals(captured.token, this.currentToken())) return { kind: "staleVersion" };
+      return {
+        kind: "committed",
+        value: reduced.value,
+        token: this.currentToken(),
+        durableChanged: false,
+      };
+    }
+    let candidateBody: StandbyAdmissionSerializationBody | null = null;
     let candidatePair: StandbySerializedPair;
     let basePair: StandbySerializedPair;
     let admissionFailure: string | null;
     try {
-      candidatePair = perf.mark("serD", () => this.serializePair(draft, PREFLIGHT_ENVELOPE));
+      // body は commit 後の 3 回目 serialize (`save`) で再利用する (spec §3.1 A)。
+      const built = perf.mark("serD", () => {
+        perf.countSerializePair();
+        const body = this.buildSerializationBody(draft);
+        return { body, pair: this.encodeSerializationBody(body, PREFLIGHT_ENVELOPE) };
+      });
+      candidateBody = built.body;
+      candidatePair = built.pair;
       basePair = perf.mark(
         "serB",
         () => this.serializePair(captured.domains, PREFLIGHT_ENVELOPE),
@@ -731,6 +895,7 @@ export class StandbyPersistenceAdmissionCoordinator {
       admissionFailure = perf.mark("pre", () => this.preflight(draft, candidatePair));
     } catch {
       admissionFailure = "candidateSerializationFailed";
+      candidateBody = null;
       candidatePair = { v2: new Uint8Array(), v1: new Uint8Array() };
       basePair = candidatePair;
     }
@@ -749,8 +914,50 @@ export class StandbyPersistenceAdmissionCoordinator {
     if (!tokenEquals(captured.token, this.currentToken())) return { kind: "staleVersion" };
     if (changed.length > 0) perf.mark("commit", () => this.commit(draft, changed));
     const token = this.currentToken();
+    // spec §3.1 A: commit 直後の保存状態は draft と等価 (`replacePrevalidated` →
+    // `cloneSnapshot` の往復性。実行時の担保は `assertLosslessOwnerSnapshot`)。
+    // この token のまま `captureSerializedPair` が呼ばれたら body をそのまま encode する。
+    if (this.bodyReuseSupported && candidateBody !== null) {
+      this.reusableBody = { token, body: candidateBody };
+    }
     if (durableChanged && !deferDurable) this.emitDurable();
     return { kind: "committed", value: reduced.value, token, durableChanged };
+  }
+
+  /**
+   * spec §3.1 C の strict 経路。`changed.length === 0` の transact でも従来どおり
+   * serialize と `preflight` を走らせ、**壊れた base を throw で露出させる**。
+   *
+   * 既定 off の C が「検出を 1 本閉じる」代わりに、strict 便 (CI 恒久) では検出能力を
+   * 残す。ここが空回りでないことは受入 A8 が壊した base fixture で確かめる。
+   *
+   * **実効的な検出は 2 本だけ**である: serializer が投げる不変条件群
+   * (`candidateSerializationFailed` 系) と `preflight` の失敗。
+   * `pairEqual(basePair, candidatePair)` は**恒真**なので検査しない —
+   * `changedOwnerKeys` が全 owner の canonical 全文一致を確かめた後にここへ来るうえ、
+   * `serializePair` は domains と envelope の純関数なので、両者は必ず同じバイト列になる。
+   */
+  private assertNoopTransactSerialization(
+    base: StandbyPersistenceDomainSnapshots,
+    draft: StandbyPersistenceDomainSnapshots,
+  ): void {
+    let failure: string | null;
+    try {
+      const candidatePair = perf.mark(
+        "serD",
+        () => this.serializePair(draft, PREFLIGHT_ENVELOPE),
+      );
+      perf.mark("serB", () => this.serializePair(base, PREFLIGHT_ENVELOPE));
+      failure = perf.mark("pre", () => this.preflight(draft, candidatePair));
+    } catch (error) {
+      throw new Error(
+        "standby admission strict no-op check failed: candidateSerializationFailed"
+        + ` (${error instanceof Error ? error.message : String(error)})`,
+      );
+    }
+    if (failure != null) {
+      throw new Error(`standby admission strict no-op check failed: ${failure}`);
+    }
   }
 
   private preflight(
@@ -1143,16 +1350,30 @@ export class StandbyPersistenceAdmissionCoordinator {
     v2: Uint8Array;
     v1: Uint8Array;
   } {
-    const captured = this.capture();
-    const pair = this.serializePair(captured.domains, envelope);
+    // spec §3.1 A: 判定は `capture()` の**前**に置く。`this.capture().token` で判定すると
+    // 再利用が効く行でも 7 owner の deep clone (Pi 実測 約 55ms) を払い続ける。
+    // `currentToken()` は owner の `version()` を読むだけで clone を伴わない。
+    const reusable = this.bodyReuseSupported && standbyBodyReuseEnabled
+      ? this.reusableBody
+      : null;
+    let token: StandbyPersistenceVersionToken;
+    let pair: StandbySerializedPair;
+    if (reusable !== null && tokenEquals(reusable.token, this.currentToken())) {
+      token = reusable.token;
+      pair = this.encodeSerializationBody(reusable.body, envelope);
+    } else {
+      const captured = this.capture();
+      token = captured.token;
+      pair = this.serializePair(captured.domains, envelope);
+    }
     if (pair.v2.byteLength > STANDBY_PERSISTENCE_MAX_BYTES_PER_FILE
       || pair.v1.byteLength > STANDBY_PERSISTENCE_MAX_BYTES_PER_FILE) {
       throw new Error("standby persistence serialized pair exceeds the full-file byte limit");
     }
-    if (!tokenEquals(captured.token, this.currentToken())) {
+    if (!tokenEquals(token, this.currentToken())) {
       throw new Error("standby persistence serialized pair became stale");
     }
-    return { token: captured.token, ...pair };
+    return { token, ...pair };
   }
 }
 

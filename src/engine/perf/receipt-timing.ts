@@ -14,7 +14,13 @@ import * as log from "../../logger";
  * - `mark` は `try` / `finally` で計測を閉じ、例外はそのまま再 throw する
  */
 
-/** 電文行 `[perf-receipt]` に載る区間キー。出力順もこの並びで固定する。 */
+/**
+ * 電文行 `[perf-receipt]` に載る区間キー。出力順もこの並びで固定する。
+ *
+ * `serIn` / `serEnc` は `serD` / `serB` / `save` の**内数**で、1 電文ぶんを合算する
+ * (`redParse` が `red` の内数なのと同じ読み方。入れ子は親から引かない)。
+ * `sched` は `scheduleSerializedPair` — commit 後の pair を pending に載せるまで。
+ */
 export type Segment =
   | "sweepPre"
   | "cap"
@@ -24,9 +30,12 @@ export type Segment =
   | "diff"
   | "serD"
   | "serB"
+  | "serIn"
+  | "serEnc"
   | "pre"
   | "commit"
-  | "save";
+  | "save"
+  | "sched";
 
 const RECEIPT_SEGMENT_ORDER: readonly Segment[] = [
   "sweepPre",
@@ -37,9 +46,12 @@ const RECEIPT_SEGMENT_ORDER: readonly Segment[] = [
   "diff",
   "serD",
   "serB",
+  "serIn",
+  "serEnc",
   "pre",
   "commit",
   "save",
+  "sched",
 ];
 
 /** `sweepAll` の成功出口 3 つ。到達しなかった場合 (rejected / staleVersion) は `skipped`。 */

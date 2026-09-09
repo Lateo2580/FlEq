@@ -256,6 +256,13 @@ export function __test_setReceiptPerfClock(next: (() => number) | null): () => n
 
 **P6 の適用範囲**: `redParse` は weather 経路にしか無い。他の domain（津波・火山・洪水）の processor にも同型の二重 parse があるかは本 spec では調べない。行に `redParse=` が出ないのは「その経路には無い」ではなく「まだ計測点を置いていない」と読む。この但し書きを実装のコメントにも残す。
 
+> **2026-09-09 更新（削減 spec §3.1 E の実装後）**: **受理経路の行から `redParse=` は消えた。**
+> `processWeatherWithAdmission` が 1 回目の parse 結果を reducer 内の `processWeather` へ
+> 渡すようになり、2 回目の body decode ＋ XML parse そのものが無くなったため。
+> 以後 `redParse=` が立つのは `parsed` を渡さない経路（テスト・他 processor 経由）だけで、
+> **受理行にこのキーが再び現れたら削減が外れた印**である
+> （Pi 実測 VPWS50 115KB で 1,177.9ms が復活する）。受入は削減 spec の A6。
+
 ### 3.4 出力形式
 
 **1 電文 1 行**。空白区切りの `key=value`。文字列値のうち可変長のもの（`id`）は先頭 16 文字に切る。
@@ -361,6 +368,39 @@ turn / envelope 生成 / sweep / state は別行にする。
 2. P4 のカウンタ（`:585` のラッパ）
 
 **両方を採り、一致することを assert する**（受入 A6）。1 は「テストが注入した関数が何回呼ばれたか」、2 は「計測点が何回動いたか」で、ズレたら計測点の位置が間違っている。
+
+#### 4.3.1 削減 spec 段階 1 後の値（2026-09-09 実装で更新）
+
+`docs/specs/2026-09-09-receipt-serialize-reduction.md` の段階 1（A: commit 後 body 再利用、
+C: `changed.length === 0` の早期スキップ）を入れたあと、**本番配線**（`monitor.ts` が
+`serializePairSplit` を渡す経路）の値は次に変わった。
+
+> **`serCalls` の定義が変わった。** 段階 1 前は「1.4MB の pair を最初から作った回数」
+> だったが、段階 1 後は **「中間表現（body）を build した回数」**である。
+> 再利用が効いた `save` は `this.serializePair` を通らず encode だけを走らせるので、
+> **1.4MB の `JSON.stringify` を 2 本実走しても `serCalls` には出ない**。
+> encode 側の実費は `serEnc` 区間で見る。`serCalls` の減りを
+> 「stringify が減った」と読み替えないこと。
+
+| ケース | 段階 1 前 | 段階 1 後 | 理由 |
+|---|---|---|---|
+| 受理 commit ＋ durable 変化あり | 3 | **2** | `captureSerializedPair` が commit 済み body を再利用し `this.serializePair` を呼ばない |
+| 受理 commit ＋ durable 変化なし（`changed` 非空） | 2 | 2 | `emitDurable` が呼ばれないのは従来どおり |
+| 受理 commit ＋ `changed.length === 0` | 2 | **0** | `serD` / `serB` / `pre` を払わない（strict では従来どおり 2） |
+| `admissionFailure` による却下 | 2 | 2 | serialize は判定より前 |
+| reducer の `rejected` / `invalidTouchedOwners` | 0 | 0 | serialize より前に抜ける |
+| `staleVersion` | 2 | 2 | serialize は判定より前 |
+| 受理前 sweep が `precheck` / `nochange` | ＋0 | ＋0 | 変わらず |
+| 受理前 sweep が `full`（変更あり） | ＋2 | ＋2 | `sweepAll` は body を保存も再利用もしない |
+| 受理前 sweep が `full` かつ durable 変化あり | ＋3 | **＋3** | 同上。sweep の commit で token が動くので `captureSerializedPair` はフォールバックする |
+
+**予測と実測の差（削減 spec §4.2 の訂正。消さずに残す）**: 上の表は削減 spec の予測どおり
+実測で一致した。ただし **`deps.serializePair` だけを差し替えた coordinator（split 無し）では
+body 再利用が働かない**ので、§4.3 本表（旧 harness）の値は 3 / 2 のまま変わらない。
+これは意図した設計で、旧 dep は「domains 1 つ ＋ envelope 1 つ」しか受けられず、
+再利用しても `serIn` 相当を省けないまま deps 差し替えの計数と `serCalls` がずれるだけになる。
+`test/engine/perf/receipt-timing.test.ts` の A5 / A6 は旧 dep 経路の値を保ち、
+段階 1 後の本番値は `test/engine/display/standby-serialize-reduction.test.ts` が固定する。
 
 ### 4.4 挙動不変の検証
 

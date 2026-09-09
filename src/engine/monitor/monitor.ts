@@ -39,7 +39,7 @@ import {
 import { StandbyStateStore } from "../display/standby-state-store";
 import {
   StandbyPersistenceAdmissionCoordinator,
-  serializeStandbyAdmissionPair,
+  standbyAdmissionSerializeSplit,
   sweepStandbyBeforeAdmission,
 } from "../display/standby-persistence-admission";
 import {
@@ -370,8 +370,10 @@ export async function startMonitor(config: AppConfig, pipelineController?: Pipel
       floodForecastState,
     },
     repairState: volcanoRepairState,
-    serializePair: (domains, envelope) =>
-      serializeStandbyAdmissionPair(standbyPersistence, domains, envelope),
+    // spec `docs/specs/2026-09-09-receipt-serialize-reduction.md` §3.1 A: 2 段に割った
+    // serializer を渡すと、commit 後の 3 回目 serialize が中間表現の再利用になる。
+    // 合成結果は `serializeStandbyAdmissionPair` とバイト列が一致する。
+    serializePairSplit: standbyAdmissionSerializeSplit(standbyPersistence),
     canReserveLogicalGeneration: () => standbyPersistence.canReserveLogicalGeneration(),
   });
   const volcanoTransactionCoordinator = new VolcanoTransactionCoordinator(persistenceAdmission);
@@ -393,7 +395,10 @@ export async function startMonitor(config: AppConfig, pipelineController?: Pipel
   });
   const scheduleCapturedStandbyPersistence = () => {
     const pair = captureLatestStandbyPersistencePair();
-    return standbyPersistence.scheduleSerializedPair(pair);
+    // spec §3.1 M1: `validateCapturedPair` (1.4MB の JSON.parse ×2 / stringify ×3) は
+    // 受理コールスタック上にあるのに 1 区間も計測されていなかった。残差 191.7ms の
+    // 主項かどうかを段階 2 の対象を決める前に確定させる。
+    return receiptPerf.mark("sched", () => standbyPersistence.scheduleSerializedPair(pair));
   };
   const saveCapturedStandbyPersistence = (): StandbyPersistenceSaveResult => {
     try {
