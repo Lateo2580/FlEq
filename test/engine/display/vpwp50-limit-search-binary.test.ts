@@ -41,6 +41,55 @@ function linearEffectiveLimit(
   return effectiveLimit;
 }
 
+/**
+ * この値以下の declaredLimit は 0..declaredLimit を全走査する。
+ * `periodsPerAnchor`（上限 4）が該当するので、「全 k の網羅」という証拠は
+ * どの実行でも最低 1 つ残る（A2 / A4 の `exhaustiveCodes` で空振りを防ぐ）。
+ */
+const EXHAUSTIVE_MAX_DECLARED_LIMIT = 16;
+
+/**
+ * 述語を評価する k の集合。
+ *
+ * 上限が 256 に上がって 0..declaredLimit の全走査が CI の 30 秒 timeout を
+ * 超えたため（2026-09-09、ubuntu 2 コアで A2 / A4 が約 30.5 秒）、大きい
+ * declaredLimit では**境界と標本**に絞る。検出力を保つために次を必ず含める。
+ *
+ * - `0` / `1` / `declaredLimit - 1` / `declaredLimit`（両端）
+ * - 二分探索が実際に触った mid の系列と、その**両隣**（`mid ± 1`）。
+ *   答えが動く境界はここにしか現れないので、1 でもずれれば標本が捕まえる
+ * - 8 刻みの格子（探索が触らない領域の取りこぼし防止）
+ */
+function probeCandidates(declaredLimit: number, visited: readonly number[]): number[] {
+  if (declaredLimit <= EXHAUSTIVE_MAX_DECLARED_LIMIT) {
+    return Array.from({ length: declaredLimit + 1 }, (_, candidate) => candidate);
+  }
+  const candidates = new Set<number>([0, 1, declaredLimit - 1, declaredLimit]);
+  for (const mid of visited) {
+    candidates.add(mid - 1);
+    candidates.add(mid);
+    candidates.add(mid + 1);
+  }
+  for (let candidate = 0; candidate <= declaredLimit; candidate += 8) candidates.add(candidate);
+  return [...candidates]
+    .filter((candidate) => candidate >= 0 && candidate <= declaredLimit)
+    .sort((left, right) => left - right);
+}
+
+/** 述語の評価結果を k ごとに 1 回に抑える（同じ k を探索と標本で 2 度踏むため）。 */
+function memoizedPredicate(
+  pass: (candidate: number) => boolean,
+): (candidate: number) => boolean {
+  const cache = new Map<number, boolean>();
+  return (candidate) => {
+    const hit = cache.get(candidate);
+    if (hit != null) return hit;
+    const value = pass(candidate);
+    cache.set(candidate, value);
+    return value;
+  };
+}
+
 // ---------------------------------------------------------------------------
 // 合成 state（違反 shape 別）
 // ---------------------------------------------------------------------------
@@ -379,9 +428,10 @@ describe("findEffectiveLimit — 線形参照実装との一致 (A2)", () => {
     }
   });
 
-  it("全 shape・全 code で production の述語について線形探索と一致する", () => {
+  it("全 shape・全 code で production の述語について線形探索と一致する", { timeout: 90_000 }, () => {
     let nullCases = 0;
     let checkedCodes = 0;
+    let exhaustiveCodes = 0;
     for (const shape of SHAPES) {
       const reasons = weatherWarningForecastProjectionLimitReasons(shape.states);
       for (const reason of reasons) {
@@ -390,19 +440,41 @@ describe("findEffectiveLimit — 線形参照実装との一致 (A2)", () => {
         const paths = violatingPaths(shape.states, code);
         const declaredLimit = DECLARED_LIMITS[code];
         expect(declaredLimit, `${shape.name} / ${code} declaredLimit`).toBe(reason.declaredLimit);
-        const pass = productionPredicate(shape.states, code, paths);
-        const expected = linearEffectiveLimit(declaredLimit, pass);
-        // 二分探索と線形探索が同じ述語で一致する
-        expect(findEffectiveLimit(declaredLimit, pass), `${shape.name} / ${code}`).toBe(expected);
+        const pass = memoizedPredicate(productionPredicate(shape.states, code, paths));
+
+        // 二分探索が触った mid を記録しておき、標本の芯にする。
+        const visited: number[] = [];
+        const found = findEffectiveLimit(declaredLimit, (candidate) => {
+          visited.push(candidate);
+          return pass(candidate);
+        });
+
+        if (declaredLimit <= EXHAUSTIVE_MAX_DECLARED_LIMIT) {
+          // 小さい階層は線形参照実装そのものと突き合わせる（全 k の網羅）。
+          expect(found, `${shape.name} / ${code} 全 k 参照`).toBe(linearEffectiveLimit(declaredLimit, pass));
+          exhaustiveCodes += 1;
+        }
+
+        // 標本上で「found が pass の成立する最大の k」であることを確かめる。
+        // 線形参照実装を標本へ制限したのと同じ検査で、found が 1 でもずれれば
+        // 境界の隣（mid ± 1）か格子のどれかが食い違う。
+        for (const candidate of probeCandidates(declaredLimit, visited)) {
+          expect(
+            pass(candidate),
+            `${shape.name} / ${code} / k=${candidate} (effectiveLimit=${found})`,
+          ).toBe(found != null && candidate <= found);
+        }
+
         // 本番関数の返り値とも一致する（テスト側の paths 再現が production と同じである証拠）
-        expect(reason.effectiveLimit, `${shape.name} / ${code} end-to-end`).toBe(expected);
+        expect(reason.effectiveLimit, `${shape.name} / ${code} end-to-end`).toBe(found);
         checkedCodes += 1;
-        if (expected == null) nullCases += 1;
+        if (found == null) nullCases += 1;
       }
     }
-    // shape 群が探索を実際に踏んでいること、null 分岐も含むことを固定する
+    // shape 群が探索を実際に踏んでいること、null 分岐と全 k 走査を含むことを固定する
     expect(checkedCodes).toBeGreaterThanOrEqual(15);
     expect(nullCases).toBeGreaterThanOrEqual(1);
+    expect(exhaustiveCodes).toBeGreaterThanOrEqual(1);
   });
 });
 
@@ -411,26 +483,41 @@ describe("findEffectiveLimit — 線形参照実装との一致 (A2)", () => {
 // ---------------------------------------------------------------------------
 
 describe("cardConstraintsPass ∘ truncateReasonUnits の単調性 (A4)", () => {
-  it("k で通るなら k-1 でも通る（0..declaredLimit の全 k）", () => {
+  it("k で通るなら k-1 でも通る（境界と標本、小さい declaredLimit は全 k）", { timeout: 90_000 }, () => {
     let checkedCodes = 0;
+    let exhaustiveCodes = 0;
     for (const shape of SHAPES) {
       for (const code of searchableCodes(shape)) {
         const paths = violatingPaths(shape.states, code);
         const declaredLimit = DECLARED_LIMITS[code];
-        const pass = productionPredicate(shape.states, code, paths);
-        let previous = pass(0);
-        for (let candidate = 1; candidate <= declaredLimit; candidate += 1) {
-          const current = pass(candidate);
-          if (current) {
-            expect(previous, `${shape.name} / ${code} / k=${candidate} が通るのに k=${candidate - 1} が通らない`).toBe(true);
+        const pass = memoizedPredicate(productionPredicate(shape.states, code, paths));
+
+        const visited: number[] = [];
+        findEffectiveLimit(declaredLimit, (candidate) => {
+          visited.push(candidate);
+          return pass(candidate);
+        });
+        const candidates = probeCandidates(declaredLimit, visited);
+        if (declaredLimit <= EXHAUSTIVE_MAX_DECLARED_LIMIT) exhaustiveCodes += 1;
+
+        // 昇順の標本で「一度 false になったら以降 true にならない」ことを見る。
+        let firstFailing: number | null = null;
+        for (const candidate of candidates) {
+          if (pass(candidate)) {
+            expect(
+              firstFailing,
+              `${shape.name} / ${code} / k=${candidate} が通るのに k=${firstFailing} が通らない`,
+            ).toBeNull();
+          } else if (firstFailing == null) {
+            firstFailing = candidate;
           }
-          previous = current;
         }
         checkedCodes += 1;
       }
     }
-    // 空振り防止: shape 群が探索対象 code を実際に生んでいること
+    // 空振り防止: shape 群が探索対象 code を実際に生み、全 k 走査も含むこと
     expect(checkedCodes).toBeGreaterThanOrEqual(15);
+    expect(exhaustiveCodes).toBeGreaterThanOrEqual(1);
   });
 
   it("restored 混在 shape で、切り詰めが実際に restored を true→false へ反転させる", () => {
