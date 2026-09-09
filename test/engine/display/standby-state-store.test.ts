@@ -15,6 +15,11 @@ import {
   buildWeatherWarningForecastCard,
   weatherWarningForecastCardJsonBytes,
   weatherWarningForecastProjectionLimitReasons,
+  WEATHER_WARNING_FORECAST_MAX_CARD_JSON_BYTES,
+  WEATHER_WARNING_FORECAST_MAX_GROUPS_PER_SUBJECT,
+  WEATHER_WARNING_FORECAST_MAX_PERIODS_PER_SUBJECT,
+  WEATHER_WARNING_FORECAST_MAX_PERIODS_PER_TARGET,
+  WEATHER_WARNING_FORECAST_MAX_TARGETS_PER_GROUP,
 } from "../../../src/engine/display/weather-warning-forecast-wire";
 import type {
   DisplayWeatherWarningForecastGroupV1,
@@ -429,16 +434,16 @@ interface ForecastFixtureExpectations {
   };
   jstLabels: [string, string, string][];
   groupShapeBytes: Record<string, number>;
-  groupShape129Reasons: unknown[];
-  twoTargets129Reasons: unknown[];
-  twoTargetsBoundaryBytes: Record<string, number>;
+  groupShapeOverReasons: unknown[];
+  threeTargetsOverReasons: unknown[];
+  threeTargetsBoundaryBytes: Record<string, number>;
   mixedShapeBytes: {
     groupA: number;
     groupB: number;
     original: number;
     subjectPrefix128: number;
   };
-  mixed129Reasons: unknown[];
+  mixedOverReasons: unknown[];
 }
 
 const forecastFixtureExpectations = JSON.parse(
@@ -459,12 +464,24 @@ function reverseForecastInput(info: ParsedWeatherWarningTimeseriesInfo): ParsedW
   return copy;
 }
 
-function forecastGroupShape(groupCount: number): WeatherWarningForecastState {
+/**
+ * 128 group をそのまま残すと `periodsPerSubject` を超える最小の group あたり
+ * period 数。これ未満だと `groupsPerSubject` の実効上限が宣言上限 128 と同値に
+ * なり、二分探索が declaredLimit を返しただけの状態と区別できない。
+ */
+const FORECAST_GROUP_SHAPE_OVER_PERIODS = Math.floor(
+  WEATHER_WARNING_FORECAST_MAX_PERIODS_PER_SUBJECT / WEATHER_WARNING_FORECAST_MAX_GROUPS_PER_SUBJECT,
+) + 1;
+
+function forecastGroupShape(
+  groupCount: number,
+  periodsPerGroup = 1,
+): WeatherWarningForecastState {
   const subjectKey = "weatherTimeseries:a:scope:all";
   const reportTimeMs = 1_767_139_200_000;
-  const startsAt = "2026-01-01T00:00:00.000Z";
-  const endsAt = "2026-01-01T01:00:00.000Z";
+  const baseStartMs = Date.parse("2026-01-01T00:00:00.000Z");
   const targetKey = vpwp50StableKey("target", [subjectKey, "area", "name:a"]);
+  const lastEndMs = baseStartMs + (periodsPerGroup - 1) * 2 * 60 * 60_000 + 60 * 60_000;
   return {
     subjectKey,
     sourceEventId: "a",
@@ -473,7 +490,7 @@ function forecastGroupShape(groupCount: number): WeatherWarningForecastState {
     targetAreaCode: null,
     revision: { reportTimeMs, serial: "1" },
     appliedSemanticKey: `発表:${"a".repeat(64)}`,
-    expiresAtMs: Date.parse(endsAt),
+    expiresAtMs: lastEndMs,
     restored: false,
     groups: Array.from({ length: groupCount }, (_, index) => {
       const significancyCode = `u${index}`;
@@ -494,23 +511,37 @@ function forecastGroupShape(groupCount: number): WeatherWarningForecastState {
           parentAreaName: "a",
           areaCode: null,
           localCode: null,
-          periods: [{
-            key: vpwp50StableKey("period", [groupKey, targetKey, 1, "3h", startsAt, endsAt]),
-            tsNum: 1 as const,
-            series: "3h" as const,
-            startsAt,
-            endsAt,
-            label: "1月1日 09:00–10:00",
-            pagerAnchorKey: vpwp50StableKey("anchor", [
-              subjectKey, reportTimeMs, "1", groupKey, targetKey, 0,
-            ]),
-            pagerAnchorOrdinal: 0,
-            pagerSlot: 0 as const,
-          }],
+          periods: Array.from({ length: periodsPerGroup }, (_, slot) => {
+            const startsAt = new Date(baseStartMs + slot * 2 * 60 * 60_000).toISOString();
+            const endsAt = new Date(baseStartMs + slot * 2 * 60 * 60_000 + 60 * 60_000).toISOString();
+            return {
+              key: vpwp50StableKey("period", [groupKey, targetKey, 1, "3h", startsAt, endsAt]),
+              tsNum: 1 as const,
+              series: "3h" as const,
+              startsAt,
+              endsAt,
+              label: vpwp50ForecastPeriodLabel(startsAt, endsAt),
+              pagerAnchorKey: vpwp50StableKey("anchor", [
+                subjectKey, reportTimeMs, "1", groupKey, targetKey, Math.floor(slot / 4),
+              ]),
+              pagerAnchorOrdinal: Math.floor(slot / 4),
+              pagerSlot: forecastPagerSlot(slot),
+            };
+          }),
         }],
       };
     }),
   };
+}
+
+/** `as` を使わずに pagerSlot の union を得る。 */
+function forecastPagerSlot(index: number): 0 | 1 | 2 | 3 {
+  switch (index % 4) {
+    case 1: return 1;
+    case 2: return 2;
+    case 3: return 3;
+    default: return 0;
+  }
 }
 
 function forecastGateBinding(
@@ -549,6 +580,12 @@ const FORECAST_WIRE_SUBJECT = "weatherTimeseries:a:scope:all";
 const FORECAST_WIRE_REPORT_MS = 1_767_139_200_000;
 const FORECAST_WIRE_START_MS = Date.parse("2026-01-01T00:00:00.000Z");
 const FORECAST_WIRE_UNKNOWN_LABEL = "大雨（区分不明）の予測";
+/**
+ * 自分の階層と、祖先である periodsPerSubject / periodsPerCard / cardJsonBytes を
+ * 同時に超えさせる件数。定数から導くので、上限が動いたときに shape が
+ * 「自分の階層しか超えない」形へ痩せない（2026-09-09 の 128 -> 256 で実際に痩せた）。
+ */
+const FORECAST_OVER_SUBJECT_PERIODS = WEATHER_WARNING_FORECAST_MAX_PERIODS_PER_SUBJECT + 1;
 
 function forecastWirePeriod(
   groupKey: string,
@@ -644,26 +681,31 @@ function forecastWireState(
   };
 }
 
-function twoTarget129ForecastState(): WeatherWarningForecastState {
+/**
+ * periodsPerTarget と、その祖先 (periodsPerSubject / periodsPerCard /
+ * cardJsonBytes) を同時に超える shape。target 数が 3 なのは、subject 上限
+ * (256) が target 上限 (128) の 2 倍になった結果、2 target では共通
+ * effectiveLimit が declaredLimit と同値になって境界を検査しなくなるため。
+ */
+function threeTargetOverForecastState(): WeatherWarningForecastState {
   const groupKey = vpwp50StableKey("group", [
     "雨", "uT", FORECAST_WIRE_UNKNOWN_LABEL, "unknown",
   ]);
-  return forecastWireState([forecastWireGroup("uT", [
-    forecastWireTarget(groupKey, "a", 129, 2),
-    forecastWireTarget(groupKey, "b", 129, 2),
-  ])]);
+  return forecastWireState([forecastWireGroup("uT",
+    ["a", "b", "c"].map((name) =>
+      forecastWireTarget(groupKey, name, FORECAST_OVER_SUBJECT_PERIODS, 2)))]);
 }
 
-function mixed129ForecastState(): WeatherWarningForecastState {
+function mixedOverForecastState(): WeatherWarningForecastState {
   const groupAKey = forecastFixtureExpectations.stableKeys.mixedGroupA;
   const groupBKey = forecastFixtureExpectations.stableKeys.mixedGroupB;
   const groupA = forecastWireGroup(
     "uA",
-    Array.from({ length: 129 }, (_, index) =>
+    Array.from({ length: FORECAST_OVER_SUBJECT_PERIODS }, (_, index) =>
       forecastWireTarget(groupAKey, index.toString(36), 1, 0)),
   );
   const groupB = forecastWireGroup("uB", [
-    forecastWireTarget(groupBKey, "b", 129, 2),
+    forecastWireTarget(groupBKey, "b", FORECAST_OVER_SUBJECT_PERIODS, 2),
   ]);
   expect(groupA.key).toBe(groupAKey);
   expect(groupB.key).toBe(groupBKey);
@@ -671,6 +713,22 @@ function mixed129ForecastState(): WeatherWarningForecastState {
   return forecastWireState([groupA, groupB]);
 }
 
+const EXACT_WIRE_GROUP_COUNT = 2;
+const EXACT_WIRE_TARGETS_PER_GROUP = WEATHER_WARNING_FORECAST_MAX_TARGETS_PER_GROUP;
+const EXACT_WIRE_SLOTS = EXACT_WIRE_GROUP_COUNT * EXACT_WIRE_TARGETS_PER_GROUP;
+
+/** Filler-free target name for slot `index`. */
+function exactWireBaseName(index: number): string {
+  return `a${index.toString(36)}`;
+}
+
+/**
+ * A card whose canonical UTF-8 JSON is exactly `desiredBytes` long.
+ *
+ * The slots are spread over two groups because one group may hold at most
+ * `targetsPerGroup` (128) targets while the byte budget now needs
+ * `periodsPerSubject` (256) of them to reach 128KiB.
+ */
 function exactWeatherWarningForecastWireState(
   desiredBytes: number,
   restored = false,
@@ -680,11 +738,7 @@ function exactWeatherWarningForecastWireState(
   const startsAt = "2026-01-01T01:00:00.000Z";
   const endsAt = "2026-01-01T02:00:00.000Z";
   const phenomenonName = "雨";
-  const significancyCode = "99";
   const forecastLabel = "大雨（区分不明）の予測";
-  const groupKey = vpwp50StableKey("group", [
-    phenomenonName, significancyCode, forecastLabel, "unknown",
-  ]);
   const build = (sourceExtra: number, nameExtras: readonly number[]): WeatherWarningForecastState => ({
     subjectKey,
     sourceEventId: `s${"x".repeat(sourceExtra)}`,
@@ -695,44 +749,51 @@ function exactWeatherWarningForecastWireState(
     appliedSemanticKey: `発表:${"a".repeat(64)}`,
     expiresAtMs: Date.parse(endsAt),
     restored,
-    groups: [{
-      key: groupKey,
-      phenomenonName,
-      significancyCode,
-      forecastLabel,
-      displaySeverity: "unknown",
-      severity: "warning",
-      targets: Array.from({ length: 128 }, (_, index) => {
-        const name = `a${index.toString(36)}${"x".repeat(nameExtras[index] ?? 0)}`;
-        const targetKey = vpwp50StableKey("target", [subjectKey, "area", `name:${name}`]);
-        const periodKey = vpwp50StableKey("period", [
-          groupKey, targetKey, 1, "3h", startsAt, endsAt,
-        ]);
-        return {
-          key: targetKey,
-          scope: "area" as const,
-          name,
-          parentAreaName: name,
-          areaCode: null,
-          localCode: null,
-          periods: [{
-            key: periodKey,
-            tsNum: 1 as const,
-            series: "3h" as const,
-            startsAt,
-            endsAt,
-            label: "1月1日 10:00–11:00",
-            pagerAnchorKey: vpwp50StableKey("anchor", [
-              subjectKey, reportTimeMs, "1", groupKey, targetKey, 0,
-            ]),
-            pagerAnchorOrdinal: 0,
-            pagerSlot: 0 as const,
-          }],
-        };
-      }),
-    }],
+    groups: Array.from({ length: EXACT_WIRE_GROUP_COUNT }, (_, groupIndex) => {
+      const significancyCode = `9${groupIndex}`;
+      const groupKey = vpwp50StableKey("group", [
+        phenomenonName, significancyCode, forecastLabel, "unknown",
+      ]);
+      return {
+        key: groupKey,
+        phenomenonName,
+        significancyCode,
+        forecastLabel,
+        displaySeverity: "unknown" as const,
+        severity: "warning" as const,
+        targets: Array.from({ length: EXACT_WIRE_TARGETS_PER_GROUP }, (_, index) => {
+          const slot = groupIndex * EXACT_WIRE_TARGETS_PER_GROUP + index;
+          const name = `${exactWireBaseName(slot)}${"x".repeat(nameExtras[slot] ?? 0)}`;
+          const targetKey = vpwp50StableKey("target", [subjectKey, "area", `name:${name}`]);
+          const periodKey = vpwp50StableKey("period", [
+            groupKey, targetKey, 1, "3h", startsAt, endsAt,
+          ]);
+          return {
+            key: targetKey,
+            scope: "area" as const,
+            name,
+            parentAreaName: name,
+            areaCode: null,
+            localCode: null,
+            periods: [{
+              key: periodKey,
+              tsNum: 1 as const,
+              series: "3h" as const,
+              startsAt,
+              endsAt,
+              label: "1月1日 10:00–11:00",
+              pagerAnchorKey: vpwp50StableKey("anchor", [
+                subjectKey, reportTimeMs, "1", groupKey, targetKey, 0,
+              ]),
+              pagerAnchorOrdinal: 0,
+              pagerSlot: 0 as const,
+            }],
+          };
+        }),
+      };
+    }),
   });
-  const emptyExtras = Array.from({ length: 128 }, () => 0);
+  const emptyExtras = Array.from({ length: EXACT_WIRE_SLOTS }, () => 0);
   const base = build(0, emptyExtras);
   const baseCard = buildWeatherWarningForecastCard([base]);
   if (baseCard == null) throw new Error("exact wire fixture must produce a card");
@@ -742,8 +803,7 @@ function exactWeatherWarningForecastWireState(
   remaining -= sourceExtra;
   const nameExtras = [...emptyExtras];
   for (let index = 0; index < nameExtras.length && remaining > 0; index += 1) {
-    const baseNameLength = `a${index.toString(36)}`.length;
-    const characters = Math.min(256 - baseNameLength, remaining / 2);
+    const characters = Math.min(256 - exactWireBaseName(index).length, remaining / 2);
     nameExtras[index] = characters;
     remaining -= characters * 2;
   }
@@ -751,7 +811,62 @@ function exactWeatherWarningForecastWireState(
   return build(sourceExtra, nameExtras);
 }
 
+
+/**
+ * local scope の target。area scope より `localCode` と `parentAreaName` の分だけ
+ * 1 period あたりが重い（spec §2.4）ので、byte 側の余裕を測るのはこちらで行う。
+ */
+function forecastWireLocalTarget(
+  groupKey: string,
+  index: number,
+  periodCount: number,
+  nameFiller: number,
+): DisplayWeatherWarningForecastTargetV1 {
+  const parentAreaName = `試験県${index.toString(36)}`;
+  const localCode = `L${index.toString().padStart(4, "0")}`;
+  const name = `${parentAreaName}市${"町".repeat(nameFiller)}`;
+  const key = vpwp50StableKey("target", [
+    FORECAST_WIRE_SUBJECT, "local", `code:${index}`, `code:${localCode}`,
+  ]);
+  return {
+    key,
+    scope: "local",
+    name,
+    parentAreaName,
+    areaCode: null,
+    localCode,
+    periods: Array.from({ length: periodCount }, (_, slot) =>
+      forecastWirePeriod(groupKey, key, slot, FORECAST_WIRE_START_MS + slot * 2 * 60 * 60_000)),
+  };
+}
+
+/**
+ * `forecastWireLocalTarget` の地名 filler の上限。`VPWP50_MAX_AREA_NAME_LENGTH`
+ * (256) から接頭辞 `試験県<base36>市` の最長 6 文字を引いた値で、探索ループが
+ * これを超えたら「filler では byte 上限に届かない」ことを意味する。
+ */
+const FORECAST_LOCAL_NAME_FILLER_MAX = 250;
+
+function localScopeForecastState(
+  perTargetCounts: readonly number[],
+  nameFiller: number,
+): WeatherWarningForecastState {
+  const groupKey = vpwp50StableKey("group", [
+    "雨", "uL", FORECAST_WIRE_UNKNOWN_LABEL, "unknown",
+  ]);
+  return forecastWireState([forecastWireGroup("uL",
+    perTargetCounts.map((count, index) =>
+      forecastWireLocalTarget(groupKey, index, count, nameFiller)))]);
+}
+
+function forecastPeriodTotal(state: WeatherWarningForecastState): number {
+  return state.groups.reduce((sum, group) =>
+    sum + group.targets.reduce((inner, target) => inner + target.periods.length, 0), 0);
+}
+
 describe("VPWP50 forecast reducer and wire invariant", () => {
+
+
   it("reduces the XML fixture into deterministic groups, periods, and immutable anchors", () => {
     const parsed = parseWeatherWarningTimeseries(
       createMockWsDataMessage(FIXTURE_VPWP50_LOCAL_IDENTITY),
@@ -799,43 +914,147 @@ describe("VPWP50 forecast reducer and wire invariant", () => {
     expect(vpwp50ForecastPeriodLabel(startsAt, endsAt)).toBe(label);
   });
 
-  it.each([100, 101, 102, 128, 129])("matches the literal %i-group UTF-8 byte golden", (count) => {
+  // 100-102 は旧 64KiB 上限の実効境界、201-203 は 128KiB 上限の実効境界、
+  // 256-257 は periodsPerSubject の境界。上限が動いても byte 曲線が固定される。
+  it.each([100, 101, 102, 128, 129, 201, 202, 203, 256, 257])(
+    "matches the literal %i-group UTF-8 byte golden", (count) => {
     const card = buildWeatherWarningForecastCard([forecastGroupShape(count)]);
     expect(card).not.toBeNull();
     if (card == null) return;
     expect(weatherWarningForecastCardJsonBytes(card)).toBe(forecastFixtureExpectations.groupShapeBytes[String(count)]);
   });
 
-  it("reports every 129-group count and wire violation in canonical order", () => {
-    const state = forecastGroupShape(129);
+
+  // A5: count と byte の AND を local scope で両方向から踏む。
+  it("rejects a 256-period local card on bytes alone and a 257-period one on count alone", () => {
+    const atCount = WEATHER_WARNING_FORECAST_MAX_PERIODS_PER_SUBJECT / 2;
+    const bytesAt = (filler: number): number => weatherWarningForecastCardJsonBytes(
+      buildWeatherWarningForecastCard([localScopeForecastState(Array.from({ length: atCount }, () => 2), filler)])!);
+
+    // byte 上限をまたぐ最小の地名長を実測で挟む。他の fixture builder と同じく、
+    // filler が byte に効かなくなった場合はハングさせず throw する。
+    let filler = 0;
+    while (bytesAt(filler + 1) <= WEATHER_WARNING_FORECAST_MAX_CARD_JSON_BYTES) {
+      filler += 1;
+      if (filler > FORECAST_LOCAL_NAME_FILLER_MAX) {
+        throw new Error("local scope fixture filler capacity exhausted");
+      }
+    }
+    expect(filler).toBeGreaterThan(0);
+    expect(filler).toBeLessThanOrEqual(FORECAST_LOCAL_NAME_FILLER_MAX);
+
+    const withinBytes = localScopeForecastState(Array.from({ length: atCount }, () => 2), filler);
+    expect(forecastPeriodTotal(withinBytes)).toBe(WEATHER_WARNING_FORECAST_MAX_PERIODS_PER_SUBJECT);
+    expect(bytesAt(filler)).toBeLessThanOrEqual(WEATHER_WARNING_FORECAST_MAX_CARD_JSON_BYTES);
+    expect(weatherWarningForecastProjectionLimitReasons([withinBytes])).toEqual([]);
+
+    // 方向 1: period は上限内なのに byte で落ちる。
+    const overBytes = localScopeForecastState(Array.from({ length: atCount }, () => 2), filler + 1);
+    expect(forecastPeriodTotal(overBytes)).toBe(WEATHER_WARNING_FORECAST_MAX_PERIODS_PER_SUBJECT);
+    const overBytesReasons = weatherWarningForecastProjectionLimitReasons([overBytes]);
+    expect(overBytesReasons.map((reason) => reason.code)).toEqual(["cardJsonBytes"]);
+    expect(overBytesReasons[0]!.actual).toBe(bytesAt(filler + 1));
+    expect(overBytesReasons[0]!.actual).toBeGreaterThan(WEATHER_WARNING_FORECAST_MAX_CARD_JSON_BYTES);
+
+    // 方向 2: byte は上限内なのに period 数で落ちる。
+    const overCount = localScopeForecastState([3, ...Array.from({ length: atCount - 1 }, () => 2)], 0);
+    expect(forecastPeriodTotal(overCount)).toBe(WEATHER_WARNING_FORECAST_MAX_PERIODS_PER_SUBJECT + 1);
+    expect(weatherWarningForecastCardJsonBytes(buildWeatherWarningForecastCard([overCount])!))
+      .toBeLessThanOrEqual(WEATHER_WARNING_FORECAST_MAX_CARD_JSON_BYTES);
+    expect(weatherWarningForecastProjectionLimitReasons([overCount]).map((reason) => reason.code))
+      .toEqual(["periodsPerSubject", "periodsPerCard"]);
+  });
+
+  // A14: 194 period の projection が永続往復で同一 canonical state に戻り、
+  // 上限超過の subject は throw ではなく静かに落ちる（§4.4 のロールバック契約）。
+  it("round-trips a 194-period projection and drops an over-limit one without throwing", () => {
+    const restoreNowMs = Date.parse("2025-12-31T23:59:59.999Z");
+    const built = localScopeForecastState(Array.from({ length: 97 }, () => 2), 0);
+    // 復元は expiresAtMs を period の最終 endsAt から引き直すので、往復の同一性を
+    // 見るには書き出す側もその値に揃える。
+    const live: WeatherWarningForecastState = {
+      ...built,
+      expiresAtMs: Math.max(...built.groups.flatMap((group) =>
+        group.targets.flatMap((target) => target.periods.map((period) => Date.parse(period.endsAt))))),
+    };
+    expect(forecastPeriodTotal(live)).toBe(194);
+    expect(weatherWarningForecastProjectionLimitReasons([live])).toEqual([]);
+
+    const { restored: _liveRestored, ...persisted } = live;
+    const exported = new StandbyStateStore().exportActiveState();
+    exported.weatherWarningForecasts = [persisted];
+
+    const store = new StandbyStateStore();
+    store.restoreActiveState(exported, restoreNowMs);
+    const roundTripped = store.exportActiveState().weatherWarningForecasts;
+    expect(roundTripped).toHaveLength(1);
+    expect(roundTripped![0]).toEqual(persisted);
+    expect(store.snapshotItems().some((item) => item.kind === "weatherWarningForecast")).toBe(true);
+
+    const over = localScopeForecastState(
+      [3, ...Array.from({ length: WEATHER_WARNING_FORECAST_MAX_PERIODS_PER_SUBJECT / 2 - 1 }, () => 2)], 0);
+    expect(forecastPeriodTotal(over)).toBe(WEATHER_WARNING_FORECAST_MAX_PERIODS_PER_SUBJECT + 1);
+    const { restored: _overRestored, ...persistedOver } = over;
+    const exportedOver = new StandbyStateStore().exportActiveState();
+    exportedOver.weatherWarningForecasts = [persistedOver];
+
+    const dropStore = new StandbyStateStore();
+    expect(() => dropStore.restoreActiveState(exportedOver, restoreNowMs)).not.toThrow();
+    expect(dropStore.exportActiveState().weatherWarningForecasts).toBeUndefined();
+    expect(dropStore.snapshotItems().some((item) => item.kind === "weatherWarningForecast")).toBe(false);
+  });
+
+  it("reports every over-limit group count and wire violation in canonical order", () => {
+    const state = forecastGroupShape(
+      WEATHER_WARNING_FORECAST_MAX_GROUPS_PER_SUBJECT + 1, FORECAST_GROUP_SHAPE_OVER_PERIODS);
     const reasons = weatherWarningForecastProjectionLimitReasons([state]);
-    expect(reasons).toEqual(forecastFixtureExpectations.groupShape129Reasons);
+    // 空洞化の番人: 4 階層すべてが鳴る shape でなければ canonical order を試験できない。
+    expect(reasons.map((reason) => reason.code)).toEqual([
+      "groupsPerSubject", "periodsPerSubject", "periodsPerCard", "cardJsonBytes",
+    ]);
+    // 空洞化の番人 2: 実効上限が宣言上限と同値だと、二分探索が declaredLimit を
+    // そのまま返しただけの状態と区別できない。
+    const groups = reasons.find((reason) => reason.code === "groupsPerSubject");
+    expect(groups?.effectiveLimit).toBe(Math.floor(
+      WEATHER_WARNING_FORECAST_MAX_PERIODS_PER_SUBJECT / FORECAST_GROUP_SHAPE_OVER_PERIODS));
+    expect(groups!.effectiveLimit!).toBeLessThan(WEATHER_WARNING_FORECAST_MAX_GROUPS_PER_SUBJECT);
+    expect(reasons).toEqual(forecastFixtureExpectations.groupShapeOverReasons);
     expect(weatherWarningForecastProjectionLimitReasons([{ ...state, groups: [...state.groups].reverse() }]))
       .toEqual(reasons);
   });
 
   it("applies one common effective limit to every violating local target", () => {
-    const state = twoTarget129ForecastState();
+    const state = threeTargetOverForecastState();
     const reasons = weatherWarningForecastProjectionLimitReasons([state]);
-    expect(reasons).toEqual(forecastFixtureExpectations.twoTargets129Reasons);
+    expect(reasons).toEqual(forecastFixtureExpectations.threeTargetsOverReasons);
     const common = reasons.find((reason) => reason.code === "periodsPerTarget");
-    expect(common?.effectiveLimit).toBe(64);
+    // 3 target で subject 上限を割った値。declaredLimit (128) より真に小さいので、
+    // 共通 effectiveLimit が「declaredLimit をそのまま返しているだけ」ではない。
+    const shared = Math.floor(WEATHER_WARNING_FORECAST_MAX_PERIODS_PER_SUBJECT / 3);
+    expect(shared).toBeLessThan(WEATHER_WARNING_FORECAST_MAX_PERIODS_PER_TARGET);
+    expect(common?.effectiveLimit).toBe(shared);
+    // group shape 側の golden では periodsPerSubject / periodsPerCard の実効上限が
+    // 宣言上限と同値になる（§9.3）。この shape がその二 code の数値枝を担う。
+    for (const code of ["periodsPerSubject", "periodsPerCard"] as const) {
+      const reason = reasons.find((entry) => entry.code === code);
+      expect(reason?.effectiveLimit).toBeLessThan(WEATHER_WARNING_FORECAST_MAX_PERIODS_PER_SUBJECT);
+    }
 
-    const at64 = structuredClone(state);
-    for (const target of at64.groups[0]!.targets) target.periods = target.periods.slice(0, 64);
-    const card64 = buildWeatherWarningForecastCard([at64]);
-    expect(card64).not.toBeNull();
-    expect(weatherWarningForecastCardJsonBytes(card64!))
-      .toBe(forecastFixtureExpectations.twoTargetsBoundaryBytes["64"]);
-    expect(weatherWarningForecastProjectionLimitReasons([at64])).toEqual([]);
+    const atShared = structuredClone(state);
+    for (const target of atShared.groups[0]!.targets) target.periods = target.periods.slice(0, shared);
+    const cardShared = buildWeatherWarningForecastCard([atShared]);
+    expect(cardShared).not.toBeNull();
+    expect(weatherWarningForecastCardJsonBytes(cardShared!))
+      .toBe(forecastFixtureExpectations.threeTargetsBoundaryBytes[String(shared)]);
+    expect(weatherWarningForecastProjectionLimitReasons([atShared])).toEqual([]);
 
-    const at65 = structuredClone(state);
-    for (const target of at65.groups[0]!.targets) target.periods = target.periods.slice(0, 65);
-    const card65 = buildWeatherWarningForecastCard([at65]);
-    expect(card65).not.toBeNull();
-    expect(weatherWarningForecastCardJsonBytes(card65!))
-      .toBe(forecastFixtureExpectations.twoTargetsBoundaryBytes["65"]);
-    expect(weatherWarningForecastProjectionLimitReasons([at65]).map((reason) => reason.code))
+    const overShared = structuredClone(state);
+    for (const target of overShared.groups[0]!.targets) target.periods = target.periods.slice(0, shared + 1);
+    const cardOver = buildWeatherWarningForecastCard([overShared]);
+    expect(cardOver).not.toBeNull();
+    expect(weatherWarningForecastCardJsonBytes(cardOver!))
+      .toBe(forecastFixtureExpectations.threeTargetsBoundaryBytes[String(shared + 1)]);
+    expect(weatherWarningForecastProjectionLimitReasons([overShared]).map((reason) => reason.code))
       .toEqual(["periodsPerSubject", "periodsPerCard"]);
 
     const reversed = structuredClone(state);
@@ -843,14 +1062,18 @@ describe("VPWP50 forecast reducer and wire invariant", () => {
     for (const target of reversed.groups[0]!.targets) target.periods.reverse();
     expect(weatherWarningForecastProjectionLimitReasons([reversed])).toEqual(reasons);
 
-    const zeroOnly = twoTarget129ForecastState();
-    zeroOnly.groups[0]!.targets[0]!.periods = zeroOnly.groups[0]!.targets[0]!.periods.slice(0, 128);
+    // 違反していない target だけで subject 上限を使い切ると、残る 1 件は 0 まで
+    // 削っても解けない。
+    const zeroOnly = threeTargetOverForecastState();
+    for (const target of zeroOnly.groups[0]!.targets.slice(0, 2)) {
+      target.periods = target.periods.slice(0, WEATHER_WARNING_FORECAST_MAX_PERIODS_PER_TARGET);
+    }
     expect(weatherWarningForecastProjectionLimitReasons([zeroOnly])
       .find((reason) => reason.code === "periodsPerTarget")?.effectiveLimit).toBe(0);
   });
 
   it("keeps null distinct from zero for the mixed local no-solution golden", () => {
-    const state = mixed129ForecastState();
+    const state = mixedOverForecastState();
     const [groupA, groupB] = state.groups;
     const cardA = buildWeatherWarningForecastCard([forecastWireState([groupA!])]);
     const cardB = buildWeatherWarningForecastCard([forecastWireState([groupB!])]);
@@ -866,12 +1089,15 @@ describe("VPWP50 forecast reducer and wire invariant", () => {
       .toBe(forecastFixtureExpectations.mixedShapeBytes.original);
 
     const reasons = weatherWarningForecastProjectionLimitReasons([state]);
-    expect(reasons).toEqual(forecastFixtureExpectations.mixed129Reasons);
+    expect(reasons).toEqual(forecastFixtureExpectations.mixedOverReasons);
     expect(reasons.slice(0, 2).map((reason) => reason.effectiveLimit)).toEqual([null, null]);
-    expect(JSON.parse(JSON.stringify(reasons))).toEqual(forecastFixtureExpectations.mixed129Reasons);
+    expect(JSON.parse(JSON.stringify(reasons))).toEqual(forecastFixtureExpectations.mixedOverReasons);
 
     const prefix128 = structuredClone(state);
-    prefix128.groups = [{ ...prefix128.groups[0]!, targets: prefix128.groups[0]!.targets.slice(0, 128) }];
+    prefix128.groups = [{
+      ...prefix128.groups[0]!,
+      targets: prefix128.groups[0]!.targets.slice(0, WEATHER_WARNING_FORECAST_MAX_TARGETS_PER_GROUP),
+    }];
     const prefixCard = buildWeatherWarningForecastCard([prefix128]);
     expect(prefixCard).not.toBeNull();
     expect(weatherWarningForecastCardJsonBytes(prefixCard!))
@@ -885,20 +1111,21 @@ describe("VPWP50 forecast reducer and wire invariant", () => {
     expect(weatherWarningForecastProjectionLimitReasons([reversed])).toEqual(reasons);
   });
 
-  it.each([65_535, 65_536, 65_537])("measures and enforces the exact %i-byte card boundary", (bytes) => {
+  it.each([131_071, 131_072, 131_073])("measures and enforces the exact %i-byte card boundary", (bytes) => {
+    expect(WEATHER_WARNING_FORECAST_MAX_CARD_JSON_BYTES).toBe(131_072);
     const state = exactWeatherWarningForecastWireState(bytes);
     const card = buildWeatherWarningForecastCard([state]);
     expect(card).not.toBeNull();
     expect(weatherWarningForecastCardJsonBytes(card!)).toBe(bytes);
     const reasons = weatherWarningForecastProjectionLimitReasons([state]);
-    if (bytes <= 65_536) {
+    if (bytes <= 131_072) {
       expect(reasons).toEqual([]);
     } else {
       expect(reasons).toEqual([{
         code: "cardJsonBytes",
-        actual: 65_537,
-        declaredLimit: 65_536,
-        effectiveLimit: 65_536,
+        actual: 131_073,
+        declaredLimit: 131_072,
+        effectiveLimit: 131_072,
         violatingUnitCount: 1,
         limitingHierarchies: ["cardJsonBytes"],
         samplePaths: ["card/weatherWarningForecast:active/jsonBytes"],
@@ -907,10 +1134,10 @@ describe("VPWP50 forecast reducer and wire invariant", () => {
   });
 
   it("evaluates the actual restored boolean before the exact wire boundary", () => {
-    const live = exactWeatherWarningForecastWireState(65_536, false);
+    const live = exactWeatherWarningForecastWireState(131_072, false);
     const restored = { ...live, restored: true };
-    expect(weatherWarningForecastCardJsonBytes(buildWeatherWarningForecastCard([live])!)).toBe(65_536);
-    expect(weatherWarningForecastCardJsonBytes(buildWeatherWarningForecastCard([restored])!)).toBe(65_535);
+    expect(weatherWarningForecastCardJsonBytes(buildWeatherWarningForecastCard([live])!)).toBe(131_072);
+    expect(weatherWarningForecastCardJsonBytes(buildWeatherWarningForecastCard([restored])!)).toBe(131_071);
     expect(weatherWarningForecastProjectionLimitReasons([restored])).toEqual([]);
   });
 

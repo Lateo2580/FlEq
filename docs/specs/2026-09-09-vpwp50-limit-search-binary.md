@@ -206,7 +206,7 @@ for (let candidate = 0; candidate <= declaredLimit; candidate += 1) {
 | A3 | **単調性の前提の固定（§5）**: `severityRank` の rank 昇順と、対応する `StandbySeverity` 文字列の長さ昇順が一致することを assert する（`info` 4 / `normal` 6 / `warning` 7 / `critical` 8）。加えて `updatedAt` / `expiresAt` が 24 文字であることを assert する。前提が崩れたらこのテストが赤になる |
 | A4 | **単調性そのものの固定**: 合成 state と code について、`cardConstraintsPass(truncateReasonUnits(..., k))` が k について単調（k で通れば k−1 でも通る）であることを 0..`declaredLimit` の全 k で検査する。export した 2 関数を直接呼ぶ |
 | A5 | **探索回数の固定**: `findEffectiveLimit` に**呼び出し回数を数える述語を直接渡して**、`declaredLimit = 128` で **8 回以下**（`⌈log2(129)⌉`）であることを固定する。時間ではなく回数で固定し、CI のノイズを避ける。**`vi.spyOn(module, "cardConstraintsPass")` で数えてはならない**——§4.2 のとおり module 内部呼び出しは差し替わらず、カウント 0 で緑になる |
-| A6 | **golden 無改変**: `test/fixtures/vpwp50-forecast-expectations.json` の `groupShape129Reasons` / `twoTargets129Reasons` / `mixed129Reasons` が**一切改変されずに通る**こと。本 spec は上限を触らないので、`declaredLimit` / `effectiveLimit` / `limitingHierarchies` はすべて現行値のままである |
+| A6 | **golden 無改変**: `test/fixtures/vpwp50-forecast-expectations.json` の `groupShape129Reasons` / `twoTargets129Reasons` / `mixed129Reasons` が**一切改変されずに通る**こと。本 spec は上限を触らないので、`declaredLimit` / `effectiveLimit` / `limitingHierarchies` はすべて現行値のままである。**（後日談: 後続の `docs/specs/2026-09-09-vpwp50-periods-limit.md` が上限を 256 / 128KiB へ上げ、この 3 key を `groupShapeOverReasons` / `threeTargetsOverReasons` / `mixedOverReasons` へ改名して作り直した。本 spec の A6 は配送時点の契約である）** |
 | A7 | `assertWeatherWarningForecastWireInvariant()` の throw 条件とメッセージが不変であること |
 | A8 | 起動経路の非退行: `standby-persistence.ts:8925` を通る既存の bundle 正規化テストが緑であること |
 | A9 | `npm run build` と `npm test` が緑 |

@@ -16,6 +16,11 @@ import type {
 } from "../../../src/engine/display/types";
 import type { ActiveStandbyCardV1 } from "../../../src/engine/display/protocol";
 import { vpwp50StableKey } from "../../../src/engine/presentation/weather-severity-pyramid";
+import {
+  WEATHER_WARNING_FORECAST_MAX_CARD_JSON_BYTES,
+  WEATHER_WARNING_FORECAST_MAX_PERIODS_PER_CARD,
+  WEATHER_WARNING_FORECAST_MAX_TARGETS_PER_GROUP,
+} from "../../../src/engine/display/weather-warning-forecast-wire";
 import { displayEventDto, displaySnapshot } from "../../helpers/display-fixtures";
 
 interface FakeRes {
@@ -67,11 +72,22 @@ function snapshotMsg(over: Partial<DisplayStateSnapshotV1> = {}): DisplayServerM
   return { type: "snapshot", snapshot: baseSnapshot(over) };
 }
 
+const MAX_CARD_GROUP_COUNT = 2;
+const MAX_CARD_TARGETS_PER_GROUP = WEATHER_WARNING_FORECAST_MAX_TARGETS_PER_GROUP;
+const MAX_CARD_SLOTS = MAX_CARD_GROUP_COUNT * MAX_CARD_TARGETS_PER_GROUP;
+
+function maxCardBaseName(index: number): string {
+  return `a${index.toString(36)}`;
+}
+
+/**
+ * 全上限ちょうどの VPWP50 card。period 数は periodsPerSubject / periodsPerCard
+ * (256) ちょうど、UTF-8 JSON は cardJsonBytes (128KiB) ちょうど。
+ *
+ * targetsPerGroup は 128 のままなので、256 target を 2 group に割って載せる。
+ */
 function maxValidWeatherWarningForecastCard(): Extract<ActiveStandbyCardV1, { kind: "weatherWarningForecast" }> {
   const subject = "weatherTimeseries:VPWP50-SSE:200000";
-  const groupKey = vpwp50StableKey("group", [
-    "土砂災害危険度", "31", "土砂災害（警戒レベル3相当）の予測", "officialL3",
-  ]);
   const reportTimeMs = Date.parse("2026-09-01T00:00:00.000Z");
   const startsAt = "2026-09-01T01:00:00.000Z";
   const endsAt = "2026-09-01T02:00:00.000Z";
@@ -87,48 +103,56 @@ function maxValidWeatherWarningForecastCard(): Extract<ActiveStandbyCardV1, { ki
     expiresAt: endsAt,
     restored: false,
     severity: "warning",
-    data: { groups: [{
-      key: groupKey,
-      phenomenonName: "土砂災害危険度",
-      significancyCode: "31",
-      forecastLabel: "土砂災害（警戒レベル3相当）の予測",
-      displaySeverity: "officialL3",
-      severity: "warning",
-      targets: Array.from({ length: 128 }, (_, index) => {
-        const name = `a${index.toString(36)}${"x".repeat(nameExtras[index] ?? 0)}`;
-        const targetKey = vpwp50StableKey("target", [subject, "area", `name:${name}`]);
-        return {
-          key: targetKey,
-          scope: "area" as const,
-          name,
-          parentAreaName: name,
-          areaCode: null,
-          localCode: null,
-          periods: [{
-            key: vpwp50StableKey("period", [groupKey, targetKey, 1, "3h", startsAt, endsAt]),
-            tsNum: 1 as const,
-            series: "3h" as const,
-            startsAt,
-            endsAt,
-            label: "9月1日 10:00–11:00",
-            pagerAnchorKey: vpwp50StableKey("anchor", [
-              subject, reportTimeMs, "1", groupKey, targetKey, 0,
-            ]),
-            pagerAnchorOrdinal: 0,
-            pagerSlot: 0 as const,
-          }],
-        };
-      }),
-    }] },
+    data: { groups: Array.from({ length: MAX_CARD_GROUP_COUNT }, (_, groupIndex) => {
+      const significancyCode = `3${groupIndex + 1}`;
+      const forecastLabel = `土砂災害（警戒レベル${groupIndex + 3}相当）の予測`;
+      const groupKey = vpwp50StableKey("group", [
+        "土砂災害危険度", significancyCode, forecastLabel, "officialL3",
+      ]);
+      return {
+        key: groupKey,
+        phenomenonName: "土砂災害危険度",
+        significancyCode,
+        forecastLabel,
+        displaySeverity: "officialL3" as const,
+        severity: "warning" as const,
+        targets: Array.from({ length: MAX_CARD_TARGETS_PER_GROUP }, (_, index) => {
+          const slot = groupIndex * MAX_CARD_TARGETS_PER_GROUP + index;
+          const name = `${maxCardBaseName(slot)}${"x".repeat(nameExtras[slot] ?? 0)}`;
+          const targetKey = vpwp50StableKey("target", [subject, "area", `name:${name}`]);
+          return {
+            key: targetKey,
+            scope: "area" as const,
+            name,
+            parentAreaName: name,
+            areaCode: null,
+            localCode: null,
+            periods: [{
+              key: vpwp50StableKey("period", [groupKey, targetKey, 1, "3h", startsAt, endsAt]),
+              tsNum: 1 as const,
+              series: "3h" as const,
+              startsAt,
+              endsAt,
+              label: "9月1日 10:00–11:00",
+              pagerAnchorKey: vpwp50StableKey("anchor", [
+                subject, reportTimeMs, "1", groupKey, targetKey, 0,
+              ]),
+              pagerAnchorOrdinal: 0,
+              pagerSlot: 0 as const,
+            }],
+          };
+        }),
+      };
+    }) },
   });
-  const nameExtras = Array.from({ length: 128 }, () => 0);
-  let remaining = 64 * 1024 - Buffer.byteLength(JSON.stringify(build(0, nameExtras)), "utf8");
+  const nameExtras = Array.from({ length: MAX_CARD_SLOTS }, () => 0);
+  let remaining = WEATHER_WARNING_FORECAST_MAX_CARD_JSON_BYTES
+    - Buffer.byteLength(JSON.stringify(build(0, nameExtras)), "utf8");
   if (remaining < 0) throw new Error("VPWP50 SSE fixture base exceeds wire budget");
   const sourceExtra = remaining % 2;
   remaining -= sourceExtra;
   for (let index = 0; index < nameExtras.length && remaining > 0; index += 1) {
-    const baseNameLength = `a${index.toString(36)}`.length;
-    const characters = Math.min(256 - baseNameLength, remaining / 2);
+    const characters = Math.min(256 - maxCardBaseName(index).length, remaining / 2);
     nameExtras[index] = characters;
     remaining -= characters * 2;
   }
@@ -423,10 +447,12 @@ describe("encodeSseGuarded", () => {
     expect(encodeSseGuarded(snapshotMsg())).not.toContain("id:");
   });
 
-  it("128 period・64KiB 以下の最大 VPWP50 card を snapshot/state の双方で通す", () => {
+  it("256 period・128KiB 以下の最大 VPWP50 card を snapshot/state の双方で通す", () => {
     const card = maxValidWeatherWarningForecastCard();
-    expect(card.data.groups.flatMap((group) => group.targets.flatMap((target) => target.periods))).toHaveLength(128);
-    expect(Buffer.byteLength(JSON.stringify(card), "utf8")).toBe(64 * 1024);
+    expect(card.data.groups.flatMap((group) => group.targets.flatMap((target) => target.periods)))
+      .toHaveLength(WEATHER_WARNING_FORECAST_MAX_PERIODS_PER_CARD);
+    expect(Buffer.byteLength(JSON.stringify(card), "utf8"))
+      .toBe(WEATHER_WARNING_FORECAST_MAX_CARD_JSON_BYTES);
     const snapshot = baseSnapshot({ standbyItems: [card] });
     const snapshotFrame = encodeSseGuarded({ type: "snapshot", snapshot });
     const stateFrame = encodeSseGuarded({ type: "state", snapshot });
@@ -434,5 +460,8 @@ describe("encodeSseGuarded", () => {
     expect(stateFrame).not.toBeNull();
     expect(Buffer.byteLength(snapshotFrame!, "utf8")).toBeLessThanOrEqual(MAX_SNAPSHOT_BYTES);
     expect(Buffer.byteLength(stateFrame!, "utf8")).toBeLessThanOrEqual(MAX_SNAPSHOT_BYTES);
+    // card 予算は snapshot 予算のちょうど半分。SSE framing と他 card の余白がこの
+    // 差分で、上限を上げるときはここが最初に破れる（2026-09-09 spec §8）。
+    expect(WEATHER_WARNING_FORECAST_MAX_CARD_JSON_BYTES * 2).toBe(MAX_SNAPSHOT_BYTES);
   });
 });

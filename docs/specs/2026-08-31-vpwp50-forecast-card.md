@@ -332,7 +332,7 @@ function vpwp50StableKey(
 - digest key が同じで canonical tuple が異なる事象を検出した場合は、後勝ちにせず
   当該 subject projection 全体を fail-closed とする。
 
-この固定長 encoding は semantic identity を変えない。64KiB 判定を key encoder の
+この固定長 encoding は semantic identity を変えない。card byte 判定を key encoder の
 実装選択に依存させないための wire 表現契約である。
 
 target key は conflict scope と一致する stable tuple とする。
@@ -818,14 +818,14 @@ EventID が空の実 VPWP50ではmessage IDまたは`event.id` fallbackが`sourc
 
 `weatherWarningForecast` cardは次のwire invariantを必須とする。
 
-- 全active subjectを横断したperiod総数は128件以下。
-- canonical card itemのUTF-8 JSON byte数は64KiB以下。
+- 全active subjectを横断したperiod総数は256件以下。
+- canonical card itemのUTF-8 JSON byte数は128KiB以下。
 - countとbyteの両方を満たす場合だけwire-validとする。
-- 128 periodであっても64KiBを超える組合せはwire-invalidとする。
-- 64KiB以内でも129 periodはwire-invalidとする。
+- 256 periodであっても128KiBを超える組合せはwire-invalidとする。
+- 128KiB以内でも257 periodはwire-invalidとする。
 - gate-only watermark / tombstoneはcard itemへ入らないためperiod / card byte集計対象外とする。
 - `MAX_SNAPSHOT_BYTES`は既存の256KiBを維持する。
-- 64KiBはsnapshot上限の4分の1とし、既存の他card、snapshot envelope、SSE framing用のheadroomを確保する。
+- 128KiBはsnapshot上限の2分の1とし、既存の他card、snapshot envelope、SSE framing用のheadroomを確保する（2026-09-09に194 periodの実機超過を受けて64KiB＝4分の1から引き上げた。`docs/specs/2026-09-09-vpwp50-periods-limit.md`）。
 - `standbyItems`を縮退しない現行`degradeSnapshotToBudget()`へ、VPWP50 projectionの救済を委ねてはならない。
 - wire-invalid projectionはserver送信時ではなく、reducer / reader / writerの共通invariantで除外する。
 - 最大wire-valid fixtureを含む`type: "snapshot"`と`type: "state"`の双方が`encodeSseGuarded()`を通過しなければならない。
@@ -921,7 +921,7 @@ revisionFamilySubjectKeys(
 subject capacity規則を次に固定する。
 
 - family subject 上限512は active pair、active gate-only watermark、tombstone-only bundleを合算した gate bundle 上限である。
-- card period上限が128であり、active projectionは最低一件のperiodを持つため、wire-validなactive pair数は最大128件である。
+- card period上限が256であり、active projectionは最低一件のperiodを持つため、wire-validなactive pair数は最大256件である。
 - 512 gate bundleすべてがactive pairになる状態はschema-validではない。
 - 511件以下で新規subjectを受理できる。
 - 512件目を受理できる。
@@ -1041,10 +1041,10 @@ WEATHER_WARNING_FORECAST_MAX_SUBJECTS = 512
 WEATHER_WARNING_FORECAST_MAX_GROUPS_PER_SUBJECT = 128
 WEATHER_WARNING_FORECAST_MAX_TARGETS_PER_GROUP = 128
 WEATHER_WARNING_FORECAST_MAX_PERIODS_PER_TARGET = 128
-WEATHER_WARNING_FORECAST_MAX_PERIODS_PER_SUBJECT = 128
-WEATHER_WARNING_FORECAST_MAX_PERIODS_PER_CARD = 128
+WEATHER_WARNING_FORECAST_MAX_PERIODS_PER_SUBJECT = 256
+WEATHER_WARNING_FORECAST_MAX_PERIODS_PER_CARD = 256
 WEATHER_WARNING_FORECAST_PERIODS_PER_ATOM = 4
-WEATHER_WARNING_FORECAST_MAX_CARD_JSON_BYTES = 64 * 1024
+WEATHER_WARNING_FORECAST_MAX_CARD_JSON_BYTES = 128 * 1024
 
 WEATHER_WARNING_FORECAST_READER_MAX_RAW_PROJECTION_ITEMS = 1_024
 WEATHER_WARNING_FORECAST_READER_MAX_RAW_METADATA_ITEMS = 1_024
@@ -1082,7 +1082,7 @@ VPWP50_REPORT_FUTURE_SKEW_MS = 15 * 60_000
 VPWP50_ACCEPTED_AT_FUTURE_SKEW_MS = 15 * 60_000
 ```
 
-`WEATHER_WARNING_FORECAST_MAX_PERIODS_PER_SUBJECT`は従来案の16,384から128へ引き下げる。`WEATHER_WARNING_FORECAST_MAX_TARGETS_PER_GROUP`も、nonempty targetが最低一件のperiodを消費するcanonical invariantに合わせ、512から128へ引き下げる。
+`WEATHER_WARNING_FORECAST_MAX_PERIODS_PER_SUBJECT`は従来案の16,384から128へ引き下げる（2026-09-09に194 periodの実機超過を受けて`WEATHER_WARNING_FORECAST_MAX_PERIODS_PER_CARD`・`WEATHER_WARNING_FORECAST_MAX_CARD_JSON_BYTES`とともに256 / 128KiBへ引き上げた。`docs/specs/2026-09-09-vpwp50-periods-limit.md`）。`WEATHER_WARNING_FORECAST_MAX_TARGETS_PER_GROUP`も、nonempty targetが最低一件のperiodを消費するcanonical invariantに合わせ、512から128へ引き下げる。
 
 各canonical unitはnonemptyでなければならない。
 
@@ -1099,7 +1099,7 @@ effective admissible count =
     current hierarchy limit,
     remaining subject period budget,
     remaining card period budget,
-    maximum count fitting the remaining 64KiB card byte budget
+    maximum count fitting the remaining 128KiB card byte budget
   )
 ```
 
@@ -1108,9 +1108,9 @@ effective admissible count =
 - 一subjectのgroup数は最大128だが、各groupが最低一periodを必要とするため、subject / cardの残period予算が128未満ならその値が実効上限となる。
 - 一groupのtarget数は最大128だが、各targetが最低一periodを必要とするため、subject / cardの残period予算が実効上限をさらに狭める。
 - 一targetのperiod数は、target、subject、cardの各period上限と残予算の最小値とする。
-- 全active subjectのperiod総数は128以下とする。
-- family gate bundleは512件まで保持できるが、wire-valid active pairはperiod総数により最大128件となる。
-- 64KiB byte上限がcount上限より先に到達する場合は、byte上限を実効上限とする。
+- 全active subjectのperiod総数は256以下とする。
+- family gate bundleは512件まで保持できるが、wire-valid active pairはperiod総数により最大256件となる。
+- 128KiB byte上限がcount上限より先に到達する場合は、byte上限を実効上限とする。
 - `limit`受理試験は、他の階層上限、card period上限、byte上限をすべて満たす生成可能なfixtureでだけ成立させる。
 - ある階層の宣言上限だけを満たし、上位period / byte予算を超えるfixtureを「limit受理」としてはならない。
 
@@ -1220,7 +1220,7 @@ A_code = {
   次unitのNを求めること、最初に見つかった違反unitを代表にすることを禁止する。
   binary searchでも線形scanでも同じ共通Nを返し、raw input順のprefixは使わない。
 - `cardJsonBytes` reasonだけは`actual`を実UTF-8 bytes、`declaredLimit`と
-  `effectiveLimit`をともに65,536とし、`null`にはしない。
+  `effectiveLimit`をともに131,072とし、`null`にはしない。
 - non-null reasonの`limitingHierarchies`はoriginal candidateで同時成立した違反のうち、
   当該unit自身とそのancestor count、およびcard byte制約をcanonical reason順で列挙する。
   `effectiveLimit + 1`で最初に失敗する一理由だけへ縮めない。
@@ -1270,7 +1270,7 @@ readerは一回だけ確定した`restoreNowMs`を使用し、次の順序で処
    periodが残らなければsubjectを除外する。
 12. retained active projectionへ`restored: true`を設定する。
 13. gate `acceptedAtMs`降順、subject key昇順でactive pairを処理する。
-14. `restored: true`を含む実際の`ActiveStandbyCardV1`を構成し、period総数と64KiB byte上限を検査する。
+14. `restored: true`を含む実際の`ActiveStandbyCardV1`を構成し、period総数と128KiB byte上限を検査する。
 15. budget内のactive pairだけをcommitし、除外projectionのvalid gateをgate-onlyへ再分類する。
 16. salvage、expiry、coupling rejection、wire除外があればcanonical rewriteを要求する。
 
@@ -1359,8 +1359,8 @@ interface Vpwp50NestedRawLimitDiagnostic {
   これはpreflight到達前に完結するC-1案Cのroutingを変更しない。
 - 正常な別subjectと他persistence domainを維持し、projection除外をcanonical rewrite
   する。save→reload後も除外projectionを復活させない。
-- reader用1,024件上限をlive / writerのcanonical 128件上限へ流用しない。writerは
-  canonical nested上限とcard 128 period＋64KiB ANDをI/O前に検査する。
+- reader用1,024件上限をlive / writerのcanonical 256件上限へ流用しない。writerは
+  canonical nested上限とcard 256 period＋128KiB ANDをI/O前に検査する。
 
 
 
@@ -2336,7 +2336,7 @@ matching seen key groupが複数件の場合は、revision、forgetAtMsの大小
 | `src/engine/messages/message-router.ts` | expiry callback / durable mutation wiring |
 | `src/engine/display/standby-state-store.ts` | reducer、active subject snapshot、prospective card count / wire budget、nested fail-closed cleanup、snapshot、sweep、export、restore |
 | `src/engine/display/weather-warning-forecast-active-reducer.ts` | subject reducer、forecast label、Area / Local target identity、group内duplicate scope、partition後period merge、JST label、card全体period上限 |
-| `src/engine/display/weather-warning-forecast-wire.ts` | 新規。canonical card構築、period総数、UTF-8 JSON byte計測、64KiB invariant |
+| `src/engine/display/weather-warning-forecast-wire.ts` | 新規。canonical card構築、period総数、UTF-8 JSON byte計測、128KiB invariant |
 | `src/engine/display/protocol.ts` | DTO、target scope / Local code、group code、period tsNum、`weatherWarningForecast` kind |
 | `display/frontend/src/lib/protocol.ts` | engine protocol との同期 |
 | `src/engine/display/standby-registry.ts` | card policy、priority |
@@ -2356,7 +2356,7 @@ matching seen key groupが複数件の場合は、revision、forgetAtMsの大小
 | `test/engine/telegram-foundation/phase3b-standby-domains.test.ts` | durable policy、active protection、capacity rejection、訂正、取消、v1/v2同値 |
 | `test/engine/display/standby-state-store.test.ts` | reducer、active subject snapshot、source / semantic / nested / card wire capacity fail-closed、period expiry、restore |
 | `test/engine/display/standby-persistence.test.ts` | string / count / wire上限、nested raw preflight、persisted identity、metadata subject claim、acceptedAt、duplicate seen key、bundle capacity、dual-write、旧実データ |
-| `test/engine/display/sse-clients.test.ts` | 128 period・64KiB最大cardを含むsnapshot / stateの`encodeSseGuarded()`境界 |
+| `test/engine/display/sse-clients.test.ts` | 256 period・128KiB最大cardを含むsnapshot / stateの`encodeSseGuarded()`境界 |
 | `test/engine/display/http-server.test.ts` | 最大VPWP50 cardと既存max snapshot fixtureの縮退後wire通過、standbyItems非縮退 |
 | `test/engine/display/standby-wiring.test.ts` | startup / 60秒 / admission 保存予約 |
 | `test/engine/display/protocol-sync.test.ts` | engine / frontend protocol 同期 |
@@ -2750,7 +2750,7 @@ live subject capacityをparser→provider→gate→reducerの統合試験にす�
 - tombstone-only bundle 192件。
 - gate family bundle総数は512件。
 - active projection period総数は128件。
-- canonical card JSONは64KiB以下となる短いfixture値を使用し、実byte数をassertする。
+- canonical card JSONは128KiB以下となる短いfixture値を使用し、実byte数をassertする。
 
 試験手順は次とする。
 
@@ -2781,7 +2781,7 @@ live subject capacityをparser→provider→gate→reducerの統合試験にす�
 - gate bundle総数511件
 - 新規active一件を受理した後、gate bundle512件、active pair128件、card period128件となる
 - providerは受理前127件、受理後128件を返す
-- prospective cardが64KiB以下であることを確認する
+- prospective cardが128KiB以下であることを確認する
 
 補助境界は次とする。
 
@@ -2791,9 +2791,9 @@ live subject capacityをparser→provider→gate→reducerの統合試験にす�
 - 同callのpre-admission expiryだけはdurable changeとして保存。
 - active gate-onlyをvictimにして新規subjectを受理しない。
 - provider件数128だけをfamily subject総数と誤認しない。
-- existing gate-only subjectをactiveへ更新した結果cardが129 periodになる場合、gateは通常orderingで受理するがprojectionはwire fail-closedとなり、gate-onlyのまま残る。
+- existing gate-only subjectをactiveへ更新した結果cardが257 periodになる場合、gateは通常orderingで受理するがprojectionはwire fail-closedとなり、gate-onlyのまま残る。
 
-nested live limitは、各階層の宣言上限だけでなく、subject period予算、card period予算、64KiB byte予算を合わせた実効上限で検査する。
+nested live limitは、各階層の宣言上限だけでなく、subject period予算、card period予算、128KiB byte予算を合わせた実効上限で検査する。
 
 - non-nullかつ1以上の`effectiveLimit` fixtureでは、`effectiveLimit - 1`と
   `effectiveLimit`を受理する。
@@ -2807,16 +2807,16 @@ nested live limitは、各階層の宣言上限だけでなく、subject period�
 - limit+1 runtime stateをwriterへ渡さない。
 - 別subjectの正常projectionをevictしない。
 
-count境界はwire byte上限とのANDで固定する。宣言上限128を、そのshapeが64KiBに
+count境界はwire byte上限とのANDで固定する。宣言上限を、そのshapeがcard byte上限に
 収まるという意味へ読み替えない。
 
 | 検査対象 | count fixture | 期待 |
 |---|---|---|
-| group / subject | 各groupに一target・一period | 下記の固定shapeでは100 / 101受理、102はbyte超過、128はcount内だがbyte超過、129は複合違反 |
-| target / group | 一group、各targetに一period | 127 / 128受理、129はtarget・subject period・card period違反 |
-| period / target | 一group・一target | 127 / 128受理、129はperiod・subject period・card period違反 |
-| subject total period | 任意の合法partition | 127 / 128受理、129拒否 |
-| card total period | 複数subjectへ分散可 | 127 / 128受理、129拒否 |
+| group / subject | 各groupに一target・一period | 下記の固定shapeでは128までbyte・count とも受理、129はcountのみ超過、203でbyteに到達、257は複合違反 |
+| target / group | 一group、各targetに一period | 127 / 128受理、129は`targetsPerGroup`違反（period総数は上限内） |
+| period / target | 一group・一target | 127 / 128受理、129は`periodsPerTarget`違反（period総数は上限内） |
+| subject total period | 任意の合法partition | 255 / 256受理、257拒否。256を2 targetでは作れないため3 targetへ分ける |
+| card total period | 複数subjectへ分散可 | 255 / 256受理、257拒否 |
 | anchor内period | 同一target・同一anchor | 3 / 4受理、5拒否 |
 
 group fixtureはkey encodingとbyte期待値を一意にするため、次の値を固定する。
@@ -2839,17 +2839,28 @@ group fixtureはkey encodingとbyte期待値を一意にするため、次の値
 |---:|---:|---|
 | 100 | `64,845` | 受理 |
 | 101 | `65,492` | 受理 |
-| 102 | `66,139` | `cardJsonBytes`で拒否 |
-| 128 | `82,961` | countは宣言上限内だが`cardJsonBytes`で拒否 |
-| 129 | `83,608` | 下記4reasonで拒否 |
+| 102 | `66,139` | 受理 |
+| 128 | `82,961` | 受理（`groupsPerSubject`の宣言上限ちょうど） |
+| 129 | `83,608` | `groupsPerSubject`のみで拒否。byteは上限内 |
+| 201 | `130,192` | byte実効境界の内側 |
+| 202 | `130,839` | byte実効境界。ここまでが128KiB以内 |
+| 203 | `131,486` | ここから`cardJsonBytes`にも到達する |
+| 256 | `165,777` | count・byteの複合違反 |
+| 257 | `166,424` | count・byteの複合違反 |
 
 byte値はproduction helperから期待値を作らず、fixture JSONにliteralとして保存する。
 fixture loaderが実itemを構成して`Buffer.byteLength(JSON.stringify(item), "utf8")`と
 比較する。derived keyをlength-prefixed raw tupleやhex digestへ変えるとこのgoldenが
 失敗し、encoder変更を暗黙に許さない。
 
-129 group fixtureの`reasons`は次の4件とする。全entryの必須`samplePaths`も比較対象
-から外さない。
+reason goldenは同じliteral shapeのまま、**各groupのperiodを3件へ増やした129 group
+fixture**から採る。1 period / groupのままでは、`groupsPerSubject`をN=128へ切り詰めた
+prefixが全制約を満たしてしまい、実効上限が宣言上限128と同値になる。二分探索が
+declaredLimitをそのまま返しただけの状態と区別できないので、`128 * p > 256`となる
+最小のp（＝3）を使う。periodは`2 * i`時間後に開始し一時間後に終了、anchorは4件ずつ。
+
+129 group × 3 period fixtureの`reasons`は次の4件とする。全entryの必須`samplePaths`も
+比較対象から外さない。
 
 ```json
 [
@@ -2857,7 +2868,7 @@ fixture loaderが実itemを構成して`Buffer.byteLength(JSON.stringify(item), 
     "code": "groupsPerSubject",
     "actual": 129,
     "declaredLimit": 128,
-    "effectiveLimit": 101,
+    "effectiveLimit": 85,
     "violatingUnitCount": 1,
     "limitingHierarchies": [
       "groupsPerSubject",
@@ -2871,9 +2882,9 @@ fixture loaderが実itemを構成して`Buffer.byteLength(JSON.stringify(item), 
   },
   {
     "code": "periodsPerSubject",
-    "actual": 129,
-    "declaredLimit": 128,
-    "effectiveLimit": 101,
+    "actual": 387,
+    "declaredLimit": 256,
+    "effectiveLimit": 256,
     "violatingUnitCount": 1,
     "limitingHierarchies": [
       "periodsPerSubject",
@@ -2886,9 +2897,9 @@ fixture loaderが実itemを構成して`Buffer.byteLength(JSON.stringify(item), 
   },
   {
     "code": "periodsPerCard",
-    "actual": 129,
-    "declaredLimit": 128,
-    "effectiveLimit": 101,
+    "actual": 387,
+    "declaredLimit": 256,
+    "effectiveLimit": 256,
     "violatingUnitCount": 1,
     "limitingHierarchies": [
       "periodsPerCard",
@@ -2900,9 +2911,9 @@ fixture loaderが実itemを構成して`Buffer.byteLength(JSON.stringify(item), 
   },
   {
     "code": "cardJsonBytes",
-    "actual": 83608,
-    "declaredLimit": 65536,
-    "effectiveLimit": 65536,
+    "actual": 157138,
+    "declaredLimit": 131072,
+    "effectiveLimit": 131072,
     "violatingUnitCount": 1,
     "limitingHierarchies": [
       "cardJsonBytes"
@@ -2926,18 +2937,21 @@ fixture loaderが実itemを構成して`Buffer.byteLength(JSON.stringify(item), 
 
 複数local unitの`effectiveLimit`集約は、period / target fixtureで独立に固定する。
 
-1. 一subject・一groupに、canonical target keyが異なる二targetを置く。
-2. 各targetへ129 periodを置き、各anchorは最大4 period、他のnested invariantは全て
-   満たす。短いauthoritative stringを使い、各targetのcanonical先頭64 period、合計
-   128 periodから作るcardが64KiB以下であることを実byte数でassertする。
-3. original candidateの`periodsPerTarget` reasonは`actual: 129`、
-   `violatingUnitCount: 2`とする。
-4. 二targetへ同じcandidate `N`を同時適用すると、`N = 64`は合計128 periodで全制約を
-   満たし、`N = 65`は合計130 periodでsubject / card period上限を超える。したがって
-   `periodsPerTarget.effectiveLimit === 64`とする。
+1. 一subject・一groupに、canonical target keyが異なる三targetを置く。三なのは、
+   subject上限256がtarget上限128の二倍になった結果、二targetでは共通Nが宣言上限
+   128と同値になり境界を検査しなくなるためである。
+2. 各targetへ257 periodを置き、各anchorは最大4 period、他のnested invariantは全て
+   満たす。短いauthoritative stringを使い、各targetのcanonical先頭85 period、合計
+   255 periodから作るcardが`73,906` bytesで128KiB以下であることを実byte数で
+   assertする。
+3. original candidateの`periodsPerTarget` reasonは`actual: 257`、
+   `violatingUnitCount: 3`とする。
+4. 三targetへ同じcandidate `N`を同時適用すると、`N = 85`は合計255 periodで全制約を
+   満たし、`N = 86`は合計258 period・`74,764` bytesでsubject / card period上限を
+   超える。したがって`periodsPerTarget.effectiveLimit === 85`とする。
 5. targetごとに単独計算した128を採用すること、一方を128・他方を0へすること、先頭
    targetを先に縮めた残予算から後続targetの値を求めることを禁止する。
-6. `samplePaths`は二targetのescaped canonical path昇順とする。
+6. `samplePaths`は三targetのescaped canonical path昇順とする。
 7. target arrayと各targetのperiod arrayをともに反転したfixtureでも、reason全field、
    common `effectiveLimit`、prospective 64 / 65境界を完全一致させる。
 
@@ -2946,23 +2960,23 @@ fixture loaderが実itemを構成して`Buffer.byteLength(JSON.stringify(item), 
 - subjectは`weatherTimeseries:a:scope:all`とする。
 - group Aは`phenomenonName: "雨"`、`significancyCode: "uA"`、
   `forecastLabel: "大雨（区分不明）の予測"`、`displaySeverity: "unknown"`、
-  `severity: "warning"`とする。target `i = 0..128`のcode-less Area nameは
+  `severity: "warning"`とする。target `i = 0..256`のcode-less Area nameは
   `i.toString(36)`とし、各targetに一periodを置く。
 - group Bはgroup Aの`significancyCode`だけを`"uB"`へ変え、code-less Area target
-  `name:b`を一件、そのtargetへ129 periodを置く。
+  `name:b`を一件、そのtargetへ257 periodを置く。
 - 全periodは`tsNum: 1`、series `3h`とする。group Aのperiodは全て
   `2026-01-01T00:00:00.000Z`〜`01:00:00.000Z`、group Bのperiod `i`は同基点から
   `2 * i`時間後に開始し一時間後に終了する。JST labelは§3.4 helperで生成する。
 - anchor計算用revisionは`reportTimeMs: 1767139200000`、normalized serial `"1"`とし、
   periodをtargetごとにcanonical順で最大4件ずつanchorへ割り当てる。両groupの他fieldも
   deep-validにする。
-- original candidateは258 periodで、`targetsPerGroup`、`periodsPerTarget`、
+- original candidateは514 periodで、`targetsPerGroup`、`periodsPerTarget`、
   `periodsPerSubject`、`periodsPerCard`、`cardJsonBytes`の全reasonを持つ。
 - card outerはkey `weatherWarningForecast:active`、source IDs `["a"]`、updatedAt
   `2025-12-31T00:00:00.000Z`、original expiresAt `2026-01-11T17:00:00.000Z`、
   `restored: false`、severity `warning`、surface `corner-right`とする。
-- UTF-8 JSON byte goldenはgroup Aだけ`56,254`、group Bだけ`37,596`、original
-  candidate `93,595`とする。前二件は129 periodでも64KiB以下なので、null reasonの
+- UTF-8 JSON byte goldenはgroup Aだけ`111,678`、group Bだけ`74,432`、original
+  candidate `185,855`とする。前二件は257 periodでも128KiB以下なので、null reasonの
   `limitingHierarchies`へ`cardJsonBytes`を入れない。
 - subject / card periodのcanonical flattened順ではgroup Aが先となり、N=128のprefix
   cardは`55,821` bytesで全制約を満たす。N=129ではgroup Aの129 target違反が成立する
@@ -2977,8 +2991,8 @@ group B:       VnV-CHEOKdaXAKEQb6L-4l3enTedkvIyVan0w-MDoC8
 group B target:yTVprt4v2XxZLreTuIY6ufL9Oxu_nlKQE9CrgX5H9bc
 ```
 
-`targetsPerGroup`だけを調整するとN=0でもgroup Bの129 period targetが残り、
-`periodsPerTarget`だけを調整するとN=0でもgroup Aの129 targetが残る。両reasonの
+`targetsPerGroup`だけを調整するとN=0でもgroup Bの257 period targetが残り、
+`periodsPerTarget`だけを調整するとN=0でもgroup Aの257 targetが残る。両reasonの
 `A_code`がemptyであることをN=0〜128の全候補評価で確認し、次をfull no-solution
 reason goldenとする。
 
@@ -2986,7 +3000,7 @@ reason goldenとする。
 [
   {
     "code": "targetsPerGroup",
-    "actual": 129,
+    "actual": 257,
     "declaredLimit": 128,
     "effectiveLimit": null,
     "violatingUnitCount": 1,
@@ -3002,7 +3016,7 @@ reason goldenとする。
   },
   {
     "code": "periodsPerTarget",
-    "actual": 129,
+    "actual": 257,
     "declaredLimit": 128,
     "effectiveLimit": null,
     "violatingUnitCount": 1,
@@ -3018,8 +3032,8 @@ reason goldenとする。
   },
   {
     "code": "periodsPerSubject",
-    "actual": 258,
-    "declaredLimit": 128,
+    "actual": 514,
+    "declaredLimit": 256,
     "effectiveLimit": 128,
     "violatingUnitCount": 1,
     "limitingHierarchies": [
@@ -3033,8 +3047,8 @@ reason goldenとする。
   },
   {
     "code": "periodsPerCard",
-    "actual": 258,
-    "declaredLimit": 128,
+    "actual": 514,
+    "declaredLimit": 256,
     "effectiveLimit": 128,
     "violatingUnitCount": 1,
     "limitingHierarchies": [
@@ -3047,9 +3061,9 @@ reason goldenとする。
   },
   {
     "code": "cardJsonBytes",
-    "actual": 93595,
-    "declaredLimit": 65536,
-    "effectiveLimit": 65536,
+    "actual": 185855,
+    "declaredLimit": 131072,
+    "effectiveLimit": 131072,
     "violatingUnitCount": 1,
     "limitingHierarchies": [
       "cardJsonBytes"
@@ -3066,30 +3080,30 @@ reason goldenとする。
 - group array、group Aのtarget array、group Bのperiod arrayを全て反転しても、full
   reason配列と上記no-solution goldenをbyte-for-byte一致させる。
 - JSON round-trip後もrequired fieldの`null`を保持し、field省略または0へ変換しない。
-- control fixtureでは、64KiB以下の既存128-period cardを固定し、incoming違反targetの
+- control fixtureでは、128KiB以下の既存256-period cardを固定し、incoming違反targetの
   childをN=0で全除外した場合だけ合法にする。このreasonは`effectiveLimit: 0`となり、
   no-solution fixtureの`null`と区別する。
-- 既存の同一reason二target fixtureは`effectiveLimit: 64`の数値枝として維持する。
+- 既存の同一reason三target fixtureは`effectiveLimit: 85`の数値枝として維持する。
 
 target 511 / 512 / 513をcanonical受理境界として生成しない。targetのcanonical宣言上限は128であり、metadata containerの511 / 512 / 513試験とは分離する。
 
 subject 512 / 513はnested projection境界ではなく、§3.8のgate family capacity試験だけで固定する。
 
 
-各stringは上限、上限＋1を試験する。ただし、複数max-length stringの組合せが64KiBを超える場合、個別string上限ではなくcard byte上限による拒否として分類する。
+各stringは上限、上限＋1を試験する。ただし、複数max-length stringの組合せが128KiBを超える場合、個別string上限ではなくcard byte上限による拒否として分類する。
 
 wire byte境界は共通card builderで次を試験する。
 
 1. ASCII fillerをauthoritative string fieldへ分配し、canonical card itemのUTF-8 JSON byte数が`64 * 1024 - 1`、`64 * 1024`、`64 * 1024 + 1`となるfixtureを作る。
-2. `64KiB - 1`とexact `64KiB`を受理する。
-3. `64KiB + 1`はprojection全体をfail-closedで拒否する。
-4. exact 128 periodかつ64KiB以下の最大valid fixtureを作る。
+2. `128KiB - 1`とexact `128KiB`を受理する。
+3. `128KiB + 1`はprojection全体をfail-closedで拒否する。
+4. exact 256 periodかつ128KiB以下の最大valid fixtureを作る。targetsPerGroupは128のままなので、256 targetは二groupへ分ける。
 5. fixtureを実`DisplayStateSnapshotV1.standbyItems`へ入れる。
 6. `{ type: "snapshot", snapshot }`と`{ type: "state", snapshot }`の双方で`encodeSseGuarded()`がnon-nullとなる。
 7. SSE framing込みの実byte数が`MAX_SNAPSHOT_BYTES`以下であることをassertする。
 8. 既存max non-VPWP snapshot fixtureへ最大valid VPWP50 cardを加え、`degradeSnapshotToBudget()`後のmessageが`encodeSseGuarded()`を通る。
 9. 前項の縮退で`weatherWarningForecast` standby item、period、pager anchorを削除または書き換えていない。
-10. 129 periodまたはcard JSON 64KiB＋1はsnapshot生成前に拒否され、HTTP接続切断へ到達しない。
+10. 257 periodまたはcard JSON 128KiB＋1はsnapshot生成前に拒否され、HTTP接続切断へ到達しない。
 11. 従来の16,384 period最小DTO相当はsubject count preflightで拒否され、大容量JSONをruntime stateへ保持しない。
 
 live candidateがcard全体count / byte上限を超える場合は、同subjectの旧projectionだけを削除し、accepted gateをactive gate-onlyとして保持する。別subjectのprojectionは維持する。
@@ -3104,17 +3118,17 @@ readerのcanonicalization順序をfixed `restoreNowMs`で試験する。
 6. 空target / group / subjectを除外する。
 7. retained projectionへ`restored: true`を設定する。
 8. post-expiryかつ`restored: true`のwire DTOを構成する。
-9. そのDTOへperiod総数と64KiB budgetを適用する。
+9. そのDTOへperiod総数と128KiB budgetを適用する。
 10. retained / gate-only bundleをcommitする。
 11. canonical rewrite後にsave / reloadする。
 
 次の境界fixtureを固定する。
 
-- live `restored: false`のcardがexact 64KiB。save後、fixed clockでreloadすると`restored: true`となり、JSONが1 byte小さい`64KiB - 1`で受理される。
-- persisted projectionから作る実際の`restored: true` cardがexact 64KiB。仮に`restored: false`なら`64KiB + 1`となるfixtureを受理する。
-- post-restore `restored: true` cardが`64KiB + 1`となるfixtureはprojectionを除外する。
-- expiry前には64KiBを超えるが、期限切れperiod除外後の`restored: true` cardが64KiB以下となるfixtureはretained projectionを復元する。
-- expiry除外後も64KiB＋1となるfixtureはprojectionを除外し、valid gateをgate-onlyで保持する。
+- live `restored: false`のcardがexact 128KiB。save後、fixed clockでreloadすると`restored: true`となり、JSONが1 byte小さい`128KiB - 1`で受理される。
+- persisted projectionから作る実際の`restored: true` cardがexact 128KiB。仮に`restored: false`なら`128KiB + 1`となるfixtureを受理する。
+- post-restore `restored: true` cardが`128KiB + 1`となるfixtureはprojectionを除外する。
+- expiry前には128KiBを超えるが、期限切れperiod除外後の`restored: true` cardが128KiB以下となるfixtureはretained projectionを復元する。
+- expiry除外後も128KiB＋1となるfixtureはprojectionを除外し、valid gateをgate-onlyで保持する。
 - 全fixtureでload、sanitizer、migration、expiry、restore、card budgetへ同じ`restoreNowMs`を渡す。
 - save→reload→再保存→二段目reload後にperiod集合、gate status、restored表示、byte数が再変化しない。
 - writerはruntimeの実際の`restored`値を含むcardを同じhelperで検証する。
@@ -3123,7 +3137,7 @@ readerのglobal card salvageを次で固定する。
 
 - bundle capacity salvage後のactive pairをgate `acceptedAtMs`降順、subject key昇順で処理する。
 - 各projectionをwhole subject単位でprospective cardへ追加する。
-- period総数128件以下かつcard JSON 64KiB以下となるprojectionだけを保持する。
+- period総数256件以下かつcard JSON 128KiB以下となるprojectionだけを保持する。
 - 上限へ入らないprojectionは除外し、対応valid gateをactive gate-onlyへ再分類する。
 - 一件の除外後も後続の小さいprojectionを検討する。
 - retained projection集合、gate-only集合、diagnosticをinput順に依存させない。
@@ -3241,7 +3255,7 @@ expiry witnessを伴うchild salvageは次のfixtureで固定する。
 - 各bundleに対応する一意なvalid seenを持つ。
 - active projection period総数128件。
 - C-1 projection / tombstoneを含めない。
-- canonical card JSONは64KiB以下。
+- canonical card JSONは128KiB以下。
 - acceptedAt / subject keyを静的に配置し、deterministic selectorが除外する一件をgate-only bundleへ固定する。
 
 Fixture Aでは次を確認する。
@@ -3589,23 +3603,25 @@ XML fixture expectationsにはfixed nowMs、Area / Local raw XMLとcanonical ide
   gate-only / tombstoneを含むfamily subject総数を使う。
 - [ ] incoming rejection時も同callのpre-admission expiryを失わず、保存予約を一回へ
   合流する。
-- [ ] nested count、全card 128 period、canonical card JSON 64KiBをAND条件で
+- [ ] nested count、全card 256 period、canonical card JSON 128KiBをAND条件で
   prospective mapへ適用する。
 - [ ] count / byte違反はcandidate全体を拒否し、別subjectを縮退・evictせず、
   writerではI/O前にfail-loudとする。
 - [ ] 固定group shapeが100=`64,845`、101=`65,492`、102=`66,139`、
-  128=`82,961`、129=`83,608` bytesとなる。
-- [ ] 129-group診断は`groupsPerSubject`、`periodsPerSubject`、
-  `periodsPerCard`、`cardJsonBytes`の4reasonをcanonical順で持つ。
+  128=`82,961`、129=`83,608`、201=`130,192`、202=`130,839`、
+  203=`131,486`、256=`165,777`、257=`166,424` bytesとなる。
+- [ ] 129-group × 3-period診断は`groupsPerSubject`、`periodsPerSubject`、
+  `periodsPerCard`、`cardJsonBytes`の4reasonをcanonical順で持ち、
+  `groupsPerSubject.effectiveLimit`は宣言上限128より小さい85となる。
 - [ ] 全projection-limit reasonが必須`samplePaths`を持ち、fixture literalとの
   全field完全一致を行う。
 - [ ] 複数local unitの`effectiveLimit`は違反unit集合へ共通Nを同時適用して求め、
-  二target×129 period fixtureで64、target / period入力反転後も同値となる。
+  三target×257 period fixtureで85、target / period入力反転後も同値となる。
 - [ ] `effectiveLimit`はrequired `number | null`とし、候補集合emptyだけを`null`、
-  N=0の有効解を数値0として区別し、`cardJsonBytes`は常に65,536とする。
-- [ ] 129-target group＋129-period targetの混合fixtureで二local reasonを`null`とする
+  N=0の有効解を数値0として区別し、`cardJsonBytes`は常に131,072とする。
+- [ ] 257-target group＋257-period targetの混合fixtureで二local reasonを`null`とする
   no-solution goldenを全field一致させ、group / target / period反転後も同値となる。
-- [ ] exact 128 periodかつ64KiB以下の最大valid cardを含むsnapshot / stateが
+- [ ] exact 256 periodかつ128KiB以下の最大valid cardを含むsnapshot / stateが
   `encodeSseGuarded()`を通り、server縮退がcard内容を変えない。
 
 ### Persistence・migration・salvage

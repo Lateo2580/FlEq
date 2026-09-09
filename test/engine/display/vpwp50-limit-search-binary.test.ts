@@ -135,23 +135,33 @@ function synthState(
   };
 }
 
+/**
+ * 自身の階層と、その祖先である periodsPerSubject / periodsPerCard を同時に超える
+ * 件数。定数から導くので、上限が動いても shape が「自分の階層しか超えない」形へ
+ * 痩せない（2026-09-09 の 128 → 256 引き上げで実際に痩せた）。
+ */
+const OVER_SUBJECT_PERIODS = WEATHER_WARNING_FORECAST_MAX_PERIODS_PER_SUBJECT + 1;
+
 /** 単一 subject の違反 shape。subjectIndex で複数 subject へ複製できる。 */
 function shapeGroupsOver(subjectIndex: number): WeatherWarningForecastState {
-  return synthState(subjectIndex, Array.from({ length: 129 }, (_, index) =>
+  return synthState(subjectIndex, Array.from({ length: OVER_SUBJECT_PERIODS }, (_, index) =>
     synthGroup(`g${subjectIndex}_${index}`, [synthTarget(`group:g${subjectIndex}_${index}`, "a", 1)])));
 }
 
 function shapeTargetsOver(subjectIndex: number): WeatherWarningForecastState {
   const significancyCode = `t${subjectIndex}`;
   return synthState(subjectIndex, [synthGroup(significancyCode,
-    Array.from({ length: 129 }, (_, index) =>
+    Array.from({ length: OVER_SUBJECT_PERIODS }, (_, index) =>
       synthTarget(`group:${significancyCode}`, `a${index}`, 1)))]);
 }
 
-function shapePeriodsOver(subjectIndex: number): WeatherWarningForecastState {
+function shapePeriodsOver(
+  subjectIndex: number,
+  periodCount = OVER_SUBJECT_PERIODS,
+): WeatherWarningForecastState {
   const significancyCode = `p${subjectIndex}`;
   return synthState(subjectIndex, [
-    synthGroup(significancyCode, [synthTarget(`group:${significancyCode}`, "a", 129)]),
+    synthGroup(significancyCode, [synthTarget(`group:${significancyCode}`, "a", periodCount)]),
   ]);
 }
 
@@ -180,9 +190,10 @@ function shapeCardOver(subjectCount: number): WeatherWarningForecastState[] {
  * restored を末尾 subject に置くことで、切り詰め量に応じて実際に反転が起きる。
  */
 function shapeRestoredMix(): WeatherWarningForecastState[] {
+  const periodsEach = Math.ceil((WEATHER_WARNING_FORECAST_MAX_PERIODS_PER_CARD + 22) / 3);
   return Array.from({ length: 3 }, (_, index) => synthState(
     index,
-    [synthGroup(`r${index}`, [synthTarget(`group:r${index}`, "a", 50)])],
+    [synthGroup(`r${index}`, [synthTarget(`group:r${index}`, "a", periodsEach)])],
     index === 2,
   ));
 }
@@ -193,9 +204,9 @@ function shapeRestoredMix(): WeatherWarningForecastState[] {
  */
 function shapeMixed(): WeatherWarningForecastState[] {
   return [
-    synthState(0, Array.from({ length: 129 }, (_, index) =>
+    synthState(0, Array.from({ length: WEATHER_WARNING_FORECAST_MAX_GROUPS_PER_SUBJECT + 1 }, (_, index) =>
       synthGroup(`m${index}`, [synthTarget(`group:m${index}`, "a", 1)]))),
-    synthState(1, [synthGroup("mm", [synthTarget("group:mm", "b", 129)])]),
+    synthState(1, [synthGroup("mm", [synthTarget("group:mm", "b", OVER_SUBJECT_PERIODS)])]),
   ];
 }
 
@@ -217,7 +228,10 @@ const SHAPES: readonly Shape[] = [
   },
   {
     name: "periodsPerTarget 超過 (20 subject)",
-    states: Array.from({ length: 20 }, (_, index) => shapePeriodsOver(index)),
+    // 20 subject 分を 0..declaredLimit で全走査する A4 が重いので、この shape だけは
+    // periodsPerTarget の直上（129）に留める。祖先込みの被覆は 1 subject 版が持つ。
+    states: Array.from({ length: 20 }, (_, index) =>
+      shapePeriodsOver(index, WEATHER_WARNING_FORECAST_MAX_PERIODS_PER_TARGET + 1)),
   },
   { name: "横断集計超過 (restored 混在)", states: shapeRestoredMix() },
   { name: "複合違反 (effectiveLimit null を含む)", states: shapeMixed() },
@@ -322,24 +336,28 @@ describe("findEffectiveLimit — 探索回数 (A5)", () => {
     expect(calls).toBeLessThanOrEqual(8);
   });
 
-  it("実際の探索経路でも述語呼び出しは 8 回以下になる", () => {
+  it("実際の探索経路でも declaredLimit ごとの二分探索上界に収まる", () => {
+    // 0..declaredLimit の二分探索は ceil(log2(declaredLimit + 2)) 回で尽きる
+    // (128 なら 8 回、256 なら 9 回)。階層ごとに declaredLimit が違うので、
+    // 128 の階層だけを拾う skip ではなく上界そのものを式で書く。
     let checkedCodes = 0;
     for (const shape of SHAPES) {
       for (const code of searchableCodes(shape)) {
         const paths = violatingPaths(shape.states, code);
         const declaredLimit = DECLARED_LIMITS[code];
-        if (declaredLimit !== 128) continue;
+        const bound = Math.ceil(Math.log2(declaredLimit + 2));
         const pass = productionPredicate(shape.states, code, paths);
         let calls = 0;
         findEffectiveLimit(declaredLimit, (candidate) => {
           calls += 1;
           return pass(candidate);
         });
-        expect(calls, `${shape.name} / ${code}`).toBeLessThanOrEqual(8);
+        expect(calls, `${shape.name} / ${code} (declaredLimit=${declaredLimit})`)
+          .toBeLessThanOrEqual(bound);
         checkedCodes += 1;
       }
     }
-    // 空振り防止: shape 群が declaredLimit=128 の探索を実際に踏んでいること
+    // 空振り防止: shape 群が探索を実際に踏んでいること
     expect(checkedCodes).toBeGreaterThanOrEqual(15);
   });
 });

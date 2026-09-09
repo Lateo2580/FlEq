@@ -8,6 +8,10 @@ import {
 } from "../../../src/engine/display/weather-warning-forecast-active-reducer";
 import * as wire from "../../../src/engine/display/weather-warning-forecast-wire";
 import {
+  buildWeatherWarningForecastCard,
+  weatherWarningForecastCardJsonBytes,
+  weatherWarningForecastProjectionLimitReasons,
+  WEATHER_WARNING_FORECAST_MAX_CARD_JSON_BYTES,
   WEATHER_WARNING_FORECAST_MAX_GROUPS_PER_SUBJECT,
   WEATHER_WARNING_FORECAST_MAX_PERIODS_PER_SUBJECT,
   WEATHER_WARNING_FORECAST_MAX_PERIODS_PER_TARGET,
@@ -125,11 +129,62 @@ function manyTargetsInfo(count: number): ParsedWeatherWarningTimeseriesInfo {
   );
 }
 
+/**
+ * One area per entry of `perTargetCounts`, carrying that many periods, so only
+ * periodsPerSubject can trip as long as every entry stays inside
+ * periodsPerTarget.
+ */
+function targetsInfo(perTargetCounts: readonly number[]): ParsedWeatherWarningTimeseriesInfo {
+  return parsedInfo(perTargetCounts.map((count, index) =>
+    area(`${index + 2}00000`, Array.from({ length: count }, (_, slot) => occurrence("20", slot)))));
+}
+
 /** Two areas of `perTarget` periods each, so only periodsPerSubject can trip. */
 function twoTargetsInfo(perTarget: number): ParsedWeatherWarningTimeseriesInfo {
-  const occurrences = (): SignificancyOccurrence[] =>
-    Array.from({ length: perTarget }, (_, index) => occurrence("20", index));
-  return parsedInfo([area("200000", occurrences()), area("300000", occurrences())]);
+  return targetsInfo([perTarget, perTarget]);
+}
+
+/**
+ * Exactly `periodsPerSubject + 1` periods spread so that no target reaches
+ * periodsPerTarget.  Two targets cannot express it once the subject limit is
+ * twice the target limit (2 x 128 = 256), so a third target carries the
+ * remainder.
+ */
+const OVER_SUBJECT_COUNTS: readonly number[] = (() => {
+  const counts: number[] = [];
+  let remaining = WEATHER_WARNING_FORECAST_MAX_PERIODS_PER_SUBJECT + 1;
+  while (remaining > 0) {
+    const take = Math.min(WEATHER_WARNING_FORECAST_MAX_PERIODS_PER_TARGET, remaining);
+    counts.push(take);
+    remaining -= take;
+  }
+  return counts;
+})();
+
+function overSubjectPeriodsInfo(): ParsedWeatherWarningTimeseriesInfo {
+  return targetsInfo(OVER_SUBJECT_COUNTS);
+}
+
+/**
+ * 2026-08-30 20:26 に名古屋地方気象台の VPWP50 が `periodsPerSubject` で落ちた
+ * 規模の再現。4 種の (現象 x 階級) が区域ごとに立ち、`periodTotal` 件の period に
+ * なるまで区域を足す。どの target も period 1 件なので、先に到達する階層は
+ * periodsPerSubject だけになる。
+ */
+function realWorldScaleInfo(periodTotal: number): ParsedWeatherWarningTimeseriesInfo {
+  const codes = ["21", "22", "31", "41"];
+  const areas: WeatherWarningTimeseriesArea[] = [];
+  let remaining = periodTotal;
+  for (let index = 0; remaining > 0; index += 1) {
+    const occurrences: SignificancyOccurrence[] = [];
+    for (const code of codes) {
+      if (remaining === 0) break;
+      occurrences.push(occurrence(code, 0));
+      remaining -= 1;
+    }
+    areas.push(area(`${300_000 + index}`, occurrences));
+  }
+  return parsedInfo(areas);
 }
 
 interface ReduceOverrides {
@@ -278,6 +333,46 @@ describe("VPWP50 reducer result classification", () => {
 describe("VPWP50 reducer nested count boundaries", () => {
   const subjectPath = `subjects/${escapePath(SUBJECT)}`;
 
+  // A1: 実機で落ちた 194 period が新上限で active になる。
+  it("accepts the 194-period candidate that the old 128 limit rejected", () => {
+    const parsed = realWorldScaleInfo(194);
+    const result = reduce(parsed);
+    expect(result.kind).toBe("active");
+    if (result.kind !== "active") return;
+    const periods = result.state.groups.flatMap((group) =>
+      group.targets.flatMap((target) => target.periods));
+    expect(periods).toHaveLength(194);
+    // 194 が 128 を超えていること自体を固定する（旧上限では reducer が落としていた）。
+    expect(periods.length).toBeGreaterThan(128);
+    expect(periods.length).toBeLessThanOrEqual(WEATHER_WARNING_FORECAST_MAX_PERIODS_PER_SUBJECT);
+    // 他の階層は無傷（この candidate が periodsPerSubject だけを試していること）。
+    expect(result.state.groups).toHaveLength(4);
+    expect(Math.max(...result.state.groups.map((group) => group.targets.length)))
+      .toBeLessThanOrEqual(WEATHER_WARNING_FORECAST_MAX_TARGETS_PER_GROUP);
+  });
+
+  // A2: 同じ candidate が live 経路を通り、card 側の byte 検査にも落ちない。
+  it("admits the 194-period candidate through the live store without a capacity warn", () => {
+    const store = new StandbyStateStore();
+    const warn = vi.spyOn(log, "warn").mockImplementation(() => undefined);
+
+    expect(store.applyEvent(forecastEvent(realWorldScaleInfo(194)), NOW_MS))
+      .toEqual({ viewChanged: true, durableChanged: true });
+
+    expect(warn.mock.calls.map((call) => call[0])
+      .filter((line) => line.includes("vpwp50Projection"))).toEqual([]);
+    const state = forecastStates(store).get(SUBJECT);
+    expect(state).toBeDefined();
+    expect(state!.groups.flatMap((group) =>
+      group.targets.flatMap((target) => target.periods))).toHaveLength(194);
+    const card = buildWeatherWarningForecastCard([state!]);
+    expect(card).not.toBeNull();
+    // byte 側にも余裕があること（count だけ上げても byte で落ちる、が spec §2.3 の論点）。
+    expect(weatherWarningForecastCardJsonBytes(card!))
+      .toBeLessThanOrEqual(WEATHER_WARNING_FORECAST_MAX_CARD_JSON_BYTES);
+    expect(weatherWarningForecastProjectionLimitReasons([state!])).toEqual([]);
+  });
+
   it("accepts 128 groups and rejects 129 with groupsPerSubject", () => {
     expect(reduce(manyGroupsInfo(WEATHER_WARNING_FORECAST_MAX_GROUPS_PER_SUBJECT)).kind).toBe("active");
     expect(reduce(manyGroupsInfo(WEATHER_WARNING_FORECAST_MAX_GROUPS_PER_SUBJECT + 1))).toEqual({
@@ -315,15 +410,25 @@ describe("VPWP50 reducer nested count boundaries", () => {
       .toMatch(new RegExp(`^${subjectPath}/groups/[\\w-]+/targets/[\\w-]+/periods$`));
   });
 
-  it("accepts 128 subject periods and rejects 130 with periodsPerSubject", () => {
-    expect(reduce(twoTargetsInfo(WEATHER_WARNING_FORECAST_MAX_PERIODS_PER_SUBJECT / 2)).kind).toBe("active");
-    expect(reduce(twoTargetsInfo(65))).toEqual({
+  it("accepts 256 subject periods and rejects 257 with periodsPerSubject", () => {
+    // 空洞化の番人: どの target も periodsPerTarget の内側に留まっていないと、
+    // 先に periodsPerTarget が鳴って periodsPerSubject の境界を試験できない。
+    const counts = [WEATHER_WARNING_FORECAST_MAX_PERIODS_PER_TARGET, WEATHER_WARNING_FORECAST_MAX_PERIODS_PER_TARGET];
+    expect(counts.reduce((sum, count) => sum + count, 0))
+      .toBe(WEATHER_WARNING_FORECAST_MAX_PERIODS_PER_SUBJECT);
+    expect(reduce(targetsInfo(counts)).kind).toBe("active");
+
+    expect(Math.max(...OVER_SUBJECT_COUNTS))
+      .toBeLessThanOrEqual(WEATHER_WARNING_FORECAST_MAX_PERIODS_PER_TARGET);
+    expect(OVER_SUBJECT_COUNTS.reduce((sum, count) => sum + count, 0))
+      .toBe(WEATHER_WARNING_FORECAST_MAX_PERIODS_PER_SUBJECT + 1);
+    expect(reduce(overSubjectPeriodsInfo())).toEqual({
       kind: "rejected",
       reason: {
         code: "capacityExceeded",
         hierarchy: "periodsPerSubject",
-        actual: 130,
-        declaredLimit: 128,
+        actual: WEATHER_WARNING_FORECAST_MAX_PERIODS_PER_SUBJECT + 1,
+        declaredLimit: WEATHER_WARNING_FORECAST_MAX_PERIODS_PER_SUBJECT,
         samplePath: `${subjectPath}/periods`,
       },
     });
@@ -358,7 +463,7 @@ describe("VPWP50 sample paths escape the subject key", () => {
     expect(groups.kind === "rejected" && groups.reason.code === "capacityExceeded"
       && groups.reason.samplePath).toBe(`subjects/${ESCAPED}/groups`);
 
-    const periods = reduce(twoTargetsInfo(65), { subjectKey: SLASH_SUBJECT });
+    const periods = reduce(overSubjectPeriodsInfo(), { subjectKey: SLASH_SUBJECT });
     expect(periods.kind === "rejected" && periods.reason.code === "capacityExceeded"
       && periods.reason.samplePath).toBe(`subjects/${ESCAPED}/periods`);
 
@@ -386,9 +491,17 @@ describe("VPWP50 sample paths escape the subject key", () => {
     const accepted = reduce(manyGroupsInfo(128), { subjectKey: SLASH_SUBJECT });
     expect(accepted.kind).toBe("active");
     if (accepted.kind !== "active") return;
+    // groupsPerSubject と periodsPerSubject の両方を鳴らす必要があるので、
+    // 1 period の group を periodsPerSubject の直上まで積む。
+    const extras = WEATHER_WARNING_FORECAST_MAX_PERIODS_PER_SUBJECT + 1 - accepted.state.groups.length;
+    expect(extras).toBeGreaterThan(0);
     const oversized: WeatherWarningForecastState = {
       ...accepted.state,
-      groups: [...accepted.state.groups, { ...accepted.state.groups[0]!, key: "extra-group-key" }],
+      groups: [
+        ...accepted.state.groups,
+        ...Array.from({ length: extras }, (_, index) =>
+          ({ ...accepted.state.groups[0]!, key: `extra-group-key-${index}` })),
+      ],
     };
 
     const wireReasons = wire.weatherWarningForecastProjectionLimitReasons([oversized]);
@@ -401,7 +514,7 @@ describe("VPWP50 sample paths escape the subject key", () => {
     expect(reducerGroups.kind === "rejected" && reducerGroups.reason.code === "capacityExceeded"
       && reducerGroups.reason.samplePath).toBe(groupsReason!.samplePaths[0]);
 
-    const reducerPeriods = reduce(twoTargetsInfo(65), { subjectKey: SLASH_SUBJECT });
+    const reducerPeriods = reduce(overSubjectPeriodsInfo(), { subjectKey: SLASH_SUBJECT });
     expect(reducerPeriods.kind === "rejected" && reducerPeriods.reason.code === "capacityExceeded"
       && reducerPeriods.reason.samplePath).toBe(periodsReason!.samplePaths[0]);
   });
@@ -539,13 +652,17 @@ describe("VPWP50 store diagnostics", () => {
   it("keeps the card-side capacity diagnostic in its existing origin-free shape", () => {
     const store = new StandbyStateStore();
     // Each subject stays inside every per-subject limit; only the card total trips.
+    // The seeded subject sits exactly on periodsPerSubject, so the single extra
+    // period below is what pushes the card total past periodsPerCard.
     expect(store.applyEvent(
-      forecastEvent(twoTargetsInfo(32), { id: "card-a", standbyStateSubject: OTHER_SUBJECT }),
+      forecastEvent(twoTargetsInfo(WEATHER_WARNING_FORECAST_MAX_PERIODS_PER_TARGET), {
+        id: "card-a", standbyStateSubject: OTHER_SUBJECT,
+      }),
       NOW_MS,
     )).toEqual({ viewChanged: true, durableChanged: true });
     const warn = vi.spyOn(log, "warn").mockImplementation(() => undefined);
 
-    expect(store.applyEvent(forecastEvent(twoTargetsInfo(50)), NOW_MS)).toEqual(
+    expect(store.applyEvent(forecastEvent(singleTargetInfo(1)), NOW_MS)).toEqual(
       { viewChanged: false, durableChanged: false },
     );
 
@@ -574,7 +691,7 @@ describe("VPWP50 store behaviour is unchanged by the classification", () => {
     ["groupsPerSubject", manyGroupsInfo(129)],
     ["targetsPerGroup", manyTargetsInfo(129)],
     ["periodsPerTarget", singleTargetInfo(129)],
-    ["periodsPerSubject", twoTargetsInfo(65)],
+    ["periodsPerSubject", overSubjectPeriodsInfo()],
     ["empty", parsedInfo([])],
     ["reducerThrew", () => {
       const parsed = parsedInfo([]);

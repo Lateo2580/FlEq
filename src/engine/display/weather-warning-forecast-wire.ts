@@ -11,10 +11,10 @@ export const WEATHER_WARNING_FORECAST_MAX_SUBJECTS = 512;
 export const WEATHER_WARNING_FORECAST_MAX_GROUPS_PER_SUBJECT = 128;
 export const WEATHER_WARNING_FORECAST_MAX_TARGETS_PER_GROUP = 128;
 export const WEATHER_WARNING_FORECAST_MAX_PERIODS_PER_TARGET = 128;
-export const WEATHER_WARNING_FORECAST_MAX_PERIODS_PER_SUBJECT = 128;
-export const WEATHER_WARNING_FORECAST_MAX_PERIODS_PER_CARD = 128;
+export const WEATHER_WARNING_FORECAST_MAX_PERIODS_PER_SUBJECT = 256;
+export const WEATHER_WARNING_FORECAST_MAX_PERIODS_PER_CARD = 256;
 export const WEATHER_WARNING_FORECAST_PERIODS_PER_ATOM = 4;
-export const WEATHER_WARNING_FORECAST_MAX_CARD_JSON_BYTES = 64 * 1024;
+export const WEATHER_WARNING_FORECAST_MAX_CARD_JSON_BYTES = 128 * 1024;
 
 export const WEATHER_WARNING_FORECAST_READER_MAX_RAW_PROJECTION_ITEMS = 1_024;
 export const WEATHER_WARNING_FORECAST_READER_MAX_RAW_METADATA_ITEMS = 1_024;
@@ -301,8 +301,9 @@ export function findEffectiveLimit(
   let effectiveLimit: number | null = null;
   while (low <= high) {
     // `low + ((high - low) >> 1)` rather than `(low + high) >> 1`: this is an
-    // exported general-purpose search, so the midpoint must stay correct even
-    // for bounds a future caller might pass beyond the current 128.
+    // exported general-purpose search whose callers already pass several
+    // different declared limits (4, 128, 256), so the midpoint must stay
+    // correct for any bound a future caller might raise them to.
     const mid = low + ((high - low) >> 1);
     if (pass(mid)) {
       effectiveLimit = mid;

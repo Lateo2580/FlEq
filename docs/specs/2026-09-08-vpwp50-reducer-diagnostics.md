@@ -260,7 +260,7 @@ store は `capacityExceeded` を受けたとき、既存の `standby-state-store
 
 **`origin: "reducer"` は省略できない。** `effectiveLimit: null` は既存の `weatherWarningForecastProjectionLimitReasons` では「`candidate = 0..declaredLimit` のどれで切り詰めても card 制約を満たせなかった」という**強い意味**を持つ（`weather-warning-forecast-wire.ts:304-307`——ループが 1 度も `effectiveLimit` を代入できなかった場合だけ `null` が残る）。この `null` は実際に既存の golden にも現れる（`test/engine/display/standby-state-store.test.ts:866` が `[null, null]` を固定）。reducer 由来の `null` は「探索していないので不明」であって、意味がほぼ正反対になる。
 
-**ただし card 由来の reason 側に `origin: "card"` を足してはならない。** `Vpwp50ProjectionLimitReason` の形は golden fixture（`test/fixtures/vpwp50-forecast-expectations.json` の `groupShape129Reasons` / `twoTargets129Reasons` / `mixed129Reasons`）と厳密一致アサーション（`standby-state-store.test.ts:893-900`）に固定されており、`weatherWarningForecastProjectionLimitReasons` の出力を変えることは §3.5 の禁止変更・A7 に反する。**reducer 由来の行にだけ `origin: "reducer"` が現れ、その欠如が card 由来を意味する**という非対称を採る。型としては reducer 由来の diagnostic を `Vpwp50ProjectionLimitReason & { origin: "reducer" }` 相当の別型として store 側に置き、wire の既存 export は触らない。
+**ただし card 由来の reason 側に `origin: "card"` を足してはならない。** `Vpwp50ProjectionLimitReason` の形は golden fixture（`test/fixtures/vpwp50-forecast-expectations.json` の `groupShape129Reasons` / `twoTargets129Reasons` / `mixed129Reasons`。**2026-09-09 の上限引き上げで `groupShapeOverReasons` / `threeTargetsOverReasons` / `mixedOverReasons` へ改名し、shape も作り直した。`docs/specs/2026-09-09-vpwp50-periods-limit.md` §9.3**）と厳密一致アサーション（`standby-state-store.test.ts:893-900`）に固定されており、`weatherWarningForecastProjectionLimitReasons` の出力を変えることは §3.5 の禁止変更・A7 に反する。**reducer 由来の行にだけ `origin: "reducer"` が現れ、その欠如が card 由来を意味する**という非対称を採る。型としては reducer 由来の diagnostic を `Vpwp50ProjectionLimitReason & { origin: "reducer" }` 相当の別型として store 側に置き、wire の既存 export は触らない。
 
 `docs/specs/2026-08-31-vpwp50-forecast-card.md:468-469` が要求する 6 項目（subject key・超過階層・actual・limit・candidate revision・既存 projection 削除有無）はこれで全部そろう。
 
@@ -345,7 +345,7 @@ reducer は先頭から順に判定するので、後段の条件（容量）を
 
 - **「128 件で `active`」側も制約を受ける**。`groupsPerSubject` = 128 を `active` にするには総 period を 128 以下に収める必要があるので、**group あたり target 1 件・target あたり period ちょうど 1 件**にする。`targetsPerGroup` = 128 も同様
 - 上の 3 階層は `periodsPerSubject` と必ず同時に破れるので、テストは「**先に当たる方だけが報告される**」ことを期待値として書く。`hierarchy` が `periodsPerSubject` になったら失敗とする
-- 既存の fixture ヘルパ `forecastGroupShape`（`test/engine/display/standby-state-store.test.ts:462`）・`twoTarget129ForecastState`（`:647`）・`mixed129ForecastState`（`:657`）は `WeatherWarningForecastState` を直接組み立てるもので reducer を通らない。本テストは **reducer の入力（`ParsedWeatherWarningTimeseriesInfo`）側**を作る必要があるので、新しいヘルパを作る
+- 既存の fixture ヘルパ `forecastGroupShape`（`test/engine/display/standby-state-store.test.ts:462`）・`twoTarget129ForecastState`（`:647`）・`mixed129ForecastState`（`:657`）は（2026-09-09 の上限引き上げで後ろ 2 つは `threeTargetOverForecastState` / `mixedOverForecastState` へ改名。`forecastGroupShape` は group あたり period 数の引数が増えた） `WeatherWarningForecastState` を直接組み立てるもので reducer を通らない。本テストは **reducer の入力（`ParsedWeatherWarningTimeseriesInfo`）側**を作る必要があるので、新しいヘルパを作る
 - `periodsPerAnchor` は §2.2 のとおり reducer 側で構造的に超えないため、このテストの対象外とする
 
 ### 4.3 正常 empty が warn にならない

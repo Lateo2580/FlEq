@@ -38,171 +38,312 @@
     "mixedGroupBTarget": "yTVprt4v2XxZLreTuIY6ufL9Oxu_nlKQE9CrgX5H9bc"
   },
   "forecastLabels": [
-    ["雨", "20", "大雨注意報級の予測"],
-    ["雨", "30", "大雨警報級の予測"],
-    ["雨", "50", "大雨特別警報級の予測"],
-    ["風", "20", "強風注意報級の予測"],
-    ["風", "30", "暴風警報級の予測"],
-    ["風", "50", "暴風特別警報級の予測"],
-    ["雷", "20", "雷注意報級の予測"],
-    ["土砂災害危険度", "21", "土砂災害（警戒レベル2）の予測"],
-    ["土砂災害危険度", "22", "土砂災害（警戒レベル2相当）の予測"],
-    ["土砂災害危険度", "31", "土砂災害（警戒レベル3相当）の予測"],
-    ["高潮危険度", "41", "高潮（警戒レベル4相当）の予測"],
-    ["土砂災害危険度", "51", "土砂災害（警戒レベル5相当）の予測"],
-    ["雷", "99", "雷（区分不明）の予測"]
+    [
+      "雨",
+      "20",
+      "大雨注意報級の予測"
+    ],
+    [
+      "雨",
+      "30",
+      "大雨警報級の予測"
+    ],
+    [
+      "雨",
+      "50",
+      "大雨特別警報級の予測"
+    ],
+    [
+      "風",
+      "20",
+      "強風注意報級の予測"
+    ],
+    [
+      "風",
+      "30",
+      "暴風警報級の予測"
+    ],
+    [
+      "風",
+      "50",
+      "暴風特別警報級の予測"
+    ],
+    [
+      "雷",
+      "20",
+      "雷注意報級の予測"
+    ],
+    [
+      "土砂災害危険度",
+      "21",
+      "土砂災害（警戒レベル2）の予測"
+    ],
+    [
+      "土砂災害危険度",
+      "22",
+      "土砂災害（警戒レベル2相当）の予測"
+    ],
+    [
+      "土砂災害危険度",
+      "31",
+      "土砂災害（警戒レベル3相当）の予測"
+    ],
+    [
+      "高潮危険度",
+      "41",
+      "高潮（警戒レベル4相当）の予測"
+    ],
+    [
+      "土砂災害危険度",
+      "51",
+      "土砂災害（警戒レベル5相当）の予測"
+    ],
+    [
+      "雷",
+      "99",
+      "雷（区分不明）の予測"
+    ]
   ],
   "jstLabels": [
-    ["2026-06-05T21:00:00.000Z", "2026-06-06T00:00:00.000Z", "6月6日 06:00–09:00"],
-    ["2026-06-06T14:00:00.000Z", "2026-06-06T17:00:00.000Z", "6月6日 23:00–6月7日 02:00"],
-    ["2026-06-30T14:00:00.000Z", "2026-06-30T17:00:00.000Z", "6月30日 23:00–7月1日 02:00"],
-    ["2026-12-31T14:00:00.000Z", "2026-12-31T17:00:00.000Z", "2026年12月31日 23:00–2027年1月1日 02:00"]
+    [
+      "2026-06-05T21:00:00.000Z",
+      "2026-06-06T00:00:00.000Z",
+      "6月6日 06:00–09:00"
+    ],
+    [
+      "2026-06-06T14:00:00.000Z",
+      "2026-06-06T17:00:00.000Z",
+      "6月6日 23:00–6月7日 02:00"
+    ],
+    [
+      "2026-06-30T14:00:00.000Z",
+      "2026-06-30T17:00:00.000Z",
+      "6月30日 23:00–7月1日 02:00"
+    ],
+    [
+      "2026-12-31T14:00:00.000Z",
+      "2026-12-31T17:00:00.000Z",
+      "2026年12月31日 23:00–2027年1月1日 02:00"
+    ]
   ],
   "groupShapeBytes": {
     "100": 64845,
     "101": 65492,
     "102": 66139,
     "128": 82961,
-    "129": 83608
+    "129": 83608,
+    "201": 130192,
+    "202": 130839,
+    "203": 131486,
+    "256": 165777,
+    "257": 166424
   },
-  "groupShape129Reasons": [
+  "groupShapeOverReasons": [
     {
       "code": "groupsPerSubject",
       "actual": 129,
       "declaredLimit": 128,
-      "effectiveLimit": 101,
+      "effectiveLimit": 85,
       "violatingUnitCount": 1,
-      "limitingHierarchies": ["groupsPerSubject", "periodsPerSubject", "periodsPerCard", "cardJsonBytes"],
-      "samplePaths": ["subjects/weatherTimeseries:a:scope:all/groups"]
+      "limitingHierarchies": [
+        "groupsPerSubject",
+        "periodsPerSubject",
+        "periodsPerCard",
+        "cardJsonBytes"
+      ],
+      "samplePaths": [
+        "subjects/weatherTimeseries:a:scope:all/groups"
+      ]
     },
     {
       "code": "periodsPerSubject",
-      "actual": 129,
-      "declaredLimit": 128,
-      "effectiveLimit": 101,
+      "actual": 387,
+      "declaredLimit": 256,
+      "effectiveLimit": 256,
       "violatingUnitCount": 1,
-      "limitingHierarchies": ["periodsPerSubject", "periodsPerCard", "cardJsonBytes"],
-      "samplePaths": ["subjects/weatherTimeseries:a:scope:all/periods"]
+      "limitingHierarchies": [
+        "periodsPerSubject",
+        "periodsPerCard",
+        "cardJsonBytes"
+      ],
+      "samplePaths": [
+        "subjects/weatherTimeseries:a:scope:all/periods"
+      ]
     },
     {
       "code": "periodsPerCard",
-      "actual": 129,
-      "declaredLimit": 128,
-      "effectiveLimit": 101,
+      "actual": 387,
+      "declaredLimit": 256,
+      "effectiveLimit": 256,
       "violatingUnitCount": 1,
-      "limitingHierarchies": ["periodsPerCard", "cardJsonBytes"],
-      "samplePaths": ["card/weatherWarningForecast:active/periods"]
+      "limitingHierarchies": [
+        "periodsPerCard",
+        "cardJsonBytes"
+      ],
+      "samplePaths": [
+        "card/weatherWarningForecast:active/periods"
+      ]
     },
     {
       "code": "cardJsonBytes",
-      "actual": 83608,
-      "declaredLimit": 65536,
-      "effectiveLimit": 65536,
+      "actual": 157138,
+      "declaredLimit": 131072,
+      "effectiveLimit": 131072,
       "violatingUnitCount": 1,
-      "limitingHierarchies": ["cardJsonBytes"],
-      "samplePaths": ["card/weatherWarningForecast:active/jsonBytes"]
+      "limitingHierarchies": [
+        "cardJsonBytes"
+      ],
+      "samplePaths": [
+        "card/weatherWarningForecast:active/jsonBytes"
+      ]
     }
   ],
-  "twoTargets129Reasons": [
+  "threeTargetsOverReasons": [
     {
       "code": "periodsPerTarget",
-      "actual": 129,
+      "actual": 257,
       "declaredLimit": 128,
-      "effectiveLimit": 64,
-      "violatingUnitCount": 2,
-      "limitingHierarchies": ["periodsPerTarget", "periodsPerSubject", "periodsPerCard", "cardJsonBytes"],
+      "effectiveLimit": 85,
+      "violatingUnitCount": 3,
+      "limitingHierarchies": [
+        "periodsPerTarget",
+        "periodsPerSubject",
+        "periodsPerCard",
+        "cardJsonBytes"
+      ],
       "samplePaths": [
         "subjects/weatherTimeseries:a:scope:all/groups/pPdkhaF4yAbfVDQX3TckuDpVKgrOHNRcBQntSXNE7Fw/targets/Dn16NgQ0K-ZbzO55VmmLN9AmZ2dntyW5HcmD_J3abEw/periods",
+        "subjects/weatherTimeseries:a:scope:all/groups/pPdkhaF4yAbfVDQX3TckuDpVKgrOHNRcBQntSXNE7Fw/targets/YiWyv-CoBNv4tMVYAlYCDB2lN1gezP3SPdlO0T3PeaI/periods",
         "subjects/weatherTimeseries:a:scope:all/groups/pPdkhaF4yAbfVDQX3TckuDpVKgrOHNRcBQntSXNE7Fw/targets/yTVprt4v2XxZLreTuIY6ufL9Oxu_nlKQE9CrgX5H9bc/periods"
       ]
     },
     {
       "code": "periodsPerSubject",
-      "actual": 258,
-      "declaredLimit": 128,
+      "actual": 771,
+      "declaredLimit": 256,
       "effectiveLimit": 128,
       "violatingUnitCount": 1,
-      "limitingHierarchies": ["periodsPerSubject", "periodsPerCard", "cardJsonBytes"],
-      "samplePaths": ["subjects/weatherTimeseries:a:scope:all/periods"]
+      "limitingHierarchies": [
+        "periodsPerSubject",
+        "periodsPerCard",
+        "cardJsonBytes"
+      ],
+      "samplePaths": [
+        "subjects/weatherTimeseries:a:scope:all/periods"
+      ]
     },
     {
       "code": "periodsPerCard",
-      "actual": 258,
-      "declaredLimit": 128,
+      "actual": 771,
+      "declaredLimit": 256,
       "effectiveLimit": 128,
       "violatingUnitCount": 1,
-      "limitingHierarchies": ["periodsPerCard", "cardJsonBytes"],
-      "samplePaths": ["card/weatherWarningForecast:active/periods"]
+      "limitingHierarchies": [
+        "periodsPerCard",
+        "cardJsonBytes"
+      ],
+      "samplePaths": [
+        "card/weatherWarningForecast:active/periods"
+      ]
     },
     {
       "code": "cardJsonBytes",
-      "actual": 74723,
-      "declaredLimit": 65536,
-      "effectiveLimit": 65536,
+      "actual": 222358,
+      "declaredLimit": 131072,
+      "effectiveLimit": 131072,
       "violatingUnitCount": 1,
-      "limitingHierarchies": ["cardJsonBytes"],
-      "samplePaths": ["card/weatherWarningForecast:active/jsonBytes"]
+      "limitingHierarchies": [
+        "cardJsonBytes"
+      ],
+      "samplePaths": [
+        "card/weatherWarningForecast:active/jsonBytes"
+      ]
     }
   ],
-  "twoTargetsBoundaryBytes": {
-    "64": 37379,
-    "65": 37951
+  "threeTargetsBoundaryBytes": {
+    "85": 73906,
+    "86": 74764
   },
   "mixedShapeBytes": {
-    "groupA": 56254,
-    "groupB": 37596,
-    "original": 93595,
+    "groupA": 111678,
+    "groupB": 74432,
+    "original": 185855,
     "subjectPrefix128": 55821
   },
-  "mixed129Reasons": [
+  "mixedOverReasons": [
     {
       "code": "targetsPerGroup",
-      "actual": 129,
+      "actual": 257,
       "declaredLimit": 128,
       "effectiveLimit": null,
       "violatingUnitCount": 1,
-      "limitingHierarchies": ["targetsPerGroup", "periodsPerTarget", "periodsPerSubject", "periodsPerCard"],
+      "limitingHierarchies": [
+        "targetsPerGroup",
+        "periodsPerTarget",
+        "periodsPerSubject",
+        "periodsPerCard"
+      ],
       "samplePaths": [
         "subjects/weatherTimeseries:a:scope:all/groups/twH0dYevGFciRxiBDeYhCmLcIFrctn4k_6Z7Pz4QAS8/targets"
       ]
     },
     {
       "code": "periodsPerTarget",
-      "actual": 129,
+      "actual": 257,
       "declaredLimit": 128,
       "effectiveLimit": null,
       "violatingUnitCount": 1,
-      "limitingHierarchies": ["targetsPerGroup", "periodsPerTarget", "periodsPerSubject", "periodsPerCard"],
+      "limitingHierarchies": [
+        "targetsPerGroup",
+        "periodsPerTarget",
+        "periodsPerSubject",
+        "periodsPerCard"
+      ],
       "samplePaths": [
         "subjects/weatherTimeseries:a:scope:all/groups/VnV-CHEOKdaXAKEQb6L-4l3enTedkvIyVan0w-MDoC8/targets/yTVprt4v2XxZLreTuIY6ufL9Oxu_nlKQE9CrgX5H9bc/periods"
       ]
     },
     {
       "code": "periodsPerSubject",
-      "actual": 258,
-      "declaredLimit": 128,
+      "actual": 514,
+      "declaredLimit": 256,
       "effectiveLimit": 128,
       "violatingUnitCount": 1,
-      "limitingHierarchies": ["periodsPerSubject", "periodsPerCard", "cardJsonBytes"],
-      "samplePaths": ["subjects/weatherTimeseries:a:scope:all/periods"]
+      "limitingHierarchies": [
+        "periodsPerSubject",
+        "periodsPerCard",
+        "cardJsonBytes"
+      ],
+      "samplePaths": [
+        "subjects/weatherTimeseries:a:scope:all/periods"
+      ]
     },
     {
       "code": "periodsPerCard",
-      "actual": 258,
-      "declaredLimit": 128,
+      "actual": 514,
+      "declaredLimit": 256,
       "effectiveLimit": 128,
       "violatingUnitCount": 1,
-      "limitingHierarchies": ["periodsPerCard", "cardJsonBytes"],
-      "samplePaths": ["card/weatherWarningForecast:active/periods"]
+      "limitingHierarchies": [
+        "periodsPerCard",
+        "cardJsonBytes"
+      ],
+      "samplePaths": [
+        "card/weatherWarningForecast:active/periods"
+      ]
     },
     {
       "code": "cardJsonBytes",
-      "actual": 93595,
-      "declaredLimit": 65536,
-      "effectiveLimit": 65536,
+      "actual": 185855,
+      "declaredLimit": 131072,
+      "effectiveLimit": 131072,
       "violatingUnitCount": 1,
-      "limitingHierarchies": ["cardJsonBytes"],
-      "samplePaths": ["card/weatherWarningForecast:active/jsonBytes"]
+      "limitingHierarchies": [
+        "cardJsonBytes"
+      ],
+      "samplePaths": [
+        "card/weatherWarningForecast:active/jsonBytes"
+      ]
     }
   ]
 }
