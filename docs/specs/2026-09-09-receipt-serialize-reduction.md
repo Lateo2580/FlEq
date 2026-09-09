@@ -1,15 +1,9 @@
 # 電文受理経路のシリアライズ削減 spec（GitHub Issue #19 削減便）
 
 > **状態**: 起草（2026-09-09）→ 独立レビュー反映（2026-09-09、High 6・Medium 8・Low 2）
-> → **段階 1 実装済み（2026-09-09、裁定 10-A で分岐 2 = A 採択、C を含む）**。
-> 段階 2・3 は未着手（§3.2 / §3.3、受入 B2 / B3 の Pi 実測待ち）。
->
-> ## 改訂履歴
->
-> - 2026-09-09 起草 → 独立レビュー 18 指摘反映
-> - 2026-09-09 **段階 1（M1 / M2 / A / C / E）実装完了**。分岐 2 はご主人裁定 10-A で
->   A（C を実装、strict で従来検査を残す）。§7 段階 1 の対象ファイルのみ変更。
->   実装記録は §8 へ。段階 2・3 の裁定ラベルは引き続き空欄（配送不可）
+> → **段階 1 実装・配送済み（2026-09-09、`66e30f6`）→ Pi 再採取（§8）**。
+> 次は **段階 1.5（§9、残差の帰属分離）**。段階 2 は実測により降格（§8.6）。
+> 実測で判明した訂正は §10 の改訂履歴にまとめ、該当節にも反映済み（消さない）。
 >
 > **基準 SHA**: `40b3e6ca340e2affdd41b188d758eaf9e620354e`（worktree `~/dev/fleq-layout`, branch main）。
 > 本 spec の file:line はすべてこの SHA で実コードを開いて確認した。
@@ -276,24 +270,9 @@ processWeatherWithAdmission  :27
 #### M2: `serializePair` の内訳を 2 区間に割る
 
 A の実装で `serializeStandbyAdmissionPair` が 2 段に分かれるので、その境界に
-`serIn` と `serEnc` の 2 区間を置く。段階 3 で B（base pair キャッシュ）と
-D（lossless assert）のどちらに寄せるかは、この内訳で決める。
-
-**割り目の位置（2026-09-09 実装で確定、起草時の記述を訂正）**。
-
-| 区間 | 含むもの | 実装 |
-|---|---|---|
-| `serIn` | `standbyAdmissionSerializationInput`（scratch holder 再構築 ＋ 6 owner の lossless assert ＋ `exportPersistedState`）**と `toV2`** | `standbyAdmissionSerializeSplit` の `build` → `buildProspectiveV2` |
-| `serEnc` | envelope の spread ＋ `toV1` ＋ `JSON.stringify` ×2 ＋ `Buffer.from` ×2 ＋ 上限検査 | 同 `encode` → `encodeProspectivePair` |
-
-起草時に `serEnc` を「toV2 / toV1 / stringify ×2」と書いたのは誤りで、`:361` の
-「`save` は `serEnc` だけ残る」と自己矛盾していた。**`toV2` は `serIn` 側でなければ
-A が成立しない** — 再利用する body は `toV2` の出力そのものだからである。
-
-**段階 3 の D 判定はこの割り目に依存する。** D は `assertLosslessOwnerSnapshot` を
-既定 off にする案で、その検査は `serIn` の内側にある。受入 B3 が
-「`serIn` が `serEnc` より大きいか」を見るとき、`serIn` には `toV2` も入っている
-ことを勘定に入れる（`serIn` が大きくても、その大半が `toV2` なら D の効果は薄い）。
+`serIn`（scratch holder 再構築 ＋ lossless assert）と `serEnc`（toV2 / toV1 / stringify ×2）
+の 2 区間を置く。段階 3 で B（base pair キャッシュ）と D（lossless assert）の
+どちらに寄せるかは、この内訳で決める。
 
 #### A: commit 後の 3 回目 serialize を中間表現の再利用に置き換える
 
@@ -307,16 +286,11 @@ A が成立しない** — 再利用する body は `toV2` の出力そのもの
      : { v2: Uint8Array; v1: Uint8Array; v2Object; v1Object }             ← 既存の後半そのまま
    ```
 
-   **`v2Object` / `v1Object` は段階 2 の F が使う**。
+   **`v2Object` / `v1Object` も返すのが要点**（段階 2 の F が使う）。
    `assertSerializedPairLimits`（`standby-persistence.ts:1623-1637`）は
    `standbyVolcanoSubtreeByteLengths(v2, v1)` を呼ぶので **v1 オブジェクトも要る**。
    バイト列だけ返すと段階 2 の trusted 経路が volcano subtree 検査のために
    `JSON.parse` をやり直すことになり、削減の目的を自分で潰す。
-
-   **ただし段階 1 の実装ではこの 2 つを返していない**（2026-09-09）。段階 1 に読み手が
-   おらず、`CLAUDE.md` の「足す前に引く」に従って未使用の戻り値を置かなかった。
-   **段階 2 の実装時にここを足す**のが F の最初の一手になる（`encodeProspectivePair` の
-   内側では `encodeStatePair` が両オブジェクトを既に持っているので、足すのは戻り値だけ）。
 
    `serializeProspectivePair` は 2 つを順に呼ぶ薄いラッパとして残す（既存呼び出し点の
    シグネチャを変えない）。envelope は現在も `{ ...this.toV2(...), logicalGeneration, savedAt }`
@@ -653,22 +627,6 @@ token 不一致でフォールバックし、従来どおり 1 回 serialize す
 数え方は計測 spec §4.3 と同じ 2 通り（deps 差し替えと P4 カウンタ）を併用し、
 一致することを assert する。
 
-**`serCalls` の意味が段階 1 で変わった（2026-09-09、実装で確定）。**
-
-段階 1 前の `serCalls` は「1.4MB の pair を最初から作った回数」だった。段階 1 後は
-**「中間表現（body）を build した回数」**である。再利用が効いた `save` は
-`this.serializePair` を通らず `encode` だけを走らせるので、**1.4MB の `JSON.stringify` を
-2 本実走しても `serCalls` には出ない**。
-
-したがって段階 1 後の `serCalls=2` は「1.4MB の stringify が 2 回」ではなく
-「build が 2 回・encode が 3 回」を意味する。encode 側の実費は `serEnc` 区間で見る。
-deps 差し替えの計数（受入 A3）も `build` を数えるので両者は一致する。
-この定義変更は計測ログ spec §4.3.1 にも書いた。
-
-**この意味変更を読み違えると段階 3 の見積もりを外す。** B（base pair キャッシュ）は
-`serB` の build と encode を**両方**消すが、D は build 側にしか効かない。
-`serCalls` の減り方だけを見て「stringify が減った」と読まないこと。
-
 ### 4.3 E の共有安全性
 
 - `parseWeatherWarning` の結果を `deepFreeze` してから
@@ -690,18 +648,6 @@ deps 差し替えの計数（受入 A3）も `build` を数えるので両者は
   base を意図的に壊した fixture で確認する）。**fixture は byte 超過ではなく
   `candidateSerializationFailed` 系にする** — `serializeStatePair` が同じ上限で先に
   throw するので `v2FileBytesExceeded` にはほぼ到達しない（§3.1 C の表）
-
-**strict の実効的な検出は 2 本だけである**（2026-09-09 実装で確定）。
-
-1. serializer が投げる不変条件群（`candidateSerializationFailed` 系）
-2. `preflight` の失敗（volcano 4 種の上限・`validateCandidate`）
-
-起草時の擬似コードは 3 本目として `pairEqual(basePair, candidatePair)` の比較も
-想定していたが、**これは恒真で到達不能**なので実装から落とした。`changedOwnerKeys` が
-全 owner の canonical 全文一致を確かめた後にしかこの分岐へ来ず、`serializePair` は
-domains と envelope の純関数なので、両者は必ず同じバイト列になる。
-受入 A8 は上の 2 本をそれぞれ固定する（対で「strict off なら committed で素通りする」
-ことも確かめ、C が (c) 製品緩和であることを可視にしておく）。
 
 ### 4.5 B のキャッシュ健全性（段階 3）
 
@@ -738,16 +684,6 @@ Pi 上で `grep '\[perf-` 抽出してから生ファイルを消す。アクセ
 **前回と同じ条件を揃える**: 稼働 SHA・Node バージョン・**v2 / v1 バイト数**・SSE 接続数・
 committed 行数・`serCalls` 分布・`[perf-receipt-lost]` の有無。
 v2 サイズが動いていれば全区間が線形に変わるので、**サイズを添えない数字は前回と比較できない**。
-
-**常駐 heap の増分も採る（段階 1 で追加）。** A は commit 済み v2 body を次の commit まで
-coordinator に持たせる（Pi で約 1.4MB、1 世代のみ）。分割前は `serD` の直後から
-GC 対象だった。Pi は `--optimize-for-size` 運用なので、次を併記する。
-
-- `[perf-turn]` の `heapDeltaMB`（turn 前後差）の中央値と最大
-- 観測窓の始点と終点で `process.memoryUsage().heapUsed` を 1 回ずつ（窓全体の常駐増分）
-
-**判定**: 1 世代しか持たないので上限は body 1 つぶんである。窓全体の常駐増分が
-v2 バイト数を大きく超えて伸び続けるなら、それは A ではなく別の漏れなので報告する。
 
 ## 5. 受入条件
 
@@ -953,73 +889,299 @@ coupling mismatch／unmapped durable revision gate entry）の `candidateSeriali
   **永続化と別の格納先に置く**なら受理経路のコストから外せる
 - **`heapDeltaMB` が 1 通あたり 50〜75MB。** GC 圧が停止に乗っている可能性があるが、
   計測 spec §5.2 の脚注（`PerformanceObserver` の gc 購読）は未実施
-
-## 8. 段階 1 の実装記録（2026-09-09）
-
-### 8.1 入った変更
-
-| 項目 | 実装 |
-|---|---|
-| M1 `sched` | `monitor.ts` の `scheduleCapturedStandbyPersistence` が `scheduleSerializedPair` を `receiptPerf.mark("sched", ...)` で包む |
-| M2 `serIn` / `serEnc` | coordinator が serializer を 2 段で持ち、それぞれを `mark` する。**`serD` / `serB` / `save` の内数**で 1 電文ぶんを合算する |
-| A body 再利用 | `serializeProspectivePair` を `buildProspectiveV2` ＋ `encodeProspectivePair` へ分割（段階 1 ではバイト列だけ返す、§3.1 A-1）。coordinator は commit 成功時に `{ token, body }` を 1 世代だけ保持し、`captureSerializedPair` が `currentToken()` 一致時に `capture()` を**呼ばずに** encode だけ走らせる |
-| C 早期スキップ | `changed.length === 0` で `serD` / `serB` / `pre` を払わず committed を返す。`deferredDurabilityMismatch` と `staleVersion` は保持。strict では従来どおり serialize + preflight を走らせ、失敗を throw で露出させる（実効検出は 2 本、§4.4） |
-| E 二重 parse 解消 | `WeatherProcessDeps` を交差型にし `parsed?` を追加。`processWeatherWithAdmission` が reducer へ渡す |
-
-**A の有効化は新しい dep `serializePairSplit` に紐づく。** 旧 `serializePair` dep だけを
-渡した coordinator（既存テストの大半）は従来どおり `capture()` ＋ 全体 serialize を払う。
-旧 dep は「domains 1 つ ＋ envelope 1 つ」しか受けられず、そこで再利用しても `serIn` 相当を
-省けないまま「deps 差し替えの計数」と `serCalls` がずれるだけになるため（受入 A3 が壊れる）。
-本番配線（`monitor.ts`）は `standbyAdmissionSerializeSplit(standbyPersistence)` を渡す。
-
-試験用フラグは `__test_setStandbyBodyReuseEnabled(value): boolean`（既定 on、直前値を返す）。
-
-### 8.2 受入 A の結果
-
-| # | 結果 | 根拠 |
-|---|---|---|
-| A1 | 合格 | `standby-serialize-reduction.test.ts`。weather 3 通の v2 / v1 が再利用経路とフォールバック経路で完全一致。writer の `validateCapturedPair` も両経路で通す |
-| A2 | 合格 | §4.2 の 9 ケースのうち本番配線で作れる 7 ケースを固定（durable 変化あり 2 / `changed` 空 0 / 再利用 off 3 / `admissionFailure` 2 / `staleVersion` 2 / sweep `full` ＋2 / sweep `full` ＋ durable ＋3）。reducer `rejected` と `invalidTouchedOwners` の 0 は `receipt-timing.test.ts` が既に固定済み |
-| A3 | 合格 | 中間表現を作った回数（deps 差し替え）と `serCalls` が一致 |
-| A4 | 合格 | owner snapshot 指紋が再利用の有無で一致。受理結果・`durableChanged` も一致 |
-| A5 | 合格 | `process-weather-parsed-reuse.test.ts`。deepFreeze した `parsed` で VPWS50 全国報 / VPWW55 地域先行報 / VPWW56 が例外なく流れ、**parse は 1 通 1 回** |
-| A6 | 合格 | 受理経路の行に `redParse=` が出ない。`parsed` を渡さない `processWeather` では従来どおり出る |
-| A7 | 合格 | `changed` 空が committed / `durableChanged: false` / `serCalls: 0`。`transactDeferred` の durable 申告付きは `rejected: deferredDurabilityMismatch`、`staleVersion` も従来どおり |
-| A8 | 合格 | strict の実効検出 2 本（serializer 例外＝`candidateSerializationFailed` 系、`preflight` 失敗）をそれぞれ固定。同じ入力が strict off では committed で素通りすることも対で確かめる |
-| A8' | 合格 | VFVO50 を `VolcanoRouteHandler` で流し、volcano owner を動かす transact でもバイト列と owner snapshot が一致 |
-| A9 | 合格 | 1MB 超の `JSON.stringify` / `structuredClone` / `JSON.parse` が再利用ありで再利用なしを上回らない |
-| A13 | 合格 | `npm run build` / `npm test` / `FLEQ_STANDBY_SWEEP_STRICT=1 npm test` / `npm run test:shuffle` / `npm run typecheck:test` すべて成功（304 file / 7,004 test） |
-| A14 | 合格 | 既存期待値の変更は `receipt-timing.test.ts` の区間キー一覧（`serIn` / `serEnc` / `sched` 追加）と P6 の `redParse` 有無だけ |
-| A15 | 未実施 | main への push 後に確認する |
-
-### 8.3 開発機の `[perf-receipt]`（Pi ではない。傾向確認用）
-
-同一 VPWS50 fixture（141KB）を本番配線の router へ 1 通、`sweepPre=nochange` の行。
-
-| 区間 | 再利用 off（before 相当） | 再利用 on（after） |
-|---|---|---|
-| `serCalls` | 3 | **2** |
-| `serIn`（1 電文の合算） | 34.8ms | **18.4ms** |
-| `serEnc`（同） | 1.8ms | 2.0ms |
-| `save` | 22.6ms | **1.0ms** |
-| `sched` | 2.8ms | 2.9ms |
-| `[perf-turn] heapDeltaMB` | -40.6 | 68.1 |
-
-**この「before」は A のぶんだけを外した近似で、E のぶんは含まない。** `parsed` の受け渡しは
-実行時に切れないため。同機での `parseWeatherWarning` 単体は 286.3ms（Pi の `redParse` 中央値
-18.0ms / 最大 1,177.9ms に対応する処理）で、E はこれを丸ごと 1 回ぶん消す。
-
-**`heapDeltaMB` は turn 単位の差分で GC の位置に大きく振れるため、この 2 行から
-常駐の増減は読めない。** A が持たせる body 1 世代（約 1.4MB）の常駐影響は
-受入 B の Pi 観測（§4.8 の常駐 heap 項目）で採る。
-
-`sched` は開発機で 2.8ms しか立たなかった。Pi の残差 191.7ms の主項が
-`validateCapturedPair` かどうかは**開発機の数字では判定できない**（状態サイズが違う）。
-受入 B2 は Pi 実測で採る。
+- **VPWS50 1 通で `transact` の外に約 1.5 秒ある。** §8.3 のとおり残差は**電文サイズに
+  比例**（約 13〜15 ms/KB）し、状態サイズには比例しない。109KB の VPWS50 で 1,548ms。
+  候補は表示パイプライン（`toPresentationEvent` → `diffStore.apply` → `displaySink.ingest`
+  → SSE broadcast）か personal 側 `EventFileWriter`（events JSON 593KB 級の同期書き込み）。
+  **本 spec の削減 3 本はここに 1ms も効いていない。** 受理経路のコストは
+  「1.4MB の状態」と「電文サイズ」の 2 系統あり、後者は一度も設計上の対象になっていない
 
 ---
 
-## 裁定ラベル（段階 1、🌙自走OK 候補）
+## 8. 段階 1 の Pi 実測（2026-09-09、稼働 SHA `66e30f6`）
+
+### 8.1 採取条件
+
+`FLEQ_PERF_RECEIPT=1`、11:26〜11:47 の窓。`[perf-receipt]` 15 行のうち
+`admit=committed` は **5 行**（before の窓は 15 行）。`[perf-receipt-lost]` /
+`[perf-turn-lost]` は **0 行**。生データは scratchpad `pi-perf2-lines.txt` /
+`pi-perf2-healthz.txt` / `pi-perf2-events.txt`、before は `pi-perf-lines.txt`。
+
+> **受入 B9 を満たしていない。** v2 / v1 のバイト数を採っていない。§8.4 の
+> `serD` ＋ `serB` の増加を「状態が太った」と「実装が遅くなった」に切り分けられない。
+> **次の窓では必ず採る。**
+
+### 8.2 区間の中央値（committed）
+
+| 区間 | before 中央値 (n=15) | after 中央値 (n=5) | 差 |
+|---|---|---|---|
+| `cap` | 61.1 | 71.8 | +10.7 |
+| `draft` | 46.9 | 53.9 | +7.0 |
+| `red` | 220.1 | 218.0 | −2.1 |
+| └ `redParse` | 18.0 | **キーごと消滅** | E が効いた |
+| `diff` | 48.1 | 60.4 | +12.3 |
+| `serD` | 314.0 | 302.5 | −11.5 |
+| `serB` | 304.1 | 371.4 | +67.3 |
+| `pre` | 3.3 | 3.2 | −0.1 |
+| `commit` | 11.4 | 20.5 | +9.1 |
+| **`save`** | **355.9** | **42.5** | **−313.4（−88%）** |
+| `sched`（新規） | 残差の内側 | 75.3 | 帰属確定 |
+| `serIn`（新規・内数） | — | 589.0 | §8.5 |
+| `serEnc`（新規・内数） | — | 126.8 | §8.5 |
+| 残差 | 191.7 | §8.3 | 性質が変わった |
+| `total` | 1,631.5 | **1,758.7** | +127.2 |
+
+**A は狙いどおり効いた。** `save` が 355.9 → 42.5ms。`serCalls` も
+「commit ＋ durable 変化あり」で 3 → 2 に落ちており（実測行 `serCalls=2` に
+`save` と `sched` が両方立っている）、§4.2 の段階 1 予測と一致した。
+
+**C も効いた。** `changed.length === 0` の VPWS50 行が `serCalls=0` になり、
+`serD` / `serB` / `pre` / `commit` / `save` / `sched` の全キーが消えた。
+§4.2 の「受理 commit ＋ `changed.length === 0` → 0」の予測と一致。
+
+**E も効いた。** `redParse` キーが weather 全行から消え、VPWS50 109KB の
+`red` が 1,359.1 → 218.0ms（−84%）。
+
+### 8.3 残差は電文サイズに比例する（新しい帰属漏れ）
+
+`sched` を計測点にしたので、残った残差は `total` から全区間を引いた純粋な未帰属分になる。
+
+| 電文 | bytes | `serCalls` | `total` | 区間の和 | **残差** | 残差 / KB |
+|---|---|---|---|---|---|---|
+| VPWW55 | 3,616 | 2 | 1,061.4 | 946.9 | **114.5** | — |
+| VPWW56 | 3,663 | 2 | 1,411.3 | 1,299.7 | **111.6** | — |
+| VPWP50 | 26,251 | 2 | 1,758.7 | 1,301.9 | **456.8** | 15.2 |
+| VPWS50 | 109,333 | 2 | 2,698.7 | 1,150.9 | **1,547.8** | 13.6 |
+| VPWS50 | 109,333 | **0** | 1,942.6 | 394.2 | **1,548.4** | 13.6 |
+
+**残差は電文サイズにきれいに比例する。** 3.6KB で約 113ms、26KB で 457ms、
+109KB で 1,548ms。最小 2 点からの傾きが約 13.6 ms/KB、切片が約 64ms。
+26KB の実測 456.8 は予測 420 に対して +9% で、同じ直線に乗っている。
+
+**`serCalls=0` の行でも残差が同じ 1,548ms である**ことが決定的である。この行は
+`durableChanged = false` → `emitDurable` を通らないので `scheduleSerializedPair` も
+`validateCapturedPair` も走っていない。**残差は永続化経路ではない。**
+§3.2 の F-3 で「大電文行の残差は `sched` ではない」と書いた予測が実測で確定した。
+
+窓 1 の残差（中央値 191.7）との関係も整合する。窓 1 は `sched` が未計測だったので
+`残差(窓1) = sched + 電文比例分`。VPWW56 で `175.5 − 91.4 = 84.1`、
+窓 2 の `111.6` と同じ桁。窓 1 の VPWS50 115KB の残差 1,646.1 も
+`64 + 13.6 × 115.3 = 1,632` の予測と 1% で一致する。
+
+**残る候補は 3 つ。** どれも電文サイズに比例する。
+
+| # | 候補 | 根拠 | main / personal |
+|---|---|---|---|
+| (i) | 表示パイプライン（`runDisplayPipeline`、`message-router.ts:1070`）: `toPresentationEvent` → `diffStore.apply` → `displaySink.ingest` → SSE broadcast | 109KB の警報電文から作る snapshot は電文サイズに比例する | 両方 |
+| (ii) | personal の `EventFileWriter`（`outcomeTaps` 経由） | Pi は personal を動かしている。events JSON が 593KB 級で、**書き込みが同期なら受理コールスタックに乗る** | **personal のみ** |
+| (iii) | reducer の後段（`stage = "eventConversion"` 以降の統計・通知） | `assertSerializerHealthy` を挟みながら outcome を複数回走査する | 両方 |
+
+**(ii) が当たりだと main では再現しない。** 段階 1.5 の計測点は
+`outcomeTaps` を汎用に包む形にして、main でも personal でも同じ行が出るようにする。
+
+### 8.4 受入 B の判定
+
+| # | 条件 | 判定 |
+|---|---|---|
+| B0 | committed 10 行以上を採り区間別中央値表を埋める | **未達**（5 行）。窓が短く電文が来なかった |
+| B1 | `save` キーが消えるか縮む | **達成**（355.9 → 42.5、−88%）。フォールバック行は 0 |
+| B2 | `sched` の中央値を採り残差の主項を確定 | **達成**。`sched` = 75.3ms で、**残差の主項ではなかった**（§8.3） |
+| B3 | `serIn` / `serEnc` の中央値を採る | **達成**（589.0 / 126.8）。§8.5 の読み方に注意 |
+| B4 | VPWS50 大型の `red` が 300ms 未満 | **達成**（218.0 / 229.3） |
+| B5 | committed `total` 中央値 1,400ms 以下 ＋ 相対条件 | **未達**（1,758.7）。理由は下記 |
+| B8 | `/healthz` 停止 p99 と `[perf-turn] total` の突き合わせ | `[perf-turn]` は `[perf-receipt]` と 1ms 以内で一致（envelopes=1 の turn ばかり） |
+| B9 | v2 / v1 バイト数ほかの併記 | **未達**（§8.1） |
+
+**B5 未達の理由は 2 つある。**
+
+1. **標本の型が揃っていない。** after の 5 行は 109KB の VPWS50 が 2 行、
+   26KB の VPWP50 が 1 行で、**大電文が過半**を占める。before の 15 行は
+   3〜5KB の VPWW5x が 13 行だった。§8.3 のとおり残差が電文サイズ比例なので、
+   標本の型が変わると中央値がそのまま動く。**中央値の直接比較は成り立たない**
+2. **`serD` ＋ `serB` が下がっていない**（618.1 → 674.0、+9%）。段階 1 は
+   この 2 つを対象にしていないので想定内だが、**増えている理由が説明できない**（B9 未達）
+
+**型を揃えた比較**（同じ電文種別どうし）。
+
+| 型 | before | after | 差 |
+|---|---|---|---|
+| VPWW55 | 1,707.3 | 1,061.4 | **−37.8%** |
+| VPWW56 | 1,439.9 / 1,439.0 | 1,411.3 | **−2.0%** |
+| VPWS50 大型（`changed` 空） | 3,776.0 / 3,738.1 | 1,942.6 | **−48.6%** |
+| VPWS50 大型（平均） | 3,757.1 | 2,320.7 | −38.2% |
+
+**VPWW56 の −2.0% が問題である。** `save` が 352.0 → 46.3（−305.7）、
+`redParse` が −9.0 減ったのに `total` が 28.6 しか下がっていない。内訳を引くと
+`serD` ＋ `serB` が 619.1 → 773.7（**+154.6**）、`cap` +20.4、`red` +53.2、`diff` +13.6 で、
+削減分をほぼ食い潰している。**この増加が状態の肥大なのか実装の退行なのかは、
+v2 バイト数を採っていないので判定できない**（B9）。次の窓で最初に確かめる。
+
+### 8.5 `serIn` / `serEnc` は内数である（読み違え注意）
+
+**`serIn` ＋ `serEnc` = `serD` ＋ `serB` ＋ `save`** である。実測で 4 行とも
+差が 0.4〜1.1ms（`save` 内の envelope 予約ぶん）に収まる。
+
+| 行 | `serD`＋`serB`＋`save` | `serIn`＋`serEnc` | 差 |
+|---|---|---|---|
+| VPWP50 | 774.5 | 773.4 | +1.1 |
+| VPWW56 | 820.0 | 819.3 | +0.7 |
+| VPWS50 | 658.6 | 658.2 | +0.4 |
+| VPWW55 | 529.7 | 529.2 | +0.5 |
+
+**全キーを足すと約 590ms を二重計上する。** §8.3 の残差はこの 2 キーを
+除いて計算してある。**区間キーの入れ子関係を表で固定する**（段階 1.5 で
+キーが増えるので、ここで規約にしておく）。
+
+| 親 | 内数 |
+|---|---|
+| `serD` ＋ `serB` ＋ `save` | `serIn`（scratch holder 再構築 ＋ lossless assert）、`serEnc`（toV2 / toV1 / stringify ×2） |
+| `red` | `redParse`（段階 1 で weather 経路から消滅） |
+| `total` | 上記以外のすべての区間キー（加算して残差を出す対象） |
+
+**内数キーは行の末尾側にまとめて出し、`[perf-receipt]` の読み手が
+「和に含めない」と分かる形にする。** 実装済みの現行行はこの規約を満たしていない
+（`serIn` / `serEnc` が `serB` と `pre` の間に挟まっている）ので、段階 1.5 で並べ替える。
+
+### 8.6 段階 2・3 の順位を実測で更新する
+
+**残差の帰属（段階 1.5）が最優先である。** 中央値 1,758.7 のうち
+`serD` ＋ `serB` が 674.0（38%）、残差が 456.8〜1,548.4（26〜80%、電文サイズ次第）。
+**残差の方が大きい行がある**うちは、状態側の削減を積んでも体感停止は縮まない。
+
+| 順位 | 対象 | 効果 | 前提 |
+|---|---|---|---|
+| 1 | **段階 1.5**（残差の帰属分離） | 削減ゼロ。**次に何を削るかが決まる** | なし。🌙自走OK 候補 |
+| 2 | 段階 3-B（base pair キャッシュ） | `serB` 371.4ms | §3.3 B の strict 検証 |
+| 3 | 段階 1.5 の結果が指した対象 | 残差 64 ＋ 13.6 ms/KB ぶん | 段階 1.5 |
+| 4 | 段階 3-D（lossless assert） | `serIn` 589.0 の一部 | §3.3 の「D と A の相互作用」 |
+| 5 | 段階 2-F（`validateCapturedPair`） | `sched` 75.3ms | **降格**。実測で残差の主項ではなかった |
+
+**段階 2-F を降格する。** 起草時は残差 191.7ms の主項と見ていたが、実測の
+`sched` は 75.3ms で、しかも `serCalls=0` の行では 0 である。§3.2 の分岐 4-C
+（触らない）が実測で選ばれた形になる。**やらないとは決めない**が、順位は最後に回す。
+
+## 9. 段階 1.5: 残差の帰属分離（🌙自走OK 候補）
+
+**削減しない。計測点を足すだけ。** §8.3 の電文サイズ比例の残差が
+表示パイプラインか `outcomeTaps` かを 1 回の Pi 観測で確定させる。
+計測 spec（`2026-09-08-receipt-path-timing-log.md`）の枠組みをそのまま使う。
+
+### 9.1 観測点（基準 SHA `40b3e6c` で確認済み）
+
+| # | file:line | 区間キー | 測る内容 |
+|---|---|---|---|
+| Q1 | `message-router.ts:1070`（`runDisplayPipeline` の本体全体を包む） | `disp` | 表示配信の総所要。**加算**（火山バッチ・reconcile で 1 電文に複数回立つ） |
+| Q2 | `message-router.ts:1079-1094` の tap ループ | `tapA` | `outcomeTaps` の実行（`runDisplayPipeline` 入口）。**`disp` の内数** |
+| Q3 | `message-router.ts:1266-1283` の tap ループ | `tapB` | `outcomeTaps` の実行（notifier 後）。**`disp` の外**。加算 |
+| Q4 | `message-router.ts:1096-1097`（`toPresentationEvent` ＋ `diffStore.apply`） | `pres` | PresentationEvent 変換と差分適用。**`disp` の内数** |
+| Q5 | `message-router.ts:1101-1136` の `try` ブロック（`ingest` ＋ `publishStats`） | `ingest` | displaySink への流し込みと SSE broadcast。**`disp` の内数** |
+
+**`outcomeTaps` は汎用の tap 配列として包む。** main では空配列なので `tapA` /
+`tapB` はほぼ 0 になり、personal では `EventFileWriter` のぶんが載る。
+**`EventFileWriter` の名前を main のコードに書かない**（`.claude/rules/personal-branch-operations.md`
+の overlay 原則）。同じ計測点で main / personal の差がそのまま数字に出る。
+
+`disp` = `tapA` ＋ `pres` ＋ `ingest` ＋ （`shouldDisplay` / `recordWindowTrackers` /
+formatter 描画）なので、**内数の和が `disp` に一致しない差分が formatter 側**になる。
+
+### 9.2 出力形式
+
+§8.5 の入れ子規約に従い、**内数キーを行の末尾へまとめる**。
+
+```
+[perf-receipt] id=... type=VPWS50 route=weather bytes=109333 admit=committed serCalls=2
+  total=2698.7 sweepPre=4.2/precheck cap=60.4 draft=53.1 red=229.3 diff=47.1
+  serD=253.7 serB=365.4 pre=3.2 commit=34.3 save=39.5 sched=60.7 disp=... tapB=...
+  | serIn=539.3 serEnc=118.9 tapA=... pres=... ingest=...
+```
+
+区切りの `|` より右が内数で、**残差の計算には使わない**。実装は
+`[perf-receipt]` の行組み立てで内数キーを後段に並べるだけ（新しい構造値は作らない）。
+
+同時に既存行の `serIn` / `serEnc` の位置も末尾へ移す（§8.5）。
+
+### 9.3 挙動不変と off コスト
+
+- 計測とログのみ。**分岐・戻り値・引数・例外の伝播を変えない**
+- `mark` は `try` / `finally` で閉じ、例外はそのまま再 throw する。
+  tap ループの既存の `try` / `catch`（`:1081-1091`、`:1268-1276`）の意味を変えない
+- **off のコストは現行と同等**: 分岐 1 回 ＋ クロージャ 1 個（計測 spec §3.1 と同じ）。
+  `performance.now()` を呼ばず、collector も文字列も作らない
+- `Segment` union に `disp` / `tapA` / `tapB` / `pres` / `ingest` を足すだけで、
+  新しい伝播機構を作らない（module スコープの collector 1 個のまま）
+
+### 9.4 テスト
+
+- off で `[perf-` 行が 0 行、計測モジュールが捕捉した `performance.now` の呼び出しが 0 回
+- on で `disp` / `pres` / `ingest` が 1 電文につき出て、**`pres` ＋ `ingest` ＋ `tapA` ≦ `disp`**
+- `outcomeTaps` を渡さない構成（main 相当）でも `tapA` / `tapB` が 0 で出ること
+- `outcomeTaps` に意図的に 50ms 眠る tap を渡し、`tapA` / `tapB` に載ること
+- 火山バッチ（`runDisplayPipeline` が複数回立つ経路）で `disp` が加算されること
+- off / on で受理結果・v2/v1 バイト列・`DisplayMutation` / `PresentationEvent` 列が一致
+- `npm run build` / `npm test` / `npm run test:shuffle` / `npm run typecheck:test`
+
+### 9.5 受入条件
+
+| # | 条件 | 種別 |
+|---|---|---|
+| C1 | off で `[perf-` 行 0・`performance.now` 呼び出し 0 | 機械 |
+| C2 | `pres` ＋ `ingest` ＋ `tapA` ≦ `disp` が全行で成立 | 機械 |
+| C3 | `outcomeTaps` 無しの構成で `tapA` / `tapB` が 0 | 機械 |
+| C4 | off / on で受理結果・永続化バイト列・イベント列が完全一致 | 機械 |
+| C5 | `npm run build` / `npm test` / `npm run test:shuffle` / `npm run typecheck:test` 成功、GitHub Actions 緑 | 機械 |
+| C6 | **Pi 再採取で VPWS50 大型行の残差が `total` の 10% 以下になる**（現在 1,548.4 / 1,942.6 = 80%） | Pi |
+| C7 | **v2 / v1 バイト数を採る**（B9 の宿題）。`serD` ＋ `serB` の増加が状態肥大か実装退行かを判定する | Pi |
+| C8 | committed 10 行以上、**電文種別の内訳を併記**する（型を揃えた比較のため） | Pi |
+
+**C6 が満たせなかった場合**、残差は formatter 描画・GC・計測点の隙間のいずれかで、
+`[perf-turn]` の `gcMs`（計測 spec §5.2 の脚注、`PerformanceObserver` の gc 購読）を
+次の手として足す。
+
+### 9.6 裁定ラベル（段階 1.5、🌙自走OK 候補）
+
+```
+対象:
+  src/engine/messages/message-router.ts   （Q1〜Q5 の計測ラッパ）
+  src/engine/perf/receipt-timing.ts       （Segment に disp / tapA / tapB / pres / ingest
+                                            を追加、内数キーを行末へ並べ替え）
+  test/engine/perf/receipt-timing.test.ts （C1〜C4）
+  docs/specs/2026-09-09-receipt-serialize-reduction.md（§8・§9 の追記）
+
+許容変更:
+  FLEQ_PERF_RECEIPT=1 で有効化される計測ログの区間追加（既定 off）
+  runDisplayPipeline と outcomeTaps の 2 ループを mark で包む
+    （分岐・戻り値・引数・例外伝播は不変。既存 try/catch の意味を変えない）
+  [perf-receipt] の行で内数キー (serIn / serEnc / tapA / pres / ingest) を
+    区切り記号の右へまとめる
+  上記を検証するテストの追加
+
+禁止変更:
+  削減（§8.6 の順位 2 以降を 1 行も実装しない）
+  outcomeTaps の配線・実行順序・例外の握り方
+  runDisplayPipeline の戻り値と shouldDisplay の判定
+  EventFileWriter の名前・痕跡を main に置くこと
+  受理結果・永続化バイト列・DisplayMutation / PresentationEvent
+  既定 on 化、hot path への JSON.stringify / structuredClone の追加
+  電文本文・subject 名・地域名のログ出力
+  package.json / package-lock.json、data/runtime/ 配下の実データ
+  Pi の start-fleq.sh / tmux 設定
+
+配送先: main → personal → Pi
+
+ロールバック:
+  main は該当 commit を git revert、personal は rebase 追従後に
+  git push --force-with-lease private personal、Pi は
+  git fetch origin personal && git reset --hard origin/personal で戻す。
+  実機側は FLEQ_PERF_RECEIPT を外して再起動すれば計測は即無効になる。
+
+受入条件: §9.5 の C1〜C5 を全件（CI 合否）。C6〜C8 は Pi 観測窓で採り、
+  C6 未達なら「帰属未確定」として報告し、段階 2・3 のどれにも進まない。
+  Pi の生ログは計測 spec §4.7 の手順 5 で抽出してから Pi 上で消す。
+```
+
+---
+
+## 裁定ラベル（段階 1、**配送済み** `66e30f6`）
 
 ```
 対象:
@@ -1096,6 +1258,47 @@ coupling mismatch／unmapped durable revision gate entry）の `candidateSeriali
 
 ## 裁定ラベル（段階 2・段階 3）
 
-段階 2 は **B2 の実測で残差の主項が `validateCapturedPair` と確定してから**、
-段階 3 は **B3 の実測で B / D の主従が決まってから**、それぞれ本節を埋める。
-現時点で空欄があるので **配送不可**（`.claude/rules/autonomous-cycle.md` の 6 要素規則）。
+段階 2 は **実測で降格した**（§8.6）。`sched` = 75.3ms で残差の主項ではなく、
+`serCalls=0` の行では 0 である。分岐 4-C（触らない）が実測で選ばれた形になるので、
+**段階 1.5 と段階 3-B が終わってから改めて順位を見る**。
+
+段階 3 は **§8.6 の順位 2** に上がった（`serB` = 371.4ms が単一区間で最大）。
+ただし **段階 1.5 の帰属が先**である。VPWS50 大型行では残差が `total` の 80% を
+占めており、そこを帰属しないまま `serB` を消しても体感停止は 1,548ms が残る。
+
+両節とも現時点で空欄があるので **配送不可**（`.claude/rules/autonomous-cycle.md` の
+6 要素規則）。段階 1.5 の裁定ラベルは §9.6 に 6 要素すべて埋めてある。
+
+---
+
+## 10. 改訂履歴
+
+### 2026-09-09 段階 1 配送・Pi 再採取（`66e30f6`）
+
+段階 1（A ＋ C ＋ E ＋ 計測点 M1 / M2）を実装して Pi へ配送し、11:26〜11:47 の窓で
+再採取した。**A / C / E の 3 本はすべて狙いどおり効いた**（§8.2）。実測で入った訂正。
+
+1. **§3.1 A の効果予測（−250〜−330ms）は当たった。** `save` 355.9 → 42.5ms（−88%）。
+   `serCalls` も 3 → 2 に落ち、§4.2 の段階 1 予測と一致した
+2. **§3.1 C も予測どおり。** `changed.length === 0` の行が `serCalls=0` になり、
+   `serD` / `serB` / `pre` / `commit` / `save` / `sched` の全キーが消えた
+3. **§3.1 E も予測どおり。** `redParse` キーが weather 全行から消滅し、
+   VPWS50 109KB の `red` が 1,359.1 → 218.0ms
+4. **受入 B5（中央値 1,400ms 以下）は未達**（1,758.7ms）。ただし after の 5 行は
+   大電文が過半で、before の 15 行と**標本の型が揃っていない**。型を揃えると
+   VPWW55 −37.8% / VPWS50 大型（`changed` 空）−48.6% で、VPWW56 だけ −2.0%（§8.4）
+5. **§3.2 の段階 2（F）を降格した。** `sched` の実測が 75.3ms で、
+   起草時に見ていた「残差 191.7ms の主項」ではなかった。分岐 4-C が実測で選ばれた
+6. **残差の性質が判明した（最大の発見）。** 電文サイズに約 13.6 ms/KB で比例し、
+   状態サイズには比例しない。109KB の VPWS50 で 1,548ms。`serCalls=0` の行でも
+   同じ値なので**永続化経路ではない**（§8.3）。§7 に再構成材料として追加した
+7. **`serIn` / `serEnc` は内数だった。** `serIn` ＋ `serEnc` = `serD` ＋ `serB` ＋ `save`
+   で、全キーを足すと約 590ms を二重計上する。§8.5 に入れ子規約の表を置き、
+   段階 1.5 で行の並びを直すことにした
+8. **受入 B9（v2 / v1 バイト数の併記）を採り損ねた。** そのため
+   `serD` ＋ `serB` の増加（618.1 → 674.0、+9%）を「状態が太った」と
+   「実装が遅くなった」に切り分けられない。段階 1.5 の C7 で最初に確かめる
+9. **B0（committed 10 行以上）も未達**（5 行）。窓が短く電文が来なかった。
+   段階 1.5 の C8 で電文種別の内訳併記とあわせて採り直す
+
+`[perf-receipt-lost]` / `[perf-turn-lost]` は 0 行、`heapDeltaMB` は 52MB で横ばい。
