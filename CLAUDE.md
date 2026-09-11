@@ -38,6 +38,8 @@ npm run start:lowmem # メモリ最適化モードで実行
 - 型で守る（type-system-discipline）: 不正な状態を型で表現不能にする。外部データ（dmdata の XML / JSON、設定、CLI 引数）は境界でパースして内部では型を信頼する。`as` や `any` でコンパイラに嘘をつかない。判別共用体は `switch` で網羅する
 - 足す前に引く（subtract-before-you-add）: 機能追加の前に、死んだコード・冗長なバリデータ・スタブ参照を先に除き、単純になった土台の上に作る。変更は問題を解く最小のものに寄せる
 - 上 2 行の出典と、未採用の候補 7 本は Vault `Knowledge/Dev/2026-08-28-pstack-principles-inventory.md`（pstack 21 原則の棚卸し）
+- 最小実装（オーバーエンジニアリング回避）: 仕組みを 1 つ足す前に「それは要るか・無いと何が壊れるか」を 1 行で書く。実装が 1 つしかない interface、製品が 1 つの factory、変わらない値の設定化、将来のための拡張点・scaffolding は作らない。最新の Codex モデル（gpt-6-astra）はここが厚くなりやすいので、委譲文に必ず明記する（2026-09-11 ご主人指示）
+- 最小テスト（無駄なテストを作らない）: テストは **受入条件・契約の境界・実際に起きた不具合の再発防止・corpus 履歴（fixture→期待状態）** に限る。実装の内部構造を写すテスト、同じ分岐の言い換え、fixture の焼き直し、private 関数ごとの suite は作らない。1 つの振る舞いに 1 テスト。「テストが多い＝安全」ではない。ponytail（YAGNI はしご）は両エージェントに runtime で注入されるが、それは語りの層。この 2 行が repo に残る規範で、clone 先や plugin off でも効く
 
 ## Claude Harness Policy
 
@@ -70,6 +72,7 @@ npm run start:lowmem # メモリ最適化モードで実行
 - 委譲環境は使い捨て clone で用意し、依存準備は `npm ci --ignore-scripts` を標準とする
 - 委譲の段階導入・意味的手直し率の判定閾値は運用側メモ（memory `reference_model_division_v1`）を参照
 - **display/frontend の実装委譲は Phase 0（規範読み込み）を最初の成果物にする**: `docs/specs/display-design-system.md`・`theme.css`・header/footer 統一 spec・錨カードを読み、使うトークンと倣う錨の file:line を申告してから実装（2026-09-05、規範を読まない類推実装で乖離 11 件が積み上がった経緯）
+- **実装委譲文には「最小実装・最小テスト」を定型で入れる**: 完了条件の列挙に続けて「仕組みを足すときは無いと何が壊れるかを 1 行で示す／テストは受入条件・契約境界・実不具合・corpus 履歴に限り、追加した各テストがどれに対応するかを成果物に 1 行で書く」を書く。gpt-6-astra への委譲では省略しない（2026-09-11 ご主人指示、詳細は `AGENTS.md` §コーディング規約）
 - **ブラウザ capture の実走は親（Liebe）が担う**: 子の sandbox は listen 不可。子は records に対する `--assert-from` で assertion を検証する
 - **スコープ**: repo 全体ではなく diff 単位に絞る
 - **形式**: file:line 付きの構造化出力・確信度を求める。スタイルのみの指摘は不要と伝える
