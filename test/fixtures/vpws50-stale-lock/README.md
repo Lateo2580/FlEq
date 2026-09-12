@@ -1,7 +1,7 @@
 # vpws50-stale-lock fixture
 
 `pi-stale-lock-state.json` は、VPWS50 の全国報が 8 日間拒否され続けた Raspberry Pi の
-永続状態を縮小・匿名化したもの。spec `docs/specs/2026-09-07-vpws50-stale-current-lock.md`
+永続状態を縮小・匿名化したもの。`spec: 2026-09-07-vpws50-stale-current-lock.md（作業ノート、repo 外）`
 §4.13 の統合テスト（`test/engine/messages/vpws50-stale-lock-recovery.test.ts`）が使う。
 
 中身は `PersistedVpws50StateV2`（`src/engine/messages/vpws50-state.ts`）そのままの形なので、

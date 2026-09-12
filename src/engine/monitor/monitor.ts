@@ -370,7 +370,7 @@ export async function startMonitor(config: AppConfig, pipelineController?: Pipel
       floodForecastState,
     },
     repairState: volcanoRepairState,
-    // spec `docs/specs/2026-09-09-receipt-serialize-reduction.md` §3.1 A: 2 段に割った
+    // `spec: 2026-09-09-receipt-serialize-reduction.md（作業ノート、repo 外）` §3.1 A: 2 段に割った
     // serializer を渡すと、commit 後の 3 回目 serialize が中間表現の再利用になる。
     // 合成結果は `serializeStandbyAdmissionPair` とバイト列が一致する。
     serializePairSplit: standbyAdmissionSerializeSplit(standbyPersistence),

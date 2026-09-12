@@ -6,7 +6,7 @@
  * metadata-only 更新を模して「見た目が完全に静止している時間帯の再計測」を実 Chrome で before/after
  * 比較するための道具である。
  *
- * 第 2 便（`docs/specs/2026-09-08-standby-resettle-residual-load.md` §3.0 段階 0）で二つ足した。
+ * 第 2 便（`spec: 2026-09-08-standby-resettle-residual-load.md（作業ノート、repo 外）` §3.0 段階 0）で二つ足した。
  *
  * - `?metadataChurnMode=reparse` — 配信 snapshot を毎回 `JSON.parse(JSON.stringify(...))` し直す
  *   本番形状モード。本番の state は SSE のペイロードを毎回 parse するので（`lib/connection.svelte.ts:84`）

@@ -1,6 +1,6 @@
 /**
  * GitHub Issue #15 第 3 便 spec の段階 1（帰属の分離）の受入テスト。
- * 出典 spec: docs/specs/2026-09-09-standby-epoch-settle-cost.md（§3 段階 1 / §4.1 / §5.1 A1・A2・A13）。
+ * 出典 spec: 2026-09-09-standby-epoch-settle-cost.md（作業ノート、repo 外）（§3 段階 1 / §4.1 / §5.1 A1・A2・A13）。
  *
  * 段階 1 は製品の見え方も production の DOM も変えない。**計測だけ**を足す段階なので、
  * 本テストが守る契約は「観測点が preview / gate の外へ漏れないこと」と

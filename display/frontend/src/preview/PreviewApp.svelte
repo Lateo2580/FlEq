@@ -172,7 +172,7 @@
     const timer = setInterval(() => { metadataChurnTick += 1; }, metadataChurnMs);
     return () => clearInterval(timer);
   });
-  // 第 2 便 spec (2026-09-08-standby-resettle-residual-load.md) §3.0 段階 0。
+  // 第 2 便 (spec: 2026-09-08-standby-resettle-residual-load.md（作業ノート、repo 外）) §3.0 段階 0。
   // ?metadataChurnMode=reparse は配信 snapshot を毎回 JSON.parse し直し、本番 (SSE の
   // JSON.parse, lib/connection.svelte.ts:84) と同じく入れ子まで新オブジェクトにする。
   // 既定 shared は現行と完全に同一。reparse が本番相当の主指標、shared は第 1 便との比較用。

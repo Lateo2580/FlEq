@@ -1,6 +1,6 @@
 /**
  * GitHub Issue #15 の受入テスト。
- * 出典 spec: docs/specs/2026-09-07-standby-metadata-resettle.md（§4.1 / §4.2 / §5.1）。
+ * 出典 spec: 2026-09-07-standby-metadata-resettle.md（作業ノート、repo 外）（§4.1 / §4.2 / §5.1）。
  *
  * 守る契約は二つある。
  *

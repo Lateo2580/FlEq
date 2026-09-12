@@ -1,6 +1,6 @@
 /**
  * 電文受理経路のシリアライズ削減 spec
- * (`docs/specs/2026-09-09-receipt-serialize-reduction.md`) **段階 1** の受入。
+ * (`spec: 2026-09-09-receipt-serialize-reduction.md（作業ノート、repo 外）`) **段階 1** の受入。
  *
  * - A1 / A8' (§4.1): `scheduleSerializedPair` に渡るバイト列が再利用経路・フォールバック
  *   経路で完全一致する。volcano owner を変える transact を必須 fixture に含める

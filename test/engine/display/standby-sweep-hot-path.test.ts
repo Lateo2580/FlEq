@@ -1,5 +1,5 @@
 /**
- * 待機時 sweep ホットパス spec (docs/specs/2026-09-07-standby-sweep-hot-path.md) の
+ * 待機時 sweep ホットパス (spec: 2026-09-07-standby-sweep-hot-path.md（作業ノート、repo 外）) の
  * 段階 1〜4 の受入テスト。
  *
  * 段階 1 (owner version の O(1) 化) / 段階 3 (capture 前の事前判定):

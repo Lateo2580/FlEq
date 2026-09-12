@@ -17,7 +17,7 @@ import { FORMATTER_TEST_REGISTRY } from "../../src/ui/test-samples";
 
 const WIDTHS = [40, 60, 80, 120, 200] as const;
 
-// docs/specs/2026-08-26-cli-width-contract.md §6 の source 30 本。
+// spec: 2026-08-26-cli-width-contract.md（作業ノート、repo 外） §6 の source 30 本。
 const FRAME_LINE_SOURCE_CATALOG = [
   "briefing-formatter.ts", "climate-info-formatter.ts", "early-weather-formatter.ts",
   "earthquake-info-formatter.ts", "eew-formatter.ts", "flood-forecast-formatter.ts",

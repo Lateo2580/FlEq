@@ -11,7 +11,7 @@ import { testTelegramMeta } from "../../helpers/telegram-meta";
 
 /**
  * §4.13 実 Pi 状態の縮小 fixture による「復元 → 次報受理」統合テスト
- * (spec docs/specs/2026-09-07-vpws50-stale-current-lock.md)。
+ * (spec: 2026-09-07-vpws50-stale-current-lock.md（作業ノート、repo 外）)。
  *
  * fixture は Raspberry Pi の display-active-state-v2.json から telegramFoundation.vpws50
  * だけを取り出し、区域名・区域コード・官署名を合成値へ置換した匿名化コピー。

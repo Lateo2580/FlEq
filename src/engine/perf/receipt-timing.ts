@@ -1,7 +1,7 @@
 import * as log from "../../logger";
 
 /**
- * 電文受理経路の所要時間計測 (spec `docs/specs/2026-09-08-receipt-path-timing-log.md`)。
+ * 電文受理経路の所要時間計測 (`spec: 2026-09-08-receipt-path-timing-log.md（作業ノート、repo 外）`)。
  *
  * 目的は**帰属の確定であって削減ではない**。どの区間が何 ms 食っているかを実機の数字で
  * 確定させるための一時的な計測で、既定 off・挙動不変を厳格に守る。
@@ -18,7 +18,7 @@ import * as log from "../../logger";
  * 電文行 `[perf-receipt]` に載る区間キー。出力順もこの並びで固定する。
  *
  * 入れ子は親から引かない。**内数キーは区切り記号 `|` の右へまとめて出す**
- * (削減 spec `2026-09-09-receipt-serialize-reduction.md` §8.5 / §9.2)。
+ * (削減 `spec: 2026-09-09-receipt-serialize-reduction.md（作業ノート、repo 外）` §8.5 / §9.2)。
  * 左側だけを足せば残差が出る形にするための規約で、`|` の右を足すと二重計上になる。
  *
  * - `serIn` / `serEnc` は `serD` ＋ `serB` ＋ `save` の内数 (実測で差 0.4〜1.1ms)

@@ -1100,7 +1100,7 @@ export function processMessage(
   route: Route,
   deps: ProcessDeps,
 ): ProcessOutcome | null {
-  // 削減 spec `2026-09-09-receipt-serialize-reduction.md` §9 追補: route dispatch 全体。
+  // 削減 `spec: 2026-09-09-receipt-serialize-reduction.md（作業ノート、repo 外）` §9 追補: route dispatch 全体。
   // weather 以外の domain にも同型の 1 回目 parse があるので、個別に計測点を置かず
   // ここで一括して拾う。**容器キーなので内数側 (`|` の右) に出す** — `parse` と
   // transact 系 (`sweepPre` / `cap` / `red` / `serD` …) を丸ごと内側に含んでおり、

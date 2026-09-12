@@ -1,6 +1,6 @@
 /**
  * GitHub Issue #15 第 3 便 spec の段階 2'（外側 77% の帰属分離）の受入テスト。
- * 出典 spec: docs/specs/2026-09-09-standby-epoch-settle-cost.md（§3 段階 2' / §4.2' / §5.1 A2b・A13）。
+ * 出典 spec: 2026-09-09-standby-epoch-settle-cost.md（作業ノート、repo 外）（§3 段階 2' / §4.2' / §5.1 A2b・A13）。
  *
  * 段階 1 の `standby-settle-cost-probe.test.ts` と同型である。製品の見え方も production の
  * DOM も変えない。守る契約は 3 本。

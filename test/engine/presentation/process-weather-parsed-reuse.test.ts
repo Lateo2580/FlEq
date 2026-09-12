@@ -1,6 +1,6 @@
 /**
  * weather 経路の二重 parse 解消 (削減 spec
- * `docs/specs/2026-09-09-receipt-serialize-reduction.md` §3.1 E) の受入 A5。
+ * `spec: 2026-09-09-receipt-serialize-reduction.md（作業ノート、repo 外）` §3.1 E) の受入 A5。
  *
  * `processWeatherWithAdmission` が 1 回目の parse 結果を reducer 内の `processWeather` へ
  * 渡すので、**同じオブジェクトが受理経路と outcome 消費経路の両方で共有される**。

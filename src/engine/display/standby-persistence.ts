@@ -1590,7 +1590,7 @@ export class StandbyPersistence {
 
   /**
    * envelope 適用**前**の中間表現を組み立てる (spec
-   * `docs/specs/2026-09-09-receipt-serialize-reduction.md` §3.1 A の前半)。
+   * `spec: 2026-09-09-receipt-serialize-reduction.md（作業ノート、repo 外）` §3.1 A の前半)。
    *
    * `encodeProspectivePair` と対で使う。分割前の
    * `{ ...this.toV2(...), logicalGeneration, savedAt }` と同じ spread 順序を

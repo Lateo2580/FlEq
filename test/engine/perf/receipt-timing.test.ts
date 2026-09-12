@@ -1,6 +1,6 @@
 /**
  * 電文受理経路の所要時間計測ログ spec
- * (`docs/specs/2026-09-08-receipt-path-timing-log.md`) の受入 A1〜A12。
+ * (`spec: 2026-09-08-receipt-path-timing-log.md（作業ノート、repo 外）`) の受入 A1〜A12。
  *
  * - A1 / A2 (§4.1): off で計測モジュールの時計を 1 回も呼ばず `[perf-` 行も出さない
  * - A3 / A4 (§4.2): on で電文 1 通 = `[perf-receipt]` 1 行。`:2001` 経路でも出る
@@ -71,7 +71,7 @@ const SERIALIZATION_ENVELOPE = {
 /**
  * 電文行の必須 7 キーと、順序だけ固定した区間キー (§4.2)。
  *
- * 削減 spec `2026-09-09-receipt-serialize-reduction.md` §8.5 / §9.2 の入れ子規約で
+ * 削減 `spec: 2026-09-09-receipt-serialize-reduction.md（作業ノート、repo 外）` §8.5 / §9.2 の入れ子規約で
  * **外数と内数を `|` で分ける**ようになった。左が加算対象、右が親の内数。
  */
 const RECEIPT_OUTER_SEGMENT_ORDER = [
@@ -555,7 +555,7 @@ describe("§4.2 on の行フォーマット検証", () => {
   });
 
   /**
-   * P6 の期待値は削減 spec `2026-09-09-receipt-serialize-reduction.md` §3.1 E で反転した。
+   * P6 の期待値は削減 `spec: 2026-09-09-receipt-serialize-reduction.md（作業ノート、repo 外）` §3.1 E で反転した。
    * 受理経路は 1 回目の parse 結果を reducer へ渡すので、`redParse` は**出ない**のが正しい
    * (キーが消えたことを「計測点が壊れた」と読まないための固定。受入 A6)。
    */
@@ -963,7 +963,7 @@ describe("§4.4 / §4.5 挙動不変の検証", () => {
 // ── C1〜C4: 段階 1.5 の残差帰属 ───────────────────────────────
 
 /**
- * 削減 spec `2026-09-09-receipt-serialize-reduction.md` §9 段階 1.5 の受入 C1〜C4。
+ * 削減 `spec: 2026-09-09-receipt-serialize-reduction.md（作業ノート、repo 外）` §9 段階 1.5 の受入 C1〜C4。
  *
  * **削減はしない。計測点を足すだけ。** §8.3 の「電文サイズに比例する残差」が
  * 表示パイプラインか `outcomeTaps` かを Pi 1 窓で切り分けるための区間を固定する。

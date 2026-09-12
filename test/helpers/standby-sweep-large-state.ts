@@ -1,5 +1,5 @@
 /**
- * 待機時 sweep ホットパス spec (docs/specs/2026-09-07-standby-sweep-hot-path.md) §4.1 の
+ * 待機時 sweep ホットパス (spec: 2026-09-07-standby-sweep-hot-path.md（作業ノート、repo 外）) §4.1 の
  * 「大容量の合法状態を作る helper」。
  *
  * Pi 実機の永続 v2 は 7.08MB で、その内 VPWS50 holder が 5.9MB を占める

@@ -1092,7 +1092,7 @@ Phase 3B 以降、火山の durable state は standby persistence v2 の `telegr
 
 ### 概要
 
-起動時の火山 REST 復元は `repairVolcanoState()` (repair target がある場合だけ走る coverage / scratch rebase / sync commit、仕様は `docs/specs/2026-08-31-vfvo54-ashfall-slice.md` §16) に一本化されている。一覧 item から本文を読む旧 `restoreVolcanoState()` (VFVO50 窓 100 件の昇順 replay) は、一覧 API が本文を返さないため常時空振りしており、呼び出し元も無かったので 2026-09-03 に削除した。
+起動時の火山 REST 復元は `repairVolcanoState()` (repair target がある場合だけ走る coverage / scratch rebase / sync commit、仕様は `spec: 2026-08-31-vfvo54-ashfall-slice.md（作業ノート、repo 外）` §16) に一本化されている。一覧 item から本文を読む旧 `restoreVolcanoState()` (VFVO50 窓 100 件の昇順 replay) は、一覧 API が本文を返さないため常時空振りしており、呼び出し元も無かったので 2026-09-03 に削除した。
 
 本文は Telegram Data v1 (`fetchTelegramBody`) から id 単位で取得し、`toWsDataMessageFromRestBody()` で `WsDataMessage` に包んでから既存の `parseVolcanoTelegram()` に渡す (tsunami-initializer と同じ経路)。
 

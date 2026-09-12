@@ -154,7 +154,7 @@ export interface StandbySerializedPair {
 
 /**
  * envelope 適用**前**の中間表現 (spec
- * `docs/specs/2026-09-09-receipt-serialize-reduction.md` §3.1 A)。
+ * `spec: 2026-09-09-receipt-serialize-reduction.md（作業ノート、repo 外）` §3.1 A)。
  *
  * 実装ごとに形が違うので判別共用体にする。`prospectiveV2` が本番配線
  * (`standbyAdmissionSerializeSplit`)、`domains` が旧 `serializePair` dep から

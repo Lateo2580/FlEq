@@ -2267,7 +2267,7 @@
         : `${item.kind}:${item.updatedAt}`).join(",") ?? "";
     // 配信 metadata (generatedAt / seq) はレイアウト入力ではない。除外リスト方式の安定キーへ
     // 置き換え、内容も寸法も変わらない state 配信では settle をやり直さない
-    // (Issue #15, docs/specs/2026-09-07-standby-metadata-resettle.md §3.2)。
+    // (Issue #15, spec: 2026-09-07-standby-metadata-resettle.md（作業ノート、repo 外） §3.2)。
     const contentKey = standbyLayoutKey(snapshot, standbyContentIdentity);
     const input = [contentKey, selectedId ?? "", sseConnected].join("|");
     if (input !== lastInputKey) {

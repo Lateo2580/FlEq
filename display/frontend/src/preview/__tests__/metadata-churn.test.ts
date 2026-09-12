@@ -1,7 +1,7 @@
 /**
  * preview 限定 churn ハーネスの契約
  * (Issue #15 第 1 便 spec §3.4・分岐 5 A・§5.1、第 2 便 spec
- *  `docs/specs/2026-09-08-standby-resettle-residual-load.md` §3.0 段階 0)。
+ *  `spec: 2026-09-08-standby-resettle-residual-load.md（作業ノート、repo 外）` §3.0 段階 0)。
  *
  * 守るのは三点。
  *  1. 既定無効 — パラメータ非指定・不正値では preview の挙動が現行と完全に一致する

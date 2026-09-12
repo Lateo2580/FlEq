@@ -1,7 +1,7 @@
 /**
  * 待機画面の再計測トリガとなる「レイアウト入力キー」の合成。
  *
- * 由来: docs/specs/2026-09-07-standby-metadata-resettle.md（Issue #15）。
+ * 由来: spec: 2026-09-07-standby-metadata-resettle.md（作業ノート、repo 外）（Issue #15）。
  * 従来の contentKey は `snapshot.generatedAt` / `snapshot.seq` を含んでいたため、
  * カード内容も表示寸法も変わらない state 配信のたびに settle 全体をやり直していた。
  *

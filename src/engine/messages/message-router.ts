@@ -1074,7 +1074,7 @@ export function createMessageHandler(options?: MessageHandlerOptions): MessageHa
     displayIngestOverride?: DisplayIngestOperation,
     displayIngestCapture?: DisplayIngestCapture,
   ): boolean {
-    // 削減 spec `2026-09-09-receipt-serialize-reduction.md` §9.1 Q1: 表示配信の総所要。
+    // 削減 `spec: 2026-09-09-receipt-serialize-reduction.md（作業ノート、repo 外）` §9.1 Q1: 表示配信の総所要。
     // 本体を 1 段深くインデントし直さないよう、薄いラッパから core を呼ぶ (P1 と同じ作法)。
     // **加算**する — 火山バッチ・reconcile では 1 電文で複数回立つ。
     return perf.mark("disp", () => runDisplayPipelineCore(
