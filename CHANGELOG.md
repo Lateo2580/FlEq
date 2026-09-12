@@ -2,6 +2,109 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [3.5.0](https://github.com/Lateo2580/FlEq/compare/v3.4.0...v3.5.0) (2026-09-12)
+
+
+### 機能追加
+
+* **display:** 720p 中央スタック pre-gate suite を追加し spec を経路 N で閉じる ([e5b645d](https://github.com/Lateo2580/FlEq/commit/e5b645d4174e0e4e2d62d5e2e2dffcb562404d06))
+* **display:** briefing critical カードの表示状態を再起動を跨いで永続化する ([2281a5f](https://github.com/Lateo2580/FlEq/commit/2281a5f94a68dd2289860af082801dc8b3ff7506))
+* **display:** capture gate の viewport 契約を Stage ① capture contract へ統一する ([adee542](https://github.com/Lateo2580/FlEq/commit/adee54260e4bfeb531c4be1b8a2cd27398246e91))
+* **display:** VPWP50 reducer の結果を active / empty / rejected(reason) に分類して診断に出す ([#16](https://github.com/Lateo2580/FlEq/issues/16)) ([1649775](https://github.com/Lateo2580/FlEq/commit/16497755eaf00935d7e4eb7e558f95cefc42f12e))
+* **display:** VPWP50 の period 上限を 128 → 256、card byte 上限を 64KiB → 128KiB に引き上げる ([da0c07a](https://github.com/Lateo2580/FlEq/commit/da0c07a7b2d419ad8e58cbd081c77067aab8d0ba)), closes [#16](https://github.com/Lateo2580/FlEq/issues/16)
+* **display:** VPWS50「今回の変更」欄を区分見出しと横並び chip で高密度にし、リボンを三層 header に置き換える ([a58a2f9](https://github.com/Lateo2580/FlEq/commit/a58a2f935b694cdbf26d0b054d3adfde9e9d040f))
+* **display:** 台風確率(VPTA50)を待機画面カードへ統合し gate を永続化する ([858b045](https://github.com/Lateo2580/FlEq/commit/858b0452a9b680f97325c6999ad61611ce494606))
+* **display:** 台風確率カードの結論を label/value 隣接の 1 ブロックにし、府県等見出しを付けてピーク時刻を外す ([8ef84a9](https://github.com/Lateo2580/FlEq/commit/8ef84a9d8145a091738b273e2a8f2d23255586ba))
+* **display:** 待機画面カードの page footer を共通契約へ統一する ([457a4ec](https://github.com/Lateo2580/FlEq/commit/457a4eccc37f295fd20af2039031ecdc6939f7c1))
+* **display:** 待機画面カードをデザイン言語へ再整合する ([8b63f14](https://github.com/Lateo2580/FlEq/commit/8b63f144157eeb8a1e9ce8ce5389155f039fb3eb))
+* **display:** 気象危険警報カードで複数種別のときに種別と地域を group にして読めるようにする ([fc9f5e4](https://github.com/Lateo2580/FlEq/commit/fc9f5e4728a1942d5651a15dbfea63c58ecd732c))
+* **display:** 気象警報の危険度予測(VPWP50)を待機画面カードへ統合する ([3c19768](https://github.com/Lateo2580/FlEq/commit/3c19768e52fe9e9d325e8199555d540fd0de004d))
+* **display:** 気象警報の緊急画面を行政都道府県見出しでグルーピングする ([2a7b0ee](https://github.com/Lateo2580/FlEq/commit/2a7b0ee395ed6d07f8faf32d8fd41180645fefc9))
+* **display:** 現在の永続 mirror を .manual-backup へ退避する backupCurrentMirrors を追加する ([2f04520](https://github.com/Lateo2580/FlEq/commit/2f04520d5702f5c8aa89ac894799a88caf970200))
+* **display:** 線状降水帯の「予測」entry を同地域の「発生」で置換する ([ede21ee](https://github.com/Lateo2580/FlEq/commit/ede21ee1b3217d5d72e957b93dba1a25b5288f85))
+* **display:** 降灰予報(VFVO54/55)を待機画面カードへ統合し全 domain 容量基盤を導入する ([f19e910](https://github.com/Lateo2580/FlEq/commit/f19e910f659d7f6d4e7f8afc87bbc4d31da3f864))
+* **dmdata:** 電文一覧に xmlReport=true を付与し Telegram Data v1 の本文取得を追加する ([6d7d235](https://github.com/Lateo2580/FlEq/commit/6d7d235894ae631974c5bd02273cb602cc2971bb))
+* **replay:** 実電文リプレイ最小版 Phase 1（固定 VPBS50 2 通）を追加する ([8c6ca73](https://github.com/Lateo2580/FlEq/commit/8c6ca739db1bb8dfd46ed9b74f9ddf05bb2e1c75))
+* **repl:** volcanorepair rest で火山 REST repair を手動再実行できるようにする（第 2 段: adapter・REPL・二段階 commit） ([26e1590](https://github.com/Lateo2580/FlEq/commit/26e1590931f6fab07122c199a003a5bfca9981d2)), closes [#1](https://github.com/Lateo2580/FlEq/issues/1) [#45](https://github.com/Lateo2580/FlEq/issues/45) [#58](https://github.com/Lateo2580/FlEq/issues/58) [#60](https://github.com/Lateo2580/FlEq/issues/60)
+
+
+### バグ修正
+
+* **display:** 960 幅の RecentQuakes reflow で統計三値の列間隔を --space-2 に広げる ([adca39c](https://github.com/Lateo2580/FlEq/commit/adca39c2fc6b9af7469fc62cb6566695bbe9e9b1))
+* **display:** backup ファイルを base × extension ごとに 3 世代へ剪定する ([9e39212](https://github.com/Lateo2580/FlEq/commit/9e39212c9aab440ce60e6ef7f59b076f00515fe5))
+* **display:** backup 剪定で keep 対象を含めて 3 世代を確定し時計後退時に 4 世代残らないようにする ([5c042c3](https://github.com/Lateo2580/FlEq/commit/5c042c39323155e09a5110e71f2874ba04e70493))
+* **display:** backup 剪定の対象識別をファイル名の厳密 parse にし同一 timestamp の衝突 index を数値順で並べる ([6994449](https://github.com/Lateo2580/FlEq/commit/6994449c634eac30f8c1be2be03c33da0f670924))
+* **display:** generatedAt / seq だけの state 更新で待機画面が全再計測に入る経路を除外リスト方式のキーで塞ぐ ([#15](https://github.com/Lateo2580/FlEq/issues/15)) ([65d6f9b](https://github.com/Lateo2580/FlEq/commit/65d6f9ba2c060836a9ebff0c0a36a53af9b7d8d8))
+* **display:** generation-1 salvage の omission 入口で comparison を canonical 化し gate-only 経路の zero-padded / 空文字 serial を閉じる ([46e4607](https://github.com/Lateo2580/FlEq/commit/46e460717d2faf7de1700de8ac914c568d0cc2c0))
+* **display:** preview mock の PageableKey レコードに volcano を追加し typecheck を回復する ([396526a](https://github.com/Lateo2580/FlEq/commit/396526aeffbcd241703e2fadfb5bc67133e1e597))
+* **display:** standby persistence を v2 先行で公開し generated pair では v2 を canonical に選ぶ ([2600719](https://github.com/Lateo2580/FlEq/commit/2600719f86e7b819ac70dc79db406424f2df83b2))
+* **display:** standby 永続 pair file の全ファイル上限を 4MiB から 16MiB へ引き上げる ([6716d1a](https://github.com/Lateo2580/FlEq/commit/6716d1a520bc20f98df6e385b90fb4cb1f0318eb))
+* **display:** tickerSentence が非空のとき tickerDetail をワイヤから外して snapshot の死荷重を減らす ([af47a89](https://github.com/Lateo2580/FlEq/commit/af47a895af29a105b426419c38231bacf5c31880))
+* **display:** v1 migration と generation-1 salvage の火山 serial を canonical 化して invalid serial による全損を防ぐ ([2a2d91e](https://github.com/Lateo2580/FlEq/commit/2a2d91ed96e66429c203ae9565aba49661082fb2))
+* **display:** VolcanoCard の structuredClone を $state.snapshot に置換し初回描画の DataCloneError を解消する ([f318470](https://github.com/Lateo2580/FlEq/commit/f318470734aef12f686c5e80f10d0bcfbba5f0e6))
+* **display:** WeatherEmergencyPanel が layoutSettling 解除後に panel geometry を再読込せず change fit が旧寸法で確定する経路を塞ぐ ([#18](https://github.com/Lateo2580/FlEq/issues/18)) ([0198ddc](https://github.com/Lateo2580/FlEq/commit/0198ddcb9b7f6980260b03123f2cf0ad3bb019d5))
+* **display:** 旧 v2 火山 slice の migration で alert revision の serial を canonical 化する ([b4da153](https://github.com/Lateo2580/FlEq/commit/b4da153cf98333a3b69e648271546ffc0b42e47b))
+* **display:** 津波 marquee で解除沿岸を独立グループ「解除」として表示する ([ec2b79f](https://github.com/Lateo2580/FlEq/commit/ec2b79fecdce60f19a3529d9769a1174909f64a7))
+* **display:** 火山 migration の alert join で mirror 側が意図的に null にする warningKind を alertClass 由来として許容する ([68f2775](https://github.com/Lateo2580/FlEq/commit/68f2775552c53f8bf6b91966c828cf4056e1c762))
+* **display:** 火山 migration の gate-only 経路でも serial の missing を canonical null へ寄せる ([2734d08](https://github.com/Lateo2580/FlEq/commit/2734d08f4255a79f65e7e6af0ad54a8fa420625f))
+* **display:** 火山 migration の serial 正規化を共通 normalizer に委譲し空文字を missing として扱う ([49eb003](https://github.com/Lateo2580/FlEq/commit/49eb003b22901c73ac4c1030af0b26e1711140ac))
+* **messages:** revision gate の sweep を active / tombstone lifecycle で分離し active 警報を年齢で消さないようにする ([39dd82b](https://github.com/Lateo2580/FlEq/commit/39dd82b19f98dec21d61dc4f9fcf8ff3b27cd947))
+* **monitor:** 手動 REST repair の同期 commit 区間では durable callback の persistence 予約を畳み込み finalizing で 1 回だけ予約する ([90f83b4](https://github.com/Lateo2580/FlEq/commit/90f83b4b40c6ea06eda216c065dbb0ba81a659f6))
+* **startup:** 津波 VTSE41 の REST 復元を一覧 xmlReport と Telegram Data v1 本文取得の経路へ置き換える ([08f3965](https://github.com/Lateo2580/FlEq/commit/08f396580d9b431bdbd58b45a3e3daadf6936549))
+* **startup:** 火山 REST repair proof を一覧の xmlReport Head で立て、本文は窓内未収 item だけ取得する ([5d5391e](https://github.com/Lateo2580/FlEq/commit/5d5391eebc8e4247e8a5a31d83545fa125e9f19f))
+* **startup:** 火山 REST repair の本文取得に 256 件上限・journal 再判定・commit 段照合を入れる ([730bf6d](https://github.com/Lateo2580/FlEq/commit/730bf6d84471e01214112138c030bf902010ec5a))
+* **tsunami:** VTSE41 の REST 復元を bounded pagination と複数 EventID 対応に改める ([69497d8](https://github.com/Lateo2580/FlEq/commit/69497d8b5f60c49934f360bd0cbd8e7ab4f7bc0a))
+* **tsunami:** 全解除報だけの EventID を keyedActive に保持せず既存データを一回限り剪定する ([a41c952](https://github.com/Lateo2580/FlEq/commit/a41c9527bb3ca0b1bb9097c7e20fa035b708626b))
+* **tsunami:** 解除 kind を警報として誤判定していた別実装 3 箇所を非警報側へ揃える ([6ae0f81](https://github.com/Lateo2580/FlEq/commit/6ae0f811097a11b31ab360069c15c79d9c9bd041))
+* **tsunami:** 解除 kind を警報ラベルへ正規化しないようにして解除報で level が解けるようにする ([f59fc91](https://github.com/Lateo2580/FlEq/commit/f59fc91244de69004f14908e15aac9df2c555ee7))
+* **tsunami:** 解除で level が消えたとき観測 groups も取消と同じくクリアする ([6ba3e61](https://github.com/Lateo2580/FlEq/commit/6ba3e6188b85798f475e9588b57e8da618934bca))
+* **weather:** VPWS50 の異常解除率判定が古い current を基準に全国報を恒久拒否する自己ロックを解く ([#17](https://github.com/Lateo2580/FlEq/issues/17), [#11](https://github.com/Lateo2580/FlEq/issues/11)) ([a43c9a2](https://github.com/Lateo2580/FlEq/commit/a43c9a2783dbc9c36754c799f43b37b88f1799c7))
+
+
+### パフォーマンス改善
+
+* **display:** VPWP50 card 上限の effectiveLimit 探索を線形 129 反復から二分探索へ ([40b3e6c](https://github.com/Lateo2580/FlEq/commit/40b3e6ca340e2affdd41b188d758eaf9e620354e))
+* **display:** 待機 sweep の実削除ベース検知・draft 二重コピー廃止・owner version 比較・strict モードを入れる ([#13](https://github.com/Lateo2580/FlEq/issues/13) 段階 2＋4) ([306fb98](https://github.com/Lateo2580/FlEq/commit/306fb982fcb48fed62de3b518b57c5e0381053fe))
+* **display:** 待機時 sweep の no-op が全状態を JSON 化・複製する経路を O(1) version と事前判定で消す ([#13](https://github.com/Lateo2580/FlEq/issues/13) 段階 1＋3) ([f8e2c68](https://github.com/Lateo2580/FlEq/commit/f8e2c688fb25b555b0a3e579c4c70210d2cda7dd)), closes [#17](https://github.com/Lateo2580/FlEq/issues/17)
+* **engine:** owner snapshot の往復検査を strict 便限定にする ([d53d5e0](https://github.com/Lateo2580/FlEq/commit/d53d5e0e97e8c2671000f0ef05983fe9d344b627))
+* **engine:** VPWS50 の全国履歴を 8 段から 2 段へ縮める ([bf7530f](https://github.com/Lateo2580/FlEq/commit/bf7530f24e460aaabf027076b724f1cf0f427092))
+* **engine:** 受理 1 通の残差を parse / dispatch / 表示パイプラインの内訳で帰属分離する計測点を足す ([#19](https://github.com/Lateo2580/FlEq/issues/19) 段階 1.5) ([3b43189](https://github.com/Lateo2580/FlEq/commit/3b43189ae5e22961a0c4069b2d7c5d74f232ef2e))
+* **engine:** 受理の base pair を前回 commit の candidate pair から再利用し serB を省く ([#19](https://github.com/Lateo2580/FlEq/issues/19) 段階 3-B) ([a63d642](https://github.com/Lateo2580/FlEq/commit/a63d6424c243f7b4e558963b16df23b67c2ac074))
+* **engine:** 電文受理で 1.4MB 状態を 3 回 JSON 化していた経路を 1 回に減らす ([#19](https://github.com/Lateo2580/FlEq/issues/19) 段階 1) ([fd9e8b9](https://github.com/Lateo2580/FlEq/commit/fd9e8b992d473b84b7be37cbcf48db31d8c6f5d3))
+* **engine:** 電文受理経路の所要時間を FLEQ_PERF_RECEIPT=1 で 1 通 1 行に出す計測ログを足す ([#19](https://github.com/Lateo2580/FlEq/issues/19)) ([592e5d2](https://github.com/Lateo2580/FlEq/commit/592e5d2521e6307848b2b6ba240d69a4dd4605d9))
+
+
+### ドキュメント
+
+* **agents:** 最小実装・最小テストの規範を CLAUDE.md と AGENTS.md に追加する ([6e1b7ba](https://github.com/Lateo2580/FlEq/commit/6e1b7bad7b4c13ffb41cb9af4409ff6b599805fe))
+* **claude:** display 委譲の Phase 0 と capture 実走の分担を Codex 併用ルールに追加する ([e9f40e5](https://github.com/Lateo2580/FlEq/commit/e9f40e5e22358670ba77a428dd74a5cfeb8bbc1a))
+* **claude:** 実装原則 2 行とバックログ運用節を main へ移植し衝突マーカーを除く ([4d46304](https://github.com/Lateo2580/FlEq/commit/4d4630414d3ea589f78dbaf1c8a17781de2323f0))
+* **reconstruction:** 全面再構成 P0 完了資材 ① corpus manifest（257 fixture の分類行）を追加する ([592cbb7](https://github.com/Lateo2580/FlEq/commit/592cbb7bb4dce27f95781549305c2f69845b03b9))
+* REPL rest spec の削除済み restoreVolcanoState 言及を訂正し、津波 REST 復元の同時実行説明を transaction の実挙動に合わせる ([daa7057](https://github.com/Lateo2580/FlEq/commit/daa70576c054837c0f570da654f45d2d0ef97151))
+* repo に残る文書・コメントの個人呼称と個人環境パスを中立化する ([70aea8c](https://github.com/Lateo2580/FlEq/commit/70aea8cad9517aa59503c7aed18d20baa49b9e3c))
+* settle 段階 2' の実測と段階 3' 見送り（裁定 13-B）を spec に記録し、構造的欠陥台帳の運用を CLAUDE.md に置く ([e62ee13](https://github.com/Lateo2580/FlEq/commit/e62ee139555324d803e1699306501c1f66a17712))
+* **spec:** 2026-09-05 夜枠の spec 8 本と台風確率の設計たたき台を追加する ([e45b7ae](https://github.com/Lateo2580/FlEq/commit/e45b7ae3865acbcd682dd5e24382f2fa02a2af3f))
+* **spec:** REPL rest コマンド spec を独立レビュー指摘で改訂する（副回線ガード撤回・all の二段階 commit・cooldown と dry-run の規則・manual backup の明文化） ([7a86eeb](https://github.com/Lateo2580/FlEq/commit/7a86eeb506db1b3828449baea60fde7bdbc516a1))
+* **spec:** REPL rest コマンド spec を第 2 段実装の実態へ同期する（factory export・ashfall 境界の観測点・--dry-run 重複・unavailable 文言） ([c45fba5](https://github.com/Lateo2580/FlEq/commit/c45fba561381ff24a3e4e95e1976ef9d42065613))
+* **spec:** REPL から火山 REST repair を手動再実行するコマンドの spec 草稿を追加する ([5cf7727](https://github.com/Lateo2580/FlEq/commit/5cf77275cedec17bc270d7da5edac6bba793cfbe))
+* **spec:** revision gate の active / tombstone expiry 分離と family 監査を仕様化する ([019c0bb](https://github.com/Lateo2580/FlEq/commit/019c0bb43b1a971083da9ae66405cbc8634a6e7a))
+* **spec:** standby persistence の v2 先行 commit と generated pair の v2 優先ロードを仕様化する ([a98de98](https://github.com/Lateo2580/FlEq/commit/a98de9854a37d9286c9ccd823b0ac2578cdfc348))
+* **specs:** WeatherEmergencyPanel の settling 解除後 panel geometry 再読込 spec を追加する ([#18](https://github.com/Lateo2580/FlEq/issues/18)、裁定済み) ([3e0011d](https://github.com/Lateo2580/FlEq/commit/3e0011da90661ec3f0e38ffd1a343735c4fc10c2))
+* **specs:** 全面再構成 P0 spec を v4 に更新する（ChatGPT Pro 独立レビュー IR01〜IR15 反映） ([46ea274](https://github.com/Lateo2580/FlEq/commit/46ea274fc216475f003647cc3d6626d2f52ef9d3))
+* **specs:** 全面再構成 P0 spec（契約・境界・route 対応表・oracle・機能採否表）v3.1 を追加する ([960a616](https://github.com/Lateo2580/FlEq/commit/960a6169cb969789ed54ead5dfb28f3ac3a7dfc3))
+* **specs:** 受理段階 3-B の Pi 窓 4 実測（受入 D）を spec に記録する ([e0ccf91](https://github.com/Lateo2580/FlEq/commit/e0ccf914c6dab5fadfeda22cbafb2f23675ed0e3))
+* **specs:** 受理段階 3-E＋3-D の Pi 窓 5 実測（受入 3-E 達成・3-D は帰属混在）を記録する ([8e0b785](https://github.com/Lateo2580/FlEq/commit/8e0b7854d7bf2128f1f1e5f0a5fdae4c0352bacc))
+* **specs:** 受理経路の帰属完了（窓 3、C6 達成）と残段階の再順位を記録する ([39ea635](https://github.com/Lateo2580/FlEq/commit/39ea63556db396ba30edf73b6f80480633567c00))
+* **specs:** 性能低下と VPWS50 恒久拒否の修正 spec 3 本を追加する（[#17](https://github.com/Lateo2580/FlEq/issues/17) / [#13](https://github.com/Lateo2580/FlEq/issues/13) / [#15](https://github.com/Lateo2580/FlEq/issues/15)、裁定済み） ([36481bd](https://github.com/Lateo2580/FlEq/commit/36481bd32c08f2f55c56ebc0dd30ac991a9c938b)), closes [#11](https://github.com/Lateo2580/FlEq/issues/11)
+* **specs:** 段階 1 の実測結果と次段の帰属分離を 2 本の spec に記録する ([179df2e](https://github.com/Lateo2580/FlEq/commit/179df2e1d100eaf987051384ff0e5937d8fe10e7))
+* **spec:** VFVO54 spec の REST 時刻軸を実装どおり head.time に揃え §24 の参照を §6 へ訂正する ([fa2f3b7](https://github.com/Lateo2580/FlEq/commit/fa2f3b7776625abb2cac6132e99db1f8c7539001))
+* **spec:** VFVO54 spec を REST 実データ準拠の本文取得と全ファイル上限 16MiB へ同期する ([e6005d4](https://github.com/Lateo2580/FlEq/commit/e6005d4bc7a2ed8eaece34608612d6503024770b))
+* **spec:** リプレイ最小版を段階 1 限定へ改訂し、台風確率の裁定と実装 spec を追加する ([9f93fe1](https://github.com/Lateo2580/FlEq/commit/9f93fe19f53bac3e3cef12c2365be4eaef05d677))
+* **spec:** 全解除報だけの津波 EventID を keyedActive に保持しない仕様と既存データの剪定を追加する ([77d6ca8](https://github.com/Lateo2580/FlEq/commit/77d6ca8404b4bcb8dde52284971045572b5b5ac4))
+* **spec:** 待機画面カードの page footer 共通契約 spec を追加する ([d9401da](https://github.com/Lateo2580/FlEq/commit/d9401da468178dea512dfbb41b17a29961b6b1a3))
+* **spec:** 待機画面カードのデザイン言語再整合 spec を追加する ([6e4b3ca](https://github.com/Lateo2580/FlEq/commit/6e4b3cad1ee854932b4332e44bec03f9afadc24f))
+* **spec:** 津波 VTSE41 の REST 復元を bounded pagination と複数 EventID 対応に改める仕様を追加する ([1681484](https://github.com/Lateo2580/FlEq/commit/168148401015201566a693d837fb60f4b984f3e4))
+
 ## [3.4.0](https://github.com/Lateo2580/FlEq/compare/v3.3.0...v3.4.0) (2026-08-30)
 
 
