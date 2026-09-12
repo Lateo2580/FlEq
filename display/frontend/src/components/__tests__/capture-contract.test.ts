@@ -41,6 +41,7 @@ const capture = await import(/* @vite-ignore */ pathToFileURL(captureScriptPath)
   assertCaptureRecordSchemaV2(record: Record<string, unknown>): void;
   assertCaptureReport(report: Record<string, unknown>, expectations?: Record<string, unknown>): unknown;
   assertDesignAlignmentSavedRecords(saved: Record<string, unknown>, baseline: Record<string, unknown>): unknown;
+  assertTyphoonProbabilityComparison(records: Array<Record<string, unknown>>, baselineRecords: Array<Record<string, unknown>>): Array<Record<string, unknown>>;
   standardReportExitCode(records: Array<{ expectationPolicy: string; mismatches: unknown[] }>): number;
   createStandardReportResult(options: { results: Array<Record<string, unknown>>; reportMode: boolean; outDir: string }): { report: Record<string, unknown>; exitCode: number };
   createAttentionComparatorRecord(options: Record<string, unknown>): Record<string, unknown>;
@@ -405,6 +406,60 @@ describe("capture browser route", () => {
 });
 
 describe("capture report acceptance", () => {
+  it("limits the §5.3-5 author ruling to the exact before/after placement without relaxing frozen fields", () => {
+    const manifestKey = "legacy-standby-gate|1920x1080|0|0|gateScenario=max&maxPlan=fhdMax";
+    const beforeLayout = {
+      placementLeft: ["tsunami", "quake", "weatherWarningForecast", "typhoon"],
+      placementRight: ["weather", "flood", "volcano", "heat"],
+      placementCenter: [], ladderStage: 0, measurementGeometryStage: 0, compressed: false,
+      rotationKeys: [], rotationActiveKey: "", rotationPosition: "", rotationOmittedCount: 0,
+      typhoonVariant: "compact", cardOverflowKeys: [], readableOverflowKeys: [],
+    };
+    const afterLayout = { ...beforeLayout,
+      placementLeft: ["tsunami", "quake", "typhoon", "volcano"],
+      placementRight: ["weather", "weatherWarningForecast", "flood", "heat"],
+    };
+    const records = [beforeLayout, afterLayout].map((layout) => ({
+      ...designRecord(), manifestKey,
+      geometry: { typhoonProbabilitySchema: 1, typhoonProbes: [], typhoon: null, layout: {
+        ...layout, visibleCards: [
+          { key: "stats", surface: "center", omissions: [] },
+          ...layout.placementLeft.map((key) => ({ key, surface: "left", omissions: key === "typhoon" ? ["ほか5府県等"] : [] })),
+          ...layout.placementRight.map((key) => ({ key, surface: "right", omissions: [] })),
+        ],
+      } },
+    }));
+    const [before, after] = records;
+    expect(capture.assertTyphoonProbabilityComparison([after], [before])[0].approvedSpecificationChange).toEqual({
+      placementLeft: { before: beforeLayout.placementLeft, after: afterLayout.placementLeft },
+      placementRight: { before: beforeLayout.placementRight, after: afterLayout.placementRight },
+    });
+    for (const key of ["placementLeft", "placementRight"] as const) {
+      for (const endpoint of [0, 1]) {
+        const changed = structuredClone(records);
+        changed[endpoint].geometry.layout[key].reverse();
+        expect(() => capture.assertTyphoonProbabilityComparison([changed[1]], [changed[0]])).toThrow(/approvedSpecificationChange/);
+      }
+    }
+    for (const key of Object.keys(beforeLayout).filter((key) => !["placementLeft", "placementRight"].includes(key))) {
+      const changed = { ...after, geometry: { ...after.geometry, layout: { ...after.geometry.layout, [key]: "changed" } } };
+      expect(() => capture.assertTyphoonProbabilityComparison([changed], [before])).toThrow(`frozen ${key}`);
+    }
+    for (const index of [0, 4]) {
+      const changed = structuredClone(after);
+      changed.geometry.layout.visibleCards[index].omissions = ["changed"];
+      expect(() => capture.assertTyphoonProbabilityComparison([changed], [before])).toThrow(/frozen visible cards/);
+    }
+    const reordered = structuredClone(after);
+    reordered.geometry.layout.visibleCards.reverse();
+    expect(() => capture.assertTyphoonProbabilityComparison([reordered], [before])).toThrow(/frozen visible cards/);
+    const otherKey = manifestKey.replace("1920x1080", "1280x720");
+    expect(() => capture.assertTyphoonProbabilityComparison([{ ...after, manifestKey: otherKey }], [{ ...before, manifestKey: otherKey }]))
+      .toThrow(/frozen placementLeft/);
+    expect(capture.assertTyphoonProbabilityComparison([{ ...before, manifestKey: otherKey }], [{ ...before, manifestKey: otherKey }])[0])
+      .not.toHaveProperty("approvedSpecificationChange");
+  });
+
   it("rejects old-schema after and baseline records independently", () => {
     const after = { schemaVersion: 2, suite: "design-alignment", mode: "after", records: [designRecord()] };
     const baseline = { schemaVersion: 2, suite: "design-alignment", mode: "baseline", records: [designRecord()] };

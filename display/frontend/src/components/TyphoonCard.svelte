@@ -120,22 +120,6 @@
   function probabilityOmittedCount(probability: DisplayTyphoonProbabilityV1): number {
     return Math.max(0, probability.activePrefectureCount - renderedProbabilityPrefectures(probability).length);
   }
-  function formatJstDateTime(iso: string | null): string {
-    if (iso == null) return "ピーク時刻不明";
-    const value = new Date(iso);
-    if (!Number.isFinite(value.getTime())) return "ピーク時刻不明";
-    const parts = new Intl.DateTimeFormat("ja-JP", {
-      timeZone: "Asia/Tokyo",
-      month: "numeric",
-      day: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-      hourCycle: "h23",
-    }).formatToParts(value);
-    const part = (type: Intl.DateTimeFormatPartTypes): string =>
-      parts.find((candidate) => candidate.type === type)?.value ?? "";
-    return `${part("month")}月${part("day")}日 ${part("hour")}:${part("minute")}`;
-  }
 </script>
 
 <section class="standby-card typhoon-card" class:compact={displayMode === "compact"}>
@@ -228,25 +212,27 @@
       {#if typhoon.probability != null}
         {@const shownPrefectures = renderedProbabilityPrefectures(typhoon.probability)}
         {@const omittedCount = probabilityOmittedCount(typhoon.probability)}
-        {#if displayMode === "compact"}
-          <section class="probability probability--compact" aria-label="暴風域に入る確率（5日以内）">
-            <div class="probability-compact-summary"><span>5日以内 最大</span><span class="probability-number"><NumberUnit value={String(typhoon.probability.maxFiveDayProbability)} unit="%" /></span><span class="probability-prefectures">{#each shownPrefectures as prefecture (prefecture.prefectureCode)}<span>{prefecture.prefectureName} <span class="probability-number"><NumberUnit value={String(prefecture.fiveDayProbability)} unit="%" /></span></span>{/each}{#if omittedCount > 0}<span class="probability-omitted">ほか{omittedCount}府県等</span>{/if}</span></div>
-            <div class="probability-worst probability-worst--compact">最大地域 {typhoon.probability.worstArea.areaName} <span class="probability-number"><NumberUnit value={String(typhoon.probability.worstArea.fiveDayProbability)} unit="%" /></span>・{formatJstDateTime(typhoon.probability.worstArea.peakAt)}</div>
-          </section>
-        {:else}
-          <section class="probability" aria-label="暴風域に入る確率（5日以内）">
-            <h3>暴風域に入る確率（5日以内）</h3>
-            <div class="probability-maximum">最大5日確率 <span class="probability-number"><NumberUnit value={String(typhoon.probability.maxFiveDayProbability)} unit="%" /></span></div>
+        <section class="probability" class:probability--compact={displayMode === "compact"} aria-label="暴風域に入る確率（5日以内）">
+          {#if displayMode === "full"}<h3>暴風域に入る確率（5日以内）</h3>{/if}
+          <div class="probability-conclusion">
+            <span class="probability-conclusion-label">5日積算・全地域の最大</span>
+            <div class="probability-conclusion-result">
+              <span class="probability-conclusion-area">{typhoon.probability.worstArea.areaName}（{typhoon.probability.worstArea.prefectureName}）</span>
+              <span class="probability-number"><NumberUnit value={String(typhoon.probability.worstArea.fiveDayProbability)} unit="%" /></span>
+            </div>
+          </div>
+          <h4 class="probability-prefecture-heading">府県等内の地域最大</h4>
+          {#if displayMode === "compact"}
+            <span class="probability-prefectures">{#each shownPrefectures as prefecture (prefecture.prefectureCode)}<span><span>{prefecture.prefectureName}</span><span class="probability-number"><NumberUnit value={String(prefecture.fiveDayProbability)} unit="%" /></span></span>{/each}{#if omittedCount > 0}<span class="probability-omitted">ほか{omittedCount}府県等</span>{/if}</span>
+          {:else}
             <ul class="probability-prefecture-list">
               {#each shownPrefectures as prefecture (prefecture.prefectureCode)}
                 <li><span>{prefecture.prefectureName}</span><span class="probability-number"><NumberUnit value={String(prefecture.fiveDayProbability)} unit="%" /></span></li>
               {/each}
             </ul>
             {#if omittedCount > 0}<div class="probability-omitted">ほか{omittedCount}府県等</div>{/if}
-            <div class="probability-worst"><span>最大地域 {typhoon.probability.worstArea.areaName}（{typhoon.probability.worstArea.prefectureName}）</span><span class="probability-number"><NumberUnit value={String(typhoon.probability.worstArea.fiveDayProbability)} unit="%" /></span></div>
-            <div class="probability-peak">{formatJstDateTime(typhoon.probability.worstArea.peakAt)}</div>
-          </section>
-        {/if}
+          {/if}
+        </section>
       {/if}
     </div>
   {/each}
@@ -322,13 +308,21 @@
     font-size: var(--type-label-xs-size);
     font-weight: var(--type-label-weight-emphasized);
   }
-  .probability-maximum,
-  .probability-worst {
+  .probability-conclusion { display: flex; flex-direction: column; gap: var(--space-1); }
+  .probability-conclusion-label { color: var(--role-muted); font-size: var(--type-label-xs-size); }
+  .probability-conclusion-result {
     display: flex;
+    flex-wrap: wrap;
     align-items: baseline;
-    justify-content: space-between;
     gap: var(--space-2);
-    font-size: max(12px, var(--type-label-s-fluid));
+    font-size: var(--type-label-s-fluid);
+  }
+  .probability-conclusion-area { min-width: 0; overflow-wrap: anywhere; }
+  .probability-prefecture-heading {
+    margin: var(--space-1) 0 0;
+    color: var(--role-muted);
+    font-size: var(--type-label-xs-size);
+    font-weight: normal;
   }
   .probability-number { flex-shrink: 0; white-space: nowrap; font-size: max(14px, var(--type-body-l-fluid)); }
   .probability--compact .probability-number { font-size: max(14px, var(--type-body-s-fluid)); }
@@ -341,36 +335,20 @@
     list-style: none;
     font-size: max(12px, var(--type-label-s-fluid));
   }
-  .probability-prefecture-list li { display: flex; justify-content: space-between; gap: var(--space-2); min-width: 0; }
+  .probability-prefecture-list li,
+  .probability-prefectures > span:not(.probability-omitted) { display: flex; justify-content: flex-start; gap: var(--space-2); min-width: 0; }
   .probability-prefecture-list li span { min-width: 0; overflow-wrap: anywhere; }
-  .probability-omitted,
-  .probability-peak { color: var(--role-muted); font-size: var(--type-label-xs-size); }
-  .probability-worst { flex-wrap: wrap; margin-top: var(--space-1); }
-  .probability-worst > span { min-width: 0; overflow-wrap: anywhere; }
-  .probability-peak { margin-top: var(--space-1); text-align: right; font-variant-numeric: tabular-nums; }
+  .probability-omitted { color: var(--role-muted); font-size: var(--type-label-xs-size); }
   .probability--compact { margin-top: var(--space-1); padding-top: var(--space-1); }
-  .probability-compact-summary,
-  .probability-worst--compact {
-    display: flex;
-    min-width: 0;
-    align-items: baseline;
-    flex-wrap: wrap;
-    gap: var(--space-2);
-    font-size: max(12px, var(--type-label-s-fluid));
-  }
   .probability-prefectures {
     display: flex;
     min-width: 0;
     flex-wrap: wrap;
     gap: var(--space-2);
     color: var(--role-muted);
+    font-size: var(--type-label-s-fluid);
   }
   .probability-prefectures > span { flex-shrink: 0; }
-  .probability-worst--compact {
-    display: block;
-    margin-top: var(--space-1);
-    color: var(--role-muted);
-  }
   .compact .typhoon { padding-block: var(--space-1); }
   .compact-primary, .compact-summary {
     display: flex;

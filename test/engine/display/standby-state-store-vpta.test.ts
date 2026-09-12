@@ -221,6 +221,22 @@ describe("StandbyStateStore VPTW/VPTA union", () => {
     ))).toEqual({ viewChanged: false, durableChanged: false });
   });
 
+  it("§5.3-8: valid restored display wire preserves the known three-value invariant", () => {
+    const source = new StandbyStateStore();
+    const command = probabilityCommand();
+    applyProbabilityCommand(source, command);
+    const restored = new StandbyStateStore();
+    restored.restoreActiveState(source.exportActiveState(), command.finalized.nowMs);
+    const restoredProbability = restored.snapshotItems().find((item) => item.kind === "typhoon")?.data.typhoons[0]?.probability;
+    // §5.3-8: 復元後の三値を既知値と相互一致で個別に検査する。
+    expect(restoredProbability?.topPrefectures[0]?.fiveDayProbability).toBe(100);
+    expect(restoredProbability?.maxFiveDayProbability).toBe(100);
+    expect(restoredProbability?.worstArea.fiveDayProbability).toBe(100);
+    expect(restoredProbability?.topPrefectures[0]?.fiveDayProbability).toBe(restoredProbability?.maxFiveDayProbability);
+    expect(restoredProbability?.maxFiveDayProbability).toBe(restoredProbability?.worstArea.fiveDayProbability);
+    expect(restoredProbability?.worstArea.fiveDayProbability).toBe(restoredProbability?.topPrefectures[0]?.fiveDayProbability);
+  });
+
   it("rejects malformed and duplicate probability projections at the restore reducer boundary", () => {
     const source = new StandbyStateStore();
     applyProbabilityCommand(source, probabilityCommand());

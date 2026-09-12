@@ -4374,7 +4374,13 @@ export const DESIGN_ALIGNMENT_REPORT_EXPRESSION = String.raw`(async () => {
     const key = boundary < 0 ? token : token.slice(0, boundary);
     const surface = boundary < 0 ? '' : token.slice(boundary + 1);
     const component = componentIn(host, key);
-    return { key, surface, host: measure(host), component: measure(component) };
+    return { key, surface, host: measure(host), component: measure(component),
+      omissions: all('*', host).flatMap((node) => {
+        const counts = [...node.attributes].filter((attr) => /(?:omitted|failure)/.test(attr.name)).map((attr) => [attr.name, attr.value]);
+        const text = /(?:omitted|failure)/.test(node.className) ? clean(node.textContent) : '';
+        return counts.length === 0 && text === '' ? [] : [{ counts, text }];
+      }),
+    };
   });
   const fragment = (node) => textMeasure(node);
   const briefingCard = liveComponent('briefing');
@@ -4479,17 +4485,46 @@ export const DESIGN_ALIGNMENT_REPORT_EXPRESSION = String.raw`(async () => {
     const legacyMatch = compactText(context.textContent).match(/(\d+)%/);
     return {
       role, label, legacyNode: textMeasure(context), probabilityNumber: textMeasure(probabilityNumber),
+      adjacency: probabilityAdjacency(context.querySelector('.probability-conclusion-area')
+        ?? (context === probabilityNumber ? context.previousElementSibling : probabilityNumber?.previousElementSibling ?? context.firstChild), probabilityNumber),
       nuValue: fragment(nuValue), nuUnit: fragment(nuUnit),
       value: nuValue == null ? (legacyMatch == null ? null : Number(legacyMatch[1])) : Number(clean(nuValue.textContent)),
       unit: nuUnit == null ? (legacyMatch == null ? null : '%') : clean(nuUnit.textContent),
     };
   };
-  const typhoonCard = liveComponent('typhoon');
-  const typhoon = typhoonCard == null ? null : (() => {
+  // One reader keeps old/new DOM and shelf/live geometry comparable (§5.2/§5.3).
+  const probabilityClass = (node) => [...node.classList].filter((name) => !name.startsWith('svelte-')).join(' ');
+  const probabilityStyle = (node) => {
+    const style = getComputedStyle(node);
+    return Object.fromEntries(['display', 'flexDirection', 'flexWrap', 'justifyContent', 'alignItems',
+      'rowGap', 'columnGap', 'paddingTop', 'paddingRight', 'paddingBottom', 'paddingLeft',
+      'marginTop', 'marginRight', 'marginBottom', 'marginLeft', 'fontFamily', 'fontSize', 'fontWeight',
+      'lineHeight', 'color', 'backgroundColor', 'borderTopWidth', 'borderRightWidth', 'borderBottomWidth',
+      'borderLeftWidth', 'borderBottomColor', 'borderRadius', 'boxShadow', 'whiteSpace', 'overflowWrap',
+      'overflowX', 'overflowY'].map((key) => [key, style[key]]));
+  };
+  const probabilityAdjacency = (name, number) => {
+    if (name == null || number == null) return null;
+    const range = document.createRange();
+    range.selectNodeContents(name);
+    const lines = [...range.getClientRects()].filter((box) => box.width > 0 && box.height > 0);
+    const last = lines.at(-1);
+    const value = number.getBoundingClientRect();
+    const sameLine = last != null && value.top < last.bottom - 1 && value.bottom > last.top + 1;
+    return { name: { text: clean(name.textContent), rect: rect(name.nodeType === Node.ELEMENT_NODE ? name : name.parentElement) },
+      lastLine: last == null ? null : { top: last.top, bottom: last.bottom, right: last.right },
+      number: textMeasure(number), sameLine,
+      directAdjacent: name.nextSibling === number || name.nextElementSibling === number,
+      gap: last == null ? null : Math.max(0, sameLine ? value.left - last.right : value.top - last.bottom) };
+  };
+  const describeTyphoon = (typhoonCard) => {
+    if (typhoonCard == null) return null;
     const header = typhoonCard.querySelector('.standby-card-header');
     const headerStyle = header == null ? null : getComputedStyle(header);
     const compact = typhoonCard.classList.contains('compact');
     const roles = [];
+    const conclusion = typhoonCard.querySelector('.probability-conclusion');
+    if (conclusion != null) roles.push(probabilityRole('conclusion', conclusion, clean(conclusion.querySelector('.probability-conclusion-area')?.textContent)));
     if (compact) {
       const summary = typhoonCard.querySelector('.probability-compact-summary');
       roles.push(probabilityRole('maximum', summary?.querySelector(':scope > .probability-number, :scope > strong') ?? null, 'maximum'));
@@ -4507,7 +4542,7 @@ export const DESIGN_ALIGNMENT_REPORT_EXPRESSION = String.raw`(async () => {
     const styleAttribute = header?.getAttribute('style') ?? '';
     return {
       scenario: window.location.hash.replace(/^#/, ''),
-      displayMode: compact ? 'compact' : 'full', card: measure(typhoonCard), resolvedNumWeight: resolveCustomFontWeight(typhoonCard),
+      displayMode: compact ? 'compact' : 'full', card: measure(typhoonCard), resolvedNumWeight: getComputedStyle(typhoonCard).getPropertyValue('--num-weight').trim(),
       header: header == null ? null : {
         node: measure(header), className: header.className, style: styleAttribute,
         customProperties: {
@@ -4519,8 +4554,61 @@ export const DESIGN_ALIGNMENT_REPORT_EXPRESSION = String.raw`(async () => {
         bandWidth: numeric(headerStyle.borderBottomWidth), roleMuted: resolveRoleMuted(),
       },
       roles: roles.filter(Boolean),
+      probabilitySchema: 1, domVersion: conclusion == null ? 'legacy' : 'conclusion',
+      payloadSignature: { source: 'preview', maximum: roles.find((role) => role?.role === 'conclusion' || role?.role === 'maximum')?.value ?? null,
+        prefectures: roles.filter((role) => role?.role === 'prefecture').map(({ label, value, unit }) => ({ label, value, unit })) },
+      naturalHeight: Math.round(typhoonCard.parentElement.matches('.measure-item')
+        ? typhoonCard.parentElement.getBoundingClientRect().height : typhoonCard.getBoundingClientRect().height),
+      shell: probabilityStyle(typhoonCard),
+      chrome: all('.standby-card-header, .updated-stamp, .restored-chip', typhoonCard).map((node) => ({
+        tag: node.tagName, text: clean(node.textContent), css: probabilityStyle(node),
+      })),
+      footerCount: all('[data-card-page-footer], .card-page-footer', typhoonCard).length,
+      sections: all('.probability', typhoonCard).map((section) => {
+        const conclusion = section.querySelector('.probability-conclusion');
+        const label = section.querySelector('.probability-conclusion-label');
+        const result = section.querySelector('.probability-conclusion-result');
+        const area = section.querySelector('.probability-conclusion-area');
+        const number = result?.querySelector('.probability-number');
+        const nodes = [section, ...all('*', section)];
+        return {
+          node: textMeasure(section), accessibleName: section.getAttribute('aria-label'),
+          space1: numeric(getComputedStyle(section).getPropertyValue('--space-1')),
+          space2: numeric(getComputedStyle(section).getPropertyValue('--space-2')),
+          conclusionCount: all('.probability-conclusion', section).length,
+          conclusionChildren: conclusion == null ? [] : [...conclusion.children].map(probabilityClass),
+          resultChildren: result == null ? [] : [...result.children].map(probabilityClass),
+          label: textMeasure(label), result: textMeasure(result), area: textMeasure(area),
+          labelResultAdjacent: label != null && label.nextElementSibling === result,
+          areaNumber: probabilityAdjacency(area, number),
+          headings: all('h4.probability-prefecture-heading', section).map((node) => ({
+            text: clean(node.textContent), hidden: node.hidden || node.getAttribute('aria-hidden') === 'true'
+              || getComputedStyle(node).display === 'none' || getComputedStyle(node).opacity === '0'
+              || (section.closest('.measure-shelf, .center-measure-shelf') == null && getComputedStyle(node).visibility !== 'visible'),
+          })),
+          oldRoleCount: all('.probability-maximum, .probability-worst, .probability-peak', section).length,
+          peakCount: all('.probability-peak', section).length,
+          omitted: all('.probability-omitted', section).map((node) => clean(node.textContent)),
+          prefectures: all('.probability-prefecture-list > li, .probability-prefectures > span:not(.probability-omitted)', section).map((node) => {
+            const number = node.querySelector('.probability-number');
+            const name = number?.previousElementSibling ?? number?.previousSibling;
+            return { name: clean(name?.textContent), adjacency: probabilityAdjacency(name, number) };
+          }),
+          nodes: nodes.map((node) => ({
+            role: probabilityClass(node), tag: node.tagName, childCount: node.children.length,
+            text: clean(node.textContent), css: probabilityStyle(node), box: measure(node),
+          })),
+        };
+      }),
     };
-  })();
+  };
+  const typhoon = describeTyphoon(liveComponent('typhoon'));
+  const typhoonProbes = all('.measure-shelf > .measure-item, .center-measure-shelf > .measure-item', root).flatMap((item) => {
+    const card = item.querySelector('.typhoon-card');
+    if (card == null || !['full', 'compact'].includes(item.getAttribute('data-measure-variant'))) return [];
+    return [{ placement: item.closest('.center-measure-shelf') == null ? 'side' : 'center',
+      variant: item.getAttribute('data-measure-variant'), ...describeTyphoon(card) }];
+  });
   const describeWeatherCard = (card, host = null) => {
     if (card == null) return null;
     const style = getComputedStyle(card);
@@ -4774,10 +4862,13 @@ export const DESIGN_ALIGNMENT_REPORT_EXPRESSION = String.raw`(async () => {
       cardOverflowKeys: splitAttr('data-card-overflow-keys'), readableOverflowKeys: splitAttr('data-page-viewport-overflow-keys'),
       visibleCards, candidateCounts, measurementWidths,
       sideMeasureShelfWidth: attrNumber('data-side-measure-shelf-rect-width-px'),
+      centerMeasureShelfWidth: attrNumber('data-center-measure-shelf-rect-width-px'),
+      centerTrackWidth: attrNumber('data-center-track-rect-width-px'),
     },
     riderReserveCounts: parsePreviewJson('data-design-alignment-rider-reserve-counts'),
     payloadSignature: parsePreviewJson('data-design-alignment-payload-signature'),
     tokens: { roleMuted: resolveRoleMuted() },
+    typhoonProbabilitySchema: 1, typhoonProbes,
     captureTickerFrozen, tickerLineAnimations, briefing, forecast, typhoon, weatherCards, weatherAuto, naturalHeightProbes, pagerContracts, pageFooters, recentQuakes,
   };
 })()`;
@@ -5298,6 +5389,9 @@ export function assertDesignAlignmentBaselineStructure(records) {
   }
   assertBaselineForecastCoverage(records);
   assertBaselineTyphoonCoverage(records);
+  for (const record of records) {
+    if (record.geometry.typhoonProbabilitySchema === 1) assertTyphoonProbabilityGeometry(record);
+  }
 }
 
 export function assertDesignCaptureTickerFreeze(record) {
@@ -5525,8 +5619,10 @@ function assertBaselineTyphoonCoverage(records) {
   for (const target of targets) {
     const typhoon = findRecords(records, target.scenario, target.viewport).find((record) => record.rotationTick === target.tick && record.cardPageTick === 0)?.geometry.typhoon;
     if (typhoon == null || typhoon.displayMode !== target.mode) throw new Error(`${target.scenario}/${target.viewport}: ${target.mode} Typhoon was not captured`);
-    const counts = Object.fromEntries(["maximum", "prefecture", "worst"].map((role) => [role, typhoon.roles.filter((entry) => entry.role === role).length]));
-    assertDeepEqual(counts, { maximum: 1, prefecture: target.prefectures, worst: 1 }, `${target.scenario}/${target.viewport} baseline probability roles`);
+    const expectedRoles = typhoon.domVersion === "conclusion" ? { conclusion: 1, prefecture: target.prefectures } : { maximum: 1, prefecture: target.prefectures, worst: 1 };
+    const counts = Object.fromEntries(Object.keys(expectedRoles).map((role) => [role, typhoon.roles.filter((entry) => entry.role === role).length]));
+    expectEqual(typhoon.roles.length, Object.values(expectedRoles).reduce((sum, count) => sum + count, 0), `${target.scenario} role count`);
+    assertDeepEqual(counts, expectedRoles, `${target.scenario}/${target.viewport} baseline probability roles`);
     if (typhoon.roles.some((role) => role.legacyNode == null || role.unit !== "%")) throw new Error(`${target.scenario}/${target.viewport}: legacy probability node/value missing`);
     if (target.tone === "muted") {
       if (!typhoon.header.className.split(/\s+/).includes("standby-card-header--muted") || typhoon.header.customProperties.container !== "" || typhoon.header.customProperties.on !== "" || typhoon.header.customProperties.band !== "") throw new Error(`${target.scenario}: muted header fixture mismatch`);
@@ -5651,8 +5747,10 @@ function assertForecast(records, baseline) {
 export function assertDesignAlignmentTyphoonProbability(typhoon, { mode, valueFontSize, prefectureCount, header }, label = "typhoon") {
   if (typhoon == null || typhoon.displayMode !== mode) throw new Error(`${label}: expected ${mode} Typhoon`);
   assertNoOverflow(typhoon.card, `${label} card`);
-  const counts = Object.fromEntries(["maximum", "prefecture", "worst"].map((role) => [role, typhoon.roles.filter((entry) => entry.role === role).length]));
-  assertDeepEqual(counts, { maximum: 1, prefecture: prefectureCount, worst: 1 }, `${label} probability roles`);
+  const expectedRoles = typhoon.domVersion === "conclusion" ? { conclusion: 1, prefecture: prefectureCount } : { maximum: 1, prefecture: prefectureCount, worst: 1 };
+  const counts = Object.fromEntries(Object.keys(expectedRoles).map((role) => [role, typhoon.roles.filter((entry) => entry.role === role).length]));
+  expectEqual(typhoon.roles.length, Object.values(expectedRoles).reduce((sum, count) => sum + count, 0), `${label} role count`);
+  assertDeepEqual(counts, expectedRoles, `${label} probability roles`);
   for (const role of typhoon.roles) {
     for (const [name, node] of [["probabilityNumber", role.probabilityNumber], ["nuValue", role.nuValue], ["nuUnit", role.nuUnit]]) {
       assertNoOverflow(node, `${label} ${role.role}/${role.label} ${name}`);
@@ -5687,21 +5785,155 @@ function assertTyphoon(records) {
   assertDesignAlignmentTyphoonProbability(normal, { mode: "full", valueFontSize: 19, prefectureCount: 5, header: "normal" }, "VPTA normal");
   assertDeepEqual(roleValues(muted), roleValues(normal), "VPTA probability/header independence");
   assertDeepEqual(muted.roles.map(({ role, value }) => ({ role, value })), [
-    { role: "maximum", value: 80 },
+    { role: muted.domVersion === "conclusion" ? "conclusion" : "maximum", value: 80 },
     { role: "prefecture", value: 80 }, { role: "prefecture", value: 70 }, { role: "prefecture", value: 60 },
     { role: "prefecture", value: 50 }, { role: "prefecture", value: 40 },
-    { role: "worst", value: 80 },
+    ...(muted.domVersion === "conclusion" ? [] : [{ role: "worst", value: 80 }]),
   ], "VPTA full visible values");
   for (const viewport of ["1280x720", "960x620"]) {
     const tick = DESIGN_ALIGNMENT_COMPRESSED_PLANS[viewport].typhoonCaptureTick;
     const compact = findRecords(records, "standby-design-alignment-compressed", viewport).find((record) => record.rotationTick === tick && record.cardPageTick === 0)?.geometry.typhoon;
     assertDesignAlignmentTyphoonProbability(compact, { mode: "compact", valueFontSize: 14, prefectureCount: 3, header: null }, `VPTA compact ${viewport}`);
     assertDeepEqual(compact.roles.map(({ role, value }) => ({ role, value })), [
-      { role: "maximum", value: 80 },
+      { role: compact.domVersion === "conclusion" ? "conclusion" : "maximum", value: 80 },
       { role: "prefecture", value: 80 }, { role: "prefecture", value: 70 }, { role: "prefecture", value: 60 },
-      { role: "worst", value: 80 },
+      ...(compact.domVersion === "conclusion" ? [] : [{ role: "worst", value: 80 }]),
     ], `VPTA compact ${viewport} visible values`);
   }
+}
+
+// The additive schema distinguishes this contract from the historical design migration.
+// Old reports still use their original assertions; new baselines freeze the current plan.
+export function assertTyphoonProbabilityGeometry(record, { after = false } = {}) {
+  const report = record.geometry;
+  const label = record.manifestKey;
+  expectEqual(report?.typhoonProbabilitySchema, 1, `${label} Typhoon geometry schema`);
+  if (!Array.isArray(report.typhoonProbes)) throw new Error(`${label}: Typhoon probes missing`);
+  const live = report.typhoon;
+  const probes = report.typhoonProbes;
+  if (!probes.some((card) => card.sections.length > 0) && (live?.sections.length ?? 0) === 0) return;
+  assertDesignAlignmentApprox(report.layout.centerMeasureShelfWidth, report.layout.centerTrackWidth, 1, `${label} center shelf/track width`);
+  for (const placement of ["side", "center"]) {
+    for (const variant of ["full", "compact"]) {
+      expectEqual(probes.filter((probe) => probe.placement === placement && probe.variant === variant).length, 1, `${label} ${placement}/${variant} probe count`);
+    }
+  }
+  for (const card of [...probes, ...(live == null ? [] : [live])]) {
+    if (!Number.isFinite(card.naturalHeight) || card.naturalHeight <= 0) throw new Error(`${label}: non-positive Typhoon natural height`);
+    assertNoOverflow(card.card, `${label} Typhoon border-box`);
+    expectEqual(card.footerCount, 0, `${label} Typhoon footer count`);
+    if (card.sections.length === 0) throw new Error(`${label}: probability sections missing`);
+    for (const section of card.sections) {
+      for (const node of section.nodes) assertNoOverflow(node.box, `${label} probability ${node.role || node.tag}`);
+      if (!after) continue;
+      expectEqual(card.domVersion, "conclusion", `${label} after DOM version`);
+      expectEqual(section.accessibleName, "暴風域に入る確率（5日以内）", `${label} section accessible name`);
+      expectEqual(section.conclusionCount, 1, `${label} conclusion count`);
+      assertDeepEqual(section.conclusionChildren, ["probability-conclusion-label", "probability-conclusion-result"], `${label} conclusion direct children`);
+      assertDeepEqual(section.resultChildren, ["probability-conclusion-area", "probability-number"], `${label} result direct children`);
+      expectEqual(section.label?.text, "5日積算・全地域の最大", `${label} conclusion label`);
+      expectEqual(section.area?.text, "東京地方（東京都）", `${label} preview conclusion area`);
+      expectEqual(section.labelResultAdjacent, true, `${label} label/result adjacent`);
+      assertDeepEqual(section.headings, [{ text: "府県等内の地域最大", hidden: false }], `${label} prefecture heading`);
+      expectEqual(section.oldRoleCount, 0, `${label} old probability DOM count`);
+      expectEqual(section.peakCount, 0, `${label} peak count`);
+      if (/\d+月\d+日\s*\d+:\d+|ピーク時刻不明/.test(section.node.text + section.accessibleName)) throw new Error(`${label}: peak time remains in probability section`);
+      const gap = Math.max(0, section.result?.rect.top - section.label?.rect.bottom);
+      if (!Number.isFinite(section.space1) || !Number.isFinite(gap) || gap > section.space1 + 1) throw new Error(`${label}: conclusion label/result gap ${gap}`);
+      const count = card.displayMode === "compact" ? 3 : 5;
+      expectEqual(section.prefectures.length, count, `${label} prefecture count`);
+      assertDeepEqual(section.omitted, [`ほか${8 - count}府県等`], `${label} probability omitted`);
+      for (const adjacency of [section.areaNumber, ...section.prefectures.map((item) => item.adjacency)]) {
+        if (adjacency == null || !adjacency.directAdjacent || !Number.isFinite(adjacency.gap)
+          || !Number.isFinite(section.space2) || adjacency.gap > section.space2 + 1) throw new Error(`${label}: area/prefecture number adjacency failed: ${JSON.stringify(adjacency)}`);
+      }
+    }
+    if (after) assertDesignAlignmentTyphoonProbability(card, {
+      // Absolute sizes are checked by assertTyphoon at the required live fixtures; 960px full shelf is fluid.
+      mode: card.displayMode, valueFontSize: card.roles[0]?.nuValue?.fontSize,
+      prefectureCount: card.displayMode === "compact" ? 3 : 5, header: null,
+    }, `${label} ${card.placement ?? "live"}`);
+  }
+  if (live == null) return;
+  const surface = report.layout.visibleCards.find((card) => card.key === "typhoon")?.surface;
+  // The manifest has side/rotation live instances only. Center evidence is shelf-only.
+  if (!["right", "left", "rotation"].includes(surface)) throw new Error(`${label}: unexpected Typhoon live surface ${surface}`);
+  const probe = probes.find((card) => card.placement === "side" && card.variant === live.displayMode);
+  for (const dimension of ["width", "height"]) assertDesignAlignmentApprox(live.card.rect[dimension], probe.card.rect[dimension], 1, `${label} Typhoon probe/live ${dimension}`);
+  assertDesignAlignmentApprox(live.naturalHeight, probe.naturalHeight, 1, `${label} Typhoon probe/live natural height`);
+  const content = (card) => ({
+    displayMode: card.displayMode, roles: roleValues(card), shell: card.shell,
+    sections: card.sections.map((section) => section.nodes.map(({ box, ...node }) => node)),
+  });
+  assertDeepEqual(content(live), content(probe), `${label} Typhoon probe/live DOM and CSS`);
+}
+
+export function assertTyphoonProbabilityComparison(records, baselineRecords) {
+  const comparisons = buildDesignAlignmentComparison(records, baselineRecords);
+  for (const [index, afterRecord] of records.entries()) {
+    const beforeRecord = baselineRecords[index];
+    const label = afterRecord.manifestKey;
+    assertTyphoonProbabilityGeometry(beforeRecord);
+    assertTyphoonProbabilityGeometry(afterRecord, { after: true });
+    const before = beforeRecord.geometry, after = afterRecord.geometry;
+    // Author ruling, 2026-09-12: only this exact before/after side placement is approved.
+    const approvedSpecificationChange = label === "legacy-standby-gate|1920x1080|0|0|gateScenario=max&maxPlan=fhdMax" ? {
+      placementLeft: {
+        before: ["tsunami", "quake", "weatherWarningForecast", "typhoon"],
+        after: ["tsunami", "quake", "typhoon", "volcano"],
+      },
+      placementRight: {
+        before: ["weather", "flood", "volcano", "heat"],
+        after: ["weather", "weatherWarningForecast", "flood", "heat"],
+      },
+    } : null;
+    for (const key of ["ladderStage", "measurementGeometryStage", "compressed", "placementLeft", "placementRight", "placementCenter",
+      "rotationKeys", "rotationActiveKey", "rotationPosition", "rotationOmittedCount", "typhoonVariant", "cardOverflowKeys", "readableOverflowKeys"]) {
+      if (approvedSpecificationChange != null && key in approvedSpecificationChange) {
+        assertDeepEqual(before.layout[key], approvedSpecificationChange[key].before, `${label} approvedSpecificationChange before ${key}`);
+        assertDeepEqual(after.layout[key], approvedSpecificationChange[key].after, `${label} approvedSpecificationChange after ${key}`);
+      } else {
+        assertDeepEqual(after.layout[key], before.layout[key], `${label} frozen ${key}`);
+      }
+    }
+    const visible = (geometry) => geometry.layout.visibleCards.map(({ key, surface, omissions }) => ({ key, surface, omissions }));
+    const beforeVisible = visible(before);
+    let expectedVisible = beforeVisible;
+    if (approvedSpecificationChange != null) {
+      const sides = { left: approvedSpecificationChange.placementLeft, right: approvedSpecificationChange.placementRight };
+      for (const [surface, placement] of Object.entries(sides)) {
+        assertDeepEqual(beforeVisible.filter((card) => card.surface === surface).map((card) => card.key), placement.before,
+          `${label} approvedSpecificationChange before visible ${surface}`);
+      }
+      expectedVisible = beforeVisible.map((card) => {
+        const placement = sides[card.surface];
+        if (placement == null) return card;
+        const key = placement.after[placement.before.indexOf(card.key)];
+        return { ...beforeVisible.find((oldCard) => oldCard.key === key), surface: card.surface };
+      });
+      comparisons[index].approvedSpecificationChange = approvedSpecificationChange;
+    }
+    assertDeepEqual(visible(after), expectedVisible, `${label} frozen visible cards/omitted/failure`);
+    assertDeepEqual(after.payloadSignature, before.payloadSignature, `${label} preview payloadSignature`);
+    const oldCard = before.typhoon, card = after.typhoon;
+    if ((card == null) !== (oldCard == null)) throw new Error(`${label}: Typhoon live coverage changed`);
+    if (card == null) continue;
+    const header = ({ node, className, ...tone }) => ({ ...tone, className: className.split(/\s+/).filter((name) => !name.startsWith("svelte-")).join(" ") });
+    assertDeepEqual(header(card.header), header(oldCard.header), `${label} frozen header tone`);
+    assertDeepEqual(card.payloadSignature, oldCard.payloadSignature, `${label} preview probability payloadSignature`);
+    assertDeepEqual(card.chrome, oldCard.chrome, `${label} frozen header/UpdatedStamp/RestoredChip`);
+    assertDeepEqual(card.shell, oldCard.shell, `${label} frozen shell CSS`);
+    assertDeepEqual(card.sections.map((section) => section.omitted), oldCard.sections.map((section) => section.omitted), `${label} frozen probability omitted`);
+    assertDeepEqual(roleValues(card).filter((role) => role.role === "prefecture"), roleValues(oldCard).filter((role) => role.role === "prefecture"), `${label} frozen prefecture values/order`);
+    expectEqual(card.roles.find((role) => role.role === "conclusion")?.value,
+      oldCard.roles.find((role) => role.role === "worst" || role.role === "conclusion")?.value, `${label} frozen conclusion value`);
+    comparisons[index].typhoonNaturalHeight = numericComparison(oldCard.naturalHeight, card.naturalHeight);
+    comparisons[index].typhoonProbeHeights = after.typhoonProbes.map((probe, probeIndex) => ({
+      placement: probe.placement, variant: probe.variant,
+      ...numericComparison(before.typhoonProbes[probeIndex]?.naturalHeight, probe.naturalHeight),
+    }));
+  }
+  return comparisons;
 }
 
 export function assertDesignAlignmentBaselineIdentity(records, baselineRecords) {
@@ -6355,6 +6587,14 @@ export function assertDesignAlignmentManifest(records, { mode, baseline = null }
   assertBriefingCaptureCoverage(records);
   assertBaselineForecastCoverage(records);
   assertBaselineTyphoonCoverage(records);
+  if (baseline.records.some((record) => record.geometry.typhoonProbabilitySchema === 1)) {
+    // §5.3: freeze this baseline; historical +9/+5px footer migrations do not apply.
+    const comparison = assertTyphoonProbabilityComparison(records, baseline.records);
+    assertTyphoon(records);
+    assertDesignAlignmentPageFooters(records);
+    assertDesignAlignmentPagerContracts(records, baseline);
+    return comparison;
+  }
   const comparison = buildDesignAlignmentComparison(records, baseline.records);
   assertDesignAlignmentComparisonPolicy(comparison);
   assertBriefingMatrix(records);

@@ -203,6 +203,14 @@ describe("StandbyPersistence VPTA50 coupling", () => {
     );
     expect(probabilityOnly.loaded.typhoons).toEqual([]);
     expect(probabilityOnly.loaded.typhoonProbabilities).toEqual([probability()]);
+    const restoredProjection = probabilityOnly.loaded.typhoonProbabilities?.[0];
+    // §5.3-8: 復元後の三値を既知値と相互一致で個別に検査する。
+    expect(restoredProjection?.topPrefectures[0]?.fiveDayProbability).toBe(50);
+    expect(restoredProjection?.maxFiveDayProbability).toBe(50);
+    expect(restoredProjection?.worstArea.fiveDayProbability).toBe(50);
+    expect(restoredProjection?.topPrefectures[0]?.fiveDayProbability).toBe(restoredProjection?.maxFiveDayProbability);
+    expect(restoredProjection?.maxFiveDayProbability).toBe(restoredProjection?.worstArea.fiveDayProbability);
+    expect(restoredProjection?.worstArea.fiveDayProbability).toBe(restoredProjection?.topPrefectures[0]?.fiveDayProbability);
 
     const combined = saveAndLoad(
       state({ typhoons: [analysis()], typhoonProbabilities: [probability()] }),
@@ -218,6 +226,14 @@ describe("StandbyPersistence VPTA50 coupling", () => {
       probability: { maxFiveDayProbability: 50 },
     });
     expect(card?.restored).toBe(true);
+    const restoredProbability = card?.data.typhoons[0]?.probability;
+    // §5.3-8: 復元後の三値を既知値と相互一致で個別に検査する。
+    expect(restoredProbability?.topPrefectures[0]?.fiveDayProbability).toBe(50);
+    expect(restoredProbability?.maxFiveDayProbability).toBe(50);
+    expect(restoredProbability?.worstArea.fiveDayProbability).toBe(50);
+    expect(restoredProbability?.topPrefectures[0]?.fiveDayProbability).toBe(restoredProbability?.maxFiveDayProbability);
+    expect(restoredProbability?.maxFiveDayProbability).toBe(restoredProbability?.worstArea.fiveDayProbability);
+    expect(restoredProbability?.worstArea.fiveDayProbability).toBe(restoredProbability?.topPrefectures[0]?.fiveDayProbability);
   });
 
   it("restores a card only for a coupled P+G bundle, never GA, GT, or projection-only", () => {
@@ -229,6 +245,14 @@ describe("StandbyPersistence VPTA50 coupling", () => {
     coupledStore.restoreActiveState(coupled.loaded, NOW);
     expect(coupledStore.snapshotItems().find((item) => item.kind === "typhoon"))
       .toMatchObject({ restored: true });
+    const restoredProbability = coupledStore.snapshotItems().find((item) => item.kind === "typhoon")?.data.typhoons[0]?.probability;
+    // §5.3-8: 復元後の三値を既知値と相互一致で個別に検査する。
+    expect(restoredProbability?.topPrefectures[0]?.fiveDayProbability).toBe(50);
+    expect(restoredProbability?.maxFiveDayProbability).toBe(50);
+    expect(restoredProbability?.worstArea.fiveDayProbability).toBe(50);
+    expect(restoredProbability?.topPrefectures[0]?.fiveDayProbability).toBe(restoredProbability?.maxFiveDayProbability);
+    expect(restoredProbability?.maxFiveDayProbability).toBe(restoredProbability?.worstArea.fiveDayProbability);
+    expect(restoredProbability?.worstArea.fiveDayProbability).toBe(restoredProbability?.topPrefectures[0]?.fiveDayProbability);
 
     for (const entries of [
       [gateEntry("TC2606", false)],

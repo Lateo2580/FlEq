@@ -583,91 +583,140 @@ describe("TyphoonCard", () => {
     expect(combined.container.querySelector("header")?.classList.contains("warning")).toBe(true);
   });
 
-  it("full は上位5件、compact は上位3件と正確な omitted label を表示する", () => {
+  it("§5.1-6,7: full 5件 / compact 3件の順序・隣接と omitted を維持する", () => {
     const item = typhoonItem([typhoon({ probability: probability() })]);
-    const full = render(TyphoonCard, { item });
-    expect(full.container.querySelectorAll(".probability-prefecture-list li")).toHaveLength(5);
-    expect(full.container.querySelector(".probability-omitted")?.textContent).toBe("ほか3府県等");
-    expect(full.container.querySelector(".probability-maximum")?.textContent).toContain("80%");
-    full.unmount();
-
-    const compact = render(TyphoonCard, { item, displayMode: "compact" });
-    expect(compact.container.querySelectorAll(".probability-prefectures > span:not(.probability-omitted)"))
-      .toHaveLength(3);
-    expect(compact.container.querySelector(".probability-omitted")?.textContent).toBe("ほか5府県等");
-    expect(compact.container.querySelector(".probability-compact-summary")?.textContent)
-      .toContain("5日以内 最大80%");
+    for (const displayMode of ["full", "compact"] as const) {
+      const view = render(TyphoonCard, { item, displayMode });
+      const count = displayMode === "full" ? 5 : 3;
+      const items = [...view.container.querySelectorAll(
+        ".probability-prefecture-list li, .probability-prefectures > span:not(.probability-omitted)",
+      )];
+      expect(items).toHaveLength(count);
+      expect(items.map((item) => item.firstElementChild?.textContent))
+        .toEqual(["東京都", "神奈川県", "千葉県", "埼玉県", "茨城県"].slice(0, count));
+      expect(items.map((item) => item.lastElementChild?.textContent))
+        .toEqual(["80%", "70%", "60%", "50%", "40%"].slice(0, count));
+      for (const item of items) {
+        expect(item.children).toHaveLength(2);
+        expect(item.firstElementChild?.nextElementSibling?.matches(".probability-number")).toBe(true);
+      }
+      expect(view.container.querySelector(".probability-omitted")?.textContent).toBe(`ほか${8 - count}府県等`);
+      view.unmount();
+    }
   });
 
-  it("full/compactの全probability roleをNumberUnit構造とtoken spacingで描画する", () => {
-    const assertNumberUnits = (root: HTMLElement, expectedCount: number): void => {
-      const wrappers = [...root.querySelectorAll<HTMLElement>(".probability-number")];
-      expect(wrappers).toHaveLength(expectedCount);
-      for (const wrapper of wrappers) {
-        const value = wrapper.querySelector<HTMLElement>(".nu-value");
-        const unit = wrapper.querySelector<HTMLElement>(".nu-unit");
-        expect(value).not.toBeNull();
-        expect(unit?.textContent).toBe("%");
-        expect(value?.nextElementSibling).toBe(unit);
-      }
-    };
+  it("§5.1-1,2,3,5,7: full/compact は結論の label・area・NumberUnit と府県等見出しを直接隣接させる", () => {
     const item = typhoonItem([typhoon({ probability: probability() })]);
-    const full = render(TyphoonCard, { item });
-    assertNumberUnits(full.container, 7);
-    expect(full.container.querySelector(".probability-maximum .probability-number")).not.toBeNull();
-    expect(full.container.querySelectorAll(".probability-prefecture-list .probability-number")).toHaveLength(5);
-    expect(full.container.querySelector(".probability-worst .probability-number")).not.toBeNull();
-    full.unmount();
-    const compact = render(TyphoonCard, { item, displayMode: "compact" });
-    assertNumberUnits(compact.container, 5);
-    expect(compact.container.querySelector(".probability-compact-summary > .probability-number")).not.toBeNull();
-    expect(compact.container.querySelectorAll(".probability-prefectures .probability-number")).toHaveLength(3);
-    expect(compact.container.querySelector(".probability-worst--compact .probability-number")).not.toBeNull();
+    for (const displayMode of ["full", "compact"] as const) {
+      const view = render(TyphoonCard, { item, displayMode });
+      const section = view.getByRole("region", { name: "暴風域に入る確率（5日以内）" });
+      expect(view.container.querySelectorAll(".probability")).toHaveLength(1);
+      expect(section.querySelectorAll(".probability-conclusion")).toHaveLength(1);
+      const conclusion = section.querySelector(".probability-conclusion")!;
+      const label = conclusion.querySelector(".probability-conclusion-label")!;
+      const result = conclusion.querySelector(".probability-conclusion-result")!;
+      expect([...conclusion.children]).toEqual([label, result]);
+      expect(label.textContent).toBe("5日積算・全地域の最大");
+      expect(label.nextElementSibling).toBe(result);
+      const area = result.querySelector(".probability-conclusion-area")!;
+      const number = result.querySelector(".probability-number")!;
+      expect([...result.children]).toEqual([area, number]);
+      expect(area.nextElementSibling).toBe(number);
+      expect(area.textContent).toBe("東京地方（東京都）");
+      expect(number.textContent).toBe("80%");
+      const heading = view.getByRole("heading", { name: "府県等内の地域最大", level: 4 });
+      expect(section.querySelectorAll("h4.probability-prefecture-heading")).toHaveLength(1);
+      expect(conclusion.nextElementSibling).toBe(heading);
+      expect(heading.nextElementSibling?.matches(displayMode === "full"
+        ? ".probability-prefecture-list" : ".probability-prefectures")).toBe(true);
+      const wrappers = [...section.querySelectorAll(".probability-number")];
+      expect(wrappers).toHaveLength(displayMode === "full" ? 6 : 4);
+      for (const wrapper of wrappers) {
+        expect(wrapper.querySelectorAll(".nu-value")).toHaveLength(1);
+        expect(wrapper.querySelectorAll(".nu-unit")).toHaveLength(1);
+        const value = wrapper.querySelector(".nu-value");
+        const unit = wrapper.querySelector(".nu-unit");
+        expect(value?.nextElementSibling).toBe(unit);
+        expect(unit?.textContent).toBe("%");
+      }
+      view.unmount();
+    }
+  });
 
+  it("§5.2: probability は既存 spacing token・二列 grid・wrapping flex を維持する", () => {
     const source = readFileSync(join(__dirname, "..", "TyphoonCard.svelte"), "utf8");
+    const css = source.slice(source.indexOf("  .probability {"), source.indexOf("  .compact .typhoon"));
+    expect(css).toMatch(/\.probability-conclusion\s*\{[^}]*flex-direction:\s*column;[^}]*gap:\s*var\(--space-1\);/s);
+    expect(css).toMatch(/\.probability-conclusion-result\s*\{[^}]*flex-wrap:\s*wrap;[^}]*gap:\s*var\(--space-2\);/s);
+    expect(css).toMatch(/\.probability-conclusion-area\s*\{[^}]*overflow-wrap:\s*anywhere;/s);
+    expect(css).toMatch(/\.probability-prefecture-list\s*\{[^}]*grid-template-columns:\s*repeat\(auto-fit, minmax\(min\(100%, 8rem\), 1fr\)\);[^}]*gap:\s*var\(--space-1\) var\(--space-3\);/s);
+    expect(css).toMatch(/\.probability-prefecture-list li,\s*\.probability-prefectures > span:not\(\.probability-omitted\)\s*\{[^}]*justify-content:\s*flex-start;[^}]*gap:\s*var\(--space-2\);/s);
+    expect(css).toMatch(/\.probability-prefectures\s*\{[^}]*display:\s*flex;[^}]*flex-wrap:\s*wrap;/s);
+    expect(css).toMatch(/\.probability-prefecture-heading\s*\{[^}]*margin:\s*var\(--space-1\) 0 0;/s);
+    expect(css).toMatch(/\.probability-number\s*\{[^}]*white-space:\s*nowrap;/s);
+    expect(css).not.toMatch(/space-between|margin-left:\s*auto|(?:^|[;{\s])(?:width|height|max-height):|overflow(?:-[xy])?:\s*(?:hidden|clip|scroll|auto)/);
+    expect(css).not.toMatch(/(?:gap|margin|padding)(?:-[a-z]+)?:[^;}]*(?:\dpx|(?<![\w-])-\d)/);
     const numberUnit = readFileSync(join(__dirname, "..", "NumberUnit.svelte"), "utf8");
     expect(numberUnit).toMatch(/\.nu-value\s*\{[^}]*font-weight:\s*var\(--num-weight\);/s);
-    expect(source).toMatch(/\.probability-prefecture-list\s*\{[^}]*gap:\s*var\(--space-1\) var\(--space-3\);/s);
-    expect(source).toMatch(/\.probability-peak\s*\{[^}]*margin-top:\s*var\(--space-1\);/s);
-    expect(source).toMatch(/\.probability-worst--compact\s*\{[^}]*margin-top:\s*var\(--space-1\);/s);
   });
 
-  it("worst area と peak を JST 表示し、null peak は明示する", () => {
-    const exact = render(TyphoonCard, {
-      item: typhoonItem([typhoon({ probability: probability() })]),
-    });
-    expect(exact.container.querySelector(".probability-worst")?.textContent)
-      .toContain("東京地方（東京都）80%");
-    expect(exact.container.querySelector(".probability-peak")?.textContent).toBe("7月21日 09:00");
-    exact.unmount();
-
-    const unknown = render(TyphoonCard, {
-      item: typhoonItem([typhoon({
-        probability: probability({
-          worstArea: { ...probability().worstArea, peakAt: null },
-        }),
-      })]),
-    });
-    expect(unknown.container.querySelector(".probability-peak")?.textContent).toBe("ピーク時刻不明");
+  it("§5.1-4 裁定4B: full/compact と null peak でも日時を DOM・可視 text・accessible name に描画しない", () => {
+    // 旧 JST / 不明表示 test を置換。peak は5日積算の発生日時ではないためカードから外す。
+    for (const displayMode of ["full", "compact"] as const) {
+      for (const peakAt of ["2026-07-21T00:00:00.000Z", "2026-07-08T09:00:00+09:00", null]) {
+        const view = render(TyphoonCard, {
+          item: typhoonItem([typhoon({ probability: probability({
+            worstArea: { ...probability().worstArea, peakAt },
+          }) })]), displayMode,
+        });
+        const section = view.getByRole("region", { name: "暴風域に入る確率（5日以内）" });
+        expect(section.querySelectorAll(".probability-maximum, .probability-worst, .probability-peak")).toHaveLength(0);
+        for (const text of ["7月21日 09:00", "7月8日 09:00", "ピーク時刻不明"]) {
+          expect(section.textContent).not.toContain(text);
+          expect(section.outerHTML).not.toContain(text);
+          expect(view.queryByRole("region", { name: new RegExp(text) })).toBeNull();
+        }
+        view.unmount();
+      }
+    }
   });
 
-  it.each([1, 50, 100])("probability %i は VPTW header tone を変更しない", (value) => {
-    const neutral = render(TyphoonCard, {
-      item: typhoonItem([typhoon({
-        category: null,
-        probability: probability({
-          maxFiveDayProbability: value,
-          topPrefectures: [{ prefectureCode: "13", prefectureName: "東京都", fiveDayProbability: value }],
-          activePrefectureCount: 1,
-          worstArea: { ...probability().worstArea, fiveDayProbability: value },
-        }),
-      })]),
-    });
-    const header = neutral.container.querySelector("header");
-    expect(header?.classList.contains("standby-card-header--muted")).toBe(true);
-    expect(header?.classList.contains("advisory")).toBe(false);
-    expect(header?.classList.contains("warning")).toBe(false);
-    expect(header?.classList.contains("emergency")).toBe(false);
+  it("§5.3-4: side/center shelf と live は同じ Typhoon branch と自然高測定を使う", () => {
+    const source = readFileSync(join(__dirname, "..", "StandbyScreen.svelte"), "utf8");
+    expect(source.match(/<TyphoonCard\b/g)).toHaveLength(1);
+    expect(source).toContain('{:else if key === "typhoon" && typhoonItem != null}<TyphoonCard item={typhoonItem} displayMode={variant === "full" ? "full" : "compact"} />');
+    for (const placement of ["right", "center"]) {
+      expect(source).toContain(`{@render renderCard(key, variant as CardVariant, "${placement}", true)}`);
+      expect(source).toContain(`{@render renderCard(card.key, displayVariant(card), "${placement}", false, renderSelection)}`);
+    }
+    expect(source).toContain('if (live == null) return Math.round(node.getBoundingClientRect().height);');
+    expect(source).toContain('Math.round(Math.max(live.getBoundingClientRect().height, live.scrollHeight))');
+    expect(source).toContain('measurementOverride?.[id] ?? liveBorderBoxHeight(node)');
+  });
+
+  it.each([1, 50, 100])("§5.1-9: probability %i は probability-only / combined の header tone を変更しない", (value) => {
+    for (const displayMode of ["full", "compact"] as const) {
+      for (const combined of [false, true]) {
+        const view = render(TyphoonCard, {
+          item: typhoonItem([typhoon({
+            category: combined ? "TS" : null,
+            intensityClass: combined ? "非常に強い" : null,
+            probability: probability({
+              maxFiveDayProbability: value,
+              topPrefectures: [{ prefectureCode: "13", prefectureName: "東京都", fiveDayProbability: value }],
+              activePrefectureCount: 1,
+              worstArea: { ...probability().worstArea, fiveDayProbability: value },
+            }),
+          })]), displayMode,
+        });
+        const header = view.container.querySelector("header");
+        expect(header?.classList.contains("standby-card-header--muted")).toBe(!combined);
+        expect(header?.classList.contains("advisory")).toBe(false);
+        expect(header?.classList.contains("warning")).toBe(combined);
+        expect(header?.classList.contains("emergency")).toBe(false);
+        view.unmount();
+      }
+    }
   });
 
   it("ARIA、RestoredChip、UpdatedStamp を probability card でも維持する", () => {
@@ -680,21 +729,25 @@ describe("TyphoonCard", () => {
     expect(container.querySelector(".updated-stamp")?.textContent).toContain("更新 7/21 09:00");
   });
 
-  it("複数台風の wire order と各 probability slice を崩さない", () => {
+  it("§5.1-8: 三値 invariant を満たす複数台風の wire order と結論値を維持する", () => {
     const { container } = render(TyphoonCard, {
       item: typhoonItem([
         typhoon({ typhoonKey: "TC-B", nameKana: "BETA", probability: probability() }),
         typhoon({
           typhoonKey: "TC-A", nameKana: "ALPHA",
-          probability: probability({ maxFiveDayProbability: 50 }),
+          probability: probability({
+            maxFiveDayProbability: 50,
+            topPrefectures: probability().topPrefectures.map((prefecture) => ({ ...prefecture, fiveDayProbability: Math.min(50, prefecture.fiveDayProbability) })),
+            worstArea: { ...probability().worstArea, fiveDayProbability: 50 },
+          }),
         }),
       ]),
     });
     const cards = Array.from(container.querySelectorAll(".typhoon"));
     expect(cards).toHaveLength(2);
     expect(cards[0].textContent).toContain("BETA");
-    expect(cards[0].querySelector(".probability-maximum")?.textContent).toContain("80%");
+    expect(cards[0].querySelector(".probability-conclusion-result .probability-number")?.textContent).toContain("80%");
     expect(cards[1].textContent).toContain("ALPHA");
-    expect(cards[1].querySelector(".probability-maximum")?.textContent).toContain("50%");
+    expect(cards[1].querySelector(".probability-conclusion-result .probability-number")?.textContent).toContain("50%");
   });
 });
