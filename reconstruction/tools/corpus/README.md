@@ -27,4 +27,4 @@ route/familyはspec §4.3を適用（通常はheadType別family）。21route: ee
 不足「empty」: VPBS50/VPFT50人工空はあるがVPWP50/VPTA50 newer gate-onlyと全familyの明示空の期待判別なし。REST見込み=有効発表として空になる対象typeの観測事例があれば採取。欠落/空の意図的組合せはsyntheticで補い、合法性を別途公式仕様と照合。
 不足「unknown」: 特殊震度/深さ/Magnitude・VPWP50未知コード等の個片はあるが洪水全unknown・復元直後unknown・運用区分交差系列なし。REST見込み=VXKO50水位不明やVXSE系未入電を含む事例。未観測形・矛盾入力はsynthetic。
 不足「不正」: invalid-report-datetime・Head欠落はあるが壊れたXML/encode、必須運用区分欠落・矛盾・不正値の網羅なし。RESTで合法原本としての取得は見込まず、破損と拒否境界はsyntheticでしか制御できない。
-不足「上限境界」: 大きい実XMLと旧容量期待JSONはあるが新築のbytes/node/depth/属性/text・履歴2/8・queue・SSE上限の直前/一致/+1系列なし。REST見込み=VPWP50/VPTA50の大規模正常報は参考負荷。厳密な閾値入力と故障/時計/SSE操作はsynthetic。取得も追加も次段のご主人裁定待ち。
+不足「上限境界」: 大きい実XMLと旧容量期待JSONはあるが新築のbytes/node/depth/属性/text・履歴2/8・queue・SSE上限の直前/一致/+1系列なし。REST見込み=VPWP50/VPTA50の大規模正常報は参考負荷。厳密な閾値入力と故障/時計/SSE操作はsynthetic。取得も追加も次段の作者裁定待ち。

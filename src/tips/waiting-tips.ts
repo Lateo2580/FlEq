@@ -36,7 +36,7 @@ export type TipCategoryId =
 /** Tips を配る表示文脈。省略された既存カテゴリは standby 専用として扱う。 */
 export type TipContext = "standby" | "quakeMap" | "emergency";
 
-/** 緊急画面へ出せる、防災情報の本文メタデータ。本文はご主人確認後に別タスクで投入する。 */
+/** 緊急画面へ出せる、防災情報の本文メタデータ。本文は作者確認後に別タスクで投入する。 */
 export interface EmergencyTip {
   readonly id: string;
   readonly text: string;
@@ -1119,7 +1119,7 @@ export const TIP_CATEGORIES: readonly TipCategory[] = [
   ...TSUNAMI_TIP_CATEGORIES,
   ...EEW_TIP_CATEGORIES,
   ...INFO_SYSTEMS_TIP_CATEGORIES,
-  // ご主人承認済みの防災情報。unrestricted は既知 4 hazard を明示列挙する。
+  // 作者承認済みの防災情報。unrestricted は既知 4 hazard を明示列挙する。
   {
     id: "emergency-guidance",
     contexts: ["standby", "emergency"],

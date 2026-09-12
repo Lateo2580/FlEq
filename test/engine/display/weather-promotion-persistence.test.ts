@@ -173,7 +173,7 @@ describe("WeatherPromotionStore.restore (残り時間だけ復元する)", () =>
     expect(store.export().unseenSinceMs).toBe(restoredAt);
   });
 
-  // ヘルツ指摘 4: 未来時刻では「保持時間が経ったか」も「まだ有効か」も判定できない。
+  // Codex指摘 4: 未来時刻では「保持時間が経ったか」も「まだ有効か」も判定できない。
   // demoted で残すと tier と weatherL5Active だけが無期限に固定される最悪の縮退になる
   it("promotedAtMs が未来なら record を破棄する (demoted にもしない)", () => {
     const warn = vi.spyOn(log, "warn").mockImplementation(() => {});
@@ -503,7 +503,7 @@ describe("WeatherPromotionPersistence", () => {
     expect(JSON.parse(readFileSync(file, "utf8")).generations.vpws50).toBe(3);
   });
 
-  // ヘルツ指摘 3: 有限だが Date 範囲外の値。以前は未来判定のログで toISOString() が RangeError を投げ、
+  // Codex指摘 3: 有限だが Date 範囲外の値。以前は未来判定のログで toISOString() が RangeError を投げ、
   // restore は load の try/catch の外なので起動ごと落ちていた
   it("有限だが Date 範囲外の promotedAtMs は破棄する (起動を妨げない)", () => {
     const warn = vi.spyOn(log, "warn").mockImplementation(() => {});
@@ -583,7 +583,7 @@ describe("WeatherPromotionPersistence", () => {
     expect(existsSync(join(dir, "unrelated.txt"))).toBe(true);
   });
 
-  // ヘルツ指摘 2: 同期保存と進行中の非同期保存が同じ固定 .tmp を奪い合い、
+  // Codex指摘 2: 同期保存と進行中の非同期保存が同じ固定 .tmp を奪い合い、
   // 古い非同期書き込みが最後に rename して最終状態を上書きしうる
   // 追い越された書き込みが rename しないことを、実時間に頼らず検査する。
   // __test_writePending() で予約分の書き込みを任意のタイミングで走らせる
@@ -644,7 +644,7 @@ describe("WeatherPromotionPersistence", () => {
 describe("WeatherPromotionStore.resume (display on 時の測り直し)", () => {
   const L5 = rawView("officialL5", ["東京都"]);
 
-  // spec 追補 C6 (ご主人決定 2026-07-27 = 案 B): display off 中は sweep が止まっているので、
+  // spec 追補 C6 (作者決定 2026-07-27 = 案 B): display off 中は sweep が止まっているので、
   // display on の時点で active が残っている = その点灯は誰にも見られていない。
   // ここで経過判定を通して捨てると「更新が誰にも見られないまま終わる」ままで、C6 が
   // 塞ごうとしている穴そのものになる。経過時間にかかわらず display on から測り直す

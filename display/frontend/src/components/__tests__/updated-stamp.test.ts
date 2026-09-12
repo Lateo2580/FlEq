@@ -11,7 +11,7 @@ import type {
   DisplayWeatherAlertV1,
 } from "../../lib/protocol";
 
-// 最終更新時刻の表示 (ご主人要望 2026-07-26)。気象警報 / 台風情報 / 火山情報 / 津波情報の
+// 最終更新時刻の表示 (作者要望 2026-07-26)。気象警報 / 台風情報 / 火山情報 / 津波情報の
 // 4 カードで、見出し帯の右端に「更新 M/D HH:MM」を出す。
 // 時刻は Asia/Tokyo 固定で評価される (vitest.config.ts の TZ 設定)。
 

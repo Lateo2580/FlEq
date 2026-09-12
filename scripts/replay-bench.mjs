@@ -137,7 +137,7 @@ function removeWorkDir() {
 // XDG_CONFIG_HOME を最優先に見る (Windows の %APPDATA%/fleq より先)。CONFIG_DIR は
 // module load 時に確定するので、dist を require する前に設定しないと効かない。
 // これで実 config の読み込み・chmod・レガシー移行の書き込みが一切起きなくなり、
-// 計測条件がご主人の通知設定に左右されなくなる。
+// 計測条件が利用者の通知設定に左右されなくなる。
 process.env.XDG_CONFIG_HOME = workDir;
 
 // さらに空の config.json を先置きする。loadConfig() は先頭で migrateConfigIfNeeded() を
@@ -431,7 +431,7 @@ async function main() {
   );
 
   // 設定隔離の実証: dist 側が解決した config ディレクトリと、実際に効いている通知設定を出す。
-  // configDir が workDir 配下なら %APPDATA%/fleq (ご主人の実 config) は読まれていない。
+  // configDir が workDir 配下なら %APPDATA%/fleq (利用者の実 config) は読まれていない。
   const distConfig = requireDist("config.js");
   const resolvedConfigDir = distConfig.getConfigDir();
   const isolated = resolvedConfigDir.startsWith(workDir);

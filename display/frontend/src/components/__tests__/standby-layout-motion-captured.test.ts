@@ -1,5 +1,5 @@
 /**
- * GitHub Issue #15 第 2 便 spec の分岐 7-A（ご主人裁定 2026-09-08）の受入テスト。
+ * GitHub Issue #15 第 2 便 spec の分岐 7-A（作者裁定 2026-09-08）の受入テスト。
  * 出典 spec: docs/specs/2026-09-08-standby-resettle-residual-load.md（§3.0 / §4.4 / §5.2 B6）。
  *
  * `LayoutMotionCoordinator.diagnostics().captured` は `preEpochCapture` が取った clone 枚数だが、

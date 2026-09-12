@@ -86,7 +86,7 @@
       .filter((it) => it.level === input.level)
       .map((it) => ({ ...it, kind: stripLevelPrefix(it.kind) })),
   );
-  // ページ送り列に載せる行 = 主レベルの全行 + **追加を含む下位レベルの行** (ご主人決定
+  // ページ送り列に載せる行 = 主レベルの全行 + **追加を含む下位レベルの行** (作者決定
   // 2026-07-27)。下位レベルの行はレベル印 (行頭の「L4」) を添えて出す — 種別名だけでは
   // 主レベルの行と見分けが付かず、L 接頭辞の有無は電文のラベル次第で当てにならない
   const pagedItems = $derived(
@@ -1455,7 +1455,7 @@
   .role-weatherEmergency .where-row .kind {
     color: var(--role-weatherEmergency);
   }
-  /* 下位レベルの行 (追加が起きた行だけがページ送り列へ来る、ご主人決定 2026-07-27) は
+  /* 下位レベルの行 (追加が起きた行だけがページ送り列へ来る、作者決定 2026-07-27) は
      主レベルの意味色を借りない — L5 パネルの中の L4 行が特別警報の色で出ると読み違える */
   .role-weatherEmergency .where-row.sub-level-row .kind {
     color: var(--role-weatherWarning);

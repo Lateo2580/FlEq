@@ -1254,7 +1254,7 @@ export function buildWeatherEmergencyInput(
     activationKey: panelActivationKey,
     // 追加地域を含む行を最初のページへ (spec 追補 C11)。主レベルの行を優先し、無ければ
     // 下位レベルの追加行を指す — 下位でも**追加を含む行はページ送り列に載る**ので
-    // (`selectPagedItems`)、指し先が見つからない空振りにはならない (ご主人決定 2026-07-27)
+    // (`selectPagedItems`)、指し先が見つからない空振りにはならない (作者決定 2026-07-27)
     firstPageRowKey:
       items.find((i) => i.level === panelLevel && i.addedAreas.length > 0)?.key
       ?? items.find((i) => i.addedAreas.length > 0)?.key
@@ -1266,7 +1266,7 @@ export function buildWeatherEmergencyInput(
 /**
  * ページ送り列 (「どこ」領域) に載せる行を選ぶ。
  *
- * 主レベルの行はすべて + **下位レベルのうち「この点灯で地域が増えた行」だけ** (ご主人決定
+ * 主レベルの行はすべて + **下位レベルのうち「この点灯で地域が増えた行」だけ** (作者決定
  * 2026-07-27)。「L5 継続中に L4 の地域が増えた」で更新点灯するのに、下位レベルが種別名 +
  * 件数へ畳まれていると**どこが増えたのかが一度も読めない**。追加が起きた行だけを例外として
  * 地域名つきで巡回に参加させ、追加を含まない下位行は従来どおり副セクションの要約に残す

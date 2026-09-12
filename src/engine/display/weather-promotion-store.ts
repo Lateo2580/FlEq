@@ -378,7 +378,7 @@ export class WeatherPromotionStore {
 
   /**
    * display runtime の起動 (`display on` 含む) 時に、**active な点灯の時計を測り直す**
-   * (spec 追補 C6 = 案 B、ご主人決定 2026-07-27)。
+   * (spec 追補 C6 = 案 B、作者決定 2026-07-27)。
    *
    * 昇格の受信更新は monitor の displaySink が display の on/off に関わらず行うので、
    * off 中の新規昇格・続報・解除はここに来る時点で反映済み。したがって view と record を

@@ -50,15 +50,15 @@ FlEq における Claude Code 制御の設計方針と実装詳細。
 
 **目的**: 秘密情報を含む可能性のあるファイルへの誤書き込みを防止する。
 
-### PostToolUse: Obsidian 記録リマインド (git commit)
+### PostToolUse: 作業ノート（repo 外）への記録リマインド (git commit)
 
 | 項目 | 値 |
 |------|-----|
 | イベント | `PostToolUse` |
 | 対象ツール | `Bash` |
-| スクリプト | `.claude/hooks/obsidian-commit-reminder.sh` |
+| スクリプト | 作業ノート（repo 外）への記録リマインド用スクリプト |
 | timeout | デフォルト |
-| 判定 | `git commit` 成功時に Obsidian 記録リマインドを `additionalContext` で返す |
+| 判定 | `git commit` 成功時に 作業ノート（repo 外）への記録リマインドを `additionalContext` で返す |
 
 **目的**: git commit は作業の区切りを示す高シグナルイベント。Session-log 未記録なら `/wrap-up` 実行を促す。
 
@@ -89,7 +89,7 @@ FlEq における Claude Code 制御の設計方針と実装詳細。
 | `/codex-review` | `[scope]` | Codex に変更差分をレビューさせる。Claude の自己評価は渡さない |
 | `/codex-design` | `<topic>` | Codex に設計のセカンドオピニオンを求める（対話モード） |
 | `/pre-release` | なし | リリース前チェックリスト（test → build → docs同期 → review） |
-| `/wrap-up` | なし | セッション作業を Obsidian に記録して締めくくる |
+| `/wrap-up` | なし | セッション作業を 作業ノート（repo 外）に記録して締めくくる |
 
 ## Codex 併用ルール
 
@@ -126,8 +126,8 @@ brainstorming, writing-plans, executing-plans, test-driven-development, systemat
   hooks/
     guard-generated-files.sh  # dist/ + package-lock.json 編集ガード
     guard-secret-files.sh     # 秘密ファイル編集ガード
-    obsidian-moc-update.sh    # Session-log 作成時に MOC 自動更新
-    obsidian-commit-reminder.sh    # git commit 時に Obsidian 記録リマインド
+    <記録索引更新スクリプト>    # Session-log 作成時に作業ノート（repo 外）の索引を自動更新
+    <記録リマインドスクリプト>    # git commit 時に 作業ノート（repo 外）への記録リマインド
 
   rules/
     message-pipeline.md       # 電文パイプラインルール

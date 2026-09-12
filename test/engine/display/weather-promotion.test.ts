@@ -724,7 +724,7 @@ describe("InfoDisplayHub の weather promotion 配線", () => {
   });
 });
 
-// ── 受理経路 (display の on/off から独立、ヘルツ 2 巡目 指摘 1) ──
+// ── 受理経路 (display の on/off から独立、Codex 2 巡目 指摘 1) ──
 
 describe("applyWeatherPromotionOnIngest (display off 中も昇格が動く)", () => {
   function views(vpws50: ItemSpec[], vpww56: ItemSpec[] = []) {
@@ -747,7 +747,7 @@ describe("applyWeatherPromotionOnIngest (display off 中も昇格が動く)", ()
     expect(rec?.state === "active" ? rec.promotedAtMs : null).toBe(T0);
   });
 
-  // spec 追補 C6 (ご主人決定 2026-07-27): display off・SSE 断の間に来た点灯は誰にも
+  // spec 追補 C6 (作者決定 2026-07-27): display off・SSE 断の間に来た点灯は誰にも
   // 見られていないので、display on の時点で保持時間を測り直して見られる機会を作る
   it("display on (resume) で active な昇格の時計を測り直す", () => {
     const store = new WeatherPromotionStore();

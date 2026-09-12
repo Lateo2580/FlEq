@@ -818,7 +818,7 @@
 {:else if scenario === "tone-matrix"}
   <section class="tone-matrix" aria-label="背景トーン目視ゲート">
     <h1>背景トーン目視ゲート</h1>
-    <p>5 tone × dim 有無 × critical overlay 有無。ご主人裁定で色を差し替える前の実レンダー一覧。</p>
+    <p>5 tone × dim 有無 × critical overlay 有無。作者裁定で色を差し替える前の実レンダー一覧。</p>
     <div class="tone-matrix-grid">
       {#each backgroundTonePreviewFixtures as tone}
         {#each [false, true] as cellDim}

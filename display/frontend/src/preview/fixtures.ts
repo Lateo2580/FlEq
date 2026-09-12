@@ -2584,7 +2584,7 @@ export const weatherEmergencyInput: WeatherEmergencyInputV1 = {
     {
       key: "vpws50:2:L4 洪水警報", source: "vpws50", kind: "L4 洪水警報", level: 4,
       // L5 継続中に L4 側で地域が増えた形。**追加を含む下位行だけ**が地域名つきで
-      // ページ送り列に出る (ご主人決定 2026-07-27)。追加を含まない下位 2 行は副セクションの要約のまま
+      // ページ送り列に出る (作者決定 2026-07-27)。追加を含まない下位 2 行は副セクションの要約のまま
       shownAreas: ["愛知県", "静岡県"], omittedAreaCount: 3, addedAreas: ["静岡県"],
     },
     {

@@ -1647,7 +1647,7 @@ VPWW55-61 の表示ブロックは `display-layout.json` (theme.json と同じ�
 
 ### VPWS50 全国集約電文 (差分主導表示)
 
-**設計書**: `C:/Users/meiri/Dev/Superpowers_Archive/2026-06-05-vpws50-diff-display-design.md` (アーカイブ予定)
+**設計書**: `~/Dev/Superpowers_Archive/2026-06-05-vpws50-diff-display-design.md` (アーカイブ予定)
 
 VPWS50 は約 10 分ごとの定時配信のため、差分主導 + 種別中心 + displaySeverity セクション現況サマリのハイブリッド表示を採用。
 
@@ -1760,7 +1760,7 @@ legacy fallback (diff 無し) のリストもトークンは displaySeverity 形
 
 **関数**: `displayWeatherWarningTimeseriesInfo(info: ParsedWeatherWarningTimeseriesInfo)`
 **パーサ**: `parseWeatherWarningTimeseries()`
-**設計書**: `設計メモ 2026-06-07-weather-warning-display-language-design.md` (v3.2、作業完了後 `C:/Users/meiri/Dev/Superpowers_Archive/` へアーカイブ予定)
+**設計書**: `設計メモ 2026-06-07-weather-warning-display-language-design.md` (v3.2、作業完了後 `~/Dev/Superpowers_Archive/` へアーカイブ予定)
 
 VPWP50 は府県単位の 3 時間 / 24 時間 / 日単位の時系列予測電文。
 **2026-06-07 に旧 pyramid 構造から v3.2 のレスポンシブ設計**

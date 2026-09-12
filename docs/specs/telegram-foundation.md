@@ -859,7 +859,7 @@ fixture helper は実 XML の次を解析して envelope を構成する。
 
 ### 7.5 特殊値適用第 1 例: 震度 Condition（未入電）実装契約
 
-状態: **確定版**（2026-08-26、ご主人表示裁定・実 fixture provenance 裁定を反映。調査基準 HEAD `37568dd6c`）。
+状態: **確定版**（2026-08-26、作者表示裁定・実 fixture provenance 裁定を反映。調査基準 HEAD `37568dd6c`）。
 
 本項は §3 の特殊値基盤を初めて domain の全経路へ適用する契約である。ただし調査基準 HEAD には Phase 4A の synthetic fixture ベース実装が既に存在するため、既存実装を未実装として扱わない。現在の semantic 配線を baseline とし、実電文 corpus による schema 確認、plain `未入電` の安全側表示ギャップ、確定した表示文言を差分として閉じる。
 
@@ -900,7 +900,7 @@ fixture 調査では、tracked corpus の置き場は `test/fixtures/`、基盤�
 
 #### 7.5.3 確定裁定
 
-次は §3、§7.1〜7.4 から一意に導けるため、ご主人の表示裁定を待たず固定する。
+次は §3、§7.1〜7.4 から一意に導けるため、作者の表示裁定を待たず固定する。
 
 1. `extractSpecialValue("Intensity", node)` を Observation／Pref／Area／City の `MaxInt` と IntensityStation の `Int` へ一度だけ適用し、`SpecialValue<JmaIntensity>` を canonical field とする。
 2. plain `未入電` の安全評価は `kind:"unknown"` とし、exact rank、wire の正常 rank、daily 最大震度へ入れない。既知の高震度 state を降格させる根拠にも使わない。
@@ -1564,19 +1564,19 @@ npm --prefix display run typecheck
 - 受理済み訂正が実質差分の有無にかかわらず訂正通知される。
 - 既存機能の回帰が 0 件である。
 
-実装契約（2026-08-09 着手時確定。ご主人裁定 4 件と分岐判断を含む）:
+実装契約（2026-08-09 着手時確定。作者裁定 4 件と分岐判断を含む）:
 
 - canonical field は `magnitudeValue`／`depthValue` の `SpecialValue<number>` とする。既存 `magnitude`／`depth` string は adapter が生成する表示互換 scalar であり、判定の真実源ではない。既存 field の非 nullable `string` 型は維持し、canonical `missing` の adapter 値は現行互換の `""` とする。semantic がある経路の表示は §3.7 に従い（CLI／カードの missing は `—`、通知／テロップは省略）、scalar `""` を表示判定に使うのは legacy consumer／fallback に限る。
 - Depth の情報源は Coordinate 第3成分の数値を主源とし、description／condition の特殊語を §3.5 の Depth 行に従って合成する。矛盾時は数値を `value` として保持し、特殊語を失わず diagnostics（`specialValueConflict`）へ記録する。未知語から値の無効化を推定しない。
   - 深さ成分が存在し 0: `qualitative`（ごく浅い）。「ごく浅い」は「深さ約 5km 未満」に相当する内部 semantic として `upperBound: 5`（km）を持たせるが、表示・永続 raw・旧 scalar adapter は定性語のまま維持し、`?` badge は付けない（2026-08-10 ユーザー裁定）。
-  - 深さ成分が欠落（Coordinate 全体の欠落・形式不正・第3成分なし）: `missing`。現行の「ごく浅い」表示への畳み込みは §2.2 違反として修正し、既存挙動変更を test で明示固定する（ご主人裁定 2026-08-09）。
+  - 深さ成分が欠落（Coordinate 全体の欠落・形式不正・第3成分なし）: `missing`。現行の「ごく浅い」表示への畳み込みは §2.2 違反として修正し、既存挙動変更を test で明示固定する（作者裁定 2026-08-09）。
   - 「深さ600km以上」等の bound 表現: `range`（lowerBound 設定）。
-- 巨大 Magnitude（「Ｍ８を超える巨大地震」）は `qualitative` とし、description を表示源とする。現行 helper（`src/utils/magnitude.ts`）の NFKC・trim・`M<数値>` 後の空白補正は維持し、`M8超` 等への意味的短縮はしない（ご主人裁定 2026-08-09＝現行表示の維持）。内部順序のみ exact／range より上位とし、順序 rank は engine 側 semantic として下流へ渡す。frontend に raw 再解析させない。
+- 巨大 Magnitude（「Ｍ８を超える巨大地震」）は `qualitative` とし、description を表示源とする。現行 helper（`src/utils/magnitude.ts`）の NFKC・trim・`M<数値>` 後の空白補正は維持し、`M8超` 等への意味的短縮はしない（作者裁定 2026-08-09＝現行表示の維持）。内部順序のみ exact／range より上位とし、順序 rank は engine 側 semantic として下流へ渡す。frontend に raw 再解析させない。
 - canonical equality helper は `presence`／`value`／`lowerBound`／`upperBound` で判定する。raw、condition、description、diagnostics は比較へ含めない。bounds の欠落と明示 `null` は同値として扱い、生成段でも各 schema で形を固定する（§3.3）。
-- diff は canonical の変化すべて（presence 遷移・value 変化・bounds 変化）で発火し、raw／description だけの表記揺れでは発火しない（ご主人裁定 2026-08-09）。適用面は `EewTracker` と `PresentationDiffStore` の両方とし、`PresentationDiffStore` には Depth も canonical equality で追加する。
+- diff は canonical の変化すべて（presence 遷移・value 変化・bounds 変化）で発火し、raw／description だけの表記揺れでは発火しない（作者裁定 2026-08-09）。適用面は `EewTracker` と `PresentationDiffStore` の両方とし、`PresentationDiffStore` には Depth も canonical equality で追加する。
 - 通知は既存 cadence を維持する。通常続報を Magnitude／Depth diff だけを理由に通知せず、受理済み訂正は実質差分の有無と独立に `訂正` を明示して通知する。地震・EEW 通知本文の Magnitude が `missing`／`empty` の場合は、§3.7 の省略規約に対する明示例外として現行互換の `M不明` 表示を維持する（2026-08-09 通知文言の現行一致を優先）。
 - filter の数値比較は canonical から判定する。exact は `value` を用い、range／lower-only／upper-only は bounds から結果が確定できる場合だけ真とする。`qualitative` の bounds 比較は Depth の既知「ごく浅い」（`upperBound: 5`）だけに許可し、他 domain の `qualitative`（巨大を含む）と、確定できない値／`unknown`／`missing`／`empty` は非マッチとする。これは特殊値が数値化不能で非マッチとなる現行挙動の保存であり、巨大の内部順序最上位（表示順）とは別契約とする。
-- 特殊値 fixture は実電文 schema に忠実な合成 XML を許容する（ご主人裁定 2026-08-09）。実電文が観測でき次第、差し替え候補としてバックログへ記録する。
+- 特殊値 fixture は実電文 schema に忠実な合成 XML を許容する（作者裁定 2026-08-09）。実電文が観測でき次第、差し替え候補としてバックログへ記録する。
 - 期待値変更の許可範囲は本実装契約で明示した範囲に限る: 深さ成分欠落の `missing` 化とその表示変更、巨大 Magnitude の内部順序最上位、canonical diff 発火範囲の変更、特殊値への badge／tooltip／ARIA 追加、persistence への additive semantic と legacy migration、合成 fixture の追加。通常値の丸め・`M7.3`／`深さ 10km` 等の表示接頭辞と空白・通知頻度と音・exact 値の filter 結果・VXSE51→52／61 の震度保持条件・persistence の salvage 方針・巨大以外の並び順が変わる場合は裁定済み範囲外として報告・停止する。
 
 変更単位（依存順。共通 semantic 契約と engine 側投影を、state 永続化と EEW の両方より前に確定する）:
@@ -1743,7 +1743,7 @@ Phase 5A からの引き継ぎ（5B／5C 共通・同期）: engine／frontend �
 - `雲中`=qualitative、`観測できず`／`不明`=unknown、観測阻害の condition を数値より優先（§3.5 の PlumeHeight 行）。※表示語は「分類を決めた特殊語の原文」を無正規化で使う——観測阻害は condition の語、本文自体が特殊語なら raw、の優先順とする（不明の self-closing 本文で raw が空になるため）。補足文は足さない。
 - `X以上` は range（lowerBound）とし、表示は 5A Depth と同形「{n}m以上」。CLI・通知・テロップ・カードで同じ共通 formatter（噴煙用に新設）を使う。
 - diagnostics: PlumeHeight の既知 condition 語集合（雲中・観測できず・不明・以上系）を helper に追加した上で除外を解除し、数値本文と特殊語の矛盾を `specialValueConflict`、未知語を `unmappedSpecialValue` へ記録する。
-- ※表示面は現行の表示箇所（火口上）のみを semantic 化し、既存面へのラベル・値の新規追加はしない。**「単位・基準の明示」という完了条件は canonical・永続化・wire に限定して充足させる**——既存 card／通知への「火口上」ラベル追加は通常値表示の変更にあたるためご主人裁定待ちとし、本 Phase では行わない。海抜高度も canonical 保持・永続化までとし、表示への新規追加は行わない。
+- ※表示面は現行の表示箇所（火口上）のみを semantic 化し、既存面へのラベル・値の新規追加はしない。**「単位・基準の明示」という完了条件は canonical・永続化・wire に限定して充足させる**——既存 card／通知への「火口上」ラベル追加は通常値表示の変更にあたるため作者裁定待ちとし、本 Phase では行わない。海抜高度も canonical 保持・永続化までとし、表示への新規追加は行わない。
 - 警報閾値（`>= 3000`）は火口上のみを対象と明文化する。単位 4 で canonical 判定（exact value または lowerBound が閾値以上で発火。unknown／bounds なし qualitative は発火根拠にしない）へ原子的に切り替え、**切替前に現行 fixture corpus の warning 判定一覧を固定し、切替後の比較で発火が減る場合はその変更単位を受理しない**。
 - revision fingerprint（§5.1）には canonical の raw・presence・condition・description・bounds・reference・unit を含め、訂正検知の回帰 test を固定する。
 - standby persistence（volcano domain）は canonical 全フィールドを additive 保存し、旧 scalar/boolean snapshot は読込方向のみ migration する。`plumeHeightUnknown:true`→unknown、**`false`＋`null` は真の欠落と旧 parser が潰した特殊値を区別できないため missing＋`legacyNullUnknown` 診断**とする。round-trip を固定する。
@@ -1809,7 +1809,7 @@ npm --prefix display run typecheck
 - 第1報音、取消、最終報の終端処理に回帰がない。
 - 既存機能の回帰が 0 件である。
 
-実装契約（2026-08-11 着手時確定。ご主人裁定 3 件と着手前調査の 6A 分岐判断を含む）:
+実装契約（2026-08-11 着手時確定。作者裁定 3 件と着手前調査の 6A 分岐判断を含む）:
 
 - Phase 6A と Phase 6B は直列で実装し、6A を先に main へ統合して connection／router／stats 契約を固定した後に 6B へ着手する。6B は当面骨組みまでとし、本 Phase では legacy counterpart の route／cache／Holdback／通知を実装しない。ただし stats API は後述の head type 別集計へそのまま拡張できる形に固定する。
 - `DeliveryCapabilities` と classification→guaranteed head.type の明示 registry は connection 層の新規 `src/dmdata/delivery-capabilities.ts` に置く。`types.ts` の汎用電文 DTO へ connection runtime 状態を混在させない。registry は証拠のある保証だけを列挙し、**`eew.forecast` が VXSE45 を保証するという対応は、根拠が registry に追加されるまで未登録＝unknown とする**。設定上の希望 classification、名称類似、実受信履歴から保証を推定しない。
@@ -1876,7 +1876,7 @@ npm --prefix display run typecheck
 - VPOA50、VPNO50、VXWW50 以外の ignore 方針に回帰がない。
 - 既存機能の回帰が 0 件である。
 
-実装契約（2026-08-11 起草・同日ご主人裁定。Phase 6A main 統合後の骨組み範囲を含む）:
+実装契約（2026-08-11 起草・同日作者裁定。Phase 6A main 統合後の骨組み範囲を含む）:
 
 - Phase 6A→Phase 6B の直列順を維持する。本契約でいう **6B 骨組み** は、三 source type の ignore 解除、専用 route／parser／outcome、相関 registry と非永続 cache、60秒 Holdback、前後5分窓、source 受信から11分の保持、fail-open release、unmatched／ambiguous stats、通知適格性 filter の接続までを指す。実在 counterpart rule、高 Severity code rule、実 pair の訂正／取消、遅着時の ticker canonical reconcile（browser active card は第3縦切り）は、両側 fixture を得てから行う **6B 後半** とし、骨組み完了を Phase 6B 全体完了とは呼ばない。
 - `VPOA50`／`VPNO50`／`VXWW50` は `IGNORED_HEAD_TYPES` からだけ除き、ignore より後、classification route より前に `classification:null` の専用 `legacyCounterpart` route として列挙する。従って envelope の classification が想定外でも raw へ抜けず、他の ignore type の優先順位は変えない。route の `statsCategory` は既存表示カテゴリを増やさない `other`、`foundationHeadTypes` は三 type とし、`Route`→`LinearRoute`→`PROCESSOR_TABLE` の型網羅で adapter 漏れをコンパイルエラーにする。
@@ -1893,8 +1893,8 @@ npm --prefix display run typecheck
 - cache は非永続・有限とし、source と counterpart を別 Map、各最大512 record で保持する。この容量定数も raw revision family と共有しない。各 input のcapacity判定前に `nowMs > expiry` のrecordを通常のexpiry遷移でpruneする。prune後もsource Mapが満杯なら、既存 source を退場・release・延命せず、新しい source を record／timer／expired tombstone なしの `correlatorCapacityExceeded` として即 fail-open する。この入力は遅着相関と同 subject revision 集約の対象外となり、後続の受理済み訂正／取消／newer report もその時点の容量に従う独立 admission とする。counterpart input は既存 source との照合を cache admission より先に行う。照合先がなく counterpart Map が満杯なら、`receivedAtMs`、次いで安定 record id が最小の未参照 record を一件退場させる。全512件が source record から参照中なら新 counterpart を cache せず通常 emit し、既存参照を壊さない。source／counterpart の capacity bypass と counterpart victim eviction は warning／audit reason を残すが、存在しない相関を stats へ合成しない。
 - source record が `nowMs > sourceExpiry` で退場するとき、`released-unmatched` または `ambiguous` の未相関 record に限り、payload を持たない expired-source tombstoneへ correlation identity、source type、revision、ReportDateTime、`expiredAtMs` だけを移す。`matched-suppressed`／`late-reconciled` の解決済み record は tombstone 化せず、`legacyCorrelationExpired`／`legacyLateCounterpartExpired` の対象にも戻さない。tombstone は expiry から11分、最大512件の別 Map とし、超過時は最古から退場、同 subject の新 lifecycle admission 時は旧 tombstone を除く。保持中に valid な late counterpart が一致した最初の一回だけ `legacyLateCounterpartExpired` を記録して tombstone を消費し、表示・通知・canonical reconcile は行わない。tombstone 保持後の counterpart は過去 source と結び付けず通常の unmatched counterpart として扱う。
 - timer callback は entry token／generation を照合し、置換前 payload、dispose 後 callback、timeout と counterpart 到着の競合から二重 emit しない。非対象訂正／取消による pending 発表失効時は holdback／expiry timer を cancel して token／generation を無効化する。`dispose()` は source／counterpart／expired-source tombstone の全 timer と Map を破棄し、shutdown 中に新規表示・通知を合成しない。pending は既定どおり非永続であり、restart 前に失効済みの場合も restart 後に空 cache から訂正／取消を受ける場合も、旧発表を release／通知／high metric 加算しない外部挙動を同一にする。旧 process の counterpart 観測を抑止根拠にしない。
-- **確定裁定（2026-08-11 ご主人裁定）:** production rule が空でも、三 source type は60秒 Holdback した後、reason `counterpartRuleUnconfirmed` で fail-open release する。候補不在時の即時 fail-open は、§13／§17 の完了条件と骨組み runtime で Holdback を検証する必要を優先して採用しない。§13／§17 の60秒・11分条件はsource Mapへadmitできた通常経路へ適用し、唯一の即時 release／保持省略例外は source capacity 超過の `correlatorCapacityExceeded` とする。この例外ではhard boundとfail-openをHoldback／遅着相関より優先する。
-- **確定裁定（2026-08-11 ご主人裁定）:** counterpart 先着 cache は counterpart 受信から11分で退場させ、後着 source を得た時点で pair record の expiry を source 受信＋11分へ固定し直す。ReportDateTime の前後5分窓を配送到着差へ流用する5分保持、および無期限保持は採用しない。
+- **確定裁定（2026-08-11 作者裁定）:** production rule が空でも、三 source type は60秒 Holdback した後、reason `counterpartRuleUnconfirmed` で fail-open release する。候補不在時の即時 fail-open は、§13／§17 の完了条件と骨組み runtime で Holdback を検証する必要を優先して採用しない。§13／§17 の60秒・11分条件はsource Mapへadmitできた通常経路へ適用し、唯一の即時 release／保持省略例外は source capacity 超過の `correlatorCapacityExceeded` とする。この例外ではhard boundとfail-openをHoldback／遅着相関より優先する。
+- **確定裁定（2026-08-11 作者裁定）:** counterpart 先着 cache は counterpart 受信から11分で退場させ、後着 source を得た時点で pair record の expiry を source 受信＋11分へ固定し直す。ReportDateTime の前後5分窓を配送到着差へ流用する5分保持、および無期限保持は採用しない。
 - `received` は既存どおり foundation gate 到達時に即時一回記録する。`countByType`／`categoryByType` は transport／meta／revision gate で受理された legacy outcome を相関器へ admit する時に一回だけ記録し、Holdback 中の snapshot に現れるようにする。timeout callback や late action が共通 emit 関数へ戻っても再加算しない。`presented`／`notified` と legacy disposition metric は判定確定後だけ記録する。この分離のため router 末尾を「受理時 stats」と「notify→display の共通 emit」に分け、同期経路と timer 経路が同じ emit を使う。
 - stats API へ渡す時刻は handler 所有の非減少 `statsNowMs(rawNowMs)=max(lastStatsNowMs, rawNowMs)` で正規化する。受理時の `received`／`countByType` は admission clock、timer／late／expiry action は callback または input action の現在 clock を使い、保存した source `receivedAtMs` を遅延 actionへ再利用しない。従って23:59:30受理→00:00:30 releaseでは受信／type countは前日、表示・通知・legacy dispositionは翌日に帰属する。遅延 action 後に古い時刻が渡っても day key を過去へ戻して再 clear しない。
 - §11.9 の metric tuple はすべて `TelegramFoundationMetric` に additive 追加し、各 disposition は `recordFoundationForHeadType(sourceType, metric, statsNowMs(actionNowMs))` で global と type-local を各一回だけ加算する。既存 entry に新 metric の zero field が増えることだけを許可し、statistics formatter の項目・ラベル・順序は骨組みでは変えない。action と metric の対応は次で固定する。
@@ -1920,14 +1920,14 @@ npm --prefix display run typecheck
 - type 別 high Severity code registry は空で開始するため、骨組みの production source はすべて `severity:unknown` である。通知適格性 filter 自体は router／notifier に接続し、`isHighSeverity === true` 以外を通知しない。従って骨組みでは OS 通知／通知音、`legacyUnmatchedHighSeverityNotified` は常に 0 で、通知適格性を評価する新規受理済み 0-candidate outcome は `legacySeverityUnknownNotificationSuppressed` を一回記録する。counterpart 取消だけによる source 復帰は前表の lifecycle-correction 例外、ambiguous は severity 判定より先に `legacyAmbiguousDisplayed` へ畳み、いずれも severity suppression metric を重ねない。high／non-high rule と「訂正」＋「対応電文未確認」通知は実 code fixture 登録後に有効化する。
 - 訂正／取消の共通 gate と revision metadata は骨組みから通す。`pending` 中の同一 subject 訂正／strictly newer report／対象 revision が一致する取消は、pending payload と revision を in-place 置換し、最初の deadline／expiryと一個のtimeout timerを保つ。superseded payloadは表示・通知・disposition metricを発生させず、各受理 outcome の受理時 count だけを残す。`released` 後かつ `nowMs <= sourceExpiry` の同入力は再 Holdback せず、record を置換して即時 fail-open 表示更新する。受理時 count、実表示 disposition、通知適格性は outcome ごとに一回評価するが、`legacySourceArrivedFirst`、deadline、expiry、timeout timerは再生成しない。取消表示も同じ即時更新規則とし、active sourceを解除する。
 - counterpart 取消が、保持中の source を抑止／canonical reconcileした対象 revision と一致した場合は、まず対象 counterpart record へ取消を適用し、その後の live cache を §11.4 の candidate 数の唯一の真実源として source ごとに再計算する。0 件なら保存した最新 source payloadを即時 fail-open表示へ復帰し、1 件なら残った唯一の candidate に結び直して抑止を継続し、2 件以上なら ambiguous へ遷移して source を fail-open表示する。取消だけで生じた0件の復帰は実表示時に `legacyUnmatchedDisplayed`、複数化は実表示時に `legacyAmbiguousDisplayed` を加算するが、いずれも新規 source outcome ではない lifecycle correction のため source通知、合成取消通知、三 notification metricを発生させない。再 Holdback、表示TTL／source expiryの延長も行わない。対象 revision 不一致は取消を適用せず状態を変えず `legacyCancellationMismatch`、訂正 candidate の対象 revision 不一致は `legacyCorrectionMismatch` とする。この状態遷移は synthetic rule で骨組みから検証し、実 pair の production rule／metric有効化だけを fixture 確定後の6B後半へ送る。
-- **確定裁定（2026-08-11 ご主人裁定）:** 骨組みの表示 surface は専用 CLI＋通常 ticker までを実装し、correlator は遅着一致時の typed `reconcileLateCounterpart` action と source identity を unit test まで固定する。browser active card の追加とその atomic reconcile/remove API は6B後半の第3縦切りへ送る。同一 `groupKey` の上書きだけでは hub の `recent` に source が残り、canonical domain 固有 identity／TTL と衝突し得るため採用しない。generic legacy card と frontend authoritative ticker sync の先行実装も、実 counterpart の card identity と TTL を fixture なしで固定するため採用しない。
+- **確定裁定（2026-08-11 作者裁定）:** 骨組みの表示 surface は専用 CLI＋通常 ticker までを実装し、correlator は遅着一致時の typed `reconcileLateCounterpart` action と source identity を unit test まで固定する。browser active card の追加とその atomic reconcile/remove API は6B後半の第3縦切りへ送る。同一 `groupKey` の上書きだけでは hub の `recent` に source が残り、canonical domain 固有 identity／TTL と衝突し得るため採用しない。generic legacy card と frontend authoritative ticker sync の先行実装も、実 counterpart の card identity と TTL を fixture なしで固定するため採用しない。
 - 期待値変更の許可範囲は、三 type が foundation gate 後に専用 route へ入り、通常 admission は60秒後、source capacity 超過だけは即時に qualifier 付き fail-open 表示されること、legacy metric field が additive に増えること、timer／shutdown wiring が増えること、および `legacyCounterpart` ticker category が未知 domain fallback の「気象庁情報」から専用「旧形式防災情報」へ変わることに限る。他の ignore type、既存 route の classification 優先順位、transport／semantic dedup、revision family、stats formatter、通知 cadence、この許可済み ticker category 以外の display protocol／frontend surface が変わる場合は、本骨組みの裁定済み範囲外として報告・停止する。
 
 骨組みと6B後半の完了条件の区分:
 
 - 骨組みで production verification する: 三 type の ignore 解除と専用 route、foundation gate／transport dedup／日時診断、rule／severity registry が空で suppression／通知が 0 件であること、空 rule でも60秒 Holdback 後に `counterpartRuleUnconfirmed` で行う fail-open release、capacity 時だけの即時 fail-open、受信時 stats と release 時 stats の一回性、11分 source record expiryとexpired tombstone、dispose／restart fail-open、他 ignore type の不変。
 - 骨組みで synthetic rule に限って state-machine verification する: counterpart／source 両先着、Holdback 内 match、60,000msちょうどのinput先勝ちと60,001ms release、前後5分の inclusive 境界と窓外、EventID／code identity、候補複数、660,000msちょうどのlate matchと660,001ms expiry、counterpart-first expiry再固定、timer 競合、source／counterpart／tombstone capacity、released後の訂正／取消／newer、counterpart取消後の candidate 再計算が0／1／複数となる各遷移、typed late reconcile action。synthetic rule の成功を実 counterpart 確認済みとは数えない。
-- 6B後半・第2縦切りへ持ち越す: 実 pair での suppression と到着順同値、timeout 後の canonical ticker 表示、source ticker の原子的 targeted remove/replace protocol、実 code の high／non-high 通知、pair をまたぐ訂正／取消と source 復帰のproduction有効化、`legacyLateCounterpartReconciled` の成功後加算。browser active card の導入と reconcile は第3縦切り（裁定待ち・ご主人判断）へ送る。従って既存完了条件のうち「片系だけの fail-open」「restart」「他 ignore／回帰」と訂正／取消の純粋状態遷移は骨組み対象、「対応電文確認時だけ抑止」「両順序の最終 ticker／hub／snapshot 状態一致」「high 通知」「実 pair rule による訂正／取消」は6B後半対象とする。
+- 6B後半・第2縦切りへ持ち越す: 実 pair での suppression と到着順同値、timeout 後の canonical ticker 表示、source ticker の原子的 targeted remove/replace protocol、実 code の high／non-high 通知、pair をまたぐ訂正／取消と source 復帰のproduction有効化、`legacyLateCounterpartReconciled` の成功後加算。browser active card の導入と reconcile は第3縦切り（裁定待ち・作者判断）へ送る。従って既存完了条件のうち「片系だけの fail-open」「restart」「他 ignore／回帰」と訂正／取消の純粋状態遷移は骨組み対象、「対応電文確認時だけ抑止」「両順序の最終 ticker／hub／snapshot 状態一致」「high 通知」「実 pair rule による訂正／取消」は6B後半対象とする。
 
 変更単位（依存順。空 registry の安全な縦切りを先に通し、相関 state machine と router timer 接続を分ける）:
 
@@ -1976,7 +1976,7 @@ late reconcile の確定裁定:
 
 6B後半・第2縦切り実装契約（2026-08-24 改訂。VPOA50→VPBS50 ticker reconcile slice）:
 
-状態: **実装済み（2026-08-24。裁定 A/A/A は2026-08-25ご主人追認済み・確定。単位1 926e070・単位2 9a22809・単位3 3a6f250・単位4 33b5ccd、各単位 Sol high レビュー ADDRESSED・全ゲート緑）**。本縦切りは第1縦切りで production 有効化済みの VPOA50→VPBS50 `InfoType=発表` 一意 pair に限り、source admission から11分以内かつ Holdback timeout 後の typed `reconcileLateCounterpart` action を ticker surface の原子的 reconcile へ接続する。対象は `InfoDisplayHub.recent`、frontend ticker scheduler／catalog、display protocol sync、`legacyLateCounterpartReconciled` metric だけである。browser active card は現状未実装で除去対象がなく、standalone VPBS50 を含む card の新規表示は本縦切りの範囲外とする。現状の `DisplayIngestSink` は `ingest(event):void` だけで、legacy DTO の `groupKey` は `null`、通常 event ingest 時には source の exact key を置換しない。既存 `src/engine/messages/legacy-counterpart-correlator.ts` の action は canonical `outcome`、`sourceOutcome`、`sourceIdentity` を既に型付きで返すため、相関器へ display receipt／TTL を持ち込まず、この action を router の起点として保存する。
+状態: **実装済み（2026-08-24。裁定 A/A/A は2026-08-25作者追認済み・確定。単位1 926e070・単位2 9a22809・単位3 3a6f250・単位4 33b5ccd、各単位 Sol high レビュー ADDRESSED・全ゲート緑）**。本縦切りは第1縦切りで production 有効化済みの VPOA50→VPBS50 `InfoType=発表` 一意 pair に限り、source admission から11分以内かつ Holdback timeout 後の typed `reconcileLateCounterpart` action を ticker surface の原子的 reconcile へ接続する。対象は `InfoDisplayHub.recent`、frontend ticker scheduler／catalog、display protocol sync、`legacyLateCounterpartReconciled` metric だけである。browser active card は現状未実装で除去対象がなく、standalone VPBS50 を含む card の新規表示は本縦切りの範囲外とする。現状の `DisplayIngestSink` は `ingest(event):void` だけで、legacy DTO の `groupKey` は `null`、通常 event ingest 時には source の exact key を置換しない。既存 `src/engine/messages/legacy-counterpart-correlator.ts` の action は canonical `outcome`、`sourceOutcome`、`sourceIdentity` を既に型付きで返すため、相関器へ display receipt／TTL を持ち込まず、この action を router の起点として保存する。
 
 前提・不変条件:
 
@@ -1988,7 +1988,7 @@ late reconcile の確定裁定:
 - `legacyLateCounterpartReconciled` は typed result の hub mutation が `applied` の場合だけ、receipt generation ごとに global／VPOA50 type-local を各一回加算する。delivery は `delivered`、`noClients`、`blockedSkipped`、`byteGuardDropped` を result で区別し、後三者は mutation の rollback 理由にしない。`unsupported`、receipt 不在／unsupported、hub unavailable／stopped、hub mutation failure は metric 0 とし、canonical の通常 ingest を一回だけ fail-open で続ける。
 - display off/on の ticker 分岐は次で固定する。(1) timeout 時に hub があれば receipt と surface を作る。(2) hub 不在／stop／projection失敗なら receipt を作らない。(3) receipt なしの late action は unsupported fail-open・metric 0 で canonical を通常 ingest する。(4) receipt 作成後に hub が不在となった late action も metric 0・再試行なしとし、canonical は通常 ingest 経路だけを試みる。(5) その後 display on しても source／canonical ticker を遡及 seed しない。存在しない surface の除去を自明成功にせず、receipt 不在を success にしない。process restart 後も空 receipt から fail-open とする。
 
-裁定済み（A/A/A、2026-08-25ご主人追認済み・確定）:
+裁定済み（A/A/A、2026-08-25作者追認済み・確定）:
 
 1. **sink command shape A**: `DisplayIngestSink` は optional capability として discriminated `DisplayIngestResult` と pair 専用 `reconcileLateCounterpart()` を定義する。未実装 sink は `unsupported` fail-open とし、C の段階導入互換をここへ含める。汎用 `applyAtomicBatch()` は導入しない。
 2. **wire atomicity A**: protocol に event 相当の seq／SSE id を持つ targeted `reconcile` message を additive に追加し、canonical DTO と source ticker `eventKey[]` を一 frame で運ぶ。既存 `event`＋`state{tickerSynced:true}` の二 frame 方式は採用しない。
@@ -2013,14 +2013,14 @@ late reconcile の確定裁定:
 
 前提・不変条件:
 
-- 第2縦切りの scope 切り直しと設計裁定 A/A/A（pair 専用 optional sink command、single targeted reconcile wire frame、ReportDateTime anchor）は2026-08-25にご主人追認済みであり、再裁定しない。第1縦切りの production rule／`eligibleInfoTypes:["発表"]`／severity／通知、第2縦切りの ticker exact-key removal／TTL／receipt／`legacyLateCounterpartReconciled` 成功境界を保存する。
+- 第2縦切りの scope 切り直しと設計裁定 A/A/A（pair 専用 optional sink command、single targeted reconcile wire frame、ReportDateTime anchor）は2026-08-25に作者追認済みであり、再裁定しない。第1縦切りの production rule／`eligibleInfoTypes:["発表"]`／severity／通知、第2縦切りの ticker exact-key removal／TTL／receipt／`legacyLateCounterpartReconciled` 成功境界を保存する。
 - card は既存 `ActiveStandbyCardV1` と frontend `CardKey` に additive な**新規 kind**として参加させる。既存 `volcano`／`typhoon`／`heat`／`flood`／`tornado`／`longPeriod`／`nankaiTrough` の wire shape、`tsunami`／`quake`／`weather`／`flood`／`typhoon`／`volcano`／`heat` の solver 契約、component、priority、TTL、永続化、表示順を変更しない。weather card の別名、weather rider、未知 kind fallback に偽装しない。
 - card state は第2縦切りの ticker receipt、ticker `eventKey`／`groupKey`、`tickerTtlMs()`、`legacyLateCounterpartReconciled`、hub `recent` を一つも真実源にしない。card 専用 identity、expiry、generation／一回性、容量、mutation result を別に定義する。同じ数値を採択する場合も card registry の独立定数と根拠を持ち、ticker の定数・receipt・metric を import／参照しない。
 - card fixture の一次入力は既存実 XML `test/fixtures/82_01_01_260324_VPBS50.xml`、`test/fixtures/82_03_01_260324_VPBS50.xml`、`test/fixtures/82_01_02_250630_VPBS50.xml`、`test/fixtures/82_01_03_241031_VPBS50.xml`、既存 `test/fixtures/synthetic_VPBS50_multi.xml`／`test/fixtures/synthetic_VPBS50_unknown-tag.xml`／`test/fixtures/synthetic_VPBS50_empty.xml`／`test/fixtures/synthetic_VPBS50_cancel.xml`、および `test/fixtures/phase6b_VPOA50_*.xml`／`test/fixtures/phase6b_VPBS50_*.xml` の実6 pairとする。card 用 expected fixture は `test/helpers/display-fixtures.ts` に raw XML から得た title、headline、Condition 集合、code付き target area、ReportDateTime、PublishingOffice、InfoType、severity evidence、qualifier を明示し、raw XML全文、CLI整形済み文字列、ticker sentenceを card payload に流さない。
 - layout 契約は「新 kind が `CARD_ORDER`、candidate presence／score、side／center measurement shelf、`CardCandidate`、solver、rotation、live render、layout motion identity の全経路を同じ自然高で通る」「solver が選んだ外枠高と live component 高が一致する」「overflow／unresolved 時も既存 card を clip／重複表示しない」とする。新 kind は既存 pager と同じ `PageableKey`／probe／rotation appearance 契約へ参加し、page遷移・pending→確定でもsolver予約高とlive outer高を揺らさない。`fcba058` の previous committed plan 固定は保存し、同 candidate の内容置換で fitting surface を動かさず、candidate追加、真のseverity score上昇、実overflowだけが固定を解除する。
 - typed `reconcileLateCounterpart` action は ticker receipt の有無と独立に必ず card mutation へ配送する。card mutation は card専用generationを持つ `CardReconcileResult` を返し、ticker mutation／receipt／`legacyLateCounterpartReconciled` の結果とは合成しない。ticker receiptがあり配送可能な場合は一つの additive `reconcile` frame にticker targeted mutationとcard payloadを載せ、frontendの一 reduceで両surfaceを更新する。receipt不在時も、card mutationが`applied`なら配信可能な場合にだけcard-only reconcile frameまたはauthoritative state snapshotを一回送信し、display off、hub unavailable／stopped、0 client、blocked、byte guardでは送信を要求せずmonitor所有card stateへ反映する。次回display on／browser reconnectはそのauthoritative snapshotで収束し、同じreconcile reduceはticker schedulerを触らずcardだけを更新する。card metricはdelivery resultによらずcard mutationが`applied`となった後だけ一回加算し、deliveryの`delivered`／`noClients`／`blockedSkipped`／`byteGuardDropped`はrollback理由にしない。process restart は非永続の空stateからfail-open再開する。protocol unknown message、旧 snapshot の kind 欠落は fail-open とし、電文処理、CLI、通知を停止しない。
 
-確定裁定（2026-08-25 ご主人裁定）:
+確定裁定（2026-08-25 作者裁定）:
 
 1. **scope 確定**: VPOA50／VPBS50 の browser active card 新規導入と card reconcile を本縦切りで実装する。
 2. **standalone 確定**: standalone を含む全受理済み VPBS50 を card projection の対象にする。pair 参加資格は相関だけの条件であり、card 表示資格へ流用しない。受理済み訂正／取消も card projection 自体を無かったことにせず、具体的な active lifecycle は下記裁定に従う。
