@@ -2270,38 +2270,40 @@ rollback条件:
 
 既定値の根拠は `src/types.ts:403`。以下のtest言及は存在・対象の静的確認であり、未実行だ。
 
+**裁定（2026-09-14 作者）**: 以下の裁定欄は作者の裁定を転記した。`summary`（定期要約・sparkline・`--summary-interval`）・`tipinterval`（待機 tips）・`clock` は互換必須、それ以外の実装したきりの設定・整形・DSL 系は廃止可。空欄 4 行（`history`・`eewlog`・EEW ログファイル・地震の再表示／再放送）は未決のまま。filter 廃止可に伴い、下記の filter 公開 field 一覧も廃止対象。旧築からの物理削除は別途の配送（まず filter と `detail`）で行い、Q7 の採否とは区別する。
+
 ### 11.2 CLIコマンド・起動option
 
 | 機能 | 現行の内容・既定値 | docs・test等の材料 | 裁定 |
 |---|---|---|---|
-| `fleq` 通常起動 | 指定区分を常時受信 | `cli.ts:22–80` | |
-| `--help` / `--version` | commanderの案内・版表示 | `cli.ts:19–27` | |
-| `init` | 対話初期設定 | `cli.ts:85–92` | |
-| `config show` | 設定表示 | `cli.ts:98–103` | |
-| `config set <key> <value>` | 設定保存 | `cli.ts:105–119` | |
-| `config unset <key>` | 設定削除 | `cli.ts:121–135` | |
-| `config path` | 設定path | `cli.ts:137–142` | |
-| `config keys` | 設定key一覧 | `cli.ts:144–149` | |
-| `-k / --api-key`、環境変数 | 認証入力 | `cli.ts:28–31` | |
-| `-c / --classifications` | 5区分を既定購読 | `cli.ts:32–35`、`types.ts:404` | |
-| `--test` | `no / including / only`、既定no | `cli.ts:36–39` | |
-| `--keep-existing` | 互換option、既定true | `cli.ts:40–43` | |
-| `--close-others` | 接続整理。説明と実装のappName範囲を揃える必要あり | `cli.ts:44–47`、`rest-client.ts:585` | |
-| `--mode` | normal / compact、既定normal | `cli.ts:48–51` | |
-| `--filter` | 複数指定AND、表示限定 | `cli.ts:52–57`、README:161 | |
-| `--template` | inline／`@file`要約 | `cli.ts:58–61` | |
-| `--focus` | 非一致をdim compactへ | `cli.ts:62–65` | |
-| `--summary-interval` | 指定時既定10分、0で無効 | `cli.ts:66–71` | |
-| `--night` | 既定false | `cli.ts:72` | |
-| `--display` | browser server、既定false | `cli.ts:73` | |
-| `--display-port` | 既定7788 | `cli.ts:74` | |
-| `--display-bind` | 既定127.0.0.1 | `cli.ts:75` | |
-| `--display-token` | 非loopback認証 | `cli.ts:76` | |
-| `--debug` | 既定false | `cli.ts:77` | |
-| `replay <prediction> <occurrence>` | 固定VPBS50二通 | `cli-replay.ts:42`、`replay-cli.test.ts:35` | |
-| replay `--state-dir` | 空の専用directory必須 | `cli-replay.ts:44` | |
-| replay `--interval` | 既定1000ms | `cli-replay.ts:45` | |
-| replay `--hold` | SSE client待ち・終了後保持 | `cli-replay.ts:46` | |
+| `fleq` 通常起動 | 指定区分を常時受信 | `cli.ts:22–80` | 互換必須（2026-09-14 作者） |
+| `--help` / `--version` | commanderの案内・版表示 | `cli.ts:19–27` | 互換必須（2026-09-14 作者） |
+| `init` | 対話初期設定 | `cli.ts:85–92` | 互換必須（2026-09-14 作者） |
+| `config show` | 設定表示 | `cli.ts:98–103` | 互換必須（2026-09-14 作者） |
+| `config set <key> <value>` | 設定保存 | `cli.ts:105–119` | 互換必須（2026-09-14 作者） |
+| `config unset <key>` | 設定削除 | `cli.ts:121–135` | 互換必須（2026-09-14 作者） |
+| `config path` | 設定path | `cli.ts:137–142` | 互換必須（2026-09-14 作者） |
+| `config keys` | 設定key一覧 | `cli.ts:144–149` | 互換必須（2026-09-14 作者） |
+| `-k / --api-key`、環境変数 | 認証入力 | `cli.ts:28–31` | 互換必須（2026-09-14 作者） |
+| `-c / --classifications` | 5区分を既定購読 | `cli.ts:32–35`、`types.ts:404` | 互換必須（2026-09-14 作者） |
+| `--test` | `no / including / only`、既定no | `cli.ts:36–39` | 互換必須（2026-09-14 作者） |
+| `--keep-existing` | 互換option、既定true | `cli.ts:40–43` | 廃止可（2026-09-14 作者） |
+| `--close-others` | 接続整理。説明と実装のappName範囲を揃える必要あり | `cli.ts:44–47`、`rest-client.ts:585` | 廃止可（2026-09-14 作者） |
+| `--mode` | normal / compact、既定normal | `cli.ts:48–51` | 廃止可（2026-09-14 作者） |
+| `--filter` | 複数指定AND、表示限定 | `cli.ts:52–57`、README:161 | 廃止可（2026-09-14 作者） |
+| `--template` | inline／`@file`要約 | `cli.ts:58–61` | 廃止可（2026-09-14 作者） |
+| `--focus` | 非一致をdim compactへ | `cli.ts:62–65` | 廃止可（2026-09-14 作者） |
+| `--summary-interval` | 指定時既定10分、0で無効 | `cli.ts:66–71` | 互換必須（2026-09-14 作者） |
+| `--night` | 既定false | `cli.ts:72` | 廃止可（2026-09-14 作者） |
+| `--display` | browser server、既定false | `cli.ts:73` | 互換必須（2026-09-14 作者） |
+| `--display-port` | 既定7788 | `cli.ts:74` | 互換必須（2026-09-14 作者） |
+| `--display-bind` | 既定127.0.0.1 | `cli.ts:75` | 互換必須（2026-09-14 作者） |
+| `--display-token` | 非loopback認証 | `cli.ts:76` | 互換必須（2026-09-14 作者） |
+| `--debug` | 既定false | `cli.ts:77` | 互換必須（2026-09-14 作者） |
+| `replay <prediction> <occurrence>` | 固定VPBS50二通 | `cli-replay.ts:42`、`replay-cli.test.ts:35` | 廃止可（2026-09-14 作者） |
+| replay `--state-dir` | 空の専用directory必須 | `cli-replay.ts:44` | 廃止可（2026-09-14 作者） |
+| replay `--interval` | 既定1000ms | `cli-replay.ts:45` | 廃止可（2026-09-14 作者） |
+| replay `--hold` | SSE client待ち・終了後保持 | `cli-replay.ts:46` | 廃止可（2026-09-14 作者） |
 
 一般的なcorpus replay検収器と、公開CLIの固定二通replayを同一機能にしない。後者が廃止可でも、検収用replayは必要だ。
 
@@ -2309,42 +2311,42 @@ rollback条件:
 
 | 入口 | 下位操作・現行機能 | 利用を推定する材料 | 裁定 |
 |---|---|---|---|
-| `help` | command/subcommand詳細 | CMD:10。定義あり | |
-| `commands` | 一覧、category、検索 | CMD:16 | |
-| `?` | help alias | CMD:22 | |
+| `help` | command/subcommand詳細 | CMD:10。定義あり | 互換必須（2026-09-14 作者） |
+| `commands` | 一覧、category、検索 | CMD:16 | 互換必須（2026-09-14 作者） |
+| `?` | help alias | CMD:22 | 互換必須（2026-09-14 作者） |
 | `history` | REST地震履歴1〜100、既定10 | CMD:27。`repl.test.ts:232` | |
-| `stats` | 電文統計 | CMD:33。`statistics-formatter.test.ts:99` | |
-| `colors` | palette・震度色 | CMD:38 | |
-| `detail` | 既定津波、tsunami/tornado/vpws50/vpwp50/volcano | CMD:44–54 | |
-| `status` | WS、socket ID、再接続 | CMD:57。`repl.test.ts:313` | |
-| `config` | 保存設定表示 | CMD:63。`repl.test.ts:414` | |
-| `contract` | 契約区分取得 | CMD:69。`repl.test.ts:349` | |
-| `socket` | 接続socket一覧 | CMD:75。`repl.test.ts:373` | |
-| `notify` | category toggle/on/off、all:on/off | CMD:81。地震系等on、気象系offが既定 | |
+| `stats` | 電文統計 | CMD:33。`statistics-formatter.test.ts:99` | 廃止可（2026-09-14 作者） |
+| `colors` | palette・震度色 | CMD:38 | 廃止可（2026-09-14 作者） |
+| `detail` | 既定津波、tsunami/tornado/vpws50/vpwp50/volcano | CMD:44–54 | 廃止可（2026-09-14 作者） |
+| `status` | WS、socket ID、再接続 | CMD:57。`repl.test.ts:313` | 互換必須（2026-09-14 作者） |
+| `config` | 保存設定表示 | CMD:63。`repl.test.ts:414` | 互換必須（2026-09-14 作者） |
+| `contract` | 契約区分取得 | CMD:69。`repl.test.ts:349` | 廃止可（2026-09-14 作者） |
+| `socket` | 接続socket一覧 | CMD:75。`repl.test.ts:373` | 廃止可（2026-09-14 作者） |
+| `notify` | category toggle/on/off、all:on/off | CMD:81。地震系等on、気象系offが既定 | 互換必須（2026-09-14 作者） |
 | `eewlog` | on/off、12記録fieldの切替 | CMD:92。既定off、`eew-logger.test.ts:95` | |
-| `tablewidth` | 40〜200 / auto | CMD:103。既定auto | |
-| `infotext` | full / short | CMD:113。既定short | |
-| `tipinterval` | 0〜1440分、0無効 | CMD:123。既定30分 | |
-| `mode` | normal / compact | CMD:132。既定normal | |
-| `filter` | 表示、set、clear、test | CMD:142。filter test群あり | |
-| `focus` | 式設定、off | CMD:153。README:289 | |
-| `clock` | elapsed / now / uptime | CMD:163。既定elapsed | |
-| `night` | on/off | CMD:174。既定off、night-overlay testあり | |
-| `summary` | on [分] / off / now | CMD:184。既定停止、summary-tracker testあり | |
-| `sound` | on/off | CMD:195。既定on、sound-player testあり | |
-| `theme` | path/show/reset/reload/validate | CMD:205。theme testあり | |
-| `layout` | path/reset/reload/validate | CMD:218。display-layout/repl-layout testあり | |
-| `mute` | duration / off | CMD:230 | |
-| `fold` | 上位N観測点 / off | CMD:240。既定無制限 | |
-| `limit` | key N/default/reset | CMD:250。11種類の省略上限 | |
-| `test` | sound level、table type/番号 | CMD:261。専用operation-handler testあり | |
-| `clear` | 端末画面clear | CMD:277 | |
-| `backup` | EEW副回線 on/off | CMD:282。既定off | |
-| `retry` | 手動WS再接続 | CMD:292 | |
-| `display` | status/on/off | CMD:298。専用operation-handler testあり | |
-| `volcanorepair` | status/accept/clear/acknowledge-domain/rest | CMD:308–322 | |
-| `quit` | 終了 | CMD:324 | |
-| `exit` | quit alias | CMD:329 | |
+| `tablewidth` | 40〜200 / auto | CMD:103。既定auto | 廃止可（2026-09-14 作者） |
+| `infotext` | full / short | CMD:113。既定short | 廃止可（2026-09-14 作者） |
+| `tipinterval` | 0〜1440分、0無効 | CMD:123。既定30分 | 互換必須（2026-09-14 作者） |
+| `mode` | normal / compact | CMD:132。既定normal | 廃止可（2026-09-14 作者） |
+| `filter` | 表示、set、clear、test | CMD:142。filter test群あり | 廃止可（2026-09-14 作者） |
+| `focus` | 式設定、off | CMD:153。README:289 | 廃止可（2026-09-14 作者） |
+| `clock` | elapsed / now / uptime | CMD:163。既定elapsed | 互換必須（2026-09-14 作者） |
+| `night` | on/off | CMD:174。既定off、night-overlay testあり | 廃止可（2026-09-14 作者） |
+| `summary` | on [分] / off / now | CMD:184。既定停止、summary-tracker testあり | 互換必須（2026-09-14 作者） |
+| `sound` | on/off | CMD:195。既定on、sound-player testあり | 互換必須（2026-09-14 作者） |
+| `theme` | path/show/reset/reload/validate | CMD:205。theme testあり | 廃止可（2026-09-14 作者） |
+| `layout` | path/reset/reload/validate | CMD:218。display-layout/repl-layout testあり | 廃止可（2026-09-14 作者） |
+| `mute` | duration / off | CMD:230 | 互換必須（2026-09-14 作者） |
+| `fold` | 上位N観測点 / off | CMD:240。既定無制限 | 廃止可（2026-09-14 作者） |
+| `limit` | key N/default/reset | CMD:250。11種類の省略上限 | 廃止可（2026-09-14 作者） |
+| `test` | sound level、table type/番号 | CMD:261。専用operation-handler testあり | 廃止可（2026-09-14 作者） |
+| `clear` | 端末画面clear | CMD:277 | 互換必須（2026-09-14 作者） |
+| `backup` | EEW副回線 on/off | CMD:282。既定off | 互換必須（2026-09-14 作者） |
+| `retry` | 手動WS再接続 | CMD:292 | 互換必須（2026-09-14 作者） |
+| `display` | status/on/off | CMD:298。専用operation-handler testあり | 互換必須（2026-09-14 作者） |
+| `volcanorepair` | status/accept/clear/acknowledge-domain/rest | CMD:308–322 | 互換必須（2026-09-14 作者） |
+| `quit` | 終了 | CMD:324 | 互換必須（2026-09-14 作者） |
+| `exit` | quit alias | CMD:329 | 互換必須（2026-09-14 作者） |
 
 `volcanorepair` の内部実装をそのまま移植することは要求しない。採用する場合は、復旧不足の確認・明示解決という機能を、新しいU-Vと移行契約で実現する。
 
@@ -2352,33 +2354,33 @@ rollback条件:
 
 | 機能 | 現行の内容 | 根拠・材料 | 裁定 |
 |---|---|---|---|
-| filter論理式 | and/or/not、括弧、truthy | `filter/parser.ts:23–68` | |
-| filter比較 | `= != < <= > >= ~ !~ in contains` | `filter/types.ts:53` | |
-| filter型検査 | field、alias、enum rank、配列、未知field検出 | `filter/field-registry.ts:97–169`、専用test群 | |
-| filter特殊値 | M/深さのsemantic、予想震度safety rank | `filter/field-registry.ts:124–140` | |
-| template構文 | path、literal、if/else、filter chain | `template/parser.ts:57–110` | |
-| template filter | default/truncate/pad/date/replace/upper/lower | `template/filters.ts:5–13` | |
-| template表示専用制限 | raw参照・配列index禁止、joinなし、改行結合の制限 | `template/parser.ts:174`、`template/filters.ts:22` | |
-| normal/compact整形 | フルframe／一行要約 | CMD:132 | |
-| CLI focus dim | 条件非一致だけ薄いcompact | README:162 | |
-| CLI night | 彩度・輝度低下、危険色維持 | README:24、night-overlay test | |
-| カスタムtheme | palette/role、再読込み | CMD:205 | |
-| カスタムdisplay-layout | CLI表示block構成 | CMD:218 | |
-| 観測点fold | 件数制限 | CMD:240 | |
-| テキスト省略limit | 地震解説・南海・火山・洪水等11項目 | `config.ts:191–204` | |
-| VPWP50端末詳細幅 | standard120、wide160、entry8行、全体60行 | `types.ts:470–473` | |
-| 統計 | 分野件数、EEWイベント数、震度内訳 | `statistics-formatter.test.ts:166–182` | |
-| 定期要約・sparkline | 分bucket、30slot、最大値 | `summary-tracker.test.ts:54–143` | |
-| 当日地震履歴 | display off中も更新 | `display-sink.ts:92–93` | |
+| filter論理式 | and/or/not、括弧、truthy | `filter/parser.ts:23–68` | 廃止可（2026-09-14 作者） |
+| filter比較 | `= != < <= > >= ~ !~ in contains` | `filter/types.ts:53` | 廃止可（2026-09-14 作者） |
+| filter型検査 | field、alias、enum rank、配列、未知field検出 | `filter/field-registry.ts:97–169`、専用test群 | 廃止可（2026-09-14 作者） |
+| filter特殊値 | M/深さのsemantic、予想震度safety rank | `filter/field-registry.ts:124–140` | 廃止可（2026-09-14 作者） |
+| template構文 | path、literal、if/else、filter chain | `template/parser.ts:57–110` | 廃止可（2026-09-14 作者） |
+| template filter | default/truncate/pad/date/replace/upper/lower | `template/filters.ts:5–13` | 廃止可（2026-09-14 作者） |
+| template表示専用制限 | raw参照・配列index禁止、joinなし、改行結合の制限 | `template/parser.ts:174`、`template/filters.ts:22` | 廃止可（2026-09-14 作者） |
+| normal/compact整形 | フルframe／一行要約 | CMD:132 | 廃止可（2026-09-14 作者） |
+| CLI focus dim | 条件非一致だけ薄いcompact | README:162 | 廃止可（2026-09-14 作者） |
+| CLI night | 彩度・輝度低下、危険色維持 | README:24、night-overlay test | 廃止可（2026-09-14 作者） |
+| カスタムtheme | palette/role、再読込み | CMD:205 | 廃止可（2026-09-14 作者） |
+| カスタムdisplay-layout | CLI表示block構成 | CMD:218 | 廃止可（2026-09-14 作者） |
+| 観測点fold | 件数制限 | CMD:240 | 廃止可（2026-09-14 作者） |
+| テキスト省略limit | 地震解説・南海・火山・洪水等11項目 | `config.ts:191–204` | 廃止可（2026-09-14 作者） |
+| VPWP50端末詳細幅 | standard120、wide160、entry8行、全体60行 | `types.ts:470–473` | 廃止可（2026-09-14 作者） |
+| 統計 | 分野件数、EEWイベント数、震度内訳 | `statistics-formatter.test.ts:166–182` | 廃止可（2026-09-14 作者） |
+| 定期要約・sparkline | 分bucket、30slot、最大値 | `summary-tracker.test.ts:54–143` | 互換必須（2026-09-14 作者） |
+| 当日地震履歴 | display off中も更新 | `display-sink.ts:92–93` | 互換必須（2026-09-14 作者） |
 | EEWログファイル | 続報・差分・取消・特殊値 | `eew-logger.test.ts:95–640` | |
-| 待機tips | interval設定、表示 | CMD:123、`types.ts:413` | |
+| 待機tips | interval設定、表示 | CMD:123、`types.ts:413` | 互換必須（2026-09-14 作者） |
 | 地震の再表示／再放送 | 既存card関連機能。操作範囲の追加棚卸しが必要 | `quake-replay-card.test.ts`あり、挙動全体未確認 | |
-| 津波chip再放送 | clickで低優先tickerへ、受理と独立 | `App.svelte:115–158`、`tsunami-replay.ts:2–4` | |
-| browser dim | localStorageに希望を保存、警報中の実効値と分離 | `dim.svelte.ts:1–31` | |
-| browser reduced-motion | 動きを軽減。周期停止とは別 | `display-design-system.md:310` | |
-| 起動時update check | npm、失敗時GitHub、24時間cache、無効化env | README:231 | |
-| lowmem起動 | `--optimize-for-size` | `package.json:20–22` | |
-| studio補助起動 | root scriptsにbackend/studioあり | `package.json:34–35`。利用・全機能未確認 | |
+| 津波chip再放送 | clickで低優先tickerへ、受理と独立 | `App.svelte:115–158`、`tsunami-replay.ts:2–4` | 互換必須（2026-09-14 作者） |
+| browser dim | localStorageに希望を保存、警報中の実効値と分離 | `dim.svelte.ts:1–31` | 互換必須（2026-09-14 作者） |
+| browser reduced-motion | 動きを軽減。周期停止とは別 | `display-design-system.md:310` | 互換必須（2026-09-14 作者） |
+| 起動時update check | npm、失敗時GitHub、24時間cache、無効化env | README:231 | 互換必須（2026-09-14 作者） |
+| lowmem起動 | `--optimize-for-size` | `package.json:20–22` | 互換必須（2026-09-14 作者） |
+| studio補助起動 | root scriptsにbackend/studioあり | `package.json:34–35`。利用・全機能未確認 | 廃止可（2026-09-14 作者） |
 
 filter公開fieldも採否対象に含める。
 
