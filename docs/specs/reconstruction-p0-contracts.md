@@ -2270,7 +2270,7 @@ rollback条件:
 
 既定値の根拠は `src/types.ts:403`。以下のtest言及は存在・対象の静的確認であり、未実行だ。
 
-**裁定（2026-09-14 作者）**: 以下の裁定欄は作者の裁定を転記した。`summary`（定期要約・sparkline・`--summary-interval`）・`tipinterval`（待機 tips）・`clock` は互換必須、それ以外の実装したきりの設定・整形・DSL 系は廃止可。空欄 4 行（`history`・`eewlog`・EEW ログファイル・地震の再表示／再放送）は未決のまま。filter 廃止可に伴い、下記の filter 公開 field 一覧も廃止対象。旧築からの物理削除は別途の配送（まず filter と `detail`）で行い、Q7 の採否とは区別する。
+**裁定（2026-09-14 作者）**: 以下の裁定欄は作者の裁定を転記した。`summary`（定期要約・sparkline・`--summary-interval`）・`tipinterval`（待機 tips）・`clock` は互換必須、それ以外の実装したきりの設定・整形・DSL 系は廃止可。同日追加裁定: `eewlog`・EEW ログファイルは互換必須、`history`・地震の再表示／再放送は廃止可（空欄なし）。filter 廃止可に伴い、下記の filter 公開 field 一覧も廃止対象。旧築からの物理削除は別途の配送（まず filter と `detail`）で行い、Q7 の採否とは区別する。
 
 ### 11.2 CLIコマンド・起動option
 
@@ -2314,7 +2314,7 @@ rollback条件:
 | `help` | command/subcommand詳細 | CMD:10。定義あり | 互換必須（2026-09-14 作者） |
 | `commands` | 一覧、category、検索 | CMD:16 | 互換必須（2026-09-14 作者） |
 | `?` | help alias | CMD:22 | 互換必須（2026-09-14 作者） |
-| `history` | REST地震履歴1〜100、既定10 | CMD:27。`repl.test.ts:232` | |
+| `history` | REST地震履歴1〜100、既定10 | CMD:27。`repl.test.ts:232` | 廃止可（2026-09-14 作者） |
 | `stats` | 電文統計 | CMD:33。`statistics-formatter.test.ts:99` | 廃止可（2026-09-14 作者） |
 | `colors` | palette・震度色 | CMD:38 | 廃止可（2026-09-14 作者） |
 | `detail` | 既定津波、tsunami/tornado/vpws50/vpwp50/volcano | CMD:44–54 | 廃止可（2026-09-14 作者） |
@@ -2323,7 +2323,7 @@ rollback条件:
 | `contract` | 契約区分取得 | CMD:69。`repl.test.ts:349` | 廃止可（2026-09-14 作者） |
 | `socket` | 接続socket一覧 | CMD:75。`repl.test.ts:373` | 廃止可（2026-09-14 作者） |
 | `notify` | category toggle/on/off、all:on/off | CMD:81。地震系等on、気象系offが既定 | 互換必須（2026-09-14 作者） |
-| `eewlog` | on/off、12記録fieldの切替 | CMD:92。既定off、`eew-logger.test.ts:95` | |
+| `eewlog` | on/off、12記録fieldの切替 | CMD:92。既定off、`eew-logger.test.ts:95` | 互換必須（2026-09-14 作者） |
 | `tablewidth` | 40〜200 / auto | CMD:103。既定auto | 廃止可（2026-09-14 作者） |
 | `infotext` | full / short | CMD:113。既定short | 廃止可（2026-09-14 作者） |
 | `tipinterval` | 0〜1440分、0無効 | CMD:123。既定30分 | 互換必須（2026-09-14 作者） |
@@ -2372,9 +2372,9 @@ rollback条件:
 | 統計 | 分野件数、EEWイベント数、震度内訳 | `statistics-formatter.test.ts:166–182` | 廃止可（2026-09-14 作者） |
 | 定期要約・sparkline | 分bucket、30slot、最大値 | `summary-tracker.test.ts:54–143` | 互換必須（2026-09-14 作者） |
 | 当日地震履歴 | display off中も更新 | `display-sink.ts:92–93` | 互換必須（2026-09-14 作者） |
-| EEWログファイル | 続報・差分・取消・特殊値 | `eew-logger.test.ts:95–640` | |
+| EEWログファイル | 続報・差分・取消・特殊値 | `eew-logger.test.ts:95–640` | 互換必須（2026-09-14 作者） |
 | 待機tips | interval設定、表示 | CMD:123、`types.ts:413` | 互換必須（2026-09-14 作者） |
-| 地震の再表示／再放送 | 既存card関連機能。操作範囲の追加棚卸しが必要 | `quake-replay-card.test.ts`あり、挙動全体未確認 | |
+| 地震の再表示／再放送 | 既存card関連機能。操作範囲の追加棚卸しが必要 | `quake-replay-card.test.ts`あり、挙動全体未確認 | 廃止可（2026-09-14 作者） |
 | 津波chip再放送 | clickで低優先tickerへ、受理と独立 | `App.svelte:115–158`、`tsunami-replay.ts:2–4` | 互換必須（2026-09-14 作者） |
 | browser dim | localStorageに希望を保存、警報中の実効値と分離 | `dim.svelte.ts:1–31` | 互換必須（2026-09-14 作者） |
 | browser reduced-motion | 動きを軽減。周期停止とは別 | `display-design-system.md:310` | 互換必須（2026-09-14 作者） |
