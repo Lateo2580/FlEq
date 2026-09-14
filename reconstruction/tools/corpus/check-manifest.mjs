@@ -9,6 +9,7 @@ const baseOid = '46ea274fc216475f003647cc3d6626d2f52ef9d3';
 const hashConvention = 'sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes';
 const zeroHash = '0'.repeat(64);
 const sha256 = (bytes) => createHash('sha256').update(bytes).digest('hex');
+export { sha256, hashConvention, zeroHash };
 const read = (path) => readFileSync(fileURLToPath(new URL(path, root)));
 const fixtureId = (path) => path.replace(/\//g, '__').replace(/\.(xml|json)$/, '');
 const files = readdirSync(new URL('test/fixtures/', root), { recursive: true, withFileTypes: true })

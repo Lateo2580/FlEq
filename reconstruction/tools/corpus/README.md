@@ -28,3 +28,13 @@ route/familyはspec §4.3を適用（通常はheadType別family）。21route: ee
 不足「unknown」: 特殊震度/深さ/Magnitude・VPWP50未知コード等の個片はあるが洪水全unknown・復元直後unknown・運用区分交差系列なし。REST見込み=VXKO50水位不明やVXSE系未入電を含む事例。未観測形・矛盾入力はsynthetic。
 不足「不正」: invalid-report-datetime・Head欠落はあるが壊れたXML/encode、必須運用区分欠落・矛盾・不正値の網羅なし。RESTで合法原本としての取得は見込まず、破損と拒否境界はsyntheticでしか制御できない。
 不足「上限境界」: 大きい実XMLと旧容量期待JSONはあるが新築のbytes/node/depth/属性/text・履歴2/8・queue・SSE上限の直前/一致/+1系列なし。REST見込み=VPWP50/VPTA50の大規模正常報は参考負荷。厳密な閾値入力と故障/時計/SSE操作はsynthetic。取得も追加も次段の作者裁定待ち。
+
+系列起草: `sequences.json` は O01〜O11 の `steps` と、`expectedRef` で結ぶ `expectations`。各stepのfield集合・順序・nullableはspec §9.5どおり。
+形式 A/B: A=`{meta,sequences,expectations,unresolvedQuestions}`（推奨・採用）、B=別file分割。自己hashはmanifestと同規約、baseOidは本契約`3669dfd6a`、参照manifestは`meta.manifestSha256`で固定（manifestの来歴baseとは別）。
+期待値型 A/B: A=Step/Effectiveの部分射影＋subjectsの入力revision tuple・notices/intents・basis・input・checks（推奨・採用）、B=未定義ExpectedDecision/EvidenceRefを先に全面設計。型と各fieldの必要理由はmetaに記載。
+比較: `checks`にcurrent/watermark/tombstone/履歴/副作用/性能条件、`input`に制御操作または必要入力形とREST見込み/syntheticを記す。nullは非適用かQ-*未決で、未決を一致と数えない。
+時計: 全値は合成epoch ms。原XML日時は変更せず、独立ケースのrestartで初期時計/stateを固定。旧checkpointはsavedAt、Pi stale-lockは8日差。replay起源とControl.Statusを分離しhead.testを捏造しない。
+unmet（系列別）: O01=14、O02=12、O03=4、O04=5、O05=12、O06=24、O07=1、O08=4、O09=57、O10=0、O11=5（計138）。fixtureId=nullと`unmet:Oxx:n`で明示、依存する後続stepも条件付き。O05の分割/順序交換はsynthetic待ち。
+検査 A/B: A=別`check-sequences.mjs`（推奨・採用）、B=既存checkerへ一体化。別fileがないと来歴と系列受入の検査が混在するため分離し、既存hash関数/定数はexportして再利用。追加検査はP0受入条件と参照・型・時計の契約境界だけ。
+実行: `node reconstruction/tools/corpus/check-manifest.mjs` と `node reconstruction/tools/corpus/check-sequences.mjs`。後者も前者を実行する。build/vitest=N/A（契約対象外）。検査PASSは意味oracle/故障注入/実paintの実行PASSではない。
+未決: 末尾unresolvedQuestionsの11件にowner/blocks/resolveBy。fixture追加・REST取得・manifest更新なし。2026-09-14「すべてA」は作業の3分岐への裁定。Q5-a・Q5-b・Q7はspec §15.1どおり未裁定（owner user、期限P4着手前）で、裁定依存の期待はnullとQ-NOTICE等で区別する。
