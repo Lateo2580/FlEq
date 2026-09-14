@@ -26,15 +26,10 @@ import {
   FrameLevel,
   FrameLinePurpose,
   SEVERITY_LABELS,
-  frameLine,
   frameDivider,
   frameDividerColored,
   frameDividerLabeledColored,
-  frameTop,
-  frameBottom,
   createRenderBuffer,
-  flushWithRecap,
-  getFrameWidth,
   wrapFrameLines,
   wrapFrameLinesColored,
   pushWrappedFrameLine,
@@ -265,8 +260,7 @@ function hasForecastZoneLayer(info: ParsedWeatherWarning): boolean {
  * 本文罫線色 (Task 8 配色言語)。tail = 本文・footer 直前 divider・下辺の罫線色
  * (白系。取消は release 単色)。上辺+タイトル系の head 色は weather-formatter.ts 側が
  * frameTopColored / frameLineColored に直接使うため、ここには注入しない。
- * 未指定時は従来の frameLine / frameDivider (level 色) にフォールバック
- * (REPL detail 等の既存呼び出し互換)。
+ * 未指定時は level 色にフォールバックする。
  */
 export interface Vpws50BodyBorderColors {
   tail: (s: string) => string;
@@ -600,7 +594,7 @@ function renderSummarySections(
   }
 }
 
-/** サマリ行 (`■ 現況サマリ  N予報区  特X / 警Y / 注Z  (詳細: ...)`) を push する */
+/** サマリ行 (`■ 現況サマリ  N予報区  特X / 警Y / 注Z`) を push する */
 function pushSummaryHeadline(
   totalAreas: number,
   specialAreas: number,
@@ -613,8 +607,7 @@ function pushSummaryHeadline(
 ): void {
   // 旧 3 段階カウントは互換維持 (displaySeverity セクション化後も全体感を 1 行で掴む用)
   const counts = `特${specialAreas} / 警${warningAreas} / 注${advisoryAreas}`;
-  const hint = chalk.gray("(詳細: `detail vpws50`)");
-  const line = `■ 現況サマリ  ${totalAreas}予報区  ${counts}  ${hint}`;
+  const line = `■ 現況サマリ  ${totalAreas}予報区  ${counts}`;
   for (const wrapped of bodyWrap(level, line, width, colors, 2)) {
     buf.push(wrapped);
   }
@@ -955,25 +948,6 @@ function displayVpws50Compact(
 }
 
 /**
- * detail renderer (ui/detail-renderers.ts) から呼ぶ薄い表示関数。
- * フレーム + 現況サマリを出す (REPL `detail vpws50` 用)。
- */
-export function displayVpws50FromState(display: Vpws50CurrentAreasForDisplay): void {
-  const level: FrameLevel = "info";
-  const width = getFrameWidth();
-  const buf = createRenderBuffer();
-  buf.pushEmpty();
-  buf.push(frameTop(level, width));
-  buf.push(frameLine(level, "気象警報・注意報（全国集約） [情報]", width));
-  buf.push(frameLine(level, "  最新受信内容 (REPL detail)", width));
-  buf.push(frameDivider(level, width));
-  renderCurrentSummaryFromDisplay(display, level, width, buf);
-  buf.push(frameBottom(level, width));
-  buf.pushEmpty();
-  flushWithRecap(buf, level, width);
-}
-
-/**
  * §4.3 変化なし compact 1 行 (フレーム外で console.log)。
  * weather-formatter.ts の早期 return から呼ばれる。
  * 仕様上「変化なし」は常に info レベルで出すため level 引数は持たない (SEVERITY_LABELS["info"] 直書き)。
@@ -1034,7 +1008,6 @@ export const __vpws50_internals = {
   displayVpws50List,
   displayVpws50Compact,
   displayVpws50Unchanged,
-  displayVpws50FromState,
   renderSubline,
   renderChangeSection,
   renderReleasedSection,

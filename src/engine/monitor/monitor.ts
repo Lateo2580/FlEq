@@ -22,7 +22,6 @@ import { withReplDisplay, updateReplConnectionState } from "./repl-coordinator";
 import { createShutdownHandler, registerShutdownSignals, runShutdownAndRecordExitCode } from "./shutdown";
 import * as log from "../../logger";
 import * as receiptPerf from "../perf/receipt-timing";
-import type { PipelineController } from "../filter-template/pipeline-controller";
 import type {
   DisplayConnectionStateV1,
   DisplayIngestSink,
@@ -282,7 +281,7 @@ export interface SummaryTimerControl {
   showNow(): void;
 }
 
-export async function startMonitor(config: AppConfig, pipelineController?: PipelineController): Promise<void> {
+export async function startMonitor(config: AppConfig): Promise<void> {
   // display adapter は遅延ロードで ui 依存を monitor 側に限定する
   const { createDisplayAdapter } = await import("../../ui/display-adapter");
   const display = createDisplayAdapter();
@@ -887,7 +886,6 @@ export async function startMonitor(config: AppConfig, pipelineController?: Pipel
   let disconnectedAt: number | null = null;
   let isFirstConnection = true;
 
-  const pipeline = pipelineController?.getPipeline();
   let manager: MultiConnectionManager | null = null;
   const persistVptaAdmissionCompletion = (
     completion: VptaAdmissionCompletion,
@@ -948,8 +946,7 @@ export async function startMonitor(config: AppConfig, pipelineController?: Pipel
     }
     return { kind: "flushed", receipt, result };
   };
-  const { handler: routeMessage, eewLogger, notifier, vpwp50Cache, tornadoDetailProvider, stats, summaryTracker, flushAndDisposeVolcanoBuffer, disposeLegacyCounterpartCorrelator, buildDisplayStats } = createMessageHandler({
-    pipeline: pipeline ?? undefined,
+  const { handler: routeMessage, eewLogger, notifier, stats, summaryTracker, flushAndDisposeVolcanoBuffer, disposeLegacyCounterpartCorrelator, buildDisplayStats } = createMessageHandler({
     display,
     displaySink,
     dailyQuakeCounter,
@@ -1125,7 +1122,6 @@ export async function startMonitor(config: AppConfig, pipelineController?: Pipel
       if (result.kind === "written") standbyPersistence.dispose();
       return result;
     },
-    flushDetailCaches: () => vpwp50Cache.flush(),
     flushWeatherPromotion: () => {
       // 予約済み (debounce 待ち) より export() の方が常に新しいので、予約は捨てて現在状態を保存する
       weatherPromotionPersistence.dispose();
@@ -1172,7 +1168,7 @@ export async function startMonitor(config: AppConfig, pipelineController?: Pipel
     restRepair: volcanoRestRepair,
   };
 
-  replHandler = new ReplHandler(config, manager, notifier, eewLogger, shutdownFromRepl, stats, [tsunamiState, volcanoState], [tsunamiState, volcanoState, tornadoDetailProvider, vpws50State, vpwp50Cache], pipelineController, summaryTracker, displayController, volcanoRepairAdministration);
+  replHandler = new ReplHandler(config, manager, notifier, eewLogger, shutdownFromRepl, stats, [tsunamiState, volcanoState], summaryTracker, displayController, volcanoRepairAdministration);
 
   registerShutdownSignals(shutdown);
 

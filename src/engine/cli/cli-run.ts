@@ -1,6 +1,4 @@
 import chalk from "chalk";
-import * as fs from "fs";
-import * as os from "os";
 import {
   AppConfig,
   Classification,
@@ -18,7 +16,6 @@ import { loadDisplayLayout } from "../../ui/display-layout";
 import { resolveConfig } from "../startup/config-resolver";
 import * as updateChecker from "../startup/update-checker";
 import * as log from "../../logger";
-import { PipelineController } from "../filter-template/pipeline-controller";
 
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const { version: VERSION, name: PACKAGE_NAME } = require("../../../package.json") as {
@@ -34,9 +31,6 @@ export interface RunMonitorOptions {
   keepExisting?: boolean;
   closeOthers?: boolean;
   mode?: string;
-  filter?: string[];
-  template?: string;
-  focus?: string;
   summaryInterval?: number;
   night?: boolean;
   display?: boolean;
@@ -134,58 +128,6 @@ export async function runMonitor(opts: RunMonitorOptions): Promise<void> {
     detailMaxTotal: config.weatherWarningDetailMaxTotal,
   });
 
-  // Filter / Template コンパイル
-  const pipelineController = new PipelineController();
-
-  if (opts.filter && opts.filter.length > 0) {
-    try {
-      // 複数フィルタは括弧付きで AND 結合
-      const combined = opts.filter.map((e) => `(${e})`).join(" and ");
-      pipelineController.setFilter(combined);
-      log.info(`フィルタ: ${opts.filter.join(" AND ")}`);
-    } catch (err) {
-      if (err instanceof Error) {
-        log.error(`フィルタのコンパイルに失敗しました:\n${err.message}`);
-      }
-      process.exit(1);
-    }
-  }
-
-  if (opts.template) {
-    try {
-      let tplSource = opts.template;
-      if (tplSource.startsWith("@")) {
-        const filePath = tplSource.slice(1).replace(/^~/, os.homedir());
-        const MAX_TEMPLATE_SIZE = 1024 * 1024; // 1MB
-        const stat = fs.statSync(filePath);
-        if (stat.size > MAX_TEMPLATE_SIZE) {
-          log.error(`テンプレートファイルが大きすぎます (${stat.size} bytes, 上限 ${MAX_TEMPLATE_SIZE} bytes): ${filePath}`);
-          process.exit(1);
-        }
-        tplSource = fs.readFileSync(filePath, "utf-8").trim();
-      }
-      pipelineController.setTemplate(tplSource);
-      log.info("テンプレート: カスタム");
-    } catch (err) {
-      if (err instanceof Error) {
-        log.warn(`テンプレートのコンパイルに失敗しました:\n${err.message}`);
-      }
-      // template エラーは警告のみ — 通常表示にフォールバック
-    }
-  }
-
-  if (opts.focus) {
-    try {
-      pipelineController.setFocus(opts.focus);
-      log.info(`フォーカス: ${opts.focus}`);
-    } catch (err) {
-      if (err instanceof Error) {
-        log.error(`フォーカスのコンパイルに失敗しました:\n${err.message}`);
-      }
-      process.exit(1);
-    }
-  }
-
   // summaryInterval (CLI > Config > デフォルト, 0 = 無効化)
   if (opts.summaryInterval != null) {
     if (opts.summaryInterval === 0) {
@@ -199,7 +141,7 @@ export async function runMonitor(opts: RunMonitorOptions): Promise<void> {
 
   await printBanner(config);
   updateChecker.checkForUpdates(PACKAGE_NAME, VERSION);
-  await startMonitor(config, pipelineController);
+  await startMonitor(config);
 }
 
 /** 起動バナー表示 */

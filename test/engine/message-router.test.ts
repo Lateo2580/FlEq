@@ -898,7 +898,6 @@ describe("message-router 統合テスト", () => {
     it("createMessageHandler() が tsunamiState を返す", () => {
       const result = createHandler();
       expect(result.tsunamiState).toBeDefined();
-      expect(result.tsunamiState.category).toBe("tsunami");
     });
 
     it("VTSE41 取消報を処理する", () => {

@@ -39,7 +39,7 @@ export function fromBriefingOutcome(outcome: BriefingOutcome): PresentationEvent
 
     isCancellation: info.infoType === "取消",
     // frameLevel が warning/critical のものは isWarning=true に統一
-    // (shortSnow が isWarning=false になって filter/template から漏れるのを防ぐ)
+    // (shortSnow が isWarning=false になって 共通表示 から漏れるのを防ぐ)
     isWarning:
       outcome.presentation.frameLevel === "warning" ||
       outcome.presentation.frameLevel === "critical",

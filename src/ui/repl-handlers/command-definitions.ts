@@ -41,19 +41,6 @@ export function buildCommandMap(getCtx: () => ReplContext): Record<string, Comma
       category: "info",
       handler: () => info.handleColors(),
     },
-    detail: {
-      description: "直近の情報を再表示 (例: detail tsunami, detail tornado, detail vpws50, detail vpwp50, detail volcano)",
-      detail: "引数なし: 津波情報を再表示 (デフォルト)\n  detail tsunami: 津波情報を再表示\n  detail tornado: 竜巻注意情報の全対象地域を再表示\n  detail vpws50: VPWS50 全国集約電文の最新受信内容 (注意報含む全予報区) を再表示\n  detail vpwp50: VPWP50 気象警報・注意報時系列情報の最新受信内容 (注意報フル + 基準到達詳細) を再表示\n  detail volcano: 火山警報状態を再表示",
-      category: "info",
-      subcommands: {
-        tsunami: { description: "津波情報を再表示" },
-        tornado: { description: "竜巻注意情報の全対象地域を再表示" },
-        vpws50: { description: "VPWS50 全国集約電文の最新受信内容 (注意報含む全予報区) を再表示" },
-        vpwp50: { description: "VPWP50 気象警報・注意報時系列情報の最新受信内容 (注意報フル + 基準到達詳細) を再表示" },
-        volcano: { description: "火山警報状態を再表示" },
-      },
-      handler: (args) => info.handleDetail(getCtx(), args),
-    },
     status: {
       description: "WebSocket 接続状態を表示",
       detail: "現在の WebSocket 接続状態、SocketID、再接続試行回数を表示します。",
@@ -138,27 +125,6 @@ export function buildCommandMap(getCtx: () => ReplContext): Record<string, Comma
         compact: { description: "1行サマリー表示" },
       },
       handler: (args) => settings.handleMode(getCtx(), args),
-    },
-    filter: {
-      description: "フィルタの表示・設定 (例: filter set domain = \"eew\")",
-      detail: "filter: 現在のフィルタ状態を表示\n  filter set <expr>: フィルタを即時適用\n  filter clear: フィルタを解除\n  filter test <expr>: 構文チェックのみ（適用しない）",
-      category: "settings",
-      subcommands: {
-        set: { description: "フィルタを即時適用" },
-        clear: { description: "フィルタを解除" },
-        test: { description: "構文チェックのみ" },
-      },
-      handler: (args) => settings.handleFilter(getCtx(), args),
-    },
-    focus: {
-      description: "focus の表示・設定",
-      detail: "focus: 現在の状態表示\n  focus <expr>: 適用\n  focus off: 解除",
-      category: "settings",
-      subcommands: {
-        "<expr>": { description: "focus を適用" },
-        off: { description: "focus を解除" },
-      },
-      handler: (args) => settings.handleFocus(getCtx(), args),
     },
     clock: {
       description: "プロンプト時計の切替 (例: clock / clock uptime)",

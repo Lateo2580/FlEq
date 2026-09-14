@@ -1,12 +1,11 @@
 import readline from "readline";
 import chalk from "chalk";
-import { AppConfig, ConfigFile, PromptStatusProvider, PromptStatusSegment, DetailProvider } from "../types";
+import { AppConfig, ConfigFile, PromptStatusProvider, PromptStatusSegment } from "../types";
 import { ConnectionManager } from "../dmdata/connection-manager";
 import { loadConfig, saveConfig } from "../config";
 import { Notifier } from "../engine/notification/notifier";
 import { EewEventLogger } from "../engine/eew/eew-logger";
 import * as themeModule from "../ui/theme";
-import type { PipelineController } from "../engine/filter-template/pipeline-controller";
 import * as log from "../logger";
 import { setLogPrefixBuilder, setLogHooks } from "../logger";
 import { StatusLine } from "./status-line";
@@ -55,18 +54,12 @@ export class ReplHandler {
   private lastTipMilestone = 0;
   private tipShuffler = new TipShuffler();
   private statusProviders: PromptStatusProvider[];
-  private detailProviders: DetailProvider[];
   private stats: TelegramStats;
-  private pipelineController: PipelineController | null;
   private summaryTracker: SummaryWindowTracker | null;
   private summaryTimerControl: SummaryTimerControl | null = null;
   private summaryIntervalMin: number | null = null;
   private displayController: DisplayController;
   private volcanoRepairAdministration: VolcanoRepairAdministration | null;
-  private filterExpr: string | null = null;
-  private filterUpdatedAt: Date | null = null;
-  private focusExpr: string | null = null;
-  private focusUpdatedAt: Date | null = null;
 
   constructor(
     config: AppConfig,
@@ -76,8 +69,6 @@ export class ReplHandler {
     onQuit: () => void | Promise<void>,
     stats: TelegramStats,
     statusProviders: PromptStatusProvider[] = [],
-    detailProviders: DetailProvider[] = [],
-    pipelineController?: PipelineController,
     summaryTracker?: SummaryWindowTracker,
     displayController?: DisplayController,
     volcanoRepairAdministration?: VolcanoRepairAdministration,
@@ -89,8 +80,6 @@ export class ReplHandler {
     this.onQuit = onQuit;
     this.stats = stats;
     this.statusProviders = statusProviders;
-    this.detailProviders = detailProviders;
-    this.pipelineController = pipelineController ?? null;
     this.summaryTracker = summaryTracker ?? null;
     this.displayController = displayController ?? createNoopDisplayController();
     this.volcanoRepairAdministration = volcanoRepairAdministration ?? null;
@@ -281,8 +270,6 @@ export class ReplHandler {
       statusLine: this.statusLine,
       stats: this.stats,
       statusProviders: this.statusProviders,
-      detailProviders: this.detailProviders,
-      pipelineController: this.pipelineController,
       summaryTracker: this.summaryTracker,
       displayController: this.displayController,
       volcanoRepairAdministration: this.volcanoRepairAdministration,
@@ -293,14 +280,6 @@ export class ReplHandler {
       get summaryTimerControl() { return self.summaryTimerControl; },
       get summaryIntervalMin() { return self.summaryIntervalMin; },
       set summaryIntervalMin(v) { self.summaryIntervalMin = v; },
-      get filterExpr() { return self.filterExpr; },
-      set filterExpr(v) { self.filterExpr = v; },
-      get filterUpdatedAt() { return self.filterUpdatedAt; },
-      set filterUpdatedAt(v) { self.filterUpdatedAt = v; },
-      get focusExpr() { return self.focusExpr; },
-      set focusExpr(v) { self.focusExpr = v; },
-      get focusUpdatedAt() { return self.focusUpdatedAt; },
-      set focusUpdatedAt(v) { self.focusUpdatedAt = v; },
       get tipIntervalMs() { return self.tipIntervalMs; },
       set tipIntervalMs(v) { self.tipIntervalMs = v; },
       get rl() { return self.rl; },
@@ -335,11 +314,6 @@ export class ReplHandler {
     const parts: string[] = segments.map((s) =>
       themeModule.getRoleChalk(s.role)(s.text)
     );
-
-    // フィルタ状態セグメント
-    if (this.pipelineController?.getPipeline().filter != null) {
-      parts.push(chalk.cyan("F:on"));
-    }
 
     if (status.connected && status.heartbeatDeadlineAt != null) {
       const sec = Math.max(0, Math.ceil((status.heartbeatDeadlineAt - Date.now()) / 1000));

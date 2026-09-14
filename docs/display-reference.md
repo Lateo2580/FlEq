@@ -1752,7 +1752,7 @@ legacy fallback (diff 無し) のリストもトークンは displaySeverity 形
 - Phenomenon key 正規化: `src/dmdata/weather-phenomenon-key.ts`
 - 地方クラスタ map: `src/ui/weather-area-cluster.ts`
 - Formatter: `src/ui/weather-formatter-vpws50.ts` (`displayVpws50List` 6 状態分岐)
-- REPL: `src/ui/repl-handlers/info-handlers.ts` (`handleDetail` 汎用化)
+- REPL `detail`: 2026-09-14 に廃止（全面再構成 Q7 裁定）
 
 ---
 
@@ -2153,9 +2153,7 @@ REPL から `detail vpwp50` で発行可能。最新メッセージは
 - Helper: `src/ui/weather-severity-pyramid.ts` (`flattenEntries` で `windows[]` 系列保持、`WeatherSeverityEntry.id` を採番)
 - 種別自然語化: `src/dmdata/weather-warning-timeseries-significancy.ts` (`KIND_NAME_MAP` + `normalizeKindName`)。Phase B では公式系の L 後置注釈を formatter ローカル `vpwp50KindLabel` が担当
 - divider/罫線: `src/ui/weather-warning-level-theme.ts` (`renderDividerChip` + `getDisplaySeverityTierPrefix`) / `src/ui/formatter.ts` (`frame*Colored` 系 + `renderFooter` borderColor 注入)
-- Cache: `src/engine/messages/vpwp50-detail-cache.ts` (`DetailProvider` 実装、StateHolder なし、latest JSON 永続化 + schema validate + frameLevel 保存)
-- 配線: `src/engine/presentation/processors/process-weather-warning-timeseries.ts` で parse 直後に `rememberLatest`、表示抑制電文でも cache 更新 (取消含む)
-- REPL: `src/ui/repl-handlers/info-handlers.ts` の `KNOWN_DETAIL_CATEGORIES` に `vpwp50` 登録
+- Cache: `vpwp50-detail-cache` は REPL `detail` 専用だったため 2026-09-14 に削除（全面再構成 Q7 裁定）
 - Frame level: `src/engine/presentation/level-helpers.ts` の `weatherWarningTimeseriesFrameLevel`
 - Config: `weatherWarningStandardThreshold` (default 120) / `weatherWarningWideThreshold` (default 160) / `weatherWarningDetailMaxPerEntry` (default 8) / `weatherWarningDetailMaxTotal` (default 60)
 

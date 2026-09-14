@@ -15,7 +15,6 @@ import {
 } from "../formatter";
 import * as themeModule from "../theme";
 import * as displayLayout from "../display-layout";
-import { compileFilter, FilterSyntaxError, FilterTypeError, FilterFieldError } from "../../engine/filter";
 import { WINDOW_MINUTES } from "../../engine/messages/summary-tracker";
 import { formatSummaryInterval } from "../summary-interval-formatter";
 import type { ReplContext } from "./types";
@@ -85,19 +84,6 @@ function formatDuration(ms: number): string {
   const hour = Math.floor(min / 60);
   const remMin = min % 60;
   return remMin > 0 ? `${hour}時間${remMin}分` : `${hour}時間`;
-}
-
-/** フィルタのエラー表示 */
-function printFilterError(err: unknown): void {
-  if (err instanceof FilterSyntaxError) {
-    console.log(chalk.red(`  ${err.format()}`));
-  } else if (err instanceof FilterFieldError) {
-    console.log(chalk.red(`  ${err.format()}`));
-  } else if (err instanceof FilterTypeError) {
-    console.log(chalk.red(`  ${err.message}`));
-  } else {
-    console.log(chalk.red(`  エラー: ${err instanceof Error ? err.message : err}`));
-  }
 }
 
 /** カテゴリ名を解決する (case-insensitive + エイリアス) */
@@ -277,116 +263,6 @@ export function handleMode(ctx: ReplContext, args: string): void {
   setDisplayMode(mode);
   ctx.updateConfig((c) => { c.displayMode = mode; });
   console.log(`  表示モードを ${mode} に変更しました。`);
-}
-
-export function handleFilter(ctx: ReplContext, args: string): void {
-  const trimmed = args.trim();
-  const ctrl = ctx.pipelineController;
-
-  if (trimmed.length === 0) {
-    if (ctrl?.getPipeline().filter == null) {
-      console.log(`  フィルタ: ${chalk.gray("無効")}`);
-    } else {
-      console.log(`  フィルタ: ${chalk.green("有効")}`);
-      console.log(`  式: ${ctrl.getFilterExpr() ?? "(CLI起動時に設定)"}`);
-      if (ctx.filterUpdatedAt != null) {
-        const ts = ctx.filterUpdatedAt.toLocaleString("ja-JP");
-        console.log(`  最終更新: ${ts}`);
-      }
-    }
-    console.log(chalk.gray("  使い方: filter set <expr> / filter clear / filter test <expr>"));
-    return;
-  }
-
-  const [sub, ...rest] = trimmed.split(/\s+/);
-  const subLower = sub.toLowerCase();
-
-  if (subLower === "clear") {
-    ctrl?.clearFilter();
-    ctx.filterExpr = null;
-    ctx.filterUpdatedAt = null;
-    console.log("  フィルタを解除しました。");
-    return;
-  }
-
-  if (subLower === "test") {
-    const expr = rest.join(" ").trim();
-    if (expr.length === 0) {
-      console.log(chalk.yellow("  式を指定してください。") + chalk.gray(" 例: filter test domain = \"eew\""));
-      return;
-    }
-    try {
-      compileFilter(expr);
-      console.log(chalk.green("  構文OK") + chalk.gray(` — ${expr}`));
-    } catch (err) {
-      printFilterError(err);
-    }
-    return;
-  }
-
-  if (subLower === "set") {
-    const expr = rest.join(" ").trim();
-    if (expr.length === 0) {
-      console.log(chalk.yellow("  式を指定してください。") + chalk.gray(" 例: filter set domain = \"eew\""));
-      return;
-    }
-    if (ctrl == null) {
-      console.log(chalk.yellow("  フィルタパイプラインが利用できません。"));
-      return;
-    }
-    try {
-      ctrl.setFilter(expr);
-      ctx.filterExpr = expr;
-      ctx.filterUpdatedAt = new Date();
-      console.log(chalk.green("  フィルタを適用しました。") + chalk.gray(` — ${expr}`));
-    } catch (err) {
-      printFilterError(err);
-    }
-    return;
-  }
-
-  console.log(chalk.yellow(`  不明なサブコマンド: ${sub}`) + chalk.gray(" (set / clear / test)"));
-}
-
-export function handleFocus(ctx: ReplContext, args: string): void {
-  const trimmed = args.trim();
-  const ctrl = ctx.pipelineController;
-
-  if (trimmed.length === 0) {
-    if (ctrl?.getPipeline().focus == null) {
-      console.log(`  フォーカス: ${chalk.gray("無効")}`);
-    } else {
-      console.log(`  フォーカス: ${chalk.green("有効")}`);
-      console.log(`  式: ${ctrl.getFocusExpr() ?? "(CLI起動時に設定)"}`);
-      if (ctx.focusUpdatedAt != null) {
-        const ts = ctx.focusUpdatedAt.toLocaleString("ja-JP");
-        console.log(`  最終更新: ${ts}`);
-      }
-    }
-    console.log(chalk.gray("  使い方: focus <expr> / focus off"));
-    return;
-  }
-
-  if (trimmed.toLowerCase() === "off") {
-    ctrl?.clearFocus();
-    ctx.focusExpr = null;
-    ctx.focusUpdatedAt = null;
-    console.log("  フォーカスを解除しました。");
-    return;
-  }
-
-  if (ctrl == null) {
-    console.log(chalk.yellow("  フォーカスパイプラインが利用できません。"));
-    return;
-  }
-  try {
-    ctrl.setFocus(trimmed);
-    ctx.focusExpr = trimmed;
-    ctx.focusUpdatedAt = new Date();
-    console.log(chalk.green("  フォーカスを適用しました。") + chalk.gray(` — ${trimmed}`));
-  } catch (err) {
-    printFilterError(err);
-  }
 }
 
 export function handleClock(ctx: ReplContext, args: string): void {

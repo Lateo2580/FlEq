@@ -25,8 +25,6 @@ npm run start:lowmem # メモリ最適化モードで実行
 | `engine/presentation/` | PresentationEvent 変換・severity/frame/sound 解決・差分管理 |
 | `engine/eew/` | EEW 追跡・ログ記録 |
 | `engine/notification/` | デスクトップ通知・通知レベル判定・通知音 |
-| `engine/filter/` | フィルタ DSL (パーサ・コンパイラ・型検査) |
-| `engine/template/` | テンプレート DSL (パーサ・コンパイラ・フィルタ関数) |
 | `dmdata/` | dmdata.jp 通信 (REST, WebSocket) と全電文パーサ |
 | `ui/` | formatter・REPL・テーマ・サマリーパイプライン |
 

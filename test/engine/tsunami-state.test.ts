@@ -409,7 +409,6 @@ describe("TsunamiStateHolder", () => {
       holder.applyAccepted(info);
 
       expect(holder.getLevel()).toBe("津波警報");
-      expect(holder.getDetail()).not.toBeNull();
     });
 
     it("取消報でクリアされる", () => {
@@ -426,7 +425,6 @@ describe("TsunamiStateHolder", () => {
       holder.clearActive();
 
       expect(holder.getLevel()).toBeNull();
-      expect(holder.getDetail()).toBeNull();
     });
 
     it("警報レベルなし (津波予報のみ) でクリアされる", () => {
@@ -499,33 +497,6 @@ describe("TsunamiStateHolder", () => {
     });
   });
 
-  describe("getDetail", () => {
-    it("情報がある場合は kind と元情報を返す", () => {
-      const info = createTsunamiInfo({
-        forecast: [
-          { areaName: "岩手県", kind: "津波注意報", maxHeightDescription: "1m", firstHeight: "" },
-        ],
-      });
-      holder.applyAccepted(info);
-
-      expect(holder.getDetail()).toEqual({ kind: "tsunami", info });
-    });
-
-    it("情報がない場合は null", () => {
-      expect(holder.getDetail()).toBeNull();
-    });
-  });
-
-  describe("category / emptyMessage", () => {
-    it("category は 'tsunami'", () => {
-      expect(holder.category).toBe("tsunami");
-    });
-
-    it("emptyMessage が定義されている", () => {
-      expect(holder.emptyMessage).toBe("現在、継続中の津波情報はありません。");
-    });
-  });
-
   // 解除報 (Kind Code 60 系) は InfoType=発表 で届くため applyAccepted 経路を通る。
   // normalizeTsunamiKind が「津波注意報解除」を「津波注意報」へ潰していた頃は
   // rebuildActiveState の level が解除後も残り、永続化・display 緊急カードへ漏れていた。
@@ -550,7 +521,6 @@ describe("TsunamiStateHolder", () => {
       expect(holder.getPersistedKeyedActive()).toEqual([]);
       expect(holder.hasPersistedEvent("release-event")).toBe(false);
       expect(holder.getPromptStatus()).toBeNull();
-      expect(holder.getDetail()).toBeNull();
       expect(holder.getObservationGroups()).toEqual({ VTSE51: [], VTSE52: [] });
     });
 
@@ -563,7 +533,6 @@ describe("TsunamiStateHolder", () => {
       expect(holder.getPersistedKeyedActive()).toEqual([]);
       expect(holder.hasPersistedEvent("first-release-event")).toBe(false);
       expect(holder.getLastInfo()).toBeNull();
-      expect(holder.getDetail()).toBeNull();
       expect(holder.getPromptStatus()).toBeNull();
     });
 

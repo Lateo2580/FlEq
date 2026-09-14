@@ -1,5 +1,5 @@
 import { describe, it, expect, afterEach } from "vitest";
-import { displayTornadoAdvisory, displayTornadoAdvisoryDetail } from "../../src/ui/tornado-formatter";
+import { displayTornadoAdvisory } from "../../src/ui/tornado-formatter";
 import { parseTornadoAdvisory } from "../../src/dmdata/tornado-parser";
 import {
   clearFrameWidth,
@@ -73,7 +73,7 @@ describe("displayTornadoAdvisory - Phase D 配色言語", () => {
     }
   });
 
-  it("31件目以降はカードから detail tornado へ誘導し、detail では全件を表示する", () => {
+  it("31件目以降はカードで省略数を表示する", () => {
     setFrameWidth(80);
     const info = parseTornadoAdvisory(createMockWsDataMessage(FIXTURE_VPHW50_TOKYO))!;
     info.layers = [{
@@ -86,14 +86,12 @@ describe("displayTornadoAdvisory - Phase D 配色言語", () => {
     }];
 
     const card = stripAnsi(capture(() => displayTornadoAdvisory(info)));
-    expect(card).toContain("ほか 1 区域 (詳細: detail tornado)");
+    expect(card).toContain("ほか 1 区域");
     expect(card).not.toContain("検証区域31");
 
-    const detail = stripAnsi(capture(() => displayTornadoAdvisoryDetail(info)));
-    expect(detail).toContain("検証区域31");
   });
 
-  it("100件超の細粒度 layer でも、カードと detail は同じ対象地域を基準にする", () => {
+  it("100件超の細粒度 layer でも、カードは細粒度の対象地域を基準にする", () => {
     setFrameWidth(80);
     const info = parseTornadoAdvisory(createMockWsDataMessage(FIXTURE_VPHW50_TOKYO))!;
     info.layers = [
@@ -112,12 +110,9 @@ describe("displayTornadoAdvisory - Phase D 配色言語", () => {
     ];
 
     const card = stripAnsi(capture(() => displayTornadoAdvisory(info)));
-    expect(card).toContain("ほか 71 区域 (詳細: detail tornado)");
+    expect(card).toContain("ほか 71 区域");
     expect(card).not.toContain("粗い地域");
 
-    const detail = stripAnsi(capture(() => displayTornadoAdvisoryDetail(info)));
-    expect(detail).toContain("細粒度区域101");
-    expect(detail).not.toContain("粗い地域");
   });
 
   it.each([40, 60, 80, 120, 200])("過長 title / region / headline / diagnostic を幅 %i に収める", (width) => {

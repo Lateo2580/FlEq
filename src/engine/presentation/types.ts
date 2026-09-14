@@ -525,12 +525,12 @@ export interface PresentationEvent {
 
   // 強度
   maxIntValue?: SpecialValue<JmaIntensity>;
-  /** compact/focus を含む表示出口で SpecialValue qualifier を失わない表示ラベル。 */
+  /** compact を含む表示出口で SpecialValue qualifier を失わない表示ラベル。 */
   maxIntLabel?: string | null;
   maxInt?: string | null;
   maxIntRank?: number | null;
   maxLgIntValue?: SpecialValue<JmaLgIntensity>;
-  /** compact/focus を含む表示出口で長周期階級 qualifier を失わない表示ラベル。 */
+  /** compact を含む表示出口で長周期階級 qualifier を失わない表示ラベル。 */
   maxLgIntLabel?: string | null;
   maxLgInt?: string | null;
   maxLgIntRank?: number | null;
@@ -581,7 +581,7 @@ export interface PresentationEvent {
 
   // 津波観測点 (Phase A、tsunami ドメインのみ使用)
   tsunamiObservations?: PresentationTsunamiObservation[];
-  /** カード・背景用の安全側 aggregate。受信電文由来の filter/ticker field と分離する。 */
+  /** カード・背景用の安全側 aggregate。受信電文由来の ticker field と分離する。 */
   tsunamiDisplay?: {
     kinds: string[];
     areaItems: PresentationAreaItem[];
@@ -596,9 +596,8 @@ export interface PresentationEvent {
   // 地震の津波コメントから導出した「津波」表示フラグ (Phase A、earthquake ドメインのみ使用)
   tsunamiWarning?: boolean;
 
-  // filter 用
+  // 電文属性
   tsunamiKinds?: string[];
-  infoSerialCode?: string | null;
 
   // 台風の暴風域に入る確率
   typhoonProbabilityMaxDaily5?: number | null;

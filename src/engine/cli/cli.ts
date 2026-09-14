@@ -49,20 +49,6 @@ export function buildProgram(): Command {
       "--mode <mode>",
       '表示モードを指定します: "normal" | "compact"'
     )
-    .option(
-      "--filter <expr>",
-      "条件式で電文を絞り込みます (複数指定で AND 結合)",
-      (val: string, prev: string[]) => [...prev, val],
-      [] as string[],
-    )
-    .option(
-      "--template <template>",
-      "電文の1行要約テンプレートを指定します (@ でファイル読込)",
-    )
-    .option(
-      "--focus <expr>",
-      "条件に一致しない電文を dim 表示に落とします",
-    )
     .option("--summary-interval [minutes]", "N分ごとに受信要約を表示 (デフォルト10分, 0で無効化)", (val: string | undefined) => {
       if (val === undefined || val === "true") return 10;
       const n = parseInt(val, 10);

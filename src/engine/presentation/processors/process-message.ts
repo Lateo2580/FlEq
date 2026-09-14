@@ -6,8 +6,6 @@ import type { TsunamiStateHolder } from "../../messages/tsunami-state";
 import type { VolcanoStateHolder } from "../../messages/volcano-state";
 import { Vpws50StateHolder } from "../../messages/vpws50-state";
 import type { Vpww56StateHolder } from "../../messages/vpww56-state";
-import type { Vpwp50DetailCache } from "../../messages/vpwp50-detail-cache";
-import type { TornadoDetailProvider } from "../../messages/tornado-detail-provider";
 import type { TyphoonProbabilityStateHolder } from "../../messages/typhoon-probability-state";
 import type { FloodForecastStateHolder } from "../../messages/flood-forecast-state";
 import {
@@ -108,8 +106,6 @@ export interface ProcessDeps {
   volcanoState: VolcanoStateHolder;
   vpws50State: Vpws50StateHolder;
   vpww56State: Vpww56StateHolder;
-  vpwp50Cache: Vpwp50DetailCache;
-  tornadoDetailProvider: TornadoDetailProvider;
   typhoonProbabilityState: TyphoonProbabilityStateHolder;
   /** 指定河川洪水予報 (VXKO50-89 / VXSU50-59) の差分検出 state holder (Task 25b で dispatch を追加) */
   floodForecastState: FloodForecastStateHolder;
@@ -530,11 +526,7 @@ const PROCESSOR_TABLE = {
   tornado: (msg, deps, cat) => {
     const outcome = processTornado(msg);
     if (outcome == null) return processRaw(msg, cat);
-    const gated = gateStandbyOutcome(outcome, TORNADO_REVISION_FAMILY_POLICY, deps);
-    if (gated?.presentation.standbyStateMutationAccepted === true) {
-      deps.tornadoDetailProvider.rememberLatest(outcome.parsed);
-    }
-    return gated;
+    return gateStandbyOutcome(outcome, TORNADO_REVISION_FAMILY_POLICY, deps);
   },
   briefing: (msg, deps, cat) => {
     const outcome = processBriefing(msg);
@@ -554,9 +546,7 @@ const PROCESSOR_TABLE = {
   weatherWarningTimeseries: (msg, deps, cat) => {
     const outcome = processWeatherWarningTimeseries(msg);
     if (outcome == null) return processRaw(msg, cat);
-    const gated = gateStandbyOutcome(outcome, WEATHER_TIMESERIES_REVISION_FAMILY_POLICY, deps);
-    if (gated?.presentation.standbyStateMutationAccepted === true) deps.vpwp50Cache.rememberLatest(outcome.parsed);
-    return gated;
+    return gateStandbyOutcome(outcome, WEATHER_TIMESERIES_REVISION_FAMILY_POLICY, deps);
   },
   climateInfo: (msg, deps, cat) => {
     const outcome = processClimateInfo(msg);

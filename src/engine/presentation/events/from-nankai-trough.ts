@@ -28,7 +28,6 @@ export function fromNankaiTroughOutcome(outcome: NankaiTroughOutcome): Presentat
     eventId: xmlReport?.head.eventId ?? null,
     serial: xmlReport?.head.serial ?? null,
 
-    infoSerialCode: info.infoSerial?.code ?? null,
     bodyText: info.bodyText,
     nextAdvisory: info.nextAdvisory ?? null,
 

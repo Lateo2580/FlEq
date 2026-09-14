@@ -3,8 +3,6 @@ import {
   PromptStatusProvider,
   PromptStatusSegment,
   PromptStatusRole,
-  DetailProvider,
-  DetailSnapshotOf,
   TsunamiForecastItem,
   TsunamiObservationStation,
 } from "../../types";
@@ -83,13 +81,11 @@ function tsunamiEventId(info: ParsedTsunamiInfo): string | null {
 }
 
 /**
- * 津波情報の状態を保持し、プロンプト表示と detail コマンドを提供する。
+ * 津波情報の状態を保持し、プロンプト表示を提供する。
  */
 export class TsunamiStateHolder
-  implements PromptStatusProvider, DetailProvider<"tsunami">
+  implements PromptStatusProvider
 {
-  readonly category = "tsunami";
-  readonly emptyMessage = "現在、継続中の津波情報はありません。";
 
   private currentLevel: TsunamiLevelLabel | null = null;
   private lastInfo: ParsedTsunamiInfo | null = null;
@@ -613,13 +609,6 @@ export class TsunamiStateHolder
       role,
       priority: 10,
     };
-  }
-
-  // ── DetailProvider ──
-
-  getDetail(): DetailSnapshotOf<"tsunami"> | null {
-    if (this.lastInfo == null) return null;
-    return { kind: "tsunami", info: this.lastInfo };
   }
 
 }

@@ -183,33 +183,4 @@ describe("VolcanoStateHolder", () => {
       });
     });
   });
-
-  describe("getDetail", () => {
-    it("エントリがない場合は null", () => {
-      expect(state.getDetail()).toBeNull();
-    });
-
-    it("エントリがある場合は表示用の射影を返す", () => {
-      state.update(createAlertInfo());
-      expect(state.getDetail()).toEqual({
-        kind: "volcano",
-        entries: [{
-          volcanoName: "浅間山",
-          alertLevel: 3,
-          alertLevelCode: "13",
-          warningKind: "噴火警報（火口周辺）",
-        }],
-      });
-    });
-  });
-
-  describe("category / emptyMessage", () => {
-    it("category が 'volcano'", () => {
-      expect(state.category).toBe("volcano");
-    });
-
-    it("emptyMessage が設定されている", () => {
-      expect(state.emptyMessage).toBeTruthy();
-    });
-  });
 });

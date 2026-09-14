@@ -10,8 +10,6 @@ import type {
   Vpws50CurrentAreasForDisplay,
   Vpws50DisplayKindGroup,
   PhenomenonKey,
-  DetailProvider,
-  DetailSnapshotOf,
   DisplaySeverity,
   OfficialAlertLevel,
   ResolutionSource,
@@ -29,7 +27,6 @@ import {
   weatherOfficeFromStreamKey,
   weatherOfficeWatermarkKey,
 } from "./weather-stream-key";
-// Plan-R3: displayVpws50FromState は Task 6 で実装される。dynamic import で順序問題を回避
 
 /**
  * 全国 base (`history`) の履歴段数 (spec §9.11 段階 3-E)。
@@ -690,7 +687,7 @@ function hasWarningOrHigher(snap: Snapshot | null): boolean {
   return false;
 }
 
-export class Vpws50StateHolder implements DetailProvider<"vpws50"> {
+export class Vpws50StateHolder {
   private ownerVersion = 0;
   private mutationDepth = 0;
 
@@ -759,8 +756,6 @@ export class Vpws50StateHolder implements DetailProvider<"vpws50"> {
     );
     this.ownerVersion = commit ? base + 1 : snapshot.version;
   }
-  readonly category = "vpws50";
-  readonly emptyMessage = "VPWS50 の最新電文を受信していません";
 
   private current: Snapshot | null = null;
   private currentMessageId: string | null = null;
@@ -1545,12 +1540,6 @@ export class Vpws50StateHolder implements DetailProvider<"vpws50"> {
     ];
     const latest = identities.sort((a, b) => compareWeatherReportIdentity(b, a) ?? 0)[0];
     return latest == null ? null : { ...latest };
-  }
-
-  getDetail(): DetailSnapshotOf<"vpws50"> | null {
-    const display = this.buildCurrentAreasForDisplay();
-    if (display == null) return null;
-    return { kind: "vpws50", display };
   }
 
   __test_setLastSuccessfulFullDisplayAt(d: Date | null): void {

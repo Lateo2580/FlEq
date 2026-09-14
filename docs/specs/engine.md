@@ -38,9 +38,6 @@ Commander の `Command` インスタンスを生成・返却する。以下の�
 | `--keep-existing` | 既存 WebSocket 接続を維持（互換オプション、現在はデフォルト） |
 | `--close-others` | 同一 API キーの既存 open socket を閉じてから接続 |
 | `--mode <mode>` | 表示モード (`"normal"` / `"compact"`) |
-| `--filter <expr>` | 条件式で電文を絞り込む（複数指定で AND 結合） |
-| `--template <template>` | 電文の1行要約テンプレートを指定（`@` でファイル読込） |
-| `--focus <expr>` | 条件に一致しない電文を dim 表示に落とす |
 | `--summary-interval [minutes]` | N分ごとに受信要約を表示（デフォルト10分、`0` で無効化） |
 | `--night` | ナイトモードを有効にする |
 | `--debug` | デバッグログ表示（デフォルト `false`） |
@@ -135,7 +132,7 @@ async function runInit(): Promise<void>
 
 ### 概要
 
-デフォルトコマンド（モニタ起動）のアクションハンドラ。CLI オプション・環境変数・Config ファイル・デフォルト値の4層を優先順位に従って解決し、`AppConfig` を構築してから `startMonitor()` へ渡す。設定解決ロジックは `startup/config-resolver.ts` に委譲。起動バナー表示・契約確認・テーマ読み込み・フォーマッタ初期化もここで行う。Filter/Template/Focus のコンパイルは `PipelineController` を通じて行い、コントローラごと `startMonitor()` に渡す。
+デフォルトコマンド（モニタ起動）のアクションハンドラ。CLI オプション・環境変数・Config ファイル・デフォルト値の4層を優先順位に従って解決し、`AppConfig` を構築してから `startMonitor()` へ渡す。設定解決ロジックは `startup/config-resolver.ts` に委譲。起動バナー表示・契約確認・テーマ読み込み・フォーマッタ初期化もここで行う。
 
 ### エクスポートAPI
 
@@ -147,9 +144,6 @@ interface RunMonitorOptions {
   keepExisting?: boolean;
   closeOthers?: boolean;
   mode?: string;
-  filter?: string[];
-  template?: string;
-  focus?: string;
   summaryInterval?: number;
   night?: boolean;
   debug: boolean;
@@ -190,11 +184,10 @@ CLI からのカンマ区切り文字列をトークン分割し、`VALID_CLASSI
 6. テーマ読み込み（`loadTheme()`）— 警告があればログ出力
 7. ナイトモード設定（`config.nightMode` が `true` なら `setNightMode(true)`）
 8. フォーマッタ初期化（`setFrameWidth`, `setInfoFullText`, `setDisplayMode`, `setMaxObservations`, `setTruncation`）
-9. Filter / Template / Focus コンパイル — `PipelineController` を構築し、`setFilter()` / `setTemplate()` / `setFocus()` で各式をコンパイル
-10. summaryInterval の解決（CLI `--summary-interval` > Config > デフォルト、`0` で無効化）
-11. 起動バナー表示（`printBanner`）
-12. 更新チェック（`checkForUpdates`、非ブロッキング）
-13. `startMonitor(config, pipelineController)` 呼び出し
+9. summaryInterval の解決（CLI `--summary-interval` > Config > デフォルト、`0` で無効化）
+10. 起動バナー表示（`printBanner`）
+11. 更新チェック（`checkForUpdates`、非ブロッキング）
+12. `startMonitor(config)` 呼び出し
 
 #### 内部関数
 
@@ -207,7 +200,6 @@ CLI からのカンマ区切り文字列をトークン分割し、`VALID_CLASSI
 | インポート元 | 用途 |
 |-------------|------|
 | `chalk` | 色付き出力 |
-| `fs`, `os` | テンプレートファイル読込、ホームディレクトリ解決 |
 | `../../types` | `AppConfig`, `Classification` |
 | `../../dmdata/rest-client` | `listContracts` |
 | `../monitor/monitor` | `startMonitor` |
@@ -216,14 +208,12 @@ CLI からのカンマ区切り文字列をトークン分割し、`VALID_CLASSI
 | `../../ui/terminal-title` | `setTerminalTitle` |
 | `../startup/config-resolver` | `resolveConfig` |
 | `../startup/update-checker` | `checkForUpdates` |
-| `../filter-template/pipeline-controller` | `PipelineController` |
 | `../../logger` | ログ出力 |
 
 ### 設計ノート
 
 - 契約確認の失敗は致命的エラーにしない。API が一時的に利用できないケースでも起動を試みる。
 - ターミナルタイトル操作（`setTerminalTitle` / `resetTerminalTitle`）は `ui/terminal-title.ts` の共通モジュールに分離されている。かつて monitor 側が cli-run から `resetTerminalTitle` を逆 import する値参照循環があったが、この分離で解消された。
-- `PipelineController` を構築して `startMonitor()` に渡す。filter/focus はエラー時 `process.exit(1)`、template はエラー時に警告のみで通常表示にフォールバックする。`compileFilter` / `compileTemplate` の直接呼び出しは不要になり、コントローラの `setFilter()` / `setTemplate()` / `setFocus()` 経由でコンパイルされる。
 
 ---
 
@@ -231,7 +221,6 @@ CLI からのカンマ区切り文字列をトークン分割し、`VALID_CLASSI
 
 ### 概要
 
-アプリケーションのメインオーケストレーションを担う。`MultiConnectionManager` による接続管理（主回線＋副回線）、メッセージルーティング、REPL 起動、定期要約タイマー (`SummaryTimerControl`)、グレースフルシャットダウンを統合する。シャットダウンロジックは `monitor/shutdown.ts` に、REPL 連携は `monitor/repl-coordinator.ts` に分離されている。`startMonitor()` が呼ばれると、プロセス終了まで制御を保持する。`PipelineController` を受け取り、`getPipeline()` で取得した同一参照を router に渡す。また `createDisplayAdapter()` で UI アダプターを生成し、`DisplayCallbacks` として router に注入する。
 
 ### エクスポートAPI
 
@@ -243,18 +232,17 @@ interface SummaryTimerControl {
   showNow(): void;
 }
 
-async function startMonitor(config: AppConfig, pipelineController?: PipelineController): Promise<void>
 ```
 
 - `SummaryTimerControl` — REPL から定期要約タイマーを制御するためのインターフェース。`start()` で指定分間隔のタイマーを開始し、`stop()` で停止する。`showNow()` は即時要約表示。
-- `startMonitor` — WebSocket 接続・REPL 起動・シグナルハンドラ登録を行い、リアルタイム受信を開始する。`pipelineController` が渡された場合、`getPipeline()` で取得したオブジェクト参照を `createMessageHandler({ pipeline, display })` に引き渡す。`PipelineController` 自体は REPL に渡され、REPL からの filter/template/focus 変更が同一参照を通じて router に反映される。
+- `startMonitor` — WebSocket 接続・REPL 起動・シグナルハンドラ登録を行い、リアルタイム受信を開始する。
 
 ### 内部ロジック
 
 #### 初期化フロー
 
 1. `createDisplayAdapter()` で `DisplayCallbacks` 実装を生成（`ui/display-adapter.ts` を遅延ロード）
-1a. `pipelineController.getPipeline()` で pipeline 参照を取得し、`createMessageHandler({ pipeline, display })` でメッセージルーター・EEW ロガー・通知・統計・要約トラッカーインスタンスを取得
+1a. `createMessageHandler({ display })` でメッセージルーター・EEW ロガー・通知・統計・要約トラッカーインスタンスを取得
 2. EEW ログ設定を `config` から反映（`setEnabled`, `setFields`）
 3. `MultiConnectionManager` を構築し、3つのコールバックを登録:
    - `onData` — メッセージルーターを呼び出し（REPL 表示制御付き）
@@ -319,7 +307,6 @@ display runtime は REPL の `display on/off` で作り直されるため、**�
 | `../messages/summary-tracker` | `SummaryWindowTracker`, `WINDOW_MINUTES` |
 | `../../ui/repl` | `ReplHandler`（型 import + dynamic import） |
 | `../../ui/display-adapter` | `createDisplayAdapter`（dynamic import） |
-| `../filter-template/pipeline-controller` | `PipelineController` 型 |
 | `./shutdown` | `createShutdownHandler`, `registerShutdownSignals` |
 | `./repl-coordinator` | `withReplDisplay`, `updateReplConnectionState` |
 | `../../logger` | ログ出力 |
@@ -342,7 +329,6 @@ WebSocket 経由で受信した `WsDataMessage` を、電文の `classification`
 
 ```ts
 interface MessageHandlerOptions {
-  pipeline?: FilterTemplatePipeline;
   display?: DisplayCallbacks;
 }
 
@@ -353,7 +339,6 @@ interface MessageHandlerResult {
   tsunamiState: TsunamiStateHolder;
   volcanoState: VolcanoStateHolder;
   vpws50State: Vpws50StateHolder;
-  vpwp50Cache: Vpwp50DetailCache;
   stats: TelegramStats;
   summaryTracker: SummaryWindowTracker;
   flushAndDisposeVolcanoBuffer: () => void;
@@ -362,13 +347,13 @@ interface MessageHandlerResult {
 function createMessageHandler(options?: MessageHandlerOptions): MessageHandlerResult
 ```
 
-- `MessageHandlerOptions` — `pipeline` フィールドで `FilterTemplatePipeline`（filter/template/focus）を注入可能。未指定時は `{ filter: null, template: null, focus: null }` がデフォルト。`display` フィールドで `DisplayCallbacks` を注入し、UI 表示を委譲する。
+- `MessageHandlerOptions` — `display` フィールドで `DisplayCallbacks` を注入し、UI 表示を委譲する。
 
 - `handler` — 受信メッセージをルーティングする関数。
 - `eewLogger` — EEW ログ設定の変更用に外部公開。
 - `notifier` — 通知設定の変更用に外部公開。
-- `tsunamiState` — 津波警報状態の保持・detail コマンド用に外部公開。
-- `volcanoState` — 火山警報状態の保持・detail コマンド用に外部公開。
+- `tsunamiState` — 津波警報状態の保持・プロンプト表示用に外部公開。
+- `volcanoState` — 火山警報状態の保持・プロンプト表示用に外部公開。
 - `stats` — 電文統計 (`TelegramStats`) インスタンス。REPL の `stats` コマンド等に利用。
 - `summaryTracker` — 受信要約ウィンドウトラッカー (`SummaryWindowTracker`)。定期要約・REPL `summary` コマンドに利用。
 - `flushAndDisposeVolcanoBuffer` — VFVO53 バッファの flush + タイマー破棄。シャットダウン時に呼び出す。
@@ -386,7 +371,7 @@ function createMessageHandler(options?: MessageHandlerOptions): MessageHandlerRe
    - `EewEventLogger.logReport()` でログ記録
    - 取消報なら `closeEvent("取消")`
    - 最終報（`nextAdvisory` あり）なら `closeEvent("最終報")` + `finalizeEvent()`
-   - 正常な outcome は共通フローで `recordStats()` → `dispatchNotify()` → `runDisplayPipeline()` の順に処理する。通知は filter 非適用で、表示の filter 結果に影響されない
+   - 正常な outcome は共通フローで `recordStats()` → `dispatchNotify()` → `runDisplayPipeline()` の順に処理する。受理済みイベントは常に表示する
 3. **`telegram.volcano`** — `VolcanoRouteHandler.handle()` に全委譲
    - パース・キャッシュ・VFVO53 集約・通知・表示を一元管理
    - 統計記録のみ router 側で実行
@@ -420,16 +405,7 @@ function createMessageHandler(options?: MessageHandlerOptions): MessageHandlerRe
 
 #### runDisplayPipeline()
 
-`runDisplayPipeline(outcome, displayFn)` は表示の共通パイプラインを一元的に実行する内部関数。以下の6ステップを順に処理する:
-
-1. **toPresentationEvent** — `ProcessOutcome` / `VolcanoBatchOutcome` を統一的な `PresentationEvent` に変換
-2. **diffStore** — `PresentationDiffStore.apply()` で前回との差分情報を付与
-3. **filter** — `shouldDisplay(event, pipeline)` で `FilterTemplatePipeline.filter` に基づきフィルタリング
-4. **summaryTracker** — `SummaryWindowTracker.record()` で受信要約に記録（表示/非表示を問わず）
-5. **focus** — `pipeline.focus` が設定されていて条件に一致しない場合、`display.renderSummaryLine()` で dim 表示の1行要約にフォールバック
-6. **template** — `renderTemplate(event, pipeline)` でカスタムテンプレート出力。テンプレート未設定なら `display.getDisplayMode()` で compact モード判定を経て `displayFn()` を呼び出す
-
-戻り値は `boolean`: `true` なら表示済み（呼び出し元でフォールバック表示不要）、`false` ならフィルタで非表示。通知は filter 非適用のため、`runDisplayPipeline` の前に `dispatchNotify` で実行される。
+`runDisplayPipeline(outcome, displayFn)` は outcome を `PresentationEvent` に変換し、差分適用・受信要約・display 配信・CLI 表示を順に実行する。受理済みイベントは常に表示し、compact モードでは `renderSummaryLine()`、通常モードでは `displayFn()` を使う。通知はこの処理の前に `dispatchNotify()` で実行する。
 
 #### EEW パスの状態管理
 
@@ -453,7 +429,6 @@ function createMessageHandler(options?: MessageHandlerOptions): MessageHandlerRe
 | `../presentation/events/to-presentation-event` | `toPresentationEvent` |
 | `../presentation/diff-store` | `PresentationDiffStore` |
 | `../presentation/types` | `ProcessOutcome`, `VolcanoBatchOutcome`, `PresentationEvent` |
-| `../filter-template/pipeline` | `shouldDisplay`, `renderTemplate`, `FilterTemplatePipeline` |
 | `chalk` | dim 表示 |
 
 **注:** `ui/` への直接 import は一切ない。表示は `DisplayCallbacks` 経由で行う。
@@ -1180,7 +1155,6 @@ interface ShutdownContext {
   stopSummaryTimer?: () => void;
   stopDisplayRuntime?: () => Promise<void>;
   stopStandbySweep?: () => StandbyPersistenceSaveResult | void;
-  flushDetailCaches?: () => void;
   flushWeatherPromotion?: () => void;
 }
 
@@ -1197,7 +1171,7 @@ function registerShutdownSignals(shutdown: () => Promise<ShutdownResult>): void
 ```
 
 - `ShutdownContext` — シャットダウンに必要な依存をまとめたインターフェース。`manager` は `ConnectionManager` インターフェース型（`MultiConnectionManager` の基底）。`resetTerminalTitle` はコールバック注入で CLI 層への逆依存を回避。`stopSummaryTimer` は定期要約タイマーの停止コールバック。
-- 末尾 4 つは monitor 所有の状態を書き切るためのフック。`stopDisplayRuntime` は SSE クライアント切断 + HTTP サーバ close、`stopStandbySweep` は standby sweep の停止と active-state の最終保存、`flushDetailCaches` は VPWP50 詳細 cache、`flushWeatherPromotion` は気象警報の昇格 lifecycle を書き切る。
+- monitor 所有の状態を書き切るためのフックを持つ。`stopDisplayRuntime` は SSE クライアント切断 + HTTP サーバ close、`stopStandbySweep` は standby sweep の停止と active-state の最終保存、`flushWeatherPromotion` は気象警報の昇格 lifecycle を書き切る。
 - `createShutdownHandler` — 同じ `Promise<ShutdownResult>` を返す冪等なシャットダウン関数を生成し、standby save failureをtyped resultへ集約する。
 - `runShutdownAndRecordExitCode` — signal／REPL quit／readline close共通のresult consumer。unexpected rejectionもfailedへ閉じ、`process.exitCode`を設定する。
 - `registerShutdownSignals` — `SIGINT`, `SIGTERM` (+ 非 Windows では `SIGHUP`) に共通consumerを登録し、resultのexitCodeでsignal ownerだけが`process.exit()`する。
@@ -1211,13 +1185,12 @@ function registerShutdownSignals(shutdown: () => Promise<ShutdownResult>): void
 4. EEW ログのフラッシュ (失敗は無視)
 5. 情報ディスプレイ runtime の停止 (`stopDisplayRuntime()`、失敗はシャットダウンを妨げない)
 6. standby sweep の停止 + active-state の最終保存 (`stopStandbySweep()`)
-7. VPWP50 詳細 cache の書き切り (`flushDetailCaches()`)
-8. 気象警報の昇格 lifecycle の書き切り (`flushWeatherPromotion()`)
-9. REPL の停止
-10. API 経由でソケットをクローズ (3秒タイムアウト、失敗は無視。`MultiConnectionManager` の場合は全ソケットを並列クローズ)
-11. `ConnectionManager.close()` でローカル WebSocket 切断
-12. ターミナルタイトルのリセット
-13. cleanup結果を`ShutdownResult`として返す（handler本体は`process.exit()`しない）
+7. 気象警報の昇格 lifecycle の書き切り (`flushWeatherPromotion()`)
+8. REPL の停止
+9. API 経由でソケットをクローズ (3秒タイムアウト、失敗は無視。`MultiConnectionManager` の場合は全ソケットを並列クローズ)
+10. `ConnectionManager.close()` でローカル WebSocket 切断
+11. ターミナルタイトルのリセット
+12. cleanup結果を`ShutdownResult`として返す（handler本体は`process.exit()`しない）
 
 5 が 6 より先なのは、`controller.stop()` が display off 用の standby sweep を再開するため。再開後に確実に停止・最終保存する順序にしている。standbyは予約を捨てて現在状態をtyped `save()`へ渡し、validation／backup／write／rename failureをexitCode 1へ反映する。失敗してもsocket、REPL、logger、他cacheのcleanupは最後まで継続し、pendingは保持する。
 
@@ -1274,21 +1247,18 @@ function updateReplConnectionState(repl: ReplHandlerType | null, connected: bool
 
 ### 概要
 
-津波警報の状態を保持し、REPL プロンプトへの警報レベル表示と `detail` コマンドによる詳細表示を提供するモジュール。`PromptStatusProvider` と `DetailProvider` の両インターフェースを実装する。
+津波警報の状態を保持し、REPL プロンプトへの警報レベル表示を提供するモジュール。`PromptStatusProvider` インターフェースを実装する。
 
 ### エクスポートAPI
 
 ```ts
 function detectTsunamiAlertLevel(kinds: string[]): TsunamiAlertLevel | null
 
-class TsunamiStateHolder implements PromptStatusProvider, DetailProvider<"tsunami"> {
-  readonly category: "tsunami";
-  readonly emptyMessage: string;
+class TsunamiStateHolder implements PromptStatusProvider {
   getLevel(): TsunamiAlertLevel | null;
   update(info: ParsedTsunamiInfo): void;
   clear(): void;
   getPromptStatus(): PromptStatusSegment | null;
-  getDetail(): DetailSnapshotOf<"tsunami"> | null;
 }
 ```
 
@@ -1307,20 +1277,17 @@ class TsunamiStateHolder implements PromptStatusProvider, DetailProvider<"tsunam
 
 警報レベルの raw text と専用テーマロール (`tsunamiMajor` / `tsunamiWarning` / `tsunamiAdvisory`) を返す。色付けは REPL が UI 境界で適用する。`priority: 10` で他のステータスより高優先度。
 
-#### 詳細スナップショット (`getDetail`)
-
-保持中の `ParsedTsunamiInfo` を `{ kind: "tsunami", info }` として返す。状態がなければ `null`。holder 自身は描画を行わない。
 
 ### 依存関係
 
 | インポート元 | 用途 |
 |-------------|------|
-| `../../types` | `ParsedTsunamiInfo`, `PromptStatusProvider`, `PromptStatusSegment`, `PromptStatusRole`, `DetailProvider`, `DetailSnapshotOf` |
+| `../../types` | `ParsedTsunamiInfo`, `PromptStatusProvider`, `PromptStatusSegment`, `PromptStatusRole` |
 | `../../utils/tsunami-kind` | 最大警報レベルの解決 |
 
 ### 設計ノート
 
-- `PromptStatusProvider` と `DetailProvider` の両方を実装することで、プロンプト表示と detail コマンドの両方に対応。`message-router.ts` で `createMessageHandler()` の戻り値として公開される。
+- `PromptStatusProvider` を実装し、プロンプト表示に対応。`message-router.ts` で `createMessageHandler()` の戻り値として公開される。
 - 警報レベルの優先度は `LEVEL_PRIORITY` 定数で管理し、最大優先度のレベルを採用する。
 
 ---
@@ -1400,14 +1367,12 @@ Phase 3B 以降、revision watermark と cancellation tombstone は `TelegramRev
 
 ### 概要
 
-火山警報の状態を保持し、複数火山の同時追跡に対応するモジュール。`PromptStatusProvider` と `DetailProvider` の両インターフェースを実装する。火山コード (`volcanoCode`) をキーとする Map で各火山のアラートエントリを管理し、再通知判定にも利用される。
+火山警報の状態を保持し、複数火山の同時追跡に対応するモジュール。`PromptStatusProvider` インターフェースを実装する。火山コード (`volcanoCode`) をキーとする Map で各火山のアラートエントリを管理し、再通知判定にも利用される。
 
 ### エクスポートAPI
 
 ```ts
-class VolcanoStateHolder implements PromptStatusProvider, DetailProvider<"volcano"> {
-  readonly category: "volcano";
-  readonly emptyMessage: string;
+class VolcanoStateHolder implements PromptStatusProvider {
   applyAcceptedAlert(info: ParsedVolcanoAlertInfo): void;
   applyAcceptedAlertClass(entry: VolcanoAlertClassEntry, reportDateTime: string): void;
   applyAcceptedTextAlert(entry: VolcanoAlertStateEntry, reportDateTime: string): void;
@@ -1423,7 +1388,6 @@ class VolcanoStateHolder implements PromptStatusProvider, DetailProvider<"volcan
   size(): number;
   getEntry(volcanoCode: string): VolcanoAlertEntry | undefined;
   getPromptStatus(): PromptStatusSegment | null;
-  getDetail(): DetailSnapshotOf<"volcano"> | null;
 }
 ```
 
@@ -1444,15 +1408,12 @@ class VolcanoStateHolder implements PromptStatusProvider, DetailProvider<"volcan
 
 全エントリから最も高い `alertLevel` のエントリを選び、色付け前の `{火山名} Lv{N}` と `frameCritical` / `frameWarning` / `frameNormal` role を返す。色付けは REPL が適用する。`priority: 20`。
 
-#### 詳細スナップショット (`getDetail`)
-
-各エントリから火山名・警戒レベル・レベルコード・警報種別だけを射影し、`{ kind: "volcano", entries }` を返す。描画は UI formatter に委ねる。
 
 ### 依存関係
 
 | インポート元 | 用途 |
 |-------------|------|
-| `../../types` | `ParsedVolcanoInfo`, `ParsedVolcanoAlertInfo`, `PromptStatusProvider`, `PromptStatusRole`, `DetailProvider`, `DetailSnapshotOf` |
+| `../../types` | `ParsedVolcanoInfo`, `ParsedVolcanoAlertInfo`, `PromptStatusProvider`, `PromptStatusRole` |
 
 ### 設計ノート
 
@@ -1631,7 +1592,7 @@ function aggregateByRiver(stations: FloodStation[]): RiverSection[]
 
 ### 概要
 
-VPWP50 の時系列警報を表示用の severity entry に正規化する純粋モジュール。UI 依存を持たず、engine 側の detail cache と ticker、および UI formatter から利用する。
+VPWP50 の時系列警報を表示用の severity entry に正規化する純粋モジュール。UI 依存を持たず、engine 側の ticker、および UI formatter から利用する。
 
 ### エクスポート API
 
@@ -1650,7 +1611,7 @@ VPWP50 の時系列警報を表示用の severity entry に正規化する純粋
 | `../../dmdata/weather-warning-timeseries-significancy` | 警報 code の分類 |
 | `../../dmdata/weather-warning-level` | 表示 severity の解決 |
 
-利用元は `messages/vpwp50-detail-cache.ts`、`display/ticker-sentence.ts`、`ui/weather-warning-timeseries-formatter.ts`。UI から engine/presentation を参照する方向は許容する。
+利用元は `display/ticker-sentence.ts`、`ui/weather-warning-timeseries-formatter.ts`。UI から engine/presentation を参照する方向は許容する。
 
 ---
 ## presentation/volcano-presentation.ts
@@ -1707,7 +1668,7 @@ function resolveVolcanoPresentation(
 
 ### 概要
 
-presentation レイヤーの中核型定義。電文処理結果 (`ProcessOutcome`) とフィルタ/テンプレート向けの統一イベント (`PresentationEvent`) を定義する。ドメイン判別共用体により、各電文タイプの型安全なルーティングと共通処理の両立を実現する。
+presentation レイヤーの中核型定義。電文処理結果 (`ProcessOutcome`) と表示向けの統一イベント (`PresentationEvent`) を定義する。ドメイン判別共用体により、各電文タイプの型安全なルーティングと共通処理の両立を実現する。
 
 ### エクスポートAPI
 
@@ -1764,7 +1725,7 @@ interface PresentationEvent {
   // SpecialValue と表示ラベル: maxIntValue?, maxIntLabel?, maxLgIntValue?, maxLgIntLabel?
   // 付帯情報: nextAdvisory?, warningComment?, bodyText?
   // 地域集約: areaNames, forecastAreaNames, municipalityNames, observationNames, areaCount, forecastAreaCount, municipalityCount, observationCount, areaItems
-  // filter 用: tsunamiKinds?, infoSerialCode?
+  // 電文属性: tsunamiKinds?
   // 原本: raw (ParsedTelegramUnion)
   // 状態スナップショット: stateSnapshot? (EventStateSnapshot)
 }
@@ -1773,8 +1734,6 @@ interface PresentationEvent {
 50以上のフィールドを持つフラットな構造体。`raw` に元のパース済みオブジェクトを保持する。
 
 **アクセス制限（表示専用ポリシー対応）**:
-- **filter エンジン**: 全フィールドにドットパスでアクセス可能。
-- **template エンジン**: `raw` フィールドへの参照、および配列インデックス参照 `[N]` は禁止（`src/engine/template/parser.ts` でパースエラー）。表示カスタマイズ用途は維持しつつ、生 XML データへの直接アクセスや 1 行機械可読出力での再配信足場化を防ぐ。
 
 #### 補助型
 
@@ -1796,7 +1755,7 @@ interface PresentationEvent {
 
 ### 設計ノート
 
-- `ProcessOutcome` は processor が生成し、router が消費する中間表現。`PresentationEvent` は filter/template が消費するフラットな最終表現。二段構えにすることで、processor は型安全なドメイン固有データを扱いつつ、filter/template は統一的なフィールドアクセスを実現する。
+- `ProcessOutcome` は processor が生成し、router が消費する中間表現。`PresentationEvent` は表示側が消費するフラットな最終表現。二段構えにすることで、processor は型安全なドメイン固有データを扱いつつ、表示側は統一的なフィールドアクセスを実現する。
 - `statsCategory` をパース失敗時にも保持する設計は、raw フォールバック時に統計カテゴリを正確に記録するため。
 
 ---
@@ -1995,7 +1954,7 @@ function toPresentationEvent(outcome: ProcessOutcome): PresentationEvent
 | `from-volcano.ts` | `VolcanoOutcome` / `VolcanoBatchOutcome` | `isBatch` フラグで単発/バッチを分岐、バッチ時は `subType: "ashfallBatch"` を設定 |
 | `from-seismic-text.ts` | `SeismicTextOutcome` | `bodyText` のみを展開する軽量コンバータ |
 | `from-lg-observation.ts` | `LgObservationOutcome` | `maxLgIntValue` と `maxIntValue` を保持し、下流の `LgIntensitySafetyRank` と震度 safety を別系統で解決しながら観測地域を `observationNames`/`areaItems` に展開 |
-| `from-nankai-trough.ts` | `NankaiTroughOutcome` | `infoSerialCode`, `bodyText`, `nextAdvisory` を展開 |
+| `from-nankai-trough.ts` | `NankaiTroughOutcome` | `bodyText`, `nextAdvisory` を展開 |
 | `from-weather.ts` | `WeatherOutcome` | 気象警報・注意報 (VPWW55-61/VPWS50) |
 | `from-tornado.ts` | `TornadoOutcome` | 竜巻注意情報 (VPHW50/51) |
 | `from-briefing.ts` | `BriefingOutcome` | 気象防災速報 (VPBS50) |
@@ -2164,7 +2123,7 @@ function processEew(msg: WsDataMessage, eewTracker: EewTracker, eewLogger: EewEv
 | `process-tornado.ts` | VPHW50/51 | — |
 | `process-briefing.ts` | VPBS50 | — |
 | `process-early-weather.ts` | VPAW51 | — |
-| `process-weather-warning-timeseries.ts` | VPWP50 | `vpwp50Cache` に詳細を保存（REPL `detail` 用） |
+| `process-weather-warning-timeseries.ts` | VPWP50 | 時系列警報をパースして outcome を生成 |
 | `process-climate-info.ts` | VPZI50/VPCI50 | frameLevel は一律 `normal`（取消は `cancel`） |
 | `process-weather-explanation.ts` | VPCJ51/VPZJ51/VPFJ51/VMCJ53-55 | frameLevel は一律 `normal`（取消は `cancel`） |
 | `process-heat-alert.ts` | VPFT50 | `resolveHeatAlertLevels` で frame/sound を pair 解決 |
@@ -2200,769 +2159,6 @@ function processXxx(msg: WsDataMessage, ...deps): XxxOutcome | null {
 
 ---
 
-## filter/types.ts
-
-### 概要
-
-フィルタエンジンの全型定義。トークン・AST・フィールドレジストリ・コンパイル済み述語の型を一元管理する。
-
-### エクスポートAPI
-
-#### トークン
-
-```ts
-type TokenKind =
-  | "ident" | "string" | "number" | "boolean" | "null"
-  | "op" | "lparen" | "rparen" | "lbracket" | "rbracket" | "comma"
-  | "and" | "or" | "not"
-  | "eof";
-
-interface FilterToken { kind: TokenKind; value: string; pos: number; }
-```
-
-14種のトークンカインド（`eof` 含む）。
-
-#### AST
-
-```ts
-type FilterAST = OrNode | AndNode | NotNode | ComparisonNode | TruthyNode;
-type CompOp = "=" | "!=" | "<" | "<=" | ">" | ">=" | "~" | "!~" | "in" | "contains";
-type ValueNode =
-  | { kind: "path"; segments: string[]; pos: number }
-  | { kind: "string"; value: string; pos: number }
-  | { kind: "number"; value: number; pos: number }
-  | { kind: "boolean"; value: boolean; pos: number }
-  | { kind: "null"; pos: number }
-  | { kind: "list"; items: ValueNode[]; pos: number };
-```
-
-- 5種の AST ノード: `or`, `and`, `not`, `comparison`, `truthy`
-- 10種の比較演算子: `=`, `!=`, `<`, `<=`, `>`, `>=`, `~` (正規表現マッチ), `!~` (正規表現否定), `in` (リスト包含), `contains` (配列/文字列包含)
-
-#### フィールドレジストリ
-
-```ts
-type FilterKind = "string" | "number" | "boolean" | "string[]" | "number[]" | "enum:frameLevel" | "enum:intensity" | "enum:lgInt";
-interface FilterField<T = unknown> { kind: FilterKind; aliases: string[]; get: (event: PresentationEvent) => T | null | undefined; supportsOrder?: boolean; }
-```
-
-#### コンパイル済み
-
-```ts
-type FilterPredicate = (event: PresentationEvent) => boolean;
-```
-
-### 依存関係
-
-| インポート元 | 用途 |
-|-------------|------|
-| `../presentation/types` | `PresentationEvent` |
-
----
-
-## filter/compile-filter.ts
-
-### 概要
-
-フィルタ式文字列を受け取り、4段パイプラインを通して `FilterPredicate` を返す公開 API。
-
-### エクスポートAPI
-
-```ts
-function compileFilter(expr: string): FilterPredicate
-```
-
-### 内部ロジック
-
-```
-tokenize(expr) → parse(tokens, expr) → typeCheck(ast, expr) → compile(ast)
-```
-
-各ステージでエラーが発生した場合:
-- `FilterSyntaxError` — 構文エラー（位置情報付き）
-- `FilterFieldError` — 未知フィールド（候補表示付き）
-- `FilterTypeError` — 型不整合
-
-### 依存関係
-
-| インポート元 | 用途 |
-|-------------|------|
-| `./tokenizer` | `tokenize` |
-| `./parser` | `parse` |
-| `./type-checker` | `typeCheck` |
-| `./compiler` | `compile` |
-| `./types` | `FilterPredicate` |
-
----
-
-## filter/tokenizer.ts
-
-### 概要
-
-フィルタ式文字列を `FilterToken[]` にトークナイズする。
-
-### エクスポートAPI
-
-```ts
-function tokenize(source: string): FilterToken[]
-```
-
-### 内部ロジック
-
-13種のトークンカインド (+ EOF) を認識する:
-
-| カテゴリ | 対応 |
-|---------|------|
-| キーワード | `and`, `or`, `not`, `true`, `false`, `null`, `in`, `contains` |
-| 演算子 | `!=`, `<=`, `>=`, `!~`, `=`, `<`, `>`, `~`（長い順にマッチ） |
-| 括弧/ブラケット/カンマ | `(`, `)`, `[`, `]`, `,` |
-| 文字列リテラル | 単引用符/二重引用符。バックスラッシュエスケープ対応 |
-| 数値リテラル | 負数 (`-123`) と浮動小数 (`3.14`) に対応 |
-| 識別子 | ドットパス (`areaNames.0.name`) を含むアルファベット+数字+ドット |
-
-出力の末尾に `eof` トークンを付与する。
-
-### 依存関係
-
-| インポート元 | 用途 |
-|-------------|------|
-| `./types` | `FilterToken`, `TokenKind` |
-| `./errors` | `FilterSyntaxError` |
-
----
-
-## filter/parser.ts
-
-### 概要
-
-`FilterToken[]` を `FilterAST` に構文解析する再帰下降パーサ。
-
-### エクスポートAPI
-
-```ts
-function parse(tokens: FilterToken[], source: string): FilterAST
-```
-
-### 内部ロジック
-
-#### 文法（優先度: OR < AND < NOT < primary）
-
-```
-expr    → or
-or      → and ("or" and)*
-and     → unary ("and" unary)*
-unary   → "not" unary | primary
-primary → "(" or ")" | value [compOp value]
-value   → ident | string | number | boolean | null | "[" value ("," value)* "]"
-```
-
-- 比較演算子がなければ `truthy` ノード（フィールドの存在判定）
-- `MAX_DEPTH = 32` でネストの深さを制限（DoS 防止）
-- 括弧と NOT でネスト深度をカウント
-
-### 依存関係
-
-| インポート元 | 用途 |
-|-------------|------|
-| `./types` | `FilterToken`, `FilterAST`, `ValueNode`, `CompOp` |
-| `./errors` | `FilterSyntaxError` |
-
----
-
-## filter/type-checker.ts
-
-### 概要
-
-AST を走査し、フィールド参照の存在確認と演算子の型整合を検証する静的チェッカー。
-
-### エクスポートAPI
-
-```ts
-function typeCheck(ast: FilterAST, source: string): void
-```
-
-### 内部ロジック
-
-| チェック内容 | エラー型 |
-|------------|---------|
-| パスが `FILTER_FIELDS` に存在するか | `FilterFieldError`（候補一覧付き） |
-| enum:intensity/lgInt に数値リテラルを比較していないか | `FilterTypeError` |
-| 順序比較 (`<`, `>` 等) で `supportsOrder` が `true` か | `FilterTypeError` |
-| 正規表現 (`~`, `!~`) の右辺が有効な正規表現か | `FilterTypeError` |
-| 正規表現の ReDoS リスク検出（入れ子の量指定子） | `FilterTypeError` |
-| `in` の右辺がリスト `[...]` か | `FilterTypeError` |
-| `contains` の左辺が `string[]`/`number[]`/`string` か、右辺がリテラルか | `FilterTypeError` |
-
-#### ReDoS 検出
-
-`isRedosRisk()` 内部関数で `(+|*|?|}))(+|*|?|{)` パターンを検出する簡易チェック。入れ子の量指定子（例: `(a+)+`）をブロックする。
-
-### 依存関係
-
-| インポート元 | 用途 |
-|-------------|------|
-| `./types` | `FilterAST`, `ValueNode`, `CompOp` |
-| `./field-registry` | `resolveField`, `fieldNames` |
-| `./errors` | `FilterTypeError`, `FilterFieldError` |
-
----
-
-## filter/compiler.ts
-
-### 概要
-
-`FilterAST` を `FilterPredicate` にコンパイルする。各 AST ノードを対応するクロージャに変換し、実行時のフィールド取得とランク変換を組み込む。
-
-### エクスポートAPI
-
-```ts
-function compile(ast: FilterAST): FilterPredicate
-```
-
-### 内部ロジック
-
-| AST ノード | コンパイル結果 |
-|-----------|--------------|
-| `or` | `predicates.some(p => p(event))` |
-| `and` | `predicates.every(p => p(event))` |
-| `not` | `!predicate(event)` |
-| `truthy` | 値が `null`/`false`/`""`/`0` でなければ `true` |
-| `comparison` | 演算子ごとの比較ロジック |
-
-#### 比較演算子の処理
-
-- `=`, `!=` — 厳密等価 (`===`)。null は常に `false`。
-- `<`, `<=`, `>`, `>=` — enum 型の場合は `rankFn` で数値ランクに変換してから比較。
-- `~`, `!~` — 右辺が文字列リテラルなら **コンパイル時に `RegExp` をキャッシュ**する最適化。
-- `in` — `Array.includes()` でリスト包含判定。
-- `contains` — 配列なら `Array.includes()`、文字列なら `String.includes()`。
-
-#### ランク変換関数
-
-`getRankFn()` が FilterKind に応じてランク変換関数を返す:
-- `enum:frameLevel` → `toFrameLevelRank`
-- `enum:intensity` → `toIntensityRank`
-- `enum:lgInt` → `toLgIntRank`
-
-### 依存関係
-
-| インポート元 | 用途 |
-|-------------|------|
-| `./types` | `FilterAST`, `ValueNode`, `CompOp`, `FilterPredicate` |
-| `../presentation/types` | `PresentationEvent` |
-| `./field-registry` | `resolveField` |
-| `./rank-maps` | `toFrameLevelRank`, `toIntensityRank`, `toLgIntRank` |
-
-### 設計ノート
-
-- 正規表現のコンパイル時キャッシュは、同一フィルタが多数のイベントに適用されるため重要な最適化。
-- `makeGetter()` がフィールドレジストリから `get` 関数を取得し、AST の ValueNode をクロージャに変換する。リテラルノードは定数関数を返す。
-
----
-
-## filter/field-registry.ts
-
-### 概要
-
-`PresentationEvent` のフィールドをフィルタエンジンに公開するレジストリ。フィールド名・エイリアス・型・getter 関数・順序比較対応の有無を管理する。
-
-### エクスポートAPI
-
-```ts
-const FILTER_FIELDS: Record<string, FilterField>
-function resolveField(name: string): FilterField | null
-function fieldNames(): string[]
-```
-
-### フィールド一覧 (28エントリ)
-
-| フィールド名 | エイリアス | 型 | 順序比較 |
-|-------------|----------|-----|---------|
-| `domain` | — | string | — |
-| `type` | `headType` | string | — |
-| `subType` | — | string | — |
-| `classification` | — | string | — |
-| `id` | — | string | — |
-| `infoType` | — | string | — |
-| `frameLevel` | `level` | enum:frameLevel | Yes |
-| `isCancellation` | `isCancelled` | boolean | — |
-| `isWarning` | — | boolean | — |
-| `isFinal` | — | boolean | — |
-| `isTest` | — | boolean | — |
-| `isRenotification` | — | boolean | — |
-| `eventId` | — | string | — |
-| `serial` | — | string | — |
-| `volcanoCode` | — | string | — |
-| `volcanoName` | — | string | — |
-| `hypocenterName` | `hypocenter` | string | — |
-| `depth` | — | number | Yes |
-| `magnitude` | `mag` | number | Yes |
-| `maxInt` | — | enum:intensity | Yes |
-| `maxLgInt` | — | enum:lgInt | Yes |
-| `forecastMaxInt` | — | enum:intensity | Yes |
-| `alertLevel` | — | number | Yes |
-| `title` | — | string | — |
-| `headline` | — | string | — |
-| `areaNames` | — | string[] | — |
-| `forecastAreaNames` | — | string[] | — |
-| `municipalityNames` | — | string[] | — |
-| `observationNames` | — | string[] | — |
-| `areaCount` | — | number | — |
-| `tsunamiKinds` | — | string[] | — |
-
-`depth` は `"10km"` → `10` に数値変換、`magnitude` は文字列→数値変換を getter 内で行う。
-
-`maxInt`／`maxLgInt`／`forecastMaxInt` は既存 filter との互換 scalar である。特殊値の condition、qualifier、bounds、badge、描画可否は `SpecialValue` と display projection の semantic が担い、scalar の数値比較だけで `SpecialValue` を再解釈しない。
-
-### 依存関係
-
-| インポート元 | 用途 |
-|-------------|------|
-| `../presentation/types` | `PresentationEvent` |
-| `./types` | `FilterField`, `FilterKind` |
-
-### 設計ノート
-
-- エイリアス (`headType` → `type`, `level` → `frameLevel` 等) はユーザーの直感的な入力に対応するためのもの。
-- `resolveField()` はまず正規名で O(1) ルックアップし、見つからなければエイリアスを線形探索する。フィールド数が少ないため線形探索で十分。
-
----
-
-## filter/rank-maps.ts
-
-### 概要
-
-enum 型フィールドの順序比較用ルックアップテーブルと変換関数。
-
-### エクスポートAPI
-
-```ts
-const FRAME_LEVEL_RANK: Record<string, number>  // cancel=0, info=1, normal=2, warning=3, critical=4
-const INTENSITY_RANK: Record<string, number>     // "1"=1 ... "5-"/"5弱"=5, "5+"/"5強"=6, "6-"/"6弱"=7, "6+"/"6強"=8, "7"=9
-const LG_INT_RANK: Record<string, number>        // "0"=0, "1"=1, "2"=2, "3"=3, "4"=4
-
-function toFrameLevelRank(value: string): number | null
-function toIntensityRank(value: string): number | null
-function toLgIntRank(value: string): number | null
-```
-
-- `INTENSITY_RANK` は `"5-"` と `"5弱"` の両表記に対応（同ランク値）。`toIntensityRank()` は空白を除去してからルックアップする。
-- 未知の値はすべて `null` を返す。
-
-### 依存関係
-
-なし（純粋なデータ定義）。
-
----
-
-## filter/errors.ts
-
-### 概要
-
-フィルタパイプラインのエラー型3種。
-
-### エクスポートAPI
-
-```ts
-class FilterSyntaxError extends Error {
-  readonly source: string;
-  readonly position: number;
-  format(): string;  // 位置付きフォーマット済みエラー表示
-}
-
-class FilterTypeError extends Error {}
-
-class FilterFieldError extends Error {
-  readonly fieldName: string;
-  readonly availableFields: string[];
-  format(): string;  // 候補表示付きエラーメッセージ
-}
-```
-
-- `FilterSyntaxError.format()` — `^` ポインタ付きの位置表示を生成。
-- `FilterFieldError.format()` — 使えるフィールド名の先頭6件を候補として表示。
-
-### 依存関係
-
-なし。
-
----
-
-## template/types.ts
-
-### 概要
-
-テンプレートエンジンの全型定義。AST ノード・式・述語・フィルタ・レンダラ・トークンの型を一元管理する。
-
-### エクスポートAPI
-
-#### AST ノード
-
-```ts
-type TemplateNode = TextNode | InterpolationNode | IfBlockNode;
-
-interface TextNode { kind: "text"; value: string; }
-interface InterpolationNode { kind: "interpolation"; expr: TemplateExpr; filters: TemplateFilterCall[]; }
-interface IfBlockNode { kind: "if"; test: TemplatePredicate; body: TemplateNode[]; elseBody?: TemplateNode[]; }
-```
-
-#### 式
-
-```ts
-type TemplateExpr =
-  | { kind: "path"; segments: (string | number)[] }
-  | { kind: "literal"; value: string | number | boolean | null };
-```
-
-#### 述語
-
-```ts
-type TemplatePredicate =
-  | { kind: "truthy"; expr: TemplateExpr }
-  | { kind: "compare"; op: "eq" | "ne" | "gt" | "ge" | "lt" | "le"; left: TemplateExpr; right: TemplateExpr };
-```
-
-#### フィルタ・レンダラ
-
-```ts
-interface TemplateFilterCall { name: string; args: TemplateExpr[]; }
-type TemplateRenderer = (event: PresentationEvent) => string;
-```
-
-#### トークン
-
-```ts
-type TemplateTokenKind = "text" | "open" | "close" | "pipe" | "colon" | "if_open" | "else" | "endif" | "eof";
-interface TemplateToken { kind: TemplateTokenKind; value: string; pos: number; }
-```
-
-### 依存関係
-
-| インポート元 | 用途 |
-|-------------|------|
-| `../presentation/types` | `PresentationEvent` |
-
----
-
-## template/compile-template.ts
-
-### 概要
-
-テンプレート文字列をコンパイルし `TemplateRenderer` を返す公開 API。
-
-### エクスポートAPI
-
-```ts
-function compileTemplate(template: string): TemplateRenderer
-```
-
-### 内部ロジック
-
-```
-parseTemplate(template) → compileTemplateNodes(nodes)
-```
-
-2段パイプライン: パース → コンパイル。
-
-### 依存関係
-
-| インポート元 | 用途 |
-|-------------|------|
-| `./parser` | `parseTemplate` |
-| `./compiler` | `compileTemplateNodes` |
-| `./types` | `TemplateRenderer` |
-
----
-
-## template/tokenizer.ts
-
-### 概要
-
-テンプレート文字列を `TemplateToken[]` にトークナイズする。制御フロー構文 (`{{#if}}`, `{{else}}`, `{{/if}}`) と補間構文 (`{{ expr | filter }}`) を認識する。
-
-### エクスポートAPI
-
-```ts
-function tokenizeTemplate(source: string): TemplateToken[]
-```
-
-### 内部ロジック
-
-| 認識パターン | トークン列 |
-|-------------|-----------|
-| `{{#if condition}}` | `if_open`, `text`(条件), `close` |
-| `{{else}}` | `else` |
-| `{{/if}}` | `endif` |
-| `{{ expr \| filter:arg }}` | `open`, `text`(式), `pipe`, `text`(フィルタ名), `colon`, `text`(引数), `close` |
-| プレーンテキスト | `text` |
-
-- 補間内の文字列リテラル（`"..."` / `'...'`）はバックスラッシュエスケープ対応。
-- 末尾に `eof` トークンを付与。
-
-### 依存関係
-
-| インポート元 | 用途 |
-|-------------|------|
-| `./types` | `TemplateToken` |
-
----
-
-## template/parser.ts
-
-### 概要
-
-`TemplateToken[]` を `TemplateNode[]` に構文解析する再帰下降パーサ。
-
-### エクスポートAPI
-
-```ts
-function parseTemplate(source: string): TemplateNode[]
-```
-
-内部で `tokenizeTemplate()` を呼び出してからパースする。
-
-### 内部ロジック
-
-#### 構文要素
-
-- **テキスト** — `{{ }}` の外側のプレーンテキスト
-- **補間** — `{{ expr | filter1 | filter2:arg1:arg2 }}`。パイプ `|` でフィルタチェーン、コロン `:` でフィルタ引数を区切る
-- **if ブロック** — `{{#if pred}}...{{else}}...{{/if}}`。`{{else}}` は省略可能
-- **ネスト制限** — `MAX_DEPTH = 32`
-
-#### 式のパース (`parseExpr`)
-
-| 入力 | 解釈 |
-|-----|------|
-| `"text"` / `'text'` | 文字列リテラル（エスケープ復元付き） |
-| `-?[0-9]+(.[0-9]+)?` | 数値リテラル |
-| `true` / `false` / `null` | ブーリアン / null リテラル |
-| その他 | パス（ドット記法を `string[]` に分割） |
-
-#### パスセグメント分割
-
-`foo.bar.baz` → `["foo", "bar", "baz"]`。
-
-**表示専用ポリシー（dmdata.jp 再配信ポリシー対応）による制限**:
-- ブラケット記法 `[N]` (配列インデックス参照) は禁止。検出時はパースエラー。
-- 先頭セグメントが `raw` のパス（生 XML データへの直接参照）も禁止。
-
-これらの制限により、テンプレート機構は「表示カスタマイズ」用途に限定され、機械可読 1 行出力で電文の主要要素を全て吐き出す再配信足場として転用されることを防ぐ。
-
-#### 述語のパース (`parsePredicate`)
-
-`field op value` 形式なら `compare` ノード、そうでなければ `truthy` ノード。対応演算子: `=`, `!=`, `>`, `>=`, `<`, `<=`。
-
-### 依存関係
-
-| インポート元 | 用途 |
-|-------------|------|
-| `./tokenizer` | `tokenizeTemplate` |
-| `./types` | `TemplateNode`, `TemplateExpr`, `TemplatePredicate`, `TemplateFilterCall`, `TemplateToken` |
-
----
-
-## template/compiler.ts
-
-### 概要
-
-`TemplateNode[]` を `TemplateRenderer` にコンパイルする。
-
-### エクスポートAPI
-
-```ts
-function compileTemplateNodes(nodes: TemplateNode[]): TemplateRenderer
-```
-
-### 内部ロジック
-
-#### ノード別レンダリング
-
-| ノード | 処理 |
-|-------|------|
-| `text` | そのまま結合 |
-| `interpolation` | `resolveExpr()` → フィルタパイプライン → `stringify()` |
-| `if` | `evaluatePredicate()` → body or elseBody をレンダリング |
-
-#### stringify
-
-- `null` / `undefined` → `""`
-- 配列 → `join("\n")` （表示専用ポリシー対応により、改行区切り。1 行に並べる機械可読出力の主経路を塞ぐ目的。完全な迂回防止は保証しない）
-- その他 → `String(value)`
-
-なお、フィルタ内部の `toString` でも同様に配列を改行区切りで文字列化する（`filters.ts`）。これにより `|upper` や `|replace` 等の文字列系フィルタを通しても配列が 1 行にならないようにしている。`replace` フィルタは引数に改行文字を含めることを禁止（改行 join を打ち消せないようにするため）。
-
-#### 述語評価
-
-- `truthy` — `null`, `false`, `""`, `0` は偽。その他は真。
-- `compare` — `Number()` で変換後に数値比較。
-
-### 依存関係
-
-| インポート元 | 用途 |
-|-------------|------|
-| `./types` | `TemplateNode`, `TemplateExpr`, `TemplatePredicate`, `TemplateFilterCall`, `TemplateRenderer` |
-| `../presentation/types` | `PresentationEvent` |
-| `./field-accessor` | `getFieldValue` |
-| `./filters` | `applyFilter` |
-
----
-
-## template/field-accessor.ts
-
-### 概要
-
-`PresentationEvent` からドットパスで値を取得するユーティリティ。
-
-### エクスポートAPI
-
-```ts
-function getFieldValue(event: PresentationEvent, segments: string[]): unknown
-```
-
-`segments` 配列の各要素をキーとして順にオブジェクトを走査する。途中で `null` / `undefined` に到達したら `undefined` を返す。
-
-**表示専用ポリシー対応 (二重防御)**: 配列インデックス参照は parser 側で禁止しているが、`segments[0] === "raw"` のケースは本関数でも `undefined` を返して拒否する。parser を経由せず直接呼び出された場合の保険。
-
-### 使用例
-
-- `["title"]` → `event.title`
-- `["earthquake", "magnitude"]` → `event.earthquake.magnitude`
-
-### 依存関係
-
-| インポート元 | 用途 |
-|-------------|------|
-| `../presentation/types` | `PresentationEvent` |
-
----
-
-## template/filters.ts
-
-### 概要
-
-テンプレートフィルタの実装。7つの組み込みフィルタを提供する（`join` は表示専用ポリシー対応で削除済み）。
-
-### エクスポートAPI
-
-```ts
-function applyFilter(name: string, value: unknown, args: FilterArgs): unknown
-```
-
-未知のフィルタ名の場合は値をそのまま返す。
-
-### フィルタ一覧
-
-| フィルタ | 引数 | 説明 |
-|---------|------|------|
-| `default` | `(fallback)` | `null`/`""` の場合にフォールバック値を返す |
-| `truncate` | `(limit)` | 文字列を指定文字数で切り詰める |
-| `pad` | `(width)` | `padEnd()` で指定幅に右パディング |
-| `date` | `(format?)` | 日付文字列をフォーマット。`"HH:mm"` (デフォルト), `"HH:mm:ss"`, `"MM/DD HH:mm"` |
-| `replace` | `(search, replacement)` | 文字列置換（`split().join()` で全置換） |
-| `upper` | — | 大文字変換 |
-| `lower` | — | 小文字変換 |
-
-### 依存関係
-
-なし（純粋な文字列処理関数）。
-
----
-
-## filter-template/pipeline.ts
-
-### 概要
-
-filter・template・focus の3つの nullable コンポーネントを束ねるパイプラインインターフェースと、表示判定・テンプレート適用のヘルパー関数を提供する。
-
-### エクスポートAPI
-
-```ts
-interface FilterTemplatePipeline {
-  filter: FilterPredicate | null;
-  template: TemplateRenderer | null;
-  focus: FilterPredicate | null;
-}
-
-function shouldDisplay(event: PresentationEvent, pipeline: FilterTemplatePipeline): boolean
-function renderTemplate(event: PresentationEvent, pipeline: FilterTemplatePipeline): string | null
-```
-
-- `FilterTemplatePipeline` — 3フィールドすべて nullable。未設定の場合は対応する処理をスキップする。
-- `shouldDisplay()` — `pipeline.filter` が `null` なら常に `true`。非 null ならフィルタ述語を適用。
-- `renderTemplate()` — `pipeline.template` が `null` なら `null`（デフォルト表示を使う合図）。非 null ならテンプレートを適用して文字列を返す。
-
-### 依存関係
-
-| インポート元 | 用途 |
-|-------------|------|
-| `../presentation/types` | `PresentationEvent` |
-| `../filter/types` | `FilterPredicate` |
-| `../template/types` | `TemplateRenderer` |
-
-### 設計ノート
-
-- `focus` は `shouldDisplay()` では使わない。focus の適用は `message-router.ts` の `runDisplayPipeline` 内で行われ、条件不一致時は dim 表示にフォールバックする。
-- インターフェースのみの薄いモジュールにすることで、filter と template の実装に依存せず、テスト時に容易にモック可能。
-
----
-
-## filter-template/pipeline-controller.ts
-
-### 概要
-
-`FilterTemplatePipeline` の状態を管理するコントローラクラス。REPL はこの API 経由でのみ pipeline を変更する。`getPipeline()` は常に同一オブジェクト参照を返すため、`message-router` 側に渡した pipeline と常に同期する。
-
-### エクスポートAPI
-
-```ts
-class PipelineController {
-  constructor()
-
-  getPipeline(): FilterTemplatePipeline
-
-  getFilterExpr(): string | null
-  setFilter(expr: string): void
-  clearFilter(): void
-
-  getTemplateExpr(): string | null
-  setTemplate(expr: string): void
-  clearTemplate(): void
-
-  getFocusExpr(): string | null
-  setFocus(expr: string): void
-  clearFocus(): void
-
-  static fromExpressions(opts: { filter?: string | null; template?: string | null; focus?: string | null }): PipelineController
-}
-```
-
-- `getPipeline()` — 内部の `FilterTemplatePipeline` オブジェクト参照を返す。router に渡した参照と同一であるため、`setFilter()` 等の変更が即座に router 側に反映される。
-- `setFilter(expr)` — `compileFilter(expr)` でコンパイルし、pipeline の `filter` フィールドを更新する。無効な式の場合は例外を投げる。
-- `setTemplate(expr)` — `compileTemplate(expr)` でコンパイルし、pipeline の `template` フィールドを更新する。
-- `setFocus(expr)` — `compileFilter(expr)` でコンパイルし、pipeline の `focus` フィールドを更新する。無効な式の場合は例外を投げる。
-- `clear*()` — 対応フィールドを `null` にリセットする。
-- `get*Expr()` — 現在設定されている式文字列を返す（未設定時は `null`）。
-- `fromExpressions()` — 式文字列から `PipelineController` を構築する静的ファクトリ。`null` / `undefined` のフィールドはスキップされる。
-
-### 依存関係
-
-| インポート元 | 用途 |
-|-------------|------|
-| `../filter/compile-filter` | `compileFilter` |
-| `../template/compile-template` | `compileTemplate` |
-| `../filter/types` | `FilterPredicate` 型 |
-| `../template/types` | `TemplateRenderer` 型 |
-| `./pipeline` | `FilterTemplatePipeline` 型 |
-
-### 設計ノート
-
-- `getPipeline()` が同一オブジェクト参照を返す設計により、REPL と router が同じ pipeline を共有できる。REPL 側で `setFilter()` を呼ぶと、次回の `runDisplayPipeline()` で即座に反映される。
-- `cli-run.ts` は `new PipelineController()` + `setFilter()` / `setTemplate()` / `setFocus()` で構築し、`startMonitor()` に渡す。以前の `compileFilter()` / `compileTemplate()` 直接呼び出しは不要になった。
-- REPL (`settings-handlers.ts`) は `pipelineController.setFilter(expr)` / `pipelineController.clearFilter()` 等のメソッドで pipeline を変更する。直接の `pipeline.filter = ...` ミューテーションは行わない。
-
----
-
 ## messages/display-callbacks.ts
 
 ### 概要
@@ -2987,7 +2183,7 @@ interface DisplayCallbacks {
 - `displayVolcano()` — 火山単発電文の表示。`VolcanoRouteHandler` から呼ばれる。
 - `displayVolcanoBatch()` — 火山バッチ電文の表示。
 - `getDisplayMode()` — 現在の表示モード (`"normal"` / `"compact"`) を返す。`runDisplayPipeline` 内で compact 判定に使用。
-- `renderSummaryLine()` — `PresentationEvent` を1行サマリーに変換する。focus 不一致時の dim 表示や compact モードで使用。
+- `renderSummaryLine()` — `PresentationEvent` を1行サマリーに変換する。compact モードで使用。
 
 ### 依存関係
 
@@ -3001,7 +2197,7 @@ interface DisplayCallbacks {
 ### 設計ノート
 
 - 型のみの薄いインターフェースモジュール。実装は `ui/display-adapter.ts` に分離することで、engine 層が ui 層の具体的な表示関数に依存しない。
-- `getDisplayMode()` と `renderSummaryLine()` を含めることで、`runDisplayPipeline` が compact/focus 判定時に必要とする UI 機能もインターフェース経由でアクセスできる。
+- `getDisplayMode()` と `renderSummaryLine()` を含めることで、`runDisplayPipeline` が compact 判定時に必要とする UI 機能もインターフェース経由でアクセスできる。
 
 ---
 
@@ -3009,7 +2205,7 @@ interface DisplayCallbacks {
 
 VFVO50/VFVO51/VFSVii と VFVO52/VFVO56 は、通知・Presentation・standby 投影より前に共通 revision gate を通る。subject は alert/eruption を分けた火山コード単位で、VFVO51 は複数火山 entry を独立評価する。明示取消 A、terminal B、非活性 C は共通 resolver の `A > B > C` に従い、同一 subject の mutation・stats・永続化 callback は一回だけ発火する。subject を確定できない入力は表示/ticker だけの fail-open とし、`volcanoStateMutationAccepted=false` により通知・standby・promotion・永続化を抑止する。VFVO53 は非 durable `markCancelled` gate を通過後、従来どおり transient batch aggregator が担当する。
 
-Phase 3B の standby domain（tornado / heatAlert / typhoonAnalysis / typhoonProbability / nankaiTrough / weatherWarningTimeseries / lgObservation）も、通知と durable projection より前に共通 revision gate を通る。subject は順に官署 stream、対象 JST 日×地域、台風 EventID、確率 cache の台風 EventID、固定 singleton、官署×対象 scope、地震 EventID である。subject を確定できない報は `standbyStateMutationAccepted=false` の表示/ticker 限定 fail-open となり、通知・standby state・detail/dedup cache を変更しない。既存 standby active state を持つ tornado / heat / typhoon analysis / nankai / long-period に加え、VPTA50 の gate watermark／tombstoneとcompact probability projectionを v2 foundation に保存し、rollback 用 v1 `seen`／gate metadataへdual-writeする。VPTA50 の連続ゼロ cache と VPWP50 detail cacheはprocess-local／専用ファイルのままだが、VPTA50 gate自体はdurable 7日である。
+Phase 3B の standby domain（tornado / heatAlert / typhoonAnalysis / typhoonProbability / nankaiTrough / weatherWarningTimeseries / lgObservation）も、通知と durable projection より前に共通 revision gate を通る。subject は順に官署 stream、対象 JST 日×地域、台風 EventID、確率 cache の台風 EventID、固定 singleton、官署×対象 scope、地震 EventID である。subject を確定できない報は `standbyStateMutationAccepted=false` の表示/ticker 限定 fail-open となり、通知・standby state・dedup cache を変更しない。既存 standby active state を持つ tornado / heat / typhoon analysis / nankai / long-period に加え、VPTA50 の gate watermark／tombstoneとcompact probability projectionを v2 foundation に保存し、rollback 用 v1 `seen`／gate metadataへdual-writeする。VPTA50 の連続ゼロ cache は process-local のままだが、VPTA50 gate自体はdurable 7日である。
 
 VPTA50 admission は router のprocess-wide直列serializer内で行う。gateがcomparison、ordered semantic keys、cancelled、acceptedAt、projection bindingを一つのimmutable commit recordとして同期確定し、その同じrecordからfinalized classificationを一度だけ作る。public `ProcessOutcome`／`PresentationEvent`にはcommitやclassificationを載せず、opaque owner token付きprivate sidecarだけを`displaySink.ingest`の第二引数へ渡す。standby reducerは再projectせずsidecarのbindingを検証してprobability mapを更新する。accepted／suppressed／failed completionがVPTA保存の唯一のownerで、通常durable changeはdebounce schedule一回、failure reconcileはschedule後`flushThrough()`まで完了してからfail-loudにする。
 
@@ -3031,7 +2227,7 @@ Phase 3B の transient domain（earthquake / seismicText / briefing / earlyWeath
 type DisplayPipelineFn = (
   outcome: ProcessOutcome | VolcanoBatchOutcome,
   displayFn: () => void,
-) => boolean;
+) => void;
 
 interface VolcanoRouteHandlerDeps {
   volcanoState: VolcanoStateHolder;
@@ -3208,7 +2404,7 @@ class SummaryWindowTracker {
 }
 ```
 
-- `record()` — イベントを記録する。`matched` はフィルタ通過の有無。バケット単位で `received` / `matched` / `byDomain` / `maxInt` を集計。
+- `record()` — イベントを記録する。`matched` は表示の有無（router からは常に true）。バケット単位で `received` / `matched` / `byDomain` / `maxInt` を集計。
 - `getSnapshot()` — 現在のスナップショットを取得。残存バケットから集計値を算出し、30スロットの `sparklineData` (古い順) を生成する。
 - `clear()` — バケットを全削除。
 
@@ -3353,7 +2549,7 @@ classifier は判定だけを行い、状態遷移は別モジュールの `Weat
 - **書き込み契機は `WeatherPromotionStore.onDurable`**。昇格・再開・降格・解除で通知し、monitor が `schedule()` を呼ぶ。受信コールスタック上でも 5 秒 sweep 上でも同期 I/O を走らせない (debounce 3 秒 → 非同期で tmp write + rename)
 - **tmp 名は書き込みごとに一意**にし、内容を確定した順の通し番号 (`seq`) で順序を保証する。rename 済みの最大 seq より小さい書き込みは rename せず tmp を捨てる。shutdown の同期保存が、進行中の非同期保存に後から上書きされるのを防ぐ (`dispose()` は進行中の書き込みを待てないため、待機ではなく順序で解決する)
 - **records が全 null (全解除) の状態も必ず書く**。書かないと前回の active が残り、次の再起動で解除済みの昇格が復活する
-- **終了時は `dispose()` → `save()`**。予約済み (debounce 待ち) より現在状態の方が常に新しい。`ShutdownContext.flushWeatherPromotion` が `flushDetailCaches` の直後で呼ぶ
+- **終了時は `dispose()` → `save()`**。予約済み (debounce 待ち) より現在状態の方が常に新しい。`ShutdownContext.flushWeatherPromotion` が standby 保存の後で呼ぶ
 - **`savedAt` は呼び出し側の `nowMs` から作る**。ストア・永続化層では `Date.now()` を呼ばない (`DisplayStateStore` の「クラス内で Date.now() を呼ばない」不変条件を持ち込む)
 
 ### 再起動復元
@@ -3597,19 +2793,17 @@ class WeatherPromotionPersistence {
 
 ### 同じ方式を適用した他の永続化層
 
-上記の書き込み順序の設計 (seq guard・seq 固有 tmp・guard と `rename` の同期実行・`load()` での残骸掃除) は、**同じ構造を持つ次の 2 つにも同一の方式で適用してある**。
+上記の書き込み順序の設計 (seq guard・seq 固有 tmp・guard と `rename` の同期実行・`load()` での残骸掃除) は、**同じ構造を持つ次の実装にも同一の方式で適用してある**。
 
 | ファイル | 保存対象 |
 |---------|---------|
 | `display/standby-persistence.ts` | standby active-state |
-| `messages/vpwp50-detail-cache.ts` | VPWP50 詳細 cache の latest |
 
-**なぜ必要だったか**: どちらも「debounce した非同期保存」と「終了時の同期保存」が**同じ固定 `.tmp` を共有**していて、`dispose()` は進行中の非同期書き込みを待たない。そのため古い非同期書き込みが新しい同期保存の**後に** rename し、**正常終了時の最終状態が直前の非同期書き込みに巻き戻る**。standby は再起動時に復元される状態なので、巻き戻ると次回起動の表示に影響する。**同期と非同期が同じ tmp を使う形は再生産しないこと。**
+**なぜ必要だったか**: 各実装で「debounce した非同期保存」と「終了時の同期保存」が**同じ固定 `.tmp` を共有**していて、`dispose()` は進行中の非同期書き込みを待たない。そのため古い非同期書き込みが新しい同期保存の**後に** rename し、**正常終了時の最終状態が直前の非同期書き込みに巻き戻る**。standby は再起動時に復元される状態なので、巻き戻ると次回起動の表示に影響する。**同期と非同期が同じ tmp を使う形は再生産しないこと。**
 
-3 つの実装で違うのは、順序保証そのものではなく各層の元の API 形だけ。
+2 つの実装で違うのは、順序保証そのものではなく各層の元の API 形だけ。
 
 - `standby-persistence.ts` は `save()` が public (シャットダウン経路が直接呼ぶ) なので、同期保存の入口が `save()` と `flush()` の 2 つある
-- `vpwp50-detail-cache.ts` は同期保存の入口が `flush()` だけで、`save()` 相当は private (`saveToDisk`)
 - `weather-promotion-persistence.ts` は `savedAt` を呼び出し側の `nowMs` から作るため、`schedule` / `save` が `nowMs` を受け取る
 
 いずれも `__test_writePending()` を持つ。debounce タイマーの発火を実時間で待つとテストが時間依存になるため、予約済みの書き込みをタイマー抜きで実行する窓口をテスト用に開けてある。

@@ -1013,7 +1013,6 @@ describe("projectDisplayEvent", () => {
       releaseEvent.tsunamiObservationGroups,
     )).toBe(true);
     expect(store.snapshot(2, Date.parse(realItem.head.time)).tsunami).toBeNull();
-    expect(tsunamiState.getDetail()).toBeNull();
     expect(tsunamiState.getPromptStatus()).toBeNull();
 
     const emptyStore = new DisplayStateStore();

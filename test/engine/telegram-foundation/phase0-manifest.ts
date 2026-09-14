@@ -756,8 +756,8 @@ export const CANCELLATION_CHARACTERIZATION = {
   }],
   weatherWarningTimeseries: [{
     family: "weatherWarningTimeseries", headTypes: ["VPWP50"],
-    currentBehavior: "共通 gate で受理した取消電文も最新 detail snapshot として cache する",
-    targetPolicy: "clearCurrent", stateOwners: ["Vpwp50DetailCache"],
+    currentBehavior: "共通 gate で取消を受理し、表示へ渡す",
+    targetPolicy: "clearCurrent", stateOwners: [],
   }],
   climateInfo: [{
     family: "climateInfo", headTypes: ["VPZI50", "VPCI50"],
@@ -813,14 +813,13 @@ export const STATE_HOLDER_CHARACTERIZATION = [
   { owner: "TyphoonProbabilityStateHolder", sourceFile: "src/engine/messages/typhoon-probability-state.ts", domains: ["typhoonProbability"], cancellationRole: "EventID probability cache" },
   { owner: "VolcanoStateHolder", sourceFile: "src/engine/messages/volcano-state.ts", domains: ["volcano"], cancellationRole: "accepted active alert, eruption, and VFVO54/55 ashfall composite; watermark is owned by TelegramRevisionGate" },
   { owner: "VolcanoVfvo53Aggregator", sourceFile: "src/engine/messages/volcano-vfvo53-aggregator.ts", domains: ["volcano"], cancellationRole: "VFVO53 batch window; transient aggregation only" },
-  { owner: "Vpwp50DetailCache", sourceFile: "src/engine/messages/vpwp50-detail-cache.ts", domains: ["weatherWarningTimeseries"], cancellationRole: "source detail cache" },
   { owner: "Vpws50StateHolder", sourceFile: "src/engine/messages/vpws50-state.ts", domains: ["weather"], cancellationRole: "current/previous snapshots for restorePrevious" },
   { owner: "Vpww56StateHolder", sourceFile: "src/engine/messages/vpww56-state.ts", domains: ["weather"], cancellationRole: "accepted stream current view; watermark is owned by TelegramRevisionGate" },
   { owner: "WeatherPromotionStore", sourceFile: "src/engine/display/weather-promotion-store.ts", domains: ["weather"], cancellationRole: "promoted emergency weather lifecycle" },
 ] as const;
 
 export const CANCELLATION_STATE_SCOPE = {
-  included: "取消・解除・terminal 入力を条件として active/dedup/detail lifecycle を変更する holder",
+  included: "取消・解除・terminal 入力を条件として active/dedup lifecycle を変更する holder",
   excluded: [
     "受信した全 outcome を加算する TelegramStats／SummaryWindowTracker",
     "全 event を履歴へ積む InfoDisplayHub recentTicker",
@@ -1117,20 +1116,6 @@ export const CANCELLATION_MUTATION_EVIDENCE = [
       sourceFile: "src/engine/display/standby-state-store.ts",
       needles: ["event.isCancellation || raw.activeAreaCount === 0", "this.tornadoByOffice.delete(publishingOffice)"],
     }],
-  },
-  {
-    domain: "weatherWarningTimeseries", family: "weatherWarningTimeseries", owner: "Vpwp50DetailCache",
-    behavior: "共通 gate 受理後に取消も最新 detail snapshot として置換",
-    sources: [
-      {
-        sourceFile: "src/engine/presentation/processors/process-message.ts",
-        needles: ["standbyStateMutationAccepted === true", "deps.vpwp50Cache.rememberLatest(outcome.parsed);"],
-      },
-      {
-        sourceFile: "src/engine/messages/vpwp50-detail-cache.ts",
-        needles: ["rememberLatest(info: ParsedWeatherWarningTimeseriesInfo)", "this.latest = persisted;"],
-      },
-    ],
   },
   {
     domain: "heatAlert", family: "heatAlert", owner: "StandbyStateStore",

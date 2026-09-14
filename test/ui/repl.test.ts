@@ -1,7 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach , type MockInstance } from "vitest";
 import { EventEmitter } from "events";
 import chalk from "chalk";
-import { testTelegramMeta } from "../helpers/telegram-meta";
 
 // ── モック ──
 
@@ -689,91 +688,6 @@ describe("ReplHandler", () => {
     });
   });
 
-  describe("detail コマンド", () => {
-    const emptyTsunamiProvider = {
-      category: "tsunami" as const,
-      emptyMessage: "現在、継続中の津波情報はありません。",
-      getDetail: () => null,
-    };
-
-    it("情報なし時にメッセージを表示する", () => {
-      const handler = new ReplHandler(
-        createConfig(), createMockWsManager(), new Notifier(), new EewEventLogger(), vi.fn(),
-        new TelegramStats(), [], [emptyTsunamiProvider],
-      );
-      handler.start();
-
-      simulateLine("detail");
-
-      const output = consoleSpy.mock.calls.map((c) => String(c[0])).join("\n");
-      expect(output).toContain("継続中の津波情報はありません");
-
-      handler.stop();
-    });
-
-    it("detail tsunami でも同様に動作する", () => {
-      const handler = new ReplHandler(
-        createConfig(), createMockWsManager(), new Notifier(), new EewEventLogger(), vi.fn(),
-        new TelegramStats(), [], [emptyTsunamiProvider],
-      );
-      handler.start();
-
-      simulateLine("detail tsunami");
-
-      const output = consoleSpy.mock.calls.map((c) => String(c[0])).join("\n");
-      expect(output).toContain("継続中の津波情報はありません");
-
-      handler.stop();
-    });
-
-    it("不明なサブコマンドでエラーを表示する", () => {
-      const handler = new ReplHandler(createConfig(), createMockWsManager(), new Notifier(), new EewEventLogger(), vi.fn(), new TelegramStats());
-      handler.start();
-
-      simulateLine("detail unknown");
-
-      const output = consoleSpy.mock.calls.map((c) => String(c[0])).join("\n");
-      expect(output).toContain("不明なサブコマンド");
-
-      handler.stop();
-    });
-
-    it("DetailProvider がある場合に snapshot を描画する", () => {
-      const getDetail = vi.fn(() => ({
-        kind: "tsunami" as const,
-        info: {
-          meta: testTelegramMeta(false),
-          type: "VTSE41",
-          infoType: "発表",
-          title: "津波警報・注意報・予報",
-          reportDateTime: "2025-01-01T00:00:00+09:00",
-          headline: null,
-          publishingOffice: "気象庁",
-          forecast: [],
-          warningComment: "",
-          isTest: false,
-        },
-      }));
-      const mockProvider = {
-        category: "tsunami" as const,
-        emptyMessage: "情報なし",
-        getDetail,
-      };
-
-      const handler = new ReplHandler(
-        createConfig(), createMockWsManager(), new Notifier(), new EewEventLogger(), vi.fn(),
-        new TelegramStats(), [], [mockProvider],
-      );
-      handler.start();
-
-      simulateLine("detail");
-
-      expect(getDetail).toHaveBeenCalled();
-
-      handler.stop();
-    });
-  });
-
   describe("stats コマンド", () => {
     it("stats コマンドで統計フレームを表示する", () => {
       const stats = new TelegramStats();
@@ -842,8 +756,6 @@ describe("ReplHandler", () => {
         vi.fn(),
         new TelegramStats(),
         [],
-        [],
-        undefined,
         undefined,
         undefined,
         admin,

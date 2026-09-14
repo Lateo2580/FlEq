@@ -18,9 +18,7 @@ chalk による色付けは直接ハードコードせず、`theme.ts` のロー
 | `formatter.ts` | 共通ユーティリティ (フレーム描画・テキスト処理・設定キャッシュ) |
 | `eew-formatter.ts` | EEW 表示 (`displayEewInfo`) |
 | `telegram-type-label.ts` | 地震・津波・テキスト・南海トラフ・長周期 表示 |
-| `volcano-formatter.ts` | 火山電文と火山警報 detail 表示 (`displayVolcanoInfo`, `renderVolcanoDetail`) |
-| `detail-renderers.ts` | `DetailSnapshot.kind` の網羅的 dispatch と category 別 renderer registry |
-| `vpwp50-detail-formatter.ts` | VPWP50 detail 射影の同期描画 |
+| `volcano-formatter.ts` | 火山電文の表示 (`displayVolcanoInfo`) |
 
 ### エクスポートAPI
 
@@ -113,7 +111,7 @@ Phase 4b (2026-07) で `eew-formatter.ts` を新デザイン言語化済み。�
 
 #### テーブル描画 (2 系統)
 
-**旧系統 `renderFrameTable()` / `pushFrameTable()`** (`frame-table-builder.ts`): フレーム内にカラム区切りテーブルを描画する。カラム幅はヘッダ・データの最大視覚幅から自動計算し、合計がフレーム内幅を超える場合は最終カラムを縮小する。`indent` (省略可、既定 0) を渡すとテーブル全行の本文先頭にスペースを前置し、有効幅も indent 分減らす (セクション見出し配下の本文と桁を揃える用途)。現在の利用箇所: 台風解析・台風確率・気象解説情報 (`weather-explanation-formatter.ts`)・VPWP50 detail formatter (`vpwp50-detail-formatter.ts`)。**津波情報はこの系統から移行済み**（旧 `WIDE_TABLE_THRESHOLD (80)` 二分岐は廃止）。
+**旧系統 `renderFrameTable()` / `pushFrameTable()`** (`frame-table-builder.ts`): フレーム内にカラム区切りテーブルを描画する。カラム幅はヘッダ・データの最大視覚幅から自動計算し、合計がフレーム内幅を超える場合は最終カラムを縮小する。`indent` (省略可、既定 0) を渡すとテーブル全行の本文先頭にスペースを前置し、有効幅も indent 分減らす (セクション見出し配下の本文と桁を揃える用途)。現在の利用箇所: 台風解析・台風確率・気象解説情報 (`weather-explanation-formatter.ts`)。**津波情報はこの系統から移行済み**（旧 `WIDE_TABLE_THRESHOLD (80)` 二分岐は廃止）。
 
 **新系統 `renderResponsiveTable()`** (`responsive-table-engine.ts`、津波/地震/EEW/火山降灰バッチが共有): 3 段階 breakpoint (`decideDisplayMode()`、`<120` / `120-159` / `160+`) に応じて `ColumnSpec<Row>[]` を formatter 側で切り替えて渡す (engine は列を自動で落とさない)。列オプション:
 - `wrap: true` — clip せず `wrapTextLines` で複数物理行に折り返し、全件そのまま表示する (ClipReport 非対象)
@@ -315,8 +313,6 @@ class ReplHandler {
     onQuit: () => void | Promise<void>,
     stats: TelegramStats,
     statusProviders?: PromptStatusProvider[],
-    detailProviders?: DetailProvider[],
-    pipelineController?: PipelineController,
     summaryTracker?: SummaryWindowTracker,
   )
 
@@ -354,9 +350,6 @@ class ReplHandler {
 - ping までの残り秒数は `wsManager.getStatus().heartbeatDeadlineAt` から算出
 - ステータスセグメント: `PromptStatusProvider` から色付け前の `text`・専用 `role`・`priority` を収集し、REPL が `getRoleChalk(role)(text)` を適用して priority 順 (昇順) に `|` 区切り表示する
 
-#### detail 描画境界
-
-`detail` ハンドラは `DetailProvider<K>.getDetail()` で型付けされたスナップショットを取得し、`detail-renderers.ts` の `renderDetail()` に渡す。renderer registry は tsunami / volcano / vpws50 / vpwp50 の4 kindを `satisfies` で拘束し、exhaustive switch で dispatch する。holder は UI を import せず、全 category の描画は `handleDetail()` の return 前に同期完了する。
 
 #### コマンドシステム
 
@@ -379,7 +372,6 @@ interface CommandEntry {
 | `history` | info | dmdata.jp API から地震履歴を取得・テーブル表示 |
 | `stats` | info | 電文統計を表示 |
 | `colors` | info | CUD パレット・震度色・フレームレベル色の一覧表示 |
-| `detail` | info | 直近状態を再表示 (`detail [tsunami\|volcano\|vpws50\|vpwp50]`) |
 | `status` | status | WebSocket 接続状態・SocketID・再接続試行回数の表示 |
 | `config` | status | Config ファイルの設定一覧 |
 | `contract` | status | dmdata.jp の契約区分一覧 (API 呼び出し) |
@@ -390,8 +382,6 @@ interface CommandEntry {
 | `infotext` | settings | テキスト電文の全文/省略切替 |
 | `tipinterval` | settings | 待機中ヒント間隔の変更 (0-1440 分) |
 | `mode` | settings | 表示モード切替 (normal / compact) |
-| `filter` | settings | フィルタの表示・設定 (`filter set <expr>` / `filter clear` / `filter test <expr>`) |
-| `focus` | settings | focus の表示・設定 (`focus <expr>` / `focus off`) |
 | `clock` | settings | プロンプト時計の切替 (elapsed / now) |
 | `night` | settings | ナイトモードの切替 (`night on` / `night off`) |
 | `summary` | settings | 定期要約の表示・設定 (`summary on [N]` / `summary off` / `summary now`) |
@@ -414,14 +404,14 @@ interface CommandEntry {
 |---------|------|
 | `types.ts` | `CommandEntry`, `CommandCategory`, `SubcommandEntry`, `ReplContext` インターフェースの定義 |
 | `command-definitions.ts` | `buildCommandMap()` ファクトリ関数。全コマンド定義を生成する |
-| `info-handlers.ts` | 情報表示系コマンド (`help`, `history`, `stats`, `colors`, `detail`) とステータス系コマンド (`status`, `config`, `contract`, `socket`) のハンドラ。`COMMAND_ALIASES`, `CATEGORY_ALIASES`, `resolveCommand()` もここで定義 |
-| `settings-handlers.ts` | 設定変更系コマンド (`notify`, `eewlog`, `tablewidth`, `mode`, `filter`, `focus`, `night`, `summary`, `sound`, `theme`, `mute`, `fold`, `limit` 等) のハンドラ |
+| `info-handlers.ts` | 情報表示系コマンド (`help`, `history`, `stats`, `colors`) とステータス系コマンド (`status`, `config`, `contract`, `socket`) のハンドラ。`COMMAND_ALIASES`, `CATEGORY_ALIASES`, `resolveCommand()` もここで定義 |
+| `settings-handlers.ts` | 設定変更系コマンド (`notify`, `eewlog`, `tablewidth`, `mode`, `night`, `summary`, `sound`, `theme`, `mute`, `fold`, `limit` 等) のハンドラ |
 | `operation-handlers.ts` | 操作系コマンド (`test`, `clear`, `backup`, `retry`, `quit`) のハンドラ |
 | `index.ts` | 型と関数の re-export |
 
 ##### ReplContext インターフェース
 
-`ReplContext` は `ReplHandler` の内部状態をコマンドハンドラに公開するためのインターフェース。`config`, `wsManager`, `notifier`, `eewLogger`, `statusLine`, `stats`, `pipeline`, `summaryTracker`, `commands` 等のフィールドと、`updateConfig()`, `buildPromptString()`, `stop()`, `resetTipSchedule()` 等のヘルパーメソッドを持つ。`summaryTimerControl`, `filterExpr`, `focusExpr` 等のミュータブルフィールドは getter/setter で双方向同期される。
+`ReplContext` は `ReplHandler` の内部状態をコマンドハンドラに公開するためのインターフェース。`config`, `wsManager`, `notifier`, `eewLogger`, `statusLine`, `stats`, `summaryTracker`, `commands` 等のフィールドと、`updateConfig()`, `buildPromptString()`, `stop()`, `resetTipSchedule()` 等のヘルパーメソッドを持つ。`summaryTimerControl` 等のミュータブルフィールドは getter/setter で双方向同期される。
 
 ##### buildCommandMap() ファクトリ関数
 
@@ -439,7 +429,6 @@ interface CommandEntry {
 |---|---|
 | history | hist |
 | colors | cols |
-| detail | det |
 | status | stat |
 | config | conf |
 | contract | cont |
@@ -506,7 +495,7 @@ interface CommandEntry {
 
 ### 依存関係
 
-- **インポート元**: `readline`, `chalk`, `../types` (`AppConfig`, `ConfigFile`, `PromptStatusProvider`, `DetailProvider`), `../dmdata/connection-manager` (`ConnectionManager`), `../config` (`loadConfig`, `saveConfig`), `../engine/notification/notifier` (`Notifier`), `../engine/eew/eew-logger` (`EewEventLogger`), `../engine/filter-template/pipeline` (`FilterTemplatePipeline`), `../engine/messages/telegram-stats` (`TelegramStats`), `../engine/messages/summary-tracker` (`SummaryWindowTracker`), `../engine/monitor/monitor` (`SummaryTimerControl`), `./status-line` (`StatusLine`), `../tips/tip-shuffler` (`TipShuffler`), `./theme` (テーマアクセサ), `../logger` (`setLogPrefixBuilder`, `setLogHooks`), `./repl-handlers/types` (`CommandEntry`, `ReplContext`), `./repl-handlers/info-handlers` (`COMMAND_ALIASES`, `resolveCommand`), `./repl-handlers/command-definitions` (`buildCommandMap`)
+- **インポート元**: `readline`, `chalk`, `../types` (`AppConfig`, `ConfigFile`, `PromptStatusProvider`), `../dmdata/connection-manager` (`ConnectionManager`), `../config` (`loadConfig`, `saveConfig`), `../engine/notification/notifier` (`Notifier`), `../engine/eew/eew-logger` (`EewEventLogger`), `../engine/messages/telegram-stats` (`TelegramStats`), `../engine/messages/summary-tracker` (`SummaryWindowTracker`), `../engine/monitor/monitor` (`SummaryTimerControl`), `./status-line` (`StatusLine`), `../tips/tip-shuffler` (`TipShuffler`), `./theme` (テーマアクセサ), `../logger` (`setLogPrefixBuilder`, `setLogHooks`), `./repl-handlers/types` (`CommandEntry`, `ReplContext`), `./repl-handlers/info-handlers` (`COMMAND_ALIASES`, `resolveCommand`), `./repl-handlers/command-definitions` (`buildCommandMap`)
 - **接続先**: `engine/monitor/monitor.ts` から dynamic import で生成・`start()` / `stop()` / `setConnected()` / `beforeDisplayMessage()` / `afterDisplayMessage()` が呼ばれる
 
 ### 設計ノート
@@ -743,12 +732,10 @@ function displayVolcanoAshfallBatch(
   presentation: VolcanoPresentation,
 ): void
 
-function renderVolcanoDetail(entries: VolcanoAlertEntrySnapshot[]): void
 ```
 
 - `displayVolcanoInfo` — `presentation.frameLevel` でフレームのスタイルを決定し、`info.kind` で内部レンダラを振り分ける。`infoType === "取消"` の場合は共通の取消表示を行う。
 - `displayVolcanoAshfallBatch` — VFVO53 バッチのまとめ表示。テーブル形式（幅≥80）または1火山1行リスト（狭幅）で表示する。`やや多量(72)以上` / `小さな噴石(75)` の火山は色付き強調。compact モードでは1行要約。
-- `renderVolcanoDetail` — holder が返す表示射影から、継続中の火山警報一覧を同期描画する。
 
 ### 内部ロジック
 
@@ -993,7 +980,7 @@ function renderVolcanoDetail(entries: VolcanoAlertEntrySnapshot[]): void
 | `CATEGORY_LABELS` | カテゴリ日本語ラベル (`info`→`"情報"`, `status`→`"ステータス"`, `settings`→`"設定"`, `operation`→`"操作"`) |
 | `SubcommandEntry` | サブコマンド定義 (`description`, `detail?`) |
 | `CommandEntry` | コマンド定義 (`description`, `detail?`, `category`, `subcommands?`, `handler`) |
-| `ReplContext` | コマンドハンドラが参照する REPL コンテキスト。`config`, `wsManager`, `notifier`, `eewLogger`, `statusLine`, `stats`, `pipelineController`, `summaryTracker`, `commands` 等のフィールドと `updateConfig()`, `buildPromptString()`, `stop()`, `resetTipSchedule()` のヘルパーメソッド |
+| `ReplContext` | コマンドハンドラが参照する REPL コンテキスト。`config`, `wsManager`, `notifier`, `eewLogger`, `statusLine`, `stats`, `summaryTracker`, `commands` 等のフィールドと `updateConfig()`, `buildPromptString()`, `stop()`, `resetTipSchedule()` のヘルパーメソッド |
 
 #### ファクトリ (command-definitions.ts)
 
@@ -1013,7 +1000,6 @@ function renderVolcanoDetail(entries: VolcanoAlertEntrySnapshot[]): void
 | `handleHistory(ctx, args)` | dmdata.jp API から地震履歴をテーブル表示 |
 | `handleStats(ctx)` | `displayStatistics()` で電文統計を表示 |
 | `handleColors()` | CUD パレット・震度色・長周期階級色・フレームレベル色の一覧表示 |
-| `handleDetail(ctx, args)` | DetailProvider 経由で津波/火山情報を再表示 |
 | `handleStatus(ctx)` | WebSocket 接続状態表示 |
 | `handleConfig()` | Config ファイルの設定一覧表示 |
 | `handleContract(ctx)` | dmdata.jp 契約区分一覧表示 (API 呼び出し) |
@@ -1021,7 +1007,7 @@ function renderVolcanoDetail(entries: VolcanoAlertEntrySnapshot[]): void
 
 #### 設定系 (settings-handlers.ts)
 
-16 ハンドラ: `handleNotify`, `handleEewLog`, `handleTableWidth`, `handleInfoText`, `handleTipInterval`, `handleMode`, `handleFilter`, `handleFocus`, `handleClock`, `handleNight`, `handleSummary`, `handleSound`, `handleTheme`, `handleMute`, `handleFold`, `handleLimit`
+14 ハンドラ: `handleNotify`, `handleEewLog`, `handleTableWidth`, `handleInfoText`, `handleTipInterval`, `handleMode`, `handleClock`, `handleNight`, `handleSummary`, `handleSound`, `handleTheme`, `handleMute`, `handleFold`, `handleLimit`
 
 各ハンドラは「引数なし → 現在値表示」「引数あり → ランタイム即時反映 + Config 永続化」の共通パターンに従う。
 
@@ -1033,9 +1019,9 @@ function renderVolcanoDetail(entries: VolcanoAlertEntrySnapshot[]): void
 
 | ファイル | 主なインポート元 |
 |---------|----------------|
-| `types.ts` | `../../types`, `../../dmdata/connection-manager`, `../../engine/notification/notifier`, `../../engine/eew/eew-logger`, `../status-line`, `../../engine/filter-template/pipeline-controller`, `../../engine/messages/telegram-stats`, `../../engine/messages/summary-tracker`, `../../engine/monitor/monitor` |
+| `types.ts` | `../../types`, `../../dmdata/connection-manager`, `../../engine/notification/notifier`, `../../engine/eew/eew-logger`, `../status-line`, `../../engine/messages/telegram-stats`, `../../engine/messages/summary-tracker`, `../../engine/monitor/monitor` |
 | `info-handlers.ts` | `../../types`, `../../dmdata/rest-client`, `../../config`, `../../engine/notification/notifier`, `../formatter`, `../theme`, `../statistics-formatter` |
-| `settings-handlers.ts` | `../../types`, `../../config`, `../formatter`, `../theme`, `../../engine/notification/notifier`, `../../engine/filter` |
+| `settings-handlers.ts` | `../../types`, `../../config`, `../formatter`, `../theme`, `../../engine/notification/notifier` |
 | `operation-handlers.ts` | `../../engine/notification/sound-player`（`../test-samples` は `test table` 実行時の動的 import — 起動時には評価されない、型のみ `import type`） |
 
 ### 設計ノート
@@ -1319,7 +1305,6 @@ Phase C (2026-06-12) で 2 系統設計 (officialAlertLevel / displaySeverity) �
 | `displayVpws50List(info, diff, level, width, buf, colors?)` | normal モード本体 (RenderBuffer に push)。`Vpws50Diff` と `Vpws50BodyBorderColors` を受け取り 6 状態分岐 |
 | `displayVpws50Compact(info, level)` | compact モード (1 行集約)。HIGH 時は `★ 危険警報 (L4)` 等の強調ラベルを末尾追記 |
 | `displayVpws50Unchanged(info)` | 変化なし compact 1 行 (フレーム外 `console.log`、`weather-formatter.ts` 早期 return から呼ぶ) |
-| `displayVpws50FromState(display)` | REPL `detail vpws50` 用。`Vpws50CurrentAreasForDisplay` を受け取り現況サマリをフレーム表示 |
 | `hasForecastZoneLayer(info)` | branch 判定 (府県予報区等レイヤー存在チェック) |
 | `aggregateVpws50ByForecastZone(info)` | 集約 (rows + releasedItems)。レガシー fallback / テストで使用 |
 | `formatDisplayToken(kind)` | `{code,name}` → `☆大雨(L3)` 形式の色付きトークン (@internal、テスト用) |
@@ -1352,7 +1337,7 @@ Phase C (2026-06-12) で 2 系統設計 (officialAlertLevel / displaySeverity) �
 **区切り文字**: `" / "` (`wrapSingleLine` のデリミタとも一致 — 折り返しでもトークン内に ANSI 断面が生じない)
 
 **現況サマリ** (差分あり / 再掲 / 初回起動で出力):
-- ■ 現況サマリ行 (N予報区 / 特X/警Y/注Z の 3 段階カウント + `detail vpws50` ヒント)
+- ■ 現況サマリ行 (N予報区 / 特X/警Y/注Z の 3 段階カウント)
 - displaySeverity セクション (divider chip + RANK 降順) — `renderSummarySections` が描画
   - 警報級以上: 予報区フル名を列挙
   - 注意報級 (`officialL2` / `nonLevelAdvisory` / `officialL1`): 地方クラスタ + N予報区 に集約
@@ -1389,7 +1374,7 @@ Phase C (2026-06-12) で 2 系統設計 (officialAlertLevel / displaySeverity) �
 | 取消 | release 単色 | release 単色 |
 | 平常 (maxDs null) | 白系 | 白系 |
 
-`Vpws50BodyBorderColors { tail }` で tail 色が注入される。head 側の色 (`frameTopColored` 等) は `weather-formatter.ts` が直接適用するため、本インターフェースには含まない。未注入時は level 色でフォールバック (REPL detail 等の既存呼び出し互換)。
+`Vpws50BodyBorderColors { tail }` で tail 色が注入される。head 側の色 (`frameTopColored` 等) は `weather-formatter.ts` が直接適用するため、本インターフェースには含まない。未注入時は level 色でフォールバック。
 
 ### 切替判定
 

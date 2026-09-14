@@ -67,8 +67,6 @@ export interface ShutdownContext {
   stopStandbySweep?: () => StandbyPersistenceSaveResult | void;
   /** in-flight を generation latch で無効化し、津波 REST retry を同期停止する */
   stopTsunamiRestoreRetry?: () => void;
-  /** VPWP50 詳細 cache の予約済み保存を書き切る */
-  flushDetailCaches?: () => void;
   /** 気象警報 昇格 lifecycle の最終保存 */
   flushWeatherPromotion?: () => void;
   /** 震度 7 専用保持時計の最終保存 */
@@ -135,7 +133,6 @@ export function createShutdownHandler(ctx: ShutdownContext): () => Promise<Shutd
     } catch {
       failures.push({ operation: "standbyPersistence", stage: "exportActiveState" });
     }
-    safely(() => ctx.flushDetailCaches?.());
     safely(() => ctx.flushWeatherPromotion?.());
     safely(() => ctx.flushQuakeExtreme?.());
     safely(() => ctx.flushQuakeDisplay?.());

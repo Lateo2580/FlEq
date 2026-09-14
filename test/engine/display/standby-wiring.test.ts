@@ -1085,7 +1085,6 @@ describe("standby monitor wiring", () => {
       volcanoState: harness.owners.volcanoState,
       floodForecastState: harness.owners.floodForecastState,
       persistenceAdmission: harness.coordinator,
-      vpwp50Cache: { rememberLatest: vi.fn() } as never,
       onVptaAdmissionCompletion: vi.fn(),
       activeTyphoonProbabilitySubjects: (nowMs) =>
         standby.activeTyphoonProbabilitySubjects(nowMs),
@@ -2900,18 +2899,6 @@ describe("standby monitor wiring", () => {
     vi.doMock("../../../src/engine/notification/notifier", () => ({
       Notifier: class FakeNotifier {
         notifyWeatherWarningTimeseries = vi.fn();
-      },
-    }));
-    // This integration owns the standby writer clock. The unrelated detail-cache
-    // debounce uses the same fake timer and otherwise starts an async filesystem
-    // write while this test is advancing the 60-second standby sweep.
-    vi.doMock("../../../src/engine/messages/vpwp50-detail-cache", () => ({
-      Vpwp50DetailCache: class FakeVpwp50DetailCache {
-        readonly category = "vpwp50";
-        readonly emptyMessage = "empty";
-        rememberLatest = vi.fn();
-        getDetail = vi.fn(() => null);
-        flush = vi.fn();
       },
     }));
     vi.doMock("../../../src/ui/display-adapter", () => ({

@@ -48,7 +48,7 @@ import {
 export type DisplayPipelineFn = (
   outcome: ProcessOutcome | VolcanoBatchOutcome,
   displayFn: () => void,
-) => boolean;
+) => void;
 
 /** VolcanoRouteHandler の設定 */
 export interface VolcanoRouteHandlerDeps {
@@ -263,7 +263,7 @@ export class VolcanoRouteHandler {
       this.volcanoState.update(info);
     }
 
-    // 通知は filter 非適用
+    // 表示より先に通知する
     const notificationEligible = foundation == null
       || foundation.authoritative
       || foundation.stateNeutralTransient === true;
@@ -276,10 +276,10 @@ export class VolcanoRouteHandler {
 
     // PresentationEvent パイプライン
     if (outcome) {
-      const presented = this.runDisplayPipeline(outcome, () =>
+      this.runDisplayPipeline(outcome, () =>
         this.display?.displayVolcano(info, presentation),
       );
-      if (foundation?.authoritative === true && presented) this.onFoundationPresented?.();
+      if (foundation?.authoritative === true) this.onFoundationPresented?.();
     } else {
       // msg キャッシュがない場合はフォールバック表示
       this.display?.displayVolcano(info, presentation);
@@ -937,10 +937,10 @@ export class VolcanoRouteHandler {
         },
       };
 
-      const presented = this.runDisplayPipeline(batchOutcome, () =>
+      this.runDisplayPipeline(batchOutcome, () =>
         this.display?.displayVolcanoBatch(batch, presentation),
       );
-      if (presented) this.onFoundationPresented?.();
+      this.onFoundationPresented?.();
     } else {
       this.display?.displayVolcanoBatch(batch, presentation);
     }

@@ -110,8 +110,7 @@ function say(line = "") {
 }
 
 // ── 作業ディレクトリの退避と設定の隔離 ──
-// dist/engine/eew/eew-logger.js は module load 時に `process.cwd()/eew-logs` を、
-// dist/engine/messages/vpwp50-detail-cache.js は constructor で `process.cwd()` 配下を
+// dist/engine/eew/eew-logger.js は module load 時に `process.cwd()/eew-logs` を
 // 書き込み先に取る。require より前に cwd を OS の tmp 配下へ移し、repo と home を汚さない。
 // (fixture / dist は上で絶対パス化済みなので cwd 非依存)
 const ORIGINAL_CWD = process.cwd();
@@ -575,7 +574,6 @@ async function main() {
   // process.exit() で強制終了せず自然終了させるため、保持されている timer と
   // 書き込みチェーンをすべて畳む (JSON が pipe 先で切れるのを防ぐ)。
   handlerResult.flushAndDisposeVolcanoBuffer();
-  handlerResult.vpwp50Cache.flush();
   await handlerResult.eewLogger.flush();
 
   if (opts.json) {

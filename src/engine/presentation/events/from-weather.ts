@@ -21,7 +21,7 @@ export function fromWeatherOutcome(outcome: WeatherOutcome): PresentationEvent {
     : [];
 
   // 警報以上を持つ地域はサブセットとして municipalityNames、注意報のみは forecastAreaNames に格納
-  // (PresentationEvent の既存フィールドを流用するため意味合いはやや異なるが、filter/template 用)
+  // (PresentationEvent の既存フィールドを流用するため意味合いはやや異なるが、共通表示用)
   const warningAreas: string[] = [];
   const advisoryAreas: string[] = [];
   if (preferred) {

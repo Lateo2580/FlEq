@@ -17,7 +17,7 @@ import { FORMATTER_TEST_REGISTRY } from "../../src/ui/test-samples";
 
 const WIDTHS = [40, 60, 80, 120, 200] as const;
 
-// spec: 2026-08-26-cli-width-contract.md（作業ノート、repo 外） §6 の source 30 本。
+// spec: 2026-08-26-cli-width-contract.md（作業ノート、repo 外） §6 の source 28 本。
 const FRAME_LINE_SOURCE_CATALOG = [
   "briefing-formatter.ts", "climate-info-formatter.ts", "early-weather-formatter.ts",
   "earthquake-info-formatter.ts", "eew-formatter.ts", "flood-forecast-formatter.ts",
@@ -25,10 +25,10 @@ const FRAME_LINE_SOURCE_CATALOG = [
   "legacy-counterpart-formatter.ts", "lg-observation-formatter.ts", "nankai-trough-formatter.ts",
   "responsive-table-engine.ts", "seismic-text-formatter.ts", "statistics-formatter.ts",
   "tornado-formatter.ts", "tsunami-formatter.ts", "typhoon-analysis-formatter.ts",
-  "typhoon-probability-formatter.ts", "volcano-formatter.ts", "vpwp50-detail-formatter.ts",
+  "typhoon-probability-formatter.ts", "volcano-formatter.ts",
   "weather-core-action-guide.ts", "weather-core-detail.ts", "weather-core-formatter.ts",
   "weather-core-table.ts", "weather-core-tail-blocks.ts", "weather-explanation-formatter.ts",
-  "weather-formatter-vpws50.ts", "weather-formatter.ts", "weather-warning-timeseries-formatter.ts",
+  "weather-formatter.ts", "weather-warning-timeseries-formatter.ts",
 ] as const;
 
 // §7 最終単位: 移行待ち source は残さない。
@@ -47,9 +47,9 @@ const WIDTH_PROVEN_FRAME_LINE_SOURCES = [
   "statistics-formatter.ts",
   "tsunami-formatter.ts", "volcano-formatter.ts", "weather-core-action-guide.ts",
   "weather-core-detail.ts", "weather-core-formatter.ts", "weather-core-table.ts",
-  "weather-core-tail-blocks.ts", "weather-formatter-vpws50.ts", "weather-formatter.ts",
+  "weather-core-tail-blocks.ts", "weather-formatter.ts",
   "weather-explanation-formatter.ts", "weather-warning-timeseries-formatter.ts",
-  "typhoon-analysis-formatter.ts", "typhoon-probability-formatter.ts", "vpwp50-detail-formatter.ts",
+  "typhoon-analysis-formatter.ts", "typhoon-probability-formatter.ts",
 ] as const;
 
 /** §6 の可変 call site を source 単位ではなく site 単位で固定する。 */
@@ -67,7 +67,7 @@ const WIDTH_PROVEN_FRAME_LINE_SITES = new Set([
   ...siteIds("responsive-table-engine.ts", [71]),
   ...siteIds("seismic-text-formatter.ts", [71, 94, 99]),
   ...siteIds("tsunami-formatter.ts", [354, 358, 419, 445, 471, 495]),
-  ...siteIds("volcano-formatter.ts", [454, 457, 510, 549, 552, 561, 619, 662, 779, 817, 1032, 1043]),
+  ...siteIds("volcano-formatter.ts", [418, 421, 474, 513, 516, 525, 583, 626, 743, 781, 996, 1007]),
   ...siteIds("weather-core-action-guide.ts", [51]),
   ...siteIds("weather-core-detail.ts", [59]),
   ...siteIds("weather-core-table.ts", [68, 70]),
@@ -313,7 +313,7 @@ describe("CLI width contract — static inventory gates", () => {
     ]);
   });
 
-  it("AST 抽出した frameLine* source 30 本は §6 表と exact-set-equal", () => {
+  it("AST 抽出した frameLine* source 28 本は §6 表と exact-set-equal", () => {
     const sources = [...new Set(findFrameLineCallSites().map((site) => site.file))];
     expect(sorted(sources)).toEqual(sorted(FRAME_LINE_SOURCE_CATALOG));
   });

@@ -2,7 +2,6 @@ import chalk from "chalk";
 import { ParsedTornadoAdvisory } from "../types";
 import * as theme from "./theme";
 import {
-  FrameLevel,
   getFrameWidth,
   SEVERITY_LABELS,
   clipToVisualWidth,
@@ -89,7 +88,7 @@ function formatValidUntil(
   return `${validMonth}/${validDay} ${validHour}:${validMinute}`;
 }
 
-function renderTornadoAdvisory(info: ParsedTornadoAdvisory, showAllAreas: boolean): void {
+export function displayTornadoAdvisory(info: ParsedTornadoAdvisory): void {
   const level = tornadoFrameLevel(info);
   const label = tornadoTypeLabel(info.type);
   const width = getFrameWidth();
@@ -228,10 +227,7 @@ function renderTornadoAdvisory(info: ParsedTornadoAdvisory, showAllAreas: boolea
   }
 
   // 階層別表示
-  const finePreferred = selectPreferredTornadoLayer(info.layers);
-  // detail はもちろん、カードの上限・省略数も同じ細粒度 layer を基準にする。
-  // 上位 layer へ退避すると、detail で市町村等の全対象地域を復元できなくなる。
-  const displayLayer = finePreferred;
+  const displayLayer = selectPreferredTornadoLayer(info.layers);
   if (displayLayer && displayLayer.areas.length > 0) {
     buf.push(frameDividerColored(level, bodyColor, width));
     pushWrappedFrameLine(
@@ -241,9 +237,7 @@ function renderTornadoAdvisory(info: ParsedTornadoAdvisory, showAllAreas: boolea
       chalk.gray(`[${displayLayer.type}]`),
     );
 
-    const visible = showAllAreas
-      ? displayLayer.areas
-      : displayLayer.areas.slice(0, MAX_AREAS_PER_GROUP);
+    const visible = displayLayer.areas.slice(0, MAX_AREAS_PER_GROUP);
     const omitted = displayLayer.areas.length - visible.length;
     const namesLine = visible.map((a) => chalk.white(a.name)).join(", ");
 
@@ -255,7 +249,7 @@ function renderTornadoAdvisory(info: ParsedTornadoAdvisory, showAllAreas: boolea
         buf,
         level,
         { width, purpose: "diagnostic", borderColor: bodyColor },
-        chalk.gray(`  ... ほか ${omitted} 区域 (詳細: detail tornado)`),
+        chalk.gray(`  ... ほか ${omitted} 区域`),
       );
     }
   }
@@ -275,14 +269,4 @@ function renderTornadoAdvisory(info: ParsedTornadoAdvisory, showAllAreas: boolea
   buf.pushEmpty();
 
   flushWithRecap(buf, level, width, bodyColor);
-}
-
-/** 竜巻注意情報を表示 */
-export function displayTornadoAdvisory(info: ParsedTornadoAdvisory): void {
-  renderTornadoAdvisory(info, false);
-}
-
-/** REPL detail 用に、対象地域を省略せず表示する。 */
-export function displayTornadoAdvisoryDetail(info: ParsedTornadoAdvisory): void {
-  renderTornadoAdvisory(info, true);
 }

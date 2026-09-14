@@ -16,14 +16,12 @@ import {
 } from "../messages/legacy-counterpart-correlator";
 import { createMessageHandler } from "../messages/message-router";
 import { SummaryWindowTracker } from "../messages/summary-tracker";
-import { Vpwp50DetailCache } from "../messages/vpwp50-detail-cache";
 import { createDisplaySink } from "../monitor/display-sink";
 import { ReplayClock, ReplayScheduler } from "./replay-clock";
 import {
   canonicalJson,
   createReplaySideEffects,
   prepareReplayStateDir,
-  type ReplaySideEffects,
   stateRelative,
 } from "./replay-side-effects";
 import {
@@ -280,16 +278,6 @@ export function buildReplayFinalRecord(input: {
   };
 }
 
-export function createReplayRunnerResources(stateDir: string): {
-  sideEffects: ReplaySideEffects;
-  cache: Vpwp50DetailCache;
-} {
-  return {
-    sideEffects: createReplaySideEffects(),
-    cache: new Vpwp50DetailCache({ persistRoot: stateDir }),
-  };
-}
-
 export async function runVpBs50Replay(options: Vpbs50ReplayOptions): Promise<void> {
   const checkoutRoot = resolve(options.checkoutRoot ?? process.cwd());
   const inputs = loadVpBs50ReplayInputs(options.fixturePaths, checkoutRoot);
@@ -307,7 +295,7 @@ export async function runVpBs50Replay(options: Vpbs50ReplayOptions): Promise<voi
   const scheduler = new ReplayScheduler(clock);
   const inputDigest = vpbs50ReplayInputDigest(inputs);
   const replay = { step: 0, total: 2, inputDigest };
-  const { sideEffects, cache } = createReplayRunnerResources(stateDir);
+  const sideEffects = createReplaySideEffects();
   const standby = new StandbyStateStore();
   const promotions = new WeatherPromotionStore();
   const display = createDisplayAdapter();
@@ -380,7 +368,6 @@ export async function runVpBs50Replay(options: Vpbs50ReplayOptions): Promise<voi
       displayReceiptTimerScheduler: scheduler,
       eewLogger: sideEffects.eewLogger,
       notifier: sideEffects.notifier,
-      vpwp50Cache: cache,
       summaryTracker: new SummaryWindowTracker(),
       dailyQuakeCounter: new DailyQuakeCounter(clock.nowMs()),
       routeTaps: [({ route }) => { currentRoute = route; routeTapCount += 1; }],
@@ -424,7 +411,6 @@ export async function runVpBs50Replay(options: Vpbs50ReplayOptions): Promise<voi
     });
 
     handler.flushAndDisposeVolcanoBuffer();
-    cache.flush();
     const sweep = standby.sweep(clock.nowMs());
     if (sweep.viewChanged) runtime.hub.markExternalStateDirty();
     scheduler.drainDue();

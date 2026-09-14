@@ -29,10 +29,10 @@ describe("shutdown legacy counterpart disposal", () => {
     context: ShutdownContext;
     cleanup: ReturnType<typeof vi.fn>[];
   } {
-    const cleanup = Array.from({ length: 13 }, () => vi.fn());
+    const cleanup = Array.from({ length: 12 }, () => vi.fn());
     const manager = {
       getStatus: () => ({ socketId: null }),
-      close: cleanup[9],
+      close: cleanup[8],
     } as unknown as ConnectionManager;
     const eewLogger = {
       closeAll: cleanup[3],
@@ -41,12 +41,12 @@ describe("shutdown legacy counterpart disposal", () => {
     return {
       cleanup,
       context: {
-        apiKey: "test-key", manager, eewLogger, getReplHandler: () => ({ stop: cleanup[8] }) as never,
-        resetTerminalTitle: cleanup[10], stopSummaryTimer: cleanup[0],
+        apiKey: "test-key", manager, eewLogger, getReplHandler: () => ({ stop: cleanup[7] }) as never,
+        resetTerminalTitle: cleanup[9], stopSummaryTimer: cleanup[0],
         flushAndDisposeVolcanoBuffer: cleanup[1], disposeLegacyCounterpartCorrelator: cleanup[2],
         stopDisplayRuntime: vi.fn().mockResolvedValue(undefined), stopStandbySweep: cleanup[4],
-        flushDetailCaches: cleanup[5], flushWeatherPromotion: cleanup[6],
-        flushQuakeExtreme: cleanup[7], flushQuakeDisplay: cleanup[11], flushDailyQuake: cleanup[12],
+        flushWeatherPromotion: cleanup[5],
+        flushQuakeExtreme: cleanup[6], flushQuakeDisplay: cleanup[10], flushDailyQuake: cleanup[11],
         ...over,
       },
     };
@@ -169,8 +169,8 @@ describe("shutdown legacy counterpart disposal", () => {
         exitCode: 1,
         failures: [{ operation: "shutdown", stage: "unexpected" }],
       });
+      expect(fixture.cleanup[8]).toHaveBeenCalledTimes(1);
       expect(fixture.cleanup[9]).toHaveBeenCalledTimes(1);
-      expect(fixture.cleanup[10]).toHaveBeenCalledTimes(1);
     },
   );
 
@@ -181,8 +181,8 @@ describe("shutdown legacy counterpart disposal", () => {
       kind: "failed", exitCode: 1,
       failures: [{ operation: "shutdown", stage: "unexpected" }],
     });
+    expect(fixture.cleanup[8]).toHaveBeenCalledTimes(1);
     expect(fixture.cleanup[9]).toHaveBeenCalledTimes(1);
-    expect(fixture.cleanup[10]).toHaveBeenCalledTimes(1);
   });
 
   it("socket discovery failure is recorded without aborting terminal cleanup", async () => {
@@ -198,7 +198,7 @@ describe("shutdown legacy counterpart disposal", () => {
       failures: [{ operation: "shutdown", stage: "unexpected" }],
     });
     expect(fixture.context.manager.close).toHaveBeenCalledTimes(1);
-    expect(fixture.cleanup[10]).toHaveBeenCalledTimes(1);
+    expect(fixture.cleanup[9]).toHaveBeenCalledTimes(1);
   });
 
   it.each([

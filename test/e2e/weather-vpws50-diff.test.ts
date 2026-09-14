@@ -9,8 +9,6 @@ import { EewTracker } from "../../src/engine/eew/eew-tracker";
 import { EewEventLogger } from "../../src/engine/eew/eew-logger";
 import { TsunamiStateHolder } from "../../src/engine/messages/tsunami-state";
 import { VolcanoStateHolder } from "../../src/engine/messages/volcano-state";
-import { Vpwp50DetailCache } from "../../src/engine/messages/vpwp50-detail-cache";
-import { TornadoDetailProvider } from "../../src/engine/messages/tornado-detail-provider";
 import { TyphoonProbabilityStateHolder } from "../../src/engine/messages/typhoon-probability-state";
 import { FloodForecastStateHolder } from "../../src/engine/messages/flood-forecast-state";
 import { TelegramRevisionGate } from "../../src/engine/messages/telegram-revision-gate";
@@ -20,9 +18,6 @@ import {
 } from "../helpers/mock-message";
 import type { ProcessDeps } from "../../src/engine/presentation/processors/process-message";
 import type { WsDataMessage } from "../../src/types";
-import fs from "node:fs";
-import os from "node:os";
-import path from "node:path";
 
 /**
  * E2E chain: VPWS50 parser → process-weather → presentation
@@ -290,7 +285,6 @@ beforeAll(() => {
 });
 
 function fakeDeps(state: Vpws50StateHolder): ProcessDeps {
-  const tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), "vpwp50-fakedeps-"));
   return {
     eewTracker: new EewTracker(),
     eewLogger: new EewEventLogger(),
@@ -298,8 +292,6 @@ function fakeDeps(state: Vpws50StateHolder): ProcessDeps {
     volcanoState: new VolcanoStateHolder(),
     vpws50State: state,
     vpww56State: new Vpww56StateHolder(),
-    vpwp50Cache: new Vpwp50DetailCache({ persistRoot: tmpRoot }),
-    tornadoDetailProvider: new TornadoDetailProvider(),
     typhoonProbabilityState: new TyphoonProbabilityStateHolder(),
     floodForecastState: new FloodForecastStateHolder(),
     revisionGate: new TelegramRevisionGate(),

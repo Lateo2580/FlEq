@@ -15,7 +15,6 @@ import { DailyQuakeCounter } from "../../../src/engine/messages/daily-quake-coun
 import { LegacyCounterpartCorrelator } from "../../../src/engine/messages/legacy-counterpart-correlator";
 import { createMessageHandler } from "../../../src/engine/messages/message-router";
 import { SummaryWindowTracker } from "../../../src/engine/messages/summary-tracker";
-import { Vpwp50DetailCache } from "../../../src/engine/messages/vpwp50-detail-cache";
 import { createDisplaySink } from "../../../src/engine/monitor/display-sink";
 import { createDisplayAdapter } from "../../../src/ui/display-adapter";
 import { ReplayClock, ReplayScheduler } from "../../../src/engine/replay/replay-clock";
@@ -57,7 +56,6 @@ describe("Phase 1 fixed VPBS50 through production router/CLI/display", () => {
       display: createDisplayAdapter(),
       eewLogger: sideEffects.eewLogger,
       notifier: sideEffects.notifier,
-      vpwp50Cache: new Vpwp50DetailCache({ persistRoot: stateDir }),
       summaryTracker: summary,
       dailyQuakeCounter: daily,
     });
@@ -133,7 +131,6 @@ describe("Phase 1 fixed VPBS50 through production router/CLI/display", () => {
           displayReceiptTimerScheduler: scheduler,
           eewLogger: sideEffects.eewLogger,
           notifier: sideEffects.notifier,
-          vpwp50Cache: new Vpwp50DetailCache({ persistRoot: stateDir }),
           summaryTracker: summary,
           dailyQuakeCounter: daily,
           routeTaps: [({ route }) => routes.push(route)],

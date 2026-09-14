@@ -25,9 +25,6 @@ paths:
 | オプション | 設定キー | 説明 |
 |-----------|---------|------|
 | `--mode compact` | `displayMode` | compact 表示モード |
-| `--filter '<式>'` | — | 電文フィルタ (表示のみ抑制) |
-| `--template '<式>'` | — | compact 1行表示のユーザーテンプレート |
-| `--focus '<式>'` | — | 一致しない電文を dim compact に |
 | `--night` | `nightMode` | ナイトモード |
 | `--summary-interval N` | `summaryInterval` | 定期要約の間隔(分) |
 | `--backup` | `backup` | EEW 副回線 |

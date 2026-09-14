@@ -29,7 +29,7 @@ dmdata.jp の公式案内（[EEW について](https://dmdata.jp/docs/eew/) ほ�
 
 | 対策 | 概要 | 関連 |
 |------|------|------|
-| **テンプレート機構を表示専用に制限** | `--template` で以下を制限: ① 配列インデックス参照 `[N]` を禁止、② 生 XML への直接参照 `raw.xxx` を禁止、③ `join` フィルタを削除、④ `stringify` とフィルタ内 `toString` を改行区切りに統一、⑤ `replace` フィルタで改行文字を引数に取ることを禁止。1 行機械可読出力の主経路を塞ぐ目的。完全な迂回防止は保証しないが、自然な抜け道を閉じる | `src/engine/template/parser.ts`, `compiler.ts`, `filters.ts` |
+| **テンプレート機構を表示専用に制限**（2026-09-14 廃止） | `--template` は段階 2 で表示専用に制限した後、2026-09-14 の作者裁定（全面再構成 Q7）で filter／focus とともに機能ごと削除した。制限内容は当時の対策として記録のみ残す | 削除済み（source なし） |
 | **EEW ログ永続出力を明示 opt-in 化** | `eewLog` のデフォルトを `false` に設定。利用者が config / REPL で明示的に有効化した場合のみファイル出力 | `src/types.ts` の `DEFAULT_CONFIG` |
 | **リリースブランチガード** | npm publish タグ push 時、対象 commit が `origin/main` に到達済みでなければ workflow を fail させる。リリース対象外 commit の誤公開を防ぐ | `.github/workflows/release.yml` |
 

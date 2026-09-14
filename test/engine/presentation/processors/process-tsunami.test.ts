@@ -88,7 +88,6 @@ describe("processTsunami", () => {
     ]);
     expect(tsunamiState.getPersistedKeyedActive()).toEqual([]);
     expect(tsunamiState.getLastInfo()).toBeNull();
-    expect(tsunamiState.getDetail()).toBeNull();
     expect(tsunamiState.getPromptStatus()).toBeNull();
     expect(callback).toHaveBeenCalledTimes(1);
   });

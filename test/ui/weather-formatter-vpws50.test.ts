@@ -1414,13 +1414,12 @@ describe("displaySeverity セクション現況サマリ (Phase C Task 7)", () =
     }
   });
 
-  it("サマリ行は 3 段階カウントを維持し、詳細案内をサマリ行末尾に残す", () => {
+  it("サマリ行は 3 段階カウントを維持する", () => {
     const original = chalkRef.level;
     chalkRef.level = 0;
     try {
       const joined = renderNoColor(makeSectionInfo());
       expect(joined).toContain("■ 現況サマリ  4予報区  特0 / 警2 / 注2");
-      expect(joined).toContain("(詳細: `detail vpws50`)");
     } finally {
       chalkRef.level = original;
     }
@@ -1650,71 +1649,6 @@ describe("displayVpws50Unchanged", () => {
       const info = makeFakeInfo({ layers: [] });
       displayVpws50Unchanged(info);
       expect(logs.length).toBe(0);
-    } finally {
-      console.log = origLog;
-      chalkRef.level = original;
-    }
-  });
-});
-
-// ── displayVpws50FromState (REPL detail 用) ──
-describe("displayVpws50FromState (REPL detail)", () => {
-  const { displayVpws50FromState } = __vpws50_internals;
-  const chalkRef = (require("chalk").default ?? require("chalk"));
-
-  it("フレーム + 現況サマリ + ヘッダーを出力", () => {
-    const original = chalkRef.level;
-    chalkRef.level = 0;
-    const logs: string[] = [];
-    const origLog = console.log;
-    console.log = (msg: unknown) => logs.push(String(msg));
-    try {
-      const display: Vpws50CurrentAreasForDisplay = {
-        totalAreas: 1,
-        specialAreas: 0,
-        warningAreas: 1,
-        advisoryAreas: 0,
-        kinds: [{
-          kindCode: "03",
-          kindShortName: "大雨",
-          kindName: "レベル３大雨警報",
-          displaySeverity: "officialL3",
-          officialAlertLevel: 3,
-          areas: [{ areaName: "茨城県", areaCode: "080000" }],
-        }],
-      };
-      displayVpws50FromState(display);
-      const out = logs.join("\n");
-      expect(out).toContain("気象警報・注意報（全国集約）");
-      expect(out).toContain("最新受信内容 (REPL detail)");
-      expect(out).toContain("■ 現況サマリ");
-      expect(out).toContain("1予報区");
-      expect(out).toContain("茨城県");
-    } finally {
-      console.log = origLog;
-      chalkRef.level = original;
-    }
-  });
-
-  it("色付き環境でも安全に出力 (ANSI 含む)", () => {
-    const original = chalkRef.level;
-    chalkRef.level = 2;
-    const logs: string[] = [];
-    const origLog = console.log;
-    console.log = (msg: unknown) => logs.push(String(msg));
-    try {
-      const display: Vpws50CurrentAreasForDisplay = {
-        totalAreas: 0,
-        specialAreas: 0,
-        warningAreas: 0,
-        advisoryAreas: 0,
-        kinds: [],
-      };
-      displayVpws50FromState(display);
-      const out = logs.join("\n");
-      expect(out).toContain("気象警報・注意報");
-      // ANSI escapes are present
-      expect(out).toMatch(/\x1b\[/);
     } finally {
       console.log = origLog;
       chalkRef.level = original;

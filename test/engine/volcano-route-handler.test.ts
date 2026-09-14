@@ -195,7 +195,6 @@ describe("VolcanoRouteHandler", () => {
       runDisplayPipeline: (outcome, displayFn) => {
         outcomes.push(outcome);
         displayFn();
-        return true;
       },
       display: {
         displayVolcano,
@@ -239,7 +238,6 @@ describe("VolcanoRouteHandler", () => {
       runDisplayPipeline: (outcome, displayFn) => {
         outcomes.push(outcome);
         displayFn();
-        return true;
       },
       display: { displayVolcano, displayVolcanoBatch: vi.fn() } as never,
     });

@@ -1,4 +1,3 @@
-import chalk from "chalk";
 import * as log from "../../logger";
 import type { WsDataMessage } from "../../types";
 import {
@@ -13,8 +12,6 @@ import { TsunamiStateHolder } from "./tsunami-state";
 import { VolcanoStateHolder } from "./volcano-state";
 import { Vpws50StateHolder } from "./vpws50-state";
 import { Vpww56StateHolder } from "./vpww56-state";
-import { Vpwp50DetailCache } from "./vpwp50-detail-cache";
-import { TornadoDetailProvider } from "./tornado-detail-provider";
 import { TyphoonProbabilityStateHolder } from "./typhoon-probability-state";
 import { FloodForecastStateHolder } from "./flood-forecast-state";
 import { TelegramStats, routeToCategory } from "./telegram-stats";
@@ -50,8 +47,6 @@ import type { StandbyPersistenceFlushThroughResult } from "../display/standby-pe
 import { processMessageInternal as processMsg, ProcessDeps } from "../presentation/processors/process-message";
 import { toPresentationEvent } from "../presentation/events/to-presentation-event";
 import { expandVolcanoBatchForDisplay } from "../presentation/events/from-volcano";
-import { shouldDisplay, renderTemplate } from "../filter-template/pipeline";
-import type { FilterTemplatePipeline } from "../filter-template/pipeline";
 import { PresentationDiffStore } from "../presentation/diff-store";
 import type {
   LegacyCounterpartOutcome,
@@ -703,7 +698,7 @@ function logUnknownRawFallback(msg: WsDataMessage): void {
 /**
  * 処理済み outcome を観測できる汎用購読点。
  *
- * `runDisplayPipeline()` の入口 (shouldDisplay 判定・diff 適用より前) で同期呼び出しされる。
+ * `runDisplayPipeline()` の入口 (diff 適用より前) で同期呼び出しされる。
  * 線形ルートの ProcessOutcome に加えて火山単発・火山バッチ (VolcanoBatchOutcome) も渡る。
  * suppressed で null に落ちた電文は通らない (処理済み outcome が存在するもののみ)。
  *
@@ -716,7 +711,6 @@ export type ProcessedOutcomeTap = (
 
 /** createMessageHandler のオプション */
 export interface MessageHandlerOptions {
-  pipeline?: FilterTemplatePipeline;
   display?: DisplayCallbacks;
   displaySink?: DisplayIngestSink;
   /** Unit 4 が telegram-stats へ接続する card mutation の generation 境界。 */
@@ -782,8 +776,6 @@ export interface MessageHandlerOptions {
   eewLogger?: EewEventLogger;
   /** replay は実 notifier constructor を呼ばず、明示した隔離 sink を渡す。 */
   notifier?: Notifier;
-  /** replay は必ず専用 persistRoot を持つ cache を渡す。 */
-  vpwp50Cache?: Vpwp50DetailCache;
   /** replay clock を constructor fallback へ漏らさないための明示 instance。 */
   summaryTracker?: SummaryWindowTracker;
 }
@@ -799,8 +791,6 @@ export interface MessageHandlerResult {
   vpws50State: Vpws50StateHolder;
   vpww56State: Vpww56StateHolder;
   floodForecastState: FloodForecastStateHolder;
-  vpwp50Cache: Vpwp50DetailCache;
-  tornadoDetailProvider: TornadoDetailProvider;
   stats: TelegramStats;
   summaryTracker: SummaryWindowTracker;
   dailyQuakeCounter: DailyQuakeCounter;
@@ -815,7 +805,6 @@ export interface MessageHandlerResult {
 
 /** 受信データのハンドリング */
 export function createMessageHandler(options?: MessageHandlerOptions): MessageHandlerResult {
-  const pipeline: FilterTemplatePipeline = options?.pipeline ?? { filter: null, template: null, focus: null };
   const display = options?.display;
   const displaySink = options?.displaySink;
   const hasInjectedBusinessClock = options?.clock != null;
@@ -838,8 +827,6 @@ export function createMessageHandler(options?: MessageHandlerOptions): MessageHa
   const volcanoState = options?.volcanoState ?? new VolcanoStateHolder();
   const vpws50State = options?.vpws50State ?? new Vpws50StateHolder();
   const vpww56State = options?.vpww56State ?? new Vpww56StateHolder();
-  const vpwp50Cache = options?.vpwp50Cache ?? new Vpwp50DetailCache();
-  const tornadoDetailProvider = new TornadoDetailProvider();
   const typhoonProbabilityState = options?.typhoonProbabilityState
     ?? new TyphoonProbabilityStateHolder();
   const floodForecastState = options?.floodForecastState ?? new FloodForecastStateHolder();
@@ -893,16 +880,15 @@ export function createMessageHandler(options?: MessageHandlerOptions): MessageHa
   };
   const recordWindowTrackers = (
     event: PresentationEvent,
-    displayed: boolean,
     injectedNowMs?: number,
   ): void => {
     if (!hasInjectedBusinessClock) {
-      summaryTracker.record(event, displayed);
+      summaryTracker.record(event, true);
       dailyQuakeCounter.record(event);
       return;
     }
     const trackerNowMs = injectedNowMs ?? activeMessageStatsNowMs ?? routerClock.nowMs();
-    summaryTracker.record(event, displayed, trackerNowMs);
+    summaryTracker.record(event, true, trackerNowMs);
     dailyQuakeCounter.record(event, trackerNowMs);
   };
   let highestCardMutationGeneration = 0;
@@ -981,8 +967,6 @@ export function createMessageHandler(options?: MessageHandlerOptions): MessageHa
     vpws50State,
     vpww56State,
     floodForecastState,
-    vpwp50Cache,
-    tornadoDetailProvider,
     typhoonProbabilityState,
     revisionGate,
     persistenceAdmission: options?.persistenceAdmission,
@@ -1064,8 +1048,7 @@ export function createMessageHandler(options?: MessageHandlerOptions): MessageHa
 
   /**
    * 共通の表示パイプライン処理。
-   * filter/diffStore/summaryTracker/focus/template/compact の6ステップを一元的に実行する。
-   * @returns true なら表示済み。false ならフィルタで非表示。
+   * 差分適用・受信要約・display 配信・CLI 表示を順に実行する。
    */
   function runDisplayPipeline(
     outcome: ProcessOutcome | VolcanoBatchOutcome,
@@ -1073,7 +1056,7 @@ export function createMessageHandler(options?: MessageHandlerOptions): MessageHa
     statsAtMs?: number,
     displayIngestOverride?: DisplayIngestOperation,
     displayIngestCapture?: DisplayIngestCapture,
-  ): boolean {
+  ): void {
     // 削減 `spec: 2026-09-09-receipt-serialize-reduction.md（作業ノート、repo 外）` §9.1 Q1: 表示配信の総所要。
     // 本体を 1 段深くインデントし直さないよう、薄いラッパから core を呼ぶ (P1 と同じ作法)。
     // **加算**する — 火山バッチ・reconcile では 1 電文で複数回立つ。
@@ -1092,8 +1075,8 @@ export function createMessageHandler(options?: MessageHandlerOptions): MessageHa
     statsAtMs?: number,
     displayIngestOverride?: DisplayIngestOperation,
     displayIngestCapture?: DisplayIngestCapture,
-  ): boolean {
-    // 処理済み outcome の汎用 tap (filter 非適用: shouldDisplay の判定より前)。
+  ): void {
+    // 処理済み outcome の汎用 tap。
     // 線形ルート・火山単発・火山バッチの全 outcome がここを通る。例外は本体へ波及させない。
     // §9.1 Q2 (`tapA`、`disp` の内数): mark は `if` の外に置く。tap 未配線の構成 (main 相当)
     // でも `tapA=0.0` が出て、「0」と「計測点が無い」を読み手が取り違えないようにする。
@@ -1122,8 +1105,7 @@ export function createMessageHandler(options?: MessageHandlerOptions): MessageHa
       return diffStore.apply(rawEvent);
     });
 
-    const displayed = shouldDisplay(event, pipeline);
-    recordWindowTrackers(event, displayed, statsAtMs); // ← ingest より先 (1 イベント遅れ防止)
+    recordWindowTrackers(event, statsAtMs); // ← ingest より先 (1 イベント遅れ防止)
     // §9.1 Q5 (`ingest`、`disp` の内数): displaySink への流し込みと SSE broadcast。
     // 既存の `try` / `catch` の意味は変えない (表示系の障害を本体に波及させない)。
     perf.mark("ingest", () => {
@@ -1168,29 +1150,12 @@ export function createMessageHandler(options?: MessageHandlerOptions): MessageHa
     });
     assertSerializerHealthy();
 
-    if (!displayed) {
-      return false;
-    }
-
-    const isFocused = pipeline.focus == null || pipeline.focus(event);
-    if (!isFocused && display) {
-      console.log(chalk.dim(display.renderSummaryLine(event)));
-      return true;
-    }
-
-    const templateOutput = renderTemplate(event, pipeline);
-    if (templateOutput != null) {
-      console.log(templateOutput);
-      return true;
-    }
-
     if (display && display.getDisplayMode() === "compact") {
       console.log(display.renderSummaryLine(event));
-      return true;
+      return;
     }
 
     displayFn();
-    return true;
   }
 
   function emitAcceptedOutcome(
@@ -1198,7 +1163,7 @@ export function createMessageHandler(options?: MessageHandlerOptions): MessageHa
     actionNowMs: number,
     allowNotification = true,
     displayIngestOverride?: DisplayIngestOperation,
-  ): { notified: boolean; presented: boolean; displayIngestResult?: DisplayIngestResult } {
+  ): { notified: boolean; displayIngestResult?: DisplayIngestResult } {
     const notified = allowNotification && dispatchNotify(outcome, notifier);
     assertSerializerHealthy();
     const acceptedCorrection = outcome.domain === "eew"
@@ -1209,17 +1174,16 @@ export function createMessageHandler(options?: MessageHandlerOptions): MessageHa
     }
     if (notified) stats.recordFoundation("notified", actionNowMs);
     const displayIngestCapture: DisplayIngestCapture = {};
-    const presented = runDisplayPipeline(
+    runDisplayPipeline(
       outcome,
       () => display?.displayOutcome(outcome),
       actionNowMs,
       displayIngestOverride,
       displayIngestCapture,
     );
-    if (presented) stats.recordFoundation("presented", actionNowMs);
+    stats.recordFoundation("presented", actionNowMs);
     return {
       notified,
-      presented,
       ...(displayIngestCapture.result == null
         ? {}
         : { displayIngestResult: displayIngestCapture.result }),
@@ -1238,7 +1202,6 @@ export function createMessageHandler(options?: MessageHandlerOptions): MessageHa
   ): void {
     const changes = { ...acceptedCompletion.changes };
     let stage: VptaFailureStage = "recordStats";
-    let displayed = false;
     let event: PresentationEvent | null = null;
     let displayResult: DisplayIngestResult | DisplayIngestOutcome | void | number;
 
@@ -1328,11 +1291,10 @@ export function createMessageHandler(options?: MessageHandlerOptions): MessageHa
       const diffed = perf.mark("vptaDiff", (): PresentationEvent => {
         const applied = diffStore.apply(converted);
         // 代入は `diffStore.apply` の直後（元の順序）。mark の外へ出すと
-        // `shouldDisplay` / `recordWindowTrackers` が throw したとき `event` が
+        // `recordWindowTrackers` が throw したとき `event` が
         // `converted` のまま残り、失敗経路が見る event が 1 段古くなる。
         event = applied;
-        displayed = shouldDisplay(applied, pipeline);
-        recordWindowTrackers(applied, displayed, actionNowMs);
+        recordWindowTrackers(applied, actionNowMs);
         return applied;
       });
       assertSerializerHealthy();
@@ -1371,50 +1333,20 @@ export function createMessageHandler(options?: MessageHandlerOptions): MessageHa
       log.warn(`[vpta50-presentation] publishStats failed: ${describeTapError(cause)}`);
     }
     assertSerializerHealthy();
-    if (!displayed || event == null) return;
-
-    let focused = true;
-    if (pipeline.focus != null) {
-      try {
-        focused = pipeline.focus(event);
-      } catch (cause) {
-        log.warn(`[vpta50-presentation] focus failed: ${describeTapError(cause)}`);
-        focused = true;
-      }
-      assertSerializerHealthy();
-    }
+    if (event == null) return;
 
     let outputSucceeded = false;
-    if (!focused && display != null) {
-      try {
-        console.log(chalk.dim(display.renderSummaryLine(event)));
-        outputSucceeded = true;
-      } catch (cause) {
-        log.warn(`[vpta50-presentation] consoleOrDisplay failed: ${describeTapError(cause)}`);
+    try {
+      if (display != null && display.getDisplayMode() === "compact") {
+        console.log(display.renderSummaryLine(event));
+      } else {
+        display?.displayOutcome(outcome);
       }
-      assertSerializerHealthy();
-    } else {
-      let templateOutput: string | null = null;
-      try {
-        templateOutput = renderTemplate(event, pipeline);
-      } catch (cause) {
-        log.warn(`[vpta50-presentation] template failed: ${describeTapError(cause)}`);
-      }
-      assertSerializerHealthy();
-      try {
-        if (templateOutput != null) {
-          console.log(templateOutput);
-        } else if (display != null && display.getDisplayMode() === "compact") {
-          console.log(display.renderSummaryLine(event));
-        } else {
-          display?.displayOutcome(outcome);
-        }
-        outputSucceeded = true;
-      } catch (cause) {
-        log.warn(`[vpta50-presentation] consoleOrDisplay failed: ${describeTapError(cause)}`);
-      }
-      assertSerializerHealthy();
+      outputSucceeded = true;
+    } catch (cause) {
+      log.warn(`[vpta50-presentation] consoleOrDisplay failed: ${describeTapError(cause)}`);
     }
+    assertSerializerHealthy();
     if (outputSucceeded) {
       try {
         stats.recordFoundation("presented", actionNowMs);
@@ -1507,13 +1439,11 @@ export function createMessageHandler(options?: MessageHandlerOptions): MessageHa
         (disposition) => disposition.kind === "releaseSource" && disposition.displayLifecycleOnly === true,
       );
       if (invalidatedPendingSource && triggerOutcome.domain === "legacyCounterpart") {
-        if (emitted.presented) {
-          stats.recordFoundationForHeadType(
-            triggerOutcome.parsed.type,
-            "legacyUnmatchedDisplayed",
-            actionNowMs,
-          );
-        }
+        stats.recordFoundationForHeadType(
+          triggerOutcome.parsed.type,
+          "legacyUnmatchedDisplayed",
+          actionNowMs,
+        );
         if (!(triggerOutcome.parsed.type === "VPOA50" && triggerOutcome.parsed.infoType === "取消")) {
           recordLegacyNotificationDisposition(triggerOutcome, emitted.notified, actionNowMs);
         }
@@ -1544,13 +1474,11 @@ export function createMessageHandler(options?: MessageHandlerOptions): MessageHa
             actionNowMs,
             evaluateNotification,
           );
-          if (emitted.presented) {
-            stats.recordFoundationForHeadType(
-              disposition.outcome.parsed.type,
-              "legacyUnmatchedDisplayed",
-              actionNowMs,
-            );
-          }
+          stats.recordFoundationForHeadType(
+            disposition.outcome.parsed.type,
+            "legacyUnmatchedDisplayed",
+            actionNowMs,
+          );
           // VPOA50 取消だけは共通 gate 後に fail-open 表示するが、通知評価・
           // 取消用 diagnostic / metric は増やさない。他 legacy type は既存挙動を保つ。
           if (
@@ -1576,14 +1504,12 @@ export function createMessageHandler(options?: MessageHandlerOptions): MessageHa
         }
         case "ambiguousSource": {
           displayReceipts.beginNewLifecycle(disposition.sourceIdentity);
-          const emitted = emitAcceptedOutcome(disposition.outcome, actionNowMs, false);
-          if (emitted.presented) {
-            stats.recordFoundationForHeadType(
-              disposition.outcome.parsed.type,
-              "legacyAmbiguousDisplayed",
-              actionNowMs,
-            );
-          }
+          emitAcceptedOutcome(disposition.outcome, actionNowMs, false);
+          stats.recordFoundationForHeadType(
+            disposition.outcome.parsed.type,
+            "legacyAmbiguousDisplayed",
+            actionNowMs,
+          );
           break;
         }
         case "reconcileLateCounterpart": {
@@ -2129,8 +2055,6 @@ export function createMessageHandler(options?: MessageHandlerOptions): MessageHa
     vpws50State,
     vpww56State,
     floodForecastState,
-    vpwp50Cache,
-    tornadoDetailProvider,
     stats,
     summaryTracker,
     dailyQuakeCounter,

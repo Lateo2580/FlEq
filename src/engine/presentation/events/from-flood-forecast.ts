@@ -69,7 +69,7 @@ export function fromFloodForecastOutcome(
 
     isCancellation: info.infoType === "取消",
     // frameLevel が warning/critical のものは isWarning=true に統一
-    // (L3/L4/L5 洪水が field-registry の isWarning filter から漏れないよう、
+    // (L3/L4/L5 洪水が 警報判定 から漏れないよう、
     //  from-heat-alert / from-tornado / from-briefing と同型に揃える)
     isWarning:
       outcome.presentation.frameLevel === "warning" ||

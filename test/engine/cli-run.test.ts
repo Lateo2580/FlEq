@@ -36,7 +36,6 @@ import { loadConfig } from "../../src/config";
 import { listContracts } from "../../src/dmdata/rest-client";
 import { getVerifiedContractClassifications } from "../../src/dmdata/delivery-capabilities";
 import { startMonitor } from "../../src/engine/monitor/monitor";
-import { PipelineController } from "../../src/engine/filter-template/pipeline-controller";
 import * as log from "../../src/logger";
 
 const mockLoadConfig = vi.mocked(loadConfig);
@@ -97,8 +96,7 @@ describe("runMonitor", () => {
       });
 
       expect(mockStartMonitor).toHaveBeenCalledWith(
-        expect.objectContaining({ apiKey: "cli-key" }),
-        expect.any(PipelineController)
+        expect.objectContaining({ apiKey: "cli-key" })
       );
     });
 
@@ -109,8 +107,7 @@ describe("runMonitor", () => {
       await runMonitor({ debug: false });
 
       expect(mockStartMonitor).toHaveBeenCalledWith(
-        expect.objectContaining({ apiKey: "env-key" }),
-        expect.any(PipelineController)
+        expect.objectContaining({ apiKey: "env-key" })
       );
     });
 
@@ -120,8 +117,7 @@ describe("runMonitor", () => {
       await runMonitor({ debug: false });
 
       expect(mockStartMonitor).toHaveBeenCalledWith(
-        expect.objectContaining({ apiKey: "config-key" }),
-        expect.any(PipelineController)
+        expect.objectContaining({ apiKey: "config-key" })
       );
     });
 
@@ -140,8 +136,7 @@ describe("runMonitor", () => {
       expect(mockStartMonitor).toHaveBeenCalledWith(
         expect.objectContaining({
           classifications: ["telegram.earthquake"],
-        }),
-        expect.any(PipelineController)
+        })
       );
     });
 
@@ -159,8 +154,7 @@ describe("runMonitor", () => {
       expect(mockStartMonitor).toHaveBeenCalledWith(
         expect.objectContaining({
           classifications: ["eew.warning"],
-        }),
-        expect.any(PipelineController)
+        })
       );
     });
 
@@ -177,8 +171,7 @@ describe("runMonitor", () => {
             "eew.forecast",
             "eew.warning",
           ],
-        }),
-        expect.any(PipelineController)
+        })
       );
     });
   });
@@ -218,8 +211,7 @@ describe("runMonitor", () => {
       expect(mockStartMonitor).toHaveBeenCalledWith(
         expect.objectContaining({
           classifications: ["telegram.earthquake"],
-        }),
-        expect.any(PipelineController)
+        })
       );
     });
   });
@@ -259,8 +251,7 @@ describe("runMonitor", () => {
       expect(mockStartMonitor).toHaveBeenCalledWith(
         expect.objectContaining({
           classifications: ["telegram.earthquake"],
-        }),
-        expect.any(PipelineController)
+        })
       );
     });
 
@@ -306,8 +297,7 @@ describe("runMonitor", () => {
       });
 
       expect(mockStartMonitor).toHaveBeenCalledWith(
-        expect.objectContaining({ testMode: "including" }),
-        expect.any(PipelineController)
+        expect.objectContaining({ testMode: "including" })
       );
     });
 
@@ -323,8 +313,7 @@ describe("runMonitor", () => {
       });
 
       expect(mockStartMonitor).toHaveBeenCalledWith(
-        expect.objectContaining({ testMode: "only" }),
-        expect.any(PipelineController)
+        expect.objectContaining({ testMode: "only" })
       );
     });
   });
@@ -343,8 +332,7 @@ describe("runMonitor", () => {
       });
 
       expect(mockStartMonitor).toHaveBeenCalledWith(
-        expect.objectContaining({ keepExistingConnections: true }),
-        expect.any(PipelineController)
+        expect.objectContaining({ keepExistingConnections: true })
       );
     });
 
@@ -361,8 +349,7 @@ describe("runMonitor", () => {
       });
 
       expect(mockStartMonitor).toHaveBeenCalledWith(
-        expect.objectContaining({ keepExistingConnections: false }),
-        expect.any(PipelineController)
+        expect.objectContaining({ keepExistingConnections: false })
       );
     });
   });

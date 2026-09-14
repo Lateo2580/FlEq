@@ -365,12 +365,10 @@ colored フレームの formatter (weather 系等) は第 4 引数 `borderColor`
 | 6 | `ui/telegram-type-label.ts` | 地震・津波・テキスト・南海トラフ・長周期 表示 |
 | 6 | `ui/volcano-formatter.ts` | 火山 表示 |
 | 6 | `ui/theme.ts` | テーマシステム (カラーパレット・ロール定義) |
-| 6 | `ui/summary/summary-line.ts` | compact / focus 用の幅適応1行表示 |
+| 6 | `ui/summary/summary-line.ts` | compact 用の幅適応1行表示 |
 | 6 | `engine/presentation/events/to-presentation-event.ts` | ProcessOutcome → PresentationEvent 変換 |
 | 6 | `engine/presentation/diff-store.ts` | 前報との差分検出 |
 | 6 | `engine/presentation/types.ts` | ProcessOutcome, PresentationEvent 等の型定義 |
-| 6 | `engine/filter-template/pipeline.ts` | shouldDisplay / renderTemplate — filter/template/focus パイプライン |
-| 6 | `engine/filter-template/pipeline-controller.ts` | PipelineController — pipeline の状態管理 |
 | 6 | `ui/display-adapter.ts` | DisplayCallbacks の実装 (engine→ui アダプター) |
 | 7 | `engine/notification/notifier.ts` | デスクトップ通知 |
 | 7 | `engine/notification/node-notifier-loader.ts` | node-notifier 遅延ロード |

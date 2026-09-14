@@ -15,7 +15,6 @@ import * as themeModule from "../theme";
 import { displayStatistics } from "../statistics-formatter";
 import type { ReplContext, CommandCategory } from "./types";
 import { CATEGORY_LABELS } from "./types";
-import { renderDetail } from "../detail-renderers";
 
 // ── ヘルパー (モジュール内のみ) ──
 
@@ -140,7 +139,6 @@ export const COMMAND_ALIASES: Record<string, string> = {
   cmds: "commands",
   hist: "history",
   cols: "colors",
-  det: "detail",
   stat: "status",
   conf: "config",
   cont: "contract",
@@ -253,24 +251,6 @@ export function getCurrentSettingValues(ctx: ReplContext): Record<string, { curr
 }
 
 // ── コマンドハンドラ ──
-
-const KNOWN_DETAIL_CATEGORIES = ["tsunami", "tornado", "vpws50", "vpwp50", "volcano"] as const;
-
-export function handleDetail(ctx: ReplContext, args: string): void {
-  const sub = args.trim().toLowerCase();
-  const category = sub === "" ? "tsunami" : sub;
-  if ((KNOWN_DETAIL_CATEGORIES as readonly string[]).includes(category)) {
-    const provider = ctx.detailProviders.find((p) => p.category === category);
-    const snapshot = provider?.getDetail();
-    if (snapshot == null) {
-      console.log(chalk.gray(`  ${provider?.emptyMessage ?? "該当情報なし"}`));
-    } else {
-      renderDetail(snapshot);
-    }
-    return;
-  }
-  console.log(chalk.yellow(`  不明なサブコマンド: ${sub}`) + chalk.gray(` (利用可能: ${KNOWN_DETAIL_CATEGORIES.join(", ")})`));
-}
 
 /** カテゴリ名を解決する (日本語ラベルにも対応) */
 function resolveCategory(input: string): CommandCategory | null {

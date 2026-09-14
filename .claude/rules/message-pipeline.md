@@ -50,7 +50,7 @@ paths:
 
 **特記 (テロップ抑制)**: sentence も body も組めない非取消の VPWP50 は `tickerSuppressed: true` でテロップに流れない（event broadcast 自体は seq 整合のため流れる。`project-event.ts` の判定、spec 2026-07-23 ticker-content-lifetime T5-2）。気象解説も、parser が気象庁の placeholder 定型文「本文なし。」を trim 後の完全一致で section から除外し、正規化済み `tickerBody` と `headline` がともに空の非取消なら `tickerSuppressed: true` とする（実電文 ZJPTK260036、2026-08-11 で確認）。headline がある場合は本文なしでも headline fallback を流し、取消は抑制しない。
 
-**Phase 3B standby revision contract**: VPHW50/51、VPFT50、VPTW60-62、VPTA50、VYSE50-60、VPWP50、VXSE62 は router の transport dedup / 日時診断後に共通 semantic revision gate を通す。subject 不明は表示/ticker のみで、通知・standby projection・VPWP50 detail cache・VPTA50 連続ゼロ cacheを更新しない。clearCurrent family は同一 revision 訂正で取消 tombstone を解除せず、受理済み訂正だけを一度通知する。durable projection の適用完了は `appliedSemanticKey` で gate payload と結合し、旧 v1 projection は各 subject が正規報を受けるまで legacy として保全する。
+**Phase 3B standby revision contract**: VPHW50/51、VPFT50、VPTW60-62、VPTA50、VYSE50-60、VPWP50、VXSE62 は router の transport dedup / 日時診断後に共通 semantic revision gate を通す。subject 不明は表示/ticker のみで、通知・standby projection・VPTA50 連続ゼロ cacheを更新しない。clearCurrent family は同一 revision 訂正で取消 tombstone を解除せず、受理済み訂正だけを一度通知する。durable projection の適用完了は `appliedSemanticKey` で gate payload と結合し、旧 v1 projection は各 subject が正規報を受けるまで legacy として保全する。
 
 **Phase 3B transient／durable revision contract**: earthquake（VXSE51/52/53/61）、seismicText、VPBS50、VPAW51、VPWW55/57-61、VPZI50/VPCI50、気象解説、raw fallback は `markCancelled` policy を持つ。地震は head.type を跨ぐ EventID subject、その他は type＋EventID subject とし、EventID 欠落は受信時刻や名称で結合せず単発 transient gate にする。重複・stale・invalid revision は stats / display / notification より前に落とし、受理済み訂正だけを一度通知する。地震の観測値保持は従来どおり downstream の quake-observation-merge が担い、QuakeExtremeStore と quake map の局所 guard は永続 state / source 別投影の防御として残す。火山では VFVO53 と VZVO40/VFVO60 だけが非 durable で、VFVO53 は gate 通過後だけ既存 batch aggregator へ入れる。VFVO54/VFVO55 は variant rank 54=0／55=1 の共通 durable ashfall family として holder／standby／pair file に保存し、受理時は未送信 VFVO53 batch を無音で即時 flush して古い定時予報を後から通知しない。classification/prefix の broad route に未登録 head.type が到達した場合は警告して raw policy へ落とす。火山 handler は parse failure と semantic suppression を discriminated result で区別し、parse failure だけを raw 表示へ戻す。
 
@@ -79,11 +79,11 @@ paths:
 
 ```
 ProcessOutcome → toPresentationEvent() → PresentationDiffStore.apply()
-  → shouldDisplay() → summaryTracker.record() → focus判定
-  → renderTemplate() or renderSummaryLine() or displayFn()
+  → summaryTracker.record() → display 配信
+  → renderSummaryLine() (compact) or displayFn()
 ```
 
-通知は filter 非適用のため `runDisplayPipeline` の前に実行される。
+通知は `runDisplayPipeline` の前に実行される。受理済みイベントは常に表示する。
 
 ## 電文→パーサ→表示 対応表
 

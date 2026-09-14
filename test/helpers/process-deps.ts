@@ -10,8 +10,6 @@ import { TsunamiStateHolder } from "../../src/engine/messages/tsunami-state";
 import { VolcanoStateHolder } from "../../src/engine/messages/volcano-state";
 import { Vpws50StateHolder } from "../../src/engine/messages/vpws50-state";
 import { Vpww56StateHolder } from "../../src/engine/messages/vpww56-state";
-import { Vpwp50DetailCache } from "../../src/engine/messages/vpwp50-detail-cache";
-import { TornadoDetailProvider } from "../../src/engine/messages/tornado-detail-provider";
 import { TyphoonProbabilityStateHolder } from "../../src/engine/messages/typhoon-probability-state";
 import { FloodForecastStateHolder } from "../../src/engine/messages/flood-forecast-state";
 import { TelegramRevisionGate } from "../../src/engine/messages/telegram-revision-gate";
@@ -26,8 +24,6 @@ export function makeProcessDeps(over: Partial<ProcessDeps> = {}): ProcessDeps {
     volcanoState: new VolcanoStateHolder(),
     vpws50State: new Vpws50StateHolder(),
     vpww56State: new Vpww56StateHolder(),
-    vpwp50Cache: new Vpwp50DetailCache(),
-    tornadoDetailProvider: new TornadoDetailProvider(),
     typhoonProbabilityState: new TyphoonProbabilityStateHolder(),
     floodForecastState: new FloodForecastStateHolder(),
     ...over,

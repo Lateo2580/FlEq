@@ -4,8 +4,6 @@ import type {
   PromptStatusProvider,
   PromptStatusSegment,
   PromptStatusRole,
-  DetailProvider,
-  DetailSnapshotOf,
   VolcanoAction,
   VolcanoAlertClass,
   VolcanoAlertClassEntry,
@@ -344,9 +342,7 @@ function legacyViews(
   return value;
 }
 
-export class VolcanoStateHolder implements PromptStatusProvider, DetailProvider<"volcano"> {
-  readonly category = "volcano";
-  readonly emptyMessage = "現在、継続中の火山警報はありません。";
+export class VolcanoStateHolder implements PromptStatusProvider {
 
   private composites = new Map<string, RuntimeComposite>();
   private legacyEruptionIdentities = new Map<string, { eventId: string | null; legacyV1Fallback: boolean }>();
@@ -841,13 +837,5 @@ export class VolcanoStateHolder implements PromptStatusProvider, DetailProvider<
     if (alerts.length === 0) return null;
     const highest = alerts.reduce((best, entry) => (entry.alertLevel ?? 0) > (best.alertLevel ?? 0) ? entry : best);
     return { text: `${highest.volcanoName}${levelToLabel(highest.alertLevel)}`, role: levelToRole(highest.alertLevel), priority: 20 };
-  }
-
-  getDetail(): DetailSnapshotOf<"volcano"> | null {
-    const entries = [...this.composites.values()].flatMap((entry) => entry.alert == null ? [] : [{
-      volcanoName: entry.alert.volcanoName, alertLevel: entry.alert.alertLevel,
-      alertLevelCode: entry.alert.alertLevelCode, warningKind: entry.alert.warningKind,
-    }]);
-    return entries.length === 0 ? null : { kind: "volcano", entries };
   }
 }

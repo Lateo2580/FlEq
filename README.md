@@ -16,10 +16,7 @@ npm パッケージ名: `@sayue_ltr/fleq` / CLI コマンド名: `fleq`
 - CUD 配色準拠のテーマシステム（カスタマイズ可能）
 - Raspberry Pi 等の低メモリ環境でも動作
 - 電文統計（`stats` コマンド）でセッション中の受信状況を一覧表示
-- `--filter` で条件式による電文の絞り込み表示
-- `--template` でユーザー定義テンプレートによる 1 行要約カスタマイズ
 - `--compact` 改善: 端末幅に応じた幅適応型 1 行表示
-- `--focus` で条件に一致しない電文を薄く（dim compact）表示
 - `--summary-interval` で N 分ごとの定期受信要約（sparkline グラフ付き）
 - `--night` ナイトモード（彩度・輝度を抑制、危険色は維持）
 
@@ -132,15 +129,6 @@ fleq --debug
 # 同一APIキーの既存ソケットを閉じてから接続
 fleq --close-others
 
-# EEW 警報だけ表示（通知・統計は全電文が対象）
-fleq --filter 'domain = "eew" and isWarning = true'
-
-# テンプレートで 1 行要約をカスタマイズ
-fleq --template '{{title}} {{hypocenterName|default:"-"}} M{{magnitude|default:"-"}} 最大{{maxInt|default:"-"}}'
-
-# 震度 4 以上にフォーカス（それ以外は薄く表示）
-fleq --focus 'maxInt >= "4"'
-
 # ナイトモード + 30 分ごとの受信要約
 fleq --night --summary-interval 30
 ```
@@ -158,9 +146,6 @@ fleq --night --summary-interval 30
 | `--keep-existing` | 既存接続を維持（互換オプション。現在はデフォルト動作） | `true` |
 | `--close-others` | 同一 API キーの既存ソケットを閉じてから接続 | `false` |
 | `--mode <mode>` | 表示モード: `normal` / `compact` | `normal` |
-| `--filter <expr>` | 条件式で電文を絞り込み表示（通知・統計には非適用） | なし |
-| `--focus <expr>` | 条件に一致しない電文を dim compact 表示に落とす | なし |
-| `--template <tpl>` | ユーザー定義テンプレートで 1 行要約をカスタマイズ | なし |
 | `--summary-interval <min>` | N 分ごとの定期受信要約を表示（sparkline 付き） | `0`（無効） |
 | `--night` | ナイトモード（彩度・輝度を抑制、危険色は維持） | `false` |
 | `--display` | 情報ディスプレイ（ブラウザ表示サーバ）を有効化 | `false` |
@@ -258,7 +243,6 @@ Raspberry Pi での常時稼働については [Raspberry Pi 500 セットアッ
 | `help` / `?` | コマンド一覧を表示 |
 | `history [N]` | 地震履歴を取得・表示（デフォルト 10 件、最新が一番下） |
 | `colors` | カラーパレット・震度色の一覧を表示 |
-| `detail [tsunami\|volcano]` | 直近の津波情報または火山警報状態を再表示 |
 | `stats` | セッション中の電文受信統計を表示 |
 | `summary` | 直近の定期受信要約を手動表示 |
 
@@ -283,11 +267,6 @@ Raspberry Pi での常時稼働については [Raspberry Pi 500 セットアッ
 | `tablewidth [N\|auto]` | テーブル幅の表示・変更（`auto` でターミナル幅に自動追従） |
 | `infotext [full/short]` | お知らせ電文の全文/省略切替 |
 | `tipinterval [N]` | 待機中ヒント表示間隔（分）を表示・変更（0 で無効） |
-| `filter set <expr>` | フィルタ条件を動的に設定 |
-| `filter clear` | フィルタ条件をクリア |
-| `filter test <expr>` | フィルタ式の構文チェック |
-| `focus <expr>` | フォーカス条件を動的に設定 |
-| `focus off` | フォーカス条件を解除 |
 | `night [on/off]` | ナイトモードの ON/OFF 切替 |
 | `mode [normal/compact]` | 表示モード切替 |
 | `clock [elapsed/now]` | プロンプト時計の切替（`now` は Config 上の `"clock"` に対応） |
@@ -372,7 +351,6 @@ A: `notify-send` がインストールされているか確認してください
 
 ## 関連ドキュメント
 
-- [CLI 強化機能ガイド](docs/cli-features.md) — フィルタ・テンプレート・フォーカス等の詳細な使い方
 - [表示リファレンス](docs/display-reference.md) — 電文タイプ別の表示フォーマット一覧
 - [Raspberry Pi 500 セットアップガイド](docs/raspi500-setup-guide.md) — Raspberry Pi での常時稼働セットアップ
 - [情報ディスプレイセットアップガイド](docs/display-setup.md) — 常設ディスプレイ表示のセットアップ

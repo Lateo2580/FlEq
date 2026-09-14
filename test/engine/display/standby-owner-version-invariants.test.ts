@@ -273,7 +273,6 @@ const VPWS50_ROWS: readonly MethodRow<Vpws50StateHolder>[] = [
   { method: "buildUnsafeDiff", kind: "internal", note: "純関数" },
   { method: "getCurrentAreasForDisplay", kind: "readonly", run: (h) => void h.getCurrentAreasForDisplay() },
   { method: "getCurrentIdentity", kind: "readonly", run: (h) => void h.getCurrentIdentity() },
-  { method: "getDetail", kind: "readonly", run: (h) => void h.getDetail() },
   {
     method: "__test_setLastSuccessfulFullDisplayAt",
     kind: "mutating",
@@ -706,7 +705,6 @@ const TSUNAMI_ROWS: readonly MethodRow<TsunamiStateHolder>[] = [
   },
   { method: "hasPersistedEvent", kind: "readonly", run: (h) => void h.hasPersistedEvent("tsunami-a") },
   { method: "getPromptStatus", kind: "readonly", run: (h) => void h.getPromptStatus() },
-  { method: "getDetail", kind: "readonly", run: (h) => void h.getDetail() },
   { method: "clearActiveState", kind: "internal", note: "mutator の内側" },
   { method: "clearObservationsIfInactive", kind: "internal", note: "mutator の内側" },
   { method: "rebuildActiveState", kind: "internal", note: "mutator の内側 (導出値の再構築)" },
