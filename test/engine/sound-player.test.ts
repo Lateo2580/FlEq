@@ -38,9 +38,19 @@ vi.mock("child_process", () => ({
   },
 }));
 
+const mockWriteFileSync = vi.fn();
+
 vi.mock("fs", async () => {
   const actual = await vi.importActual<typeof import("fs")>("fs");
-  return { ...actual, existsSync: (...args: unknown[]) => mockExistsSync(...args) };
+  return {
+    ...actual,
+    existsSync: (...args: unknown[]) => mockExistsSync(...args),
+    // 実装が差し込まれたときだけ差し替え、既定は本物 (probe の無音 WAV 書き込みに使う)
+    writeFileSync: (...args: unknown[]) =>
+      mockWriteFileSync.getMockImplementation() != null
+        ? mockWriteFileSync(...args)
+        : (actual.writeFileSync as (...a: unknown[]) => void)(...args),
+  };
 });
 
 describe("sound-player", () => {
@@ -54,6 +64,7 @@ describe("sound-player", () => {
     mockExecFile.mockReset();
     mockExec.mockReset();
     mockExistsSync.mockReset();
+    mockWriteFileSync.mockReset();
     // デフォルトではカスタム効果音なし (システムサウンドフォールバックのテスト用)
     mockExistsSync.mockReturnValue(false);
     stdoutWriteSpy = vi.spyOn(process.stdout, "write").mockReturnValue(true);
@@ -310,19 +321,109 @@ describe("sound-player", () => {
     expect(result.label).toBe("ffplay");
   });
 
-  it("checkSoundBackend(): Linux で ffplay が非 0 終了なら ok=false", async () => {
+  it("checkSoundBackend(): Linux で ffplay/paplay/aplay が全て失敗なら ok=false", async () => {
     Object.defineProperty(process, "platform", { value: "linux" });
-    mockExecFile.mockImplementationOnce((..._args: unknown[]) => {
+    mockExecFile.mockImplementation((..._args: unknown[]) => {
       const cb = _args[_args.length - 1];
       if (typeof cb === "function") {
-        (cb as (err: Error | null) => void)(new Error("ENOENT"));
+        (cb as (err: Error | null) => void)(Object.assign(new Error("spawn ENOENT"), { code: "ENOENT" }));
       }
       return { kill: vi.fn() };
     });
     const sp = await import("../../src/engine/notification/sound-player");
     const result = await sp.checkSoundBackend();
     expect(result.ok).toBe(false);
-    expect(result.reason).toMatch(/ENOENT/);
+    expect(mockExecFile.mock.calls.map((c) => c[0])).toEqual(["ffplay", "paplay", "aplay"]);
+    expect(result.reason).toMatch(/ffplay: not found in PATH; paplay: not found in PATH; aplay: not found in PATH/);
+  });
+
+  // Issue #20: bundled WAV 化後に再生 (paplay→aplay) と probe (ffplay) が食い違い、
+  // ffplay しか使えない Pi で通知音が鳴らず bell に退避していた実不具合の再発防止
+  it("Linux wav: ffplay が使えるなら再生も probe も ffplay を使う", async () => {
+    Object.defineProperty(process, "platform", { value: "linux" });
+    mockExistsSync.mockImplementation((p: string) => p.endsWith("info.wav"));
+    const sp = await import("../../src/engine/notification/sound-player");
+    sp.playSound("info");
+    expect(mockExecFile.mock.calls.map((c) => c[0])).toEqual(["ffplay"]);
+    expect((mockExecFile.mock.calls[0][1] as string[]).at(-1)).toMatch(/info\.wav$/);
+    const result = await sp.checkSoundBackend();
+    expect(result).toEqual({ ok: true, label: "ffplay" });
+  });
+
+  // 契約境界: 再生と probe は同じ fallback 列 (ffplay → paplay → aplay) を辿り、label は実際に成功した player
+  it("Linux wav: ffplay・paplay が無ければ aplay へ進み、probe の label も aplay になる", async () => {
+    Object.defineProperty(process, "platform", { value: "linux" });
+    mockExistsSync.mockImplementation((p: string) => p.endsWith("info.wav"));
+    mockExecFile.mockImplementation((...args: unknown[]) => {
+      const cb = args[args.length - 1] as (err: Error | null) => void;
+      cb(args[0] === "aplay" ? null : Object.assign(new Error("spawn ENOENT"), { code: "ENOENT" }));
+      return { kill: vi.fn() };
+    });
+    const sp = await import("../../src/engine/notification/sound-player");
+    sp.playSound("info");
+    expect(mockExecFile.mock.calls.map((c) => c[0])).toEqual(["ffplay", "paplay", "aplay"]);
+    expect(stdoutWriteSpy).not.toHaveBeenCalledWith("\x07");
+    mockExecFile.mockClear();
+    const result = await sp.checkSoundBackend();
+    expect(mockExecFile.mock.calls.map((c) => c[0])).toEqual(["ffplay", "paplay", "aplay"]);
+    expect(result).toEqual({ ok: true, label: "aplay" });
+  });
+
+  // 契約境界: カスタム mp3 は ffplay しか鳴らせないので、再生も probe も ffplay だけを見る
+  // (wav の列で probe すると paplay OK と出るのに mp3 は鳴らない、という食い違いを再導入しない)
+  it("Linux mp3: 再生も probe も ffplay のみで、paplay/aplay へ進まない", async () => {
+    Object.defineProperty(process, "platform", { value: "linux" });
+    mockExistsSync.mockImplementation((p: string) => p.endsWith(".mp3"));
+    mockExecFile.mockImplementation((...args: unknown[]) => {
+      const cb = args[args.length - 1] as (err: Error | null) => void;
+      cb(args[0] === "ffplay" ? Object.assign(new Error("spawn ENOENT"), { code: "ENOENT" }) : null);
+      return { kill: vi.fn() };
+    });
+    const sp = await import("../../src/engine/notification/sound-player");
+    sp.playSound("info");
+    expect(mockExecFile.mock.calls.map((c) => c[0])).toEqual(["ffplay"]);
+    expect(stdoutWriteSpy).toHaveBeenCalledWith("\x07");
+    mockExecFile.mockClear();
+    const result = await sp.checkSoundBackend();
+    expect(mockExecFile.mock.calls.map((c) => c[0])).toEqual(["ffplay"]);
+    expect(result.ok).toBe(false);
+    expect(result.label).toBe("ffplay");
+  });
+
+  // 契約境界: probe 用 WAV の書き込みに失敗したら専用ディレクトリを残さず、元のエラーで reject する
+  it("checkSoundBackend(): 無音 WAV の書き込み失敗で一時ディレクトリを残さず reject する", async () => {
+    Object.defineProperty(process, "platform", { value: "linux" });
+    mockWriteFileSync.mockImplementation(() => {
+      throw new Error("EACCES");
+    });
+    const os = await import("os");
+    const fs = await vi.importActual<typeof import("fs")>("fs");
+    const countProbeDirs = (): number =>
+      fs.readdirSync(os.tmpdir()).filter((n) => n.startsWith("fleq-sound-probe-")).length;
+    const before = countProbeDirs();
+    const sp = await import("../../src/engine/notification/sound-player");
+    await expect(sp.checkSoundBackend()).rejects.toThrow("EACCES");
+    expect(mockExecFile).not.toHaveBeenCalled();
+    expect(countProbeDirs()).toBe(before);
+  });
+
+  // 契約境界: timeout で kill された player の失敗では次の player を起動しない
+  it("Linux wav: timeout kill 後は次の player へ進まない", async () => {
+    Object.defineProperty(process, "platform", { value: "linux" });
+    mockExistsSync.mockImplementation((p: string) => p.endsWith("info.wav"));
+    const killFn = vi.fn();
+    let ffplayCb: ((err: Error | null) => void) | null = null;
+    mockExecFile.mockImplementationOnce((...args: unknown[]) => {
+      ffplayCb = args[args.length - 1] as (err: Error | null) => void;
+      return { kill: killFn };
+    });
+    vi.useFakeTimers();
+    const sp = await import("../../src/engine/notification/sound-player");
+    sp.playSound("info");
+    await vi.advanceTimersByTimeAsync(10_000);
+    expect(killFn).toHaveBeenCalled();
+    ffplayCb!(Object.assign(new Error("killed"), { killed: true }));
+    expect(mockExecFile.mock.calls.map((c) => c[0])).toEqual(["ffplay"]);
   });
 
   it("checkSoundBackend(): プローブが 2 秒超で timeout 扱い", async () => {

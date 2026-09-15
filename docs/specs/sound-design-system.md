@@ -30,7 +30,7 @@ node scripts/render-sounds.mjs            # assets/sounds/<level>.wav を上書�
 node scripts/render-sounds.mjs /tmp/out   # 聴き比べ用
 ```
 
-- 出力は 44.1 kHz・16 bit・mono の WAV。`assets/sounds/` は npm パッケージに含まれ、`src/engine/notification/sound-player.ts` が `<level>.mp3` → `<level>.wav` の順で探す
+- 出力は 44.1 kHz・16 bit・mono の WAV。`assets/sounds/` は npm パッケージに含まれ、`src/engine/notification/sound-player.ts` が `<level>.mp3` → `<level>.wav` の順で探す。Linux の再生は `ffplay` → `paplay` → `aplay` の順で試し、起動時の音声 probe も同じ列を無音 WAV で辿る（バナーの `音声: <player> OK` は実際に成功した player。Issue #20）
 - 規則を変えるときは本書の表と `MOTIFS` を同時に直し、生成し直して commit する。生成物を手で編集しない
 
 ## 変更履歴

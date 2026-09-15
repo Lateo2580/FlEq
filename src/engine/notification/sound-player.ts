@@ -1,5 +1,6 @@
 import { execFile, ChildProcess } from "child_process";
 import * as fs from "fs";
+import * as os from "os";
 import * as path from "path";
 import * as log from "../../logger";
 import type { SoundLevel } from "../../types";
@@ -387,44 +388,73 @@ function launchCustomSoundMacOS(filePath: string, onDone: DoneHandle): ChildProc
   return proc as unknown as ChildProcess;
 }
 
-/** Linux: ffplay → paplay → aplay のフォールバック */
-function launchCustomSoundLinux(filePath: string, onDone: DoneHandle): ChildProcess | null {
-  const ext = path.extname(filePath).toLowerCase();
+/**
+ * Linux の再生コマンド（優先順）。実再生と起動時 probe (checkSoundBackend) は
+ * 必ず linuxPlayersFor() が返す同じ列を辿る。別々の優先順位を持つと、バナーの OK/NG が実再生と食い違う (Issue #20)。
+ */
+type LinuxPlayer = { name: string; args: (file: string) => string[] };
+const LINUX_PLAYERS: readonly LinuxPlayer[] = [
+  { name: "ffplay", args: (f) => ["-nodisp", "-autoexit", "-loglevel", "quiet", f] },
+  { name: "paplay", args: (f) => [f] },
+  { name: "aplay", args: (f) => ["-q", f] },
+];
 
-  if (ext === ".mp3") {
-    // mp3 は ffplay で再生
-    const proc = execFile("ffplay", ["-nodisp", "-autoexit", "-loglevel", "quiet", filePath], (err) => {
+/** 形式ごとの列。ffplay は mp3/wav 両対応、paplay/aplay は wav のみなので mp3 は ffplay だけ */
+function linuxPlayersFor(filePath: string): readonly LinuxPlayer[] {
+  return path.extname(filePath).toLowerCase() === ".mp3" ? LINUX_PLAYERS.slice(0, 1) : LINUX_PLAYERS;
+}
+
+/**
+ * players を先頭から順に試し、最初に成功した player の name を返す。
+ * 失敗したら次へ進む (kill された場合は進まない)。全滅なら errors に各 player の失敗理由が並ぶ。
+ * onSpawn は子プロセスを起動するたびに呼ぶ (timeout kill の対象を最新に保つため)。
+ */
+function playLinuxChain(
+  players: readonly LinuxPlayer[],
+  filePath: string,
+  onSpawn: (proc: ChildProcess) => void,
+  onResult: (result: { ok: boolean; label: string; errors: string[] }) => void,
+  index = 0,
+  errors: string[] = [],
+): void {
+  const player = players[index];
+  const proc = execFile(player.name, player.args(filePath), (err) => {
+    if (err == null) {
+      onResult({ ok: true, label: player.name, errors });
+      return;
+    }
+    errors.push(`${player.name}: ${err.code === "ENOENT" ? "not found in PATH" : err.message}`);
+    if (!err.killed && index + 1 < players.length) {
+      playLinuxChain(players, filePath, onSpawn, onResult, index + 1, errors);
+      return;
+    }
+    onResult({ ok: false, label: player.name, errors });
+  });
+  onSpawn(proc as unknown as ChildProcess);
+}
+
+/** Linux: linuxPlayersFor() の順で再生し、全滅なら bell へ退避 */
+function launchCustomSoundLinux(filePath: string, onDone: DoneHandle): ChildProcess | null {
+  let first: ChildProcess | null = null;
+  playLinuxChain(
+    linuxPlayersFor(filePath),
+    filePath,
+    (proc) => {
+      if (first == null) first = proc;
+      activeProcess = proc;
+    },
+    (result) => {
       if (!onDone.claim()) return;
-      if (err) {
-        log.warn(`Linux ffplay での再生に失敗しました: ${err.message}`);
+      if (result.ok) {
+        onDone.done();
+      } else {
+        log.warn(`Linux 通知音の再生に失敗しました (${result.errors.join("; ")})`);
         printBell();
         onDone.done(true);
-      } else {
-        onDone.done();
       }
-    });
-    return proc as unknown as ChildProcess;
-  } else {
-    // wav は paplay → aplay のフォールバック
-    const proc = execFile("paplay", [filePath], (err) => {
-      if (err) {
-        execFile("aplay", ["-q", filePath], (err2) => {
-          if (!onDone.claim()) return;
-          if (err2) {
-            log.warn(`Linux 通知音の再生に失敗しました: ${err2.message}`);
-            printBell();
-            onDone.done(true);
-          } else {
-            onDone.done();
-          }
-        });
-      } else {
-        if (!onDone.claim()) return;
-        onDone.done();
-      }
-    });
-    return proc as unknown as ChildProcess;
-  }
+    },
+  );
+  return first;
 }
 
 // ── システムサウンドフォールバック ──
@@ -535,9 +565,41 @@ function printBell(): void {
 const BACKEND_PROBE_TIMEOUT_MS = 2_000;
 
 /**
+ * probe 用の 0.1 秒無音 WAV (8 kHz・mono・16 bit) を専用の一時ディレクトリ (mkdtemp) に書く。
+ * 固定名で tmpdir 直下に書くと既存 symlink を追従して他ファイルを壊し得るため、毎回新規ディレクトリを使う。
+ */
+function writeSilentProbeWav(): { dir: string; file: string } {
+  const dataBytes = 1600; // 0.1 s × 8000 Hz × 2 byte
+  const b = Buffer.alloc(44 + dataBytes);
+  b.write("RIFF", 0);
+  b.writeUInt32LE(36 + dataBytes, 4);
+  b.write("WAVE", 8);
+  b.write("fmt ", 12);
+  b.writeUInt32LE(16, 16); // fmt chunk size
+  b.writeUInt16LE(1, 20); // PCM
+  b.writeUInt16LE(1, 22); // mono
+  b.writeUInt32LE(8000, 24); // sample rate
+  b.writeUInt32LE(16000, 28); // byte rate
+  b.writeUInt16LE(2, 32); // block align
+  b.writeUInt16LE(16, 34); // bits per sample
+  b.write("data", 36);
+  b.writeUInt32LE(dataBytes, 40);
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "fleq-sound-probe-"));
+  const file = path.join(dir, "silence.wav");
+  try {
+    fs.writeFileSync(file, b);
+  } catch (err) {
+    fs.rmSync(dir, { recursive: true, force: true });
+    throw err;
+  }
+  return { dir, file };
+}
+
+/**
  * 音声バックエンドが利用可能かを判定する。
- * Linux: ffplay で 0.1 秒の無音サンプルを再生し、終了コードで判定する。
- *        PATH 上に ffplay があっても音声デバイスが使えない場合は ok=false を返す。
+ * Linux: 無音 WAV を、実再生が使う形式 (カスタム音に mp3 があれば ffplay のみ、wav なら ffplay→paplay→aplay)
+ *        と同じ列で再生し、最初に成功した player を label に返す。
+ *        PATH 上に player があっても音声デバイスが使えない場合は次の player へ進み、全滅で ok=false。
  * Windows / macOS: 即座に ok=true を返す (ビルトインの再生経路が常に利用可能)。
  */
 export async function checkSoundBackend(): Promise<{
@@ -549,40 +611,50 @@ export async function checkSoundBackend(): Promise<{
   if (platform === "win32") return { ok: true, label: "winmm" };
   if (platform === "darwin") return { ok: true, label: "afplay" };
 
+  // 実再生が選ぶ形式に合わせる。mp3 が 1 つでもあれば mp3 の列 (ffplay のみ) で probe する
+  const anyMp3 = SOUND_LEVELS.some((l) => path.extname(findCustomSound(l) ?? "").toLowerCase() === ".mp3");
+  const players = linuxPlayersFor(anyMp3 ? "x.mp3" : "x.wav");
+  const chainLabel = players.map((p) => p.name).join("/");
+  // 書き込み失敗は timer を作る前に投げ、呼び出し側 (cli-run の try/catch) へそのまま伝える
+  const probe = writeSilentProbeWav();
+  const cleanup = (): void => {
+    try {
+      fs.rmSync(probe.dir, { recursive: true, force: true });
+    } catch {
+      // ignore
+    }
+  };
   return await new Promise((resolve) => {
     let settled = false;
-    let timer: ReturnType<typeof setTimeout> | null = null;
-    const proc = execFile(
-      "ffplay",
-      ["-f", "lavfi", "-i", "anullsrc=d=0.1", "-nodisp", "-autoexit", "-loglevel", "quiet"],
-      (err) => {
-        if (settled) return;
-        settled = true;
-        if (timer != null) clearTimeout(timer);
-        if (err) {
-          const e = err as NodeJS.ErrnoException;
-          const reason =
-            e.code === "ENOENT"
-              ? "ffplay not found in PATH"
-              : `ffplay probe failed: ${e.message}`;
-          resolve({ ok: false, label: "ffplay", reason });
-        } else {
-          resolve({ ok: true, label: "ffplay" });
-        }
-      },
-    );
-    // モック環境などで execFile のコールバックが同期的に呼ばれ settled=true に
-    // なっている場合、ここで timer を作らないようガードする。
-    if (settled) return;
-    timer = setTimeout(() => {
+    let current: ChildProcess | null = null;
+    const timer = setTimeout(() => {
       if (settled) return;
       settled = true;
       try {
-        proc?.kill();
+        current?.kill();
       } catch {
         // ignore
       }
-      resolve({ ok: false, label: "ffplay", reason: "probe timeout" });
+      cleanup();
+      resolve({ ok: false, label: chainLabel, reason: "probe timeout" });
     }, BACKEND_PROBE_TIMEOUT_MS);
+    playLinuxChain(
+      players,
+      probe.file,
+      (proc) => {
+        current = proc;
+      },
+      (result) => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+        cleanup();
+        if (result.ok) {
+          resolve({ ok: true, label: result.label });
+        } else {
+          resolve({ ok: false, label: chainLabel, reason: result.errors.join("; ") });
+        }
+      },
+    );
   });
 }
