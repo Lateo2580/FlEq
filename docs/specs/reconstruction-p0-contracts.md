@@ -941,8 +941,7 @@ interface NotificationIntent {
 - 同一 revision の異なる受理済み訂正を区別する。
 - 意図的な再通知は、業務上の再通知機会を識別する情報を含める。
 - raw XML、巨大な parsed object、formatter の可変状態を保存しない。
-- desktop と sound の成否を別々に記録する。
-- `channel:"sound"` の音源は、保存単位の分野（気象／火山／地震・EEW／津波）× 段階で選ぶ。分野別根音表（Vault `2026-09-14-fleq-sound-domain-root-table-v1`、実装時に `docs/specs/sound-design-system.md` へ統合）は新築で実装し、旧築の 5 段階 `playSound(level)` には入れない（2026-09-15 ご主人裁定 B）。Linux の再生列は旧築と同じ `ffplay → paplay → aplay` を使い、起動時 probe も同じ列を辿る（Issue #20）。
+- desktop と sound の成否を別々に記録する。`channel:"sound"` の音源は、保存単位の分野（気象／火山／地震・EEW／津波）× 段階で選ぶ。分野別根音表（Vault `2026-09-14-fleq-sound-domain-root-table-v1`、実装時に `docs/specs/sound-design-system.md` へ統合）は新築で実装し、旧築の 5 段階 `playSound(level)` には入れない（2026-09-15 ご主人裁定 B）。Linux の再生列は旧築と同じ `ffplay → paplay → aplay` を使い、起動時 probe も同じ列を辿る（Issue #20）。
 
 ### 6.3 試行・選択順・保存順序
 
