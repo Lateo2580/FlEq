@@ -59,10 +59,10 @@ npm run start:lowmem # メモリ最適化モードで実行
 | 用途 | モデル |
 |---|---|
 | 日常相談・探索・コード読解 | Terra medium |
-| 中間 diff レビュー（フェーズ末含む） | Terra high |
+| 中間 diff レビュー（フェーズ末含む） | Astra high（2026-09-15 作者指示。レビュー依頼は全て Astra high） |
 | 定型実装の委譲 | Luna medium/high |
 | 難しい範囲限定実装 | Sol medium/high |
-| 最終全体レビュー・セキュリティ・見解衝突 | 新規スレッドの Sol high |
+| 最終全体レビュー・セキュリティ・見解衝突 | 新規スレッドの Astra high |
 
 - **独立レビューは必ず新規 codex 呼び出し + read-only**。実装に使ったスレッドを流用しない
 - **独立性**: Claude の自己評価を Codex に見せない（盲点の多様性確保）
