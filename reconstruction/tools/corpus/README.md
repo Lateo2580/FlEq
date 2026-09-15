@@ -38,3 +38,25 @@ unmet（系列別）: O01=14、O02=12、O03=4、O04=5、O05=12、O06=24、O07=1�
 検査 A/B: A=別`check-sequences.mjs`（推奨・採用）、B=既存checkerへ一体化。別fileがないと来歴と系列受入の検査が混在するため分離し、既存hash関数/定数はexportして再利用。追加検査はP0受入条件と参照・型・時計の契約境界だけ。
 実行: `node reconstruction/tools/corpus/check-manifest.mjs` と `node reconstruction/tools/corpus/check-sequences.mjs`。後者も前者を実行する。build/vitest=N/A（契約対象外）。検査PASSは意味oracle/故障注入/実paintの実行PASSではない。
 未決: 末尾unresolvedQuestionsの11件にowner/blocks/resolveBy。fixture追加・REST取得・manifest更新なし。2026-09-14「すべてA」は作業の3分岐への裁定。Q5-a・Q5-b・Q7はspec §15.1どおり未裁定（owner user、期限P4着手前）で、裁定依存の期待はnullとQ-NOTICE等で区別する。
+
+## P1 parser boundary contract
+
+作成: `reconstruction/contracts/p1-parser-boundary.json` はspec §14.1の全fieldを持ち、`fixtureIds`でmanifest全257件、`sequenceIds`と`expectedRef`でO02/O09およびO01の運用区分stepを参照する。`expectedRef`先のdecisionがnullなら合格値に数えない。保存単位は実装しないため`persistenceUnits: []`とし、全`I-U-*`は運用区分の下流伝播先としてのみ`integrationContractIds`に列挙する。
+
+型判断 A/B: A=`p1-parser-boundary.types.ts`へ依存なしのTypeScript型として分離（推奨・暫定採用）、B=JSON内文字列。Aがないと実装側が`Operation`・取得起源・三判定源のpresence・拒否reasonをコンパイル時に参照できない。自己hashはmanifestと同規約で、参照したmanifest/sequencesの`meta.sha256`も固定する。
+
+検査: `node reconstruction/contracts/check-contract.mjs`。このcheckerがないと§14.1必須field・全fixture参照・sequence/expectedRef実在・null decision除外・未決owner/resolveBy・自己hashの破損をP0完了前に検出できない。hash関数・規約・zero hashは`check-manifest.mjs`からexportを再利用し、複製しない。build/vitestは契約起草ではN/A、P1実装完了時は`npm run build`と`npm test`を必須とする。
+
+未決: Q-OPは合法なStatus非提供形式、Q-ENUMは非operation拒否とunavailable、Q-LIMITはXML構造上限だけをowner/blocks/resolveBy付きで残す。operation reason四種、8 MiBのWS/REST入力、展開後10 MiB、Q-NOTICE-Q7の2026-09-14裁定（spec §11全行）は契約側で閉じた。manifest/sequences自体は変更しない。
+
+### 2026-09-15 独立レビュー反映（上記P1記述の更新）
+
+D01は型分離Aを裁定済み（2026-09-15 ご主人）。D03はA=起草来歴`meta.draftedFromOid`と実装開始`contract.baseOid`を分離（推奨・暫定採用）、B=空契約を先にlandする2段commit。来歴と開始条件の混同を防ぐため分離し、`unassigned`はWARN付き起草PASS・実装着手不可。main掲載後、統合担当が契約を含むOIDを発注commitで設定し自己hashを再固定する。実装checkoutは指定OIDに固定し、発注OIDは委譲文で受け取る（別資材のJSONは作らない。checkerはcheckout内のJSONしか読まないため）。checkerは`P1_BASE_OID=<oid>`（未設定なら`contract.baseOid`）を入力口とし、OID指定時に`git cat-file -e <oid>:reconstruction/contracts/p1-parser-boundary.json`で存在を検証する。引数でなく環境変数なのはimport先`check-manifest.mjs`がargvを所有するため。見出し行の参照は本文として許す（空行・罫線・コードフェンスは拒否）。前回D02（sequencesの16参照+1）はbase汚染の誤診断につき不採用。
+
+hashは先頭`meta.draftedFromOid`に続く`meta.sha256`の64文字だけをASCII 0に置換して全UTF-8 bytesを計算する。`sha256`・`zeroHash`・`hashConvention`は既存`check-manifest.mjs`のexportを使う。manifest/sequencesの自己hashを参照し直す。field集合は検査するが一般fieldの順序は強制しない。
+
+保存単位を扱わないため`integrationContractIds: []`へ更新し、伝播先は`operationContract.propagation`に保持する。展開失敗等は診断の`undetermined`と観測済みsourceだけを記録する。未判定を表せないと壊れたXMLへ架空の区分を補うため、この診断状態が必要だ。四source状態は維持する。
+
+新築検証はrepo rootで`./node_modules/.bin/tsc --project reconstruction/tsconfig.json`と`./node_modules/.bin/vitest run --config reconstruction/vitest.config.ts`。P1実装が両設定を作り、新築src/testを対象にし、出力を`reconstruction/dist/`へ隔離する。rootのcleanを呼ばず旧distを削除・上書きしない。今回の起草検査は従来の3つのnode checkerのみ、build/vitest=N/A。
+
+七区間は§9.4の名前付きdurationMsとしてP1-AC14/P1-T07に対応し、最大VPWS50のenvelope・194period VPWP50・特殊値VXSE53を計測する。T0〜T6実paint時刻とは別。未実行はnullと理由を記録する。Q-OP期限は②のB03/B04境界契約前へ戻し、先行可能な独立作業をblocks欄へ明記した。Q-NOTICE-Q7の採否は閉じ、training/test通知・訓練音の具体条件はP2通知契約へ引き継ぐ。
