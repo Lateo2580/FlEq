@@ -1,0 +1,420 @@
+{
+  "meta": {
+    "draftedFromOid": "3095a6c21caa96e06fc3b3a6d2f906534ef5441b",
+    "sha256": "575eb578f9462168e8a92d49724bca1bfd1b1996b84405f0c247e7af55323d33",
+    "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
+    "manifestSha256": "76c82b87d7783a4eae14af690cb34e7d6ec46f73617dc75b7f7401951619f080",
+    "sequencesSha256": "c800790f57414088d97e3e9b309835f6742907990edc5f4864ea4933fb5985ba",
+    "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
+    "decisionBranches": [
+      {
+        "id": "P2-D01",
+        "A": "A1〜A10の10契約に分け、共有runtimeとmailboxを分離する",
+        "B": "runtimeとmailbox、SSEとChromeを統合した8契約にする",
+        "recommended": "A",
+        "provisional": "A",
+        "ruling": "作者裁定 A（2026-09-17）",
+        "reason": "公開境界と障害帰属を小さく保つ"
+      },
+      {
+        "id": "P2-A1-TYPES",
+        "A": "A1がA1〜A3の共有型をp2-shared-runtime.types.ts一つで所有する",
+        "B": "A2/A3が各自のtypes.tsを持つ",
+        "recommended": "A",
+        "provisional": "A",
+        "ruling": "計画§3.2により A",
+        "reason": "共有unionの同時編集と型複製を防ぐ"
+      }
+    ],
+    "questionResolutions": [
+      {
+        "id": "Q-ENUM",
+        "status": "referencedOpen",
+        "source": "P1-PARSER-BOUNDARY-001#Q-ENUM",
+        "closed": "RejectionReasonの候補7種とparser 10種・operation 4種の区分を固定",
+        "remaining": "共通Q-ENUMの意味拒否部分（O02:8/10対応・複数不備優先）は本契約でblock。unavailable表の正本はP1 Q-ENUMのまま参照",
+        "reason": "parser拒否・意味入力拒否・正常入力のunavailableを分離する"
+      },
+      {
+        "id": "P2-SHARED-OWNERSHIP",
+        "status": "closed",
+        "closed": "NotificationIntent・PublishedOutcome・UnitViewはA1、DisplaySnapshotはA8、E01 trace schemaはA10が所有する",
+        "remaining": "なし",
+        "reason": "計画§3.2の共有ファイル所有規則"
+      }
+    ],
+    "operationContract": {
+      "source": "P1-PARSER-BOUNDARY-001#meta.operationContract",
+      "operations": [
+        "normal",
+        "training",
+        "test"
+      ],
+      "rule": "確定operationをReportRef、意味入力、subject、current、gate/watermark、取消、intent、outcome、UnitView、checkpointへ必須伝播し、区分間の取消・重複抑制・置換・coverage充足を禁止する"
+    }
+  },
+  "contract": {
+    "contractId": "P2-SHARED-RUNTIME-001",
+    "mode": "implementation",
+    "objective": "B01補完・B06・B15の共有型と純粋runtimeを実装し、絶対時計と単調時計、唯一のstate更新口、operation伝播、no-op、共通Head/日時拒否、許可fieldだけの診断を固定する。",
+    "baseOid": "unassigned",
+    "cleanTreeRequired": true,
+    "readPaths": [
+      "docs/specs/reconstruction-p0-contracts.md",
+      "reconstruction/contracts/p1-parser-boundary.json",
+      "reconstruction/contracts/p1-parser-boundary.types.ts",
+      "reconstruction/contracts/p2-order-plan.md",
+      "reconstruction/contracts/p2-shared-runtime.json",
+      "reconstruction/contracts/p2-shared-runtime.types.ts",
+      "reconstruction/tools/corpus/manifest.json",
+      "reconstruction/tools/corpus/sequences.json",
+      "reconstruction/src/**",
+      "reconstruction/test/**"
+    ],
+    "allowedPaths": [
+      "reconstruction/src/contracts-revision/**",
+      "reconstruction/src/runtime/**",
+      "reconstruction/src/diagnostics/**",
+      "reconstruction/test/shared-runtime/**"
+    ],
+    "allowedGitCommands": [
+      "git status --porcelain",
+      "git rev-parse HEAD",
+      "git cat-file -e <oid>:reconstruction/contracts/p2-shared-runtime.json",
+      "git diff --binary --no-ext-diff -- <allowed_paths>",
+      "git diff --check -- <allowed_paths>",
+      "git show <required-path-or-object>",
+      "git ls-files <required-path>"
+    ],
+    "moduleIds": [
+      "B01",
+      "B06",
+      "B15"
+    ],
+    "integrationContractIds": [
+      "I-U-E",
+      "I-U-W",
+      "I-U-F"
+    ],
+    "dependsOnContractIds": [
+      "P1-PARSER-BOUNDARY-001"
+    ],
+    "publicTypes": [
+      "reconstruction/contracts/p2-shared-runtime.types.ts#JsonValue",
+      "reconstruction/contracts/p2-shared-runtime.types.ts#UnitId",
+      "reconstruction/contracts/p2-shared-runtime.types.ts#ClockReading",
+      "reconstruction/contracts/p2-shared-runtime.types.ts#RejectionReason",
+      "reconstruction/contracts/p2-shared-runtime.types.ts#SemanticEnvelope",
+      "reconstruction/contracts/p2-shared-runtime.types.ts#SemanticEnvelopeResult",
+      "reconstruction/contracts/p2-shared-runtime.types.ts#ReportRef",
+      "reconstruction/contracts/p2-shared-runtime.types.ts#SaveFailureStage",
+      "reconstruction/contracts/p2-shared-runtime.types.ts#SaveProgress",
+      "reconstruction/contracts/p2-shared-runtime.types.ts#PersistenceStatus",
+      "reconstruction/contracts/p2-shared-runtime.types.ts#NotificationIntent",
+      "reconstruction/contracts/p2-shared-runtime.types.ts#PublishedOutcome",
+      "reconstruction/contracts/p2-shared-runtime.types.ts#UnitView",
+      "reconstruction/contracts/p2-shared-runtime.types.ts#ParserDiagnosticReason",
+      "reconstruction/contracts/p2-shared-runtime.types.ts#DiagnosticEvent",
+      "reconstruction/contracts/p2-shared-runtime.types.ts#RuntimeInput",
+      "reconstruction/contracts/p2-shared-runtime.types.ts#RuntimeState",
+      "reconstruction/contracts/p2-shared-runtime.types.ts#RuntimeStep",
+      "reconstruction/contracts/p2-shared-runtime.types.ts#PublicValue",
+      "reconstruction/contracts/p2-shared-runtime.types.ts#SubjectOutcome",
+      "reconstruction/contracts/p2-shared-runtime.types.ts#OutcomePersistence",
+      "reconstruction/contracts/p2-shared-runtime.types.ts#OutcomeEnvelope",
+      "reconstruction/contracts/p2-shared-runtime.types.ts#DiagnosticDetails",
+      "reconstruction/contracts/p2-shared-runtime.types.ts#DiagnosticReason",
+      "reconstruction/contracts/p2-shared-runtime.types.ts#FreshnessRecord"
+    ],
+    "publicFunctions": [
+      "validateSemanticEnvelope(DecodedMaterial): SemanticEnvelopeResult",
+      "reduceRuntime(state: RuntimeState, input: RuntimeInput): RuntimeStep"
+    ],
+    "allowedDependencies": [],
+    "fixtureIds": [
+      "test__fixtures__81_05_01_260605_VPWP50_head_missing",
+      "test__fixtures__telegram-foundation__invalid-report-datetime"
+    ],
+    "sequenceIds": [
+      "O02"
+    ],
+    "expectedDecisions": [
+      {
+        "expectedRef": "expected:O02:8"
+      },
+      {
+        "expectedRef": "expected:O02:10"
+      }
+    ],
+    "expectationEvidence": [
+      {
+        "expectedRef": "expected:O02:8"
+      },
+      {
+        "expectedRef": "expected:O02:10"
+      }
+    ],
+    "semanticDeadlines": [
+      {
+        "id": "P2-A1-TIME-01",
+        "target": "business expiry",
+        "clock": "wallTimeMs",
+        "rule": "absolute deadline; restart reevaluates without extension",
+        "source": "§5.3"
+      },
+      {
+        "id": "P2-A1-TIME-02",
+        "target": "wait and timeout",
+        "clock": "monotonicMs",
+        "rule": "same-process duration only; never compare across restart",
+        "source": "§5.3"
+      }
+    ],
+    "deliveryDeadlines": [],
+    "retentionLimits": [
+      {
+        "id": "P2-A1-RET-01",
+        "target": "DiagnosticEvent before A3 sink",
+        "limit": "bounded projection only; no raw XML, token, header, query, or exception object",
+        "source": "§7.9"
+      }
+    ],
+    "resourceLimits": [
+      {
+        "id": "P2-A1-RES-01",
+        "target": "diagnostic queue contract",
+        "limit": 256,
+        "unit": "items",
+        "scope": "includes in-flight; sink owned by A3",
+        "source": "§7.9"
+      },
+      {
+        "id": "P2-A1-RES-02",
+        "target": "diagnostic queue contract",
+        "limit": 1048576,
+        "unit": "bytes",
+        "scope": "includes in-flight; sink owned by A3",
+        "source": "§7.9"
+      },
+      {
+        "id": "P2-A1-RES-03",
+        "target": "diagnostic line contract",
+        "limit": 8192,
+        "unit": "bytes",
+        "scope": "truncate with reason while retaining required fields",
+        "source": "§7.9"
+      }
+    ],
+    "workDeadline": null,
+    "persistenceUnits": [
+      "U-E",
+      "U-W",
+      "U-F"
+    ],
+    "persistedFields": [
+      "operation on every durable subject, source, intent, outcome source and checkpoint payload",
+      "NotificationIntent fields including original createdAt/expiresAt and configRevision",
+      "unit state selected by each I-U-* codec; A1 does not define family payloads"
+    ],
+    "nonPersistedFields": [
+      "ClockReading.monotonicMs",
+      "RuntimeStep effects after handoff",
+      "UnitView and PublishedOutcome delivery copies",
+      "raw XML, decoded XML tree and mutable reducer internals"
+    ],
+    "outOfScope": [
+      "I/O",
+      "各 reducer",
+      "HTTP",
+      "adapter"
+    ],
+    "acceptanceChecks": [
+      {
+        "id": "P2-A1-AC01",
+        "requirement": "E08: 保存済みstate・副作用なし・期限前の固定時計tick 1,000回で全状態clone、変更検出stringify、checkpoint write、内容snapshot生成を各0にする",
+        "evidenceRefs": [
+          "docs/specs/reconstruction-p0-contracts.md:2059 «8ac7c45a9d2292ae»",
+          "reconstruction/contracts/p2-order-plan.md:32 «14c0a7138b56025b»"
+        ]
+      },
+      {
+        "id": "P2-A1-AC02",
+        "requirement": "E11: 正常・取消・no-op・最大入力で変更検出の全状態stringifyとJSON roundtripを0にする",
+        "evidenceRefs": [
+          "docs/specs/reconstruction-p0-contracts.md:2062 «25bd4bb1cab285b6»",
+          "docs/specs/reconstruction-p0-contracts.md:678 «9a30a0ed8e0ab826»"
+        ]
+      },
+      {
+        "id": "P2-A1-AC03",
+        "requirement": "O02: 共通Headまたは報告日時を信頼できない入力をRejectionReason付きで拒否し、current・watermark・intentを不変にする",
+        "evidenceRefs": [
+          "docs/specs/reconstruction-p0-contracts.md:733 «66e0af68048253c0»",
+          "reconstruction/contracts/p2-order-plan.md:47 «39d6099dd12b7f22»",
+          "reconstruction/tools/corpus/sequences.json#expected:O02:8",
+          "reconstruction/tools/corpus/sequences.json#expected:O02:10"
+        ]
+      },
+      {
+        "id": "P2-A1-AC04",
+        "requirement": "確定operationをReportRefからUnitView・checkpointまで必須伝播し、normal/training/test間の取消・置換・coverage混入を0にする",
+        "evidenceRefs": [
+          "docs/specs/reconstruction-p0-contracts.md:668 «1c7ec8bbb7f61094»",
+          "reconstruction/contracts/p2-order-plan.md:314 «bf9892533111d5e4»"
+        ]
+      },
+      {
+        "id": "P2-A1-AC05",
+        "requirement": "E23型境界: DiagnosticEventは固定必須fieldと許可された任意fieldだけを持ち、raw/tokenを受け渡さない。純関数はDiagnosticDetails（reasonと有界な許可値）だけを返し、runtimeがclock.wallTimeMsとrunIdを付与する。DiagnosticReasonはparser10種＋operation4種＋意味拒否7種＋InfrastructureDiagnosticReason基盤20種のunionで、parser projectionと保存11種・mailbox5種・終了2種・sink2種を同じsinkへ配送できる。保存失敗段階はcheckpointEncodeFailed／checkpointWriteFailed／checkpointFileSyncFailed／checkpointCloseFailed／checkpointRenameFailed／checkpointDirectorySyncFailed／checkpointVerifyFailed、mailbox拒否内訳はmailboxRejectedDraining／mailboxRejectedItemLimit／mailboxRejectedByteLimitとしてreason列挙値に織り込む。DiagnosticDetailsはspec §7.9の固定fieldだけを持ち、追加field・任意文字列reasonを禁止する",
+        "evidenceRefs": [
+          "docs/specs/reconstruction-p0-contracts.md:1211 «1db51524eccef065»",
+          "docs/specs/reconstruction-p0-contracts.md:1226 «086e8c5d7c0f990f»",
+          "docs/specs/reconstruction-p0-contracts.md:2075 «e3eb45bd13bcf07a»"
+        ]
+      },
+      {
+        "id": "P2-A1-AC06",
+        "requirement": "PublishedOutcomeはaccepted/batchCompleted/deadlineApplied/recoveryAppliedのunion。SubjectOutcomeが意味状態・複数subject・変更fieldを表し、UnitView.subjectsは現在の有界DTOでevent履歴ではない。各I-U-*が許可値/schemaを固定し非有限数・raw・未宣言fieldを拒否する",
+        "evidenceRefs": [
+          "docs/specs/reconstruction-p0-contracts.md:2454 «331730e16216e0ba»",
+          "docs/specs/reconstruction-p0-contracts.md:2523 «3f4ab5e225afb478»"
+        ]
+      },
+      {
+        "id": "P2-A1-AC07",
+        "requirement": "FreshnessRecordの型と不変条件を固定する。operation/family/subject/影響範囲、候補/現在/疑っている出典、decision/reason、比較不明、現在revision、suspectと確認範囲を保持する。解除は同一対象・範囲の正常採用またはcoverage確認のみ。別対象受理・heartbeatでは解除せずcurrentを自動補修しない。判定と解除の実装・系列検収はA5が所有する",
+        "evidenceRefs": [
+          "docs/specs/reconstruction-p0-contracts.md:1192 «aefcb1a8a916571c»",
+          "reconstruction/contracts/p2-order-plan.md:311 «dd8b1407bf8c8a19»"
+        ]
+      }
+    ],
+    "testMapping": [
+      {
+        "testId": "P2-A1-T01",
+        "purpose": "acceptance",
+        "referenceIds": [
+          "P2-A1-AC01"
+        ],
+        "behavior": "固定時計の無変化tickは同じstate参照と空effectsを返す"
+      },
+      {
+        "testId": "P2-A1-T02",
+        "purpose": "contractBoundary",
+        "referenceIds": [
+          "P2-A1-AC02"
+        ],
+        "behavior": "全状態stringifyとJSON roundtripを使わず変更枝だけを構築する"
+      },
+      {
+        "testId": "P2-A1-T03",
+        "purpose": "corpusHistory",
+        "referenceIds": [
+          "P2-A1-AC03"
+        ],
+        "behavior": "O02:8/10を共通検証で拒否し業務stateを変えない"
+      },
+      {
+        "testId": "P2-A1-T04",
+        "purpose": "contractBoundary",
+        "referenceIds": [
+          "P2-A1-AC04"
+        ],
+        "behavior": "異なるoperationの同一subjectは別空間で処理する"
+      },
+      {
+        "testId": "P2-A1-T05",
+        "purpose": "contractBoundary",
+        "referenceIds": [
+          "P2-A1-AC05"
+        ],
+        "behavior": "E23型境界: DiagnosticEventは固定必須fieldと許可された任意fieldだけを持ち、raw/tokenを受け渡さない。純関数はDiagnosticDetails（reasonと有界な許可値）だけを返し、runtimeがclock.wallTimeMsとrunIdを付与する。DiagnosticReasonはparser10種＋operation4種＋意味拒否7種＋InfrastructureDiagnosticReason基盤20種のunionで、parser projectionと保存11種・mailbox5種・終了2種・sink2種を同じsinkへ配送できる。保存失敗段階はcheckpointEncodeFailed／checkpointWriteFailed／checkpointFileSyncFailed／checkpointCloseFailed／checkpointRenameFailed／checkpointDirectorySyncFailed／checkpointVerifyFailed、mailbox拒否内訳はmailboxRejectedDraining／mailboxRejectedItemLimit／mailboxRejectedByteLimitとしてreason列挙値に織り込む。DiagnosticDetailsはspec §7.9の固定fieldだけを持ち、追加field・任意文字列reasonを禁止する"
+      },
+      {
+        "testId": "P2-A1-T06",
+        "purpose": "contractBoundary",
+        "referenceIds": [
+          "P2-A1-AC06"
+        ],
+        "behavior": "PublishedOutcomeはaccepted/batchCompleted/deadlineApplied/recoveryAppliedのunion。SubjectOutcomeが意味状態・複数subject・変更fieldを表し、UnitView.subjectsは現在の有界DTOでevent履歴ではない。各I-U-*が許可値/schemaを固定し非有限数・raw・未宣言fieldを拒否する"
+      },
+      {
+        "testId": "P2-A1-T07",
+        "purpose": "contractBoundary",
+        "referenceIds": [
+          "P2-A1-AC07"
+        ],
+        "behavior": "FreshnessRecordの型と不変条件を固定する。operation/family/subject/影響範囲、候補/現在/疑っている出典、decision/reason、比較不明、現在revision、suspectと確認範囲を保持する。解除は同一対象・範囲の正常採用またはcoverage確認のみ。別対象受理・heartbeatでは解除せずcurrentを自動補修しない。判定と解除の実装・系列検収はA5が所有する"
+      }
+    ],
+    "requiredCommands": [
+      {
+        "command": "node reconstruction/tools/corpus/check-manifest.mjs",
+        "stage": "contract",
+        "purpose": "参照fixture台帳と自己hashを検査する",
+        "cwd": ".",
+        "target": "reconstruction/tools/corpus/manifest.json"
+      },
+      {
+        "command": "node reconstruction/tools/corpus/check-sequences.mjs",
+        "stage": "contract",
+        "purpose": "O02参照と根拠を検査する",
+        "cwd": ".",
+        "target": "reconstruction/tools/corpus/sequences.json"
+      },
+      {
+        "command": "node reconstruction/contracts/check-contract.mjs",
+        "stage": "contract",
+        "purpose": "全作業契約の型・参照・自己hashを検査する",
+        "cwd": ".",
+        "target": "reconstruction/contracts/*.json"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/tsconfig.json",
+        "stage": "implementation",
+        "purpose": "新築TypeScript型検査",
+        "cwd": ".",
+        "target": "reconstruction/tsconfig.json"
+      },
+      {
+        "command": "./node_modules/.bin/vitest run --config reconstruction/vitest.config.ts",
+        "stage": "implementation",
+        "purpose": "runtime受入・境界試験",
+        "cwd": ".",
+        "target": "reconstruction/test/"
+      },
+      {
+        "command": "./node_modules/.bin/vitest run --config reconstruction/vitest.config.ts --sequence.shuffle",
+        "stage": "implementation",
+        "purpose": "共有runtime stateの順序依存を検出する",
+        "cwd": ".",
+        "target": "reconstruction/test/"
+      }
+    ],
+    "artifactRequirements": [
+      "A1〜A3の共有公開型はp2-shared-runtime.types.tsだけに置く。これがないとA2/A3/A4〜A10が同じRuntimeInput・intent・outcome・view契約を参照できない",
+      "NotificationIntent・PublishedOutcome・UnitViewはA1所有。DisplaySnapshot wire型はA8所有、E01 trace schemaはA10所有としA1へ先取りしない",
+      "唯一のreduceRuntime入口がないとdeadline・checkpoint ack・通知結果が別経路からstateを変更できるため、一入口を要求する",
+      "allowed_pathsに限定したgit diff --binary --no-ext-diff patch",
+      "変更ファイル一覧、実行コマンドと結果、未実行検証と理由、残存リスク",
+      "判断分岐A/B・推奨・暫定採用と、追加・変更した各テストのpurpose対応",
+      "DiagnosticDetailsがないと純関数が外部時計/runIdを捏造する。runtimeだけがDiagnosticEventを完成させ、全文字列・任意値を既定8192 byte上限へ収める",
+      "FreshnessRecordがないと候補非採用と現在出典の不一致を対象別に追跡できない。意味判定実装はA5へ残す"
+    ],
+    "unresolvedQuestions": [
+      {
+        "id": "Q-ENUM",
+        "owner": "implementer",
+        "blocks": [
+          "A1意味拒否のO02:8/10具体reason対応",
+          "複数不備時の意味拒否reason優先規則。unavailable表はP1 Q-ENUMを参照し二重管理しない"
+        ],
+        "resolveBy": "最初の対象I-U-* reducer契約凍結前。A1とA4/A5/A6の契約凍結前（計画§6.1）",
+        "requiredEvidence": [
+          "O02:8/10と7種の意味拒否reasonの対応表",
+          "複数不備入力の優先規則とscope・lastKnown・affectedScopeを含むP1 Q-ENUM参照表"
+        ]
+      }
+    ]
+  }
+}

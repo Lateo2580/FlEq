@@ -1,0 +1,388 @@
+{
+  "meta": {
+    "draftedFromOid": "3095a6c21caa96e06fc3b3a6d2f906534ef5441b",
+    "sha256": "c522efca62090103c54a22261c02eb0e3a248d393e1b570797761ef57417c58e",
+    "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
+    "manifestSha256": "76c82b87d7783a4eae14af690cb34e7d6ec46f73617dc75b7f7401951619f080",
+    "sequencesSha256": "c800790f57414088d97e3e9b309835f6742907990edc5f4864ea4933fb5985ba",
+    "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
+    "decisionBranches": [
+      {
+        "id": "P2-D09",
+        "A": "ParserMailboxItemを変更せず、薄いMailboxEnvelopeにT0・enqueue単調時刻・run ID・priority理由を置く",
+        "B": "P1のParserMailboxItemとDecodedMaterialへP2測定fieldを追加する",
+        "recommended": "A",
+        "provisional": "A",
+        "ruling": "作者裁定 A（2026-09-17）",
+        "reason": "P2測定情報をparser意味境界へ混入させずinputIdで完了まで照合できる"
+      },
+      {
+        "id": "P2-A2-QUEUE",
+        "A": "一つの有界mailboxで固定優先順と緊急予約を扱う",
+        "B": "優先群ごとに独立queueを作る",
+        "recommended": "A",
+        "provisional": "A",
+        "ruling": "計画とspecの単一mailbox境界により A",
+        "reason": "件数・byte・in-flightの合算上限と同一subject順を一か所で守る"
+      }
+    ],
+    "questionResolutions": [
+      {
+        "id": "P2-D9",
+        "status": "closed",
+        "closed": "P1公開型改訂0件。A2がMailboxEnvelopeで相関情報を保持する",
+        "remaining": "実測でinputId相関不能が判明した場合だけP1契約改訂",
+        "reason": "計画§6.2"
+      }
+    ],
+    "operationContract": {
+      "ref": "P2-SHARED-RUNTIME-001#meta.operationContract"
+    }
+  },
+  "contract": {
+    "contractId": "P2-MAILBOX-001",
+    "mode": "implementation",
+    "objective": "B05 mailboxをParserMailboxItemを変えずに実装し、件数・byte・通常枠・緊急予約・通常data in-flight 1・固定優先順・停止排出・全遷移の計数を閉じる。",
+    "baseOid": "unassigned",
+    "cleanTreeRequired": true,
+    "readPaths": [
+      "docs/specs/reconstruction-p0-contracts.md",
+      "reconstruction/contracts/p1-parser-boundary.json",
+      "reconstruction/contracts/p1-parser-boundary.types.ts",
+      "reconstruction/contracts/p2-order-plan.md",
+      "reconstruction/contracts/p2-shared-runtime.json",
+      "reconstruction/contracts/p2-shared-runtime.types.ts",
+      "reconstruction/contracts/p2-mailbox.json",
+      "reconstruction/src/ingress/**",
+      "reconstruction/src/decode-material/**",
+      "reconstruction/src/mailbox/**",
+      "reconstruction/tools/corpus/manifest.json",
+      "reconstruction/tools/corpus/sequences.json"
+    ],
+    "allowedPaths": [
+      "reconstruction/src/mailbox/**",
+      "reconstruction/test/mailbox/**"
+    ],
+    "allowedGitCommands": [
+      "git status --porcelain",
+      "git rev-parse HEAD",
+      "git cat-file -e <oid>:reconstruction/contracts/p2-mailbox.json",
+      "git diff --binary --no-ext-diff -- <allowed_paths>",
+      "git diff --check -- <allowed_paths>",
+      "git show <required-path-or-object>",
+      "git ls-files <required-path>"
+    ],
+    "moduleIds": [
+      "B05"
+    ],
+    "integrationContractIds": [],
+    "dependsOnContractIds": [
+      "P1-PARSER-BOUNDARY-001",
+      "P2-SHARED-RUNTIME-001"
+    ],
+    "publicTypes": [
+      "reconstruction/contracts/p2-shared-runtime.types.ts#MailboxPriorityReason",
+      "reconstruction/contracts/p2-shared-runtime.types.ts#MailboxEnvelope",
+      "reconstruction/contracts/p2-shared-runtime.types.ts#MailboxCompletion",
+      "reconstruction/contracts/p2-shared-runtime.types.ts#MailboxStats",
+      "reconstruction/contracts/p2-shared-runtime.types.ts#MailboxEnqueueResult",
+      "reconstruction/contracts/p2-shared-runtime.types.ts#MailboxControl"
+    ],
+    "publicFunctions": [
+      "enqueue(envelope: MailboxEnvelope): MailboxEnqueueResult",
+      "takeNext(nowMonotonicMs: number): MailboxEnvelope | null",
+      "complete(completion: MailboxCompletion): MailboxStats",
+      "beginDrain(nowMonotonicMs: number): MailboxStats",
+      "stats(nowMonotonicMs: number): MailboxStats (read-only)",
+      "recordWorkerResponse(nowMonotonicMs: number): MailboxStats"
+    ],
+    "allowedDependencies": [
+      "node:worker_threads"
+    ],
+    "fixtureIds": [
+      "test__fixtures__15_18_01_250630_VPWS50",
+      "test__fixtures__77_01_01_240613_VXSE45"
+    ],
+    "sequenceIds": [
+      "O09"
+    ],
+    "expectedDecisions": [
+      {
+        "expectedRef": "expected:O09:2"
+      }
+    ],
+    "expectationEvidence": [
+      {
+        "expectedRef": "expected:O09:2"
+      }
+    ],
+    "semanticDeadlines": [],
+    "deliveryDeadlines": [
+      {
+        "id": "P2-A2-DLV-01",
+        "target": "normal input enqueue to processing start",
+        "limit": 5,
+        "unit": "seconds",
+        "status": "provisional",
+        "source": "E07"
+      },
+      {
+        "id": "P2-A2-DLV-02",
+        "target": "last input stop to pending and in-flight zero",
+        "limit": 10,
+        "unit": "seconds",
+        "status": "provisional",
+        "source": "E07"
+      }
+    ],
+    "retentionLimits": [
+      {
+        "id": "P2-A2-RET-01",
+        "target": "MailboxEnvelope",
+        "limit": "enqueue through completion or bounded rejection",
+        "source": "§7.2"
+      },
+      {
+        "id": "P2-A2-RET-02",
+        "target": "queue history",
+        "limit": "none; retain counters/high-water/progress timestamps only",
+        "source": "§7.2/§9.9 E07"
+      }
+    ],
+    "resourceLimits": [
+      {
+        "id": "P2-A2-RES-01",
+        "target": "input mailbox total",
+        "limit": 128,
+        "unit": "items",
+        "scope": "pending plus in-flight",
+        "source": "§7.2"
+      },
+      {
+        "id": "P2-A2-RES-02",
+        "target": "input mailbox total",
+        "limit": 16777216,
+        "unit": "bytes",
+        "scope": "pending plus in-flight encoded bytes",
+        "source": "§7.2"
+      },
+      {
+        "id": "P2-A2-RES-03",
+        "target": "normal input allocation",
+        "limit": 120,
+        "unit": "items",
+        "scope": "leaves 8 emergency/control slots",
+        "source": "§7.2"
+      },
+      {
+        "id": "P2-A2-RES-04",
+        "target": "normal input allocation",
+        "limit": 14680064,
+        "unit": "bytes",
+        "scope": "leaves 2 MiB emergency/control reservation",
+        "source": "§7.2"
+      },
+      {
+        "id": "P2-A2-RES-05",
+        "target": "emergency and necessary control reservation",
+        "limit": 8,
+        "unit": "items",
+        "scope": "shared by EEW, tsunami and control",
+        "source": "§7.2"
+      },
+      {
+        "id": "P2-A2-RES-06",
+        "target": "emergency and necessary control reservation",
+        "limit": 2097152,
+        "unit": "bytes",
+        "scope": "shared by EEW, tsunami and control",
+        "source": "§7.2"
+      },
+      {
+        "id": "P2-A2-RES-07",
+        "target": "normal data to worker",
+        "limit": 1,
+        "unit": "in-flight item",
+        "scope": "completion keeps item and bytes counted",
+        "source": "§7.2"
+      }
+    ],
+    "workDeadline": null,
+    "persistenceUnits": [],
+    "persistedFields": [],
+    "nonPersistedFields": [
+      "MailboxEnvelope and ParserMailboxItem",
+      "T0 and enqueue monotonic timestamps",
+      "runId and priorityReason",
+      "pending/in-flight queue contents and progress timestamps"
+    ],
+    "outOfScope": [
+      "worker pool",
+      "詳細ページ",
+      "REST recovery"
+    ],
+    "acceptanceChecks": [
+      {
+        "id": "P2-A2-AC01",
+        "requirement": "E07: enqueue・dequeue・転送・完了・取消の全遷移でpendingとin-flightの件数・byteを合算し、宣言上限違反0とhigh-waterを報告する",
+        "evidenceRefs": [
+          "docs/specs/reconstruction-p0-contracts.md:2058 «c5a19c3c5d58ec9b»",
+          "docs/specs/reconstruction-p0-contracts.md:2082 «74aa393600c9b74b»"
+        ]
+      },
+      {
+        "id": "P2-A2-AC02",
+        "requirement": "E07: 通常入力の最大待機年齢を暫定5秒以内、入力停止後暫定10秒以内にpending/in-flightを0とし、周期末backlogを非増加にする。3窓増加だけではFailにしない",
+        "evidenceRefs": [
+          "docs/specs/reconstruction-p0-contracts.md:2058 «c5a19c3c5d58ec9b»",
+          "docs/specs/reconstruction-p0-contracts.md:2084 «1f8cdcaa971fa332»",
+          "reconstruction/contracts/p2-order-plan.md:312 «c442c799ab54cbc2»"
+        ]
+      },
+      {
+        "id": "P2-A2-AC03",
+        "requirement": "O09 P2 queue: control進行を保ち、EEW候補→津波警報候補→その他の固定順で選び、同一operation/family/subjectの先行入力を飛ばさない。確認済みtraining/testは通常operationの緊急情報より優先しない。control（保存ack・期限・shutdown）は緊急予約枠で件数/byteを計数する",
+        "evidenceRefs": [
+          "docs/specs/reconstruction-p0-contracts.md:1089 «7d583246228571ea»",
+          "docs/specs/reconstruction-p0-contracts.md:1094 «34b125d081cb34b2»",
+          "docs/specs/reconstruction-p0-contracts.md:1785 «c2a0e9797f17e6f9»",
+          "reconstruction/tools/corpus/sequences.json#expected:O09:2",
+          "docs/specs/reconstruction-p0-contracts.md:1093 «f08bf2ff68bba9af»"
+        ]
+      },
+      {
+        "id": "P2-A2-AC04",
+        "requirement": "ParserMailboxItemを変更せず、MailboxEnvelopeのinputId対応を完了まで保持し、T0・enqueue単調時刻・runId・priorityReasonをDecodedMaterialへ複製しない。payloadはparser item/control union、completionもparser result/control union。runtimeはmailboxCompletedのcontrolを直列適用しparserへ渡さない。parserのmessageIdはinputId、controlはrun内一意IDとし架空のinputSequenceを作らない",
+        "evidenceRefs": [
+          "reconstruction/contracts/p2-order-plan.md:254 «92f0b30ed7afbb45»",
+          "reconstruction/contracts/p2-order-plan.md:255 «151a3b407d160692»",
+          "reconstruction/contracts/p2-order-plan.md:260 «06a98fb724b170df»"
+        ]
+      },
+      {
+        "id": "P2-A2-AC05",
+        "requirement": "stats(nowMonotonicMs)は副作用なしで現在年齢・処理中ID・最後の進捗・生存応答・次期限を返す。停止注入で遷移なしでも年齢が進む。lastArrivalMonotonicMsはenqueue到着（拒否含む）で更新する。lastProgressMonotonicMsはtakeNextがitemを返した場合と対応する未完了仕事のcomplete到着だけで更新し、enqueue・空振りtakeNext・重複/不正completeでは更新しない。最初の進捗前は最古未完了入力時刻（期限だけなら期限時刻）を起点とし、後続到着で起点を延ばさない。recordWorkerResponseは生存応答だけを更新する。idleでも1秒周期応答、5秒応答なしunresponsive、未完了/期限超過かつ5秒進捗なしstalledを区別する（開始値、B05/B15が停止注入前に固定）。heartbeatだけで進捗回復扱いしない。毎秒enqueueと生存応答が続く中で処理停止を注入し、到着時刻のみ進み処理進捗は変わらず5秒でstalledとなることを検収する。A1 InfrastructureDiagnosticReasonのmailboxRejectedDraining／mailboxRejectedItemLimit／mailboxRejectedByteLimit・mailboxStalled・mailboxLimitViolationを配送する",
+        "evidenceRefs": [
+          "docs/specs/reconstruction-p0-contracts.md:1190 «174d8e21c85706f2»",
+          "docs/specs/reconstruction-p0-contracts.md:1191 «e214e88096eaa2ba»",
+          "docs/specs/reconstruction-p0-contracts.md:1204 «ecac160837b1b82d»",
+          "docs/specs/reconstruction-p0-contracts.md:2082 «74aa393600c9b74b»"
+        ]
+      }
+    ],
+    "testMapping": [
+      {
+        "testId": "P2-A2-T01",
+        "purpose": "contractBoundary",
+        "referenceIds": [
+          "P2-A2-AC01"
+        ],
+        "behavior": "件数・byteの直前と一致を受理し+1を拒否して全遷移の計数を一致させる"
+      },
+      {
+        "testId": "P2-A2-T02",
+        "purpose": "acceptance",
+        "referenceIds": [
+          "P2-A2-AC02"
+        ],
+        "behavior": "N/C負荷と入力停止で年齢・周期末backlog・排出期限を判定する"
+      },
+      {
+        "testId": "P2-A2-T03",
+        "purpose": "corpusHistory",
+        "referenceIds": [
+          "P2-A2-AC03"
+        ],
+        "behavior": "最大VPWS50処理中に緊急候補を投入し固定優先順と同一subject順を守る"
+      },
+      {
+        "testId": "P2-A2-T04",
+        "purpose": "regression",
+        "referenceIds": [
+          "P2-A2-AC04"
+        ],
+        "behavior": "P1 ParserMailboxItemのfield集合を変えずinputId相関を完了まで維持する"
+      },
+      {
+        "testId": "P2-A2-T05",
+        "purpose": "contractBoundary",
+        "referenceIds": [
+          "P2-A2-AC05"
+        ],
+        "behavior": "stats(nowMonotonicMs)は副作用なしで現在年齢・処理中ID・最後の進捗・生存応答・次期限を返す。停止注入で遷移なしでも年齢が進む。lastArrivalMonotonicMsはenqueue到着（拒否含む）で更新する。lastProgressMonotonicMsはtakeNextがitemを返した場合と対応する未完了仕事のcomplete到着だけで更新し、enqueue・空振りtakeNext・重複/不正completeでは更新しない。最初の進捗前は最古未完了入力時刻（期限だけなら期限時刻）を起点とし、後続到着で起点を延ばさない。recordWorkerResponseは生存応答だけを更新する。idleでも1秒周期応答、5秒応答なしunresponsive、未完了/期限超過かつ5秒進捗なしstalledを区別する（開始値、B05/B15が停止注入前に固定）。heartbeatだけで進捗回復扱いしない。毎秒enqueueと生存応答が続く中で処理停止を注入し、到着時刻のみ進み処理進捗は変わらず5秒でstalledとなることを検収する。A1 InfrastructureDiagnosticReasonのmailboxRejectedDraining／mailboxRejectedItemLimit／mailboxRejectedByteLimit・mailboxStalled・mailboxLimitViolationを配送する"
+      }
+    ],
+    "requiredCommands": [
+      {
+        "command": "node reconstruction/tools/corpus/check-manifest.mjs",
+        "stage": "contract",
+        "purpose": "参照fixture台帳を検査する",
+        "cwd": ".",
+        "target": "reconstruction/tools/corpus/manifest.json"
+      },
+      {
+        "command": "node reconstruction/tools/corpus/check-sequences.mjs",
+        "stage": "contract",
+        "purpose": "O09と未充足数を検査する",
+        "cwd": ".",
+        "target": "reconstruction/tools/corpus/sequences.json"
+      },
+      {
+        "command": "node reconstruction/contracts/check-contract.mjs",
+        "stage": "contract",
+        "purpose": "全作業契約を検査する",
+        "cwd": ".",
+        "target": "reconstruction/contracts/*.json"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/tsconfig.json",
+        "stage": "implementation",
+        "purpose": "新築TypeScript型検査",
+        "cwd": ".",
+        "target": "reconstruction/tsconfig.json"
+      },
+      {
+        "command": "./node_modules/.bin/vitest run --config reconstruction/vitest.config.ts",
+        "stage": "implementation",
+        "purpose": "mailbox受入・境界試験",
+        "cwd": ".",
+        "target": "reconstruction/test/"
+      },
+      {
+        "command": "./node_modules/.bin/vitest run --config reconstruction/vitest.config.ts --sequence.shuffle",
+        "stage": "implementation",
+        "purpose": "queue共有状態の順序依存を検出する",
+        "cwd": ".",
+        "target": "reconstruction/test/"
+      }
+    ],
+    "artifactRequirements": [
+      "薄いMailboxEnvelopeがないとP1型を汚さずT0・enqueue・runIdを完了まで相関できないため、この一層だけを追加する",
+      "単一有界queueで件数・byte・予約・in-flightを合算し、汎用worker poolや優先群別queueを作らない",
+      "N/C負荷manifestと予備測定値。未固定・未測定をE07 Passにしない",
+      "allowed_pathsに限定したgit diff --binary --no-ext-diff patch",
+      "変更ファイル一覧、実行コマンドと結果、未実行検証と理由、残存リスク",
+      "追加・変更した各テストのpurposeと対応受入条件",
+      "control配送がないと保存ack/期限/shutdownが緊急予約を利用できない。parser byteはitem.encodedByteLength、control byteはUTF-8 JSON.stringify(payload)のbyte長で固定しpending+in-flightへ一度だけ算入、complete時に解放する。通常data in-flightは1、controlはparser処理終了待ちでなくruntimeへ配送し別途予約枠内のin-flightとして計数する",
+      "観測口がないと無遷移停止を検知できない。inFlightMessageIdはdata ID、controlの処理中IDも有界配列でstatsへ含める。beginDrainは新parser受付を止めるが収束に必要なcontrol受付を維持する"
+    ],
+    "unresolvedQuestions": [
+      {
+        "id": "Q-PERF",
+        "owner": "integrator",
+        "blocks": [
+          "共通Q-PERFのA10測定manifestに依存する本契約の部分。独立した未決・期限を新設しない",
+          "E07正式N/C負荷",
+          "通常入力5秒・停止後排出10秒の採用値",
+          "O09 P2 queue投入offset"
+        ],
+        "resolveBy": "EEW A/B測定前（計画§6.1、A10）",
+        "requiredEvidence": [
+          "N/Cの入力hash・順序・周期・warm-up終了点",
+          "queue件数・byte・年齢・周期末backlogの予備測定",
+          "最大XML処理中の緊急投入offsetと実際の進行条件"
+        ]
+      }
+    ]
+  }
+}
