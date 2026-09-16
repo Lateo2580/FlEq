@@ -1,0 +1,411 @@
+{
+  "meta": {
+    "draftedFromOid": "fc7006e2380edf9a97b601d124341ba4bd7f7f42",
+    "sha256": "f7dd4aa7f94073c6c083dbf27e060267244f624b7e6ae4b28fdfcff4ce1fe383",
+    "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
+    "manifestSha256": "76c82b87d7783a4eae14af690cb34e7d6ec46f73617dc75b7f7401951619f080",
+    "sequencesSha256": "22b2432e8989d7e7cc2514f2297308e84b3c0f1a3e045491b9cf60cfa8f2d147",
+    "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
+    "decisionBranches": [
+      {
+        "id": "P2-A4-D05",
+        "A": "P2-O07-U-E-v1とP2-O10-CHECKPOINT-v2だけをP2で検収する",
+        "B": "O07/O10全stepとP2外unitをA4で実装する",
+        "recommended": "A",
+        "provisional": "A",
+        "ruling": "作者裁定D5=A",
+        "reason": "P2外意味と旧移行を先取りしない"
+      },
+      {
+        "id": "P2-A4-D07",
+        "A": "training/testは表示で区分を明示しsound intentを生成しない。desktopはA7前まで未決とする",
+        "B": "通常と同じsound/desktopを生成する",
+        "recommended": "A",
+        "provisional": "A",
+        "ruling": "作者裁定D7=A",
+        "reason": "通常緊急を追い越さず訓練音を鳴らさない"
+      },
+      {
+        "id": "P2-A4-NOTICE-SOUND",
+        "A": "旧5段階sound helperを再利用する",
+        "B": "分野別根音表のEEW音をA7で接続する",
+        "recommended": "B",
+        "provisional": "B",
+        "ruling": "通知音裁定B",
+        "reason": "A4はintent生成だけを所有しadapterを複製しない"
+      }
+    ],
+    "questionResolutions": [
+      {
+        "id": "Q7",
+        "status": "closed",
+        "closed": "spec §11の裁定を維持し、training/testの表示区分を保持する",
+        "remaining": "desktop採否と文言はQ-NOTICE",
+        "reason": "A7前に配送条件を分離して固定する"
+      }
+    ],
+    "operationContract": {
+      "ref": "P2-SHARED-RUNTIME-001#meta.operationContract",
+      "rule": "normal/training/testをsubject、gate、current、取消、intent、outcome、viewへ必須伝播し、同一EventIDでも区分間更新・取消・重複抑制を禁止する。保存単位・ファイルを区分ごとに増やさず、件数・byte上限はnormal/training/testの合計に適用する"
+    }
+  },
+  "contract": {
+    "contractId": "P2-EEW-UNIT-001",
+    "mode": "implementation",
+    "objective": "M01をI-U-Eとして閉じ、non-durable current/gate、durable intent、512 subject、15秒TTL、報番号・終端・取消・operation交差をreducerから復元直後続報まで一契約で固定する。",
+    "baseOid": "unassigned",
+    "cleanTreeRequired": true,
+    "readPaths": [
+      "docs/specs/reconstruction-p0-contracts.md",
+      "reconstruction/contracts/p1-parser-boundary.json",
+      "reconstruction/contracts/p1-parser-boundary.types.ts",
+      "reconstruction/contracts/p2-order-plan.md",
+      "reconstruction/contracts/p2-shared-runtime.json",
+      "reconstruction/contracts/p2-shared-runtime.types.ts",
+      "reconstruction/contracts/p2-checkpoint-shutdown.json",
+      "reconstruction/contracts/p2-eew-unit.json",
+      "reconstruction/contracts/p2-eew-unit.types.ts",
+      "reconstruction/tools/corpus/manifest.json",
+      "reconstruction/tools/corpus/sequences.json",
+      "reconstruction/src/**",
+      "src/engine/messages/**",
+      "src/dmdata/**"
+    ],
+    "allowedPaths": [
+      "reconstruction/src/domains/eew/**",
+      "reconstruction/src/units/eew/**",
+      "reconstruction/test/eew-unit/**"
+    ],
+    "allowedGitCommands": [
+      "git status --porcelain",
+      "git rev-parse HEAD",
+      "git diff --binary --no-ext-diff -- <allowed_paths>",
+      "git diff --check -- <allowed_paths>",
+      "git show <required-path-or-object>",
+      "git ls-files <required-path>"
+    ],
+    "moduleIds": [
+      "M01"
+    ],
+    "integrationContractIds": [
+      "I-U-E"
+    ],
+    "dependsOnContractIds": [
+      "P1-PARSER-BOUNDARY-001",
+      "P2-SHARED-RUNTIME-001",
+      "P2-CHECKPOINT-SHUTDOWN-001"
+    ],
+    "publicTypes": [
+      "reconstruction/contracts/p2-eew-unit.types.ts#EewCurrent",
+      "reconstruction/contracts/p2-eew-unit.types.ts#EewGate",
+      "reconstruction/contracts/p2-eew-unit.types.ts#EewUnitState",
+      "reconstruction/contracts/p2-eew-unit.types.ts#PersistedEewUnit",
+      "reconstruction/contracts/p2-eew-unit.types.ts#EewUnitView",
+      "reconstruction/contracts/p2-eew-unit.types.ts#EewInput",
+      "reconstruction/contracts/p2-eew-unit.types.ts#EewUnitStep",
+      "reconstruction/contracts/p2-eew-unit.types.ts#EewUnitCodec"
+    ],
+    "publicFunctions": [
+      "reduceEew(state: EewUnitState, input: Extract<EewInput, { kind: 'receive' }>): EewUnitStep",
+      "reduceEewUnit(state: EewUnitState, input: EewInput): EewUnitStep",
+      "toEewView(state: EewUnitState): EewUnitView",
+      "eewUnitCodec: EewUnitCodec"
+    ],
+    "allowedDependencies": [],
+    "fixtureIds": [
+      "test__fixtures__37_01_01_240613_VXSE43",
+      "test__fixtures__37_01_02_240613_VXSE43",
+      "test__fixtures__37_01_03_240613_VXSE43",
+      "test__fixtures__77_01_30_260101_VXSE45_FINAL"
+    ],
+    "sequenceIds": [
+      "O07",
+      "O10"
+    ],
+    "expectedDecisions": [
+      {
+        "expectedRef": "expected:O07:16"
+      }
+    ],
+    "expectationEvidence": [
+      {
+        "expectedRef": "expected:O07:16"
+      }
+    ],
+    "semanticDeadlines": [
+      {
+        "id": "P2-A4-SEM-01",
+        "target": "live EEW intent",
+        "limit": 15,
+        "unit": "seconds from createdAt",
+        "rule": "cancel, expiry and replacement win earlier; restart never extends expiresAt",
+        "source": "§6.4"
+      }
+    ],
+    "deliveryDeadlines": [],
+    "retentionLimits": [
+      {
+        "id": "P2-A4-RET-01",
+        "target": "EEW runtime subjects",
+        "limit": 512,
+        "unit": "subjects per family, normal/training/test combined",
+        "source": "§4.5"
+      },
+      {
+        "id": "P2-A4-RET-02",
+        "target": "pending intents",
+        "limit": "128 items and 128 KiB per persistence unit",
+        "source": "§6.4"
+      }
+    ],
+    "resourceLimits": [
+      {
+        "id": "P2-A4-RES-01",
+        "target": "U-E encoded generation",
+        "limit": 262144,
+        "unit": "UTF-8 bytes",
+        "scope": "intent and minimal delivery records only",
+        "source": "§4.2"
+      }
+    ],
+    "workDeadline": null,
+    "persistenceUnits": [
+      "U-E"
+    ],
+    "persistedFields": [
+      "期限内NotificationIntentの全fieldとoriginal createdAt/expiresAt",
+      "配送済み・失効・supersededの重複判定に必要な最小記録",
+      "各保存値のoperation、subject、source、configRevision"
+    ],
+    "nonPersistedFields": [
+      "active EEW current",
+      "報番号gateと予測保持latch",
+      "DecodedMaterial/XML treeと単調時計",
+      "UnitView、PublishedOutcome、実行中adapter状態"
+    ],
+    "outOfScope": [
+      "地震観測",
+      "津波",
+      "最終GIS",
+      "P4 scene",
+      "旧移行tool",
+      "A7の通知adapter・desktop採否・文言"
+    ],
+    "acceptanceChecks": [
+      {
+        "id": "P2-A4-AC01",
+        "requirement": "単位入力はVXSE43/44/45だけをU-Eへ対応し、同一入力の複数subjectを原子的に一回の参照交換で適用する。identity/必須構造不正はrejectedでstate/watermark/intent不変",
+        "evidenceRefs": [
+          "docs/specs/reconstruction-p0-contracts.md:609 «996d1ffc74a90315»",
+          "docs/specs/reconstruction-p0-contracts.md:616 «ea3e5e78f369ae4f»",
+          "docs/specs/reconstruction-p0-contracts.md:733 «66e0af68048253c0»"
+        ]
+      },
+      {
+        "id": "P2-A4-AC02",
+        "requirement": "M01個別意味関数はEventID、family、operation別の報番号・終端・取消・予測保持を判定し、unknown続報で誤降格しない",
+        "evidenceRefs": [
+          "docs/specs/reconstruction-p0-contracts.md:390 «65b3993296d54b19»",
+          "reconstruction/contracts/p2-order-plan.md:79 «3be2683a0c47d9fe»"
+        ]
+      },
+      {
+        "id": "P2-A4-AC03",
+        "requirement": "reduceEewUnitだけがcurrent/gate/intentを組み立て、normal/training/test交差更新・取消・dedupeを0にし、reducerだけの配送を完了としない",
+        "evidenceRefs": [
+          "docs/specs/reconstruction-p0-contracts.md:611 «ea6c1d20c1ab3b38»",
+          "docs/specs/reconstruction-p0-contracts.md:620 «51fab1fc4a745268»"
+        ]
+      },
+      {
+        "id": "P2-A4-AC04",
+        "requirement": "PersistedEewUnitとschemaVersion=p2-eew-unit-v1の唯一のcodecを用い、active current/gate/latchをencodeせず、256KiB境界を安全に拒否する",
+        "evidenceRefs": [
+          "docs/specs/reconstruction-p0-contracts.md:474 «c1cbc9b6d1241018»",
+          "docs/specs/reconstruction-p0-contracts.md:610 «2b0711de60ba1b88»"
+        ]
+      },
+      {
+        "id": "P2-A4-AC05",
+        "requirement": "toEewView、区分付きNotificationIntent、PublishedOutcomeの4種unionを同じ採用結果から作る。D7=Aでtraining/testは表示明示・soundなし、desktopはQ-NOTICE未決",
+        "evidenceRefs": [
+          "docs/specs/reconstruction-p0-contracts.md:948 «2329df574f1ba7a9»",
+          "docs/specs/reconstruction-p0-contracts.md:964 «ce08540175205737»",
+          "reconstruction/contracts/p2-order-plan.md:240 «b527493f241b4ca5»"
+        ]
+      },
+      {
+        "id": "P2-A4-AC06",
+        "requirement": "15秒の絶対TTL、512 subject、取消・終端・shutdownを適用し、取消済み/置換済み/期限切れintentを再生せず期限を延長しない",
+        "evidenceRefs": [
+          "docs/specs/reconstruction-p0-contracts.md:569 «e5e9f04bfdb8aa36»",
+          "docs/specs/reconstruction-p0-contracts.md:972 «0910cc90d717757f»",
+          "docs/specs/reconstruction-p0-contracts.md:1001 «45eb754d7a4c339a»"
+        ]
+      },
+      {
+        "id": "P2-A4-AC07",
+        "requirement": "U-Eの保存失敗中の取消、古いack、正常終了をA3結線後のunit-local故障試験で再検収し、current巻戻し0・最新dirty世代維持を確認する。O10共通protocolのP2解除証拠はA3/A6が所有する",
+        "evidenceRefs": [
+          "docs/specs/reconstruction-p0-contracts.md:790 «c4632aae59a2f1fc»",
+          "docs/specs/reconstruction-p0-contracts.md:796 «d67314b63ec56a68»",
+          "docs/specs/reconstruction-p0-contracts.md:1786 «f7c784644da02979»"
+        ]
+      },
+      {
+        "id": "P2-A4-AC08",
+        "requirement": "O07:15-18で復元後active EEWは0、期限内pending intentだけを元期限で再試行し、復元直後の続報を新しいcurrentとして処理する",
+        "evidenceRefs": [
+          "docs/specs/reconstruction-p0-contracts.md:462 «70acf0666dc458a3»",
+          "docs/specs/reconstruction-p0-contracts.md:997 «25cbec8574e24767»",
+          "docs/specs/reconstruction-p0-contracts.md:999 «9add6206f9b8e284»",
+          "reconstruction/contracts/p2-order-plan.md:28 «1cb9d7da3ab62cca»"
+        ]
+      },
+      {
+        "id": "P2-A4-AC09",
+        "requirement": "P2-O07-U-E-v1の履歴oracleとfamily固有構造条件を通し、E13で正常corpusの恒常的unavailable 0を別集計する",
+        "evidenceRefs": [
+          "docs/specs/reconstruction-p0-contracts.md:614 «51f367d55c1dfe8a»",
+          "docs/specs/reconstruction-p0-contracts.md:2064 «e2e2e4700050616c»",
+          "reconstruction/tools/corpus/sequences.json#expected:O07:16"
+        ]
+      }
+    ],
+    "testMapping": [
+      {
+        "testId": "P2-A4-T01",
+        "purpose": "contractBoundary",
+        "referenceIds": [
+          "P2-A4-AC01"
+        ],
+        "behavior": "複数subject原子性と不正入力state不変"
+      },
+      {
+        "testId": "P2-A4-T02",
+        "purpose": "acceptance",
+        "referenceIds": [
+          "P2-A4-AC02",
+          "P2-A4-AC03"
+        ],
+        "behavior": "報番号・終端・取消・operation交差を一つの統合系列で確認"
+      },
+      {
+        "testId": "P2-A4-T03",
+        "purpose": "contractBoundary",
+        "referenceIds": [
+          "P2-A4-AC04"
+        ],
+        "behavior": "codec roundtripとnon-durable current除外"
+      },
+      {
+        "testId": "P2-A4-T04",
+        "purpose": "acceptance",
+        "referenceIds": [
+          "P2-A4-AC05",
+          "P2-A4-AC06"
+        ],
+        "behavior": "view/outcome/intentと15秒TTL"
+      },
+      {
+        "testId": "P2-A4-T05",
+        "purpose": "corpusHistory",
+        "referenceIds": [
+          "P2-A4-AC07",
+          "P2-A4-AC08",
+          "P2-A4-AC09"
+        ],
+        "behavior": "O07とO10 P2 subsetの保存障害・復元直後続報"
+      }
+    ],
+    "requiredCommands": [
+      {
+        "command": "node reconstruction/tools/corpus/check-manifest.mjs",
+        "cwd": ".",
+        "target": "reconstruction/tools/corpus/manifest.json",
+        "stage": "contract",
+        "purpose": "fixture台帳検査"
+      },
+      {
+        "command": "node reconstruction/tools/corpus/check-sequences.mjs",
+        "cwd": ".",
+        "target": "reconstruction/tools/corpus/sequences.json",
+        "stage": "contract",
+        "purpose": "P2 subsetと置換step検査"
+      },
+      {
+        "command": "node reconstruction/contracts/check-contract.mjs",
+        "cwd": ".",
+        "target": "reconstruction/contracts/*.json",
+        "stage": "contract",
+        "purpose": "全契約検査"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/tsconfig.json --noEmit",
+        "cwd": ".",
+        "target": "reconstruction/contracts/p2-eew-unit.types.ts",
+        "stage": "contract",
+        "purpose": "公開型検査"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/tsconfig.json",
+        "cwd": ".",
+        "target": "reconstruction/tsconfig.json",
+        "stage": "implementation",
+        "purpose": "実装build"
+      },
+      {
+        "command": "./node_modules/.bin/vitest run --config reconstruction/vitest.config.ts",
+        "cwd": ".",
+        "target": "reconstruction/test/",
+        "stage": "implementation",
+        "purpose": "実装test"
+      },
+      {
+        "command": "./node_modules/.bin/vitest run --config reconstruction/vitest.config.ts --sequence.shuffle",
+        "cwd": ".",
+        "target": "reconstruction/test/",
+        "stage": "implementation",
+        "purpose": "永続化・共有状態の順序依存検査"
+      }
+    ],
+    "artifactRequirements": [
+      "§13.3の9段をA3 composition root結線後の一経路で証明する。無いとreducer単体だけで保存・終了・復元が未接続のまま完了扱いになる",
+      "EewUnitCodec一つだけを実装する。無いとA3がU-Eを捕捉・復元できず、複数codecならschema選択が曖昧になる",
+      "同一EventIDのnormal/training交差fixtureは新規syntheticを作らず、必要仕様をQ-NOTICE requiredEvidenceに残す",
+      "1実装interface、factory、registry、outbox、将来用extension pointを追加しない",
+      "allowed_paths限定patch、変更一覧、build/test/shuffle結果、未実行検証、残存リスク",
+      "純粋な意味関数とreduceUnitはDiagnosticDetailsだけを返し、runtimeがtimestamp/runIdを付与する。各subjectのdecisionsを系列oracleのdecision/reason/changeと照合し、duplicate/stale/noChangeを区別する。識別不能な拒否ではsubjectを空文字にし、架空の業務identityを作らない。"
+    ],
+    "unresolvedQuestions": [
+      {
+        "id": "Q-ENUM",
+        "owner": "implementer",
+        "blocks": [
+          "U-E family固有identity/必須構造のreason優先順位",
+          "複数不備時の一つのRejectionReason"
+        ],
+        "resolveBy": "P2-EEW-UNIT-001実装開始前",
+        "requiredEvidence": [
+          "VXSE43/44/45の合法欠落と不正構造表",
+          "rejected時にcurrent/gate/intent/watermark不変の期待"
+        ]
+      },
+      {
+        "id": "Q-NOTICE",
+        "owner": "integrator",
+        "blocks": [
+          "normal EEWのdesktop/sound intent生成条件",
+          "training/test desktop採否と文言",
+          "取消・失効・置換時のchannel別intent"
+        ],
+        "resolveBy": "P2通常EEW通知契約A7開始前",
+        "requiredEvidence": [
+          "新fixture仕様: route=eew.warningまたはeew.forecast、headType=VXSE43/44/45、normalとtrainingで同じ非空EventID、Serialは順序と取消対象を判定できる連番、原ReportDateTimeとreceivedAtを固定、期待は区分間current/gate更新0・交差取消0・normalだけsound候補",
+          "取得元・取得日時・元XML hash。syntheticは作らない",
+          "D7=Aの表示明示・soundなしとdesktop採否、15秒TTL内の取消・置換期待"
+        ]
+      }
+    ]
+  }
+}

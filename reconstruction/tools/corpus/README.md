@@ -118,5 +118,25 @@ sequences.json の `expectationBasis`／`basisRefs` と P1 契約の `evidenceRe
 
 - `P2-SHARED-RUNTIME-001`: B01補完・B06・B15の共有型と純粋runtime。`validateSemanticEnvelope`は有界な診断詳細だけを返し、runtimeがclock/runIdを付与する。parser 10種・operation 4種・意味拒否7種と基盤診断20種は同じ`DiagnosticReason`で配送する。保存失敗段階はcheckpointEncodeFailed／checkpointWriteFailed／checkpointFileSyncFailed／checkpointCloseFailed／checkpointRenameFailed／checkpointDirectorySyncFailed／checkpointVerifyFailed、mailbox拒否内訳はmailboxRejectedDraining／mailboxRejectedItemLimit／mailboxRejectedByteLimitへ展開し、診断fieldはspec §7.9の固定集合だけとする。`PublishedOutcome`は§12.2の4種union、意味状態は`SubjectOutcome`の許可値、`UnitView.subjects`は現在DTOで履歴ではない。`FreshnessRecord`の記録型・不変条件はA1、判定と解除はA5。共有型（A2/A3含む）はA1だけが所有し、型の複製を防ぐ。`DisplaySnapshot`はA8、E01 traceはA10。共通Q-ENUMのO02:8/10 reason対応・複数不備優先はA1のblockとして残し、unavailableの正本はP1から移さない。
 - `P2-MAILBOX-001`: parser/control payloadとcompletionを分離し、保存ack・期限・shutdownは緊急予約の件数/byteへ算入する。D9=AでP1型は無変更。確認済みtraining/testは通常緊急より優先しない。`enqueue/takeNext/complete/beginDrain`に副作用なしの`stats(nowMonotonicMs)`と生存応答記録を加え、処理中ID・進捗・応答時刻・次期限を公開する。到着lastArrivalと処理lastProgressを分離する。enqueue・空振りtakeNext・生存応答は処理進捗を更新しない。enqueueと応答が続いても処理停止を5秒で検知する検収を含む。共通Q-PERFの測定条件はA10所有・EEW A/B測定前、A2は自契約のblock部分だけを記す。
-- `P2-CHECKPOINT-SHUTDOWN-001`: 2slot・Q2=B・uncertain・公平な再試行・終了・永続診断を担当する。A4〜A6所有の`UnitCodec`をA3が捕捉/復元時に呼ぶ。hashはトップレベルsha256を64個の0へ置換したenvelope全保存UTF-8 bytes。世代・unit・schemaVersion・capturedAtの破損も世代選択前に拒否する。`readDiagnostics`はlevel/unit/時刻範囲/limitを持ち、一回256件かつ1 MiB以内。A3だけがcomposition root結線・再検収を所有する。O10のU-V取消をU-E/W/Fで代用しない。AC02は統合担当がA4〜A6起草時にP2置換step・fixture・対応表を追加するまで**blocked**。共通Q-MIGRATIONはA5/A10/P3所有、初期状態はA5前・旧移行はP3移行契約前。Q-PERFはA10の共通期限を参照する。
-- checkerは全契約のfixture部分集合、sequence/expectedRef、依存ID、export、アンカー、自己hash、未決owner/期限を検査する。fragmentは必ず指定ファイルを読み、そのexpectationsに存在することを検査し、別ファイルの同名IDでは通さない。P1の260件参照とhashは無変更。実装時のrequiredCommandsは新築tsconfig/vitest config（shuffle含む）を対象にする。今回の起草修正はcheckerとtsc --noEmitで検証し、実装受入のPASSとは区別する。
+- `P2-CHECKPOINT-SHUTDOWN-001`: 2slot・Q2=B・uncertain・公平な再試行・終了・永続診断を担当する。A4〜A6所有の`UnitCodec`をA3が捕捉/復元時に呼ぶ。hashはトップレベルsha256を64個の0へ置換したenvelope全保存UTF-8 bytes。世代・unit・schemaVersion・capturedAtの破損も世代選択前に拒否する。`readDiagnostics`はlevel/unit/時刻範囲/limitを持ち、一回256件かつ1 MiB以内。A3だけがcomposition root結線・再検収を所有する。AC02の起草時blockは `P2-O10-CHECKPOINT-v2` と `expected:O10:31-40および56-90` の追加で解除した。旧O10のU-V意味はP3へ残し、P2では既存VPWP50取消fixtureによるU-F置換系列を使う。共通Q-MIGRATIONはA5/A10/P3所有、初期状態はA5前・旧移行はP3移行契約前。Q-PERFはA10の共通期限を参照する。
+- checkerは全契約のfixture部分集合、sequence/expectedRef、依存ID、export、アンカー、自己hash、未決owner/期限を検査する。fragmentは必ず指定ファイルを読み、そのexpectationsに存在することを検査し、別ファイルの同名IDでは通さない。P1の260件fixture参照は無変更で、sequences参照hashと自己hashだけを第2弾で再固定した。実装時のrequiredCommandsは新築tsconfig/vitest config（shuffle含む）を対象にする。今回の起草修正はcheckerとtsc --noEmitで検証し、実装受入のPASSとは区別する。
+
+## P2 契約（Wave 0 第 2 弾）
+
+- `P2-EEW-UNIT-001`（M01/I-U-E）は active current と gate を保存せず、15秒以内の intent と配送記録だけを U-E に保存する。512 subject、報番号、終端、取消、operation 交差、復元後 active 0 を一つの統合契約で扱う。
+- `P2-WEATHER-CURRENT-UNIT-001`（M06/I-U-W）は全国 base 1/履歴2、partial 128/履歴8、所有現象、取消復元、16 MiB と IR08 の freshness target を一つの codec で扱う。旧 Pi/v2 移行器は P3 のままだ。
+- `P2-WEATHER-TIMESERIES-UNIT-001`（M08/I-U-F）は subject/period、194 period、正常 empty、gate-only、取消、7日、512 subject、16 MiB と意味上の `unavailable` を扱う。VPTA50 と P4 詳細 API は含めない。
+- 各契約は §13.3 の9段を同じ契約内に持つ。起草時の検査 PASS は reducer/codec/A3 composition root の実装・結線・故障注入・復元試験の PASS ではない。
+
+## P2 用系列 subset
+
+`sequences.json` の `meta.p2Subsets` が D5=A の版付き正本だ。`P2-O02-U-F-v1`、`P2-O04-U-W-v1`、`P2-O06-U-W-v1`、`P2-O07-U-E-v1`、`P2-O10-CHECKPOINT-v2` の `stepRefs` だけを P2 の系列母集団と呼び、列挙外を Oxx 全体の Pass に含めない。
+
+- O04:2 は旧 Pi checkpoint のまま P3 に残し、新築の operation/時計/出典/範囲を持つ `expected:O04:9` で初期化条件を置換する。
+- O06:29-30 は旧 v2 履歴移行のまま P3 に残し、全国1/履歴2・partial128/履歴8を直接生成する `expected:O06:31` で置換する。
+- O10:5/9 の U-V 取消は、既存 VPWP50 fixture と新築 U-F state を使う `expected:O10:31-40および56-90` へ対応付ける。新規 synthetic fixture は作らない。
+- 置換stepは旧移行やU-V意味の合格証拠ではない。`replaces` が旧IDとの対応、`deferred` がP3〜P5へ残す範囲を保持する。
+
+第2弾レビュー修正: O10:31-40はU-F初期化から取消未保存・同じslotの旧世代復元・取消再取得までの連続系列。56-75は4種の保存故障を各5 step（保存済みg1初期化→受信g2 dirty→capture/故障設定→取消g3→復旧）で検収する。76-90は単位固有永続失敗で、Tから1500/4000/8500/17000/27500msの固定時計に再試行し、82-83で正常U-Wの受信/保存ackを挟む。37500msで最終成功試行へ接続する。旧O10:1-30と到達不能な旧ドラフト41-55はsubset外。subsetはstepRefsの列挙順で実行する。O10は45 step、全subsetは102 step。
+型はDiagnosticDetailsとsubject別decisionsを返す。件数・byte上限は三区分合計。7日はretention、194 periodは必須正常例で上限ではない。Q-ENUMのreasonと保存型改訂を凍結ゲートに含める。
+subset検査はstepRefs重複、置換元/先の実在、置換先のsubset所属を検出する契約境界の回帰検査だ。

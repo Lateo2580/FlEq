@@ -1,7 +1,7 @@
 {
   "meta": {
     "baseOid": "3669dfd6a98e6c116c86f7db1cd27aa63002a90d",
-    "sha256": "c800790f57414088d97e3e9b309835f6742907990edc5f4864ea4933fb5985ba",
+    "sha256": "22b2432e8989d7e7cc2514f2297308e84b3c0f1a3e045491b9cf60cfa8f2d147",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "76c82b87d7783a4eae14af690cb34e7d6ec46f73617dc75b7f7401951619f080",
     "clock": "synthetic epoch milliseconds; receivedAt/evaluatedAt は合成固定時計。原XML日時は不変。系列内ケース間のrestartで時計と空stateを再設定。受信時刻の実測ではない。",
@@ -22,6 +22,110 @@
       "制御操作のdecision/effective=nullはreduceUnit出力の比較対象外、checksの保存/配信/時計条件を比較。receiveのnullは記載Q-*未決。各basisLevelはbasisRefs/expectationBasisにある最上位（最小L）。下位根拠だけでは上位を上書きしない。",
       "投入時のschedulerはposition順、通常受信時evaluatedAt=receivedAt。期限以外の非同期保存/配送は各control inputで駆動。期限処理順序/通知条件/正式性能profileの未定義をQ-TTL/Q-NOTICE/Q-PERFに残す。",
       "fixtureのReportDateTimeとrequired入力の発表時刻より受信時計が前にならない。遅着は受信時計だけ遅らせる。restart/advanceClock以外は時計非逆行。subject文字列の未充足ラベルはwire identityではなくinput.requiredの具体形を指す。"
+    ],
+    "p2Subsets": [
+      {
+        "subsetId": "P2-O02-U-F-v1",
+        "stepRefs": ["expected:O02:1", "expected:O02:2", "unmet:O02:3", "expected:O02:4", "expected:O02:5", "expected:O02:6", "expected:O02:7", "expected:O02:8", "expected:O02:9", "expected:O02:10", "expected:O02:11", "expected:O02:12", "expected:O02:13", "expected:O02:14", "unmet:O02:15", "unmet:O02:16", "unmet:O02:17"],
+        "replaces": [],
+        "deferred": "O02:18-48はP3-P5へ残す"
+      },
+      {
+        "subsetId": "P2-O04-U-W-v1",
+        "stepRefs": ["expected:O04:9", "unmet:O04:3", "expected:O04:4", "unmet:O04:5", "unmet:O04:6", "unmet:O04:7", "unmet:O04:8"],
+        "replaces": ["expected:O04:2 -> expected:O04:9"],
+        "deferred": "O04:2の旧Pi移行証明はP3へ残す"
+      },
+      {
+        "subsetId": "P2-O06-U-W-v1",
+        "stepRefs": ["expected:O06:1", "expected:O06:2", "expected:O06:3", "unmet:O06:4", "unmet:O06:5", "unmet:O06:6", "unmet:O06:7", "unmet:O06:8", "expected:O06:9", "expected:O06:10", "unmet:O06:11", "unmet:O06:12", "unmet:O06:13", "unmet:O06:14", "unmet:O06:15", "unmet:O06:16", "unmet:O06:17", "unmet:O06:18", "unmet:O06:19", "unmet:O06:20", "unmet:O06:21", "unmet:O06:22", "unmet:O06:23", "unmet:O06:24", "unmet:O06:25", "unmet:O06:26", "unmet:O06:27", "unmet:O06:28", "expected:O06:31"],
+        "replaces": ["expected:O06:29 + unmet:O06:30 -> expected:O06:31"],
+        "deferred": "O06:29-30の旧v2履歴移行証明はP3へ残す"
+      },
+      {
+        "subsetId": "P2-O07-U-E-v1",
+        "stepRefs": ["expected:O07:15", "expected:O07:16", "expected:O07:17", "expected:O07:18"],
+        "replaces": [],
+        "deferred": "O07のU-Q/U-Vと旧移行stepはP3-P5へ残す"
+      },
+      {
+        "subsetId": "P2-O10-CHECKPOINT-v2",
+        "stepRefs": [
+          "expected:O10:31",
+          "expected:O10:32",
+          "expected:O10:33",
+          "expected:O10:34",
+          "expected:O10:35",
+          "expected:O10:36",
+          "expected:O10:37",
+          "expected:O10:38",
+          "expected:O10:39",
+          "expected:O10:40",
+          "expected:O10:56",
+          "expected:O10:57",
+          "expected:O10:58",
+          "expected:O10:59",
+          "expected:O10:60",
+          "expected:O10:61",
+          "expected:O10:62",
+          "expected:O10:63",
+          "expected:O10:64",
+          "expected:O10:65",
+          "expected:O10:66",
+          "expected:O10:67",
+          "expected:O10:68",
+          "expected:O10:69",
+          "expected:O10:70",
+          "expected:O10:71",
+          "expected:O10:72",
+          "expected:O10:73",
+          "expected:O10:74",
+          "expected:O10:75",
+          "expected:O10:76",
+          "expected:O10:77",
+          "expected:O10:78",
+          "expected:O10:79",
+          "expected:O10:80",
+          "expected:O10:81",
+          "expected:O10:82",
+          "expected:O10:83",
+          "expected:O10:84",
+          "expected:O10:85",
+          "expected:O10:86",
+          "expected:O10:87",
+          "expected:O10:88",
+          "expected:O10:89",
+          "expected:O10:90"
+        ],
+        "replaces": [
+          "expected:O10:1 -> expected:O10:31",
+          "expected:O10:2 -> expected:O10:32",
+          "expected:O10:3 -> expected:O10:33",
+          "expected:O10:4 -> expected:O10:34",
+          "expected:O10:5 -> expected:O10:35",
+          "expected:O10:6 -> expected:O10:36",
+          "expected:O10:7 -> expected:O10:37",
+          "expected:O10:8 -> expected:O10:38",
+          "expected:O10:9 -> expected:O10:39",
+          "expected:O10:10 -> expected:O10:40",
+          "expected:O10:11 -> expected:O10:56",
+          "expected:O10:42 -> expected:O10:58",
+          "expected:O10:12 -> expected:O10:60",
+          "expected:O10:13 -> expected:O10:61",
+          "expected:O10:45 -> expected:O10:63",
+          "expected:O10:14 -> expected:O10:65",
+          "expected:O10:15 -> expected:O10:66",
+          "expected:O10:48 -> expected:O10:68",
+          "expected:O10:16 -> expected:O10:70",
+          "expected:O10:17 -> expected:O10:71",
+          "expected:O10:51 -> expected:O10:73",
+          "expected:O10:18 -> expected:O10:75",
+          "expected:O10:19 -> expected:O10:76",
+          "expected:O10:54 -> expected:O10:78",
+          "expected:O10:20 -> expected:O10:88"
+        ],
+        "deferred": "旧O10:1-30はP2母集団から除外。U-V意味/保存依存とexport（23/24）はP3-P5未確認。通知（21/22）とstdout（25/26）はA7/A3個別検収へ残し本subsetで合格扱いしない。 O10:41-55の到達不能な旧ドラフトは実行対象外、56以降が修正版。"
+      }
     ]
   },
   "sequences": [
@@ -2127,6 +2231,21 @@
             "L1: docs/specs/reconstruction-p0-contracts.md:1780 «deba767d642d01d5»",
             "L1: docs/specs/reconstruction-p0-contracts.md:2074 «643c123a1c57d2a8» E22"
           ]
+        },
+        {
+          "sequenceId": "O04",
+          "position": 9,
+          "action": "restart",
+          "fixtureId": null,
+          "receivedAt": null,
+          "evaluatedAt": 1788753540000,
+          "inputSource": "test",
+          "operationExpected": null,
+          "expectedRef": "expected:O04:9",
+          "expectationBasis": [
+            "L1: docs/specs/reconstruction-p0-contracts.md:1780 «deba767d642d01d5»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:1192 «aefcb1a8a916571c»"
+          ]
         }
       ]
     },
@@ -2863,6 +2982,21 @@
           "expectationBasis": [
             "L1: docs/specs/reconstruction-p0-contracts.md:1782 «03f4a83f1e49df20»",
             "L1: docs/specs/reconstruction-p0-contracts.md:670 «ee40afa10067ef54»"
+          ]
+        },
+        {
+          "sequenceId": "O06",
+          "position": 31,
+          "action": "restart",
+          "fixtureId": null,
+          "receivedAt": null,
+          "evaluatedAt": 1592834400000,
+          "inputSource": "test",
+          "operationExpected": null,
+          "expectedRef": "expected:O06:31",
+          "expectationBasis": [
+            "L1: docs/specs/reconstruction-p0-contracts.md:572 «9a4b44d95aa2d482»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:1782 «03f4a83f1e49df20»"
           ]
         }
       ]
@@ -5328,6 +5462,1139 @@
             "L1: docs/specs/reconstruction-p0-contracts.md:2066 «9816b55af233a5a4» E14",
             "L1: docs/specs/reconstruction-p0-contracts.md:2073 «060f0c204a8219fe» E21"
           ]
+        },
+        {
+          "sequenceId": "O10",
+          "position": 27,
+          "action": "restart",
+          "fixtureId": null,
+          "receivedAt": null,
+          "evaluatedAt": 1780650000000,
+          "inputSource": "test",
+          "operationExpected": null,
+          "expectedRef": "expected:O10:27",
+          "expectationBasis": [
+            "L1: docs/specs/reconstruction-p0-contracts.md:790 «c4632aae59a2f1fc»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:1786 «f7c784644da02979»"
+          ]
+        },
+        {
+          "sequenceId": "O10",
+          "position": 28,
+          "action": "receive",
+          "fixtureId": "test__fixtures__81_04_01_260605_VPWP50_cancel",
+          "receivedAt": 1780650000001,
+          "evaluatedAt": 1780650000001,
+          "inputSource": "replay",
+          "operationExpected": "normal",
+          "expectedRef": "expected:O10:28",
+          "expectationBasis": [
+            "L1: docs/specs/reconstruction-p0-contracts.md:790 «c4632aae59a2f1fc»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:796 «d67314b63ec56a68»",
+            "L2: test/fixtures/81_04_01_260605_VPWP50_cancel.xml:1 «12c29731e40adc0c» 元XMLのControl/Head/Bodyを読解（原本確認の主張ではない）"
+          ]
+        },
+        {
+          "sequenceId": "O10",
+          "position": 29,
+          "action": "restart",
+          "fixtureId": null,
+          "receivedAt": null,
+          "evaluatedAt": 1780650001000,
+          "inputSource": "test",
+          "operationExpected": null,
+          "expectedRef": "expected:O10:29",
+          "expectationBasis": [
+            "L1: docs/specs/reconstruction-p0-contracts.md:804 «6c15d393bd0b312e»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:1786 «f7c784644da02979»"
+          ]
+        },
+        {
+          "sequenceId": "O10",
+          "position": 30,
+          "action": "receive",
+          "fixtureId": "test__fixtures__81_04_01_260605_VPWP50_cancel",
+          "receivedAt": 1780650001001,
+          "evaluatedAt": 1780650001001,
+          "inputSource": "replay",
+          "operationExpected": "normal",
+          "expectedRef": "expected:O10:30",
+          "expectationBasis": [
+            "L1: docs/specs/reconstruction-p0-contracts.md:790 «c4632aae59a2f1fc»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:1786 «f7c784644da02979»",
+            "L2: test/fixtures/81_04_01_260605_VPWP50_cancel.xml:1 «12c29731e40adc0c» 元XMLのControl/Head/Bodyを読解（原本確認の主張ではない）"
+          ]
+        },
+        {
+          "sequenceId": "O10",
+          "position": 31,
+          "action": "restart",
+          "fixtureId": null,
+          "receivedAt": null,
+          "evaluatedAt": 1780650010031,
+          "inputSource": "test",
+          "operationExpected": null,
+          "expectedRef": "expected:O10:31",
+          "expectationBasis": [
+            "L1: docs/specs/reconstruction-p0-contracts.md:1786 «f7c784644da02979»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:804 «6c15d393bd0b312e»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:813 «39350c40cef9a788»"
+          ]
+        },
+        {
+          "sequenceId": "O10",
+          "position": 32,
+          "action": "receive",
+          "fixtureId": "test__fixtures__81_02_01_260605_VPWP50_high_severity",
+          "receivedAt": 1780650010032,
+          "evaluatedAt": 1780650010032,
+          "inputSource": "replay",
+          "operationExpected": "normal",
+          "expectedRef": "expected:O10:32",
+          "expectationBasis": [
+            "L1: docs/specs/reconstruction-p0-contracts.md:1786 «f7c784644da02979»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:804 «6c15d393bd0b312e»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:813 «39350c40cef9a788»"
+          ]
+        },
+        {
+          "sequenceId": "O10",
+          "position": 33,
+          "action": "save",
+          "fixtureId": null,
+          "receivedAt": null,
+          "evaluatedAt": 1780650010033,
+          "inputSource": "test",
+          "operationExpected": null,
+          "expectedRef": "expected:O10:33",
+          "expectationBasis": [
+            "L1: docs/specs/reconstruction-p0-contracts.md:1786 «f7c784644da02979»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:804 «6c15d393bd0b312e»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:813 «39350c40cef9a788»"
+          ]
+        },
+        {
+          "sequenceId": "O10",
+          "position": 34,
+          "action": "injectFailure",
+          "fixtureId": null,
+          "receivedAt": null,
+          "evaluatedAt": 1780650010034,
+          "inputSource": "test",
+          "operationExpected": null,
+          "expectedRef": "expected:O10:34",
+          "expectationBasis": [
+            "L1: docs/specs/reconstruction-p0-contracts.md:1786 «f7c784644da02979»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:804 «6c15d393bd0b312e»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:813 «39350c40cef9a788»"
+          ]
+        },
+        {
+          "sequenceId": "O10",
+          "position": 35,
+          "action": "receive",
+          "fixtureId": "test__fixtures__81_04_01_260605_VPWP50_cancel",
+          "receivedAt": 1780650010035,
+          "evaluatedAt": 1780650010035,
+          "inputSource": "replay",
+          "operationExpected": "normal",
+          "expectedRef": "expected:O10:35",
+          "expectationBasis": [
+            "L1: docs/specs/reconstruction-p0-contracts.md:1786 «f7c784644da02979»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:804 «6c15d393bd0b312e»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:813 «39350c40cef9a788»"
+          ]
+        },
+        {
+          "sequenceId": "O10",
+          "position": 36,
+          "action": "save",
+          "fixtureId": null,
+          "receivedAt": null,
+          "evaluatedAt": 1780650010036,
+          "inputSource": "test",
+          "operationExpected": null,
+          "expectedRef": "expected:O10:36",
+          "expectationBasis": [
+            "L1: docs/specs/reconstruction-p0-contracts.md:1786 «f7c784644da02979»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:804 «6c15d393bd0b312e»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:813 «39350c40cef9a788»"
+          ]
+        },
+        {
+          "sequenceId": "O10",
+          "position": 37,
+          "action": "restart",
+          "fixtureId": null,
+          "receivedAt": null,
+          "evaluatedAt": 1780650010037,
+          "inputSource": "test",
+          "operationExpected": null,
+          "expectedRef": "expected:O10:37",
+          "expectationBasis": [
+            "L1: docs/specs/reconstruction-p0-contracts.md:1786 «f7c784644da02979»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:804 «6c15d393bd0b312e»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:813 «39350c40cef9a788»"
+          ]
+        },
+        {
+          "sequenceId": "O10",
+          "position": 38,
+          "action": "recover",
+          "fixtureId": null,
+          "receivedAt": null,
+          "evaluatedAt": 1780650010038,
+          "inputSource": "test",
+          "operationExpected": null,
+          "expectedRef": "expected:O10:38",
+          "expectationBasis": [
+            "L1: docs/specs/reconstruction-p0-contracts.md:1786 «f7c784644da02979»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:804 «6c15d393bd0b312e»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:813 «39350c40cef9a788»"
+          ]
+        },
+        {
+          "sequenceId": "O10",
+          "position": 39,
+          "action": "receive",
+          "fixtureId": "test__fixtures__81_04_01_260605_VPWP50_cancel",
+          "receivedAt": 1780650010039,
+          "evaluatedAt": 1780650010039,
+          "inputSource": "replay",
+          "operationExpected": "normal",
+          "expectedRef": "expected:O10:39",
+          "expectationBasis": [
+            "L1: docs/specs/reconstruction-p0-contracts.md:1786 «f7c784644da02979»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:804 «6c15d393bd0b312e»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:813 «39350c40cef9a788»"
+          ]
+        },
+        {
+          "sequenceId": "O10",
+          "position": 40,
+          "action": "save",
+          "fixtureId": null,
+          "receivedAt": null,
+          "evaluatedAt": 1780650010040,
+          "inputSource": "test",
+          "operationExpected": null,
+          "expectedRef": "expected:O10:40",
+          "expectationBasis": [
+            "L1: docs/specs/reconstruction-p0-contracts.md:1786 «f7c784644da02979»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:804 «6c15d393bd0b312e»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:813 «39350c40cef9a788»"
+          ]
+        },
+        {
+          "sequenceId": "O10",
+          "position": 41,
+          "action": "restart",
+          "fixtureId": null,
+          "receivedAt": null,
+          "evaluatedAt": 1780650010041,
+          "inputSource": "test",
+          "operationExpected": null,
+          "expectedRef": "expected:O10:41",
+          "expectationBasis": [
+            "L1: docs/specs/reconstruction-p0-contracts.md:1786 «f7c784644da02979»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:804 «6c15d393bd0b312e»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:813 «39350c40cef9a788»"
+          ]
+        },
+        {
+          "sequenceId": "O10",
+          "position": 42,
+          "action": "injectFailure",
+          "fixtureId": null,
+          "receivedAt": null,
+          "evaluatedAt": 1780650010042,
+          "inputSource": "test",
+          "operationExpected": null,
+          "expectedRef": "expected:O10:42",
+          "expectationBasis": [
+            "L1: docs/specs/reconstruction-p0-contracts.md:1786 «f7c784644da02979»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:804 «6c15d393bd0b312e»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:813 «39350c40cef9a788»"
+          ]
+        },
+        {
+          "sequenceId": "O10",
+          "position": 43,
+          "action": "recover",
+          "fixtureId": null,
+          "receivedAt": null,
+          "evaluatedAt": 1780650010043,
+          "inputSource": "test",
+          "operationExpected": null,
+          "expectedRef": "expected:O10:43",
+          "expectationBasis": [
+            "L1: docs/specs/reconstruction-p0-contracts.md:1786 «f7c784644da02979»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:804 «6c15d393bd0b312e»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:813 «39350c40cef9a788»"
+          ]
+        },
+        {
+          "sequenceId": "O10",
+          "position": 44,
+          "action": "restart",
+          "fixtureId": null,
+          "receivedAt": null,
+          "evaluatedAt": 1780650010044,
+          "inputSource": "test",
+          "operationExpected": null,
+          "expectedRef": "expected:O10:44",
+          "expectationBasis": [
+            "L1: docs/specs/reconstruction-p0-contracts.md:1786 «f7c784644da02979»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:804 «6c15d393bd0b312e»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:813 «39350c40cef9a788»"
+          ]
+        },
+        {
+          "sequenceId": "O10",
+          "position": 45,
+          "action": "injectFailure",
+          "fixtureId": null,
+          "receivedAt": null,
+          "evaluatedAt": 1780650010045,
+          "inputSource": "test",
+          "operationExpected": null,
+          "expectedRef": "expected:O10:45",
+          "expectationBasis": [
+            "L1: docs/specs/reconstruction-p0-contracts.md:1786 «f7c784644da02979»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:804 «6c15d393bd0b312e»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:813 «39350c40cef9a788»"
+          ]
+        },
+        {
+          "sequenceId": "O10",
+          "position": 46,
+          "action": "recover",
+          "fixtureId": null,
+          "receivedAt": null,
+          "evaluatedAt": 1780650010046,
+          "inputSource": "test",
+          "operationExpected": null,
+          "expectedRef": "expected:O10:46",
+          "expectationBasis": [
+            "L1: docs/specs/reconstruction-p0-contracts.md:1786 «f7c784644da02979»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:804 «6c15d393bd0b312e»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:813 «39350c40cef9a788»"
+          ]
+        },
+        {
+          "sequenceId": "O10",
+          "position": 47,
+          "action": "restart",
+          "fixtureId": null,
+          "receivedAt": null,
+          "evaluatedAt": 1780650010047,
+          "inputSource": "test",
+          "operationExpected": null,
+          "expectedRef": "expected:O10:47",
+          "expectationBasis": [
+            "L1: docs/specs/reconstruction-p0-contracts.md:1786 «f7c784644da02979»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:804 «6c15d393bd0b312e»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:813 «39350c40cef9a788»"
+          ]
+        },
+        {
+          "sequenceId": "O10",
+          "position": 48,
+          "action": "injectFailure",
+          "fixtureId": null,
+          "receivedAt": null,
+          "evaluatedAt": 1780650010048,
+          "inputSource": "test",
+          "operationExpected": null,
+          "expectedRef": "expected:O10:48",
+          "expectationBasis": [
+            "L1: docs/specs/reconstruction-p0-contracts.md:1786 «f7c784644da02979»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:804 «6c15d393bd0b312e»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:813 «39350c40cef9a788»"
+          ]
+        },
+        {
+          "sequenceId": "O10",
+          "position": 49,
+          "action": "recover",
+          "fixtureId": null,
+          "receivedAt": null,
+          "evaluatedAt": 1780650010049,
+          "inputSource": "test",
+          "operationExpected": null,
+          "expectedRef": "expected:O10:49",
+          "expectationBasis": [
+            "L1: docs/specs/reconstruction-p0-contracts.md:1786 «f7c784644da02979»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:804 «6c15d393bd0b312e»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:813 «39350c40cef9a788»"
+          ]
+        },
+        {
+          "sequenceId": "O10",
+          "position": 50,
+          "action": "restart",
+          "fixtureId": null,
+          "receivedAt": null,
+          "evaluatedAt": 1780650010050,
+          "inputSource": "test",
+          "operationExpected": null,
+          "expectedRef": "expected:O10:50",
+          "expectationBasis": [
+            "L1: docs/specs/reconstruction-p0-contracts.md:1786 «f7c784644da02979»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:804 «6c15d393bd0b312e»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:813 «39350c40cef9a788»"
+          ]
+        },
+        {
+          "sequenceId": "O10",
+          "position": 51,
+          "action": "injectFailure",
+          "fixtureId": null,
+          "receivedAt": null,
+          "evaluatedAt": 1780650010051,
+          "inputSource": "test",
+          "operationExpected": null,
+          "expectedRef": "expected:O10:51",
+          "expectationBasis": [
+            "L1: docs/specs/reconstruction-p0-contracts.md:1786 «f7c784644da02979»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:804 «6c15d393bd0b312e»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:813 «39350c40cef9a788»"
+          ]
+        },
+        {
+          "sequenceId": "O10",
+          "position": 52,
+          "action": "recover",
+          "fixtureId": null,
+          "receivedAt": null,
+          "evaluatedAt": 1780650010052,
+          "inputSource": "test",
+          "operationExpected": null,
+          "expectedRef": "expected:O10:52",
+          "expectationBasis": [
+            "L1: docs/specs/reconstruction-p0-contracts.md:1786 «f7c784644da02979»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:804 «6c15d393bd0b312e»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:813 «39350c40cef9a788»"
+          ]
+        },
+        {
+          "sequenceId": "O10",
+          "position": 53,
+          "action": "restart",
+          "fixtureId": null,
+          "receivedAt": null,
+          "evaluatedAt": 1780650010053,
+          "inputSource": "test",
+          "operationExpected": null,
+          "expectedRef": "expected:O10:53",
+          "expectationBasis": [
+            "L1: docs/specs/reconstruction-p0-contracts.md:1786 «f7c784644da02979»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:804 «6c15d393bd0b312e»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:813 «39350c40cef9a788»"
+          ]
+        },
+        {
+          "sequenceId": "O10",
+          "position": 54,
+          "action": "injectFailure",
+          "fixtureId": null,
+          "receivedAt": null,
+          "evaluatedAt": 1780650010054,
+          "inputSource": "test",
+          "operationExpected": null,
+          "expectedRef": "expected:O10:54",
+          "expectationBasis": [
+            "L1: docs/specs/reconstruction-p0-contracts.md:1786 «f7c784644da02979»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:804 «6c15d393bd0b312e»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:813 «39350c40cef9a788»"
+          ]
+        },
+        {
+          "sequenceId": "O10",
+          "position": 55,
+          "action": "recover",
+          "fixtureId": null,
+          "receivedAt": null,
+          "evaluatedAt": 1780650010055,
+          "inputSource": "test",
+          "operationExpected": null,
+          "expectedRef": "expected:O10:55",
+          "expectationBasis": [
+            "L1: docs/specs/reconstruction-p0-contracts.md:1786 «f7c784644da02979»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:804 «6c15d393bd0b312e»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:813 «39350c40cef9a788»"
+          ]
+        },
+        {
+          "sequenceId": "O10",
+          "position": 56,
+          "action": "restart",
+          "fixtureId": null,
+          "receivedAt": null,
+          "evaluatedAt": 1780650100000,
+          "inputSource": "test",
+          "operationExpected": null,
+          "expectedRef": "expected:O10:56",
+          "expectationBasis": [
+            "L1: docs/specs/reconstruction-p0-contracts.md:862 «b7be10b70d398bbf»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:863 «b0df969f17745090»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:864 «6a7712e8d448213a»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:865 «5f445c73a17df687»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:866 «a822f26e85664a64»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:867 «9db94376862d8db5»"
+          ]
+        },
+        {
+          "sequenceId": "O10",
+          "position": 57,
+          "action": "receive",
+          "fixtureId": "test__fixtures__81_02_01_260605_VPWP50_high_severity",
+          "receivedAt": 1780650100001,
+          "evaluatedAt": 1780650100001,
+          "inputSource": "replay",
+          "operationExpected": "normal",
+          "expectedRef": "expected:O10:57",
+          "expectationBasis": [
+            "L1: docs/specs/reconstruction-p0-contracts.md:862 «b7be10b70d398bbf»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:863 «b0df969f17745090»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:864 «6a7712e8d448213a»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:865 «5f445c73a17df687»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:866 «a822f26e85664a64»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:867 «9db94376862d8db5»"
+          ]
+        },
+        {
+          "sequenceId": "O10",
+          "position": 58,
+          "action": "injectFailure",
+          "fixtureId": null,
+          "receivedAt": null,
+          "evaluatedAt": 1780650100002,
+          "inputSource": "test",
+          "operationExpected": null,
+          "expectedRef": "expected:O10:58",
+          "expectationBasis": [
+            "L1: docs/specs/reconstruction-p0-contracts.md:862 «b7be10b70d398bbf»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:863 «b0df969f17745090»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:864 «6a7712e8d448213a»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:865 «5f445c73a17df687»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:866 «a822f26e85664a64»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:867 «9db94376862d8db5»"
+          ]
+        },
+        {
+          "sequenceId": "O10",
+          "position": 59,
+          "action": "receive",
+          "fixtureId": "test__fixtures__81_04_01_260605_VPWP50_cancel",
+          "receivedAt": 1780650100003,
+          "evaluatedAt": 1780650100003,
+          "inputSource": "replay",
+          "operationExpected": "normal",
+          "expectedRef": "expected:O10:59",
+          "expectationBasis": [
+            "L1: docs/specs/reconstruction-p0-contracts.md:862 «b7be10b70d398bbf»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:863 «b0df969f17745090»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:864 «6a7712e8d448213a»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:865 «5f445c73a17df687»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:866 «a822f26e85664a64»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:867 «9db94376862d8db5»"
+          ]
+        },
+        {
+          "sequenceId": "O10",
+          "position": 60,
+          "action": "recover",
+          "fixtureId": null,
+          "receivedAt": null,
+          "evaluatedAt": 1780650100004,
+          "inputSource": "test",
+          "operationExpected": null,
+          "expectedRef": "expected:O10:60",
+          "expectationBasis": [
+            "L1: docs/specs/reconstruction-p0-contracts.md:862 «b7be10b70d398bbf»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:863 «b0df969f17745090»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:864 «6a7712e8d448213a»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:865 «5f445c73a17df687»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:866 «a822f26e85664a64»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:867 «9db94376862d8db5»"
+          ]
+        },
+        {
+          "sequenceId": "O10",
+          "position": 61,
+          "action": "restart",
+          "fixtureId": null,
+          "receivedAt": null,
+          "evaluatedAt": 1780650100005,
+          "inputSource": "test",
+          "operationExpected": null,
+          "expectedRef": "expected:O10:61",
+          "expectationBasis": [
+            "L1: docs/specs/reconstruction-p0-contracts.md:862 «b7be10b70d398bbf»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:863 «b0df969f17745090»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:864 «6a7712e8d448213a»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:865 «5f445c73a17df687»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:866 «a822f26e85664a64»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:867 «9db94376862d8db5»"
+          ]
+        },
+        {
+          "sequenceId": "O10",
+          "position": 62,
+          "action": "receive",
+          "fixtureId": "test__fixtures__81_02_01_260605_VPWP50_high_severity",
+          "receivedAt": 1780650100006,
+          "evaluatedAt": 1780650100006,
+          "inputSource": "replay",
+          "operationExpected": "normal",
+          "expectedRef": "expected:O10:62",
+          "expectationBasis": [
+            "L1: docs/specs/reconstruction-p0-contracts.md:862 «b7be10b70d398bbf»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:863 «b0df969f17745090»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:864 «6a7712e8d448213a»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:865 «5f445c73a17df687»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:866 «a822f26e85664a64»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:867 «9db94376862d8db5»"
+          ]
+        },
+        {
+          "sequenceId": "O10",
+          "position": 63,
+          "action": "injectFailure",
+          "fixtureId": null,
+          "receivedAt": null,
+          "evaluatedAt": 1780650100007,
+          "inputSource": "test",
+          "operationExpected": null,
+          "expectedRef": "expected:O10:63",
+          "expectationBasis": [
+            "L1: docs/specs/reconstruction-p0-contracts.md:862 «b7be10b70d398bbf»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:863 «b0df969f17745090»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:864 «6a7712e8d448213a»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:865 «5f445c73a17df687»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:866 «a822f26e85664a64»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:867 «9db94376862d8db5»"
+          ]
+        },
+        {
+          "sequenceId": "O10",
+          "position": 64,
+          "action": "receive",
+          "fixtureId": "test__fixtures__81_04_01_260605_VPWP50_cancel",
+          "receivedAt": 1780650100008,
+          "evaluatedAt": 1780650100008,
+          "inputSource": "replay",
+          "operationExpected": "normal",
+          "expectedRef": "expected:O10:64",
+          "expectationBasis": [
+            "L1: docs/specs/reconstruction-p0-contracts.md:862 «b7be10b70d398bbf»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:863 «b0df969f17745090»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:864 «6a7712e8d448213a»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:865 «5f445c73a17df687»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:866 «a822f26e85664a64»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:867 «9db94376862d8db5»"
+          ]
+        },
+        {
+          "sequenceId": "O10",
+          "position": 65,
+          "action": "recover",
+          "fixtureId": null,
+          "receivedAt": null,
+          "evaluatedAt": 1780650100009,
+          "inputSource": "test",
+          "operationExpected": null,
+          "expectedRef": "expected:O10:65",
+          "expectationBasis": [
+            "L1: docs/specs/reconstruction-p0-contracts.md:862 «b7be10b70d398bbf»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:863 «b0df969f17745090»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:864 «6a7712e8d448213a»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:865 «5f445c73a17df687»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:866 «a822f26e85664a64»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:867 «9db94376862d8db5»"
+          ]
+        },
+        {
+          "sequenceId": "O10",
+          "position": 66,
+          "action": "restart",
+          "fixtureId": null,
+          "receivedAt": null,
+          "evaluatedAt": 1780650100010,
+          "inputSource": "test",
+          "operationExpected": null,
+          "expectedRef": "expected:O10:66",
+          "expectationBasis": [
+            "L1: docs/specs/reconstruction-p0-contracts.md:862 «b7be10b70d398bbf»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:863 «b0df969f17745090»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:864 «6a7712e8d448213a»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:865 «5f445c73a17df687»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:866 «a822f26e85664a64»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:867 «9db94376862d8db5»"
+          ]
+        },
+        {
+          "sequenceId": "O10",
+          "position": 67,
+          "action": "receive",
+          "fixtureId": "test__fixtures__81_02_01_260605_VPWP50_high_severity",
+          "receivedAt": 1780650100011,
+          "evaluatedAt": 1780650100011,
+          "inputSource": "replay",
+          "operationExpected": "normal",
+          "expectedRef": "expected:O10:67",
+          "expectationBasis": [
+            "L1: docs/specs/reconstruction-p0-contracts.md:862 «b7be10b70d398bbf»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:863 «b0df969f17745090»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:864 «6a7712e8d448213a»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:865 «5f445c73a17df687»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:866 «a822f26e85664a64»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:867 «9db94376862d8db5»"
+          ]
+        },
+        {
+          "sequenceId": "O10",
+          "position": 68,
+          "action": "injectFailure",
+          "fixtureId": null,
+          "receivedAt": null,
+          "evaluatedAt": 1780650100012,
+          "inputSource": "test",
+          "operationExpected": null,
+          "expectedRef": "expected:O10:68",
+          "expectationBasis": [
+            "L1: docs/specs/reconstruction-p0-contracts.md:862 «b7be10b70d398bbf»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:863 «b0df969f17745090»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:864 «6a7712e8d448213a»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:865 «5f445c73a17df687»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:866 «a822f26e85664a64»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:867 «9db94376862d8db5»"
+          ]
+        },
+        {
+          "sequenceId": "O10",
+          "position": 69,
+          "action": "receive",
+          "fixtureId": "test__fixtures__81_04_01_260605_VPWP50_cancel",
+          "receivedAt": 1780650100013,
+          "evaluatedAt": 1780650100013,
+          "inputSource": "replay",
+          "operationExpected": "normal",
+          "expectedRef": "expected:O10:69",
+          "expectationBasis": [
+            "L1: docs/specs/reconstruction-p0-contracts.md:862 «b7be10b70d398bbf»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:863 «b0df969f17745090»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:864 «6a7712e8d448213a»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:865 «5f445c73a17df687»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:866 «a822f26e85664a64»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:867 «9db94376862d8db5»"
+          ]
+        },
+        {
+          "sequenceId": "O10",
+          "position": 70,
+          "action": "recover",
+          "fixtureId": null,
+          "receivedAt": null,
+          "evaluatedAt": 1780650100014,
+          "inputSource": "test",
+          "operationExpected": null,
+          "expectedRef": "expected:O10:70",
+          "expectationBasis": [
+            "L1: docs/specs/reconstruction-p0-contracts.md:862 «b7be10b70d398bbf»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:863 «b0df969f17745090»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:864 «6a7712e8d448213a»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:865 «5f445c73a17df687»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:866 «a822f26e85664a64»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:867 «9db94376862d8db5»"
+          ]
+        },
+        {
+          "sequenceId": "O10",
+          "position": 71,
+          "action": "restart",
+          "fixtureId": null,
+          "receivedAt": null,
+          "evaluatedAt": 1780650100015,
+          "inputSource": "test",
+          "operationExpected": null,
+          "expectedRef": "expected:O10:71",
+          "expectationBasis": [
+            "L1: docs/specs/reconstruction-p0-contracts.md:862 «b7be10b70d398bbf»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:863 «b0df969f17745090»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:864 «6a7712e8d448213a»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:865 «5f445c73a17df687»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:866 «a822f26e85664a64»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:867 «9db94376862d8db5»"
+          ]
+        },
+        {
+          "sequenceId": "O10",
+          "position": 72,
+          "action": "receive",
+          "fixtureId": "test__fixtures__81_02_01_260605_VPWP50_high_severity",
+          "receivedAt": 1780650100016,
+          "evaluatedAt": 1780650100016,
+          "inputSource": "replay",
+          "operationExpected": "normal",
+          "expectedRef": "expected:O10:72",
+          "expectationBasis": [
+            "L1: docs/specs/reconstruction-p0-contracts.md:862 «b7be10b70d398bbf»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:863 «b0df969f17745090»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:864 «6a7712e8d448213a»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:865 «5f445c73a17df687»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:866 «a822f26e85664a64»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:867 «9db94376862d8db5»"
+          ]
+        },
+        {
+          "sequenceId": "O10",
+          "position": 73,
+          "action": "injectFailure",
+          "fixtureId": null,
+          "receivedAt": null,
+          "evaluatedAt": 1780650100017,
+          "inputSource": "test",
+          "operationExpected": null,
+          "expectedRef": "expected:O10:73",
+          "expectationBasis": [
+            "L1: docs/specs/reconstruction-p0-contracts.md:862 «b7be10b70d398bbf»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:863 «b0df969f17745090»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:864 «6a7712e8d448213a»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:865 «5f445c73a17df687»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:866 «a822f26e85664a64»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:867 «9db94376862d8db5»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:841 «2e8b93a723481674»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:843 «306d64c536b299fa»"
+          ]
+        },
+        {
+          "sequenceId": "O10",
+          "position": 74,
+          "action": "receive",
+          "fixtureId": "test__fixtures__81_04_01_260605_VPWP50_cancel",
+          "receivedAt": 1780650100018,
+          "evaluatedAt": 1780650100018,
+          "inputSource": "replay",
+          "operationExpected": "normal",
+          "expectedRef": "expected:O10:74",
+          "expectationBasis": [
+            "L1: docs/specs/reconstruction-p0-contracts.md:862 «b7be10b70d398bbf»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:863 «b0df969f17745090»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:864 «6a7712e8d448213a»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:865 «5f445c73a17df687»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:866 «a822f26e85664a64»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:867 «9db94376862d8db5»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:841 «2e8b93a723481674»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:843 «306d64c536b299fa»"
+          ]
+        },
+        {
+          "sequenceId": "O10",
+          "position": 75,
+          "action": "recover",
+          "fixtureId": null,
+          "receivedAt": null,
+          "evaluatedAt": 1780650100019,
+          "inputSource": "test",
+          "operationExpected": null,
+          "expectedRef": "expected:O10:75",
+          "expectationBasis": [
+            "L1: docs/specs/reconstruction-p0-contracts.md:862 «b7be10b70d398bbf»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:863 «b0df969f17745090»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:864 «6a7712e8d448213a»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:865 «5f445c73a17df687»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:866 «a822f26e85664a64»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:867 «9db94376862d8db5»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:841 «2e8b93a723481674»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:843 «306d64c536b299fa»"
+          ]
+        },
+        {
+          "sequenceId": "O10",
+          "position": 76,
+          "action": "restart",
+          "fixtureId": null,
+          "receivedAt": null,
+          "evaluatedAt": 1780650100020,
+          "inputSource": "test",
+          "operationExpected": null,
+          "expectedRef": "expected:O10:76",
+          "expectationBasis": [
+            "L1: docs/specs/reconstruction-p0-contracts.md:862 «b7be10b70d398bbf»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:863 «b0df969f17745090»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:864 «6a7712e8d448213a»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:865 «5f445c73a17df687»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:866 «a822f26e85664a64»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:867 «9db94376862d8db5»"
+          ]
+        },
+        {
+          "sequenceId": "O10",
+          "position": 77,
+          "action": "receive",
+          "fixtureId": "test__fixtures__81_02_01_260605_VPWP50_high_severity",
+          "receivedAt": 1780650100021,
+          "evaluatedAt": 1780650100021,
+          "inputSource": "replay",
+          "operationExpected": "normal",
+          "expectedRef": "expected:O10:77",
+          "expectationBasis": [
+            "L1: docs/specs/reconstruction-p0-contracts.md:862 «b7be10b70d398bbf»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:863 «b0df969f17745090»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:864 «6a7712e8d448213a»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:865 «5f445c73a17df687»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:866 «a822f26e85664a64»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:867 «9db94376862d8db5»"
+          ]
+        },
+        {
+          "sequenceId": "O10",
+          "position": 78,
+          "action": "injectFailure",
+          "fixtureId": null,
+          "receivedAt": null,
+          "evaluatedAt": 1780650100022,
+          "inputSource": "test",
+          "operationExpected": null,
+          "expectedRef": "expected:O10:78",
+          "expectationBasis": [
+            "L1: docs/specs/reconstruction-p0-contracts.md:862 «b7be10b70d398bbf»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:863 «b0df969f17745090»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:864 «6a7712e8d448213a»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:865 «5f445c73a17df687»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:866 «a822f26e85664a64»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:867 «9db94376862d8db5»"
+          ]
+        },
+        {
+          "sequenceId": "O10",
+          "position": 79,
+          "action": "receive",
+          "fixtureId": "test__fixtures__81_04_01_260605_VPWP50_cancel",
+          "receivedAt": 1780650100023,
+          "evaluatedAt": 1780650100023,
+          "inputSource": "replay",
+          "operationExpected": "normal",
+          "expectedRef": "expected:O10:79",
+          "expectationBasis": [
+            "L1: docs/specs/reconstruction-p0-contracts.md:862 «b7be10b70d398bbf»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:863 «b0df969f17745090»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:864 «6a7712e8d448213a»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:865 «5f445c73a17df687»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:866 «a822f26e85664a64»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:867 «9db94376862d8db5»"
+          ]
+        },
+        {
+          "sequenceId": "O10",
+          "position": 80,
+          "action": "advanceClock",
+          "fixtureId": null,
+          "receivedAt": null,
+          "evaluatedAt": 1780650100024,
+          "inputSource": "test",
+          "operationExpected": null,
+          "expectedRef": "expected:O10:80",
+          "expectationBasis": [
+            "L1: docs/specs/reconstruction-p0-contracts.md:862 «b7be10b70d398bbf»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:863 «b0df969f17745090»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:864 «6a7712e8d448213a»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:865 «5f445c73a17df687»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:866 «a822f26e85664a64»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:867 «9db94376862d8db5»"
+          ]
+        },
+        {
+          "sequenceId": "O10",
+          "position": 81,
+          "action": "advanceClock",
+          "fixtureId": null,
+          "receivedAt": null,
+          "evaluatedAt": 1780650101524,
+          "inputSource": "test",
+          "operationExpected": null,
+          "expectedRef": "expected:O10:81",
+          "expectationBasis": [
+            "L1: docs/specs/reconstruction-p0-contracts.md:862 «b7be10b70d398bbf»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:863 «b0df969f17745090»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:864 «6a7712e8d448213a»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:865 «5f445c73a17df687»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:866 «a822f26e85664a64»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:867 «9db94376862d8db5»"
+          ]
+        },
+        {
+          "sequenceId": "O10",
+          "position": 82,
+          "action": "receive",
+          "fixtureId": "test__fixtures__15_18_01_250630_VPWS50",
+          "receivedAt": 1780650101525,
+          "evaluatedAt": 1780650101525,
+          "inputSource": "replay",
+          "operationExpected": "normal",
+          "expectedRef": "expected:O10:82",
+          "expectationBasis": [
+            "L1: docs/specs/reconstruction-p0-contracts.md:862 «b7be10b70d398bbf»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:863 «b0df969f17745090»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:864 «6a7712e8d448213a»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:865 «5f445c73a17df687»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:866 «a822f26e85664a64»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:867 «9db94376862d8db5»"
+          ]
+        },
+        {
+          "sequenceId": "O10",
+          "position": 83,
+          "action": "save",
+          "fixtureId": null,
+          "receivedAt": null,
+          "evaluatedAt": 1780650101526,
+          "inputSource": "test",
+          "operationExpected": null,
+          "expectedRef": "expected:O10:83",
+          "expectationBasis": [
+            "L1: docs/specs/reconstruction-p0-contracts.md:862 «b7be10b70d398bbf»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:863 «b0df969f17745090»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:864 «6a7712e8d448213a»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:865 «5f445c73a17df687»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:866 «a822f26e85664a64»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:867 «9db94376862d8db5»"
+          ]
+        },
+        {
+          "sequenceId": "O10",
+          "position": 84,
+          "action": "advanceClock",
+          "fixtureId": null,
+          "receivedAt": null,
+          "evaluatedAt": 1780650104024,
+          "inputSource": "test",
+          "operationExpected": null,
+          "expectedRef": "expected:O10:84",
+          "expectationBasis": [
+            "L1: docs/specs/reconstruction-p0-contracts.md:862 «b7be10b70d398bbf»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:863 «b0df969f17745090»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:864 «6a7712e8d448213a»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:865 «5f445c73a17df687»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:866 «a822f26e85664a64»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:867 «9db94376862d8db5»"
+          ]
+        },
+        {
+          "sequenceId": "O10",
+          "position": 85,
+          "action": "advanceClock",
+          "fixtureId": null,
+          "receivedAt": null,
+          "evaluatedAt": 1780650108524,
+          "inputSource": "test",
+          "operationExpected": null,
+          "expectedRef": "expected:O10:85",
+          "expectationBasis": [
+            "L1: docs/specs/reconstruction-p0-contracts.md:862 «b7be10b70d398bbf»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:863 «b0df969f17745090»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:864 «6a7712e8d448213a»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:865 «5f445c73a17df687»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:866 «a822f26e85664a64»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:867 «9db94376862d8db5»"
+          ]
+        },
+        {
+          "sequenceId": "O10",
+          "position": 86,
+          "action": "advanceClock",
+          "fixtureId": null,
+          "receivedAt": null,
+          "evaluatedAt": 1780650117024,
+          "inputSource": "test",
+          "operationExpected": null,
+          "expectedRef": "expected:O10:86",
+          "expectationBasis": [
+            "L1: docs/specs/reconstruction-p0-contracts.md:862 «b7be10b70d398bbf»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:863 «b0df969f17745090»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:864 «6a7712e8d448213a»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:865 «5f445c73a17df687»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:866 «a822f26e85664a64»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:867 «9db94376862d8db5»"
+          ]
+        },
+        {
+          "sequenceId": "O10",
+          "position": 87,
+          "action": "advanceClock",
+          "fixtureId": null,
+          "receivedAt": null,
+          "evaluatedAt": 1780650127524,
+          "inputSource": "test",
+          "operationExpected": null,
+          "expectedRef": "expected:O10:87",
+          "expectationBasis": [
+            "L1: docs/specs/reconstruction-p0-contracts.md:862 «b7be10b70d398bbf»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:863 «b0df969f17745090»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:864 «6a7712e8d448213a»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:865 «5f445c73a17df687»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:866 «a822f26e85664a64»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:867 «9db94376862d8db5»"
+          ]
+        },
+        {
+          "sequenceId": "O10",
+          "position": 88,
+          "action": "recover",
+          "fixtureId": null,
+          "receivedAt": null,
+          "evaluatedAt": 1780650127525,
+          "inputSource": "test",
+          "operationExpected": null,
+          "expectedRef": "expected:O10:88",
+          "expectationBasis": [
+            "L1: docs/specs/reconstruction-p0-contracts.md:862 «b7be10b70d398bbf»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:863 «b0df969f17745090»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:864 «6a7712e8d448213a»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:865 «5f445c73a17df687»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:866 «a822f26e85664a64»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:867 «9db94376862d8db5»"
+          ]
+        },
+        {
+          "sequenceId": "O10",
+          "position": 89,
+          "action": "advanceClock",
+          "fixtureId": null,
+          "receivedAt": null,
+          "evaluatedAt": 1780650137524,
+          "inputSource": "test",
+          "operationExpected": null,
+          "expectedRef": "expected:O10:89",
+          "expectationBasis": [
+            "L1: docs/specs/reconstruction-p0-contracts.md:862 «b7be10b70d398bbf»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:863 «b0df969f17745090»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:864 «6a7712e8d448213a»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:865 «5f445c73a17df687»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:866 «a822f26e85664a64»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:867 «9db94376862d8db5»"
+          ]
+        },
+        {
+          "sequenceId": "O10",
+          "position": 90,
+          "action": "save",
+          "fixtureId": null,
+          "receivedAt": null,
+          "evaluatedAt": 1780650137525,
+          "inputSource": "test",
+          "operationExpected": null,
+          "expectedRef": "expected:O10:90",
+          "expectationBasis": [
+            "L1: docs/specs/reconstruction-p0-contracts.md:862 «b7be10b70d398bbf»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:863 «b0df969f17745090»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:864 «6a7712e8d448213a»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:865 «5f445c73a17df687»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:866 «a822f26e85664a64»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:867 «9db94376862d8db5»"
+          ]
         }
       ]
     },
@@ -5577,6 +6844,1755 @@
     }
   ],
   "expectations": [
+    {
+      "expectedId": "expected:O10:56",
+      "sequenceId": "O10",
+      "position": 56,
+      "decision": null,
+      "effective": null,
+      "subjects": [],
+      "notices": false,
+      "intents": false,
+      "basisLevel": 1,
+      "basisRefs": [
+        "L1: docs/specs/reconstruction-p0-contracts.md:862 «b7be10b70d398bbf»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:863 «b0df969f17745090»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:864 «6a7712e8d448213a»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:865 «5f445c73a17df687»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:866 «a822f26e85664a64»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:867 «9db94376862d8db5»"
+      ],
+      "input": {
+        "required": "独立した隔離harness。既存81_01_03_260129_VPWP50を原報の2023-06-22T17:00:00+09:00に製品経路で受理し保存ack済みg1を用意する。U-Wは空・clean。時計を本stepのevaluatedAtへ設定するが、この制御stepではtickを投入せず、次のreceiveで期限評価と新報適用を同一reduceUnitにまとめる。",
+        "acquisition": "既存manifest fixtureと隔離harness。XML改変・新規fixtureなし"
+      },
+      "checks": [
+        "旧expected:O10:41の修正版。g1は実fixture由来の保存済み旧報。新報前に別tickで架空世代を作らない。"
+      ]
+    },
+    {
+      "expectedId": "expected:O10:57",
+      "sequenceId": "O10",
+      "position": 57,
+      "decision": {
+        "kind": "changed",
+        "change": "semantic"
+      },
+      "effective": {
+        "kind": "active"
+      },
+      "subjects": [
+        {
+          "subject": "normal/VPWP50/稚内地方気象台",
+          "revision": {
+            "reportDateTimeRaw": "2026-06-05T17:00:00+09:00",
+            "serialRaw": null,
+            "infoTypeRaw": "発表"
+          }
+        }
+      ],
+      "notices": null,
+      "intents": null,
+      "basisLevel": 1,
+      "basisRefs": [
+        "L1: docs/specs/reconstruction-p0-contracts.md:862 «b7be10b70d398bbf»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:863 «b0df969f17745090»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:864 «6a7712e8d448213a»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:865 «5f445c73a17df687»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:866 «a822f26e85664a64»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:867 «9db94376862d8db5»"
+      ],
+      "input": {
+        "required": "既存新報81_02_01を受理する。期限評価を含むこのreduceUnitでg2 dirty。schedulerの選択は直後のinjectFailureで駆動する。",
+        "acquisition": "既存manifest fixtureと隔離harness。XML改変・新規fixtureなし"
+      },
+      "checks": [
+        "保存済みg1から新報g2へ実更新。duplicate/stale/noChangeではない。dirtySinceはこのreceivedAt。"
+      ]
+    },
+    {
+      "expectedId": "expected:O10:58",
+      "sequenceId": "O10",
+      "position": 58,
+      "decision": null,
+      "effective": null,
+      "subjects": [],
+      "notices": false,
+      "intents": false,
+      "basisLevel": 1,
+      "basisRefs": [
+        "L1: docs/specs/reconstruction-p0-contracts.md:862 «b7be10b70d398bbf»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:863 «b0df969f17745090»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:864 «6a7712e8d448213a»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:865 «5f445c73a17df687»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:866 «a822f26e85664a64»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:867 «9db94376862d8db5»"
+      ],
+      "input": {
+        "required": "dirty U-Fの最新g2を製品schedulerが選択・capture。故障点=write遅延。次の取消receiveまでadapter完了を保留する。encode失敗は完了callbackを保留し、write/verify失敗とは独立反復する。",
+        "acquisition": "既存manifest fixtureと隔離harness。XML改変・新規fixtureなし"
+      },
+      "checks": [
+        "旧expected:O10:42の修正版。clean g1を選択しない。reservedAt/capturedAt/writeStartedAt/試行IDを記録。g2だけをcapture。"
+      ]
+    },
+    {
+      "expectedId": "expected:O10:59",
+      "sequenceId": "O10",
+      "position": 59,
+      "decision": {
+        "kind": "changed",
+        "change": "semantic"
+      },
+      "effective": {
+        "kind": "inactive",
+        "cause": {
+          "kind": "cancelled"
+        }
+      },
+      "subjects": [
+        {
+          "subject": "normal/VPWP50/稚内地方気象台",
+          "revision": {
+            "reportDateTimeRaw": "2026-06-05T17:00:00+09:00",
+            "serialRaw": null,
+            "infoTypeRaw": "取消"
+          }
+        }
+      ],
+      "notices": null,
+      "intents": null,
+      "basisLevel": 1,
+      "basisRefs": [
+        "L1: docs/specs/reconstruction-p0-contracts.md:862 «b7be10b70d398bbf»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:863 «b0df969f17745090»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:864 «6a7712e8d448213a»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:865 «5f445c73a17df687»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:866 «a822f26e85664a64»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:867 «9db94376862d8db5»"
+      ],
+      "input": {
+        "required": "既存取消81_04_01を受理しg3 dirty。g2試行の完了はまだ保留。",
+        "acquisition": "既存manifest fixtureと隔離harness。XML改変・新規fixtureなし"
+      },
+      "checks": [
+        "currentは取消g3。dirtySinceをg2の時刻から延長しない。g2 ackでg3を巻き戻さない。"
+      ]
+    },
+    {
+      "expectedId": "expected:O10:60",
+      "sequenceId": "O10",
+      "position": 60,
+      "decision": null,
+      "effective": null,
+      "subjects": [],
+      "notices": false,
+      "intents": false,
+      "basisLevel": 1,
+      "basisRefs": [
+        "L1: docs/specs/reconstruction-p0-contracts.md:862 «b7be10b70d398bbf»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:863 «b0df969f17745090»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:864 «6a7712e8d448213a»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:865 «5f445c73a17df687»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:866 «a822f26e85664a64»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:867 «9db94376862d8db5»"
+      ],
+      "input": {
+        "required": "保留g2 writeを完了・ackし、g3がdirtyのまま残ることを確認してg3保存ackまで駆動する。",
+        "acquisition": "既存manifest fixtureと隔離harness。XML改変・新規fixtureなし"
+      },
+      "checks": [
+        "旧expected:O10:43の修正版。未確認I/Oへ並列writeなし。tmp採用なし。新報の捏造なし。",
+        "kill後に未保存g3が残るとは期待しない。取消再取得まで履歴情報の不確かさを保持。"
+      ]
+    },
+    {
+      "expectedId": "expected:O10:61",
+      "sequenceId": "O10",
+      "position": 61,
+      "decision": null,
+      "effective": null,
+      "subjects": [],
+      "notices": false,
+      "intents": false,
+      "basisLevel": 1,
+      "basisRefs": [
+        "L1: docs/specs/reconstruction-p0-contracts.md:862 «b7be10b70d398bbf»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:863 «b0df969f17745090»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:864 «6a7712e8d448213a»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:865 «5f445c73a17df687»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:866 «a822f26e85664a64»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:867 «9db94376862d8db5»"
+      ],
+      "input": {
+        "required": "独立した隔離harness。既存81_01_03_260129_VPWP50を原報の2023-06-22T17:00:00+09:00に製品経路で受理し保存ack済みg1を用意する。U-Wは空・clean。時計を本stepのevaluatedAtへ設定するが、この制御stepではtickを投入せず、次のreceiveで期限評価と新報適用を同一reduceUnitにまとめる。",
+        "acquisition": "既存manifest fixtureと隔離harness。XML改変・新規fixtureなし"
+      },
+      "checks": [
+        "旧expected:O10:44の修正版。g1は実fixture由来の保存済み旧報。新報前に別tickで架空世代を作らない。"
+      ]
+    },
+    {
+      "expectedId": "expected:O10:62",
+      "sequenceId": "O10",
+      "position": 62,
+      "decision": {
+        "kind": "changed",
+        "change": "semantic"
+      },
+      "effective": {
+        "kind": "active"
+      },
+      "subjects": [
+        {
+          "subject": "normal/VPWP50/稚内地方気象台",
+          "revision": {
+            "reportDateTimeRaw": "2026-06-05T17:00:00+09:00",
+            "serialRaw": null,
+            "infoTypeRaw": "発表"
+          }
+        }
+      ],
+      "notices": null,
+      "intents": null,
+      "basisLevel": 1,
+      "basisRefs": [
+        "L1: docs/specs/reconstruction-p0-contracts.md:862 «b7be10b70d398bbf»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:863 «b0df969f17745090»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:864 «6a7712e8d448213a»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:865 «5f445c73a17df687»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:866 «a822f26e85664a64»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:867 «9db94376862d8db5»"
+      ],
+      "input": {
+        "required": "既存新報81_02_01を受理する。期限評価を含むこのreduceUnitでg2 dirty。schedulerの選択は直後のinjectFailureで駆動する。",
+        "acquisition": "既存manifest fixtureと隔離harness。XML改変・新規fixtureなし"
+      },
+      "checks": [
+        "保存済みg1から新報g2へ実更新。duplicate/stale/noChangeではない。dirtySinceはこのreceivedAt。"
+      ]
+    },
+    {
+      "expectedId": "expected:O10:63",
+      "sequenceId": "O10",
+      "position": 63,
+      "decision": null,
+      "effective": null,
+      "subjects": [],
+      "notices": false,
+      "intents": false,
+      "basisLevel": 1,
+      "basisRefs": [
+        "L1: docs/specs/reconstruction-p0-contracts.md:862 «b7be10b70d398bbf»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:863 «b0df969f17745090»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:864 «6a7712e8d448213a»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:865 «5f445c73a17df687»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:866 «a822f26e85664a64»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:867 «9db94376862d8db5»"
+      ],
+      "input": {
+        "required": "dirty U-Fの最新g2を製品schedulerが選択・capture。故障点=rename前kill。次の取消receiveまでadapter完了を保留する。encode失敗は完了callbackを保留し、write/verify失敗とは独立反復する。",
+        "acquisition": "既存manifest fixtureと隔離harness。XML改変・新規fixtureなし"
+      },
+      "checks": [
+        "旧expected:O10:45の修正版。clean g1を選択しない。reservedAt/capturedAt/writeStartedAt/試行IDを記録。g2だけをcapture。"
+      ]
+    },
+    {
+      "expectedId": "expected:O10:64",
+      "sequenceId": "O10",
+      "position": 64,
+      "decision": {
+        "kind": "changed",
+        "change": "semantic"
+      },
+      "effective": {
+        "kind": "inactive",
+        "cause": {
+          "kind": "cancelled"
+        }
+      },
+      "subjects": [
+        {
+          "subject": "normal/VPWP50/稚内地方気象台",
+          "revision": {
+            "reportDateTimeRaw": "2026-06-05T17:00:00+09:00",
+            "serialRaw": null,
+            "infoTypeRaw": "取消"
+          }
+        }
+      ],
+      "notices": null,
+      "intents": null,
+      "basisLevel": 1,
+      "basisRefs": [
+        "L1: docs/specs/reconstruction-p0-contracts.md:862 «b7be10b70d398bbf»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:863 «b0df969f17745090»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:864 «6a7712e8d448213a»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:865 «5f445c73a17df687»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:866 «a822f26e85664a64»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:867 «9db94376862d8db5»"
+      ],
+      "input": {
+        "required": "既存取消81_04_01を受理しg3 dirty。g2試行の完了はまだ保留。",
+        "acquisition": "既存manifest fixtureと隔離harness。XML改変・新規fixtureなし"
+      },
+      "checks": [
+        "currentは取消g3。dirtySinceをg2の時刻から延長しない。g2 ackでg3を巻き戻さない。"
+      ]
+    },
+    {
+      "expectedId": "expected:O10:65",
+      "sequenceId": "O10",
+      "position": 65,
+      "decision": null,
+      "effective": null,
+      "subjects": [],
+      "notices": false,
+      "intents": false,
+      "basisLevel": 1,
+      "basisRefs": [
+        "L1: docs/specs/reconstruction-p0-contracts.md:862 «b7be10b70d398bbf»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:863 «b0df969f17745090»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:864 «6a7712e8d448213a»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:865 «5f445c73a17df687»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:866 «a822f26e85664a64»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:867 «9db94376862d8db5»"
+      ],
+      "input": {
+        "required": "g3受理後、保留g2試行を指定故障点まで進める。killケースは同じslotから再起動、ack喪失は停止確認後に照合。rename前はg1、rename後/ack喪失は検証済みg2を復元候補にする。失った取消g3は同じ81_04_01を再取得して再適用し、その世代を保存ackする。",
+        "acquisition": "既存manifest fixtureと隔離harness。XML改変・新規fixtureなし"
+      },
+      "checks": [
+        "旧expected:O10:46の修正版。未確認I/Oへ並列writeなし。tmp採用なし。新報の捏造なし。",
+        "kill後に未保存g3が残るとは期待しない。取消再取得まで履歴情報の不確かさを保持。"
+      ]
+    },
+    {
+      "expectedId": "expected:O10:66",
+      "sequenceId": "O10",
+      "position": 66,
+      "decision": null,
+      "effective": null,
+      "subjects": [],
+      "notices": false,
+      "intents": false,
+      "basisLevel": 1,
+      "basisRefs": [
+        "L1: docs/specs/reconstruction-p0-contracts.md:862 «b7be10b70d398bbf»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:863 «b0df969f17745090»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:864 «6a7712e8d448213a»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:865 «5f445c73a17df687»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:866 «a822f26e85664a64»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:867 «9db94376862d8db5»"
+      ],
+      "input": {
+        "required": "独立した隔離harness。既存81_01_03_260129_VPWP50を原報の2023-06-22T17:00:00+09:00に製品経路で受理し保存ack済みg1を用意する。U-Wは空・clean。時計を本stepのevaluatedAtへ設定するが、この制御stepではtickを投入せず、次のreceiveで期限評価と新報適用を同一reduceUnitにまとめる。",
+        "acquisition": "既存manifest fixtureと隔離harness。XML改変・新規fixtureなし"
+      },
+      "checks": [
+        "旧expected:O10:47の修正版。g1は実fixture由来の保存済み旧報。新報前に別tickで架空世代を作らない。"
+      ]
+    },
+    {
+      "expectedId": "expected:O10:67",
+      "sequenceId": "O10",
+      "position": 67,
+      "decision": {
+        "kind": "changed",
+        "change": "semantic"
+      },
+      "effective": {
+        "kind": "active"
+      },
+      "subjects": [
+        {
+          "subject": "normal/VPWP50/稚内地方気象台",
+          "revision": {
+            "reportDateTimeRaw": "2026-06-05T17:00:00+09:00",
+            "serialRaw": null,
+            "infoTypeRaw": "発表"
+          }
+        }
+      ],
+      "notices": null,
+      "intents": null,
+      "basisLevel": 1,
+      "basisRefs": [
+        "L1: docs/specs/reconstruction-p0-contracts.md:862 «b7be10b70d398bbf»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:863 «b0df969f17745090»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:864 «6a7712e8d448213a»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:865 «5f445c73a17df687»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:866 «a822f26e85664a64»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:867 «9db94376862d8db5»"
+      ],
+      "input": {
+        "required": "既存新報81_02_01を受理する。期限評価を含むこのreduceUnitでg2 dirty。schedulerの選択は直後のinjectFailureで駆動する。",
+        "acquisition": "既存manifest fixtureと隔離harness。XML改変・新規fixtureなし"
+      },
+      "checks": [
+        "保存済みg1から新報g2へ実更新。duplicate/stale/noChangeではない。dirtySinceはこのreceivedAt。"
+      ]
+    },
+    {
+      "expectedId": "expected:O10:68",
+      "sequenceId": "O10",
+      "position": 68,
+      "decision": null,
+      "effective": null,
+      "subjects": [],
+      "notices": false,
+      "intents": false,
+      "basisLevel": 1,
+      "basisRefs": [
+        "L1: docs/specs/reconstruction-p0-contracts.md:862 «b7be10b70d398bbf»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:863 «b0df969f17745090»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:864 «6a7712e8d448213a»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:865 «5f445c73a17df687»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:866 «a822f26e85664a64»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:867 «9db94376862d8db5»"
+      ],
+      "input": {
+        "required": "dirty U-Fの最新g2を製品schedulerが選択・capture。故障点=rename後ack前kill。次の取消receiveまでadapter完了を保留する。encode失敗は完了callbackを保留し、write/verify失敗とは独立反復する。",
+        "acquisition": "既存manifest fixtureと隔離harness。XML改変・新規fixtureなし"
+      },
+      "checks": [
+        "旧expected:O10:48の修正版。clean g1を選択しない。reservedAt/capturedAt/writeStartedAt/試行IDを記録。g2だけをcapture。"
+      ]
+    },
+    {
+      "expectedId": "expected:O10:69",
+      "sequenceId": "O10",
+      "position": 69,
+      "decision": {
+        "kind": "changed",
+        "change": "semantic"
+      },
+      "effective": {
+        "kind": "inactive",
+        "cause": {
+          "kind": "cancelled"
+        }
+      },
+      "subjects": [
+        {
+          "subject": "normal/VPWP50/稚内地方気象台",
+          "revision": {
+            "reportDateTimeRaw": "2026-06-05T17:00:00+09:00",
+            "serialRaw": null,
+            "infoTypeRaw": "取消"
+          }
+        }
+      ],
+      "notices": null,
+      "intents": null,
+      "basisLevel": 1,
+      "basisRefs": [
+        "L1: docs/specs/reconstruction-p0-contracts.md:862 «b7be10b70d398bbf»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:863 «b0df969f17745090»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:864 «6a7712e8d448213a»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:865 «5f445c73a17df687»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:866 «a822f26e85664a64»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:867 «9db94376862d8db5»"
+      ],
+      "input": {
+        "required": "既存取消81_04_01を受理しg3 dirty。g2試行の完了はまだ保留。",
+        "acquisition": "既存manifest fixtureと隔離harness。XML改変・新規fixtureなし"
+      },
+      "checks": [
+        "currentは取消g3。dirtySinceをg2の時刻から延長しない。g2 ackでg3を巻き戻さない。"
+      ]
+    },
+    {
+      "expectedId": "expected:O10:70",
+      "sequenceId": "O10",
+      "position": 70,
+      "decision": null,
+      "effective": null,
+      "subjects": [],
+      "notices": false,
+      "intents": false,
+      "basisLevel": 1,
+      "basisRefs": [
+        "L1: docs/specs/reconstruction-p0-contracts.md:862 «b7be10b70d398bbf»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:863 «b0df969f17745090»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:864 «6a7712e8d448213a»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:865 «5f445c73a17df687»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:866 «a822f26e85664a64»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:867 «9db94376862d8db5»"
+      ],
+      "input": {
+        "required": "g3受理後、保留g2試行を指定故障点まで進める。killケースは同じslotから再起動、ack喪失は停止確認後に照合。rename前はg1、rename後/ack喪失は検証済みg2を復元候補にする。失った取消g3は同じ81_04_01を再取得して再適用し、その世代を保存ackする。",
+        "acquisition": "既存manifest fixtureと隔離harness。XML改変・新規fixtureなし"
+      },
+      "checks": [
+        "旧expected:O10:49の修正版。未確認I/Oへ並列writeなし。tmp採用なし。新報の捏造なし。",
+        "kill後に未保存g3が残るとは期待しない。取消再取得まで履歴情報の不確かさを保持。"
+      ]
+    },
+    {
+      "expectedId": "expected:O10:71",
+      "sequenceId": "O10",
+      "position": 71,
+      "decision": null,
+      "effective": null,
+      "subjects": [],
+      "notices": false,
+      "intents": false,
+      "basisLevel": 1,
+      "basisRefs": [
+        "L1: docs/specs/reconstruction-p0-contracts.md:862 «b7be10b70d398bbf»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:863 «b0df969f17745090»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:864 «6a7712e8d448213a»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:865 «5f445c73a17df687»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:866 «a822f26e85664a64»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:867 «9db94376862d8db5»"
+      ],
+      "input": {
+        "required": "独立した隔離harness。既存81_01_03_260129_VPWP50を原報の2023-06-22T17:00:00+09:00に製品経路で受理し保存ack済みg1を用意する。U-Wは空・clean。時計を本stepのevaluatedAtへ設定するが、この制御stepではtickを投入せず、次のreceiveで期限評価と新報適用を同一reduceUnitにまとめる。",
+        "acquisition": "既存manifest fixtureと隔離harness。XML改変・新規fixtureなし"
+      },
+      "checks": [
+        "旧expected:O10:50の修正版。g1は実fixture由来の保存済み旧報。新報前に別tickで架空世代を作らない。"
+      ]
+    },
+    {
+      "expectedId": "expected:O10:72",
+      "sequenceId": "O10",
+      "position": 72,
+      "decision": {
+        "kind": "changed",
+        "change": "semantic"
+      },
+      "effective": {
+        "kind": "active"
+      },
+      "subjects": [
+        {
+          "subject": "normal/VPWP50/稚内地方気象台",
+          "revision": {
+            "reportDateTimeRaw": "2026-06-05T17:00:00+09:00",
+            "serialRaw": null,
+            "infoTypeRaw": "発表"
+          }
+        }
+      ],
+      "notices": null,
+      "intents": null,
+      "basisLevel": 1,
+      "basisRefs": [
+        "L1: docs/specs/reconstruction-p0-contracts.md:862 «b7be10b70d398bbf»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:863 «b0df969f17745090»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:864 «6a7712e8d448213a»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:865 «5f445c73a17df687»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:866 «a822f26e85664a64»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:867 «9db94376862d8db5»"
+      ],
+      "input": {
+        "required": "既存新報81_02_01を受理する。期限評価を含むこのreduceUnitでg2 dirty。schedulerの選択は直後のinjectFailureで駆動する。",
+        "acquisition": "既存manifest fixtureと隔離harness。XML改変・新規fixtureなし"
+      },
+      "checks": [
+        "保存済みg1から新報g2へ実更新。duplicate/stale/noChangeではない。dirtySinceはこのreceivedAt。"
+      ]
+    },
+    {
+      "expectedId": "expected:O10:73",
+      "sequenceId": "O10",
+      "position": 73,
+      "decision": null,
+      "effective": null,
+      "subjects": [],
+      "notices": false,
+      "intents": false,
+      "basisLevel": 1,
+      "basisRefs": [
+        "L1: docs/specs/reconstruction-p0-contracts.md:862 «b7be10b70d398bbf»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:863 «b0df969f17745090»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:864 «6a7712e8d448213a»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:865 «5f445c73a17df687»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:866 «a822f26e85664a64»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:867 «9db94376862d8db5»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:841 «2e8b93a723481674»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:843 «306d64c536b299fa»"
+      ],
+      "input": {
+        "required": "dirty U-Fの最新g2を製品schedulerが選択・capture。次の取消receiveまでadapter完了を保留し、その後g2のwrite/rename/syncを完了させるがackを喪失させる。プロセスは継続しkill/restartしない。",
+        "acquisition": "既存manifest fixtureと隔離harness。XML改変・新規fixtureなし"
+      },
+      "checks": [
+        "旧expected:O10:51の修正版。clean g1を選択しない。reservedAt/capturedAt/writeStartedAt/試行IDを記録。g2だけをcapture。",
+        "ack未確認の間はuncertain。停止未確認I/Oの終了とslot照合が済むまで当該単位を上書きしない。"
+      ]
+    },
+    {
+      "expectedId": "expected:O10:74",
+      "sequenceId": "O10",
+      "position": 74,
+      "decision": {
+        "kind": "changed",
+        "change": "semantic"
+      },
+      "effective": {
+        "kind": "inactive",
+        "cause": {
+          "kind": "cancelled"
+        }
+      },
+      "subjects": [
+        {
+          "subject": "normal/VPWP50/稚内地方気象台",
+          "revision": {
+            "reportDateTimeRaw": "2026-06-05T17:00:00+09:00",
+            "serialRaw": null,
+            "infoTypeRaw": "取消"
+          }
+        }
+      ],
+      "notices": null,
+      "intents": null,
+      "basisLevel": 1,
+      "basisRefs": [
+        "L1: docs/specs/reconstruction-p0-contracts.md:862 «b7be10b70d398bbf»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:863 «b0df969f17745090»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:864 «6a7712e8d448213a»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:865 «5f445c73a17df687»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:866 «a822f26e85664a64»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:867 «9db94376862d8db5»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:841 «2e8b93a723481674»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:843 «306d64c536b299fa»"
+      ],
+      "input": {
+        "required": "既存取消81_04_01を受理しg3 dirty。g2試行の完了はまだ保留。",
+        "acquisition": "既存manifest fixtureと隔離harness。XML改変・新規fixtureなし"
+      },
+      "checks": [
+        "currentは取消g3。dirtySinceをg2の時刻から延長しない。g2 ackでg3を巻き戻さない。",
+        "プロセス継続中のメモリg3・取消watermarkを保持する。後続の照合は保存進捗だけを確定し、reduceUnitへ旧g2を再適用しない。"
+      ]
+    },
+    {
+      "expectedId": "expected:O10:75",
+      "sequenceId": "O10",
+      "position": 75,
+      "decision": null,
+      "effective": null,
+      "subjects": [],
+      "notices": false,
+      "intents": false,
+      "basisLevel": 1,
+      "basisRefs": [
+        "L1: docs/specs/reconstruction-p0-contracts.md:862 «b7be10b70d398bbf»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:863 «b0df969f17745090»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:864 «6a7712e8d448213a»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:865 «5f445c73a17df687»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:866 «a822f26e85664a64»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:867 «9db94376862d8db5»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:841 «2e8b93a723481674»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:843 «306d64c536b299fa»"
+      ],
+      "input": {
+        "required": "プロセスは継続しkill/restartしない。保留g2のwrite/rename/syncを完了させackのみ喪失。I/O終了を確認して2slotの世代/hashを再照合し、必要なsyncを再確認する。保存済み世代だけをg2へ確定してuncertainを解決する。メモリの取消g3は維持し、残るdirty g3を次の試行でcaptureして保存ackする。取消の再取得・再適用は行わない。",
+        "acquisition": "既存manifest fixtureと隔離harness。XML改変・新規fixtureなし"
+      },
+      "checks": [
+        "旧expected:O10:52の修正版。未確認I/Oへ並列writeなし。tmp採用なし。プロセス継続なので旧slotからメモリstateを復元しない。",
+        "照合直後は保存済み世代=g2、メモリ世代=g3、current=cancelled、dirty=true。取消watermark/intentを巻き戻さず、dirtySinceも延長しない。",
+        "次のg3保存ack後だけ保存済み世代=g3・dirty=false。g2の照合/遅延ackでg3をclean扱いしない。",
+        "取消再取得を必要とするのはkill/restartによって未保存g3を失ったO10:65/70。O10:75では追加receive=0、取消再適用=0。"
+      ]
+    },
+    {
+      "expectedId": "expected:O10:76",
+      "sequenceId": "O10",
+      "position": 76,
+      "decision": null,
+      "effective": null,
+      "subjects": [],
+      "notices": false,
+      "intents": false,
+      "basisLevel": 1,
+      "basisRefs": [
+        "L1: docs/specs/reconstruction-p0-contracts.md:862 «b7be10b70d398bbf»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:863 «b0df969f17745090»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:864 «6a7712e8d448213a»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:865 «5f445c73a17df687»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:866 «a822f26e85664a64»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:867 «9db94376862d8db5»"
+      ],
+      "input": {
+        "required": "独立した隔離harness。既存81_01_03_260129_VPWP50を原報の2023-06-22T17:00:00+09:00に製品経路で受理し保存ack済みg1を用意する。U-Wは空・clean。時計を本stepのevaluatedAtへ設定するが、この制御stepではtickを投入せず、次のreceiveで期限評価と新報適用を同一reduceUnitにまとめる。",
+        "acquisition": "既存manifest fixtureと隔離harness。XML改変・新規fixtureなし"
+      },
+      "checks": [
+        "旧expected:O10:53の修正版。g1は実fixture由来の保存済み旧報。新報前に別tickで架空世代を作らない。"
+      ]
+    },
+    {
+      "expectedId": "expected:O10:77",
+      "sequenceId": "O10",
+      "position": 77,
+      "decision": {
+        "kind": "changed",
+        "change": "semantic"
+      },
+      "effective": {
+        "kind": "active"
+      },
+      "subjects": [
+        {
+          "subject": "normal/VPWP50/稚内地方気象台",
+          "revision": {
+            "reportDateTimeRaw": "2026-06-05T17:00:00+09:00",
+            "serialRaw": null,
+            "infoTypeRaw": "発表"
+          }
+        }
+      ],
+      "notices": null,
+      "intents": null,
+      "basisLevel": 1,
+      "basisRefs": [
+        "L1: docs/specs/reconstruction-p0-contracts.md:862 «b7be10b70d398bbf»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:863 «b0df969f17745090»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:864 «6a7712e8d448213a»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:865 «5f445c73a17df687»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:866 «a822f26e85664a64»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:867 «9db94376862d8db5»"
+      ],
+      "input": {
+        "required": "既存新報81_02_01を受理する。期限評価を含むこのreduceUnitでg2 dirty。schedulerの選択は直後のinjectFailureで駆動する。",
+        "acquisition": "既存manifest fixtureと隔離harness。XML改変・新規fixtureなし"
+      },
+      "checks": [
+        "保存済みg1から新報g2へ実更新。duplicate/stale/noChangeではない。dirtySinceはこのreceivedAt。"
+      ]
+    },
+    {
+      "expectedId": "expected:O10:78",
+      "sequenceId": "O10",
+      "position": 78,
+      "decision": null,
+      "effective": null,
+      "subjects": [],
+      "notices": false,
+      "intents": false,
+      "basisLevel": 1,
+      "basisRefs": [
+        "L1: docs/specs/reconstruction-p0-contracts.md:862 «b7be10b70d398bbf»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:863 «b0df969f17745090»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:864 «6a7712e8d448213a»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:865 «5f445c73a17df687»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:866 «a822f26e85664a64»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:867 «9db94376862d8db5»"
+      ],
+      "input": {
+        "required": "dirty U-Fの最新g2を製品schedulerが選択・capture。故障点=U-F単位固有の永続失敗。次の取消receiveまでadapter完了を保留する。encode失敗は完了callbackを保留し、write/verify失敗とは独立反復する。",
+        "acquisition": "既存manifest fixtureと隔離harness。XML改変・新規fixtureなし"
+      },
+      "checks": [
+        "旧expected:O10:54の修正版。clean g1を選択しない。reservedAt/capturedAt/writeStartedAt/試行IDを記録。g2だけをcapture。"
+      ]
+    },
+    {
+      "expectedId": "expected:O10:79",
+      "sequenceId": "O10",
+      "position": 79,
+      "decision": {
+        "kind": "changed",
+        "change": "semantic"
+      },
+      "effective": {
+        "kind": "inactive",
+        "cause": {
+          "kind": "cancelled"
+        }
+      },
+      "subjects": [
+        {
+          "subject": "normal/VPWP50/稚内地方気象台",
+          "revision": {
+            "reportDateTimeRaw": "2026-06-05T17:00:00+09:00",
+            "serialRaw": null,
+            "infoTypeRaw": "取消"
+          }
+        }
+      ],
+      "notices": null,
+      "intents": null,
+      "basisLevel": 1,
+      "basisRefs": [
+        "L1: docs/specs/reconstruction-p0-contracts.md:862 «b7be10b70d398bbf»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:863 «b0df969f17745090»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:864 «6a7712e8d448213a»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:865 «5f445c73a17df687»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:866 «a822f26e85664a64»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:867 «9db94376862d8db5»"
+      ],
+      "input": {
+        "required": "既存取消81_04_01を受理しg3 dirty。g2試行の完了はまだ保留。",
+        "acquisition": "既存manifest fixtureと隔離harness。XML改変・新規fixtureなし"
+      },
+      "checks": [
+        "currentは取消g3。dirtySinceをg2の時刻から延長しない。g2 ackでg3を巻き戻さない。"
+      ]
+    },
+    {
+      "expectedId": "expected:O10:80",
+      "sequenceId": "O10",
+      "position": 80,
+      "decision": null,
+      "effective": null,
+      "subjects": [],
+      "notices": false,
+      "intents": false,
+      "basisLevel": 1,
+      "basisRefs": [
+        "L1: docs/specs/reconstruction-p0-contracts.md:862 «b7be10b70d398bbf»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:863 «b0df969f17745090»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:864 «6a7712e8d448213a»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:865 «5f445c73a17df687»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:866 «a822f26e85664a64»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:867 «9db94376862d8db5»"
+      ],
+      "input": {
+        "required": "保留g2の終了失敗をこの時計T=1780650100024で確定。以降の試行は即時終了失敗。encode/write/verifyの各モードを別々に本系列で実行する。",
+        "acquisition": "既存manifest fixtureと隔離harness。XML改変・新規fixtureなし"
+      },
+      "checks": [
+        "試行1失敗。retryAfter=T+1000。g3が最新dirty、dirtySinceはg2受信時のまま。"
+      ]
+    },
+    {
+      "expectedId": "expected:O10:81",
+      "sequenceId": "O10",
+      "position": 81,
+      "decision": null,
+      "effective": null,
+      "subjects": [],
+      "notices": false,
+      "intents": false,
+      "basisLevel": 1,
+      "basisRefs": [
+        "L1: docs/specs/reconstruction-p0-contracts.md:862 «b7be10b70d398bbf»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:863 «b0df969f17745090»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:864 «6a7712e8d448213a»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:865 «5f445c73a17df687»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:866 «a822f26e85664a64»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:867 «9db94376862d8db5»"
+      ],
+      "input": {
+        "required": "固定時計を1780650101524（T+1500ms）へ進め、schedulerを1回駆動して最新g3の終了失敗を確定する。",
+        "acquisition": "既存manifest fixtureと隔離harness。XML改変・新規fixtureなし"
+      },
+      "checks": [
+        "試行2のみを観測。直前失敗から1500msであり待ち時間1000ms以上。中間の未投入時計で試行を捏造しない。",
+        "retryAfter=1780650103524。U-F dirtySinceは不変。T+4000以降checkpointOverdueを表示。"
+      ]
+    },
+    {
+      "expectedId": "expected:O10:82",
+      "sequenceId": "O10",
+      "position": 82,
+      "decision": {
+        "kind": "changed",
+        "change": "semantic"
+      },
+      "effective": null,
+      "subjects": [
+        {
+          "subject": "normal/VPWS50/全国base",
+          "revision": {
+            "reportDateTimeRaw": "2019-10-12T09:09:00+09:00",
+            "serialRaw": null,
+            "infoTypeRaw": "発表"
+          }
+        }
+      ],
+      "notices": null,
+      "intents": null,
+      "basisLevel": 1,
+      "basisRefs": [
+        "L1: docs/specs/reconstruction-p0-contracts.md:862 «b7be10b70d398bbf»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:863 «b0df969f17745090»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:864 «6a7712e8d448213a»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:865 «5f445c73a17df687»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:866 «a822f26e85664a64»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:867 «9db94376862d8db5»"
+      ],
+      "input": {
+        "required": "空のU-Wへ既存VPWS50を初受信。原報時刻は古いまま、期限評価を行い保存対象base/revisionを更新する。",
+        "acquisition": "既存manifest fixtureと隔離harness。XML改変・新規fixtureなし"
+      },
+      "checks": [
+        "U-W changed、dirtySince=1780650101525。U-F再試行待ちを継承しない。表示activeは要求しない。"
+      ]
+    },
+    {
+      "expectedId": "expected:O10:83",
+      "sequenceId": "O10",
+      "position": 83,
+      "decision": null,
+      "effective": null,
+      "subjects": [],
+      "notices": false,
+      "intents": false,
+      "basisLevel": 1,
+      "basisRefs": [
+        "L1: docs/specs/reconstruction-p0-contracts.md:862 «b7be10b70d398bbf»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:863 «b0df969f17745090»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:864 «6a7712e8d448213a»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:865 «5f445c73a17df687»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:866 «a822f26e85664a64»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:867 «9db94376862d8db5»"
+      ],
+      "input": {
+        "required": "writerが空でU-F retryAfter未満。正常U-Wを選択・captureし、この時計で保存ack。",
+        "acquisition": "既存manifest fixtureと隔離harness。XML改変・新規fixtureなし"
+      },
+      "checks": [
+        "U-W更新から1ms、3秒以内に同更新を含む世代ack。U-Fは依然失敗中でdirty。U-W保存によってU-F失敗回数/retryAfterを解除しない。"
+      ]
+    },
+    {
+      "expectedId": "expected:O10:84",
+      "sequenceId": "O10",
+      "position": 84,
+      "decision": null,
+      "effective": null,
+      "subjects": [],
+      "notices": false,
+      "intents": false,
+      "basisLevel": 1,
+      "basisRefs": [
+        "L1: docs/specs/reconstruction-p0-contracts.md:862 «b7be10b70d398bbf»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:863 «b0df969f17745090»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:864 «6a7712e8d448213a»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:865 «5f445c73a17df687»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:866 «a822f26e85664a64»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:867 «9db94376862d8db5»"
+      ],
+      "input": {
+        "required": "固定時計を1780650104024（T+4000ms）へ進め、schedulerを1回駆動して最新g3の終了失敗を確定する。",
+        "acquisition": "既存manifest fixtureと隔離harness。XML改変・新規fixtureなし"
+      },
+      "checks": [
+        "試行3のみを観測。直前失敗から2500msであり待ち時間2000ms以上。中間の未投入時計で試行を捏造しない。",
+        "retryAfter=1780650108024。U-F dirtySinceは不変。T+4000以降checkpointOverdueを表示。"
+      ]
+    },
+    {
+      "expectedId": "expected:O10:85",
+      "sequenceId": "O10",
+      "position": 85,
+      "decision": null,
+      "effective": null,
+      "subjects": [],
+      "notices": false,
+      "intents": false,
+      "basisLevel": 1,
+      "basisRefs": [
+        "L1: docs/specs/reconstruction-p0-contracts.md:862 «b7be10b70d398bbf»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:863 «b0df969f17745090»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:864 «6a7712e8d448213a»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:865 «5f445c73a17df687»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:866 «a822f26e85664a64»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:867 «9db94376862d8db5»"
+      ],
+      "input": {
+        "required": "固定時計を1780650108524（T+8500ms）へ進め、schedulerを1回駆動して最新g3の終了失敗を確定する。",
+        "acquisition": "既存manifest fixtureと隔離harness。XML改変・新規fixtureなし"
+      },
+      "checks": [
+        "試行4のみを観測。直前失敗から4500msであり待ち時間4000ms以上。中間の未投入時計で試行を捏造しない。",
+        "retryAfter=1780650116524。U-F dirtySinceは不変。T+4000以降checkpointOverdueを表示。"
+      ]
+    },
+    {
+      "expectedId": "expected:O10:86",
+      "sequenceId": "O10",
+      "position": 86,
+      "decision": null,
+      "effective": null,
+      "subjects": [],
+      "notices": false,
+      "intents": false,
+      "basisLevel": 1,
+      "basisRefs": [
+        "L1: docs/specs/reconstruction-p0-contracts.md:862 «b7be10b70d398bbf»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:863 «b0df969f17745090»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:864 «6a7712e8d448213a»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:865 «5f445c73a17df687»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:866 «a822f26e85664a64»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:867 «9db94376862d8db5»"
+      ],
+      "input": {
+        "required": "固定時計を1780650117024（T+17000ms）へ進め、schedulerを1回駆動して最新g3の終了失敗を確定する。",
+        "acquisition": "既存manifest fixtureと隔離harness。XML改変・新規fixtureなし"
+      },
+      "checks": [
+        "試行5のみを観測。直前失敗から8500msであり待ち時間8000ms以上。中間の未投入時計で試行を捏造しない。",
+        "retryAfter=1780650127024。U-F dirtySinceは不変。T+4000以降checkpointOverdueを表示。"
+      ]
+    },
+    {
+      "expectedId": "expected:O10:87",
+      "sequenceId": "O10",
+      "position": 87,
+      "decision": null,
+      "effective": null,
+      "subjects": [],
+      "notices": false,
+      "intents": false,
+      "basisLevel": 1,
+      "basisRefs": [
+        "L1: docs/specs/reconstruction-p0-contracts.md:862 «b7be10b70d398bbf»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:863 «b0df969f17745090»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:864 «6a7712e8d448213a»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:865 «5f445c73a17df687»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:866 «a822f26e85664a64»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:867 «9db94376862d8db5»"
+      ],
+      "input": {
+        "required": "固定時計を1780650127524（T+27500ms）へ進め、schedulerを1回駆動して最新g3の終了失敗を確定する。",
+        "acquisition": "既存manifest fixtureと隔離harness。XML改変・新規fixtureなし"
+      },
+      "checks": [
+        "試行6のみを観測。直前失敗から10500msであり待ち時間10000ms以上。中間の未投入時計で試行を捏造しない。",
+        "retryAfter=1780650137524。U-F dirtySinceは不変。T+4000以降checkpointOverdueを表示。"
+      ]
+    },
+    {
+      "expectedId": "expected:O10:88",
+      "sequenceId": "O10",
+      "position": 88,
+      "decision": null,
+      "effective": null,
+      "subjects": [],
+      "notices": false,
+      "intents": false,
+      "basisLevel": 1,
+      "basisRefs": [
+        "L1: docs/specs/reconstruction-p0-contracts.md:862 «b7be10b70d398bbf»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:863 «b0df969f17745090»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:864 «6a7712e8d448213a»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:865 «5f445c73a17df687»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:866 «a822f26e85664a64»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:867 «9db94376862d8db5»"
+      ],
+      "input": {
+        "required": "時計T+27501msでU-F故障だけを解除。retryAfter=T+37500msは解除時に短縮しない。",
+        "acquisition": "既存manifest fixtureと隔離harness。XML改変・新規fixtureなし"
+      },
+      "checks": [
+        "旧expected:O10:55の修正版。失敗6回・再試行5回を観測済み。解除直後に保存しない。"
+      ]
+    },
+    {
+      "expectedId": "expected:O10:89",
+      "sequenceId": "O10",
+      "position": 89,
+      "decision": null,
+      "effective": null,
+      "subjects": [],
+      "notices": false,
+      "intents": false,
+      "basisLevel": 1,
+      "basisRefs": [
+        "L1: docs/specs/reconstruction-p0-contracts.md:862 «b7be10b70d398bbf»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:863 «b0df969f17745090»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:864 «6a7712e8d448213a»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:865 «5f445c73a17df687»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:866 «a822f26e85664a64»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:867 «9db94376862d8db5»"
+      ],
+      "input": {
+        "required": "時計をT+37500msへ進め、U-Fの再試行可能時刻に到達。",
+        "acquisition": "既存manifest fixtureと隔離harness。XML改変・新規fixtureなし"
+      },
+      "checks": [
+        "最新g3を試行7でcapture。"
+      ]
+    },
+    {
+      "expectedId": "expected:O10:90",
+      "sequenceId": "O10",
+      "position": 90,
+      "decision": null,
+      "effective": null,
+      "subjects": [],
+      "notices": false,
+      "intents": false,
+      "basisLevel": 1,
+      "basisRefs": [
+        "L1: docs/specs/reconstruction-p0-contracts.md:862 «b7be10b70d398bbf»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:863 «b0df969f17745090»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:864 «6a7712e8d448213a»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:865 «5f445c73a17df687»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:866 «a822f26e85664a64»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:867 «9db94376862d8db5»"
+      ],
+      "input": {
+        "required": "試行7の最新g3を保存ackする。",
+        "acquisition": "既存manifest fixtureと隔離harness。XML改変・新規fixtureなし"
+      },
+      "checks": [
+        "取消を保持。成功で失敗回数/retryAfter解除。U-Wはcleanのまま。"
+      ]
+    },
+    {
+      "expectedId": "expected:O10:31",
+      "sequenceId": "O10",
+      "position": 31,
+      "decision": null,
+      "effective": null,
+      "subjects": [],
+      "notices": false,
+      "intents": false,
+      "basisLevel": 1,
+      "basisRefs": [
+        "L1: docs/specs/reconstruction-p0-contracts.md:1786 «f7c784644da02979»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:804 «6c15d393bd0b312e»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:813 «39350c40cef9a788»"
+      ],
+      "input": {
+        "required": "新しい隔離harness。U-F空、slotなし、operation=normal、設定版p2-o10-v2、通知adapter停止。時計1780650010031。",
+        "acquisition": "既存manifest fixtureと隔離test harness。新規synthetic fixtureなし"
+      },
+      "checks": [
+        "旧expected:O10:1のP2置換。U-Fを対象とし公平性試験の正常単位はU-W。",
+        "U-V/exportはロードしない。"
+      ]
+    },
+    {
+      "expectedId": "expected:O10:32",
+      "sequenceId": "O10",
+      "position": 32,
+      "decision": {
+        "kind": "changed",
+        "change": "semantic"
+      },
+      "effective": {
+        "kind": "active"
+      },
+      "subjects": [
+        {
+          "subject": "normal/VPWP50/稚内地方気象台",
+          "revision": {
+            "reportDateTimeRaw": "2026-06-05T17:00:00+09:00",
+            "serialRaw": null,
+            "infoTypeRaw": "発表"
+          }
+        }
+      ],
+      "notices": null,
+      "intents": null,
+      "basisLevel": 1,
+      "basisRefs": [
+        "L1: docs/specs/reconstruction-p0-contracts.md:1786 «f7c784644da02979»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:804 «6c15d393bd0b312e»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:813 «39350c40cef9a788»"
+      ],
+      "input": {
+        "required": "既存81_02_01 VPWP50を製品parser/reducerで受理。",
+        "acquisition": "既存manifest fixtureと隔離test harness。新規synthetic fixtureなし"
+      },
+      "checks": [
+        "旧expected:O10:2のP2置換。U-Fを対象とし公平性試験の正常単位はU-W。",
+        "稚内subject active、g1生成。原報時刻は変更しない。"
+      ]
+    },
+    {
+      "expectedId": "expected:O10:33",
+      "sequenceId": "O10",
+      "position": 33,
+      "decision": null,
+      "effective": null,
+      "subjects": [],
+      "notices": false,
+      "intents": false,
+      "basisLevel": 1,
+      "basisRefs": [
+        "L1: docs/specs/reconstruction-p0-contracts.md:1786 «f7c784644da02979»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:804 «6c15d393bd0b312e»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:813 «39350c40cef9a788»"
+      ],
+      "input": {
+        "required": "U-F g1をcodec→A/B slotへ保存してack確定。",
+        "acquisition": "既存manifest fixtureと隔離test harness。新規synthetic fixtureなし"
+      },
+      "checks": [
+        "旧expected:O10:3のP2置換。U-Fを対象とし公平性試験の正常単位はU-W。",
+        "g1が復元基点。"
+      ]
+    },
+    {
+      "expectedId": "expected:O10:34",
+      "sequenceId": "O10",
+      "position": 34,
+      "decision": null,
+      "effective": null,
+      "subjects": [],
+      "notices": false,
+      "intents": false,
+      "basisLevel": 1,
+      "basisRefs": [
+        "L1: docs/specs/reconstruction-p0-contracts.md:1786 «f7c784644da02979»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:804 «6c15d393bd0b312e»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:813 «39350c40cef9a788»"
+      ],
+      "input": {
+        "required": "以後U-F g2書込みにENOSPC。失敗I/Oは終了しwriter解放。",
+        "acquisition": "既存manifest fixtureと隔離test harness。新規synthetic fixtureなし"
+      },
+      "checks": [
+        "旧expected:O10:4のP2置換。U-Fを対象とし公平性試験の正常単位はU-W。",
+        "Q2=Bで受信継続。"
+      ]
+    },
+    {
+      "expectedId": "expected:O10:35",
+      "sequenceId": "O10",
+      "position": 35,
+      "decision": {
+        "kind": "changed",
+        "change": "semantic"
+      },
+      "effective": {
+        "kind": "inactive",
+        "cause": {
+          "kind": "cancelled"
+        }
+      },
+      "subjects": [
+        {
+          "subject": "normal/VPWP50/稚内地方気象台",
+          "revision": {
+            "reportDateTimeRaw": "2026-06-05T17:00:00+09:00",
+            "serialRaw": null,
+            "infoTypeRaw": "取消"
+          }
+        }
+      ],
+      "notices": null,
+      "intents": null,
+      "basisLevel": 1,
+      "basisRefs": [
+        "L1: docs/specs/reconstruction-p0-contracts.md:1786 «f7c784644da02979»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:804 «6c15d393bd0b312e»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:813 «39350c40cef9a788»"
+      ],
+      "input": {
+        "required": "既存VPWP50取消を同じreducerで受理。",
+        "acquisition": "既存manifest fixtureと隔離test harness。新規synthetic fixtureなし"
+      },
+      "checks": [
+        "旧expected:O10:5のP2置換。U-Fを対象とし公平性試験の正常単位はU-W。",
+        "current取消、g2 dirty、tombstone/watermark保持。"
+      ]
+    },
+    {
+      "expectedId": "expected:O10:36",
+      "sequenceId": "O10",
+      "position": 36,
+      "decision": null,
+      "effective": null,
+      "subjects": [],
+      "notices": false,
+      "intents": false,
+      "basisLevel": 1,
+      "basisRefs": [
+        "L1: docs/specs/reconstruction-p0-contracts.md:1786 «f7c784644da02979»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:804 «6c15d393bd0b312e»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:813 «39350c40cef9a788»"
+      ],
+      "input": {
+        "required": "取消g2保存をENOSPCで失敗終了させる。",
+        "acquisition": "既存manifest fixtureと隔離test harness。新規synthetic fixtureなし"
+      },
+      "checks": [
+        "旧expected:O10:6のP2置換。U-Fを対象とし公平性試験の正常単位はU-W。",
+        "g2未保存、g1有効。メモリ取消を巻き戻さない。"
+      ]
+    },
+    {
+      "expectedId": "expected:O10:37",
+      "sequenceId": "O10",
+      "position": 37,
+      "decision": null,
+      "effective": null,
+      "subjects": [],
+      "notices": false,
+      "intents": false,
+      "basisLevel": 1,
+      "basisRefs": [
+        "L1: docs/specs/reconstruction-p0-contracts.md:1786 «f7c784644da02979»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:804 «6c15d393bd0b312e»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:813 «39350c40cef9a788»"
+      ],
+      "input": {
+        "required": "直前の同じslotを保持してcrash/restart。メモリg2を失いg1だけを復元する。独立したactive stateを再生成しない。",
+        "acquisition": "既存manifest fixtureと隔離test harness。新規synthetic fixtureなし"
+      },
+      "checks": [
+        "旧expected:O10:7のP2置換。U-Fを対象とし公平性試験の正常単位はU-W。",
+        "取消喪失可能区間とsource/capturedAtを示す。g1を確認済みcurrentとして公開しない。期限非延長。"
+      ]
+    },
+    {
+      "expectedId": "expected:O10:38",
+      "sequenceId": "O10",
+      "position": 38,
+      "decision": null,
+      "effective": null,
+      "subjects": [],
+      "notices": false,
+      "intents": false,
+      "basisLevel": 1,
+      "basisRefs": [
+        "L1: docs/specs/reconstruction-p0-contracts.md:1786 «f7c784644da02979»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:804 «6c15d393bd0b312e»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:813 «39350c40cef9a788»"
+      ],
+      "input": {
+        "required": "ディスク故障を解除。次stepで取消を再取得済みの固定replay入力として流す。",
+        "acquisition": "既存manifest fixtureと隔離test harness。新規synthetic fixtureなし"
+      },
+      "checks": [
+        "旧expected:O10:8のP2置換。U-Fを対象とし公平性試験の正常単位はU-W。",
+        "この時点では取消記憶を自動修復せず、REST coverageを捏造しない。"
+      ]
+    },
+    {
+      "expectedId": "expected:O10:39",
+      "sequenceId": "O10",
+      "position": 39,
+      "decision": {
+        "kind": "changed",
+        "change": "semantic"
+      },
+      "effective": {
+        "kind": "inactive",
+        "cause": {
+          "kind": "cancelled"
+        }
+      },
+      "subjects": [
+        {
+          "subject": "normal/VPWP50/稚内地方気象台",
+          "revision": {
+            "reportDateTimeRaw": "2026-06-05T17:00:00+09:00",
+            "serialRaw": null,
+            "infoTypeRaw": "取消"
+          }
+        }
+      ],
+      "notices": null,
+      "intents": null,
+      "basisLevel": 1,
+      "basisRefs": [
+        "L1: docs/specs/reconstruction-p0-contracts.md:1786 «f7c784644da02979»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:804 «6c15d393bd0b312e»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:813 «39350c40cef9a788»"
+      ],
+      "input": {
+        "required": "既存取消fixtureを再取得済み入力として製品parser/reducerへ再投入。",
+        "acquisition": "既存manifest fixtureと隔離test harness。新規synthetic fixtureなし"
+      },
+      "checks": [
+        "旧expected:O10:9のP2置換。U-Fを対象とし公平性試験の正常単位はU-W。",
+        "対象取消を再確立。他subjectは未確認。新しい履歴通知期限を作らない。"
+      ]
+    },
+    {
+      "expectedId": "expected:O10:40",
+      "sequenceId": "O10",
+      "position": 40,
+      "decision": null,
+      "effective": null,
+      "subjects": [],
+      "notices": false,
+      "intents": false,
+      "basisLevel": 1,
+      "basisRefs": [
+        "L1: docs/specs/reconstruction-p0-contracts.md:1786 «f7c784644da02979»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:804 «6c15d393bd0b312e»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:813 «39350c40cef9a788»"
+      ],
+      "input": {
+        "required": "取消再確立後の最新U-F世代を保存しack確認。",
+        "acquisition": "既存manifest fixtureと隔離test harness。新規synthetic fixtureなし"
+      },
+      "checks": [
+        "旧expected:O10:10のP2置換。U-Fを対象とし公平性試験の正常単位はU-W。",
+        "savedへ移行、current巻戻し0。"
+      ]
+    },
+    {
+      "expectedId": "expected:O10:41",
+      "sequenceId": "O10",
+      "position": 41,
+      "decision": null,
+      "effective": null,
+      "subjects": [],
+      "notices": false,
+      "intents": false,
+      "basisLevel": 1,
+      "basisRefs": [
+        "L1: docs/specs/reconstruction-p0-contracts.md:1786 «f7c784644da02979»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:804 «6c15d393bd0b312e»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:813 «39350c40cef9a788»"
+      ],
+      "input": {
+        "required": "独立ケースwrite遅延。隔離harnessで既存81_02_01を製品経路で適用しU-F g1保存ack。U-Wは既存VPWS50 fixtureで構築、保存済み・期限前。元報時刻を保持する。",
+        "acquisition": "既存manifest fixtureと隔離test harness。新規synthetic fixtureなし"
+      },
+      "checks": [
+        "旧expected:O10:11のP2置換。U-Fを対象とし公平性試験の正常単位はU-W。",
+        "U-F/U-W以外のunitなし。"
+      ]
+    },
+    {
+      "expectedId": "expected:O10:42",
+      "sequenceId": "O10",
+      "position": 42,
+      "decision": null,
+      "effective": null,
+      "subjects": [],
+      "notices": false,
+      "intents": false,
+      "basisLevel": 1,
+      "basisRefs": [
+        "L1: docs/specs/reconstruction-p0-contracts.md:1786 «f7c784644da02979»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:804 «6c15d393bd0b312e»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:813 «39350c40cef9a788»"
+      ],
+      "input": {
+        "required": "U-F g1をcaptureし、81_04_01取消を受理してg2 dirty。注入=write遅延。正常U-Wを別にdirtyにする。停止未確認I/Oと終了済み失敗は別ケースで計数。",
+        "acquisition": "既存manifest fixtureと隔離test harness。新規synthetic fixtureなし"
+      },
+      "checks": [
+        "旧expected:O10:11のP2置換。U-Fを対象とし公平性試験の正常単位はU-W。",
+        "停止未確認write重複0、遅い旧世代ackによるcurrent巻戻し0。"
+      ]
+    },
+    {
+      "expectedId": "expected:O10:43",
+      "sequenceId": "O10",
+      "position": 43,
+      "decision": null,
+      "effective": null,
+      "subjects": [],
+      "notices": false,
+      "intents": false,
+      "basisLevel": 1,
+      "basisRefs": [
+        "L1: docs/specs/reconstruction-p0-contracts.md:1786 «f7c784644da02979»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:804 «6c15d393bd0b312e»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:813 «39350c40cef9a788»"
+      ],
+      "input": {
+        "required": "直前故障を解除。停止確認後だけwriter再開。同じslotを照合して最新dirtyを保存。",
+        "acquisition": "既存manifest fixtureと隔離test harness。新規synthetic fixtureなし"
+      },
+      "checks": [
+        "旧expected:O10:12のP2置換。U-Fを対象とし公平性試験の正常単位はU-W。",
+        "停止未確認write重複0、遅い旧世代ackによるcurrent巻戻し0。",
+        "新しいactive stateを作って故障結果を消さない。"
+      ]
+    },
+    {
+      "expectedId": "expected:O10:44",
+      "sequenceId": "O10",
+      "position": 44,
+      "decision": null,
+      "effective": null,
+      "subjects": [],
+      "notices": false,
+      "intents": false,
+      "basisLevel": 1,
+      "basisRefs": [
+        "L1: docs/specs/reconstruction-p0-contracts.md:1786 «f7c784644da02979»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:804 «6c15d393bd0b312e»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:813 «39350c40cef9a788»"
+      ],
+      "input": {
+        "required": "独立ケースrename前kill。隔離harnessで既存81_02_01を製品経路で適用しU-F g1保存ack。U-Wは既存VPWS50 fixtureで構築、保存済み・期限前。元報時刻を保持する。",
+        "acquisition": "既存manifest fixtureと隔離test harness。新規synthetic fixtureなし"
+      },
+      "checks": [
+        "旧expected:O10:13のP2置換。U-Fを対象とし公平性試験の正常単位はU-W。",
+        "U-F/U-W以外のunitなし。"
+      ]
+    },
+    {
+      "expectedId": "expected:O10:45",
+      "sequenceId": "O10",
+      "position": 45,
+      "decision": null,
+      "effective": null,
+      "subjects": [],
+      "notices": false,
+      "intents": false,
+      "basisLevel": 1,
+      "basisRefs": [
+        "L1: docs/specs/reconstruction-p0-contracts.md:1786 «f7c784644da02979»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:804 «6c15d393bd0b312e»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:813 «39350c40cef9a788»"
+      ],
+      "input": {
+        "required": "U-F g1をcaptureし、81_04_01取消を受理してg2 dirty。注入=rename前kill。正常U-Wを別にdirtyにする。停止未確認I/Oと終了済み失敗は別ケースで計数。",
+        "acquisition": "既存manifest fixtureと隔離test harness。新規synthetic fixtureなし"
+      },
+      "checks": [
+        "旧expected:O10:13のP2置換。U-Fを対象とし公平性試験の正常単位はU-W。",
+        "tmpを完成slotとして採用せず最後の検証済み世代へ復元。"
+      ]
+    },
+    {
+      "expectedId": "expected:O10:46",
+      "sequenceId": "O10",
+      "position": 46,
+      "decision": null,
+      "effective": null,
+      "subjects": [],
+      "notices": false,
+      "intents": false,
+      "basisLevel": 1,
+      "basisRefs": [
+        "L1: docs/specs/reconstruction-p0-contracts.md:1786 «f7c784644da02979»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:804 «6c15d393bd0b312e»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:813 «39350c40cef9a788»"
+      ],
+      "input": {
+        "required": "直前故障を解除。停止確認後だけwriter再開。同じslotを照合して最新dirtyを保存。",
+        "acquisition": "既存manifest fixtureと隔離test harness。新規synthetic fixtureなし"
+      },
+      "checks": [
+        "旧expected:O10:14のP2置換。U-Fを対象とし公平性試験の正常単位はU-W。",
+        "tmpを完成slotとして採用せず最後の検証済み世代へ復元。",
+        "新しいactive stateを作って故障結果を消さない。"
+      ]
+    },
+    {
+      "expectedId": "expected:O10:47",
+      "sequenceId": "O10",
+      "position": 47,
+      "decision": null,
+      "effective": null,
+      "subjects": [],
+      "notices": false,
+      "intents": false,
+      "basisLevel": 1,
+      "basisRefs": [
+        "L1: docs/specs/reconstruction-p0-contracts.md:1786 «f7c784644da02979»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:804 «6c15d393bd0b312e»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:813 «39350c40cef9a788»"
+      ],
+      "input": {
+        "required": "独立ケースrename後ack前kill。隔離harnessで既存81_02_01を製品経路で適用しU-F g1保存ack。U-Wは既存VPWS50 fixtureで構築、保存済み・期限前。元報時刻を保持する。",
+        "acquisition": "既存manifest fixtureと隔離test harness。新規synthetic fixtureなし"
+      },
+      "checks": [
+        "旧expected:O10:15のP2置換。U-Fを対象とし公平性試験の正常単位はU-W。",
+        "U-F/U-W以外のunitなし。"
+      ]
+    },
+    {
+      "expectedId": "expected:O10:48",
+      "sequenceId": "O10",
+      "position": 48,
+      "decision": null,
+      "effective": null,
+      "subjects": [],
+      "notices": false,
+      "intents": false,
+      "basisLevel": 1,
+      "basisRefs": [
+        "L1: docs/specs/reconstruction-p0-contracts.md:1786 «f7c784644da02979»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:804 «6c15d393bd0b312e»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:813 «39350c40cef9a788»"
+      ],
+      "input": {
+        "required": "U-F g1をcaptureし、81_04_01取消を受理してg2 dirty。注入=rename後ack前kill。正常U-Wを別にdirtyにする。停止未確認I/Oと終了済み失敗は別ケースで計数。",
+        "acquisition": "既存manifest fixtureと隔離test harness。新規synthetic fixtureなし"
+      },
+      "checks": [
+        "旧expected:O10:15のP2置換。U-Fを対象とし公平性試験の正常単位はU-W。",
+        "uncertainを推測せず2slot世代/hashの再照合で確定。"
+      ]
+    },
+    {
+      "expectedId": "expected:O10:49",
+      "sequenceId": "O10",
+      "position": 49,
+      "decision": null,
+      "effective": null,
+      "subjects": [],
+      "notices": false,
+      "intents": false,
+      "basisLevel": 1,
+      "basisRefs": [
+        "L1: docs/specs/reconstruction-p0-contracts.md:1786 «f7c784644da02979»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:804 «6c15d393bd0b312e»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:813 «39350c40cef9a788»"
+      ],
+      "input": {
+        "required": "直前故障を解除。停止確認後だけwriter再開。同じslotを照合して最新dirtyを保存。",
+        "acquisition": "既存manifest fixtureと隔離test harness。新規synthetic fixtureなし"
+      },
+      "checks": [
+        "旧expected:O10:16のP2置換。U-Fを対象とし公平性試験の正常単位はU-W。",
+        "uncertainを推測せず2slot世代/hashの再照合で確定。",
+        "新しいactive stateを作って故障結果を消さない。"
+      ]
+    },
+    {
+      "expectedId": "expected:O10:50",
+      "sequenceId": "O10",
+      "position": 50,
+      "decision": null,
+      "effective": null,
+      "subjects": [],
+      "notices": false,
+      "intents": false,
+      "basisLevel": 1,
+      "basisRefs": [
+        "L1: docs/specs/reconstruction-p0-contracts.md:1786 «f7c784644da02979»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:804 «6c15d393bd0b312e»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:813 «39350c40cef9a788»"
+      ],
+      "input": {
+        "required": "独立ケースack喪失。隔離harnessで既存81_02_01を製品経路で適用しU-F g1保存ack。U-Wは既存VPWS50 fixtureで構築、保存済み・期限前。元報時刻を保持する。",
+        "acquisition": "既存manifest fixtureと隔離test harness。新規synthetic fixtureなし"
+      },
+      "checks": [
+        "旧expected:O10:17のP2置換。U-Fを対象とし公平性試験の正常単位はU-W。",
+        "U-F/U-W以外のunitなし。"
+      ]
+    },
+    {
+      "expectedId": "expected:O10:51",
+      "sequenceId": "O10",
+      "position": 51,
+      "decision": null,
+      "effective": null,
+      "subjects": [],
+      "notices": false,
+      "intents": false,
+      "basisLevel": 1,
+      "basisRefs": [
+        "L1: docs/specs/reconstruction-p0-contracts.md:1786 «f7c784644da02979»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:804 «6c15d393bd0b312e»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:813 «39350c40cef9a788»"
+      ],
+      "input": {
+        "required": "U-F g1をcaptureし、81_04_01取消を受理してg2 dirty。注入=ack喪失。正常U-Wを別にdirtyにする。停止未確認I/Oと終了済み失敗は別ケースで計数。",
+        "acquisition": "既存manifest fixtureと隔離test harness。新規synthetic fixtureなし"
+      },
+      "checks": [
+        "旧expected:O10:17のP2置換。U-Fを対象とし公平性試験の正常単位はU-W。",
+        "停止未確認write重複0。停止確認後2slot世代/hashで解決。"
+      ]
+    },
+    {
+      "expectedId": "expected:O10:52",
+      "sequenceId": "O10",
+      "position": 52,
+      "decision": null,
+      "effective": null,
+      "subjects": [],
+      "notices": false,
+      "intents": false,
+      "basisLevel": 1,
+      "basisRefs": [
+        "L1: docs/specs/reconstruction-p0-contracts.md:1786 «f7c784644da02979»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:804 «6c15d393bd0b312e»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:813 «39350c40cef9a788»"
+      ],
+      "input": {
+        "required": "直前故障を解除。停止確認後だけwriter再開。同じslotを照合して最新dirtyを保存。",
+        "acquisition": "既存manifest fixtureと隔離test harness。新規synthetic fixtureなし"
+      },
+      "checks": [
+        "旧expected:O10:18のP2置換。U-Fを対象とし公平性試験の正常単位はU-W。",
+        "停止未確認write重複0。停止確認後2slot世代/hashで解決。",
+        "新しいactive stateを作って故障結果を消さない。"
+      ]
+    },
+    {
+      "expectedId": "expected:O10:53",
+      "sequenceId": "O10",
+      "position": 53,
+      "decision": null,
+      "effective": null,
+      "subjects": [],
+      "notices": false,
+      "intents": false,
+      "basisLevel": 1,
+      "basisRefs": [
+        "L1: docs/specs/reconstruction-p0-contracts.md:1786 «f7c784644da02979»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:804 «6c15d393bd0b312e»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:813 «39350c40cef9a788»"
+      ],
+      "input": {
+        "required": "独立ケースU-Fだけencode/write/verify永続失敗。隔離harnessで既存81_02_01を製品経路で適用しU-F g1保存ack。U-Wは既存VPWS50 fixtureで構築、保存済み・期限前。元報時刻を保持する。",
+        "acquisition": "既存manifest fixtureと隔離test harness。新規synthetic fixtureなし"
+      },
+      "checks": [
+        "旧expected:O10:19のP2置換。U-Fを対象とし公平性試験の正常単位はU-W。",
+        "U-F/U-W以外のunitなし。"
+      ]
+    },
+    {
+      "expectedId": "expected:O10:54",
+      "sequenceId": "O10",
+      "position": 54,
+      "decision": null,
+      "effective": null,
+      "subjects": [],
+      "notices": false,
+      "intents": false,
+      "basisLevel": 1,
+      "basisRefs": [
+        "L1: docs/specs/reconstruction-p0-contracts.md:1786 «f7c784644da02979»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:804 «6c15d393bd0b312e»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:813 «39350c40cef9a788»"
+      ],
+      "input": {
+        "required": "U-F g1をcaptureし、81_04_01取消を受理してg2 dirty。注入=U-Fだけencode/write/verify永続失敗。正常U-Wを別にdirtyにする。停止未確認I/Oと終了済み失敗は別ケースで計数。",
+        "acquisition": "既存manifest fixtureと隔離test harness。新規synthetic fixtureなし"
+      },
+      "checks": [
+        "旧expected:O10:19のP2置換。U-Fを対象とし公平性試験の正常単位はU-W。",
+        "終了失敗retry間隔1/2/4/8/10秒以上。正常U-W dirty更新を含む世代ackは3秒以内。"
+      ]
+    },
+    {
+      "expectedId": "expected:O10:55",
+      "sequenceId": "O10",
+      "position": 55,
+      "decision": null,
+      "effective": null,
+      "subjects": [],
+      "notices": false,
+      "intents": false,
+      "basisLevel": 1,
+      "basisRefs": [
+        "L1: docs/specs/reconstruction-p0-contracts.md:1786 «f7c784644da02979»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:804 «6c15d393bd0b312e»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:813 «39350c40cef9a788»"
+      ],
+      "input": {
+        "required": "直前故障を解除。停止確認後だけwriter再開。同じslotを照合して最新dirtyを保存。",
+        "acquisition": "既存manifest fixtureと隔離test harness。新規synthetic fixtureなし"
+      },
+      "checks": [
+        "旧expected:O10:20のP2置換。U-Fを対象とし公平性試験の正常単位はU-W。",
+        "終了失敗retry間隔1/2/4/8/10秒以上。正常U-W dirty更新を含む世代ackは3秒以内。",
+        "新しいactive stateを作って故障結果を消さない。"
+      ]
+    },
     {
       "expectedId": "expected:O01:1",
       "sequenceId": "O01",
@@ -9819,6 +12835,29 @@
       ]
     },
     {
+      "expectedId": "expected:O04:9",
+      "sequenceId": "O04",
+      "position": 9,
+      "decision": null,
+      "effective": null,
+      "subjects": [],
+      "notices": false,
+      "intents": false,
+      "basisLevel": 1,
+      "basisRefs": [
+        "L1: docs/specs/reconstruction-p0-contracts.md:1780 «deba767d642d01d5»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:1192 «aefcb1a8a916571c»"
+      ],
+      "input": {
+        "required": "P2新築U-W stateを試験コードで生成する。normal/VPWS50/全国baseは8日前、同operationの新しいpartialを保持し、候補出典・現在出典・意味revision・affectedScope・時計を明示する。",
+        "acquisition": "test harness state builder; fixture追加なし"
+      },
+      "checks": [
+        "expected:O04:2の旧Pi checkpointを使わず同じstale-lock開始条件を作る。旧形式変換の合格証拠にはしない。",
+        "P2-O04-U-W-v1でO04:3-8相当の前提に使い、operation/family/subject/affectedScopeの束縛を検査する。"
+      ]
+    },
+    {
       "expectedId": "expected:O05:1",
       "sequenceId": "O05",
       "position": 1,
@@ -11412,6 +14451,29 @@
       },
       "checks": [
         "新全国履歴2へ移行、捨てた復元範囲を報告。曖昧な区分をnormalへ補完しない。"
+      ]
+    },
+    {
+      "expectedId": "expected:O06:31",
+      "sequenceId": "O06",
+      "position": 31,
+      "decision": null,
+      "effective": null,
+      "subjects": [],
+      "notices": false,
+      "intents": false,
+      "basisLevel": 1,
+      "basisRefs": [
+        "L1: docs/specs/reconstruction-p0-contracts.md:572 «9a4b44d95aa2d482»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:1782 «03f4a83f1e49df20»"
+      ],
+      "input": {
+        "required": "P2新築U-W stateを試験コードで生成する。全国base1/履歴2、partial128以下/各履歴8、所有現象、watermark、取消tombstone、operation、出典、固定時計を明示する。",
+        "acquisition": "test harness state builder; fixture追加なし"
+      },
+      "checks": [
+        "expected:O06:29とunmet:O06:30の旧v2移行を置換し、履歴2/8の新築初期状態だけを検収する。",
+        "旧schema変換・operation補完・捨てた履歴範囲の報告はP3へ残す。"
       ]
     },
     {
@@ -15223,6 +18285,121 @@
       },
       "checks": [
         "最新状態継続、成否不明の世代を照合。配送の期限非延長、正常単位を継続。"
+      ]
+    },
+    {
+      "expectedId": "expected:O10:27",
+      "sequenceId": "O10",
+      "position": 27,
+      "decision": null,
+      "effective": null,
+      "subjects": [],
+      "notices": false,
+      "intents": false,
+      "basisLevel": 1,
+      "basisRefs": [
+        "L1: docs/specs/reconstruction-p0-contracts.md:790 «c4632aae59a2f1fc»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:1786 «f7c784644da02979»"
+      ],
+      "input": {
+        "required": "P2 U-Fのnormal/VPWP50/稚内地方気象台active stateとg1保存済みcheckpointを81_02_01 fixtureから試験コードで生成し、次の保存をdisk fullで失敗させる。",
+        "acquisition": "test harness state builder using existing manifest fixture; fixture追加なし"
+      },
+      "checks": [
+        "expected:O10:5のU-V前提をP2 U-Fへ置換する独立初期化。current・gate・取消記憶・保存世代を明示する。"
+      ]
+    },
+    {
+      "expectedId": "expected:O10:28",
+      "sequenceId": "O10",
+      "position": 28,
+      "decision": {
+        "kind": "changed",
+        "change": "semantic"
+      },
+      "effective": {
+        "kind": "inactive",
+        "cause": { "kind": "cancelled" }
+      },
+      "subjects": [
+        {
+          "subject": "normal/VPWP50/稚内地方気象台",
+          "revision": {
+            "reportDateTimeRaw": "2026-06-05T17:00:00+09:00",
+            "serialRaw": null,
+            "infoTypeRaw": "取消"
+          }
+        }
+      ],
+      "notices": null,
+      "intents": null,
+      "basisLevel": 1,
+      "basisRefs": [
+        "L1: docs/specs/reconstruction-p0-contracts.md:790 «c4632aae59a2f1fc»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:796 «d67314b63ec56a68»",
+        "L2: test/fixtures/81_04_01_260605_VPWP50_cancel.xml:1 «12c29731e40adc0c» 元XMLのControl/Head/Bodyを読解（原本確認の主張ではない）"
+      ],
+      "input": null,
+      "checks": [
+        "expected:O10:5のP2置換。保存失敗中も同じreducerで取消し、currentを除きtombstone/watermarkを保持する。",
+        "古いg1 ackで取消後stateを上書きせず、最新世代をdirtyのまま再試行する。"
+      ]
+    },
+    {
+      "expectedId": "expected:O10:29",
+      "sequenceId": "O10",
+      "position": 29,
+      "decision": null,
+      "effective": null,
+      "subjects": [],
+      "notices": false,
+      "intents": false,
+      "basisLevel": 1,
+      "basisRefs": [
+        "L1: docs/specs/reconstruction-p0-contracts.md:804 «6c15d393bd0b312e»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:1786 «f7c784644da02979»"
+      ],
+      "input": {
+        "required": "P2 U-Fのnormal/VPWP50/稚内地方気象台active stateを81_02_01 fixtureから生成し、g1をA/B slotへ保存後、rename後ack前で停止し、再起動時にslotを照合する。",
+        "acquisition": "test harness state builder using existing manifest fixture; fixture追加なし"
+      },
+      "checks": [
+        "expected:O10:9のU-V前提をP2 U-Fへ置換する独立初期化。uncertainを再読込で解決し停止未確認writeを重複させない。"
+      ]
+    },
+    {
+      "expectedId": "expected:O10:30",
+      "sequenceId": "O10",
+      "position": 30,
+      "decision": {
+        "kind": "changed",
+        "change": "semantic"
+      },
+      "effective": {
+        "kind": "inactive",
+        "cause": { "kind": "cancelled" }
+      },
+      "subjects": [
+        {
+          "subject": "normal/VPWP50/稚内地方気象台",
+          "revision": {
+            "reportDateTimeRaw": "2026-06-05T17:00:00+09:00",
+            "serialRaw": null,
+            "infoTypeRaw": "取消"
+          }
+        }
+      ],
+      "notices": null,
+      "intents": null,
+      "basisLevel": 1,
+      "basisRefs": [
+        "L1: docs/specs/reconstruction-p0-contracts.md:790 «c4632aae59a2f1fc»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:1786 «f7c784644da02979»",
+        "L2: test/fixtures/81_04_01_260605_VPWP50_cancel.xml:1 «12c29731e40adc0c» 元XMLのControl/Head/Bodyを読解（原本確認の主張ではない）"
+      ],
+      "input": null,
+      "checks": [
+        "expected:O10:9のP2置換。再読込で確定した世代から取消を一度だけ適用し、current巻戻し0・保存write重複0にする。"
       ]
     },
     {

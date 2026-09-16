@@ -1,10 +1,10 @@
 {
   "meta": {
     "draftedFromOid": "3095a6c21caa96e06fc3b3a6d2f906534ef5441b",
-    "sha256": "0b9666739b0ef1f6f70dafa71318451d8aa45ea89cde2be9ce4d197b0101158c",
+    "sha256": "dcaeb6ef898e8129706e77958a9d96bb7d3754fb983ca166b47cbb36efeaa6e6",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "76c82b87d7783a4eae14af690cb34e7d6ec46f73617dc75b7f7401951619f080",
-    "sequencesSha256": "c800790f57414088d97e3e9b309835f6742907990edc5f4864ea4933fb5985ba",
+    "sequencesSha256": "22b2432e8989d7e7cc2514f2297308e84b3c0f1a3e045491b9cf60cfa8f2d147",
     "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
     "decisionBranches": [
       {
@@ -144,7 +144,8 @@
       "node:path"
     ],
     "fixtureIds": [
-      "test__fixtures__37_01_01_240613_VXSE43"
+      "test__fixtures__37_01_01_240613_VXSE43",
+      "test__fixtures__81_04_01_260605_VPWP50_cancel"
     ],
     "sequenceIds": [
       "O07",
@@ -153,11 +154,23 @@
     "expectedDecisions": [
       {
         "expectedRef": "expected:O07:16"
+      },
+      {
+        "expectedRef": "expected:O10:35"
+      },
+      {
+        "expectedRef": "expected:O10:39"
       }
     ],
     "expectationEvidence": [
       {
         "expectedRef": "expected:O07:16"
+      },
+      {
+        "expectedRef": "expected:O10:35"
+      },
+      {
+        "expectedRef": "expected:O10:39"
       }
     ],
     "semanticDeadlines": [
@@ -322,14 +335,13 @@
       },
       {
         "id": "P2-A3-AC02",
-        "requirement": "blocked: O10のQ2=B・取消・成否不明のP2受入は、統合担当がA4〜A6起草時にU-E/W/F用置換step・fixture・旧stepとの対応表をsequences.jsonへ追加するまで検収不能。U-V意味実装や旧IDの独自置換は要求しない。揃った後に保存失敗中の取消、rename後ack前/ack喪失の2slot再読込、停止未確認write非重複を検収する",
+        "requirement": "P2-O10-CHECKPOINT-v2の31-40を順に実行する。U-F初期化→実fixture受理→g1保存→故障設定→取消g2→保存失敗→同じslotのg1復元→故障解除→取消再取得→最新保存を検収する。取消喪失可能区間を確認済みcurrentと混同しない。56-90はU-F/U-Wだけのwrite遅延・rename前後・ack喪失・単位固有失敗。旧U-V/export操作はsubset外。置換欠落の起草blockは解除、実行合格は別途必要。",
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:1786 «f7c784644da02979»",
           "docs/specs/reconstruction-p0-contracts.md:841 «2e8b93a723481674»",
           "reconstruction/contracts/p2-order-plan.md:29 «35a6e87440bc3528»",
-          "reconstruction/tools/corpus/sequences.json#expected:O10:4",
-          "reconstruction/tools/corpus/sequences.json#expected:O10:15",
-          "reconstruction/tools/corpus/sequences.json#expected:O10:17"
+          "reconstruction/tools/corpus/sequences.json#expected:O10:35",
+          "reconstruction/tools/corpus/sequences.json#expected:O10:39"
         ]
       },
       {
@@ -348,7 +360,7 @@
           "docs/specs/reconstruction-p0-contracts.md:862 «b7be10b70d398bbf»",
           "docs/specs/reconstruction-p0-contracts.md:865 «5f445c73a17df687»",
           "reconstruction/contracts/p2-order-plan.md:308 «51292eacda58008b»",
-          "reconstruction/tools/corpus/sequences.json#expected:O10:19"
+          "reconstruction/tools/corpus/sequences.json#expected:O10:78"
         ]
       },
       {
@@ -407,7 +419,7 @@
         "referenceIds": [
           "P2-A3-AC02"
         ],
-        "behavior": "blocked: 統合担当のP2置換step/fixture/対応表が揃ってからAC02を検収する。現O10火山入力による代替PASSは禁止"
+        "behavior": "P2-O10-CHECKPOINT-v2のU-F置換stepで保存失敗中取消と再起動後取消を検収し、旧O10火山入力はP2 PASSに数えない"
       },
       {
         "testId": "P2-A3-T03",
@@ -539,14 +551,14 @@
           "O04/O06/O07で使うP2新築初期state",
           "旧checkpointを通常operationへ補完しない境界",
           "旧v2変換をA3完了へ混入しない切分け",
-          "共通Q-MIGRATIONに依存するA3初期状態部分。AC02は統合担当によるA4〜A6起草時のP2 O10置換系列追加までblocked"
+          "共通Q-MIGRATIONに依存するO04/O06/O07初期状態部分。A3 AC02のP2 O10置換系列は追加済み"
         ],
         "resolveBy": "O04/O06/O07移行oracle前。P2新築初期状態と対応はA5前、旧checkpoint変換検収はP3移行契約前（計画§6.1、A5/A10/P3）",
         "requiredEvidence": [
           "operation・時計・出典・履歴を明示した新築初期stateと元事例の対応",
           "旧checkpointのoperation不明を未確認とする期待",
           "O04:2/O06:29-30と旧v2移行をP3へ残す版付きsubset",
-          "統合担当がA4〜A6起草時にsequences.jsonへ追加するU-E/W/Fの置換step・fixture・旧O10対応表（U-V意味実装は含めない）"
+          "sequences.jsonのP2-O10-CHECKPOINT-v2とexpected:O10:31-40およびexpected:O10:56-90の実行結果（U-V意味実装は含めない）"
         ]
       }
     ]

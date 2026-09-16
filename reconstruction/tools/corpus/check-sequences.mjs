@@ -25,6 +25,22 @@ try {
   const fixtures = new Map(manifest.fixtures.map((f) => [f.fixtureId, f]));
   const records = new Map(expectations.map((e) => [e.expectedId, e]));
   assert.equal(records.size, expectations.length, 'unique expectedId');
+  assert.ok(Array.isArray(meta.p2Subsets) && meta.p2Subsets.length > 0, 'P2 subsets required');
+  assert.equal(new Set(meta.p2Subsets.map((subset) => subset.subsetId)).size, meta.p2Subsets.length, 'unique P2 subsetId');
+  for (const subset of meta.p2Subsets) {
+    assert.deepEqual(Object.keys(subset), ['subsetId', 'stepRefs', 'replaces', 'deferred'], `${subset.subsetId}: P2 subset fields`);
+    assert.match(subset.subsetId, /^P2-O\d{2}-[A-Z-]+-v\d+$/, `${subset.subsetId}: versioned P2 subsetId`);
+    assert.ok(Array.isArray(subset.stepRefs) && subset.stepRefs.length > 0 && subset.stepRefs.every((ref) => records.has(ref)), `${subset.subsetId}: known stepRefs`);
+    assert.equal(new Set(subset.stepRefs).size, subset.stepRefs.length, `${subset.subsetId}: unique stepRefs`);
+    assert.ok(Array.isArray(subset.replaces) && subset.replaces.every((item) => typeof item === 'string' && item.trim()), `${subset.subsetId}: replaces`);
+    for (const replacement of subset.replaces) {
+      const match = replacement.match(/^((?:expected|unmet):O\d{2}:\d+(?: \+ (?:expected|unmet):O\d{2}:\d+)*) -> ((?:expected|unmet):O\d{2}:\d+)$/);
+      assert.ok(match != null, `${subset.subsetId}: replacement syntax`);
+      for (const ref of [...match[1].split(' + '), match[2]]) assert.ok(records.has(ref), `${subset.subsetId}: replacement reference ${ref}`);
+      assert.ok(subset.stepRefs.includes(match[2]), `${subset.subsetId}: replacement target belongs to subset`);
+    }
+    assert.ok(typeof subset.deferred === 'string' && subset.deferred.trim(), `${subset.subsetId}: deferred scope`);
+  }
   const used = new Set();
   const root = fileURLToPath(new URL('../../../', import.meta.url));
   const report = [];

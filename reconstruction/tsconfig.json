@@ -12,6 +12,6 @@
     "resolveJsonModule": true,
     "types": ["node"]
   },
-  "include": ["src/**/*.ts", "contracts/p1-parser-boundary.types.ts", "contracts/p2-shared-runtime.types.ts"],
+  "include": ["src/**/*.ts", "contracts/*.types.ts"],
   "exclude": ["dist"]
 }

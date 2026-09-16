@@ -1,0 +1,471 @@
+{
+  "meta": {
+    "draftedFromOid": "fc7006e2380edf9a97b601d124341ba4bd7f7f42",
+    "sha256": "de0b398dcdaada4bf26e29a6b3f4dc3b2d3c162bcc357cc64d9ec423ead64659",
+    "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
+    "manifestSha256": "76c82b87d7783a4eae14af690cb34e7d6ec46f73617dc75b7f7401951619f080",
+    "sequencesSha256": "22b2432e8989d7e7cc2514f2297308e84b3c0f1a3e045491b9cf60cfa8f2d147",
+    "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
+    "decisionBranches": [
+      {
+        "id": "P2-A5-D05",
+        "A": "P2-O04-U-W-v1とP2-O06-U-W-v1を検収し、旧Pi/v2移行はP3へ残す",
+        "B": "旧形式移行をA5へ含める",
+        "recommended": "A",
+        "provisional": "A",
+        "ruling": "作者裁定D5=A",
+        "reason": "新築stateの意味契約と移行器の証明を混同しない"
+      },
+      {
+        "id": "P2-A5-FRESHNESS",
+        "A": "FreshnessRecordをoperation/family/subject/affectedScopeへ束縛し同じ対象の採用かcoverageだけで解除する",
+        "B": "同じunitの任意の正常受理で解除する",
+        "recommended": "A",
+        "provisional": "A",
+        "ruling": "IR08対応表によりA",
+        "reason": "別官署・別subject・別operationで疑いを消さない"
+      },
+      {
+        "id": "P2-A5-Q13",
+        "A": "全国base、partial、所有現象、履歴、取消記憶、intentをU-W一つへ同居する",
+        "B": "base/partialを別保存単位へ分ける",
+        "recommended": "A",
+        "provisional": "A",
+        "ruling": "作者裁定D1とspec§4.4によりA",
+        "reason": "取消復元と所有現象を一世代で確定する"
+      }
+    ],
+    "questionResolutions": [
+      {
+        "id": "IR08",
+        "status": "closed",
+        "closed": "freshnessSuspectの対象束縛と解除条件をA5へ割り当てる",
+        "remaining": "O04の未充足実入力は実装前に取得する",
+        "reason": "計画§8対応表"
+      }
+    ],
+    "operationContract": {
+      "ref": "P2-SHARED-RUNTIME-001#meta.operationContract",
+      "rule": "全国/partial/所有現象/履歴/tombstone/freshness/intentをoperation別に保持し、別区分の受理で更新・取消・freshness解除しない。保存単位・ファイルを区分ごとに増やさず、件数・byte上限はnormal/training/testの合計に適用する"
+    }
+  },
+  "contract": {
+    "contractId": "P2-WEATHER-CURRENT-UNIT-001",
+    "mode": "implementation",
+    "objective": "M06をI-U-Wとして閉じ、全国base1/履歴2、partial128/履歴8、所有現象、freshness target、取消復元、16MiBを復元・保存障害・構造oracleまで固定する。",
+    "baseOid": "unassigned",
+    "cleanTreeRequired": true,
+    "readPaths": [
+      "docs/specs/reconstruction-p0-contracts.md",
+      "reconstruction/contracts/p1-parser-boundary.json",
+      "reconstruction/contracts/p1-parser-boundary.types.ts",
+      "reconstruction/contracts/p2-order-plan.md",
+      "reconstruction/contracts/p2-shared-runtime.json",
+      "reconstruction/contracts/p2-shared-runtime.types.ts",
+      "reconstruction/contracts/p2-checkpoint-shutdown.json",
+      "reconstruction/contracts/p2-weather-current-unit.json",
+      "reconstruction/contracts/p2-weather-current-unit.types.ts",
+      "reconstruction/tools/corpus/manifest.json",
+      "reconstruction/tools/corpus/sequences.json",
+      "reconstruction/src/**",
+      "src/engine/messages/**",
+      "src/dmdata/**"
+    ],
+    "allowedPaths": [
+      "reconstruction/src/domains/weather-current/**",
+      "reconstruction/src/units/weather-current/**",
+      "reconstruction/test/weather-current-unit/**"
+    ],
+    "allowedGitCommands": [
+      "git status --porcelain",
+      "git rev-parse HEAD",
+      "git diff --binary --no-ext-diff -- <allowed_paths>",
+      "git diff --check -- <allowed_paths>",
+      "git show <required-path-or-object>",
+      "git ls-files <required-path>"
+    ],
+    "moduleIds": [
+      "M06"
+    ],
+    "integrationContractIds": [
+      "I-U-W"
+    ],
+    "dependsOnContractIds": [
+      "P1-PARSER-BOUNDARY-001",
+      "P2-SHARED-RUNTIME-001",
+      "P2-CHECKPOINT-SHUTDOWN-001"
+    ],
+    "publicTypes": [
+      "reconstruction/contracts/p2-weather-current-unit.types.ts#WeatherCurrentUnavailableReason",
+      "reconstruction/contracts/p2-weather-current-unit.types.ts#WeatherCurrentSnapshot",
+      "reconstruction/contracts/p2-weather-current-unit.types.ts#WeatherCurrentHistory",
+      "reconstruction/contracts/p2-weather-current-unit.types.ts#WeatherCurrentTombstone",
+      "reconstruction/contracts/p2-weather-current-unit.types.ts#WeatherCurrentUnitState",
+      "reconstruction/contracts/p2-weather-current-unit.types.ts#PersistedWeatherCurrentUnit",
+      "reconstruction/contracts/p2-weather-current-unit.types.ts#WeatherCurrentUnitView",
+      "reconstruction/contracts/p2-weather-current-unit.types.ts#WeatherCurrentInput",
+      "reconstruction/contracts/p2-weather-current-unit.types.ts#WeatherCurrentUnitStep",
+      "reconstruction/contracts/p2-weather-current-unit.types.ts#WeatherCurrentUnitCodec"
+    ],
+    "publicFunctions": [
+      "reduceWeatherCurrent(state: WeatherCurrentUnitState, input: Extract<WeatherCurrentInput, { kind: 'receive' }>): WeatherCurrentUnitStep",
+      "reduceWeatherCurrentUnit(state: WeatherCurrentUnitState, input: WeatherCurrentInput): WeatherCurrentUnitStep",
+      "toWeatherCurrentView(state: WeatherCurrentUnitState): WeatherCurrentUnitView",
+      "weatherCurrentUnitCodec: WeatherCurrentUnitCodec"
+    ],
+    "allowedDependencies": [],
+    "fixtureIds": [
+      "test__fixtures__15_18_01_250630_VPWS50",
+      "test__fixtures__15_16_02_251222_VPWW57",
+      "test__fixtures__18_00_01_260830_VPNO50_issue",
+      "test__fixtures__18_00_01_260830_VPNO50_switch"
+    ],
+    "sequenceIds": [
+      "O04",
+      "O06",
+      "O10"
+    ],
+    "expectedDecisions": [
+      {
+        "expectedRef": "expected:O06:2"
+      },
+      {
+        "expectedRef": "expected:O06:3"
+      },
+      {
+        "expectedRef": "expected:O06:10"
+      }
+    ],
+    "expectationEvidence": [
+      {
+        "expectedRef": "expected:O06:2"
+      },
+      {
+        "expectedRef": "expected:O06:3"
+      },
+      {
+        "expectedRef": "expected:O06:10"
+      }
+    ],
+    "semanticDeadlines": [
+      {
+        "id": "P2-A5-SEM-01",
+        "target": "freshnessSuspect",
+        "rule": "record on a newer rejected/stale candidate and clear only by same operation/family/subject/affectedScope acceptance or coverage",
+        "source": "§7.8/IR08"
+      }
+    ],
+    "deliveryDeadlines": [],
+    "retentionLimits": [
+      {
+        "id": "P2-A5-RET-01",
+        "target": "national base",
+        "limit": 1,
+        "unit": "current",
+        "source": "§4.5"
+      },
+      {
+        "id": "P2-A5-RET-02",
+        "target": "national history",
+        "limit": 2,
+        "unit": "reports, normal/training/test combined",
+        "source": "§4.5"
+      },
+      {
+        "id": "P2-A5-RET-03",
+        "target": "partial subjects",
+        "limit": 128,
+        "unit": "subjects, normal/training/test combined",
+        "source": "§4.5"
+      },
+      {
+        "id": "P2-A5-RET-04",
+        "target": "partial history",
+        "limit": 8,
+        "unit": "reports per subject stream, normal/training/test combined",
+        "source": "§4.5"
+      }
+    ],
+    "resourceLimits": [
+      {
+        "id": "P2-A5-RES-01",
+        "target": "U-W encoded generation",
+        "limit": 16777216,
+        "unit": "UTF-8 bytes",
+        "scope": "capacity-1/capacity/capacity+1 with no silent truncation",
+        "source": "§4.2"
+      }
+    ],
+    "workDeadline": null,
+    "persistenceUnits": [
+      "U-W"
+    ],
+    "persistedFields": [
+      "operation別の全国base・partial・各履歴",
+      "現象所有情報・watermark・区域終了tombstone・取消記憶",
+      "FreshnessRecordのtarget/candidate/current/revision/affectedScope",
+      "unavailable根拠とNotificationIntent"
+    ],
+    "nonPersistedFields": [
+      "旧standby/promotion currentの複製",
+      "DecodedMaterial/XML treeと単調時計",
+      "UnitView/PublishedOutcome配送コピー",
+      "旧v2移行器の作業状態"
+    ],
+    "outOfScope": [
+      "VPWW56",
+      "VPNO50のP2非対象分岐の推測実装",
+      "旧移行tool",
+      "旧v2 checkpoint変換",
+      "P4詳細API",
+      "表示容量に合わせた意味state削減"
+    ],
+    "acceptanceChecks": [
+      {
+        "id": "P2-A5-AC01",
+        "requirement": "VPWS50/VPWW55,57-61と対象VPNO50だけをU-Wへ対応し、複数subjectを原子的に適用する。官署/subject/必須構造不正はrejectedでwatermark不変",
+        "evidenceRefs": [
+          "docs/specs/reconstruction-p0-contracts.md:395 «abdd56dcc1171152»",
+          "docs/specs/reconstruction-p0-contracts.md:609 «996d1ffc74a90315»",
+          "docs/specs/reconstruction-p0-contracts.md:616 «ea3e5e78f369ae4f»"
+        ]
+      },
+      {
+        "id": "P2-A5-AC02",
+        "requirement": "M06個別意味関数は全国base、官署partial、code00、所有現象、VPNO50終了を区別し、終了済み特別警報を取消復元で再露出させない",
+        "evidenceRefs": [
+          "docs/specs/reconstruction-p0-contracts.md:478 «4a09e45ae0680795»",
+          "docs/specs/reconstruction-p0-contracts.md:794 «fe4ee804270495ae»"
+        ]
+      },
+      {
+        "id": "P2-A5-AC03",
+        "requirement": "reduceWeatherCurrentUnitでbase/partial/ownership/history/tombstone/freshnessを一世代へ組み立て、reducerだけの配送を完了としない",
+        "evidenceRefs": [
+          "docs/specs/reconstruction-p0-contracts.md:598 «b83474a9645155d4»",
+          "docs/specs/reconstruction-p0-contracts.md:620 «51fab1fc4a745268»"
+        ]
+      },
+      {
+        "id": "P2-A5-AC04",
+        "requirement": "PersistedWeatherCurrentUnitとschemaVersion=p2-weather-current-unit-v1の唯一のcodecを用い、全国1/履歴2・partial128/履歴8・16MiBを保持し容量超過を理由付きunavailableにする",
+        "evidenceRefs": [
+          "docs/specs/reconstruction-p0-contracts.md:572 «9a4b44d95aa2d482»",
+          "docs/specs/reconstruction-p0-contracts.md:732 «f96fd8a8dd40563c»",
+          "reconstruction/contracts/p2-order-plan.md:80 «a90d0d5931992b65»"
+        ]
+      },
+      {
+        "id": "P2-A5-AC05",
+        "requirement": "toWeatherCurrentView、intent、PublishedOutcomeの4種unionを同じ採用結果から作り、FreshnessRecordをoperation/family/subject/affectedScopeへ束縛する",
+        "evidenceRefs": [
+          "docs/specs/reconstruction-p0-contracts.md:611 «ea6c1d20c1ab3b38»",
+          "docs/specs/reconstruction-p0-contracts.md:1192 «aefcb1a8a916571c»",
+          "reconstruction/contracts/p2-order-plan.md:311 «dd8b1407bf8c8a19»"
+        ]
+      },
+      {
+        "id": "P2-A5-AC06",
+        "requirement": "O04 P2 subsetでstale lockを新築初期stateから脱出し、別官署・別subject・別operationでfreshnessSuspect解除0。同対象採用またはcoverageだけで解除する",
+        "evidenceRefs": [
+          "docs/specs/reconstruction-p0-contracts.md:1780 «deba767d642d01d5»",
+          "reconstruction/contracts/p2-order-plan.md:26 «62a8e8979d2b9b70»",
+          "reconstruction/tools/corpus/sequences.json#expected:O04:9"
+        ]
+      },
+      {
+        "id": "P2-A5-AC07",
+        "requirement": "O06 P2 subsetで履歴内復元、履歴不足unavailable、連続取消、取消watermark非巻戻しを確認し、保存障害・通常終了をA3結線後に再検収する。E10で他単位更新時U-W encode 0",
+        "evidenceRefs": [
+          "docs/specs/reconstruction-p0-contracts.md:793 «ed3168a4b0a98222»",
+          "docs/specs/reconstruction-p0-contracts.md:1782 «03f4a83f1e49df20»",
+          "docs/specs/reconstruction-p0-contracts.md:2061 «aeb1275bbe737682»",
+          "reconstruction/tools/corpus/sequences.json#expected:O06:31"
+        ]
+      },
+      {
+        "id": "P2-A5-AC08",
+        "requirement": "復元直後の訂正・取消・正常報は保存済みoperation/出典/履歴を基点に通常reducerへ通し、期限延長・別範囲の確認済み化・中間公開をしない",
+        "evidenceRefs": [
+          "docs/specs/reconstruction-p0-contracts.md:613 «e9ca2cf8a9630c2a»",
+          "docs/specs/reconstruction-p0-contracts.md:614 «51f367d55c1dfe8a»"
+        ]
+      },
+      {
+        "id": "P2-A5-AC09",
+        "requirement": "P2-O04-U-W-v1/P2-O06-U-W-v1の履歴oracle・構造条件を通し、E13で正常corpusの恒常的unavailable 0。旧O04:2/O06:29-30はP3未確認のまま残す",
+        "evidenceRefs": [
+          "docs/specs/reconstruction-p0-contracts.md:2064 «e2e2e4700050616c»",
+          "reconstruction/contracts/p2-order-plan.md:214 «6278a180baad86fc»",
+          "reconstruction/contracts/p2-order-plan.md:215 «90f9824507641df4»"
+        ]
+      }
+    ],
+    "testMapping": [
+      {
+        "testId": "P2-A5-T01",
+        "purpose": "contractBoundary",
+        "referenceIds": [
+          "P2-A5-AC01"
+        ],
+        "behavior": "route/官署/subject/構造と複数subject原子性"
+      },
+      {
+        "testId": "P2-A5-T02",
+        "purpose": "acceptance",
+        "referenceIds": [
+          "P2-A5-AC02",
+          "P2-A5-AC03"
+        ],
+        "behavior": "base/partial/所有現象/終了を一単位で組立て"
+      },
+      {
+        "testId": "P2-A5-T03",
+        "purpose": "contractBoundary",
+        "referenceIds": [
+          "P2-A5-AC04"
+        ],
+        "behavior": "codec roundtripと1/2/128/8/16MiB境界"
+      },
+      {
+        "testId": "P2-A5-T04",
+        "purpose": "regression",
+        "referenceIds": [
+          "P2-A5-AC05",
+          "P2-A5-AC06"
+        ],
+        "behavior": "IR08の対象束縛とstale lock解除"
+      },
+      {
+        "testId": "P2-A5-T05",
+        "purpose": "corpusHistory",
+        "referenceIds": [
+          "P2-A5-AC07",
+          "P2-A5-AC08",
+          "P2-A5-AC09"
+        ],
+        "behavior": "O06履歴・連続取消・復元・E10/E13"
+      }
+    ],
+    "requiredCommands": [
+      {
+        "command": "node reconstruction/tools/corpus/check-manifest.mjs",
+        "cwd": ".",
+        "target": "reconstruction/tools/corpus/manifest.json",
+        "stage": "contract",
+        "purpose": "fixture台帳検査"
+      },
+      {
+        "command": "node reconstruction/tools/corpus/check-sequences.mjs",
+        "cwd": ".",
+        "target": "reconstruction/tools/corpus/sequences.json",
+        "stage": "contract",
+        "purpose": "P2 subsetと置換初期化step検査"
+      },
+      {
+        "command": "node reconstruction/contracts/check-contract.mjs",
+        "cwd": ".",
+        "target": "reconstruction/contracts/*.json",
+        "stage": "contract",
+        "purpose": "全契約検査"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/tsconfig.json --noEmit",
+        "cwd": ".",
+        "target": "reconstruction/contracts/p2-weather-current-unit.types.ts",
+        "stage": "contract",
+        "purpose": "公開型検査"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/tsconfig.json",
+        "cwd": ".",
+        "target": "reconstruction/tsconfig.json",
+        "stage": "implementation",
+        "purpose": "実装build"
+      },
+      {
+        "command": "./node_modules/.bin/vitest run --config reconstruction/vitest.config.ts",
+        "cwd": ".",
+        "target": "reconstruction/test/",
+        "stage": "implementation",
+        "purpose": "実装test"
+      },
+      {
+        "command": "./node_modules/.bin/vitest run --config reconstruction/vitest.config.ts --sequence.shuffle",
+        "cwd": ".",
+        "target": "reconstruction/test/",
+        "stage": "implementation",
+        "purpose": "永続化・共有状態の順序依存検査"
+      }
+    ],
+    "artifactRequirements": [
+      "§13.3の9段をA3 composition root結線後の一経路で証明する。無いと履歴reducerだけで保存障害・終了・復元が未接続になる",
+      "WeatherCurrentUnitCodec一つだけを実装する。無いとA3がU-Wを捕捉・復元できず、複数codecならschema選択が曖昧になる",
+      "FreshnessRecord判定はA5、型はA1を再利用する。独自freshness型があるとIR08の解除条件が分岐する",
+      "1実装interface、factory、registry、journal、将来用extension pointを追加しない",
+      "allowed_paths限定patch、変更一覧、build/test/shuffle結果、未実行検証、残存リスク",
+      "純粋な意味関数とreduceUnitはDiagnosticDetailsだけを返し、runtimeがtimestamp/runIdを付与する。各subjectのdecisionsを系列oracleのdecision/reason/changeと照合し、duplicate/stale/noChangeを区別する。識別不能な拒否ではsubjectを空文字にし、架空の業務identityを作らない。"
+    ],
+    "unresolvedQuestions": [
+      {
+        "id": "Q-ENUM",
+        "owner": "implementer",
+        "blocks": [
+          "U-W意味上unavailable reasonとscope/lastKnown/affectedScope",
+          "官署/subject/必須構造のRejectionReason優先順位",
+          "Q-ENUM解決を具体unavailable reason型とsource/lastKnown/affectedScopeの保存型へ反映し、codec・viewの型検査が通るまで契約凍結不可"
+        ],
+        "resolveBy": "P2-WEATHER-CURRENT-UNIT-001実装開始前",
+        "requiredEvidence": [
+          "capacityExceeded/historyUnavailable/coverageIncompleteの入力対応表",
+          "rejectedとunavailableでwatermark/stateがどう変わるかの期待"
+        ]
+      },
+      {
+        "id": "Q-REV",
+        "owner": "integrator",
+        "blocks": [
+          "同revision訂正の採否",
+          "ReportDateTime/Serial比較",
+          "連続取消が対象にする版"
+        ],
+        "resolveBy": "O06対象Unit実装契約開始前",
+        "requiredEvidence": [
+          "新fixture仕様: route=telegram.weather、headType=VPWS50とVPWW55/57-61、EventIDは各原報の合法値、同一subjectで同ReportDateTime/Serialだが内容差分を持つ実訂正、receivedAtは原報以後に固定、期待はrevisionOnlyまたはsemanticの裁定値と連続取消対象版",
+          "取得元・取得日時・元XML hash。syntheticは作らない",
+          "全国2/partial8の各版tupleと復元current/watermarkの期待"
+        ]
+      },
+      {
+        "id": "Q-MIGRATION",
+        "owner": "integrator",
+        "blocks": [
+          "O04/O06 P2新築初期stateの正式版",
+          "旧checkpoint operation証明",
+          "O04:2/O06:29-30の旧形式変換検収"
+        ],
+        "resolveBy": "P2新築初期stateはA5実装開始前、旧checkpoint変換はP3移行契約開始前",
+        "requiredEvidence": [
+          "expected:O04:9とexpected:O06:31のoperation・時計・出典・履歴を固定したstate builder",
+          "旧stepと置換stepの対応表",
+          "旧v2で捨てた履歴範囲の報告仕様"
+        ]
+      },
+      {
+        "id": "Q-LIMIT",
+        "owner": "integrator",
+        "blocks": [
+          "U-W合法最大checkpoint",
+          "16MiB直前・一致・+1 fixture",
+          "全国/partial同時最大のencoded byte"
+        ],
+        "resolveBy": "U-W容量fixture作成前",
+        "requiredEvidence": [
+          "新fixture仕様: route=telegram.weather、headType=VPWS50/VPWW55,57-61、EventID/Serialは原報の合法値、ReportDateTime/receivedAtと官署を固定、期待は16MiB-1と一致で受理・+1で理由付きunavailable",
+          "最大VPWS50とpartial128/履歴8の生成条件。syntheticは作らない",
+          "UTF-8 encoded byteの三境界と超過時に古いcurrentを正常扱いしない期待"
+        ]
+      }
+    ]
+  }
+}
