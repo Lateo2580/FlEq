@@ -26,10 +26,13 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        suite: [engine, engine-shuffle, engine-strict, display]
+        suite: [engine, engine-shuffle, engine-strict, display, reconstruction]
     name: test (${{ matrix.suite }})
     steps:
       - uses: actions/checkout@v6
+        with:
+          # reconstruction: check-contract.mjs が契約の baseOid（発注 OID）を git cat-file で検証するので履歴が要る
+          fetch-depth: ${{ matrix.suite == 'reconstruction' && '0' || '1' }}
 
       - uses: actions/setup-node@v5
         with:
@@ -65,4 +68,11 @@ jobs:
             engine-shuffle) npm run test:shuffle ;;
             engine-strict) FLEQ_STANDBY_SWEEP_STRICT=1 npm test ;;
             display) npm test --prefix display ;;
+            # reconstruction: 新築 P1 の契約 checker 3 本と専用 tsc/vitest (2026-09-16)。root の build/test には含まれない
+            reconstruction)
+              node reconstruction/tools/corpus/check-manifest.mjs
+              node reconstruction/tools/corpus/check-sequences.mjs
+              node reconstruction/contracts/check-contract.mjs
+              ./node_modules/.bin/tsc --project reconstruction/tsconfig.json
+              ./node_modules/.bin/vitest run --config reconstruction/vitest.config.ts ;;
           esac

@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "d9990053b44496fd54fa6995148e2a04a5a9c9a3",
-    "sha256": "a2231283fa14c039c72bc0399de3f359c3e26377e004d4cdc690e9914573d7f2",
+    "sha256": "aa20fc7f7776850e6d3f4175dbba0b90af0f0f35025fd74db76f7cd59cdb64da",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "76c82b87d7783a4eae14af690cb34e7d6ec46f73617dc75b7f7401951619f080",
     "sequencesSha256": "c800790f57414088d97e3e9b309835f6742907990edc5f4864ea4933fb5985ba",
@@ -28,24 +28,24 @@
     "questionResolutions": [
       {
         "id": "Q-OP",
-        "status": "partiallyClosed",
-        "closed": "三判定源、presence状態、正規化、一致・欠落・不正・矛盾・一意化不能の結果をOperationEvidenceとOperationResolutionで固定",
-        "remaining": "Control.Statusが形式上notProvidedとなる合法入力形式の根拠とoperationAmbiguous fixture",
-        "reason": "manifest/sequencesと現行WS/REST境界に、その合法形式の確定根拠がない"
+        "status": "closed",
+        "closed": "三判定源、presence状態、正規化、一致・欠落・不正・矛盾・一意化不能の結果をOperationEvidenceとOperationResolutionで固定。Control.Statusが形式上notProvidedになる合法入力はa/n・binary（README Q-OP根拠・必須field表）。統合担当裁定（2026-09-16）: B03はformat xmlのみをmailboxへ通し他はformatUnsupportedで拒否、operationAmbiguousはsyntheticなOperationEvidenceで検証（P1-T06）",
+        "remaining": "なし",
+        "reason": "README の三判定源 matrix と必須 field 表、P1 実装の表駆動テストで閉じた"
       },
       {
         "id": "Q-ENUM",
         "status": "partiallyClosed",
-        "closed": "運用区分拒否reason四種をOperationRejectionReasonで固定",
-        "remaining": "運用区分以外のparser拒否reasonとUnit reducerのunavailable reason",
-        "reason": "後者はB03/B04以外の構造・意味境界に依存する"
+        "closed": "運用区分拒否reason四種をOperationRejectionReasonで固定。parser拒否reasonはP1実装で固定: formatUnsupported・inputTooLarge・envelopeInvalid・encodingUnsupported・compressionUnsupported・bodyDecodeFailed・expandedBodyInvalid・expandedBodyTooLarge・xmlLimitExceeded・xmlInvalid",
+        "remaining": "Unit reducerのunavailable reason",
+        "reason": "unavailable は意味境界（I-U-* reducer 契約）に依存するため P2 以降"
       },
       {
         "id": "Q-LIMIT",
-        "status": "partiallyClosed",
-        "closed": "WS frameとREST bodyを各8 MiB、展開後本文を10 MiBに統一",
-        "remaining": "XML node・depth・attribute・textの構造上限と境界fixture",
-        "reason": "§7.2に構造上限の採用値がない"
+        "status": "closed",
+        "closed": "WS frameとREST bodyを各8 MiB、展開後本文を10 MiBに統一。構造上限はP1採用値: 要素320,000・depth 24・1要素の属性16・属性値256文字・要素直下text累計16,384文字（parserLimits）。最大正常fixture VPWS50（要素155,247）を通し、各上限の直前・一致・+1をテスト時生成XMLで検査（P1-T05）",
+        "remaining": "なし",
+        "reason": "README Q-LIMIT 計測（236 XML の最大値）に 2 倍の余裕を置いた候補を採用値にした（統合担当裁定 2026-09-16）"
       },
       {
         "id": "Q-NOTICE-Q7",
@@ -82,7 +82,7 @@
     "contractId": "P1-PARSER-BOUNDARY-001",
     "mode": "implementation",
     "objective": "B01/B03/B04/B15のパーサ境界を実装し、全260 fixtureの分類根拠、一入力一回処理、特殊値保持、運用区分判定、入力上限を検収可能にする。B05は型境界だけを定める。",
-    "baseOid": "unassigned",
+    "baseOid": "0f2fe89f592dc09d6002f2d0f2582800c0f0822e",
     "cleanTreeRequired": true,
     "readPaths": [
       "docs/specs/reconstruction-p0-contracts.md",
@@ -140,7 +140,10 @@
       "resolveOperation(OperationEvidence): OperationResolution",
       "decodeMaterial(ParserMailboxItem): ParserMailboxResult",
       "classifyMaterial(DecodedMaterial): route/family/material metadata",
-      "recordParserDiagnostic(ParserDiagnostic): void"
+      "recordParserDiagnostic(ParserDiagnostic): void",
+      "ingestXmlData(IngressInput): accepted{item: ParserMailboxItem} | rejected{diagnostic: ParserDiagnostic}",
+      "parserLimits: B04 の byte・構造上限（RES-05〜07 と Q-LIMIT 採用値）",
+      "parserMailboxLimits: B05 型境界の件数・byte 上限（RES-01〜04）"
     ],
     "allowedDependencies": ["node:buffer", "node:zlib", "node:worker_threads", "fast-xml-parser"],
     "fixtureIds": [
@@ -531,25 +534,11 @@
     ],
     "unresolvedQuestions": [
       {
-        "id": "Q-OP",
-        "owner": "implementer",
-        "blocks": ["operationAmbiguousを検証する合法入力形式とfixtureの確定", "B03/B04運用区分境界の凍結と発注。先行可能なのはOperation型・既知の四reason・入力byte境界の独立作業のみ"],
-        "resolveBy": "P1 B03/B04運用区分境界契約前（②の期限を維持。本書はその境界を未凍結として保持し、テスト実装前への期限後退を撤回）",
-        "requiredEvidence": ["Control.Statusが形式上notProvidedとなる合法な入力形式の仕様または実受信例", "その形式の必須field表と三判定源matrix"]
-      },
-      {
         "id": "Q-ENUM",
         "owner": "implementer",
-        "blocks": ["運用区分以外のB03/B04 parser拒否reason", "Unit reducerのunavailable reason"],
-        "resolveBy": "parser拒否reasonはP1 B04診断テスト実装前、unavailable reasonは最初の対象I-U-* reducer契約凍結前",
-        "requiredEvidence": ["全239 XMLの拒否差分一覧", "構造拒否と意味上unavailableを混同しないreason表"]
-      },
-      {
-        "id": "Q-LIMIT",
-        "owner": "integrator",
-        "blocks": ["XML node・depth・attribute・textの構造上限", "各構造上限の直前・一致・+1 fixture"],
-        "resolveBy": "P1 B04構造上限テストP1-T05のfixture作成前",
-        "requiredEvidence": ["全239 XMLのnode・depth・attribute・text最大値", "開始上限候補で最大正常fixtureが通ること", "上限+1が有界に拒否されること"]
+        "blocks": ["Unit reducerのunavailable reason"],
+        "resolveBy": "最初の対象I-U-* reducer契約凍結前（P2）",
+        "requiredEvidence": ["構造拒否と意味上unavailableを混同しないreason表"]
       }
     ]
   }

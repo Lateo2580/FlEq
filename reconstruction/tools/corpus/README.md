@@ -100,6 +100,16 @@ Control.Status が形式上 notProvided になる合法入力は、WS `data` の
 
 Control.Status が形式上 notProvided になる合法入力は a/n・binary の 2 形式で、どちらも head.test が仕様上の定数なので「head.test だけで normal と判定する」経路を作らないことが B03/B04 の受入条件になる。テスト電文が test=no でも届く以上、a/n・binary を normal として業務 state に流す実装は訓練電文を本番表示する経路になる。実受信例（WEPA60・WTJPii）は未取得で、operationAmbiguous fixture は REST 取得計画の別段階（WTJPii 1 ページ、作者裁定後）で採るか synthetic で作る。json は FlEq の運用外なので fixture を作らない。
 
+## P1 実装（2026-09-16 夜、配送）
+
+`reconstruction/src/`（B01 `contracts-revision/operation.ts`・B03 `ingress/ingress.ts`・B04 `decode-material/decode-material.ts`・B15 `diagnostics/parser-diagnostic.ts`・B05 型境界 `mailbox/parser-boundary.ts`）と `reconstruction/test/parser-boundary/`（P1-T01〜T07 のテスト、計測 helper `evidence.mjs`、報告生成 `report.mjs`）。発注 OID `0f2fe89f`、実装ヘルツ Terra high、独立レビュー Astra high（NO-GO 12 件 → 修正 → 再判定）。
+
+- 公開口 7 つ: `resolveOperation`・`decodeMaterial`・`classifyMaterial`・`recordParserDiagnostic`・`ingestXmlData`（B03 入口。WS frame／REST 本文／replay 生 XML を `ParserMailboxItem` へ）・`parserLimits`・`parserMailboxLimits`。契約型 `ParserMailboxItem` に `headType`（dmdata envelope の電文種別。JMA XML 本文には無い）と `encoding`／`compression`（B03 が許可値で検証して載せる。`encodedBody` は無加工 bytes で B04 は先頭 bytes から形式を推測しない）を追加。実装側が一度採った「encodedBody 先頭の内部 3 byte ヘッダ」は生本文と識別できず（レビュー再現）、型で運ぶ形に改めた
+- 閉じた未決: Q-OP（B03 は format xml のみ通す、a/n・binary は `formatUnsupported`）、Q-LIMIT（採用値 = 要素 320,000・depth 24・属性 16・属性値 256・text 16,384）、Q-ENUM の parser 拒否 reason 10 種。残る未決は Unit reducer の unavailable reason（P2）
+- ゲート: `./node_modules/.bin/tsc --project reconstruction/tsconfig.json`／`./node_modules/.bin/vitest run --config reconstruction/vitest.config.ts`／3 checker（`P1_BASE_OID` は契約の `baseOid` に固定済みなので不要）。CI の `reconstruction` suite で常時実行
+- 七区間の実測（開発機 M4、VPWS50 4,567,490 byte・要素 155,247）: full XML parse 約 231ms、metadata＋特殊値 約 37ms、MessageChannel 転送（tree を含む結果）約 212ms。VPWP50（2,268,084 byte）は parse 約 105ms・転送 約 71ms。parse worker 分割の判断材料（契約 outOfScope「parse worker split B」）。記録は作業ノート（repo 外）へ
+- 報告生成: `node reconstruction/test/parser-boundary/report.mjs <出力先>`（vitest は書き込まない）
+
 ## 根拠参照のアンカー（2026-09-16）
 
 sequences.json の `expectationBasis`／`basisRefs` と P1 契約の `evidenceRefs`・`contractTypeRef`・`referenceIds` にある行参照は `<path>:<line> «<anchor>»` の形にする。anchor は引用行を trim した全文の sha256 先頭 16 hex。checker（`check-manifest.mjs` の `citedLine`、check-sequences／check-contract が共用）は行番号の範囲と本文性に加えて、**anchor が引用行に一致し、かつ同じファイルの他の行に一致しないこと**を検査する。行が移動すれば「matches line N (must match only line M)」で移動先を示し、引用行の文言が変われば「cited line changed (current anchor «…»)」で新しい anchor を示して FAIL する。同一内容の行が複数ある箇所（JSON の `{`、`},` だけの行）は引用にならないので、最寄りの一意な本文行へ寄せた（10 参照）。これがないと、spec に行を足したとき参照が別の本文行へずれても黙って通っていた（2026-09-15 までは「spec に行を足さない」運用で回避）。spec を編集したら checker を再実行し、移動した参照は示された行番号へ、文言を変えた行は示された anchor へ直す。初版（先頭 16 文字）は Astra high 独立レビューで「同じ書き出しの隣接行と衝突する・行後半の変更を検出しない」と NO-GO になり、hash と一意性検査に改めた。1,104 参照＋契約 27 参照を機械移行、manifest は無変更。

@@ -81,6 +81,12 @@ export type ParserMailboxItem = Readonly<{
   inputSequence: number;
   receivedAt: number;
   origin: AcquisitionOrigin;
+  // dmdata envelope head.type（VPWS50 等）。JMA XML 本文には電文種別コードが無いので B03 が運ぶ。
+  headType: string;
+  // dmdata envelope の encoding／compression。B03 が許可値で検証して載せ、REST 本文・replay 生 XML は utf-8／null。
+  // encodedBody は無加工の bytes で、B04 は先頭 bytes から形式を推測しない。
+  encoding: "base64" | "utf-8";
+  compression: "gzip" | "zip" | null;
   encodedBody: Uint8Array;
   encodedByteLength: number;
   headTest: OperationSourceEvidence<boolean>;
