@@ -99,3 +99,7 @@ Control.Status が形式上 notProvided になる合法入力は、WS `data` の
 | binary | 同上 | notProvided | notProvided | 同上 |
 
 Control.Status が形式上 notProvided になる合法入力は a/n・binary の 2 形式で、どちらも head.test が仕様上の定数なので「head.test だけで normal と判定する」経路を作らないことが B03/B04 の受入条件になる。テスト電文が test=no でも届く以上、a/n・binary を normal として業務 state に流す実装は訓練電文を本番表示する経路になる。実受信例（WEPA60・WTJPii）は未取得で、operationAmbiguous fixture は REST 取得計画の別段階（WTJPii 1 ページ、作者裁定後）で採るか synthetic で作る。json は FlEq の運用外なので fixture を作らない。
+
+## 根拠参照のアンカー（2026-09-16）
+
+sequences.json の `expectationBasis`／`basisRefs` と P1 契約の `evidenceRefs`・`contractTypeRef`・`referenceIds` にある行参照は `<path>:<line> «<anchor>»` の形にする。anchor は引用行を trim した全文の sha256 先頭 16 hex。checker（`check-manifest.mjs` の `citedLine`、check-sequences／check-contract が共用）は行番号の範囲と本文性に加えて、**anchor が引用行に一致し、かつ同じファイルの他の行に一致しないこと**を検査する。行が移動すれば「matches line N (must match only line M)」で移動先を示し、引用行の文言が変われば「cited line changed (current anchor «…»)」で新しい anchor を示して FAIL する。同一内容の行が複数ある箇所（JSON の `{`、`},` だけの行）は引用にならないので、最寄りの一意な本文行へ寄せた（10 参照）。これがないと、spec に行を足したとき参照が別の本文行へずれても黙って通っていた（2026-09-15 までは「spec に行を足さない」運用で回避）。spec を編集したら checker を再実行し、移動した参照は示された行番号へ、文言を変えた行は示された anchor へ直す。初版（先頭 16 文字）は Astra high 独立レビューで「同じ書き出しの隣接行と衝突する・行後半の変更を検出しない」と NO-GO になり、hash と一意性検査に改めた。1,104 参照＋契約 27 参照を機械移行、manifest は無変更。

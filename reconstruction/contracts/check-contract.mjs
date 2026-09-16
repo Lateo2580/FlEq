@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { sha256, hashConvention, zeroHash } from '../tools/corpus/check-manifest.mjs';
+import { sha256, hashConvention, zeroHash, citedLine } from '../tools/corpus/check-manifest.mjs';
 
 // Without this check, the P0 gate could accept a malformed or misbound P1 contract.
 const root = new URL('../../', import.meta.url);
@@ -45,16 +45,16 @@ try {
 
   // References must resolve to substantive evidence, not a blank line or a made-up ID.
   const evidence = (ref) => {
-    const match = ref.match(/^([^:#]+)(?::(\d+)|#(.+))?$/);
-    assert.ok(match != null && !match[1].startsWith('/') && !match[1].split('/').includes('..'), `${ref}: checkout reference`);
-    const source = read(match[1]).toString('utf8');
+    const match = ref.match(/^([^:#]+)(?::(\d+) «([^»]+)»|#(.+))?$/);
+    assert.ok(match != null && !match[1].startsWith('/') && !match[1].split('/').includes('..'), `${ref}: checkout reference (line refs need «anchor»)`);
     if (match[2] != null) {
-      const line = source.split(/\r?\n/)[Number(match[2]) - 1]?.trim();
+      const line = citedLine(fileURLToPath(new URL(match[1], root)), Number(match[2]), match[3], ref);
       assert.ok(line && !/^[|:\s-]+$/.test(line) && !/^```/.test(line), `${ref}: substantive line`);
     }
-    if (match[3] != null) {
-      assert.ok(JSON.parse(source).expectations?.some((item) => item.expectedId === match[3]), `${ref}: expectedRef`);
+    if (match[4] != null) {
+      assert.ok(JSON.parse(read(match[1]).toString('utf8')).expectations?.some((item) => item.expectedId === match[4]), `${ref}: expectedRef`);
     }
+    if (match[2] == null && match[4] == null) read(match[1]);
   };
   evidence(meta.contractTypeRef);
 

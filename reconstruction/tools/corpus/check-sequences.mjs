@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { sha256, hashConvention, zeroHash } from './check-manifest.mjs';
+import { sha256, hashConvention, zeroHash, citedLine } from './check-manifest.mjs';
 
 // Acceptance/contract boundary: without this check, P0 could ship missing or misbound evidence.
 // Import also verifies the unchanged 257-row manifest; reuse its digest implementation.
@@ -77,15 +77,12 @@ try {
       assert.ok(step.expectationBasis.every((ref) => typeof ref === 'string' && /^L[1-4]: \S.*\S$/.test(ref)), `${label}: L1..L4 evidence syntax`);
       // Without file existence checks, invented evidence paths would satisfy the P0 acceptance gate.
       for (const ref of step.expectationBasis) {
-        const location = ref.match(/^L[1-4]: ([^:\s]+):(\d+)(?:\s|$)/);
-        assert.ok(location != null, `${label}: draft evidence needs file:line`);
+        const location = ref.match(/^L[1-4]: ([^:\s]+):(\d+) «([^»]+)»(?:\s|$)/);
+        assert.ok(location != null, `${label}: draft evidence needs file:line «anchor»`);
         const path = resolve(root, location[1]);
         assert.ok(path.startsWith(root.endsWith(sep) ? root : root + sep), `${label}: evidence outside checkout`);
-        const lines = readFileSync(path, 'utf8').split(/\r?\n/);
-        // Without line/content checks, out-of-range, blank or separator citations masquerade as evidence.
-        const line = Number(location[2]);
-        assert.ok(line >= 1 && line <= lines.length, `${label}: evidence line out of range`);
-        const text = lines[line - 1].trim();
+        // Without line/content checks, out-of-range, blank, separator or drifted citations masquerade as evidence.
+        const text = citedLine(path, Number(location[2]), location[3], label);
         assert.ok(text && !/^[|:\s-]+$/.test(text) && !/^#{1,6}\s|^```/.test(text), `${label}: evidence must cite substantive text`);
       }
       assert.deepEqual(e.basisRefs, step.expectationBasis, `${label}: evidence references`);

@@ -1788,7 +1788,7 @@ fixtureを現在時刻で流して全部失効させ、「空で一致」と判�
 
 O05の根拠には限界がある。現行manifestも、実corpusはstation identityの根拠で、同一revisionの分割到着はsyntheticで補っていると明記する。
 
-根拠: `test/engine/telegram-foundation/phase0-manifest.ts:1211`。
+根拠: `test/engine/telegram-foundation/phase0-manifest.ts:1210`・`:1226`（VTSE51／VTSE52 各 family の `limits` 行）。
 
 O04の既存試験は確認済みだ。O07には復元後unknownの試験が存在する。ただし今回実行してはいない。
 

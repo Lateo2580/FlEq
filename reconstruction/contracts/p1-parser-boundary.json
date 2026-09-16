@@ -1,11 +1,11 @@
 {
   "meta": {
     "draftedFromOid": "d9990053b44496fd54fa6995148e2a04a5a9c9a3",
-    "sha256": "9b0382d0dcd4ad026229069d92a2e7736b32332d6a6bbca9e6a88bf63a50961c",
+    "sha256": "a2231283fa14c039c72bc0399de3f359c3e26377e004d4cdc690e9914573d7f2",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "76c82b87d7783a4eae14af690cb34e7d6ec46f73617dc75b7f7401951619f080",
-    "sequencesSha256": "6088e48c12a5eaf9d8ea636a221a7ef2e26805b5e7ee29f3842c634d3fba2047",
-    "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842",
+    "sequencesSha256": "c800790f57414088d97e3e9b309835f6742907990edc5f4864ea4933fb5985ba",
+    "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
     "decisionBranches": [
       {
         "id": "P1-D01",
@@ -483,21 +483,21 @@
       "parse worker split B; decide only from P2 O09 measurement"
     ],
     "acceptanceChecks": [
-      {"id":"P1-AC01","requirement":"manifestのXML 239件すべてに期待分類との比較結果を1件ずつ出し、未分類差分を0にする","evidenceRefs":["docs/specs/reconstruction-p0-contracts.md:2612","reconstruction/tools/corpus/manifest.json"]},
-      {"id":"P1-AC02","requirement":"一入力につきbody decodeは最大1回である","evidenceRefs":["docs/specs/reconstruction-p0-contracts.md:2612"]},
-      {"id":"P1-AC03","requirement":"一入力につき展開は最大1回である","evidenceRefs":["docs/specs/reconstruction-p0-contracts.md:2612"]},
-      {"id":"P1-AC04","requirement":"Bodyを読むXML入力はfull parse 1回、事前拒否は0回で、出力別の再parseを0にする","evidenceRefs":["docs/specs/reconstruction-p0-contracts.md:2612","reconstruction/tools/corpus/sequences.json#expected:O09:2"]},
-      {"id":"P1-AC05","requirement":"数値0・empty・missing・unknown・lower/upper rangeを別のMaterialValueとして保持する","evidenceRefs":["docs/specs/reconstruction-p0-contracts.md:2612","reconstruction/tools/corpus/sequences.json#expected:O02:27"]},
-      {"id":"P1-AC06","requirement":"意味上必要な空白をXmlText.valueに保持する","evidenceRefs":["docs/specs/reconstruction-p0-contracts.md:2612"]},
-      {"id":"P1-AC07","requirement":"属性名・属性値をXmlAttributeに保持する","evidenceRefs":["docs/specs/reconstruction-p0-contracts.md:2612"]},
-      {"id":"P1-AC08","requirement":"コード・EventID・Serial等の先頭ゼロをraw文字列に保持する","evidenceRefs":["docs/specs/reconstruction-p0-contracts.md:2612"]},
-      {"id":"P1-AC09","requirement":"reconstruction実装から旧src/engine・uiへのimportを0にする","evidenceRefs":["docs/specs/reconstruction-p0-contracts.md:2612"]},
-      {"id":"P1-AC10","requirement":"WS frameとREST bodyは8 MiB、展開後本文は10 MiBを境界直前・一致・+1で検査し、最大正常fixtureを通す","evidenceRefs":["docs/specs/reconstruction-p0-contracts.md:1050","docs/specs/reconstruction-p0-contracts.md:1051","docs/specs/reconstruction-p0-contracts.md:1068"]},
-      {"id":"P1-AC11","requirement":"head.test・Control.Status・envelope Statusの提供可能な全組合せを表駆動で検査する","evidenceRefs":["docs/specs/reconstruction-p0-contracts.md:653","docs/specs/reconstruction-p0-contracts.md:680"]},
-      {"id":"P1-AC12","requirement":"notProvidedをnormalへ補完せず、必須欠落・不正・矛盾・一意化不能を四reasonで拒否する","evidenceRefs":["docs/specs/reconstruction-p0-contracts.md:660","docs/specs/reconstruction-p0-contracts.md:666"]},
-      {"id":"P1-AC13","requirement":"取得起源live/recovery/replayをOperationから独立させ、replayをtestへ補完しない","evidenceRefs":["docs/specs/reconstruction-p0-contracts.md:642","docs/specs/reconstruction-p0-contracts.md:651"]},
-      {"id":"P1-AC14","requirement":"§9.4のingress JSON・base64 decode・gunzip/unzip・full XML parse・metadata/SpecialValue抽出・分野抽出/集約・worker転送の七区間をinputId/fixtureIdに結び、各実行区間の有限かつ非負のdurationMsを単調時計で記録する。最大VPWS50（expected:O09:2）のJSON/base64/gzip envelopeを一時生成して七区間すべてを実測し、VPWP50 194period（expected:O02:14）と特殊値（expected:O02:27）も通す。元fixtureは変更しない。転送はB05本体に先行してMessageChannel送受信を完了まで計測する。未実行はnullと理由を報告し0msへ補完しない。encoded/展開後byte・node数・深さ・属性/text量を併記する。§7.5 T0〜T6の実paint検収はP2以降。","evidenceRefs":["docs/specs/reconstruction-p0-contracts.md:1820","docs/specs/reconstruction-p0-contracts.md:1830","reconstruction/tools/corpus/sequences.json#expected:O09:2","reconstruction/tools/corpus/sequences.json#expected:O02:14","reconstruction/tools/corpus/sequences.json#expected:O02:27"]},
-      {"id":"P1-AC15","requirement":"展開上限超過・壊れたXMLで本文運用区分を読めない場合、ParserDiagnostic.operationをundeterminedとし、未観測sourceを省略する。観測済みsourceだけを四状態で保持し、Control.StatusのnotProvided/missingやOperationResolutionを捏造しない。","evidenceRefs":["docs/specs/reconstruction-p0-contracts.md:653","docs/specs/reconstruction-p0-contracts.md:666","docs/specs/reconstruction-p0-contracts.md:1051"]}
+      {"id":"P1-AC01","requirement":"manifestのXML 239件すべてに期待分類との比較結果を1件ずつ出し、未分類差分を0にする","evidenceRefs":["docs/specs/reconstruction-p0-contracts.md:2612 «751e268b6083918d»","reconstruction/tools/corpus/manifest.json"]},
+      {"id":"P1-AC02","requirement":"一入力につきbody decodeは最大1回である","evidenceRefs":["docs/specs/reconstruction-p0-contracts.md:2612 «751e268b6083918d»"]},
+      {"id":"P1-AC03","requirement":"一入力につき展開は最大1回である","evidenceRefs":["docs/specs/reconstruction-p0-contracts.md:2612 «751e268b6083918d»"]},
+      {"id":"P1-AC04","requirement":"Bodyを読むXML入力はfull parse 1回、事前拒否は0回で、出力別の再parseを0にする","evidenceRefs":["docs/specs/reconstruction-p0-contracts.md:2612 «751e268b6083918d»","reconstruction/tools/corpus/sequences.json#expected:O09:2"]},
+      {"id":"P1-AC05","requirement":"数値0・empty・missing・unknown・lower/upper rangeを別のMaterialValueとして保持する","evidenceRefs":["docs/specs/reconstruction-p0-contracts.md:2612 «751e268b6083918d»","reconstruction/tools/corpus/sequences.json#expected:O02:27"]},
+      {"id":"P1-AC06","requirement":"意味上必要な空白をXmlText.valueに保持する","evidenceRefs":["docs/specs/reconstruction-p0-contracts.md:2612 «751e268b6083918d»"]},
+      {"id":"P1-AC07","requirement":"属性名・属性値をXmlAttributeに保持する","evidenceRefs":["docs/specs/reconstruction-p0-contracts.md:2612 «751e268b6083918d»"]},
+      {"id":"P1-AC08","requirement":"コード・EventID・Serial等の先頭ゼロをraw文字列に保持する","evidenceRefs":["docs/specs/reconstruction-p0-contracts.md:2612 «751e268b6083918d»"]},
+      {"id":"P1-AC09","requirement":"reconstruction実装から旧src/engine・uiへのimportを0にする","evidenceRefs":["docs/specs/reconstruction-p0-contracts.md:2612 «751e268b6083918d»"]},
+      {"id":"P1-AC10","requirement":"WS frameとREST bodyは8 MiB、展開後本文は10 MiBを境界直前・一致・+1で検査し、最大正常fixtureを通す","evidenceRefs":["docs/specs/reconstruction-p0-contracts.md:1050 «891d5fceb44ac333»","docs/specs/reconstruction-p0-contracts.md:1051 «99c97fa5e43a3a4f»","docs/specs/reconstruction-p0-contracts.md:1068 «04b4660d4e8f25fb»"]},
+      {"id":"P1-AC11","requirement":"head.test・Control.Status・envelope Statusの提供可能な全組合せを表駆動で検査する","evidenceRefs":["docs/specs/reconstruction-p0-contracts.md:653 «76458a722597a98d»","docs/specs/reconstruction-p0-contracts.md:680 «332c5c26db37176f»"]},
+      {"id":"P1-AC12","requirement":"notProvidedをnormalへ補完せず、必須欠落・不正・矛盾・一意化不能を四reasonで拒否する","evidenceRefs":["docs/specs/reconstruction-p0-contracts.md:660 «8a4580da67c6a2a3»","docs/specs/reconstruction-p0-contracts.md:666 «ba1fdcd7a94571b1»"]},
+      {"id":"P1-AC13","requirement":"取得起源live/recovery/replayをOperationから独立させ、replayをtestへ補完しない","evidenceRefs":["docs/specs/reconstruction-p0-contracts.md:642 «0bfabb5bb9dfcac8»","docs/specs/reconstruction-p0-contracts.md:651 «f1b501492ddebed2»"]},
+      {"id":"P1-AC14","requirement":"§9.4のingress JSON・base64 decode・gunzip/unzip・full XML parse・metadata/SpecialValue抽出・分野抽出/集約・worker転送の七区間をinputId/fixtureIdに結び、各実行区間の有限かつ非負のdurationMsを単調時計で記録する。最大VPWS50（expected:O09:2）のJSON/base64/gzip envelopeを一時生成して七区間すべてを実測し、VPWP50 194period（expected:O02:14）と特殊値（expected:O02:27）も通す。元fixtureは変更しない。転送はB05本体に先行してMessageChannel送受信を完了まで計測する。未実行はnullと理由を報告し0msへ補完しない。encoded/展開後byte・node数・深さ・属性/text量を併記する。§7.5 T0〜T6の実paint検収はP2以降。","evidenceRefs":["docs/specs/reconstruction-p0-contracts.md:1820 «2192561fcd4e3f94»","docs/specs/reconstruction-p0-contracts.md:1830 «964d8b6f65321973»","reconstruction/tools/corpus/sequences.json#expected:O09:2","reconstruction/tools/corpus/sequences.json#expected:O02:14","reconstruction/tools/corpus/sequences.json#expected:O02:27"]},
+      {"id":"P1-AC15","requirement":"展開上限超過・壊れたXMLで本文運用区分を読めない場合、ParserDiagnostic.operationをundeterminedとし、未観測sourceを省略する。観測済みsourceだけを四状態で保持し、Control.StatusのnotProvided/missingやOperationResolutionを捏造しない。","evidenceRefs":["docs/specs/reconstruction-p0-contracts.md:653 «76458a722597a98d»","docs/specs/reconstruction-p0-contracts.md:666 «ba1fdcd7a94571b1»","docs/specs/reconstruction-p0-contracts.md:1051 «99c97fa5e43a3a4f»"]}
     ],
     "testMapping": [
       { "testId": "P1-T01", "purpose": "corpusHistory", "referenceIds": ["P1-AC01"], "behavior": "全239 XMLを一度ずつ処理し、fixtureIdごとの分類差分を報告する" },
@@ -507,7 +507,7 @@
       { "testId": "P1-T05", "purpose": "contractBoundary", "referenceIds": ["P1-AC10"], "behavior": "8 MiB入力と10 MiB展開後本文の直前・一致を受理し+1を処理前に拒否する" },
       { "testId": "P1-T06", "purpose": "contractBoundary", "referenceIds": ["P1-AC11", "P1-AC12", "P1-AC13", "P1-AC15"], "behavior": "三判定源の全組合せを取得起源と独立に解決し、欠落・不正・矛盾・曖昧および本文を読めないundeterminedを区別する" },
       { "testId": "P1-T07", "purpose": "acceptance", "referenceIds": ["P1-AC14"], "behavior": "最大VPWS50 envelope・194period VPWP50・特殊値VXSE53について七区間の実測値と未実行理由が追跡できる" },
-      { "testId": "P0-CHECK-CONTRACT", "purpose": "contractBoundary", "referenceIds": ["docs/specs/reconstruction-p0-contracts.md:2611", "docs/specs/reconstruction-p0-contracts.md:2612", "docs/specs/reconstruction-p0-contracts.md:2842"], "behavior": "§14.1の型、全260 fixtureと系列期待の参照実在、未決owner/期限、自己hashを一度に検査する" }
+      { "testId": "P0-CHECK-CONTRACT", "purpose": "contractBoundary", "referenceIds": ["docs/specs/reconstruction-p0-contracts.md:2611 «449859f35b66208b»", "docs/specs/reconstruction-p0-contracts.md:2612 «751e268b6083918d»", "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»"], "behavior": "§14.1の型、全260 fixtureと系列期待の参照実在、未決owner/期限、自己hashを一度に検査する" }
     ],
     "requiredCommands": [
       {"command":"npm ci --ignore-scripts","stage":"preparation","purpose":"lockfileどおりに依存を準備しpackage filesを変更しない","cwd":".","target":"package-lock.json"},

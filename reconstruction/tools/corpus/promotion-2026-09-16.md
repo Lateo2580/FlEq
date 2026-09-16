@@ -2,6 +2,8 @@
 
 起草: 2026-09-16 昼（ヘルツ Astra high 独立レビュー 2 巡、条件付き GO の指摘 7 件＋再レビュー 5 点を反映済み。残条件は「実裁定の反映後に 3 checker 再実行」）。`rest-acquisition-plan.md` §6 段階 2 の実行 spec。対象は 2026-09-16 の probe と本文 10 件（`~/dev/fleq-corpus-p0/index.json`）で「候補あり」になった 3 群と、その照合で判明した既存 fixture 5 本の来歴確定。**この文書は裁定前の spec で、fixture 配置・manifest／sequences／contract の更新・checker 定数の変更は §8 の裁定後に 1 commit で行う。** 裁定前に repo へ入るのはこの .md と計画書の訂正だけ。
 
+> 2026-09-16 夜: 根拠参照は `path:line «anchor»`（anchor は引用行の sha256 先頭 16 hex）へ移行済み。本書の `expectationBasis` 例（§3）は移行前の形で、新規に書くときは README「根拠参照のアンカー」に従う。
+
 ## 1. 照合で確定した硬い事実（2026-09-16 13:40〜13:50 実測、レビューで独立再計算済み）
 
 | # | 対象 | 照合方法 | 結果 |

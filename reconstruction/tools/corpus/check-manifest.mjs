@@ -9,7 +9,19 @@ const baseOid = '46ea274fc216475f003647cc3d6626d2f52ef9d3';
 const hashConvention = 'sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes';
 const zeroHash = '0'.repeat(64);
 const sha256 = (bytes) => createHash('sha256').update(bytes).digest('hex');
-export { sha256, hashConvention, zeroHash };
+// Evidence citations carry an anchor: sha256 (first 16 hex) of the cited line after trim. Without it, a spec edit
+// that shifts a citation onto another substantive line, or rewrites the cited line, passes silently. The anchor
+// must match the cited line and no other line, so a citation cannot drift onto an identical neighbour either.
+const lineAnchor = (text) => sha256(text.trim()).slice(0, 16);
+const citedLine = (file, line, anchor, label) => {
+  const lines = readFileSync(file, 'utf8').split(/\r?\n/).map((text) => text.trim());
+  assert.ok(line >= 1 && line <= lines.length, `${label}: evidence line out of range`);
+  const matches = lines.flatMap((text, index) => (lineAnchor(text) === anchor ? [index + 1] : []));
+  assert.ok(matches.length > 0, `${label}: cited line ${line} changed (current anchor «${lineAnchor(lines[line - 1])}»)`);
+  assert.deepEqual(matches, [line], `${label}: anchor «${anchor}» matches line ${matches.join(', ')} (must match only line ${line})`);
+  return lines[line - 1];
+};
+export { sha256, hashConvention, zeroHash, citedLine };
 const read = (path) => readFileSync(fileURLToPath(new URL(path, root)));
 const fixtureId = (path) => path.replace(/\//g, '__').replace(/\.(xml|json)$/, '');
 const files = readdirSync(new URL('test/fixtures/', root), { recursive: true, withFileTypes: true })
