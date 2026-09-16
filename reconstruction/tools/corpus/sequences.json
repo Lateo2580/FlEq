@@ -1,9 +1,9 @@
 {
   "meta": {
     "baseOid": "3669dfd6a98e6c116c86f7db1cd27aa63002a90d",
-    "sha256": "65426d220857c9509850769804a102ea08efb11942cbde5c5b8e8e6f1201a46f",
+    "sha256": "6088e48c12a5eaf9d8ea636a221a7ef2e26805b5e7ee29f3842c634d3fba2047",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
-    "manifestSha256": "3e870bf01e594f0440ae167660f226cbae4ff4b64212593e0f97fb1fef565ad7",
+    "manifestSha256": "76c82b87d7783a4eae14af690cb34e7d6ec46f73617dc75b7f7401951619f080",
     "clock": "synthetic epoch milliseconds; receivedAt/evaluatedAt は合成固定時計。原XML日時は不変。系列内ケース間のrestartで時計と空stateを再設定。受信時刻の実測ではない。",
     "decisions": [
       "形式A（推奨・採用）={meta,sequences,expectations,unresolvedQuestions}。B=meta/期待値を別file。Aならstepと根拠の配送欠落を一ファイルのhashで検出できる。baseOidは本契約HEAD、manifestの来歴baseOidとは別。",
@@ -1202,7 +1202,7 @@
           "expectedRef": "expected:O02:19",
           "expectationBasis": [
             "L1: docs/specs/reconstruction-p0-contracts.md:1778 O02",
-            "L2: test/fixtures/76_01_02_260531_VPTA50.xml:1 元XMLのControl/Head/Bodyを読解（原本確認の主張ではない）"
+            "L2: test/fixtures/76_01_02_260531_VPTA50.xml:1 原本確認済み（dmdata Telegram List item id と受領 hash 一致、manifest 参照）"
           ]
         },
         {
@@ -1217,7 +1217,7 @@
           "expectedRef": "expected:O02:20",
           "expectationBasis": [
             "L1: docs/specs/reconstruction-p0-contracts.md:1778 O02",
-            "L2: test/fixtures/76_01_03_260602_VPTA50.xml:1 元XMLのControl/Head/Bodyを読解（原本確認の主張ではない）"
+            "L2: test/fixtures/76_01_03_260602_VPTA50.xml:1 原本確認済み（dmdata Telegram List item id と受領 hash 一致、manifest 参照）"
           ]
         },
         {
@@ -1758,7 +1758,7 @@
           "expectedRef": "expected:O03:8",
           "expectationBasis": [
             "L1: docs/specs/reconstruction-p0-contracts.md:1779 O03",
-            "L2: test/fixtures/18_00_01_260830_VPWW55_fukui_L5.xml:1 元XMLのControl/Head/Bodyを読解（原本確認の主張ではない）"
+            "L2: test/fixtures/18_00_01_260830_VPWW55_fukui_L5.xml:1 原本確認済み（dmdata Telegram List item id と受領 hash 一致、manifest 参照）"
           ]
         },
         {
@@ -1773,7 +1773,7 @@
           "expectedRef": "unmet:O03:9",
           "expectationBasis": [
             "L1: docs/specs/reconstruction-p0-contracts.md:1779 O03",
-            "L2: test/fixtures/18_00_01_260830_VPWW55_fukui_L5.xml:1 元XMLのControl/Head/Bodyを読解（原本確認の主張ではない）"
+            "L2: test/fixtures/18_00_01_260830_VPWW55_fukui_L5.xml:1 原本確認済み（dmdata Telegram List item id と受領 hash 一致、manifest 参照）"
           ]
         },
         {
@@ -1833,7 +1833,7 @@
           "expectedRef": "expected:O03:13",
           "expectationBasis": [
             "L1: docs/specs/reconstruction-p0-contracts.md:1779 O03",
-            "L2: test/fixtures/18_00_01_260830_VPWW55_fukui_L5.xml:1 元XMLのControl/Head/Bodyを読解（原本確認の主張ではない）"
+            "L2: test/fixtures/18_00_01_260830_VPWW55_fukui_L5.xml:1 原本確認済み（dmdata Telegram List item id と受領 hash 一致、manifest 参照）"
           ]
         },
         {
@@ -7989,7 +7989,7 @@
       "basisLevel": 1,
       "basisRefs": [
         "L1: docs/specs/reconstruction-p0-contracts.md:1778 O02",
-        "L2: test/fixtures/76_01_02_260531_VPTA50.xml:1 元XMLのControl/Head/Bodyを読解（原本確認の主張ではない）"
+        "L2: test/fixtures/76_01_02_260531_VPTA50.xml:1 原本確認済み（dmdata Telegram List item id と受領 hash 一致、manifest 参照）"
       ],
       "input": null,
       "checks": [
@@ -8018,7 +8018,7 @@
       "basisLevel": 1,
       "basisRefs": [
         "L1: docs/specs/reconstruction-p0-contracts.md:1778 O02",
-        "L2: test/fixtures/76_01_03_260602_VPTA50.xml:1 元XMLのControl/Head/Bodyを読解（原本確認の主張ではない）"
+        "L2: test/fixtures/76_01_03_260602_VPTA50.xml:1 原本確認済み（dmdata Telegram List item id と受領 hash 一致、manifest 参照）"
       ],
       "input": null,
       "checks": [
@@ -9084,7 +9084,7 @@
       "basisLevel": 1,
       "basisRefs": [
         "L1: docs/specs/reconstruction-p0-contracts.md:1779 O03",
-        "L2: test/fixtures/18_00_01_260830_VPWW55_fukui_L5.xml:1 元XMLのControl/Head/Bodyを読解（原本確認の主張ではない）"
+        "L2: test/fixtures/18_00_01_260830_VPWW55_fukui_L5.xml:1 原本確認済み（dmdata Telegram List item id と受領 hash 一致、manifest 参照）"
       ],
       "input": null,
       "checks": [
@@ -9118,7 +9118,7 @@
       "basisLevel": 1,
       "basisRefs": [
         "L1: docs/specs/reconstruction-p0-contracts.md:1779 O03",
-        "L2: test/fixtures/18_00_01_260830_VPWW55_fukui_L5.xml:1 元XMLのControl/Head/Bodyを読解（原本確認の主張ではない）"
+        "L2: test/fixtures/18_00_01_260830_VPWW55_fukui_L5.xml:1 原本確認済み（dmdata Telegram List item id と受領 hash 一致、manifest 参照）"
       ],
       "input": {
         "required": "VPWW57 別官署=京都地方気象台、通常、EventID/Serial空、ReportDateTime=2026-08-30T06:52:00+09:00。福井L5と重なる区域に別所有現象の合法partial。",
@@ -9254,7 +9254,7 @@
       "basisLevel": 1,
       "basisRefs": [
         "L1: docs/specs/reconstruction-p0-contracts.md:1779 O03",
-        "L2: test/fixtures/18_00_01_260830_VPWW55_fukui_L5.xml:1 元XMLのControl/Head/Bodyを読解（原本確認の主張ではない）"
+        "L2: test/fixtures/18_00_01_260830_VPWW55_fukui_L5.xml:1 原本確認済み（dmdata Telegram List item id と受領 hash 一致、manifest 参照）"
       ],
       "input": null,
       "checks": [
