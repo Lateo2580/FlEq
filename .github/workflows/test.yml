@@ -3,8 +3,15 @@ name: Test
 on:
   push:
     branches: [main]
+    # 文書だけの変更では回さない (2026-09-16 作者裁定 A)。reconstruction/ の JSON・checker は対象のまま
+    paths-ignore:
+      - "**/*.md"
+      - "docs/**"
   pull_request:
     branches: [main]
+    paths-ignore:
+      - "**/*.md"
+      - "docs/**"
   workflow_dispatch:
 
 concurrency:
@@ -14,6 +21,13 @@ concurrency:
 jobs:
   test:
     runs-on: ubuntu-latest
+    # engine 3 回 + display を直列に回すと 1 run 約 15 分だったので並列化 (2026-09-16 作者裁定 B)。
+    # install/build/typecheck は合計 1 分未満なので各 job で繰り返す方が単純
+    strategy:
+      fail-fast: false
+      matrix:
+        suite: [engine, engine-shuffle, engine-strict, display]
+    name: test (${{ matrix.suite }})
     steps:
       - uses: actions/checkout@v6
 
@@ -37,23 +51,18 @@ jobs:
       - name: Typecheck (display)
         run: npm run typecheck --prefix display
 
-      - name: Test (engine)
-        run: npm test
-
-      # 実行順をシャッフルして走らせる。デフォルト順では緑なのに順序を変えると
+      # engine-shuffle: 実行順をシャッフルして走らせる。デフォルト順では緑なのに順序を変えると
       # 落ちるテストが実在した (2026-07-25)。永続化・共有状態・module スコープの
       # 変数を触ったときに露出するので、CI では常に通す
-      - name: Test (engine, shuffled order)
-        run: npm run test:shuffle
-
-      # 待機 sweep の owner version 比較を version 抜き payload の全文比較と突き合わせ、
+      # engine-strict: 待機 sweep の owner version 比較を version 抜き payload の全文比較と突き合わせ、
       # 不一致なら throw する strict モード (#13 段階 4-3)。既定 off なので通常の
       # npm test では回らない。owner に mutation 経路が増えて bump 漏れが出ると
       # sweepAll が変更を取りこぼす (commit されない) ため、CI では常に通す (2026-09-09)
-      - name: Test (engine, strict sweep)
-        run: npm test
-        env:
-          FLEQ_STANDBY_SWEEP_STRICT: "1"
-
-      - name: Test (display)
-        run: npm test --prefix display
+      - name: Test (${{ matrix.suite }})
+        run: |
+          case "${{ matrix.suite }}" in
+            engine) npm test ;;
+            engine-shuffle) npm run test:shuffle ;;
+            engine-strict) FLEQ_STANDBY_SWEEP_STRICT=1 npm test ;;
+            display) npm test --prefix display ;;
+          esac
