@@ -1,9 +1,9 @@
 {
   "meta": {
     "baseOid": "3669dfd6a98e6c116c86f7db1cd27aa63002a90d",
-    "sha256": "129428fd43412290541e0ddad2cdba1d9ca09bd0f531349d7a1c52d10d483753",
+    "sha256": "65426d220857c9509850769804a102ea08efb11942cbde5c5b8e8e6f1201a46f",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
-    "manifestSha256": "3dd3882fc44b8967e8506b710c3c6b314526406197a167d107b7f285debb0d41",
+    "manifestSha256": "3e870bf01e594f0440ae167660f226cbae4ff4b64212593e0f97fb1fef565ad7",
     "clock": "synthetic epoch milliseconds; receivedAt/evaluatedAt は合成固定時計。原XML日時は不変。系列内ケース間のrestartで時計と空stateを再設定。受信時刻の実測ではない。",
     "decisions": [
       "形式A（推奨・採用）={meta,sequences,expectations,unresolvedQuestions}。B=meta/期待値を別file。Aならstepと根拠の配送欠落を一ファイルのhashで検出できる。baseOidは本契約HEAD、manifestの来歴baseOidとは別。",
@@ -838,6 +838,81 @@
           "expectationBasis": [
             "L1: docs/specs/reconstruction-p0-contracts.md:1777 O01",
             "L2: test/fixtures/telegram-foundation/phase7_5_VXSE53_20260728162718_bf35e8ea1825.xml:1 元XMLのControl/Head/Bodyを読解（原本確認の主張ではない）"
+          ]
+        },
+        {
+          "sequenceId": "O01",
+          "position": 56,
+          "action": "restart",
+          "fixtureId": null,
+          "receivedAt": null,
+          "evaluatedAt": 1786035480000,
+          "inputSource": "replay",
+          "operationExpected": null,
+          "expectedRef": "expected:O01:56",
+          "expectationBasis": [
+            "L1: docs/specs/reconstruction-p0-contracts.md:1758 固定初期状態・時計",
+            "L1: docs/specs/reconstruction-p0-contracts.md:736"
+          ]
+        },
+        {
+          "sequenceId": "O01",
+          "position": 57,
+          "action": "receive",
+          "fixtureId": "test__fixtures__43_04_01_260807_VFVO52",
+          "receivedAt": 1786035480001,
+          "evaluatedAt": 1786035480001,
+          "inputSource": "replay",
+          "operationExpected": "normal",
+          "expectedRef": "expected:O01:57",
+          "expectationBasis": [
+            "L1: docs/specs/reconstruction-p0-contracts.md:1777 O01",
+            "L2: test/fixtures/43_04_01_260807_VFVO52.xml:1 原本確認済み（dmdata Telegram List item id と受領 hash 一致、manifest 参照）"
+          ]
+        },
+        {
+          "sequenceId": "O01",
+          "position": 58,
+          "action": "receive",
+          "fixtureId": "test__fixtures__43_04_02_260807_VFVO52",
+          "receivedAt": 1786036020000,
+          "evaluatedAt": 1786036020000,
+          "inputSource": "replay",
+          "operationExpected": "normal",
+          "expectedRef": "expected:O01:58",
+          "expectationBasis": [
+            "L1: docs/specs/reconstruction-p0-contracts.md:1777 O01",
+            "L2: test/fixtures/43_04_02_260807_VFVO52.xml:1 原本確認済み（dmdata Telegram List item id と受領 hash 一致、manifest 参照）"
+          ]
+        },
+        {
+          "sequenceId": "O01",
+          "position": 59,
+          "action": "receive",
+          "fixtureId": "test__fixtures__43_04_02_260807_VFVO52",
+          "receivedAt": 1786036020001,
+          "evaluatedAt": 1786036020001,
+          "inputSource": "replay",
+          "operationExpected": "normal",
+          "expectedRef": "expected:O01:59",
+          "expectationBasis": [
+            "L1: docs/specs/reconstruction-p0-contracts.md:1777 O01",
+            "L2: test/fixtures/43_04_02_260807_VFVO52.xml:1 原本確認済み（dmdata Telegram List item id と受領 hash 一致、manifest 参照）"
+          ]
+        },
+        {
+          "sequenceId": "O01",
+          "position": 60,
+          "action": "receive",
+          "fixtureId": "test__fixtures__43_04_01_260807_VFVO52",
+          "receivedAt": 1786036020002,
+          "evaluatedAt": 1786036020002,
+          "inputSource": "replay",
+          "operationExpected": "normal",
+          "expectedRef": "expected:O01:60",
+          "expectationBasis": [
+            "L1: docs/specs/reconstruction-p0-contracts.md:1777 O01",
+            "L2: test/fixtures/43_04_01_260807_VFVO52.xml:1 原本確認済み（dmdata Telegram List item id と受領 hash 一致、manifest 参照）"
           ]
         }
       ]
@@ -1743,7 +1818,7 @@
           "expectedRef": "expected:O03:12",
           "expectationBasis": [
             "L1: docs/specs/reconstruction-p0-contracts.md:1779 O03",
-            "L2: test/fixtures/18_00_01_260830_VPWW55_fukui_downgrade.xml:1 元XMLのControl/Head/Bodyを読解（原本確認の主張ではない）"
+            "L2: test/fixtures/18_00_01_260830_VPWW55_fukui_downgrade.xml:1 原本確認済み（dmdata Telegram List item id と受領 hash 一致、manifest 参照）"
           ]
         },
         {
@@ -1765,14 +1840,15 @@
           "sequenceId": "O03",
           "position": 14,
           "action": "receive",
-          "fixtureId": null,
-          "receivedAt": 1788057660000,
-          "evaluatedAt": 1788057660000,
+          "fixtureId": "test__fixtures__18_00_01_260830_VPWW55_fukui_release",
+          "receivedAt": 1788087840000,
+          "evaluatedAt": 1788087840000,
           "inputSource": "replay",
           "operationExpected": "normal",
-          "expectedRef": "unmet:O03:14",
+          "expectedRef": "expected:O03:14",
           "expectationBasis": [
-            "L1: docs/specs/reconstruction-p0-contracts.md:1779 O03"
+            "L1: docs/specs/reconstruction-p0-contracts.md:1779 O03",
+            "L2: test/fixtures/18_00_01_260830_VPWW55_fukui_release.xml:1 原本確認済み（dmdata Telegram List item id と受領 hash 一致、manifest 参照）"
           ]
         },
         {
@@ -9144,7 +9220,7 @@
       "basisLevel": 1,
       "basisRefs": [
         "L1: docs/specs/reconstruction-p0-contracts.md:1779 O03",
-        "L2: test/fixtures/18_00_01_260830_VPWW55_fukui_downgrade.xml:1 元XMLのControl/Head/Bodyを読解（原本確認の主張ではない）"
+        "L2: test/fixtures/18_00_01_260830_VPWW55_fukui_downgrade.xml:1 原本確認済み（dmdata Telegram List item id と受領 hash 一致、manifest 参照）"
       ],
       "input": null,
       "checks": [
@@ -9187,7 +9263,7 @@
       ]
     },
     {
-      "expectedId": "unmet:O03:14",
+      "expectedId": "expected:O03:14",
       "sequenceId": "O03",
       "position": 14,
       "decision": {
@@ -9202,11 +9278,11 @@
       },
       "subjects": [
         {
-          "subject": "normal/O03/input.requiredに記した対象（未充足）",
+          "subject": "normal/VPWW55/福井地方気象台",
           "revision": {
-            "reportDateTimeRaw": "2026-08-30T11:41",
+            "reportDateTimeRaw": "2026-08-30T20:04:00+09:00",
             "serialRaw": null,
-            "infoTypeRaw": null
+            "infoTypeRaw": "発表"
           }
         }
       ],
@@ -9214,14 +9290,13 @@
       "intents": null,
       "basisLevel": 1,
       "basisRefs": [
-        "L1: docs/specs/reconstruction-p0-contracts.md:1779 O03"
+        "L1: docs/specs/reconstruction-p0-contracts.md:1779 O03",
+        "L2: test/fixtures/18_00_01_260830_VPWW55_fukui_release.xml:1 原本確認済み（dmdata Telegram List item id と受領 hash 一致、manifest 参照）"
       ],
-      "input": {
-        "required": "VPWW55 福井地方気象台、EventID/Serial空、ReportDateTime=2026-08-30T11:41、既存所有現象のcode00。",
-        "acquisition": "REST見込み/合成で所有交差固定"
-      },
+      "input": null,
       "checks": [
-        "福井VPWW55の所有現象だけ終了。別官署/別typeの現象を消さない。"
+        "福井 VPWW55 の所有現象だけ終了（code00 ×16、Headline 全区域「解除」）。別官署／別 type の現象（O03:7 の VPWS50 base・O03:9 の VPWW57 京都、いずれも未充足）を消さない。福井の current は空になり、古い base を再露出しない。",
+        "運用区分: Control.Status=通常; head.test/envelope Status=notProvided。replay 起源から区分を補わない。"
       ]
     },
     {
@@ -15575,6 +15650,164 @@
       },
       "checks": [
         "最新一枚に取消済み状態と期限内notice。新規接続も同じ状態、火山current復活0。"
+      ]
+    },
+    {
+      "expectedId": "expected:O01:56",
+      "sequenceId": "O01",
+      "position": 56,
+      "decision": null,
+      "effective": null,
+      "subjects": [],
+      "notices": false,
+      "intents": false,
+      "basisLevel": 1,
+      "basisRefs": [
+        "L1: docs/specs/reconstruction-p0-contracts.md:1758 固定初期状態・時計",
+        "L1: docs/specs/reconstruction-p0-contracts.md:736"
+      ],
+      "input": {
+        "required": "新しい隔離 harness を空の全 UnitState・checkpoint なしで起動: 桜島 VFVO52 同 Serial 訂正（原本 2 報）",
+        "acquisition": "synthetic"
+      },
+      "checks": [
+        "この step は試験ケースの初期化。前ケースの保存物・通知・gate を共有しない。起動の未充足を無発令と表示しない。"
+      ]
+    },
+    {
+      "expectedId": "expected:O01:57",
+      "sequenceId": "O01",
+      "position": 57,
+      "decision": {
+        "kind": "changed",
+        "change": "semantic"
+      },
+      "effective": {
+        "kind": "active"
+      },
+      "subjects": [
+        {
+          "subject": "normal/volcano:eruption/20260807015800_506",
+          "revision": {
+            "reportDateTimeRaw": "2026-08-07T01:58:00+09:00",
+            "serialRaw": "1",
+            "infoTypeRaw": "発表"
+          }
+        }
+      ],
+      "notices": null,
+      "intents": null,
+      "basisLevel": 1,
+      "basisRefs": [
+        "L1: docs/specs/reconstruction-p0-contracts.md:1777 O01",
+        "L2: test/fixtures/43_04_01_260807_VFVO52.xml:1 原本確認済み（dmdata Telegram List item id と受領 hash 一致、manifest 参照）"
+      ],
+      "input": null,
+      "checks": [
+        "eruption 桜島 506、code52、EventID=20260807015800_506、Serial 1、流向 東。EventID→火山 identity を保持。",
+        "運用区分: Control.Status=通常; head.test/envelope Status=notProvided。replay 起源から区分を補わない。"
+      ]
+    },
+    {
+      "expectedId": "expected:O01:58",
+      "sequenceId": "O01",
+      "position": 58,
+      "decision": {
+        "kind": "changed",
+        "change": "semantic"
+      },
+      "effective": {
+        "kind": "active"
+      },
+      "subjects": [
+        {
+          "subject": "normal/volcano:eruption/20260807015800_506",
+          "revision": {
+            "reportDateTimeRaw": "2026-08-07T02:07:00+09:00",
+            "serialRaw": "1",
+            "infoTypeRaw": "訂正"
+          }
+        }
+      ],
+      "notices": null,
+      "intents": null,
+      "basisLevel": 1,
+      "basisRefs": [
+        "L1: docs/specs/reconstruction-p0-contracts.md:1777 O01",
+        "L2: test/fixtures/43_04_02_260807_VFVO52.xml:1 原本確認済み（dmdata Telegram List item id と受領 hash 一致、manifest 参照）"
+      ],
+      "input": null,
+      "checks": [
+        "同 Serial 1・新 ReportDateTime 02:07 の訂正を stale と誤判定せず採用。流向 東→西と Body 末尾 Text「流向を訂正」は表示差分あり。通知有無は Q-NOTICE。",
+        "運用区分: Control.Status=通常; head.test/envelope Status=notProvided。replay 起源から区分を補わない。"
+      ]
+    },
+    {
+      "expectedId": "expected:O01:59",
+      "sequenceId": "O01",
+      "position": 59,
+      "decision": {
+        "kind": "unchanged",
+        "reason": "duplicate"
+      },
+      "effective": {
+        "kind": "active"
+      },
+      "subjects": [
+        {
+          "subject": "normal/volcano:eruption/20260807015800_506",
+          "revision": {
+            "reportDateTimeRaw": "2026-08-07T02:07:00+09:00",
+            "serialRaw": "1",
+            "infoTypeRaw": "訂正"
+          }
+        }
+      ],
+      "notices": false,
+      "intents": false,
+      "basisLevel": 1,
+      "basisRefs": [
+        "L1: docs/specs/reconstruction-p0-contracts.md:1777 O01",
+        "L2: test/fixtures/43_04_02_260807_VFVO52.xml:1 原本確認済み（dmdata Telegram List item id と受領 hash 一致、manifest 参照）"
+      ],
+      "input": null,
+      "checks": [
+        "訂正重複で追加通知 0、revision 不変。subjects.revision は入力の比較 tuple。",
+        "運用区分: Control.Status=通常; head.test/envelope Status=notProvided。replay 起源から区分を補わない。"
+      ]
+    },
+    {
+      "expectedId": "expected:O01:60",
+      "sequenceId": "O01",
+      "position": 60,
+      "decision": {
+        "kind": "unchanged",
+        "reason": "stale"
+      },
+      "effective": {
+        "kind": "active"
+      },
+      "subjects": [
+        {
+          "subject": "normal/volcano:eruption/20260807015800_506",
+          "revision": {
+            "reportDateTimeRaw": "2026-08-07T01:58:00+09:00",
+            "serialRaw": "1",
+            "infoTypeRaw": "発表"
+          }
+        }
+      ],
+      "notices": false,
+      "intents": false,
+      "basisLevel": 1,
+      "basisRefs": [
+        "L1: docs/specs/reconstruction-p0-contracts.md:1777 O01",
+        "L2: test/fixtures/43_04_01_260807_VFVO52.xml:1 原本確認済み（dmdata Telegram List item id と受領 hash 一致、manifest 参照）"
+      ],
+      "input": null,
+      "checks": [
+        "遅着した 01:58 発表報で流向 東 を復活させない。訂正済み current（西）維持。",
+        "運用区分: Control.Status=通常; head.test/envelope Status=notProvided。replay 起源から区分を補わない。"
       ]
     }
   ],
