@@ -60,3 +60,11 @@ hashは先頭`meta.draftedFromOid`に続く`meta.sha256`の64文字だけをASCI
 新築検証はrepo rootで`./node_modules/.bin/tsc --project reconstruction/tsconfig.json`と`./node_modules/.bin/vitest run --config reconstruction/vitest.config.ts`。P1実装が両設定を作り、新築src/testを対象にし、出力を`reconstruction/dist/`へ隔離する。rootのcleanを呼ばず旧distを削除・上書きしない。今回の起草検査は従来の3つのnode checkerのみ、build/vitest=N/A。
 
 七区間は§9.4の名前付きdurationMsとしてP1-AC14/P1-T07に対応し、最大VPWS50のenvelope・194period VPWP50・特殊値VXSE53を計測する。T0〜T6実paint時刻とは別。未実行はnullと理由を記録する。Q-OP期限は②のB03/B04境界契約前へ戻し、先行可能な独立作業をblocks欄へ明記した。Q-NOTICE-Q7の採否は閉じ、training/test通知・訓練音の具体条件はP2通知契約へ引き継ぐ。
+
+### Q-LIMIT 計測（2026-09-16、P1 契約 requiredEvidence の 1 点目）
+
+manifest の telegramXml 236 本を Python `xml.etree` で走査した最大値。parse 失敗 0。byteLength 4,567,490（`15_18_01_250630_VPWS50`）、node 数 155,247（同 VPWS50）、depth 12（`10_04_03_170913_VPTW60`）、1 node の属性数 5（`81_01_01_260129_VPWP50`）、属性値 36 文字（`32-35_01_03_240613_VXSE53`）、text 3,852 文字（`66_01_01_210517_VFVO53`）。node 数の上位 5 は VPWS50 が独占する。開始上限候補は最大正常 fixture に 2 倍の余裕を置いた node 320,000・depth 24・属性 16・属性値 256・text 16,384 を起点に P1-T05 で決める（この値は候補であり採用値ではない）。再計測は同じ走査（要素数・最大深さ・最大属性数・最長属性値・最長 text）を行えば足りる。
+
+### Q-OP 根拠（2026-09-16、P1 契約 requiredEvidence の 1 点目）
+
+Control.Status が形式上 notProvided になる合法入力は、WS `data` の `format` が `a/n` または `binary` の電文。dmdata WebSocket v2 仕様は `xmlReport` を「format が xml か json のときに含む」と定めるので、これらの電文では `xmlReport.control.status` も本文の `Control/Status` も存在せず、`head.test` だけが残る（三判定源のうち 1 源のみ）。FlEq が購読する区分では telegram.earthquake に WEPA60（a/n）・IXAC41（binary）、telegram.weather に WTJPii（a/n）が該当する（dmdata 電文データ一覧、2026-09-16 取得。telegram.volcano・eew.* は XML のみ）。既存型 `WsDataMessage.format` は `"xml" | "a/n" | "binary" | "json" | null` で、この形式を既に受ける。corpus 側の実例: telegramXml 236 本のうち `Control/Status` 欠落は 0、`Control` 自体の欠落は WeatherCW 抽出断片 1 本のみ（既知の断片、合法電文ではない）。Status 値の分布は 通常 223・訓練 5・試験 7。a/n・binary の実受信例は未取得で、必要なら REST 取得計画の probe で WTJPii の 1 ページを確認する（これも作者裁定後）。
