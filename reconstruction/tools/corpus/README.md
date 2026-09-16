@@ -68,3 +68,34 @@ manifest の telegramXml 236 本を Python `xml.etree` で走査した最大値�
 ### Q-OP 根拠（2026-09-16、P1 契約 requiredEvidence の 1 点目）
 
 Control.Status が形式上 notProvided になる合法入力は、WS `data` の `format` が `a/n` または `binary` の電文。dmdata WebSocket v2 仕様は `xmlReport` を「format が xml か json のときに含む」と定めるので、これらの電文では `xmlReport.control.status` も本文の `Control/Status` も存在せず、`head.test` だけが残る（三判定源のうち 1 源のみ）。FlEq が購読する区分では telegram.earthquake に WEPA60（a/n）・IXAC41（binary）、telegram.weather に WTJPii（a/n）が該当する（dmdata 電文データ一覧、2026-09-16 取得。telegram.volcano・eew.* は XML のみ）。既存型 `WsDataMessage.format` は `"xml" | "a/n" | "binary" | "json" | null` で、この形式を既に受ける。corpus 側の実例: telegramXml 236 本のうち `Control/Status` 欠落は 0、`Control` 自体の欠落は WeatherCW 抽出断片 1 本のみ（既知の断片、合法電文ではない）。Status 値の分布は 通常 223・訓練 5・試験 7。a/n・binary の実受信例は未取得で、必要なら REST 取得計画の probe で WTJPii の 1 ページを確認する（これも作者裁定後）。
+
+### Q-OP 三判定源 matrix と必須 field 表（2026-09-16、P1 契約 requiredEvidence の 2 点目）
+
+出典は dmdata docs `reference/api/v2/websocket/`（type="data" の field 表）と `reference/api/v2/socket.start/`（2026-09-16 取得）、電文一覧 `docs/telegrams/`。FlEq の socket.start は `classifications`・`test`・`appName`・`formatMode:"raw"` だけを送り `formats` を指定しない（`src/dmdata/rest-client.ts:528-533`）ので、契約区分に a/n・binary の型があればそのまま届く。対象は telegram.earthquake の WEPA60（a/n）・IXAC41（binary）、telegram.weather の WTJPii（a/n、ii=21〜26 定時・31〜36 臨時）。telegram.volcano・eew.forecast・eew.warning は XML のみ。
+
+仕様の硬い 2 文（原文）: head.test は「訓練・試験等のテスト電文かどうか。**注意：XML以外は常にfalse**」。socket.start の test は「**注意：XML電文以外のテスト配信は no 時も配信されます。本文中を参照するようにしてください。**」。つまり a/n・binary では head.test が定数 false で、テスト電文の判別は本文形式ごとの内部表記にしか無い。
+
+必須 field 表（type="data"。「いつも」は仕様の必須、「内容による」は仕様の任意）:
+
+| field | xml | json | a/n | binary | 備考 |
+|---|---|---|---|---|---|
+| type／version／classification／id／passing | いつも | いつも | いつも | いつも | 共通 envelope |
+| head.type／author／time／designation | いつも | いつも | いつも | いつも | designation は通常 null |
+| head.target | 内容による | 内容による | 内容による | 内容による | 対象観測地点コード |
+| head.test | いつも（実値） | いつも（実値） | いつも（**常に false**） | いつも（**常に false**） | XML 以外は定数 |
+| head.xml | 内容による（true） | 内容による | 内容による（false／無し） | 内容による（false／無し） | |
+| xmlReport.control.status（envelope Status） | あり | あり | **無し** | **無し** | 「format=xml または json 時」のみ |
+| xmlReport.head.* | あり | あり | 無し | 無し | 同上 |
+| 本文 Control/Status | あり（full parse） | JSON 変換版の control.status | **無し**（XML ではない） | **無し** | |
+| format／compression／encoding／body | いつも | いつも（compression null・utf-8） | いつも | いつも | |
+
+三判定源 matrix（`OperationEvidence` の sourceState で表す）:
+
+| format | headTest | envelopeStatus | controlStatus | 帰結 |
+|---|---|---|---|---|
+| xml | provided（実値） | provided | provided | 三源を正規化して一致なら resolved、不一致は operationMismatch、欠落は operationMissing、不正値は operationInvalid |
+| json | provided | provided | provided（JSON 内 control.status） | FlEq は `formatMode:"raw"` なので受けない。契約の対象外（xml と同じ扱いにするかは B03 で決める） |
+| a/n | provided だが定数 false | notProvided | notProvided | 実値を持つ源が 0。**notProvided を normal の根拠にしない**規則により resolved にできない → operationAmbiguous（三源の存在状態を診断に残す）。format 境界で先に「XML でない」として拒否するなら、その reason は Q-ENUM 側で定める |
+| binary | 同上 | notProvided | notProvided | 同上 |
+
+Control.Status が形式上 notProvided になる合法入力は a/n・binary の 2 形式で、どちらも head.test が仕様上の定数なので「head.test だけで normal と判定する」経路を作らないことが B03/B04 の受入条件になる。テスト電文が test=no でも届く以上、a/n・binary を normal として業務 state に流す実装は訓練電文を本番表示する経路になる。実受信例（WEPA60・WTJPii）は未取得で、operationAmbiguous fixture は REST 取得計画の別段階（WTJPii 1 ページ、作者裁定後）で採るか synthetic で作る。json は FlEq の運用外なので fixture を作らない。
