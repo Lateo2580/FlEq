@@ -9,7 +9,7 @@
 | 一覧は `GET https://api.dmdata.jp/v2/telegram`（Telegram List v2）。パラメータ: `type`（前方一致、またはカンマ区切り最大 5 つ）、`classification`、`xmlReport`（**既定 false**。true で `xmlReport.control/head` が item に載る）、`test`（既定 `no`、`including`／`only`）、`formatMode`（既定 raw）、`datetime`（**【実験】** `開始~終了` 形式の受信日時絞り込み）、`cursorToken`、`limit`（既定 20、最大 100） | dmdata docs `telegram.list/`（2026-09-16 取得） |
 | 本文は一覧の `body` に入らず、各 item の `url`（`https://data.api.dmdata.jp/v1/<id>`）を GET する | Vault `Knowledge/Dev/2026-08-24-dmdata-rest電文採取の実際` |
 | 提供期間は 2025-07-01 以降「直近約 180 日分」（2026-09-16 起点で **2026-03-20** より前は Telegram List では取れない）。**EEW 関連電文は Telegram List に表示されない** | 同 docs |
-| 2026-08-23 の採取では、`type` フィルタ併用時に `nextToken` が前進せず（2 ページ目以降が同一スパンを反復）、実効的に「型別 1 ページ（100 件）」しか遡れなかった。**これは当時の観測で、恒久的な API 制約とは確定していない**。`datetime` 絞り込みと正しいカーソル引継ぎは未検証 | Vault 同上（VPOA50 約 2 ヶ月、VPWW56 約 2 日、VXSE53 約 10 日の窓幅を観測） |
+| 2026-08-23 の採取では、`type` フィルタ併用時に `nextToken` が前進せず（2 ページ目以降が同一スパンを反復）、実効的に「型別 1 ページ（100 件）」しか遡れなかった。**2026-09-16 の probe で再現せず**: VXSE53 で同一パラメータ＋`cursorToken` の 2 ページ目は前進した（重複 0、2026-08-19〜08-30）。`datetime` 絞り込みも効いた（VPWP50 2026-06-05 で 100 件、VPWW55 2026-08-30 で 61 件） | Vault 同上、`~/dev/fleq-corpus-p0/probe-20260916.json` |
 | 地震イベントは `GET /v2/gd/earthquake?limit=100` の `cursorToken` が前進し、`/v2/gd/earthquake/<eventId>` の詳細で当該電文一覧が取れる。各電文の **`originalId`** を `data.api.dmdata.jp/v1/<originalId>` に渡すと raw XML（`id` と `url` は JSON 変換版） | 同 Vault、熊本 7/28 の 8 通採取実績 |
 | Archive List v2（`GET /v2/archive`、`archive.list` 権限、**契約中の配信区分のみ**）は配信区分ごとの日別 `.tar.gz` の一覧。応答は `id／classification／date／dataCount／fileSize／url`、`datetime` で日付範囲指定。本体は Archive Data v1（`GET https://data.api.dmdata.jp/v1/archive/:id`、**別権限 `archive.data`**）で、解凍後の `telegrams.json` を参照して個別電文を辿る。同じ id への短期間の反復要求は禁止。**保存開始**: 地震津波・火山・気象警報・定時報は **2020-11-18 12 時**、EEW（予報・警報）は **2022-07-20 15 時**。FlEq 契約での両権限の有無は**未確認** | dmdata docs `archive.list/`・`v1/archive.data/`（2026-09-16 取得） |
 | レート制限（公式）: ドメイン×IP ごとに 10 分 2000 req。**`data.api.dmdata.jp/v1/:id` と `/v1/archive/:id` は 5 分 50 req**。429 は指数バックオフ、`Retry-After` があれば尊重 | dmdata docs `reference/api/v2`、`src/dmdata/rest-client.ts:140` |
@@ -34,19 +34,19 @@
 
 ## 3. ② の「REST 見込み」19 件と取得経路の照合
 
-錨の EventID／ReportDateTime を Telegram List の 180 日窓（2026-03-20 以降）と照合した。**「窓外」は「同 EventID を Telegram List で取れない」の意味で、取得不能ではない**（Archive で届く可能性が残る）。「見込み」列は probe（§7）前の見立てで、probe 結果で置き換える。
+錨の EventID／ReportDateTime を Telegram List の 180 日窓（2026-03-20 以降）と照合した。**「窓外」は「同 EventID を Telegram List で取れない」の意味で、取得不能ではない**（Archive で届く可能性が残る）。「見込み」列は 2026-09-16 の probe（19 req＋生 item 保存 4 req、本文なし）の実測で置き換えた。分類は 候補あり／探索範囲内に見つからず／本文確認待ち／取得失敗。
 
 | 系列 | step | 対象 | 錨の日時 | List 窓 | 取れる経路 | 見込み |
 |---|---|---|---|---|---|---|
-| O01 | 4, 11 | VXSE43/45 同 revision 訂正 | 2024-04-17 | 外 | **D（Archive）のみ**（EEW 保存開始 2022-07-20 以降）。EEW は Telegram List に出ないので経路 A の別事例張り替えも不可 | Archive の権限と予算次第。届かなければ synthetic |
-| O01 | 29–32 | VFVO50 火山 306 続報・訂正・取消・重複 | 2020-05-22 | 外 | **Archive 保存開始（2020-11-18）より前**。通常の探索対象から外す。別事例は A（噴火警報の取消は稀事象） | 別事例の張り替えか synthetic が基本 |
-| O01 | 37–39 | VFVO55 火山 506 訂正・取消・重複 | 2021-05-14 | 外 | D（Archive、保存開始後）。別事例は A | Archive の権限と予算次第 |
-| O01 | 52–54 | VXSE53 熊本 20260728162718 訂正・取消・重複 | 2026-07-28 | **内** | B（GD 詳細 1 req） | 当該イベントに訂正／取消電文が実在したかは詳細応答で確定する。無ければ synthetic |
-| O02 | 3 | VPWP50 稚内 合法 empty | 2026-06-05 | 内 | A（`datetime` 指定を試す） | 流量が多い型。`datetime` が効けば到達し得る。empty の確定は本文確認が要る |
-| O02 | 21–22 | VPTA50 TC2606 全ゼロ後続報・gate-only | 2026-06-02 | 内 | A | 台風時のみ発表で 1 ページが長期間を覆う見込み（未実測） |
-| O02 | 25 | VXKO50 全水位 unknown | 2019-05-27（合成 EventID） | 外 | A で別事例（洪水予報は事象依存） | 錨自体が合成。窓内の実 VXKO50 で錨を張り替えるか、synthetic のまま |
-| O03 | 14 | VPWW55 福井 code00 | 2026-08-30 | 内 | A（`datetime` 指定を試す） | 流量が多い型。code00 の確定は本文確認が要る |
-| O09 | 17–18 | VTSE41 20110311 解除・降格 | 2011-03-11 | 外 | **Archive 保存開始より前**。通常の探索対象から外す。別事例は C（待ち伏せ）＋D（取り逃し回収） | 別事例の張り替えか synthetic が基本 |
+| O01 | 4, 11 | VXSE43/45 同 revision 訂正 | 2024-04-17 | 外 | **D（Archive）のみ**（EEW 保存開始 2022-07-20 以降）。EEW は Telegram List に出ないので経路 A の別事例張り替えも不可 | VXSE43: **取得失敗**（`eew.warning` の archive 一覧が 402 `Not contract.`）→ synthetic。VXSE45: **候補あり**（`eew.forecast` 2024-04-18 の archive、dataCount 72・fileSize 15,505。`archive.data` 権限は本文取得で確認） |
+| O01 | 29–32 | VFVO50 火山 306 続報・訂正・取消・重複 | 2020-05-22 | 外 | **Archive 保存開始（2020-11-18）より前**。通常の探索対象から外す。別事例は A（噴火警報の取消は稀事象） | 別事例: VFVO50 直近 18 件（2026-04-28〜09-12）は全て発表・訂正なし → **探索範囲内に見つからず**。ただし **VFVO52 に同 EventID `20260807015800_506` の 発表 01:58→訂正 02:07（serial 1 同士）の実連鎖あり（候補あり、本文確認待ち 2 件）**。噴火 slice の錨として張り替え候補 |
+| O01 | 37–39 | VFVO55 火山 506 訂正・取消・重複 | 2021-05-14 | 外 | D（Archive、保存開始後）。別事例は A | **候補あり**（`telegram.volcano` 2021-05-15 の archive、dataCount 106・fileSize 500,185）。直近 VFVO55 24 件は全て発表 |
+| O01 | 52–54 | VXSE53 熊本 20260728162718 訂正・取消・重複 | 2026-07-28 | **内** | B（GD 詳細 1 req） | **探索範囲内に見つからず**: GD 詳細の電文 8 通（VXSE51×4・VXSE53×2・VXSE61・VXSE62）は全て発表。同 EventID の訂正・取消は synthetic。直近 VXSE51/52/53 各 100 件も全て発表 |
+| O02 | 3 | VPWP50 稚内 合法 empty | 2026-06-05 | 内 | A（`datetime` 指定を試す） | **本文確認待ち 1 件**: `datetime` で 6/5 に到達（100 件、nextToken あり）。稚内の 18:01 JST 報は無く、**23:00 JST 報**（id `06864b91…`）がある。empty かは本文で確定 |
+| O02 | 21–22 | VPTA50 TC2606 全ゼロ後続報・gate-only | 2026-06-02 | 内 | A | 1 ページは 2026-08-05〜09-16（100 件、nextToken あり）。6/2 は 2 ページ目以降。**候補あり（未到達、cursor で遡れる見込み）** |
+| O02 | 25 | VXKO50 全水位 unknown | 2019-05-27（合成 EventID） | 外 | A で別事例（洪水予報は事象依存） | 1 ページは 2026-05-20〜09-09（100 件、通常 53・訓練 47）。全水位 unknown かは本文でしか分からず **本文確認待ち（件数未定）**。錨は張り替え前提 |
+| O03 | 14 | VPWW55 福井 code00 | 2026-08-30 | 内 | A（`datetime` 指定を試す） | **本文確認待ち 1 件**: `datetime` で 8/30 に到達（61 件）。福井地方気象台の **11:40 JST 報**（id `ccd3ec41…`）が錨に一致（同日 10 報あり、連鎖材料）。code00 かは本文で確定 |
+| O09 | 17–18 | VTSE41 20110311 解除・降格 | 2011-03-11 | 外 | **Archive 保存開始より前**。通常の探索対象から外す。別事例は C（待ち伏せ）＋D（取り逃し回収） | 直近 VTSE41 17 件（2026-03-26〜07-28、通常 13・訓練 4）は全て発表。解除・降格の実例は **探索範囲内に見つからず** → 待ち伏せ C か synthetic |
 
 ## 4. 取得経路
 
