@@ -1208,14 +1208,14 @@ frontend が背景から前景へ戻った際は、通常の timer 発火を待�
 
 B15 は診断を次の固定 field で出す。
 
-`timestamp／level／component／reason／runId` を必須とし、該当時だけ `inputId／unit／generation／attemptId／durationMs／count` を加える。level は `DEBUG／INFO／WARN／ERROR` の文字列で保持し、色だけで区別しない。
+`timestamp／level／component／reason／runId` を必須とし、該当時だけ `inputId／unit／generation／attemptId／durationMs／count` を加える。level は `DEBUG／INFO／WARN／ERROR` の文字列で保持し、色だけで区別しない。reason は自由文ではなく列挙値とし、各単位契約が名前を固定する。unit は単位 ID（`U-*`）で書く。1 行 1 イベントとし、本文に改行を含めない。外部の行監視が 1 行を 1 イベントとして読める形を保つ。
 
 本番の永続 sink は、運用環境の保持上限付きログ機構、または非同期の回転ファイルの**どちらか一つ**を使う。tmux scrollback だけを保存先にしない。新しい logger framework は必須にしない。
 
 開始値は次のとおりとする。
 
 - ログ配送 queue：256 件かつ 1 MiB、in-flight を含む。
-- 一行：8 KiB 以下。本文を切った場合は省略理由を付ける。
+- 一行：8 KiB 以下。本文を切った場合は省略理由を付け、必須 field と field の順序は保つ。
 - 永続保持：7 日または合計 100 MiB の早い方で回収。
 - DEBUG：通常無効。性能標本は電文全文のログではなく固定 field の測定記録へ出す。
 
