@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "3095a6c21caa96e06fc3b3a6d2f906534ef5441b",
-    "sha256": "f55420a245362c61318b387b239c1dcd2bee4ce908abe761ab22681283a36be1",
+    "sha256": "15df00766e4d4b6e7a1296c9f45bbe4769bcf7ee85e0226e702092346f4844a4",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "76c82b87d7783a4eae14af690cb34e7d6ec46f73617dc75b7f7401951619f080",
     "sequencesSha256": "22b2432e8989d7e7cc2514f2297308e84b3c0f1a3e045491b9cf60cfa8f2d147",
@@ -24,6 +24,24 @@
         "provisional": "A",
         "ruling": "計画§3.2により A",
         "reason": "共有unionの同時編集と型複製を防ぐ"
+      },
+      {
+        "id": "P2-A1-OWNERSHIP",
+        "A": "runtime/shared-runtime.tsとruntime/runtime-diagnostic.tsだけをA1が所有し、P1既存3ファイルとA3 composition rootを編集しない",
+        "B": "runtime/**・diagnostics/**・contracts-revision/**を後続契約と共有する",
+        "recommended": "A",
+        "provisional": "A",
+        "ruling": "独立レビュー指摘1によりA。再レビュー指摘2: P1 diagnostics/**との重複を除外",
+        "reason": "A1/A3/P1の書込許可を単独所有へ固定する"
+      },
+      {
+        "id": "P2-A1-R11",
+        "A": "A5の容量退去を共有DiagnosticReasonのweatherCurrentCapacityEvictedで記録する",
+        "B": "unavailableまたは取消として表す",
+        "recommended": "A",
+        "provisional": "A",
+        "ruling": "作者裁定R11=A（Issue #21）",
+        "reason": "固定診断fieldを保ち、容量退去と意味上の取消・unavailableを区別する"
       }
     ],
     "questionResolutions": [
@@ -72,9 +90,8 @@
       "reconstruction/test/**"
     ],
     "allowedPaths": [
-      "reconstruction/src/contracts-revision/**",
-      "reconstruction/src/runtime/**",
-      "reconstruction/src/diagnostics/**",
+      "reconstruction/src/runtime/shared-runtime.ts",
+      "reconstruction/src/runtime/runtime-diagnostic.ts",
       "reconstruction/test/shared-runtime/**"
     ],
     "allowedGitCommands": [
@@ -111,6 +128,7 @@
       "reconstruction/contracts/p2-shared-runtime.types.ts#SaveProgress",
       "reconstruction/contracts/p2-shared-runtime.types.ts#PersistenceStatus",
       "reconstruction/contracts/p2-shared-runtime.types.ts#NotificationIntent",
+      "reconstruction/contracts/p2-shared-runtime.types.ts#NotificationResult",
       "reconstruction/contracts/p2-shared-runtime.types.ts#PublishedOutcome",
       "reconstruction/contracts/p2-shared-runtime.types.ts#UnitView",
       "reconstruction/contracts/p2-shared-runtime.types.ts#ParserDiagnosticReason",
@@ -265,7 +283,7 @@
       },
       {
         "id": "P2-A1-AC05",
-        "requirement": "E23型境界: DiagnosticEventは固定必須fieldと許可された任意fieldだけを持ち、raw/tokenを受け渡さない。純関数はDiagnosticDetails（reasonと有界な許可値）だけを返し、runtimeがclock.wallTimeMsとrunIdを付与する。DiagnosticReasonはparser10種＋operation4種＋意味拒否7種＋InfrastructureDiagnosticReason基盤20種のunionで、parser projectionと保存11種・mailbox5種・終了2種・sink2種を同じsinkへ配送できる。保存失敗段階はcheckpointEncodeFailed／checkpointWriteFailed／checkpointFileSyncFailed／checkpointCloseFailed／checkpointRenameFailed／checkpointDirectorySyncFailed／checkpointVerifyFailed、mailbox拒否内訳はmailboxRejectedDraining／mailboxRejectedItemLimit／mailboxRejectedByteLimitとしてreason列挙値に織り込む。DiagnosticDetailsはspec §7.9の固定fieldだけを持ち、追加field・任意文字列reasonを禁止する",
+        "requirement": "E23型境界: DiagnosticEventは固定必須fieldと許可された任意fieldだけを持ち、raw/tokenを受け渡さない。純関数はDiagnosticDetails（reasonと有界な許可値）だけを返し、runtimeがclock.wallTimeMsとrunIdを付与する。DiagnosticReasonはparser10種＋operation4種＋意味拒否7種＋InfrastructureDiagnosticReason基盤20種＋U-W容量退去weatherCurrentCapacityEvictedのunionで、parser projectionと保存11種・mailbox5種・終了2種・sink2種を同じsinkへ配送できる。保存失敗段階はcheckpointEncodeFailed／checkpointWriteFailed／checkpointFileSyncFailed／checkpointCloseFailed／checkpointRenameFailed／checkpointDirectorySyncFailed／checkpointVerifyFailed、mailbox拒否内訳はmailboxRejectedDraining／mailboxRejectedItemLimit／mailboxRejectedByteLimitとしてreason列挙値に織り込む。DiagnosticDetailsはspec §7.9の固定fieldだけを持ち、追加field・任意文字列reasonを禁止する",
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:1211 «1db51524eccef065»",
           "docs/specs/reconstruction-p0-contracts.md:1226 «086e8c5d7c0f990f»",
@@ -328,7 +346,7 @@
         "referenceIds": [
           "P2-A1-AC05"
         ],
-        "behavior": "E23型境界: DiagnosticEventは固定必須fieldと許可された任意fieldだけを持ち、raw/tokenを受け渡さない。純関数はDiagnosticDetails（reasonと有界な許可値）だけを返し、runtimeがclock.wallTimeMsとrunIdを付与する。DiagnosticReasonはparser10種＋operation4種＋意味拒否7種＋InfrastructureDiagnosticReason基盤20種のunionで、parser projectionと保存11種・mailbox5種・終了2種・sink2種を同じsinkへ配送できる。保存失敗段階はcheckpointEncodeFailed／checkpointWriteFailed／checkpointFileSyncFailed／checkpointCloseFailed／checkpointRenameFailed／checkpointDirectorySyncFailed／checkpointVerifyFailed、mailbox拒否内訳はmailboxRejectedDraining／mailboxRejectedItemLimit／mailboxRejectedByteLimitとしてreason列挙値に織り込む。DiagnosticDetailsはspec §7.9の固定fieldだけを持ち、追加field・任意文字列reasonを禁止する"
+        "behavior": "E23型境界: DiagnosticEventは固定必須fieldと許可された任意fieldだけを持ち、raw/tokenを受け渡さない。純関数はDiagnosticDetails（reasonと有界な許可値）だけを返し、runtimeがclock.wallTimeMsとrunIdを付与する。DiagnosticReasonはparser10種＋operation4種＋意味拒否7種＋InfrastructureDiagnosticReason基盤20種＋U-W容量退去weatherCurrentCapacityEvictedのunionで、parser projectionと保存11種・mailbox5種・終了2種・sink2種を同じsinkへ配送できる。保存失敗段階はcheckpointEncodeFailed／checkpointWriteFailed／checkpointFileSyncFailed／checkpointCloseFailed／checkpointRenameFailed／checkpointDirectorySyncFailed／checkpointVerifyFailed、mailbox拒否内訳はmailboxRejectedDraining／mailboxRejectedItemLimit／mailboxRejectedByteLimitとしてreason列挙値に織り込む。DiagnosticDetailsはspec §7.9の固定fieldだけを持ち、追加field・任意文字列reasonを禁止する"
       },
       {
         "testId": "P2-A1-T06",
@@ -399,7 +417,8 @@
       "変更ファイル一覧、実行コマンドと結果、未実行検証と理由、残存リスク",
       "判断分岐A/B・推奨・暫定採用と、追加・変更した各テストのpurpose対応",
       "DiagnosticDetailsがないと純関数が外部時計/runIdを捏造する。runtimeだけがDiagnosticEventを完成させ、全文字列・任意値を既定8192 byte上限へ収める",
-      "FreshnessRecordがないと候補非採用と現在出典の不一致を対象別に追跡できない。意味判定実装はA5へ残す"
+      "FreshnessRecordがないと候補非採用と現在出典の不一致を対象別に追跡できない。意味判定実装はA5へ残す",
+      "NotificationResultがないとA7のchannel・aborted・timeout/abortedのstoppedをreduceRuntimeへ無損失で戻せず、停止未確認channelを誤解放するためA1共有型を唯一の正本にする"
     ],
     "unresolvedQuestions": [
       {

@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "fc7006e2380edf9a97b601d124341ba4bd7f7f42",
-    "sha256": "f7dd4aa7f94073c6c083dbf27e060267244f624b7e6ae4b28fdfcff4ce1fe383",
+    "sha256": "b12994e9ed450239e259aaa2948054c6b4f78277d97266c0dd4e76693aacf3a0",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "76c82b87d7783a4eae14af690cb34e7d6ec46f73617dc75b7f7401951619f080",
     "sequencesSha256": "22b2432e8989d7e7cc2514f2297308e84b3c0f1a3e045491b9cf60cfa8f2d147",
@@ -33,6 +33,15 @@
         "provisional": "B",
         "ruling": "通知音裁定B",
         "reason": "A4はintent生成だけを所有しadapterを複製しない"
+      },
+      {
+        "id": "P2-A4-XREF1",
+        "A": "予想震度をA4の具体型へ固定し、A7共有結果と照合済みintent更新をA1 runtime経由で適用する",
+        "B": "自由形predictionとdispositionだけの通知更新を残す",
+        "recommended": "A",
+        "provisional": "A",
+        "ruling": "独立レビュー指摘2・3によりA",
+        "reason": "A9表示fieldとattempts/nextAttemptAtを無損失で接続する"
       }
     ],
     "questionResolutions": [
@@ -96,6 +105,9 @@
       "P2-CHECKPOINT-SHUTDOWN-001"
     ],
     "publicTypes": [
+      "reconstruction/contracts/p2-eew-unit.types.ts#EewPredictionIntensity",
+      "reconstruction/contracts/p2-eew-unit.types.ts#EewPredictionArea",
+      "reconstruction/contracts/p2-eew-unit.types.ts#EewPrediction",
       "reconstruction/contracts/p2-eew-unit.types.ts#EewCurrent",
       "reconstruction/contracts/p2-eew-unit.types.ts#EewGate",
       "reconstruction/contracts/p2-eew-unit.types.ts#EewUnitState",
@@ -203,7 +215,7 @@
       },
       {
         "id": "P2-A4-AC02",
-        "requirement": "M01個別意味関数はEventID、family、operation別の報番号・終端・取消・予測保持を判定し、unknown続報で誤降格しない",
+        "requirement": "M01個別意味関数はEventID、family、operation別の報番号・終端・取消・予測保持を判定し、unknown続報で誤降格しない。EewCurrent.predictionへ全体予想最大震度と区域配列を射影し、区域code・From/To・condition/description・区域なしを固定fieldで保持する。areaCoverageはareas非空ならpresent、空ならnoneとする。P1 MaterialValueのmissing/empty/unknown/rangeとrawを失わず、A9 AC02/AC03は次巡改訂でこの同じfieldを参照する",
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:390 «65b3993296d54b19»",
           "reconstruction/contracts/p2-order-plan.md:79 «3be2683a0c47d9fe»"
@@ -288,7 +300,7 @@
           "P2-A4-AC02",
           "P2-A4-AC03"
         ],
-        "behavior": "報番号・終端・取消・operation交差を一つの統合系列で確認"
+        "behavior": "報番号・終端・取消・operation交差と、全体最大・区域code・From/To・区域なし・unknownの予想震度射影を一つの統合系列で確認"
       },
       {
         "testId": "P2-A4-T03",
@@ -375,7 +387,9 @@
       "同一EventIDのnormal/training交差fixtureは新規syntheticを作らず、必要仕様をQ-NOTICE requiredEvidenceに残す",
       "1実装interface、factory、registry、outbox、将来用extension pointを追加しない",
       "allowed_paths限定patch、変更一覧、build/test/shuffle結果、未実行検証、残存リスク",
-      "純粋な意味関数とreduceUnitはDiagnosticDetailsだけを返し、runtimeがtimestamp/runIdを付与する。各subjectのdecisionsを系列oracleのdecision/reason/changeと照合し、duplicate/stale/noChangeを区別する。識別不能な拒否ではsubjectを空文字にし、架空の業務identityを作らない。"
+      "純粋な意味関数とreduceUnitはDiagnosticDetailsだけを返し、runtimeがtimestamp/runIdを付与する。各subjectのdecisionsを系列oracleのdecision/reason/changeと照合し、duplicate/stale/noChangeを区別する。識別不能な拒否ではsubjectを空文字にし、架空の業務identityを作らない。",
+      "EewPredictionの具体型がないとA9が全体最大・区域code・From/To・区域なし・unknownを別キーへ投影できるため、A4を正本にしA8はEewUnitViewをそのまま運んで別の予想震度型を作らない",
+      "EewInput.notificationResultはA1 NotificationResultと照合済みintentUpdateを一緒に受け、attempts/nextAttemptAt/dispositionをreduceEewUnitだけで反映する。無いとA3がA4 stateを直接変更し唯一の更新入口と衝突する"
     ],
     "unresolvedQuestions": [
       {

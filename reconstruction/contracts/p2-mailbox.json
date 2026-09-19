@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "3095a6c21caa96e06fc3b3a6d2f906534ef5441b",
-    "sha256": "0da1cfddb664e747766492e71d66ef3d3d2563affaf58b8dc0d9b32ed10ef1a4",
+    "sha256": "5a90220ae620a78a8d08c3e0925f0571b0b5e02a7c8ab1a7bca352d6a5042434",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "76c82b87d7783a4eae14af690cb34e7d6ec46f73617dc75b7f7401951619f080",
     "sequencesSha256": "22b2432e8989d7e7cc2514f2297308e84b3c0f1a3e045491b9cf60cfa8f2d147",
@@ -24,6 +24,15 @@
         "provisional": "A",
         "ruling": "計画とspecの単一mailbox境界により A",
         "reason": "件数・byte・in-flightの合算上限と同一subject順を一か所で守る"
+      },
+      {
+        "id": "P2-A2-OWNERSHIP",
+        "A": "A2はmailbox/mailbox.tsだけを所有し、P1のmailbox/parser-boundary.tsは読取専用にする",
+        "B": "mailbox/**を許可してP1境界も編集可能にする",
+        "recommended": "A",
+        "provisional": "A",
+        "ruling": "独立レビュー指摘1によりA",
+        "reason": "配送済みP1境界とA2実装の書込権限を分離する"
       }
     ],
     "questionResolutions": [
@@ -60,7 +69,7 @@
       "reconstruction/tools/corpus/sequences.json"
     ],
     "allowedPaths": [
-      "reconstruction/src/mailbox/**",
+      "reconstruction/src/mailbox/mailbox.ts",
       "reconstruction/test/mailbox/**"
     ],
     "allowedGitCommands": [
@@ -364,7 +373,8 @@
       "変更ファイル一覧、実行コマンドと結果、未実行検証と理由、残存リスク",
       "追加・変更した各テストのpurposeと対応受入条件",
       "control配送がないと保存ack/期限/shutdownが緊急予約を利用できない。parser byteはitem.encodedByteLength、control byteはUTF-8 JSON.stringify(payload)のbyte長で固定しpending+in-flightへ一度だけ算入、complete時に解放する。通常data in-flightは1、controlはparser処理終了待ちでなくruntimeへ配送し別途予約枠内のin-flightとして計数する",
-      "観測口がないと無遷移停止を検知できない。inFlightMessageIdはdata ID、controlの処理中IDも有界配列でstatsへ含める。beginDrainは新parser受付を止めるが収束に必要なcontrol受付を維持する"
+      "観測口がないと無遷移停止を検知できない。inFlightMessageIdはdata ID、controlの処理中IDも有界配列でstatsへ含める。beginDrainは新parser受付を止めるが収束に必要なcontrol受付を維持する",
+      "P1のmailbox/parser-boundary.tsは配送済み境界なので編集しない。引継ぎはParserMailboxItem/Resultの公開型をimportするだけとし、変更が必要ならP1所有者の別契約に分離する"
     ],
     "unresolvedQuestions": [
       {

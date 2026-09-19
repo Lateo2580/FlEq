@@ -1,8 +1,8 @@
-import type { DecodedMaterial, Operation } from "./p1-parser-boundary.types";
+import type { DecodedMaterial, MaterialValue, Operation } from "./p1-parser-boundary.types";
 import type {
   DiagnosticDetails,
-  JsonValue,
   NotificationIntent,
+  NotificationResult,
   PersistenceStatus,
   PublishedOutcome,
   ReportRef,
@@ -11,6 +11,24 @@ import type {
   UnitView as SharedUnitView,
 } from "./p2-shared-runtime.types";
 
+export type EewPredictionIntensity = Readonly<{
+  from: MaterialValue;
+  to: MaterialValue;
+  condition: string | null;
+  description: string | null;
+}>;
+
+export type EewPredictionArea = Readonly<{
+  code: string;
+  intensity: EewPredictionIntensity;
+}>;
+
+export type EewPrediction = Readonly<{
+  maximum: EewPredictionIntensity;
+  areaCoverage: "present" | "none";
+  areas: readonly EewPredictionArea[];
+}>;
+
 export type EewCurrent = Readonly<{
   subject: string;
   operation: Operation;
@@ -18,7 +36,7 @@ export type EewCurrent = Readonly<{
   source: ReportRef;
   serial: number;
   terminal: boolean;
-  prediction: Readonly<Record<string, JsonValue>>;
+  prediction: EewPrediction;
 }>;
 
 export type EewGate = Readonly<{
@@ -61,7 +79,11 @@ export type EewInput =
   | Readonly<{ kind: "receive"; material: DecodedMaterial; nowMs: number }>
   | Readonly<{ kind: "deadline"; nowMs: number }>
   | Readonly<{ kind: "restore"; persisted: PersistedEewUnit; nowMs: number }>
-  | Readonly<{ kind: "notificationResult"; intentId: string; disposition: EewDeliveryRecord["disposition"]; nowMs: number }>
+  | Readonly<{
+      kind: "notificationResult";
+      result: NotificationResult;
+      intentUpdate: Pick<NotificationIntent, "id" | "attempts" | "nextAttemptAt" | "disposition">;
+    }>
   | Readonly<{ kind: "shutdown"; nowMs: number }>;
 
 export type EewUnitStep = Readonly<{

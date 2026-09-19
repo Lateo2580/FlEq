@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "585d2f4f858e350c6965d83019ba7e4842285b3c",
-    "sha256": "bd4df6ad5f847b25d4b43a49a1415bfeeaa16238b70b638158c1cb2e058f80e2",
+    "sha256": "43699a15f9ddd15ae6656991cbdc71739e09ba3670a4a6b54bdca3585e34dc8b",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "76c82b87d7783a4eae14af690cb34e7d6ec46f73617dc75b7f7401951619f080",
     "sequencesSha256": "22b2432e8989d7e7cc2514f2297308e84b3c0f1a3e045491b9cf60cfa8f2d147",
@@ -372,7 +372,7 @@
       },
       {
         "id": "P2-A9-AC02",
-        "requirement": "前景Chrome、1440×900 CSS px、DPR 2で、対象snapshotのEEW cardとその入力が実際に持つ予想震度区域が同じ更新で表示されたT5/T6候補markerを出す。9区域paintはVXSE43の採用snapshotに限定する。VXSE45 expected:O09:12の区域集合は空で他報の9区域を補完せず、map空状態（旧塗り除去）のmarkerと全体予想最大震度3のcardを対応付ける。T6正式時刻はA10がChrome traceと画面記録で検証し、DOM更新やrAF callbackだけを実paint証拠にしない",
+        "requirement": "前景Chrome、1440×900 CSS px、DPR 2で、対象snapshotのEEW cardとその入力が実際に持つ予想震度区域が同じ更新で表示されたT5/T6候補markerを出す。9区域paintはVXSE43の採用snapshotに限定する。VXSE45 expected:O09:12の区域集合は空で他報の9区域を補完せず、map空状態（旧塗り除去）のmarkerと全体予想最大震度3のcardを対応付ける。T6正式時刻はA10がChrome traceと画面記録で検証し、DOM更新やrAF callbackだけを実paint証拠にしない。取得元はA8が運ぶA4 EewUnitView.current[].predictionに統一し、全体最大はmaximum、区域なしはareaCoverage=noneとareas=[]、未知値はmaximum.from/toおよびareas[].intensity.from/toのMaterialValue.kind=unknownで区別する",
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:1113 «b6dde3aea48408c0»",
           "docs/specs/reconstruction-p0-contracts.md:1114 «3b78c4899d0524ef»",
@@ -382,7 +382,7 @@
       },
       {
         "id": "P2-A9-AC03",
-        "requirement": "P2固定geometry正本はcanonical JSON {schemaVersion:p2-eew-minimal-geometry-v1, sourceFixtureId:test__fixtures__37_01_01_240613_VXSE43, areas:[622@[0,0,100,100],632@[100,0,100,100],752@[200,0,100,100],751@[0,100,100,100],621@[100,100,100,100],750@[200,100,100,100],620@[0,200,100,100],703@[100,200,100,100],592@[200,200,100,100]]} とし、sha256=f50229a67539b4c39be1c947fc69d7203cc22af020e4a568fe827c0c933f883fを照合する。各rect中心pixelとcard markerの期待severity tokenを単発smokeで確認する。codeは数値でなく文字列とし、meta.questionResolutions[P2-A9-GEOMETRY].paintExpectationsのfixture別From/To、表示token、severity token、中心pixelを正本とする。592はFrom=3/To=4、表示3〜4、上端severity token=4。VXSE43来歴のunconfirmedを原本確認済みへ変更しない",
+        "requirement": "P2固定geometry正本はcanonical JSON {schemaVersion:p2-eew-minimal-geometry-v1, sourceFixtureId:test__fixtures__37_01_01_240613_VXSE43, areas:[622@[0,0,100,100],632@[100,0,100,100],752@[200,0,100,100],751@[0,100,100,100],621@[100,100,100,100],750@[200,100,100,100],620@[0,200,100,100],703@[100,200,100,100],592@[200,200,100,100]]} とし、sha256=f50229a67539b4c39be1c947fc69d7203cc22af020e4a568fe827c0c933f883fを照合する。各rect中心pixelとcard markerの期待severity tokenを単発smokeで確認する。codeは数値でなく文字列とし、meta.questionResolutions[P2-A9-GEOMETRY].paintExpectationsのfixture別From/To、表示token、severity token、中心pixelを正本とする。592はFrom=3/To=4、表示3〜4、上端severity token=4。VXSE43来歴のunconfirmedを原本確認済みへ変更しない。AC02と同じA4 predictionを参照し、区域codeはareas[].code、From/Toはareas[].intensity.from/to、全体最大の両端はmaximum.from/toを使う。qualifierは各MaterialValueのraw/range.boundと各intensity（maximumを含む）のcondition/descriptionを保持して解釈し、未知値・区域なしを既知震度や他報の区域へ補完しない",
         "evidenceRefs": [
           "reconstruction/contracts/p2-order-plan.md:218 «a84cd465ab774a65»",
           "docs/specs/reconstruction-p0-contracts.md:427 «f67474caf19f0ab4»",

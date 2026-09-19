@@ -41,7 +41,7 @@ export type WeatherCurrentTombstone = Readonly<{
 
 export type WeatherCurrentUnitState = Readonly<{
   schemaVersion: "p2-weather-current-unit-v1";
-  national: WeatherCurrentSnapshot | null;
+  national: Readonly<Partial<Record<Operation, WeatherCurrentSnapshot>>>;
   partials: readonly WeatherCurrentSnapshot[];
   histories: readonly WeatherCurrentHistory[];
   ownership: Readonly<Record<string, string>>;
@@ -54,7 +54,7 @@ export type WeatherCurrentUnitState = Readonly<{
 
 export type PersistedWeatherCurrentUnit = Readonly<{
   schemaVersion: "p2-weather-current-unit-v1";
-  national: WeatherCurrentSnapshot | null;
+  national: Readonly<Partial<Record<Operation, WeatherCurrentSnapshot>>>;
   partials: readonly WeatherCurrentSnapshot[];
   histories: readonly WeatherCurrentHistory[];
   ownership: Readonly<Record<string, string>>;
@@ -66,7 +66,7 @@ export type PersistedWeatherCurrentUnit = Readonly<{
 
 export type WeatherCurrentUnitView = SharedUnitView & Readonly<{
   unit: "U-W";
-  national: WeatherCurrentSnapshot | null;
+  national: Readonly<Partial<Record<Operation, WeatherCurrentSnapshot>>>;
   partials: readonly WeatherCurrentSnapshot[];
   freshnessSuspectCount: number;
 }>;

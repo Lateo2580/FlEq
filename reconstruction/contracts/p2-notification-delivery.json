@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "585d2f4f858e350c6965d83019ba7e4842285b3c",
-    "sha256": "45683ba8dad13e6c7b1451eb18a8207012bcbd883e571194db4f6af3263ec67c",
+    "sha256": "e7e707615825d14311debb228989ac1f0afb7b08511c95265ae6186fc8f7f80a",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "76c82b87d7783a4eae14af690cb34e7d6ec46f73617dc75b7f7401951619f080",
     "sequencesSha256": "22b2432e8989d7e7cc2514f2297308e84b3c0f1a3e045491b9cf60cfa8f2d147",
@@ -42,6 +42,15 @@
         "provisional": "A",
         "ruling": "Wave 0c review 7: 新築と旧築の所有境界",
         "reason": "旧築資材とスクリプトを新築担当が上書きする経路を閉じる。既存WAVを直接参照する代替は全20資材の存在・根音表一致・各sha256を固定した別改訂がある場合だけ採用し、未固定の旧築fallbackを作らない"
+      },
+      {
+        "id": "P2-A7-RESULT-OWNER",
+        "A": "A1共有NotificationResultをimportし、channel・aborted・stoppedをruntimeへそのまま返す",
+        "B": "A7で結果型を重複定義する",
+        "recommended": "A",
+        "provisional": "A",
+        "ruling": "独立レビュー指摘2によりA",
+        "reason": "A1→A4の通知結果経路で停止確認情報を失わない"
       }
     ],
     "questionResolutions": [
@@ -111,7 +120,7 @@
       "reconstruction/contracts/p2-notification-delivery.types.ts#NotificationDomain",
       "reconstruction/contracts/p2-notification-delivery.types.ts#NotificationLevel",
       "reconstruction/contracts/p2-notification-delivery.types.ts#NotificationAttempt",
-      "reconstruction/contracts/p2-notification-delivery.types.ts#NotificationResult",
+      "reconstruction/contracts/p2-shared-runtime.types.ts#NotificationResult",
       "reconstruction/contracts/p2-notification-delivery.types.ts#NotificationChannelState",
       "reconstruction/contracts/p2-notification-delivery.types.ts#NotificationDeliveryState",
       "reconstruction/contracts/p2-notification-delivery.types.ts#NotificationSelection",
@@ -401,7 +410,7 @@
       }
     ],
     "artifactRequirements": [
-      "NotificationAttempt/Resultがないとadapterの単調timeout・attemptId・遅い結果無効化をruntimeへ戻せないため、A1 NotificationIntentを複製せずこの試行型だけを追加する",
+      "NotificationAttemptとA1共有NotificationResultがないとadapterの単調timeout・attemptId・channel・aborted・stopped・遅い結果無効化をruntimeへ戻せないため、A1 NotificationIntent/NotificationResultを複製せず試行型だけをA7に置く",
       "selectNotificationAttemptとapplyNotificationResultは純関数とし、完成済みDiagnosticEventを作らずA1 DiagnosticDetailsだけを返す。通知固有reasonが必要なら独自fieldを足さず、Q-NOTICEの根拠でA1 DiagnosticReason改訂要否を先に固定する",
       "channelごとの一件実行と停止未確認隔離がないと外部sound/desktop処理が重なるため、汎用worker poolやoutboxを作らず二channelの状態だけを持つ",
       "音源resolverは根音表v1と既存render-sounds.mjsの読み取り再利用で足りる。新築WAVがないと旧築資材の編集権限へ依存するためreconstruction/assets/soundsだけへ出力し、生成が要る場合のみreconstruction/src/notification-delivery配下の最小処理を使う。旧築改修はdecisionBranchesの別契約へ分離する。1実装interface、1製品factory、将来用extension pointは作らない",

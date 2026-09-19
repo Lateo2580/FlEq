@@ -82,6 +82,18 @@ export type NotificationIntent = Readonly<{
   disposition: "pending" | "delivered" | "expired" | "superseded";
 }>;
 
+export type NotificationResult = Readonly<{
+  attemptId: string;
+  intentId: string;
+  channel: NotificationIntent["channel"];
+  completedAt: ClockReading;
+}> & (
+  | Readonly<{ kind: "delivered" }>
+  | Readonly<{ kind: "failed"; reason: "adapterRejected" | "adapterError" }>
+  | Readonly<{ kind: "timeout"; stopped: boolean }>
+  | Readonly<{ kind: "aborted"; reason: "higherPriority" | "cancelled" | "expired" | "superseded" | "shutdown"; stopped: boolean }>
+);
+
 export type PublicValue = JsonValue;
 
 export type SubjectOutcome = Readonly<{
@@ -160,7 +172,8 @@ export type InfrastructureDiagnosticReason =
   | "shutdownStarted" | "shutdownUnsavedUnits"
   | "diagnosticSinkFailed" | "diagnosticQueueOverflow";
 
-export type DiagnosticReason = ParserDiagnosticReason | RejectionReason | InfrastructureDiagnosticReason;
+export type DiagnosticReason = ParserDiagnosticReason | RejectionReason | InfrastructureDiagnosticReason
+  | "weatherCurrentCapacityEvicted";
 
 export type DiagnosticDetails = Readonly<{
   level: DiagnosticLevel;
@@ -183,7 +196,7 @@ export type MailboxControl =
 
 export type RuntimeInput =
   | Readonly<{ kind: "mailboxCompleted"; completion: MailboxCompletion; clock: ClockReading }>
-  | Readonly<{ kind: "notificationResult"; intentId: string; attemptId: string; result: "delivered" | "failed" | "timeout"; clock: ClockReading }>;
+  | Readonly<{ kind: "notificationResult"; result: NotificationResult }>;
 
 export type RuntimeState<UnitStates extends Readonly<Partial<Record<UnitId, unknown>>>> = Readonly<{
   units: UnitStates;

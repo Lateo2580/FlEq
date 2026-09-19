@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "585d2f4f858e350c6965d83019ba7e4842285b3c",
-    "sha256": "34ddac09ad32ab5665dce93a7882431fa3cf0e0ec411605ba9ec542f78823529",
+    "sha256": "8d182203a655789e674bf4a1752bd0e35eb0a707dbd1085a7d5496ff7c73d4a6",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "76c82b87d7783a4eae14af690cb34e7d6ec46f73617dc75b7f7401951619f080",
     "sequencesSha256": "22b2432e8989d7e7cc2514f2297308e84b3c0f1a3e045491b9cf60cfa8f2d147",
@@ -33,6 +33,15 @@
         "provisional": "A",
         "ruling": "計画§2.1によりA",
         "reason": "P2の3母集団と固定判定だけに実装範囲を限定する"
+      },
+      {
+        "id": "P2-A10-CHECKPOINT-SOURCE",
+        "A": "CheckpointMeasurementはA3 scheduleCheckpointとexecuteCheckpointの公開返却値から取得し、捕捉側とexecute側をattemptIdで結合する",
+        "B": "診断recordまたはA10独自instrumentationから内部stageを復元する",
+        "recommended": "A",
+        "provisional": "A",
+        "ruling": "独立レビュー指摘4によりA。再レビュー指摘1: encode失敗は捕捉側だけで記録",
+        "reason": "Request生成前の失敗を含むstageの供給元を固定し、再encodeと二重計上を防ぐ"
       }
     ],
     "questionResolutions": [
@@ -323,7 +332,7 @@
       },
       {
         "id": "P2-A10-AC06",
-        "requirement": "IR06: T0〜T6とP1 ProcessingMarks七区間でXML parse、checkpoint encode、射影・整形、転送・描画へ原因帰属する。XML parse主因だけB、非parse主因は不要な全量処理除去・枝共有・非中断区間縮小を比較し、同一manifestで再測定する。原因判定入力は個別EewTraceSample、runId/inputId付きP1七区間ProcessingMeasurement、A10所有CheckpointMeasurementとする。全計測の開始終了は同じrunのNode単調時計へ対応させ、queue(T1→T2)と転送/描画(T4→T6)を分離し、競合する非EEW入力もinputId付きで記録する。保存成功を含むunit/generation/attempt/stage/開始終了単調時刻/byteを診断とは別recordで渡す。対応の欠落・重複・時計不整合で主因を確定できなければcause=unclassified/decision=blockedへ送り、推測でBにしない",
+        "requirement": "IR06: T0〜T6とP1 ProcessingMarks七区間でXML parse、checkpoint encode、射影・整形、転送・描画へ原因帰属する。XML parse主因だけB、非parse主因は不要な全量処理除去・枝共有・非中断区間縮小を比較し、同一manifestで再測定する。原因判定入力は個別EewTraceSample、runId/inputId付きP1七区間ProcessingMeasurement、A10所有CheckpointMeasurementとし、CheckpointMeasurementはA3 scheduleCheckpointとexecuteCheckpointの公開返却値から取得する。scheduleCheckpointの捕捉/encode計測とexecuteCheckpointのwrite以降の計測をrunId/attemptIdで結合し、unit/generation/inputIds/retryReasonの一致を検証する。encodeは成功・失敗とも捕捉側から一度だけ取り込み、実行済みencodeの再実行・時刻の復元・二重計上をしない。全計測の開始終了は同じrunのNode単調時計へ対応させ、queue(T1→T2)と転送/描画(T4→T6)を分離し、競合する非EEW入力もinputId付きで記録する。保存成功を含むunit/generation/attempt/stage/開始終了単調時刻/byteを診断とは別recordで渡す。対応の欠落・重複・時計不整合で主因を確定できなければcause=unclassified/decision=blockedへ送り、推測でBにしない",
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:1155 «253098a9cc645bbc»",
           "docs/specs/reconstruction-p0-contracts.md:1164 «55ec4cdd5510861e»",
@@ -351,7 +360,7 @@
       },
       {
         "id": "P2-A10-AC09",
-        "requirement": "E15のunit/generation/stage/byte/attempt/retry reasonをtrace run/inputへ相関し、checkpoint/tmp/log/exportのwrite帰属不能0、単位別encode回数・総encode/write byte・worker占有時間を報告する。改善根拠なしの新閾値を作らない。CheckpointMeasurement.inputIdsはその世代の採用に寄与した入力で、競合EEW inputIdへ偽装しない。EEWとの競合はrunと時間区間で照合する。成功encode/writeの測定recordをDiagnosticEventへ押し込まず、§7.9の固定fieldは追加しない。stageはA1 SaveFailureStageをimportし、stage別bytes（encode=出力JSON、write=実write、他stage=0）を二重加算しない",
+        "requirement": "E15のunit/generation/stage/byte/attempt/retry reasonをA3 scheduleCheckpointとexecuteCheckpointが返す成功・失敗双方のCheckpointMeasurementからtrace run/inputへ相関し、checkpoint/tmp/log/exportのwrite帰属不能0、単位別encode回数・総encode/write byte・worker占有時間を報告する。改善根拠なしの新閾値を作らない。CheckpointMeasurement.inputIdsはその世代の採用に寄与した入力で、競合EEW inputIdへ偽装しない。EEWとの競合はrunと時間区間で照合する。成功encode/writeの測定recordをDiagnosticEventへ押し込まず、§7.9の固定fieldは追加しない。stageはA1 SaveFailureStageをimportし、stage別bytes（encode=出力JSON、write=実write、他stage=0）を二重加算しない。encode失敗は捕捉側のfailed結果と計測だけで完結しexecute側の欠落と誤判定しない。完成出力なしの失敗encodeのbytes=0は実行時間0を意味しない。scheduleCheckpointの捕捉/encode計測とexecuteCheckpointのwrite以降の計測をrunId/attemptIdで結合し、unit/generation/inputIds/retryReasonの一致を検証する。encodeは成功・失敗とも捕捉側から一度だけ取り込み、実行済みencodeの再実行・時刻の復元・二重計上をしない",
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:2067 «f867801b1fa94b3d»",
           "reconstruction/contracts/p2-order-plan.md:85 «c40635780d876373»"
@@ -393,7 +402,7 @@
           "P2-A10-AC06",
           "P2-A10-AC07"
         ],
-        "behavior": "同じ総遅延でもsample区間とrun/input付き七区間・保存recordからqueue/encode/転送描画を分ける。encode主因をparse worker Bへ誤分類せず、対応不足はunclassified/blockedにする"
+        "behavior": "同じ総遅延でもsample区間とrun/input付き七区間・保存recordからqueue/encode/転送描画を分ける。encode主因をparse worker Bへ誤分類せず、対応不足はunclassified/blockedにする。Request生成前のencode失敗は捕捉側だけの正当な計測として扱い、成功時は捕捉とexecuteをrunId/attemptIdで結合してencodeを一度だけ集計する。相関不一致やencode重複はunclassified/blockedにする"
       },
       {
         "testId": "P2-A10-T04",
@@ -460,7 +469,7 @@
     "artifactRequirements": [
       "EewMeasurementManifest/EewTraceSample/版付きresultをA10一つに置く。無いとA2/A3/A8/A9が別trace schemaを持ちT0〜T6相関が分岐する",
       "製品経路専用runner一つだけを実装する。汎用benchmark framework、plugin、worker pool、結果DB、将来用extension pointを作らない",
-      "P1 ProcessingMarksは七durationのままimportし、A10 ProcessingMeasurementにrun/inputとNode単調区間を付ける。無いと別入力のparse時間をEEW待ちへ誤帰属する。CheckpointMeasurementは成功保存を含む相関付きstage/byte/attempt/retryの最小測定recordで、無いとencodeと転送待ちを判別できない。A1 DiagnosticEventを拡張せず、P1 marksへT0〜T6を追加しない",
+      "P1 ProcessingMarksは七durationのままimportし、A10 ProcessingMeasurementにrun/inputとNode単調区間を付ける。無いと別入力のparse時間をEEW待ちへ誤帰属する。CheckpointMeasurementは成功保存を含む相関付きstage/byte/attempt/retryの最小測定recordで、A3 scheduleCheckpointとexecuteCheckpointの公開返却値から取得する。scheduleCheckpointの捕捉/encode計測とexecuteCheckpointのwrite以降の計測をrunId/attemptIdで結合し、unit/generation/inputIds/retryReasonの一致を検証する。encodeは成功・失敗とも捕捉側から一度だけ取り込み、実行済みencodeの再実行・時刻の復元・二重計上をしない。無いとencodeと転送待ちを判別できない。A1 DiagnosticEventを拡張せず、P1 marksへT0〜T6を追加しない",
       "nearest-rankと区間判定は標準Array sort/Math.ceilで実装し、統計依存を追加しない",
       "manifest/resultは自己hash、使用契約hash、fixture hash、geometry hashを固定する。Node/Chrome/OS/端末はmanifestに持ち、全command・開始終了時刻・statusはresult.evidenceRefsの版付きrun記録へ残す。manifestはトップレベルmanifestSha256だけ、resultはトップレベルresultSha256だけを64個のASCII zeroへ置換した保存UTF-8 bytesをsha256対象とする。他のhash（result.manifestSha256を含む）はzero化しない。保存bytesの空白/改行/キー順を維持し、検証時のparse/stringify正規化はしない。重複キー・64桁小文字hex以外のhashを拒否する。trialSetupSha256は参照先の全保存UTF-8 bytesのhash、contractSha256は各契約のmeta.sha256で、その契約のhashConventionも検証する",
       "正式測定はunit testでは代用できない。全9 runと必要なE06 60分が終わらなければ未確認またはBlockedでありPassにしない",

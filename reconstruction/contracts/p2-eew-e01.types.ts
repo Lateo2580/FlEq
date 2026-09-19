@@ -72,7 +72,8 @@ export type ProcessingMeasurement = Readonly<{
   marks: ProcessingMarks;
 }>;
 
-// 成功した保存も記録する A10 の測定資料。DiagnosticEvent ではない。
+// A3 scheduleCheckpoint の捕捉/encodeとexecuteCheckpointの後続stageをrunId/attemptIdで結合する。
+// encode失敗は捕捉側だけで完結する。成功も記録し、再encode・二重計上をせずDiagnosticEventと分ける。
 export type CheckpointMeasurement = Readonly<{
   runId: string;
   inputIds: readonly string[];

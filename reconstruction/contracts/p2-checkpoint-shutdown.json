@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "3095a6c21caa96e06fc3b3a6d2f906534ef5441b",
-    "sha256": "dcaeb6ef898e8129706e77958a9d96bb7d3754fb983ca166b47cbb36efeaa6e6",
+    "sha256": "214492b328c1a26fe636168c71b5302bc306dbf8127362ded6be28a8c5596b2d",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "76c82b87d7783a4eae14af690cb34e7d6ec46f73617dc75b7f7401951619f080",
     "sequencesSha256": "22b2432e8989d7e7cc2514f2297308e84b3c0f1a3e045491b9cf60cfa8f2d147",
@@ -42,6 +42,15 @@
         "provisional": "A",
         "ruling": "作者裁定 A（2026-09-17）",
         "reason": "O07:15-18とO10の基盤条件だけをA3で閉じる"
+      },
+      {
+        "id": "P2-A3-XREF1",
+        "A": "runtime/composition-root.tsとcheckpoint/persistent-diagnostic-sink.tsをA3だけが所有し、scheduleCheckpointとexecuteCheckpointの両公開口からA10 CheckpointMeasurementを返す",
+        "B": "runtime/**・diagnostics/**を共有し、診断fieldからcheckpoint計測を復元する",
+        "recommended": "A",
+        "provisional": "A",
+        "ruling": "独立レビュー指摘1・4によりA。再レビュー指摘1・2: 捕捉側の失敗計測とP1 diagnostics/**との重複を解消",
+        "reason": "単独所有と、Request生成前のencode失敗を含む全実行stageの計測供給を固定する"
       }
     ],
     "questionResolutions": [
@@ -78,6 +87,7 @@
       "reconstruction/contracts/p2-shared-runtime.types.ts",
       "reconstruction/contracts/p2-mailbox.json",
       "reconstruction/contracts/p2-checkpoint-shutdown.json",
+      "reconstruction/contracts/p2-eew-e01.types.ts",
       "reconstruction/src/**",
       "reconstruction/test/**",
       "reconstruction/tools/corpus/manifest.json",
@@ -86,7 +96,6 @@
     "allowedPaths": [
       "reconstruction/src/app-config/**",
       "reconstruction/src/checkpoint/**",
-      "reconstruction/src/diagnostics/**",
       "reconstruction/src/runtime/composition-root.ts",
       "reconstruction/test/checkpoint-shutdown/**",
       "reconstruction/test/integration/**"
@@ -127,11 +136,13 @@
       "reconstruction/contracts/p2-shared-runtime.types.ts#UnitCodec",
       "reconstruction/contracts/p2-shared-runtime.types.ts#UnitDecodeResult",
       "reconstruction/contracts/p2-shared-runtime.types.ts#DiagnosticReadQuery",
-      "reconstruction/contracts/p2-shared-runtime.types.ts#DiagnosticReadResult"
+      "reconstruction/contracts/p2-shared-runtime.types.ts#DiagnosticReadResult",
+      "reconstruction/contracts/p2-eew-e01.types.ts#CheckpointMeasurement"
     ],
     "publicFunctions": [
       "restoreUnit(unit: UnitId): RestoreUnitResult",
-      "scheduleCheckpoint(state: RuntimeState, clock: ClockReading): CheckpointRequest | null",
+      "scheduleCheckpoint(state: RuntimeState, clock: ClockReading, runId: string, correlationByUnit: Readonly<Partial<Record<UnitId, Pick<CheckpointMeasurement, 'inputIds' | 'retryReason'>>>>): Readonly<{ request: CheckpointRequest; result: null; measurements: readonly CheckpointMeasurement[] }> | Readonly<{ request: null; result: Extract<CheckpointResult, { kind: 'failed' }> & Readonly<{ stage: 'encode' }>; measurements: readonly CheckpointMeasurement[] }> | null",
+      "executeCheckpoint(request: CheckpointRequest, runId: string, inputIds: readonly string[], retryReason: CheckpointMeasurement['retryReason']): Promise<Readonly<{ result: CheckpointResult; measurements: readonly CheckpointMeasurement[] }>>",
       "applyCheckpointResult(state: RuntimeState, result: CheckpointResult, clock: ClockReading): RuntimeStep",
       "shutdownRuntime(state: RuntimeState, acceptedThroughSequence: number, clock: ClockReading): Promise<ShutdownSummary>",
       "enqueueDiagnostic(event: DiagnosticEvent): DiagnosticSinkResult",
@@ -365,7 +376,7 @@
       },
       {
         "id": "P2-A3-AC05",
-        "requirement": "E15: unit・generation・stage・byte・attempt・retry reasonを全writeへ対応付け、帰属不能0、同一単位のencode回数・byte・worker占有を報告する",
+        "requirement": "E15: scheduleCheckpointは捕捉前にrunIdと単位別inputIds/retryReasonを受け、選択したunit/generationにattemptIdを発行してから捕捉・codec encodeを実行する。nullは試行なし・計測なし。成功はrequestとstage=encode/outcome=succeededの計測を返し、失敗はrequest=null、stage=encodeのfailed CheckpointResultとoutcome=failedの計測を返す。失敗結果も既存のRuntimeInput経由で適用し、executeCheckpointは呼ばない。encode区間は捕捉開始からenvelope生成・byte確定または失敗まで同じrunのNode単調時計で測る。完全な出力がないencode失敗ではbytesとencodedByteLengthを0（完成出力なし）とし、所要時間は実測値を残す。scheduleCheckpointの捕捉/encode計測とexecuteCheckpointのwrite以降の計測をrunId/attemptIdで結合し、unit/generation/inputIds/retryReasonの一致を検証する。encodeは成功・失敗とも捕捉側から一度だけ取り込み、実行済みencodeの再実行・時刻の復元・二重計上をしない。成功・失敗双方の全実行stageを全writeへ対応付け、帰属不能0、単位別encode回数・byte・worker占有を報告する。診断fieldの拡張で代用しない",
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:2067 «f867801b1fa94b3d»",
           "docs/specs/reconstruction-p0-contracts.md:2099 «ad07bf43de94890d»",
@@ -443,7 +454,7 @@
         "referenceIds": [
           "P2-A3-AC05"
         ],
-        "behavior": "全保存試行のwrite帰属と単位別encode費用を集計する"
+        "behavior": "全保存試行のwrite帰属と単位別encode費用を集計する。codec encode故障時はscheduleCheckpointからRequestなしでfailed結果と相関付き失敗計測を受け、execute呼出し0を検証する。成功時は捕捉とexecuteの計測を同じattemptIdで結合しencode一回・計測一件、試行なしはnullを確認する"
       },
       {
         "testId": "P2-A3-T06",
@@ -517,15 +528,16 @@
     "artifactRequirements": [
       "A/B 2slotと単一writerがないとrename後ack前の成否不明を検証済み世代へ照合できず重複writeを防げないため、この最小保存機構を要求する",
       "永続診断はfilesystem adapter経由の非同期回転ファイル一方式だけとし、新logger frameworkを追加しない",
-      "composition rootはA3だけが編集する。A4/A5/A6の各配送後にreducer・codec・期限・view/outcome/intentを直列結線し、保存障害・通常終了・復元直後続報をunit担当と再検収する",
-      "A7/A8の各配送後もadapter/出力をcomposition rootへ直列結線し、実通知結果またはSSEを含む同じ再検収を行う。9段証拠が揃うまで対象unitを完了扱いしない",
+      "composition rootはA3だけが編集する。A4/A5/A6の各配送後にreducer・codec・期限・view/outcome/intentを直列結線し、保存障害・通常終了・復元直後続報をunit担当と再検収する。runtime/shared-runtime.tsとP1既存3ファイルは編集しない",
+      "A7/A8の各配送後もadapter/出力をcomposition rootへ直列結線する。A7の共有NotificationResultをreduceRuntimeへ渡し、照合済みintent更新をattempts/nextAttemptAt/dispositionごとにA4 EewInputへ渡す唯一の経路とする。実通知結果またはSSEを含む同じ再検収を行い、9段証拠が揃うまで対象unitを完了扱いしない",
       "filesystem故障注入点、実媒体file/directory sync、rename後再読込、遅いack、最大encoded byteの版付き証拠",
       "allowed_pathsに限定したgit diff --binary --no-ext-diff patch",
       "変更ファイル一覧、実行コマンドと結果、未実行検証と理由、残存リスク",
       "追加・変更した各テストのpurposeと対応受入条件",
       "UnitCodec<State, Persisted>はA1共有型、具体State/Persisted/schemaとencode/decodeはA4〜A6が所有する。A3は捕捉時にencode、hash/schema検証後にdecodeを呼び、invalidを正常stateに昇格しない。codec形がないと後続unitの保存/復元を結線できない",
       "checkpoint SHA-256はトップレベルsha256 fieldの64文字だけをASCII 0へ置換したenvelope全保存UTF-8 bytes（schemaVersion・unit・generation・capturedAt・payload・空白/改行を含む）を対象とする。manifest/契約と同じ自己hash規約。書込はschemaVersion, unit, generation, capturedAt, payload, sha256順のJSON.stringify（BOM/末尾改行なし）。読込はparse/restringifyせず保存bytesの該当fieldだけをzero化し、payload内の同名fieldを置換しない。重複field・不正hash形式は拒否する。hashとschema/unit等の妥当性を確認済みのslotだけを世代選択へ渡す",
-      "readDiagnostics queryはlevel/unitの完全一致、fromTimestampMs以上throughTimestampMs以下の時刻範囲。limitは整数1〜256、時刻は有限かつfrom<=through、不正queryは拒否する。timestamp昇順で返し同時刻は保存順、1回256件かつUTF-8 JSON records 1 MiB以下・各record8192 byte以下、超過はtruncated=true。可変内部参照を返さない"
+      "readDiagnostics queryはlevel/unitの完全一致、fromTimestampMs以上throughTimestampMs以下の時刻範囲。limitは整数1〜256、時刻は有限かつfrom<=through、不正queryは拒否する。timestamp昇順で返し同時刻は保存順、1回256件かつUTF-8 JSON records 1 MiB以下・各record8192 byte以下、超過はtruncated=true。可変内部参照を返さない",
+      "捕捉側の測定/失敗返却口がないとRequest生成前のencode失敗と成功encodeの時刻がA10へ届かないため、scheduleCheckpointは捕捉前にrunIdと単位別inputIds/retryReasonを受け、選択したunit/generationにattemptIdを発行してから捕捉・codec encodeを実行する。nullは試行なし・計測なし。成功はrequestとstage=encode/outcome=succeededの計測を返し、失敗はrequest=null、stage=encodeのfailed CheckpointResultとoutcome=failedの計測を返す。失敗結果も既存のRuntimeInput経由で適用し、executeCheckpointは呼ばない。encode区間は捕捉開始からenvelope生成・byte確定または失敗まで同じrunのNode単調時計で測る。完全な出力がないencode失敗ではbytesとencodedByteLengthを0（完成出力なし）とし、所要時間は実測値を残す。選択単位の相関は捕捉する世代の採用に寄与したinputIdsを固定し、欠落を空配列や別入力IDで補完しない。executeCheckpointには成功requestと同じ相関を渡し、write/fileSync/close/rename/directorySync/verifyの実行stageだけを返す。scheduleCheckpointの捕捉/encode計測とexecuteCheckpointのwrite以降の計測をrunId/attemptIdで結合し、unit/generation/inputIds/retryReasonの一致を検証する。encodeは成功・失敗とも捕捉側から一度だけ取り込み、実行済みencodeの再実行・時刻の復元・二重計上をしない。未実行stageは捏造せず、DiagnosticEventへ押し込まない"
     ],
     "unresolvedQuestions": [
       {

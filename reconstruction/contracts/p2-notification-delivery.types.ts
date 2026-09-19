@@ -1,9 +1,9 @@
 import type { Operation } from "./p1-parser-boundary.types";
 import type {
-  ClockReading,
   DiagnosticDetails,
   JsonValue,
   NotificationIntent,
+  NotificationResult,
   UnitId,
 } from "./p2-shared-runtime.types";
 
@@ -26,18 +26,6 @@ export type NotificationAttempt = Readonly<{
   timeoutAtMonotonicMs: number;
   expiresAt: number;
 }>;
-
-export type NotificationResult = Readonly<{
-  attemptId: string;
-  intentId: string;
-  channel: NotificationChannel;
-  completedAt: ClockReading;
-}> & (
-  | Readonly<{ kind: "delivered" }>
-  | Readonly<{ kind: "failed"; reason: "adapterRejected" | "adapterError" }>
-  | Readonly<{ kind: "timeout"; stopped: boolean }>
-  | Readonly<{ kind: "aborted"; reason: "higherPriority" | "cancelled" | "expired" | "superseded" | "shutdown"; stopped: boolean }>
-);
 
 export type NotificationChannelState =
   | Readonly<{ kind: "idle" }>
