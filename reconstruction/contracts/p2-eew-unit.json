@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "fc7006e2380edf9a97b601d124341ba4bd7f7f42",
-    "sha256": "d6dbeaab0df43dc4d3a8450bd4c8f535ad2f228c531babf2ea6ba56fb35884e6",
+    "sha256": "9934c7c4f7bc013a44f7c281b1f08d51650f704428924a44765b31372d362d70",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "76c82b87d7783a4eae14af690cb34e7d6ec46f73617dc75b7f7401951619f080",
     "sequencesSha256": "22b2432e8989d7e7cc2514f2297308e84b3c0f1a3e045491b9cf60cfa8f2d147",
@@ -101,7 +101,7 @@
     "contractId": "P2-EEW-UNIT-001",
     "mode": "implementation",
     "objective": "M01をI-U-Eとして閉じ、non-durable current/gate、durable intent、512 subject、15秒TTL、報番号・終端・取消・operation交差をreducerから復元直後続報まで一契約で固定する。",
-    "baseOid": "unassigned",
+    "baseOid": "2b0fd3b83409a2fc6cb99df7ac37773110452a30",
     "cleanTreeRequired": true,
     "readPaths": [
       "docs/specs/reconstruction-p0-contracts.md",
