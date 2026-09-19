@@ -1,5 +1,10 @@
 {
   "types": [
+    { "type": "feat", "scope": "reconstruction", "hidden": true },
+    { "type": "fix", "scope": "reconstruction", "hidden": true },
+    { "type": "perf", "scope": "reconstruction", "hidden": true },
+    { "type": "refactor", "scope": "reconstruction", "hidden": true },
+    { "type": "docs", "scope": "reconstruction", "hidden": true },
     { "type": "feat", "section": "機能追加" },
     { "type": "fix", "section": "バグ修正" },
     { "type": "perf", "section": "パフォーマンス改善" },
