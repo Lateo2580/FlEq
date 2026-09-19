@@ -1,0 +1,432 @@
+{
+  "meta": {
+    "draftedFromOid": "585d2f4f858e350c6965d83019ba7e4842285b3c",
+    "sha256": "45683ba8dad13e6c7b1451eb18a8207012bcbd883e571194db4f6af3263ec67c",
+    "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
+    "manifestSha256": "76c82b87d7783a4eae14af690cb34e7d6ec46f73617dc75b7f7401951619f080",
+    "sequencesSha256": "22b2432e8989d7e7cc2514f2297308e84b3c0f1a3e045491b9cf60cfa8f2d147",
+    "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
+    "decisionBranches": [
+      {
+        "id": "P2-A7-IR03",
+        "A": "通常運用EEW、通常運用津波緊急、その他の固定3群とし、上位到着時は下位試行をabortする",
+        "B": "通常再試行を先着順のまま続ける",
+        "recommended": "A",
+        "provisional": "A",
+        "ruling": "作者裁定R9とIR03対応表によりA",
+        "reason": "通常再試行が緊急初回試行を追い越す経路を閉じる"
+      },
+      {
+        "id": "P2-A7-D07",
+        "A": "training/testはoperationを表示に残しsoundを鳴らさない。desktop採否と文言はQ-NOTICEで固定する",
+        "B": "通常運用と同じsoundを試行する",
+        "recommended": "A",
+        "provisional": "A",
+        "ruling": "作者裁定D7=A",
+        "reason": "訓練音を通常緊急と誤認させず、区分自体は隠さない"
+      },
+      {
+        "id": "P2-A7-D08",
+        "A": "checkout内の分野別根音表v1から20個のdomain-level WAVを解決する",
+        "B": "仮tone IDまたは旧5段階playSoundを使う",
+        "recommended": "A",
+        "provisional": "A",
+        "ruling": "作者裁定D8=A",
+        "reason": "再現可能なcheckout内正本を一つだけ使う"
+      },
+      {
+        "id": "P2-A7-SOUND-OWNERSHIP",
+        "A": "推奨: scripts/render-sounds.mjsはreadPathsで波形合成・WAV処理を読み取り再利用する。現版はoutDir指定可能だが旧5段階のみで分野別根音未対応なので、新築側reconstruction/src/notification-delivery内の最小生成処理で根音表v1の20個をreconstruction/assets/sounds/<domain>-<level>.wavへ出力する。旧スクリプトを直接実行した5個を20音源の代用にしない",
+        "B": "旧築レンダラの改修が不可避なら旧築所有者の別契約へ分離し、その配送まで新築音源生成をBlockedにする。A7のallowedPathsは広げない",
+        "recommended": "A",
+        "provisional": "A",
+        "ruling": "Wave 0c review 7: 新築と旧築の所有境界",
+        "reason": "旧築資材とスクリプトを新築担当が上書きする経路を閉じる。既存WAVを直接参照する代替は全20資材の存在・根音表一致・各sha256を固定した別改訂がある場合だけ採用し、未固定の旧築fallbackを作らない"
+      }
+    ],
+    "questionResolutions": [
+      {
+        "id": "IR03",
+        "status": "closed",
+        "closed": "A7はEEW部分の固定優先群・初回1秒・下位abort・通常再試行非追越しを検収する",
+        "remaining": "津波緊急の意味生成と検収はP3津波単位契約に残す",
+        "reason": "計画§8の担当表どおりIR03だけをA7へ割り当てる"
+      }
+    ],
+    "operationContract": {
+      "ref": "P2-SHARED-RUNTIME-001#meta.operationContract",
+      "rule": "normal/training/testを選択・結果照合・取消・失効・置換まで必須照合する。D7=Aによりtraining/test soundは選択せず、desktop採否と文言はQ-NOTICEを実装者が補完しない"
+    }
+  },
+  "contract": {
+    "contractId": "P2-NOTIFICATION-DELIVERY-001",
+    "mode": "implementation",
+    "objective": "B09とU-E intent配送を実装し、分野別根音、固定優先群、緊急初回1秒、channel別1件、timeout・abort・隔離・TTL・結果照合・intent保存順を閉じる。",
+    "baseOid": "unassigned",
+    "cleanTreeRequired": true,
+    "readPaths": [
+      "docs/specs/reconstruction-p0-contracts.md",
+      "docs/specs/sound-design-system.md",
+      "reconstruction/contracts/p2-order-plan.md",
+      "reconstruction/contracts/p2-shared-runtime.json",
+      "reconstruction/contracts/p2-shared-runtime.types.ts",
+      "reconstruction/contracts/p2-checkpoint-shutdown.json",
+      "reconstruction/contracts/p2-eew-unit.json",
+      "reconstruction/contracts/p2-eew-unit.types.ts",
+      "reconstruction/contracts/p2-notification-delivery.json",
+      "reconstruction/contracts/p2-notification-delivery.types.ts",
+      "reconstruction/tools/corpus/manifest.json",
+      "reconstruction/tools/corpus/sequences.json",
+      "reconstruction/src/**",
+      "src/engine/notification/**",
+      "scripts/render-sounds.mjs"
+    ],
+    "allowedPaths": [
+      "reconstruction/src/notification-delivery/**",
+      "reconstruction/test/notification-delivery/**",
+      "reconstruction/assets/sounds/**"
+    ],
+    "allowedGitCommands": [
+      "git status --porcelain",
+      "git rev-parse HEAD",
+      "git diff --binary --no-ext-diff -- <allowed_paths>",
+      "git diff --check -- <allowed_paths>",
+      "git show <required-path-or-object>",
+      "git ls-files <required-path>"
+    ],
+    "moduleIds": [
+      "B09"
+    ],
+    "integrationContractIds": [
+      "I-U-E"
+    ],
+    "dependsOnContractIds": [
+      "P2-SHARED-RUNTIME-001",
+      "P2-EEW-UNIT-001",
+      "P2-CHECKPOINT-SHUTDOWN-001"
+    ],
+    "publicTypes": [
+      "reconstruction/contracts/p2-notification-delivery.types.ts#NotificationChannel",
+      "reconstruction/contracts/p2-notification-delivery.types.ts#NotificationPriorityGroup",
+      "reconstruction/contracts/p2-notification-delivery.types.ts#NotificationDomain",
+      "reconstruction/contracts/p2-notification-delivery.types.ts#NotificationLevel",
+      "reconstruction/contracts/p2-notification-delivery.types.ts#NotificationAttempt",
+      "reconstruction/contracts/p2-notification-delivery.types.ts#NotificationResult",
+      "reconstruction/contracts/p2-notification-delivery.types.ts#NotificationChannelState",
+      "reconstruction/contracts/p2-notification-delivery.types.ts#NotificationDeliveryState",
+      "reconstruction/contracts/p2-notification-delivery.types.ts#NotificationSelection",
+      "reconstruction/contracts/p2-notification-delivery.types.ts#NotificationDeliveryStep"
+    ],
+    "publicFunctions": [
+      "selectNotificationAttempt(state: NotificationDeliveryState, clock: ClockReading): NotificationSelection",
+      "applyNotificationResult(state: NotificationDeliveryState, result: NotificationResult, clock: ClockReading): NotificationDeliveryStep"
+    ],
+    "allowedDependencies": [
+      "node:child_process",
+      "node:path",
+      "node:fs"
+    ],
+    "fixtureIds": [
+      "test__fixtures__37_01_01_240613_VXSE43"
+    ],
+    "sequenceIds": [
+      "O07",
+      "O10"
+    ],
+    "expectedDecisions": [
+      {
+        "expectedRef": "expected:O07:16"
+      }
+    ],
+    "expectationEvidence": [
+      {
+        "expectedRef": "expected:O07:16"
+      }
+    ],
+    "semanticDeadlines": [
+      {
+        "id": "P2-A7-SEM-01",
+        "target": "live EEW intent",
+        "limit": 15,
+        "unit": "seconds from original createdAt",
+        "rule": "cancel, expiry and replacement win earlier; retry and restart never extend expiresAt",
+        "source": "§6.4/Q-NOTICE"
+      }
+    ],
+    "deliveryDeadlines": [
+      {
+        "id": "P2-A7-DLV-01",
+        "target": "normal-operation emergency intent creation through first adapter call",
+        "limit": 1,
+        "unit": "seconds",
+        "clock": "monotonic",
+        "status": "provisional",
+        "scope": "includes save, queue, abort-stop and dispatch cost",
+        "source": "§6.3/E21"
+      },
+      {
+        "id": "P2-A7-DLV-02",
+        "target": "retry after completed failure",
+        "schedule": [
+          1,
+          2,
+          4,
+          8,
+          10
+        ],
+        "unit": "seconds",
+        "clock": "monotonic",
+        "source": "§6.4"
+      },
+      {
+        "id": "P2-A7-DLV-03",
+        "target": "adapter attempt",
+        "limit": "sound 10 seconds; desktop 5 seconds; never later than intent expiry",
+        "status": "provisional",
+        "source": "§6.4"
+      },
+      {
+        "id": "P2-A7-DLV-04",
+        "target": "abort stop confirmation",
+        "limit": 1,
+        "unit": "seconds",
+        "status": "provisional",
+        "source": "§6.4"
+      }
+    ],
+    "retentionLimits": [
+      {
+        "id": "P2-A7-RET-01",
+        "target": "pending and minimal completed intent records",
+        "limit": "original family dedupe period only; expiry, superseded and completed records are reclaimed first",
+        "source": "§6.4"
+      }
+    ],
+    "resourceLimits": [
+      {
+        "id": "P2-A7-RES-01",
+        "target": "pending intents in U-E",
+        "limit": 128,
+        "unit": "items",
+        "scope": "normal/training/test and desktop/sound combined",
+        "source": "§6.4"
+      },
+      {
+        "id": "P2-A7-RES-02",
+        "target": "pending intents in U-E",
+        "limit": 131072,
+        "unit": "UTF-8 bytes",
+        "scope": "normal/training/test and desktop/sound combined",
+        "source": "§6.4"
+      },
+      {
+        "id": "P2-A7-RES-03",
+        "target": "adapter execution",
+        "limit": 1,
+        "unit": "in-flight attempt per channel",
+        "scope": "stopped-unconfirmed work remains counted and forbids overlap",
+        "source": "§6.4"
+      }
+    ],
+    "workDeadline": null,
+    "persistenceUnits": [
+      "U-E"
+    ],
+    "persistedFields": [
+      "NotificationIntent remains owned by U-E with original createdAt/expiresAt, attempts, nextAttemptAt, configRevision and disposition",
+      "valid delivered/failed/expired/superseded result changes applied by runtime before the containing U-E generation is checkpointed"
+    ],
+    "nonPersistedFields": [
+      "NotificationAttempt and AbortSignal",
+      "monotonic timeout and stop-confirmation timestamps",
+      "adapter process handles and channel isolation handles",
+      "resolved WAV bytes"
+    ],
+    "outOfScope": [
+      "exactly-once",
+      "独立outbox DB",
+      "津波緊急intentの意味生成とP3検収",
+      "旧築handoff",
+      "人がdesktop通知を見たことまたは音を聞いたことの保証",
+      "旧築assets/soundsとscripts/render-sounds.mjsの改修（必要時は別契約）"
+    ],
+    "acceptanceChecks": [
+      {
+        "id": "P2-A7-AC01",
+        "requirement": "IR03/E21のEEW部分: 通常運用EEW→通常運用津波緊急→その他の固定群、群内expiresAt→createdAt→intentId順を使い、通常再試行がEEW初回試行を追い越さない。津波緊急の意味生成と合格はP3に残す",
+        "evidenceRefs": [
+          "docs/specs/reconstruction-p0-contracts.md:951 «29e2b6869a8216ca»",
+          "docs/specs/reconstruction-p0-contracts.md:2073 «060f0c204a8219fe»",
+          "reconstruction/contracts/p2-order-plan.md:309 «aa72527ba5dfd766»"
+        ]
+      },
+      {
+        "id": "P2-A7-AC02",
+        "requirement": "正常adapter・固定合法負荷の正式EEW系列で、intent生成から初回adapter呼出しまでを保存待ち・queue・停止確認・dispatch込みで測り各1秒以内。timeout宣言だけ、隔離、期限切れを成功に数えない",
+        "evidenceRefs": [
+          "docs/specs/reconstruction-p0-contracts.md:956 «26c466d1a7f4b166»",
+          "docs/specs/reconstruction-p0-contracts.md:987 «92c005f60b052cd8»"
+        ]
+      },
+      {
+        "id": "P2-A7-AC03",
+        "requirement": "上位到着、取消、置換、失効、timeout、shutdownで現試行結果を無効化してabortする。停止未確認ならadapterを隔離し、同じ外部処理への重ね呼出し0、遅い成功によるdelivered書換え0",
+        "evidenceRefs": [
+          "docs/specs/reconstruction-p0-contracts.md:958 «618012b27b0cd8ad»",
+          "docs/specs/reconstruction-p0-contracts.md:960 «1aa04ccc8255047a»",
+          "docs/specs/reconstruction-p0-contracts.md:962 «aa57e0ea5ddebeb1»"
+        ]
+      },
+      {
+        "id": "P2-A7-AC04",
+        "requirement": "channelごと実行1件、pendingはU-Eで三区分・両channel合算128件/128KiB。期限切れ・superseded・完了済みを先に回収し、なお満杯なら固定優先順で下位を外して上位を収容し理由と件数を記録する",
+        "evidenceRefs": [
+          "docs/specs/reconstruction-p0-contracts.md:977 «0085767110e88e0d»",
+          "docs/specs/reconstruction-p0-contracts.md:981 «f6dbd4291d01e07b»"
+        ]
+      },
+      {
+        "id": "P2-A7-AC05",
+        "requirement": "reducerがintentを同じU-E世代へ採用して保存予約した後、保存ackを待たず試行する。有効結果だけをattemptId/intentId/operation/期限/置換状態で照合してdeliveryOnly dirtyにし、失敗・再起動で元期限のまま再試行する",
+        "evidenceRefs": [
+          "docs/specs/reconstruction-p0-contracts.md:972 «0910cc90d717757f»",
+          "docs/specs/reconstruction-p0-contracts.md:1783 «bb8e18a6762c105d»",
+          "reconstruction/tools/corpus/sequences.json#expected:O07:16"
+        ]
+      },
+      {
+        "id": "P2-A7-AC06",
+        "requirement": "soundはcheckout内根音表v1のweather/volcano/earthquake-eew/tsunami×info/normal/warning/critical/cancelだけをreconstruction/assets/sounds/<domain>-<level>.wavへ解決し、domain不明のfallbackを作らない。Linux probeと再生はffplay→paplay→aplayを同順にする。旧築assets/soundsとscripts/render-sounds.mjsは編集しない。生成WAVの全20ファイルのsha256と使用レンダラhashを配送証拠に固定する",
+        "evidenceRefs": [
+          "docs/specs/reconstruction-p0-contracts.md:944 «a9a0d7b09bdc982b»",
+          "docs/specs/sound-design-system.md:36 «5473e1a530cb2639»",
+          "docs/specs/sound-design-system.md:62 «24b4636fc651129b»"
+        ]
+      },
+      {
+        "id": "P2-A7-AC07",
+        "requirement": "D7=A: training/testはoperationを表示に残しsound attemptを0にする。desktop採否・文言、normal EEWのchannel別生成条件、取消・失効・置換はQ-NOTICE解決前に推測実装しない",
+        "evidenceRefs": [
+          "reconstruction/contracts/p2-order-plan.md:82 «9ce4993293733444»",
+          "reconstruction/contracts/p2-order-plan.md:309 «aa72527ba5dfd766»"
+        ]
+      }
+    ],
+    "testMapping": [
+      {
+        "testId": "P2-A7-T01",
+        "purpose": "acceptance",
+        "referenceIds": [
+          "P2-A7-AC01",
+          "P2-A7-AC02"
+        ],
+        "behavior": "通常backlog・通常再試行・下位試行中のEEWで固定選択順と生成起点1秒を一系列で確認する"
+      },
+      {
+        "testId": "P2-A7-T02",
+        "purpose": "regression",
+        "referenceIds": [
+          "P2-A7-AC03"
+        ],
+        "behavior": "abort無視と遅い成功でadapter隔離・重ね呼出し0・delivered書換え0を確認する"
+      },
+      {
+        "testId": "P2-A7-T03",
+        "purpose": "contractBoundary",
+        "referenceIds": [
+          "P2-A7-AC04"
+        ],
+        "behavior": "channel別1件とU-E合算128件/128KiBの直前・一致・+1を確認する"
+      },
+      {
+        "testId": "P2-A7-T04",
+        "purpose": "corpusHistory",
+        "referenceIds": [
+          "P2-A7-AC05"
+        ],
+        "behavior": "O07:15-18のEEW intentを保存前試行・保存後復元・元期限再試行へ通す"
+      },
+      {
+        "testId": "P2-A7-T05",
+        "purpose": "contractBoundary",
+        "referenceIds": [
+          "P2-A7-AC06",
+          "P2-A7-AC07"
+        ],
+        "behavior": "分野と段階から20 WAVだけを解決しtraining/test soundとunknown-domain fallbackを0にする。解決先はreconstruction/assets/soundsだけとし旧築出力・編集0を検査する"
+      }
+    ],
+    "requiredCommands": [
+      {
+        "command": "node reconstruction/tools/corpus/check-manifest.mjs",
+        "cwd": ".",
+        "target": "reconstruction/tools/corpus/manifest.json",
+        "stage": "contract",
+        "purpose": "fixture台帳検査"
+      },
+      {
+        "command": "node reconstruction/tools/corpus/check-sequences.mjs",
+        "cwd": ".",
+        "target": "reconstruction/tools/corpus/sequences.json",
+        "stage": "contract",
+        "purpose": "O07/O10参照とP2 subset検査"
+      },
+      {
+        "command": "node reconstruction/contracts/check-contract.mjs",
+        "cwd": ".",
+        "target": "reconstruction/contracts/*.json",
+        "stage": "contract",
+        "purpose": "全契約検査"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/tsconfig.json",
+        "cwd": ".",
+        "target": "reconstruction/tsconfig.json",
+        "stage": "implementation",
+        "purpose": "新築TypeScript型検査"
+      },
+      {
+        "command": "./node_modules/.bin/vitest run --config reconstruction/vitest.config.ts",
+        "cwd": ".",
+        "target": "reconstruction/test/notification-delivery/",
+        "stage": "implementation",
+        "purpose": "通知配送の受入・契約境界試験"
+      },
+      {
+        "command": "./node_modules/.bin/vitest run --config reconstruction/vitest.config.ts --sequence.shuffle",
+        "cwd": ".",
+        "target": "reconstruction/test/notification-delivery/",
+        "stage": "implementation",
+        "purpose": "intent永続化とchannel共有状態の順序依存検査"
+      }
+    ],
+    "artifactRequirements": [
+      "NotificationAttempt/Resultがないとadapterの単調timeout・attemptId・遅い結果無効化をruntimeへ戻せないため、A1 NotificationIntentを複製せずこの試行型だけを追加する",
+      "selectNotificationAttemptとapplyNotificationResultは純関数とし、完成済みDiagnosticEventを作らずA1 DiagnosticDetailsだけを返す。通知固有reasonが必要なら独自fieldを足さず、Q-NOTICEの根拠でA1 DiagnosticReason改訂要否を先に固定する",
+      "channelごとの一件実行と停止未確認隔離がないと外部sound/desktop処理が重なるため、汎用worker poolやoutboxを作らず二channelの状態だけを持つ",
+      "音源resolverは根音表v1と既存render-sounds.mjsの読み取り再利用で足りる。新築WAVがないと旧築資材の編集権限へ依存するためreconstruction/assets/soundsだけへ出力し、生成が要る場合のみreconstruction/src/notification-delivery配下の最小処理を使う。旧築改修はdecisionBranchesの別契約へ分離する。1実装interface、1製品factory、将来用extension pointは作らない",
+      "A3 composition root結線後、保存失敗・通常終了・復元直後の実adapter結果まで再検収し、unit testだけでE21 Passにしない",
+      "allowed_paths限定patch、変更一覧、build/test/shuffle結果、未実行検証、残存リスク"
+    ],
+    "unresolvedQuestions": [
+      {
+        "id": "Q-NOTICE",
+        "owner": "integrator",
+        "blocks": [
+          "normal EEW intent生成条件とdesktop/soundのchannel別採否",
+          "training/test desktop採否・文言。D7=Aによりsoundなしとoperation表示は固定済み",
+          "15秒TTLの起点と、取消・失効・置換時のchannel別disposition",
+          "通知固有DiagnosticReasonをA1共有unionへ追加する必要性。独自DiagnosticEvent/fieldは作らない",
+          "O10通知枝は現行P2-O10-CHECKPOINT-v2のsubset外なのでA7局所故障系列として実行し、O10全体またはsubset Passと呼ばない"
+        ],
+        "resolveBy": "P2-NOTIFICATION-DELIVERY-001実装開始前（P2通常EEW通知契約開始前）",
+        "requiredEvidence": [
+          "route=eew.warning/eew.forecast、headType=VXSE43/44/45、同一非空EventIDと順序・取消を判定できるSerialを持つnormal/training実系列仕様、取得元・取得日時・元XML hash",
+          "normal EEWのdesktop/sound生成表、training/test desktop文言、soundなし、取消・失効・置換、original createdAt/expiresAtの期待",
+          "desktop/sound adapterのsuccess/reject/timeout/abort無視/遅い成功と初回1秒の時刻証拠",
+          "必要ならA1 DiagnosticReason改訂案と各reasonのE21分岐対応。不要なら既存reasonで欠落なく表現できる対応表"
+        ]
+      }
+    ]
+  }
+}

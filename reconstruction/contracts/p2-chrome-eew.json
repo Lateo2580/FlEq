@@ -1,0 +1,510 @@
+{
+  "meta": {
+    "draftedFromOid": "585d2f4f858e350c6965d83019ba7e4842285b3c",
+    "sha256": "bd4df6ad5f847b25d4b43a49a1415bfeeaa16238b70b638158c1cb2e058f80e2",
+    "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
+    "manifestSha256": "76c82b87d7783a4eae14af690cb34e7d6ec46f73617dc75b7f7401951619f080",
+    "sequencesSha256": "22b2432e8989d7e7cc2514f2297308e84b3c0f1a3e045491b9cf60cfa8f2d147",
+    "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
+    "decisionBranches": [
+      {
+        "id": "P2-A9-D03",
+        "A": "native EventSource、snapshot置換、EEW card、固定最小geometry、T5/T6候補marker、時計probeだけを実装する",
+        "B": "P4のhover・詳細・pagination・県focus・津波・LOD・最終意匠を先取りする",
+        "recommended": "A",
+        "provisional": "A",
+        "ruling": "作者裁定D3=A",
+        "reason": "P2 E01の実paint経路だけを閉じる"
+      },
+      {
+        "id": "P2-A9-D04",
+        "A": "A9はmarkerと単発実Chrome smoke、A10が1000×3正式測定を所有する",
+        "B": "A9が正式E01検収も所有する",
+        "recommended": "A",
+        "provisional": "A",
+        "ruling": "作者裁定D4=A",
+        "reason": "T0〜T4とT5/T6を一つのA10 manifestで相関する"
+      },
+      {
+        "id": "P2-A9-D06",
+        "A": "VXSE43 fixtureの予想震度区域9 codeを300×300 CSS pxの固定3×3 geometryへ写しhash固定する",
+        "B": "P4正規GISを先に実装する",
+        "recommended": "A",
+        "provisional": "A",
+        "ruling": "作者裁定D6=A",
+        "reason": "E01 paint対象を機械検査できる最小集合にしP4 GIS合格と混同しない"
+      }
+    ],
+    "questionResolutions": [
+      {
+        "id": "P2-A9-GEOMETRY",
+        "status": "closed",
+        "closed": "9区域geometry/paint期待はVXSE43 fixtureとその採用snapshotだけに束縛する。VXSE45 expected:O09:12の区域期待集合は空であり、VXSE43から9区域を補完しない。sourceから確認できない区域・予想値は作らない",
+        "remaining": "原本性はmanifestどおりunconfirmed。P4の地理的正しさ・47県・1,892区域・LOD・hit testには使わない",
+        "reason": "D6=Aの測定専用geometryをcheckout内fixtureへ束縛する",
+        "paintExpectations": [
+          {
+            "fixtureId": "test__fixtures__37_01_01_240613_VXSE43",
+            "fixtureSha256": "66ac00a126d831135ce40baea8de5b3c5e58342c607d04f4ef00520a6861fcc0",
+            "sourceStrength": "unconfirmed",
+            "cardSeverityToken": "5-",
+            "cardDisplayToken": "5弱",
+            "areas": [
+              {
+                "code": "622",
+                "forecastIntFrom": "5-",
+                "forecastIntTo": "5-",
+                "displayToken": "5弱",
+                "severityToken": "5-",
+                "rect": [
+                  0,
+                  0,
+                  100,
+                  100
+                ],
+                "centerPixelCss": [
+                  50,
+                  50
+                ]
+              },
+              {
+                "code": "632",
+                "forecastIntFrom": "4",
+                "forecastIntTo": "4",
+                "displayToken": "4",
+                "severityToken": "4",
+                "rect": [
+                  100,
+                  0,
+                  100,
+                  100
+                ],
+                "centerPixelCss": [
+                  150,
+                  50
+                ]
+              },
+              {
+                "code": "752",
+                "forecastIntFrom": "4",
+                "forecastIntTo": "4",
+                "displayToken": "4",
+                "severityToken": "4",
+                "rect": [
+                  200,
+                  0,
+                  100,
+                  100
+                ],
+                "centerPixelCss": [
+                  250,
+                  50
+                ]
+              },
+              {
+                "code": "751",
+                "forecastIntFrom": "4",
+                "forecastIntTo": "4",
+                "displayToken": "4",
+                "severityToken": "4",
+                "rect": [
+                  0,
+                  100,
+                  100,
+                  100
+                ],
+                "centerPixelCss": [
+                  50,
+                  150
+                ]
+              },
+              {
+                "code": "621",
+                "forecastIntFrom": "4",
+                "forecastIntTo": "4",
+                "displayToken": "4",
+                "severityToken": "4",
+                "rect": [
+                  100,
+                  100,
+                  100,
+                  100
+                ],
+                "centerPixelCss": [
+                  150,
+                  150
+                ]
+              },
+              {
+                "code": "750",
+                "forecastIntFrom": "4",
+                "forecastIntTo": "4",
+                "displayToken": "4",
+                "severityToken": "4",
+                "rect": [
+                  200,
+                  100,
+                  100,
+                  100
+                ],
+                "centerPixelCss": [
+                  250,
+                  150
+                ]
+              },
+              {
+                "code": "620",
+                "forecastIntFrom": "4",
+                "forecastIntTo": "4",
+                "displayToken": "4",
+                "severityToken": "4",
+                "rect": [
+                  0,
+                  200,
+                  100,
+                  100
+                ],
+                "centerPixelCss": [
+                  50,
+                  250
+                ]
+              },
+              {
+                "code": "703",
+                "forecastIntFrom": "4",
+                "forecastIntTo": "4",
+                "displayToken": "4",
+                "severityToken": "4",
+                "rect": [
+                  100,
+                  200,
+                  100,
+                  100
+                ],
+                "centerPixelCss": [
+                  150,
+                  250
+                ]
+              },
+              {
+                "code": "592",
+                "forecastIntFrom": "3",
+                "forecastIntTo": "4",
+                "displayToken": "3〜4",
+                "severityToken": "4",
+                "rect": [
+                  200,
+                  200,
+                  100,
+                  100
+                ],
+                "centerPixelCss": [
+                  250,
+                  250
+                ]
+              }
+            ]
+          },
+          {
+            "fixtureId": "test__fixtures__77_01_01_240613_VXSE45",
+            "fixtureSha256": "05aabbf0667f30f4248b464207d7335afda83c69d22a7cd1a300fec847074575",
+            "expectedRef": "expected:O09:12",
+            "sourceStrength": "confirmedDerived",
+            "distribution": "unconfirmed",
+            "cardSeverityToken": "3",
+            "cardDisplayToken": "3",
+            "areas": []
+          }
+        ],
+        "severityRule": "severityTokenはP2の震度意味tokenでCSS classをwireへ載せない。区間は表示tokenにFrom/To両端を残し、地図色とcard枠のseverityは上端を用いる。592は3〜4を4確定へ読み替えず、map token=4は区間上端の色という意味。fixture毎の区域集合以外は描かない"
+      }
+    ],
+    "operationContract": {
+      "ref": "P2-SHARED-RUNTIME-001#meta.operationContract",
+      "rule": "DisplaySnapshotのoperationをEEW cardとmap markerへ表示し、normal/training/testの交差取消・置換をChrome側で作らない。training/testは常に明示する"
+    }
+  },
+  "contract": {
+    "contractId": "P2-CHROME-EEW-001",
+    "mode": "implementation",
+    "objective": "D02とD05/D07/D11のEEW最小部分を実装し、native EventSource、完全snapshot置換、EEW cardと必要な予想震度geometryの同一paint候補、T5/T6 marker、Node/Chrome時計probeを単発実Chrome smokeまで閉じる。",
+    "baseOid": "unassigned",
+    "cleanTreeRequired": true,
+    "readPaths": [
+      "docs/specs/reconstruction-p0-contracts.md",
+      "reconstruction/contracts/p2-order-plan.md",
+      "reconstruction/contracts/p2-eew-unit.json",
+      "reconstruction/contracts/p2-eew-unit.types.ts",
+      "reconstruction/contracts/p2-snapshot-sse.json",
+      "reconstruction/contracts/p2-snapshot-sse.types.ts",
+      "reconstruction/contracts/p2-chrome-eew.json",
+      "reconstruction/tools/corpus/manifest.json",
+      "reconstruction/tools/corpus/sequences.json",
+      "test/fixtures/37_01_01_240613_VXSE43.xml",
+      "reconstruction/src/**"
+    ],
+    "allowedPaths": [
+      "reconstruction/src/display/chrome-eew/**",
+      "reconstruction/test/chrome-eew/**"
+    ],
+    "allowedGitCommands": [
+      "git status --porcelain",
+      "git rev-parse HEAD",
+      "git diff --binary --no-ext-diff -- <allowed_paths>",
+      "git diff --check -- <allowed_paths>",
+      "git show <required-path-or-object>",
+      "git ls-files <required-path>"
+    ],
+    "moduleIds": [
+      "D02",
+      "D05",
+      "D07",
+      "D11"
+    ],
+    "integrationContractIds": [
+      "I-U-E"
+    ],
+    "dependsOnContractIds": [
+      "P2-SNAPSHOT-SSE-001",
+      "P2-EEW-UNIT-001"
+    ],
+    "publicTypes": [
+      "reconstruction/contracts/p2-snapshot-sse.types.ts#DisplayVersion",
+      "reconstruction/contracts/p2-snapshot-sse.types.ts#DisplaySnapshot"
+    ],
+    "publicFunctions": [
+      "connectDisplaySnapshot(url: string, onSnapshot: (snapshot: DisplaySnapshot) => void): EventSource",
+      "replaceDisplaySnapshot(current: DisplaySnapshot | null, incoming: DisplaySnapshot): DisplaySnapshot",
+      "markEewSnapshotReceived(snapshot: DisplaySnapshot, chromeMonotonicMs: number): void",
+      "markEewPaintCandidate(snapshot: DisplaySnapshot, chromeMonotonicMs: number): void",
+      "respondClockProbe(probeId: string, chromeReceivedMonotonicMs: number, chromeSentMonotonicMs: number): void"
+    ],
+    "allowedDependencies": [],
+    "fixtureIds": [
+      "test__fixtures__37_01_01_240613_VXSE43",
+      "test__fixtures__77_01_01_240613_VXSE45"
+    ],
+    "sequenceIds": [
+      "O07",
+      "O09"
+    ],
+    "expectedDecisions": [
+      {
+        "expectedRef": "expected:O07:16"
+      },
+      {
+        "expectedRef": "expected:O09:12"
+      }
+    ],
+    "expectationEvidence": [
+      {
+        "expectedRef": "expected:O07:16"
+      },
+      {
+        "expectedRef": "expected:O09:12"
+      }
+    ],
+    "semanticDeadlines": [],
+    "deliveryDeadlines": [
+      {
+        "id": "P2-A9-DLV-01",
+        "target": "T5 to T6 candidate marker",
+        "limit": "reported by single Chrome smoke; no unit-test threshold substitution",
+        "source": "§7.5/D4=A"
+      }
+    ],
+    "retentionLimits": [
+      {
+        "id": "P2-A9-RET-01",
+        "target": "browser snapshots",
+        "limit": 1,
+        "unit": "latest complete DisplaySnapshot",
+        "source": "D02/§8.3"
+      }
+    ],
+    "resourceLimits": [
+      {
+        "id": "P2-A9-RES-01",
+        "target": "Chrome display client",
+        "limit": 1,
+        "unit": "native EventSource connection for smoke",
+        "scope": "foreground tab, viewport 1440×900 CSS px, DPR 2",
+        "source": "§7.5"
+      },
+      {
+        "id": "P2-A9-RES-02",
+        "target": "P2 measurement geometry",
+        "limit": 9,
+        "unit": "area rectangles",
+        "scope": "VXSE43採用snapshotのみ: string codes 622,632,752,751,621,750,620,703,592 in one 300×300 CSS px layer; VXSE45 has zero area rectangles",
+        "source": "D6=A"
+      }
+    ],
+    "workDeadline": null,
+    "persistenceUnits": [],
+    "persistedFields": [],
+    "nonPersistedFields": [
+      "latest DisplaySnapshot",
+      "EventSource and reconnect state",
+      "EEW card/map DOM or canvas state",
+      "T5/T6 candidate markers and clock probe samples"
+    ],
+    "outOfScope": [
+      "hover",
+      "詳細overlay",
+      "ページ送り",
+      "県focus",
+      "津波表示",
+      "LOD",
+      "最終意匠",
+      "P4正規GISと地理精度合格",
+      "E01の1000×3正式検収"
+    ],
+    "acceptanceChecks": [
+      {
+        "id": "P2-A9-AC01",
+        "requirement": "browser標準EventSourceでA8 DisplaySnapshotだけを受信し、streamId/sequence/schemaを検証する。新しい完全snapshotで全表示stateを置換し、旧版・差分・独自wire schemaを保持しない",
+        "evidenceRefs": [
+          "docs/specs/reconstruction-p0-contracts.md:422 «5171404bc422a49d»",
+          "docs/specs/reconstruction-p0-contracts.md:1298 «059f657d648c3ce8»",
+          "reconstruction/contracts/p2-order-plan.md:84 «5f4579fe6a2a0487»"
+        ]
+      },
+      {
+        "id": "P2-A9-AC02",
+        "requirement": "前景Chrome、1440×900 CSS px、DPR 2で、対象snapshotのEEW cardとその入力が実際に持つ予想震度区域が同じ更新で表示されたT5/T6候補markerを出す。9区域paintはVXSE43の採用snapshotに限定する。VXSE45 expected:O09:12の区域集合は空で他報の9区域を補完せず、map空状態（旧塗り除去）のmarkerと全体予想最大震度3のcardを対応付ける。T6正式時刻はA10がChrome traceと画面記録で検証し、DOM更新やrAF callbackだけを実paint証拠にしない",
+        "evidenceRefs": [
+          "docs/specs/reconstruction-p0-contracts.md:1113 «b6dde3aea48408c0»",
+          "docs/specs/reconstruction-p0-contracts.md:1114 «3b78c4899d0524ef»",
+          "docs/specs/reconstruction-p0-contracts.md:1117 «aa21455d124a4e6d»",
+          "docs/specs/reconstruction-p0-contracts.md:1145 «275d23e44fd3e820»"
+        ]
+      },
+      {
+        "id": "P2-A9-AC03",
+        "requirement": "P2固定geometry正本はcanonical JSON {schemaVersion:p2-eew-minimal-geometry-v1, sourceFixtureId:test__fixtures__37_01_01_240613_VXSE43, areas:[622@[0,0,100,100],632@[100,0,100,100],752@[200,0,100,100],751@[0,100,100,100],621@[100,100,100,100],750@[200,100,100,100],620@[0,200,100,100],703@[100,200,100,100],592@[200,200,100,100]]} とし、sha256=f50229a67539b4c39be1c947fc69d7203cc22af020e4a568fe827c0c933f883fを照合する。各rect中心pixelとcard markerの期待severity tokenを単発smokeで確認する。codeは数値でなく文字列とし、meta.questionResolutions[P2-A9-GEOMETRY].paintExpectationsのfixture別From/To、表示token、severity token、中心pixelを正本とする。592はFrom=3/To=4、表示3〜4、上端severity token=4。VXSE43来歴のunconfirmedを原本確認済みへ変更しない",
+        "evidenceRefs": [
+          "reconstruction/contracts/p2-order-plan.md:218 «a84cd465ab774a65»",
+          "docs/specs/reconstruction-p0-contracts.md:427 «f67474caf19f0ab4»",
+          "reconstruction/tools/corpus/sequences.json#expected:O07:16"
+        ]
+      },
+      {
+        "id": "P2-A9-AC04",
+        "requirement": "EEW cardはoperation、EventID、更新時刻、予想最大震度と取消/終了を表示し、空card 0、unavailable/summaryを無発令に変換しない。metadataだけのsnapshotで全scene再初期化0を単発smokeの先行証拠として記録する",
+        "evidenceRefs": [
+          "docs/specs/reconstruction-p0-contracts.md:425 «8c167706c5a0a9ab»",
+          "docs/specs/reconstruction-p0-contracts.md:1839 «6b9ddf567779f91e»",
+          "docs/specs/reconstruction-p0-contracts.md:1849 «e09bf4fe43b4fa7f»"
+        ]
+      },
+      {
+        "id": "P2-A9-AC05",
+        "requirement": "D-AC02/12/14/24はP2単発Chrome smokeの先行証拠だけを残し、全active EventID bounds、P4 GIS、E04/E25/E26、1000×3正式E01が未実施なら各IDをPassと報告しない",
+        "evidenceRefs": [
+          "docs/specs/reconstruction-p0-contracts.md:1851 «ae122bc8689551ea»",
+          "docs/specs/reconstruction-p0-contracts.md:1861 «75e08d641a30c6f3»"
+        ]
+      },
+      {
+        "id": "P2-A9-AC06",
+        "requirement": "固定名のT5/T6 performance markerと往復clock probe応答を出し、A10 runnerがrun/input/operation/subject/revision/stream/sequenceとClockCorrespondenceへ変換できる。A9はtrace schemaを複製しない",
+        "evidenceRefs": [
+          "docs/specs/reconstruction-p0-contracts.md:1116 «bd414d279043faf2»",
+          "docs/specs/reconstruction-p0-contracts.md:1141 «6d9d63f029934dfb»",
+          "reconstruction/contracts/p2-order-plan.md:143 «0f2520b7e131519f»"
+        ]
+      }
+    ],
+    "testMapping": [
+      {
+        "testId": "P2-A9-T01",
+        "purpose": "contractBoundary",
+        "referenceIds": [
+          "P2-A9-AC01"
+        ],
+        "behavior": "EventSource再接続とstream/schema/sequence検査で最新完全snapshot一枚だけを置換する"
+      },
+      {
+        "testId": "P2-A9-T02",
+        "purpose": "acceptance",
+        "referenceIds": [
+          "P2-A9-AC02",
+          "P2-A9-AC03"
+        ],
+        "behavior": "実Chrome単発smokeでfixture別のcard/map同一更新を確認する。VXSE43は固定9 rect中心pixel・From/To・severity token（592は3〜4/色4）、VXSE45は区域0で旧9区域を流用しない。T5/T6候補markerとgeometry hashを対応付ける"
+      },
+      {
+        "testId": "P2-A9-T03",
+        "purpose": "regression",
+        "referenceIds": [
+          "P2-A9-AC04",
+          "P2-A9-AC05"
+        ],
+        "behavior": "取消・unavailable・metadata更新で空card化と全scene再初期化をせず先行証拠のstatusを分離する"
+      },
+      {
+        "testId": "P2-A9-T04",
+        "purpose": "contractBoundary",
+        "referenceIds": [
+          "P2-A9-AC06"
+        ],
+        "behavior": "固定名T5/T6 markerと時計probe応答を出し、独自trace schemaを作らない"
+      }
+    ],
+    "requiredCommands": [
+      {
+        "command": "node reconstruction/tools/corpus/check-manifest.mjs",
+        "cwd": ".",
+        "target": "reconstruction/tools/corpus/manifest.json",
+        "stage": "contract",
+        "purpose": "geometry source fixtureとhash台帳検査"
+      },
+      {
+        "command": "node reconstruction/tools/corpus/check-sequences.mjs",
+        "cwd": ".",
+        "target": "reconstruction/tools/corpus/sequences.json",
+        "stage": "contract",
+        "purpose": "O07/O09参照検査"
+      },
+      {
+        "command": "node reconstruction/contracts/check-contract.mjs",
+        "cwd": ".",
+        "target": "reconstruction/contracts/*.json",
+        "stage": "contract",
+        "purpose": "全契約検査"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/tsconfig.json",
+        "cwd": ".",
+        "target": "reconstruction/tsconfig.json",
+        "stage": "implementation",
+        "purpose": "新築TypeScript型検査"
+      },
+      {
+        "command": "./node_modules/.bin/vitest run --config reconstruction/vitest.config.ts",
+        "cwd": ".",
+        "target": "reconstruction/test/chrome-eew/",
+        "stage": "implementation",
+        "purpose": "snapshot clientとmarkerの契約境界試験"
+      },
+      {
+        "command": "node reconstruction/test/chrome-eew/smoke.mjs",
+        "cwd": ".",
+        "target": "reconstruction/test/chrome-eew/evidence/",
+        "stage": "implementation",
+        "purpose": "前景実Chromeの単発EventSource・card/map paint・clock probe証拠"
+      }
+    ],
+    "artifactRequirements": [
+      "native EventSourceで足りる。独自SSE client、state manager、router、component frameworkを追加しない",
+      "A8 DisplaySnapshotだけをimportする。A9独自wire schemaがあると再接続置換とsequence照合が二重化する",
+      "A9は固定名markerとclock probe応答だけを出し、A10がtrace/manifest型へ変換する。A9独自trace/manifestがあると正式測定の相関式が分岐する",
+      "A10の版付き測定manifest凍結を実Chrome smoke開始条件にするが、A9からA10実装をimportする循環依存は作らない",
+      "固定geometry canonical JSON bytesはキー順schemaVersion,sourceFixtureId,areas、各areaはcode,rect、空白/改行なしのJSON.stringifyとしsha256を照合する。これがないとT6対象pixel集合をrun間で再現できない。codeは文字列。fixture別paint期待表がないと区域のないVXSE45へ他報の予測を流用するため、正本表の集合・From/To・表示/色tokenだけを検査する。空mapもT6 marker対象とする",
+      "実Chrome smokeはPass/Fail/Blocked/N/A/未確認を記録し、unit test・DOM存在・rAFだけで実paint Passにしない",
+      "allowed_paths限定patch、変更一覧、型検査/test/実Chrome smoke結果、未実行検証、残存リスク"
+    ],
+    "unresolvedQuestions": []
+  }
+}

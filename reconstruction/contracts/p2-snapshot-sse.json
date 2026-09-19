@@ -1,0 +1,485 @@
+{
+  "meta": {
+    "draftedFromOid": "585d2f4f858e350c6965d83019ba7e4842285b3c",
+    "sha256": "b157b3c056673c2240a6ca00c9bf4eaeb61664686c0272b33f2605e3876dcad2",
+    "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
+    "manifestSha256": "76c82b87d7783a4eae14af690cb34e7d6ec46f73617dc75b7f7401951619f080",
+    "sequencesSha256": "22b2432e8989d7e7cc2514f2297308e84b3c0f1a3e045491b9cf60cfa8f2d147",
+    "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
+    "decisionBranches": [
+      {
+        "id": "P2-A8-D03",
+        "A": "P2三分野の完全snapshot、状態帯、EEW実paintに必要なwireだけを実装する",
+        "B": "P4の12分野・詳細・製品UI wireを先取りする",
+        "recommended": "A",
+        "provisional": "A",
+        "ruling": "作者裁定D3=A",
+        "reason": "E01に必要な最小縦断を閉じ、P4詳細APIを作らない"
+      },
+      {
+        "id": "P2-A8-SSE",
+        "A": "完全snapshot、HTTP側最新1枚、client待機最新1枚を置換する",
+        "B": "差分journalまたは配信履歴を保持する",
+        "recommended": "A",
+        "provisional": "A",
+        "ruling": "spec§8.1/§8.3によりA",
+        "reason": "再接続を一枚で復元しslow clientの無限蓄積を防ぐ"
+      }
+    ],
+    "questionResolutions": [
+      {
+        "id": "P2-A8-OWNERSHIP",
+        "status": "closed",
+        "closed": "DisplaySnapshot wire型はA8だけが所有しA9はimportする。E01 trace schema/manifestはA10だけが所有する",
+        "remaining": "P4の12分野・詳細page wireはP4前に別途凍結する",
+        "reason": "計画§3.2の共有ファイル所有規則"
+      }
+    ],
+    "operationContract": {
+      "ref": "P2-SHARED-RUNTIME-001#meta.operationContract",
+      "rule": "normal/training/testを各domain view、summary、noticeへ保持し、区分をまたいだ最大severity/areaCountの合算と表示省略を禁止する"
+    }
+  },
+  "contract": {
+    "contractId": "P2-SNAPSHOT-SSE-001",
+    "mode": "implementation",
+    "objective": "B08とB11のP2最小範囲を実装し、三分野の完全snapshot、最新1枚、client待機1枚、1MiB、名前付きheartbeat、healthとworker状態分離、slow client切断を固定する。",
+    "baseOid": "unassigned",
+    "cleanTreeRequired": true,
+    "readPaths": [
+      "docs/specs/reconstruction-p0-contracts.md",
+      "reconstruction/contracts/p2-order-plan.md",
+      "reconstruction/contracts/p2-shared-runtime.json",
+      "reconstruction/contracts/p2-shared-runtime.types.ts",
+      "reconstruction/contracts/p2-checkpoint-shutdown.json",
+      "reconstruction/contracts/p2-eew-unit.json",
+      "reconstruction/contracts/p2-eew-unit.types.ts",
+      "reconstruction/contracts/p2-weather-current-unit.json",
+      "reconstruction/contracts/p2-weather-current-unit.types.ts",
+      "reconstruction/contracts/p2-weather-timeseries-unit.json",
+      "reconstruction/contracts/p2-weather-timeseries-unit.types.ts",
+      "reconstruction/contracts/p2-snapshot-sse.json",
+      "reconstruction/contracts/p2-snapshot-sse.types.ts",
+      "reconstruction/tools/corpus/manifest.json",
+      "reconstruction/tools/corpus/sequences.json",
+      "reconstruction/src/**"
+    ],
+    "allowedPaths": [
+      "reconstruction/src/view-projector/**",
+      "reconstruction/src/http-sse/**",
+      "reconstruction/test/snapshot-sse/**"
+    ],
+    "allowedGitCommands": [
+      "git status --porcelain",
+      "git rev-parse HEAD",
+      "git diff --binary --no-ext-diff -- <allowed_paths>",
+      "git diff --check -- <allowed_paths>",
+      "git show <required-path-or-object>",
+      "git ls-files <required-path>"
+    ],
+    "moduleIds": [
+      "B08",
+      "B11"
+    ],
+    "integrationContractIds": [
+      "I-U-E",
+      "I-U-W",
+      "I-U-F"
+    ],
+    "dependsOnContractIds": [
+      "P2-SHARED-RUNTIME-001",
+      "P2-CHECKPOINT-SHUTDOWN-001",
+      "P2-EEW-UNIT-001",
+      "P2-WEATHER-CURRENT-UNIT-001",
+      "P2-WEATHER-TIMESERIES-UNIT-001"
+    ],
+    "publicTypes": [
+      "reconstruction/contracts/p2-snapshot-sse.types.ts#DisplayVersion",
+      "reconstruction/contracts/p2-snapshot-sse.types.ts#DisplayConnectionView",
+      "reconstruction/contracts/p2-snapshot-sse.types.ts#DisplayWorkerView",
+      "reconstruction/contracts/p2-snapshot-sse.types.ts#DisplayRecoveryView",
+      "reconstruction/contracts/p2-snapshot-sse.types.ts#DisplaySummaryItem",
+      "reconstruction/contracts/p2-snapshot-sse.types.ts#DisplayDomainView",
+      "reconstruction/contracts/p2-snapshot-sse.types.ts#VisibleNotice",
+      "reconstruction/contracts/p2-snapshot-sse.types.ts#DisplaySnapshot",
+      "reconstruction/contracts/p2-snapshot-sse.types.ts#SnapshotProjectionInput",
+      "reconstruction/contracts/p2-snapshot-sse.types.ts#SnapshotProjectionResult",
+      "reconstruction/contracts/p2-snapshot-sse.types.ts#SnapshotHttpResponse",
+      "reconstruction/contracts/p2-snapshot-sse.types.ts#SseEvent",
+      "reconstruction/contracts/p2-snapshot-sse.types.ts#HealthResponse",
+      "reconstruction/contracts/p2-snapshot-sse.types.ts#SseClientState"
+    ],
+    "publicFunctions": [
+      "projectSnapshot(input: SnapshotProjectionInput, previous: DisplaySnapshot | null): SnapshotProjectionResult",
+      "handleSnapshot(latest: DisplaySnapshot | null): SnapshotHttpResponse",
+      "handleSse(client: SseClientState, event: SseEvent, nowMonotonicMs: number): SseClientState",
+      "handleHealth(worker: DisplayWorkerView, latest: DisplayVersion | null): HealthResponse"
+    ],
+    "allowedDependencies": [
+      "node:http"
+    ],
+    "fixtureIds": [
+      "test__fixtures__37_01_01_240613_VXSE43",
+      "test__fixtures__15_18_01_250630_VPWS50",
+      "test__fixtures__81_02_01_260605_VPWP50_high_severity"
+    ],
+    "sequenceIds": [
+      "O02",
+      "O06",
+      "O07",
+      "O09"
+    ],
+    "expectedDecisions": [
+      {
+        "expectedRef": "expected:O02:2"
+      },
+      {
+        "expectedRef": "expected:O06:2"
+      },
+      {
+        "expectedRef": "expected:O07:16"
+      },
+      {
+        "expectedRef": "expected:O09:12"
+      }
+    ],
+    "expectationEvidence": [
+      {
+        "expectedRef": "expected:O02:2"
+      },
+      {
+        "expectedRef": "expected:O06:2"
+      },
+      {
+        "expectedRef": "expected:O07:16"
+      },
+      {
+        "expectedRef": "expected:O09:12"
+      }
+    ],
+    "semanticDeadlines": [],
+    "deliveryDeadlines": [
+      {
+        "id": "P2-A8-DLV-01",
+        "target": "named SSE heartbeat",
+        "limit": 15,
+        "unit": "seconds",
+        "scope": "does not advance semanticRevision or sequence",
+        "source": "§7.8"
+      },
+      {
+        "id": "P2-A8-DLV-02",
+        "target": "slow SSE client without drain",
+        "limit": 5,
+        "unit": "seconds",
+        "source": "§8.3"
+      },
+      {
+        "id": "P2-A8-DLV-03",
+        "target": "healthz request start through body complete under N/P",
+        "limit": 100,
+        "unit": "milliseconds p99",
+        "status": "provisional",
+        "source": "E02"
+      }
+    ],
+    "retentionLimits": [
+      {
+        "id": "P2-A8-RET-01",
+        "target": "engine to HTTP snapshot",
+        "limit": 1,
+        "unit": "latest complete snapshot",
+        "source": "§8.3"
+      },
+      {
+        "id": "P2-A8-RET-02",
+        "target": "per-client pending snapshot",
+        "limit": 1,
+        "unit": "latest pending snapshot",
+        "source": "§8.3"
+      },
+      {
+        "id": "P2-A8-RET-03",
+        "target": "VisibleNotice",
+        "limit": "expiresAt is finite wallTimeMs; remove expiresAt <= input.nowMs before projection and equality comparison",
+        "scope": "no notice history; runtime schedules expiry via existing deadline path",
+        "source": "§8.2/§8.4"
+      }
+    ],
+    "resourceLimits": [
+      {
+        "id": "P2-A8-RES-01",
+        "target": "serialized complete snapshot JSON body",
+        "limit": 1048576,
+        "unit": "UTF-8 bytes",
+        "scope": "normal/training/test and all three P2 domains combined; SSE framing excluded",
+        "source": "§8.3"
+      },
+      {
+        "id": "P2-A8-RES-02",
+        "target": "simultaneous display clients",
+        "limit": 8,
+        "unit": "connections",
+        "source": "§8.3"
+      },
+      {
+        "id": "P2-A8-RES-03",
+        "target": "VisibleNotice",
+        "limit": "64 items and 131072 UTF-8 bytes of serialized notices array",
+        "scope": "normal/training/test combined; expired items removed",
+        "source": "§8.4"
+      },
+      {
+        "id": "P2-A8-RES-04",
+        "target": "common state and JSON structure",
+        "limit": 65536,
+        "unit": "UTF-8 bytes",
+        "scope": "connection/worker/persistence/recovery/version/generatedAt and all common keys/brackets/separators; combined across operations",
+        "source": "§8.3"
+      },
+      {
+        "id": "P2-A8-RES-05",
+        "target": "strings in common metadata, VisibleNotice and summary",
+        "limit": "256 UTF-8 bytes per string except VisibleNotice.text: 4096 bytes; JSON escaping is additionally counted in aggregate budgets",
+        "scope": "all string values including IDs, PersistenceStatus.reason and every ReportRef field; no unknown extension fields",
+        "source": "§8.3 bounded schema; P2 fixed boundary"
+      },
+      {
+        "id": "P2-A8-RES-06",
+        "target": "P2 domain wrapper and summary",
+        "limit": "65536 UTF-8 bytes baseline per domain, summary <=4096 bytes within baseline",
+        "scope": "each of U-E/U-W/U-F has one combined normal/training/test budget; full may exceed baseline only while complete snapshot <=1MiB",
+        "source": "§8.3"
+      }
+    ],
+    "workDeadline": null,
+    "persistenceUnits": [],
+    "persistedFields": [],
+    "nonPersistedFields": [
+      "DisplaySnapshot and DisplayVersion",
+      "SSE client state, heartbeat and pending writes",
+      "health response and worker progress projection",
+      "serialized JSON buffers"
+    ],
+    "outOfScope": [
+      "§7.10詳細ページ",
+      "全12分野",
+      "静的asset設計",
+      "P4認証拡張",
+      "差分SSEと配信履歴",
+      "E01 trace schema/manifest"
+    ],
+    "acceptanceChecks": [
+      {
+        "id": "P2-A8-AC01",
+        "requirement": "DisplaySnapshotはA8だけが所有するschemaVersion=1の完全snapshotで、U-E/U-W/U-Fの現在表示、operation、接続、worker、保存、復元、noticeを任意の1通から再構成できる。過去snapshotとの合成を要求しない",
+        "evidenceRefs": [
+          "docs/specs/reconstruction-p0-contracts.md:1298 «059f657d648c3ce8»",
+          "reconstruction/contracts/p2-order-plan.md:83 «e68fb1285a5fea4c»"
+        ]
+      },
+      {
+        "id": "P2-A8-AC02",
+        "requirement": "意味state active/inactive/unavailableと配送full/summaryを分離し、容量縮退を取消・無発令・意味unavailableへ変換しない。P2では三分野合算の合法最大と+1をQ-LIMITで固定し、超過分野だけをsummaryへ落として他分野を維持する",
+        "evidenceRefs": [
+          "docs/specs/reconstruction-p0-contracts.md:1372 «9ead394d6f4565e8»",
+          "docs/specs/reconstruction-p0-contracts.md:1839 «6b9ddf567779f91e»"
+        ]
+      },
+      {
+        "id": "P2-A8-AC03",
+        "requirement": "全snapshot JSON本体を1MiB以下、HTTP側最新1枚、clientごとの待機最新1枚とし、write/drain中の旧版を新しい完全snapshotで置換する。排出不能5秒で切断し、再接続時は最新一枚だけを送る",
+        "evidenceRefs": [
+          "docs/specs/reconstruction-p0-contracts.md:1378 «bd3931bc792709c1»",
+          "docs/specs/reconstruction-p0-contracts.md:1386 «60de5b99306dd65f»",
+          "docs/specs/reconstruction-p0-contracts.md:1387 «a0c8665912cd9df7»",
+          "docs/specs/reconstruction-p0-contracts.md:1389 «ab2ebb427b76d19c»",
+          "docs/specs/reconstruction-p0-contracts.md:1390 «fe02c39d22b8ac89»"
+        ]
+      },
+      {
+        "id": "P2-A8-AC04",
+        "requirement": "15秒周期の名前付きheartbeatは最新worker状態と既知snapshot版だけを送り、semanticRevision/sequenceを進めず内容snapshot生成を起こさない。worker stalled/unresponsive/stoppedをtransport healthと分離し、heartbeatだけで正常へ戻さない",
+        "evidenceRefs": [
+          "docs/specs/reconstruction-p0-contracts.md:1190 «174d8e21c85706f2»",
+          "docs/specs/reconstruction-p0-contracts.md:1191 «e214e88096eaa2ba»",
+          "docs/specs/reconstruction-p0-contracts.md:1196 «84ba488e3e0001e9»"
+        ]
+      },
+      {
+        "id": "P2-A8-AC05",
+        "requirement": "E02: N/P中に独立clientから/healthzを毎秒要求し各run p99≤100msを報告する。HTTP transportが応答してもworker stalled/unresponsiveを正常と返さず、未測定・標本不足をPassにしない",
+        "evidenceRefs": [
+          "docs/specs/reconstruction-p0-contracts.md:2053 «5e9334289c7fb257»"
+        ]
+      },
+      {
+        "id": "P2-A8-AC06",
+        "requirement": "意味内容・配送状態・notice・接続/worker/保存/復元metadataのすべてが不変の場合だけunchangedを返す。metadataだけの変化ではsnapshot版sequenceを更新してprojectedを返し、semanticRevision・各domain内容版とsceneを維持する。generatedAtだけでは更新しない。projectSnapshotは純関数で、完成済みDiagnosticEventを作らずA1 DiagnosticDetailsを返す",
+        "evidenceRefs": [
+          "docs/specs/reconstruction-p0-contracts.md:1849 «e09bf4fe43b4fa7f»",
+          "reconstruction/contracts/p2-order-plan.md:143 «0f2520b7e131519f»",
+          "docs/specs/reconstruction-p0-contracts.md:1348 «74e50b18962d63b1»"
+        ]
+      },
+      {
+        "id": "P2-A8-AC07",
+        "requirement": "E01 markerの所有境界: T3は採用・公開用射影完了、T4は対象snapshotをSSE writerへ渡した時刻、T5はA9がChrome受信時に記録する。A8はmarkerだけを出しtrace schema/manifestや正式E01判定を所有しない",
+        "evidenceRefs": [
+          "docs/specs/reconstruction-p0-contracts.md:1111 «87b8c62477d732bb»",
+          "docs/specs/reconstruction-p0-contracts.md:1112 «9481d7045a5e19c4»",
+          "docs/specs/reconstruction-p0-contracts.md:1113 «b6dde3aea48408c0»",
+          "reconstruction/contracts/p2-order-plan.md:143 «0f2520b7e131519f»"
+        ]
+      },
+      {
+        "id": "P2-A8-AC08",
+        "requirement": "VisibleNoticeは三区分合算64件/131072 UTF-8 bytes以内で、期限切れを除去する。有効項目が超過した場合はexpiresAt降順→id辞書順の先頭から両上限に収まるprefixを採用し、残りの件数をsnapshotNoticeCapacityExceededで診断する。IDは一意、期限は有限とし、日付/時刻/世代/sequenceは有限・安全な数値として検証する。共通状態・構造65536 bytes、各文字列256 bytes（notice.textだけ4096 bytes）、persistenceは既知UnitId最大12件、recovery.affectedUnitsは重複なし最大12件に限定する。JSON escape後のbyteを含め、三分野各64KiB（summary各4KiB）+notice128KiB+共通64KiB=393216 bytesの縮退時上限を保証する。未知fieldは通さない。文字列/共通上限違反はrejectedを返し新snapshotを公開せず、snapshotStringLimitExceeded/snapshotCommonBudgetExceededで診断する。障害metadataの切捨てやunchanged偽装で収めない。合法最大でrejectedになるschemaは設計不合格でありQ-LIMIT解決まで実装へ進まない",
+        "evidenceRefs": [
+          "docs/specs/reconstruction-p0-contracts.md:1380 «b0831ccba0d8a89d»",
+          "docs/specs/reconstruction-p0-contracts.md:1381 «d6a37a695ee2106f»",
+          "docs/specs/reconstruction-p0-contracts.md:1382 «61acd69b7d226925»",
+          "docs/specs/reconstruction-p0-contracts.md:1383 «4d50ad9c75e911e4»",
+          "docs/specs/reconstruction-p0-contracts.md:1397 «6b2214532af3b9d7»",
+          "docs/specs/reconstruction-p0-contracts.md:1398 «ee9e82d36bc73fe0»",
+          "docs/specs/reconstruction-p0-contracts.md:1403 «9c70f733699e25a7»",
+          "docs/specs/reconstruction-p0-contracts.md:1411 «da0beb0dd236bb92»"
+        ]
+      }
+    ],
+    "testMapping": [
+      {
+        "testId": "P2-A8-T01",
+        "purpose": "contractBoundary",
+        "referenceIds": [
+          "P2-A8-AC01",
+          "P2-A8-AC02"
+        ],
+        "behavior": "三分野のactive/inactive/unavailableとfull/summaryを単一snapshotから再構成する"
+      },
+      {
+        "testId": "P2-A8-T02",
+        "purpose": "contractBoundary",
+        "referenceIds": [
+          "P2-A8-AC03"
+        ],
+        "behavior": "最新1枚とclient待機1枚を置換し、1MiBとslow-client 5秒境界を確認する"
+      },
+      {
+        "testId": "P2-A8-T03",
+        "purpose": "regression",
+        "referenceIds": [
+          "P2-A8-AC04"
+        ],
+        "behavior": "heartbeat継続中のworker停止を正常化せずsequenceと内容snapshot生成を増やさない"
+      },
+      {
+        "testId": "P2-A8-T04",
+        "purpose": "acceptance",
+        "referenceIds": [
+          "P2-A8-AC05"
+        ],
+        "behavior": "固定N/Pでhealth transport latencyとworker判定を別集計する"
+      },
+      {
+        "testId": "P2-A8-T05",
+        "purpose": "corpusHistory",
+        "referenceIds": [
+          "P2-A8-AC07"
+        ],
+        "behavior": "O02/O06/O07/O09の採用viewをsnapshotへ射影しT3/T4 markerを確認する"
+      },
+      {
+        "testId": "P2-A8-T06",
+        "purpose": "regression",
+        "referenceIds": [
+          "P2-A8-AC06"
+        ],
+        "behavior": "同じdomain内容のpending→saved/failed、接続/worker/復元・notice・deliveryだけの変更でprojectedとsequence更新を確認し、semanticRevision/domain内容版とsceneを維持する。generatedAtのみ変化と完全不変だけはunchanged"
+      },
+      {
+        "testId": "P2-A8-T07",
+        "purpose": "contractBoundary",
+        "referenceIds": [
+          "P2-A8-AC08"
+        ],
+        "behavior": "notice件数63/64/65・合計131072 bytes直前/一致/+1・期限一致の回収、共通65536 bytesと256/4096 bytes文字列の境界（多byte/JSON escape込み）で決定的採用・診断・rejectedを確認し、合法最大summaryが共通状態を削らず1MiB以内に収まる"
+      }
+    ],
+    "requiredCommands": [
+      {
+        "command": "node reconstruction/tools/corpus/check-manifest.mjs",
+        "cwd": ".",
+        "target": "reconstruction/tools/corpus/manifest.json",
+        "stage": "contract",
+        "purpose": "fixture台帳検査"
+      },
+      {
+        "command": "node reconstruction/tools/corpus/check-sequences.mjs",
+        "cwd": ".",
+        "target": "reconstruction/tools/corpus/sequences.json",
+        "stage": "contract",
+        "purpose": "P2 subsetとO09参照検査"
+      },
+      {
+        "command": "node reconstruction/contracts/check-contract.mjs",
+        "cwd": ".",
+        "target": "reconstruction/contracts/*.json",
+        "stage": "contract",
+        "purpose": "全契約検査"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/tsconfig.json",
+        "cwd": ".",
+        "target": "reconstruction/tsconfig.json",
+        "stage": "implementation",
+        "purpose": "新築TypeScript型検査"
+      },
+      {
+        "command": "./node_modules/.bin/vitest run --config reconstruction/vitest.config.ts",
+        "cwd": ".",
+        "target": "reconstruction/test/snapshot-sse/",
+        "stage": "implementation",
+        "purpose": "snapshot/SSE/health受入・契約境界試験"
+      },
+      {
+        "command": "./node_modules/.bin/vitest run --config reconstruction/vitest.config.ts --sequence.shuffle",
+        "cwd": ".",
+        "target": "reconstruction/test/snapshot-sse/",
+        "stage": "implementation",
+        "purpose": "最新snapshotとclient共有状態の順序依存検査"
+      }
+    ],
+    "artifactRequirements": [
+      "DisplaySnapshot wire型をA8一つに置く。無いとA9が独自schemaを作り再接続・sequence・容量の意味が分岐する",
+      "projectSnapshotがないと各UnitViewをmainへ別配送して完全snapshotを複製するため、worker内の一回の射影だけを要求する",
+      "HTTP側最新1枚とclient待機最新1枚がないとslow clientごとに旧版を無限保持するため、この二段だけを持ち差分journal・履歴・brokerを作らない",
+      "snapshot/SSE/health handlerはNode標準httpで足りる。1実装interface、factory、静的asset framework、P4詳細portを追加しない",
+      "A3 composition root結線後、実SSE再接続・slow client・worker停止を再検収する。unit testは実SSEとE02正式測定の代用にしない",
+      "allowed_paths限定patch、変更一覧、build/test/shuffle結果、実SSE/E02のPass・Fail・Blocked・N/A・未確認、残存リスク",
+      "notice期限回収とbyte検査がないと全分野summaryでも1MiBを保証できない。nowMsを明示入力として既存期限経路を使い、新しい履歴やtimer層は作らない。SnapshotProjectionResult.rejectedがないと不正共通入力をunchangedまたは正常配送に偽装してしまう",
+      "A1共有DiagnosticReasonへsnapshotNoticeCapacityExceeded/snapshotCommonBudgetExceeded/snapshotStringLimitExceededを追加する改訂を統合担当が先に配送するまで、この3分岐の実装はBlocked。A8内でDiagnosticDetails/DiagnosticEventを複製・拡張せず、count等の既存fieldと固定reasonだけを使う"
+    ],
+    "unresolvedQuestions": [
+      {
+        "id": "Q-LIMIT",
+        "owner": "integrator",
+        "blocks": [
+          "P2三分野snapshotの通常合法最大とUTF-8 JSON 1MiB直前・一致・+1",
+          "超過分野だけをsummaryへ落とす選択順と、予算内分野・共通状態を欠落させない期待",
+          "現行meta.p2Subsetsにsnapshot容量stepがないため、必要ならsubset ID・stepRefs・根拠を提案する。sequences.jsonはA8担当が変更しない",
+          "notice64件/128KiB・共通64KiB・256/4096-byte文字列・三分野summary各4KiBの合法最大と+1。固定上限へ合法表示が収まる証拠が必要で、実装者は値や省略意味を補完しない",
+          "超過reason3値のA1 DiagnosticReason共有unionへの先行改訂。現A1には未定義のため独自union拡張や型assertionで迂回しない"
+        ],
+        "resolveBy": "P2-SNAPSHOT-SSE-001容量fixture作成前",
+        "requiredEvidence": [
+          "U-E/U-W/U-Fの合法最大UnitView生成条件、各UTF-8 byte、合算snapshot hash",
+          "1MiB-1・一致・+1の入力とfull/summary、旧地図除去、他分野取消の期待",
+          "提案が必要な場合はsubsetId、既存stepRefsまたは新step案、fixture来歴、spec根拠、統合担当owner",
+          "三区分合算notice件数/byte/期限境界、共通metadata最大（saved/pending/failed/uncertain/復元不確実を保持）、escape後byte、文字列長境界、三分野summary最大を同時に満たすfixtureとsnapshot hash",
+          "A1共有reason3値の改訂と、notice排除件数・common/string拒否から既存DiagnosticDetails fieldへの対応。合法最大でrejectedにならない最大値検査"
+        ]
+      }
+    ]
+  }
+}

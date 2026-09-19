@@ -1,0 +1,497 @@
+{
+  "meta": {
+    "draftedFromOid": "585d2f4f858e350c6965d83019ba7e4842285b3c",
+    "sha256": "34ddac09ad32ab5665dce93a7882431fa3cf0e0ec411605ba9ec542f78823529",
+    "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
+    "manifestSha256": "76c82b87d7783a4eae14af690cb34e7d6ec46f73617dc75b7f7401951619f080",
+    "sequencesSha256": "22b2432e8989d7e7cc2514f2297308e84b3c0f1a3e045491b9cf60cfa8f2d147",
+    "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
+    "decisionBranches": [
+      {
+        "id": "P2-A10-D04",
+        "A": "A10がT0〜T6の統合manifest、正式1000×3測定、判定、版付き結果を所有する",
+        "B": "A9がChrome側だけで正式E01を判定する",
+        "recommended": "A",
+        "provisional": "A",
+        "ruling": "作者裁定D4=A",
+        "reason": "Node/worker/SSE/Chromeを一つの時計区間とcorrelationで判定する"
+      },
+      {
+        "id": "P2-A10-PARSE-B",
+        "A": "T0〜T6とP1七区間で原因帰属し、XML parse主因の場合だけ専用parse worker Bへ進む",
+        "B": "E01未達なら原因を問わずparse workerを追加する",
+        "recommended": "A",
+        "provisional": "A",
+        "ruling": "spec§7.6の既定手順",
+        "reason": "checkpoint encode・射影・転送・描画の未達をparse分離で隠さない"
+      },
+      {
+        "id": "P2-A10-RUNNER",
+        "A": "製品経路専用の一つのreplay/trace runnerと版付きJSON結果を作る",
+        "B": "汎用benchmark frameworkを作る",
+        "recommended": "A",
+        "provisional": "A",
+        "ruling": "計画§2.1によりA",
+        "reason": "P2の3母集団と固定判定だけに実装範囲を限定する"
+      }
+    ],
+    "questionResolutions": [
+      {
+        "id": "IR06",
+        "status": "closed",
+        "closed": "A10が原因帰属・A/B判定・同一manifest再測定・Blocked出口を所有し、A3がencode非中断区間の証拠を供給する",
+        "remaining": "Q-PERFの具体N/P/C・投入offset・端末・時計・paint evidenceは正式測定前に固定する",
+        "reason": "計画§8の担当表どおりIR06だけをA10へ割り当てる"
+      }
+    ],
+    "operationContract": {
+      "ref": "P2-SHARED-RUNTIME-001#meta.operationContract",
+      "rule": "全trace sampleはrun/input/operation/subjectを必須相関し、semanticRevision/DisplayVersionは実際に到達した場合だけ記録する。未到達はnullであり欠落を正式標本数から除外しない。normal正式EEW母集団へtraining/testを混ぜず、別区分は別結果に記録する"
+    }
+  },
+  "contract": {
+    "contractId": "P2-EEW-E01-001",
+    "mode": "implementation",
+    "objective": "P2製品経路のEEW replay/trace runnerと版付きmanifest/resultを実装し、N/P/C、3母集団、T0〜T6、100 warm-up、1000標本×3 run、時計区間、E01判定、IR06の原因別A/B・Blocked出口、E03/E05/E06/E12/E15報告を閉じる。",
+    "baseOid": "unassigned",
+    "cleanTreeRequired": true,
+    "readPaths": [
+      "docs/specs/reconstruction-p0-contracts.md",
+      "reconstruction/contracts/p1-parser-boundary.json",
+      "reconstruction/contracts/p1-parser-boundary.types.ts",
+      "reconstruction/contracts/p2-order-plan.md",
+      "reconstruction/contracts/p2-shared-runtime.json",
+      "reconstruction/contracts/p2-shared-runtime.types.ts",
+      "reconstruction/contracts/p2-mailbox.json",
+      "reconstruction/contracts/p2-checkpoint-shutdown.json",
+      "reconstruction/contracts/p2-eew-unit.json",
+      "reconstruction/contracts/p2-weather-current-unit.json",
+      "reconstruction/contracts/p2-weather-timeseries-unit.json",
+      "reconstruction/contracts/p2-notification-delivery.json",
+      "reconstruction/contracts/p2-snapshot-sse.json",
+      "reconstruction/contracts/p2-snapshot-sse.types.ts",
+      "reconstruction/contracts/p2-chrome-eew.json",
+      "reconstruction/contracts/p2-eew-e01.json",
+      "reconstruction/contracts/p2-eew-e01.types.ts",
+      "reconstruction/tools/corpus/manifest.json",
+      "reconstruction/tools/corpus/sequences.json",
+      "reconstruction/tools/corpus/README.md",
+      "reconstruction/src/**",
+      "reconstruction/test/**"
+    ],
+    "allowedPaths": [
+      "reconstruction/src/measurement/eew-e01/**",
+      "reconstruction/test/eew-e01/**"
+    ],
+    "allowedGitCommands": [
+      "git status --porcelain",
+      "git rev-parse HEAD",
+      "git diff --binary --no-ext-diff -- <allowed_paths>",
+      "git diff --check -- <allowed_paths>",
+      "git show <required-path-or-object>",
+      "git ls-files <required-path>"
+    ],
+    "moduleIds": [
+      "B03",
+      "B04",
+      "B05",
+      "B06",
+      "B07",
+      "B08",
+      "B11",
+      "D02",
+      "D05",
+      "D07",
+      "D11"
+    ],
+    "integrationContractIds": [
+      "I-U-E",
+      "I-U-W",
+      "I-U-F"
+    ],
+    "dependsOnContractIds": [
+      "P1-PARSER-BOUNDARY-001",
+      "P2-SHARED-RUNTIME-001",
+      "P2-MAILBOX-001",
+      "P2-CHECKPOINT-SHUTDOWN-001",
+      "P2-EEW-UNIT-001",
+      "P2-WEATHER-CURRENT-UNIT-001",
+      "P2-WEATHER-TIMESERIES-UNIT-001",
+      "P2-NOTIFICATION-DELIVERY-001",
+      "P2-SNAPSHOT-SSE-001",
+      "P2-CHROME-EEW-001"
+    ],
+    "publicTypes": [
+      "reconstruction/contracts/p2-eew-e01.types.ts#VerificationStatus",
+      "reconstruction/contracts/p2-eew-e01.types.ts#EewPopulation",
+      "reconstruction/contracts/p2-eew-e01.types.ts#LoadProfileId",
+      "reconstruction/contracts/p2-eew-e01.types.ts#EewTracePoint",
+      "reconstruction/contracts/p2-eew-e01.types.ts#EewTraceCorrelation",
+      "reconstruction/contracts/p2-eew-e01.types.ts#EewTraceMarker",
+      "reconstruction/contracts/p2-eew-e01.types.ts#ClockCorrespondence",
+      "reconstruction/contracts/p2-eew-e01.types.ts#EewTraceSample",
+      "reconstruction/contracts/p2-eew-e01.types.ts#ReplayLoad",
+      "reconstruction/contracts/p2-eew-e01.types.ts#EewMeasurementManifest",
+      "reconstruction/contracts/p2-eew-e01.types.ts#EewMeasurementRunResult",
+      "reconstruction/contracts/p2-eew-e01.types.ts#EewCauseAssessment",
+      "reconstruction/contracts/p2-eew-e01.types.ts#ProcessingMeasurement",
+      "reconstruction/contracts/p2-eew-e01.types.ts#CheckpointMeasurement",
+      "reconstruction/contracts/p2-eew-e01.types.ts#EewTrialSetup"
+    ],
+    "publicFunctions": [
+      "runEewE01(manifest: EewMeasurementManifest): Promise<readonly EewTraceSample[]>",
+      "summarizeEewE01(manifest: EewMeasurementManifest, samples: readonly EewTraceSample[]): readonly EewMeasurementRunResult[]",
+      "classifyEewCause(samples: readonly EewTraceSample[], processing: readonly ProcessingMeasurement[], checkpoints: readonly CheckpointMeasurement[]): EewCauseAssessment"
+    ],
+    "allowedDependencies": [
+      "node:crypto",
+      "node:fs",
+      "node:perf_hooks",
+      "node:worker_threads"
+    ],
+    "fixtureIds": [
+      "test__fixtures__77_01_01_240613_VXSE45",
+      "test__fixtures__37_01_01_240613_VXSE43",
+      "test__fixtures__15_18_01_250630_VPWS50",
+      "test__fixtures__81_09_01_260605_VPWP50"
+    ],
+    "sequenceIds": [
+      "O09",
+      "O10"
+    ],
+    "expectedDecisions": [
+      {
+        "expectedRef": "expected:O09:2"
+      },
+      {
+        "expectedRef": "expected:O09:12"
+      },
+      {
+        "expectedRef": "expected:O10:82"
+      }
+    ],
+    "expectationEvidence": [
+      {
+        "expectedRef": "expected:O09:2"
+      },
+      {
+        "expectedRef": "expected:O09:12"
+      },
+      {
+        "expectedRef": "expected:O10:82"
+      }
+    ],
+    "semanticDeadlines": [],
+    "deliveryDeadlines": [
+      {
+        "id": "P2-A10-DLV-01",
+        "target": "T0 through first simultaneous EEW card and required map paint",
+        "limit": 250,
+        "unit": "milliseconds p99 upper bound per run",
+        "scope": "all three P2 populations; missing zero",
+        "source": "§7.5/E01"
+      },
+      {
+        "id": "P2-A10-DLV-02",
+        "target": "expected T6 observation",
+        "limit": 10,
+        "unit": "seconds from T0",
+        "scope": "absence is a missing sample and Fail",
+        "source": "§7.5"
+      },
+      {
+        "id": "P2-A10-DLV-03",
+        "target": "Node/Chrome clock correspondence refresh",
+        "limit": 30,
+        "unit": "seconds",
+        "scope": "also at run start and end",
+        "source": "§7.5"
+      }
+    ],
+    "retentionLimits": [
+      {
+        "id": "P2-A10-RET-01",
+        "target": "formal E01 samples",
+        "limit": 9000,
+        "unit": "samples per manifest",
+        "scope": "3 populations × 3 runs × 1000; warm-up excluded and separately counted",
+        "source": "§7.5"
+      },
+      {
+        "id": "P2-A10-RET-02",
+        "target": "warm-up samples",
+        "limit": 900,
+        "unit": "samples per manifest",
+        "scope": "3 populations × 3 runs × 100; never included in quantiles",
+        "source": "§7.5"
+      }
+    ],
+    "resourceLimits": [
+      {
+        "id": "P2-A10-RES-01",
+        "target": "clock correspondence interval width",
+        "limit": 5,
+        "unit": "milliseconds",
+        "scope": "wider intervals make the affected result 未確認, never Pass or B evidence",
+        "source": "§7.5"
+      },
+      {
+        "id": "P2-A10-RES-02",
+        "target": "formal run count",
+        "limit": 3,
+        "unit": "runs per population",
+        "scope": "each run must independently pass",
+        "source": "§7.5"
+      },
+      {
+        "id": "P2-A10-RES-03",
+        "target": "measurement implementation",
+        "limit": 1,
+        "unit": "product-path replay/trace runner",
+        "scope": "no generic benchmark framework or worker pool",
+        "source": "P2 plan A10"
+      }
+    ],
+    "workDeadline": null,
+    "persistenceUnits": [],
+    "persistedFields": [],
+    "nonPersistedFields": [
+      "measurement replay queues and live clocks",
+      "raw Chrome trace during a run after versioned evidence extraction",
+      "warm-up product state after each isolated run",
+      "P1 ProcessingMarks extensions; P1 seven durations remain unchanged"
+    ],
+    "outOfScope": [
+      "津波母集団",
+      "personal最終配線",
+      "P4容量縮退・詳細射影母集団",
+      "汎用benchmark framework",
+      "原因未確認のparse worker追加",
+      "P1 ProcessingMarksのT0〜T6拡張"
+    ],
+    "acceptanceChecks": [
+      {
+        "id": "P2-A10-AC01",
+        "requirement": "manifestはN/P/Cの入力hash・順序・offset・周期、固定backlog、最大VPWS50 full parse開始直後、最大U-W checkpoint encode開始直後の3母集団、Node/OS/端末、Chrome版・前景tab・1440×900・DPR2・geometry hash・motionを結果を見る前に固定する。使用する全契約ID→meta.sha256、trialSetupRef/trialSetupSha256を固定し、trialSetupには初期state/checkpointの参照とhash、時計起点、毎試行の初期化、製品入力からdirty世代を作る手順、T6または10秒timeoutまでの後続置換防止を必須記録する。各試行は既知状態から開始し、同じ保存済みU-W世代の再captureでencode母集団を捏造しない",
+        "evidenceRefs": [
+          "docs/specs/reconstruction-p0-contracts.md:1126 «18ddda3377534592»",
+          "docs/specs/reconstruction-p0-contracts.md:1127 «fc0a64a35f9697f1»",
+          "docs/specs/reconstruction-p0-contracts.md:1128 «da7c0eac758c489a»",
+          "reconstruction/contracts/p2-order-plan.md:181 «c30804e813aa0de9»",
+          "docs/specs/reconstruction-p0-contracts.md:1135 «331287df22cee9ea»"
+        ]
+      },
+      {
+        "id": "P2-A10-AC02",
+        "requirement": "各母集団・各runを別IDの100 warm-up後に1000正式標本、3 run実行し、nearest-rankのp50/p95/p99/maxを各runと合算で報告する。warm-upを分位点へ混ぜず、各runを合算値で救済しない",
+        "evidenceRefs": [
+          "docs/specs/reconstruction-p0-contracts.md:1118 «63335bec643675ba»",
+          "docs/specs/reconstruction-p0-contracts.md:1119 «602b2dfb3cc1795e»",
+          "docs/specs/reconstruction-p0-contracts.md:1120 «7dc92fad123275a6»"
+        ]
+      },
+      {
+        "id": "P2-A10-AC03",
+        "requirement": "T0〜T6をrun/input/operation/subject/semanticRevision/streamId/sequenceで一対一相関する。T0=main callback入口、T1=mailbox入場、T2=worker開始、T3=採用・射影完了、T4=SSE writer引渡し、T5=Chrome受信、T6=cardと必要mapの初回同時実paintとする。run/inputはT0で登録し、後段の版とmarkerを後着結合する。T3/snapshot生成へ未到達ならsemanticRevision/displayVersionをnullのまま記録し、T0だけの標本も保持する。空値・前試行の版・架空の版を補わない",
+        "evidenceRefs": [
+          "docs/specs/reconstruction-p0-contracts.md:1110 «c295f3e129f02f59»",
+          "docs/specs/reconstruction-p0-contracts.md:1111 «87b8c62477d732bb»",
+          "docs/specs/reconstruction-p0-contracts.md:1112 «9481d7045a5e19c4»",
+          "docs/specs/reconstruction-p0-contracts.md:1113 «b6dde3aea48408c0»",
+          "docs/specs/reconstruction-p0-contracts.md:1114 «3b78c4899d0524ef»",
+          "docs/specs/reconstruction-p0-contracts.md:1116 «bd414d279043faf2»"
+        ]
+      },
+      {
+        "id": "P2-A10-AC04",
+        "requirement": "Node/Chrome時計をrun開始・終了・30秒ごとの往復で区間対応し幅≤5msとする。各sampleを[L_i,U_i]で報告し、各run p99(U_i)≤250msかつ欠落0だけをPass、p99(L_i)>250msまたは欠落1以上をFail、中間・時計超過・証拠不足を未確認とする。正式1000標本から未到達・時計欠落・描画欠落を除外しない。Passには全正式標本の実在するsemanticRevision/DisplayVersion、相関済みT0〜T6と描画証拠を要求する。T0後にworker停止してT3/snapshotがない標本は版null、T6未観測10秒でmissing=trueとし、欠落1件でもFailを優先する。未到達markerは作らずclockProbeId/遅延区間も未取得ならnull。証拠不足で遅延を計算不能な分位点はnullで報告し、観測可能標本だけの分位点でPassにしない",
+        "evidenceRefs": [
+          "docs/specs/reconstruction-p0-contracts.md:1121 «c45e4376d94f5013»",
+          "docs/specs/reconstruction-p0-contracts.md:1141 «6d9d63f029934dfb»",
+          "docs/specs/reconstruction-p0-contracts.md:1142 «f0743c498380a707»",
+          "docs/specs/reconstruction-p0-contracts.md:1143 «74f54e911312b3e8»",
+          "docs/specs/reconstruction-p0-contracts.md:2052 «d6ff68c7ef2b9b22»"
+        ]
+      },
+      {
+        "id": "P2-A10-AC05",
+        "requirement": "Chrome traceと画面記録をT6 markerへ対応付け、DOM更新・rAF callback・CPU描画時間を実paintの代用にしない。証拠ID、trace欠落、画面記録欠落を版付きresultへ残し、未測定・証拠不足をPassにしない",
+        "evidenceRefs": [
+          "docs/specs/reconstruction-p0-contracts.md:1145 «275d23e44fd3e820»",
+          "docs/specs/reconstruction-p0-contracts.md:1861 «75e08d641a30c6f3»"
+        ]
+      },
+      {
+        "id": "P2-A10-AC06",
+        "requirement": "IR06: T0〜T6とP1 ProcessingMarks七区間でXML parse、checkpoint encode、射影・整形、転送・描画へ原因帰属する。XML parse主因だけB、非parse主因は不要な全量処理除去・枝共有・非中断区間縮小を比較し、同一manifestで再測定する。原因判定入力は個別EewTraceSample、runId/inputId付きP1七区間ProcessingMeasurement、A10所有CheckpointMeasurementとする。全計測の開始終了は同じrunのNode単調時計へ対応させ、queue(T1→T2)と転送/描画(T4→T6)を分離し、競合する非EEW入力もinputId付きで記録する。保存成功を含むunit/generation/attempt/stage/開始終了単調時刻/byteを診断とは別recordで渡す。対応の欠落・重複・時計不整合で主因を確定できなければcause=unclassified/decision=blockedへ送り、推測でBにしない",
+        "evidenceRefs": [
+          "docs/specs/reconstruction-p0-contracts.md:1155 «253098a9cc645bbc»",
+          "docs/specs/reconstruction-p0-contracts.md:1164 «55ec4cdd5510861e»",
+          "reconstruction/contracts/p2-order-plan.md:310 «e75c0de250b78fc5»"
+        ]
+      },
+      {
+        "id": "P2-A10-AC07",
+        "requirement": "採用した最小修正後も同一manifest・3母集団で正式再測定する。parse分離後にencode母集団が未達なら不合格。成立する最小案がなければ原因・未達量・試した対策を版付き結果へ残してBlockedとし、目標緩和や未確認Passをしない",
+        "evidenceRefs": [
+          "docs/specs/reconstruction-p0-contracts.md:1151 «0c7e70e81284f01e»",
+          "docs/specs/reconstruction-p0-contracts.md:1166 «2ec7537d8e462a83»",
+          "reconstruction/contracts/p2-order-plan.md:131 «52a98b2810fd96ea»"
+        ]
+      },
+      {
+        "id": "P2-A10-AC08",
+        "requirement": "E03/E05/E06/E12を同じ版付きN/P/C条件で別報告する。最大XML worker開始→decision/射影はp99≤1秒、Node RSSはN≤300MiB/P≤400MiB、60分6窓のRSS/FD、allocation/GC/heapを測り、RSSやheapDeltaを総allocationと呼ばない",
+        "evidenceRefs": [
+          "docs/specs/reconstruction-p0-contracts.md:2054 «726413a61a98e64b»",
+          "docs/specs/reconstruction-p0-contracts.md:2056 «5468bd61c697fdf7»",
+          "docs/specs/reconstruction-p0-contracts.md:2057 «ffc6a6df7c9d4951»",
+          "docs/specs/reconstruction-p0-contracts.md:2063 «4b4c2419085d5b27»"
+        ]
+      },
+      {
+        "id": "P2-A10-AC09",
+        "requirement": "E15のunit/generation/stage/byte/attempt/retry reasonをtrace run/inputへ相関し、checkpoint/tmp/log/exportのwrite帰属不能0、単位別encode回数・総encode/write byte・worker占有時間を報告する。改善根拠なしの新閾値を作らない。CheckpointMeasurement.inputIdsはその世代の採用に寄与した入力で、競合EEW inputIdへ偽装しない。EEWとの競合はrunと時間区間で照合する。成功encode/writeの測定recordをDiagnosticEventへ押し込まず、§7.9の固定fieldは追加しない。stageはA1 SaveFailureStageをimportし、stage別bytes（encode=出力JSON、write=実write、他stage=0）を二重加算しない",
+        "evidenceRefs": [
+          "docs/specs/reconstruction-p0-contracts.md:2067 «f867801b1fa94b3d»",
+          "reconstruction/contracts/p2-order-plan.md:85 «c40635780d876373»"
+        ]
+      },
+      {
+        "id": "P2-A10-AC10",
+        "requirement": "VerificationStatusはPass/Fail/Blocked/N/A/未確認を分離する。unit test、P1の231ms parse/212ms転送、A9単発smoke、予備runを正式E01 Passへ代用しない",
+        "evidenceRefs": [
+          "reconstruction/contracts/p2-order-plan.md:131 «52a98b2810fd96ea»",
+          "reconstruction/contracts/p2-order-plan.md:85 «c40635780d876373»"
+        ]
+      }
+    ],
+    "testMapping": [
+      {
+        "testId": "P2-A10-T01",
+        "purpose": "contractBoundary",
+        "referenceIds": [
+          "P2-A10-AC01",
+          "P2-A10-AC02"
+        ],
+        "behavior": "manifest/trialSetup/resultのhash対象bytesと自己fieldだけのzero化、使用契約hash、毎試行の既知状態と実dirty世代準備、固定3母集団と100 warm-up/1000正式/3 run・nearest-rankの凍結境界を検証する"
+      },
+      {
+        "testId": "P2-A10-T02",
+        "purpose": "acceptance",
+        "referenceIds": [
+          "P2-A10-AC03",
+          "P2-A10-AC04",
+          "P2-A10-AC05"
+        ],
+        "behavior": "製品経路の各runをT0〜T6/時計区間/paint証拠で判定する。T0後worker停止で版null・T0だけの標本を正式1000件に保持し10秒欠落Failにする。実在版・全marker・証拠欠落をPassにしない"
+      },
+      {
+        "testId": "P2-A10-T03",
+        "purpose": "regression",
+        "referenceIds": [
+          "P2-A10-AC06",
+          "P2-A10-AC07"
+        ],
+        "behavior": "同じ総遅延でもsample区間とrun/input付き七区間・保存recordからqueue/encode/転送描画を分ける。encode主因をparse worker Bへ誤分類せず、対応不足はunclassified/blockedにする"
+      },
+      {
+        "testId": "P2-A10-T04",
+        "purpose": "acceptance",
+        "referenceIds": [
+          "P2-A10-AC08",
+          "P2-A10-AC09"
+        ],
+        "behavior": "N/P/CでE03/E05/E06/E12とE15 write帰属を同じrun identityへ報告する"
+      },
+      {
+        "testId": "P2-A10-T05",
+        "purpose": "corpusHistory",
+        "referenceIds": [
+          "P2-A10-AC10"
+        ],
+        "behavior": "O09/O10 P2参照を製品replayへ通し、既存unmetと正式未測定をPassに変換しない"
+      }
+    ],
+    "requiredCommands": [
+      {
+        "command": "node reconstruction/tools/corpus/check-manifest.mjs",
+        "cwd": ".",
+        "target": "reconstruction/tools/corpus/manifest.json",
+        "stage": "contract",
+        "purpose": "fixture台帳とhash検査"
+      },
+      {
+        "command": "node reconstruction/tools/corpus/check-sequences.mjs",
+        "cwd": ".",
+        "target": "reconstruction/tools/corpus/sequences.json",
+        "stage": "contract",
+        "purpose": "P2 subsetとO09/O10参照検査"
+      },
+      {
+        "command": "node reconstruction/contracts/check-contract.mjs",
+        "cwd": ".",
+        "target": "reconstruction/contracts/*.json",
+        "stage": "contract",
+        "purpose": "全契約検査"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/tsconfig.json",
+        "cwd": ".",
+        "target": "reconstruction/tsconfig.json",
+        "stage": "implementation",
+        "purpose": "新築TypeScript型検査"
+      },
+      {
+        "command": "./node_modules/.bin/vitest run --config reconstruction/vitest.config.ts",
+        "cwd": ".",
+        "target": "reconstruction/test/eew-e01/",
+        "stage": "implementation",
+        "purpose": "manifest・nearest-rank・status・原因分岐の契約境界試験"
+      },
+      {
+        "command": "node reconstruction/test/eew-e01/run.mjs --manifest reconstruction/test/eew-e01/evidence/manifest.json",
+        "cwd": ".",
+        "target": "reconstruction/test/eew-e01/evidence/",
+        "stage": "implementation",
+        "purpose": "製品経路の正式E01、E03/E05/E06/E12/E15測定と版付き結果生成"
+      }
+    ],
+    "artifactRequirements": [
+      "EewMeasurementManifest/EewTraceSample/版付きresultをA10一つに置く。無いとA2/A3/A8/A9が別trace schemaを持ちT0〜T6相関が分岐する",
+      "製品経路専用runner一つだけを実装する。汎用benchmark framework、plugin、worker pool、結果DB、将来用extension pointを作らない",
+      "P1 ProcessingMarksは七durationのままimportし、A10 ProcessingMeasurementにrun/inputとNode単調区間を付ける。無いと別入力のparse時間をEEW待ちへ誤帰属する。CheckpointMeasurementは成功保存を含む相関付きstage/byte/attempt/retryの最小測定recordで、無いとencodeと転送待ちを判別できない。A1 DiagnosticEventを拡張せず、P1 marksへT0〜T6を追加しない",
+      "nearest-rankと区間判定は標準Array sort/Math.ceilで実装し、統計依存を追加しない",
+      "manifest/resultは自己hash、使用契約hash、fixture hash、geometry hashを固定する。Node/Chrome/OS/端末はmanifestに持ち、全command・開始終了時刻・statusはresult.evidenceRefsの版付きrun記録へ残す。manifestはトップレベルmanifestSha256だけ、resultはトップレベルresultSha256だけを64個のASCII zeroへ置換した保存UTF-8 bytesをsha256対象とする。他のhash（result.manifestSha256を含む）はzero化しない。保存bytesの空白/改行/キー順を維持し、検証時のparse/stringify正規化はしない。重複キー・64桁小文字hex以外のhashを拒否する。trialSetupSha256は参照先の全保存UTF-8 bytesのhash、contractSha256は各契約のmeta.sha256で、その契約のhashConventionも検証する",
+      "正式測定はunit testでは代用できない。全9 runと必要なE06 60分が終わらなければ未確認またはBlockedでありPassにしない",
+      "allowed_paths限定patch、変更一覧、型検査/test/正式測定結果、未実行検証、残存リスク",
+      "EewTrialSetupがないと最大U-Wを初回だけencodeして後続999試行を誤測定する。trialSetupRefはmanifestと同時に凍結した版付きJSONとし、既知初期stateとcheckpoint（不在はref/hash両方null）を固定する。使用単位のentry省略は禁止。初期化は毎試行、製品replay入力で未保存の対象dirty世代を作り正規保存予約を通す。保存済み世代の再capture、1msで解除するretry、killしていないack喪失は要求しない。warm-upは各runの別ID100件を維持し、試行準備で計測対象の負荷を省略しない",
+      "trialSetupのreset/dirty生成/置換防止手順は非空の実行可能な参照・コマンド・入力順と期待世代を記す。各試行の初期state/checkpoint hash照合、dirty世代・attempt、parse/encode開始終了、実投入offsetを版付きtrace証拠へ残す。手順不成立は理由付き投入失敗/Blockedであり標本を黙って差し替えない。A/Bで測定manifestとtrialSetupは同一、実装OID・変更patch hashは結果証拠に別記する",
+      "trialSetupの初期化は製品stateと入力準備を対象とし、実測のNode/Chrome単調時計を偽装・巻戻ししない。各recordはrunNodeClock基準へ相関し、プロセス再起動が準備に必要なら時計epoch対応を記録する。対応不能ならunclassified/blockedとし、warm-upの効果を消す未申告の毎試行再起動をしない"
+    ],
+    "unresolvedQuestions": [
+      {
+        "id": "Q-PERF",
+        "owner": "integrator",
+        "blocks": [
+          "N/P/Cの入力集合・順序・倍率・周期・warm-up終了点と各sha256",
+          "3母集団のEEW投入offset、max VPWS50 parse進行中証拠、max U-W checkpoint encode状態と進行中証拠",
+          "Node/Chrome/OS/端末、Chrome版、前景tab、viewport/DPR、motionの正式manifest値",
+          "Node/Chrome時計往復probeと区間計算、Chrome trace・画面記録・T6 paint evidenceの取得方法",
+          "現行O09はP2外を含む57 unmet。新しいP2測定subset/stepが必要ならID・stepRefs・根拠を提案し、sequences.jsonはA10担当が変更しない",
+          "trialSetupの既知初期state/checkpoint hash、時計起点、毎試行の製品入力によるdirty世代生成と後続置換防止の具体手順。手順の必須項目は本契約で固定し、値だけをQ-PERFで凍結する"
+        ],
+        "resolveBy": "EEW A/B正式測定前",
+        "requiredEvidence": [
+          "N/P/C manifest案とfixture/contract/geometry hash、再生順、offset、周期、100 warm-up終了点",
+          "通常backlog、最大VPWS50 full parse開始後実T0 0〜5ms、最大U-W encode開始後実T0 0〜5msと対象処理進行中trace",
+          "端末識別、Node/Chrome/OS版、foreground、1440×900 CSS px、DPR2、motion、f50229a67539b4c39be1c947fc69d7203cc22af020e4a568fe827c0c933f883f geometry hash",
+          "30秒ごとの往復clock probe区間幅≤5msの予備記録と、card/map同一実paintのChrome trace・画面記録対応例",
+          "必要なら提案するP2-O09-E01-v1のsubsetId、stepRefs、既存P2 subsetとの関係、fixture来歴、expected根拠、統合担当owner",
+          "trialSetupRef/trialSetupSha256、全使用契約hash、各母集団2試行以上の初期化→dirty→保存予約→encodeの到達証拠と世代/attemptの対応。2試行は準備手順確認のみで正式1000×3の代用にしない",
+          "run/input付きP1七区間と成功を含むCheckpointMeasurementからqueue/parse/encode/transferPaintを照合した例、対応不足時のunclassified/blocked例"
+        ]
+      }
+    ]
+  }
+}
