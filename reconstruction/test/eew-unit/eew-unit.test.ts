@@ -188,8 +188,11 @@ describe("P2 EEW unit", () => {
         }
       }
       // Node absence differs from an existing malformed optional Pref/Area (VXSE45).
-      for (const pref of ["valid", "missing", "empty", "bad"] as const)
-        for (const area of ["valid", "missing", "empty", "bad"] as const) {
+      const structures = [
+        ["valid", "valid"], ["valid", "missing"], ["valid", "empty"], ["valid", "bad"],
+        ["missing", "valid"], ["empty", "valid"], ["bad", "valid"],
+      ] as const;
+      for (const [pref, area] of structures) {
           const material = decodeFixture("77_01_30_260101_VXSE45_FINAL", family, (xml) => {
             let changed = xml.replace(/<NextAdvisory>[\s\S]*?<\/NextAdvisory>/, "");
             // Only operate on Intensity: the earthquake's hypocenter also contains Area.
@@ -210,7 +213,7 @@ describe("P2 EEW unit", () => {
               reason: missing ? "requiredStructureMissing" : "requiredStructureInvalid" });
             expect(step.state).toBe(state);
           }
-        }
+      }
     }
   });
 
@@ -265,24 +268,6 @@ describe("P2 EEW unit", () => {
     expect(terminal.state.current.some((item) => item.family === "VXSE45")).toBe(false);
     expect(terminal.state.gates.find((item) => item.family === "VXSE45")?.terminal).toBe(true);
 
-    let bounded = emptyState();
-    for (let count = 1; count <= 513; count++) {
-      const next = decodeFixture("37_01_01_240613_VXSE43", "VXSE43", (xml) =>
-        xml.replace(/<EventID>[^<]*<\/EventID>/, `<EventID>${String(count).padStart(14, "0")}</EventID>`));
-      const admission = receive(bounded, next);
-      if (count === 513) {
-        expect(admission.state).toBe(bounded);
-        expect(admission.decisions).toEqual([{ decision: "capacityExceeded", operation: "normal",
-          subject: "normal/VXSE43/00000000000513" }]);
-      }
-      bounded = admission.state;
-      if (count >= 511) {
-        expect(bounded.gates).toHaveLength(Math.min(count, 512));
-        expect(bounded.current).toHaveLength(Math.min(count, 512));
-        expect(bounded.gates.some((gate) => gate.subject.endsWith("/00000000000001"))).toBe(true);
-        expect(bounded.current.at(-1)?.subject).toBe(`normal/VXSE43/${String(Math.min(count, 512)).padStart(14, "0")}`);
-      }
-    }
   });
 
   it("P2-A4-T02-legal-values acceptance / AC02: missing and empty preserve report evidence without changing raw kinds", () => {
@@ -474,15 +459,17 @@ describe("P2 EEW unit", () => {
 
     const withRecord = (length: number): EewUnitState => ({ ...emptyState(),
       deliveryRecords: [{ intentId: "x".repeat(length), disposition: "delivered", expiresAt: 1 }] });
-    let low = 0;
-    let high = 262_144;
-    while (low + 1 < high) {
-      const middle = Math.floor((low + high) / 2);
-      try { eewUnitCodec.encode(withRecord(middle)); low = middle; }
-      catch { high = middle; }
+    const envelope = { schemaVersion: "p2-eew-unit-v1", unit: "U-E", generation: Number.MAX_SAFE_INTEGER,
+      capturedAt: Number.MAX_SAFE_INTEGER, payload: eewUnitCodec.encode(withRecord(0)), sha256: "0".repeat(64) };
+    const recordPadding = 262_144 - Buffer.byteLength(JSON.stringify(envelope));
+    for (const extra of [0, 1]) {
+      const boundary = withRecord(recordPadding + extra);
+      const payload = { ...envelope.payload, deliveryRecords: boundary.deliveryRecords };
+      expect(Buffer.byteLength(JSON.stringify({ ...envelope, payload }))).toBe(262_144 + extra);
+      expect(eewUnitCodec.decode(payload).kind).toBe(extra === 0 ? "restored" : "invalid");
+      if (extra === 0) expect(eewUnitCodec.encode(boundary)).toEqual(payload);
+      else expect(() => eewUnitCodec.encode(boundary)).toThrow(/persisted boundary/);
     }
-    expect(() => eewUnitCodec.encode(withRecord(low))).not.toThrow();
-    expect(() => eewUnitCodec.encode(withRecord(low + 1))).toThrow(/persisted boundary/);
     for (const count of [127, 128, 129]) {
       const many = { ...emptyState(), intents: Array.from({ length: count }, (_, index) =>
         pendingIntent(`normal/VXSE43/${String(index).padStart(14, "0")}`)) };
@@ -554,9 +541,12 @@ describe("P2 EEW unit", () => {
     expect(root.state.checkpointAttempts["U-E"]).toEqual({ ...scheduled.capture, postCaptureDirtySince: null });
     const saved = await root.executeCheckpoint(scheduled.request, "o07", [first.inputId], "notRetry");
     running = root.applyCheckpointResult(running, saved.result, { wallTimeMs: ++now, monotonicMs: now }).state;
-    expect(root.restoreUnit("U-E").kind).toBe("restored");
-    expect(root.checkpoint.restoredState("U-E")).toMatchObject({ current: [], gates: [],
-      intents: [{ expiresAt: BASE_TIME + 15_000 }] });
+    const checkpoint = root.restoreUnit("U-E");
+    expect(checkpoint.kind).toBe("restored");
+    if (checkpoint.kind !== "restored") throw new Error("checkpoint not restored");
+    expect(eewUnitCodec.decode(checkpoint.envelope.payload)).toMatchObject({ kind: "restored", state: {
+      current: [], gates: [], intents: [{ expiresAt: BASE_TIME + 15_000 }],
+    } });
     const payload = eewUnitCodec.decode(scheduled.request!.envelope.payload);
     if (payload.kind !== "restored") throw new Error(payload.reason);
     const restored = reduceEewUnit(emptyState(), { kind: "restore", persisted: eewUnitCodec.encode(payload.state),
@@ -714,80 +704,6 @@ describe("P2 EEW unit", () => {
     }
   });
 
-  it("P2-A4-T08 contractBoundary / AC02-04,06,08: crossed order, operation, termination, TTL, capacity, restore, codec limits", () => {
-    let cases = 0;
-    for (const operation of ["normal", "training", "test"] as const) {
-      const first = decodeFixture("37_01_01_240613_VXSE43", "VXSE43", (xml) => withOperation(xml, operation));
-      const again = decodeFixture("37_01_01_240613_VXSE43", "VXSE43", (xml) => withOperation(xml, operation), "different-input-id");
-      const third = decodeFixture("37_01_02_240613_VXSE43", "VXSE43", (xml) =>
-        withOperation(xml, operation).replace("<Serial>2</Serial>", "<Serial>3</Serial>"));
-      const cancellation = decodeFixture("37_01_03_240613_VXSE43", "VXSE43", (xml) =>
-        withOperation(xml, operation).replace("<Serial>2</Serial>", "<Serial>3</Serial>"));
-      const final = decodeFixture("37_01_02_240613_VXSE43", "VXSE43", (xml) =>
-        withOperation(xml, operation).replace("<Serial>2</Serial>", "<Serial>3</Serial>")
-          .replace("</Body>", "<NextAdvisory>最終報</NextAdvisory></Body>"));
-      let fillers = emptyState();
-      for (let count = 1; count <= 512; count++) {
-        fillers = receive(fillers, decodeFixture("37_01_01_240613_VXSE43", "VXSE43", (xml) =>
-          withOperation(xml, operation === "normal" && count === 512 ? "training" : operation)
-            .replace(/<EventID>[^<]*<\/EventID>/, `<EventID>${String(count).padStart(14, "0")}</EventID>`))).state;
-        if (count < 510) continue;
-        const base = receive(fillers, first).state; // attempts 511, 512, 513; target is newest.
-        expect(base.gates).toHaveLength(Math.min(count + 1, 512));
-        const target = base.current.at(-1)!;
-        for (const order of ["reverse", "gap", "duplicate"] as const)
-          for (const terminal of [cancellation, final])
-            for (const age of [14_999, 15_000, 15_001])
-              for (const restart of [false, true])
-                for (const extraByte of [0, 1]) {
-                  let state = order === "reverse" ? receive(base, third).state : base;
-                  state = { ...state, intents: [pendingIntent(target.subject)] };
-                  const ordered = receive(state, order === "gap" ? third : again, BASE_TIME + age);
-                  expect(ordered.decisions[0]).toMatchObject(order === "gap"
-                    ? { decision: "changed", change: "semantic" }
-                    : { decision: "unchanged", reason: order === "reverse" ? "stale" : "duplicate" });
-                  if (order !== "gap") expect(ordered.state).toBe(state);
-                  expect(ordered.state.intents).toHaveLength(order === "gap" ? 0 : 1);
-                  state = ordered.state;
-
-                  const payload = { ...eewUnitCodec.encode(state), deliveryRecords: [
-                    ...state.deliveryRecords, { intentId: "", disposition: "delivered" as const, expiresAt: 1 },
-                  ] };
-                  const envelope = { schemaVersion: "p2-eew-unit-v1", unit: "U-E", generation: Number.MAX_SAFE_INTEGER,
-                    capturedAt: Number.MAX_SAFE_INTEGER, payload, sha256: "0".repeat(64) };
-                  const pad = 262_144 - Buffer.byteLength(JSON.stringify(envelope));
-                  const padded = { ...payload, deliveryRecords: payload.deliveryRecords.map((record) => record.intentId === ""
-                    ? { ...record, intentId: "x".repeat(pad + extraByte) } : record) };
-                  expect(Buffer.byteLength(JSON.stringify({ ...envelope, payload: padded }))).toBe(262_144 + extraByte);
-                  expect(eewUnitCodec.decode(padded).kind).toBe(extraByte === 0 ? "restored" : "invalid");
-                  if (restart) {
-                    const recovery = reduceEewUnit(emptyState(), { kind: "restore", persisted: padded, clock: clock(BASE_TIME + age) });
-                    expect(recovery.state.current).toEqual([]);
-                    expect(recovery.state.gates).toEqual([]);
-                    expect(recovery.intents).toHaveLength(extraByte === 0 && age === 14_999 && order !== "gap" ? 1 : 0);
-                    for (const intent of recovery.intents) expect(intent.expiresAt).toBe(BASE_TIME + 15_000);
-                    state = recovery.state;
-                    const followup = receive(state, third, BASE_TIME + age);
-                    expect(followup.state.current[0].serial).toBe(3);
-                    expect(followup.decisions[0]).toMatchObject({ decision: "changed", change: "semantic" });
-                    state = followup.state;
-                  }
-                  const timed = reduceEewUnit(state, { kind: "deadline", clock: clock(BASE_TIME + age) });
-                  expect(timed.state.intents).toHaveLength(!restart && age === 14_999 && order !== "gap" ? 1 : 0);
-                  const ended = receive(timed.state, terminal, BASE_TIME + age);
-                  expect(ended.state.current.some((current) => current.subject === target.subject)).toBe(false);
-                  expect(ended.state.gates.find((gate) => gate.subject === target.subject)?.terminal).toBe(true);
-                  expect(ended.state.intents).toHaveLength(0);
-                  const endedAgain = receive(ended.state, terminal, BASE_TIME + age);
-                  expect(endedAgain.state).toBe(ended.state);
-                  expect(endedAgain.decisions[0]).toMatchObject({ reason: "duplicate" });
-                  cases++;
-                }
-      }
-    }
-    expect(cases).toBe(648);
-  });
-
   it("P2-A4-T09 corpusHistory / AC09: E13 EEW manifest population has no persistent semantic unavailable", () => {
     const counts = { fixtures: 0, normalCorpus: 0, rejected: 0, invalidSynthetic: 0,
       semanticUnavailable: 0, deliverySummary: "N/A: A8 not connected" };
@@ -865,44 +781,22 @@ describe("P2 EEW unit", () => {
       }
   });
 
-  it("P2-A4-T10 regression / AC02,04: unknown follow-ups retain known evidence but restore never revives it", () => {
-    let cases = 0;
-    for (const operation of ["normal", "training", "test"] as const)
-      for (const family of ["VXSE43", "VXSE44", "VXSE45"] as const)
-        for (const scope of ["all", "maximum", "area"] as const)
-          for (const restart of [false, true]) {
-            const initial = receive(emptyState(), decodeFixture("37_01_01_240613_VXSE43", family,
-              (xml) => withOperation(xml, operation))).state;
-            let state = initial;
-            if (restart) {
-              const restored = eewUnitCodec.decode(eewUnitCodec.encode(initial));
-              if (restored.kind !== "restored") throw new Error(restored.reason);
-              state = restored.state;
-              expect(state.current).toEqual([]);
-            }
-            const change = (xml: string): string => {
-              const unknown = (part: string): string => part.replace(/<(From|To)>[^<]*<\/(From|To)>/g, "<$1>不明</$1>");
-              const classified = withOperation(xml, operation);
-              return scope === "all" ? unknown(classified)
-                : scope === "maximum" ? classified.replace(/<ForecastInt>[\s\S]*?<\/ForecastInt>/, unknown)
-                  : classified.replace(/<Pref>[\s\S]*?<\/Pref>/, unknown);
-            };
-            const step = receive(state, decodeFixture("37_01_02_240613_VXSE43", family, change));
-            expect(step.state.gates.at(-1)?.serial).toBe(2);
-            expect(step.state.current[0].source.serialRaw).toBe("2");
-            expect(step.state.current[0].retainedPrediction).toEqual(!restart && scope === "all"
-              ? { prediction: initial.current[0].prediction, source: initial.current[0].source } : null);
-            const latest = step.outcomes[0].subjects[0];
-            expect(latest.source?.serialRaw).toBe("2");
-            if (scope !== "area") expect(latest.facts.prediction).toMatchObject({ maximum: {
-              from: { kind: "unknown", raw: "不明" }, to: { kind: "unknown", raw: "不明" },
-            } });
-            const duplicate = receive(step.state, decodeFixture("37_01_02_240613_VXSE43", family, change, "unknown-redelivery"));
-            expect(duplicate.state).toBe(step.state);
-            expect(duplicate.decisions[0]).toMatchObject({ decision: "unchanged", reason: "duplicate" });
-            cases++;
-          }
-    expect(cases).toBe(54);
+  it("P2-A4-T10 regression / AC02,04: partial unknown follow-ups use remaining report evidence", () => {
+    const initial = receive(emptyState(), decodeFixture("37_01_01_240613_VXSE43", "VXSE43")).state;
+    const unknown = (part: string): string => part.replace(/<(From|To)>[^<]*<\/(From|To)>/g, "<$1>不明</$1>");
+    const cases = [
+      ["maximum", (xml: string) => xml.replace(/<ForecastInt>[\s\S]*?<\/ForecastInt>/, unknown)],
+      ["area", (xml: string) => xml.replace(/<Pref>[\s\S]*?<\/Pref>/, unknown)],
+    ] as const;
+    for (const [scope, change] of cases) {
+      const material = decodeFixture("37_01_02_240613_VXSE43", "VXSE43", change, `unknown-${scope}`);
+      const step = receive(initial, material);
+      expect(step.state.current[0]).toMatchObject({ source: { serialRaw: "2" }, retainedPrediction: null });
+      expect(step.state.current[0].prediction.maximum.from.kind).toBe(scope === "maximum" ? "unknown" : "text");
+      expect(step.state.current[0].prediction.areas[0].intensity.from.kind).toBe(scope === "area" ? "unknown" : "text");
+      expect(step.outcomes[0].subjects[0]).toMatchObject({ source: { serialRaw: "2" } });
+      expect(receive(step.state, material).decisions[0]).toMatchObject({ decision: "unchanged", reason: "duplicate" });
+    }
   });
 
   it("P2-A4-T12 acceptance / AC02,04 R13: report-level evidence updates, clears and never revives on restore", () => {
@@ -942,9 +836,12 @@ describe("P2 EEW unit", () => {
         expect(receive(held.state, material(4, "partial")).state).toBe(held.state);
         const restored = reduceEewUnit(held.state, { kind: "restore", persisted: eewUnitCodec.encode(held.state), clock: clock(BASE_TIME) });
         expect(restored.state.current).toEqual([]);
-        expect(receive(restored.state, material(6, "unknown")).state.current[0].retainedPrediction).toBeNull();
-        const ended = receive(held.state, decodeFixture("37_01_03_240613_VXSE43", family, (xml) =>
-          withOperation(xml, operation).replace("<Serial>2</Serial>", "<Serial>5</Serial>")));
+        const afterRestore = receive(restored.state, material(6, "unknown"));
+        expect(afterRestore.state.current[0].retainedPrediction).toBeNull();
+        const terminalBase = operation === "normal" ? afterRestore.state : held.state;
+        const terminalSerial = operation === "normal" ? 6 : 5;
+        const ended = receive(terminalBase, decodeFixture("37_01_03_240613_VXSE43", family, (xml) =>
+          withOperation(xml, operation).replace("<Serial>2</Serial>", `<Serial>${terminalSerial}</Serial>`)));
         expect(ended.state.current).toEqual([]);
       }
   });

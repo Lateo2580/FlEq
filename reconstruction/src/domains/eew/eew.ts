@@ -339,4 +339,4 @@ function reduceEew(state: EewUnitState, input: Extract<EewInput, { kind: "receiv
   };
 }
 
-export { reduceEew, nextEewDeadline };
+export { reduceEew, nextEewDeadline, dirty };

@@ -7,7 +7,6 @@ import type {
   ClockReading,
   DiagnosticDetails,
   DiagnosticEvent,
-  ParserDiagnosticReason,
   PersistenceStatus,
   RejectionReason,
   RuntimeInput,
@@ -24,18 +23,11 @@ import type {
   SemanticEnvelopeResult,
   UnitId,
 } from "../../contracts/p2-shared-runtime.types";
-import { boundedString, boundDiagnosticDetails, completeDiagnostic } from "./runtime-diagnostic";
+import { boundedString, boundDiagnosticDetails, completeDiagnostic, parserDiagnosticReasons } from "./runtime-diagnostic";
 
 const EMPTY: readonly never[] = Object.freeze([]);
 const units = ["U-E", "U-W", "U-F"] as const;
 const stages = ["mailboxDrain", "sideEffectFinalization", "finalCheckpoint", "workerClose"] as const;
-const parserReasons = [
-  "operationMissing", "operationInvalid", "operationMismatch", "operationAmbiguous",
-  "formatUnsupported", "inputTooLarge", "envelopeInvalid", "encodingUnsupported",
-  "compressionUnsupported", "bodyDecodeFailed", "expandedBodyInvalid",
-  "expandedBodyTooLarge", "xmlLimitExceeded", "xmlInvalid",
-] satisfies readonly ParserDiagnosticReason[];
-
 function rejection(material: DecodedMaterial, reason: RejectionReason): SemanticEnvelopeResult {
   return {
     kind: "rejected",
@@ -66,7 +58,7 @@ function validateSemanticEnvelope(material: DecodedMaterial): SemanticEnvelopeRe
 }
 
 function parserDiagnostic(reason: string, inputId: string): DiagnosticDetails | null {
-  const matched = parserReasons.find((candidate) => candidate === reason);
+  const matched = parserDiagnosticReasons.find((candidate) => candidate === reason);
   if (matched == null) return null;
   return boundDiagnosticDetails({ level: "WARN", component: "parser", reason: matched, inputId });
 }

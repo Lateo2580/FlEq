@@ -1,6 +1,12 @@
-import type { ClockReading, DiagnosticDetails, DiagnosticEvent } from "../../contracts/p2-shared-runtime.types";
+import type { ClockReading, DiagnosticDetails, DiagnosticEvent, ParserDiagnosticReason } from "../../contracts/p2-shared-runtime.types";
 
 const encoder = new TextEncoder();
+const parserDiagnosticReasons = [
+  "operationMissing", "operationInvalid", "operationMismatch", "operationAmbiguous",
+  "formatUnsupported", "inputTooLarge", "envelopeInvalid", "encodingUnsupported",
+  "compressionUnsupported", "bodyDecodeFailed", "expandedBodyInvalid",
+  "expandedBodyTooLarge", "xmlLimitExceeded", "xmlInvalid",
+] satisfies readonly ParserDiagnosticReason[];
 
 // Four free-text fields at 1536 JSON bytes each leave room within 8192 bytes
 // for fixed keys, enums, finite numbers, punctuation and the sink newline.
@@ -36,4 +42,4 @@ function completeDiagnostic(details: DiagnosticDetails, clock: ClockReading, run
   return { timestamp: clock.wallTimeMs, ...boundDiagnosticDetails(details), runId: boundedString(runId) };
 }
 
-export { boundedString, boundDiagnosticDetails, completeDiagnostic };
+export { parserDiagnosticReasons, boundedString, boundDiagnosticDetails, completeDiagnostic };

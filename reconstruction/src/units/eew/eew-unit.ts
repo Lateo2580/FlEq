@@ -8,7 +8,7 @@ import type {
   EewUnitView,
   PersistedEewUnit,
 } from "../../../contracts/p2-eew-unit.types";
-import { nextEewDeadline, reduceEew } from "../../domains/eew/eew";
+import { dirty, nextEewDeadline, reduceEew } from "../../domains/eew/eew";
 
 const SCHEMA = "p2-eew-unit-v1" as const;
 const GENERATION_BYTES = 256 * 1024;
@@ -96,12 +96,6 @@ function cleanPersistence(): PersistenceStatus {
     kind: "saved", currentGeneration: 0, savedGeneration: 0,
     savedCapturedAt: null, savedAckAt: null, dirtySince: null,
   };
-}
-
-function dirty(persistence: PersistenceStatus, nowMs: number): PersistenceStatus {
-  const progress = { ...persistence, currentGeneration: persistence.currentGeneration + 1,
-    dirtySince: persistence.dirtySince ?? nowMs };
-  return persistence.kind === "saved" ? { ...progress, kind: "pending" } : progress;
 }
 
 function subject(intentValue: NotificationIntent, transition: string): SubjectOutcome {

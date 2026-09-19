@@ -58,7 +58,7 @@ type Attempt = {
 };
 
 type Slot = "A" | "B";
-type SlotRead = Readonly<{ slot: Slot; envelope: CheckpointEnvelope; state: unknown }>;
+type SlotRead = Readonly<{ slot: Slot; envelope: CheckpointEnvelope }>;
 type SlotInvalid = "missing" | "invalid" | "unknownSchema";
 
 const encoder = new TextEncoder();
@@ -110,7 +110,6 @@ class CheckpointCoordinator<UnitStates extends RuntimeUnitStates = RuntimeUnitSt
   private readonly attempts = new Map<string, Attempt>();
   private readonly retry = new Map<UnitId, { failures: number; retryAfter: number;
     retryReason: CheckpointMeasurement["retryReason"] }>();
-  private readonly restored = new Map<UnitId, unknown>();
   private readonly overdue = new Map<UnitId, number>();
   private reservedAttemptId: string | null = null;
   private attemptSequence = 0;
@@ -130,7 +129,6 @@ class CheckpointCoordinator<UnitStates extends RuntimeUnitStates = RuntimeUnitSt
   }
 
   restoreUnit(unit: UnitId): RestoreUnitResult {
-    this.restored.delete(unit);
     const codec = this.codec(unit);
     if (codec == null) {
       this.restoreRejected(unit, "unknownSchema");
@@ -157,12 +155,7 @@ class CheckpointCoordinator<UnitStates extends RuntimeUnitStates = RuntimeUnitSt
     }
     const selected = valid.reduce((latest, candidate) =>
       candidate.envelope.generation > latest.envelope.generation ? candidate : latest);
-    this.restored.set(unit, selected.state);
     return { kind: "restored", envelope: selected.envelope, slot: selected.slot };
-  }
-
-  restoredState(unit: UnitId): unknown | null {
-    return this.restored.get(unit) ?? null;
   }
 
   scheduleCheckpoint(
@@ -506,7 +499,7 @@ class CheckpointCoordinator<UnitStates extends RuntimeUnitStates = RuntimeUnitSt
     if (decoder.decode(serializedEnvelope(envelope)) !== text) return "invalid";
     try {
       const decoded = codec.decode(envelope.payload);
-      return decoded.kind === "restored" ? { slot, envelope, state: decoded.state } : "invalid";
+      return decoded.kind === "restored" ? { slot, envelope } : "invalid";
     } catch { return "invalid"; }
   }
 

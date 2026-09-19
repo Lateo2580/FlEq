@@ -104,10 +104,12 @@ describe("P2 checkpoint", () => {
     state = root.applyCheckpointResult(state, output.result,
       { wallTimeMs: 1_713_363_299_002, monotonicMs: 3 }).state;
     expect(state.persistence["U-E"]?.kind).toBe("saved");
-    expect(root.restoreUnit("U-E").kind).toBe("restored");
-    expect(root.checkpoint.restoredState("U-E")).toMatchObject({
+    const restored = root.restoreUnit("U-E");
+    expect(restored.kind).toBe("restored");
+    if (restored.kind !== "restored") throw new Error("checkpoint not restored");
+    expect(codec("U-E").decode(restored.envelope.payload)).toMatchObject({ kind: "restored", state: {
       value: fixture, activeFixture: null, current: [], intentExpiresAt: 1_713_363_314_001,
-    });
+    } });
   });
 
   it("P2-A3-T02 contractBoundary / AC02: rename uncertainty reconciles g2 without rolling back in-memory cancellation g3", async () => {

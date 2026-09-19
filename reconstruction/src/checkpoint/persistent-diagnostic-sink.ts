@@ -9,11 +9,10 @@ import type {
   DiagnosticReadResult,
   DiagnosticSinkResult,
   ParserDiagnosticProjection,
-  ParserDiagnosticReason,
   ShutdownSummary,
   UnitId,
 } from "../../contracts/p2-shared-runtime.types";
-import { completeDiagnostic } from "../runtime/runtime-diagnostic";
+import { completeDiagnostic, parserDiagnosticReasons } from "../runtime/runtime-diagnostic";
 
 type DiagnosticFile = Readonly<{ name: string; size: number; mtimeMs: number }>;
 
@@ -37,14 +36,8 @@ const RETENTION_MS = 7 * 24 * 60 * 60 * 1000;
 const utf8 = new TextEncoder();
 const levels = ["DEBUG", "INFO", "WARN", "ERROR"] as const;
 const units = ["U-E", "U-Q", "U-T", "U-N", "U-W", "U-L", "U-F", "U-B", "U-M", "U-Y", "U-V", "U-R"] as const;
-const parserReasons = [
-  "operationMissing", "operationInvalid", "operationMismatch", "operationAmbiguous",
-  "formatUnsupported", "inputTooLarge", "envelopeInvalid", "encodingUnsupported",
-  "compressionUnsupported", "bodyDecodeFailed", "expandedBodyInvalid",
-  "expandedBodyTooLarge", "xmlLimitExceeded", "xmlInvalid",
-] satisfies readonly ParserDiagnosticReason[];
 const diagnosticReasons = [
-  ...parserReasons,
+  ...parserDiagnosticReasons,
   "headMissing", "reportDateTimeMissing", "reportDateTimeInvalid", "identityMissing", "identityInvalid",
   "requiredStructureMissing", "requiredStructureInvalid",
   "checkpointEncodeFailed", "checkpointWriteFailed", "checkpointFileSyncFailed", "checkpointCloseFailed",
@@ -421,7 +414,7 @@ class PersistentDiagnosticSink {
 }
 
 function projectParserDiagnostic(parser: ParserDiagnostic, runId: string, timestamp: number): ParserDiagnosticProjection {
-  const reason = parserReasons.find((candidate) => candidate === parser.reason);
+  const reason = parserDiagnosticReasons.find((candidate) => candidate === parser.reason);
   if (reason == null || !Number.isFinite(timestamp)) throw new Error("unsupported parser diagnostic");
   return {
     event: completeDiagnostic({ level: "WARN", component: "parser", reason, inputId: parser.inputId },

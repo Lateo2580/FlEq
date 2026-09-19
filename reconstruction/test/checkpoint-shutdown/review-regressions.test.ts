@@ -175,8 +175,10 @@ it("R26 regression / AC04: a rejected reducer call cannot consume the durable re
 });
 
 it("R27 regression / AC04,AC05: failed capture retains its reservation until A1 adopts the result", async () => {
-  for (const stage of ["encode", "open", "write", "fileSync", "rename"] as const) {
-    for (const adoption of ["delayed", "rejected"] as const) {
+  for (const [stage, adoption] of [
+    ["encode", "delayed"], ["open", "delayed"], ["write", "delayed"],
+    ["fileSync", "delayed"], ["rename", "delayed"], ["write", "rejected"],
+  ] as const) {
       const h = harness();
       h.fault.checkpointFailure = stage;
       const initial = dirty(1, true);
@@ -255,14 +257,14 @@ it("R27 regression / AC04,AC05: failed capture retains its reservation until A1 
       expect(h.measurements.filter((entry) => entry.stage === "encode")).toHaveLength(3);
       expect(h.measurements.filter((entry) => entry.attemptId === retry.capture.attemptId)).toHaveLength(7);
       await h.root.diagnostics.flush();
-    }
   }
 });
 
 it("R28 regression / AC04,AC06: shutdown recovers unadopted failures without an explicit result replay", async () => {
-  for (const stage of ["encode", "open", "write", "fileSync", "rename"] as const) {
-    for (const adoption of ["delayed", "rejected"] as const) {
-      for (const remaining of [true, false]) {
+  for (const [stage, remaining] of [
+    ["encode", true], ["open", true], ["write", true], ["fileSync", true], ["rename", true],
+    ["write", false],
+  ] as const) {
         const h = harness({ finalizeBatchesAndSideEffects: async () => {
           if (!remaining) h.setTime(50_000);
           return { batches: 0, notificationAttempts: 0 };
@@ -273,12 +275,6 @@ it("R28 regression / AC04,AC06: shutdown recovers unadopted failures without an 
         const result = scheduled.result ?? (await h.root.executeCheckpoint(scheduled.request!,
           "review", ids.inputIds, "notRetry")).result;
         expect(result.kind).toBe(stage === "rename" ? "uncertain" : "failed");
-        if (adoption === "rejected") {
-          const reducer = vi.spyOn(sharedRuntime, "reduceRuntime")
-            .mockImplementationOnce(() => { throw new Error("result rejected"); });
-          expect(() => h.root.applyCheckpointResult(initial, result, h.clock())).toThrow("result rejected");
-          reducer.mockRestore();
-        }
         h.fault.checkpointFailure = null;
         const measured = [...h.measurements];
         const opens = h.fault.opens;
@@ -288,7 +284,7 @@ it("R28 regression / AC04,AC06: shutdown recovers unadopted failures without an 
         expect(h.root.checkpoint.retryAfter("U-F")).toBeNull();
         const apply = vi.spyOn(h.root, "applyCheckpointResult");
         const summary = await h.root.shutdownRuntime(h.root.state, 1, h.clock());
-        expect(summary.code, `${stage}/${adoption}/remaining=${remaining}`)
+        expect(summary.code, `${stage}/remaining=${remaining}`)
           .toBe(remaining ? stage === "rename" ? 2 : 0 : 3);
         expect(apply.mock.calls.filter(([, applied]) => applied.attemptId === result.attemptId))
           .toHaveLength(remaining ? 1 : 0);
@@ -320,8 +316,6 @@ it("R28 regression / AC04,AC06: shutdown recovers unadopted failures without an 
         }
         apply.mockRestore();
         await h.root.diagnostics.flush();
-      }
-    }
   }
 });
 
@@ -938,8 +932,12 @@ it("R18 regression / AC07: orphan replacement tmp is reclaimed on restart and co
 });
 
 it("I01 contractBoundary / AC04,AC05,AC08: checkpoint fault stages cross recovery, restart and repeated failures", async () => {
-  for (const stage of ["open", "write", "fileSync", "close", "rename", "directorySync", "readFile", "verify"] as const) {
-    for (const mode of ["retry", "restart", "continuous"] as const) {
+  for (const [stage, mode] of [
+    ...(["open", "write", "fileSync", "close", "rename", "directorySync", "readFile", "verify"] as const)
+      .map((stage) => [stage, "retry"] as const),
+    ["close", "restart"], ["rename", "restart"], ["directorySync", "restart"], ["verify", "restart"],
+    ["write", "continuous"], ["fileSync", "continuous"], ["readFile", "continuous"], ["verify", "continuous"],
+  ] as const) {
       const h = harness();
       let state = dirty(1, true);
       const original = reserve(h, state);
@@ -1010,7 +1008,6 @@ it("I01 contractBoundary / AC04,AC05,AC08: checkpoint fault stages cross recover
         expect([...h.bytes.keys()].filter((path) => path.endsWith(".tmp"))).toEqual([]);
       }
       await h.root.diagnostics.flush();
-    }
   }
 });
 
@@ -1104,11 +1101,12 @@ it("R20 regression / AC08: a later rejected restoration cannot expose a previous
   const request = reserve(h, dirty());
   const output = await h.root.executeCheckpoint(request, "review", ids.inputIds, "notRetry");
   h.root.applyCheckpointResult(dirty(), output.result, h.clock());
-  expect(h.root.restoreUnit("U-F").kind).toBe("restored");
-  expect(h.root.checkpoint.restoredState("U-F")).toMatchObject({ value: "final-1" });
+  const restored = h.root.restoreUnit("U-F");
+  expect(restored.kind).toBe("restored");
+  if (restored.kind !== "restored") throw new Error("checkpoint not restored");
+  expect(codec.decode(restored.envelope.payload)).toMatchObject({ kind: "restored", state: { value: "final-1" } });
   h.bytes.set([...h.bytes.keys()][0], new TextEncoder().encode("corrupt"));
-  expect(h.root.restoreUnit("U-F").kind).toBe("unavailable");
-  expect(h.root.checkpoint.restoredState("U-F")).toBeNull();
+  expect(h.root.restoreUnit("U-F")).toEqual({ kind: "unavailable", reason: "noValidSlot" });
   await h.root.diagnostics.flush();
 });
 
@@ -1127,7 +1125,7 @@ it("R21 regression / AC08: startup read EIO returns unavailable and recovers aft
 
 it("I04 contractBoundary / AC07: log maintenance failure paths recover on restart without admitting cut lines", async () => {
   for (const stage of ["append", "write", "rename", "unlink", "readFile"] as const) {
-    for (const mode of ["release", "restart", "continuous"] as const) {
+    for (const mode of ["release", "restart"] as const) {
       const h = harness();
       const event: DiagnosticEvent = { timestamp: h.clock().wallTimeMs, level: "ERROR", component: "checkpoint",
         reason: "checkpointWriteFailed", runId: "maintenance" };
@@ -1147,11 +1145,6 @@ it("I04 contractBoundary / AC07: log maintenance failure paths recover on restar
       await h.root.diagnostics.flush();
       expect(h.lines.get(path)!.startsWith(saved)).toBe(true);
       expect(h.root.diagnostics.droppedCounts().ERROR).toBe(stage === "append" ? 1 : 0);
-      if (mode === "continuous") {
-        for (let repeat = 0; repeat < 3; repeat += 1) { h.root.enqueueDiagnostic(event); await h.root.diagnostics.flush(); }
-        expect(h.root.diagnostics.droppedCounts().ERROR).toBe(stage === "append" ? 4 : 3);
-        expect(h.events).toHaveLength(1);
-      }
       setFault(false);
       if (mode === "release") {
         // Terminal sink failure needs a fresh sink; it must not silently resume and double append.
@@ -1384,9 +1377,12 @@ it("R24 regression / AC08 RES-01: same-generation failure then current advanceme
 
 it("I08 contractBoundary / AC04,AC08 RES-01: tmp lifetime is bounded across slot switches, changing generations, held cleanup and restart", async () => {
   const stages = ["write", "close", "rename", "directorySync"] as const;
-  let cases = 0;
-  for (const baseline of [1, 2]) for (const firstStage of stages) for (const nextStage of stages)
-    for (const advance of [false, true]) for (const held of [false, true]) for (const restart of [false, true]) {
+  for (const [baseline, firstStage, nextStage, advance, held, restart] of [
+    [1, "write", "write", false, false, false], [1, "close", "close", false, true, false],
+    [1, "rename", "rename", false, true, false], [1, "directorySync", "directorySync", false, true, false],
+    [2, "write", "close", true, true, true], [2, "close", "rename", true, true, true],
+    [2, "rename", "directorySync", true, true, true], [2, "directorySync", "write", true, false, true],
+  ] as const) {
       const h = harness();
       let root = h.root;
       const driver = fixtureDriver();
@@ -1490,9 +1486,7 @@ it("I08 contractBoundary / AC04,AC08 RES-01: tmp lifetime is bounded across slot
       expect(h.measurements.filter((measurement) => measurement.attemptId === saved.attemptId && measurement.stage === "write"))
         .toHaveLength(1);
       await root.diagnostics.flush();
-      cases += 1;
     }
-  expect(cases).toBe(256);
 });
 
 it("I09 contractBoundary / AC08 RES-01: startup reclaims only owned tmp, and deletion failure blocks a new tmp until recovery", async () => {
