@@ -141,6 +141,8 @@ export type UnitView = Readonly<{
 }>;
 
 export type FreshnessRecord = Readonly<{
+  // §7.8 monitoring exception: rejected preserves business state; A5 may record
+  // a validated target here without adopting the candidate or advancing its gate.
   target: Readonly<{ operation: Operation; family: string; subject: string; affectedScope: readonly string[] }>;
   candidateSource: ReportRef;
   currentSource: ReportRef | null;
@@ -170,7 +172,9 @@ export type InfrastructureDiagnosticReason =
   | "mailboxRejectedDraining" | "mailboxRejectedItemLimit" | "mailboxRejectedByteLimit"
   | "mailboxStalled" | "mailboxLimitViolation"
   | "shutdownStarted" | "shutdownUnsavedUnits"
-  | "diagnosticSinkFailed" | "diagnosticQueueOverflow";
+  | "diagnosticSinkFailed" | "diagnosticQueueOverflow"
+  | "snapshotNoticeCapacityExceeded" | "snapshotCommonBudgetExceeded"
+  | "snapshotStringLimitExceeded";
 
 export type DiagnosticReason = ParserDiagnosticReason | RejectionReason | InfrastructureDiagnosticReason
   | "weatherCurrentCapacityEvicted";

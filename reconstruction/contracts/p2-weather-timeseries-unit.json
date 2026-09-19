@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "fc7006e2380edf9a97b601d124341ba4bd7f7f42",
-    "sha256": "5eb47a9ea04ad4673d13b4c9f3aec023ec86c716b3861e12ba460de1bfd7da74",
+    "sha256": "4c2c76734960d95fef08377d9dfb207688fecc7f006f0862596ed167755b5ab2",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "76c82b87d7783a4eae14af690cb34e7d6ec46f73617dc75b7f7401951619f080",
     "sequencesSha256": "22b2432e8989d7e7cc2514f2297308e84b3c0f1a3e045491b9cf60cfa8f2d147",
@@ -33,9 +33,112 @@
         "provisional": "A",
         "ruling": "spec§4.6によりA",
         "reason": "不正period混在時に一部stateだけを進めない"
+      },
+      {
+        "id": "P2-A6-QENUM-EMPTY",
+        "A": "InfoTypeを先に分類し、取消または明示emptyでは空MeteorologicalInfosを受理する。存在するTimeSeriesInfoだけを必須node/refID検証し、壊れたseriesをemptyにしない",
+        "B": "全入力にperiod存在を要求する、または抽出結果が空なら一律正常emptyにする",
+        "recommended": "A",
+        "provisional": "A",
+        "ruling": "NO-GO 1の修正でAを採用",
+        "reason": "実取消fixtureの空containerと正常emptyを受理しつつ、欠落した外枠・破損series・未解決refIDを拒否できる"
       }
     ],
-    "questionResolutions": [],
+    "questionResolutions": [
+      {
+        "id": "Q-ENUM",
+        "status": "closed",
+        "source": "P2-SHARED-RUNTIME-001#Q-ENUM",
+        "closed": "U-F family検証順、unavailable 4 reasonのscope/source/lastKnown/affectedScope、保存・解除、rejectedとのgate/watermark/state差を固定した。現行WeatherTimeseriesSubjectで充足するため型追加と共有unionは不要",
+        "remaining": "unknownValueCodeをactive/inactive/unavailableのどれへ帰属させるかはQ-VALUES（owner=integrator）のまま。Q-ENUMはその裁定を先取りしない",
+        "reason": "正当なnewer報の保持不能と信頼不能入力を分離しつつ、未知値の意味裁定をQ-VALUESへ残す",
+        "priorityRule": "A1共通検証後、office/subject構成要素存在→identity妥当性→familyTableのInfoType別必須node存在→構造妥当性の順でidentityMissing→identityInvalid→requiredStructureMissing→requiredStructureInvalidの最初の一理由を返す。各段を全subjectで確認してから次段へ進み、同段は表のpath順・繰返しnodeの文書順。取消/明示emptyではTimeSeriesInfo/periodの不存在を検査対象にしない",
+        "reasonTable": [
+          {
+            "reason": "capacityExceeded",
+            "trigger": "正当なnewer報の同一subject seriesを512 subject/16MiB内へ保存できない",
+            "scope": "operation/family=VPWP50/subjectのseries全体",
+            "source": "容量超過を起こしたnewer ReportRef（null禁止）",
+            "lastKnown": "同じsubjectの直前period配列。無ければnull。activeや通知根拠として再利用しない",
+            "affectedScope": "保持できないperiod識別子。series全体なら入力に含まれる全period識別子"
+          },
+          {
+            "reason": "historyUnavailable",
+            "trigger": "正当なnewer取消・復元要求の対象series/periodが7日retention外で復元不能",
+            "scope": "対象operation/family=VPWP50/subject",
+            "source": "対象外履歴を要求したnewer ReportRef（null禁止）",
+            "lastKnown": "要求前に同じsubjectで最後に確認できたperiod配列。無ければnull",
+            "affectedScope": "復元不能なperiod識別子"
+          },
+          {
+            "reason": "coverageIncomplete",
+            "trigger": "正当なnewer報または復元coverage評価が対象subjectの必要period範囲を確認できずactive/inactiveを確定できない",
+            "scope": "確認対象operation/family=VPWP50/subject",
+            "source": "原因が報告入力ならそのReportRef、単一報に結び付かない復元coverage評価だけnull",
+            "lastKnown": "同じsubjectの直前period配列。無ければnull",
+            "affectedScope": "未確認period識別子だけ"
+          },
+          {
+            "reason": "unknownValueCode",
+            "trigger": "Q-VALUESが未知codeをunavailableへ裁定した場合だけ使用する。Q-ENUMでは帰属を決めない",
+            "scope": "未知codeを含むoperation/family=VPWP50/subject",
+            "source": "未知codeを含むnewer ReportRef（null禁止）",
+            "lastKnown": "同じsubjectの直前period配列。無ければnull",
+            "affectedScope": "未知codeを含むperiod識別子だけ"
+          }
+        ],
+        "transitionRule": "rejectedはsubjects/gates/intents/persistenceとwatermarkを不変にしdiagnosticだけを返す。報告入力によるunavailableは一世代のchangedとして同subjectのgate/watermarkを進め、effective=unavailable・periods=[]として古いperiodsを現行値にせずsource/lastKnown/affectedScopeをState/Persistedへ保存する。復元coverage評価は入力watermarkを捏造しない。同scopeの後続正常採用または包含coverage確認だけが解除し、別subject/operationでは解除しない",
+        "xmlBoundary": "DecodedMaterial.xmlのXmlElement.children/attributesで空のMeteorologicalInfosとnode欠落を区別する。P1は空要素・同名繰返し・属性timeId/refID・文書順を保持し、EventID/Serial欠落や空をraw空文字として返す。scalarはelement子を持たない直下text連結のtrim値。必須scalarの欠落・空はMissing、単一node重複・非scalar・不正値はInvalid。壊れた親nodeから子のMissingを捏造しない",
+        "identityRule": "officeはControl/EditorialOfficeの非空scalar、familyはVPWP50、報単位subjectはoperation/family/officeで束縛する。EventID/Serialの欠落・空は合法でidentityに要求しない。存在するTimeSeriesInfo/ItemのArea/Codeは必須の数字文字列（先頭0保持）で、欠落・空はidentityMissing、非scalar/重複/非数字はidentityInvalid。空MeteorologicalInfosの対象は同officeの報単位であり、架空のArea/periodを作らない",
+        "familyTable": [
+          {
+            "family": "VPWP50",
+            "infoType": "全入力",
+            "required": "Report/Bodyと、Body/MeteorologicalInfos[@type=量的予想時系列（市町村等）]が1個以上。Head/InfoTypeは1個の非空scalarで発表/訂正/取消のみ",
+            "legalMissingOrEmpty": "EventID/Serial、Headline/Text、TargetDateTimeは意味identityの必須項目ではない。空のMeteorologicalInfos要素そのものは下行のInfoType別規則で判定する",
+            "missing": "Body、MeteorologicalInfos、@type、InfoTypeの欠落・空はrequiredStructureMissing（Head/ReportDateTimeは先行A1 reason）",
+            "invalid": "InfoTypeの他値、単一node重複/非scalar、MeteorologicalInfos@typeの他値、container直下の非空textはrequiredStructureInvalid。InfoType不正時に下位periodのMissingを追加しない"
+          },
+          {
+            "family": "VPWP50",
+            "infoType": "取消",
+            "required": "全入力行の外枠と検証済みofficeだけで報単位取消を特定する",
+            "legalMissingOrEmpty": "MeteorologicalInfosのTimeSeriesInfo 0件は合法。TimeDefines/TimeDefine/Item/Kind/Property/Area/periodは不要。81_04_01_260605_VPWP50_cancel.xmlをこの枝で受理し、cancelledと取消gateを進める。TimeSeriesInfoが存在する場合は非空series行の検証を通す",
+            "missing": "TimeSeriesInfo自体がない場合はperiod関連Missingを返さない。存在するTimeSeriesInfoに必須nodeがない場合だけ非空series行のreason",
+            "invalid": "存在するTimeSeriesInfoが不正なら非空series行と同じInvalid。本文を無視して不正seriesを取消受理しない"
+          },
+          {
+            "family": "VPWP50",
+            "infoType": "発表/訂正・明示empty",
+            "required": "全入力行の外枠。全MeteorologicalInfosにTimeSeriesInfoが0件で非空text/未知の構造要素がないこと",
+            "legalMissingOrEmpty": "この明示空集合は正常newer emptyとして同officeの旧period currentを除きinactive/noActiveItemsと報単位gateを残す。取消とは区別する。また非空seriesがすべて検証を通り、原報period期限で有効periodが0件の場合も正常empty。不正refIDや未知値を捨ててemptyに変換しない",
+            "missing": "Body/MeteorologicalInfosが無い場合は明示emptyではなくrequiredStructureMissing",
+            "invalid": "TimeSeriesInfoが1件でも存在して壊れている場合はemptyへfallbackせず非空series行のreason"
+          },
+          {
+            "family": "VPWP50",
+            "infoType": "発表/訂正および取消でTimeSeriesInfoが存在",
+            "required": "各TimeSeriesInfoにTimeDefines/TimeDefineが1個以上、Itemが1個以上。各TimeDefineは一意の非空@timeIdとDateTime/Duration。各ItemはArea/Code、Kindが1個以上。各KindはPropertyが1個以上、各PropertyはTypeと値を格納するPart/CriteriaPeriodが1個以上。refID付き要素は同じTimeSeriesInfoのTimeDefineに解決できること",
+            "legalMissingOrEmpty": "TimeDefine/Name、Kind/Status・DateTime、PeakTime、CriteriaPeriod、Localは任意。Base直下とBase/Local配下の値を両方許す。CriteriaPeriodはSignificancyPart/Base配下とProperty直下の両配置を許す。値leafのempty/unknown/missing/rangeはP1 MaterialValueとして保持する。Significancy/Code未知値の帰属はQ-VALUESであり構造不正にしない。定義済みだが参照されないtimeIdや一部periodだけの値は合法",
+            "missing": "TimeDefines/TimeDefine/Item/Kind/Property/Type/Partの欠落・必須空集合、TimeDefine@timeId/DateTime/Duration欠落、値leafの必須refID欠落はrequiredStructureMissing。Item/Area/Code欠落・空は先行identityMissing",
+            "invalid": "重複timeId、未解決refID、単一scalar重複・非scalar、日時/Durationが下記periodRuleに不適合、containerの非空text、同一series/area/Property.Type/Local/値要素type/refIDの衝突はrequiredStructureInvalid"
+          }
+        ],
+        "periodRule": "timeId/refIDは非空文字列の完全一致で同じTimeSeriesInfo内だけを照合する。TimeDefine/DateTimeはタイムゾーンZまたは±HH:mmを持つ実在するISO暦日時、DurationはP[nD][T[nH][nM][nS]]の非負整数成分で合計秒が正、有限かつ終端日時が表現可能であること（月/年は不許可）。値は各PropertyのSignificancyPart/PrecipitationPart/WindDirectionPart/WindSpeedPart/SnowfallDepthPart/WaveHeightPart/TidalLevelPart/VisibilityPart/HumidityPartのBaseまたはBase/Local配下、またはCriteriaPeriodに置く。これらの値leaf・Significancy・PeakTime・CriteriaPeriodのrefIDを検証する。LocalはCode/AreaName/Nameの存在する識別文字列を保持し、無名Localは文書内出現位置で区別して潰さない。範囲限定の数値・特殊値の意味分類をこの構造検査で決めない",
+        "evidence": [
+          "test/fixtures/81_01_01_260129_VPWP50.xml",
+          "test/fixtures/81_01_02_260129_VPWP50.xml",
+          "test/fixtures/81_01_03_260129_VPWP50.xml",
+          "test/fixtures/81_01_04_251222_VPWP50.xml",
+          "test/fixtures/81_04_01_260605_VPWP50_cancel.xml",
+          "test/fixtures/81_06_01_260605_VPWP50_criteria_period.xml",
+          "test/fixtures/81_07_01_260605_VPWP50_local_area.xml",
+          "test/fixtures/81_08_01_260605_VPWP50_criteria_property_sibling.xml",
+          "reconstruction/src/decode-material/decode-material.ts"
+        ],
+        "evidenceLimit": "表はcheckout内XML構造とP1の保持形式を根拠とする契約採用条件。明示正常empty/取消の派生境界は本改訂の採用規則であり、新たな実電文取得・公式原本確認の主張ではない。容量/newer emptyの正式corpus充足は既存Q-LIMITと統合担当の後続作業"
+      }
+    ],
     "operationContract": {
       "ref": "P2-SHARED-RUNTIME-001#meta.operationContract",
       "rule": "subject/period/gate/取消/unavailable/intentをoperation別に保持し、区分間の更新・取消・dedupeを禁止する。保存単位・ファイルを区分ごとに増やさず、件数・byte上限はnormal/training/testの合計に適用する"
@@ -61,7 +164,8 @@
       "reconstruction/tools/corpus/sequences.json",
       "reconstruction/src/**",
       "src/engine/messages/**",
-      "src/dmdata/**"
+      "src/dmdata/**",
+      "test/fixtures/**"
     ],
     "allowedPaths": [
       "reconstruction/src/domains/weather-timeseries/**",
@@ -216,7 +320,7 @@
     ],
     "persistedFields": [
       "operation別subject revisionと全正常period（194 periodは必須正常例であり上限ではない）",
-      "gate-only revision、正常empty、unavailable reason/lastKnown/affectedScope",
+      "gate-only revision、正常empty、unavailableのsource/reason/lastKnown/affectedScope",
       "取消記憶、絶対期限、NotificationIntent"
     ],
     "nonPersistedFields": [
@@ -236,7 +340,7 @@
     "acceptanceChecks": [
       {
         "id": "P2-A6-AC01",
-        "requirement": "VPWP50だけをU-Fへ対応しsubject/period必須構造を検証、一入力内の複数subjectを原子的に適用する。不正はrejectedでgate/watermark/state不変",
+        "requirement": "VPWP50をfamilyTable/xmlBoundary/identityRule/periodRuleで検証する。InfoType=取消の空MeteorologicalInfosはcancelled、発表/訂正の明示emptyはinactive/noActiveItemsとして受理しgateを残す。非空seriesの必須node欠落・壊れたrefIDをemptyへ変換しない。固定順の最初の一RejectionReasonで一入力を原子的に拒否しgate/watermark/current/intent/stateを不変にする",
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:397 «d297e5dce4853a2d»",
           "docs/specs/reconstruction-p0-contracts.md:609 «996d1ffc74a90315»",
@@ -314,6 +418,15 @@
           "reconstruction/contracts/p2-order-plan.md:214 «6278a180baad86fc»",
           "reconstruction/tools/corpus/sequences.json#expected:O02:2"
         ]
+      },
+      {
+        "id": "P2-A6-AC10",
+        "requirement": "capacityExceeded/historyUnavailable/coverageIncompleteと、Q-VALUESがunavailableへ裁定した場合だけのunknownValueCodeをquestionResolutions[Q-ENUM].reasonTableどおり同一subjectへ束縛し、source/lastKnown/affectedScopeをState/Persistedで無損失にroundtripする。報告入力のunavailableはchangedとしてgate/watermarkを進めeffective=unavailable・periods=[]とし、古いperiodsを現行扱いしないが、rejectedは全業務stateを不変にする。unknownValueCodeのactive/inactive/unavailable帰属はこの契約改訂で決めない",
+        "evidenceRefs": [
+          "docs/specs/reconstruction-p0-contracts.md:731 «2054b0d946d1477b»",
+          "docs/specs/reconstruction-p0-contracts.md:732 «f96fd8a8dd40563c»",
+          "docs/specs/reconstruction-p0-contracts.md:733 «66e0af68048253c0»"
+        ]
       }
     ],
     "testMapping": [
@@ -323,7 +436,7 @@
         "referenceIds": [
           "P2-A6-AC01"
         ],
-        "behavior": "VPWP50 route/subject/period構造と複数subject原子性"
+        "behavior": "familyTableの契約境界を一つの表で確認: 81_04_01取消の空MeteorologicalInfosと発表/訂正の明示emptyは別結果で受理、外枠欠落・空TimeSeriesInfo・必須node欠落・重複timeId/未解決refID・非scalarは指定Missing/Invalid。EventID/Serial空、LocalとCriteriaPeriodの両配置は合法。複数不備は最初の一reasonで入力全体のstate不変"
       },
       {
         "testId": "P2-A6-T02",
@@ -360,6 +473,14 @@
           "P2-A6-AC08"
         ],
         "behavior": "O10 P2置換の保存失敗・取消・復元直後続報"
+      },
+      {
+        "testId": "P2-A6-T06",
+        "purpose": "contractBoundary",
+        "referenceIds": [
+          "P2-A6-AC10"
+        ],
+        "behavior": "同じ初期stateへ各確定済みunavailable reasonと複数不備rejectedを適用し、unavailableだけが同subjectのwatermarkを進めて古いperiodsをlastKnownへ移し、codec roundtrip後もsource/affectedScopeを保つ。unknownValueCodeはQ-VALUES裁定ケースにだけ追随する"
       }
     ],
     "requiredCommands": [
@@ -420,23 +541,10 @@
       "1実装interface、factory、registry、journal、将来用extension pointを追加しない",
       "allowed_paths限定patch、変更一覧、build/test/shuffle結果、未実行検証、残存リスク",
       "純粋な意味関数とreduceUnitはDiagnosticDetailsだけを返し、runtimeがtimestamp/runIdを付与する。各subjectのdecisionsを系列oracleのdecision/reason/changeと照合し、duplicate/stale/noChangeを区別する。識別不能な拒否ではsubjectを空文字にし、架空の業務identityを作らない。",
-      "194 periodは正常corpus必須受理条件であり保持上限ではない。194超の正常系列は件数だけで拒否しない。active validUntilと回収用retainUntilを分離し、7日はretentionとして固定する。"
+      "194 periodは正常corpus必須受理条件であり保持上限ではない。194超の正常系列は件数だけで拒否しない。active validUntilと回収用retainUntilを分離し、7日はretentionとして固定する。",
+      "WeatherTimeseriesSubjectの既存source/unavailableReason/lastKnown/affectedScopeがないと正当なnewer報の保持不能を復元できず古いperiodsを正常扱いする。既存型で足りるため共有UnavailableReason unionや追加fieldは作らない"
     ],
     "unresolvedQuestions": [
-      {
-        "id": "Q-ENUM",
-        "owner": "implementer",
-        "blocks": [
-          "U-F unavailable reasonのscope/lastKnown/affectedScope",
-          "subject/period必須構造のRejectionReason優先順位",
-          "Q-ENUM解決を具体unavailable reason型とsource/lastKnown/affectedScopeの保存型へ反映し、codec・viewの型検査が通るまで契約凍結不可"
-        ],
-        "resolveBy": "P2-WEATHER-TIMESERIES-UNIT-001実装開始前",
-        "requiredEvidence": [
-          "capacityExceeded/historyUnavailable/coverageIncomplete/unknownValueCodeの入力対応表",
-          "rejectedとunavailableでgate/watermark/stateがどう変わるかの期待"
-        ]
-      },
       {
         "id": "Q-VALUES",
         "owner": "integrator",

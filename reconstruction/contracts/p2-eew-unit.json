@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "fc7006e2380edf9a97b601d124341ba4bd7f7f42",
-    "sha256": "b12994e9ed450239e259aaa2948054c6b4f78277d97266c0dd4e76693aacf3a0",
+    "sha256": "d6dbeaab0df43dc4d3a8450bd4c8f535ad2f228c531babf2ea6ba56fb35884e6",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "76c82b87d7783a4eae14af690cb34e7d6ec46f73617dc75b7f7401951619f080",
     "sequencesSha256": "22b2432e8989d7e7cc2514f2297308e84b3c0f1a3e045491b9cf60cfa8f2d147",
@@ -42,6 +42,15 @@
         "provisional": "A",
         "ruling": "独立レビュー指摘2・3によりA",
         "reason": "A9表示fieldとattempts/nextAttemptAtを無損失で接続する"
+      },
+      {
+        "id": "P2-A4-QENUM-PRIORITY",
+        "A": "A1共通検証の後にEventID存在→Serial存在→EventID妥当性→Serial妥当性→InfoType別必須構造存在→必須構造妥当性の順で検証し、最初の一RejectionReasonだけを返す",
+        "B": "全不備を収集する、またはVXSE43/44/45ごとに共通順と異なる優先順を持つ",
+        "recommended": "A",
+        "provisional": "A",
+        "ruling": "本Q-ENUM改訂でA",
+        "reason": "同じEventID/Serial不備をfamilyや入力順で別reasonにせず、原子的拒否を一意にする"
       }
     ],
     "questionResolutions": [
@@ -51,6 +60,36 @@
         "closed": "spec §11の裁定を維持し、training/testの表示区分を保持する",
         "remaining": "desktop採否と文言はQ-NOTICE",
         "reason": "A7前に配送条件を分離して固定する"
+      },
+      {
+        "id": "Q-ENUM",
+        "status": "closed",
+        "source": "P2-SHARED-RUNTIME-001#Q-ENUM",
+        "closed": "A1共通検証後のU-E identity/必須構造順、複数不備の単一reason、rejected時の不変条件、VXSE43/44/45の合法欠落と不正構造を固定した",
+        "remaining": "なし",
+        "reason": "取消報の合法なBody縮退や区域なしを必須構造欠落と誤認せず、信頼不能なidentity/構造だけを拒否する",
+        "priorityRule": "EventID空→identityMissing、Serial空→identityMissing、EventIDが非空だがfamily subjectとして不正→identityInvalid、Serialが正整数でない→identityInvalid、InfoType別必須node欠落→requiredStructureMissing、存在するnodeのshape・code・ForecastIntが不正→requiredStructureInvalid。最初の一理由だけを返す",
+        "familyTable": [
+          {
+            "family": "VXSE43",
+            "legalMissing": "InfoType=取消ではBodyはTextだけでよくEarthquake/Intensity/Forecast/Pref/Areaを要求しない。発表ではHeadline.Text、Comments、NextAdvisory、Earthquake内の補助詳細は欠落可",
+            "required": "非取消ではBody/Intensity/Forecast/全体ForecastIntと少なくとも一つのPref/Area/ForecastInt。全入力で非空EventIDと正整数Serial",
+            "invalid": "非取消の必須node欠落、空または非scalar EventID/Serial、ForecastIntが固定EewPredictionIntensity shapeへ射影不能、存在するPref/Areaのcode欠落・不正またはshape不正。From/Toのmissing/empty/unknown/range自体は拒否理由にしない"
+          },
+          {
+            "family": "VXSE44",
+            "legalMissing": "InfoType=取消ではBodyはTextだけでよくEarthquake/Intensity/Forecast/Pref/Areaを要求しない。発表ではHeadline.Text、Comments、NextAdvisory、Earthquake内の補助詳細は欠落可",
+            "required": "非取消ではBody/Intensity/Forecast/全体ForecastIntと少なくとも一つのPref/Area/ForecastInt。全入力で非空EventIDと正整数Serial",
+            "invalid": "非取消の必須node欠落、空または非scalar EventID/Serial、ForecastIntが固定EewPredictionIntensity shapeへ射影不能、存在するPref/Areaのcode欠落・不正またはshape不正。From/Toのmissing/empty/unknown/range自体は拒否理由にしない"
+          },
+          {
+            "family": "VXSE45",
+            "legalMissing": "InfoType=取消ではBodyはTextだけでよくEarthquake/Intensity/Forecast/Pref/Areaを要求しない。非取消でも区域Pref/Areaは0件を許しareaCoverage=noneとする。Headline.Text、Comments、NextAdvisory、Earthquake内の補助詳細は欠落可",
+            "required": "非取消ではBody/Intensity/Forecast/全体ForecastInt。全入力で非空EventIDと正整数Serial",
+            "invalid": "非取消の必須node欠落、空または非scalar EventID/Serial、全体ForecastIntが固定EewPredictionIntensity shapeへ射影不能、存在するPref/Areaのcode欠落・不正またはshape不正。From/Toのmissing/empty/unknown/range自体は拒否理由にしない"
+          }
+        ],
+        "stateRule": "rejectedはEewUnitStateのcurrent/gates/intents/deliveryRecords/persistence参照、family watermark、PublishedOutcome、NotificationIntentをすべて不変にし、diagnosticだけを返す"
       }
     ],
     "operationContract": {
@@ -206,7 +245,7 @@
     "acceptanceChecks": [
       {
         "id": "P2-A4-AC01",
-        "requirement": "単位入力はVXSE43/44/45だけをU-Eへ対応し、同一入力の複数subjectを原子的に一回の参照交換で適用する。identity/必須構造不正はrejectedでstate/watermark/intent不変",
+        "requirement": "単位入力はVXSE43/44/45だけをU-Eへ対応し、同一入力の複数subjectを原子的に一回の参照交換で適用する。A1共通検証後はEventID存在→Serial存在→EventID妥当性→Serial妥当性→InfoType別必須構造存在→妥当性の順で最初の一RejectionReasonだけを返す。取消報はBodyのEarthquake/Intensity/Forecast欠落を合法、VXSE45非取消は区域0件を合法とし、それ以外のquestionResolutions[Q-ENUM].familyTable違反はrejectedでcurrent/gate/watermark/intent/unit state不変",
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:609 «996d1ffc74a90315»",
           "docs/specs/reconstruction-p0-contracts.md:616 «ea3e5e78f369ae4f»",
@@ -291,7 +330,7 @@
         "referenceIds": [
           "P2-A4-AC01"
         ],
-        "behavior": "複数subject原子性と不正入力state不変"
+        "behavior": "VXSE43/44/45の取消縮退・VXSE45区域なしを受理し、identity/構造の複数不備は固定順の一reasonで原子的に拒否してcurrent/gate/watermark/intentを不変にする"
       },
       {
         "testId": "P2-A4-T02",
@@ -392,19 +431,6 @@
       "EewInput.notificationResultはA1 NotificationResultと照合済みintentUpdateを一緒に受け、attempts/nextAttemptAt/dispositionをreduceEewUnitだけで反映する。無いとA3がA4 stateを直接変更し唯一の更新入口と衝突する"
     ],
     "unresolvedQuestions": [
-      {
-        "id": "Q-ENUM",
-        "owner": "implementer",
-        "blocks": [
-          "U-E family固有identity/必須構造のreason優先順位",
-          "複数不備時の一つのRejectionReason"
-        ],
-        "resolveBy": "P2-EEW-UNIT-001実装開始前",
-        "requiredEvidence": [
-          "VXSE43/44/45の合法欠落と不正構造表",
-          "rejected時にcurrent/gate/intent/watermark不変の期待"
-        ]
-      },
       {
         "id": "Q-NOTICE",
         "owner": "integrator",

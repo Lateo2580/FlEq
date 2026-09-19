@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "3095a6c21caa96e06fc3b3a6d2f906534ef5441b",
-    "sha256": "15df00766e4d4b6e7a1296c9f45bbe4769bcf7ee85e0226e702092346f4844a4",
+    "sha256": "61c659ef2a1ce59be8b137470db63d5b2ce39eef3561bc026b0833747e70cb18",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "76c82b87d7783a4eae14af690cb34e7d6ec46f73617dc75b7f7401951619f080",
     "sequencesSha256": "22b2432e8989d7e7cc2514f2297308e84b3c0f1a3e045491b9cf60cfa8f2d147",
@@ -42,16 +42,111 @@
         "provisional": "A",
         "ruling": "作者裁定R11=A（Issue #21）",
         "reason": "固定診断fieldを保ち、容量退去と意味上の取消・unavailableを区別する"
+      },
+      {
+        "id": "P2-A1-QENUM-PRIORITY",
+        "A": "共通検証をHead存在→ReportDateTime存在→ReportDateTime妥当性、family検証をidentity存在→identity妥当性→必須構造存在→必須構造妥当性の順に実行し、最初に検出した不備のRejectionReason一つだけを返す",
+        "B": "全不備を収集して複数reasonを返す、またはfamilyごとに共通検証より先の独自優先順を持つ",
+        "recommended": "A",
+        "provisional": "A",
+        "ruling": "本Q-ENUM改訂でA",
+        "reason": "全familyで同じ入力が同じ一理由へ決まり、reducerが複数不備の意味を補完しなくて済む"
       }
     ],
     "questionResolutions": [
       {
         "id": "Q-ENUM",
-        "status": "referencedOpen",
+        "status": "closed",
         "source": "P1-PARSER-BOUNDARY-001#Q-ENUM",
-        "closed": "RejectionReasonの候補7種とparser 10種・operation 4種の区分を固定",
-        "remaining": "共通Q-ENUMの意味拒否部分（O02:8/10対応・複数不備優先）は本契約でblock。unavailable表の正本はP1 Q-ENUMのまま参照",
-        "reason": "parser拒否・意味入力拒否・正常入力のunavailableを分離する"
+        "closed": "P1#Q-ENUMのP2解決としてparser拒否10種、意味拒否7種、U-W unavailable 3種、U-F unavailable 4種を三分離し、O02:8=headMissing、O02:10=reportDateTimeInvalid、単一reason優先規則、保存fieldの意味を固定した。unavailable列挙は各unit公開型を正本としA1共有unionを作らない",
+        "remaining": "契約判断はなし。sequences.jsonのexpected:O02:8/10 decision.reason=nullを上記具体値へ更新するcorpus改訂は、同ファイルを所有する統合担当の後続作業として記録する",
+        "reason": "parser拒否・信頼不能な意味入力・正当なnewer入力の保持不能を、watermark遷移の違いまで含めて固定する",
+        "priorityRule": "共通検証はheadMissing→reportDateTimeMissing→reportDateTimeInvalid、続いてfamily検証はidentityMissing→identityInvalid→requiredStructureMissing→requiredStructureInvalid。検証順が優先順で、最初の一理由だけを返す。同一reason内の具体field順は各family契約が固定する",
+        "operationRule": "normal/training/testでreason語彙や優先順を分岐しない。確定operationの伝播と区分間非干渉は既存operationContractのまま",
+        "expectedDecisionBindings": [
+          {
+            "expectedRef": "expected:O02:8",
+            "decision": "rejected",
+            "reason": "headMissing"
+          },
+          {
+            "expectedRef": "expected:O02:10",
+            "decision": "rejected",
+            "reason": "reportDateTimeInvalid"
+          }
+        ],
+        "expectationEvidenceBindings": [
+          {
+            "expectedRef": "expected:O02:8",
+            "evidence": "VPWP50 fixtureはReport直下のHeadを欠き、P1はreportDateTimeRaw/eventIdRaw/serialRawを空文字で返す。共通優先順によりreportDateTimeMissingより先にheadMissing"
+          },
+          {
+            "expectedRef": "expected:O02:10",
+            "evidence": "VXSE51 fixtureはHeadとReportDateTimeを持つがreportDateTimeRaw=not-a-date。共通優先順によりreportDateTimeInvalid"
+          }
+        ],
+        "referenceTable": [
+          {
+            "result": "parser rejected",
+            "owner": "P1-PARSER-BOUNDARY-001",
+            "reasons": [
+              "formatUnsupported",
+              "inputTooLarge",
+              "envelopeInvalid",
+              "encodingUnsupported",
+              "compressionUnsupported",
+              "bodyDecodeFailed",
+              "expandedBodyInvalid",
+              "expandedBodyTooLarge",
+              "xmlLimitExceeded",
+              "xmlInvalid"
+            ],
+            "meaning": "bytes/envelope/XMLをDecodedMaterialへできない境界。意味reducerへ渡さず業務state・gate・watermark・current・intentは不変"
+          },
+          {
+            "result": "semantic rejected",
+            "owner": "A1共通検証とA4/A5/A6 family検証",
+            "reasons": [
+              "headMissing",
+              "reportDateTimeMissing",
+              "reportDateTimeInvalid",
+              "identityMissing",
+              "identityInvalid",
+              "requiredStructureMissing",
+              "requiredStructureInvalid"
+            ],
+            "meaning": "DecodedMaterialはあるがidentity・日時・必須構造を信頼できない。業務state（current/gate/watermark/intent）は不変でunavailable recordも作らない。FreshnessRecordは§7.8の監視記録として例外で、検証済み対象への更新だけをA5のfreshnessRuleに従い許す"
+          },
+          {
+            "result": "semantic unavailable U-W",
+            "owner": "P2-WEATHER-CURRENT-UNIT-001",
+            "reasons": [
+              "capacityExceeded",
+              "historyUnavailable",
+              "coverageIncomplete"
+            ],
+            "meaning": "正当なnewer報または復元coverage評価を受理したが対象scopeを現在値として保持・確定できない。報告入力ならwatermark/gateを進め、古いcurrentを現行扱いせずlastKnownにだけ保存する"
+          },
+          {
+            "result": "semantic unavailable U-F",
+            "owner": "P2-WEATHER-TIMESERIES-UNIT-001",
+            "reasons": [
+              "capacityExceeded",
+              "historyUnavailable",
+              "coverageIncomplete",
+              "unknownValueCode"
+            ],
+            "meaning": "正当なnewer報を受理したが対象seriesを現在値として保持・確定できない。watermark/gateを進め、古いcurrentを現行扱いせずlastKnownにだけ保存する。unknownValueCodeをこの結果へ帰属させるかはQ-VALUESのまま"
+          }
+        ],
+        "fieldSemantics": {
+          "scope": "operation/family/subjectとfamily固有次元（U-Wはnational/partialとoffice、U-Fはseries subject）を束縛し、その範囲外のcurrent・gate・freshness・intentを変えない",
+          "source": "unavailableを生じさせた検証済みReportRef。単一報に結び付かない復元・coverage評価だけnullを許し、報告入力ではnullにしない",
+          "lastKnown": "同じscopeの直前の有効値を表示上の参考として保存する値。無ければnull。current/gate/watermarkでも通知根拠でもなく、activeとして再利用しない",
+          "affectedScope": "保持・coverage不能なoffice/area/period等の有界な具体識別子だけを保存する。unit全体の暗黙wildcardにせず、同じoperation/family/subjectと同じまたは包含coverageの正常採用でだけ解除する",
+          "persistence": "source/lastKnown/affectedScopeをunit stateと唯一のcodecで保存・復元し、同scopeの後続正常採用または明示coverage確認で置換・解除する。別subject・別office・別operation・heartbeatでは解除しない"
+        },
+        "freshnessException": "rejectedでも§7.8の対象別監視は継続する。A1は共通検証結果を確定後、検証済みoperation/family/subject/影響範囲と候補出典をA5の既存receive→reduceWeatherCurrentUnit経路で監視評価できるようにする。意味適用はせず、A5が返すfreshnessのみのstate参照交換は許す。対象不明ならdiagnosticのみ、新旧不明ならrevisionOrder=unknownとする。新reasonを選び直さず、current/gate/watermark/intent・意味revision・outcomeを進めない。A5のfreshness保存変更だけは既存checkpoint世代へ反映する"
       },
       {
         "id": "P2-SHARED-OWNERSHIP",
@@ -265,7 +360,7 @@
       },
       {
         "id": "P2-A1-AC03",
-        "requirement": "O02: 共通Headまたは報告日時を信頼できない入力をRejectionReason付きで拒否し、current・watermark・intentを不変にする",
+        "requirement": "O02: 共通検証をheadMissing→reportDateTimeMissing→reportDateTimeInvalidの順に行い、最初の一理由だけで拒否する。expected:O02:8のVPWP50 Head欠落はheadMissing、expected:O02:10のVXSE51不正日時はreportDateTimeInvalid。family検証はその後にidentityMissing→identityInvalid→requiredStructureMissing→requiredStructureInvalidの順で行い、rejectedでは業務state（current/gate/watermark/intent）を不変にする。FreshnessRecordは§7.8の監視記録として例外で、対象を検証できる場合だけA5のfreshnessRuleに従い記録する",
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:733 «66e0af68048253c0»",
           "reconstruction/contracts/p2-order-plan.md:47 «39d6099dd12b7f22»",
@@ -283,7 +378,7 @@
       },
       {
         "id": "P2-A1-AC05",
-        "requirement": "E23型境界: DiagnosticEventは固定必須fieldと許可された任意fieldだけを持ち、raw/tokenを受け渡さない。純関数はDiagnosticDetails（reasonと有界な許可値）だけを返し、runtimeがclock.wallTimeMsとrunIdを付与する。DiagnosticReasonはparser10種＋operation4種＋意味拒否7種＋InfrastructureDiagnosticReason基盤20種＋U-W容量退去weatherCurrentCapacityEvictedのunionで、parser projectionと保存11種・mailbox5種・終了2種・sink2種を同じsinkへ配送できる。保存失敗段階はcheckpointEncodeFailed／checkpointWriteFailed／checkpointFileSyncFailed／checkpointCloseFailed／checkpointRenameFailed／checkpointDirectorySyncFailed／checkpointVerifyFailed、mailbox拒否内訳はmailboxRejectedDraining／mailboxRejectedItemLimit／mailboxRejectedByteLimitとしてreason列挙値に織り込む。DiagnosticDetailsはspec §7.9の固定fieldだけを持ち、追加field・任意文字列reasonを禁止する",
+        "requirement": "E23型境界: DiagnosticEventは固定必須fieldと許可された任意fieldだけを持ち、raw/tokenを受け渡さない。純関数はDiagnosticDetails（reasonと有界な許可値）だけを返し、runtimeがclock.wallTimeMsとrunIdを付与する。DiagnosticReasonはparser10種＋operation4種＋意味拒否7種＋InfrastructureDiagnosticReason基盤23種＋U-W容量退去weatherCurrentCapacityEvictedのunionで、parser projectionと保存11種・mailbox5種・終了2種・sink2種・snapshot超過3種を同じsinkへ配送できる。snapshot超過はsnapshotNoticeCapacityExceeded／snapshotCommonBudgetExceeded／snapshotStringLimitExceeded。保存失敗段階はcheckpointEncodeFailed／checkpointWriteFailed／checkpointFileSyncFailed／checkpointCloseFailed／checkpointRenameFailed／checkpointDirectorySyncFailed／checkpointVerifyFailed、mailbox拒否内訳はmailboxRejectedDraining／mailboxRejectedItemLimit／mailboxRejectedByteLimitとしてreason列挙値に織り込む。DiagnosticDetailsはspec §7.9の固定fieldだけを持ち、追加field・任意文字列reasonを禁止する",
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:1211 «1db51524eccef065»",
           "docs/specs/reconstruction-p0-contracts.md:1226 «086e8c5d7c0f990f»",
@@ -330,7 +425,7 @@
         "referenceIds": [
           "P2-A1-AC03"
         ],
-        "behavior": "O02:8/10を共通検証で拒否し業務stateを変えない"
+        "behavior": "O02:8をheadMissing、O02:10をreportDateTimeInvalidで拒否する。複数不備は共通→familyの固定順で最初の一理由だけを返し、業務state（current/gate/watermark/intent）を変えない。対象検証可能な拒否のFreshnessRecord更新だけは§7.8監視例外としてA5 T04で検収する"
       },
       {
         "testId": "P2-A1-T04",
@@ -346,7 +441,7 @@
         "referenceIds": [
           "P2-A1-AC05"
         ],
-        "behavior": "E23型境界: DiagnosticEventは固定必須fieldと許可された任意fieldだけを持ち、raw/tokenを受け渡さない。純関数はDiagnosticDetails（reasonと有界な許可値）だけを返し、runtimeがclock.wallTimeMsとrunIdを付与する。DiagnosticReasonはparser10種＋operation4種＋意味拒否7種＋InfrastructureDiagnosticReason基盤20種＋U-W容量退去weatherCurrentCapacityEvictedのunionで、parser projectionと保存11種・mailbox5種・終了2種・sink2種を同じsinkへ配送できる。保存失敗段階はcheckpointEncodeFailed／checkpointWriteFailed／checkpointFileSyncFailed／checkpointCloseFailed／checkpointRenameFailed／checkpointDirectorySyncFailed／checkpointVerifyFailed、mailbox拒否内訳はmailboxRejectedDraining／mailboxRejectedItemLimit／mailboxRejectedByteLimitとしてreason列挙値に織り込む。DiagnosticDetailsはspec §7.9の固定fieldだけを持ち、追加field・任意文字列reasonを禁止する"
+        "behavior": "E23型境界: DiagnosticEventは固定必須fieldと許可された任意fieldだけを持ち、raw/tokenを受け渡さない。純関数はDiagnosticDetails（reasonと有界な許可値）だけを返し、runtimeがclock.wallTimeMsとrunIdを付与する。DiagnosticReasonはparser10種＋operation4種＋意味拒否7種＋InfrastructureDiagnosticReason基盤23種＋U-W容量退去weatherCurrentCapacityEvictedのunionで、parser projectionと保存11種・mailbox5種・終了2種・sink2種・snapshot超過3種を同じsinkへ配送できる。snapshot超過はsnapshotNoticeCapacityExceeded／snapshotCommonBudgetExceeded／snapshotStringLimitExceeded。保存失敗段階はcheckpointEncodeFailed／checkpointWriteFailed／checkpointFileSyncFailed／checkpointCloseFailed／checkpointRenameFailed／checkpointDirectorySyncFailed／checkpointVerifyFailed、mailbox拒否内訳はmailboxRejectedDraining／mailboxRejectedItemLimit／mailboxRejectedByteLimitとしてreason列挙値に織り込む。DiagnosticDetailsはspec §7.9の固定fieldだけを持ち、追加field・任意文字列reasonを禁止する"
       },
       {
         "testId": "P2-A1-T06",
@@ -418,22 +513,9 @@
       "判断分岐A/B・推奨・暫定採用と、追加・変更した各テストのpurpose対応",
       "DiagnosticDetailsがないと純関数が外部時計/runIdを捏造する。runtimeだけがDiagnosticEventを完成させ、全文字列・任意値を既定8192 byte上限へ収める",
       "FreshnessRecordがないと候補非採用と現在出典の不一致を対象別に追跡できない。意味判定実装はA5へ残す",
-      "NotificationResultがないとA7のchannel・aborted・timeout/abortedのstoppedをreduceRuntimeへ無損失で戻せず、停止未確認channelを誤解放するためA1共有型を唯一の正本にする"
+      "NotificationResultがないとA7のchannel・aborted・timeout/abortedのstoppedをreduceRuntimeへ無損失で戻せず、停止未確認channelを誤解放するためA1共有型を唯一の正本にする",
+      "snapshotNoticeCapacityExceeded/snapshotCommonBudgetExceeded/snapshotStringLimitExceededが共有DiagnosticReasonにないとA8が超過を固定reasonで返せず独自unionまたは型assertionを要するため、A1のInfrastructureDiagnosticReasonへ3値だけを追加する"
     ],
-    "unresolvedQuestions": [
-      {
-        "id": "Q-ENUM",
-        "owner": "implementer",
-        "blocks": [
-          "A1意味拒否のO02:8/10具体reason対応",
-          "複数不備時の意味拒否reason優先規則。unavailable表はP1 Q-ENUMを参照し二重管理しない"
-        ],
-        "resolveBy": "最初の対象I-U-* reducer契約凍結前。A1とA4/A5/A6の契約凍結前（計画§6.1）",
-        "requiredEvidence": [
-          "O02:8/10と7種の意味拒否reasonの対応表",
-          "複数不備入力の優先規則とscope・lastKnown・affectedScopeを含むP1 Q-ENUM参照表"
-        ]
-      }
-    ]
+    "unresolvedQuestions": []
   }
 }

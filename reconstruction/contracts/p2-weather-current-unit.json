@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "fc7006e2380edf9a97b601d124341ba4bd7f7f42",
-    "sha256": "388cda432e828fcc02c3d01a6caf61c91b62b029cb6e79e9a18192755856b5a1",
+    "sha256": "abc3e4432ea9f648ee52a9d0d1cd2f932ac029d3d977570363fff005e9293b52",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "76c82b87d7783a4eae14af690cb34e7d6ec46f73617dc75b7f7401951619f080",
     "sequencesSha256": "22b2432e8989d7e7cc2514f2297308e84b3c0f1a3e045491b9cf60cfa8f2d147",
@@ -42,6 +42,24 @@
         "provisional": "A",
         "ruling": "作者裁定R11=A（Issue #21）。再レビュー指摘3: 統合担当判断でbyte境界にも適用",
         "reason": "全国baseのoperation間置換を防ぎ、履歴2・partial128・partial履歴8の合算上限とnormal優先を両立する。全国base不変の例外はnormal受理に必要な16MiB容量退去に限定する"
+      },
+      {
+        "id": "P2-A5-QENUM",
+        "A": "正当なnewer報で保持・復元・coverage確定ができない対象だけをsource/lastKnown/affectedScope付きunavailableとして保存し、報告入力ではwatermarkを進めて古いcurrentを現行扱いしない",
+        "B": "入力をrejectedとしてwatermarkを止め、古いcurrentを表示し続ける",
+        "recommended": "A",
+        "provisional": "A",
+        "ruling": "本Q-ENUM改訂でA",
+        "reason": "信頼不能入力と、正当だが保持不能なnewer意味を分離する"
+      },
+      {
+        "id": "P2-A5-QENUM-REVIEW",
+        "A": "空集合/取消条件をfamilyTableで固定し、既存affectedScope文字列へ全束縛をcanonical JSON tupleで保存する。rejectedでも検証済み対象のfreshness監視更新を許す",
+        "B": "unavailableへfamily/scope/office fieldを追加し、拒否候補の監視を別経路へ分離する",
+        "recommended": "A",
+        "provisional": "A",
+        "ruling": "NO-GO 3件の修正でAを採用",
+        "reason": "既存fieldでsource/lastKnown=nullを無損失に表せ、同じreducerとcodecで監視・包含判定を閉じられる"
       }
     ],
     "questionResolutions": [
@@ -51,6 +69,118 @@
         "closed": "freshnessSuspectの対象束縛と解除条件をA5へ割り当てる",
         "remaining": "O04の未充足実入力は実装前に取得する",
         "reason": "計画§8対応表"
+      },
+      {
+        "id": "Q-ENUM",
+        "status": "closed",
+        "source": "P2-SHARED-RUNTIME-001#Q-ENUM",
+        "closed": "U-W family/InfoType別必須node・合法欠落・空集合・拒否reason、unavailable scopeの一意な保存文字列と包含判定、§7.8 freshness監視例外を固定した。既存公開型のaffectedScopeで全束縛を無損失に保存するため追加fieldと共有unionは不要",
+        "remaining": "なし",
+        "reason": "A1共通規則をU-Wの官署/subject/構造と、正当なnewer報の保持不能へ具体化する",
+        "priorityRule": "A1共通検証後、官署存在→subject構成要素存在→官署妥当性→subject構成要素妥当性→familyTableで必須とした構造の存在→構造妥当性の順。identityMissing→identityInvalid→requiredStructureMissing→requiredStructureInvalidで最初の一理由だけを返す。各段を全subjectに対して確認してから次段へ進み、同段の順は下表のpath順、繰返し要素はXML文書順。拒否は入力全体に適用する",
+        "reasonTable": [
+          {
+            "reason": "capacityExceeded",
+            "trigger": "AC11のnormal保護admission後も、正当なnewer報の同一scopeを16MiBまたは保持件数内に保存できない",
+            "scope": "operation/family/subjectとnationalまたはpartial、partialではofficeも含む",
+            "source": "容量超過を起こしたnewer ReportRef（null禁止）",
+            "lastKnown": "同じscopeの直前WeatherCurrentSnapshot。無ければnull。currentや通知根拠として再利用しない",
+            "affectedScope": "保持できないnational識別子、またはpartialのoffice/area識別子。scopeEncodingのcanonical tokenで保存し、不明な区域を推測できない場合は同じ束縛のall tokenで対象全体の未確認を明示する"
+          },
+          {
+            "reason": "historyUnavailable",
+            "trigger": "正当なnewer取消・復元要求の対象版が全国2/partial8の保持履歴外で復元不能",
+            "scope": "取消・復元対象のoperation/family/subjectとnationalまたはpartial/office",
+            "source": "対象外履歴を要求したnewer ReportRef（null禁止）",
+            "lastKnown": "要求前に同scopeで最後に確認できたWeatherCurrentSnapshot。無ければnull",
+            "affectedScope": "履歴不足で復元不能なoffice/area識別子。scopeEncodingのcanonical tokenで保存し、不明な区域を推測できない場合は同じ束縛のall tokenで対象全体の未確認を明示する"
+          },
+          {
+            "reason": "coverageIncomplete",
+            "trigger": "正当なnewer報または復元coverage評価が対象scope全体を確認できず、未確認部分をactive/inactiveへ確定できない",
+            "scope": "確認対象のoperation/family/subjectとnationalまたはpartial/office",
+            "source": "原因が報告入力ならそのReportRef、単一報に結び付かない復元coverage評価だけnull",
+            "lastKnown": "同じscopeの直前WeatherCurrentSnapshot。無ければnull",
+            "affectedScope": "未確認のoffice/area識別子だけ。確認済み範囲を含めない。scopeEncodingのcanonical tokenで保存し、不明な区域を推測できない場合は同じ束縛のall tokenで対象全体の未確認を明示する"
+          }
+        ],
+        "transitionRule": "rejectedはnational/partials/histories/ownership/tombstones/unavailable/intentsとgate/watermarkを不変にする。FreshnessRecordは§7.8監視例外としてfreshnessRuleに従い更新できる。報告入力によるunavailableは一世代のchangedとして同scopeのgate/watermarkを進め、古いcurrentを除き、source/lastKnown/affectedScopeをStateとPersistedへ保存する。復元coverage評価は入力watermarkを捏造しない。同じscopeの後続正常採用または包含coverageConfirmedだけが解除し、別office/subject/operationでは解除しない",
+        "xmlBoundary": "DecodedMaterial.xmlのXmlElement.children/attributesを直接調べる。P1は要素名・属性・空要素・繰返し・文書順を保持し、欠落したnodeは無い。scalarはelement子を持たない直下text連結のtrim値とし、空要素と欠落は別に判定する。必須scalar空はMissing、複数の単一必須node・非scalar・不正値はInvalid。壊れた親nodeから子の欠落を捏造しない。EventID/Serialの欠落・空文字は全対象familyで合法、官署・subjectの代わりに使わない",
+        "identityRule": "officeはControl/EditorialOfficeの非空scalar（PublishingOfficeにはVPWW57の共同発表官署があるため代用しない）。familyは検証済みheadType。scopeはVPWS50=national、VPWW55/57/58/59/60/61および対象VPNO50=partial。subjectは採用・取消・復元を通して同一family/officeの既存subjectを完全一致で照合し、文字列を分割して官署を推測しない。Area/Codeはbody項目のidentityであり存在するItemでの欠落・空はidentityMissing、非scalar/重複Code/非数字はidentityInvalid。codeは数字文字列のまま保存し先頭0を落とさない",
+        "familyTable": [
+          {
+            "family": "VPWS50",
+            "infoType": "発表/訂正",
+            "required": "Report/Body、Body/Warningが1個以上（@type必須）。存在するWarningはItemが1個以上。ItemはArea/CodeとKindが1個以上、各Kind/Statusが必須。Kind/CodeはStatus=発表警報・注意報はなし以外で必須",
+            "legalMissingOrEmpty": "Headline全体、Kind/LastKind・Property・DateTime、ChangeStatus/FullStatus/EditingMarkは欠落可。発表警報・注意報はなしではKind/Name・Code欠落を許す。空のBody/Warning/Item/Kindを正常emptyにしない。全項目が解除・発表警報・注意報はなしなら正常な無発令であり取消ではない",
+            "missing": "Body、Warning、必須Item/Kind/Status、条件付きCode、Warning@typeの欠落・空はrequiredStructureMissing。Area/Codeの欠落は先行identityMissing",
+            "invalid": "単一node重複、Status/Code非scalar、Codeが2桁数字以外、Warning@typeがwarningTypes外はrequiredStructureInvalid。合法なCode=00は解除値。Status=発表警報・注意報はなしと有効Codeの併記はrequiredStructureInvalid"
+          },
+          {
+            "family": "VPWW55/57/58/59/60/61",
+            "infoType": "発表/訂正",
+            "required": "VPWS50と同じBody/Warning/Item/Area/Code/Kind/Statusおよび条件付きKind/Code。各電文が所有する現象だけを更新する",
+            "legalMissingOrEmpty": "VPWS50と同じ。VPWW57のOfficeInfo/AdditionalInfo、全familyのProperty/Local/CriteriaPeriodは必須にしない。共同PublishingOfficeやHeadlineのCode=00をBodyのidentityに代用しない。解除・なしの項目は合法、Warningの空集合は正常emptyとしない",
+            "missing": "VPWS50行と同じMissing対応",
+            "invalid": "VPWS50行と同じInvalid対応。Property値のunknown/emptyだけでは構造拒否しない"
+          },
+          {
+            "family": "VPWS50/VPWW55/57/58/59/60/61",
+            "infoType": "取消",
+            "required": "検証済み共通Head/ReportDateTime、office、InfoType=取消、Report/Body",
+            "legalMissingOrEmpty": "Bodyは空またはTextだけで合法。Warning自体の欠落、WarningのItem 0件、Kind/Property/Area/Code欠落を許し、family/officeの報単位を取消対象にする。存在するItemは発表行と同じidentity/構造検証を通す。取消は正常emptyではなく取消記憶・履歴復元の経路へ進む",
+            "missing": "Body欠落はrequiredStructureMissing。存在するItemの必須nodeは発表行の対応",
+            "invalid": "InfoTypeは共通rowの許可値のみ。存在するItemの不正は発表行と同じ。空Warningに不正@typeが存在すればrequiredStructureInvalid"
+          },
+          {
+            "family": "VPNO50（P2の区域終了枝）",
+            "infoType": "発表/訂正",
+            "required": "Report/Body、Head/Headline/Information[@type=気象特別警報報知（府県予報区等）]/Item/Kind/Code=00とItem/Areas/Area/Code。存在する対象InformationはItemが1個以上",
+            "legalMissingOrEmpty": "Bodyは空で合法、Warning/periodは不要。区域終了はHeadlineの構造化Code=00からだけ判定し、Text検索で代替しない。issue fixtureのCode=33等の非終了枝は既存P2対象外で意味更新しない",
+            "missing": "対象終了枝のHeadline/Information/Item/Kind/Code/Areas欠落はrequiredStructureMissing、Area/Code欠落・空はidentityMissing",
+            "invalid": "単一node重複・非scalar・Area/Code非数字はidentityInvalidまたはrequiredStructureInvalid。Code=00以外は不正値と推測せずP2対象外"
+          },
+          {
+            "family": "VPNO50",
+            "infoType": "取消",
+            "required": "共通Head/ReportDateTime、office、Report/Body",
+            "legalMissingOrEmpty": "Body空・Headline欠落を構造上許す。ただしP2で区域終了取消の意味を追加しない（既存対象外）",
+            "missing": "Body欠落はrequiredStructureMissing",
+            "invalid": "存在するidentity nodeの不正はidentityInvalid、InfoType不正はrequiredStructureInvalid"
+          }
+        ],
+        "warningTypes": [
+          "気象警報・注意報（府県予報区等）",
+          "気象警報・注意報（一次細分区域等）",
+          "気象警報・注意報（市町村等をまとめた地域等）",
+          "気象警報・注意報（市町村等）",
+          "気象警報・注意報（高潮予報区間）"
+        ],
+        "infoTypeRule": "Head/InfoTypeは1個の非空scalarで発表/訂正/取消のみ。欠落・空はrequiredStructureMissing、重複・非scalar・他値はrequiredStructureInvalid。InfoTypeの不正・欠落時は取消の合法省略規則を使わず、追加の下位Missingを作らずInfoType自身を拒否する。非取消Kind/Statusは発表、継続、解除、発表警報・注意報はなし、警報から注意報、特別警報から警報、特別警報から注意報、特別警報から危険警報を許可し、それ以外はrequiredStructureInvalid",
+        "scopeEncoding": {
+          "format": "unavailable.affectedScope、FreshnessRecord.target.affectedScope/confirmedScope、coverageConfirmed.affectedScopeは各要素をJSON.stringify([family,scope,office,areaType,areaCode])で作る。5要素は全て文字列、scopeはnational/partial、familyは本契約対象headType、officeはidentityRuleのtrim済み値。全scopeはareaType=all、areaCode=空文字、区域はareaType=Warning@type（VPNO50はInformation@type）、areaCode=検証済みCode。all以外の空Codeを許さない",
+          "restore": "affectedScopeは非空、重複なしのUTF-16辞書順配列。同一recordの全要素は同じfamily/scope/officeを持つ。JSON.parse後に5要素と許可値を検証しJSON.stringifyの完全一致を要求する。先頭要素の先頭3値からfamily/scope/officeを復元するため、sourceとlastKnownが両方nullでも束縛を失わない。subject/operationはrecord自身から復元し、source/lastKnownがあればsource.operation/subject/familyとlastKnown.operation/subject/lastKnown.source.family、lastKnown.scope/officeとの一致を検証する",
+          "contains": "解除はoperation/family/subject完全一致に加え、各未確認tokenに対して先頭3値が同じ確認tokenが存在し、後ろ2値が完全一致または確認tokenがall/空文字の場合だけ許す。allは同じfamily/scope/office全体を確認した証拠がある時だけ発行する。部分区域token集合からallを推測しない。別官署tokenは包含しない。空確認配列は何も解除しない",
+          "invalid": "codecは不正JSON、非canonical文字列、長さ不一致、未知family/scope、空office、混在tuple、空affectedScope、出典との不整合をinvalidとする。areaTypeはallまたはwarningTypesの値（VPNO50は気象特別警報報知（府県予報区等））だけ、部分areaCodeは数字文字列、allのareaCodeは空文字だけを許す。scopeはVPWS50=national、それ以外=partialと一致必須。旧曖昧文字列を推測変換しない。全scope tokenと部分tokenが併存する場合はallだけへ正規化して保存する",
+          "example": "subject=s、operation=normal、source=null、lastKnown=nullでも、JSON.stringify([VPWW55,partial,福井地方気象台,all,空文字])相当のtokenから3束縛を復元できる。同じfamily/subject/operationでもoffice=松江地方気象台の確認tokenは包含せず解除0。引数は全て文字列とする"
+        },
+        "freshnessRule": {
+          "path": "A1共通検証→A5 receive/reduceWeatherCurrentUnit内のfamily検証→decision確定→同reducer内の§7.8監視更新→一回のstate参照交換。共通rejectedを受けてもA5はXMLの検証済み部分だけで監視対象を確定できるか調べる。入力の意味適用・拒否reason選び直しは行わず、新しい公開口やI/O経路は作らない",
+          "eligible": "operation/family/office/subjectとaffectedScopeを不正部分に依存せず一意に検証できる場合のみ既存FreshnessRecordを同じ対象キーで更新する。壊れたAreaから全scopeへ拡大しない。一入力内に不正subjectがあっても検証できた対象の監視だけは許す。対象が確認不能なら既存freshnessを維持しdiagnosticだけを返す",
+          "record": "candidateSourceは候補のReportRef、decision/reasonは実際のrejectedまたはunchanged/stale。currentSource/currentSemanticRevisionは採用済み状態を維持する。公開revision比較でnewerを確認できる非採用はrevisionOrder=newer、freshnessSuspect=true、suspectedSource=候補とする。日時不正や比較不能はrevisionOrder=unknownを記録し、既存suspect/suspectedSource/confirmedScopeを解除・上書きしない。older/sameの不採用も既存の疑いを解除しない。Q-REVの未決比較を独自裁定しない",
+          "persistence": "例外的にfreshness配列とそれを含むstateの参照交換を許す。national/partials/histories/ownership/tombstones/unavailable/intents、gate/watermarkと意味revisionは不変、intents/outcomesは空。freshnessが変わった場合だけ保存対象の変更として既存A1/A3世代管理でdirty世代を一つ進める。decisionはrejectedのまま、semantic changedや正常採用に偽装しない。復元後も同scopeEncodingと解除規則を適用する"
+        },
+        "evidence": [
+          "test/fixtures/15_18_01_250630_VPWS50.xml",
+          "test/fixtures/15_17_01_251222_VPWW55.xml",
+          "test/fixtures/15_16_02_251222_VPWW57.xml",
+          "test/fixtures/15_16_04_251222_VPWW58.xml",
+          "test/fixtures/15_16_05_241226_VPWW59.xml",
+          "test/fixtures/15_16_06_241226_VPWW60.xml",
+          "test/fixtures/15_16_07_250825_VPWW61.xml",
+          "test/fixtures/18_00_01_260830_VPNO50_switch.xml",
+          "reconstruction/src/decode-material/decode-material.ts"
+        ]
       }
     ],
     "operationContract": {
@@ -78,7 +208,8 @@
       "reconstruction/tools/corpus/sequences.json",
       "reconstruction/src/**",
       "src/engine/messages/**",
-      "src/dmdata/**"
+      "src/dmdata/**",
+      "test/fixtures/**"
     ],
     "allowedPaths": [
       "reconstruction/src/domains/weather-current/**",
@@ -213,7 +344,7 @@
       "operation別の全国base（national: Readonly<Partial<Record<Operation, WeatherCurrentSnapshot>>>）・partial・各履歴",
       "現象所有情報・watermark・区域終了tombstone・取消記憶",
       "FreshnessRecordのtarget/candidate/current/revision/affectedScope",
-      "unavailable根拠とNotificationIntent"
+      "unavailableのoperation/subject/reason/source/lastKnown/affectedScopeとNotificationIntent"
     ],
     "nonPersistedFields": [
       "旧standby/promotion currentの複製",
@@ -232,7 +363,7 @@
     "acceptanceChecks": [
       {
         "id": "P2-A5-AC01",
-        "requirement": "VPWS50/VPWW55,57-61と対象VPNO50だけをU-Wへ対応し、複数subjectを原子的に適用する。官署/subject/必須構造不正はrejectedでwatermark不変",
+        "requirement": "familyTable/xmlBoundary/identityRule/infoTypeRuleの具体node・合法欠落・空集合・Missing/Invalidを固定順で検証する。VPWS50とVPWW55/57-61のなしStatusでCode欠落を合法、取消のBody空を合法とする。最初の一RejectionReasonで入力全体を原子的に拒否し業務state（current/gate/watermark/intent）を不変にする。FreshnessRecordだけは§7.8監視例外としてfreshnessRuleに従う",
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:395 «abdd56dcc1171152»",
           "docs/specs/reconstruction-p0-contracts.md:609 «996d1ffc74a90315»",
@@ -275,7 +406,7 @@
       },
       {
         "id": "P2-A5-AC06",
-        "requirement": "O04 P2 subsetでstale lockを新築初期stateから脱出し、別官署・別subject・別operationでfreshnessSuspect解除0。同対象採用またはcoverageだけで解除する",
+        "requirement": "O04 P2 subsetでstale lockを新築初期stateから脱出し、別官署・別subject・別operationでfreshnessSuspect解除0。同対象採用またはcoverageだけで解除する newer rejected/stale候補は検証済み対象へfreshnessRuleどおり記録し、対象不明では記録を作らず、新旧不明はunknownとして既存の疑いを維持する。監視だけの更新ではcurrent/gate/watermark/intent・意味revisionを変えず、保存変更だけを既存世代管理へ渡す",
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:1780 «deba767d642d01d5»",
           "reconstruction/contracts/p2-order-plan.md:26 «62a8e8979d2b9b70»",
@@ -324,6 +455,15 @@
           "reconstruction/contracts/p2-weather-current-unit.json",
           "docs/specs/reconstruction-p0-contracts.md:572 «9a4b44d95aa2d482»"
         ]
+      },
+      {
+        "id": "P2-A5-AC12",
+        "requirement": "capacityExceeded/historyUnavailable/coverageIncompleteをquestionResolutions[Q-ENUM].reasonTableどおりの同一scopeに束縛し、source/lastKnown/affectedScopeをState/Persistedで無損失にroundtripする。報告入力のunavailableはchangedとしてgate/watermarkを進め古いcurrentを除くが、rejectedは業務state（current/gate/watermark/intent）を不変にし、FreshnessRecordだけを§7.8監視例外として許す。解除は同scopeの正常採用または包含coverageConfirmedだけとする source/lastKnownが両方nullのrecordもscopeEncodingでfamily/scope/officeを無損失に復元し、別官署tokenでは解除しない。不正tupleはcodec invalid",
+        "evidenceRefs": [
+          "docs/specs/reconstruction-p0-contracts.md:732 «f96fd8a8dd40563c»",
+          "docs/specs/reconstruction-p0-contracts.md:733 «66e0af68048253c0»",
+          "docs/specs/reconstruction-p0-contracts.md:1192 «aefcb1a8a916571c»"
+        ]
       }
     ],
     "testMapping": [
@@ -333,7 +473,7 @@
         "referenceIds": [
           "P2-A5-AC01"
         ],
-        "behavior": "route/官署/subject/構造と複数subject原子性"
+        "behavior": "familyTableの契約境界を一つの表で確認: VPWS50/VPWW55,57-61のなしStatus・Code欠落、取消Body空、VPNO50終了Headlineと空Bodyは合法。非取消の空Warning、必須node欠落、非scalar/重複/不正値は指定Missing/Invalid。複数不備は最初の一reasonで業務state不変"
       },
       {
         "testId": "P2-A5-T02",
@@ -359,7 +499,7 @@
           "P2-A5-AC05",
           "P2-A5-AC06"
         ],
-        "behavior": "IR08の対象束縛とstale lock解除"
+        "behavior": "IR08の対象束縛とstale lock解除。検証済み対象のnewer rejected/staleを記録し、対象不明では追加0、新旧不明はunknownで疑いを維持。監視変更で業務state/意味revisionは不変、保存世代だけ追随し、別官署/subject/operation/部分coverageでは全scopeの疑いを解除しない"
       },
       {
         "testId": "P2-A5-T05",
@@ -403,6 +543,14 @@
           "P2-A5-AC11"
         ],
         "behavior": "全国履歴2・partial128・partial履歴8の各合算上限でnormal新規受理がtraining/testの最古entryを容量退去させて成功する。normalだけで満杯ならcapacityExceeded、training/test受理はnormalを退去させない。退去診断reason=weatherCurrentCapacityEvictedを確認し、unavailable/取消を生成しない。件数に余裕があってもtraining/test占有で16MiBを超える場合、履歴→partial subject→全国baseの最古順に退去してnormalを受理する。training/test全国baseだけが超過原因の例でAC10の唯一の例外を確認する。退去後16MiB-1/一致は成功、normalだけで16MiB+1はcapacityExceededとし、training/test入力はbyte境界でもnormalを退去させない"
+      },
+      {
+        "testId": "P2-A5-T10",
+        "purpose": "contractBoundary",
+        "referenceIds": [
+          "P2-A5-AC12"
+        ],
+        "behavior": "各確定unavailableのsource/lastKnown/affectedScopeをroundtripし、両出典nullでもfamily/scope/officeが復元される。canonical tupleの完全一致・all包含・別官署非包含と不正tupleのcodec invalidを確認する。rejectedは業務state不変、freshnessはT04の監視例外"
       }
     ],
     "requiredCommands": [
@@ -464,23 +612,10 @@
       "allowed_paths限定patch、変更一覧、build/test/shuffle結果、未実行検証、残存リスク",
       "純粋な意味関数とreduceUnitはDiagnosticDetailsだけを返し、runtimeがtimestamp/runIdを付与する。各subjectのdecisionsを系列oracleのdecision/reason/changeと照合し、duplicate/stale/noChangeを区別する。識別不能な拒否ではsubjectを空文字にし、架空の業務identityを作らない。",
       "OperationはP1共有型をimportし、nationalのOperation mapをState/Persisted/View/codec/reducerの全経路で使う。無いと別区分の全国baseが単一slotを置換しcheckpointから複数区分を復元できない。履歴・partialの合算上限と単一保存単位は変えない",
-      "normalの受理はtraining/testの占有で失敗しない。RET-02/03/04の合算上限に達しているとき、normalの新規受理は該当上限を占有するtraining/testの最古entry（履歴・partial subject）を必要な分だけ先に容量退去させてから判定し、normal同士でだけcapacityExceededを返す。training/testの受理はnormalのentryを退去させない。容量退去はunavailableでも取消でもなく、DiagnosticDetails.reason=weatherCurrentCapacityEvictedと既存のunit/count等だけで記録し、§7.9にfieldを追加しない。このadmission規則がないと訓練・試験の占有でnormalを拒否する。最古の順序はmeta.decisionBranches[P2-A5-R11]に従い、退去と採用を原子的に適用する。受理不能なら退去をcommitせず、正常currentの取消・復元・freshness解除として扱わない。RES-01の16MiB超過時もnormal保護を適用し、training/testの履歴→partial subject→全国baseの順で、各種別内の最古entryから必要な分だけ容量退去させて再判定する。全国baseの退去はnormal受理に必要なこのbyte容量退去だけをAC10の唯一の例外とする。training/testの受理はnormalを退去させない。normalだけで16MiBを超える場合は従来どおりreason=capacityExceededのunavailableとし、事前予約は設けない"
+      "normalの受理はtraining/testの占有で失敗しない。RET-02/03/04の合算上限に達しているとき、normalの新規受理は該当上限を占有するtraining/testの最古entry（履歴・partial subject）を必要な分だけ先に容量退去させてから判定し、normal同士でだけcapacityExceededを返す。training/testの受理はnormalのentryを退去させない。容量退去はunavailableでも取消でもなく、DiagnosticDetails.reason=weatherCurrentCapacityEvictedと既存のunit/count等だけで記録し、§7.9にfieldを追加しない。このadmission規則がないと訓練・試験の占有でnormalを拒否する。最古の順序はmeta.decisionBranches[P2-A5-R11]に従い、退去と採用を原子的に適用する。受理不能なら退去をcommitせず、正常currentの取消・復元・freshness解除として扱わない。RES-01の16MiB超過時もnormal保護を適用し、training/testの履歴→partial subject→全国baseの順で、各種別内の最古entryから必要な分だけ容量退去させて再判定する。全国baseの退去はnormal受理に必要なこのbyte容量退去だけをAC10の唯一の例外とする。training/testの受理はnormalを退去させない。normalだけで16MiBを超える場合は従来どおりreason=capacityExceededのunavailableとし、事前予約は設けない",
+      "既存affectedScopeにscopeEncodingの5文字列tupleを保存する。無いとsource/lastKnownが両方nullのunavailableのfamily/scope/officeを復元できず別官署で解除できてしまう。追加field・共有unionは不要。codec/view/coverageConfirmed/FreshnessRecordで同じ表現を使う"
     ],
     "unresolvedQuestions": [
-      {
-        "id": "Q-ENUM",
-        "owner": "implementer",
-        "blocks": [
-          "U-W意味上unavailable reasonとscope/lastKnown/affectedScope",
-          "官署/subject/必須構造のRejectionReason優先順位",
-          "Q-ENUM解決を具体unavailable reason型とsource/lastKnown/affectedScopeの保存型へ反映し、codec・viewの型検査が通るまで契約凍結不可"
-        ],
-        "resolveBy": "P2-WEATHER-CURRENT-UNIT-001実装開始前",
-        "requiredEvidence": [
-          "capacityExceeded/historyUnavailable/coverageIncompleteの入力対応表",
-          "rejectedとunavailableでwatermark/stateがどう変わるかの期待"
-        ]
-      },
       {
         "id": "Q-REV",
         "owner": "integrator",

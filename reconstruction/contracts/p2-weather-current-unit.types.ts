@@ -17,6 +17,11 @@ export type WeatherCurrentUnavailableReason =
   | "historyUnavailable"
   | "coverageIncomplete";
 
+// Q-ENUM scopeEncoding: unavailable/coverage/freshness affectedScope tokens are
+// JSON.stringify([family, scope, office, areaType, areaCode]); recover the first
+// three fields even when source and lastKnown are null. Nonempty canonical set;
+// all/empty-code covers only the same family/scope/office, never another office.
+
 export type WeatherCurrentSnapshot = Readonly<{
   subject: string;
   operation: Operation;
@@ -46,6 +51,7 @@ export type WeatherCurrentUnitState = Readonly<{
   histories: readonly WeatherCurrentHistory[];
   ownership: Readonly<Record<string, string>>;
   tombstones: readonly WeatherCurrentTombstone[];
+  // Rejected input may update only this monitoring record under Q-ENUM freshnessRule.
   freshness: readonly FreshnessRecord[];
   unavailable: readonly Readonly<{ subject: string; operation: Operation; reason: WeatherCurrentUnavailableReason; source: ReportRef | null; lastKnown: WeatherCurrentSnapshot | null; affectedScope: readonly string[] }>[];
   intents: readonly NotificationIntent[];
