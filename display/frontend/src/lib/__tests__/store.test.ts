@@ -362,7 +362,7 @@ describe("reduce", () => {
   });
 
   describe("tickerSynced (spec §3-2、レビュー Important 対応: サーバ sweepTicker の一発同期)", () => {
-    it("state.tickerSynced=true なら recentTicker で ticker を丸ごと差し替え、tickerGeneration を進める", () => {
+    it("state.tickerSynced=true なら recentTicker で ticker を丸ごと差し替え、tickerSyncGeneration を進める (tickerGeneration は進めない)", () => {
       const withTicker = reduce(initialState(), {
         type: "snapshot",
         snapshot: snapshot({ seq: 1, recentTicker: [tickerEvent({ id: "e1" }), tickerEvent({ id: "e2" })] }),
@@ -370,7 +370,9 @@ describe("reduce", () => {
       const synced = snapshot({ seq: 2, recentTicker: [tickerEvent({ id: "e2" })], tickerSynced: true });
       const next = reduce(withTicker, { type: "state", snapshot: synced });
       expect(next.ticker.map((e) => e.id)).toEqual(["e2"]); // sweep で e1 が消えた構成に差し替わる
-      expect(next.tickerGeneration).toBe(withTicker.tickerGeneration + 1);
+      expect(next.tickerSyncGeneration).toBe(withTicker.tickerSyncGeneration + 1);
+      // 同期は targeted purge で写す。generation を進めると走行中の全レーンが作り直される (2026-09-19 実機不具合)
+      expect(next.tickerGeneration).toBe(withTicker.tickerGeneration);
     });
 
     it("state.tickerSynced=true かつ recentTicker=[] は「全滅」を意味し ticker を空にする (空=除外との区別)", () => {

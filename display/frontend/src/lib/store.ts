@@ -74,14 +74,22 @@ export interface DisplayClientState {
    */
   seqGapDetected: boolean;
   /**
-   * ticker が recentTicker から丸ごと作り直された回数 (spec §6)。**reduce の "snapshot" 分岐**、および
-   * "state" 分岐で tickerSynced:true (sweepTicker 変化の一発同期、spec §3-2) を受けたときに +1 する。
+   * ticker が recentTicker から丸ごと作り直された回数 (spec §6)。**reduce の "snapshot" 分岐**でのみ +1 する。
    * それ以外の "state"/"event" 分岐では据え置く。テロップの親スケジューラはこれを resetKey として購読し、
    * 値が変わったら job キュー・active・deferred を全破棄して再構築する。snapshot.seq を resetKey に
    * すると定期 state のたびに全 reset してしまう (lastSeq は Math.max で進む) ため seq 値に依存しない。
    * 同一 seq の再 snapshot・seq 巻戻り (hub 再起動) でも snapshot 受信ごとに進むので確実に検出できる。
+   * tickerSynced:true の state (sweepTicker 変化の一発同期、spec §3-2) では進めない: 以前はここでも +1 して
+   * いたが、TTL 失効のたび (実機で 1〜2 分に 1 回) に走行中の全レーンが作り直され、同格テロップが互いを
+   * 上書きし合って見えていた (2026-09-19 実機観測)。同期は tickerSyncGeneration で targeted purge に写す。
    */
   tickerGeneration: number;
+  /**
+   * tickerSynced:true の state を受けた回数 (spec §3-2 の一発同期)。Ticker はこれが進んだとき、フィルタ前の
+   * `ticker` (サーバ権威の構成) に無い電文 job だけを scheduler から targeted purge する。差分配列を渡す形だと
+   * 200 件上限で先に押し出された job を拾えず、複数同期が 1 effect にまとまると取りこぼすため、回数＋現在集合で照合する。
+   */
+  tickerSyncGeneration: number;
   /** unkeyed tsunami は snapshot 境界で前 episode を必ず破棄する。 */
   unkeyedTsunamiEpisodeGeneration: number;
   /** unkeyedSequence 欠落・不正値を検出した。connection が通常の snapshot resync を行う。 */
@@ -93,7 +101,8 @@ export interface DisplayClientState {
 export function initialState(): DisplayClientState {
   return {
     snapshot: null, ticker: [], sseConnected: false, lastSeq: 0, lastEventSeq: 0, seqGapDetected: false,
-    tickerGeneration: 0, unkeyedTsunamiEpisodeGeneration: 0, unkeyedTsunamiProtocolViolation: false, reconcile: null,
+    tickerGeneration: 0, tickerSyncGeneration: 0,
+    unkeyedTsunamiEpisodeGeneration: 0, unkeyedTsunamiProtocolViolation: false, reconcile: null,
   };
 }
 
@@ -166,7 +175,9 @@ export function reduce(state: DisplayClientState, msg: DisplayServerMessageWithR
       // 進めない (state 自身は event 配信の成否を保証しないため)。
       // tickerSynced:true のときだけ例外: サーバの sweepTicker が recentTicker の構成を変えた
       // 一発同期 (spec §3-2)。この場合は recentTicker (空配列もあり得る = 全滅) を権威値として
-      // 丸ごと差し替え、tickerGeneration を進めてスケジューラを再構築させる (snapshot 受信と同じ扱い)
+      // 丸ごと差し替える。スケジューラは全 reset せず、tickerSyncGeneration を進めて Ticker に「この構成に無い
+      // 電文 job」だけを targeted purge させる (reconcile と同じ流儀。全 reset は走行中の無関係なテロップまで
+      // 作り直していた、2026-09-19)
       const tickerSynced = msg.snapshot.tickerSynced === true;
       const snapshot = withMapLayerDefaults(msg.snapshot);
       const unkeyedTsunamiProtocolViolation = isUnkeyedTsunami(snapshot)
@@ -180,7 +191,7 @@ export function reduce(state: DisplayClientState, msg: DisplayServerMessageWithR
           || hasStateSeqGap(state.lastEventSeq, snapshot.seq)
           || unkeyedTsunamiProtocolViolation,
         reconcile: null,
-        tickerGeneration: tickerSynced ? state.tickerGeneration + 1 : state.tickerGeneration,
+        tickerSyncGeneration: tickerSynced ? state.tickerSyncGeneration + 1 : state.tickerSyncGeneration,
         unkeyedTsunamiProtocolViolation,
       };
     }

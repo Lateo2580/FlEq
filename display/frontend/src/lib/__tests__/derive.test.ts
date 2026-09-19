@@ -137,7 +137,7 @@ describe("deriveMode", () => {
   it("snapshot が null なら standby", () => {
     expect(deriveMode({
       snapshot: null, ticker: [], sseConnected: false, lastSeq: 0, lastEventSeq: 0, seqGapDetected: false, tickerGeneration: 0,
-      unkeyedTsunamiEpisodeGeneration: 0, unkeyedTsunamiProtocolViolation: false,
+      tickerSyncGeneration: 0, unkeyedTsunamiEpisodeGeneration: 0, unkeyedTsunamiProtocolViolation: false,
     })).toBe("standby");
   });
 

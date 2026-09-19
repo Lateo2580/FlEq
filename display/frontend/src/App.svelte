@@ -320,6 +320,8 @@
       lines={displayTickerLines}
       now={tickerClockMounted ? clock.now : null}
       tickerGeneration={connection.state.tickerGeneration}
+      tickerSyncGeneration={connection.state.tickerSyncGeneration}
+      serverTicker={connection.state.ticker}
       reconcile={connection.state.reconcile}
       tsunamiGeneration={tsunamiGeneration}
       dim={effectiveDim}

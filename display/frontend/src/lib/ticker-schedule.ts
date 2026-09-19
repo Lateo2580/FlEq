@@ -371,6 +371,18 @@ export function collectSchedulerKeys(s: SchedulerState): Set<string> {
   return activeKeys(s);
 }
 
+/**
+ * サーバ権威の構成 (live = tickerSynced で届いた recentTicker の key 集合) に無い電文 job (kind==="event") の
+ * key。tickerSynced 同期の targeted purge 対象 (reconcileScheduler の source に渡す)。tip / replay は
+ * サーバ構成に現れないので対象外。scheduler の保持集合そのものを照合するため、200 件上限で lines から
+ * 先に押し出された job も拾える。
+ */
+export function staleEventKeys(s: SchedulerState, live: ReadonlySet<string>): string[] {
+  const out = new Set<string>();
+  for (const job of schedulerJobs(s)) if (job.kind === "event" && !live.has(job.key)) out.add(job.key);
+  return [...out];
+}
+
 function activeKeys(s: SchedulerState): Set<string> {
   return new Set(Array.from(schedulerJobs(s), (job) => job.key));
 }
@@ -916,7 +928,7 @@ function promoteReplacement(
 export function reconcileScheduler(
   state: SchedulerState,
   sourceEventKeys: readonly string[],
-  canonical: TickerJob,
+  canonical: TickerJob | null,
   now: number,
 ): SchedulerState {
   const sourceKeys = new Set(sourceEventKeys);
@@ -957,6 +969,10 @@ export function reconcileScheduler(
   s.deferred = s.deferred.filter((job) => !sourceKeys.has(job.key));
   s.catalog = s.catalog.filter((job) => !sourceKeys.has(job.key));
   for (const key of sourceKeys) delete s.lastShownAt[key];
+
+  // canonical 無し = targeted 除去だけ (tickerSynced 同期で失効した電文の purge。非対象の続報・replacement・
+  // current は上の保全処理をそのまま共有する。purgeJobs はレーンごと idle 化するので同期には使わない)
+  if (canonical == null) return s;
 
   // 同じ canonical key の再送で重複を作らない。catalog は最新 DTO へ更新し、source の groupKey
   // を残さない。canonical が scheduler 上に無ければ queue へ一度だけ投入する。

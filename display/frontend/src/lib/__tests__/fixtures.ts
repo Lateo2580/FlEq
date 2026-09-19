@@ -44,6 +44,7 @@ export function baseState(
     lastEventSeq: lastEventSeq ?? 0,
     seqGapDetected: seqGapDetected ?? false,
     tickerGeneration: tickerGeneration ?? 0,
+    tickerSyncGeneration: 0,
     unkeyedTsunamiEpisodeGeneration: 0,
     unkeyedTsunamiProtocolViolation: false,
   };

@@ -280,6 +280,72 @@ describe("Ticker (親スケジューラ)", () => {
     expect(container.textContent).toContain("大雨警報の本文です。");
   });
 
+  it("tickerSynced 同期は serverTicker に無い電文 job だけを除去し、走行中の他レーンを作り直さない", async () => {
+    // 2026-09-19 実機: TTL 失効の同期ごとにスケジューラが全 reset され、走行中の同格テロップが互いを上書きし合った
+    const a = tickerEvent({ id: "a", eventKey: "k-a", tickerBody: null, tickerSentence: "Aの本文です。", tickerPriority: "low" });
+    const b = tickerEvent({ id: "b", eventKey: "k-b", tickerBody: null, tickerSentence: "Bの本文です。", tickerPriority: "low" });
+    const c = tickerEvent({ id: "c", eventKey: "k-c", tickerBody: null, tickerSentence: "Cの本文です。", tickerPriority: "low" });
+    // lines は新しい順 → 古い a・b が両レーンで走行、c は待機
+    const { container, rerender } = render(Ticker, { lines: [c, b, a], tickerGeneration: 0 });
+    await tick();
+    expect(container.textContent).toContain("Aの本文です。");
+    expect(container.textContent).toContain("Bの本文です。");
+    expect(container.textContent).not.toContain("Cの本文です。");
+    const lineOf = (text: string) => Array.from(container.querySelectorAll(".ticker-line")).find((l) => l.textContent?.includes(text));
+    const bBefore = lineOf("Bの本文です。")!;
+
+    // サーバ同期で a が失効 (serverTicker から消え、tickerSyncGeneration が進む)。tickerGeneration は据え置き
+    await rerender({ lines: [c, b], tickerGeneration: 0, tickerSyncGeneration: 1, serverTicker: [c, b] });
+    await tick();
+    expect(container.textContent).not.toContain("Aの本文です。");
+    expect(container.textContent).toContain("Cの本文です。"); // 空いたレーンへ待機中の c が進む
+    const bAfter = lineOf("Bの本文です。")!;
+    expect(bAfter).toBe(bBefore); // b は同じ要素のまま走行継続 (再生成されていない)
+    expect(bAfter.classList.contains("fading")).toBe(false);
+  });
+
+  it("同期と reconcile が同じ更新に重なっても、新たに lines に現れた mid は enqueue される", async () => {
+    // panel に隠れていた mid が同期で lines に現れ、同時に無関係な reconcile が来る (契約境界: 新着と reconcile は排他でない)
+    const source = tickerEvent({ id: "src", eventKey: "source:key", tickerBody: null, tickerSentence: "source の本文です。", tickerPriority: "low" });
+    const keep = tickerEvent({ id: "keep", eventKey: "keep:key", tickerBody: null, tickerSentence: "無関係の本文です。", tickerPriority: "low" });
+    const shown = tickerEvent({ id: "shown", eventKey: "shown:key", groupKey: "g-shown", tickerBody: null, tickerSentence: "現れた mid の本文です。", tickerPriority: "mid" });
+    const canonical = tickerEvent({ id: "canon", eventKey: "canonical:key", type: "VPBS50", domain: "legacyCounterpart", tickerBody: null, tickerSentence: "canonical の本文です。", tickerPriority: "mid" });
+    const { container, rerender } = render(Ticker, { lines: [source, keep], tickerGeneration: 0, serverTicker: [source, keep] });
+    await tick();
+    expect(container.textContent).toContain("source の本文です。");
+
+    const command = { type: "reconcile" as const, event: canonical, sourceEventKeys: ["source:key"] };
+    await rerender({
+      lines: [canonical, shown, keep], tickerGeneration: 0, reconcile: command,
+      tickerSyncGeneration: 1, serverTicker: [canonical, shown, keep],
+    });
+    await tick();
+    expect(container.textContent).not.toContain("source の本文です。");
+    // 新着 (shown) が先に enqueue され上段で走る。canonical は queue で待つ (mid は上段 1 レーン)
+    expect(container.textContent).toContain("現れた mid の本文です。");
+    const shownLine = Array.from(container.querySelectorAll(".ticker-line")).find((l) => l.textContent?.includes("現れた mid の本文です。"))!;
+    shownLine.dispatchEvent(Object.assign(new Event("animationend"), { animationName: "ticker-scroll" }));
+    await tick();
+    expect(container.textContent).toContain("canonical の本文です。"); // reconcile の canonical も一度だけ投入されている
+  });
+
+  it("tickerSynced 同期で旧報だけが失効しても、畳んでいた同格続報は捨てず次に走らせる", async () => {
+    // 旧報 a1 走行中に同 groupKey の同格続報 a2 が coalescing buffer に入り、その間に a1 の TTL が失効する経路
+    const a1 = tickerEvent({ id: "a1", eventKey: "k-a1", groupKey: "g-a", tickerBody: null, tickerSentence: "旧報の本文です。", tickerPriority: "mid" });
+    const a2 = tickerEvent({ id: "a2", eventKey: "k-a2", groupKey: "g-a", tickerBody: null, tickerSentence: "続報の本文です。", tickerPriority: "mid" });
+    const { container, rerender } = render(Ticker, { lines: [a1], tickerGeneration: 0, serverTicker: [a1] });
+    await tick();
+    expect(container.textContent).toContain("旧報の本文です。");
+    await rerender({ lines: [a2, a1], tickerGeneration: 0, serverTicker: [a2, a1] }); // 同格続報 → buffer (即差替えしない)
+    await tick();
+    expect(container.textContent).toContain("旧報の本文です。");
+
+    await rerender({ lines: [a2], tickerGeneration: 0, tickerSyncGeneration: 1, serverTicker: [a2] }); // a1 だけ失効
+    await tick();
+    expect(container.textContent).not.toContain("旧報の本文です。");
+    expect(container.textContent).toContain("続報の本文です。"); // buffer の a2 が queue へ保全され、空いたレーンで走る
+  });
+
   it("⑯ kind=tip: 走行中 tip (下段) と共存する high (上段) がいても、緊急で tip を purge すると high は無傷で走行継続する", async () => {
     // 排他化 v2 では tip は電文が居ない間にしか始まらないが、走行を始めた後に電文が来るのは許容
     // (走行中 tip は中断せず完走)。tip=lane1、high=lane0 で共存 → 緊急遷移で tip だけ purge され、

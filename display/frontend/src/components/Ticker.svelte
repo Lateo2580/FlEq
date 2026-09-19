@@ -15,6 +15,7 @@
     maxLaneGeneration,
     purgeJobs,
     reconcileScheduler,
+    staleEventKeys,
     hasNonTipActivity,
     hasAlertActivity,
     hasActiveReplay,
@@ -32,6 +33,11 @@
   // now: 緊急画面と、時計を退避した standby stage 1 以降ではテロップ右端に時計を組み込む。
   // stage の権威は StandbyScreen にあり、App が同じ stage 確定で排他配線する。
   // tickerGeneration: snapshot 由来の ticker 全差し替え回数。変化でスケジューラ reset (§6)。
+  // tickerSyncGeneration / serverTicker: tickerSynced state (spec §3-2) の受信回数と、サーバ権威の構成
+  //   (emergency panel フィルタ前の store.ticker)。回数が進んだら、構成に無い電文 job だけを reconcileScheduler
+  //   で targeted purge する (続報・replacement・他レーンは保全)。以前は同期のたび resetScheduler で全 reset
+  //   していて、走行中の同格テロップが互いを上書きし合って見えた (2026-09-19 実機観測)。lines ではなく
+  //   フィルタ前の集合で照合するのは、panel に隠れただけの電文 (⑮ の完走契約) を消さないため。
   // onJobComplete: 1 つの job の最終 run を完走した (= idle 化した) 瞬間に、その job の eventKey を渡して
   //   1 回呼ぶ (Tips フィラーの deck 送り用、spec 2026-07-13 フィラー化)。発火 generation が現行と一致し、
   //   かつ最終 run 完了 (次 run へ進まず coalescedRevision も無い) のときだけ。未指定でも従来と完全に同挙動。
@@ -50,6 +56,8 @@
     lines,
     now = null,
     tickerGeneration = 0,
+    tickerSyncGeneration = 0,
+    serverTicker = null,
     reconcile = null,
     tsunamiGeneration = 0,
     dim = false,
@@ -61,6 +69,8 @@
     lines: DisplayTickerDtoV1[];
     now?: Date | null;
     tickerGeneration?: number;
+    tickerSyncGeneration?: number;
+    serverTicker?: DisplayTickerDtoV1[] | null;
     reconcile?: DisplayReconcileMessageV1 | null;
     tsunamiGeneration?: number;
     dim?: boolean;
@@ -91,6 +101,7 @@
   let knownKeys = new Set<string>();
   let lastGeneration = -1;
   let lastReconcileMessage: DisplayReconcileMessageV1 | null = null;
+  let lastSyncGeneration = 0;
   let wakeTimer: ReturnType<typeof setTimeout> | null = null;
 
   // mode/session の制御は App が所有し、Ticker は scheduler の安全 state にだけ反映する。
@@ -144,53 +155,65 @@
     scheduleWake(wakeAt);
   }
 
-  // lines / tickerGeneration に反応。scheduler の読み書きは untrack して自己ループを避ける
-  // (この effect は lines と tickerGeneration の変化だけで再走する)
+  // lines / tickerGeneration / reconcile / tickerSyncGeneration に反応。scheduler の読み書きは untrack して
+  // 自己ループを避ける (この effect は上記 prop の変化だけで再走する)
   $effect(() => {
     const gen = tickerGeneration;
     const ls = lines;
     const command = reconcile;
+    const syncGen = tickerSyncGeneration;
+    const authoritative = serverTicker;
     untrack(() => {
       if (gen !== lastGeneration) {
         // snapshot 由来の ticker 全差し替え → スケジューラ全 reset (§6)。
         // 旧レーンの世代最大値を種に渡し、世代を reset を跨いで単調増加させる (Critical 1)
         lastGeneration = gen;
         lastReconcileMessage = command;
+        lastSyncGeneration = syncGen; // 最新構成から作り直すので、同期の照合は消費済み
         scheduler = resetScheduler(catalogFromLines(ls), maxLaneGeneration(scheduler) + 1);
         runTick();
         knownKeys = new Set([...ls.map((l) => l.eventKey), ...collectSchedulerKeys(scheduler)]);
         return;
       }
 
-      if (command != null && command !== lastReconcileMessage) {
-        // late reconcile は tickerGeneration を進めず、source exact key の targeted purge と
-        // canonical の一回投入を同じ scheduler reduce で行う。resetScheduler は使わない。
-        lastReconcileMessage = command;
-        const canonical = toTickerJob(command.event, ++seqCounter);
-        const reconciled = reconcileScheduler(scheduler, command.sourceEventKeys, canonical, Date.now());
-        scheduler = { ...reconciled, catalog: catalogFromLines(ls) };
-        runTick();
-        knownKeys = new Set([...ls.map((l) => l.eventKey), ...collectSchedulerKeys(scheduler)]);
-        return;
-      }
+      // 新着 enqueue と late reconcile は排他ではなく、同じ effect に重なっても両方適用する (同期で emergency
+      // panel が解けて lines に現れた mid が、無関係な reconcile と同時に来ると queue に入らず既知扱いになる
+      // 取りこぼしの防止)。reconcile の canonical は reconcileScheduler が一度だけ投入するので fresh から除く。
+      const pending = command != null && command !== lastReconcileMessage ? command : null;
       // 通常 event で store が command をクリアした後、同じ command object が再利用されても
       // 次の reconcile を新しい targeted reduce として扱えるようにする。
       lastReconcileMessage = command;
       // 同一 generation (event 追加) → 新着のみ enqueue。lines は新しい順なので古い順に積む
-      const fresh = ls.filter((l) => !knownKeys.has(l.eventKey));
-      let next: SchedulerState;
-      if (fresh.length > 0) {
-        let acc = scheduler;
-        for (const dto of [...fresh].reverse()) {
-          acc = enqueueJob(acc, toTickerJob(dto, ++seqCounter), Date.now());
-        }
-        next = { ...acc, catalog: catalogFromLines(ls) };
-      } else {
-        // fresh が無くても catalog は毎回 lines に同期する。lines が縮む (Tips が外れて空になる等)
-        // ときにここを怠ると catalog が古いまま残り、消えたはずの job が巡回補充
-        // (assignLanes ③、CYCLE_MIN_INTERVAL_MS=120s 後) で再走してしまう (Codex 指摘 Critical)
-        next = { ...scheduler, catalog: catalogFromLines(ls) };
+      const fresh = ls.filter((l) => !knownKeys.has(l.eventKey) && l.eventKey !== pending?.event.eventKey);
+      let next: SchedulerState = scheduler;
+      let moved = fresh.length > 0 || pending != null; // レーン割当が動く可能性 (再割当が要る)
+      for (const dto of [...fresh].reverse()) {
+        next = enqueueJob(next, toTickerJob(dto, ++seqCounter), Date.now());
       }
+      if (pending != null) {
+        // late reconcile は tickerGeneration を進めず、source exact key の targeted purge と
+        // canonical の一回投入を同じ scheduler reduce で行う。resetScheduler は使わない。
+        next = reconcileScheduler(next, pending.sourceEventKeys, toTickerJob(pending.event, ++seqCounter), Date.now());
+      }
+      // fresh が無くても catalog は毎回 lines に同期する。lines が縮む (Tips が外れて空になる等)
+      // ときにここを怠ると catalog が古いまま残り、消えたはずの job が巡回補充
+      // (assignLanes ③、CYCLE_MIN_INTERVAL_MS=120s 後) で再走してしまう (Codex 指摘 Critical)
+      next = { ...next, catalog: catalogFromLines(ls) };
+
+      // tickerSynced 同期 (spec §3-2): サーバ権威の構成 (フィルタ前 serverTicker) に無い電文 job だけを
+      // targeted purge する。回数＋現在集合で照合するので、複数同期が 1 effect にまとまっても、reconcile と
+      // 同じ effect に重なっても、200 件上限で lines から先に押し出された job も取りこぼさない。
+      // 続報 (coalescedRevision)・replacement・無関係な current は reconcileScheduler が保全する。
+      if (syncGen !== lastSyncGeneration) {
+        lastSyncGeneration = syncGen;
+        const live = new Set((authoritative ?? []).map((e) => e.eventKey));
+        const removed = staleEventKeys(next, live);
+        if (removed.length > 0) {
+          next = reconcileScheduler(next, removed, null, Date.now());
+          moved = true;
+        }
+      }
+
       // lines から外れたフィラー (Tips) を current/queue/deferred から即除去する (緊急遷移で豆知識が
       // 緊急画面に残らないようにする、spec 2026-07-13 フィラー化 R1)。catalog 縮小同期は「巡回補充で
       // 再登場させない」だけで割当済み job は保持するため、mode!==standby で feeder が lines を空にしても
@@ -202,8 +225,8 @@
       const purged = purgeJobs(next, (job) => job.kind === "tip" && !lineKeys.has(job.key), Date.now());
       const changed = purged !== next;
       scheduler = purged;
-      // 新着 enqueue か purge でレーン割当が動く可能性があれば再割当する
-      if (fresh.length > 0 || changed) runTick();
+      // 新着 enqueue・reconcile・同期 purge・tip purge でレーン割当が動く可能性があれば再割当する
+      if (moved || changed) runTick();
       // known を lines + 保持中 job に刈り込む (常設 kiosk の Set 肥大防止)
       knownKeys = new Set([...ls.map((l) => l.eventKey), ...collectSchedulerKeys(scheduler)]);
     });
