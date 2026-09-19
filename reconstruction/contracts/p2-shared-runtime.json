@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "3095a6c21caa96e06fc3b3a6d2f906534ef5441b",
-    "sha256": "61c659ef2a1ce59be8b137470db63d5b2ce39eef3561bc026b0833747e70cb18",
+    "sha256": "b04d3da50f149842a9f5dc178f3f86ac24ccab62ea101f6a7d570f59615fc246",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "76c82b87d7783a4eae14af690cb34e7d6ec46f73617dc75b7f7401951619f080",
     "sequencesSha256": "22b2432e8989d7e7cc2514f2297308e84b3c0f1a3e045491b9cf60cfa8f2d147",
@@ -170,7 +170,7 @@
     "contractId": "P2-SHARED-RUNTIME-001",
     "mode": "implementation",
     "objective": "B01補完・B06・B15の共有型と純粋runtimeを実装し、絶対時計と単調時計、唯一のstate更新口、operation伝播、no-op、共通Head/日時拒否、許可fieldだけの診断を固定する。",
-    "baseOid": "unassigned",
+    "baseOid": "2fe36e18d4bf2ee950a5f33ee6230cf2509a3b9c",
     "cleanTreeRequired": true,
     "readPaths": [
       "docs/specs/reconstruction-p0-contracts.md",
