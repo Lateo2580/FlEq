@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "3095a6c21caa96e06fc3b3a6d2f906534ef5441b",
-    "sha256": "31a6e65131cce1c5004228a3262ee6d7743f9f713545083be7b761beb891e368",
+    "sha256": "ea65d0650d2ef8cf9219267510a935d6c7534c4c1d7c749a96f416f520cfea65",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "76c82b87d7783a4eae14af690cb34e7d6ec46f73617dc75b7f7401951619f080",
     "sequencesSha256": "22b2432e8989d7e7cc2514f2297308e84b3c0f1a3e045491b9cf60cfa8f2d147",
@@ -127,6 +127,7 @@
     "publicTypes": [
       "reconstruction/contracts/p2-shared-runtime.types.ts#CheckpointEnvelope",
       "reconstruction/contracts/p2-shared-runtime.types.ts#CheckpointRequest",
+      "reconstruction/contracts/p2-shared-runtime.types.ts#CheckpointCapture",
       "reconstruction/contracts/p2-shared-runtime.types.ts#CheckpointResult",
       "reconstruction/contracts/p2-shared-runtime.types.ts#RestoreUnitResult",
       "reconstruction/contracts/p2-shared-runtime.types.ts#ShutdownCode",
@@ -141,7 +142,7 @@
     ],
     "publicFunctions": [
       "restoreUnit(unit: UnitId): RestoreUnitResult",
-      "scheduleCheckpoint(state: RuntimeState, clock: ClockReading, runId: string, correlationByUnit: Readonly<Partial<Record<UnitId, Pick<CheckpointMeasurement, 'inputIds' | 'retryReason'>>>>): Readonly<{ request: CheckpointRequest; result: null; measurements: readonly CheckpointMeasurement[] }> | Readonly<{ request: null; result: Extract<CheckpointResult, { kind: 'failed' }> & Readonly<{ stage: 'encode' }>; measurements: readonly CheckpointMeasurement[] }> | null",
+      "scheduleCheckpoint(state: RuntimeState, clock: ClockReading, runId: string, correlationByUnit: Readonly<Partial<Record<UnitId, Pick<CheckpointMeasurement, 'inputIds' | 'retryReason'>>>>): Readonly<{ capture: CheckpointCapture; request: CheckpointRequest; result: null; measurements: readonly CheckpointMeasurement[] }> | Readonly<{ capture: CheckpointCapture; request: null; result: Extract<CheckpointResult, { kind: 'failed' }> & Readonly<{ stage: 'encode' }>; measurements: readonly CheckpointMeasurement[] }> | null",
       "executeCheckpoint(request: CheckpointRequest, runId: string, inputIds: readonly string[], retryReason: CheckpointMeasurement['retryReason']): Promise<Readonly<{ result: CheckpointResult; measurements: readonly CheckpointMeasurement[] }>>",
       "applyCheckpointResult(state: RuntimeState, result: CheckpointResult, clock: ClockReading): RuntimeStep",
       "shutdownRuntime(state: RuntimeState, acceptedThroughSequence: number, clock: ClockReading): Promise<ShutdownSummary>",
@@ -530,7 +531,7 @@
       "永続診断はfilesystem adapter経由の非同期回転ファイル一方式だけとし、新logger frameworkを追加しない",
       "composition rootはA3だけが編集する。A4/A5/A6の各配送後にreducer・codec・期限・view/outcome/intentを直列結線し、保存障害・通常終了・復元直後続報をunit担当と再検収する。runtime/shared-runtime.tsとP1既存3ファイルは編集しない",
       "A2配送後、composition rootの既存1秒tickは到着・生存応答がなくてもmailbox.drainDiagnostics(clock.monotonicMs)を呼び、停止診断・overflow要約を含むDiagnosticDetailsを同じrunのclock.wallTimeMs/runIdでDiagnosticEventへ完成させ、B15 enqueueDiagnostic sinkへ一度だけ流す",
-      "A7/A8の各配送後もadapter/出力をcomposition rootへ直列結線する。A7の共有NotificationResultをreduceRuntimeへ渡し、照合済みintent更新をattempts/nextAttemptAt/dispositionごとにA4 EewInputへ渡す唯一の経路とする。実通知結果またはSSEを含む同じ再検収を行い、9段証拠が揃うまで対象unitを完了扱いしない",
+      "A7/A8の各配送後もadapter/出力をcomposition rootへ直列結線する。A7の共有NotificationResultをreduceRuntimeへ渡し、A1がA7純関数を呼び、選択時・完了時とも照合済みintentUpdateをU-E/U-W/U-Fの所有unitへ同一reducer呼出しで適用する。A3はNotificationIntentUpdateやunit stateを合成しない。実通知結果またはSSEを含む同じ再検収を行い、9段証拠が揃うまで対象unitを完了扱いしない",
       "filesystem故障注入点、実媒体file/directory sync、rename後再読込、遅いack、最大encoded byteの版付き証拠",
       "allowed_pathsに限定したgit diff --binary --no-ext-diff patch",
       "変更ファイル一覧、実行コマンドと結果、未実行検証と理由、残存リスク",
@@ -538,7 +539,12 @@
       "UnitCodec<State, Persisted>はA1共有型、具体State/Persisted/schemaとencode/decodeはA4〜A6が所有する。A3は捕捉時にencode、hash/schema検証後にdecodeを呼び、invalidを正常stateに昇格しない。codec形がないと後続unitの保存/復元を結線できない",
       "checkpoint SHA-256はトップレベルsha256 fieldの64文字だけをASCII 0へ置換したenvelope全保存UTF-8 bytes（schemaVersion・unit・generation・capturedAt・payload・空白/改行を含む）を対象とする。manifest/契約と同じ自己hash規約。書込はschemaVersion, unit, generation, capturedAt, payload, sha256順のJSON.stringify（BOM/末尾改行なし）。読込はparse/restringifyせず保存bytesの該当fieldだけをzero化し、payload内の同名fieldを置換しない。重複field・不正hash形式は拒否する。hashとschema/unit等の妥当性を確認済みのslotだけを世代選択へ渡す",
       "readDiagnostics queryはlevel/unitの完全一致、fromTimestampMs以上throughTimestampMs以下の時刻範囲。limitは整数1〜256、時刻は有限かつfrom<=through、不正queryは拒否する。timestamp昇順で返し同時刻は保存順、1回256件かつUTF-8 JSON records 1 MiB以下・各record8192 byte以下、超過はtruncated=true。可変内部参照を返さない",
-      "捕捉側の測定/失敗返却口がないとRequest生成前のencode失敗と成功encodeの時刻がA10へ届かないため、scheduleCheckpointは捕捉前にrunIdと単位別inputIds/retryReasonを受け、選択したunit/generationにattemptIdを発行してから捕捉・codec encodeを実行する。nullは試行なし・計測なし。成功はrequestとstage=encode/outcome=succeededの計測を返し、失敗はrequest=null、stage=encodeのfailed CheckpointResultとoutcome=failedの計測を返す。失敗結果も既存のRuntimeInput経由で適用し、executeCheckpointは呼ばない。encode区間は捕捉開始からenvelope生成・byte確定または失敗まで同じrunのNode単調時計で測る。完全な出力がないencode失敗ではbytesとencodedByteLengthを0（完成出力なし）とし、所要時間は実測値を残す。選択単位の相関は捕捉する世代の採用に寄与したinputIdsを固定し、欠落を空配列や別入力IDで補完しない。executeCheckpointには成功requestと同じ相関を渡し、write/fileSync/close/rename/directorySync/verifyの実行stageだけを返す。scheduleCheckpointの捕捉/encode計測とexecuteCheckpointのwrite以降の計測をrunId/attemptIdで結合し、unit/generation/inputIds/retryReasonの一致を検証する。encodeは成功・失敗とも捕捉側から一度だけ取り込み、実行済みencodeの再実行・時刻の復元・二重計上をしない。未実行stageは捏造せず、DiagnosticEventへ押し込まない"
+      "捕捉側の測定/失敗返却口がないとRequest生成前のencode失敗と成功encodeの時刻がA10へ届かないため、scheduleCheckpointは捕捉前にrunIdと単位別inputIds/retryReasonを受け、選択したunit/generationにattemptIdを発行してから捕捉・codec encodeを実行する。nullは試行なし・計測なし。成功はrequestとstage=encode/outcome=succeededの計測を返し、失敗はrequest=null、stage=encodeのfailed CheckpointResultとoutcome=failedの計測を返す。失敗結果も既存のRuntimeInput経由で適用し、executeCheckpointは呼ばない。encode区間は捕捉開始からenvelope生成・byte確定または失敗まで同じrunのNode単調時計で測る。完全な出力がないencode失敗ではbytesとencodedByteLengthを0（完成出力なし）とし、所要時間は実測値を残す。選択単位の相関は捕捉する世代の採用に寄与したinputIdsを固定し、欠落を空配列や別入力IDで補完しない。executeCheckpointには成功requestと同じ相関を渡し、write/fileSync/close/rename/directorySync/verifyの実行stageだけを返す。scheduleCheckpointの捕捉/encode計測とexecuteCheckpointのwrite以降の計測をrunId/attemptIdで結合し、unit/generation/inputIds/retryReasonの一致を検証する。encodeは成功・失敗とも捕捉側から一度だけ取り込み、実行済みencodeの再実行・時刻の復元・二重計上をしない。未実行stageは捏造せず、DiagnosticEventへ押し込まない",
+      "R13=A composition root規則: 入力の順序付け・reduceRuntimeが返すstateの採用・effect実行だけを行い、stateの構築・部分上書き・非同期hookから返されたstateの合成をしない。無いと保存ackと終了hookが唯一のstate更新口を迂回する",
+      "追実装で閉じる項目(A3-B1): scheduleCheckpointの成功/encode失敗の両戻り値にCheckpointRequest識別fieldだけのCheckpointCaptureを返し、後続入力または失敗結果より先にcheckpointCapturedとしてreduceRuntimeへ渡す。相関・耐久性を確認したCheckpointResultだけを既存control経路へ返し、writer解放・retry・measurement管理はA3に残す。無いとencode失敗を一致する試行へ適用できない",
+      "追実装で閉じる項目(A3-typed-units): 現行checkpoint.ts:166,175,189,333,336,346,393（TS2344 7件）とcomposition-root.ts:33,38,39,140,166,178,210,211,223,224,240（2件）,262,289,335,350（TS2344 16件）のPartial<Record<UnitId, unknown>> genericをRuntimeUnitStatesへ限定する。無いと具体結線したRuntimeStateをA3の捕捉・結果照合へ渡せない",
+      "追実装で閉じる項目(A3-transitional): 現行composition-root.ts:212-217のresultMetadata.persistence部分上書きを除去し、metadataはwriter解放・retry・diagnosticだけに限定する。RuntimeState.persistenceとcheckpointAttemptsはreduceRuntimeの一致試行結果だけを採用する。:235-236の独自no-op RuntimeStep構築と旧notificationIntents（TS2561）も除去し、結果入力がない場合はA1のdeadline入力による戻りstepをそのまま採用する。新しいnotificationAttempts/abortAttemptIds/effects/shutdownSummaryをA3で補完しない",
+      "追実装で閉じる項目(A3-shutdown): 現行composition-root.ts:269-346のshutdown文字列上書き、ShutdownUpdate state返却、adoptShutdownUpdateのpersistence/state合成を除去する。:189/:227の文字列比較（TS2367）はshutdown.stageのworkerClose/completed判定へ置換し、:350-352のshutdownPhase直接更新helperを除去してA1の段階結果遷移へ置換する。:270/:299のTS2322、:278のTS2345、:289/:307のTS2531もこの戻りstate採用経路で閉じる。stopInputAndDrainMailbox/finalizeNotificationDelivery/startFinalCheckpoints/closeRuntimeWorkersを実行し、各完了・失敗・deadlineExceeded、未処理件数、sinkのdroppedDiagnostics、clockをshutdownStageResultでA1へ返す。:302-327のcode/reasons/summary構築・合成を除去し、A1所有stageResultsから3→2→4で判定されたcloseRuntimeWorkers.summaryを保存してからworker等を閉じ、最終RuntimeStep.shutdownSummaryを保存・返却する。:244/:265の仮runId=shutdownもstate.runIdへ揃える"
     ],
     "unresolvedQuestions": [
       {

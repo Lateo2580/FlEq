@@ -5,6 +5,10 @@ import type {
   ParserMailboxItem,
   ParserMailboxResult,
 } from "./p1-parser-boundary.types";
+import type { EewUnitState } from "./p2-eew-unit.types";
+import type { NotificationDeliveryState, NotificationSelection } from "./p2-notification-delivery.types";
+import type { WeatherCurrentUnitState } from "./p2-weather-current-unit.types";
+import type { WeatherTimeseriesUnitState } from "./p2-weather-timeseries-unit.types";
 
 export type JsonValue = null | boolean | number | string | readonly JsonValue[] | Readonly<{ [key: string]: JsonValue }>;
 
@@ -12,9 +16,23 @@ export type UnitId =
   | "U-E" | "U-Q" | "U-T" | "U-N" | "U-W" | "U-L"
   | "U-F" | "U-B" | "U-M" | "U-Y" | "U-V" | "U-R";
 
+export type RuntimeUnitId = "U-E" | "U-W" | "U-F";
+
+export type RuntimeUnitStates = Readonly<{
+  "U-E": EewUnitState;
+  "U-W": WeatherCurrentUnitState;
+  "U-F": WeatherTimeseriesUnitState;
+}>;
+
 export type ClockReading = Readonly<{
   wallTimeMs: number;
   monotonicMs: number;
+}>;
+
+export type RuntimeUnitDeadline = Readonly<{
+  // Either non-null deadline reaching its clock is sufficient; neither means outer null.
+  wallTimeMs: number | null;
+  monotonicMs: number | null;
 }>;
 
 export type RejectionReason =
@@ -93,6 +111,9 @@ export type NotificationResult = Readonly<{
   | Readonly<{ kind: "timeout"; stopped: boolean }>
   | Readonly<{ kind: "aborted"; reason: "higherPriority" | "cancelled" | "expired" | "superseded" | "shutdown"; stopped: boolean }>
 );
+
+// A1 has already correlated the intent; selection does not fabricate a result.
+export type NotificationIntentUpdate = Pick<NotificationIntent, "id" | "attempts" | "nextAttemptAt" | "disposition">;
 
 export type PublicValue = JsonValue;
 
@@ -177,7 +198,7 @@ export type InfrastructureDiagnosticReason =
   | "snapshotStringLimitExceeded";
 
 export type DiagnosticReason = ParserDiagnosticReason | RejectionReason | InfrastructureDiagnosticReason
-  | "weatherCurrentCapacityEvicted";
+  | "weatherCurrentCapacityEvicted" | "eewCapacityEvicted";
 
 export type DiagnosticDetails = Readonly<{
   level: DiagnosticLevel;
@@ -200,19 +221,77 @@ export type MailboxControl =
 
 export type RuntimeInput =
   | Readonly<{ kind: "mailboxCompleted"; completion: MailboxCompletion; clock: ClockReading }>
-  | Readonly<{ kind: "notificationResult"; result: NotificationResult }>;
+  | Readonly<{ kind: "checkpointCaptured"; capture: CheckpointCapture }>
+  | Readonly<{ kind: "notificationResult"; result: NotificationResult }>
+  | Readonly<{
+      kind: "shutdownStageResult";
+      stage: Exclude<ShutdownStage, "running" | "completed">;
+      result: ShutdownStageResult;
+      pending: ShutdownPendingCounts;
+      clock: ClockReading;
+      droppedDiagnostics: ShutdownSummary["droppedDiagnostics"];
+    }>;
 
-export type RuntimeState<UnitStates extends Readonly<Partial<Record<UnitId, unknown>>>> = Readonly<{
-  units: UnitStates;
-  persistence: Readonly<Partial<Record<UnitId, PersistenceStatus>>>;
-  shutdown: "running" | "draining" | "finalizing" | "stopping";
+export type ShutdownStage =
+  | "running" | "mailboxDrain" | "sideEffectFinalization" | "finalCheckpoint" | "workerClose" | "completed";
+
+export type ShutdownDeadlines = Readonly<{
+  overallMonotonicMs: number | null;
+  mailboxDrainMonotonicMs: number | null;
+  sideEffectFinalizationMonotonicMs: number | null;
+  finalCheckpointMonotonicMs: number | null;
+  workerCloseMonotonicMs: number | null;
 }>;
 
-export type RuntimeStep<UnitStates extends Readonly<Partial<Record<UnitId, unknown>>>> = Readonly<{
+export type ShutdownPendingCounts = Readonly<{
+  mailboxPending: number;
+  mailboxInFlight: number;
+  batches: number;
+  notificationAttempts: number;
+  unsavedUnits: number;
+  workers: number;
+}>;
+
+export type ShutdownStageResult =
+  | Readonly<{ kind: "completed" }>
+  | Readonly<{ kind: "failed"; reason: string }>
+  | Readonly<{ kind: "deadlineExceeded" }>;
+
+export type ShutdownState = Readonly<{
+  stage: ShutdownStage;
+  acceptedThroughSequence: number | null;
+  startedAt: ClockReading | null;
+  deadlines: ShutdownDeadlines;
+  finalizationAt: number | null;
+  // One terminal observation per stage, at most four; later stages never erase it.
+  stageResults: Readonly<Partial<Record<Exclude<ShutdownStage, "running" | "completed">,
+    Pick<Extract<RuntimeInput, { kind: "shutdownStageResult" }>, "result" | "pending" | "clock" | "droppedDiagnostics">>>>;
+}>;
+
+export type RuntimeEffect =
+  | Readonly<{ kind: "stopInputAndDrainMailbox"; acceptedThroughSequence: number; deadlineMonotonicMs: number }>
+  | Readonly<{ kind: "finalizeNotificationDelivery"; deadlineMonotonicMs: number }>
+  | Readonly<{ kind: "startFinalCheckpoints"; units: readonly RuntimeUnitId[]; deadlineMonotonicMs: number }>
+  | Readonly<{ kind: "closeRuntimeWorkers"; deadlineMonotonicMs: number; summary: ShutdownSummary }>;
+
+export type RuntimeState<UnitStates extends RuntimeUnitStates = RuntimeUnitStates> = Readonly<{
+  runId: string;
+  units: UnitStates;
+  persistence: Readonly<Partial<Record<UnitId, PersistenceStatus>>>;
+  checkpointAttempts: Readonly<Partial<Record<RuntimeUnitId, PendingCheckpointAttempt>>>;
+  deadlines: Readonly<Record<RuntimeUnitId, RuntimeUnitDeadline | null>>;
+  notificationChannels: NotificationDeliveryState["channels"];
+  shutdown: ShutdownState;
+}>;
+
+export type RuntimeStep<UnitStates extends RuntimeUnitStates = RuntimeUnitStates> = Readonly<{
   state: RuntimeState<UnitStates>;
   changedUnits: readonly UnitId[];
   checkpointRequests: readonly CheckpointRequest[];
-  notificationIntents: readonly NotificationIntent[];
+  notificationAttempts: NotificationSelection["attempts"];
+  abortAttemptIds: NotificationSelection["abortAttemptIds"];
+  effects: readonly RuntimeEffect[];
+  shutdownSummary: ShutdownSummary | null;
   outcomes: readonly PublishedOutcome[];
   views: readonly UnitView[];
   diagnostics: readonly DiagnosticEvent[];
@@ -296,6 +375,14 @@ export type CheckpointRequest = Readonly<{
   capturedAt: number;
   envelope: CheckpointEnvelope;
   encodedByteLength: number;
+}>;
+
+export type CheckpointCapture = Pick<CheckpointRequest, "attemptId" | "generation" | "capturedAt"> & Readonly<{
+  unit: RuntimeUnitId;
+}>;
+
+export type PendingCheckpointAttempt = CheckpointCapture & Readonly<{
+  postCaptureDirtySince: number | null;
 }>;
 
 export type CheckpointResult =

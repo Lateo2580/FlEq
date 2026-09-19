@@ -36,4 +36,4 @@ function completeDiagnostic(details: DiagnosticDetails, clock: ClockReading, run
   return { timestamp: clock.wallTimeMs, ...boundDiagnosticDetails(details), runId: boundedString(runId) };
 }
 
-export { boundDiagnosticDetails, completeDiagnostic };
+export { boundedString, boundDiagnosticDetails, completeDiagnostic };

@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "fc7006e2380edf9a97b601d124341ba4bd7f7f42",
-    "sha256": "abc3e4432ea9f648ee52a9d0d1cd2f932ac029d3d977570363fff005e9293b52",
+    "sha256": "3bd22d3782ce6b3411d9031db49402d1209f2a38197935da87423a51a84494da",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "76c82b87d7783a4eae14af690cb34e7d6ec46f73617dc75b7f7401951619f080",
     "sequencesSha256": "22b2432e8989d7e7cc2514f2297308e84b3c0f1a3e045491b9cf60cfa8f2d147",
@@ -613,7 +613,9 @@
       "純粋な意味関数とreduceUnitはDiagnosticDetailsだけを返し、runtimeがtimestamp/runIdを付与する。各subjectのdecisionsを系列oracleのdecision/reason/changeと照合し、duplicate/stale/noChangeを区別する。識別不能な拒否ではsubjectを空文字にし、架空の業務identityを作らない。",
       "OperationはP1共有型をimportし、nationalのOperation mapをState/Persisted/View/codec/reducerの全経路で使う。無いと別区分の全国baseが単一slotを置換しcheckpointから複数区分を復元できない。履歴・partialの合算上限と単一保存単位は変えない",
       "normalの受理はtraining/testの占有で失敗しない。RET-02/03/04の合算上限に達しているとき、normalの新規受理は該当上限を占有するtraining/testの最古entry（履歴・partial subject）を必要な分だけ先に容量退去させてから判定し、normal同士でだけcapacityExceededを返す。training/testの受理はnormalのentryを退去させない。容量退去はunavailableでも取消でもなく、DiagnosticDetails.reason=weatherCurrentCapacityEvictedと既存のunit/count等だけで記録し、§7.9にfieldを追加しない。このadmission規則がないと訓練・試験の占有でnormalを拒否する。最古の順序はmeta.decisionBranches[P2-A5-R11]に従い、退去と採用を原子的に適用する。受理不能なら退去をcommitせず、正常currentの取消・復元・freshness解除として扱わない。RES-01の16MiB超過時もnormal保護を適用し、training/testの履歴→partial subject→全国baseの順で、各種別内の最古entryから必要な分だけ容量退去させて再判定する。全国baseの退去はnormal受理に必要なこのbyte容量退去だけをAC10の唯一の例外とする。training/testの受理はnormalを退去させない。normalだけで16MiBを超える場合は従来どおりreason=capacityExceededのunavailableとし、事前予約は設けない",
-      "既存affectedScopeにscopeEncodingの5文字列tupleを保存する。無いとsource/lastKnownが両方nullのunavailableのfamily/scope/officeを復元できず別官署で解除できてしまう。追加field・共有unionは不要。codec/view/coverageConfirmed/FreshnessRecordで同じ表現を使う"
+      "既存affectedScopeにscopeEncodingの5文字列tupleを保存する。無いとsource/lastKnownが両方nullのunavailableのfamily/scope/officeを復元できず別官署で解除できてしまう。追加field・共有unionは不要。codec/view/coverageConfirmed/FreshnessRecordで同じ表現を使う",
+      "B2: 全WeatherCurrentInputでClockReadingを受け、WeatherCurrentUnitStep.nextDeadlineのwallTimeMs/monotonicMsを独立のnumber|nullとして返す。有効期限のいずれかが到来すれば配送、両方なしなら外側のnull。無いと片方の時計だけの期限を表現できずA1が当該unitへ同じ呼出しでdeadlineを配送できない",
+      "追実装で閉じる項目(A5): reducer/codec/viewの既存責務を変えずClockReading/nextDeadlineと既存shutdown入力を実装し、期限前は同じWeatherCurrentUnitState参照と空のdecisions/intents/outcomes/diagnosticsを返す。旧notificationResultは3 unit共通intentUpdate入力へ置換する。NotificationIntentUpdateのid/attempts/nextAttemptAt/dispositionとclockを受け、選択時は完了結果なしでattempts/nextAttemptAtを更新しdispositionを維持、完了時もA1内部のA7が照合した更新を同じ入口で採用する。無いとU-E以外で試行回数と再試行日時を保存できない。既存idだけを更新し同値・未知idはno-op、変更時だけdeliveryOnlyで保存世代を進める。timer・配送済み入力slot・RuntimeState更新は追加しない"
     ],
     "unresolvedQuestions": [
       {

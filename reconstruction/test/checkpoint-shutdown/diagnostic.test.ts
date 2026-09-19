@@ -33,6 +33,9 @@ describe("P2 persistent diagnostic sink", () => {
     expect(sink.enqueueDiagnostic(first).kind).toBe("accepted");
     sink.enqueueDiagnostic({ timestamp: 1_000, level: "ERROR", component: "checkpoint",
       reason: "checkpointWriteFailed", runId: "run", unit: "U-F", generation: 2 });
+    const eviction: DiagnosticEvent = { timestamp: 1_001, level: "WARN", component: "eew",
+      reason: "eewCapacityEvicted", runId: "run", unit: "U-E", count: 1 };
+    expect(sink.enqueueDiagnostic(eviction).kind).toBe("accepted");
     await sink.flush();
     expect(failures).toEqual([]);
 
@@ -44,6 +47,7 @@ describe("P2 persistent diagnostic sink", () => {
     expect(lines[0]).toContain("[truncated:fieldLimit]");
 
     const restarted = new PersistentDiagnosticSink(path, nodeDiagnosticFileSystem(), () => 2_000, () => {});
+    expect((await restarted.readDiagnostics({ unit: "U-E", limit: 256 })).records).toEqual([eviction]);
     expect(await restarted.readDiagnostics({ level: "ERROR", unit: "U-F", limit: 256 })).toMatchObject({
       records: [{ timestamp: 1_000, level: "ERROR", unit: "U-F", generation: 2 }], truncated: false,
     });

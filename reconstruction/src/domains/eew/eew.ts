@@ -12,6 +12,7 @@ import type {
   PersistenceStatus,
   ReportRef,
   RejectionReason,
+  RuntimeUnitDeadline,
   SubjectOutcome,
 } from "../../../contracts/p2-shared-runtime.types";
 import type {
@@ -69,7 +70,7 @@ function diagnostic(material: DecodedMaterial, reason: RejectionReason): Diagnos
 function rejection(state: EewUnitState, material: DecodedMaterial, reason: RejectionReason,
   details = diagnostic(material, reason)): EewUnitStep {
   return {
-    state,
+    state, nextDeadline: nextEewDeadline(state),
     decisions: [{ subject: "", operation: material.operation, decision: "rejected", reason }],
     intents: [], outcomes: [], diagnostics: [details],
   };
@@ -204,15 +205,17 @@ function validateCandidate(material: DecodedMaterial): CandidateResult {
   } };
 }
 
-function losesKnownPrediction(previous: EewPrediction, latest: EewPrediction): boolean {
-  const losesBound = (before: MaterialValue, after: MaterialValue): boolean =>
-    after.kind === "unknown" && (before.kind === "number" || before.kind === "text" || before.kind === "range");
-  const losesIntensity = (before: EewPredictionIntensity, after: EewPredictionIntensity): boolean =>
-    losesBound(before.from, after.from) || losesBound(before.to, after.to);
-  return losesIntensity(previous.maximum, latest.maximum) || latest.areas.some((area) => {
-    const before = previous.areas.find((item) => item.code === area.code);
-    return before != null && losesIntensity(before.intensity, area.intensity);
-  });
+function hasKnownPrediction(prediction: EewPrediction): boolean {
+  const intensities = prediction.areas.length === 0
+    ? [prediction.maximum] : prediction.areas.map((area) => area.intensity);
+  return intensities.some(({ from, to }) => [from, to].some((value) =>
+    value.kind === "number" || value.kind === "text" || value.kind === "range"));
+}
+
+function nextEewDeadline(state: EewUnitState): RuntimeUnitDeadline | null {
+  const pending = state.intents.filter((item) => item.disposition === "pending");
+  return pending.length === 0 ? null
+    : { wallTimeMs: Math.min(...pending.map((item) => item.expiresAt)), monotonicMs: null };
 }
 
 function dirty(persistence: PersistenceStatus, nowMs: number): PersistenceStatus {
@@ -252,53 +255,57 @@ function reduceEew(state: EewUnitState, input: Extract<EewInput, { kind: "receiv
   const gate = state.gates.find((item) => item.subject === candidate.subject);
   const previous = state.current.find((item) => item.subject === candidate.subject);
   if (gate != null && candidate.serial < gate.serial) return {
-    state, decisions: [{ subject: candidate.subject, operation: candidate.operation,
+    state, nextDeadline: nextEewDeadline(state), decisions: [{ subject: candidate.subject, operation: candidate.operation,
       decision: "unchanged", reason: "stale" }], intents: [], outcomes: [], diagnostics: [],
   };
-  // The frozen public type has one prediction/source pair. Preserve that evidence
-  // on unknown follow-ups; gate tracks the latest revision, outcome carries latest raw.
-  // A simultaneous latest+retained view needs the contract addition in a4-report.md.
-  const retain = previous != null && candidate.prediction != null
-    && losesKnownPrediction(previous.prediction, candidate.prediction);
-  // A shared source reference means current still contains the gate's received raw.
-  // Compare that raw before retention can hide a same-version correction. Once
-  // retained, the frozen gate has no raw field; its gate-only fallback remains
-  // until the latest/retained prediction contract is extended.
+  const retainedPrediction = previous != null && candidate.prediction != null
+    && !hasKnownPrediction(candidate.prediction)
+    ? hasKnownPrediction(previous.prediction)
+      ? { prediction: previous.prediction, source: previous.source } : previous.retainedPrediction
+    : null;
   const predictionChanged = previous == null ? !candidate.terminal
-    : previous.source === gate?.source
-      ? !isDeepStrictEqual(previous.prediction, candidate.prediction)
-      : !retain;
-  const projected: EewCurrent | null = candidate.cancelled || candidate.terminal ? null : retain ? previous : {
+    : !isDeepStrictEqual(previous.prediction, candidate.prediction);
+  const projected: EewCurrent | null = candidate.cancelled || candidate.terminal ? null : {
     subject: candidate.subject, operation: candidate.operation, family: candidate.family,
-    source: candidate.source, serial: candidate.serial, terminal: false, prediction: candidate.prediction!,
+    source: candidate.source, serial: candidate.serial, terminal: false, prediction: candidate.prediction!, retainedPrediction,
   };
   if (gate != null && candidate.serial === gate.serial) {
     const candidateTime = Date.parse(candidate.source.reportDateTimeRaw);
     const gateTime = Date.parse(gate.source.reportDateTimeRaw);
     if (candidateTime < gateTime || (gate.terminal && !candidate.terminal && candidateTime <= gateTime)) return {
-      state, decisions: [{ subject: candidate.subject, operation: candidate.operation,
+      state, nextDeadline: nextEewDeadline(state), decisions: [{ subject: candidate.subject, operation: candidate.operation,
         decision: "unchanged", reason: "stale" }], intents: [], outcomes: [], diagnostics: [],
     };
     if (gate.terminal === candidate.terminal && gate.source.reportDateTimeRaw === candidate.source.reportDateTimeRaw
       && gate.source.infoTypeRaw === candidate.source.infoTypeRaw
       && !predictionChanged) return {
-      state, decisions: [{ subject: candidate.subject, operation: candidate.operation,
+      state, nextDeadline: nextEewDeadline(state), decisions: [{ subject: candidate.subject, operation: candidate.operation,
         decision: "unchanged", reason: "duplicate" }], intents: [], outcomes: [], diagnostics: [],
     };
   }
 
-  let currents = state.current.filter((item) => item.subject !== candidate.subject);
-  let gates = state.gates.filter((item) => item.subject !== candidate.subject);
-  const evicted = new Set<string>();
-  if (gate == null) {
-    const familyGates = gates.filter((item) => item.family === candidate.family);
-    if (familyGates.length >= 512) {
-      const oldest = familyGates[0];
-      gates = gates.filter((item) => item.subject !== oldest.subject);
-      currents = currents.filter((item) => item.subject !== oldest.subject);
-      evicted.add(oldest.subject);
-    }
-  }
+  // Gate source wins; current-only subjects still consume the same family budget.
+  const subjects = new Map<string, EewCurrent | EewGate>();
+  for (const item of [...state.current, ...state.gates])
+    if (item.family === candidate.family && item.subject !== candidate.subject) subjects.set(item.subject, item);
+  const needed = Math.max(0, subjects.size + 1 - 512);
+  const eligible = [...subjects.values()].filter((item) => item.operation !== "normal");
+  if (eligible.length < needed) return {
+    state, nextDeadline: nextEewDeadline(state),
+    decisions: [{ subject: candidate.subject, operation: candidate.operation, decision: "capacityExceeded" }],
+    intents: [], outcomes: [], diagnostics: [],
+  };
+  const evicted = new Set(needed === 0 ? [] : eligible.sort((left, right) => {
+    const time = Date.parse(left.source.reportDateTimeRaw) - Date.parse(right.source.reportDateTimeRaw);
+    if (time !== 0) return time;
+    const a = [left.operation, left.subject, left.source.inputId];
+    const b = [right.operation, right.subject, right.source.inputId];
+    for (let index = 0; index < a.length; index++)
+      if (a[index] !== b[index]) return a[index] < b[index] ? -1 : 1;
+    return 0;
+  }).slice(0, needed).map((item) => item.subject));
+  let currents = state.current.filter((item) => item.subject !== candidate.subject && !evicted.has(item.subject));
+  let gates = state.gates.filter((item) => item.subject !== candidate.subject && !evicted.has(item.subject));
   if (projected != null) currents = [...currents, projected];
   const nextGate: EewGate = {
     subject: candidate.subject, operation: candidate.operation, family: candidate.family,
@@ -317,18 +324,19 @@ function reduceEew(state: EewUnitState, input: Extract<EewInput, { kind: "receiv
     intents: delivery.intents,
     deliveryRecords: delivery.records.length === 0
       ? state.deliveryRecords : [...state.deliveryRecords, ...delivery.records],
-    persistence: durableChanged ? dirty(state.persistence, input.nowMs) : state.persistence,
+    persistence: durableChanged ? dirty(state.persistence, input.clock.monotonicMs) : state.persistence,
   };
   const transition = candidate.cancelled ? "cancelled" : candidate.terminal ? "released"
     : previous == null ? "activated" : "updated";
   return {
-    state: next,
+    state: next, nextDeadline: nextEewDeadline(next),
     decisions: [{ subject: candidate.subject, operation: candidate.operation,
       decision: "changed", reason: null, change }],
     intents: [],
     outcomes: [{ kind: "accepted", change, subjects: [outcome(candidate, transition, candidate.prediction)] }],
-    diagnostics: [],
+    diagnostics: evicted.size === 0 ? [] : [{ level: "INFO", component: "eew", reason: "eewCapacityEvicted",
+      unit: "U-E", count: evicted.size }],
   };
 }
 
-export { reduceEew };
+export { reduceEew, nextEewDeadline };

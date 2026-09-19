@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "fc7006e2380edf9a97b601d124341ba4bd7f7f42",
-    "sha256": "9934c7c4f7bc013a44f7c281b1f08d51650f704428924a44765b31372d362d70",
+    "sha256": "b7e080b6bac47a7e0d069d92f7a4461b87d94a119d962f43baefca89395cd7b7",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "76c82b87d7783a4eae14af690cb34e7d6ec46f73617dc75b7f7401951619f080",
     "sequencesSha256": "22b2432e8989d7e7cc2514f2297308e84b3c0f1a3e045491b9cf60cfa8f2d147",
@@ -42,6 +42,24 @@
         "provisional": "A",
         "ruling": "独立レビュー指摘2・3によりA",
         "reason": "A9表示fieldとattempts/nextAttemptAtを無損失で接続する"
+      },
+      {
+        "id": "P2-A4-R14",
+        "A": "familyごと三区分合算512 subjectのadmissionでnormalを保護し、training/testだけを最古順に必要数だけ容量退去させ、退去と採用を原子的に確定する",
+        "B": "区分別quota・予約枠を設ける、またはtraining/testの占有でnormalを拒否する",
+        "recommended": "A",
+        "provisional": "A",
+        "ruling": "作者裁定R14=A（2026-09-20）",
+        "reason": "意味処理の区分非干渉を維持しつつ、A5と同じnormal保護をU-Eの合算容量へ適用する"
+      },
+      {
+        "id": "P2-A4-RETAINED-LEGAL-VALUES",
+        "A": "保持判定対象に既知値がない合法なunknown/missing/emptyの任意組合せでは、報単位の既知根拠を維持する。既知値を含む最新報だけが根拠を更新して旧保持を解除する",
+        "B": "missing/emptyだけの合法続報で既知根拠を解除する",
+        "recommended": "A",
+        "provisional": "A",
+        "ruling": "追補scopedレビューNO-GO 2の修正でAを採用",
+        "reason": "最新rawの分類を変えず、既知→missing/empty→unknownで根拠を失う分岐の穴を閉じる"
       },
       {
         "id": "P2-A4-QENUM-PRIORITY",
@@ -94,7 +112,7 @@
     ],
     "operationContract": {
       "ref": "P2-SHARED-RUNTIME-001#meta.operationContract",
-      "rule": "normal/training/testをsubject、gate、current、取消、intent、outcome、viewへ必須伝播し、同一EventIDでも区分間更新・取消・重複抑制を禁止する。保存単位・ファイルを区分ごとに増やさず、件数・byte上限はnormal/training/testの合計に適用する"
+      "rule": "normal/training/testをsubject、gate、current、取消、intent、outcome、viewへ必須伝播し、同一EventIDでも区分間の意味上の更新・取消・置換・重複抑制を禁止する。保存単位・ファイルを区分ごとに増やさず、件数・byte上限はnormal/training/testの合計に適用する。容量退去は意味処理とは別の資源管理とし、RES-02のadmission規則に限りnormal受理によるtraining/test退去を許可する。training/test受理ではnormalを退去させない"
     }
   },
   "contract": {
@@ -217,6 +235,14 @@
         "unit": "UTF-8 bytes",
         "scope": "intent and minimal delivery records only",
         "source": "§4.2"
+      },
+      {
+        "id": "P2-A4-RES-02",
+        "target": "EEW runtime subject admission (RET-01)",
+        "limit": 512,
+        "unit": "subjects per family, normal/training/test combined",
+        "source": "§4.5・作者裁定R14=A",
+        "rule": "familyごとのcurrent/gatesにある(operation, subject)の和集合を数え、同一subjectを二重計数しない。三区分合算512を維持し、区分別quota・予約枠は設けない。新規受理で超過する場合、同じfamilyの既存training/test subjectだけを最古順に必要数だけ退去候補とする。normal受理はtraining/test占有だけでは拒否せず、normalだけで上限を超える場合はcapacityExceeded。training/test受理も退去対象はtraining/testだけとし、normalを退去させず受理不能ならcapacityExceeded。最古は各subjectの最新採用報source（gateがあればgate、なければcurrent）のreportDateTimeRawの検証済み日時昇順、同時刻はoperation/subject/source.inputIdの文字列tuple昇順（各要素をUTF-16 code unit順で比較）とする。retainedPrediction.sourceや受信時刻は使わない。完全同順位は同一family/operation/subjectの同一候補として一件に数え、current/gateの重複や配列の列挙順を決着に使わない。退去と採用を原子的に適用し、いずれかの受理条件を満たせなければ候補退去を確定せず同じstateを返す。ここでcapacityExceededはAC06の専用decisionであり、構造不正や容量退去の診断reasonではない"
       }
     ],
     "workDeadline": null,
@@ -230,7 +256,7 @@
     ],
     "nonPersistedFields": [
       "active EEW current",
-      "報番号gateと予測保持latch",
+      "報番号gateと予測保持latch（EewCurrent.retainedPredictionのprediction/sourceを含む。PersistedEewUnitとcodecの保存fieldへ含めず、復元時に再構成しない）",
       "DecodedMaterial/XML treeと単調時計",
       "UnitView、PublishedOutcome、実行中adapter状態"
     ],
@@ -254,7 +280,7 @@
       },
       {
         "id": "P2-A4-AC02",
-        "requirement": "M01個別意味関数はEventID、family、operation別の報番号・終端・取消・予測保持を判定し、unknown続報で誤降格しない。EewCurrent.predictionへ全体予想最大震度と区域配列を射影し、区域code・From/To・condition/description・区域なしを固定fieldで保持する。areaCoverageはareas非空ならpresent、空ならnoneとする。P1 MaterialValueのmissing/empty/unknown/rangeとrawを失わず、A9 AC02/AC03は次巡改訂でこの同じfieldを参照する",
+        "requirement": "M01個別意味関数はEventID、family、operation別の報番号・終端・取消・予測保持を判定し、unknown続報で誤降格しない。EewCurrent.prediction/sourceとPublishedOutcomeの最新報raw/出典は常に最新の採用報のままとし、保持値で置換しない。predictionへ全体予想最大震度と区域配列を射影し、区域code・From/To・condition/description・区域なしを固定fieldで保持する。areaCoverageはareas非空ならpresent、空ならnoneとする。P1 MaterialValueのmissing/empty/unknown/rangeとrawを失わない。保持は同じEventID・family・operation内の報単位とする。保持判定の対象はareas非空なら全区域のintensity.from/to、区域なしならmaximum.from/toとし、空集合を全区域unknownとみなさない。対象の合法値のうちfamily検証を通ったnumber/text/rangeを既知値、unknown/missing/emptyを既知根拠のない値として扱う（保持判定だけの区別でrawのkindを相互変換しない）。対象に既知値が一つでもあれば、他の値がunknown/missing/emptyのどの組合せでも、その最新報全体を次回保持の既知根拠へ更新し、旧retainedPredictionをnullへ解除する。対象に既知値が一つもなければ、全unknown、missing/emptyだけ、unknown/missing/empty混在のすべてで、直前の採用currentに既知根拠があればそのprediction全体とsourceをretainedPredictionへ保持し、直前currentにも既知根拠がなければ既存retainedPredictionを維持する。過去にも既知根拠が一度もなければnullのままとする。したがって既知→missing/empty→unknownでも最初の既知報のprediction/sourceを一組で保持する。missing/emptyは既知根拠の解除や取消を意味しない。いずれの分岐も最新prediction/sourceとoutcomeのraw分類を維持し、未知・欠落・空の部分へ過去報の区域・From/Toを継ぎ足さない。区域ごとに異なる報を合成せず、保持predictionとsourceは必ず同じ一報の組とする。取消・current失効では保持根拠も除き、rejected/duplicate/stale/capacityExceededでは変更しない。retainedPredictionはnon-durableでcodec保存対象外、再起動後に保持根拠を復元しない。A9 AC02/AC03は最新prediction/sourceとretainedPredictionの保持根拠を区別して参照する",
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:390 «65b3993296d54b19»",
           "reconstruction/contracts/p2-order-plan.md:79 «3be2683a0c47d9fe»"
@@ -262,7 +288,7 @@
       },
       {
         "id": "P2-A4-AC03",
-        "requirement": "reduceEewUnitだけがcurrent/gate/intentを組み立て、normal/training/test交差更新・取消・dedupeを0にし、reducerだけの配送を完了としない",
+        "requirement": "reduceEewUnitだけがcurrent/gate/intentを組み立て、reducerだけの配送を完了としない。normal/training/testの区分交差0は取消・置換・更新・重複判定など意味処理の非干渉を指す。容量退去は別の資源管理規則であり、RES-02に従うnormal受理によるtraining/test退去だけをnormalとの区分間退去として許容する。training/test受理でnormalを退去させず、training/test間の容量処理もRES-02に限定する",
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:611 «ea6c1d20c1ab3b38»",
           "docs/specs/reconstruction-p0-contracts.md:620 «51fab1fc4a745268»"
@@ -287,7 +313,7 @@
       },
       {
         "id": "P2-A4-AC06",
-        "requirement": "15秒の絶対TTL、512 subject、取消・終端・shutdownを適用し、取消済み/置換済み/期限切れintentを再生せず期限を延長しない",
+        "requirement": "15秒の絶対TTL、familyごと三区分合算512 subject、取消・終端・shutdownを適用し、取消済み/置換済み/期限切れintentを再生せず期限を延長しない。合算上限でnormalを新規受理する際はRES-02のtraining/test最古subjectを必要数だけ先に退去候補とし、normalだけで上限を超える場合はcapacityExceeded。training/test流入でもnormalを保護する。容量退去そのものをunavailable・取消として扱わず、確定した退去だけをDiagnosticDetails.reason=eewCapacityEvictedと既存fieldのunit/count等で記録する。受理不能なら退去診断も確定せずstateを不変にする容量不受理はEewUnitStep.decisionsのA4専用{ decision: \"capacityExceeded\", subject, operation }で返し、reason/changeは追加しない。構造不正のrejected、unchanged、changed、eewCapacityEvicted診断で代用しない。入力のsubject/operationを保持し、state参照とnextDeadlineを維持、intents/outcomesは空、退去診断は生成しない。",
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:569 «e5e9f04bfdb8aa36»",
           "docs/specs/reconstruction-p0-contracts.md:972 «0910cc90d717757f»",
@@ -339,7 +365,7 @@
           "P2-A4-AC02",
           "P2-A4-AC03"
         ],
-        "behavior": "報番号・終端・取消・operation交差と、全体最大・区域code・From/To・区域なし・unknownの予想震度射影を一つの統合系列で確認"
+        "behavior": "報番号・終端・取消・operation交差と、全体最大・区域code・From/To・区域なし・unknownの予想震度射影を一つの統合系列で確認。AC02の既知→全区域unknown→連続unknown→部分既知→全区域unknownで、保持prediction/sourceが常に一報に一致し、最新current/outcomeのrawを置換せず、部分既知では旧保持を解除して次回保持元を更新することを検収する。既知→missing/empty→unknownの系列を加え、両続報で同じ既知報のprediction/sourceを保持し、最新rawのmissing/empty/unknownを区別する。区域ありと区域なしの両方で、対象に既知値あり（他はunknown/missing/emptyの任意組合せ）なら旧保持を解除、既知値なし（全unknown・missing/emptyだけ・三者混在）なら既存根拠を保持、既知根拠が初めからなければnullであることを検収する。missing/emptyだけの連続、混在から部分既知への復帰でも報単位保持とraw非合成を確認する"
       },
       {
         "testId": "P2-A4-T03",
@@ -367,6 +393,15 @@
           "P2-A4-AC09"
         ],
         "behavior": "O07とO10 P2 subsetの保存障害・復元直後続報"
+      },
+      {
+        "testId": "P2-A4-T06-R14",
+        "purpose": "contractBoundary",
+        "referenceIds": [
+          "P2-A4-AC03",
+          "P2-A4-AC06"
+        ],
+        "behavior": "familyごと三区分混在の受理候補総数511/512/513件で、上限内は退去なし、超過時は必要数のtraining/test最古subjectだけを退去してnormalを受理する。normalのみ512件への新規normalとtraining/test流入はcapacityExceededで同じstate参照、training/testに退去余地があればnormal不変で受理する。検証済み日時、同時刻のoperation/subject/inputId tuple、current/gate重複の同順位を含め列挙順を変えて同じ退去集合となること、別familyを退去しないことを確認する。退去候補選定後でも受理不能ならcurrent/gates/retainedPrediction/intents/deliveryRecords/persistenceを含むstateを変更せず退去診断も出さない。成功時は退去と採用を一度に確定しeewCapacityEvictedのunit/countを検収する。容量退去による取消・unavailable・取消通知を生成せず、意味処理の区分交差0を維持する。容量不受理の返却値はsubject/operationを伴う専用decision=capacityExceededとし、reason/changeを持たず、rejectedや退去診断に置き換えないこと、state/nextDeadline不変・intents/outcomesが空であることを型境界と実行結果の両方で確認する"
       }
     ],
     "requiredCommands": [
@@ -423,12 +458,16 @@
     "artifactRequirements": [
       "§13.3の9段をA3 composition root結線後の一経路で証明する。無いとreducer単体だけで保存・終了・復元が未接続のまま完了扱いになる",
       "EewUnitCodec一つだけを実装する。無いとA3がU-Eを捕捉・復元できず、複数codecならschema選択が曖昧になる",
+      "追実装で閉じる項目(A4-R14): RES-02のnormal保護admission、検証済み日時と文字列tupleの最古順・同順位規則を実装し、退去と採用を一回のstate参照交換で原子的に適用する。無いとtraining/test占有でnormalを拒否し、受理不能入力でも先行退去だけが残る。受理不能なら退去を確定せずstateを不変にし、確定した容量退去だけを共有eewCapacityEvictedと既存DiagnosticDetailsのfieldで返す。容量退去を取消・unavailableへ変換しない。T06-R14で混在511/512/513件、normalのみ満杯、training/test流入、選定順、拒否時不変、退去診断を検収する。既存retainedPredictionと最新rawの境界、codec保存field、512上限、allowedPathsは変えない容量不受理はAC06の専用decisionを採用する。このvariantがないとstate不変の正常構造入力の容量不受理を公開型で返せず、構造不正や退去診断へ誤分類する。",
       "同一EventIDのnormal/training交差fixtureは新規syntheticを作らず、必要仕様をQ-NOTICE requiredEvidenceに残す",
       "1実装interface、factory、registry、outbox、将来用extension pointを追加しない",
       "allowed_paths限定patch、変更一覧、build/test/shuffle結果、未実行検証、残存リスク",
       "純粋な意味関数とreduceUnitはDiagnosticDetailsだけを返し、runtimeがtimestamp/runIdを付与する。各subjectのdecisionsを系列oracleのdecision/reason/changeと照合し、duplicate/stale/noChangeを区別する。識別不能な拒否ではsubjectを空文字にし、架空の業務identityを作らない。",
       "EewPredictionの具体型がないとA9が全体最大・区域code・From/To・区域なし・unknownを別キーへ投影できるため、A4を正本にしA8はEewUnitViewをそのまま運んで別の予想震度型を作らない",
-      "EewInput.notificationResultはA1 NotificationResultと照合済みintentUpdateを一緒に受け、attempts/nextAttemptAt/dispositionをreduceEewUnitだけで反映する。無いとA3がA4 stateを直接変更し唯一の更新入口と衝突する"
+      "EewInput.intentUpdateはA1が照合済みのNotificationIntentUpdate（id/attempts/nextAttemptAt/disposition）と明示clockを受け、reduceEewUnitで反映する。完了結果を必須にしないため選択時のattempts/nextAttemptAtだけの変更にも使い、その場合dispositionは現在値のままとする。無いと選択時の保存更新がA1の唯一の更新入口を迂回する。raw NotificationResultの照合はA1内部のA7純関数が所有し、未知id・同値更新はno-op、変更時だけdeliveryOnlyで保存世代を進める",
+      "A4実装者へ提示する変更境界(R13): 全EewInputのnowMsをClockReadingへ置換し、EewUnitStep.nextDeadlineのwallTimeMs/monotonicMsを独立のnumber|nullとして返す。有効期限のいずれかが到来すれば配送、両方なしなら外側のnull。A1はRuntimeState.units[\"U-E\"]へ具体結線し、到来deadlineとshutdownを同じreduceRuntime呼出し内で配送する。旧notificationResult入力は3 unit共通のintentUpdate入力へ置換し、完了結果なしの選択時もattempts/nextAttemptAtと維持したdispositionを渡せる。完了時も同じ入口で照合済み更新だけを受ける。A4はtimer、配送済み入力slot、RuntimeState更新、A7呼出しを所有しない。無いとB2の時計対応、B3のbatch終了、B4の選択時保存更新をA1から一意に駆動できない",
+      "追実装で閉じる項目(A4): 別cloneの実装は上記ClockReading/nextDeadline契約、既存shutdown入力、新しいintentUpdate入力を採用する。期限前は同じEewUnitState参照と空のdecisions/intents/outcomes/diagnosticsを返す。選択時のattempts/nextAttemptAt更新と完了時のdisposition更新を同じ入口で検収し、完了結果の捏造をしない",
+      "追実装で閉じる項目(A4-retainedPrediction): 実装レビューで示された予想震度の保持根拠をEewCurrent.retainedPredictionへ移し、AC02の報単位の保持・更新・解除を実装する。このfieldがないと既知予想震度の根拠を公開型で示せず、unknown続報時に最新prediction/sourceやoutcomeのrawを過去値で上書きする。current/outcomeは最新raw・最新出典、retainedPredictionは保持元一報のprediction/sourceとし、EewUnitViewを通して両者を同時に公開する。PersistedEewUnit・codecの保存fieldは増やさない既知値の有無で全合法値の組合せをAC02どおりに処理し、missing/emptyだけでも既存根拠を維持する。無いと合法な欠落・空の続報で根拠が失われ、次のunknownで誤降格する。T02の既知→missing/empty→unknownを含め検収し、raw分類は変更しない。"
     ],
     "unresolvedQuestions": [
       {

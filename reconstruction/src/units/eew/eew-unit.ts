@@ -1,4 +1,4 @@
-import type { JsonValue, NotificationIntent, PersistenceStatus, ReportRef, SubjectOutcome } from "../../../contracts/p2-shared-runtime.types";
+import type { ClockReading, JsonValue, NotificationIntent, PersistenceStatus, ReportRef, SubjectOutcome } from "../../../contracts/p2-shared-runtime.types";
 import type {
   EewDeliveryRecord,
   EewInput,
@@ -8,7 +8,7 @@ import type {
   EewUnitView,
   PersistedEewUnit,
 } from "../../../contracts/p2-eew-unit.types";
-import { reduceEew } from "../../domains/eew/eew";
+import { nextEewDeadline, reduceEew } from "../../domains/eew/eew";
 
 const SCHEMA = "p2-eew-unit-v1" as const;
 const GENERATION_BYTES = 256 * 1024;
@@ -113,11 +113,11 @@ function subject(intentValue: NotificationIntent, transition: string): SubjectOu
   };
 }
 
-function expire(state: EewUnitState, nowMs: number): Readonly<{
+function expire(state: EewUnitState, clock: ClockReading): Readonly<{
   state: EewUnitState;
   expired: readonly NotificationIntent[];
 }> {
-  const expired = state.intents.filter((item) => item.disposition === "pending" && item.expiresAt <= nowMs);
+  const expired = state.intents.filter((item) => item.disposition === "pending" && item.expiresAt <= clock.wallTimeMs);
   if (expired.length === 0) return { state, expired };
   const ids = new Set(expired.map((item) => item.id));
   return {
@@ -127,45 +127,41 @@ function expire(state: EewUnitState, nowMs: number): Readonly<{
       intents: state.intents.filter((item) => !ids.has(item.id)),
       deliveryRecords: [...state.deliveryRecords,
         ...expired.map((item) => ({ intentId: item.id, disposition: "expired" as const, expiresAt: item.expiresAt }))],
-      persistence: dirty(state.persistence, nowMs),
+      persistence: dirty(state.persistence, clock.monotonicMs),
     },
   };
 }
 
-function restore(state: EewUnitState, value: PersistedEewUnit, nowMs: number): EewUnitStep {
+function restore(state: EewUnitState, value: PersistedEewUnit, clock: ClockReading): EewUnitStep {
   const decoded = eewUnitCodec.decode(value);
   if (decoded.kind === "invalid") return {
-    state,
+    state, nextDeadline: nextEewDeadline(state),
     decisions: [{ subject: "", operation: "normal", decision: "rejected", reason: "requiredStructureInvalid" }],
     intents: [], outcomes: [], diagnostics: [{ level: "WARN", component: "eew", reason: "requiredStructureInvalid", unit: "U-E" }],
   };
   const base = { ...decoded.state, persistence: state.persistence };
-  const applied = expire(base, nowMs);
-  const active = applied.state.intents.filter((item) => item.disposition === "pending" && item.expiresAt > nowMs);
+  const applied = expire(base, clock);
+  const active = applied.state.intents.filter((item) => item.disposition === "pending" && item.expiresAt > clock.wallTimeMs);
   return {
-    state: applied.state, decisions: [], intents: active,
+    state: applied.state, nextDeadline: nextEewDeadline(applied.state), decisions: [], intents: active,
     outcomes: [{ kind: "recoveryApplied", scope: ["U-E"],
       coverage: active.map((item) => item.subject), subjects: active.map((item) => subject(item, "recovered")) }],
     diagnostics: [],
   };
 }
 
-function notificationResult(state: EewUnitState,
-  input: Extract<EewInput, { kind: "notificationResult" }>): EewUnitStep {
+function intentUpdate(state: EewUnitState,
+  input: Extract<EewInput, { kind: "intentUpdate" }>): EewUnitStep {
   const current = state.intents.find((item) => item.id === input.intentUpdate.id);
-  if (current == null || input.result.intentId !== input.intentUpdate.id
-    || input.result.channel !== current.channel || input.intentUpdate.attempts < current.attempts) return {
-    state,
-    decisions: [{ subject: current?.subject ?? "", operation: current?.operation ?? "normal",
-      decision: "unchanged", reason: current == null ? "noChange" : "stale" }],
+  if (current == null || input.intentUpdate.attempts < current.attempts) return {
+    state, nextDeadline: nextEewDeadline(state), decisions: [],
     intents: [], outcomes: [], diagnostics: [],
   };
-  const disposition = input.result.completedAt.wallTimeMs >= current.expiresAt
+  const disposition = input.clock.wallTimeMs >= current.expiresAt
     ? "expired" as const : input.intentUpdate.disposition;
   const updated: NotificationIntent = { ...current, ...input.intentUpdate, disposition };
   if (JSON.stringify(updated) === JSON.stringify(current)) return {
-    state, decisions: [{ subject: current.subject, operation: current.operation,
-      decision: "unchanged", reason: "noChange" }], intents: [], outcomes: [], diagnostics: [],
+    state, nextDeadline: nextEewDeadline(state), decisions: [], intents: [], outcomes: [], diagnostics: [],
   };
   const pending = disposition === "pending";
   const next: EewUnitState = {
@@ -175,10 +171,10 @@ function notificationResult(state: EewUnitState,
       : state.intents.filter((item) => item.id !== updated.id),
     deliveryRecords: pending ? state.deliveryRecords : [...state.deliveryRecords,
       { intentId: updated.id, disposition, expiresAt: updated.expiresAt }],
-    persistence: dirty(state.persistence, input.result.completedAt.wallTimeMs),
+    persistence: dirty(state.persistence, input.clock.monotonicMs),
   };
   return {
-    state: next,
+    state: next, nextDeadline: nextEewDeadline(next),
     decisions: [{ subject: current.subject, operation: current.operation,
       decision: "changed", reason: null, change: "deliveryOnly" }],
     intents: pending ? [updated] : [],
@@ -189,12 +185,15 @@ function notificationResult(state: EewUnitState,
 
 function reduceEewUnit(state: EewUnitState, input: EewInput): EewUnitStep {
   if (input.kind === "receive") return reduceEew(state, input);
-  if (input.kind === "restore") return restore(state, input.persisted, input.nowMs);
-  if (input.kind === "notificationResult") return notificationResult(state, input);
-  const applied = expire(state, input.nowMs);
+  if (input.kind === "restore") return restore(state, input.persisted, input.clock);
+  if (input.kind === "intentUpdate") return intentUpdate(state, input);
+  const applied = expire(state, input.clock);
+  if (input.kind === "deadline" && applied.expired.length === 0) return {
+    state, nextDeadline: nextEewDeadline(state), decisions: [], intents: [], outcomes: [], diagnostics: [],
+  };
   const subjects = applied.expired.map((item) => subject(item, "expired"));
   return {
-    state: applied.state, decisions: applied.expired.map((item) => ({
+    state: applied.state, nextDeadline: nextEewDeadline(applied.state), decisions: applied.expired.map((item) => ({
       subject: item.subject, operation: item.operation, decision: "changed" as const,
       reason: null, change: "deliveryOnly" as const,
     })),
@@ -212,7 +211,7 @@ function toEewView(state: EewUnitState): EewUnitView {
     informationType: current.source.infoTypeRaw, transition: "active", severity: null,
     source: current.source,
     facts: { family: current.family, serial: current.serial,
-      prediction: current.prediction },
+      prediction: current.prediction, retainedPrediction: current.retainedPrediction },
     changedFields: [],
   }));
   return {

@@ -53,7 +53,7 @@ const diagnosticReasons = [
   "mailboxRejectedDraining", "mailboxRejectedItemLimit", "mailboxRejectedByteLimit", "mailboxStalled",
   "mailboxLimitViolation", "shutdownStarted", "shutdownUnsavedUnits", "diagnosticSinkFailed",
   "diagnosticQueueOverflow", "snapshotNoticeCapacityExceeded", "snapshotCommonBudgetExceeded",
-  "snapshotStringLimitExceeded", "weatherCurrentCapacityEvicted",
+  "snapshotStringLimitExceeded", "weatherCurrentCapacityEvicted", "eewCapacityEvicted",
 ] satisfies readonly DiagnosticReason[];
 
 function lineFor(source: DiagnosticEvent, occurrences = 1): QueueEntry {
@@ -293,19 +293,20 @@ class PersistentDiagnosticSink {
     return Object.freeze({ ...this.dropped });
   }
 
-  async persistShutdownSummary(summary: ShutdownSummary): Promise<void> {
+  async persistShutdownSummary(summary: ShutdownSummary, active: () => boolean = () => true): Promise<void> {
     await this.flush();
     if (!this.available) throw new Error("diagnostic sink unavailable");
     const persistence = Object.fromEntries((Object.entries(summary.persistence) as [UnitId,
       ShutdownSummary["persistence"][UnitId]][]).map(([unit, status]) => [unit, status?.kind === "failed"
       ? { ...status, reason: "checkpoint operation failed" } : status]));
     const record = { ...summary, persistence, reasons: summary.reasons.map((reason) =>
-      /^(mailboxNotDrained|batchOrSideEffectsNotFinalized|finalSaveTimedOut|workerCloseTimedOut|unsaved:(U-[A-Z],?)+)$/.test(reason)
+      /^(mailboxDrain|sideEffectFinalization|finalCheckpoint|workerClose):(failed:operationFailed|deadlineExceeded|remainingInputs|remainingBatches|unconfirmedNotifications|unsavedUnits|remainingWorkers)$/.test(reason)
         ? reason : "shutdown incomplete") };
     await this.serial(async () => {
       try {
+        if (!active()) throw new Error("shutdown summary deadline exceeded");
         await this.fileSystem.mkdir(this.directory);
-        await this.replaceFile(join(this.directory, "shutdown-summary.json"), JSON.stringify(record));
+        await this.replaceFile(join(this.directory, "shutdown-summary.json"), JSON.stringify(record), active);
       } catch {
         this.fail();
         throw new Error("diagnostic sink unavailable");
@@ -319,10 +320,12 @@ class PersistentDiagnosticSink {
     return result;
   }
 
-  private async replaceFile(path: string, content: string): Promise<void> {
+  private async replaceFile(path: string, content: string, active: () => boolean = () => true): Promise<void> {
     const temporary = `${path}.tmp`;
     try {
+      if (!active()) throw new Error("replacement deadline exceeded");
       await this.fileSystem.writeFile(temporary, content);
+      if (!active()) throw new Error("replacement deadline exceeded");
       await this.fileSystem.rename(temporary, path);
     } catch (error) {
       try { await this.fileSystem.unlink(temporary); } catch { /* preserve the original failure and file */ }

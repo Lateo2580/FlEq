@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "585d2f4f858e350c6965d83019ba7e4842285b3c",
-    "sha256": "43699a15f9ddd15ae6656991cbdc71739e09ba3670a4a6b54bdca3585e34dc8b",
+    "sha256": "893a379b90557099725e034e02f63040aa4053ccbc9f6ec4f2a11e23cc56a543",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "76c82b87d7783a4eae14af690cb34e7d6ec46f73617dc75b7f7401951619f080",
     "sequencesSha256": "22b2432e8989d7e7cc2514f2297308e84b3c0f1a3e045491b9cf60cfa8f2d147",
@@ -497,6 +497,7 @@
       }
     ],
     "artifactRequirements": [
+      "A4 AC02の参照: A8が運ぶEewUnitView.current[]のprediction/sourceは最新報のraw・出典、retainedPrediction.prediction/sourceは報単位の既知保持根拠として区別して読む。保持根拠を最新rawやAC02/AC03の区域paint期待へ混入・合成しない。fieldがないとunknown続報の保持根拠と最新報を区別できない",
       "native EventSourceで足りる。独自SSE client、state manager、router、component frameworkを追加しない",
       "A8 DisplaySnapshotだけをimportする。A9独自wire schemaがあると再接続置換とsequence照合が二重化する",
       "A9は固定名markerとclock probe応答だけを出し、A10がtrace/manifest型へ変換する。A9独自trace/manifestがあると正式測定の相関式が分岐する",

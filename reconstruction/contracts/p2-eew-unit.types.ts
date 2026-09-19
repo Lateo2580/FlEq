@@ -1,12 +1,14 @@
 import type { DecodedMaterial, MaterialValue, Operation } from "./p1-parser-boundary.types";
 import type {
+  ClockReading,
   DiagnosticDetails,
   NotificationIntent,
-  NotificationResult,
+  NotificationIntentUpdate,
   PersistenceStatus,
   PublishedOutcome,
   ReportRef,
   RejectionReason,
+  RuntimeUnitDeadline,
   UnitCodec,
   UnitView as SharedUnitView,
 } from "./p2-shared-runtime.types";
@@ -37,6 +39,8 @@ export type EewCurrent = Readonly<{
   serial: number;
   terminal: boolean;
   prediction: EewPrediction;
+  // Non-durable evidence from one report; prediction/source above remain the latest report.
+  retainedPrediction: Readonly<{ prediction: EewPrediction; source: ReportRef }> | null;
 }>;
 
 export type EewGate = Readonly<{
@@ -76,22 +80,20 @@ export type EewUnitView = SharedUnitView & Readonly<{
 }>;
 
 export type EewInput =
-  | Readonly<{ kind: "receive"; material: DecodedMaterial; nowMs: number }>
-  | Readonly<{ kind: "deadline"; nowMs: number }>
-  | Readonly<{ kind: "restore"; persisted: PersistedEewUnit; nowMs: number }>
-  | Readonly<{
-      kind: "notificationResult";
-      result: NotificationResult;
-      intentUpdate: Pick<NotificationIntent, "id" | "attempts" | "nextAttemptAt" | "disposition">;
-    }>
-  | Readonly<{ kind: "shutdown"; nowMs: number }>;
+  | Readonly<{ kind: "receive"; material: DecodedMaterial; clock: ClockReading }>
+  | Readonly<{ kind: "deadline"; clock: ClockReading }>
+  | Readonly<{ kind: "restore"; persisted: PersistedEewUnit; clock: ClockReading }>
+  | Readonly<{ kind: "intentUpdate"; intentUpdate: NotificationIntentUpdate; clock: ClockReading }>
+  | Readonly<{ kind: "shutdown"; clock: ClockReading }>;
 
 export type EewUnitStep = Readonly<{
   state: EewUnitState;
+  nextDeadline: RuntimeUnitDeadline | null;
   // Subject identity includes operation; compare these records with the sequence oracle.
   decisions: readonly (Readonly<{ subject: string; operation: Operation }> & (
     | Readonly<{ decision: "unchanged"; reason: "duplicate" | "stale" | "noChange" }>
     | Readonly<{ decision: "rejected"; reason: RejectionReason }>
+    | Readonly<{ decision: "capacityExceeded" }>
     | Readonly<{ decision: "changed"; reason: null; change: "semantic" | "revisionOnly" | "deliveryOnly" }>
   ))[];
   intents: readonly NotificationIntent[];

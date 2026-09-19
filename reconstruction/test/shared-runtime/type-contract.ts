@@ -2,6 +2,7 @@ import { expectTypeOf } from "vitest";
 import type {
   DiagnosticDetails, DiagnosticEvent, FreshnessRecord, NotificationIntent,
   ParserDiagnosticReason, PublishedOutcome, RejectionReason, ReportRef, SubjectOutcome, UnitView,
+  RuntimeInput, RuntimeStep, RuntimeUnitStates, RuntimeUnitDeadline, NotificationIntentUpdate,
 } from "../../contracts/p2-shared-runtime.types";
 import type { Operation } from "../../contracts/p1-parser-boundary.types";
 
@@ -51,6 +52,15 @@ declare const freshness: FreshnessRecord;
 const heartbeat: FreshnessRecord = { ...freshness, clearCondition: "heartbeat" };
 // @ts-expect-error all monitoring fields are required
 const incomplete: FreshnessRecord = { target: freshness.target };
+
+// R13: control metadata and concrete unit ownership stay in the shared contract.
+expectTypeOf<keyof RuntimeUnitStates>().toEqualTypeOf<"U-E" | "U-W" | "U-F">();
+expectTypeOf<RuntimeUnitDeadline>().toEqualTypeOf<Readonly<{ wallTimeMs: number | null; monotonicMs: number | null }>>();
+expectTypeOf<NotificationIntentUpdate>().toEqualTypeOf<Pick<NotificationIntent, "id" | "attempts" | "nextAttemptAt" | "disposition">>();
+expectTypeOf<RuntimeInput["kind"]>().toEqualTypeOf<"mailboxCompleted" | "checkpointCaptured" | "notificationResult" | "shutdownStageResult">();
+expectTypeOf<RuntimeStep["effects"][number]["kind"]>().toEqualTypeOf<
+  "stopInputAndDrainMailbox" | "finalizeNotificationDelivery" | "startFinalCheckpoints" | "closeRuntimeWorkers"
+>();
 
 // E23: exact fixed fields and closed reasons, not arbitrary strings.
 expectTypeOf<keyof DiagnosticDetails>().toEqualTypeOf<

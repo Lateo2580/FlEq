@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "fc7006e2380edf9a97b601d124341ba4bd7f7f42",
-    "sha256": "4c2c76734960d95fef08377d9dfb207688fecc7f006f0862596ed167755b5ab2",
+    "sha256": "46ed9be8e4797e76fb40530bdc68b7c3e3e9e03883fe7e91c0eb8c8fb00acba8",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "76c82b87d7783a4eae14af690cb34e7d6ec46f73617dc75b7f7401951619f080",
     "sequencesSha256": "22b2432e8989d7e7cc2514f2297308e84b3c0f1a3e045491b9cf60cfa8f2d147",
@@ -542,7 +542,9 @@
       "allowed_paths限定patch、変更一覧、build/test/shuffle結果、未実行検証、残存リスク",
       "純粋な意味関数とreduceUnitはDiagnosticDetailsだけを返し、runtimeがtimestamp/runIdを付与する。各subjectのdecisionsを系列oracleのdecision/reason/changeと照合し、duplicate/stale/noChangeを区別する。識別不能な拒否ではsubjectを空文字にし、架空の業務identityを作らない。",
       "194 periodは正常corpus必須受理条件であり保持上限ではない。194超の正常系列は件数だけで拒否しない。active validUntilと回収用retainUntilを分離し、7日はretentionとして固定する。",
-      "WeatherTimeseriesSubjectの既存source/unavailableReason/lastKnown/affectedScopeがないと正当なnewer報の保持不能を復元できず古いperiodsを正常扱いする。既存型で足りるため共有UnavailableReason unionや追加fieldは作らない"
+      "WeatherTimeseriesSubjectの既存source/unavailableReason/lastKnown/affectedScopeがないと正当なnewer報の保持不能を復元できず古いperiodsを正常扱いする。既存型で足りるため共有UnavailableReason unionや追加fieldは作らない",
+      "B2: 全WeatherTimeseriesInputでClockReadingを受け、WeatherTimeseriesUnitStep.nextDeadlineのwallTimeMs/monotonicMsを独立のnumber|nullとして返す。有効期限のいずれかが到来すれば配送、両方なしなら外側のnull。無いと片方の時計だけの期限を表現できずA1が当該unitへ同じ呼出しでdeadlineを配送できない",
+      "追実装で閉じる項目(A6): reducer/codec/viewの既存責務を変えずClockReading/nextDeadlineと既存shutdown入力を実装し、期限前は同じWeatherTimeseriesUnitState参照と空のdecisions/intents/outcomes/diagnosticsを返す。旧notificationResultは3 unit共通intentUpdate入力へ置換する。NotificationIntentUpdateのid/attempts/nextAttemptAt/dispositionとclockを受け、選択時は完了結果なしでattempts/nextAttemptAtを更新しdispositionを維持、完了時もA1内部のA7が照合した更新を同じ入口で採用する。無いとU-E以外で試行回数と再試行日時を保存できない。既存idだけを更新し同値・未知idはno-op、変更時だけdeliveryOnlyで保存世代を進める。timer・配送済み入力slot・RuntimeState更新は追加しない"
     ],
     "unresolvedQuestions": [
       {

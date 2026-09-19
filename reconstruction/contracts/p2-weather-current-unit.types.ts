@@ -1,13 +1,16 @@
 import type { DecodedMaterial, Operation } from "./p1-parser-boundary.types";
 import type {
+  ClockReading,
   DiagnosticDetails,
   FreshnessRecord,
   JsonValue,
   NotificationIntent,
+  NotificationIntentUpdate,
   PersistenceStatus,
   PublishedOutcome,
   ReportRef,
   RejectionReason,
+  RuntimeUnitDeadline,
   UnitCodec,
   UnitView as SharedUnitView,
 } from "./p2-shared-runtime.types";
@@ -78,15 +81,16 @@ export type WeatherCurrentUnitView = SharedUnitView & Readonly<{
 }>;
 
 export type WeatherCurrentInput =
-  | Readonly<{ kind: "receive"; material: DecodedMaterial; nowMs: number }>
-  | Readonly<{ kind: "deadline"; nowMs: number }>
-  | Readonly<{ kind: "restore"; persisted: PersistedWeatherCurrentUnit; nowMs: number }>
-  | Readonly<{ kind: "coverageConfirmed"; operation: Operation; family: string; subject: string; affectedScope: readonly string[]; nowMs: number }>
-  | Readonly<{ kind: "notificationResult"; intentId: string; disposition: NotificationIntent["disposition"]; nowMs: number }>
-  | Readonly<{ kind: "shutdown"; nowMs: number }>;
+  | Readonly<{ kind: "receive"; material: DecodedMaterial; clock: ClockReading }>
+  | Readonly<{ kind: "deadline"; clock: ClockReading }>
+  | Readonly<{ kind: "restore"; persisted: PersistedWeatherCurrentUnit; clock: ClockReading }>
+  | Readonly<{ kind: "coverageConfirmed"; operation: Operation; family: string; subject: string; affectedScope: readonly string[]; clock: ClockReading }>
+  | Readonly<{ kind: "intentUpdate"; intentUpdate: NotificationIntentUpdate; clock: ClockReading }>
+  | Readonly<{ kind: "shutdown"; clock: ClockReading }>;
 
 export type WeatherCurrentUnitStep = Readonly<{
   state: WeatherCurrentUnitState;
+  nextDeadline: RuntimeUnitDeadline | null;
   // Subject identity includes operation; compare these records with the sequence oracle.
   decisions: readonly (Readonly<{ subject: string; operation: Operation }> & (
     | Readonly<{ decision: "unchanged"; reason: "duplicate" | "stale" | "noChange" }>

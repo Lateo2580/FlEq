@@ -14,6 +14,11 @@ import type {
   ParserDiagnosticProjection,
   RestoreUnitResult,
   RuntimeState,
+  RuntimeInput,
+  RuntimeEffect,
+  RuntimeUnitStates,
+  ShutdownPendingCounts,
+  ShutdownStageResult,
   RuntimeStep,
   ShutdownSummary,
   UnitId,
@@ -29,25 +34,20 @@ import { Mailbox } from "../mailbox/mailbox";
 import { completeDiagnostic } from "./runtime-diagnostic";
 import { reduceRuntime } from "./shared-runtime";
 
-type ShutdownUpdate<Units extends Readonly<Partial<Record<UnitId, unknown>>>> = Readonly<{
-  state: RuntimeState<Units>;
-  correlationByUnit?: Readonly<Partial<Record<UnitId, Correlation>>>;
-}>;
-
-type ShutdownHooks<Units extends Readonly<Partial<Record<UnitId, unknown>>>> = Readonly<{
-  drainMailbox?: (deadlineMonotonicMs: number, state: RuntimeState<Units>) => Promise<ShutdownUpdate<Units> | void>;
-  finalizeBatchesAndSideEffects?: (deadlineMonotonicMs: number, state: RuntimeState<Units>) => Promise<number | Readonly<{
-    remainingBatches: number;
-  }> & ShutdownUpdate<Units>>;
+type ShutdownHooks = Readonly<{
+  drainMailbox?: (deadlineMonotonicMs: number, active: () => boolean) => Promise<void>;
+  finalizeBatchesAndSideEffects?: (deadlineMonotonicMs: number, active: () => boolean) =>
+    Promise<Pick<ShutdownPendingCounts, "batches" | "notificationAttempts">>;
   closeWorker?: (deadlineMonotonicMs: number) => Promise<void>;
 }>;
 
-type CompositionOptions<Units extends Readonly<Partial<Record<UnitId, unknown>>>> = Readonly<{
+type CompositionOptions = Readonly<{
   clock?: () => ClockReading;
   checkpointFileSystem?: CheckpointFileSystem;
   diagnosticFileSystem?: DiagnosticFileSystem;
   mailbox?: Mailbox;
-  shutdownHooks?: ShutdownHooks<Units>;
+  runtimeCalls?: Parameters<typeof reduceRuntime>[2];
+  shutdownHooks?: ShutdownHooks;
   reportFailure?: (event: DiagnosticEvent) => void;
   onMeasurements?: (measurements: readonly CheckpointMeasurement[]) => void;
 }>;
@@ -110,44 +110,49 @@ function nodeDiagnosticFileSystem(): DiagnosticFileSystem {
   };
 }
 
-async function within<T>(work: (active: () => boolean) => Promise<T>, milliseconds: number,
-  clock: () => ClockReading): Promise<Readonly<{ completed: true; value: T }> | Readonly<{ completed: false }>> {
-  const deadline = clock().monotonicMs + milliseconds;
+async function within(work: (active: () => boolean) => Promise<void>, deadline: number,
+  clock: () => ClockReading): Promise<ShutdownStageResult> {
+  const milliseconds = deadline - clock().monotonicMs;
+  if (milliseconds <= 0) return { kind: "deadlineExceeded" };
   let active = true;
   const isActive = () => active && clock().monotonicMs < deadline;
   let timer: NodeJS.Timeout | null = null;
-  const timeout = new Promise<Readonly<{ completed: false }>>((resolve) => {
-    timer = setTimeout(() => { active = false; resolve({ completed: false }); }, milliseconds);
+  const timeout = new Promise<ShutdownStageResult>((resolve) => {
+    timer = setTimeout(() => { active = false; resolve({ kind: "deadlineExceeded" }); }, milliseconds);
     timer.unref();
   });
   try {
-    return await Promise.race([work(isActive).then((value) => isActive()
-      ? { completed: true as const, value } : { completed: false as const }, () => ({ completed: false as const })), timeout]);
+    return await Promise.race([work(isActive).then((): ShutdownStageResult => isActive()
+      ? { kind: "completed" } : { kind: "deadlineExceeded" },
+      (): ShutdownStageResult => isActive() ? { kind: "failed", reason: "operationFailed" } : { kind: "deadlineExceeded" }), timeout]);
   } finally {
     if (timer != null) clearTimeout(timer);
     active = false;
   }
 }
 
-class RuntimeCompositionRoot<UnitStates extends Readonly<Partial<Record<UnitId, unknown>>>> {
+class RuntimeCompositionRoot {
   readonly mailbox: Mailbox;
   readonly diagnostics: PersistentDiagnosticSink;
-  readonly checkpoint: CheckpointCoordinator<UnitStates>;
+  readonly checkpoint: CheckpointCoordinator;
   private readonly correlations: Partial<Record<UnitId, Readonly<{ inputIds: readonly string[]; generation: number }>>> = {};
   private readonly clock: () => ClockReading;
-  private readonly shutdownHooks: ShutdownHooks<UnitStates>;
+  private readonly shutdownHooks: ShutdownHooks;
+  private readonly runtimeCalls: Parameters<typeof reduceRuntime>[2];
   private readonly onMeasurements: (measurements: readonly CheckpointMeasurement[]) => void;
-  private shutdownState: RuntimeState<UnitStates> | null = null;
+  private current: RuntimeState | null = null;
+  private lastDiagnosticTick = -Infinity;
   private checkpointOperation: {
     attemptId: string;
     completed: boolean;
     result: Promise<CheckpointResult | null>;
   } | null = null;
 
-  constructor(configInput: AppConfig, codecs: CodecMap<UnitStates>, options: CompositionOptions<UnitStates> = {}) {
+  constructor(configInput: AppConfig, codecs: CodecMap<RuntimeUnitStates>, options: CompositionOptions = {}) {
     const config = validateAppConfig(configInput);
     this.clock = options.clock ?? systemClock;
     this.shutdownHooks = options.shutdownHooks ?? {};
+    this.runtimeCalls = options.runtimeCalls;
     this.onMeasurements = options.onMeasurements ?? (() => {});
     this.mailbox = options.mailbox ?? new Mailbox();
     this.diagnostics = new PersistentDiagnosticSink(config.diagnosticDirectory,
@@ -158,24 +163,62 @@ class RuntimeCompositionRoot<UnitStates extends Readonly<Partial<Record<UnitId, 
       (event) => { this.diagnostics.enqueueDiagnostic(event); });
   }
 
+  get state(): RuntimeState {
+    if (this.current == null) throw new Error("runtime has not received its initial state");
+    return this.current;
+  }
+
+  // Only the first caller supplies initial state. Every later state is an A1 return value.
+  dispatch(state: RuntimeState, input: RuntimeInput,
+    correlationByUnit: Readonly<Partial<Record<UnitId, Correlation>>> = {}): RuntimeStep {
+    const previous = this.current ?? state;
+    const result = input.kind === "mailboxCompleted" && input.completion.runId === previous.runId
+      && input.completion.kind === "control" && input.completion.control.kind === "checkpointResult"
+      ? input.completion.control.result : null;
+    if (result != null && input.kind === "mailboxCompleted" && !this.checkpoint.validateResult(previous, result))
+      return this.control(previous, { kind: "deadline", clock: input.clock });
+    const step = reduceRuntime(previous, input, this.runtimeCalls);
+    this.current = step.state;
+    if (result != null && input.kind === "mailboxCompleted") {
+      this.checkpoint.resultMetadata(previous, result, input.clock);
+      if (this.checkpointOperation?.attemptId === result.attemptId && this.checkpointOperation.completed)
+        this.checkpointOperation = null;
+    }
+    this.rememberCorrelations(step.state, correlationByUnit);
+    step.diagnostics.forEach((event) => this.enqueueDiagnostic(event));
+    return step;
+  }
+
+  tick(state: RuntimeState, clock: ClockReading): RuntimeStep {
+    const step = this.control(state, { kind: "deadline", clock });
+    if (clock.monotonicMs - this.lastDiagnosticTick >= 1_000) {
+      this.lastDiagnosticTick = clock.monotonicMs;
+      for (const details of this.mailbox.drainDiagnostics(clock.monotonicMs))
+        this.enqueueDiagnostic(completeDiagnostic(details, clock, step.state.runId));
+    }
+    return step;
+  }
+
   restoreUnit(unit: UnitId): RestoreUnitResult {
     return this.checkpoint.restoreUnit(unit);
   }
 
-  scheduleCheckpoint(
-    state: RuntimeState<UnitStates>,
-    clock: ClockReading,
-    runId: string,
-    correlationByUnit: Readonly<Partial<Record<UnitId, Correlation>>>,
-  ) {
-    if (this.shutdownState != null) return null;
-    this.rememberCorrelations(state, correlationByUnit);
-    const scheduled = this.checkpoint.scheduleCheckpoint(state, clock, runId, correlationByUnit);
-    if (scheduled != null) this.onMeasurements(scheduled.measurements);
+  scheduleCheckpoint(state: RuntimeState, clock: ClockReading, runId: string,
+    correlationByUnit: Readonly<Partial<Record<UnitId, Correlation>>>) {
+    if ((this.current ?? state).shutdown.stage !== "running") return null;
+    this.rememberCorrelations(this.current ?? state, correlationByUnit);
+    const scheduled = this.checkpoint.scheduleCheckpoint(this.current ?? state, clock, runId, correlationByUnit);
+    if (scheduled != null) {
+      this.dispatch(state, { kind: "checkpointCaptured", capture: scheduled.capture });
+      if (scheduled.result != null) this.checkpointOperation = {
+        attemptId: scheduled.result.attemptId, completed: true, result: Promise.resolve(scheduled.result),
+      };
+      this.onMeasurements(scheduled.measurements);
+    }
     return scheduled;
   }
 
-  private rememberCorrelations(state: RuntimeState<UnitStates>, correlationByUnit: Readonly<Partial<Record<UnitId, Correlation>>>) {
+  private rememberCorrelations(state: RuntimeState, correlationByUnit: Readonly<Partial<Record<UnitId, Correlation>>>) {
     for (const [unit, correlation] of Object.entries(correlationByUnit) as [UnitId, Correlation | undefined][]) {
       const generation = state.persistence[unit]?.currentGeneration;
       if (correlation != null && generation != null) this.correlations[unit] = { inputIds: [...correlation.inputIds], generation };
@@ -186,7 +229,8 @@ class RuntimeCompositionRoot<UnitStates extends Readonly<Partial<Record<UnitId, 
     retryReason: CheckpointMeasurement["retryReason"]): Promise<Readonly<{
       result: CheckpointResult; measurements: readonly CheckpointMeasurement[];
     }>> {
-    if (this.shutdownState?.shutdown === "stopping") throw new Error("checkpoint worker is stopping");
+    if (this.current?.shutdown.stage === "workerClose" || this.current?.shutdown.stage === "completed")
+      throw new Error("checkpoint worker is stopping");
     return this.trackCheckpoint(request.attemptId,
       () => this.checkpoint.executeCheckpoint(request, runId, inputIds, retryReason));
   }
@@ -207,41 +251,32 @@ class RuntimeCompositionRoot<UnitStates extends Readonly<Partial<Record<UnitId, 
     return output;
   }
 
-  applyCheckpointResult(state: RuntimeState<UnitStates>, result: CheckpointResult,
-    clock: ClockReading): RuntimeStep<UnitStates> {
-    const step = this.control(this.shutdownState ?? state, { kind: "checkpointResult", result, clock });
-    // A1-b removes only duplicate persistence application, NOT resultMetadata's writer/retry bookkeeping.
-    const metadata = this.checkpoint.resultMetadata(step.state, result, clock);
-    const updated = { ...step, state: { ...step.state, persistence: metadata.persistence },
-      diagnostics: [...step.diagnostics, ...metadata.diagnostics] };
-    if (this.shutdownState != null) this.shutdownState = updated.state;
-    if (this.checkpointOperation?.attemptId === result.attemptId && this.checkpointOperation.completed)
-      this.checkpointOperation = null;
-    return updated;
+  applyCheckpointResult(state: RuntimeState, result: CheckpointResult, clock: ClockReading): RuntimeStep {
+    return this.control(state, { kind: "checkpointResult", result, clock });
   }
 
-  async resolveUncertain(state: RuntimeState<UnitStates>, unit: UnitId, attemptId: string,
-    clock: ClockReading): Promise<RuntimeStep<UnitStates>> {
+  async resolveUncertain(state: RuntimeState, unit: UnitId, attemptId: string,
+    clock: ClockReading): Promise<RuntimeStep> {
     let result: CheckpointResult | null = null;
     const pending = this.checkpointOperation;
-    if (pending == null && this.shutdownState?.shutdown !== "stopping") {
+    const stage = (this.current ?? state).shutdown.stage;
+    if (pending == null && stage !== "workerClose" && stage !== "completed") {
       const reconciled = await this.trackCheckpoint(attemptId,
-        () => this.checkpoint.resolveUncertain(this.shutdownState ?? state, unit, attemptId, clock));
+        () => this.checkpoint.resolveUncertain(this.current ?? state, unit, attemptId, clock));
       result = reconciled.result;
     } else if (pending?.completed && pending.attemptId === attemptId) {
       const completed = await pending.result;
       if (this.checkpointOperation === pending) result = completed;
     }
-    return result == null ? { state: this.shutdownState ?? state, changedUnits: [], checkpointRequests: [],
-      notificationIntents: [], outcomes: [], views: [], diagnostics: [] }
+    return result == null ? this.control(state, { kind: "deadline", clock })
       : this.applyCheckpointResult(state, result, this.clock());
   }
 
-  private control(state: RuntimeState<UnitStates>, control: MailboxControl): RuntimeStep<UnitStates> {
+  private control(state: RuntimeState, control: MailboxControl): RuntimeStep {
     const clock = control.clock;
-    return reduceRuntime(state, { kind: "mailboxCompleted", clock, completion: {
+    return this.dispatch(state, { kind: "mailboxCompleted", clock, completion: {
       kind: "control", messageId: control.kind === "checkpointResult" ? control.result.attemptId : control.kind,
-      runId: control.kind === "checkpointResult" ? this.checkpoint.attemptRunId(control.result.attemptId) : "shutdown",
+      runId: (this.current ?? state).runId,
       encodedByteLength: control.kind === "checkpointResult" ? control.result.encodedByteLength : 0,
       startedMonotonicMs: clock.monotonicMs, completedMonotonicMs: clock.monotonicMs, control,
     } });
@@ -259,97 +294,61 @@ class RuntimeCompositionRoot<UnitStates extends Readonly<Partial<Record<UnitId, 
     return projectParserDiagnostic(parser, runId, timestamp);
   }
 
-  async shutdownRuntime(state: RuntimeState<UnitStates>, acceptedThroughSequence: number,
+  async shutdownRuntime(state: RuntimeState, acceptedThroughSequence: number,
     clock: ClockReading): Promise<ShutdownSummary> {
-    const reasons: string[] = [];
-    const runId = "shutdown";
-    const started = completeDiagnostic({ level: "INFO", component: "shutdown", reason: "shutdownStarted" }, clock, runId);
-    this.enqueueDiagnostic(started);
-    if (this.shutdownState != null) throw new Error("shutdown already started");
-    this.shutdownState = { ...this.control(state, { kind: "shutdownRequested", acceptedThroughSequence, clock }).state,
-      shutdown: "draining" };
-    this.mailbox.beginDrain(clock.monotonicMs);
-    const drained = await within(() => this.shutdownHooks.drainMailbox?.(clock.monotonicMs + 10_000, this.shutdownState!)
-      ?? Promise.resolve(), 10_000, this.clock);
-    if (drained.completed && drained.value != null) this.adoptShutdownUpdate(drained.value);
-    let stats = this.mailbox.stats(this.clock().monotonicMs);
-    if (!drained.completed || stats.pendingItems !== 0 || stats.inFlightItems !== 0) reasons.push("mailboxNotDrained");
-
-    this.shutdownPhase("finalizing");
-    const finalized = await within(() => this.shutdownHooks.finalizeBatchesAndSideEffects?.(this.clock().monotonicMs + 5_000,
-      this.shutdownState!) ?? Promise.resolve(0), 5_000, this.clock);
-    if (finalized.completed && typeof finalized.value !== "number") this.adoptShutdownUpdate(finalized.value);
-    const remainingBatches = finalized.completed
-      ? typeof finalized.value === "number" ? finalized.value : finalized.value.remainingBatches : 1;
-    if (remainingBatches !== 0) reasons.push("batchOrSideEffectsNotFinalized");
-    const finalizationAt = finalized.completed ? this.clock().wallTimeMs : null;
-
-    const save = await within((active) => this.saveFinalGenerations(active), 10_000, this.clock);
-    if (!save.completed) reasons.push("finalSaveTimedOut");
-    const unsaved = (Object.entries(this.shutdownState.persistence) as [UnitId, RuntimeState<UnitStates>["persistence"][UnitId]][])
-      .filter(([, status]) => status == null || status.kind !== "saved" || status.currentGeneration !== status.savedGeneration)
-      .map(([unit]) => unit);
-    if (unsaved.length !== 0) {
-      reasons.push(`unsaved:${unsaved.join(",")}`);
-      this.enqueueDiagnostic(completeDiagnostic({ level: "ERROR", component: "shutdown",
-        reason: "shutdownUnsavedUnits", count: unsaved.length }, this.clock(), runId));
+    if ((this.current ?? state).shutdown.stage !== "running") throw new Error("shutdown already started");
+    let step = this.control(state, { kind: "shutdownRequested", acceptedThroughSequence, clock });
+    let batches = 0;
+    let notificationAttempts = 0;
+    let workers = 1;
+    let summarySaved = false;
+    while (step.effects.length !== 0) {
+      const effect: RuntimeEffect = step.effects[0];
+      const stage = this.state.shutdown.stage;
+      if (stage === "running" || stage === "completed") throw new Error("unexpected shutdown effect");
+      if (effect.kind === "stopInputAndDrainMailbox") this.mailbox.beginDrain(this.clock().monotonicMs);
+      const result = await within(async (active) => {
+        switch (effect.kind) {
+          case "stopInputAndDrainMailbox":
+            await this.shutdownHooks.drainMailbox?.(effect.deadlineMonotonicMs, active);
+            break;
+          case "finalizeNotificationDelivery": {
+            // Until the hook confirms completion these counts remain unresolved.
+            batches = 1;
+            notificationAttempts = 1;
+            const pending = await this.shutdownHooks.finalizeBatchesAndSideEffects?.(effect.deadlineMonotonicMs, active)
+              ?? { batches: 0, notificationAttempts: 0 };
+            if (active()) { batches = pending.batches; notificationAttempts = pending.notificationAttempts; }
+            break;
+          }
+          case "startFinalCheckpoints":
+            await this.saveFinalGenerations(active);
+            break;
+          case "closeRuntimeWorkers":
+            await this.diagnostics.persistShutdownSummary(effect.summary, active);
+            summarySaved = true;
+            if (!active()) return;
+            await this.shutdownHooks.closeWorker?.(effect.deadlineMonotonicMs);
+            if (active()) workers = 0;
+            break;
+        }
+      }, effect.deadlineMonotonicMs, this.clock);
+      const stats = this.mailbox.stats(this.clock().monotonicMs);
+      step = this.dispatch(this.state, { kind: "shutdownStageResult", stage, result,
+        pending: { mailboxPending: stats.pendingItems, mailboxInFlight: stats.inFlightItems,
+          batches, notificationAttempts, unsavedUnits: 0, workers },
+        clock: this.clock(), droppedDiagnostics: this.diagnostics.droppedCounts() });
     }
-
-    // No business deadline is applied after finalizationAt.
-    this.shutdownState = { ...this.shutdownState, shutdown: "stopping" };
-    stats = this.mailbox.stats(this.clock().monotonicMs);
-    const code = reasons.includes("mailboxNotDrained") || reasons.includes("batchOrSideEffectsNotFinalized") ? 3
-      : unsaved.length !== 0 || reasons.includes("finalSaveTimedOut") ? 2
-        : 0;
-    const summary: ShutdownSummary = {
-      code, requestedAt: clock.wallTimeMs, finalizationAt, completedAt: this.clock().wallTimeMs,
-      acceptedThroughSequence, pendingInputs: stats.pendingItems, inFlightInputs: stats.inFlightItems,
-      persistence: { ...this.shutdownState.persistence }, reasons: [...reasons],
-      droppedDiagnostics: this.diagnostics.droppedCounts(),
-    };
-    const closeDeadline = this.clock().monotonicMs + 5_000;
-    const closed = await within(async (active) => {
-      // Persist the final-state snapshot before the worker can disappear.
-      await this.diagnostics.persistShutdownSummary(summary);
-      if (!active()) return;
-      try {
-        await this.shutdownHooks.closeWorker?.(closeDeadline);
-      } catch (error) {
-        if (active()) await this.diagnostics.persistShutdownSummary({ ...summary,
-          code: code === 0 ? 4 : code, completedAt: this.clock().wallTimeMs,
-          reasons: [...reasons, "workerCloseTimedOut"] });
-        throw error;
-      }
-    }, 5_000, this.clock);
-    if (!closed.completed) reasons.push("workerCloseTimedOut");
-    return { ...summary, code: code === 0 && !closed.completed ? 4 : code,
-      completedAt: this.clock().wallTimeMs, reasons: Object.freeze([...reasons]),
-      droppedDiagnostics: this.diagnostics.droppedCounts() };
-  }
-
-  private adoptShutdownUpdate(update: ShutdownUpdate<UnitStates>): void {
-    // Unit reducers are supplied by the caller; A3 does not invent their transitions.
-    const clock = this.clock();
-    const persistence = { ...update.state.persistence };
-    for (const [unit, latest] of Object.entries(this.shutdownState!.persistence) as [UnitId,
-      RuntimeState<UnitStates>["persistence"][UnitId]][]) {
-      const next = persistence[unit];
-      // A hook may have awaited an ack while reducing its input snapshot.
-      if (latest?.savedGeneration != null && next != null
-        && latest.savedGeneration > (next.savedGeneration ?? 0)) {
-        persistence[unit] = { ...next, kind: latest.savedGeneration === next.currentGeneration ? "saved" : "pending",
-          savedGeneration: latest.savedGeneration, savedCapturedAt: latest.savedCapturedAt, savedAckAt: latest.savedAckAt,
-          dirtySince: latest.savedGeneration === next.currentGeneration ? null : next.dirtySince };
-      }
+    if (step.shutdownSummary == null) throw new Error("shutdown did not produce a summary");
+    const summary = step.shutdownSummary;
+    // A1 owns both summaries. A failed final delivery is not reported as a successful persistence.
+    const deadline = this.state.shutdown.deadlines.workerCloseMonotonicMs!;
+    if (summarySaved && this.clock().monotonicMs < deadline) {
+      const persisted = await within((active) => this.diagnostics.persistShutdownSummary(summary, active), deadline, this.clock);
+      if (persisted.kind !== "completed")
+        throw new Error("final shutdown summary could not be persisted");
     }
-    const reduced = this.control(update.state, { kind: "deadline", clock }).state;
-    this.shutdownState = { ...reduced, persistence };
-    this.rememberCorrelations(this.shutdownState, update.correlationByUnit ?? {});
-  }
-
-  private shutdownPhase(shutdown: RuntimeState<UnitStates>["shutdown"]): void {
-    const clock = this.clock();
-    this.shutdownState = { ...this.control(this.shutdownState!, { kind: "deadline", clock }).state, shutdown };
+    return summary;
   }
 
   private async saveFinalGenerations(active: () => boolean): Promise<void> {
@@ -359,29 +358,30 @@ class RuntimeCompositionRoot<UnitStates extends Readonly<Partial<Record<UnitId, 
       if (pending != null) {
         const result = await pending.result;
         if (this.checkpointOperation === pending && result != null)
-          this.applyCheckpointResult(this.shutdownState!, result, this.clock());
-        continue; // Re-evaluate final generations after the pre-existing operation's ack.
+          this.applyCheckpointResult(this.state, result, this.clock());
+        continue;
       }
-      const current = this.shutdownState!;
+      const current = this.state;
       const clock = this.clock();
       const correlations = Object.fromEntries((Object.entries(this.correlations) as [UnitId,
         Readonly<{ inputIds: readonly string[]; generation: number }> | undefined][]).flatMap(([unit, correlation]) =>
         correlation != null && current.persistence[unit]?.currentGeneration === correlation.generation
           ? [[unit, { inputIds: correlation.inputIds, retryReason: this.checkpoint.retryReason(unit) }]] : []));
-      const scheduled = this.checkpoint.scheduleCheckpoint(current, clock, "shutdown", correlations, true, attempted);
+      const scheduled = this.checkpoint.scheduleCheckpoint(current, clock, current.runId, correlations, true, attempted);
       if (scheduled == null) return;
+      this.dispatch(current, { kind: "checkpointCaptured", capture: scheduled.capture });
       this.onMeasurements(scheduled.measurements);
-      const unit = scheduled.request?.unit ?? scheduled.result!.unit;
+      const unit = scheduled.capture.unit;
       attempted.add(unit);
       if (scheduled.request == null) {
-        this.applyCheckpointResult(this.shutdownState!, scheduled.result!, this.clock());
+        this.applyCheckpointResult(this.state, scheduled.result, this.clock());
         continue;
       }
       const correlation = correlations[unit]!;
       if (!active()) return;
-      const executed = await this.executeCheckpoint(scheduled.request, "shutdown",
+      const executed = await this.executeCheckpoint(scheduled.request, current.runId,
         correlation.inputIds, correlation.retryReason);
-      this.applyCheckpointResult(this.shutdownState!, executed.result, this.clock());
+      this.applyCheckpointResult(this.state, executed.result, this.clock());
     }
   }
 }

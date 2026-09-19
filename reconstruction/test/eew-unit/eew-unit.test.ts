@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 
 import type { DecodedMaterial, Operation } from "../../contracts/p1-parser-boundary.types";
 import type { NotificationIntent, RuntimeState } from "../../contracts/p2-shared-runtime.types";
-import type { EewUnitState } from "../../contracts/p2-eew-unit.types";
+import type { EewUnitState, EewUnitStep } from "../../contracts/p2-eew-unit.types";
 import corpus from "../../tools/corpus/sequences.json";
 import manifest from "../../tools/corpus/manifest.json";
 import type { CheckpointFileSystem, WritableCheckpoint } from "../../src/checkpoint/checkpoint";
@@ -13,6 +13,7 @@ import { decodeMaterial } from "../../src/decode-material/decode-material";
 import { ingestXmlData } from "../../src/ingress/ingress";
 import { RuntimeCompositionRoot } from "../../src/runtime/composition-root";
 import { eewUnitCodec, reduceEewUnit, toEewView } from "../../src/units/eew/eew-unit";
+import { fixtureState, fixtureDriver } from "../checkpoint-shutdown/runtime-fixture";
 
 const BASE_TIME = 1_713_363_299_001;
 
@@ -35,8 +36,12 @@ function decodeFixture(file: string, headType: "VXSE43" | "VXSE44" | "VXSE45",
   return decoded.material;
 }
 
+function clock(wallTimeMs: number, monotonicMs = 0) {
+  return { wallTimeMs, monotonicMs };
+}
+
 function receive(state: EewUnitState, material: DecodedMaterial, nowMs = BASE_TIME) {
-  return reduceEewUnit(state, { kind: "receive", material, nowMs });
+  return reduceEewUnit(state, { kind: "receive", material, clock: clock(nowMs) });
 }
 
 function withOperation(xml: string, operation: Operation): string {
@@ -94,8 +99,9 @@ class MemoryDiagnosticFileSystem implements DiagnosticFileSystem {
   async unlink(path: string): Promise<void> { this.filesByPath.delete(path); }
 }
 
-function runtime(unit: EewUnitState): RuntimeState<Readonly<{ "U-E": EewUnitState }>> {
-  return { units: { "U-E": unit }, persistence: { "U-E": unit.persistence }, shutdown: "running" };
+function runtime(unit: EewUnitState): RuntimeState {
+  const state = fixtureState({}, { "U-E": unit.persistence }, "eew-test");
+  return { ...state, units: { ...state.units, "U-E": unit } };
 }
 
 function config() {
@@ -224,9 +230,9 @@ describe("P2 EEW unit", () => {
     const unknown = decodeFixture("37_01_02_240613_VXSE43", "VXSE43", (xml) =>
       xml.replace(/<(From|To)>[^<]*<\/(From|To)>/g, "<$1>不明</$1>"));
     const unknownStep = receive(state, unknown);
-    expect(unknownStep.state.current[0]).toBe(state.current[0]);
-    expect(unknownStep.state.current[0].source).toEqual(state.current[0].source);
-    expect(unknownStep.state.current[0].prediction.maximum.from).toMatchObject({ raw: "5-" });
+    expect(unknownStep.state.current[0].retainedPrediction).toEqual({ prediction: state.current[0].prediction, source: state.current[0].source });
+    expect(unknownStep.state.current[0].source.serialRaw).toBe("2");
+    expect(unknownStep.state.current[0].prediction.maximum.from).toMatchObject({ raw: "不明" });
     expect(unknownStep.state.gates[0].serial).toBe(2);
     expect(unknownStep.outcomes[0].subjects[0].facts.prediction).toMatchObject({ maximum: {
       from: { kind: "unknown", raw: "不明" }, to: { kind: "unknown", raw: "不明" },
@@ -263,14 +269,200 @@ describe("P2 EEW unit", () => {
     for (let count = 1; count <= 513; count++) {
       const next = decodeFixture("37_01_01_240613_VXSE43", "VXSE43", (xml) =>
         xml.replace(/<EventID>[^<]*<\/EventID>/, `<EventID>${String(count).padStart(14, "0")}</EventID>`));
-      bounded = receive(bounded, next).state;
+      const admission = receive(bounded, next);
+      if (count === 513) {
+        expect(admission.state).toBe(bounded);
+        expect(admission.decisions).toEqual([{ decision: "capacityExceeded", operation: "normal",
+          subject: "normal/VXSE43/00000000000513" }]);
+      }
+      bounded = admission.state;
       if (count >= 511) {
         expect(bounded.gates).toHaveLength(Math.min(count, 512));
         expect(bounded.current).toHaveLength(Math.min(count, 512));
-        expect(bounded.gates.some((gate) => gate.subject.endsWith("/00000000000001"))).toBe(count < 513);
-        expect(bounded.current.at(-1)?.subject).toBe(`normal/VXSE43/${String(count).padStart(14, "0")}`);
+        expect(bounded.gates.some((gate) => gate.subject.endsWith("/00000000000001"))).toBe(true);
+        expect(bounded.current.at(-1)?.subject).toBe(`normal/VXSE43/${String(Math.min(count, 512)).padStart(14, "0")}`);
       }
     }
+  });
+
+  it("P2-A4-T02-legal-values acceptance / AC02: missing and empty preserve report evidence without changing raw kinds", () => {
+    const absent = ["missing", "empty", "unknown"] as const;
+    const patterns: readonly (readonly string[])[] = [
+      ...absent.flatMap((from) => absent.map((to) => [from, to])), absent,
+    ];
+    let cases = 0;
+    for (const operation of ["normal", "training", "test"] as const)
+      for (const coverage of ["VXSE43", "VXSE44", "VXSE45", "regionless"] as const)
+        for (const pattern of patterns) {
+          const family = coverage === "regionless" ? "VXSE45" : coverage;
+          const material = (serial: number, values: readonly string[], known?: string, inputId = `${serial}-${values}-${known}`) =>
+            decodeFixture("37_01_01_240613_VXSE43", family, (xml) => {
+              let index = 0;
+              let value = withOperation(xml, operation).replace("<Serial>1</Serial>", `<Serial>${serial}</Serial>`);
+              if (coverage === "regionless") value = value.replace(/<Pref>[\s\S]*?<\/Pref>/g, "");
+              return value.replace(/(<ForecastInt\b[^>]*>)([\s\S]*?)(<\/ForecastInt>)/g, (_, open: string, body: string, close: string) =>
+                open + body.replace(/<(From|To)>[^<]*<\/(From|To)>/g, (_, tag: string) => {
+                const kind = tag === "From" && known != null ? known : values[index++ % values.length];
+                return kind === "missing" ? "" : kind === "empty" ? `<${tag}/>`
+                  : `<${tag}>${kind === "unknown" ? "不明" : kind}</${tag}>`;
+                }) + close);
+            }, inputId);
+          const latest = (serial: number, values: readonly string[], known?: string) => receive(emptyState(), material(serial, values, known)).state.current[0];
+          const first = receive(emptyState(), material(1, ["5-"])).state;
+          const evidence = { prediction: first.current[0].prediction, source: first.current[0].source };
+          let state = first;
+          for (const [serial, values] of [[2, pattern], [3, [...pattern].reverse()], [4, ["unknown"]]] as const) {
+            const raw = latest(serial, values);
+            expect(raw.retainedPrediction).toBeNull(); // No earlier known report.
+            const step = receive(state, material(serial, values));
+            expect(step.state.current[0]).toEqual({ ...raw, retainedPrediction: evidence });
+            expect(step.outcomes[0].subjects[0]).toMatchObject({ source: raw.source, facts: { prediction: raw.prediction } });
+            const bounds = [raw.prediction.maximum, ...raw.prediction.areas.map((area) => area.intensity)];
+            const kinds = bounds.flatMap((value) => [value.from.kind, value.to.kind]);
+            expect(kinds).toEqual(kinds.map((_, index) => values[index % values.length]));
+            const repeated = receive(step.state, material(serial, values, undefined, "different-input-id"));
+            expect(repeated.state).toBe(step.state);
+            expect(repeated.decisions[0]).toMatchObject({ reason: "duplicate" });
+            state = step.state;
+          }
+          for (const known of ["3", "5-", "3以下"]) {
+            const recovered = receive(state, material(5, pattern, known));
+            expect(recovered.state.current[0]).toEqual(latest(5, pattern, known));
+            expect(recovered.state.current[0].retainedPrediction).toBeNull();
+            expect(receive(recovered.state, material(5, pattern, known, "known-retry")).state).toBe(recovered.state);
+            const unknown = receive(recovered.state, material(6, ["unknown"]));
+            expect(unknown.state.current[0].retainedPrediction).toEqual({
+              prediction: recovered.state.current[0].prediction, source: recovered.state.current[0].source,
+            });
+          }
+          cases++;
+        }
+    expect(cases).toBe(120);
+  });
+
+  it("P2-A4-T06-R14 contractBoundary / AC03,06: atomic normal-protecting admission and deterministic eviction", () => {
+    const material = (id: number, operation: Operation, time = "2024-04-17T23:14:59+09:00", family: "VXSE43" | "VXSE44" = "VXSE43") =>
+      decodeFixture("37_01_01_240613_VXSE43", family, (xml) => withOperation(xml, operation)
+        .replace(/<EventID>[^<]*<\/EventID>/, `<EventID>${String(id).padStart(14, "0")}</EventID>`)
+        .replace(/<ReportDateTime>[^<]*<\/ReportDateTime>/, `<ReportDateTime>${time}</ReportDateTime>`), `${operation}-${id}-${time}`);
+    const operations = ["normal", "training", "test"] as const;
+    const mixed = Array.from({ length: 512 }, (_, index) => material(index + 1, operations[index % 3]));
+    let matrix = 0;
+    for (const reverse of [false, true])
+      for (const size of [510, 511, 512]) {
+        const inputs = mixed.slice(0, size);
+        const base = (reverse ? inputs.reverse() : inputs).reduce((state, input) => receive(state, input).state, emptyState());
+        for (const operation of operations) {
+          const protectedCurrent = base.current.filter((item) => item.operation === "normal");
+          const old = base.current.find((item) => item.subject === "test/VXSE43/00000000000003")!;
+          const pending = pendingIntent(old.subject);
+          const state = { ...base, intents: [pending, pendingIntent(protectedCurrent[0].subject)] };
+          const step = receive(state, material(9000, operation));
+          expect(step.decisions[0]).toMatchObject({ decision: "changed" });
+          expect(step.state.current).toHaveLength(Math.min(size + 1, 512));
+          expect(step.state.gates).toHaveLength(Math.min(size + 1, 512));
+          for (const item of protectedCurrent) expect(step.state.current.find((next) => next.subject === item.subject)).toBe(item);
+          expect(step.diagnostics).toEqual(size < 512 ? [] : [{ level: "INFO", component: "eew", reason: "eewCapacityEvicted", unit: "U-E", count: 1 }]);
+          expect(step.intents).toEqual([]);
+          expect(step.outcomes.flatMap((outcome) => outcome.subjects).map((subject) => subject.transition)).toEqual(["activated"]);
+          expect(step.state.current.some((item) => item.subject === old.subject)).toBe(size < 512);
+          if (size === 512) {
+            expect(step.state.deliveryRecords).toEqual([{ intentId: pending.id, disposition: "superseded", expiresAt: pending.expiresAt }]);
+            expect(step.state.intents.map((intent) => intent.subject)).toEqual([protectedCurrent[0].subject]);
+            const readmitted = receive(step.state, mixed[2]);
+            expect(readmitted.decisions[0]).toMatchObject({ decision: "changed" });
+            expect(readmitted.outcomes[0].subjects[0].transition).toBe("activated");
+            expect(readmitted.state.current.find((item) => item.subject === old.subject)).toEqual(old);
+            expect(readmitted.state.intents.some((intent) => intent.id === pending.id)).toBe(false);
+            expect(receive(readmitted.state, mixed[2]).state).toBe(readmitted.state);
+          }
+          matrix++;
+        }
+      }
+    expect(matrix).toBe(18);
+
+    const normalInputs = Array.from({ length: 512 }, (_, index) => material(index + 1, "normal"));
+    const full = normalInputs.reduce((state, input) => receive(state, input).state, emptyState());
+    const heldInput = decodeFixture("37_01_01_240613_VXSE43", "VXSE43", (xml) => xml
+      .replace(/<EventID>[^<]*<\/EventID>/, "<EventID>00000000000001</EventID>")
+      .replace("<Serial>1</Serial>", "<Serial>2</Serial>")
+      .replace(/<(From|To)>[^<]*<\/(From|To)>/g, "<$1>不明</$1>"));
+    const normalState = { ...receive(full, heldInput).state, intents: [pendingIntent(full.current[0].subject)] };
+    expect(normalState.current.find((item) => item.subject === full.current[0].subject)?.retainedPrediction)
+      .toEqual({ prediction: full.current[0].prediction, source: full.current[0].source });
+    for (const operation of operations) {
+      const refused = receive(normalState, material(9000, operation));
+      const decision: Extract<EewUnitStep["decisions"][number], { decision: "capacityExceeded" }> = {
+        decision: "capacityExceeded", subject: `${operation}/VXSE43/00000000009000`, operation,
+      };
+      expect(refused).toEqual({ state: normalState, nextDeadline: { wallTimeMs: BASE_TIME + 15_000, monotonicMs: null },
+        decisions: [decision], intents: [], outcomes: [], diagnostics: [] });
+      expect(refused.state).toBe(normalState);
+    }
+    expect(receive(full, normalInputs[0]).state).toBe(full); // Existing subject consumes no additional slot.
+    const followup = decodeFixture("37_01_01_240613_VXSE43", "VXSE43", (xml) => xml
+      .replace(/<EventID>[^<]*<\/EventID>/, "<EventID>00000000000001</EventID>")
+      .replace("<Serial>1</Serial>", "<Serial>2</Serial>"));
+    const replacement = receive(full, followup);
+    expect(replacement.decisions[0].decision).toBe("changed");
+    expect(replacement.state.gates).toHaveLength(512);
+    expect(replacement.diagnostics).toEqual([]);
+
+    // Deliberately unordered, gate-only/current-only entries, and timezone strings whose lexical order is wrong.
+    const fixtures = [
+      material(9101, "training", "2024-04-17T23:00:00+09:00"),
+      material(9102, "training", "2024-04-17T23:05:00+09:00"),
+      material(9103, "training", "2024-04-17T14:10:00Z"),
+      material(9104, "test", "2024-04-17T14:10:00Z"),
+      material(9105, "test", "2024-04-17T14:10:00Z"),
+    ];
+    let ordered = fixtures.reduce<EewUnitState>((state, input) => receive(state, input).state,
+      { ...full, current: full.current.slice(0, 507), gates: full.gates.slice(0, 507) });
+    const unknown = decodeFixture("37_01_01_240613_VXSE43", "VXSE43", (xml) => withOperation(xml, "training")
+      .replace(/<EventID>[^<]*<\/EventID>/, "<EventID>00000000009101</EventID>")
+      .replace("<Serial>1</Serial>", "<Serial>2</Serial>")
+      .replace(/<ReportDateTime>[^<]*<\/ReportDateTime>/, "<ReportDateTime>2024-04-17T23:20:00+09:00</ReportDateTime>")
+      .replace(/<(From|To)>[^<]*<\/(From|To)>/g, "<$1>不明</$1>"), "latest-z");
+    ordered = receive(ordered, unknown).state;
+    const current9101 = receive(emptyState(), fixtures[0]).state.current[0];
+    ordered = { ...ordered,
+      current: ordered.current.filter((item) => !item.subject.endsWith("09104")),
+      gates: ordered.gates.filter((item) => !item.subject.endsWith("09102")),
+    };
+    // Keep retained source ancient; independently make current source older than gate to prove gate precedence.
+    ordered = { ...ordered, current: ordered.current.map((item) => item.subject === current9101.subject
+      ? { ...item, source: current9101.source } : item) };
+    const otherFamily = receive(emptyState(), material(9200, "test", "2024-04-17T00:00:00Z", "VXSE44")).state;
+    ordered = { ...ordered, current: [...ordered.current, ...otherFamily.current], gates: [...ordered.gates, ...otherFamily.gates] };
+    const expected = [9102, 9104, 9105, 9103, 9101];
+    for (const reverse of [false, true]) {
+      let state = reverse ? { ...ordered, current: [...ordered.current].reverse(), gates: [...ordered.gates].reverse() } : ordered;
+      for (const [index, id] of expected.entries()) {
+        const before = new Set([...state.current, ...state.gates].map((item) => item.subject));
+        const step = receive(state, material(9300 + index, "normal"));
+        const after = new Set([...step.state.current, ...step.state.gates].map((item) => item.subject));
+        expect([...before].filter((subject) => !after.has(subject))).toEqual([
+          `${id === 9104 || id === 9105 ? "test" : "training"}/VXSE43/${String(id).padStart(14, "0")}`,
+        ]);
+        expect(step.diagnostics).toEqual([{ level: "INFO", component: "eew", reason: "eewCapacityEvicted", unit: "U-E", count: 1 }]);
+        expect(step.state.current.find((item) => item.family === "VXSE44")).toBe(otherFamily.current[0]);
+        state = step.state;
+      }
+    }
+    const invalid = decodeFixture("37_01_01_240613_VXSE43", "VXSE43", (xml) => xml.replace("<Serial>1</Serial>", "<Serial/>"));
+    expect(receive(ordered, invalid).state).toBe(ordered);
+    expect(receive(ordered, invalid).diagnostics.every((item) => item.reason !== "eewCapacityEvicted")).toBe(true);
+    // Inject an over-limit union: enough candidates must be established before any removal can commit.
+    const extra = fixtures.slice(0, 2).reduce((state, input) => receive(state, input).state, emptyState());
+    const overfull = { ...normalState, current: [...normalState.current, ...extra.current], gates: [...normalState.gates, ...extra.gates] };
+    const refused = receive(overfull, material(9400, "normal"));
+    expect(refused.state).toBe(overfull);
+    expect(refused.decisions[0].decision).toBe("capacityExceeded");
+    expect(refused.diagnostics).toEqual([]);
+    const repairable = { ...overfull, current: overfull.current.slice(1), gates: overfull.gates.slice(1) };
+    const repaired = receive(repairable, material(9400, "normal"));
+    expect(repaired.state.gates).toHaveLength(512);
+    expect(repaired.diagnostics).toEqual([{ level: "INFO", component: "eew", reason: "eewCapacityEvicted", unit: "U-E", count: 2 }]);
   });
 
   it("P2-A4-T03 contractBoundary / AC04: codec roundtrip excludes current/gate and rejects exact next-byte overflow", () => {
@@ -318,13 +510,13 @@ describe("P2 EEW unit", () => {
 
     const intentValue = pendingIntent("normal/VXSE43/20240417231454", 1_000);
     const intentState = { ...emptyState(), intents: [intentValue] };
-    expect(reduceEewUnit(intentState, { kind: "deadline", nowMs: 15_999 }).state.intents).toHaveLength(1);
-    expect(reduceEewUnit(intentState, { kind: "deadline", nowMs: 16_000 }).state.intents).toHaveLength(0);
-    expect(reduceEewUnit(intentState, { kind: "deadline", nowMs: 16_001 }).state.intents).toHaveLength(0);
+    expect(reduceEewUnit(intentState, { kind: "deadline", clock: clock(15_999) }).state.intents).toHaveLength(1);
+    expect(reduceEewUnit(intentState, { kind: "deadline", clock: clock(16_000) }).state.intents).toHaveLength(0);
+    expect(reduceEewUnit(intentState, { kind: "deadline", clock: clock(16_001) }).state.intents).toHaveLength(0);
 
-    const restored = reduceEewUnit(emptyState(), { kind: "restore", persisted: eewUnitCodec.encode(intentState), nowMs: 15_999 });
-    const deadline = reduceEewUnit(intentState, { kind: "deadline", nowMs: 16_000 });
-    const shutdown = reduceEewUnit(emptyState(), { kind: "shutdown", nowMs: 16_000 });
+    const restored = reduceEewUnit(emptyState(), { kind: "restore", persisted: eewUnitCodec.encode(intentState), clock: clock(15_999) });
+    const deadline = reduceEewUnit(intentState, { kind: "deadline", clock: clock(16_000) });
+    const shutdown = reduceEewUnit(emptyState(), { kind: "shutdown", clock: clock(16_000) });
     expect([accepted.outcomes[0].kind, restored.outcomes[0].kind, deadline.outcomes[0].kind, shutdown.outcomes[0].kind])
       .toEqual(["accepted", "recoveryApplied", "deadlineApplied", "batchCompleted"]);
   });
@@ -336,8 +528,16 @@ describe("P2 EEW unit", () => {
     const adapter = new MemoryCheckpointFileSystem();
     const diagnostics = new MemoryDiagnosticFileSystem();
     let now = BASE_TIME + 1;
-    const root = new RuntimeCompositionRoot<Readonly<{ "U-E": EewUnitState }>>(config(), { "U-E": eewUnitCodec }, {
+    const runtimeCalls = { ...fixtureDriver().calls, reduceEewUnit, toEewView };
+    // Unit-local fault injection: A1 adopts the real EEW receive result at the due control call.
+    // Parser routing is outside this checkpoint test; do not replace root.state from the caller.
+    const cancellationCalls: typeof runtimeCalls = { ...runtimeCalls,
+      reduceEewUnit: (state, input) => reduceEewUnit(state, input.kind === "deadline"
+        ? { kind: "receive", material: cancelled, clock: input.clock } : input),
+    };
+    const root = new RuntimeCompositionRoot(config(), { "U-E": eewUnitCodec }, {
       checkpointFileSystem: adapter, diagnosticFileSystem: diagnostics,
+      runtimeCalls,
       clock: () => ({ wallTimeMs: now, monotonicMs: now }),
     });
     const initial = emptyState();
@@ -349,8 +549,10 @@ describe("P2 EEW unit", () => {
         savedCapturedAt: null, savedAckAt: null, dirtySince: BASE_TIME } };
     let running = runtime(unit);
     const correlation = { "U-E": { inputIds: [first.inputId], retryReason: "notRetry" as const } };
-    const scheduled = root.scheduleCheckpoint(running, { wallTimeMs: now, monotonicMs: now }, "o07", correlation)!;
-    const saved = await root.executeCheckpoint(scheduled.request!, "o07", [first.inputId], "notRetry");
+    const scheduled = root.scheduleCheckpoint(running, { wallTimeMs: now, monotonicMs: now }, "o07", correlation);
+    if (scheduled?.request == null) throw new Error("O07 checkpoint was not captured");
+    expect(root.state.checkpointAttempts["U-E"]).toEqual({ ...scheduled.capture, postCaptureDirtySince: null });
+    const saved = await root.executeCheckpoint(scheduled.request, "o07", [first.inputId], "notRetry");
     running = root.applyCheckpointResult(running, saved.result, { wallTimeMs: ++now, monotonicMs: now }).state;
     expect(root.restoreUnit("U-E").kind).toBe("restored");
     expect(root.checkpoint.restoredState("U-E")).toMatchObject({ current: [], gates: [],
@@ -358,7 +560,7 @@ describe("P2 EEW unit", () => {
     const payload = eewUnitCodec.decode(scheduled.request!.envelope.payload);
     if (payload.kind !== "restored") throw new Error(payload.reason);
     const restored = reduceEewUnit(emptyState(), { kind: "restore", persisted: eewUnitCodec.encode(payload.state),
-      nowMs: BASE_TIME + 2 });
+      clock: clock(BASE_TIME + 2) });
     expect(restored.intents[0].expiresAt).toBe(BASE_TIME + 15_000);
     expect(receive(restored.state, second, BASE_TIME + 3).state.current[0].serial).toBe(2);
 
@@ -368,7 +570,7 @@ describe("P2 EEW unit", () => {
     const decision = accepted.decisions[0];
     const actual = [
       { decision: null, effective: null, subjects: [], intents: initial.intents.length !== 0, notices: false },
-      { decision: { kind: decision.decision, reason: decision.reason,
+      { decision: { kind: decision.decision, reason: "reason" in decision ? decision.reason : null,
         change: "change" in decision ? decision.change : null }, effective: { kind: received.current.length > 0 ? "active" : "inactive" },
       subjects: received.current.map((current) => ({ subject: current.subject, revision: {
         reportDateTimeRaw: current.source.reportDateTimeRaw, serialRaw: current.source.serialRaw, infoTypeRaw: current.source.infoTypeRaw,
@@ -390,50 +592,65 @@ describe("P2 EEW unit", () => {
     expect(restored.state.current).toEqual([]);
     expect(restored.state.gates).toEqual([]);
 
-    const oldAckRoot = new RuntimeCompositionRoot<Readonly<{ "U-E": EewUnitState }>>(config(), { "U-E": eewUnitCodec }, {
+    const oldAckRoot = new RuntimeCompositionRoot(config(), { "U-E": eewUnitCodec }, {
       checkpointFileSystem: new MemoryCheckpointFileSystem(), diagnosticFileSystem: new MemoryDiagnosticFileSystem(),
+      runtimeCalls: cancellationCalls,
       clock: () => ({ wallTimeMs: now, monotonicMs: now }),
     });
     let oldAckState = runtime(unit);
-    const old = oldAckRoot.scheduleCheckpoint(oldAckState, { wallTimeMs: now, monotonicMs: now }, "old", correlation)!;
-    const oldResult = await oldAckRoot.executeCheckpoint(old.request!, "old", [first.inputId], "notRetry");
-    const cancelledUnit = receive(unit, cancelled, ++now).state;
-    oldAckState = { ...oldAckState, units: { "U-E": cancelledUnit }, persistence: { "U-E": cancelledUnit.persistence } };
+    const old = oldAckRoot.scheduleCheckpoint(oldAckState, { wallTimeMs: now, monotonicMs: now }, "old", correlation);
+    if (old?.request == null) throw new Error("old-ack checkpoint was not captured");
+    const oldResult = await oldAckRoot.executeCheckpoint(old.request, "old", [first.inputId], "notRetry");
+    const cancellationClock = { wallTimeMs: ++now, monotonicMs: now };
+    oldAckState = oldAckRoot.tick(oldAckRoot.state, cancellationClock).state;
+    expect(oldAckState.checkpointAttempts["U-E"]).toEqual({ ...old.capture, postCaptureDirtySince: cancellationClock.monotonicMs });
+    expect(oldAckState.units["U-E"].current).toEqual([]);
     oldAckState = oldAckRoot.applyCheckpointResult(oldAckState, oldResult.result,
       { wallTimeMs: ++now, monotonicMs: now }).state;
     expect(oldAckState.units["U-E"].current).toEqual([]);
     expect(oldAckState.persistence["U-E"]).toMatchObject({ currentGeneration: 2, savedGeneration: 1, kind: "pending" });
+    expect(oldAckState.persistence["U-E"]?.dirtySince).toBe(cancellationClock.monotonicMs);
+    expect(oldAckState.units["U-E"].persistence).toBe(oldAckState.persistence["U-E"]);
 
     const failedAdapter = new MemoryCheckpointFileSystem();
-    const failedRoot = new RuntimeCompositionRoot<Readonly<{ "U-E": EewUnitState }>>(config(), { "U-E": eewUnitCodec }, {
+    const failedRoot = new RuntimeCompositionRoot(config(), { "U-E": eewUnitCodec }, {
       checkpointFileSystem: failedAdapter, diagnosticFileSystem: new MemoryDiagnosticFileSystem(),
+      runtimeCalls: cancellationCalls,
       clock: () => ({ wallTimeMs: now, monotonicMs: now }),
     });
     let failedState = runtime(unit);
     const failedRequest = failedRoot.scheduleCheckpoint(failedState,
-      { wallTimeMs: now, monotonicMs: now }, "failed", correlation)!;
+      { wallTimeMs: now, monotonicMs: now }, "failed", correlation);
+    if (failedRequest?.request == null) throw new Error("failure checkpoint was not captured");
     failedAdapter.failWrite = true;
     const failure = await failedRoot.executeCheckpoint(failedRequest.request!, "failed", [first.inputId], "notRetry");
     failedState = failedRoot.applyCheckpointResult(failedState, failure.result,
       { wallTimeMs: ++now, monotonicMs: now }).state;
-    const afterFailureCancel = receive({ ...unit, persistence: failedState.persistence["U-E"]! }, cancelled, ++now).state;
+    expect(failedState.persistence["U-E"]?.kind).toBe("failed");
+    failedState = failedRoot.tick(failedState, { wallTimeMs: ++now, monotonicMs: now }).state;
+    const afterFailureCancel = failedState.units["U-E"];
     expect(afterFailureCancel.current).toEqual([]);
     expect(afterFailureCancel.persistence).toMatchObject({ kind: "failed", currentGeneration: 2, savedGeneration: null });
     expect(afterFailureCancel.deliveryRecords).toContainEqual({
       intentId: unit.intents[0].id, disposition: "superseded", expiresAt: unit.intents[0].expiresAt,
     });
 
-    let shutdownState = runtime(unit);
-    const shutdownRoot = new RuntimeCompositionRoot<Readonly<{ "U-E": EewUnitState }>>(config(), { "U-E": eewUnitCodec }, {
+    const shutdownState = runtime(unit);
+    const shutdownRoot = new RuntimeCompositionRoot(config(), { "U-E": eewUnitCodec }, {
       checkpointFileSystem: new MemoryCheckpointFileSystem(), diagnosticFileSystem: new MemoryDiagnosticFileSystem(),
+      runtimeCalls,
       clock: () => ({ wallTimeMs: now, monotonicMs: now }),
-      shutdownHooks: { finalizeBatchesAndSideEffects: async () => ({ remainingBatches: 0, state: shutdownState,
-        correlationByUnit: correlation }) },
     });
-    const summary = await shutdownRoot.shutdownRuntime(shutdownState, 1,
+    shutdownRoot.dispatch(shutdownState, { kind: "mailboxCompleted", clock: { wallTimeMs: now, monotonicMs: now },
+      completion: { kind: "parser", messageId: first.inputId, inputId: first.inputId, runId: shutdownState.runId,
+        encodedByteLength: 0, startedMonotonicMs: now, completedMonotonicMs: now, inputSequence: 1,
+        result: { kind: "decoded", material: first } } }, correlation);
+    const summary = await shutdownRoot.shutdownRuntime(shutdownRoot.state, 1,
       { wallTimeMs: ++now, monotonicMs: now });
     expect(summary.code).toBe(0);
     expect(summary.persistence["U-E"]).toMatchObject({ kind: "saved", currentGeneration: 1, savedGeneration: 1 });
+    expect(shutdownRoot.state.shutdown.stage).toBe("completed");
+    expect(shutdownRoot.restoreUnit("U-E").kind).toBe("restored");
   });
 
   it("P2-A4-T06 regression / AC02-03,06: P1 operation isolation and different-inputId duplicates before TTL", () => {
@@ -481,14 +698,14 @@ describe("P2 EEW unit", () => {
         for (const age of [14_999, 15_000, 15_001]) {
           const conflicting = { ...value, deliveryRecords: [{ intentId: intent.id, disposition, expiresAt: intent.expiresAt }] };
           expect(eewUnitCodec.decode(conflicting).kind).toBe("invalid");
-          const restored = reduceEewUnit(emptyState(), { kind: "restore", persisted: conflicting, nowMs: BASE_TIME + age });
+          const restored = reduceEewUnit(emptyState(), { kind: "restore", persisted: conflicting, clock: clock(BASE_TIME + age) });
           expect(restored.intents).toEqual([]);
           expect(restored.decisions[0].decision).toBe("rejected");
         }
       for (const ttl of [14_999, 15_000, 15_001]) {
         const altered = { ...value, intents: [{ ...intent, expiresAt: intent.createdAt + ttl }] };
         expect(eewUnitCodec.decode(altered).kind).toBe(ttl > 15_000 ? "invalid" : "restored");
-        const restored = reduceEewUnit(emptyState(), { kind: "restore", persisted: altered, nowMs: BASE_TIME + 14_999 });
+        const restored = reduceEewUnit(emptyState(), { kind: "restore", persisted: altered, clock: clock(BASE_TIME + 14_999) });
         expect(restored.intents).toHaveLength(ttl === 15_000 ? 1 : 0);
         if (ttl === 15_000) expect(restored.intents[0].expiresAt).toBe(intent.expiresAt);
       }
@@ -512,7 +729,8 @@ describe("P2 EEW unit", () => {
       let fillers = emptyState();
       for (let count = 1; count <= 512; count++) {
         fillers = receive(fillers, decodeFixture("37_01_01_240613_VXSE43", "VXSE43", (xml) =>
-          withOperation(xml, operation).replace(/<EventID>[^<]*<\/EventID>/, `<EventID>${String(count).padStart(14, "0")}</EventID>`))).state;
+          withOperation(xml, operation === "normal" && count === 512 ? "training" : operation)
+            .replace(/<EventID>[^<]*<\/EventID>/, `<EventID>${String(count).padStart(14, "0")}</EventID>`))).state;
         if (count < 510) continue;
         const base = receive(fillers, first).state; // attempts 511, 512, 513; target is newest.
         expect(base.gates).toHaveLength(Math.min(count + 1, 512));
@@ -543,7 +761,7 @@ describe("P2 EEW unit", () => {
                   expect(Buffer.byteLength(JSON.stringify({ ...envelope, payload: padded }))).toBe(262_144 + extraByte);
                   expect(eewUnitCodec.decode(padded).kind).toBe(extraByte === 0 ? "restored" : "invalid");
                   if (restart) {
-                    const recovery = reduceEewUnit(emptyState(), { kind: "restore", persisted: padded, nowMs: BASE_TIME + age });
+                    const recovery = reduceEewUnit(emptyState(), { kind: "restore", persisted: padded, clock: clock(BASE_TIME + age) });
                     expect(recovery.state.current).toEqual([]);
                     expect(recovery.state.gates).toEqual([]);
                     expect(recovery.intents).toHaveLength(extraByte === 0 && age === 14_999 && order !== "gap" ? 1 : 0);
@@ -554,7 +772,7 @@ describe("P2 EEW unit", () => {
                     expect(followup.decisions[0]).toMatchObject({ decision: "changed", change: "semantic" });
                     state = followup.state;
                   }
-                  const timed = reduceEewUnit(state, { kind: "deadline", nowMs: BASE_TIME + age });
+                  const timed = reduceEewUnit(state, { kind: "deadline", clock: clock(BASE_TIME + age) });
                   expect(timed.state.intents).toHaveLength(!restart && age === 14_999 && order !== "gap" ? 1 : 0);
                   const ended = receive(timed.state, terminal, BASE_TIME + age);
                   expect(ended.state.current.some((current) => current.subject === target.subject)).toBe(false);
@@ -590,7 +808,7 @@ describe("P2 EEW unit", () => {
       counts.normalCorpus++;
       counts.rejected += step.decisions.filter((decision) => decision.decision === "rejected").length;
       expect(step.state.gates, `${fixture.path}: ${JSON.stringify(step.decisions)}`).toHaveLength(1);
-      const afterDeadline = reduceEewUnit(step.state, { kind: "deadline", nowMs: BASE_TIME + 15_001 });
+      const afterDeadline = reduceEewUnit(step.state, { kind: "deadline", clock: clock(BASE_TIME + 15_001) });
       const view = toEewView(afterDeadline.state);
       counts.semanticUnavailable += view.subjects.filter((subject) => subject.transition === "unavailable").length;
       expect(view.activeCount).toBe(step.state.gates[0].terminal ? 0 : 1);
@@ -627,12 +845,17 @@ describe("P2 EEW unit", () => {
             source: { inputId: material.inputId }, facts: { prediction: { maximum: { from: { raw: from }, to: { raw: to } } } },
           }] });
           expect(step.state.gates[0].source.inputId).toBe(material.inputId);
-          if (from === "不明") expect(step.state.current[0]).toBe(initial.current[0]);
-          else expect(step.state.current[0].prediction.maximum).toMatchObject({ from: { raw: "6-" }, to: { raw: "6-" } });
+          expect(step.state.current[0].prediction.maximum).toMatchObject({ from: { raw: from }, to: { raw: to } });
+          expect(step.state.current[0].retainedPrediction).toBeNull();
           const repeated = receive(step.state, decodeFixture("37_01_01_240613_VXSE43", family, change, "correction-redelivery"));
           expect(repeated.state).toBe(step.state);
           expect(repeated.outcomes).toEqual([]);
           if (from === "不明") {
+            const changedRaw = receive(step.state, decodeFixture("37_01_01_240613_VXSE43", family,
+              (xml) => change(xml).replace("<To>7</To>", "<To>6+</To>"), "different-unknown-raw"));
+            expect(changedRaw.decisions[0]).toMatchObject({ decision: "changed", change: "semantic" });
+            expect(changedRaw.state.current[0].prediction.maximum).toMatchObject({ from: { raw: "不明" }, to: { raw: "6+" } });
+            expect(changedRaw.outcomes).toHaveLength(1);
             const knownAgain = receive(step.state, decodeFixture("37_01_01_240613_VXSE43", family, correction, "known-again"));
             expect(knownAgain.decisions[0]).toMatchObject({ decision: "changed", change: "semantic" });
             expect(knownAgain.state.current[0].source.inputId).toBe("known-again");
@@ -666,11 +889,9 @@ describe("P2 EEW unit", () => {
             };
             const step = receive(state, decodeFixture("37_01_02_240613_VXSE43", family, change));
             expect(step.state.gates.at(-1)?.serial).toBe(2);
-            if (!restart) {
-              expect(step.state.current[0]).toBe(initial.current[0]);
-              expect(step.state.current[0].prediction.maximum.from).toMatchObject({ raw: "5-" });
-              expect(step.state.current[0].source.serialRaw).toBe("1");
-            } else expect(step.state.current[0].source.serialRaw).toBe("2");
+            expect(step.state.current[0].source.serialRaw).toBe("2");
+            expect(step.state.current[0].retainedPrediction).toEqual(!restart && scope === "all"
+              ? { prediction: initial.current[0].prediction, source: initial.current[0].source } : null);
             const latest = step.outcomes[0].subjects[0];
             expect(latest.source?.serialRaw).toBe("2");
             if (scope !== "area") expect(latest.facts.prediction).toMatchObject({ maximum: {
@@ -682,5 +903,104 @@ describe("P2 EEW unit", () => {
             cases++;
           }
     expect(cases).toBe(54);
+  });
+
+  it("P2-A4-T12 acceptance / AC02,04 R13: report-level evidence updates, clears and never revives on restore", () => {
+    for (const operation of ["normal", "training", "test"] as const)
+      for (const regionless of [false, true]) {
+        const family = regionless ? "VXSE45" : "VXSE43";
+        const material = (serial: number, mode: "known" | "unknown" | "partial", to = "7") =>
+          decodeFixture("37_01_01_240613_VXSE43", family, (xml) => {
+            let value = withOperation(xml, operation).replace("<Serial>1</Serial>", `<Serial>${serial}</Serial>`);
+            if (regionless) value = value.replace(/<Pref>[\s\S]*?<\/Pref>/g, "");
+            if (mode !== "known") value = value.replace(/<(From|To)>[^<]*<\/(From|To)>/g, "<$1>不明</$1>");
+            if (mode === "partial") value = regionless ? value.replace("<To>不明</To>", `<To>${to}</To>`)
+              : value.replace(/<Pref>[\s\S]*?<\/Pref>/, (pref) => pref.replace("<To>不明</To>", `<To>${to}</To>`));
+            return value;
+          }, `${operation}-${serial}-${mode}-${to}`);
+        const known = receive(emptyState(), material(1, "known")).state.current[0];
+        let state = receive(emptyState(), material(1, "known")).state;
+        for (const serial of [2, 3]) {
+          const step = receive(state, material(serial, "unknown"));
+          expect(step.state.current[0].source.serialRaw).toBe(String(serial));
+          expect(step.state.current[0].prediction.maximum.from).toMatchObject({ kind: "unknown" });
+          expect(step.state.current[0].retainedPrediction).toEqual({ prediction: known.prediction, source: known.source });
+          expect(step.outcomes[0].subjects[0].facts.prediction).toEqual(step.state.current[0].prediction);
+          state = step.state;
+        }
+        const partial = receive(state, material(4, "partial"));
+        expect(partial.state.current[0].retainedPrediction).toBeNull();
+        const corrected = receive(partial.state, material(4, "partial", "6+"));
+        expect(corrected.decisions[0]).toMatchObject({ decision: "changed", change: "semantic" });
+        expect(corrected.outcomes[0].subjects[0].facts.prediction).toEqual(corrected.state.current[0].prediction);
+        expect(receive(corrected.state, material(4, "partial", "6+")).state).toBe(corrected.state);
+        const held = receive(corrected.state, material(5, "unknown"));
+        expect(held.state.current[0].retainedPrediction).toEqual({
+          prediction: corrected.state.current[0].prediction, source: corrected.state.current[0].source,
+        });
+        expect(toEewView(held.state).current[0]).toEqual(held.state.current[0]);
+        expect(receive(held.state, material(4, "partial")).state).toBe(held.state);
+        const restored = reduceEewUnit(held.state, { kind: "restore", persisted: eewUnitCodec.encode(held.state), clock: clock(BASE_TIME) });
+        expect(restored.state.current).toEqual([]);
+        expect(receive(restored.state, material(6, "unknown")).state.current[0].retainedPrediction).toBeNull();
+        const ended = receive(held.state, decodeFixture("37_01_03_240613_VXSE43", family, (xml) =>
+          withOperation(xml, operation).replace("<Serial>2</Serial>", "<Serial>5</Serial>")));
+        expect(ended.state.current).toEqual([]);
+      }
+  });
+
+  it("P2-A4-T13 contractBoundary / R13 AC06: deadlines on every branch and result-free intent updates", () => {
+    const first = decodeFixture("37_01_01_240613_VXSE43", "VXSE43");
+    const second = decodeFixture("37_01_02_240613_VXSE43", "VXSE43");
+    const pending = pendingIntent();
+    const state = { ...receive(emptyState(), first).state, intents: [pending] };
+    const expected = { wallTimeMs: pending.expiresAt, monotonicMs: null };
+    expect(receive(state, first).nextDeadline).toEqual(expected);
+    expect(receive(state, decodeFixture("37_01_01_240613_VXSE43", "VXSE43", (xml) => xml.replace("<Serial>1</Serial>", "<Serial/>"))).nextDeadline).toEqual(expected);
+    const newer = { ...receive(state, second).state, intents: [pending] };
+    expect(receive(newer, first).nextDeadline).toEqual(expected);
+    expect(receive(state, second).nextDeadline).toBeNull();
+    expect(reduceEewUnit(state, { kind: "restore", persisted: eewUnitCodec.encode(state), clock: clock(BASE_TIME) }).nextDeadline).toEqual(expected);
+    expect(reduceEewUnit(state, { kind: "restore", persisted: { ...eewUnitCodec.encode(state), intents: [pending, pending] }, clock: clock(BASE_TIME) }).nextDeadline).toEqual(expected);
+
+    const selection = { id: pending.id, attempts: 1, nextAttemptAt: BASE_TIME + 500, disposition: "pending" as const };
+    const selected = reduceEewUnit(state, { kind: "intentUpdate", intentUpdate: selection, clock: clock(BASE_TIME, 123) });
+    expect(selected.state.persistence).toMatchObject({ kind: "pending", currentGeneration: 1, dirtySince: 123 });
+    expect(selected.state.intents[0]).toMatchObject({ ...selection, createdAt: pending.createdAt, expiresAt: pending.expiresAt });
+    expect(selected.decisions[0]).toMatchObject({ change: "deliveryOnly" });
+    expect(selected.nextDeadline).toEqual(expected);
+    for (const update of [selection, { ...selection, id: "unknown" }, { ...selection, attempts: 0 }]) {
+      const same = reduceEewUnit(selected.state, { kind: "intentUpdate", intentUpdate: update, clock: clock(BASE_TIME, 999) });
+      expect(same).toEqual({ state: selected.state, nextDeadline: expected, decisions: [], intents: [], outcomes: [], diagnostics: [] });
+      expect(same.state).toBe(selected.state);
+    }
+    const delivered = reduceEewUnit(selected.state, { kind: "intentUpdate", intentUpdate: { ...selection, disposition: "delivered" }, clock: clock(BASE_TIME + 1, 124) });
+    expect(delivered.state.intents).toEqual([]);
+    expect(delivered.state.persistence.currentGeneration).toBe(2);
+    expect(delivered.nextDeadline).toBeNull();
+    for (const age of [14_999, 15_000, 15_001]) {
+      for (const monotonic of [0, Number.MAX_SAFE_INTEGER]) {
+        const tick = reduceEewUnit(state, { kind: "deadline", clock: clock(BASE_TIME + age, monotonic) });
+        expect(tick.nextDeadline).toEqual(age < 15_000 ? expected : null);
+        expect(tick.state.intents).toHaveLength(age < 15_000 ? 1 : 0);
+        if (age < 15_000) {
+          expect(tick.state).toBe(state);
+          expect([tick.decisions, tick.intents, tick.outcomes, tick.diagnostics]).toEqual([[], [], [], []]);
+        }
+      }
+      for (const terminal of [false, true]) {
+        const end = decodeFixture(terminal ? "37_01_01_240613_VXSE43" : "37_01_03_240613_VXSE43", "VXSE43", (xml) => terminal
+          ? xml.replace("</Body>", "<NextAdvisory>最終報</NextAdvisory></Body>") : xml);
+        expect(receive(state, end, BASE_TIME + age).nextDeadline).toBeNull();
+      }
+      const result = reduceEewUnit(state, { kind: "intentUpdate", intentUpdate: selection, clock: clock(BASE_TIME + age) });
+      expect(result.nextDeadline).toEqual(age < 15_000 ? expected : null);
+      expect(reduceEewUnit(state, { kind: "shutdown", clock: clock(BASE_TIME + age) }).nextDeadline)
+        .toEqual(age < 15_000 ? expected : null);
+    }
+    const later = pendingIntent("normal/VXSE43/20240417231455", BASE_TIME + 1_000);
+    expect(reduceEewUnit({ ...state, intents: [later, pending] }, { kind: "deadline", clock: clock(pending.expiresAt) }).nextDeadline)
+      .toEqual({ wallTimeMs: later.expiresAt, monotonicMs: null });
+    expect(receive(emptyState(), first).nextDeadline).toBeNull();
   });
 });

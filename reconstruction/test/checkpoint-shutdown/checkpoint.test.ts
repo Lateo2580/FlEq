@@ -3,33 +3,33 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 
-import type { JsonValue, RuntimeState, UnitCodec, UnitId } from "../../contracts/p2-shared-runtime.types";
+import type { JsonValue, RuntimeState, RuntimeUnitId, RuntimeUnitStates, UnitCodec, UnitId } from "../../contracts/p2-shared-runtime.types";
 import { hashEnvelope, serializedEnvelope } from "../../src/checkpoint/checkpoint";
 import type { CheckpointFileSystem, WritableCheckpoint } from "../../src/checkpoint/checkpoint";
 import { RuntimeCompositionRoot } from "../../src/runtime/composition-root";
 
-type TestUnit = Readonly<{ value: string; intentExpiresAt?: number; current?: string | null }>;
-type TestUnits = Readonly<{ "U-E"?: TestUnit; "U-W"?: TestUnit; "U-F"?: TestUnit }>;
+import { fixtureState, fixtureValue, fixtureDriver } from "./runtime-fixture";
+import type { Fixture } from "./runtime-fixture";
 
 const temporary: string[] = [];
 const correlation = { inputIds: ["input-1"], retryReason: "notRetry" as const };
 
-function codec(counter?: { value: number }, fail?: () => boolean): UnitCodec<TestUnit | undefined, JsonValue> {
+function codec<U extends RuntimeUnitId>(unit: U, counter?: { value: number }, fail?: () => boolean): UnitCodec<RuntimeUnitStates[U], JsonValue> {
   return {
     schemaVersion: "test-v1",
     encode(state) {
       counter && (counter.value += 1);
       if (fail?.()) throw new Error("encode failure");
       if (state == null) throw new Error("missing state");
-      return { value: state.value,
-        ...(state.intentExpiresAt == null ? {} : { intentExpiresAt: state.intentExpiresAt }) };
+      return { value: fixtureValue(state),
+        ...(!("intentExpiresAt" in state) || typeof state.intentExpiresAt !== "number" ? {} : { intentExpiresAt: state.intentExpiresAt }) };
     },
     decode(payload) {
       if (payload == null || typeof payload !== "object" || Array.isArray(payload)
         || !("value" in payload) || typeof payload.value !== "string") return { kind: "invalid", reason: "invalid test payload" };
-      return { kind: "restored", state: { value: payload.value,
-        ...(typeof payload.intentExpiresAt === "number" ? { intentExpiresAt: payload.intentExpiresAt } : {}),
-        current: null } };
+      return { kind: "restored", state: { ...fixtureState({ [unit]: { value: payload.value,
+        ...(typeof payload.intentExpiresAt === "number" ? { intentExpiresAt: payload.intentExpiresAt } : {}) } }).units[unit],
+        activeFixture: null } };
     },
   };
 }
@@ -46,9 +46,7 @@ function config(path: string) {
     diagnosticDirectory: join(path, "diagnostics") } as const;
 }
 
-function pending(units: TestUnits, persistence: RuntimeState<TestUnits>["persistence"]): RuntimeState<TestUnits> {
-  return { units, persistence, shutdown: "running" };
-}
+const pending = fixtureState;
 
 class MemoryCheckpointFileSystem implements CheckpointFileSystem {
   readonly files = new Map<string, Uint8Array>();
@@ -90,10 +88,12 @@ describe("P2 checkpoint", () => {
   it("P2-A3-T01 contractBoundary / AC01: the O07 fixture-backed test codec persists intent data but not active current", async () => {
     const path = await directory();
     const fixture = await fileSystem.readFile("test/fixtures/37_01_01_240613_VXSE43.xml", "utf8");
-    const root = new RuntimeCompositionRoot<TestUnits>(config(path), { "U-E": codec() }, {
+    const driver = fixtureDriver();
+    const root = new RuntimeCompositionRoot(config(path), { "U-E": codec("U-E") }, {
+      runtimeCalls: driver.calls,
       clock: () => ({ wallTimeMs: 1_713_363_299_002, monotonicMs: 2 }),
     });
-    let state = pending({ "U-E": { value: fixture, current: "active", intentExpiresAt: 1_713_363_314_001 } }, {
+    let state = pending({ "U-E": { value: fixture, activeFixture: "active", intentExpiresAt: 1_713_363_314_001 } }, {
       "U-E": { kind: "pending", currentGeneration: 1, savedGeneration: null,
         savedCapturedAt: null, savedAckAt: null, dirtySince: 1 },
     });
@@ -106,15 +106,17 @@ describe("P2 checkpoint", () => {
     expect(state.persistence["U-E"]?.kind).toBe("saved");
     expect(root.restoreUnit("U-E").kind).toBe("restored");
     expect(root.checkpoint.restoredState("U-E")).toMatchObject({
-      value: fixture, current: null, intentExpiresAt: 1_713_363_314_001,
+      value: fixture, activeFixture: null, current: [], intentExpiresAt: 1_713_363_314_001,
     });
   });
 
   it("P2-A3-T02 contractBoundary / AC02: rename uncertainty reconciles g2 without rolling back in-memory cancellation g3", async () => {
     const path = await directory();
     const adapter = new MemoryCheckpointFileSystem();
-    const root = new RuntimeCompositionRoot<TestUnits>(config(path), { "U-F": codec() }, {
+    const driver = fixtureDriver();
+    const root = new RuntimeCompositionRoot(config(path), { "U-F": codec("U-F") }, {
       checkpointFileSystem: adapter,
+      runtimeCalls: driver.calls,
       clock: () => ({ wallTimeMs: 5_000, monotonicMs: 500 }),
     });
     let state = pending({ "U-F": { value: "active" } }, { "U-F": { kind: "pending",
@@ -124,8 +126,8 @@ describe("P2 checkpoint", () => {
     adapter.fail = "directorySync";
     const output = await root.executeCheckpoint(scheduled.request!, "o10", correlation.inputIds, correlation.retryReason);
     expect(output.result).toMatchObject({ kind: "uncertain", generation: 2, stage: "directorySync" });
-    state = pending({ "U-F": { value: "cancelled" } }, { "U-F": { ...state.persistence["U-F"]!,
-      kind: "pending", currentGeneration: 3, dirtySince: 10 } });
+    state = driver.update(root, pending({ "U-F": { value: "cancelled" } }, { "U-F": { ...state.persistence["U-F"]!,
+      kind: "pending", currentGeneration: 3, dirtySince: 501 } }), { wallTimeMs: 5_001, monotonicMs: 501 });
     state = root.applyCheckpointResult(state, output.result, { wallTimeMs: 5_001, monotonicMs: 501 }).state;
     expect(state).toMatchObject({ units: { "U-F": { value: "cancelled" } },
       persistence: { "U-F": { kind: "uncertain", currentGeneration: 3, attemptedGeneration: 2 } } });
@@ -133,7 +135,7 @@ describe("P2 checkpoint", () => {
     state = (await root.resolveUncertain(state, "U-F", scheduled.request!.attemptId,
       { wallTimeMs: 5_002, monotonicMs: 502 })).state;
     expect(state).toMatchObject({ units: { "U-F": { value: "cancelled" } },
-      persistence: { "U-F": { kind: "pending", currentGeneration: 3, savedGeneration: 2, dirtySince: 10 } } });
+      persistence: { "U-F": { kind: "pending", currentGeneration: 3, savedGeneration: 2, dirtySince: 501 } } });
     await root.diagnostics.flush();
   });
 
@@ -141,8 +143,8 @@ describe("P2 checkpoint", () => {
     const path = await directory();
     const weather = { value: 0 };
     const eew = { value: 0 };
-    const root = new RuntimeCompositionRoot<TestUnits>(config(path), {
-      "U-W": codec(weather), "U-E": codec(eew),
+    const root = new RuntimeCompositionRoot(config(path), {
+      "U-W": codec("U-W", weather), "U-E": codec("U-E", eew),
     }, { clock: () => ({ wallTimeMs: 1_000, monotonicMs: 100 }) });
     const state = pending({ "U-W": { value: "saved" }, "U-E": { value: "dirty" } }, {
       "U-W": { kind: "saved", currentGeneration: 1, savedGeneration: 1,
@@ -161,8 +163,10 @@ describe("P2 checkpoint", () => {
     const path = await directory();
     const adapter = new MemoryCheckpointFileSystem();
     let now = 100;
-    const root = new RuntimeCompositionRoot<TestUnits>(config(path), { "U-F": codec(), "U-W": codec() }, {
+    const driver = fixtureDriver();
+    const root = new RuntimeCompositionRoot(config(path), { "U-F": codec("U-F"), "U-W": codec("U-W") }, {
       checkpointFileSystem: adapter,
+      runtimeCalls: driver.calls,
       clock: () => ({ wallTimeMs: 10_000 + now, monotonicMs: now }),
     });
     let state = pending({ "U-F": { value: "cancelled" }, "U-W": { value: "normal" } }, {
@@ -207,21 +211,28 @@ describe("P2 checkpoint", () => {
     const path = await directory();
     let fail = true;
     let now = 0;
+    const driver = fixtureDriver();
     const adapter = new MemoryCheckpointFileSystem();
-    const root = new RuntimeCompositionRoot<TestUnits>(config(path), { "U-F": codec(undefined, () => fail) }, {
+    const root = new RuntimeCompositionRoot(config(path), { "U-F": codec("U-F", undefined, () => fail) }, {
       checkpointFileSystem: adapter,
+      runtimeCalls: driver.calls,
       clock: () => ({ wallTimeMs: 1_000 + now, monotonicMs: now++ }),
     });
     let state = pending({ "U-F": { value: "payload" } }, { "U-F": { kind: "pending",
       currentGeneration: 1, savedGeneration: null, savedCapturedAt: null, savedAckAt: null, dirtySince: 0 } });
     const failed = root.scheduleCheckpoint(state, { wallTimeMs: 1_000, monotonicMs: 0 }, "run-5",
       { "U-F": correlation })!;
+    expect(failed.capture).toEqual({ attemptId: failed.result!.attemptId, unit: "U-F", generation: 1,
+      capturedAt: 1_000 });
+    expect(root.state.checkpointAttempts["U-F"]).toMatchObject(failed.capture);
     expect(failed).toMatchObject({ request: null, result: { stage: "encode", encodedByteLength: 0 },
       measurements: [{ runId: "run-5", inputIds: ["input-1"], unit: "U-F", generation: 1,
         stage: "encode", bytes: 0, outcome: "failed", retryReason: "notRetry" }] });
     const failedStep = root.applyCheckpointResult(state, failed.result!, { wallTimeMs: 1_001, monotonicMs: 1 });
-    expect(failedStep.diagnostics.map((event) => event.reason)).toContain("checkpointEncodeFailed");
+    expect((await root.readDiagnostics({ limit: 256 })).records.map((event) => event.reason)).toContain("checkpointEncodeFailed");
     state = failedStep.state;
+    expect(state.checkpointAttempts["U-F"]).toBeUndefined();
+    expect(state.units["U-F"].persistence).toBe(state.persistence["U-F"]);
 
     fail = false;
     const due = root.checkpoint.retryAfter("U-F")!;
@@ -251,7 +262,7 @@ describe("P2 checkpoint", () => {
       const path = await directory();
       const adapter = new MemoryCheckpointFileSystem();
       adapter.fail = stage;
-      const root = new RuntimeCompositionRoot<TestUnits>(config(path), { "U-F": codec() }, {
+      const root = new RuntimeCompositionRoot(config(path), { "U-F": codec("U-F") }, {
         checkpointFileSystem: adapter, clock: () => ({ wallTimeMs: 1_000, monotonicMs: 1 }),
       });
       const state = pending({ "U-F": { value: "payload" } }, { "U-F": { kind: "pending",
@@ -260,8 +271,8 @@ describe("P2 checkpoint", () => {
         { "U-F": correlation })!;
       const output = await root.executeCheckpoint(scheduled.request!, "stages", correlation.inputIds, correlation.retryReason);
       const step = root.applyCheckpointResult(state, output.result, { wallTimeMs: 1_001, monotonicMs: 2 });
-      expect(step.diagnostics.map((event) => event.reason)).toContain(reason);
-      if (stage === "directorySync") expect(step.diagnostics.map((event) => event.reason)).toContain("checkpointUncertain");
+      expect((await root.readDiagnostics({ limit: 256 })).records.map((event) => event.reason)).toContain(reason);
+      if (stage === "directorySync") expect((await root.readDiagnostics({ limit: 256 })).records.map((event) => event.reason)).toContain("checkpointUncertain");
       await root.diagnostics.flush();
     }
   });
@@ -269,7 +280,9 @@ describe("P2 checkpoint", () => {
   it("P2-A3-T08 contractBoundary / AC08: full-byte hash, two slots, schema and decode gate restoration", async () => {
     const path = await directory();
     let now = 1;
-    const root = new RuntimeCompositionRoot<TestUnits>(config(path), { "U-F": codec() }, {
+    const driver = fixtureDriver();
+    const root = new RuntimeCompositionRoot(config(path), { "U-F": codec("U-F") }, {
+      runtimeCalls: driver.calls,
       clock: () => ({ wallTimeMs: 1_000 + now, monotonicMs: now++ }),
     });
     let state = pending({ "U-F": { value: "same" } }, { "U-F": { kind: "pending",
@@ -278,8 +291,8 @@ describe("P2 checkpoint", () => {
       { "U-F": correlation })!;
     let output = await root.executeCheckpoint(scheduled.request!, "hash", correlation.inputIds, correlation.retryReason);
     state = root.applyCheckpointResult(state, output.result, { wallTimeMs: 1_001, monotonicMs: 2 }).state;
-    state = pending({ "U-F": { value: "same" } }, { "U-F": { ...state.persistence["U-F"]!, kind: "pending",
-      currentGeneration: 9, dirtySince: 3 } });
+    state = driver.update(root, pending({ "U-F": { value: "same" } }, { "U-F": { ...state.persistence["U-F"]!, kind: "pending",
+      currentGeneration: 9, dirtySince: 3 } }), { wallTimeMs: 3, monotonicMs: 3 });
     scheduled = root.scheduleCheckpoint(state, { wallTimeMs: 1_002, monotonicMs: 3 }, "hash",
       { "U-F": correlation })!;
     output = await root.executeCheckpoint(scheduled.request!, "hash", correlation.inputIds, correlation.retryReason);

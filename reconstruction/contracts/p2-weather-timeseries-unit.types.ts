@@ -1,11 +1,14 @@
 import type { DecodedMaterial, MaterialValue, Operation } from "./p1-parser-boundary.types";
 import type {
+  ClockReading,
   DiagnosticDetails,
   NotificationIntent,
+  NotificationIntentUpdate,
   PersistenceStatus,
   PublishedOutcome,
   ReportRef,
   RejectionReason,
+  RuntimeUnitDeadline,
   UnitCodec,
   UnitView as SharedUnitView,
 } from "./p2-shared-runtime.types";
@@ -62,14 +65,15 @@ export type WeatherTimeseriesUnitView = SharedUnitView & Readonly<{
 }>;
 
 export type WeatherTimeseriesInput =
-  | Readonly<{ kind: "receive"; material: DecodedMaterial; nowMs: number }>
-  | Readonly<{ kind: "deadline"; nowMs: number }>
-  | Readonly<{ kind: "restore"; persisted: PersistedWeatherTimeseriesUnit; nowMs: number }>
-  | Readonly<{ kind: "notificationResult"; intentId: string; disposition: NotificationIntent["disposition"]; nowMs: number }>
-  | Readonly<{ kind: "shutdown"; nowMs: number }>;
+  | Readonly<{ kind: "receive"; material: DecodedMaterial; clock: ClockReading }>
+  | Readonly<{ kind: "deadline"; clock: ClockReading }>
+  | Readonly<{ kind: "restore"; persisted: PersistedWeatherTimeseriesUnit; clock: ClockReading }>
+  | Readonly<{ kind: "intentUpdate"; intentUpdate: NotificationIntentUpdate; clock: ClockReading }>
+  | Readonly<{ kind: "shutdown"; clock: ClockReading }>;
 
 export type WeatherTimeseriesUnitStep = Readonly<{
   state: WeatherTimeseriesUnitState;
+  nextDeadline: RuntimeUnitDeadline | null;
   // Subject identity includes operation; compare these records with the sequence oracle.
   decisions: readonly (Readonly<{ subject: string; operation: Operation }> & (
     | Readonly<{ decision: "unchanged"; reason: "duplicate" | "stale" | "noChange" }>

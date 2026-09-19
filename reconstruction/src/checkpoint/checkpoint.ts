@@ -3,6 +3,7 @@ import { join } from "node:path";
 
 import type { CheckpointMeasurement } from "../../contracts/p2-eew-e01.types";
 import type {
+  CheckpointCapture,
   CheckpointEnvelope,
   CheckpointRequest,
   CheckpointResult,
@@ -11,6 +12,8 @@ import type {
   JsonValue,
   RestoreUnitResult,
   RuntimeState,
+  RuntimeUnitStates,
+  RuntimeUnitId,
   UnitCodec,
   UnitId,
 } from "../../contracts/p2-shared-runtime.types";
@@ -31,7 +34,7 @@ type CheckpointFileSystem = Readonly<{
   syncDirectory(path: string): Promise<void>;
 }>;
 
-type CodecMap<UnitStates extends Readonly<Partial<Record<UnitId, unknown>>>> = Readonly<{
+type CodecMap<UnitStates extends RuntimeUnitStates = RuntimeUnitStates> = Readonly<{
   [Unit in keyof UnitStates]?: UnitCodec<UnitStates[Unit], JsonValue>;
 }>;
 
@@ -103,7 +106,7 @@ function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message.slice(0, 512) : "checkpoint operation failed";
 }
 
-class CheckpointCoordinator<UnitStates extends Readonly<Partial<Record<UnitId, unknown>>>> {
+class CheckpointCoordinator<UnitStates extends RuntimeUnitStates = RuntimeUnitStates> {
   private readonly attempts = new Map<string, Attempt>();
   private readonly retry = new Map<UnitId, { failures: number; retryAfter: number;
     retryReason: CheckpointMeasurement["retryReason"] }>();
@@ -169,8 +172,8 @@ class CheckpointCoordinator<UnitStates extends Readonly<Partial<Record<UnitId, u
     correlationByUnit: Readonly<Partial<Record<UnitId, Correlation>>>,
     force = false,
     excluded: ReadonlySet<UnitId> = new Set(),
-  ): Readonly<{ request: CheckpointRequest; result: null; measurements: readonly CheckpointMeasurement[] }>
-    | Readonly<{ request: null; result: Extract<CheckpointResult, { kind: "failed" }> & Readonly<{ stage: "encode" }>; measurements: readonly CheckpointMeasurement[] }>
+  ): Readonly<{ capture: CheckpointCapture; request: CheckpointRequest; result: null; measurements: readonly CheckpointMeasurement[] }>
+    | Readonly<{ capture: CheckpointCapture; request: null; result: Extract<CheckpointResult, { kind: "failed" }> & Readonly<{ stage: "encode" }>; measurements: readonly CheckpointMeasurement[] }>
     | null {
     for (const [unit, status] of Object.entries(state.persistence) as [UnitId, RuntimeState<UnitStates>["persistence"][UnitId]][]) {
       if (status?.dirtySince != null && clock.monotonicMs - status.dirtySince > 3_000) this.emitOverdue(unit, status.currentGeneration, runId, clock);
@@ -186,11 +189,11 @@ class CheckpointCoordinator<UnitStates extends Readonly<Partial<Record<UnitId, u
       }
       return null;
     }
-    const candidates = (Object.entries(state.persistence) as [UnitId, RuntimeState<UnitStates>["persistence"][UnitId]][])
+    const candidates = (["U-E", "U-W", "U-F"] as const).map((unit) => [unit, state.persistence[unit]] as const)
       .filter(([unit, status]) => status != null && !excluded.has(unit)
         && status.kind !== "uncertain" && status.dirtySince != null
         && status.currentGeneration !== status.savedGeneration
-        && this.codec(unit) != null && state.units[unit] !== undefined
+        && this.codec(unit) != null
         && correlationByUnit[unit] != null
         && correlationByUnit[unit]!.retryReason === (this.retry.get(unit)?.retryReason ?? "notRetry")
         && (force || (this.retry.get(unit)?.retryAfter ?? Number.NEGATIVE_INFINITY) <= clock.monotonicMs))
@@ -206,8 +209,9 @@ class CheckpointCoordinator<UnitStates extends Readonly<Partial<Record<UnitId, u
     this.reservedAttemptId = attemptId;
     const started = this.readClock();
     const capturedAt = started.wallTimeMs;
+    const capture: CheckpointCapture = { attemptId, unit, generation, capturedAt };
     try {
-      const payload = codec.encode(state.units[unit]!);
+      const payload = codec.encode(state.units[unit]);
       const envelope = hashEnvelope({ schemaVersion: codec.schemaVersion, unit, generation, capturedAt, payload });
       const bytes = serializedEnvelope(envelope);
       const ended = this.readClock();
@@ -217,7 +221,7 @@ class CheckpointCoordinator<UnitStates extends Readonly<Partial<Record<UnitId, u
       };
       this.attempts.set(attemptId, { request, unit, generation, runId, inputIds: [...correlation.inputIds],
         retryReason: correlation.retryReason, capturedAt, phase: "reserved" });
-      return { request, result: null, measurements: [this.measurement(request, "encode", started.monotonicMs,
+      return { capture, request, result: null, measurements: [this.measurement(request, "encode", started.monotonicMs,
         ended.monotonicMs, bytes.byteLength, "succeeded", runId, correlation)] };
     } catch (error) {
       const ended = this.readClock();
@@ -225,10 +229,9 @@ class CheckpointCoordinator<UnitStates extends Readonly<Partial<Record<UnitId, u
         kind: "failed", attemptId, unit, generation, failedAt: ended.wallTimeMs,
         stage: "encode", reason: errorMessage(error), encodedByteLength: 0,
       } as const;
-      this.reservedAttemptId = null;
       this.attempts.set(attemptId, { request: null, unit, generation, runId, inputIds: [...correlation.inputIds],
         retryReason: correlation.retryReason, capturedAt, phase: "ended" });
-      return { request: null, result, measurements: [{
+      return { capture, request: null, result, measurements: [{
         runId, inputIds: [...correlation.inputIds], unit, generation, attemptId, stage: "encode",
         startedMonotonicMs: started.monotonicMs, endedMonotonicMs: ended.monotonicMs,
         bytes: 0, outcome: "failed", retryReason: correlation.retryReason,
@@ -329,41 +332,38 @@ class CheckpointCoordinator<UnitStates extends Readonly<Partial<Record<UnitId, u
     }
   }
 
-  resultMetadata(
-    state: RuntimeState<UnitStates>,
-    result: CheckpointResult,
-    clock: ClockReading,
-  ): Readonly<{ persistence: RuntimeState<UnitStates>["persistence"]; diagnostics: readonly DiagnosticEvent[] }> {
+  validateResult(state: RuntimeState<UnitStates>, result: CheckpointResult): boolean {
     const previous = state.persistence[result.unit];
     const attempt = this.attempts.get(result.attemptId);
-    if (previous == null || attempt == null) return { persistence: state.persistence, diagnostics: [] };
+    if (previous == null || attempt == null) return false;
     if (attempt.unit !== result.unit || attempt.generation !== result.generation)
       throw new Error("checkpoint result correlation mismatch");
+    const capture = state.checkpointAttempts[result.unit as RuntimeUnitId];
+    if (capture?.attemptId !== result.attemptId || capture.generation !== result.generation
+      || result.encodedByteLength !== (attempt.request?.encodedByteLength ?? 0))
+      throw new Error("checkpoint capture correlation mismatch");
     if (result.kind !== "uncertain" && attempt.phase !== "ended")
       throw new Error("checkpoint operation has not ended");
     if (result.kind === "acknowledged" && !attempt.acknowledged)
       throw new Error("checkpoint durability is not confirmed");
-    let persistence: RuntimeState<UnitStates>["persistence"][UnitId];
+    return true;
+  }
+
+  resultMetadata(state: RuntimeState<UnitStates>, result: CheckpointResult, clock: ClockReading): void {
+    // Called only after validateResult and successful A1 adoption, with the pre-result state.
+    const previous = state.persistence[result.unit]!;
+    const attempt = this.attempts.get(result.attemptId)!;
     const diagnostics: DiagnosticEvent[] = [];
     if (result.kind === "acknowledged") {
-      const advances = previous.savedGeneration == null || result.generation > previous.savedGeneration;
-      const savedGeneration = Math.max(previous.savedGeneration ?? 0, result.generation);
-      const saved = savedGeneration === previous.currentGeneration;
-      persistence = { kind: saved ? "saved" : "pending", currentGeneration: previous.currentGeneration,
-        savedGeneration, savedCapturedAt: advances ? attempt.capturedAt : previous.savedCapturedAt,
-        savedAckAt: advances ? result.ackAt : previous.savedAckAt,
-        dirtySince: saved ? null : previous.dirtySince };
       this.retry.delete(result.unit);
       this.overdue.delete(result.unit);
     } else if (result.kind === "failed") {
-      persistence = { ...previous, kind: "failed", stage: result.stage, reason: result.reason };
       diagnostics.push(completeDiagnostic({ level: "ERROR", component: "checkpoint",
         reason: failureReasons[result.stage], unit: result.unit, generation: result.generation,
         attemptId: result.attemptId }, clock, attempt.runId));
       if (!attempt.retryRecorded) diagnostics.push(this.scheduleRetry(result.attemptId, attempt, clock,
         previous.kind === "uncertain" ? "ackUncertain" : "saveFailed"));
     } else {
-      persistence = { ...previous, kind: "uncertain", attemptedGeneration: result.generation };
       const failedStage = attempt.failedStage ?? (result.stage === "ack" ? null : result.stage);
       if (failedStage != null) diagnostics.push(completeDiagnostic({ level: "ERROR", component: "checkpoint",
         reason: failureReasons[failedStage], unit: result.unit, generation: result.generation,
@@ -375,15 +375,10 @@ class CheckpointCoordinator<UnitStates extends Readonly<Partial<Record<UnitId, u
     if (this.reservedAttemptId === result.attemptId && attempt.phase === "ended") this.reservedAttemptId = null;
     diagnostics.forEach(this.emitDiagnostic);
     if (result.kind !== "uncertain") this.attempts.delete(result.attemptId);
-    return { persistence: { ...state.persistence, [result.unit]: persistence }, diagnostics };
   }
 
   retryAfter(unit: UnitId): number | null {
     return this.retry.get(unit)?.retryAfter ?? null;
-  }
-
-  attemptRunId(attemptId: string): string {
-    return this.attempts.get(attemptId)?.runId ?? "checkpoint";
   }
 
   retryReason(unit: UnitId): CheckpointMeasurement["retryReason"] {

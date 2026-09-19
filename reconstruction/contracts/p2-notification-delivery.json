@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "585d2f4f858e350c6965d83019ba7e4842285b3c",
-    "sha256": "e7e707615825d14311debb228989ac1f0afb7b08511c95265ae6186fc8f7f80a",
+    "sha256": "30455edf48cfbc099a486a4d139089c382b3da4ee2679c9916244b606665e128",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "76c82b87d7783a4eae14af690cb34e7d6ec46f73617dc75b7f7401951619f080",
     "sequencesSha256": "22b2432e8989d7e7cc2514f2297308e84b3c0f1a3e045491b9cf60cfa8f2d147",
@@ -239,11 +239,13 @@
     ],
     "workDeadline": null,
     "persistenceUnits": [
-      "U-E"
+      "U-E",
+      "U-W",
+      "U-F"
     ],
     "persistedFields": [
-      "NotificationIntent remains owned by U-E with original createdAt/expiresAt, attempts, nextAttemptAt, configRevision and disposition",
-      "valid delivered/failed/expired/superseded result changes applied by runtime before the containing U-E generation is checkpointed"
+      "NotificationIntent remains owned by its originating U-E/U-W/U-F unit with original createdAt/expiresAt, attempts, nextAttemptAt, configRevision and disposition; A7 owns no durable intent store",
+      "Selection updates and correlated delivery/expiry/supersession updates are applied atomically by A1 through the owning unit's intentUpdate input before that unit's generation is checkpointed"
     ],
     "nonPersistedFields": [
       "NotificationAttempt and AbortSignal",
@@ -415,7 +417,8 @@
       "channelごとの一件実行と停止未確認隔離がないと外部sound/desktop処理が重なるため、汎用worker poolやoutboxを作らず二channelの状態だけを持つ",
       "音源resolverは根音表v1と既存render-sounds.mjsの読み取り再利用で足りる。新築WAVがないと旧築資材の編集権限へ依存するためreconstruction/assets/soundsだけへ出力し、生成が要る場合のみreconstruction/src/notification-delivery配下の最小処理を使う。旧築改修はdecisionBranchesの別契約へ分離する。1実装interface、1製品factory、将来用extension pointは作らない",
       "A3 composition root結線後、保存失敗・通常終了・復元直後の実adapter結果まで再検収し、unit testだけでE21 Passにしない",
-      "allowed_paths限定patch、変更一覧、build/test/shuffle結果、未実行検証、残存リスク"
+      "allowed_paths限定patch、変更一覧、build/test/shuffle結果、未実行検証、残存リスク",
+      "追実装で閉じる項目(A7): NotificationDeliveryStateのintent正本をA7内へ保持せず、A1がU-E/U-W/U-F stateのintentsとRuntimeState.notificationChannelsから毎回構成してselectNotificationAttempt/applyNotificationResultを呼ぶ。A7は既存NotificationSelection.attempts/abortAttemptIds、更新channels、dirtyUnits、diagnosticsを返す純関数のままとし、RuntimeStateを構築・部分更新しない。A1は選択時・完了時とも更新されたintentsからNotificationIntentUpdateを取り出し各unitのintentUpdate入力へ渡してchannelsと同時採用する。選択時に完了結果を捏造しない。A7診断はA1がstate.runIdと明示clock（通知結果はcompletedAt）で完成させる。無いと3単位の試行回数更新・診断相関が欠ける。保存所有を3単位へ整合させる改訂であり、各unit未決の通知生成条件・Q-NOTICEを新たに裁定するものではない"
     ],
     "unresolvedQuestions": [
       {
