@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "3095a6c21caa96e06fc3b3a6d2f906534ef5441b",
-    "sha256": "214492b328c1a26fe636168c71b5302bc306dbf8127362ded6be28a8c5596b2d",
+    "sha256": "f98afe8891321248a3ff8ab494d4fb5e8092fbfa06e2450afa4b0385faaceaba",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "76c82b87d7783a4eae14af690cb34e7d6ec46f73617dc75b7f7401951619f080",
     "sequencesSha256": "22b2432e8989d7e7cc2514f2297308e84b3c0f1a3e045491b9cf60cfa8f2d147",
@@ -77,7 +77,7 @@
     "contractId": "P2-CHECKPOINT-SHUTDOWN-001",
     "mode": "implementation",
     "objective": "B02・B07・B15永続sinkを実装し、2slot保存、世代/hash、Q2=B、uncertain照合、公平な再試行、通常終了、書込み帰属、永続診断を閉じ、後続unitとadapterのcomposition root結線・再検収を所有する。",
-    "baseOid": "unassigned",
+    "baseOid": "2af266554541c700db0cb0d44272db727b4c9267",
     "cleanTreeRequired": true,
     "readPaths": [
       "docs/specs/reconstruction-p0-contracts.md",
