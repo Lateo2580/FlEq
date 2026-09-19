@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "3095a6c21caa96e06fc3b3a6d2f906534ef5441b",
-    "sha256": "f98afe8891321248a3ff8ab494d4fb5e8092fbfa06e2450afa4b0385faaceaba",
+    "sha256": "31a6e65131cce1c5004228a3262ee6d7743f9f713545083be7b761beb891e368",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "76c82b87d7783a4eae14af690cb34e7d6ec46f73617dc75b7f7401951619f080",
     "sequencesSha256": "22b2432e8989d7e7cc2514f2297308e84b3c0f1a3e045491b9cf60cfa8f2d147",
@@ -529,6 +529,7 @@
       "A/B 2slotと単一writerがないとrename後ack前の成否不明を検証済み世代へ照合できず重複writeを防げないため、この最小保存機構を要求する",
       "永続診断はfilesystem adapter経由の非同期回転ファイル一方式だけとし、新logger frameworkを追加しない",
       "composition rootはA3だけが編集する。A4/A5/A6の各配送後にreducer・codec・期限・view/outcome/intentを直列結線し、保存障害・通常終了・復元直後続報をunit担当と再検収する。runtime/shared-runtime.tsとP1既存3ファイルは編集しない",
+      "A2配送後、composition rootの既存1秒tickは到着・生存応答がなくてもmailbox.drainDiagnostics(clock.monotonicMs)を呼び、停止診断・overflow要約を含むDiagnosticDetailsを同じrunのclock.wallTimeMs/runIdでDiagnosticEventへ完成させ、B15 enqueueDiagnostic sinkへ一度だけ流す",
       "A7/A8の各配送後もadapter/出力をcomposition rootへ直列結線する。A7の共有NotificationResultをreduceRuntimeへ渡し、照合済みintent更新をattempts/nextAttemptAt/dispositionごとにA4 EewInputへ渡す唯一の経路とする。実通知結果またはSSEを含む同じ再検収を行い、9段証拠が揃うまで対象unitを完了扱いしない",
       "filesystem故障注入点、実媒体file/directory sync、rename後再読込、遅いack、最大encoded byteの版付き証拠",
       "allowed_pathsに限定したgit diff --binary --no-ext-diff patch",

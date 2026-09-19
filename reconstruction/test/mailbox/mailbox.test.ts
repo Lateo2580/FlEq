@@ -136,6 +136,32 @@ describe("P2 mailbox", () => {
           }
         }
       }
+      // Only pending parser inventory is cancellable, in either allocation.
+      for (const priority of ["normal", "eewCandidate"] as const) {
+        const mailbox = new Mailbox();
+        const running = parserEnvelope(item("running", 0, "VXSE45", 2), priority, 0);
+        const pending = parserEnvelope(item("pending", 1, "VXSE45", 3), priority, 0);
+        mailbox.enqueue(running);
+        mailbox.enqueue(pending);
+        expect(mailbox.takeNext(1)).toBe(running);
+        expect(mailbox.cancel("pending", 2)).toMatchObject({ pendingItems: 0, pendingBytes: 0,
+          inFlightItems: 1, inFlightBytes: 2, accepted: 2, completed: 0, cancelled: 1,
+          highWaterItems: 2, highWaterBytes: 5, limitViolations: 0, lastProgressMonotonicMs: 1 });
+        const beforeNoOp = mailbox.stats(3);
+        for (const id of ["running", "pending", "absent"])
+          expect(mailbox.cancel(id, 3)).toEqual(beforeNoOp);
+        expect(mailbox.stats(3)).toMatchObject({ cancelled: 1, inFlightItems: 1, lastProgressMonotonicMs: 1 });
+        const control = controlEnvelope("control", { kind: "deadline", clock: { wallTimeMs: 0, monotonicMs: 4 } }, 4);
+        mailbox.enqueue(control);
+        const beforeCancel = mailbox.stats(4);
+        expect(mailbox.cancel("control", 4)).toEqual(beforeCancel);
+        expect(mailbox.takeNext(4)).toBe(control);
+        const inFlight = mailbox.stats(4);
+        expect(mailbox.cancel("control", 4)).toEqual(inFlight);
+        mailbox.complete(completion(control, 4, 5));
+        expect(mailbox.complete(completion(running, 1, 6))).toMatchObject({ pendingItems: 0, pendingBytes: 0,
+          inFlightItems: 0, inFlightBytes: 0, completed: 2, cancelled: 1, limitViolations: 0 });
+      }
       // A real UTF-8 control payload shares reservation bytes with emergency data.
       const mailbox = new Mailbox();
       const ack = controlEnvelope("保存ack", { kind: "checkpointResult", clock: { wallTimeMs: 0, monotonicMs: 0 },
@@ -211,6 +237,40 @@ describe("P2 mailbox", () => {
       expect(next).toBe(expected);
       if (next == null) throw new Error("priority item missing");
       mailbox.complete(completion(next, 16, 17));
+    }
+  });
+
+  it("P2-A2-T03-ORDER regression / AC03: one classification governs ordering, priority and reservation", () => {
+    for (const operation of ["training", "test"] as const) {
+      for (const sources of [
+        { headTest: { kind: "notProvided" }, envelopeStatus: { kind: "notProvided" } },
+        { headTest: { kind: "provided", value: false }, envelopeStatus: { kind: "provided", value: "training" } },
+      ] as const) {
+        const mailbox = new Mailbox();
+        // Same headType is the mailbox ordering key; subject interpretation belongs to the reducer.
+        const nonNormal = parserEnvelope(item(operation, 0, "VXSE45", 1, operation), "eewCandidate");
+        const unknown = parserEnvelope({ ...item("unknown", 1, "VXSE45", 1), ...sources }, "eewCandidate");
+        const normal = parserEnvelope(item("normal", 2, "VXSE45", 1), "eewCandidate");
+        for (const envelope of [nonNormal, unknown, normal]) expect(mailbox.enqueue(envelope).kind).toBe("accepted");
+        // One non-normal in the normal allocation; unknown and normal share the reservation.
+        for (let index = 0; index < 119; index += 1)
+          expect(mailbox.enqueue(parserEnvelope(item(`normal-${index}`, index + 3, "VPWS50", 1), "normal", 2)).kind).toBe("accepted");
+        expect(mailbox.enqueue(parserEnvelope(item("normal-overflow", 200, "VPWS50", 1), "normal", 2)))
+          .toMatchObject({ kind: "rejected", reason: "itemLimit", stats: { pendingItems: 122 } });
+        const reserved = Array.from({ length: 6 }, (_, index) =>
+          parserEnvelope(item(`reserved-${index}`, index + 201, "VTSE41", 1), "tsunamiCandidate", 2));
+        for (const envelope of reserved) expect(mailbox.enqueue(envelope).kind).toBe("accepted");
+        expect(mailbox.enqueue(parserEnvelope(item("reserved-overflow", 207, "VTSE41", 1), "tsunamiCandidate", 2)))
+          .toMatchObject({ kind: "rejected", reason: "itemLimit", stats: { pendingItems: 128, pendingBytes: 128 } });
+        for (let index = 0; index < 119; index += 1) mailbox.cancel(`normal-${index}`, 2);
+        for (const envelope of reserved) mailbox.cancel(envelope.messageId, 2);
+        expect(mailbox.stats(2).pendingItems).toBe(3);
+        for (const [index, expected] of [unknown, normal, nonNormal].entries()) {
+          const now = 10 + index * 2;
+          expect(mailbox.takeNext(now)).toBe(expected);
+          mailbox.complete(completion(expected, now, now + 1));
+        }
+      }
     }
   });
 
@@ -299,6 +359,9 @@ describe("P2 mailbox", () => {
       lastWorkerResponseMonotonicMs: 5_000, oldestIncompleteAgeMs: 5_000 });
     expect(5_000 - atFive.lastProgressMonotonicMs!).toBe(5_000);
     expect(5_000 - atFive.lastWorkerResponseMonotonicMs!).toBe(0);
+    expect(mailbox.drainDiagnostics(5_000)).toEqual([
+      { level: "WARN", component: "mailbox", reason: "mailboxStalled", count: 1, durationMs: 5_000 },
+    ]);
     expect(mailbox.stats(5_001)).toMatchObject({ accepted: 6, completed: 0, rejected: 0,
       lastProgressMonotonicMs: 0, oldestIncompleteAgeMs: 5_001 });
     expect(mailbox.takeNext(5_001)?.messageId).toBe("stuck-0");
@@ -313,15 +376,132 @@ describe("P2 mailbox", () => {
     const deadlines = new Mailbox();
     deadlines.enqueue(controlEnvelope("only-deadline", { kind: "deadline",
       clock: { wallTimeMs: 10, monotonicMs: 2_000 } }, 1_000));
-    expect(deadlines.stats(5_000)).toMatchObject({ lastProgressMonotonicMs: 2_000,
+    expect(deadlines.stats(5_000)).toMatchObject({ lastProgressMonotonicMs: 1_000,
       nextDeadlineMonotonicMs: 2_000, oldestIncompleteAgeMs: 4_000 });
     deadlines.enqueue(parserEnvelope(item("later", 1, "VPWS50", 1), "normal", 7_000));
     const later = deadlines.stats(7_000);
-    expect(later).toMatchObject({ lastProgressMonotonicMs: 2_000, lastArrivalMonotonicMs: 7_000,
+    expect(later).toMatchObject({ lastProgressMonotonicMs: 1_000, lastArrivalMonotonicMs: 7_000,
       nextDeadlineMonotonicMs: 2_000, oldestPendingAgeMs: 6_000, oldestIncompleteAgeMs: 6_000 });
-    expect(7_000 - later.lastProgressMonotonicMs!).toBe(5_000);
+    expect(7_000 - later.lastProgressMonotonicMs!).toBe(6_000);
     deadlines.stats(20_000);
     expect(deadlines.stats(7_000)).toEqual(later);
     expect(deadlines.recordWorkerResponse(7_000)).toEqual({ ...later, lastWorkerResponseMonotonicMs: 7_000 });
+    expect(deadlines.drainDiagnostics(7_000)).toEqual([
+      { level: "WARN", component: "mailbox", reason: "mailboxStalled", count: 1, durationMs: 6_000 },
+    ]);
+  });
+
+  it("P2-A2-T05-OVERFLOW contractBoundary / AC05: 64 shared diagnostic slots include one overflow summary", () => {
+    for (const total of [64, 65, 66]) {
+      for (const withStop of [false, true]) {
+        const mailbox = new Mailbox();
+        mailbox.enqueue(parserEnvelope(item("too-big", 0, "VPWS50", 14 * 1024 * 1024 + 1), "normal", 0));
+        for (let index = 0; index <= 120; index += 1)
+          mailbox.enqueue(parserEnvelope(item(`item-${index}`, index, "VPWS50", 1), "normal", 0));
+        mailbox.beginDrain(0);
+        const stops = withStop ? 2 : 0;
+        for (let index = 0; index < total - 2 - stops; index += 1)
+          mailbox.enqueue(parserEnvelope(item(`late-${index}`, index, "VPWS50", 1), "normal", 0));
+        const now = withStop ? 5_000 : 0;
+        const before = mailbox.stats(now);
+        const diagnostics = mailbox.drainDiagnostics(now);
+        expect(diagnostics).toHaveLength(64);
+        const retained = total === 64 ? diagnostics : diagnostics.slice(0, -1);
+        const rejections = withStop ? retained.slice(0, -2) : retained;
+        if (total === 64) {
+          expect(rejections.slice(0, 2)).toEqual([
+            { level: "WARN", component: "mailbox", reason: "mailboxRejectedByteLimit", count: 1 },
+            { level: "WARN", component: "mailbox", reason: "mailboxRejectedItemLimit", count: 1 },
+          ]);
+        } else {
+          expect(diagnostics.at(-1)).toEqual({ level: "WARN", component: "mailbox",
+            reason: "diagnosticQueueOverflow", count: total - 63 });
+        }
+        expect(rejections.slice(total === 64 ? 2 : 0).every(({ reason }) => reason === "mailboxRejectedDraining")).toBe(true);
+        if (withStop) expect(retained.slice(-2)).toEqual([
+          { level: "WARN", component: "mailbox", reason: "mailboxStalled", count: 1, durationMs: 5_000 },
+          { level: "WARN", component: "mailbox.worker", reason: "mailboxStalled", count: 1, durationMs: 5_000 },
+        ]);
+        expect(diagnostics.reduce((count, diagnostic) => count + diagnostic.count!, 0)).toBe(total);
+        expect(mailbox.drainDiagnostics(now)).toEqual([]);
+        expect(mailbox.stats(now)).toEqual(before);
+      }
+    }
+  });
+
+  it("P2-A2-T05 contractBoundary / AC05: drain alone diagnoses independent processing and worker stalls", () => {
+    const stopped = (component: string, durationMs: number) =>
+      ({ level: "WARN", component, reason: "mailboxStalled", count: 1, durationMs });
+    const mailbox = new Mailbox();
+    const running = parserEnvelope(item("running", 0, "VPWS50", 1), "normal", 0);
+    mailbox.enqueue(running);
+    mailbox.enqueue(parserEnvelope(item("cancel-me", 1, "VPWS50", 1), "normal", 0));
+    mailbox.enqueue(parserEnvelope(item("remaining", 2, "VPWS50", 1), "normal", 0));
+    mailbox.stats(20_000); // Read-only observation must not pre-generate a future diagnostic.
+    expect(mailbox.drainDiagnostics(4_999)).toEqual([]);
+    expect(mailbox.drainDiagnostics(5_000)).toEqual([stopped("mailbox", 5_000), stopped("mailbox.worker", 5_000)]);
+    expect(mailbox.drainDiagnostics(5_001)).toEqual([]);
+    expect(mailbox.drainDiagnostics(5_001)).toEqual([]);
+    expect(mailbox.cancel("cancel-me", 6_000).lastProgressMonotonicMs).toBe(0);
+    mailbox.enqueue(parserEnvelope(item("new-arrival", 3, "VPWS50", 1), "normal", 6_001));
+    expect(mailbox.drainDiagnostics(6_001)).toEqual([]);
+    expect(mailbox.takeNext(7_000)).toBe(running);
+    expect(mailbox.takeNext(7_001)).toBeNull();
+    expect(mailbox.drainDiagnostics(11_999)).toEqual([]);
+    expect(mailbox.drainDiagnostics(12_000)).toEqual([stopped("mailbox", 5_000)]);
+    expect(mailbox.drainDiagnostics(12_001)).toEqual([]);
+    const done = completion(running, 7_000, 13_000);
+    mailbox.complete(done);
+    expect(mailbox.drainDiagnostics(17_999)).toEqual([]);
+    expect(mailbox.drainDiagnostics(18_000)).toEqual([stopped("mailbox", 5_000)]);
+    mailbox.complete(done);
+    mailbox.cancel("remaining", 18_001);
+    mailbox.cancel("absent", 18_001);
+    mailbox.complete(completion(running, -2, -1));
+    expect(mailbox.drainDiagnostics(18_001)).toEqual([]);
+    mailbox.recordWorkerResponse(19_000);
+    expect(mailbox.drainDiagnostics(23_999)).toEqual([]);
+    expect(mailbox.drainDiagnostics(24_000)).toEqual([stopped("mailbox.worker", 5_000)]);
+    expect(mailbox.drainDiagnostics(24_001)).toEqual([]);
+
+    // Control progress never resets the independent worker response origin or latch.
+    const controls = new Mailbox();
+    const first = controlEnvelope("first", { kind: "deadline", clock: { wallTimeMs: 0, monotonicMs: 0 } }, 0);
+    controls.enqueue(first);
+    controls.recordWorkerResponse(0);
+    expect(controls.takeNext(4_000)).toBe(first);
+    controls.complete(completion(first, 4_000, 4_000));
+    expect(controls.drainDiagnostics(4_999)).toEqual([]);
+    expect(controls.drainDiagnostics(5_000)).toEqual([stopped("mailbox.worker", 5_000)]);
+    const second = controlEnvelope("second", { kind: "deadline", clock: { wallTimeMs: 5_001, monotonicMs: 5_001 } }, 5_001);
+    controls.enqueue(second);
+    expect(controls.takeNext(5_001)).toBe(second);
+    controls.complete(completion(second, 5_001, 5_001));
+    expect(controls.drainDiagnostics(5_001)).toEqual([]);
+    expect(controls.drainDiagnostics(10_001)).toEqual([]);
+
+    const notStarted = new Mailbox();
+    notStarted.recordWorkerResponse(0);
+    expect(notStarted.takeNext(20_000)).toBeNull();
+    notStarted.cancel("absent", 20_000);
+    expect(notStarted.drainDiagnostics(20_000)).toEqual([]);
+    const deadline = new Mailbox();
+    deadline.enqueue(controlEnvelope("deadline", { kind: "deadline", clock: { wallTimeMs: 2_000, monotonicMs: 2_000 } }, 1_000));
+    deadline.recordWorkerResponse(6_000);
+    expect(deadline.drainDiagnostics(6_999)).toEqual([]);
+    expect(deadline.drainDiagnostics(7_000)).toEqual([stopped("mailbox", 5_000)]);
+    expect(deadline.drainDiagnostics(7_001)).toEqual([]);
+
+    // Even a rejected first arrival starts monitoring; older responses cannot predate that origin.
+    const rejected = new Mailbox();
+    rejected.recordWorkerResponse(0);
+    rejected.beginDrain(0);
+    rejected.enqueue(parserEnvelope(item("rejected", 0, "VPWS50", 1), "normal", 1_000));
+    rejected.stats(20_000);
+    expect(rejected.drainDiagnostics(5_999)).toEqual([
+      { level: "WARN", component: "mailbox", reason: "mailboxRejectedDraining", count: 1 },
+    ]);
+    expect(rejected.drainDiagnostics(6_000)).toEqual([stopped("mailbox.worker", 5_000)]);
+    expect(rejected.drainDiagnostics(6_001)).toEqual([]);
   });
 });

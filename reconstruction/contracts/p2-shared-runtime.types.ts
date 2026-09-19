@@ -259,6 +259,7 @@ export type MailboxStats = Readonly<{
   oldestIncompleteAgeMs: number | null;
   accepted: number;
   completed: number;
+  cancelled: number;
   rejected: number;
   limitViolations: number;
 }>;

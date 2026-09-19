@@ -1,4 +1,5 @@
 import type {
+  DiagnosticDetails,
   MailboxCompletion,
   MailboxEnqueueResult,
   MailboxEnvelope,
@@ -11,6 +12,7 @@ const NORMAL_ITEM_LIMIT = 120;
 const NORMAL_BYTE_LIMIT = 14 * 1024 * 1024;
 const RESERVED_ITEM_LIMIT = 8;
 const RESERVED_BYTE_LIMIT = 2 * 1024 * 1024;
+const DIAGNOSTIC_ITEM_LIMIT = 64;
 
 type Entry = {
   readonly envelope: MailboxEnvelope;
@@ -22,15 +24,11 @@ type Entry = {
 
 const encoder = new TextEncoder();
 
-function confirmedNonNormal(envelope: MailboxEnvelope): boolean {
-  if (envelope.payload.kind !== "parser") return false;
-  const { headTest, envelopeStatus } = envelope.payload.item;
-  return headTest.kind === "provided" && headTest.value
-    || envelopeStatus.kind === "provided" && envelopeStatus.value !== "normal";
-}
-
 function allocation(envelope: MailboxEnvelope): Entry["allocation"] {
-  return envelope.priorityReason !== "normal" && !confirmedNonNormal(envelope) ? "reserved" : "normal";
+  if (envelope.payload.kind === "control") return "reserved";
+  const classification = operation(envelope);
+  return envelope.priorityReason !== "normal" && (classification === "normal" || classification === "unknown")
+    ? "reserved" : "normal";
 }
 
 function encodedBytes(envelope: MailboxEnvelope): number {
@@ -41,13 +39,15 @@ function encodedBytes(envelope: MailboxEnvelope): number {
 
 function priority(entry: Entry): number {
   if (entry.envelope.payload.kind === "control") return 0;
-  if (confirmedNonNormal(entry.envelope)) return 3;
+  const classification = operation(entry.envelope);
+  if (classification !== "normal" && classification !== "unknown") return 3;
   if (entry.envelope.priorityReason === "eewCandidate") return 1;
   if (entry.envelope.priorityReason === "tsunamiCandidate") return 2;
   return 3;
 }
 
 function operation(envelope: MailboxEnvelope): "normal" | "training" | "test" | "nonNormal" | "unknown" {
+  // P2-A2-CLASSIFICATION table: scheduling only, not P1's final operation resolution.
   if (envelope.payload.kind !== "parser") return "unknown";
   const { headTest, envelopeStatus } = envelope.payload.item;
   if (headTest.kind === "missing" || headTest.kind === "invalid"
@@ -65,7 +65,8 @@ function sameOrderingDomain(left: MailboxEnvelope, right: MailboxEnvelope): bool
   if (left.payload.item.headType !== right.payload.item.headType) return false;
   const leftOperation = operation(left);
   const rightOperation = operation(right);
-  return leftOperation === "unknown" || rightOperation === "unknown" || leftOperation === rightOperation;
+  return leftOperation === "unknown" && rightOperation === "normal"
+    || leftOperation !== "unknown" && leftOperation !== "nonNormal" && leftOperation === rightOperation;
 }
 
 class Mailbox {
@@ -81,11 +82,17 @@ class Mailbox {
   private highWaterBytes = 0;
   private accepted = 0;
   private completed = 0;
+  private cancelled = 0;
   private rejected = 0;
   private limitViolations = 0;
+  private readonly diagnostics: DiagnosticDetails[] = [];
+  private droppedDiagnostics = 0;
+  private stalledReported = false;
+  private unresponsiveReported = false;
 
   enqueue(envelope: MailboxEnvelope): MailboxEnqueueResult {
     this.lastArrival = envelope.enqueuedMonotonicMs;
+    this.initialProgress ??= this.lastArrival;
     if (!this.accepting && envelope.payload.kind === "parser") return this.reject("draining", envelope.enqueuedMonotonicMs);
 
     const bytes = encodedBytes(envelope);
@@ -102,13 +109,7 @@ class Mailbox {
     if (this.bytes(all) + bytes > BYTE_LIMIT || this.bytes(lane) + bytes > laneByteLimit) return this.reject("byteLimit", envelope.enqueuedMonotonicMs);
 
     this.pending.push(entry);
-    const initial = envelope.payload.kind === "control" && envelope.payload.control.kind === "deadline"
-      ? envelope.payload.control.clock.monotonicMs : envelope.enqueuedMonotonicMs;
-    this.initialProgress = Math.min(this.initialProgress ?? initial, initial);
     this.accepted += 1;
-    const current = this.entries();
-    this.highWaterItems = Math.max(this.highWaterItems, current.length);
-    this.highWaterBytes = Math.max(this.highWaterBytes, this.bytes(current));
     this.checkLimits();
     return { kind: "accepted", stats: this.stats(envelope.enqueuedMonotonicMs) };
   }
@@ -135,6 +136,7 @@ class Mailbox {
     if (entry.envelope.payload.kind === "parser") this.parserInFlight = entry;
     else this.controlsInFlight.push(entry);
     this.lastProgress = Math.max(this.lastProgress ?? nowMonotonicMs, nowMonotonicMs);
+    this.stalledReported = false;
     this.checkLimits();
     return entry.envelope;
   }
@@ -175,8 +177,19 @@ class Mailbox {
     }
     this.completed += 1;
     this.lastProgress = Math.max(this.lastProgress ?? completion.completedMonotonicMs, completion.completedMonotonicMs);
+    this.stalledReported = false;
     this.checkLimits();
     return this.stats(now);
+  }
+
+  cancel(inputId: string, nowMonotonicMs: number): MailboxStats {
+    const index = this.pending.findIndex(({ envelope }) => envelope.payload.kind === "parser"
+      && envelope.payload.item.inputId === inputId);
+    if (index < 0) return this.stats(nowMonotonicMs);
+    this.pending.splice(index, 1);
+    this.cancelled += 1;
+    this.checkLimits();
+    return this.stats(nowMonotonicMs);
   }
 
   beginDrain(nowMonotonicMs: number): MailboxStats {
@@ -211,6 +224,7 @@ class Mailbox {
       oldestIncompleteAgeMs: incompleteOldest,
       accepted: this.accepted,
       completed: this.completed,
+      cancelled: this.cancelled,
       rejected: this.rejected,
       limitViolations: this.limitViolations,
     };
@@ -218,8 +232,48 @@ class Mailbox {
 
   recordWorkerResponse(nowMonotonicMs: number): MailboxStats {
     this.lastWorkerResponse = nowMonotonicMs;
-    this.checkLimits();
+    this.unresponsiveReported = false;
     return this.stats(nowMonotonicMs);
+  }
+
+  drainDiagnostics(nowMonotonicMs: number): DiagnosticDetails[] {
+    if (this.initialProgress != null) {
+      const all = this.entries();
+      let progress = Math.max(this.initialProgress, this.lastProgress ?? this.initialProgress);
+      if (all.length > 0 && all.every(({ envelope }) => envelope.payload.kind === "control"
+        && envelope.payload.control.kind === "deadline")) {
+        progress = Math.max(progress, this.stats(nowMonotonicMs).nextDeadlineMonotonicMs!);
+      }
+      if (!this.stalledReported && all.length > 0 && nowMonotonicMs - progress >= 5_000) {
+        this.diagnose("mailboxStalled", "mailbox", nowMonotonicMs - progress);
+        this.stalledReported = true;
+      }
+      const response = Math.max(this.initialProgress, this.lastWorkerResponse ?? this.initialProgress);
+      if (!this.unresponsiveReported && nowMonotonicMs - response >= 5_000) {
+        this.diagnose("mailboxStalled", "mailbox.worker", nowMonotonicMs - response);
+        this.unresponsiveReported = true;
+      }
+    }
+    if (this.droppedDiagnostics > 0) {
+      if (this.diagnostics.length === DIAGNOSTIC_ITEM_LIMIT) {
+        this.diagnostics.shift();
+        this.droppedDiagnostics += 1;
+      }
+      this.diagnostics.push({ level: "WARN", component: "mailbox", reason: "diagnosticQueueOverflow",
+        count: this.droppedDiagnostics });
+      this.droppedDiagnostics = 0;
+    }
+    return this.diagnostics.splice(0);
+  }
+
+  private diagnose(reason: "mailboxRejectedDraining" | "mailboxRejectedItemLimit" | "mailboxRejectedByteLimit"
+    | "mailboxStalled" | "mailboxLimitViolation", component: "mailbox" | "mailbox.worker" = "mailbox", durationMs?: number): void {
+    if (this.diagnostics.length === DIAGNOSTIC_ITEM_LIMIT) {
+      this.diagnostics.shift();
+      this.droppedDiagnostics += 1;
+    }
+    this.diagnostics.push({ level: reason === "mailboxLimitViolation" ? "ERROR" : "WARN",
+      component, reason, count: 1, ...(durationMs == null ? {} : { durationMs }) });
   }
 
   private entries(): Entry[] {
@@ -237,16 +291,23 @@ class Mailbox {
 
   private reject(reason: "draining" | "itemLimit" | "byteLimit", nowMonotonicMs: number): MailboxEnqueueResult {
     this.rejected += 1;
+    this.diagnose(reason === "draining" ? "mailboxRejectedDraining"
+      : reason === "itemLimit" ? "mailboxRejectedItemLimit" : "mailboxRejectedByteLimit");
     return { kind: "rejected", reason, stats: this.stats(nowMonotonicMs) };
   }
 
   private checkLimits(): void {
     const all = this.entries();
+    this.highWaterItems = Math.max(this.highWaterItems, all.length);
+    this.highWaterBytes = Math.max(this.highWaterBytes, this.bytes(all));
     const normal = all.filter((entry) => entry.allocation === "normal");
     const reserved = all.filter((entry) => entry.allocation === "reserved");
     if (all.length > ITEM_LIMIT || this.bytes(all) > BYTE_LIMIT
       || normal.length > NORMAL_ITEM_LIMIT || this.bytes(normal) > NORMAL_BYTE_LIMIT
-      || reserved.length > RESERVED_ITEM_LIMIT || this.bytes(reserved) > RESERVED_BYTE_LIMIT) this.limitViolations += 1;
+      || reserved.length > RESERVED_ITEM_LIMIT || this.bytes(reserved) > RESERVED_BYTE_LIMIT) {
+      this.limitViolations += 1;
+      this.diagnose("mailboxLimitViolation");
+    }
   }
 }
 

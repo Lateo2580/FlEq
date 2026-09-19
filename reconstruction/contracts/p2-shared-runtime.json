@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "3095a6c21caa96e06fc3b3a6d2f906534ef5441b",
-    "sha256": "b04d3da50f149842a9f5dc178f3f86ac24ccab62ea101f6a7d570f59615fc246",
+    "sha256": "993bcefb9aa0beb7d6a300e7e248309cf0ba4d5f8aa914c2554c97235b5df0ac",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "76c82b87d7783a4eae14af690cb34e7d6ec46f73617dc75b7f7401951619f080",
     "sequencesSha256": "22b2432e8989d7e7cc2514f2297308e84b3c0f1a3e045491b9cf60cfa8f2d147",
@@ -514,7 +514,8 @@
       "DiagnosticDetailsがないと純関数が外部時計/runIdを捏造する。runtimeだけがDiagnosticEventを完成させ、全文字列・任意値を既定8192 byte上限へ収める",
       "FreshnessRecordがないと候補非採用と現在出典の不一致を対象別に追跡できない。意味判定実装はA5へ残す",
       "NotificationResultがないとA7のchannel・aborted・timeout/abortedのstoppedをreduceRuntimeへ無損失で戻せず、停止未確認channelを誤解放するためA1共有型を唯一の正本にする",
-      "snapshotNoticeCapacityExceeded/snapshotCommonBudgetExceeded/snapshotStringLimitExceededが共有DiagnosticReasonにないとA8が超過を固定reasonで返せず独自unionまたは型assertionを要するため、A1のInfrastructureDiagnosticReasonへ3値だけを追加する"
+      "snapshotNoticeCapacityExceeded/snapshotCommonBudgetExceeded/snapshotStringLimitExceededが共有DiagnosticReasonにないとA8が超過を固定reasonで返せず独自unionまたは型assertionを要するため、A1のInfrastructureDiagnosticReasonへ3値だけを追加する",
+      "MailboxStats.cancelledがないとA2のpending取消を完了・拒否と区別して遷移計数できないため、このfieldだけを追加し、別の取消結果型は作らない"
     ],
     "unresolvedQuestions": []
   }

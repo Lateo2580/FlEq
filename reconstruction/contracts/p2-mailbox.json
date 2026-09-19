@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "3095a6c21caa96e06fc3b3a6d2f906534ef5441b",
-    "sha256": "6b3873cfa9d11d0d0a7e2945f46fba83c2e8f5baa3c39740f37bb34de198379c",
+    "sha256": "c3140012088f59b94ec64a5eebef5243f7b51ec33ca4444ab97cdab5f0aa4ad6",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "76c82b87d7783a4eae14af690cb34e7d6ec46f73617dc75b7f7401951619f080",
     "sequencesSha256": "22b2432e8989d7e7cc2514f2297308e84b3c0f1a3e045491b9cf60cfa8f2d147",
@@ -33,6 +33,102 @@
         "provisional": "A",
         "ruling": "独立レビュー指摘1によりA",
         "reason": "配送済みP1境界とA2実装の書込権限を分離する"
+      },
+      {
+        "id": "P2-A2-Q-ORDER",
+        "A": "operationがnormalと確定した、または区分未確認の緊急候補を確認済みtraining/testより上位にし、headTypeが同じ先行入力による拘束は、operationが同じと確定した組と、先行が未確認で後続が確定normalの組だけに適用する",
+        "B": "operation未確認の入力をmailboxへ作らず、投入前にnormal/training/testを確定する",
+        "C": "現行どおりoperation未確認の先行入力で同じheadTypeの全operationを拘束する",
+        "recommended": "A",
+        "provisional": "A",
+        "ruling": "作者裁定 A（2026-09-20）",
+        "reason": "訓練報の順序入替えを許容し、実運用EEW候補を確認済みtraining/testの後ろに置かない"
+      },
+      {
+        "id": "P2-A2-CLASSIFICATION",
+        "A": "headTest × envelopeStatusの単一判定表を優先度・予約枠・先行拘束で共用する",
+        "B": "優先度側のconfirmedNonNormalと先行拘束側のoperationで別々に判定する",
+        "recommended": "A",
+        "provisional": "A",
+        "ruling": "独立レビューNO-GO 2への改訂（2026-09-20）",
+        "reason": "矛盾sourceをunknownと非通常に分けて扱うと、先行trainingが未確認の実運用候補を追い越す",
+        "classificationTable": {
+          "columns": [
+            "provided(normal)",
+            "provided(training)",
+            "provided(test)",
+            "notProvided",
+            "missing",
+            "invalid"
+          ],
+          "rows": [
+            {
+              "headTest": "provided(false)",
+              "classifications": [
+                "normal",
+                "unknown",
+                "unknown",
+                "normal",
+                "unknown",
+                "unknown"
+              ]
+            },
+            {
+              "headTest": "provided(true)",
+              "classifications": [
+                "unknown",
+                "training",
+                "test",
+                "nonNormal",
+                "unknown",
+                "unknown"
+              ]
+            },
+            {
+              "headTest": "notProvided",
+              "classifications": [
+                "normal",
+                "training",
+                "test",
+                "unknown",
+                "unknown",
+                "unknown"
+              ]
+            },
+            {
+              "headTest": "missing",
+              "classifications": [
+                "unknown",
+                "unknown",
+                "unknown",
+                "unknown",
+                "unknown",
+                "unknown"
+              ]
+            },
+            {
+              "headTest": "invalid",
+              "classifications": [
+                "unknown",
+                "unknown",
+                "unknown",
+                "unknown",
+                "unknown",
+                "unknown"
+              ]
+            }
+          ]
+        },
+        "usage": "normal/unknownのeewCandidate・tsunamiCandidateは緊急優先かつ予約枠、training/test/nonNormalおよびpriorityReason=normalはその他優先かつ通常枠。nonNormalは非通常だけが判明しtraining/testは未確定なので同一区分確定の先行拘束には使わない。同じheadTypeで先行拘束するのは同じnormal/training/test同士、またはunknown→normalだけ。controlは表の対象外で最優先・予約枠。表はmailbox scheduling専用で、P1の最終operation解決・拒否を代替しない"
+      },
+      {
+        "id": "P2-A2-MONITOR",
+        "A": "初回到着を固定保持し、stalledは処理進捗、unresponsiveは生存応答を独立した起点としてdrainDiagnostics(nowMonotonicMs)だけで停止診断を評価する",
+        "B": "毎回のlastArrivalMonotonicMsまたは初回drain時刻を監視開始として使う",
+        "recommended": "A",
+        "provisional": "A",
+        "ruling": "独立レビューNO-GO 1への改訂（2026-09-20）",
+        "reason": "後続到着や遅れた初回drainで5秒無進捗の検知が延期されるのを防ぐ。cancelは処理進捗・再発報の解除条件に数えない"
       }
     ],
     "questionResolutions": [
@@ -95,15 +191,18 @@
       "reconstruction/contracts/p2-shared-runtime.types.ts#MailboxCompletion",
       "reconstruction/contracts/p2-shared-runtime.types.ts#MailboxStats",
       "reconstruction/contracts/p2-shared-runtime.types.ts#MailboxEnqueueResult",
-      "reconstruction/contracts/p2-shared-runtime.types.ts#MailboxControl"
+      "reconstruction/contracts/p2-shared-runtime.types.ts#MailboxControl",
+      "reconstruction/contracts/p2-shared-runtime.types.ts#DiagnosticDetails"
     ],
     "publicFunctions": [
       "enqueue(envelope: MailboxEnvelope): MailboxEnqueueResult",
       "takeNext(nowMonotonicMs: number): MailboxEnvelope | null",
       "complete(completion: MailboxCompletion): MailboxStats",
+      "cancel(inputId: string, nowMonotonicMs: number): MailboxStats",
       "beginDrain(nowMonotonicMs: number): MailboxStats",
       "stats(nowMonotonicMs: number): MailboxStats (read-only)",
-      "recordWorkerResponse(nowMonotonicMs: number): MailboxStats"
+      "recordWorkerResponse(nowMonotonicMs: number): MailboxStats",
+      "drainDiagnostics(nowMonotonicMs: number): DiagnosticDetails[]"
     ],
     "allowedDependencies": [
       "node:worker_threads"
@@ -214,6 +313,14 @@
         "unit": "in-flight item",
         "scope": "completion keeps item and bytes counted",
         "source": "§7.2"
+      },
+      {
+        "id": "P2-A2-RES-08",
+        "target": "mailbox diagnostic accumulation",
+        "limit": 64,
+        "unit": "DiagnosticDetails",
+        "scope": "拒否・停止（stalled/unresponsive）・上限違反の三区分合算。overflow要約1件も64件内に含む。超過時は最古を捨て、次のdrainへdiagnosticQueueOverflow/countを1件で返す。A3 composition rootの既存1秒tickでdrainする",
+        "source": "独立レビューNO-GO 3（2026-09-20）"
       }
     ],
     "workDeadline": null,
@@ -228,12 +335,13 @@
     "outOfScope": [
       "worker pool",
       "詳細ページ",
-      "REST recovery"
+      "REST recovery",
+      "subject粒度の順序保証（mailbox投入時点に検証済みsubjectがないためunit reducerのoperation/family/subject watermarkが所有する）"
     ],
     "acceptanceChecks": [
       {
         "id": "P2-A2-AC01",
-        "requirement": "E07: enqueue・dequeue・転送・完了・取消の全遷移でpendingとin-flightの件数・byteを合算し、宣言上限違反0とhigh-waterを報告する",
+        "requirement": "E07: enqueue・dequeue・転送・完了・取消の全遷移でpendingとin-flightの件数・byteを合算し、宣言上限違反0とhigh-waterを報告する。cancel(inputId, nowMonotonicMs)は未取得のpending parser itemだけをinputIdで指定し、成功時はpending件数・byteを減算してMailboxStats.cancelledを1増やす。in-flightは取消対象外として完了経路に任せ、一致なしは状態を変えない",
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:2058 «c5a19c3c5d58ec9b»",
           "docs/specs/reconstruction-p0-contracts.md:2082 «74aa393600c9b74b»"
@@ -250,7 +358,7 @@
       },
       {
         "id": "P2-A2-AC03",
-        "requirement": "O09 P2 queue: control進行を保ち、EEW候補→津波警報候補→その他の固定順で選び、同一operation/family/subjectの先行入力を飛ばさない。確認済みtraining/testは通常operationの緊急情報より優先しない。control（保存ack・期限・shutdown）は緊急予約枠で件数/byteを計数する",
+        "requirement": "O09 P2 queue: control進行を保ち、operationがnormalと確定した、または区分未確認のEEW候補→同条件の津波警報候補→その他の固定順で選び、確認済みtraining/testを通常緊急候補より上位にしない。mailbox投入時点では検証済みfamily/subjectがないためheadTypeをfamily相当のordering keyとして保守的に束縛する。同じheadTypeの先行拘束は、operationが同じと確定した組と、先行が未確認で後続が確定normalの組だけに適用し、確認済みtraining/testの先行は未確認を拘束しない。訓練報の順序入替えは許容する。control（保存ack・期限・shutdown）は緊急予約枠で件数/byteを計数する。区分判定はmeta.decisionBranches[P2-A2-CLASSIFICATION].classificationTableを唯一の正本とし、優先度・予約枠・先行拘束の三者が同じ結果を使う。矛盾するfalse × trainingはunknownとして緊急候補の優先度・予約枠を保つ",
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:1089 «7d583246228571ea»",
           "docs/specs/reconstruction-p0-contracts.md:1094 «34b125d081cb34b2»",
@@ -261,7 +369,7 @@
       },
       {
         "id": "P2-A2-AC04",
-        "requirement": "ParserMailboxItemを変更せず、MailboxEnvelopeのinputId対応を完了まで保持し、T0・enqueue単調時刻・runId・priorityReasonをDecodedMaterialへ複製しない。payloadはparser item/control union、completionもparser result/control union。runtimeはmailboxCompletedのcontrolを直列適用しparserへ渡さない。parserのmessageIdはinputId、controlはrun内一意IDとし架空のinputSequenceを作らない",
+        "requirement": "ParserMailboxItemを変更せず、MailboxEnvelopeのinputId対応を完了まで保持し、T0・enqueue単調時刻・runId・priorityReasonをDecodedMaterialへ複製しない。payloadはparser item/control union、completionもparser result/control union。runtimeはmailboxCompletedのcontrolを直列適用しparserへ渡さない。caller preconditionとしてparserのmessageIdはinputIdと一致させ、controlのmessageIdはrun内一意にし、架空のinputSequenceを作らない。mailboxはこれらのID制約を検証せず、重複completionが別の仕事を解放しないことだけを保証する",
         "evidenceRefs": [
           "reconstruction/contracts/p2-order-plan.md:254 «92f0b30ed7afbb45»",
           "reconstruction/contracts/p2-order-plan.md:255 «151a3b407d160692»",
@@ -270,7 +378,7 @@
       },
       {
         "id": "P2-A2-AC05",
-        "requirement": "stats(nowMonotonicMs)は副作用なしで現在年齢・処理中ID・最後の進捗・生存応答・次期限を返す。停止注入で遷移なしでも年齢が進む。lastArrivalMonotonicMsはenqueue到着（拒否含む）で更新する。lastProgressMonotonicMsはtakeNextがitemを返した場合と対応する未完了仕事のcomplete到着だけで更新し、enqueue・空振りtakeNext・重複/不正completeでは更新しない。最初の進捗前は最古未完了入力時刻（期限だけなら期限時刻）を起点とし、後続到着で起点を延ばさない。recordWorkerResponseは生存応答だけを更新する。idleでも1秒周期応答、5秒応答なしunresponsive、未完了/期限超過かつ5秒進捗なしstalledを区別する（開始値、B05/B15が停止注入前に固定）。heartbeatだけで進捗回復扱いしない。毎秒enqueueと生存応答が続く中で処理停止を注入し、到着時刻のみ進み処理進捗は変わらず5秒でstalledとなることを検収する。A1 InfrastructureDiagnosticReasonのmailboxRejectedDraining／mailboxRejectedItemLimit／mailboxRejectedByteLimit・mailboxStalled・mailboxLimitViolationを配送する",
+        "requirement": "stats(nowMonotonicMs)は副作用なしで現在年齢・処理中ID・最後の進捗・生存応答・次期限を返し、診断の生成・蓄積・消費はしない。lastArrivalMonotonicMsはenqueue到着（拒否含む）で更新する。処理進捗はtakeNextがitemを返した場合と対応する未完了仕事のcompleteだけで、enqueue・cancel・空振りtakeNext・重複/不正complete・heartbeatではlastProgressMonotonicMsを進めない。監視開始時刻は初回enqueue時のlastArrivalMonotonicMsを既存の初期進捗起点（現行initialProgress）へ一度だけ固定し、後続到着・処理進捗で上書きしない。stalledの進捗起点はこの固定初回到着と最後の処理進捗（lastProgressMonotonicMs）の遅い方とし、unresponsiveの応答起点は固定初回到着と最後の生存応答（recordWorkerResponseが更新するlastWorkerResponseMonotonicMs）の遅い方とする。生存応答未着なら固定初回到着を使い、controlを含むtakeNext成功・completeは応答起点を変更しない。共有型の時刻fieldは追加しない。初回到着がない場合は監視未開始で発報しない。期限だけが未完了の場合のstalled起点は進捗起点とnextDeadlineMonotonicMsの遅い方とする。recordWorkerResponseは生存応答時刻だけを更新する。A3 composition rootの既存1秒tickが同じrunの単調時刻をdrainDiagnostics(nowMonotonicMs)へ渡し、この呼出しだけが停止条件を評価してDiagnosticDetailsを蓄積し、その後蓄積を返して空にする。未完了itemまたは超過期限があり進捗起点から5,000ms以上ならstalled、応答起点から5,000ms以上応答なしならidleでもcontrol進行中でもunresponsiveと独立判定する。同一停止中のstalledは1回だけ発報し、takeNext成功または対応するcompleteで解除後、再び5,000ms無進捗なら再発報する。unresponsiveは同一途絶中1回、生存応答を受けた後の再途絶で再発報する。処理進捗はunresponsiveの発報済み状態を解除しない。drainやstatsや到着や取消だけでは発報済みを解除しない。stalledとunresponsiveは既存mailboxStalledを共用しcomponentをそれぞれmailboxとmailbox.workerに固定、durationMsは各起点からの実経過時間とする。両条件成立なら各1件を返す。拒否3種・mailboxLimitViolation・mailboxStalledに、蓄積超過要約の既存diagnosticQueueOverflowを加えた6 reasonのみを使う。蓄積はRES-08の64件に制限しA3がB15 sinkへ配送する",
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:1190 «174d8e21c85706f2»",
           "docs/specs/reconstruction-p0-contracts.md:1191 «e214e88096eaa2ba»",
@@ -286,7 +394,7 @@
         "referenceIds": [
           "P2-A2-AC01"
         ],
-        "behavior": "件数・byteの直前と一致を受理し+1を拒否して全遷移の計数を一致させる"
+        "behavior": "件数・byteの直前と一致を受理し+1を拒否する。pendingのinputId取消だけが件数・byteを解放してcancelledを増やし、in-flightまたは不一致の取消は状態を変えない"
       },
       {
         "testId": "P2-A2-T02",
@@ -302,7 +410,15 @@
         "referenceIds": [
           "P2-A2-AC03"
         ],
-        "behavior": "最大VPWS50処理中に緊急候補を投入し固定優先順と同一subject順を守る"
+        "behavior": "最大VPWS50処理中のO09緊急候補待機を検収する。Q-ORDERの反例はT03-ORDERのregressionで検収する"
+      },
+      {
+        "testId": "P2-A2-T03-ORDER",
+        "purpose": "regression",
+        "referenceIds": [
+          "P2-A2-AC03"
+        ],
+        "behavior": "同じheadTypeのEEW候補を確認済みtraining→unknown→確認済みnormalの順に投入し、unknown→normal→trainingの取出順を確認する。unknownのsourceをnotProvided × notProvidedとprovided(false) × provided(training)の2ケースとし、後者が優先度だけ非通常となる実不具合を再現する。三者の共通判定表に従いunknown/normalは予約枠、trainingは通常枠へ計上されることも同じ回帰試験で検証する"
       },
       {
         "testId": "P2-A2-T04",
@@ -318,7 +434,15 @@
         "referenceIds": [
           "P2-A2-AC05"
         ],
-        "behavior": "stats(nowMonotonicMs)は副作用なしで現在年齢・処理中ID・最後の進捗・生存応答・次期限を返す。停止注入で遷移なしでも年齢が進む。lastArrivalMonotonicMsはenqueue到着（拒否含む）で更新する。lastProgressMonotonicMsはtakeNextがitemを返した場合と対応する未完了仕事のcomplete到着だけで更新し、enqueue・空振りtakeNext・重複/不正completeでは更新しない。最初の進捗前は最古未完了入力時刻（期限だけなら期限時刻）を起点とし、後続到着で起点を延ばさない。recordWorkerResponseは生存応答だけを更新する。idleでも1秒周期応答、5秒応答なしunresponsive、未完了/期限超過かつ5秒進捗なしstalledを区別する（開始値、B05/B15が停止注入前に固定）。heartbeatだけで進捗回復扱いしない。毎秒enqueueと生存応答が続く中で処理停止を注入し、到着時刻のみ進み処理進捗は変わらず5秒でstalledとなることを検収する。A1 InfrastructureDiagnosticReasonのmailboxRejectedDraining／mailboxRejectedItemLimit／mailboxRejectedByteLimit・mailboxStalled・mailboxLimitViolationを配送する"
+        "behavior": "初回到着t=0以降、応答も到着も進捗もない未完了itemに対してdrainDiagnostics(4,999)は停止診断なし、drainDiagnostics(5,000)はstalled/unresponsive各1件、drainDiagnostics(5,001)と同時刻再drainは空となる。stats呼出しは診断を生成・消費しない。takeNext成功または対応complete後の再停止は新しい進捗起点から5,000msでstalledを再発報し、応答再開後の再途絶は別にunresponsiveを再発報する。毎秒enqueueと生存応答があっても無進捗5秒でstalledだけ発報する。回帰: 初回到着とrecordWorkerResponseをt=0、以降の生存応答なしとし、t=4,000にcontrolをtakeNextし対応completeを受けてもdrainDiagnostics(4,999)は停止診断なし、drainDiagnostics(5,000)はcomponent=mailbox.worker・reason=mailboxStalled・durationMs=5,000のunresponsiveだけを1件返す。t=5,001に別controlをtakeNextしてcompleteしても、その後のdrainは同一途絶を再発報しない。監視未開始、期限だけの場合、取消・重複completeで解除しない境界も同じ監視契約試験で検証する"
+      },
+      {
+        "testId": "P2-A2-T05-OVERFLOW",
+        "purpose": "contractBoundary",
+        "referenceIds": [
+          "P2-A2-AC05"
+        ],
+        "behavior": "拒否・停止・上限違反が同じ64件上限を共有することを検証する。drainなしで診断64件なら64件保持、65件なら最古2件を捨て最新63件とdiagnosticQueueOverflow(count=2)を返す。さらに1件なら最古をもう1件捨てcount=3となる。要約も含め返却64件以下、次のdrainは空で捨てた件数を再配送しない"
       }
     ],
     "requiredCommands": [
@@ -374,7 +498,14 @@
       "追加・変更した各テストのpurposeと対応受入条件",
       "control配送がないと保存ack/期限/shutdownが緊急予約を利用できない。parser byteはitem.encodedByteLength、control byteはUTF-8 JSON.stringify(payload)のbyte長で固定しpending+in-flightへ一度だけ算入、complete時に解放する。通常data in-flightは1、controlはparser処理終了待ちでなくruntimeへ配送し別途予約枠内のin-flightとして計数する",
       "観測口がないと無遷移停止を検知できない。inFlightMessageIdはdata ID、controlの処理中IDも有界配列でstatsへ含める。beginDrainは新parser受付を止めるが収束に必要なcontrol受付を維持する",
-      "P1のmailbox/parser-boundary.tsは配送済み境界なので編集しない。引継ぎはParserMailboxItem/Resultの公開型をimportするだけとし、変更が必要ならP1所有者の別契約に分離する"
+      "P1のmailbox/parser-boundary.tsは配送済み境界なので編集しない。引継ぎはParserMailboxItem/Resultの公開型をimportするだけとし、変更が必要ならP1所有者の別契約に分離する",
+      "mailboxは検証済みfamily/subjectを持たないためheadTypeだけをfamily相当のordering keyにする。subject粒度の厳密順はunit reducerのoperation/family/subject watermarkで守り、mailboxへ推測parserや新しいordering型を追加しない",
+      "追実装で閉じる項目: sameOrderingDomainだけの変更では閉じない。現行operationはfalse × trainingをunknown、confirmedNonNormalは非通常と扱うため、優先度・allocation・先行拘束をP2-A2-CLASSIFICATIONの単一判定表に揃える。反例3入力と矛盾sourceのT03-ORDER回帰試験で閉じる",
+      "追実装で閉じる項目: 現行MailboxにcancelとMailboxStats.cancelledがないため、pending parser itemだけをinputIdで取り消す計数経路とAC01境界試験を追加する",
+      "追実装で閉じる項目: 現行Mailboxには診断蓄積・drainDiagnostics・停止発報状態がない。AC05の固定初回到着（現行initialProgressの期限起点初期化も改訂）、stalledの処理進捗起点とunresponsiveの生存応答起点の分離、各回復条件による再発報、既存6 reason、64件有界蓄積を追加する。A3 composition rootの既存1秒tickからdrainDiagnostics(nowMonotonicMs)を呼びB15へ結線し、T05/T05-OVERFLOWで閉じる",
+      "追実装で閉じる項目: 現行のheadType束縛とcompletedStartFloorによる重複completion防止はAC03/AC04に整合する。callerのID一意性をmailbox内部で検証する機構は追加しない",
+      "診断蓄積は拒否・停止・上限違反を合算した単一64件上限で、別queueや新共有型は作らない。超過時は最古から捨て、捨てた件数だけを累積する。overflowがあるdrainでは要約の1枠を確保するため最新63件まで残し、追加で捨てた分もcountへ含めたDiagnosticDetails { level: WARN, component: mailbox, reason: diagnosticQueueOverflow, count }を末尾に1件返す。drain後は蓄積と捨てた件数を空にし、発報済み状態は保持する。要約自体を再投入してoverflowを再帰発生させない",
+      "drain頻度はA3 composition rootの既存1秒tickが所有し、到着・応答のない期間も呼び続ける。A2にタイマーを増設しない。tick遅延時も蓄積64件上限を守り、復帰時の実nowMonotonicMsで閾値を評価する。停止診断の生成／消費を伴う観測口はdrainDiagnosticsだけとし、通常のenqueue拒否／上限違反の診断は各発生遷移で蓄積する"
     ],
     "unresolvedQuestions": [
       {
