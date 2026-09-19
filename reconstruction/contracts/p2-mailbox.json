@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "3095a6c21caa96e06fc3b3a6d2f906534ef5441b",
-    "sha256": "5a90220ae620a78a8d08c3e0925f0571b0b5e02a7c8ab1a7bca352d6a5042434",
+    "sha256": "6b3873cfa9d11d0d0a7e2945f46fba83c2e8f5baa3c39740f37bb34de198379c",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "76c82b87d7783a4eae14af690cb34e7d6ec46f73617dc75b7f7401951619f080",
     "sequencesSha256": "22b2432e8989d7e7cc2514f2297308e84b3c0f1a3e045491b9cf60cfa8f2d147",
@@ -52,7 +52,7 @@
     "contractId": "P2-MAILBOX-001",
     "mode": "implementation",
     "objective": "B05 mailboxをParserMailboxItemを変えずに実装し、件数・byte・通常枠・緊急予約・通常data in-flight 1・固定優先順・停止排出・全遷移の計数を閉じる。",
-    "baseOid": "unassigned",
+    "baseOid": "80777285fe6a3fd79ad464ad2ec8fc8209dde45b",
     "cleanTreeRequired": true,
     "readPaths": [
       "docs/specs/reconstruction-p0-contracts.md",
