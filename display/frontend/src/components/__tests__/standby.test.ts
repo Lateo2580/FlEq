@@ -1762,7 +1762,8 @@ describe("StandbyScreen prefix probes and fixed-center geometry", () => {
 
   it("weather footer の absent/present generation を side/center で分離し index 0 から再探索する", () => {
     const source = readFileSync(join(__dirname, "..", "StandbyScreen.svelte"), "utf8");
-    expect(source).toMatch(/weatherChromeSignature\(placement:[\s\S]*weather-footer:\$\{footer\}:generation:\$\{generation\}:placement:\$\{placement\}:width:\$\{weatherProbeWidth\(placement\)\}:layout:\$\{layout\}:selected:\$\{rows\}:payload:/);
+    expect(source).toMatch(/weatherChromeSignature\(placement:[\s\S]*weather-footer:\$\{footer\}:generation:\$\{generation\}:placement:\$\{placement\}:width:\$\{weatherProbeWidth\(placement\)\}:layout:\$\{layout\}:selected:\$\{effectiveWeatherRows\(rows\)\}`/);
+    expect(source).not.toContain("weatherPayloadFingerprint");
     expect(source).toMatch(/function weatherPartitionProbeContract[\s\S]*absent: pagePartitionProbe\("weather"[\s\S]*present: pagePartitionProbe\("weather"/);
     expect(source).toContain('partitionProbes={weatherPartitionProbeContract("side", MAX_PREFIX_ROWS)}');
     expect(source).toContain('partitionProbes={weatherPartitionProbeContract("center", MAX_PREFIX_ROWS)}');
@@ -1773,6 +1774,29 @@ describe("StandbyScreen prefix probes and fixed-center geometry", () => {
     expect(source).toMatch(/function tornadoMeasurementRanges[\s\S]*weatherRanges\.map\(\(weatherRange\) => cachedPagePartitionMeasurement\([\s\S]*tornadoMeasurementComposition\(entry\.placement, rows, footer, weatherRange, preflight\)/);
     expect(source).toMatch(/function weatherPartitionProbeContract[\s\S]*pagePartitionProbe\("weather", placement, 1, undefined, absentSignature, undefined, rows\)[\s\S]*pagePartitionProbe\("weather", placement, 1, undefined, presentSignature, undefined, rows\)/);
     expect(source).toMatch(/function requestSettle[\s\S]*weatherMeasurementContracts\.clear\(\)[\s\S]*weatherPartitionProbeContracts\.clear\(\)[\s\S]*prefixMeasurements = \{\}/);
+  });
+
+  it("data-weather-probe-revision は weather page-fit の実測が変わった時に進み、同じ値の再読み取りでは進まない", async () => {
+    // 0:1 は fit(0)、0:2 は fail(2) で 2 地域が 2 ページに割れる。settle 後にさらに tick しても値が変わらなければ進まない。
+    const alert = weather({ items: [{ kind: "大雨警報", phenomenonKey: "heavy-rain", displaySeverity: "officialL3", rank: "warning", shownAreas: ["A", "B"], omittedAreaCount: 0 }] });
+    const { container } = render(StandbyScreen, {
+      snapshot: baseSnapshot({ weatherAlerts: [alert] }), now, dim: false, sseConnected: true,
+      testMeasurementOverride: {
+        layoutWidthPx: 1280, layoutHeightPx: 10_000, baselineGapPx: 10,
+        "weather:page-fit:0:1:placement:side": 0,
+        "weather:page-fit:0:2:placement:side": 2,
+        "weather:page-fit:1:2:placement:side": 0,
+      },
+    });
+    const root = () => container.querySelector<HTMLElement>(".standby")!;
+    for (let pass = 0; pass < 16; pass += 1) await tick();
+    expect(root().dataset.measurementSettled).toBe("true");
+    const settledRevision = Number(root().dataset.weatherProbeRevision);
+    expect(settledRevision).toBeGreaterThanOrEqual(1);
+    for (let pass = 0; pass < 8; pass += 1) await tick();
+    expect(Number(root().dataset.weatherProbeRevision)).toBe(settledRevision);
+    const live = container.querySelector<HTMLElement>(".legacy-layout .weather-card")!;
+    expect(JSON.parse(live.dataset.weatherPageRanges ?? "[]")).toEqual(["0:1", "1:2"]);
   });
 
   it("fixed-height に収まらない page range は専用棚 body を実測して infeasible にする", async () => {

@@ -181,7 +181,11 @@
   let prefixMeasurements = $state<Record<string, number>>({});
   let prefixMeasureEntries = $state<PrefixMeasureEntry[]>([]);
   const weatherMeasurementContracts = new Map<string, WeatherMeasurementContract>();
-  const weatherPartitionProbeContracts = new Map<string, { absent: PartitionProbe; present: PartitionProbe; revision: string; epoch: string }>();
+  interface WeatherPartitionContract { absent: PartitionProbe; present: PartitionProbe; revision: string; epoch: string; fallback: boolean }
+  // U1: one contract per placement×rows slot. The previous map was keyed by a
+  // string join of every weather probe id and kept every stale key alive.
+  const weatherPartitionProbeContracts = new Map<string, { absentSignature: string; presentSignature: string; contract: WeatherPartitionContract }>();
+  let weatherPartitionFallback = $state(false);
   let layoutWidthPx = $state(0);
   let layoutHeightPx = $state(0);
   let leftTrackWidthPx = $state(0);
@@ -744,7 +748,7 @@
     const chrome = weatherChromeSignature(placement, rows, footer);
     if (preflight) return `${chrome}:range:${weatherRange.start}:${weatherRange.end}:preflight`;
     const tailContext = weatherRange.tails.map((tail) => `${tail.kindKey}:${tail.omittedAreaCount}`).join(",");
-    return `${chrome}:range:${weatherRange.start}:${weatherRange.end}:tails:${tailContext}:identity:${encodeURIComponent(weatherTornadoIdentity(rows))}:form:normal`;
+    return `${chrome}:range:${weatherRange.start}:${weatherRange.end}:tails:${tailContext}:selected:${effectiveWeatherRows(rows)}:form:normal`;
   }
   function pagePartitionProbeIds(key: PrefixCardKey, placement: PrefixPlacement, range: PageRange, tails: readonly PrefixTail[], floodForm?: FloodProbeForm, composition?: string, weatherRange?: PageRange, weatherSelectionRows?: number) {
     const id = prefixMeasureId("page-fit", key, placement, range.start, range.end, tails, floodForm, composition);
@@ -1003,49 +1007,61 @@
     if (settleCostProbe) settleRevisionMs += performance.now() - revisionStartedAt;
     return revision;
   });
-  const weatherPartitionRevision = $derived.by(() => {
-    const revisionStartedAt = settleCostProbe ? performance.now() : 0;
-    const revision = Object.entries(prefixMeasurements)
-      .filter(([id]) => id.startsWith("weather:page-fit:"))
-      .sort(([left], [right]) => left.localeCompare(right))
-      .map(([id, value]) => `${id}:${value}`)
-      .join("|");
-    if (settleCostProbe) settleRevisionMs += performance.now() - revisionStartedAt;
-    return revision;
-  });
+  // U1: advances only when a weather page-fit measurement changes (readMeasurements)
+  // or the epoch clears them (requestSettle). Integer, never a join of probe ids.
+  let weatherProbeRevision = 0;
+  let weatherProbeRevisionKey = $state("0");
+  function bumpWeatherProbeRevision(): void {
+    weatherProbeRevision += 1;
+    weatherProbeRevisionKey = String(weatherProbeRevision);
+  }
+  function weatherPageFitChanged(previous: Record<string, number>, next: Record<string, number>): boolean {
+    for (const id of new Set([...Object.keys(previous), ...Object.keys(next)])) {
+      if (id.startsWith("weather:page-fit:") && previous[id] !== next[id]) return true;
+    }
+    return false;
+  }
   function weatherProbeWidth(placement: PrefixPlacement): number {
     const trackWidth = placement === "center" ? centerTrackWidthPx : rightTrackWidthPx;
     return Math.max(0, Math.round(placement === "center" ? trackWidth : Math.min(480, trackWidth)));
   }
-  function weatherPayloadFingerprint(rows: number): string {
-    return weatherWithSelection(rows).flatMap((alert) => alert.items.map((item) => {
-      const areas = item.shownAreas.map((area, index) => weatherAreaIdentity(area, item.shownAreaCodes?.[index] ?? null));
-      return `${weatherKindKey(item)}=${areas.join(",")};omitted=${item.omittedAreaCount}`;
-    })).join("|");
+  /** Rows past the expansion candidates render the same list. Collapse them so a
+   *  128-row preflight shares probes with a live selection that already shows everything. */
+  function effectiveWeatherRows(rows: number): number {
+    const candidates = [...weatherDisplayGroups.values()].reduce((total, group) => total + Math.max(0, group.areas.length - group.currentAreas.length), 0);
+    return Math.min(rows, MAX_PREFIX_ROWS, candidates);
   }
+  // U2: no payload text in the id. prefixMeasurements, prefixMeasureEntries and the
+  // contract caches are cleared by requestSettle (= input change), so within an
+  // epoch the payload is fixed and width/footer/layout/placement/rows identify a probe.
   function weatherChromeSignature(placement: PrefixPlacement, rows: number, footer: "absent" | "present"): string {
     const layout = weatherDisplayGroups.size > 1 ? "multi" : "single";
     const generation = footer === "absent" ? 1 : 2;
-    return `weather-footer:${footer}:generation:${generation}:placement:${placement}:width:${weatherProbeWidth(placement)}:layout:${layout}:selected:${rows}:payload:${encodeURIComponent(weatherPayloadFingerprint(rows))}`;
+    return `weather-footer:${footer}:generation:${generation}:placement:${placement}:width:${weatherProbeWidth(placement)}:layout:${layout}:selected:${effectiveWeatherRows(rows)}`;
   }
   function weatherSolverChromeSignature(placement: PrefixPlacement, rows: number, footer: "absent" | "present"): string {
     const layout = weatherDisplayGroups.size > 1 ? "multi" : "single";
     const generation = footer === "absent" ? 1 : 2;
-    return `weather-solver-footer:${footer}:generation:${generation}:placement:${placement}:width:${weatherProbeWidth(placement)}:layout:${layout}:selected:${rows}:payload:${encodeURIComponent(weatherPayloadFingerprint(rows))}`;
+    return `weather-solver-footer:${footer}:generation:${generation}:placement:${placement}:width:${weatherProbeWidth(placement)}:layout:${layout}:selected:${effectiveWeatherRows(rows)}`;
   }
-  function weatherPartitionProbeContract(placement: PrefixPlacement, rows: number) {
+  function weatherPartitionProbeContract(placement: PrefixPlacement, rows: number): WeatherPartitionContract {
     const absentSignature = weatherChromeSignature(placement, rows, "absent");
     const presentSignature = weatherChromeSignature(placement, rows, "present");
-    const key = `${absentSignature}|${presentSignature}|revision:${weatherPartitionRevision}`;
-    const existing = weatherPartitionProbeContracts.get(key);
-    if (existing != null) return existing;
-    const contract = {
+    const slot = `${placement}:${rows}`;
+    const cached = weatherPartitionProbeContracts.get(slot);
+    if (cached != null && cached.absentSignature === absentSignature && cached.presentSignature === presentSignature
+      && cached.contract.revision === weatherProbeRevisionKey && cached.contract.epoch === epochKey
+      && cached.contract.fallback === weatherPartitionFallback) {
+      return cached.contract;
+    }
+    const contract: WeatherPartitionContract = {
       absent: pagePartitionProbe("weather", placement, 1, undefined, absentSignature, undefined, rows),
       present: pagePartitionProbe("weather", placement, 1, undefined, presentSignature, undefined, rows),
-      revision: weatherPartitionRevision,
+      revision: weatherProbeRevisionKey,
       epoch: epochKey,
+      fallback: weatherPartitionFallback,
     };
-    weatherPartitionProbeContracts.set(key, contract);
+    weatherPartitionProbeContracts.set(slot, { absentSignature, presentSignature, contract });
     return contract;
   }
   function briefingProbeWidth(placement: PrefixPlacement): number | undefined {
@@ -1467,8 +1483,9 @@
     const next: Record<string, number> = {};
     for (const [id, node] of measureNodes) next[id] = measurementOverride?.[id] ?? liveBorderBoxHeight(node);
     const nextPrefixes = { ...prefixMeasurements };
+    const entryById = new Map(prefixMeasureEntries.map((entry) => [entry.id, entry]));
     for (const [id, node] of prefixMeasureNodes) {
-      const entry = prefixMeasureEntries.find((candidate) => candidate.id === id);
+      const entry = entryById.get(id);
       const genericOverride = entry == null ? undefined : measurementOverride?.[`${entry.key}:prefix:${entry.end}:${entry.placement}`];
       if (entry?.purpose === "page") {
         const forcedMeasurement = measurementOverride?.[id] ?? genericOverride;
@@ -1525,6 +1542,7 @@
     const rect = layoutEl?.getBoundingClientRect();
     const style = layoutEl == null ? null : getComputedStyle(layoutEl);
     measurements = next;
+    if (weatherPageFitChanged(prefixMeasurements, nextPrefixes)) bumpWeatherProbeRevision();
     prefixMeasurements = nextPrefixes;
     layoutWidthPx = measurementOverride?.layoutWidthPx ?? Math.round(rect?.width ?? 0);
     layoutHeightPx = measurementOverride?.layoutHeightPx ?? Math.round(rect?.height ?? 0);
@@ -2192,6 +2210,7 @@
     measurementGeometryStage = committedPlan?.stage ?? 0;
     solvingCenterClusterHidden = [...committedCenterClusterHidden];
     prefixMeasurements = {};
+    bumpWeatherProbeRevision();
     prefixMeasureEntries = [];
     if (settling) {
       settleRequested = true;
@@ -2549,6 +2568,7 @@
   data-scheduler-state={JSON.stringify({ rotation: rotationScheduler.diagnostics(), paging: cardPageCoordinator.diagnostics() })}
   data-expanded-counts={expandedCounts}
   data-prefix-probe-count={prefixMeasureEntries.length}
+  data-weather-probe-revision={weatherProbeRevisionKey}
   data-prefix-probe-key-counts={settleCostProbe ? JSON.stringify(prefixProbeKeyCounts) : undefined}
   data-typhoon-variant={renderTyphoonVariant}
   data-flood-form={renderFloodForm}

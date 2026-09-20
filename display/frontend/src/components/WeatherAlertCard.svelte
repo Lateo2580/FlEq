@@ -19,6 +19,8 @@
     present: PartitionProbe;
     revision: string;
     epoch: string;
+    /** Probe budget spent: partition one candidate per page without probing (Task 3). */
+    fallback?: boolean;
   }
 
   let { alerts, tornado = null, pageCoordinator: suppliedPageCoordinator, rotationMember = false, pageScheduling = false, partitionProbe, partitionProbes, tornadoPartitionProbe, pagePlacement = "side", measurement, tornadoPending = false, tornadoAggregatePending = false, tornadoInfeasible = null, forceTornadoPagingContract = false }: {
