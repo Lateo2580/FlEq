@@ -1,10 +1,10 @@
 {
   "meta": {
     "draftedFromOid": "585d2f4f858e350c6965d83019ba7e4842285b3c",
-    "sha256": "ac1628a5407b14a098f1630ba93af92565b3383cb723f8b6a29f7c30b0126d23",
+    "sha256": "9954495cfcc934bfe16610597fbe61e687bb5915030a3873ce391ee280a09771",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "76c82b87d7783a4eae14af690cb34e7d6ec46f73617dc75b7f7401951619f080",
-    "sequencesSha256": "22b2432e8989d7e7cc2514f2297308e84b3c0f1a3e045491b9cf60cfa8f2d147",
+    "sequencesSha256": "a50ec1b672e5a05a1a5fbd54e5321ecd9a55d214664cf4a644f539c281bd14b6",
     "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
     "decisionBranches": [
       {
@@ -134,9 +134,6 @@
         "expectedRef": "expected:O02:2"
       },
       {
-        "expectedRef": "expected:O06:2"
-      },
-      {
         "expectedRef": "expected:O07:16"
       },
       {
@@ -146,9 +143,6 @@
     "expectationEvidence": [
       {
         "expectedRef": "expected:O02:2"
-      },
-      {
-        "expectedRef": "expected:O06:2"
       },
       {
         "expectedRef": "expected:O07:16"
@@ -469,7 +463,7 @@
           "超過分野だけをsummaryへ落とす選択順と、予算内分野・共通状態を欠落させない期待",
           "現行meta.p2Subsetsにsnapshot容量stepがないため、必要ならsubset ID・stepRefs・根拠を提案する。sequences.jsonはA8担当が変更しない",
           "notice64件/128KiB・共通64KiB・256/4096-byte文字列・三分野summary各4KiBの合法最大と+1。固定上限へ合法表示が収まる証拠が必要で、実装者は値や省略意味を補完しない",
-        "超過reason3値はA1 DiagnosticReason共有unionへ追加済み。A8では独自union拡張や型assertionで迂回しない"
+          "超過reason3値はA1 DiagnosticReason共有unionへ追加済み。A8では独自union拡張や型assertionで迂回しない"
         ],
         "resolveBy": "P2-SNAPSHOT-SSE-001容量fixture作成前",
         "requiredEvidence": [
@@ -477,7 +471,7 @@
           "1MiB-1・一致・+1の入力とfull/summary、旧地図除去、他分野取消の期待",
           "提案が必要な場合はsubsetId、既存stepRefsまたは新step案、fixture来歴、spec根拠、統合担当owner",
           "三区分合算notice件数/byte/期限境界、共通metadata最大（saved/pending/failed/uncertain/復元不確実を保持）、escape後byte、文字列長境界、三分野summary最大を同時に満たすfixtureとsnapshot hash",
-        "A1共有reason3値が追加済みであることと、notice排除件数・common/string拒否から既存DiagnosticDetails fieldへの対応。合法最大でrejectedにならない最大値検査"
+          "A1共有reason3値が追加済みであることと、notice排除件数・common/string拒否から既存DiagnosticDetails fieldへの対応。合法最大でrejectedにならない最大値検査"
         ]
       }
     ]

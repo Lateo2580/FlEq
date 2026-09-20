@@ -1,7 +1,7 @@
 {
   "meta": {
     "baseOid": "3669dfd6a98e6c116c86f7db1cd27aa63002a90d",
-    "sha256": "22b2432e8989d7e7cc2514f2297308e84b3c0f1a3e045491b9cf60cfa8f2d147",
+    "sha256": "a50ec1b672e5a05a1a5fbd54e5321ecd9a55d214664cf4a644f539c281bd14b6",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "76c82b87d7783a4eae14af690cb34e7d6ec46f73617dc75b7f7401951619f080",
     "clock": "synthetic epoch milliseconds; receivedAt/evaluatedAt は合成固定時計。原XML日時は不変。系列内ケース間のrestartで時計と空stateを再設定。受信時刻の実測ではない。",
@@ -26,25 +26,90 @@
     "p2Subsets": [
       {
         "subsetId": "P2-O02-U-F-v1",
-        "stepRefs": ["expected:O02:1", "expected:O02:2", "unmet:O02:3", "expected:O02:4", "expected:O02:5", "expected:O02:6", "expected:O02:7", "expected:O02:8", "expected:O02:9", "expected:O02:10", "expected:O02:11", "expected:O02:12", "expected:O02:13", "expected:O02:14", "unmet:O02:15", "unmet:O02:16", "unmet:O02:17"],
+        "stepRefs": [
+          "expected:O02:1",
+          "expected:O02:2",
+          "unmet:O02:3",
+          "expected:O02:4",
+          "expected:O02:5",
+          "expected:O02:6",
+          "expected:O02:7",
+          "expected:O02:8",
+          "expected:O02:9",
+          "expected:O02:10",
+          "expected:O02:11",
+          "expected:O02:12",
+          "expected:O02:13",
+          "expected:O02:14",
+          "unmet:O02:15",
+          "unmet:O02:16",
+          "unmet:O02:17"
+        ],
         "replaces": [],
         "deferred": "O02:18-48はP3-P5へ残す"
       },
       {
         "subsetId": "P2-O04-U-W-v1",
-        "stepRefs": ["expected:O04:9", "unmet:O04:3", "expected:O04:4", "unmet:O04:5", "unmet:O04:6", "unmet:O04:7", "unmet:O04:8"],
-        "replaces": ["expected:O04:2 -> expected:O04:9"],
+        "stepRefs": [
+          "expected:O04:9",
+          "unmet:O04:3",
+          "expected:O04:4",
+          "unmet:O04:5",
+          "unmet:O04:6",
+          "unmet:O04:7",
+          "unmet:O04:8"
+        ],
+        "replaces": [
+          "expected:O04:2 -> expected:O04:9"
+        ],
         "deferred": "O04:2の旧Pi移行証明はP3へ残す"
       },
       {
         "subsetId": "P2-O06-U-W-v1",
-        "stepRefs": ["expected:O06:1", "expected:O06:2", "expected:O06:3", "unmet:O06:4", "unmet:O06:5", "unmet:O06:6", "unmet:O06:7", "unmet:O06:8", "expected:O06:9", "expected:O06:10", "unmet:O06:11", "unmet:O06:12", "unmet:O06:13", "unmet:O06:14", "unmet:O06:15", "unmet:O06:16", "unmet:O06:17", "unmet:O06:18", "unmet:O06:19", "unmet:O06:20", "unmet:O06:21", "unmet:O06:22", "unmet:O06:23", "unmet:O06:24", "unmet:O06:25", "unmet:O06:26", "unmet:O06:27", "unmet:O06:28", "expected:O06:31"],
-        "replaces": ["expected:O06:29 + unmet:O06:30 -> expected:O06:31"],
+        "stepRefs": [
+          "expected:O06:1",
+          "unmet:O06:2",
+          "unmet:O06:3",
+          "unmet:O06:4",
+          "unmet:O06:5",
+          "unmet:O06:6",
+          "unmet:O06:7",
+          "unmet:O06:8",
+          "expected:O06:9",
+          "expected:O06:10",
+          "unmet:O06:11",
+          "unmet:O06:12",
+          "unmet:O06:13",
+          "unmet:O06:14",
+          "unmet:O06:15",
+          "unmet:O06:16",
+          "unmet:O06:17",
+          "unmet:O06:18",
+          "unmet:O06:19",
+          "unmet:O06:20",
+          "unmet:O06:21",
+          "unmet:O06:22",
+          "unmet:O06:23",
+          "unmet:O06:24",
+          "unmet:O06:25",
+          "unmet:O06:26",
+          "unmet:O06:27",
+          "unmet:O06:28",
+          "expected:O06:31"
+        ],
+        "replaces": [
+          "expected:O06:29 + unmet:O06:30 -> expected:O06:31"
+        ],
         "deferred": "O06:29-30の旧v2履歴移行証明はP3へ残す"
       },
       {
         "subsetId": "P2-O07-U-E-v1",
-        "stepRefs": ["expected:O07:15", "expected:O07:16", "expected:O07:17", "expected:O07:18"],
+        "stepRefs": [
+          "expected:O07:15",
+          "expected:O07:16",
+          "expected:O07:17",
+          "expected:O07:18"
+        ],
         "replaces": [],
         "deferred": "O07のU-Q/U-Vと旧移行stepはP3-P5へ残す"
       },
@@ -2563,12 +2628,12 @@
           "sequenceId": "O06",
           "position": 2,
           "action": "receive",
-          "fixtureId": "test__fixtures__weather-alert-kind-area__synthetic-vpws50-change-density-before",
+          "fixtureId": null,
           "receivedAt": 1788656400001,
           "evaluatedAt": 1788656400001,
           "inputSource": "replay",
           "operationExpected": "normal",
-          "expectedRef": "expected:O06:2",
+          "expectedRef": "unmet:O06:2",
           "expectationBasis": [
             "L1: docs/specs/reconstruction-p0-contracts.md:1782 «03f4a83f1e49df20» O06",
             "L2: test/fixtures/weather-alert-kind-area/synthetic-vpws50-change-density-before.xml:1 «12c29731e40adc0c» 元XMLのControl/Head/Bodyを読解（原本確認の主張ではない）"
@@ -2578,12 +2643,12 @@
           "sequenceId": "O06",
           "position": 3,
           "action": "receive",
-          "fixtureId": "test__fixtures__weather-alert-kind-area__synthetic-vpws50-change-density-after",
+          "fixtureId": null,
           "receivedAt": 1788656460000,
           "evaluatedAt": 1788656460000,
           "inputSource": "replay",
           "operationExpected": "normal",
-          "expectedRef": "expected:O06:3",
+          "expectedRef": "unmet:O06:3",
           "expectationBasis": [
             "L1: docs/specs/reconstruction-p0-contracts.md:1782 «03f4a83f1e49df20» O06",
             "L2: test/fixtures/weather-alert-kind-area/synthetic-vpws50-change-density-after.xml:1 «12c29731e40adc0c» 元XMLのControl/Head/Bodyを読解（原本確認の主張ではない）"
@@ -10641,7 +10706,7 @@
       "position": 8,
       "decision": {
         "kind": "rejected",
-        "reason": null
+        "reason": "headMissing"
       },
       "effective": null,
       "subjects": [
@@ -10695,7 +10760,7 @@
       "position": 10,
       "decision": {
         "kind": "rejected",
-        "reason": null
+        "reason": "reportDateTimeInvalid"
       },
       "effective": null,
       "subjects": [
@@ -13492,7 +13557,7 @@
       ]
     },
     {
-      "expectedId": "expected:O06:2",
+      "expectedId": "unmet:O06:2",
       "sequenceId": "O06",
       "position": 2,
       "decision": {
@@ -13519,14 +13584,17 @@
         "L1: docs/specs/reconstruction-p0-contracts.md:1782 «03f4a83f1e49df20» O06",
         "L2: test/fixtures/weather-alert-kind-area/synthetic-vpws50-change-density-before.xml:1 «12c29731e40adc0c» 元XMLのControl/Head/Bodyを読解（原本確認の主張ではない）"
       ],
-      "input": null,
+      "input": {
+        "required": "Body/Warning/Item を持つ実 VPWS50 の連続 2 版（同一 subject normal/VPWS50/気象庁、ReportDateTime 昇順、EventID/Serial は原報の合法値）。synthetic-vpws50-change-density-before/after は空 Body のため契約 familyTable で requiredStructureMissing になり、全国履歴 2 の始点に使えない（2026-09-20 R18=A）。",
+        "acquisition": "REST（dmdata GD API）で実電文 2 版を取得する。synthetic は作らない"
+      },
       "checks": [
         "全国baseの連続2版。正常入力を保存し、履歴復元の始点にする。",
         "運用区分: Control.Status=通常; head.test/envelope Status=notProvided。replay 起源から区分を補わない。"
       ]
     },
     {
-      "expectedId": "expected:O06:3",
+      "expectedId": "unmet:O06:3",
       "sequenceId": "O06",
       "position": 3,
       "decision": {
@@ -13553,7 +13621,10 @@
         "L1: docs/specs/reconstruction-p0-contracts.md:1782 «03f4a83f1e49df20» O06",
         "L2: test/fixtures/weather-alert-kind-area/synthetic-vpws50-change-density-after.xml:1 «12c29731e40adc0c» 元XMLのControl/Head/Bodyを読解（原本確認の主張ではない）"
       ],
-      "input": null,
+      "input": {
+        "required": "Body/Warning/Item を持つ実 VPWS50 の連続 2 版（同一 subject normal/VPWS50/気象庁、ReportDateTime 昇順、EventID/Serial は原報の合法値）。synthetic-vpws50-change-density-before/after は空 Body のため契約 familyTable で requiredStructureMissing になり、全国履歴 2 の始点に使えない（2026-09-20 R18=A）。",
+        "acquisition": "REST（dmdata GD API）で実電文 2 版を取得する。synthetic は作らない"
+      },
       "checks": [
         "全国baseの連続2版。正常入力を保存し、履歴復元の始点にする。",
         "運用区分: Control.Status=通常; head.test/envelope Status=notProvided。replay 起源から区分を補わない。"
@@ -13766,7 +13837,7 @@
       },
       "subjects": [
         {
-          "subject": "normal/VPWW57/近畿地方整備局 京都府 京都地方気象台",
+          "subject": "normal/VPWW57/京都地方気象台",
           "revision": {
             "reportDateTimeRaw": "2020-06-22T23:00:00+09:00",
             "serialRaw": null,
@@ -18319,7 +18390,9 @@
       },
       "effective": {
         "kind": "inactive",
-        "cause": { "kind": "cancelled" }
+        "cause": {
+          "kind": "cancelled"
+        }
       },
       "subjects": [
         {
@@ -18377,7 +18450,9 @@
       },
       "effective": {
         "kind": "inactive",
-        "cause": { "kind": "cancelled" }
+        "cause": {
+          "kind": "cancelled"
+        }
       },
       "subjects": [
         {
