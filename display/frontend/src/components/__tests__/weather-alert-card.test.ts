@@ -944,6 +944,45 @@ describe("WeatherAlertCard", () => {
     expect(card.querySelectorAll("[data-card-page-footer]")).toHaveLength(1);
   });
 
+  it("partitionProbes.fallback は probe を呼ばず 1 候補 1 ページで identity と tail を欠落なく載せる", () => {
+    const calls: string[] = [];
+    const probe = (_key: unknown, _placement: unknown, range: { start: number; end: number }) => { calls.push(`${range.start}:${range.end}`); return 0; };
+    const alerts = [weatherAlert({ items: [
+      { kind: "大雨警報", phenomenonKey: "heavy-rain", displaySeverity: "warning", rank: "warning", shownAreas: ["A", "B"], omittedAreaCount: 3 },
+      { kind: "洪水警報", phenomenonKey: "flood", displaySeverity: "warning", rank: "warning", shownAreas: ["C"], omittedAreaCount: 0 },
+    ] })];
+    const { container } = render(WeatherAlertCard, {
+      alerts, pageScheduling: true,
+      partitionProbes: { absent: probe, present: probe, revision: "1", epoch: "1", fallback: true },
+    });
+    const card = container.querySelector<HTMLElement>(".weather-card")!;
+    expect(calls).toEqual([]);
+    expect(card.dataset.weatherPartitionFallback).toBe("true");
+    expect(card.dataset.partitionProbeCount).toBe("0");
+    expect(card.dataset.cardPagePending).toBe("false");
+    expect(JSON.parse(card.dataset.weatherPageRanges ?? "[]")).toEqual(["0:1", "1:2", "2:3"]);
+    expect(JSON.parse(card.dataset.cardPageIdentities ?? "[]")).toHaveLength(3);
+    expect(card.dataset.weatherFooterMode).toBe("present");
+    // 大雨警報の tail（ほか 3 地域）は最後の大雨警報ページ（index 1）に載る
+    expect(card.dataset.weatherPageRange).toBe("0:1");
+    expect(JSON.parse(card.dataset.weatherVisibleTails ?? "[]")).toEqual([]);
+  });
+
+  it("partitionProbes.fallback が false なら galloping で探索し、単調 probe で線形と同じページ境界になる", () => {
+    const calls: string[] = [];
+    const areas = Array.from({ length: 12 }, (_, index) => `地域${index + 1}`);
+    const alerts = [weatherAlert({ items: [{ kind: "大雨警報", phenomenonKey: "heavy-rain", displaySeverity: "warning", rank: "warning", shownAreas: areas, omittedAreaCount: 0 }] })];
+    const probe = (_key: unknown, _placement: unknown, range: { start: number; end: number }) => { calls.push(`${range.start}:${range.end}`); return range.end - range.start > 5 ? 2 : 0; };
+    const { container } = render(WeatherAlertCard, {
+      alerts, pageScheduling: true,
+      partitionProbes: { absent: probe, present: probe, revision: "1", epoch: "1", fallback: false },
+    });
+    const card = container.querySelector<HTMLElement>(".weather-card")!;
+    expect(JSON.parse(card.dataset.weatherPageRanges ?? "[]")).toEqual(["0:5", "5:10", "10:12"]);
+    expect(calls).toContain("0:8");   // ladder 1,2,4,8 を踏んでいる（線形なら 0:8 は呼ばれない）
+    expect(calls).not.toContain("0:3"); // 線形の逐次候補は踏まない
+  });
+
   it("footer-absent forced probe は range が部分範囲でも footer を描かない", () => {
     const range = { start: 0, end: 1, tails: [], omittedAreaCount: 0 };
     const { container } = render(WeatherAlertCard, {

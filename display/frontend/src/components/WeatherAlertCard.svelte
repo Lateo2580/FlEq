@@ -3,7 +3,7 @@
   import { onDestroy, untrack } from "svelte";
   import { groupByPrefectureOrRegion } from "../lib/prefecture-group";
   import { resolveWeatherKindKeys, weatherAreaIdentity } from "../lib/weather-expanded-kinds";
-  import { pageIdentity, sequentialPartitionRanges, type PartitionProbe } from "../lib/legacy-standby/page-partition";
+  import { gallopingPartitionRanges, pageIdentity, sequentialPartitionRanges, singletonPartitionRanges, type PartitionProbe } from "../lib/legacy-standby/page-partition";
   import type { PageRange } from "../lib/legacy-standby/types";
   import { createCardPageCoordinator, type CardPageCoordinator } from "../lib/legacy-standby/time-slice-scheduler.svelte";
   import { tornadoPageAreaEntries, tornadoPageResetKey } from "../lib/standby-cards";
@@ -225,10 +225,20 @@
       footerPresent: measurementFooterMode === "present",
       chromeGeneration: measurementFooterMode === "present" ? 2 : 1, revision, epoch,
     };
+    if (partitionProbes?.fallback === true) {
+      // Probe budget spent (StandbyScreen U3): deterministic one-candidate pages,
+      // no probes, and never reported as a measured fit.
+      const ranges = singletonPartitionRanges(pageCandidates.length, tailsForRange);
+      const needsFooter = ranges.length > 1 || pageTruncated;
+      return {
+        ranges, pending: [], infeasible: false, probeCount: 0,
+        footerPresent: needsFooter, chromeGeneration: needsFooter ? 2 : 1, revision, epoch, fallback: true,
+      };
+    }
     const absentProbe = partitionProbes?.absent ?? partitionProbe;
     const presentProbe = partitionProbes?.present ?? partitionProbe;
     if (absentProbe != null) {
-      const withoutFooter = sequentialPartitionRanges(
+      const withoutFooter = gallopingPartitionRanges(
         "weather", pagePlacement, pageCandidates.length, 1, absentProbe, tailsForRange,
       );
       const needsFooter = withoutFooter.ranges.length > 1 || pageTruncated;
@@ -239,7 +249,7 @@
       // Footer chrome changes the available body height. Re-run from candidate
       // zero with an independently keyed cache generation; never reuse ranges.
       return {
-        ...sequentialPartitionRanges(
+        ...gallopingPartitionRanges(
           "weather", pagePlacement, pageCandidates.length, 1, presentProbe, tailsForRange,
         ),
         footerPresent: true, chromeGeneration: 2, revision, epoch,
@@ -474,6 +484,7 @@
     data-card-page-truncated={pageTruncated ? "true" : "false"}
     data-weather-page-range={currentWeatherRange == null ? "" : `${currentWeatherRange.start}:${currentWeatherRange.end}`}
     data-partition-probe-count={pagePartition.probeCount}
+    data-weather-partition-fallback={pagePartition.fallback === true ? "true" : "false"}
     data-card-page-infeasible={pagePartition.infeasible ? "true" : "false"}
     data-card-page-pending={pagePartition.pending.length > 0 ? "true" : "false"}
     data-page-probe-card={measurementRange != null || measurementTornadoRange != null ? "" : undefined}
