@@ -362,8 +362,9 @@ export function gallopingPartitionRanges(key: PagePartitionKey, placement: "side
       if (end === areaCount) break;
     }
     if (firstUnmeasuredEnd != null) {
-      // Provisional page until the shelf resolves the ladder; same shape as the linear version.
-      ranges.push(rangeFor(start, Math.max(fitEnd, firstUnmeasuredEnd)));
+      // Provisional page until the shelf resolves the ladder; same shape as the linear version
+      // (prefer the fit-so-far prefix, fall back to the first unmeasured end when nothing fit yet).
+      ranges.push(rangeFor(start, fitEnd > start ? fitEnd : firstUnmeasuredEnd));
       return result();
     }
     if (failEnd == null) { ranges.push(rangeFor(start, areaCount)); return result(); }

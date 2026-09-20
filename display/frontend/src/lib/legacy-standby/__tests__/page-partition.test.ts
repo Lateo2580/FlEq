@@ -58,7 +58,7 @@ describe("legacy standby page partition", () => {
     expect(gallop.pending).toEqual([]);
     expect(gallop.infeasible).toBe(false);
     expect(linearCalls.length).toBe(65);
-    expect(gallopCalls.length).toBeLessThan(30);
+    expect(gallopCalls.length).toBeLessThan(20);
   });
 
   it("galloping は未計測に当たると暫定ページを返し、pending は 1 回の呼び出しで最大 4 本", () => {
@@ -68,6 +68,19 @@ describe("legacy standby page partition", () => {
       "weather:page:0:1", "weather:page:0:2", "weather:page:0:4", "weather:page:0:8",
     ]);
     expect(result.infeasible).toBe(false);
+  });
+
+  it("galloping の暫定ページは未計測より fit 済み prefix を優先する", () => {
+    const result = gallopingPartitionRanges("weather", "side", 64, 32, (_key, _placement, range) => range.end <= 8 ? range.end - range.start : null, () => []);
+    expect(result.ranges).toEqual([{ start: 0, end: 8, tails: [], omittedAreaCount: 0 }]);
+    expect(result.pending.map((entry) => entry.id)).toEqual([
+      "weather:page:0:16", "weather:page:0:32", "weather:page:0:64",
+    ]);
+  });
+
+  it("galloping は最初の候補が不適合なら infeasible を返す", () => {
+    const result = gallopingPartitionRanges("weather", "side", 4, 10, () => 99, () => []);
+    expect(result).toMatchObject({ infeasible: true, ranges: [], pending: [] });
   });
 
   it("singleton 分割は N 件を N ページにし、tail を欠落なく載せる", () => {
