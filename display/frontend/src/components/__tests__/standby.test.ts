@@ -2046,6 +2046,80 @@ describe("StandbyScreen prefix probes and fixed-center geometry", () => {
     expect(container.querySelectorAll('[data-prefix-measure*="placement:left"], [data-prefix-measure*="placement:right"]')).toHaveLength(0);
   }, 15_000);
 
+  it("weather の probe 予算に達すると settled に到達し fallback を latch、入力不変の successor では再探索しない", async () => {
+    // page-fit を一切解決しない（override なし・ResizeObserver なしなので page-fit は即 fit=0 になる経路を避けるため
+    // clientHeight を部分ゼロにして「未計測」を保つ）。予算 3 本で latch させる。
+    class TestResizeObserver { observe(): void {} unobserve(): void {} disconnect(): void {} }
+    vi.stubGlobal("ResizeObserver", TestResizeObserver);
+    const clientHeight = Object.getOwnPropertyDescriptor(HTMLElement.prototype, "clientHeight");
+    Object.defineProperty(HTMLElement.prototype, "clientHeight", {
+      configurable: true,
+      get(this: HTMLElement): number { return this.matches("[data-page-probe-card]") ? 100 : 0; },
+    });
+    try {
+      const areas = Array.from({ length: 40 }, (_, index) => `地域${index + 1}`);
+      const alert = weather({ items: [{ kind: "大雨警報", phenomenonKey: "heavy-rain", displaySeverity: "officialL3", rank: "warning", shownAreas: areas, omittedAreaCount: 0 }] });
+      const { container, rerender } = render(StandbyScreen, {
+        snapshot: baseSnapshot({ weatherAlerts: [alert] }), now, dim: false, sseConnected: true,
+        testMeasurementOverride: { layoutWidthPx: 1280, layoutHeightPx: 10_000, baselineGapPx: 10 },
+        testWeatherBudget: { probes: 3 },
+      });
+      for (let pass = 0; pass < 24; pass += 1) await tick();
+      const root = container.querySelector<HTMLElement>(".standby")!;
+      expect(root.dataset.measurementSettled).toBe("true");
+      expect(root.dataset.weatherPartitionFallback).toBe("true");
+      expect(Number(root.dataset.weatherProbeAdmitted)).toBe(3);
+      const live = container.querySelector<HTMLElement>(".legacy-layout .weather-card")!;
+      expect(live.dataset.weatherPartitionFallback).toBe("true");
+      expect(JSON.parse(live.dataset.weatherPageRanges ?? "[]")).toHaveLength(40);
+      const epochAfterSettle = root.dataset.measurementEpoch;
+      // 入力不変: successor が走っても admitted は増えず latch は保たれる
+      for (let pass = 0; pass < 8; pass += 1) await tick();
+      expect(Number(root.dataset.weatherProbeAdmitted)).toBe(3);
+      expect(root.dataset.weatherPartitionFallback).toBe("true");
+      expect(root.dataset.measurementEpoch).toBe(epochAfterSettle);
+      // 新しい入力（地域が 1 つ減る）で latch が解け、予算が戻る
+      const smaller = weather({ items: [{ kind: "大雨警報", phenomenonKey: "heavy-rain", displaySeverity: "officialL3", rank: "warning", shownAreas: areas.slice(0, 2), omittedAreaCount: 0 }] });
+      await rerender({ snapshot: baseSnapshot({ weatherAlerts: [smaller] }), now, dim: false, sseConnected: true, testMeasurementOverride: { layoutWidthPx: 1280, layoutHeightPx: 10_000, baselineGapPx: 10 }, testWeatherBudget: { probes: 3 } });
+      await tick(); await tick();
+      expect(root.dataset.measurementEpoch).not.toBe(epochAfterSettle);
+      expect(Number(root.dataset.weatherProbeAdmitted)).toBeLessThanOrEqual(3);
+      for (let pass = 0; pass < 24; pass += 1) await tick();
+      expect(root.dataset.measurementSettled).toBe("true");
+    } finally {
+      if (clientHeight == null) delete (HTMLElement.prototype as { clientHeight?: number }).clientHeight;
+      else Object.defineProperty(HTMLElement.prototype, "clientHeight", clientHeight);
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("weather の反復予算に達しても settled に到達し fallback を latch する", async () => {
+    class TestResizeObserver { observe(): void {} unobserve(): void {} disconnect(): void {} }
+    vi.stubGlobal("ResizeObserver", TestResizeObserver);
+    const clientHeight = Object.getOwnPropertyDescriptor(HTMLElement.prototype, "clientHeight");
+    Object.defineProperty(HTMLElement.prototype, "clientHeight", {
+      configurable: true,
+      get(this: HTMLElement): number { return this.matches("[data-page-probe-card]") ? 100 : 0; },
+    });
+    try {
+      const areas = Array.from({ length: 40 }, (_, index) => `地域${index + 1}`);
+      const alert = weather({ items: [{ kind: "大雨警報", phenomenonKey: "heavy-rain", displaySeverity: "officialL3", rank: "warning", shownAreas: areas, omittedAreaCount: 0 }] });
+      const { container } = render(StandbyScreen, {
+        snapshot: baseSnapshot({ weatherAlerts: [alert] }), now, dim: false, sseConnected: true,
+        testMeasurementOverride: { layoutWidthPx: 1280, layoutHeightPx: 10_000, baselineGapPx: 10 },
+        testWeatherBudget: { iterations: 2 },
+      });
+      for (let pass = 0; pass < 24; pass += 1) await tick();
+      const root = container.querySelector<HTMLElement>(".standby")!;
+      expect(root.dataset.measurementSettled).toBe("true");
+      expect(root.dataset.weatherPartitionFallback).toBe("true");
+    } finally {
+      if (clientHeight == null) delete (HTMLElement.prototype as { clientHeight?: number }).clientHeight;
+      else Object.defineProperty(HTMLElement.prototype, "clientHeight", clientHeight);
+      vi.unstubAllGlobals();
+    }
+  });
+
   it("uses the ticker-edge fallback for three equal calm intervals without shifting the clock for connection state", async () => {
     const stats = { sparklineData: [1], totalReceived: 1, todayQuakeCount: 1, todayMaxInt: null, todayMaxIntRank: null };
     const { container } = render(StandbyScreen, {

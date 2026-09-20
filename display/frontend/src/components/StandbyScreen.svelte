@@ -10,7 +10,7 @@
   import { nextCenterClusterHidden, type CenterClusterItem } from "../lib/legacy-standby/center-cluster";
   import { createLayoutMotionCoordinator, type LayoutMotionIdentity } from "../lib/legacy-standby/layout-motion.svelte";
   import { standbyLayoutKey } from "../lib/legacy-standby/layout-key";
-  import { pageIdentity, sequentialPartitionRanges, type PartitionProbe } from "../lib/legacy-standby/page-partition";
+  import { gallopingPartitionRanges, pageIdentity, sequentialPartitionRanges, singletonPartitionRanges, type PartitionProbe } from "../lib/legacy-standby/page-partition";
   import { createCardPageCoordinator, createRotationScheduler } from "../lib/legacy-standby/time-slice-scheduler.svelte";
   import type { CardCandidate, CardKey, CardVariant, ColumnPlan, DisplaySelection, LadderStage, PagePartitionKey, PageRange, PlacementChoice } from "../lib/legacy-standby/types";
   import Clock from "./Clock.svelte";
@@ -31,7 +31,7 @@
   import WeatherWarningForecastCard from "./WeatherWarningForecastCard.svelte";
 
   type TestMeasurementOverride = Partial<Record<string, number>> | ((pass: number) => Partial<Record<string, number>>);
-  let { snapshot, now, dim, reducedMotion = false, sseConnected, onTsunamiReplay, onStageChange, testMeasurementOverride, testLateProbeDuringFinalCommit, testProbeAfterMeasurementPass, testBeforeTerminalCommit, testAfterTerminalBoundary, rotationTick, cardPageTick, gateFixture, partitionDebug = false }: {
+  let { snapshot, now, dim, reducedMotion = false, sseConnected, onTsunamiReplay, onStageChange, testMeasurementOverride, testLateProbeDuringFinalCommit, testProbeAfterMeasurementPass, testBeforeTerminalCommit, testAfterTerminalBoundary, testWeatherBudget, yieldBetweenPasses, rotationTick, cardPageTick, gateFixture, partitionDebug = false }: {
     snapshot: DisplayStateSnapshotV1;
     now: Date;
     dim: boolean;
@@ -49,6 +49,11 @@
     testBeforeTerminalCommit?: (queueSuccessor: () => void) => void;
     /** Test-only observation point after a terminal epoch boundary. */
     testAfterTerminalBoundary?: () => void;
+    /** テスト注入用。weather/tornado probe の admission 数と settle 反復数の上限を下げる */
+    testWeatherBudget?: { probes?: number; iterations?: number };
+    /** 本番（App）だけが渡す。settle の inner loop が SETTLE_YIELD_AFTER_MS を超えて連続したら macrotask に譲る。
+     *  既定 undefined = 譲らない（jsdom テストは microtask 駆動のまま、Issue #15 の performance.now() 0 回契約も保つ） */
+    yieldBetweenPasses?: () => Promise<void>;
     /** Capture/test-only deterministic scheduler positions. */
     rotationTick?: number;
     cardPageTick?: number;
@@ -95,6 +100,17 @@
   // A final DOM commit may mount one same-epoch probe. It gets one bounded
   // confirmation pass; this is not a general retry budget.
   const MAX_POST_COMMIT_VERIFICATION_PASSES = 1;
+  // U3: weather page-fit + tornado probe admissions and settle iterations per
+  // input generation. Past either limit the weather card partitions one
+  // candidate per page instead of probing further. Without these a typhoon-scale
+  // payload mounted 1,100 probes and never settled (2026-09-21 Pi OOM).
+  // ponytail: 768/256 are Mac-measured margins (that payload needs ~130/50 with galloping); retune from Pi.
+  const WEATHER_PROBE_BUDGET = 768;
+  const WEATHER_SETTLE_ITERATION_BUDGET = 256;
+  // Yield a macrotask once an inner-loop stretch exceeds this, so paint, SSE
+  // and the watchdog run. `await tick()` alone is a microtask (svelte runtime.js:494).
+  // Effective only when App supplies yieldBetweenPasses; the default props never yield.
+  const SETTLE_YIELD_AFTER_MS = 250;
   const layoutMotionDuration = SPRING_SPATIAL_DEFAULT_MS;
   const KNOWN_KINDS = new Set<string>(["volcano", "typhoon", "heat", "flood", "tornado", "longPeriod", "nankaiTrough", "briefing", "weatherWarningForecast"]);
   const CARD_ORDER: readonly CardKey[] = ["tsunami", "quake", "weather", "weatherWarningForecast", "briefing", "flood", "typhoon", "volcano", "heat"];
@@ -186,6 +202,22 @@
   // string join of every weather probe id and kept every stale key alive.
   const weatherPartitionProbeContracts = new Map<string, { absentSignature: string; presentSignature: string; contract: WeatherPartitionContract }>();
   let weatherPartitionFallback = $state(false);
+  // Plain (non-reactive) because admission is decided inside $derived partitions.
+  // The settle loop mirrors the latch into weatherPartitionFallback after each drain.
+  const weatherProbeAdmitted = new Set<string>();
+  let weatherProbeExhausted = false;
+  let weatherSettleIterations = 0;
+  let weatherProbeAdmittedCount = $state(0);
+  function admitWeatherProbe(id: string): boolean {
+    if (weatherProbeAdmitted.has(id)) return true;
+    if (weatherProbeExhausted) return false;
+    if (weatherProbeAdmitted.size >= (testWeatherBudget?.probes ?? WEATHER_PROBE_BUDGET)) {
+      weatherProbeExhausted = true;
+      return false;
+    }
+    weatherProbeAdmitted.add(id);
+    return true;
+  }
   let layoutWidthPx = $state(0);
   let layoutHeightPx = $state(0);
   let leftTrackWidthPx = $state(0);
@@ -359,7 +391,7 @@
     queueMicrotask(() => {
       briefingProbeSettleQueued = false;
       if (!disposed && measurementSettled) {
-        requestSettle();
+        requestSettle("successor");
         briefingSuccessorEpochStarts += 1;
         briefingLastSuccessorEpoch = epochKey;
       }
@@ -533,8 +565,12 @@
     // the body below is unchanged.
     const partitionStartedAt = settleCostProbe ? performance.now() : 0;
     const { candidates, tailsForRange } = weatherMeasurementCandidates(rows);
+    if (weatherPartitionFallback) {
+      if (settleCostProbe) { settlePartitionMs += performance.now() - partitionStartedAt; settlePartitionCalls += 1; }
+      return singletonPartitionRanges(candidates.length, tailsForRange);
+    }
     const composition = weatherChromeSignature(placement, rows, footer);
-    const result = sequentialPartitionRanges(
+    const result = gallopingPartitionRanges(
       "weather", placement, candidates.length, 1,
       (_key, _placement, range, tails) => cachedPagePartitionMeasurement(
         "weather", placement, range, tails, undefined, composition, undefined, rows,
@@ -792,6 +828,7 @@
     // Defer registration so probes cannot manufacture a synthetic epoch 0
     // that consumes one of the four bounded settle passes.
     if (epoch === 0) return null;
+    if (key === "weather" && !admitWeatherProbe(id)) return null;
     coordinator.enqueueProbe(id, () => {
       if (prefixMeasureEntries.some((entry) => entry.id === id)) return;
       if (key === "weather") {
@@ -811,6 +848,7 @@
       const measured = cachedPagePartitionMeasurement(key, placement, range, tails, floodForm, composition, weatherRange, weatherSelectionRows);
       if (measured != null) return measured;
       if (epoch === 0) return null;
+      if ((key === "weather" || key === "tornado") && !admitWeatherProbe(id)) return null;
       coordinator.enqueueProbe(id, () => {
         if (prefixMeasureEntries.some((entry) => entry.id === id)) return;
         // A briefing footer contract is a measurement generation, not an
@@ -2023,6 +2061,7 @@
     let superseded = false;
     let pendingStageChange: LadderStage | null = null;
     let postCommitVerificationPasses = 0;
+    let lastYieldAt = yieldBetweenPasses == null ? 0 : performance.now();
     for (let pass = 0; pass < MAX_SETTLE_PASSES + postCommitVerificationPasses; pass += 1) {
       let probeSteps = 0;
       // B and the two U4 pageable cards may each consume their bounded probe
@@ -2072,6 +2111,19 @@
         if (settleCostProbe) settleFlushMs += performance.now() - probeFlushStartedAt;
         recordSettleTrace(pass, probeSteps);
         probeSteps += 1;
+        // U3: iteration budget, latch publish, macrotask yield.
+        weatherSettleIterations += 1;
+        if (weatherSettleIterations >= (testWeatherBudget?.iterations ?? WEATHER_SETTLE_ITERATION_BUDGET)) weatherProbeExhausted = true;
+        if (weatherProbeExhausted && !weatherPartitionFallback) {
+          weatherPartitionFallback = true;
+          flushSync();
+        }
+        weatherProbeAdmittedCount = weatherProbeAdmitted.size;
+        if (yieldBetweenPasses != null && performance.now() - lastYieldAt >= SETTLE_YIELD_AFTER_MS) {
+          await yieldBetweenPasses();
+          lastYieldAt = performance.now();
+          if (disposed) break;
+        }
       } while (!disposed && coordinator.hasPendingProbes() && probeSteps < maxProbeSteps);
       if (disposed) break;
       testProbeAfterMeasurementPass?.(coordinator, pass);
@@ -2194,9 +2246,17 @@
       void settleMeasurements();
     }
   }
-  function requestSettle(): void {
+  function requestSettle(kind: "input" | "successor" = "input"): void {
     epoch += 1;
     epochKey = String(epoch);
+    if (kind === "input") {
+      // A successor epoch re-measures the same input; only new input restores the budget.
+      weatherProbeAdmitted.clear();
+      weatherProbeExhausted = false;
+      weatherSettleIterations = 0;
+      weatherPartitionFallback = false;
+      weatherProbeAdmittedCount = 0;
+    }
     // These object-stability caches are epoch-local. Payload/revision keys can
     // otherwise accumulate indefinitely during a long-running display.
     weatherMeasurementContracts.clear();
@@ -2356,12 +2416,13 @@
       forceTornadoPagingContract={tornadoPagingContractActive()}
       measurement={measuring ? normalWeatherMeasurement(placement === "center" ? "center" : "side", weatherRows) : undefined}
       partitionProbes={measuring ? undefined : weatherPartitionProbeContract(placement === "center" ? "center" : "side", selected.weatherRows)}
-      tornadoPartitionProbe={measuring ? undefined : (tornadoRange, weatherRange) => {
+      tornadoPartitionProbe={measuring || weatherPartitionFallback ? undefined : (tornadoRange, weatherRange) => {
         const probePlacement = placement === "center" ? "center" : "side";
         const footer = weatherMeasurementPageFooter === true ? "present" : "absent";
         const composition = tornadoMeasurementComposition(probePlacement, selected.weatherRows, footer, weatherRange, false);
         return pagePartitionProbe("tornado", probePlacement, 1, undefined, composition, weatherRange, selected.weatherRows)("tornado", probePlacement, tornadoRange, []);
       }}
+      tornadoInfeasible={!measuring && weatherPartitionFallback && tornadoItem != null ? "aggregate" : null}
       pagePlacement={placement === "center" ? "center" : "side"}
     />
   {:else if key === "weatherWarningForecast" && weatherWarningForecastItem != null}
@@ -2569,6 +2630,8 @@
   data-expanded-counts={expandedCounts}
   data-prefix-probe-count={prefixMeasureEntries.length}
   data-weather-probe-revision={weatherProbeRevisionKey}
+  data-weather-probe-admitted={weatherProbeAdmittedCount}
+  data-weather-partition-fallback={weatherPartitionFallback ? "true" : "false"}
   data-prefix-probe-key-counts={settleCostProbe ? JSON.stringify(prefixProbeKeyCounts) : undefined}
   data-typhoon-variant={renderTyphoonVariant}
   data-flood-form={renderFloodForm}
@@ -2606,7 +2669,7 @@
       <!-- Keep the rotation-slot (side geometry) page partition ready before
            stage 3 changes weather from a permanent card into a slot member. -->
       <div class="partition-preflight">
-        <WeatherAlertCard alerts={weatherWithSelection(MAX_PREFIX_ROWS)} tornado={tornadoItem} pageScheduling={false} partitionProbes={weatherPartitionProbeContract("side", MAX_PREFIX_ROWS)} tornadoPartitionProbe={(tornadoRange, weatherRange) => { const footer = weatherMeasurementPageFooter === true ? "present" : "absent"; return pagePartitionProbe("tornado", "side", 1, undefined, tornadoMeasurementComposition("side", MAX_PREFIX_ROWS, footer, weatherRange, true), weatherRange, MAX_PREFIX_ROWS)("tornado", "side", tornadoRange, []); }} pagePlacement="side" />
+        <WeatherAlertCard alerts={weatherWithSelection(MAX_PREFIX_ROWS)} tornado={tornadoItem} pageScheduling={false} partitionProbes={weatherPartitionProbeContract("side", MAX_PREFIX_ROWS)} tornadoPartitionProbe={weatherPartitionFallback ? undefined : (tornadoRange, weatherRange) => { const footer = weatherMeasurementPageFooter === true ? "present" : "absent"; return pagePartitionProbe("tornado", "side", 1, undefined, tornadoMeasurementComposition("side", MAX_PREFIX_ROWS, footer, weatherRange, true), weatherRange, MAX_PREFIX_ROWS)("tornado", "side", tornadoRange, []); }} pagePlacement="side" />
       </div>
     {/if}
     {#if briefingItem != null}
@@ -2646,7 +2709,7 @@
            its center-width page partition while the measurement shelf is
            already active, so the final placement flush has no new probe chain. -->
       <div class="partition-preflight">
-        <WeatherAlertCard alerts={weatherWithSelection(MAX_PREFIX_ROWS)} tornado={tornadoItem} pageScheduling={false} partitionProbes={weatherPartitionProbeContract("center", MAX_PREFIX_ROWS)} tornadoPartitionProbe={(tornadoRange, weatherRange) => { const footer = weatherMeasurementPageFooter === true ? "present" : "absent"; return pagePartitionProbe("tornado", "center", 1, undefined, tornadoMeasurementComposition("center", MAX_PREFIX_ROWS, footer, weatherRange, true), weatherRange, MAX_PREFIX_ROWS)("tornado", "center", tornadoRange, []); }} pagePlacement="center" />
+        <WeatherAlertCard alerts={weatherWithSelection(MAX_PREFIX_ROWS)} tornado={tornadoItem} pageScheduling={false} partitionProbes={weatherPartitionProbeContract("center", MAX_PREFIX_ROWS)} tornadoPartitionProbe={weatherPartitionFallback ? undefined : (tornadoRange, weatherRange) => { const footer = weatherMeasurementPageFooter === true ? "present" : "absent"; return pagePartitionProbe("tornado", "center", 1, undefined, tornadoMeasurementComposition("center", MAX_PREFIX_ROWS, footer, weatherRange, true), weatherRange, MAX_PREFIX_ROWS)("tornado", "center", tornadoRange, []); }} pagePlacement="center" />
       </div>
     {/if}
     {#if briefingItem != null}

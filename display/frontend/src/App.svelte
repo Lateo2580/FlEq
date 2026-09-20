@@ -289,6 +289,7 @@
           {reducedMotion}
           sseConnected={connection.state.sseConnected}
           testMeasurementOverride={testStandbyMeasurementOverride}
+          yieldBetweenPasses={() => new Promise<void>((resolve) => setTimeout(resolve, 0))}
           onTsunamiReplay={replayTsunami}
           onStageChange={(stage) => { if (mode === "standby") standbyStage = stage; }}
         />
