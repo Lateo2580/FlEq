@@ -2,6 +2,57 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [4.0.0](https://github.com/Lateo2580/FlEq/compare/v3.5.0...v4.0.0) (2026-09-20)
+
+
+### ⚠ BREAKING CHANGES
+
+* --filter／--focus／--template と REPL の filter／focus／detail は
+使えなくなる。旧 vpwp50-latest.json は読み書きしない（残置しても起動に影響なし）。
+
+検証: build・typecheck:test・test 287 files / 6795 passed。独立レビュー（Codex）で
+受理経路の同値性と変更テスト 24 件の妥当性を確認。
+
+Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_011hnMdcS67BrdwWimmBpv6S
+
+### 機能追加
+
+* **display:** 気象カード向けの galloping 分割探索と singleton 分割を page-partition に追加する ([884dc42](https://github.com/Lateo2580/FlEq/commit/884dc42110e56b80e73764993247adcd4f35700c))
+* **sound:** 通知音 5 段階を生成 WAV に置き換え、設計規範とレンダラを追加する ([d9df727](https://github.com/Lateo2580/FlEq/commit/d9df727c8b2ff76447c8915adc61799dbe2b756c))
+
+
+### バグ修正
+
+* **display:** galloping 分割の暫定ページを fit 済み prefix 優先にし、infeasible 経路のテストを足す ([f9de3c9](https://github.com/Lateo2580/FlEq/commit/f9de3c99b1e7ceb68f19e6320a5f411b43479d1d))
+* **display:** yield 復帰後の supersede 検出、legacyTornadoId の本番 encode 回避、予算テストの空虚防止（最終レビュー同梱） ([d4d387a](https://github.com/Lateo2580/FlEq/commit/d4d387a26795e171447bf629b3a66dc266e62025))
+* **display:** yield 復帰後の supersede 検出を取り下げる（coordinator の epoch 昇格を伴わないため follow-up へ） ([6afb584](https://github.com/Lateo2580/FlEq/commit/6afb5843b5dec0095efdfc6fac2817abfc613449))
+* **display:** テロップの一発同期で走行中の全レーンを作り直さない ([94a1190](https://github.com/Lateo2580/FlEq/commit/94a119003d1f7d969f73f26bced61e79c12ecbd7))
+* **display:** 待機画面の yield 中に入力が来たら coordinator が queued epoch を昇格し、古い settle loop を superseded で抜ける ([187f305](https://github.com/Lateo2580/FlEq/commit/187f3057f75bfda45749c72d6e0f2a8860516c30))
+* **display:** 待機画面の気象 probe に admission/反復予算と macrotask yield を入れ、予算切れは確定分割へ latch する ([8015de4](https://github.com/Lateo2580/FlEq/commit/8015de4bc3c325659a7545dcbf348a9a65188f10))
+* **display:** 気象 probe 予算の latch を commit 境界と settle 後の拒否でも publish し、reset の検証を振る舞いで固定する ([5c2b4b9](https://github.com/Lateo2580/FlEq/commit/5c2b4b9106bc5eabb88267d50941ddb7948148bd))
+* **display:** 気象カードのページ分割を galloping 探索にし、予算切れ時は 1 候補 1 ページの確定分割へ降りる ([1ba021d](https://github.com/Lateo2580/FlEq/commit/1ba021d4a8f4a2fed0ae7aec886cf64fdc6f8e36))
+* **display:** 気象カードの計測契約 cache を slot 毎の最新 1 件にし、probe id から地域名の全文複製を外す ([239d305](https://github.com/Lateo2580/FlEq/commit/239d30529533bf5e7ea71ea46ec9df41ab85f2c1))
+* **sound:** Linux の再生と起動時 probe を同じ ffplay→paplay→aplay の列に統一する ([#20](https://github.com/Lateo2580/FlEq/issues/20)) ([52fe154](https://github.com/Lateo2580/FlEq/commit/52fe15404590741b656a83fdd521e487ce10c2ce))
+
+
+### リファクタリング
+
+* filter／focus／template の表示 pipeline と REPL detail を削除する（全面再構成 Q7 裁定） ([132f91c](https://github.com/Lateo2580/FlEq/commit/132f91c64254270d636355ec4ad80f1811aa1694))
+
+
+### ドキュメント
+
+* Codex レビュー依頼のモデルを Astra high に改める（作者指示 2026-09-15） ([7b8ab4a](https://github.com/Lateo2580/FlEq/commit/7b8ab4a6056b67b0a957ca8f4978e41f8b4a3ff0))
+* **sound:** 分野別根音表 v1 を sound-design-system.md に統合する（P2 計画 D8=A の前提材料） ([aa9ebeb](https://github.com/Lateo2580/FlEq/commit/aa9ebeb0a080767e2aabc086c5418487480f8703))
+* **spec:** §7.9 診断ログを 1 行 1 イベント・reason 列挙値・unit ID で固定する ([25abe97](https://github.com/Lateo2580/FlEq/commit/25abe979301b7a604158f79c355a61c1d73522fb))
+* **specs:** §6.2 の通知音追記を既存 bullet へ統合し、系列根拠の行番号を維持する ([d999005](https://github.com/Lateo2580/FlEq/commit/d9990053b44496fd54fa6995148e2a04a5a9c9a3))
+* **specs:** Q7 の残り 4 行（history・eewlog・EEW ログファイル・地震の再表示／再放送）に作者裁定を転記する ([d21a0d5](https://github.com/Lateo2580/FlEq/commit/d21a0d5fb473ff901d9e241577343647bd9a8996))
+* **specs:** 全面再構成 P0 spec を日付なしの生きた仕様として repo に戻す ([3669dfd](https://github.com/Lateo2580/FlEq/commit/3669dfd6a98e6c116c86f7db1cd27aa63002a90d))
+* **specs:** 全面再構成 Q7（機能採否表 §11）に作者裁定を転記する ([05b9d68](https://github.com/Lateo2580/FlEq/commit/05b9d682596872de87e2a3d7292158212339599c))
+* **specs:** 通知 intent §6.2 に分野別通知音の実装先（新築、裁定 B）と Linux 再生列を明記する ([f07a870](https://github.com/Lateo2580/FlEq/commit/f07a870695e3872dd62727d46de947f5d81f6a4b))
+* 日付付き spec 43 本と review-brief を repo から作業ノートへ退避し、参照を書き換える ([67e51d0](https://github.com/Lateo2580/FlEq/commit/67e51d046ba6da0a481d08ae80089363f9e70e5d))
+
 ## [3.5.0](https://github.com/Lateo2580/FlEq/compare/v3.4.0...v3.5.0) (2026-09-12)
 
 
