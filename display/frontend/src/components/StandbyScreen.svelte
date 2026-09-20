@@ -218,6 +218,17 @@
     weatherProbeAdmitted.add(id);
     return true;
   }
+  // The latch flips inside $derived partitions; publishing it is a settle-loop
+  // job. Called after each inner drain, after the commit flush (the live card's
+  // committed-rows contract can spend the last admissions there) and before the
+  // non-converged terminal commit. Returns true when it just published.
+  function publishWeatherFallbackIfExhausted(): boolean {
+    weatherProbeAdmittedCount = weatherProbeAdmitted.size;
+    if (!weatherProbeExhausted || weatherPartitionFallback) return false;
+    weatherPartitionFallback = true;
+    flushSync();
+    return true;
+  }
   let layoutWidthPx = $state(0);
   let layoutHeightPx = $state(0);
   let leftTrackWidthPx = $state(0);
@@ -828,7 +839,12 @@
     // Defer registration so probes cannot manufacture a synthetic epoch 0
     // that consumes one of the four bounded settle passes.
     if (epoch === 0) return null;
-    if (key === "weather" && !admitWeatherProbe(id)) return null;
+    if (key === "weather" && !admitWeatherProbe(id)) {
+      // A denial after settle has no drain to publish the latch; a successor's
+      // first drain does. Once published, a successor cannot admit anything.
+      if (measurementSettled && !weatherPartitionFallback) scheduleBriefingProbeSettle();
+      return null;
+    }
     coordinator.enqueueProbe(id, () => {
       if (prefixMeasureEntries.some((entry) => entry.id === id)) return;
       if (key === "weather") {
@@ -848,7 +864,10 @@
       const measured = cachedPagePartitionMeasurement(key, placement, range, tails, floodForm, composition, weatherRange, weatherSelectionRows);
       if (measured != null) return measured;
       if (epoch === 0) return null;
-      if ((key === "weather" || key === "tornado") && !admitWeatherProbe(id)) return null;
+      if ((key === "weather" || key === "tornado") && !admitWeatherProbe(id)) {
+        if (measurementSettled && !weatherPartitionFallback) scheduleBriefingProbeSettle();
+        return null;
+      }
       coordinator.enqueueProbe(id, () => {
         if (prefixMeasureEntries.some((entry) => entry.id === id)) return;
         // A briefing footer contract is a measurement generation, not an
@@ -2114,11 +2133,7 @@
         // U3: iteration budget, latch publish, macrotask yield.
         weatherSettleIterations += 1;
         if (weatherSettleIterations >= (testWeatherBudget?.iterations ?? WEATHER_SETTLE_ITERATION_BUDGET)) weatherProbeExhausted = true;
-        if (weatherProbeExhausted && !weatherPartitionFallback) {
-          weatherPartitionFallback = true;
-          flushSync();
-        }
-        weatherProbeAdmittedCount = weatherProbeAdmitted.size;
+        publishWeatherFallbackIfExhausted();
         if (yieldBetweenPasses != null && performance.now() - lastYieldAt >= SETTLE_YIELD_AFTER_MS) {
           await yieldBetweenPasses();
           lastYieldAt = performance.now();
@@ -2168,6 +2183,11 @@
             if (firstCommit || stageChanged || pendingStageChange != null) pendingStageChange = committedStage;
             testLateProbeDuringFinalCommit?.(coordinator);
           });
+          if (publishWeatherFallbackIfExhausted()) {
+            postCommitVerificationPasses = MAX_POST_COMMIT_VERIFICATION_PASSES;
+            previous = "";
+            continue;
+          }
           if (!coordinator.settle()) {
             // A false settle is only a supersede if the epoch key changed. A
             // synchronous remount may have registered a same-epoch probe in
@@ -2223,6 +2243,7 @@
           measurementGeometryStage = nextPlan.stage;
           if (firstCommit || stageChanged || pendingStageChange != null) pendingStageChange = committedStage;
         });
+        publishWeatherFallbackIfExhausted();
         // A probe still queued at pass exhaustion cannot keep the coordinator
         // busy, or the released schedulers cannot re-arm their next tick.
         coordinator.discardPendingProbes();

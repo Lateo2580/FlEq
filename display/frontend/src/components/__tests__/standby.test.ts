@@ -2078,14 +2078,17 @@ describe("StandbyScreen prefix probes and fixed-center geometry", () => {
       expect(Number(root.dataset.weatherProbeAdmitted)).toBe(3);
       expect(root.dataset.weatherPartitionFallback).toBe("true");
       expect(root.dataset.measurementEpoch).toBe(epochAfterSettle);
-      // 新しい入力（地域が 1 つ減る）で latch が解け、予算が戻る
-      const smaller = weather({ items: [{ kind: "大雨警報", phenomenonKey: "heavy-rain", displaySeverity: "officialL3", rank: "warning", shownAreas: areas.slice(0, 2), omittedAreaCount: 0 }] });
-      await rerender({ snapshot: baseSnapshot({ weatherAlerts: [smaller] }), now, dim: false, sseConnected: true, testMeasurementOverride: { layoutWidthPx: 1280, layoutHeightPx: 10_000, baselineGapPx: 10 }, testWeatherBudget: { probes: 3 } });
+      // 新しい入力（1 地域 = page-fit id は [0,1) の 1 本、footer 世代も立たない）で latch が解け、予算が戻る。
+      // この DOM は probe を未計測のまま保つので、[0,1) だけ generic override で fit にして通常経路で収束させる
+      // （override は admission より前に返るため予算を消費しない。reset が無ければ fallback "true"・admitted 3 のまま残る）。
+      const smaller = weather({ items: [{ kind: "大雨警報", phenomenonKey: "heavy-rain", displaySeverity: "officialL3", rank: "warning", shownAreas: areas.slice(0, 1), omittedAreaCount: 0 }] });
+      await rerender({ snapshot: baseSnapshot({ weatherAlerts: [smaller] }), now, dim: false, sseConnected: true, testMeasurementOverride: { layoutWidthPx: 1280, layoutHeightPx: 10_000, baselineGapPx: 10, "weather:prefix:1:side": 0, "weather:prefix:1:center": 0 }, testWeatherBudget: { probes: 3 } });
       await tick(); await tick();
       expect(root.dataset.measurementEpoch).not.toBe(epochAfterSettle);
-      expect(Number(root.dataset.weatherProbeAdmitted)).toBeLessThanOrEqual(3);
       for (let pass = 0; pass < 24; pass += 1) await tick();
       expect(root.dataset.measurementSettled).toBe("true");
+      expect(root.dataset.weatherPartitionFallback).toBe("false");
+      expect(Number(root.dataset.weatherProbeAdmitted)).toBeLessThan(3);
     } finally {
       if (clientHeight == null) delete (HTMLElement.prototype as { clientHeight?: number }).clientHeight;
       else Object.defineProperty(HTMLElement.prototype, "clientHeight", clientHeight);
@@ -2116,6 +2119,65 @@ describe("StandbyScreen prefix probes and fixed-center geometry", () => {
     } finally {
       if (clientHeight == null) delete (HTMLElement.prototype as { clientHeight?: number }).clientHeight;
       else Object.defineProperty(HTMLElement.prototype, "clientHeight", clientHeight);
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("commit flush で probe 予算が尽きても settle 前に fallback を publish する（stale latch の再発防止）", async () => {
+    // page-fit が実測で解決する DOM（briefing-card.test と同型の getter、8 候補までが 1 ページに収まる）。
+    // 竜巻 rider 付きの気象カードは commit で center へ移り、committed rows の probe を commit flush で
+    // 新規に要求する（preflight・初期描画と id が違う）。予算を commit 直前の admitted 数に合わせると
+    // flush 内の要求は全部拒否され、enqueue が無いまま settle しうる。修正前は fallback=false のまま settled になった。
+    class TestResizeObserver { observe(): void {} unobserve(): void {} disconnect(): void {} }
+    vi.stubGlobal("ResizeObserver", TestResizeObserver);
+    const saved = (["clientHeight", "scrollHeight", "clientWidth", "scrollWidth"] as const)
+      .map((name) => [name, Object.getOwnPropertyDescriptor(HTMLElement.prototype, name)] as const);
+    const probeSpan = (el: HTMLElement): number => {
+      const match = /^weather:page-fit:(\d+):(\d+)/.exec(el.closest<HTMLElement>("[data-prefix-measure]")?.dataset.prefixMeasure ?? "");
+      return match == null ? 0 : Number(match[2]) - Number(match[1]);
+    };
+    Object.defineProperties(HTMLElement.prototype, {
+      clientHeight: { configurable: true, get(this: HTMLElement): number { return this.matches("[data-page-probe-card], [data-page-probe-readable]") ? 100 : 0; } },
+      scrollHeight: { configurable: true, get(this: HTMLElement): number { return this.matches("[data-page-probe-card]") ? (probeSpan(this) > 8 ? 200 : 100) : this.matches("[data-page-probe-readable]") ? 100 : 0; } },
+      clientWidth: { configurable: true, get(this: HTMLElement): number { return this.matches("[data-page-probe-card], [data-page-probe-readable]") ? 307 : 0; } },
+      scrollWidth: { configurable: true, get(this: HTMLElement): number { return this.matches("[data-page-probe-card], [data-page-probe-readable]") ? 307 : 0; } },
+    });
+    try {
+      const areas = Array.from({ length: 6 }, (_, index) => `地域${index + 1}`);
+      const alert = weather({ items: [{ kind: "大雨警報", phenomenonKey: "heavy-rain", displaySeverity: "officialL3", rank: "warning", shownAreas: [areas[0]!], omittedAreaCount: 5 }] });
+      const scenario = (budget?: number) => render(StandbyScreen, {
+        snapshot: baseSnapshot({ latestQuake: latestQuake(), weatherAlerts: [alert], standbyItems: [tornado(["宮崎市", "延岡市", "日南市"])], weatherExpandedKinds: [{ kindKey: "officialL3|heavy-rain", areas, totalAreaCount: 6, candidateTruncated: false }] }),
+        now, dim: false, sseConnected: true,
+        testMeasurementOverride: { ...appStageOneMeasurement, baselineGapPx: 10 },
+        ...(budget == null ? {} : { testWeatherBudget: { probes: budget } }),
+      });
+      // 較正: 予算なしで走らせ、center へ移る（= 最初の commit）直前の admitted 数を実測する。
+      const calibration = scenario();
+      const calibrationRoot = calibration.container.querySelector<HTMLElement>(".standby")!;
+      let admittedBeforeCommit = 0;
+      for (let pass = 0; pass < 40 && calibrationRoot.dataset.measurementSettled !== "true"; pass += 1) {
+        await tick();
+        if (calibration.container.querySelector(".center-card-region .weather-card") == null) admittedBeforeCommit = Number(calibrationRoot.dataset.weatherProbeAdmitted);
+      }
+      expect(calibrationRoot.dataset.measurementSettled).toBe("true");
+      expect(calibrationRoot.dataset.weatherPartitionFallback).toBe("false");
+      expect(Number(calibrationRoot.dataset.weatherProbeAdmitted)).toBeGreaterThan(admittedBeforeCommit);
+      calibration.unmount();
+      // 本番: 予算 = commit 直前の admitted 数。flush 内の admission は全部拒否される。
+      const { container } = scenario(admittedBeforeCommit);
+      const root = container.querySelector<HTMLElement>(".standby")!;
+      for (let pass = 0; pass < 40 && root.dataset.measurementSettled !== "true"; pass += 1) await tick();
+      expect(root.dataset.measurementSettled).toBe("true");
+      expect(Number(root.dataset.weatherProbeAdmitted)).toBe(admittedBeforeCommit);
+      expect(root.dataset.weatherPartitionFallback).toBe("true");
+      const live = container.querySelector<HTMLElement>(".center-card-region .weather-card")!;
+      expect(live.dataset.weatherPartitionFallback).toBe("true");
+      expect(live.dataset.cardPagePending).toBe("false");
+    } finally {
+      for (const [name, descriptor] of saved) {
+        if (descriptor == null) delete (HTMLElement.prototype as unknown as Record<string, unknown>)[name];
+        else Object.defineProperty(HTMLElement.prototype, name, descriptor);
+      }
       vi.unstubAllGlobals();
     }
   });
