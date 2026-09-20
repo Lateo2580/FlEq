@@ -33,7 +33,7 @@ const savedProgress: PersistenceStatus = Object.freeze({ kind: "saved", currentG
 
 function initialState(progress: PersistenceStatus = savedProgress): RuntimeState {
   return {
-    runId: "run", persistence: { "U-E": progress, "U-W": progress, "U-F": progress },
+    runId: "run",
     units: {
       "U-E": { schemaVersion: "p2-eew-unit-v1", current: [], gates: [], intents: [], deliveryRecords: [], persistence: progress },
       "U-W": { schemaVersion: "p2-weather-current-unit-v1", national: {}, partials: [], histories: [], ownership: {},
@@ -213,7 +213,6 @@ describe("P2 shared runtime", () => {
         && input.completion.control.kind === "shutdownRequested") {
         expect(step.state.shutdown.stage).toBe("mailboxDrain");
         expect(step.state.units).toBe(saved.units);
-        expect(step.state.persistence).toBe(saved.persistence);
       } else expect(step.state).toBe(saved);
       expect(step.checkpointRequests).toEqual([]);
       expect(step.views).toEqual([]);
@@ -282,16 +281,16 @@ describe("P2 shared runtime", () => {
     current = reduceRuntime(current, controlInput({ kind: "checkpointResult", clock: reading(7), result: {
       ...capture, kind: "uncertain", observedAt: reading(7).wallTimeMs, stage: "ack", encodedByteLength: 10,
     } })).state;
-    expect(current.persistence["U-E"]?.kind).toBe("uncertain");
+    expect(current.units["U-E"].persistence?.kind).toBe("uncertain");
     const ack: CheckpointResult = { ...capture, kind: "acknowledged", ackAt: reading(8).wallTimeMs, encodedByteLength: 10 };
     expect(reduceRuntime(current, controlInput({ kind: "checkpointResult", clock: reading(8),
       result: { ...ack, attemptId: "wrong" } })).state).toBe(current);
     expect(reduceRuntime(current, controlInput({ kind: "checkpointResult", clock: reading(8),
       result: { ...ack, generation: 3 } })).state).toBe(current);
     const step = reduceRuntime(freeze(current), controlInput({ kind: "checkpointResult", clock: reading(8), result: ack }));
-    expect(step.state.persistence["U-E"]).toEqual({ kind: "pending", currentGeneration: 4, savedGeneration: 2,
+    expect(step.state.units["U-E"].persistence).toEqual({ kind: "pending", currentGeneration: 4, savedGeneration: 2,
       savedCapturedAt: reading(2).wallTimeMs, savedAckAt: reading(8).wallTimeMs, dirtySince: 5 });
-    const dirtySince = step.state.persistence["U-E"]!.dirtySince!;
+    const dirtySince = step.state.units["U-E"].persistence!.dirtySince!;
     // A3 scheduleCheckpoint consumes this timestamp as monotonic milliseconds, not wall time.
     expect(reading(3_005).monotonicMs - dirtySince > 3_000).toBe(false);
     expect(reading(3_006).monotonicMs - dirtySince > 3_000).toBe(true);
@@ -299,13 +298,13 @@ describe("P2 shared runtime", () => {
     expect(step.state.checkpointAttempts["U-E"]).toBeUndefined();
     expect(step.state.units["U-E"].current).toBe(initial.units["U-E"].current);
     expect(step.state.units["U-W"]).toBe(initial.units["U-W"]);
-    expect(step.state.units["U-E"].persistence).toBe(step.state.persistence["U-E"]);
+    expect(step.state).not.toHaveProperty("persistence");
     expect(reduceRuntime(step.state, controlInput({ kind: "checkpointResult", clock: reading(4_006), result: ack })).state).toBe(step.state);
     const latest = { ...capture, attemptId: "latest", generation: 4, capturedAt: reading(4_007).wallTimeMs };
     current = reduceRuntime(step.state, { kind: "checkpointCaptured", capture: latest }).state;
     const saved = reduceRuntime(current, controlInput({ kind: "checkpointResult", clock: reading(4_008),
       result: { ...ack, ...latest, ackAt: reading(4_008).wallTimeMs } })).state;
-    expect(saved.persistence["U-E"]).toMatchObject({ kind: "saved", currentGeneration: 4, savedGeneration: 4,
+    expect(saved.units["U-E"].persistence).toMatchObject({ kind: "saved", currentGeneration: 4, savedGeneration: 4,
       savedCapturedAt: reading(4_007).wallTimeMs, savedAckAt: reading(4_008).wallTimeMs, dirtySince: null });
     expect(stringify).not.toHaveBeenCalled();
     expect(parse).not.toHaveBeenCalled();
@@ -320,14 +319,14 @@ describe("P2 shared runtime", () => {
       ...capture, kind: "uncertain", stage: "ack", observedAt: 1001, encodedByteLength: 0,
     } });
     const held = reduceRuntime(captured, uncertain).state;
-    expect(held.persistence["U-F"]).toMatchObject({ kind: "uncertain", attemptedGeneration: 2, dirtySince: 100, savedGeneration: 1 });
+    expect(held.units["U-F"].persistence).toMatchObject({ kind: "uncertain", attemptedGeneration: 2, dirtySince: 100, savedGeneration: 1 });
     expect(held.checkpointAttempts).toBe(captured.checkpointAttempts);
     expect(reduceRuntime(held, uncertain).state).toBe(held);
     const failure = controlInput({ kind: "checkpointResult", clock: at(2), result: {
       ...capture, kind: "failed", stage: "verify", failedAt: 1002, reason: "verify rejected", encodedByteLength: 0,
     } });
     const failed = reduceRuntime(freeze(held), failure).state;
-    expect(failed.persistence["U-F"]).toEqual({ ...initial.persistence["U-F"], kind: "failed", stage: "verify", reason: "verify rejected" });
+    expect(failed.units["U-F"].persistence).toEqual({ ...initial.units["U-F"].persistence, kind: "failed", stage: "verify", reason: "verify rejected" });
     expect(failed.checkpointAttempts["U-F"]).toBeUndefined();
     expect(failed.units["U-F"].subjects).toBe(initial.units["U-F"].subjects);
     expect(failed.units["U-W"]).toBe(initial.units["U-W"]);
@@ -339,7 +338,7 @@ describe("P2 shared runtime", () => {
     const encodeFailed = reduceRuntime(retried, controlInput({ kind: "checkpointResult", clock: at(3), result: {
       ...retry, kind: "failed", stage: "encode", failedAt: 1003, reason: "encode rejected", encodedByteLength: 0,
     } })).state;
-    expect(encodeFailed.persistence["U-F"]).toMatchObject({ kind: "failed", stage: "encode", currentGeneration: 2 });
+    expect(encodeFailed.units["U-F"].persistence).toMatchObject({ kind: "failed", stage: "encode", currentGeneration: 2 });
     expect(encodeFailed.checkpointAttempts["U-F"]).toBeUndefined();
   });
 
@@ -460,6 +459,11 @@ describe("P2 shared runtime", () => {
       "mailboxDrain:deadlineExceeded", "sideEffectFinalization:deadlineExceeded", "finalCheckpoint:unsavedUnits",
     ]);
     expect(done.shutdownSummary?.persistence["U-E"]?.kind).toBe("saved");
+    expect(done.shutdownSummary?.persistence).toEqual({
+      "U-E": done.state.units["U-E"].persistence,
+      "U-W": done.state.units["U-W"].persistence,
+      "U-F": done.state.units["U-F"].persistence,
+    });
   });
 
   it("B4 contractBoundary: selection and result use each owning unit intentUpdate with atomic channel adoption", () => {
@@ -478,7 +482,7 @@ describe("P2 shared runtime", () => {
       const step = reduceRuntime(state, tick, { ...unitCalls, selectNotificationAttempt: selection });
       expect(selection.mock.calls[0][0].channels).toBe(state.notificationChannels);
       expect(step.state.units[unit].intents[0]).toMatchObject({ attempts: 1, nextAttemptAt: 2000, disposition: "pending" });
-      expect(step.state.persistence[unit]).toMatchObject({ kind: "pending", currentGeneration: 2 });
+      expect(step.state.units[unit].persistence).toMatchObject({ kind: "pending", currentGeneration: 2 });
       expect(step.notificationAttempts).toEqual([selected]);
       expect(step.state.notificationChannels.sound).toBe(state.notificationChannels.sound);
       for (const other of runtimeUnits.filter((candidate) => candidate !== unit)) expect(step.state.units[other]).toBe(state.units[other]);
@@ -493,7 +497,7 @@ describe("P2 shared runtime", () => {
       });
       const done = reduceRuntime(freeze(step.state), { kind: "notificationResult", result }, { ...unitCalls, applyNotificationResult: apply });
       expect(done.state.units[unit].intents[0]).toMatchObject({ disposition: "delivered", attempts: 1, expiresAt: 5000 });
-      expect(done.state.persistence[unit]?.currentGeneration).toBe(3);
+      expect(done.state.units[unit].persistence?.currentGeneration).toBe(3);
       expect(done.state.notificationChannels.desktop.kind).toBe("idle");
       expect(reduceRuntime(done.state, { kind: "notificationResult", result }).state).toBe(done.state);
     }

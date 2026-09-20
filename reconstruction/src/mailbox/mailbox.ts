@@ -19,7 +19,6 @@ type Entry = {
   readonly bytes: number;
   readonly allocation: "normal" | "reserved";
   dispatchedAt: number | null;
-  completedStartFloor: number;
 };
 
 const encoder = new TextEncoder();
@@ -98,10 +97,7 @@ class Mailbox {
     const bytes = encodedBytes(envelope);
     if (!Number.isSafeInteger(bytes) || bytes < 0) return this.reject("byteLimit", envelope.enqueuedMonotonicMs);
     const all = this.entries();
-    const entry: Entry = { envelope, bytes, allocation: allocation(envelope), dispatchedAt: null,
-      completedStartFloor: Math.max(Number.NEGATIVE_INFINITY, ...all
-        .filter((candidate) => candidate.envelope.runId === envelope.runId && candidate.envelope.messageId === envelope.messageId)
-        .map((candidate) => candidate.completedStartFloor)) };
+    const entry: Entry = { envelope, bytes, allocation: allocation(envelope), dispatchedAt: null };
     const lane = all.filter((candidate) => candidate.allocation === entry.allocation);
     const laneItemLimit = entry.allocation === "normal" ? NORMAL_ITEM_LIMIT : RESERVED_ITEM_LIMIT;
     const laneByteLimit = entry.allocation === "normal" ? NORMAL_BYTE_LIMIT : RESERVED_BYTE_LIMIT;
@@ -157,23 +153,15 @@ class Mailbox {
         || entry.envelope.payload.item.inputId !== completion.inputId
         || entry.envelope.payload.item.inputSequence !== completion.inputSequence
         || entry.bytes !== completion.encodedByteLength
-        || entry.dispatchedAt == null || completion.startedMonotonicMs < entry.dispatchedAt
-        || completion.startedMonotonicMs <= entry.completedStartFloor) return this.stats(now);
+        || entry.dispatchedAt == null || completion.startedMonotonicMs < entry.dispatchedAt) return this.stats(now);
       this.parserInFlight = null;
     } else {
       const index = this.controlsInFlight.findIndex((entry) => entry.envelope.messageId === completion.messageId
         && entry.envelope.runId === completion.runId
         && entry.bytes === completion.encodedByteLength
-        && entry.dispatchedAt != null && completion.startedMonotonicMs >= entry.dispatchedAt
-        && completion.startedMonotonicMs > entry.completedStartFloor);
+        && entry.dispatchedAt != null && completion.startedMonotonicMs >= entry.dispatchedAt);
       if (index < 0) return this.stats(now);
       this.controlsInFlight.splice(index, 1);
-    }
-    // Keep only a scalar on live colliding entries: even a cloned completion cannot
-    // release a second job. Equal/older starts are ambiguous when callers reuse IDs.
-    for (const entry of this.entries()) {
-      if (entry.envelope.runId === completion.runId && entry.envelope.messageId === completion.messageId)
-        entry.completedStartFloor = Math.max(entry.completedStartFloor, completion.startedMonotonicMs);
     }
     this.completed += 1;
     this.lastProgress = Math.max(this.lastProgress ?? completion.completedMonotonicMs, completion.completedMonotonicMs);

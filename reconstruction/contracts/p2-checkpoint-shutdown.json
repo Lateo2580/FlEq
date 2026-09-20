@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "3095a6c21caa96e06fc3b3a6d2f906534ef5441b",
-    "sha256": "ea65d0650d2ef8cf9219267510a935d6c7534c4c1d7c749a96f416f520cfea65",
+    "sha256": "19e4281b42eede9dc86a68b9d80dcb0186104921934406d54cce4ed431ace2d6",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "76c82b87d7783a4eae14af690cb34e7d6ec46f73617dc75b7f7401951619f080",
     "sequencesSha256": "22b2432e8989d7e7cc2514f2297308e84b3c0f1a3e045491b9cf60cfa8f2d147",
@@ -51,6 +51,24 @@
         "provisional": "A",
         "ruling": "独立レビュー指摘1・4によりA。再レビュー指摘1・2: 捕捉側の失敗計測とP1 diagnostics/**との重複を解消",
         "reason": "単独所有と、Request生成前のencode失敗を含む全実行stageの計測供給を固定する"
+      },
+      {
+        "id": "P2-A3-R15",
+        "A": "同じ障害の集約は有界な受付queue内だけとし、日別診断ファイルは一行JSONの追記だけ、保持回収は日別ファイル単位で行う",
+        "B": "保存済み診断ファイルを再解析して反復を再集約し、一時ファイル置換で部分回収する",
+        "recommended": "A",
+        "provisional": "A",
+        "ruling": "作者裁定R15=A（2026-09-20 08:4x）",
+        "reason": "保存後の再解析・置換・残骸処理を削る。代わりに排出区間をまたぐ反復は統合せず、日別回収では同じファイルの新しい記録も期限前に消えうる"
+      },
+      {
+        "id": "P2-A3-R17",
+        "A": "checkpointとcomposition rootはunits[unit].persistenceを読み、ShutdownSummary.persistenceはunit側から作る",
+        "B": "RuntimeState.persistenceの一覧を別に保持してunit側と同期する",
+        "recommended": "A",
+        "provisional": "A",
+        "ruling": "作者裁定R17=A（2026-09-20 08:4x）",
+        "reason": "A3の読取口をunit側の正本へ揃え、二重状態を削る"
       }
     ],
     "questionResolutions": [
@@ -249,13 +267,13 @@
       {
         "id": "P2-A3-RET-02",
         "target": "persistent diagnostics",
-        "limit": "7 days or 100 MiB total, whichever is reached first",
+        "limit": "7 days or 100 MiB total, whichever is reached first; reclaim oldest whole daily files only",
         "source": "§7.9"
       },
       {
         "id": "P2-A3-RET-03",
         "target": "diagnostic failure repetition",
-        "limit": "first event plus bounded repeat count by level",
+        "limit": "first event plus bounded repeat count by level within one bounded queue acceptance interval; no aggregation across flushes",
         "source": "§7.9"
       }
     ],
@@ -397,7 +415,7 @@
       },
       {
         "id": "P2-A3-AC07",
-        "requirement": "E23: 診断queue・一行・保持上限を守り、再起動後読取可能、秘密値露出0、sink失敗時の再帰増殖0にする。DiagnosticReadQuery/Resultのfilter・不正query・件数/byte上限を検収する。A1 InfrastructureDiagnosticReasonの保存11種・終了2種・sink2種を同じDiagnosticEventで配送し、checkpointEncodeFailed／checkpointWriteFailed／checkpointFileSyncFailed／checkpointCloseFailed／checkpointRenameFailed／checkpointDirectorySyncFailed／checkpointVerifyFailedの各段階reason、checkpointOverdueの未保存年齢3秒超、再試行・成否不明・復元拒否・終了未保存・sink故障・queue超過を検収する",
+        "requirement": "E23: 診断queue・一行・保持上限を守り、同じ障害の初回＋反復件数への集約は一つの有界なqueue受付区間だけ、日別ファイルへの保存は追記だけ、7日または100MiBの回収は古い日別ファイル単位にする。保存済みファイルの再解析・反復集約・一時ファイル置換・置換残骸処理は要求しない。再起動後読取可能、秘密値露出0、sink失敗時の再帰増殖0にする。DiagnosticReadQuery/Resultのfilter・不正query・件数/byte上限を検収する。A1 InfrastructureDiagnosticReasonの保存11種・終了2種・sink2種を同じDiagnosticEventで配送し、checkpointEncodeFailed／checkpointWriteFailed／checkpointFileSyncFailed／checkpointCloseFailed／checkpointRenameFailed／checkpointDirectorySyncFailed／checkpointVerifyFailedの各段階reason、checkpointOverdueの未保存年齢3秒超、再試行・成否不明・復元拒否・終了未保存・sink故障・queue超過を検収する",
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:1217 «accefa759151aa6f»",
           "docs/specs/reconstruction-p0-contracts.md:1218 «afc48304933f4bac»",
@@ -471,7 +489,7 @@
         "referenceIds": [
           "P2-A3-AC07"
         ],
-        "behavior": "E23: 診断queue・一行・保持上限を守り、再起動後読取可能、秘密値露出0、sink失敗時の再帰増殖0にする。DiagnosticReadQuery/Resultのfilter・不正query・件数/byte上限を検収する。A1 InfrastructureDiagnosticReasonの保存11種・終了2種・sink2種を同じDiagnosticEventで配送し、checkpointEncodeFailed／checkpointWriteFailed／checkpointFileSyncFailed／checkpointCloseFailed／checkpointRenameFailed／checkpointDirectorySyncFailed／checkpointVerifyFailedの各段階reason、checkpointOverdueの未保存年齢3秒超、再試行・成否不明・復元拒否・終了未保存・sink故障・queue超過を検収する"
+        "behavior": "E23: 有界queue内の同一障害を初回＋反復件数に集約し、flushをまたぐ反復は別記録として日別ファイルへ追記する。7日・100MiB回収は古い日別ファイル全体を削除し、保存済み内容を再解析・再集約・置換しない。再起動後読取、秘密値露出0、sink失敗時の非再帰、一行8192 byte、DiagnosticReadQuery/Resultのfilter・不正query・件数/byte上限、保存・終了・sink各reasonを検収する"
       },
       {
         "testId": "P2-A3-T08",
@@ -539,11 +557,13 @@
       "UnitCodec<State, Persisted>はA1共有型、具体State/Persisted/schemaとencode/decodeはA4〜A6が所有する。A3は捕捉時にencode、hash/schema検証後にdecodeを呼び、invalidを正常stateに昇格しない。codec形がないと後続unitの保存/復元を結線できない",
       "checkpoint SHA-256はトップレベルsha256 fieldの64文字だけをASCII 0へ置換したenvelope全保存UTF-8 bytes（schemaVersion・unit・generation・capturedAt・payload・空白/改行を含む）を対象とする。manifest/契約と同じ自己hash規約。書込はschemaVersion, unit, generation, capturedAt, payload, sha256順のJSON.stringify（BOM/末尾改行なし）。読込はparse/restringifyせず保存bytesの該当fieldだけをzero化し、payload内の同名fieldを置換しない。重複field・不正hash形式は拒否する。hashとschema/unit等の妥当性を確認済みのslotだけを世代選択へ渡す",
       "readDiagnostics queryはlevel/unitの完全一致、fromTimestampMs以上throughTimestampMs以下の時刻範囲。limitは整数1〜256、時刻は有限かつfrom<=through、不正queryは拒否する。timestamp昇順で返し同時刻は保存順、1回256件かつUTF-8 JSON records 1 MiB以下・各record8192 byte以下、超過はtruncated=true。可変内部参照を返さない",
+      "追実装で閉じる項目(R15): 現行reconstruction/src/checkpoint/persistent-diagnostic-sink.ts:101-128,156-176,217の保存済み／排出batch再集約をqueue受付区間内だけへ縮小する。:316-327,368-412の一時ファイル置換、置換残骸処理、保存済み日別ファイルのreadFile・JSON再解析・再集約・部分書換えを削除し、日別ファイルはappendFileだけ、7日・100MiB回収はfilesの名前・sizeから古い日別ファイル全体をunlinkする。削除対象は日別診断ログの保守経路に限定し、終了要約（ShutdownSummary）の保存経路とDiagnosticReadQueryの読取解析は対象外として維持する。T07から保存済みファイルの再集約・部分回収・tmp残骸系列を削り、queue内集約・flushをまたぐ別記録・日別全体回収へ縮小する",
       "捕捉側の測定/失敗返却口がないとRequest生成前のencode失敗と成功encodeの時刻がA10へ届かないため、scheduleCheckpointは捕捉前にrunIdと単位別inputIds/retryReasonを受け、選択したunit/generationにattemptIdを発行してから捕捉・codec encodeを実行する。nullは試行なし・計測なし。成功はrequestとstage=encode/outcome=succeededの計測を返し、失敗はrequest=null、stage=encodeのfailed CheckpointResultとoutcome=failedの計測を返す。失敗結果も既存のRuntimeInput経由で適用し、executeCheckpointは呼ばない。encode区間は捕捉開始からenvelope生成・byte確定または失敗まで同じrunのNode単調時計で測る。完全な出力がないencode失敗ではbytesとencodedByteLengthを0（完成出力なし）とし、所要時間は実測値を残す。選択単位の相関は捕捉する世代の採用に寄与したinputIdsを固定し、欠落を空配列や別入力IDで補完しない。executeCheckpointには成功requestと同じ相関を渡し、write/fileSync/close/rename/directorySync/verifyの実行stageだけを返す。scheduleCheckpointの捕捉/encode計測とexecuteCheckpointのwrite以降の計測をrunId/attemptIdで結合し、unit/generation/inputIds/retryReasonの一致を検証する。encodeは成功・失敗とも捕捉側から一度だけ取り込み、実行済みencodeの再実行・時刻の復元・二重計上をしない。未実行stageは捏造せず、DiagnosticEventへ押し込まない",
       "R13=A composition root規則: 入力の順序付け・reduceRuntimeが返すstateの採用・effect実行だけを行い、stateの構築・部分上書き・非同期hookから返されたstateの合成をしない。無いと保存ackと終了hookが唯一のstate更新口を迂回する",
       "追実装で閉じる項目(A3-B1): scheduleCheckpointの成功/encode失敗の両戻り値にCheckpointRequest識別fieldだけのCheckpointCaptureを返し、後続入力または失敗結果より先にcheckpointCapturedとしてreduceRuntimeへ渡す。相関・耐久性を確認したCheckpointResultだけを既存control経路へ返し、writer解放・retry・measurement管理はA3に残す。無いとencode失敗を一致する試行へ適用できない",
       "追実装で閉じる項目(A3-typed-units): 現行checkpoint.ts:166,175,189,333,336,346,393（TS2344 7件）とcomposition-root.ts:33,38,39,140,166,178,210,211,223,224,240（2件）,262,289,335,350（TS2344 16件）のPartial<Record<UnitId, unknown>> genericをRuntimeUnitStatesへ限定する。無いと具体結線したRuntimeStateをA3の捕捉・結果照合へ渡せない",
-      "追実装で閉じる項目(A3-transitional): 現行composition-root.ts:212-217のresultMetadata.persistence部分上書きを除去し、metadataはwriter解放・retry・diagnosticだけに限定する。RuntimeState.persistenceとcheckpointAttemptsはreduceRuntimeの一致試行結果だけを採用する。:235-236の独自no-op RuntimeStep構築と旧notificationIntents（TS2561）も除去し、結果入力がない場合はA1のdeadline入力による戻りstepをそのまま採用する。新しいnotificationAttempts/abortAttemptIds/effects/shutdownSummaryをA3で補完しない",
+      "追実装で閉じる項目(A3-transitional): 現行composition-root.ts:212-217のresultMetadataによるstate部分上書きを除去し、metadataはwriter解放・retry・diagnosticだけに限定する。units[unit].persistenceとcheckpointAttemptsはreduceRuntimeの一致試行結果だけを採用する。:235-236の独自no-op RuntimeStep構築と旧notificationIntents（TS2561）も除去し、結果入力がない場合はA1のdeadline入力による戻りstepをそのまま採用する。新しいnotificationAttempts/abortAttemptIds/effects/shutdownSummaryをA3で補完しない",
+      "追実装で閉じる項目(R17/A3): 現行reconstruction/src/checkpoint/checkpoint.ts:171,185,329,347,384とreconstruction/src/runtime/composition-root.ts:223,368のRuntimeState.persistence読取をunits[unit].persistenceへ置換する。ShutdownSummary.persistenceはA1がunit側から作り、reconstruction/src/checkpoint/persistent-diagnostic-sink.ts:292-294はその出力だけを読む。composition root・A1-b testの初期stateと期待値から二重persistenceを削除し、新しい状態管理層・helperは作らない",
       "追実装で閉じる項目(A3-shutdown): 現行composition-root.ts:269-346のshutdown文字列上書き、ShutdownUpdate state返却、adoptShutdownUpdateのpersistence/state合成を除去する。:189/:227の文字列比較（TS2367）はshutdown.stageのworkerClose/completed判定へ置換し、:350-352のshutdownPhase直接更新helperを除去してA1の段階結果遷移へ置換する。:270/:299のTS2322、:278のTS2345、:289/:307のTS2531もこの戻りstate採用経路で閉じる。stopInputAndDrainMailbox/finalizeNotificationDelivery/startFinalCheckpoints/closeRuntimeWorkersを実行し、各完了・失敗・deadlineExceeded、未処理件数、sinkのdroppedDiagnostics、clockをshutdownStageResultでA1へ返す。:302-327のcode/reasons/summary構築・合成を除去し、A1所有stageResultsから3→2→4で判定されたcloseRuntimeWorkers.summaryを保存してからworker等を閉じ、最終RuntimeStep.shutdownSummaryを保存・返却する。:244/:265の仮runId=shutdownもstate.runIdへ揃える"
     ],
     "unresolvedQuestions": [

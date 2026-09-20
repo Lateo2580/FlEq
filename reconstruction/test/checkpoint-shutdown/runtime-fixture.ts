@@ -9,12 +9,12 @@ const saved: PersistenceStatus = { kind: "saved", currentGeneration: 1, savedGen
 
 // Test payloads carry bytes only; no production unit semantics are implemented here.
 function fixtureState(values: Partial<Record<RuntimeUnitId, Fixture | string>> = {},
-  persistence: RuntimeState["persistence"] = {}, runId = "review"): RuntimeState {
+  persistence: Readonly<Partial<Record<RuntimeUnitId, PersistenceStatus>>> = {}, runId = "review"): RuntimeState {
   const payload = (unit: RuntimeUnitId) => typeof values[unit] === "string"
     ? { value: values[unit] } : values[unit] ?? { value: "" };
   const progress = (unit: RuntimeUnitId) => persistence[unit] ?? saved;
   return {
-    runId, persistence: { "U-E": progress("U-E"), "U-W": progress("U-W"), "U-F": progress("U-F") },
+    runId,
     units: {
       "U-E": { ...payload("U-E"), schemaVersion: "p2-eew-unit-v1", current: [], gates: [], intents: [],
         deliveryRecords: [], persistence: progress("U-E") },

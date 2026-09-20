@@ -168,7 +168,8 @@ class CheckpointCoordinator<UnitStates extends RuntimeUnitStates = RuntimeUnitSt
   ): Readonly<{ capture: CheckpointCapture; request: CheckpointRequest; result: null; measurements: readonly CheckpointMeasurement[] }>
     | Readonly<{ capture: CheckpointCapture; request: null; result: Extract<CheckpointResult, { kind: "failed" }> & Readonly<{ stage: "encode" }>; measurements: readonly CheckpointMeasurement[] }>
     | null {
-    for (const [unit, status] of Object.entries(state.persistence) as [UnitId, RuntimeState<UnitStates>["persistence"][UnitId]][]) {
+    for (const unit of ["U-E", "U-W", "U-F"] as const) {
+      const status = state.units[unit].persistence;
       if (status?.dirtySince != null && clock.monotonicMs - status.dirtySince > 3_000) this.emitOverdue(unit, status.currentGeneration, runId, clock);
     }
     if (this.reservedAttemptId != null) {
@@ -182,7 +183,7 @@ class CheckpointCoordinator<UnitStates extends RuntimeUnitStates = RuntimeUnitSt
       }
       return null;
     }
-    const candidates = (["U-E", "U-W", "U-F"] as const).map((unit) => [unit, state.persistence[unit]] as const)
+    const candidates = (["U-E", "U-W", "U-F"] as const).map((unit) => [unit, state.units[unit].persistence] as const)
       .filter(([unit, status]) => status != null && !excluded.has(unit)
         && status.kind !== "uncertain" && status.dirtySince != null
         && status.currentGeneration !== status.savedGeneration
@@ -326,7 +327,7 @@ class CheckpointCoordinator<UnitStates extends RuntimeUnitStates = RuntimeUnitSt
   }
 
   validateResult(state: RuntimeState<UnitStates>, result: CheckpointResult): boolean {
-    const previous = state.persistence[result.unit];
+    const previous = state.units[result.unit as RuntimeUnitId]?.persistence;
     const attempt = this.attempts.get(result.attemptId);
     if (previous == null || attempt == null) return false;
     if (attempt.unit !== result.unit || attempt.generation !== result.generation)
@@ -344,7 +345,7 @@ class CheckpointCoordinator<UnitStates extends RuntimeUnitStates = RuntimeUnitSt
 
   resultMetadata(state: RuntimeState<UnitStates>, result: CheckpointResult, clock: ClockReading): void {
     // Called only after validateResult and successful A1 adoption, with the pre-result state.
-    const previous = state.persistence[result.unit]!;
+    const previous = state.units[result.unit as RuntimeUnitId].persistence;
     const attempt = this.attempts.get(result.attemptId)!;
     const diagnostics: DiagnosticEvent[] = [];
     if (result.kind === "acknowledged") {
@@ -381,7 +382,7 @@ class CheckpointCoordinator<UnitStates extends RuntimeUnitStates = RuntimeUnitSt
   async resolveUncertain(state: RuntimeState<UnitStates>, unit: UnitId, attemptId: string,
     clock: ClockReading): Promise<Readonly<{ result: CheckpointResult | null; measurements: readonly CheckpointMeasurement[] }>> {
     const attempt = this.attempts.get(attemptId);
-    const previous = state.persistence[unit];
+    const previous = state.units[unit as RuntimeUnitId]?.persistence;
     if (attempt?.request == null || previous?.kind !== "uncertain"
       || attempt.request.unit !== unit || previous.attemptedGeneration !== attempt.request.generation)
       throw new Error("checkpoint is not awaiting reconciliation");

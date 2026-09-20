@@ -284,36 +284,21 @@ describe("P2 mailbox", () => {
     const envelope = { ...parserEnvelope(mailboxItem, "eewCandidate", 20), runId: "run-04", t0MonotonicMs: 19 };
     mailbox.enqueue(envelope);
     expect(mailbox.takeNext(21)).toBe(envelope);
-    expect(mailbox.complete({ ...completion(envelope, 21, 22), runId: "run-04" })).toMatchObject({
+    const done = completion(envelope, 21, 22);
+    const inFlight = mailbox.stats(22);
+    expect(mailbox.complete({ ...done, runId: "wrong-run" })).toEqual(inFlight);
+    if (done.kind !== "parser") throw new Error("parser completion expected");
+    expect(mailbox.complete({ ...done, inputSequence: 2 })).toEqual(inFlight);
+    expect(mailbox.complete(done)).toMatchObject({
       pendingItems: 0, inFlightItems: 0, completed: 1,
     });
+    const next = { ...parserEnvelope(item("next-id", 2, "VXSE45", 1), "eewCandidate", 22), runId: envelope.runId };
+    mailbox.enqueue(next);
+    expect(mailbox.takeNext(22)).toBe(next);
+    const nextInFlight = mailbox.stats(22);
+    expect(mailbox.complete(structuredClone(done))).toEqual(nextInFlight);
     expect(envelope).toMatchObject({ messageId: mailboxItem.inputId, runId: "run-04", t0MonotonicMs: 19, enqueuedMonotonicMs: 20,
       priorityReason: "eewCandidate", payload: { kind: "parser", item: { inputId: mailboxItem.inputId } } });
-  });
-
-  it("P2-A2-T04 regression / AC04: a repeated completion cannot release another colliding inventory entry", () => {
-    for (const secondTake of [1_000, 1_001]) {
-      const mailbox = new Mailbox();
-      const control = controlEnvelope("duplicate", { kind: "deadline",
-        clock: { wallTimeMs: 0, monotonicMs: 0 } }, 0);
-      // Deliberate caller-precondition violations reproduce the review's failure.
-      mailbox.enqueue({ ...parserEnvelope(item("parser-id", 0, "VPWS50", 1), "normal"), messageId: "duplicate" });
-      mailbox.enqueue(control);
-      mailbox.enqueue(control);
-      mailbox.takeNext(1_000);
-      mailbox.takeNext(secondTake);
-      expect(mailbox.stats(1_001)).toMatchObject({ pendingItems: 1, inFlightItems: 2,
-        inFlightControlMessageIds: ["duplicate", "duplicate"], completed: 0 });
-      const done = completion(control, 1_000, 1_002);
-      const afterFirst = mailbox.complete(done);
-      expect(afterFirst).toMatchObject({ pendingItems: 1, inFlightItems: 1, completed: 1,
-        lastProgressMonotonicMs: 1_002, inFlightControlMessageIds: ["duplicate"] });
-      expect(mailbox.complete(done)).toEqual(afterFirst);
-      expect(mailbox.complete(structuredClone(done))).toEqual(afterFirst);
-      // A distinct later start can finish the remaining entry; no public token is invented.
-      expect(mailbox.complete(completion(control, 1_001, 1_003))).toMatchObject({
-        pendingItems: 1, inFlightItems: 0, completed: 2, lastProgressMonotonicMs: 1_003 });
-    }
   });
 
   it("P2-A2-T05 regression / AC05: completion before the actual dispatch cannot release data or control", () => {
@@ -330,8 +315,11 @@ describe("P2 mailbox", () => {
         mailbox.complete(completion(envelope, started, completed));
         expect(mailbox.stats(1_000)).toEqual(before);
       }
-      expect(mailbox.complete(completion(envelope, 1_000, 1_001))).toMatchObject({
+      const done = completion(envelope, 1_000, 1_001);
+      expect(mailbox.complete(done)).toMatchObject({
         inFlightItems: 0, inFlightBytes: 0, completed: 1, lastProgressMonotonicMs: 1_001 });
+      const completed = mailbox.stats(1_001);
+      expect(mailbox.complete(structuredClone(done))).toEqual(completed);
     }
   });
 

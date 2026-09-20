@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "3095a6c21caa96e06fc3b3a6d2f906534ef5441b",
-    "sha256": "94538ec05cdded82745482c3493b96ddf137616ab57f416876a2975eb2310a89",
+    "sha256": "b699118334caf633041082bf272ce4bf0c0fcaf7d043286a240f51915c71cb9f",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "76c82b87d7783a4eae14af690cb34e7d6ec46f73617dc75b7f7401951619f080",
     "sequencesSha256": "22b2432e8989d7e7cc2514f2297308e84b3c0f1a3e045491b9cf60cfa8f2d147",
@@ -69,6 +69,15 @@
         "provisional": "A",
         "ruling": "作者裁定R13=A（2026-09-20朝）",
         "reason": "同じ入力順と時計に対する判断を一意にし、遅いack・通知結果・終了hookによるstate上書きを防ぐ"
+      },
+      {
+        "id": "P2-A1-R17",
+        "A": "保存状態はunits[unit].persistenceだけを正本とし、RuntimeState.persistenceを持たない。ShutdownSummary等の一覧出力はunit側から構築する",
+        "B": "RuntimeState.persistenceとunits[unit].persistenceを二重保持して同期する",
+        "recommended": "A",
+        "provisional": "A",
+        "ruling": "作者裁定R17=A（2026-09-20 08:4x）",
+        "reason": "同じ保存状態の二重同期と不一致経路を削る。代わりに一覧を読む側はunit側を列挙する"
       }
     ],
     "questionResolutions": [
@@ -544,7 +553,7 @@
       }
     ],
     "artifactRequirements": [
-      "B3終了要約: code・全reasons・ShutdownSummaryの構築はA1だけが所有する。stageResultsがないと後段成功後に先行失敗が消えるため、A1は4段階の記録と保存世代一致から3→2→4の優先順で判定する。mailboxDrainの失敗/超過または同段階終了時の残入力、sideEffectFinalization以降の残batchは3、finalCheckpointの失敗/超過または同段階終了時の未保存世代は2、sideEffectFinalizationの失敗/超過または同段階終了時の停止未確認試行、workerCloseの失敗/超過または同段階終了時のworker残は4とし、全理由を段階順で残す。処理予定の前段階にあるbatch・試行・未保存・worker件数を早期に失敗扱いしない。期限内pending intent自体は未処理試行に数えない。A3はsinkの既存droppedCountsをshutdownStageResult.droppedDiagnosticsで返し、A1が最新の観測値を要約へ採用する。この入力がないと純関数から要約の既存droppedDiagnosticsを埋められない。closeRuntimeWorkers.summaryは終了前の保存用要約、workerClose結果適用時のRuntimeStep.shutdownSummaryは最終要約で、通常stepはnull。A3は前者を記録してからworker等を閉じ、後者を記録・返却するだけとしcode/reasons/stateを合成しない。これらの返却口がないとA3が要約を再構築する。ShutdownSummaryのrequestedAt/finalizationAt/acceptedThroughSequenceはshutdown state、completedAtは採用段階結果のclock.wallTimeMs、pendingInputs/inFlightInputsは最新段階のpending、persistenceは採用済みruntime stateを使う。先行段階の未処理は最新件数が0でもreasonsから消さない",
+      "B3終了要約: code・全reasons・ShutdownSummaryの構築はA1だけが所有する。stageResultsがないと後段成功後に先行失敗が消えるため、A1は4段階の記録と保存世代一致から3→2→4の優先順で判定する。mailboxDrainの失敗/超過または同段階終了時の残入力、sideEffectFinalization以降の残batchは3、finalCheckpointの失敗/超過または同段階終了時の未保存世代は2、sideEffectFinalizationの失敗/超過または同段階終了時の停止未確認試行、workerCloseの失敗/超過または同段階終了時のworker残は4とし、全理由を段階順で残す。処理予定の前段階にあるbatch・試行・未保存・worker件数を早期に失敗扱いしない。期限内pending intent自体は未処理試行に数えない。A3はsinkの既存droppedCountsをshutdownStageResult.droppedDiagnosticsで返し、A1が最新の観測値を要約へ採用する。この入力がないと純関数から要約の既存droppedDiagnosticsを埋められない。closeRuntimeWorkers.summaryは終了前の保存用要約、workerClose結果適用時のRuntimeStep.shutdownSummaryは最終要約で、通常stepはnull。A3は前者を記録してからworker等を閉じ、後者を記録・返却するだけとしcode/reasons/stateを合成しない。これらの返却口がないとA3が要約を再構築する。ShutdownSummaryのrequestedAt/finalizationAt/acceptedThroughSequenceはshutdown state、completedAtは採用段階結果のclock.wallTimeMs、pendingInputs/inFlightInputsは最新段階のpending、persistenceは採用済みunits[unit].persistenceから構築する。先行段階の未処理は最新件数が0でもreasonsから消さない",
       "A1〜A3の共有公開型はp2-shared-runtime.types.tsだけに置く。これがないとA2/A3/A4〜A10が同じRuntimeInput・intent・outcome・view契約を参照できない",
       "NotificationIntent・PublishedOutcome・UnitViewはA1所有。DisplaySnapshot wire型はA8所有、E01 trace schemaはA10所有としA1へ先取りしない",
       "唯一のreduceRuntime入口がないとdeadline・checkpoint ack・通知結果が別経路からstateを変更できるため、一入口を要求する",
@@ -562,6 +571,7 @@
       "B3: ShutdownStateの受付連番境界・開始時計・段階期限・finalizationAt、shutdownStageResultの完了/失敗/deadlineExceededと未処理件数、4種のRuntimeEffectがないとA1が終了順を決定できずA3 hookがstateを合成する。batch終了はA1が各unitの既存shutdown入力で処理する。stageResultsは既存shutdownStageResultのresult/pending/clock/droppedDiagnosticsを再利用しmailboxDrain/sideEffectFinalization/finalCheckpoint/workerClose各1件・最大4件だけ保持する。初期値は空で、現在段階の最初の終端結果だけを採用し、重複・遅延・別段階の結果では上書きしない。後段成功でも先行失敗・件数を保持し全理由を再現する。件数は非負の安全整数、reasonは有界文字列とする",
       "B4: RuntimeState.notificationChannelsとRuntimeStep.notificationAttempts/abortAttemptIdsがないとA7選択状態とunit内intent正本が分裂する。A1が各unitのintentからNotificationDeliveryStateを構成し、selectNotificationAttempt/applyNotificationResultを呼び、channelと3 unit共通のintentUpdate入力を同じ呼出しで一度に採用する。NotificationIntentUpdateは既存intentのid/attempts/nextAttemptAt/dispositionだけのPickで、選択時も完了結果なしで渡せる。A1が現在intentのunit/operation/subject/channel/idとA7の現在試行を照合し、unitは既存idだけを更新する。選択時はattempts/nextAttemptAtだけを変えdispositionを維持し、完了・失効等は照合済みdispositionを含めて採用する。変更時だけdeliveryOnlyとして保存世代を進め、同値・未知idはno-op。raw NotificationResultはRuntimeInputにだけ戻しunitへ偽の完了結果を作らない",
       "composition rootは入力の順序付け・reduceRuntimeが返すstateの採用・RuntimeStepのeffect実行だけを行い、stateの構築・部分上書き・非同期hookから返されたstateの合成をしない。無いとR13=Aでもcomposition-root.tsの保存結果と終了hookがreducer外からstateを変更できる",
+      "追実装で閉じる項目(R17/A1-b): RuntimeState.persistenceの二重同期を削除し、現行reconstruction/src/runtime/shared-runtime.ts:103のShutdownSummary.persistenceはstate.unitsの3 unitから構築する。:143-145のsetPersistenceと:172-173のunit更新はunits[unit].persistenceだけを更新し、:198,266,294の保存状態読取もunit側へ置換する。composition root・A1-b testの初期state/期待値からRuntimeState.persistenceを削り、unit側だけが更新されることと終了要約がunit側3値から作られることへ追従する。新しい状態管理層・helperは作らない",
       "追実装で閉じる項目(A1-b): 現行shared-runtime.ts:59,61のunknown genericを具体型へ、:77のnotificationIntentsをnotificationAttempts/abortAttemptIds/effectsとshutdownSummary（通常null）へ置換する。現行はparser診断以外のcontrol分岐を未実装で同じstateを返すため、checkpointCaptured/checkpointResult、到来deadline、shutdownRequested/shutdownStageResult、notificationResultを実装する。A4〜A7の契約・型8ファイルをreadPathsで明示的に読み、3 unitのintentUpdateとA7 channel状態を原子的に採用する。RuntimeState.runIdを初期stateで一度固定し、A1は入力の明示時計（通知結果はresult.completedAt）とstate.runIdで全DiagnosticDetailsをDiagnosticEventへ完成させる。無いとA7/終了段階の入力にrunIdがなく診断を完成できない。mailbox completion.runIdは同じrunであることを照合し、外部時計や仮のshutdown runIdを使わない"
     ],
     "unresolvedQuestions": []

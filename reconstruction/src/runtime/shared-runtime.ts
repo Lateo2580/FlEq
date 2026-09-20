@@ -100,7 +100,8 @@ function shutdownSummary(state: RuntimeState, clock: ClockReading): ShutdownSumm
     finalizationAt: state.shutdown.finalizationAt, completedAt: clock.wallTimeMs,
     acceptedThroughSequence: state.shutdown.acceptedThroughSequence,
     pendingInputs: latest.pending.mailboxPending, inFlightInputs: latest.pending.mailboxInFlight,
-    persistence: state.persistence, droppedDiagnostics: latest.droppedDiagnostics,
+    persistence: Object.fromEntries(units.map((unit) => [unit, state.units[unit].persistence])),
+    droppedDiagnostics: latest.droppedDiagnostics,
   };
 }
 
@@ -141,8 +142,7 @@ function reduceRuntime(
     diagnostics = [...diagnostics, completeDiagnostic(details, clock, state.runId)];
   };
   const setPersistence = (unit: RuntimeUnitId, persistence: PersistenceStatus) => {
-    next = { ...next, persistence: { ...next.persistence, [unit]: persistence },
-      units: { ...next.units, [unit]: { ...next.units[unit], persistence } } };
+    next = { ...next, units: { ...next.units, [unit]: { ...next.units[unit], persistence } } };
     changed(unit);
   };
   const reduceUnit = (unit: RuntimeUnitId, unitInput: Extract<EewInput,
@@ -169,8 +169,7 @@ function reduceRuntime(
         next = { ...next, checkpointAttempts: { ...next.checkpointAttempts,
           [unit]: { ...attempt, postCaptureDirtySince: unitInput.clock.monotonicMs } } };
       }
-      next = { ...next, units: { ...next.units, [unit]: step.state },
-        persistence: { ...next.persistence, [unit]: step.state.persistence } };
+      next = { ...next, units: { ...next.units, [unit]: step.state } };
       changed(unit);
     }
     const deadline = step.nextDeadline;
@@ -195,7 +194,7 @@ function reduceRuntime(
     }
   };
   const unsavedUnits = () => units.filter((unit) => {
-    const status = next.persistence[unit];
+    const status = next.units[unit].persistence;
     return status == null || status.kind !== "saved" || status.currentGeneration !== status.savedGeneration;
   });
   const deliveryState = (): NotificationDeliveryState => ({
@@ -263,7 +262,7 @@ function reduceRuntime(
 
   if (input.kind === "checkpointCaptured") {
     const capture = input.capture;
-    const previous = next.persistence[capture.unit];
+    const previous = next.units[capture.unit].persistence;
     if (!Number.isSafeInteger(capture.generation) || capture.generation < 1 || !Number.isFinite(capture.capturedAt)
       || capture.attemptId.length === 0) throw new RangeError("invalid checkpoint capture");
     if (next.shutdown.stage !== "workerClose" && next.shutdown.stage !== "completed"
@@ -291,7 +290,7 @@ function reduceRuntime(
       if (control.kind === "checkpointResult" && isRuntimeUnit(control.result.unit)) {
         const unit = control.result.unit;
         const { result } = control;
-        const previous = next.persistence[unit];
+        const previous = next.units[unit].persistence;
         const attempt = next.checkpointAttempts[unit];
         if (previous != null && attempt != null && attempt.attemptId === result.attemptId
           && attempt.unit === result.unit && attempt.generation === result.generation

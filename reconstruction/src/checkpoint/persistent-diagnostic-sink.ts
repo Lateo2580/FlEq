@@ -19,6 +19,7 @@ type DiagnosticFile = Readonly<{ name: string; size: number; mtimeMs: number }>;
 type DiagnosticFileSystem = Readonly<{
   mkdir(path: string): Promise<void>;
   appendFile(path: string, data: string): Promise<void>;
+  readLastByte(path: string): Promise<number | null>;
   writeFile(path: string, data: string): Promise<void>;
   rename(from: string, to: string): Promise<void>;
   readFile(path: string): Promise<string>;
@@ -102,29 +103,6 @@ function failureKey(event: DiagnosticEvent): string | null {
   if (event.level !== "WARN" && event.level !== "ERROR") return null;
   const { timestamp: _timestamp, count: _count, ...identity } = event;
   return JSON.stringify([new Date(event.timestamp).toISOString().slice(0, 10), identity]);
-}
-
-// One first record plus one cumulative repeat record, bounded by the retained file.
-function compactRecords(records: readonly DiagnosticEvent[]): DiagnosticEvent[] {
-  const result: DiagnosticEvent[] = [];
-  const groups = new Map<string, { repeated: number | null }>();
-  for (const event of records) {
-    const key = failureKey(event);
-    const group = key == null ? undefined : groups.get(key);
-    if (group == null) {
-      if (key != null && event.count == null && groups.size < ITEM_LIMIT)
-        groups.set(key, { repeated: null });
-      result.push(event);
-    } else if (group.repeated == null) {
-      group.repeated = result.length;
-      result.push({ ...event, count: event.count ?? 1 });
-    } else {
-      const previous = result[group.repeated];
-      result[group.repeated] = { ...event, timestamp: Math.min(previous.timestamp, event.timestamp), count: Math.min(Number.MAX_SAFE_INTEGER,
-        (previous.count ?? 0) + (event.count ?? 1)) };
-    }
-  }
-  return result;
 }
 
 class PersistentDiagnosticSink {
@@ -214,13 +192,15 @@ class PersistentDiagnosticSink {
           grouped.set(date, entries);
         }
         for (const [date, entries] of grouped) {
-          const content = compactRecords(entries.map((entry) => entry.event)).map((event) => lineFor(event).line).join("");
-          await this.fileSystem.appendFile(join(this.directory, `diagnostics-${date}.jsonl`), content);
+          const path = join(this.directory, `diagnostics-${date}.jsonl`);
+          const lastByte = await this.fileSystem.readLastByte(path);
+          const content = (lastByte == null || lastByte === 0x0a ? "" : "\n") + entries.map((entry) => entry.line).join("");
+          await this.fileSystem.appendFile(path, content);
           entries.forEach((entry) => appended.add(entry));
         }
         await this.prune(this.readWallTime());
       } catch {
-        // A failed maintenance replacement cannot erase successfully appended records.
+        // A failed retention cleanup does not count successfully appended records as dropped.
         for (const entry of batch)
           if (!appended.has(entry))
             this.dropped[entry.event.level] += entry.occurrences;
@@ -366,9 +346,8 @@ class PersistentDiagnosticSink {
   }
 
   private async prune(now: number): Promise<void> {
-    // ponytail: scan retained daily files (100 MiB ceiling); stream them if measured sink cost requires it.
     const candidates = (await this.fileSystem.files(this.directory))
-      .filter((file) => /^diagnostics-\d{4}-\d{2}-\d{2}\.jsonl(?:\.tmp)?$/.test(file.name)
+      .filter((file) => /^diagnostics-\d{4}-\d{2}-\d{2}\.jsonl$/.test(file.name)
         || file.name === "shutdown-summary.json.tmp")
       .sort((left, right) => Number(right.name.endsWith(".tmp")) - Number(left.name.endsWith(".tmp"))
         || left.name.localeCompare(right.name));
@@ -377,7 +356,7 @@ class PersistentDiagnosticSink {
     for (const file of candidates) {
       const path = join(this.directory, file.name);
       if (file.name.endsWith(".tmp")) {
-        // Serialized maintenance never observes a live replacement tmp from this sink.
+        // Only shutdown-summary replacement remains; serialization excludes its live tmp.
         try { await this.fileSystem.unlink(path); }
         catch {
           cleanupFailed = true;
@@ -385,26 +364,12 @@ class PersistentDiagnosticSink {
         }
         continue;
       }
-      const content = await this.fileSystem.readFile(path);
-      const records: DiagnosticEvent[] = [];
-      for (const line of content.split("\n")) {
-        if (utf8.encode(`${line}\n`).byteLength > LINE_LIMIT) continue;
-        try {
-          const event = parsedEvent(JSON.parse(line));
-          if (event != null && now - event.timestamp <= RETENTION_MS) records.push(event);
-        } catch { /* incomplete/invalid records cannot become diagnostics */ }
-      }
-      if (records.length === 0) { await this.fileSystem.unlink(path); continue; }
-      const compacted = compactRecords(records);
-      const retained = compacted.map((event) => lineFor(event).line).join("");
-      if (retained !== content && !cleanupFailed) await this.replaceFile(path, retained);
-      files.push({ name: file.name, size: retained === content || cleanupFailed ? file.size : utf8.encode(retained).byteLength,
-        timestamp: compacted.reduce((oldest, event) => Math.min(oldest, event.timestamp), Infinity) });
+      files.push({ name: file.name, size: file.size, timestamp: Date.parse(file.name.slice(12, 22)) });
     }
     files.sort((left, right) => left.timestamp - right.timestamp || left.name.localeCompare(right.name));
     let total = files.reduce((sum, file) => sum + file.size, 0);
     for (const file of files) {
-      if (total <= RETENTION_BYTES) break;
+      if (total <= RETENTION_BYTES && now - file.timestamp <= RETENTION_MS) continue;
       if (file.name.endsWith(".tmp")) continue; // Failed above; still counted, never treated as reclaimed.
       await this.fileSystem.unlink(join(this.directory, file.name));
       total -= file.size;

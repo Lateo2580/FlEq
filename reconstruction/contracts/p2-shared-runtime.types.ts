@@ -277,7 +277,6 @@ export type RuntimeEffect =
 export type RuntimeState<UnitStates extends RuntimeUnitStates = RuntimeUnitStates> = Readonly<{
   runId: string;
   units: UnitStates;
-  persistence: Readonly<Partial<Record<UnitId, PersistenceStatus>>>;
   checkpointAttempts: Readonly<Partial<Record<RuntimeUnitId, PendingCheckpointAttempt>>>;
   deadlines: Readonly<Record<RuntimeUnitId, RuntimeUnitDeadline | null>>;
   notificationChannels: NotificationDeliveryState["channels"];

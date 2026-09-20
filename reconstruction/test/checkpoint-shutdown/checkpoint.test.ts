@@ -103,7 +103,7 @@ describe("P2 checkpoint", () => {
       ["test__fixtures__37_01_01_240613_VXSE43"], "notRetry");
     state = root.applyCheckpointResult(state, output.result,
       { wallTimeMs: 1_713_363_299_002, monotonicMs: 3 }).state;
-    expect(state.persistence["U-E"]?.kind).toBe("saved");
+    expect(state.units["U-E"].persistence?.kind).toBe("saved");
     const restored = root.restoreUnit("U-E");
     expect(restored.kind).toBe("restored");
     if (restored.kind !== "restored") throw new Error("checkpoint not restored");
@@ -128,16 +128,16 @@ describe("P2 checkpoint", () => {
     adapter.fail = "directorySync";
     const output = await root.executeCheckpoint(scheduled.request!, "o10", correlation.inputIds, correlation.retryReason);
     expect(output.result).toMatchObject({ kind: "uncertain", generation: 2, stage: "directorySync" });
-    state = driver.update(root, pending({ "U-F": { value: "cancelled" } }, { "U-F": { ...state.persistence["U-F"]!,
+    state = driver.update(root, pending({ "U-F": { value: "cancelled" } }, { "U-F": { ...state.units["U-F"].persistence!,
       kind: "pending", currentGeneration: 3, dirtySince: 501 } }), { wallTimeMs: 5_001, monotonicMs: 501 });
     state = root.applyCheckpointResult(state, output.result, { wallTimeMs: 5_001, monotonicMs: 501 }).state;
-    expect(state).toMatchObject({ units: { "U-F": { value: "cancelled" } },
-      persistence: { "U-F": { kind: "uncertain", currentGeneration: 3, attemptedGeneration: 2 } } });
+    expect(state.units["U-F"]).toMatchObject({ value: "cancelled",
+      persistence: { kind: "uncertain", currentGeneration: 3, attemptedGeneration: 2 } });
     adapter.fail = null;
     state = (await root.resolveUncertain(state, "U-F", scheduled.request!.attemptId,
       { wallTimeMs: 5_002, monotonicMs: 502 })).state;
-    expect(state).toMatchObject({ units: { "U-F": { value: "cancelled" } },
-      persistence: { "U-F": { kind: "pending", currentGeneration: 3, savedGeneration: 2, dirtySince: 501 } } });
+    expect(state.units["U-F"]).toMatchObject({ value: "cancelled",
+      persistence: { kind: "pending", currentGeneration: 3, savedGeneration: 2, dirtySince: 501 } });
     await root.diagnostics.flush();
   });
 
@@ -189,10 +189,10 @@ describe("P2 checkpoint", () => {
       { "U-F": { ...correlation, retryReason: "saveFailed" }, "U-W": correlation })!;
     expect(scheduled.request?.unit).toBe("U-W");
     executed = await root.executeCheckpoint(scheduled.request!, "run", correlation.inputIds, correlation.retryReason);
-    expect(executed.measurements.at(-1)!.endedMonotonicMs - state.persistence["U-W"]!.dirtySince!)
+    expect(executed.measurements.at(-1)!.endedMonotonicMs - state.units["U-W"].persistence!.dirtySince!)
       .toBeLessThanOrEqual(3_000);
     state = root.applyCheckpointResult(state, executed.result, { wallTimeMs: 10_102, monotonicMs: 102 }).state;
-    expect(state.persistence["U-W"]?.kind).toBe("saved");
+    expect(state.units["U-W"].persistence?.kind).toBe("saved");
 
     adapter.fail = "write";
     for (const nextDelay of [2_000, 4_000, 8_000, 10_000, 10_000]) {
@@ -234,7 +234,7 @@ describe("P2 checkpoint", () => {
     expect((await root.readDiagnostics({ limit: 256 })).records.map((event) => event.reason)).toContain("checkpointEncodeFailed");
     state = failedStep.state;
     expect(state.checkpointAttempts["U-F"]).toBeUndefined();
-    expect(state.units["U-F"].persistence).toBe(state.persistence["U-F"]);
+    expect(state.units["U-F"].persistence).toMatchObject({ kind: "failed", stage: "encode" });
 
     fail = false;
     const due = root.checkpoint.retryAfter("U-F")!;
@@ -293,7 +293,7 @@ describe("P2 checkpoint", () => {
       { "U-F": correlation })!;
     let output = await root.executeCheckpoint(scheduled.request!, "hash", correlation.inputIds, correlation.retryReason);
     state = root.applyCheckpointResult(state, output.result, { wallTimeMs: 1_001, monotonicMs: 2 }).state;
-    state = driver.update(root, pending({ "U-F": { value: "same" } }, { "U-F": { ...state.persistence["U-F"]!, kind: "pending",
+    state = driver.update(root, pending({ "U-F": { value: "same" } }, { "U-F": { ...state.units["U-F"].persistence!, kind: "pending",
       currentGeneration: 9, dirtySince: 3 } }), { wallTimeMs: 3, monotonicMs: 3 });
     scheduled = root.scheduleCheckpoint(state, { wallTimeMs: 1_002, monotonicMs: 3 }, "hash",
       { "U-F": correlation })!;

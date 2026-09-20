@@ -17,6 +17,7 @@ import type {
   RuntimeInput,
   RuntimeEffect,
   RuntimeUnitStates,
+  RuntimeUnitId,
   ShutdownPendingCounts,
   ShutdownStageResult,
   RuntimeStep,
@@ -91,6 +92,21 @@ function nodeDiagnosticFileSystem(): DiagnosticFileSystem {
   return {
     async mkdir(path) { await fileSystem.mkdir(path, { recursive: true }); },
     async appendFile(path, data) { await fileSystem.appendFile(path, data, "utf8"); },
+    async readLastByte(path) {
+      const handle = await fileSystem.open(path, "r").catch((error: NodeJS.ErrnoException) => {
+        if (error.code === "ENOENT") return null;
+        throw error;
+      });
+      if (handle == null) return null;
+      try {
+        const { size } = await handle.stat();
+        if (size === 0) return null;
+        const byte = Buffer.alloc(1);
+        const { bytesRead } = await handle.read(byte, 0, 1, size - 1);
+        if (bytesRead !== 1) throw new Error("diagnostic tail unavailable");
+        return byte[0];
+      } finally { await handle.close(); }
+    },
     async writeFile(path, data) { await fileSystem.writeFile(path, data, "utf8"); },
     async rename(from, to) { await fileSystem.rename(from, to); },
     async readFile(path) { return fileSystem.readFile(path, "utf8"); },
@@ -220,7 +236,7 @@ class RuntimeCompositionRoot {
 
   private rememberCorrelations(state: RuntimeState, correlationByUnit: Readonly<Partial<Record<UnitId, Correlation>>>) {
     for (const [unit, correlation] of Object.entries(correlationByUnit) as [UnitId, Correlation | undefined][]) {
-      const generation = state.persistence[unit]?.currentGeneration;
+      const generation = state.units[unit as RuntimeUnitId]?.persistence.currentGeneration;
       if (correlation != null && generation != null) this.correlations[unit] = { inputIds: [...correlation.inputIds], generation };
     }
   }
@@ -365,7 +381,7 @@ class RuntimeCompositionRoot {
       const clock = this.clock();
       const correlations = Object.fromEntries((Object.entries(this.correlations) as [UnitId,
         Readonly<{ inputIds: readonly string[]; generation: number }> | undefined][]).flatMap(([unit, correlation]) =>
-        correlation != null && current.persistence[unit]?.currentGeneration === correlation.generation
+        correlation != null && current.units[unit as RuntimeUnitId]?.persistence.currentGeneration === correlation.generation
           ? [[unit, { inputIds: correlation.inputIds, retryReason: this.checkpoint.retryReason(unit) }]] : []));
       const scheduled = this.checkpoint.scheduleCheckpoint(current, clock, current.runId, correlations, true, attempted);
       if (scheduled == null) return;

@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "3095a6c21caa96e06fc3b3a6d2f906534ef5441b",
-    "sha256": "5cbb43bfe465eb34d7cf8e45665769d198bf0c3a6e050ec72700836b3630081b",
+    "sha256": "2b0b4c49ea0650e212a628bc55be78a5cc299b9781835103cacc9bd140fbeaac",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "76c82b87d7783a4eae14af690cb34e7d6ec46f73617dc75b7f7401951619f080",
     "sequencesSha256": "22b2432e8989d7e7cc2514f2297308e84b3c0f1a3e045491b9cf60cfa8f2d147",
@@ -129,6 +129,15 @@
         "provisional": "A",
         "ruling": "独立レビューNO-GO 1への改訂（2026-09-20）",
         "reason": "後続到着や遅れた初回drainで5秒無進捗の検知が延期されるのを防ぐ。cancelは処理進捗・再発報の解除条件に数えない"
+      },
+      {
+        "id": "P2-A2-R16",
+        "A": "callerがrun内で一意なmessageIdを使う正常な配送について、run・入力連番・送出時刻を照合し、同じ完了の再送を無視する",
+        "B": "同じmessageIdを複数の生存仕事へ故意に再利用しても、完了開始時刻を伝播して別仕事の解放を防ぐ",
+        "recommended": "A",
+        "provisional": "A",
+        "ruling": "作者裁定R16=A（2026-09-20 08:4x）",
+        "reason": "ID一意性をcaller preconditionへ戻し、規約違反専用のcompletedStartFloor状態と試験系列を削る"
       }
     ],
     "questionResolutions": [
@@ -369,7 +378,7 @@
       },
       {
         "id": "P2-A2-AC04",
-        "requirement": "ParserMailboxItemを変更せず、MailboxEnvelopeのinputId対応を完了まで保持し、T0・enqueue単調時刻・runId・priorityReasonをDecodedMaterialへ複製しない。payloadはparser item/control union、completionもparser result/control union。runtimeはmailboxCompletedのcontrolを直列適用しparserへ渡さない。caller preconditionとしてparserのmessageIdはinputIdと一致させ、controlのmessageIdはrun内一意にし、架空のinputSequenceを作らない。mailboxはこれらのID制約を検証せず、重複completionが別の仕事を解放しないことだけを保証する",
+        "requirement": "ParserMailboxItemを変更せず、MailboxEnvelopeのinputId対応を完了まで保持し、T0・enqueue単調時刻・runId・priorityReasonをDecodedMaterialへ複製しない。payloadはparser item/control union、completionもparser result/control union。runtimeはmailboxCompletedのcontrolを直列適用しparserへ渡さない。caller preconditionとして全messageIdをrun内で一意にし、parserのmessageIdはinputIdと一致させ、架空のinputSequenceを作らない。mailboxはこれらのID制約を検証しない。正常な配送ではrun・入力連番・完了開始時刻が送出時刻以後であることを照合し、完了済みの一意なIDに対する同じcompletionの再送を無視する",
         "evidenceRefs": [
           "reconstruction/contracts/p2-order-plan.md:254 «92f0b30ed7afbb45»",
           "reconstruction/contracts/p2-order-plan.md:255 «151a3b407d160692»",
@@ -426,7 +435,7 @@
         "referenceIds": [
           "P2-A2-AC04"
         ],
-        "behavior": "P1 ParserMailboxItemのfield集合を変えずinputId相関を完了まで維持する"
+        "behavior": "一意なmessageIdの正常配送でP1 ParserMailboxItemのfield集合を変えず、run・inputSequence・送出時刻・inputId相関を完了まで維持し、同じcompletionの再送を無視する。同じIDを複数仕事へ投入する規約違反系列は検収しない"
       },
       {
         "testId": "P2-A2-T05",
@@ -503,7 +512,7 @@
       "追実装で閉じる項目: sameOrderingDomainだけの変更では閉じない。現行operationはfalse × trainingをunknown、confirmedNonNormalは非通常と扱うため、優先度・allocation・先行拘束をP2-A2-CLASSIFICATIONの単一判定表に揃える。反例3入力と矛盾sourceのT03-ORDER回帰試験で閉じる",
       "追実装で閉じる項目: 現行MailboxにcancelとMailboxStats.cancelledがないため、pending parser itemだけをinputIdで取り消す計数経路とAC01境界試験を追加する",
       "追実装で閉じる項目: 現行Mailboxには診断蓄積・drainDiagnostics・停止発報状態がない。AC05の固定初回到着（現行initialProgressの期限起点初期化も改訂）、stalledの処理進捗起点とunresponsiveの生存応答起点の分離、各回復条件による再発報、既存6 reason、64件有界蓄積を追加する。A3 composition rootの既存1秒tickからdrainDiagnostics(nowMonotonicMs)を呼びB15へ結線し、T05/T05-OVERFLOWで閉じる",
-      "追実装で閉じる項目: 現行のheadType束縛とcompletedStartFloorによる重複completion防止はAC03/AC04に整合する。callerのID一意性をmailbox内部で検証する機構は追加しない",
+      "追実装で閉じる項目(R16): 現行reconstruction/src/mailbox/mailbox.ts:17-23,101-104,161,168,172-177のcompletedStartFloorと同ID生存entryへの完了開始時刻伝播を削除する。T04から同じIDを複数仕事へ故意に投入する系列を削り、一意なIDに対する完了再送の無視とrun・inputSequence・送出時刻の照合だけを残す。callerのID一意性をmailbox内部で検証する機構は追加しない",
       "診断蓄積は拒否・停止・上限違反を合算した単一64件上限で、別queueや新共有型は作らない。超過時は最古から捨て、捨てた件数だけを累積する。overflowがあるdrainでは要約の1枠を確保するため最新63件まで残し、追加で捨てた分もcountへ含めたDiagnosticDetails { level: WARN, component: mailbox, reason: diagnosticQueueOverflow, count }を末尾に1件返す。drain後は蓄積と捨てた件数を空にし、発報済み状態は保持する。要約自体を再投入してoverflowを再帰発生させない",
       "drain頻度はA3 composition rootの既存1秒tickが所有し、到着・応答のない期間も呼び続ける。A2にタイマーを増設しない。tick遅延時も蓄積64件上限を守り、復帰時の実nowMonotonicMsで閾値を評価する。停止診断の生成／消費を伴う観測口はdrainDiagnosticsだけとし、通常のenqueue拒否／上限違反の診断は各発生遷移で蓄積する",
       "追実装で閉じる項目(A2-B3): stopInputAndDrainMailboxだけがbeginDrainを起動し、受付連番境界までのpending/in-flightを既存Mailboxで排出する。無いとA3がshutdown stateを直接進める。完了・失敗・deadlineExceeded時はMailboxStatsのpendingItems/inFlightItemsをshutdownStageResultの未処理件数として返し、Mailbox自身へ終了phaseや別queueを追加しない"

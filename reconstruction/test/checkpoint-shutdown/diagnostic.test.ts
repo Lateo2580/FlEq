@@ -46,6 +46,7 @@ describe("P2 persistent diagnostic sink", () => {
     expect(lines.join("\n")).not.toContain("<Report>");
     expect(lines[0]).toContain("[truncated:fieldLimit]");
 
+    await fileSystem.appendFile(join(path, name), '{"timestamp":');
     const restarted = new PersistentDiagnosticSink(path, nodeDiagnosticFileSystem(), () => 2_000, () => {});
     expect((await restarted.readDiagnostics({ unit: "U-E", limit: 256 })).records).toEqual([eviction]);
     expect(await restarted.readDiagnostics({ level: "ERROR", unit: "U-F", limit: 256 })).toMatchObject({
@@ -62,17 +63,22 @@ describe("P2 persistent diagnostic sink", () => {
       expandedByteLength: 20, operation: { kind: "undetermined", sources: {} } }, "run", 3_000))
       .toMatchObject({ event: { timestamp: 3_000, reason: "xmlInvalid", runId: "run" },
         encodedByteLength: 10, expandedByteLength: 20 });
+    const next = { ...eviction, timestamp: 1_002 };
+    restarted.enqueueDiagnostic(next);
+    expect((await restarted.readDiagnostics({ unit: "U-E", limit: 256 })).records).toEqual([eviction, next]);
+    expect(await fileSystem.readFile(join(path, name), "utf8"))
+      .toBe(lines.join("\n") + '\n{"timestamp":\n' + JSON.stringify(next) + "\n");
   });
 
   it("P2-A3-T07 contractBoundary / AC07: queue pressure and sink failure drop finitely without recursion", async () => {
     const removed: string[] = [];
     const retained: DiagnosticFileSystem = {
+      async readLastByte() { return null; },
       async mkdir() {}, async appendFile() {}, async writeFile() {}, async rename() {},
-      async readFile(path) { return `${JSON.stringify({ timestamp: path.includes("2020") ? 0 : 8 * 24 * 60 * 60 * 1000,
-        level: "INFO", component: "retention", reason: "shutdownStarted", runId: "run" })}\n`; },
+      async readFile() { throw new Error("retention must not read saved records"); },
       async files() { return [
-        { name: "diagnostics-2020-01-01.jsonl", size: 1, mtimeMs: 0 },
-        { name: "diagnostics-2026-01-01.jsonl", size: 101 * 1024 * 1024, mtimeMs: 8 * 24 * 60 * 60 * 1000 },
+        { name: "diagnostics-1970-01-01.jsonl", size: 1, mtimeMs: 8 * 24 * 60 * 60 * 1000 },
+        { name: "diagnostics-1970-01-09.jsonl", size: 101 * 1024 * 1024, mtimeMs: 0 },
       ].filter((file) => !removed.includes(`/retention/${file.name}`)); },
       async unlink(path) { removed.push(path); },
     };
@@ -82,11 +88,12 @@ describe("P2 persistent diagnostic sink", () => {
       reason: "shutdownStarted", runId: "run" });
     await retention.flush();
     expect(removed).toEqual([
-      "/retention/diagnostics-2020-01-01.jsonl", "/retention/diagnostics-2026-01-01.jsonl",
+      "/retention/diagnostics-1970-01-01.jsonl", "/retention/diagnostics-1970-01-09.jsonl",
     ]);
 
     let appends = 0;
     const unavailable: DiagnosticFileSystem = {
+      async readLastByte() { return null; },
       async mkdir() {},
       async appendFile() { appends += 1; throw new Error("disk unavailable"); },
       async writeFile() {},
@@ -110,6 +117,7 @@ describe("P2 persistent diagnostic sink", () => {
     expect(appends).toBe(1);
 
     const held: DiagnosticFileSystem = {
+      async readLastByte() { return null; },
       async mkdir() {}, async appendFile() { await new Promise<void>(() => {}); },
       async writeFile() {},
       async rename() {},

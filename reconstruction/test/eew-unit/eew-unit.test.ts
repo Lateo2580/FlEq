@@ -90,6 +90,7 @@ class MemoryDiagnosticFileSystem implements DiagnosticFileSystem {
   async appendFile(path: string, data: string): Promise<void> {
     this.filesByPath.set(path, (this.filesByPath.get(path) ?? "") + data);
   }
+  async readLastByte(path: string): Promise<number | null> { return Buffer.from(this.filesByPath.get(path) ?? "").at(-1) ?? null; }
   async writeFile(path: string, data: string): Promise<void> { this.filesByPath.set(path, data); }
   async rename(from: string, to: string): Promise<void> {
     this.filesByPath.set(to, this.filesByPath.get(from) ?? ""); this.filesByPath.delete(from);
@@ -575,7 +576,7 @@ describe("P2 EEW unit", () => {
         change: "change" in oracle.decision ? oracle.decision.change : null },
       effective: oracle.effective, subjects: oracle.subjects, intents: oracle.intents, notices: oracle.notices });
     }
-    expect(running.persistence["U-E"]).toMatchObject({ kind: "saved", savedGeneration: 1 });
+    expect(running.units["U-E"].persistence).toMatchObject({ kind: "saved", savedGeneration: 1 });
     const savedPayload = scheduled.request!.envelope.payload;
     if (savedPayload == null || typeof savedPayload !== "object") throw new Error("invalid checkpoint payload");
     expect(Object.keys(savedPayload)).toEqual(["schemaVersion", "intents", "deliveryRecords"]);
@@ -598,9 +599,8 @@ describe("P2 EEW unit", () => {
     oldAckState = oldAckRoot.applyCheckpointResult(oldAckState, oldResult.result,
       { wallTimeMs: ++now, monotonicMs: now }).state;
     expect(oldAckState.units["U-E"].current).toEqual([]);
-    expect(oldAckState.persistence["U-E"]).toMatchObject({ currentGeneration: 2, savedGeneration: 1, kind: "pending" });
-    expect(oldAckState.persistence["U-E"]?.dirtySince).toBe(cancellationClock.monotonicMs);
-    expect(oldAckState.units["U-E"].persistence).toBe(oldAckState.persistence["U-E"]);
+    expect(oldAckState.units["U-E"].persistence).toMatchObject({ currentGeneration: 2, savedGeneration: 1, kind: "pending" });
+    expect(oldAckState.units["U-E"].persistence?.dirtySince).toBe(cancellationClock.monotonicMs);
 
     const failedAdapter = new MemoryCheckpointFileSystem();
     const failedRoot = new RuntimeCompositionRoot(config(), { "U-E": eewUnitCodec }, {
@@ -616,7 +616,7 @@ describe("P2 EEW unit", () => {
     const failure = await failedRoot.executeCheckpoint(failedRequest.request!, "failed", [first.inputId], "notRetry");
     failedState = failedRoot.applyCheckpointResult(failedState, failure.result,
       { wallTimeMs: ++now, monotonicMs: now }).state;
-    expect(failedState.persistence["U-E"]?.kind).toBe("failed");
+    expect(failedState.units["U-E"].persistence?.kind).toBe("failed");
     failedState = failedRoot.tick(failedState, { wallTimeMs: ++now, monotonicMs: now }).state;
     const afterFailureCancel = failedState.units["U-E"];
     expect(afterFailureCancel.current).toEqual([]);
