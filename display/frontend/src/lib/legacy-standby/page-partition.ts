@@ -304,6 +304,99 @@ export function sequentialPartitionRanges(key: PagePartitionKey, placement: "sid
   return { ranges, pending, infeasible: false, probeCount: probedIds.size };
 }
 
+/** Ladder points probed while still unmeasured in one call. Bounds the DOM a
+ *  single drain mounts for a page whose size is not yet known.
+ *  ponytail: fixed 4; make it adaptive only if Pi measurements show ladder waste. */
+const GALLOP_UNMEASURED_PER_CALL = 4;
+
+/**
+ * Same contract as sequentialPartitionRanges (every accepted page fits and its
+ * one-longer extension does not) but finds each boundary with a doubling ladder
+ * and a binary search instead of end = start+1, +2, ….  A monotone probe (more
+ * candidates never measure shorter) yields exactly the linear boundaries.  Only
+ * the weather card uses it: linear search costs one settle iteration per
+ * candidate, which is 200 iterations for a typhoon-scale payload.
+ */
+export function gallopingPartitionRanges(key: PagePartitionKey, placement: "side" | "center", areaCount: number, fixedHeightPx: number, probe: PartitionProbe, tailEntriesForRange: (range: PageRange) => readonly PageTail[]): PartitionResult {
+  const ranges: PageRange[] = [];
+  const pending: PartitionResult["pending"] = [];
+  const probedIds = new Set<string>();
+  const rangeFor = (start: number, end: number): PageRange => {
+    const bare = { start, end, tails: [], omittedAreaCount: 0 };
+    const tails = [...tailEntriesForRange(bare)];
+    return { start, end, tails, omittedAreaCount: omittedAreaCount(tails) };
+  };
+  const probeRange = (range: PageRange): number | null => { probedIds.add(measureId(key, range)); return probe(key, placement, range, range.tails); };
+  const fits = (measured: number): boolean => fixedHeightPx <= 0 || measured <= fixedHeightPx;
+  const result = (infeasible = false): PartitionResult => (infeasible
+    ? { ranges: [], pending: [], infeasible: true, probeCount: probedIds.size }
+    : { ranges, pending, infeasible: false, probeCount: probedIds.size });
+  if (areaCount === 0) {
+    const range = rangeFor(0, 0);
+    if (range.tails.length === 0) return result();
+    const measured = probeRange(range);
+    if (measured == null) { ranges.push(range); pending.push({ id: measureId(key, range), key, ...range }); return result(); }
+    if (!fits(measured)) return result(true);
+    ranges.push(range);
+    return result();
+  }
+  let start = 0;
+  while (start < areaCount) {
+    let fitEnd = start;
+    let failEnd: number | null = null;
+    let firstUnmeasuredEnd: number | null = null;
+    for (let step = 1; ; step *= 2) {
+      const end = Math.min(start + step, areaCount);
+      const range = rangeFor(start, end);
+      const measured = probeRange(range);
+      if (measured == null) {
+        firstUnmeasuredEnd ??= end;
+        pending.push({ id: measureId(key, range), key, ...range });
+        if (pending.length >= GALLOP_UNMEASURED_PER_CALL) break;
+      } else if (fits(measured)) {
+        fitEnd = end;
+      } else {
+        failEnd = end;
+        break;
+      }
+      if (end === areaCount) break;
+    }
+    if (firstUnmeasuredEnd != null) {
+      // Provisional page until the shelf resolves the ladder; same shape as the linear version.
+      ranges.push(rangeFor(start, Math.max(fitEnd, firstUnmeasuredEnd)));
+      return result();
+    }
+    if (failEnd == null) { ranges.push(rangeFor(start, areaCount)); return result(); }
+    if (fitEnd === start) return result(true);
+    let lo = fitEnd;
+    let hi = failEnd;
+    while (hi - lo > 1) {
+      const mid = lo + Math.floor((hi - lo) / 2);
+      const range = rangeFor(start, mid);
+      const measured = probeRange(range);
+      if (measured == null) {
+        pending.push({ id: measureId(key, range), key, ...range });
+        ranges.push(rangeFor(start, lo));
+        return result();
+      }
+      if (fits(measured)) lo = mid; else hi = mid;
+    }
+    ranges.push(rangeFor(start, lo));
+    start = lo;
+  }
+  return result();
+}
+
+/** One candidate per page: the deterministic partition used once the weather
+ *  probe budget is spent.  Needs no measurement history and issues no probes. */
+export function singletonPartitionRanges(count: number, tailEntriesForRange: (range: PageRange) => readonly PageTail[]): PageRange[] {
+  return Array.from({ length: count }, (_, start) => {
+    const bare: PageRange = { start, end: start + 1, tails: [], omittedAreaCount: 0 };
+    const tails = [...tailEntriesForRange(bare)];
+    return { ...bare, tails, omittedAreaCount: omittedAreaCount(tails) };
+  });
+}
+
 export function pageIdentity(entry: PageAreaEntry): string {
   const base = `${entry.kindKey}|${entry.area}|${entry.occurrenceIndex}`;
   return entry.areaCode == null || entry.areaCode === "" ? base : `${base}|code:${entry.areaCode}`;

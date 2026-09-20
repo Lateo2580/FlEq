@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { pageIdentity, pageRangeNeedsFooter, planCardPageRuntimeUpdate, sequentialPartitionRanges, SplitOnlyPartitionStateMachine } from "../page-partition";
+import { gallopingPartitionRanges, pageIdentity, pageRangeNeedsFooter, planCardPageRuntimeUpdate, sequentialPartitionRanges, singletonPartitionRanges, SplitOnlyPartitionStateMachine } from "../page-partition";
 import type { CardKey, PagePartitionKey } from "../types";
 
 type Equal<Left, Right> = (<Value>() => Value extends Left ? 1 : 2) extends (<Value>() => Value extends Right ? 1 : 2) ? true : false;
@@ -41,6 +41,42 @@ describe("legacy standby page partition", () => {
     expect(result.ranges).toEqual([{ start: 0, end: 2, tails: [], omittedAreaCount: 0 }, { start: 2, end: 3, tails: [], omittedAreaCount: 0 }]);
     expect(result.pending).toHaveLength(1);
     expect(result.pending[0]?.id).toBe("quake:page:2:4");
+  });
+
+  it("galloping は単調 probe で線形と同じ境界を返し、probe 呼び出しが線形より少ない", () => {
+    // 1 候補 = 高さ 1、1 ページの上限 32。線形は 65 回、galloping は ladder + 二分で 20 回未満。
+    const probe = (calls: string[]) => (_key: PagePartitionKey, _placement: "side" | "center", range: { start: number; end: number }) => {
+      calls.push(`${range.start}:${range.end}`);
+      return range.end - range.start;
+    };
+    const linearCalls: string[] = [];
+    const gallopCalls: string[] = [];
+    const linear = sequentialPartitionRanges("weather", "side", 64, 32, probe(linearCalls), () => []);
+    const gallop = gallopingPartitionRanges("weather", "side", 64, 32, probe(gallopCalls), () => []);
+    expect(gallop.ranges).toEqual(linear.ranges);
+    expect(gallop.ranges.map((range) => `${range.start}:${range.end}`)).toEqual(["0:32", "32:64"]);
+    expect(gallop.pending).toEqual([]);
+    expect(gallop.infeasible).toBe(false);
+    expect(linearCalls.length).toBe(65);
+    expect(gallopCalls.length).toBeLessThan(30);
+  });
+
+  it("galloping は未計測に当たると暫定ページを返し、pending は 1 回の呼び出しで最大 4 本", () => {
+    const result = gallopingPartitionRanges("weather", "side", 64, 32, () => null, () => []);
+    expect(result.ranges).toEqual([{ start: 0, end: 1, tails: [], omittedAreaCount: 0 }]);
+    expect(result.pending.map((entry) => entry.id)).toEqual([
+      "weather:page:0:1", "weather:page:0:2", "weather:page:0:4", "weather:page:0:8",
+    ]);
+    expect(result.infeasible).toBe(false);
+  });
+
+  it("singleton 分割は N 件を N ページにし、tail を欠落なく載せる", () => {
+    const ranges = singletonPartitionRanges(3, (range) => range.start <= 2 && range.end > 2 ? [{ kindKey: "大雨", omittedAreaCount: 5 }] : []);
+    expect(ranges).toEqual([
+      { start: 0, end: 1, tails: [], omittedAreaCount: 0 },
+      { start: 1, end: 2, tails: [], omittedAreaCount: 0 },
+      { start: 2, end: 3, tails: [{ kindKey: "大雨", omittedAreaCount: 5 }], omittedAreaCount: 5 },
+    ]);
   });
 
   it("keeps a dependent tornado rider on the partition/probe key path", () => {
