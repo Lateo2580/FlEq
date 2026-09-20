@@ -800,7 +800,8 @@
   function pagePartitionProbeIds(key: PrefixCardKey, placement: PrefixPlacement, range: PageRange, tails: readonly PrefixTail[], floodForm?: FloodProbeForm, composition?: string, weatherRange?: PageRange, weatherSelectionRows?: number) {
     const id = prefixMeasureId("page-fit", key, placement, range.start, range.end, tails, floodForm, composition);
     const legacyId = prefixMeasureId("page-fit", key, placement, range.start, range.end, tails, floodForm);
-    const legacyTornadoId = key === "tornado" && weatherRange != null
+    // Test-override lookup only; skip the area-list encode in production.
+    const legacyTornadoId = key === "tornado" && weatherRange != null && testMeasurementOverride != null
       ? prefixMeasureId(
         "page-fit", key, placement, range.start, range.end, tails, floodForm,
         `weather:${weatherRange.start}:${weatherRange.end}:rows:${weatherSelectionRows ?? 0}:tails:${weatherRange.tails.map((tail) => `${tail.kindKey}:${tail.omittedAreaCount}`).join(",")}:identity:${encodeURIComponent(weatherTornadoIdentity(weatherSelectionRows ?? 0))}:form:normal`,
@@ -2138,9 +2139,12 @@
           await yieldBetweenPasses();
           lastYieldAt = performance.now();
           if (disposed) break;
+          // A macrotask yield lets an SSE input call requestSettle("input"); the stale loop
+          // must not drain, solve or commit the newer epoch's probes.
+          if (epochKey !== activeEpoch) { superseded = true; break; }
         }
       } while (!disposed && coordinator.hasPendingProbes() && probeSteps < maxProbeSteps);
-      if (disposed) break;
+      if (disposed || superseded) break;
       testProbeAfterMeasurementPass?.(coordinator, pass);
       const nextHidden = nextCenterClusterHidden({
         previous: solvingCenterClusterHidden,
@@ -2223,7 +2227,7 @@
       // measured plan with its diagnostic, then hand off or immediately
       // release the two schedulers instead of leaving them held forever.
       measurementNonConverged = true;
-      testBeforeTerminalCommit?.(requestSettle);
+      testBeforeTerminalCommit?.(() => requestSettle("successor"));
       // Match the normal pre-commit boundary: a queued successor wins before
       // this epoch may mutate visible state or discard its probe ownership.
       if (!coordinator.canSettle(activeEpoch)) {

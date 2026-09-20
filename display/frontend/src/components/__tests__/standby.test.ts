@@ -1776,7 +1776,7 @@ describe("StandbyScreen prefix probes and fixed-center geometry", () => {
     expect(source).toMatch(/function requestSettle[\s\S]*weatherMeasurementContracts\.clear\(\)[\s\S]*weatherPartitionProbeContracts\.clear\(\)[\s\S]*prefixMeasurements = \{\}/);
   });
 
-  it("data-weather-probe-revision は weather page-fit の実測が変わった時に進み、同じ値の再読み取りでは進まない", async () => {
+  it("data-weather-probe-revision が配線され、settle 後の再読み取りでは進まない", async () => {
     // 0:1 は fit(0)、0:2 は fail(2) で 2 地域が 2 ページに割れる。settle 後にさらに tick しても値が変わらなければ進まない。
     const alert = weather({ items: [{ kind: "大雨警報", phenomenonKey: "heavy-rain", displaySeverity: "officialL3", rank: "warning", shownAreas: ["A", "B"], omittedAreaCount: 0 }] });
     const { container } = render(StandbyScreen, {
@@ -2107,7 +2107,7 @@ describe("StandbyScreen prefix probes and fixed-center geometry", () => {
     try {
       const areas = Array.from({ length: 40 }, (_, index) => `地域${index + 1}`);
       const alert = weather({ items: [{ kind: "大雨警報", phenomenonKey: "heavy-rain", displaySeverity: "officialL3", rank: "warning", shownAreas: areas, omittedAreaCount: 0 }] });
-      const { container } = render(StandbyScreen, {
+      const { container, rerender } = render(StandbyScreen, {
         snapshot: baseSnapshot({ weatherAlerts: [alert] }), now, dim: false, sseConnected: true,
         testMeasurementOverride: { layoutWidthPx: 1280, layoutHeightPx: 10_000, baselineGapPx: 10 },
         testWeatherBudget: { iterations: 2 },
@@ -2116,6 +2116,13 @@ describe("StandbyScreen prefix probes and fixed-center geometry", () => {
       const root = container.querySelector<HTMLElement>(".standby")!;
       expect(root.dataset.measurementSettled).toBe("true");
       expect(root.dataset.weatherPartitionFallback).toBe("true");
+      // 新しい入力（1 地域）で反復予算が戻ることを固定する。generic override は
+      // 上のテストの rerender 段と同型（override は admission より前に返るので予算を消費しない）。
+      const smaller = weather({ items: [{ kind: "大雨警報", phenomenonKey: "heavy-rain", displaySeverity: "officialL3", rank: "warning", shownAreas: areas.slice(0, 1), omittedAreaCount: 0 }] });
+      await rerender({ snapshot: baseSnapshot({ weatherAlerts: [smaller] }), now, dim: false, sseConnected: true, testMeasurementOverride: { layoutWidthPx: 1280, layoutHeightPx: 10_000, baselineGapPx: 10, "weather:prefix:1:side": 0, "weather:prefix:1:center": 0 }, testWeatherBudget: { iterations: 8 } });
+      for (let pass = 0; pass < 24; pass += 1) await tick();
+      expect(root.dataset.measurementSettled).toBe("true");
+      expect(root.dataset.weatherPartitionFallback).toBe("false");
     } finally {
       if (clientHeight == null) delete (HTMLElement.prototype as { clientHeight?: number }).clientHeight;
       else Object.defineProperty(HTMLElement.prototype, "clientHeight", clientHeight);
@@ -2132,13 +2139,9 @@ describe("StandbyScreen prefix probes and fixed-center geometry", () => {
     vi.stubGlobal("ResizeObserver", TestResizeObserver);
     const saved = (["clientHeight", "scrollHeight", "clientWidth", "scrollWidth"] as const)
       .map((name) => [name, Object.getOwnPropertyDescriptor(HTMLElement.prototype, name)] as const);
-    const probeSpan = (el: HTMLElement): number => {
-      const match = /^weather:page-fit:(\d+):(\d+)/.exec(el.closest<HTMLElement>("[data-prefix-measure]")?.dataset.prefixMeasure ?? "");
-      return match == null ? 0 : Number(match[2]) - Number(match[1]);
-    };
     Object.defineProperties(HTMLElement.prototype, {
       clientHeight: { configurable: true, get(this: HTMLElement): number { return this.matches("[data-page-probe-card], [data-page-probe-readable]") ? 100 : 0; } },
-      scrollHeight: { configurable: true, get(this: HTMLElement): number { return this.matches("[data-page-probe-card]") ? (probeSpan(this) > 8 ? 200 : 100) : this.matches("[data-page-probe-readable]") ? 100 : 0; } },
+      scrollHeight: { configurable: true, get(this: HTMLElement): number { return this.matches("[data-page-probe-card], [data-page-probe-readable]") ? 100 : 0; } },
       clientWidth: { configurable: true, get(this: HTMLElement): number { return this.matches("[data-page-probe-card], [data-page-probe-readable]") ? 307 : 0; } },
       scrollWidth: { configurable: true, get(this: HTMLElement): number { return this.matches("[data-page-probe-card], [data-page-probe-readable]") ? 307 : 0; } },
     });
@@ -2159,6 +2162,7 @@ describe("StandbyScreen prefix probes and fixed-center geometry", () => {
         await tick();
         if (calibration.container.querySelector(".center-card-region .weather-card") == null) admittedBeforeCommit = Number(calibrationRoot.dataset.weatherProbeAdmitted);
       }
+      expect(admittedBeforeCommit).toBeGreaterThan(0);
       expect(calibrationRoot.dataset.measurementSettled).toBe("true");
       expect(calibrationRoot.dataset.weatherPartitionFallback).toBe("false");
       expect(Number(calibrationRoot.dataset.weatherProbeAdmitted)).toBeGreaterThan(admittedBeforeCommit);
