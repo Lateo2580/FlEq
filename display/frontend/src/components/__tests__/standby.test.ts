@@ -2118,8 +2118,9 @@ describe("StandbyScreen prefix probes and fixed-center geometry", () => {
       expect(root.dataset.weatherPartitionFallback).toBe("true");
       // 新しい入力（1 地域）で反復予算が戻ることを固定する。generic override は
       // 上のテストの rerender 段と同型（override は admission より前に返るので予算を消費しない）。
+      // rerender 側は「通る最小値 +1」。reset が無ければ較正段の累計が残って必ず latch する
       const smaller = weather({ items: [{ kind: "大雨警報", phenomenonKey: "heavy-rain", displaySeverity: "officialL3", rank: "warning", shownAreas: areas.slice(0, 1), omittedAreaCount: 0 }] });
-      await rerender({ snapshot: baseSnapshot({ weatherAlerts: [smaller] }), now, dim: false, sseConnected: true, testMeasurementOverride: { layoutWidthPx: 1280, layoutHeightPx: 10_000, baselineGapPx: 10, "weather:prefix:1:side": 0, "weather:prefix:1:center": 0 }, testWeatherBudget: { iterations: 8 } });
+      await rerender({ snapshot: baseSnapshot({ weatherAlerts: [smaller] }), now, dim: false, sseConnected: true, testMeasurementOverride: { layoutWidthPx: 1280, layoutHeightPx: 10_000, baselineGapPx: 10, "weather:prefix:1:side": 0, "weather:prefix:1:center": 0 }, testWeatherBudget: { iterations: 4 } });
       for (let pass = 0; pass < 24; pass += 1) await tick();
       expect(root.dataset.measurementSettled).toBe("true");
       expect(root.dataset.weatherPartitionFallback).toBe("false");

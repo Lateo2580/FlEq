@@ -2139,9 +2139,13 @@
           await yieldBetweenPasses();
           lastYieldAt = performance.now();
           if (disposed) break;
+          // A macrotask yield lets an SSE input call requestSettle("input"); the stale loop
+          // must not drain, solve or commit the newer epoch's probes. The successor's
+          // coordinator.begin() promotes the queued key (epoch-coordinator.ts begin()).
+          if (epochKey !== activeEpoch) { superseded = true; break; }
         }
       } while (!disposed && coordinator.hasPendingProbes() && probeSteps < maxProbeSteps);
-      if (disposed) break;
+      if (disposed || superseded) break;
       testProbeAfterMeasurementPass?.(coordinator, pass);
       const nextHidden = nextCenterClusterHidden({
         previous: solvingCenterClusterHidden,

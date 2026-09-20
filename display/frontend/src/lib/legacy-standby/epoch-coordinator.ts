@@ -57,6 +57,14 @@ export function createEpochCoordinator(): EpochCoordinatorControl {
     begin(nextKey) {
       if (disposed) return;
       if (busy) {
+        if (nextKey === queuedKey) {
+          // The successor settle is starting for the key an input queued while the
+          // previous loop was mid-yield. Promote it; its probes were registered by
+          // that input's flush and must not be dropped as if they were stale.
+          key = nextKey;
+          queuedKey = null;
+          return;
+        }
         if (nextKey !== key) {
           // A newer external epoch invalidates probes owned by the active one.
           // Keep the gate busy and promote the queued key before any settled

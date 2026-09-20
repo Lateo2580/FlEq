@@ -112,4 +112,17 @@ describe("EpochCoordinator", () => {
     expect(coordinator.isBusy()).toBe(false);
     expect(dropped).not.toHaveBeenCalled();
   });
+
+  it("begin() with the already-queued key promotes it instead of discarding the newer epoch's probes", () => {
+    const coordinator = createEpochCoordinator();
+    coordinator.begin("1");
+    coordinator.begin("2");                 // input during a busy epoch: queued, old probes dropped
+    coordinator.enqueueProbe("p", () => {}); // the input flush registers a probe for epoch 2
+    coordinator.begin("2");                 // the successor settle starts for the queued key
+    expect(coordinator.epochKey()).toBe("2");
+    expect(coordinator.hasPendingProbes()).toBe(true);
+    expect(coordinator.canSettle("2")).toBe(false);
+    coordinator.drainProbes();
+    expect(coordinator.canSettle("2")).toBe(true);
+  });
 });
