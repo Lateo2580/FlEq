@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "fc7006e2380edf9a97b601d124341ba4bd7f7f42",
-    "sha256": "3bd22d3782ce6b3411d9031db49402d1209f2a38197935da87423a51a84494da",
+    "sha256": "6e288a2d0afc2061ea3b2185972fbdc65eda2385856384e7be7e0e0e00f6abdb",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "76c82b87d7783a4eae14af690cb34e7d6ec46f73617dc75b7f7401951619f080",
     "sequencesSha256": "22b2432e8989d7e7cc2514f2297308e84b3c0f1a3e045491b9cf60cfa8f2d147",
@@ -192,7 +192,7 @@
     "contractId": "P2-WEATHER-CURRENT-UNIT-001",
     "mode": "implementation",
     "objective": "M06をI-U-Wとして閉じ、全国baseはoperation別1（合算3）/履歴は合算2、partial128/履歴8、所有現象、freshness target、取消復元、16MiBを復元・保存障害・構造oracleまで固定する。",
-    "baseOid": "unassigned",
+    "baseOid": "5b964cafb38c1f78493e1d693d3003c6637d6da5",
     "cleanTreeRequired": true,
     "readPaths": [
       "docs/specs/reconstruction-p0-contracts.md",
