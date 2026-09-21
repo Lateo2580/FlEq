@@ -1,5 +1,6 @@
 import type {
   ParsedWeatherWarning,
+  WeatherItem,
   WeatherSeverity,
   Vpws50Diff,
   Vpws50AreaChange,
@@ -336,6 +337,18 @@ export function shortKindName(name: string): string {
     .trim() || name;
 }
 
+/**
+ * Body の Status から「鍵を落とす根拠になる解除 Kind コード」を解決する。無ければ null。
+ * 鍵を落とす側 (infoToSnapshot) と根拠側 (hasExplicitReleasesForAllMissing) の
+ * 述語が別々に書かれていたため一部解除が根拠に数えられなかった。判定はここ 1 箇所に置く。
+ */
+function releasedKindCodeOf(status: WeatherItem["statuses"][number]): string | null {
+  if (status.status.trim() !== "解除") return null;
+  return [status.lastKindCode, status.kindCode]
+    .map((code) => code?.trim() ?? "")
+    .find((code) => code !== "" && code !== "00") ?? null;
+}
+
 function infoToSnapshot(info: ParsedWeatherWarning): Snapshot | null {
   const layer = selectPreferredWeatherLayer(info.layers);
   if (!layer) return null;
@@ -345,10 +358,7 @@ function infoToSnapshot(info: ParsedWeatherWarning): Snapshot | null {
     const kinds: AreaSnapshot = new Map();
     const releasedKindCodes = new Set<string>();
     for (const status of item.statuses) {
-      if (status.status.trim() !== "解除") continue;
-      const kindCode = [status.lastKindCode, status.kindCode]
-        .map((code) => code?.trim() ?? "")
-        .find((code) => code !== "" && code !== "00");
+      const kindCode = releasedKindCodeOf(status);
       if (kindCode == null) continue;
       releasedKindCodes.add(status.kindCode);
       releasedKindCodes.add(kindCode);
@@ -555,11 +565,14 @@ function hasExplicitReleasesForAllMissing(
   if (layer == null) return false;
   const releaseAreaCodes = new Set(
     layer.items
-      .filter((item) => item.kinds.some((kind) => {
-        const family = resolvePhenomenonFamily(kind.code, kind.name);
-        return kind.severity === "release"
-          || resolveDisplaySeverity(kind.code, kind.name, family).displaySeverity === "release";
-      }))
+      // 鍵を落とす側 (infoToSnapshot) は Body の Status=解除 からも解除を読むので、
+      // 根拠側も同じ述語を使う。一部解除だけの報を「異常な解除率」にしない。
+      .filter((item) => item.statuses.some((status) => releasedKindCodeOf(status) != null)
+        || item.kinds.some((kind) => {
+          const family = resolvePhenomenonFamily(kind.code, kind.name);
+          return kind.severity === "release"
+            || resolveDisplaySeverity(kind.code, kind.name, family).displaySeverity === "release";
+        }))
       .map((item) => item.areaCode),
   );
   for (const [areaCode, previousArea] of previous.areas) {

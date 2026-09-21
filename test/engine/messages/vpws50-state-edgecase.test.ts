@@ -28,8 +28,9 @@ function makeItem(
   areaName: string,
   areaCode: string,
   kinds: WeatherKind[],
+  statuses: WeatherItem["statuses"] = [],
 ): WeatherItem {
-  return { areaName, areaCode, kinds, statuses: [] };
+  return { areaName, areaCode, kinds, statuses };
 }
 
 function makeInfo(items: WeatherItem[], reportDateTime?: string): ParsedWeatherWarning {
@@ -141,6 +142,43 @@ describe("R1/R2 ガードレール: parser 異常時の safety", () => {
     expect(diff.confidence).toBe("confirmed");
     expect(diff.released).toHaveLength(8);
     expect(state.getCurrentAreasForDisplay()?.totalAreas).toBe(2);
+  });
+
+  // 実不具合の再発防止 (2026-09-21 Pi 実機): Body の Status=解除 による一部解除だけが
+  // 起きた定時報が「異常な解除率」で保留され、全国 2313 鍵が 30 分古いまま表示された。
+  it("Body の Status=解除 による一部解除も解除の根拠として受理し、コード無しの解除は根拠にしない", () => {
+    const state = new Vpws50StateHolder();
+    const previous = Array.from({ length: 5 }, (_, i) => makeItem(
+      `県${i}`,
+      `${i.toString().padStart(2, "0")}0000`,
+      [makeKind("03", "warning"), makeKind("14", "advisory")],
+    ));
+    state.diffAndUpdate(makeInfo(previous), "msg-1");
+    // 各県の雷注意報 (14) だけを Body の解除で落とす。大雨警報 (03) は残るので
+    // 区域自体は新報にも載り、解除 Kind は Body の Status にしか現れない。
+    const next = previous.map((item) => makeItem(
+      item.areaName,
+      item.areaCode,
+      [makeKind("03", "warning")],
+      [{ kindCode: "14", status: "解除", lastKindCode: "14" }],
+    ));
+    const diff = state.diffAndUpdate(makeInfo(next), "msg-2");
+    expect(diff.confidence).toBe("confirmed");
+    expect(diff.unsafeReason).toBeUndefined();
+    expect(diff.released).toHaveLength(5);
+    expect(state.getCurrentAreasForDisplay()?.totalAreas).toBe(5);
+
+    // Code=00・LastKind 無しの解除 Status は鍵を落とさないので根拠にも数えない
+    const bogus = new Vpws50StateHolder();
+    bogus.diffAndUpdate(makeInfo(previous), "msg-1");
+    const bogusNext = previous.map((item) => makeItem(
+      item.areaName,
+      item.areaCode,
+      [makeKind("03", "warning")],
+      [{ kindCode: "00", status: "解除" }],
+    ));
+    expect(bogus.diffAndUpdate(makeInfo(bogusNext), "msg-2").unsafeReason)
+      .toBe("abnormal_release_rate");
   });
 
   it("80% 未満消失 → 通常 diff (confidence=confirmed)", () => {
