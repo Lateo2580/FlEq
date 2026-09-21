@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "3095a6c21caa96e06fc3b3a6d2f906534ef5441b",
-    "sha256": "0c9ac9bf6e464d319158fa318e7dc19692dd32ac142d8e0f849198334809d0e3",
+    "sha256": "5fe21b1e8c8e37a18402a183920b0890c870c2d16399cf92db802cf727da501c",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "76c82b87d7783a4eae14af690cb34e7d6ec46f73617dc75b7f7401951619f080",
     "sequencesSha256": "a50ec1b672e5a05a1a5fbd54e5321ecd9a55d214664cf4a644f539c281bd14b6",
@@ -482,6 +482,13 @@
         "purpose": "新築TypeScript型検査",
         "cwd": ".",
         "target": "reconstruction/tsconfig.json"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/tsconfig.test.json",
+        "stage": "implementation",
+        "purpose": "test/配下を含む新築TypeScript型検査",
+        "cwd": ".",
+        "target": "reconstruction/tsconfig.test.json"
       },
       {
         "command": "./node_modules/.bin/vitest run --config reconstruction/vitest.config.ts",

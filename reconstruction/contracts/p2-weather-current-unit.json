@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "fc7006e2380edf9a97b601d124341ba4bd7f7f42",
-    "sha256": "2248a7543e1faad430856504f34e7f8a72097f8f784912522ca3f9caf7321a53",
+    "sha256": "88334755c0de59765964f27d3f60bc1469f4f318469aa99b10c843f738ea95c2",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "76c82b87d7783a4eae14af690cb34e7d6ec46f73617dc75b7f7401951619f080",
     "sequencesSha256": "a50ec1b672e5a05a1a5fbd54e5321ecd9a55d214664cf4a644f539c281bd14b6",
@@ -565,18 +565,18 @@
         "purpose": "全契約検査"
       },
       {
-        "command": "./node_modules/.bin/tsc --project reconstruction/tsconfig.json --noEmit",
-        "cwd": ".",
-        "target": "reconstruction/contracts/p2-weather-current-unit.types.ts",
-        "stage": "contract",
-        "purpose": "公開型検査"
-      },
-      {
         "command": "./node_modules/.bin/tsc --project reconstruction/tsconfig.json",
         "cwd": ".",
         "target": "reconstruction/tsconfig.json",
         "stage": "implementation",
         "purpose": "実装build"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/tsconfig.test.json",
+        "cwd": ".",
+        "target": "reconstruction/tsconfig.test.json",
+        "stage": "implementation",
+        "purpose": "test/配下を含む新築TypeScript型検査"
       },
       {
         "command": "./node_modules/.bin/vitest run --config reconstruction/vitest.config.ts",

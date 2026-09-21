@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "d9990053b44496fd54fa6995148e2a04a5a9c9a3",
-    "sha256": "0a06cde545ee971d1a414f0622bc440ba0d527f245dad299e69e61304d7c3bcc",
+    "sha256": "4092dcfd7fbe7ee63ceb3b04ded02c55d0dff43627520d08d4e0a3a19f7a45e8",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "76c82b87d7783a4eae14af690cb34e7d6ec46f73617dc75b7f7401951619f080",
     "sequencesSha256": "a50ec1b672e5a05a1a5fbd54e5321ecd9a55d214664cf4a644f539c281bd14b6",
@@ -518,6 +518,7 @@
       {"command":"node reconstruction/tools/corpus/check-sequences.mjs","stage":"contract","purpose":"系列step・expectedRef・根拠・未決を検査する","cwd":".","target":"reconstruction/tools/corpus/check-sequences.mjs"},
       {"command":"node reconstruction/contracts/check-contract.mjs","stage":"contract","purpose":"P1作業契約の型・参照・owner/期限・自己hashを検査する","cwd":".","target":"reconstruction/contracts/check-contract.mjs"},
       {"command":"./node_modules/.bin/tsc --project reconstruction/tsconfig.json","cwd":".","target":"reconstruction/src/** and reconstruction/contracts/p1-parser-boundary.types.ts → reconstruction/dist/","stage":"implementation","purpose":"新築専用TypeScript build。rootのcleanは呼ばず旧distを削除・上書きしない"},
+      {"command":"./node_modules/.bin/tsc --project reconstruction/tsconfig.test.json","cwd":".","target":"reconstruction/tsconfig.test.json","stage":"implementation","purpose":"test/配下を含む新築TypeScript型検査"},
       {"command":"./node_modules/.bin/vitest run --config reconstruction/vitest.config.ts","cwd":".","target":"reconstruction/test/**/*.test.ts","stage":"implementation","purpose":"新築専用includeでP1の全テストを実行する。root test設定の継承で対象を失わない"}
     ],
     "artifactRequirements": [

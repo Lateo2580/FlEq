@@ -6,7 +6,7 @@ import type {
 } from "../../contracts/p2-shared-runtime.types";
 import type { Operation } from "../../contracts/p1-parser-boundary.types";
 
-// T06: compiled by the Vitest child tsc invocation, including negative checks.
+// T06: compiled by the CI type-check gate (tsc --project reconstruction/tsconfig.test.json), including negative checks.
 expectTypeOf<PublishedOutcome["kind"]>().toEqualTypeOf<
   "accepted" | "batchCompleted" | "deadlineApplied" | "recoveryApplied"
 >();

@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "3095a6c21caa96e06fc3b3a6d2f906534ef5441b",
-    "sha256": "990fd45d0b5467cbaa87dc880beecf7a9d1fa384e6bb5d451f814daba3923eb1",
+    "sha256": "ab11a91d5a8e91252606c617a7aa46d86b158fcb9fa117d8fc1be7f0e4db9a10",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "76c82b87d7783a4eae14af690cb34e7d6ec46f73617dc75b7f7401951619f080",
     "sequencesSha256": "a50ec1b672e5a05a1a5fbd54e5321ecd9a55d214664cf4a644f539c281bd14b6",
@@ -536,6 +536,13 @@
         "purpose": "新築TypeScript型検査",
         "cwd": ".",
         "target": "reconstruction/tsconfig.json"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/tsconfig.test.json",
+        "stage": "implementation",
+        "purpose": "T06/T07のpositive/negative型契約を含むtest/配下の型検査",
+        "cwd": ".",
+        "target": "reconstruction/tsconfig.test.json"
       },
       {
         "command": "./node_modules/.bin/vitest run --config reconstruction/vitest.config.ts",

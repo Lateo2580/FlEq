@@ -1,6 +1,5 @@
 import { Buffer } from "node:buffer";
 import { readFileSync } from "node:fs";
-import { spawnSync } from "node:child_process";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { DecodedMaterial, Operation, ParserMailboxResult } from "../../contracts/p1-parser-boundary.types";
@@ -599,16 +598,5 @@ describe("P2 shared runtime", () => {
         material: { ...valid, inputId: long, reportDateTimeRaw: "" } }, "run")).diagnostics;
       expect(event).toMatchObject({ timestamp: clock.wallTimeMs, runId: "run", reason: "reportDateTimeMissing" });
     }
-  });
-
-  it("P2-A1-T06/T07 contractBoundary: TypeScript compiles positive and negative shared type contracts", () => {
-    const result = spawnSync(process.execPath, [
-      "node_modules/typescript/bin/tsc", "--noEmit", "--strict", "--skipLibCheck",
-      "--target", "ES2022", "--module", "commonjs", "--types", "node", "--esModuleInterop",
-      "reconstruction/test/shared-runtime/type-contract.ts",
-      "reconstruction/test/shared-runtime/shared-runtime.test.ts",
-    ], { encoding: "utf8" });
-    expect(result.error).toBeUndefined();
-    expect(result.status, result.stdout + result.stderr).toBe(0);
   });
 });

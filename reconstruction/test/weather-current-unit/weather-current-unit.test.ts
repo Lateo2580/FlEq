@@ -400,6 +400,7 @@ describe("P2 weather-current unit", () => {
     expect(corpus.meta.p2Subsets.find((item) => item.subsetId === "P2-O06-U-W-v1")?.stepRefs)
       .toContain("expected:O06:31");
     const targetFamilies = new Set(["VPWS50", "VPWW55", "VPWW57", "VPWW58", "VPWW59", "VPWW60", "VPWW61", "VPNO50"]);
+    const covered: string[] = [];
     for (const fixture of manifest.fixtures) {
       const headType = fixture.transport.headType;
       if (headType == null || !targetFamilies.has(headType)) continue;
@@ -408,7 +409,9 @@ describe("P2 weather-current unit", () => {
       expect(step.state.unavailable, fixture.path).toEqual([]);
       if (file.includes("synthetic-vpws50-change-density"))
         expect(step.decisions[0], fixture.path).toMatchObject({ decision: "rejected", reason: "requiredStructureMissing" });
+      covered.push(fixture.path);
     }
+    expect(covered, covered.join(",")).toHaveLength(14);
 
     const calls = { ...fixtureDriver().calls, reduceWeatherCurrentUnit, toWeatherCurrentView };
     const adapter = new MemoryCheckpointFileSystem();
