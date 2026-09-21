@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "fc7006e2380edf9a97b601d124341ba4bd7f7f42",
-    "sha256": "7897fec68e0b101484f5821a5af1d78043e26990d64f144651ca945d8868f6a5",
+    "sha256": "2248a7543e1faad430856504f34e7f8a72097f8f784912522ca3f9caf7321a53",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "76c82b87d7783a4eae14af690cb34e7d6ec46f73617dc75b7f7401951619f080",
     "sequencesSha256": "a50ec1b672e5a05a1a5fbd54e5321ecd9a55d214664cf4a644f539c281bd14b6",
@@ -84,7 +84,7 @@
             "trigger": "AC11のnormal保護admission後も、正当なnewer報の同一scopeを16MiBまたは保持件数内に保存できない",
             "scope": "operation/family/subjectとnationalまたはpartial、partialではofficeも含む",
             "source": "容量超過を起こしたnewer ReportRef（null禁止）",
-            "lastKnown": "同じscopeの直前WeatherCurrentSnapshot。無ければnull。currentや通知根拠として再利用しない",
+            "lastKnown": "同じscopeの直前WeatherCurrentSnapshot。無ければnull。AC11の16MiB縮退でnullへ落とす場合を除く。currentや通知根拠として再利用しない",
             "affectedScope": "保持できないnational識別子、またはpartialのoffice/area識別子。scopeEncodingのcanonical tokenで保存し、不明な区域を推測できない場合は同じ束縛のall tokenで対象全体の未確認を明示する"
           },
           {
@@ -438,10 +438,11 @@
       },
       {
         "id": "P2-A5-AC11",
-        "requirement": "normalの受理はtraining/testの占有で失敗しない。RET-02/03/04の合算上限に達しているとき、normalの新規受理は該当上限を占有するtraining/testの最古entry（履歴・partial subject）を必要な分だけ先に容量退去させてから判定し、normal同士でだけcapacityExceededを返す。training/testの受理はnormalのentryを退去させない。容量退去はunavailableでも取消でもなく、DiagnosticDetails.reason=weatherCurrentCapacityEvictedと既存のunit/count等だけで記録し、§7.9にfieldを追加しない。RES-01の16MiB超過時もnormal保護を適用し、training/testの履歴→partial subject→全国baseの順で、各種別内の最古entryから必要な分だけ容量退去させて再判定する。全国baseの退去はnormal受理に必要なこのbyte容量退去だけをAC10の唯一の例外とする。training/testの受理はnormalを退去させない。normalだけで16MiBを超える場合は従来どおりreason=capacityExceededのunavailableとし、事前予約は設けない",
+        "requirement": "normalの受理はtraining/testの占有で失敗しない。RET-02/03/04の合算上限に達しているとき、normalの新規受理は該当上限を占有するtraining/testの最古entry（履歴・partial subject）を必要な分だけ先に容量退去させてから判定し、normal同士でだけcapacityExceededを返す。training/testの受理はnormalのentryを退去させない。容量退去はunavailableでも取消でもなく、DiagnosticDetails.reason=weatherCurrentCapacityEvictedと既存のunit/count等だけで記録し、§7.9にfieldを追加しない。RES-01の16MiB超過時もnormal保護を適用し、training/testの履歴→partial subject→全国baseの順で、各種別内の最古entryから必要な分だけ容量退去させて再判定する。全国baseの退去はnormal受理に必要なこのbyte容量退去だけをAC10の唯一の例外とする。training/testの受理はnormalを退去させない。normalだけで16MiBを超える場合は従来どおりreason=capacityExceededのunavailableとし、事前予約は設けない。unavailable record自体が16MiBに収まらない場合はlastKnownをnullにして保存し、それでも収まらなければ既存stateを変更せずdecision=capacityExceededの決定とDiagnosticDetails.reason=checkpointEncodeFailedのWARNで拒否し、例外を投げない",
         "evidenceRefs": [
           "reconstruction/contracts/p2-weather-current-unit.json",
-          "docs/specs/reconstruction-p0-contracts.md:572 «9a4b44d95aa2d482»"
+          "docs/specs/reconstruction-p0-contracts.md:572 «9a4b44d95aa2d482»",
+          "docs/specs/reconstruction-p0-contracts.md:565 «eb0ffc39ac5364e5»"
         ]
       },
       {
@@ -530,7 +531,7 @@
         "referenceIds": [
           "P2-A5-AC11"
         ],
-        "behavior": "全国履歴2・partial128・partial履歴8の各合算上限でnormal新規受理がtraining/testの最古entryを容量退去させて成功する。normalだけで満杯ならcapacityExceeded、training/test受理はnormalを退去させない。退去診断reason=weatherCurrentCapacityEvictedを確認し、unavailable/取消を生成しない。件数に余裕があってもtraining/test占有で16MiBを超える場合、履歴→partial subject→全国baseの最古順に退去してnormalを受理する。training/test全国baseだけが超過原因の例でAC10の唯一の例外を確認する。退去後16MiB-1/一致は成功、normalだけで16MiB+1はcapacityExceededとし、training/test入力はbyte境界でもnormalを退去させない"
+        "behavior": "全国履歴2・partial128・partial履歴8の各合算上限でnormal新規受理がtraining/testの最古entryを容量退去させて成功する。normalだけで満杯ならcapacityExceeded、training/test受理はnormalを退去させない。退去診断reason=weatherCurrentCapacityEvictedを確認し、unavailable/取消を生成しない。件数に余裕があってもtraining/test占有で16MiBを超える場合、履歴→partial subject→全国baseの最古順に退去してnormalを受理する。training/test全国baseだけが超過原因の例でAC10の唯一の例外を確認する。退去後16MiB-1/一致は成功、normalだけで16MiB+1はcapacityExceededとし、training/test入力はbyte境界でもnormalを退去させない。unavailable自体が収まらなければlastKnownを落として保存し、なお収まらなければstate不変のdecision=capacityExceededで拒否する"
       },
       {
         "testId": "P2-A5-T10",

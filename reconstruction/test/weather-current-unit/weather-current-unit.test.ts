@@ -587,17 +587,27 @@ describe("P2 weather-current unit", () => {
     }, histories: [fullNormalHistory] };
     const refusedFull = { ...refusedBase, national: { ...refusedBase.national,
       training: { ...trainingBase, phenomena: { padding: "x".repeat(16 * 1024 * 1024 - envelopeSize(refusedBase) - 100) } } } };
-    expect(() => receive(refusedFull, candidate)).toThrow("U-W capacity contract insufficient");
+    const refusedStep = receive(refusedFull, candidate);
+    expect(refusedStep.state).toBe(refusedFull);
+    expect(refusedStep.decisions).toEqual([{ subject: current.subject, operation: "normal",
+      decision: "capacityExceeded" }]);
+    expect(refusedStep.diagnostics).toEqual([{ level: "WARN", component: "weather-current",
+      reason: "checkpointEncodeFailed", unit: "U-W", inputId: "normal-new" }]);
+    expect(() => weatherCurrentUnitCodec.encode(refusedStep.state)).not.toThrow();
     expect(refusedFull.national.training).toBeDefined();
     expect(envelopeSize(refusedFull)).toBe(16 * 1024 * 1024 - 100);
 
-    // Third review R2: mandatory lastKnown can make unavailable itself impossible to save.
+    // Third review R2: an unsavable lastKnown is dropped so the unavailable record still persists.
     const normalBase: WeatherCurrentUnitState = { ...emptyState(),
       national: { normal: { ...current, phenomena: { padding: "" } } }, histories: [fullNormalHistory] };
     const normalFull = { ...normalBase, national: { normal: { ...current,
       phenomena: { padding: "x".repeat(16 * 1024 * 1024 - envelopeSize(normalBase) - 100) } } } };
     expect(() => weatherCurrentUnitCodec.encode(normalFull)).not.toThrow();
-    expect(() => receive(normalFull, candidate)).toThrow("U-W capacity contract insufficient");
+    const droppedStep = receive(normalFull, candidate);
+    expect(droppedStep.state.unavailable).toEqual([expect.objectContaining({
+      reason: "capacityExceeded", lastKnown: null })]);
+    expect(() => weatherCurrentUnitCodec.encode(droppedStep.state)).not.toThrow();
+    expect(envelopeSize(droppedStep.state)).toBeLessThanOrEqual(16 * 1024 * 1024);
     expect(envelopeSize(normalFull)).toBe(16 * 1024 * 1024 - 100);
 
     // Final scoped regression: equal restored subjects remain isolated by operation.

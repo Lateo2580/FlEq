@@ -562,7 +562,7 @@ P3 の追加実装で新しい横断不変条件を発見した場合は、Q13 �
 
 ### 4.5 保持上限
 
-現行の開始基準として次を採る。active の有効期限と tombstone retention は別欄で扱う。
+現行の開始基準として次を採る。active の有効期限と tombstone retention は別欄で扱う。U-W の 16 MiB 縮退では、拒否記録の unavailable 自体が収まらなければ lastKnown を落として保存し、なお収まらなければ state を変更せず decision=capacityExceeded で拒否する。
 
 | 対象 | 件数・保持基準 |
 |---|---|

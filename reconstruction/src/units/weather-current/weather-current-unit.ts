@@ -304,10 +304,17 @@ function reduceWeatherCurrent(state: WeatherCurrentUnitState,
       ? state.national[validated.candidate.operation]! : null
       : state.partials.find((item) => item.subject === validated.candidate.subject) ?? null,
     input.clock.monotonicMs);
-  // AC04/11: no permitted eviction or lossy lastKnown fallback exists for this case.
-  if (!fits(unavailable.state))
-    throw new RangeError("U-W capacity contract insufficient: required unavailable state exceeds 16 MiB");
-  return unavailable;
+  if (fits(unavailable.state)) return unavailable;
+  // AC11 degradation: drop the unsavable lastKnown first, then refuse without touching state.
+  const dropped = { ...unavailable.state, unavailable: unavailable.state.unavailable.map((item) =>
+    item.subject === validated.candidate.subject && item.operation === validated.candidate.operation
+      ? { ...item, lastKnown: null } : item) };
+  if (fits(dropped)) return { ...unavailable, state: dropped };
+  return { ...noChange(state),
+    decisions: [{ subject: validated.candidate.subject, operation: validated.candidate.operation,
+      decision: "capacityExceeded" }],
+    diagnostics: [{ level: "WARN", component: "weather-current",
+      reason: "checkpointEncodeFailed", unit: "U-W", inputId: input.material.inputId }] };
 }
 
 function restore(state: WeatherCurrentUnitState, value: PersistedWeatherCurrentUnit,
