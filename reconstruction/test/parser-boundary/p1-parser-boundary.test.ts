@@ -54,7 +54,8 @@ it("P1-T02 acceptance / AC02-04: spies count decode, expansion and full parse, i
   const from = vi.spyOn(Buffer, "from");
   const result = decodeMaterial(entered.item);
   expect(result.kind).toBe("decoded");
-  expect(from.mock.calls.filter(args => args[1] === "base64")).toHaveLength(1);
+  // Buffer.from のどのオーバーロードを spy が拾うかで引数タプル長が変わるので、呼び出し記録は位置で読む
+  expect(from.mock.calls.filter((args: readonly unknown[]) => args[1] === "base64")).toHaveLength(1);
   expect(gunzipSync).toHaveBeenCalledTimes(1);
   expect(unzipSync).toHaveBeenCalledTimes(0);
   expect(parse).toHaveBeenCalledTimes(1);

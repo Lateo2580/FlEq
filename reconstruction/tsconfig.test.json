@@ -1,0 +1,17 @@
+// reconstruction のテストコードを含めた型検査専用の設定。
+//
+// 本体の tsconfig.json は include が src と contracts だけなので、test/ 配下は tsc に
+// 一度も掛かっていなかった (ルートの tsconfig.test.json と同じ穴が新築側にも開いていた)。
+//
+// ## ratchet: include は広げるだけで、戻さない
+//
+// 狭めた時点で、その範囲に型エラーが再び溜まりはじめる。新しいテストディレクトリを
+// 作ったときも、既存の `test/**/*.ts` に収まる限り追加の設定は要らない。
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    // 型検査だけを行う。dist/ は本体の tsconfig.json 側の tsc が作る
+    "noEmit": true
+  },
+  "include": ["src/**/*.ts", "contracts/*.types.ts", "test/**/*.ts"]
+}

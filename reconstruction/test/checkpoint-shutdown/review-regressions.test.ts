@@ -1387,7 +1387,7 @@ it("I08 contractBoundary / AC04,AC08 RES-01: tmp lifetime is bounded across slot
       const entered = deferred();
       const gate = deferred();
       if (held) {
-        if (nextStage === "write" || nextStage === "close") { h.fault.closeGate = gate.promise; h.fault.onClose = entered.resolve; }
+        if (nextStage === "close") { h.fault.closeGate = gate.promise; h.fault.onClose = entered.resolve; }
         if (nextStage === "rename") { h.fault.renameGate = gate.promise; h.fault.onRename = entered.resolve; }
         if (nextStage === "directorySync") { h.fault.syncGate = gate.promise; h.fault.onDirectorySync = entered.resolve; }
       }

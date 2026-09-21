@@ -401,9 +401,10 @@ describe("P2 weather-current unit", () => {
       .toContain("expected:O06:31");
     const targetFamilies = new Set(["VPWS50", "VPWW55", "VPWW57", "VPWW58", "VPWW59", "VPWW60", "VPWW61", "VPNO50"]);
     for (const fixture of manifest.fixtures) {
-      if (!targetFamilies.has(fixture.transport.headType)) continue;
+      const headType = fixture.transport.headType;
+      if (headType == null || !targetFamilies.has(headType)) continue;
       const file = fixture.path.replace(/^test\/fixtures\//, "").replace(/\.xml$/, "");
-      const step = receive(emptyState(), decodeFixture(file, fixture.transport.headType));
+      const step = receive(emptyState(), decodeFixture(file, headType));
       expect(step.state.unavailable, fixture.path).toEqual([]);
       if (file.includes("synthetic-vpws50-change-density"))
         expect(step.decisions[0], fixture.path).toMatchObject({ decision: "rejected", reason: "requiredStructureMissing" });
@@ -470,7 +471,7 @@ describe("P2 weather-current unit", () => {
   });
 
   it("P2-A5-T07 contractBoundary / AC10: non-normal update and cancellation leave normal base unchanged", () => {
-    const material = (operation: Operation, transform: (xml: string) => string = (xml) => xml, id = operation) =>
+    const material = (operation: Operation, transform: (xml: string) => string = (xml) => xml, id: string = operation) =>
       decodeFixture("weather-alert-kind-area/synthetic-vpws50-change-density-before", "VPWS50",
         (xml) => transform(withOperation(bodyWarning(xml), operation)), id);
     let state = receive(emptyState(), material("normal")).state;
@@ -489,9 +490,11 @@ describe("P2 weather-current unit", () => {
     }
     const value = weatherCurrentUnitCodec.encode(state);
     expect(weatherCurrentUnitCodec.decode(value)).toMatchObject({ kind: "restored", state: { national: value.national } });
-    expect(weatherCurrentUnitCodec.decode({ ...value, national: { normal: value.national.training } }).kind).toBe("invalid");
-    expect(weatherCurrentUnitCodec.decode({ ...value, national: { exercise: value.national.training } }).kind).toBe("invalid");
-    expect(weatherCurrentUnitCodec.decode({ ...value, national: value.national.normal }).kind).toBe("invalid");
+    const { normal, training } = value.national;
+    if (normal == null || training == null) throw new Error("fixture must populate every operation");
+    expect(weatherCurrentUnitCodec.decode({ ...value, national: { normal: training } }).kind).toBe("invalid");
+    expect(weatherCurrentUnitCodec.decode({ ...value, national: { exercise: training } }).kind).toBe("invalid");
+    expect(weatherCurrentUnitCodec.decode({ ...value, national: normal }).kind).toBe("invalid");
     expect(weatherCurrentUnitCodec.decode({ ...value, national: null }).kind).toBe("invalid");
   });
 

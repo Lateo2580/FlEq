@@ -13,6 +13,7 @@ dmdata.jp の地震・津波・EEW・火山・気象電文を受信して表示�
 - `npm test` — vitest でテスト実行（test/setup.ts で node-notifier をグローバルモック済み）
 - `npm run test:shuffle` — ファイル・it の実行順をシャッフルして実行。**永続化・共有状態・module スコープの変数を触ったときは必ず通す**。2026-07-25 に、デフォルト順では緑なのに順序を変えると落ちるテストが実在した（`vi.hoisted()` の一方向カウンタをファイル内の複数 it が共有していた）。「テストが緑」と「テストが常に緑」は別物
 - `npm run typecheck:test` — `test/` 配下の型検査（段階導入中。範囲と次段の手順は `tsconfig.test.json` 冒頭コメント）
+- reconstruction ゲート — 新築 P1/P2 は root の build/test に含まれず、専用ゲートで回す。`./node_modules/.bin/tsc --project reconstruction/tsconfig.json`（src と契約の型検査＋`reconstruction/dist/` の生成。テストがこの dist を require するので vitest より先に走らせる）→ `./node_modules/.bin/tsc --project reconstruction/tsconfig.test.json`（`reconstruction/test/` を含めた型検査、noEmit）→ `./node_modules/.bin/vitest run --config reconstruction/vitest.config.ts`。checker は `node reconstruction/tools/corpus/check-manifest.mjs`・`node reconstruction/tools/corpus/check-sequences.mjs`・`node reconstruction/contracts/check-contract.mjs` の 3 本
 
 ## コーディング規約
 
