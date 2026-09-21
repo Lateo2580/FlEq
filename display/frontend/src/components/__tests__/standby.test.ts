@@ -1430,6 +1430,7 @@ describe("StandbyScreen measured stage epoch", () => {
       expect(root.dataset.measurementSettled).toBe("true");
       expect(root.dataset.measurementEpoch).toBe("2");
       expect(root.dataset.ladderStage).toBe("2");
+      expect(root.dataset.measurementNonconverged).toBe("false");
       // epoch 1（stage 1 の plan）は yield から戻った時点で superseded になり、solve/commit の pass 境界へ進まない
       expect(passBoundaryEpochs).not.toContain("1");
       expect(passBoundaryEpochs).toContain("2");
@@ -2182,7 +2183,7 @@ describe("StandbyScreen prefix probes and fixed-center geometry", () => {
     }
   });
 
-  it("weather の反復予算は epoch ごとに数え直し、入力不変の successor は admission と latch を引き継ぐ", async () => {
+  it("weather の反復予算は epoch ごとに数え直す（successor で累計しない）", async () => {
     // page-fit が実測で解決する DOM（下の commit flush テストと同型の getter）。40 地域の galloping 分割は
     // weather の probe を enqueue する反復を epoch あたり 3 回使う。epoch 1 は pass ごとに capacity が変わる
     // 非収束で testBeforeTerminalCommit から successor を積み、successor は固定 capacity で収束する。
@@ -2217,6 +2218,7 @@ describe("StandbyScreen prefix probes and fixed-center geometry", () => {
         expect(root.dataset.measurementEpoch).toBe("2");
         expect(root.dataset.measurementSettled).toBe("true");
         expect(admittedBeforeSuccessor).toBeGreaterThan(0);
+        // admitted 等値は diag 配線の確認。引き継ぎ自体は input 限定 reset の構造で担保
         expect(Number(root.dataset.weatherProbeAdmitted)).toBe(admittedBeforeSuccessor);
         const fallback = root.dataset.weatherPartitionFallback;
         view.unmount();

@@ -228,7 +228,8 @@
     weatherProbeAdmitted.add(id);
     return true;
   }
-  // Called after each drain's flushSync, before publishWeatherFallbackIfExhausted.
+  // Called after each drain's flushSync. The inner loop publishes right after;
+  // the final-commit drain leaves publishing to the next iteration or the terminal path.
   function spendWeatherSettleIteration(): void {
     if (!weatherProbeEnqueued) return;
     weatherProbeEnqueued = false;
