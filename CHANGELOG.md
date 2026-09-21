@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [4.0.1](https://github.com/Lateo2580/FlEq/compare/v4.0.0...v4.0.1) (2026-09-21)
+
+
+### バグ修正
+
+* **display:** 待機画面の weather 予算 latch 後は prefix 署名の footer 世代を最後に admit した世代へ凍結する ([58ac37a](https://github.com/Lateo2580/FlEq/commit/58ac37a32fb4eb10788dbae90112e81b5a3eab33))
+* **display:** 待機画面の weather 反復予算を epoch ごとに数え直し、weather の probe を enqueue した反復だけ数える ([ae42538](https://github.com/Lateo2580/FlEq/commit/ae42538227b765a230827e775ff608700e023272))
+
+
+### リファクタリング
+
+* **display:** 待機画面の weather 計測まわりの重複を削る（deferred minor、挙動不変） ([1e37626](https://github.com/Lateo2580/FlEq/commit/1e3762673381a093e94d5b33203aa6219fe64256))
+
 ## [4.0.0](https://github.com/Lateo2580/FlEq/compare/v3.5.0...v4.0.0) (2026-09-20)
 
 
