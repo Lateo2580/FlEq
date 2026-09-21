@@ -211,6 +211,12 @@
   // Only an iteration that raised it spends the iteration budget; iterations
   // driven by other cards' probes do not (2026-09-21 B).
   let weatherProbeEnqueued = false;
+  // Footer generation of the last admitted weather prefix probe. Once the budget
+  // is exhausted the prefix signature freezes on it: the other generation's ids
+  // would be denied, the solver's rows would collapse, the live page count and
+  // footer would flip back, and the $effect pair would loop until Svelte throws
+  // effect_update_depth_exceeded (2026-09-21, iteration latch mid-generation).
+  let weatherPrefixFooterLatched: "absent" | "present" | null = null;
   let weatherProbeAdmittedCount = $state(0);
   function admitWeatherProbe(id: string): boolean {
     if (weatherProbeAdmitted.has(id)) return true;
@@ -228,6 +234,14 @@
     weatherProbeEnqueued = false;
     weatherSettleIterations += 1;
     if (weatherSettleIterations >= (testWeatherBudget?.iterations ?? WEATHER_SETTLE_ITERATION_BUDGET)) weatherProbeExhausted = true;
+  }
+  // Footer generation for weather prefix probe signatures (solver request and
+  // both render-side lookups must agree). The live card's footer can differ from
+  // the measured generation while exhausted; that one footer row is accepted as
+  // fallback tolerance.
+  function weatherPrefixFooter(): "absent" | "present" {
+    if (weatherProbeExhausted && weatherPrefixFooterLatched != null) return weatherPrefixFooterLatched;
+    return weatherMeasurementPageFooter === true ? "present" : "absent";
   }
   // The latch flips inside $derived partitions; publishing it is a settle-loop
   // job. Called after each inner drain, after the commit flush (the live card's
@@ -842,7 +856,7 @@
     // The left and right columns share one shelf and width.  Keep their B
     // cache entries identical too; only the center needs its own geometry.
     const measurePlacement: PrefixPlacement = placement === "center" ? "center" : "side";
-    const weatherFooter = weatherMeasurementPageFooter === true ? "present" : "absent";
+    const weatherFooter = weatherPrefixFooter();
     const composition = key === "weather" ? weatherSolverChromeSignature(measurePlacement, rows, weatherFooter) : undefined;
     const id = prefixMeasureId("prefix", key, measurePlacement, 0, prefixRenderedEnd(key, rows), tails, undefined, composition);
     const cached = prefixMeasurements[id];
@@ -857,7 +871,10 @@
       if (measurementSettled && !weatherPartitionFallback) scheduleBriefingProbeSettle();
       return null;
     }
-    if (key === "weather") weatherProbeEnqueued = true;
+    if (key === "weather") {
+      weatherProbeEnqueued = true;
+      weatherPrefixFooterLatched = weatherFooter;
+    }
     coordinator.enqueueProbe(id, () => {
       if (prefixMeasureEntries.some((entry) => entry.id === id)) return;
       if (key === "weather") {
@@ -1160,8 +1177,7 @@
     if (rows > 0 && (card.key === "quake" || card.key === "weather")) {
       const tails = prefixTails(card.key, rows);
       const prefixPlacement: PrefixPlacement = placement === "center" ? "center" : "side";
-      const weatherFooter = weatherMeasurementPageFooter === true ? "present" : "absent";
-      const composition = card.key === "weather" ? weatherSolverChromeSignature(prefixPlacement, rows, weatherFooter) : undefined;
+      const composition = card.key === "weather" ? weatherSolverChromeSignature(prefixPlacement, rows, weatherPrefixFooter()) : undefined;
       const id = prefixMeasureId("prefix", card.key, prefixPlacement, 0, prefixRenderedEnd(card.key, rows), tails, undefined, composition);
       // B が採用するのは prefixHeight と同じ棚の実測値。描画側で probe を
       // 追加せず、未確定時だけ variant 棚へ安全に戻す。
@@ -1464,8 +1480,7 @@
     if (renderSelection.weatherRows <= 0) return "";
     const placement: PrefixPlacement = renderPlan.center.some((card) => card.key === "weather") ? "center" : "side";
     const tails = prefixTails("weather", renderSelection.weatherRows);
-    const footer = weatherMeasurementPageFooter === true ? "present" : "absent";
-    return prefixMeasureId("prefix", "weather", placement, 0, prefixRenderedEnd("weather", renderSelection.weatherRows), tails, undefined, weatherSolverChromeSignature(placement, renderSelection.weatherRows, footer));
+    return prefixMeasureId("prefix", "weather", placement, 0, prefixRenderedEnd("weather", renderSelection.weatherRows), tails, undefined, weatherSolverChromeSignature(placement, renderSelection.weatherRows, weatherPrefixFooter()));
   });
   function snapshotPlan(source: ColumnPlan): ColumnPlan {
     return {
@@ -2288,6 +2303,7 @@
       // A successor epoch re-measures the same input; only new input restores the admission budget.
       weatherProbeAdmitted.clear();
       weatherProbeExhausted = false;
+      weatherPrefixFooterLatched = null;
       weatherPartitionFallback = false;
       weatherProbeAdmittedCount = 0;
     }

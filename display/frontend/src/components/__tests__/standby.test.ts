@@ -2235,6 +2235,27 @@ describe("StandbyScreen prefix probes and fixed-center geometry", () => {
     }
   });
 
+  it("拡張候補付きの気象カードで反復予算の latch が途中で立っても settle loop は死なず settled・fallback に到達する", async () => {
+    // 拡張候補 9 地域は footer 世代 1（absent）の prefix probe を 18 本 admit した後、2 反復目で latch が立つ。
+    // 修正前は fallback の singleton 分割でページ数 > 1 → footer present → 世代 2 の id が exhausted で拒否
+    // → rows が 0 に落ちてページ 1 → footer absent → 世代 1 は計測済みで rows 復活 … を $effect が往復し、
+    // inner drain の flushSync で effect_update_depth_exceeded が投げられ settle loop が死んでいた
+    // （HEAD ba38e31a で再現、Task 1 report）。
+    const areas = Array.from({ length: 10 }, (_, index) => `地域${index + 1}`);
+    const alert = weather({ items: [{ kind: "大雨警報", phenomenonKey: "heavy-rain", displaySeverity: "officialL3", rank: "warning", shownAreas: [areas[0]!], omittedAreaCount: 9 }] });
+    const { container } = render(StandbyScreen, {
+      snapshot: baseSnapshot({ latestQuake: latestQuake(), weatherAlerts: [alert], weatherExpandedKinds: [{ kindKey: "officialL3|heavy-rain", areas, totalAreaCount: 10, candidateTruncated: false }] }),
+      now, dim: false, sseConnected: true,
+      testMeasurementOverride: appStageOneMeasurement,
+      testWeatherBudget: { iterations: 2 },
+    });
+    const root = container.querySelector<HTMLElement>(".standby")!;
+    for (let pass = 0; pass < 24 && root.dataset.measurementSettled !== "true"; pass += 1) await tick();
+    expect(root.dataset.measurementSettled).toBe("true");
+    expect(root.dataset.weatherPartitionFallback).toBe("true");
+    expect(root.dataset.measurementNonconverged).toBe("false");
+  });
+
   it("commit flush で probe 予算が尽きても settle 前に fallback を publish する（stale latch の再発防止）", async () => {
     // page-fit が実測で解決する DOM（briefing-card.test と同型の getter、8 候補までが 1 ページに収まる）。
     // 竜巻 rider 付きの気象カードは commit で center へ移り、committed rows の probe を commit flush で
