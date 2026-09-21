@@ -51,8 +51,8 @@
     testAfterTerminalBoundary?: () => void;
     /** テスト注入用。weather/tornado probe の admission 数と settle 反復数の上限を下げる */
     testWeatherBudget?: { probes?: number; iterations?: number };
-    /** 本番（App）だけが渡す。settle の inner loop が SETTLE_YIELD_AFTER_MS を超えて連続したら macrotask に譲る。
-     *  既定 undefined = 譲らない（jsdom テストは microtask 駆動のまま、Issue #15 の performance.now() 0 回契約も保つ） */
+    /** Production (App) only: yields a macrotask once the inner settle loop runs past SETTLE_YIELD_AFTER_MS.
+     *  Undefined never yields, so jsdom tests stay microtask-driven and Issue #15's zero performance.now() contract holds. */
     yieldBetweenPasses?: () => Promise<void>;
     /** Capture/test-only deterministic scheduler positions. */
     rotationTick?: number;
@@ -806,7 +806,7 @@
     const chrome = weatherChromeSignature(placement, rows, footer);
     if (preflight) return `${chrome}:range:${weatherRange.start}:${weatherRange.end}:preflight`;
     const tailContext = weatherRange.tails.map((tail) => `${tail.kindKey}:${tail.omittedAreaCount}`).join(",");
-    return `${chrome}:range:${weatherRange.start}:${weatherRange.end}:tails:${tailContext}:selected:${effectiveWeatherRows(rows)}:form:normal`;
+    return `${chrome}:range:${weatherRange.start}:${weatherRange.end}:tails:${tailContext}:form:normal`;
   }
   function pagePartitionProbeIds(key: PrefixCardKey, placement: PrefixPlacement, range: PageRange, tails: readonly PrefixTail[], floodForm?: FloodProbeForm, composition?: string, weatherRange?: PageRange, weatherSelectionRows?: number) {
     const id = prefixMeasureId("page-fit", key, placement, range.start, range.end, tails, floodForm, composition);
@@ -1001,10 +1001,7 @@
       maxRegionRows: key === "quake"
         ? Math.min(MAX_PREFIX_ROWS, snapshot.latestQuake?.intensityGroups.reduce((total, group) =>
           total + Math.max(0, (group.expandedAreas?.length ?? group.areas.length) - group.areas.length), 0) ?? 0)
-        : key === "weather"
-          ? Math.min(MAX_PREFIX_ROWS, [...weatherDisplayGroups.values()].reduce((total, group) =>
-            total + Math.max(0, group.areas.length - group.currentAreas.length), 0))
-          : 0,
+        : key === "weather" ? effectiveWeatherRows(MAX_PREFIX_ROWS) : 0,
     }));
   }
   function candidateScore(key: CardKey): number {
@@ -1080,12 +1077,7 @@
   });
   // U1: advances only when a weather page-fit measurement changes (readMeasurements)
   // or the epoch clears them (requestSettle). Integer, never a join of probe ids.
-  let weatherProbeRevision = 0;
-  let weatherProbeRevisionKey = $state("0");
-  function bumpWeatherProbeRevision(): void {
-    weatherProbeRevision += 1;
-    weatherProbeRevisionKey = String(weatherProbeRevision);
-  }
+  let weatherProbeRevision = $state(0);
   function weatherPageFitChanged(previous: Record<string, number>, next: Record<string, number>): boolean {
     for (const id of new Set([...Object.keys(previous), ...Object.keys(next)])) {
       if (id.startsWith("weather:page-fit:") && previous[id] !== next[id]) return true;
@@ -1119,16 +1111,17 @@
     const absentSignature = weatherChromeSignature(placement, rows, "absent");
     const presentSignature = weatherChromeSignature(placement, rows, "present");
     const slot = `${placement}:${rows}`;
+    const revision = String(weatherProbeRevision);
     const cached = weatherPartitionProbeContracts.get(slot);
     if (cached != null && cached.absentSignature === absentSignature && cached.presentSignature === presentSignature
-      && cached.contract.revision === weatherProbeRevisionKey && cached.contract.epoch === epochKey
+      && cached.contract.revision === revision && cached.contract.epoch === epochKey
       && cached.contract.fallback === weatherPartitionFallback) {
       return cached.contract;
     }
     const contract: WeatherPartitionContract = {
       absent: pagePartitionProbe("weather", placement, 1, undefined, absentSignature, undefined, rows),
       present: pagePartitionProbe("weather", placement, 1, undefined, presentSignature, undefined, rows),
-      revision: weatherProbeRevisionKey,
+      revision,
       epoch: epochKey,
       fallback: weatherPartitionFallback,
     };
@@ -1613,7 +1606,7 @@
     const rect = layoutEl?.getBoundingClientRect();
     const style = layoutEl == null ? null : getComputedStyle(layoutEl);
     measurements = next;
-    if (weatherPageFitChanged(prefixMeasurements, nextPrefixes)) bumpWeatherProbeRevision();
+    if (weatherPageFitChanged(prefixMeasurements, nextPrefixes)) weatherProbeRevision += 1;
     prefixMeasurements = nextPrefixes;
     layoutWidthPx = measurementOverride?.layoutWidthPx ?? Math.round(rect?.width ?? 0);
     layoutHeightPx = measurementOverride?.layoutHeightPx ?? Math.round(rect?.height ?? 0);
@@ -2311,7 +2304,7 @@
     measurementGeometryStage = committedPlan?.stage ?? 0;
     solvingCenterClusterHidden = [...committedCenterClusterHidden];
     prefixMeasurements = {};
-    bumpWeatherProbeRevision();
+    weatherProbeRevision += 1;
     prefixMeasureEntries = [];
     if (settling) {
       settleRequested = true;
@@ -2670,7 +2663,7 @@
   data-scheduler-state={JSON.stringify({ rotation: rotationScheduler.diagnostics(), paging: cardPageCoordinator.diagnostics() })}
   data-expanded-counts={expandedCounts}
   data-prefix-probe-count={prefixMeasureEntries.length}
-  data-weather-probe-revision={weatherProbeRevisionKey}
+  data-weather-probe-revision={weatherProbeRevision}
   data-weather-probe-admitted={weatherProbeAdmittedCount}
   data-weather-partition-fallback={weatherPartitionFallback ? "true" : "false"}
   data-prefix-probe-key-counts={settleCostProbe ? JSON.stringify(prefixProbeKeyCounts) : undefined}

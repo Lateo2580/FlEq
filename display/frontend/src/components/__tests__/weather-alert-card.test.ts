@@ -963,7 +963,7 @@ describe("WeatherAlertCard", () => {
     expect(JSON.parse(card.dataset.weatherPageRanges ?? "[]")).toEqual(["0:1", "1:2", "2:3"]);
     expect(JSON.parse(card.dataset.cardPageIdentities ?? "[]")).toHaveLength(3);
     expect(card.dataset.weatherFooterMode).toBe("present");
-    // 大雨警報の tail（ほか 3 地域）は最後の大雨警報ページ（index 1）に載る
+    // page 1 に tail が載らないことだけ見る。tail の配置先は unit 側（page-partition.test の singleton 分割）で担保
     expect(card.dataset.weatherPageRange).toBe("0:1");
     expect(JSON.parse(card.dataset.weatherVisibleTails ?? "[]")).toEqual([]);
   });
@@ -979,7 +979,8 @@ describe("WeatherAlertCard", () => {
     });
     const card = container.querySelector<HTMLElement>(".weather-card")!;
     expect(JSON.parse(card.dataset.weatherPageRanges ?? "[]")).toEqual(["0:5", "5:10", "10:12"]);
-    expect(calls).toContain("0:8");   // ladder 1,2,4,8 を踏んでいる（線形なら 0:8 は呼ばれない）
+    // gallopingPartitionRanges の doubling ladder（page-partition.ts）に依存: 1,2,4,8 を踏む（線形なら 0:8 は呼ばれない）
+    expect(calls).toContain("0:8");
     expect(calls).not.toContain("0:3"); // 線形の逐次候補は踏まない
   });
 

@@ -44,7 +44,7 @@ describe("legacy standby page partition", () => {
   });
 
   it("galloping は単調 probe で線形と同じ境界を返し、probe 呼び出しが線形より少ない", () => {
-    // 1 候補 = 高さ 1、1 ページの上限 32。線形は 65 回、galloping は ladder + 二分で 20 回未満。
+    // 1 候補 = 高さ 1、1 ページの上限 32。線形は 65 回、galloping は 18 回（ladder 7 + 二分 5 + 2 ページ目の ladder 6）。assertion は 20 回未満で固定。
     const probe = (calls: string[]) => (_key: PagePartitionKey, _placement: "side" | "center", range: { start: number; end: number }) => {
       calls.push(`${range.start}:${range.end}`);
       return range.end - range.start;
