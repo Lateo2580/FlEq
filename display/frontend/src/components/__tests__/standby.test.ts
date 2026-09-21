@@ -1389,6 +1389,57 @@ describe("StandbyScreen measured stage epoch", () => {
     view.unmount();
   });
 
+  it("yield 中に入力が来たら古い settle loop は superseded で抜け、後継 epoch だけが commit して settled に到達する", async () => {
+    // yieldBetweenPasses は本番（App）だけが渡す。閾値 SETTLE_YIELD_AFTER_MS は performance.now() 依存なので、
+    // 時計を手で進めて epoch 1 の最初の drain 直後に 1 回だけ譲らせ、その suspend 中に入力を変える。
+    let clock = 0;
+    const nowSpy = vi.spyOn(performance, "now").mockImplementation(() => clock);
+    const yields: Array<() => void> = [];
+    const yieldBetweenPasses = () => new Promise<void>((resolve) => { yields.push(resolve); });
+    const onStageChange = vi.fn();
+    // pass 境界（inner drain を抜けた直後）に到達した epoch。古い loop は yield 後ここまで進んではいけない
+    const passBoundaryEpochs: string[] = [];
+    const testProbeAfterMeasurementPass = (epoch: EpochCoordinatorControl) => { passBoundaryEpochs.push(epoch.epochKey()); };
+    try {
+      const view = render(StandbyScreen, {
+        snapshot: baseSnapshot({ latestQuake: latestQuake(), weatherAlerts: [weather()] }),
+        now, dim: false, sseConnected: true,
+        testMeasurementOverride: cardHeights(120, 90),
+        yieldBetweenPasses, onStageChange, testProbeAfterMeasurementPass,
+      });
+      const root = view.container.querySelector<HTMLElement>(".standby")!;
+      // loop 入口の lastYieldAt は 0 で読まれている。最初の drain の判定だけ閾値を超えさせる
+      clock = 1000;
+      for (let pass = 0; pass < 8 && yields.length === 0; pass += 1) await tick();
+      expect(yields).toHaveLength(1);
+      expect(root.dataset.measurementEpoch).toBe("1");
+      expect(root.dataset.measurementSettled).toBe("false");
+      // stage 2 になる入力が suspend 中に届く: epoch 2 が開くが、古い loop はまだ yield から戻っていない
+      await view.rerender({
+        snapshot: baseSnapshot({ latestQuake: latestQuake(), weatherAlerts: [weather()], standbyItems: [typhoon()] }),
+        now, dim: false, sseConnected: true,
+        testMeasurementOverride: cardHeights(120, 45, 120, 45),
+        yieldBetweenPasses, onStageChange, testProbeAfterMeasurementPass,
+      });
+      expect(root.dataset.measurementEpoch).toBe("2");
+      expect(root.dataset.measurementSettled).toBe("false");
+      expect(onStageChange).not.toHaveBeenCalled();
+      expect(passBoundaryEpochs).toEqual([]);
+      yields[0]!();
+      for (let pass = 0; pass < 16 && root.dataset.measurementSettled !== "true"; pass += 1) await tick();
+      expect(root.dataset.measurementSettled).toBe("true");
+      expect(root.dataset.measurementEpoch).toBe("2");
+      expect(root.dataset.ladderStage).toBe("2");
+      // epoch 1（stage 1 の plan）は yield から戻った時点で superseded になり、solve/commit の pass 境界へ進まない
+      expect(passBoundaryEpochs).not.toContain("1");
+      expect(passBoundaryEpochs).toContain("2");
+      expect(onStageChange).toHaveBeenCalledExactlyOnceWith(2);
+      view.unmount();
+    } finally {
+      nowSpy.mockRestore();
+    }
+  });
+
   it("drains a final-flush same-epoch probe and releases both scheduler owners", async () => {
     vi.useFakeTimers();
     try {
@@ -2116,17 +2167,70 @@ describe("StandbyScreen prefix probes and fixed-center geometry", () => {
       const root = container.querySelector<HTMLElement>(".standby")!;
       expect(root.dataset.measurementSettled).toBe("true");
       expect(root.dataset.weatherPartitionFallback).toBe("true");
-      // 新しい入力（1 地域）で反復予算が戻ることを固定する。generic override は
-      // 上のテストの rerender 段と同型（override は admission より前に返るので予算を消費しない）。
-      // rerender 側は「通る最小値 +1」。reset が無ければ較正段の累計が残って必ず latch する
+      // 新しい入力（1 地域）で反復予算由来の latch が解けることを固定する。generic override は
+      // 上のテストの rerender 段と同型（override は admission より前に返るので weather の probe は enqueue されず、
+      // 反復も数えない）。予算は同じ 2 のまま——latch が解けるのは input reset の効果だけ
       const smaller = weather({ items: [{ kind: "大雨警報", phenomenonKey: "heavy-rain", displaySeverity: "officialL3", rank: "warning", shownAreas: areas.slice(0, 1), omittedAreaCount: 0 }] });
-      await rerender({ snapshot: baseSnapshot({ weatherAlerts: [smaller] }), now, dim: false, sseConnected: true, testMeasurementOverride: { layoutWidthPx: 1280, layoutHeightPx: 10_000, baselineGapPx: 10, "weather:prefix:1:side": 0, "weather:prefix:1:center": 0 }, testWeatherBudget: { iterations: 4 } });
+      await rerender({ snapshot: baseSnapshot({ weatherAlerts: [smaller] }), now, dim: false, sseConnected: true, testMeasurementOverride: { layoutWidthPx: 1280, layoutHeightPx: 10_000, baselineGapPx: 10, "weather:prefix:1:side": 0, "weather:prefix:1:center": 0 }, testWeatherBudget: { iterations: 2 } });
       for (let pass = 0; pass < 24; pass += 1) await tick();
       expect(root.dataset.measurementSettled).toBe("true");
       expect(root.dataset.weatherPartitionFallback).toBe("false");
     } finally {
       if (clientHeight == null) delete (HTMLElement.prototype as { clientHeight?: number }).clientHeight;
       else Object.defineProperty(HTMLElement.prototype, "clientHeight", clientHeight);
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("weather の反復予算は epoch ごとに数え直し、入力不変の successor は admission と latch を引き継ぐ", async () => {
+    // page-fit が実測で解決する DOM（下の commit flush テストと同型の getter）。40 地域の galloping 分割は
+    // weather の probe を enqueue する反復を epoch あたり 3 回使う。epoch 1 は pass ごとに capacity が変わる
+    // 非収束で testBeforeTerminalCommit から successor を積み、successor は固定 capacity で収束する。
+    class TestResizeObserver { observe(): void {} unobserve(): void {} disconnect(): void {} }
+    vi.stubGlobal("ResizeObserver", TestResizeObserver);
+    const saved = (["clientHeight", "scrollHeight", "clientWidth", "scrollWidth"] as const)
+      .map((name) => [name, Object.getOwnPropertyDescriptor(HTMLElement.prototype, name)] as const);
+    Object.defineProperties(HTMLElement.prototype, {
+      clientHeight: { configurable: true, get(this: HTMLElement): number { return this.matches("[data-page-probe-card], [data-page-probe-readable]") ? 100 : 0; } },
+      scrollHeight: { configurable: true, get(this: HTMLElement): number { return this.matches("[data-page-probe-card], [data-page-probe-readable]") ? 100 : 0; } },
+      clientWidth: { configurable: true, get(this: HTMLElement): number { return this.matches("[data-page-probe-card], [data-page-probe-readable]") ? 307 : 0; } },
+      scrollWidth: { configurable: true, get(this: HTMLElement): number { return this.matches("[data-page-probe-card], [data-page-probe-readable]") ? 307 : 0; } },
+    });
+    try {
+      const areas = Array.from({ length: 40 }, (_, index) => `地域${index + 1}`);
+      const alert = weather({ items: [{ kind: "大雨警報", phenomenonKey: "heavy-rain", displaySeverity: "officialL3", rank: "warning", shownAreas: areas, omittedAreaCount: 0 }] });
+      const scenario = async (iterations: number) => {
+        let successorQueued = false;
+        let admittedBeforeSuccessor = 0;
+        const view = render(StandbyScreen, {
+          snapshot: baseSnapshot({ weatherAlerts: [alert] }), now, dim: false, sseConnected: true,
+          testMeasurementOverride: (pass) => ({ layoutWidthPx: 1280, layoutHeightPx: successorQueued ? 10_000 : 10_000 + pass, baselineGapPx: 10 }),
+          testBeforeTerminalCommit: (queueSuccessor) => {
+            successorQueued = true;
+            admittedBeforeSuccessor = Number(view.container.querySelector<HTMLElement>(".standby")!.dataset.weatherProbeAdmitted);
+            queueSuccessor();
+          },
+          testWeatherBudget: { iterations },
+        });
+        const root = view.container.querySelector<HTMLElement>(".standby")!;
+        for (let pass = 0; pass < 40 && root.dataset.measurementSettled !== "true"; pass += 1) await tick();
+        expect(root.dataset.measurementEpoch).toBe("2");
+        expect(root.dataset.measurementSettled).toBe("true");
+        expect(admittedBeforeSuccessor).toBeGreaterThan(0);
+        expect(Number(root.dataset.weatherProbeAdmitted)).toBe(admittedBeforeSuccessor);
+        const fallback = root.dataset.weatherPartitionFallback;
+        view.unmount();
+        return fallback;
+      };
+      // 予算 4 = successor 単独の weather 反復 3 + 1。epoch を跨いで累計すれば 3 + 3 = 6 で latch する
+      expect(await scenario(4)).toBe("false");
+      // 予算 2 は epoch 1 の 2 反復目で latch する。successor は latch を保ち、再探索しない
+      expect(await scenario(2)).toBe("true");
+    } finally {
+      for (const [name, descriptor] of saved) {
+        if (descriptor == null) delete (HTMLElement.prototype as unknown as Record<string, unknown>)[name];
+        else Object.defineProperty(HTMLElement.prototype, name, descriptor);
+      }
       vi.unstubAllGlobals();
     }
   });

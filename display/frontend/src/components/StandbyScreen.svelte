@@ -100,10 +100,10 @@
   // A final DOM commit may mount one same-epoch probe. It gets one bounded
   // confirmation pass; this is not a general retry budget.
   const MAX_POST_COMMIT_VERIFICATION_PASSES = 1;
-  // U3: weather page-fit + tornado probe admissions and settle iterations per
-  // input generation. Past either limit the weather card partitions one
-  // candidate per page instead of probing further. Without these a typhoon-scale
-  // payload mounted 1,100 probes and never settled (2026-09-21 Pi OOM).
+  // U3: weather page-fit + tornado probe admissions per input generation, and
+  // weather-probing settle iterations per epoch. Past either limit the weather
+  // card partitions one candidate per page instead of probing further. Without
+  // these a typhoon-scale payload mounted 1,100 probes and never settled (2026-09-21 Pi OOM).
   // ponytail: 768/256 are Mac-measured margins (that payload needs ~130/50 with galloping); retune from Pi.
   const WEATHER_PROBE_BUDGET = 768;
   const WEATHER_SETTLE_ITERATION_BUDGET = 256;
@@ -207,6 +207,10 @@
   const weatherProbeAdmitted = new Set<string>();
   let weatherProbeExhausted = false;
   let weatherSettleIterations = 0;
+  // Raised where a weather/tornado probe is actually handed to the coordinator.
+  // Only an iteration that raised it spends the iteration budget; iterations
+  // driven by other cards' probes do not (2026-09-21 B).
+  let weatherProbeEnqueued = false;
   let weatherProbeAdmittedCount = $state(0);
   function admitWeatherProbe(id: string): boolean {
     if (weatherProbeAdmitted.has(id)) return true;
@@ -217,6 +221,13 @@
     }
     weatherProbeAdmitted.add(id);
     return true;
+  }
+  // Called after each drain's flushSync, before publishWeatherFallbackIfExhausted.
+  function spendWeatherSettleIteration(): void {
+    if (!weatherProbeEnqueued) return;
+    weatherProbeEnqueued = false;
+    weatherSettleIterations += 1;
+    if (weatherSettleIterations >= (testWeatherBudget?.iterations ?? WEATHER_SETTLE_ITERATION_BUDGET)) weatherProbeExhausted = true;
   }
   // The latch flips inside $derived partitions; publishing it is a settle-loop
   // job. Called after each inner drain, after the commit flush (the live card's
@@ -846,6 +857,7 @@
       if (measurementSettled && !weatherPartitionFallback) scheduleBriefingProbeSettle();
       return null;
     }
+    if (key === "weather") weatherProbeEnqueued = true;
     coordinator.enqueueProbe(id, () => {
       if (prefixMeasureEntries.some((entry) => entry.id === id)) return;
       if (key === "weather") {
@@ -869,6 +881,7 @@
         if (measurementSettled && !weatherPartitionFallback) scheduleBriefingProbeSettle();
         return null;
       }
+      if (key === "weather" || key === "tornado") weatherProbeEnqueued = true;
       coordinator.enqueueProbe(id, () => {
         if (prefixMeasureEntries.some((entry) => entry.id === id)) return;
         // A briefing footer contract is a measurement generation, not an
@@ -2132,8 +2145,7 @@
         recordSettleTrace(pass, probeSteps);
         probeSteps += 1;
         // U3: iteration budget, latch publish, macrotask yield.
-        weatherSettleIterations += 1;
-        if (weatherSettleIterations >= (testWeatherBudget?.iterations ?? WEATHER_SETTLE_ITERATION_BUDGET)) weatherProbeExhausted = true;
+        spendWeatherSettleIteration();
         publishWeatherFallbackIfExhausted();
         if (yieldBetweenPasses != null && performance.now() - lastYieldAt >= SETTLE_YIELD_AFTER_MS) {
           await yieldBetweenPasses();
@@ -2208,6 +2220,7 @@
             // bound; a second late probe cannot extend the epoch again.
             coordinator.drainProbes();
             flushSync();
+            spendWeatherSettleIteration();
             postCommitVerificationPasses = MAX_POST_COMMIT_VERIFICATION_PASSES;
             previous = "";
             continue;
@@ -2275,11 +2288,13 @@
   function requestSettle(kind: "input" | "successor" = "input"): void {
     epoch += 1;
     epochKey = String(epoch);
+    // The iteration budget is per epoch; a successor starts its own count.
+    weatherSettleIterations = 0;
+    weatherProbeEnqueued = false;
     if (kind === "input") {
-      // A successor epoch re-measures the same input; only new input restores the budget.
+      // A successor epoch re-measures the same input; only new input restores the admission budget.
       weatherProbeAdmitted.clear();
       weatherProbeExhausted = false;
-      weatherSettleIterations = 0;
       weatherPartitionFallback = false;
       weatherProbeAdmittedCount = 0;
     }
