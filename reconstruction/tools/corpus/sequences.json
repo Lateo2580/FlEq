@@ -1,7 +1,7 @@
 {
   "meta": {
     "baseOid": "3669dfd6a98e6c116c86f7db1cd27aa63002a90d",
-    "sha256": "a50ec1b672e5a05a1a5fbd54e5321ecd9a55d214664cf4a644f539c281bd14b6",
+    "sha256": "a5ccd994337781618c89036011310e546597102f6e0f2acd8ea6bffba7b4a667",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "76c82b87d7783a4eae14af690cb34e7d6ec46f73617dc75b7f7401951619f080",
     "clock": "synthetic epoch milliseconds; receivedAt/evaluatedAt は合成固定時計。原XML日時は不変。系列内ケース間のrestartで時計と空stateを再設定。受信時刻の実測ではない。",
@@ -10565,7 +10565,7 @@
         {
           "subject": "normal/O02/input.requiredに記した対象（未充足）",
           "revision": {
-            "reportDateTimeRaw": "2026-06-05T18:01",
+            "reportDateTimeRaw": "2026-06-05T18:01:00+09:00",
             "serialRaw": null,
             "infoTypeRaw": null
           }
@@ -10578,7 +10578,7 @@
         "L1: docs/specs/reconstruction-p0-contracts.md:731 «2054b0d946d1477b»"
       ],
       "input": {
-        "required": "VPWP50 官署=稚内地方気象台、EventID空、ReportDateTime=2026-06-05T18:01、Serial空。構造正常で有効periodが0、InfoType発表。",
+        "required": "VPWP50 官署=稚内地方気象台、EventID空、ReportDateTime=2026-06-05T18:01:00+09:00、Serial空。構造正常で有効periodが0、InfoType発表。",
         "acquisition": "REST見込み（合法empty事例）/synthetic"
       },
       "checks": [
@@ -10893,7 +10893,7 @@
       ],
       "input": null,
       "checks": [
-        "長野官署。194 periodsを保持、旧上限脱落を再現しない。本文2,268,084 bytesは最大XMLではない。",
+        "長野官署。全periodを件数で切らずに保持し、旧上限脱落を再現しない（「194 periods」は旧築の数え方による実機観測値で、このfixtureの件数ではない。期待件数はQ-PERIODでperiodを定義してから実測で固定する）。本文2,268,084 bytesは最大XMLではない。",
         "運用区分: Control.Status=通常; head.test/envelope Status=notProvided。replay 起源から区分を補わない。"
       ]
     },
@@ -19133,6 +19133,16 @@
         "Q7による通知機能の採否・training/test通知と訓練音。裁定依存の副作用oracleのみnullを維持"
       ],
       "resolveBy": "Q7裁定はP4着手前。裁定後、統合担当が採否依存の通知実装契約開始前に通知契約を固定"
+    },
+    {
+      "id": "Q-PERIOD",
+      "owner": "integrator",
+      "blocks": [
+        "VPWP50のperiod識別子と値の射影",
+        "expected:O02:14の期待件数",
+        "全国受信でのU-F容量（16MiB）との両立"
+      ],
+      "resolveBy": "A6（U-F）発注前"
     }
   ]
 }

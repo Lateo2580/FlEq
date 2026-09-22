@@ -1,10 +1,10 @@
 {
   "meta": {
     "draftedFromOid": "3095a6c21caa96e06fc3b3a6d2f906534ef5441b",
-    "sha256": "c3200530f78364f946995f592e090d32cae4c60e6ee82d760f670bcc661b5818",
+    "sha256": "ab1b9d7f1172044ad8cd3485ab0dd5a5d4a18fcac37e84f1b1ebe5e719136fdf",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "76c82b87d7783a4eae14af690cb34e7d6ec46f73617dc75b7f7401951619f080",
-    "sequencesSha256": "a50ec1b672e5a05a1a5fbd54e5321ecd9a55d214664cf4a644f539c281bd14b6",
+    "sequencesSha256": "a5ccd994337781618c89036011310e546597102f6e0f2acd8ea6bffba7b4a667",
     "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
     "decisionBranches": [
       {
@@ -167,7 +167,7 @@
           }
         ],
         "fieldSemantics": {
-          "scope": "operation/family/subjectとfamily固有次元（U-Wはnational/partialとoffice、U-Fはseries subject）を束縛し、その範囲外のcurrent・gate・freshness・intentを変えない",
+          "scope": "operation/family/subjectとfamily固有次元（U-Wはnational/partialとoffice、U-Fは報単位subjectとperiod識別子）を束縛し、その範囲外のcurrent・gate・freshness・intentを変えない",
           "source": "unavailableを生じさせた検証済みReportRef。単一報に結び付かない復元・coverage評価だけnullを許し、報告入力ではnullにしない",
           "lastKnown": "同じscopeの直前の有効値を表示上の参考として保存する値。無ければnull。current/gate/watermarkでも通知根拠でもなく、activeとして再利用しない",
           "affectedScope": "保持・coverage不能なoffice/area/period等の有界な具体識別子だけを保存する。unit全体の暗黙wildcardにせず、同じoperation/family/subjectと同じまたは包含coverageの正常採用でだけ解除する",

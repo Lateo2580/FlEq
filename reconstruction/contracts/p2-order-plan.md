@@ -22,7 +22,7 @@ P2 の phase 行が直接要求する ID は `O02 / O04 / O06 / O07 / O09 / O10`
 
 | 区分 | P2 で閉じる確認 | 機械判定 |
 |---|---|---|
-| U-F / 共通拒否 | `O02` の VPWP50 正常 newer empty、未知値、構造拒否、容量直前・一致・+1、194 period | 現行参照と充足後参照を下のsubset表で区別する。`expected:O02:14` は194 periodを欠落なく保持。全48 stepの扱いは裁定D5 |
+| U-F / 共通拒否 | `O02` の VPWP50 正常 newer empty、未知値、構造拒否、容量直前・一致・+1、件数で切らないperiod保持 | 現行参照と充足後参照を下のsubset表で区別する。`expected:O02:14` はperiodを件数で切らずに保持（件数はQ-PERIOD）。全48 stepの扱いは裁定D5 |
 | U-W | `O04` の stale lock 脱出と `freshnessSuspect` の対象束縛 | P2用の区分・時計・出典を明示した新築初期状態から`:3`〜`:8`相当を検収。現行`:2`の旧Pi移行候補はP3へ留保し、代替初期化stepをD5で固定する。別官署・別subject・別operationで解除0（同 `:1780`、`:1192`） |
 | U-W | `O06` の全国履歴2、partial履歴8、連続取消、履歴不足 | P2は`:1`〜`:28`の実入力を充足し、履歴内復元、範囲外`unavailable`、取消watermark非巻戻しを検収。`:29`〜`:30`の旧v2履歴8→2移行はP3（同 `:1782`、`:572`、`:2614`）。範囲の確定はD5 |
 | U-E | `O07` の non-durable current と durable intent | `O07:15`〜`:18`。再起動後 active EEW 復活0、期限内 intentだけ再試行、期限延長0（同 `:462`、`:997`〜`:1001`） |
@@ -42,7 +42,7 @@ O02のP2 subset案（D5裁定前）。以下の各IDは独立した参照で、`
 
 | 検査・担当 | 現行の機械参照ID | 充足後の参照・扱い |
 |---|---|---|
-| U-F初期化・正常・旧報・未知値・最大入力／A6 | `expected:O02:1`, `expected:O02:2`, `expected:O02:4`, `expected:O02:5`, `expected:O02:6`, `expected:O02:13`, `expected:O02:14` | ID維持。`:1`を含む初期化を省かず、`:6`のQ-VALUESを先に凍結 |
+| U-F初期化・正常・旧報・未知値・最大入力／A6 | `expected:O02:1`, `expected:O02:2`, `expected:O02:4`, `expected:O02:5`, `expected:O02:6`, `expected:O02:13`, `expected:O02:14` | ID維持。`:1`を含む初期化を省かず、`:6`のQ-VALUESを先に凍結。`:4`は前提のunmet:O02:3が充足するまで保留（2026-09-23） |
 | U-F newer empty・容量境界／A6 | `unmet:O02:3`, `unmet:O02:15`, `unmet:O02:16`, `unmet:O02:17` | 充足後ID案は`expected:O02:3`, `expected:O02:15`, `expected:O02:16`, `expected:O02:17`。入力・根拠・reason固定後に統合担当がstep/expectation両参照とhashを更新しcheckerで検査。現時点では存在しないID |
 | 共通の意味入力拒否／A1、U-F境界／A6 | `expected:O02:7`, `expected:O02:8`, `expected:O02:9`, `expected:O02:10` | ID維持。`:8`はVPWP50 Head欠落、`:10`はVXSE51不正日時。A1の共通検証で`:10`を拒否し、M02意味実装は要求しない。`:8`はA6接続でも拒否・state不変を確認。両reasonは凍結待ち |
 | 共通parser拒否の回帰確認／P1継承 | `expected:O02:11`, `expected:O02:12` | VPTW60抽出断片。U-F固有検査に含めず、P1の拒否経路と根拠を照合して参照。M11実装は要求しない |
@@ -86,7 +86,7 @@ P2 行は D-AC ID を指定していない。一方、最小 Chrome 経路は次
 
 A1の共有型は既に複数契約が参照するdiscriminated unionに限る。表の`spec:`は`docs/specs/reconstruction-p0-contracts.md`の行番号を指す。
 
-A1はgate前の共通Head・報告日時検証と`RejectionReason`の語彙を固定する。A4/A5/A6はfamily固有identity・日時・必須構造を意味入力確定前に検証する。EventID/Serialが合法的に空のfamilyを一律拒否しない。信頼できない入力は`rejected`としてcurrent/watermark/intentを不変にする（同`:693`、`:733`）。
+A1は共通Head・報告日時検証（`validateSemanticEnvelope`）と`RejectionReason`の語彙を固定する。routedな入力ではA4/A5/A6がreceive先頭でこれを呼ぶ（A1-route、2026-09-23）。A4/A5/A6はfamily固有identity・日時・必須構造を意味入力確定前に検証する。EventID/Serialが合法的に空のfamilyを一律拒否しない。信頼できない入力は`rejected`としてcurrent/watermark/intentを不変にする（同`:693`、`:733`）。
 
 永続診断sinkはA3へ集約する。filesystem adapterと終了処理を既に所有し、別のI/O担当契約を増やさず再起動後の可読性まで検収できるためだ。非同期回転ファイル一方式を実装し、queue 256件/1MiB（in-flight込み）、行8KiB、7日または100MiBの早い回収、level別欠落、sink失敗時の非再帰な状態表示/stderr、終了要約を固定する（同`:1213`〜`:1228`）。A3がE23の容量回収・再起動読取・sink故障・秘密値試験を所有し、P1のメモリringだけでは完了にしない。既存parser診断からsinkへの接続に公開口変更が必要なら§6.2の契約改訂として先に固定する。
 
@@ -165,7 +165,7 @@ A4〜A6を並走させる前に共有型を凍結する。共有ファイルの�
 |---|---|---|
 | I-U-E | 実EEW XML、P1 operation型、U-E保存区分、O07:15-18、15秒TTL | 同一EventIDのnormal/training交差更新・取消fixture、M01の報番号/終端/予測保持のP2完全系列、`Q-NOTICE`具体値 |
 | I-U-W | 最大VPWS50、既知stale-lock checkpoint、全国/partial保持上限、O04/O06期待 | O04/O06のP2対象未充足入力、`Q-REV`、出典・operation・時計を明示した新築初期状態。O04:2とO06:29-30の旧形式移行証明はP3 |
-| I-U-F | 194period VPWP50、未知code、取消/head欠落fixture、7日/512/16MiB | P2対象のnewer emptyと容量直前・一致・+1、`Q-VALUES`の未知code射影、`Q-ENUM` unavailable reason |
+| I-U-F | 大容量の実VPWP50（長野 XML 2.27MB）、未知code、取消/head欠落fixture、7日/512/16MiB | P2対象のnewer emptyと容量直前・一致・+1、`Q-VALUES`の未知code射影、`Q-PERIOD`のperiod定義と全国受信での容量、`Q-ENUM` unavailable reason |
 
 ### 4.2 §7.5 EEW測定 manifest
 
@@ -239,9 +239,9 @@ A4〜A6を並走させる前に共有型を凍結する。共有ファイルの�
 | Q-ENUM | `implementer` / 最初の対象I-U-* reducer契約凍結前（`reconstruction/contracts/p1-parser-boundary.json:535`〜`:541`） | parser拒否・意味入力の`RejectionReason`・意味上`unavailable`を分離したreason表。identity/日時/必須構造検証とscope・lastKnown・affectedScopeを固定 | A1とA4/A5/A6の契約凍結前 |
 | Q-NOTICE | `integrator` / P2通常EEW通知契約開始前 | EEW intent生成条件、desktop/sound、15秒TTL、取消・失効・置換、training/test | A4/A7 |
 | Q-VALUES | `integrator` / U-F実装契約開始前 | VPWP50未知codeの意味射影 | A6 |
-| Q-REV | `integrator` / O06対象Unit契約前 | 同revision訂正、時刻/Serial、連続取消の対象版 | A5 |
+| Q-REV | `integrator` / O06対象Unit契約前 | 同revision訂正、時刻/Serial、連続取消の対象版。U-Fの同時刻訂正は別ID Q-REV-UF（既存gateを保つ既定でA6を発注） | A5/A6 |
 | Q-MIGRATION | `integrator` / O04/O06/O07移行oracle前 | P2は明示的な新築初期状態生成と元事例との対応をA5前に固定。旧checkpoint operation証明・O04:2/O06:29-30の変換検収はP3移行契約前に固定 | A5/A10、P3移行担当 |
-| Q-LIMIT | `integrator` / 容量fixture作成前 | U-W/U-F checkpoint、subject/period、snapshotの合法最大と+1 | A5/A6/A8 |
+| Q-LIMIT | `integrator` / 容量fixture作成前 | U-W/U-F checkpoint、subject/period、snapshotの合法最大と+1。U-Fのperiod定義と全国受信での容量はQ-PERIOD（A6発注前、要判断R23） | A5/A6/A8 |
 | Q-PERF | `integrator` / EEW A/B測定前 | N/P/C、投入offset、端末、時計、paint evidence | A10 |
 
 `Q-ENUM`のparser拒否reasonはP1で閉じたが、意味入力の拒否は別である。P1はHead欠落を空文字、不正日時をraw文字列として返す（`reconstruction/src/decode-material/decode-material.ts:271`〜`:288`）。`expected:O02:8`・`expected:O02:10`のreasonは未確定であり、A1の共通検証とA4/A5/A6のfamily固有検証が`RejectionReason`を固定する（`docs/specs/reconstruction-p0-contracts.md:693`、同`:733`）。これはP1公開型変更を必須にしない。`UnavailableReason`は正常な意味入力の容量超過・履歴不足等として別に固定する。
