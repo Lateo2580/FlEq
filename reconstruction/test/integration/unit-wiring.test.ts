@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 
 import type { DecodedMaterial } from "../../contracts/p1-parser-boundary.types";
-import type { ClockReading, RuntimeInput, RuntimeState, RuntimeUnitId } from "../../contracts/p2-shared-runtime.types";
+import type { ClockReading, NotificationIntent, RuntimeInput, RuntimeState, RuntimeUnitId } from "../../contracts/p2-shared-runtime.types";
 import type { WeatherTimeseriesUnitState } from "../../contracts/p2-weather-timeseries-unit.types";
 import { decodeMaterial } from "../../src/decode-material/decode-material";
 import { ingestXmlData } from "../../src/ingress/ingress";
@@ -71,6 +71,13 @@ function restart(root: RuntimeCompositionRoot, clock: ClockReading, runId: strin
   return { ...initial, units: { ...initial.units, "U-W": unit }, deadlines: { "U-E": null, "U-W": null, "U-F": null } };
 }
 
+const eewIntent: NotificationIntent = { id: "U-E:normal/VXSE43/20240417231454:1:sound", unit: "U-E",
+  subject: "normal/VXSE43/20240417231454", operation: "normal", source: { inputId: "intent-source",
+    origin: "replay", operation: "normal", family: "VXSE43", subject: "normal/VXSE43/20240417231454",
+    reportDateTimeRaw: "2024-04-17T23:14:59+09:00", serialRaw: "1", infoTypeRaw: "発表" },
+  transition: "activated", channel: "sound", payload: { operation: "normal" }, createdAt: 1, expiresAt: 15_001,
+  nextAttemptAt: 1, attempts: 0, configRevision: "test", disposition: "pending" };
+
 describe("P2 unit wiring (A1 route, A3 composition root)", () => {
   it("P2-WIRE-T01 acceptance / A5 AC03, AC07 save failure+shutdown, AC08 follow-up: parsed U-W input through a hand-built restart", async () => {
     let now = 1_800_000_000_000;
@@ -113,6 +120,60 @@ describe("P2 unit wiring (A1 route, A3 composition root)", () => {
     expect((await restarted.shutdownRuntime(restarted.state, 1, clock())).code).toBe(0);
     const saved = restarted.restoreUnit("U-W");
     expect(saved).toMatchObject({ kind: "restored", envelope: { generation: generation + 1 } });
+  });
+
+  it("P2-WIRE-T05 regression / A10 AC09: automatic attribution excludes inputs saved by an older ack", async () => {
+    let now = 1_800_000_000_000;
+    const clock = () => ({ wallTimeMs: now, monotonicMs: now });
+    const measured: { unit: string; generation: number; inputIds: readonly string[] }[] = [];
+    const files = nodeCheckpointFileSystem();
+    let signalOpen!: () => void;
+    let releaseOpen!: () => void;
+    const openStarted = new Promise<void>((resolve) => { signalOpen = resolve; });
+    const openGate = new Promise<void>((resolve) => { releaseOpen = resolve; });
+    const settings = await config();
+    const root = new RuntimeCompositionRoot(settings, linkedUnitCodecs, { runtimeCalls: calls, clock,
+      checkpointFileSystem: { ...files, open: async (path) => { signalOpen(); await openGate; return files.open(path); } },
+      onMeasurements: (items) => measured.push(...items.map(({ unit, generation, inputIds }) => ({ unit, generation, inputIds }))) });
+    const first = decode("15_16_02_251222_VPWW57", "VPWW57");
+    const second = decode("15_16_02_251222_VPWW57", "VPWW57",
+      (xml) => atTime(xml, "2020-06-22T23:01:00+09:00"), "second");
+    const third = decode("15_16_02_251222_VPWW57", "VPWW57",
+      (xml) => atTime(xml, "2020-06-22T23:02:00+09:00"), "third");
+
+    root.dispatch(fixtureState({}, {}, "run"), parsed("run", first, clock()));
+    const firstSave = save(root, "U-W", [first.inputId], clock);
+    await openStarted;
+    now++;
+    root.dispatch(root.state, parsed("run", second, clock()));
+    releaseOpen();
+    await firstSave;
+    expect(root.state.units["U-W"].persistence).toMatchObject({ currentGeneration: 3, savedGeneration: 2 });
+    now++;
+    root.dispatch(root.state, parsed("run", third, clock()));
+    await root.shutdownRuntime(root.state, 1, clock());
+
+    expect(measured.filter(({ unit }) => unit === "U-W").at(-1)?.inputIds)
+      .toEqual(["second", "third"]);
+  });
+
+  it("P2-WIRE-T06 regression / A10 AC09: current-only input cannot contribute to an unsaved EEW generation", async () => {
+    const clock = () => ({ wallTimeMs: 1_713_363_299_001, monotonicMs: 1 });
+    const eewMeasured: { unit: string; inputIds: readonly string[] }[] = [];
+    const eewRoot = new RuntimeCompositionRoot(await config(), linkedUnitCodecs, { runtimeCalls: calls, clock,
+      onMeasurements: (items) => eewMeasured.push(...items.map(({ unit, inputIds }) => ({ unit, inputIds }))) });
+    const eewInitial = fixtureState({}, { "U-E": { kind: "pending", currentGeneration: 2, savedGeneration: 1,
+      savedCapturedAt: 1, savedAckAt: 1, dirtySince: 1 } }, "eew-run");
+    const eewSeeded = { ...eewInitial, units: { ...eewInitial.units,
+      "U-E": { ...eewInitial.units["U-E"], intents: [eewIntent] } } };
+    const currentOnly = decode("37_01_01_240613_VXSE43", "VXSE44", (xml) => xml, "current-only");
+    const currentStep = eewRoot.dispatch(eewSeeded, parsed("eew-run", currentOnly, clock()));
+    expect(currentStep.changedUnits).toEqual(["U-E"]);
+    expect(currentStep.state.units["U-E"].persistence.currentGeneration).toBe(2);
+    const cancelled = decode("37_01_03_240613_VXSE43", "VXSE43", (xml) => xml, "cancel");
+    eewRoot.dispatch(currentStep.state, parsed("eew-run", cancelled, clock()));
+    await eewRoot.shutdownRuntime(eewRoot.state, 1, clock());
+    expect(eewMeasured.filter(({ unit }) => unit === "U-E").at(-1)?.inputIds).toEqual(["cancel"]);
   });
 
   it("P2-WIRE-T02 acceptance / A4 AC04, AC08 follow-up: parsed EEW is active, leaves nothing durable, and a restart follow-up becomes current", async () => {

@@ -157,7 +157,10 @@ class RuntimeCompositionRoot {
   readonly mailbox: Mailbox;
   readonly diagnostics: PersistentDiagnosticSink;
   readonly checkpoint: CheckpointCoordinator;
-  private readonly correlations: Partial<Record<UnitId, Readonly<{ inputIds: readonly string[]; generation: number }>>> = {};
+  private readonly correlations: Partial<Record<UnitId, Readonly<{
+    generation: number;
+    inputs: readonly Readonly<{ inputId: string; generation: number }>[];
+  }>>> = {};
   private readonly clock: () => ClockReading;
   private readonly shutdownHooks: ShutdownHooks;
   private readonly runtimeCalls: Parameters<typeof reduceRuntime>[2];
@@ -206,14 +209,17 @@ class RuntimeCompositionRoot {
       if (this.checkpointOperation?.attemptId === result.attemptId && this.checkpointOperation.completed)
         this.checkpointOperation = null;
     }
-    // A1 routes parser input internally, so the caller cannot name the changed unit: attribute it here,
-    // accumulating inputIds until the unit's remembered generation is saved.
+    // P2-A10-AC09: without generation-scoped inputs, stale and non-durable parser changes are misattributed.
     if (input.kind === "mailboxCompleted" && input.completion.kind === "parser") {
       for (const unit of step.changedUnits) {
-        const { currentGeneration, savedGeneration } = step.state.units[unit as RuntimeUnitId].persistence;
-        const known = this.correlations[unit];
-        const pending = known != null && known.generation > (savedGeneration ?? 0) ? known.inputIds : [];
-        this.correlations[unit] = { inputIds: [...pending, input.completion.inputId], generation: currentGeneration };
+        const before = previous.units[unit as RuntimeUnitId].persistence;
+        const after = step.state.units[unit as RuntimeUnitId].persistence;
+        if (after.currentGeneration > before.currentGeneration) {
+          // ponytail: 保存障害が続く間は O(n)。上限が要るなら A10 の帰属不能 0 と両立する形で決める。
+          const pending = (this.correlations[unit]?.inputs ?? []).filter(({ generation }) => generation > (after.savedGeneration ?? 0));
+          this.correlations[unit] = { generation: after.currentGeneration,
+            inputs: [...pending, { inputId: input.completion.inputId, generation: after.currentGeneration }] };
+        }
       }
     }
     this.rememberCorrelations(step.state, correlationByUnit);
@@ -253,7 +259,10 @@ class RuntimeCompositionRoot {
   private rememberCorrelations(state: RuntimeState, correlationByUnit: Readonly<Partial<Record<UnitId, Correlation>>>) {
     for (const [unit, correlation] of Object.entries(correlationByUnit) as [UnitId, Correlation | undefined][]) {
       const generation = state.units[unit as RuntimeUnitId]?.persistence.currentGeneration;
-      if (correlation != null && generation != null) this.correlations[unit] = { inputIds: [...correlation.inputIds], generation };
+      if (correlation != null && generation != null) {
+        this.correlations[unit] = { generation,
+          inputs: correlation.inputIds.map((inputId) => ({ inputId, generation })) };
+      }
     }
   }
 
@@ -395,10 +404,14 @@ class RuntimeCompositionRoot {
       }
       const current = this.state;
       const clock = this.clock();
-      const correlations = Object.fromEntries((Object.entries(this.correlations) as [UnitId,
-        Readonly<{ inputIds: readonly string[]; generation: number }> | undefined][]).flatMap(([unit, correlation]) =>
-        correlation != null && current.units[unit as RuntimeUnitId]?.persistence.currentGeneration === correlation.generation
-          ? [[unit, { inputIds: correlation.inputIds, retryReason: this.checkpoint.retryReason(unit) }]] : []));
+      const correlations = Object.fromEntries((Object.keys(this.correlations) as RuntimeUnitId[]).flatMap((unit) => {
+        const { currentGeneration, savedGeneration } = current.units[unit].persistence;
+        const known = this.correlations[unit];
+        if (known?.generation !== currentGeneration) return [];
+        const inputIds = known.inputs.filter((item) => item.generation > (savedGeneration ?? 0)).map((item) => item.inputId);
+        if (inputIds.length === 0) return [];
+        return [[unit, { inputIds, retryReason: this.checkpoint.retryReason(unit) }]];
+      }));
       const scheduled = this.checkpoint.scheduleCheckpoint(current, clock, current.runId, correlations, true, attempted);
       if (scheduled == null) return;
       this.dispatch(current, { kind: "checkpointCaptured", capture: scheduled.capture });
