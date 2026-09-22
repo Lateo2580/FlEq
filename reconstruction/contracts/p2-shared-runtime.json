@@ -1,10 +1,10 @@
 {
   "meta": {
     "draftedFromOid": "3095a6c21caa96e06fc3b3a6d2f906534ef5441b",
-    "sha256": "ab1b9d7f1172044ad8cd3485ab0dd5a5d4a18fcac37e84f1b1ebe5e719136fdf",
+    "sha256": "db0a83981960c7716885b5f99d9754ccb9f8a82f2118af2a527ef86c36abe7be",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "76c82b87d7783a4eae14af690cb34e7d6ec46f73617dc75b7f7401951619f080",
-    "sequencesSha256": "a5ccd994337781618c89036011310e546597102f6e0f2acd8ea6bffba7b4a667",
+    "sequencesSha256": "67f45e158874c2e01c2f0cbf1a4cd4b667d81c3fd77a9c0bd973568fb5d63101",
     "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
     "decisionBranches": [
       {
@@ -160,10 +160,9 @@
             "reasons": [
               "capacityExceeded",
               "historyUnavailable",
-              "coverageIncomplete",
-              "unknownValueCode"
+              "coverageIncomplete"
             ],
-            "meaning": "正当なnewer報を受理したが対象seriesを現在値として保持・確定できない。watermark/gateを進め、古いcurrentを現行扱いせずlastKnownにだけ保存する。unknownValueCodeをこの結果へ帰属させるかはQ-VALUESのまま"
+            "meaning": "正当なnewer報を受理したが対象seriesを現在値として保持・確定できない。watermark/gateを進め、古いcurrentを現行扱いせずlastKnownにだけ保存する。未知Significancy CodeはQ-VALUESでactiveとして保持し、この結果のreasonには含めない"
           }
         ],
         "fieldSemantics": {

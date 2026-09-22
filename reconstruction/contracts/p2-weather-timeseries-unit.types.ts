@@ -1,4 +1,4 @@
-import type { DecodedMaterial, MaterialValue, Operation } from "./p1-parser-boundary.types";
+import type { DecodedMaterial, MaterialValue, Operation, XmlAttribute } from "./p1-parser-boundary.types";
 import type {
   ClockReading,
   DiagnosticDetails,
@@ -16,22 +16,62 @@ import type {
 export type WeatherTimeseriesUnavailableReason =
   | "capacityExceeded"
   | "historyUnavailable"
-  | "coverageIncomplete"
-  | "unknownValueCode";
+  | "coverageIncomplete";
 
-export type WeatherTimeseriesPeriod = Readonly<{
-  period: string;
-  value: MaterialValue;
+export type WeatherTimeseriesCompoundField = Readonly<{
+  name: string;
+  attributes: readonly XmlAttribute[];
+  value: MaterialValue | readonly WeatherTimeseriesCompoundField[];
 }>;
 
-export type WeatherTimeseriesSubject = Readonly<{
+export type WeatherTimeseriesValue =
+  | MaterialValue
+  | Readonly<{ kind: "significancy"; name: MaterialValue; code: MaterialValue }>
+  | Readonly<{ kind: "peakTime" | "criteriaPeriod"; fields: readonly WeatherTimeseriesCompoundField[] }>;
+
+// Index fields resolve inside this snapshot; positions retain document order. Source codes stay strings.
+// Position meanings and reference targets: Q-ENUM.storageRule.periodRow.
+export type WeatherTimeseriesPeriod = readonly [
+  series: number, area: number, kind: number, propertyType: number,
+  placement: number, local: number | null, elementName: number,
+  valueType: number | null, time: number, attributes: number, value: number,
+];
+
+export type WeatherTimeseriesSnapshot = Readonly<{
+  strings: readonly string[];
+  attributes: readonly (readonly (readonly [name: number, value: number])[])[];
+  values: readonly WeatherTimeseriesValue[];
+  series: readonly Readonly<{
+    meteorologicalInfosPosition: number;
+    timeSeriesInfoPosition: number;
+    timeDefines: readonly Readonly<{
+      timeId: number;
+      dateTimeRaw: number;
+      durationRaw: number;
+      name: number | null;
+      startMs: number;
+      endMs: number;
+    }>[];
+  }>[];
+  areas: readonly Readonly<{ code: number; name: number | null }>[];
+  locals: readonly Readonly<{
+    code: number | null;
+    areaNameCode: number | null;
+    areaName: number | null;
+    name: number | null;
+    anonymousPosition: number | null;
+  }>[];
+  kinds: readonly Readonly<{ status: number | null; dateTimeRaw: number | null; dateTimeType: number | null }>[];
+  periods: readonly WeatherTimeseriesPeriod[];
+}>;
+
+export type WeatherTimeseriesSubject = WeatherTimeseriesSnapshot & Readonly<{
   subject: string;
   operation: Operation;
   source: ReportRef | null;
-  periods: readonly WeatherTimeseriesPeriod[];
   effective: "active" | "noActiveItems" | "cancelled" | "unavailable";
   unavailableReason: WeatherTimeseriesUnavailableReason | null;
-  lastKnown: readonly WeatherTimeseriesPeriod[] | null;
+  lastKnown: WeatherTimeseriesSnapshot | null;
   affectedScope: readonly string[];
   // Active expiry follows the report periods; retention is a separate collection boundary.
   validUntil: number | null;

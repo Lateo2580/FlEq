@@ -1,7 +1,7 @@
 {
   "meta": {
     "baseOid": "3669dfd6a98e6c116c86f7db1cd27aa63002a90d",
-    "sha256": "a5ccd994337781618c89036011310e546597102f6e0f2acd8ea6bffba7b4a667",
+    "sha256": "67f45e158874c2e01c2f0cbf1a4cd4b667d81c3fd77a9c0bd973568fb5d63101",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "76c82b87d7783a4eae14af690cb34e7d6ec46f73617dc75b7f7401951619f080",
     "clock": "synthetic epoch milliseconds; receivedAt/evaluatedAt は合成固定時計。原XML日時は不変。系列内ケース間のrestartで時計と空stateを再設定。受信時刻の実測ではない。",
@@ -10674,7 +10674,7 @@
       ],
       "input": null,
       "checks": [
-        "稚内市0121400、code31の既知periodを保持。未知code99/12を0・正常emptyに変換しない。未知値の具体 projection は Q-VALUES。",
+        "稚内市0121400の4 periodを保持。既知31/01はコード文字列のまま、未知99/12はMaterialValue.kind=unknownとrawコード文字列のまま同じperiodのName・時間・区域を保持する。未知だけでも原報の有効期間内はactive。未知を0・正常empty・最大危険度へ変換せず、既知最大の計算には31/01だけを参加させる。",
         "運用区分: Control.Status=通常; head.test/envelope Status=notProvided。replay 起源から区分を補わない。"
       ]
     },
@@ -10893,7 +10893,7 @@
       ],
       "input": null,
       "checks": [
-        "長野官署。全periodを件数で切らずに保持し、旧上限脱落を再現しない（「194 periods」は旧築の数え方による実機観測値で、このfixtureの件数ではない。期待件数はQ-PERIODでperiodを定義してから実測で固定する）。本文2,268,084 bytesは最大XMLではない。",
+        "長野官署。194 periodsは旧築の数え方による障害の由来で、このfixtureの件数ではない。今回の定義（Property配下のrefID付き値要素1個=1 period、複合値も1件、TimeDefineは除外）で元XMLから直接数えた16,704件を件数で切らずに保持する。論理IDごとに元XMLの値集合と照合し、SignificancyのName/Code、数値・特殊値の区別、単位/type/条件、Local/Kind、時間定義を落とさない。件数一致だけでは合格にしない。本文2,268,084 bytesは最大XMLではない。",
         "運用区分: Control.Status=通常; head.test/envelope Status=notProvided。replay 起源から区分を補わない。"
       ]
     },
@@ -19065,12 +19065,11 @@
       "id": "Q-VALUES",
       "owner": "integrator",
       "blocks": [
-        "VPWP50未知codeの射影",
         "VPTA50連続ゼロ/gate-onlyの具体遷移",
         "洪水all-unknownの保持scope",
         "VPBS50 Body空・VPFT50 Body欠落の合法性/意味判定"
       ],
-      "resolveBy": "VPWP50（U-F）はP2実装契約開始前。VPTA50（U-Y）、洪水（U-R）、VPBS50（U-B）、VPFT50（U-M）はそれぞれ対象のP3実装契約開始前に値/構造期待を固定"
+      "resolveBy": "VPTA50（U-Y）、洪水（U-R）、VPBS50（U-B）、VPFT50（U-M）はそれぞれ対象のP3実装契約開始前に値/構造期待を固定"
     },
     {
       "id": "Q-OP",
@@ -19138,9 +19137,7 @@
       "id": "Q-PERIOD",
       "owner": "integrator",
       "blocks": [
-        "VPWP50のperiod識別子と値の射影",
-        "expected:O02:14の期待件数",
-        "全国受信でのU-F容量（16MiB）との両立"
+        "この保存形式での全国見積もりとU-F上限の確定（16MiB超なら値を削らず上限を改訂）"
       ],
       "resolveBy": "A6（U-F）発注前"
     }

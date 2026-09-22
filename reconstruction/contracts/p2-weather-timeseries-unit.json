@@ -1,10 +1,10 @@
 {
   "meta": {
     "draftedFromOid": "fc7006e2380edf9a97b601d124341ba4bd7f7f42",
-    "sha256": "2f294d312e551b7cb9002e4710f714ed4d020d48b7c67b349b270f508adfc393",
+    "sha256": "9a5bd21821d87b6ad2f92d2f6211219a73c7f31227dfdba7dd8d7e069902e2c1",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "76c82b87d7783a4eae14af690cb34e7d6ec46f73617dc75b7f7401951619f080",
-    "sequencesSha256": "a5ccd994337781618c89036011310e546597102f6e0f2acd8ea6bffba7b4a667",
+    "sequencesSha256": "67f45e158874c2e01c2f0cbf1a4cd4b667d81c3fd77a9c0bd973568fb5d63101",
     "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
     "decisionBranches": [
       {
@@ -46,12 +46,33 @@
     ],
     "questionResolutions": [
       {
+        "id": "Q-VALUES",
+        "status": "closed",
+        "source": "2026-09-23 R22 ご主人裁定",
+        "closed": "未知Significancy CodeはMaterialValue.kind=unknownとrawコード文字列で保持し、同じperiodのName・時間・区域も保持する。既知Codeも数値化せず文字列で保持する。未知だけの地点も原報有効期間内はactive、既知31のperiodを保持し、未知を既知最大危険度の計算へ混ぜない。P2は未知を識別可能な形で渡すまでとし、表示で最低warningへ上げるかはP4/A8へ残す",
+        "emptyMissingRule": "統合担当裁定: SignificancyのNameとCodeは空要素をMaterialValue.empty、欠落をMaterialValue.missingとして区別して保持し、構造拒否しない。どちらかがempty/missingでもperiodと同じ区域・時間を残し、原報有効期間内の地点はactive。NameまたはCodeがempty/missingのperiodは未知Codeと同様に最大危険度の計算へ加えない。根拠はR22の値を削らない規則と未知値を構造不正にしない採用条件で、官署の全periodを拒否して失わない。表示はP4/A8で決める",
+        "knownCodes": [
+          "00",
+          "01",
+          "11",
+          "20",
+          "21",
+          "22",
+          "30",
+          "31",
+          "41",
+          "50",
+          "51"
+        ],
+        "evidenceStage": "旧築の対応済み集合として固定。気象庁の別表5本体とは未照合であり、公式の現行集合と断言しない"
+      },
+      {
         "id": "Q-ENUM",
         "status": "closed",
         "source": "P2-SHARED-RUNTIME-001#Q-ENUM",
-        "closed": "U-F family検証順、unavailable 4 reasonのscope/source/lastKnown/affectedScope、保存・解除、rejectedとのgate/watermark/state差を固定した。現行WeatherTimeseriesSubjectで充足するため型追加と共有unionは不要",
-        "remaining": "unknownValueCodeをactive/inactive/unavailableのどれへ帰属させるかはQ-VALUES（owner=integrator）のまま。Q-ENUMはその裁定を先取りしない",
-        "reason": "正当なnewer報の保持不能と信頼不能入力を分離しつつ、未知値の意味裁定をQ-VALUESへ残す",
+        "closed": "U-Fのfamily検証順とcapacityExceeded/historyUnavailable/coverageIncompleteのscope/source/lastKnown/affectedScope、保存・解除、rejectedとのgate/watermark/state差を固定。未知SignificancyはQ-VALUESのactive規則で扱い、unavailable理由にしない",
+        "remaining": "未知Significancyの帰属はQ-VALUESでclosed。P2ではhistoryUnavailable/coverageIncompleteを起こす入力がなく語彙だけを残す",
+        "reason": "正当なnewer報の保持不能と信頼不能入力を分離し、未知コードの有効なperiodは保持する",
         "priorityRule": "receive先頭でA1のvalidateSemanticEnvelopeを呼び共通拒否（headMissing→reportDateTimeMissing→reportDateTimeInvalid）を確定してその診断を一件だけ返した後（A1-route: A1はroutedなVPWP50を検証せずreceiveへ渡す）、office/subject構成要素存在→identity妥当性→familyTableのInfoType別必須node存在→構造妥当性の順でidentityMissing→identityInvalid→requiredStructureMissing→requiredStructureInvalidの最初の一理由を返す。各段を入力内の全TimeSeriesInfo/Item/periodで確認してから次段へ進み、同段は表のpath順・繰返しnodeの文書順。取消/明示emptyではTimeSeriesInfo/periodの不存在を検査対象にしない",
         "reasonTable": [
           {
@@ -59,7 +80,7 @@
             "trigger": "正当なnewer報の同一subject seriesを512 subject/16MiB内へ保存できない",
             "scope": "operation/family=VPWP50/subjectのseries全体",
             "source": "容量超過を起こしたnewer ReportRef（null禁止）",
-            "lastKnown": "同じsubjectの直前period配列。無ければnull。activeや通知根拠として再利用しない",
+            "lastKnown": "同じsubjectの直前辞書・時間表付きperiod snapshot。無ければnull。activeや通知根拠として再利用しない",
             "affectedScope": "保持できないperiod識別子。series全体なら入力に含まれる全period識別子"
           },
           {
@@ -67,7 +88,7 @@
             "trigger": "正当なnewer取消・復元要求の対象series/periodが7日retention外で復元不能",
             "scope": "対象operation/family=VPWP50/subject",
             "source": "対象外履歴を要求したnewer ReportRef（null禁止）",
-            "lastKnown": "要求前に同じsubjectで最後に確認できたperiod配列。無ければnull",
+            "lastKnown": "要求前に同じsubjectで最後に確認できた辞書・時間表付きperiod snapshot。無ければnull",
             "affectedScope": "復元不能なperiod識別子"
           },
           {
@@ -75,16 +96,8 @@
             "trigger": "正当なnewer報または復元coverage評価が対象subjectの必要period範囲を確認できずactive/inactiveを確定できない",
             "scope": "確認対象operation/family=VPWP50/subject",
             "source": "原因が報告入力ならそのReportRef、単一報に結び付かない復元coverage評価だけnull",
-            "lastKnown": "同じsubjectの直前period配列。無ければnull",
+            "lastKnown": "同じsubjectの直前辞書・時間表付きperiod snapshot。無ければnull",
             "affectedScope": "未確認period識別子だけ"
-          },
-          {
-            "reason": "unknownValueCode",
-            "trigger": "Q-VALUESが未知codeをunavailableへ裁定した場合だけ使用する。Q-ENUMでは帰属を決めない",
-            "scope": "未知codeを含むoperation/family=VPWP50/subject",
-            "source": "未知codeを含むnewer ReportRef（null禁止）",
-            "lastKnown": "同じsubjectの直前period配列。無ければnull",
-            "affectedScope": "未知codeを含むperiod識別子だけ"
           }
         ],
         "transitionRule": "rejectedはsubjects/gates/intents/persistenceとwatermarkを不変にしdiagnosticだけを返す。報告入力によるunavailableは一世代のchangedとして同subjectのgate/watermarkを進め、effective=unavailable・periods=[]として古いperiodsを現行値にせずsource/lastKnown/affectedScopeをState/Persistedへ保存する。復元coverage評価は入力watermarkを捏造しない。同scopeの後続正常採用または包含coverage確認だけが解除し、別subject/operationでは解除しない",
@@ -119,12 +132,30 @@
             "family": "VPWP50",
             "infoType": "発表/訂正および取消でTimeSeriesInfoが存在",
             "required": "各TimeSeriesInfoにTimeDefines/TimeDefineが1個以上、Itemが1個以上。各TimeDefineは一意の非空@timeIdとDateTime/Duration。各ItemはArea/Code、Kindが1個以上。各KindはPropertyが1個以上、各PropertyはTypeと値を格納するPart/CriteriaPeriodが1個以上。refID付き要素は同じTimeSeriesInfoのTimeDefineに解決できること",
-            "legalMissingOrEmpty": "TimeDefine/Name、Kind/Status・DateTime、PeakTime、CriteriaPeriod、Localは任意。Base直下とBase/Local配下の値を両方許す。CriteriaPeriodはSignificancyPart/Base配下とProperty直下の両配置を許す。値leafのempty/unknown/missing/rangeはP1 MaterialValueとして保持する。Significancy/Code未知値の帰属はQ-VALUESであり構造不正にしない。定義済みだが参照されないtimeIdや一部periodだけの値は合法",
+            "legalMissingOrEmpty": "TimeDefine/Name、Kind/Status・DateTime、PeakTime、CriteriaPeriod、Localは任意。Base直下とBase/Local配下の値を両方許す。CriteriaPeriodはSignificancyPart/Base配下とProperty直下の両配置を許す。値leafのempty/unknown/missing/rangeはP1 MaterialValueとして保持する。Significancyの未知CodeとName/Codeのempty/missingも構造不正ではなくQ-VALUESのactive規則で保持する。定義済みだが参照されないtimeIdや一部periodだけの値は合法",
             "missing": "TimeDefines/TimeDefine/Item/Kind/Property/Type/Partの欠落・必須空集合、TimeDefine@timeId/DateTime/Duration欠落、値leafの必須refID欠落はrequiredStructureMissing。Item/Area/Code欠落・空は先行identityMissing",
-            "invalid": "重複timeId、未解決refID、単一scalar重複・非scalar、日時/Durationが下記periodRuleに不適合、containerの非空text、同一series/area/Property.Type/Local/値要素（要素名と@type）/refIDの衝突はrequiredStructureInvalid"
+            "invalid": "重複timeId、未解決refID、単一scalar重複・非scalar、日時/Durationが下記periodRuleに不適合、containerの非空text、同一[MeteorologicalInfos位置, TimeSeriesInfo位置, Area.Code, Property.Type, Part/配置, Local識別子, 値要素名, @type, refID]の衝突はrequiredStructureInvalid。Property直下CriteriaPeriodとBase/Local配下は別配置として比較する"
           }
         ],
-        "periodRule": "timeId/refIDは非空文字列の完全一致で同じTimeSeriesInfo内だけを照合する。TimeDefine/DateTimeはタイムゾーンZまたは±HH:mmを持つ実在するISO暦日時、DurationはP[nD][T[nH][nM][nS]]の非負整数成分で合計秒が正、有限かつ終端日時が表現可能であること（月/年は不許可）。値は各PropertyのSignificancyPart/PrecipitationPart/WindDirectionPart/WindSpeedPart/SnowfallDepthPart/WaveHeightPart/TidalLevelPart/VisibilityPart/HumidityPartのBaseまたはBase/Local配下、またはCriteriaPeriodに置く。これらの値leaf・Significancy・PeakTime・CriteriaPeriodのrefIDを検証する。LocalはCode/AreaName/Nameの存在する識別文字列を保持し、無名Localは文書内出現位置で区別して潰さない。範囲限定の数値・特殊値の意味分類をこの構造検査で決めない。要素名は衝突キーではP1が保持する接頭辞付きの名前（例 jmx_eb:Precipitation）のまま比べ、Part配下の値の種類の許可判定とSignificancy・PeakTime・CriteriaPeriodの識別は接頭辞を除いた局所名で行う",
+        "periodRule": "timeId/refIDは非空文字列の完全一致で同じTimeSeriesInfo内だけを照合する。TimeDefine/DateTimeはタイムゾーンZまたは±HH:mmを持つ実在するISO暦日時、DurationはP[nD][T[nH][nM][nS]]の非負整数成分で合計秒が正、有限かつ終端日時が表現可能であること（月/年は不許可）。periodは時間参照付き値要素1個で1件。SignificancyはName+Codeの複合値1件、PeakTimeとCriteriaPeriodも各1件、TimeDefineは共有時間定義で件数に含めない。値は各PropertyのSignificancyPart/PrecipitationPart/WindDirectionPart/WindSpeedPart/SnowfallDepthPart/WaveHeightPart/TidalLevelPart/VisibilityPart/HumidityPartのBaseまたはBase/Local配下、またはProperty直下CriteriaPeriodに置く。論理IDは[MeteorologicalInfos位置, TimeSeriesInfo位置, Area.Code, Property.Type, Part/配置, Local識別子, 値要素名, @type, refID]で、Local識別子は[Local/Code, Local/AreaName/@code, Local/AreaName, Local/Name]の全組と各項目の存在情報で構成する。locals.codeは子要素Code、locals.areaNameCodeはAreaNameの属性codeの独立したstrings参照で、双方を照合し優先・fallback・上書きをしない。属性L003と要素L004も両方保持する。全項目が欠落または空の無名Localだけ文書内位置を加えて区別する。要素名はP1の接頭辞付き名のまま比較し、値の種類だけ局所名で判定する。これは報内IDであり異なる報の恒久identityではない。値のnumber/text/empty/missing/unknown/range、SignificancyのName/Code、単位/type/条件属性、Local、PeakTime、CriteriaPeriod、KindのStatus/DateTimeと時間定義を保持し、複合値を分割して数えない。範囲限定の数値・特殊値の意味分類を構造検査で決めない",
+        "storageRule": {
+          "periodRow": [
+            "series表index",
+            "areas表index",
+            "kinds表index",
+            "Property.Typeのstrings index",
+            "Part/配置のstrings index",
+            "locals表indexまたはnull（Localなし）",
+            "値要素名のstrings index",
+            "@typeのstrings indexまたはnull（属性なし）",
+            "選択series内timeDefinesのindex",
+            "attributes表index",
+            "values表index"
+          ],
+          "references": "refIDは参照先TimeDefine.timeIdをstringsで解決して得るため行に重複保存しない。attributes表はrefID/typeを除く全属性の[name strings index, value strings index]配列、values表はMaterialValue区別と複合値を保持する。表の共有は全保持fieldの一致時だけとし、未知CodeやName・属性の差を潰さない。TimeDefine・Area・Local・Kindの文字列fieldもstrings参照で、nullは不存在、空文字indexは存在する空値を表す",
+          "stateAndPersistence": "WeatherTimeseriesSnapshotのperiodsはperiodRowの固定長配列行。state・Persisted・lastKnownで同じ行形を使い、各snapshotが自身の全表を持つ。periodごとのキー名付きオブジェクトや属性/値コピー、保存専用の全件変換層は作らない。単純な行参照と共有表でオブジェクト数と一時コピーを抑える。V8 heap/GC・Piの効果は次工程で測り、JSON byte削減だけから保証しない",
+          "validation": "行長・整数index・表の範囲・値tagを検証し、行のtimeが同series内のTimeDefineに解決できること。codec roundtripで独立した表を持つlastKnownを含む全意味値を一致させる。異なるsnapshotの同値比較は辞書解決後に行い、裸indexや文書内位置だけを恒久identityとして比べない"
+        },
         "evidence": [
           "test/fixtures/81_01_01_260129_VPWP50.xml",
           "test/fixtures/81_01_02_260129_VPWP50.xml",
@@ -332,11 +363,11 @@
       },
       {
         "id": "P2-A6-AC02",
-        "requirement": "M08個別意味関数はMaterialValueのnumber/text/empty/missing/unknown/rangeを失わずsubject/periodへ射影し、未知codeをQ-VALUES未決のまま推測しない",
+        "requirement": "M08は全値のMaterialValue区別と複合値を保持する。Q-VALUESに従い未知Significancy Codeのraw・Name・時間・区域を保持し、未知だけでも有効期間内はactive、既知31を残し、未知は既知最大危険度へ加えない。P2は未知を識別可能に渡し、最低warning表示はP4/A8へ残す",
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:1778 «513e4c47ef60e225»",
-          "reconstruction/contracts/p2-order-plan.md:168 «1619530a5e864687»",
-          "reconstruction/contracts/p2-order-plan.md:241 «547debfc4971757e»"
+          "reconstruction/contracts/p2-order-plan.md:168 «cb4dff79944a82b2»",
+          "reconstruction/contracts/p2-order-plan.md:241 «30689449c7859d62»"
         ]
       },
       {
@@ -349,7 +380,7 @@
       },
       {
         "id": "P2-A6-AC04",
-        "requirement": "PersistedWeatherTimeseriesUnitとschemaVersion=p2-weather-timeseries-unit-v1の唯一のcodecを用い、7日retention・512 subject合計・16MiBを守り、正常系列を件数で切らずに扱う（periodの定義と全国受信での容量はQ-PERIOD）",
+        "requirement": "PersistedWeatherTimeseriesUnitとschemaVersion=p2-weather-timeseries-unit-v1の唯一のcodecを用い、7日retention・512 subject合計・現行16MiB境界を守る。storageRuleの配列行と共有表をstate・保存・lastKnownに共用し、区域CodeとSignificancy Codeは文字列のまま自己完結してdecodeする。全indexをsnapshot内で解決し、範囲外・未解決ならcodecが拒否する。lastKnownにも独立した辞書・時間表を持たせる。O02:14の全periodと値集合を欠落なく保持する。全国見積もりとU-F上限の確定はQ-PERIOD",
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:480 «52a41c93b48a4fa7»",
           "docs/specs/reconstruction-p0-contracts.md:574 «3382e3e956fbbc9b»",
@@ -367,9 +398,9 @@
       },
       {
         "id": "P2-A6-AC06",
-        "requirement": "O02 P2 subsetでnewer empty、unknown、gate-only、取消、容量直前/一致/+1、件数で切らないperiod保持（O02:14）を検収し、原報periodのactive期限・7日retentionとshutdownで期限延長・旧current復活を0にする。expected:O02:4（newer empty後の旧報で復活0）は前提のunmet:O02:3が未充足なのでP2のexpectedDecisionsから外し、O02:3の入力が充足したら戻す。expected:O02:10（VXSE51、route外でA1 T03が検収）とexpected:O02:12（VPTW60、P1がxmlInvalidで拒否）はU-Fの入力ではないので外す",
+        "requirement": "O02 P2 subsetでnewer empty、unknown、gate-only、取消、容量直前/一致/+1、O02:14の件数と元XMLの値集合の保持を検収し、原報periodのactive期限・7日retentionとshutdownで期限延長・旧current復活を0にする。expected:O02:4（newer empty後の旧報で復活0）は前提のunmet:O02:3が未充足なのでP2のexpectedDecisionsから外し、O02:3の入力が充足したら戻す。expected:O02:10（VXSE51、route外でA1 T03が検収）とexpected:O02:12（VPTW60、P1がxmlInvalidで拒否）はU-Fの入力ではないので外す",
         "evidenceRefs": [
-          "reconstruction/contracts/p2-order-plan.md:25 «582153f4b408146e»",
+          "reconstruction/contracts/p2-order-plan.md:25 «49efb270e287cc78»",
           "docs/specs/reconstruction-p0-contracts.md:574 «3382e3e956fbbc9b»",
           "reconstruction/tools/corpus/sequences.json#expected:O02:14"
         ]
@@ -403,7 +434,7 @@
       },
       {
         "id": "P2-A6-AC10",
-        "requirement": "capacityExceeded/historyUnavailable/coverageIncompleteと、Q-VALUESがunavailableへ裁定した場合だけのunknownValueCodeをquestionResolutions[Q-ENUM].reasonTableどおり同一subjectへ束縛し、source/lastKnown/affectedScopeをState/Persistedで無損失にroundtripする。報告入力のunavailableはchangedとしてgate/watermarkを進めeffective=unavailable・periods=[]とし、古いperiodsを現行扱いしないが、rejectedは全業務stateを不変にする。unknownValueCodeのactive/inactive/unavailable帰属はこの契約改訂で決めない。P2ではhistoryUnavailable/coverageIncompleteを起こす入力（7日retention外の復元要求・coverage確認入力）が無いので発生させず、型の語彙としてだけ残す",
+        "requirement": "capacityExceeded/historyUnavailable/coverageIncompleteをquestionResolutions[Q-ENUM].reasonTableどおり同一subjectへ束縛し、source/lastKnown/affectedScopeをState/Persistedで無損失にroundtripする。報告入力のunavailableはchangedとしてgate/watermarkを進めeffective=unavailable・periods=[]とし、古いperiodsを現行扱いしないが、rejectedは全業務stateを不変にする。未知Significancy Codeはunavailable理由にせずQ-VALUESのactive規則で保持する。P2ではhistoryUnavailable/coverageIncompleteを起こす入力がないので型の語彙としてだけ残す",
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:731 «2054b0d946d1477b»",
           "docs/specs/reconstruction-p0-contracts.md:732 «f96fd8a8dd40563c»",
@@ -427,7 +458,7 @@
           "P2-A6-AC02",
           "P2-A6-AC03"
         ],
-        "behavior": "MaterialValueとgate/empty/unavailable/取消の組立て"
+        "behavior": "O02:6の全periodで既知31/01、未知99/12のraw・Name・時間・区域を保持しactiveを確認。未知を最大危険度へ混ぜない。Name/Codeの空・欠落もQ-VALUES.emptyMissingRuleどおり保持し、有効期間内active・最大危険度計算不参加を検収する。gate/empty/unavailable/取消も同じ採用結果から組み立てる"
       },
       {
         "testId": "P2-A6-T03",
@@ -436,7 +467,7 @@
           "P2-A6-AC04",
           "P2-A6-AC05"
         ],
-        "behavior": "codec roundtrip、件数で切らないperiod系列、512 subject、16MiB境界"
+        "behavior": "storageRuleの固定長配列行・共有表をcodec roundtripし、辞書・時間表とlastKnownを自己完結に復元する。Localの属性L003・要素L004を独立してroundtripする。行長違い・範囲外indexを拒否し、O02:14の件数と論理ID別の元XML値集合を照合する。512 subject・現行16MiB境界はQ-PERIODの全国上限確定まで暫定値として検証する"
       },
       {
         "testId": "P2-A6-T04",
@@ -445,7 +476,7 @@
           "P2-A6-AC06",
           "P2-A6-AC09"
         ],
-        "behavior": "O02 P2 subsetとE13"
+        "behavior": "O02 P2 subsetの未知値activeと長野O02:14の件数・値集合、E13を照合する"
       },
       {
         "testId": "P2-A6-T05",
@@ -462,7 +493,7 @@
         "referenceIds": [
           "P2-A6-AC10"
         ],
-        "behavior": "同じ初期stateへP2で発生するunavailable reason（capacityExceeded）と複数不備rejectedを適用し、unavailableだけが同subjectのwatermarkを進めて古いperiodsをlastKnownへ移し、codec roundtrip後もsource/affectedScopeを保つ。unknownValueCodeはQ-VALUES裁定ケースにだけ追随する"
+        "behavior": "同じ初期stateへP2で発生するunavailable reason（capacityExceeded）と複数不備rejectedを適用し、unavailableだけが同subjectのwatermarkを進めて古いperiodsを辞書・時間表込みのlastKnownへ移す。codec roundtrip後もsource/affectedScopeを保ち、未知CodeはQ-VALUESのactiveとして保持する"
       }
     ],
     "requiredCommands": [
@@ -523,37 +554,22 @@
       "1実装interface、factory、registry、journal、将来用extension pointを追加しない",
       "allowed_paths限定patch、変更一覧、build/test/shuffle結果、未実行検証、残存リスク",
       "純粋な意味関数とreduceUnitはDiagnosticDetailsだけを返し、runtimeがtimestamp/runIdを付与する。各subjectのdecisionsを系列oracleのdecision/reason/changeと照合し、duplicate/stale/noChangeを区別する。識別不能な拒否ではsubjectを空文字にし、架空の業務identityを作らない。Control/EditorialOfficeが有効ならすべてのrejected（共通拒否・identity拒否・構造拒否）で報単位subjectを使い（expected:O02:8）、officeが欠落・不正のときだけ空文字にする。",
-      "periodを件数だけで拒否・切り捨てしない（旧築で実機の194 periodが128上限で脱落した事例の再発防止。新築のperiod定義はQ-PERIOD）。active validUntilと回収用retainUntilを分離し、7日はretentionとして固定する。",
-      "WeatherTimeseriesSubjectの既存source/unavailableReason/lastKnown/affectedScopeがないと正当なnewer報の保持不能を復元できず古いperiodsを正常扱いする。既存型で足りるため共有UnavailableReason unionや追加fieldは作らない",
+      "periodを件数だけで拒否・切り捨てしない（旧築の194 period/128上限障害の再発防止）。今回のperiodは時間参照付き値要素1個で1件、O02:14の件数と値集合を照合する。active validUntilと回収用retainUntilを分離し、7日はretentionとして固定する。",
+      "WeatherTimeseriesSubjectのsource/unavailableReason/lastKnown/affectedScopeがないと正当なnewer報の保持不能を復元できず古いperiodsを正常扱いする。lastKnownは独立した辞書・時間表付きsnapshotにしてdecode後のindexを解決できるようにする。共有UnavailableReason unionは作らない",
       "B2: 全WeatherTimeseriesInputでClockReadingを受け、WeatherTimeseriesUnitStep.nextDeadlineのwallTimeMs/monotonicMsを独立のnumber|nullとして返す。有効期限のいずれかが到来すれば配送、両方なしなら外側のnull。無いと片方の時計だけの期限を表現できずA1が当該unitへ同じ呼出しでdeadlineを配送できない",
       "追実装で閉じる項目(A6): reducer/codec/viewの既存責務を変えずClockReading/nextDeadlineと既存shutdown入力を実装し、期限前は同じWeatherTimeseriesUnitState参照と空のdecisions/intents/outcomes/diagnosticsを返す。旧notificationResultは3 unit共通intentUpdate入力へ置換する。NotificationIntentUpdateのid/attempts/nextAttemptAt/dispositionとclockを受け、選択時は完了結果なしでattempts/nextAttemptAtを更新しdispositionを維持、完了時もA1内部のA7が照合した更新を同じ入口で採用する。無いとU-E以外で試行回数と再試行日時を保存できない。既存idだけを更新し同値・未知idはno-op、変更時だけdeliveryOnlyで保存世代を進める。timer・配送済み入力slot・RuntimeState更新は追加しない",
-      "同一operation/subjectの新旧はReportDateTimeで判定する。newerは採用、olderはunchanged/stale。同時刻では、取消（InfoType=取消）は発表/訂正のgateに対してchanged（effective=cancelled、expected:O10:35/39）、gateのReportRefとInfoType・Serialが同一ならperiodを比べずunchanged/duplicate、それ以外の同時刻相違（同時刻の訂正、取消後の同時刻発表など）はQ-REV-UFとして推測せず、既存gateを保ってunchanged/staleを返す。newerでeffective・validUntil・periodsがすべて現行subjectと同一ならchanged/revisionOnly（gateだけを進めるgate-only revision）。どれかが変わればchanged/semantic（明示emptyによるunavailableやcancelledの解除を含む）。gateの無いsubject（未受信か7日retentionで回収済み）への取消は両者を区別せずchanged（effective=cancelled）とし、取消gateを作る",
+      "同一operation/subjectの新旧はReportDateTimeで判定する。newerは採用、olderはunchanged/stale。同時刻では、取消（InfoType=取消）は発表/訂正のgateに対してchanged（effective=cancelled、expected:O10:35/39）、gateのReportRefのoperation・family・subject・reportDateTimeRaw・serialRaw・infoTypeRawが同一なら（inputId・originは比較しない）periodを比べずunchanged/duplicate、それ以外の同時刻相違（同時刻の訂正、取消後の同時刻発表など）はQ-REV-UFとして推測せず、既存gateを保ってunchanged/staleを返す。newerでeffective・validUntil・periodsがすべて現行subjectと同一ならchanged/revisionOnly（gateだけを進めるgate-only revision）。どれかが変わればchanged/semantic（明示emptyによるunavailableやcancelledの解除を含む）。gateの無いsubject（未受信か7日retentionで回収済み）への取消は両者を区別せずchanged（effective=cancelled）とし、取消gateを作る",
       "P2はVPWP50のNotificationIntentを生成しない（Q-NOTICE未決、oracleのintentsはnull）。intents配列とintentUpdate入力は共通の形として保持する",
-      "validUntilは採用報の値leaf・Significancy・PeakTime・CriteriaPeriodが参照するTimeDefineのDateTime+Durationの最大値とし（参照されないTimeDefineは含めない）、到来後はeffective=noActiveItems（familyTableの「原報period期限で有効periodが0件」と同じ正常empty）としてgateを残す。retainUntilはsubjectの最新採用報のReportDateTime＋7日とし、到来でsubjectとgateを回収する。復元でもこの二つを延長しない。validUntil到来のdeadline入力ではeffective=noActiveItems・periods=[]（過去のperiodを現行値にせず、lastKnownへも移さない）とし、decisionはchanged/semantic、outcomeはdeadlineApplied、保存世代を進めgateは変えない。個々のperiodの終端ではsubjectを変えない。receive入力でも到来済みのvalidUntilとretainUntilを新報の適用より先に同じreduceUnit内で適用し、同じsubjectのdecisionは最終結果の1件（例 expected:O10:57はchanged/semantic）、outcomeはaccepted 1件にまとめる。retainUntilによる回収はdecisionとoutcomeを出さず保存世代だけを進める。PublishedOutcomeのSubjectOutcomeはinformationType=source.infoTypeRaw、transition=遷移後のeffective、severity=null、facts={effective, periodCount}（periodCountの数え方はQ-PERIODに従う）、changedFieldsは変えたWeatherTimeseriesSubjectのfield名とする"
+      "validUntilは採用報の全periodが参照するseries内のTimeDefineのDateTime+Durationの最大値とし（参照されないTimeDefineは含めない）、到来後はeffective=noActiveItems（familyTableの「原報period期限で有効periodが0件」と同じ正常empty）としてgateを残す。retainUntilはsubjectの最新採用報のReportDateTime＋7日とし、到来でsubjectとgateを回収する。復元でもこの二つを延長しない。validUntil到来のdeadline入力ではeffective=noActiveItems・periods=[]（過去のperiodを現行値にせず、lastKnownへも移さない）とし、decisionはchanged/semantic、outcomeはdeadlineApplied、保存世代を進めgateは変えない。個々のperiodの終端ではsubjectを変えない。receive入力でも到来済みのvalidUntilとretainUntilを新報の適用より先に同じreduceUnit内で適用し、同じsubjectのdecisionは最終結果の1件（例 expected:O10:57はchanged/semantic）、outcomeはaccepted 1件にまとめる。retainUntilによる回収はdecisionとoutcomeを出さず保存世代だけを進める。PublishedOutcomeのSubjectOutcomeはinformationType=source.infoTypeRaw、transition=遷移後のeffective、severity=null、facts={effective, periodCount}（periodCount=現在のperiods.length、TimeDefineは含めない）、changedFieldsは変えたWeatherTimeseriesSubjectのfield名とする"
     ],
     "unresolvedQuestions": [
-      {
-        "id": "Q-VALUES",
-        "owner": "integrator",
-        "blocks": [
-          "VPWP50未知codeの意味射影",
-          "unknownValueCodeをactive/inactive/unavailableのどれにするか",
-          "表示値と保持するraw値"
-        ],
-        "resolveBy": "U-F実装契約開始前",
-        "requiredEvidence": [
-          "81_03_01 fixtureの未知code一覧",
-          "公式値表または未対応を示す根拠",
-          "old current/watermark/intentの期待"
-        ]
-      },
       {
         "id": "Q-LIMIT",
         "owner": "integrator",
         "blocks": [
           "U-F合法最大checkpoint",
           "16MiB直前・一致・+1 fixture",
-          "512 subjectと全国受信で正常系列を保持したencoded byte（Q-PERIODのperiod定義に依存）"
+          "512 subjectと全国受信で正常系列を保持したencoded byte（Q-PERIODでU-F上限を確定）"
         ],
         "resolveBy": "U-F容量fixture作成前",
         "requiredEvidence": [
@@ -579,15 +595,13 @@
         "id": "Q-PERIOD",
         "owner": "integrator",
         "blocks": [
-          "period識別子の構成と値の射影（SignificancyのName/Code、PeakTime、CriteriaPeriodなどの複合値）",
-          "expected:O02:14の期待件数",
-          "全国受信でのU-F容量（16MiB）との両立"
+          "この保存形式での全国見積もりとU-F上限の確定（16MiB超なら値を削らず上限を改訂）"
         ],
-        "resolveBy": "A6発注前（要判断R23、ヘルツと結論を出してから裁定）",
+        "resolveBy": "A6発注前",
         "requiredEvidence": [
-          "2026-09-23実測: 81_09_01（長野、XML 2,268,084 bytes）は全leafをtuple識別子で持つと27,966 period・4,554,657 bytes、Codeと値だけでも16,704 period・2,412,216 bytes、識別子を数値化すると520,579 bytes。81_01_04（XML 271,828 bytes）は同じ順に469,365／259,901／54,979 bytes",
-          "全国のVPWP50発表官署数と同時保持量の見積もり",
-          "表示と通知が必要とする最小の値"
+          "Piの1週間記録: VPWP50発表官署58、各官署の区域数最大の合計1,805。長野81_09_01はArea 81。これは同時保存byte実測ではない",
+          "58官署の同時保持subject・lastKnown・辞書・時間表・scope・envelopeを含むUTF-8 encoded byteと欠測官署の推計区分",
+          "現行16MiB超なら値を削らず上限を改訂し、境界fixtureを再固定"
         ]
       }
     ]
