@@ -202,7 +202,8 @@ describe("P2 shared runtime", () => {
     const stringify = vi.spyOn(JSON, "stringify");
     const parse = vi.spyOn(JSON, "parse");
     const clone = vi.spyOn(globalThis, "structuredClone");
-    const steps = inputs.map((input) => reduceRuntime(saved, input));
+    // The routed VPWS50 reaches a no-op unit: this measures A1's own branches, not unit admission cost.
+    const steps = inputs.map((input) => reduceRuntime(saved, input, unitCalls));
     expect(steps.map((step) => step.diagnostics.map((entry) => entry.reason))).toEqual([
       [], [], [], ["reportDateTimeMissing"], ["xmlInvalid"], [], [], ["shutdownStarted"], [],
     ]);
@@ -233,7 +234,8 @@ describe("P2 shared runtime", () => {
     expect(validateSemanticEnvelope({ ...valid, reportDateTimeRaw: "2026-02-30T00:00:00+09:00" })).toMatchObject({ kind: "rejected", reason: "reportDateTimeInvalid" });
     expect(validateSemanticEnvelope({ ...headMissing, reportDateTimeRaw: "not-a-date" })).toMatchObject({ kind: "rejected", reason: "headMissing" });
     expect(validateSemanticEnvelope({ ...valid, reportDateTimeRaw: "" })).toMatchObject({ kind: "rejected", reason: "reportDateTimeMissing" });
-    for (const material of [headMissing, invalidDate]) {
+    // O02:8 (VPWP50) is routed to U-F, whose receive owns its runtime rejection (A6 AC01).
+    for (const material of [invalidDate]) {
       const step = reduceRuntime(saved, parserInput({ kind: "decoded", material }));
       expect(step.state).toBe(saved);
       expect(step.changedUnits).toEqual([]);

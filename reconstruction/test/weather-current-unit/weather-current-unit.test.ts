@@ -433,16 +433,24 @@ describe("P2 weather-current unit", () => {
       runtimeCalls: calls, clock: () => clock(NOW + 2, NOW + 2),
     });
     const shutdownState = runtime(restored.state);
-    shutdownRoot.dispatch(shutdownState, { kind: "mailboxCompleted", clock: clock(NOW + 2, NOW + 2), completion: {
+    const routed = shutdownRoot.dispatch(shutdownState, { kind: "mailboxCompleted", clock: clock(NOW + 2, NOW + 2), completion: {
       kind: "parser", messageId: first.inputId, inputId: first.inputId, runId: shutdownState.runId,
       encodedByteLength: 0, startedMonotonicMs: NOW + 2, completedMonotonicMs: NOW + 2,
       inputSequence: 1, result: { kind: "decoded", material: first },
     } }, { "U-W": { inputIds: [first.inputId], retryReason: "notRetry" } });
+    // Wired route: the older redelivery reaches U-W as stale and records freshness only (AC06).
+    const routedUnit = routed.state.units["U-W"];
+    expect(routed.changedUnits).toEqual(["U-W"]);
+    for (const field of ["national", "partials", "histories", "tombstones", "intents"] as const)
+      expect(routedUnit[field]).toBe(restored.state[field]);
+    expect(routedUnit.freshness.slice(restored.state.freshness.length)).toMatchObject([
+      { candidateSource: { inputId: first.inputId }, decision: "unchanged", reason: "stale", revisionOrder: "older" }]);
+    const generation = restored.state.persistence.currentGeneration + 1;
+    expect(routedUnit.persistence.currentGeneration).toBe(generation);
     const summary = await shutdownRoot.shutdownRuntime(shutdownRoot.state, 1, clock(NOW + 2, NOW + 2));
     expect(summary.code, JSON.stringify(summary)).toBe(0);
     expect(summary.persistence["U-W"]).toMatchObject({ kind: "saved",
-      currentGeneration: restored.state.persistence.currentGeneration,
-      savedGeneration: restored.state.persistence.currentGeneration });
+      currentGeneration: generation, savedGeneration: generation });
 
     let weatherEncodes = 0;
     const counted = { ...weatherCurrentUnitCodec, encode: (value: WeatherCurrentUnitState) => {

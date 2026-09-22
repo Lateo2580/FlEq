@@ -27,6 +27,12 @@ import { boundedString, boundDiagnosticDetails, completeDiagnostic, parserDiagno
 
 const EMPTY: readonly never[] = Object.freeze([]);
 const units = ["U-E", "U-W", "U-F"] as const;
+// The single P2 route (order plan §6.2): headType → M01/M06/M08 → unit. Other families have no P2 unit.
+const unitRoutes: ReadonlyMap<string, RuntimeUnitId> = new Map([
+  ...["VXSE43", "VXSE44", "VXSE45"].map((type) => [type, "U-E"] as const),
+  ...["VPWS50", "VPWW55", "VPWW57", "VPWW58", "VPWW59", "VPWW60", "VPWW61", "VPNO50"].map((type) => [type, "U-W"] as const),
+  ["VPWP50", "U-F"],
+]);
 const stages = ["mailboxDrain", "sideEffectFinalization", "finalCheckpoint", "workerClose"] as const;
 function rejection(material: DecodedMaterial, reason: RejectionReason): SemanticEnvelopeResult {
   return {
@@ -146,7 +152,7 @@ function reduceRuntime(
     changed(unit);
   };
   const reduceUnit = (unit: RuntimeUnitId, unitInput: Extract<EewInput,
-    { kind: "deadline" | "shutdown" | "intentUpdate" }>) => {
+    { kind: "receive" | "deadline" | "shutdown" | "intentUpdate" }>) => {
     let step: EewUnitStep | WeatherCurrentUnitStep | WeatherTimeseriesUnitStep;
     switch (unit) {
       case "U-E":
@@ -277,13 +283,22 @@ function reduceRuntime(
     if (input.completion.kind === "parser") {
       if (next.shutdown.finalizationAt == null) {
         const { completion } = input;
-        const details = completion.result.kind === "rejected"
-          ? parserDiagnostic(completion.result.diagnostic.reason, completion.result.diagnostic.inputId)
-          : (() => {
-              const result = validateSemanticEnvelope(completion.result.material);
-              return result.kind === "rejected" ? result.diagnostic : null;
-            })();
-        if (details != null) diagnose(details);
+        // After mailboxDrain every unit has received `shutdown`; a late input stays unapplied (summary: remainingInputs).
+        const draining = next.shutdown.stage === "running" || next.shutdown.stage === "mailboxDrain";
+        const unit = draining && completion.result.kind === "decoded" ? unitRoutes.get(completion.result.material.headType) : undefined;
+        // Units re-run the common Head/date check themselves: one diagnostic per input, and
+        // U-W keeps §7.8 freshness monitoring for rejected inputs (A1 freshnessException).
+        if (unit != null && completion.result.kind === "decoded") {
+          reduceUnit(unit, { kind: "receive", material: completion.result.material, clock: input.clock });
+        } else {
+          const details = completion.result.kind === "rejected"
+            ? parserDiagnostic(completion.result.diagnostic.reason, completion.result.diagnostic.inputId)
+            : (() => {
+                const result = validateSemanticEnvelope(completion.result.material);
+                return result.kind === "rejected" ? result.diagnostic : null;
+              })();
+          if (details != null) diagnose(details);
+        }
       }
     } else {
       const { control } = input.completion;

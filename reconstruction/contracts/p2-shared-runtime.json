@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "3095a6c21caa96e06fc3b3a6d2f906534ef5441b",
-    "sha256": "ab11a91d5a8e91252606c617a7aa46d86b158fcb9fa117d8fc1be7f0e4db9a10",
+    "sha256": "c3200530f78364f946995f592e090d32cae4c60e6ee82d760f670bcc661b5818",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "76c82b87d7783a4eae14af690cb34e7d6ec46f73617dc75b7f7401951619f080",
     "sequencesSha256": "a50ec1b672e5a05a1a5fbd54e5321ecd9a55d214664cf4a644f539c281bd14b6",
@@ -173,7 +173,7 @@
           "affectedScope": "保持・coverage不能なoffice/area/period等の有界な具体識別子だけを保存する。unit全体の暗黙wildcardにせず、同じoperation/family/subjectと同じまたは包含coverageの正常採用でだけ解除する",
           "persistence": "source/lastKnown/affectedScopeをunit stateと唯一のcodecで保存・復元し、同scopeの後続正常採用または明示coverage確認で置換・解除する。別subject・別office・別operation・heartbeatでは解除しない"
         },
-        "freshnessException": "rejectedでも§7.8の対象別監視は継続する。A1は共通検証結果を確定後、検証済みoperation/family/subject/影響範囲と候補出典をA5の既存receive→reduceWeatherCurrentUnit経路で監視評価できるようにする。意味適用はせず、A5が返すfreshnessのみのstate参照交換は許す。対象不明ならdiagnosticのみ、新旧不明ならrevisionOrder=unknownとする。新reasonを選び直さず、current/gate/watermark/intent・意味revision・outcomeを進めない。A5のfreshness保存変更だけは既存checkpoint世代へ反映する"
+        "freshnessException": "rejectedでも§7.8の対象別監視は継続する。A1はroutedな入力を共通検証の成否にかかわらずA5の既存receive→reduceWeatherCurrentUnit経路へ渡し（A1-route）、A5がvalidateSemanticEnvelopeで確定した共通検証結果と、検証済みoperation/family/subject/影響範囲・候補出典で監視評価する。意味適用はせず、A5が返すfreshnessのみのstate参照交換は許す。対象不明ならdiagnosticのみ、新旧不明ならrevisionOrder=unknownとする。新reasonを選び直さず、current/gate/watermark/intent・意味revision・outcomeを進めない。A5のfreshness保存変更だけは既存checkpoint世代へ反映する"
       },
       {
         "id": "P2-SHARED-OWNERSHIP",
@@ -473,7 +473,7 @@
         "referenceIds": [
           "P2-A1-AC03"
         ],
-        "behavior": "O02:8をheadMissing、O02:10をreportDateTimeInvalidで拒否する。複数不備は共通→familyの固定順で最初の一理由だけを返し、業務state（current/gate/watermark/intent）を変えない。対象検証可能な拒否のFreshnessRecord更新だけは§7.8監視例外としてA5 T04で検収する"
+        "behavior": "validateSemanticEnvelopeがO02:8をheadMissing、O02:10をreportDateTimeInvalidで拒否する。runtime経由の拒否と業務state不変はroute外のO02:10で確認し、routedなO02:8のruntime拒否はA6 AC01で検収する（A1-route）。複数不備は共通→familyの固定順で最初の一理由だけを返し、業務state（current/gate/watermark/intent）を変えない。対象検証可能な拒否のFreshnessRecord更新だけは§7.8監視例外としてA5 T04で検収する"
       },
       {
         "testId": "P2-A1-T04",
@@ -579,7 +579,8 @@
       "B4: RuntimeState.notificationChannelsとRuntimeStep.notificationAttempts/abortAttemptIdsがないとA7選択状態とunit内intent正本が分裂する。A1が各unitのintentからNotificationDeliveryStateを構成し、selectNotificationAttempt/applyNotificationResultを呼び、channelと3 unit共通のintentUpdate入力を同じ呼出しで一度に採用する。NotificationIntentUpdateは既存intentのid/attempts/nextAttemptAt/dispositionだけのPickで、選択時も完了結果なしで渡せる。A1が現在intentのunit/operation/subject/channel/idとA7の現在試行を照合し、unitは既存idだけを更新する。選択時はattempts/nextAttemptAtだけを変えdispositionを維持し、完了・失効等は照合済みdispositionを含めて採用する。変更時だけdeliveryOnlyとして保存世代を進め、同値・未知idはno-op。raw NotificationResultはRuntimeInputにだけ戻しunitへ偽の完了結果を作らない",
       "composition rootは入力の順序付け・reduceRuntimeが返すstateの採用・RuntimeStepのeffect実行だけを行い、stateの構築・部分上書き・非同期hookから返されたstateの合成をしない。無いとR13=Aでもcomposition-root.tsの保存結果と終了hookがreducer外からstateを変更できる",
       "追実装で閉じる項目(R17/A1-b): RuntimeState.persistenceの二重同期を削除し、現行reconstruction/src/runtime/shared-runtime.ts:103のShutdownSummary.persistenceはstate.unitsの3 unitから構築する。:143-145のsetPersistenceと:172-173のunit更新はunits[unit].persistenceだけを更新し、:198,266,294の保存状態読取もunit側へ置換する。composition root・A1-b testの初期state/期待値からRuntimeState.persistenceを削り、unit側だけが更新されることと終了要約がunit側3値から作られることへ追従する。新しい状態管理層・helperは作らない",
-      "追実装で閉じる項目(A1-b): 現行shared-runtime.ts:59,61のunknown genericを具体型へ、:77のnotificationIntentsをnotificationAttempts/abortAttemptIds/effectsとshutdownSummary（通常null）へ置換する。現行はparser診断以外のcontrol分岐を未実装で同じstateを返すため、checkpointCaptured/checkpointResult、到来deadline、shutdownRequested/shutdownStageResult、notificationResultを実装する。A4〜A7の契約・型8ファイルをreadPathsで明示的に読み、3 unitのintentUpdateとA7 channel状態を原子的に採用する。RuntimeState.runIdを初期stateで一度固定し、A1は入力の明示時計（通知結果はresult.completedAt）とstate.runIdで全DiagnosticDetailsをDiagnosticEventへ完成させる。無いとA7/終了段階の入力にrunIdがなく診断を完成できない。mailbox completion.runIdは同じrunであることを照合し、外部時計や仮のshutdown runIdを使わない"
+      "追実装で閉じる項目(A1-b): 現行shared-runtime.ts:59,61のunknown genericを具体型へ、:77のnotificationIntentsをnotificationAttempts/abortAttemptIds/effectsとshutdownSummary（通常null）へ置換する。現行はparser診断以外のcontrol分岐を未実装で同じstateを返すため、checkpointCaptured/checkpointResult、到来deadline、shutdownRequested/shutdownStageResult、notificationResultを実装する。A4〜A7の契約・型8ファイルをreadPathsで明示的に読み、3 unitのintentUpdateとA7 channel状態を原子的に採用する。RuntimeState.runIdを初期stateで一度固定し、A1は入力の明示時計（通知結果はresult.completedAt）とstate.runIdで全DiagnosticDetailsをDiagnosticEventへ完成させる。無いとA7/終了段階の入力にrunIdがなく診断を完成できない。mailbox completion.runIdは同じrunであることを照合し、外部時計や仮のshutdown runIdを使わない",
+      "追実装で閉じる項目(A1-route): parser completionのdecoded入力をshared-runtime.tsの一か所の表（計画§6.2）でheadTypeから単位へ振り分ける。VXSE43/44/45→U-E、VPWS50・VPWW55/57-61・VPNO50→U-W、VPWP50→U-F、それ以外はP2単位なし。routed入力は共通検証の成否にかかわらず当該unitのreceiveへ入力clockで渡し、unitがreceive先頭でvalidateSemanticEnvelopeを呼んで共通拒否を確定し、その診断を一件だけ返す（A1は二重に診断しない。U-Wの§7.8監視例外はこの経路で成立する）。A1が直接検証・診断するのはroute外の入力とparser拒否だけとする。振り分けはshutdown.stageがrunningかmailboxDrainの間だけ行い、mailboxDrain結果の適用後（各unitへshutdown配送済み）に完了した入力はunitへ渡さずremainingInputsとして要約に残す。reducer未結線の単位へのrouteは成功扱いせず例外とする（A6配送前のVPWP50を含む）。無いとA4/A5のreceiveへ製品入力が一件も届かず、§13.3の9段を結線後の経路で証明できない。T02はroutedなVPWS50をno-op unitで受けA1自身の枝だけを測り、routed unitの直列化量はE11/E15で別計数する。T03のruntime経由拒否はroute外のO02:10で確認し、routedなO02:8はA6 AC01で検収する"
     ],
     "unresolvedQuestions": []
   }

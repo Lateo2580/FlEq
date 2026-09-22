@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "3095a6c21caa96e06fc3b3a6d2f906534ef5441b",
-    "sha256": "aeee98989cd0af23c2b0ab2d6d6994c20535c821d251507dcbaf13996de16b10",
+    "sha256": "3bacca0c321841dd4b60f23854ddba91d16089c1769626519ac2c88d1c7be9a8",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "76c82b87d7783a4eae14af690cb34e7d6ec46f73617dc75b7f7401951619f080",
     "sequencesSha256": "a50ec1b672e5a05a1a5fbd54e5321ecd9a55d214664cf4a644f539c281bd14b6",
@@ -498,6 +498,42 @@
           "P2-A3-AC08"
         ],
         "behavior": "UnitCodecのencode→envelope全bytes自己hash→2slot→schema/hash検証→decodeの呼出主体と復元結果を固定し、hash改変・schema不一致・invalid payloadを拒否する。payload不変でgeneration 1→9、unit、schemaVersion、capturedAt各fieldだけを改変してもdigest不一致となり世代選択から除外する。I-U-* codecはunit担当所有、結線と再検収はA3所有"
+      },
+      {
+        "testId": "P2-WIRE-T01",
+        "purpose": "acceptance",
+        "referenceIds": [
+          "reconstruction/contracts/p2-order-plan.md:93 «4e1f6c0999518399»",
+          "reconstruction/contracts/p2-weather-current-unit.json"
+        ],
+        "behavior": "linked setのcomposition rootでparsed VPWW57をU-Wへ通し、view・保存・保存失敗中のcurrent維持・通常終了code 0を確認する。再起動は起動入口が未結線のため試験内で復元世代を引き継いで組み、復元直後の続報とcorrelationなしのrouted入力の最終保存を確認する（Q-STARTUPが閉じるまで製品経路の⑧は未証明）"
+      },
+      {
+        "testId": "P2-WIRE-T02",
+        "purpose": "acceptance",
+        "referenceIds": [
+          "reconstruction/contracts/p2-order-plan.md:93 «4e1f6c0999518399»",
+          "reconstruction/contracts/p2-eew-unit.json"
+        ],
+        "behavior": "parsed VXSE43がU-E currentになり、通常終了後もactive EEWが保存されずrestoreUnitはemptyで、再起動後の続報serial 2がcurrentになる。期限内pending intentの再試行はQ-NOTICE待ちでunit試験のまま"
+      },
+      {
+        "testId": "P2-WIRE-T03",
+        "purpose": "contractBoundary",
+        "referenceIds": [
+          "reconstruction/contracts/p2-shared-runtime.json",
+          "reconstruction/src/runtime/shared-runtime.ts"
+        ],
+        "behavior": "routedな共通拒否（VPWW57のReportDateTime欠落）は診断一件、changedUnits=[U-W]、FreshnessRecord rejected/unknown、current不変（A1-route）"
+      },
+      {
+        "testId": "P2-WIRE-T04",
+        "purpose": "contractBoundary",
+        "referenceIds": [
+          "reconstruction/contracts/p2-shared-runtime.json",
+          "reconstruction/src/runtime/shared-runtime.ts"
+        ],
+        "behavior": "mailboxDrain結果の適用後に完了したrouted入力はunitへ渡さずunit stateを同一参照に保つ（A1-route）"
       }
     ],
     "requiredCommands": [
@@ -571,7 +607,8 @@
       "追実装で閉じる項目(A3-typed-units): 現行checkpoint.ts:166,175,189,333,336,346,393（TS2344 7件）とcomposition-root.ts:33,38,39,140,166,178,210,211,223,224,240（2件）,262,289,335,350（TS2344 16件）のPartial<Record<UnitId, unknown>> genericをRuntimeUnitStatesへ限定する。無いと具体結線したRuntimeStateをA3の捕捉・結果照合へ渡せない",
       "追実装で閉じる項目(A3-transitional): 現行composition-root.ts:212-217のresultMetadataによるstate部分上書きを除去し、metadataはwriter解放・retry・diagnosticだけに限定する。units[unit].persistenceとcheckpointAttemptsはreduceRuntimeの一致試行結果だけを採用する。:235-236の独自no-op RuntimeStep構築と旧notificationIntents（TS2561）も除去し、結果入力がない場合はA1のdeadline入力による戻りstepをそのまま採用する。新しいnotificationAttempts/abortAttemptIds/effects/shutdownSummaryをA3で補完しない",
       "追実装で閉じる項目(R17/A3): 現行reconstruction/src/checkpoint/checkpoint.ts:171,185,329,347,384とreconstruction/src/runtime/composition-root.ts:223,368のRuntimeState.persistence読取をunits[unit].persistenceへ置換する。ShutdownSummary.persistenceはA1がunit側から作り、reconstruction/src/checkpoint/persistent-diagnostic-sink.ts:292-294はその出力だけを読む。composition root・A1-b testの初期stateと期待値から二重persistenceを削除し、新しい状態管理層・helperは作らない",
-      "追実装で閉じる項目(A3-shutdown): 現行composition-root.ts:269-346のshutdown文字列上書き、ShutdownUpdate state返却、adoptShutdownUpdateのpersistence/state合成を除去する。:189/:227の文字列比較（TS2367）はshutdown.stageのworkerClose/completed判定へ置換し、:350-352のshutdownPhase直接更新helperを除去してA1の段階結果遷移へ置換する。:270/:299のTS2322、:278のTS2345、:289/:307のTS2531もこの戻りstate採用経路で閉じる。stopInputAndDrainMailbox/finalizeNotificationDelivery/startFinalCheckpoints/closeRuntimeWorkersを実行し、各完了・失敗・deadlineExceeded、未処理件数、sinkのdroppedDiagnostics、clockをshutdownStageResultでA1へ返す。:302-327のcode/reasons/summary構築・合成を除去し、A1所有stageResultsから3→2→4で判定されたcloseRuntimeWorkers.summaryを保存してからworker等を閉じ、最終RuntimeStep.shutdownSummaryを保存・返却する。:244/:265の仮runId=shutdownもstate.runIdへ揃える"
+      "追実装で閉じる項目(A3-shutdown): 現行composition-root.ts:269-346のshutdown文字列上書き、ShutdownUpdate state返却、adoptShutdownUpdateのpersistence/state合成を除去する。:189/:227の文字列比較（TS2367）はshutdown.stageのworkerClose/completed判定へ置換し、:350-352のshutdownPhase直接更新helperを除去してA1の段階結果遷移へ置換する。:270/:299のTS2322、:278のTS2345、:289/:307のTS2531もこの戻りstate採用経路で閉じる。stopInputAndDrainMailbox/finalizeNotificationDelivery/startFinalCheckpoints/closeRuntimeWorkersを実行し、各完了・失敗・deadlineExceeded、未処理件数、sinkのdroppedDiagnostics、clockをshutdownStageResultでA1へ返す。:302-327のcode/reasons/summary構築・合成を除去し、A1所有stageResultsから3→2→4で判定されたcloseRuntimeWorkers.summaryを保存してからworker等を閉じ、最終RuntimeStep.shutdownSummaryを保存・返却する。:244/:265の仮runId=shutdownもstate.runIdへ揃える",
+      "追実装で閉じる項目(A3-link-A4A5): composition-root.tsに配送済み単位のlinkedUnitCodecs（U-E eewUnitCodec・U-W weatherCurrentUnitCodec）とlinkedRuntimeCalls（reduceEewUnit/toEewView/reduceWeatherCurrentUnit/toWeatherCurrentView）を置き、U-F（A6）・A7は各配送時にここへ足す。routeはA1内部で決まり呼出側は変化unitを名指しできないため、dispatchはparser入力で変化したunitへそのinputIdを帰属し、保存済みでない世代の間はinputIdsを積み増す（呼出側の明示correlationが優先）。無いと相関なしのrouted入力が最終checkpointの対象外となり正常終了がcode 2になる。A5 T05の保存世代の期待値はA3担当の結線後再検収として更新した（routedな旧報がU-Wへstaleとして届きfreshness記録だけで世代+1、計画§2.1）。A6配送前はshutdownとdeadlineがU-Fも訪れるため、linkedRuntimeCalls単独では停止できない。結線試験はU-Fを明示の空stubで受け、U-E/U-Wの通常終了はこの前提付きの証明とする"
     ],
     "unresolvedQuestions": [
       {
@@ -605,6 +642,21 @@
           "旧checkpointのoperation不明を未確認とする期待",
           "O04:2/O06:29-30と旧v2移行をP3へ残す版付きsubset",
           "sequences.jsonのP2-O10-CHECKPOINT-v2とexpected:O10:31-40およびexpected:O10:56-90の実行結果（U-V意味実装は含めない）"
+        ]
+      },
+      {
+        "id": "Q-STARTUP",
+        "owner": "integrator",
+        "blocks": [
+          "起動入口: restoreUnitの結果から各unitのrestore入力と初期RuntimeStateを組む経路（RuntimeInputにrestoreはなく、R13でreduceRuntime以外はstateを構築しない）",
+          "復元世代の引継ぎ: 起動時に復元envelopeのgenerationをunitのpersistenceへ引き継がないと、次の保存がgeneration 1となり次回起動で旧slotが勝つ（2026-09-23実測: gen 3保存→clean起動で新報をgen 1保存→次回restoreはgen 3で新報喪失）",
+          "A4/A5の§13.3⑧（復元直後の続報）を製品経路で証明すること。現状はP2-WIRE-T01/T02が試験内で組んだ再起動だけ"
+        ],
+        "resolveBy": "A8/A10が製品の起動経路を使う前（A6発注時にヘルツと結論を出してから裁定）",
+        "requiredEvidence": [
+          "起動入口の所有と形（composition rootのメソッドか、A1のRuntimeInput追加による契約改訂か）",
+          "restoreUnitのempty/unavailable（noValidSlot・unknownSchema・conflictingGeneration）ごとの初期stateと診断",
+          "再起動→保存→再起動で復元世代が単調増加し、再起動後の報が失われない試験"
         ]
       }
     ]

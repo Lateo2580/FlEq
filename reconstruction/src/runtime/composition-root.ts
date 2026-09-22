@@ -32,8 +32,14 @@ import type { CheckpointFileSystem, CodecMap, Correlation } from "../checkpoint/
 import { PersistentDiagnosticSink, projectParserDiagnostic } from "../checkpoint/persistent-diagnostic-sink";
 import type { DiagnosticFileSystem } from "../checkpoint/persistent-diagnostic-sink";
 import { Mailbox } from "../mailbox/mailbox";
+import { eewUnitCodec, reduceEewUnit, toEewView } from "../units/eew/eew-unit";
+import { reduceWeatherCurrentUnit, toWeatherCurrentView, weatherCurrentUnitCodec } from "../units/weather-current/weather-current-unit";
 import { completeDiagnostic } from "./runtime-diagnostic";
 import { reduceRuntime } from "./shared-runtime";
+
+// A3 wiring of delivered units (A4 U-E, A5 U-W). U-F (A6) and notification (A7) link here on delivery.
+const linkedUnitCodecs: CodecMap<RuntimeUnitStates> = { "U-E": eewUnitCodec, "U-W": weatherCurrentUnitCodec };
+const linkedRuntimeCalls = { reduceEewUnit, toEewView, reduceWeatherCurrentUnit, toWeatherCurrentView } as const;
 
 type ShutdownHooks = Readonly<{
   drainMailbox?: (deadlineMonotonicMs: number, active: () => boolean) => Promise<void>;
@@ -199,6 +205,16 @@ class RuntimeCompositionRoot {
       this.checkpoint.resultMetadata(previous, result, input.clock);
       if (this.checkpointOperation?.attemptId === result.attemptId && this.checkpointOperation.completed)
         this.checkpointOperation = null;
+    }
+    // A1 routes parser input internally, so the caller cannot name the changed unit: attribute it here,
+    // accumulating inputIds until the unit's remembered generation is saved.
+    if (input.kind === "mailboxCompleted" && input.completion.kind === "parser") {
+      for (const unit of step.changedUnits) {
+        const { currentGeneration, savedGeneration } = step.state.units[unit as RuntimeUnitId].persistence;
+        const known = this.correlations[unit];
+        const pending = known != null && known.generation > (savedGeneration ?? 0) ? known.inputIds : [];
+        this.correlations[unit] = { inputIds: [...pending, input.completion.inputId], generation: currentGeneration };
+      }
     }
     this.rememberCorrelations(step.state, correlationByUnit);
     step.diagnostics.forEach((event) => this.enqueueDiagnostic(event));
@@ -402,5 +418,5 @@ class RuntimeCompositionRoot {
   }
 }
 
-export { RuntimeCompositionRoot, nodeCheckpointFileSystem, nodeDiagnosticFileSystem };
+export { RuntimeCompositionRoot, linkedRuntimeCalls, linkedUnitCodecs, nodeCheckpointFileSystem, nodeDiagnosticFileSystem };
 export type { CompositionOptions, ShutdownHooks };

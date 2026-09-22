@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "fc7006e2380edf9a97b601d124341ba4bd7f7f42",
-    "sha256": "91afbddeedc8010f81400d1ae16a60935e94898e3976cb785854773566aa97af",
+    "sha256": "34cf11ff5e1b7e8d14284cbbac841a887ab07db74328568c5f5c2a0bd0155dc8",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "76c82b87d7783a4eae14af690cb34e7d6ec46f73617dc75b7f7401951619f080",
     "sequencesSha256": "a50ec1b672e5a05a1a5fbd54e5321ecd9a55d214664cf4a644f539c281bd14b6",
@@ -52,7 +52,7 @@
         "closed": "U-F family検証順、unavailable 4 reasonのscope/source/lastKnown/affectedScope、保存・解除、rejectedとのgate/watermark/state差を固定した。現行WeatherTimeseriesSubjectで充足するため型追加と共有unionは不要",
         "remaining": "unknownValueCodeをactive/inactive/unavailableのどれへ帰属させるかはQ-VALUES（owner=integrator）のまま。Q-ENUMはその裁定を先取りしない",
         "reason": "正当なnewer報の保持不能と信頼不能入力を分離しつつ、未知値の意味裁定をQ-VALUESへ残す",
-        "priorityRule": "A1共通検証後、office/subject構成要素存在→identity妥当性→familyTableのInfoType別必須node存在→構造妥当性の順でidentityMissing→identityInvalid→requiredStructureMissing→requiredStructureInvalidの最初の一理由を返す。各段を全subjectで確認してから次段へ進み、同段は表のpath順・繰返しnodeの文書順。取消/明示emptyではTimeSeriesInfo/periodの不存在を検査対象にしない",
+        "priorityRule": "receive先頭でA1のvalidateSemanticEnvelopeを呼び共通拒否（headMissing→reportDateTimeMissing→reportDateTimeInvalid）を確定してその診断を一件だけ返した後（A1-route: A1はroutedなVPWP50を検証せずreceiveへ渡す）、office/subject構成要素存在→identity妥当性→familyTableのInfoType別必須node存在→構造妥当性の順でidentityMissing→identityInvalid→requiredStructureMissing→requiredStructureInvalidの最初の一理由を返す。各段を全subjectで確認してから次段へ進み、同段は表のpath順・繰返しnodeの文書順。取消/明示emptyではTimeSeriesInfo/periodの不存在を検査対象にしない",
         "reasonTable": [
           {
             "reason": "capacityExceeded",
@@ -340,7 +340,7 @@
     "acceptanceChecks": [
       {
         "id": "P2-A6-AC01",
-        "requirement": "VPWP50をfamilyTable/xmlBoundary/identityRule/periodRuleで検証する。InfoType=取消の空MeteorologicalInfosはcancelled、発表/訂正の明示emptyはinactive/noActiveItemsとして受理しgateを残す。非空seriesの必須node欠落・壊れたrefIDをemptyへ変換しない。固定順の最初の一RejectionReasonで一入力を原子的に拒否しgate/watermark/current/intent/stateを不変にする",
+        "requirement": "VPWP50をfamilyTable/xmlBoundary/identityRule/periodRuleで検証する。InfoType=取消の空MeteorologicalInfosはcancelled、発表/訂正の明示emptyはinactive/noActiveItemsとして受理しgateを残す。非空seriesの必須node欠落・壊れたrefIDをemptyへ変換しない。固定順の最初の一RejectionReasonで一入力を原子的に拒否しgate/watermark/current/intent/stateを不変にする。共通検証はreceive先頭でvalidateSemanticEnvelopeを呼んでunitが行い（A1-route）、runtime経由のexpected:O02:8（VPWP50 Head欠落）もheadMissingの診断一件・state不変をA3結線後に検収する（A1 T03から移管）",
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:397 «d297e5dce4853a2d»",
           "docs/specs/reconstruction-p0-contracts.md:609 «996d1ffc74a90315»",
