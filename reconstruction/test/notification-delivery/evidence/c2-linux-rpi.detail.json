@@ -1,0 +1,533 @@
+{
+  "evidenceKind": "C2 A7 standalone artificial A4/A1 competition (not R33 or A3-AC11)",
+  "os": "linux-rpi",
+  "platform": "linux",
+  "arch": "arm64",
+  "node": "v22.23.2",
+  "backend": [
+    {
+      "path": "/usr/bin/notify-send",
+      "present": false,
+      "sha256": null
+    },
+    {
+      "path": "/usr/bin/ffplay",
+      "present": true,
+      "sha256": "3aa866e89428ba161a38686cafbbfe5415c1638d8205116a3d3e38ba86014f29"
+    },
+    {
+      "path": "/usr/bin/paplay",
+      "present": false,
+      "sha256": null
+    },
+    {
+      "path": "/usr/bin/aplay",
+      "present": true,
+      "sha256": "f6794fe7af0d7e1bb67fc56fe6e146babb099b953bfb5886852205c883e4e022"
+    }
+  ],
+  "desktopProbe": {
+    "kind": "unavailable",
+    "reason": "backendMissing"
+  },
+  "desktopAttempts": 0,
+  "backendChannels": [
+    "sound"
+  ],
+  "session": {
+    "dbus": true,
+    "macNotificationPermission": "integrator visually confirmed R31; display not observable by this test"
+  },
+  "markers": [
+    {
+      "kind": "reservation",
+      "capture": {
+        "attemptId": "a7:U-W:1:1",
+        "unit": "U-W",
+        "generation": 1,
+        "capturedAt": 1790160562314
+      },
+      "clock": {
+        "wallTimeMs": 1790160562316,
+        "monotonicMs": 2796.344835
+      }
+    },
+    {
+      "kind": "spawn",
+      "attemptId": "U-W:lower-sound:1",
+      "intentId": "lower-sound",
+      "executable": "/usr/bin/ffplay",
+      "clock": {
+        "wallTimeMs": 1790160562319,
+        "monotonicMs": 2798.646179
+      }
+    },
+    {
+      "kind": "generation",
+      "event": "A",
+      "scheduledOffsetMs": 0,
+      "clock": {
+        "wallTimeMs": 1790160562321,
+        "monotonicMs": 2801.364689
+      },
+      "createdAtMonotonicMs": 2801.364689,
+      "intentIds": [
+        "U-E:normal:20990101000001:1:desktop",
+        "U-E:normal:20990101000001:1:sound"
+      ]
+    },
+    {
+      "kind": "abort",
+      "request": {
+        "attemptId": "U-W:lower-sound:1",
+        "cause": "higherPriority"
+      },
+      "clock": {
+        "wallTimeMs": 1790160562354,
+        "monotonicMs": 2834.172341
+      }
+    },
+    {
+      "kind": "generation",
+      "event": "B",
+      "scheduledOffsetMs": 10,
+      "clock": {
+        "wallTimeMs": 1790160562359,
+        "monotonicMs": 2838.726622
+      },
+      "createdAtMonotonicMs": 2838.726622,
+      "intentIds": [
+        "U-E:normal:20990101000002:2:desktop",
+        "U-E:normal:20990101000002:2:sound"
+      ]
+    },
+    {
+      "kind": "close",
+      "attemptId": "U-W:lower-sound:1",
+      "code": null,
+      "signal": "SIGTERM",
+      "clock": {
+        "wallTimeMs": 1790160562371,
+        "monotonicMs": 2851.399007
+      }
+    },
+    {
+      "kind": "reservation",
+      "capture": {
+        "attemptId": "a7:U-E:3:2",
+        "unit": "U-E",
+        "generation": 3,
+        "capturedAt": 1790160562376
+      },
+      "clock": {
+        "wallTimeMs": 1790160562377,
+        "monotonicMs": 2857.010322
+      }
+    },
+    {
+      "kind": "spawn",
+      "attemptId": "U-E:U-E:normal:20990101000001:1:sound:1",
+      "intentId": "U-E:normal:20990101000001:1:sound",
+      "executable": "/usr/bin/ffplay",
+      "clock": {
+        "wallTimeMs": 1790160562378,
+        "monotonicMs": 2857.700653
+      }
+    },
+    {
+      "kind": "reservation",
+      "capture": {
+        "attemptId": "a7:U-W:2:3",
+        "unit": "U-W",
+        "generation": 2,
+        "capturedAt": 1790160562383
+      },
+      "clock": {
+        "wallTimeMs": 1790160562384,
+        "monotonicMs": 2863.871966
+      }
+    },
+    {
+      "kind": "close",
+      "attemptId": "U-E:U-E:normal:20990101000001:1:sound:1",
+      "code": 0,
+      "signal": null,
+      "clock": {
+        "wallTimeMs": 1790160563316,
+        "monotonicMs": 3796.102917
+      }
+    },
+    {
+      "kind": "reservation",
+      "capture": {
+        "attemptId": "a7:U-E:5:4",
+        "unit": "U-E",
+        "generation": 5,
+        "capturedAt": 1790160563318
+      },
+      "clock": {
+        "wallTimeMs": 1790160563320,
+        "monotonicMs": 3799.729072
+      }
+    },
+    {
+      "kind": "spawn",
+      "attemptId": "U-E:U-E:normal:20990101000002:2:sound:1",
+      "intentId": "U-E:normal:20990101000002:2:sound",
+      "executable": "/usr/bin/ffplay",
+      "clock": {
+        "wallTimeMs": 1790160563322,
+        "monotonicMs": 3801.936046
+      }
+    },
+    {
+      "kind": "close",
+      "attemptId": "U-E:U-E:normal:20990101000002:2:sound:1",
+      "code": 0,
+      "signal": null,
+      "clock": {
+        "wallTimeMs": 1790160564309,
+        "monotonicMs": 4788.761264
+      }
+    },
+    {
+      "kind": "reservation",
+      "capture": {
+        "attemptId": "a7:U-E:6:5",
+        "unit": "U-E",
+        "generation": 6,
+        "capturedAt": 1790160564324
+      },
+      "clock": {
+        "wallTimeMs": 1790160564324,
+        "monotonicMs": 4804.421509
+      }
+    }
+  ],
+  "soundProbe": {
+    "attemptId": "sound-probe",
+    "intentId": "sound-probe",
+    "channel": "sound",
+    "completedAt": {
+      "wallTimeMs": 1790160561310,
+      "monotonicMs": 1790.473365
+    },
+    "kind": "delivered"
+  },
+  "start": {
+    "wallTimeMs": 1790160561311,
+    "monotonicMs": 1790.711939
+  },
+  "foreground": {
+    "wallTimeMs": 1790160562311,
+    "monotonicMs": 2790.711939
+  },
+  "background": [
+    {
+      "id": "lower-desktop",
+      "unit": "U-W",
+      "subject": "lower-desktop",
+      "operation": "normal",
+      "source": {
+        "inputId": "lower-desktop",
+        "origin": "replay",
+        "operation": "normal",
+        "family": "VPWS50",
+        "subject": "lower-desktop",
+        "reportDateTimeRaw": "2026-09-23T10:49:21.311Z",
+        "serialRaw": "1",
+        "infoTypeRaw": "発表"
+      },
+      "transition": "activated",
+      "channel": "desktop",
+      "payload": {
+        "domain": "weather",
+        "level": "info",
+        "title": "E21背景",
+        "body": "E21背景"
+      },
+      "createdAt": 1790160561311,
+      "expiresAt": 1790160741311,
+      "nextAttemptAt": 1790160561311,
+      "attempts": 0,
+      "configRevision": "e21-v1",
+      "disposition": "pending"
+    },
+    {
+      "id": "retry-desktop",
+      "unit": "U-W",
+      "subject": "retry-desktop",
+      "operation": "normal",
+      "source": {
+        "inputId": "retry-desktop",
+        "origin": "replay",
+        "operation": "normal",
+        "family": "VPWS50",
+        "subject": "retry-desktop",
+        "reportDateTimeRaw": "2026-09-23T10:49:21.311Z",
+        "serialRaw": "1",
+        "infoTypeRaw": "発表"
+      },
+      "transition": "activated",
+      "channel": "desktop",
+      "payload": {
+        "domain": "weather",
+        "level": "info",
+        "title": "E21背景",
+        "body": "E21背景"
+      },
+      "createdAt": 1790160561311,
+      "expiresAt": 1790160741311,
+      "nextAttemptAt": 1790160562311,
+      "attempts": 1,
+      "configRevision": "e21-v1",
+      "disposition": "pending"
+    },
+    {
+      "id": "lower-sound",
+      "unit": "U-W",
+      "subject": "lower-sound",
+      "operation": "normal",
+      "source": {
+        "inputId": "lower-sound",
+        "origin": "replay",
+        "operation": "normal",
+        "family": "VPWS50",
+        "subject": "lower-sound",
+        "reportDateTimeRaw": "2026-09-23T10:49:21.311Z",
+        "serialRaw": "1",
+        "infoTypeRaw": "発表"
+      },
+      "transition": "activated",
+      "channel": "sound",
+      "payload": {
+        "domain": "weather",
+        "level": "info",
+        "title": "E21背景",
+        "body": "E21背景"
+      },
+      "createdAt": 1790160561311,
+      "expiresAt": 1790160621311,
+      "nextAttemptAt": 1790160561311,
+      "attempts": 0,
+      "configRevision": "e21-v1",
+      "disposition": "pending"
+    },
+    {
+      "id": "retry-sound",
+      "unit": "U-W",
+      "subject": "retry-sound",
+      "operation": "normal",
+      "source": {
+        "inputId": "retry-sound",
+        "origin": "replay",
+        "operation": "normal",
+        "family": "VPWS50",
+        "subject": "retry-sound",
+        "reportDateTimeRaw": "2026-09-23T10:49:21.311Z",
+        "serialRaw": "1",
+        "infoTypeRaw": "発表"
+      },
+      "transition": "activated",
+      "channel": "sound",
+      "payload": {
+        "domain": "weather",
+        "level": "info",
+        "title": "E21背景",
+        "body": "E21背景"
+      },
+      "createdAt": 1790160561311,
+      "expiresAt": 1790160621311,
+      "nextAttemptAt": 1790160562311,
+      "attempts": 1,
+      "configRevision": "e21-v1",
+      "disposition": "pending"
+    }
+  ],
+  "lowerCloseUnobservedAtA": true,
+  "lowerAttemptIdsAtA": [
+    "U-W:lower-sound:1"
+  ],
+  "results": [
+    {
+      "attempt": {
+        "attemptId": "U-W:lower-sound:1",
+        "intentId": "lower-sound",
+        "unit": "U-W",
+        "subject": "lower-sound",
+        "operation": "normal",
+        "channel": "sound",
+        "priorityGroup": "other",
+        "payload": {
+          "domain": "weather",
+          "level": "info",
+          "title": "E21背景",
+          "body": "E21背景"
+        },
+        "soundAsset": "reconstruction/assets/sounds/weather-info.wav",
+        "selectedAtMonotonicMs": 2791.725646,
+        "timeoutAtMonotonicMs": 12791.725645999999,
+        "expiresAt": 1790160621311
+      },
+      "result": {
+        "attemptId": "U-W:lower-sound:1",
+        "intentId": "lower-sound",
+        "channel": "sound",
+        "completedAt": {
+          "wallTimeMs": 1790160562371,
+          "monotonicMs": 2851.417877
+        },
+        "kind": "aborted",
+        "reason": "higherPriority",
+        "stopped": true
+      }
+    },
+    {
+      "attempt": {
+        "attemptId": "U-E:U-E:normal:20990101000001:1:sound:1",
+        "intentId": "U-E:normal:20990101000001:1:sound",
+        "unit": "U-E",
+        "subject": "normal/VXSE45/20990101000001",
+        "operation": "normal",
+        "channel": "sound",
+        "priorityGroup": "normalEew",
+        "payload": {
+          "domain": "earthquake-eew",
+          "level": "warning",
+          "title": "緊急地震速報（予報）",
+          "body": "豊後水道 / M5.8 / 最大予測震度5弱"
+        },
+        "soundAsset": "reconstruction/assets/sounds/earthquake-eew-warning.wav",
+        "selectedAtMonotonicMs": 2851.417877,
+        "timeoutAtMonotonicMs": 12851.417877,
+        "expiresAt": 1790160577321
+      },
+      "result": {
+        "attemptId": "U-E:U-E:normal:20990101000001:1:sound:1",
+        "intentId": "U-E:normal:20990101000001:1:sound",
+        "channel": "sound",
+        "completedAt": {
+          "wallTimeMs": 1790160563316,
+          "monotonicMs": 3796.167732
+        },
+        "kind": "delivered"
+      }
+    },
+    {
+      "attempt": {
+        "attemptId": "U-E:U-E:normal:20990101000002:2:sound:1",
+        "intentId": "U-E:normal:20990101000002:2:sound",
+        "unit": "U-E",
+        "subject": "normal/VXSE45/20990101000002",
+        "operation": "normal",
+        "channel": "sound",
+        "priorityGroup": "normalEew",
+        "payload": {
+          "domain": "earthquake-eew",
+          "level": "warning",
+          "title": "緊急地震速報（予報）",
+          "body": "豊後水道 / M5.8 / 最大予測震度5弱"
+        },
+        "soundAsset": "reconstruction/assets/sounds/earthquake-eew-warning.wav",
+        "selectedAtMonotonicMs": 3796.167732,
+        "timeoutAtMonotonicMs": 13796.167732,
+        "expiresAt": 1790160577359
+      },
+      "result": {
+        "attemptId": "U-E:U-E:normal:20990101000002:2:sound:1",
+        "intentId": "U-E:normal:20990101000002:2:sound",
+        "channel": "sound",
+        "completedAt": {
+          "wallTimeMs": 1790160564309,
+          "monotonicMs": 4788.786283
+        },
+        "kind": "delivered"
+      }
+    }
+  ],
+  "firstCalls": [
+    {
+      "intentId": "U-E:normal:20990101000001:1:sound",
+      "channel": "sound",
+      "generatedAt": 2801.364689,
+      "spawnedAt": 2857.700653,
+      "durationMs": 56.335963999999876,
+      "predecessorAttemptId": null,
+      "predecessorSpawnedAt": null,
+      "predecessorClosedAt": null,
+      "excludedPredecessorWaitMs": 0,
+      "adjustedDurationMs": 56.335963999999876,
+      "closeToSpawnMs": null,
+      "status": "pass"
+    },
+    {
+      "intentId": "U-E:normal:20990101000002:2:sound",
+      "channel": "sound",
+      "generatedAt": 2838.726622,
+      "spawnedAt": 3801.936046,
+      "durationMs": 963.2094239999997,
+      "predecessorAttemptId": "U-E:U-E:normal:20990101000001:1:sound:1",
+      "predecessorSpawnedAt": 2857.700653,
+      "predecessorClosedAt": 3796.102917,
+      "excludedPredecessorWaitMs": 938.4022640000003,
+      "adjustedDurationMs": 24.807159999999385,
+      "closeToSpawnMs": 5.833128999999644,
+      "status": "pass"
+    }
+  ],
+  "stopConfirmations": [
+    {
+      "attemptId": "U-W:lower-sound:1",
+      "result": {
+        "attemptId": "U-W:lower-sound:1",
+        "intentId": "lower-sound",
+        "channel": "sound",
+        "completedAt": {
+          "wallTimeMs": 1790160562371,
+          "monotonicMs": 2851.417877
+        },
+        "kind": "aborted",
+        "reason": "higherPriority",
+        "stopped": true
+      },
+      "requestedAt": 2834.172341,
+      "closedAt": 2851.399007,
+      "durationMs": 17.226666000000023
+    }
+  ],
+  "status": "pass",
+  "reason": null,
+  "desktopTtlCheck": {
+    "evidenceKind": "pure A1 deadline input; not real elapsed time",
+    "expiryClock": {
+      "wallTimeMs": 1790160741311,
+      "monotonicMs": 181790.8203125
+    },
+    "originalIntents": [
+      {
+        "id": "U-E:normal:20990101000001:1:desktop",
+        "expiresAt": 1790160577321,
+        "attempts": 0
+      },
+      {
+        "id": "U-E:normal:20990101000002:2:desktop",
+        "expiresAt": 1790160577359,
+        "attempts": 0
+      },
+      {
+        "id": "lower-desktop",
+        "expiresAt": 1790160741311,
+        "attempts": 0
+      },
+      {
+        "id": "retry-desktop",
+        "expiresAt": 1790160741311,
+        "attempts": 1
+      }
+    ],
+    "pendingAfter": 0,
+    "deadlineKeysAfter": 0,
+    "attemptsAtExpiry": 0,
+    "status": "pass"
+  }
+}

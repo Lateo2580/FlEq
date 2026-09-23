@@ -1,0 +1,103 @@
+{
+  "evidenceKind": "offline R32 reassessment of integrator Mac observations; not a fresh backend run",
+  "source": "c2-macos-r31-observed.detail.json",
+  "sourceSha256": "bac0c9ab8d0af268ea892b0b5c4d97310cc9711cc07d20119f1231f23971b9e8",
+  "firstCalls": [
+    {
+      "intentId": "U-E:normal:20990101000001:1:desktop",
+      "channel": "desktop",
+      "generatedAt": 2514.564375,
+      "spawnedAt": 2547.953083,
+      "durationMs": 33.38870799999995,
+      "predecessorAttemptId": null,
+      "predecessorSpawnedAt": null,
+      "predecessorClosedAt": null,
+      "excludedPredecessorWaitMs": 0,
+      "adjustedDurationMs": 33.38870799999995,
+      "closeToSpawnMs": null,
+      "status": "pass"
+    },
+    {
+      "intentId": "U-E:normal:20990101000002:2:desktop",
+      "channel": "desktop",
+      "generatedAt": 2528.53,
+      "spawnedAt": 2624.129208,
+      "durationMs": 95.59920799999963,
+      "predecessorAttemptId": "U-E:U-E:normal:20990101000001:1:desktop:1",
+      "predecessorSpawnedAt": 2547.953083,
+      "predecessorClosedAt": 2623.51975,
+      "excludedPredecessorWaitMs": 75.56666700000005,
+      "adjustedDurationMs": 20.032540999999583,
+      "closeToSpawnMs": 0.6094579999999041,
+      "status": "pass"
+    },
+    {
+      "intentId": "U-E:normal:20990101000001:1:sound",
+      "channel": "sound",
+      "generatedAt": 2514.564375,
+      "spawnedAt": 2548.752917,
+      "durationMs": 34.18854199999987,
+      "predecessorAttemptId": null,
+      "predecessorSpawnedAt": null,
+      "predecessorClosedAt": null,
+      "excludedPredecessorWaitMs": 0,
+      "adjustedDurationMs": 34.18854199999987,
+      "closeToSpawnMs": null,
+      "status": "pass"
+    },
+    {
+      "intentId": "U-E:normal:20990101000002:2:sound",
+      "channel": "sound",
+      "generatedAt": 2528.53,
+      "spawnedAt": 4159.210917,
+      "durationMs": 1630.6809170000001,
+      "predecessorAttemptId": "U-E:U-E:normal:20990101000001:1:sound:1",
+      "predecessorSpawnedAt": 2548.752917,
+      "predecessorClosedAt": 4157.286042,
+      "excludedPredecessorWaitMs": 1608.533125,
+      "adjustedDurationMs": 22.14779200000021,
+      "closeToSpawnMs": 1.9248750000006112,
+      "status": "pass"
+    }
+  ],
+  "stopConfirmations": [
+    {
+      "attemptId": "U-W:lower-sound:1",
+      "result": {
+        "attemptId": "U-W:lower-sound:1",
+        "intentId": "lower-sound",
+        "channel": "sound",
+        "completedAt": {
+          "wallTimeMs": 1790159488350,
+          "monotonicMs": 2533.716292
+        },
+        "kind": "aborted",
+        "reason": "higherPriority",
+        "stopped": true
+      },
+      "requestedAt": 2528.140375,
+      "closedAt": 2533.703958,
+      "durationMs": 5.563583000000108
+    },
+    {
+      "attemptId": "U-W:lower-desktop:1",
+      "result": {
+        "attemptId": "U-W:lower-desktop:1",
+        "intentId": "lower-desktop",
+        "channel": "desktop",
+        "completedAt": {
+          "wallTimeMs": 1790159488351,
+          "monotonicMs": 2534.567792
+        },
+        "kind": "aborted",
+        "reason": "higherPriority",
+        "stopped": true
+      },
+      "requestedAt": 2527.889792,
+      "closedAt": 2534.564,
+      "durationMs": 6.674207999999908
+    }
+  ],
+  "status": "pass",
+  "reason": null
+}

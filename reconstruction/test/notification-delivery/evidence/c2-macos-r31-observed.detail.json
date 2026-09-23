@@ -1,0 +1,858 @@
+{
+  "evidenceKind": "C2 A7 standalone artificial A4/A1 competition (not R33 or A3-AC11)",
+  "os": "macos",
+  "platform": "darwin",
+  "arch": "arm64",
+  "node": "v26.8.1",
+  "backend": [
+    {
+      "path": "/usr/bin/osascript",
+      "present": true,
+      "sha256": "86cca63aee86081e26cd0c85a6b26f6c33ea1e17044cd3f9935f303f4845e765"
+    },
+    {
+      "path": "/usr/bin/afplay",
+      "present": true,
+      "sha256": "de5d9a2c4e2ca58cd140f3773041155586c708bf6c615b59eb8582f971b614b1"
+    }
+  ],
+  "session": {
+    "dbus": false,
+    "macNotificationPermission": "integrator visually confirmed R31; display not observable by this test"
+  },
+  "markers": [
+    {
+      "kind": "reservation",
+      "capture": {
+        "attemptId": "a7:U-W:2:1",
+        "unit": "U-W",
+        "generation": 2,
+        "capturedAt": 1790159488327
+      },
+      "clock": {
+        "wallTimeMs": 1790159488328,
+        "monotonicMs": 2511.280292
+      }
+    },
+    {
+      "kind": "spawn",
+      "attemptId": "U-W:lower-sound:1",
+      "intentId": "lower-sound",
+      "executable": "/usr/bin/afplay",
+      "clock": {
+        "wallTimeMs": 1790159488329,
+        "monotonicMs": 2512.766792
+      }
+    },
+    {
+      "kind": "spawn",
+      "attemptId": "U-W:lower-desktop:1",
+      "intentId": "lower-desktop",
+      "executable": "/usr/bin/osascript",
+      "clock": {
+        "wallTimeMs": 1790159488330,
+        "monotonicMs": 2513.772708
+      }
+    },
+    {
+      "kind": "generation",
+      "event": "A",
+      "scheduledOffsetMs": 0,
+      "clock": {
+        "wallTimeMs": 1790159488331,
+        "monotonicMs": 2514.564375
+      },
+      "createdAtMonotonicMs": 2514.564375,
+      "intentIds": [
+        "U-E:normal:20990101000001:1:desktop",
+        "U-E:normal:20990101000001:1:sound"
+      ]
+    },
+    {
+      "kind": "abort",
+      "request": {
+        "attemptId": "U-W:lower-desktop:1",
+        "cause": "higherPriority"
+      },
+      "clock": {
+        "wallTimeMs": 1790159488344,
+        "monotonicMs": 2527.889792
+      }
+    },
+    {
+      "kind": "abort",
+      "request": {
+        "attemptId": "U-W:lower-sound:1",
+        "cause": "higherPriority"
+      },
+      "clock": {
+        "wallTimeMs": 1790159488345,
+        "monotonicMs": 2528.140375
+      }
+    },
+    {
+      "kind": "generation",
+      "event": "B",
+      "scheduledOffsetMs": 10,
+      "clock": {
+        "wallTimeMs": 1790159488345,
+        "monotonicMs": 2528.53
+      },
+      "createdAtMonotonicMs": 2528.53,
+      "intentIds": [
+        "U-E:normal:20990101000002:2:desktop",
+        "U-E:normal:20990101000002:2:sound"
+      ]
+    },
+    {
+      "kind": "close",
+      "attemptId": "U-W:lower-sound:1",
+      "code": null,
+      "signal": "SIGTERM",
+      "clock": {
+        "wallTimeMs": 1790159488350,
+        "monotonicMs": 2533.703958
+      }
+    },
+    {
+      "kind": "close",
+      "attemptId": "U-W:lower-desktop:1",
+      "code": null,
+      "signal": "SIGTERM",
+      "clock": {
+        "wallTimeMs": 1790159488351,
+        "monotonicMs": 2534.564
+      }
+    },
+    {
+      "kind": "reservation",
+      "capture": {
+        "attemptId": "a7:U-E:4:2",
+        "unit": "U-E",
+        "generation": 4,
+        "capturedAt": 1790159488364
+      },
+      "clock": {
+        "wallTimeMs": 1790159488364,
+        "monotonicMs": 2547.751417
+      }
+    },
+    {
+      "kind": "spawn",
+      "attemptId": "U-E:U-E:normal:20990101000001:1:desktop:1",
+      "intentId": "U-E:normal:20990101000001:1:desktop",
+      "executable": "/usr/bin/osascript",
+      "clock": {
+        "wallTimeMs": 1790159488364,
+        "monotonicMs": 2547.953083
+      }
+    },
+    {
+      "kind": "spawn",
+      "attemptId": "U-E:U-E:normal:20990101000001:1:sound:1",
+      "intentId": "U-E:normal:20990101000001:1:sound",
+      "executable": "/usr/bin/afplay",
+      "clock": {
+        "wallTimeMs": 1790159488365,
+        "monotonicMs": 2548.752917
+      }
+    },
+    {
+      "kind": "reservation",
+      "capture": {
+        "attemptId": "a7:U-W:4:3",
+        "unit": "U-W",
+        "generation": 4,
+        "capturedAt": 1790159488375
+      },
+      "clock": {
+        "wallTimeMs": 1790159488376,
+        "monotonicMs": 2559.142667
+      }
+    },
+    {
+      "kind": "close",
+      "attemptId": "U-E:U-E:normal:20990101000001:1:desktop:1",
+      "code": 0,
+      "signal": null,
+      "clock": {
+        "wallTimeMs": 1790159488440,
+        "monotonicMs": 2623.51975
+      }
+    },
+    {
+      "kind": "reservation",
+      "capture": {
+        "attemptId": "a7:U-E:6:4",
+        "unit": "U-E",
+        "generation": 6,
+        "capturedAt": 1790159488440
+      },
+      "clock": {
+        "wallTimeMs": 1790159488440,
+        "monotonicMs": 2623.86075
+      }
+    },
+    {
+      "kind": "spawn",
+      "attemptId": "U-E:U-E:normal:20990101000002:2:desktop:1",
+      "intentId": "U-E:normal:20990101000002:2:desktop",
+      "executable": "/usr/bin/osascript",
+      "clock": {
+        "wallTimeMs": 1790159488441,
+        "monotonicMs": 2624.129208
+      }
+    },
+    {
+      "kind": "close",
+      "attemptId": "U-E:U-E:normal:20990101000002:2:desktop:1",
+      "code": 0,
+      "signal": null,
+      "clock": {
+        "wallTimeMs": 1790159488513,
+        "monotonicMs": 2697.021
+      }
+    },
+    {
+      "kind": "reservation",
+      "capture": {
+        "attemptId": "a7:U-E:7:5",
+        "unit": "U-E",
+        "generation": 7,
+        "capturedAt": 1790159488517
+      },
+      "clock": {
+        "wallTimeMs": 1790159488518,
+        "monotonicMs": 2701.049417
+      }
+    },
+    {
+      "kind": "reservation",
+      "capture": {
+        "attemptId": "a7:U-W:5:6",
+        "unit": "U-W",
+        "generation": 5,
+        "capturedAt": 1790159488526
+      },
+      "clock": {
+        "wallTimeMs": 1790159488526,
+        "monotonicMs": 2709.924958
+      }
+    },
+    {
+      "kind": "spawn",
+      "attemptId": "U-W:retry-desktop:2",
+      "intentId": "retry-desktop",
+      "executable": "/usr/bin/osascript",
+      "clock": {
+        "wallTimeMs": 1790159488527,
+        "monotonicMs": 2710.192042
+      }
+    },
+    {
+      "kind": "close",
+      "attemptId": "U-W:retry-desktop:2",
+      "code": 0,
+      "signal": null,
+      "clock": {
+        "wallTimeMs": 1790159488598,
+        "monotonicMs": 2781.294542
+      }
+    },
+    {
+      "kind": "reservation",
+      "capture": {
+        "attemptId": "a7:U-W:6:7",
+        "unit": "U-W",
+        "generation": 6,
+        "capturedAt": 1790159488598
+      },
+      "clock": {
+        "wallTimeMs": 1790159488598,
+        "monotonicMs": 2781.486208
+      }
+    },
+    {
+      "kind": "reservation",
+      "capture": {
+        "attemptId": "a7:U-W:7:8",
+        "unit": "U-W",
+        "generation": 7,
+        "capturedAt": 1790159489354
+      },
+      "clock": {
+        "wallTimeMs": 1790159489355,
+        "monotonicMs": 3538.370375
+      }
+    },
+    {
+      "kind": "spawn",
+      "attemptId": "U-W:lower-desktop:2",
+      "intentId": "lower-desktop",
+      "executable": "/usr/bin/osascript",
+      "clock": {
+        "wallTimeMs": 1790159489356,
+        "monotonicMs": 3540.021583
+      }
+    },
+    {
+      "kind": "close",
+      "attemptId": "U-W:lower-desktop:2",
+      "code": 0,
+      "signal": null,
+      "clock": {
+        "wallTimeMs": 1790159489448,
+        "monotonicMs": 3631.102625
+      }
+    },
+    {
+      "kind": "reservation",
+      "capture": {
+        "attemptId": "a7:U-W:8:9",
+        "unit": "U-W",
+        "generation": 8,
+        "capturedAt": 1790159489448
+      },
+      "clock": {
+        "wallTimeMs": 1790159489448,
+        "monotonicMs": 3631.279958
+      }
+    },
+    {
+      "kind": "close",
+      "attemptId": "U-E:U-E:normal:20990101000001:1:sound:1",
+      "code": 0,
+      "signal": null,
+      "clock": {
+        "wallTimeMs": 1790159489974,
+        "monotonicMs": 4157.286042
+      }
+    },
+    {
+      "kind": "reservation",
+      "capture": {
+        "attemptId": "a7:U-E:9:10",
+        "unit": "U-E",
+        "generation": 9,
+        "capturedAt": 1790159489975
+      },
+      "clock": {
+        "wallTimeMs": 1790159489975,
+        "monotonicMs": 4158.209667
+      }
+    },
+    {
+      "kind": "spawn",
+      "attemptId": "U-E:U-E:normal:20990101000002:2:sound:1",
+      "intentId": "U-E:normal:20990101000002:2:sound",
+      "executable": "/usr/bin/afplay",
+      "clock": {
+        "wallTimeMs": 1790159489976,
+        "monotonicMs": 4159.210917
+      }
+    },
+    {
+      "kind": "close",
+      "attemptId": "U-E:U-E:normal:20990101000002:2:sound:1",
+      "code": 0,
+      "signal": null,
+      "clock": {
+        "wallTimeMs": 1790159491575,
+        "monotonicMs": 5758.299583
+      }
+    },
+    {
+      "kind": "reservation",
+      "capture": {
+        "attemptId": "a7:U-E:10:11",
+        "unit": "U-E",
+        "generation": 10,
+        "capturedAt": 1790159491575
+      },
+      "clock": {
+        "wallTimeMs": 1790159491575,
+        "monotonicMs": 5758.989708
+      }
+    }
+  ],
+  "soundProbe": {
+    "attemptId": "sound-probe",
+    "intentId": "sound-probe",
+    "channel": "sound",
+    "completedAt": {
+      "wallTimeMs": 1790159487322,
+      "monotonicMs": 1505.392833
+    },
+    "kind": "delivered"
+  },
+  "start": {
+    "wallTimeMs": 1790159487322,
+    "monotonicMs": 1505.623458
+  },
+  "foreground": {
+    "wallTimeMs": 1790159488322,
+    "monotonicMs": 2505.623458
+  },
+  "background": [
+    {
+      "id": "lower-desktop",
+      "unit": "U-W",
+      "subject": "lower-desktop",
+      "operation": "normal",
+      "source": {
+        "inputId": "lower-desktop",
+        "origin": "replay",
+        "operation": "normal",
+        "family": "VPWS50",
+        "subject": "lower-desktop",
+        "reportDateTimeRaw": "2026-09-23T10:31:27.322Z",
+        "serialRaw": "1",
+        "infoTypeRaw": "発表"
+      },
+      "transition": "activated",
+      "channel": "desktop",
+      "payload": {
+        "domain": "weather",
+        "level": "info",
+        "title": "E21背景",
+        "body": "E21背景"
+      },
+      "createdAt": 1790159487322,
+      "expiresAt": 1790159667322,
+      "nextAttemptAt": 1790159487322,
+      "attempts": 0,
+      "configRevision": "e21-v1",
+      "disposition": "pending"
+    },
+    {
+      "id": "retry-desktop",
+      "unit": "U-W",
+      "subject": "retry-desktop",
+      "operation": "normal",
+      "source": {
+        "inputId": "retry-desktop",
+        "origin": "replay",
+        "operation": "normal",
+        "family": "VPWS50",
+        "subject": "retry-desktop",
+        "reportDateTimeRaw": "2026-09-23T10:31:27.322Z",
+        "serialRaw": "1",
+        "infoTypeRaw": "発表"
+      },
+      "transition": "activated",
+      "channel": "desktop",
+      "payload": {
+        "domain": "weather",
+        "level": "info",
+        "title": "E21背景",
+        "body": "E21背景"
+      },
+      "createdAt": 1790159487322,
+      "expiresAt": 1790159667322,
+      "nextAttemptAt": 1790159488322,
+      "attempts": 1,
+      "configRevision": "e21-v1",
+      "disposition": "pending"
+    },
+    {
+      "id": "lower-sound",
+      "unit": "U-W",
+      "subject": "lower-sound",
+      "operation": "normal",
+      "source": {
+        "inputId": "lower-sound",
+        "origin": "replay",
+        "operation": "normal",
+        "family": "VPWS50",
+        "subject": "lower-sound",
+        "reportDateTimeRaw": "2026-09-23T10:31:27.322Z",
+        "serialRaw": "1",
+        "infoTypeRaw": "発表"
+      },
+      "transition": "activated",
+      "channel": "sound",
+      "payload": {
+        "domain": "weather",
+        "level": "info",
+        "title": "E21背景",
+        "body": "E21背景"
+      },
+      "createdAt": 1790159487322,
+      "expiresAt": 1790159547322,
+      "nextAttemptAt": 1790159487322,
+      "attempts": 0,
+      "configRevision": "e21-v1",
+      "disposition": "pending"
+    },
+    {
+      "id": "retry-sound",
+      "unit": "U-W",
+      "subject": "retry-sound",
+      "operation": "normal",
+      "source": {
+        "inputId": "retry-sound",
+        "origin": "replay",
+        "operation": "normal",
+        "family": "VPWS50",
+        "subject": "retry-sound",
+        "reportDateTimeRaw": "2026-09-23T10:31:27.322Z",
+        "serialRaw": "1",
+        "infoTypeRaw": "発表"
+      },
+      "transition": "activated",
+      "channel": "sound",
+      "payload": {
+        "domain": "weather",
+        "level": "info",
+        "title": "E21背景",
+        "body": "E21背景"
+      },
+      "createdAt": 1790159487322,
+      "expiresAt": 1790159547322,
+      "nextAttemptAt": 1790159488322,
+      "attempts": 1,
+      "configRevision": "e21-v1",
+      "disposition": "pending"
+    }
+  ],
+  "lowerCloseUnobservedAtA": true,
+  "results": [
+    {
+      "attempt": {
+        "attemptId": "U-W:lower-sound:1",
+        "intentId": "lower-sound",
+        "unit": "U-W",
+        "subject": "lower-sound",
+        "operation": "normal",
+        "channel": "sound",
+        "priorityGroup": "other",
+        "payload": {
+          "domain": "weather",
+          "level": "info",
+          "title": "E21背景",
+          "body": "E21背景"
+        },
+        "soundAsset": "reconstruction/assets/sounds/weather-info.wav",
+        "selectedAtMonotonicMs": 2505.976208,
+        "timeoutAtMonotonicMs": 12505.976208,
+        "expiresAt": 1790159547322
+      },
+      "result": {
+        "attemptId": "U-W:lower-sound:1",
+        "intentId": "lower-sound",
+        "channel": "sound",
+        "completedAt": {
+          "wallTimeMs": 1790159488350,
+          "monotonicMs": 2533.716292
+        },
+        "kind": "aborted",
+        "reason": "higherPriority",
+        "stopped": true
+      }
+    },
+    {
+      "attempt": {
+        "attemptId": "U-W:lower-desktop:1",
+        "intentId": "lower-desktop",
+        "unit": "U-W",
+        "subject": "lower-desktop",
+        "operation": "normal",
+        "channel": "desktop",
+        "priorityGroup": "other",
+        "payload": {
+          "domain": "weather",
+          "level": "info",
+          "title": "E21背景",
+          "body": "E21背景"
+        },
+        "soundAsset": null,
+        "selectedAtMonotonicMs": 2505.976208,
+        "timeoutAtMonotonicMs": 7505.976208,
+        "expiresAt": 1790159667322
+      },
+      "result": {
+        "attemptId": "U-W:lower-desktop:1",
+        "intentId": "lower-desktop",
+        "channel": "desktop",
+        "completedAt": {
+          "wallTimeMs": 1790159488351,
+          "monotonicMs": 2534.567792
+        },
+        "kind": "aborted",
+        "reason": "higherPriority",
+        "stopped": true
+      }
+    },
+    {
+      "attempt": {
+        "attemptId": "U-E:U-E:normal:20990101000001:1:desktop:1",
+        "intentId": "U-E:normal:20990101000001:1:desktop",
+        "unit": "U-E",
+        "subject": "normal/VXSE45/20990101000001",
+        "operation": "normal",
+        "channel": "desktop",
+        "priorityGroup": "normalEew",
+        "payload": {
+          "domain": "earthquake-eew",
+          "level": "warning",
+          "title": "緊急地震速報（予報）",
+          "body": "豊後水道 / M5.8 / 最大予測震度5弱"
+        },
+        "soundAsset": null,
+        "selectedAtMonotonicMs": 2534.567792,
+        "timeoutAtMonotonicMs": 7534.567792,
+        "expiresAt": 1790159503331
+      },
+      "result": {
+        "attemptId": "U-E:U-E:normal:20990101000001:1:desktop:1",
+        "intentId": "U-E:normal:20990101000001:1:desktop",
+        "channel": "desktop",
+        "completedAt": {
+          "wallTimeMs": 1790159488440,
+          "monotonicMs": 2623.526333
+        },
+        "kind": "delivered"
+      }
+    },
+    {
+      "attempt": {
+        "attemptId": "U-E:U-E:normal:20990101000002:2:desktop:1",
+        "intentId": "U-E:normal:20990101000002:2:desktop",
+        "unit": "U-E",
+        "subject": "normal/VXSE45/20990101000002",
+        "operation": "normal",
+        "channel": "desktop",
+        "priorityGroup": "normalEew",
+        "payload": {
+          "domain": "earthquake-eew",
+          "level": "warning",
+          "title": "緊急地震速報（予報）",
+          "body": "豊後水道 / M5.8 / 最大予測震度5弱"
+        },
+        "soundAsset": null,
+        "selectedAtMonotonicMs": 2623.526333,
+        "timeoutAtMonotonicMs": 7623.526333,
+        "expiresAt": 1790159503345
+      },
+      "result": {
+        "attemptId": "U-E:U-E:normal:20990101000002:2:desktop:1",
+        "intentId": "U-E:normal:20990101000002:2:desktop",
+        "channel": "desktop",
+        "completedAt": {
+          "wallTimeMs": 1790159488514,
+          "monotonicMs": 2697.030458
+        },
+        "kind": "delivered"
+      }
+    },
+    {
+      "attempt": {
+        "attemptId": "U-W:retry-desktop:2",
+        "intentId": "retry-desktop",
+        "unit": "U-W",
+        "subject": "retry-desktop",
+        "operation": "normal",
+        "channel": "desktop",
+        "priorityGroup": "other",
+        "payload": {
+          "domain": "weather",
+          "level": "info",
+          "title": "E21背景",
+          "body": "E21背景"
+        },
+        "soundAsset": null,
+        "selectedAtMonotonicMs": 2697.030458,
+        "timeoutAtMonotonicMs": 7697.030458,
+        "expiresAt": 1790159667322
+      },
+      "result": {
+        "attemptId": "U-W:retry-desktop:2",
+        "intentId": "retry-desktop",
+        "channel": "desktop",
+        "completedAt": {
+          "wallTimeMs": 1790159488598,
+          "monotonicMs": 2781.299875
+        },
+        "kind": "delivered"
+      }
+    },
+    {
+      "attempt": {
+        "attemptId": "U-W:lower-desktop:2",
+        "intentId": "lower-desktop",
+        "unit": "U-W",
+        "subject": "lower-desktop",
+        "operation": "normal",
+        "channel": "desktop",
+        "priorityGroup": "other",
+        "payload": {
+          "domain": "weather",
+          "level": "info",
+          "title": "E21背景",
+          "body": "E21背景"
+        },
+        "soundAsset": null,
+        "selectedAtMonotonicMs": 3537.646667,
+        "timeoutAtMonotonicMs": 8537.646667,
+        "expiresAt": 1790159667322
+      },
+      "result": {
+        "attemptId": "U-W:lower-desktop:2",
+        "intentId": "lower-desktop",
+        "channel": "desktop",
+        "completedAt": {
+          "wallTimeMs": 1790159489448,
+          "monotonicMs": 3631.108167
+        },
+        "kind": "delivered"
+      }
+    },
+    {
+      "attempt": {
+        "attemptId": "U-E:U-E:normal:20990101000001:1:sound:1",
+        "intentId": "U-E:normal:20990101000001:1:sound",
+        "unit": "U-E",
+        "subject": "normal/VXSE45/20990101000001",
+        "operation": "normal",
+        "channel": "sound",
+        "priorityGroup": "normalEew",
+        "payload": {
+          "domain": "earthquake-eew",
+          "level": "warning",
+          "title": "緊急地震速報（予報）",
+          "body": "豊後水道 / M5.8 / 最大予測震度5弱"
+        },
+        "soundAsset": "reconstruction/assets/sounds/earthquake-eew-warning.wav",
+        "selectedAtMonotonicMs": 2533.716292,
+        "timeoutAtMonotonicMs": 12533.716292000001,
+        "expiresAt": 1790159503331
+      },
+      "result": {
+        "attemptId": "U-E:U-E:normal:20990101000001:1:sound:1",
+        "intentId": "U-E:normal:20990101000001:1:sound",
+        "channel": "sound",
+        "completedAt": {
+          "wallTimeMs": 1790159489974,
+          "monotonicMs": 4157.314792
+        },
+        "kind": "delivered"
+      }
+    },
+    {
+      "attempt": {
+        "attemptId": "U-E:U-E:normal:20990101000002:2:sound:1",
+        "intentId": "U-E:normal:20990101000002:2:sound",
+        "unit": "U-E",
+        "subject": "normal/VXSE45/20990101000002",
+        "operation": "normal",
+        "channel": "sound",
+        "priorityGroup": "normalEew",
+        "payload": {
+          "domain": "earthquake-eew",
+          "level": "warning",
+          "title": "緊急地震速報（予報）",
+          "body": "豊後水道 / M5.8 / 最大予測震度5弱"
+        },
+        "soundAsset": "reconstruction/assets/sounds/earthquake-eew-warning.wav",
+        "selectedAtMonotonicMs": 4157.314792,
+        "timeoutAtMonotonicMs": 14157.314792000001,
+        "expiresAt": 1790159503345
+      },
+      "result": {
+        "attemptId": "U-E:U-E:normal:20990101000002:2:sound:1",
+        "intentId": "U-E:normal:20990101000002:2:sound",
+        "channel": "sound",
+        "completedAt": {
+          "wallTimeMs": 1790159491575,
+          "monotonicMs": 5758.322708
+        },
+        "kind": "delivered"
+      }
+    }
+  ],
+  "firstCalls": [
+    {
+      "intentId": "U-E:normal:20990101000001:1:desktop",
+      "channel": "desktop",
+      "generatedAt": 2514.564375,
+      "spawnedAt": 2547.953083,
+      "durationMs": 33.38870799999995
+    },
+    {
+      "intentId": "U-E:normal:20990101000002:2:desktop",
+      "channel": "desktop",
+      "generatedAt": 2528.53,
+      "spawnedAt": 2624.129208,
+      "durationMs": 95.59920799999963
+    },
+    {
+      "intentId": "U-E:normal:20990101000001:1:sound",
+      "channel": "sound",
+      "generatedAt": 2514.564375,
+      "spawnedAt": 2548.752917,
+      "durationMs": 34.18854199999987
+    },
+    {
+      "intentId": "U-E:normal:20990101000002:2:sound",
+      "channel": "sound",
+      "generatedAt": 2528.53,
+      "spawnedAt": 4159.210917,
+      "durationMs": 1630.6809170000001
+    }
+  ],
+  "stopConfirmations": [
+    {
+      "attemptId": "U-W:lower-sound:1",
+      "result": {
+        "attemptId": "U-W:lower-sound:1",
+        "intentId": "lower-sound",
+        "channel": "sound",
+        "completedAt": {
+          "wallTimeMs": 1790159488350,
+          "monotonicMs": 2533.716292
+        },
+        "kind": "aborted",
+        "reason": "higherPriority",
+        "stopped": true
+      },
+      "requestedAt": 2528.140375,
+      "closedAt": 2533.703958,
+      "durationMs": 5.563583000000108
+    },
+    {
+      "attemptId": "U-W:lower-desktop:1",
+      "result": {
+        "attemptId": "U-W:lower-desktop:1",
+        "intentId": "lower-desktop",
+        "channel": "desktop",
+        "completedAt": {
+          "wallTimeMs": 1790159488351,
+          "monotonicMs": 2534.567792
+        },
+        "kind": "aborted",
+        "reason": "higherPriority",
+        "stopped": true
+      },
+      "requestedAt": 2527.889792,
+      "closedAt": 2534.564,
+      "durationMs": 6.674207999999908
+    },
+    {
+      "attemptId": "U-W:lower-desktop:2",
+      "result": {
+        "attemptId": "U-W:lower-desktop:2",
+        "intentId": "lower-desktop",
+        "channel": "desktop",
+        "completedAt": {
+          "wallTimeMs": 1790159489448,
+          "monotonicMs": 3631.108167
+        },
+        "kind": "delivered"
+      },
+      "closedAt": 3631.102625,
+      "durationMs": null
+    }
+  ],
+  "status": "blocked",
+  "reason": "lower real close not confirmed"
+}
