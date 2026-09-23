@@ -1,10 +1,10 @@
 {
   "meta": {
     "draftedFromOid": "fc7006e2380edf9a97b601d124341ba4bd7f7f42",
-    "sha256": "6b9a0a0b2a8684331d0087e5b77f6728a7b45b4b1a3e295966e41bb8d0b10c75",
+    "sha256": "aeda1237f762e7c7ef34142be43d0464d2bf436f7e5887484b359d7589abb36c",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "76c82b87d7783a4eae14af690cb34e7d6ec46f73617dc75b7f7401951619f080",
-    "sequencesSha256": "67f45e158874c2e01c2f0cbf1a4cd4b667d81c3fd77a9c0bd973568fb5d63101",
+    "sequencesSha256": "6045053b7bd7b06707d528d616b68c1ebeab44c4195c8ff405e7bdb19aeef500",
     "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
     "decisionBranches": [
       {
@@ -442,7 +442,7 @@
         "evidenceRefs": [
           "reconstruction/contracts/p2-weather-current-unit.json",
           "docs/specs/reconstruction-p0-contracts.md:572 «9a4b44d95aa2d482»",
-          "docs/specs/reconstruction-p0-contracts.md:565 «eb0ffc39ac5364e5»"
+          "docs/specs/reconstruction-p0-contracts.md:565 «639ef64454c2da04»"
         ]
       },
       {

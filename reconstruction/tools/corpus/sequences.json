@@ -1,7 +1,7 @@
 {
   "meta": {
     "baseOid": "3669dfd6a98e6c116c86f7db1cd27aa63002a90d",
-    "sha256": "67f45e158874c2e01c2f0cbf1a4cd4b667d81c3fd77a9c0bd973568fb5d63101",
+    "sha256": "6045053b7bd7b06707d528d616b68c1ebeab44c4195c8ff405e7bdb19aeef500",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "76c82b87d7783a4eae14af690cb34e7d6ec46f73617dc75b7f7401951619f080",
     "clock": "synthetic epoch milliseconds; receivedAt/evaluatedAt は合成固定時計。原XML日時は不変。系列内ケース間のrestartで時計と空stateを再設定。受信時刻の実測ではない。",
@@ -1311,7 +1311,9 @@
           "expectedRef": "unmet:O02:15",
           "expectationBasis": [
             "L1: docs/specs/reconstruction-p0-contracts.md:732 «f96fd8a8dd40563c»",
-            "L1: docs/specs/reconstruction-p0-contracts.md:574 «3382e3e956fbbc9b»"
+            "L1: docs/specs/reconstruction-p0-contracts.md:574 «3382e3e956fbbc9b»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:480 «2d31b515a343d92d»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:565 «639ef64454c2da04»"
           ]
         },
         {
@@ -1326,7 +1328,9 @@
           "expectedRef": "unmet:O02:16",
           "expectationBasis": [
             "L1: docs/specs/reconstruction-p0-contracts.md:732 «f96fd8a8dd40563c»",
-            "L1: docs/specs/reconstruction-p0-contracts.md:574 «3382e3e956fbbc9b»"
+            "L1: docs/specs/reconstruction-p0-contracts.md:574 «3382e3e956fbbc9b»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:480 «2d31b515a343d92d»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:565 «639ef64454c2da04»"
           ]
         },
         {
@@ -1341,7 +1345,9 @@
           "expectedRef": "unmet:O02:17",
           "expectationBasis": [
             "L1: docs/specs/reconstruction-p0-contracts.md:732 «f96fd8a8dd40563c»",
-            "L1: docs/specs/reconstruction-p0-contracts.md:574 «3382e3e956fbbc9b»"
+            "L1: docs/specs/reconstruction-p0-contracts.md:574 «3382e3e956fbbc9b»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:480 «2d31b515a343d92d»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:565 «639ef64454c2da04»"
           ]
         },
         {
@@ -10910,11 +10916,11 @@
       },
       "subjects": [
         {
-          "subject": "normal/O02/input.requiredに記した対象（未充足）",
+          "subject": "normal/VPWP50/長野地方気象台",
           "revision": {
             "reportDateTimeRaw": "2026-06-06T06:01:00+09:00",
-            "serialRaw": null,
-            "infoTypeRaw": null
+            "serialRaw": "",
+            "infoTypeRaw": "発表"
           }
         }
       ],
@@ -10923,14 +10929,16 @@
       "basisLevel": 1,
       "basisRefs": [
         "L1: docs/specs/reconstruction-p0-contracts.md:732 «f96fd8a8dd40563c»",
-        "L1: docs/specs/reconstruction-p0-contracts.md:574 «3382e3e956fbbc9b»"
+        "L1: docs/specs/reconstruction-p0-contracts.md:574 «3382e3e956fbbc9b»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:480 «2d31b515a343d92d»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:565 «639ef64454c2da04»"
       ],
       "input": {
-        "required": "VPWP50 長野地方気象台、ReportDateTime=2026-06-06T06:01:00+09:00（発表・受信を06:01→06:02→06:03と進める）、Serial空。正常identity/構造で上限直前のsubject/period/byte境界。上限値は各契約で凍結し、三ケースを連続するnewer報として投入する。",
-        "acquisition": "synthetic"
+        "required": "実XML 81_09_01_260605_VPWP50.xmlをP1でdecodeした材料を基点とし、試験内でReportDateTime=2026-06-06T06:01:00+09:00、Serial空、InfoType=発表、期限は受信時計より後の合法なnewer材料にする。正常採用候補のQ-ENUM.capacityRule.byteAccountingによるBを33554431 byteへ合わせる（32MiB境界、envelope予約込み）。3ケースは独立した初期stateから実行し、受信・評価時計は当該step値を使う。期限切れ・退去可能training/testなし、subject数は512以下。正常な表参照・値を持つstateを試験内で膨らませ、参照される文字列のUTF-8長で残差を調整し、実checkpoint byte<=Bも測る。境界専用XML fixtureは作らない",
+        "acquisition": "synthetic state in test（既存実XMLをdecodeした材料と試験内のstate調整。新規fixtureの焼付け・実電文の容量境界という主張はしない）"
       },
       "checks": [
-        "直前/一致は正常保持。+1はchanged/unavailable、古いcurrentを新報扱いしない。Q-ENUM/Q-LIMIT。"
+        "正常採用候補Bが指定byteと一致すること。changed/semantic・activeとして全periodと値集合を保持し、gate/watermarkと保存世代を進める。件数によるperiod削減なし。未実装のためunmetのまま、P2-A6-T03で検収する"
       ]
     },
     {
@@ -10946,11 +10954,11 @@
       },
       "subjects": [
         {
-          "subject": "normal/O02/input.requiredに記した対象（未充足）",
+          "subject": "normal/VPWP50/長野地方気象台",
           "revision": {
             "reportDateTimeRaw": "2026-06-06T06:02:00+09:00",
-            "serialRaw": null,
-            "infoTypeRaw": null
+            "serialRaw": "",
+            "infoTypeRaw": "発表"
           }
         }
       ],
@@ -10959,14 +10967,16 @@
       "basisLevel": 1,
       "basisRefs": [
         "L1: docs/specs/reconstruction-p0-contracts.md:732 «f96fd8a8dd40563c»",
-        "L1: docs/specs/reconstruction-p0-contracts.md:574 «3382e3e956fbbc9b»"
+        "L1: docs/specs/reconstruction-p0-contracts.md:574 «3382e3e956fbbc9b»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:480 «2d31b515a343d92d»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:565 «639ef64454c2da04»"
       ],
       "input": {
-        "required": "VPWP50 長野地方気象台、ReportDateTime=2026-06-06T06:02:00+09:00（発表・受信を06:01→06:02→06:03と進める）、Serial空。正常identity/構造で上限一致のsubject/period/byte境界。上限値は各契約で凍結し、三ケースを連続するnewer報として投入する。",
-        "acquisition": "synthetic"
+        "required": "実XML 81_09_01_260605_VPWP50.xmlをP1でdecodeした材料を基点とし、試験内でReportDateTime=2026-06-06T06:02:00+09:00、Serial空、InfoType=発表、期限は受信時計より後の合法なnewer材料にする。正常採用候補のQ-ENUM.capacityRule.byteAccountingによるBを33554432 byteへ合わせる（32MiB境界、envelope予約込み）。3ケースは独立した初期stateから実行し、受信・評価時計は当該step値を使う。期限切れ・退去可能training/testなし、subject数は512以下。正常な表参照・値を持つstateを試験内で膨らませ、参照される文字列のUTF-8長で残差を調整し、実checkpoint byte<=Bも測る。境界専用XML fixtureは作らない",
+        "acquisition": "synthetic state in test（既存実XMLをdecodeした材料と試験内のstate調整。新規fixtureの焼付け・実電文の容量境界という主張はしない）"
       },
       "checks": [
-        "直前/一致は正常保持。+1はchanged/unavailable、古いcurrentを新報扱いしない。Q-ENUM/Q-LIMIT。"
+        "正常採用候補Bが指定byteと一致すること。changed/semantic・activeとして全periodと値集合を保持し、gate/watermarkと保存世代を進める。件数によるperiod削減なし。未実装のためunmetのまま、P2-A6-T03で検収する"
       ]
     },
     {
@@ -10979,15 +10989,15 @@
       },
       "effective": {
         "kind": "unavailable",
-        "reason": null
+        "reason": "capacityExceeded"
       },
       "subjects": [
         {
-          "subject": "normal/O02/input.requiredに記した対象（未充足）",
+          "subject": "normal/VPWP50/長野地方気象台",
           "revision": {
             "reportDateTimeRaw": "2026-06-06T06:03:00+09:00",
-            "serialRaw": null,
-            "infoTypeRaw": null
+            "serialRaw": "",
+            "infoTypeRaw": "発表"
           }
         }
       ],
@@ -10996,14 +11006,17 @@
       "basisLevel": 1,
       "basisRefs": [
         "L1: docs/specs/reconstruction-p0-contracts.md:732 «f96fd8a8dd40563c»",
-        "L1: docs/specs/reconstruction-p0-contracts.md:574 «3382e3e956fbbc9b»"
+        "L1: docs/specs/reconstruction-p0-contracts.md:574 «3382e3e956fbbc9b»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:480 «2d31b515a343d92d»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:565 «639ef64454c2da04»"
       ],
       "input": {
-        "required": "VPWP50 長野地方気象台、ReportDateTime=2026-06-06T06:03:00+09:00（発表・受信を06:01→06:02→06:03と進める）、Serial空。正常identity/構造で上限+1のsubject/period/byte境界。上限値は各契約で凍結し、三ケースを連続するnewer報として投入する。",
-        "acquisition": "synthetic"
+        "required": "実XML 81_09_01_260605_VPWP50.xmlをP1でdecodeした材料を基点とし、試験内でReportDateTime=2026-06-06T06:03:00+09:00、Serial空、InfoType=発表、期限は受信時計より後の合法なnewer材料にする。正常採用候補のQ-ENUM.capacityRule.byteAccountingによるBを33554433 byteへ合わせる（32MiB境界、envelope予約込み）。3ケースは独立した初期stateから実行し、受信・評価時計は当該step値を使う。期限切れ・退去可能training/testなし、subject数は512以下。正常な表参照・値を持つstateを試験内で膨らませ、参照される文字列のUTF-8長で残差を調整し、実checkpoint byte<=Bも測る。境界専用XML fixtureは作らない 本stepの主ケースは②のlastKnown付きunavailableならB<=上限に収まるstateにする。",
+        "acquisition": "synthetic state in test（既存実XMLをdecodeした材料と試験内のstate調整。新規fixtureの焼付け・実電文の容量境界という主張はしない）"
       },
       "checks": [
-        "直前/一致は正常保持。+1はchanged/unavailable、古いcurrentを新報扱いしない。Q-ENUM/Q-LIMIT。"
+        "正常採用は+1で入らず、②でchanged/semantic・unavailable(reason=capacityExceeded)、currentと専用表を除き、sourceは今回報・affectedScope=subject・lastKnownはQ-ENUM.capacityRuleの②で定める時点の自己完結snapshot。gate/watermarkと保存世代を進める",
+        "同じ入力仕様の派生境界をP2-A6-T06で検収する: ①退去で正常採用、③lastKnown全体nullでunavailable採用、④nullでも入らずdecision=capacityExceeded・state/watermark/保存世代不変。④を主ケースのchanged/unavailableと混同しない。normal保護と512件の置換/513件新規も確認。実装前なのでunmetを維持する"
       ]
     },
     {
@@ -19132,14 +19145,6 @@
         "Q7による通知機能の採否・training/test通知と訓練音。裁定依存の副作用oracleのみnullを維持"
       ],
       "resolveBy": "Q7裁定はP4着手前。裁定後、統合担当が採否依存の通知実装契約開始前に通知契約を固定"
-    },
-    {
-      "id": "Q-PERIOD",
-      "owner": "integrator",
-      "blocks": [
-        "この保存形式での全国見積もりとU-F上限の確定（16MiB超なら値を削らず上限を改訂）"
-      ],
-      "resolveBy": "A6（U-F）発注前"
     }
   ]
 }

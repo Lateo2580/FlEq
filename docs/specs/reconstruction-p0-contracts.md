@@ -477,7 +477,7 @@ byte 予算は**開始値**だ。P1〜P3 で最大正常入力・同時最大状
 | U-N `nankai` | 南海トラフ | 現況、現況更新の出典・取消記憶、intent | 説明だけの報の永続 current | 256 KiB |
 | U-W `weather-current` | VPWS50、VPWW55/57–61、VPNO50終了 | 全国 base、partial、現象所有情報、履歴、watermark、区域終了 tombstone、intent | 別 standby／promotion current | 16 MiB |
 | U-L `landslide` | VPWW56 | 官署×type の current・gate・取消・期限・intent | 全国一括の権威ある union | 2 MiB |
-| U-F `weather-timeseries` | VPWP50 | period、subject revision、正常 empty、unavailable根拠、取消、期限、intent | カード幅に合わせた切捨て state | 16 MiB |
+| U-F `weather-timeseries` | VPWP50 | period、subject revision、正常 empty、unavailable根拠、取消、期限、intent | カード幅に合わせた切捨て state | 32 MiB |
 | U-B `briefing` | VPBS50/VPOA50 | 復元が必要な速報 lifecycle、予測置換・取消・alias記憶、出典、intent | 相関待ち timer、raw原文、一般 holdback queue | 2 MiB |
 | U-M `local-and-bulletins` | 竜巻・熱中症・各種短命情報 | tornado/heat の意味状態・取消・期限、通知対象の intent | 早期天候・気候・解説・raw の永続 current | 4 MiB |
 | U-Y `typhoon` | 台風解析・確率 | 独立 slice、各 revision・期限・取消、連続ゼロ判定、intent | formatter 別の台風 cache | 8 MiB |
@@ -562,7 +562,7 @@ P3 の追加実装で新しい横断不変条件を発見した場合は、Q13 �
 
 ### 4.5 保持上限
 
-現行の開始基準として次を採る。active の有効期限と tombstone retention は別欄で扱う。U-W の 16 MiB 縮退では、拒否記録の unavailable 自体が収まらなければ lastKnown を落として保存し、なお収まらなければ state を変更せず decision=capacityExceeded で拒否する。
+現行の開始基準として次を採る。active の有効期限と tombstone retention は別欄で扱う。U-W の 16 MiB および U-F の 32 MiB 縮退では、拒否記録の unavailable 自体が収まらなければ lastKnown を落として保存し、なお収まらなければ state を変更せず decision=capacityExceeded で拒否する。
 
 | 対象 | 件数・保持基準 |
 |---|---|

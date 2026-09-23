@@ -1,10 +1,10 @@
 {
   "meta": {
     "draftedFromOid": "fc7006e2380edf9a97b601d124341ba4bd7f7f42",
-    "sha256": "9a5bd21821d87b6ad2f92d2f6211219a73c7f31227dfdba7dd8d7e069902e2c1",
+    "sha256": "a9f92a1ba0ed2123e35405b5a2c5c39a7481eaa9d9e4b1671f627ab22e44553c",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "76c82b87d7783a4eae14af690cb34e7d6ec46f73617dc75b7f7401951619f080",
-    "sequencesSha256": "67f45e158874c2e01c2f0cbf1a4cd4b667d81c3fd77a9c0bd973568fb5d63101",
+    "sequencesSha256": "6045053b7bd7b06707d528d616b68c1ebeab44c4195c8ff405e7bdb19aeef500",
     "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
     "decisionBranches": [
       {
@@ -18,11 +18,11 @@
       },
       {
         "id": "P2-A6-CAPACITY",
-        "A": "正当なnewer報の意味が容量を超えたらwatermarkを進めunavailableとし古いcurrentを保持しない",
+        "A": "Q-ENUM.capacityRuleの①は通常の正常採用としてchanged・gate/watermark更新、②③は保存可能なunavailableとしてchanged・gate/watermark更新とする。④はstate不変のdecision=capacityExceeded",
         "B": "入力をrejectedとして旧currentを表示し続ける",
         "recommended": "A",
         "provisional": "A",
-        "ruling": "spec§5.2によりA",
+        "ruling": "2026-09-23 ご主人裁定R20とspec§4.5によりA",
         "reason": "容量不足を無発令や古い正常値へ偽装しない"
       },
       {
@@ -77,11 +77,11 @@
         "reasonTable": [
           {
             "reason": "capacityExceeded",
-            "trigger": "正当なnewer報の同一subject seriesを512 subject/16MiB内へ保存できない",
+            "trigger": "正当なnewer報の同一subject seriesがRET-01/RES-01内に正常採用できず、Q-ENUM.capacityRuleの段階②または③が保存可能なとき",
             "scope": "operation/family=VPWP50/subjectのseries全体",
             "source": "容量超過を起こしたnewer ReportRef（null禁止）",
-            "lastKnown": "同じsubjectの直前辞書・時間表付きperiod snapshot。無ければnull。activeや通知根拠として再利用しない",
-            "affectedScope": "保持できないperiod識別子。series全体なら入力に含まれる全period識別子"
+            "lastKnown": "Q-ENUM.capacityRuleの②で固定した取得時点と規則に従う自己完結snapshot。段階③では全体をnullにする。activeや通知根拠として再利用しない",
+            "affectedScope": "文字列リテラル subject（当該recordのoperation/subject全体）。全period IDの列挙や空配列による全体表現は禁止"
           },
           {
             "reason": "historyUnavailable",
@@ -100,7 +100,7 @@
             "affectedScope": "未確認period識別子だけ"
           }
         ],
-        "transitionRule": "rejectedはsubjects/gates/intents/persistenceとwatermarkを不変にしdiagnosticだけを返す。報告入力によるunavailableは一世代のchangedとして同subjectのgate/watermarkを進め、effective=unavailable・periods=[]として古いperiodsを現行値にせずsource/lastKnown/affectedScopeをState/Persistedへ保存する。復元coverage評価は入力watermarkを捏造しない。同scopeの後続正常採用または包含coverage確認だけが解除し、別subject/operationでは解除しない",
+        "transitionRule": "rejectedはsubjects/gates/intents/persistenceとwatermarkを不変にしdiagnosticだけを返す。報告入力による保存可能なunavailableは一世代のchangedとして同subjectのgate/watermarkを進め、effective=unavailable・periods=[]として古いperiodsを現行値にせずsource/lastKnown/affectedScopeをState/Persistedへ保存する。復元coverage評価は入力watermarkを捏造しない。同scopeの後続正常採用または包含coverage確認だけが解除し、別subject/operationでは解除しない。容量の段階④はQ-ENUM.capacityRuleどおり、receive開始前のstateとwatermarkと保存世代をすべて不変にする。",
         "xmlBoundary": "DecodedMaterial.xmlのXmlElement.children/attributesで空のMeteorologicalInfosとnode欠落を区別する。P1は空要素・同名繰返し・属性timeId/refID・文書順を保持し、EventID/Serial欠落や空をraw空文字として返す。scalarはelement子を持たない直下text連結のtrim値。必須scalarの欠落・空はMissing、単一node重複・非scalar・不正値はInvalid。壊れた親nodeから子のMissingを捏造しない",
         "identityRule": "officeはControl/EditorialOfficeの非空scalar、familyはVPWP50、報単位subjectはoperation/family/officeで束縛し、一入力はこのsubject一つだけを更新する（Area・Property・periodはsubjectに含めない。period識別子の構成はQ-PERIOD）。subject文字列はoperation、VPWP50、officeを「/」で連結する（例 normal/VPWP50/稚内地方気象台）。EventID/Serialの欠落・空は合法でidentityに要求しない。存在するTimeSeriesInfo/ItemのArea/Codeは必須の数字文字列（先頭0保持）で、欠落・空はidentityMissing、非scalar/重複/非数字はidentityInvalid。空MeteorologicalInfosの対象は同officeの報単位であり、架空のArea/periodを作らない",
         "familyTable": [
@@ -154,7 +154,7 @@
           ],
           "references": "refIDは参照先TimeDefine.timeIdをstringsで解決して得るため行に重複保存しない。attributes表はrefID/typeを除く全属性の[name strings index, value strings index]配列、values表はMaterialValue区別と複合値を保持する。表の共有は全保持fieldの一致時だけとし、未知CodeやName・属性の差を潰さない。TimeDefine・Area・Local・Kindの文字列fieldもstrings参照で、nullは不存在、空文字indexは存在する空値を表す",
           "stateAndPersistence": "WeatherTimeseriesSnapshotのperiodsはperiodRowの固定長配列行。state・Persisted・lastKnownで同じ行形を使い、各snapshotが自身の全表を持つ。periodごとのキー名付きオブジェクトや属性/値コピー、保存専用の全件変換層は作らない。単純な行参照と共有表でオブジェクト数と一時コピーを抑える。V8 heap/GC・Piの効果は次工程で測り、JSON byte削減だけから保証しない",
-          "validation": "行長・整数index・表の範囲・値tagを検証し、行のtimeが同series内のTimeDefineに解決できること。codec roundtripで独立した表を持つlastKnownを含む全意味値を一致させる。異なるsnapshotの同値比較は辞書解決後に行い、裸indexや文書内位置だけを恒久identityとして比べない"
+          "validation": "行長・整数index・表の範囲・値tagを検証し、行のtimeが同series内のTimeDefineに解決できること。codec roundtripで独立した表を持つlastKnownを含む全意味値を一致させる。異なるsnapshotの同値比較は辞書解決後に行い、裸indexや文書内位置だけを恒久identityとして比べない affectedScopeはsubject全体を表すリテラルsubject、または明示したperiod ID配列。空配列は影響なしであってsubject全体を意味しない。"
         },
         "evidence": [
           "test/fixtures/81_01_01_260129_VPWP50.xml",
@@ -167,7 +167,51 @@
           "test/fixtures/81_08_01_260605_VPWP50_criteria_property_sibling.xml",
           "reconstruction/src/decode-material/decode-material.ts"
         ],
-        "evidenceLimit": "表はcheckout内XML構造とP1の保持形式を根拠とする契約採用条件。明示正常empty/取消の派生境界は本改訂の採用規則であり、新たな実電文取得・公式原本確認の主張ではない。容量/newer emptyの正式corpus充足は既存Q-LIMITと統合担当の後続作業"
+        "evidenceLimit": "表はcheckout内XML構造とP1の保持形式を根拠とする契約採用条件。明示正常empty/取消の派生境界は本改訂の採用規則であり、新たな実電文取得・公式原本確認の主張ではない。容量/newer emptyの正式corpus充足は既存Q-LIMITと統合担当の後続作業",
+        "capacityRule": {
+          "contractIds": [
+            "P2-A6-RES-01",
+            "P2-A6-RET-01",
+            "P2-A6-AC10"
+          ],
+          "count": "RET-01はnormal/training/test合算のoperation/subject保持数。active/noActiveItems（empty）/cancelled/unavailableをすべて数える。同じoperation/subjectの更新は正常採用・unavailable化とも置換であり追加1件ではない。gateは対応subjectと一緒に回収・退去し、独立した件数枠を作らない",
+          "stages": [
+            "① receive開始前のstateを基点に、期限処理の後で許された容量退去を候補内で行う。入力対象と同じoperation/subject自身およびそのlastKnownは容量退去候補から除外する（training/test入力でも同じ）。対象以外のtraining/testのlastKnownを先に全体単位で退去し、次に対象以外のtraining/test subjectを退去する。各群はsource.reportDateTimeRawの日時昇順、同時刻はoperation/subjectの文字列順で必要な分だけ除く。normalの他subjectと履歴は容量退去しない。件数・byte両方を再判定し正常採用が入れば原子的に採用する",
+            "② 正常採用が入らなければ対象subjectをcapacityExceededのunavailableに置換する。currentのperiodsと専用の辞書・時間表をすべて除き、空snapshotにする。sourceは今回報、affectedScope=subject。lastKnownの取得元は「期限処理の後・容量退去の前」の対象operation/subjectに固定する。その時点の旧current snapshotを自己完結したlastKnownとして保持し、すでにunavailableならその時点の既存lastKnownを引き継ぎ空currentで上書きしない。その時点で対象subjectがなければnullとし、期限回収前のsnapshotを復活させない。収まればchanged/semanticとして採用する",
+            "③ ②が入らなければ今回作るunavailableのlastKnownを丸ごとnullにする。periodや辞書の一部を切り捨てない。収まればchanged/semanticとして採用する",
+            "④ ③でも件数またはbyte上限に入らなければdecision=capacityExceeded。候補内の期限回収・退去もcommitせずreceive開始前のstate参照、gate/watermark、intents、保存世代を不変にし、accepted outcomeを出さない。例外や構造rejectedへ変換しない"
+          ],
+          "atomicity": "①〜③の成功時だけ候補を一回で採用する。①は通常の正常採用としてchanged・対象gate/watermark更新、②③はunavailableとしてchanged・対象gate/watermark更新となり古いcurrentを現行として残さない。④はstate・gate/watermark・保存世代を不変にする。training/test入力でもnormalを退去しない。④の後の期限処理は通常のdeadlineで行い、失敗したreceiveの副作用にしない",
+          "a1Followup": "④のdecisionをA1が受け取る受け皿はA1改訂で定義する。画面に未充足として出すのはnormalの受理不能だけで、training/testは本番表示を損なわない。今回A1共有型は改訂しない",
+          "byteAccounting": {
+            "encoding": "RES-01はU-FのCheckpointEnvelopeを空白・末尾改行なしのJSON.stringifyでUTF-8化した1世代のbyte上限。sha256は64 ASCII文字。subjectの計量はlastKnown・全表・source・scopeを含むWeatherTimeseriesSubject全体を同じJSON表現でencodeしたbyte数とする",
+            "formula": "B=E0+62+Σ subjectBytes+max(subjects.length−1,0)+Σ gateBytes+max(gates.length−1,0)+Σ intentBytes+max(intents.length−1,0)。E0は実codec schemaVersionのCheckpointEnvelope（unit=U-F、generation=0、capturedAt=0、sha256=64個の0、payload={schemaVersion,subjects:[],gates:[],intents:[]}）のUTF-8 byte数。E0にキー名・括弧・区切りを含め、各配列内のカンマを別途加算する。比較はB<=RES-01。値や文字列長をJSのlengthで数えない",
+            "envelopeAllowance": "generation/capturedAtは有限numberのJSON表現が各32 ASCII byte以内であることを検証し、E0の各1 byteからの増分を31+31=62 byteとして保守的に予約する。実際のcheckpointはB以下であり、差はこの2数値の予約未使用分だけ。capture時刻やgenerationの桁増加でも過少判定しない。予約は上限への上乗せではなく上限内に含む。非有限値や表現長違反は合法なcheckpointとしない",
+            "incremental": "受信経路ではunit全体やsubjects全体のJSON直列化を禁止する。既存の不変subject/gate/intent objectをkeyにencode byte数を派生キャッシュし、変更したrecordだけ再計量して加算する（gate-onlyならsubject内source変更も計量対象）。同じoperation/subjectの更新は旧subject/gateのbyteを差し引いて新subject/gateのbyteを加える置換として計量し、新subject内のlastKnownはそのsubjectBytesに一度だけ含める。候補の回収・退去・lastKnown=nullも加算から差し引く。キャッシュはWeakMap等の非保存派生値とし公開State/Persisted項目に足さず、同一objectの破壊的変更を禁止する。restoreでは検証済みrecordから一度再構築し、失敗候補の値を採用stateへ混入させない",
+            "checkpoint": "全量encodeはA3の既存capture/保存経路で行い、受信の容量判定のために呼ばない。実checkpoint byte<=Bを検収する。serializerやschemaが変わればE0と計量の一致を同時に検証し、検査外のenvelope fieldや区切りを無計上で足さない"
+          }
+        }
+      },
+      {
+        "id": "Q-PERIOD",
+        "status": "closed",
+        "source": "2026-09-23 R23と容量32MiBのご主人裁定",
+        "closed": "period定義・論理ID・配列行と自己完結snapshotはQ-ENUM.periodRule/storageRuleを正本とする。全国保存量の実測とRES-01の32MiB確定で残る容量部分も閉じる。値を削って上限に合わせない",
+        "measurement": {
+          "source": ".amend-ref/capacity-measurement-2026-09-23.md",
+          "scope": "dmdata Archiveの実XML 851通・3日分、各58官署。提供された測定記録であり本改訂で全国再実測はしていない",
+          "peakBytesByDate": {
+            "2026-06-26": 15769019,
+            "2026-06-03": 15709099,
+            "2026-09-21": 15638202
+          },
+          "periodsAtJune26Peak": 463772,
+          "pi500StringifyMs": 162,
+          "maxOfficeStringifyMs": 6.6,
+          "maxOfficeTimingSource": "今回のご主人裁定に添えられたPi実測値",
+          "interpretation": "平常時は15.6〜15.8MB。冬の降雪要素・lastKnown・訓練報を見込み約2倍の32MiBとする。58官署の同時発表で受信ごとの全量JSON直列化がEEWと同じスレッドを数秒止めるため差分計量を必須とする。これらの測定は冬・全operation・全履歴を同時に満たす最大値の証明ではない"
+        },
+        "laterConfirmation": "2026-12以降に冬の実VPWP50で再計測する。後日の確認でありrequiredEvidenceやA6発注の未決条件にしない"
       }
     ],
     "operationContract": {
@@ -178,7 +222,7 @@
   "contract": {
     "contractId": "P2-WEATHER-TIMESERIES-UNIT-001",
     "mode": "implementation",
-    "objective": "M08をI-U-Fとして閉じ、subject/period、件数で切らないperiod系列、正常empty、gate-only、取消、7日、512 subject、16MiB、unavailable reasonを復元・保存障害・構造oracleまで固定する。",
+    "objective": "M08をI-U-Fとして閉じ、subject/period、件数で切らないperiod系列、正常empty、gate-only、取消、7日、512 subject、32MiB、unavailable reasonを復元・保存障害・構造oracleまで固定する。",
     "baseOid": "unassigned",
     "cleanTreeRequired": true,
     "readPaths": [
@@ -304,7 +348,7 @@
     "retentionLimits": [
       {
         "id": "P2-A6-RET-01",
-        "target": "VPWP50 subjects",
+        "target": "Q-ENUM.capacityRule.countのoperation/subject保持数（全effective状態）",
         "limit": 512,
         "unit": "subjects across operation",
         "source": "§4.5"
@@ -321,9 +365,9 @@
       {
         "id": "P2-A6-RES-01",
         "target": "U-F encoded generation",
-        "limit": 16777216,
+        "limit": 33554432,
         "unit": "UTF-8 bytes",
-        "scope": "capacity-1/capacity/capacity+1 with no silent truncation",
+        "scope": "Q-ENUM.capacityRule.byteAccountingの保守的envelope込み計量Bで直前/一致/+1を検収し、全段階で件数とbyteを守る",
         "source": "§4.2"
       }
     ],
@@ -366,7 +410,7 @@
         "requirement": "M08は全値のMaterialValue区別と複合値を保持する。Q-VALUESに従い未知Significancy Codeのraw・Name・時間・区域を保持し、未知だけでも有効期間内はactive、既知31を残し、未知は既知最大危険度へ加えない。P2は未知を識別可能に渡し、最低warning表示はP4/A8へ残す",
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:1778 «513e4c47ef60e225»",
-          "reconstruction/contracts/p2-order-plan.md:168 «cb4dff79944a82b2»",
+          "reconstruction/contracts/p2-order-plan.md:168 «773884380c5b0211»",
           "reconstruction/contracts/p2-order-plan.md:241 «30689449c7859d62»"
         ]
       },
@@ -380,16 +424,16 @@
       },
       {
         "id": "P2-A6-AC04",
-        "requirement": "PersistedWeatherTimeseriesUnitとschemaVersion=p2-weather-timeseries-unit-v1の唯一のcodecを用い、7日retention・512 subject合計・現行16MiB境界を守る。storageRuleの配列行と共有表をstate・保存・lastKnownに共用し、区域CodeとSignificancy Codeは文字列のまま自己完結してdecodeする。全indexをsnapshot内で解決し、範囲外・未解決ならcodecが拒否する。lastKnownにも独立した辞書・時間表を持たせる。O02:14の全periodと値集合を欠落なく保持する。全国見積もりとU-F上限の確定はQ-PERIOD",
+        "requirement": "PersistedWeatherTimeseriesUnitとschemaVersion=p2-weather-timeseries-unit-v1の唯一のcodecを用い、7日retention・512 subject合計・32MiB境界を守る。storageRuleの配列行と共有表をstate・保存・lastKnownに共用し、区域CodeとSignificancy Codeは文字列のまま自己完結してdecodeする。全indexをsnapshot内で解決し、範囲外・未解決ならcodecが拒否する。lastKnownにも独立した辞書・時間表を持たせる。O02:14の全periodと値集合を欠落なく保持する。Q-PERIODはclosed。容量計量はQ-ENUM.capacityRule.byteAccountingに従い、受信時に変化したsubjectだけ再計量し、envelope込みの実checkpoint byteを過少判定しない",
         "evidenceRefs": [
-          "docs/specs/reconstruction-p0-contracts.md:480 «52a41c93b48a4fa7»",
+          "docs/specs/reconstruction-p0-contracts.md:480 «2d31b515a343d92d»",
           "docs/specs/reconstruction-p0-contracts.md:574 «3382e3e956fbbc9b»",
           "docs/specs/reconstruction-p0-contracts.md:610 «2b0711de60ba1b88»"
         ]
       },
       {
         "id": "P2-A6-AC05",
-        "requirement": "toWeatherTimeseriesView、intent（P2では空）、PublishedOutcomeの4種unionを同じ採用結果から作り、正常newer emptyはinactive/noActiveItems、容量超過は理由付きunavailableとする",
+        "requirement": "toWeatherTimeseriesView、intent（P2では空）、PublishedOutcomeの4種unionを同じ採用結果から作り、正常newer emptyはinactive/noActiveItems、容量超過はQ-ENUM.capacityRuleに従い、保存できる理由付きunavailableまたはstate不変のcapacityExceeded decisionとする",
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:731 «2054b0d946d1477b»",
           "docs/specs/reconstruction-p0-contracts.md:732 «f96fd8a8dd40563c»",
@@ -434,7 +478,7 @@
       },
       {
         "id": "P2-A6-AC10",
-        "requirement": "capacityExceeded/historyUnavailable/coverageIncompleteをquestionResolutions[Q-ENUM].reasonTableどおり同一subjectへ束縛し、source/lastKnown/affectedScopeをState/Persistedで無損失にroundtripする。報告入力のunavailableはchangedとしてgate/watermarkを進めeffective=unavailable・periods=[]とし、古いperiodsを現行扱いしないが、rejectedは全業務stateを不変にする。未知Significancy Codeはunavailable理由にせずQ-VALUESのactive規則で保持する。P2ではhistoryUnavailable/coverageIncompleteを起こす入力がないので型の語彙としてだけ残す",
+        "requirement": "capacityExceeded/historyUnavailable/coverageIncompleteをquestionResolutions[Q-ENUM].reasonTableどおり同一subjectへ束縛し、source/lastKnown/affectedScopeをState/Persistedで無損失にroundtripする。報告入力の保存可能なunavailableはchangedとしてgate/watermarkを進めeffective=unavailable・periods=[]とし、古いperiodsを現行扱いしないが、rejectedは全業務stateを不変にする。未知Significancy Codeはunavailable理由にせずQ-VALUESのactive規則で保持する。P2ではhistoryUnavailable/coverageIncompleteを起こす入力がないので型の語彙としてだけ残す Q-ENUM.capacityRuleの4段階を検収し、④ではwatermark・保存世代も不変。全seriesのaffectedScopeはsubjectリテラル1つで保存する。",
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:731 «2054b0d946d1477b»",
           "docs/specs/reconstruction-p0-contracts.md:732 «f96fd8a8dd40563c»",
@@ -467,7 +511,7 @@
           "P2-A6-AC04",
           "P2-A6-AC05"
         ],
-        "behavior": "storageRuleの固定長配列行・共有表をcodec roundtripし、辞書・時間表とlastKnownを自己完結に復元する。Localの属性L003・要素L004を独立してroundtripする。行長違い・範囲外indexを拒否し、O02:14の件数と論理ID別の元XML値集合を照合する。512 subject・現行16MiB境界はQ-PERIODの全国上限確定まで暫定値として検証する"
+        "behavior": "storageRuleの固定長配列行・共有表をcodec roundtripし、辞書・時間表とlastKnownを自己完結に復元する。Localの属性L003・要素L004を独立してroundtripする。行長違い・範囲外indexを拒否し、O02:14の件数と論理ID別の元XML値集合を照合する。Q-ENUM.capacityRuleの計量Bについて33554431/33554432/33554433 byteと511/512/513 subjectを試験内の合法stateで作り、空/取消/unavailableを含む件数と同subject置換を検収する。UTF-8多byte・escape文字、配列0/1/複数件、generation/時刻の桁変化、lastKnownを含め、加算Bと実A3 checkpoint byteの差が予約未使用分だけで実byte<=Bであることを確認する。receiveは変更recordだけ再計量し、unit全体をencodeしないことを計測回数で確認する。退去/復元/同subject置換後の差分計量も全量計量と照合する"
       },
       {
         "testId": "P2-A6-T04",
@@ -493,7 +537,7 @@
         "referenceIds": [
           "P2-A6-AC10"
         ],
-        "behavior": "同じ初期stateへP2で発生するunavailable reason（capacityExceeded）と複数不備rejectedを適用し、unavailableだけが同subjectのwatermarkを進めて古いperiodsを辞書・時間表込みのlastKnownへ移す。codec roundtrip後もsource/affectedScopeを保ち、未知CodeはQ-VALUESのactiveとして保持する"
+        "behavior": "Q-ENUM.capacityRuleの①期限回収・training/test履歴→subject退去による正常採用、②lastKnown付きunavailable、③lastKnown全体null、④最小unavailableでも入らない受理不能をそれぞれ検収する。①は通常の正常採用としてchanged・gate/watermark更新、②③はunavailableとしてchanged・gate/watermark更新となり、④は不変であることを確認する。④は回収・退去候補も含めreceive開始前state参照・watermark・保存世代・intents不変、accepted outcomeなし。件数512で同subject置換は512、新規normal 513件で退去不可なら④、byteだけ不足する場合も確認する。training/test自身の更新では対象subjectとそのlastKnownを①の退去候補から除外し、他の退去候補がない場合にも対象を先に消さないことを確認する。②のlastKnownは期限処理後・容量退去前の旧current、既存unavailableなら同時点のlastKnownと一致すること。期限回収された対象はnullで復活しないこと。正常採用とunavailable化の双方で旧subject/gateを新recordへ置換してbyteを計量し、旧recordと新recordの二重計上をしないことを確認する。training/test入力でnormalを退去しない。正常再採用でunavailableを解除し、source/subject全体scopeとlastKnownをcodec roundtripする。rejectedとの区別、未知Codeのactive維持も確認する"
       }
     ],
     "requiredCommands": [
@@ -550,7 +594,7 @@
     "artifactRequirements": [
       "§13.3の9段をA3 composition root結線後の一経路で証明する。無いとparser/reducerだけで保存・終了・復元が未接続になる",
       "WeatherTimeseriesUnitCodec一つだけを実装する。無いとA3がU-Fを捕捉・復元できず、複数codecならschema選択が曖昧になる",
-      "unavailable reasonはU-F公開型で分離しRejectionReasonと混ぜない。混ぜると正当な容量超過でwatermarkが進まない",
+      "unavailable reasonと受理不能decisionはU-F公開型で分離しRejectionReasonと混ぜない。Q-ENUM.capacityRuleの①は通常の正常採用としてchanged・gate/watermark更新、②③はunavailableとしてchanged・gate/watermark更新、④の最終受理不能はstate・gate/watermark・保存世代不変とする",
       "1実装interface、factory、registry、journal、将来用extension pointを追加しない",
       "allowed_paths限定patch、変更一覧、build/test/shuffle結果、未実行検証、残存リスク",
       "純粋な意味関数とreduceUnitはDiagnosticDetailsだけを返し、runtimeがtimestamp/runIdを付与する。各subjectのdecisionsを系列oracleのdecision/reason/changeと照合し、duplicate/stale/noChangeを区別する。識別不能な拒否ではsubjectを空文字にし、架空の業務identityを作らない。Control/EditorialOfficeが有効ならすべてのrejected（共通拒否・identity拒否・構造拒否）で報単位subjectを使い（expected:O02:8）、officeが欠落・不正のときだけ空文字にする。",
@@ -560,22 +604,19 @@
       "追実装で閉じる項目(A6): reducer/codec/viewの既存責務を変えずClockReading/nextDeadlineと既存shutdown入力を実装し、期限前は同じWeatherTimeseriesUnitState参照と空のdecisions/intents/outcomes/diagnosticsを返す。旧notificationResultは3 unit共通intentUpdate入力へ置換する。NotificationIntentUpdateのid/attempts/nextAttemptAt/dispositionとclockを受け、選択時は完了結果なしでattempts/nextAttemptAtを更新しdispositionを維持、完了時もA1内部のA7が照合した更新を同じ入口で採用する。無いとU-E以外で試行回数と再試行日時を保存できない。既存idだけを更新し同値・未知idはno-op、変更時だけdeliveryOnlyで保存世代を進める。timer・配送済み入力slot・RuntimeState更新は追加しない",
       "同一operation/subjectの新旧はReportDateTimeで判定する。newerは採用、olderはunchanged/stale。同時刻では、取消（InfoType=取消）は発表/訂正のgateに対してchanged（effective=cancelled、expected:O10:35/39）、gateのReportRefのoperation・family・subject・reportDateTimeRaw・serialRaw・infoTypeRawが同一なら（inputId・originは比較しない）periodを比べずunchanged/duplicate、それ以外の同時刻相違（同時刻の訂正、取消後の同時刻発表など）はQ-REV-UFとして推測せず、既存gateを保ってunchanged/staleを返す。newerでeffective・validUntil・periodsがすべて現行subjectと同一ならchanged/revisionOnly（gateだけを進めるgate-only revision）。どれかが変わればchanged/semantic（明示emptyによるunavailableやcancelledの解除を含む）。gateの無いsubject（未受信か7日retentionで回収済み）への取消は両者を区別せずchanged（effective=cancelled）とし、取消gateを作る",
       "P2はVPWP50のNotificationIntentを生成しない（Q-NOTICE未決、oracleのintentsはnull）。intents配列とintentUpdate入力は共通の形として保持する",
-      "validUntilは採用報の全periodが参照するseries内のTimeDefineのDateTime+Durationの最大値とし（参照されないTimeDefineは含めない）、到来後はeffective=noActiveItems（familyTableの「原報period期限で有効periodが0件」と同じ正常empty）としてgateを残す。retainUntilはsubjectの最新採用報のReportDateTime＋7日とし、到来でsubjectとgateを回収する。復元でもこの二つを延長しない。validUntil到来のdeadline入力ではeffective=noActiveItems・periods=[]（過去のperiodを現行値にせず、lastKnownへも移さない）とし、decisionはchanged/semantic、outcomeはdeadlineApplied、保存世代を進めgateは変えない。個々のperiodの終端ではsubjectを変えない。receive入力でも到来済みのvalidUntilとretainUntilを新報の適用より先に同じreduceUnit内で適用し、同じsubjectのdecisionは最終結果の1件（例 expected:O10:57はchanged/semantic）、outcomeはaccepted 1件にまとめる。retainUntilによる回収はdecisionとoutcomeを出さず保存世代だけを進める。PublishedOutcomeのSubjectOutcomeはinformationType=source.infoTypeRaw、transition=遷移後のeffective、severity=null、facts={effective, periodCount}（periodCount=現在のperiods.length、TimeDefineは含めない）、changedFieldsは変えたWeatherTimeseriesSubjectのfield名とする"
+      "validUntilは採用報の全periodが参照するseries内のTimeDefineのDateTime+Durationの最大値とし（参照されないTimeDefineは含めない）、到来後はeffective=noActiveItems（familyTableの「原報period期限で有効periodが0件」と同じ正常empty）としてgateを残す。retainUntilはsubjectの最新採用報のReportDateTime＋7日とし、到来でsubjectとgateを回収する。復元でもこの二つを延長しない。validUntil到来のdeadline入力ではeffective=noActiveItems・periods=[]（過去のperiodを現行値にせず、lastKnownへも移さない）とし、decisionはchanged/semantic、outcomeはdeadlineApplied、保存世代を進めgateは変えない。個々のperiodの終端ではsubjectを変えない。receive入力でも到来済みのvalidUntilとretainUntilを新報の適用より先に同じreduceUnit内で適用し、同じsubjectのdecisionは最終結果の1件（例 expected:O10:57はchanged/semantic）、outcomeはaccepted 1件にまとめる。retainUntilによる回収はdecisionとoutcomeを出さず保存世代だけを進める。PublishedOutcomeのSubjectOutcomeはinformationType=source.infoTypeRaw、transition=遷移後のeffective、severity=null、facts={effective, periodCount}（periodCount=現在のperiods.length、TimeDefineは含めない）、changedFieldsは変えたWeatherTimeseriesSubjectのfield名とする。ただしreceiveの容量段階④ではQ-ENUM.capacityRuleの原子性が優先し、事前の期限処理を含め一切をcommitしない。"
     ],
     "unresolvedQuestions": [
       {
         "id": "Q-LIMIT",
         "owner": "integrator",
         "blocks": [
-          "U-F合法最大checkpoint",
-          "16MiB直前・一致・+1 fixture",
-          "512 subjectと全国受信で正常系列を保持したencoded byte（Q-PERIODでU-F上限を確定）"
+          "U-F容量境界と段階縮退の実装検収（上限と入力仕様は確定済み）"
         ],
-        "resolveBy": "U-F容量fixture作成前",
+        "resolveBy": "A6実装検収前",
         "requiredEvidence": [
-          "syntheticを作らず取得または既存実fixtureから生成する容量入力仕様: route=telegram.weather, headType=VPWP50, EventID/Serialは原報値, ReportDateTimeと受信時計固定, 期待=capacity-1/capacity受理・+1 unavailable",
-          "UTF-8 encoded byteの三境界",
-          "超過時に古いcurrentを正常扱いしない期待"
+          "unmet:O02:15〜17の入力仕様を用い、実XMLからdecodeした材料と試験内で膨らませた合法stateで容量直前・一致・+1を作る。境界専用fixtureは焼かない",
+          "P2-A6-T03/T06の全段階・件数境界・保守的加算と実checkpoint byteの一致関係、normal保護・失敗時の原子性を検証した実行結果"
         ]
       },
       {
@@ -589,19 +630,6 @@
         "requiredEvidence": [
           "同一officeで同ReportDateTimeの訂正・再発表を含む実電文と取得元・元XML hash。syntheticは作らない",
           "採用するならrevisionOnlyかsemanticかの裁定"
-        ]
-      },
-      {
-        "id": "Q-PERIOD",
-        "owner": "integrator",
-        "blocks": [
-          "この保存形式での全国見積もりとU-F上限の確定（16MiB超なら値を削らず上限を改訂）"
-        ],
-        "resolveBy": "A6発注前",
-        "requiredEvidence": [
-          "Piの1週間記録: VPWP50発表官署58、各官署の区域数最大の合計1,805。長野81_09_01はArea 81。これは同時保存byte実測ではない",
-          "58官署の同時保持subject・lastKnown・辞書・時間表・scope・envelopeを含むUTF-8 encoded byteと欠測官署の推計区分",
-          "現行16MiB超なら値を削らず上限を改訂し、境界fixtureを再固定"
         ]
       }
     ]

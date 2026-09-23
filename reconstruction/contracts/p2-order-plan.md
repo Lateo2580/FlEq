@@ -78,7 +78,7 @@ P2 行は D-AC ID を指定していない。一方、最小 Chrome 経路は次
 | A3 `P2-checkpoint-shutdown-001` | B02、B07、B15永続sink | `CheckpointEnvelope`、`CheckpointRequest/Result`、`ShutdownSummary`、`restoreUnit`、`scheduleCheckpoint`、`applyCheckpointResult`、`shutdownRuntime`、有界診断配送・回収口 | A1、A2、凍結済み codec 形 | 2 slot、hash / generation、Q2=B、`uncertain`照合、最古dirty選択、再試行、通常終了、E15 record、filesystem adapter経由の非同期回転ログ・回収・故障隔離 | SQLite、journal、複数writer、旧v2移行 | O07、O10、E10、E14、E15、E20、E23、spec:865・872（保存失敗隔離） |
 | A4 `P2-eew-unit-001` | M01、I-U-E | `EewUnitState/PersistedEewUnit/EewUnitView`、`EewInput`、`reduceEewUnit`、唯一の codec、`toEewView` | A1、P1、A3のcodec契約 | current/gateはN、intentはD、512 subject、15秒TTL、報番号・終端・取消・operation交差、family固有identity/必須構造検証 | 地震観測、津波、最終GIS、P4 scene | O07:15-18、O09のEEW意味部、E13、D-AC14先行証拠 |
 | A5 `P2-weather-current-001` | M06、I-U-W | `WeatherCurrentUnitState/PersistedWeatherCurrentUnit/WeatherCurrentUnitView`、`WeatherCurrentInput`、`reduceWeatherCurrentUnit`、codec、`toWeatherCurrentView` | A1、P1、A3のcodec契約 | 全国base1/履歴2、partial128/履歴8、所有現象、freshness target、取消復元、16MiB、官署/subject/必須構造検証 | VPWW56、VPNO50のP2非対象分岐を推測実装、旧移行 tool | O04/O06（D5のP2 subset）、E10、E13、spec:1192（意味鮮度の対象束縛） |
-| A6 `P2-weather-timeseries-001` | M08、I-U-F | `WeatherTimeseriesUnitState/PersistedWeatherTimeseriesUnit/WeatherTimeseriesUnitView`、`WeatherTimeseriesInput`、`reduceWeatherTimeseriesUnit`、codec、`toWeatherTimeseriesView` | A1、P1、A3のcodec契約 | subject / period、194 period、正常empty、gate-only、取消、7日、512 subject、16MiB、意味入力`RejectionReason`と`unavailable` reason、subject/period必須構造検証 | VPTA50、カード幅に合わせた削減、P4詳細API | O02(P2範囲)、E13 |
+| A6 `P2-weather-timeseries-001` | M08、I-U-F | `WeatherTimeseriesUnitState/PersistedWeatherTimeseriesUnit/WeatherTimeseriesUnitView`、`WeatherTimeseriesInput`、`reduceWeatherTimeseriesUnit`、codec、`toWeatherTimeseriesView` | A1、P1、A3のcodec契約 | subject / period、194 period、正常empty、gate-only、取消、7日、512 subject、32MiB、意味入力`RejectionReason`と`unavailable` reason、subject/period必須構造検証 | VPTA50、カード幅に合わせた削減、P4詳細API | O02(P2範囲)、E13 |
 | A7 `P2-notification-delivery-001` | B09、U-E intent接続 | `NotificationAttempt/Result`、`selectNotificationAttempt`、`applyNotificationResult` | A1、A4、A3 | 分野別根音、EEW優先、初回1秒、channel別1件、timeout / abort / 隔離 / TTL、intent保存順 | exactly-once、独立outbox、津波通知、旧築handoff | O07:15-18、O10通知枝、E21、spec:956・987（緊急初回試行） |
 | A8 `P2-snapshot-sse-001` | B08、B11のP2最小範囲 | `DisplayVersion`、P2 `DisplaySnapshot`、`projectSnapshot`、snapshot / SSE / health handler | A1、A4〜A6、A3 | 完全snapshot、最新1枚、client待機1枚、1MiB、heartbeat、healthとworker状態分離、slow client | §7.10詳細、全12分野、静的asset設計、P4認証拡張 | E01のT3〜T5、E02、D-AC02/12先行証拠 |
 | A9 `P2-chrome-eew-001` | D02と、D05/D07/D11のEEW最小部分 | native `EventSource` client、EEW card/map paint marker、時計対応 probe | A8、A4、凍結済み測定manifest | 前景Chrome、固定viewport/DPR、snapshot置換、EEW card＋必要な予想震度表示の同一paint、T5/T6 | hover、詳細、ページ送り、県focus、津波、LOD、最終意匠 | E01、D-AC02/12/14/24先行証拠 |
@@ -165,7 +165,7 @@ A4〜A6を並走させる前に共有型を凍結する。共有ファイルの�
 |---|---|---|
 | I-U-E | 実EEW XML、P1 operation型、U-E保存区分、O07:15-18、15秒TTL | 同一EventIDのnormal/training交差更新・取消fixture、M01の報番号/終端/予測保持のP2完全系列、`Q-NOTICE`具体値 |
 | I-U-W | 最大VPWS50、既知stale-lock checkpoint、全国/partial保持上限、O04/O06期待 | O04/O06のP2対象未充足入力、`Q-REV`、出典・operation・時計を明示した新築初期状態。O04:2とO06:29-30の旧形式移行証明はP3 |
-| I-U-F | 大容量の実VPWP50（長野 XML 2.27MB）、未知code、取消/head欠落fixture、7日/512/16MiB、Q-VALUESとperiod定義はA6でclosed | P2対象のnewer emptyと容量直前・一致・+1、`Q-PERIOD`の全国保存量・上限はA6発注前に確定 |
+| I-U-F | 大容量の実VPWP50（長野 XML 2.27MB）、未知code、取消/head欠落fixture、7日/512/32MiB、Q-VALUES/Q-PERIODはA6でclosed | P2対象のnewer emptyと容量直前・一致・+1、容量境界は試験内state調整で段階縮退と差分計量を検収 |
 
 ### 4.2 §7.5 EEW測定 manifest
 
@@ -241,7 +241,7 @@ A4〜A6を並走させる前に共有型を凍結する。共有ファイルの�
 | Q-VALUES（closed） | 2026-09-23 R22 裁定 | VPWP50未知Codeの扱いはA6 questionResolutions[Q-VALUES]。最低warning表示はP4/A8 | A6 |
 | Q-REV | `integrator` / O06対象Unit契約前 | 同revision訂正、時刻/Serial、連続取消の対象版。U-Fの同時刻訂正は別ID Q-REV-UF（既存gateを保つ既定でA6を発注） | A5/A6 |
 | Q-MIGRATION | `integrator` / O04/O06/O07移行oracle前 | P2は明示的な新築初期状態生成と元事例との対応をA5前に固定。旧checkpoint operation証明・O04:2/O06:29-30の変換検収はP3移行契約前に固定 | A5/A10、P3移行担当 |
-| Q-LIMIT | `integrator` / 容量fixture作成前 | U-W/U-F checkpoint、subject/period、snapshotの合法最大と+1。U-Fの全国保存量と上限はQ-PERIOD（A6発注前、16MiB超なら値を削らず改訂） | A5/A6/A8 |
+| Q-LIMIT | `integrator` / 容量fixture作成前 | U-W/U-F checkpoint、subject/period、snapshotの合法最大と+1。U-Fの全国保存量と上限はQ-PERIODでclosed、容量境界と段階縮退はA6実装検収前に試験内state調整で確認 | A5/A6/A8 |
 | Q-PERF | `integrator` / EEW A/B測定前 | N/P/C、投入offset、端末、時計、paint evidence | A10 |
 
 `Q-ENUM`のparser拒否reasonはP1で閉じたが、意味入力の拒否は別である。P1はHead欠落を空文字、不正日時をraw文字列として返す（`reconstruction/src/decode-material/decode-material.ts:271`〜`:288`）。`expected:O02:8`・`expected:O02:10`のreasonは未確定であり、A1の共通検証とA4/A5/A6のfamily固有検証が`RejectionReason`を固定する（`docs/specs/reconstruction-p0-contracts.md:693`、同`:733`）。これはP1公開型変更を必須にしない。`UnavailableReason`は正常な意味入力の容量超過・履歴不足等として別に固定する。

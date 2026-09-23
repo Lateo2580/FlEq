@@ -72,7 +72,8 @@ export type WeatherTimeseriesSubject = WeatherTimeseriesSnapshot & Readonly<{
   effective: "active" | "noActiveItems" | "cancelled" | "unavailable";
   unavailableReason: WeatherTimeseriesUnavailableReason | null;
   lastKnown: WeatherTimeseriesSnapshot | null;
-  affectedScope: readonly string[];
+  // "subject" denotes this entire operation/subject; [] denotes no affected periods.
+  affectedScope: "subject" | readonly string[];
   // Active expiry follows the report periods; retention is a separate collection boundary.
   validUntil: number | null;
   retainUntil: number;
@@ -118,6 +119,7 @@ export type WeatherTimeseriesUnitStep = Readonly<{
   decisions: readonly (Readonly<{ subject: string; operation: Operation }> & (
     | Readonly<{ decision: "unchanged"; reason: "duplicate" | "stale" | "noChange" }>
     | Readonly<{ decision: "rejected"; reason: RejectionReason }>
+    | Readonly<{ decision: "capacityExceeded" }>
     | Readonly<{ decision: "changed"; reason: null; change: "semantic" | "revisionOnly" | "deliveryOnly" }>
   ))[];
   intents: readonly NotificationIntent[];
