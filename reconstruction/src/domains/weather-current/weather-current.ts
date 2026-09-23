@@ -443,7 +443,7 @@ function addUnavailable(state: WeatherCurrentUnitState, candidate: Candidate, re
   next = { ...next, persistence: dirty(state.persistence, clockMs) };
   return { state: next, nextDeadline: nextWeatherCurrentDeadline(next),
     decisions: [{ subject: candidate.subject, operation: candidate.operation,
-      decision: "changed", reason: null, change: "semantic" }], intents: [],
+      decision: "changed", reason: null, change: "semantic", currentEstablished: null }], intents: [],
     outcomes: [{ kind: "accepted", change: "semantic", subjects: [outcome(candidate, "unavailable")] }], diagnostics: [] };
 }
 
@@ -567,7 +567,9 @@ function reduceWeatherCurrentMeaning(state: WeatherCurrentUnitState,
     next = { ...next, persistence: dirty(state.persistence, input.clock.monotonicMs) };
     return { state: next, nextDeadline: nextWeatherCurrentDeadline(next),
       decisions: [{ subject: candidate.subject, operation: candidate.operation,
-        decision: "changed", reason: null, change: "semantic" }], intents: [],
+        decision: "changed", reason: null, change: "semantic", currentEstablished: {
+          family: candidate.family, reportDateTimeMs: candidate.reportDateTimeMs!, affectedScope: candidate.affectedScope,
+        } }], intents: [],
       outcomes: [{ kind: "accepted", change: "semantic", subjects: [outcome(candidate, "released")] }], diagnostics: [] };
   }
 
@@ -594,7 +596,7 @@ function reduceWeatherCurrentMeaning(state: WeatherCurrentUnitState,
       persistence: dirty(state.persistence, input.clock.monotonicMs) };
     return { state: next, nextDeadline: nextWeatherCurrentDeadline(next),
       decisions: [{ subject: candidate.subject, operation: candidate.operation,
-        decision: "changed", reason: null, change: "semantic" }], intents: [],
+        decision: "changed", reason: null, change: "semantic", currentEstablished: null }], intents: [],
       outcomes: [{ kind: "accepted", change: "semantic",
         subjects: [outcome({ ...candidate, phenomena: masked.phenomena }, "cancelled", masked.source)] }], diagnostics: [] };
   }
@@ -649,7 +651,8 @@ function reduceWeatherCurrentMeaning(state: WeatherCurrentUnitState,
   const semantic = previous == null || !isDeepStrictEqual(previous.phenomena, projected.phenomena);
   const change = semantic ? "semantic" as const : "revisionOnly" as const;
   return { state: next, nextDeadline: nextWeatherCurrentDeadline(next),
-    decisions: [{ subject: candidate.subject, operation: candidate.operation, decision: "changed", reason: null, change }],
+    decisions: [{ subject: candidate.subject, operation: candidate.operation, decision: "changed", reason: null, change,
+      currentEstablished: { family: candidate.family, reportDateTimeMs: candidate.reportDateTimeMs!, affectedScope: candidate.affectedScope } }],
     intents: [], outcomes: [{ kind: "accepted", change,
       subjects: [outcome({ ...candidate, phenomena: projected.phenomena }, previous == null ? "activated" : "updated")] }], diagnostics };
 }

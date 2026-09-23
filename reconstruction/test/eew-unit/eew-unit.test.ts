@@ -3,8 +3,8 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
 import type { DecodedMaterial, Operation } from "../../contracts/p1-parser-boundary.types";
-import type { NotificationIntent, RuntimeState } from "../../contracts/p2-shared-runtime.types";
-import type { EewUnitState, EewUnitStep } from "../../contracts/p2-eew-unit.types";
+import type { ClockReading, NotificationIntent } from "../../contracts/p2-shared-runtime.types";
+import type { EewInput, EewUnitState, EewUnitStep } from "../../contracts/p2-eew-unit.types";
 import corpus from "../../tools/corpus/sequences.json";
 import manifest from "../../tools/corpus/manifest.json";
 import type { CheckpointFileSystem, WritableCheckpoint } from "../../src/checkpoint/checkpoint";
@@ -13,7 +13,7 @@ import { decodeMaterial } from "../../src/decode-material/decode-material";
 import { ingestXmlData } from "../../src/ingress/ingress";
 import { RuntimeCompositionRoot } from "../../src/runtime/composition-root";
 import { eewUnitCodec, reduceEewUnit, toEewView } from "../../src/units/eew/eew-unit";
-import { fixtureState, fixtureDriver } from "../checkpoint-shutdown/runtime-fixture";
+import { fixtureDriver } from "../checkpoint-shutdown/runtime-fixture";
 
 const BASE_TIME = 1_713_363_299_001;
 
@@ -98,11 +98,6 @@ class MemoryDiagnosticFileSystem implements DiagnosticFileSystem {
   async readFile(path: string): Promise<string> { return this.filesByPath.get(path) ?? ""; }
   async files(): Promise<readonly { name: string; size: number; mtimeMs: number }[]> { return []; }
   async unlink(path: string): Promise<void> { this.filesByPath.delete(path); }
-}
-
-function runtime(unit: EewUnitState): RuntimeState {
-  const state = fixtureState({}, { "U-E": unit.persistence }, "eew-test");
-  return { ...state, units: { ...state.units, "U-E": unit } };
 }
 
 function config() {
@@ -377,9 +372,11 @@ describe("P2 EEW unit", () => {
     expect(normalState.current.find((item) => item.subject === full.current[0].subject)?.retainedPrediction)
       .toEqual({ prediction: full.current[0].prediction, source: full.current[0].source });
     for (const operation of operations) {
-      const refused = receive(normalState, material(9000, operation));
+      const attempted = material(9000, operation);
+      const refused = receive(normalState, attempted);
       const decision: Extract<EewUnitStep["decisions"][number], { decision: "capacityExceeded" }> = {
         decision: "capacityExceeded", subject: `${operation}/VXSE43/00000000009000`, operation,
+        rejection: { family: "VXSE43", reportDateTimeMs: Date.parse(attempted.reportDateTimeRaw), affectedScope: "subject" },
       };
       expect(refused).toEqual({ state: normalState, nextDeadline: { wallTimeMs: BASE_TIME + 15_000, monotonicMs: null },
         decisions: [decision], intents: [], outcomes: [], diagnostics: [] });
@@ -516,11 +513,15 @@ describe("P2 EEW unit", () => {
     const adapter = new MemoryCheckpointFileSystem();
     const diagnostics = new MemoryDiagnosticFileSystem();
     let now = BASE_TIME + 1;
-    const runtimeCalls = { ...fixtureDriver().calls, reduceEewUnit, toEewView };
+    const runtimeCalls = { ...fixtureDriver().calls, reduceEewUnit: (state: EewUnitState, input: EewInput) => {
+      const step = reduceEewUnit(state, input);
+      return input.kind === "receive" && state.persistence.currentGeneration === 0
+        && input.material.inputId === first.inputId ? { ...step, state: unit } : step;
+    }, toEewView };
     // Unit-local fault injection: A1 adopts the real EEW receive result at the due control call.
     // Parser routing is outside this checkpoint test; do not replace root.state from the caller.
     const cancellationCalls: typeof runtimeCalls = { ...runtimeCalls,
-      reduceEewUnit: (state, input) => reduceEewUnit(state, input.kind === "deadline"
+      reduceEewUnit: (state, input) => runtimeCalls.reduceEewUnit(state, input.kind === "deadline"
         ? { kind: "receive", material: cancelled, clock: input.clock } : input),
     };
     const root = new RuntimeCompositionRoot(config(), { "U-E": eewUnitCodec }, {
@@ -535,7 +536,20 @@ describe("P2 EEW unit", () => {
     const unit = { ...received, intents: [pendingIntent()],
       persistence: { kind: "pending" as const, currentGeneration: 1, savedGeneration: null,
         savedCapturedAt: null, savedAckAt: null, dirtySince: BASE_TIME } };
-    let running = runtime(unit);
+    const seed = (target: RuntimeCompositionRoot) => {
+      const at = { wallTimeMs: now, monotonicMs: now };
+      return target.dispatch(target.startRuntime("eew-test", at).state, { kind: "mailboxCompleted", clock: at, completion: {
+        kind: "parser", messageId: first.inputId, inputId: first.inputId, runId: "eew-test",
+        encodedByteLength: 0, startedMonotonicMs: now, completedMonotonicMs: now, inputSequence: 1,
+        result: { kind: "decoded", material: first },
+      } }).state;
+    };
+    const cancelAt = (target: RuntimeCompositionRoot, at: ClockReading) => target.dispatch(target.state,
+      { kind: "mailboxCompleted", clock: at, completion: { kind: "parser", messageId: cancelled.inputId,
+        inputId: cancelled.inputId, runId: "eew-test", encodedByteLength: 0,
+        startedMonotonicMs: at.monotonicMs, completedMonotonicMs: at.monotonicMs,
+        inputSequence: 2, result: { kind: "decoded", material: cancelled } } });
+    let running = seed(root);
     const correlation = { "U-E": { inputIds: [first.inputId], retryReason: "notRetry" as const } };
     const scheduled = root.scheduleCheckpoint(running, { wallTimeMs: now, monotonicMs: now }, "o07", correlation);
     if (scheduled?.request == null) throw new Error("O07 checkpoint was not captured");
@@ -588,12 +602,12 @@ describe("P2 EEW unit", () => {
       runtimeCalls: cancellationCalls,
       clock: () => ({ wallTimeMs: now, monotonicMs: now }),
     });
-    let oldAckState = runtime(unit);
+    let oldAckState = seed(oldAckRoot);
     const old = oldAckRoot.scheduleCheckpoint(oldAckState, { wallTimeMs: now, monotonicMs: now }, "old", correlation);
     if (old?.request == null) throw new Error("old-ack checkpoint was not captured");
     const oldResult = await oldAckRoot.executeCheckpoint(old.request, "old", [first.inputId], "notRetry");
     const cancellationClock = { wallTimeMs: ++now, monotonicMs: now };
-    oldAckState = oldAckRoot.tick(oldAckRoot.state, cancellationClock).state;
+    oldAckState = cancelAt(oldAckRoot, cancellationClock).state;
     expect(oldAckState.checkpointAttempts["U-E"]).toEqual({ ...old.capture, postCaptureDirtySince: cancellationClock.monotonicMs });
     expect(oldAckState.units["U-E"].current).toEqual([]);
     oldAckState = oldAckRoot.applyCheckpointResult(oldAckState, oldResult.result,
@@ -608,7 +622,7 @@ describe("P2 EEW unit", () => {
       runtimeCalls: cancellationCalls,
       clock: () => ({ wallTimeMs: now, monotonicMs: now }),
     });
-    let failedState = runtime(unit);
+    let failedState = seed(failedRoot);
     const failedRequest = failedRoot.scheduleCheckpoint(failedState,
       { wallTimeMs: now, monotonicMs: now }, "failed", correlation);
     if (failedRequest?.request == null) throw new Error("failure checkpoint was not captured");
@@ -617,7 +631,7 @@ describe("P2 EEW unit", () => {
     failedState = failedRoot.applyCheckpointResult(failedState, failure.result,
       { wallTimeMs: ++now, monotonicMs: now }).state;
     expect(failedState.units["U-E"].persistence?.kind).toBe("failed");
-    failedState = failedRoot.tick(failedState, { wallTimeMs: ++now, monotonicMs: now }).state;
+    failedState = cancelAt(failedRoot, { wallTimeMs: ++now, monotonicMs: now }).state;
     const afterFailureCancel = failedState.units["U-E"];
     expect(afterFailureCancel.current).toEqual([]);
     expect(afterFailureCancel.persistence).toMatchObject({ kind: "failed", currentGeneration: 2, savedGeneration: null });
@@ -625,16 +639,12 @@ describe("P2 EEW unit", () => {
       intentId: unit.intents[0].id, disposition: "superseded", expiresAt: unit.intents[0].expiresAt,
     });
 
-    const shutdownState = runtime(unit);
     const shutdownRoot = new RuntimeCompositionRoot(config(), { "U-E": eewUnitCodec }, {
       checkpointFileSystem: new MemoryCheckpointFileSystem(), diagnosticFileSystem: new MemoryDiagnosticFileSystem(),
       runtimeCalls,
       clock: () => ({ wallTimeMs: now, monotonicMs: now }),
     });
-    shutdownRoot.dispatch(shutdownState, { kind: "mailboxCompleted", clock: { wallTimeMs: now, monotonicMs: now },
-      completion: { kind: "parser", messageId: first.inputId, inputId: first.inputId, runId: shutdownState.runId,
-        encodedByteLength: 0, startedMonotonicMs: now, completedMonotonicMs: now, inputSequence: 1,
-        result: { kind: "decoded", material: first } } }, correlation);
+    const shutdownState = seed(shutdownRoot);
     const summary = await shutdownRoot.shutdownRuntime(shutdownRoot.state, 1,
       { wallTimeMs: ++now, monotonicMs: now });
     expect(summary.code).toBe(0);

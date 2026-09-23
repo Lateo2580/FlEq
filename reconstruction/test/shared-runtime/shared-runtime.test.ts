@@ -17,8 +17,8 @@ import type {
   ShutdownStageResult,
   ShutdownPendingCounts,
 } from "../../contracts/p2-shared-runtime.types";
-import type { EewInput, EewUnitState } from "../../contracts/p2-eew-unit.types";
-import type { WeatherCurrentInput, WeatherCurrentUnitState } from "../../contracts/p2-weather-current-unit.types";
+import type { EewInput, EewUnitState, EewUnitStep } from "../../contracts/p2-eew-unit.types";
+import type { WeatherCurrentInput, WeatherCurrentUnitState, WeatherCurrentUnitStep } from "../../contracts/p2-weather-current-unit.types";
 import type { WeatherTimeseriesInput, WeatherTimeseriesUnitState } from "../../contracts/p2-weather-timeseries-unit.types";
 import type { NotificationAttempt, NotificationDeliveryState } from "../../contracts/p2-notification-delivery.types";
 import { decodeMaterial } from "../../src/decode-material/decode-material";
@@ -33,6 +33,8 @@ const savedProgress: PersistenceStatus = Object.freeze({ kind: "saved", currentG
 function initialState(progress: PersistenceStatus = savedProgress): RuntimeState {
   return {
     runId: "run",
+    restoration: { "U-E": { kind: "empty" }, "U-W": { kind: "empty" }, "U-F": { kind: "empty" } },
+    admission: {},
     units: {
       "U-E": { schemaVersion: "p2-eew-unit-v1", current: [], gates: [], intents: [], deliveryRecords: [], persistence: progress },
       "U-W": { schemaVersion: "p2-weather-current-unit-v1", national: {}, partials: [], histories: [], ownership: {},
@@ -154,6 +156,96 @@ function freeze<T>(value: T): T {
 }
 
 describe("P2 shared runtime", () => {
+  it("P2-A1-T08 contractBoundary / AC08: startup is the only null-state input and runs once", () => {
+    const startup = { kind: "startup" as const, runId: "fresh", clock,
+      restored: { "U-E": { kind: "empty" as const }, "U-W": { kind: "empty" as const },
+        "U-F": { kind: "unavailable" as const, reason: "unknownSchema" as const } } };
+    expect(() => reduceRuntime(null, parserInput({ kind: "decoded", material: {
+      headType: "VXSE43", inputId: "early" } as DecodedMaterial })))
+      .toThrow("runtime has not started");
+    const started = reduceRuntime(null, startup);
+    expect(started.state).toMatchObject({ runId: "fresh", restoration: startup.restored,
+      admission: {}, units: { "U-E": { persistence: { currentGeneration: 0 } } } });
+    expect(started.generationInputIds).toEqual({});
+    expect(() => reduceRuntime(started.state, startup)).toThrow("runtime already started");
+  });
+
+  it("P2-A1-T09 contractBoundary / AC09-10: only a newer established current clears a bounded rejection", () => {
+    const calls = {
+      reduceEewUnit: (unit: EewUnitState, input: EewInput): EewUnitStep => {
+        const evidence = { family: "VXSE43", reportDateTimeMs: input.kind === "receive"
+          ? input.material.inputId === "new" ? 13 : input.material.inputId === "old" ? 11 : 12 : 12,
+          affectedScope: "subject" as const };
+        const decisions: EewUnitStep["decisions"] = input.kind !== "receive" ? []
+          : input.material.inputId === "reject" ? [{ subject: "s", operation: "normal", decision: "capacityExceeded", rejection: evidence }]
+            : [{ subject: "s", operation: "normal", decision: "changed", reason: null,
+              change: "semantic", currentEstablished: evidence }];
+        return { state: unit, nextDeadline: null, decisions, intents: [], outcomes: [], diagnostics: [] };
+      },
+      toEewView: (unit: EewUnitState) => ({ unit: "U-E" as const, semanticRevision: "s",
+        persistence: unit.persistence, admission: {}, subjects: [{ subject: "s", operation: "normal" as const,
+          informationType: "", transition: "active", severity: null, source: null, facts: {}, changedFields: [] }] }),
+    };
+    const enter = (previous: RuntimeState, inputId: string) => reduceRuntime(previous,
+      parserInput({ kind: "decoded", material: { headType: "VXSE43", inputId } as DecodedMaterial }), calls);
+    const rejected = enter(initialState(), "reject");
+    expect(rejected.state.admission["U-E"]?.normal?.records).toMatchObject([{ subject: "s", reportDateTimeMs: 12 }]);
+    expect(rejected.views[0]).toMatchObject({ admission: { normal: "capacityExceeded" }, subjects: [] });
+    const stale = enter(rejected.state, "old");
+    expect(stale.state.admission["U-E"]?.normal?.records).toHaveLength(1);
+    const cleared = enter(stale.state, "new");
+    expect(cleared.state.admission["U-E"]?.normal).toBeUndefined();
+    expect(cleared.views[0].subjects).toHaveLength(1);
+    expect(cleared.generationInputIds).toEqual({});
+  });
+
+  it("P2-A1-T09 contractBoundary / AC09: weather scope clears only the confirmed office and area", () => {
+    const area = (office: string, code: string) => JSON.stringify(["VPWW55", "partial", office,
+      "気象警報・注意報（市町村等）", code]);
+    const left = area("京都地方気象台", "123");
+    const right = area("京都地方気象台", "456");
+    const other = area("大阪管区気象台", "123");
+    const calls = { reduceWeatherCurrentUnit: (unit: WeatherCurrentUnitState,
+      input: WeatherCurrentInput): WeatherCurrentUnitStep => {
+      const id = input.kind === "receive" ? input.material.inputId : "";
+      const decisions = id === "reject" ? [{ subject: "s", operation: "normal" as const,
+        decision: "capacityExceeded" as const, rejection: { family: "VPWW55", reportDateTimeMs: 12,
+          affectedScope: [left, right] } }]
+        : [{ subject: "s", operation: "normal" as const, decision: "changed" as const,
+          reason: null, change: "semantic" as const, currentEstablished: { family: "VPWW55",
+            reportDateTimeMs: 13, affectedScope: [id === "other" ? other : id === "left" ? left : right] } }];
+      return { state: unit, nextDeadline: null, decisions, intents: [], outcomes: [], diagnostics: [] };
+    } };
+    const enter = (state: RuntimeState, inputId: string) => reduceRuntime(state,
+      parserInput({ kind: "decoded", material: { headType: "VPWW55", inputId } as DecodedMaterial }), calls).state;
+    const rejected = enter(initialState(), "reject");
+    expect(enter(rejected, "other").admission["U-W"]?.normal?.records[0].affectedScope).toEqual([left, right]);
+    const partial = enter(rejected, "left");
+    expect(partial.admission["U-W"]?.normal?.records[0].affectedScope).toEqual([right]);
+    expect(enter(partial, "right").admission["U-W"]?.normal).toBeUndefined();
+  });
+
+  it("P2-A1-T09 contractBoundary / RES-04: overflow retains known records and cannot self-clear", () => {
+    const records = Array.from({ length: 512 }, (_, index) => ({ subject: `s-${index}`, family: "VXSE43",
+      reportDateTimeMs: 12, affectedScope: "subject" as const }));
+    const initial: RuntimeState = { ...initialState(), admission: { "U-E": { normal: { records, overflow: false } } } };
+    const calls = { reduceEewUnit: (unit: EewUnitState, input: EewInput): EewUnitStep => {
+      const id = input.kind === "receive" ? input.material.inputId : "";
+      const decisions: EewUnitStep["decisions"] = id === "overflow"
+        ? [{ subject: "new", operation: "normal", decision: "capacityExceeded",
+          rejection: { family: "VXSE43", reportDateTimeMs: 13, affectedScope: "subject" } }]
+        : [{ subject: "s-0", operation: "normal", decision: "changed", reason: null,
+          change: "semantic", currentEstablished: { family: "VXSE43", reportDateTimeMs: 14,
+            affectedScope: "subject" } }];
+      return { state: unit, nextDeadline: null, decisions, intents: [], outcomes: [], diagnostics: [] };
+    } };
+    const enter = (state: RuntimeState, inputId: string) => reduceRuntime(state,
+      parserInput({ kind: "decoded", material: { headType: "VXSE43", inputId } as DecodedMaterial }), calls).state;
+    const overflowed = enter(initial, "overflow");
+    expect(overflowed.admission["U-E"]?.normal).toMatchObject({ overflow: true, records });
+    const reduced = enter(overflowed, "clear");
+    expect(reduced.admission["U-E"]?.normal).toMatchObject({ overflow: true, records: records.slice(1) });
+  });
   afterEach(() => vi.restoreAllMocks());
 
   it("P2-A1-T01 acceptance / AC01: saved pre-deadline state has zero work in 1,000 ticks", () => {
@@ -356,7 +448,7 @@ describe("P2 shared runtime", () => {
       ...unitReply(unit, input), state: { ...unit }, outcomes: [outcome],
     }));
     const series = vi.fn((unit: WeatherTimeseriesUnitState, input: WeatherTimeseriesInput) => unitReply(unit, input));
-    const view = { unit: "U-W" as const, semanticRevision: "revision", persistence: savedProgress, subjects: [] };
+    const view = { unit: "U-W" as const, semanticRevision: "revision", persistence: savedProgress, admission: {}, subjects: [] };
     const toView = vi.fn(() => view);
     const calls = { reduceEewUnit: eew, reduceWeatherCurrentUnit: weather, reduceWeatherTimeseriesUnit: series,
       toWeatherCurrentView: toView };
@@ -371,7 +463,7 @@ describe("P2 shared runtime", () => {
     expect(step.state.units["U-F"]).toBe(initial.units["U-F"]);
     expect(step.state.units["U-W"].freshness).toBe(initial.units["U-W"].freshness);
     expect(step.outcomes[0]).toBe(outcome);
-    expect(step.views[0]).toBe(view);
+    expect(step.views[0]).toEqual(view);
     expect(toView).toHaveBeenCalledWith(step.state.units["U-W"]);
     expect(reduceRuntime(step.state, tick, calls).state).toBe(step.state);
     expect(eew).toHaveBeenCalledTimes(1);

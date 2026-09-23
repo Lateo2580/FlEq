@@ -292,7 +292,8 @@ function reduceEew(state: EewUnitState, input: Extract<EewInput, { kind: "receiv
   const eligible = [...subjects.values()].filter((item) => item.operation !== "normal");
   if (eligible.length < needed) return {
     state, nextDeadline: nextEewDeadline(state),
-    decisions: [{ subject: candidate.subject, operation: candidate.operation, decision: "capacityExceeded" }],
+    decisions: [{ subject: candidate.subject, operation: candidate.operation, decision: "capacityExceeded",
+      rejection: { family: candidate.family, reportDateTimeMs: Date.parse(candidate.source.reportDateTimeRaw), affectedScope: "subject" } }],
     intents: [], outcomes: [], diagnostics: [],
   };
   const evicted = new Set(needed === 0 ? [] : eligible.sort((left, right) => {
@@ -331,7 +332,8 @@ function reduceEew(state: EewUnitState, input: Extract<EewInput, { kind: "receiv
   return {
     state: next, nextDeadline: nextEewDeadline(next),
     decisions: [{ subject: candidate.subject, operation: candidate.operation,
-      decision: "changed", reason: null, change }],
+      decision: "changed", reason: null, change,
+      currentEstablished: { family: candidate.family, reportDateTimeMs: Date.parse(candidate.source.reportDateTimeRaw), affectedScope: "subject" } }],
     intents: [],
     outcomes: [{ kind: "accepted", change, subjects: [outcome(candidate, transition, candidate.prediction)] }],
     diagnostics: evicted.size === 0 ? [] : [{ level: "INFO", component: "eew", reason: "eewCapacityEvicted",

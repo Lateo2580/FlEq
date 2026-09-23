@@ -48,6 +48,13 @@ function config(path: string) {
 
 const pending = fixtureState;
 
+function schedule(root: RuntimeCompositionRoot, driver: ReturnType<typeof fixtureDriver>,
+  state: RuntimeState, clock: Parameters<RuntimeCompositionRoot["scheduleCheckpoint"]>[1], runId: string,
+  correlations: Parameters<RuntimeCompositionRoot["scheduleCheckpoint"]>[3]) {
+  driver.update(root, state, clock, correlations);
+  return root.scheduleCheckpoint(root.state, clock, runId, correlations);
+}
+
 class MemoryCheckpointFileSystem implements CheckpointFileSystem {
   readonly files = new Map<string, Uint8Array>();
   fail: "write" | "fileSync" | "close" | "rename" | "directorySync" | "verify" | null = null;
@@ -97,7 +104,7 @@ describe("P2 checkpoint", () => {
       "U-E": { kind: "pending", currentGeneration: 1, savedGeneration: null,
         savedCapturedAt: null, savedAckAt: null, dirtySince: 1 },
     });
-    const scheduled = root.scheduleCheckpoint(state, { wallTimeMs: 1_713_363_299_002, monotonicMs: 2 }, "o07",
+    const scheduled = schedule(root, driver, state, { wallTimeMs: 1_713_363_299_002, monotonicMs: 2 }, "o07",
       { "U-E": { inputIds: ["test__fixtures__37_01_01_240613_VXSE43"], retryReason: "notRetry" } })!;
     const output = await root.executeCheckpoint(scheduled.request!, "o07",
       ["test__fixtures__37_01_01_240613_VXSE43"], "notRetry");
@@ -123,7 +130,7 @@ describe("P2 checkpoint", () => {
     });
     let state = pending({ "U-F": { value: "active" } }, { "U-F": { kind: "pending",
       currentGeneration: 2, savedGeneration: 1, savedCapturedAt: 1, savedAckAt: 2, dirtySince: 10 } });
-    const scheduled = root.scheduleCheckpoint(state, { wallTimeMs: 5_000, monotonicMs: 500 }, "o10",
+    const scheduled = schedule(root, driver, state, { wallTimeMs: 5_000, monotonicMs: 500 }, "o10",
       { "U-F": correlation })!;
     adapter.fail = "directorySync";
     const output = await root.executeCheckpoint(scheduled.request!, "o10", correlation.inputIds, correlation.retryReason);
@@ -145,16 +152,17 @@ describe("P2 checkpoint", () => {
     const path = await directory();
     const weather = { value: 0 };
     const eew = { value: 0 };
+    const driver = fixtureDriver();
     const root = new RuntimeCompositionRoot(config(path), {
       "U-W": codec("U-W", weather), "U-E": codec("U-E", eew),
-    }, { clock: () => ({ wallTimeMs: 1_000, monotonicMs: 100 }) });
+    }, { runtimeCalls: driver.calls, clock: () => ({ wallTimeMs: 1_000, monotonicMs: 100 }) });
     const state = pending({ "U-W": { value: "saved" }, "U-E": { value: "dirty" } }, {
       "U-W": { kind: "saved", currentGeneration: 1, savedGeneration: 1,
         savedCapturedAt: 1, savedAckAt: 2, dirtySince: null },
       "U-E": { kind: "pending", currentGeneration: 1, savedGeneration: null,
         savedCapturedAt: null, savedAckAt: null, dirtySince: 0 },
     });
-    const scheduled = root.scheduleCheckpoint(state, { wallTimeMs: 1_000, monotonicMs: 100 }, "run",
+    const scheduled = schedule(root, driver, state, { wallTimeMs: 1_000, monotonicMs: 100 }, "run",
       { "U-E": correlation });
     expect(scheduled?.request?.unit).toBe("U-E");
     expect(weather.value).toBe(0);
@@ -178,14 +186,14 @@ describe("P2 checkpoint", () => {
         savedCapturedAt: null, savedAckAt: null, dirtySince: 50 },
     });
     adapter.fail = "write";
-    let scheduled = root.scheduleCheckpoint(state, { wallTimeMs: 10_100, monotonicMs: now }, "run",
+    let scheduled = schedule(root, driver, state, { wallTimeMs: 10_100, monotonicMs: now }, "run",
       { "U-F": correlation, "U-W": correlation })!;
     let executed = await root.executeCheckpoint(scheduled.request!, "run", correlation.inputIds, correlation.retryReason);
     state = root.applyCheckpointResult(state, executed.result, { wallTimeMs: 10_100, monotonicMs: now }).state;
     expect(root.checkpoint.retryAfter("U-F")).toBe(1_100);
 
     adapter.fail = null;
-    scheduled = root.scheduleCheckpoint(state, { wallTimeMs: 10_101, monotonicMs: 101 }, "run",
+    scheduled = schedule(root, driver, state, { wallTimeMs: 10_101, monotonicMs: 101 }, "run",
       { "U-F": { ...correlation, retryReason: "saveFailed" }, "U-W": correlation })!;
     expect(scheduled.request?.unit).toBe("U-W");
     executed = await root.executeCheckpoint(scheduled.request!, "run", correlation.inputIds, correlation.retryReason);
@@ -197,10 +205,10 @@ describe("P2 checkpoint", () => {
     adapter.fail = "write";
     for (const nextDelay of [2_000, 4_000, 8_000, 10_000, 10_000]) {
       const due = root.checkpoint.retryAfter("U-F")!;
-      expect(root.scheduleCheckpoint(state, { wallTimeMs: 20_000, monotonicMs: due - 1 }, "run",
+      expect(schedule(root, driver, state, { wallTimeMs: 20_000, monotonicMs: due - 1 }, "run",
         { "U-F": { ...correlation, retryReason: "saveFailed" } })).toBeNull();
       now = due;
-      scheduled = root.scheduleCheckpoint(state, { wallTimeMs: 20_000 + now, monotonicMs: now }, "run",
+      scheduled = schedule(root, driver, state, { wallTimeMs: 20_000 + now, monotonicMs: now }, "run",
         { "U-F": { ...correlation, retryReason: "saveFailed" } })!;
       executed = await root.executeCheckpoint(scheduled.request!, "run", correlation.inputIds, "saveFailed");
       state = root.applyCheckpointResult(state, executed.result, { wallTimeMs: 20_000 + now, monotonicMs: now }).state;
@@ -222,10 +230,10 @@ describe("P2 checkpoint", () => {
     });
     let state = pending({ "U-F": { value: "payload" } }, { "U-F": { kind: "pending",
       currentGeneration: 1, savedGeneration: null, savedCapturedAt: null, savedAckAt: null, dirtySince: 0 } });
-    const failed = root.scheduleCheckpoint(state, { wallTimeMs: 1_000, monotonicMs: 0 }, "run-5",
+    const failed = schedule(root, driver, state, { wallTimeMs: 1_000, monotonicMs: 0 }, "run-5",
       { "U-F": correlation })!;
     expect(failed.capture).toEqual({ attemptId: failed.result!.attemptId, unit: "U-F", generation: 1,
-      capturedAt: 1_000 });
+      capturedAt: 1_002 });
     expect(root.state.checkpointAttempts["U-F"]).toMatchObject(failed.capture);
     expect(failed).toMatchObject({ request: null, result: { stage: "encode", encodedByteLength: 0 },
       measurements: [{ runId: "run-5", inputIds: ["input-1"], unit: "U-F", generation: 1,
@@ -238,7 +246,7 @@ describe("P2 checkpoint", () => {
 
     fail = false;
     const due = root.checkpoint.retryAfter("U-F")!;
-    const succeeded = root.scheduleCheckpoint(state, { wallTimeMs: 2_000, monotonicMs: due }, "run-5",
+    const succeeded = schedule(root, driver, state, { wallTimeMs: 2_000, monotonicMs: due }, "run-5",
       { "U-F": { inputIds: ["input-1"], retryReason: "saveFailed" } })!;
     expect(succeeded.measurements).toHaveLength(1);
     expect(succeeded.measurements[0]).toMatchObject({ stage: "encode", outcome: "succeeded",
@@ -251,7 +259,7 @@ describe("P2 checkpoint", () => {
       && measurement.unit === "U-F" && measurement.generation === 1
       && measurement.inputIds[0] === "input-1" && measurement.retryReason === "saveFailed")).toBe(true);
     state = root.applyCheckpointResult(state, output.result, { wallTimeMs: 2_001, monotonicMs: due + 1 }).state;
-    expect(root.scheduleCheckpoint(state, { wallTimeMs: 2_002, monotonicMs: due + 2 }, "run-5", {})).toBeNull();
+    expect(schedule(root, driver, state, { wallTimeMs: 2_002, monotonicMs: due + 2 }, "run-5", {})).toBeNull();
     await root.diagnostics.flush();
   });
 
@@ -264,12 +272,14 @@ describe("P2 checkpoint", () => {
       const path = await directory();
       const adapter = new MemoryCheckpointFileSystem();
       adapter.fail = stage;
+      const driver = fixtureDriver();
       const root = new RuntimeCompositionRoot(config(path), { "U-F": codec("U-F") }, {
-        checkpointFileSystem: adapter, clock: () => ({ wallTimeMs: 1_000, monotonicMs: 1 }),
+        checkpointFileSystem: adapter, runtimeCalls: driver.calls,
+        clock: () => ({ wallTimeMs: 1_000, monotonicMs: 1 }),
       });
       const state = pending({ "U-F": { value: "payload" } }, { "U-F": { kind: "pending",
         currentGeneration: 1, savedGeneration: null, savedCapturedAt: null, savedAckAt: null, dirtySince: 0 } });
-      const scheduled = root.scheduleCheckpoint(state, { wallTimeMs: 1_000, monotonicMs: 1 }, "stages",
+      const scheduled = schedule(root, driver, state, { wallTimeMs: 1_000, monotonicMs: 1 }, "stages",
         { "U-F": correlation })!;
       const output = await root.executeCheckpoint(scheduled.request!, "stages", correlation.inputIds, correlation.retryReason);
       const step = root.applyCheckpointResult(state, output.result, { wallTimeMs: 1_001, monotonicMs: 2 });
@@ -289,13 +299,13 @@ describe("P2 checkpoint", () => {
     });
     let state = pending({ "U-F": { value: "same" } }, { "U-F": { kind: "pending",
       currentGeneration: 1, savedGeneration: null, savedCapturedAt: null, savedAckAt: null, dirtySince: 0 } });
-    let scheduled = root.scheduleCheckpoint(state, { wallTimeMs: 1_000, monotonicMs: 1 }, "hash",
+    let scheduled = schedule(root, driver, state, { wallTimeMs: 1_000, monotonicMs: 1 }, "hash",
       { "U-F": correlation })!;
     let output = await root.executeCheckpoint(scheduled.request!, "hash", correlation.inputIds, correlation.retryReason);
     state = root.applyCheckpointResult(state, output.result, { wallTimeMs: 1_001, monotonicMs: 2 }).state;
     state = driver.update(root, pending({ "U-F": { value: "same" } }, { "U-F": { ...state.units["U-F"].persistence!, kind: "pending",
-      currentGeneration: 9, dirtySince: 3 } }), { wallTimeMs: 3, monotonicMs: 3 });
-    scheduled = root.scheduleCheckpoint(state, { wallTimeMs: 1_002, monotonicMs: 3 }, "hash",
+      currentGeneration: 9, dirtySince: 3 } }), { wallTimeMs: 3, monotonicMs: 3 }, { "U-F": correlation });
+    scheduled = schedule(root, driver, state, { wallTimeMs: 1_002, monotonicMs: 3 }, "hash",
       { "U-F": correlation })!;
     output = await root.executeCheckpoint(scheduled.request!, "hash", correlation.inputIds, correlation.retryReason);
     root.applyCheckpointResult(state, output.result, { wallTimeMs: 1_003, monotonicMs: 4 });

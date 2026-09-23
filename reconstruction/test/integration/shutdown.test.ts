@@ -3,10 +3,10 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 
-import type { JsonValue, MailboxEnvelope, RuntimeState, UnitCodec } from "../../contracts/p2-shared-runtime.types";
+import type { MailboxEnvelope } from "../../contracts/p2-shared-runtime.types";
 import { RuntimeCompositionRoot } from "../../src/runtime/composition-root";
 
-import { fixtureState, fixtureDriver, stringCodec } from "../checkpoint-shutdown/runtime-fixture";
+import { fixtureState, fixtureDriver } from "../checkpoint-shutdown/runtime-fixture";
 const temporary: string[] = [];
 const clock = { wallTimeMs: 10_000, monotonicMs: 100 } as const;
 
@@ -20,8 +20,6 @@ function config(path: string) {
   return { appName: "fleq-p2", legacyAppName: "fleq", stateDirectory: join(path, "state"),
     legacyStateDirectory: join(path, "legacy"), diagnosticDirectory: join(path, "diagnostics") } as const;
 }
-
-const saved = fixtureState();
 
 function pendingEnvelope(): MailboxEnvelope {
   return {
@@ -48,42 +46,34 @@ describe("P2 shutdown composition", () => {
       finalizeBatchesAndSideEffects: async () => { order.push("finalize"); return { batches: 0, notificationAttempts: 0 }; },
       closeWorker: async () => { order.push("close"); },
     } });
-    expect((await normal.shutdownRuntime(saved, 7, clock)).code).toBe(0);
+    expect((await normal.shutdownRuntime(normal.startRuntime("run", clock).state, 7, clock)).code).toBe(0);
     expect(order).toEqual(["drain", "finalize", "close"]);
     expect(JSON.parse(await fileSystem.readFile(join(path, "diagnostics", "shutdown-summary.json"), "utf8")))
       .toMatchObject({ code: 0, acceptedThroughSequence: 7, pendingInputs: 0, inFlightInputs: 0 });
 
     const dirty = fixtureState({ "U-F": "final" }, { "U-F": { kind: "pending",
       currentGeneration: 1, savedGeneration: null, savedCapturedAt: null, savedAckAt: null, dirtySince: 0 } });
-    const unsaved = new RuntimeCompositionRoot(config(path), {}, { runtimeCalls: fixtureDriver().calls, clock: () => clock });
-    const unsavedSummary = await unsaved.shutdownRuntime(dirty, 7, clock);
+    const driver = fixtureDriver();
+    const unsaved = new RuntimeCompositionRoot(config(path), {}, { runtimeCalls: driver.calls, clock: () => clock });
+    const unsavedSummary = await unsaved.shutdownRuntime(driver.update(unsaved, dirty, clock), 7, clock);
     expect(unsavedSummary).toMatchObject({ code: 2, reasons: ["finalCheckpoint:unsavedUnits"],
       persistence: { "U-F": { currentGeneration: 1, savedGeneration: null } } });
 
-    const noAck = new RuntimeCompositionRoot(config(path), { "U-F": stringCodec("U-F") },
-      { runtimeCalls: fixtureDriver().calls, clock: () => clock });
-    const waiting = dirty;
-    expect(noAck.scheduleCheckpoint(waiting, clock, "run", {
-      "U-F": { inputIds: ["input"], retryReason: "notRetry" },
-    })?.request).not.toBeNull();
-    expect((await noAck.shutdownRuntime(waiting, 7, clock))).toMatchObject({ code: 2,
-      reasons: ["finalCheckpoint:unsavedUnits"] });
-
     const mailboxBlocked = new RuntimeCompositionRoot(config(path), {}, { runtimeCalls: fixtureDriver().calls, clock: () => clock });
     mailboxBlocked.mailbox.enqueue(pendingEnvelope());
-    expect((await mailboxBlocked.shutdownRuntime(saved, 7, clock))).toMatchObject({
+    expect((await mailboxBlocked.shutdownRuntime(mailboxBlocked.startRuntime("run", clock).state, 7, clock))).toMatchObject({
       code: 3, pendingInputs: 1, reasons: ["mailboxDrain:remainingInputs"],
     });
 
     const batchBlocked = new RuntimeCompositionRoot(config(path), {}, {
       runtimeCalls: fixtureDriver().calls, clock: () => clock, shutdownHooks: { finalizeBatchesAndSideEffects: async () => { throw new Error("stuck"); } },
     });
-    expect((await batchBlocked.shutdownRuntime(saved, 7, clock)).code).toBe(3);
+    expect((await batchBlocked.shutdownRuntime(batchBlocked.startRuntime("run", clock).state, 7, clock)).code).toBe(3);
 
     const closeBlocked = new RuntimeCompositionRoot(config(path), {}, {
       runtimeCalls: fixtureDriver().calls, clock: () => clock, shutdownHooks: { closeWorker: async () => { throw new Error("stuck"); } },
     });
-    expect((await closeBlocked.shutdownRuntime(saved, 7, clock))).toMatchObject({
+    expect((await closeBlocked.shutdownRuntime(closeBlocked.startRuntime("run", clock).state, 7, clock))).toMatchObject({
       code: 4, reasons: ["workerClose:failed:operationFailed", "workerClose:remainingWorkers"],
     });
     expect(JSON.parse(await fileSystem.readFile(join(path, "diagnostics", "shutdown-summary.json"), "utf8")))

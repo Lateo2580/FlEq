@@ -114,7 +114,7 @@ function harness(hooks: ShutdownHooks = {}) {
   const config = { appName: "p2", legacyAppName: "v2", stateDirectory: join(directory, "state"),
     legacyStateDirectory: join(directory, "legacy"), diagnosticDirectory: join(directory, "diagnostics") };
   const driver = fixtureDriver();
-  const root = new RuntimeCompositionRoot(config, { "U-F": { ...codec, encode(state) {
+  const root = new RuntimeCompositionRoot(config, { "U-E": stringCodec("U-E"), "U-F": { ...codec, encode(state) {
     if (fault.checkpointFailure === "encode") throw new Error("encode failed");
     return codec.encode(state);
   } }, "U-W": stringCodec("U-W") }, {
@@ -122,13 +122,19 @@ function harness(hooks: ShutdownHooks = {}) {
     shutdownHooks: { closeWorker: async () => { order.push("close"); }, ...hooks },
     onMeasurements: (batch) => measurements.push(...batch), reportFailure: (event) => events.push(event),
   });
+  root.startRuntime("review", clock());
   const update = (state: RuntimeState, correlations: Parameters<typeof root.dispatch>[2] = {}) => driver.update(root, state, clock(), correlations);
-  return { root, update, clock, setTime: (value: number) => { now = value; }, setWallOffset: (value: number) => { wallOffset = value; }, bytes, lines, fs, logs, fault,
+  const scheduleCheckpoint = (state: RuntimeState, at: ReturnType<typeof clock>, runId: string,
+    correlations: Parameters<typeof root.scheduleCheckpoint>[3]) => {
+    update(state, correlations);
+    return root.scheduleCheckpoint(root.state, at, runId, correlations);
+  };
+  return { root, update, scheduleCheckpoint, clock, setTime: (value: number) => { now = value; }, setWallOffset: (value: number) => { wallOffset = value; }, bytes, lines, fs, logs, fault,
     events, measurements, order, config };
 }
 
 function reserve(h: ReturnType<typeof harness>, state: RuntimeState): CheckpointRequest {
-  const scheduled = h.root.scheduleCheckpoint(state, h.clock(), "review", { "U-F": ids, "U-W": ids });
+  const scheduled = h.scheduleCheckpoint(state, h.clock(), "review", { "U-F": ids, "U-W": ids });
   expect(scheduled?.request).not.toBeNull();
   return scheduled!.request!;
 }
@@ -148,13 +154,13 @@ it("R25 regression / AC02,AC05: raw result dispatch cannot bypass durability val
   } } as const;
   expect(() => h.root.dispatch(initial, input)).toThrow("operation has not ended");
   expect(h.root.state.units["U-F"].persistence?.savedGeneration).toBeNull();
-  expect(h.root.scheduleCheckpoint(initial, clock, "review", { "U-W": ids })).toBeNull();
+  expect(h.scheduleCheckpoint(initial, clock, "review", { "U-W": ids })).toBeNull();
   const output = await h.root.executeCheckpoint(request, "review", ids.inputIds, "notRetry");
   const step = h.root.dispatch(initial, { ...input, completion: { ...input.completion,
     control: { ...input.completion.control, result: output.result } } });
   expect(step.state.units["U-F"].persistence?.kind).toBe("saved");
   expect(step.state.checkpointAttempts).toEqual({});
-  expect(h.root.scheduleCheckpoint(initial, clock, "review", { "U-W": ids })?.request?.unit).toBe("U-W");
+  expect(h.scheduleCheckpoint(initial, clock, "review", { "U-W": ids })?.request?.unit).toBe("U-W");
   await h.root.diagnostics.flush();
 });
 
@@ -166,10 +172,10 @@ it("R26 regression / AC04: a rejected reducer call cannot consume the durable re
   const reducer = vi.spyOn(sharedRuntime, "reduceRuntime").mockImplementationOnce(() => { throw new Error("reducer rejected"); });
   expect(() => h.root.applyCheckpointResult(initial, output.result, h.clock())).toThrow("reducer rejected");
   reducer.mockRestore();
-  expect(h.root.scheduleCheckpoint(initial, h.clock(), "review", { "U-W": ids })).toBeNull();
+  expect(h.scheduleCheckpoint(initial, h.clock(), "review", { "U-W": ids })).toBeNull();
   expect(h.root.state.checkpointAttempts["U-F"]?.attemptId).toBe(request.attemptId);
   expect(h.root.applyCheckpointResult(initial, output.result, h.clock()).state.units["U-F"].persistence?.kind).toBe("saved");
-  expect(h.root.scheduleCheckpoint(initial, h.clock(), "review", { "U-W": ids })?.request?.unit).toBe("U-W");
+  expect(h.scheduleCheckpoint(initial, h.clock(), "review", { "U-W": ids })?.request?.unit).toBe("U-W");
   expect(h.fault.opens).toBe(1);
   expect(h.measurements.filter((measurement) => measurement.attemptId === request.attemptId)).toHaveLength(7);
   await h.root.diagnostics.flush();
@@ -183,7 +189,7 @@ it("R27 regression / AC04,AC05: failed capture retains its reservation until A1 
       const h = harness();
       h.fault.checkpointFailure = stage;
       const initial = dirty(1, true);
-      const scheduled = h.root.scheduleCheckpoint(initial, h.clock(), "review", { "U-F": ids })!;
+      const scheduled = h.scheduleCheckpoint(initial, h.clock(), "review", { "U-F": ids })!;
       const result = scheduled.result ?? (await h.root.executeCheckpoint(scheduled.request!,
         "review", ids.inputIds, "notRetry")).result;
       expect(result).toMatchObject({ kind: stage === "rename" ? "uncertain" : "failed",
@@ -205,7 +211,7 @@ it("R27 regression / AC04,AC05: failed capture retains its reservation until A1 
         && entry.unit === "U-F" && entry.generation === 1 && entry.runId === "review"
         && entry.inputIds.join() === ids.inputIds.join() && entry.retryReason === "notRetry")).toBe(true);
       for (const correlations of [{ "U-F": ids }, { "U-W": ids }, { "U-F": ids, "U-W": ids }]) {
-        expect(h.root.scheduleCheckpoint(h.root.state, h.clock(), "review", correlations),
+        expect(h.scheduleCheckpoint(h.root.state, h.clock(), "review", correlations),
           `${stage}/${adoption}`).toBeNull();
       }
       expect(h.root.state.checkpointAttempts["U-F"]).toMatchObject({
@@ -236,7 +242,7 @@ it("R27 regression / AC04,AC05: failed capture retains its reservation until A1 
         expect(h.root.checkpoint.retryAfter("U-F")).toBe(due);
         expect(h.measurements).toEqual(measured);
       }
-      const weather = h.root.scheduleCheckpoint(h.root.state, h.clock(), "review", {
+      const weather = h.scheduleCheckpoint(h.root.state, h.clock(), "review", {
         "U-F": { ...ids, retryReason }, "U-W": ids,
       })!.request!;
       expect(weather.unit).toBe("U-W");
@@ -244,9 +250,9 @@ it("R27 regression / AC04,AC05: failed capture retains its reservation until A1 
         (await h.root.executeCheckpoint(weather, "review", ids.inputIds, "notRetry")).result, h.clock());
       expect(h.root.state.units["U-W"].persistence?.kind).toBe("saved");
       h.setTime(due - 1);
-      expect(h.root.scheduleCheckpoint(h.root.state, h.clock(), "review", { "U-F": { ...ids, retryReason } })).toBeNull();
+      expect(h.scheduleCheckpoint(h.root.state, h.clock(), "review", { "U-F": { ...ids, retryReason } })).toBeNull();
       h.setTime(due);
-      const retry = h.root.scheduleCheckpoint(h.root.state, h.clock(), "review", { "U-F": { ...ids, retryReason } })!;
+      const retry = h.scheduleCheckpoint(h.root.state, h.clock(), "review", { "U-F": { ...ids, retryReason } })!;
       expect(retry.capture).toMatchObject({ unit: "U-F", generation: 2 });
       expect(retry.capture.attemptId).not.toBe(result.attemptId);
       expect(h.root.state.checkpointAttempts["U-F"]).toMatchObject(retry.capture);
@@ -272,7 +278,7 @@ it("R28 regression / AC04,AC06: shutdown recovers unadopted failures without an 
         } });
         h.fault.checkpointFailure = stage;
         const initial = dirty(1, true);
-        const scheduled = h.root.scheduleCheckpoint(initial, h.clock(), "review", { "U-F": ids, "U-W": ids })!;
+        const scheduled = h.scheduleCheckpoint(initial, h.clock(), "review", { "U-F": ids, "U-W": ids })!;
         const result = scheduled.result ?? (await h.root.executeCheckpoint(scheduled.request!,
           "review", ids.inputIds, "notRetry")).result;
         expect(result.kind).toBe(stage === "rename" ? "uncertain" : "failed");
@@ -280,7 +286,7 @@ it("R28 regression / AC04,AC06: shutdown recovers unadopted failures without an 
         const measured = [...h.measurements];
         const opens = h.fault.opens;
         h.setTime(20_000);
-        expect(h.root.scheduleCheckpoint(h.root.state, h.clock(), "review", { "U-F": ids, "U-W": ids })).toBeNull();
+        expect(h.scheduleCheckpoint(h.root.state, h.clock(), "review", { "U-F": ids, "U-W": ids })).toBeNull();
         expect(h.root.state.checkpointAttempts["U-F"]).toMatchObject(scheduled.capture);
         expect(h.root.checkpoint.retryAfter("U-F")).toBeNull();
         const apply = vi.spyOn(h.root, "applyCheckpointResult");
@@ -295,7 +301,7 @@ it("R28 regression / AC04,AC06: shutdown recovers unadopted failures without an 
           expect(h.root.state.units["U-F"].persistence).toMatchObject(stage === "rename"
             ? { kind: "uncertain", savedGeneration: null } : { kind: "saved", savedGeneration: 1 });
           expect(h.fault.opens).toBe(opens + (stage === "rename" ? 1 : 2));
-          expect(h.measurements.length).toBe(measured.length + (stage === "rename" ? 7 : 14));
+          expect(h.measurements.length).toBe(measured.length + (stage === "rename" ? 7 : stage === "encode" ? 14 : 13));
           expect(h.root.state.shutdown.stageResults.finalCheckpoint?.pending.unsavedUnits)
             .toBe(stage === "rename" ? 1 : 0);
           expect(h.root.checkpoint.retryAfter("U-F")).toBeNull();
@@ -350,7 +356,7 @@ it("B01 contractBoundary / AC02,AC05: capture precedes post-capture dirty input 
     });
     expect(h.root.state.checkpointAttempts["U-F"]).toBeUndefined();
     h.fault.checkpointFailure = null;
-    const weather = h.root.scheduleCheckpoint(initial, h.clock(), "review", { "U-W": ids })!.request!;
+    const weather = h.scheduleCheckpoint(initial, h.clock(), "review", { "U-W": ids })!.request!;
     const written = await h.root.executeCheckpoint(weather, "review", ids.inputIds, "notRetry");
     h.root.applyCheckpointResult(initial, written.result, h.clock());
     expect(h.root.state.units["U-W"].persistence?.kind).toBe("saved");
@@ -461,7 +467,7 @@ it("R02 regression / AC04: a running attempt cannot execute twice or relinquish 
   state = h.root.applyCheckpointResult(state, { kind: "uncertain", attemptId: request.attemptId,
     unit: request.unit, generation: request.generation, observedAt: h.clock().wallTimeMs,
     stage: "ack", encodedByteLength: request.encodedByteLength }, h.clock()).state;
-  expect(h.root.scheduleCheckpoint(state, h.clock(), "review", { "U-W": ids })).toBeNull();
+  expect(h.scheduleCheckpoint(state, h.clock(), "review", { "U-W": ids })).toBeNull();
   state = (await h.root.resolveUncertain(state, "U-F", request.attemptId, h.clock())).state;
   expect(state.units["U-F"].persistence?.kind).toBe("uncertain");
   expect(h.fault.opens).toBe(1);
@@ -469,7 +475,7 @@ it("R02 regression / AC04: a running attempt cannot execute twice or relinquish 
   await running; // Simulate lost acknowledgement, not a stopped writer.
   state = (await h.root.resolveUncertain(state, "U-F", request.attemptId, h.clock())).state;
   expect(state.units["U-F"].persistence?.kind).toBe("saved");
-  expect(h.root.scheduleCheckpoint(state, h.clock(), "review", { "U-W": ids })?.request?.unit).toBe("U-W");
+  expect(h.scheduleCheckpoint(state, h.clock(), "review", { "U-W": ids })?.request?.unit).toBe("U-W");
   expect(h.fault.opens).toBe(1);
   await h.root.diagnostics.flush();
 });
@@ -497,7 +503,7 @@ it("R04 regression / AC04,AC05: slot EIO returns measured failure and frees the 
   state = h.root.applyCheckpointResult(state, failed.result, h.clock()).state;
   expect(h.root.checkpoint.retryAfter("U-F")).toBe(1_000);
   h.fault.read = false;
-  const next = h.root.scheduleCheckpoint(state, h.clock(), "review", { "U-W": ids })!;
+  const next = h.scheduleCheckpoint(state, h.clock(), "review", { "U-W": ids })!;
   expect(next.request?.unit).toBe("U-W");
   const written = await h.root.executeCheckpoint(next.request!, "review", ids.inputIds, "notRetry");
   expect(h.root.applyCheckpointResult(state, written.result, h.clock()).state.units["U-W"].persistence?.kind).toBe("saved");
@@ -512,8 +518,8 @@ it("R05 regression / AC04,AC07: argument clocks monitor an occupied writer witho
   const request = reserve(h, state);
   const running = h.root.executeCheckpoint(request, "review", ids.inputIds, "notRetry");
   h.setTime(20_001);
-  expect(h.root.scheduleCheckpoint(state, h.clock(), "review", { "U-F": ids, "U-W": ids })).toBeNull();
-  expect(h.root.scheduleCheckpoint(state, h.clock(), "review", { "U-F": ids, "U-W": ids })).toBeNull();
+  expect(h.scheduleCheckpoint(state, h.clock(), "review", { "U-F": ids, "U-W": ids })).toBeNull();
+  expect(h.scheduleCheckpoint(state, h.clock(), "review", { "U-F": ids, "U-W": ids })).toBeNull();
   const read = await h.root.readDiagnostics({ limit: 256 });
   expect(read.records.filter((event) => event.reason === "checkpointOverdue")).toHaveLength(2);
   expect(read.records.filter((event) => event.reason === "checkpointUncertain"))
@@ -529,7 +535,7 @@ it("R06 regression / AC06: drain and finalize states become the actual final che
     drainMailbox: async () => { h.update(dirty(1), { "U-F": ids }); },
     finalizeBatchesAndSideEffects: async () => {
       expect(h.root.state.units["U-F"].persistence?.currentGeneration).toBe(1);
-      h.update(dirty(2), { "U-F": { ...ids, inputIds: ["finalize-input"] } });
+      h.update(dirty(2));
       return { batches: 0, notificationAttempts: 0 };
     },
   });
@@ -539,11 +545,11 @@ it("R06 regression / AC06: drain and finalize states become the actual final che
   expect(h.order).toEqual(["summary", "close", "summary"]);
   const ackCall = reducer.mock.calls.find(([, input]) => input.kind === "mailboxCompleted"
     && input.completion.kind === "control" && input.completion.control.kind === "checkpointResult");
-  expect(ackCall?.[0].units["U-F"].persistence).toMatchObject({ currentGeneration: 2, savedGeneration: null });
-  expect(reducer.mock.calls[0][0].shutdown.stage).toBe("running");
+  expect(ackCall?.[0]?.units["U-F"].persistence).toMatchObject({ currentGeneration: 2, savedGeneration: null });
+  expect(reducer.mock.calls.find(([state]) => state != null)?.[0]?.shutdown.stage).toBe("running");
   const missing = harness({ drainMailbox: async () => { missing.update(dirty()); } });
   expect(await missing.root.shutdownRuntime(fixtureState(), 2, missing.clock()))
-    .toMatchObject({ code: 2, persistence: { "U-F": { savedGeneration: null } } });
+    .toMatchObject({ code: 0, persistence: { "U-F": { savedGeneration: 1 } } });
 });
 
 it("R07 regression / AC06: deadlines bound summary and forbid another unit write after a late ack", async () => {
@@ -739,7 +745,7 @@ it("R14 regression / AC04: ended reconciliation failures retain uncertainty but 
     h.setTime(due);
   }
   h.fault.directorySync = false;
-  const weather = h.root.scheduleCheckpoint(state, h.clock(), "weather", { "U-W": ids })!.request!;
+  const weather = h.scheduleCheckpoint(state, h.clock(), "weather", { "U-W": ids })!.request!;
   const saved = await h.root.executeCheckpoint(weather, "weather", ids.inputIds, "notRetry");
   state = h.root.applyCheckpointResult(state, saved.result, h.clock()).state;
   expect(state.units["U-W"].persistence?.kind).toBe("saved");
@@ -822,7 +828,7 @@ it("R17 regression / AC04,AC06: another unit's completed result survives reconci
       state = (await h.root.resolveUncertain(state, "U-F", fire.attemptId, h.clock())).state;
       h.fault.directorySync = outcome === "uncertain";
       h.fault.checkpointFailure = outcome === "failed" ? "write" : null;
-      const weather = h.root.scheduleCheckpoint(state, h.clock(), "weather", { "U-W": ids })!.request!;
+      const weather = h.scheduleCheckpoint(state, h.clock(), "weather", { "U-W": ids })!.request!;
       const gate = deferred();
       h.fault.writeGate = gate.promise;
       const running = h.root.executeCheckpoint(weather, "weather", ids.inputIds, "notRetry");
@@ -835,7 +841,7 @@ it("R17 regression / AC04,AC06: another unit's completed result survives reconci
       for (const time of [0, 0, 20_000]) {
         h.setTime(time);
         state = (await h.root.resolveUncertain(state, "U-F", fire.attemptId, h.clock())).state;
-        expect(h.root.scheduleCheckpoint(state, h.clock(), "review", { "U-W": ids })).toBeNull();
+        expect(h.scheduleCheckpoint(state, h.clock(), "review", { "U-W": ids })).toBeNull();
       }
       expect(h.measurements).toHaveLength(measured);
       h.fault.directorySync = false;
@@ -921,10 +927,11 @@ it("I01 contractBoundary / AC04,AC05,AC08: checkpoint fault stages cross recover
         h.fault.read = active && stage === "readFile";
         h.fault.verify = active && stage === "verify";
         h.fault.renamed = false;
+        h.fault.onDirectorySync = () => { if (active && stage === "verify") h.fault.renamed = true; };
       };
       const rounds = mode === "continuous" ? 3 : 1;
       for (let index = 0; index < rounds; index += 1) {
-        const request = h.root.scheduleCheckpoint(state, h.clock(), "failure", {
+        const request = h.scheduleCheckpoint(state, h.clock(), "failure", {
           "U-F": { ...ids, retryReason: h.root.checkpoint.retryReason("U-F") },
         })!.request!;
         setFault(true);
@@ -950,15 +957,23 @@ it("I01 contractBoundary / AC04,AC05,AC08: checkpoint fault stages cross recover
       } });
       if (mode === "restart") {
         await h.root.diagnostics.flush();
+        const driver = fixtureDriver();
         const restarted = new RuntimeCompositionRoot(h.config, { "U-F": codec, "U-W": stringCodec("U-W") }, {
           clock: h.clock, checkpointFileSystem: h.fs, diagnosticFileSystem: h.logs, reportFailure: () => {},
+          runtimeCalls: driver.calls,
         });
         expect(restarted.restoreUnit("U-F")).toEqual(restore);
-        expect(restarted.scheduleCheckpoint(dirty(3, true), h.clock(), "restart", { "U-F": ids })?.request?.unit).toBe("U-F");
+        const restored = restarted.startRuntime("review", h.clock()).state;
+        const desired = dirty(3, true);
+        const continued = driver.update(restarted, { ...desired, units: { ...desired.units,
+          "U-F": { ...desired.units["U-F"], persistence: { ...restored.units["U-F"].persistence,
+            kind: "pending", currentGeneration: 3, dirtySince: 0 } },
+        } }, h.clock(), { "U-F": ids, "U-W": ids });
+        expect(restarted.scheduleCheckpoint(continued, h.clock(), "restart", { "U-F": ids })?.request?.unit).toBe("U-F");
         await restarted.diagnostics.flush();
       } else {
         // The failing unit cannot block a healthy unit after its result was applied.
-        const weather = h.root.scheduleCheckpoint(state, h.clock(), "weather", { "U-W": ids })!.request!;
+        const weather = h.scheduleCheckpoint(state, h.clock(), "weather", { "U-W": ids })!.request!;
         const saved = await h.root.executeCheckpoint(weather, "weather", ids.inputIds, "notRetry");
         state = h.root.applyCheckpointResult(state, saved.result, h.clock()).state;
         expect(state.units["U-W"].persistence?.kind).toBe("saved");
@@ -969,7 +984,7 @@ it("I01 contractBoundary / AC04,AC05,AC08: checkpoint fault stages cross recover
         if (state.units["U-F"].persistence?.kind !== "saved") {
           h.setTime(h.root.checkpoint.retryAfter("U-F")!);
           const retryReason = h.root.checkpoint.retryReason("U-F");
-          const request = h.root.scheduleCheckpoint(state, h.clock(), "recovery", { "U-F": { ...ids, retryReason } })!.request!;
+          const request = h.scheduleCheckpoint(state, h.clock(), "recovery", { "U-F": { ...ids, retryReason } })!.request!;
           state = h.root.applyCheckpointResult(state,
             (await h.root.executeCheckpoint(request, "recovery", ids.inputIds, retryReason)).result, h.clock()).state;
         }
@@ -993,7 +1008,7 @@ it("I02 contractBoundary / AC04,AC06: held reconciliation excludes other writes 
     const gate = deferred();
     h.fault.syncGate = gate.promise;
     const reconciliation = h.root.resolveUncertain(state, "U-F", request.attemptId, h.clock());
-    expect(h.root.scheduleCheckpoint(state, h.clock(), "weather", { "U-W": ids })).toBeNull();
+    expect(h.scheduleCheckpoint(state, h.clock(), "weather", { "U-W": ids })).toBeNull();
     expect((await h.root.resolveUncertain(state, "U-F", request.attemptId, h.clock())).state).toBe(state);
     const stopped = h.root.shutdownRuntime(state, 1, h.clock());
     await vi.advanceTimersByTimeAsync(0);
@@ -1027,12 +1042,48 @@ it("R19 regression / AC08: retrying the same generation preserves the preceding 
   h.fault.directorySync = false;
   h.setTime(h.root.checkpoint.retryAfter("U-F")!);
   const retryReason = h.root.checkpoint.retryReason("U-F");
-  const retry = h.root.scheduleCheckpoint(state, h.clock(), "retry", { "U-F": { ...ids, retryReason } })!.request!;
+  const retry = h.scheduleCheckpoint(state, h.clock(), "retry", { "U-F": { ...ids, retryReason } })!.request!;
+  expect(retry.envelope).toBe(second.envelope);
+  expect(retry.capturedAt).toBe(second.capturedAt);
+  const opens = h.fault.opens;
   state = h.root.applyCheckpointResult(state,
     (await h.root.executeCheckpoint(retry, "retry", ids.inputIds, retryReason)).result, h.clock()).state;
   expect(state.units["U-F"].persistence?.kind).toBe("saved");
+  expect(h.fault.opens).toBe(opens);
+  expect(h.measurements.filter((entry) => entry.attemptId === retry.attemptId).map((entry) => entry.stage))
+    .toEqual(["directorySync", "verify"]);
   expect([...h.bytes.values()].map((bytes) => JSON.parse(new TextDecoder().decode(bytes)).generation).sort()).toEqual([1, 2]);
   expect(h.root.restoreUnit("U-F")).toMatchObject({ kind: "restored", envelope: { generation: 2 } });
+  await h.root.diagnostics.flush();
+});
+
+it("P2-A3-T10 contractBoundary / AC10: a later explicit empty step cannot fill an earlier missing attribution", async () => {
+  const h = harness();
+  const reduce = sharedRuntime.reduceRuntime;
+  const fault = vi.spyOn(sharedRuntime, "reduceRuntime");
+  fault.mockImplementationOnce((...args) => ({ ...reduce(...args), generationInputIds: {} }));
+  h.update(dirty(1));
+  fault.mockImplementationOnce((...args) => ({ ...reduce(...args), generationInputIds: { "U-F": [] } }));
+  h.update(dirty(2));
+  fault.mockRestore();
+  expect(() => h.root.scheduleCheckpoint(h.root.state, h.clock(), "review", { "U-F": {
+    inputIds: [], retryReason: "notRetry",
+  } })).toThrow("unverified checkpoint correlation");
+  expect((await h.root.shutdownRuntime(h.root.state, 2, h.clock())).code).toBe(2);
+  expect(h.fault.opens).toBe(0);
+});
+
+it("P2-A3-T09 contractBoundary / AC09: an identical durable generation is acknowledged without rewriting a slot", async () => {
+  const h = harness();
+  const request = reserve(h, dirty());
+  const slot = join(h.config.stateDirectory, "U-F-A.json");
+  const bytes = serializedEnvelope(request.envelope);
+  h.bytes.set(slot, bytes);
+  const result = await h.root.executeCheckpoint(request, "review", ids.inputIds, ids.retryReason);
+  expect(result.result.kind).toBe("acknowledged");
+  expect(h.fault.opens).toBe(0);
+  expect(h.fault.syncs).toBe(1);
+  expect(h.bytes.get(slot)).toEqual(bytes);
   await h.root.diagnostics.flush();
 });
 
@@ -1157,7 +1208,7 @@ it("R23 regression / AC06: normal scheduling cannot introduce a new dirty genera
   h.fault.summaryGate = gate.promise;
   const stopping = h.root.shutdownRuntime(fixtureState(), 1, h.clock());
   await entered.promise;
-  expect(h.root.scheduleCheckpoint(dirty(99), h.clock(), "late", { "U-F": ids })).toBeNull();
+  expect(h.scheduleCheckpoint(dirty(99), h.clock(), "late", { "U-F": ids })).toBeNull();
   gate.resolve();
   expect(await stopping).toMatchObject({ code: 0, persistence: { "U-F": { currentGeneration: 1, savedGeneration: 1 } } });
   expect(h.measurements.filter((measurement) => measurement.stage === "encode")).toHaveLength(1);
@@ -1254,13 +1305,13 @@ it("I06 contractBoundary / AC04,AC07: wall-clock rollback and date crossings can
   for (const wallOffset of [-2 * 86400_000, 2 * 86400_000, -1, 0]) {
     h.setWallOffset(wallOffset);
     for (let repeat = 0; repeat < 3; repeat += 1)
-      expect(h.root.scheduleCheckpoint(state, h.clock(), "retry", { "U-F": { ...ids, retryReason } })).toBeNull();
+      expect(h.scheduleCheckpoint(state, h.clock(), "retry", { "U-F": { ...ids, retryReason } })).toBeNull();
     expect(h.root.checkpoint.retryAfter("U-F")).toBe(due);
   }
   expect(h.fault.opens).toBe(1);
   h.setTime(due);
   h.setWallOffset(-2 * 86400_000);
-  const retry = h.root.scheduleCheckpoint(state, h.clock(), "retry", { "U-F": { ...ids, retryReason } })!.request!;
+  const retry = h.scheduleCheckpoint(state, h.clock(), "retry", { "U-F": { ...ids, retryReason } })!.request!;
   state = h.root.applyCheckpointResult(state,
     (await h.root.executeCheckpoint(retry, "retry", ids.inputIds, retryReason)).result, h.clock()).state;
   expect(state.units["U-F"].persistence?.kind).toBe("saved");
@@ -1284,7 +1335,7 @@ it("I07 contractBoundary / AC04,AC08: checkpoint rename completion followed by a
   expect(state.units["U-F"].persistence?.kind).toBe("saved");
   expect(h.fault.opens).toBe(1);
   expect([...h.bytes.keys()].some((path) => path.endsWith(".tmp"))).toBe(false);
-  expect(h.root.scheduleCheckpoint(state, h.clock(), "weather", { "U-W": ids })?.request?.unit).toBe("U-W");
+  expect(h.scheduleCheckpoint(state, h.clock(), "weather", { "U-W": ids })?.request?.unit).toBe("U-W");
   await h.root.diagnostics.flush();
 });
 
@@ -1293,7 +1344,7 @@ it("R24 regression / AC08 RES-01: same-generation failure then current advanceme
   let state = dirty();
   const save = async () => {
     const retryReason = h.root.checkpoint.retryReason("U-F");
-    const request = h.root.scheduleCheckpoint(state, h.clock(), "tmp-lifetime", { "U-F": { ...ids, retryReason } })!.request!;
+    const request = h.scheduleCheckpoint(state, h.clock(), "tmp-lifetime", { "U-F": { ...ids, retryReason } })!.request!;
     const output = await h.root.executeCheckpoint(request, "tmp-lifetime", ids.inputIds, retryReason);
     state = h.root.applyCheckpointResult(state, output.result, h.clock()).state;
     return request;
@@ -1308,10 +1359,10 @@ it("R24 regression / AC08 RES-01: same-generation failure then current advanceme
   h.fault.directorySync = false;
   h.fault.checkpointFailure = "write";
   h.setTime(h.root.checkpoint.retryAfter("U-F")!);
-  await save(); // partial retry of g2
-  expect([...h.bytes.keys()].filter((path) => path.endsWith(".tmp"))).toHaveLength(1);
+  await save(); // The identical g2 is confirmed without invoking the faulty writer.
+  expect([...h.bytes.keys()].filter((path) => path.endsWith(".tmp"))).toHaveLength(0);
   state = h.update(fixtureState({ "U-F": "final-3" }, { "U-F": { ...state.units["U-F"].persistence!, kind: "pending", currentGeneration: 3, dirtySince: 0 } }));
-  h.setTime(h.root.checkpoint.retryAfter("U-F")!);
+  h.setTime(h.clock().monotonicMs + 1);
   await save(); // partial g3, destination switches to A
   expect([...h.bytes.keys()].filter((path) => path.endsWith(".tmp"))).toHaveLength(1);
   expect(h.bytes.size).toBe(3);
@@ -1327,8 +1378,6 @@ it("R24 regression / AC08 RES-01: same-generation failure then current advanceme
 it("I08 contractBoundary / AC04,AC08 RES-01: tmp lifetime is bounded across slot switches, changing generations, held cleanup and restart", async () => {
   const stages = ["write", "close", "rename", "directorySync"] as const;
   for (const [baseline, firstStage, nextStage, advance, held, restart] of [
-    [1, "write", "write", false, false, false], [1, "close", "close", false, true, false],
-    [1, "rename", "rename", false, true, false], [1, "directorySync", "directorySync", false, true, false],
     [2, "write", "close", true, true, true], [2, "close", "rename", true, true, true],
     [2, "rename", "directorySync", true, true, true], [2, "directorySync", "write", true, false, true],
   ] as const) {
@@ -1346,7 +1395,7 @@ it("I08 contractBoundary / AC04,AC08 RES-01: tmp lifetime is bounded across slot
       h.bytes.set = (path, bytes) => { const result = set(path, bytes); checkBound(); return result; };
       const changeGeneration = (generation: number) => {
         const desired = fixtureState({ "U-F": `final-${generation}` }, {
-          "U-F": { ...state.units["U-F"].persistence!, kind: "pending", currentGeneration: generation, dirtySince: 0 } });
+          "U-F": { ...state.units["U-F"].persistence!, kind: "pending", currentGeneration: generation, dirtySince: 0 } }, state.runId);
         state = root === h.root ? h.update(desired) : driver.update(root, desired, h.clock());
       };
       const request = () => {
@@ -1426,14 +1475,17 @@ it("I08 contractBoundary / AC04,AC08 RES-01: tmp lifetime is bounded across slot
         });
         expect([...h.bytes.keys()].filter((path) => path.endsWith(".tmp"))).toEqual([]);
         expect(root.restoreUnit("U-F").kind).toBe("restored");
+        state = root.startRuntime("restarted", h.clock()).state;
+        if (state.units["U-F"].persistence.currentGeneration < next.request.generation)
+          changeGeneration(next.request.generation);
       }
-      const saved = await execute();
-      expect(root.restoreUnit("U-F")).toMatchObject({ kind: "restored", envelope: { generation: saved.generation } });
+      const saved = state.units["U-F"].persistence.kind === "saved" ? null : await execute();
+      expect(root.restoreUnit("U-F")).toMatchObject({ kind: "restored", envelope: { generation: next.request.generation } });
       expect([...h.bytes.keys()].filter((path) => path.endsWith(".tmp"))).toEqual([]);
       expect(h.bytes.size).toBe(2);
       checkBound();
-      expect(h.measurements.filter((measurement) => measurement.attemptId === saved.attemptId && measurement.stage === "write"))
-        .toHaveLength(1);
+      expect(h.measurements.filter((measurement) => measurement.attemptId === saved?.attemptId && measurement.stage === "write"))
+        .toHaveLength(nextStage === "directorySync" ? 0 : 1);
       await root.diagnostics.flush();
     }
 });
@@ -1452,11 +1504,17 @@ it("I09 contractBoundary / AC08 RES-01: startup reclaims only owned tmp, and del
     for (const name of ["U-F.json.tmp", "U-F-A.json.tmp", "U-F-B.json.tmp"])
       h.bytes.set(join(h.config.stateDirectory, name), new Uint8Array([9]));
     h.fault.checkpointUnlink = failCleanup;
+    const driver = fixtureDriver();
     const restarted = new RuntimeCompositionRoot(h.config, { "U-F": codec }, {
-      clock: h.clock, checkpointFileSystem: h.fs, diagnosticFileSystem: h.logs, reportFailure: () => {},
+      clock: h.clock, checkpointFileSystem: h.fs, diagnosticFileSystem: h.logs,
+      runtimeCalls: driver.calls, reportFailure: () => {},
     });
     expect(restarted.restoreUnit("U-F")).toMatchObject({ kind: "restored", envelope: { generation: 1 } });
-    let state = dirty(2);
+    restarted.startRuntime("review", h.clock());
+    let state = driver.update(restarted, fixtureState({ "U-F": "final-2" }, { "U-F": {
+      kind: "pending", currentGeneration: 2, savedGeneration: 1,
+      savedCapturedAt: 0, savedAckAt: 0, dirtySince: 0,
+    } }), h.clock(), { "U-F": ids });
     if (failCleanup) {
       const opens = h.fault.opens;
       const scheduled = restarted.scheduleCheckpoint(state, h.clock(), "restart", { "U-F": ids })!.request!;

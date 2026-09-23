@@ -157,10 +157,7 @@ class RuntimeCompositionRoot {
   readonly mailbox: Mailbox;
   readonly diagnostics: PersistentDiagnosticSink;
   readonly checkpoint: CheckpointCoordinator;
-  private readonly correlations: Partial<Record<UnitId, Readonly<{
-    generation: number;
-    inputs: readonly Readonly<{ inputId: string; generation: number }>[];
-  }>>> = {};
+  private contributions: Partial<Record<RuntimeUnitId, Map<number, readonly string[] | null>>> = {};
   private readonly clock: () => ClockReading;
   private readonly shutdownHooks: ShutdownHooks;
   private readonly runtimeCalls: Parameters<typeof reduceRuntime>[2];
@@ -177,7 +174,7 @@ class RuntimeCompositionRoot {
     const config = validateAppConfig(configInput);
     this.clock = options.clock ?? systemClock;
     this.shutdownHooks = options.shutdownHooks ?? {};
-    this.runtimeCalls = options.runtimeCalls;
+    this.runtimeCalls = { ...(options.runtimeCalls ?? linkedRuntimeCalls), codecs };
     this.onMeasurements = options.onMeasurements ?? (() => {});
     this.mailbox = options.mailbox ?? new Mailbox();
     this.diagnostics = new PersistentDiagnosticSink(config.diagnosticDirectory,
@@ -193,36 +190,57 @@ class RuntimeCompositionRoot {
     return this.current;
   }
 
-  // Only the first caller supplies initial state. Every later state is an A1 return value.
+  startRuntime(runId: string, clock: ClockReading): RuntimeStep {
+    if (this.current != null) throw new Error("runtime already started");
+    const restored = { "U-E": this.restoreUnit("U-E"), "U-W": this.restoreUnit("U-W"),
+      "U-F": this.restoreUnit("U-F") };
+    const step = reduceRuntime(null, { kind: "startup", runId, clock, restored }, this.runtimeCalls);
+    this.current = step.state;
+    for (const unit of ["U-E", "U-W", "U-F"] as const) {
+      const base = restored[unit].kind === "restored" ? restored[unit].envelope.generation : 0;
+      for (let generation = base + 1; generation <= step.state.units[unit].persistence.currentGeneration; generation++) {
+        this.contributions[unit] ??= new Map();
+        this.contributions[unit]!.set(generation,
+          Object.hasOwn(step.generationInputIds, unit) ? step.generationInputIds[unit]! : null);
+      }
+    }
+    step.diagnostics.forEach((event) => this.enqueueDiagnostic(event));
+    return step;
+  }
+
+  // startRuntime is the only initial state adoption path; the argument never overrides it.
   dispatch(state: RuntimeState, input: RuntimeInput,
     correlationByUnit: Readonly<Partial<Record<UnitId, Correlation>>> = {}): RuntimeStep {
-    const previous = this.current ?? state;
+    const previous = this.state;
     const result = input.kind === "mailboxCompleted" && input.completion.runId === previous.runId
       && input.completion.kind === "control" && input.completion.control.kind === "checkpointResult"
       ? input.completion.control.result : null;
     if (result != null && input.kind === "mailboxCompleted" && !this.checkpoint.validateResult(previous, result))
       return this.control(previous, { kind: "deadline", clock: input.clock });
     const step = reduceRuntime(previous, input, this.runtimeCalls);
+    const contributions = { ...this.contributions };
+    for (const unit of ["U-E", "U-W", "U-F"] as const) {
+      const before = previous.units[unit].persistence;
+      const after = step.state.units[unit].persistence;
+      if (after.currentGeneration > before.currentGeneration
+        || (after.savedGeneration ?? 0) > (before.savedGeneration ?? 0)) {
+        const ledger = new Map(contributions[unit]);
+        // AC10 proves the entire generation interval within this one reducer step.
+        for (let generation = before.currentGeneration + 1; generation <= after.currentGeneration; generation++)
+          ledger.set(generation, Object.hasOwn(step.generationInputIds, unit) ? step.generationInputIds[unit]! : null);
+        for (const generation of ledger.keys())
+          if (generation <= (after.savedGeneration ?? 0)) ledger.delete(generation);
+        contributions[unit] = ledger;
+      }
+    }
+    this.checkCorrelations(step.state, correlationByUnit, contributions);
     this.current = step.state;
+    this.contributions = contributions;
     if (result != null && input.kind === "mailboxCompleted") {
       this.checkpoint.resultMetadata(previous, result, input.clock);
       if (this.checkpointOperation?.attemptId === result.attemptId && this.checkpointOperation.completed)
         this.checkpointOperation = null;
     }
-    // P2-A10-AC09: without generation-scoped inputs, stale and non-durable parser changes are misattributed.
-    if (input.kind === "mailboxCompleted" && input.completion.kind === "parser") {
-      for (const unit of step.changedUnits) {
-        const before = previous.units[unit as RuntimeUnitId].persistence;
-        const after = step.state.units[unit as RuntimeUnitId].persistence;
-        if (after.currentGeneration > before.currentGeneration) {
-          // ponytail: 保存障害が続く間は O(n)。上限が要るなら A10 の帰属不能 0 と両立する形で決める。
-          const pending = (this.correlations[unit]?.inputs ?? []).filter(({ generation }) => generation > (after.savedGeneration ?? 0));
-          this.correlations[unit] = { generation: after.currentGeneration,
-            inputs: [...pending, { inputId: input.completion.inputId, generation: after.currentGeneration }] };
-        }
-      }
-    }
-    this.rememberCorrelations(step.state, correlationByUnit);
     step.diagnostics.forEach((event) => this.enqueueDiagnostic(event));
     return step;
   }
@@ -242,10 +260,12 @@ class RuntimeCompositionRoot {
   }
 
   scheduleCheckpoint(state: RuntimeState, clock: ClockReading, runId: string,
-    correlationByUnit: Readonly<Partial<Record<UnitId, Correlation>>>) {
-    if ((this.current ?? state).shutdown.stage !== "running") return null;
-    this.rememberCorrelations(this.current ?? state, correlationByUnit);
-    const scheduled = this.checkpoint.scheduleCheckpoint(this.current ?? state, clock, runId, correlationByUnit);
+    correlationByUnit: Readonly<Partial<Record<UnitId, Correlation>>> = {}) {
+    const current = this.state;
+    if (current.shutdown.stage !== "running") return null;
+    this.checkCorrelations(current, correlationByUnit);
+    const correlations = this.knownCorrelations(current, correlationByUnit);
+    const scheduled = this.checkpoint.scheduleCheckpoint(current, clock, runId, correlations);
     if (scheduled != null) {
       this.dispatch(state, { kind: "checkpointCaptured", capture: scheduled.capture });
       if (scheduled.result != null) this.checkpointOperation = {
@@ -256,14 +276,41 @@ class RuntimeCompositionRoot {
     return scheduled;
   }
 
-  private rememberCorrelations(state: RuntimeState, correlationByUnit: Readonly<Partial<Record<UnitId, Correlation>>>) {
-    for (const [unit, correlation] of Object.entries(correlationByUnit) as [UnitId, Correlation | undefined][]) {
-      const generation = state.units[unit as RuntimeUnitId]?.persistence.currentGeneration;
-      if (correlation != null && generation != null) {
-        this.correlations[unit] = { generation,
-          inputs: correlation.inputIds.map((inputId) => ({ inputId, generation })) };
-      }
+  private inputIds(state: RuntimeState, unit: RuntimeUnitId,
+    contributions = this.contributions): readonly string[] | null {
+    const { currentGeneration, savedGeneration } = state.units[unit].persistence;
+    const ledger = contributions[unit];
+    if (state.restoration[unit].kind === "unavailable" || ledger == null) return null;
+    const ids = new Set<string>();
+    for (let generation = (savedGeneration ?? 0) + 1; generation <= currentGeneration; generation++) {
+      if (!ledger.has(generation) || ledger.get(generation) == null) return null;
+      for (const id of ledger.get(generation)!) ids.add(id);
     }
+    return [...ids];
+  }
+
+  private checkCorrelations(state: RuntimeState,
+    provided: Readonly<Partial<Record<UnitId, Correlation>>>, contributions = this.contributions) {
+    for (const [unit, correlation] of Object.entries(provided) as [RuntimeUnitId, Correlation][]) {
+      if (correlation == null) continue;
+      const progress = state.units[unit].persistence;
+      if (progress.dirtySince == null || progress.currentGeneration === progress.savedGeneration) continue;
+      const ids = this.inputIds(state, unit, contributions);
+      if (ids == null || ids.length !== correlation.inputIds.length
+        || ids.some((id) => !correlation.inputIds.includes(id)))
+        throw new Error(`unverified checkpoint correlation for ${unit}`);
+    }
+  }
+
+  private knownCorrelations(state: RuntimeState,
+    provided: Readonly<Partial<Record<UnitId, Correlation>>> = {}): Readonly<Partial<Record<UnitId, Correlation>>> {
+    const result: Partial<Record<UnitId, Correlation>> = {};
+    for (const unit of ["U-E", "U-W", "U-F"] as const) {
+      const ids = this.inputIds(state, unit);
+      if (ids != null) result[unit] = { inputIds: ids,
+        retryReason: provided[unit]?.retryReason ?? this.checkpoint.retryReason(unit) };
+    }
+    return result;
   }
 
   async executeCheckpoint(request: CheckpointRequest, runId: string, inputIds: readonly string[],
@@ -300,10 +347,10 @@ class RuntimeCompositionRoot {
     clock: ClockReading): Promise<RuntimeStep> {
     let result: CheckpointResult | null = null;
     const pending = this.checkpointOperation;
-    const stage = (this.current ?? state).shutdown.stage;
+    const stage = this.state.shutdown.stage;
     if (pending == null && stage !== "workerClose" && stage !== "completed") {
       const reconciled = await this.trackCheckpoint(attemptId,
-        () => this.checkpoint.resolveUncertain(this.current ?? state, unit, attemptId, clock));
+        () => this.checkpoint.resolveUncertain(this.state, unit, attemptId, clock));
       result = reconciled.result;
     } else if (pending?.completed && pending.attemptId === attemptId) {
       const completed = await pending.result;
@@ -317,7 +364,7 @@ class RuntimeCompositionRoot {
     const clock = control.clock;
     return this.dispatch(state, { kind: "mailboxCompleted", clock, completion: {
       kind: "control", messageId: control.kind === "checkpointResult" ? control.result.attemptId : control.kind,
-      runId: (this.current ?? state).runId,
+      runId: this.state.runId,
       encodedByteLength: control.kind === "checkpointResult" ? control.result.encodedByteLength : 0,
       startedMonotonicMs: clock.monotonicMs, completedMonotonicMs: clock.monotonicMs, control,
     } });
@@ -337,7 +384,7 @@ class RuntimeCompositionRoot {
 
   async shutdownRuntime(state: RuntimeState, acceptedThroughSequence: number,
     clock: ClockReading): Promise<ShutdownSummary> {
-    if ((this.current ?? state).shutdown.stage !== "running") throw new Error("shutdown already started");
+    if (this.state.shutdown.stage !== "running") throw new Error("shutdown already started");
     let step = this.control(state, { kind: "shutdownRequested", acceptedThroughSequence, clock });
     let batches = 0;
     let notificationAttempts = 0;
@@ -404,14 +451,7 @@ class RuntimeCompositionRoot {
       }
       const current = this.state;
       const clock = this.clock();
-      const correlations = Object.fromEntries((Object.keys(this.correlations) as RuntimeUnitId[]).flatMap((unit) => {
-        const { currentGeneration, savedGeneration } = current.units[unit].persistence;
-        const known = this.correlations[unit];
-        if (known?.generation !== currentGeneration) return [];
-        const inputIds = known.inputs.filter((item) => item.generation > (savedGeneration ?? 0)).map((item) => item.inputId);
-        if (inputIds.length === 0) return [];
-        return [[unit, { inputIds, retryReason: this.checkpoint.retryReason(unit) }]];
-      }));
+      const correlations = this.knownCorrelations(current);
       const scheduled = this.checkpoint.scheduleCheckpoint(current, clock, current.runId, correlations, true, attempted);
       if (scheduled == null) return;
       this.dispatch(current, { kind: "checkpointCaptured", capture: scheduled.capture });

@@ -1,6 +1,7 @@
 import type {
   ClockReading, JsonValue, PersistenceStatus, RuntimeState, RuntimeUnitId, RuntimeUnitStates, UnitCodec, UnitId,
 } from "../../contracts/p2-shared-runtime.types";
+import type { DecodedMaterial } from "../../contracts/p1-parser-boundary.types";
 import type { CompositionOptions, RuntimeCompositionRoot } from "../../src/runtime/composition-root";
 
 type Fixture = Readonly<{ value: string; intentExpiresAt?: number; activeFixture?: string | null }>;
@@ -15,6 +16,8 @@ function fixtureState(values: Partial<Record<RuntimeUnitId, Fixture | string>> =
   const progress = (unit: RuntimeUnitId) => persistence[unit] ?? saved;
   return {
     runId,
+    restoration: { "U-E": { kind: "empty" }, "U-W": { kind: "empty" }, "U-F": { kind: "empty" } },
+    admission: {},
     units: {
       "U-E": { ...payload("U-E"), schemaVersion: "p2-eew-unit-v1", current: [], gates: [], intents: [],
         deliveryRecords: [], persistence: progress("U-E") },
@@ -37,7 +40,7 @@ function fixtureValue(state: RuntimeUnitStates[RuntimeUnitId]): string {
 }
 
 function stringCodec<U extends RuntimeUnitId>(unit: U): UnitCodec<RuntimeUnitStates[U], JsonValue> {
-  return { schemaVersion: "review-v1", encode: fixtureValue,
+  return { schemaVersion: fixtureState().units[unit].schemaVersion, encode: fixtureValue,
     decode: (payload) => typeof payload === "string"
       ? { kind: "restored", state: fixtureState({ [unit]: payload }).units[unit] }
       : { kind: "invalid", reason: "not a string" } };
@@ -50,7 +53,10 @@ function fixtureDriver() {
       && (fixtureValue(update.units[unit]) !== fixtureValue(previous)
         || update.units[unit].persistence.currentGeneration !== previous.persistence.currentGeneration)
       ? update.units[unit] : previous,
-    decisions: [], intents: [], outcomes: [], diagnostics: [],
+    decisions: update != null && update.units[unit].persistence.currentGeneration > previous.persistence.currentGeneration
+      ? [{ subject: "fixture", operation: "normal" as const, decision: "changed" as const,
+        reason: null, change: "semantic" as const, currentEstablished: null }] : [],
+    intents: [], outcomes: [], diagnostics: [],
     nextDeadline: { monotonicMs: 0, wallTimeMs: null },
   });
   const calls: CompositionOptions["runtimeCalls"] = {
@@ -60,14 +66,32 @@ function fixtureDriver() {
   };
   return { calls, update(root: RuntimeCompositionRoot, desired: RuntimeState, clock: ClockReading,
     correlations: Parameters<RuntimeCompositionRoot["dispatch"]>[2] = {}) {
-    update = desired;
-    try {
-      const input = { kind: "deadline", clock } as const;
-      return root.dispatch(desired, { kind: "mailboxCompleted", clock, completion: {
-        kind: "control", messageId: "test-update", runId: desired.runId, encodedByteLength: 0,
-        startedMonotonicMs: clock.monotonicMs, completedMonotonicMs: clock.monotonicMs, control: input,
-      } }, correlations).state;
-    } finally { update = null; }
+    try { void root.state; } catch { root.startRuntime(desired.runId, clock); }
+    for (const unit of ["U-E", "U-W", "U-F"] as const) {
+      const headType = unit === "U-E" ? "VXSE43" : unit === "U-W" ? "VPWW57" : "VPWP50";
+      const target = desired.units[unit];
+      if (fixtureValue(target) === "" && target.persistence.kind === "saved") continue;
+      const previous = root.state.units[unit];
+      const start = previous.persistence.currentGeneration;
+      const end = target.persistence.currentGeneration;
+      for (let generation = start + 1; generation <= end; generation++) {
+        update = { ...root.state, units: { ...root.state.units, [unit]: {
+          ...target, persistence: { ...target.persistence, currentGeneration: generation },
+        } } };
+        const inputId = correlations?.[unit]?.inputIds[0] ?? "adopted-input";
+        const material = { headType, inputId } as DecodedMaterial;
+        const completion = root.state.shutdown.stage === "running" || root.state.shutdown.stage === "mailboxDrain"
+          ? { kind: "parser" as const, messageId: inputId, inputId, runId: desired.runId, inputSequence: generation,
+            encodedByteLength: 0, startedMonotonicMs: clock.monotonicMs,
+            completedMonotonicMs: clock.monotonicMs, result: { kind: "decoded" as const, material } }
+          : { kind: "control" as const, messageId: "test-deadline", runId: desired.runId,
+            encodedByteLength: 0, startedMonotonicMs: clock.monotonicMs,
+            completedMonotonicMs: clock.monotonicMs, control: { kind: "deadline" as const, clock } };
+        root.dispatch(root.state, { kind: "mailboxCompleted", clock, completion });
+      }
+    }
+    update = null;
+    return root.state;
   } };
 }
 

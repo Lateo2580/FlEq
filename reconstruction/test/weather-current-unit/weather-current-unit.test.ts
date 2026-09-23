@@ -1,6 +1,7 @@
 import { Buffer } from "node:buffer";
 import { readFileSync } from "node:fs";
-import { describe, expect, it } from "vitest";
+import { resolve } from "node:path";
+import { describe, expect, it, vi } from "vitest";
 
 import type { DecodedMaterial, Operation } from "../../contracts/p1-parser-boundary.types";
 import type { NotificationIntent } from "../../contracts/p2-shared-runtime.types";
@@ -9,7 +10,7 @@ import type { WeatherCurrentSnapshot, WeatherCurrentUnitState } from "../../cont
 import manifest from "../../tools/corpus/manifest.json";
 import corpus from "../../tools/corpus/sequences.json";
 import type { CheckpointFileSystem, WritableCheckpoint } from "../../src/checkpoint/checkpoint";
-import { serializedEnvelope } from "../../src/checkpoint/checkpoint";
+import { hashEnvelope, serializedEnvelope } from "../../src/checkpoint/checkpoint";
 import type { DiagnosticFileSystem } from "../../src/checkpoint/persistent-diagnostic-sink";
 import { decodeMaterial } from "../../src/decode-material/decode-material";
 import { ingestXmlData } from "../../src/ingress/ingress";
@@ -92,6 +93,12 @@ function pendingIntent(): NotificationIntent {
 
 class MemoryCheckpointFileSystem implements CheckpointFileSystem {
   readonly files = new Map<string, Uint8Array>();
+  seed(state: WeatherCurrentUnitState, generation: number, capturedAt: number) {
+    this.files.set(resolve(config().stateDirectory, "U-W-A.json"), serializedEnvelope(hashEnvelope({
+      schemaVersion: state.schemaVersion, unit: "U-W", generation, capturedAt,
+      payload: weatherCurrentUnitCodec.encode(state),
+    })));
+  }
   failWrite = false;
   unlinkSync(path: string): void { this.files.delete(path); }
   readFile(path: string): Uint8Array | null { return this.files.get(path) ?? null; }
@@ -119,11 +126,6 @@ class MemoryDiagnosticFileSystem implements DiagnosticFileSystem {
   async readFile(path: string): Promise<string> { return this.filesByPath.get(path) ?? ""; }
   async files(): Promise<readonly { name: string; size: number; mtimeMs: number }[]> { return []; }
   async unlink(path: string): Promise<void> { this.filesByPath.delete(path); }
-}
-
-function runtime(unit: WeatherCurrentUnitState) {
-  const state = fixtureState({}, { "U-W": unit.persistence }, "weather-test");
-  return { ...state, units: { ...state.units, "U-W": unit } };
 }
 
 function config() {
@@ -270,8 +272,10 @@ describe("P2 weather-current unit", () => {
       operation: intent.operation, channel: intent.channel, priorityGroup: "other", payload: {},
       soundAsset: null, selectedAtMonotonicMs: 1, timeoutAtMonotonicMs: 5001, expiresAt: intent.expiresAt,
     };
+    const notificationFiles = new MemoryCheckpointFileSystem();
+    notificationFiles.seed(intentState, 1, NOW);
     const notificationRoot = new RuntimeCompositionRoot(config(), { "U-W": weatherCurrentUnitCodec }, {
-      checkpointFileSystem: new MemoryCheckpointFileSystem(), diagnosticFileSystem: new MemoryDiagnosticFileSystem(),
+      checkpointFileSystem: notificationFiles, diagnosticFileSystem: new MemoryDiagnosticFileSystem(),
       runtimeCalls: { ...fixtureDriver().calls, reduceWeatherCurrentUnit,
         selectNotificationAttempt: (delivery) => ({
           state: { channels: { ...delivery.channels, desktop: { kind: "running", attempt } },
@@ -285,7 +289,7 @@ describe("P2 weather-current unit", () => {
         }),
       },
     });
-    const selectedRuntime = notificationRoot.tick(runtime(intentState), clock(NOW + 1, 1));
+    const selectedRuntime = notificationRoot.tick(notificationRoot.startRuntime("weather-test", clock()).state, clock(NOW + 1, 1));
     const completedRuntime = notificationRoot.dispatch(selectedRuntime.state, { kind: "notificationResult",
       result: { kind: "delivered", attemptId: attempt.attemptId, intentId: intent.id,
         channel: "desktop", completedAt: clock(NOW + 2, 2) } });
@@ -413,13 +417,20 @@ describe("P2 weather-current unit", () => {
     }
     expect(covered, covered.join(",")).toHaveLength(14);
 
-    const calls = { ...fixtureDriver().calls, reduceWeatherCurrentUnit, toWeatherCurrentView };
+    const driver = fixtureDriver();
+    const calls = { ...driver.calls, reduceWeatherCurrentUnit, toWeatherCurrentView };
     const adapter = new MemoryCheckpointFileSystem();
+    adapter.seed(state, state.persistence.currentGeneration, NOW);
     const root = new RuntimeCompositionRoot(config(), { "U-W": weatherCurrentUnitCodec }, {
       checkpointFileSystem: adapter, diagnosticFileSystem: new MemoryDiagnosticFileSystem(), runtimeCalls: calls,
       clock: () => clock(NOW, NOW),
     });
-    let running = runtime(restored.state);
+    const arrivalClock = clock(NOW, NOW);
+    let running = root.dispatch(root.startRuntime("weather-test", arrivalClock).state, { kind: "mailboxCompleted", clock: arrivalClock, completion: {
+      kind: "parser", messageId: cancel.inputId, inputId: cancel.inputId, runId: "weather-test",
+      encodedByteLength: 0, startedMonotonicMs: NOW, completedMonotonicMs: NOW, inputSequence: 1,
+      result: { kind: "decoded", material: cancel },
+    } }).state;
     const request = root.scheduleCheckpoint(running, clock(NOW, NOW), "weather-save",
       { "U-W": { inputIds: [cancel.inputId], retryReason: "notRetry" } });
     if (request?.request == null) throw new Error("U-W checkpoint was not captured");
@@ -428,29 +439,31 @@ describe("P2 weather-current unit", () => {
     running = root.applyCheckpointResult(running, failure.result, clock(NOW + 1, NOW + 1)).state;
     expect(running.units["U-W"].persistence.kind).toBe("failed");
 
+    const shutdownFiles = new MemoryCheckpointFileSystem();
+    shutdownFiles.seed(restored.state, restored.state.persistence.currentGeneration, NOW);
     const shutdownRoot = new RuntimeCompositionRoot(config(), { "U-W": weatherCurrentUnitCodec }, {
-      checkpointFileSystem: new MemoryCheckpointFileSystem(), diagnosticFileSystem: new MemoryDiagnosticFileSystem(),
+      checkpointFileSystem: shutdownFiles, diagnosticFileSystem: new MemoryDiagnosticFileSystem(),
       runtimeCalls: calls, clock: () => clock(NOW + 2, NOW + 2),
     });
-    const shutdownState = runtime(restored.state);
+    const shutdownState = shutdownRoot.startRuntime("weather-test", clock(NOW + 2, NOW + 2)).state;
     const routed = shutdownRoot.dispatch(shutdownState, { kind: "mailboxCompleted", clock: clock(NOW + 2, NOW + 2), completion: {
       kind: "parser", messageId: first.inputId, inputId: first.inputId, runId: shutdownState.runId,
       encodedByteLength: 0, startedMonotonicMs: NOW + 2, completedMonotonicMs: NOW + 2,
       inputSequence: 1, result: { kind: "decoded", material: first },
-    } }, { "U-W": { inputIds: [first.inputId], retryReason: "notRetry" } });
+    } });
     // Wired route: the older redelivery reaches U-W as stale and records freshness only (AC06).
     const routedUnit = routed.state.units["U-W"];
     expect(routed.changedUnits).toEqual(["U-W"]);
     for (const field of ["national", "partials", "histories", "tombstones", "intents"] as const)
-      expect(routedUnit[field]).toBe(restored.state[field]);
+      expect(routedUnit[field]).toBe(shutdownState.units["U-W"][field]);
     expect(routedUnit.freshness.slice(restored.state.freshness.length)).toMatchObject([
       { candidateSource: { inputId: first.inputId }, decision: "unchanged", reason: "stale", revisionOrder: "older" }]);
-    const generation = restored.state.persistence.currentGeneration + 1;
-    expect(routedUnit.persistence.currentGeneration).toBe(generation);
+    const nextGeneration = restored.state.persistence.currentGeneration + 1;
+    expect(routedUnit.persistence.currentGeneration).toBe(nextGeneration);
     const summary = await shutdownRoot.shutdownRuntime(shutdownRoot.state, 1, clock(NOW + 2, NOW + 2));
     expect(summary.code, JSON.stringify(summary)).toBe(0);
     expect(summary.persistence["U-W"]).toMatchObject({ kind: "saved",
-      currentGeneration: generation, savedGeneration: generation });
+      currentGeneration: nextGeneration, savedGeneration: nextGeneration });
 
     let weatherEncodes = 0;
     const counted = { ...weatherCurrentUnitCodec, encode: (value: WeatherCurrentUnitState) => {
@@ -460,8 +473,10 @@ describe("P2 weather-current unit", () => {
       diagnosticFileSystem: new MemoryDiagnosticFileSystem(), runtimeCalls: calls,
       clock: () => clock(NOW + 3, NOW + 3),
     });
-    const otherDirty = fixtureState({}, { "U-E": { kind: "pending", currentGeneration: 2, savedGeneration: 1,
+    const otherDirty = fixtureState({ "U-E": "e10" }, { "U-E": { kind: "pending", currentGeneration: 2, savedGeneration: 1,
       savedCapturedAt: 0, savedAckAt: 0, dirtySince: 1 } }, "e10");
+    driver.update(e10Root, otherDirty, clock(NOW + 3, NOW + 3),
+      { "U-E": { inputIds: ["e10"], retryReason: "notRetry" } });
     expect(e10Root.scheduleCheckpoint(otherDirty, clock(NOW + 3, NOW + 3), "e10",
       { "U-E": { inputIds: ["e10"], retryReason: "notRetry" } })?.request?.unit).toBe("U-E");
     expect(weatherEncodes).toBe(0);
@@ -604,7 +619,8 @@ describe("P2 weather-current unit", () => {
     const refusedStep = receive(refusedFull, candidate);
     expect(refusedStep.state).toBe(refusedFull);
     expect(refusedStep.decisions).toEqual([{ subject: current.subject, operation: "normal",
-      decision: "capacityExceeded" }]);
+      decision: "capacityExceeded", rejection: { family: "VPWS50", reportDateTimeMs: Date.parse(candidate.reportDateTimeRaw),
+        affectedScope: ["[\"VPWS50\",\"national\",\"気象庁\",\"all\",\"\"]"] } }]);
     expect(refusedStep.diagnostics).toEqual([{ level: "WARN", component: "weather-current",
       reason: "checkpointEncodeFailed", unit: "U-W", inputId: "normal-new" }]);
     expect(() => weatherCurrentUnitCodec.encode(refusedStep.state)).not.toThrow();
@@ -631,7 +647,7 @@ describe("P2 weather-current unit", () => {
     const shared = reduceWeatherCurrentUnit(emptyState(), { kind: "restore", clock: clock(),
       persisted: weatherCurrentUnitCodec.encode({ ...emptyState(),
         national: { normal: sharedNormal, training: sharedTraining } }) }).state;
-    expect(shared.national).toEqual({ normal: sharedNormal, training: sharedTraining });
+    expect(shared.national).toMatchObject({ normal: sharedNormal, training: sharedTraining });
     const cancelledShared = receive(shared, decodeFixture("weather-alert-kind-area/synthetic-vpws50-change-density-after",
       "VPWS50", (xml) => cancellation(withOperation(bodyWarning(xml), "training"), "2026-09-06T10:02:00+09:00"),
       "shared-training-cancel"));
@@ -653,6 +669,50 @@ describe("P2 weather-current unit", () => {
     expect(admittedShared.diagnostics).toContainEqual({ level: "INFO", component: "weather-current",
       reason: "weatherCurrentCapacityEvicted", unit: "U-W", count: 1 });
     expect(envelopeSize(admittedShared.state)).toBeLessThanOrEqual(16 * 1024 * 1024);
+  });
+
+  it("P2-A5-T11 contractBoundary / AC13: reserved envelope bytes set the receive boundary", () => {
+    const candidate = decodeFixture("15_18_01_250630_VPWS50", "VPWS50");
+    const partial = snapshot("normal", "VPWW55", "福井地方気象台", "2026-09-06T09:00:00+09:00", "partial");
+    const paddingKey = '区域"\\\n';
+    const prefix = '日本語"\\\n';
+    const base = { ...emptyState(), partials: [{ ...partial, phenomena: { [paddingKey]: prefix } }] };
+    const accepted = receive(base, candidate);
+    expect(accepted.decisions[0].decision).toBe("changed");
+    const actualBytes = (value: WeatherCurrentUnitState) => serializedEnvelope({
+      schemaVersion: value.schemaVersion, unit: "U-W", generation: value.persistence.currentGeneration,
+      capturedAt: NOW, payload: weatherCurrentUnitCodec.encode(value), sha256: "0".repeat(64),
+    }).byteLength;
+    const unused = 62 - (JSON.stringify(accepted.state.persistence.currentGeneration).length - 1)
+      - (JSON.stringify(NOW).length - 1);
+    const padding = 16 * 1024 * 1024 - actualBytes(accepted.state) - unused;
+    const withPadding = (length: number) => ({ ...base,
+      partials: [{ ...partial, phenomena: { [paddingKey]: prefix + "x".repeat(length) } }] });
+    const exact = receive(withPadding(padding), candidate);
+    expect(exact.decisions[0].decision).toBe("changed");
+    expect(actualBytes(exact.state) + unused).toBe(16 * 1024 * 1024);
+    const over = receive(withPadding(padding + 1), candidate);
+    expect(over.state.national.normal).toBeUndefined();
+
+    // The same exact boundary after evicting training history also exercises cached unchanged records.
+    const retained = withPadding(padding - 1);
+    const training = snapshot("training", "VPWS50", "気象庁", "2020-01-01T00:00:00+09:00", '訓練"\\');
+    const occupied = { ...retained, histories: [{ subject: training.subject, operation: training.operation, reports: [training] }] };
+    const stringify = vi.spyOn(JSON, "stringify");
+    let evicted: ReturnType<typeof receive>;
+    try {
+      evicted = receive(occupied, candidate);
+      expect(stringify.mock.calls.filter(([value]) => value === retained.partials[0])).toHaveLength(1);
+      stringify.mockClear();
+      receive(occupied, candidate);
+      expect(stringify.mock.calls.filter(([value]) => value === retained.partials[0])).toHaveLength(0);
+      expect(stringify.mock.calls.filter(([value]) => value != null && typeof value === "object"
+        && ("national" in value || "payload" in value))).toHaveLength(0);
+    } finally { stringify.mockRestore(); }
+    expect(evicted.state.histories).toEqual([]);
+    expect(evicted.diagnostics).toContainEqual({ level: "INFO", component: "weather-current",
+      reason: "weatherCurrentCapacityEvicted", unit: "U-W", count: 1 });
+    expect(actualBytes(evicted.state) + unused).toBe(16 * 1024 * 1024 - 1);
   });
 
   it("P2-A5-T10 contractBoundary / AC12: canonical unavailable scope roundtrips and office containment is exact", () => {

@@ -109,7 +109,7 @@ function errorMessage(error: unknown): string {
 class CheckpointCoordinator<UnitStates extends RuntimeUnitStates = RuntimeUnitStates> {
   private readonly attempts = new Map<string, Attempt>();
   private readonly retry = new Map<UnitId, { failures: number; retryAfter: number;
-    retryReason: CheckpointMeasurement["retryReason"] }>();
+    retryReason: CheckpointMeasurement["retryReason"]; request: CheckpointRequest | null; fileSynced?: boolean }>();
   private readonly overdue = new Map<UnitId, number>();
   private reservedAttemptId: string | null = null;
   private attemptSequence = 0;
@@ -202,21 +202,29 @@ class CheckpointCoordinator<UnitStates extends RuntimeUnitStates = RuntimeUnitSt
     const attemptId = `${runId}:${unit}:${generation}:${++this.attemptSequence}`;
     this.reservedAttemptId = attemptId;
     const started = this.readClock();
-    const capturedAt = started.wallTimeMs;
+    // AC09: a retry of the same generation must keep its original envelope identity.
+    const prior = this.retry.get(unit);
+    const retained = prior?.request?.generation === generation ? prior.request : null;
+    const capturedAt = retained?.capturedAt ?? started.wallTimeMs;
     const capture: CheckpointCapture = { attemptId, unit, generation, capturedAt };
     try {
-      const payload = codec.encode(state.units[unit]);
-      const envelope = hashEnvelope({ schemaVersion: codec.schemaVersion, unit, generation, capturedAt, payload });
-      const bytes = serializedEnvelope(envelope);
+      if (!Number.isSafeInteger(generation) || generation < 1 || !Number.isFinite(capturedAt)
+        || JSON.stringify(generation).length > 32 || JSON.stringify(capturedAt).length > 32)
+        throw new RangeError("invalid checkpoint generation or capture time");
+      const envelope = retained?.envelope ?? hashEnvelope({ schemaVersion: codec.schemaVersion, unit,
+        generation, capturedAt, payload: codec.encode(state.units[unit]) });
+      const encodedByteLength = retained?.encodedByteLength ?? serializedEnvelope(envelope).byteLength;
       const ended = this.readClock();
       const request: CheckpointRequest = {
         attemptId, unit, generation, reservedAt: clock.monotonicMs, capturedAt,
-        envelope, encodedByteLength: bytes.byteLength,
+        envelope, encodedByteLength,
       };
       this.attempts.set(attemptId, { request, unit, generation, runId, inputIds: [...correlation.inputIds],
-        retryReason: correlation.retryReason, capturedAt, phase: "reserved" });
-      return { capture, request, result: null, measurements: [this.measurement(request, "encode", started.monotonicMs,
-        ended.monotonicMs, bytes.byteLength, "succeeded", runId, correlation)] };
+        retryReason: correlation.retryReason, capturedAt, phase: "reserved",
+        fileSynced: retained == null ? undefined : prior?.fileSynced });
+      return { capture, request, result: null, measurements: retained != null ? []
+        : [this.measurement(request, "encode", started.monotonicMs,
+          ended.monotonicMs, encodedByteLength, "succeeded", runId, correlation)] };
     } catch (error) {
       const ended = this.readClock();
       const result = {
@@ -256,6 +264,32 @@ class CheckpointCoordinator<UnitStates extends RuntimeUnitStates = RuntimeUnitSt
     let stage: CheckpointMeasurement["stage"] = "write";
     let stageStarted = this.readClock().monotonicMs;
     try {
+      const existing = this.restoreUnit(request.unit);
+      if (existing.kind === "unavailable") throw new Error(`checkpoint slot unavailable: ${existing.reason}`);
+      if (existing.kind === "restored") {
+        if (existing.envelope.generation > request.generation) throw new Error("checkpoint generation is older than slot");
+        if (existing.envelope.generation === request.generation) {
+          if (existing.envelope.sha256 !== request.envelope.sha256)
+            throw new Error("checkpoint generation conflicts with slot");
+          attempt.renamed = true;
+          stage = "directorySync";
+          let started = stageStarted = this.readClock().monotonicMs;
+          await this.fileSystem.syncDirectory(this.directory);
+          measurements.push(this.measurement(request, stage, started, this.readClock().monotonicMs,
+            0, "succeeded", runId, attempt));
+          stage = "verify";
+          started = stageStarted = this.readClock().monotonicMs;
+          const confirmed = this.readSlot(request.unit, existing.slot, this.codec(request.unit)!);
+          if (typeof confirmed === "string" || confirmed.envelope.sha256 !== request.envelope.sha256)
+            throw new Error("existing checkpoint did not verify");
+          measurements.push(this.measurement(request, stage, started, this.readClock().monotonicMs,
+            byteLength, "succeeded", runId, attempt));
+          attempt.acknowledged = true;
+          return { result: { kind: "acknowledged", attemptId: request.attemptId, unit: request.unit,
+            generation: request.generation, ackAt: this.readClock().wallTimeMs,
+            encodedByteLength: byteLength }, measurements };
+        }
+      }
       // Ownership is held until this attempt (including close cleanup) has ended.
       this.removeTemporaries(request.unit);
       const bytes = serializedEnvelope(request.envelope);
@@ -436,7 +470,8 @@ class CheckpointCoordinator<UnitStates extends RuntimeUnitStates = RuntimeUnitSt
     retryReason: CheckpointMeasurement["retryReason"]): DiagnosticEvent {
     const failures = (this.retry.get(attempt.unit)?.failures ?? 0) + 1;
     const delay = retryDelays[Math.min(failures - 1, retryDelays.length - 1)];
-    this.retry.set(attempt.unit, { failures, retryAfter: clock.monotonicMs + delay, retryReason });
+    this.retry.set(attempt.unit, { failures, retryAfter: clock.monotonicMs + delay, retryReason,
+      request: attempt.request, fileSynced: attempt.fileSynced });
     attempt.retryRecorded = true;
     return completeDiagnostic({ level: "WARN", component: "checkpoint", reason: "checkpointRetryScheduled",
       unit: attempt.unit, generation: attempt.generation, attemptId, durationMs: delay, count: failures }, clock, attempt.runId);

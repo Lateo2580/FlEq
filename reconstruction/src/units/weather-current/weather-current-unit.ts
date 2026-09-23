@@ -38,6 +38,48 @@ const SCHEMA = "p2-weather-current-unit-v1" as const;
 const GENERATION_BYTES = 16 * 1024 * 1024;
 const encoder = new TextEncoder();
 const operations = ["normal", "training", "test"] as const;
+// A1 AC09 / spec 5.6: restored references stay unconfirmed until their own report is adopted.
+// A symbol survives immutable snapshot copies but never enters the checkpoint JSON.
+const restoredAt = Symbol("restoredAt");
+const recordByteCache = new WeakMap<object, number>();
+const mapByteCache = new WeakMap<object, number>();
+const emptyEnvelopeBytes = serializedEnvelope({ schemaVersion: SCHEMA, unit: "U-W", generation: 0,
+  capturedAt: 0, payload: { schemaVersion: SCHEMA, national: {}, partials: [], histories: [], ownership: {},
+    tombstones: [], freshness: [], unavailable: [], intents: [] }, sha256: "0".repeat(64) }).byteLength;
+
+function recordBytes(value: object): number {
+  let bytes = recordByteCache.get(value);
+  if (bytes == null) {
+    bytes = encoder.encode(JSON.stringify(value)).byteLength;
+    recordByteCache.set(value, bytes);
+  }
+  return bytes;
+}
+
+function arrayBytes(values: readonly object[]): number {
+  return values.reduce((sum, value) => sum + recordBytes(value), Math.max(values.length - 1, 0));
+}
+
+function mapBytes(values: Readonly<Record<string, object | string>>): number {
+  const cached = mapByteCache.get(values);
+  if (cached != null) return cached;
+  const entries = Object.entries(values);
+  const bytes = entries.reduce((sum, [key, value]) => sum + encoder.encode(JSON.stringify(key)).byteLength + 1
+    + (typeof value === "string" ? encoder.encode(JSON.stringify(value)).byteLength : recordBytes(value)),
+    Math.max(entries.length - 1, 0));
+  mapByteCache.set(values, bytes);
+  return bytes;
+}
+
+function reservedGenerationBytes(state: WeatherCurrentUnitState, capturedAt: number): number {
+  const generation = state.persistence.currentGeneration;
+  if (!Number.isSafeInteger(generation) || generation < 0 || !Number.isFinite(capturedAt)
+    || JSON.stringify(generation).length > 32 || JSON.stringify(capturedAt).length > 32)
+    throw new RangeError("invalid checkpoint generation or capture time");
+  return emptyEnvelopeBytes + 62 + mapBytes(state.national) + arrayBytes(state.partials)
+    + arrayBytes(state.histories) + mapBytes(state.ownership) + arrayBytes(state.tombstones)
+    + arrayBytes(state.freshness) + arrayBytes(state.unavailable) + arrayBytes(state.intents);
+}
 
 function object(value: unknown): Record<string, unknown> | null {
   return value != null && typeof value === "object" && !Array.isArray(value)
@@ -196,7 +238,7 @@ function persistedValue(value: unknown): PersistedWeatherCurrentUnit | null {
         && report.office === item.reports[0].office && report.source.family === item.reports[0].source.family).length > 8)
     || new Set(result.intents.map((item) => item.id)).size !== result.intents.length) return null;
   // Payload-only boundary: UnitCodec has no capture clock/generation on decode.
-  // Receive admission below uses the real envelope serializer and supplied clock.
+  // Receive admission below adds subject bytes and reserves the envelope numeric fields.
   return encoder.encode(JSON.stringify(result)).byteLength <= GENERATION_BYTES ? result : null;
 }
 
@@ -204,11 +246,6 @@ function persistedFromState(state: WeatherCurrentUnitState): PersistedWeatherCur
   return { schemaVersion: SCHEMA, national: state.national, partials: state.partials,
     histories: state.histories, ownership: state.ownership, tombstones: state.tombstones,
     freshness: state.freshness, unavailable: state.unavailable, intents: state.intents };
-}
-
-function generationByteLength(payload: PersistedWeatherCurrentUnit, generation: number, capturedAt: number): number {
-  return serializedEnvelope({ schemaVersion: SCHEMA, unit: "U-W",
-    generation, capturedAt, payload, sha256: "0".repeat(64) }).byteLength;
 }
 
 function cleanPersistence(): PersistenceStatus {
@@ -250,7 +287,7 @@ function removeSubject(state: WeatherCurrentUnitState, subjectValue: string, ope
 function fitNormalByByte(state: WeatherCurrentUnitState, capturedAt: number): Readonly<{ state: WeatherCurrentUnitState; count: number }> {
   let next = state;
   let count = 0;
-  while (generationByteLength(persistedFromState(next), next.persistence.currentGeneration, capturedAt) > GENERATION_BYTES) {
+  while (reservedGenerationBytes(next, capturedAt) > GENERATION_BYTES) {
     const historyCandidates = next.histories.flatMap((entry) => entry.reports.map((report) => ({ entry, report })))
       .filter(({ report }) => report.operation !== "normal").sort((a, b) => compareSnapshot(a.report, b.report));
     if (historyCandidates.length !== 0) {
@@ -276,8 +313,7 @@ function fitNormalByByte(state: WeatherCurrentUnitState, capturedAt: number): Re
 function reduceWeatherCurrent(state: WeatherCurrentUnitState,
   input: Extract<WeatherCurrentInput, { kind: "receive" }>): WeatherCurrentUnitStep {
   const step = reduceWeatherCurrentMeaning(state, input);
-  const fits = (value: WeatherCurrentUnitState) => generationByteLength(persistedFromState(value),
-    value.persistence.currentGeneration, input.clock.wallTimeMs) <= GENERATION_BYTES;
+  const fits = (value: WeatherCurrentUnitState) => reservedGenerationBytes(value, input.clock.wallTimeMs) <= GENERATION_BYTES;
   if (step.state === state || fits(step.state)) return step;
   if (!step.decisions.some((item) => item.decision === "changed")) return {
     ...step, state, nextDeadline: nextWeatherCurrentDeadline(state),
@@ -312,7 +348,8 @@ function reduceWeatherCurrent(state: WeatherCurrentUnitState,
   if (fits(dropped)) return { ...unavailable, state: dropped };
   return { ...noChange(state),
     decisions: [{ subject: validated.candidate.subject, operation: validated.candidate.operation,
-      decision: "capacityExceeded" }],
+      decision: "capacityExceeded", rejection: { family: validated.candidate.family,
+        reportDateTimeMs: validated.candidate.reportDateTimeMs!, affectedScope: validated.candidate.affectedScope } }],
     diagnostics: [{ level: "WARN", component: "weather-current",
       reason: "checkpointEncodeFailed", unit: "U-W", inputId: input.material.inputId }] };
 }
@@ -326,7 +363,12 @@ function restore(state: WeatherCurrentUnitState, value: PersistedWeatherCurrentU
     intents: [], outcomes: [], diagnostics: [{ level: "WARN", component: "weather-current",
       reason: "requiredStructureInvalid", unit: "U-W" }],
   };
-  const base = { ...decoded.state, persistence: state.persistence };
+  const previous = (item: WeatherCurrentSnapshot) => ({ ...item, [restoredAt]: state.persistence.savedCapturedAt });
+  const base = { ...decoded.state, persistence: state.persistence,
+    national: Object.fromEntries(Object.entries(decoded.state.national).map(([operation, item]) => [operation, previous(item)])),
+    partials: decoded.state.partials.map(previous),
+    histories: decoded.state.histories.map((history) => ({ ...history, reports: history.reports.map(previous) })),
+  };
   const applied = expireIntents(base, clock.wallTimeMs, clock.monotonicMs);
   const active = applied.state.intents.filter((item) => item.disposition === "pending" && item.expiresAt > clock.wallTimeMs);
   return { state: applied.state, nextDeadline: nextWeatherCurrentDeadline(applied.state), decisions: [], intents: active,
@@ -349,7 +391,7 @@ function coverageConfirmed(state: WeatherCurrentUnitState,
   const next = { ...state, freshness, unavailable, persistence: dirty(state.persistence, input.clock.monotonicMs) };
   return { state: next, nextDeadline: nextWeatherCurrentDeadline(next),
     decisions: [{ subject: input.subject, operation: input.operation,
-      decision: "changed", reason: null, change: "revisionOnly" }], intents: [],
+      decision: "changed", reason: null, change: "revisionOnly", currentEstablished: null }], intents: [],
     outcomes: [{ kind: "recoveryApplied", scope: input.affectedScope,
       coverage: input.affectedScope, subjects: [] }], diagnostics: [] };
 }
@@ -367,7 +409,7 @@ function intentUpdate(state: WeatherCurrentUnitState,
     persistence: dirty(state.persistence, input.clock.monotonicMs) };
   return { state: next, nextDeadline: nextWeatherCurrentDeadline(next),
     decisions: [{ subject: current.subject, operation: current.operation,
-      decision: "changed", reason: null, change: "deliveryOnly" }],
+      decision: "changed", reason: null, change: "deliveryOnly", currentEstablished: null }],
     intents: pending ? [updated] : [],
     outcomes: [{ kind: "accepted", change: "deliveryOnly", subjects: [subject(updated, disposition)] }], diagnostics: [] };
 }
@@ -382,18 +424,19 @@ function reduceWeatherCurrentUnit(state: WeatherCurrentUnitState, input: Weather
   const subjects = applied.expired.map((item) => subject(item, item.disposition === "pending" ? "expired" : item.disposition));
   return { state: applied.state, nextDeadline: nextWeatherCurrentDeadline(applied.state),
     decisions: applied.expired.map((item) => ({ subject: item.subject, operation: item.operation,
-      decision: "changed" as const, reason: null, change: "deliveryOnly" as const })), intents: [],
+      decision: "changed" as const, reason: null, change: "deliveryOnly" as const, currentEstablished: null })), intents: [],
     outcomes: input.kind === "deadline" ? [{ kind: "deadlineApplied", subjects }]
       : [{ kind: "batchCompleted", reason: "shutdown", subjects }], diagnostics: [] };
 }
 
 function toWeatherCurrentView(state: WeatherCurrentUnitState): WeatherCurrentUnitView {
-  const currents = [...Object.values(state.national), ...state.partials]
+  const currents: (WeatherCurrentSnapshot & { readonly [restoredAt]?: number | null })[] = [...Object.values(state.national), ...state.partials]
     .filter((item): item is WeatherCurrentSnapshot => item != null);
   const subjects: SubjectOutcome[] = currents.map((item) => ({
     subject: item.subject, operation: item.operation, informationType: item.source.infoTypeRaw,
-    transition: "active", severity: null, source: item.source,
-    facts: { family: item.source.family, scope: item.scope, office: item.office, phenomena: item.phenomena },
+    transition: restoredAt in item ? "restoredUnconfirmed" : "active", severity: null, source: item.source,
+    facts: { family: item.source.family, scope: item.scope, office: item.office, phenomena: item.phenomena,
+      ...(restoredAt in item ? { currentConfirmed: false, savedCapturedAt: item[restoredAt] ?? null } : {}) },
     changedFields: [],
   }));
   subjects.push(...state.unavailable.map((item) => ({
@@ -405,8 +448,9 @@ function toWeatherCurrentView(state: WeatherCurrentUnitState): WeatherCurrentUni
     ...currents.map((item) => `${item.subject}:${item.source.reportDateTimeRaw}:${item.source.serialRaw}`),
     ...state.tombstones.map((item) => `${item.subject}:t:${item.source.reportDateTimeRaw}`),
     ...state.unavailable.map((item) => `${item.subject}:u:${item.reason}:${item.source?.reportDateTimeRaw ?? ""}`),
-  ].sort().join("|"), persistence: state.persistence, subjects,
-  national: state.national, partials: state.partials,
+  ].sort().join("|"), persistence: state.persistence, admission: {}, subjects,
+  national: Object.fromEntries(Object.entries(state.national).filter(([, item]) => !(restoredAt in item))),
+  partials: state.partials.filter((item) => !(restoredAt in item)),
   freshnessSuspectCount: state.freshness.filter((item) => item.freshnessSuspect).length };
 }
 

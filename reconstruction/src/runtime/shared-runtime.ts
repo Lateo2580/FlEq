@@ -1,7 +1,8 @@
 import type { DecodedMaterial } from "../../contracts/p1-parser-boundary.types";
-import type { EewInput, EewUnitStep } from "../../contracts/p2-eew-unit.types";
-import type { WeatherCurrentInput, WeatherCurrentUnitStep } from "../../contracts/p2-weather-current-unit.types";
-import type { WeatherTimeseriesInput, WeatherTimeseriesUnitStep } from "../../contracts/p2-weather-timeseries-unit.types";
+import type { Operation } from "../../contracts/p1-parser-boundary.types";
+import type { EewInput, EewUnitStep, PersistedEewUnit } from "../../contracts/p2-eew-unit.types";
+import type { WeatherCurrentInput, WeatherCurrentUnitStep, PersistedWeatherCurrentUnit } from "../../contracts/p2-weather-current-unit.types";
+import type { WeatherTimeseriesInput, WeatherTimeseriesUnitStep, PersistedWeatherTimeseriesUnit } from "../../contracts/p2-weather-timeseries-unit.types";
 import type { NotificationDeliveryState, NotificationDeliveryStep, NotificationSelection } from "../../contracts/p2-notification-delivery.types";
 import type {
   ClockReading,
@@ -12,6 +13,8 @@ import type {
   RuntimeInput,
   RuntimeState,
   RuntimeStep,
+  RuntimeAdmission,
+  AdmissionRejection,
   RuntimeUnitStates,
   RuntimeUnitId,
   RuntimeEffect,
@@ -24,9 +27,12 @@ import type {
   UnitId,
 } from "../../contracts/p2-shared-runtime.types";
 import { boundedString, boundDiagnosticDetails, completeDiagnostic, parserDiagnosticReasons } from "./runtime-diagnostic";
+import { normalizeScopes, scopeContains } from "../domains/weather-current/weather-current";
+import type { CodecMap } from "../checkpoint/checkpoint";
 
 const EMPTY: readonly never[] = Object.freeze([]);
 const units = ["U-E", "U-W", "U-F"] as const;
+const admissionRecordByteCache = new WeakMap<object, number>();
 // The single P2 route (order plan §6.2): headType → M01/M06/M08 → unit. Other families have no P2 unit.
 const unitRoutes: ReadonlyMap<string, RuntimeUnitId> = new Map([
   ...["VXSE43", "VXSE44", "VXSE45"].map((type) => [type, "U-E"] as const),
@@ -73,6 +79,55 @@ function isRuntimeUnit(unit: UnitId): unit is RuntimeUnitId {
   return unit === "U-E" || unit === "U-W" || unit === "U-F";
 }
 
+function updateAdmission(admission: RuntimeAdmission, unit: RuntimeUnitId,
+  decisions: EewUnitStep["decisions"] | WeatherCurrentUnitStep["decisions"] | WeatherTimeseriesUnitStep["decisions"]): RuntimeAdmission {
+  let next = admission;
+  for (const decision of [...decisions.filter((item) => item.decision === "capacityExceeded"),
+    ...decisions.filter((item) => item.decision !== "capacityExceeded")]) {
+    if (decision.decision !== "capacityExceeded" && (decision.decision !== "changed" || decision.currentEstablished == null)) continue;
+    const operation = decision.operation;
+    if (decision.decision === "changed" && next[unit]?.[operation] == null) continue;
+    const slot = next[unit]?.[operation] ?? { records: [], overflow: false };
+    let records = [...slot.records];
+    let overflow = slot.overflow;
+    if (decision.decision === "capacityExceeded") {
+      const { rejection } = decision;
+      const index = records.findIndex((item) => item.family === rejection.family && item.subject === decision.subject);
+      const existing = records[index];
+      const scope = existing?.affectedScope === "subject" || rejection.affectedScope === "subject" ? "subject" as const
+        : existing == null ? rejection.affectedScope : normalizeScopes([...existing.affectedScope, ...rejection.affectedScope]);
+      const candidate: AdmissionRejection = { subject: decision.subject, family: rejection.family,
+        reportDateTimeMs: Math.max(existing?.reportDateTimeMs ?? -Infinity, rejection.reportDateTimeMs), affectedScope: scope };
+      const proposed = index < 0 ? [...records, candidate] : records.map((item, at) => at === index ? candidate : item);
+      const bytes = proposed.reduce((sum, record) => {
+        let size = admissionRecordByteCache.get(record);
+        if (size == null) {
+          size = new TextEncoder().encode(JSON.stringify(record)).byteLength;
+          admissionRecordByteCache.set(record, size);
+        }
+        return sum + size;
+      }, 2 + Math.max(proposed.length - 1, 0));
+      if (proposed.length > 512 || bytes > 262_144) overflow = true;
+      else records = proposed;
+    } else {
+      const evidence = decision.currentEstablished!;
+      records = records.flatMap((record) => {
+        if (record.family !== evidence.family || record.subject !== decision.subject
+          || !(evidence.reportDateTimeMs > record.reportDateTimeMs)) return [record];
+        if (record.affectedScope === "subject") return evidence.affectedScope === "subject" ? [] : [record];
+        if (evidence.affectedScope === "subject") return [];
+        const remaining = record.affectedScope.filter((token) => !scopeContains(evidence.affectedScope as readonly string[], [token]));
+        return remaining.length === 0 ? [] : [{ ...record, affectedScope: remaining }];
+      });
+    }
+    const byOperation = { ...next[unit] };
+    if (records.length === 0 && !overflow) delete byOperation[operation];
+    else byOperation[operation] = { records, overflow };
+    next = { ...next, [unit]: byOperation };
+  }
+  return next;
+}
+
 function shutdownSummary(state: RuntimeState, clock: ClockReading): ShutdownSummary {
   const reasons: string[] = [];
   let code: ShutdownSummary["code"] = 0;
@@ -114,7 +169,7 @@ function shutdownSummary(state: RuntimeState, clock: ClockReading): ShutdownSumm
 // These are the concrete A4/A5/A6/A7 pure calls, not implementations or a registry.
 // Until delivery they must be supplied explicitly; no missing reducer is treated as success.
 function reduceRuntime(
-  state: RuntimeState,
+  state: RuntimeState | null,
   input: RuntimeInput,
   calls: Readonly<{
     reduceEewUnit?: (state: RuntimeUnitStates["U-E"], input: EewInput) => EewUnitStep;
@@ -125,10 +180,88 @@ function reduceRuntime(
     toWeatherTimeseriesView?: (state: RuntimeUnitStates["U-F"]) => UnitView;
     selectNotificationAttempt?: (state: NotificationDeliveryState, clock: ClockReading) => NotificationSelection;
     applyNotificationResult?: (state: NotificationDeliveryState, result: NotificationResult, clock: ClockReading) => NotificationDeliveryStep;
+    codecs?: CodecMap<RuntimeUnitStates>;
   }> = {},
 ): RuntimeStep {
+  if (input.kind === "startup") {
+    if (state != null) throw new Error("runtime already started");
+    if (input.runId.length === 0 || !Number.isFinite(input.clock.wallTimeMs) || !Number.isFinite(input.clock.monotonicMs)
+      || Object.keys(input.restored).length !== units.length || units.some((unit) => input.restored[unit] == null))
+      throw new RangeError("invalid startup input");
+    const clean: PersistenceStatus = { kind: "saved", currentGeneration: 0, savedGeneration: 0,
+      savedCapturedAt: null, savedAckAt: null, dirtySince: null };
+    let initial: RuntimeState = {
+      runId: input.runId, units: {
+        "U-E": { schemaVersion: "p2-eew-unit-v1", current: [], gates: [], intents: [], deliveryRecords: [], persistence: clean },
+        "U-W": { schemaVersion: "p2-weather-current-unit-v1", national: {}, partials: [], histories: [], ownership: {},
+          tombstones: [], freshness: [], unavailable: [], intents: [], persistence: clean },
+        "U-F": { schemaVersion: "p2-weather-timeseries-unit-v1", subjects: [], gates: [], intents: [], persistence: clean },
+      }, restoration: { "U-E": { kind: "empty" }, "U-W": { kind: "empty" }, "U-F": { kind: "empty" } },
+      admission: {}, checkpointAttempts: {}, deadlines: { "U-E": null, "U-W": null, "U-F": null },
+      notificationChannels: { desktop: { kind: "idle" }, sound: { kind: "idle" } },
+      shutdown: { stage: "running", acceptedThroughSequence: null, startedAt: null, finalizationAt: null,
+        stageResults: {}, deadlines: { overallMonotonicMs: null, mailboxDrainMonotonicMs: null,
+          sideEffectFinalizationMonotonicMs: null, finalCheckpointMonotonicMs: null, workerCloseMonotonicMs: null } },
+    };
+    const changedUnits: RuntimeUnitId[] = [];
+    const generationInputIds: Partial<Record<RuntimeUnitId, readonly string[]>> = {};
+    const outcomes: RuntimeStep["outcomes"][number][] = [];
+    const diagnostics: DiagnosticEvent[] = [];
+    for (const unit of units) {
+      const restored = input.restored[unit];
+      if (restored.kind === "empty" || restored.kind === "unavailable") {
+        initial = { ...initial, restoration: { ...initial.restoration, [unit]: restored } };
+        continue;
+      }
+      const { envelope } = restored;
+      const codec = calls.codecs?.[unit];
+      if (envelope.unit !== unit || envelope.schemaVersion !== initial.units[unit].schemaVersion
+        || !Number.isSafeInteger(envelope.generation) || envelope.generation < 1
+        || !Number.isFinite(envelope.capturedAt) || codec == null)
+        throw new RangeError("invalid restored unit envelope");
+      const decoded = codec.decode(envelope.payload);
+      if (decoded.kind !== "restored") {
+        initial = { ...initial, restoration: { ...initial.restoration, [unit]: { kind: "unavailable", reason: "noValidSlot" } } };
+        continue;
+      }
+      const persistence: PersistenceStatus = { kind: "saved", currentGeneration: envelope.generation,
+        savedGeneration: envelope.generation, savedCapturedAt: envelope.capturedAt, savedAckAt: null, dirtySince: null };
+      const seeded = { ...decoded.state, persistence };
+      let step: EewUnitStep | WeatherCurrentUnitStep | WeatherTimeseriesUnitStep;
+      if (unit === "U-E") {
+        if (calls.reduceEewUnit == null || calls.codecs?.["U-E"] == null) throw new Error("U-E restore is not linked");
+        step = calls.reduceEewUnit(seeded as RuntimeUnitStates["U-E"],
+          { kind: "restore", persisted: calls.codecs["U-E"].encode(seeded as RuntimeUnitStates["U-E"]) as PersistedEewUnit, clock: input.clock });
+      } else if (unit === "U-W") {
+        if (calls.reduceWeatherCurrentUnit == null || calls.codecs?.["U-W"] == null) throw new Error("U-W restore is not linked");
+        step = calls.reduceWeatherCurrentUnit(seeded as RuntimeUnitStates["U-W"],
+          { kind: "restore", persisted: calls.codecs["U-W"].encode(seeded as RuntimeUnitStates["U-W"]) as PersistedWeatherCurrentUnit, clock: input.clock });
+      } else {
+        if (calls.reduceWeatherTimeseriesUnit == null || calls.codecs?.["U-F"] == null) throw new Error("U-F restore is not linked");
+        step = calls.reduceWeatherTimeseriesUnit(seeded as RuntimeUnitStates["U-F"],
+          { kind: "restore", persisted: calls.codecs["U-F"].encode(seeded as RuntimeUnitStates["U-F"]) as PersistedWeatherTimeseriesUnit, clock: input.clock });
+      }
+      initial = { ...initial, units: { ...initial.units, [unit]: step.state },
+        restoration: { ...initial.restoration, [unit]: { kind: "restored" } },
+        deadlines: { ...initial.deadlines, [unit]: step.nextDeadline } };
+      changedUnits.push(unit);
+      if (step.state.persistence.currentGeneration > envelope.generation) generationInputIds[unit] = [];
+      outcomes.push(...step.outcomes);
+      diagnostics.push(...step.diagnostics.map((details) => completeDiagnostic(details, input.clock, input.runId)));
+    }
+    return { state: initial, changedUnits, generationInputIds, checkpointRequests: EMPTY,
+      notificationAttempts: EMPTY, abortAttemptIds: EMPTY, effects: EMPTY, shutdownSummary: null,
+      outcomes, views: changedUnits.flatMap((unit) => {
+        const view = unit === "U-E" ? calls.toEewView?.(initial.units["U-E"])
+          : unit === "U-W" ? calls.toWeatherCurrentView?.(initial.units["U-W"])
+            : calls.toWeatherTimeseriesView?.(initial.units["U-F"]);
+        return view == null ? [] : [view];
+      }), diagnostics };
+  }
+  if (state == null) throw new Error("runtime has not started");
   let next = state;
   let changedUnits: readonly UnitId[] = EMPTY;
+  const generationInputIds: Partial<Record<RuntimeUnitId, readonly string[]>> = {};
   let outcomes: RuntimeStep["outcomes"] = EMPTY;
   let diagnostics: RuntimeStep["diagnostics"] = EMPTY;
   let effects: readonly RuntimeEffect[] = EMPTY;
@@ -152,7 +285,7 @@ function reduceRuntime(
     changed(unit);
   };
   const reduceUnit = (unit: RuntimeUnitId, unitInput: Extract<EewInput,
-    { kind: "receive" | "deadline" | "shutdown" | "intentUpdate" }>) => {
+    { kind: "receive" | "deadline" | "shutdown" | "intentUpdate" }>, inputId?: string) => {
     let step: EewUnitStep | WeatherCurrentUnitStep | WeatherTimeseriesUnitStep;
     switch (unit) {
       case "U-E":
@@ -166,6 +299,9 @@ function reduceRuntime(
         step = calls.reduceWeatherTimeseriesUnit(next.units[unit], unitInput); break;
     }
     const previous = next.units[unit];
+    if (step.state.persistence.currentGeneration > previous.persistence.currentGeneration)
+      generationInputIds[unit] = [...new Set([...(generationInputIds[unit] ?? []),
+        ...(inputId != null && step.decisions.some((decision) => decision.decision === "changed") ? [inputId] : [])])];
     if (step.state !== previous) {
       const attempt = next.checkpointAttempts[unit];
       // The first changed durable generation after capture defines the next dirty interval.
@@ -176,6 +312,11 @@ function reduceRuntime(
           [unit]: { ...attempt, postCaptureDirtySince: unitInput.clock.monotonicMs } } };
       }
       next = { ...next, units: { ...next.units, [unit]: step.state } };
+      changed(unit);
+    }
+    const admission = updateAdmission(next.admission, unit, step.decisions);
+    if (admission !== next.admission) {
+      next = { ...next, admission };
       changed(unit);
     }
     const deadline = step.nextDeadline;
@@ -190,9 +331,10 @@ function reduceRuntime(
     if (step.outcomes.length !== 0) outcomes = [...outcomes, ...step.outcomes];
     step.diagnostics.forEach(diagnose);
   };
-  const applyDeadlines = () => {
+  const applyDeadlines = (exclude?: RuntimeUnitId) => {
     if (clock == null || next.shutdown.finalizationAt != null) return;
     for (const unit of units) {
+      if (unit === exclude) continue;
       const deadline = next.deadlines[unit];
       if (deadline != null && (deadline.wallTimeMs != null && clock.wallTimeMs >= deadline.wallTimeMs
         || deadline.monotonicMs != null && clock.monotonicMs >= deadline.monotonicMs))
@@ -204,7 +346,8 @@ function reduceRuntime(
     return status == null || status.kind !== "saved" || status.currentGeneration !== status.savedGeneration;
   });
   const deliveryState = (): NotificationDeliveryState => ({
-    intents: units.flatMap((unit) => next.units[unit].intents), channels: next.notificationChannels,
+    intents: units.flatMap((unit) => next.units[unit].intents.filter((intent) =>
+      intent.operation !== "normal" || next.admission[unit]?.normal == null)), channels: next.notificationChannels,
   });
   const sameIntent = (left: NotificationIntent, right: Pick<NotificationIntent, "id" | "unit" | "operation" | "subject" | "channel">) =>
     left.id === right.id && left.unit === right.unit && left.operation === right.operation
@@ -289,7 +432,7 @@ function reduceRuntime(
         // Units re-run the common Head/date check themselves: one diagnostic per input, and
         // U-W keeps §7.8 freshness monitoring for rejected inputs (A1 freshnessException).
         if (unit != null && completion.result.kind === "decoded") {
-          reduceUnit(unit, { kind: "receive", material: completion.result.material, clock: input.clock });
+          reduceUnit(unit, { kind: "receive", material: completion.result.material, clock: input.clock }, completion.inputId);
         } else {
           const details = completion.result.kind === "rejected"
             ? parserDiagnostic(completion.result.diagnostic.reason, completion.result.diagnostic.inputId)
@@ -299,6 +442,7 @@ function reduceRuntime(
               })();
           if (details != null) diagnose(details);
         }
+        if (draining) applyDeadlines(unit);
       }
     } else {
       const { control } = input.completion;
@@ -419,12 +563,23 @@ function reduceRuntime(
 
   const views: UnitView[] = [];
   for (const unit of changedUnits) {
-    const view = unit === "U-E" ? calls.toEewView?.(next.units["U-E"])
-      : unit === "U-W" ? calls.toWeatherCurrentView?.(next.units["U-W"])
+    const normalBlocked = next.admission[unit as RuntimeUnitId]?.normal != null;
+    // Project through the unit's own view builder so dedicated current fields and counts agree.
+    const eew = next.units["U-E"];
+    const weather = next.units["U-W"];
+    const { normal: _normal, ...otherNational } = weather.national;
+    const view = unit === "U-E" ? calls.toEewView?.(normalBlocked
+      ? { ...eew, current: eew.current.filter((item) => item.operation !== "normal") } : eew)
+      : unit === "U-W" ? calls.toWeatherCurrentView?.(normalBlocked
+        ? { ...weather, national: otherNational, partials: weather.partials.filter((item) => item.operation !== "normal") } : weather)
         : unit === "U-F" ? calls.toWeatherTimeseriesView?.(next.units["U-F"]) : undefined;
-    if (view != null) views.push(view);
+    if (view != null) {
+      views.push({ ...view,
+        admission: normalBlocked ? { normal: "capacityExceeded" } : {},
+        subjects: normalBlocked ? view.subjects.filter((subject) => subject.operation !== "normal") : view.subjects });
+    }
   }
-  return { state: next, changedUnits, checkpointRequests: EMPTY, notificationAttempts, abortAttemptIds,
+  return { state: next, changedUnits, generationInputIds, checkpointRequests: EMPTY, notificationAttempts, abortAttemptIds,
     effects, shutdownSummary: summary, outcomes, views: views.length === 0 ? EMPTY : views, diagnostics };
 }
 
