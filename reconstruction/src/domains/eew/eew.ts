@@ -31,6 +31,19 @@ import { validateSemanticEnvelope } from "../../runtime/shared-runtime";
 const EEW_FAMILIES = ["VXSE43", "VXSE45"] as const;
 type EewFamily = typeof EEW_FAMILIES[number];
 
+// Immutable notification objects own the data; this only memoizes their UTF-8 size.
+const notificationByteCache = new WeakMap<object, number>();
+function notificationArrayBytes(values: readonly object[]): number {
+  return values.reduce((sum, value) => {
+    let bytes = notificationByteCache.get(value);
+    if (bytes == null) {
+      bytes = Buffer.byteLength(JSON.stringify(value));
+      notificationByteCache.set(value, bytes);
+    }
+    return sum + bytes;
+  }, 2 + Math.max(values.length - 1, 0));
+}
+
 type Candidate = Readonly<{
   operation: DecodedMaterial["operation"];
   family: EewFamily;
@@ -413,11 +426,13 @@ function reduceEew(state: EewUnitState, input: Extract<EewInput, { kind: "receiv
   const removed = active.filter(replace);
   let proposed = [...retained, ...newIntents];
   const evictedIntents: EewUnitState["intents"][number][] = [];
-  const fits = () => proposed.length <= 128 && new TextEncoder().encode(JSON.stringify(proposed)).byteLength <= 131_072;
+  let proposedBytes = notificationArrayBytes(proposed);
+  const fits = () => proposed.length <= 128 && proposedBytes <= 131_072;
   if (!fits() && candidate.operation === "normal") {
     const lower = retained.filter((intent) => intent.operation !== "normal").sort((left, right) =>
       right.expiresAt - left.expiresAt || right.createdAt - left.createdAt || right.id.localeCompare(left.id));
     for (const intent of lower) {
+      proposedBytes -= notificationArrayBytes([intent]) - 2 + (proposed.length > 1 ? 1 : 0);
       proposed = proposed.filter((item) => item !== intent);
       evictedIntents.push(intent);
       if (fits()) break;
@@ -439,13 +454,16 @@ function reduceEew(state: EewUnitState, input: Extract<EewInput, { kind: "receiv
   const semanticChanged = predictionChanged
     || gate?.terminal !== candidate.terminal || evicted.size !== 0;
   const change = semanticChanged ? "semantic" : "revisionOnly";
+  // A receive always retains its gate; only capacity eviction can remove a latch's last owner.
+  const owners = evicted.size === 0 ? null : new Set([...currents, ...gates].map((owner) => owner.subject));
   const next: EewUnitState = {
     ...state, current: currents, gates,
     intents: proposed,
     deliveryRecords: records,
     notificationLatches: [...state.notificationLatches.filter((item) =>
       (item.operation !== candidate.operation || item.eventId !== eventId)
-      && [...currents, ...gates].some((owner) => owner.operation === item.operation && owner.subject.endsWith(`/${item.eventId}`))),
+      && (owners == null || owners.has(`${item.operation}/VXSE43/${item.eventId}`)
+        || owners.has(`${item.operation}/VXSE45/${item.eventId}`))),
     { operation: candidate.operation, eventId,
       firstReportNotified: (previousLatch?.firstReportNotified ?? false) || admitted && opportunity && !candidate.cancelled,
       warningNotified: (previousLatch?.warningNotified ?? false) || admitted && opportunity && !candidate.cancelled && warning,
@@ -472,4 +490,4 @@ function reduceEew(state: EewUnitState, input: Extract<EewInput, { kind: "receiv
   };
 }
 
-export { reduceEew, nextEewDeadline, dirty };
+export { reduceEew, nextEewDeadline, dirty, notificationArrayBytes };

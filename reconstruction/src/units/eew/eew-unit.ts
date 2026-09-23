@@ -9,7 +9,7 @@ import type {
   EewUnitView,
   PersistedEewUnit,
 } from "../../../contracts/p2-eew-unit.types";
-import { dirty, nextEewDeadline, reduceEew } from "../../domains/eew/eew";
+import { dirty, nextEewDeadline, notificationArrayBytes, reduceEew } from "../../domains/eew/eew";
 
 const SCHEMA = "p2-eew-unit-v1" as const;
 const GENERATION_BYTES = 256 * 1024;
@@ -69,6 +69,8 @@ function generationByteLength(payload: PersistedEewUnit): number {
     capturedAt: Number.MAX_SAFE_INTEGER, payload, sha256: "0".repeat(64),
   })).byteLength;
 }
+
+const generationEnvelopeBytes = generationByteLength({ schemaVersion: SCHEMA, intents: [], deliveryRecords: [] }) - 4;
 
 function persisted(value: unknown): PersistedEewUnit | null {
   const record = object(value);
@@ -199,12 +201,12 @@ function reduceEewUnit(state: EewUnitState, input: EewInput): EewUnitStep {
   // Rejected/duplicate inputs must preserve the owner's state; deadline reclaims records even without pending intents.
   if (step.state === state && input.kind !== "deadline" && input.kind !== "shutdown") return step;
   let records = step.state.deliveryRecords.filter((record) => record.expiresAt > input.clock.wallTimeMs);
-  let bytes = generationByteLength({ schemaVersion: SCHEMA, intents: step.state.intents, deliveryRecords: records });
+  let bytes = generationEnvelopeBytes + notificationArrayBytes(step.state.intents) + notificationArrayBytes(records);
   if (bytes > GENERATION_BYTES) {
     records.sort((left, right) => left.expiresAt - right.expiresAt);
     let removed = 0;
     while (bytes > GENERATION_BYTES && removed < records.length) {
-      bytes -= encoder.encode(JSON.stringify(records[removed])).byteLength + (records.length - removed > 1 ? 1 : 0);
+      bytes -= notificationArrayBytes([records[removed]]) - 2 + (records.length - removed > 1 ? 1 : 0);
       removed++;
     }
     records = records.slice(removed);

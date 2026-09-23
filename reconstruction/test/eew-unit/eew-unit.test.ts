@@ -213,6 +213,19 @@ describe("P2 EEW unit", () => {
     expect(preempted.diagnostics).toContainEqual({ level: "INFO", component: "eew",
       reason: "notificationCapacityEvicted", unit: "U-E", count: 2 });
     expect(preempted.state.deliveryRecords).toHaveLength(2);
+    const pair = receive(emptyState(), first).intents;
+    const held = pendingIntent("normal/VXSE43/00000000000999");
+    const body = `${held.payload.body}\n"境界"`;
+    const padded = { ...held, payload: { ...held.payload, body } };
+    const padding = 131_072 - Buffer.byteLength(JSON.stringify([padded, ...pair]));
+    for (const extra of [0, 1]) {
+      const pending = { ...padded, payload: { ...padded.payload, body: body + "x".repeat(padding + extra) } };
+      expect(Buffer.byteLength(JSON.stringify([pending, ...pair]))).toBe(131_072 + extra);
+      const step = receive({ ...emptyState(), intents: [pending] }, first);
+      expect(step.intents).toEqual(extra === 0 ? pair : []);
+      expect(step.state.intents).toEqual(extra === 0 ? [pending, ...pair] : [pending]);
+      expect(step.state.notificationLatches[0].firstReportNotified).toBe(extra === 0);
+    }
   });
   it("P2-A4-T01 contractBoundary / AC01: frozen validation order and legal reduced structures are atomic", () => {
     const first = decodeFixture("37_01_01_240613_VXSE43", "VXSE43");
