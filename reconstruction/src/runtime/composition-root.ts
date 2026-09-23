@@ -34,12 +34,18 @@ import type { DiagnosticFileSystem } from "../checkpoint/persistent-diagnostic-s
 import { Mailbox } from "../mailbox/mailbox";
 import { eewUnitCodec, reduceEewUnit, toEewView } from "../units/eew/eew-unit";
 import { reduceWeatherCurrentUnit, toWeatherCurrentView, weatherCurrentUnitCodec } from "../units/weather-current/weather-current-unit";
+import {
+  reduceWeatherTimeseriesUnit, toWeatherTimeseriesView, weatherTimeseriesUnitCodec,
+} from "../units/weather-timeseries/weather-timeseries-unit";
 import { completeDiagnostic } from "./runtime-diagnostic";
 import { reduceRuntime } from "./shared-runtime";
 
-// A3 wiring of delivered units (A4 U-E, A5 U-W). U-F (A6) and notification (A7) link here on delivery.
-const linkedUnitCodecs: CodecMap<RuntimeUnitStates> = { "U-E": eewUnitCodec, "U-W": weatherCurrentUnitCodec };
-const linkedRuntimeCalls = { reduceEewUnit, toEewView, reduceWeatherCurrentUnit, toWeatherCurrentView } as const;
+// A3 wiring of delivered units (A4 U-E, A5 U-W, A6 U-F). Notification (A7) links here on delivery.
+const linkedUnitCodecs: CodecMap<RuntimeUnitStates> = {
+  "U-E": eewUnitCodec, "U-W": weatherCurrentUnitCodec, "U-F": weatherTimeseriesUnitCodec,
+};
+const linkedRuntimeCalls = { reduceEewUnit, toEewView, reduceWeatherCurrentUnit, toWeatherCurrentView,
+  reduceWeatherTimeseriesUnit, toWeatherTimeseriesView } as const;
 
 type ShutdownHooks = Readonly<{
   drainMailbox?: (deadlineMonotonicMs: number, active: () => boolean) => Promise<void>;

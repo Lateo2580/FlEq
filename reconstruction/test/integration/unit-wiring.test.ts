@@ -5,7 +5,6 @@ import { afterEach, describe, expect, it } from "vitest";
 
 import type { DecodedMaterial } from "../../contracts/p1-parser-boundary.types";
 import type { ClockReading, NotificationIntent, RuntimeInput, RuntimeState, RuntimeUnitId } from "../../contracts/p2-shared-runtime.types";
-import type { WeatherTimeseriesUnitState } from "../../contracts/p2-weather-timeseries-unit.types";
 import type { WeatherCurrentInput, WeatherCurrentUnitState } from "../../contracts/p2-weather-current-unit.types";
 import type { NotificationAttempt, NotificationDeliveryState } from "../../contracts/p2-notification-delivery.types";
 import { decodeMaterial } from "../../src/decode-material/decode-material";
@@ -19,9 +18,7 @@ import { eewUnitCodec } from "../../src/units/eew/eew-unit";
 import { weatherCurrentUnitCodec } from "../../src/units/weather-current/weather-current-unit";
 import { fixtureState } from "../checkpoint-shutdown/runtime-fixture";
 
-// A6 is not delivered: shutdown and deadlines still visit U-F, so it stays empty explicitly.
-const calls = { ...linkedRuntimeCalls, reduceWeatherTimeseriesUnit: (state: WeatherTimeseriesUnitState) =>
-  ({ state, nextDeadline: null, decisions: [], intents: [], outcomes: [], diagnostics: [] }) };
+const calls = linkedRuntimeCalls;
 const temporary: string[] = [];
 afterEach(async () => {
   for (const path of temporary.splice(0)) await fileSystem.rm(path, { recursive: true, force: true });
@@ -290,6 +287,37 @@ describe("P2 unit wiring (A1 route, A3 composition root)", () => {
     const again = finalRoot.startRuntime("run-3", clock()).state;
     expect(again.units["U-W"].partials[0].source.inputId).toBe("third");
     await Promise.all([root.diagnostics.flush(), restarted.diagnostics.flush(), finalRoot.diagnostics.flush()]);
+  });
+
+  it("P2-WIRE-T07 acceptance / A3 AC09, A6 AC07-08: parsed VPWP50 through the linked set, save and product restart", async () => {
+    // Within the report's validity and 7-day retention, so neither restore nor receive collects the subject.
+    let now = Date.parse("2023-06-22T23:00:00+09:00") + 1_000;
+    const clock = () => ({ wallTimeMs: now, monotonicMs: now });
+    const settings = await config();
+    const options = { runtimeCalls: calls, clock };
+    const root = new RuntimeCompositionRoot(settings, linkedUnitCodecs, options);
+    const first = decode("81_01_04_251222_VPWP50", "VPWP50");
+
+    const received = root.dispatch(root.startRuntime("run-1", clock()).state, parsed("run-1", first, clock()));
+    expect(received.changedUnits).toEqual(["U-F"]);
+    expect(received.state.units["U-F"].subjects).toMatchObject([
+      { subject: "normal/VPWP50/稚内地方気象台", effective: "active", source: { inputId: first.inputId } }]);
+    const summary = await root.shutdownRuntime(root.state, 1, clock());
+    const generation = root.state.units["U-F"].persistence.currentGeneration;
+    expect(summary).toMatchObject({ code: 0, persistence: { "U-F": { kind: "saved", savedGeneration: generation } } });
+
+    now++;
+    const restarted = new RuntimeCompositionRoot(settings, linkedUnitCodecs, options);
+    const resumed = restarted.startRuntime("run-2", clock()).state;
+    expect(resumed.units["U-F"].subjects[0]).toMatchObject({ source: { inputId: first.inputId } });
+    const second = decode("81_01_04_251222_VPWP50", "VPWP50",
+      (xml) => atTime(xml, "2023-06-22T23:30:00+09:00"), "second");
+    const followUp = restarted.dispatch(resumed, parsed("run-2", second, clock()));
+    expect(followUp.changedUnits).toEqual(["U-F"]);
+    expect(followUp.state.units["U-F"].subjects[0]).toMatchObject({ source: { inputId: "second" } });
+    expect((await restarted.shutdownRuntime(restarted.state, 1, clock())).code).toBe(0);
+    expect(restarted.restoreUnit("U-F")).toMatchObject({ kind: "restored", envelope: { generation: generation + 1 } });
+    await Promise.all([root.diagnostics.flush(), restarted.diagnostics.flush()]);
   });
 
   it("P2-WIRE-T05 regression / A10 AC09: automatic attribution excludes inputs saved by an older ack", async () => {
