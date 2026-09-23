@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "585d2f4f858e350c6965d83019ba7e4842285b3c",
-    "sha256": "448d049a8965fc60f0e35f96f6514f58b0881da28dd7285151cdb3bb2f2ca563",
+    "sha256": "e86ba8fefc8bf8d8ec3380bb750984018bd57125c30a82fab7b6d5724f709aeb",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "76c82b87d7783a4eae14af690cb34e7d6ec46f73617dc75b7f7401951619f080",
     "sequencesSha256": "be9cfd97b555e3a55568f085d107342c978b3dc7249f5cecea868ea5a62c5781",
@@ -109,7 +109,7 @@
             "channel": "desktop",
             "executable": "/usr/bin/notify-send",
             "argv": "--expire-time=10000 -- title body。title/bodyはA4 payloadをそのままargv要素にし、shell=false、wait/クリック処理なし。",
-            "condition": "同じユーザーの通知daemonとD-Bus sessionが利用可能。バイナリ/セッションが無ければadapterErrorとしてFail/Blockedを記録する。"
+            "condition": "同じユーザーの通知daemonとD-Bus sessionが利用可能。R34: 起動時に/usr/bin/notify-sendの実在を1回確かめ、無ければdesktop channelをunavailableとする（Pi 本番は libnotify-bin も通知 daemon も無く、旧築でも desktop は出ていなかった。2026-09-23 実測）。"
           },
           {
             "os": "macOS 開発機",
@@ -133,6 +133,7 @@
             "condition": "音声deviceが利用可能。"
           }
         ],
+        "unavailable": "R34（2026-09-23 ご主人裁定）: 起動時probe（desktopは実行ファイルの実在、soundは既存の無音probe）で使えないと分かったchannelは、A1が起動時にNotificationChannelState kind=unavailableとする。A7はunavailable channelを選択せず、そのchannelのintentを試行せず元のTTLでexpiredとして回収する（新しいdispositionを作らない）。診断は起動時に1件だけで、既存の永続sink allowlistのreasonを再利用し追加しない。probe関数はA7のadapterに置き、起動時の呼出しとchannel状態の初期化・A1の状態比較への追加はA3-AC11と同じ結線で統合担当が行う。",
         "ownership": "二channelの現在process handleだけを持つ。factory/汎用adapter/新しいregistry・npm依存を作らない。文言はA4、spawn/closeの外部観測はA7、結果採用はA1、dispatch/終了段階はA3。",
         "experienceDecision": "P2-A7-DESKTOP-EXPERIENCEはR30=Aで確定。A4のタイトル/本文、Linuxの10秒表示要求、backend既定アイコン、投稿後終了を固定し、macOS wrapper既定10秒のaction待ちは省く。表示時間の実挙動はOS側に従う。"
       },
@@ -166,7 +167,7 @@
             "completion": "private corpusのEventID 20240417231454原XML33報だけを使い、通知機会で生成されたintentだけを生成markerから計測する。全報で生成するとは仮定しない。A7 questionResolutions[P2-A7-PRIVATE-EEW-EVIDENCE]の明示コマンドで実行し、公開環境ではblocked。"
           }
         ],
-        "osBackend": "C2/R33はP2-A7-ADAPTER.backendTableのLinux Raspberry Pi本番とmacOS開発機で結果を別記録する。Linux正式結果をmacOS測定で代用しない。実行前にOS/arch/Node、使用exeのpath/hash、通知session/音声deviceの可用性を固定する。backend欠落/通知権限未成立は正常adapterとして扱わずBlocked。",
+        "osBackend": "C2/R33はP2-A7-ADAPTER.backendTableのLinux Raspberry Pi本番とmacOS開発機で結果を別記録する。Linux正式結果をmacOS測定で代用しない。実行前にOS/arch/Node、使用exeのpath/hash、通知session/音声deviceの可用性を固定する。backend欠落/通知権限未成立は正常adapterとして扱わずBlocked。ただしR34によりLinux Raspberry Piのdesktopはunavailableの経路（試行0・TTL回収）を確認し、C2の実backend判定はsoundだけで行う。",
         "acceptanceStages": "A7単体配送完了は公開試験・型検査・shuffle、20 WAVとhash証拠、C1、指定OS別のC2単体実backend証拠で判定する。実backend未検収のOS項目はblocked。A3結線後の最終検収はA3-AC11で保存予約からspawn、終了・復元・診断読取、C2/R33を判定する。R33はprivate corpusで実行し、公開側はblocked。C1/C2成功で補完しない。",
         "c2StandaloneCommands": {
           "macos": "FLEQ_A7_C2=1 FLEQ_A7_C2_OS=macos ./node_modules/.bin/vitest run --config reconstruction/vitest.config.ts reconstruction/test/notification-delivery/real-backend.test.ts -t C2 --reporter=json --outputFile=reconstruction/test/notification-delivery/evidence/c2-macos.json",

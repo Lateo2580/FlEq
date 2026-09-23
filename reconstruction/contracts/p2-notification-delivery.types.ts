@@ -36,7 +36,9 @@ export type NotificationChannelState =
   | Readonly<{ kind: "idle" }>
   | Readonly<{ kind: "running"; attempt: NotificationAttempt }>
   | Readonly<{ kind: "stopping"; attempt: NotificationAttempt; cause: NotificationAbortRequest["cause"]; stopByMonotonicMs: number }>
-  | Readonly<{ kind: "isolated"; attemptId: string; sinceMonotonicMs: number; reason: "stopUnconfirmed" }>;
+  | Readonly<{ kind: "isolated"; attemptId: string; sinceMonotonicMs: number; reason: "stopUnconfirmed" }>
+  // R34: set by A1 at startup when the probe finds no backend; never selected, intents expire by TTL.
+  | Readonly<{ kind: "unavailable"; reason: "backendMissing" }>;
 
 export type NotificationDeliveryState = Readonly<{
   intents: readonly NotificationIntent[];
