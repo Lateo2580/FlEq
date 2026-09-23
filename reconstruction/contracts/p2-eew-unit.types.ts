@@ -40,6 +40,7 @@ export type EewCurrent = Readonly<{
   serial: number;
   terminal: boolean;
   prediction: EewPrediction;
+  isAssumedHypocenter: boolean;
   // Non-durable evidence from one report; prediction/source above remain the latest report.
   retainedPrediction: Readonly<{ prediction: EewPrediction; source: ReportRef }> | null;
 }>;
@@ -51,6 +52,7 @@ export type EewGate = Readonly<{
   serial: number;
   terminal: boolean;
   source: ReportRef;
+  noticeSource: Readonly<{ hypocenter: string | null; magnitude: string | null; isAssumedHypocenter: boolean }>;
 }>;
 
 export type EewDeliveryRecord = Readonly<{
@@ -66,6 +68,12 @@ export type EewNotificationLatch = Readonly<{
   firstReportNotified: boolean;
   warningNotified: boolean;
   vxse45Accepted: boolean;
+  deliveryEvidence: "unattempted" | "possible" | "unknown";
+  // Evidence predating this latch survives removal of its current/gate owners.
+  preexisting: boolean;
+  notifiedMaximumRank: number;
+  // Bit n represents the normalized three-digit area Code n (0..999).
+  notifiedWarningAreas: bigint;
 }>;
 
 // P2-A4-AC11: both channels carry the same owner-generated payload; A7 reads it unchanged.
@@ -83,6 +91,8 @@ export type EewUnitState = Readonly<{
   intents: readonly (NotificationIntent & Readonly<{ payload: EewNotificationPayload }>)[];
   deliveryRecords: readonly EewDeliveryRecord[];
   notificationLatches: readonly EewNotificationLatch[];
+  // R35: absent means 0; receipt compares this non-persisted wall-clock boundary.
+  evidenceUnknownUntil?: number;
   persistence: PersistenceStatus;
 }>;
 

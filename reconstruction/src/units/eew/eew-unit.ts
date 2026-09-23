@@ -2,6 +2,7 @@ import type { ClockReading, NotificationIntent, PersistenceStatus, ReportRef, Su
 import type {
   EewDeliveryRecord,
   EewInput,
+  EewNotificationLatch,
   EewNotificationPayload,
   EewUnitCodec,
   EewUnitState,
@@ -9,7 +10,7 @@ import type {
   EewUnitView,
   PersistedEewUnit,
 } from "../../../contracts/p2-eew-unit.types";
-import { dirty, nextEewDeadline, notificationArrayBytes, reduceEew } from "../../domains/eew/eew";
+import { deliveryRecordEvent, dirty, emptyNotificationLatch, nextEewDeadline, notificationArrayBytes, reduceEew } from "../../domains/eew/eew";
 
 const SCHEMA = "p2-eew-unit-v1" as const;
 const GENERATION_BYTES = 256 * 1024;
@@ -132,7 +133,9 @@ function restore(state: EewUnitState, value: PersistedEewUnit, clock: ClockReadi
     decisions: [{ subject: "", operation: "normal", decision: "rejected", reason: "requiredStructureInvalid" }],
     intents: [], outcomes: [], diagnostics: [{ level: "WARN", component: "eew", reason: "requiredStructureInvalid", unit: "U-E" }],
   };
-  const base = { ...decoded.state, persistence: state.persistence };
+  // Even an empty checkpoint may have reclaimed every delivered record.
+  const base = { ...decoded.state, persistence: state.persistence,
+    evidenceUnknownUntil: Math.max(state.evidenceUnknownUntil ?? 0, clock.wallTimeMs + 600_000) };
   const applied = expire(base, clock);
   const active = applied.state.intents.filter((item) => item.disposition === "pending" && item.expiresAt > clock.wallTimeMs);
   return {
@@ -163,6 +166,17 @@ function intentUpdate(state: EewUnitState,
     state, nextDeadline: nextEewDeadline(state), decisions: [], intents: [], outcomes: [], diagnostics: [],
   };
   const adopted = [...changed.values()];
+  const latches = new Map(state.notificationLatches.map((item) => [`${item.operation}/${item.eventId}`, item]));
+  for (const item of adopted) {
+    const eventId = item.subject.split("/")[2];
+    if (eventId == null) continue;
+    const key = `${item.operation}/${eventId}`;
+    const previous = latches.get(key);
+    const possible = item.attempts > 0 || item.disposition === "delivered";
+    if (previous == null || possible && previous.deliveryEvidence !== "possible")
+      latches.set(key, { ...(previous ?? emptyNotificationLatch), operation: item.operation, eventId,
+        deliveryEvidence: possible ? "possible" : "unknown" });
+  }
   const next: EewUnitState = { ...state,
     intents: state.intents.flatMap((item) => {
       const updated = changed.get(item.id);
@@ -170,6 +184,7 @@ function intentUpdate(state: EewUnitState,
     }),
     deliveryRecords: [...state.deliveryRecords, ...adopted.flatMap((item) => item.disposition === "pending" ? []
       : [{ intentId: item.id, disposition: item.disposition, expiresAt: item.expiresAt }])],
+    notificationLatches: [...latches.values()],
     persistence,
   };
   return {
@@ -262,11 +277,29 @@ const eewUnitCodec: EewUnitCodec = {
   },
   decode(payload) {
     const value = persisted(payload);
-    return value == null ? { kind: "invalid", reason: "invalid p2-eew-unit-v1 payload" } : {
+    if (value == null) return { kind: "invalid", reason: "invalid p2-eew-unit-v1 payload" };
+    const latches = new Map<string, EewNotificationLatch>();
+    for (const record of value.deliveryRecords) {
+      const event = deliveryRecordEvent(record.intentId);
+      if (event == null) continue;
+      const key = `${event.operation}/${event.eventId}`;
+      const previous = latches.get(key);
+      latches.set(key, { ...(previous ?? emptyNotificationLatch), ...event,
+        deliveryEvidence: record.disposition === "delivered" ? "possible" : previous?.deliveryEvidence ?? "unknown" });
+    }
+    for (const item of value.intents) {
+      const eventId = item.subject.split("/")[2];
+      if (eventId == null) continue;
+      const key = `${item.operation}/${eventId}`;
+      const previous = latches.get(key);
+      latches.set(key, { ...(previous ?? emptyNotificationLatch), operation: item.operation, eventId,
+        deliveryEvidence: item.attempts > 0 ? "possible" : previous?.deliveryEvidence ?? "unknown" });
+    }
+    return {
       kind: "restored",
       state: {
         schemaVersion: SCHEMA, current: [], gates: [], intents: value.intents,
-        deliveryRecords: value.deliveryRecords, notificationLatches: [], persistence: cleanPersistence(),
+        deliveryRecords: value.deliveryRecords, notificationLatches: [...latches.values()], persistence: cleanPersistence(),
       },
     };
   },

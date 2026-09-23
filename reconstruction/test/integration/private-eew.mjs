@@ -18,7 +18,7 @@ const iso = (value) => typeof value === "string" && /^\d{4}-\d\d-\d\dT\d\d:\d\d:
   && Number.isFinite(Date.parse(value));
 const hex = (value) => typeof value === "string" && /^[a-f0-9]{64}$/.test(value);
 const channels = ["desktop", "sound"];
-const opportunities = ["firstReport", "warningUpgrade", "cancellation", "correction", "finalReport"];
+const opportunities = ["firstReport", "warningUpgrade", "hazardIncrease", "cancellation", "correction", "finalReport"];
 
 let out = null;
 const evidence = { status: "blocked", reason: "preflightIncomplete", environment: null, reports: [], intents: [],
@@ -67,14 +67,15 @@ function preflight() {
     || !validText(manifest.source) || !hex(manifest.archiveSha256) || !iso(manifest.retrievedAt)
     || !validText(manifest.distribution) || !validText(manifest.expectedNote)
     || !Array.isArray(manifest.reports) || manifest.reports.length !== 33
-    || !Array.isArray(manifest.expectedOpportunities) || manifest.expectedOpportunities.length !== 3)
+    || !Array.isArray(manifest.expectedOpportunities) || manifest.expectedOpportunities.length === 0)
     blocked("manifestFieldsInvalid");
   const expected = new Map();
   for (const item of manifest.expectedOpportunities) {
     if (!Number.isInteger(item?.serial) || item.serial < 1 || item.serial > 33
-      || !opportunities.includes(item.opportunity) || !validText(item.basis) || expected.has(item.serial))
+      || !opportunities.includes(item.opportunity) || !["予報", "警報"].includes(item.expectedStage)
+      || !validText(item.basis) || expected.has(item.serial))
       blocked("opportunitiesInvalid");
-    expected.set(item.serial, item.opportunity);
+    expected.set(item.serial, item);
   }
   const bodies = [];
   const files = new Set();
@@ -255,15 +256,23 @@ async function main() {
       const created = step.state.units["U-E"].intents.filter((item) => !before.has(item.id));
       for (const intent of created) {
         const serial = index + 1;
-        const stage = serial === 1 ? "予報" : [4, 33].includes(serial) ? "警報" : null;
+        const oracle = expected.get(serial);
+        const stage = oracle?.expectedStage;
+        const opportunity = oracle?.opportunity;
         const payload = intent.payload;
         const payloadValid = Object.keys(payload).sort().join(",") === "body,domain,level,title"
-          && payload.domain === "earthquake-eew" && payload.level === (serial === 1 ? "warning" : "critical")
-          && stage != null && payload.title === `緊急地震速報（${stage}）`
-          && validText(payload.body) && !/^(?:【訓練】|【試験】|訓練の電文|試験の電文|訂正:)/.test(payload.body)
+          && payload.domain === "earthquake-eew"
+          && payload.level === (opportunity === "cancellation" ? "cancel" : stage === "警報" ? "critical" : "warning")
+          && stage != null && payload.title === (opportunity === "cancellation" ? "[取消] 緊急地震速報"
+            : `${opportunity === "correction" ? "[訂正] " : ""}緊急地震速報（${stage}）`)
+          && validText(payload.body) && (opportunity === "cancellation"
+            ? payload.body === "緊急地震速報は取り消されました。"
+            : opportunity === "correction" ? payload.body.startsWith("訂正: ")
+              : opportunity === "hazardIncrease" ? payload.body.startsWith("続報: ")
+                : !/^(?:【訓練】|【試験】|訓練の電文|試験の電文|訂正:|続報:)/.test(payload.body))
           && created.every((other) => other.payload.domain === payload.domain && other.payload.level === payload.level
             && other.payload.title === payload.title && other.payload.body === payload.body);
-        evidence.intents.push({ serial, oracleOpportunity: expected.get(serial) ?? null, channel: intent.channel,
+        evidence.intents.push({ serial, oracleOpportunity: opportunity ?? null, channel: intent.channel,
           intentId: intent.id, createdAtMonotonicMs: at.monotonicMs, payloadValid, disposition: null });
       }
       evidence.reports.push({ serial: index + 1, scheduledAtMonotonicMs: scheduledAt,

@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "fc7006e2380edf9a97b601d124341ba4bd7f7f42",
-    "sha256": "89193aa754d9a254f7183a767e546d1e27668a143b3d06cedd00a6f3699a1469",
+    "sha256": "b6fd4dc8f60162a8415b7b3ac7613473edbd92a7ecc4a0101c742c7cefd8a047",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "76c82b87d7783a4eae14af690cb34e7d6ec46f73617dc75b7f7401951619f080",
     "sequencesSha256": "be9cfd97b555e3a55568f085d107342c978b3dc7249f5cecea868ea5a62c5781",
@@ -106,10 +106,10 @@
       {
         "id": "Q-NOTICE",
         "status": "closed",
-        "source": "2026-09-23 ご主人裁定R24〜R29、および独立レビュー後の統合担当によるlatest-only置換決定",
-        "closed": "VXSE43/45の5通知機会、channel別latest-only置換、A4所有payload、operation＋eventId latchを本項の正本として固定する",
+        "source": "R35〜R39（2026-09-24 作者裁定、外部要件照合）、R24〜R29（2026-09-23 作者裁定）、latest-only統合担当決定、同日NO-GO後の統合担当決定（R35三値・recovery未適用・区域1000上限・R37原震源名/InfoType分離・旧築fallback一致）",
+        "closed": "6通知機会、仮定震源、recovery通知禁止、試行前取消抑止、危険増大再通知、内容差訂正を固定する",
         "remaining": "A4追実装とA1/A3/A7結線の検収",
-        "reason": "R24=A先行改訂、R25=A正式family限定、R26=A単調期限、R27二重鳴り抑止、R28=A訓練/試験desktopのみ、R29=A証拠区分",
+        "reason": "R24=A先行改訂、R25=A正式family限定、R26=A単調期限、R27二重鳴り抑止、R28=A訓練/試験desktopのみ、R29=A証拠区分。R35〜R39=A",
         "generationTable": [
           {
             "opportunity": "firstReport",
@@ -136,8 +136,8 @@
             "replacement": "新しい通知機会のintentを採用したchannelについて、同じoperation＋eventIdの古いpendingをfamilyによらずすべてsupersededにする。新intent未採用なら置換しない。deliveredは不変。"
           },
           {
-            "opportunity": "cancellation",
-            "condition": "有効な取消の採用",
+            "opportunity": "hazardIncrease",
+            "condition": "warningNotified=trueの非取消警報で、最大予測震度階級が通知済み最大を超えるか、Kind Code 10〜19の警報区域に通知済み集合にない区域が加わった場合。下がって戻る・同区域の再出現では生成しない。VXSE45採用後のVXSE43候補除外と他機会との一報一組を守る",
             "normalChannels": [
               "desktop",
               "sound"
@@ -145,7 +145,19 @@
             "trainingTestChannels": [
               "desktop"
             ],
-            "replacement": "有効取消の意味受理で、同じoperation＋eventIdの古いpendingをfamilyによらず両channelすべてsupersededにする。新しい取消intentの収容可否にかかわらず適用し、deliveredは不変。"
+            "replacement": "新しい通知機会のintentを採用したchannelについて、同じoperation＋eventIdの古いpendingをfamilyによらずすべてsupersededにする。新intent未採用なら置換しない。deliveredは不変。"
+          },
+          {
+            "opportunity": "cancellation",
+            "condition": "有効な取消の採用。deliveryEvidence=unattempted（この実行で初めて作ったlatchで既存証拠なし・以後未試行）の場合だけ新intentを抑止する。possible（attempts>0/delivered）またはunknown（復元由来・既存状態があるが試行不明・latchなし）の場合は生成する。",
+            "normalChannels": [
+              "desktop",
+              "sound"
+            ],
+            "trainingTestChannels": [
+              "desktop"
+            ],
+            "replacement": "有効取消の意味受理で、通知生成・収容可否によらず同operation＋eventIdの旧pendingを両channelでsupersededにする。delivered不変。recovery途中結果は除く。"
           },
           {
             "opportunity": "correction",
@@ -174,7 +186,7 @@
         ],
         "overlap": "一つの受理報が複数機会を満たしても各channel最大1 intentとする。取消を優先し、それ以外はpayloadRulesの訂正接頭辞を適用する。",
         "capacity": "保存世代採用前にQ-NOTICE.generationTableの置換と新intent集合を合わせた候補を作り、三区分・両channelのpendingをJSON UTF-8で128件/131072 byte以内にする。期限切れ・保持期限を終えた終端記録を先に回収し、なお上位新intentの収容に必要なら下位群をA7選択順の逆順で必要分だけ退去する。同群以上を退去しない。通常機会は対象channel集合を全採用できた場合だけ置換/退去を確定し、未採用なら古いpendingを維持する。有効取消による両channelのsupersededは収容可否と独立に確定する。退去はnotificationCapacityEvictedと件数を返し、意味取消/R20正常採用根拠にしない。U-EのdeliveryRecordsはexpiresAtまで保持し、expiresAt到来分を回収する。256KiBの保存世代予算に当たる場合は通知の受理を拒否せず、expiresAtが最も早い終端記録から必要分だけ外す（終端記録は重複判定専用であり、spec §6.1は重複通知を許容する）。",
-        "generationRule": "EventIDはA4が意味境界で検証した14桁eventIdを使う。operation＋eventIdはfamilyを含むsubjectとは別keyで、両familyの通知を束ねる。VXSE45を意味受理した後の同event VXSE43は通知候補外。通常の続報が通知機会を満たさなければ既存pendingを維持する。",
+        "generationRule": "EventIDはA4が意味境界で検証した14桁eventIdを使う。operation＋eventIdはfamilyを含むsubjectとは別keyで、両familyの通知を束ねる。VXSE45を意味受理した後の同event VXSE43は通知候補外。通常の続報が通知機会を満たさなければ既存pendingを維持する。origin=recoveryの入力はP3の候補採用実装まではcurrent/gate/latch/intent/records/persistenceへ適用しない。意味検証後にstate同一参照、decision=unchanged/reason=noChange、intents/outcomes空で未適用を返す。recoveryの適用はP3の候補採用契約で行う。",
         "replacementRationale": "統合担当決定: 旧築は即時送信で待ち行列を持たず、15秒TTL内に古い予報を遅れて鳴らす価値はないため、各channelの最新採用一件を残す。通知機会のない続報はこの決定の対象外。",
         "payloadRules": {
           "typeRef": "reconstruction/contracts/p2-eew-unit.types.ts#EewNotificationPayload",
@@ -183,9 +195,10 @@
           "warning": "src/dmdata/telegram-parser.tsのxmlWarning（headType=VXSE43、警報区域Kind、警報Headline codeのいずれか）だけを意味受理時に一度判定し、level・baseTitle・warningNotifiedで共用する。VXSE45を常に予報と決めつけない。",
           "level": "取消はcancel、それ以外は警報ならcritical、予報ならwarning。domainは型のリテラルearthquake-eew。",
           "title": "operationPrefixはnormalが空、trainingが【訓練】、testが【試験】。baseTitleは警報なら緊急地震速報（警報）、予報なら緊急地震速報（予報）。titleはoperationPrefix＋（取消なら[取消] 緊急地震速報、訂正なら[訂正] ＋baseTitle、その他はbaseTitle）。",
-          "body": "取消は緊急地震速報は取り消されました。それ以外は旧notifier.ts:401-416の震源名・notificationMagnitude・最大予測震度ラベルを欠損項目省略で / 連結し、地震諸元が無ければ区分接頭辞を付ける前の通知タイトルを本文にする。訂正はその本文の冒頭に訂正: を付ける。",
-          "operationLead": "最後にtrainingは「訓練の電文です。通常運用の警報ではありません。」、testは「試験の電文です。通常運用の警報ではありません。」と改行を本文冒頭へ付ける。normalは付けない。取消・訂正でもこの本文冒頭とタイトルの区分接頭辞を維持する。title/bodyは空でない文字列で、容量は既存pending byte上限で判定する。",
-          "warningRationale": "統合担当決定: 新築routeはheadTypeから導く（reconstruction/src/decode-material/decode-material.ts:203-204）ため警報分類はVXSE43と同値でxmlWarningに含まれ、旧築のclassificationだけが警報となる状態も仕様不整合の観測ログ対象（src/dmdata/telegram-parser.ts:941-960）なので、封筒classificationを要求せずP1契約は改訂しない。"
+          "body": "取消は緊急地震速報は取り消されました。それ以外は旧notifier.ts:401-416の震源名・notificationMagnitude・最大予測震度ラベルを欠損項目省略で / 連結し、地震諸元が無ければ区分接頭辞を付ける前の通知タイトルを本文にする。訂正はその本文の冒頭に訂正: を付ける。仮定震源要素なら震源名とMを「仮定震源」一語に置き換え、最大予測震度を残す。hazardIncreaseは本文先頭に「続報: 」を付け、警報title/criticalを使う。",
+          "operationLead": "最後にtrainingは「訓練の電文です。通常運用の警報ではありません。」、testは「試験の電文です。通常運用の警報ではありません。」と改行を本文冒頭へ付ける。normalは付けない。取消・訂正でもこの本文冒頭とタイトルの区分接頭辞を維持する。title/bodyは空でない文字列で、容量は既存pending byte上限で判定する。 hazardIncreaseでは「続報: 」を最終本文の先頭に置き、その後にtraining/testの区分leadを続ける。訂正との重複では訂正接頭辞を優先する。",
+          "warningRationale": "統合担当決定: 新築routeはheadTypeから導く（reconstruction/src/decode-material/decode-material.ts:203-204）ため警報分類はVXSE43と同値でxmlWarningに含まれ、旧築のclassificationだけが警報となる状態も仕様不整合の観測ログ対象（src/dmdata/telegram-parser.ts:941-960）なので、封筒classificationを要求せずP1契約は改訂しない。",
+          "assumedHypocenter": "旧築のCondition「仮定震源要素」またはM1.0・深さ10kmかつMaxIntChangeReason=9/PLUM区域の同条件をA4で一度判定し、通知本文とEewUnitView.current[].isAssumedHypocenterに共用する。 fallbackは旧築と同じ[+-](数字または.数字)の座標成分、深さ絶対値のm/km変換、理由parseInt、MのparseFloat後toFixed(1)を使う。"
         },
         "latchRules": {
           "reason": "P2-A4-AC11/R27: eventId単位の採用済みlatchが無いとfamily交差で二重に第1報を作り、容量不足でも通知済みとして以後を抑止する。",
@@ -194,9 +207,15 @@
           "firstReportNotified": "第1報・警報昇格・訂正・最終報の通知機会で、対象channel集合を同世代へ採用できたときだけtrue。保存ackや配送成功を待たず、意味受理だけでも立てない。取消では変更しない。",
           "warningNotified": "非取消の警報通知の対象channel集合を同世代へ採用できたときだけtrue。第1報が警報ならfirstReportNotifiedと同時に立てる。取消・配送結果では変更しない。",
           "capacityFailure": "normalの2 intentまたはtraining/testの1 intentは機会単位で全採用か未採用とし、部分採用しない。収容できなければfirstReportNotified/warningNotifiedは従前値を保つ。意味受理済みVXSE45のvxse45Acceptedだけは上記規則で進む。",
-          "lifetime": "VXSE43/45のcurrent/gatesに存在する(operation,eventId)の和集合だけに保持する。一方のfamilyが残る間は維持し、最後のcurrent/gateが退去した同じunit更新で回収する。2 family×512 subjectから最大1024キーで、別の保持期間・quotaを追加しない。",
-          "restart": "PersistedEewUnitとcodecの保存形式には含めず、復元時は空。再起動後の同event再通知抑止は保証しない。"
-        }
+          "lifetime": "通知済みflagと危険増大基準はcurrent/gates和集合に保持し、最後のowner退去で解除する（最大1024事象）。preexistingの配送証拠だけはその実行中に保持する。復元のpending最大128件＋canonicalなrecord最小84 byte/256KiBから配送証拠は最大3248事象、通常ownerと合わせた上限4272。通常生成intentには必ずowner latchがあるため、latch欠落中intentUpdateは復元側の証拠に限られ、受信ごとに無期限の証拠を増やさない。",
+          "restart": "latch自体はPersistedEewUnitへ保存しない。codec復元で既存intentのattemptsとdeliveryRecords（A4生成idのoperation/eventId）から配送証拠だけを再構成する。通知済みflagはfalse、最大震度-1、区域bitmap0。復元した事象の証拠なしはunknownでありunattemptedにしない。空保存を含む復元時のevidenceUnknownUntilより前は、新事象も証拠なしをunknownとする。",
+          "notifiedMaximumRank": "採用済み警報機会の最大予測震度階級を単調最大で保持。不明は-1。下がって戻った場合は再通知しない。",
+          "notifiedWarningAreas": "予測の意味検証でtrim済みの区域Codeを共用し、3桁数字だけを比較する（他のCodeで入力拒否しない）。Code 000〜999の最大1000区域をbigintの1000bitに対応させ、今回報の追加bitだけをORする。過去stateを変更せず、累積集合の列挙/コピーはしない。差分は今回報の区域数O(A)、bit演算の幅は1000bit以下。",
+          "deliveryEvidence": "unattempted/possible/unknownの3値。新規実行中事象で過去証拠がなくevidenceUnknownUntil以降のときだけunattempted。既存current/gate/intent/recordがあり試行の証拠が無ければunknown。attempts>0またはdeliveredはpossibleへ単調更新。latchが無いintentUpdateでも事象証拠を残す。取消はunattemptedだけ抑止する。",
+          "preexisting": "codec復元またはlatch欠落中のintentUpdateから得た過去証拠を保持する印。元pending/recordsの回収後もその実行中はdeliveryEvidenceを忘れない。保存fieldには含めない。",
+          "evidenceUnknownUntil": "単位ごとに非保存の壁時計msを1つ持ち、未設定は0とする。正常復元時（空の保存も、配送済みrecords回収後と区別できないため含む）およびunattempted以外の配送証拠を持つlatchを最後のowner容量退去/回収で捨てる時にmax(旧値, 現在時刻+600000ms)へ延ばす。引継ぎ証拠なしの新latchはこの時刻より前ならunknown、時刻以降で他の証拠もなければunattemptedとする。既存latchの証拠は弱めない。10分はEEWの一連の報が通常数分で最終報に至る間の取消を安全側で通知するための暫定値。保存fieldやdeadlineタイマーは増やさない。"
+        },
+        "duplicateCorrection": "同Serial・同発表時刻の訂正は予測震度に加え元の震源名と表示Mを比較する。仮定震源ではMだけを比較から外し、本文を作るときだけ震源名を仮定震源へ置換する。発表→訂正でも、両報が仮定震源で予測/元震源名が同じなら非表示M差をduplicateとする（InfoType一致を要求しない）。"
       }
     ],
     "operationContract": {
@@ -355,7 +374,8 @@
       "報番号gateと予測保持latch（EewCurrent.retainedPredictionのprediction/sourceを含む。PersistedEewUnitとcodecの保存fieldへ含めず、復元時に再構成しない）",
       "DecodedMaterial/XML treeと単調時計",
       "UnitView、PublishedOutcome、実行中adapter状態",
-      "Q-NOTICE.latchRulesのoperation＋eventId通知latch。current/gates和集合にのみ保持し、復元時は空・再起動後の再通知抑止保証なし"
+      "Q-NOTICE.latchRulesのoperation＋eventId通知latch。通知済みflagsはcurrent/gates和集合に保持、復元は配送証拠のみ再構成し再通知抑止保証なし",
+      "R35 evidenceUnknownUntil（単位ごとの配送証拠不明保護期限、壁時計ms）"
     ],
     "outOfScope": [
       "地震観測",
@@ -455,7 +475,7 @@
       },
       {
         "id": "P2-A4-AC11",
-        "requirement": "Q-NOTICE/R25/R27/R28/R29: generationTableの5通知機会をVXSE43/45で検収する。新intent採用channelの同operation＋eventId旧pendingはlatest-only、取消は両channel、delivered不変、非通知続報はpending維持。payloadはA4 EewNotificationPayload/payloadRulesを正本とし、normalは2 channel、training/testはdesktopのみ。createdAtは同世代採用clock.wallTimeMs、両channel同時刻、expiresAt=createdAt+15000。latchRulesによりvxse45Acceptedは意味受理、通知済み2 flagはintent集合採用で立て、容量不足なら通知済みにしない。最後のcurrent/gate退去で回収、保存対象外、復元時空、再起動後の再通知抑止は保証しない。収容はcapacityの原子的処理で行う。",
+        "requirement": "Q-NOTICEの6通知機会・payloadRules・latchRulesをVXSE43/45で検収する。normalはdesktop/sound、training/testはdesktopのみ。createdAtは採用clock.wallTimeMs、expiresAt=createdAt+15000。latest-onlyと原子的収容を維持する。R35は3値の配送証拠でunattemptedだけ取消通知を抑止し、旧pendingのsupersededは独立に行う。通知済みflags/危険増大基準は採用時だけ進め、保存しない。復元では配送証拠だけを再構成する。R36の警報区域比較はtrimした3桁Code最大1000に有界で差分は今回報O(A)。R37は原震源名と表示Mを比較し、仮定震源の非表示M差は発表→訂正でも抑止する。recoveryはP3候補採用までstate全体に未適用とする。 R35の記録回収後空保存復元・配送証拠latch容量退去後の続報→取消を、非保存evidenceUnknownUntilの10分保護と期限境界で検収する。",
         "evidenceRefs": [
           "src/engine/notification/notifier.ts",
           "src/engine/presentation/level-helpers.ts",
@@ -487,7 +507,7 @@
         "referenceIds": [
           "P2-A4-AC04"
         ],
-        "behavior": "既存codec roundtripでcurrent/gatesとnotificationLatchesの保存除外、復元時latch空を確認する。再起動後の再通知抑止保証として扱わない"
+        "behavior": "codec roundtripでcurrent/gates/通知済みflagsの保存除外を確認する。復元intent/recordsから配送証拠possible/unknownだけを再構成し、再起動後の再通知抑止保証にはしない。"
       },
       {
         "testId": "P2-A4-T04",
@@ -532,7 +552,7 @@
         "referenceIds": [
           "P2-A4-AC11"
         ],
-        "behavior": "既存T04/T05/T11の人工通知系列を修正し、同eventのVXSE43→VXSE45→VXSE43でfamilyを跨ぐlatch、通知採用の同channel旧pending全置換、非通知続報で維持、取消で両channel置換、delivered不変を確認する。収容失敗→後続機会の収容成功で通知済みflagだけが採用時に立つこと、一方のfamily退去ではlatchを保ち最後の根拠退去で回収することを同系列に含める。両channelのpayloadとtraining区分文言をA4正本と照合する。同一EventIDのnormal/training交差は人工境界試験と明記する。正式33報部分はA7 questionResolutions[P2-A7-PRIVATE-EEW-EVIDENCE]の明示コマンドでprivate corpusを使って実行する。通常試験には公開fixture/人工境界部分だけを置き、公開環境での正式検収はblocked。"
+        "behavior": "通知機会/区分/channel/latest-only/容量拒否/通知flagsの採用条件を人工境界で検収する。R35は復元→続報→取消、latch欠落中intentUpdate、未試行確定の抑止を検収する。R36は最大階級と新区域の単調基準、trim/3桁範囲/1000上限を検収する。R37は仮定震源の発表→訂正で非表示Mだけならduplicate、原震源名変更なら通知する。I-09の旧築fallback文法/数値化を検収する。recovery取消は未適用で後のlive取消を妨げない。正式33報はprivate専用入口、oracleは統合担当所有、通常CIには含めず原本なしの正式検収はblocked。 R35の記録回収後空保存復元・配送証拠latch容量退去後の続報→取消を、非保存evidenceUnknownUntilの10分保護と期限境界で検収する。"
       }
     ],
     "requiredCommands": [
@@ -590,7 +610,7 @@
         "cwd": ".",
         "target": "reconstruction/test/integration/private-eew.mjs",
         "stage": "implementation",
-        "purpose": "A7 questionResolutions[P2-A7-PRIVATE-EEW-EVIDENCE]に従う正式A4-T11/A7・A3 E21のprivate限定検収。A3追実装で入口を用意し、公開CI/通常試験からは実行しない。private corpus無しはblocked/非0終了。"
+        "purpose": "A7 questionResolutions[P2-A7-PRIVATE-EEW-EVIDENCE]に従う正式A4-T11/A7・A3 E21のprivate限定検収。A3追実装で入口を用意し、公開CI/通常試験からは実行しない。private corpus無しはblocked/非0終了。 manifest.expectedOpportunitiesは固定件数でなく各serialのopportunity/expectedStage（予報・警報）を正本にする。hazardIncreaseも許容し、正式oracleの内容は統合担当が原本から作成する。"
       }
     ],
     "artifactRequirements": [
@@ -607,7 +627,7 @@
       "追実装で閉じる項目(A4): 別cloneの実装は上記ClockReading/nextDeadline契約、既存shutdown入力、新しいintentUpdate入力を採用する。期限前は同じEewUnitState参照と空のdecisions/intents/outcomes/diagnosticsを返す。選択時のattempts/nextAttemptAt更新と完了時のdisposition更新を同じ入口で検収し、完了結果の捏造をしない",
       "追実装で閉じる項目(A4-retainedPrediction): 実装レビューで示された予想震度の保持根拠をEewCurrent.retainedPredictionへ移し、AC02の報単位の保持・更新・解除を実装する。このfieldがないと既知予想震度の根拠を公開型で示せず、unknown続報時に最新prediction/sourceやoutcomeのrawを過去値で上書きする。current/outcomeは最新raw・最新出典、retainedPredictionは保持元一報のprediction/sourceとし、EewUnitViewを通して両者を同時に公開する。PersistedEewUnit・codecの保存fieldは増やさない既知値の有無で全合法値の組合せをAC02どおりに処理し、missing/emptyだけでも既存根拠を維持する。無いと合法な欠落・空の続報で根拠が失われ、次のunknownで誤降格する。T02の既知→missing/empty→unknownを含め検収し、raw分類は変更しない。",
       "P2-A4-AC10/R20: decisionのrejection/currentEstablishedがないとstate不変の拒否日時とnon-durable正常採用をA1が照合できない。A4は根拠だけを載せ、拒否枠・上限・解除の正本はA1 Q-R20-CLEARに置く",
-      "追実装で閉じる項目(A4-Q-NOTICE): P2-A4-AC11の生成表・payloadRules・latchRules・capacityを正本とする。無いとfamily交差で古いpendingが残り、A7がpayloadを推測し、未採用intentを通知済みにする。既存reduceEewUnitで意味受理→新intent集合の収容/置換→latch更新/回収を同じ採用にまとめる。新helper/保存fieldを増やさない。O07:16〜18のintents:nullは本T11の契約期待で検収する。",
+      "追実装で閉じる項目(A4-Q-NOTICE): P2-A4-AC11の生成表・payloadRules・latchRules・capacityを正本とする。無いとfamily交差で古いpendingが残り、A7がpayloadを推測し、未採用intentを通知済みにする。既存reduceEewUnitで意味受理→新intent集合の収容/置換→latch更新/回収を同じ採用にまとめる。配送証拠の復元は既存intent idの所有事象抽出と共通latch初期値を再利用し、保存fieldを増やさない。O07:16〜18のintents:nullは本T11の契約期待で検収する。",
       "P2-A4-AC11/R29: A7 questionResolutions[P2-A7-PRIVATE-EEW-EVIDENCE]に従い正式33報・気象庁サンプル・人工境界試験を区別する。既存T11の正式部分だけをA3所有のprivate専用入口で検収し、npm test/公開CIへ入れない。原本の搬入は契約外。"
     ],
     "unresolvedQuestions": []

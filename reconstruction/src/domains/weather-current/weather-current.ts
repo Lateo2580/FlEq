@@ -34,7 +34,7 @@ const WARNING_TYPES = [
 const VPNO_TYPE = "気象特別警報報知（府県予報区等）";
 const STATUSES = new Set([
   "発表", "継続", "解除", "発表警報・注意報はなし", "警報から注意報",
-  "特別警報から警報", "特別警報から注意報", "特別警報から危険警報",
+  "危険警報から注意報", "危険警報から警報", "特別警報から警報", "特別警報から注意報", "特別警報から危険警報",
 ]);
 
 type WeatherFamily = typeof WEATHER_FAMILIES[number];

@@ -732,12 +732,23 @@ describe("P2 shared runtime", () => {
     expect(expired.abortRequests).toEqual([{ attemptId: active.attemptId, cause: "expired" }]);
     expect(expired.state.notificationChannels.desktop).toEqual({ kind: "stopping", attempt: active,
       cause: "expired", stopByMonotonicMs: 16_000 });
-    expect(expired.state.notificationDeadlines).toEqual({ desktop: {}, sound: {} });
-    expect(expired.state.units["U-E"].intents).toEqual([]);
+    const followups = expired.state.units["U-E"].intents;
+    expect(followups.map((notice) => notice.channel)).toEqual(["desktop", "sound"]);
+    for (const notice of followups) {
+      expect(notice.payload).toMatchObject({ level: "critical", title: "緊急地震速報（警報）" });
+      expect(notice.payload.body).toMatch(/^続報: /);
+      expect(notice).toMatchObject({ attempts: 0, createdAt: 900, expiresAt: 15_900 });
+      expect(expired.state.notificationDeadlines[notice.channel]).toEqual({
+        [JSON.stringify(["U-E", notice.id])]: { retryAtMonotonicMs: 15_000, expiresAtMonotonicMs: 30_000 },
+      });
+    }
+    expect(expired.state.notificationDeadlines.desktop[key]).toBeUndefined();
+    expect(expired.state.units["U-E"].deliveryRecords).toHaveLength(2);
     expect(expired.state.units["U-E"].deliveryRecords.every((record) => record.disposition === "expired")).toBe(true);
     expect(expired.notificationAttempts).toEqual([]);
     expect(select.mock.calls[1][0].channels.desktop).toEqual(expired.state.notificationChannels.desktop);
-    expect(select.mock.calls[1][0].deadlines).toEqual({ desktop: {}, sound: {} });
+    expect(select.mock.calls[1][0].deadlines).toEqual(expired.state.notificationDeadlines);
+    expect(select.mock.calls[1][0].intents).toEqual(followups);
   });
 
   it("P2-A1-AC10 regression / R45: a non-notifying follow-up does not own terminal-record reclamation", () => {
@@ -750,8 +761,14 @@ describe("P2 shared runtime", () => {
     expect(eew.deliveryRecords).toHaveLength(2);
     const state: RuntimeState = { ...initial, units: { ...initial.units, "U-E": eew },
       deadlines: { ...initial.deadlines, "U-E": { wallTimeMs: 16_000, monotonicMs: null } } };
-    const continued = reduceRuntime(state, { ...parserInput({ kind: "decoded",
-      material: fixture("test/fixtures/37_01_02_240613_VXSE43.xml", "VXSE43") }), clock: at(15_000) }, { ...unitCalls, reduceEewUnit });
+    const entered = ingestXmlData({ inputId: "unchanged-hazard-followup", inputSequence: 2,
+      receivedAt: at(15_000).wallTimeMs, origin: "replay", kind: "replay", headType: "VXSE43",
+      body: Buffer.from(readFileSync("test/fixtures/37_01_01_240613_VXSE43.xml", "utf8")
+        .replace("<Serial>1</Serial>", "<Serial>2</Serial>")) });
+    if (entered.kind !== "accepted") throw new Error("invalid synthetic follow-up");
+    const decoded = decodeMaterial(entered.item);
+    if (decoded.kind !== "decoded") throw new Error("invalid synthetic follow-up");
+    const continued = reduceRuntime(state, { ...parserInput(decoded), clock: at(15_000) }, { ...unitCalls, reduceEewUnit });
     expect(continued.state.units["U-E"].persistence.currentGeneration).toBe(before + 1);
     expect(continued.state.units["U-E"].deliveryRecords).toEqual([]);
     expect(continued.state.units["U-E"].intents).toEqual([]);
@@ -759,7 +776,7 @@ describe("P2 shared runtime", () => {
     expect(continued.generationInputIds).toEqual({ "U-E": [] });
   });
 
-  it("P2-A1-T12 contractBoundary / AC11: real receive cancellation stops the running attempt before selecting its replacement", () => {
+  it("P2-A1-T12 contractBoundary / AC11 R35 R36: hazard increase stops the old attempt and cancellation follows delivery evidence", () => {
     const select = vi.fn((delivery: NotificationDeliveryState, reading: ClockReading): NotificationSelection => {
       const channel = delivery.channels.desktop;
       if (channel.kind === "running") {
@@ -801,15 +818,25 @@ describe("P2 shared runtime", () => {
     const key = JSON.stringify(["U-E", active.intentId]);
     const continued = reduceRuntime(received.state, { ...parserInput({ kind: "decoded",
       material: fixture("test/fixtures/37_01_02_240613_VXSE43.xml", "VXSE43") }), clock: at(1) }, calls);
-    expect(continued.state.notificationDeadlines.desktop[key]).toBe(received.state.notificationDeadlines.desktop[key]);
+    expect(continued.state.notificationDeadlines.desktop[key]).toBeUndefined();
+    expect(continued.abortRequests).toEqual([{ attemptId: active.attemptId, cause: "superseded" }]);
+    expect(continued.notificationAttempts).toEqual([]);
+    expect(continued.state.units["U-E"].notificationLatches[0].deliveryEvidence).toBe("possible");
+    const followups = continued.state.units["U-E"].intents;
+    expect(followups).toHaveLength(2);
+    for (const notice of followups) expect(notice.payload.body).toMatch(/^続報: /);
     const cancelled = reduceRuntime(continued.state, { ...parserInput({ kind: "decoded",
       material: fixture("test/fixtures/37_01_03_240613_VXSE43.xml", "VXSE43") }), clock: at(2) }, calls);
     expect(select).toHaveBeenCalledTimes(3);
-    expect(cancelled.abortRequests).toEqual([{ attemptId: active.attemptId, cause: "superseded" }]);
+    expect(cancelled.abortRequests).toEqual([]);
     expect(cancelled.notificationAttempts).toEqual([]);
+    expect(cancelled.state.units["U-E"].intents).toHaveLength(2);
     expect(cancelled.state.units["U-E"].intents.every((notice) => notice.payload.level === "cancel")).toBe(true);
     expect(cancelled.state.units["U-E"].deliveryRecords).toContainEqual({ intentId: active.intentId,
       disposition: "superseded", expiresAt: active.expiresAt });
+    for (const notice of followups) expect(cancelled.state.units["U-E"].deliveryRecords).toContainEqual({
+      intentId: notice.id, disposition: "superseded", expiresAt: notice.expiresAt,
+    });
     const stopped = reduceRuntime(cancelled.state, { kind: "notificationResult", result: { kind: "aborted", stopped: true,
       reason: "superseded", attemptId: active.attemptId, intentId: active.intentId, channel: "desktop", completedAt: at(3) } }, calls);
     const replacement = stopped.notificationAttempts[0];
@@ -824,6 +851,26 @@ describe("P2 shared runtime", () => {
     expect(retry.notificationAttempts).toEqual([]);
     expect(retry.state.notificationChannels.desktop.kind).toBe("idle");
     expect(retry.state.notificationDeadlines.desktop[replacementKey]).toEqual({ retryAtMonotonicMs: 6_004, expiresAtMonotonicMs: expires });
+
+    // R35: the same reports remain silent on cancellation when A1 never selected an attempt.
+    const waitingCalls = { ...unitCalls, reduceEewUnit,
+      selectNotificationAttempt: (delivery: NotificationDeliveryState): NotificationSelection => ({
+        state: delivery, attempts: [], abortRequests: [], diagnostics: [],
+      }) };
+    let waiting = initialState();
+    for (const [index, file] of ["37_01_01", "37_01_02", "37_01_03"].entries()) {
+      const step = reduceRuntime(waiting, { ...parserInput({ kind: "decoded",
+        material: fixture(`test/fixtures/${file}_240613_VXSE43.xml`, "VXSE43") }), clock: at(index) }, waitingCalls);
+      expect(step.notificationAttempts).toEqual([]);
+      expect(step.state.units["U-E"].notificationLatches[0].deliveryEvidence).toBe("unattempted");
+      expect(step.state.units["U-E"].intents).toHaveLength(index === 2 ? 0 : 2);
+      if (index === 1) expect(step.state.units["U-E"].intents[0].payload.body).toMatch(/^続報: /);
+      waiting = step.state;
+    }
+    expect(waiting.units["U-E"].current).toEqual([]);
+    expect(waiting.units["U-E"].deliveryRecords).toHaveLength(4);
+    expect(waiting.units["U-E"].deliveryRecords.every((record) => record.disposition === "superseded")).toBe(true);
+    expect(waiting.notificationDeadlines).toEqual({ desktop: {}, sound: {} });
   });
 
   it("P2-A1-T12 contractBoundary / TIME: admission filtering retains the owner's monotonic deadline", () => {

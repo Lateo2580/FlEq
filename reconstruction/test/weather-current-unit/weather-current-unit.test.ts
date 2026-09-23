@@ -211,6 +211,24 @@ describe("P2 weather-current unit", () => {
     }
   });
 
+  it("P2-A5-T13 contractBoundary / AC01: danger warning downgrades keep the current Kind level", () => {
+    for (const [status, name, code] of [
+      ["危険警報から注意報", "レベル２大雨注意報", "10"],
+      ["危険警報から警報", "レベル３大雨警報", "03"],
+    ] as const) {
+      const material = decodeFixture("18_00_01_260830_VPWW55_fukui_downgrade", "VPWW55", (xml) =>
+        xml.replace(
+          "<Name>レベル４大雨危険警報</Name>\n<Code>43</Code>\n<Status>特別警報から危険警報</Status>\n<LastKind>\n<Name>レベル５大雨特別警報</Name>\n<Code>33</Code>",
+          `<Name>${name}</Name>\n<Code>${code}</Code>\n<Status>${status}</Status>\n<LastKind>\n<Name>レベル４大雨危険警報</Name>\n<Code>43</Code>`,
+        ), status);
+      const step = receive(emptyState(), material);
+      const token = JSON.stringify(["VPWW55", "partial", "福井地方気象台", "気象警報・注意報（府県予報区等）", "180000"]);
+      expect(step.decisions[0]).toMatchObject({ decision: "changed", reason: null });
+      expect(step.state.partials[0].phenomena).toMatchObject({ [token]: [{ status, code, name }] });
+      expect(step.state.ownership[`normal\u0000${token}\u0000${code}`]).toBe("normal/VPWW55/福井地方気象台");
+    }
+  });
+
   it("P2-A5-T02 acceptance / AC02-03: national, partial, ownership and VPNO50 ending share one generation", () => {
     const national = decodeFixture("weather-alert-kind-area/synthetic-vpws50-change-density-before", "VPWS50", bodyWarning);
     let state = receive(emptyState(), national).state;

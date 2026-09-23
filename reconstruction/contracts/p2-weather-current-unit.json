@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "fc7006e2380edf9a97b601d124341ba4bd7f7f42",
-    "sha256": "75e33a3f2f02faaa6a4f0b3c66fbca420107acdf423cdfa806725e54338c0fc8",
+    "sha256": "28270c734fd353b6fc29b77670b8b946c8d8e07984eb185958e1937dcf0d78b2",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "76c82b87d7783a4eae14af690cb34e7d6ec46f73617dc75b7f7401951619f080",
     "sequencesSha256": "be9cfd97b555e3a55568f085d107342c978b3dc7249f5cecea868ea5a62c5781",
@@ -156,7 +156,7 @@
           "気象警報・注意報（市町村等）",
           "気象警報・注意報（高潮予報区間）"
         ],
-        "infoTypeRule": "Head/InfoTypeは1個の非空scalarで発表/訂正/取消のみ。欠落・空はrequiredStructureMissing、重複・非scalar・他値はrequiredStructureInvalid。InfoTypeの不正・欠落時は取消の合法省略規則を使わず、追加の下位Missingを作らずInfoType自身を拒否する。非取消Kind/Statusは発表、継続、解除、発表警報・注意報はなし、警報から注意報、特別警報から警報、特別警報から注意報、特別警報から危険警報を許可し、それ以外はrequiredStructureInvalid",
+        "infoTypeRule": "Head/InfoTypeは1個の非空scalarで発表/訂正/取消のみ。欠落・空はrequiredStructureMissing、重複・非scalar・他値はrequiredStructureInvalid。InfoTypeの不正・欠落時は取消の合法省略規則を使わず、追加の下位Missingを作らずInfoType自身を拒否する。非取消Kind/Statusは発表、継続、解除、発表警報・注意報はなし、警報から注意報、危険警報から注意報、危険警報から警報、特別警報から警報、特別警報から注意報、特別警報から危険警報を許可し、それ以外はrequiredStructureInvalid。R39（2026-09-24 作者裁定、外部要件照合 I-02）: 危険警報から注意報は危険警報から2段階、危険警報から警報は1段階の降格。現況段階はKind/Codeで表し、Statusは既存の降格と同じく受理して保持する",
         "scopeEncoding": {
           "format": "unavailable.affectedScope、FreshnessRecord.target.affectedScope/confirmedScope、coverageConfirmed.affectedScopeは各要素をJSON.stringify([family,scope,office,areaType,areaCode])で作る。5要素は全て文字列、scopeはnational/partial、familyは本契約対象headType、officeはidentityRuleのtrim済み値。全scopeはareaType=all、areaCode=空文字、区域はareaType=Warning@type（VPNO50はInformation@type）、areaCode=検証済みCode。all以外の空Codeを許さない",
           "restore": "affectedScopeは非空、重複なしのUTF-16辞書順配列。同一recordの全要素は同じfamily/scope/officeを持つ。JSON.parse後に5要素と許可値を検証しJSON.stringifyの完全一致を要求する。先頭要素の先頭3値からfamily/scope/officeを復元するため、sourceとlastKnownが両方nullでも束縛を失わない。subject/operationはrecord自身から復元し、source/lastKnownがあればsource.operation/subject/familyとlastKnown.operation/subject/lastKnown.source.family、lastKnown.scope/officeとの一致を検証する",
@@ -352,7 +352,7 @@
     "acceptanceChecks": [
       {
         "id": "P2-A5-AC01",
-        "requirement": "familyTable/xmlBoundary/identityRule/infoTypeRuleの具体node・合法欠落・空集合・Missing/Invalidを固定順で検証する。VPWS50とVPWW55/57-61のなしStatusでCode欠落を合法、取消のBody空を合法とする。最初の一RejectionReasonで入力全体を原子的に拒否し業務state（current/gate/watermark/intent）を不変にする。FreshnessRecordだけは§7.8監視例外としてfreshnessRuleに従う",
+        "requirement": "familyTable/xmlBoundary/identityRule/infoTypeRuleの具体node・合法欠落・空集合・Missing/Invalidを固定順で検証する。VPWS50とVPWW55/57-61のなしStatusでCode欠落を合法、取消のBody空を合法とする。R39（2026-09-24 作者裁定、外部要件照合 I-02）の危険警報から注意報・危険警報から警報も合法な降格Statusとする。最初の一RejectionReasonで入力全体を原子的に拒否し業務state（current/gate/watermark/intent）を不変にする。FreshnessRecordだけは§7.8監視例外としてfreshnessRuleに従う",
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:395 «abdd56dcc1171152»",
           "docs/specs/reconstruction-p0-contracts.md:609 «996d1ffc74a90315»",
@@ -573,6 +573,14 @@
           "P2-A5-AC14"
         ],
         "behavior": "同じchangedでも通常採用（解除/なしを含む）の確認済みscopeだけcurrentEstablishedを返し、unavailable/intentUpdate/期限/restore/coverageConfirmed/取消の履歴復元はnullとする。AC11最終拒否は拒否した今回報の日時とcanonical scopeをrejectionへ返し、保持した旧報と取り違えない。正常候補が容量縮退した場合に途中のcurrentEstablishedを残さない。A1 T09で部分scope、別官署・family・operation、拒否報より古い後続採用を結線検収する"
+      },
+      {
+        "testId": "P2-A5-T13",
+        "purpose": "contractBoundary",
+        "referenceIds": [
+          "P2-A5-AC01"
+        ],
+        "behavior": "R39（2026-09-24 作者裁定、外部要件照合 I-02）: 公開福井VPWW55のKindを試験内で危険警報から注意報または危険警報から警報へ置換し、両Statusを合法な降格として受理する。現況Code=10/03を保持し所有現象へ反映する"
       }
     ],
     "requiredCommands": [

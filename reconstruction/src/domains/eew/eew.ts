@@ -19,6 +19,7 @@ import type {
   EewCurrent,
   EewGate,
   EewInput,
+  EewNotificationLatch,
   EewNotificationPayload,
   EewPrediction,
   EewPredictionIntensity,
@@ -30,6 +31,18 @@ import { validateSemanticEnvelope } from "../../runtime/shared-runtime";
 
 const EEW_FAMILIES = ["VXSE43", "VXSE45"] as const;
 type EewFamily = typeof EEW_FAMILIES[number];
+
+// R35: share defaults; restoring delivery evidence must not restore notice flags.
+const emptyNotificationLatch = {
+  firstReportNotified: false, warningNotified: false, vxse45Accepted: false,
+  deliveryEvidence: "unknown" as const, preexisting: true,
+  notifiedMaximumRank: -1, notifiedWarningAreas: 0n,
+};
+
+function deliveryRecordEvent(intentId: string): Pick<EewNotificationLatch, "operation" | "eventId"> | null {
+  const match = /^U-E:(normal|training|test):(\d{14}):\d+:(?:desktop|sound)$/.exec(intentId);
+  return match == null ? null : { operation: match[1] as EewNotificationLatch["operation"], eventId: match[2] };
+}
 
 // Immutable notification objects own the data; this only memoizes their UTF-8 size.
 const notificationByteCache = new WeakMap<object, number>();
@@ -52,6 +65,7 @@ type Candidate = Readonly<{
   cancelled: boolean;
   terminal: boolean;
   prediction: EewPrediction | null;
+  warningAreas: readonly string[];
   source: ReportRef;
 }>;
 
@@ -169,6 +183,7 @@ function validateCandidate(material: DecodedMaterial): CandidateResult {
   const nextAdvisory = first(body, "NextAdvisory");
   const terminal = cancelled || (nextAdvisory != null && (scalar(nextAdvisory)?.trim() ?? "") !== "");
   let prediction: EewPrediction | null = null;
+  let warningAreas: readonly string[] = [];
 
   if (!cancelled) {
     const intensityNodes = elements(body, "Intensity");
@@ -206,11 +221,17 @@ function validateCandidate(material: DecodedMaterial): CandidateResult {
       areaCoverage: projectedAreas.length === 0 ? "none" : "present",
       areas: projectedAreas.map(({ code, projected }) => ({ code, intensity: projected! })),
     };
+    warningAreas = projectedAreas.filter((_, index) => elements(areas[index], "Category")
+      .flatMap((category) => elements(category, "Kind")).some((kind) => {
+        const code = first(kind, "Code");
+        const value = Number.parseInt(code == null ? "" : scalar(code) ?? "", 10);
+        return value >= 10 && value <= 19;
+      })).map(({ code }) => code);
   }
 
   const subject = `${material.operation}/${family}/${eventId}`;
   return { kind: "accepted", candidate: {
-    operation: material.operation, family, subject, serial, cancelled, terminal, prediction,
+    operation: material.operation, family, subject, serial, cancelled, terminal, prediction, warningAreas,
     source: {
       inputId: material.inputId, origin: material.origin, operation: material.operation,
       family, subject, reportDateTimeRaw: material.reportDateTimeRaw,
@@ -224,6 +245,25 @@ function hasKnownPrediction(prediction: EewPrediction): boolean {
     ? [prediction.maximum] : prediction.areas.map((area) => area.intensity);
   return intensities.some(({ from, to }) => [from, to].some((value) =>
     value.kind === "number" || value.kind === "text" || value.kind === "range"));
+}
+
+function isAssumedHypocenter(earthquake: XmlElement | null, forecast: XmlElement | null,
+  magnitudeRaw: string | null): boolean {
+  if (earthquake == null) return false;
+  const condition = scalar(first(earthquake, "Condition") ?? earthquake)?.normalize("NFKC").replace(/\s+/g, "") ?? "";
+  if (condition.includes("仮定震源要素")) return true;
+  const area = first(first(earthquake, "Hypocenter") ?? earthquake, "Area");
+  const coordinates = area == null ? [] : elements(area).filter((node) => node.name.endsWith("Coordinate"));
+  const coordinate = coordinates.find((node) => attribute(node, "type") !== "震源位置（度分）") ?? coordinates[0];
+  const component = String.raw`[+-](?:\d+(?:\.\d+)?|\.\d+)`;
+  const depth = coordinate == null ? null : directText(coordinate)?.match(new RegExp(`^${component}${component}(${component})/$`));
+  const depthKm = depth == null ? null : Math.abs(Number(depth[1])) / (Math.abs(Number(depth[1])) >= 1000 ? 1000 : 1);
+  const appendix = forecast == null ? null : first(forecast, "Appendix");
+  const reason = appendix == null ? null : scalar(first(appendix, "MaxIntChangeReason") ?? appendix)?.trim();
+  const plum = forecast != null && elements(forecast, "Pref").flatMap((pref) => elements(pref, "Area"))
+    .some((item) => /PLUM法/.test((scalar(first(item, "Condition") ?? item) ?? "").normalize("NFKC").replace(/\s+/g, "")));
+  return Number.parseFloat(Number.parseFloat(magnitudeRaw ?? "").toFixed(1)) === 1
+    && depthKm === 10 && (Number.parseInt(reason ?? "", 10) === 9 || plum);
 }
 
 function nextEewDeadline(state: EewUnitState): RuntimeUnitDeadline | null {
@@ -255,6 +295,26 @@ function reduceEew(state: EewUnitState, input: Extract<EewInput, { kind: "receiv
   if (validated.kind === "rejected")
     return rejection(state, input.material, validated.reason, validated.diagnostic);
   const candidate = validated.candidate;
+  if (candidate.source.origin === "recovery") return {
+    state, nextDeadline: nextEewDeadline(state),
+    decisions: [{ subject: candidate.subject, operation: candidate.operation, decision: "unchanged", reason: "noChange" }],
+    intents: [], outcomes: [], diagnostics: [],
+  };
+  const body = first(input.material.xml, "Body")!;
+  const forecast = first(first(body, "Intensity") ?? body, "Forecast");
+  const earthquake = first(body, "Earthquake");
+  const hypocenter = earthquake == null ? null : first(first(first(earthquake, "Hypocenter") ?? earthquake, "Area") ?? earthquake, "Name");
+  const magnitude = earthquake == null ? null : elements(earthquake).find((node) =>
+    node.name === "Magnitude" || node.name.endsWith(":Magnitude")) ?? null;
+  const magnitudeRaw = magnitude == null ? null : scalar(magnitude)?.normalize("NFKC").trim() ?? "";
+  const magnitudeDescription = magnitude == null ? null : attribute(magnitude, "description")?.normalize("NFKC").trim();
+  const magnitudeLabel = magnitudeRaw == null ? null
+    : magnitudeDescription != null && /巨大地震/.test(magnitudeDescription) ? magnitudeDescription
+    : magnitudeRaw !== "" && Number.isFinite(Number(magnitudeRaw)) ? `M${Number(magnitudeRaw).toFixed(1)}`
+    : "M不明";
+  const assumed = isAssumedHypocenter(earthquake, forecast, magnitudeRaw);
+  const noticeSource = { hypocenter: hypocenter == null ? null : scalar(hypocenter),
+    magnitude: assumed ? null : magnitudeLabel, isAssumedHypocenter: assumed };
   const gate = state.gates.find((item) => item.subject === candidate.subject);
   const previous = state.current.find((item) => item.subject === candidate.subject);
   if (gate != null && candidate.serial < gate.serial) return {
@@ -271,6 +331,7 @@ function reduceEew(state: EewUnitState, input: Extract<EewInput, { kind: "receiv
   const projected: EewCurrent | null = candidate.cancelled || candidate.terminal ? null : {
     subject: candidate.subject, operation: candidate.operation, family: candidate.family,
     source: candidate.source, serial: candidate.serial, terminal: false, prediction: candidate.prediction!, retainedPrediction,
+    isAssumedHypocenter: assumed,
   };
   if (gate != null && candidate.serial === gate.serial) {
     const candidateTime = Date.parse(candidate.source.reportDateTimeRaw);
@@ -280,8 +341,9 @@ function reduceEew(state: EewUnitState, input: Extract<EewInput, { kind: "receiv
         decision: "unchanged", reason: "stale" }], intents: [], outcomes: [], diagnostics: [],
     };
     if (gate.terminal === candidate.terminal && gate.source.reportDateTimeRaw === candidate.source.reportDateTimeRaw
-      && gate.source.infoTypeRaw === candidate.source.infoTypeRaw
-      && !predictionChanged) return {
+      && (gate.source.infoTypeRaw === candidate.source.infoTypeRaw
+        || candidate.source.infoTypeRaw === "訂正" && assumed && gate.noticeSource.isAssumedHypocenter)
+      && !predictionChanged && isDeepStrictEqual(gate.noticeSource, noticeSource)) return {
       state, nextDeadline: nextEewDeadline(state), decisions: [{ subject: candidate.subject, operation: candidate.operation,
         decision: "unchanged", reason: "duplicate" }], intents: [], outcomes: [], diagnostics: [],
     };
@@ -313,22 +375,41 @@ function reduceEew(state: EewUnitState, input: Extract<EewInput, { kind: "receiv
   if (projected != null) currents = [...currents, projected];
   const nextGate: EewGate = {
     subject: candidate.subject, operation: candidate.operation, family: candidate.family,
-    serial: candidate.serial, terminal: candidate.terminal, source: candidate.source,
+    serial: candidate.serial, terminal: candidate.terminal, source: candidate.source, noticeSource,
   };
   gates = [...gates, nextGate];
 
   const eventId = candidate.subject.split("/")[2];
   const previousLatch = state.notificationLatches.find((item) => item.operation === candidate.operation && item.eventId === eventId);
-  const head = first(input.material.xml, "Head")!;
-  const body = first(input.material.xml, "Body")!;
-  const forecast = first(first(body, "Intensity") ?? body, "Forecast");
-  const areaWarning = (forecast == null ? [] : elements(forecast, "Pref"))
-    .flatMap((pref) => elements(pref, "Area")).flatMap((area) => elements(area, "Category"))
-    .flatMap((category) => elements(category, "Kind")).some((kind) => {
-      const code = first(kind, "Code");
-      const value = Number.parseInt(code == null ? "" : scalar(code) ?? "", 10);
-      return value >= 10 && value <= 19;
+  // A receive always retains its gate; only capacity eviction can remove a latch's last owner.
+  const owners = evicted.size === 0 ? null : new Set([...currents, ...gates].map((owner) => owner.subject));
+  let evidenceUnknownUntil = state.evidenceUnknownUntil ?? 0;
+  const retainedLatches = state.notificationLatches.flatMap((item) => {
+    if (item.operation === candidate.operation && item.eventId === eventId) return [];
+    if (owners == null || owners.has(`${item.operation}/VXSE43/${item.eventId}`)
+      || owners.has(`${item.operation}/VXSE45/${item.eventId}`)) return [item];
+    if (!item.preexisting && item.deliveryEvidence !== "unattempted")
+      evidenceUnknownUntil = Math.max(evidenceUnknownUntil, input.clock.wallTimeMs + 600_000);
+    return item.preexisting ? [{ ...emptyNotificationLatch, operation: item.operation,
+      eventId: item.eventId, deliveryEvidence: item.deliveryEvidence }] : [];
+  });
+  let deliveryEvidence = previousLatch?.deliveryEvidence;
+  const preexisting = previousLatch?.preexisting ?? false;
+  if (deliveryEvidence == null) {
+    const priorIntents = state.intents.filter((item) => item.operation === candidate.operation && item.subject.split("/")[2] === eventId);
+    const priorRecords = state.deliveryRecords.filter((item) => {
+      const owner = deliveryRecordEvent(item.intentId);
+      return owner?.operation === candidate.operation && owner.eventId === eventId;
     });
+    const hasHistory = priorIntents.length > 0 || priorRecords.length > 0
+      || [...state.current, ...state.gates].some((item) => item.operation === candidate.operation && item.subject.split("/")[2] === eventId);
+    deliveryEvidence = priorIntents.some((item) => item.attempts > 0 || item.disposition === "delivered")
+      || priorRecords.some((item) => item.disposition === "delivered") ? "possible"
+      : hasHistory || candidate.cancelled || input.clock.wallTimeMs < evidenceUnknownUntil ? "unknown" : "unattempted";
+  }
+  const head = first(input.material.xml, "Head")!;
+  const warningAreas = candidate.warningAreas;
+  const areaWarning = warningAreas.length > 0;
   const headline = first(head, "Headline");
   const headlineWarning = (headline == null ? [] : elements(headline, "Information"))
     .flatMap((info) => elements(info, "Item")).flatMap((item) => elements(item, "Kind")).some((kind) => {
@@ -337,17 +418,14 @@ function reduceEew(state: EewUnitState, input: Extract<EewInput, { kind: "receiv
     });
   const warning = candidate.family === "VXSE43" || areaWarning || headlineWarning;
   const correction = candidate.source.infoTypeRaw === "訂正";
-  const notify = candidate.cancelled || correction || candidate.terminal
+  const notify = candidate.cancelled ? deliveryEvidence !== "unattempted"
+    : correction || candidate.terminal
     || (!previousLatch?.vxse45Accepted || candidate.family !== "VXSE43")
       && (!previousLatch?.firstReportNotified || warning && !previousLatch.warningNotified);
   const eligibleNotice = candidate.family !== "VXSE43" || !previousLatch?.vxse45Accepted;
-  const opportunity = notify && eligibleNotice;
+  let opportunity = notify && eligibleNotice;
   const baseTitle = warning ? "緊急地震速報（警報）" : "緊急地震速報（予報）";
   const title = candidate.cancelled ? "[取消] 緊急地震速報" : correction ? `[訂正] ${baseTitle}` : baseTitle;
-  const earthquake = first(first(input.material.xml, "Body") ?? input.material.xml, "Earthquake");
-  const hypocenter = earthquake == null ? null : first(first(first(earthquake, "Hypocenter") ?? earthquake, "Area") ?? earthquake, "Name");
-  const magnitude = earthquake == null ? null : elements(earthquake).find((node) =>
-    node.name === "Magnitude" || node.name.endsWith(":Magnitude")) ?? null;
   // The notification label preserves bounds; the largest bound is only used to choose the maximum.
   const intensityLabels = ["0", "1", "2", "3", "4", "5弱", "5強", "6弱", "6強", "7"];
   let maxIntensity = "不明";
@@ -392,13 +470,16 @@ function reduceEew(state: EewUnitState, input: Extract<EewInput, { kind: "receiv
   }
   if (maximumRank >= 0 && uncertain !== 0)
     maxIntensity += maximumOpen ? "・一部不明" : "以上の可能性・一部不明";
-  const magnitudeRaw = magnitude == null ? null : scalar(magnitude)?.normalize("NFKC").trim() ?? "";
-  const magnitudeDescription = magnitude == null ? null : attribute(magnitude, "description")?.normalize("NFKC").trim();
-  const magnitudeLabel = magnitudeRaw == null ? null
-    : magnitudeDescription != null && /巨大地震/.test(magnitudeDescription) ? magnitudeDescription
-    : magnitudeRaw !== "" && Number.isFinite(Number(magnitudeRaw)) ? `M${Number(magnitudeRaw).toFixed(1)}`
-    : "M不明";
-  const parts = [hypocenter == null ? null : scalar(hypocenter), magnitudeLabel,
+  const notifiedAreas = previousLatch?.notifiedWarningAreas ?? 0n;
+  let newWarningAreas = 0n;
+  for (const area of warningAreas) if (/^\d{3}$/.test(area)) {
+    const bit = 1n << BigInt(area);
+    if ((notifiedAreas & bit) === 0n) newWarningAreas |= bit;
+  }
+  const hazardIncrease = warning && previousLatch?.warningNotified === true && !candidate.cancelled
+    && (maximumRank > previousLatch.notifiedMaximumRank || newWarningAreas !== 0n);
+  opportunity = opportunity || hazardIncrease && eligibleNotice;
+  const parts = [assumed ? "仮定震源" : noticeSource.hypocenter, noticeSource.magnitude,
     `最大予測震度${maxIntensity}`].filter((part): part is string => part != null && part !== "");
   let bodyText = candidate.cancelled ? "緊急地震速報は取り消されました。" : earthquake == null ? title : parts.join(" / ");
   if (correction && !candidate.cancelled) bodyText = `訂正: ${bodyText}`;
@@ -406,7 +487,8 @@ function reduceEew(state: EewUnitState, input: Extract<EewInput, { kind: "receiv
   const lead = candidate.operation === "normal" ? "" : candidate.operation === "training"
     ? "訓練の電文です。通常運用の警報ではありません。\n" : "試験の電文です。通常運用の警報ではありません。\n";
   const payload: EewNotificationPayload = { domain: "earthquake-eew", level: candidate.cancelled ? "cancel" : warning ? "critical" : "warning",
-    title: prefix + title, body: lead + bodyText };
+    title: prefix + title, body: hazardIncrease && !correction && !candidate.cancelled
+      ? `続報: ${lead}${bodyText}` : lead + bodyText };
   const channels = candidate.operation === "normal" ? ["desktop", "sound"] as const : ["desktop"] as const;
   const newIntents: EewUnitState["intents"][number][] = opportunity ? channels.map((channel) => ({
     id: `U-E:${candidate.operation}:${eventId}:${state.persistence.currentGeneration + 1}:${channel}`,
@@ -458,20 +540,20 @@ function reduceEew(state: EewUnitState, input: Extract<EewInput, { kind: "receiv
   const semanticChanged = predictionChanged
     || gate?.terminal !== candidate.terminal || evicted.size !== 0;
   const change = semanticChanged ? "semantic" : "revisionOnly";
-  // A receive always retains its gate; only capacity eviction can remove a latch's last owner.
-  const owners = evicted.size === 0 ? null : new Set([...currents, ...gates].map((owner) => owner.subject));
   const next: EewUnitState = {
-    ...state, current: currents, gates,
+    ...state, current: currents, gates, evidenceUnknownUntil,
     intents: proposed,
     deliveryRecords: records,
-    notificationLatches: [...state.notificationLatches.filter((item) =>
-      (item.operation !== candidate.operation || item.eventId !== eventId)
-      && (owners == null || owners.has(`${item.operation}/VXSE43/${item.eventId}`)
-        || owners.has(`${item.operation}/VXSE45/${item.eventId}`))),
+    notificationLatches: [...retainedLatches,
     { operation: candidate.operation, eventId,
       firstReportNotified: (previousLatch?.firstReportNotified ?? false) || admitted && opportunity && !candidate.cancelled,
       warningNotified: (previousLatch?.warningNotified ?? false) || admitted && opportunity && !candidate.cancelled && warning,
-      vxse45Accepted: (previousLatch?.vxse45Accepted ?? false) || candidate.family === "VXSE45" }],
+      vxse45Accepted: (previousLatch?.vxse45Accepted ?? false) || candidate.family === "VXSE45",
+      deliveryEvidence, preexisting,
+      notifiedMaximumRank: admitted && opportunity && warning && !candidate.cancelled
+        ? Math.max(previousLatch?.notifiedMaximumRank ?? -1, maximumRank) : previousLatch?.notifiedMaximumRank ?? -1,
+      notifiedWarningAreas: admitted && opportunity && warning && !candidate.cancelled
+        ? notifiedAreas | newWarningAreas : notifiedAreas }],
     persistence: durableChanged ? dirty(state.persistence, input.clock.monotonicMs) : state.persistence,
   };
   const transition = candidate.cancelled ? "cancelled" : candidate.terminal ? "released"
@@ -494,4 +576,4 @@ function reduceEew(state: EewUnitState, input: Extract<EewInput, { kind: "receiv
   };
 }
 
-export { reduceEew, nextEewDeadline, dirty, notificationArrayBytes };
+export { reduceEew, nextEewDeadline, dirty, notificationArrayBytes, emptyNotificationLatch, deliveryRecordEvent };

@@ -118,19 +118,20 @@ describe("P2 EEW unit", () => {
       title: "緊急地震速報（警報）" });
     expect(initial.intents[0].payload.body).toContain("M5.8");
     const continued = receive(initial.state, second);
-    expect(continued.intents).toEqual([]);
-    expect(continued.state.intents).toEqual(initial.state.intents);
+    expect(continued.intents).toHaveLength(2);
+    expect(continued.intents[0].payload.body).toMatch(/^続報: /);
+    expect(continued.state.deliveryRecords).toHaveLength(2);
     const ending = receive(continued.state, cancelled);
-    expect(ending.intents).toHaveLength(2);
-    expect(ending.state.deliveryRecords.filter((item) => item.disposition === "superseded")).toHaveLength(2);
-    expect(ending.state.intents.every((item) => item.payload.level === "cancel")).toBe(true);
+    expect(ending.intents).toHaveLength(0);
+    expect(ending.state.deliveryRecords.filter((item) => item.disposition === "superseded")).toHaveLength(4);
+    expect(ending.state.intents).toEqual([]);
     const training = receive(ending.state, decodeFixture("37_01_01_240613_VXSE43", "VXSE43",
       (xml) => withOperation(xml, "training")));
     expect(training.intents).toHaveLength(1);
     expect(training.intents[0]).toMatchObject({ operation: "training", channel: "desktop",
       payload: { title: "【訓練】緊急地震速報（警報）" } });
     expect(training.intents[0].payload.body).toContain("訓練の電文です。");
-    expect(training.state.intents.filter((item) => item.operation === "normal")).toEqual(ending.state.intents);
+    expect(training.state.intents.filter((item) => item.operation === "normal")).toEqual([]);
     const cross = receive(initial.state, decodeFixture("37_01_01_240613_VXSE43", "VXSE45"));
     expect(cross.intents).toEqual([]);
     expect(cross.state.notificationLatches[0].vxse45Accepted).toBe(true);
@@ -188,6 +189,205 @@ describe("P2 EEW unit", () => {
     expect(final.intents).toHaveLength(2);
     expect(final.intents[0].transition).toBe("released");
     expect(final.state.deliveryRecords).toHaveLength(4);
+  });
+
+  it("P2-A4-T11 contractBoundary / R35: cancellation follows attempted or unknown delivery evidence", () => {
+    const first = receive(emptyState(), decodeFixture("37_01_01_240613_VXSE43", "VXSE43"));
+    const cancelled = decodeFixture("37_01_03_240613_VXSE43", "VXSE43");
+    const silent = receive(first.state, cancelled);
+    expect(silent.intents).toEqual([]);
+    expect(silent.state.intents).toEqual([]);
+    expect(silent.state.deliveryRecords).toHaveLength(2);
+    const selected = reduceEewUnit(first.state, { kind: "intentUpdate", clock: clock(BASE_TIME),
+      intentUpdate: { id: first.intents[0].id, attempts: 1, nextAttemptAt: BASE_TIME, disposition: "pending" } });
+    expect(selected.state.notificationLatches[0].deliveryEvidence).toBe("possible");
+    expect(receive(selected.state, cancelled).intents).toHaveLength(2);
+    const delivered = reduceEewUnit(selected.state, { kind: "intentUpdate", clock: clock(BASE_TIME),
+      intentUpdate: selected.state.intents.map((item) => ({ id: item.id, attempts: 1,
+        nextAttemptAt: BASE_TIME, disposition: "delivered" as const })) });
+    for (const [saved, evidence] of [[first.state, "unknown"], [silent.state, "unknown"],
+      [selected.state, "possible"], [delivered.state, "possible"]] as const) {
+      const restored = reduceEewUnit(emptyState(), { kind: "restore", persisted: eewUnitCodec.encode(saved), clock: clock(BASE_TIME) });
+      expect(restored.state.notificationLatches[0]).toMatchObject({ deliveryEvidence: evidence, firstReportNotified: false });
+      const continued = receive(restored.state, decodeFixture("37_01_02_240613_VXSE43", "VXSE43"));
+      expect(continued.state.notificationLatches[0].deliveryEvidence).toBe(evidence);
+      expect(receive(continued.state, cancelled).intents).toHaveLength(2);
+    }
+    const orphan = reduceEewUnit({ ...first.state, current: [], gates: [], notificationLatches: [] }, {
+      kind: "intentUpdate", clock: clock(BASE_TIME), intentUpdate: { id: first.intents[0].id,
+        attempts: 1, nextAttemptAt: BASE_TIME, disposition: "expired" } });
+    const reclaimed = reduceEewUnit(orphan.state, { kind: "deadline", clock: clock(BASE_TIME + 15_001) });
+    const continued = receive(reclaimed.state, decodeFixture("37_01_02_240613_VXSE43", "VXSE43"), BASE_TIME + 15_002);
+    expect(continued.state.notificationLatches[0].deliveryEvidence).toBe("possible");
+    expect(receive(continued.state, cancelled, BASE_TIME + 15_003).intents).toHaveLength(2);
+
+    // (a) Reclaimed delivered records leave a valid empty checkpoint, not proof of no delivery.
+    const cleared = reduceEewUnit(delivered.state, { kind: "deadline", clock: clock(BASE_TIME + 15_001) });
+    const savedEmpty = eewUnitCodec.encode(cleared.state);
+    expect(savedEmpty).toEqual({ schemaVersion: "p2-eew-unit-v1", intents: [], deliveryRecords: [] });
+    const restarted = reduceEewUnit(emptyState(), { kind: "restore", persisted: savedEmpty, clock: clock(BASE_TIME + 16_000) });
+    expect(restarted.state.evidenceUnknownUntil).toBe(BASE_TIME + 616_000);
+    const afterRestart = receive(restarted.state, decodeFixture("37_01_02_240613_VXSE43", "VXSE43"), BASE_TIME + 16_001);
+    expect(afterRestart.state.notificationLatches[0].deliveryEvidence).toBe("unknown");
+    expect(receive(afterRestart.state, cancelled, BASE_TIME + 16_002).intents).toHaveLength(2);
+    const atBoundary = receive(restarted.state, decodeFixture("37_01_02_240613_VXSE43", "VXSE43"), BASE_TIME + 616_000);
+    expect(atBoundary.state.notificationLatches[0].deliveryEvidence).toBe("unattempted");
+    expect(receive(atBoundary.state, cancelled, BASE_TIME + 616_001).intents).toEqual([]);
+
+    // (b) Evict the last owner of a delivered training event at the real 512-subject boundary.
+    const training = receive(emptyState(), decodeFixture("37_01_01_240613_VXSE43", "VXSE43", (xml) => withOperation(xml, "training")));
+    const sent = reduceEewUnit(training.state, { kind: "intentUpdate", clock: clock(BASE_TIME),
+      intentUpdate: { id: training.intents[0].id, attempts: 1, nextAttemptAt: BASE_TIME, disposition: "delivered" } });
+    const owner = sent.state.current[0];
+    const gate = sent.state.gates[0];
+    const fillerSubjects = Array.from({ length: 511 }, (_, index) => `training/VXSE43/${String(index).padStart(14, "0")}`);
+    const crowded: EewUnitState = { ...sent.state,
+      current: [owner, ...fillerSubjects.map((subject) => ({ ...owner, subject,
+        source: { ...owner.source, subject, reportDateTimeRaw: "2024-04-18T00:00:00Z" } }))],
+      gates: [gate, ...fillerSubjects.map((subject) => ({ ...gate, subject,
+        source: { ...gate.source, subject, reportDateTimeRaw: "2024-04-18T00:00:00Z" } }))],
+    };
+    const evicted = receive(crowded, decodeFixture("37_01_01_240613_VXSE43", "VXSE43"), BASE_TIME + 1_000);
+    expect(evicted.state.gates.some((item) => item.subject === owner.subject)).toBe(false);
+    expect(evicted.state.notificationLatches.some((item) => item.operation === "training")).toBe(false);
+    expect(evicted.state.evidenceUnknownUntil).toBe(BASE_TIME + 601_000);
+    const expired = reduceEewUnit(evicted.state, { kind: "deadline", clock: clock(BASE_TIME + 16_001) });
+    expect(expired.state.deliveryRecords).toEqual([]);
+    const afterEviction = receive(expired.state, decodeFixture("37_01_02_240613_VXSE43", "VXSE43",
+      (xml) => withOperation(xml, "training")), BASE_TIME + 16_002);
+    expect(afterEviction.state.notificationLatches.find((item) => item.operation === "training")?.deliveryEvidence).toBe("unknown");
+    const trainingCancel = receive(afterEviction.state, decodeFixture("37_01_03_240613_VXSE43", "VXSE43",
+      (xml) => withOperation(xml, "training")), BASE_TIME + 16_003);
+    expect(trainingCancel.intents).toHaveLength(1);
+    expect(trainingCancel.intents[0].payload.level).toBe("cancel");
+  });
+
+  it("P2-A4-T11 contractBoundary / R36: notified maximum rank never falls back", () => {
+    const first = receive(emptyState(), decodeFixture("37_01_01_240613_VXSE43", "VXSE43"));
+    const second = receive(first.state, decodeFixture("37_01_02_240613_VXSE43", "VXSE43"));
+    expect(second.intents).toHaveLength(2);
+    expect(second.intents[0].payload).toMatchObject({ level: "critical", title: "緊急地震速報（警報）" });
+    expect(second.intents[0].payload.body).toMatch(/^続報: /);
+    const trainingFirst = receive(emptyState(), decodeFixture("37_01_01_240613_VXSE43", "VXSE43",
+      (xml) => withOperation(xml, "training")));
+    const trainingIncrease = receive(trainingFirst.state, decodeFixture("37_01_02_240613_VXSE43", "VXSE43",
+      (xml) => withOperation(xml, "training")));
+    expect(trainingIncrease.intents).toHaveLength(1);
+    expect(trainingIncrease.intents[0].channel).toBe("desktop");
+    expect(trainingIncrease.intents[0].payload.body).toMatch(/^続報: 訓練の電文です。/);
+    const lower = receive(second.state, decodeFixture("37_01_01_240613_VXSE43", "VXSE43", (xml) =>
+      xml.replace("<Serial>1</Serial>", "<Serial>3</Serial>")));
+    expect(lower.intents).toEqual([]);
+    const rebound = receive(lower.state, decodeFixture("37_01_02_240613_VXSE43", "VXSE43", (xml) =>
+      xml.replace("<Serial>2</Serial>", "<Serial>4</Serial>")));
+    expect(rebound.intents).toEqual([]);
+  });
+
+  it("P2-A4-T11 contractBoundary / R36: new warning area notifies once", () => {
+    const first = receive(emptyState(), decodeFixture("37_01_01_240613_VXSE43", "VXSE43"));
+    const added = receive(first.state, decodeFixture("37_01_01_240613_VXSE43", "VXSE43", (xml) =>
+      xml.replace("<Serial>1</Serial>", "<Serial>2</Serial>").replaceAll("<Code>622</Code>", "<Code>999</Code>")));
+    expect(added.intents).toHaveLength(2);
+    expect(added.intents[0].payload.body).toMatch(/^続報: /);
+    const originalArea = receive(added.state, decodeFixture("37_01_01_240613_VXSE43", "VXSE43", (xml) =>
+      xml.replace("<Serial>1</Serial>", "<Serial>3</Serial>")));
+    expect(originalArea.intents).toEqual([]);
+    const repeated = receive(originalArea.state, decodeFixture("37_01_01_240613_VXSE43", "VXSE43", (xml) =>
+      xml.replace("<Serial>1</Serial>", "<Serial>4</Serial>").replaceAll("<Code>622</Code>", "<Code>999</Code>")));
+    expect(repeated.intents).toEqual([]);
+    const spaced = receive(repeated.state, decodeFixture("37_01_01_240613_VXSE43", "VXSE43", (xml) =>
+      xml.replace("<Serial>1</Serial>", "<Serial>5</Serial>").replaceAll("<Code>622</Code>", "<Code> 999 </Code>")));
+    expect(spaced.intents).toEqual([]);
+    const unsupported = receive(spaced.state, decodeFixture("37_01_01_240613_VXSE43", "VXSE43", (xml) =>
+      xml.replace("<Serial>1</Serial>", "<Serial>6</Serial>").replaceAll("<Code>622</Code>", "<Code>1000</Code>")));
+    expect(unsupported.decisions[0].decision).toBe("changed");
+    expect(unsupported.intents).toEqual([]);
+  });
+
+  it("P2-A4-T11 contractBoundary / R36: warning area history is bounded by the 1000 normalized codes", () => {
+    const material = decodeFixture("37_01_01_240613_VXSE43", "VXSE43", (xml) => xml.replace(/<Forecast>[\s\S]*?<\/Forecast>/,
+      '<Forecast><ForecastInt><From>5-</From><To>5-</To></ForecastInt><Pref><Code>01</Code>'
+      + Array.from({ length: 1001 }, (_, index) => `<Area><Code>${String(index).padStart(3, "0")}</Code>`
+        + '<Category><Kind><Code>10</Code></Kind></Category><ForecastInt><From>5-</From><To>5-</To></ForecastInt></Area>').join("")
+      + '</Pref></Forecast>'));
+    const step = receive(emptyState(), material);
+    expect(step.intents).toHaveLength(2);
+    expect(step.state.current[0].prediction.areas).toHaveLength(1001);
+    expect(step.state.notificationLatches[0].notifiedWarningAreas).toBe((1n << 1000n) - 1n);
+  });
+
+  it("P2-A4-T11 regression / I-09: assumed hypocenter hides magnitude in body and view", () => {
+    const assumed = decodeFixture("37_01_01_240613_VXSE43", "VXSE43", (xml) =>
+      xml.replace("<Earthquake>", "<Earthquake><Condition>仮定震源要素</Condition>"));
+    const byCondition = receive(emptyState(), assumed);
+    expect(byCondition.intents[0].payload.body).toBe("仮定震源 / 最大予測震度5弱");
+    expect(toEewView(byCondition.state).current[0].isAssumedHypocenter).toBe(true);
+    for (const [coordinate, magnitude, reason] of [["+.5+132.4-10000/", "1.0", "9"],
+      ["+33.2+132.4-10000/", "1.0", "09"], ["+33.2+132.4-10000/", "1.04", "9"]]) {
+      const fallback = receive(emptyState(), decodeFixture("37_01_01_240613_VXSE43", "VXSE43", (xml) => xml
+        .replace("+33.2+132.4-30000/", coordinate)
+        .replace(">5.8</jmx_eb:Magnitude>", `>${magnitude}</jmx_eb:Magnitude>`)
+        .replace("<MaxIntChangeReason>0</MaxIntChangeReason>", `<MaxIntChangeReason>${reason}</MaxIntChangeReason>`)));
+      expect(fallback.intents[0].payload.body).toBe("仮定震源 / 最大予測震度5弱");
+      expect(toEewView(fallback.state).current[0].isAssumedHypocenter).toBe(true);
+    }
+  });
+
+  it("P2-A4-T11 regression / R37: same-version correction compares original hypocenter and visible magnitude", () => {
+    const correction = (transform: (xml: string) => string) => decodeFixture("37_01_01_240613_VXSE43", "VXSE43",
+      (xml) => transform(xml.replace("<InfoType>発表</InfoType>", "<InfoType>訂正</InfoType>")));
+    const first = receive(emptyState(), correction((xml) => xml));
+    const name = receive(first.state, correction((xml) => xml.replace("<Name>豊後水道</Name>", "<Name>別府湾</Name>")));
+    expect(name.intents).toHaveLength(2);
+    expect(name.intents[0].payload.body).toContain("別府湾");
+    const magnitude = receive(name.state, correction((xml) => xml
+      .replace("<Name>豊後水道</Name>", "<Name>別府湾</Name>")
+      .replace(">5.8</jmx_eb:Magnitude>", ">6.0</jmx_eb:Magnitude>")));
+    expect(magnitude.intents[0].payload.body).toContain("M6.0");
+    const assumed = decodeFixture("37_01_01_240613_VXSE43", "VXSE43",
+      (xml) => xml.replace("<Earthquake>", "<Earthquake><Condition>仮定震源要素</Condition>"));
+    const assumedFirst = receive(emptyState(), assumed);
+    const hiddenMagnitude = receive(assumedFirst.state, correction((xml) => xml
+      .replace("<Earthquake>", "<Earthquake><Condition>仮定震源要素</Condition>")
+      .replace(">5.8</jmx_eb:Magnitude>", ">6.0</jmx_eb:Magnitude>")));
+    expect(hiddenMagnitude.decisions[0]).toMatchObject({ decision: "unchanged", reason: "duplicate" });
+    const correctedName = correction((xml) => xml
+      .replace("<Earthquake>", "<Earthquake><Condition>仮定震源要素</Condition>")
+      .replace("<Name>豊後水道</Name>", "<Name>別府湾</Name>"));
+    const named = receive(assumedFirst.state, correctedName);
+    expect(named.intents).toHaveLength(2);
+    expect(named.intents[0].payload.body).toBe("訂正: 仮定震源 / 最大予測震度5弱");
+    expect(receive(named.state, correctedName).decisions[0]).toMatchObject({ decision: "unchanged", reason: "duplicate" });
+    const final = receive(emptyState(), decodeFixture("37_01_01_240613_VXSE43", "VXSE43", (xml) => xml
+      .replace("<Earthquake>", "<Earthquake><Condition>仮定震源要素</Condition>")
+      .replace("</Body>", "<NextAdvisory>最終報</NextAdvisory></Body>")));
+    const finalCorrection = receive(final.state, correction((xml) => xml
+      .replace("<Earthquake>", "<Earthquake><Condition>仮定震源要素</Condition>")
+      .replace("</Body>", "<NextAdvisory>最終報</NextAdvisory></Body>")
+      .replace(">5.8</jmx_eb:Magnitude>", ">6.0</jmx_eb:Magnitude>")));
+    expect(final.state.current).toEqual([]);
+    expect(finalCorrection.decisions[0]).toMatchObject({ decision: "unchanged", reason: "duplicate" });
+  });
+
+  it("P2-A4-T11 contractBoundary / R-04: unapplied recovery cannot suppress a later live cancellation", () => {
+    const first = receive(emptyState(), decodeFixture("37_01_01_240613_VXSE43", "VXSE43"));
+    const cancelled = decodeFixture("37_01_03_240613_VXSE43", "VXSE43");
+    const recovered = receive(first.state, { ...cancelled, origin: "recovery" });
+    expect(recovered.decisions[0]).toMatchObject({ decision: "unchanged", reason: "noChange" });
+    expect(recovered.state).toBe(first.state);
+    expect(recovered.outcomes).toEqual([]);
+    expect(recovered.intents).toEqual([]);
+    expect(recovered.state.intents).toEqual(first.state.intents);
+    expect(recovered.state.deliveryRecords).toEqual(first.state.deliveryRecords);
+    expect(recovered.state.notificationLatches[0].firstReportNotified).toBe(true);
+    const live = receive(recovered.state, { ...cancelled, origin: "live" });
+    expect(live.decisions[0].decision).toBe("changed");
+    expect(live.state.current).toEqual([]);
+    expect(live.state.intents).toEqual([]);
+    const empty = emptyState();
+    const historicalFirst = receive(empty, { ...decodeFixture("37_01_01_240613_VXSE43", "VXSE43"), origin: "recovery" });
+    expect(historicalFirst.intents).toEqual([]);
+    expect(historicalFirst.state).toBe(empty);
   });
 
   it("P2-A4-T11 contractBoundary / AC11: failed atomic admission does not latch a first report", () => {
@@ -609,7 +809,8 @@ describe("P2 EEW unit", () => {
     expect(eewUnitCodec.decode(eewUnitCodec.encode(accepted.state)).kind).toBe("restored");
     const following = receive(accepted.state, decodeFixture("37_01_02_240613_VXSE43", "VXSE43"));
     expect(following.decisions[0]).toMatchObject({ decision: "changed" });
-    expect(following.state.intents).toEqual(accepted.state.intents);
+    expect(following.intents).toHaveLength(2);
+    expect(following.intents[0].payload.body).toContain("続報: ");
   });
 
   it("P2-A4-T11 contractBoundary: capacity pressure selects the oldest prefix once for metadata and receive", () => {
@@ -905,7 +1106,7 @@ describe("P2 EEW unit", () => {
       .toEqual(state.gates.filter((gate) => gate.operation !== "normal"));
     expect(cancelled.state.intents.filter((intent) => intent.operation !== "normal"))
       .toEqual(state.intents.filter((intent) => intent.operation !== "normal"));
-    expect(cancelled.intents).toHaveLength(2);
+    expect(cancelled.intents).toHaveLength(0);
     expect(cancelled.state.deliveryRecords).toEqual([{ intentId: state.intents[0].id,
       disposition: "superseded", expiresAt: state.intents[0].expiresAt }]);
     for (const operation of ["training", "test"] as const) {
@@ -1134,7 +1335,8 @@ describe("P2 EEW unit", () => {
         const end = decodeFixture(terminal ? "37_01_01_240613_VXSE43" : "37_01_03_240613_VXSE43", "VXSE43", (xml) => terminal
           ? xml.replace("</Body>", "<NextAdvisory>最終報</NextAdvisory></Body>") : xml);
         expect(receive(state, end, BASE_TIME + age).nextDeadline)
-          .toEqual({ wallTimeMs: age < 15_000 ? pending.expiresAt : BASE_TIME + age + 15_000, monotonicMs: null });
+          .toEqual(age < 15_000 ? expected : terminal
+            ? { wallTimeMs: BASE_TIME + age + 15_000, monotonicMs: null } : null);
       }
       const result = reduceEewUnit(state, { kind: "intentUpdate", intentUpdate: selection, clock: clock(BASE_TIME + age) });
       expect(result.nextDeadline).toEqual(age < 15_000 ? expected : null);
