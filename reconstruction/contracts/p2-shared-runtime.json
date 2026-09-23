@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "3095a6c21caa96e06fc3b3a6d2f906534ef5441b",
-    "sha256": "731da6e129ced8f37e2ea740e208da4b86e07a0f6132eb0cb7c4c4f9f34e61d1",
+    "sha256": "8631c7f068ce8c973a3b4198e49bcc138c6515bdd9c7c2e7aa8db1400ffd6c3f",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "76c82b87d7783a4eae14af690cb34e7d6ec46f73617dc75b7f7401951619f080",
     "sequencesSha256": "be9cfd97b555e3a55568f085d107342c978b3dc7249f5cecea868ea5a62c5781",
@@ -347,6 +347,13 @@
         "clock": "monotonicMs",
         "rule": "same-process duration only; never compare across restart",
         "source": "§5.3"
+      },
+      {
+        "id": "P2-A1-TIME-03",
+        "target": "notification channel retry/timeout/stop",
+        "clock": "monotonicMs",
+        "rule": "通知時計の正本はA7 questionResolutions[P2-A7-TIME]。壁時計絶対TTLを先に適用し、残るpendingだけ単調期限で選択/停止/再試行する。mapは所有unitのpendingに一対一、両channel合計384値以下で終端/削除時に回収。新規採用・失敗確定・復元以外では張り直さない。",
+        "source": "R26=A/Q-NOTICE"
       }
     ],
     "deliveryDeadlines": [],
@@ -416,7 +423,7 @@
       "RuntimeStep effects after handoff",
       "UnitView and PublishedOutcome delivery copies",
       "raw XML, decoded XML tree and mutable reducer internals",
-      "RuntimeState.runId・checkpointAttempts・deadlines・notificationChannels・ShutdownState.stageResults（最大4段階）。再起動時に新しいrunとして初期化する",
+      "RuntimeState.runId・checkpointAttempts・deadlines・notificationChannels・notificationDeadlines・ShutdownState.stageResults（最大4段階）。再起動時に新しいrunとして初期化する",
       "RuntimeState.restoration/admission: 起動由来とQ-R20-CLEARの有界records/overflow。保存対象に含めず、再起動は解除成功ではなく前回情報・現在未確認への移行とする"
     ],
     "outOfScope": [
@@ -462,7 +469,7 @@
       },
       {
         "id": "P2-A1-AC05",
-        "requirement": "E23型境界: DiagnosticEventは固定必須fieldと許可された任意fieldだけを持ち、raw/tokenを受け渡さない。純関数はDiagnosticDetails（reasonと有界な許可値）だけを返し、runtimeがclock.wallTimeMsとrunIdを付与する。DiagnosticReasonはparser10種＋operation4種＋意味拒否7種＋InfrastructureDiagnosticReason基盤23種＋容量退去2種（U-WのweatherCurrentCapacityEvicted・U-EのeewCapacityEvicted）の計46種のunionで、parser projectionと保存11種・mailbox5種・終了2種・sink2種・snapshot超過3種を同じsinkへ配送できる。snapshot超過はsnapshotNoticeCapacityExceeded／snapshotCommonBudgetExceeded／snapshotStringLimitExceeded。保存失敗段階はcheckpointEncodeFailed／checkpointWriteFailed／checkpointFileSyncFailed／checkpointCloseFailed／checkpointRenameFailed／checkpointDirectorySyncFailed／checkpointVerifyFailed、mailbox拒否内訳はmailboxRejectedDraining／mailboxRejectedItemLimit／mailboxRejectedByteLimitとしてreason列挙値に織り込む。DiagnosticDetailsはspec §7.9の固定fieldだけを持ち、追加field・任意文字列reasonを禁止する",
+        "requirement": "E23型境界: DiagnosticEventは固定必須fieldと許可された任意fieldだけを持ち、raw/tokenを受け渡さない。純関数はDiagnosticDetails（reasonと有界な許可値）だけを返し、runtimeがclock.wallTimeMsとrunIdを付与する。DiagnosticReasonはparser10種＋operation4種＋意味拒否7種＋InfrastructureDiagnosticReason基盤23種＋容量退去2種（U-WのweatherCurrentCapacityEvicted・U-EのeewCapacityEvicted）の計50種のunionで、parser projectionと保存11種・mailbox5種・終了2種・sink2種・snapshot超過3種を同じsinkへ配送できる。snapshot超過はsnapshotNoticeCapacityExceeded／snapshotCommonBudgetExceeded／snapshotStringLimitExceeded。保存失敗段階はcheckpointEncodeFailed／checkpointWriteFailed／checkpointFileSyncFailed／checkpointCloseFailed／checkpointRenameFailed／checkpointDirectorySyncFailed／checkpointVerifyFailed、mailbox拒否内訳はmailboxRejectedDraining／mailboxRejectedItemLimit／mailboxRejectedByteLimitとしてreason列挙値に織り込む。DiagnosticDetailsはspec §7.9の固定fieldだけを持ち、追加field・任意文字列reasonを禁止する A7の4 reason（notificationAttemptFailed/notificationExpired/notificationCapacityEvicted/notificationAdapterIsolated）だけを追加し、A3永続sinkの固定allowlistと読取結果まで一致させる。E21は失敗/timeout→AttemptFailed、期限到来→Expired、所有unitの容量退去→CapacityEvicted、停止未確認→AdapterIsolatedと対応し、取消/置換/遅い成功は状態と試行照合で扱う。",
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:1211 «1db51524eccef065»",
           "docs/specs/reconstruction-p0-contracts.md:1226 «086e8c5d7c0f990f»",
@@ -506,6 +513,14 @@
         "requirement": "R45/A10-AC09: RuntimeStep.generationInputIdsは保存世代が進んだunitにだけkeyを返す。採用に寄与したparser inputIdだけを含み、期限・intentUpdate・起動回収だけなら空配列を明示する。parserと期限処理が同じstepでも、当該unitの保存変更へparserが寄与した場合だけそのinputIdを含める。配列はこのstepの世代変化だけの寄与を表し、未保存の過去世代の寄与を置き換えない。A3での世代差照合・capture集約・欠落の扱いはP2-A3-AC10を正本とする。EEW競合はrunIdと単調時間区間で照合し競合EEW inputIdを偽装しない",
         "evidenceRefs": [
           "reconstruction/contracts/p2-eew-e01.types.ts"
+        ]
+      },
+      {
+        "id": "P2-A1-AC11",
+        "requirement": "A7再評価はreceiveによる生成/取消/意味上の置換、期限、起動/復元直後、結果後、channel解放時に行う。現在intentを失ったrunning試行もabort対象。選択時と結果時は同一unit保存世代へ照合済みintentUpdateを採用し、U-E終端はdeliveryRecords、U-W/U-F終端はintentsで確認する。実reduceEewUnitとの結線でdelivered/expired/supersededを確認する。VXSE44はP1分類後のheadType→unit入口で明示無視しU-Eへ送らない。 U-E終端記録にはattempts/nextAttemptAtが無いので更新前intentと照合したid/disposition/expiresAt、およびunitの保存世代進行で確認し、存在しないfieldを要求しない。 abortRequestsのattemptId/cause（timeoutを含む）を選択結果のままA3へ返し、stopping中のcauseを維持する。notificationDeadlinesはA7時計規則で所有pendingへ対応させ、A1で別式を作らない。",
+        "evidenceRefs": [
+          "reconstruction/src/runtime/shared-runtime.ts",
+          "reconstruction/src/units/eew/eew-unit.ts"
         ]
       }
     ],
@@ -597,6 +612,14 @@
           "P2-A1-AC09"
         ],
         "behavior": "RES-04の511/512/513件とRES-05の262143/262144/262145 byteを別々に境界化し、新規対象と同対象のscope合併を検収する。多byte/escape/多数scope・巨大な単一記録を含め実JSON byteと加算を一致させる。超過は従前records不変・overflow=trueで、古い記録の退去や部分scope採用をしない。覚えている全記録を正常採用で消してもoverflow枠は残り、時間経過・再拒否の減少で消えない。全9枠は件数/byteとも独立し、Admissionだけの更新では保存世代を進めない"
+      },
+      {
+        "testId": "P2-A1-T12",
+        "purpose": "contractBoundary",
+        "referenceIds": [
+          "P2-A1-AC11"
+        ],
+        "behavior": "既存shared-runtime.test.ts:128のintent保持stubに加え、実reduceEewUnitの終端deliveryRecordsを使い採用確認する。生成受信直後、取消/置換、復元直後、結果後、channel解放時にA7再評価と失効したrunning試行のabortを一系列で確認する この既存系列のtimeoutと意味上置換でabortRequests.causeがA3へ欠落せず伝わること、選択/結果の通常再評価で期限値を張り直さないことを確認する。 既存の再評価・終端採用系列で、壁時計TTL前に単調期限が到来したattempt無しpendingのexpired更新を実reduceEewUnitへ採用しdeliveryRecordsへ移すことと、試行開始だけならdispositionを維持することを確認する。"
       }
     ],
     "requiredCommands": [
@@ -667,14 +690,15 @@
       "B1: CheckpointCaptureと単位別PendingCheckpointAttemptがないと捕捉後更新の最初の時刻を古いack後のdirtySinceへ戻せない。CheckpointRequestのattemptId/unit/generation/capturedAtだけを再利用し、envelope・payloadをRuntimeStateへ複製しない",
       "B2: RuntimeUnitStatesのU-E/U-W/U-F具体結線、単位別RuntimeUnitDeadline、各unit stepのnextDeadlineがないとA1が到来deadlineを同じ呼出しで適用できない。wallTimeMs/monotonicMsは独立にnumber|nullとし、有効な期限のいずれかが対応する入力時計で到来済み（clock >= deadline）なら当該unitへ一度配送する。両方なしは外側のnullだけを返す。複数期限がある場合は時計別の最小値を返し、単調期限は再起動を越えて使わない。期限前は同じstate参照・空effectsとし、配送済み入力slotやunknownの暗黙キーを作らない",
       "B3: ShutdownStateの受付連番境界・開始時計・段階期限・finalizationAt、shutdownStageResultの完了/失敗/deadlineExceededと未処理件数、4種のRuntimeEffectがないとA1が終了順を決定できずA3 hookがstateを合成する。batch終了はA1が各unitの既存shutdown入力で処理する。stageResultsは既存shutdownStageResultのresult/pending/clock/droppedDiagnosticsを再利用しmailboxDrain/sideEffectFinalization/finalCheckpoint/workerClose各1件・最大4件だけ保持する。初期値は空で、現在段階の最初の終端結果だけを採用し、重複・遅延・別段階の結果では上書きしない。後段成功でも先行失敗・件数を保持し全理由を再現する。件数は非負の安全整数、reasonは有界文字列とする",
-      "B4: RuntimeState.notificationChannelsとRuntimeStep.notificationAttempts/abortAttemptIdsがないとA7選択状態とunit内intent正本が分裂する。A1が各unitのintentからNotificationDeliveryStateを構成し、selectNotificationAttempt/applyNotificationResultを呼び、channelと3 unit共通のintentUpdate入力を同じ呼出しで一度に採用する。NotificationIntentUpdateは既存intentのid/attempts/nextAttemptAt/dispositionだけのPickで、選択時も完了結果なしで渡せる。A1が現在intentのunit/operation/subject/channel/idとA7の現在試行を照合し、unitは既存idだけを更新する。選択時はattempts/nextAttemptAtだけを変えdispositionを維持し、完了・失効等は照合済みdispositionを含めて採用する。変更時だけdeliveryOnlyとして保存世代を進め、同値・未知idはno-op。raw NotificationResultはRuntimeInputにだけ戻しunitへ偽の完了結果を作らない",
+      "B4: RuntimeState.notificationChannelsとRuntimeStep.notificationAttempts/abortRequestsがないとA7選択状態とunit内intent正本が分裂する。A1が各unitのintentからNotificationDeliveryStateを構成し、selectNotificationAttempt/applyNotificationResultを呼び、channelと3 unit共通のintentUpdate入力を同じ呼出しで一度に採用する。NotificationIntentUpdateは既存intentのid/attempts/nextAttemptAt/dispositionだけのPickで、選択時も完了結果なしで渡せる。A1が現在intentのunit/operation/subject/channel/idを照合し、試行に由来する更新ではA7の現在試行も照合する。unitは既存idだけを更新する。試行開始だけの選択更新はattempts/nextAttemptAtだけを変えdispositionを維持する。選択時の期限回収はP2-A7-TIMEに従うpending→expiredを明示的に許可し、attemptが無くても所有unitへintentUpdateを採用する。完了・失効等は照合済みdispositionを含めて採用する。P2-A1-AC11: この期限回収の採用経路が無いと、壁時計後退時に単調期限で失効したpendingが所有unitへ残る。変更時だけdeliveryOnlyとして保存世代を進め、同値・未知idはno-op。raw NotificationResultはRuntimeInputにだけ戻しunitへ偽の完了結果を作らない",
       "composition rootは入力の順序付け・reduceRuntimeが返すstateの採用・RuntimeStepのeffect実行だけを行い、stateの構築・部分上書き・非同期hookから返されたstateの合成をしない。無いとR13=Aでもcomposition-root.tsの保存結果と終了hookがreducer外からstateを変更できる",
       "追実装で閉じる項目(R17/A1-b): RuntimeState.persistenceの二重同期を削除し、現行reconstruction/src/runtime/shared-runtime.ts:103のShutdownSummary.persistenceはstate.unitsの3 unitから構築する。:143-145のsetPersistenceと:172-173のunit更新はunits[unit].persistenceだけを更新し、:198,266,294の保存状態読取もunit側へ置換する。composition root・A1-b testの初期state/期待値からRuntimeState.persistenceを削り、unit側だけが更新されることと終了要約がunit側3値から作られることへ追従する。新しい状態管理層・helperは作らない",
-      "追実装で閉じる項目(A1-b): 現行shared-runtime.ts:59,61のunknown genericを具体型へ、:77のnotificationIntentsをnotificationAttempts/abortAttemptIds/effectsとshutdownSummary（通常null）へ置換する。現行はparser診断以外のcontrol分岐を未実装で同じstateを返すため、checkpointCaptured/checkpointResult、到来deadline、shutdownRequested/shutdownStageResult、notificationResultを実装する。A4〜A7の契約・型8ファイルをreadPathsで明示的に読み、3 unitのintentUpdateとA7 channel状態を原子的に採用する。RuntimeState.runIdを初期stateで一度固定し、A1は入力の明示時計（通知結果はresult.completedAt）とstate.runIdで全DiagnosticDetailsをDiagnosticEventへ完成させる。無いとA7/終了段階の入力にrunIdがなく診断を完成できない。mailbox completion.runIdは同じrunであることを照合し、外部時計や仮のshutdown runIdを使わない",
-      "追実装で閉じる項目(A1-route): parser completionのdecoded入力をshared-runtime.tsの一か所の表（計画§6.2）でheadTypeから単位へ振り分ける。VXSE43/44/45→U-E、VPWS50・VPWW55/57-61・VPNO50→U-W、VPWP50→U-F、それ以外はP2単位なし。routed入力は共通検証の成否にかかわらず当該unitのreceiveへ入力clockで渡し、unitがreceive先頭でvalidateSemanticEnvelopeを呼んで共通拒否を確定し、その診断を一件だけ返す（A1は二重に診断しない。U-Wの§7.8監視例外はこの経路で成立する）。A1が直接検証・診断するのはroute外の入力とparser拒否だけとする。振り分けはshutdown.stageがrunningかmailboxDrainの間だけ行い、mailboxDrain結果の適用後（各unitへshutdown配送済み）に完了した入力はunitへ渡さずremainingInputsとして要約に残す。reducer未結線の単位へのrouteは成功扱いせず例外とする（A6配送前のVPWP50を含む）。無いとA4/A5のreceiveへ製品入力が一件も届かず、§13.3の9段を結線後の経路で証明できない。T02はroutedなVPWS50をno-op unitで受けA1自身の枝だけを測り、routed unitの直列化量はE11/E15で別計数する。T03のruntime経由拒否はroute外のO02:10で確認し、routedなO02:8はA6 AC01で検収する",
+      "追実装で閉じる項目(A1-b): 現行shared-runtime.ts:59,61のunknown genericを具体型へ、:77のnotificationIntentsをnotificationAttempts/abortRequests/effectsとshutdownSummary（通常null）へ置換する。現行はparser診断以外のcontrol分岐を未実装で同じstateを返すため、checkpointCaptured/checkpointResult、到来deadline、shutdownRequested/shutdownStageResult、notificationResultを実装する。A4〜A7の契約・型8ファイルをreadPathsで明示的に読み、3 unitのintentUpdateとA7 channel状態を原子的に採用する。RuntimeState.runIdを初期stateで一度固定し、A1は入力の明示時計（通知結果はresult.completedAt）とstate.runIdで全DiagnosticDetailsをDiagnosticEventへ完成させる。無いとA7/終了段階の入力にrunIdがなく診断を完成できない。mailbox completion.runIdは同じrunであることを照合し、外部時計や仮のshutdown runIdを使わない",
+      "追実装で閉じる項目(A1-route): parser completionのdecoded入力をshared-runtime.tsの一か所の表（計画§6.2）でheadTypeから単位へ振り分ける。VXSE43/45→U-E、VXSE44→入口で明示無視、VPWS50・VPWW55/57-61・VPNO50→U-W、VPWP50→U-F、それ以外はP2単位なし。routed入力は共通検証の成否にかかわらず当該unitのreceiveへ入力clockで渡し、unitがreceive先頭でvalidateSemanticEnvelopeを呼んで共通拒否を確定し、その診断を一件だけ返す（A1は二重に診断しない。U-Wの§7.8監視例外はこの経路で成立する）。A1が直接検証・診断するのはroute外の入力とparser拒否だけとする。振り分けはshutdown.stageがrunningかmailboxDrainの間だけ行い、mailboxDrain結果の適用後（各unitへshutdown配送済み）に完了した入力はunitへ渡さずremainingInputsとして要約に残す。reducer未結線の単位へのrouteは成功扱いせず例外とする（A6配送前のVPWP50を含む）。無いとA4/A5のreceiveへ製品入力が一件も届かず、§13.3の9段を結線後の経路で証明できない。T02はroutedなVPWS50をno-op unitで受けA1自身の枝だけを測り、routed unitの直列化量はE11/E15で別計数する。T03のruntime経由拒否はroute外のO02:10で確認し、routedなO02:8はA6 AC01で検収する",
       "P2-A1-AC08/R21: 起動入力とrestorationがないと保存gの引継ぎ前にrestoreし新報を古い世代で上書きする。A1が初期stateとunit restore順を所有し、A3はI/Oだけを所有する",
       "P2-A1-AC09/R20: 枠内のAdmissionRejectionとoverflowがないと拒否対象を安全に解除できず、AdmissionEvidenceがないとchanged/unavailable/intent更新を正常採用と誤認する。追加型はこの記録・枠・検証済みdecision根拠だけとし、記録/解除はQ-R20-CLEARを正本とする。A1が枠と解除、A4/A5/A6が各decisionの根拠を所有する",
-      "P2-A1-AC10/R45: generationInputIdsの明示空配列がないと期限・intentUpdate・起動回収だけのdirty世代が最終保存されない。parser IDは採用寄与だけを記録する"
+      "P2-A1-AC10/R45: generationInputIdsの明示空配列がないと期限・intentUpdate・起動回収だけのdirty世代が最終保存されない。parser IDは採用寄与だけを記録する",
+      "追実装で閉じる項目(A1-A7/R26/R27): A1はU-E終端intentUpdateをdeliveryRecordsで、U-W/U-Fをintentsで採用確認し、同一unit保存世代とchannel状態を一度に確定する。無いとU-Eの正常終端で誤例外となる。A7をreceive生成/取消/置換、期限、起動/復元、結果、channel解放ごとに再評価し、消えたintentのrunning試行もabortする。無いと初回試行と停止が次のdeadlineまで遅れる。同一runはNotificationDeliveryStateの非保存単調期限を使い、再起動時だけ保存壁時計の残余から張り直す。headType表のU-EはVXSE43/45のみ、VXSE44は明示無視。P1分類器のfamily表は分類用のままとし二重の業務判定を置かない。 U-E終端にattempts/nextAttemptAtを再保存させず、記録にあるid/disposition/expiresAtを照合する。 P2-A7-AC03: abortRequestsの{attemptId,cause}をそのまま返す。無いとA3はtimeoutと意味上のabortを区別できない。期限mapの作成/回収はP2-A7-TIMEの規則だけを採用し、保存形式は変えない。"
     ],
     "unresolvedQuestions": []
   }

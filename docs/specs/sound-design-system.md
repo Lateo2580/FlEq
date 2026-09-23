@@ -31,7 +31,7 @@ node scripts/render-sounds.mjs /tmp/out   # 聴き比べ用
 ```
 
 - 出力は 44.1 kHz・16 bit・mono の WAV。`assets/sounds/` は npm パッケージに含まれ、`src/engine/notification/sound-player.ts` が `<level>.mp3` → `<level>.wav` の順で探す。Linux の再生は `ffplay` → `paplay` → `aplay` の順で試し、起動時の音声 probe も同じ列を無音 WAV で辿る（バナーの `音声: <player> OK` は実際に成功した player。Issue #20）
-- 規則を変えるときは本書の表と `MOTIFS` を同時に直し、生成し直して commit する。生成物を手で編集しない
+- 旧築の規則を変えるときは本書の表と `MOTIFS` を同時に直し、生成し直して commit する。新築A7は下記の別生成器を用い、生成物を手で編集しない
 
 ## 分野別根音表 v1（新築の通知 intent 用。2026-09-14 規則確定、2026-09-15 裁定 B、2026-09-17 統合）
 
@@ -59,7 +59,7 @@ node scripts/render-sounds.mjs /tmp/out   # 聴き比べ用
 - 音色は上の段階表と同じ（サイン波＋第 2 倍音 0.25、立ち上がり 5ms、指数減衰、末尾 30ms リリース）。複数打は各打音を同じ減衰で鳴らし切って加算する。音量は全ファイル共通のピーク基準で −3 dBFS
 - training／test は鳴らさない（P0 spec §5.1 の開始案、P2 計画 D7=A）
 - 聴き比べの経緯: 分野の根音は最初「津波 C4・気象 F5」だったが、津波が 4 分野で最も危険度が高いので丸ごと入れ替えた。津波の不協和音は 6 種（0,1,6／0,1／0,6／0,3,6／0,4,8／0,3,7,8）を比較して 0,1,6 を採用
-- 新築での実装（P2 契約 A7 notification の範囲）: 資産は `assets/sounds/<domain>-<level>.wav` の 20 本。レンダラは `scripts/render-sounds.mjs` の `MOTIFS` を「根音表 × 段階形」の 2 表に分ける。分野が決まらない intent は作らない（fallback 音源を置かない）。テストは分野→ファイル名の解決の契約境界だけ。Linux の再生列は旧築と同じ `linuxPlayersFor()`（Issue #20）
+- 新築での実装（P2 契約 A7 notification の範囲）: 資産は `reconstruction/assets/sounds/<domain>-<level>.wav` の 20 本。`scripts/render-sounds.mjs` は合成式と WAV 処理を読み取り、必要最小限だけ新築生成器へ移植する。旧スクリプトを import・実行・改修しない。根音表 × 段階形で20本を生成し、全20本の共通ピークで −3 dBFS に正規化する。生成コマンド、参照元と新生成器の hash、20 WAV の hash を配送証拠に残す。分野不明の intent は作らない。Linux の probe・再生は ffplay → paplay → aplay。
 
 ## 変更履歴
 

@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "fc7006e2380edf9a97b601d124341ba4bd7f7f42",
-    "sha256": "5a2060d8c0a9fdf5b514539fb1b4c654e558c52b4f1d5f07c56cd8ab1b1a0b3b",
+    "sha256": "b42b1bac9c7d44abee85d3ce3d05112968efec4468fc791cbb3eebf417f37cf2",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "76c82b87d7783a4eae14af690cb34e7d6ec46f73617dc75b7f7401951619f080",
     "sequencesSha256": "be9cfd97b555e3a55568f085d107342c978b3dc7249f5cecea868ea5a62c5781",
@@ -18,11 +18,11 @@
       },
       {
         "id": "P2-A4-D07",
-        "A": "training/testは表示で区分を明示しsound intentを生成しない。desktopはA7前まで未決とする",
+        "A": "training/testは区分付きdesktopのみ生成しsound intentを生成しない（R28=A）",
         "B": "通常と同じsound/desktopを生成する",
         "recommended": "A",
         "provisional": "A",
-        "ruling": "作者裁定D7=A",
+        "ruling": "作者裁定D7=A、2026-09-23 R28=A",
         "reason": "通常緊急を追い越さず訓練音を鳴らさない"
       },
       {
@@ -64,7 +64,7 @@
       {
         "id": "P2-A4-QENUM-PRIORITY",
         "A": "A1共通検証の後にEventID存在→Serial存在→EventID妥当性→Serial妥当性→InfoType別必須構造存在→必須構造妥当性の順で検証し、最初の一RejectionReasonだけを返す",
-        "B": "全不備を収集する、またはVXSE43/44/45ごとに共通順と異なる優先順を持つ",
+        "B": "全不備を収集する、またはVXSE43/45ごとに共通順と異なる優先順を持つ",
         "recommended": "A",
         "provisional": "A",
         "ruling": "本Q-ENUM改訂でA",
@@ -76,14 +76,14 @@
         "id": "Q7",
         "status": "closed",
         "closed": "spec §11の裁定を維持し、training/testの表示区分を保持する",
-        "remaining": "desktop採否と文言はQ-NOTICE",
-        "reason": "A7前に配送条件を分離して固定する"
+        "remaining": "Q-NOTICEでclosed: training/testは区分付きdesktopのみ、soundなし",
+        "reason": "R28=AをQ-NOTICEで確定"
       },
       {
         "id": "Q-ENUM",
         "status": "closed",
         "source": "P2-SHARED-RUNTIME-001#Q-ENUM",
-        "closed": "A1共通検証後のU-E identity/必須構造順、複数不備の単一reason、rejected時の不変条件、VXSE43/44/45の合法欠落と不正構造を固定した",
+        "closed": "A1共通検証後のU-E identity/必須構造順、複数不備の単一reason、rejected時の不変条件、VXSE43/45の合法欠落と不正構造を固定した",
         "remaining": "なし",
         "reason": "取消報の合法なBody縮退や区域なしを必須構造欠落と誤認せず、信頼不能なidentity/構造だけを拒否する",
         "priorityRule": "EventID空→identityMissing、Serial空→identityMissing、EventIDが非空だがfamily subjectとして不正→identityInvalid、Serialが正整数でない→identityInvalid、InfoType別必須node欠落→requiredStructureMissing、存在するnodeのshape・code・ForecastIntが不正→requiredStructureInvalid。最初の一理由だけを返す",
@@ -95,19 +95,108 @@
             "invalid": "非取消の必須node欠落、空または非scalar EventID/Serial、ForecastIntが固定EewPredictionIntensity shapeへ射影不能、存在するPref/Areaのcode欠落・不正またはshape不正。From/Toのmissing/empty/unknown/range自体は拒否理由にしない"
           },
           {
-            "family": "VXSE44",
-            "legalMissing": "InfoType=取消ではBodyはTextだけでよくEarthquake/Intensity/Forecast/Pref/Areaを要求しない。発表ではHeadline.Text、Comments、NextAdvisory、Earthquake内の補助詳細は欠落可",
-            "required": "非取消ではBody/Intensity/Forecast/全体ForecastIntと少なくとも一つのPref/Area/ForecastInt。全入力で非空EventIDと正整数Serial",
-            "invalid": "非取消の必須node欠落、空または非scalar EventID/Serial、ForecastIntが固定EewPredictionIntensity shapeへ射影不能、存在するPref/Areaのcode欠落・不正またはshape不正。From/Toのmissing/empty/unknown/range自体は拒否理由にしない"
-          },
-          {
             "family": "VXSE45",
             "legalMissing": "InfoType=取消ではBodyはTextだけでよくEarthquake/Intensity/Forecast/Pref/Areaを要求しない。非取消でも区域Pref/Areaは0件を許しareaCoverage=noneとする。Headline.Text、Comments、NextAdvisory、Earthquake内の補助詳細は欠落可",
             "required": "非取消ではBody/Intensity/Forecast/全体ForecastInt。全入力で非空EventIDと正整数Serial",
             "invalid": "非取消の必須node欠落、空または非scalar EventID/Serial、全体ForecastIntが固定EewPredictionIntensity shapeへ射影不能、存在するPref/Areaのcode欠落・不正またはshape不正。From/Toのmissing/empty/unknown/range自体は拒否理由にしない"
           }
         ],
-        "stateRule": "rejectedはEewUnitStateのcurrent/gates/intents/deliveryRecords/persistence参照、family watermark、PublishedOutcome、NotificationIntentをすべて不変にし、diagnosticだけを返す"
+        "stateRule": "rejectedはEewUnitStateのcurrent/gates/intents/deliveryRecords/persistence参照、family watermark、PublishedOutcome、NotificationIntentをすべて不変にし、diagnosticだけを返す notificationLatchesも不変。"
+      },
+      {
+        "id": "Q-NOTICE",
+        "status": "closed",
+        "source": "2026-09-23 ご主人裁定R24〜R29、および独立レビュー後の統合担当によるlatest-only置換決定",
+        "closed": "VXSE43/45の5通知機会、channel別latest-only置換、A4所有payload、operation＋eventId latchを本項の正本として固定する",
+        "remaining": "A4追実装とA1/A3/A7結線の検収",
+        "reason": "R24=A先行改訂、R25=A正式family限定、R26=A単調期限、R27二重鳴り抑止、R28=A訓練/試験desktopのみ、R29=A証拠区分",
+        "generationTable": [
+          {
+            "opportunity": "firstReport",
+            "condition": "採用済みの非最終の発表でfirstReportNotified=false。共通generationRuleの候補除外を先に適用する",
+            "normalChannels": [
+              "desktop",
+              "sound"
+            ],
+            "trainingTestChannels": [
+              "desktop"
+            ],
+            "replacement": "新しい通知機会のintentを採用したchannelについて、同じoperation＋eventIdの古いpendingをfamilyによらずすべてsupersededにする。新intent未採用なら置換しない。deliveredは不変。"
+          },
+          {
+            "opportunity": "warningUpgrade",
+            "condition": "共通generationRuleを満たし、旧築と同じ警報判定がtrueかつwarningNotified=false。初回警報と同じ報ならoverlapにより一組にまとめる",
+            "normalChannels": [
+              "desktop",
+              "sound"
+            ],
+            "trainingTestChannels": [
+              "desktop"
+            ],
+            "replacement": "新しい通知機会のintentを採用したchannelについて、同じoperation＋eventIdの古いpendingをfamilyによらずすべてsupersededにする。新intent未採用なら置換しない。deliveredは不変。"
+          },
+          {
+            "opportunity": "cancellation",
+            "condition": "有効な取消の採用",
+            "normalChannels": [
+              "desktop",
+              "sound"
+            ],
+            "trainingTestChannels": [
+              "desktop"
+            ],
+            "replacement": "有効取消の意味受理で、同じoperation＋eventIdの古いpendingをfamilyによらず両channelすべてsupersededにする。新しい取消intentの収容可否にかかわらず適用し、deliveredは不変。"
+          },
+          {
+            "opportunity": "correction",
+            "condition": "採用済み訂正",
+            "normalChannels": [
+              "desktop",
+              "sound"
+            ],
+            "trainingTestChannels": [
+              "desktop"
+            ],
+            "replacement": "新しい通知機会のintentを採用したchannelについて、同じoperation＋eventIdの古いpendingをfamilyによらずすべてsupersededにする。新intent未採用なら置換しない。deliveredは不変。"
+          },
+          {
+            "opportunity": "finalReport",
+            "condition": "採用済み最終報",
+            "normalChannels": [
+              "desktop",
+              "sound"
+            ],
+            "trainingTestChannels": [
+              "desktop"
+            ],
+            "replacement": "新しい通知機会のintentを採用したchannelについて、同じoperation＋eventIdの古いpendingをfamilyによらずすべてsupersededにする。新intent未採用なら置換しない。deliveredは不変。"
+          }
+        ],
+        "overlap": "一つの受理報が複数機会を満たしても各channel最大1 intentとする。取消を優先し、それ以外はpayloadRulesの訂正接頭辞を適用する。",
+        "capacity": "保存世代採用前にQ-NOTICE.generationTableの置換と新intent集合を合わせた候補を作り、三区分・両channelのpendingをJSON UTF-8で128件/131072 byte以内にする。期限切れ・保持期限を終えた終端記録を先に回収し、なお上位新intentの収容に必要なら下位群をA7選択順の逆順で必要分だけ退去する。同群以上を退去しない。通常機会は対象channel集合を全採用できた場合だけ置換/退去を確定し、未採用なら古いpendingを維持する。有効取消による両channelのsupersededは収容可否と独立に確定する。退去はnotificationCapacityEvictedと件数を返し、意味取消/R20正常採用根拠にしない。",
+        "generationRule": "EventIDはA4が意味境界で検証した14桁eventIdを使う。operation＋eventIdはfamilyを含むsubjectとは別keyで、両familyの通知を束ねる。VXSE45を意味受理した後の同event VXSE43は通知候補外。通常の続報が通知機会を満たさなければ既存pendingを維持する。",
+        "replacementRationale": "統合担当決定: 旧築は即時送信で待ち行列を持たず、15秒TTL内に古い予報を遅れて鳴らす価値はないため、各channelの最新採用一件を残す。通知機会のない続報はこの決定の対象外。",
+        "payloadRules": {
+          "typeRef": "reconstruction/contracts/p2-eew-unit.types.ts#EewNotificationPayload",
+          "reason": "P2-A4-AC11: 音段階・タイトル・本文の型と文言がA4に無いと、A7が同じEEWを別の警報段階や運用区分で配送する。EewUnitState/PersistedEewUnit/EewUnitStepのintents.payloadをこの型へ結び、未接続の説明用型にしない。",
+          "ownership": "型にある4キーだけを両channelへ同一内容で渡す。A4の生成とcodec復元境界でこの型/値域を保証し、A1/A7は内部で再検証・文言再生成・既定値補完をしない。全family共通schemaへ拡張しない。",
+          "warning": "src/dmdata/telegram-parser.tsのxmlWarning（headType=VXSE43、警報区域Kind、警報Headline codeのいずれか）だけを意味受理時に一度判定し、level・baseTitle・warningNotifiedで共用する。VXSE45を常に予報と決めつけない。",
+          "level": "取消はcancel、それ以外は警報ならcritical、予報ならwarning。domainは型のリテラルearthquake-eew。",
+          "title": "operationPrefixはnormalが空、trainingが【訓練】、testが【試験】。baseTitleは警報なら緊急地震速報（警報）、予報なら緊急地震速報（予報）。titleはoperationPrefix＋（取消なら[取消] 緊急地震速報、訂正なら[訂正] ＋baseTitle、その他はbaseTitle）。",
+          "body": "取消は緊急地震速報は取り消されました。それ以外は旧notifier.ts:401-416の震源名・notificationMagnitude・最大予測震度ラベルを欠損項目省略で / 連結し、地震諸元が無ければ区分接頭辞を付ける前の通知タイトルを本文にする。訂正はその本文の冒頭に訂正: を付ける。",
+          "operationLead": "最後にtrainingは「訓練の電文です。通常運用の警報ではありません。」、testは「試験の電文です。通常運用の警報ではありません。」と改行を本文冒頭へ付ける。normalは付けない。取消・訂正でもこの本文冒頭とタイトルの区分接頭辞を維持する。title/bodyは空でない文字列で、容量は既存pending byte上限で判定する。",
+          "warningRationale": "統合担当決定: 新築routeはheadTypeから導く（reconstruction/src/decode-material/decode-material.ts:203-204）ため警報分類はVXSE43と同値でxmlWarningに含まれ、旧築のclassificationだけが警報となる状態も仕様不整合の観測ログ対象（src/dmdata/telegram-parser.ts:941-960）なので、封筒classificationを要求せずP1契約は改訂しない。"
+        },
+        "latchRules": {
+          "reason": "P2-A4-AC11/R27: eventId単位の採用済みlatchが無いとfamily交差で二重に第1報を作り、容量不足でも通知済みとして以後を抑止する。",
+          "key": "EewNotificationLatchのoperation＋eventId。eventIdは検証済みmaterial.eventIdRawで、既存subject=operation/family/eventIdをkeyとして使わない。既存current/gatesとの対応はA4が保証するこのsubject形式からeventId部分を取り出すだけで、XMLを別層で再検証しない。",
+          "vxse45Accepted": "VXSE45の意味受理が確定したときにtrue。通知機会の有無・intent収容可否には依存しない。duplicate/stale/rejected/意味容量不受理では立てない。",
+          "firstReportNotified": "第1報・警報昇格・訂正・最終報の通知機会で、対象channel集合を同世代へ採用できたときだけtrue。保存ackや配送成功を待たず、意味受理だけでも立てない。取消では変更しない。",
+          "warningNotified": "非取消の警報通知の対象channel集合を同世代へ採用できたときだけtrue。第1報が警報ならfirstReportNotifiedと同時に立てる。取消・配送結果では変更しない。",
+          "capacityFailure": "normalの2 intentまたはtraining/testの1 intentは機会単位で全採用か未採用とし、部分採用しない。収容できなければfirstReportNotified/warningNotifiedは従前値を保つ。意味受理済みVXSE45のvxse45Acceptedだけは上記規則で進む。",
+          "lifetime": "VXSE43/45のcurrent/gatesに存在する(operation,eventId)の和集合だけに保持する。一方のfamilyが残る間は維持し、最後のcurrent/gateが退去した同じunit更新で回収する。2 family×512 subjectから最大1024キーで、別の保持期間・quotaを追加しない。",
+          "restart": "PersistedEewUnitとcodecの保存形式には含めず、復元時は空。再起動後の同event再通知抑止は保証しない。"
+        }
       }
     ],
     "operationContract": {
@@ -118,7 +207,7 @@
   "contract": {
     "contractId": "P2-EEW-UNIT-001",
     "mode": "implementation",
-    "objective": "M01をI-U-Eとして閉じ、non-durable current/gate、durable intent、512 subject、15秒TTL、報番号・終端・取消・operation交差をreducerから復元直後続報まで一契約で固定する。",
+    "objective": "M01をI-U-Eとして閉じ、non-durable current/gate、durable intent、512 subject、15秒TTL、VXSE43/45の報番号・終端・取消・operation交差と通知生成をreducerから復元直後続報まで一契約で固定する。",
     "baseOid": "2b0fd3b83409a2fc6cb99df7ac37773110452a30",
     "cleanTreeRequired": true,
     "readPaths": [
@@ -135,7 +224,12 @@
       "reconstruction/tools/corpus/sequences.json",
       "reconstruction/src/**",
       "src/engine/messages/**",
-      "src/dmdata/**"
+      "src/dmdata/**",
+      "src/engine/notification/notifier.ts",
+      "src/engine/presentation/level-helpers.ts",
+      "src/engine/eew/eew-tracker.ts",
+      "reconstruction/contracts/p2-notification-delivery.json",
+      "reconstruction/contracts/p2-notification-delivery.types.ts"
     ],
     "allowedPaths": [
       "reconstruction/src/domains/eew/**",
@@ -172,7 +266,9 @@
       "reconstruction/contracts/p2-eew-unit.types.ts#EewUnitView",
       "reconstruction/contracts/p2-eew-unit.types.ts#EewInput",
       "reconstruction/contracts/p2-eew-unit.types.ts#EewUnitStep",
-      "reconstruction/contracts/p2-eew-unit.types.ts#EewUnitCodec"
+      "reconstruction/contracts/p2-eew-unit.types.ts#EewUnitCodec",
+      "reconstruction/contracts/p2-eew-unit.types.ts#EewNotificationLatch",
+      "reconstruction/contracts/p2-eew-unit.types.ts#EewNotificationPayload"
     ],
     "publicFunctions": [
       "reduceEew(state: EewUnitState, input: Extract<EewInput, { kind: 'receive' }>): EewUnitStep",
@@ -258,7 +354,8 @@
       "active EEW current",
       "報番号gateと予測保持latch（EewCurrent.retainedPredictionのprediction/sourceを含む。PersistedEewUnitとcodecの保存fieldへ含めず、復元時に再構成しない）",
       "DecodedMaterial/XML treeと単調時計",
-      "UnitView、PublishedOutcome、実行中adapter状態"
+      "UnitView、PublishedOutcome、実行中adapter状態",
+      "Q-NOTICE.latchRulesのoperation＋eventId通知latch。current/gates和集合にのみ保持し、復元時は空・再起動後の再通知抑止保証なし"
     ],
     "outOfScope": [
       "地震観測",
@@ -266,12 +363,12 @@
       "最終GIS",
       "P4 scene",
       "旧移行tool",
-      "A7の通知adapter・desktop採否・文言"
+      "A7の実通知adapterと試行/停止確認"
     ],
     "acceptanceChecks": [
       {
         "id": "P2-A4-AC01",
-        "requirement": "単位入力はVXSE43/44/45だけをU-Eへ対応し、同一入力の複数subjectを原子的に一回の参照交換で適用する。A1共通検証後はEventID存在→Serial存在→EventID妥当性→Serial妥当性→InfoType別必須構造存在→妥当性の順で最初の一RejectionReasonだけを返す。取消報はBodyのEarthquake/Intensity/Forecast欠落を合法、VXSE45非取消は区域0件を合法とし、それ以外のquestionResolutions[Q-ENUM].familyTable違反はrejectedでcurrent/gate/watermark/intent/unit state不変",
+        "requirement": "単位入力はVXSE43/45だけをU-Eへ対応し、同一入力の複数subjectを原子的に一回の参照交換で適用する。A1共通検証後はEventID存在→Serial存在→EventID妥当性→Serial妥当性→InfoType別必須構造存在→妥当性の順で最初の一RejectionReasonだけを返す。取消報はBodyのEarthquake/Intensity/Forecast欠落を合法、VXSE45非取消は区域0件を合法とし、それ以外のquestionResolutions[Q-ENUM].familyTable違反はrejectedでcurrent/gate/watermark/intent/unit state不変。VXSE44はA1受信入口で明示無視し、A4には届かない。",
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:609 «996d1ffc74a90315»",
           "docs/specs/reconstruction-p0-contracts.md:616 «ea3e5e78f369ae4f»",
@@ -304,11 +401,11 @@
       },
       {
         "id": "P2-A4-AC05",
-        "requirement": "toEewView、区分付きNotificationIntent、PublishedOutcomeの4種unionを同じ採用結果から作る。D7=Aでtraining/testは表示明示・soundなし、desktopはQ-NOTICE未決",
+        "requirement": "toEewView、区分付きNotificationIntent、PublishedOutcomeの4種unionを同じ採用結果から作る。D7=Aでtraining/testは表示明示・soundなし、desktopはR28/Q-NOTICEの区分付き文言を生成",
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:948 «2329df574f1ba7a9»",
           "docs/specs/reconstruction-p0-contracts.md:964 «ce08540175205737»",
-          "reconstruction/contracts/p2-order-plan.md:240 «b527493f241b4ca5»"
+          "reconstruction/contracts/p2-order-plan.md:240 «e6affb2f22f5b3a7»"
         ]
       },
       {
@@ -355,6 +452,15 @@
           "reconstruction/contracts/p2-shared-runtime.json",
           "reconstruction/contracts/p2-eew-unit.types.ts"
         ]
+      },
+      {
+        "id": "P2-A4-AC11",
+        "requirement": "Q-NOTICE/R25/R27/R28/R29: generationTableの5通知機会をVXSE43/45で検収する。新intent採用channelの同operation＋eventId旧pendingはlatest-only、取消は両channel、delivered不変、非通知続報はpending維持。payloadはA4 EewNotificationPayload/payloadRulesを正本とし、normalは2 channel、training/testはdesktopのみ。createdAtは同世代採用clock.wallTimeMs、両channel同時刻、expiresAt=createdAt+15000。latchRulesによりvxse45Acceptedは意味受理、通知済み2 flagはintent集合採用で立て、容量不足なら通知済みにしない。最後のcurrent/gate退去で回収、保存対象外、復元時空、再起動後の再通知抑止は保証しない。収容はcapacityの原子的処理で行う。",
+        "evidenceRefs": [
+          "src/engine/notification/notifier.ts",
+          "src/engine/presentation/level-helpers.ts",
+          "reconstruction/tools/corpus/manifest.json"
+        ]
       }
     ],
     "testMapping": [
@@ -364,7 +470,7 @@
         "referenceIds": [
           "P2-A4-AC01"
         ],
-        "behavior": "VXSE43/44/45の取消縮退・VXSE45区域なしを受理し、identity/構造の複数不備は固定順の一reasonで原子的に拒否してcurrent/gate/watermark/intentを不変にする"
+        "behavior": "VXSE43/45の取消縮退・VXSE45区域なしを受理し、identity/構造の複数不備は固定順の一reasonで原子的に拒否してcurrent/gate/watermark/intentを不変にする VXSE44はA1入口で無視する。"
       },
       {
         "testId": "P2-A4-T02",
@@ -381,7 +487,7 @@
         "referenceIds": [
           "P2-A4-AC04"
         ],
-        "behavior": "codec roundtripとnon-durable current除外"
+        "behavior": "既存codec roundtripでcurrent/gatesとnotificationLatchesの保存除外、復元時latch空を確認する。再起動後の再通知抑止保証として扱わない"
       },
       {
         "testId": "P2-A4-T04",
@@ -419,6 +525,14 @@
           "P2-A4-AC10"
         ],
         "behavior": "容量拒否は検証済みfamily/拒否報日時/subject全体scopeをrejectionへ返す。正常current採用は今回報由来currentEstablishedを返し、保存世代不変でも欠落させない。intentUpdate/期限/restoreは解除根拠を返さず、rejected/unchangedをchangedに偽装しない。Serialで意味採用された報でも拒否日時以前ならA1側では解除されないことをA1 T09と結線して確認する"
+      },
+      {
+        "testId": "P2-A4-T11",
+        "purpose": "corpusHistory",
+        "referenceIds": [
+          "P2-A4-AC11"
+        ],
+        "behavior": "既存T04/T05/T11の人工通知系列を修正し、同eventのVXSE43→VXSE45→VXSE43でfamilyを跨ぐlatch、通知採用の同channel旧pending全置換、非通知続報で維持、取消で両channel置換、delivered不変を確認する。収容失敗→後続機会の収容成功で通知済みflagだけが採用時に立つこと、一方のfamily退去ではlatchを保ち最後の根拠退去で回収することを同系列に含める。両channelのpayloadとtraining区分文言をA4正本と照合する。同一EventIDのnormal/training交差は人工境界試験と明記する。正式33報部分はA7 questionResolutions[P2-A7-PRIVATE-EEW-EVIDENCE]の明示コマンドでprivate corpusを使って実行する。通常試験には公開fixture/人工境界部分だけを置き、公開環境での正式検収はblocked。"
       }
     ],
     "requiredCommands": [
@@ -470,39 +584,32 @@
         "target": "reconstruction/test/",
         "stage": "implementation",
         "purpose": "永続化・共有状態の順序依存検査"
+      },
+      {
+        "command": "node reconstruction/test/integration/private-eew.mjs --private-corpus \"/absolute/path/to/private-corpus\"",
+        "cwd": ".",
+        "target": "reconstruction/test/integration/private-eew.mjs",
+        "stage": "implementation",
+        "purpose": "A7 questionResolutions[P2-A7-PRIVATE-EEW-EVIDENCE]に従う正式A4-T11/A7・A3 E21のprivate限定検収。A3追実装で入口を用意し、公開CI/通常試験からは実行しない。private corpus無しはblocked/非0終了。"
       }
     ],
     "artifactRequirements": [
       "§13.3の9段をA3 composition root結線後の一経路で証明する。無いとreducer単体だけで保存・終了・復元が未接続のまま完了扱いになる",
       "EewUnitCodec一つだけを実装する。無いとA3がU-Eを捕捉・復元できず、複数codecならschema選択が曖昧になる",
       "追実装で閉じる項目(A4-R14): RES-02のnormal保護admission、検証済み日時と文字列tupleの最古順・同順位規則を実装し、退去と採用を一回のstate参照交換で原子的に適用する。無いとtraining/test占有でnormalを拒否し、受理不能入力でも先行退去だけが残る。受理不能なら退去を確定せずstateを不変にし、確定した容量退去だけを共有eewCapacityEvictedと既存DiagnosticDetailsのfieldで返す。容量退去を取消・unavailableへ変換しない。T06-R14で混在511/512/513件、normalのみ満杯、training/test流入、選定順、拒否時不変、退去診断を検収する。既存retainedPredictionと最新rawの境界、codec保存field、512上限、allowedPathsは変えない容量不受理はAC06の専用decisionを採用する。このvariantがないとstate不変の正常構造入力の容量不受理を公開型で返せず、構造不正や退去診断へ誤分類する。",
-      "同一EventIDのnormal/training交差fixtureは新規syntheticを作らず、必要仕様をQ-NOTICE requiredEvidenceに残す",
+      "同一EventIDのnormal/training交差は人工の境界試験と明記し、実系列と呼ばない",
       "1実装interface、factory、registry、outbox、将来用extension pointを追加しない",
       "allowed_paths限定patch、変更一覧、build/test/shuffle結果、未実行検証、残存リスク",
       "純粋な意味関数とreduceUnitはDiagnosticDetailsだけを返し、runtimeがtimestamp/runIdを付与する。各subjectのdecisionsを系列oracleのdecision/reason/changeと照合し、duplicate/stale/noChangeを区別する。識別不能な拒否ではsubjectを空文字にし、架空の業務identityを作らない。",
       "EewPredictionの具体型がないとA9が全体最大・区域code・From/To・区域なし・unknownを別キーへ投影できるため、A4を正本にしA8はEewUnitViewをそのまま運んで別の予想震度型を作らない",
       "EewInput.intentUpdateはA1が照合済みのNotificationIntentUpdate（id/attempts/nextAttemptAt/disposition）と明示clockを受け、reduceEewUnitで反映する。完了結果を必須にしないため選択時のattempts/nextAttemptAtだけの変更にも使い、その場合dispositionは現在値のままとする。無いと選択時の保存更新がA1の唯一の更新入口を迂回する。raw NotificationResultの照合はA1内部のA7純関数が所有し、未知id・同値更新はno-op、変更時だけdeliveryOnlyで保存世代を進める",
-      "A4実装者へ提示する変更境界(R13): 全EewInputのnowMsをClockReadingへ置換し、EewUnitStep.nextDeadlineのwallTimeMs/monotonicMsを独立のnumber|nullとして返す。有効期限のいずれかが到来すれば配送、両方なしなら外側のnull。A1はRuntimeState.units[\"U-E\"]へ具体結線し、到来deadlineとshutdownを同じreduceRuntime呼出し内で配送する。旧notificationResult入力は3 unit共通のintentUpdate入力へ置換し、完了結果なしの選択時もattempts/nextAttemptAtと維持したdispositionを渡せる。完了時も同じ入口で照合済み更新だけを受ける。A4はtimer、配送済み入力slot、RuntimeState更新、A7呼出しを所有しない。無いとB2の時計対応、B3のbatch終了、B4の選択時保存更新をA1から一意に駆動できない",
+      "A4実装者へ提示する変更境界(R13): 全EewInputのnowMsをClockReadingへ置換し、EewUnitStep.nextDeadlineのwallTimeMs/monotonicMsを独立のnumber|nullとして返す。有効期限のいずれかが到来すれば配送、両方なしなら外側のnull。A1はRuntimeState.units[\"U-E\"]へ具体結線し、到来deadlineとshutdownを同じreduceRuntime呼出し内で配送する。旧notificationResult入力は3 unit共通のintentUpdate入力へ置換し、完了結果なしの選択時も、試行開始だけならattempts/nextAttemptAtと維持したdispositionを渡し、A7の期限回収ならattempt無しでpending→expiredのintentUpdateを渡せる。完了時も同じ入口で照合済み更新だけを受ける。A4はtimer、配送済み入力slot、RuntimeState更新、A7呼出しを所有しない。無いとB2の時計対応、B3のbatch終了、B4の選択時保存更新をA1から一意に駆動できない",
       "追実装で閉じる項目(A4): 別cloneの実装は上記ClockReading/nextDeadline契約、既存shutdown入力、新しいintentUpdate入力を採用する。期限前は同じEewUnitState参照と空のdecisions/intents/outcomes/diagnosticsを返す。選択時のattempts/nextAttemptAt更新と完了時のdisposition更新を同じ入口で検収し、完了結果の捏造をしない",
       "追実装で閉じる項目(A4-retainedPrediction): 実装レビューで示された予想震度の保持根拠をEewCurrent.retainedPredictionへ移し、AC02の報単位の保持・更新・解除を実装する。このfieldがないと既知予想震度の根拠を公開型で示せず、unknown続報時に最新prediction/sourceやoutcomeのrawを過去値で上書きする。current/outcomeは最新raw・最新出典、retainedPredictionは保持元一報のprediction/sourceとし、EewUnitViewを通して両者を同時に公開する。PersistedEewUnit・codecの保存fieldは増やさない既知値の有無で全合法値の組合せをAC02どおりに処理し、missing/emptyだけでも既存根拠を維持する。無いと合法な欠落・空の続報で根拠が失われ、次のunknownで誤降格する。T02の既知→missing/empty→unknownを含め検収し、raw分類は変更しない。",
-      "P2-A4-AC10/R20: decisionのrejection/currentEstablishedがないとstate不変の拒否日時とnon-durable正常採用をA1が照合できない。A4は根拠だけを載せ、拒否枠・上限・解除の正本はA1 Q-R20-CLEARに置く"
+      "P2-A4-AC10/R20: decisionのrejection/currentEstablishedがないとstate不変の拒否日時とnon-durable正常採用をA1が照合できない。A4は根拠だけを載せ、拒否枠・上限・解除の正本はA1 Q-R20-CLEARに置く",
+      "追実装で閉じる項目(A4-Q-NOTICE): P2-A4-AC11の生成表・payloadRules・latchRules・capacityを正本とする。無いとfamily交差で古いpendingが残り、A7がpayloadを推測し、未採用intentを通知済みにする。既存reduceEewUnitで意味受理→新intent集合の収容/置換→latch更新/回収を同じ採用にまとめる。新helper/保存fieldを増やさない。O07:16〜18のintents:nullは本T11の契約期待で検収する。",
+      "P2-A4-AC11/R29: A7 questionResolutions[P2-A7-PRIVATE-EEW-EVIDENCE]に従い正式33報・気象庁サンプル・人工境界試験を区別する。既存T11の正式部分だけをA3所有のprivate専用入口で検収し、npm test/公開CIへ入れない。原本の搬入は契約外。"
     ],
-    "unresolvedQuestions": [
-      {
-        "id": "Q-NOTICE",
-        "owner": "integrator",
-        "blocks": [
-          "normal EEWのdesktop/sound intent生成条件",
-          "training/test desktop採否と文言",
-          "取消・失効・置換時のchannel別intent"
-        ],
-        "resolveBy": "P2通常EEW通知契約A7開始前",
-        "requiredEvidence": [
-          "新fixture仕様: route=eew.warningまたはeew.forecast、headType=VXSE43/44/45、normalとtrainingで同じ非空EventID、Serialは順序と取消対象を判定できる連番、原ReportDateTimeとreceivedAtを固定、期待は区分間current/gate更新0・交差取消0・normalだけsound候補",
-          "取得元・取得日時・元XML hash。syntheticは作らない",
-          "D7=Aの表示明示・soundなしとdesktop採否、15秒TTL内の取消・置換期待"
-        ]
-      }
-    ]
+    "unresolvedQuestions": []
   }
 }

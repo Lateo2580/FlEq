@@ -79,7 +79,7 @@ P2 行は D-AC ID を指定していない。一方、最小 Chrome 経路は次
 | A4 `P2-eew-unit-001` | M01、I-U-E | `EewUnitState/PersistedEewUnit/EewUnitView`、`EewInput`、`reduceEewUnit`、唯一の codec、`toEewView` | A1、P1、A3のcodec契約 | current/gateはN、intentはD、512 subject、15秒TTL、報番号・終端・取消・operation交差、family固有identity/必須構造検証 | 地震観測、津波、最終GIS、P4 scene | O07:15-18、O09のEEW意味部、E13、D-AC14先行証拠 |
 | A5 `P2-weather-current-001` | M06、I-U-W | `WeatherCurrentUnitState/PersistedWeatherCurrentUnit/WeatherCurrentUnitView`、`WeatherCurrentInput`、`reduceWeatherCurrentUnit`、codec、`toWeatherCurrentView` | A1、P1、A3のcodec契約 | 全国base1/履歴2、partial128/履歴8、所有現象、freshness target、取消復元、16MiB、官署/subject/必須構造検証 | VPWW56、VPNO50のP2非対象分岐を推測実装、旧移行 tool | O04/O06（D5のP2 subset）、E10、E13、spec:1192（意味鮮度の対象束縛） |
 | A6 `P2-weather-timeseries-001` | M08、I-U-F | `WeatherTimeseriesUnitState/PersistedWeatherTimeseriesUnit/WeatherTimeseriesUnitView`、`WeatherTimeseriesInput`、`reduceWeatherTimeseriesUnit`、codec、`toWeatherTimeseriesView` | A1、P1、A3のcodec契約 | subject / period、194 period、正常empty、gate-only、取消、7日、512 subject、32MiB、意味入力`RejectionReason`と`unavailable` reason、subject/period必須構造検証 | VPTA50、カード幅に合わせた削減、P4詳細API | O02(P2範囲)、E13 |
-| A7 `P2-notification-delivery-001` | B09、U-E intent接続 | `NotificationAttempt/Result`、`selectNotificationAttempt`、`applyNotificationResult` | A1、A4、A3 | 分野別根音、EEW優先、初回1秒、channel別1件、timeout / abort / 隔離 / TTL、intent保存順 | exactly-once、独立outbox、津波通知、旧築handoff | O07:15-18、O10通知枝、E21、spec:956・987（緊急初回試行） |
+| A7 `P2-notification-delivery-001` | B09、U-E/U-W/U-F intent配送 | `NotificationAttempt/Result`、選択・結果照合・実adapter試行/abort/停止確認 | A1/A3、A4〜A6配送境界（Wave 4のR24順） | R24〜R30/Q-NOTICE、分野別20音、固定優先、初回1秒、channel別1件、単調timeout/停止/再試行、単位別TTL/容量、保存予約後dispatch | exactly-once、独立outbox、津波意味生成、旧築handoff | O07:15-18（通知期待は契約検収）、O10通知枝のみ、E21（A7単体→A3結線後最終、正式33報はprivate corpus専用） |
 | A8 `P2-snapshot-sse-001` | B08、B11のP2最小範囲 | `DisplayVersion`、P2 `DisplaySnapshot`、`projectSnapshot`、snapshot / SSE / health handler | A1、A4〜A6、A3 | 完全snapshot、最新1枚、client待機1枚、1MiB、heartbeat、healthとworker状態分離、slow client | §7.10詳細、全12分野、静的asset設計、P4認証拡張 | E01のT3〜T5、E02、D-AC02/12先行証拠 |
 | A9 `P2-chrome-eew-001` | D02と、D05/D07/D11のEEW最小部分 | native `EventSource` client、EEW card/map paint marker、時計対応 probe | A8、A4、凍結済み測定manifest | 前景Chrome、固定viewport/DPR、snapshot置換、EEW card＋必要な予想震度表示の同一paint、T5/T6 | hover、詳細、ページ送り、県focus、津波、LOD、最終意匠 | E01、D-AC02/12/14/24先行証拠 |
 | A10 `P2-eew-e01-001` | P2統合・測定・条件付き§7.6 | 製品経路の replay / trace runner と版付き結果。汎用benchmark frameworkは作らない | A1〜A9 | N/P/C、3母集団、T0〜T6、100 warm-up、1000×3 run、時計区間、A/B原因判定、E15対応 | 津波母集団、personal最終配線、P4容量縮退・詳細 | O09(P2範囲)、E01、E03/E05/E06/E12、E15 |
@@ -108,14 +108,14 @@ A1は共通Head・報告日時検証（`validateSemanticEnvelope`）と`Rejectio
 ### 3.1 依存グラフ
 
 ```text
-P1-PARSER-BOUNDARY-001
-  └─ A1 shared-runtime
-       ├─ A2 mailbox ───────────────┐
-       ├─ A3 checkpoint-shutdown ───┼──────────────┐
-       ├─ A4 I-U-E ─────────────┐   │              │
-       ├─ A5 I-U-W ─────────────┼───┼─ A8 SSE ─ A9 Chrome ─ A10 E01
-       └─ A6 I-U-F ─────────────┘   │              │
-                                    └─ A7 notification ┘
+P1 → A1 shared-runtime → A2 mailbox
+A1/A2 → A3 checkpoint-shutdown
+P1/A1/A3 → A4 I-U-E
+P1/A1/A3 → A5 I-U-W
+P1/A1/A3 → A6 I-U-F
+A1/A3/A4/A5/A6 → A7 notification（R24、Wave 4条件）
+A3/A4/A5/A6 → A8 SSE → A9 Chrome
+A3/A7/A8/A9 → A10 E01
 ```
 
 発注波は次の順とする。
@@ -124,7 +124,7 @@ P1-PARSER-BOUNDARY-001
 2. **Wave 1**: A1。
 3. **Wave 2**: A2とA3。公開型凍結後なら実装を並走できる。
 4. **Wave 3**: A4、A5、A6の独立実装は並走できる。各担当は自unit/test directoryを所有する。各unitの実装配送ごとに、A3担当がcomposition rootへreducer・codec・期限・view/outcome/intentを直列に結線し、unit担当と保存障害・通常終了・復元直後続報を再検収する。9段の証拠が揃うまで当該unitは未完了。A3契約に後続結線用allowed_pathsと再検収工程を事前に含める。
-5. **Wave 4**: A7とA8を並走できる。A7はA4、A8はA4〜A6の公開view凍結が条件。配送ごとにA3担当がadapter/出力を結線し、実通知結果・SSEを含む保存障害・終了・復元を再検収して各unitの9段証拠を更新する。
+5. **Wave 4**: A7はA1改訂→Q-NOTICE確定→A4 intent生成→A7改訂→baseOid割当→発注（R24）の順と、A4/A5/A6の3単位配送境界・型の凍結を条件とする。desktop体験はR30=A（2026-09-23 ご主人）で確定。正式EEW証拠の保管/実行はA7のP2-A7-PRIVATE-EEW-EVIDENCEに従い、private repoのpersonalのみ、公開環境では正式検収blockedとする。搬入は統合担当の契約外作業。A8はA4〜A6の公開view凍結が条件で、条件成立後はA7と並走できる。配送ごとにA3担当がadapter/出力を結線し、実通知結果・SSEを含む保存障害・終了・復元を再検収して各unitの9段証拠を更新する。
 6. **Wave 5**: A9。
 7. **Wave 6**: A10。A/B判定で B が必要になった場合だけ、A10の契約改訂または後続 `P2-parse-worker-001` を発注し、同じ manifest で再測定する。
 
@@ -219,12 +219,12 @@ A4〜A6を並走させる前に共有型を凍結する。共有ファイルの�
    **推奨 A**。E01のT6には地図が必要だが、47県/1,892区域、LOD、hit testはP4である。固定資材の出典・対象code・期待pixel/geometry集合は未記載なので凍結が必要だ。
 
 6. **D7 training/test通知**
-   A: training/testは表示でoperationを明示し、soundは鳴らさない。desktopの採否と文言はA7前に固定する。B: 通常と同じchannelを低優先群で試行する。
-   **推奨 A**。specの開始案はtraining/test soundなしで、採用時も通常緊急を追い越さない（同 `:672`、`:964`）。Q7表は裁定済みだが、P1が引き継いだchannel別条件は未確定（`reconstruction/contracts/p1-parser-boundary.json:51`〜`:55`）。
+   A: training/testは区分付きdesktopだけを生成し、soundは生成しない（R28=A）。B: 通常と同じchannelを低優先群で試行する。
+   **推奨 A**。specの開始案はtraining/test soundなしで、採用時も通常緊急を追い越さない（同 `:672`、`:964`）。Q7から引き継いだchannel別条件もQ-NOTICE/R28で確定（`reconstruction/contracts/p1-parser-boundary.json:51`〜`:55`）。
 
 7. **D8 分野別根音表の搬入**
    A: Vault由来表をcheckout内の版付きspecへ統合してからA7を起草。B: A7で仮のtone IDだけを固定し音資材は後送。
-   **推奨 A**。§6.2は新築での実装を要求するが、参照する根音表の実体はこのcheckoutにない（`docs/specs/reconstruction-p0-contracts.md:944`）。checkout外参照のまま再現不能な契約にしない。
+   **推奨 A**。§6.2が要求する根音表v1はdocs/specs/sound-design-system.mdへ搬入済み（`docs/specs/reconstruction-p0-contracts.md:944`）。checkout外参照のまま再現不能な契約にしない。
 
 8. **D9 P1公開型の改訂**
    A: `ParserMailboxItem`を変えず、B05の薄い `MailboxEnvelope` にT0・enqueue時刻・run IDを置き、`inputId`でdecode結果と照合。B: `ParserMailboxItem`へ単調T0、`DecodedMaterial`へ単調T0・inputSequence・receivedAtを追加するP1契約改訂。`ParserMailboxItem`のinputSequence・receivedAtは既存fieldで、再追加しない。
@@ -237,7 +237,7 @@ A4〜A6を並走させる前に共有型を凍結する。共有ファイルの�
 | ID | 現在のowner / 期限 | P2で閉じる内容 | 配置先 |
 |---|---|---|---|
 | Q-ENUM | `implementer` / 最初の対象I-U-* reducer契約凍結前（`reconstruction/contracts/p1-parser-boundary.json:535`〜`:541`） | parser拒否・意味入力の`RejectionReason`・意味上`unavailable`を分離したreason表。identity/日時/必須構造検証とscope・lastKnown・affectedScopeを固定 | A1とA4/A5/A6の契約凍結前 |
-| Q-NOTICE | `integrator` / P2通常EEW通知契約開始前 | EEW intent生成条件、desktop/sound、15秒TTL、取消・失効・置換、training/test | A4/A7 |
+| Q-NOTICE（EEW closed） | 2026-09-23 R24〜R29/Q-NOTICE | 旧築5機会、U-EのVXSE43/45、三区分のdesktop/sound、15秒TTL、取消・訂正・置換、単調期限、正式33報はprivate corpus専用（明示コマンドはA7のP2-A7-PRIVATE-EEW-EVIDENCE）、公開CIは気象庁サンプルと人工境界試験。77_01_33取消は気象庁作例で実系列に無い。証拠区分をA4/A7へ固定。VPWP50は生成0。corpus の他family通知は別途未決。 | A4/A7（A1/A3結線） |
 | Q-VALUES（closed） | 2026-09-23 R22 裁定 | VPWP50未知Codeの扱いはA6 questionResolutions[Q-VALUES]。最低warning表示はP4/A8 | A6 |
 | Q-REV | `integrator` / O06対象Unit契約前 | 同revision訂正、時刻/Serial、連続取消の対象版。U-Fの同時刻訂正は別ID Q-REV-UF（既存gateを保つ既定でA6を発注） | A5/A6 |
 | Q-MIGRATION | `integrator` / O04/O06/O07移行oracle前 | P2は明示的な新築初期状態生成と元事例との対応をA5前に固定。旧checkpoint operation証明・O04:2/O06:29-30の変換検収はP3移行契約前に固定 | A5/A10、P3移行担当 |
@@ -312,4 +312,3 @@ P1（src約500行、test 12本、レビュー3巡）は規模の参考であり�
 | IR14 | queue 年齢の 3 窓連続増加をそのまま不合格にする式は誤検出する | §9.9 E07 `:2058`: 3 窓連続増加は要調査シグナル、合否は宣言上限・通常入力の最大待機年齢（暫定 5 秒）・入力停止後の排出（暫定 10 秒）・周期末 backlog 非増加 | A2 mailbox | E07（`:2058`） |
 
 IR02（運用区分の全経路伝播）は P1 で三判定源を閉じ、P2 では EEW の通常／訓練交差系列（A4）へ引き継ぐ。IR15（intent 同居による encode 回数）は E10／E15 の計測として A3 が報告する。上記以外の IR（04／05／07／09〜13）は P3／P4 の該当契約前に扱う（元レビュー最終判定）。
-

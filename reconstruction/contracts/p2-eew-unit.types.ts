@@ -35,7 +35,7 @@ export type EewPrediction = Readonly<{
 export type EewCurrent = Readonly<{
   subject: string;
   operation: Operation;
-  family: "VXSE43" | "VXSE44" | "VXSE45";
+  family: "VXSE43" | "VXSE45";
   source: ReportRef;
   serial: number;
   terminal: boolean;
@@ -59,18 +59,36 @@ export type EewDeliveryRecord = Readonly<{
   expiresAt: number;
 }>;
 
+export type EewNotificationLatch = Readonly<{
+  // P2-A4-AC11: operation + validated EventID, never the family-bearing subject.
+  eventId: string;
+  operation: Operation;
+  firstReportNotified: boolean;
+  warningNotified: boolean;
+  vxse45Accepted: boolean;
+}>;
+
+// P2-A4-AC11: both channels carry the same owner-generated payload; A7 reads it unchanged.
+export type EewNotificationPayload = Readonly<{
+  domain: "earthquake-eew";
+  level: "warning" | "critical" | "cancel";
+  title: string;
+  body: string;
+}>;
+
 export type EewUnitState = Readonly<{
   schemaVersion: "p2-eew-unit-v1";
   current: readonly EewCurrent[];
   gates: readonly EewGate[];
-  intents: readonly NotificationIntent[];
+  intents: readonly (NotificationIntent & Readonly<{ payload: EewNotificationPayload }>)[];
   deliveryRecords: readonly EewDeliveryRecord[];
+  notificationLatches: readonly EewNotificationLatch[];
   persistence: PersistenceStatus;
 }>;
 
 export type PersistedEewUnit = Readonly<{
   schemaVersion: "p2-eew-unit-v1";
-  intents: readonly NotificationIntent[];
+  intents: readonly (NotificationIntent & Readonly<{ payload: EewNotificationPayload }>)[];
   deliveryRecords: readonly EewDeliveryRecord[];
 }>;
 
@@ -97,7 +115,7 @@ export type EewUnitStep = Readonly<{
     | Readonly<{ decision: "capacityExceeded"; rejection: AdmissionEvidence & Readonly<{ affectedScope: "subject" }> }>
     | Readonly<{ decision: "changed"; reason: null; change: "semantic" | "revisionOnly" | "deliveryOnly"; currentEstablished: (AdmissionEvidence & Readonly<{ affectedScope: "subject" }>) | null }>
   ))[];
-  intents: readonly NotificationIntent[];
+  intents: readonly (NotificationIntent & Readonly<{ payload: EewNotificationPayload }>)[];
   outcomes: readonly PublishedOutcome[];
   diagnostics: readonly DiagnosticDetails[];
 }>;

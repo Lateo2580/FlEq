@@ -92,6 +92,7 @@ export type NotificationIntent = Readonly<{
   source: ReportRef;
   transition: NotificationTransition;
   channel: "desktop" | "sound";
+  // U-E keys/value domain: A4 EewNotificationPayload; other families keep their owner contract.
   payload: Readonly<Record<string, JsonValue>>;
   createdAt: number;
   expiresAt: number;
@@ -201,7 +202,8 @@ export type InfrastructureDiagnosticReason =
   | "snapshotStringLimitExceeded";
 
 export type DiagnosticReason = ParserDiagnosticReason | RejectionReason | InfrastructureDiagnosticReason
-  | "weatherCurrentCapacityEvicted" | "eewCapacityEvicted";
+  | "weatherCurrentCapacityEvicted" | "eewCapacityEvicted"
+  | "notificationAttemptFailed" | "notificationExpired" | "notificationCapacityEvicted" | "notificationAdapterIsolated";
 
 export type DiagnosticDetails = Readonly<{
   level: DiagnosticLevel;
@@ -306,6 +308,7 @@ export type RuntimeState<UnitStates extends RuntimeUnitStates = RuntimeUnitState
   checkpointAttempts: Readonly<Partial<Record<RuntimeUnitId, PendingCheckpointAttempt>>>;
   deadlines: Readonly<Record<RuntimeUnitId, RuntimeUnitDeadline | null>>;
   notificationChannels: NotificationDeliveryState["channels"];
+  notificationDeadlines: NotificationDeliveryState["deadlines"];
   shutdown: ShutdownState;
 }>;
 
@@ -317,7 +320,7 @@ export type RuntimeStep<UnitStates extends RuntimeUnitStates = RuntimeUnitStates
   generationInputIds: Readonly<Partial<Record<RuntimeUnitId, readonly string[]>>>;
   checkpointRequests: readonly CheckpointRequest[];
   notificationAttempts: NotificationSelection["attempts"];
-  abortAttemptIds: NotificationSelection["abortAttemptIds"];
+  abortRequests: NotificationSelection["abortRequests"];
   effects: readonly RuntimeEffect[];
   shutdownSummary: ShutdownSummary | null;
   outcomes: readonly PublishedOutcome[];
