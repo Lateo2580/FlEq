@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "3095a6c21caa96e06fc3b3a6d2f906534ef5441b",
-    "sha256": "dc6ad7d94fe97f2875587433b78c7851c455b2bf86c8dae5651582b16e83c7ba",
+    "sha256": "91e6bc866a0e0f1d56b34b51ad10d81c93e193b43550ca35c76855071f928faf",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "76c82b87d7783a4eae14af690cb34e7d6ec46f73617dc75b7f7401951619f080",
     "sequencesSha256": "be9cfd97b555e3a55568f085d107342c978b3dc7249f5cecea868ea5a62c5781",
@@ -454,7 +454,7 @@
       },
       {
         "id": "P2-A3-AC11",
-        "requirement": "A7結線後、所有unitの保存予約後・ack前にnotificationAttemptsを実adapterへdispatchし、P2-A7-TIMEの壁時計TTL/単調期限をcontrol入力で駆動する。abortRequestsのattemptId/causeをA7停止口へ渡し、終了はcause=shutdownと段階期限を使う。terminal NotificationResultはrunNotificationAttemptのPromiseから一度だけA1へ戻し、abort側の停止確認を二つ目のterminal結果として配送しない。4通知reasonを永続sinkのallowlistへ加え再起動後readDiagnosticsで検収する。O07:17は保存ack済み・配送保留、保存予約後ack遅延中dispatchは別条件。E21はA7負荷表v1でOS別に結線検収する。",
+        "requirement": "A7結線後、所有unitの保存予約後・ack前にnotificationAttemptsを実adapterへdispatchし、P2-A7-TIMEの壁時計TTL/単調期限をcontrol入力で駆動する。abortRequestsのattemptId/causeをA7停止口へ渡し、終了停止のcause=shutdownと停止期限はA1のRuntimeStep.abortRequests/notificationChannelsからそのまま転送し、A3では決め直さない。terminal NotificationResultはrunNotificationAttemptのPromiseから一度だけA1へ戻し、abort側の停止確認を二つ目のterminal結果として配送しない。4通知reasonを永続sinkのallowlistへ加え再起動後readDiagnosticsで検収する。O07:17は保存ack済み・配送保留、保存予約後ack遅延中dispatchは別条件。E21はA7負荷表v1でOS別に結線検収する。",
         "evidenceRefs": [
           "reconstruction/src/runtime/composition-root.ts",
           "reconstruction/src/checkpoint/persistent-diagnostic-sink.ts"
@@ -670,7 +670,7 @@
       "追実装で閉じる項目(A3-link-A4A5): composition-root.tsに配送済み単位のlinkedUnitCodecs（U-E eewUnitCodec・U-W weatherCurrentUnitCodec）とlinkedRuntimeCalls（reduceEewUnit/toEewView/reduceWeatherCurrentUnit/toWeatherCurrentView）を置き、U-F（A6）・A7は各配送時にここへ足す。世代帰属はP2-A3-AC10に従い、dispatchが世代変化とA1のgenerationInputIdsを照合する。parser入力やchangedUnitsからの帰属推定と明示correlation優先を廃止する。無いと同じstepで別unitの期限回収だけが進んだ保存へparserのinputIdが混ざる。A5 T05の保存世代の期待値はA3担当の結線後再検収として更新した（routedな旧報がU-Wへstaleとして届きfreshness記録だけで世代+1、計画§2.1）。A6配送前はshutdownとdeadlineがU-Fも訪れるため、linkedRuntimeCalls単独では停止できない。結線試験はU-Fを明示の空stubで受け、U-E/U-Wの通常終了はこの前提付きの証明とする",
       "P2-A3-AC09/R21: 製品入口の起動I/OがないとA1へ復元世代が渡らず次回起動で新報が消える。A3はrestore結果を一度だけ渡しstateを合成しない",
       "P2-A3-AC10/R45: 空inputIdsを帰属済みと扱わないと期限だけで進んだ保存世代が終了時にcode 2となる。A10計測は競合EEWをrunと時間区間で照合する",
-      "追実装で閉じる項目(A3-A7): P2-A7-AC03のrun/abort公開口へnotificationAttemptsとabortRequestsを渡す。無いとtimeoutの理由が失われ、停止確認とrun完了からterminal結果を二重採用する。abort側は停止要求/確認だけ、runのPromiseだけがNotificationResultを返す。保存予約後ack前dispatchとO07:17保存ack済み・配送保留を別条件で検収する。時計とE21負荷はA7の正本を参照し、4 reasonの永続allowlist/読取を閉じる。",
+      "追実装で閉じる項目(A3-A7): P2-A7-AC03のrun/abort公開口へnotificationAttemptsとabortRequestsをA1確定のcause/期限のまま渡す。無いとtimeoutの理由が失われ、停止確認とrun完了からterminal結果を二重採用する。abort側は停止要求/確認だけ、runのPromiseだけがNotificationResultを返す。保存予約後ack前dispatchとO07:17保存ack済み・配送保留を別条件で検収する。時計とE21負荷はA7の正本を参照し、4 reasonの永続allowlist/読取を閉じる。",
       "追実装で閉じる項目(A3-private-EEW): A7 questionResolutions[P2-A7-PRIVATE-EEW-EVIDENCE]の専用コマンド入口を既存T11/A4-T11/A7-T01の結線系列に設ける。無いと正式検収を公開試験から分離して実行できない。既存の生成・配送assertionを再利用し、独立した総当たりや汎用runnerを作らない。入口は既存allowedPathsのtest/integration/private-eew.mjsとし、正式検収のblockedを公開試験のskip成功へ変換しない。"
     ],
     "unresolvedQuestions": [

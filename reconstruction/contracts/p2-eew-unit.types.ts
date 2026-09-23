@@ -102,7 +102,8 @@ export type EewInput =
   | Readonly<{ kind: "receive"; material: DecodedMaterial; clock: ClockReading }>
   | Readonly<{ kind: "deadline"; clock: ClockReading }>
   | Readonly<{ kind: "restore"; persisted: PersistedEewUnit; clock: ClockReading }>
-  | Readonly<{ kind: "intentUpdate"; intentUpdate: NotificationIntentUpdate; clock: ClockReading }>
+  // A1-correlated updates; batch ids are distinct, with the same per-item semantics as a single update.
+  | Readonly<{ kind: "intentUpdate"; intentUpdate: NotificationIntentUpdate | readonly NotificationIntentUpdate[]; clock: ClockReading }>
   | Readonly<{ kind: "shutdown"; clock: ClockReading }>;
 
 export type EewUnitStep = Readonly<{

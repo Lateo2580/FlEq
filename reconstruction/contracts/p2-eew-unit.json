@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "fc7006e2380edf9a97b601d124341ba4bd7f7f42",
-    "sha256": "bdbfa45c0e5da339e0f4f32f96e6965c5c89aff32c792061d36275dbe7980dcd",
+    "sha256": "5e90f1151167d35bfab959947cd230ddc39515b90a2624997e893eac15f2e559",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "76c82b87d7783a4eae14af690cb34e7d6ec46f73617dc75b7f7401951619f080",
     "sequencesSha256": "be9cfd97b555e3a55568f085d107342c978b3dc7249f5cecea868ea5a62c5781",
@@ -602,7 +602,7 @@
       "allowed_paths限定patch、変更一覧、build/test/shuffle結果、未実行検証、残存リスク",
       "純粋な意味関数とreduceUnitはDiagnosticDetailsだけを返し、runtimeがtimestamp/runIdを付与する。各subjectのdecisionsを系列oracleのdecision/reason/changeと照合し、duplicate/stale/noChangeを区別する。識別不能な拒否ではsubjectを空文字にし、架空の業務identityを作らない。",
       "EewPredictionの具体型がないとA9が全体最大・区域code・From/To・区域なし・unknownを別キーへ投影できるため、A4を正本にしA8はEewUnitViewをそのまま運んで別の予想震度型を作らない",
-      "EewInput.intentUpdateはA1が照合済みのNotificationIntentUpdate（id/attempts/nextAttemptAt/disposition）と明示clockを受け、reduceEewUnitで反映する。完了結果を必須にしないため選択時のattempts/nextAttemptAtだけの変更にも使い、その場合dispositionは現在値のままとする。無いと選択時の保存更新がA1の唯一の更新入口を迂回する。raw NotificationResultの照合はA1内部のA7純関数が所有し、未知id・同値更新はno-op、変更時だけdeliveryOnlyで保存世代を進める",
+      "EewInput.intentUpdateはA1が照合済みのNotificationIntentUpdate（id/attempts/nextAttemptAt/disposition）と明示clockを受け、reduceEewUnitで反映する。完了結果を必須にしないため選択時のattempts/nextAttemptAtだけの変更にも使い、その場合dispositionは現在値のままとする。無いと選択時の保存更新がA1の唯一の更新入口を迂回する。raw NotificationResultの照合はA1内部のA7純関数が所有し、未知id・同値更新はno-op、変更時だけdeliveryOnlyで保存世代を進める intentUpdateの単件/一括配列の条件と採用意味はP2-A1のB4を正本とする。所有配列は一括で索引化・反映し、更新件数分の全配列再走査をしない。",
       "A4実装者へ提示する変更境界(R13): 全EewInputのnowMsをClockReadingへ置換し、EewUnitStep.nextDeadlineのwallTimeMs/monotonicMsを独立のnumber|nullとして返す。有効期限のいずれかが到来すれば配送、両方なしなら外側のnull。A1はRuntimeState.units[\"U-E\"]へ具体結線し、到来deadlineとshutdownを同じreduceRuntime呼出し内で配送する。旧notificationResult入力は3 unit共通のintentUpdate入力へ置換し、完了結果なしの選択時も、試行開始だけならattempts/nextAttemptAtと維持したdispositionを渡し、A7の期限回収ならattempt無しでpending→expiredのintentUpdateを渡せる。完了時も同じ入口で照合済み更新だけを受ける。A4はtimer、配送済み入力slot、RuntimeState更新、A7呼出しを所有しない。無いとB2の時計対応、B3のbatch終了、B4の選択時保存更新をA1から一意に駆動できない",
       "追実装で閉じる項目(A4): 別cloneの実装は上記ClockReading/nextDeadline契約、既存shutdown入力、新しいintentUpdate入力を採用する。期限前は同じEewUnitState参照と空のdecisions/intents/outcomes/diagnosticsを返す。選択時のattempts/nextAttemptAt更新と完了時のdisposition更新を同じ入口で検収し、完了結果の捏造をしない",
       "追実装で閉じる項目(A4-retainedPrediction): 実装レビューで示された予想震度の保持根拠をEewCurrent.retainedPredictionへ移し、AC02の報単位の保持・更新・解除を実装する。このfieldがないと既知予想震度の根拠を公開型で示せず、unknown続報時に最新prediction/sourceやoutcomeのrawを過去値で上書きする。current/outcomeは最新raw・最新出典、retainedPredictionは保持元一報のprediction/sourceとし、EewUnitViewを通して両者を同時に公開する。PersistedEewUnit・codecの保存fieldは増やさない既知値の有無で全合法値の組合せをAC02どおりに処理し、missing/emptyだけでも既存根拠を維持する。無いと合法な欠落・空の続報で根拠が失われ、次のunknownで誤降格する。T02の既知→missing/empty→unknownを含め検収し、raw分類は変更しない。",

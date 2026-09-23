@@ -146,33 +146,38 @@ function restore(state: EewUnitState, value: PersistedEewUnit, clock: ClockReadi
 
 function intentUpdate(state: EewUnitState,
   input: Extract<EewInput, { kind: "intentUpdate" }>): EewUnitStep {
-  const current = state.intents.find((item) => item.id === input.intentUpdate.id);
-  if (current == null || input.intentUpdate.attempts < current.attempts) return {
-    state, nextDeadline: nextEewDeadline(state), decisions: [],
-    intents: [], outcomes: [], diagnostics: [],
-  };
-  const disposition = input.clock.wallTimeMs >= current.expiresAt
-    ? "expired" as const : input.intentUpdate.disposition;
-  const updated = { ...current, ...input.intentUpdate, disposition };
-  if (JSON.stringify(updated) === JSON.stringify(current)) return {
+  const updates = "id" in input.intentUpdate ? [input.intentUpdate] : input.intentUpdate;
+  const originals = new Map(state.intents.map((item) => [item.id, item]));
+  const changed = new Map<string, EewUnitState["intents"][number]>();
+  let persistence = state.persistence;
+  for (const update of updates) {
+    const current = originals.get(update.id);
+    if (current == null || update.attempts < current.attempts) continue;
+    const disposition = input.clock.wallTimeMs >= current.expiresAt ? "expired" as const : update.disposition;
+    if (current.attempts === update.attempts && current.nextAttemptAt === update.nextAttemptAt
+      && current.disposition === disposition) continue;
+    changed.set(current.id, { ...current, ...update, disposition });
+    persistence = dirty(persistence, input.clock.monotonicMs);
+  }
+  if (changed.size === 0) return {
     state, nextDeadline: nextEewDeadline(state), decisions: [], intents: [], outcomes: [], diagnostics: [],
   };
-  const pending = disposition === "pending";
-  const next: EewUnitState = {
-    ...state,
-    intents: pending
-      ? state.intents.map((item) => item.id === updated.id ? updated : item)
-      : state.intents.filter((item) => item.id !== updated.id),
-    deliveryRecords: pending ? state.deliveryRecords : [...state.deliveryRecords,
-      { intentId: updated.id, disposition, expiresAt: updated.expiresAt }],
-    persistence: dirty(state.persistence, input.clock.monotonicMs),
+  const adopted = [...changed.values()];
+  const next: EewUnitState = { ...state,
+    intents: state.intents.flatMap((item) => {
+      const updated = changed.get(item.id);
+      return updated == null ? [item] : updated.disposition === "pending" ? [updated] : [];
+    }),
+    deliveryRecords: [...state.deliveryRecords, ...adopted.flatMap((item) => item.disposition === "pending" ? []
+      : [{ intentId: item.id, disposition: item.disposition, expiresAt: item.expiresAt }])],
+    persistence,
   };
   return {
     state: next, nextDeadline: nextEewDeadline(next),
-    decisions: [{ subject: current.subject, operation: current.operation,
-      decision: "changed", reason: null, change: "deliveryOnly", currentEstablished: null }],
-    intents: pending ? [updated] : [],
-    outcomes: [{ kind: "accepted", change: "deliveryOnly", subjects: [subject(updated, disposition)] }],
+    decisions: adopted.map((item) => ({ subject: item.subject, operation: item.operation,
+      decision: "changed", reason: null, change: "deliveryOnly", currentEstablished: null })),
+    intents: adopted.filter((item) => item.disposition === "pending"),
+    outcomes: adopted.map((item) => ({ kind: "accepted", change: "deliveryOnly", subjects: [subject(item, item.disposition)] })),
     diagnostics: [],
   };
 }
@@ -202,14 +207,17 @@ function reduceEewUnit(state: EewUnitState, input: EewInput): EewUnitStep {
   if (step.state === state && input.kind !== "deadline" && input.kind !== "shutdown") return step;
   let records = step.state.deliveryRecords.filter((record) => record.expiresAt > input.clock.wallTimeMs);
   let bytes = generationEnvelopeBytes + notificationArrayBytes(step.state.intents) + notificationArrayBytes(records);
+  // ponytail: sort once only above 256KiB; maintain expiry order if capacity eviction becomes frequent.
   if (bytes > GENERATION_BYTES) {
-    records.sort((left, right) => left.expiresAt - right.expiresAt);
-    let removed = 0;
-    while (bytes > GENERATION_BYTES && removed < records.length) {
-      bytes -= notificationArrayBytes([records[removed]]) - 2 + (records.length - removed > 1 ? 1 : 0);
-      removed++;
+    const oldestFirst = records.map((_, index) => index)
+      .sort((left, right) => records[left].expiresAt - records[right].expiresAt);
+    const removed = new Set<number>();
+    for (const index of oldestFirst) {
+      if (bytes <= GENERATION_BYTES) break;
+      bytes -= notificationArrayBytes([records[index]]) - 2 + (records.length - removed.size > 1 ? 1 : 0);
+      removed.add(index);
     }
-    records = records.slice(removed);
+    records = records.filter((_, index) => !removed.has(index));
   }
   if (records.length === step.state.deliveryRecords.length) return step;
   const next: EewUnitState = {

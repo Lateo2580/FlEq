@@ -610,6 +610,65 @@ describe("P2 EEW unit", () => {
     expect(following.state.intents).toEqual(accepted.state.intents);
   });
 
+  it("P2-A4-T11 contractBoundary: capacity pressure selects the oldest prefix once for metadata and receive", () => {
+    const notice = { ...pendingIntent(), attempts: 9 };
+    const records = Array.from({ length: 2_500 }, (_, index) => ({ intentId: `terminal-${index}`,
+      disposition: "delivered" as const, expiresAt: BASE_TIME + 20_000 + (index * 137 + 701) % 1_250 }));
+    const seed = { ...emptyState(), intents: [notice], deliveryRecords: records };
+    const envelope = { schemaVersion: seed.schemaVersion, unit: "U-E", generation: Number.MAX_SAFE_INTEGER,
+      capturedAt: Number.MAX_SAFE_INTEGER, payload: eewUnitCodec.encode(seed), sha256: "0".repeat(64) };
+    records[0] = { ...records[0], intentId: records[0].intentId + "x".repeat(262_144 - Buffer.byteLength(JSON.stringify(envelope))) };
+    const payload = eewUnitCodec.encode(seed);
+    expect(Buffer.byteLength(JSON.stringify({ ...envelope, payload }))).toBe(262_144);
+    const decoded = eewUnitCodec.decode(payload);
+    if (decoded.kind !== "restored") throw new Error("exact generation boundary must restore");
+    const earliest = records.reduce((left, right) => left.expiresAt <= right.expiresAt ? left : right);
+    let reads = 0;
+    for (const record of decoded.state.deliveryRecords) {
+      const expiresAt = record.expiresAt;
+      Object.defineProperty(record, "expiresAt", { enumerable: true, get: () => { reads++; return expiresAt; } });
+    }
+    const started = performance.now();
+    const updated = reduceEewUnit(decoded.state, { kind: "intentUpdate", clock: clock(BASE_TIME),
+      intentUpdate: { id: notice.id, attempts: 10, nextAttemptAt: notice.nextAttemptAt, disposition: "pending" } });
+    console.info("2500 terminal / attempts 9->10", { ms: performance.now() - started, expiresAtReads: reads });
+    const selectionBound = 4 * records.length * Math.ceil(Math.log2(records.length));
+    expect(reads).toBeLessThan(selectionBound);
+    expect(updated.state.deliveryRecords.map((record) => record.intentId))
+      .toEqual(records.filter((record) => record !== earliest).map((record) => record.intentId));
+    expect(updated.state.intents[0].attempts).toBe(10);
+    expect(eewUnitCodec.decode(eewUnitCodec.encode(updated.state)).kind).toBe("restored");
+    reads = 0;
+    const withinBudget = reduceEewUnit(updated.state, { kind: "intentUpdate", clock: clock(BASE_TIME),
+      intentUpdate: { id: notice.id, attempts: 11, nextAttemptAt: notice.nextAttemptAt, disposition: "pending" } });
+    expect(reads).toBeLessThan(3 * records.length);
+    expect(withinBudget.state.deliveryRecords).toEqual(updated.state.deliveryRecords);
+    for (const name of ["豊後水道", "震".repeat(6_000)]) {
+      const material = decodeFixture("37_01_01_240613_VXSE43", "VXSE43", (xml) =>
+        xml.replace("<Hypocenter><Area><Name>豊後水道</Name>", `<Hypocenter><Area><Name>${name}</Name>`));
+      const withoutRecords = receive({ ...decoded.state, deliveryRecords: [] }, material);
+      const candidates = [...records, ...withoutRecords.state.deliveryRecords];
+      const oldestFirst = [...candidates].sort((a, b) => a.expiresAt - b.expiresAt);
+      reads = 0;
+      const start = performance.now();
+      const received = receive(decoded.state, material);
+      const measuredReads = reads;
+      const removed = candidates.length - received.state.deliveryRecords.length;
+      console.info("2500 terminal / receive", { nameLength: name.length, removed,
+        expiresAtReads: measuredReads, ms: performance.now() - start });
+      expect(measuredReads).toBeLessThan(selectionBound);
+      expect(removed).toBeGreaterThan(name.length > 4 ? 100 : 1);
+      expect(received.intents.map((item) => item.channel)).toEqual(["desktop", "sound"]);
+      const expectedRemoved = new Set(oldestFirst.slice(0, removed).map((record) => record.intentId));
+      expect(received.state.deliveryRecords.map((record) => record.intentId))
+        .toEqual(candidates.filter((record) => !expectedRemoved.has(record.intentId)).map((record) => record.intentId));
+      const kept = eewUnitCodec.encode(received.state);
+      expect(eewUnitCodec.decode(kept).kind).toBe("restored");
+      expect(eewUnitCodec.decode({ ...kept,
+        deliveryRecords: [...kept.deliveryRecords, oldestFirst[removed - 1]] }).kind).toBe("invalid");
+    }
+  });
+
   it("P2-A4-T03 contractBoundary / AC04: codec roundtrip excludes current/gate and rejects exact next-byte overflow", () => {
     const active = receive(emptyState(), decodeFixture("37_01_01_240613_VXSE43", "VXSE43")).state;
     const state = { ...active, intents: [pendingIntent()] };

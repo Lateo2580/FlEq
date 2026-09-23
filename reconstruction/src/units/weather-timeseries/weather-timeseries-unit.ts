@@ -36,8 +36,8 @@ function dirty(persistence: PersistenceStatus, monotonicMs: number): Persistence
 }
 function deadline(state: WeatherTimeseriesUnitState): RuntimeUnitDeadline | null {
   const times = state.subjects.flatMap((item) => [item.validUntil, item.retainUntil]).filter((value): value is number => value != null);
-  const intentTimes = state.intents.filter((item) => item.disposition === "pending").map((item) => item.expiresAt);
-  return times.length + intentTimes.length === 0 ? null : { wallTimeMs: Math.min(...times, ...intentTimes), monotonicMs: null };
+  const wallTimeMs = state.intents.reduce((at, item) => Math.min(at, item.expiresAt), Math.min(...times));
+  return wallTimeMs === Infinity ? null : { wallTimeMs, monotonicMs: null };
 }
 function step(state: WeatherTimeseriesUnitState): WeatherTimeseriesUnitStep {
   return { state, nextDeadline: deadline(state), decisions: [], intents: [], outcomes: [], diagnostics: [] };
@@ -304,8 +304,14 @@ function persisted(payload: unknown): PersistedWeatherTimeseriesUnit | null {
       gate.subject === item.subject && gate.operation === item.operation && isDeepStrictEqual(item.source, gate.source)))
     || row.gates.some((gate) => !(row.subjects as Record<string, unknown>[]).some((item) => item.subject === gate.subject
       && item.operation === gate.operation && (item.source === null || isDeepStrictEqual(item.source, gate.source))))
-    || row.intents.some((entry) => object(entry)?.unit !== "U-F")) return null;
+    || row.intents.some((entry) => {
+      const item = object(entry);
+      return item?.unit !== "U-F" || typeof item.id !== "string" || !finite(item.expiresAt)
+        || !["pending", "delivered", "expired", "superseded"].includes(String(item.disposition));
+    }) || new Set(row.intents.map((item) => item.id)).size !== row.intents.length) return null;
   const value = row as PersistedWeatherTimeseriesUnit;
+  const pending = value.intents.filter((item) => item.disposition === "pending");
+  if (pending.length > 128 || encoder.encode(JSON.stringify(pending)).byteLength > 131_072) return null;
   return measure(value.subjects, value.gates, value.intents, 0, 0) <= LIMIT ? value : null;
 }
 const weatherTimeseriesUnitCodec: WeatherTimeseriesUnitCodec = {
@@ -335,19 +341,27 @@ function reduceWeatherTimeseriesUnit(state: WeatherTimeseriesUnitState, input: W
       coverage: applied.state.subjects.map((item) => item.subject), subjects: [] }] };
   }
   if (input.kind === "intentUpdate") {
-    const current = state.intents.find((item) => item.id === input.intentUpdate.id);
-    if (current == null || input.intentUpdate.attempts < current.attempts) return step(state);
-    const updated = { ...current, ...input.intentUpdate };
-    if (updated.attempts === current.attempts && updated.nextAttemptAt === current.nextAttemptAt
-      && updated.disposition === current.disposition) return step(state);
-    const next = { ...state, intents: state.intents.map((item) => item === current ? updated : item),
-      persistence: dirty(state.persistence, input.clock.monotonicMs) };
-    return { ...step(next), decisions: [{ subject: current.subject, operation: current.operation,
-      decision: "changed", reason: null, change: "deliveryOnly", currentEstablished: null }],
-      intents: updated.disposition === "pending" ? [updated] : [],
-      outcomes: [{ kind: "accepted", change: "deliveryOnly", subjects: [{ subject: current.subject,
-        operation: current.operation, informationType: current.source.infoTypeRaw, transition: updated.disposition,
-        severity: null, source: current.source, facts: { intentId: current.id }, changedFields: ["intents"] }] }] };
+    const updates = "id" in input.intentUpdate ? [input.intentUpdate] : input.intentUpdate;
+    const originals = new Map(state.intents.map((item) => [item.id, item]));
+    const changed = new Map<string, NotificationIntent>();
+    let persistence = state.persistence;
+    for (const update of updates) {
+      const current = originals.get(update.id);
+      if (current == null || update.attempts < current.attempts) continue;
+      if (current.attempts === update.attempts && current.nextAttemptAt === update.nextAttemptAt
+        && current.disposition === update.disposition) continue;
+      changed.set(current.id, { ...current, ...update });
+      persistence = dirty(persistence, input.clock.monotonicMs);
+    }
+    if (changed.size === 0) return step(state);
+    const adopted = [...changed.values()];
+    const next = { ...state, intents: state.intents.map((item) => changed.get(item.id) ?? item), persistence };
+    return { ...step(next), decisions: adopted.map((item) => ({ subject: item.subject, operation: item.operation,
+      decision: "changed", reason: null, change: "deliveryOnly", currentEstablished: null })),
+      intents: adopted.filter((item) => item.disposition === "pending"),
+      outcomes: adopted.map((item) => ({ kind: "accepted", change: "deliveryOnly", subjects: [{ subject: item.subject,
+        operation: item.operation, informationType: item.source.infoTypeRaw, transition: item.disposition,
+        severity: null, source: item.source, facts: { intentId: item.id }, changedFields: ["intents"] }] })) };
   }
   const applied = collect(state, input.clock.wallTimeMs, input.clock.monotonicMs);
   if (input.kind === "deadline") return { ...step(applied.state), decisions: applied.decisions, outcomes: applied.outcomes };

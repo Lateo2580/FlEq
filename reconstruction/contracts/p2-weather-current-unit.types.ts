@@ -86,7 +86,8 @@ export type WeatherCurrentInput =
   | Readonly<{ kind: "deadline"; clock: ClockReading }>
   | Readonly<{ kind: "restore"; persisted: PersistedWeatherCurrentUnit; clock: ClockReading }>
   | Readonly<{ kind: "coverageConfirmed"; operation: Operation; family: string; subject: string; affectedScope: readonly string[]; clock: ClockReading }>
-  | Readonly<{ kind: "intentUpdate"; intentUpdate: NotificationIntentUpdate; clock: ClockReading }>
+  // A1-correlated updates; batch ids are distinct, with the same per-item semantics as a single update.
+  | Readonly<{ kind: "intentUpdate"; intentUpdate: NotificationIntentUpdate | readonly NotificationIntentUpdate[]; clock: ClockReading }>
   | Readonly<{ kind: "shutdown"; clock: ClockReading }>;
 
 export type WeatherCurrentUnitStep = Readonly<{

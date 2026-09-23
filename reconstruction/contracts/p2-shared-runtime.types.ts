@@ -111,7 +111,7 @@ export type NotificationResult = Readonly<{
   | Readonly<{ kind: "delivered" }>
   | Readonly<{ kind: "failed"; reason: "adapterRejected" | "adapterError" }>
   | Readonly<{ kind: "timeout"; stopped: boolean }>
-  | Readonly<{ kind: "aborted"; reason: "higherPriority" | "cancelled" | "expired" | "superseded" | "shutdown"; stopped: boolean }>
+  | Readonly<{ kind: "aborted"; reason: "higherPriority" | "expired" | "superseded" | "shutdown"; stopped: boolean }>
 );
 
 // A1 has already correlated the intent; selection does not fabricate a result.

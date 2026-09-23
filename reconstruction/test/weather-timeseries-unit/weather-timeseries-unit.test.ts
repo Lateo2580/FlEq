@@ -136,6 +136,27 @@ function reordered(snapshot: WeatherTimeseriesSnapshot): WeatherTimeseriesSnapsh
 }
 
 describe("P2-A6 weather timeseries", () => {
+  it("P2-A6-T03 contractBoundary: every intent disposition needs a finite expiry before deadline scheduling", () => {
+    const base = weatherTimeseriesUnitCodec.encode(empty());
+    const dispositions = ["pending", "delivered", "expired", "superseded"] as const;
+    for (const [index, disposition] of dispositions.entries()) {
+      const notice = { unit: "U-F", id: disposition, disposition, expiresAt: DATE + 1_000,
+        subject: "normal/VPWP50/test", operation: "normal", channel: "desktop", transition: "activated",
+        source: { inputId: "expiry-boundary", origin: "replay", operation: "normal", family: "VPWP50",
+          subject: "normal/VPWP50/test", reportDateTimeRaw: new Date(DATE).toISOString(), serialRaw: "", infoTypeRaw: "発表" },
+        payload: { title: "boundary", body: "boundary" }, createdAt: DATE, nextAttemptAt: DATE,
+        attempts: 0, configRevision: "test" } as const;
+      const valid = weatherTimeseriesUnitCodec.decode({ ...base, intents: [notice] });
+      if (valid.kind !== "restored") throw new Error("finite expiry must restore");
+      expect(reduceWeatherTimeseriesUnit(valid.state, { kind: "deadline", clock: clock() }).nextDeadline)
+        .toEqual({ wallTimeMs: DATE + 1_000, monotonicMs: null });
+      const invalid = [null, "later", Infinity, NaN][index];
+      expect(weatherTimeseriesUnitCodec.decode({ ...base, intents: [{ ...notice, expiresAt: invalid }] }).kind).toBe("invalid");
+      const { expiresAt: _expiresAt, ...missing } = notice;
+      expect(weatherTimeseriesUnitCodec.decode({ ...base, intents: [missing] }).kind).toBe("invalid");
+    }
+  });
+
   // T01: one contract boundary table covers valid empty/cancel and first rejection reason.
   it("T01 accepts explicit empty and cancellation, rejects broken family structure atomically", () => {
     const initial = empty();

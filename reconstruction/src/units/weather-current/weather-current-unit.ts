@@ -237,6 +237,8 @@ function persistedValue(value: unknown): PersistedWeatherCurrentUnit | null {
       && result.histories.flatMap((other) => other.reports).filter((report) => report.scope === "partial"
         && report.office === item.reports[0].office && report.source.family === item.reports[0].source.family).length > 8)
     || new Set(result.intents.map((item) => item.id)).size !== result.intents.length) return null;
+  const pending = result.intents.filter((item) => item.disposition === "pending");
+  if (pending.length > 128 || encoder.encode(JSON.stringify(pending)).byteLength > 131_072) return null;
   // Payload-only boundary: UnitCodec has no capture clock/generation on decode.
   // Receive admission below adds subject bytes and reserves the envelope numeric fields.
   return encoder.encode(JSON.stringify(result)).byteLength <= GENERATION_BYTES ? result : null;
@@ -398,20 +400,26 @@ function coverageConfirmed(state: WeatherCurrentUnitState,
 
 function intentUpdate(state: WeatherCurrentUnitState,
   input: Extract<WeatherCurrentInput, { kind: "intentUpdate" }>): WeatherCurrentUnitStep {
-  const current = state.intents.find((item) => item.id === input.intentUpdate.id);
-  if (current == null || input.intentUpdate.attempts < current.attempts) return noChange(state);
-  const disposition = input.intentUpdate.disposition;
-  const updated: NotificationIntent = { ...current, ...input.intentUpdate, disposition };
-  if (updated.attempts === current.attempts && updated.nextAttemptAt === current.nextAttemptAt
-    && updated.disposition === current.disposition) return noChange(state);
-  const pending = disposition === "pending";
-  const next = { ...state, intents: state.intents.map((item) => item.id === current.id ? updated : item),
-    persistence: dirty(state.persistence, input.clock.monotonicMs) };
+  const updates = "id" in input.intentUpdate ? [input.intentUpdate] : input.intentUpdate;
+  const originals = new Map(state.intents.map((item) => [item.id, item]));
+  const changed = new Map<string, NotificationIntent>();
+  let persistence = state.persistence;
+  for (const update of updates) {
+    const current = originals.get(update.id);
+    if (current == null || update.attempts < current.attempts) continue;
+    if (current.attempts === update.attempts && current.nextAttemptAt === update.nextAttemptAt
+      && current.disposition === update.disposition) continue;
+    changed.set(current.id, { ...current, ...update });
+    persistence = dirty(persistence, input.clock.monotonicMs);
+  }
+  if (changed.size === 0) return noChange(state);
+  const adopted = [...changed.values()];
+  const next = { ...state, intents: state.intents.map((item) => changed.get(item.id) ?? item), persistence };
   return { state: next, nextDeadline: nextWeatherCurrentDeadline(next),
-    decisions: [{ subject: current.subject, operation: current.operation,
-      decision: "changed", reason: null, change: "deliveryOnly", currentEstablished: null }],
-    intents: pending ? [updated] : [],
-    outcomes: [{ kind: "accepted", change: "deliveryOnly", subjects: [subject(updated, disposition)] }], diagnostics: [] };
+    decisions: adopted.map((item) => ({ subject: item.subject, operation: item.operation,
+      decision: "changed", reason: null, change: "deliveryOnly", currentEstablished: null })),
+    intents: adopted.filter((item) => item.disposition === "pending"),
+    outcomes: adopted.map((item) => ({ kind: "accepted", change: "deliveryOnly", subjects: [subject(item, item.disposition)] })), diagnostics: [] };
 }
 
 function reduceWeatherCurrentUnit(state: WeatherCurrentUnitState, input: WeatherCurrentInput): WeatherCurrentUnitStep {

@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "585d2f4f858e350c6965d83019ba7e4842285b3c",
-    "sha256": "3d5e79b7925e8cb0ffc0b69a0485e8df392f8cd4f2110058b06edbf1ceef715a",
+    "sha256": "9c53b51c1ffea451b1d986651253b318fc40f436106d8bc0a733cdce912add6b",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "76c82b87d7783a4eae14af690cb34e7d6ec46f73617dc75b7f7401951619f080",
     "sequencesSha256": "be9cfd97b555e3a55568f085d107342c978b3dc7249f5cecea868ea5a62c5781",
@@ -90,8 +90,9 @@
         "failure": "相関一致した失敗確定のcompletedAtをWf/Mf、完了した試行のattemptsをn>=1とする。d(n)=1000,2000,4000,8000（n=1..4）、n>=5は10000ms。nextAttemptAt=Wf+d(n)、retryAtMonotonicMs=Mf+d(n)。expiresAt/createdAt/expiresAtMonotonicMsは維持する。stopped=falseのtimeoutはchannel隔離を先に適用し、新たな試行をしない。",
         "restore": "新runのW0/M0でW0>=expiresAtならexpiredとして回収する。残るpendingはretryAtMonotonicMs=M0+max(0,nextAttemptAt-W0)、expiresAtMonotonicMs=M0+max(0,expiresAt-W0)。保存createdAt/expiresAt/nextAttemptAtは変更しない。前runの単調値を持ち越さない。",
         "ordinaryReevaluation": "receive後の再評価、結果後の選択、channel解放、期限前tickでは既存値を保ち、壁時計残余から張り直さない。生成・復元で作り、失敗確定でretryだけを更新する。停止理由だけの変化でもexpiryを張り直さない。",
-        "order": "各再評価で所有unitの取消/置換/終端を反映し、壁時計W>=expiresAtの絶対TTLを最初に適用する。残るpendingでもM>=expiresAtMonotonicMsならexpiredとし、壁時計後退で寿命を延長しない。期限内だけretryAtMonotonicMsを到来判定し、試行期限=min(Mselect+channelTimeoutMs,expiresAtMonotonicMs)。TTLと試行timeoutが同時ならcause=expiredを優先し、TTL内の試行期限到来はcause=timeout。結果照合にも同じ順を適用する。 選択時の期限回収はattemptの有無によらずpending→expiredのintentUpdateを返し、A1が所有unitへ採用する。試行開始だけの更新はdispositionを維持する。",
-        "reclaim": "所有unitでpendingがdelivered/expired/supersededへ終端化するか削除された同じ採用でmapを削除する。消えたintentのrunning/stoppingはNotificationAttemptとstopByMonotonicMsで停止を追跡し、mapの孤児を保持しない。A1が実pendingとの対応を採用し、A7の期限式を別層に複製しない。"
+        "order": "各再評価で所有unitの取消/置換/終端を反映し、壁時計W>=expiresAtの絶対TTLを最初に適用する。残るpendingでもM>=expiresAtMonotonicMsならexpiredとし、壁時計後退で寿命を延長しない。期限内だけretryAtMonotonicMsを到来判定し、試行期限=min(Mselect+channelTimeoutMs,expiresAtMonotonicMs)。TTLと試行timeoutが同時ならcause=expiredを優先し、TTL内の試行期限到来はcause=timeout。結果照合にも同じ順を適用する。 選択時の期限回収はattemptの有無によらずpending→expiredのintentUpdateを返し、A1が所有unitへ採用する。試行開始だけの更新はdispositionを維持する。 A1は受信・期限入力・結果再評価で選択除外中を含む全所有pendingを同じ順で回収し、選択制限を維持する。",
+        "reclaim": "所有unitでpendingがdelivered/expired/supersededへ終端化するか削除された同じ採用でmapを削除する。消えたintentのrunning/stoppingはNotificationAttemptとstopByMonotonicMsで停止を追跡し、mapの孤児を保持しない。A1が実pendingとの対応を採用し、A7の期限式を別層に複製しない。",
+        "complexity": "受信・通常再評価・選択・1件結果照合は通常O(N)、変更検出の全量直列化は0とし、Nは所有pending Kと終端Tを含む保持intent数とする（Kは各unitのcodecで128件/128KiB以内、Tに固定件数上限はなくU-E 256KiB・U-W 16MiB・U-F 32MiBの保存世代予算に従う）。U-Eの256KiB保存世代予算を超える場合に限り、終端T件のexpiresAt順整列を1回（O(T log T)、同値は既存配列順）行い、必要byte分の退去対象全体を決めて1回のfilterで除去する。超過しない入力では退去用の整列・選択走査をせず、退去R件ごとの全件再走査・splice反復は禁止する。一括失効も照合済みintentUpdateを所有unitごとに一括採用・索引照合してO(K+T)とし、O(K×(K+T))の反復走査は許容しない（U-W/U-F各128 pending＋4000 terminalの同一runtime tickは改訂前162.82ms→改訂後20.21ms、id参照計測込みの単発実測）。"
       },
       {
         "id": "P2-A7-ADAPTER",
@@ -166,7 +167,12 @@
           }
         ],
         "osBackend": "C2/R33はP2-A7-ADAPTER.backendTableのLinux Raspberry Pi本番とmacOS開発機で結果を別記録する。Linux正式結果をmacOS測定で代用しない。実行前にOS/arch/Node、使用exeのpath/hash、通知session/音声deviceの可用性を固定する。backend欠落/通知権限未成立は正常adapterとして扱わずBlocked。",
-        "acceptanceStages": "A7単体では既存T01/T02でC1/C2の選択・実停止を検収し、外部から与えたintentのmarkerをA4生成証拠にしない。A3結線後はC2/R33をA4受理markerから保存予約・queue・停止・spawnまで計測する。R33はprivate corpusで実行し、公開環境では正式E21 blocked、C1/C2の成功で補完しない。Cartesianな負荷/OS組合せを増やさない。"
+        "acceptanceStages": "A7単体配送完了は公開試験・型検査・shuffle、20 WAVとhash証拠、C1、指定OS別のC2単体実backend証拠で判定する。実backend未検収のOS項目はblocked。A3結線後の最終検収はA3-AC11で保存予約からspawn、終了・復元・診断読取、C2/R33を判定する。R33はprivate corpusで実行し、公開側はblocked。C1/C2成功で補完しない。",
+        "c2StandaloneCommands": {
+          "macos": "./node_modules/.bin/vitest run --config reconstruction/vitest.config.ts reconstruction/test/notification-delivery/real-backend.test.ts -t C2 --reporter=json --outputFile=reconstruction/test/notification-delivery/evidence/c2-macos.json",
+          "linuxRaspberryPi": "./node_modules/.bin/vitest run --config reconstruction/vitest.config.ts reconstruction/test/notification-delivery/real-backend.test.ts -t C2 --reporter=json --outputFile=reconstruction/test/notification-delivery/evidence/c2-linux-rpi.json",
+          "evidence": "A7 allowedPaths内のreconstruction/test/notification-delivery/evidence/にOS別JSONとbackend path/hash、session/device、marker、実close/初回spawn時刻を保存する。backend欠落・権限不成立・実行不能はskip/Passにせずblocked。"
+        }
       },
       {
         "id": "P2-A7-PRIVATE-EEW-EVIDENCE",
@@ -219,7 +225,12 @@
       "node_modules/node-notifier/notifiers/notificationcenter.js",
       "node_modules/node-notifier/notifiers/notifysend.js",
       "node_modules/node-notifier/lib/utils.js",
-      "node_modules/node-notifier/README.md"
+      "node_modules/node-notifier/README.md",
+      "reconstruction/test/eew-unit/eew-unit.test.ts",
+      "reconstruction/test/shared-runtime/shared-runtime.test.ts",
+      "reconstruction/test/integration/**",
+      "test/fixtures/37_01_01_240613_VXSE43.xml",
+      "test/fixtures/77_01_01_240613_VXSE45.xml"
     ],
     "allowedPaths": [
       "reconstruction/src/notification-delivery/**",
@@ -438,7 +449,7 @@
       },
       {
         "id": "P2-A7-AC02",
-        "requirement": "P2-A7-E21-LOAD-v1のC1人工競合、C2実backend競合、R33正式系列を区別して検収する。生成markerから初回adapter spawnまで保存予約・queue・停止・dispatch込みで各1秒以内。A7単体とA3結線後の最終判定を分け、timeout宣言/隔離/期限切れを成功に数えない。A7 questionResolutions[P2-A7-PRIVATE-EEW-EVIDENCE]に従いR33はprivate corpusで実行、公開環境ではblocked。",
+        "requirement": "P2-A7-E21-LOAD-v1のC1人工競合、C2実backend競合、R33正式系列を区別して検収する。生成markerから初回adapter spawnまで保存予約・queue・停止・dispatch込みで各1秒以内。A7単体とA3結線後の最終判定を分け、timeout宣言/隔離/期限切れを成功に数えない。A7 questionResolutions[P2-A7-PRIVATE-EEW-EVIDENCE]に従いR33はprivate corpusで実行、公開環境ではblocked。 A7単体配送完了の必須証拠は公開試験・型検査・shuffle、20 WAV/レンダラhash、C1、指定OS別C2実backendであり、未検収はblocked。A3-AC11が保存予約からspawn、終了・復元・診断読取とC2/R33の最終結線を判定する。",
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:956 «26c466d1a7f4b166»",
           "docs/specs/reconstruction-p0-contracts.md:987 «92c005f60b052cd8»"
@@ -446,7 +457,7 @@
       },
       {
         "id": "P2-A7-AC03",
-        "requirement": "P2-A7-ADAPTERに従い、上位到着/取消/置換/失効/timeout/shutdownの理由をabortRequestsでA3へ渡す。runのPromiseだけがNotificationResultを一度返し、abortの戻り値は停止確認だけ。既存Linux/macOS実行ファイルをspawnしてhandle/closeを所有し、停止未確認ならchannel隔離、重ね呼出し0、遅い成功によるdelivered書換え0とする。desktopの表示差はP2-A7-DESKTOP-EXPERIENCEの裁定に従う。",
+        "requirement": "P2-A7-ADAPTERに従い、上位到着/所有intent消失（期限失効を除きsuperseded）/失効/timeout/shutdownの理由をabortRequestsでA3へ渡す。runのPromiseだけがNotificationResultを一度返し、abortの戻り値は停止確認だけ。既存Linux/macOS実行ファイルをspawnしてhandle/closeを所有し、停止未確認ならchannel隔離、重ね呼出し0、遅い成功によるdelivered書換え0とする。desktopの表示差はP2-A7-DESKTOP-EXPERIENCEの裁定に従う。",
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:958 «618012b27b0cd8ad»",
           "docs/specs/reconstruction-p0-contracts.md:960 «1aa04ccc8255047a»",
@@ -496,7 +507,7 @@
           "P2-A7-AC01",
           "P2-A7-AC02"
         ],
-        "behavior": "既存の通常backlog/通常再試行/下位試行中EEW系列をP2-A7-E21-LOAD-v1のC1/C2へ固定し、同群A/B競合と生成markerから初回呼出しを測る。A7 questionResolutions[P2-A7-PRIVATE-EEW-EVIDENCE]に従い正式R33はprivate corpusで明示実行し、公開環境ではblocked"
+        "behavior": "契約のT01〜T05に対応して新設する通常backlog/通常再試行/下位試行中EEW系列をP2-A7-E21-LOAD-v1のC1/C2へ固定し、同群A/B競合と生成markerから初回呼出しを測る。A7 questionResolutions[P2-A7-PRIVATE-EEW-EVIDENCE]に従い正式R33はprivate corpusで明示実行し、公開環境ではblocked"
       },
       {
         "testId": "P2-A7-T02",
@@ -504,7 +515,7 @@
         "referenceIds": [
           "P2-A7-AC03"
         ],
-        "behavior": "既存のabort無視/遅い成功系列でtimeout causeと意味上のsuperseded causeをA3へ渡し、abortは停止確認だけ、runからterminal一件だけを返すことを確認する。close未確認の隔離/重ね呼出し0/遅い成功の無効化を実行backendと照合する"
+        "behavior": "新設するabort無視/遅い成功系列でtimeout causeと意味上のsuperseded causeをA3へ渡し、abortは停止確認だけ、runからterminal一件だけを返すことを確認する。close未確認の隔離/重ね呼出し0/遅い成功の無効化を実行backendと照合する"
       },
       {
         "testId": "P2-A7-T03",
@@ -512,7 +523,7 @@
         "referenceIds": [
           "P2-A7-AC04"
         ],
-        "behavior": "既存channel別1件系列で、3 unitのpending対応mapが両channel合計384値以下、終端/削除と同時に回収されることを確認する。単位側128件/128KiB収容はA4 T11を参照しA7で複製しない。U-W/U-Fは人工の配送境界入力であり生成合格にはしない"
+        "behavior": "新設するchannel別1件系列で、3 unitのpending対応mapが両channel合計384値以下、終端/削除と同時に回収されることを確認する。単位側128件/128KiB収容はA4 T11を参照しA7で複製しない。U-W/U-Fは人工の配送境界入力であり生成合格にはしない"
       },
       {
         "testId": "P2-A7-T04",
@@ -520,7 +531,7 @@
         "referenceIds": [
           "P2-A7-AC05"
         ],
-        "behavior": "既存O07:15-18系列を保存ack済み・配送保留→復元→元期限で評価し、保存予約後ack遅延中dispatchは別条件とする。同じ期限系列に新規生成→失敗確定→壁時計変動を伴う通常再評価→終端/回収を置き、P2-A7-TIMEの値が通常再評価で張り直されず壁時計TTLが試行timeoutより先に適用されることを確認する"
+        "behavior": "契約のO07:15-18系列を保存ack済み・配送保留→復元→元期限で評価し、保存予約後ack遅延中dispatchは別条件とする。同じ期限系列に新規生成→失敗確定→壁時計変動を伴う通常再評価→終端/回収を置き、P2-A7-TIMEの値が通常再評価で張り直されず壁時計TTLが試行timeoutより先に適用されることを確認する"
       },
       {
         "testId": "P2-A7-T05",
@@ -583,22 +594,29 @@
         "purpose": "intent永続化とchannel共有状態の順序依存検査"
       },
       {
-        "command": "node reconstruction/test/integration/private-eew.mjs --private-corpus \"/absolute/path/to/private-corpus\"",
+        "command": "./node_modules/.bin/vitest run --config reconstruction/vitest.config.ts reconstruction/test/notification-delivery/real-backend.test.ts -t C2 --reporter=json --outputFile=reconstruction/test/notification-delivery/evidence/c2-macos.json",
         "cwd": ".",
-        "target": "reconstruction/test/integration/private-eew.mjs",
+        "target": "reconstruction/test/notification-delivery/real-backend.test.ts",
         "stage": "implementation",
-        "purpose": "A7 questionResolutions[P2-A7-PRIVATE-EEW-EVIDENCE]に従う正式A4-T11/A7・A3 E21のprivate限定検収。A3追実装で入口を用意し、公開CI/通常試験からは実行しない。private corpus無しはblocked/非0終了。"
+        "purpose": "macOS C2単体の実backend計測。実行環境がない場合はblockedとして証拠に記録"
+      },
+      {
+        "command": "./node_modules/.bin/vitest run --config reconstruction/vitest.config.ts reconstruction/test/notification-delivery/real-backend.test.ts -t C2 --reporter=json --outputFile=reconstruction/test/notification-delivery/evidence/c2-linux-rpi.json",
+        "cwd": ".",
+        "target": "reconstruction/test/notification-delivery/real-backend.test.ts",
+        "stage": "implementation",
+        "purpose": "Linux Raspberry Pi C2単体の実backend計測。実行環境がない場合はblockedとして証拠に記録"
       }
     ],
     "artifactRequirements": [
       "NotificationAttemptとA1共有NotificationResultがないとadapterの単調timeout・attemptId・channel・aborted・stopped・遅い結果無効化をruntimeへ戻せないため、A1 NotificationIntent/NotificationResultを複製せず試行型だけをA7に置く",
-      "selectNotificationAttempt/applyNotificationResultは純関数でDiagnosticDetailsのみを返す。A1共有unionへ4 reasonだけを足し、E21失敗/timeout・期限・容量退去・隔離に対応させる。無いと永続sinkが通知故障を拒否する。取消/置換/遅い成功は状態と試行照合で検証する",
+      "selectNotificationAttempt/applyNotificationResultは純関数でDiagnosticDetailsのみを返す。既存のA1共有unionと永続sink allowlistの4 reasonを再利用し、追加変更せず、E21失敗/timeout・期限・容量退去・隔離に対応させる。無いと永続sinkが通知故障を拒否する。取消/置換/遅い成功は状態と試行照合で検証する",
       "channelごとの一件実行と停止未確認隔離がないと外部sound/desktop処理が重なるため、汎用worker poolやoutboxを作らず二channelの状態だけを持つ",
       "音源resolverは根音表v1と既存render-sounds.mjsの読み取り再利用で足りる。新築WAVがないと旧築資材の編集権限へ依存するためreconstruction/assets/soundsだけへ出力し、生成が要る場合のみreconstruction/src/notification-delivery配下の最小処理を使う。旧築改修はdecisionBranchesの別契約へ分離する。1実装interface、1製品factory、将来用extension pointは作らない",
-      "A3 composition root結線後、保存失敗・通常終了・復元直後の実adapter結果まで再検収し、unit testだけでE21 Passにしない",
+      "A3結線後の保存予約からspawn、終了・復元・診断読取とC2/R33の最終検収はA3-AC11で判定する。公開側R33はblocked。",
       "allowed_paths限定patch、変更一覧、build/test/shuffle結果、未実行検証、残存リスク",
       "追実装で閉じる項目(A7): A1が3 unit intentとnotificationChannels/notificationDeadlinesから配送stateを構成する。P2-A7-TIMEの有界期限mapとP2-A7-ADAPTERの理由付きabort/run一か所の結果返却を実装する。無いと再評価で期限が延長され、理由欠落と二重terminalが起きる。dirtyUnitsは復活させず所有unit更新結果を使う。文言はA4を参照し、型/式/文言の正本を複製しない。",
-      "追実装で閉じる項目(A7-E21): 既存T01/T02/T04をP2-A7-E21-LOAD-v1に合わせる。無いと人工競合と正式33報を混同し、停止/保存/dispatchを含まない1秒だけで合格にする。A7単体とA3結線後を別記録し、正式R33はA7 questionResolutions[P2-A7-PRIVATE-EEW-EVIDENCE]のprivate専用コマンドで実行し、公開環境ではblocked。",
+      "追実装で閉じる項目(A7-E21): 契約のT01〜T05に対応して新設する試験をP2-A7-E21-LOAD-v1に合わせる。無いと人工競合と正式33報を混同し、停止/保存/dispatchを含まない1秒だけで合格にする。A7単体とA3結線後を別記録し、正式R33はA7 questionResolutions[P2-A7-PRIVATE-EEW-EVIDENCE]のprivate専用コマンドで実行し、公開環境ではblocked。",
       "P2-A7-AC02/R29: A7 questionResolutions[P2-A7-PRIVATE-EEW-EVIDENCE]を証拠区分・保管・実行手順の正本とする。正式E21を通常試験へ入れず、原本の搬入は統合担当の契約外作業とする。"
     ],
     "unresolvedQuestions": []

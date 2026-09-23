@@ -26,6 +26,8 @@ import { ingestXmlData } from "../../src/ingress/ingress";
 import { boundDiagnosticDetails, completeDiagnostic } from "../../src/runtime/runtime-diagnostic";
 import { reduceRuntime, validateSemanticEnvelope } from "../../src/runtime/shared-runtime";
 import { reduceEewUnit } from "../../src/units/eew/eew-unit";
+import { reduceWeatherCurrentUnit, weatherCurrentUnitCodec } from "../../src/units/weather-current/weather-current-unit";
+import { reduceWeatherTimeseriesUnit, weatherTimeseriesUnitCodec } from "../../src/units/weather-timeseries/weather-timeseries-unit";
 
 const clock = { wallTimeMs: 1_780_650_000_001, monotonicMs: 12 } as const;
 const savedProgress: PersistenceStatus = Object.freeze({ kind: "saved", currentGeneration: 1, savedGeneration: 1,
@@ -133,13 +135,14 @@ function unitReply<S extends EewUnitState | WeatherCurrentUnitState | WeatherTim
 ) {
   let state = unit;
   if (input.kind === "intentUpdate") {
-    const update = input.intentUpdate;
-    const original = unit.intents.find((notice) => notice.id === update.id);
-    if (original != null && (original.attempts !== update.attempts || original.nextAttemptAt !== update.nextAttemptAt
-      || original.disposition !== update.disposition)) {
-      state = { ...unit, intents: unit.intents.map((notice) => notice === original ? { ...notice, ...update } : notice),
-        persistence: { ...unit.persistence, kind: "pending", currentGeneration: unit.persistence.currentGeneration + 1,
-          dirtySince: unit.persistence.dirtySince ?? input.clock.monotonicMs } };
+    for (const update of "id" in input.intentUpdate ? [input.intentUpdate] : input.intentUpdate) {
+      const original = state.intents.find((notice) => notice.id === update.id);
+      if (original != null && (original.attempts !== update.attempts || original.nextAttemptAt !== update.nextAttemptAt
+        || original.disposition !== update.disposition)) {
+        state = { ...state, intents: state.intents.map((notice) => notice === original ? { ...notice, ...update } : notice),
+          persistence: { ...state.persistence, kind: "pending", currentGeneration: state.persistence.currentGeneration + 1,
+            dirtySince: state.persistence.dirtySince ?? input.clock.monotonicMs } };
+      }
     }
   }
   return { state, nextDeadline: null, decisions: [], intents: [], outcomes: [], diagnostics: [] };
@@ -693,9 +696,11 @@ describe("P2 shared runtime", () => {
     const material = fixture("test/fixtures/37_01_01_240613_VXSE43.xml", "VXSE43");
     const received = reduceRuntime(seeded.state, { ...parserInput({ kind: "decoded", material }),
       clock: { wallTimeMs: 900, monotonicMs: 15_000 } }, { ...unitCalls, reduceEewUnit: owner, selectNotificationAttempt: selection });
-    expect(owner.mock.calls.slice(0, 128).every(([, input]) => input.kind === "intentUpdate"
-      && input.intentUpdate.disposition === "expired")).toBe(true);
-    expect(owner.mock.calls[128][1].kind).toBe("receive");
+    const update = owner.mock.calls[0][1];
+    if (update.kind !== "intentUpdate" || "id" in update.intentUpdate) throw new Error("batch expiry expected");
+    expect(update.intentUpdate).toHaveLength(128);
+    expect(update.intentUpdate.every((item) => item.disposition === "expired")).toBe(true);
+    expect(owner.mock.calls[1][1].kind).toBe("receive");
     expect(selection).toHaveBeenCalledTimes(1);
     expect(selection.mock.calls[0][0].intents).toHaveLength(2);
     expect(received.state.units["U-E"].intents.map((value) => value.channel)).toEqual(["desktop", "sound"]);
@@ -834,6 +839,127 @@ describe("P2 shared runtime", () => {
     const later = reduceRuntime(seeded.state, controlInput({ kind: "deadline",
       clock: { wallTimeMs: 500, monotonicMs: 1 } }));
     expect(later.state.notificationDeadlines.desktop[key]).toBe(deadline);
+    const expired = reduceRuntime(later.state, controlInput({ kind: "deadline",
+      clock: { wallTimeMs: 400, monotonicMs: 4_000 } }), { ...unitCalls, reduceEewUnit });
+    expect(expired.state.units["U-E"].intents).toEqual([]);
+    expect(expired.state.units["U-E"].deliveryRecords).toContainEqual({
+      intentId: notice.id, disposition: "expired", expiresAt: notice.expiresAt,
+    });
+    expect(expired.state.notificationDeadlines.desktop[key]).toBeUndefined();
+    expect(expired.generationInputIds).toEqual({ "U-E": [] });
+    const viaResult = reduceRuntime(later.state, { kind: "notificationResult", result: {
+      kind: "failed", reason: "adapterError", attemptId: "stale", intentId: notice.id,
+      channel: "desktop", completedAt: { wallTimeMs: 400, monotonicMs: 4_000 },
+    } }, { ...unitCalls, reduceEewUnit });
+    expect(viaResult.state.units["U-E"].intents).toEqual([]);
+    expect(viaResult.state.notificationDeadlines.desktop[key]).toBeUndefined();
+  });
+
+  it("P2-A1-T12 contractBoundary / TIME: 384 pending deadlines stay stable across ordinary reevaluation", () => {
+    const initial = initialState();
+    const notices = (unit: RuntimeUnitId) => Array.from({ length: 128 }, (_, index) => ({
+      ...intent(unit), id: `${unit}-${index}`, expiresAt: 100_000,
+    }));
+    const state: RuntimeState = { ...initial, units: {
+      "U-E": { ...initial.units["U-E"], intents: notices("U-E") },
+      "U-W": { ...initial.units["U-W"], intents: notices("U-W") },
+      "U-F": { ...initial.units["U-F"], intents: notices("U-F") },
+    } };
+    const calls = { selectNotificationAttempt: (delivery: NotificationDeliveryState): NotificationSelection => ({
+      state: delivery, attempts: [], abortRequests: [], diagnostics: [],
+    }) };
+    let current = reduceRuntime(state, controlInput({ kind: "deadline", clock: at(0) }), calls).state;
+    expect(Object.keys(current.notificationDeadlines.desktop)).toHaveLength(384);
+    const stringify = vi.spyOn(JSON, "stringify");
+    for (let index = 0; index < 30; index++) {
+      const step = reduceRuntime(current, controlInput({ kind: "deadline", clock: at(index + 1) }), calls);
+      expect(step.state).toBe(current);
+      current = step.state;
+    }
+    expect(stringify.mock.calls.some(([value]) => value === current.notificationDeadlines
+      || value === current.notificationDeadlines.desktop)).toBe(false);
+  });
+
+  it("P2-A1-T12 contractBoundary / AC11: shutdown fixes the running abort cause and stop deadline at request", () => {
+    const notice = intent("U-E");
+    const active = attempt(notice);
+    const initial = initialState();
+    const running: RuntimeState = { ...initial, notificationChannels: { ...initial.notificationChannels,
+      desktop: { kind: "running", attempt: active } } };
+    const requested = reduceRuntime(running, controlInput({ kind: "shutdownRequested",
+      acceptedThroughSequence: 1, clock: at(0) }));
+    expect(requested.abortRequests).toEqual([{ attemptId: active.attemptId, cause: "shutdown" }]);
+    expect(requested.state.notificationChannels.desktop).toEqual({ kind: "stopping", attempt: active,
+      cause: "shutdown", stopByMonotonicMs: 1_000 });
+    const existing: RuntimeState = { ...running, notificationChannels: { ...running.notificationChannels,
+      desktop: { kind: "stopping", attempt: active, cause: "timeout", stopByMonotonicMs: 500 } } };
+    const preserved = reduceRuntime(existing, controlInput({ kind: "shutdownRequested",
+      acceptedThroughSequence: 1, clock: at(0) }));
+    expect(preserved.abortRequests).toEqual([]);
+    expect(preserved.state.notificationChannels.desktop).toBe(existing.notificationChannels.desktop);
+  });
+
+  it("P2-A1-T12 contractBoundary / TIME: 128 pending plus 4000 terminal intents expire with linear owner work", () => {
+    const initial = initialState();
+    const notices = (unit: "U-W" | "U-F") => {
+      const base = intent(unit);
+      const source = { ...base.source, family: unit === "U-W" ? "VPWS50" : "VPWP50", reportDateTimeRaw: "2026-09-23T00:00:00Z" };
+      return Array.from({ length: 4_128 }, (_, index): NotificationIntent => ({ ...base, source,
+        id: `${unit}-${index}`, disposition: index < 4_000 ? "delivered" : "pending" }));
+    };
+    const weatherPayload = weatherCurrentUnitCodec.encode({ ...initial.units["U-W"], intents: notices("U-W") });
+    const seriesPayload = weatherTimeseriesUnitCodec.encode({ ...initial.units["U-F"], intents: notices("U-F") });
+    const weather = weatherCurrentUnitCodec.decode(weatherPayload);
+    const series = weatherTimeseriesUnitCodec.decode(seriesPayload);
+    if (weather.kind !== "restored" || series.kind !== "restored") throw new Error("boundary payload must restore");
+    const owner: Record<"U-W" | "U-F", { reads: number; ms: number }> = { "U-W": { reads: 0, ms: 0 }, "U-F": { reads: 0, ms: 0 } };
+    for (const [unit, state] of [["U-W", weather.state], ["U-F", series.state]] as const) {
+      for (const notice of state.intents) {
+        const id = notice.id;
+        Object.defineProperty(notice, "id", { enumerable: true, get: () => { owner[unit].reads++; return id; } });
+      }
+    }
+    const calls = {
+      selectNotificationAttempt: (delivery: NotificationDeliveryState): NotificationSelection => ({
+        state: delivery, attempts: [], abortRequests: [], diagnostics: [],
+      }),
+      reduceWeatherCurrentUnit: (state: WeatherCurrentUnitState, input: WeatherCurrentInput) => {
+        const start = performance.now();
+        const step = reduceWeatherCurrentUnit(state, input);
+        owner["U-W"].ms += performance.now() - start;
+        return step;
+      },
+      reduceWeatherTimeseriesUnit: (state: WeatherTimeseriesUnitState, input: WeatherTimeseriesInput) => {
+        const start = performance.now();
+        const step = reduceWeatherTimeseriesUnit(state, input);
+        owner["U-F"].ms += performance.now() - start;
+        return step;
+      },
+    };
+    const seeded = reduceRuntime({ ...initial, units: { ...initial.units, "U-W": weather.state, "U-F": series.state } },
+      controlInput({ kind: "deadline", clock: at(0) }), calls).state;
+    owner["U-W"].reads = owner["U-F"].reads = 0;
+    const start = performance.now();
+    const expired = reduceRuntime(seeded, controlInput({ kind: "deadline",
+      clock: { wallTimeMs: 500, monotonicMs: 4_000 } }), calls);
+    console.info("128 pending + 4000 terminal", { totalMs: performance.now() - start, owner });
+    for (const unit of ["U-W", "U-F"] as const) {
+      expect(expired.state.units[unit].intents).toHaveLength(4_128);
+      expect(expired.state.units[unit].intents.slice(4_000).every((notice) => notice.disposition === "expired")).toBe(true);
+      expect(expired.state.units[unit].persistence.currentGeneration).toBe(seeded.units[unit].persistence.currentGeneration + 128);
+      expect(owner[unit].reads).toBeLessThan(20 * 4_128);
+    }
+    expect(expired.state.notificationDeadlines).toEqual({ desktop: {}, sound: {} });
+    expect(expired.state.deadlines).toMatchObject({
+      "U-W": { wallTimeMs: 5_000, monotonicMs: null }, "U-F": { wallTimeMs: 5_000, monotonicMs: null },
+    });
+    const collected = reduceRuntime(expired.state, controlInput({ kind: "deadline", clock: at(4_000) }), calls);
+    expect(collected.state.units["U-W"].intents).toEqual([]);
+    expect(collected.state.units["U-F"].intents).toEqual([]);
+    for (const [codec, payload] of [[weatherCurrentUnitCodec, weatherPayload], [weatherTimeseriesUnitCodec, seriesPayload]] as const) {
+      expect(codec.decode({ ...payload, intents: [...payload.intents, { ...payload.intents[4_000], id: "overflow" }] }).kind).toBe("invalid");
+      expect(codec.decode({ ...payload, intents: [{ ...payload.intents[4_000], payload: { body: "x".repeat(131_072) } }] }).kind).toBe("invalid");
+    }
   });
 
   it("B4 contractBoundary: stopped=false is preserved; invalidated and cross-operation results cannot deliver", () => {
@@ -871,6 +997,20 @@ describe("P2 shared runtime", () => {
       ...unitCalls, selectNotificationAttempt, applyNotificationResult: (delivery) => ({ state: { ...delivery,
         intents: delivery.intents.map((value) => ({ ...value, disposition: "delivered" })) }, diagnostics: [] }),
     }).state.units).toBe(state.units);
+    const normal = { ...notice, operation: "normal" as const, source: { ...notice.source, operation: "normal" as const } };
+    const expiredNormal: RuntimeState = { ...initial,
+      units: { ...initial.units, "U-E": { ...initial.units["U-E"], intents: [normal] } },
+      notificationChannels: { ...initial.notificationChannels, desktop: { kind: "running", attempt: active } },
+      notificationDeadlines: { desktop: { [JSON.stringify([normal.unit, normal.id])]: {
+        retryAtMonotonicMs: 0, expiresAtMonotonicMs: 10,
+      } }, sound: {} },
+    };
+    const crossedExpiry = reduceRuntime(expiredNormal, controlInput({ kind: "deadline", clock: at(10) }), {
+      ...unitCalls, reduceEewUnit, selectNotificationAttempt,
+    });
+    expect(crossedExpiry.state.units["U-E"].intents).toEqual([]);
+    expect(crossedExpiry.abortRequests).toEqual([]);
+    expect(crossedExpiry.state.notificationChannels.desktop).toBe(expiredNormal.notificationChannels.desktop);
     const finalized = { ...state, shutdown: { ...state.shutdown, stage: "finalCheckpoint" as const, finalizationAt: 1000 } };
     expect(reduceRuntime(finalized, { kind: "notificationResult", result: success }).state).toBe(finalized);
   });

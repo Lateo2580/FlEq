@@ -363,11 +363,19 @@ function reduceRuntime(
     result?: NotificationResult) => {
     if (clock == null) throw new Error("notification requires an explicit clock");
     // A7 owns selection/retry/abort policy. A1 only adopts correlated, existing identities.
+    const byKey = new Map<string, NotificationIntent>();
+    const duplicates = new Set<string>();
+    const updates: Partial<Record<RuntimeUnitId, { original: NotificationIntent; candidate: NotificationIntent }[]>> = {};
+    for (const intent of before.intents) {
+      const key = JSON.stringify([intent.unit, intent.id]);
+      if (byKey.has(key)) duplicates.add(key);
+      else byKey.set(key, intent);
+    }
     for (const candidate of output.state.intents) {
-      const matches = before.intents.filter((intent) => sameIntent(intent, candidate));
-      if (matches.length !== 1 || !isRuntimeUnit(candidate.unit)
-        || before.intents.filter((intent) => intent.unit === candidate.unit && intent.id === candidate.id).length !== 1) continue;
-      const original = matches[0];
+      const key = JSON.stringify([candidate.unit, candidate.id]);
+      const original = byKey.get(key);
+      if (original == null || duplicates.has(key) || !isRuntimeUnit(candidate.unit)
+        || !sameIntent(original, candidate)) continue;
       if (original.attempts === candidate.attempts && original.nextAttemptAt === candidate.nextAttemptAt
         && original.disposition === candidate.disposition) continue;
       if (!Number.isSafeInteger(candidate.attempts) || candidate.attempts < original.attempts
@@ -394,25 +402,35 @@ function reduceRuntime(
           || clock.wallTimeMs >= original.expiresAt
           || clock.monotonicMs >= channel.attempt.timeoutAtMonotonicMs)) continue;
       }
-      const previousGeneration = next.units[candidate.unit].persistence.currentGeneration;
-      reduceUnit(candidate.unit, { kind: "intentUpdate", clock, intentUpdate: {
-        id: original.id, attempts: candidate.attempts, nextAttemptAt: candidate.nextAttemptAt,
-        disposition: candidate.disposition,
-      } });
-      if (candidate.unit === "U-E" && candidate.disposition !== "pending") {
-        const adopted = next.units["U-E"];
-        // At the wall deadline A4 reclaims the terminal record in the same adoption.
-        const reclaimed = candidate.disposition === "expired" && clock.wallTimeMs >= original.expiresAt;
-        if ((!reclaimed && !adopted.deliveryRecords.some((record) => record.intentId === original.id
-          && record.disposition === candidate.disposition && record.expiresAt === original.expiresAt))
-          || adopted.intents.some((intent) => sameIntent(intent, original))
-          || adopted.persistence.currentGeneration <= previousGeneration)
-          throw new Error("unit did not adopt the correlated intent update");
-      } else {
-        const adopted = next.units[candidate.unit].intents.find((intent) => intent.id === original.id);
-        if (adopted?.attempts !== candidate.attempts || adopted.nextAttemptAt !== candidate.nextAttemptAt
-          || adopted.disposition !== candidate.disposition)
-          throw new Error("unit did not adopt the correlated intent update");
+      (updates[candidate.unit] ??= []).push({ original, candidate });
+    }
+    for (const unit of units) {
+      const changes = updates[unit];
+      if (changes == null) continue;
+      const previousGeneration = next.units[unit].persistence.currentGeneration;
+      const intentUpdates = changes.map(({ candidate }) => ({ id: candidate.id, attempts: candidate.attempts,
+        nextAttemptAt: candidate.nextAttemptAt, disposition: candidate.disposition }));
+      // ponytail: K <= 128, T only byte-bounded (256KiB/16MiB/32MiB); keep O(K + T) batching if budgets grow.
+      reduceUnit(unit, { kind: "intentUpdate", clock,
+        intentUpdate: intentUpdates.length === 1 ? intentUpdates[0] : intentUpdates });
+      const adopted = next.units[unit];
+      const intentsById = new Map(adopted.intents.map((intent) => [intent.id, intent]));
+      const recordsById = unit === "U-E" ? new Map(next.units["U-E"].deliveryRecords.map((record) => [record.intentId, record])) : null;
+      for (const { original, candidate } of changes) {
+        if (unit === "U-E" && candidate.disposition !== "pending") {
+          // At the wall deadline A4 reclaims the terminal record in the same adoption.
+          const reclaimed = candidate.disposition === "expired" && clock.wallTimeMs >= original.expiresAt;
+          const record = recordsById?.get(original.id);
+          if ((!reclaimed && (record?.disposition !== candidate.disposition || record.expiresAt !== original.expiresAt))
+            || intentsById.has(original.id)
+            || adopted.persistence.currentGeneration <= previousGeneration)
+            throw new Error("unit did not adopt the correlated intent update");
+        } else {
+          const intent = intentsById.get(original.id);
+          if (intent?.attempts !== candidate.attempts || intent.nextAttemptAt !== candidate.nextAttemptAt
+            || intent.disposition !== candidate.disposition)
+            throw new Error("unit did not adopt the correlated intent update");
+        }
       }
     }
     const channelsChanged = (["desktop", "sound"] as const).some((name) => {
@@ -432,18 +450,57 @@ function reduceRuntime(
       .filter((intent) => intent.disposition === "pending");
     const visible = new Set(before.intents.map((intent) => JSON.stringify([intent.unit, intent.id])));
     const adoptedDeadlines = { desktop: { ...output.state.deadlines.desktop }, sound: { ...output.state.deadlines.sound } };
+    let deadlinesChanged = output.state.deadlines !== next.notificationDeadlines;
     for (const channel of ["desktop", "sound"] as const) {
       const owned = new Set(ownerPending.filter((intent) => intent.channel === channel)
         .map((intent) => JSON.stringify([intent.unit, intent.id])));
-      for (const key of Object.keys(adoptedDeadlines[channel])) if (!owned.has(key)) delete adoptedDeadlines[channel][key];
+      for (const key of Object.keys(adoptedDeadlines[channel])) if (!owned.has(key)) {
+        delete adoptedDeadlines[channel][key];
+        deadlinesChanged = true;
+      }
       for (const key of owned) if (!visible.has(key) && adoptedDeadlines[channel][key] == null) {
         const value = next.notificationDeadlines[channel][key];
-        if (value != null) adoptedDeadlines[channel][key] = value;
+        if (value != null) {
+          adoptedDeadlines[channel][key] = value;
+          deadlinesChanged = true;
+        }
       }
     }
-    if (JSON.stringify(next.notificationDeadlines) !== JSON.stringify(adoptedDeadlines))
+    if (deadlinesChanged)
       next = { ...next, notificationDeadlines: adoptedDeadlines };
     output.diagnostics.forEach(diagnose);
+  };
+
+  const reclaimExpired = () => {
+    if (clock == null || next.shutdown.finalizationAt != null) return;
+    const before: NotificationDeliveryState = { ...deliveryState(), intents: units.flatMap((owner) => next.units[owner].intents) };
+    const expired = new Set(before.intents.filter((intent) => intent.disposition === "pending"
+      && (clock.wallTimeMs >= intent.expiresAt
+        || clock.monotonicMs >= (before.deadlines[intent.channel][JSON.stringify([intent.unit, intent.id])]
+          ?.expiresAtMonotonicMs ?? Infinity))));
+    if (expired.size === 0) return;
+    const channels = { ...before.channels };
+    const counts: Partial<Record<RuntimeUnitId, number>> = {};
+    for (const intent of expired) {
+      if (isRuntimeUnit(intent.unit)) counts[intent.unit] = (counts[intent.unit] ?? 0) + 1;
+    }
+    for (const name of ["desktop", "sound"] as const) {
+      const channel = channels[name];
+      if (channel.kind === "running" && before.intents.some((intent) => expired.has(intent)
+        && sameIntent(intent, { ...channel.attempt, id: channel.attempt.intentId }))) {
+        channels[name] = { kind: "stopping", attempt: channel.attempt, cause: "expired",
+          stopByMonotonicMs: clock.monotonicMs + 1_000 };
+        abortRequests = [...abortRequests, { attemptId: channel.attempt.attemptId, cause: "expired" }];
+      }
+    }
+    adoptDelivery(before, {
+      state: { ...before, channels, intents: before.intents.map((intent) => expired.has(intent)
+        ? { ...intent, disposition: "expired" } : intent) },
+      diagnostics: units.flatMap((owner) => {
+        const count = counts[owner] ?? 0;
+        return count === 0 ? [] : [{ level: "INFO", component: "runtime", reason: "notificationExpired", unit: owner, count }];
+      }),
+    });
   };
 
   const selectDelivery = () => {
@@ -522,33 +579,7 @@ function reduceRuntime(
         if (draining) {
           // Reclaim before admission, without starting attempts before cancellation/replacement is known.
           if (unit === "U-E" && next.deadlines[unit]?.wallTimeMs != null) applyDeadlines([unit]);
-          const before: NotificationDeliveryState = { ...deliveryState(),
-            intents: units.flatMap((owner) => next.units[owner].intents) };
-          const expired = before.intents.filter((intent) => intent.disposition === "pending"
-            && (input.clock.wallTimeMs >= intent.expiresAt
-              || input.clock.monotonicMs >= (before.deadlines[intent.channel][JSON.stringify([intent.unit, intent.id])]
-                ?.expiresAtMonotonicMs ?? Infinity)));
-          if (expired.length !== 0) {
-            const channels = { ...before.channels };
-            // Fix the cause while the expired identity/deadline still exists; adoptDelivery then reclaims the map.
-            for (const name of ["desktop", "sound"] as const) {
-              const channel = channels[name];
-              if (channel.kind === "running" && expired.some((intent) => sameIntent(intent,
-                { ...channel.attempt, id: channel.attempt.intentId }))) {
-                channels[name] = { kind: "stopping", attempt: channel.attempt, cause: "expired",
-                  stopByMonotonicMs: input.clock.monotonicMs + 1_000 };
-                abortRequests = [...abortRequests, { attemptId: channel.attempt.attemptId, cause: "expired" }];
-              }
-            }
-            adoptDelivery(before, {
-              state: { ...before, channels, intents: before.intents.map((intent) => expired.includes(intent)
-                ? { ...intent, disposition: "expired" } : intent) },
-              diagnostics: units.flatMap((owner) => {
-                const count = expired.filter((intent) => intent.unit === owner).length;
-                return count === 0 ? [] : [{ level: "INFO", component: "runtime", reason: "notificationExpired", unit: owner, count }];
-              }),
-            });
-          }
+          reclaimExpired();
         }
         // Units re-run the common Head/date check themselves: one diagnostic per input, and
         // U-W keeps §7.8 freshness monitoring for rejected inputs (A1 freshnessException).
@@ -608,6 +639,7 @@ function reduceRuntime(
         }
       } else if (control.kind === "deadline") {
         applyDeadlines();
+        reclaimExpired();
         selectDelivery();
       } else if (control.kind === "shutdownRequested" && next.shutdown.stage === "running") {
         if (!Number.isSafeInteger(control.acceptedThroughSequence) || control.acceptedThroughSequence < 0)
@@ -619,10 +651,21 @@ function reduceRuntime(
             sideEffectFinalizationMonotonicMs: null, finalCheckpointMonotonicMs: null, workerCloseMonotonicMs: null } } };
         effects = [{ kind: "stopInputAndDrainMailbox", acceptedThroughSequence: control.acceptedThroughSequence,
           deadlineMonotonicMs: start.monotonicMs + 10_000 }];
+        const channels = { ...next.notificationChannels };
+        for (const name of ["desktop", "sound"] as const) {
+          const channel = channels[name];
+          if (channel.kind === "running") {
+            channels[name] = { kind: "stopping", attempt: channel.attempt, cause: "shutdown",
+              stopByMonotonicMs: start.monotonicMs + 1_000 };
+            abortRequests = [...abortRequests, { attemptId: channel.attempt.attemptId, cause: "shutdown" }];
+          }
+        }
+        if (abortRequests.length !== 0) next = { ...next, notificationChannels: channels };
         diagnose({ level: "INFO", component: "shutdown", reason: "shutdownStarted" });
       }
     }
   } else if (input.kind === "notificationResult" && next.shutdown.finalizationAt == null) {
+    reclaimExpired();
     const channel = next.notificationChannels[input.result.channel];
     const attemptId = channel.kind === "running" || channel.kind === "stopping" ? channel.attempt.attemptId
       : channel.kind === "isolated" ? channel.attemptId : null;
@@ -660,6 +703,18 @@ function reduceRuntime(
         next.shutdown.deadlines.overallMonotonicMs!);
       next = { ...next, shutdown: { ...next.shutdown, stage: nextStage,
         deadlines: { ...next.shutdown.deadlines, [nextStage + "MonotonicMs"]: deadline } } };
+      if (nextStage === "sideEffectFinalization") {
+        const channels = { ...next.notificationChannels };
+        let shortened = false;
+        for (const name of ["desktop", "sound"] as const) {
+          const channel = channels[name];
+          if (channel.kind === "stopping" && channel.cause === "shutdown" && channel.stopByMonotonicMs > deadline) {
+            channels[name] = { ...channel, stopByMonotonicMs: deadline };
+            shortened = true;
+          }
+        }
+        if (shortened) next = { ...next, notificationChannels: channels };
+      }
       effects = nextStage === "sideEffectFinalization" ? [{ kind: "finalizeNotificationDelivery", deadlineMonotonicMs: deadline }]
         : nextStage === "finalCheckpoint" ? [{ kind: "startFinalCheckpoints", units: unsavedUnits(), deadlineMonotonicMs: deadline }]
           : [{ kind: "closeRuntimeWorkers", deadlineMonotonicMs: deadline, summary: shutdownSummary(next, input.clock) }];

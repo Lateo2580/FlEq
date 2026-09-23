@@ -26,7 +26,7 @@ export type NotificationAttempt = Readonly<{
   expiresAt: number;
 }>;
 
-// P2-A7-AC03: A3 must preserve timeout versus semantic/shutdown abort causes.
+// P2-A7-AC03: owner intent loss uses superseded (except expiry); A3 forwards the A1 cause.
 export type NotificationAbortRequest = Readonly<{
   attemptId: string;
   cause: Extract<NotificationResult, { kind: "aborted" }>["reason"] | "timeout";
