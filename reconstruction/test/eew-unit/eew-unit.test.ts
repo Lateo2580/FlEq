@@ -213,6 +213,8 @@ describe("P2 EEW unit", () => {
     expect(preempted.diagnostics).toContainEqual({ level: "INFO", component: "eew",
       reason: "notificationCapacityEvicted", unit: "U-E", count: 2 });
     expect(preempted.state.deliveryRecords).toHaveLength(2);
+    expect(preempted.state.intents).toHaveLength(128);
+    expect(preempted.state.intents.filter((intent) => intent.operation !== "normal")).toEqual([]);
     const pair = receive(emptyState(), first).intents;
     const held = pendingIntent("normal/VXSE43/00000000000999");
     const body = `${held.payload.body}\n"境界"`;

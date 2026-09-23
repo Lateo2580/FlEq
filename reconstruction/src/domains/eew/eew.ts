@@ -427,16 +427,20 @@ function reduceEew(state: EewUnitState, input: Extract<EewInput, { kind: "receiv
   let proposed = [...retained, ...newIntents];
   const evictedIntents: EewUnitState["intents"][number][] = [];
   let proposedBytes = notificationArrayBytes(proposed);
-  const fits = () => proposed.length <= 128 && proposedBytes <= 131_072;
+  let proposedCount = proposed.length;
+  const fits = () => proposedCount <= 128 && proposedBytes <= 131_072;
   if (!fits() && candidate.operation === "normal") {
     const lower = retained.filter((intent) => intent.operation !== "normal").sort((left, right) =>
       right.expiresAt - left.expiresAt || right.createdAt - left.createdAt || right.id.localeCompare(left.id));
     for (const intent of lower) {
-      proposedBytes -= notificationArrayBytes([intent]) - 2 + (proposed.length > 1 ? 1 : 0);
-      proposed = proposed.filter((item) => item !== intent);
+      proposedBytes -= notificationArrayBytes([intent]) - 2 + (proposedCount > 1 ? 1 : 0);
+      proposedCount -= 1;
       evictedIntents.push(intent);
       if (fits()) break;
     }
+    // Decide the whole eviction set first, then remove it in one pass (P2-A7-TIME.complexity).
+    const dropped = new Set(evictedIntents);
+    if (dropped.size !== 0) proposed = proposed.filter((item) => !dropped.has(item));
   }
   const admitted = fits();
   if (!admitted) {
