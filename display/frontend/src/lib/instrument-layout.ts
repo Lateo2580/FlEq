@@ -1,12 +1,11 @@
 // 観測震度詳細のページング用純関数群。震度別グループの件数から
 // 「静的リスト ⇔ 詳細ページング」の切替を決める。
-// latest-quake-card-layout.ts の TOP_GROUP_COMPACT_AREA_THRESHOLD と
-// 意味論を揃え (30 件)、判定の実効件数 (effectiveAreaCount) をここで一元化する。
+// 判定の実効件数 (effectiveAreaCount) をここで一元化する。
 import { groupByPrefecture, type PrefGroup } from "./prefecture-group";
 import type { DisplayIntensityGroupV1 } from "./protocol";
 
 // 静的小リストで全件表示できる合計件数の上限。超えたら詳細ページングへ降ろす
-// (既存 TOP_GROUP_COMPACT_AREA_THRESHOLD と同じ 30 に揃える。spec §4)
+// (30 件。spec §4)
 export const STATIC_LIST_MAX = 30;
 
 // EEW の静的小リスト上限。eew-region-tiers.ts の非 compact 22px 境界 (count <= 10) と整合させる。

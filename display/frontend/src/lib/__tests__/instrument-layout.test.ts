@@ -14,7 +14,6 @@ import {
   sectionAvailableHeight,
   shouldPageDetails,
 } from "../instrument-layout";
-import { shouldCompactTopGroup, TOP_GROUP_COMPACT_AREA_THRESHOLD } from "../latest-quake-card-layout";
 import type { DisplayIntensityGroupV1 } from "../protocol";
 
 function group(intensity: string, rank: number, areas: string[], omittedAreaCount = 0): DisplayIntensityGroupV1 {
@@ -181,30 +180,6 @@ describe("shouldPageDetails", () => {
   it("STATIC_LIST_MAX を超えたら (31) true", () => {
     expect(shouldPageDetails(STATIC_LIST_MAX + 1)).toBe(true);
     expect(shouldPageDetails(31)).toBe(true);
-  });
-});
-
-describe("shouldCompactTopGroup (effectiveAreaCount 化後の既存挙動維持)", () => {
-  it("null なら false", () => {
-    expect(shouldCompactTopGroup(null)).toBe(false);
-  });
-
-  it("地域件数が閾値以下なら false (3.11 級相当)", () => {
-    expect(shouldCompactTopGroup(group("6強", 8, areasOfLength(19)))).toBe(false);
-    expect(shouldCompactTopGroup(group("7", 9, areasOfLength(TOP_GROUP_COMPACT_AREA_THRESHOLD)))).toBe(false);
-  });
-
-  it("地域件数が閾値を超えたら true (南海トラフ級、153件相当)", () => {
-    expect(shouldCompactTopGroup(group("7", 9, areasOfLength(TOP_GROUP_COMPACT_AREA_THRESHOLD + 1)))).toBe(true);
-    expect(shouldCompactTopGroup(group("7", 9, areasOfLength(153)))).toBe(true);
-  });
-
-  it("omittedAreaCount 加算で閾値を超えたら true (areas 20 + omitted 15 = 35)", () => {
-    expect(shouldCompactTopGroup(group("7", 9, areasOfLength(20), 15))).toBe(true);
-  });
-
-  it("omittedAreaCount 加算後も閾値以下なら false (areas 20 + omitted 5 = 25)", () => {
-    expect(shouldCompactTopGroup(group("7", 9, areasOfLength(20), 5))).toBe(false);
   });
 });
 
