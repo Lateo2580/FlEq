@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "585d2f4f858e350c6965d83019ba7e4842285b3c",
-    "sha256": "898d25089df326ca7d80d7dc3e37a2a0832fdde052b1ff13e3b28447a36ff773",
+    "sha256": "4d654498ca0df76455c0d1b57a1ab6806c94ee60eb24e007537194ccf3b836b3",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "76c82b87d7783a4eae14af690cb34e7d6ec46f73617dc75b7f7401951619f080",
     "sequencesSha256": "be9cfd97b555e3a55568f085d107342c978b3dc7249f5cecea868ea5a62c5781",
@@ -114,9 +114,9 @@
           {
             "os": "macOS 開発機",
             "channel": "desktop",
-            "executable": "導入済みnode-notifier package.jsonのディレクトリ＋vendor/mac.noindex/terminal-notifier.app/Contents/MacOS/terminal-notifier",
-            "argv": "-title title -message body。sound/timeout/wait/actionを付けず投稿後終了、shell=false。npmのnotify()やwrapperは呼ばない。",
-            "condition": "Notification Centerが使えるログインsession。実行ファイルは既存npm依存の同梱物だけを使い、新依存を加えない。"
+            "executable": "/usr/bin/osascript",
+            "argv": "-e 'on run argv' -e 'display notification (item 2 of argv) with title (item 1 of argv)' -e 'end run' -- title body。title/bodyはA4 payloadをそのままargv要素にし、AppleScript文字列へ連結しない。--が無いと-始まりのtitleがosascriptのoptionとして拒否される。sound/wait/actionを付けず投稿後終了、shell=false。",
+            "condition": "Notification Centerが使えるログインsessionと、通知を投稿するアプリの通知許可。OS同梱の実行ファイルだけを使い、新依存を加えない。R31: node-notifier同梱terminal-notifierはx86_64専用でApple silicon＋Rosetta無しでは起動しない（spawn errno -86）ため採らない。"
           },
           {
             "os": "Linux / Raspberry Pi 本番",
@@ -169,9 +169,9 @@
         "osBackend": "C2/R33はP2-A7-ADAPTER.backendTableのLinux Raspberry Pi本番とmacOS開発機で結果を別記録する。Linux正式結果をmacOS測定で代用しない。実行前にOS/arch/Node、使用exeのpath/hash、通知session/音声deviceの可用性を固定する。backend欠落/通知権限未成立は正常adapterとして扱わずBlocked。",
         "acceptanceStages": "A7単体配送完了は公開試験・型検査・shuffle、20 WAVとhash証拠、C1、指定OS別のC2単体実backend証拠で判定する。実backend未検収のOS項目はblocked。A3結線後の最終検収はA3-AC11で保存予約からspawn、終了・復元・診断読取、C2/R33を判定する。R33はprivate corpusで実行し、公開側はblocked。C1/C2成功で補完しない。",
         "c2StandaloneCommands": {
-          "macos": "./node_modules/.bin/vitest run --config reconstruction/vitest.config.ts reconstruction/test/notification-delivery/real-backend.test.ts -t C2 --reporter=json --outputFile=reconstruction/test/notification-delivery/evidence/c2-macos.json",
-          "linuxRaspberryPi": "./node_modules/.bin/vitest run --config reconstruction/vitest.config.ts reconstruction/test/notification-delivery/real-backend.test.ts -t C2 --reporter=json --outputFile=reconstruction/test/notification-delivery/evidence/c2-linux-rpi.json",
-          "evidence": "A7 allowedPaths内のreconstruction/test/notification-delivery/evidence/にOS別JSONとbackend path/hash、session/device、marker、実close/初回spawn時刻を保存する。backend欠落・権限不成立・実行不能はskip/Passにせずblocked。"
+          "macos": "FLEQ_A7_C2=1 FLEQ_A7_C2_OS=macos ./node_modules/.bin/vitest run --config reconstruction/vitest.config.ts reconstruction/test/notification-delivery/real-backend.test.ts -t C2 --reporter=json --outputFile=reconstruction/test/notification-delivery/evidence/c2-macos.json",
+          "linuxRaspberryPi": "FLEQ_A7_C2=1 FLEQ_A7_C2_OS=linux-rpi ./node_modules/.bin/vitest run --config reconstruction/vitest.config.ts reconstruction/test/notification-delivery/real-backend.test.ts -t C2 --reporter=json --outputFile=reconstruction/test/notification-delivery/evidence/c2-linux-rpi.json",
+          "evidence": "実backendは音と通知を実際に出すため、FLEQ_A7_C2=1とFLEQ_A7_C2_OSを明示したときだけ起動し、通常のvitest全体実行とCIではskipする（skipはPassに数えない）。A7 allowedPaths内のreconstruction/test/notification-delivery/evidence/にOS別JSONとbackend path/hash、session/device、marker、実close/初回spawn時刻を保存する。backend欠落・権限不成立・実行不能はskip/Passにせずblocked。"
         }
       },
       {
@@ -221,11 +221,6 @@
       "src/engine/presentation/level-helpers.ts",
       "src/engine/eew/eew-tracker.ts",
       "src/engine/notification/sound-player.ts",
-      "node_modules/node-notifier/package.json",
-      "node_modules/node-notifier/notifiers/notificationcenter.js",
-      "node_modules/node-notifier/notifiers/notifysend.js",
-      "node_modules/node-notifier/lib/utils.js",
-      "node_modules/node-notifier/README.md",
       "reconstruction/test/eew-unit/eew-unit.test.ts",
       "reconstruction/test/shared-runtime/shared-runtime.test.ts",
       "reconstruction/test/integration/**",
@@ -282,8 +277,7 @@
     "allowedDependencies": [
       "node:child_process",
       "node:path",
-      "node:fs",
-      "node-notifier"
+      "node:fs"
     ],
     "fixtureIds": [
       "test__fixtures__37_01_01_240613_VXSE43"
@@ -594,14 +588,14 @@
         "purpose": "intent永続化とchannel共有状態の順序依存検査"
       },
       {
-        "command": "./node_modules/.bin/vitest run --config reconstruction/vitest.config.ts reconstruction/test/notification-delivery/real-backend.test.ts -t C2 --reporter=json --outputFile=reconstruction/test/notification-delivery/evidence/c2-macos.json",
+        "command": "FLEQ_A7_C2=1 FLEQ_A7_C2_OS=macos ./node_modules/.bin/vitest run --config reconstruction/vitest.config.ts reconstruction/test/notification-delivery/real-backend.test.ts -t C2 --reporter=json --outputFile=reconstruction/test/notification-delivery/evidence/c2-macos.json",
         "cwd": ".",
         "target": "reconstruction/test/notification-delivery/real-backend.test.ts",
         "stage": "implementation",
         "purpose": "macOS C2単体の実backend計測。実行環境がない場合はblockedとして証拠に記録"
       },
       {
-        "command": "./node_modules/.bin/vitest run --config reconstruction/vitest.config.ts reconstruction/test/notification-delivery/real-backend.test.ts -t C2 --reporter=json --outputFile=reconstruction/test/notification-delivery/evidence/c2-linux-rpi.json",
+        "command": "FLEQ_A7_C2=1 FLEQ_A7_C2_OS=linux-rpi ./node_modules/.bin/vitest run --config reconstruction/vitest.config.ts reconstruction/test/notification-delivery/real-backend.test.ts -t C2 --reporter=json --outputFile=reconstruction/test/notification-delivery/evidence/c2-linux-rpi.json",
         "cwd": ".",
         "target": "reconstruction/test/notification-delivery/real-backend.test.ts",
         "stage": "implementation",
