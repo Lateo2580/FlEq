@@ -4,6 +4,15 @@ import type {
 import type { DecodedMaterial } from "../../contracts/p1-parser-boundary.types";
 import type { CompositionOptions, RuntimeCompositionRoot } from "../../src/runtime/composition-root";
 
+const testNotificationChannels = { desktop: { kind: "idle" }, sound: { kind: "idle" } } as const;
+function recordingNotificationAdapter() {
+  return { run: async (attempt: Parameters<NonNullable<CompositionOptions["notificationAdapter"]>["run"]>[0],
+    clock: () => ClockReading) => {
+    return { kind: "delivered" as const, attemptId: attempt.attemptId, intentId: attempt.intentId,
+      channel: attempt.channel, completedAt: clock() };
+  }, abort: async () => {} };
+}
+
 type Fixture = Readonly<{ value: string; intentExpiresAt?: number; activeFixture?: string | null }>;
 const saved: PersistenceStatus = { kind: "saved", currentGeneration: 1, savedGeneration: 1,
   savedCapturedAt: 0, savedAckAt: 0, dirtySince: null };
@@ -68,7 +77,7 @@ function fixtureDriver() {
   };
   return { calls, update(root: RuntimeCompositionRoot, desired: RuntimeState, clock: ClockReading,
     correlations: Parameters<RuntimeCompositionRoot["dispatch"]>[2] = {}) {
-    try { void root.state; } catch { root.startRuntime(desired.runId, clock); }
+    try { void root.state; } catch { root.startRuntime(desired.runId, clock, testNotificationChannels); }
     for (const unit of ["U-E", "U-W", "U-F"] as const) {
       const headType = unit === "U-E" ? "VXSE43" : unit === "U-W" ? "VPWW57" : "VPWP50";
       const target = desired.units[unit];
@@ -97,5 +106,5 @@ function fixtureDriver() {
   } };
 }
 
-export { fixtureState, fixtureValue, fixtureDriver, stringCodec };
+export { fixtureState, fixtureValue, fixtureDriver, stringCodec, testNotificationChannels, recordingNotificationAdapter };
 export type { Fixture };

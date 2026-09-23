@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "3095a6c21caa96e06fc3b3a6d2f906534ef5441b",
-    "sha256": "7d3214a50158f05c3038f81ae6b695ac8bc4d773be87a7e6f3f7fb439356597e",
+    "sha256": "5f3a0133645eeda7ed6cd25ea75e372b4ba4b8ee82eaa6cd793d24ab28ad91fd",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "76c82b87d7783a4eae14af690cb34e7d6ec46f73617dc75b7f7401951619f080",
     "sequencesSha256": "be9cfd97b555e3a55568f085d107342c978b3dc7249f5cecea868ea5a62c5781",
@@ -494,7 +494,7 @@
       },
       {
         "id": "P2-A1-AC08",
-        "requirement": "R21: reduceRuntime(null, startup)だけが初期RuntimeStateを構築する。A3から一度だけ受けたU-E/U-W/U-FのRestoreUnitResultをunit/schema/payloadまで検証し、restored gは先にpersistenceをcurrent=saved=g、savedCapturedAt=envelope.capturedAt、savedAckAt=nullへ設定してからunit restoreへ渡す。restoreの期限回収が保存内容を変えればcurrentのみg+1、dirtySinceは起動入力のclock.monotonicMs。restore後にpersistenceを上書きしない。emptyは世代0で確認済み無発令と扱わず、unavailableは理由をrestorationへ残し空stateでslotを自動上書きしない。起動前の通常入力と二度目のstartupを拒否する",
+        "requirement": "R21: reduceRuntime(null, startup)だけが初期RuntimeStateを構築する。A3から一度だけ受けたU-E/U-W/U-FのRestoreUnitResultをunit/schema/payloadまで検証し、restored gは先にpersistenceをcurrent=saved=g、savedCapturedAt=envelope.capturedAt、savedAckAt=nullへ設定してからunit restoreへ渡す。restoreの期限回収が保存内容を変えればcurrentのみg+1、dirtySinceは起動入力のclock.monotonicMs。restore後にpersistenceを上書きしない。emptyは世代0で確認済み無発令と扱わず、unavailableは理由をrestorationへ残し空stateでslotを自動上書きしない。startup入力のnotificationChannelsはdesktop/soundそれぞれidleまたはunavailable(backendMissing)を必須とし、復元直後の最初の選択より前に初期channelへ採用する。unavailableが1以上ならstartup stepで{level:WARN,component:notification-delivery,reason:notificationAttemptFailed,count:unavailable channel数}を一件だけ記録し、後続選択では欠落診断を繰り返さない。起動前の通常入力と二度目のstartupを拒否する",
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:768 «c6fcdefce2d90c9f»",
           "docs/specs/reconstruction-p0-contracts.md:770 «3fe91886fca8d1d6»",

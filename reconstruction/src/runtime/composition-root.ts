@@ -1,5 +1,6 @@
 import { promises as fileSystem, readFileSync, unlinkSync } from "node:fs";
-import { dirname } from "node:path";
+import { tmpdir } from "node:os";
+import { dirname, join } from "node:path";
 
 import type { CheckpointMeasurement } from "../../contracts/p2-eew-e01.types";
 import type {
@@ -15,6 +16,7 @@ import type {
   RestoreUnitResult,
   RuntimeState,
   RuntimeInput,
+  NotificationResult,
   RuntimeEffect,
   RuntimeUnitStates,
   RuntimeUnitId,
@@ -25,6 +27,7 @@ import type {
   UnitId,
 } from "../../contracts/p2-shared-runtime.types";
 import type { ParserDiagnostic } from "../../contracts/p1-parser-boundary.types";
+import type { NotificationAbortRequest, NotificationAttempt, NotificationChannel, NotificationChannelState } from "../../contracts/p2-notification-delivery.types";
 import { validateAppConfig } from "../app-config/app-config";
 import type { AppConfig } from "../app-config/app-config";
 import { CheckpointCoordinator } from "../checkpoint/checkpoint";
@@ -32,6 +35,8 @@ import type { CheckpointFileSystem, CodecMap, Correlation } from "../checkpoint/
 import { PersistentDiagnosticSink, projectParserDiagnostic } from "../checkpoint/persistent-diagnostic-sink";
 import type { DiagnosticFileSystem } from "../checkpoint/persistent-diagnostic-sink";
 import { Mailbox } from "../mailbox/mailbox";
+import { abortNotificationAttempt, probeDesktopBackend, probeSoundBackend, runNotificationAttempt } from "../notification-delivery/adapter";
+import { applyNotificationResult, selectNotificationAttempt } from "../notification-delivery/notification-delivery";
 import { eewUnitCodec, reduceEewUnit, toEewView } from "../units/eew/eew-unit";
 import { reduceWeatherCurrentUnit, toWeatherCurrentView, weatherCurrentUnitCodec } from "../units/weather-current/weather-current-unit";
 import {
@@ -45,7 +50,7 @@ const linkedUnitCodecs: CodecMap<RuntimeUnitStates> = {
   "U-E": eewUnitCodec, "U-W": weatherCurrentUnitCodec, "U-F": weatherTimeseriesUnitCodec,
 };
 const linkedRuntimeCalls = { reduceEewUnit, toEewView, reduceWeatherCurrentUnit, toWeatherCurrentView,
-  reduceWeatherTimeseriesUnit, toWeatherTimeseriesView } as const;
+  reduceWeatherTimeseriesUnit, toWeatherTimeseriesView, selectNotificationAttempt, applyNotificationResult } as const;
 
 type ShutdownHooks = Readonly<{
   drainMailbox?: (deadlineMonotonicMs: number, active: () => boolean) => Promise<void>;
@@ -59,6 +64,10 @@ type CompositionOptions = Readonly<{
   checkpointFileSystem?: CheckpointFileSystem;
   diagnosticFileSystem?: DiagnosticFileSystem;
   mailbox?: Mailbox;
+  notificationAdapter?: Readonly<{
+    run: (attempt: NotificationAttempt, clock: () => ClockReading) => Promise<NotificationResult>;
+    abort: (request: NotificationAbortRequest, stopByMonotonicMs: number, clock: () => ClockReading) => Promise<unknown>;
+  }>;
   runtimeCalls?: Parameters<typeof reduceRuntime>[2];
   shutdownHooks?: ShutdownHooks;
   reportFailure?: (event: DiagnosticEvent) => void;
@@ -167,6 +176,10 @@ class RuntimeCompositionRoot {
   private readonly clock: () => ClockReading;
   private readonly shutdownHooks: ShutdownHooks;
   private readonly runtimeCalls: Parameters<typeof reduceRuntime>[2];
+  private readonly notificationAdapter: NonNullable<CompositionOptions["notificationAdapter"]>;
+  private readonly notificationOperations: Record<NotificationChannel,
+    { attemptId: string; terminal: Promise<void> } | null> = { desktop: null, sound: null };
+  private onNotificationDispatchFailure: ((error: unknown) => void) | null = null;
   private readonly onMeasurements: (measurements: readonly CheckpointMeasurement[]) => void;
   private current: RuntimeState | null = null;
   private lastDiagnosticTick = -Infinity;
@@ -181,6 +194,7 @@ class RuntimeCompositionRoot {
     this.clock = options.clock ?? systemClock;
     this.shutdownHooks = options.shutdownHooks ?? {};
     this.runtimeCalls = { ...(options.runtimeCalls ?? linkedRuntimeCalls), codecs };
+    this.notificationAdapter = options.notificationAdapter ?? { run: runNotificationAttempt, abort: abortNotificationAttempt };
     this.onMeasurements = options.onMeasurements ?? (() => {});
     this.mailbox = options.mailbox ?? new Mailbox();
     this.diagnostics = new PersistentDiagnosticSink(config.diagnosticDirectory,
@@ -196,11 +210,29 @@ class RuntimeCompositionRoot {
     return this.current;
   }
 
-  startRuntime(runId: string, clock: ClockReading): RuntimeStep {
+  async probeNotificationChannels(): Promise<Readonly<Record<NotificationChannel,
+    Extract<NotificationChannelState, { kind: "idle" | "unavailable" }>>>> {
+    const desktop = probeDesktopBackend();
+    let sound: Extract<NotificationChannelState, { kind: "idle" | "unavailable" }> = { kind: "unavailable", reason: "backendMissing" };
+    let directory: string | null = null;
+    try {
+      directory = await fileSystem.mkdtemp(join(tmpdir(), "fleq-p2-probe-"));
+      const silent = Buffer.from(readFileSync("reconstruction/assets/sounds/weather-info.wav"));
+      silent.fill(0, 44);
+      const path = join(directory, "silent.wav");
+      await fileSystem.writeFile(path, silent);
+      if ((await probeSoundBackend(path, this.clock)).kind === "delivered") sound = { kind: "idle" };
+    } catch { /* A failed probe leaves the sound channel unavailable. */ }
+    finally { if (directory != null) await fileSystem.rm(directory, { recursive: true, force: true }).catch(() => {}); }
+    return { desktop, sound };
+  }
+
+  startRuntime(runId: string, clock: ClockReading,
+    notificationChannels: Extract<RuntimeInput, { kind: "startup" }>["notificationChannels"]): RuntimeStep {
     if (this.current != null) throw new Error("runtime already started");
     const restored = { "U-E": this.restoreUnit("U-E"), "U-W": this.restoreUnit("U-W"),
       "U-F": this.restoreUnit("U-F") };
-    const step = reduceRuntime(null, { kind: "startup", runId, clock, restored }, this.runtimeCalls);
+    const step = reduceRuntime(null, { kind: "startup", runId, clock, restored, notificationChannels }, this.runtimeCalls);
     this.current = step.state;
     for (const unit of ["U-E", "U-W", "U-F"] as const) {
       const base = restored[unit].kind === "restored" ? restored[unit].envelope.generation : 0;
@@ -211,6 +243,7 @@ class RuntimeCompositionRoot {
       }
     }
     step.diagnostics.forEach((event) => this.enqueueDiagnostic(event));
+    this.dispatchNotifications(step);
     return step;
   }
 
@@ -248,7 +281,44 @@ class RuntimeCompositionRoot {
         this.checkpointOperation = null;
     }
     step.diagnostics.forEach((event) => this.enqueueDiagnostic(event));
+    this.dispatchNotifications(step, input.kind === "notificationResult" ? input.result.attemptId : null);
     return step;
+  }
+
+  private dispatchNotifications(step: RuntimeStep, completedAttemptId: string | null = null): void {
+    for (const request of step.abortRequests) {
+      if (request.attemptId === completedAttemptId) continue;
+      const name = (["desktop", "sound"] as const).find((candidate) =>
+        this.notificationOperations[candidate]?.attemptId === request.attemptId);
+      if (name == null) continue; // The run result already settled in this reducer step.
+      const channel = step.state.notificationChannels[name];
+      if (channel.kind !== "stopping" || channel.attempt.attemptId !== request.attemptId)
+        throw new Error("A1 abort request has no stopping channel");
+      void this.notificationAdapter.abort(request, channel.stopByMonotonicMs, this.clock).catch(() => {});
+    }
+    for (const attempt of step.notificationAttempts) {
+      const previous = this.notificationOperations[attempt.channel];
+      if (previous != null && previous.attemptId !== completedAttemptId)
+        throw new Error("notification channel already has an operation");
+      // The executor catches a synchronous run throw; only adapter errors become failed terminals.
+      const operation = new Promise<NotificationResult>((resolve) => {
+        resolve(this.notificationAdapter.run(attempt, this.clock));
+      }).catch((): NotificationResult => ({ kind: "failed", reason: "adapterError",
+        attemptId: attempt.attemptId, intentId: attempt.intentId, channel: attempt.channel, completedAt: this.clock() }))
+        .then((result) => {
+          try { this.dispatch(this.state, { kind: "notificationResult", result }); }
+          catch (error) {
+            if (this.onNotificationDispatchFailure != null) this.onNotificationDispatchFailure(error);
+            // An old shutdown waiter may still observe terminal; keep failures after return unhandled.
+            else void Promise.reject(error);
+            return;
+          }
+          // Dispatch can start the successor. Never erase it or discard tracking on a reducer failure.
+          if (this.notificationOperations[attempt.channel]?.attemptId === attempt.attemptId)
+            this.notificationOperations[attempt.channel] = null;
+        });
+      this.notificationOperations[attempt.channel] = { attemptId: attempt.attemptId, terminal: operation };
+    }
   }
 
   tick(state: RuntimeState, clock: ClockReading): RuntimeStep {
@@ -391,58 +461,77 @@ class RuntimeCompositionRoot {
   async shutdownRuntime(state: RuntimeState, acceptedThroughSequence: number,
     clock: ClockReading): Promise<ShutdownSummary> {
     if (this.state.shutdown.stage !== "running") throw new Error("shutdown already started");
-    let step = this.control(state, { kind: "shutdownRequested", acceptedThroughSequence, clock });
-    let batches = 0;
-    let notificationAttempts = 0;
-    let workers = 1;
-    let summarySaved = false;
-    while (step.effects.length !== 0) {
-      const effect: RuntimeEffect = step.effects[0];
-      const stage = this.state.shutdown.stage;
-      if (stage === "running" || stage === "completed") throw new Error("unexpected shutdown effect");
-      if (effect.kind === "stopInputAndDrainMailbox") this.mailbox.beginDrain(this.clock().monotonicMs);
-      const result = await within(async (active) => {
-        switch (effect.kind) {
-          case "stopInputAndDrainMailbox":
-            await this.shutdownHooks.drainMailbox?.(effect.deadlineMonotonicMs, active);
-            break;
-          case "finalizeNotificationDelivery": {
-            // Until the hook confirms completion these counts remain unresolved.
-            batches = 1;
-            notificationAttempts = 1;
-            const pending = await this.shutdownHooks.finalizeBatchesAndSideEffects?.(effect.deadlineMonotonicMs, active)
-              ?? { batches: 0, notificationAttempts: 0 };
-            if (active()) { batches = pending.batches; notificationAttempts = pending.notificationAttempts; }
-            break;
+    const failure: { error?: unknown } = {};
+    this.onNotificationDispatchFailure = (error) => {
+      if (!Object.hasOwn(failure, "error")) failure.error = error;
+    };
+    try {
+      let step = this.control(state, { kind: "shutdownRequested", acceptedThroughSequence, clock });
+      let batches = 0;
+      let notificationAttempts = 0;
+      let workers = 1;
+      let summarySaved = false;
+      while (step.effects.length !== 0) {
+        const effect: RuntimeEffect = step.effects[0];
+        const stage = this.state.shutdown.stage;
+        if (stage === "running" || stage === "completed") throw new Error("unexpected shutdown effect");
+        if (effect.kind === "stopInputAndDrainMailbox") this.mailbox.beginDrain(this.clock().monotonicMs);
+        let batchFailed = false;
+        const result = await within(async (active) => {
+          switch (effect.kind) {
+            case "stopInputAndDrainMailbox":
+              await this.shutdownHooks.drainMailbox?.(effect.deadlineMonotonicMs, active);
+              break;
+            case "finalizeNotificationDelivery": {
+              // A1 has already issued shutdown aborts; run promises own the terminal results.
+              batches = 1;
+              await Promise.all([
+                Promise.all(Object.values(this.notificationOperations).flatMap((pending) => pending == null ? [] : [pending.terminal])),
+                (async () => {
+                  try {
+                    const pending = await this.shutdownHooks.finalizeBatchesAndSideEffects?.(effect.deadlineMonotonicMs, active)
+                      ?? { batches: 0, notificationAttempts: 0 };
+                    if (active()) batches = pending.batches;
+                  } catch { batchFailed = true; }
+                })(),
+              ]);
+              break;
+            }
+            case "startFinalCheckpoints":
+              await this.saveFinalGenerations(active);
+              break;
+            case "closeRuntimeWorkers":
+              await this.diagnostics.persistShutdownSummary(effect.summary, active);
+              summarySaved = true;
+              if (!active()) return;
+              await this.shutdownHooks.closeWorker?.(effect.deadlineMonotonicMs);
+              if (active()) workers = 0;
+              break;
           }
-          case "startFinalCheckpoints":
-            await this.saveFinalGenerations(active);
-            break;
-          case "closeRuntimeWorkers":
-            await this.diagnostics.persistShutdownSummary(effect.summary, active);
-            summarySaved = true;
-            if (!active()) return;
-            await this.shutdownHooks.closeWorker?.(effect.deadlineMonotonicMs);
-            if (active()) workers = 0;
-            break;
-        }
-      }, effect.deadlineMonotonicMs, this.clock);
-      const stats = this.mailbox.stats(this.clock().monotonicMs);
-      step = this.dispatch(this.state, { kind: "shutdownStageResult", stage, result,
-        pending: { mailboxPending: stats.pendingItems, mailboxInFlight: stats.inFlightItems,
-          batches, notificationAttempts, unsavedUnits: 0, workers },
-        clock: this.clock(), droppedDiagnostics: this.diagnostics.droppedCounts() });
-    }
-    if (step.shutdownSummary == null) throw new Error("shutdown did not produce a summary");
-    const summary = step.shutdownSummary;
-    // A1 owns both summaries. A failed final delivery is not reported as a successful persistence.
-    const deadline = this.state.shutdown.deadlines.workerCloseMonotonicMs!;
-    if (summarySaved && this.clock().monotonicMs < deadline) {
-      const persisted = await within((active) => this.diagnostics.persistShutdownSummary(summary, active), deadline, this.clock);
-      if (persisted.kind !== "completed")
-        throw new Error("final shutdown summary could not be persisted");
-    }
-    return summary;
+        }, effect.deadlineMonotonicMs, this.clock);
+        if (Object.hasOwn(failure, "error")) throw failure.error;
+        if (effect.kind === "finalizeNotificationDelivery")
+          notificationAttempts = (["desktop", "sound"] as const).filter((channel) =>
+            this.notificationOperations[channel] != null || this.state.notificationChannels[channel].kind === "isolated").length;
+        const stats = this.mailbox.stats(this.clock().monotonicMs);
+        step = this.dispatch(this.state, { kind: "shutdownStageResult", stage,
+          result: batchFailed ? { kind: "failed", reason: "operationFailed" } : result,
+          pending: { mailboxPending: stats.pendingItems, mailboxInFlight: stats.inFlightItems,
+            batches, notificationAttempts, unsavedUnits: 0, workers },
+          clock: this.clock(), droppedDiagnostics: this.diagnostics.droppedCounts() });
+      }
+      if (step.shutdownSummary == null) throw new Error("shutdown did not produce a summary");
+      const summary = step.shutdownSummary;
+      // A1 owns both summaries. A failed final delivery is not reported as a successful persistence.
+      const deadline = this.state.shutdown.deadlines.workerCloseMonotonicMs!;
+      if (summarySaved && this.clock().monotonicMs < deadline) {
+        const persisted = await within((active) => this.diagnostics.persistShutdownSummary(summary, active), deadline, this.clock);
+        if (Object.hasOwn(failure, "error")) throw failure.error;
+        if (persisted.kind !== "completed")
+          throw new Error("final shutdown summary could not be persisted");
+      }
+      return summary;
+    } finally { this.onNotificationDispatchFailure = null; }
   }
 
   private async saveFinalGenerations(active: () => boolean): Promise<void> {

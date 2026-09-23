@@ -10,7 +10,7 @@ import type { CheckpointFileSystem } from "../../src/checkpoint/checkpoint";
 import { PersistentDiagnosticSink } from "../../src/checkpoint/persistent-diagnostic-sink";
 import type { DiagnosticFileSystem } from "../../src/checkpoint/persistent-diagnostic-sink";
 import { RuntimeCompositionRoot } from "../../src/runtime/composition-root";
-import { fixtureState, fixtureValue, fixtureDriver, stringCodec } from "./runtime-fixture";
+import { fixtureState, fixtureValue, fixtureDriver, stringCodec , testNotificationChannels, recordingNotificationAdapter} from "./runtime-fixture";
 import type { ShutdownHooks } from "../../src/runtime/composition-root";
 import * as sharedRuntime from "../../src/runtime/shared-runtime";
 
@@ -117,12 +117,12 @@ function harness(hooks: ShutdownHooks = {}) {
   const root = new RuntimeCompositionRoot(config, { "U-E": stringCodec("U-E"), "U-F": { ...codec, encode(state) {
     if (fault.checkpointFailure === "encode") throw new Error("encode failed");
     return codec.encode(state);
-  } }, "U-W": stringCodec("U-W") }, {
+  } }, "U-W": stringCodec("U-W") }, { notificationAdapter: recordingNotificationAdapter(),
     clock, checkpointFileSystem: fs, diagnosticFileSystem: logs, runtimeCalls: driver.calls,
     shutdownHooks: { closeWorker: async () => { order.push("close"); }, ...hooks },
     onMeasurements: (batch) => measurements.push(...batch), reportFailure: (event) => events.push(event),
   });
-  root.startRuntime("review", clock());
+  root.startRuntime("review", clock(), testNotificationChannels);
   const update = (state: RuntimeState, correlations: Parameters<typeof root.dispatch>[2] = {}) => driver.update(root, state, clock(), correlations);
   const scheduleCheckpoint = (state: RuntimeState, at: ReturnType<typeof clock>, runId: string,
     correlations: Parameters<typeof root.scheduleCheckpoint>[3]) => {
@@ -379,7 +379,7 @@ it("B02 contractBoundary / AC06: A1 retains all earlier stage failures when late
   expect(summary.reasons).toEqual([
     "mailboxDrain:failed:operationFailed",
     "sideEffectFinalization:failed:operationFailed", "sideEffectFinalization:remainingBatches",
-    "sideEffectFinalization:unconfirmedNotifications", "finalCheckpoint:remainingBatches",
+    "finalCheckpoint:remainingBatches",
     "finalCheckpoint:unsavedUnits", "workerClose:failed:operationFailed",
     "workerClose:remainingBatches", "workerClose:remainingWorkers",
   ]);
@@ -958,12 +958,12 @@ it("I01 contractBoundary / AC04,AC05,AC08: checkpoint fault stages cross recover
       if (mode === "restart") {
         await h.root.diagnostics.flush();
         const driver = fixtureDriver();
-        const restarted = new RuntimeCompositionRoot(h.config, { "U-F": codec, "U-W": stringCodec("U-W") }, {
+        const restarted = new RuntimeCompositionRoot(h.config, { "U-F": codec, "U-W": stringCodec("U-W") }, { notificationAdapter: recordingNotificationAdapter(),
           clock: h.clock, checkpointFileSystem: h.fs, diagnosticFileSystem: h.logs, reportFailure: () => {},
           runtimeCalls: driver.calls,
         });
         expect(restarted.restoreUnit("U-F")).toEqual(restore);
-        const restored = restarted.startRuntime("review", h.clock()).state;
+        const restored = restarted.startRuntime("review", h.clock(), testNotificationChannels).state;
         const desired = dirty(3, true);
         const continued = driver.update(restarted, { ...desired, units: { ...desired.units,
           "U-F": { ...desired.units["U-F"], persistence: { ...restored.units["U-F"].persistence,
@@ -1105,7 +1105,7 @@ it("I03 contractBoundary / AC08: restart selects only valid slots and never rest
     if (scenario === "schema") { h.bytes.set(a, envelope(1, "old-schema")); h.bytes.set(b, envelope(2, "old-schema")); }
     if (scenario === "conflict") h.bytes.set(a, envelope(2, codec.schemaVersion, "other"));
     if (scenario === "payload") h.bytes.set(b, envelope(2, codec.schemaVersion, { wrong: true }));
-    const restarted = new RuntimeCompositionRoot(h.config, { "U-F": codec }, {
+    const restarted = new RuntimeCompositionRoot(h.config, { "U-F": codec }, { notificationAdapter: recordingNotificationAdapter(),
       clock: h.clock, checkpointFileSystem: h.fs, diagnosticFileSystem: h.logs, reportFailure: () => {},
     });
     const restored = restarted.restoreUnit("U-F");
@@ -1469,13 +1469,13 @@ it("I08 contractBoundary / AC04,AC08 RES-01: tmp lifetime is bounded across slot
       if (restart) {
         // The previous operation has ended; this models exclusive ownership after process restart.
         await root.diagnostics.flush();
-        root = new RuntimeCompositionRoot(h.config, { "U-F": codec, "U-W": stringCodec("U-W") }, {
+        root = new RuntimeCompositionRoot(h.config, { "U-F": codec, "U-W": stringCodec("U-W") }, { notificationAdapter: recordingNotificationAdapter(),
           clock: h.clock, checkpointFileSystem: h.fs, diagnosticFileSystem: h.logs, runtimeCalls: driver.calls,
           reportFailure: (event) => h.events.push(event), onMeasurements: (batch) => h.measurements.push(...batch),
         });
         expect([...h.bytes.keys()].filter((path) => path.endsWith(".tmp"))).toEqual([]);
         expect(root.restoreUnit("U-F").kind).toBe("restored");
-        state = root.startRuntime("restarted", h.clock()).state;
+        state = root.startRuntime("restarted", h.clock(), testNotificationChannels).state;
         if (state.units["U-F"].persistence.currentGeneration < next.request.generation)
           changeGeneration(next.request.generation);
       }
@@ -1505,12 +1505,12 @@ it("I09 contractBoundary / AC08 RES-01: startup reclaims only owned tmp, and del
       h.bytes.set(join(h.config.stateDirectory, name), new Uint8Array([9]));
     h.fault.checkpointUnlink = failCleanup;
     const driver = fixtureDriver();
-    const restarted = new RuntimeCompositionRoot(h.config, { "U-F": codec }, {
+    const restarted = new RuntimeCompositionRoot(h.config, { "U-F": codec }, { notificationAdapter: recordingNotificationAdapter(),
       clock: h.clock, checkpointFileSystem: h.fs, diagnosticFileSystem: h.logs,
       runtimeCalls: driver.calls, reportFailure: () => {},
     });
     expect(restarted.restoreUnit("U-F")).toMatchObject({ kind: "restored", envelope: { generation: 1 } });
-    restarted.startRuntime("review", h.clock());
+    restarted.startRuntime("review", h.clock(), testNotificationChannels);
     let state = driver.update(restarted, fixtureState({ "U-F": "final-2" }, { "U-F": {
       kind: "pending", currentGeneration: 2, savedGeneration: 1,
       savedCapturedAt: 0, savedAckAt: 0, dirtySince: 0,
@@ -1543,7 +1543,7 @@ it("I09 contractBoundary / AC08 RES-01: startup reclaims only owned tmp, and del
     for (const name of ["U-F.json.tmp", "U-F-A.json.tmp", "U-F-B.json.tmp", "other.tmp"])
       await disk.writeFile(join(stateDirectory, name), "orphan");
     const root = new RuntimeCompositionRoot({ appName: "p2", legacyAppName: "v2", stateDirectory,
-      legacyStateDirectory: join(directory, "legacy"), diagnosticDirectory: join(directory, "logs") }, { "U-F": codec });
+      legacyStateDirectory: join(directory, "legacy"), diagnosticDirectory: join(directory, "logs") }, { "U-F": codec }, { notificationAdapter: recordingNotificationAdapter() });
     expect(await disk.readdir(stateDirectory)).toEqual(["other.tmp"]);
     expect(root.restoreUnit("U-F")).toEqual({ kind: "empty" });
     await root.diagnostics.flush();

@@ -186,7 +186,12 @@ function reduceRuntime(
   if (input.kind === "startup") {
     if (state != null) throw new Error("runtime already started");
     if (input.runId.length === 0 || !Number.isFinite(input.clock.wallTimeMs) || !Number.isFinite(input.clock.monotonicMs)
-      || Object.keys(input.restored).length !== units.length || units.some((unit) => input.restored[unit] == null))
+      || Object.keys(input.restored).length !== units.length || units.some((unit) => input.restored[unit] == null)
+      || input.notificationChannels == null || Object.keys(input.notificationChannels).length !== 2
+      || (["desktop", "sound"] as const).some((name) => {
+        const channel = input.notificationChannels[name];
+        return channel?.kind !== "idle" && (channel?.kind !== "unavailable" || channel.reason !== "backendMissing");
+      }))
       throw new RangeError("invalid startup input");
     const clean: PersistenceStatus = { kind: "saved", currentGeneration: 0, savedGeneration: 0,
       savedCapturedAt: null, savedAckAt: null, dirtySince: null };
@@ -198,7 +203,7 @@ function reduceRuntime(
         "U-F": { schemaVersion: "p2-weather-timeseries-unit-v1", subjects: [], gates: [], intents: [], persistence: clean },
       }, restoration: { "U-E": { kind: "empty" }, "U-W": { kind: "empty" }, "U-F": { kind: "empty" } },
       admission: {}, checkpointAttempts: {}, deadlines: { "U-E": null, "U-W": null, "U-F": null },
-      notificationChannels: { desktop: { kind: "idle" }, sound: { kind: "idle" } },
+      notificationChannels: input.notificationChannels,
       notificationDeadlines: { desktop: {}, sound: {} },
       shutdown: { stage: "running", acceptedThroughSequence: null, startedAt: null, finalizationAt: null,
         stageResults: {}, deadlines: { overallMonotonicMs: null, mailboxDrainMonotonicMs: null,
@@ -208,6 +213,9 @@ function reduceRuntime(
     const generationInputIds: Partial<Record<RuntimeUnitId, readonly string[]>> = {};
     const outcomes: RuntimeStep["outcomes"][number][] = [];
     const diagnostics: DiagnosticEvent[] = [];
+    const missing = (["desktop", "sound"] as const).filter((name) => input.notificationChannels[name].kind === "unavailable").length;
+    if (missing > 0) diagnostics.push(completeDiagnostic({ level: "WARN", component: "notification-delivery",
+      reason: "notificationAttemptFailed", count: missing }, input.clock, input.runId));
     for (const unit of units) {
       const restored = input.restored[unit];
       if (restored.kind === "empty" || restored.kind === "unavailable") {
@@ -442,6 +450,7 @@ function reduceRuntime(
         return left.attempt !== right.attempt || left.cause !== right.cause || left.stopByMonotonicMs !== right.stopByMonotonicMs;
       if (left.kind === "isolated" && right.kind === "isolated")
         return left.attemptId !== right.attemptId || left.sinceMonotonicMs !== right.sinceMonotonicMs || left.reason !== right.reason;
+      if (left.kind === "unavailable" && right.kind === "unavailable") return left.reason !== right.reason;
       return true;
     });
     if (channelsChanged)

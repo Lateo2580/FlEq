@@ -16,7 +16,7 @@ import { decodeMaterial } from "../../src/decode-material/decode-material";
 import { ingestXmlData } from "../../src/ingress/ingress";
 import { RuntimeCompositionRoot } from "../../src/runtime/composition-root";
 import { reduceWeatherCurrentUnit, toWeatherCurrentView, weatherCurrentUnitCodec } from "../../src/units/weather-current/weather-current-unit";
-import { fixtureDriver, fixtureState, stringCodec } from "../checkpoint-shutdown/runtime-fixture";
+import { fixtureDriver, fixtureState, stringCodec , testNotificationChannels, recordingNotificationAdapter} from "../checkpoint-shutdown/runtime-fixture";
 
 const NOW = 1_800_000_000_000;
 
@@ -274,7 +274,7 @@ describe("P2 weather-current unit", () => {
     };
     const notificationFiles = new MemoryCheckpointFileSystem();
     notificationFiles.seed(intentState, 1, NOW);
-    const notificationRoot = new RuntimeCompositionRoot(config(), { "U-W": weatherCurrentUnitCodec }, {
+    const notificationRoot = new RuntimeCompositionRoot(config(), { "U-W": weatherCurrentUnitCodec }, { notificationAdapter: recordingNotificationAdapter(),
       checkpointFileSystem: notificationFiles, diagnosticFileSystem: new MemoryDiagnosticFileSystem(),
       runtimeCalls: { ...fixtureDriver().calls, reduceWeatherCurrentUnit,
         selectNotificationAttempt: (delivery) => delivery.channels.desktop.kind !== "idle"
@@ -291,7 +291,7 @@ describe("P2 weather-current unit", () => {
         }),
       },
     });
-    const selectedRuntime = notificationRoot.tick(notificationRoot.startRuntime("weather-test", clock()).state, clock(NOW + 1, 1));
+    const selectedRuntime = notificationRoot.tick(notificationRoot.startRuntime("weather-test", clock(), testNotificationChannels).state, clock(NOW + 1, 1));
     const completedRuntime = notificationRoot.dispatch(selectedRuntime.state, { kind: "notificationResult",
       result: { kind: "delivered", attemptId: attempt.attemptId, intentId: intent.id,
         channel: "desktop", completedAt: clock(NOW + 2, 2) } });
@@ -423,12 +423,12 @@ describe("P2 weather-current unit", () => {
     const calls = { ...driver.calls, reduceWeatherCurrentUnit, toWeatherCurrentView };
     const adapter = new MemoryCheckpointFileSystem();
     adapter.seed(state, state.persistence.currentGeneration, NOW);
-    const root = new RuntimeCompositionRoot(config(), { "U-W": weatherCurrentUnitCodec }, {
+    const root = new RuntimeCompositionRoot(config(), { "U-W": weatherCurrentUnitCodec }, { notificationAdapter: recordingNotificationAdapter(),
       checkpointFileSystem: adapter, diagnosticFileSystem: new MemoryDiagnosticFileSystem(), runtimeCalls: calls,
       clock: () => clock(NOW, NOW),
     });
     const arrivalClock = clock(NOW, NOW);
-    let running = root.dispatch(root.startRuntime("weather-test", arrivalClock).state, { kind: "mailboxCompleted", clock: arrivalClock, completion: {
+    let running = root.dispatch(root.startRuntime("weather-test", arrivalClock, testNotificationChannels).state, { kind: "mailboxCompleted", clock: arrivalClock, completion: {
       kind: "parser", messageId: cancel.inputId, inputId: cancel.inputId, runId: "weather-test",
       encodedByteLength: 0, startedMonotonicMs: NOW, completedMonotonicMs: NOW, inputSequence: 1,
       result: { kind: "decoded", material: cancel },
@@ -443,11 +443,11 @@ describe("P2 weather-current unit", () => {
 
     const shutdownFiles = new MemoryCheckpointFileSystem();
     shutdownFiles.seed(restored.state, restored.state.persistence.currentGeneration, NOW);
-    const shutdownRoot = new RuntimeCompositionRoot(config(), { "U-W": weatherCurrentUnitCodec }, {
+    const shutdownRoot = new RuntimeCompositionRoot(config(), { "U-W": weatherCurrentUnitCodec }, { notificationAdapter: recordingNotificationAdapter(),
       checkpointFileSystem: shutdownFiles, diagnosticFileSystem: new MemoryDiagnosticFileSystem(),
       runtimeCalls: calls, clock: () => clock(NOW + 2, NOW + 2),
     });
-    const shutdownState = shutdownRoot.startRuntime("weather-test", clock(NOW + 2, NOW + 2)).state;
+    const shutdownState = shutdownRoot.startRuntime("weather-test", clock(NOW + 2, NOW + 2), testNotificationChannels).state;
     const routed = shutdownRoot.dispatch(shutdownState, { kind: "mailboxCompleted", clock: clock(NOW + 2, NOW + 2), completion: {
       kind: "parser", messageId: first.inputId, inputId: first.inputId, runId: shutdownState.runId,
       encodedByteLength: 0, startedMonotonicMs: NOW + 2, completedMonotonicMs: NOW + 2,
@@ -471,7 +471,7 @@ describe("P2 weather-current unit", () => {
     const counted = { ...weatherCurrentUnitCodec, encode: (value: WeatherCurrentUnitState) => {
       weatherEncodes++; return weatherCurrentUnitCodec.encode(value);
     } };
-    const e10Root = new RuntimeCompositionRoot(config(), { "U-E": stringCodec("U-E"), "U-W": counted }, {
+    const e10Root = new RuntimeCompositionRoot(config(), { "U-E": stringCodec("U-E"), "U-W": counted }, { notificationAdapter: recordingNotificationAdapter(),
       diagnosticFileSystem: new MemoryDiagnosticFileSystem(), runtimeCalls: calls,
       clock: () => clock(NOW + 3, NOW + 3),
     });

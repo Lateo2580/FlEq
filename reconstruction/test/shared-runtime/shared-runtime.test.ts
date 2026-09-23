@@ -163,6 +163,7 @@ function freeze<T>(value: T): T {
 describe("P2 shared runtime", () => {
   it("P2-A1-T08 contractBoundary / AC08: startup is the only null-state input and runs once", () => {
     const startup = { kind: "startup" as const, runId: "fresh", clock,
+      notificationChannels: { desktop: { kind: "idle" as const }, sound: { kind: "idle" as const } },
       restored: { "U-E": { kind: "empty" as const }, "U-W": { kind: "empty" as const },
         "U-F": { kind: "unavailable" as const, reason: "unknownSchema" as const } } };
     expect(() => reduceRuntime(null, parserInput({ kind: "decoded", material: {

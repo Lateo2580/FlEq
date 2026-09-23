@@ -12,7 +12,7 @@ import { ingestXmlData } from "../../src/ingress/ingress";
 import { reduceRuntime } from "../../src/runtime/shared-runtime";
 import { RuntimeCompositionRoot, nodeCheckpointFileSystem } from "../../src/runtime/composition-root";
 import { reduceWeatherTimeseriesUnit, toWeatherTimeseriesView, weatherTimeseriesUnitCodec } from "../../src/units/weather-timeseries/weather-timeseries-unit";
-import { fixtureDriver, fixtureState } from "../checkpoint-shutdown/runtime-fixture";
+import { fixtureDriver, fixtureState , testNotificationChannels, recordingNotificationAdapter} from "../checkpoint-shutdown/runtime-fixture";
 
 const DATE = Date.parse("2026-06-05T17:00:00+09:00");
 const clock = (wallTimeMs = DATE, monotonicMs = 1) => ({ wallTimeMs, monotonicMs });
@@ -522,7 +522,7 @@ describe("P2-A6 weather timeseries", () => {
     let writes = 0;
     const makeRoot = () => new RuntimeCompositionRoot({ appName: "fleq-p2", legacyAppName: "fleq",
       stateDirectory: join(directory, "state"), legacyStateDirectory: join(directory, "old"),
-      diagnosticDirectory: join(directory, "diagnostics") }, { "U-F": weatherTimeseriesUnitCodec }, {
+      diagnosticDirectory: join(directory, "diagnostics") }, { "U-F": weatherTimeseriesUnitCodec }, { notificationAdapter: recordingNotificationAdapter(),
       runtimeCalls: { ...fixtureDriver().calls, reduceWeatherTimeseriesUnit,
         toWeatherTimeseriesView }, clock: () => clock(),
       checkpointFileSystem: { ...disk, async rename(from, to) {
@@ -547,19 +547,19 @@ describe("P2-A6 weather timeseries", () => {
     };
     try {
       const a = makeRoot();
-      a.startRuntime("a", clock());
+      a.startRuntime("a", clock(), testNotificationChannels);
       route(a, fixture(unknown), DATE);
       expect(a.state.units["U-F"].persistence.currentGeneration).toBe(1);
       const oldAck = await save(a, DATE, [unknown]);
       expect(oldAck.kind).toBe("acknowledged");
       const expired = makeRoot();
       const activeUntil = first(a.state.units["U-F"]).validUntil!;
-      const expiry = expired.startRuntime("expiry", clock(activeUntil));
+      const expiry = expired.startRuntime("expiry", clock(activeUntil), testNotificationChannels);
       expect(expiry.state.units["U-F"].persistence).toMatchObject({ currentGeneration: 2, savedGeneration: 1 });
       expect(expiry.generationInputIds["U-F"]).toEqual([]);
       expect(first(expiry.state.units["U-F"]).effective).toBe("noActiveItems");
       const b = makeRoot();
-      b.startRuntime("b", clock(DATE + 2));
+      b.startRuntime("b", clock(DATE + 2), testNotificationChannels);
       expect(b.state.units["U-F"].persistence.savedGeneration).toBe(1);
       route(b, fixture(cancel), DATE + 2);
       expect(first(b.state.units["U-F"]).effective).toBe("cancelled");
@@ -569,7 +569,7 @@ describe("P2-A6 weather timeseries", () => {
       expect(first(b.state.units["U-F"]).effective).toBe("cancelled");
       fail.write = false;
       const c = makeRoot();
-      c.startRuntime("c", clock(DATE + 3));
+      c.startRuntime("c", clock(DATE + 3), testNotificationChannels);
       expect(c.state.units["U-F"].persistence.savedGeneration).toBe(1);
       expect(first(c.state.units["U-F"]).effective).toBe("active");
       route(c, fixture(cancel), DATE + 3);
@@ -580,7 +580,7 @@ describe("P2-A6 weather timeseries", () => {
       expect(c.state.units["U-F"].persistence).toMatchObject({ currentGeneration: 2, savedGeneration: 1 });
       fail.afterRename = false;
       const d = makeRoot();
-      d.startRuntime("d", clock(DATE + 4));
+      d.startRuntime("d", clock(DATE + 4), testNotificationChannels);
       expect(d.state.units["U-F"].persistence.savedGeneration).toBe(2);
       expect(first(d.state.units["U-F"]).effective).toBe("cancelled");
       const newer = fixture(unknown, (xml) => xml.replace("2026-06-05T17:00:00+09:00</ReportDateTime>",
@@ -604,7 +604,7 @@ describe("P2-A6 weather timeseries", () => {
       const finalGeneration = d.state.units["U-F"].persistence.currentGeneration;
       expect(d.state.units["U-F"].persistence.savedGeneration).toBe(finalGeneration);
       const e = makeRoot();
-      e.startRuntime("e", clock(DATE + 10_800_002));
+      e.startRuntime("e", clock(DATE + 10_800_002), testNotificationChannels);
       expect(e.state.units["U-F"].persistence.savedGeneration).toBe(finalGeneration);
       expect(e.state.units["U-F"].subjects).toEqual(d.state.units["U-F"].subjects);
       expect(writes).toBe(3);

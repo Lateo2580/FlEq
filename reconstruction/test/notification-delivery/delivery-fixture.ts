@@ -10,6 +10,7 @@ import { applyNotificationResult, selectNotificationAttempt } from "../../src/no
 export const calls = { ...linkedRuntimeCalls, codecs: linkedUnitCodecs, applyNotificationResult, selectNotificationAttempt };
 export const at = (time: number): ClockReading => ({ wallTimeMs: 1_713_363_299_000 + time, monotonicMs: time });
 export const empty = (clock = at(0)) => reduceRuntime(null, { kind: "startup", runId: "a7", clock,
+  notificationChannels: { desktop: { kind: "idle" }, sound: { kind: "idle" } },
   restored: { "U-E": { kind: "empty" }, "U-W": { kind: "empty" }, "U-F": { kind: "empty" } } }, calls).state;
 export function tick(state: RuntimeState, clock: ClockReading): RuntimeInput {
   return { kind: "mailboxCompleted", clock, completion: { kind: "control", runId: state.runId,

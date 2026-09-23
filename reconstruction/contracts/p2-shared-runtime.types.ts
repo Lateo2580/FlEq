@@ -225,7 +225,8 @@ export type MailboxControl =
   | Readonly<{ kind: "shutdownRequested"; acceptedThroughSequence: number; clock: ClockReading }>;
 
 export type RuntimeInput =
-  | Readonly<{ kind: "startup"; runId: string; clock: ClockReading; restored: Readonly<Record<RuntimeUnitId, RestoreUnitResult>> }>
+  | Readonly<{ kind: "startup"; runId: string; clock: ClockReading; restored: Readonly<Record<RuntimeUnitId, RestoreUnitResult>>;
+      notificationChannels: Readonly<Record<"desktop" | "sound", Extract<NotificationDeliveryState["channels"]["desktop"], { kind: "idle" | "unavailable" }>>> }>
   | Readonly<{ kind: "mailboxCompleted"; completion: MailboxCompletion; clock: ClockReading }>
   | Readonly<{ kind: "checkpointCaptured"; capture: CheckpointCapture }>
   | Readonly<{ kind: "notificationResult"; result: NotificationResult }>

@@ -8,7 +8,7 @@ import { hashEnvelope, serializedEnvelope } from "../../src/checkpoint/checkpoin
 import type { CheckpointFileSystem, WritableCheckpoint } from "../../src/checkpoint/checkpoint";
 import { RuntimeCompositionRoot } from "../../src/runtime/composition-root";
 
-import { fixtureState, fixtureValue, fixtureDriver } from "./runtime-fixture";
+import { fixtureState, fixtureValue, fixtureDriver , testNotificationChannels, recordingNotificationAdapter} from "./runtime-fixture";
 import type { Fixture } from "./runtime-fixture";
 
 const temporary: string[] = [];
@@ -96,7 +96,7 @@ describe("P2 checkpoint", () => {
     const path = await directory();
     const fixture = await fileSystem.readFile("test/fixtures/37_01_01_240613_VXSE43.xml", "utf8");
     const driver = fixtureDriver();
-    const root = new RuntimeCompositionRoot(config(path), { "U-E": codec("U-E") }, {
+    const root = new RuntimeCompositionRoot(config(path), { "U-E": codec("U-E") }, { notificationAdapter: recordingNotificationAdapter(),
       runtimeCalls: driver.calls,
       clock: () => ({ wallTimeMs: 1_713_363_299_002, monotonicMs: 2 }),
     });
@@ -123,7 +123,7 @@ describe("P2 checkpoint", () => {
     const path = await directory();
     const adapter = new MemoryCheckpointFileSystem();
     const driver = fixtureDriver();
-    const root = new RuntimeCompositionRoot(config(path), { "U-F": codec("U-F") }, {
+    const root = new RuntimeCompositionRoot(config(path), { "U-F": codec("U-F") }, { notificationAdapter: recordingNotificationAdapter(),
       checkpointFileSystem: adapter,
       runtimeCalls: driver.calls,
       clock: () => ({ wallTimeMs: 5_000, monotonicMs: 500 }),
@@ -155,7 +155,7 @@ describe("P2 checkpoint", () => {
     const driver = fixtureDriver();
     const root = new RuntimeCompositionRoot(config(path), {
       "U-W": codec("U-W", weather), "U-E": codec("U-E", eew),
-    }, { runtimeCalls: driver.calls, clock: () => ({ wallTimeMs: 1_000, monotonicMs: 100 }) });
+    }, { notificationAdapter: recordingNotificationAdapter(), runtimeCalls: driver.calls, clock: () => ({ wallTimeMs: 1_000, monotonicMs: 100 }) });
     const state = pending({ "U-W": { value: "saved" }, "U-E": { value: "dirty" } }, {
       "U-W": { kind: "saved", currentGeneration: 1, savedGeneration: 1,
         savedCapturedAt: 1, savedAckAt: 2, dirtySince: null },
@@ -174,7 +174,7 @@ describe("P2 checkpoint", () => {
     const adapter = new MemoryCheckpointFileSystem();
     let now = 100;
     const driver = fixtureDriver();
-    const root = new RuntimeCompositionRoot(config(path), { "U-F": codec("U-F"), "U-W": codec("U-W") }, {
+    const root = new RuntimeCompositionRoot(config(path), { "U-F": codec("U-F"), "U-W": codec("U-W") }, { notificationAdapter: recordingNotificationAdapter(),
       checkpointFileSystem: adapter,
       runtimeCalls: driver.calls,
       clock: () => ({ wallTimeMs: 10_000 + now, monotonicMs: now }),
@@ -223,7 +223,7 @@ describe("P2 checkpoint", () => {
     let now = 0;
     const driver = fixtureDriver();
     const adapter = new MemoryCheckpointFileSystem();
-    const root = new RuntimeCompositionRoot(config(path), { "U-F": codec("U-F", undefined, () => fail) }, {
+    const root = new RuntimeCompositionRoot(config(path), { "U-F": codec("U-F", undefined, () => fail) }, { notificationAdapter: recordingNotificationAdapter(),
       checkpointFileSystem: adapter,
       runtimeCalls: driver.calls,
       clock: () => ({ wallTimeMs: 1_000 + now, monotonicMs: now++ }),
@@ -273,7 +273,7 @@ describe("P2 checkpoint", () => {
       const adapter = new MemoryCheckpointFileSystem();
       adapter.fail = stage;
       const driver = fixtureDriver();
-      const root = new RuntimeCompositionRoot(config(path), { "U-F": codec("U-F") }, {
+      const root = new RuntimeCompositionRoot(config(path), { "U-F": codec("U-F") }, { notificationAdapter: recordingNotificationAdapter(),
         checkpointFileSystem: adapter, runtimeCalls: driver.calls,
         clock: () => ({ wallTimeMs: 1_000, monotonicMs: 1 }),
       });
@@ -293,7 +293,7 @@ describe("P2 checkpoint", () => {
     const path = await directory();
     let now = 1;
     const driver = fixtureDriver();
-    const root = new RuntimeCompositionRoot(config(path), { "U-F": codec("U-F") }, {
+    const root = new RuntimeCompositionRoot(config(path), { "U-F": codec("U-F") }, { notificationAdapter: recordingNotificationAdapter(),
       runtimeCalls: driver.calls,
       clock: () => ({ wallTimeMs: 1_000 + now, monotonicMs: now++ }),
     });

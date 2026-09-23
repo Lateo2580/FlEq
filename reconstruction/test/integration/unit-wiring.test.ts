@@ -17,7 +17,7 @@ import {
 import { reduceRuntime } from "../../src/runtime/shared-runtime";
 import { eewUnitCodec } from "../../src/units/eew/eew-unit";
 import { weatherCurrentUnitCodec } from "../../src/units/weather-current/weather-current-unit";
-import { fixtureState } from "../checkpoint-shutdown/runtime-fixture";
+import { fixtureState , testNotificationChannels, recordingNotificationAdapter} from "../checkpoint-shutdown/runtime-fixture";
 
 const calls = { ...linkedRuntimeCalls,
   selectNotificationAttempt: (delivery: NotificationDeliveryState) => ({ state: delivery,
@@ -72,7 +72,8 @@ describe("P2 unit wiring (A1 route, A3 composition root)", () => {
   it("P2-A1-T09 regression / AC09: real EEW capacity rejection hides dedicated current until a newer adoption", () => {
     const first = decode("37_01_01_240613_VXSE43", "VXSE43");
     const at = { wallTimeMs: Date.parse(first.reportDateTimeRaw), monotonicMs: 1 };
-    const initial = reduceRuntime(null, { kind: "startup", runId: "run", clock: at, restored: {
+    const initial = reduceRuntime(null, { kind: "startup", runId: "run", clock: at,
+      notificationChannels: testNotificationChannels, restored: {
       "U-E": { kind: "empty" }, "U-W": { kind: "empty" }, "U-F": { kind: "empty" },
     } }, calls).state;
     const adopted = reduceRuntime(initial, parsed("run", first, at), calls).state;
@@ -119,8 +120,8 @@ describe("P2 unit wiring (A1 route, A3 composition root)", () => {
 
   it("P2-A3-T10 regression / AC10: a rejected explicit correlation leaves adoption and its ledger untouched", async () => {
     const at = { wallTimeMs: 1_800_000_000_000, monotonicMs: 1 };
-    const root = new RuntimeCompositionRoot(await config(), linkedUnitCodecs, { runtimeCalls: calls, clock: () => at });
-    const initial = root.startRuntime("run", at).state;
+    const root = new RuntimeCompositionRoot(await config(), linkedUnitCodecs, { notificationAdapter: recordingNotificationAdapter(), runtimeCalls: calls, clock: () => at });
+    const initial = root.startRuntime("run", at, testNotificationChannels).state;
     const material = decode("15_16_02_251222_VPWW57", "VPWW57", (xml) => xml, "real");
     const input = parsed("run", material, at);
     expect(() => root.dispatch(initial, input, { "U-W": { inputIds: ["wrong"], retryReason: "notRetry" } }))
@@ -142,7 +143,7 @@ describe("P2 unit wiring (A1 route, A3 composition root)", () => {
       payload: eewUnitCodec.encode({ ...fixtureState().units["U-E"], intents: notices }),
     })));
     const at = { wallTimeMs: 10, monotonicMs: 10 };
-    const root = new RuntimeCompositionRoot(settings, linkedUnitCodecs, { clock: () => at, runtimeCalls: {
+    const root = new RuntimeCompositionRoot(settings, linkedUnitCodecs, { notificationAdapter: recordingNotificationAdapter(), clock: () => at, runtimeCalls: {
       ...calls, selectNotificationAttempt: (delivery: NotificationDeliveryState) => {
         if (delivery.channels.desktop.kind !== "idle" || delivery.channels.sound.kind !== "idle")
           return { state: delivery, attempts: [], abortRequests: [], diagnostics: [] };
@@ -157,7 +158,7 @@ describe("P2 unit wiring (A1 route, A3 composition root)", () => {
         attempts, abortRequests: [], diagnostics: [] };
       },
     } });
-    const started = root.startRuntime("run", at);
+    const started = root.startRuntime("run", at, testNotificationChannels);
     expect(started.generationInputIds).toEqual({ "U-E": [] });
     const step = root.tick(started.state, at);
     expect(step.state.units["U-E"].persistence.currentGeneration).toBe(9);
@@ -175,14 +176,14 @@ describe("P2 unit wiring (A1 route, A3 composition root)", () => {
       unit: "U-E", generation: 3, capturedAt: 10, payload });
     await fileSystem.writeFile(join(settings.stateDirectory, "U-E-A.json"), serializedEnvelope(envelope));
     const at = { wallTimeMs: 16_000, monotonicMs: 45 };
-    const root = new RuntimeCompositionRoot(settings, linkedUnitCodecs, { runtimeCalls: calls, clock: () => at });
-    const started = root.startRuntime("first", at);
+    const root = new RuntimeCompositionRoot(settings, linkedUnitCodecs, { notificationAdapter: recordingNotificationAdapter(), runtimeCalls: calls, clock: () => at });
+    const started = root.startRuntime("first", at, testNotificationChannels);
     expect(started.state.units["U-E"].persistence).toMatchObject({ currentGeneration: 4,
       savedGeneration: 3, dirtySince: 45, savedCapturedAt: 10 });
     expect(started.generationInputIds).toEqual({ "U-E": [] });
     expect((await root.shutdownRuntime(root.state, 0, at)).code).toBe(0);
-    const restarted = new RuntimeCompositionRoot(settings, linkedUnitCodecs, { runtimeCalls: calls, clock: () => at });
-    expect(restarted.startRuntime("second", at).state.units["U-E"].persistence)
+    const restarted = new RuntimeCompositionRoot(settings, linkedUnitCodecs, { notificationAdapter: recordingNotificationAdapter(), runtimeCalls: calls, clock: () => at });
+    expect(restarted.startRuntime("second", at, testNotificationChannels).state.units["U-E"].persistence)
       .toMatchObject({ kind: "saved", currentGeneration: 4, savedGeneration: 4 });
     await restarted.diagnostics.flush();
   });
@@ -196,8 +197,8 @@ describe("P2 unit wiring (A1 route, A3 composition root)", () => {
     const slot = join(settings.stateDirectory, "U-W-A.json");
     await fileSystem.writeFile(slot, bytes);
     const at = { wallTimeMs: 1_800_000_000_000, monotonicMs: 4 };
-    const root = new RuntimeCompositionRoot(settings, linkedUnitCodecs, { runtimeCalls: calls, clock: () => at });
-    expect(root.startRuntime("run", at).state.restoration["U-W"]).toEqual({ kind: "unavailable", reason: "unknownSchema" });
+    const root = new RuntimeCompositionRoot(settings, linkedUnitCodecs, { notificationAdapter: recordingNotificationAdapter(), runtimeCalls: calls, clock: () => at });
+    expect(root.startRuntime("run", at, testNotificationChannels).state.restoration["U-W"]).toEqual({ kind: "unavailable", reason: "unknownSchema" });
     root.dispatch(root.state, parsed("run", decode("15_16_02_251222_VPWW57", "VPWW57"), at));
     expect((await root.shutdownRuntime(root.state, 1, at)).code).toBe(2);
     expect(await fileSystem.readFile(slot)).toEqual(Buffer.from(bytes));
@@ -227,12 +228,12 @@ describe("P2 unit wiring (A1 route, A3 composition root)", () => {
       (xml) => atTime(xml, "2020-06-22T22:59:00+09:00"), "stale");
     for (const savedFirst of [false, true]) {
       const measured: string[][] = [];
-      const root = new RuntimeCompositionRoot(await config(), linkedUnitCodecs, { runtimeCalls: calls,
+      const root = new RuntimeCompositionRoot(await config(), linkedUnitCodecs, { notificationAdapter: recordingNotificationAdapter(), runtimeCalls: calls,
         clock: () => at, onMeasurements: (items) => {
           for (const item of items) if (item.unit === "U-W" && item.stage === "encode")
             measured.push([...item.inputIds]);
         } });
-      root.startRuntime("run", at);
+      root.startRuntime("run", at, testNotificationChannels);
       root.dispatch(root.state, parsed("run", first, at));
       if (savedFirst) await save(root, "U-W", [first.inputId], () => at);
       const latest = root.dispatch(root.state, parsed("run", stale, at));
@@ -249,13 +250,13 @@ describe("P2 unit wiring (A1 route, A3 composition root)", () => {
     const options = { runtimeCalls: calls, clock, checkpointFileSystem: { ...files,
       open: (path: string) => failWrite ? Promise.reject(new Error("injected write failure")) : files.open(path) } };
     const settings = await config();
-    const root = new RuntimeCompositionRoot(settings, linkedUnitCodecs, options);
+    const root = new RuntimeCompositionRoot(settings, linkedUnitCodecs, { ...(options), notificationAdapter: recordingNotificationAdapter() });
     const first = decode("15_16_02_251222_VPWW57", "VPWW57");
     const second = decode("15_16_02_251222_VPWW57", "VPWW57", (xml) => atTime(xml, "2020-06-22T23:01:00+09:00"), "second");
 
     expect(() => root.dispatch(fixtureState({}, {}, "run-1"), parsed("run-1", first, clock())))
       .toThrow("runtime has not received its initial state");
-    const received = root.dispatch(root.startRuntime("run-1", clock()).state, parsed("run-1", first, clock()));
+    const received = root.dispatch(root.startRuntime("run-1", clock(), testNotificationChannels).state, parsed("run-1", first, clock()));
     expect(received.changedUnits).toEqual(["U-W"]);
     expect(received.views).toMatchObject([{ unit: "U-W", subjects: [{ transition: "active", source: { inputId: first.inputId } }] }]);
     const national = decode("15_18_01_250630_VPWS50", "VPWS50");
@@ -274,8 +275,8 @@ describe("P2 unit wiring (A1 route, A3 composition root)", () => {
     expect(summary).toMatchObject({ code: 0, persistence: { "U-W": { kind: "saved", savedGeneration: generation } } });
 
     now++;
-    const restarted = new RuntimeCompositionRoot(settings, linkedUnitCodecs, options);
-    const startup = restarted.startRuntime("run-2", clock());
+    const restarted = new RuntimeCompositionRoot(settings, linkedUnitCodecs, { ...(options), notificationAdapter: recordingNotificationAdapter() });
+    const startup = restarted.startRuntime("run-2", clock(), testNotificationChannels);
     const resumed = startup.state;
     expect(resumed.units["U-W"].partials[0].source.inputId).toBe("second");
     expect(startup.views.find((view) => view.unit === "U-W")).toMatchObject({ national: {}, partials: [],
@@ -293,8 +294,8 @@ describe("P2 unit wiring (A1 route, A3 composition root)", () => {
     expect((await restarted.shutdownRuntime(restarted.state, 1, clock())).code).toBe(0);
     const saved = restarted.restoreUnit("U-W");
     expect(saved).toMatchObject({ kind: "restored", envelope: { generation: generation + 1 } });
-    const finalRoot = new RuntimeCompositionRoot(settings, linkedUnitCodecs, options);
-    const again = finalRoot.startRuntime("run-3", clock()).state;
+    const finalRoot = new RuntimeCompositionRoot(settings, linkedUnitCodecs, { ...(options), notificationAdapter: recordingNotificationAdapter() });
+    const again = finalRoot.startRuntime("run-3", clock(), testNotificationChannels).state;
     expect(again.units["U-W"].partials[0].source.inputId).toBe("third");
     await Promise.all([root.diagnostics.flush(), restarted.diagnostics.flush(), finalRoot.diagnostics.flush()]);
   });
@@ -305,10 +306,10 @@ describe("P2 unit wiring (A1 route, A3 composition root)", () => {
     const clock = () => ({ wallTimeMs: now, monotonicMs: now });
     const settings = await config();
     const options = { runtimeCalls: calls, clock };
-    const root = new RuntimeCompositionRoot(settings, linkedUnitCodecs, options);
+    const root = new RuntimeCompositionRoot(settings, linkedUnitCodecs, { ...(options), notificationAdapter: recordingNotificationAdapter() });
     const first = decode("81_01_04_251222_VPWP50", "VPWP50");
 
-    const received = root.dispatch(root.startRuntime("run-1", clock()).state, parsed("run-1", first, clock()));
+    const received = root.dispatch(root.startRuntime("run-1", clock(), testNotificationChannels).state, parsed("run-1", first, clock()));
     expect(received.changedUnits).toEqual(["U-F"]);
     expect(received.state.units["U-F"].subjects).toMatchObject([
       { subject: "normal/VPWP50/稚内地方気象台", effective: "active", source: { inputId: first.inputId } }]);
@@ -317,8 +318,8 @@ describe("P2 unit wiring (A1 route, A3 composition root)", () => {
     expect(summary).toMatchObject({ code: 0, persistence: { "U-F": { kind: "saved", savedGeneration: generation } } });
 
     now++;
-    const restarted = new RuntimeCompositionRoot(settings, linkedUnitCodecs, options);
-    const resumed = restarted.startRuntime("run-2", clock()).state;
+    const restarted = new RuntimeCompositionRoot(settings, linkedUnitCodecs, { ...(options), notificationAdapter: recordingNotificationAdapter() });
+    const resumed = restarted.startRuntime("run-2", clock(), testNotificationChannels).state;
     expect(resumed.units["U-F"].subjects[0]).toMatchObject({ source: { inputId: first.inputId } });
     const second = decode("81_01_04_251222_VPWP50", "VPWP50",
       (xml) => atTime(xml, "2023-06-22T23:30:00+09:00"), "second");
@@ -340,7 +341,7 @@ describe("P2 unit wiring (A1 route, A3 composition root)", () => {
     const openStarted = new Promise<void>((resolve) => { signalOpen = resolve; });
     const openGate = new Promise<void>((resolve) => { releaseOpen = resolve; });
     const settings = await config();
-    const root = new RuntimeCompositionRoot(settings, linkedUnitCodecs, { runtimeCalls: calls, clock,
+    const root = new RuntimeCompositionRoot(settings, linkedUnitCodecs, { notificationAdapter: recordingNotificationAdapter(), runtimeCalls: calls, clock,
       checkpointFileSystem: { ...files, open: async (path) => { signalOpen(); await openGate; return files.open(path); } },
       onMeasurements: (items) => measured.push(...items.map(({ unit, generation, inputIds }) => ({ unit, generation, inputIds }))) });
     const first = decode("15_16_02_251222_VPWW57", "VPWW57");
@@ -349,7 +350,7 @@ describe("P2 unit wiring (A1 route, A3 composition root)", () => {
     const third = decode("15_16_02_251222_VPWW57", "VPWW57",
       (xml) => atTime(xml, "2020-06-22T23:02:00+09:00"), "third");
 
-    root.dispatch(root.startRuntime("run", clock()).state, parsed("run", first, clock()));
+    root.dispatch(root.startRuntime("run", clock(), testNotificationChannels).state, parsed("run", first, clock()));
     const firstSave = save(root, "U-W", [first.inputId], clock);
     await openStarted;
     now++;
@@ -386,20 +387,20 @@ describe("P2 unit wiring (A1 route, A3 composition root)", () => {
     const clock = () => ({ wallTimeMs: now, monotonicMs: now });
     const settings = await config();
     const options = { runtimeCalls: calls, clock };
-    const root = new RuntimeCompositionRoot(settings, linkedUnitCodecs, options);
+    const root = new RuntimeCompositionRoot(settings, linkedUnitCodecs, { ...(options), notificationAdapter: recordingNotificationAdapter() });
     const first = decode("37_01_01_240613_VXSE43", "VXSE43");
 
-    const received = root.dispatch(root.startRuntime("run-1", clock()).state, parsed("run-1", first, clock()));
+    const received = root.dispatch(root.startRuntime("run-1", clock(), testNotificationChannels).state, parsed("run-1", first, clock()));
     expect(received.changedUnits).toEqual(["U-E"]);
     expect(received.views).toMatchObject([{ unit: "U-E", activeCount: 1 }]);
     expect((await root.shutdownRuntime(root.state, 1, clock())).code).toBe(0);
 
     now++;
-    const restarted = new RuntimeCompositionRoot(settings, linkedUnitCodecs, options);
+    const restarted = new RuntimeCompositionRoot(settings, linkedUnitCodecs, { ...(options), notificationAdapter: recordingNotificationAdapter() });
     expect(restarted.restoreUnit("U-E")).toMatchObject({ kind: "restored", envelope: {
       payload: { intents: [{ channel: "desktop" }, { channel: "sound" }] },
     } }); // active current is not durable; pending delivery is.
-    const resumed = restarted.startRuntime("run-2", clock()).state;
+    const resumed = restarted.startRuntime("run-2", clock(), testNotificationChannels).state;
     const followUp = restarted.dispatch(resumed, parsed("run-2", decode("37_01_02_240613_VXSE43", "VXSE43"), clock()));
     expect(followUp.changedUnits).toEqual(["U-E"]);
     expect(followUp.state.units["U-E"].current.map((item) => item.serial)).toEqual([2]);

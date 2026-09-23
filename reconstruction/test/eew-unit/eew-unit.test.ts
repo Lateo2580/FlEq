@@ -14,7 +14,7 @@ import { decodeMaterial } from "../../src/decode-material/decode-material";
 import { ingestXmlData } from "../../src/ingress/ingress";
 import { RuntimeCompositionRoot } from "../../src/runtime/composition-root";
 import { eewUnitCodec, reduceEewUnit, toEewView } from "../../src/units/eew/eew-unit";
-import { fixtureDriver } from "../checkpoint-shutdown/runtime-fixture";
+import { fixtureDriver , testNotificationChannels, recordingNotificationAdapter} from "../checkpoint-shutdown/runtime-fixture";
 
 const BASE_TIME = 1_713_363_299_001;
 
@@ -751,7 +751,7 @@ describe("P2 EEW unit", () => {
       reduceEewUnit: (state, input) => runtimeCalls.reduceEewUnit(state, input.kind === "deadline"
         ? { kind: "receive", material: cancelled, clock: input.clock } : input),
     };
-    const root = new RuntimeCompositionRoot(config(), { "U-E": eewUnitCodec }, {
+    const root = new RuntimeCompositionRoot(config(), { "U-E": eewUnitCodec }, { notificationAdapter: recordingNotificationAdapter(),
       checkpointFileSystem: adapter, diagnosticFileSystem: diagnostics,
       runtimeCalls,
       clock: () => ({ wallTimeMs: now, monotonicMs: now }),
@@ -765,7 +765,7 @@ describe("P2 EEW unit", () => {
         savedCapturedAt: null, savedAckAt: null, dirtySince: BASE_TIME } };
     const seed = (target: RuntimeCompositionRoot) => {
       const at = { wallTimeMs: now, monotonicMs: now };
-      return target.dispatch(target.startRuntime("eew-test", at).state, { kind: "mailboxCompleted", clock: at, completion: {
+      return target.dispatch(target.startRuntime("eew-test", at, testNotificationChannels).state, { kind: "mailboxCompleted", clock: at, completion: {
         kind: "parser", messageId: first.inputId, inputId: first.inputId, runId: "eew-test",
         encodedByteLength: 0, startedMonotonicMs: now, completedMonotonicMs: now, inputSequence: 1,
         result: { kind: "decoded", material: first },
@@ -824,7 +824,7 @@ describe("P2 EEW unit", () => {
     expect(restored.state.current).toEqual([]);
     expect(restored.state.gates).toEqual([]);
 
-    const oldAckRoot = new RuntimeCompositionRoot(config(), { "U-E": eewUnitCodec }, {
+    const oldAckRoot = new RuntimeCompositionRoot(config(), { "U-E": eewUnitCodec }, { notificationAdapter: recordingNotificationAdapter(),
       checkpointFileSystem: new MemoryCheckpointFileSystem(), diagnosticFileSystem: new MemoryDiagnosticFileSystem(),
       runtimeCalls: cancellationCalls,
       clock: () => ({ wallTimeMs: now, monotonicMs: now }),
@@ -844,7 +844,7 @@ describe("P2 EEW unit", () => {
     expect(oldAckState.units["U-E"].persistence?.dirtySince).toBe(cancellationClock.monotonicMs);
 
     const failedAdapter = new MemoryCheckpointFileSystem();
-    const failedRoot = new RuntimeCompositionRoot(config(), { "U-E": eewUnitCodec }, {
+    const failedRoot = new RuntimeCompositionRoot(config(), { "U-E": eewUnitCodec }, { notificationAdapter: recordingNotificationAdapter(),
       checkpointFileSystem: failedAdapter, diagnosticFileSystem: new MemoryDiagnosticFileSystem(),
       runtimeCalls: cancellationCalls,
       clock: () => ({ wallTimeMs: now, monotonicMs: now }),
@@ -866,7 +866,7 @@ describe("P2 EEW unit", () => {
       intentId: unit.intents[0].id, disposition: "superseded", expiresAt: unit.intents[0].expiresAt,
     });
 
-    const shutdownRoot = new RuntimeCompositionRoot(config(), { "U-E": eewUnitCodec }, {
+    const shutdownRoot = new RuntimeCompositionRoot(config(), { "U-E": eewUnitCodec }, { notificationAdapter: recordingNotificationAdapter(),
       checkpointFileSystem: new MemoryCheckpointFileSystem(), diagnosticFileSystem: new MemoryDiagnosticFileSystem(),
       runtimeCalls,
       clock: () => ({ wallTimeMs: now, monotonicMs: now }),

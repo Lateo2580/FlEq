@@ -1,3 +1,4 @@
+import { testNotificationChannels, recordingNotificationAdapter } from "../checkpoint-shutdown/runtime-fixture";
 import { promises as fs, readFileSync, readdirSync } from "node:fs";
 import * as fileSystem from "node:fs";
 import * as childProcess from "node:child_process";
@@ -182,10 +183,10 @@ describe("P2-A7 notification delivery", () => {
     let clock = at(0), held = true;
     const gated = { ...calls, selectNotificationAttempt: (state: Parameters<typeof selectNotificationAttempt>[0], now: typeof clock) =>
       held ? { state, attempts: [], abortRequests: [], diagnostics: [] } : selectNotificationAttempt(state, now) };
-    const root = new RuntimeCompositionRoot(settings, linkedUnitCodecs, { runtimeCalls: gated, clock: () => clock });
-    const restoredRoot = new RuntimeCompositionRoot(settings, linkedUnitCodecs, { runtimeCalls: gated, clock: () => clock });
+    const root = new RuntimeCompositionRoot(settings, linkedUnitCodecs, { notificationAdapter: recordingNotificationAdapter(), runtimeCalls: gated, clock: () => clock });
+    const restoredRoot = new RuntimeCompositionRoot(settings, linkedUnitCodecs, { notificationAdapter: recordingNotificationAdapter(), runtimeCalls: gated, clock: () => clock });
     try {
-      root.startRuntime("o07", clock);
+      root.startRuntime("o07", clock, testNotificationChannels);
       root.dispatch(root.state, eewInput(root.state, clock));
       const original = root.state.units["U-E"].intents;
       expect(original).toHaveLength(2);
@@ -196,7 +197,7 @@ describe("P2-A7 notification delivery", () => {
       expect(root.state.units["U-E"].persistence.kind).toBe("saved");
       expect(root.state.units["U-E"].intents).toEqual(original);
       clock = at(500);
-      restoredRoot.startRuntime("restored", clock);
+      restoredRoot.startRuntime("restored", clock, testNotificationChannels);
       expect(restoredRoot.state.units["U-E"].intents).toEqual(original);
       expect(Object.values(restoredRoot.state.notificationDeadlines.desktop)[0]).toEqual({ retryAtMonotonicMs: 500, expiresAtMonotonicMs: 15_000 });
       held = false;
