@@ -1,10 +1,10 @@
 {
   "meta": {
     "draftedFromOid": "3095a6c21caa96e06fc3b3a6d2f906534ef5441b",
-    "sha256": "e443ac2d3334df677e42467dd74cbf5f85441b01990660e692e22947e0a7f762",
+    "sha256": "c2ba7386bb85c8b505d4d47082190cbcecafcf1b66d13c001d1fe9dd95d18bda",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "76c82b87d7783a4eae14af690cb34e7d6ec46f73617dc75b7f7401951619f080",
-    "sequencesSha256": "6045053b7bd7b06707d528d616b68c1ebeab44c4195c8ff405e7bdb19aeef500",
+    "sequencesSha256": "be9cfd97b555e3a55568f085d107342c978b3dc7249f5cecea868ea5a62c5781",
     "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
     "decisionBranches": [
       {
@@ -166,7 +166,8 @@
       "shutdownRuntime(state: RuntimeState, acceptedThroughSequence: number, clock: ClockReading): Promise<ShutdownSummary>",
       "enqueueDiagnostic(event: DiagnosticEvent): DiagnosticSinkResult",
       "readDiagnostics(query: DiagnosticReadQuery): Promise<DiagnosticReadResult>",
-      "projectParserDiagnostic(parser: ParserDiagnostic, runId: string, timestamp: number): ParserDiagnosticProjection"
+      "projectParserDiagnostic(parser: ParserDiagnostic, runId: string, timestamp: number): ParserDiagnosticProjection",
+      "startRuntime(runId: string, clock: ClockReading): RuntimeStep"
     ],
     "allowedDependencies": [
       "node:crypto",
@@ -432,6 +433,22 @@
           "docs/specs/reconstruction-p0-contracts.md:351 «8bd801c6876cb0c1»",
           "docs/specs/reconstruction-p0-contracts.md:835 «187d65da3382a48c»"
         ]
+      },
+      {
+        "id": "P2-A3-AC09",
+        "requirement": "R21: 製品起動入口startRuntimeは各unitのrestoreUnitを一度読み、全結果を一つのstartup入力としてreduceRuntime(null, input)へ渡し、戻りstateだけを採用する。通常入力は起動完了後に受ける。restored世代gとcapturedAt、empty世代0、unavailable理由をA1へそのまま渡し、復元後のpersistenceをA3で合成しない。未知schema/世代矛盾などの既存slotを空stateで自動上書きせず、受信継続とslot書込み可否を分離する。writerは古い世代と同世代異hashを無書込みで失敗させ、同世代同hashの再試行は区別する。世代の黙った補正はしない",
+        "evidenceRefs": [
+          "docs/specs/reconstruction-p0-contracts.md:768 «c6fcdefce2d90c9f»",
+          "docs/specs/reconstruction-p0-contracts.md:770 «3fe91886fca8d1d6»",
+          "docs/specs/reconstruction-p0-contracts.md:808 «6f567d2a46e4bf30»"
+        ]
+      },
+      {
+        "id": "P2-A3-AC10",
+        "requirement": "R45/A10-AC09: 世代帰属とcapture集約の正本は本条とする。dispatchは各unitの前後のcurrentGenerationとA1 RuntimeStep.generationInputIdsを照合し、世代が進んだunitの明示keyにある配列だけを、そのstepの世代変化に寄与した入力として採用する。changedUnitsやparser入力の存在からinputIdを推定しない。起動時は検証済み復元g（emptyなら0）を基点として起動回収後の世代変化を照合する。未保存区間の各世代変化で検証した寄与IDを保持し、capture時はsavedGenerationより後から捕捉世代までの和集合を重複なく固定する。g1=[x]→g2=[]でもg1未保存ならcapture g2のinputIdsは[x]、g1保存確認済みなら[]となる。期限・intentUpdate・起動回収だけの[]は当該stepに寄与入力がないという明示値で、以前の未保存寄与IDを消さない。世代が進んだunitのkey欠落・世代対応不一致は帰属不明であり、[]で補完しない。未保存区間に不明な世代変化が一つでも残ればcapture不可・終了code 2とし、後続の[]や別世代の寄与IDで過去の欠落を帰属済みにしない。外部の明示correlationはA1出力から集約した対象unit/generationのinputIdsとの一致確認にだけ使い、上書き・優先・欠落補完の根拠にしない。古いackで除けるのは保存確認済み世代までの寄与IDだけで、捕捉後の未保存寄与と欠落を保持する。競合EEWのIDを補填せず、EEW競合はrunIdと単調時間区間で照合する",
+        "evidenceRefs": [
+          "reconstruction/contracts/p2-eew-e01.types.ts"
+        ]
       }
     ],
     "testMapping": [
@@ -534,6 +551,23 @@
           "reconstruction/src/runtime/shared-runtime.ts"
         ],
         "behavior": "mailboxDrain結果の適用後に完了したrouted入力はunitへ渡さずunit stateを同一参照に保つ（A1-route）"
+      },
+      {
+        "testId": "P2-A3-T09",
+        "purpose": "acceptance",
+        "referenceIds": [
+          "P2-A3-AC08",
+          "P2-A3-AC09"
+        ],
+        "behavior": "製品入口で保存g→再起動g→続報g+1保存→再起動g+1をU-W/U-Fで検収する。復元時期限回収はg+1 dirty、schema/hash/世代異常はslotを自動上書きしない。O10:37-39も同入口を通す"
+      },
+      {
+        "testId": "P2-A3-T10",
+        "purpose": "contractBoundary",
+        "referenceIds": [
+          "P2-A3-AC10"
+        ],
+        "behavior": "AC10の契約境界: EEW採用と同じstepでU-Wが期限回収だけ進む場合、U-Wの当該世代はA1の明示[]で帰属しEEW IDが混ざらない。g1=[x]→g2=[]のg1未保存ならcapture g2=[x]、g1保存確認後ならcapture g2=[]。捕捉後のg3=[y]は古いackでも保持する。世代変化時のkey欠落を[]で補完せず、帰属不明g1→明示[]のg2でもcapture不可・code 2を維持する。外部correlationによる上書き・欠落補完を拒否する。期限・intentUpdate・起動回収だけで未保存区間の全世代が帰属済みなら空inputIdsで最終保存しcode 0とする"
       }
     ],
     "requiredCommands": [
@@ -601,14 +635,16 @@
       "checkpoint SHA-256はトップレベルsha256 fieldの64文字だけをASCII 0へ置換したenvelope全保存UTF-8 bytes（schemaVersion・unit・generation・capturedAt・payload・空白/改行を含む）を対象とする。manifest/契約と同じ自己hash規約。書込はschemaVersion, unit, generation, capturedAt, payload, sha256順のJSON.stringify（BOM/末尾改行なし）。読込はparse/restringifyせず保存bytesの該当fieldだけをzero化し、payload内の同名fieldを置換しない。重複field・不正hash形式は拒否する。hashとschema/unit等の妥当性を確認済みのslotだけを世代選択へ渡す",
       "readDiagnostics queryはlevel/unitの完全一致、fromTimestampMs以上throughTimestampMs以下の時刻範囲。limitは整数1〜256、時刻は有限かつfrom<=through、不正queryは拒否する。timestamp昇順で返し同時刻は保存順、1回256件かつUTF-8 JSON records 1 MiB以下・各record8192 byte以下、超過はtruncated=true。可変内部参照を返さない",
       "追実装で閉じる項目(R15): 現行reconstruction/src/checkpoint/persistent-diagnostic-sink.ts:101-128,156-176,217の保存済み／排出batch再集約をqueue受付区間内だけへ縮小する。:316-327,368-412の一時ファイル置換、置換残骸処理、保存済み日別ファイルのreadFile・JSON再解析・再集約・部分書換えを削除し、日別ファイルはappendFileだけ、7日・100MiB回収はfilesの名前・sizeから古い日別ファイル全体をunlinkする。削除対象は日別診断ログの保守経路に限定し、終了要約（ShutdownSummary）の保存経路とDiagnosticReadQueryの読取解析は対象外として維持する。T07から保存済みファイルの再集約・部分回収・tmp残骸系列を削り、queue内集約・flushをまたぐ別記録・日別全体回収へ縮小する",
-      "捕捉側の測定/失敗返却口がないとRequest生成前のencode失敗と成功encodeの時刻がA10へ届かないため、scheduleCheckpointは捕捉前にrunIdと単位別inputIds/retryReasonを受け、選択したunit/generationにattemptIdを発行してから捕捉・codec encodeを実行する。nullは試行なし・計測なし。成功はrequestとstage=encode/outcome=succeededの計測を返し、失敗はrequest=null、stage=encodeのfailed CheckpointResultとoutcome=failedの計測を返す。失敗結果も既存のRuntimeInput経由で適用し、executeCheckpointは呼ばない。encode区間は捕捉開始からenvelope生成・byte確定または失敗まで同じrunのNode単調時計で測る。完全な出力がないencode失敗ではbytesとencodedByteLengthを0（完成出力なし）とし、所要時間は実測値を残す。選択単位の相関は捕捉する世代の採用に寄与したinputIdsを固定し、欠落を空配列や別入力IDで補完しない。executeCheckpointには成功requestと同じ相関を渡し、write/fileSync/close/rename/directorySync/verifyの実行stageだけを返す。scheduleCheckpointの捕捉/encode計測とexecuteCheckpointのwrite以降の計測をrunId/attemptIdで結合し、unit/generation/inputIds/retryReasonの一致を検証する。encodeは成功・失敗とも捕捉側から一度だけ取り込み、実行済みencodeの再実行・時刻の復元・二重計上をしない。未実行stageは捏造せず、DiagnosticEventへ押し込まない",
+      "捕捉側の測定/失敗返却口がないとRequest生成前のencode失敗と成功encodeの時刻がA10へ届かないため、scheduleCheckpointは捕捉前にrunIdと単位別inputIds/retryReasonを受け、選択したunit/generationにattemptIdを発行してから捕捉・codec encodeを実行する。nullは試行なし・計測なし。成功はrequestとstage=encode/outcome=succeededの計測を返し、失敗はrequest=null、stage=encodeのfailed CheckpointResultとoutcome=failedの計測を返す。失敗結果も既存のRuntimeInput経由で適用し、executeCheckpointは呼ばない。encode区間は捕捉開始からenvelope生成・byte確定または失敗まで同じrunのNode単調時計で測る。完全な出力がないencode失敗ではbytesとencodedByteLengthを0（完成出力なし）とし、所要時間は実測値を残す。選択単位の相関はP2-A3-AC10で照合・集約した未保存区間のinputIdsを捕捉世代へ固定する。executeCheckpointには成功requestと同じ相関を渡し、write/fileSync/close/rename/directorySync/verifyの実行stageだけを返す。scheduleCheckpointの捕捉/encode計測とexecuteCheckpointのwrite以降の計測をrunId/attemptIdで結合し、unit/generation/inputIds/retryReasonの一致を検証する。encodeは成功・失敗とも捕捉側から一度だけ取り込み、実行済みencodeの再実行・時刻の復元・二重計上をしない。未実行stageは捏造せず、DiagnosticEventへ押し込まない",
       "R13=A composition root規則: 入力の順序付け・reduceRuntimeが返すstateの採用・effect実行だけを行い、stateの構築・部分上書き・非同期hookから返されたstateの合成をしない。無いと保存ackと終了hookが唯一のstate更新口を迂回する",
       "追実装で閉じる項目(A3-B1): scheduleCheckpointの成功/encode失敗の両戻り値にCheckpointRequest識別fieldだけのCheckpointCaptureを返し、後続入力または失敗結果より先にcheckpointCapturedとしてreduceRuntimeへ渡す。相関・耐久性を確認したCheckpointResultだけを既存control経路へ返し、writer解放・retry・measurement管理はA3に残す。無いとencode失敗を一致する試行へ適用できない",
       "追実装で閉じる項目(A3-typed-units): 現行checkpoint.ts:166,175,189,333,336,346,393（TS2344 7件）とcomposition-root.ts:33,38,39,140,166,178,210,211,223,224,240（2件）,262,289,335,350（TS2344 16件）のPartial<Record<UnitId, unknown>> genericをRuntimeUnitStatesへ限定する。無いと具体結線したRuntimeStateをA3の捕捉・結果照合へ渡せない",
       "追実装で閉じる項目(A3-transitional): 現行composition-root.ts:212-217のresultMetadataによるstate部分上書きを除去し、metadataはwriter解放・retry・diagnosticだけに限定する。units[unit].persistenceとcheckpointAttemptsはreduceRuntimeの一致試行結果だけを採用する。:235-236の独自no-op RuntimeStep構築と旧notificationIntents（TS2561）も除去し、結果入力がない場合はA1のdeadline入力による戻りstepをそのまま採用する。新しいnotificationAttempts/abortAttemptIds/effects/shutdownSummaryをA3で補完しない",
       "追実装で閉じる項目(R17/A3): 現行reconstruction/src/checkpoint/checkpoint.ts:171,185,329,347,384とreconstruction/src/runtime/composition-root.ts:223,368のRuntimeState.persistence読取をunits[unit].persistenceへ置換する。ShutdownSummary.persistenceはA1がunit側から作り、reconstruction/src/checkpoint/persistent-diagnostic-sink.ts:292-294はその出力だけを読む。composition root・A1-b testの初期stateと期待値から二重persistenceを削除し、新しい状態管理層・helperは作らない",
       "追実装で閉じる項目(A3-shutdown): 現行composition-root.ts:269-346のshutdown文字列上書き、ShutdownUpdate state返却、adoptShutdownUpdateのpersistence/state合成を除去する。:189/:227の文字列比較（TS2367）はshutdown.stageのworkerClose/completed判定へ置換し、:350-352のshutdownPhase直接更新helperを除去してA1の段階結果遷移へ置換する。:270/:299のTS2322、:278のTS2345、:289/:307のTS2531もこの戻りstate採用経路で閉じる。stopInputAndDrainMailbox/finalizeNotificationDelivery/startFinalCheckpoints/closeRuntimeWorkersを実行し、各完了・失敗・deadlineExceeded、未処理件数、sinkのdroppedDiagnostics、clockをshutdownStageResultでA1へ返す。:302-327のcode/reasons/summary構築・合成を除去し、A1所有stageResultsから3→2→4で判定されたcloseRuntimeWorkers.summaryを保存してからworker等を閉じ、最終RuntimeStep.shutdownSummaryを保存・返却する。:244/:265の仮runId=shutdownもstate.runIdへ揃える",
-      "追実装で閉じる項目(A3-link-A4A5): composition-root.tsに配送済み単位のlinkedUnitCodecs（U-E eewUnitCodec・U-W weatherCurrentUnitCodec）とlinkedRuntimeCalls（reduceEewUnit/toEewView/reduceWeatherCurrentUnit/toWeatherCurrentView）を置き、U-F（A6）・A7は各配送時にここへ足す。routeはA1内部で決まり呼出側は変化unitを名指しできないため、dispatchはparser入力で変化したunitへそのinputIdを帰属し、保存済みでない世代の間はinputIdsを積み増す（呼出側の明示correlationが優先）。無いと相関なしのrouted入力が最終checkpointの対象外となり正常終了がcode 2になる。A5 T05の保存世代の期待値はA3担当の結線後再検収として更新した（routedな旧報がU-Wへstaleとして届きfreshness記録だけで世代+1、計画§2.1）。A6配送前はshutdownとdeadlineがU-Fも訪れるため、linkedRuntimeCalls単独では停止できない。結線試験はU-Fを明示の空stubで受け、U-E/U-Wの通常終了はこの前提付きの証明とする"
+      "追実装で閉じる項目(A3-link-A4A5): composition-root.tsに配送済み単位のlinkedUnitCodecs（U-E eewUnitCodec・U-W weatherCurrentUnitCodec）とlinkedRuntimeCalls（reduceEewUnit/toEewView/reduceWeatherCurrentUnit/toWeatherCurrentView）を置き、U-F（A6）・A7は各配送時にここへ足す。世代帰属はP2-A3-AC10に従い、dispatchが世代変化とA1のgenerationInputIdsを照合する。parser入力やchangedUnitsからの帰属推定と明示correlation優先を廃止する。無いと同じstepで別unitの期限回収だけが進んだ保存へparserのinputIdが混ざる。A5 T05の保存世代の期待値はA3担当の結線後再検収として更新した（routedな旧報がU-Wへstaleとして届きfreshness記録だけで世代+1、計画§2.1）。A6配送前はshutdownとdeadlineがU-Fも訪れるため、linkedRuntimeCalls単独では停止できない。結線試験はU-Fを明示の空stubで受け、U-E/U-Wの通常終了はこの前提付きの証明とする",
+      "P2-A3-AC09/R21: 製品入口の起動I/OがないとA1へ復元世代が渡らず次回起動で新報が消える。A3はrestore結果を一度だけ渡しstateを合成しない",
+      "P2-A3-AC10/R45: 空inputIdsを帰属済みと扱わないと期限だけで進んだ保存世代が終了時にcode 2となる。A10計測は競合EEWをrunと時間区間で照合する"
     ],
     "unresolvedQuestions": [
       {
@@ -648,15 +684,11 @@
         "id": "Q-STARTUP",
         "owner": "integrator",
         "blocks": [
-          "起動入口: restoreUnitの結果から各unitのrestore入力と初期RuntimeStateを組む経路（RuntimeInputにrestoreはなく、R13でreduceRuntime以外はstateを構築しない）",
-          "復元世代の引継ぎ: 起動時に復元envelopeのgenerationをunitのpersistenceへ引き継がないと、次の保存がgeneration 1となり次回起動で旧slotが勝つ（2026-09-23実測: gen 3保存→clean起動で新報をgen 1保存→次回restoreはgen 3で新報喪失）",
-          "A4/A5の§13.3⑧（復元直後の続報）を製品経路で証明すること。現状はP2-WIRE-T01/T02が試験内で組んだ再起動だけ"
+          "既存slotのunavailable後に明示的な修復/退避を経た書込み再開条件（自動上書きは禁止）"
         ],
-        "resolveBy": "A8/A10が製品の起動経路を使う前（A6発注時にヘルツと結論を出してから裁定）",
+        "resolveBy": "slot修復運用の設計前",
         "requiredEvidence": [
-          "起動入口の所有と形（composition rootのメソッドか、A1のRuntimeInput追加による契約改訂か）",
-          "restoreUnitのempty/unavailable（noValidSlot・unknownSchema・conflictingGeneration）ごとの初期stateと診断",
-          "再起動→保存→再起動で復元世代が単調増加し、再起動後の報が失われない試験"
+          "A: 修復/退避確認後に同slotへ書込み再開、B: 常に新規保存領域へ移す。推奨A。R21の自動上書き禁止と受信継続は確定済み"
         ]
       }
     ]

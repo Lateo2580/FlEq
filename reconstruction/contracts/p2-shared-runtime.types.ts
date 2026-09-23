@@ -72,6 +72,7 @@ export type SaveProgress = Readonly<{
   savedGeneration: number | null;
   savedCapturedAt: number | null;
   savedAckAt: number | null;
+  // Same-run clock.monotonicMs; startup cleanup uses the startup input clock.
   dirtySince: number | null;
 }>;
 
@@ -158,6 +159,8 @@ export type UnitView = Readonly<{
   unit: UnitId;
   semanticRevision: string;
   persistence: PersistenceStatus;
+  // Derived flag only: a slot exists while records remain or overflow is set.
+  admission: Readonly<Partial<Record<Operation, "capacityExceeded">>>;
   subjects: readonly SubjectOutcome[];
 }>;
 
@@ -220,6 +223,7 @@ export type MailboxControl =
   | Readonly<{ kind: "shutdownRequested"; acceptedThroughSequence: number; clock: ClockReading }>;
 
 export type RuntimeInput =
+  | Readonly<{ kind: "startup"; runId: string; clock: ClockReading; restored: Readonly<Record<RuntimeUnitId, RestoreUnitResult>> }>
   | Readonly<{ kind: "mailboxCompleted"; completion: MailboxCompletion; clock: ClockReading }>
   | Readonly<{ kind: "checkpointCaptured"; capture: CheckpointCapture }>
   | Readonly<{ kind: "notificationResult"; result: NotificationResult }>
@@ -274,9 +278,31 @@ export type RuntimeEffect =
   | Readonly<{ kind: "startFinalCheckpoints"; units: readonly RuntimeUnitId[]; deadlineMonotonicMs: number }>
   | Readonly<{ kind: "closeRuntimeWorkers"; deadlineMonotonicMs: number; summary: ShutdownSummary }>;
 
+export type RuntimeRestoration = Readonly<Record<RuntimeUnitId,
+  Readonly<{ kind: "restored" | "empty" }> | Extract<RestoreUnitResult, { kind: "unavailable" }>>>;
+
+// P2-A1-AC09/Q-R20-CLEAR: unit-validated decision evidence; no XML or report body.
+export type AdmissionEvidence = Readonly<{
+  family: string;
+  reportDateTimeMs: number;
+  affectedScope: "subject" | readonly string[];
+}>;
+
+export type AdmissionRejection = AdmissionEvidence & Pick<ReportRef, "subject">;
+
+// RES-04/05 bound records; overflow remains set throughout this run.
+export type AdmissionSlot = Readonly<{
+  records: readonly AdmissionRejection[];
+  overflow: boolean;
+}>;
+
+export type RuntimeAdmission = Readonly<Partial<Record<RuntimeUnitId, Readonly<Partial<Record<Operation, AdmissionSlot>>>>>>;
+
 export type RuntimeState<UnitStates extends RuntimeUnitStates = RuntimeUnitStates> = Readonly<{
   runId: string;
   units: UnitStates;
+  restoration: RuntimeRestoration;
+  admission: RuntimeAdmission;
   checkpointAttempts: Readonly<Partial<Record<RuntimeUnitId, PendingCheckpointAttempt>>>;
   deadlines: Readonly<Record<RuntimeUnitId, RuntimeUnitDeadline | null>>;
   notificationChannels: NotificationDeliveryState["channels"];
@@ -286,6 +312,9 @@ export type RuntimeState<UnitStates extends RuntimeUnitStates = RuntimeUnitState
 export type RuntimeStep<UnitStates extends RuntimeUnitStates = RuntimeUnitStates> = Readonly<{
   state: RuntimeState<UnitStates>;
   changedUnits: readonly UnitId[];
+  // Present [] certifies only this step's generation change; absence is not [].
+  // Accumulation and unknown generations: P2-A3-AC10.
+  generationInputIds: Readonly<Partial<Record<RuntimeUnitId, readonly string[]>>>;
   checkpointRequests: readonly CheckpointRequest[];
   notificationAttempts: NotificationSelection["attempts"];
   abortAttemptIds: NotificationSelection["abortAttemptIds"];
@@ -381,6 +410,7 @@ export type CheckpointCapture = Pick<CheckpointRequest, "attemptId" | "generatio
 }>;
 
 export type PendingCheckpointAttempt = CheckpointCapture & Readonly<{
+  // Same monotonic clock as SaveProgress.dirtySince.
   postCaptureDirtySince: number | null;
 }>;
 

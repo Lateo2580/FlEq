@@ -1,10 +1,10 @@
 {
   "meta": {
     "draftedFromOid": "fc7006e2380edf9a97b601d124341ba4bd7f7f42",
-    "sha256": "a9f92a1ba0ed2123e35405b5a2c5c39a7481eaa9d9e4b1671f627ab22e44553c",
+    "sha256": "b32b5da7f563a3f873de32d1a9b635d5d070910b178f4930d2fa6ffdc2af9722",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "76c82b87d7783a4eae14af690cb34e7d6ec46f73617dc75b7f7401951619f080",
-    "sequencesSha256": "6045053b7bd7b06707d528d616b68c1ebeab44c4195c8ff405e7bdb19aeef500",
+    "sequencesSha256": "be9cfd97b555e3a55568f085d107342c978b3dc7249f5cecea868ea5a62c5781",
     "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
     "decisionBranches": [
       {
@@ -182,7 +182,7 @@
             "④ ③でも件数またはbyte上限に入らなければdecision=capacityExceeded。候補内の期限回収・退去もcommitせずreceive開始前のstate参照、gate/watermark、intents、保存世代を不変にし、accepted outcomeを出さない。例外や構造rejectedへ変換しない"
           ],
           "atomicity": "①〜③の成功時だけ候補を一回で採用する。①は通常の正常採用としてchanged・対象gate/watermark更新、②③はunavailableとしてchanged・対象gate/watermark更新となり古いcurrentを現行として残さない。④はstate・gate/watermark・保存世代を不変にする。training/test入力でもnormalを退去しない。④の後の期限処理は通常のdeadlineで行い、失敗したreceiveの副作用にしない",
-          "a1Followup": "④のdecisionをA1が受け取る受け皿はA1改訂で定義する。画面に未充足として出すのはnormalの受理不能だけで、training/testは本番表示を損なわない。今回A1共有型は改訂しない",
+          "a1Followup": "④のcapacityExceededはAC11の検証済みrejectionを返し、A1 Q-R20-CLEARの有界枠で扱う。記録・解除・overflow・normalだけの表示はA1の正本を参照する",
           "byteAccounting": {
             "encoding": "RES-01はU-FのCheckpointEnvelopeを空白・末尾改行なしのJSON.stringifyでUTF-8化した1世代のbyte上限。sha256は64 ASCII文字。subjectの計量はlastKnown・全表・source・scopeを含むWeatherTimeseriesSubject全体を同じJSON表現でencodeしたbyte数とする",
             "formula": "B=E0+62+Σ subjectBytes+max(subjects.length−1,0)+Σ gateBytes+max(gates.length−1,0)+Σ intentBytes+max(intents.length−1,0)。E0は実codec schemaVersionのCheckpointEnvelope（unit=U-F、generation=0、capturedAt=0、sha256=64個の0、payload={schemaVersion,subjects:[],gates:[],intents:[]}）のUTF-8 byte数。E0にキー名・括弧・区切りを含め、各配列内のカンマを別途加算する。比較はB<=RES-01。値や文字列長をJSのlengthで数えない",
@@ -461,7 +461,7 @@
       },
       {
         "id": "P2-A6-AC08",
-        "requirement": "復元直後の続報・取消・正常emptyは保存済みoperation/subject/gate/期限を基点に通常reducerへ通し、期限延長、新規履歴通知、別operation混入をしない",
+        "requirement": "復元直後の続報・取消・正常emptyは保存済みoperation/subject/gate/期限を基点に通常reducerへ通し、期限延長、新規履歴通知、別operation混入をしない A3の製品起動入口へ結線し、保存→再起動→続報保存→再起動の両世代で検収する。復元時の期限回収があれば復元gを基点にg+1 dirtyとなることも確認する。",
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:613 «e9ca2cf8a9630c2a»",
           "docs/specs/reconstruction-p0-contracts.md:614 «51f367d55c1dfe8a»"
@@ -483,6 +483,14 @@
           "docs/specs/reconstruction-p0-contracts.md:731 «2054b0d946d1477b»",
           "docs/specs/reconstruction-p0-contracts.md:732 «f96fd8a8dd40563c»",
           "docs/specs/reconstruction-p0-contracts.md:733 «66e0af68048253c0»"
+        ]
+      },
+      {
+        "id": "P2-A6-AC11",
+        "requirement": "R20: A1 Q-R20-CLEARへ渡すcapacityExceeded.rejectionは今回の検証済みfamily/reportDateTimeMsとsubject全体scopeとする。正常activeを今回報で確立したchanged、正常採用された取消、明示emptyのchangedには同じ形のcurrentEstablishedを返す。byte/件数の全段階を経た最終結果だけを根拠にし、保存可能unavailable、intentUpdate、期限・7日回収・restore/shutdownによるchangedはnullとする。capacity段階④では候補の回収/退去を確定せず拒否根拠だけを返す。A1が拒否報より厳密に新しいかを照合するため、旧stateのsourceや復元時刻を使わない。period本文・辞書・全period IDを根拠に載せない",
+        "evidenceRefs": [
+          "reconstruction/contracts/p2-shared-runtime.json",
+          "reconstruction/contracts/p2-weather-timeseries-unit.types.ts"
         ]
       }
     ],
@@ -529,7 +537,7 @@
           "P2-A6-AC07",
           "P2-A6-AC08"
         ],
-        "behavior": "O10 P2置換の保存失敗・取消・復元直後続報"
+        "behavior": "O10 P2置換の保存失敗・取消・復元直後続報 A3のstartRuntime経由で同じslotを使った二往復を実行し、続報が古いgに負けないことと起動時期限回収のg+1を確認する。"
       },
       {
         "testId": "P2-A6-T06",
@@ -538,6 +546,15 @@
           "P2-A6-AC10"
         ],
         "behavior": "Q-ENUM.capacityRuleの①期限回収・training/test履歴→subject退去による正常採用、②lastKnown付きunavailable、③lastKnown全体null、④最小unavailableでも入らない受理不能をそれぞれ検収する。①は通常の正常採用としてchanged・gate/watermark更新、②③はunavailableとしてchanged・gate/watermark更新となり、④は不変であることを確認する。④は回収・退去候補も含めreceive開始前state参照・watermark・保存世代・intents不変、accepted outcomeなし。件数512で同subject置換は512、新規normal 513件で退去不可なら④、byteだけ不足する場合も確認する。training/test自身の更新では対象subjectとそのlastKnownを①の退去候補から除外し、他の退去候補がない場合にも対象を先に消さないことを確認する。②のlastKnownは期限処理後・容量退去前の旧current、既存unavailableなら同時点のlastKnownと一致すること。期限回収された対象はnullで復活しないこと。正常採用とunavailable化の双方で旧subject/gateを新recordへ置換してbyteを計量し、旧recordと新recordの二重計上をしないことを確認する。training/test入力でnormalを退去しない。正常再採用でunavailableを解除し、source/subject全体scopeとlastKnownをcodec roundtripする。rejectedとの区別、未知Codeのactive維持も確認する"
+      },
+      {
+        "testId": "P2-A6-T07",
+        "purpose": "contractBoundary",
+        "referenceIds": [
+          "P2-A6-AC10",
+          "P2-A6-AC11"
+        ],
+        "behavior": "容量の①正常採用はcurrentEstablished、②③unavailableはnull、④最終拒否は検証済みrejectionを返し、本文/periodを含めない。正常採用されたnewer取消/明示emptyはsubject全体の根拠を返し、deadlineの失効・7日回収・restoreは根拠にしない。A1 T09で拒否日時より古い正常採用・同時刻を残しnewer取消/emptyで解除する経路を検収する"
       }
     ],
     "requiredCommands": [
@@ -604,7 +621,9 @@
       "追実装で閉じる項目(A6): reducer/codec/viewの既存責務を変えずClockReading/nextDeadlineと既存shutdown入力を実装し、期限前は同じWeatherTimeseriesUnitState参照と空のdecisions/intents/outcomes/diagnosticsを返す。旧notificationResultは3 unit共通intentUpdate入力へ置換する。NotificationIntentUpdateのid/attempts/nextAttemptAt/dispositionとclockを受け、選択時は完了結果なしでattempts/nextAttemptAtを更新しdispositionを維持、完了時もA1内部のA7が照合した更新を同じ入口で採用する。無いとU-E以外で試行回数と再試行日時を保存できない。既存idだけを更新し同値・未知idはno-op、変更時だけdeliveryOnlyで保存世代を進める。timer・配送済み入力slot・RuntimeState更新は追加しない",
       "同一operation/subjectの新旧はReportDateTimeで判定する。newerは採用、olderはunchanged/stale。同時刻では、取消（InfoType=取消）は発表/訂正のgateに対してchanged（effective=cancelled、expected:O10:35/39）、gateのReportRefのoperation・family・subject・reportDateTimeRaw・serialRaw・infoTypeRawが同一なら（inputId・originは比較しない）periodを比べずunchanged/duplicate、それ以外の同時刻相違（同時刻の訂正、取消後の同時刻発表など）はQ-REV-UFとして推測せず、既存gateを保ってunchanged/staleを返す。newerでeffective・validUntil・periodsがすべて現行subjectと同一ならchanged/revisionOnly（gateだけを進めるgate-only revision）。どれかが変わればchanged/semantic（明示emptyによるunavailableやcancelledの解除を含む）。gateの無いsubject（未受信か7日retentionで回収済み）への取消は両者を区別せずchanged（effective=cancelled）とし、取消gateを作る",
       "P2はVPWP50のNotificationIntentを生成しない（Q-NOTICE未決、oracleのintentsはnull）。intents配列とintentUpdate入力は共通の形として保持する",
-      "validUntilは採用報の全periodが参照するseries内のTimeDefineのDateTime+Durationの最大値とし（参照されないTimeDefineは含めない）、到来後はeffective=noActiveItems（familyTableの「原報period期限で有効periodが0件」と同じ正常empty）としてgateを残す。retainUntilはsubjectの最新採用報のReportDateTime＋7日とし、到来でsubjectとgateを回収する。復元でもこの二つを延長しない。validUntil到来のdeadline入力ではeffective=noActiveItems・periods=[]（過去のperiodを現行値にせず、lastKnownへも移さない）とし、decisionはchanged/semantic、outcomeはdeadlineApplied、保存世代を進めgateは変えない。個々のperiodの終端ではsubjectを変えない。receive入力でも到来済みのvalidUntilとretainUntilを新報の適用より先に同じreduceUnit内で適用し、同じsubjectのdecisionは最終結果の1件（例 expected:O10:57はchanged/semantic）、outcomeはaccepted 1件にまとめる。retainUntilによる回収はdecisionとoutcomeを出さず保存世代だけを進める。PublishedOutcomeのSubjectOutcomeはinformationType=source.infoTypeRaw、transition=遷移後のeffective、severity=null、facts={effective, periodCount}（periodCount=現在のperiods.length、TimeDefineは含めない）、changedFieldsは変えたWeatherTimeseriesSubjectのfield名とする。ただしreceiveの容量段階④ではQ-ENUM.capacityRuleの原子性が優先し、事前の期限処理を含め一切をcommitしない。"
+      "validUntilは採用報の全periodが参照するseries内のTimeDefineのDateTime+Durationの最大値とし（参照されないTimeDefineは含めない）、到来後はeffective=noActiveItems（familyTableの「原報period期限で有効periodが0件」と同じ正常empty）としてgateを残す。retainUntilはsubjectの最新採用報のReportDateTime＋7日とし、到来でsubjectとgateを回収する。復元でもこの二つを延長しない。validUntil到来のdeadline入力ではeffective=noActiveItems・periods=[]（過去のperiodを現行値にせず、lastKnownへも移さない）とし、decisionはchanged/semantic、outcomeはdeadlineApplied、保存世代を進めgateは変えない。個々のperiodの終端ではsubjectを変えない。receive入力でも到来済みのvalidUntilとretainUntilを新報の適用より先に同じreduceUnit内で適用し、同じsubjectのdecisionは最終結果の1件（例 expected:O10:57はchanged/semantic）、outcomeはaccepted 1件にまとめる。retainUntilによる回収はdecisionとoutcomeを出さず保存世代だけを進める。PublishedOutcomeのSubjectOutcomeはinformationType=source.infoTypeRaw、transition=遷移後のeffective、severity=null、facts={effective, periodCount}（periodCount=現在のperiods.length、TimeDefineは含めない）、changedFieldsは変えたWeatherTimeseriesSubjectのfield名とする。ただしreceiveの容量段階④ではQ-ENUM.capacityRuleの原子性が優先し、事前の期限処理を含め一切をcommitしない。",
+      "P2-A6-AC08/R21: U-F固有restoreが製品起動入口を通らないと保存gを引き継いだ続報の再起動が証明できない。U-Fは渡されたpersistenceを基点に復元する",
+      "P2-A6-AC11/R20: 拒否版と正常採用の根拠がないと取消/明示emptyによる回復と期限回収を区別できない。A6は最終decisionに根拠を載せ、枠と解除はA1 Q-R20-CLEARへ一任する"
     ],
     "unresolvedQuestions": [
       {

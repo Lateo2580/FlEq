@@ -765,10 +765,10 @@ type PersistenceStatus =
     });
 ```
 
-- `currentGeneration` は保存対象が変わるたびに進める。意味 revision と同一ではない。
+- `currentGeneration` は保存対象が変わるたびに進める。意味 revision と同一ではない。 復元済み世代gはcurrent=saved=gから始め、復元時の期限回収で保存内容が変わればcurrentだけg+1とする。emptyは世代0だが無発令確認済みではない。
 - `savedGeneration` は §5.7 の完了を確認した世代。試行開始や rename だけでは進めない。
-- `savedCapturedAt` はその世代の状態を切り出した時刻、`savedAckAt` は保存完了を確認した時刻。ack 時刻までの状態が入っていると誤認させない。
-- `dirtySince` は、保存確認済み世代に含まれない最初の更新時刻。後続更新で先送りしない。
+- `savedCapturedAt` はその世代の状態を切り出した時刻、`savedAckAt` は保存完了を確認した時刻。ack 時刻までの状態が入っていると誤認させない。 復元確認は過去のack時刻の証明ではないため、復元時はenvelopeのcapturedAtを引き継ぎsavedAckAt=nullとする。
+- `dirtySince` は、保存確認済み世代に含まれない最初の更新時刻（同一runのclock.monotonicMs）。後続更新で先送りしない。
 - 保存中に新しい更新が来た場合は、その試行に含まれない最初の更新時刻を一つ記録する。古い ack 後はこれを次の `dirtySince` にする。電文ごとの時刻列は保持しない。
 - `saved` は保存対象について `currentGeneration === savedGeneration` のときだけ使う。
 
@@ -805,7 +805,7 @@ type PersistenceStatus =
 
 journal がないため、再起動後に**実際に失った電文の完全な一覧は分からない**。推定値を実測件数として出さない。
 
-起動時は次を行う。
+起動時は各単位の保存検証結果を一度だけruntimeへ渡し、保存世代を引き継いでから期限を評価する。unavailableは理由を残し既存slotを自動上書きしない。次を行う。
 
 1. 各単位の有効な保存世代を検証する。
 2. 絶対期限を現在時刻で評価し、期限を再延長しない。

@@ -1,10 +1,10 @@
 {
   "meta": {
     "draftedFromOid": "3095a6c21caa96e06fc3b3a6d2f906534ef5441b",
-    "sha256": "52b76ec3e94d6eb28f457d07694cd64bbd6bf3c4e5be68da588cae31a5c42689",
+    "sha256": "2ae5e7dbd73d82c602f24d6ca911ffabd893bc9b8a476c25ec00a10d5265b2e6",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "76c82b87d7783a4eae14af690cb34e7d6ec46f73617dc75b7f7401951619f080",
-    "sequencesSha256": "6045053b7bd7b06707d528d616b68c1ebeab44c4195c8ff405e7bdb19aeef500",
+    "sequencesSha256": "be9cfd97b555e3a55568f085d107342c978b3dc7249f5cecea868ea5a62c5781",
     "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
     "decisionBranches": [
       {
@@ -180,6 +180,21 @@
         "closed": "NotificationIntent・PublishedOutcome・UnitViewはA1、DisplaySnapshotはA8、E01 trace schemaはA10が所有する",
         "remaining": "なし",
         "reason": "計画§3.2の共有ファイル所有規則"
+      },
+      {
+        "id": "Q-R20-CLEAR",
+        "status": "closed",
+        "source": "2026-09-23 ご主人裁定: 有界な拒否記録と拒否報より新しい正常採用",
+        "closed": "本項をR20の記録・解除・overflowの正本とする。既存のunit decisionをreduceRuntime内で処理して解除を成立させる。全域確認用RuntimeInputやREST経路を新設しない",
+        "evidence": "既存decisionのsubject/operationを束縛に使い、capacityExceeded.rejectionに検証済みAdmissionEvidence（family/reportDateTimeMs/affectedScope）を必須で載せる。changed.currentEstablishedは正常な現在状態を今回の採用報で確立した場合だけ同じ根拠を載せ、その他は必ずnull。A4/A5/A6が既存の検証済み候補から作り、A1はXMLを再解析しない。normalという業務上の正常性とoperation=normalを混同せずtraining/testにも同じ根拠規則を適用する。時刻は受信時計・現在stateの出典・保持した前報ではなく、今回報の検証済みReportDateTimeをepoch msへ変換した有限値とする",
+        "record": "RuntimeAdmissionはU-E/U-W/U-F×normal/training/testの固定9枠以内。各AdmissionSlotのrecordsはfamily/subjectで一意なAdmissionRejectionだけを持ち、unit/operationは外側のkeyから決まる。記録fieldはsubject、family、拒否報reportDateTimeMs、未確認affectedScopeだけ。本文・period・inputId・失敗履歴列を持たない。U-E/U-Fのscopeはsubject全体を表すリテラルsubject、U-WはA5 Q-ENUM.scopeEncodingを再利用する。同対象の再拒否はscopeの和集合を既存規則で正規化し、拒否日時をmaxへ進める。scopeを広げる再拒否も上限判定対象で、古い拒否報で日時を巻き戻さない",
+        "clear": "currentEstablishedが非nullかつunit/operation/family/subjectが一致し、そのreportDateTimeMsが記録した拒否日時より厳密に大きい場合だけ解除候補となる。保持していた旧報よりnewerでも拒否報以前なら解除しない。同時刻・非有限値・比較不明は残す。U-E/U-Fのsubject scopeは正常採用の全subject根拠で削除する。U-Wは既存scopeContainsを未確認tokenごとに適用し、確認tokenに包含されたものだけを除く。複数報による部分解除を許すが残scopeは同じ拒否日時を保持し、全scopeのallを部分token集合から推定しない。別operation/family/subject/officeの根拠では解除しない",
+        "exclusions": "changedだけでは解除しない。保存可能なunavailable、intentUpdate、期限、shutdown、restore、FreshnessRecordだけの更新、duplicate/stale/rejectedは正常採用の根拠にならない。U-Fでは正常採用されたnewer取消・明示emptyもsubject全体の根拠にできる。U-Wの取消は履歴復元の成否によらず根拠にしない。U-Fの7日保持・U-Wのintent期限や単なる時間経過・受信件数で記録を消さない。既存U-W coverageConfirmedは拒否報より新しい正常報の採用証拠を持たないため、R20の解除入力には使わず既存freshness/unavailable処理に限定する",
+        "bounds": "各枠のrecords件数はRES-04、encoded records byteはRES-05以下とする。新規記録または同対象合併の候補がどちらかを超えれば、その候補を部分採用せず従前recordsを保ってoverflow=trueにする。古い記録の退去・日時だけの更新・scope切捨てはしない。巨大な単一記録も同じ扱いとする。overflow後も記録済み対象の正常採用による解消は行えるが、overflowは同じrunの間はtrueのままで、記録がゼロでも解除しない",
+        "byteAccounting": "RES-05は空白・末尾改行なしJSON.stringify(records)のUTF-8 byte数。各記録の全field、escape、scope、配列括弧とカンマを含む。B=2+各記録のencoded byteの総和+max(records.length−1,0)で照合し、文字列のJS lengthで数えない。変更候補recordだけ計量し、無変化tickや変更検出のための全RuntimeState/全slot stringifyは不要。枠の固定keyとoverflowの定数分は別の固定オーバーヘッドで、JS heapの実byte上限と同一とは主張しない",
+        "atomicity": "A1は同一reduceRuntime呼出し内の検証済み拒否を先に合併・上限判定し、次に正常採用根拠で残scopeを減らして最終枠を一度だけ採用する。records=[]かつoverflow=falseの場合だけ枠を除く。unit state不変のcapacityExceededでもruntimeの枠と当該viewを更新し、通知選択も最終枠を使い中間の解除状態を公開しない。UnitView.admissionは有効な枠のcapacityExceededフラグだけを投影し記録本文を複製しない。normal枠がある間は当該unit/operation全体の旧値を確認済みcurrent・新規通知根拠から除外する。training/test枠は別管理し本番表示を変えない。Admissionだけの変更はunitの保存世代を進めずPersistenceStatusへ偽装しない",
+        "restart": "recordsとoverflowは保存しない。再起動で枠が空になるのは解除成功ではなく、spec §5.6の前回情報・現在未確認への移行である。確認済みcurrentや無発令確認済みの根拠にせず、失敗対象一覧の完全復元も約束しない",
+        "budgetRationale": "RES-04はU-Fの保持identity上限512（三区分合算）に対応する規模を一枠にも確保し、全国58官署の同時拒否を一件markerで固定化しない。U-Wは全国base最大3とpartial合算128の現在subject規模を上回り、繰返し拒否は同対象へ合併する。U-Eはfamilyごと512であり、三family全件の追跡保証ではない。拒否される新規subject数は各unitの保持上限に縛られないため、これらを完全追跡の証明にはせずoverflowを必須とする。RES-05は一枠約0.5KiB/記録の設計予算。例示メタデータのJSON UTF-8計量ではU-F subject全体126 byte、U-W all-token一件184 byte、同サイズ512件の配列は65025/94721 byteだった（サイズ例であり実corpus最大値ではない）。長いidentity・多数のU-W区域scopeは件数未満でもbyte上限に達し得る。全9枠のrecords表現の上限は2.25MiBで、全scopeの収容や実heap量は保証しない"
       }
     ],
     "operationContract": {
@@ -283,11 +298,16 @@
       "reconstruction/contracts/p2-shared-runtime.types.ts#OutcomeEnvelope",
       "reconstruction/contracts/p2-shared-runtime.types.ts#DiagnosticDetails",
       "reconstruction/contracts/p2-shared-runtime.types.ts#DiagnosticReason",
-      "reconstruction/contracts/p2-shared-runtime.types.ts#FreshnessRecord"
+      "reconstruction/contracts/p2-shared-runtime.types.ts#FreshnessRecord",
+      "reconstruction/contracts/p2-shared-runtime.types.ts#RuntimeRestoration",
+      "reconstruction/contracts/p2-shared-runtime.types.ts#RuntimeAdmission",
+      "reconstruction/contracts/p2-shared-runtime.types.ts#AdmissionEvidence",
+      "reconstruction/contracts/p2-shared-runtime.types.ts#AdmissionRejection",
+      "reconstruction/contracts/p2-shared-runtime.types.ts#AdmissionSlot"
     ],
     "publicFunctions": [
       "validateSemanticEnvelope(DecodedMaterial): SemanticEnvelopeResult",
-      "reduceRuntime(state: RuntimeState, input: RuntimeInput): RuntimeStep"
+      "reduceRuntime(state: RuntimeState | null, input: RuntimeInput): RuntimeStep"
     ],
     "allowedDependencies": [],
     "fixtureIds": [
@@ -362,6 +382,22 @@
         "unit": "bytes",
         "scope": "truncate with reason while retaining required fields",
         "source": "§7.9"
+      },
+      {
+        "id": "P2-A1-RES-04",
+        "target": "AdmissionSlot.records per unit/operation",
+        "limit": 512,
+        "unit": "records",
+        "scope": "Q-R20-CLEAR.bounds。件数超過はoverflowを保持し既存記録を退去しない",
+        "source": "2026-09-23 R20裁定・Q-R20-CLEAR.budgetRationale"
+      },
+      {
+        "id": "P2-A1-RES-05",
+        "target": "AdmissionSlot.records per unit/operation",
+        "limit": 262144,
+        "unit": "UTF-8 bytes",
+        "scope": "Q-R20-CLEAR.byteAccounting。新規・再拒否合併とも上限内に限り採用する",
+        "source": "2026-09-23 R20裁定・Q-R20-CLEAR.budgetRationale"
       }
     ],
     "workDeadline": null,
@@ -380,7 +416,8 @@
       "RuntimeStep effects after handoff",
       "UnitView and PublishedOutcome delivery copies",
       "raw XML, decoded XML tree and mutable reducer internals",
-      "RuntimeState.runId・checkpointAttempts・deadlines・notificationChannels・ShutdownState.stageResults（最大4段階）。再起動時に新しいrunとして初期化する"
+      "RuntimeState.runId・checkpointAttempts・deadlines・notificationChannels・ShutdownState.stageResults（最大4段階）。再起動時に新しいrunとして初期化する",
+      "RuntimeState.restoration/admission: 起動由来とQ-R20-CLEARの有界records/overflow。保存対象に含めず、再起動は解除成功ではなく前回情報・現在未確認への移行とする"
     ],
     "outOfScope": [
       "I/O",
@@ -447,6 +484,29 @@
           "docs/specs/reconstruction-p0-contracts.md:1192 «aefcb1a8a916571c»",
           "reconstruction/contracts/p2-order-plan.md:311 «dd8b1407bf8c8a19»"
         ]
+      },
+      {
+        "id": "P2-A1-AC08",
+        "requirement": "R21: reduceRuntime(null, startup)だけが初期RuntimeStateを構築する。A3から一度だけ受けたU-E/U-W/U-FのRestoreUnitResultをunit/schema/payloadまで検証し、restored gは先にpersistenceをcurrent=saved=g、savedCapturedAt=envelope.capturedAt、savedAckAt=nullへ設定してからunit restoreへ渡す。restoreの期限回収が保存内容を変えればcurrentのみg+1、dirtySinceは起動入力のclock.monotonicMs。restore後にpersistenceを上書きしない。emptyは世代0で確認済み無発令と扱わず、unavailableは理由をrestorationへ残し空stateでslotを自動上書きしない。起動前の通常入力と二度目のstartupを拒否する",
+        "evidenceRefs": [
+          "docs/specs/reconstruction-p0-contracts.md:768 «c6fcdefce2d90c9f»",
+          "docs/specs/reconstruction-p0-contracts.md:770 «3fe91886fca8d1d6»",
+          "docs/specs/reconstruction-p0-contracts.md:808 «6f567d2a46e4bf30»"
+        ]
+      },
+      {
+        "id": "P2-A1-AC09",
+        "requirement": "R20: Q-R20-CLEARに従い、unitのcapacityExceeded.rejectionとchanged.currentEstablishedを同じreduceRuntimeで採用し、固定unit×operation枠の有界records/overflowから未充足を公開・解除する。拒否報より厳密に新しい正常採用だけで確認されたscopeを減らし、残記録ゼロかつoverflowなしで解除する。U-Wの既存scope包含規則を再利用し、A1によるXML再解析と全域確認の新入力は作らない。normalだけの未充足表示・旧値利用制限、training/test分離、再起動の前回情報扱いを検収する",
+        "evidenceRefs": [
+          "docs/specs/reconstruction-p0-contracts.md:800 «e5ba1401b9062b87»"
+        ]
+      },
+      {
+        "id": "P2-A1-AC10",
+        "requirement": "R45/A10-AC09: RuntimeStep.generationInputIdsは保存世代が進んだunitにだけkeyを返す。採用に寄与したparser inputIdだけを含み、期限・intentUpdate・起動回収だけなら空配列を明示する。parserと期限処理が同じstepでも、当該unitの保存変更へparserが寄与した場合だけそのinputIdを含める。配列はこのstepの世代変化だけの寄与を表し、未保存の過去世代の寄与を置き換えない。A3での世代差照合・capture集約・欠落の扱いはP2-A3-AC10を正本とする。EEW競合はrunIdと単調時間区間で照合し競合EEW inputIdを偽装しない",
+        "evidenceRefs": [
+          "reconstruction/contracts/p2-eew-e01.types.ts"
+        ]
       }
     ],
     "testMapping": [
@@ -505,6 +565,38 @@
           "P2-A1-AC07"
         ],
         "behavior": "FreshnessRecordの型と不変条件を固定する。operation/family/subject/影響範囲、候補/現在/疑っている出典、decision/reason、比較不明、現在revision、suspectと確認範囲を保持する。解除は同一対象・範囲の正常採用またはcoverage確認のみ。別対象受理・heartbeatでは解除せずcurrentを自動補修しない。判定と解除の実装・系列検収はA5が所有する"
+      },
+      {
+        "testId": "P2-A1-T08",
+        "purpose": "contractBoundary",
+        "referenceIds": [
+          "P2-A1-AC08"
+        ],
+        "behavior": "起動入力の1回性、通常入力の先行拒否、schema/unit/payload不正、g復元と起動時期限回収のg+1・dirtySince=起動入力のclock.monotonicMs（wallTimeMsと異なる値で検収）・ack nullを検収する"
+      },
+      {
+        "testId": "P2-A1-T09",
+        "purpose": "acceptance",
+        "referenceIds": [
+          "P2-A1-AC09"
+        ],
+        "behavior": "Q-R20-CLEARの受入条件を製品parser→単位decision→reduceRuntime経路で検収する。旧報10時・拒否12時に対する11時の正常採用では残し、12時同時刻/比較不明でも残し、13時の同対象正常採用だけで範囲を解除する。同対象再拒否のscope合併と日時max、複数報による部分解除、別operation/family/subject/officeとall/部分包含を確認する。保存可能unavailable・intentUpdate・期限・coverageConfirmedでは解除しない。U-Fのnewer取消/明示emptyは解除可、U-W取消は不可。最後の記録の解消と別対象の再拒否が同stepでも中間解除を公開せず、枠が残ればnormal旧値利用制限を維持する。training/testは本番表示に出さず、再起動の空枠は確認済み化を意味しない"
+      },
+      {
+        "testId": "P2-A1-T10",
+        "purpose": "contractBoundary",
+        "referenceIds": [
+          "P2-A1-AC10"
+        ],
+        "behavior": "期限、intentUpdate、起動回収で世代だけ進むstepは空inputIdsを返し、採用parserだけ正しいIDを返す。競合EEW IDを借りない"
+      },
+      {
+        "testId": "P2-A1-T11",
+        "purpose": "contractBoundary",
+        "referenceIds": [
+          "P2-A1-AC09"
+        ],
+        "behavior": "RES-04の511/512/513件とRES-05の262143/262144/262145 byteを別々に境界化し、新規対象と同対象のscope合併を検収する。多byte/escape/多数scope・巨大な単一記録を含め実JSON byteと加算を一致させる。超過は従前records不変・overflow=trueで、古い記録の退去や部分scope採用をしない。覚えている全記録を正常採用で消してもoverflow枠は残り、時間経過・再拒否の減少で消えない。全9枠は件数/byteとも独立し、Admissionだけの更新では保存世代を進めない"
       }
     ],
     "requiredCommands": [
@@ -579,7 +671,10 @@
       "composition rootは入力の順序付け・reduceRuntimeが返すstateの採用・RuntimeStepのeffect実行だけを行い、stateの構築・部分上書き・非同期hookから返されたstateの合成をしない。無いとR13=Aでもcomposition-root.tsの保存結果と終了hookがreducer外からstateを変更できる",
       "追実装で閉じる項目(R17/A1-b): RuntimeState.persistenceの二重同期を削除し、現行reconstruction/src/runtime/shared-runtime.ts:103のShutdownSummary.persistenceはstate.unitsの3 unitから構築する。:143-145のsetPersistenceと:172-173のunit更新はunits[unit].persistenceだけを更新し、:198,266,294の保存状態読取もunit側へ置換する。composition root・A1-b testの初期state/期待値からRuntimeState.persistenceを削り、unit側だけが更新されることと終了要約がunit側3値から作られることへ追従する。新しい状態管理層・helperは作らない",
       "追実装で閉じる項目(A1-b): 現行shared-runtime.ts:59,61のunknown genericを具体型へ、:77のnotificationIntentsをnotificationAttempts/abortAttemptIds/effectsとshutdownSummary（通常null）へ置換する。現行はparser診断以外のcontrol分岐を未実装で同じstateを返すため、checkpointCaptured/checkpointResult、到来deadline、shutdownRequested/shutdownStageResult、notificationResultを実装する。A4〜A7の契約・型8ファイルをreadPathsで明示的に読み、3 unitのintentUpdateとA7 channel状態を原子的に採用する。RuntimeState.runIdを初期stateで一度固定し、A1は入力の明示時計（通知結果はresult.completedAt）とstate.runIdで全DiagnosticDetailsをDiagnosticEventへ完成させる。無いとA7/終了段階の入力にrunIdがなく診断を完成できない。mailbox completion.runIdは同じrunであることを照合し、外部時計や仮のshutdown runIdを使わない",
-      "追実装で閉じる項目(A1-route): parser completionのdecoded入力をshared-runtime.tsの一か所の表（計画§6.2）でheadTypeから単位へ振り分ける。VXSE43/44/45→U-E、VPWS50・VPWW55/57-61・VPNO50→U-W、VPWP50→U-F、それ以外はP2単位なし。routed入力は共通検証の成否にかかわらず当該unitのreceiveへ入力clockで渡し、unitがreceive先頭でvalidateSemanticEnvelopeを呼んで共通拒否を確定し、その診断を一件だけ返す（A1は二重に診断しない。U-Wの§7.8監視例外はこの経路で成立する）。A1が直接検証・診断するのはroute外の入力とparser拒否だけとする。振り分けはshutdown.stageがrunningかmailboxDrainの間だけ行い、mailboxDrain結果の適用後（各unitへshutdown配送済み）に完了した入力はunitへ渡さずremainingInputsとして要約に残す。reducer未結線の単位へのrouteは成功扱いせず例外とする（A6配送前のVPWP50を含む）。無いとA4/A5のreceiveへ製品入力が一件も届かず、§13.3の9段を結線後の経路で証明できない。T02はroutedなVPWS50をno-op unitで受けA1自身の枝だけを測り、routed unitの直列化量はE11/E15で別計数する。T03のruntime経由拒否はroute外のO02:10で確認し、routedなO02:8はA6 AC01で検収する"
+      "追実装で閉じる項目(A1-route): parser completionのdecoded入力をshared-runtime.tsの一か所の表（計画§6.2）でheadTypeから単位へ振り分ける。VXSE43/44/45→U-E、VPWS50・VPWW55/57-61・VPNO50→U-W、VPWP50→U-F、それ以外はP2単位なし。routed入力は共通検証の成否にかかわらず当該unitのreceiveへ入力clockで渡し、unitがreceive先頭でvalidateSemanticEnvelopeを呼んで共通拒否を確定し、その診断を一件だけ返す（A1は二重に診断しない。U-Wの§7.8監視例外はこの経路で成立する）。A1が直接検証・診断するのはroute外の入力とparser拒否だけとする。振り分けはshutdown.stageがrunningかmailboxDrainの間だけ行い、mailboxDrain結果の適用後（各unitへshutdown配送済み）に完了した入力はunitへ渡さずremainingInputsとして要約に残す。reducer未結線の単位へのrouteは成功扱いせず例外とする（A6配送前のVPWP50を含む）。無いとA4/A5のreceiveへ製品入力が一件も届かず、§13.3の9段を結線後の経路で証明できない。T02はroutedなVPWS50をno-op unitで受けA1自身の枝だけを測り、routed unitの直列化量はE11/E15で別計数する。T03のruntime経由拒否はroute外のO02:10で確認し、routedなO02:8はA6 AC01で検収する",
+      "P2-A1-AC08/R21: 起動入力とrestorationがないと保存gの引継ぎ前にrestoreし新報を古い世代で上書きする。A1が初期stateとunit restore順を所有し、A3はI/Oだけを所有する",
+      "P2-A1-AC09/R20: 枠内のAdmissionRejectionとoverflowがないと拒否対象を安全に解除できず、AdmissionEvidenceがないとchanged/unavailable/intent更新を正常採用と誤認する。追加型はこの記録・枠・検証済みdecision根拠だけとし、記録/解除はQ-R20-CLEARを正本とする。A1が枠と解除、A4/A5/A6が各decisionの根拠を所有する",
+      "P2-A1-AC10/R45: generationInputIdsの明示空配列がないと期限・intentUpdate・起動回収だけのdirty世代が最終保存されない。parser IDは採用寄与だけを記録する"
     ],
     "unresolvedQuestions": []
   }
