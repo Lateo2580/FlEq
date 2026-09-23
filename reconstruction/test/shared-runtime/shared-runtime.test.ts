@@ -19,7 +19,7 @@ import type {
 } from "../../contracts/p2-shared-runtime.types";
 import type { EewInput, EewUnitState, EewUnitStep } from "../../contracts/p2-eew-unit.types";
 import type { WeatherCurrentInput, WeatherCurrentUnitState, WeatherCurrentUnitStep } from "../../contracts/p2-weather-current-unit.types";
-import type { WeatherTimeseriesInput, WeatherTimeseriesUnitState } from "../../contracts/p2-weather-timeseries-unit.types";
+import type { WeatherTimeseriesInput, WeatherTimeseriesSubject, WeatherTimeseriesUnitState, WeatherTimeseriesUnitStep } from "../../contracts/p2-weather-timeseries-unit.types";
 import type { NotificationAttempt, NotificationDeliveryState } from "../../contracts/p2-notification-delivery.types";
 import { decodeMaterial } from "../../src/decode-material/decode-material";
 import { ingestXmlData } from "../../src/ingress/ingress";
@@ -197,6 +197,40 @@ describe("P2 shared runtime", () => {
     expect(cleared.state.admission["U-E"]?.normal).toBeUndefined();
     expect(cleared.views[0].subjects).toHaveLength(1);
     expect(cleared.generationInputIds).toEqual({});
+  });
+
+  it("P2-A1-T09 regression / AC09: U-F capacity stage four hides normal active in both public view paths", () => {
+    const normal: WeatherTimeseriesSubject = {
+      subject: "normal/VPWP50/office", operation: "normal", source: null, effective: "active",
+      unavailableReason: null, lastKnown: null, affectedScope: "subject", validUntil: clock.wallTimeMs + 3_600_000,
+      retainUntil: clock.wallTimeMs + 7 * 86_400_000,
+      strings: ["1", "2026-06-05T00:00:00+09:00", "PT1H", "100", "area", "element"],
+      attributes: [[]], values: [{ kind: "text", value: "value", raw: "value" }],
+      series: [{ meteorologicalInfosPosition: 0, timeSeriesInfoPosition: 0, timeDefines: [{
+        timeId: 0, dateTimeRaw: 1, durationRaw: 2, name: null, startMs: clock.wallTimeMs,
+        endMs: clock.wallTimeMs + 3_600_000,
+      }] }], areas: [{ code: 3, name: 4 }], locals: [], kinds: [{ status: null, dateTimeRaw: null, dateTimeType: null }],
+      periods: [[0, 0, 0, 0, 0, null, 5, null, 0, 0, 0]],
+    };
+    const training = { ...normal, subject: "training/VPWP50/office", operation: "training" as const };
+    const initial = initialState();
+    const unit = { ...initial.units["U-F"], subjects: [normal, training] };
+    const rejected = reduceRuntime({ ...initial, units: { ...initial.units, "U-F": unit } },
+      parserInput({ kind: "decoded", material: { headType: "VPWP50", inputId: "rejected" } as DecodedMaterial }), {
+        reduceWeatherTimeseriesUnit: (state): WeatherTimeseriesUnitStep => ({ state, nextDeadline: null,
+          decisions: [{ subject: normal.subject, operation: "normal", decision: "capacityExceeded",
+            rejection: { family: "VPWP50", reportDateTimeMs: clock.wallTimeMs, affectedScope: "subject" } }],
+          intents: [], outcomes: [], diagnostics: [] }),
+        toWeatherTimeseriesView: (state) => ({ unit: "U-F", semanticRevision: "old-active",
+          persistence: state.persistence, admission: {}, series: state.subjects,
+          subjects: state.subjects.map((item) => ({ subject: item.subject, operation: item.operation,
+            informationType: "", transition: item.effective, severity: null, source: item.source,
+            facts: { periodCount: item.periods.length }, changedFields: [] })) }),
+      });
+    expect(rejected.state.units["U-F"]).toBe(unit);
+    expect(rejected.generationInputIds).toEqual({});
+    expect(rejected.views[0]).toEqual(expect.objectContaining({ admission: { normal: "capacityExceeded" },
+      series: [training], subjects: [expect.objectContaining({ subject: training.subject, operation: "training" })] }));
   });
 
   it("P2-A1-T09 contractBoundary / AC09: weather scope clears only the confirmed office and area", () => {

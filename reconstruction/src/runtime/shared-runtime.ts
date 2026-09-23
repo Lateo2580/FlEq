@@ -567,12 +567,14 @@ function reduceRuntime(
     // Project through the unit's own view builder so dedicated current fields and counts agree.
     const eew = next.units["U-E"];
     const weather = next.units["U-W"];
+    const timeseries = next.units["U-F"];
     const { normal: _normal, ...otherNational } = weather.national;
     const view = unit === "U-E" ? calls.toEewView?.(normalBlocked
       ? { ...eew, current: eew.current.filter((item) => item.operation !== "normal") } : eew)
       : unit === "U-W" ? calls.toWeatherCurrentView?.(normalBlocked
         ? { ...weather, national: otherNational, partials: weather.partials.filter((item) => item.operation !== "normal") } : weather)
-        : unit === "U-F" ? calls.toWeatherTimeseriesView?.(next.units["U-F"]) : undefined;
+        : unit === "U-F" ? calls.toWeatherTimeseriesView?.(normalBlocked
+          ? { ...timeseries, subjects: timeseries.subjects.filter((item) => item.operation !== "normal") } : timeseries) : undefined;
     if (view != null) {
       views.push({ ...view,
         admission: normalBlocked ? { normal: "capacityExceeded" } : {},

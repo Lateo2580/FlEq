@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "3095a6c21caa96e06fc3b3a6d2f906534ef5441b",
-    "sha256": "2ae5e7dbd73d82c602f24d6ca911ffabd893bc9b8a476c25ec00a10d5265b2e6",
+    "sha256": "731da6e129ced8f37e2ea740e208da4b86e07a0f6132eb0cb7c4c4f9f34e61d1",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "76c82b87d7783a4eae14af690cb34e7d6ec46f73617dc75b7f7401951619f080",
     "sequencesSha256": "be9cfd97b555e3a55568f085d107342c978b3dc7249f5cecea868ea5a62c5781",
@@ -192,7 +192,7 @@
         "exclusions": "changedだけでは解除しない。保存可能なunavailable、intentUpdate、期限、shutdown、restore、FreshnessRecordだけの更新、duplicate/stale/rejectedは正常採用の根拠にならない。U-Fでは正常採用されたnewer取消・明示emptyもsubject全体の根拠にできる。U-Wの取消は履歴復元の成否によらず根拠にしない。U-Fの7日保持・U-Wのintent期限や単なる時間経過・受信件数で記録を消さない。既存U-W coverageConfirmedは拒否報より新しい正常報の採用証拠を持たないため、R20の解除入力には使わず既存freshness/unavailable処理に限定する",
         "bounds": "各枠のrecords件数はRES-04、encoded records byteはRES-05以下とする。新規記録または同対象合併の候補がどちらかを超えれば、その候補を部分採用せず従前recordsを保ってoverflow=trueにする。古い記録の退去・日時だけの更新・scope切捨てはしない。巨大な単一記録も同じ扱いとする。overflow後も記録済み対象の正常採用による解消は行えるが、overflowは同じrunの間はtrueのままで、記録がゼロでも解除しない",
         "byteAccounting": "RES-05は空白・末尾改行なしJSON.stringify(records)のUTF-8 byte数。各記録の全field、escape、scope、配列括弧とカンマを含む。B=2+各記録のencoded byteの総和+max(records.length−1,0)で照合し、文字列のJS lengthで数えない。変更候補recordだけ計量し、無変化tickや変更検出のための全RuntimeState/全slot stringifyは不要。枠の固定keyとoverflowの定数分は別の固定オーバーヘッドで、JS heapの実byte上限と同一とは主張しない",
-        "atomicity": "A1は同一reduceRuntime呼出し内の検証済み拒否を先に合併・上限判定し、次に正常採用根拠で残scopeを減らして最終枠を一度だけ採用する。records=[]かつoverflow=falseの場合だけ枠を除く。unit state不変のcapacityExceededでもruntimeの枠と当該viewを更新し、通知選択も最終枠を使い中間の解除状態を公開しない。UnitView.admissionは有効な枠のcapacityExceededフラグだけを投影し記録本文を複製しない。normal枠がある間は当該unit/operation全体の旧値を確認済みcurrent・新規通知根拠から除外する。training/test枠は別管理し本番表示を変えない。Admissionだけの変更はunitの保存世代を進めずPersistenceStatusへ偽装しない",
+        "atomicity": "A1は同一reduceRuntime呼出し内の検証済み拒否を先に合併・上限判定し、次に正常採用根拠で残scopeを減らして最終枠を一度だけ採用する。records=[]かつoverflow=falseの場合だけ枠を除く。unit state不変のcapacityExceededでもruntimeの枠と当該viewを更新し、通知選択も最終枠を使い中間の解除状態を公開しない。UnitView.admissionは有効な枠のcapacityExceededフラグだけを投影し記録本文を複製しない。normal枠がある間は当該unit/operation全体の旧値を確認済みcurrent・新規通知根拠から除外する。この公開制限は共通UnitView.subjectsだけでなくU-Eのcurrent/activeCount、U-Wのnational/partials、U-Fのseries（旧activeとその全periodを含む）にも適用する。A1がnormalを除いたview用投影を各unitのview関数へ渡し、元のunit state・保存内容は変えない。U-Fのview関数へadmission判定を委譲しない。training/test枠は別管理し本番表示を変えない。Admissionだけの変更はunitの保存世代を進めずPersistenceStatusへ偽装しない",
         "restart": "recordsとoverflowは保存しない。再起動で枠が空になるのは解除成功ではなく、spec §5.6の前回情報・現在未確認への移行である。確認済みcurrentや無発令確認済みの根拠にせず、失敗対象一覧の完全復元も約束しない",
         "budgetRationale": "RES-04はU-Fの保持identity上限512（三区分合算）に対応する規模を一枠にも確保し、全国58官署の同時拒否を一件markerで固定化しない。U-Wは全国base最大3とpartial合算128の現在subject規模を上回り、繰返し拒否は同対象へ合併する。U-Eはfamilyごと512であり、三family全件の追跡保証ではない。拒否される新規subject数は各unitの保持上限に縛られないため、これらを完全追跡の証明にはせずoverflowを必須とする。RES-05は一枠約0.5KiB/記録の設計予算。例示メタデータのJSON UTF-8計量ではU-F subject全体126 byte、U-W all-token一件184 byte、同サイズ512件の配列は65025/94721 byteだった（サイズ例であり実corpus最大値ではない）。長いidentity・多数のU-W区域scopeは件数未満でもbyte上限に達し得る。全9枠のrecords表現の上限は2.25MiBで、全scopeの収容や実heap量は保証しない"
       }
@@ -580,7 +580,7 @@
         "referenceIds": [
           "P2-A1-AC09"
         ],
-        "behavior": "Q-R20-CLEARの受入条件を製品parser→単位decision→reduceRuntime経路で検収する。旧報10時・拒否12時に対する11時の正常採用では残し、12時同時刻/比較不明でも残し、13時の同対象正常採用だけで範囲を解除する。同対象再拒否のscope合併と日時max、複数報による部分解除、別operation/family/subject/officeとall/部分包含を確認する。保存可能unavailable・intentUpdate・期限・coverageConfirmedでは解除しない。U-Fのnewer取消/明示emptyは解除可、U-W取消は不可。最後の記録の解消と別対象の再拒否が同stepでも中間解除を公開せず、枠が残ればnormal旧値利用制限を維持する。training/testは本番表示に出さず、再起動の空枠は確認済み化を意味しない"
+        "behavior": "Q-R20-CLEARの受入条件を製品parser→単位decision→reduceRuntime経路で検収する。旧報10時・拒否12時に対する11時の正常採用では残し、12時同時刻/比較不明でも残し、13時の同対象正常採用だけで範囲を解除する。同対象再拒否のscope合併と日時max、複数報による部分解除、別operation/family/subject/officeとall/部分包含を確認する。保存可能unavailable・intentUpdate・期限・coverageConfirmedでは解除しない。U-Fのnewer取消/明示emptyは解除可、U-W取消は不可。最後の記録の解消と別対象の再拒否が同stepでも中間解除を公開せず、枠が残ればnormal旧値利用制限を維持する。training/testは本番表示に出さず、再起動の空枠は確認済み化を意味しない。U-F容量段階④の後、normalの旧activeが共通subjectsと専用seriesの両経路から除かれ、元unit stateと他operationは不変であることを1本で確認する。U-F未配送中は既存方式のstub state/reducer/viewを使う。"
       },
       {
         "testId": "P2-A1-T10",
