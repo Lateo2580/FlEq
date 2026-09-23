@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "3095a6c21caa96e06fc3b3a6d2f906534ef5441b",
-    "sha256": "91e6bc866a0e0f1d56b34b51ad10d81c93e193b43550ca35c76855071f928faf",
+    "sha256": "ec416809ceaff8b9d108fa3f9195a31d0622e90a41731f389c23b149e48320b7",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "76c82b87d7783a4eae14af690cb34e7d6ec46f73617dc75b7f7401951619f080",
     "sequencesSha256": "be9cfd97b555e3a55568f085d107342c978b3dc7249f5cecea868ea5a62c5781",
@@ -639,7 +639,7 @@
         "target": "reconstruction/test/"
       },
       {
-        "command": "node reconstruction/test/integration/private-eew.mjs --private-corpus \"/absolute/path/to/private-corpus\"",
+        "command": "node reconstruction/test/integration/private-eew.mjs --private-corpus \"/absolute/path/to/private-corpus\" --out \"/absolute/path/to/private-evidence/r33-evidence.json\"",
         "cwd": ".",
         "target": "reconstruction/test/integration/private-eew.mjs",
         "stage": "implementation",

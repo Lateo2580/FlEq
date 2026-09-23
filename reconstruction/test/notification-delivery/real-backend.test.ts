@@ -11,6 +11,12 @@ import { linkedUnitCodecs, nodeCheckpointFileSystem } from "../../src/runtime/co
 import { reduceRuntime } from "../../src/runtime/shared-runtime";
 import { abortNotificationAttempt, probeDesktopBackend, probeSoundBackend, runNotificationAttempt } from "../../src/notification-delivery/adapter";
 import { background, calls, eewInput, empty, tick } from "./delivery-fixture";
+const { judgeLatency } = require("./r32-latency.cjs") as { judgeLatency: (generated: number | undefined,
+  spawned: number | undefined, predecessorSpawned?: number | null, predecessorClosed?: number | null,
+  hasPredecessor?: boolean) => {
+    durationMs: number | null; excludedPredecessorWaitMs: number | null; adjustedDurationMs: number | null;
+    closeToSpawnMs: number | null; status: "pass" | "fail" | "blocked";
+  } };
 
 // Instrument the real spawn boundary without adding callbacks to the contracted adapter API.
 vi.mock("node:child_process", async importOriginal => {
@@ -34,16 +40,8 @@ function judgeCompetition(results: readonly { attempt: NotificationAttempt; resu
       && item.attempt.subject.endsWith("20990101000001"))?.attempt : null;
     const predecessorSpawned = predecessor == null ? null : spawnAt.get(predecessor.attemptId);
     const predecessorClosed = predecessor == null ? null : closeAt.get(predecessor.attemptId);
-    const observed = generated != null && spawned != null && (predecessor === null
-      || predecessor != null && predecessorSpawned != null && predecessorClosed != null);
-    const durationMs = generated == null || spawned == null ? null : spawned - generated;
-    // Intersection with B's waiting interval. A's queue/save time before spawn stays charged.
-    const excludedPredecessorWaitMs = !observed ? null : predecessor == null ? 0
-      : Math.max(0, Math.min(spawned!, predecessorClosed!) - Math.max(generated!, predecessorSpawned!));
-    const adjustedDurationMs = durationMs == null || excludedPredecessorWaitMs == null ? null : durationMs - excludedPredecessorWaitMs;
-    const closeToSpawnMs = spawned == null || predecessorClosed == null ? null : spawned - predecessorClosed;
-    const status = !observed ? "blocked" : adjustedDurationMs! >= 0 && adjustedDurationMs! <= 1_000
-      && (predecessor == null || closeToSpawnMs! >= 0 && closeToSpawnMs! <= 100) ? "pass" : "fail";
+    const { durationMs, excludedPredecessorWaitMs, adjustedDurationMs, closeToSpawnMs, status } = judgeLatency(
+      generated, spawned, predecessorSpawned, predecessorClosed, predecessor != null);
     return { intentId: attempt.intentId, channel: attempt.channel, generatedAt: generated ?? null,
       spawnedAt: spawned ?? null, durationMs, predecessorAttemptId: predecessor?.attemptId ?? null,
       predecessorSpawnedAt: predecessorSpawned ?? null, predecessorClosedAt: predecessorClosed ?? null,

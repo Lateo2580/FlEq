@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "585d2f4f858e350c6965d83019ba7e4842285b3c",
-    "sha256": "314385b20e21aa37036274f81043697a5104f77b848181ff1e2619464f120a45",
+    "sha256": "f9c76448de80baeea757f366432e826882fdaed321cc64088af7f6a827d6999a",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "76c82b87d7783a4eae14af690cb34e7d6ec46f73617dc75b7f7401951619f080",
     "sequencesSha256": "be9cfd97b555e3a55568f085d107342c978b3dc7249f5cecea868ea5a62c5781",
@@ -183,8 +183,8 @@
         "storage": "EventID 20240417231454のdmdata Archive normal VXSE45原XML33報と、出典・取得日時・各原本hashを記録したprivate manifestはprivate repoのpersonalブランチだけに置く。public origin/mainの契約・manifestへ原本文・個別原本hashを掲載しない。原本とprivate manifestの搬入・公開側にある旧出典注記の整理は統合担当の作業で、本実装契約の成果物に含めない。",
         "publicEvidence": "公開CIの検収は既存公開fixture（気象庁サンプル由来、ご主人確認済み）と人工境界試験で成立させる。公開VXSE45は240613版気象庁サンプルで、実地震20240417231454を素材に気象庁が作成したもの。77_01_33の取消は気象庁の作例で実系列に存在しない。公開fixtureをdmdata Archive原本・実系列とは呼ばず、normal/training交差などの人工境界試験とも出典を分ける。公開fixture自身の整合性hashと個別原本hashを区別する。",
         "execution": "A4-T11の正式33報部分とA7/A3の正式E21はprivate corpusで実行し、npm test・公開CI・通常のvitest/shuffle対象へ入れない。公開環境では正式検収はblocked。公開試験のPassを正式検収へ昇格させない。",
-        "command": "node reconstruction/test/integration/private-eew.mjs --private-corpus \"/absolute/path/to/private-corpus\"",
-        "procedure": "A1/A3/A4/A7の追実装とreconstruction/tsconfig.jsonのbuild成功後、上記コマンドの引数をpersonalのprivate corpus絶対パスへ明示置換して実行する。private-eew.mjsはA3が既存結線系列を使って実装する専用入口一つで、*.test.tsにせず通常試験からimportしない。A4-T11生成判定とA7負荷表v1のR33をA3結線経路で検収し、OS/backend条件・生成marker・正式結果をprivate側へ記録する。生XML・個別原本hashを公開ログ/成果物へ転記しない。",
+        "command": "node reconstruction/test/integration/private-eew.mjs --private-corpus \"/absolute/path/to/private-corpus\" --out \"/absolute/path/to/private-evidence/r33-evidence.json\"",
+        "procedure": "A1/A3/A4/A7の追実装とreconstruction/tsconfig.jsonのbuild成功後、上記コマンドの引数をpersonalのprivate corpus絶対パスへ明示置換して実行する。private-eew.mjsはA3が既存結線系列を使って実装する専用入口一つで、*.test.tsにせず通常試験からimportしない。A4-T11生成判定とA7負荷表v1のR33をA3結線経路で検収し、OS/backend条件・生成marker・正式結果をprivate側へ記録する。生XML・個別原本hashを公開ログ/成果物へ転記しない。 --outにはprivate corpusディレクトリ外の未作成JSONファイルの絶対パスを指定する。macOSでは操作者が通知権限を確認したうえで--mac-notification-confirmedを追加する。",
         "boundary": "入口で明示パスとprivate manifestの出典・取得日時・33報の順序/件数/hash一致を検証し、本文は既存parserとA4境界へ渡す。未指定・未配置・不完全なcorpusはstatus=blockedかつ非0終了とし、skip/exit 0や公開fixtureへのfallbackを禁止する。自動探索・自動取得・公開checkoutへのコピーをしない。検収assertion失敗も非0終了で、blockedとPassを混同しない。"
       }
     ],
