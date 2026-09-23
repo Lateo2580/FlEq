@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "fc7006e2380edf9a97b601d124341ba4bd7f7f42",
-    "sha256": "b76078b52d2d644f26abf586c4a22bee13244683c41cbc67a128424e1422f3a9",
+    "sha256": "a3efa8bda45d60c156c7e8cff81afb42cf990ec29e8e872e84d23e354a722285",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "76c82b87d7783a4eae14af690cb34e7d6ec46f73617dc75b7f7401951619f080",
     "sequencesSha256": "be9cfd97b555e3a55568f085d107342c978b3dc7249f5cecea868ea5a62c5781",
@@ -223,7 +223,7 @@
     "contractId": "P2-WEATHER-TIMESERIES-UNIT-001",
     "mode": "implementation",
     "objective": "M08をI-U-Fとして閉じ、subject/period、件数で切らないperiod系列、正常empty、gate-only、取消、7日、512 subject、32MiB、unavailable reasonを復元・保存障害・構造oracleまで固定する。",
-    "baseOid": "unassigned",
+    "baseOid": "7eac646ac48393ce4f84558d468484c44e7eec9c",
     "cleanTreeRequired": true,
     "readPaths": [
       "docs/specs/reconstruction-p0-contracts.md",
