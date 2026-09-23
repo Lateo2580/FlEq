@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "585d2f4f858e350c6965d83019ba7e4842285b3c",
-    "sha256": "9c53b51c1ffea451b1d986651253b318fc40f436106d8bc0a733cdce912add6b",
+    "sha256": "898d25089df326ca7d80d7dc3e37a2a0832fdde052b1ff13e3b28447a36ff773",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "76c82b87d7783a4eae14af690cb34e7d6ec46f73617dc75b7f7401951619f080",
     "sequencesSha256": "be9cfd97b555e3a55568f085d107342c978b3dc7249f5cecea868ea5a62c5781",
@@ -196,7 +196,7 @@
     "contractId": "P2-NOTIFICATION-DELIVERY-001",
     "mode": "implementation",
     "objective": "B09とU-E/U-W/U-F共通の通知配送を実装し、Q-NOTICEで凍結した生成境界のintentを分野別20音、固定優先、channel別1件、単調期限、実adapterの試行/abort/停止確認、保存順と診断まで閉じる。",
-    "baseOid": "unassigned",
+    "baseOid": "94388d5cf06c7aeb4182bc0d56b4f1d7c3b500ad",
     "cleanTreeRequired": true,
     "readPaths": [
       "docs/specs/reconstruction-p0-contracts.md",
