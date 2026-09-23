@@ -20,7 +20,7 @@ function fixtureState(values: Partial<Record<RuntimeUnitId, Fixture | string>> =
     admission: {},
     units: {
       "U-E": { ...payload("U-E"), schemaVersion: "p2-eew-unit-v1", current: [], gates: [], intents: [],
-        deliveryRecords: [], persistence: progress("U-E") },
+        deliveryRecords: [], notificationLatches: [], persistence: progress("U-E") },
       "U-W": { ...payload("U-W"), schemaVersion: "p2-weather-current-unit-v1", national: {}, partials: [],
         histories: [], ownership: {}, tombstones: [], freshness: [], unavailable: [], intents: [], persistence: progress("U-W") },
       "U-F": { ...payload("U-F"), schemaVersion: "p2-weather-timeseries-unit-v1", subjects: [], gates: [],
@@ -28,6 +28,7 @@ function fixtureState(values: Partial<Record<RuntimeUnitId, Fixture | string>> =
     },
     checkpointAttempts: {}, deadlines: { "U-E": { monotonicMs: 0, wallTimeMs: null },
       "U-W": { monotonicMs: 0, wallTimeMs: null }, "U-F": { monotonicMs: 0, wallTimeMs: null } },
+    notificationDeadlines: { desktop: {}, sound: {} },
     notificationChannels: { desktop: { kind: "idle" }, sound: { kind: "idle" } },
     shutdown: { stage: "running", acceptedThroughSequence: null, startedAt: null, finalizationAt: null, stageResults: {},
       deadlines: { overallMonotonicMs: null, mailboxDrainMonotonicMs: null, sideEffectFinalizationMonotonicMs: null,
@@ -60,6 +61,7 @@ function fixtureDriver() {
     nextDeadline: { monotonicMs: 0, wallTimeMs: null },
   });
   const calls: CompositionOptions["runtimeCalls"] = {
+    selectNotificationAttempt: (state) => ({ state, attempts: [], abortRequests: [], diagnostics: [] }),
     reduceEewUnit: (state) => step("U-E", state),
     reduceWeatherCurrentUnit: (state) => step("U-W", state),
     reduceWeatherTimeseriesUnit: (state) => step("U-F", state),

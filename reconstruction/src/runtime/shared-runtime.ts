@@ -35,7 +35,7 @@ const units = ["U-E", "U-W", "U-F"] as const;
 const admissionRecordByteCache = new WeakMap<object, number>();
 // The single P2 route (order plan §6.2): headType → M01/M06/M08 → unit. Other families have no P2 unit.
 const unitRoutes: ReadonlyMap<string, RuntimeUnitId> = new Map([
-  ...["VXSE43", "VXSE44", "VXSE45"].map((type) => [type, "U-E"] as const),
+  ...["VXSE43", "VXSE45"].map((type) => [type, "U-E"] as const),
   ...["VPWS50", "VPWW55", "VPWW57", "VPWW58", "VPWW59", "VPWW60", "VPWW61", "VPNO50"].map((type) => [type, "U-W"] as const),
   ["VPWP50", "U-F"],
 ]);
@@ -192,13 +192,14 @@ function reduceRuntime(
       savedCapturedAt: null, savedAckAt: null, dirtySince: null };
     let initial: RuntimeState = {
       runId: input.runId, units: {
-        "U-E": { schemaVersion: "p2-eew-unit-v1", current: [], gates: [], intents: [], deliveryRecords: [], persistence: clean },
+        "U-E": { schemaVersion: "p2-eew-unit-v1", current: [], gates: [], intents: [], deliveryRecords: [], notificationLatches: [], persistence: clean },
         "U-W": { schemaVersion: "p2-weather-current-unit-v1", national: {}, partials: [], histories: [], ownership: {},
           tombstones: [], freshness: [], unavailable: [], intents: [], persistence: clean },
         "U-F": { schemaVersion: "p2-weather-timeseries-unit-v1", subjects: [], gates: [], intents: [], persistence: clean },
       }, restoration: { "U-E": { kind: "empty" }, "U-W": { kind: "empty" }, "U-F": { kind: "empty" } },
       admission: {}, checkpointAttempts: {}, deadlines: { "U-E": null, "U-W": null, "U-F": null },
       notificationChannels: { desktop: { kind: "idle" }, sound: { kind: "idle" } },
+      notificationDeadlines: { desktop: {}, sound: {} },
       shutdown: { stage: "running", acceptedThroughSequence: null, startedAt: null, finalizationAt: null,
         stageResults: {}, deadlines: { overallMonotonicMs: null, mailboxDrainMonotonicMs: null,
           sideEffectFinalizationMonotonicMs: null, finalCheckpointMonotonicMs: null, workerCloseMonotonicMs: null } },
@@ -249,14 +250,19 @@ function reduceRuntime(
       outcomes.push(...step.outcomes);
       diagnostics.push(...step.diagnostics.map((details) => completeDiagnostic(details, input.clock, input.runId)));
     }
-    return { state: initial, changedUnits, generationInputIds, checkpointRequests: EMPTY,
-      notificationAttempts: EMPTY, abortAttemptIds: EMPTY, effects: EMPTY, shutdownSummary: null,
-      outcomes, views: changedUnits.flatMap((unit) => {
+    const selected = reduceRuntime(initial, { kind: "mailboxCompleted", clock: input.clock, completion: {
+      kind: "control", messageId: "startup", runId: input.runId, encodedByteLength: 0,
+      startedMonotonicMs: input.clock.monotonicMs, completedMonotonicMs: input.clock.monotonicMs,
+      control: { kind: "deadline", clock: input.clock },
+    } }, calls);
+    return { ...selected, changedUnits: [...new Set([...changedUnits, ...selected.changedUnits])],
+      generationInputIds: { ...generationInputIds, ...selected.generationInputIds },
+      outcomes: [...outcomes, ...selected.outcomes], views: changedUnits.filter((unit) => !selected.changedUnits.includes(unit)).flatMap((unit) => {
         const view = unit === "U-E" ? calls.toEewView?.(initial.units["U-E"])
           : unit === "U-W" ? calls.toWeatherCurrentView?.(initial.units["U-W"])
             : calls.toWeatherTimeseriesView?.(initial.units["U-F"]);
         return view == null ? [] : [view];
-      }), diagnostics };
+      }).concat(selected.views), diagnostics: [...diagnostics, ...selected.diagnostics] };
   }
   if (state == null) throw new Error("runtime has not started");
   let next = state;
@@ -266,7 +272,7 @@ function reduceRuntime(
   let diagnostics: RuntimeStep["diagnostics"] = EMPTY;
   let effects: readonly RuntimeEffect[] = EMPTY;
   let notificationAttempts: RuntimeStep["notificationAttempts"] = EMPTY;
-  let abortAttemptIds: RuntimeStep["abortAttemptIds"] = EMPTY;
+  let abortRequests: RuntimeStep["abortRequests"] = EMPTY;
   let summary: ShutdownSummary | null = null;
   const clock = input.kind === "checkpointCaptured" ? null
     : input.kind === "notificationResult" ? input.result.completedAt : input.clock;
@@ -285,7 +291,7 @@ function reduceRuntime(
     changed(unit);
   };
   const reduceUnit = (unit: RuntimeUnitId, unitInput: Extract<EewInput,
-    { kind: "receive" | "deadline" | "shutdown" | "intentUpdate" }>, inputId?: string) => {
+    { kind: "receive" | "deadline" | "shutdown" | "intentUpdate" }>) => {
     let step: EewUnitStep | WeatherCurrentUnitStep | WeatherTimeseriesUnitStep;
     switch (unit) {
       case "U-E":
@@ -300,8 +306,7 @@ function reduceRuntime(
     }
     const previous = next.units[unit];
     if (step.state.persistence.currentGeneration > previous.persistence.currentGeneration)
-      generationInputIds[unit] = [...new Set([...(generationInputIds[unit] ?? []),
-        ...(inputId != null && step.decisions.some((decision) => decision.decision === "changed") ? [inputId] : [])])];
+      generationInputIds[unit] ??= [];
     if (step.state !== previous) {
       const attempt = next.checkpointAttempts[unit];
       // The first changed durable generation after capture defines the next dirty interval.
@@ -330,11 +335,11 @@ function reduceRuntime(
       next = { ...next, deadlines: { ...next.deadlines, [unit]: deadline } };
     if (step.outcomes.length !== 0) outcomes = [...outcomes, ...step.outcomes];
     step.diagnostics.forEach(diagnose);
+    return step;
   };
-  const applyDeadlines = (exclude?: RuntimeUnitId) => {
+  const applyDeadlines = (targets: readonly RuntimeUnitId[] = units) => {
     if (clock == null || next.shutdown.finalizationAt != null) return;
-    for (const unit of units) {
-      if (unit === exclude) continue;
+    for (const unit of targets) {
       const deadline = next.deadlines[unit];
       if (deadline != null && (deadline.wallTimeMs != null && clock.wallTimeMs >= deadline.wallTimeMs
         || deadline.monotonicMs != null && clock.monotonicMs >= deadline.monotonicMs))
@@ -348,6 +353,7 @@ function reduceRuntime(
   const deliveryState = (): NotificationDeliveryState => ({
     intents: units.flatMap((unit) => next.units[unit].intents.filter((intent) =>
       intent.operation !== "normal" || next.admission[unit]?.normal == null)), channels: next.notificationChannels,
+    deadlines: next.notificationDeadlines,
   });
   const sameIntent = (left: NotificationIntent, right: Pick<NotificationIntent, "id" | "unit" | "operation" | "subject" | "channel">) =>
     left.id === right.id && left.unit === right.unit && left.operation === right.operation
@@ -368,11 +374,15 @@ function reduceRuntime(
         || !Number.isFinite(candidate.nextAttemptAt)) throw new RangeError("invalid notification intent update");
       if (original.disposition !== "pending" && candidate.disposition !== original.disposition) continue;
       if (result == null) {
-        if (candidate.disposition !== original.disposition) throw new Error("selection changed intent disposition");
-        const channel = output.state.channels[candidate.channel];
-        if ((channel.kind !== "running" && channel.kind !== "stopping")
-          || !sameIntent(candidate, { ...channel.attempt, id: channel.attempt.intentId }))
-          throw new Error("selection has no matching attempt");
+        if (candidate.disposition !== original.disposition) {
+          if (candidate.disposition !== "expired" || original.disposition !== "pending")
+            throw new Error("selection changed intent disposition");
+        } else {
+          const channel = output.state.channels[candidate.channel];
+          if ((channel.kind !== "running" && channel.kind !== "stopping")
+            || !sameIntent(candidate, { ...channel.attempt, id: channel.attempt.intentId }))
+            throw new Error("selection has no matching attempt");
+        }
       } else {
         const channel = before.channels[result.channel];
         if ((channel.kind !== "running" && channel.kind !== "stopping")
@@ -384,14 +394,26 @@ function reduceRuntime(
           || clock.wallTimeMs >= original.expiresAt
           || clock.monotonicMs >= channel.attempt.timeoutAtMonotonicMs)) continue;
       }
+      const previousGeneration = next.units[candidate.unit].persistence.currentGeneration;
       reduceUnit(candidate.unit, { kind: "intentUpdate", clock, intentUpdate: {
         id: original.id, attempts: candidate.attempts, nextAttemptAt: candidate.nextAttemptAt,
         disposition: candidate.disposition,
       } });
-      const adopted = next.units[candidate.unit].intents.find((intent) => intent.id === original.id);
-      if (adopted?.attempts !== candidate.attempts || adopted.nextAttemptAt !== candidate.nextAttemptAt
-        || adopted.disposition !== candidate.disposition)
-        throw new Error("unit did not adopt the correlated intent update");
+      if (candidate.unit === "U-E" && candidate.disposition !== "pending") {
+        const adopted = next.units["U-E"];
+        // At the wall deadline A4 reclaims the terminal record in the same adoption.
+        const reclaimed = candidate.disposition === "expired" && clock.wallTimeMs >= original.expiresAt;
+        if ((!reclaimed && !adopted.deliveryRecords.some((record) => record.intentId === original.id
+          && record.disposition === candidate.disposition && record.expiresAt === original.expiresAt))
+          || adopted.intents.some((intent) => sameIntent(intent, original))
+          || adopted.persistence.currentGeneration <= previousGeneration)
+          throw new Error("unit did not adopt the correlated intent update");
+      } else {
+        const adopted = next.units[candidate.unit].intents.find((intent) => intent.id === original.id);
+        if (adopted?.attempts !== candidate.attempts || adopted.nextAttemptAt !== candidate.nextAttemptAt
+          || adopted.disposition !== candidate.disposition)
+          throw new Error("unit did not adopt the correlated intent update");
+      }
     }
     const channelsChanged = (["desktop", "sound"] as const).some((name) => {
       const left = next.notificationChannels[name];
@@ -399,14 +421,82 @@ function reduceRuntime(
       if (left === right || left.kind === "idle" && right.kind === "idle") return false;
       if (left.kind === "running" && right.kind === "running") return left.attempt !== right.attempt;
       if (left.kind === "stopping" && right.kind === "stopping")
-        return left.attempt !== right.attempt || left.stopByMonotonicMs !== right.stopByMonotonicMs;
+        return left.attempt !== right.attempt || left.cause !== right.cause || left.stopByMonotonicMs !== right.stopByMonotonicMs;
       if (left.kind === "isolated" && right.kind === "isolated")
         return left.attemptId !== right.attemptId || left.sinceMonotonicMs !== right.sinceMonotonicMs || left.reason !== right.reason;
       return true;
     });
     if (channelsChanged)
       next = { ...next, notificationChannels: output.state.channels };
+    const ownerPending = units.flatMap((unit) => next.units[unit].intents)
+      .filter((intent) => intent.disposition === "pending");
+    const visible = new Set(before.intents.map((intent) => JSON.stringify([intent.unit, intent.id])));
+    const adoptedDeadlines = { desktop: { ...output.state.deadlines.desktop }, sound: { ...output.state.deadlines.sound } };
+    for (const channel of ["desktop", "sound"] as const) {
+      const owned = new Set(ownerPending.filter((intent) => intent.channel === channel)
+        .map((intent) => JSON.stringify([intent.unit, intent.id])));
+      for (const key of Object.keys(adoptedDeadlines[channel])) if (!owned.has(key)) delete adoptedDeadlines[channel][key];
+      for (const key of owned) if (!visible.has(key) && adoptedDeadlines[channel][key] == null) {
+        const value = next.notificationDeadlines[channel][key];
+        if (value != null) adoptedDeadlines[channel][key] = value;
+      }
+    }
+    if (JSON.stringify(next.notificationDeadlines) !== JSON.stringify(adoptedDeadlines))
+      next = { ...next, notificationDeadlines: adoptedDeadlines };
     output.diagnostics.forEach(diagnose);
+  };
+
+  const selectDelivery = () => {
+    if (clock == null || next.shutdown.stage !== "running") return;
+    const before = deliveryState();
+    const ownerPending = units.flatMap((unit) => next.units[unit].intents)
+      .filter((intent) => intent.disposition === "pending");
+    if (ownerPending.length === 0 && before.channels.desktop.kind === "idle" && before.channels.sound.kind === "idle"
+      && Object.keys(before.deadlines?.desktop ?? {}).length === 0
+      && Object.keys(before.deadlines?.sound ?? {}).length === 0) return;
+    const live = new Set(ownerPending
+      .map((intent) => JSON.stringify([intent.unit, intent.id])));
+    const deadlines = { desktop: { ...before.deadlines?.desktop }, sound: { ...before.deadlines?.sound } };
+    let changedDeadline = before.deadlines == null;
+    for (const channel of ["desktop", "sound"] as const) {
+      for (const key of Object.keys(deadlines[channel])) if (!live.has(key)) {
+        delete deadlines[channel][key];
+        changedDeadline = true;
+      }
+      for (const intent of ownerPending) if (intent.channel === channel) {
+        const key = JSON.stringify([intent.unit, intent.id]);
+        if (deadlines[channel][key] == null) {
+          changedDeadline = true;
+          deadlines[channel][key] = {
+          retryAtMonotonicMs: clock.monotonicMs + Math.max(0, intent.nextAttemptAt - clock.wallTimeMs),
+          expiresAtMonotonicMs: clock.monotonicMs + Math.max(0, intent.expiresAt - clock.wallTimeMs),
+          };
+        }
+      }
+    }
+    if (Object.keys(deadlines.desktop).length + Object.keys(deadlines.sound).length > 384)
+      throw new RangeError("notification deadline capacity exceeded");
+    const selectedState = { ...before, deadlines: changedDeadline ? deadlines : before.deadlines };
+    if (changedDeadline) next = { ...next, notificationDeadlines: deadlines };
+    if (calls.selectNotificationAttempt == null) {
+      if (before.intents.some((intent) => intent.disposition === "pending")) throw new Error("A7 selection is not linked");
+      if (changedDeadline) next = { ...next, notificationDeadlines: deadlines };
+      return;
+    }
+    const selection = calls.selectNotificationAttempt(selectedState, clock);
+    for (const attempt of selection.attempts) {
+      const intent = before.intents.find((candidate) => sameIntent(candidate, { ...attempt, id: attempt.intentId }));
+      const updated = selection.state.intents.find((candidate) => sameIntent(candidate, { ...attempt, id: attempt.intentId }));
+      const channel = selection.state.channels[attempt.channel];
+      if (intent == null || intent.disposition !== "pending" || clock.wallTimeMs >= intent.expiresAt
+        || updated == null || updated.attempts <= intent.attempts
+        || before.intents.filter((candidate) => candidate.unit === intent.unit && candidate.id === intent.id).length !== 1
+        || channel.kind !== "running" || channel.attempt.attemptId !== attempt.attemptId)
+        throw new Error("A7 returned an uncorrelated attempt");
+    }
+    adoptDelivery(selectedState, selection);
+    notificationAttempts = [...notificationAttempts, ...selection.attempts];
+    abortRequests = [...abortRequests, ...selection.abortRequests];
   };
 
   if (input.kind === "checkpointCaptured") {
@@ -429,11 +519,47 @@ function reduceRuntime(
         // After mailboxDrain every unit has received `shutdown`; a late input stays unapplied (summary: remainingInputs).
         const draining = next.shutdown.stage === "running" || next.shutdown.stage === "mailboxDrain";
         const unit = draining && completion.result.kind === "decoded" ? unitRoutes.get(completion.result.material.headType) : undefined;
+        if (draining) {
+          // Reclaim before admission, without starting attempts before cancellation/replacement is known.
+          if (unit === "U-E" && next.deadlines[unit]?.wallTimeMs != null) applyDeadlines([unit]);
+          const before: NotificationDeliveryState = { ...deliveryState(),
+            intents: units.flatMap((owner) => next.units[owner].intents) };
+          const expired = before.intents.filter((intent) => intent.disposition === "pending"
+            && (input.clock.wallTimeMs >= intent.expiresAt
+              || input.clock.monotonicMs >= (before.deadlines[intent.channel][JSON.stringify([intent.unit, intent.id])]
+                ?.expiresAtMonotonicMs ?? Infinity)));
+          if (expired.length !== 0) {
+            const channels = { ...before.channels };
+            // Fix the cause while the expired identity/deadline still exists; adoptDelivery then reclaims the map.
+            for (const name of ["desktop", "sound"] as const) {
+              const channel = channels[name];
+              if (channel.kind === "running" && expired.some((intent) => sameIntent(intent,
+                { ...channel.attempt, id: channel.attempt.intentId }))) {
+                channels[name] = { kind: "stopping", attempt: channel.attempt, cause: "expired",
+                  stopByMonotonicMs: input.clock.monotonicMs + 1_000 };
+                abortRequests = [...abortRequests, { attemptId: channel.attempt.attemptId, cause: "expired" }];
+              }
+            }
+            adoptDelivery(before, {
+              state: { ...before, channels, intents: before.intents.map((intent) => expired.includes(intent)
+                ? { ...intent, disposition: "expired" } : intent) },
+              diagnostics: units.flatMap((owner) => {
+                const count = expired.filter((intent) => intent.unit === owner).length;
+                return count === 0 ? [] : [{ level: "INFO", component: "runtime", reason: "notificationExpired", unit: owner, count }];
+              }),
+            });
+          }
+        }
         // Units re-run the common Head/date check themselves: one diagnostic per input, and
         // U-W keeps §7.8 freshness monitoring for rejected inputs (A1 freshnessException).
         if (unit != null && completion.result.kind === "decoded") {
-          reduceUnit(unit, { kind: "receive", material: completion.result.material, clock: input.clock }, completion.inputId);
-        } else {
+          // Maintenance above has no parser attribution. Measure only this receive's durable adoption.
+          const generationBeforeReceive = next.units[unit].persistence.currentGeneration;
+          const received = reduceUnit(unit, { kind: "receive", material: completion.result.material, clock: input.clock });
+          if (received.state.persistence.currentGeneration > generationBeforeReceive
+            && received.decisions.some((decision) => decision.decision === "changed"))
+            generationInputIds[unit] = [completion.inputId];
+        } else if (completion.result.kind !== "decoded" || completion.result.material.headType !== "VXSE44") {
           const details = completion.result.kind === "rejected"
             ? parserDiagnostic(completion.result.diagnostic.reason, completion.result.diagnostic.inputId)
             : (() => {
@@ -442,7 +568,10 @@ function reduceRuntime(
               })();
           if (details != null) diagnose(details);
         }
-        if (draining) applyDeadlines(unit);
+        if (draining) {
+          applyDeadlines(units.filter((owner) => owner !== unit));
+          selectDelivery();
+        }
       }
     } else {
       const { control } = input.completion;
@@ -479,30 +608,7 @@ function reduceRuntime(
         }
       } else if (control.kind === "deadline") {
         applyDeadlines();
-        if (clock != null && next.shutdown.stage === "running") {
-          const before = deliveryState();
-          const channelDue = Object.values(before.channels).some((channel) =>
-            channel.kind === "running" && clock.monotonicMs >= channel.attempt.timeoutAtMonotonicMs
-            || channel.kind === "stopping" && clock.monotonicMs >= channel.stopByMonotonicMs);
-          if (channelDue || before.intents.some((intent) => intent.disposition === "pending"
-            && (clock.wallTimeMs >= intent.nextAttemptAt || clock.wallTimeMs >= intent.expiresAt))) {
-            if (calls.selectNotificationAttempt == null) throw new Error("A7 selection is not linked");
-            const selection = calls.selectNotificationAttempt(before, clock);
-            for (const attempt of selection.attempts) {
-              const intent = before.intents.find((candidate) => sameIntent(candidate, { ...attempt, id: attempt.intentId }));
-              const updated = selection.state.intents.find((candidate) => sameIntent(candidate, { ...attempt, id: attempt.intentId }));
-              const channel = selection.state.channels[attempt.channel];
-              if (intent == null || intent.disposition !== "pending" || clock.wallTimeMs >= intent.expiresAt
-                || updated == null || updated.attempts <= intent.attempts
-                || before.intents.filter((candidate) => candidate.unit === intent.unit && candidate.id === intent.id).length !== 1
-                || channel.kind !== "running" || channel.attempt.attemptId !== attempt.attemptId)
-                throw new Error("A7 returned an uncorrelated attempt");
-            }
-            adoptDelivery(before, selection);
-            notificationAttempts = selection.attempts;
-            abortAttemptIds = selection.abortAttemptIds;
-          }
-        }
+        selectDelivery();
       } else if (control.kind === "shutdownRequested" && next.shutdown.stage === "running") {
         if (!Number.isSafeInteger(control.acceptedThroughSequence) || control.acceptedThroughSequence < 0)
           throw new RangeError("invalid shutdown input boundary");
@@ -525,6 +631,7 @@ function reduceRuntime(
       if (calls.applyNotificationResult == null) throw new Error("A7 result reducer is not linked");
       const before = deliveryState();
       adoptDelivery(before, calls.applyNotificationResult(before, input.result, input.result.completedAt), input.result);
+      selectDelivery();
     }
   } else if (input.kind === "shutdownStageResult" && input.stage === next.shutdown.stage
     && next.shutdown.stageResults[input.stage] == null) {
@@ -581,7 +688,7 @@ function reduceRuntime(
         subjects: normalBlocked ? view.subjects.filter((subject) => subject.operation !== "normal") : view.subjects });
     }
   }
-  return { state: next, changedUnits, generationInputIds, checkpointRequests: EMPTY, notificationAttempts, abortAttemptIds,
+  return { state: next, changedUnits, generationInputIds, checkpointRequests: EMPTY, notificationAttempts, abortRequests,
     effects, shutdownSummary: summary, outcomes, views: views.length === 0 ? EMPTY : views, diagnostics };
 }
 

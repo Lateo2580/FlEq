@@ -277,15 +277,17 @@ describe("P2 weather-current unit", () => {
     const notificationRoot = new RuntimeCompositionRoot(config(), { "U-W": weatherCurrentUnitCodec }, {
       checkpointFileSystem: notificationFiles, diagnosticFileSystem: new MemoryDiagnosticFileSystem(),
       runtimeCalls: { ...fixtureDriver().calls, reduceWeatherCurrentUnit,
-        selectNotificationAttempt: (delivery) => ({
-          state: { channels: { ...delivery.channels, desktop: { kind: "running", attempt } },
+        selectNotificationAttempt: (delivery) => delivery.channels.desktop.kind !== "idle"
+          || !delivery.intents.some((item) => item.disposition === "pending")
+          ? { state: delivery, attempts: [], abortRequests: [], diagnostics: [] } : ({
+          state: { ...delivery, channels: { ...delivery.channels, desktop: { kind: "running", attempt } },
             intents: delivery.intents.map((item) => ({ ...item, attempts: 1, nextAttemptAt: NOW + 500 })) },
-          attempts: [attempt], abortAttemptIds: [], dirtyUnits: ["U-W"], diagnostics: [],
+          attempts: [attempt], abortRequests: [], diagnostics: [],
         }),
         applyNotificationResult: (delivery) => ({
-          state: { channels: { ...delivery.channels, desktop: { kind: "idle" } },
+          state: { ...delivery, channels: { ...delivery.channels, desktop: { kind: "idle" } },
             intents: delivery.intents.map((item) => ({ ...item, disposition: "delivered" })) },
-          dirtyUnits: ["U-W"], diagnostics: [],
+          diagnostics: [],
         }),
       },
     });

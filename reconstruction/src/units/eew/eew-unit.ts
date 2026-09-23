@@ -1,7 +1,8 @@
-import type { ClockReading, JsonValue, NotificationIntent, PersistenceStatus, ReportRef, SubjectOutcome } from "../../../contracts/p2-shared-runtime.types";
+import type { ClockReading, NotificationIntent, PersistenceStatus, ReportRef, SubjectOutcome } from "../../../contracts/p2-shared-runtime.types";
 import type {
   EewDeliveryRecord,
   EewInput,
+  EewNotificationPayload,
   EewUnitCodec,
   EewUnitState,
   EewUnitStep,
@@ -28,14 +29,6 @@ function finite(value: unknown): value is number {
   return typeof value === "number" && Number.isFinite(value);
 }
 
-function json(value: unknown): value is JsonValue {
-  if (value === null || typeof value === "boolean" || typeof value === "string") return true;
-  if (typeof value === "number") return Number.isFinite(value);
-  if (Array.isArray(value)) return value.every(json);
-  const record = object(value);
-  return record != null && Object.values(record).every(json);
-}
-
 function reportRef(value: unknown): value is ReportRef {
   const record = object(value);
   return record != null && typeof record.inputId === "string"
@@ -45,14 +38,18 @@ function reportRef(value: unknown): value is ReportRef {
     && typeof record.infoTypeRaw === "string";
 }
 
-function intent(value: unknown): value is NotificationIntent {
+function intent(value: unknown): value is NotificationIntent & Readonly<{ payload: EewNotificationPayload }> {
   const record = object(value);
+  const payload = object(record?.payload);
   return record != null && typeof record.id === "string" && record.unit === "U-E"
     && typeof record.subject === "string" && operation(record.operation) && reportRef(record.source)
     && ["activated", "updated", "cancelled", "released", "expired"].includes(String(record.transition))
     && (record.channel === "desktop" || record.channel === "sound")
     && !(record.operation !== "normal" && record.channel === "sound")
-    && object(record.payload) != null && json(record.payload)
+    && payload != null && Object.keys(payload).length === 4 && payload.domain === "earthquake-eew"
+    && (payload.level === "warning" || payload.level === "critical" || payload.level === "cancel")
+    && typeof payload.title === "string" && payload.title.length > 0
+    && typeof payload.body === "string" && payload.body.length > 0
     && finite(record.createdAt) && finite(record.expiresAt) && finite(record.nextAttemptAt)
     && Number.isSafeInteger(record.attempts) && Number(record.attempts) >= 0
     && typeof record.configRevision === "string" && record.disposition === "pending"
@@ -140,7 +137,8 @@ function restore(state: EewUnitState, value: PersistedEewUnit, clock: ClockReadi
     state: applied.state, nextDeadline: nextEewDeadline(applied.state), decisions: [], intents: active,
     outcomes: [{ kind: "recoveryApplied", scope: ["U-E"],
       coverage: active.map((item) => item.subject), subjects: active.map((item) => subject(item, "recovered")) }],
-    diagnostics: [],
+    diagnostics: applied.expired.length === 0 ? [] : [{ level: "INFO", component: "eew",
+      reason: "notificationExpired", unit: "U-E", count: applied.expired.length }],
   };
 }
 
@@ -153,7 +151,7 @@ function intentUpdate(state: EewUnitState,
   };
   const disposition = input.clock.wallTimeMs >= current.expiresAt
     ? "expired" as const : input.intentUpdate.disposition;
-  const updated: NotificationIntent = { ...current, ...input.intentUpdate, disposition };
+  const updated = { ...current, ...input.intentUpdate, disposition };
   if (JSON.stringify(updated) === JSON.stringify(current)) return {
     state, nextDeadline: nextEewDeadline(state), decisions: [], intents: [], outcomes: [], diagnostics: [],
   };
@@ -178,25 +176,46 @@ function intentUpdate(state: EewUnitState,
 }
 
 function reduceEewUnit(state: EewUnitState, input: EewInput): EewUnitStep {
-  if (input.kind === "receive") return reduceEew(state, input);
-  if (input.kind === "restore") return restore(state, input.persisted, input.clock);
-  if (input.kind === "intentUpdate") return intentUpdate(state, input);
-  const applied = expire(state, input.clock);
-  if (input.kind === "deadline" && applied.expired.length === 0) return {
-    state, nextDeadline: nextEewDeadline(state), decisions: [], intents: [], outcomes: [], diagnostics: [],
+  let step: EewUnitStep;
+  if (input.kind === "receive") step = reduceEew(state, input);
+  else if (input.kind === "restore") step = restore(state, input.persisted, input.clock);
+  else if (input.kind === "intentUpdate") step = intentUpdate(state, input);
+  else {
+    const applied = expire(state, input.clock);
+    const subjects = applied.expired.map((item) => subject(item, "expired"));
+    step = {
+      state: applied.state, nextDeadline: nextEewDeadline(applied.state), decisions: applied.expired.map((item) => ({
+        subject: item.subject, operation: item.operation, decision: "changed" as const,
+        reason: null, change: "deliveryOnly" as const, currentEstablished: null,
+      })),
+      intents: [],
+      outcomes: input.kind === "deadline"
+        ? applied.expired.length === 0 ? [] : [{ kind: "deadlineApplied", subjects }]
+        : [{ kind: "batchCompleted", reason: "shutdown", subjects }],
+      diagnostics: applied.expired.length === 0 ? [] : [{ level: "INFO", component: "eew",
+        reason: "notificationExpired", unit: "U-E", count: applied.expired.length }],
+    };
+  }
+  // Rejected/duplicate inputs must preserve the owner's state; deadline reclaims records even without pending intents.
+  if (step.state === state && input.kind !== "deadline" && input.kind !== "shutdown") return step;
+  let records = step.state.deliveryRecords.filter((record) => record.expiresAt > input.clock.wallTimeMs);
+  let bytes = generationByteLength({ schemaVersion: SCHEMA, intents: step.state.intents, deliveryRecords: records });
+  if (bytes > GENERATION_BYTES) {
+    records.sort((left, right) => left.expiresAt - right.expiresAt);
+    let removed = 0;
+    while (bytes > GENERATION_BYTES && removed < records.length) {
+      bytes -= encoder.encode(JSON.stringify(records[removed])).byteLength + (records.length - removed > 1 ? 1 : 0);
+      removed++;
+    }
+    records = records.slice(removed);
+  }
+  if (records.length === step.state.deliveryRecords.length) return step;
+  const next: EewUnitState = {
+    ...step.state, deliveryRecords: records,
+    persistence: step.state.persistence.currentGeneration === state.persistence.currentGeneration
+      ? dirty(step.state.persistence, input.clock.monotonicMs) : step.state.persistence,
   };
-  const subjects = applied.expired.map((item) => subject(item, "expired"));
-  return {
-    state: applied.state, nextDeadline: nextEewDeadline(applied.state), decisions: applied.expired.map((item) => ({
-      subject: item.subject, operation: item.operation, decision: "changed" as const,
-      reason: null, change: "deliveryOnly" as const, currentEstablished: null,
-    })),
-    intents: [],
-    outcomes: input.kind === "deadline"
-      ? [{ kind: "deadlineApplied", subjects }]
-      : [{ kind: "batchCompleted", reason: "shutdown", subjects }],
-    diagnostics: [],
-  };
+  return { ...step, state: next, nextDeadline: nextEewDeadline(next) };
 }
 
 function toEewView(state: EewUnitState): EewUnitView {
@@ -237,7 +256,7 @@ const eewUnitCodec: EewUnitCodec = {
       kind: "restored",
       state: {
         schemaVersion: SCHEMA, current: [], gates: [], intents: value.intents,
-        deliveryRecords: value.deliveryRecords, persistence: cleanPersistence(),
+        deliveryRecords: value.deliveryRecords, notificationLatches: [], persistence: cleanPersistence(),
       },
     };
   },

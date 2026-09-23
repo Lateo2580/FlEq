@@ -3,7 +3,8 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
 import type { DecodedMaterial, Operation } from "../../contracts/p1-parser-boundary.types";
-import type { ClockReading, NotificationIntent } from "../../contracts/p2-shared-runtime.types";
+import type { ClockReading } from "../../contracts/p2-shared-runtime.types";
+import type { NotificationDeliveryState } from "../../contracts/p2-notification-delivery.types";
 import type { EewInput, EewUnitState, EewUnitStep } from "../../contracts/p2-eew-unit.types";
 import corpus from "../../tools/corpus/sequences.json";
 import manifest from "../../tools/corpus/manifest.json";
@@ -19,7 +20,7 @@ const BASE_TIME = 1_713_363_299_001;
 
 function emptyState(): EewUnitState {
   return {
-    schemaVersion: "p2-eew-unit-v1", current: [], gates: [], intents: [], deliveryRecords: [],
+    schemaVersion: "p2-eew-unit-v1", current: [], gates: [], intents: [], deliveryRecords: [], notificationLatches: [],
     persistence: { kind: "saved", currentGeneration: 0, savedGeneration: 0,
       savedCapturedAt: null, savedAckAt: null, dirtySince: null },
   };
@@ -48,7 +49,7 @@ function withOperation(xml: string, operation: Operation): string {
   return xml.replace("<Status>通常</Status>", `<Status>${{ normal: "通常", training: "訓練", test: "試験" }[operation]}</Status>`);
 }
 
-function pendingIntent(subject = "normal/VXSE43/20240417231454", createdAt = BASE_TIME): NotificationIntent {
+function pendingIntent(subject = "normal/VXSE43/20240417231454", createdAt = BASE_TIME): EewUnitState["intents"][number] {
   const [operation, family] = subject.split("/");
   if (operation !== "normal" && operation !== "training" && operation !== "test") throw new Error("invalid operation");
   const channel = operation === "normal" ? "sound" : "desktop";
@@ -56,7 +57,7 @@ function pendingIntent(subject = "normal/VXSE43/20240417231454", createdAt = BAS
     id: `U-E:${subject}:${createdAt}:${channel}`, unit: "U-E", subject, operation,
     source: { inputId: "intent-source", origin: "replay", operation, family, subject,
       reportDateTimeRaw: "2024-04-17T23:14:59+09:00", serialRaw: "1", infoTypeRaw: "発表" },
-    transition: "activated", channel, payload: { operation },
+    transition: "activated", channel, payload: { domain: "earthquake-eew", level: "warning", title: "緊急地震速報（予報）", body: "予報" },
     createdAt, expiresAt: createdAt + 15_000, nextAttemptAt: createdAt,
     attempts: 0, configRevision: "test", disposition: "pending",
   };
@@ -106,6 +107,113 @@ function config() {
 }
 
 describe("P2 EEW unit", () => {
+  it("P2-A4-T11 contractBoundary / AC11: accepted notices replace pending by event and keep operation separate", () => {
+    const first = decodeFixture("37_01_01_240613_VXSE43", "VXSE43");
+    const second = decodeFixture("37_01_02_240613_VXSE43", "VXSE43");
+    const cancelled = decodeFixture("37_01_03_240613_VXSE43", "VXSE43");
+    const initial = receive(emptyState(), first);
+    expect(initial.intents).toHaveLength(2);
+    expect(initial.intents.map((item) => item.channel)).toEqual(["desktop", "sound"]);
+    expect(initial.intents[0].payload).toMatchObject({ domain: "earthquake-eew", level: "critical",
+      title: "緊急地震速報（警報）" });
+    expect(initial.intents[0].payload.body).toContain("M5.8");
+    const continued = receive(initial.state, second);
+    expect(continued.intents).toEqual([]);
+    expect(continued.state.intents).toEqual(initial.state.intents);
+    const ending = receive(continued.state, cancelled);
+    expect(ending.intents).toHaveLength(2);
+    expect(ending.state.deliveryRecords.filter((item) => item.disposition === "superseded")).toHaveLength(2);
+    expect(ending.state.intents.every((item) => item.payload.level === "cancel")).toBe(true);
+    const training = receive(ending.state, decodeFixture("37_01_01_240613_VXSE43", "VXSE43",
+      (xml) => withOperation(xml, "training")));
+    expect(training.intents).toHaveLength(1);
+    expect(training.intents[0]).toMatchObject({ operation: "training", channel: "desktop",
+      payload: { title: "【訓練】緊急地震速報（警報）" } });
+    expect(training.intents[0].payload.body).toContain("訓練の電文です。");
+    expect(training.state.intents.filter((item) => item.operation === "normal")).toEqual(ending.state.intents);
+    const cross = receive(initial.state, decodeFixture("37_01_01_240613_VXSE43", "VXSE45"));
+    expect(cross.intents).toEqual([]);
+    expect(cross.state.notificationLatches[0].vxse45Accepted).toBe(true);
+    expect(receive(cross.state, second).intents).toEqual([]);
+    const crossCancel = receive(cross.state, cancelled);
+    expect(crossCancel.intents).toEqual([]);
+    expect(crossCancel.state.intents).toEqual([]);
+    const forecast = receive(emptyState(), decodeFixture("37_01_01_240613_VXSE43", "VXSE45", (xml) =>
+      xml.replace(/<Code>31<\/Code>/g, "<Code>30</Code>").replace(/<Code>1[0-9]<\/Code>/g, "<Code>00</Code>")));
+    expect(forecast.intents[0].payload.level).toBe("warning");
+    const upgraded = receive(forecast.state, decodeFixture("37_01_02_240613_VXSE43", "VXSE45", (xml) =>
+      xml.replace(/<Code>31<\/Code>/g, "<Code>30</Code>").replace(/<Code>1[0-9]<\/Code>/g, "<Code>13</Code>")));
+    expect(upgraded.intents).toHaveLength(2);
+    expect(upgraded.intents[0].payload).toMatchObject({ level: "critical", title: "緊急地震速報（警報）" });
+  });
+
+  it("P2-A4-T11 regression / payloadRules: preserves forecast bounds and unknown magnitude in the notice body", () => {
+    for (const [to, label] of [["6+", "5弱〜6強"], ["over", "5弱程度以上"], [null, "5弱"]] as const) {
+      const material = decodeFixture("37_01_01_240613_VXSE43", "VXSE43", (xml) => xml
+        .replace(/<From>[^<]*<\/From>/g, "<From>5-</From>")
+        .replace(/<To>[^<]*<\/To>/g, to == null ? "" : `<To>${to}</To>`)
+        .replace(/<jmx_eb:Magnitude[^>]*>[^<]*<\/jmx_eb:Magnitude>/,
+          "<jmx_eb:Magnitude>NaN</jmx_eb:Magnitude>"));
+      const step = receive(emptyState(), material);
+      expect(step.intents).toHaveLength(2);
+      expect(step.intents[0].payload.body).toBe(`豊後水道 / M不明 / 最大予測震度${label}`);
+      expect(step.intents[1].payload).toEqual(step.intents[0].payload);
+    }
+    const qualitative = receive(emptyState(), decodeFixture("37_01_01_240613_VXSE43", "VXSE43", (xml) => xml
+      .replace(/<ForecastInt>[\s\S]*?<\/ForecastInt>/g, '<ForecastInt condition="5弱以上未入電"/>')));
+    expect(qualitative.intents[0].payload.body).toBe("豊後水道 / M5.8 / 最大予測震度5弱以上未入電");
+    expect(qualitative.intents[1].payload).toEqual(qualitative.intents[0].payload);
+    const conflict = receive(emptyState(), decodeFixture("37_01_01_240613_VXSE43", "VXSE43", (xml) => xml
+      .replace(/<ForecastInt>[\s\S]*?<\/ForecastInt>/g, '<ForecastInt condition="不明" description="5弱以上未入電"/>')));
+    expect(conflict.intents[0].payload.body).toBe("豊後水道 / M5.8 / 最大予測震度不明");
+    expect(conflict.intents[1].payload).toEqual(conflict.intents[0].payload);
+    const unknown = receive(qualitative.state, decodeFixture("37_01_02_240613_VXSE43", "VXSE43", (xml) => xml
+      .replace("<InfoType>発表</InfoType>", "<InfoType>訂正</InfoType>")
+      .replace(/<ForecastInt>[\s\S]*?<\/ForecastInt>/g, "<ForecastInt><From>不明</From><To>不明</To></ForecastInt>")));
+    expect(unknown.state.current[0].prediction.areas.some((area) => area.intensity.condition === "既に主要動到達と推測")).toBe(true);
+    expect(unknown.intents[0].payload.body).toBe("訂正: 豊後水道 / M6.6 / 最大予測震度不明");
+    expect(unknown.intents[1].payload).toEqual(unknown.intents[0].payload);
+  });
+
+  it("P2-A4-T11 contractBoundary / AC11: correction and final report replace the prior channel pair", () => {
+    const first = receive(emptyState(), decodeFixture("37_01_01_240613_VXSE43", "VXSE43"));
+    const correction = receive(first.state, decodeFixture("37_01_02_240613_VXSE43", "VXSE43",
+      (xml) => xml.replace("<InfoType>発表</InfoType>", "<InfoType>訂正</InfoType>")));
+    expect(correction.intents).toHaveLength(2);
+    expect(correction.intents[0].payload).toMatchObject({ title: "[訂正] 緊急地震速報（警報）" });
+    expect(correction.intents[0].payload.body).toContain("訂正: ");
+    expect(correction.state.deliveryRecords).toHaveLength(2);
+    const final = receive(correction.state, decodeFixture("37_01_02_240613_VXSE43", "VXSE43",
+      (xml) => xml.replace("</Body>", "<NextAdvisory>最終報</NextAdvisory></Body>")));
+    expect(final.intents).toHaveLength(2);
+    expect(final.intents[0].transition).toBe("released");
+    expect(final.state.deliveryRecords).toHaveLength(4);
+  });
+
+  it("P2-A4-T11 contractBoundary / AC11: failed atomic admission does not latch a first report", () => {
+    const occupied = { ...emptyState(), intents: Array.from({ length: 128 }, (_, index) =>
+      pendingIntent(`normal/VXSE43/${String(index).padStart(14, "0")}`)) };
+    const first = decodeFixture("37_01_01_240613_VXSE43", "VXSE43");
+    const refused = receive(occupied, first);
+    expect(refused.intents).toEqual([]);
+    expect(refused.state.intents).toEqual(occupied.intents);
+    expect(refused.state.notificationLatches[0]).toMatchObject({ firstReportNotified: false,
+      warningNotified: false });
+    const second = decodeFixture("37_01_02_240613_VXSE43", "VXSE43");
+    const admitted = receive(refused.state, second, BASE_TIME + 15_001);
+    expect(admitted.intents).toHaveLength(2);
+    expect(admitted.state.notificationLatches[0]).toMatchObject({ firstReportNotified: true,
+      warningNotified: true });
+    const lower = { ...emptyState(), intents: [
+      ...occupied.intents.slice(0, 126),
+      pendingIntent("training/VXSE43/00000000000126"), pendingIntent("test/VXSE43/00000000000127"),
+    ] };
+    const preempted = receive(lower, first);
+    expect(preempted.intents).toHaveLength(2);
+    expect(preempted.diagnostics).toContainEqual({ level: "INFO", component: "eew",
+      reason: "notificationCapacityEvicted", unit: "U-E", count: 2 });
+    expect(preempted.state.deliveryRecords).toHaveLength(2);
+  });
   it("P2-A4-T01 contractBoundary / AC01: frozen validation order and legal reduced structures are atomic", () => {
     const first = decodeFixture("37_01_01_240613_VXSE43", "VXSE43");
     const cancelled43 = decodeFixture("37_01_03_240613_VXSE43", "VXSE43");
@@ -115,7 +223,7 @@ describe("P2 EEW unit", () => {
 
     const state = { ...receive(emptyState(), first).state, intents: [pendingIntent()] };
     expect(receive(state, cancelled43).decisions[0]).toMatchObject({ decision: "changed" });
-    expect(receive(emptyState(), cancelled44).decisions[0]).toMatchObject({ decision: "changed" });
+    expect(receive(emptyState(), cancelled44).decisions[0]).toMatchObject({ decision: "rejected" });
     const regionless = receive(emptyState(), regionless45);
     expect(regionless.state.current[0]?.prediction).toMatchObject({ areaCoverage: "none", areas: [] });
 
@@ -145,7 +253,7 @@ describe("P2 EEW unit", () => {
     }
 
     // Empty scalar is legal; a child element in the scalar slot is not.
-    for (const family of ["VXSE43", "VXSE44", "VXSE45"] as const) {
+    for (const family of ["VXSE43", "VXSE45"] as const) {
       for (const field of ["From", "To"] as const)
         for (const replacement of ["", `<${field}/>`, `<${field}></${field}>`, `<${field}>不明</${field}>`, `<${field}>3以下</${field}>`]) {
         const material = decodeFixture("37_01_01_240613_VXSE43", family, (xml) =>
@@ -273,7 +381,7 @@ describe("P2 EEW unit", () => {
     ];
     let cases = 0;
     for (const operation of ["normal", "training", "test"] as const)
-      for (const coverage of ["VXSE43", "VXSE44", "VXSE45", "regionless"] as const)
+      for (const coverage of ["VXSE43", "VXSE45", "regionless"] as const)
         for (const pattern of patterns) {
           const family = coverage === "regionless" ? "VXSE45" : coverage;
           const material = (serial: number, values: readonly string[], known?: string, inputId = `${serial}-${values}-${known}`) =>
@@ -318,11 +426,11 @@ describe("P2 EEW unit", () => {
           }
           cases++;
         }
-    expect(cases).toBe(120);
+    expect(cases).toBe(90);
   });
 
   it("P2-A4-T06-R14 contractBoundary / AC03,06: atomic normal-protecting admission and deterministic eviction", () => {
-    const material = (id: number, operation: Operation, time = "2024-04-17T23:14:59+09:00", family: "VXSE43" | "VXSE44" = "VXSE43") =>
+    const material = (id: number, operation: Operation, time = "2024-04-17T23:14:59+09:00", family: "VXSE43" | "VXSE45" = "VXSE43") =>
       decodeFixture("37_01_01_240613_VXSE43", family, (xml) => withOperation(xml, operation)
         .replace(/<EventID>[^<]*<\/EventID>/, `<EventID>${String(id).padStart(14, "0")}</EventID>`)
         .replace(/<ReportDateTime>[^<]*<\/ReportDateTime>/, `<ReportDateTime>${time}</ReportDateTime>`), `${operation}-${id}-${time}`);
@@ -344,12 +452,13 @@ describe("P2 EEW unit", () => {
           expect(step.state.gates).toHaveLength(Math.min(size + 1, 512));
           for (const item of protectedCurrent) expect(step.state.current.find((next) => next.subject === item.subject)).toBe(item);
           expect(step.diagnostics).toEqual(size < 512 ? [] : [{ level: "INFO", component: "eew", reason: "eewCapacityEvicted", unit: "U-E", count: 1 }]);
-          expect(step.intents).toEqual([]);
+          expect(step.intents).toHaveLength(operation === "normal" ? 2 : 1);
           expect(step.outcomes.flatMap((outcome) => outcome.subjects).map((subject) => subject.transition)).toEqual(["activated"]);
           expect(step.state.current.some((item) => item.subject === old.subject)).toBe(size < 512);
           if (size === 512) {
-            expect(step.state.deliveryRecords).toEqual([{ intentId: pending.id, disposition: "superseded", expiresAt: pending.expiresAt }]);
-            expect(step.state.intents.map((intent) => intent.subject)).toEqual([protectedCurrent[0].subject]);
+            expect(step.state.deliveryRecords).toContainEqual({ intentId: pending.id, disposition: "superseded", expiresAt: pending.expiresAt });
+            expect(step.state.intents.map((intent) => intent.subject))
+              .toEqual([protectedCurrent[0].subject, ...step.intents.map((intent) => intent.subject)]);
             const readmitted = receive(step.state, mixed[2]);
             expect(readmitted.decisions[0]).toMatchObject({ decision: "changed" });
             expect(readmitted.outcomes[0].subjects[0].transition).toBe("activated");
@@ -415,7 +524,7 @@ describe("P2 EEW unit", () => {
     // Keep retained source ancient; independently make current source older than gate to prove gate precedence.
     ordered = { ...ordered, current: ordered.current.map((item) => item.subject === current9101.subject
       ? { ...item, source: current9101.source } : item) };
-    const otherFamily = receive(emptyState(), material(9200, "test", "2024-04-17T00:00:00Z", "VXSE44")).state;
+    const otherFamily = receive(emptyState(), material(9200, "test", "2024-04-17T00:00:00Z", "VXSE45")).state;
     ordered = { ...ordered, current: [...ordered.current, ...otherFamily.current], gates: [...ordered.gates, ...otherFamily.gates] };
     const expected = [9102, 9104, 9105, 9103, 9101];
     for (const reverse of [false, true]) {
@@ -428,7 +537,7 @@ describe("P2 EEW unit", () => {
           `${id === 9104 || id === 9105 ? "test" : "training"}/VXSE43/${String(id).padStart(14, "0")}`,
         ]);
         expect(step.diagnostics).toEqual([{ level: "INFO", component: "eew", reason: "eewCapacityEvicted", unit: "U-E", count: 1 }]);
-        expect(step.state.current.find((item) => item.family === "VXSE44")).toBe(otherFamily.current[0]);
+        expect(step.state.current.find((item) => item.family === "VXSE45")).toBe(otherFamily.current[0]);
         state = step.state;
       }
     }
@@ -446,6 +555,46 @@ describe("P2 EEW unit", () => {
     const repaired = receive(repairable, material(9400, "normal"));
     expect(repaired.state.gates).toHaveLength(512);
     expect(repaired.diagnostics).toEqual([{ level: "INFO", component: "eew", reason: "eewCapacityEvicted", unit: "U-E", count: 2 }]);
+
+    // Same operation/event has two family owners; only eviction of the last owner ends its latch.
+    let lifetime = receive({ ...full, current: full.current.slice(1), gates: full.gates.slice(1) },
+      material(9500, "training", "2024-04-17T00:00:00Z")).state;
+    lifetime = receive(lifetime, material(9500, "training", "2024-04-17T00:00:00Z", "VXSE45")).state;
+    const latch = lifetime.notificationLatches.find((item) => item.operation === "training" && item.eventId === "00000000009500");
+    expect(latch).toMatchObject({ vxse45Accepted: true });
+    lifetime = receive(lifetime, material(9501, "normal")).state;
+    expect(lifetime.gates.some((item) => item.operation === "training" && item.subject === "training/VXSE43/00000000009500")).toBe(false);
+    expect(lifetime.gates.some((item) => item.operation === "training" && item.subject === "training/VXSE45/00000000009500")).toBe(true);
+    expect(lifetime.notificationLatches.find((item) => item.operation === "training" && item.eventId === "00000000009500")).toEqual(latch);
+    for (let index = 1; index <= 511; index++)
+      lifetime = receive(lifetime, material(index, "normal", "2024-04-17T14:00:00Z", "VXSE45")).state;
+    const lastOwner = receive(lifetime, material(9501, "normal", "2024-04-17T14:00:00Z", "VXSE45"));
+    expect(lastOwner.diagnostics).toContainEqual({ level: "INFO", component: "eew", reason: "eewCapacityEvicted", unit: "U-E", count: 1 });
+    expect(lastOwner.state.gates.some((item) => item.operation === "training" && item.subject.endsWith("/00000000009500"))).toBe(false);
+    expect(lastOwner.state.notificationLatches.some((item) => item.operation === "training" && item.eventId === "00000000009500")).toBe(false);
+  });
+
+  it("P2-A4-T11 contractBoundary: evicts earliest terminal records at the generation budget and keeps admitting", () => {
+    const first = decodeFixture("37_01_01_240613_VXSE43", "VXSE43");
+    const state: EewUnitState = { ...emptyState(), deliveryRecords: [
+      { intentId: "later", disposition: "delivered", expiresAt: BASE_TIME + 20_000 },
+      { intentId: "earliest", disposition: "superseded", expiresAt: BASE_TIME + 10_000 },
+    ] };
+    const envelope = { schemaVersion: "p2-eew-unit-v1", unit: "U-E", generation: Number.MAX_SAFE_INTEGER,
+      capturedAt: Number.MAX_SAFE_INTEGER, payload: eewUnitCodec.encode(state), sha256: "0".repeat(64) };
+    const padding = 262_144 - Buffer.byteLength(JSON.stringify(envelope));
+    const full = { ...state, deliveryRecords: [state.deliveryRecords[0],
+      { ...state.deliveryRecords[1], intentId: "earliest" + "x".repeat(padding) }] };
+    expect(() => eewUnitCodec.encode(full)).not.toThrow();
+    const accepted = receive(full, first);
+    expect(accepted.decisions[0]).toMatchObject({ decision: "changed" });
+    expect(accepted.intents.map((item) => item.channel)).toEqual(["desktop", "sound"]);
+    expect(accepted.state.deliveryRecords).toEqual([state.deliveryRecords[0]]);
+    expect(accepted.state.persistence.currentGeneration).toBe(1);
+    expect(eewUnitCodec.decode(eewUnitCodec.encode(accepted.state)).kind).toBe("restored");
+    const following = receive(accepted.state, decodeFixture("37_01_02_240613_VXSE43", "VXSE43"));
+    expect(following.decisions[0]).toMatchObject({ decision: "changed" });
+    expect(following.state.intents).toEqual(accepted.state.intents);
   });
 
   it("P2-A4-T03 contractBoundary / AC04: codec roundtrip excludes current/gate and rejects exact next-byte overflow", () => {
@@ -474,10 +623,10 @@ describe("P2 EEW unit", () => {
       if (count === 129) expect(() => eewUnitCodec.encode(many)).toThrow(/persisted boundary/);
       else expect(eewUnitCodec.decode(eewUnitCodec.encode(many))).toMatchObject({ kind: "restored", state: { intents: many.intents } });
     }
-    const small = { ...pendingIntent(), payload: { padding: "" } };
+    const small = pendingIntent();
     const padding = 131_072 - Buffer.byteLength(JSON.stringify([small]));
     for (const extra of [0, 1]) {
-      const intents = [{ ...small, payload: { padding: "x".repeat(padding + extra) } }];
+      const intents = [{ ...small, payload: { ...small.payload, body: small.payload.body + "x".repeat(padding + extra) } }];
       expect(Buffer.byteLength(JSON.stringify(intents))).toBe(131_072 + extra);
       if (extra === 0) expect(() => eewUnitCodec.encode({ ...emptyState(), intents })).not.toThrow();
       else expect(() => eewUnitCodec.encode({ ...emptyState(), intents })).toThrow(/persisted boundary/);
@@ -491,7 +640,7 @@ describe("P2 EEW unit", () => {
     for (const operation of operations) mixed = receive(mixed,
       decodeFixture("37_01_01_240613_VXSE43", "VXSE43", (xml) => withOperation(xml, operation))).state;
     expect(toEewView(mixed).current.map((item) => item.operation)).toEqual(operations);
-    expect(accepted.intents).toEqual([]); // Q-NOTICE remains unresolved; no channel is guessed.
+    expect(accepted.intents.map((item) => item.channel)).toEqual(["desktop", "sound"]);
 
     const intentValue = pendingIntent("normal/VXSE43/20240417231454", 1_000);
     const intentState = { ...emptyState(), intents: [intentValue] };
@@ -513,7 +662,11 @@ describe("P2 EEW unit", () => {
     const adapter = new MemoryCheckpointFileSystem();
     const diagnostics = new MemoryDiagnosticFileSystem();
     let now = BASE_TIME + 1;
-    const runtimeCalls = { ...fixtureDriver().calls, reduceEewUnit: (state: EewUnitState, input: EewInput) => {
+    const runtimeCalls = { ...fixtureDriver().calls,
+      selectNotificationAttempt: (delivery: NotificationDeliveryState) => ({
+        state: delivery, attempts: [], abortRequests: [], diagnostics: [],
+      }),
+      reduceEewUnit: (state: EewUnitState, input: EewInput) => {
       const step = reduceEewUnit(state, input);
       return input.kind === "receive" && state.persistence.currentGeneration === 0
         && input.material.inputId === first.inputId ? { ...step, state: unit } : step;
@@ -676,7 +829,9 @@ describe("P2 EEW unit", () => {
     expect(cancelled.state.current).toEqual(state.current.filter((current) => current.operation !== "normal"));
     expect(cancelled.state.gates.filter((gate) => gate.operation !== "normal"))
       .toEqual(state.gates.filter((gate) => gate.operation !== "normal"));
-    expect(cancelled.state.intents).toEqual(state.intents.filter((intent) => intent.operation !== "normal"));
+    expect(cancelled.state.intents.filter((intent) => intent.operation !== "normal"))
+      .toEqual(state.intents.filter((intent) => intent.operation !== "normal"));
+    expect(cancelled.intents).toHaveLength(2);
     expect(cancelled.state.deliveryRecords).toEqual([{ intentId: state.intents[0].id,
       disposition: "superseded", expiresAt: state.intents[0].expiresAt }]);
     for (const operation of ["training", "test"] as const) {
@@ -719,7 +874,7 @@ describe("P2 EEW unit", () => {
       semanticUnavailable: 0, deliverySummary: "N/A: A8 not connected" };
     for (const fixture of manifest.fixtures) {
       const family = fixture.transport.headType;
-      if (family !== "VXSE43" && family !== "VXSE44" && family !== "VXSE45") continue;
+      if (family !== "VXSE43" && family !== "VXSE45") continue;
       const material = decodeFixture(fixture.path.replace(/^test\/fixtures\//, "").replace(/\.xml$/, ""), family);
       expect(material.operation).toBe("normal");
       const step = receive(emptyState(), material);
@@ -740,13 +895,13 @@ describe("P2 EEW unit", () => {
       expect(view.activeCount).toBe(step.state.gates[0].terminal ? 0 : 1);
       expect(eewUnitCodec.decode(eewUnitCodec.encode(afterDeadline.state)).kind).toBe("restored");
     }
-    expect(counts).toEqual({ fixtures: 12, normalCorpus: 10, rejected: 0, invalidSynthetic: 2,
+    expect(counts).toEqual({ fixtures: 11, normalCorpus: 9, rejected: 0, invalidSynthetic: 2,
       semanticUnavailable: 0, deliverySummary: "N/A: A8 not connected" });
   });
 
   it("P2-A4-T11 regression / AC02: same-version corrections compare received raw before retention", () => {
     for (const operation of ["normal", "training", "test"] as const)
-      for (const family of ["VXSE43", "VXSE44", "VXSE45"] as const) {
+      for (const family of ["VXSE43", "VXSE45"] as const) {
         const correction = (xml: string): string => withOperation(xml, operation)
           .replace("<InfoType>発表</InfoType>", "<InfoType>訂正</InfoType>");
         const first = decodeFixture("37_01_01_240613_VXSE43", family, correction, "correction-original");
@@ -866,13 +1021,13 @@ describe("P2 EEW unit", () => {
     expect(receive(state, decodeFixture("37_01_01_240613_VXSE43", "VXSE43", (xml) => xml.replace("<Serial>1</Serial>", "<Serial/>"))).nextDeadline).toEqual(expected);
     const newer = { ...receive(state, second).state, intents: [pending] };
     expect(receive(newer, first).nextDeadline).toEqual(expected);
-    expect(receive(state, second).nextDeadline).toBeNull();
+    expect(receive(state, second).nextDeadline).toEqual(expected);
     expect(reduceEewUnit(state, { kind: "restore", persisted: eewUnitCodec.encode(state), clock: clock(BASE_TIME) }).nextDeadline).toEqual(expected);
     expect(reduceEewUnit(state, { kind: "restore", persisted: { ...eewUnitCodec.encode(state), intents: [pending, pending] }, clock: clock(BASE_TIME) }).nextDeadline).toEqual(expected);
 
     const selection = { id: pending.id, attempts: 1, nextAttemptAt: BASE_TIME + 500, disposition: "pending" as const };
     const selected = reduceEewUnit(state, { kind: "intentUpdate", intentUpdate: selection, clock: clock(BASE_TIME, 123) });
-    expect(selected.state.persistence).toMatchObject({ kind: "pending", currentGeneration: 1, dirtySince: 123 });
+    expect(selected.state.persistence).toMatchObject({ kind: "pending", currentGeneration: 2, dirtySince: 0 });
     expect(selected.state.intents[0]).toMatchObject({ ...selection, createdAt: pending.createdAt, expiresAt: pending.expiresAt });
     expect(selected.decisions[0]).toMatchObject({ change: "deliveryOnly" });
     expect(selected.nextDeadline).toEqual(expected);
@@ -883,13 +1038,19 @@ describe("P2 EEW unit", () => {
     }
     const delivered = reduceEewUnit(selected.state, { kind: "intentUpdate", intentUpdate: { ...selection, disposition: "delivered" }, clock: clock(BASE_TIME + 1, 124) });
     expect(delivered.state.intents).toEqual([]);
-    expect(delivered.state.persistence.currentGeneration).toBe(2);
-    expect(delivered.nextDeadline).toBeNull();
+    expect(delivered.state.persistence.currentGeneration).toBe(3);
+    expect(delivered.nextDeadline).toEqual(expected);
+    const reclaimed = reduceEewUnit(delivered.state, { kind: "deadline", clock: clock(pending.expiresAt, 125) });
+    expect(reclaimed.state.deliveryRecords).toEqual([]);
+    expect(reclaimed.nextDeadline).toBeNull();
+    expect(reclaimed.state.persistence.currentGeneration).toBe(4);
     for (const age of [14_999, 15_000, 15_001]) {
       for (const monotonic of [0, Number.MAX_SAFE_INTEGER]) {
         const tick = reduceEewUnit(state, { kind: "deadline", clock: clock(BASE_TIME + age, monotonic) });
         expect(tick.nextDeadline).toEqual(age < 15_000 ? expected : null);
         expect(tick.state.intents).toHaveLength(age < 15_000 ? 1 : 0);
+        if (age >= 15_000) expect(tick.diagnostics).toContainEqual({ level: "INFO", component: "eew",
+          reason: "notificationExpired", unit: "U-E", count: 1 });
         if (age < 15_000) {
           expect(tick.state).toBe(state);
           expect([tick.decisions, tick.intents, tick.outcomes, tick.diagnostics]).toEqual([[], [], [], []]);
@@ -898,7 +1059,8 @@ describe("P2 EEW unit", () => {
       for (const terminal of [false, true]) {
         const end = decodeFixture(terminal ? "37_01_01_240613_VXSE43" : "37_01_03_240613_VXSE43", "VXSE43", (xml) => terminal
           ? xml.replace("</Body>", "<NextAdvisory>最終報</NextAdvisory></Body>") : xml);
-        expect(receive(state, end, BASE_TIME + age).nextDeadline).toBeNull();
+        expect(receive(state, end, BASE_TIME + age).nextDeadline)
+          .toEqual({ wallTimeMs: age < 15_000 ? pending.expiresAt : BASE_TIME + age + 15_000, monotonicMs: null });
       }
       const result = reduceEewUnit(state, { kind: "intentUpdate", intentUpdate: selection, clock: clock(BASE_TIME + age) });
       expect(result.nextDeadline).toEqual(age < 15_000 ? expected : null);
@@ -908,6 +1070,6 @@ describe("P2 EEW unit", () => {
     const later = pendingIntent("normal/VXSE43/20240417231455", BASE_TIME + 1_000);
     expect(reduceEewUnit({ ...state, intents: [later, pending] }, { kind: "deadline", clock: clock(pending.expiresAt) }).nextDeadline)
       .toEqual({ wallTimeMs: later.expiresAt, monotonicMs: null });
-    expect(receive(emptyState(), first).nextDeadline).toBeNull();
+    expect(receive(emptyState(), first).nextDeadline).toEqual(expected);
   });
 });

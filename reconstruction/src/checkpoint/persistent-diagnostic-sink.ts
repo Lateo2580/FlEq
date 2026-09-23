@@ -48,6 +48,7 @@ const diagnosticReasons = [
   "mailboxLimitViolation", "shutdownStarted", "shutdownUnsavedUnits", "diagnosticSinkFailed",
   "diagnosticQueueOverflow", "snapshotNoticeCapacityExceeded", "snapshotCommonBudgetExceeded",
   "snapshotStringLimitExceeded", "weatherCurrentCapacityEvicted", "eewCapacityEvicted",
+  "notificationAttemptFailed", "notificationExpired", "notificationCapacityEvicted", "notificationAdapterIsolated",
 ] satisfies readonly DiagnosticReason[];
 
 function lineFor(source: DiagnosticEvent, occurrences = 1): QueueEntry {

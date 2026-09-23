@@ -4,7 +4,8 @@ import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 
 import type { DecodedMaterial } from "../../contracts/p1-parser-boundary.types";
-import type { ClockReading, NotificationIntent, RuntimeInput, RuntimeState, RuntimeUnitId } from "../../contracts/p2-shared-runtime.types";
+import type { ClockReading, RuntimeInput, RuntimeState, RuntimeUnitId } from "../../contracts/p2-shared-runtime.types";
+import type { EewUnitState } from "../../contracts/p2-eew-unit.types";
 import type { WeatherCurrentInput, WeatherCurrentUnitState } from "../../contracts/p2-weather-current-unit.types";
 import type { NotificationAttempt, NotificationDeliveryState } from "../../contracts/p2-notification-delivery.types";
 import { decodeMaterial } from "../../src/decode-material/decode-material";
@@ -18,7 +19,10 @@ import { eewUnitCodec } from "../../src/units/eew/eew-unit";
 import { weatherCurrentUnitCodec } from "../../src/units/weather-current/weather-current-unit";
 import { fixtureState } from "../checkpoint-shutdown/runtime-fixture";
 
-const calls = linkedRuntimeCalls;
+const calls = { ...linkedRuntimeCalls,
+  selectNotificationAttempt: (delivery: NotificationDeliveryState) => ({ state: delivery,
+    attempts: [], abortRequests: [], diagnostics: [] }),
+};
 const temporary: string[] = [];
 afterEach(async () => {
   for (const path of temporary.splice(0)) await fileSystem.rm(path, { recursive: true, force: true });
@@ -57,11 +61,11 @@ async function save(root: RuntimeCompositionRoot, unit: RuntimeUnitId, inputIds:
   return root.applyCheckpointResult(root.state, executed.result, clock()).state;
 }
 
-const eewIntent: NotificationIntent = { id: "U-E:normal/VXSE43/20240417231454:1:sound", unit: "U-E",
+const eewIntent: EewUnitState["intents"][number] = { id: "U-E:normal/VXSE43/20240417231454:1:sound", unit: "U-E",
   subject: "normal/VXSE43/20240417231454", operation: "normal", source: { inputId: "intent-source",
     origin: "replay", operation: "normal", family: "VXSE43", subject: "normal/VXSE43/20240417231454",
     reportDateTimeRaw: "2024-04-17T23:14:59+09:00", serialRaw: "1", infoTypeRaw: "発表" },
-  transition: "activated", channel: "sound", payload: { operation: "normal" }, createdAt: 1, expiresAt: 15_001,
+  transition: "activated", channel: "sound", payload: { domain: "earthquake-eew", level: "critical", title: "緊急地震速報（警報）", body: "地震" }, createdAt: 1, expiresAt: 15_001,
   nextAttemptAt: 1, attempts: 0, configRevision: "test", disposition: "pending" };
 
 describe("P2 unit wiring (A1 route, A3 composition root)", () => {
@@ -140,19 +144,24 @@ describe("P2 unit wiring (A1 route, A3 composition root)", () => {
     const at = { wallTimeMs: 10, monotonicMs: 10 };
     const root = new RuntimeCompositionRoot(settings, linkedUnitCodecs, { clock: () => at, runtimeCalls: {
       ...calls, selectNotificationAttempt: (delivery: NotificationDeliveryState) => {
+        if (delivery.channels.desktop.kind !== "idle" || delivery.channels.sound.kind !== "idle")
+          return { state: delivery, attempts: [], abortRequests: [], diagnostics: [] };
         const attempts: NotificationAttempt[] = delivery.intents.map((intent) => ({
           attemptId: `attempt-${intent.channel}`, intentId: intent.id, unit: intent.unit, subject: intent.subject,
           operation: intent.operation, channel: intent.channel, priorityGroup: "other", payload: {}, soundAsset: null,
           selectedAtMonotonicMs: at.monotonicMs, timeoutAtMonotonicMs: 1_000, expiresAt: intent.expiresAt,
         }));
         return { state: { intents: delivery.intents.map((intent) => ({ ...intent, attempts: 1, nextAttemptAt: 100 })),
-          channels: { desktop: { kind: "running", attempt: attempts[0] }, sound: { kind: "running", attempt: attempts[1] } } },
-        attempts, abortAttemptIds: [], dirtyUnits: ["U-E"], diagnostics: [] };
+          channels: { desktop: { kind: "running", attempt: attempts[0] }, sound: { kind: "running", attempt: attempts[1] } },
+          deadlines: delivery.deadlines },
+        attempts, abortRequests: [], diagnostics: [] };
       },
     } });
-    const step = root.tick(root.startRuntime("run", at).state, at);
+    const started = root.startRuntime("run", at);
+    expect(started.generationInputIds).toEqual({ "U-E": [] });
+    const step = root.tick(started.state, at);
     expect(step.state.units["U-E"].persistence.currentGeneration).toBe(9);
-    expect(step.generationInputIds).toEqual({ "U-E": [] });
+    expect(step.generationInputIds).toEqual({});
     expect((await root.shutdownRuntime(root.state, 0, at)).code).toBe(0);
     expect(root.state.units["U-E"].persistence.savedGeneration).toBe(9);
   });
@@ -197,7 +206,8 @@ describe("P2 unit wiring (A1 route, A3 composition root)", () => {
     const at = { wallTimeMs: 1_713_363_299_001, monotonicMs: 4 };
     const initial = fixtureState({}, { "U-W": { kind: "saved", currentGeneration: 0, savedGeneration: 0,
       savedCapturedAt: null, savedAckAt: null, dirtySince: null } }, "run");
-    const state = { ...initial, deadlines: { ...initial.deadlines,
+    const state = { ...initial, units: { ...initial.units,
+      "U-E": { ...initial.units["U-E"], notificationLatches: [] } }, deadlines: { ...initial.deadlines,
       "U-E": null, "U-W": { wallTimeMs: null, monotonicMs: at.monotonicMs }, "U-F": null } };
     const step = reduceRuntime(state, parsed("run", decode("37_01_01_240613_VXSE43", "VXSE43"), at), {
       ...calls, reduceWeatherCurrentUnit: (unit: WeatherCurrentUnitState, input: WeatherCurrentInput) =>
@@ -207,7 +217,7 @@ describe("P2 unit wiring (A1 route, A3 composition root)", () => {
           : calls.reduceWeatherCurrentUnit(unit, input),
     });
     expect(step.changedUnits).toEqual(["U-E", "U-W"]);
-    expect(step.generationInputIds).toEqual({ "U-W": [] });
+    expect(step.generationInputIds).toEqual({ "U-E": ["37_01_01_240613_VXSE43"], "U-W": [] });
   });
 
   it("P2-A3-T10 contractBoundary / AC10: an empty later generation retains only unsaved earlier input IDs", async () => {
@@ -355,27 +365,20 @@ describe("P2 unit wiring (A1 route, A3 composition root)", () => {
       .toEqual(["second", "third"]);
   });
 
-  it("P2-WIRE-T06 regression / A10 AC09: current-only input cannot contribute to an unsaved EEW generation", async () => {
-    const clock = () => ({ wallTimeMs: 1_713_363_299_001, monotonicMs: 1 });
-    const eewMeasured: { unit: string; inputIds: readonly string[] }[] = [];
-    const settings = await config();
-    await fileSystem.mkdir(settings.stateDirectory, { recursive: true });
-    await fileSystem.writeFile(join(settings.stateDirectory, "U-E-A.json"), serializedEnvelope(hashEnvelope({
-      schemaVersion: eewUnitCodec.schemaVersion, unit: "U-E", generation: 1, capturedAt: 1,
-      payload: eewUnitCodec.encode({ ...fixtureState().units["U-E"], intents: [eewIntent] }),
-    })));
-    const eewRoot = new RuntimeCompositionRoot(settings, linkedUnitCodecs, { runtimeCalls: calls, clock,
-      onMeasurements: (items) => eewMeasured.push(...items.map(({ unit, inputIds }) => ({ unit, inputIds }))) });
-    const eewSeeded = eewRoot.startRuntime("eew-run", clock()).state;
-    const currentOnly = decode("37_01_01_240613_VXSE43", "VXSE44", (xml) => xml, "current-only");
-    const currentStep = eewRoot.dispatch(eewSeeded, parsed("eew-run", currentOnly, clock()));
-    expect(currentStep.changedUnits).toEqual(["U-E"]);
-    expect(currentStep.state.units["U-E"].persistence.currentGeneration).toBe(2);
-    const cancelled = decode("37_01_03_240613_VXSE43", "VXSE43", (xml) => xml, "cancel");
-    eewRoot.dispatch(currentStep.state, parsed("eew-run", cancelled, clock()));
-    expect(await eewRoot.shutdownRuntime(eewRoot.state, 1, clock())).toMatchObject({ code: 0 });
-    expect(eewMeasured.filter(({ unit }) => unit === "U-E").every(({ inputIds }) => inputIds.length === 0)).toBe(true);
-    expect(eewMeasured.some(({ unit }) => unit === "U-E")).toBe(true);
+  it("P2-A1-T12 contractBoundary / AC11: VXSE44 with an invalid date is ignored while deadlines still run", () => {
+    const clock = { wallTimeMs: 1_713_363_299_001, monotonicMs: 1 };
+    const initial = fixtureState({}, {}, "run");
+    const state: RuntimeState = { ...initial, units: { ...initial.units, "U-E": { ...initial.units["U-E"],
+      deliveryRecords: [{ intentId: "elapsed", disposition: "delivered", expiresAt: clock.wallTimeMs }] } },
+      deadlines: { "U-E": { wallTimeMs: clock.wallTimeMs, monotonicMs: null }, "U-W": null, "U-F": null } };
+    const material = decode("37_01_01_240613_VXSE43", "VXSE44", (xml) => xml
+      .replace(/<ReportDateTime>[^<]*<\/ReportDateTime>/, "<ReportDateTime>invalid</ReportDateTime>"), "ignored-44");
+    const step = reduceRuntime(state, parsed("run", material, clock), calls);
+    expect(step.state.units["U-E"].current).toEqual([]);
+    expect(step.state.units["U-E"].deliveryRecords).toEqual([]);
+    expect(step.changedUnits).toEqual(["U-E"]);
+    expect(step.generationInputIds).toEqual({ "U-E": [] });
+    expect(step.diagnostics).toEqual([]);
   });
 
   it("P2-WIRE-T02 acceptance / A4 AC04, AC08 follow-up: parsed EEW is active, leaves nothing durable, and a restart follow-up becomes current", async () => {
@@ -393,7 +396,9 @@ describe("P2 unit wiring (A1 route, A3 composition root)", () => {
 
     now++;
     const restarted = new RuntimeCompositionRoot(settings, linkedUnitCodecs, options);
-    expect(restarted.restoreUnit("U-E")).toEqual({ kind: "empty" }); // active EEW is never durable (AC04)
+    expect(restarted.restoreUnit("U-E")).toMatchObject({ kind: "restored", envelope: {
+      payload: { intents: [{ channel: "desktop" }, { channel: "sound" }] },
+    } }); // active current is not durable; pending delivery is.
     const resumed = restarted.startRuntime("run-2", clock()).state;
     const followUp = restarted.dispatch(resumed, parsed("run-2", decode("37_01_02_240613_VXSE43", "VXSE43"), clock()));
     expect(followUp.changedUnits).toEqual(["U-E"]);

@@ -19,6 +19,7 @@ import type {
   EewCurrent,
   EewGate,
   EewInput,
+  EewNotificationPayload,
   EewPrediction,
   EewPredictionIntensity,
   EewUnitState,
@@ -27,7 +28,7 @@ import type {
 import { classifyMaterial } from "../../decode-material/decode-material";
 import { validateSemanticEnvelope } from "../../runtime/shared-runtime";
 
-const EEW_FAMILIES = ["VXSE43", "VXSE44", "VXSE45"] as const;
+const EEW_FAMILIES = ["VXSE43", "VXSE45"] as const;
 type EewFamily = typeof EEW_FAMILIES[number];
 
 type Candidate = Readonly<{
@@ -164,7 +165,7 @@ function validateCandidate(material: DecodedMaterial): CandidateResult {
     const prefs = forecastNodes.flatMap((node) => elements(node, "Pref"));
     const areas = prefs.flatMap((pref) => elements(pref, "Area"));
     if (intensityNodes.length === 0 || forecastNodes.length === 0 || maximumNodes.length === 0
-      || ((family === "VXSE43" || family === "VXSE44") && areas.length === 0)
+      || (family === "VXSE43" && areas.length === 0)
       || areas.some((area) => elements(area, "ForecastInt").length === 0))
       return { kind: "rejected", reason: "requiredStructureMissing", diagnostic: diagnostic(material, "requiredStructureMissing") };
     if (intensityNodes.length !== 1 || forecastNodes.length !== 1 || maximumNodes.length !== 1
@@ -213,7 +214,7 @@ function hasKnownPrediction(prediction: EewPrediction): boolean {
 }
 
 function nextEewDeadline(state: EewUnitState): RuntimeUnitDeadline | null {
-  const pending = state.intents.filter((item) => item.disposition === "pending");
+  const pending = [...state.intents.filter((item) => item.disposition === "pending"), ...state.deliveryRecords];
   return pending.length === 0 ? null
     : { wallTimeMs: Math.min(...pending.map((item) => item.expiresAt)), monotonicMs: null };
 }
@@ -233,17 +234,6 @@ function outcome(candidate: Candidate, transition: string, prediction: EewPredic
     subject: candidate.subject, operation: candidate.operation,
     informationType: candidate.source.infoTypeRaw, transition, severity: null,
     source: candidate.source, facts, changedFields: ["current", "gates"],
-  };
-}
-
-function supersede(intents: readonly NotificationIntent[], subjects: ReadonlySet<string>): Readonly<{
-  intents: readonly NotificationIntent[];
-  records: EewUnitState["deliveryRecords"];
-}> {
-  const removed = intents.filter((intent) => subjects.has(intent.subject));
-  return {
-    intents: intents.filter((intent) => !subjects.has(intent.subject)),
-    records: removed.map((intent) => ({ intentId: intent.id, disposition: "superseded", expiresAt: intent.expiresAt })),
   };
 }
 
@@ -314,17 +304,152 @@ function reduceEew(state: EewUnitState, input: Extract<EewInput, { kind: "receiv
   };
   gates = [...gates, nextGate];
 
-  const supersededSubjects = new Set([candidate.subject, ...evicted]);
-  const delivery = supersede(state.intents, supersededSubjects);
-  const durableChanged = delivery.records.length !== 0;
+  const eventId = candidate.subject.split("/")[2];
+  const previousLatch = state.notificationLatches.find((item) => item.operation === candidate.operation && item.eventId === eventId);
+  const head = first(input.material.xml, "Head")!;
+  const body = first(input.material.xml, "Body")!;
+  const forecast = first(first(body, "Intensity") ?? body, "Forecast");
+  const areaWarning = (forecast == null ? [] : elements(forecast, "Pref"))
+    .flatMap((pref) => elements(pref, "Area")).flatMap((area) => elements(area, "Category"))
+    .flatMap((category) => elements(category, "Kind")).some((kind) => {
+      const code = first(kind, "Code");
+      const value = Number.parseInt(code == null ? "" : scalar(code) ?? "", 10);
+      return value >= 10 && value <= 19;
+    });
+  const headline = first(head, "Headline");
+  const headlineWarning = (headline == null ? [] : elements(headline, "Information"))
+    .flatMap((info) => elements(info, "Item")).flatMap((item) => elements(item, "Kind")).some((kind) => {
+      const code = first(kind, "Code");
+      return Number.parseInt(code == null ? "" : scalar(code) ?? "", 10) === 31;
+    });
+  const warning = candidate.family === "VXSE43" || areaWarning || headlineWarning;
+  const correction = candidate.source.infoTypeRaw === "訂正";
+  const notify = candidate.cancelled || correction || candidate.terminal
+    || (!previousLatch?.vxse45Accepted || candidate.family !== "VXSE43")
+      && (!previousLatch?.firstReportNotified || warning && !previousLatch.warningNotified);
+  const eligibleNotice = candidate.family !== "VXSE43" || !previousLatch?.vxse45Accepted;
+  const opportunity = notify && eligibleNotice;
+  const baseTitle = warning ? "緊急地震速報（警報）" : "緊急地震速報（予報）";
+  const title = candidate.cancelled ? "[取消] 緊急地震速報" : correction ? `[訂正] ${baseTitle}` : baseTitle;
+  const earthquake = first(first(input.material.xml, "Body") ?? input.material.xml, "Earthquake");
+  const hypocenter = earthquake == null ? null : first(first(first(earthquake, "Hypocenter") ?? earthquake, "Area") ?? earthquake, "Name");
+  const magnitude = earthquake == null ? null : elements(earthquake).find((node) =>
+    node.name === "Magnitude" || node.name.endsWith(":Magnitude")) ?? null;
+  // The notification label preserves bounds; the largest bound is only used to choose the maximum.
+  const intensityLabels = ["0", "1", "2", "3", "4", "5弱", "5強", "6弱", "6強", "7"];
+  let maxIntensity = "不明";
+  let maximumRank = -1;
+  let maximumPriority = -1;
+  let maximumOpen = false;
+  let uncertain = 0;
+  const predictions = candidate.prediction == null ? []
+    : [...candidate.prediction.areas.map((area) => area.intensity), candidate.prediction.maximum];
+  // Arrival/PLUM conditions on Area remain raw prediction evidence, not intensity qualifiers.
+  const forecastIntNodes = candidate.prediction == null ? [] : [
+    ...elements(forecast!, "Pref").flatMap((pref) => elements(pref, "Area")).map((area) => first(area, "ForecastInt")!),
+    first(forecast!, "ForecastInt")!,
+  ];
+  for (const [index, prediction] of predictions.entries()) {
+    const node = forecastIntNodes[index];
+    const condition = qualifier(null, node, first(node, "From"), first(node, "To"), "Condition");
+    const description = qualifier(null, node, first(node, "From"), first(node, "To"), "Description");
+    const [from, to] = [prediction.from, prediction.to].map((value) => value.kind === "missing" ? null
+      : value.raw.normalize("NFKC").trim().replace("5-", "5弱").replace("5+", "5強").replace("6-", "6弱").replace("6+", "6強"));
+    const special = [condition, description, from, to]
+      .map((value) => value?.normalize("NFKC").trim().replace(/^震度(?=5弱以上未入電$|未入電$)/, ""))
+      .find((value) => value != null && ["5弱以上未入電", "不明", "不詳", "観測できず", "未入電", "解析不能"].includes(value));
+    const qualitative = special === "5弱以上未入電";
+    if (from == null && to == null && condition == null && description == null) continue;
+    const lower = intensityLabels.indexOf(from ?? to ?? "");
+    const upper = intensityLabels.indexOf(to ?? from ?? "");
+    const open = lower >= 0 && to?.toLowerCase() === "over";
+    const rank = qualitative ? 5 : special != null ? -1 : upper >= lower ? upper : open ? lower : -1;
+    const range = open || lower !== upper;
+    const label = special ?? (open ? `${from}程度以上`
+      : lower >= 0 && upper >= 0 ? lower === upper ? intensityLabels[lower] : `${from}〜${to}`
+      : condition || description || [...new Set([from, to].filter((value) => value != null && value !== ""))].join("〜") || "空欄");
+    const priority = qualitative ? 3 : range || rank < 0 && label !== "空欄" ? 2 : 1;
+    if (rank < 0) uncertain++;
+    if (rank > maximumRank || rank === maximumRank && priority > maximumPriority) {
+      maxIntensity = label;
+      maximumRank = rank;
+      maximumPriority = priority;
+      maximumOpen = open || qualitative;
+    }
+  }
+  if (maximumRank >= 0 && uncertain !== 0)
+    maxIntensity += maximumOpen ? "・一部不明" : "以上の可能性・一部不明";
+  const magnitudeRaw = magnitude == null ? null : scalar(magnitude)?.normalize("NFKC").trim() ?? "";
+  const magnitudeDescription = magnitude == null ? null : attribute(magnitude, "description")?.normalize("NFKC").trim();
+  const magnitudeLabel = magnitudeRaw == null ? null
+    : magnitudeDescription != null && /巨大地震/.test(magnitudeDescription) ? magnitudeDescription
+    : magnitudeRaw !== "" && Number.isFinite(Number(magnitudeRaw)) ? `M${Number(magnitudeRaw).toFixed(1)}`
+    : "M不明";
+  const parts = [hypocenter == null ? null : scalar(hypocenter), magnitudeLabel,
+    `最大予測震度${maxIntensity}`].filter((part): part is string => part != null && part !== "");
+  let bodyText = candidate.cancelled ? "緊急地震速報は取り消されました。" : earthquake == null ? title : parts.join(" / ");
+  if (correction && !candidate.cancelled) bodyText = `訂正: ${bodyText}`;
+  const prefix = candidate.operation === "normal" ? "" : candidate.operation === "training" ? "【訓練】" : "【試験】";
+  const lead = candidate.operation === "normal" ? "" : candidate.operation === "training"
+    ? "訓練の電文です。通常運用の警報ではありません。\n" : "試験の電文です。通常運用の警報ではありません。\n";
+  const payload: EewNotificationPayload = { domain: "earthquake-eew", level: candidate.cancelled ? "cancel" : warning ? "critical" : "warning",
+    title: prefix + title, body: lead + bodyText };
+  const channels = candidate.operation === "normal" ? ["desktop", "sound"] as const : ["desktop"] as const;
+  const newIntents: EewUnitState["intents"][number][] = opportunity ? channels.map((channel) => ({
+    id: `U-E:${candidate.operation}:${eventId}:${state.persistence.currentGeneration + 1}:${channel}`,
+    unit: "U-E", subject: candidate.subject, operation: candidate.operation, source: candidate.source,
+    transition: candidate.cancelled ? "cancelled" : candidate.terminal ? "released" : previous == null ? "activated" : "updated",
+    channel, payload, createdAt: input.clock.wallTimeMs, expiresAt: input.clock.wallTimeMs + 15_000,
+    nextAttemptAt: input.clock.wallTimeMs, attempts: 0, configRevision: "p2-eew-unit-v1", disposition: "pending" as const,
+  })) : [];
+  const expired = state.intents.filter((intent) => intent.expiresAt <= input.clock.wallTimeMs);
+  const active = state.intents.filter((intent) => intent.expiresAt > input.clock.wallTimeMs);
+  const sameEvent = (intent: NotificationIntent) => intent.operation === candidate.operation
+    && intent.subject.split("/")[2] === eventId;
+  const replace = (intent: NotificationIntent) => evicted.has(intent.subject)
+    || (candidate.cancelled || opportunity) && sameEvent(intent)
+      && (candidate.cancelled || newIntents.some((item) => item.channel === intent.channel));
+  const retained = active.filter((intent) => !replace(intent));
+  const removed = active.filter(replace);
+  let proposed = [...retained, ...newIntents];
+  const evictedIntents: EewUnitState["intents"][number][] = [];
+  const fits = () => proposed.length <= 128 && new TextEncoder().encode(JSON.stringify(proposed)).byteLength <= 131_072;
+  if (!fits() && candidate.operation === "normal") {
+    const lower = retained.filter((intent) => intent.operation !== "normal").sort((left, right) =>
+      right.expiresAt - left.expiresAt || right.createdAt - left.createdAt || right.id.localeCompare(left.id));
+    for (const intent of lower) {
+      proposed = proposed.filter((item) => item !== intent);
+      evictedIntents.push(intent);
+      if (fits()) break;
+    }
+  }
+  const admitted = fits();
+  if (!admitted) {
+    proposed = candidate.cancelled ? active.filter((intent) => !sameEvent(intent) && !evicted.has(intent.subject))
+      : active.filter((intent) => !evicted.has(intent.subject));
+    evictedIntents.length = 0;
+  }
+  const superseded = admitted ? removed : active.filter((intent) => evicted.has(intent.subject)
+    || candidate.cancelled && sameEvent(intent));
+  const records = [...state.deliveryRecords,
+    ...expired.map((intent) => ({ intentId: intent.id, disposition: "expired" as const, expiresAt: intent.expiresAt })),
+    ...[...superseded, ...evictedIntents].map((intent) => ({ intentId: intent.id, disposition: "superseded" as const, expiresAt: intent.expiresAt }))];
+  const durableChanged = records.length !== state.deliveryRecords.length || proposed.length !== state.intents.length
+    || proposed.some((intent, index) => intent !== state.intents[index]);
   const semanticChanged = predictionChanged
     || gate?.terminal !== candidate.terminal || evicted.size !== 0;
   const change = semanticChanged ? "semantic" : "revisionOnly";
   const next: EewUnitState = {
     ...state, current: currents, gates,
-    intents: delivery.intents,
-    deliveryRecords: delivery.records.length === 0
-      ? state.deliveryRecords : [...state.deliveryRecords, ...delivery.records],
+    intents: proposed,
+    deliveryRecords: records,
+    notificationLatches: [...state.notificationLatches.filter((item) =>
+      (item.operation !== candidate.operation || item.eventId !== eventId)
+      && [...currents, ...gates].some((owner) => owner.operation === item.operation && owner.subject.endsWith(`/${item.eventId}`))),
+    { operation: candidate.operation, eventId,
+      firstReportNotified: (previousLatch?.firstReportNotified ?? false) || admitted && opportunity && !candidate.cancelled,
+      warningNotified: (previousLatch?.warningNotified ?? false) || admitted && opportunity && !candidate.cancelled && warning,
+      vxse45Accepted: (previousLatch?.vxse45Accepted ?? false) || candidate.family === "VXSE45" }],
     persistence: durableChanged ? dirty(state.persistence, input.clock.monotonicMs) : state.persistence,
   };
   const transition = candidate.cancelled ? "cancelled" : candidate.terminal ? "released"
@@ -334,10 +459,16 @@ function reduceEew(state: EewUnitState, input: Extract<EewInput, { kind: "receiv
     decisions: [{ subject: candidate.subject, operation: candidate.operation,
       decision: "changed", reason: null, change,
       currentEstablished: { family: candidate.family, reportDateTimeMs: Date.parse(candidate.source.reportDateTimeRaw), affectedScope: "subject" } }],
-    intents: [],
+    intents: admitted ? newIntents : [],
     outcomes: [{ kind: "accepted", change, subjects: [outcome(candidate, transition, candidate.prediction)] }],
-    diagnostics: evicted.size === 0 ? [] : [{ level: "INFO", component: "eew", reason: "eewCapacityEvicted",
-      unit: "U-E", count: evicted.size }],
+    diagnostics: [
+      ...(expired.length === 0 ? [] : [{ level: "INFO" as const, component: "eew", reason: "notificationExpired" as const,
+        unit: "U-E" as const, count: expired.length }]),
+      ...(evicted.size === 0 ? [] : [{ level: "INFO" as const, component: "eew", reason: "eewCapacityEvicted" as const,
+        unit: "U-E" as const, count: evicted.size }]),
+      ...(evictedIntents.length === 0 ? [] : [{ level: "INFO" as const, component: "eew", reason: "notificationCapacityEvicted" as const,
+        unit: "U-E" as const, count: evictedIntents.length }]),
+    ],
   };
 }
 
