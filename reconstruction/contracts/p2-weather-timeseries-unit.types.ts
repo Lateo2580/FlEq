@@ -1,6 +1,7 @@
 import type { DecodedMaterial, MaterialValue, Operation, XmlAttribute } from "./p1-parser-boundary.types";
 import type {
   AdmissionEvidence,
+  CurrentConfirmationEvidence,
   ClockReading,
   DiagnosticDetails,
   NotificationIntent,
@@ -8,6 +9,7 @@ import type {
   PersistenceStatus,
   PublishedOutcome,
   ReportRef,
+  RuntimeDisplayChange,
   RejectionReason,
   RuntimeUnitDeadline,
   UnitCodec,
@@ -88,6 +90,7 @@ export type WeatherTimeseriesGate = Readonly<{
 
 export type WeatherTimeseriesUnitState = Readonly<{
   schemaVersion: "p2-weather-timeseries-unit-v1";
+  contentRevision: number;
   subjects: readonly WeatherTimeseriesSubject[];
   gates: readonly WeatherTimeseriesGate[];
   intents: readonly NotificationIntent[];
@@ -116,6 +119,8 @@ export type WeatherTimeseriesInput =
 
 export type WeatherTimeseriesUnitStep = Readonly<{
   state: WeatherTimeseriesUnitState;
+  displayChanges: readonly RuntimeDisplayChange[];
+  confirmationEvidence: readonly CurrentConfirmationEvidence[];
   nextDeadline: RuntimeUnitDeadline | null;
   // Subject identity includes operation; compare these records with the sequence oracle.
   decisions: readonly (Readonly<{ subject: string; operation: Operation }> & (

@@ -3,6 +3,7 @@ import type {
 } from "../../contracts/p2-shared-runtime.types";
 import type { DecodedMaterial } from "../../contracts/p1-parser-boundary.types";
 import type { CompositionOptions, RuntimeCompositionRoot } from "../../src/runtime/composition-root";
+import { reduceRuntime } from "../../src/runtime/shared-runtime";
 
 const testNotificationChannels = { desktop: { kind: "idle" }, sound: { kind: "idle" } } as const;
 function recordingNotificationAdapter() {
@@ -16,6 +17,10 @@ function recordingNotificationAdapter() {
 type Fixture = Readonly<{ value: string; intentExpiresAt?: number; activeFixture?: string | null }>;
 const saved: PersistenceStatus = { kind: "saved", currentGeneration: 1, savedGeneration: 1,
   savedCapturedAt: 0, savedAckAt: 0, dirtySince: null };
+const baseline = reduceRuntime(null, { kind: "startup", runId: "review", clock: { wallTimeMs: 0, monotonicMs: 0 },
+  notificationChannels: testNotificationChannels, restored: {
+    "U-E": { kind: "empty" }, "U-W": { kind: "empty" }, "U-F": { kind: "empty" },
+  } }).state;
 
 // Test payloads carry bytes only; no production unit semantics are implemented here.
 function fixtureState(values: Partial<Record<RuntimeUnitId, Fixture | string>> = {},
@@ -24,15 +29,17 @@ function fixtureState(values: Partial<Record<RuntimeUnitId, Fixture | string>> =
     ? { value: values[unit] } : values[unit] ?? { value: "" };
   const progress = (unit: RuntimeUnitId) => persistence[unit] ?? saved;
   return {
+    ...baseline,
     runId,
     restoration: { "U-E": { kind: "empty" }, "U-W": { kind: "empty" }, "U-F": { kind: "empty" } },
     admission: {},
+    notificationProbeComplete: true,
     units: {
-      "U-E": { ...payload("U-E"), schemaVersion: "p2-eew-unit-v1", current: [], gates: [], intents: [],
+      "U-E": { ...payload("U-E"), schemaVersion: "p2-eew-unit-v1", contentRevision: 0, current: [], gates: [], intents: [],
         deliveryRecords: [], notificationLatches: [], persistence: progress("U-E") },
-      "U-W": { ...payload("U-W"), schemaVersion: "p2-weather-current-unit-v1", national: {}, partials: [],
+      "U-W": { ...payload("U-W"), schemaVersion: "p2-weather-current-unit-v1", contentRevision: 0, national: {}, partials: [],
         histories: [], ownership: {}, tombstones: [], freshness: [], unavailable: [], intents: [], persistence: progress("U-W") },
-      "U-F": { ...payload("U-F"), schemaVersion: "p2-weather-timeseries-unit-v1", subjects: [], gates: [],
+      "U-F": { ...payload("U-F"), schemaVersion: "p2-weather-timeseries-unit-v1", contentRevision: 0, subjects: [], gates: [],
         intents: [], persistence: progress("U-F") },
     },
     checkpointAttempts: {}, deadlines: { "U-E": { monotonicMs: 0, wallTimeMs: null },
@@ -66,7 +73,7 @@ function fixtureDriver() {
     decisions: update != null && update.units[unit].persistence.currentGeneration > previous.persistence.currentGeneration
       ? [{ subject: "fixture", operation: "normal" as const, decision: "changed" as const,
         reason: null, change: "semantic" as const, currentEstablished: null }] : [],
-    intents: [], outcomes: [], diagnostics: [],
+    intents: [], outcomes: [], diagnostics: [], displayChanges: [], confirmationEvidence: [],
     nextDeadline: { monotonicMs: 0, wallTimeMs: null },
   });
   const calls: CompositionOptions["runtimeCalls"] = {
@@ -77,7 +84,10 @@ function fixtureDriver() {
   };
   return { calls, update(root: RuntimeCompositionRoot, desired: RuntimeState, clock: ClockReading,
     correlations: Parameters<RuntimeCompositionRoot["dispatch"]>[2] = {}) {
-    try { void root.state; } catch { root.startRuntime(desired.runId, clock, testNotificationChannels); }
+    try { void root.state; } catch {
+      root.startRuntime(desired.runId, clock, testNotificationChannels);
+      root.dispatch(root.state, { kind: "notificationProbeCompleted", channels: testNotificationChannels, clock });
+    }
     for (const unit of ["U-E", "U-W", "U-F"] as const) {
       const headType = unit === "U-E" ? "VXSE43" : unit === "U-W" ? "VPWW57" : "VPWP50";
       const target = desired.units[unit];

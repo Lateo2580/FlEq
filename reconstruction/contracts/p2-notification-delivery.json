@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "585d2f4f858e350c6965d83019ba7e4842285b3c",
-    "sha256": "f9c76448de80baeea757f366432e826882fdaed321cc64088af7f6a827d6999a",
+    "sha256": "50ba590dcf515ca1c02c9eff663ec0dc7154eca9a60a007631d15acec5b5832d",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "76c82b87d7783a4eae14af690cb34e7d6ec46f73617dc75b7f7401951619f080",
     "sequencesSha256": "be9cfd97b555e3a55568f085d107342c978b3dc7249f5cecea868ea5a62c5781",
@@ -133,7 +133,7 @@
             "condition": "音声deviceが利用可能。"
           }
         ],
-        "unavailable": "R34（2026-09-23 ご主人裁定）: 起動時probe（desktopは実行ファイルの実在、soundは既存の無音probe）で使えないと分かったchannelは、A1が起動時にNotificationChannelState kind=unavailableとする。A7はunavailable channelを選択せず、そのchannelのintentを試行せず元のTTLでexpiredとして回収する（新しいdispositionを作らない）。診断は起動時に1件だけで、既存の永続sink allowlistのreasonを再利用し追加しない。probe関数はA7のadapterに置き、起動時の呼出しとchannel状態の初期化・A1の状態比較への追加はA3-AC11と同じ結線で統合担当が行う。",
+        "unavailable": "R34（2026-09-23 ご主人裁定）: backend probeで使えないchannelはunavailableとする。起動時の初期化順序・入力型・probe完了までは選択しない規則はp2-shared-runtime.json questionResolutions[P2-A1-PROBE]を唯一の正本とする。A7はunavailable channelを選択せず、そのchannelのintentを試行せず元のTTLでexpiredとして回収する（新しいdispositionを作らない）。診断は起動時に1件だけで、既存の永続sink allowlistのreasonを再利用し追加しない。probe関数は既存A7 adapter、呼出しとA1入力の結線はA3が所有する。無音probeは実可聴保証ではない。",
         "ownership": "二channelの現在process handleだけを持つ。factory/汎用adapter/新しいregistry・npm依存を作らない。文言はA4、spawn/closeの外部観測はA7、結果採用はA1、dispatch/終了段階はA3。",
         "experienceDecision": "P2-A7-DESKTOP-EXPERIENCEはR30=Aで確定。A4のタイトル/本文、Linuxの10秒表示要求、backend既定アイコン、投稿後終了を固定し、macOS wrapper既定10秒のaction待ちは省く。表示時間の実挙動はOS側に従う。"
       },

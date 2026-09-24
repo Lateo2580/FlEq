@@ -1,4 +1,4 @@
-import type { ClockReading, NotificationIntent, PersistenceStatus, ReportRef, SubjectOutcome } from "../../../contracts/p2-shared-runtime.types";
+import type { ClockReading, NotificationIntent, PersistenceStatus, ReportRef, RuntimeDisplaySubject, SubjectOutcome } from "../../../contracts/p2-shared-runtime.types";
 import type {
   EewDeliveryRecord,
   EewInput,
@@ -10,12 +10,13 @@ import type {
   EewUnitView,
   PersistedEewUnit,
 } from "../../../contracts/p2-eew-unit.types";
-import { deliveryRecordEvent, dirty, emptyNotificationLatch, nextEewDeadline, notificationArrayBytes, reduceEew } from "../../domains/eew/eew";
+import { deliveryRecordEvent, dirty, emptyNotificationLatch, nextEewDeadline, notificationArrayBytes, reduceEew as reduceEewCore } from "../../domains/eew/eew";
 
 const SCHEMA = "p2-eew-unit-v1" as const;
 const GENERATION_BYTES = 256 * 1024;
 const INTENT_BYTES = 128 * 1024;
 const encoder = new TextEncoder();
+type InternalStep = Omit<EewUnitStep, "displayChanges" | "confirmationEvidence">;
 
 function object(value: unknown): Record<string, unknown> | null {
   return value != null && typeof value === "object" && !Array.isArray(value)
@@ -126,7 +127,7 @@ function expire(state: EewUnitState, clock: ClockReading): Readonly<{
   };
 }
 
-function restore(state: EewUnitState, value: PersistedEewUnit, clock: ClockReading): EewUnitStep {
+function restore(state: EewUnitState, value: PersistedEewUnit, clock: ClockReading): InternalStep {
   const decoded = eewUnitCodec.decode(value);
   if (decoded.kind === "invalid") return {
     state, nextDeadline: nextEewDeadline(state),
@@ -148,7 +149,7 @@ function restore(state: EewUnitState, value: PersistedEewUnit, clock: ClockReadi
 }
 
 function intentUpdate(state: EewUnitState,
-  input: Extract<EewInput, { kind: "intentUpdate" }>): EewUnitStep {
+  input: Extract<EewInput, { kind: "intentUpdate" }>): InternalStep {
   const updates = "id" in input.intentUpdate ? [input.intentUpdate] : input.intentUpdate;
   const originals = new Map(state.intents.map((item) => [item.id, item]));
   const changed = new Map<string, EewUnitState["intents"][number]>();
@@ -197,9 +198,10 @@ function intentUpdate(state: EewUnitState,
   };
 }
 
-function reduceEewUnit(state: EewUnitState, input: EewInput): EewUnitStep {
-  let step: EewUnitStep;
-  if (input.kind === "receive") step = reduceEew(state, input);
+function reduceCore(state: EewUnitState, input: EewInput,
+  changed: (before: EewUnitState["current"][number] | null, after: EewUnitState["current"][number] | null) => void): InternalStep {
+  let step: InternalStep;
+  if (input.kind === "receive") step = reduceEewCore(state, input, changed);
   else if (input.kind === "restore") step = restore(state, input.persisted, input.clock);
   else if (input.kind === "intentUpdate") step = intentUpdate(state, input);
   else {
@@ -243,20 +245,25 @@ function reduceEewUnit(state: EewUnitState, input: EewInput): EewUnitStep {
   return { ...step, state: next, nextDeadline: nextEewDeadline(next) };
 }
 
-function toEewView(state: EewUnitState): EewUnitView {
-  const subjects: SubjectOutcome[] = state.current.map((current) => ({
+function currentSubject(current: EewUnitState["current"][number]): SubjectOutcome {
+  return {
     subject: current.subject, operation: current.operation,
     informationType: current.source.infoTypeRaw, transition: "active", severity: null,
     source: current.source,
     facts: { family: current.family, serial: current.serial,
+      eventId: current.eventId, warningClass: current.warningClass,
       prediction: current.prediction, retainedPrediction: current.retainedPrediction },
     changedFields: [],
-  }));
+  };
+}
+
+function toEewView(state: EewUnitState): EewUnitView {
+  const subjects: SubjectOutcome[] = state.current.map(currentSubject);
   return {
     unit: "U-E",
     semanticRevision: state.gates.map((gate) =>
       `${gate.subject}:${gate.serial}:${gate.terminal ? 1 : 0}:${gate.source.reportDateTimeRaw}`).join("|"),
-    persistence: state.persistence,
+    contentRevision: String(state.contentRevision),
     admission: {},
     subjects,
     activeCount: state.current.length,
@@ -298,11 +305,39 @@ const eewUnitCodec: EewUnitCodec = {
     return {
       kind: "restored",
       state: {
-        schemaVersion: SCHEMA, current: [], gates: [], intents: value.intents,
+        schemaVersion: SCHEMA, contentRevision: 0, current: [], gates: [], intents: value.intents,
         deliveryRecords: value.deliveryRecords, notificationLatches: [...latches.values()], persistence: cleanPersistence(),
       },
     };
   },
 };
 
-export { eewUnitCodec, reduceEewUnit, toEewView };
+function reduceEewUnit(state: EewUnitState, input: EewInput): EewUnitStep {
+  const displayChanges: EewUnitStep["displayChanges"][number][] = [];
+  const subject = (item: EewUnitState["current"][number]): RuntimeDisplaySubject => ({
+    unit: "U-E", operation: item.operation, subject: item.subject, office: null,
+    current: item, subjects: [currentSubject(item)],
+  });
+  const step = reduceCore(state, input, (before, after) => {
+    if (before == null && after == null) return;
+    displayChanges.push({ unit: "U-E", operation: (after ?? before)!.operation,
+      subject: (after ?? before)!.subject, before: before == null ? null : subject(before),
+      after: after == null ? null : subject(after) });
+  });
+  if (displayChanges.length !== 0) {
+    if (!Number.isSafeInteger(state.contentRevision + 1)) throw new RangeError("U-E content revision exhausted");
+  }
+  const confirmationEvidence: EewUnitStep["confirmationEvidence"] = input.kind === "receive"
+    ? step.decisions.flatMap((item) => item.decision === "changed" && item.currentEstablished != null
+      ? [{ source: "acceptedReport" as const, scopes: [{ unit: "U-E" as const, operation: item.operation,
+        kind: "event" as const, eventId: item.subject.split("/")[2] }] }] : []) : [];
+  return { ...step, state: displayChanges.length !== 0
+    ? { ...step.state, contentRevision: state.contentRevision + 1 } : step.state,
+    displayChanges, confirmationEvidence };
+}
+
+function reduceEew(state: EewUnitState, input: Extract<EewInput, { kind: "receive" }>): EewUnitStep {
+  return reduceEewUnit(state, input);
+}
+
+export { currentSubject, eewUnitCodec, reduceEew, reduceEewUnit, toEewView };

@@ -13,6 +13,7 @@ import type { CheckpointFileSystem, WritableCheckpoint } from "../../src/checkpo
 import { hashEnvelope, serializedEnvelope } from "../../src/checkpoint/checkpoint";
 import type { DiagnosticFileSystem } from "../../src/checkpoint/persistent-diagnostic-sink";
 import { decodeMaterial } from "../../src/decode-material/decode-material";
+import { reduceWeatherCurrentMeaning } from "../../src/domains/weather-current/weather-current";
 import { ingestXmlData } from "../../src/ingress/ingress";
 import { RuntimeCompositionRoot } from "../../src/runtime/composition-root";
 import { reduceWeatherCurrentUnit, toWeatherCurrentView, weatherCurrentUnitCodec } from "../../src/units/weather-current/weather-current-unit";
@@ -21,7 +22,7 @@ import { fixtureDriver, fixtureState, stringCodec , testNotificationChannels, re
 const NOW = 1_800_000_000_000;
 
 function emptyState(): WeatherCurrentUnitState {
-  return { schemaVersion: "p2-weather-current-unit-v1", national: {}, partials: [], histories: [],
+  return { schemaVersion: "p2-weather-current-unit-v1", contentRevision: 0, national: {}, partials: [], histories: [],
     ownership: {}, tombstones: [], freshness: [], unavailable: [], intents: [],
     persistence: { kind: "saved", currentGeneration: 0, savedGeneration: 0,
       savedCapturedAt: null, savedAckAt: null, dirtySince: null } };
@@ -211,6 +212,27 @@ describe("P2 weather-current unit", () => {
     }
   });
 
+  it("A8-COST regression: unchanged receives add no current lookups beyond the domain reducer", () => {
+    const material = decodeFixture("15_16_02_251222_VPWW57", "VPWW57");
+    const adopted = receive(emptyState(), material).state;
+    let reads = 0;
+    // 127 others + the adopted subject at the end fills the 128-partial capacity.
+    const partials = new Proxy([...Array.from({ length: 127 }, (_, index) => snapshot("training", "VPWW55", `office-${index}`,
+      "2026-09-06T10:00:00+09:00", `p${index}`)), ...adopted.partials], {
+      get(target, key, receiver) { if (typeof key === "string" && /^\d+$/.test(key)) reads++; return Reflect.get(target, key, receiver); },
+    });
+    const state = { ...adopted, partials };
+    const request = { kind: "receive", material, clock: clock() } as const;
+    reads = 0;
+    reduceWeatherCurrentMeaning(state, request);
+    const domainReads = reads;
+    reads = 0;
+    const step = reduceWeatherCurrentUnit(state, request);
+    expect(step.decisions[0]).toMatchObject({ reason: "duplicate" });
+    expect(step.state).toBe(state);
+    expect(reads).toBe(domainReads);
+  });
+
   it("P2-A5-T13 contractBoundary / AC01: danger warning downgrades keep the current Kind level", () => {
     for (const [status, name, code] of [
       ["危険警報から注意報", "レベル２大雨注意報", "10"],
@@ -273,7 +295,7 @@ describe("P2 weather-current unit", () => {
     const intentState = { ...emptyState(), intents: [intent] };
     expect(reduceWeatherCurrentUnit(intentState, { kind: "deadline", clock: clock(NOW + 9_999) })).toEqual({
       state: intentState, nextDeadline: { wallTimeMs: NOW + 10_000, monotonicMs: null },
-      decisions: [], intents: [], outcomes: [], diagnostics: [],
+      decisions: [], intents: [], outcomes: [], diagnostics: [], displayChanges: [], confirmationEvidence: [],
     });
     const selected = reduceWeatherCurrentUnit(intentState, { kind: "intentUpdate",
       intentUpdate: { id: intent.id, attempts: 1, nextAttemptAt: NOW + 500, disposition: "pending" },
@@ -309,7 +331,10 @@ describe("P2 weather-current unit", () => {
         }),
       },
     });
-    const selectedRuntime = notificationRoot.tick(notificationRoot.startRuntime("weather-test", clock(), testNotificationChannels).state, clock(NOW + 1, 1));
+    notificationRoot.startRuntime("weather-test", clock(), testNotificationChannels);
+    notificationRoot.dispatch(notificationRoot.state, { kind: "notificationProbeCompleted",
+      channels: testNotificationChannels, clock: clock() });
+    const selectedRuntime = notificationRoot.tick(notificationRoot.state, clock(NOW + 1, 1));
     const completedRuntime = notificationRoot.dispatch(selectedRuntime.state, { kind: "notificationResult",
       result: { kind: "delivered", attemptId: attempt.attemptId, intentId: intent.id,
         channel: "desktop", completedAt: clock(NOW + 2, 2) } });
@@ -329,6 +354,10 @@ describe("P2 weather-current unit", () => {
     expect(monitored.decisions[0].decision).toBe("rejected");
     expect(monitored.state.freshness[0]).toMatchObject({ revisionOrder: "newer", freshnessSuspect: true });
     expect(monitored.state.partials).toBe(state.partials);
+    expect(monitored.displayChanges).toMatchObject([{ unit: "U-W", before: { freshness: [] },
+      after: { freshness: [{ freshnessSuspect: true }] } }]);
+    expect(monitored.confirmationEvidence).toEqual([]);
+    expect(monitored.state.contentRevision).toBe(state.contentRevision + 1);
     // R3: invalid dates still identify a target, but never manufacture newer.
     const invalidTime = decodeFixture("15_16_02_251222_VPWW57", "VPWW57",
       (xml) => atTime(xml, "2030-02-30T23:01:00+09:00"), "invalid-time");
@@ -340,6 +369,9 @@ describe("P2 weather-current unit", () => {
     const noHistory = receive(unknown.state, decodeFixture("15_16_02_251222_VPWW57", "VPWW57",
       (xml) => cancellation(xml, "2020-06-22T23:03:00+09:00"), "no-history"));
     expect(noHistory.state.unavailable[0].reason).toBe("historyUnavailable");
+    // The unavailable replacement bypasses `touched`; its display change must still be emitted.
+    expect(noHistory.displayChanges).toMatchObject([{ unit: "U-W", after: { current: null,
+      unavailable: [{ reason: "historyUnavailable" }] } }]);
     expect(noHistory.state.freshness).toBe(unknown.state.freshness);
     const badArea = decodeFixture("weather-alert-kind-area/synthetic-vpws50-change-density-before", "VPWS50",
       (xml) => bodyWarning(xml).replace(/(<Body[\s\S]*?<Area>[\s\S]*?<Code>)[^<]*(<\/Code>)/, "$1bad$2")
@@ -556,6 +588,10 @@ describe("P2 weather-current unit", () => {
       (xml) => bodyWarning(xml), "normal-new");
     const accepted = receive(state, candidate);
     expect(accepted.decisions[0].decision).toBe("changed");
+    expect(accepted.displayChanges).toHaveLength(1);
+    expect(accepted.displayChanges[0].before?.unit === "U-W" && accepted.displayChanges[0].before.current).toBe(current);
+    expect(accepted.displayChanges[0].after?.unit === "U-W" && accepted.displayChanges[0].after.current)
+      .toBe(accepted.state.national.normal);
     expect(accepted.state.histories.flatMap((item) => item.reports).map((item) => item.source.inputId))
       .toEqual(["old-test", "current"]);
     expect(accepted.diagnostics).toContainEqual({ level: "INFO", component: "weather-current",

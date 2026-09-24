@@ -80,7 +80,7 @@ P2 行は D-AC ID を指定していない。一方、最小 Chrome 経路は次
 | A5 `P2-weather-current-001` | M06、I-U-W | `WeatherCurrentUnitState/PersistedWeatherCurrentUnit/WeatherCurrentUnitView`、`WeatherCurrentInput`、`reduceWeatherCurrentUnit`、codec、`toWeatherCurrentView` | A1、P1、A3のcodec契約 | 全国base1/履歴2、partial128/履歴8、所有現象、freshness target、取消復元、16MiB、官署/subject/必須構造検証 | VPWW56、VPNO50のP2非対象分岐を推測実装、旧移行 tool | O04/O06（D5のP2 subset）、E10、E13、spec:1192（意味鮮度の対象束縛） |
 | A6 `P2-weather-timeseries-001` | M08、I-U-F | `WeatherTimeseriesUnitState/PersistedWeatherTimeseriesUnit/WeatherTimeseriesUnitView`、`WeatherTimeseriesInput`、`reduceWeatherTimeseriesUnit`、codec、`toWeatherTimeseriesView` | A1、P1、A3のcodec契約 | subject / period、194 period、正常empty、gate-only、取消、7日、512 subject、32MiB、意味入力`RejectionReason`と`unavailable` reason、subject/period必須構造検証 | VPTA50、カード幅に合わせた削減、P4詳細API | O02(P2範囲)、E13 |
 | A7 `P2-notification-delivery-001` | B09、U-E/U-W/U-F intent配送 | `NotificationAttempt/Result`、選択・結果照合・実adapter試行/abort/停止確認 | A1/A3、A4〜A6配送境界（Wave 4のR24順） | R24〜R30/Q-NOTICE、分野別20音、固定優先、初回1秒、channel別1件、単調timeout/停止/再試行、単位別TTL/容量、保存予約後dispatch | exactly-once、独立outbox、津波意味生成、旧築handoff | O07:15-18（通知期待は契約検収）、O10通知枝のみ、E21（A7単体→A3結線後最終、正式33報はprivate corpus専用） |
-| A8 `P2-snapshot-sse-001` | B08、B11のP2最小範囲 | `DisplayVersion`、P2 `DisplaySnapshot`、`projectSnapshot`、snapshot / SSE / health handler | A1、A4〜A6、A3 | 完全snapshot、最新1枚、client待機1枚、1MiB、heartbeat、healthとworker状態分離、slow client | §7.10詳細、全12分野、静的asset設計、P4認証拡張 | E01のT3〜T5、E02、D-AC02/12先行証拠 |
+| A8 `P2-snapshot-sse-001` | B08、B11のP2最小範囲 | `DisplayVersion`、P2 `DisplaySnapshot`、`projectSnapshot`、snapshot / SSE / health handler | A1、A3、A4〜A7の必要な公開型 | 三分野の初期完全snapshot、固定3行summary、内容版、意味失効notice、channel別表示、復元と確認の分離、1MiB、heartbeat、slow client | §7.10詳細、全12分野、静的asset設計、P4認証拡張 | E01のT3〜T5、E02、D-AC02/12先行証拠 |
 | A9 `P2-chrome-eew-001` | D02と、D05/D07/D11のEEW最小部分 | native `EventSource` client、EEW card/map paint marker、時計対応 probe | A8、A4、凍結済み測定manifest | 前景Chrome、固定viewport/DPR、snapshot置換、EEW card＋必要な予想震度表示の同一paint、T5/T6 | hover、詳細、ページ送り、県focus、津波、LOD、最終意匠 | E01、D-AC02/12/14/24先行証拠 |
 | A10 `P2-eew-e01-001` | P2統合・測定・条件付き§7.6 | 製品経路の replay / trace runner と版付き結果。汎用benchmark frameworkは作らない | A1〜A9 | N/P/C、3母集団、T0〜T6、100 warm-up、1000×3 run、時計区間、A/B原因判定、E15対応 | 津波母集団、personal最終配線、P4容量縮退・詳細 | O09(P2範囲)、E01、E03/E05/E06/E12、E15 |
 
@@ -114,7 +114,7 @@ P1/A1/A3 → A4 I-U-E
 P1/A1/A3 → A5 I-U-W
 P1/A1/A3 → A6 I-U-F
 A1/A3/A4/A5/A6 → A7 notification（R24、Wave 4条件）
-A3/A4/A5/A6 → A8 SSE → A9 Chrome
+A1/A3/A4/A5/A6/A7公開型凍結 → A8 SSE → A9 Chrome
 A3/A7/A8/A9 → A10 E01
 ```
 
@@ -124,8 +124,8 @@ A3/A7/A8/A9 → A10 E01
 2. **Wave 1**: A1。
 3. **Wave 2**: A2とA3。公開型凍結後なら実装を並走できる。
 4. **Wave 3**: A4、A5、A6の独立実装は並走できる。各担当は自unit/test directoryを所有する。各unitの実装配送ごとに、A3担当がcomposition rootへreducer・codec・期限・view/outcome/intentを直列に結線し、unit担当と保存障害・通常終了・復元直後続報を再検収する。9段の証拠が揃うまで当該unitは未完了。A3契約に後続結線用allowed_pathsと再検収工程を事前に含める。
-5. **Wave 4**: A7はA1改訂→Q-NOTICE確定→A4 intent生成→A7改訂→baseOid割当→発注（R24）の順と、A4/A5/A6の3単位配送境界・型の凍結を条件とする。desktop体験はR30=A（2026-09-23 ご主人）で確定。正式EEW証拠の保管/実行はA7のP2-A7-PRIVATE-EEW-EVIDENCEに従い、private repoのpersonalのみ、公開環境では正式検収blockedとする。搬入は統合担当の契約外作業。A8はA4〜A6の公開view凍結が条件で、条件成立後はA7と並走できる。配送ごとにA3担当がadapter/出力を結線し、実通知結果・SSEを含む保存障害・終了・復元を再検収して各unitの9段証拠を更新する。
-6. **Wave 5**: A9。
+5. **Wave 4**: A7はA1改訂→Q-NOTICE確定→A4 intent生成→A7改訂→baseOid割当→発注（R24）の順と、A4/A5/A6の3単位配送境界・型の凍結を条件とする。desktop体験はR30=A（2026-09-23 ご主人）で確定。正式EEW証拠の保管/実行はA7のP2-A7-PRIVATE-EEW-EVIDENCEに従い、private repoのpersonalのみ、公開環境では正式検収blockedとする。搬入は統合担当の契約外作業。A8は(a) A1/A3の入力・三具体view準備、A4〜A6の意味内容版/削除を含むdisplayChanges/確認証拠、A4警報区分、A7 channelの必要公開型を凍結し先行修正を配送した後に発注し、残るA7実装と並走できる。(b) 実projector呼出し・notice期限・実SSE再検収はA8配送後にA3が行う。(c) 全国通知の明示・HTML非解釈はWave 5へ後送する。配送ごとにA3担当がadapter/出力を結線し、実通知結果・SSEを含む保存障害・終了・復元を再検収して各unitの9段証拠を更新する。
+6. **Wave 5**: A9。R38の「全国通知」を表示側契約へ固定文言として転記し、設定fieldは増やさない。文字列をHTMLとして解釈させない描画もA9で検収する。
 7. **Wave 6**: A10。A/B判定で B が必要になった場合だけ、A10の契約改訂または後続 `P2-parse-worker-001` を発注し、同じ manifest で再測定する。
 
 parse分離の扱いは作者裁定ではなく§7.6の既定手順とする（同`:1155`、`:1168`、`:2737`）。A10担当はWave 0で測定条件を固定し、A4/A5/A8/A9の最小結線が動き次第、A構成の3母集団を早期に予備測定する。P1の231ms parse・212ms転送だけではBを発注しない。T0〜T6と七区間で未達原因を帰属し、XML parse主因の場合だけBへ移行する。encode・射影・転送・描画が主因なら各原因の最小修正を行う。いずれも同一manifestで正式再測定し、未達・証拠不足はPassにしない。

@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "fc7006e2380edf9a97b601d124341ba4bd7f7f42",
-    "sha256": "28270c734fd353b6fc29b77670b8b946c8d8e07984eb185958e1937dcf0d78b2",
+    "sha256": "d1073abbc41145749d2bc41cdf3be3d15f34ab5d43e9073867058ba2b97ff5a1",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "76c82b87d7783a4eae14af690cb34e7d6ec46f73617dc75b7f7401951619f080",
     "sequencesSha256": "be9cfd97b555e3a55568f085d107342c978b3dc7249f5cecea868ea5a62c5781",
@@ -339,7 +339,8 @@
       "旧standby/promotion currentの複製",
       "DecodedMaterial/XML treeと単調時計",
       "UnitView/PublishedOutcome配送コピー",
-      "旧v2移行器の作業状態"
+      "旧v2移行器の作業状態",
+      "P2-A1-DISPLAY-CHANGESの同run内容版contentRevisionと監視変更を含む直接差分。P2-A1-CONFIRMATIONの受信証拠は保存せず、復元では空にする"
     ],
     "outOfScope": [
       "VPWW56",

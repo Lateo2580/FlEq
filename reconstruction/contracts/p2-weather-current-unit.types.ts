@@ -1,6 +1,7 @@
 import type { DecodedMaterial, Operation } from "./p1-parser-boundary.types";
 import type {
   AdmissionEvidence,
+  CurrentConfirmationEvidence,
   ClockReading,
   DiagnosticDetails,
   FreshnessRecord,
@@ -10,6 +11,7 @@ import type {
   PersistenceStatus,
   PublishedOutcome,
   ReportRef,
+  RuntimeDisplayChange,
   RejectionReason,
   RuntimeUnitDeadline,
   UnitCodec,
@@ -50,6 +52,7 @@ export type WeatherCurrentTombstone = Readonly<{
 
 export type WeatherCurrentUnitState = Readonly<{
   schemaVersion: "p2-weather-current-unit-v1";
+  contentRevision: number;
   national: Readonly<Partial<Record<Operation, WeatherCurrentSnapshot>>>;
   partials: readonly WeatherCurrentSnapshot[];
   histories: readonly WeatherCurrentHistory[];
@@ -92,6 +95,8 @@ export type WeatherCurrentInput =
 
 export type WeatherCurrentUnitStep = Readonly<{
   state: WeatherCurrentUnitState;
+  displayChanges: readonly RuntimeDisplayChange[];
+  confirmationEvidence: readonly CurrentConfirmationEvidence[];
   nextDeadline: RuntimeUnitDeadline | null;
   // Subject identity includes operation; compare these records with the sequence oracle.
   decisions: readonly (Readonly<{ subject: string; operation: Operation }> & (

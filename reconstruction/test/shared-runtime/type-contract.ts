@@ -57,7 +57,8 @@ const incomplete: FreshnessRecord = { target: freshness.target };
 expectTypeOf<keyof RuntimeUnitStates>().toEqualTypeOf<"U-E" | "U-W" | "U-F">();
 expectTypeOf<RuntimeUnitDeadline>().toEqualTypeOf<Readonly<{ wallTimeMs: number | null; monotonicMs: number | null }>>();
 expectTypeOf<NotificationIntentUpdate>().toEqualTypeOf<Pick<NotificationIntent, "id" | "attempts" | "nextAttemptAt" | "disposition">>();
-expectTypeOf<RuntimeInput["kind"]>().toEqualTypeOf<"startup" | "mailboxCompleted" | "checkpointCaptured" | "notificationResult" | "shutdownStageResult">();
+expectTypeOf<RuntimeInput["kind"]>().toEqualTypeOf<"startup" | "notificationProbeCompleted" | "connectionLost"
+  | "coverageVerified" | "mailboxCompleted" | "checkpointCaptured" | "notificationResult" | "shutdownStageResult">();
 expectTypeOf<RuntimeStep["effects"][number]["kind"]>().toEqualTypeOf<
   "stopInputAndDrainMailbox" | "finalizeNotificationDelivery" | "startFinalCheckpoints" | "closeRuntimeWorkers"
 >();

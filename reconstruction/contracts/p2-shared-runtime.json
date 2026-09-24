@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "3095a6c21caa96e06fc3b3a6d2f906534ef5441b",
-    "sha256": "5f3a0133645eeda7ed6cd25ea75e372b4ba4b8ee82eaa6cd793d24ab28ad91fd",
+    "sha256": "972fd414c4850b71aff136c22ace6a3e964da78fa3a62a4b83193eef3e6dbf2b",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "76c82b87d7783a4eae14af690cb34e7d6ec46f73617dc75b7f7401951619f080",
     "sequencesSha256": "be9cfd97b555e3a55568f085d107342c978b3dc7249f5cecea868ea5a62c5781",
@@ -195,6 +195,49 @@
         "atomicity": "A1は同一reduceRuntime呼出し内の検証済み拒否を先に合併・上限判定し、次に正常採用根拠で残scopeを減らして最終枠を一度だけ採用する。records=[]かつoverflow=falseの場合だけ枠を除く。unit state不変のcapacityExceededでもruntimeの枠と当該viewを更新し、通知選択も最終枠を使い中間の解除状態を公開しない。UnitView.admissionは有効な枠のcapacityExceededフラグだけを投影し記録本文を複製しない。normal枠がある間は当該unit/operation全体の旧値を確認済みcurrent・新規通知根拠から除外する。この公開制限は共通UnitView.subjectsだけでなくU-Eのcurrent/activeCount、U-Wのnational/partials、U-Fのseries（旧activeとその全periodを含む）にも適用する。A1がnormalを除いたview用投影を各unitのview関数へ渡し、元のunit state・保存内容は変えない。U-Fのview関数へadmission判定を委譲しない。training/test枠は別管理し本番表示を変えない。Admissionだけの変更はunitの保存世代を進めずPersistenceStatusへ偽装しない",
         "restart": "recordsとoverflowは保存しない。再起動で枠が空になるのは解除成功ではなく、spec §5.6の前回情報・現在未確認への移行である。確認済みcurrentや無発令確認済みの根拠にせず、失敗対象一覧の完全復元も約束しない",
         "budgetRationale": "RES-04はU-Fの保持identity上限512（三区分合算）に対応する規模を一枠にも確保し、全国58官署の同時拒否を一件markerで固定化しない。U-Wは全国base最大3とpartial合算128の現在subject規模を上回り、繰返し拒否は同対象へ合併する。U-Eはfamilyごと512であり、三family全件の追跡保証ではない。拒否される新規subject数は各unitの保持上限に縛られないため、これらを完全追跡の証明にはせずoverflowを必須とする。RES-05は一枠約0.5KiB/記録の設計予算。例示メタデータのJSON UTF-8計量ではU-F subject全体126 byte、U-W all-token一件184 byte、同サイズ512件の配列は65025/94721 byteだった（サイズ例であり実corpus最大値ではない）。長いidentity・多数のU-W区域scopeは件数未満でもbyte上限に達し得る。全9枠のrecords表現の上限は2.25MiBで、全scopeの収容や実heap量は保証しない"
+      },
+      {
+        "id": "P2-A1-CONFIRMATION",
+        "status": "closed",
+        "reason": "P2-A8-AC11/R42: 保存復元とは別の有界scopeと証拠口が無いと、空の復元や部分新報で未観測の欠落を確認済みにしてしまう。 固定9slotの集計と切断受付境界が無いと、確認更新が全scope走査になり、切断前queueを確認証拠にできてしまう。",
+        "startup": "RuntimeConfirmation.epoch=0、afterInputSequence=-1、三unit×normal/training/test各slot.whole=startup、scopes=[]、confirmedAt=nullで開始する。RuntimeRestorationのrestored/empty/unavailableを問わない。restoredかつ空、U-Eのcurrent非保存でもwhole markerを省略しない。起動時の既知scopeは公開viewから列挙して未確認として加えてもよいがwholeを消さない。restorationは保存の検証結果だけ、confirmationは現在情報の充足だけを表す。",
+        "identity": {
+          "unit": "scope={unit,operation,kind:unit}。各slotのwhole markerはこの範囲。",
+          "U-E": "kind:event,eventIdはA4検証済みEventID。canonical key=JSON.stringify([U-E,operation,event,eventId])。familyを含めず同eventの両familyを包含する。",
+          "U-W": "kind:area,subject,token。canonical key=JSON.stringify([U-W,operation,area,subject,token])。tokenの5tuple [family,national|partial,office,areaType,areaCode]と包含/正規化はA5 Q-ENUM.scopeEncoding(契約:160-166)を唯一の正本としnormalizeScopes/scopeContainsを再利用する。異なるoperation/subject/官署/familyへ越境しない。",
+          "U-F": "kind:series,subject,office。subjectはA6検証済みの報単位series識別、officeはtrim済みEditorialOffice。canonical key=JSON.stringify([U-F,operation,series,VPWP50,office,subject])。subjectを区切り文字で逆解析せずA6が両方供給する。同じoperation/office/subjectの全periodを包含し、別seriesは包含しない。"
+        },
+        "containment": "unit scopeは同unit/operation内の全scopeとwholeだけを包含する。event/seriesはidentity完全一致、U-Wは上記正本の包含だけ。複数部分scopeの集合からunitまたはallを推測しない。正常報告はunit scopeの証拠を作らない。",
+        "supply": "A4/A5/A6 UnitStep.confirmationEvidence: readonly CurrentConfirmationEvidence[]を必須公開し、最終決定のcurrentEstablished!=nullの受信だけsource=acceptedReportで検証済みscopeを返す(起動は空)。A1は同step採用壁時計と現在epochで記録し、既存admissionの厳密newer判定とは別に当該scopeの確認を行う。取消の可否もcurrentEstablishedの既存unit規則に従う(U-W履歴復元取消は対象外、U-F正常取消/emptyは対象)。rejected/duplicate/stale、保存ack、期限、restoration、復元由来recoveryApplied.coverageは証拠にしない。recoveryAppliedから文字列を拾って解除する実装を禁止する。将来の照合完了口はRuntimeInput.coverageVerified(runId,epoch,scopes,clock)だけを凍結し、実REST取得/照合の本体は今は作らない。試験では検証済みの当該run/epochの証拠だけを注入する。A3は未検証外部payloadや保存復元結果からこの入力を生成しない。",
+        "adoption": "一致runId/epochの証拠だけ採用する。正常報告証拠は同scopeをconfirmedAt=採用ClockReading.wallTimeMsで確認するがwholeを消さない。wholeを消すのは当該unit/operation全体を覆うcoverageVerifiedだけで、同slotのscopesは包含確認済みになる。別scope/epoch/runは不変。connectionLostでepoch+1、全9slot.whole=disconnected、既存scopeをreason=disconnected/confirmedAt=nullへ変え、slot.confirmedAt=nullにする。再接続/heartbeatは入力証拠にしない。 connectionLost.acceptedThroughSequenceはA3が切断観測時に既に受け付けていた入力sequenceの最大値(無ければ-1)。A1はafterInputSequenceに保持し、acceptedReportの証拠はその値より大きいparser completion.inputSequenceだけ採用する。切断前queueの遅い完了を確認証拠へ昇格させないために必要な境界で、壁時計の大小で代用しない。業務reducerへの適用順/意味採用を変更する条件ではない。",
+        "display": "slotの未確認件数はwhole!=nullなら1＋reason!=nullのscope数。stateは未確認0ならconfirmed、未確認>0かつconfirmedAtを持つscopeが一つ以上ならpartial、残りはunconfirmed。slot.confirmedAtはwhole=nullかつ全scope確認済みになった最新の証拠採用壁時計、その後未確認が生じたらnull。全scopeが0でもwholeが残る限りconfirmedにしない。A8はこのoperation別の状態と理由別件数だけを表示し生scopeをwireへ出さない。 A1はslot.counts(wholeを含む理由別件数)とconfirmedScopeCountを変更scopeから加減算して保持し、A8は固定9slotだけを読む。scopesが正本、countsはその有界集計であり別の解除条件を持たない。無いと確認metadataだけの更新でA8が全scopeを走査する。起動counts={startup:1},confirmedScopeCount=0。",
+        "bounds": "scope record上限はoperation合算でU-E1024(2family×512保持を超えない保守枠)、U-W1024(128partial×8の既存history幅を目安にした表示確認専用の固定暫定上限)、U-F512(保持subject数)。wholeは別枠で固定9個。文字列込みの論理JSON計量は各unit 1048576 bytes以下、変更scopeだけ加減算し全量stringifyしない。上限に収まらない追加(単独の長い識別子を含む)では当該operationのscopesを空へ畳みwhole=scopeCapacity、confirmedAt=nullにする。確認不足を消さず集約するので事象の採用拒否を起こさない。容量枠は安全性に影響しない精度上限、全件複製ではない。",
+        "reclaim": "同scope再確認は一件を置換。包含unit証拠採用時はscopesを空へまとめwhole=nullとしてよい。unitのdisplayChanges削除/退去で不要になった確認済みscopeは削除、未確認scopeを削除する場合は同slot.wholeを既存理由優先で残し、無ければscopeRetiredを置く。TTLでwholeを消さない。新しいscope追加は直前の根拠のない全体確認を維持せず、未確認として追加する(同stepの正常報告証拠があれば確認できる)。このときの理由は同slotの既存whole理由を優先し、無ければstartupとする。startupは起動直後に限らず「当該scopeがまだ正常報告証拠で確認されていない初期状態」を表す(2026-09-24 統合担当、新しいreasonは足さない)。期限/容量回収は確認証拠ではない。"
+      },
+      {
+        "id": "P2-A1-DISPLAY-CHANGES",
+        "status": "closed",
+        "reason": "P2-A8-AC01/06/13: outcomeと別の変更集合が無いと、retainUntil退去や監視値の変更が欠落し、metadataだけでviewを全走査する。",
+        "ownership": "A1はRuntimeState.viewsにadmission調整済み三具体viewを一つずつ保持する。startupはRuntimeStep.viewsに必ず三つ、以後は公開viewの変更unitだけ渡す。RuntimeStep.changedUnitsは保存用変更を含むのでview変更の判定に代用しない。UnitView.persistenceは除き、既存unit state.persistenceをA3がmetadataとして渡す。保存ack/配送状態/確認/probe/接続/worker更新だけでは同一view参照を返し、unitのto*View/内容走査回数0。",
+        "port": "A4/A5/A6 UnitStep.displayChanges: readonly RuntimeDisplayChange[]を必須化する。各変更は(operation,subject)のbefore/after直接参照、unitとsubjects、検証済みofficeを含むRuntimeDisplaySubject判別union。U-Wのunavailable/freshnessはそのsubjectに属するものだけ。追加before=null、削除after=null、両nullは禁止、同step同keyは一件にまとめる。before/afterのunit/operation/subjectは外側keyと一致。既存APIで受信時に確定している差分から供給し、A1/A8で全state比較して作らない。 startupは全公開subject(監視のみのsubjectを含む)についてbefore=null/after=currentのdisplayChangesを一回だけ返す。A8の初期集計・以後の差分集計は同じ供給口を使う。 差分はunitが保持する事実で、A1のnormal公開maskも前後viewのadmissionとして必ず付随する。A8はmaskに従い正常current/階級/区域の寄与を除外するが障害reason/鮮度/未確認の集計を除外しない。元stateを公開viewとして転用しない。",
+        "coverage": "意味変更、出典等の公開revision変更、freshness(拒否入力でも監視変更があれば)、追加、取消、終端、容量退去、期限削除、F retainUntil/gate回収のうち公開viewが変わるものを全て含む。outcome/decisionが空でも削除を落とさない。gate/intentだけの内部回収はdisplayChanges=[]。A1はadmission flagsを固定3bitで反映する。normal公開maskの開始/解除時だけ、公開可否が実際に変わる当該operationのsubjectをdisplayChangesへ加える(保持要素が同じならbefore/after参照は同一でよい)。A8は前後viewのadmissionで各寄与を除外/復帰させる。これは公開内容変更でありmetadataだけの更新ではない。保持値のbyte計量は変更subjectだけ、他operationは再計量0。起動時は三view全体を一回だけ構築できる。 各unitは検証済み官署をRuntimeDisplaySubject.officeへ供給する。U-Wは既存office/token、U-FはA6だけが既存identityの固定prefix operation/VPWP50/を検証してその後の文字列全体をofficeとして回収できる(区切り文字でsplitしない)。A8/A1はsubjectを解析しない。U-Eは官署公開が無ければnullでよく、noticeの生成要件にしない。これだけのために保存schemaを増やさない。",
+        "revision": "A4/A5/A6のcontentRevisionは同stream内0..MAX_SAFE_INTEGERの10進文字列、公開意味(警報区分/有効性/未知値/未充足・鮮度表示を含む)が変わるstepで一回+1。保存世代や既存semanticRevision文字列を流用しない。A4のwarningClassだけの変化も含む。A1は基底版とadmission normal/training/testの3bitをcolonで連結して公開(最大20 ASCII文字)。A8は固定三値から全体内容版を作る。MAX_SAFE_INTEGER到達時はwrapせず当該streamを止めて新runを開始する。",
+        "acceptance": "metadataのみの100stepでview参照===を保ち全unit to*View/要素走査0。Eew forecast→warning、W freshnessだけ、F retainUntil削除(outcomeなし)で変更集合を検証。差分適用後の公開値と一回の試験用to*View参照結果を比較する(参照全走査は検収側だけ)。一subject変更は他subjectのJSON byte計量0、同じ更新で退去したsubjectはdeltaに列挙する。"
+      },
+      {
+        "id": "P2-A1-PROBE",
+        "status": "closed",
+        "reason": "P2-A8-AC10/R41: 二段階入力が無いとcheckingの初期snapshotと未検証backendへの配送停止を両立できない。",
+        "rule": "RuntimeInput.startup.notificationChannelsは両方kind=idleのみ。A1はnotificationProbeComplete=falseで開始し、通知選択を止めて三初期viewを返す。A3が既存A7 probeを実行し、notificationProbeCompleted(channels:idle|unavailable,clock)を一度だけ返す。A1がtrueへ遷移してから選択を再開する。二回目の結果は状態不変。A7 unavailableの配送/元TTL回収/isolatedのアルゴリズムは変更しない。A8公開前の先行作業はこの入力経路と三viewの準備まで、実初期snapshotはA8配送後に結線する。"
+      },
+      {
+        "id": "P2-A1-ADMISSION-COUNTS",
+        "status": "closed",
+        "reason": "P2-A8-AC02/AC06: 固定9枠の公開件数が無いと、admission bitが同じ1→2件の変化をA8へ供給できず障害集計が古いままになる。",
+        "supply": "RuntimeStep.admissionCounts: RuntimeAdmissionCountsをstartupを含む全stepで必須公開する。U-E/U-W/U-F×normal/training/testの固定9個、各値は最終採用RuntimeState.admission[unit][operation]のrecords.length+(overflow?1:0)、slot無しは0。正本はRuntimeState.admission、件数はその射影だけで生のrecordsを複製しない。9回のlength/flag参照で作りsubjectや記録本文を走査しない。",
+        "handoff": "A3は同stepのadmissionCountsをSnapshotProjectionInput.admissionCountsへ必ず渡す。changedUnits/views/displayChangesが空、またはbit/内容版が前回と同じでも件数変更を落とさずA8を呼ぶ。A8は9個の数値を比較し、summary/full共通itemsのadmission.capacityExceededへ写す(0はkey省略)。",
+        "version": "件数だけの変化は表示metadataとしてsnapshot sequenceを一回進める。bitと上流意味内容が同じなら分野contentRevision/全体semanticRevisionは維持する。bit変化時の公開mask/内容版はP2-A1-DISPLAY-CHANGES.revisionのまま。件数だけではunit view再生成、subject差分生成、内容要素再計量をしない。",
+        "acceptance": "同unit/operationでcounts=0→1→2→1→0、別operation/別unit不変を検収。特に1→2はadmission bit、view参照、分野/全体内容版不変で、snapshotの件数=2/sequence+1、全unit内容走査0。overflowのみなら1、records2+overflowなら3をassertする。"
       }
     ],
     "operationContract": {
@@ -303,7 +346,17 @@
       "reconstruction/contracts/p2-shared-runtime.types.ts#RuntimeAdmission",
       "reconstruction/contracts/p2-shared-runtime.types.ts#AdmissionEvidence",
       "reconstruction/contracts/p2-shared-runtime.types.ts#AdmissionRejection",
-      "reconstruction/contracts/p2-shared-runtime.types.ts#AdmissionSlot"
+      "reconstruction/contracts/p2-shared-runtime.types.ts#AdmissionSlot",
+      "reconstruction/contracts/p2-shared-runtime.types.ts#RuntimeUnitView",
+      "reconstruction/contracts/p2-shared-runtime.types.ts#RuntimeConfirmation",
+      "reconstruction/contracts/p2-shared-runtime.types.ts#RuntimePublishedOutcome",
+      "reconstruction/contracts/p2-shared-runtime.types.ts#RuntimeDisplaySubject",
+      "reconstruction/contracts/p2-shared-runtime.types.ts#RuntimeDisplayChange",
+      "reconstruction/contracts/p2-shared-runtime.types.ts#RuntimeViews",
+      "reconstruction/contracts/p2-shared-runtime.types.ts#UnconfirmedReason",
+      "reconstruction/contracts/p2-shared-runtime.types.ts#ConfirmationScope",
+      "reconstruction/contracts/p2-shared-runtime.types.ts#CurrentConfirmationEvidence",
+      "reconstruction/contracts/p2-shared-runtime.types.ts#RuntimeAdmissionCounts"
     ],
     "publicFunctions": [
       "validateSemanticEnvelope(DecodedMaterial): SemanticEnvelopeResult",
@@ -494,7 +547,7 @@
       },
       {
         "id": "P2-A1-AC08",
-        "requirement": "R21: reduceRuntime(null, startup)だけが初期RuntimeStateを構築する。A3から一度だけ受けたU-E/U-W/U-FのRestoreUnitResultをunit/schema/payloadまで検証し、restored gは先にpersistenceをcurrent=saved=g、savedCapturedAt=envelope.capturedAt、savedAckAt=nullへ設定してからunit restoreへ渡す。restoreの期限回収が保存内容を変えればcurrentのみg+1、dirtySinceは起動入力のclock.monotonicMs。restore後にpersistenceを上書きしない。emptyは世代0で確認済み無発令と扱わず、unavailableは理由をrestorationへ残し空stateでslotを自動上書きしない。startup入力のnotificationChannelsはdesktop/soundそれぞれidleまたはunavailable(backendMissing)を必須とし、復元直後の最初の選択より前に初期channelへ採用する。unavailableが1以上ならstartup stepで{level:WARN,component:notification-delivery,reason:notificationAttemptFailed,count:unavailable channel数}を一件だけ記録し、後続選択では欠落診断を繰り返さない。起動前の通常入力と二度目のstartupを拒否する",
+        "requirement": "R21: reduceRuntime(null, startup)だけが初期RuntimeStateを構築する。A3から一度だけ受けたU-E/U-W/U-FのRestoreUnitResultをunit/schema/payloadまで検証し、restored gは先にpersistenceをcurrent=saved=g、savedCapturedAt=envelope.capturedAt、savedAckAt=nullへ設定してからunit restoreへ渡す。restoreの期限回収が保存内容を変えればcurrentのみg+1、dirtySinceは起動入力のclock.monotonicMs。restore後にpersistenceを上書きしない。emptyは世代0で確認済み無発令と扱わず、unavailableは理由をrestorationへ残し空stateでslotを自動上書きしない。startup入力のnotificationChannelsはdesktop/soundそれぞれidleを必須とし、probe未完了の間は選択しない。A3のnotificationProbeCompletedでidleまたはunavailable(backendMissing)を採用してから選択する。unavailableが1以上ならprobe完了stepで{level:WARN,component:notification-delivery,reason:notificationAttemptFailed,count:unavailable channel数}を一件だけ記録し、後続選択では欠落診断を繰り返さない。起動前の通常入力と二度目のstartupを拒否する 起動probeの型・二段階化はP2-A1-PROBEを正本とする。",
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:768 «c6fcdefce2d90c9f»",
           "docs/specs/reconstruction-p0-contracts.md:770 «3fe91886fca8d1d6»",
@@ -521,6 +574,14 @@
         "evidenceRefs": [
           "reconstruction/src/runtime/shared-runtime.ts",
           "reconstruction/src/units/eew/eew-unit.ts"
+        ]
+      },
+      {
+        "id": "P2-A1-A8-LINK",
+        "requirement": "A8発注前にP2-A1-CONFIRMATION/DISPLAY-CHANGES/PROBEの型と振る舞いを実装・検収する。初期三具体view、unit付きoutcome、metadata参照再利用、削除delta、起動/切断marker、証拠由来確認、警報区分の意味版をassert。A8本体のimport/呼出しはこの先行修正の完了条件にしない。理由: 公開口が未準備のままA8を発注しない。 P2-A1-ADMISSION-COUNTSの固定9枠を毎step供給し、bit不変の件数変化もA3へ引き渡す。",
+        "evidenceRefs": [
+          "docs/specs/reconstruction-p0-contracts.md:2059 «8ac7c45a9d2292ae»",
+          "reconstruction/contracts/p2-order-plan.md:32 «14c0a7138b56025b»"
         ]
       }
     ],
@@ -698,7 +759,12 @@
       "P2-A1-AC08/R21: 起動入力とrestorationがないと保存gの引継ぎ前にrestoreし新報を古い世代で上書きする。A1が初期stateとunit restore順を所有し、A3はI/Oだけを所有する",
       "P2-A1-AC09/R20: 枠内のAdmissionRejectionとoverflowがないと拒否対象を安全に解除できず、AdmissionEvidenceがないとchanged/unavailable/intent更新を正常採用と誤認する。追加型はこの記録・枠・検証済みdecision根拠だけとし、記録/解除はQ-R20-CLEARを正本とする。A1が枠と解除、A4/A5/A6が各decisionの根拠を所有する",
       "P2-A1-AC10/R45: generationInputIdsの明示空配列がないと期限・intentUpdate・起動回収だけのdirty世代が最終保存されない。parser IDは採用寄与だけを記録する",
-      "追実装で閉じる項目(A1-A7/R26/R27): A1はU-E終端intentUpdateをdeliveryRecordsで、U-W/U-Fをintentsで採用確認し、同一unit保存世代とchannel状態を一度に確定する。無いとU-Eの正常終端で誤例外となる。A7をreceive生成/取消/置換、期限、起動/復元、結果、channel解放ごとに再評価し、消えたintentのrunning試行もabortする。無いと初回試行と停止が次のdeadlineまで遅れる。同一runはNotificationDeliveryStateの非保存単調期限を使い、再起動時だけ保存壁時計の残余から張り直す。headType表のU-EはVXSE43/45のみ、VXSE44は明示無視。P1分類器のfamily表は分類用のままとし二重の業務判定を置かない。 U-E終端にattempts/nextAttemptAtを再保存させず、記録にあるid/disposition/expiresAtを照合する。 P2-A7-AC03: abortRequestsの{attemptId,cause}をそのまま返す。無いとA3はtimeoutと意味上のabortを区別できない。期限mapの作成/回収はP2-A7-TIMEの規則だけを採用し、保存形式は変えない。"
+      "追実装で閉じる項目(A1-A7/R26/R27): A1はU-E終端intentUpdateをdeliveryRecordsで、U-W/U-Fをintentsで採用確認し、同一unit保存世代とchannel状態を一度に確定する。無いとU-Eの正常終端で誤例外となる。A7をreceive生成/取消/置換、期限、起動/復元、結果、channel解放ごとに再評価し、消えたintentのrunning試行もabortする。無いと初回試行と停止が次のdeadlineまで遅れる。同一runはNotificationDeliveryStateの非保存単調期限を使い、再起動時だけ保存壁時計の残余から張り直す。headType表のU-EはVXSE43/45のみ、VXSE44は明示無視。P1分類器のfamily表は分類用のままとし二重の業務判定を置かない。 U-E終端にattempts/nextAttemptAtを再保存させず、記録にあるid/disposition/expiresAtを照合する。 P2-A7-AC03: abortRequestsの{attemptId,cause}をそのまま返す。無いとA3はtimeoutと意味上のabortを区別できない。期限mapの作成/回収はP2-A7-TIMEの規則だけを採用し、保存形式は変えない。",
+      "P2-A8-AC01/13: P2-A1-DISPLAY-CHANGESの供給と参照再利用を先行実装し、変更集合と計量範囲の検収証拠を添付する。",
+      "P2-A8-AC11/R42: P2-A1-CONFIRMATIONの起動/復元/部分確認/回収/容量集約の境界証拠を添付する。",
+      "P2-A8-AC09: RuntimePublishedOutcomeにunit帰属がないとA8は同名subjectの三分野を区別できずnoticeを誤生成する。A1が既存PublishedOutcomeをunitで包む",
+      "P2-A8-AC10/R41: 起動/probe完了はP2-A1-PROBEの二段階型に従い、選択停止を先行検収する。",
+      "P2-A1-ADMISSION-COUNTS: A8発注前にRuntimeStepの必須集計件数を実装し、A3→SnapshotProjectionInputの供給と1→2件境界を検収する。生拒否記録をwireへ追加しない。"
     ],
     "unresolvedQuestions": []
   }

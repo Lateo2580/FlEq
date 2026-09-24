@@ -187,7 +187,10 @@ describe("P2-A7 notification delivery", () => {
     const restoredRoot = new RuntimeCompositionRoot(settings, linkedUnitCodecs, { notificationAdapter: recordingNotificationAdapter(), runtimeCalls: gated, clock: () => clock });
     try {
       root.startRuntime("o07", clock, testNotificationChannels);
+      expect(root.state.notificationProbeComplete).toBe(false);
       root.dispatch(root.state, eewInput(root.state, clock));
+      expect(root.state.notificationChannels.desktop.kind).toBe("idle");
+      root.dispatch(root.state, { kind: "notificationProbeCompleted", channels: testNotificationChannels, clock });
       const original = root.state.units["U-E"].intents;
       expect(original).toHaveLength(2);
       const reservation = root.scheduleCheckpoint(root.state, clock, root.state.runId)!;
@@ -199,6 +202,11 @@ describe("P2-A7 notification delivery", () => {
       clock = at(500);
       restoredRoot.startRuntime("restored", clock, testNotificationChannels);
       expect(restoredRoot.state.units["U-E"].intents).toEqual(original);
+      expect(restoredRoot.state.notificationProbeComplete).toBe(false);
+      expect(Object.values(restoredRoot.state.notificationDeadlines.desktop)[0]).toEqual({ retryAtMonotonicMs: 500, expiresAtMonotonicMs: 15_000 });
+      clock = { wallTimeMs: at(-500).wallTimeMs, monotonicMs: 550 };
+      expect(restoredRoot.tick(restoredRoot.state, clock).notificationAttempts).toEqual([]);
+      restoredRoot.dispatch(restoredRoot.state, { kind: "notificationProbeCompleted", channels: testNotificationChannels, clock });
       expect(Object.values(restoredRoot.state.notificationDeadlines.desktop)[0]).toEqual({ retryAtMonotonicMs: 500, expiresAtMonotonicMs: 15_000 });
       held = false;
       const dispatch = restoredRoot.tick(restoredRoot.state, clock);

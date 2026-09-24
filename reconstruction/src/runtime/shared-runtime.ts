@@ -1,8 +1,8 @@
 import type { DecodedMaterial } from "../../contracts/p1-parser-boundary.types";
 import type { Operation } from "../../contracts/p1-parser-boundary.types";
-import type { EewInput, EewUnitStep, PersistedEewUnit } from "../../contracts/p2-eew-unit.types";
-import type { WeatherCurrentInput, WeatherCurrentUnitStep, PersistedWeatherCurrentUnit } from "../../contracts/p2-weather-current-unit.types";
-import type { WeatherTimeseriesInput, WeatherTimeseriesUnitStep, PersistedWeatherTimeseriesUnit } from "../../contracts/p2-weather-timeseries-unit.types";
+import type { EewInput, EewUnitStep, EewUnitView, PersistedEewUnit } from "../../contracts/p2-eew-unit.types";
+import type { WeatherCurrentInput, WeatherCurrentUnitStep, WeatherCurrentUnitView, PersistedWeatherCurrentUnit } from "../../contracts/p2-weather-current-unit.types";
+import type { WeatherTimeseriesInput, WeatherTimeseriesUnitStep, WeatherTimeseriesUnitView, PersistedWeatherTimeseriesUnit } from "../../contracts/p2-weather-timeseries-unit.types";
 import type { NotificationDeliveryState, NotificationDeliveryStep, NotificationSelection } from "../../contracts/p2-notification-delivery.types";
 import type {
   ClockReading,
@@ -14,6 +14,13 @@ import type {
   RuntimeState,
   RuntimeStep,
   RuntimeAdmission,
+  RuntimeAdmissionCounts,
+  RuntimeConfirmation,
+  ConfirmationScope,
+  CurrentConfirmationEvidence,
+  RuntimeDisplayChange,
+  RuntimeUnitView,
+  RuntimeViews,
   AdmissionRejection,
   RuntimeUnitStates,
   RuntimeUnitId,
@@ -22,16 +29,19 @@ import type {
   ShutdownStage,
   NotificationResult,
   NotificationIntent,
-  UnitView,
   SemanticEnvelopeResult,
   UnitId,
 } from "../../contracts/p2-shared-runtime.types";
 import { boundedString, boundDiagnosticDetails, completeDiagnostic, parserDiagnosticReasons } from "./runtime-diagnostic";
-import { normalizeScopes, scopeContains } from "../domains/weather-current/weather-current";
+import { normalizeScopes, parseScopeToken, scopeContains } from "../domains/weather-current/weather-current";
 import type { CodecMap } from "../checkpoint/checkpoint";
+import { currentSubject, toEewView } from "../units/eew/eew-unit";
+import { displaySubjects as weatherDisplaySubjects, toWeatherCurrentView } from "../units/weather-current/weather-current-unit";
+import { timeseriesSubjectOutcome, toWeatherTimeseriesView } from "../units/weather-timeseries/weather-timeseries-unit";
 
 const EMPTY: readonly never[] = Object.freeze([]);
 const units = ["U-E", "U-W", "U-F"] as const;
+const operations = ["normal", "training", "test"] as const;
 const admissionRecordByteCache = new WeakMap<object, number>();
 // The single P2 route (order plan §6.2): headType → M01/M06/M08 → unit. Other families have no P2 unit.
 const unitRoutes: ReadonlyMap<string, RuntimeUnitId> = new Map([
@@ -77,6 +87,191 @@ function parserDiagnostic(reason: string, inputId: string): DiagnosticDetails | 
 
 function isRuntimeUnit(unit: UnitId): unit is RuntimeUnitId {
   return unit === "U-E" || unit === "U-W" || unit === "U-F";
+}
+
+function admissionCounts(admission: RuntimeAdmission): RuntimeAdmissionCounts {
+  const count = (unit: RuntimeUnitId, operation: Operation) => {
+    const slot = admission[unit]?.[operation];
+    return (slot?.records.length ?? 0) + (slot?.overflow ? 1 : 0);
+  };
+  return Object.fromEntries(units.map((unit) => [unit, Object.fromEntries(operations.map((operation) =>
+    [operation, count(unit, operation)]))])) as RuntimeAdmissionCounts;
+}
+
+function initialConfirmation(): RuntimeConfirmation {
+  const slot = () => ({ whole: "startup" as const, counts: { startup: 1 }, confirmedScopeCount: 0,
+    scopeBytes: 2, scopes: [], confirmedAt: null });
+  const three = () => ({ normal: slot(), training: slot(), test: slot() });
+  return { epoch: 0, afterInputSequence: -1,
+    units: { "U-E": three(), "U-W": three(), "U-F": three() } };
+}
+
+type ConfirmationSlot = RuntimeConfirmation["units"][RuntimeUnitId][Operation];
+type ScopeRecord = ConfirmationSlot["scopes"][number];
+const scopeBytes = (record: ScopeRecord) => new TextEncoder().encode(JSON.stringify(record)).byteLength;
+const scopeKey = (scope: ConfirmationScope) => JSON.stringify(scope.kind === "unit"
+  ? [scope.unit, scope.operation, "unit"]
+  : scope.kind === "event" ? [scope.unit, scope.operation, "event", scope.eventId]
+    : scope.kind === "area" ? [scope.unit, scope.operation, "area", scope.subject, scope.token]
+      : [scope.unit, scope.operation, "series", "VPWP50", scope.office, scope.subject]);
+
+function updateConfirmation(confirmation: RuntimeConfirmation, unit: RuntimeUnitId, operation: Operation,
+  update: (slot: ConfirmationSlot, unitBytes: number, unitCount: number) => ConfirmationSlot): RuntimeConfirmation {
+  const current = confirmation.units[unit][operation];
+  const unitBytes = operations.reduce((sum, name) => sum + confirmation.units[unit][name].scopeBytes, 0);
+  const unitCount = operations.reduce((sum, name) => sum + confirmation.units[unit][name].scopes.length, 0);
+  let slot = update(current, unitBytes, unitCount);
+  if (unitBytes - current.scopeBytes + slot.scopeBytes > 1_048_576
+    || unitCount - current.scopes.length + slot.scopes.length > (unit === "U-F" ? 512 : 1024))
+    slot = { whole: "scopeCapacity", counts: { scopeCapacity: 1 }, confirmedScopeCount: 0,
+      scopeBytes: 2, scopes: [], confirmedAt: null };
+  if (slot === current) return confirmation;
+  return { ...confirmation, units: { ...confirmation.units,
+    [unit]: { ...confirmation.units[unit], [operation]: slot } } };
+}
+
+function updateScopes(confirmation: RuntimeConfirmation, incoming: readonly ConfirmationScope[], at: number | null): RuntimeConfirmation {
+  const groups = new Map<string, { unit: RuntimeUnitId; operation: Operation; scopes: ConfirmationScope[] }>();
+  for (const scope of incoming) {
+    const key = JSON.stringify([scope.unit, scope.operation]);
+    let group = groups.get(key);
+    if (group == null) { group = { unit: scope.unit, operation: scope.operation, scopes: [] }; groups.set(key, group); }
+    group.scopes.push(scope);
+  }
+  let next = confirmation;
+  for (const group of groups.values()) next = updateConfirmation(next, group.unit, group.operation, (slot) => {
+    const records = new Map(slot.scopes.map((item) => [scopeKey(item.scope), item]));
+    const bySubject = new Map<string, string[]>(), broad = new Map<string, string>();
+    for (const [key, item] of records) if (item.scope.kind === "area") {
+      const keys = bySubject.get(item.scope.subject) ?? [];
+      keys.push(key); bySubject.set(item.scope.subject, keys);
+      if (parseScopeToken(item.scope.token)?.[3] === "all") broad.set(item.scope.subject, key);
+    }
+    const counts = { ...slot.counts };
+    let bytes = slot.scopeBytes, confirmed = slot.confirmedScopeCount;
+    const remove = (key: string) => {
+      const old = records.get(key);
+      if (old == null) return;
+      bytes -= scopeBytes(old) + (records.size > 1 ? 1 : 0);
+      if (old.reason == null) confirmed--;
+      else {
+        counts[old.reason] = (counts[old.reason] ?? 1) - 1;
+        if (counts[old.reason] === 0) delete counts[old.reason];
+      }
+      records.delete(key);
+    };
+    let scopes = group.scopes;
+    if (at != null && group.unit === "U-W") {
+      const areas = new Map<string, Extract<ConfirmationScope, { kind: "area" }>[]>();
+      for (const scope of scopes) if (scope.kind === "area") {
+        const list = areas.get(scope.subject) ?? []; list.push(scope); areas.set(scope.subject, list);
+      }
+      scopes = [...areas.values()].flatMap((list) => normalizeScopes(list.map((scope) => scope.token))
+        .map((token) => ({ ...list[0], token })));
+    }
+    for (const scope of scopes) {
+      const key = scopeKey(scope);
+      if (at == null && records.has(key)) continue;
+      if (at != null && scope.kind === "area") {
+        const encompassing = records.get(broad.get(scope.subject) ?? "");
+        if (encompassing?.scope.kind === "area" && encompassing.reason == null
+          && scopeContains([encompassing.scope.token], [scope.token]) && scope.token !== encompassing.scope.token) {
+          remove(key); continue;
+        }
+        if (parseScopeToken(scope.token)?.[3] === "all")
+          for (const oldKey of bySubject.get(scope.subject) ?? []) {
+            const old = records.get(oldKey);
+            if (old?.scope.kind === "area" && scopeContains([scope.token], [old.scope.token])) remove(oldKey);
+          }
+      }
+      remove(key);
+      const reason = at == null ? slot.whole ?? "startup" : null;
+      const record: ScopeRecord = { scope, reason, confirmedAt: at };
+      bytes += scopeBytes(record) + (records.size === 0 ? 0 : 1);
+      records.set(key, record);
+      if (reason == null) confirmed++; else counts[reason] = (counts[reason] ?? 0) + 1;
+    }
+    return { ...slot, scopes: [...records.values()], scopeBytes: bytes, counts, confirmedScopeCount: confirmed,
+      confirmedAt: slot.whole == null && confirmed === records.size ? at ?? slot.confirmedAt : null };
+  });
+  return next;
+}
+
+function applyConfirmationEvidence(confirmation: RuntimeConfirmation,
+  evidence: readonly CurrentConfirmationEvidence[], at: number): RuntimeConfirmation {
+  return updateScopes(confirmation, evidence.flatMap((item) => item.scopes), at);
+}
+
+function addedScopes(changes: readonly RuntimeDisplayChange[]): ConfirmationScope[] {
+  const scopes = (value: RuntimeDisplayChange["after"]): ConfirmationScope[] => {
+    if (value == null) return [];
+    if (value.unit === "U-E") return value.current == null ? []
+      : [{ unit: "U-E", operation: value.operation, kind: "event", eventId: value.current.eventId }];
+    if (value.unit === "U-F") return value.current == null || value.office == null ? []
+      : [{ unit: "U-F", operation: value.operation, kind: "series", subject: value.subject, office: value.office }];
+    return normalizeScopes([...(value.current == null ? [] : Object.keys(value.current.phenomena)),
+      ...value.unavailable.flatMap((item) => item.affectedScope),
+      ...value.freshness.flatMap((item) => item.target.affectedScope)]).map((token) => ({
+        unit: "U-W", operation: value.operation, kind: "area", subject: value.subject, token }));
+  };
+  return changes.flatMap((change) => {
+    const previous = new Set(scopes(change.before).map(scopeKey));
+    return scopes(change.after).filter((scope) => !previous.has(scopeKey(scope)));
+  });
+}
+
+function retireConfirmation(confirmation: RuntimeConfirmation, changes: readonly RuntimeDisplayChange[],
+  eew: RuntimeUnitStates["U-E"]): RuntimeConfirmation {
+  if (!changes.some((change) => change.after == null)) return confirmation;
+  const groups = new Map<string, { unit: RuntimeUnitId; operation: Operation; subjects: Set<string>; events: Set<string> }>();
+  const liveEvents = changes.some((change) => change.after == null && change.unit === "U-E")
+    ? new Set(eew.current.map((item) => JSON.stringify([item.operation, item.eventId]))) : null;
+  for (const change of changes) if (change.after == null) {
+    const key = JSON.stringify([change.unit, change.operation]);
+    let group = groups.get(key);
+    if (group == null) { group = { unit: change.unit, operation: change.operation,
+      subjects: new Set(), events: new Set() }; groups.set(key, group); }
+    group.subjects.add(change.subject);
+    if (change.before?.unit === "U-E" && change.before.current != null
+      && !liveEvents?.has(JSON.stringify([change.operation, change.before.current.eventId])))
+      group.events.add(change.before.current.eventId);
+  }
+  let next = confirmation;
+  for (const group of groups.values()) next = updateConfirmation(next, group.unit, group.operation, (slot) => {
+    const scopes: ScopeRecord[] = [], removed: ScopeRecord[] = [];
+    for (const item of slot.scopes) {
+      const drop = item.scope.kind === "event" ? group.events.has(item.scope.eventId)
+        : item.scope.kind === "area" || item.scope.kind === "series"
+          ? group.subjects.has(item.scope.subject) : false;
+      (drop ? removed : scopes).push(item);
+    }
+    if (removed.length === 0) return slot;
+    const whole = slot.whole ?? (removed.some((item) => item.reason != null) ? "scopeRetired" : null);
+    const counts = { ...slot.counts };
+    for (const item of removed) if (item.reason != null) {
+      counts[item.reason] = (counts[item.reason] ?? 1) - 1;
+      if (counts[item.reason] === 0) delete counts[item.reason];
+    }
+    if (whole === "scopeRetired") counts.scopeRetired = 1;
+    return { ...slot, scopes, whole, counts,
+      scopeBytes: slot.scopeBytes - removed.reduce((sum, item) => sum + scopeBytes(item), 0)
+        - (Math.max(slot.scopes.length - 1, 0) - Math.max(scopes.length - 1, 0)),
+      confirmedScopeCount: slot.confirmedScopeCount - removed.filter((item) => item.reason == null).length,
+      confirmedAt: whole == null ? slot.confirmedAt : null };
+  });
+  return next;
+}
+
+function lostConfirmation(confirmation: RuntimeConfirmation, afterInputSequence: number): RuntimeConfirmation {
+  let next = { ...confirmation, epoch: confirmation.epoch + 1, afterInputSequence };
+  for (const unit of units) for (const operation of operations)
+    next = updateConfirmation(next, unit, operation, (slot) => {
+      const scopes = slot.scopes.map((item) => ({ scope: item.scope, reason: "disconnected" as const, confirmedAt: null }));
+      return { whole: "disconnected", counts: { disconnected: scopes.length + 1 },
+        confirmedScopeCount: 0, scopeBytes: 2 + scopes.reduce((sum, item) => sum + scopeBytes(item), Math.max(scopes.length - 1, 0)),
+        scopes, confirmedAt: null };
+    });
+  return next;
 }
 
 function updateAdmission(admission: RuntimeAdmission, unit: RuntimeUnitId,
@@ -166,6 +361,71 @@ function shutdownSummary(state: RuntimeState, clock: ClockReading): ShutdownSumm
   };
 }
 
+function viewBits(admission: RuntimeAdmission, unit: RuntimeUnitId): number {
+  return (admission[unit]?.normal == null ? 0 : 1)
+    | (admission[unit]?.training == null ? 0 : 2)
+    | (admission[unit]?.test == null ? 0 : 4);
+}
+
+function projectViews(state: RuntimeState, calls: NonNullable<Parameters<typeof reduceRuntime>[2]>,
+  changed: readonly RuntimeUnitId[]): RuntimeViews {
+  let views = state.views;
+  for (const unit of changed) {
+    const admission = Object.fromEntries(operations.filter((operation) => state.admission[unit]?.[operation] != null)
+      .map((operation) => [operation, "capacityExceeded" as const]));
+    const normalBlocked = state.admission[unit]?.normal != null;
+    if (unit === "U-E") {
+      const source = state.units[unit];
+      const base = (calls.toEewView ?? toEewView)(normalBlocked
+        ? { ...source, current: source.current.filter((item) => item.operation !== "normal") } : source);
+      views = { ...views, "U-E": { ...base, admission,
+        subjects: normalBlocked ? base.subjects.filter((item) => item.operation !== "normal") : base.subjects,
+        contentRevision: `${source.contentRevision}:${viewBits(state.admission, unit)}` } };
+    } else if (unit === "U-W") {
+      const source = state.units[unit];
+      const base = (calls.toWeatherCurrentView ?? toWeatherCurrentView)(normalBlocked
+        ? { ...source, national: { ...source.national, normal: undefined },
+          partials: source.partials.filter((item) => item.operation !== "normal") } : source);
+      views = { ...views, "U-W": { ...base, admission,
+        subjects: normalBlocked ? base.subjects.filter((item) => item.operation !== "normal" || item.transition === "unavailable") : base.subjects,
+        contentRevision: `${source.contentRevision}:${viewBits(state.admission, unit)}` } };
+    } else {
+      const source = state.units[unit];
+      const base = (calls.toWeatherTimeseriesView ?? toWeatherTimeseriesView)(normalBlocked
+        ? { ...source, subjects: source.subjects.filter((item) => item.operation !== "normal") } : source);
+      views = { ...views, "U-F": { ...base, admission,
+        subjects: normalBlocked ? base.subjects.filter((item) => item.operation !== "normal") : base.subjects,
+        contentRevision: `${source.contentRevision}:${viewBits(state.admission, unit)}` } };
+    }
+  }
+  return views;
+}
+
+function maskChanges(state: RuntimeState, next: RuntimeState, existing: readonly RuntimeDisplayChange[]): RuntimeDisplayChange[] {
+  const changes: RuntimeDisplayChange[] = [];
+  for (const unit of units) {
+    if ((state.admission[unit]?.normal == null) === (next.admission[unit]?.normal == null)) continue;
+    const seen = new Set(existing.filter((item) => item.unit === unit && item.operation === "normal")
+      .map((item) => item.subject));
+    if (unit === "U-E") for (const item of next.units[unit].current) {
+      if (item.operation !== "normal" || seen.has(item.subject)) continue;
+      const value = { unit, operation: item.operation, subject: item.subject, office: null,
+        current: item, subjects: [currentSubject(item)] } as const;
+      changes.push({ unit, operation: item.operation, subject: item.subject, before: value, after: value });
+    } else if (unit === "U-W") for (const value of weatherDisplaySubjects(next.units[unit]).values()) {
+      if (value.operation !== "normal" || value.current == null || seen.has(value.subject)) continue;
+      changes.push({ unit, operation: value.operation, subject: value.subject, before: value, after: value });
+    } else if (unit === "U-F") for (const item of next.units[unit].subjects) {
+      if (item.operation !== "normal" || seen.has(item.subject)) continue;
+      const value = { unit, operation: item.operation, subject: item.subject,
+        office: item.subject.slice(`${item.operation}/VPWP50/`.length), current: item,
+        subjects: [timeseriesSubjectOutcome(item, [])] } as const;
+      changes.push({ unit, operation: item.operation, subject: item.subject, before: value, after: value });
+    }
+  }
+  return changes;
+}
+
 // These are the concrete A4/A5/A6/A7 pure calls, not implementations or a registry.
 // Until delivery they must be supplied explicitly; no missing reducer is treated as success.
 function reduceRuntime(
@@ -175,9 +435,9 @@ function reduceRuntime(
     reduceEewUnit?: (state: RuntimeUnitStates["U-E"], input: EewInput) => EewUnitStep;
     reduceWeatherCurrentUnit?: (state: RuntimeUnitStates["U-W"], input: WeatherCurrentInput) => WeatherCurrentUnitStep;
     reduceWeatherTimeseriesUnit?: (state: RuntimeUnitStates["U-F"], input: WeatherTimeseriesInput) => WeatherTimeseriesUnitStep;
-    toEewView?: (state: RuntimeUnitStates["U-E"]) => UnitView;
-    toWeatherCurrentView?: (state: RuntimeUnitStates["U-W"]) => UnitView;
-    toWeatherTimeseriesView?: (state: RuntimeUnitStates["U-F"]) => UnitView;
+    toEewView?: (state: RuntimeUnitStates["U-E"]) => EewUnitView;
+    toWeatherCurrentView?: (state: RuntimeUnitStates["U-W"]) => WeatherCurrentUnitView;
+    toWeatherTimeseriesView?: (state: RuntimeUnitStates["U-F"]) => WeatherTimeseriesUnitView;
     selectNotificationAttempt?: (state: NotificationDeliveryState, clock: ClockReading) => NotificationSelection;
     applyNotificationResult?: (state: NotificationDeliveryState, result: NotificationResult, clock: ClockReading) => NotificationDeliveryStep;
     codecs?: CodecMap<RuntimeUnitStates>;
@@ -190,20 +450,27 @@ function reduceRuntime(
       || input.notificationChannels == null || Object.keys(input.notificationChannels).length !== 2
       || (["desktop", "sound"] as const).some((name) => {
         const channel = input.notificationChannels[name];
-        return channel?.kind !== "idle" && (channel?.kind !== "unavailable" || channel.reason !== "backendMissing");
+        return channel?.kind !== "idle";
       }))
       throw new RangeError("invalid startup input");
     const clean: PersistenceStatus = { kind: "saved", currentGeneration: 0, savedGeneration: 0,
       savedCapturedAt: null, savedAckAt: null, dirtySince: null };
+    const initialUnits: RuntimeUnitStates = {
+      "U-E": { schemaVersion: "p2-eew-unit-v1", contentRevision: 0, current: [], gates: [], intents: [], deliveryRecords: [], notificationLatches: [], persistence: clean },
+      "U-W": { schemaVersion: "p2-weather-current-unit-v1", contentRevision: 0, national: {}, partials: [], histories: [], ownership: {},
+        tombstones: [], freshness: [], unavailable: [], intents: [], persistence: clean },
+      "U-F": { schemaVersion: "p2-weather-timeseries-unit-v1", contentRevision: 0, subjects: [], gates: [], intents: [], persistence: clean },
+    };
     let initial: RuntimeState = {
-      runId: input.runId, units: {
-        "U-E": { schemaVersion: "p2-eew-unit-v1", current: [], gates: [], intents: [], deliveryRecords: [], notificationLatches: [], persistence: clean },
-        "U-W": { schemaVersion: "p2-weather-current-unit-v1", national: {}, partials: [], histories: [], ownership: {},
-          tombstones: [], freshness: [], unavailable: [], intents: [], persistence: clean },
-        "U-F": { schemaVersion: "p2-weather-timeseries-unit-v1", subjects: [], gates: [], intents: [], persistence: clean },
-      }, restoration: { "U-E": { kind: "empty" }, "U-W": { kind: "empty" }, "U-F": { kind: "empty" } },
+      runId: input.runId, units: initialUnits,
+      views: { "U-E": (calls.toEewView ?? toEewView)(initialUnits["U-E"]),
+        "U-W": (calls.toWeatherCurrentView ?? toWeatherCurrentView)(initialUnits["U-W"]),
+        "U-F": (calls.toWeatherTimeseriesView ?? toWeatherTimeseriesView)(initialUnits["U-F"]) },
+      confirmation: initialConfirmation(),
+      restoration: { "U-E": { kind: "empty" }, "U-W": { kind: "empty" }, "U-F": { kind: "empty" } },
       admission: {}, checkpointAttempts: {}, deadlines: { "U-E": null, "U-W": null, "U-F": null },
       notificationChannels: input.notificationChannels,
+      notificationProbeComplete: false,
       notificationDeadlines: { desktop: {}, sound: {} },
       shutdown: { stage: "running", acceptedThroughSequence: null, startedAt: null, finalizationAt: null,
         stageResults: {}, deadlines: { overallMonotonicMs: null, mailboxDrainMonotonicMs: null,
@@ -213,9 +480,7 @@ function reduceRuntime(
     const generationInputIds: Partial<Record<RuntimeUnitId, readonly string[]>> = {};
     const outcomes: RuntimeStep["outcomes"][number][] = [];
     const diagnostics: DiagnosticEvent[] = [];
-    const missing = (["desktop", "sound"] as const).filter((name) => input.notificationChannels[name].kind === "unavailable").length;
-    if (missing > 0) diagnostics.push(completeDiagnostic({ level: "WARN", component: "notification-delivery",
-      reason: "notificationAttemptFailed", count: missing }, input.clock, input.runId));
+    const displayChanges: RuntimeDisplayChange[] = [];
     for (const unit of units) {
       const restored = input.restored[unit];
       if (restored.kind === "empty" || restored.kind === "unavailable") {
@@ -255,7 +520,9 @@ function reduceRuntime(
         deadlines: { ...initial.deadlines, [unit]: step.nextDeadline } };
       changedUnits.push(unit);
       if (step.state.persistence.currentGeneration > envelope.generation) generationInputIds[unit] = [];
-      outcomes.push(...step.outcomes);
+      outcomes.push(...step.outcomes.map((outcome) => ({ unit, outcome })));
+      displayChanges.push(...step.displayChanges.filter((change) => change.after != null)
+        .map((change) => ({ ...change, before: null })));
       diagnostics.push(...step.diagnostics.map((details) => completeDiagnostic(details, input.clock, input.runId)));
     }
     const selected = reduceRuntime(initial, { kind: "mailboxCompleted", clock: input.clock, completion: {
@@ -263,20 +530,21 @@ function reduceRuntime(
       startedMonotonicMs: input.clock.monotonicMs, completedMonotonicMs: input.clock.monotonicMs,
       control: { kind: "deadline", clock: input.clock },
     } }, calls);
-    return { ...selected, changedUnits: [...new Set([...changedUnits, ...selected.changedUnits])],
+    const views = projectViews(selected.state, calls, units);
+    return { ...selected, state: { ...selected.state, views }, changedUnits: [...new Set([...changedUnits, ...selected.changedUnits])],
       generationInputIds: { ...generationInputIds, ...selected.generationInputIds },
-      outcomes: [...outcomes, ...selected.outcomes], views: changedUnits.filter((unit) => !selected.changedUnits.includes(unit)).flatMap((unit) => {
-        const view = unit === "U-E" ? calls.toEewView?.(initial.units["U-E"])
-          : unit === "U-W" ? calls.toWeatherCurrentView?.(initial.units["U-W"])
-            : calls.toWeatherTimeseriesView?.(initial.units["U-F"]);
-        return view == null ? [] : [view];
-      }).concat(selected.views), diagnostics: [...diagnostics, ...selected.diagnostics] };
+      outcomes: [...outcomes, ...selected.outcomes], views: units.map((unit) => views[unit]),
+      admissionCounts: admissionCounts(selected.state.admission),
+      displayChanges: [...displayChanges, ...selected.displayChanges], diagnostics: [...diagnostics, ...selected.diagnostics] };
   }
   if (state == null) throw new Error("runtime has not started");
   let next = state;
   let changedUnits: readonly UnitId[] = EMPTY;
   const generationInputIds: Partial<Record<RuntimeUnitId, readonly string[]>> = {};
   let outcomes: RuntimeStep["outcomes"] = EMPTY;
+  let displayChanges: RuntimeDisplayChange[] = [];
+  let confirmationEvidence: CurrentConfirmationEvidence[] = [];
+  const viewUnits = new Set<RuntimeUnitId>();
   let diagnostics: RuntimeStep["diagnostics"] = EMPTY;
   let effects: readonly RuntimeEffect[] = EMPTY;
   let notificationAttempts: RuntimeStep["notificationAttempts"] = EMPTY;
@@ -329,6 +597,7 @@ function reduceRuntime(
     }
     const admission = updateAdmission(next.admission, unit, step.decisions);
     if (admission !== next.admission) {
+      if (viewBits(next.admission, unit) !== viewBits(admission, unit)) viewUnits.add(unit);
       next = { ...next, admission };
       changed(unit);
     }
@@ -341,7 +610,13 @@ function reduceRuntime(
     if (deadline?.wallTimeMs !== previousDeadline?.wallTimeMs
       || deadline?.monotonicMs !== previousDeadline?.monotonicMs)
       next = { ...next, deadlines: { ...next.deadlines, [unit]: deadline } };
-    if (step.outcomes.length !== 0) outcomes = [...outcomes, ...step.outcomes];
+    if (step.outcomes.length !== 0) outcomes = [...outcomes,
+      ...step.outcomes.map((outcome) => ({ unit, outcome }))];
+    if (step.displayChanges.length !== 0) {
+      displayChanges.push(...step.displayChanges);
+      viewUnits.add(unit);
+    }
+    if (unitInput.kind === "receive") confirmationEvidence.push(...step.confirmationEvidence);
     step.diagnostics.forEach(diagnose);
     return step;
   };
@@ -544,6 +819,7 @@ function reduceRuntime(
       throw new RangeError("notification deadline capacity exceeded");
     const selectedState = { ...before, deadlines: changedDeadline ? deadlines : before.deadlines };
     if (changedDeadline) next = { ...next, notificationDeadlines: deadlines };
+    if (!next.notificationProbeComplete) return;
     if (calls.selectNotificationAttempt == null) {
       if (before.intents.some((intent) => intent.disposition === "pending")) throw new Error("A7 selection is not linked");
       if (changedDeadline) next = { ...next, notificationDeadlines: deadlines };
@@ -565,7 +841,43 @@ function reduceRuntime(
     abortRequests = [...abortRequests, ...selection.abortRequests];
   };
 
-  if (input.kind === "checkpointCaptured") {
+  if (input.kind === "notificationProbeCompleted" && !next.notificationProbeComplete) {
+    if (Object.keys(input.channels).length !== 2 || (["desktop", "sound"] as const).some((name) => {
+      const channel = input.channels[name];
+      return channel?.kind !== "idle" && (channel?.kind !== "unavailable" || channel.reason !== "backendMissing");
+    })) throw new RangeError("invalid notification probe result");
+    next = { ...next, notificationChannels: input.channels, notificationProbeComplete: true };
+    const missing = (["desktop", "sound"] as const).filter((name) => input.channels[name].kind === "unavailable").length;
+    if (missing > 0) diagnose({ level: "WARN", component: "notification-delivery",
+      reason: "notificationAttemptFailed", count: missing });
+    reclaimExpired();
+    selectDelivery();
+  } else if (input.kind === "connectionLost") {
+    if (!Number.isSafeInteger(input.acceptedThroughSequence) || input.acceptedThroughSequence < -1)
+      throw new RangeError("invalid disconnect sequence");
+    next = { ...next, confirmation: lostConfirmation(next.confirmation, input.acceptedThroughSequence) };
+  } else if (input.kind === "coverageVerified") {
+    if (input.runId === next.runId && input.epoch === next.confirmation.epoch) {
+      for (const scope of input.scopes) {
+        if (!units.includes(scope.unit) || !operations.includes(scope.operation)
+          || scope.kind === "event" && (scope.unit !== "U-E" || !/^\d{14}$/.test(scope.eventId))
+          || scope.kind === "area" && (scope.unit !== "U-W" || !scope.subject
+            || (() => { const tuple = parseScopeToken(scope.token); return tuple == null
+              || scope.subject !== `${scope.operation}/${tuple[0]}/${tuple[2]}`; })())
+          || scope.kind === "series" && (scope.unit !== "U-F" || !scope.subject.startsWith(`${scope.operation}/VPWP50/`)
+            || scope.office !== scope.subject.slice(`${scope.operation}/VPWP50/`.length)))
+          throw new RangeError("invalid verified scope");
+      }
+      const specific: Exclude<ConfirmationScope, { kind: "unit" }>[] = [];
+      for (const scope of input.scopes) if (scope.kind === "unit") {
+        next = { ...next, confirmation: updateConfirmation(next.confirmation, scope.unit, scope.operation,
+          (slot) => ({ ...slot, whole: null, counts: {}, confirmedScopeCount: 0, scopeBytes: 2,
+            scopes: [], confirmedAt: input.clock.wallTimeMs })) };
+      } else specific.push(scope);
+      if (specific.length !== 0) next = { ...next, confirmation: applyConfirmationEvidence(next.confirmation,
+        [{ source: "acceptedReport", scopes: specific }], input.clock.wallTimeMs) };
+    }
+  } else if (input.kind === "checkpointCaptured") {
     const capture = input.capture;
     const previous = next.units[capture.unit].persistence;
     if (!Number.isSafeInteger(capture.generation) || capture.generation < 1 || !Number.isFinite(capture.capturedAt)
@@ -732,28 +1044,20 @@ function reduceRuntime(
     }
   }
 
-  const views: UnitView[] = [];
-  for (const unit of changedUnits) {
-    const normalBlocked = next.admission[unit as RuntimeUnitId]?.normal != null;
-    // Project through the unit's own view builder so dedicated current fields and counts agree.
-    const eew = next.units["U-E"];
-    const weather = next.units["U-W"];
-    const timeseries = next.units["U-F"];
-    const { normal: _normal, ...otherNational } = weather.national;
-    const view = unit === "U-E" ? calls.toEewView?.(normalBlocked
-      ? { ...eew, current: eew.current.filter((item) => item.operation !== "normal") } : eew)
-      : unit === "U-W" ? calls.toWeatherCurrentView?.(normalBlocked
-        ? { ...weather, national: otherNational, partials: weather.partials.filter((item) => item.operation !== "normal") } : weather)
-        : unit === "U-F" ? calls.toWeatherTimeseriesView?.(normalBlocked
-          ? { ...timeseries, subjects: timeseries.subjects.filter((item) => item.operation !== "normal") } : timeseries) : undefined;
-    if (view != null) {
-      views.push({ ...view,
-        admission: normalBlocked ? { normal: "capacityExceeded" } : {},
-        subjects: normalBlocked ? view.subjects.filter((subject) => subject.operation !== "normal") : view.subjects });
-    }
-  }
+  displayChanges.push(...maskChanges(state, next, displayChanges));
+  let confirmation = retireConfirmation(next.confirmation, displayChanges, next.units["U-E"]);
+  confirmation = updateScopes(confirmation, addedScopes(displayChanges), null);
+  if (input.kind === "mailboxCompleted" && input.completion.kind === "parser"
+    && input.completion.inputSequence > confirmation.afterInputSequence)
+    confirmation = applyConfirmationEvidence(confirmation, confirmationEvidence, input.clock.wallTimeMs);
+  if (confirmation !== next.confirmation) next = { ...next, confirmation };
+  const views = viewUnits.size === 0 ? EMPTY : [...viewUnits].map((unit) => {
+    next = { ...next, views: projectViews(next, calls, [unit]) };
+    return next.views[unit];
+  });
   return { state: next, changedUnits, generationInputIds, checkpointRequests: EMPTY, notificationAttempts, abortRequests,
-    effects, shutdownSummary: summary, outcomes, views: views.length === 0 ? EMPTY : views, diagnostics };
+    effects, shutdownSummary: summary, outcomes, views, admissionCounts: admissionCounts(next.admission),
+    displayChanges, diagnostics };
 }
 
 export { reduceRuntime, validateSemanticEnvelope };

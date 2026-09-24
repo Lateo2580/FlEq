@@ -20,7 +20,7 @@ const BASE_TIME = 1_713_363_299_001;
 
 function emptyState(): EewUnitState {
   return {
-    schemaVersion: "p2-eew-unit-v1", current: [], gates: [], intents: [], deliveryRecords: [], notificationLatches: [],
+    schemaVersion: "p2-eew-unit-v1", contentRevision: 0, current: [], gates: [], intents: [], deliveryRecords: [], notificationLatches: [],
     persistence: { kind: "saved", currentGeneration: 0, savedGeneration: 0,
       savedCapturedAt: null, savedAckAt: null, dirtySince: null },
   };
@@ -142,10 +142,18 @@ describe("P2 EEW unit", () => {
     const forecast = receive(emptyState(), decodeFixture("37_01_01_240613_VXSE43", "VXSE45", (xml) =>
       xml.replace(/<Code>31<\/Code>/g, "<Code>30</Code>").replace(/<Code>1[0-9]<\/Code>/g, "<Code>00</Code>")));
     expect(forecast.intents[0].payload.level).toBe("warning");
-    const upgraded = receive(forecast.state, decodeFixture("37_01_02_240613_VXSE43", "VXSE45", (xml) =>
+    expect(forecast.state.current[0]).toMatchObject({ eventId: "20240417231454", warningClass: "forecast" });
+    const upgraded = receive(forecast.state, decodeFixture("37_01_01_240613_VXSE43", "VXSE45", (xml) =>
       xml.replace(/<Code>31<\/Code>/g, "<Code>30</Code>").replace(/<Code>1[0-9]<\/Code>/g, "<Code>13</Code>")));
     expect(upgraded.intents).toHaveLength(2);
     expect(upgraded.intents[0].payload).toMatchObject({ level: "critical", title: "緊急地震速報（警報）" });
+    expect(upgraded.state.current[0].warningClass).toBe("warning");
+    expect(upgraded.state.current[0].prediction).toEqual(forecast.state.current[0].prediction);
+    expect(upgraded.outcomes[0]).toMatchObject({ change: "semantic", subjects: [{ facts: {
+      eventId: "20240417231454", warningClass: "warning" } }] });
+    expect(upgraded.displayChanges[0]).toMatchObject({ before: { current: { warningClass: "forecast" } },
+      after: { current: { warningClass: "warning" } } });
+    expect(upgraded.state.contentRevision).toBe(forecast.state.contentRevision + 1);
   });
 
   it("P2-A4-T11 regression / payloadRules: preserves forecast bounds and unknown magnitude in the notice body", () => {
@@ -665,6 +673,10 @@ describe("P2 EEW unit", () => {
           expect(step.decisions[0]).toMatchObject({ decision: "changed" });
           expect(step.state.current).toHaveLength(Math.min(size + 1, 512));
           expect(step.state.gates).toHaveLength(Math.min(size + 1, 512));
+          expect(step.displayChanges).toHaveLength(size < 512 ? 1 : 2);
+          expect(step.displayChanges.filter((item) => item.before == null)).toHaveLength(1);
+          if (size === 512) expect(step.displayChanges.find((item) => item.after == null)?.before?.unit === "U-E"
+            && step.displayChanges.find((item) => item.after == null)?.before?.current).toBe(old);
           for (const item of protectedCurrent) expect(step.state.current.find((next) => next.subject === item.subject)).toBe(item);
           expect(step.diagnostics).toEqual(size < 512 ? [] : [{ level: "INFO", component: "eew", reason: "eewCapacityEvicted", unit: "U-E", count: 1 }]);
           expect(step.intents).toHaveLength(operation === "normal" ? 2 : 1);
@@ -703,7 +715,7 @@ describe("P2 EEW unit", () => {
         rejection: { family: "VXSE43", reportDateTimeMs: Date.parse(attempted.reportDateTimeRaw), affectedScope: "subject" },
       };
       expect(refused).toEqual({ state: normalState, nextDeadline: { wallTimeMs: BASE_TIME + 15_000, monotonicMs: null },
-        decisions: [decision], intents: [], outcomes: [], diagnostics: [] });
+        decisions: [decision], intents: [], outcomes: [], diagnostics: [], displayChanges: [], confirmationEvidence: [] });
       expect(refused.state).toBe(normalState);
     }
     expect(receive(full, normalInputs[0]).state).toBe(full); // Existing subject consumes no additional slot.
@@ -1308,7 +1320,8 @@ describe("P2 EEW unit", () => {
     expect(selected.nextDeadline).toEqual(expected);
     for (const update of [selection, { ...selection, id: "unknown" }, { ...selection, attempts: 0 }]) {
       const same = reduceEewUnit(selected.state, { kind: "intentUpdate", intentUpdate: update, clock: clock(BASE_TIME, 999) });
-      expect(same).toEqual({ state: selected.state, nextDeadline: expected, decisions: [], intents: [], outcomes: [], diagnostics: [] });
+      expect(same).toEqual({ state: selected.state, nextDeadline: expected, decisions: [], intents: [], outcomes: [],
+        diagnostics: [], displayChanges: [], confirmationEvidence: [] });
       expect(same.state).toBe(selected.state);
     }
     const delivered = reduceEewUnit(selected.state, { kind: "intentUpdate", intentUpdate: { ...selection, disposition: "delivered" }, clock: clock(BASE_TIME + 1, 124) });

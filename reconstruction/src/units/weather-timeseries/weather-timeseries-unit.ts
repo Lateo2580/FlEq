@@ -1,6 +1,6 @@
 import { isDeepStrictEqual } from "node:util";
 
-import type { JsonValue, NotificationIntent, PersistenceStatus, PublishedOutcome, ReportRef, RuntimeUnitDeadline, SubjectOutcome } from "../../../contracts/p2-shared-runtime.types";
+import type { JsonValue, NotificationIntent, PersistenceStatus, PublishedOutcome, ReportRef, RuntimeDisplaySubject, RuntimeUnitDeadline, SubjectOutcome } from "../../../contracts/p2-shared-runtime.types";
 import type { PersistedWeatherTimeseriesUnit, WeatherTimeseriesInput, WeatherTimeseriesSnapshot,
   WeatherTimeseriesSubject, WeatherTimeseriesUnitCodec, WeatherTimeseriesUnitState, WeatherTimeseriesUnitStep,
   WeatherTimeseriesUnitView } from "../../../contracts/p2-weather-timeseries-unit.types";
@@ -8,9 +8,12 @@ import { serializedEnvelope } from "../../checkpoint/checkpoint";
 import { EMPTY, inspect } from "../../domains/weather-timeseries/weather-timeseries";
 
 const SCHEMA = "p2-weather-timeseries-unit-v1" as const;
+type InternalStep = Omit<WeatherTimeseriesUnitStep, "displayChanges" | "confirmationEvidence">;
 const LIMIT = 33_554_432, SUBJECT_LIMIT = 512, RETAIN = 7 * 86_400_000;
 const encoder = new TextEncoder();
 const cache = new WeakMap<object, number>();
+const subjectDeadlineCache = new WeakMap<WeatherTimeseriesUnitState["subjects"], number>();
+type CurrentChange = (before: WeatherTimeseriesSubject | null, after: WeatherTimeseriesSubject | null) => void;
 const emptyEnvelopeBytes = serializedEnvelope({ schemaVersion: SCHEMA, unit: "U-F", generation: 0,
   capturedAt: 0, payload: { schemaVersion: SCHEMA, subjects: [], gates: [], intents: [] }, sha256: "0".repeat(64) }).byteLength;
 
@@ -34,12 +37,19 @@ function dirty(persistence: PersistenceStatus, monotonicMs: number): Persistence
     dirtySince: persistence.dirtySince ?? monotonicMs };
   return persistence.kind === "saved" ? { ...progress, kind: "pending" } : progress;
 }
+function subjectDeadline(subjects: WeatherTimeseriesUnitState["subjects"]): number {
+  let at = subjectDeadlineCache.get(subjects);
+  if (at == null) {
+    at = subjects.reduce((min, item) => Math.min(min, item.validUntil ?? Infinity, item.retainUntil), Infinity);
+    subjectDeadlineCache.set(subjects, at);
+  }
+  return at;
+}
 function deadline(state: WeatherTimeseriesUnitState): RuntimeUnitDeadline | null {
-  const times = state.subjects.flatMap((item) => [item.validUntil, item.retainUntil]).filter((value): value is number => value != null);
-  const wallTimeMs = state.intents.reduce((at, item) => Math.min(at, item.expiresAt), Math.min(...times));
+  const wallTimeMs = state.intents.reduce((at, item) => Math.min(at, item.expiresAt), subjectDeadline(state.subjects));
   return wallTimeMs === Infinity ? null : { wallTimeMs, monotonicMs: null };
 }
-function step(state: WeatherTimeseriesUnitState): WeatherTimeseriesUnitStep {
+function step(state: WeatherTimeseriesUnitState): InternalStep {
   return { state, nextDeadline: deadline(state), decisions: [], intents: [], outcomes: [], diagnostics: [] };
 }
 function outcome(item: WeatherTimeseriesSubject, changedFields: readonly string[]): SubjectOutcome {
@@ -53,26 +63,29 @@ function outcome(item: WeatherTimeseriesSubject, changedFields: readonly string[
     facts: { effective: item.effective, periodCount: item.periods.length,
       knownMaxCode: known.length === 0 ? null : known.sort().at(-1)! }, changedFields };
 }
-function collect(state: WeatherTimeseriesUnitState, wallTimeMs: number, monotonicMs: number): {
+function collect(state: WeatherTimeseriesUnitState, wallTimeMs: number, monotonicMs: number, change: CurrentChange): {
   state: WeatherTimeseriesUnitState; outcomes: WeatherTimeseriesUnitStep["outcomes"];
   decisions: WeatherTimeseriesUnitStep["decisions"] } {
   const expired: WeatherTimeseriesSubject[] = [];
   const retained: WeatherTimeseriesSubject[] = [];
   let removed = false;
-  for (const item of state.subjects) {
-    if (item.retainUntil <= wallTimeMs) { removed = true; continue; }
+  // A8-COST: a cached subject deadline still ahead means no subject expires; skip the subject scan.
+  if (subjectDeadline(state.subjects) <= wallTimeMs) for (const item of state.subjects) {
+    if (item.retainUntil <= wallTimeMs) { removed = true; change(item, null); continue; }
     if (item.validUntil != null && item.validUntil <= wallTimeMs) {
       const next = { ...item, ...EMPTY, effective: "noActiveItems" as const, validUntil: null };
-      expired.push(next); retained.push(next);
+      change(item, next); expired.push(next); retained.push(next);
     } else retained.push(item);
   }
   const expiredIntents = state.intents.filter((item) => item.expiresAt <= wallTimeMs);
   if (!removed && expired.length === 0 && expiredIntents.length === 0)
     return { state, decisions: [], outcomes: [] };
-  const subjects = retained;
-  const keys = new Set(subjects.map((item) => item.subject));
+  // Intent-only collection keeps the subjects reference so the deadline cache stays valid.
+  // gates ⊆ subjects (replace, capacity eviction and persisted() keep it), so only removal orphans a gate.
+  const subjects = removed || expired.length !== 0 ? retained : state.subjects;
+  const keys = removed ? new Set(subjects.map((item) => item.subject)) : null;
   const next = { ...state, subjects,
-    gates: state.gates.filter((item) => keys.has(item.subject)),
+    gates: keys == null ? state.gates : state.gates.filter((item) => keys.has(item.subject)),
     intents: state.intents.filter((item) => item.expiresAt > wallTimeMs),
     persistence: dirty(state.persistence, monotonicMs) };
   return { state: next,
@@ -98,9 +111,15 @@ function sameSource(left: ReportRef, right: ReportRef): boolean {
     && left.reportDateTimeRaw === right.reportDateTimeRaw && left.serialRaw === right.serialRaw
     && left.infoTypeRaw === right.infoTypeRaw;
 }
-function replace(state: WeatherTimeseriesUnitState, item: WeatherTimeseriesSubject): WeatherTimeseriesUnitState {
+function replace(state: WeatherTimeseriesUnitState, item: WeatherTimeseriesSubject, change: CurrentChange): WeatherTimeseriesUnitState {
+  let previous: WeatherTimeseriesSubject | null = null;
+  const subjects = state.subjects.filter((old) => {
+    if (old.subject !== item.subject) return true;
+    previous = old; return false;
+  });
+  change(previous, item);
   return { ...state,
-    subjects: [...state.subjects.filter((old) => old.subject !== item.subject), item],
+    subjects: [...subjects, item],
     gates: [...state.gates.filter((old) => old.subject !== item.subject),
       { subject: item.subject, operation: item.operation, source: item.source! }] };
 }
@@ -108,26 +127,28 @@ function fits(state: WeatherTimeseriesUnitState, generation: number, capturedAt:
   return state.subjects.length <= SUBJECT_LIMIT
     && measure(state.subjects, state.gates, state.intents, generation, capturedAt) <= LIMIT;
 }
-function evict(state: WeatherTimeseriesUnitState, target: string, generation: number, capturedAt: number): WeatherTimeseriesUnitState {
+function evict(state: WeatherTimeseriesUnitState, target: string, generation: number, capturedAt: number, change: CurrentChange): WeatherTimeseriesUnitState {
   let next = state;
   const candidates = () => [...next.subjects].filter((item) => item.subject !== target && item.operation !== "normal")
     .sort((a, b) => Date.parse(a.source?.reportDateTimeRaw ?? "") - Date.parse(b.source?.reportDateTimeRaw ?? "")
       || a.subject.localeCompare(b.subject));
   for (const candidate of candidates()) {
     if (candidate.lastKnown == null) continue;
-    next = { ...next, subjects: next.subjects.map((item) => item === candidate ? { ...item, lastKnown: null } : item) };
+    const replacement = { ...candidate, lastKnown: null };
+    change(candidate, replacement);
+    next = { ...next, subjects: next.subjects.map((item) => item === candidate ? replacement : item) };
     if (fits(next, generation, capturedAt)) break;
   }
   return next;
 }
-function reduceWeatherTimeseries(state: WeatherTimeseriesUnitState,
-  input: Extract<WeatherTimeseriesInput, { kind: "receive" }>): WeatherTimeseriesUnitStep {
+function reduceWeatherTimeseriesCore(state: WeatherTimeseriesUnitState,
+  input: Extract<WeatherTimeseriesInput, { kind: "receive" }>, changed: CurrentChange): InternalStep {
   const checked = inspect(input.material);
   if (checked.kind === "rejected") return { ...step(state),
     decisions: [{ subject: checked.subject, operation: input.material.operation, decision: "rejected", reason: checked.reason }],
     diagnostics: [checked.diagnostic] };
   const candidate = checked.candidate, { source } = candidate;
-  const collected = collect(state, input.clock.wallTimeMs, input.clock.monotonicMs);
+  const collected = collect(state, input.clock.wallTimeMs, input.clock.monotonicMs, changed);
   const base = collected.state;
   const previous = base.subjects.find((item) => item.subject === source.subject);
   const gate = base.gates.find((item) => item.subject === source.subject);
@@ -151,14 +172,15 @@ function reduceWeatherTimeseries(state: WeatherTimeseriesUnitState,
       isDeepStrictEqual(periodMeaning(previous, row), periodMeaning(normal, normal.periods[index])))
     ? "revisionOnly" as const : "semantic" as const;
   const changedFields = change === "revisionOnly" ? ["source", "retainUntil"] : ["source", "effective", "periods", "validUntil", "retainUntil"];
-  let proposed = replace(base, normal);
+  let proposed = replace(base, normal, changed);
   const generation = state.persistence.currentGeneration + 1;
   if (!fits(proposed, generation, input.clock.wallTimeMs)) {
-    proposed = evict(proposed, source.subject, generation, input.clock.wallTimeMs);
+    proposed = evict(proposed, source.subject, generation, input.clock.wallTimeMs, changed);
     if (!fits(proposed, generation, input.clock.wallTimeMs)) {
       for (const item of [...proposed.subjects].filter((entry) => entry.subject !== source.subject && entry.operation !== "normal")
         .sort((a, b) => Date.parse(a.source?.reportDateTimeRaw ?? "") - Date.parse(b.source?.reportDateTimeRaw ?? "")
           || a.subject.localeCompare(b.subject))) {
+        changed(item, null);
         proposed = { ...proposed, subjects: proposed.subjects.filter((entry) => entry !== item),
           gates: proposed.gates.filter((entry) => entry.subject !== item.subject) };
         if (fits(proposed, generation, input.clock.wallTimeMs)) break;
@@ -174,11 +196,11 @@ function reduceWeatherTimeseries(state: WeatherTimeseriesUnitState,
           periods: previous.periods };
     adopted = { ...normal, ...EMPTY, effective: "unavailable", unavailableReason: "capacityExceeded",
       validUntil: null, lastKnown };
-    proposed = replace(proposed, adopted);
+    proposed = replace(proposed, adopted, changed);
     established = null;
     if (!fits(proposed, generation, input.clock.wallTimeMs)) {
       adopted = { ...adopted, lastKnown: null };
-      proposed = replace(proposed, adopted);
+      proposed = replace(proposed, adopted, changed);
     }
   }
   if (!fits(proposed, generation, input.clock.wallTimeMs)) return { ...step(state),
@@ -324,19 +346,20 @@ const weatherTimeseriesUnitCodec: WeatherTimeseriesUnitCodec = {
   decode(payload: JsonValue) {
     const value = persisted(payload);
     return value == null ? { kind: "invalid", reason: "invalid p2-weather-timeseries-unit-v1 payload" }
-      : { kind: "restored", state: { ...value, persistence: { kind: "saved", currentGeneration: 0,
+      : { kind: "restored", state: { ...value, contentRevision: 0, persistence: { kind: "saved", currentGeneration: 0,
         savedGeneration: 0, savedCapturedAt: null, savedAckAt: null, dirtySince: null } } };
   },
 };
-function reduceWeatherTimeseriesUnit(state: WeatherTimeseriesUnitState, input: WeatherTimeseriesInput): WeatherTimeseriesUnitStep {
-  if (input.kind === "receive") return reduceWeatherTimeseries(state, input);
+function reduceCore(state: WeatherTimeseriesUnitState, input: WeatherTimeseriesInput, changed: CurrentChange): InternalStep {
+  if (input.kind === "receive") return reduceWeatherTimeseriesCore(state, input, changed);
   if (input.kind === "restore") {
     const decoded = weatherTimeseriesUnitCodec.decode(input.persisted);
     if (decoded.kind === "invalid") return { ...step(state), decisions: [{ subject: "", operation: "normal",
       decision: "rejected", reason: "requiredStructureInvalid" }], diagnostics: [{ level: "WARN", component: "weather-timeseries",
       reason: "requiredStructureInvalid", unit: "U-F" }] };
     const base = { ...decoded.state, persistence: state.persistence };
-    const applied = collect(base, input.clock.wallTimeMs, input.clock.monotonicMs);
+    const applied = collect(base, input.clock.wallTimeMs, input.clock.monotonicMs, () => {});
+    for (const item of applied.state.subjects) changed(null, item);
     return { ...step(applied.state), outcomes: [{ kind: "recoveryApplied", scope: ["U-F"],
       coverage: applied.state.subjects.map((item) => item.subject), subjects: [] }] };
   }
@@ -363,14 +386,47 @@ function reduceWeatherTimeseriesUnit(state: WeatherTimeseriesUnitState, input: W
         operation: item.operation, informationType: item.source.infoTypeRaw, transition: item.disposition,
         severity: null, source: item.source, facts: { intentId: item.id }, changedFields: ["intents"] }] })) };
   }
-  const applied = collect(state, input.clock.wallTimeMs, input.clock.monotonicMs);
+  const applied = collect(state, input.clock.wallTimeMs, input.clock.monotonicMs, changed);
   if (input.kind === "deadline") return { ...step(applied.state), decisions: applied.decisions, outcomes: applied.outcomes };
   return { ...step(applied.state), outcomes: [{ kind: "batchCompleted", reason: "shutdown", subjects: [] }] };
 }
 function toWeatherTimeseriesView(state: WeatherTimeseriesUnitState): WeatherTimeseriesUnitView {
   return { unit: "U-F", semanticRevision: state.subjects.map((item) =>
     `${item.subject}:${item.source?.reportDateTimeRaw ?? ""}:${item.source?.serialRaw ?? ""}:${item.source?.infoTypeRaw ?? ""}:${item.effective}`)
-    .sort().join("|"), persistence: state.persistence, admission: {}, series: state.subjects,
+    .sort().join("|"), contentRevision: String(state.contentRevision), admission: {}, series: state.subjects,
     subjects: state.subjects.map((item) => outcome(item, [])) };
 }
-export { reduceWeatherTimeseries, reduceWeatherTimeseriesUnit, toWeatherTimeseriesView, weatherTimeseriesUnitCodec };
+
+function reduceWeatherTimeseriesUnit(state: WeatherTimeseriesUnitState, input: WeatherTimeseriesInput): WeatherTimeseriesUnitStep {
+  const changes = new Map<string, { before: WeatherTimeseriesSubject | null; after: WeatherTimeseriesSubject | null }>();
+  const result = reduceCore(state, input, (before, after) => {
+    const key = (after ?? before)!.subject;
+    changes.set(key, { before: changes.has(key) ? changes.get(key)!.before : before, after });
+  });
+  const subject = (item: WeatherTimeseriesSubject): RuntimeDisplaySubject => ({
+    unit: "U-F", operation: item.operation, subject: item.subject,
+    office: item.subject.slice(`${item.operation}/VPWP50/`.length), current: item, subjects: [outcome(item, [])],
+  });
+  const displayChanges: WeatherTimeseriesUnitStep["displayChanges"] = result.state === state ? []
+    : [...changes].flatMap(([key, { before, after }]) => before === after ? [] : [{
+      unit: "U-F" as const, operation: (after ?? before)!.operation, subject: key,
+      before: before == null ? null : subject(before), after: after == null ? null : subject(after),
+    }]);
+  if (displayChanges.length !== 0 && !Number.isSafeInteger(state.contentRevision + 1))
+    throw new RangeError("U-F content revision exhausted");
+  const confirmationEvidence: WeatherTimeseriesUnitStep["confirmationEvidence"] = input.kind === "receive"
+    ? result.decisions.flatMap((item) => item.decision === "changed" && item.currentEstablished != null
+      ? [{ source: "acceptedReport" as const, scopes: [{ unit: "U-F" as const, operation: item.operation,
+        kind: "series" as const, subject: item.subject,
+        office: item.subject.slice(`${item.operation}/VPWP50/`.length) }] }] : []) : [];
+  return { ...result, state: displayChanges.length !== 0
+    ? { ...result.state, contentRevision: state.contentRevision + 1 } : result.state,
+    displayChanges, confirmationEvidence };
+}
+function reduceWeatherTimeseries(state: WeatherTimeseriesUnitState,
+  input: Extract<WeatherTimeseriesInput, { kind: "receive" }>): WeatherTimeseriesUnitStep {
+  return reduceWeatherTimeseriesUnit(state, input);
+}
+
+export { outcome as timeseriesSubjectOutcome, reduceWeatherTimeseries, reduceWeatherTimeseriesUnit,
+  toWeatherTimeseriesView, weatherTimeseriesUnitCodec };

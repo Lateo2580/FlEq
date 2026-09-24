@@ -182,6 +182,7 @@ class RuntimeCompositionRoot {
   private onNotificationDispatchFailure: ((error: unknown) => void) | null = null;
   private readonly onMeasurements: (measurements: readonly CheckpointMeasurement[]) => void;
   private current: RuntimeState | null = null;
+  private disconnectedAt: number | null = null;
   private lastDiagnosticTick = -Infinity;
   private checkpointOperation: {
     attemptId: string;
@@ -209,6 +210,8 @@ class RuntimeCompositionRoot {
     if (this.current == null) throw new Error("runtime has not received its initial state");
     return this.current;
   }
+
+  get lastDisconnectedAt(): number | null { return this.disconnectedAt; }
 
   async probeNotificationChannels(): Promise<Readonly<Record<NotificationChannel,
     Extract<NotificationChannelState, { kind: "idle" | "unavailable" }>>>> {
@@ -274,6 +277,7 @@ class RuntimeCompositionRoot {
     }
     this.checkCorrelations(step.state, correlationByUnit, contributions);
     this.current = step.state;
+    if (input.kind === "connectionLost") this.disconnectedAt = input.clock.wallTimeMs;
     this.contributions = contributions;
     if (result != null && input.kind === "mailboxCompleted") {
       this.checkpoint.resultMetadata(previous, result, input.clock);

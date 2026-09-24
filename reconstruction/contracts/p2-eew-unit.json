@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "fc7006e2380edf9a97b601d124341ba4bd7f7f42",
-    "sha256": "b6fd4dc8f60162a8415b7b3ac7613473edbd92a7ecc4a0101c742c7cefd8a047",
+    "sha256": "01ba880ef1bd5b81d84579c0276f9e94db0913f4f7f041bfcf262ce25fb09c0c",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "76c82b87d7783a4eae14af690cb34e7d6ec46f73617dc75b7f7401951619f080",
     "sequencesSha256": "be9cfd97b555e3a55568f085d107342c978b3dc7249f5cecea868ea5a62c5781",
@@ -375,7 +375,8 @@
       "DecodedMaterial/XML treeと単調時計",
       "UnitView、PublishedOutcome、実行中adapter状態",
       "Q-NOTICE.latchRulesのoperation＋eventId通知latch。通知済みflagsはcurrent/gates和集合に保持、復元は配送証拠のみ再構成し再通知抑止保証なし",
-      "R35 evidenceUnknownUntil（単位ごとの配送証拠不明保護期限、壁時計ms）"
+      "R35 evidenceUnknownUntil（単位ごとの配送証拠不明保護期限、壁時計ms）",
+      "P2-A1-DISPLAY-CHANGESの同run内容版contentRevisionと直接before/after差分。P2-A1-CONFIRMATIONの受信証拠は保存せず、復元では空にする"
     ],
     "outOfScope": [
       "地震観測",

@@ -17,7 +17,7 @@ import { fixtureDriver, fixtureState , testNotificationChannels, recordingNotifi
 const DATE = Date.parse("2026-06-05T17:00:00+09:00");
 const clock = (wallTimeMs = DATE, monotonicMs = 1) => ({ wallTimeMs, monotonicMs });
 function empty(): WeatherTimeseriesUnitState {
-  return { schemaVersion: "p2-weather-timeseries-unit-v1", subjects: [], gates: [], intents: [],
+  return { schemaVersion: "p2-weather-timeseries-unit-v1", contentRevision: 0, subjects: [], gates: [], intents: [],
     persistence: { kind: "saved", currentGeneration: 0, savedGeneration: 0,
       savedCapturedAt: null, savedAckAt: null, dirtySince: null } };
 }
@@ -136,6 +136,46 @@ function reordered(snapshot: WeatherTimeseriesSnapshot): WeatherTimeseriesSnapsh
 }
 
 describe("P2-A6 weather timeseries", () => {
+  it("A8-COST regression: real A6 delivery updates reuse subject deadlines without reading elements", () => {
+    const active = receive(empty(), fixture(unknown)).state;
+    const seed = first(active);
+    let reads = 0;
+    const subjects = new Proxy(Array.from({ length: 512 }, (_, index) => ({ ...seed, subject: `normal/VPWP50/${index}` })), {
+      get(target, key, receiver) { if (typeof key === "string" && /^\d+$/.test(key)) reads++; return Reflect.get(target, key, receiver); },
+    });
+    const notice = { unit: "U-F", id: "delivery", disposition: "pending", expiresAt: DATE + 1_000,
+      subject: seed.subject, operation: "normal", channel: "desktop", transition: "activated", source: seed.source!,
+      payload: {}, createdAt: DATE, nextAttemptAt: DATE, attempts: 0, configRevision: "test" } as const;
+    const ready = reduceWeatherTimeseriesUnit({ ...active, subjects, intents: [notice] },
+      { kind: "deadline", clock: clock() });
+    reads = 0;
+    const delivered = reduceWeatherTimeseriesUnit(ready.state, { kind: "intentUpdate", clock: clock(DATE + 1),
+      intentUpdate: { id: notice.id, attempts: 1, nextAttemptAt: DATE + 1, disposition: "delivered" } });
+    expect(delivered.state.intents[0].disposition).toBe("delivered");
+    expect(delivered.nextDeadline).toEqual({ wallTimeMs: DATE + 1_000, monotonicMs: null });
+    expect(delivered.displayChanges).toEqual([]);
+    expect(reads).toBe(0);
+  });
+  it("A8-COST regression: an intent-only expiry keeps subjects and their cached deadline without reading elements", () => {
+    const active = receive(empty(), fixture(unknown)).state;
+    const seed = first(active);
+    let reads = 0;
+    const subjects = new Proxy(Array.from({ length: 512 }, (_, index) => index === 0 ? seed : { ...seed, subject: `normal/VPWP50/${index}` }), {
+      get(target, key, receiver) { if (typeof key === "string" && /^\d+$/.test(key)) reads++; return Reflect.get(target, key, receiver); },
+    });
+    const notice = { unit: "U-F", id: "expiring", disposition: "delivered", expiresAt: DATE + 1_000,
+      subject: seed.subject, operation: "normal", channel: "desktop", transition: "activated", source: seed.source!,
+      payload: {}, createdAt: DATE, nextAttemptAt: DATE, attempts: 1, configRevision: "test" } as const;
+    const ready = reduceWeatherTimeseriesUnit({ ...active, subjects, intents: [notice] }, { kind: "deadline", clock: clock() });
+    reads = 0;
+    const collected = reduceWeatherTimeseriesUnit(ready.state, { kind: "deadline", clock: clock(DATE + 1_000) });
+    expect(collected.state.intents).toEqual([]);
+    expect(collected.state.subjects).toBe(subjects);
+    expect(collected.state.persistence.currentGeneration).toBe(ready.state.persistence.currentGeneration + 1);
+    expect(collected.displayChanges).toEqual([]);
+    expect(reads).toBe(0);
+    expect(collected.nextDeadline?.wallTimeMs).toBeGreaterThan(DATE + 1_000);
+  });
   it("P2-A6-T03 contractBoundary: every intent disposition needs a finite expiry before deadline scheduling", () => {
     const base = weatherTimeseriesUnitCodec.encode(empty());
     const dispositions = ["pending", "delivered", "expired", "superseded"] as const;
@@ -246,6 +286,9 @@ describe("P2-A6 weather timeseries", () => {
     const retained = reduceWeatherTimeseriesUnit(adopted.state, { kind: "deadline", clock: clock(DATE + 7 * 86_400_000) });
     expect(retained.state.subjects).toEqual([]);
     expect(retained.state.gates).toEqual([]);
+    expect(retained.outcomes).toEqual([]);
+    expect(retained.displayChanges).toMatchObject([{ unit: "U-F", before: { current: { effective: "active" } }, after: null }]);
+    expect(retained.state.contentRevision).toBe(adopted.state.contentRevision + 1);
     expect(retained.state.persistence.currentGeneration).toBe(adopted.state.persistence.currentGeneration + 1);
   });
 
@@ -354,6 +397,9 @@ describe("P2-A6 weather timeseries", () => {
     expect(evicted.decisions[0].decision).toBe("changed");
     expect(evicted.state.subjects).toHaveLength(512);
     expect(evicted.state.subjects.some((item) => item.subject === training.subject)).toBe(false);
+    expect(evicted.displayChanges).toHaveLength(2);
+    const deletion = evicted.displayChanges.find((item) => item.after == null);
+    expect(deletion?.before?.unit === "U-F" && deletion.before.current).toBe(training);
     const revision = fixture(unknown, (xml) => xml
       .replace("<EditorialOffice>稚内地方気象台</EditorialOffice>", "<EditorialOffice>office0</EditorialOffice>")
       .replace("2026-06-05T17:00:00+09:00</ReportDateTime>", "2026-06-05T18:00:00+09:00</ReportDateTime>"));
@@ -403,6 +449,20 @@ describe("P2-A6 weather timeseries", () => {
     expect(unavailable.decisions[0]).toMatchObject({ decision: "changed", change: "semantic", currentEstablished: null });
     expect(unavailable.state.subjects.find((item) => item.subject === "normal/VPWP50/稚内地方気象台")?.effective).toBe("unavailable");
     expect(unavailable.state.subjects.find((item) => item.subject === blockerItem.subject)).toBeDefined();
+    const initial = fixtureState();
+    const ready = reduceRuntime({ ...initial, units: { ...initial.units, "U-F": blocker } }, {
+      kind: "coverageVerified", runId: initial.runId, epoch: initial.confirmation.epoch,
+      scopes: [{ unit: "U-F", operation: "normal", kind: "unit" }], clock: clock(),
+    }).state;
+    const material = fixture(unknown);
+    const added = reduceRuntime(ready, { kind: "mailboxCompleted", clock: clock(), completion: {
+      kind: "parser", runId: initial.runId, messageId: "unavailable", inputId: material.inputId,
+      inputSequence: 1, encodedByteLength: 0, startedMonotonicMs: 0, completedMonotonicMs: 1,
+      result: { kind: "decoded", material },
+    } }, { ...fixtureDriver().calls, reduceWeatherTimeseriesUnit, toWeatherTimeseriesView });
+    expect(added.state.confirmation.units["U-F"].normal).toMatchObject({ whole: null,
+      confirmedAt: null, confirmedScopeCount: 0, counts: { startup: 1 },
+      scopes: [{ reason: "startup", confirmedAt: null }] });
     const full = inflated(blockerBase, 33_554_432);
     const refused = receive(full, fixture(unknown));
     expect(refused.decisions[0].decision).toBe("capacityExceeded");
@@ -559,7 +619,11 @@ describe("P2-A6 weather timeseries", () => {
       expect(expiry.generationInputIds["U-F"]).toEqual([]);
       expect(first(expiry.state.units["U-F"]).effective).toBe("noActiveItems");
       const b = makeRoot();
-      b.startRuntime("b", clock(DATE + 2), testNotificationChannels);
+      const restoredStep = b.startRuntime("b", clock(DATE + 2), testNotificationChannels);
+      expect(restoredStep.displayChanges).toMatchObject([{ unit: "U-F", before: null,
+        after: { current: { effective: "active" } } }]);
+      expect(restoredStep.displayChanges[0].after?.unit === "U-F"
+        && restoredStep.displayChanges[0].after.current).toBe(b.state.units["U-F"].subjects[0]);
       expect(b.state.units["U-F"].persistence.savedGeneration).toBe(1);
       route(b, fixture(cancel), DATE + 2);
       expect(first(b.state.units["U-F"]).effective).toBe("cancelled");

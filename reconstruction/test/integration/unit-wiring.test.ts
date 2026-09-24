@@ -69,6 +69,20 @@ const eewIntent: EewUnitState["intents"][number] = { id: "U-E:normal/VXSE43/2024
   nextAttemptAt: 1, attempts: 0, configRevision: "test", disposition: "pending" };
 
 describe("P2 unit wiring (A1 route, A3 composition root)", () => {
+  it("P2-A3-A8-LINK regression: dispatch preserves the observed disconnect clock and sequence", async () => {
+    const at = { wallTimeMs: 1_800_000_000_000, monotonicMs: 20 };
+    const root = new RuntimeCompositionRoot(await config(), linkedUnitCodecs, {
+      notificationAdapter: recordingNotificationAdapter(), runtimeCalls: calls, clock: () => at });
+    const started = root.startRuntime("run", at, testNotificationChannels);
+    expect(root.lastDisconnectedAt).toBeNull();
+    const lost = root.dispatch(root.state, { kind: "connectionLost", clock: { ...at, wallTimeMs: at.wallTimeMs - 10 },
+      acceptedThroughSequence: 17 });
+    expect(root.lastDisconnectedAt).toBe(at.wallTimeMs - 10);
+    expect(lost.state.confirmation).toMatchObject({ epoch: 1, afterInputSequence: 17 });
+    expect(lost.state.views).toBe(started.state.views);
+    root.dispatch(root.state, { kind: "notificationProbeCompleted", channels: testNotificationChannels, clock: at });
+    expect(root.lastDisconnectedAt).toBe(at.wallTimeMs - 10);
+  });
   it("P2-A1-T09 regression / AC09: real EEW capacity rejection hides dedicated current until a newer adoption", () => {
     const first = decode("37_01_01_240613_VXSE43", "VXSE43");
     const at = { wallTimeMs: Date.parse(first.reportDateTimeRaw), monotonicMs: 1 };
@@ -114,7 +128,8 @@ describe("P2 unit wiring (A1 route, A3 composition root)", () => {
       (xml) => atTime(xml, new Date(at.wallTimeMs + 1_000).toISOString()), "ending-newer");
     const confirmed = reduceRuntime(sameTime.state, parsed("run", newer, at), calls);
     expect(confirmed.state.admission["U-W"]?.normal).toBeUndefined();
-    expect(confirmed.outcomes[0]).toMatchObject({ subjects: [{ transition: "released", source: { inputId: "ending-newer" } }] });
+    expect(confirmed.outcomes[0]).toMatchObject({ unit: "U-W", outcome: {
+      subjects: [{ transition: "released", source: { inputId: "ending-newer" } }] } });
     expect(confirmed.views[0]).toMatchObject({ admission: {}, national: { normal: expect.any(Object) }, partials: [expect.any(Object)] });
   });
 
@@ -159,8 +174,10 @@ describe("P2 unit wiring (A1 route, A3 composition root)", () => {
       },
     } });
     const started = root.startRuntime("run", at, testNotificationChannels);
-    expect(started.generationInputIds).toEqual({ "U-E": [] });
-    const step = root.tick(started.state, at);
+    expect(started.generationInputIds).toEqual({});
+    const probed = root.dispatch(root.state, { kind: "notificationProbeCompleted", channels: testNotificationChannels, clock: at });
+    expect(probed.generationInputIds).toEqual({ "U-E": [] });
+    const step = root.tick(probed.state, at);
     expect(step.state.units["U-E"].persistence.currentGeneration).toBe(9);
     expect(step.generationInputIds).toEqual({});
     expect((await root.shutdownRuntime(root.state, 0, at)).code).toBe(0);
@@ -214,7 +231,7 @@ describe("P2 unit wiring (A1 route, A3 composition root)", () => {
       ...calls, reduceWeatherCurrentUnit: (unit: WeatherCurrentUnitState, input: WeatherCurrentInput) =>
         input.kind === "deadline" ? { state: { ...unit, persistence: { ...unit.persistence,
           kind: "pending" as const, currentGeneration: 1, dirtySince: at.monotonicMs } },
-          nextDeadline: null, decisions: [], intents: [], outcomes: [], diagnostics: [] }
+          nextDeadline: null, decisions: [], intents: [], outcomes: [], diagnostics: [], displayChanges: [], confirmationEvidence: [] }
           : calls.reduceWeatherCurrentUnit(unit, input),
     });
     expect(step.changedUnits).toEqual(["U-E", "U-W"]);

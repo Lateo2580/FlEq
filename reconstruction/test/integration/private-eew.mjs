@@ -150,7 +150,7 @@ async function main() {
       basis: "A1 state intent", generation: unit.persistence.currentGeneration });
     for (const item of unit.deliveryRecords) adopted.set(item.intentId, { disposition: item.disposition,
       basis: "A1 state deliveryRecords", generation: unit.persistence.currentGeneration });
-    for (const outcome of step.outcomes) for (const subject of outcome.subjects)
+    for (const entry of step.outcomes) if (entry.unit === "U-E") for (const subject of entry.outcome.subjects)
       if (subject.transition === "expired" && typeof subject.facts?.intentId === "string")
         expired.add(subject.facts.intentId);
   };
@@ -207,18 +207,23 @@ async function main() {
     });
     const dispatch = root.dispatch.bind(root);
     root.dispatch = (...args) => { const step = dispatch(...args); observe(step); return step; };
+    const startupAt = clock();
+    observe(root.startRuntime(runId, startupAt, { desktop: { kind: "idle" }, sound: { kind: "idle" } }));
+    started = true;
+    const probeStartedAt = clock();
     const probe = await root.probeNotificationChannels();
+    const probeCompletedAt = clock();
     evidence.environment.probe = probe;
     if (probe.sound.kind !== "idle" || process.platform === "darwin" && probe.desktop.kind !== "idle")
       blocked("backendUnavailable");
     if (process.platform === "linux" && probe.desktop.kind !== "unavailable") blocked("r34DesktopMustBeUnavailable");
-    const start = clock();
-    const m0 = start.monotonicMs + 1_000;
-    evidence.environment.start = start;
+    observe(root.dispatch(root.state, { kind: "notificationProbeCompleted", channels: probe, clock: probeCompletedAt }));
+    const m0 = startupAt.monotonicMs + 1_000;
+    evidence.environment.probeElapsedMs = probeCompletedAt.monotonicMs - probeStartedAt.monotonicMs;
+    evidence.environment.startupAt = startupAt;
+    evidence.environment.start = startupAt;
     evidence.environment.M0 = m0;
-    evidence.environment.W0 = start.wallTimeMs + 1_000;
-    observe(root.startRuntime(runId, start, probe));
-    started = true;
+    evidence.environment.W0 = startupAt.wallTimeMs + 1_000;
 
     // A3-AC11: saving verifies persistence/shutdown; notification start does not wait for it.
     function save() {
@@ -276,8 +281,9 @@ async function main() {
           intentId: intent.id, createdAtMonotonicMs: at.monotonicMs, payloadValid, disposition: null });
       }
       evidence.reports.push({ serial: index + 1, scheduledAtMonotonicMs: scheduledAt,
-        receivedAtMonotonicMs: at.monotonicMs, accepted: step.outcomes.some((outcome) => outcome.kind === "accepted"
-          && outcome.change !== "deliveryOnly" && outcome.subjects.some((subject) => subject.source?.inputId === material.inputId)),
+        receivedAtMonotonicMs: at.monotonicMs, accepted: step.outcomes.some((entry) => entry.unit === "U-E"
+          && entry.outcome.kind === "accepted" && entry.outcome.change !== "deliveryOnly"
+          && entry.outcome.subjects.some((subject) => subject.source?.inputId === material.inputId)),
         contributesToSave: step.generationInputIds["U-E"]?.includes(material.inputId) ?? false,
         generatedCount: created.length });
       save();

@@ -6,6 +6,7 @@ import type {
   NotificationIntent,
   PersistenceStatus,
   ReportRef,
+  RuntimeDisplaySubject,
   SubjectOutcome,
 } from "../../../contracts/p2-shared-runtime.types";
 import type {
@@ -32,9 +33,11 @@ import {
   validScopeSet,
   validateWeatherCandidate,
 } from "../../domains/weather-current/weather-current";
+import type { CurrentChange } from "../../domains/weather-current/weather-current";
 import { serializedEnvelope } from "../../checkpoint/checkpoint";
 
 const SCHEMA = "p2-weather-current-unit-v1" as const;
+type InternalStep = Omit<WeatherCurrentUnitStep, "displayChanges" | "confirmationEvidence">;
 const GENERATION_BYTES = 16 * 1024 * 1024;
 const encoder = new TextEncoder();
 const operations = ["normal", "training", "test"] as const;
@@ -262,7 +265,7 @@ function subject(intentValue: NotificationIntent, transition: string): SubjectOu
     changedFields: ["intents"] };
 }
 
-function noChange(state: WeatherCurrentUnitState): WeatherCurrentUnitStep {
+function noChange(state: WeatherCurrentUnitState): InternalStep {
   return { state, nextDeadline: nextWeatherCurrentDeadline(state), decisions: [], intents: [], outcomes: [], diagnostics: [] };
 }
 
@@ -286,7 +289,7 @@ function removeSubject(state: WeatherCurrentUnitState, subjectValue: string, ope
     intents: state.intents.filter((item) => item.subject !== subjectValue || item.operation !== operationValue) };
 }
 
-function fitNormalByByte(state: WeatherCurrentUnitState, capturedAt: number): Readonly<{ state: WeatherCurrentUnitState; count: number }> {
+function fitNormalByByte(state: WeatherCurrentUnitState, capturedAt: number, touched: CurrentChange): Readonly<{ state: WeatherCurrentUnitState; count: number }> {
   let next = state;
   let count = 0;
   while (reservedGenerationBytes(next, capturedAt) > GENERATION_BYTES) {
@@ -303,20 +306,26 @@ function fitNormalByByte(state: WeatherCurrentUnitState, capturedAt: number): Re
       continue;
     }
     const partial = next.partials.filter((item) => item.operation !== "normal").sort(compareSnapshot)[0];
-    if (partial != null) { next = removeSubject(next, partial.subject, partial.operation); count++; continue; }
+    if (partial != null) { touched(partial, null, partial.operation, partial.subject); next = removeSubject(next, partial.subject, partial.operation); count++; continue; }
     const national = Object.values(next.national).filter((item): item is WeatherCurrentSnapshot => item != null && item.operation !== "normal")
       .sort(compareSnapshot)[0];
-    if (national != null) { next = removeSubject(next, national.subject, national.operation); count++; continue; }
+    if (national != null) { touched(national, null, national.operation, national.subject); next = removeSubject(next, national.subject, national.operation); count++; continue; }
     break;
   }
   return { state: next, count };
 }
 
-function reduceWeatherCurrent(state: WeatherCurrentUnitState,
-  input: Extract<WeatherCurrentInput, { kind: "receive" }>): WeatherCurrentUnitStep {
-  const step = reduceWeatherCurrentMeaning(state, input);
+function reduceWeatherCurrentCore(state: WeatherCurrentUnitState,
+  input: Extract<WeatherCurrentInput, { kind: "receive" }>, touched: CurrentChange): InternalStep {
+  const changes: Parameters<CurrentChange>[] = [];
+  const collect: CurrentChange = (...change) => { changes.push(change); };
+  const adopt = (step: InternalStep): InternalStep => {
+    if (step.state !== state) for (const change of changes) touched(...change);
+    return step;
+  };
+  const step = reduceWeatherCurrentMeaning(state, input, collect);
   const fits = (value: WeatherCurrentUnitState) => reservedGenerationBytes(value, input.clock.wallTimeMs) <= GENERATION_BYTES;
-  if (step.state === state || fits(step.state)) return step;
+  if (step.state === state || fits(step.state)) return adopt(step);
   if (!step.decisions.some((item) => item.decision === "changed")) return {
     ...step, state, nextDeadline: nextWeatherCurrentDeadline(state),
     diagnostics: [...step.diagnostics, { level: "WARN", component: "weather-current",
@@ -328,12 +337,12 @@ function reduceWeatherCurrent(state: WeatherCurrentUnitState,
     item?.subject === validated.candidate.subject && item.operation === validated.candidate.operation
     && item.source.inputId === input.material.inputId);
   if (adopted && validated.candidate.operation === "normal") {
-    const fitted = fitNormalByByte(step.state, input.clock.wallTimeMs);
-    if (fits(fitted.state)) return fitted.count === 0 ? step : {
+    const fitted = fitNormalByByte(step.state, input.clock.wallTimeMs, collect);
+    if (fits(fitted.state)) return adopt(fitted.count === 0 ? step : {
       ...step, state: fitted.state,
       diagnostics: [...step.diagnostics, { level: "INFO", component: "weather-current",
         reason: "weatherCurrentCapacityEvicted", unit: "U-W", count: fitted.count }],
-    };
+    });
   }
   const unavailable = step.state.unavailable.some((item) => item.subject === validated.candidate.subject
     && item.source?.inputId === input.material.inputId) ? step
@@ -357,7 +366,7 @@ function reduceWeatherCurrent(state: WeatherCurrentUnitState,
 }
 
 function restore(state: WeatherCurrentUnitState, value: PersistedWeatherCurrentUnit,
-  clock: ClockReading): WeatherCurrentUnitStep {
+  clock: ClockReading): InternalStep {
   const decoded = weatherCurrentUnitCodec.decode(value);
   if (decoded.kind === "invalid") return {
     state, nextDeadline: nextWeatherCurrentDeadline(state),
@@ -381,7 +390,7 @@ function restore(state: WeatherCurrentUnitState, value: PersistedWeatherCurrentU
 }
 
 function coverageConfirmed(state: WeatherCurrentUnitState,
-  input: Extract<WeatherCurrentInput, { kind: "coverageConfirmed" }>): WeatherCurrentUnitStep {
+  input: Extract<WeatherCurrentInput, { kind: "coverageConfirmed" }>): InternalStep {
   if (!(WEATHER_FAMILIES as readonly string[]).includes(input.family) || !validScopeSet(input.affectedScope)
     || parseScopeToken(input.affectedScope[0])?.[0] !== input.family) return noChange(state);
   const freshness = state.freshness.filter((record) => !(record.target.operation === input.operation
@@ -399,7 +408,7 @@ function coverageConfirmed(state: WeatherCurrentUnitState,
 }
 
 function intentUpdate(state: WeatherCurrentUnitState,
-  input: Extract<WeatherCurrentInput, { kind: "intentUpdate" }>): WeatherCurrentUnitStep {
+  input: Extract<WeatherCurrentInput, { kind: "intentUpdate" }>): InternalStep {
   const updates = "id" in input.intentUpdate ? [input.intentUpdate] : input.intentUpdate;
   const originals = new Map(state.intents.map((item) => [item.id, item]));
   const changed = new Map<string, NotificationIntent>();
@@ -422,8 +431,8 @@ function intentUpdate(state: WeatherCurrentUnitState,
     outcomes: adopted.map((item) => ({ kind: "accepted", change: "deliveryOnly", subjects: [subject(item, item.disposition)] })), diagnostics: [] };
 }
 
-function reduceWeatherCurrentUnit(state: WeatherCurrentUnitState, input: WeatherCurrentInput): WeatherCurrentUnitStep {
-  if (input.kind === "receive") return reduceWeatherCurrent(state, input);
+function reduceCore(state: WeatherCurrentUnitState, input: WeatherCurrentInput, touched: CurrentChange): InternalStep {
+  if (input.kind === "receive") return reduceWeatherCurrentCore(state, input, touched);
   if (input.kind === "restore") return restore(state, input.persisted, input.clock);
   if (input.kind === "coverageConfirmed") return coverageConfirmed(state, input);
   if (input.kind === "intentUpdate") return intentUpdate(state, input);
@@ -437,27 +446,32 @@ function reduceWeatherCurrentUnit(state: WeatherCurrentUnitState, input: Weather
       : [{ kind: "batchCompleted", reason: "shutdown", subjects }], diagnostics: [] };
 }
 
-function toWeatherCurrentView(state: WeatherCurrentUnitState): WeatherCurrentUnitView {
-  const currents: (WeatherCurrentSnapshot & { readonly [restoredAt]?: number | null })[] = [...Object.values(state.national), ...state.partials]
-    .filter((item): item is WeatherCurrentSnapshot => item != null);
-  const subjects: SubjectOutcome[] = currents.map((item) => ({
+function currentSubject(item: WeatherCurrentSnapshot & { readonly [restoredAt]?: number | null }): SubjectOutcome {
+  return {
     subject: item.subject, operation: item.operation, informationType: item.source.infoTypeRaw,
     transition: restoredAt in item ? "restoredUnconfirmed" : "active", severity: null, source: item.source,
     facts: { family: item.source.family, scope: item.scope, office: item.office, phenomena: item.phenomena,
       ...(restoredAt in item ? { currentConfirmed: false, savedCapturedAt: item[restoredAt] ?? null } : {}) },
     changedFields: [],
-  }));
-  subjects.push(...state.unavailable.map((item) => ({
+  };
+}
+function unavailableSubject(item: WeatherCurrentUnitState["unavailable"][number]): SubjectOutcome {
+  return {
     subject: item.subject, operation: item.operation, informationType: item.source?.infoTypeRaw ?? "",
     transition: "unavailable", severity: null, source: item.source,
     facts: { reason: item.reason, affectedScope: item.affectedScope }, changedFields: [],
-  })));
+  };
+}
+function toWeatherCurrentView(state: WeatherCurrentUnitState): WeatherCurrentUnitView {
+  const currents = [...Object.values(state.national), ...state.partials]
+    .filter((item): item is WeatherCurrentSnapshot => item != null);
+  const subjects: SubjectOutcome[] = [...currents.map(currentSubject), ...state.unavailable.map(unavailableSubject)];
   return { unit: "U-W", semanticRevision: [
     ...currents.map((item) => `${item.subject}:${item.source.reportDateTimeRaw}:${item.source.serialRaw}`),
     ...state.tombstones.map((item) => `${item.subject}:t:${item.source.reportDateTimeRaw}`),
     ...state.unavailable.map((item) => `${item.subject}:u:${item.reason}:${item.source?.reportDateTimeRaw ?? ""}`),
-  ].sort().join("|"), persistence: state.persistence, admission: {}, subjects,
-  national: Object.fromEntries(Object.entries(state.national).filter(([, item]) => !(restoredAt in item))),
+  ].sort().join("|"), contentRevision: String(state.contentRevision), admission: {}, subjects,
+  national: Object.fromEntries(Object.entries(state.national).filter(([, item]) => item != null && !(restoredAt in item))),
   partials: state.partials.filter((item) => !(restoredAt in item)),
   freshnessSuspectCount: state.freshness.filter((item) => item.freshnessSuspect).length };
 }
@@ -472,9 +486,96 @@ const weatherCurrentUnitCodec: WeatherCurrentUnitCodec = {
   decode(payload) {
     const value = persistedValue(payload);
     return value == null ? { kind: "invalid", reason: "invalid p2-weather-current-unit-v1 payload" } : {
-      kind: "restored", state: { ...value, persistence: cleanPersistence() },
+      kind: "restored", state: { ...value, contentRevision: 0, persistence: cleanPersistence() },
     };
   },
 };
 
-export { reduceWeatherCurrent, reduceWeatherCurrentUnit, toWeatherCurrentView, weatherCurrentUnitCodec };
+function displaySubjects(state: WeatherCurrentUnitState, targets?: ReadonlySet<string>, currents?: readonly WeatherCurrentSnapshot[]): Map<string, RuntimeDisplaySubject & { unit: "U-W" }> {
+  type Row = { current: WeatherCurrentSnapshot | null; unavailable: WeatherCurrentUnitState["unavailable"][number][];
+    freshness: FreshnessRecord[]; operation: Operation; subject: string; office: string | null };
+  const rows = new Map<string, Row>();
+  const row = (operation: Operation, subject: string): Row => {
+    const key = JSON.stringify([operation, subject]);
+    let found = rows.get(key);
+    if (found == null) { found = { current: null, unavailable: [], freshness: [], operation, subject, office: null }; rows.set(key, found); }
+    return found;
+  };
+  for (const item of currents ?? [...Object.values(state.national), ...state.partials]) if (item != null
+    && (targets == null || targets.has(JSON.stringify([item.operation, item.subject])))) {
+    const target = row(item.operation, item.subject); target.current = item; target.office = item.office;
+  }
+  for (const item of state.unavailable) {
+    if (targets != null && !targets.has(JSON.stringify([item.operation, item.subject]))) continue;
+    const target = row(item.operation, item.subject);
+    target.unavailable.push(item);
+    target.office ??= item.lastKnown?.office ?? parseScopeToken(item.affectedScope[0])?.[2] ?? null;
+  }
+  for (const item of state.freshness) {
+    if (targets != null && !targets.has(JSON.stringify([item.target.operation, item.target.subject]))) continue;
+    const target = row(item.target.operation, item.target.subject);
+    target.freshness.push(item);
+    target.office ??= parseScopeToken(item.target.affectedScope[0])?.[2] ?? null;
+  }
+  return new Map([...rows].map(([key, item]) => [key, { unit: "U-W" as const,
+    operation: item.operation, subject: item.subject, office: item.office,
+    current: item.current, unavailable: item.unavailable, freshness: item.freshness,
+    subjects: [...(item.current == null ? [] : [currentSubject(item.current)]), ...item.unavailable.map(unavailableSubject)] }]));
+}
+
+function reduceWeatherCurrentUnit(state: WeatherCurrentUnitState, input: WeatherCurrentInput): WeatherCurrentUnitStep {
+  const currents = new Map<string, { before: WeatherCurrentSnapshot | null; after: WeatherCurrentSnapshot | null }>();
+  const step = reduceCore(state, input, (before, after, operation, subject) => {
+    const key = JSON.stringify([operation, subject]);
+    currents.set(key, { before: currents.has(key) ? currents.get(key)!.before : before, after });
+  });
+  const displayChanges: WeatherCurrentUnitStep["displayChanges"][number][] = [];
+  const currentChanged = step.state.national !== state.national || step.state.partials !== state.partials;
+  const monitorChanged = step.state.unavailable !== state.unavailable || step.state.freshness !== state.freshness;
+  if (currentChanged || monitorChanged) {
+    // A8-COST: every current change reaches `touched` except the unavailable replacement
+    // (domain addUnavailable, unit capacityUnavailable/dropped), which always replaces the monitor
+    // records. Look up only those subjects; when national/partials keep their reference, after = before.
+    if (monitorChanged) for (const decision of step.decisions) {
+      const key = JSON.stringify([decision.operation, decision.subject]);
+      if (currents.has(key)) continue;
+      const find = (value: WeatherCurrentUnitState) => value.national[decision.operation]?.subject === decision.subject
+        ? value.national[decision.operation]!
+        : value.partials.find((item) => item.operation === decision.operation && item.subject === decision.subject) ?? null;
+      const before = find(state);
+      currents.set(key, { before, after: currentChanged ? find(step.state) : before });
+    }
+    const targets = new Set(currents.keys());
+    const before = input.kind === "restore" ? new Map<string, RuntimeDisplaySubject & { unit: "U-W" }>()
+      : displaySubjects(state, targets, [...currents.values()].flatMap((item) => item.before == null ? [] : [item.before]));
+    const after = input.kind === "restore" ? displaySubjects(step.state)
+      : displaySubjects(step.state, targets, [...currents.values()].flatMap((item) => item.after == null ? [] : [item.after]));
+    for (const key of new Set([...before.keys(), ...after.keys()])) {
+      const old = before.get(key) ?? null, current = after.get(key) ?? null;
+      const same = old != null && current != null && old.current === current.current
+        && old.unavailable.length === current.unavailable.length
+        && old.unavailable.every((item, index) => item === current.unavailable[index])
+        && old.freshness.length === current.freshness.length
+        && old.freshness.every((item, index) => item === current.freshness[index]);
+      if (!same && (old != null || current != null)) displayChanges.push({ unit: "U-W",
+        operation: (current ?? old)!.operation, subject: (current ?? old)!.subject, before: old, after: current });
+    }
+  }
+  if (displayChanges.length !== 0 && !Number.isSafeInteger(state.contentRevision + 1))
+    throw new RangeError("U-W content revision exhausted");
+  const confirmationEvidence: WeatherCurrentUnitStep["confirmationEvidence"] = input.kind === "receive"
+    ? step.decisions.flatMap((item) => item.decision === "changed" && item.currentEstablished != null
+      ? [{ source: "acceptedReport" as const, scopes: item.currentEstablished.affectedScope.map((token) => ({
+        unit: "U-W" as const, operation: item.operation, kind: "area" as const, subject: item.subject, token,
+      })) }] : []) : [];
+  return { ...step, state: displayChanges.length !== 0
+    ? { ...step.state, contentRevision: state.contentRevision + 1 } : step.state,
+    displayChanges, confirmationEvidence };
+}
+
+function reduceWeatherCurrent(state: WeatherCurrentUnitState,
+  input: Extract<WeatherCurrentInput, { kind: "receive" }>): WeatherCurrentUnitStep {
+  return reduceWeatherCurrentUnit(state, input);
+}
+
+export { displaySubjects, reduceWeatherCurrent, reduceWeatherCurrentUnit, toWeatherCurrentView, weatherCurrentUnitCodec };

@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "fc7006e2380edf9a97b601d124341ba4bd7f7f42",
-    "sha256": "6b79ae8fea895a6e6ee3f6f2f488a24e4c062f1c4bcafd18c6b75677e2ffee93",
+    "sha256": "aa751095c9b4cc3ff665a678ffb3c521001e2fcd692f6abcf1ee56ea893b3c21",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "76c82b87d7783a4eae14af690cb34e7d6ec46f73617dc75b7f7401951619f080",
     "sequencesSha256": "be9cfd97b555e3a55568f085d107342c978b3dc7249f5cecea868ea5a62c5781",
@@ -384,7 +384,8 @@
       "カード幅に合わせた切捨てstate",
       "DecodedMaterial/XML treeと単調時計",
       "UnitView/PublishedOutcome配送コピー",
-      "P4詳細APIのcache"
+      "P4詳細APIのcache",
+      "P2-A1-DISPLAY-CHANGESの同run内容版contentRevisionと保持期限退去を含む直接差分。P2-A1-CONFIRMATIONの受信証拠は保存せず、復元では空にする"
     ],
     "outOfScope": [
       "VPTA50",

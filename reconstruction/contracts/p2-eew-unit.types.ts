@@ -1,6 +1,7 @@
 import type { DecodedMaterial, MaterialValue, Operation } from "./p1-parser-boundary.types";
 import type {
   AdmissionEvidence,
+  CurrentConfirmationEvidence,
   ClockReading,
   DiagnosticDetails,
   NotificationIntent,
@@ -8,6 +9,7 @@ import type {
   PersistenceStatus,
   PublishedOutcome,
   ReportRef,
+  RuntimeDisplayChange,
   RejectionReason,
   RuntimeUnitDeadline,
   UnitCodec,
@@ -34,6 +36,8 @@ export type EewPrediction = Readonly<{
 
 export type EewCurrent = Readonly<{
   subject: string;
+  eventId: string;
+  warningClass: "forecast" | "warning";
   operation: Operation;
   family: "VXSE43" | "VXSE45";
   source: ReportRef;
@@ -86,6 +90,7 @@ export type EewNotificationPayload = Readonly<{
 
 export type EewUnitState = Readonly<{
   schemaVersion: "p2-eew-unit-v1";
+  contentRevision: number;
   current: readonly EewCurrent[];
   gates: readonly EewGate[];
   intents: readonly (NotificationIntent & Readonly<{ payload: EewNotificationPayload }>)[];
@@ -118,6 +123,8 @@ export type EewInput =
 
 export type EewUnitStep = Readonly<{
   state: EewUnitState;
+  displayChanges: readonly RuntimeDisplayChange[];
+  confirmationEvidence: readonly CurrentConfirmationEvidence[];
   nextDeadline: RuntimeUnitDeadline | null;
   // Subject identity includes operation; compare these records with the sequence oracle.
   decisions: readonly (Readonly<{ subject: string; operation: Operation }> & (

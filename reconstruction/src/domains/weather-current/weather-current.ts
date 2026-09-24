@@ -421,7 +421,7 @@ function removeSubjects(state: WeatherCurrentUnitState, subjects: ReadonlySet<st
 }
 
 function addUnavailable(state: WeatherCurrentUnitState, candidate: Candidate, reason: WeatherCurrentUnavailableReason,
-  lastKnown: WeatherCurrentSnapshot | null, clockMs: number): WeatherCurrentUnitStep {
+  lastKnown: WeatherCurrentSnapshot | null, clockMs: number): Omit<WeatherCurrentUnitStep, "displayChanges" | "confirmationEvidence"> {
   const national = { ...state.national };
   if (candidate.scope === "national" && national[candidate.operation]?.subject === candidate.subject)
     delete national[candidate.operation];
@@ -461,7 +461,10 @@ function owned(snapshotValue: WeatherCurrentSnapshot): readonly string[] {
   return result;
 }
 
-function applyEnding(state: WeatherCurrentUnitState, candidate: Candidate): WeatherCurrentUnitState {
+type CurrentChange = (before: WeatherCurrentSnapshot | null, after: WeatherCurrentSnapshot | null, operation: Operation, subject: string) => void;
+
+function applyEnding(state: WeatherCurrentUnitState, candidate: Candidate,
+  touched: CurrentChange = () => {}): WeatherCurrentUnitState {
   const codes = new Set(candidate.affectedScope.map(parseScopeToken).filter((value): value is ScopeTuple => value != null).map((value) => value[4]));
   const ended = (snapshotValue: WeatherCurrentSnapshot): WeatherCurrentSnapshot => {
     if (snapshotValue.operation !== candidate.operation || Date.parse(snapshotValue.source.reportDateTimeRaw) > candidate.reportDateTimeMs!)
@@ -475,8 +478,13 @@ function applyEnding(state: WeatherCurrentUnitState, candidate: Candidate): Weat
     }));
     return isDeepStrictEqual(phenomena, snapshotValue.phenomena) ? snapshotValue : { ...snapshotValue, phenomena };
   };
-  const national = Object.fromEntries(Object.entries(state.national).map(([operation, value]) => [operation, ended(value!)]));
-  const partials = state.partials.map(ended);
+  const currentEnded = (value: WeatherCurrentSnapshot) => {
+    const next = ended(value);
+    if (next !== value) touched(value, next, value.operation, value.subject);
+    return next;
+  };
+  const national = Object.fromEntries(Object.entries(state.national).map(([operation, value]) => [operation, currentEnded(value!)]));
+  const partials = state.partials.map(currentEnded);
   const changedSubjects = new Set([
     ...Object.values(state.national).filter((value): value is WeatherCurrentSnapshot =>
       value != null && national[value.operation] !== value),
@@ -513,7 +521,8 @@ function maskSnapshotWithTombstones(state: WeatherCurrentUnitState,
 }
 
 function reduceWeatherCurrentMeaning(state: WeatherCurrentUnitState,
-  input: Extract<WeatherCurrentInput, { kind: "receive" }>): WeatherCurrentUnitStep {
+  input: Extract<WeatherCurrentInput, { kind: "receive" }>,
+  touched: CurrentChange = () => {}): Omit<WeatherCurrentUnitStep, "displayChanges" | "confirmationEvidence"> {
   const validated = validateCandidate(input.material, state);
   if (validated.kind === "rejected") {
     let next = state;
@@ -556,7 +565,7 @@ function reduceWeatherCurrentMeaning(state: WeatherCurrentUnitState,
   }
 
   if (candidate.family === "VPNO50") {
-    let next = applyEnding(state, candidate);
+    let next = applyEnding(state, candidate, touched);
     const tombstone: WeatherCurrentTombstone = { subject: candidate.subject, operation: candidate.operation,
       source: candidate.source, affectedScope: candidate.affectedScope };
     next = { ...next,
@@ -586,6 +595,7 @@ function reduceWeatherCurrentMeaning(state: WeatherCurrentUnitState,
       tombstones: [...next.tombstones.filter((item) => item.subject !== candidate.subject || item.operation !== candidate.operation),
         { subject: candidate.subject, operation: candidate.operation, source: candidate.source, affectedScope: candidate.affectedScope }] };
     const masked = maskSnapshotWithTombstones(next, restored);
+    touched(previous, masked, candidate.operation, candidate.subject);
     next = candidate.scope === "national"
       ? { ...next, national: { ...next.national, [candidate.operation]: masked } }
       : { ...next, partials: [...next.partials.filter((item) => item.subject !== candidate.subject || item.operation !== candidate.operation), masked] };
@@ -606,6 +616,7 @@ function reduceWeatherCurrentMeaning(state: WeatherCurrentUnitState,
   if (candidate.scope === "partial" && previous == null && state.partials.length >= 128) {
     const eligible = [...state.partials].filter((item) => item.operation !== "normal").sort(compareEntry);
     if (eligible.length === 0) return addUnavailable(state, candidate, "capacityExceeded", null, input.clock.monotonicMs);
+    touched(eligible[0], null, eligible[0].operation, eligible[0].subject);
     working = removeSubjects(state, new Set([eligible[0].subject]), eligible[0].operation);
     diagnostics.push({ level: "INFO", component: "weather-current", reason: "weatherCurrentCapacityEvicted", unit: "U-W", count: 1 });
   }
@@ -633,6 +644,10 @@ function reduceWeatherCurrentMeaning(state: WeatherCurrentUnitState,
   }
 
   const projected = maskSnapshotWithTombstones(working, snapshot(candidate));
+  const displaced = candidate.scope === "national" ? working.national[candidate.operation] : null;
+  if (displaced != null && displaced.subject !== candidate.subject)
+    touched(displaced, null, displaced.operation, displaced.subject);
+  touched(previous, projected, candidate.operation, candidate.subject);
   let next: WeatherCurrentUnitState = candidate.scope === "national"
     ? { ...working, national: { ...working.national, [candidate.operation]: projected } }
     : { ...working, partials: [...working.partials.filter((item) => item.subject !== candidate.subject || item.operation !== candidate.operation), projected] };
@@ -683,4 +698,4 @@ export {
   validateCandidate as validateWeatherCandidate,
   validScopeSet,
 };
-export type { Candidate, ScopeTuple, WeatherFamily };
+export type { Candidate, ScopeTuple, WeatherFamily, CurrentChange };

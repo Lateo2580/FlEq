@@ -9,9 +9,13 @@ import { applyNotificationResult, selectNotificationAttempt } from "../../src/no
 // AC02: C1/C2 share the frozen A4 input and background so neither measures a hand-built emergency attempt.
 export const calls = { ...linkedRuntimeCalls, codecs: linkedUnitCodecs, applyNotificationResult, selectNotificationAttempt };
 export const at = (time: number): ClockReading => ({ wallTimeMs: 1_713_363_299_000 + time, monotonicMs: time });
-export const empty = (clock = at(0)) => reduceRuntime(null, { kind: "startup", runId: "a7", clock,
+export const empty = (clock = at(0)) => {
+  const started = reduceRuntime(null, { kind: "startup", runId: "a7", clock,
   notificationChannels: { desktop: { kind: "idle" }, sound: { kind: "idle" } },
   restored: { "U-E": { kind: "empty" }, "U-W": { kind: "empty" }, "U-F": { kind: "empty" } } }, calls).state;
+  return reduceRuntime(started, { kind: "notificationProbeCompleted",
+    channels: { desktop: { kind: "idle" }, sound: { kind: "idle" } }, clock }, calls).state;
+};
 export function tick(state: RuntimeState, clock: ClockReading): RuntimeInput {
   return { kind: "mailboxCompleted", clock, completion: { kind: "control", runId: state.runId,
     messageId: "tick", encodedByteLength: 0, startedMonotonicMs: clock.monotonicMs, completedMonotonicMs: clock.monotonicMs, control: { kind: "deadline", clock } } };

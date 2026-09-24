@@ -3,11 +3,17 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, expect, it, vi } from "vitest";
 
-import type { ClockReading, NotificationResult } from "../../contracts/p2-shared-runtime.types";
+import type { ClockReading, NotificationResult, RuntimeInput } from "../../contracts/p2-shared-runtime.types";
 import type { NotificationAbortRequest, NotificationAttempt } from "../../contracts/p2-notification-delivery.types";
 import { RuntimeCompositionRoot, linkedRuntimeCalls, linkedUnitCodecs } from "../../src/runtime/composition-root";
 import { at, eewInput } from "../notification-delivery/delivery-fixture";
 import { testNotificationChannels } from "../checkpoint-shutdown/runtime-fixture";
+
+function startProbed(root: RuntimeCompositionRoot, clock: ClockReading,
+  channels: Extract<RuntimeInput, { kind: "notificationProbeCompleted" }>["channels"]) {
+  root.startRuntime("t11", clock, testNotificationChannels);
+  return root.dispatch(root.state, { kind: "notificationProbeCompleted", channels, clock });
+}
 
 const paths: string[] = [];
 afterEach(async () => { for (const path of paths.splice(0)) await fs.rm(path, { recursive: true, force: true }); });
@@ -42,7 +48,7 @@ it("P2-A3-T11 acceptance / AC11: a dirty owner reservation dispatches before che
   const fake = adapter();
   let now = at(0);
   const root = new RuntimeCompositionRoot(await settings(), linkedUnitCodecs, { clock: () => now, notificationAdapter: fake });
-  root.startRuntime("t11", now, { desktop: { kind: "unavailable", reason: "backendMissing" }, sound: { kind: "idle" } });
+  startProbed(root, now, { desktop: { kind: "unavailable", reason: "backendMissing" }, sound: { kind: "idle" } });
   const step = root.dispatch(root.state, eewInput(root.state, now));
   expect(step.notificationAttempts).toHaveLength(1);
   expect(fake.attempts).toEqual(step.notificationAttempts);
@@ -68,7 +74,7 @@ it("P2-A3-T11 contractBoundary / AC11: timeout and shutdown forward A1 causes an
   let now = at(0);
   const root = new RuntimeCompositionRoot(await settings(), linkedUnitCodecs, { clock: () => now, notificationAdapter: fake });
   const dispatch = vi.spyOn(root, "dispatch");
-  root.startRuntime("t11", now, testNotificationChannels);
+  startProbed(root, now, testNotificationChannels);
   root.dispatch(root.state, eewInput(root.state, now));
   expect(fake.attempts).toHaveLength(2);
   now = at(5_000);
@@ -103,7 +109,7 @@ it("P2-A3-T11 contractBoundary / AC11: a failed batch hook still waits for notif
   const root = new RuntimeCompositionRoot(await settings(), linkedUnitCodecs, { clock: () => now,
     notificationAdapter: fake, reportFailure: () => {},
     shutdownHooks: { finalizeBatchesAndSideEffects: finalize } });
-  root.startRuntime("t11", now, { desktop: { kind: "unavailable", reason: "backendMissing" }, sound: { kind: "idle" } });
+  startProbed(root, now, { desktop: { kind: "unavailable", reason: "backendMissing" }, sound: { kind: "idle" } });
   const attempt = root.dispatch(root.state, eewInput(root.state, now)).notificationAttempts[0];
   vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
   try {
@@ -140,7 +146,7 @@ it("P2-A3-T11 regression / AC11: a notification result invariant rejects shutdow
         attemptId: attempt.attemptId, intentId: attempt.intentId, channel: attempt.channel, completedAt: now });
       return { batches: 0, notificationAttempts: 0 };
     } } });
-  root.startRuntime("t11", now, { desktop: { kind: "unavailable", reason: "backendMissing" }, sound: { kind: "idle" } });
+  startProbed(root, now, { desktop: { kind: "unavailable", reason: "backendMissing" }, sound: { kind: "idle" } });
   root.dispatch(root.state, eewInput(root.state, now));
   await expect(root.shutdownRuntime(root.state, 0, now)).rejects.toBe(invariant);
   expect(root.state.shutdown.stage).toBe("sideEffectFinalization");
@@ -159,7 +165,7 @@ it("P2-A3-T11 regression / AC11: a resolved but unconfirmed stop remains an isol
   };
   const now = at(0);
   const root = new RuntimeCompositionRoot(await settings(), linkedUnitCodecs, { clock: () => now, notificationAdapter: fake });
-  root.startRuntime("t11", now, { desktop: { kind: "unavailable", reason: "backendMissing" }, sound: { kind: "idle" } });
+  startProbed(root, now, { desktop: { kind: "unavailable", reason: "backendMissing" }, sound: { kind: "idle" } });
   root.dispatch(root.state, eewInput(root.state, now));
   const summary = await root.shutdownRuntime(root.state, 0, now);
   expect(root.state.notificationChannels.sound.kind).toBe("isolated");
@@ -177,7 +183,7 @@ it("P2-A3-T11 regression / AC11: a rejected run returns one adapterError termina
     const root = new RuntimeCompositionRoot(await settings(), linkedUnitCodecs, { clock: () => now,
       notificationAdapter: { run: async () => { throw new Error("run rejected"); }, abort: async () => {} } });
     const dispatch = vi.spyOn(root, "dispatch");
-    root.startRuntime("t11", now, { desktop: { kind: "unavailable", reason: "backendMissing" }, sound: { kind: "idle" } });
+    startProbed(root, now, { desktop: { kind: "unavailable", reason: "backendMissing" }, sound: { kind: "idle" } });
     const attempt = root.dispatch(root.state, eewInput(root.state, now)).notificationAttempts[0];
     await new Promise<void>((resolve) => setImmediate(resolve));
     expect(dispatch.mock.calls.flatMap(([, input]) => input.kind === "notificationResult" ? [input.result] : []))
@@ -197,7 +203,7 @@ it("P2-A3-T11 regression / AC11: a terminal result at TTL does not re-abort its 
   const fake = adapter();
   let now = at(0);
   const root = new RuntimeCompositionRoot(await settings(), linkedUnitCodecs, { clock: () => now, notificationAdapter: fake });
-  root.startRuntime("t11", now, { desktop: { kind: "unavailable", reason: "backendMissing" }, sound: { kind: "idle" } });
+  startProbed(root, now, { desktop: { kind: "unavailable", reason: "backendMissing" }, sound: { kind: "idle" } });
   root.dispatch(root.state, eewInput(root.state, now));
   const attempt = fake.attempts[0];
   now = at(attempt.expiresAt - at(0).wallTimeMs);
@@ -214,7 +220,7 @@ it("P2-A3-T11 contractBoundary / R34: unavailable desktop is skipped from first 
   const fake = adapter();
   let now = at(0);
   const root = new RuntimeCompositionRoot(config, linkedUnitCodecs, { clock: () => now, notificationAdapter: fake });
-  const started = root.startRuntime("t11", now, { desktop: { kind: "unavailable", reason: "backendMissing" },
+  const started = startProbed(root, now, { desktop: { kind: "unavailable", reason: "backendMissing" },
     sound: { kind: "unavailable", reason: "backendMissing" } });
   expect(started.diagnostics.filter((item) => item.reason === "notificationAttemptFailed"))
     .toMatchObject([{ level: "WARN", component: "notification-delivery", count: 2 }]);

@@ -5,10 +5,13 @@ import type {
   ParserMailboxItem,
   ParserMailboxResult,
 } from "./p1-parser-boundary.types";
-import type { EewUnitState } from "./p2-eew-unit.types";
+import type { EewCurrent, EewUnitState } from "./p2-eew-unit.types";
+import type { EewUnitView } from "./p2-eew-unit.types";
 import type { NotificationDeliveryState, NotificationSelection } from "./p2-notification-delivery.types";
-import type { WeatherCurrentUnitState } from "./p2-weather-current-unit.types";
-import type { WeatherTimeseriesUnitState } from "./p2-weather-timeseries-unit.types";
+import type { WeatherCurrentSnapshot, WeatherCurrentUnitState } from "./p2-weather-current-unit.types";
+import type { WeatherCurrentUnitView } from "./p2-weather-current-unit.types";
+import type { WeatherTimeseriesSubject, WeatherTimeseriesUnitState } from "./p2-weather-timeseries-unit.types";
+import type { WeatherTimeseriesUnitView } from "./p2-weather-timeseries-unit.types";
 
 export type JsonValue = null | boolean | number | string | readonly JsonValue[] | Readonly<{ [key: string]: JsonValue }>;
 
@@ -136,6 +139,8 @@ export type PublishedOutcome =
   | Readonly<{ kind: "deadlineApplied"; subjects: readonly SubjectOutcome[] }>
   | Readonly<{ kind: "recoveryApplied"; scope: readonly string[]; coverage: readonly string[]; subjects: readonly SubjectOutcome[] }>;
 
+export type RuntimePublishedOutcome = Readonly<{ unit: RuntimeUnitId; outcome: PublishedOutcome }>;
+
 export type OutcomePersistence = Readonly<{
   kind: "saved" | "pending" | "failed" | "uncertain";
   currentGeneration: number;
@@ -159,10 +164,41 @@ export type OutcomeEnvelope = Readonly<{
 export type UnitView = Readonly<{
   unit: UnitId;
   semanticRevision: string;
-  persistence: PersistenceStatus;
+  // Changes exactly when public meaning changes; independent of gates, persistence and delivery.
+  contentRevision: string;
+  // Persistence is metadata in RuntimeState.units; it is not part of a reusable content view.
   // Derived flag only: a slot exists while records remain or overflow is set.
   admission: Readonly<Partial<Record<Operation, "capacityExceeded">>>;
   subjects: readonly SubjectOutcome[];
+}>;
+
+export type RuntimeUnitView = EewUnitView | WeatherCurrentUnitView | WeatherTimeseriesUnitView;
+
+// P2-A1-DISPLAY-CHANGES: direct subject references avoid searching a whole view for a delta.
+export type RuntimeDisplaySubject = Readonly<{
+  operation: Operation;
+  subject: string;
+  office: string | null;
+  subjects: readonly SubjectOutcome[];
+}> & (
+  | Readonly<{ unit: "U-E"; current: (EewCurrent & Readonly<{ eventId: string; warningClass: "forecast" | "warning" }>) | null }>
+  | Readonly<{ unit: "U-W"; current: WeatherCurrentSnapshot | null;
+      unavailable: WeatherCurrentUnitState["unavailable"]; freshness: readonly FreshnessRecord[] }>
+  | Readonly<{ unit: "U-F"; current: WeatherTimeseriesSubject | null }>
+);
+
+export type RuntimeDisplayChange = Readonly<{
+  unit: RuntimeUnitId;
+  operation: Operation;
+  subject: string;
+  before: RuntimeDisplaySubject | null;
+  after: RuntimeDisplaySubject | null;
+}>;
+
+export type RuntimeViews = Readonly<{
+  "U-E": EewUnitView;
+  "U-W": WeatherCurrentUnitView;
+  "U-F": WeatherTimeseriesUnitView;
 }>;
 
 export type FreshnessRecord = Readonly<{
@@ -226,7 +262,10 @@ export type MailboxControl =
 
 export type RuntimeInput =
   | Readonly<{ kind: "startup"; runId: string; clock: ClockReading; restored: Readonly<Record<RuntimeUnitId, RestoreUnitResult>>;
-      notificationChannels: Readonly<Record<"desktop" | "sound", Extract<NotificationDeliveryState["channels"]["desktop"], { kind: "idle" | "unavailable" }>>> }>
+      notificationChannels: Readonly<Record<"desktop" | "sound", Extract<NotificationDeliveryState["channels"]["desktop"], { kind: "idle" }>>> }>
+  | Readonly<{ kind: "notificationProbeCompleted"; channels: Readonly<Record<"desktop" | "sound", Extract<NotificationDeliveryState["channels"]["desktop"], { kind: "idle" | "unavailable" }>>>; clock: ClockReading }>
+  | Readonly<{ kind: "connectionLost"; acceptedThroughSequence: number; clock: ClockReading }>
+  | Readonly<{ kind: "coverageVerified"; runId: string; epoch: number; scopes: readonly ConfirmationScope[]; clock: ClockReading }>
   | Readonly<{ kind: "mailboxCompleted"; completion: MailboxCompletion; clock: ClockReading }>
   | Readonly<{ kind: "checkpointCaptured"; capture: CheckpointCapture }>
   | Readonly<{ kind: "notificationResult"; result: NotificationResult }>
@@ -284,6 +323,36 @@ export type RuntimeEffect =
 export type RuntimeRestoration = Readonly<Record<RuntimeUnitId,
   Readonly<{ kind: "restored" | "empty" }> | Extract<RestoreUnitResult, { kind: "unavailable" }>>>;
 
+// P2-A1-CONFIRMATION: restoration success never establishes current completeness.
+export type UnconfirmedReason = "startup" | "disconnected" | "scopeCapacity" | "scopeRetired";
+export type ConfirmationScope = Readonly<{ operation: Operation }> & (
+  | Readonly<{ unit: RuntimeUnitId; kind: "unit" }>
+  | Readonly<{ unit: "U-E"; kind: "event"; eventId: string }>
+  | Readonly<{ unit: "U-W"; kind: "area"; subject: string; token: string }>
+  | Readonly<{ unit: "U-F"; kind: "series"; subject: string; office: string }>
+);
+
+// Emitted by A4/A5/A6 only after final admission of a current-establishing received report.
+export type CurrentConfirmationEvidence = Readonly<{
+  source: "acceptedReport";
+  scopes: readonly Exclude<ConfirmationScope, { kind: "unit" }>[];
+}>;
+
+export type RuntimeConfirmation = Readonly<{
+  epoch: number;
+  afterInputSequence: number;
+  units: Readonly<Record<RuntimeUnitId, Readonly<Record<Operation, Readonly<{
+    whole: UnconfirmedReason | null;
+    // Derived counters, maintained by A1; A8 reads nine slots without walking scopes.
+    counts: Readonly<Partial<Record<UnconfirmedReason, number>>>;
+    confirmedScopeCount: number;
+    // Incremental logical JSON byte count for this bounded scope array.
+    scopeBytes: number;
+    scopes: readonly Readonly<{ scope: ConfirmationScope; reason: UnconfirmedReason | null; confirmedAt: number | null }>[];
+    confirmedAt: number | null;
+  }>>>>>;
+}>;
+
 // P2-A1-AC09/Q-R20-CLEAR: unit-validated decision evidence; no XML or report body.
 export type AdmissionEvidence = Readonly<{
   family: string;
@@ -299,16 +368,22 @@ export type AdmissionSlot = Readonly<{
   overflow: boolean;
 }>;
 
+// P2-A1-ADMISSION-COUNTS: nine aggregate counts; no rejection records cross this boundary.
+export type RuntimeAdmissionCounts = Readonly<Record<RuntimeUnitId, Readonly<Record<Operation, number>>>>;
+
 export type RuntimeAdmission = Readonly<Partial<Record<RuntimeUnitId, Readonly<Partial<Record<Operation, AdmissionSlot>>>>>>;
 
 export type RuntimeState<UnitStates extends RuntimeUnitStates = RuntimeUnitStates> = Readonly<{
   runId: string;
   units: UnitStates;
   restoration: RuntimeRestoration;
+  confirmation: RuntimeConfirmation;
+  views: RuntimeViews;
   admission: RuntimeAdmission;
   checkpointAttempts: Readonly<Partial<Record<RuntimeUnitId, PendingCheckpointAttempt>>>;
   deadlines: Readonly<Record<RuntimeUnitId, RuntimeUnitDeadline | null>>;
   notificationChannels: NotificationDeliveryState["channels"];
+  notificationProbeComplete: boolean;
   notificationDeadlines: NotificationDeliveryState["deadlines"];
   shutdown: ShutdownState;
 }>;
@@ -324,8 +399,10 @@ export type RuntimeStep<UnitStates extends RuntimeUnitStates = RuntimeUnitStates
   abortRequests: NotificationSelection["abortRequests"];
   effects: readonly RuntimeEffect[];
   shutdownSummary: ShutdownSummary | null;
-  outcomes: readonly PublishedOutcome[];
-  views: readonly UnitView[];
+  outcomes: readonly RuntimePublishedOutcome[];
+  views: readonly RuntimeUnitView[];
+  admissionCounts: RuntimeAdmissionCounts;
+  displayChanges: readonly RuntimeDisplayChange[];
   diagnostics: readonly DiagnosticEvent[];
 }>;
 

@@ -96,7 +96,7 @@ function diagnostic(material: DecodedMaterial, reason: RejectionReason): Diagnos
 }
 
 function rejection(state: EewUnitState, material: DecodedMaterial, reason: RejectionReason,
-  details = diagnostic(material, reason)): EewUnitStep {
+  details = diagnostic(material, reason)): Omit<EewUnitStep, "displayChanges" | "confirmationEvidence"> {
   return {
     state, nextDeadline: nextEewDeadline(state),
     decisions: [{ subject: "", operation: material.operation, decision: "rejected", reason }],
@@ -278,9 +278,10 @@ function dirty(persistence: PersistenceStatus, nowMs: number): PersistenceStatus
   return persistence.kind === "saved" ? { ...progress, kind: "pending" } : progress;
 }
 
-function outcome(candidate: Candidate, transition: string, prediction: EewPrediction | null): SubjectOutcome {
+function outcome(candidate: Candidate, transition: string, prediction: EewPrediction | null, warning: boolean): SubjectOutcome {
   const facts: Readonly<Record<string, JsonValue>> = {
     family: candidate.family, serial: candidate.serial, terminal: candidate.terminal,
+    eventId: candidate.subject.split("/")[2], warningClass: warning ? "warning" : "forecast",
     ...(prediction == null ? {} : { prediction }),
   };
   return {
@@ -290,7 +291,8 @@ function outcome(candidate: Candidate, transition: string, prediction: EewPredic
   };
 }
 
-function reduceEew(state: EewUnitState, input: Extract<EewInput, { kind: "receive" }>): EewUnitStep {
+function reduceEew(state: EewUnitState, input: Extract<EewInput, { kind: "receive" }>,
+  changed: (before: EewCurrent | null, after: EewCurrent | null) => void = () => {}): Omit<EewUnitStep, "displayChanges" | "confirmationEvidence"> {
   const validated = validateCandidate(input.material);
   if (validated.kind === "rejected")
     return rejection(state, input.material, validated.reason, validated.diagnostic);
@@ -315,6 +317,15 @@ function reduceEew(state: EewUnitState, input: Extract<EewInput, { kind: "receiv
   const assumed = isAssumedHypocenter(earthquake, forecast, magnitudeRaw);
   const noticeSource = { hypocenter: hypocenter == null ? null : scalar(hypocenter),
     magnitude: assumed ? null : magnitudeLabel, isAssumedHypocenter: assumed };
+  const eventId = candidate.subject.split("/")[2];
+  const warningAreas = candidate.warningAreas;
+  const headline = first(first(input.material.xml, "Head")!, "Headline");
+  const headlineWarning = (headline == null ? [] : elements(headline, "Information"))
+    .flatMap((info) => elements(info, "Item")).flatMap((item) => elements(item, "Kind")).some((kind) => {
+      const code = first(kind, "Code");
+      return Number.parseInt(code == null ? "" : scalar(code) ?? "", 10) === 31;
+    });
+  const warning = candidate.family === "VXSE43" || warningAreas.length > 0 || headlineWarning;
   const gate = state.gates.find((item) => item.subject === candidate.subject);
   const previous = state.current.find((item) => item.subject === candidate.subject);
   if (gate != null && candidate.serial < gate.serial) return {
@@ -330,6 +341,7 @@ function reduceEew(state: EewUnitState, input: Extract<EewInput, { kind: "receiv
     : !isDeepStrictEqual(previous.prediction, candidate.prediction);
   const projected: EewCurrent | null = candidate.cancelled || candidate.terminal ? null : {
     subject: candidate.subject, operation: candidate.operation, family: candidate.family,
+    eventId, warningClass: warning ? "warning" : "forecast",
     source: candidate.source, serial: candidate.serial, terminal: false, prediction: candidate.prediction!, retainedPrediction,
     isAssumedHypocenter: assumed,
   };
@@ -343,7 +355,9 @@ function reduceEew(state: EewUnitState, input: Extract<EewInput, { kind: "receiv
     if (gate.terminal === candidate.terminal && gate.source.reportDateTimeRaw === candidate.source.reportDateTimeRaw
       && (gate.source.infoTypeRaw === candidate.source.infoTypeRaw
         || candidate.source.infoTypeRaw === "訂正" && assumed && gate.noticeSource.isAssumedHypocenter)
-      && !predictionChanged && isDeepStrictEqual(gate.noticeSource, noticeSource)) return {
+      && !predictionChanged && (candidate.cancelled || candidate.terminal
+        || previous?.warningClass === (warning ? "warning" : "forecast"))
+      && isDeepStrictEqual(gate.noticeSource, noticeSource)) return {
       state, nextDeadline: nextEewDeadline(state), decisions: [{ subject: candidate.subject, operation: candidate.operation,
         decision: "unchanged", reason: "duplicate" }], intents: [], outcomes: [], diagnostics: [],
     };
@@ -370,7 +384,11 @@ function reduceEew(state: EewUnitState, input: Extract<EewInput, { kind: "receiv
       if (a[index] !== b[index]) return a[index] < b[index] ? -1 : 1;
     return 0;
   }).slice(0, needed).map((item) => item.subject));
-  let currents = state.current.filter((item) => item.subject !== candidate.subject && !evicted.has(item.subject));
+  let currents = state.current.filter((item) => {
+    if (evicted.has(item.subject)) changed(item, null);
+    return item.subject !== candidate.subject && !evicted.has(item.subject);
+  });
+  if (previous !== projected) changed(previous ?? null, projected);
   let gates = state.gates.filter((item) => item.subject !== candidate.subject && !evicted.has(item.subject));
   if (projected != null) currents = [...currents, projected];
   const nextGate: EewGate = {
@@ -379,7 +397,6 @@ function reduceEew(state: EewUnitState, input: Extract<EewInput, { kind: "receiv
   };
   gates = [...gates, nextGate];
 
-  const eventId = candidate.subject.split("/")[2];
   const previousLatch = state.notificationLatches.find((item) => item.operation === candidate.operation && item.eventId === eventId);
   // A receive always retains its gate; only capacity eviction can remove a latch's last owner.
   const owners = evicted.size === 0 ? null : new Set([...currents, ...gates].map((owner) => owner.subject));
@@ -407,16 +424,6 @@ function reduceEew(state: EewUnitState, input: Extract<EewInput, { kind: "receiv
       || priorRecords.some((item) => item.disposition === "delivered") ? "possible"
       : hasHistory || candidate.cancelled || input.clock.wallTimeMs < evidenceUnknownUntil ? "unknown" : "unattempted";
   }
-  const head = first(input.material.xml, "Head")!;
-  const warningAreas = candidate.warningAreas;
-  const areaWarning = warningAreas.length > 0;
-  const headline = first(head, "Headline");
-  const headlineWarning = (headline == null ? [] : elements(headline, "Information"))
-    .flatMap((info) => elements(info, "Item")).flatMap((item) => elements(item, "Kind")).some((kind) => {
-      const code = first(kind, "Code");
-      return Number.parseInt(code == null ? "" : scalar(code) ?? "", 10) === 31;
-    });
-  const warning = candidate.family === "VXSE43" || areaWarning || headlineWarning;
   const correction = candidate.source.infoTypeRaw === "訂正";
   const notify = candidate.cancelled ? deliveryEvidence !== "unattempted"
     : correction || candidate.terminal
@@ -538,7 +545,8 @@ function reduceEew(state: EewUnitState, input: Extract<EewInput, { kind: "receiv
   const durableChanged = records.length !== state.deliveryRecords.length || proposed.length !== state.intents.length
     || proposed.some((intent, index) => intent !== state.intents[index]);
   const semanticChanged = predictionChanged
-    || gate?.terminal !== candidate.terminal || evicted.size !== 0;
+    || gate?.terminal !== candidate.terminal || evicted.size !== 0
+    || projected != null && previous?.warningClass !== projected.warningClass;
   const change = semanticChanged ? "semantic" : "revisionOnly";
   const next: EewUnitState = {
     ...state, current: currents, gates, evidenceUnknownUntil,
@@ -564,7 +572,7 @@ function reduceEew(state: EewUnitState, input: Extract<EewInput, { kind: "receiv
       decision: "changed", reason: null, change,
       currentEstablished: { family: candidate.family, reportDateTimeMs: Date.parse(candidate.source.reportDateTimeRaw), affectedScope: "subject" } }],
     intents: admitted ? newIntents : [],
-    outcomes: [{ kind: "accepted", change, subjects: [outcome(candidate, transition, candidate.prediction)] }],
+    outcomes: [{ kind: "accepted", change, subjects: [outcome(candidate, transition, candidate.prediction, warning)] }],
     diagnostics: [
       ...(expired.length === 0 ? [] : [{ level: "INFO" as const, component: "eew", reason: "notificationExpired" as const,
         unit: "U-E" as const, count: expired.length }]),
