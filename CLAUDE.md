@@ -36,8 +36,6 @@ npm run start:lowmem # メモリ最適化モードで実行
 - 型で守る（type-system-discipline）: 不正な状態を型で表現不能にする。外部データ（dmdata の XML / JSON、設定、CLI 引数）は境界でパースして内部では型を信頼する。`as` や `any` でコンパイラに嘘をつかない。判別共用体は `switch` で網羅する
 - 足す前に引く（subtract-before-you-add）: 機能追加の前に、死んだコード・冗長なバリデータ・スタブ参照を先に除き、単純になった土台の上に作る。変更は問題を解く最小のものに寄せる
 - 上 2 行の出典と、未採用の候補 7 本は作業ノート（repo 外）の pstack 21 原則の棚卸し
-- 最小実装（オーバーエンジニアリング回避）: 仕組みを 1 つ足す前に「それは要るか・無いと何が壊れるか」を 1 行で書く。実装が 1 つしかない interface、製品が 1 つの factory、変わらない値の設定化、将来のための拡張点・scaffolding は作らない。最新の Codex モデル（gpt-6-astra）はここが厚くなりやすいので、委譲文に必ず明記する（2026-09-11 作者指示）
-- 最小テスト（無駄なテストを作らない）: テストは **受入条件・契約の境界・実際に起きた不具合の再発防止・corpus 履歴（fixture→期待状態）** に限る。実装の内部構造を写すテスト、同じ分岐の言い換え、fixture の焼き直し、private 関数ごとの suite は作らない。1 つの振る舞いに 1 テスト。「テストが多い＝安全」ではない。ponytail（YAGNI はしご）は両エージェントに runtime で注入されるが、それは語りの層。この 2 行が repo に残る規範で、clone 先や plugin off でも効く
 
 ## Claude Harness Policy
 
@@ -51,17 +49,17 @@ npm run start:lowmem # メモリ最適化モードで実行
 
 ## レビュー方針
 
-- コードレビューはサブエージェントではなく **Codex MCP に依頼**する
+- コードレビューはサブエージェントではなく **Codex（`codex exec`）に依頼**する
 - Superpowers が生成した specs/plans は作業完了後 `~/Dev/Superpowers_Archive/` に移動し、`docs/superpowers/` を削除する
 
 ## Codex 併用ルール（分担表 v1, 2026-07-14）
 
 | 用途 | モデル |
 |---|---|
-| 日常相談・探索・コード読解 | Terra medium |
+| 日常相談・探索・コード読解 | gpt-6-sol medium（GPT-6 に Terra は無い。2026-09-23〜） |
 | 中間 diff レビュー（フェーズ末含む） | Astra high（2026-09-15 作者指示。レビュー依頼は全て Astra high） |
-| 定型実装の委譲 | Luna medium/high |
-| 難しい範囲限定実装 | Sol medium/high |
+| 定型実装の委譲 | gpt-6-luna medium/high |
+| 難しい範囲限定実装 | gpt-6-sol medium/high |
 | 最終全体レビュー・セキュリティ・見解衝突 | 新規スレッドの Astra high |
 
 - **独立レビューは必ず新規 codex 呼び出し + read-only**。実装に使ったスレッドを流用しない
