@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "585d2f4f858e350c6965d83019ba7e4842285b3c",
-    "sha256": "4ff7304c4988f22e6225eb4a1f22ff8f302b1e4aba3d809f9e44d6a55b78150c",
+    "sha256": "5d04a5d1ddac2318f2803b0e48022bf3d1dd67bec553bd4b2c32e4040babbeef",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "76c82b87d7783a4eae14af690cb34e7d6ec46f73617dc75b7f7401951619f080",
     "sequencesSha256": "be9cfd97b555e3a55568f085d107342c978b3dc7249f5cecea868ea5a62c5781",
@@ -430,7 +430,7 @@
       },
       {
         "id": "P2-A8-AC07",
-        "requirement": "E01 markerの所有境界: T3は採用・公開用射影完了、T4は対象snapshotをSSE writerへ渡した時刻、T5はA9がChrome受信時に記録する。A8はmarkerだけを出しtrace schema/manifestや正式E01判定を所有しない",
+        "requirement": "E01 markerの所有境界: T3は採用・公開用射影完了（projectSnapshotは時計を受け取らない純関数なので、A3がprojected結果の返却直後に記録する。2026-09-24 統合担当）、T4は対象snapshotをSSE writerへ渡した時刻、T5はA9がChrome受信時に記録する。A8はmarkerだけを出しtrace schema/manifestや正式E01判定を所有しない",
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:1111 «87b8c62477d732bb»",
           "docs/specs/reconstruction-p0-contracts.md:1112 «9481d7045a5e19c4»",
@@ -539,7 +539,7 @@
           "P2-A8-AC07",
           "P2-A8-AC09"
         ],
-        "behavior": "expected:O02:2(VPWP50 high_severity,U-F active)、expected:O02:14(VPWP50,U-F)、expected:O06:10(VPWW57,U-W)、expected:O07:16(VXSE43,U-E)、expected:O09:12(VXSE45,U-E)を各stepRefs/fixtureIdsの採用集合と同一にし、所有unitで採用→view→snapshotを対応させる。WはR39 Code階級、FはQ-VALUES、EEWはA4 warningClassをassert。T3/T4 markerとnotice生成対象も検収する。unmet:O06:2-8は正式Passに数えない。"
+        "behavior": "expected:O02:2(VPWP50 high_severity,U-F active)、expected:O02:14(VPWP50,U-F)、expected:O06:10(VPWW57,U-W)、expected:O07:16(VXSE43,U-E)、expected:O09:12(VXSE45,U-E)を各stepRefs/fixtureIdsの採用集合と同一にし、所有unitで採用→view→snapshotを対応させる。WはR39 Code階級、FはQ-VALUES、EEWはA4 warningClassをassert。T4 markerとnotice生成対象も検収する（T3はA3がprojected返却直後に記録するため、A8配送後のA3結線で検収する）。unmet:O06:2-8は正式Passに数えない。"
       },
       {
         "testId": "P2-A8-T06",
