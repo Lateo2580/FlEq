@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "585d2f4f858e350c6965d83019ba7e4842285b3c",
-    "sha256": "5d04a5d1ddac2318f2803b0e48022bf3d1dd67bec553bd4b2c32e4040babbeef",
+    "sha256": "b85b30b6fe6a0f6d6ef2f836f41272f9f520751275a27e1c9fededd16bba12f1",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "76c82b87d7783a4eae14af690cb34e7d6ec46f73617dc75b7f7401951619f080",
     "sequencesSha256": "be9cfd97b555e3a55568f085d107342c978b3dc7249f5cecea868ea5a62c5781",
@@ -337,7 +337,7 @@
       {
         "id": "P2-A8-RES-05",
         "target": "strings in common metadata, VisibleNotice and summary",
-        "limit": "256 UTF-8 bytes per string except VisibleNotice.text: 4096 bytes; JSON escaping is additionally counted in aggregate budgets",
+        "limit": "256 UTF-8 bytes per string except VisibleNotice.text: 4096 bytes; JSON escaping is additionally counted in aggregate budgets. persistence[unit].reason (kind=failed) is never a rejection cause: when over 256 bytes, A8 shortens it to the longest Unicode-scalar prefix (lone surrogates normalized to U+FFFD) plus the fixed marker [truncated:fieldLimit] (same as A1 boundedString) within 256 bytes including the marker. Reason: A1 bounds it at 1536 bytes, so rejecting would freeze every domain until the save succeeds (2026-09-24 author ruling, structural defect ledger 50). streamId/generatedAt keep snapshotStringLimitExceeded",
         "scope": "common metadata, VisibleNotice and summary string values only; full EewUnitView/WeatherCurrentUnitView/WeatherTimeseriesUnitView values including upstream semanticRevision/contentRevision are excluded from per-string limit but counted in domain and total JSON bytes",
         "source": "§8.3 bounded schema; P2 fixed boundary"
       },

@@ -4,6 +4,7 @@ import type { Operation } from "../../contracts/p1-parser-boundary.types";
 import type { NotificationChannelState } from "../../contracts/p2-notification-delivery.types";
 import type {
   DiagnosticDetails,
+  PersistenceStatus,
   ReportRef,
   RuntimeConfirmation,
   RuntimeDisplaySubject,
@@ -35,6 +36,8 @@ const STRING_BYTES = 256;
 const NOTICE_ITEMS = 64;
 const NOTICE_BYTES = 131_072;
 const OFFICE_BYTES = 256;
+// Same marker as A1 boundedString, so a reason already cut upstream reads the same.
+const TRUNCATED_MARKER = "[truncated:fieldLimit]";
 const DATE_LIMIT = 8_640_000_000_000_000;
 const OPERATIONS = ["normal", "training", "test"] as const;
 const TTL: Readonly<Record<RuntimeUnitId, number>> = { "U-E": 15_000, "U-W": 60_000, "U-F": 60_000 };
@@ -451,13 +454,13 @@ function projectDomain<View extends AnyView>(unit: RuntimeUnitId, previous: Disp
   };
 }
 
-function wellFormedPrefix(value: string): Readonly<{ text: string; truncated: boolean }> {
+function wellFormedPrefix(value: string, limit = OFFICE_BYTES): Readonly<{ text: string; truncated: boolean }> {
   let text = "", size = 0;
   for (const char of value) {
     const point = char.codePointAt(0)!;
     const scalar = point >= 0xd800 && point <= 0xdfff ? "\ufffd" : char;
     const width = Buffer.byteLength(scalar);
-    if (size + width > OFFICE_BYTES) return { text, truncated: true };
+    if (size + width > limit) return { text, truncated: true };
     text += scalar;
     size += width;
   }
@@ -529,8 +532,18 @@ function weatherSource(value: RuntimeDisplaySubject): ReportRef | null {
 
 function stringLimited(input: SnapshotProjectionInput): boolean {
   const over = (value: string) => Buffer.byteLength(value) > STRING_BYTES;
-  return over(input.streamId) || over(input.generatedAt)
-    || Object.values(input.persistence).some((item) => item?.kind === "failed" && over(item.reason));
+  return over(input.streamId) || over(input.generatedAt);
+}
+
+// RES-05 (2026-09-24 ruling, ledger 50): a failed save reason is shortened, never a reason to freeze the screen.
+function boundedPersistence(persistence: SnapshotProjectionInput["persistence"]): SnapshotProjectionInput["persistence"] {
+  let result = persistence;
+  for (const [unit, item] of Object.entries(persistence) as [RuntimeUnitId, PersistenceStatus][]) {
+    if (item.kind !== "failed" || Buffer.byteLength(item.reason) <= STRING_BYTES) continue;
+    const reason = wellFormedPrefix(item.reason, STRING_BYTES - TRUNCATED_MARKER.length).text + TRUNCATED_MARKER;
+    result = { ...result, [unit]: { ...item, reason } };
+  }
+  return result;
 }
 
 function channel(state: NotificationChannelState, probeComplete: boolean): DisplayChannelView {
@@ -651,7 +664,7 @@ function projectSnapshot(input: SnapshotProjectionInput, previous: SnapshotProje
     schemaVersion: 1, streamId: input.streamId, sequence: (published?.sequence ?? 0) + 1,
     generatedAt: input.generatedAt,
     semanticRevision: JSON.stringify(domains.map((item) => item.full.contentRevision)),
-    connection: input.connection, worker: input.worker, persistence: input.persistence, recovery: input.recovery,
+    connection: input.connection, worker: input.worker, persistence: boundedPersistence(input.persistence), recovery: input.recovery,
     channels: { desktop: channel(input.notificationChannels.desktop, input.channelProbeComplete),
       sound: channel(input.notificationChannels.sound, input.channelProbeComplete) },
     current: { eew: eew.projection.full, weatherCurrent: weatherCurrent.projection.full,

@@ -168,13 +168,11 @@ describe("P2-A8-T07 contractBoundary (AC08/AC12)", () => {
   it("P2-A8-T07 / PUBLICATION (b): rejected steps keep internal deltas and notices; recovery publishes N+1 without double counting", () => {
     const published = projected(projectSnapshot(projectionInput(started, at), null));
     const one = combine(started.state, [received("run", eewReport("20240417000001"), clock)]);
-    const failed = { "U-E": { kind: "failed" as const, stage: "write" as const, reason: "x".repeat(300),
-      currentGeneration: 1, savedGeneration: 0, savedCapturedAt: null, savedAckAt: null, dirtySince: 1 } };
     const counts = { ...one.admissionCounts, "U-W": { normal: 2, training: 0, test: 0 } };
     const two = combine(one.state, [received("run", eewReport("20240417000002"), clock)]);
     let state = published.state;
     for (const value of [one, two]) {
-      const rejected = projectSnapshot(projectionInput({ ...value, admissionCounts: counts }, at, { persistence: failed }), state);
+      const rejected = projectSnapshot(projectionInput({ ...value, admissionCounts: counts }, at, { generatedAt: "x".repeat(257) }), state);
       expect(rejected).toMatchObject({ kind: "rejected", reason: "snapshotStringLimitExceeded" });
       expect(rejected.state.snapshot).toBe(published.snapshot);
       state = rejected.state;
@@ -195,6 +193,17 @@ describe("P2-A8-T07 contractBoundary (AC08/AC12)", () => {
     expectMatchesReference(recovered.state, reference({ ...three, admissionCounts: counts }, at));
     const late = projected(projectSnapshot(projectionInput({ ...three, admissionCounts: counts }, at + 15_000), state));
     expect(late.snapshot.notices.map((item) => item.operation)).toEqual(["test"]);
+  });
+
+  it("P2-A8-T07 / RES-05 (ledger 50): a long failed-save reason is shortened on a scalar boundary, never a rejection", () => {
+    const reason = `ENOSPC: /${"状態".repeat(200)}\ud800`;
+    const failed = { "U-E": { kind: "failed" as const, stage: "write" as const, reason,
+      currentGeneration: 1, savedGeneration: 0, savedCapturedAt: null, savedAckAt: null, dirtySince: 1 } };
+    const shown = projected(projectSnapshot(projectionInput(started, at, { persistence: failed }), null)).snapshot.persistence["U-E"];
+    if (shown?.kind !== "failed") throw new Error("expected a failed persistence");
+    expect(Buffer.byteLength(shown.reason)).toBeLessThanOrEqual(256);
+    expect(shown.reason.endsWith("[truncated:fieldLimit]")).toBe(true);
+    expect(reason.startsWith(shown.reason.slice(0, -"[truncated:fieldLimit]".length))).toBe(true);
   });
 
   it.each([["U-E", 15_000], ["U-F", 60_000]] as const)("P2-A8-T07: %s TTL %i accepts both Date-range edges and rejects one past", (unit, ttl) => {
