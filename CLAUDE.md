@@ -80,6 +80,7 @@ npm run start:lowmem # メモリ最適化モードで実行
 - 些細な成果でも記録する。記録しすぎて困ることはない
 - 記録先・テンプレート・運用ルールは作業ノート（repo 外）の記録手順を参照
 - 記録時に frontmatter `relations:`（8 型）を任意付与、関連参照は作業ノート（repo 外）の関連情報索引を入口にする
+  - 型は `implements` / `deployed_as` / `derived_from` / `reviewed_in` / `supersedes` / `part_of` / `depends_on` / `follows` のみ（`produces` 等の造語は検査で ERROR）。向きは「新しいもの・成果物 → 親・根拠・旧版」で、成果物は生んだ側を `derived_from` で指す
 
 ## バックログ運用
 
