@@ -11,7 +11,7 @@ import type {
 } from "../../contracts/p2-snapshot-sse.types";
 import { decodeMaterial } from "../../src/decode-material/decode-material";
 import { ingestXmlData } from "../../src/ingress/ingress";
-import { linkedRuntimeCalls, linkedUnitCodecs } from "../../src/runtime/composition-root";
+import { linkedRuntimeCalls, linkedUnitCodecs, snapshotInput } from "../../src/runtime/composition-root";
 import { reduceRuntime } from "../../src/runtime/shared-runtime";
 import { currentSubject } from "../../src/units/eew/eew-unit";
 import { displaySubjects } from "../../src/units/weather-current/weather-current-unit";
@@ -49,19 +49,10 @@ function step(state: RuntimeState, input: RuntimeInput): RuntimeStep {
 
 type Step = Pick<RuntimeStep, "state" | "outcomes" | "displayChanges" | "admissionCounts">;
 
+// The product A3 mapping with a fixed stream and a connected, healthy transport.
 function projectionInput(value: Step, nowMs: number, overrides: Partial<SnapshotProjectionInput> = {}): SnapshotProjectionInput {
-  const { state } = value;
-  return {
-    streamId: "stream", generatedAt: Number.isNaN(new Date(nowMs).getTime()) ? String(nowMs) : new Date(nowMs).toISOString(), nowMs,
-    connection: { state: "connected", disconnectedAt: null, lastInputAt: null },
-    worker: { state: "healthy", lastProgressAtMonotonicMs: null, lastResponseAtMonotonicMs: null },
-    persistence: { "U-E": state.units["U-E"].persistence, "U-W": state.units["U-W"].persistence,
-      "U-F": state.units["U-F"].persistence },
-    recovery: state.restoration, confirmation: state.confirmation, admissionCounts: value.admissionCounts,
-    notificationChannels: state.notificationChannels, channelProbeComplete: state.notificationProbeComplete,
-    eew: state.views["U-E"], weatherCurrent: state.views["U-W"], weatherTimeseries: state.views["U-F"],
-    outcomes: value.outcomes, displayChanges: value.displayChanges, ...overrides,
-  };
+  return { ...snapshotInput(value, "stream", nowMs, { state: "connected", disconnectedAt: null, lastInputAt: null },
+    { state: "healthy", lastProgressAtMonotonicMs: null, lastResponseAtMonotonicMs: null }), ...overrides };
 }
 
 // Reference only (P2-A1-DISPLAY-CHANGES.acceptance): every current subject as an addition.

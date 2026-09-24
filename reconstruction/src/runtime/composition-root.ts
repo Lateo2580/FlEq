@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { promises as fileSystem, readFileSync, unlinkSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
@@ -28,6 +29,9 @@ import type {
 } from "../../contracts/p2-shared-runtime.types";
 import type { ParserDiagnostic } from "../../contracts/p1-parser-boundary.types";
 import type { NotificationAbortRequest, NotificationAttempt, NotificationChannel, NotificationChannelState } from "../../contracts/p2-notification-delivery.types";
+import type {
+  DisplayConnectionView, DisplaySnapshot, DisplayVersion, DisplayWorkerView, SnapshotProjectionInput, SnapshotProjectionState,
+} from "../../contracts/p2-snapshot-sse.types";
 import { validateAppConfig } from "../app-config/app-config";
 import type { AppConfig } from "../app-config/app-config";
 import { CheckpointCoordinator } from "../checkpoint/checkpoint";
@@ -42,6 +46,7 @@ import { reduceWeatherCurrentUnit, toWeatherCurrentView, weatherCurrentUnitCodec
 import {
   reduceWeatherTimeseriesUnit, toWeatherTimeseriesView, weatherTimeseriesUnitCodec,
 } from "../units/weather-timeseries/weather-timeseries-unit";
+import { projectSnapshot } from "../view-projector/view-projector";
 import { completeDiagnostic } from "./runtime-diagnostic";
 import { reduceRuntime } from "./shared-runtime";
 
@@ -72,7 +77,33 @@ type CompositionOptions = Readonly<{
   shutdownHooks?: ShutdownHooks;
   reportFailure?: (event: DiagnosticEvent) => void;
   onMeasurements?: (measurements: readonly CheckpointMeasurement[]) => void;
+  // P2-A3-A8-LINK: without it snapshots are still projected (state kept) but not published.
+  display?: Readonly<{
+    publish: (snapshot: DisplaySnapshot) => void;
+    onMarker?: (marker: Readonly<{ point: "T3"; clock: "node"; monotonicMs: number }>, version: DisplayVersion) => void;
+    // Keeps /healthz and heartbeat on the same worker view as the snapshot (P2-A8-AC04).
+    setWorker?: (worker: DisplayWorkerView) => void;
+  }>;
 }>;
+
+type ProjectedStep = Pick<RuntimeStep, "state" | "outcomes" | "displayChanges" | "admissionCounts">;
+
+// The one A1 step -> A8 input mapping; connection/worker come from the caller.
+function snapshotInput(step: ProjectedStep, streamId: string, nowMs: number,
+  connection: DisplayConnectionView, worker: DisplayWorkerView): SnapshotProjectionInput {
+  const { state } = step;
+  const date = new Date(nowMs);
+  return {
+    // An invalid clock is passed through unrounded; A8 rejects it as snapshotClockInvalid.
+    streamId, generatedAt: Number.isNaN(date.getTime()) ? String(nowMs) : date.toISOString(), nowMs, connection, worker,
+    persistence: { "U-E": state.units["U-E"].persistence, "U-W": state.units["U-W"].persistence,
+      "U-F": state.units["U-F"].persistence },
+    recovery: state.restoration, confirmation: state.confirmation, admissionCounts: step.admissionCounts,
+    notificationChannels: state.notificationChannels, channelProbeComplete: state.notificationProbeComplete,
+    eew: state.views["U-E"], weatherCurrent: state.views["U-W"], weatherTimeseries: state.views["U-F"],
+    outcomes: step.outcomes, displayChanges: step.displayChanges,
+  };
+}
 
 function systemClock(): ClockReading {
   return { wallTimeMs: Date.now(), monotonicMs: performance.now() };
@@ -183,6 +214,13 @@ class RuntimeCompositionRoot {
   private readonly onMeasurements: (measurements: readonly CheckpointMeasurement[]) => void;
   private current: RuntimeState | null = null;
   private disconnectedAt: number | null = null;
+  // acceptedThroughSequence of the open loss; a later parser input sequence means the transport delivers again.
+  private lostThroughSequence: number | null = null;
+  private lastInputAt: number | null = null;
+  private readonly display: CompositionOptions["display"];
+  private streamId = "";
+  private projection: SnapshotProjectionState | null = null;
+  private noticeTimer: NodeJS.Timeout | null = null;
   private lastDiagnosticTick = -Infinity;
   private checkpointOperation: {
     attemptId: string;
@@ -198,6 +236,7 @@ class RuntimeCompositionRoot {
     this.notificationAdapter = options.notificationAdapter ?? { run: runNotificationAttempt, abort: abortNotificationAttempt };
     this.onMeasurements = options.onMeasurements ?? (() => {});
     this.mailbox = options.mailbox ?? new Mailbox();
+    this.display = options.display;
     this.diagnostics = new PersistentDiagnosticSink(config.diagnosticDirectory,
       options.diagnosticFileSystem ?? nodeDiagnosticFileSystem(), () => this.clock().wallTimeMs,
       options.reportFailure ?? ((event) => { process.stderr.write(`${JSON.stringify(event)}\n`); }));
@@ -237,6 +276,7 @@ class RuntimeCompositionRoot {
       "U-F": this.restoreUnit("U-F") };
     const step = reduceRuntime(null, { kind: "startup", runId, clock, restored, notificationChannels }, this.runtimeCalls);
     this.current = step.state;
+    this.streamId = randomUUID();
     for (const unit of ["U-E", "U-W", "U-F"] as const) {
       const base = restored[unit].kind === "restored" ? restored[unit].envelope.generation : 0;
       for (let generation = base + 1; generation <= step.state.units[unit].persistence.currentGeneration; generation++) {
@@ -247,6 +287,8 @@ class RuntimeCompositionRoot {
     }
     step.diagnostics.forEach((event) => this.enqueueDiagnostic(event));
     this.dispatchNotifications(step);
+    // After notifications: a display failure must not hold back an adopted step's delivery.
+    this.project(step, clock);
     return step;
   }
 
@@ -277,7 +319,15 @@ class RuntimeCompositionRoot {
     }
     this.checkCorrelations(step.state, correlationByUnit, contributions);
     this.current = step.state;
-    if (input.kind === "connectionLost") this.disconnectedAt = input.clock.wallTimeMs;
+    if (input.kind === "connectionLost") {
+      this.disconnectedAt = input.clock.wallTimeMs;
+      this.lostThroughSequence = input.acceptedThroughSequence;
+    }
+    if (input.kind === "mailboxCompleted" && input.completion.kind === "parser") {
+      this.lastInputAt = input.clock.wallTimeMs;
+      if (this.lostThroughSequence != null && input.completion.inputSequence > this.lostThroughSequence)
+        this.lostThroughSequence = null;
+    }
     this.contributions = contributions;
     if (result != null && input.kind === "mailboxCompleted") {
       this.checkpoint.resultMetadata(previous, result, input.clock);
@@ -286,7 +336,52 @@ class RuntimeCompositionRoot {
     }
     step.diagnostics.forEach((event) => this.enqueueDiagnostic(event));
     this.dispatchNotifications(step, input.kind === "notificationResult" ? input.result.attemptId : null);
+    // The step clock A1 adopted; only checkpointCaptured carries none.
+    this.project(step, input.kind === "notificationResult" ? input.result.completedAt
+      : "clock" in input ? input.clock : this.clock());
     return step;
+  }
+
+  // P2-A3-A8-LINK: every step is projected; rejected/unchanged states are kept, only projected is published.
+  private project(step: RuntimeStep, clock: ClockReading): void {
+    const { state } = step;
+    // Decision 9 fallback: stalled/unresponsive stay with the mailbox's own judgement until a host wires it.
+    const worker: DisplayWorkerView = { state: state.shutdown.stage === "completed" ? "stopped" : "healthy",
+      lastProgressAtMonotonicMs: null, lastResponseAtMonotonicMs: null };
+    const result = projectSnapshot(snapshotInput(step, this.streamId, clock.wallTimeMs,
+      this.connectionView(state), worker), this.projection);
+    this.projection = result.state;
+    for (const details of result.diagnostics) this.enqueueDiagnostic(completeDiagnostic(details, clock, state.runId));
+    const display = this.display;
+    if (display != null) {
+      // A display callback failure surfaces like a notification dispatch failure, after state is adopted.
+      const guard = (call: () => void) => { try { call(); } catch (error) { void Promise.reject(error); } };
+      guard(() => display.setWorker?.(worker));
+      if (result.kind === "projected") {
+        const { streamId, semanticRevision, sequence } = result.snapshot;
+        guard(() => display.onMarker?.({ point: "T3", clock: "node", monotonicMs: performance.now() },
+          { streamId, semanticRevision, sequence }));
+        guard(() => display.publish(result.snapshot));
+      }
+    }
+    // P2-A8-NOTICE.ttl: the earliest expiry re-enters the existing tick; scans <= 64 notices.
+    if (this.noticeTimer != null) clearTimeout(this.noticeTimer);
+    this.noticeTimer = null;
+    if (state.shutdown.stage !== "running" || result.state.notices.length === 0) return;
+    const delay = Math.min(...result.state.notices.map((item) => item.expiresAt)) - clock.wallTimeMs;
+    // An invalid clock keeps notices (A8 clock rule); the next valid step reschedules.
+    if (!Number.isFinite(delay)) return;
+    // Node turns a delay above 2^31-1 into 1 ms; clamp so a far wall-clock jump cannot spin the tick.
+    this.noticeTimer = setTimeout(() => {
+      this.noticeTimer = null;
+      this.tick(this.state, this.clock());
+    }, Math.min(Math.max(delay, 0), 2 ** 31 - 1));
+    this.noticeTimer.unref();
+  }
+
+  private connectionView(state: RuntimeState): DisplayConnectionView {
+    return { state: state.shutdown.stage !== "running" ? "stopped" : this.lostThroughSequence == null ? "connected" : "reconnecting",
+      disconnectedAt: this.disconnectedAt, lastInputAt: this.lastInputAt };
   }
 
   private dispatchNotifications(step: RuntimeStep, completedAttemptId: string | null = null): void {
@@ -465,6 +560,8 @@ class RuntimeCompositionRoot {
   async shutdownRuntime(state: RuntimeState, acceptedThroughSequence: number,
     clock: ClockReading): Promise<ShutdownSummary> {
     if (this.state.shutdown.stage !== "running") throw new Error("shutdown already started");
+    if (this.noticeTimer != null) clearTimeout(this.noticeTimer);
+    this.noticeTimer = null;
     const failure: { error?: unknown } = {};
     this.onNotificationDispatchFailure = (error) => {
       if (!Object.hasOwn(failure, "error")) failure.error = error;
@@ -570,5 +667,5 @@ class RuntimeCompositionRoot {
   }
 }
 
-export { RuntimeCompositionRoot, linkedRuntimeCalls, linkedUnitCodecs, nodeCheckpointFileSystem, nodeDiagnosticFileSystem };
+export { RuntimeCompositionRoot, linkedRuntimeCalls, linkedUnitCodecs, nodeCheckpointFileSystem, nodeDiagnosticFileSystem, snapshotInput };
 export type { CompositionOptions, ShutdownHooks };
