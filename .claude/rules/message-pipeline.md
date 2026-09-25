@@ -22,7 +22,7 @@ paths:
 
 `message-router.ts` が `classification` + `head.type` で振り分ける。
 
-0. （最優先・classification 非依存）`head.type` が `IGNORED_HEAD_TYPES` (VPWW53/54・VPZJ50・VPCJ50・VPFJ50・VMCJ50/51/52) → `ignore` ルート。handler 冒頭で早期 return し、**表示・通知・統計をすべてスキップ**（raw フォールバックも出さない）。配信終了予定 + 既存電文 (VPWW55-61/VPWS50・VPZJ51/VPCJ51/VPFJ51 等) と内容重複のため。
+0. （最優先・classification 非依存）`head.type` が `IGNORED_HEAD_TYPES` (VPWW53/54・VPZJ50・VPCJ50・VPFJ50・VMCJ50/51/52・VPTI50/51/52) → `ignore` ルート。handler 冒頭で早期 return し、**表示・通知・統計をすべてスキップ**（raw フォールバックも出さない）。配信終了予定 + 既存電文 (VPWW55-61/VPWS50・VPZJ51/VPCJ51/VPFJ51・VPTW60-65/VPTA50-55 等) と内容重複のため。
 1. （classification 非依存）`head.type` が `VPOA50`/`VPNO50`/`VXWW50` → 専用 `legacyCounterpart` パス (最小 parser + counterpart correlator。production rule 未確認時は holdback 後に fail-open)
 2. `eew.forecast` / `eew.warning` → EEW パス (EewTracker 重複検出 + EewEventLogger)
 3. `telegram.volcano` → 火山パス (VolcanoStateHolder + VolcanoPresentation)

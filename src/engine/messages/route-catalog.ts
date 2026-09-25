@@ -98,6 +98,7 @@ export const IGNORED_HEAD_TYPES = [
   "VPWW53", "VPWW54",            // 旧 気象警報・注意報 (VPWW55-61/VPWS50 と重複)
   "VPZJ50", "VPCJ50", "VPFJ50",  // 旧 気象情報 (VPZJ51/VPCJ51/VPFJ51 と重複)
   "VMCJ50", "VMCJ51", "VMCJ52",  // 潮位情報
+  "VPTI50", "VPTI51", "VPTI52",  // 全般台風情報 (2028 年以降廃止予定、台風は VPTW60-65/VPTA50-55 で表示)
 ] as const;
 
 /** Phase 6B legacy counterpart の source type。classification とは独立に専用 route へ送る。 */
