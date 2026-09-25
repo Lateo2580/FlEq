@@ -6,7 +6,7 @@ import {
   typhoonAnalysisSoundLevel,
 } from "../level-helpers";
 
-/** 台風解析・予報情報 (VPTW60/61/62) を処理し TyphoonAnalysisOutcome を返す。パース失敗時は null。 */
+/** 台風解析・予報情報 (VPTW60-65) を処理し TyphoonAnalysisOutcome を返す。パース失敗時は null。 */
 export function processTyphoonAnalysis(msg: WsDataMessage): TyphoonAnalysisOutcome | null {
   const info = parseTyphoonAnalysis(msg);
   if (!info) return null;

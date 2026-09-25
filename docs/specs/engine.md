@@ -394,8 +394,8 @@ function createMessageHandler(options?: MessageHandlerOptions): MessageHandlerRe
 14. **`telegram.weather` + `VPZI50` / `VPCI50`** — 全般/地方天候情報 (`climateInfo` ルート)
 15. **`telegram.weather` + `VPCJ51` / `VPZJ51` / `VPFJ51` / `VMCJ53-55`** — 気象解説情報 (地方/全般/府県 + 潮位版) (`weatherExplanation` ルート)
 16. **`telegram.weather` + `VPFT50`** — 熱中症警戒アラート (`heatAlert` ルート)
-17. **`telegram.weather` + `VPTW60-62`** — 台風解析・予報情報 (`typhoonAnalysis` ルート)
-18. **`telegram.weather` + `VPTA50`** — 台風の暴風域に入る確率 (`typhoonProbability` ルート)
+17. **`telegram.weather` + `VPTW60-65`** — 台風解析・予報情報 (`typhoonAnalysis` ルート)
+18. **`telegram.weather` + `VPTA50-55`** — 台風の暴風域に入る確率 (`typhoonProbability` ルート)
 19. **`telegram.weather` + `VXKO50-89` / `VXSU50-59`** — 指定河川洪水予報・水位周知河川 (`floodForecast` ルート)
 20. **それ以外** — `displayRawHeader()` フォールバック
 
@@ -1963,8 +1963,8 @@ function toPresentationEvent(outcome: ProcessOutcome): PresentationEvent
 | `from-climate-info.ts` | `ClimateInfoOutcome` | 全般/地方天候情報 (VPZI50/VPCI50)。`controlTitle` を搭載し VPZI50/VPCI50 の表示出し分けに使用 |
 | `from-weather-explanation.ts` | `WeatherExplanationOutcome` | 気象解説情報 (VPCJ51/VPZJ51/VPFJ51/VMCJ53-55) |
 | `from-heat-alert.ts` | `HeatAlertOutcome` | 熱中症警戒アラート (VPFT50) |
-| `from-typhoon-analysis.ts` | `TyphoonAnalysisOutcome` | 台風解析・予報情報 (VPTW60/61/62) |
-| `from-typhoon-probability.ts` | `TyphoonProbabilityOutcome` | 台風の暴風域に入る確率 (VPTA50) |
+| `from-typhoon-analysis.ts` | `TyphoonAnalysisOutcome` | 台風解析・予報情報 (VPTW60-65) |
+| `from-typhoon-probability.ts` | `TyphoonProbabilityOutcome` | 台風の暴風域に入る確率 (VPTA50-55) |
 | `from-flood-forecast.ts` | `FloodForecastOutcome` | 指定河川洪水予報・水位周知河川 (VXKO50-89/VXSU50-59)。Headline-only/取消の dedup bypass 4 ケース、`raw` に observed series + inundation areas を保持 |
 | `from-raw.ts` | `RawOutcome` | フォールバック用の最小変換。`parsed: null`、`isCancellation: false` 固定 |
 
@@ -2127,8 +2127,8 @@ function processEew(msg: WsDataMessage, eewTracker: EewTracker, eewLogger: EewEv
 | `process-climate-info.ts` | VPZI50/VPCI50 | frameLevel は一律 `normal`（取消は `cancel`） |
 | `process-weather-explanation.ts` | VPCJ51/VPZJ51/VPFJ51/VMCJ53-55 | frameLevel は一律 `normal`（取消は `cancel`） |
 | `process-heat-alert.ts` | VPFT50 | `resolveHeatAlertLevels` で frame/sound を pair 解決 |
-| `process-typhoon-analysis.ts` | VPTW60/61/62 | `resolveTyphoonAnalysisLevels` で frame/sound を pair 解決。frame は一律 `normal`（取消は `cancel`） |
-| `process-typhoon-probability.ts` | VPTA50 | parse preparation と stateless notification baseline を構成する。連続ゼロ抑制は router が accepted finalized classification を process-local holder へ適用した後だけ上書きする |
+| `process-typhoon-analysis.ts` | VPTW60-65 | `resolveTyphoonAnalysisLevels` で frame/sound を pair 解決。frame は一律 `normal`（取消は `cancel`） |
+| `process-typhoon-probability.ts` | VPTA50-55 | parse preparation と stateless notification baseline を構成する。連続ゼロ抑制は router が accepted finalized classification を process-local holder へ適用した後だけ上書きする |
 | `process-flood-forecast.ts` | VXKO50-89/VXSU50-59 | 共通 `TelegramRevisionGate` で EventID lifecycle を判定し、受理済み通常 VXKO だけを `floodForecastState.diffAndUpdate()` へ渡して station 単位 dedup + reasons を抽出する。dedup bypass 4 ケースは取消 (`rollback` のみ) / 訂正 / Headline-only (`rawStations` 空) / VXSU schema。取消後は tombstone が同一 revision の遅延報を拒否し、より新しい revision の再発表だけを新 lifecycle として受理する |
 | `process-raw.ts` | フォールバック | `statsCategory` を引数で受け取り、元ルートのカテゴリを保持。frameLevel 固定 `"info"` |
 

@@ -965,7 +965,7 @@ export class Notifier {
   }
 
   /**
-   * 台風解析・予報情報 (VPTW60/61/62)。
+   * 台風解析・予報情報 (VPTW60-65)。
    * @param soundLevelOverride outcome.presentation.soundLevel (再計算 drift の予防)。
    *   outcome を持つ経路 (dispatchNotify) では必ず渡す。取消は cancel 直指定が優先
    */

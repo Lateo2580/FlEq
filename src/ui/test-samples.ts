@@ -1284,11 +1284,11 @@ export const TEST_TABLES: Record<string, TestTableEntry> = {
     variants: heatAlertVariants(),
   },
   typhoonAnalysis: {
-    label: "台風解析・予報情報 (VPTW60/61/62)",
+    label: "台風解析・予報情報 (VPTW60-65)",
     variants: typhoonAnalysisVariants(),
   },
   typhoonProbability: {
-    label: "台風の暴風域に入る確率 (VPTA50)",
+    label: "台風の暴風域に入る確率 (VPTA50-55)",
     variants: typhoonProbabilityVariants(),
   },
   floodForecast: {

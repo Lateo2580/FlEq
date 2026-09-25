@@ -43,6 +43,7 @@ import {
   FIXTURE_VMCJ54_OSHIO,
   FIXTURE_VMCJ55_FUKUSHINDO,
   FIXTURE_VPTW60_2020,
+  FIXTURE_VPTA50_DAMREY,
 } from "../helpers/mock-message";
 import { notifyMock } from "../setup";
 import { WsDataMessage } from "../../src/types";
@@ -1433,13 +1434,37 @@ describe("message-router 統合テスト", () => {
   });
 
   describe("台風解析・予報情報 ルーティング", () => {
-    it("VPTW60/61/62 (telegram.weather) は typhoonAnalysis ルートに分類される", () => {
+    it("VPTW60/61/62 (telegram.weather、台風 3 つの同時発生) は typhoonAnalysis ルートに分類される", () => {
       const { handler, stats } = createHandler();
       handler(createMockWsDataMessage(FIXTURE_VPTW60_2020));
 
       const snap = stats.getSnapshot();
       expect(snap.categoryByType.get("VPTW60")).toBe("typhoonAnalysis");
       expect(getOutput()).toContain("台風解析・予報情報");
+    });
+
+    it("台風ごとに逐次割当される VPTA50-55 / VPTW60-65 はすべて台風ルートに分類される", () => {
+      const cases = [
+        { headType: "VPTA51", fixture: FIXTURE_VPTA50_DAMREY, category: "typhoonProbability" },
+        { headType: "VPTA55", fixture: FIXTURE_VPTA50_DAMREY, category: "typhoonProbability" },
+        { headType: "VPTW63", fixture: FIXTURE_VPTW60_2020, category: "typhoonAnalysis" },
+        { headType: "VPTW65", fixture: FIXTURE_VPTW60_2020, category: "typhoonAnalysis" },
+      ];
+      // 同じ fixture 本文は router の重複判定で統計前に落ちるので、報ごとに handler を分ける
+      for (const { headType, fixture, category } of cases) {
+        consoleSpy.mockClear();
+        const { handler, stats } = createHandler({
+          // VPTA の durable 保存は monitor が担う。ここでは分類だけを見るので保存は予約扱いにする
+          onVptaAdmissionCompletion: (completion) => completion.durableChanged
+            ? { kind: "scheduled", receipt: { kind: "scheduled", seq: 1 } }
+            : { kind: "notRequired" },
+          withStandbyDurableNotificationsSuppressed: (callback) => callback(),
+        });
+        handler(createMockWsDataMessageFromXml(readFixture(fixture), headType));
+        expect(stats.getSnapshot().categoryByType.get(headType), headType).toBe(category);
+        // raw fallback の見出し (displayRawHeader) ではなく台風の formatter で表示されたこと
+        expect(getOutput(), headType).not.toContain("電文受信: ");
+      }
     });
 
     it("通常報→同一 revision 訂正→同一訂正 replay は router 境界で二回だけ通知する", () => {

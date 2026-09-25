@@ -84,6 +84,12 @@ const FLOOD_FORECAST_HEAD_TYPES: readonly string[] = [
   ...Array.from({ length: 10 }, (_, i) => `VXSU${50 + i}`),
 ];
 
+/** 台風解析・予報情報 (VPTW60-65)。末尾番号は台風ごとの逐次割当 (dmdata 一覧の表記)。 */
+export const TYPHOON_ANALYSIS_HEAD_TYPES: readonly string[] = Array.from({ length: 6 }, (_, i) => `VPTW${60 + i}`);
+
+/** 台風の暴風域に入る確率 (VPTA50-55)。末尾番号は台風ごとの逐次割当 (dmdata 一覧の表記)。 */
+export const TYPHOON_PROBABILITY_HEAD_TYPES: readonly string[] = Array.from({ length: 6 }, (_, i) => `VPTA${50 + i}`);
+
 /**
  * 配信終了予定 + 既存表示と内容重複のため、受信しても無視する head.type。
  * classification を問わず最優先で ignore に倒す (`classification: null`)。
@@ -242,18 +248,18 @@ export const ROUTE_CATALOG = [
   {
     route: "typhoonAnalysis",
     statsCategory: "typhoonAnalysis",
-    foundationHeadTypes: ["VPTW60", "VPTW61", "VPTW62"],
+    foundationHeadTypes: TYPHOON_ANALYSIS_HEAD_TYPES,
     matcher: {
       kind: "headTypeSet",
       classification: "telegram.weather",
-      headTypes: ["VPTW60", "VPTW61", "VPTW62"],
+      headTypes: TYPHOON_ANALYSIS_HEAD_TYPES,
     },
   },
   {
     route: "typhoonProbability",
     statsCategory: "typhoonProbability",
-    foundationHeadTypes: ["VPTA50"],
-    matcher: { kind: "headTypeSet", classification: "telegram.weather", headTypes: ["VPTA50"] },
+    foundationHeadTypes: TYPHOON_PROBABILITY_HEAD_TYPES,
+    matcher: { kind: "headTypeSet", classification: "telegram.weather", headTypes: TYPHOON_PROBABILITY_HEAD_TYPES },
   },
   {
     route: "floodForecast",

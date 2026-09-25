@@ -38,6 +38,7 @@ import {
 } from "./vpww56-state";
 import { FLOOD_LEVEL_RANK, floodKindCodeToLevel, maxFloodLevel } from "../../dmdata/flood-level";
 import { jstDayKey } from "../../utils/jst-day-key";
+import { TYPHOON_ANALYSIS_HEAD_TYPES, TYPHOON_PROBABILITY_HEAD_TYPES } from "./route-catalog";
 import { nankaiBadgeAction } from "../display/nankai-status";
 import { normalizeTornadoPublishingOffice, tornadoTickerGroupKey } from "../display/tornado-group-key";
 import type { Route } from "./route-catalog";
@@ -421,7 +422,7 @@ export const HEAT_ALERT_REVISION_FAMILY_POLICY: RevisionFamilyPolicy<ParsedHeatA
 };
 
 export const TYPHOON_ANALYSIS_REVISION_FAMILY_POLICY: RevisionFamilyPolicy<ParsedTyphoonAnalysis> = {
-  domain: "typhoonAnalysis", revisionFamily: "typhoonAnalysis", headTypes: ["VPTW60", "VPTW61", "VPTW62"],
+  domain: "typhoonAnalysis", revisionFamily: "typhoonAnalysis", headTypes: TYPHOON_ANALYSIS_HEAD_TYPES,
   comparator: "reportDateTimeThenSerial",
   extractStateSubjectKey: (_meta, parsed) => typhoonAnalysisStateSubjectKey(parsed),
   extractCancellationTarget: (_meta, parsed) => {
@@ -435,7 +436,7 @@ export const TYPHOON_ANALYSIS_REVISION_FAMILY_POLICY: RevisionFamilyPolicy<Parse
 };
 
 export const TYPHOON_PROBABILITY_REVISION_FAMILY_POLICY: RevisionFamilyPolicy<ParsedTyphoonProbability> = {
-  domain: "typhoonProbability", revisionFamily: "VPTA50", headTypes: ["VPTA50"],
+  domain: "typhoonProbability", revisionFamily: "VPTA50", headTypes: TYPHOON_PROBABILITY_HEAD_TYPES,
   comparator: "reportDateTimeThenSerial",
   extractStateSubjectKey: (_meta, parsed) => typhoonProbabilityStateSubjectKey(parsed),
   extractCancellationTarget: (_meta, parsed) => {

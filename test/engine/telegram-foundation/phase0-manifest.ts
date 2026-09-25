@@ -775,12 +775,12 @@ export const CANCELLATION_CHARACTERIZATION = {
     targetPolicy: "clearCurrent", stateOwners: ["StandbyStateStore"],
   }],
   typhoonAnalysis: [{
-    family: "typhoonAnalysis", headTypes: ["VPTW60", "VPTW61", "VPTW62"],
+    family: "typhoonAnalysis", headTypes: ["VPTW60-65"],
     currentBehavior: "台風キーを削除。transitionedToLow／formationCancelled も terminal",
     targetPolicy: "clearCurrent", stateOwners: ["StandbyStateStore"],
   }],
   typhoonProbability: [{
-    family: "typhoonProbability", headTypes: ["VPTA50"],
+    family: "typhoonProbability", headTypes: ["VPTA50-55"],
     currentBehavior: "EventID／対象時刻の active cache を削除",
     targetPolicy: "clearCurrent", stateOwners: ["TyphoonProbabilityStateHolder"],
   }],

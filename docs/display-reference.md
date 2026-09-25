@@ -3043,7 +3043,7 @@ EEW バナーは `colorIndex` により同系色のバリエーションで色�
 | `telegram.volcano` | VFVO56 | `parseVolcanoTelegram` | `displayVolcanoInfo` |
 | `telegram.volcano` | VFVO60 | `parseVolcanoTelegram` | `displayVolcanoInfo` |
 | `telegram.weather` | VPWS50 | `parseWeatherWarning` | `displayVpws50List` |
-| `telegram.weather` | VPTA50 | `parseTyphoonProbability` | `displayTyphoonProbabilityInfo` |
+| `telegram.weather` | VPTA50-55 | `parseTyphoonProbability` | `displayTyphoonProbabilityInfo` |
 | `telegram.weather` | VXKO50-89 | `parseFloodForecast` | `displayFloodForecastInfo` |
 | `telegram.weather` | VXSU50-59 | `parseFloodForecast` (`schema: "vxsu50"`) | `displayFloodForecastInfo` (`displayVxsuMinimal`) |
 | (その他) | — | — | `displayRawHeader` |

@@ -2438,10 +2438,10 @@ export interface ParsedHeatAlertInfo {
   isTest: boolean;
 }
 
-// ─── 台風解析・予報情報 (VPTW60 / VPTW61 / VPTW62) ───────────────────────────
+// ─── 台風解析・予報情報 (VPTW60-65、末尾番号は台風ごとの割当) ───────────────────────────
 
 export interface ParsedTyphoonAnalysis {
-  type: string;              // head.type ("VPTW60"/"VPTW61"/"VPTW62")
+  type: string;              // head.type ("VPTW60"-"VPTW65")
   infoType: string;          // 発表 / 訂正 / 取消
   title: string;             // Head.Title
   controlTitle: string;      // Control.Title

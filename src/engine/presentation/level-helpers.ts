@@ -550,7 +550,7 @@ export interface TyphoonAnalysisLevels {
   soundLevel: SoundLevel;
 }
 
-/** 台風解析・予報情報 (VPTW60/61/62) の frame/sound を pair で解決。
+/** 台風解析・予報情報 (VPTW60-65) の frame/sound を pair で解決。
  *  定時解析・予報のため一律 normal（解説扱い）。段階化は持ち越し⑤。 */
 export function resolveTyphoonAnalysisLevels(
   info: Pick<ParsedTyphoonAnalysis, "infoType">,

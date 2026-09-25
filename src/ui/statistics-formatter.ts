@@ -12,6 +12,7 @@ import type { FrameLevel } from "./formatter";
 import * as theme from "./theme";
 import type { RoleName } from "./theme";
 import type { StatsSnapshot, StatsCategory } from "../engine/messages/telegram-stats";
+import { TYPHOON_ANALYSIS_HEAD_TYPES, TYPHOON_PROBABILITY_HEAD_TYPES } from "../engine/messages/route-catalog";
 
 // ── 定数 ──
 
@@ -66,9 +67,9 @@ const TYPE_LABELS: Record<string, string> = {
   VMCJ54: "地方気象解説情報(潮位)",
   VMCJ55: "府県気象解説情報(潮位)",
   VPFT50: "熱中症警戒アラート",
-  VPTW60: "台風解析(5日)",
-  VPTW61: "台風実況",
-  VPTW62: "台風発生予想",
+  // 末尾番号は台風ごとの割当で種類の違いではない
+  ...Object.fromEntries(TYPHOON_ANALYSIS_HEAD_TYPES.map((type) => [type, "台風解析・予報"])),
+  ...Object.fromEntries(TYPHOON_PROBABILITY_HEAD_TYPES.map((type) => [type, "台風確率"])),
 };
 
 const CATEGORY_LABELS: Record<StatsCategory, string> = {

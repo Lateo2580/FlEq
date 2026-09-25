@@ -269,7 +269,7 @@ function forecastNarrative(frames: TyphoonFrame[], initialPrevClass: string | nu
 }
 
 /**
- * 台風解析・予報情報 (VPTW60/61/62) を構造化 frames[] から長文化する。
+ * 台風解析・予報情報 (VPTW60-65) を構造化 frames[] から長文化する。
  * 実況・推定は 1 frame = 1 行、予報は文章体 1 行に畳む (§2b)。
  * 通常発表で非 null、取消・全 frame 空のとき null (→ tickerSentence フォールバック)。
  */
