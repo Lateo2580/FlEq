@@ -49,7 +49,7 @@ npm run start:lowmem # メモリ最適化モードで実行
 
 ## レビュー方針
 
-- コードレビューはサブエージェントではなく **Codex（`codex exec`）に依頼**する
+- **2026-09-25〜試行（作者指示・Codex 枠の節約）**: 実装と中間レビューは Claude（親＋サブエージェント）で回す。サブエージェントは 3 段ゲート（実装 → 契約適合レビュー → コード品質レビュー）。Codex（`codex exec`）には作業単位の完了時に総合レビューを 1 回だけ依頼する（新規スレッド・read-only・Astra high）。下の分担表のうち実装委譲と中間 diff レビューの行は試行中は使わない
 - Superpowers が生成した specs/plans は作業完了後 `~/Dev/Superpowers_Archive/` に移動し、`docs/superpowers/` を削除する
 
 ## Codex 併用ルール（分担表 v1, 2026-07-14）
