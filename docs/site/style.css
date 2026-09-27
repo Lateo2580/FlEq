@@ -267,6 +267,23 @@ a:focus-visible {
   .nav-links { font-size: 0.78rem; gap: 0.6rem; }
 }
 
+/* ===== Notice (開発状況のお知らせ帯) ===== */
+.notice {
+  max-width: 960px;
+  margin: 1.5rem auto 0;
+  padding: 0 1.5rem;
+}
+
+.notice p {
+  background: var(--paper-well);
+  border: 1px solid var(--rule);
+  border-left: 4px solid var(--signal-info);
+  padding: 0.75rem 1rem;
+  font-size: 0.85rem;
+  line-height: 1.7;
+  color: var(--ink);
+}
+
 /* ===== Hero ===== */
 .hero {
   max-width: 960px;

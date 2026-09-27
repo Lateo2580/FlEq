@@ -4,6 +4,10 @@
 
 npm パッケージ名: `@sayue_ltr/fleq` / CLI コマンド名: `fleq`
 
+> [!NOTE]
+> FlEq は現在、内部構造の全面再構成を進めています。現行の v4 系は引き続き npm で配布し、不具合修正も続けています。
+> 新しい実装はリポジトリ内の [`reconstruction/`](reconstruction/) で開発中で、npm パッケージにはまだ含まれていません。
+
 ## 主な機能
 
 - WebSocket によるリアルタイム受信（自動再接続・複線接続対応）
