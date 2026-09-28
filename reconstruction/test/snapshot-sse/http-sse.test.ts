@@ -1,8 +1,11 @@
-import { get } from "node:http";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { get, request } from "node:http";
 import type { IncomingMessage } from "node:http";
 import { Agent } from "node:http";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { performance } from "node:perf_hooks";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, onTestFinished, vi } from "vitest";
 
 import type { DisplaySnapshot, DisplayWorkerView } from "../../contracts/p2-snapshot-sse.types";
 import type { WeatherTimeseriesSubject } from "../../contracts/p2-weather-timeseries-unit.types";
@@ -246,6 +249,64 @@ describe("P2-A8-T05 / AC07 and P2-A8-T06 / AC13 on the HTTP side", () => {
     server.publish(snapshot);
     expect(stringify.mock.calls.filter(([value]) => value === snapshot)).toHaveLength(1);
     stringify.mockRestore();
+    await until(() => clients.every((client) => client.frames.length === 1));
+  });
+});
+
+describe("P2-A8-T08 contractBoundary (AC15)", () => {
+  function raw(port: number, path: string, method = "GET"): Promise<{ status: number; type: string | undefined; body: string }> {
+    return new Promise((resolve, reject) => {
+      request({ host: "127.0.0.1", port, path, method, agent: false }, (response) => {
+        let body = "";
+        response.setEncoding("utf8");
+        response.on("data", (chunk: string) => { body += chunk; });
+        response.on("end", () => resolve({ status: response.statusCode ?? 0, type: response.headers["content-type"], body }));
+      }).on("error", reject).end();
+    });
+  }
+
+  it("P2-A8-T08: only the fixed HTML entry and flat [a-z0-9-].js modules are served; everything else is refused", async () => {
+    const root = mkdtempSync(join(tmpdir(), "fleq-a8-t08-"));
+    onTestFinished(() => rmSync(root, { recursive: true, force: true }));
+    const moduleDirectory = join(root, "modules");
+    mkdirSync(join(moduleDirectory, "nested.js"), { recursive: true });
+    writeFileSync(join(root, "index.html"), "<!doctype html><script type=module src=/chrome-eew/app-1.js></script>");
+    writeFileSync(join(moduleDirectory, "app-1.js"), "import './util.js';");
+    writeFileSync(join(moduleDirectory, "Upper.js"), "x");
+    writeFileSync(join(root, "secret.js"), "secret");
+    const server = await startDisplayServer({ host: "127.0.0.1", port: 0, worker: healthy,
+      browserAssets: { htmlPath: join(root, "index.html"), moduleDirectory } });
+    servers.push(server);
+
+    expect(await raw(server.port, "/")).toEqual({ status: 200, type: "text/html; charset=utf-8",
+      body: "<!doctype html><script type=module src=/chrome-eew/app-1.js></script>" });
+    expect(await raw(server.port, "/chrome-eew/app-1.js")).toEqual({ status: 200,
+      type: "text/javascript; charset=utf-8", body: "import './util.js';" });
+    for (const path of ["/chrome-eew/missing.js", "/chrome-eew/Upper.js", "/chrome-eew/nested.js", "/chrome-eew/",
+      "/chrome-eew", "/chrome-eew/../secret.js", "/chrome-eew/..%2Fsecret.js", "/chrome-eew/%2e%2e%2fsecret.js",
+      "/chrome-eew/nested.js/x.js", "/chrome-eew/app-1.js/", "/index.html", "/secret.js"])
+      expect((await raw(server.port, path)).status, path).toBe(404);
+    expect((await raw(server.port, "/", "POST")).status).toBe(405);
+    expect((await raw(server.port, "/chrome-eew/app-1.js", "POST")).status).toBe(405);
+
+    const plain = await serve();
+    expect((await raw(plain.port, "/")).status).toBe(404);
+    expect((await raw(plain.port, "/chrome-eew/app-1.js")).status).toBe(404);
+  });
+
+  it("P2-A8-T08: onSerialize reports the single publish serialization without a second JSON.stringify", async () => {
+    const observed: unknown[] = [];
+    const server = await startDisplayServer({ host: "127.0.0.1", port: 0, worker: healthy,
+      onSerialize: (observation) => observed.push(observation) });
+    servers.push(server);
+    const clients = await Promise.all(Array.from({ length: 2 }, () => open(server.port)));
+    const snapshot = large(1);
+    const stringify = vi.spyOn(JSON, "stringify");
+    server.publish(snapshot);
+    expect(stringify.mock.calls.filter(([value]) => value === snapshot)).toHaveLength(1);
+    stringify.mockRestore();
+    expect(observed).toEqual([{ version: { streamId: snapshot.streamId, semanticRevision: snapshot.semanticRevision,
+      sequence: 1 }, bytes: Buffer.byteLength(JSON.stringify(snapshot)), durationMs: expect.any(Number) }]);
     await until(() => clients.every((client) => client.frames.length === 1));
   });
 });

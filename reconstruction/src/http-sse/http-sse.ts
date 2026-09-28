@@ -1,6 +1,8 @@
+import { readFile } from "node:fs";
 import { createServer } from "node:http";
 import type { IncomingMessage, Server, ServerResponse } from "node:http";
 import type { AddressInfo } from "node:net";
+import { join } from "node:path";
 import { performance } from "node:perf_hooks";
 
 import type {
@@ -19,6 +21,8 @@ import type {
 const CLIENT_LIMIT = 8;
 const HEARTBEAT_MS = 15_000;
 const SLOW_CLIENT_MS = 5_000;
+// AC15: the name whitelist is the path check; `/`, `..` and percent-encoded separators cannot match.
+const MODULE_PATH = /^\/chrome-eew\/([a-z0-9-]+)\.js$/;
 
 type TraceMarker = Readonly<{ point: "T4"; clock: "node"; monotonicMs: number }>;
 
@@ -78,6 +82,10 @@ type DisplayServerOptions = Readonly<{
   port: number;
   worker: DisplayWorkerView;
   onMarker?: (marker: TraceMarker, version: DisplayVersion) => void;
+  // AC15 / R62: the single publish JSON.stringify span and its UTF-8 bytes, excluding client writes.
+  onSerialize?: (observation: Readonly<{ version: DisplayVersion; bytes: number; durationMs: number }>) => void;
+  // AC15: A9 HTML entry and flat ES module directory, served same-origin; absent keeps the 3 endpoints only.
+  browserAssets?: Readonly<{ htmlPath: string; moduleDirectory: string }>;
 }>;
 
 // The Node http owner of the latest snapshot and the ServerResponse objects (B11).
@@ -116,9 +124,21 @@ async function startDisplayServer(options: DisplayServerOptions) {
     response.end(body);
   };
 
+  const asset = (response: ServerResponse, file: string, contentType: string) => readFile(file, (error, body) => {
+    // Missing names and directories (EISDIR) are both plain 404s.
+    if (error != null) return json(response, 404, JSON.stringify({ reason: "notFound" }));
+    response.writeHead(200, { "content-type": contentType, "cache-control": "no-store" });
+    response.end(body);
+  });
+
   const server: Server = createServer((request: IncomingMessage, response: ServerResponse) => {
     const path = request.url?.split("?")[0];
     if (request.method !== "GET") return json(response, 405, JSON.stringify({ reason: "methodNotAllowed" }));
+    const assets = options.browserAssets;
+    if (assets != null && path === "/") return asset(response, assets.htmlPath, "text/html; charset=utf-8");
+    const moduleName = assets == null || path == null ? null : MODULE_PATH.exec(path)?.[1];
+    if (assets != null && moduleName != null)
+      return asset(response, join(assets.moduleDirectory, `${moduleName}.js`), "text/javascript; charset=utf-8");
     if (path === "/healthz")
       return json(response, 200, JSON.stringify(handleHealth(worker, latest == null ? null : version(latest)).body));
     if (path === "/snapshot") {
@@ -165,8 +185,12 @@ async function startDisplayServer(options: DisplayServerOptions) {
     // HTTP keeps only the latest snapshot (RES-01); older undelivered ones are replaced per client.
     publish(snapshot: DisplaySnapshot) {
       latest = snapshot;
+      const serializeStart = performance.now();
       latestJson = JSON.stringify(snapshot);
+      const serializeMs = performance.now() - serializeStart;
       for (const client of clients) deliver(client, { kind: "event", event: { event: "snapshot", id: String(snapshot.sequence), data: snapshot } });
+      // Observed after delivery so a failing measurement observer cannot skip clients.
+      options.onSerialize?.({ version: version(snapshot), bytes: Buffer.byteLength(latestJson), durationMs: serializeMs });
     },
     setWorker(next: DisplayWorkerView) { worker = next; },
     heartbeat,
