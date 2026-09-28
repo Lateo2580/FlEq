@@ -46,7 +46,7 @@ import { reduceWeatherCurrentUnit, toWeatherCurrentView, weatherCurrentUnitCodec
 import {
   reduceWeatherTimeseriesUnit, toWeatherTimeseriesView, weatherTimeseriesUnitCodec,
 } from "../units/weather-timeseries/weather-timeseries-unit";
-import { projectSnapshot } from "../view-projector/view-projector";
+import { dateValue, projectSnapshot } from "../view-projector/view-projector";
 import { completeDiagnostic } from "./runtime-diagnostic";
 import { reduceRuntime } from "./shared-runtime";
 
@@ -325,7 +325,9 @@ class RuntimeCompositionRoot {
     }
     if (input.kind === "mailboxCompleted" && input.completion.kind === "parser") {
       this.lastInputAt = input.clock.wallTimeMs;
-      if (this.lostThroughSequence != null && input.completion.inputSequence > this.lostThroughSequence)
+      // A1 ignores an old run's completion, so it cannot end reconnecting either.
+      if (this.lostThroughSequence != null && input.completion.runId === previous.runId
+        && input.completion.inputSequence > this.lostThroughSequence)
         this.lostThroughSequence = null;
     }
     this.contributions = contributions;
@@ -368,9 +370,10 @@ class RuntimeCompositionRoot {
     if (this.noticeTimer != null) clearTimeout(this.noticeTimer);
     this.noticeTimer = null;
     if (state.shutdown.stage !== "running" || result.state.notices.length === 0) return;
+    // An invalid clock keeps notices (A8 clock rule: integer in the Date range); the next valid step reschedules.
+    // A finite one (fractional, out of range) past the expiry would otherwise re-arm a 0 ms tick forever.
+    if (!dateValue(clock.wallTimeMs)) return;
     const delay = Math.min(...result.state.notices.map((item) => item.expiresAt)) - clock.wallTimeMs;
-    // An invalid clock keeps notices (A8 clock rule); the next valid step reschedules.
-    if (!Number.isFinite(delay)) return;
     // Node turns a delay above 2^31-1 into 1 ms; clamp so a far wall-clock jump cannot spin the tick.
     this.noticeTimer = setTimeout(() => {
       this.noticeTimer = null;

@@ -178,6 +178,24 @@ describe("P2-A3-A8-LINK composition root display wiring", () => {
     // The second event exists only in the rejected step's state; the first notice keeps its expiry.
     expect(recovered.current.eew.items[0].activeCount).toBe(2);
     expect(recovered.notices.map((item) => [item.kind, item.expiresAt])).toEqual([["eewNew", EEW_AT + 15_000]]);
+    // A finite but invalid clock past the expiry (fractional, or outside the Date range) must not re-arm a 0 ms tick.
+    for (const wallTimeMs of [EEW_AT + 15_000.5, 8_640_000_000_000_001]) {
+      root.tick(root.state, { wallTimeMs, monotonicMs: 1 });
+      expect(published.at(-1)).toBe(recovered);
+      expect(vi.getTimerCount()).toBe(0);
+    }
+  });
+
+  it("C acceptance / connection: only a current-run parser completion past the disconnect boundary ends reconnecting", async () => {
+    const { root, published, clock } = harness(await config(), EEW_AT);
+    root.startRuntime("run", clock(), testNotificationChannels);
+    probe(root, clock());
+    root.dispatch(root.state, { kind: "connectionLost", acceptedThroughSequence: -1, clock: clock() });
+    expect(published.at(-1)!.connection.state).toBe("reconnecting");
+    root.dispatch(root.state, received("old-run", decode("37_01_01_240613_VXSE43", "VXSE43"), clock()));
+    expect(published.at(-1)!.connection.state).toBe("reconnecting");
+    parse(root, decode("37_01_01_240613_VXSE43", "VXSE43"), clock());
+    expect(published.at(-1)!.connection.state).toBe("connected");
   });
 
   it("D acceptance / AC04, 13.3: HTTP and SSE follow the root through save failure, normal shutdown and restart follow-up", async () => {

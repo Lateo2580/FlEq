@@ -550,13 +550,20 @@ function reduceWeatherCurrentUnit(state: WeatherCurrentUnitState, input: Weather
       : displaySubjects(state, targets, [...currents.values()].flatMap((item) => item.before == null ? [] : [item.before]));
     const after = input.kind === "restore" ? displaySubjects(step.state)
       : displaySubjects(step.state, targets, [...currents.values()].flatMap((item) => item.after == null ? [] : [item.after]));
+    // A1 DISPLAY-CHANGES.revision: only freshnessSuspect records are shown (A8 SUMMARY); a non-suspect
+    // monitor record is internal and must not advance the content revision on its own.
+    // A missing side compares as an empty row, so a monitor-only subject with no shown record is no change either.
+    const shown = (value: (RuntimeDisplaySubject & { unit: "U-W" }) | null) =>
+      value == null ? [] : value.freshness.filter((item) => item.freshnessSuspect);
     for (const key of new Set([...before.keys(), ...after.keys()])) {
       const old = before.get(key) ?? null, current = after.get(key) ?? null;
-      const same = old != null && current != null && old.current === current.current
-        && old.unavailable.length === current.unavailable.length
-        && old.unavailable.every((item, index) => item === current.unavailable[index])
-        && old.freshness.length === current.freshness.length
-        && old.freshness.every((item, index) => item === current.freshness[index]);
+      const oldShown = shown(old), currentShown = shown(current);
+      const oldUnavailable = old?.unavailable ?? [], currentUnavailable = current?.unavailable ?? [];
+      const same = (old?.current ?? null) === (current?.current ?? null)
+        && oldUnavailable.length === currentUnavailable.length
+        && oldUnavailable.every((item, index) => item === currentUnavailable[index])
+        && oldShown.length === currentShown.length
+        && oldShown.every((item, index) => item === currentShown[index]);
       if (!same && (old != null || current != null)) displayChanges.push({ unit: "U-W",
         operation: (current ?? old)!.operation, subject: (current ?? old)!.subject, before: old, after: current });
     }

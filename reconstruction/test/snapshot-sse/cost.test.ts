@@ -189,6 +189,12 @@ describe("P2-A8-T06 regression (AC06/AC13)", () => {
       timeseries: (index) => received("run", timeseries("官署0",
         new Date(Date.parse("2026-06-05T17:00:00+09:00") + (index + 1) * 1000).toISOString()), clock),
     };
+    // A1 element scan (P2-A8-COST.acceptance): count period reads of every U-F subject the scenarios never change.
+    let unchangedPeriodReads = 0;
+    for (const item of state.units["U-F"].subjects) if (!item.subject.endsWith("/官署0")) {
+      const periods = item.periods;
+      Object.defineProperty(item, "periods", { enumerable: true, get: () => { unchangedPeriodReads++; return periods; } });
+    }
     const report: Record<string, unknown> = { capacityBytes: capacity };
     let lastInputAt = 0;
     for (const [name, input] of Object.entries(scenarios)) {
@@ -226,6 +232,7 @@ describe("P2-A8-T06 regression (AC06/AC13)", () => {
         expect(counts.measured[key]).toBeGreaterThanOrEqual(key === own ? counts.changes : 0);
         expect(counts.a1Views[key]).toBe(key === own ? 100 : 0);
       }
+      expect(unchangedPeriodReads).toBe(0);
     }
     expectMatchesReference(projection, reference({ state, outcomes: [], displayChanges: [],
       admissionCounts: startup(clock).admissionCounts }, at, { connection: { state: "connected", disconnectedAt: null, lastInputAt } }));

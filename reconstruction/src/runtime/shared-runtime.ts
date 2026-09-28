@@ -211,7 +211,8 @@ function addedScopes(changes: readonly RuntimeDisplayChange[]): ConfirmationScop
       : [{ unit: "U-F", operation: value.operation, kind: "series", subject: value.subject, office: value.office }];
     return normalizeScopes([...(value.current == null ? [] : Object.keys(value.current.phenomena)),
       ...value.unavailable.flatMap((item) => item.affectedScope),
-      ...value.freshness.flatMap((item) => item.target.affectedScope)]).map((token) => ({
+      // Only shown (suspect) freshness enters confirmation; older/same/unknown non-adoption raises no doubt (A5).
+      ...value.freshness.filter((item) => item.freshnessSuspect).flatMap((item) => item.target.affectedScope)]).map((token) => ({
         unit: "U-W", operation: value.operation, kind: "area", subject: value.subject, token }));
   };
   return changes.flatMap((change) => {

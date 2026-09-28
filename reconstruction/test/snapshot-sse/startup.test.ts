@@ -81,6 +81,25 @@ describe("P2-A8-T01 contractBoundary (AC01/AC02/AC10/AC11)", () => {
       expect(item.confirmation.state).toBe("unconfirmed");
   });
 
+  it("P2-A8-SUMMARY.times: under the normal mask the kept unknownCode keeps its source time in updatedAt", () => {
+    const real = adopt([["15_16_02_251222_VPWW57", "VPWW57", (xml) => xml.replace(/<Code>48<\/Code>/g, "<Code>99</Code>")],
+      ["81_03_01_260605_VPWP50_unknown_code", "VPWP50"]]);
+    // The masked views as A1 projectViews builds them: normal currents leave the view, the admission flag stays.
+    const mask = { normal: "capacityExceeded" as const };
+    const weather = real.units["U-W"], timeseries = real.units["U-F"];
+    const state: RuntimeState = { ...real, views: { ...real.views,
+      "U-W": { ...toWeatherCurrentView({ ...weather, national: { ...weather.national, normal: undefined },
+        partials: weather.partials.filter((item) => item.operation !== "normal") }), admission: mask, contentRevision: "1:1" },
+      "U-F": { ...toWeatherTimeseriesView({ ...timeseries, subjects: timeseries.subjects.filter((item) => item.operation !== "normal") }),
+        admission: mask, contentRevision: "1:1" } } };
+    const none = { normal: 0, training: 0, test: 0 }, one = { normal: 1, training: 0, test: 0 };
+    const result = projected(projectSnapshot(projectionInput({ state, outcomes: [], displayChanges: allSubjects(state),
+      admissionCounts: { "U-E": none, "U-W": one, "U-F": one } }, at), null));
+    for (const [key, time] of [["weatherCurrent", "2020-06-22T23:00:00+09:00"], ["weatherTimeseries", "2026-06-05T17:00:00+09:00"]] as const)
+      expect(result.snapshot.current[key].items[0]).toMatchObject({ activeCount: 0, highestSeverity: null,
+        unknownCode: { unknown: expect.any(Number) }, updatedAt: Date.parse(time) });
+  });
+
   it("P2-A8-T01: active, all three unavailable reasons, unknown Code, freshness and unconfirmed coexist in one row", () => {
     const real = adopt([["15_16_02_251222_VPWW57", "VPWW57"], ["81_03_01_260605_VPWP50_unknown_code", "VPWP50"],
       ["81_09_01_260605_VPWP50", "VPWP50"], ["81_09_01_260605_VPWP50", "VPWP50", training]]);

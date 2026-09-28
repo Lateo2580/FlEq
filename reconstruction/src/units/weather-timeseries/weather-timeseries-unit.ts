@@ -13,6 +13,7 @@ const LIMIT = 33_554_432, SUBJECT_LIMIT = 512, RETAIN = 7 * 86_400_000;
 const encoder = new TextEncoder();
 const cache = new WeakMap<object, number>();
 const subjectDeadlineCache = new WeakMap<WeatherTimeseriesUnitState["subjects"], number>();
+const outcomeCache = new WeakMap<WeatherTimeseriesSubject, SubjectOutcome>();
 type CurrentChange = (before: WeatherTimeseriesSubject | null, after: WeatherTimeseriesSubject | null) => void;
 const emptyEnvelopeBytes = serializedEnvelope({ schemaVersion: SCHEMA, unit: "U-F", generation: 0,
   capturedAt: 0, payload: { schemaVersion: SCHEMA, subjects: [], gates: [], intents: [] }, sha256: "0".repeat(64) }).byteLength;
@@ -53,15 +54,21 @@ function step(state: WeatherTimeseriesUnitState): InternalStep {
   return { state, nextDeadline: deadline(state), decisions: [], intents: [], outcomes: [], diagnostics: [] };
 }
 function outcome(item: WeatherTimeseriesSubject, changedFields: readonly string[]): SubjectOutcome {
+  // A8-COST: the public outcome of an unchanged subject is reused, so a view rebuild never rescans its periods.
+  const reusable = changedFields.length === 0;
+  const cached = reusable ? outcomeCache.get(item) : undefined;
+  if (cached != null) return cached;
   const known = item.periods.flatMap((row) => {
     const value = item.values[row[10]];
     return value.kind === "significancy" && value.name.kind !== "empty" && value.name.kind !== "missing" && value.code.kind === "text"
       && /^(?:00|01|11|20|21|22|30|31|41|50|51)$/.test(value.code.raw) ? [value.code.raw] : [];
   });
-  return { subject: item.subject, operation: item.operation, informationType: item.source?.infoTypeRaw ?? "",
+  const result: SubjectOutcome = { subject: item.subject, operation: item.operation, informationType: item.source?.infoTypeRaw ?? "",
     transition: item.effective, severity: null, source: item.source,
     facts: { effective: item.effective, periodCount: item.periods.length,
       knownMaxCode: known.length === 0 ? null : known.sort().at(-1)! }, changedFields };
+  if (reusable) outcomeCache.set(item, result);
+  return result;
 }
 function collect(state: WeatherTimeseriesUnitState, wallTimeMs: number, monotonicMs: number, change: CurrentChange): {
   state: WeatherTimeseriesUnitState; outcomes: WeatherTimeseriesUnitStep["outcomes"];

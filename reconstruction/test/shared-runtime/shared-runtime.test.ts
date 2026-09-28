@@ -259,6 +259,25 @@ describe("P2 shared runtime", () => {
     expect(verified.state.confirmation.units["U-E"].normal).toMatchObject({ whole: null, counts: {}, confirmedAt: 1004 });
   });
 
+  it("P2-A1-CONFIRMATION.startup contractBoundary: a non-suspect freshness record adds no confirmation scope", () => {
+    const token = JSON.stringify(["VPWW57", "partial", "office", "all", ""]);
+    const source = { inputId: "late", origin: "replay" as const, operation: "normal" as const, family: "VPWW57",
+      subject: "normal/VPWW57/office", reportDateTimeRaw: "", serialRaw: "", infoTypeRaw: "発表" };
+    const after = { unit: "U-W" as const, operation: "normal" as const, subject: source.subject, office: "office",
+      current: null, unavailable: [], subjects: [], freshness: [{ target: { operation: "normal" as const, family: "VPWW57",
+        subject: source.subject, affectedScope: [token] }, candidateSource: source, currentSource: null,
+        currentSemanticRevision: null, decision: "rejected", reason: "reportDateTimeMissing", revisionOrder: "unknown" as const,
+        freshnessSuspect: false, suspectedSource: null, confirmedScope: [],
+        clearCondition: "sameTargetScopeAcceptedOrCoverageConfirmed" as const }] };
+    const calls = { ...unitCalls, reduceWeatherCurrentUnit: (unit: WeatherCurrentUnitState, input: WeatherCurrentInput) =>
+      ({ ...unitReply(unit, input), displayChanges: [{ unit: "U-W" as const, operation: "normal" as const,
+        subject: source.subject, before: null, after }] }) };
+    const baseline = initialState();
+    const step = reduceRuntime(baseline, parserInput({ kind: "decoded",
+      material: fixture("test/fixtures/15_16_02_251222_VPWW57.xml", "VPWW57") }), calls);
+    expect(step.state.confirmation.units["U-W"].normal).toBe(baseline.confirmation.units["U-W"].normal);
+  });
+
   it("P2-A1-CONFIRMATION / A8-AC11 contractBoundary: excess scopes fold into a safe whole marker", () => {
     const scopes = Array.from({ length: 513 }, (_, index) => ({ unit: "U-F" as const,
       operation: "normal" as const, kind: "series" as const,

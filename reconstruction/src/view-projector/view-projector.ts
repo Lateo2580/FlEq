@@ -214,10 +214,9 @@ function weatherTally(value: RuntimeDisplaySubject | null, hidden: boolean): Tal
       const system = tuple == null ? null : WEATHER_AREA_SYSTEM.get(tuple[3]) ?? null;
       if (tuple != null && system != null && tuple[4] !== "" && !hidden) bump(tally.areas, `${operation}|${system}|${tuple[4]}`);
     }
-    if (active && !hidden) {
-      tally.active = 1;
-      addTime(tally, current.source);
-    }
+    if (active && !hidden) tally.active = 1;
+    // P2-A8-SUMMARY.times: under the normal mask the row keeps this current's unknownCode, so its time still counts.
+    if (active && (!hidden || Object.keys(tally.unknownCode).length !== 0)) addTime(tally, current.source);
   }
   for (const record of value.unavailable) {
     count(tally.unavailable, record.reason, 1);
@@ -257,7 +256,11 @@ function timeseriesTally(value: RuntimeDisplaySubject | null, hidden: boolean): 
     if (reason != null || severity == null) count(tally.unknownCode, reason ?? "unknown", 1);
     else if (!hidden) bump(tally.severities, `${operation}|${severity}`);
   }
-  if (hidden) return tally;
+  if (hidden) {
+    // P2-A8-SUMMARY.times: the masked row keeps this subject's unknownCode, so its time still counts.
+    if (Object.keys(tally.unknownCode).length !== 0) addTime(tally, subject.source);
+    return tally;
+  }
   tally.active = 1;
   for (const area of areas) bump(tally.areas, `${operation}|forecastArea|${area}`);
   addTime(tally, subject.source);
@@ -691,4 +694,4 @@ function projectSnapshot(input: SnapshotProjectionInput, previous: SnapshotProje
   return { kind: "projected", state: state(snapshot), snapshot, utf8Bytes, diagnostics };
 }
 
-export { projectSnapshot };
+export { dateValue, projectSnapshot };

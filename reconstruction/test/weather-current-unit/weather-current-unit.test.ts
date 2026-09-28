@@ -345,6 +345,21 @@ describe("P2 weather-current unit", () => {
     expect(notificationRoot.tick(completedRuntime.state, clock(intent.expiresAt, 3)).state.units["U-W"].intents).toEqual([]);
   });
 
+  it("P2-A1-DISPLAY-CHANGES.revision: an older stale report records a non-suspect monitor without advancing the content revision", () => {
+    const state = receive(emptyState(), decodeFixture("15_16_02_251222_VPWW57", "VPWW57")).state;
+    const older = receive(state, decodeFixture("15_16_02_251222_VPWW57", "VPWW57",
+      (xml) => atTime(xml, "2020-06-22T22:59:00+09:00"), "older"));
+    expect(older.state.freshness).toMatchObject([{ revisionOrder: "older", freshnessSuspect: false }]);
+    expect(older.state.partials).toBe(state.partials);
+    expect([older.displayChanges, older.state.contentRevision]).toEqual([[], state.contentRevision]);
+  });
+
+  it("P2-A1-DISPLAY-CHANGES.revision: a monitor-only subject with a non-suspect record adds no display change", () => {
+    const monitored = receive(emptyState(), { ...decodeFixture("15_16_02_251222_VPWW57", "VPWW57"), reportDateTimeRaw: "" });
+    expect(monitored.state.freshness).toMatchObject([{ revisionOrder: "unknown", freshnessSuspect: false }]);
+    expect([monitored.displayChanges, monitored.state.contentRevision]).toEqual([[], 0]);
+  });
+
   it("P2-A5-T04 regression / AC05-06: rejected newer marks only the exact freshness target", () => {
     const first = decodeFixture("15_16_02_251222_VPWW57", "VPWW57");
     const state = receive(emptyState(), first).state;
