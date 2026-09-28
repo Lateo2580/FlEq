@@ -1,10 +1,19 @@
 import type { Operation, ProcessingMarks } from "./p1-parser-boundary.types";
 import type { SaveFailureStage, UnitId } from "./p2-shared-runtime.types";
-import type { DisplayVersion } from "./p2-snapshot-sse.types";
+import type { DisplayVersion, DisplayWorkerView } from "./p2-snapshot-sse.types";
 
 export type VerificationStatus = "Pass" | "Fail" | "Blocked" | "N/A" | "未確認";
-export type EewPopulation = "fixedBacklog" | "maxVpws50ParseStarted" | "maxWeatherCheckpointEncodeStarted";
+// P2限定E01（R61）: 正式対象は fixedBacklog だけ。参考測定は単一スレッドで §7.5 の重畳 T0 が成立しない条件で、合否に使わない。
+export type EewFormalPopulation = "fixedBacklog";
+export type EewReferencePopulation =
+  // 起点は host が decodeMaterial() 呼出し直前に記録した実単調時刻。full parse 開始の証拠ではない。
+  | "maxVpws50DecodeStarted"
+  | "maxWeatherCheckpointEncodeStarted"
+  | "maxForecastCheckpointSave"
+  | "forecastDeadlineOverlap";
+export type EewPopulation = EewFormalPopulation | EewReferencePopulation;
 export type LoadProfileId = "N" | "P" | "C";
+// T0 は host の WS 受信 callback の実入口、T2 は P2 では処理開始（worker 開始ではない）。
 export type EewTracePoint = "T0" | "T1" | "T2" | "T3" | "T4" | "T5" | "T6";
 
 export type EewTraceCorrelation = Readonly<{
@@ -29,6 +38,27 @@ export type EewTraceMarker =
       mapMarkerId: string;
     }>;
 
+// A9 が performance.mark の detail に載せる。名前はこの二つだけ。run/input との結合と paintEvidenceId は A10 が付ける。
+export type ChromeEewMarkerDetail =
+  | Readonly<{ name: "fleq:p2:eew:T5"; displayVersion: DisplayVersion }>
+  | Readonly<{
+      name: "fleq:p2:eew:T6-candidate";
+      displayVersion: DisplayVersion;
+      operation: Operation;
+      subject: string;
+      cardMarkerId: string;
+      mapMarkerId: string;
+      // 空配列は区域なし（旧塗り除去）の候補。
+      mapAreaCodes: readonly string[];
+    }>;
+
+// runner が CDP で呼ぶ A9 の応答。Node 側の送受信時刻は runner が取る。
+export type ChromeClockProbeResponse = Readonly<{
+  probeId: string;
+  chromeReceivedMonotonicMs: number;
+  chromeSentMonotonicMs: number;
+}>;
+
 export type ClockCorrespondence = Readonly<{
   probeId: string;
   nodeSentMonotonicMs: number;
@@ -41,7 +71,7 @@ export type ClockCorrespondence = Readonly<{
 }>;
 
 export type EewTraceSample = Readonly<{
-  schemaVersion: "p2-eew-trace-v1";
+  schemaVersion: "p2-eew-trace-v2";
   population: EewPopulation;
   run: 1 | 2 | 3;
   sampleIndex: number;
@@ -51,8 +81,32 @@ export type EewTraceSample = Readonly<{
   latencyLowerMs: number | null;
   latencyUpperMs: number | null;
   missing: boolean;
-  missingReason: "paintNotObservedWithin10s" | "traceIncomplete" | null;
+  missingReason: "paintNotObservedWithin10s" | "traceIncomplete" | "callbackNotReached" | null;
 }>;
+
+// host のイベントループから独立した投入側の記録（R61）。同一スレッドの timer 予定時刻を実投入時刻に代用しない。
+export type EewInjectionRecord = Readonly<{
+  runId: string;
+  inputId: string;
+  population: EewPopulation;
+  run: 1 | 2 | 3;
+  sampleIndex: number;
+  scheduledInjectorMonotonicMs: number;
+  injectedInjectorMonotonicMs: number | null;
+  outcome: "callbackReached" | "notInjected" | "rejected" | "callbackTimeout";
+  // 投入側時計から host の Node 単調時計への対応区間。対応不能は null で未確認。
+  hostOffsetLowerMs: number | null;
+  hostOffsetUpperMs: number | null;
+}>;
+
+// host → runner の観測はこの一経路だけ（startP2Host の config.observe）。
+export type P2HostObservation =
+  | Readonly<{ kind: "marker"; point: "T0" | "T1" | "T2"; runId: string; inputId: string; monotonicMs: number }>
+  | Readonly<{ kind: "marker"; point: "T3" | "T4"; runId: string; displayVersion: DisplayVersion; monotonicMs: number }>
+  | Readonly<{ kind: "decode"; runId: string; inputId: string; startedMonotonicMs: number; endedMonotonicMs: number }>
+  | Readonly<{ kind: "publishSerialization"; displayVersion: DisplayVersion; bytes: number; durationMs: number }>
+  | Readonly<{ kind: "processing"; measurement: ProcessingMeasurement }>
+  | Readonly<{ kind: "checkpoint"; measurement: CheckpointMeasurement }>;
 
 export type ReplayLoad = Readonly<{
   id: LoadProfileId;
@@ -102,34 +156,87 @@ export type EewTrialSetup = Readonly<{
   preventReplacementUntilPaintOrTimeout: readonly string[];
 }>;
 
+type ChromeConditions = Readonly<{
+  version: string;
+  foregroundTab: true;
+  viewportCssPx: readonly [number, number];
+  dpr: number;
+  motion: "reduced" | "full";
+}>;
+
+// A9 実 Chrome smoke 前に先行凍結する A10 管理の条件（二段凍結の一段目）。marker 名と probe 方式は契約で固定済み。
+export type ChromeSmokeConditions = Readonly<{
+  schemaVersion: "p2-chrome-smoke-conditions-v1";
+  // トップレベルの本 field だけを 64 個の ASCII 0 に置換した保存 UTF-8 bytes の sha256（契約と同じ自己 hash 規約）。
+  // 凍結後のファイルは統合担当の再凍結でだけ変える。
+  conditionsSha256: string;
+  chrome: ChromeConditions;
+  geometrySha256: string;
+  // A9 questionResolutions[P2-A9-GEOMETRY].paintExpectations の参照。
+  paintExpectationsRef: string;
+  fixtureSha256: Readonly<Record<string, string>>;
+}>;
+
+export type ReferenceStopCondition =
+  | Readonly<{ kind: "sampleCount"; samples: number }>
+  | Readonly<{ kind: "elapsed"; maxDurationMs: number }>
+  | Readonly<{ kind: "blocked"; reason: "stateNotReproducible" | "overlapNotEstablished" | "clockCorrespondenceUnavailable" | "injectionFailed" }>;
+
 export type EewMeasurementManifest = Readonly<{
-  schemaVersion: "p2-eew-e01-manifest-v1";
+  schemaVersion: "p2-eew-e01-manifest-v2";
   manifestId: string;
   manifestSha256: string;
   contractSha256: Readonly<Record<string, string>>;
   trialSetupRef: string;
   trialSetupSha256: string;
+  smokeConditionsSha256: string;
+  smokeConditionDifferences: readonly string[];
+  measuredSseClients: 1;
+  notificationProbe: Readonly<Record<"desktop" | "sound", "idle" | "unavailable">>;
   loads: Readonly<Record<LoadProfileId, ReplayLoad>>;
-  populations: Readonly<Record<EewPopulation, Readonly<{
+  // 正式対象は固定負荷1つ×3 run。U-F が許容範囲を外れた試行は別条件として記録する。
+  formal: Readonly<{
+    population: EewFormalPopulation;
     load: LoadProfileId;
     trigger: string;
+    forecast: Readonly<{
+      subjects: number;
+      encodedBytes: number;
+      saveCondition: string;
+      deadlineCondition: string;
+      allowed: Readonly<{ maxSubjects: number; maxEncodedBytes: number }>;
+    }>;
+  }>;
+  reference: Readonly<Record<EewReferencePopulation, Readonly<{
+    load: LoadProfileId;
+    trigger: string;
+    stateRef: string;
+    stateSha256: string;
     targetOffsetMs: 1;
     acceptedOffsetRangeMs: readonly [0, 5];
+    // RET-02 の 300 とは別に条件ごとに事前固定する。
+    warmupPerRun: number;
+    samplesPerRun: number;
+    runCount: 1 | 2 | 3;
+    // 件数・経過時間・Blocked 理由だけ。遅延の観測値を打切り条件にしない。
+    stopCondition: ReferenceStopCondition;
   }>>>;
   warmupPerRun: 100;
   samplesPerRun: 1000;
   runCount: 3;
   missingAfterMs: 10000;
+  callbackDeadlineAfterInjectionMs: 10000;
   quantile: "nearestRank";
   clockProbeEveryMs: 30000;
   maxClockIntervalWidthMs: 5;
-  chrome: Readonly<{
-    version: string;
-    foregroundTab: true;
-    viewportCssPx: readonly [number, number];
-    dpr: number;
-    motion: "reduced" | "full";
-  }>;
+  health: Readonly<{ loads: readonly ["N", "P"]; requestEveryMs: 1000; requestTimeoutMs: number; minSamplesPerRun: 1000; runCount: 3 }>;
+  auxiliary: Readonly<Record<"E03" | "E05" | "E06" | "E12", Readonly<{
+    loads: readonly LoadProfileId[];
+    minSamplesPerRun: number | null;
+    runCount: number | null;
+    condition: string;
+  }>>>;
+  chrome: ChromeConditions;
   nodeVersion: string;
   osVersion: string;
   device: string;
@@ -138,16 +245,23 @@ export type EewMeasurementManifest = Readonly<{
 }>;
 
 export type EewMeasurementRunResult = Readonly<{
-  schemaVersion: "p2-eew-e01-result-v1";
+  schemaVersion: "p2-eew-e01-result-v2";
   manifestId: string;
   manifestSha256: string;
   resultSha256: string;
   population: EewPopulation;
+  scope: "formal" | "reference";
   run: 1 | 2 | 3;
+  // reference の遅延値は合否に使わない。実施不能だけを Blocked とする。
   status: VerificationStatus;
   samples: number;
   missing: number;
   traceMissing: number;
+  injectionFailures: number;
+  // 実投入→T0（受信 callback 以前の待ち）。投入側時計の対応不能は null。
+  injectedToT0P50Ms: number | null;
+  injectedToT0P99Ms: number | null;
+  injectedToT0MaxMs: number | null;
   p50LowerMs: number | null;
   p50UpperMs: number | null;
   p95LowerMs: number | null;
@@ -157,6 +271,55 @@ export type EewMeasurementRunResult = Readonly<{
   maxLowerMs: number | null;
   maxUpperMs: number | null;
   evidenceRefs: readonly string[];
+}>;
+
+// 最大負荷・受信 callback 以前の待ち・除外した重畳条件の保証を含まない。
+export type P2LimitedE01Verdict = Readonly<{
+  label: "P2限定E01";
+  status: VerificationStatus;
+  referenceStatus: Readonly<Record<EewReferencePopulation, "measured" | "Blocked">>;
+  evidenceRefs: readonly string[];
+}>;
+
+export type HealthLatencySample = Readonly<{
+  load: "N" | "P";
+  run: 1 | 2 | 3;
+  sampleIndex: number;
+  scheduledMonotonicMs: number;
+  requestStartMonotonicMs: number;
+  bodyCompleteMonotonicMs: number | null;
+  httpStatus: number | null;
+  worker: DisplayWorkerView["state"] | null;
+  // 失敗は分母から除かず、遅延 +∞ として分位点に含める。
+  failure: "bodyIncomplete" | "non200" | "invalidBody" | "timeout" | null;
+}>;
+
+export type HealthLatencyRunResult = Readonly<{
+  schemaVersion: "p2-e02-result-v1";
+  manifestId: string;
+  manifestSha256: string;
+  resultSha256: string;
+  load: "N" | "P";
+  run: 1 | 2 | 3;
+  status: VerificationStatus;
+  samples: number;
+  missing: number;
+  failures: Readonly<Partial<Record<"bodyIncomplete" | "non200" | "invalidBody" | "timeout", number>>>;
+  p99Ms: number | null;
+  maxMs: number | null;
+  workerStates: Readonly<Partial<Record<DisplayWorkerView["state"], number>>>;
+  evidenceRefs: readonly string[];
+}>;
+
+// R62: 報告だけで上限にしない。
+export type PublishCostReport = Readonly<{
+  window: string;
+  publishCount: number;
+  totalJsonBytes: number;
+  maxJsonBytes: number;
+  serializeP50Ms: number | null;
+  serializeP99Ms: number | null;
+  serializeMaxMs: number | null;
 }>;
 
 export type EewCauseAssessment = Readonly<{

@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "3095a6c21caa96e06fc3b3a6d2f906534ef5441b",
-    "sha256": "ca5b6a47743c589b69f8614f300f1a455f8d8298033825cf9373b9ad8e274e1a",
+    "sha256": "d58d3d0b4beb887777de259c36741c65e2b8dc2006c8c89e70dfe74973f98b1f",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "76c82b87d7783a4eae14af690cb34e7d6ec46f73617dc75b7f7401951619f080",
     "sequencesSha256": "be9cfd97b555e3a55568f085d107342c978b3dc7249f5cecea868ea5a62c5781",
@@ -211,7 +211,8 @@
       "beginDrain(nowMonotonicMs: number): MailboxStats",
       "stats(nowMonotonicMs: number): MailboxStats (read-only)",
       "recordWorkerResponse(nowMonotonicMs: number): MailboxStats",
-      "drainDiagnostics(nowMonotonicMs: number): DiagnosticDetails[]"
+      "drainDiagnostics(nowMonotonicMs: number): DiagnosticDetails[]",
+      "isStalled(nowMonotonicMs: number): boolean (read-only)"
     ],
     "allowedDependencies": [
       "node:worker_threads"
@@ -387,7 +388,7 @@
       },
       {
         "id": "P2-A2-AC05",
-        "requirement": "stats(nowMonotonicMs)は副作用なしで現在年齢・処理中ID・最後の進捗・生存応答・次期限を返し、診断の生成・蓄積・消費はしない。lastArrivalMonotonicMsはenqueue到着（拒否含む）で更新する。処理進捗はtakeNextがitemを返した場合と対応する未完了仕事のcompleteだけで、enqueue・cancel・空振りtakeNext・重複/不正complete・heartbeatではlastProgressMonotonicMsを進めない。監視開始時刻は初回enqueue時のlastArrivalMonotonicMsを既存の初期進捗起点（現行initialProgress）へ一度だけ固定し、後続到着・処理進捗で上書きしない。stalledの進捗起点はこの固定初回到着と最後の処理進捗（lastProgressMonotonicMs）の遅い方とし、unresponsiveの応答起点は固定初回到着と最後の生存応答（recordWorkerResponseが更新するlastWorkerResponseMonotonicMs）の遅い方とする。生存応答未着なら固定初回到着を使い、controlを含むtakeNext成功・completeは応答起点を変更しない。共有型の時刻fieldは追加しない。初回到着がない場合は監視未開始で発報しない。期限だけが未完了の場合のstalled起点は進捗起点とnextDeadlineMonotonicMsの遅い方とする。recordWorkerResponseは生存応答時刻だけを更新する。A3 composition rootの既存1秒tickが同じrunの単調時刻をdrainDiagnostics(nowMonotonicMs)へ渡し、この呼出しだけが停止条件を評価してDiagnosticDetailsを蓄積し、その後蓄積を返して空にする。未完了itemまたは超過期限があり進捗起点から5,000ms以上ならstalled、応答起点から5,000ms以上応答なしならidleでもcontrol進行中でもunresponsiveと独立判定する。同一停止中のstalledは1回だけ発報し、takeNext成功または対応するcompleteで解除後、再び5,000ms無進捗なら再発報する。unresponsiveは同一途絶中1回、生存応答を受けた後の再途絶で再発報する。処理進捗はunresponsiveの発報済み状態を解除しない。drainやstatsや到着や取消だけでは発報済みを解除しない。stalledとunresponsiveは既存mailboxStalledを共用しcomponentをそれぞれmailboxとmailbox.workerに固定、durationMsは各起点からの実経過時間とする。両条件成立なら各1件を返す。拒否3種・mailboxLimitViolation・mailboxStalledに、蓄積超過要約の既存diagnosticQueueOverflowを加えた6 reasonのみを使う。蓄積はRES-08の64件に制限しA3がB15 sinkへ配送する",
+        "requirement": "stats(nowMonotonicMs)は副作用なしで現在年齢・処理中ID・最後の進捗・生存応答・次期限を返し、診断の生成・蓄積・消費はしない。lastArrivalMonotonicMsはenqueue到着（拒否含む）で更新する。処理進捗はtakeNextがitemを返した場合と対応する未完了仕事のcompleteだけで、enqueue・cancel・空振りtakeNext・重複/不正complete・heartbeatではlastProgressMonotonicMsを進めない。監視開始時刻は初回enqueue時のlastArrivalMonotonicMsを既存の初期進捗起点（現行initialProgress）へ一度だけ固定し、後続到着・処理進捗で上書きしない。stalledの進捗起点はこの固定初回到着と最後の処理進捗（lastProgressMonotonicMs）の遅い方とし、unresponsiveの応答起点は固定初回到着と最後の生存応答（recordWorkerResponseが更新するlastWorkerResponseMonotonicMs）の遅い方とする。生存応答未着なら固定初回到着を使い、controlを含むtakeNext成功・completeは応答起点を変更しない。共有型の時刻fieldは追加しない。初回到着がない場合は監視未開始で発報しない。期限だけが未完了の場合のstalled起点は進捗起点とnextDeadlineMonotonicMsの遅い方とする。recordWorkerResponseは生存応答時刻だけを更新する。A3 composition rootの既存1秒tickが同じrunの単調時刻をdrainDiagnostics(nowMonotonicMs)へ渡し、停止の発報（DiagnosticDetailsの蓄積）はこの呼出しだけが行い（isStalled(nowMonotonicMs)は同じstalled述語を副作用なしで読むだけで発報・解除しない）、その後蓄積を返して空にする。未完了itemまたは超過期限があり進捗起点から5,000ms以上ならstalled、応答起点から5,000ms以上応答なしならidleでもcontrol進行中でもunresponsiveと独立判定する。同一停止中のstalledは1回だけ発報し、takeNext成功または対応するcompleteで解除後、再び5,000ms無進捗なら再発報する。unresponsiveは同一途絶中1回、生存応答を受けた後の再途絶で再発報する。処理進捗はunresponsiveの発報済み状態を解除しない。drainやstatsや到着や取消だけでは発報済みを解除しない。stalledとunresponsiveは既存mailboxStalledを共用しcomponentをそれぞれmailboxとmailbox.workerに固定、durationMsは各起点からの実経過時間とする。両条件成立なら各1件を返す。拒否3種・mailboxLimitViolation・mailboxStalledに、蓄積超過要約の既存diagnosticQueueOverflowを加えた6 reasonのみを使う。蓄積はRES-08の64件に制限しA3がB15 sinkへ配送する",
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:1190 «174d8e21c85706f2»",
           "docs/specs/reconstruction-p0-contracts.md:1191 «e214e88096eaa2ba»",
@@ -522,7 +523,8 @@
       "追実装で閉じる項目(R16): 現行reconstruction/src/mailbox/mailbox.ts:17-23,101-104,161,168,172-177のcompletedStartFloorと同ID生存entryへの完了開始時刻伝播を削除する。T04から同じIDを複数仕事へ故意に投入する系列を削り、一意なIDに対する完了再送の無視とrun・inputSequence・送出時刻の照合だけを残す。callerのID一意性をmailbox内部で検証する機構は追加しない",
       "診断蓄積は拒否・停止・上限違反を合算した単一64件上限で、別queueや新共有型は作らない。超過時は最古から捨て、捨てた件数だけを累積する。overflowがあるdrainでは要約の1枠を確保するため最新63件まで残し、追加で捨てた分もcountへ含めたDiagnosticDetails { level: WARN, component: mailbox, reason: diagnosticQueueOverflow, count }を末尾に1件返す。drain後は蓄積と捨てた件数を空にし、発報済み状態は保持する。要約自体を再投入してoverflowを再帰発生させない",
       "drain頻度はA3 composition rootの既存1秒tickが所有し、到着・応答のない期間も呼び続ける。A2にタイマーを増設しない。tick遅延時も蓄積64件上限を守り、復帰時の実nowMonotonicMsで閾値を評価する。停止診断の生成／消費を伴う観測口はdrainDiagnosticsだけとし、通常のenqueue拒否／上限違反の診断は各発生遷移で蓄積する",
-      "追実装で閉じる項目(A2-B3): stopInputAndDrainMailboxだけがbeginDrainを起動し、受付連番境界までのpending/in-flightを既存Mailboxで排出する。無いとA3がshutdown stateを直接進める。完了・失敗・deadlineExceeded時はMailboxStatsのpendingItems/inFlightItemsをshutdownStageResultの未処理件数として返し、Mailbox自身へ終了phaseや別queueを追加しない"
+      "追実装で閉じる項目(A2-B3): stopInputAndDrainMailboxだけがbeginDrainを起動し、受付連番境界までのpending/in-flightを既存Mailboxで排出する。無いとA3がshutdown stateを直接進める。完了・失敗・deadlineExceeded時はMailboxStatsのpendingItems/inFlightItemsをshutdownStageResultの未処理件数として返し、Mailbox自身へ終了phaseや別queueを追加しない",
+      "追実装で閉じる項目(A2-isStalled、2026-09-28): drainDiagnosticsのstalled述語（進捗起点・期限だけ未完了の起点・閾値5秒）を読むだけのisStalled(nowMonotonicMs): booleanを足す。共有型は変えない。実装はA10（P2-A10-AC13、allowedPathsにmailbox.tsを限定追加）が行う。無いとhostがDisplayWorkerViewへ写すために別の判定式を複製する"
     ],
     "unresolvedQuestions": [
       {

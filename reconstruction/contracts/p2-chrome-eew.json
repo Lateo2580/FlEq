@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "585d2f4f858e350c6965d83019ba7e4842285b3c",
-    "sha256": "d6ee7072be91dffe5d4d45dc36f6f65f26880945d49a5874d363949d1d7732ea",
+    "sha256": "c0ba1cc59f9d3589a32fb461e72f1930502574db70ecedec160bd37c5cd98778",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "76c82b87d7783a4eae14af690cb34e7d6ec46f73617dc75b7f7401951619f080",
     "sequencesSha256": "be9cfd97b555e3a55568f085d107342c978b3dc7249f5cecea868ea5a62c5781",
@@ -9,11 +9,11 @@
     "decisionBranches": [
       {
         "id": "P2-A9-D03",
-        "A": "native EventSource、snapshot置換、EEW card、固定最小geometry、T5/T6候補marker、時計probeだけを実装する",
+        "A": "native EventSource、snapshot置換、EEW card、固定最小geometry、T5/T6候補marker、時計probe応答に加え、R38固定文言・R40〜R42の最小テキスト表示・HTML非解釈描画・ブラウザ用ES moduleの生成だけを実装する",
         "B": "P4のhover・詳細・pagination・県focus・津波・LOD・最終意匠を先取りする",
         "recommended": "A",
         "provisional": "A",
-        "ruling": "作者裁定D3=A",
+        "ruling": "作者裁定D3=A（2026-09-24 Q1=AでR38/R40〜R42/HTML非解釈を範囲に追加）",
         "reason": "P2 E01の実paint経路だけを閉じる"
       },
       {
@@ -33,6 +33,33 @@
         "provisional": "A",
         "ruling": "作者裁定D6=A",
         "reason": "E01 paint対象を機械検査できる最小集合にしP4 GIS合格と混同しない"
+      },
+      {
+        "id": "P2-A9-R59",
+        "A": "最新snapshotから消えたEEWのcardと地図の塗りを除去し、残存対象を維持するだけにする。消失理由（取消・終了・退去）を推測して文言を作らない",
+        "B": "取消／終了の文言を必須にし、根拠となる表示事実と保持期限をA4/A8へ追加する",
+        "recommended": "A",
+        "provisional": "A",
+        "ruling": "2026-09-28 作者裁定R59=A（A9点検 指摘1）",
+        "reason": "A4は取消・終端でcurrentを除去し、A8は取消noticeを対象外としているため、wireに消失理由の根拠がない"
+      },
+      {
+        "id": "P2-A9-ASSETS",
+        "A": "A9がブラウザ用ES moduleの生成手順・出力先・HTML入口を所有し、A8/B11の固定URL最小静的配信で/eventsと同一originから配る。smokeも同じserverを使う",
+        "B": "smoke専用のloopback serverと同一origin中継を置く、または配信をA10へ移す",
+        "recommended": "A",
+        "provisional": "A",
+        "ruling": "統合担当の決定（A9点検 論点a、2026-09-28）",
+        "reason": "reconstructionのCommonJS出力はブラウザで読めず、別originからの配信はCORSと試験専用の別経路を要する"
+      },
+      {
+        "id": "P2-A9-TIME",
+        "A": "画面に出す日時はすべて日本時間のYYYY/MM/DD HH:mm:ss（ゼロ埋め24時間制、タイムゾーン表記なし、例 2026/09/28 21:05:12）に整形し、updatedAt=nullは「時刻不明」と出す",
+        "B": "summaryのupdatedAtをepoch msの数値のまま出す",
+        "recommended": "A",
+        "provisional": "A",
+        "ruling": "2026-09-28 ご主人裁定Q-SUMMARY-TIME=A（書式指定つき）",
+        "reason": "full/summary/接続行の時刻を同じ形にし、端末のタイムゾーンに依存せず取り違えを防ぐ"
       }
     ],
     "questionResolutions": [
@@ -227,7 +254,7 @@
   "contract": {
     "contractId": "P2-CHROME-EEW-001",
     "mode": "implementation",
-    "objective": "D02とD05/D07/D11のEEW最小部分を実装し、native EventSource、完全snapshot置換、EEW cardと必要な予想震度geometryの同一paint候補、T5/T6 marker、Node/Chrome時計probeを単発実Chrome smokeまで閉じる。",
+    "objective": "D02とD05/D07/D11のEEW最小部分と、D12の最小テキスト（R40 notice・R41 channel・R42 接続/確認）を実装し、native EventSource、完全snapshot置換とstale検出・再接続、EEW cardと必要な予想震度geometryの同一paint候補、消失EEWの除去（R59）、R38「全国通知」固定文言、HTMLとして解釈させない描画、固定名T5/T6 marker、CDP経由の時計probe応答、ブラウザ用ES moduleの生成・HTML入口を単発実Chrome smokeまで閉じる。",
     "baseOid": "unassigned",
     "cleanTreeRequired": true,
     "readPaths": [
@@ -241,11 +268,21 @@
       "reconstruction/tools/corpus/manifest.json",
       "reconstruction/tools/corpus/sequences.json",
       "test/fixtures/37_01_01_240613_VXSE43.xml",
-      "reconstruction/src/**"
+      "reconstruction/src/**",
+      "docs/specs/display-design-system.md",
+      "display/frontend/src/lib/theme.css",
+      "reconstruction/contracts/p2-shared-runtime.types.ts",
+      "reconstruction/contracts/p1-parser-boundary.types.ts",
+      "test/fixtures/77_01_01_240613_VXSE45.xml",
+      "reconstruction/contracts/p2-eew-e01.json",
+      "reconstruction/contracts/p2-eew-e01.types.ts",
+      "reconstruction/test/eew-e01/evidence/chrome-smoke-conditions.json",
+      "reconstruction/tsconfig.json"
     ],
     "allowedPaths": [
       "reconstruction/src/display/chrome-eew/**",
-      "reconstruction/test/chrome-eew/**"
+      "reconstruction/test/chrome-eew/**",
+      "reconstruction/tsconfig.json"
     ],
     "allowedGitCommands": [
       "git status --porcelain",
@@ -259,7 +296,8 @@
       "D02",
       "D05",
       "D07",
-      "D11"
+      "D11",
+      "D12"
     ],
     "integrationContractIds": [
       "I-U-E"
@@ -270,16 +308,25 @@
     ],
     "publicTypes": [
       "reconstruction/contracts/p2-snapshot-sse.types.ts#DisplayVersion",
-      "reconstruction/contracts/p2-snapshot-sse.types.ts#DisplaySnapshot"
+      "reconstruction/contracts/p2-snapshot-sse.types.ts#DisplaySnapshot",
+      "reconstruction/contracts/p2-eew-e01.types.ts#ChromeEewMarkerDetail",
+      "reconstruction/contracts/p2-eew-e01.types.ts#ChromeClockProbeResponse",
+      "reconstruction/contracts/p2-eew-e01.types.ts#ChromeSmokeConditions"
     ],
     "publicFunctions": [
       "connectDisplaySnapshot(url: string, onSnapshot: (snapshot: DisplaySnapshot) => void): EventSource",
       "replaceDisplaySnapshot(current: DisplaySnapshot | null, incoming: DisplaySnapshot): DisplaySnapshot",
       "markEewSnapshotReceived(snapshot: DisplaySnapshot, chromeMonotonicMs: number): void",
       "markEewPaintCandidate(snapshot: DisplaySnapshot, chromeMonotonicMs: number): void",
-      "respondClockProbe(probeId: string, chromeReceivedMonotonicMs: number, chromeSentMonotonicMs: number): void"
+      "respondClockProbe(probeId: string): ChromeClockProbeResponse"
     ],
-    "allowedDependencies": [],
+    "allowedDependencies": [
+      "node:child_process",
+      "node:fs",
+      "node:os",
+      "node:path",
+      "ws"
+    ],
     "fixtureIds": [
       "test__fixtures__37_01_01_240613_VXSE43",
       "test__fixtures__77_01_01_240613_VXSE45"
@@ -358,7 +405,8 @@
       "LOD",
       "最終意匠",
       "P4正規GISと地理精度合格",
-      "E01の1000×3正式検収"
+      "E01の1000×3正式検収",
+      "取消・終了・退去の文言表示（R59=A）"
     ],
     "acceptanceChecks": [
       {
@@ -367,12 +415,12 @@
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:422 «5171404bc422a49d»",
           "docs/specs/reconstruction-p0-contracts.md:1298 «059f657d648c3ce8»",
-          "reconstruction/contracts/p2-order-plan.md:84 «5f4579fe6a2a0487»"
+          "reconstruction/contracts/p2-order-plan.md:84 «910ae37b50d4dd9b»"
         ]
       },
       {
         "id": "P2-A9-AC02",
-        "requirement": "前景Chrome、1440×900 CSS px、DPR 2で、対象snapshotのEEW cardとその入力が実際に持つ予想震度区域が同じ更新で表示されたT5/T6候補markerを出す。9区域paintはVXSE43の採用snapshotに限定する。VXSE45 expected:O09:12の区域集合は空で他報の9区域を補完せず、map空状態（旧塗り除去）のmarkerと全体予想最大震度3のcardを対応付ける。T6正式時刻はA10がChrome traceと画面記録で検証し、DOM更新やrAF callbackだけを実paint証拠にしない。取得元はA8が運ぶA4 EewUnitView.current[].predictionに統一し、全体最大はmaximum、区域なしはareaCoverage=noneとareas=[]、未知値はmaximum.from/toおよびareas[].intensity.from/toのMaterialValue.kind=unknownで区別する",
+        "requirement": "前景Chrome、1440×900 CSS px、DPR 2で、対象snapshotのEEW cardとその入力が実際に持つ予想震度区域が同じ更新で表示されたT5/T6候補marker（固定名はAC06）を出す。9区域paintはVXSE43の採用snapshotに限定する。VXSE45 expected:O09:12の区域集合は空で他報の9区域を補完せず、map空状態（旧塗り除去）のmarkerと全体予想最大震度3のcardを対応付ける。T6正式時刻はA10がChrome traceと画面記録で検証し、DOM更新やrAF callbackだけを実paint証拠にしない。取得元はA8が運ぶA4 EewUnitView.current[].predictionに統一し、全体最大はmaximum、区域なしはareaCoverage=noneとareas=[]、未知値はmaximum.from/toおよびareas[].intensity.from/toのMaterialValue.kind=unknownで区別する。ブラウザがA8の運ぶA4 EewUnitViewを直接読むのはP2の計測（E01）専用とし、P4ではB08がunitの意味viewを閉じた表示語彙へ射影したものだけをブラウザが読む形に置き換える。A9のブラウザ側の読み方をP4の手本にしない",
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:1113 «b6dde3aea48408c0»",
           "docs/specs/reconstruction-p0-contracts.md:1114 «3b78c4899d0524ef»",
@@ -391,7 +439,7 @@
       },
       {
         "id": "P2-A9-AC04",
-        "requirement": "EEW cardはoperation、EventID、更新時刻、予想最大震度と取消/終了を表示し、空card 0、unavailable/summaryを無発令に変換しない。metadataだけのsnapshotで全scene再初期化0を単発smokeの先行証拠として記録する",
+        "requirement": "full配送では現在有効なEEWのoperation・EventID・発表時刻・予想最大震度をcardに表示する。最新snapshotに存在しない対象のcardと地図寄与を除去し、残存対象を維持する。消失理由を推測して取消／終了の文言を生成しない（R59=A）。個別cardの必須項目はfull配送だけに適用する。summaryではoperation別にactiveCount・予報／警報区分・updatedAtと省略中である旨を出し、updatedAt=nullは時刻不明と表示してEventID・震度・区域を補完しない。summaryへ切り替わった時は旧地図塗りを除去する。表示中のtraining/test要約にも確認状態を添える。空card 0、unavailable/summaryを無発令に変換しない。metadataだけのsnapshotで全scene再初期化0を単発smokeの先行証拠として記録する",
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:425 «8c167706c5a0a9ab»",
           "docs/specs/reconstruction-p0-contracts.md:1839 «6b9ddf567779f91e»",
@@ -408,11 +456,54 @@
       },
       {
         "id": "P2-A9-AC06",
-        "requirement": "固定名のT5/T6 performance markerと往復clock probe応答を出し、A10 runnerがrun/input/operation/subject/revision/stream/sequenceとClockCorrespondenceへ変換できる。A9はtrace schemaを複製しない",
+        "requirement": "markEewSnapshotReceived/markEewPaintCandidateはperformance.markの固定名fleq:p2:eew:T5とfleq:p2:eew:T6-candidateだけを出し、detailはA10のChromeEewMarkerDetail（両者にDisplayVersion、候補にoperation/subject・card/mapの識別子・区域code列。区域なしの空mapも候補にする）とする。respondClockProbeはrunnerがCDP経由で呼び、Chrome側の受信時刻と返信直前時刻を同じprobeIdで返す。Node側送受信時刻・run/inputとの結合・paintEvidenceIdの付与・正式T6認定はA10が行い、候補時刻を正式T6と呼ばない。A9は製品SSE・HTTPへ測定用event/endpointを足さず、trace schemaを複製しない",
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:1116 «bd414d279043faf2»",
           "docs/specs/reconstruction-p0-contracts.md:1141 «6d9d63f029934dfb»",
-          "reconstruction/contracts/p2-order-plan.md:143 «0f2520b7e131519f»"
+          "reconstruction/contracts/p2-order-plan.md:143 «0f2520b7e131519f»",
+          "reconstruction/contracts/p2-eew-e01.types.ts"
+        ]
+      },
+      {
+        "id": "P2-A9-AC07",
+        "requirement": "R38: 画面に固定文言「全国通知」を常時1か所表示する。意味は購読した全国のEEWを地域で絞らず表示・通知していることで、自宅への危険判定ではない。設定field・地域選択・文言の差し替え口を作らない。snapshot未受信・VXSE43・VXSE45・card除去後の全状態で同じ文言が出る。理由: 地域で絞らない現状を利用者が自宅向けの判定と誤読しないため（2026-09-23 作者裁定R38=A、外部要件照合I-08（repo外）を意図して外した扱い）",
+        "evidenceRefs": [
+          "reconstruction/contracts/p2-order-plan.md:128 «92abf522f1c7fc0d»",
+          "reconstruction/contracts/p2-snapshot-sse.json:496 «91aedc46acb5ebe4»"
+        ]
+      },
+      {
+        "id": "P2-A9-AC08",
+        "requirement": "wire由来の文字列（EventID、operation、notice text/office、保存失敗理由と、整形後の日時を含む）はDOMのtext node（textContent）だけで入れ、HTMLとして解釈させない。reconstruction/src/display/chrome-eew/**でinnerHTML/outerHTML/insertAdjacentHTML/document.write/DOMParser/createContextualFragment/on*属性の文字列組立て/wire値からのclass名・属性名・style文字列組立てを使わない（静的検査で0件）。severity tokenは固定表でclassへ写す。canvasを使う場合もwire由来の文字列をcanvasへ描かない（区域の塗りだけ）。同じ構造・同じ件数のsnapshotで表示文字列だけを<img src=x onerror=...>・<script>・&lt;・改行を含む値へ置換し、要素数不変・新規実行要素0・字面一致を確認する。A8の切詰め印[truncated:fieldLimit]は除去・再整形しない。理由: P4認証前でも受信内容を無条件に信頼しない（外部要件照合O-03、repo外）。A8のJSON化だけではHTML非解釈を証明しない",
+        "evidenceRefs": [
+          "reconstruction/contracts/p2-snapshot-sse.json:496 «91aedc46acb5ebe4»",
+          "reconstruction/contracts/p2-order-plan.md:128 «92abf522f1c7fc0d»",
+          "reconstruction/contracts/p2-snapshot-sse.json:343 «9495921d3220f9cb»"
+        ]
+      },
+      {
+        "id": "P2-A9-AC09",
+        "requirement": "R40〜R42のsnapshot項目を意匠なしの最小テキストで描く（2026-09-24作者裁定Q1=A）。(1) notices: 各VisibleNoticeのoperation・A8が生成したtext・官署名を一覧にし、training/testは明示する。textはtextContentで表示し、A9にkind→文言表を重複定義しない。sourceがnull、またはsource.officeがnullなら官署名を出さない。source.officeTruncated=trueなら切詰め済みと分かる印を添える。notice生成・期限計算・並べ替えはA8に任せA9で作らない。(2) channels: desktop/soundの2行でchecking=確認中、available=使える、unavailable=使えない、isolated=隔離中。availableを可聴の保証と書かない。(3) 接続/確認の1行: connection.state（connected/reconnecting/stopped）とdisconnectedAt（AC10の書式、null=未切断）、worker.state（stalled/unresponsive/stoppedは停止系として明示）、ブラウザ側SSE到達のstale、U-Eの確認状態snapshot.current.eew.items[i].confirmation.state（full/summaryの両配送にある）を出す。stale: 最終有効snapshot／名前付きheartbeatの受信から45秒無受信なら最大15秒周期の検査でstaleとし、旧EventSourceを閉じて再接続し、最新完全snapshotで置換する。背景から前景へ戻った時はtimerを待たず直ちに確認する。初回未受信の起点は接続開始時刻とする。heartbeatが運ぶ明示的なworker状態は反映するが、heartbeatや再接続が届いた事実だけでhealthy・確認済みに変えない。normal行は常に、training/test行はそのoperationのcardまたはnoticeを表示している間だけ出す。unconfirmed/partialを確認済みと書かない。stale中とworker停止中は現在の表示を「更新未確認の最終情報」と明示する。U-W/U-FはQ-NOTICE-UX=AどおりA8のunavailable noticeだけを描き、危険度上昇のnoticeを作らない。理由: A8が運ぶ未確認・通知不能・お知らせと、specの再同期を画面と接続で閉じる担当がないとP2の間これらが分からない",
+        "evidenceRefs": [
+          "reconstruction/contracts/p2-snapshot-sse.types.ts:87 «b14beebdc83475d2»",
+          "reconstruction/contracts/p2-snapshot-sse.types.ts:46 «fd2ac8da3d1741d1»",
+          "reconstruction/contracts/p2-snapshot-sse.json:41 «fe443b0075eaa651»",
+          "reconstruction/contracts/p2-snapshot-sse.json:468 «f3eed5ecb07ec110»",
+          "reconstruction/contracts/p2-snapshot-sse.json:475 «cb25a21169eb89db»",
+          "reconstruction/contracts/p2-snapshot-sse.types.ts:69 «b731944200fafc30»",
+          "reconstruction/contracts/p2-snapshot-sse.types.ts:26 «24c063ef29bb6cf5»",
+          "docs/specs/reconstruction-p0-contracts.md:1189 «0bd907f4258206f3»",
+          "docs/specs/reconstruction-p0-contracts.md:1198 «45d7a5dc731dd19b»",
+          "docs/specs/reconstruction-p0-contracts.md:1202 «40765ac3f9f7889e»"
+        ]
+      },
+      {
+        "id": "P2-A9-AC10",
+        "requirement": "画面に出す日時はすべて日本時間のYYYY/MM/DD HH:mm:ss（ゼロ埋め24時間制、タイムゾーン表記なし）に整形する（2026-09-28ご主人裁定Q-SUMMARY-TIME=A）。変換はepoch msへ+32400000を足しDateのgetUTC*で各fieldを読む固定計算とし、Intl・端末のタイムゾーンに依存しない（Asia/Tokyo固定、日本に夏時間はない）。EEW cardの時刻は、eew配送がfullのときA4 EewCurrent.source.reportDateTimeRaw（報の発表時刻、A1検証済みのoffset付き日時）をepoch msへ解釈して整形し、summaryのときは該当operation行のitems[].updatedAt（A8がreportDateTimeRawから作るepoch ms）を整形する。updatedAt=nullや解釈できない値は「時刻不明」と出し、別の時刻で補わない。snapshot.generatedAtは出さない（2026-09-24作者裁定Q3=A）。summaryで個別cardが描けない場合もAC04どおり無発令に変換しない。理由: 受信遅延や端末設定があっても情報の時点を取り違えない",
+        "evidenceRefs": [
+          "reconstruction/contracts/p2-shared-runtime.types.ts:65 «6be242758d3f3934»",
+          "reconstruction/contracts/p2-eew-unit.types.ts:37 «f77a40e79ba21087»",
+          "reconstruction/contracts/p2-snapshot-sse.json:72 «b271248a738b3b9c»"
         ]
       }
     ],
@@ -441,7 +532,7 @@
           "P2-A9-AC04",
           "P2-A9-AC05"
         ],
-        "behavior": "取消・unavailable・metadata更新で空card化と全scene再初期化をせず先行証拠のstatusを分離する"
+        "behavior": "後続snapshotから消えたEEWのcardと地図寄与を除去し残存を維持する。取消・終了の文言0、unavailable・summaryで空card化しない、metadata更新で全scene再初期化しない。先行証拠のstatusを分離する"
       },
       {
         "testId": "P2-A9-T04",
@@ -449,7 +540,25 @@
         "referenceIds": [
           "P2-A9-AC06"
         ],
-        "behavior": "固定名T5/T6 markerと時計probe応答を出し、独自trace schemaを作らない"
+        "behavior": "performance.markが固定名fleq:p2:eew:T5とfleq:p2:eew:T6-candidateだけで、detailがChromeEewMarkerDetail（空mapの候補を含む）であること、CDP経由のrespondClockProbeが同じprobeIdで受信・返信直前時刻を返すことを実Chromeで確認する。独自trace schemaを作らない"
+      },
+      {
+        "testId": "P2-A9-T05",
+        "purpose": "contractBoundary",
+        "referenceIds": [
+          "P2-A9-AC07",
+          "P2-A9-AC08"
+        ],
+        "behavior": "全状態で固定文言「全国通知」が1か所に出る。同じ構造・件数のsnapshotで文字列だけをHTML断片・実体参照・改行へ置換し、要素数不変・新規実行要素0・字面表示。src静的検査で禁止API 0件"
+      },
+      {
+        "testId": "P2-A9-T06",
+        "purpose": "contractBoundary",
+        "referenceIds": [
+          "P2-A9-AC09",
+          "P2-A9-AC10"
+        ],
+        "behavior": "notice（A8 text、source=null、officeTruncated、training）、channel4状態、connection3状態・worker停止系、confirmation3状態（normal常時、training/testは表示中のみ）、summary（activeCount・区分・updatedAt、null=時刻不明、旧塗り除去）を固定snapshotで描き、確認中/未確認/staleを確認済みと書かないこと、card時刻がfull=reportDateTimeRaw・summary=updatedAtでありgeneratedAtでないこと、期待文字列がVXSE43（2024-04-17T23:14:59+09:00）=2024/04/17 23:14:59、VXSE45（2024-04-17T23:14:57+09:00）=2024/04/17 23:14:57、updatedAt=null=時刻不明で、端末TZをUTCとAsia/Tokyoにした実Chromeで同じ字面になることを確認する。系列として(a) snapshot更新なしで停止状態のheartbeatだけが届く（停止系表示、healthyに戻さない）、(b) 無受信45秒→stale→旧EventSource close→再接続→最新完全snapshot置換、(c) 背景→前景復帰での即時確認を実Chromeで確認する"
       }
     ],
     "requiredCommands": [
@@ -496,22 +605,34 @@
         "purpose": "snapshot clientとmarkerの契約境界試験"
       },
       {
+        "command": "./node_modules/.bin/tsc --project reconstruction/src/display/chrome-eew/tsconfig.json",
+        "cwd": ".",
+        "target": "reconstruction/dist/chrome-eew/",
+        "stage": "implementation",
+        "purpose": "ブラウザ用ES moduleの生成（A9所有の唯一の生成手順。bundler・新依存なし）"
+      },
+      {
         "command": "node reconstruction/test/chrome-eew/smoke.mjs",
         "cwd": ".",
         "target": "reconstruction/test/chrome-eew/evidence/",
         "stage": "implementation",
-        "purpose": "前景実Chromeの単発EventSource・card/map paint・clock probe証拠"
+        "purpose": "A8 startDisplayServerの固定URL配信から前景実Chromeで単発EventSource・card/map paint・固定名marker・CDP clock probe・stale再接続の証拠を取る"
       }
     ],
     "artifactRequirements": [
       "A4 AC02の参照: A8が運ぶEewUnitView.current[]のprediction/sourceは最新報のraw・出典、retainedPrediction.prediction/sourceは報単位の既知保持根拠として区別して読む。保持根拠を最新rawやAC02/AC03の区域paint期待へ混入・合成しない。fieldがないとunknown続報の保持根拠と最新報を区別できない",
       "native EventSourceで足りる。独自SSE client、state manager、router、component frameworkを追加しない",
       "A8 DisplaySnapshotだけをimportする。A9独自wire schemaがあると再接続置換とsequence照合が二重化する",
-      "A9は固定名markerとclock probe応答だけを出し、A10がtrace/manifest型へ変換する。A9独自trace/manifestがあると正式測定の相関式が分岐する",
-      "A10の版付き測定manifest凍結を実Chrome smoke開始条件にするが、A9からA10実装をimportする循環依存は作らない",
+      "A9は固定名marker（fleq:p2:eew:T5、fleq:p2:eew:T6-candidate）とCDP経由のclock probe応答だけを出し、A10がtrace/manifest型へ変換する。型はA10のcontracts型をtype importするだけで、A10実装をimportしない。A9独自trace/manifestがあると正式測定の相関式が分岐する",
+      "実Chrome smokeは、A10が所有する版付きsmoke条件（reconstruction/test/eew-e01/evidence/chrome-smoke-conditions.json、ChromeSmokeConditions）の凍結を開始条件とする。正式E01 manifest全体とA10 runner実装の完成は開始条件にしない。smoke条件は正式manifestから参照され、差異は正式manifest側に記録される。A9はsmoke用の別trace/manifest schemaを作らない",
       "固定geometry canonical JSON bytesはキー順schemaVersion,sourceFixtureId,areas、各areaはcode,rect、空白/改行なしのJSON.stringifyとしsha256を照合する。これがないとT6対象pixel集合をrun間で再現できない。codeは文字列。fixture別paint期待表がないと区域のないVXSE45へ他報の予測を流用するため、正本表の集合・From/To・表示/色tokenだけを検査する。空mapもT6 marker対象とする",
       "実Chrome smokeはPass/Fail/Blocked/N/A/未確認を記録し、unit test・DOM存在・rAFだけで実paint Passにしない",
-      "allowed_paths限定patch、変更一覧、型検査/test/実Chrome smoke結果、未実行検証、残存リスク"
+      "allowed_paths限定patch、変更一覧、型検査/test/実Chrome smoke結果、未実行検証、残存リスク",
+      "表示規範の先読み: 震度色は旧築display/frontend/src/lib/theme.css:78-88の--int-1〜--int-7（文字色）と--int-8-bg/--int-8-on・--int-9-bg/--int-9-on（6強・7は面＋反転文字、docs/specs/display-design-system.md:90）、背景は同:25の--bg、EEW見出しは同:101-102の--header-eewWarning/Forecast-*に倣う。これらはvar(--c-*)参照なので、参照先の実値まで解決して写し、出典file:lineを残す。display/frontendをimportしない。無いと震度の色がP4と別体系になり作り直しが二重になる",
+      "R38の固定文言とHTML非解釈は設定fieldを増やさない。無いとP4前に表示文言の差し替え口が生まれる",
+      "DOM型はA9所有のブラウザ側tsconfig（reconstruction/src/display/chrome-eew/tsconfig.json、生成手順と同じ）でlibにDOMを入れて有効にする。root reconstruction/tsconfig.jsonはsrc/**/*.tsをlib ES2022で含むため、その変更はexcludeへJSON値\"src/display/chrome-eew/**\"（tsconfigの位置からの相対）を1つ足すことだけに限る。vitest（node環境）ではDOMを使わず、vitestがimportするのはDOM型を参照しないファイルだけにする（tsconfig.test.jsonもrootのexcludeを継承する）。DOM・描画・HTML非解釈の検収はsmoke.mjsの実Chromeで行う。無いとroot tscがDOMコードで落ちるか、T05/T06がDOM環境の無いvitestで偽の緑になる",
+      "ブラウザ資材（P2-A9-ASSETS）: HTML入口はreconstruction/src/display/chrome-eew/index.html、生成は上記tsc一手順でreconstruction/dist/chrome-eew/へES moduleを出す。配信はA8 P2-A8-AC15の固定URL（GET /とGET /chrome-eew/<name>.js）で/eventsと同一origin、製品起動での資材path受け渡しはA10 hostが行う。ブラウザ実行時依存は0。無いとCommonJS出力をブラウザで読めず、smokeが製品と別の配信経路になる",
+      "smoke.mjsのNode側依存は用途を限定する: node:child_processは前景Chrome起動、node:os/node:pathは一時profile、node:fsは証拠保存、wsはCDP接続。snapshotの配信はA8 startDisplayServerとfixture由来のDisplaySnapshotを使い、A9独自のwire生成・HTTP serverを作らない"
     ],
     "unresolvedQuestions": []
   }

@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "585d2f4f858e350c6965d83019ba7e4842285b3c",
-    "sha256": "b85b30b6fe6a0f6d6ef2f836f41272f9f520751275a27e1c9fededd16bba12f1",
+    "sha256": "97778e79af2b3e189ff1e28ae8eaf9b8501dbe4de7208b231322111b971878d6",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "76c82b87d7783a4eae14af690cb34e7d6ec46f73617dc75b7f7401951619f080",
     "sequencesSha256": "be9cfd97b555e3a55568f085d107342c978b3dc7249f5cecea868ea5a62c5781",
@@ -30,7 +30,7 @@
       {
         "id": "P2-A8-OWNERSHIP",
         "status": "closed",
-        "closed": "DisplaySnapshot wire型はA8だけが所有しA9はimportする。E01 trace schema/manifestはA10だけが所有する",
+        "closed": "DisplaySnapshot wire型はA8だけが所有しA9はimportする。E01 trace schema/manifestとE02正式測定はA10だけが所有する（2026-09-28 A10点検 点4）。A9資材の生成・出力先・HTML入口はA9、A8は固定URLの最小静的配信だけを持つ（A9点検 論点a）",
         "remaining": "P4の12分野・詳細page wireはP4前に別途凍結する",
         "reason": "計画§3.2の共有ファイル所有規則"
       },
@@ -38,7 +38,7 @@
         "id": "R40",
         "status": "closed",
         "closed": "P2-A8-NOTICEに対象/期限/意味失効/容量順位/有界出典を固定。A7の配送履歴に依存しない。",
-        "remaining": "Q-NOTICE-UXの画面演出はA9で裁定",
+        "remaining": "Q-NOTICE-UXは2026-09-24作者裁定A: U-W/U-Fはactive→unavailableだけ短いnoticeにし、Codeの危険度を推測しない（A8現行のまま、A8対象拡張なし）。描画はA9 P2-A9-AC09",
         "reason": "配送成功・取消抑止を画面noticeへ持ち込まない"
       },
       {
@@ -81,7 +81,7 @@
         "owner": "A8がRuntimePublishedOutcome accepted/semanticと同じstepのRuntimeDisplayChangeを使う。A1は最終採用結果を供給し、A4のwarningClassをそのまま使う。A7 intent/latch/attempt/disposition/配送成功を生成・置換・回収の根拠にしない。起動/復元/再接続の既存currentから新着noticeを生成しない。 normal公開mask中は旧currentに基づくnew/upgradeを生成しない。mask解除だけでも再通知しない。",
         "identity": "targetId=SHA256(UTF8(JSON.stringify([unit,operation,key])))の小文字hex64。U-E keyはA4検証済みEventID(両family共通)、U-W/U-F keyは検証済みsubject。id=SHA256(UTF8(JSON.stringify([targetId,kind,sourceId])))のhex64、sourceId=SHA256(UTF8(JSON.stringify([unit,ReportRef.operation,ReportRef.family,ReportRef.subject,ReportRef.inputId])))のhex64。原文の区切り文字連結を使わず、短縮前の検証済み識別子を使う。同じtargetIdの旧noticeを新しい一件で置換する。",
         "eew": "A4はEewCurrent.eventIdとwarningClass(forecast|warning)、accepted subject outcomeのfacts.eventId/facts.warningClassを公開する。警報区分変化は予想震度不変でもsemanticかつcontentRevision更新。各stepの変更前後で同一operation/EventIDの両familyを一組とし、非終端currentが無い→ある場合eewNew、既存非終端eventの集約区分がforecast→warningならeewWarning。初報が警報ならeewNew一件だけ。既存warningへ別family警報が来てもnew/upgradeを出さない。既存forecastへVXSE43警報ならeewWarning。warning→forecastは新noticeなし。A8はfamily名/震度/本文から警報判定を推測しない。 A8のU-E射影だけにoperation/EventID別のforecast/warning参照件数を保持し、同stepのbefore/after差分を全て反映してから判定する。零件keyを消し最大1024 event以下、全EEW subjectの検索をしない。",
-        "weather": "U-W/U-Fは変更前にactiveであったtargetに利用不能recordが新しく生じた場合のみunavailableを生成する。同targetの理由だけの変更は既存noticeを置換するが、元のexpiresAtを延長しない。理由の同値更新/鮮度疑いだけ/拒否/保存/通知結果は生成しない。対象を最小化する理由: EEWの発生・警報化と現況/時系列の利用不能化の見落としは旧状態の誤信を招く。気象危険度上昇noticeはQ-NOTICE-UXへ残す。",
+        "weather": "U-W/U-Fは変更前にactiveであったtargetに利用不能recordが新しく生じた場合のみunavailableを生成する。同targetの理由だけの変更は既存noticeを置換するが、元のexpiresAtを延長しない。理由の同値更新/鮮度疑いだけ/拒否/保存/通知結果は生成しない。対象を最小化する理由: EEWの発生・警報化と現況/時系列の利用不能化の見落としは旧状態の誤信を招く。気象危険度上昇noticeは作らない（Q-NOTICE-UX=A、2026-09-24作者裁定、R40.remaining参照）。",
         "invalidate": "TTLより先に意味上の失効を適用する。U-Eの同eventの採用取消または終端はfamilyをまたいで対応noticeを全て除去する。同stepで失効と生成条件が競合したら失効を優先する。新しい取消noticeはP2対象外。U-Wは同targetのunavailableが正常採用/有効な包含確認によって全て解消した時、U-Fは正常採用active/noActiveItems/cancelledで利用不能が解消した時に旧noticeを除去する。scopeの一部しか回復していなければ残す。対象の削除/退去でも回収し、次報が同一family継続中なら別family一件退去だけでevent noticeを消さない。期限/回復による削除はoutcomeが無くてもdisplayChangesから反映する。",
         "ttl": "採用したClockReading.wallTimeMsをnowMsとしU-E=nowMs+15000、U-W/U-F=nowMs+60000。nowMs>=expiresAtで回収する。固定textはeewNew=緊急地震速報を確認、eewWarning=緊急地震速報が警報に変わりました、U-W unavailable=気象警報の現況を確認できません、U-F unavailable=気象時系列情報を確認できません。A3が次expiresAtを既存tickへ予約する(実配線はA8配送後)。",
         "source": "DisplayNoticeSourceはid(hex64)、既知family(6 ASCII)、office、officeTruncated、reportTimeだけ。生のReportRef/inputId/subject/raw時刻はwireに出さない。officeはunitの検証済み官署名を使い、無ければnull。Unicode scalar単位の先頭最長prefixでUTF-8<=256 bytesに切り詰め、除去があればofficeTruncated=true、なければfalse。孤立surrogateはU+FFFDへ正規化してから計量。省略記号を加えない。reportTimeは検証済みepoch msまたはnull(Date範囲)。切詰めは表示専用でidentity/coverageには使わない。",
@@ -96,7 +96,7 @@
         "upstream": "A1がRuntimeState.viewsを所有する。供給と変更集合の正本はA1 P2-A1-DISPLAY-CHANGES。A3はto*Viewを呼ばず具体型unionを渡すだけ。A4〜A6は保存ack/intent配送等で公開内容が変わらなければviewとその子要素を参照再利用する。viewからpersistenceを分離し既存RuntimeState.units[unit].persistence→snapshot.persistenceでmetadata更新する。",
         "projector": "projectSnapshot(input,previous:SnapshotProjectionState|null)は前回の三つのDisplayDomainProjectionを受け取り更新済みstateを返す。各full viewの参照、集計items、JSON byte数と区域/階級/時刻の参照件数を保持するだけ。初回は全viewを一度走査、通常はdisplayChanges.before/afterの変更subjectの公開要素だけを計量/集計して差引く。削除はbeforeだけ、追加はafterだけ。操作別の最大階級/時刻を参照件数から求め、零になったkeyは削除する。索引のkey数は保持viewの区域/階級/時刻の寄与数以下で、過去世代の寄与を残さない。汎用cache/factory/registryを作らない。 U-EのeventRefsはP2-A8-NOTICEの固定event集計のみ。最大値の再選択は集計索引だけを参照し、subject本文へ戻らない。 公開拒否時にも内部採用を継続する規則はP2-A8-PUBLICATIONを正本とする。",
         "summaryReturn": "summary配送中も最新のfull view参照とそのbyte/集計索引を更新・保持する。総量が予算内へ戻ればそれをfullとして再利用し、上流全state/全subjectの再射影・再計量をしない。SSE/HTTPは最新配送snapshot一枚だけを持ち、内部射影stateやfull viewの過去世代は配信しない。",
-        "accounting": "metadataだけ(保存ack/probe/channel/connection/確認状態/worker)とheartbeatでは全unitの内容要素走査0、subjectの射影/byte計量0。確認集計はA1が維持する固定9slotのcounts/confirmedScopeCountだけ。版/キー/区切り/配列要素数のJSON構造費用は定数または変更件数で補正する。容量判定・変更検出のための上流UnitState全量JSON.stringifyは全入力で0。最終配送JSON<=1MiBの直列化は別カウンタで一公開につき1回、HTTP/SSE clientごとに再直列化しない。heartbeatは小さい専用payloadのみ。JSON byte長計量は変更要素の文字列をJSON escapeした長さの和で行い、state丸ごとの文字列化を代用しない。 admission件数のみの更新は固定9個の数値とrow/JSON構造費用だけを更新し、内容走査/subject再計量0。",
+        "accounting": "metadataだけ(保存ack/probe/channel/connection/確認状態/worker)とheartbeatでは全unitの内容要素走査0、subjectの射影/byte計量0。確認集計はA1が維持する固定9slotのcounts/confirmedScopeCountだけ。版/キー/区切り/配列要素数のJSON構造費用は定数または変更件数で補正する。容量判定・変更検出のための上流UnitState全量JSON.stringifyは全入力で0。最終配送JSON<=1MiBの直列化は別カウンタで一公開につき1回、HTTP/SSE clientごとに再直列化しない。heartbeatは小さい専用payloadのみ。JSON byte長計量は変更要素の文字列をJSON escapeした長さの和で行い、state丸ごとの文字列化を代用しない。 admission件数のみの更新は固定9個の数値とrow/JSON構造費用だけを更新し、内容走査/subject再計量0。 限定例外（台帳49、A10 P2-A10-AC15）: U-E/U-W/U-FのsemanticRevision組立てと本射影のfixedBytesによるview固定部の直列化はO(N)のまま既知例外とし、対象はこの二つ、上限はRES-07の保持上限、回数・時間はA10が別計数で報告し、再検討はE01正式対象の未達が射影・整形へ帰属した時かP3の受信経路契約前とする。上流UnitState全量JSON.stringify0と最終配送JSON一公開一回は免除しない。",
         "acceptance": "全unit保持上限付近でEEW1件/metadataのみ/U-W1subject/U-F1subjectを各100回(測定前10回warmup)実行。A1 view生成回数と走査要素数、A8射影/byte計量対象subjectと要素数、上流全量stringify回数、最終JSON直列化回数、msのp50/p99を別記録。EEW更新時U-W/U-F=0、metadataは全unit=0、W/F単件時は当該subjectのbefore/afterだけ(副作用で実際に退去したsubjectは明示deltaに含めて別計数)。F retainUntil削除でoutcomes=[]でもbyte/集計/noticeが減る。summary→fullは未変更subject再計量0。時間閾値は未測定で置かず、上記回数/集合一致を合否にする。"
       },
       {
@@ -117,7 +117,7 @@
   "contract": {
     "contractId": "P2-SNAPSHOT-SSE-001",
     "mode": "implementation",
-    "objective": "B08とB11のP2最小範囲を実装し、三分野の完全snapshot、最新1枚、client待機1枚、1MiB、名前付きheartbeat、healthとworker状態分離、slow client切断を固定する。",
+    "objective": "B08とB11のP2最小範囲を実装し、三分野の完全snapshot、最新1枚、client待機1枚、1MiB、名前付きheartbeat、healthとworker状態分離、slow client切断、A9資材の固定URL最小静的配信を固定する。",
     "baseOid": "d54edacf1b5ef9201197d70f3e04ad5bf36dc382",
     "cleanTreeRequired": true,
     "readPaths": [
@@ -200,11 +200,14 @@
       "projectSnapshot(input: SnapshotProjectionInput, previous: SnapshotProjectionState | null): SnapshotProjectionResult",
       "handleSnapshot(latest: DisplaySnapshot | null): SnapshotHttpResponse",
       "handleSse(client: SseClientState, input: SseClientInput, nowMonotonicMs: number): SseTransition",
-      "handleHealth(worker: DisplayWorkerView, latest: DisplayVersion | null): HealthResponse"
+      "handleHealth(worker: DisplayWorkerView, latest: DisplayVersion | null): HealthResponse",
+      "startDisplayServer(options: Readonly<{ host: \"127.0.0.1\" | \"::1\"; port: number; worker: DisplayWorkerView; onMarker?: (marker: Readonly<{ point: \"T4\"; clock: \"node\"; monotonicMs: number }>, version: DisplayVersion) => void; onSerialize?: (observation: Readonly<{ version: DisplayVersion; bytes: number; durationMs: number }>) => void; browserAssets?: Readonly<{ htmlPath: string; moduleDirectory: string }> }>): Promise<既存startDisplayServerの推論型を維持（新しい共有型を作らない）>"
     ],
     "allowedDependencies": [
       "node:http",
-      "node:crypto"
+      "node:crypto",
+      "node:fs",
+      "node:path"
     ],
     "fixtureIds": [
       "test__fixtures__37_01_01_240613_VXSE43",
@@ -277,7 +280,7 @@
         "limit": 100,
         "unit": "milliseconds p99",
         "status": "provisional",
-        "source": "E02"
+        "source": "E02（正式測定・判定はA10 P2-A10-DLV-04）"
       }
     ],
     "retentionLimits": [
@@ -370,10 +373,11 @@
     "outOfScope": [
       "§7.10詳細ページ",
       "全12分野",
-      "静的asset設計",
+      "静的asset framework・汎用静的配信（A9資材の固定URL配信だけAC15で持つ）",
       "P4認証拡張",
       "差分SSEと配信履歴",
-      "E01 trace schema/manifest"
+      "E01 trace schema/manifest",
+      "E02正式測定と判定（A10 P2-A10-AC11）"
     ],
     "acceptanceChecks": [
       {
@@ -381,7 +385,7 @@
         "requirement": "A1のadmission調整済み三具体viewを起動時に必ずそろえ、restored/empty/unavailableを欠けさせず初回snapshotを作る。RuntimePublishedOutcomeとRuntimeDisplayChangeはunit帰属を保持する。summary/full共通itemsはP2-A8-SUMMARY、確認はP2-A1-CONFIRMATION、channelはAC10に従う。理由: 初回や縮退で障害を空/正常と誤表示させない。",
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:1298 «059f657d648c3ce8»",
-          "reconstruction/contracts/p2-order-plan.md:83 «10e0acf25ebc81e7»"
+          "reconstruction/contracts/p2-order-plan.md:83 «b9e9554738516fa4»"
         ]
       },
       {
@@ -414,7 +418,7 @@
       },
       {
         "id": "P2-A8-AC05",
-        "requirement": "E02: N/P中に独立clientから/healthzを毎秒要求し各run p99≤100msを報告する。HTTP transportが応答してもworker stalled/unresponsiveを正常と返さず、未測定・標本不足をPassにしない",
+        "requirement": "E02のHTTP動作: /healthzはtransport応答とworker状態を分離し、worker stalled/unresponsive/stoppedを正常と返さない。N/P各1000標本以上×3 runの正式測定と判定はA10（P2-A10-AC11）が所有し、A8はその測定が使うhandlerと実serverだけを供給する。T04は非正式の機能試験・予備値で正式E02へ代用しない。未測定・標本不足をPassにしない",
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:2053 «5e9334289c7fb257»"
         ]
@@ -468,7 +472,7 @@
       },
       {
         "id": "P2-A8-AC11",
-        "requirement": "R42: P2-A1-CONFIRMATIONを正本として各operationのstate/confirmedAtと理由別未確認件数を射影する。snapshot.recovery=RuntimeRestorationをそのまま写し、保存復元成功と現在充足を混同しない。connection.disconnectedAtは最後の切断観測壁時計(初回null)、lastInputAtは採否を問わない最後の入力受信壁時計。再接続でdisconnectedAtを消さない。restored/empty/U-E非保存currentも未確認で起動し、restore由来recoveryApplied.coverage・部分新報・heartbeatで全体確認しないことをassert。理由: spec:814の部分確認を全体確認へ昇格させない。",
+        "requirement": "R42: P2-A1-CONFIRMATIONを正本として各operationのstate/confirmedAtと理由別未確認件数を射影する。snapshot.recovery=RuntimeRestorationをそのまま写し、保存復元成功と現在充足を混同しない。connection.disconnectedAtは最後の切断観測壁時計(初回null)、lastInputAtは採否を問わない最後の入力受信壁時計。再接続でdisconnectedAtを消さない。restored/empty/U-E非保存currentも未確認で起動し、restore由来recoveryApplied.coverage・部分新報・heartbeatで全体確認しないことをassert。理由: spec:814の部分確認を全体確認へ昇格させない。 lastInputAt（受信地点の壁時計、拒否を含む）とworker状態の製品供給はA10 host（P2-A10-AC13）が行い、それまで本条とAC04の製品経路は未検収として追跡する（累積レビューP1-1・P2-4前半）。",
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:814 «36a8d3470f32874a»"
         ]
@@ -492,6 +496,13 @@
         "requirement": "P2実HTTP serverを起動する場合bindは127.0.0.1/::1だけ。文字列はJSON.stringify済みdataとしてSSE framingに入れ、生の入力文字列をevent/id/data行へ連結しない。HTMLとして解釈させない描画とR38全国通知の明示はA9表示契約の責務で、設定fieldは増やさない。理由: P4認証前の外部公開とSSE枠注入を防ぐため。",
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:1298 «059f657d648c3ce8»"
+        ]
+      },
+      {
+        "id": "P2-A8-AC15",
+        "requirement": "A9資材の最小静的配信（2026-09-28 A9点検 論点a）: startDisplayServerのoptionsに1 field browserAssets?: { htmlPath: string; moduleDirectory: string }を足し（無指定なら従来どおり）、渡されたA9のHTML入口とES module出力directoryだけを、/eventsと同じloopback originで配信する。GET /はHTML入口をtext/html、GET /chrome-eew/<name>.js（nameは[a-z0-9-]+）は出力directory直下の既存ファイルだけをtext/javascriptで返し、それ以外・path区切り・..・不存在は404。出力はdirectory直下の[a-z0-9-]+.jsのフラット配置とし、ブラウザmoduleのimportも同階層の./<name>.jsに限る。directory一覧・CORS・キャッシュ層・汎用静的framework・このfield以外の設定を作らない。資材が渡されないserverは従来どおり3 endpointだけ。理由: reconstructionのCommonJS出力はブラウザで読めず、別originからの配信はCORSと試験専用の別経路を要する。node:fs・node:pathはこの資材の読取りとpath検査だけに使う。publish観測（A10 P2-A10-AC15、R62）: optionsのonSerializeへ、publishごとの実際の1回のJSON.stringifyの区間（直列化だけ、client writeを含まない）と得た文字列のUTF-8 byteを渡す。計測のために再直列化せず、無指定なら何もしない",
+        "evidenceRefs": [
+          "docs/specs/reconstruction-p0-contracts.md:380 «62ba3cb24efc7a5a»"
         ]
       }
     ],
@@ -530,7 +541,7 @@
         "referenceIds": [
           "P2-A8-AC05"
         ],
-        "behavior": "固定N/Pでhealth transport latencyとworker判定を別集計する"
+        "behavior": "連続要求と手動worker切替でhealth transport latencyとworker判定を別集計する非正式の機能試験・予備値。N/P毎秒1000標本×3 runの正式E02（A10）へ代用しない"
       },
       {
         "testId": "P2-A8-T05",
@@ -558,6 +569,14 @@
           "P2-A8-AC12"
         ],
         "behavior": "AC08/12の総量/full分野の境界とsummary最大3558以下をassert。notice63/64/65、導出した最大配列128065<=131072、全control文字の長い官署切詰めと印、normal+training/test混在時のnormal優先/normal EEW優先を確認。full→summaryでも訓練・区分別障害を維持する。生成不能なsummary4097を合法入力として捏造しない。 P2-A8-PUBLICATION.acceptanceの初回拒否と連続拒否→正常の継続を検収。TTLごとにnowMs=-8640000000000000と8640000000000000-TTLは受理、後者+1は期限超過で拒否。nowMsの上下限外、小数、NaN/InfinityでsnapshotClockInvalidをassertし、snapshot/sequence維持と内部delta採用を確認する。"
+      },
+      {
+        "testId": "P2-A8-T08",
+        "purpose": "contractBoundary",
+        "referenceIds": [
+          "P2-A8-AC15"
+        ],
+        "behavior": "資材を渡した実serverでGET /とGET /chrome-eew/<既存>.jsが200と固定content-type、未知名・..・符号化したpath区切り・directory・POSTは拒否、資材を渡さないserverでは/が404のままであることをassertする。onSerializeがpublish1回につき1回呼ばれ、JSON.stringify回数が増えないこともassertする"
       }
     ],
     "requiredCommands": [
@@ -616,8 +635,8 @@
       "projectSnapshotがないと各UnitViewをmainへ別配送して完全snapshotを複製するため、worker内の一回の射影だけを要求する",
       "HTTP側最新1枚とclient待機最新1枚がないとslow clientごとに旧版を無限保持するため、この二段だけを持ち差分journal・履歴・brokerを作らない",
       "snapshot/SSE/health handlerはNode標準httpで足りる。1実装interface、factory、静的asset framework、P4詳細portを追加しない",
-      "A3 composition root結線後、実SSE再接続・slow client・worker停止を再検収する。unit testは実SSEとE02正式測定の代用にしない",
-      "allowed_paths限定patch、変更一覧、build/test/shuffle結果、実SSE/E02のPass・Fail・Blocked・N/A・未確認、残存リスク",
+      "A3 composition root結線後とA10 host結線後（worker写像・lastInputAt）に、実SSE再接続・slow client・worker停止を再検収する。unit testは実SSEとE02正式測定の代用にしない",
+      "allowed_paths限定patch、変更一覧、build/test/shuffle結果、実SSEのPass・Fail・Blocked・N/A・未確認（E02はA10の結果を参照）、残存リスク",
       "notice期限回収とbyte検査がないと全分野summaryでも1MiBを保証できない。nowMsを明示入力として既存期限経路を使い、新しい履歴やtimer層は作らない。SnapshotProjectionResult.rejectedがないと不正共通入力をunchangedまたは正常配送に偽装してしまう",
       "A1共有DiagnosticReasonへsnapshotNoticeCapacityExceeded/snapshotCommonBudgetExceeded/snapshotStringLimitExceededは追加済み。A8内でDiagnosticDetails/DiagnosticEventを複製・拡張せず、count等の既存fieldとこの固定reasonだけを使う",
       "P2-A8-AC09: P2-A8-NOTICEの生成/意味失効とdeltaによる回収、A3既存deadlineへの結線証拠を返す。A7由来noticeは作らない。",
@@ -625,22 +644,9 @@
       "P2-A8-AC13: 未変更view/byte cacheがないとU-F 32MiB保持近辺でEEW一件の受信が全分野走査になる。既存三分野viewとそのbyteを再利用し新しいregistryを作らない",
       "P2-A8-AC06: A4〜A6の意味更新専用contentRevisionとA1のadmission更新がないと同Serial訂正や受理不能化で表示内容の版が衝突する。各unitが意味変更を数え、A1が公開制限を反映する",
       "P2-A8-AC10: probe完了前の初期snapshotとA1選択停止がないとcheckingを表示できず、未確認backendへ通知を投げる。A3はprobe結果を一度だけA1へ戻す",
-      "P2-A8-PUBLICATION: rejectedも含む更新済み内部stateの継続を実結線で確認する。前回公開snapshotだけを次回入力に戻してはならない。"
+      "P2-A8-PUBLICATION: rejectedも含む更新済み内部stateの継続を実結線で確認する。前回公開snapshotだけを次回入力に戻してはならない。",
+      "追実装で閉じる項目(A8-static、2026-09-28): AC15の固定URL配信をhttp-sse.tsへ足す。A9資材の生成・出力先・HTML入口はA9、製品起動でserverへ資材pathを渡す結線はA10 hostが所有する。無いとA9の実Chrome smokeとE01が同一originの製品serverを使えない"
     ],
-    "unresolvedQuestions": [
-      {
-        "id": "Q-NOTICE-UX",
-        "owner": "user",
-        "blocks": [
-          "A9表示の選択 A（推奨）: U-W/U-Fはactive→unavailableだけ短いnoticeにし、Codeの危険度を推測しない",
-          "A9表示の選択 B: P2-A8-SUMMARYの固定Code階級を用いU-W/U-Fの危険度上昇もnoticeにする。同区域比較・未知値をまたぐ遷移・TTLを作者裁定してA8対象拡張が要る。",
-          "A8のR40対象と期限はAで確定済み。この問いはA8発注を止めず、A9の将来の表示拡張だけを止める"
-        ],
-        "resolveBy": "A9表示契約の凍結前",
-        "requiredEvidence": [
-          "ご主人のA/B裁定、Bなら同区域の比較・未知値をまたぐ上昇の扱い・対象/TTLの決定"
-        ]
-      }
-    ]
+    "unresolvedQuestions": []
   }
 }

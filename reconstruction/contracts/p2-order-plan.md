@@ -27,7 +27,7 @@ P2 の phase 行が直接要求する ID は `O02 / O04 / O06 / O07 / O09 / O10`
 | U-W | `O06` の全国履歴2、partial履歴8、連続取消、履歴不足 | P2は`:1`〜`:28`の実入力を充足し、履歴内復元、範囲外`unavailable`、取消watermark非巻戻しを検収。`:29`〜`:30`の旧v2履歴8→2移行はP3（同 `:1782`、`:572`、`:2614`）。範囲の確定はD5 |
 | U-E | `O07` の non-durable current と durable intent | `O07:15`〜`:18`。再起動後 active EEW 復活0、期限内 intentだけ再試行、期限延長0（同 `:462`、`:997`〜`:1001`） |
 | runtime / checkpoint | `O10` の Q2=B、取消中の保存失敗、rename後 ack 前、ack 喪失、単位固有失敗 | current巻戻し0、`uncertain`を再読込で解決、停止未確認 write 重複0、正常単位を飢餓にしない（同 `:837`〜`:846`、`:865`〜`:872`）。現行 `O10` は U-V 入力を使うため裁定 D5 |
-| EEW 実表示 | `O09` の P2 母集団 | 固定 backlog、最大 VPWS50 full parse 開始直後、最大 U-W checkpoint encode 開始直後で `E01`。各 run `p99(U_i) <= 250ms`、欠落0、時計区間幅5ms以下（同 `:1124`〜`:1129`、`:1141`〜`:1145`） |
+| EEW 実表示 | `O09` の P2 母集団 | P2限定 `E01`（R61、2026-09-28）。正式対象は固定 backlog だけで、各 run `p99(U_i) <= 250ms`、欠落0、時計区間幅5ms以下（同 `:1124`〜`:1129`、`:1141`〜`:1145`）。正式対象は manifest.formal で固定した小容量 U-F の固定負荷1つ×3 run。単一スレッドで成立しない最大 VPWS50 parse 中（参考は decode 開始）・最大 U-W encode 中の実T0条件と U-F 保存・期限競合は適用除外の参考測定（実施義務・合否に使わない）。今回P2から除外した4条件（最大VPWS50 decode開始、最大U-W encode中、最大U-F保存中、U-F期限重なり）は P3 最初の契約群で正式再検収し、P4/P5 の条件は前倒ししない |
 | mailbox | queue 排出と計数 | `E07`: 件数・byte上限内、通常入力最大待機年齢、入力停止後 pending / in-flight 0、周期末 backlog 非増加（同 `:2058`、`:2082`〜`:2084`） |
 | runtime | 無変化 tick 0仕事 | `E08`: clone / stringify / checkpoint write / 内容 snapshot 生成が各0（同 `:2059`）。`E11` の変更検出 stringify 0も同じ契約で通す（同 `:2062`） |
 | checkpoint | 他単位非干渉・失敗隔離 | `E10` の U-W encode 0、`E14` の正常単位3秒以内 ack・再試行間隔・書込み重複0（同 `:2061`、`:2066`） |
@@ -36,7 +36,7 @@ P2 の phase 行が直接要求する ID は `O02 / O04 / O06 / O07 / O09 / O10`
 | notification | 緊急初回試行 | `E21`: EEW初回 adapter 呼出しまで暫定1秒以内、固定優先順、無効化・隔離、停止未確認処理への重ね呼出し0（同 `:2073`、`:948`〜`:962`） |
 | diagnostics | sink と秘密値 | `E23`: 有界保持、再起動後可読、秘密値露出0、sink失敗の再帰増殖0（同 `:2075`） |
 | 単位正常性 | 正常 corpus の恒常的 unavailable 0 | P2 三単位について `E13`。配送 summary は意味 `unavailable` と別集計（同 `:2064`） |
-| P2 性能報告 | backend / 最大入力 / 資源 | `E02 / E03 / E05 / E06 / E12` を P2 条件で報告し、未測定を Pass にしない（同 `:2053`〜`:2057`、`:2063`） |
+| P2 性能報告 | backend / 最大入力 / 資源 | `E02 / E03 / E05 / E06 / E12` を P2 条件で報告し、未測定を Pass にしない（同 `:2053`〜`:2057`、`:2063`）。正式測定はすべて A10（E02 を含む） |
 
 O02のP2 subset案（D5裁定前）。以下の各IDは独立した参照で、`expected:`であっても意味期待の未決・未実行があればPassではない。
 
@@ -80,9 +80,9 @@ P2 行は D-AC ID を指定していない。一方、最小 Chrome 経路は次
 | A5 `P2-weather-current-001` | M06、I-U-W | `WeatherCurrentUnitState/PersistedWeatherCurrentUnit/WeatherCurrentUnitView`、`WeatherCurrentInput`、`reduceWeatherCurrentUnit`、codec、`toWeatherCurrentView` | A1、P1、A3のcodec契約 | 全国base1/履歴2、partial128/履歴8、所有現象、freshness target、取消復元、16MiB、官署/subject/必須構造検証 | VPWW56、VPNO50のP2非対象分岐を推測実装、旧移行 tool | O04/O06（D5のP2 subset）、E10、E13、spec:1192（意味鮮度の対象束縛） |
 | A6 `P2-weather-timeseries-001` | M08、I-U-F | `WeatherTimeseriesUnitState/PersistedWeatherTimeseriesUnit/WeatherTimeseriesUnitView`、`WeatherTimeseriesInput`、`reduceWeatherTimeseriesUnit`、codec、`toWeatherTimeseriesView` | A1、P1、A3のcodec契約 | subject / period、194 period、正常empty、gate-only、取消、7日、512 subject、32MiB、意味入力`RejectionReason`と`unavailable` reason、subject/period必須構造検証 | VPTA50、カード幅に合わせた削減、P4詳細API | O02(P2範囲)、E13 |
 | A7 `P2-notification-delivery-001` | B09、U-E/U-W/U-F intent配送 | `NotificationAttempt/Result`、選択・結果照合・実adapter試行/abort/停止確認 | A1/A3、A4〜A6配送境界（Wave 4のR24順） | R24〜R30/Q-NOTICE、分野別20音、固定優先、初回1秒、channel別1件、単調timeout/停止/再試行、単位別TTL/容量、保存予約後dispatch | exactly-once、独立outbox、津波意味生成、旧築handoff | O07:15-18（通知期待は契約検収）、O10通知枝のみ、E21（A7単体→A3結線後最終、正式33報はprivate corpus専用） |
-| A8 `P2-snapshot-sse-001` | B08、B11のP2最小範囲 | `DisplayVersion`、P2 `DisplaySnapshot`、`projectSnapshot`、snapshot / SSE / health handler | A1、A3、A4〜A7の必要な公開型 | 三分野の初期完全snapshot、固定3行summary、内容版、意味失効notice、channel別表示、復元と確認の分離、1MiB、heartbeat、slow client | §7.10詳細、全12分野、静的asset設計、P4認証拡張 | E01のT3〜T5、E02、D-AC02/12先行証拠 |
-| A9 `P2-chrome-eew-001` | D02と、D05/D07/D11のEEW最小部分 | native `EventSource` client、EEW card/map paint marker、時計対応 probe | A8、A4、凍結済み測定manifest | 前景Chrome、固定viewport/DPR、snapshot置換、EEW card＋必要な予想震度表示の同一paint、T5/T6 | hover、詳細、ページ送り、県focus、津波、LOD、最終意匠 | E01、D-AC02/12/14/24先行証拠 |
-| A10 `P2-eew-e01-001` | P2統合・測定・条件付き§7.6 | 製品経路の replay / trace runner と版付き結果。汎用benchmark frameworkは作らない | A1〜A9 | N/P/C、3母集団、T0〜T6、100 warm-up、1000×3 run、時計区間、A/B原因判定、E15対応 | 津波母集団、personal最終配線、P4容量縮退・詳細 | O09(P2範囲)、E01、E03/E05/E06/E12、E15 |
+| A8 `P2-snapshot-sse-001` | B08、B11のP2最小範囲 | `DisplayVersion`、P2 `DisplaySnapshot`、`projectSnapshot`、snapshot / SSE / health handler | A1、A3、A4〜A7の必要な公開型 | 三分野の初期完全snapshot、固定3行summary、内容版、意味失効notice、channel別表示、復元と確認の分離、1MiB、heartbeat、slow client、A9資材の固定URL最小静的配信（2026-09-28 小改訂） | §7.10詳細、全12分野、静的asset framework、P4認証拡張 | E01のT4、E02のHTTP動作（正式測定はA10）、D-AC02/12先行証拠 |
+| A9 `P2-chrome-eew-001` | D02と、D05/D07/D11のEEW最小部分、D12の最小テキスト | native `EventSource` client、EEW card/map、固定名T5/T6候補marker、CDP経由の時計probe応答、ブラウザ用ES moduleとHTML入口 | A8（静的配信の小改訂を含む）、A4、A10の境界とA10管理の版付きsmoke条件 | 前景Chrome、固定viewport/DPR、snapshot置換とstale再接続、EEW card＋必要な予想震度表示の同一paint、消失EEWの除去（R59）、R38全国通知、R40〜R42最小テキスト、HTML非解釈、T5/T6候補 | hover、詳細、ページ送り、県focus、津波、LOD、最終意匠、取消/終了の文言 | E01、D-AC02/12/14/24先行証拠 |
+| A10 `P2-eew-e01-001` | P2統合・製品host最終結線（S1）・測定・条件付き§7.6 | 製品host（WS frame受信後の共通入力処理、周期tick、起動とprobe、保存・終了接続、配信、T0〜T2、worker写像）、製品経路の replay / trace runner と版付き結果。汎用benchmark framework・汎用host interfaceは作らない | A1〜A9 | N/P/C、P2限定E01（正式fixedBacklog＋参考測定4条件）、T0〜T6、100 warm-up、1000×3 run、時計区間、marker/probe、二段凍結、A/B原因判定、E02、E15対応、費用報告 | 津波母集団、personal最終配線、P4容量縮退・詳細、engine worker、公開replay CLI、unit表化・U-F分離 | O09(P2範囲)、P2限定E01、E02、E03/E05/E06/E12、E15 |
 
 A1の共有型は既に複数契約が参照するdiscriminated unionに限る。表の`spec:`は`docs/specs/reconstruction-p0-contracts.md`の行番号を指す。
 
@@ -114,28 +114,28 @@ P1/A1/A3 → A4 I-U-E
 P1/A1/A3 → A5 I-U-W
 P1/A1/A3 → A6 I-U-F
 A1/A3/A4/A5/A6 → A7 notification（R24、Wave 4条件）
-A1/A3/A4/A5/A6/A7公開型凍結 → A8 SSE → A9 Chrome
-A3/A7/A8/A9 → A10 E01
+A1/A3/A4/A5/A6/A7公開型凍結 → A8 SSE → A9 Chrome（smokeはA10境界改訂とA10管理のsmoke条件凍結の後）
+A3/A7/A8/A9 → A10 host結線・予備測定 → Q-PERF全体凍結 → A10正式測定
 ```
 
 発注波は次の順とする。
 
-1. **Wave 0（起草・凍結のみ）**: A1〜A10の契約本文を起草し、A1共有型、I-U-E/W/F、A3保存終了、A7通知、A10測定manifestの相互参照を固定する。実装は始めない。
+1. **Wave 0（起草・凍結のみ）**: A1〜A10の契約本文を起草し、A1共有型、I-U-E/W/F、A3保存終了、A7通知、A10測定境界（型・marker・probe・host所有）の相互参照を固定する。A10 manifestの値はWave 5/6で二段に凍結する。実装は始めない。
 2. **Wave 1**: A1。
 3. **Wave 2**: A2とA3。公開型凍結後なら実装を並走できる。
 4. **Wave 3**: A4、A5、A6の独立実装は並走できる。各担当は自unit/test directoryを所有する。各unitの実装配送ごとに、A3担当がcomposition rootへreducer・codec・期限・view/outcome/intentを直列に結線し、unit担当と保存障害・通常終了・復元直後続報を再検収する。9段の証拠が揃うまで当該unitは未完了。A3契約に後続結線用allowed_pathsと再検収工程を事前に含める。
 5. **Wave 4**: A7はA1改訂→Q-NOTICE確定→A4 intent生成→A7改訂→baseOid割当→発注（R24）の順と、A4/A5/A6の3単位配送境界・型の凍結を条件とする。desktop体験はR30=A（2026-09-23 ご主人）で確定。正式EEW証拠の保管/実行はA7のP2-A7-PRIVATE-EEW-EVIDENCEに従い、private repoのpersonalのみ、公開環境では正式検収blockedとする。搬入は統合担当の契約外作業。A8は(a) A1/A3の入力・三具体view準備、A4〜A6の意味内容版/削除を含むdisplayChanges/確認証拠、A4警報区分、A7 channelの必要公開型を凍結し先行修正を配送した後に発注し、残るA7実装と並走できる。(b) 実projector呼出し・notice期限・実SSE再検収はA8配送後にA3が行う。(c) 全国通知の明示・HTML非解釈はWave 5へ後送する。配送ごとにA3担当がadapter/出力を結線し、実通知結果・SSEを含む保存障害・終了・復元を再検収して各unitの9段証拠を更新する。
-6. **Wave 5**: A9。R38の「全国通知」を表示側契約へ固定文言として転記し、設定fieldは増やさない。文字列をHTMLとして解釈させない描画もA9で検収する。
-7. **Wave 6**: A10。A/B判定で B が必要になった場合だけ、A10の契約改訂または後続 `P2-parse-worker-001` を発注し、同じ manifest で再測定する。
+6. **Wave 5**: A9。R38の「全国通知」を表示側契約へ固定文言として転記し、設定fieldは増やさない。文字列をHTMLとして解釈させない描画もA9で検収する。2026-09-28の順序（A9点検 論点c、A10点検 点14）: A10境界改訂 → A9 smoke条件の先行凍結（A10管理の版付き資料 `reconstruction/test/eew-e01/evidence/chrome-smoke-conditions.json`） → A8静的配信の小改訂 → A9実装・smoke・配送。A10 runnerの完成や正式manifest全体の凍結はA9の開始条件にしない。
+7. **Wave 6**: A10。製品host結線（S1、composition-root.tsの結線範囲はA3から移管）と予備測定 → Q-PERF全体凍結 → 正式測定の順。A/B判定で B が必要になった場合だけ、A10の契約改訂または後続 `P2-parse-worker-001` を発注し、同じ manifest で再測定する。P2の完了はP2限定E01（R61）で、P3最初の契約群はP2参考測定の版付き負荷条件を継承し、正式標本数と§7.5の重畳成立証拠を伴うE01再検収を完了条件とする。spec§9のP2行の原因別A/B判定とN7（parse分離Bの要否、期限P2）もR61によりこのP3再検収で判断する（specは変えない）。P3では full parse 開始の観測を追加し、P2参考のdecode開始で代用しない。R63=A: P2のE01/E02はローカルWSで検収し実dmdata接続の適合性を保証しない。P3最初の契約群は本物のdmdataへの接続準備（REST socket start・APIキー・購読区分・appName・実接続の再接続）を旧築src/dmdata/ws-client.tsを資材に移植し、所有者、R57（接続1本）と既存接続の保護、実接続検証、共通受入口への結線を完了条件とする。移植時にT0以前へdecode・normalizeを持ち込まない。
 
-parse分離の扱いは作者裁定ではなく§7.6の既定手順とする（同`:1155`、`:1168`、`:2737`）。A10担当はWave 0で測定条件を固定し、A4/A5/A8/A9の最小結線が動き次第、A構成の3母集団を早期に予備測定する。P1の231ms parse・212ms転送だけではBを発注しない。T0〜T6と七区間で未達原因を帰属し、XML parse主因の場合だけBへ移行する。encode・射影・転送・描画が主因なら各原因の最小修正を行う。いずれも同一manifestで正式再測定し、未達・証拠不足はPassにしない。
+parse分離の扱いは作者裁定ではなく§7.6の既定手順とする（同`:1155`、`:1168`、`:2737`）。A10担当はWave 0で測定境界を固定し、A9 smoke条件を先行凍結したうえで、host結線とA4/A5/A8/A9の最小結線が動き次第、正式対象と参考測定の各条件を早期に予備測定してからQ-PERF全体を凍結する。P1の231ms parse・212ms転送だけではBを発注しない。T0〜T6と七区間で未達原因を帰属し、XML parse主因の場合だけBへ移行する。encode・射影・転送・描画が主因なら各原因の最小修正を行う。いずれも同一manifestで正式再測定し、未達・証拠不足はPassにしない。
 
 ### 3.2 共有ファイルと衝突源
 
 | 衝突源 | 所有契約 | 並走時の規則 |
 |---|---|---|
 | P2共有 types / runtime input union | A1のみ | A2以降は編集禁止。追加が必要ならA1契約改訂 |
-| composition root / 起動終了入口 | A3のみ | A3担当が各unit配送時とA7/A8配送時に直列結線・再検収。各unit担当は直接編集しない |
+| composition root / 起動終了入口 | A3（製品host と composition root の起動・周期駆動・入力・probe・表示・計測の結線は A10、2026-09-28 S1） | A3担当が各unit配送時とA7/A8配送時に直列結線・再検収。A10発注期間はA10が結線範囲だけを編集し、A3と並行編集しない。A7のadapter.tsは音資材の解決基準だけ、A2のmailbox.tsはisStalledの追加だけをA10が編集する（各契約に対の記述）。各unit担当は直接編集しない |
 | mailbox port・worker protocol | A2のみ | A4〜A6は公開 envelope の consumer。独自portを作らない |
 | checkpoint envelope / scheduler | A3のみ | unitはcodecとstateだけを所有。writerを持たない |
 | `NotificationIntent` と選択順 | 型はA1、配送はA7、生成は各unit | 同じ型をunitごとに複製しない |
@@ -172,7 +172,7 @@ A4〜A6を並走させる前に共有型を凍結する。共有ファイルの�
 固定内容:
 
 - T0〜T6、run/input/operation/subject/revision/stream/sequence の対応。
-- 固定backlog、最大VPWS50 parse開始直後、最大U-W encode開始直後の3母集団。
+- P2は正式一条件（manifest.formalで固定した小容量U-Fの固定backlog、各run100 warm-up・1,000標本×3run）と参考四条件（最大VPWS50 decode開始、最大U-W encode中、最大U-F保存中、U-F期限重なり。warm-up・件数・打切りは条件別の固定値）（2026-09-28 R61、P2-A10-AC16）。spec §7.5の3母集団の正式検収はP3。
 - 各run 100 warm-up、1000正式標本、3 run、nearest-rank、10秒欠落、p50/p95/p99/max。
 - Node/Chrome時計の往復対応、30秒ごとの再測定、区間幅5ms以下、traceと画面記録。
 - Chrome版、前景tab、viewport、DPR、地図資材hash、motion、Node/OS/端末。
@@ -242,7 +242,7 @@ A4〜A6を並走させる前に共有型を凍結する。共有ファイルの�
 | Q-REV | `integrator` / O06対象Unit契約前 | 同revision訂正、時刻/Serial、連続取消の対象版。U-Fの同時刻訂正は別ID Q-REV-UF（既存gateを保つ既定でA6を発注） | A5/A6 |
 | Q-MIGRATION | `integrator` / O04/O06/O07移行oracle前 | P2は明示的な新築初期状態生成と元事例との対応をA5前に固定。旧checkpoint operation証明・O04:2/O06:29-30の変換検収はP3移行契約前に固定 | A5/A10、P3移行担当 |
 | Q-LIMIT | `integrator` / 容量fixture作成前 | U-W/U-F checkpoint、subject/period、snapshotの合法最大と+1。U-Fの全国保存量と上限はQ-PERIODでclosed、容量境界と段階縮退はA6実装検収前に試験内state調整で確認 | A5/A6/A8 |
-| Q-PERF | `integrator` / EEW A/B測定前 | N/P/C、投入offset、端末、時計、paint evidence | A10 |
+| Q-PERF | `integrator` / 二段（A9 smoke前にsmoke条件、A10正式測定前に全体） | N/P/C、参考測定条件、投入offset、端末、時計、paint evidence、E02〜E12の条件 | A10 |
 
 `Q-ENUM`のparser拒否reasonはP1で閉じたが、意味入力の拒否は別である。P1はHead欠落を空文字、不正日時をraw文字列として返す（`reconstruction/src/decode-material/decode-material.ts:271`〜`:288`）。`expected:O02:8`・`expected:O02:10`のreasonは未確定であり、A1の共通検証とA4/A5/A6のfamily固有検証が`RejectionReason`を固定する（`docs/specs/reconstruction-p0-contracts.md:693`、同`:733`）。これはP1公開型変更を必須にしない。`UnavailableReason`は正常な意味入力の容量超過・履歴不足等として別に固定する。
 
@@ -273,16 +273,16 @@ P1（src約500行、test 12本、レビュー3巡）は規模の参考であり�
 | A6 I-U-F | 350〜500 | 450〜650 / 10〜14 | 2〜3 | 5 |
 | A7 notification | 300〜450 | 400〜600 / 10〜14 | 3 | 5 |
 | A8 snapshot-SSE | 250〜400 | 300〜500 / 8〜12 | 2 | 5 |
-| A9 Chrome-EEW | 250〜400 | 300〜500 / 6〜10＋実Chrome | 2〜3 | 5 |
-| A10 E01統合 | 100〜250 | 600〜900 / 6〜10＋各母集団3run測定 | 3〜5 | 5＋原因別修正・再測定 |
-| **合計** | **3,200〜4,900** | **4,550〜6,800 / 94〜135** | **24〜34** | **基本50＋下記の反復工程** |
+| A9 Chrome-EEW | 350〜550 | 450〜750 / 6〜10＋実Chrome | 2〜3 | 5 |
+| A10 E01統合 | 100〜250＋host結線（未見積もり） | 600〜900 / 6〜10＋正式3run・参考測定・E02 | 3〜5 | 5＋原因別修正・再測定 |
+| **合計** | **3,300〜5,050＋A10 host** | **4,700〜7,050 / 94〜135** | **24〜34** | **基本50＋下記の反復工程** |
 
 | 対象 | 材料・境界凍結後の実装 | fixture・測定準備（別枠） | 測定・修正・再検収（別枠） |
 |---|---|---|---|
 | A1/A2/A4/A6/A7/A8/A9 | 各1〜2晩目安 | 各0.5〜1晩。既存fixtureの対応・期待・adapter条件を固定 | 各0.5〜2晩。実adapter/Chrome・統合結果によって延長 |
 | A3 | 2〜3晩。保存公平性・終了・永続診断を含む | 1〜2晩。故障停止点、slot、ログ上限・回収fixture | 2〜4晩。I/O故障、E23、unit/adapter配送後の直列結線と再検収。追加レビュー最大2巡を予備枠 |
 | A5 | 2〜3晩。履歴・取消・復元を一単位で閉じる | 2〜4晩。現行O06 unmet24件をD5のP2/P3へ配分し、P2対象とO04初期state・Q-REVを準備 | 1〜3晩。結線後の保存故障・終了・復元と履歴oracle。追加レビュー最大2巡を予備枠 |
-| A10 | runner実装1〜2晩 | 1〜3晩。3母集団、最大encode state、時計・trace・paint対応を準備 | 2〜5晩。3母集団×1,000標本×3run＝9,000正式標本、各run100 warm-up、E06/E07の60分系列、資源測定・原因別修正・再測定。追加レビュー最大2巡を予備枠 |
+| A10 | runner実装1〜2晩 | 1〜3晩。正式一条件と参考四条件の状態、最大encode state、時計・trace・paint対応を準備 | 2〜5晩。P2限定E01の正式対象（固定backlog）×1,000標本×3run＝3,000正式標本と参考測定4条件（R61）、E02のN/P各3run、warm-upは正式各run100件・参考は条件別固定値、E06/E07の60分系列、資源測定・原因別修正・再測定。追加レビュー最大2巡を予備枠 |
 
 期間は起草上の推定でありspecの規定値ではない。契約起草・初回レビューは各0.5〜1.5晩を別枠とする。並走分を単純に暦日へ合算せず、fixture準備完了、A3結線枠、Chrome測定環境を確認して統合担当が日程を確定する。反復が予備枠を超えた場合は残件と再見積もりを報告し、未測定を配送完了に含めない。
 
@@ -307,7 +307,7 @@ P1（src約500行、test 12本、レビュー3巡）は規模の参考であり�
 |---|---|---|---|---|
 | IR01 | 最古の保存失敗単位が writer を独占し、正常な他単位の保存を永久に妨げる | §5.8 `:853`〜`:876`: 単位ごとの `retryAfter`・連続失敗回数、「dirty かつ試行可能のうち最古の `dirtySince`」、終了済み失敗の 1／2／4／8／10 秒間隔、停止未確認 I/O の writer 占有は維持、E14 に「一単位だけ永続失敗＋他単位正常」 | A3 checkpoint-shutdown | E14（`:2066`）、O10 の単位固有失敗 |
 | IR03 | 大津波警報の通知が通常通知と再試行の後ろに置かれ、期限内に届かない | §6.3 `:946`〜`:966`: 固定優先群「通常運用の EEW → 津波緊急 → その他」、緊急 intent の初回 adapter 呼出し暫定 1 秒以内、下位群実行中の abort、通常再試行が緊急を追い越さない | A7 notification（EEW 部分。津波緊急は P3 の津波単位契約で同じ条項を検収） | E21（`:2073`） |
-| IR06 | checkpoint encode 起因の EEW 未達に対し、parse 分離 B では原因が残る | §7.6 `:1149`〜`:1168`: T0〜T6 と七区間で主因を帰属、XML parse 主因の場合だけ B、encode・射影・整形・転送起因は非中断区間の縮小を先に比較し同じ母集団で再測定、成立しなければ当該契約を Blocked | A10 E01 統合（原因帰属・A/B 判定・Blocked 出口）、A3（encode の非中断区間） | E01 母集団 3（最大 U-W checkpoint encode 開始直後）、§7.5 `:1102`〜 |
+| IR06 | checkpoint encode 起因の EEW 未達に対し、parse 分離 B では原因が残る | §7.6 `:1149`〜`:1168`: T0〜T6 と七区間で主因を帰属、XML parse 主因の場合だけ B、encode・射影・整形・転送起因は非中断区間の縮小を先に比較し同じ母集団で再測定、成立しなければ当該契約を Blocked | A10 E01 統合（原因帰属・A/B 判定・Blocked 出口）、A3（encode の非中断区間） | P2はP2限定E01の正式対象の再検収と、参考測定（最大 U-W checkpoint encode 中）での原因帰属。E01 母集団 3 の正式検収は R61 で P3 最初の契約群、§7.5 `:1102`〜 |
 | IR08 | 意味鮮度の疑いを、別 subject・別官署の正常受理で解除できる読み方が残る | §7.8 `:1192`: `freshnessSuspect` を `operation／family／subject／影響範囲` へ束縛、解除は同じ対象・範囲の正常採用か coverage 確認だけ、別官署・別 subject・別区分・heartbeat では解除しない。§9.3 O04 `:1780` に「全国報不採用→別官署 partial 受理→全国の疑い存続」 | A5 I-U-W（判定と解除）、A1 shared-runtime（記録の型） | O04（`:1780`）、§7.8 の監視表 |
 | IR14 | queue 年齢の 3 窓連続増加をそのまま不合格にする式は誤検出する | §9.9 E07 `:2058`: 3 窓連続増加は要調査シグナル、合否は宣言上限・通常入力の最大待機年齢（暫定 5 秒）・入力停止後の排出（暫定 10 秒）・周期末 backlog 非増加 | A2 mailbox | E07（`:2058`） |
 

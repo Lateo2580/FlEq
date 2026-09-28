@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "585d2f4f858e350c6965d83019ba7e4842285b3c",
-    "sha256": "50ba590dcf515ca1c02c9eff663ec0dc7154eca9a60a007631d15acec5b5832d",
+    "sha256": "aaa8dc4c3d7ad1c4365da5a3493176acb50f24a5bd499de6cc17a663123628f8",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "76c82b87d7783a4eae14af690cb34e7d6ec46f73617dc75b7f7401951619f080",
     "sequencesSha256": "be9cfd97b555e3a55568f085d107342c978b3dc7249f5cecea868ea5a62c5781",
@@ -612,7 +612,8 @@
       "allowed_paths限定patch、変更一覧、build/test/shuffle結果、未実行検証、残存リスク",
       "追実装で閉じる項目(A7): A1が3 unit intentとnotificationChannels/notificationDeadlinesから配送stateを構成する。P2-A7-TIMEの有界期限mapとP2-A7-ADAPTERの理由付きabort/run一か所の結果返却を実装する。無いと再評価で期限が延長され、理由欠落と二重terminalが起きる。dirtyUnitsは復活させず所有unit更新結果を使う。文言はA4を参照し、型/式/文言の正本を複製しない。",
       "追実装で閉じる項目(A7-E21): 契約のT01〜T05に対応して新設する試験をP2-A7-E21-LOAD-v1に合わせる。無いと人工競合と正式33報を混同し、停止/保存/dispatchを含まない1秒だけで合格にする。A7単体とA3結線後を別記録し、正式R33はA7 questionResolutions[P2-A7-PRIVATE-EEW-EVIDENCE]のprivate専用コマンドで実行し、公開環境ではblocked。",
-      "P2-A7-AC02/R29: A7 questionResolutions[P2-A7-PRIVATE-EEW-EVIDENCE]を証拠区分・保管・実行手順の正本とする。正式E21を通常試験へ入れず、原本の搬入は統合担当の契約外作業とする。"
+      "P2-A7-AC02/R29: A7 questionResolutions[P2-A7-PRIVATE-EEW-EVIDENCE]を証拠区分・保管・実行手順の正本とする。正式E21を通常試験へ入れず、原本の搬入は統合担当の契約外作業とする。",
+      "adapter.tsの音資材WAVの解決基準（cwd非依存の絶対基準の受け取り）だけは2026-09-28 S1でA10（P2-A10-AC12）へ移管する。soundAssetのrepo相対型・公開関数の型・本契約の試験期待は変えない"
     ],
     "unresolvedQuestions": []
   }

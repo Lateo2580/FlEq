@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "3095a6c21caa96e06fc3b3a6d2f906534ef5441b",
-    "sha256": "3b37315157ee27c931532b19cc724bf68eca75bb9a966217aa883f5bc92e5889",
+    "sha256": "a4f11857bbfc4abc226afdde48e11fb8ba27f3d7b3e561fe1011c8abad661511",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "76c82b87d7783a4eae14af690cb34e7d6ec46f73617dc75b7f7401951619f080",
     "sequencesSha256": "be9cfd97b555e3a55568f085d107342c978b3dc7249f5cecea868ea5a62c5781",
@@ -45,7 +45,7 @@
       },
       {
         "id": "P2-A3-XREF1",
-        "A": "runtime/composition-root.tsとcheckpoint/persistent-diagnostic-sink.tsをA3だけが所有し、scheduleCheckpointとexecuteCheckpointの両公開口からA10 CheckpointMeasurementを返す",
+        "A": "runtime/composition-root.tsとcheckpoint/persistent-diagnostic-sink.tsをA3が所有し（composition-root.tsの起動・周期駆動・入力・probe・表示・計測の結線は2026-09-28 S1でP2-A10-HOSTへ移管）、scheduleCheckpointとexecuteCheckpointの両公開口からA10 CheckpointMeasurementを返す",
         "B": "runtime/**・diagnostics/**を共有し、診断fieldからcheckpoint計測を復元する",
         "recommended": "A",
         "provisional": "A",
@@ -82,8 +82,8 @@
       {
         "id": "P2-A3-OWNER",
         "status": "closed",
-        "closed": "A3がcomposition root、起動終了入口、checkpoint scheduler、永続診断sink、後続unit結線と結線後再検収を所有する",
-        "remaining": "A4〜A8配送後に各回の証拠を追加する",
+        "closed": "A3がcomposition root（保存・終了・復元・unit/adapter/A8の結線）、checkpoint scheduler、永続診断sink、後続unit結線と結線後再検収を所有する。製品起動入口（host）と、composition-root.tsのうち起動・周期駆動・入力・probe・表示・計測の結線、DisplayWorkerView写像、lastInputAt、probe資材の基準はP2-A10-HOSTへ移管する（2026-09-28 作者裁定S1=A）",
+        "remaining": "A4〜A8配送後に各回の証拠を追加する。A10発注期間はcomposition-root.tsをA3とA10が並行編集しない（直列）",
         "reason": "計画§3.1/§3.2"
       }
     ],
@@ -94,7 +94,7 @@
   "contract": {
     "contractId": "P2-CHECKPOINT-SHUTDOWN-001",
     "mode": "implementation",
-    "objective": "B02・B07・B15永続sinkを実装し、2slot保存、世代/hash、Q2=B、uncertain照合、公平な再試行、通常終了、書込み帰属、永続診断を閉じ、後続unitとadapterのcomposition root結線・再検収を所有する。",
+    "objective": "B02・B07・B15永続sinkを実装し、2slot保存、世代/hash、Q2=B、uncertain照合、公平な再試行、通常終了、書込み帰属、永続診断を閉じ、後続unitとadapterのcomposition root結線・再検収を所有する。製品起動入口（host）の最終結線はA10（P2-A10-HOST）が所有する。",
     "baseOid": "2af266554541c700db0cb0d44272db727b4c9267",
     "cleanTreeRequired": true,
     "readPaths": [
@@ -169,7 +169,7 @@
       "enqueueDiagnostic(event: DiagnosticEvent): DiagnosticSinkResult",
       "readDiagnostics(query: DiagnosticReadQuery): Promise<DiagnosticReadResult>",
       "projectParserDiagnostic(parser: ParserDiagnostic, runId: string, timestamp: number): ParserDiagnosticProjection",
-      "startRuntime(runId: string, clock: ClockReading): RuntimeStep"
+      "startRuntime(runId: string, clock: ClockReading, notificationChannels: Extract<RuntimeInput, { kind: \"startup\" }>[\"notificationChannels\"]): RuntimeStep"
     ],
     "allowedDependencies": [
       "node:crypto",
@@ -403,7 +403,7 @@
           "docs/specs/reconstruction-p0-contracts.md:2067 «f867801b1fa94b3d»",
           "docs/specs/reconstruction-p0-contracts.md:2099 «ad07bf43de94890d»",
           "reconstruction/contracts/p2-order-plan.md:34 «f0251b4ca4fb0255»",
-          "reconstruction/contracts/p2-order-plan.md:310 «e75c0de250b78fc5»"
+          "reconstruction/contracts/p2-order-plan.md:310 «ebdc3b47863722fd»"
         ]
       },
       {
@@ -545,7 +545,7 @@
           "reconstruction/contracts/p2-order-plan.md:93 «4e1f6c0999518399»",
           "reconstruction/contracts/p2-weather-current-unit.json"
         ],
-        "behavior": "linked setのcomposition rootでparsed VPWW57をU-Wへ通し、view・保存・保存失敗中のcurrent維持・通常終了code 0を確認する。再起動は起動入口が未結線のため試験内で復元世代を引き継いで組み、復元直後の続報とcorrelationなしのrouted入力の最終保存を確認する（Q-STARTUPが閉じるまで製品経路の⑧は未証明）"
+        "behavior": "linked setのcomposition rootでparsed VPWW57をU-Wへ通し、view・保存・保存失敗中のcurrent維持・通常終了code 0を確認する。再起動は起動入口が未結線のため試験内で復元世代を引き継いで組み、復元直後の続報とcorrelationなしのrouted入力の最終保存を確認する（製品起動入口を通る⑧はA10 host結線試験P2-A10-T06で確認する）"
       },
       {
         "testId": "P2-WIRE-T02",
@@ -661,8 +661,8 @@
     "artifactRequirements": [
       "A/B 2slotと単一writerがないとrename後ack前の成否不明を検証済み世代へ照合できず重複writeを防げないため、この最小保存機構を要求する",
       "永続診断はfilesystem adapter経由の非同期回転ファイル一方式だけとし、新logger frameworkを追加しない",
-      "composition rootはA3だけが編集する。A4/A5/A6の各配送後にreducer・codec・期限・view/outcome/intentを直列結線し、保存障害・通常終了・復元直後続報をunit担当と再検収する。runtime/shared-runtime.tsとP1既存3ファイルは編集しない",
-      "A2配送後、composition rootの既存1秒tickは到着・生存応答がなくてもmailbox.drainDiagnostics(clock.monotonicMs)を呼び、停止診断・overflow要約を含むDiagnosticDetailsを同じrunのclock.wallTimeMs/runIdでDiagnosticEventへ完成させ、B15 enqueueDiagnostic sinkへ一度だけ流す",
+      "composition rootはA3が編集する。ただしA10発注期間はP2-A10-HOSTの結線範囲（起動・周期駆動・入力・probe・表示・計測の結線、DisplayWorkerView写像、lastInputAt、probe資材の基準）だけをA10が編集し、A3と並行編集しない。A4/A5/A6の各配送後にreducer・codec・期限・view/outcome/intentを直列結線し、保存障害・通常終了・復元直後続報をunit担当と再検収する。runtime/shared-runtime.tsとP1既存3ファイルは編集しない",
+      "A2配送後、composition rootのtick()は到着・生存応答がなくてもmailbox.drainDiagnostics(clock.monotonicMs)を呼び、停止診断・overflow要約を含むDiagnosticDetailsを同じrunのclock.wallTimeMs/runIdでDiagnosticEventへ完成させ、B15 enqueueDiagnostic sinkへ一度だけ流す。tick()を1秒周期で呼ぶtimerとrecordWorkerResponseの呼出しはA10 host（P2-A10-AC13）が所有する",
       "A7/A8の各配送後もadapter/出力をcomposition rootへ直列結線する。A7の共有NotificationResultをreduceRuntimeへ渡し、A1がA7純関数を呼び、選択時・完了時とも照合済みintentUpdateをU-E/U-W/U-Fの所有unitへ同一reducer呼出しで適用する。A3はNotificationIntentUpdateやunit stateを合成しない。実通知結果またはSSEを含む同じ再検収を行い、9段証拠が揃うまで対象unitを完了扱いしない",
       "filesystem故障注入点、実媒体file/directory sync、rename後再読込、遅いack、最大encoded byteの版付き証拠",
       "allowed_pathsに限定したgit diff --binary --no-ext-diff patch",
@@ -694,9 +694,9 @@
         "owner": "integrator",
         "blocks": [
           "共通Q-PERFのA10測定manifestに依存する本契約の部分。独立した未決・期限を新設しない",
-          "最大正常U-W checkpoint encode状態",
-          "O09母集団3の投入offset",
-          "E15のworker占有時間とencode/write byte正式測定"
+          "最大正常U-W checkpoint encode状態（R61で参考測定の条件）",
+          "O09参考測定（最大U-W encode中）の投入offset。P2限定E01の正式対象ではない",
+          "E15の処理占有時間とencode/write byte正式測定"
         ],
         "resolveBy": "EEW A/B測定前（計画§6.1、A10）",
         "requiredEvidence": [
