@@ -13,5 +13,5 @@
     "types": ["node"]
   },
   "include": ["src/**/*.ts", "contracts/*.types.ts"],
-  "exclude": ["dist"]
+  "exclude": ["dist", "src/display/chrome-eew/**"]
 }

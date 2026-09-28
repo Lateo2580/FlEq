@@ -1,0 +1,1241 @@
+{
+  "schemaVersion": "p2-a9-chrome-smoke-evidence-v1",
+  "ranAt": "2026-09-28T23:41:53.071Z",
+  "conditions": {
+    "file": "reconstruction/test/eew-e01/evidence/chrome-smoke-conditions.json",
+    "conditionsSha256": "07d16d81e410ed293776bcf314580cf7264b178cc018c329de927ecc03f2b1d9"
+  },
+  "chrome": {
+    "executable": "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+    "flags": [
+      "--no-first-run",
+      "--no-default-browser-check",
+      "--window-size=1440,900",
+      "--force-color-profile=srgb",
+      "--disable-background-timer-throttling",
+      "--disable-renderer-backgrounding",
+      "--disable-backgrounding-occluded-windows"
+    ],
+    "headless": false,
+    "observer": "smoke側でnative EventSourceを透過subclassで包み、生成・close・受信時刻を記録 (製品コードは無変更)"
+  },
+  "results": [
+    {
+      "id": "P2-A9-env:chromeVersion",
+      "status": "Pass",
+      "evidence": "CDP応答",
+      "detail": {
+        "expected": "154.0.8037.58",
+        "actual": "154.0.8037.58"
+      }
+    },
+    {
+      "id": "P2-A9-env:viewport",
+      "status": "Pass",
+      "evidence": "DOM",
+      "detail": {
+        "innerWidth": 1440,
+        "innerHeight": 900,
+        "dpr": 2,
+        "visibility": "visible",
+        "focus": false,
+        "reducedMotion": false
+      }
+    },
+    {
+      "id": "P2-A9-env:foregroundTab",
+      "status": "Pass",
+      "evidence": "DOM",
+      "detail": {
+        "innerWidth": 1440,
+        "innerHeight": 900,
+        "dpr": 2,
+        "visibility": "visible",
+        "focus": false,
+        "reducedMotion": false
+      }
+    },
+    {
+      "id": "P2-A9-env:motionFull",
+      "status": "Pass",
+      "evidence": "DOM",
+      "detail": {
+        "innerWidth": 1440,
+        "innerHeight": 900,
+        "dpr": 2,
+        "visibility": "visible",
+        "focus": false,
+        "reducedMotion": false
+      }
+    },
+    {
+      "id": "P2-A9-env:conditionsAndFixtureHashes",
+      "status": "Pass",
+      "evidence": "Chrome内のsha256",
+      "detail": {
+        "conditionsSelfHash": {
+          "actual": "07d16d81e410ed293776bcf314580cf7264b178cc018c329de927ecc03f2b1d9",
+          "recorded": "07d16d81e410ed293776bcf314580cf7264b178cc018c329de927ecc03f2b1d9"
+        },
+        "fixtures": [
+          {
+            "fixtureId": "test__fixtures__37_01_01_240613_VXSE43",
+            "actual": "66ac00a126d831135ce40baea8de5b3c5e58342c607d04f4ef00520a6861fcc0",
+            "conditions": "66ac00a126d831135ce40baea8de5b3c5e58342c607d04f4ef00520a6861fcc0",
+            "contract": "66ac00a126d831135ce40baea8de5b3c5e58342c607d04f4ef00520a6861fcc0"
+          },
+          {
+            "fixtureId": "test__fixtures__77_01_01_240613_VXSE45",
+            "actual": "05aabbf0667f30f4248b464207d7335afda83c69d22a7cd1a300fec847074575",
+            "conditions": "05aabbf0667f30f4248b464207d7335afda83c69d22a7cd1a300fec847074575",
+            "contract": "05aabbf0667f30f4248b464207d7335afda83c69d22a7cd1a300fec847074575"
+          }
+        ]
+      }
+    },
+    {
+      "id": "P2-A9-T05:AC07:noSnapshot",
+      "status": "Pass",
+      "evidence": "DOM",
+      "detail": {
+        "count": 1,
+        "r38": "全国通知"
+      }
+    },
+    {
+      "id": "P2-A9-T06:AC09:statusBeforeFirstSnapshot",
+      "status": "Pass",
+      "evidence": "DOM",
+      "detail": {
+        "connection": "接続: snapshot未受信 / worker: 正常 / 受信: 無受信45秒未満",
+        "banner": ""
+      }
+    },
+    {
+      "id": "P2-A9-T05:AC07:VXSE43",
+      "status": "Pass",
+      "evidence": "DOM",
+      "detail": {
+        "count": 1,
+        "r38": "全国通知"
+      }
+    },
+    {
+      "id": "P2-A9-T02:VXSE43:card",
+      "status": "Pass",
+      "evidence": "DOM",
+      "detail": {
+        "card": [
+          {
+            "head": "[通常] VXSE43 20240417231454 最大5弱",
+            "time": "2024/04/17 23:14:59",
+            "areas": [
+              "622: 5弱（既に主要動到達と推測）",
+              "632: 4",
+              "752: 4",
+              "751: 4",
+              "621: 4",
+              "750: 4",
+              "620: 4",
+              "703: 4",
+              "592: 3〜4"
+            ]
+          }
+        ],
+        "expectedRows": [
+          "622: 5弱",
+          "632: 4",
+          "752: 4",
+          "751: 4",
+          "621: 4",
+          "750: 4",
+          "620: 4",
+          "703: 4",
+          "592: 3〜4"
+        ]
+      }
+    },
+    {
+      "id": "P2-A9-T02:VXSE43:paintPixels",
+      "status": "Pass",
+      "evidence": "screenshot画素",
+      "detail": {
+        "screenshot": "evidence/vxse43.png",
+        "size": [
+          2880,
+          1800
+        ],
+        "areaPixels": [
+          {
+            "code": "622",
+            "severityToken": "5-",
+            "expected": [
+              240,
+              228,
+              66
+            ],
+            "actual": [
+              240,
+              228,
+              66
+            ]
+          },
+          {
+            "code": "632",
+            "severityToken": "4",
+            "expected": [
+              0,
+              158,
+              115
+            ],
+            "actual": [
+              0,
+              158,
+              115
+            ]
+          },
+          {
+            "code": "752",
+            "severityToken": "4",
+            "expected": [
+              0,
+              158,
+              115
+            ],
+            "actual": [
+              0,
+              158,
+              115
+            ]
+          },
+          {
+            "code": "751",
+            "severityToken": "4",
+            "expected": [
+              0,
+              158,
+              115
+            ],
+            "actual": [
+              0,
+              158,
+              115
+            ]
+          },
+          {
+            "code": "621",
+            "severityToken": "4",
+            "expected": [
+              0,
+              158,
+              115
+            ],
+            "actual": [
+              0,
+              158,
+              115
+            ]
+          },
+          {
+            "code": "750",
+            "severityToken": "4",
+            "expected": [
+              0,
+              158,
+              115
+            ],
+            "actual": [
+              0,
+              158,
+              115
+            ]
+          },
+          {
+            "code": "620",
+            "severityToken": "4",
+            "expected": [
+              0,
+              158,
+              115
+            ],
+            "actual": [
+              0,
+              158,
+              115
+            ]
+          },
+          {
+            "code": "703",
+            "severityToken": "4",
+            "expected": [
+              0,
+              158,
+              115
+            ],
+            "actual": [
+              0,
+              158,
+              115
+            ]
+          },
+          {
+            "code": "592",
+            "severityToken": "4",
+            "expected": [
+              0,
+              158,
+              115
+            ],
+            "actual": [
+              0,
+              158,
+              115
+            ]
+          }
+        ],
+        "cardPixel": {
+          "severityToken": "5-",
+          "expected": [
+            240,
+            228,
+            66
+          ],
+          "actual": [
+            240,
+            228,
+            66
+          ]
+        }
+      }
+    },
+    {
+      "id": "P2-A9-T04:markers:VXSE43",
+      "status": "Pass",
+      "evidence": "performance entry",
+      "detail": {
+        "t5": [
+          {
+            "startTime": 114.80000001192093,
+            "detail": {
+              "name": "fleq:p2:eew:T5",
+              "displayVersion": {
+                "streamId": "smoke-a",
+                "semanticRevision": "[\"1:0\",\"0:0\",\"0:0\"]",
+                "sequence": 1
+              }
+            }
+          }
+        ],
+        "t6": [
+          {
+            "startTime": 115.30000001192093,
+            "detail": {
+              "name": "fleq:p2:eew:T6-candidate",
+              "displayVersion": {
+                "streamId": "smoke-a",
+                "semanticRevision": "[\"1:0\",\"0:0\",\"0:0\"]",
+                "sequence": 1
+              },
+              "operation": "normal",
+              "subject": "normal/VXSE43/20240417231454",
+              "cardMarkerId": "card:normal/VXSE43/20240417231454",
+              "mapMarkerId": "map:normal/VXSE43/20240417231454",
+              "mapAreaCodes": [
+                "622",
+                "632",
+                "752",
+                "751",
+                "621",
+                "750",
+                "620",
+                "703",
+                "592"
+              ]
+            }
+          }
+        ],
+        "geometrySha256": "f50229a67539b4c39be1c947fc69d7203cc22af020e4a568fe827c0c933f883f"
+      }
+    },
+    {
+      "id": "P2-A9-T02:geometrySha256",
+      "status": "Pass",
+      "evidence": "Chrome内のsha256 (配信module)",
+      "detail": {
+        "served": "f50229a67539b4c39be1c947fc69d7203cc22af020e4a568fe827c0c933f883f",
+        "contract": "f50229a67539b4c39be1c947fc69d7203cc22af020e4a568fe827c0c933f883f",
+        "conditions": "f50229a67539b4c39be1c947fc69d7203cc22af020e4a568fe827c0c933f883f",
+        "areasMatch": true
+      }
+    },
+    {
+      "id": "P2-A9-T04:clockProbe",
+      "status": "Pass",
+      "evidence": "CDP応答 (Runtime.evaluate)",
+      "detail": {
+        "probeId": "smoke-probe-1",
+        "chromeReceivedMonotonicMs": 253,
+        "chromeSentMonotonicMs": 253
+      }
+    },
+    {
+      "id": "P2-A9-T03:AC04:metadataOnlyNoReinit",
+      "status": "Pass",
+      "evidence": "DOM (node同一性)",
+      "detail": {
+        "before": 10,
+        "after": {
+          "count": 10,
+          "kept": 10
+        },
+        "t6Count": 0,
+        "channels": [
+          "デスクトップ通知: 使える",
+          "音声通知: 使えない"
+        ]
+      }
+    },
+    {
+      "id": "P2-A9-T01:schemaAndSequenceChecked",
+      "status": "Pass",
+      "evidence": "DOM・performance entry",
+      "detail": {
+        "invalidSequence": 3,
+        "olderSequence": 1,
+        "sentinelSequence": 5,
+        "t5Before": 2,
+        "t5After": 3,
+        "cardsBefore": [
+          "[通常] VXSE43 20240417231454 最大5弱"
+        ],
+        "cardsAfter": [
+          "[通常] VXSE43 20240417231454 最大5弱"
+        ]
+      }
+    },
+    {
+      "id": "P2-A9-T02:VXSE45:card",
+      "status": "Pass",
+      "evidence": "DOM",
+      "detail": {
+        "streamId": "smoke-b",
+        "cards": [
+          {
+            "head": "[通常] VXSE45 20240417231454 最大3",
+            "time": "2024/04/17 23:14:57",
+            "areas": 0
+          }
+        ]
+      }
+    },
+    {
+      "id": "P2-A9-T03:R59:removedAndKept",
+      "status": "Pass",
+      "evidence": "DOM",
+      "detail": {
+        "before": [
+          "[通常] VXSE43 20240417231454 最大5弱",
+          "[通常] VXSE45 20240417231454 最大3"
+        ],
+        "after": [
+          "[通常] VXSE45 20240417231454 最大3"
+        ],
+        "mapCount": 0
+      }
+    },
+    {
+      "id": "P2-A9-T02:VXSE45:emptyMapPixels",
+      "status": "Pass",
+      "evidence": "screenshot画素",
+      "detail": {
+        "screenshot": "evidence/vxse45-only.png",
+        "formerCenters": [
+          [
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0
+          ]
+        ],
+        "background": [
+          0,
+          0,
+          0
+        ],
+        "cardPixel": {
+          "expected": [
+            49,
+            147,
+            219
+          ],
+          "actual": [
+            49,
+            147,
+            219
+          ]
+        }
+      }
+    },
+    {
+      "id": "P2-A9-T04:markers:VXSE45emptyMap",
+      "status": "Pass",
+      "evidence": "performance entry",
+      "detail": {
+        "t6": [
+          {
+            "startTime": 389.40000000596046,
+            "detail": {
+              "name": "fleq:p2:eew:T6-candidate",
+              "displayVersion": {
+                "streamId": "smoke-b",
+                "semanticRevision": "[\"1:0\",\"0:0\",\"0:0\"]",
+                "sequence": 7
+              },
+              "operation": "normal",
+              "subject": "normal/VXSE45/20240417231454",
+              "cardMarkerId": "card:normal/VXSE45/20240417231454",
+              "mapMarkerId": "map:normal/VXSE45/20240417231454",
+              "mapAreaCodes": []
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "P2-A9-T05:AC07:afterCardRemoval",
+      "status": "Pass",
+      "evidence": "DOM",
+      "detail": {
+        "count": 1,
+        "r38": "全国通知"
+      }
+    },
+    {
+      "id": "P2-A9-T05:AC07:VXSE45",
+      "status": "Pass",
+      "evidence": "DOM",
+      "detail": {
+        "count": 1,
+        "r38": "全国通知"
+      }
+    },
+    {
+      "id": "P2-A9-T02:AC03:intensityBoundsAndUnknownColor",
+      "status": "Pass",
+      "evidence": "DOM・screenshot画素",
+      "detail": {
+        "rows": [
+          "622: 5弱程度以上",
+          "632: 4",
+          "752: 4〜不明",
+          "751: 5弱以上"
+        ],
+        "head": "[通常] VXSE43 20240417231454 最大4〜不明",
+        "pixels": [
+          {
+            "code": "622",
+            "expected": [
+              240,
+              228,
+              66
+            ],
+            "actual": [
+              240,
+              228,
+              66
+            ]
+          },
+          {
+            "code": "632",
+            "expected": [
+              0,
+              158,
+              115
+            ],
+            "actual": [
+              0,
+              158,
+              115
+            ]
+          },
+          {
+            "code": "752",
+            "expected": [
+              86,
+              96,
+              105
+            ],
+            "actual": [
+              86,
+              96,
+              105
+            ]
+          },
+          {
+            "code": "751",
+            "expected": [
+              86,
+              96,
+              105
+            ],
+            "actual": [
+              86,
+              96,
+              105
+            ]
+          }
+        ],
+        "cardPixel": {
+          "expected": [
+            86,
+            96,
+            105
+          ],
+          "actual": [
+            86,
+            96,
+            105
+          ]
+        },
+        "screenshot": "evidence/intensity-bounds.png"
+      }
+    },
+    {
+      "id": "P2-A9-T03:AC04:unavailableNotNoAlert",
+      "status": "Pass",
+      "evidence": "DOM",
+      "detail": {
+        "rows": [
+          "[通常] 表示できない報がある（容量超過 2 件）"
+        ],
+        "cardCount": 0
+      }
+    },
+    {
+      "id": "P2-A9-T06:AC09:noticeA8Text",
+      "status": "Pass",
+      "evidence": "DOM",
+      "detail": {
+        "a8Notice": {
+          "id": "02c7cae4db2b25e40f49963aae2f313262a1e873f108e2f2663d5f3961d79307",
+          "targetId": "588deb0be2c3d2259088dad3e30979087a3282fbeabbad7b2342fbc7b11e6420",
+          "unit": "U-E",
+          "kind": "eewNew",
+          "operation": "normal",
+          "text": "緊急地震速報を確認",
+          "source": {
+            "id": "f37e6ebd3e09199b8adbf987e4c5cf845f487ebaeed92d31ecf6710c7009fecf",
+            "family": "VXSE43",
+            "office": null,
+            "officeTruncated": false,
+            "reportTime": 1713363299000
+          },
+          "expiresAt": 1713363345000
+        },
+        "row": "[通常] 緊急地震速報を確認"
+      }
+    },
+    {
+      "id": "P2-A9-T06:AC09:noticeSourceNull",
+      "status": "Pass",
+      "evidence": "DOM",
+      "detail": {
+        "row": "[通常] 緊急地震速報を確認"
+      }
+    },
+    {
+      "id": "P2-A9-T06:AC09:noticeOfficeTruncated",
+      "status": "Pass",
+      "evidence": "DOM",
+      "detail": {
+        "row": "[通常] 緊急地震速報を確認　大阪管区気象台（切詰め）"
+      }
+    },
+    {
+      "id": "P2-A9-T06:AC09:noticeTraining",
+      "status": "Pass",
+      "evidence": "DOM",
+      "detail": {
+        "row": "[訓練] 緊急地震速報を確認",
+        "confirmation": [
+          "通常確認状態: 一部確認",
+          "訓練確認状態: 未確認"
+        ]
+      }
+    },
+    {
+      "id": "P2-A9-T06:AC09:channels4States",
+      "status": "Pass",
+      "evidence": "DOM",
+      "detail": {
+        "first": [
+          "デスクトップ通知: 確認中",
+          "音声通知: 使える"
+        ],
+        "second": [
+          "デスクトップ通知: 使えない",
+          "音声通知: 隔離中"
+        ]
+      }
+    },
+    {
+      "id": "P2-A9-T06:AC09:connection3States",
+      "status": "Pass",
+      "evidence": "DOM",
+      "detail": {
+        "connected": "接続: 接続中 / 切断: 未切断 / worker: 正常 / 受信: 無受信45秒未満",
+        "reconnecting": "接続: 再接続中 / 切断: 2024/04/17 23:15:30 / worker: 正常 / 受信: 無受信45秒未満",
+        "stopped": "接続: 停止 / 切断: 2024/04/17 23:15:30 / worker: 正常 / 受信: 無受信45秒未満"
+      }
+    },
+    {
+      "id": "P2-A9-T06:AC09:workerStopFamily",
+      "status": "Pass",
+      "evidence": "DOM",
+      "detail": {
+        "workers": {
+          "stalled": {
+            "line": "接続: 接続中 / 切断: 未切断 / worker: 停滞（停止系） / 受信: 無受信45秒未満",
+            "banner": "更新未確認の最終情報"
+          },
+          "unresponsive": {
+            "line": "接続: 接続中 / 切断: 未切断 / worker: 無応答（停止系） / 受信: 無受信45秒未満",
+            "banner": "更新未確認の最終情報"
+          },
+          "stopped": {
+            "line": "接続: 接続中 / 切断: 未切断 / worker: 停止（停止系） / 受信: 無受信45秒未満",
+            "banner": "更新未確認の最終情報"
+          }
+        },
+        "bannerAfterHealthySnapshot": ""
+      }
+    },
+    {
+      "id": "P2-A9-T06:AC09:confirmation3States",
+      "status": "Pass",
+      "evidence": "DOM",
+      "detail": {
+        "rows": {
+          "confirmed": [
+            "通常確認状態: 確認済み (2024/04/17 23:15:30)"
+          ],
+          "partial": [
+            "通常確認状態: 一部確認"
+          ],
+          "unconfirmed": [
+            "通常確認状態: 未確認"
+          ]
+        },
+        "shownWithTrainingCardAndTestNotice": [
+          "通常確認状態: 確認済み (2024/04/17 23:15:30)",
+          "訓練確認状態: 一部確認",
+          "試験確認状態: 未確認"
+        ],
+        "trainingCard": [
+          "[通常] VXSE45 20240417231454 最大3",
+          "[訓練] VXSE45 20240417231454 最大3"
+        ]
+      }
+    },
+    {
+      "id": "P2-A9-T06:AC04:summary",
+      "status": "Pass",
+      "evidence": "DOM・screenshot画素",
+      "detail": {
+        "rows": [
+          "[通常] 2件 / 警報 / 更新: 2024/04/17 23:14:59 / 詳細省略中",
+          "[訓練] 1件 / 予報 / 更新: 時刻不明 / 詳細省略中"
+        ],
+        "cardCount": 0,
+        "confirmation": [
+          "通常確認状態: 一部確認",
+          "訓練確認状態: 一部確認"
+        ],
+        "screenshot": "evidence/summary.png",
+        "formerCenters": [
+          [
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0
+          ]
+        ]
+      }
+    },
+    {
+      "id": "P2-A9-T05:AC07:summary",
+      "status": "Pass",
+      "evidence": "DOM",
+      "detail": {
+        "count": 1,
+        "r38": "全国通知"
+      }
+    },
+    {
+      "id": "P2-A9-T06:AC10:time:UTC",
+      "status": "Pass",
+      "evidence": "DOM (Emulation.setTimezoneOverride)",
+      "detail": {
+        "applied": {
+          "offset": 0,
+          "zone": "UTC"
+        },
+        "full43": [
+          "2024/04/17 23:14:59"
+        ],
+        "full45": [
+          "2024/04/17 23:14:57"
+        ],
+        "summary": [
+          "[通常] 1件 / 警報 / 更新: 2024/04/17 23:14:59 / 詳細省略中",
+          "[訓練] 1件 / 予報 / 更新: 時刻不明 / 詳細省略中"
+        ],
+        "generatedAtJst": "2024/04/17 23:15:30"
+      }
+    },
+    {
+      "id": "P2-A9-T06:AC10:time:Asia/Tokyo",
+      "status": "Pass",
+      "evidence": "DOM (Emulation.setTimezoneOverride)",
+      "detail": {
+        "applied": {
+          "offset": -540,
+          "zone": "Asia/Tokyo"
+        },
+        "full43": [
+          "2024/04/17 23:14:59"
+        ],
+        "full45": [
+          "2024/04/17 23:14:57"
+        ],
+        "summary": [
+          "[通常] 1件 / 警報 / 更新: 2024/04/17 23:14:59 / 詳細省略中",
+          "[訓練] 1件 / 予報 / 更新: 時刻不明 / 詳細省略中"
+        ],
+        "generatedAtJst": "2024/04/17 23:15:30"
+      }
+    },
+    {
+      "id": "P2-A9-T05:AC08:htmlNotInterpreted",
+      "status": "Pass",
+      "evidence": "DOM",
+      "detail": {
+        "benign": {
+          "elements": 42,
+          "executable": 1,
+          "head": "[通常] VXSE43 EVENT-BENIGN 最大5弱",
+          "areas": [
+            "622: 5弱（COND-BENIGN）",
+            "632: 4",
+            "752: 4",
+            "751: 4",
+            "621: 4",
+            "750: 4",
+            "620: 4",
+            "703: 4",
+            "592: 3〜4",
+            "AREA-BENIGN: 4"
+          ],
+          "notice": "[通常] notice benign　office benign",
+          "fired": 0
+        },
+        "evil": {
+          "elements": 42,
+          "executable": 1,
+          "head": "[通常] VXSE43 <script>window.__fleqXss=(window.__fleqXss||0)+1</script> 最大5弱",
+          "areas": [
+            "622: 5弱（&lt;b&gt;&amp;）",
+            "632: 4",
+            "752: 4",
+            "751: 4",
+            "621: 4",
+            "750: 4",
+            "620: 4",
+            "703: 4",
+            "592: 3〜4",
+            "<img src=x onerror=\"window.__fleqXss=(window.__fleqXss||0)+1\">: 4"
+          ],
+          "notice": "[通常] <img src=x onerror=\"window.__fleqXss=(window.__fleqXss||0)+1\">\n行2[truncated:fieldLimit]　<script>window.__fleqXss=1</script>&lt;i&gt;",
+          "fired": 0
+        },
+        "evilStrings": {
+          "eventId": "<script>window.__fleqXss=(window.__fleqXss||0)+1</script>",
+          "code": "<img src=x onerror=\"window.__fleqXss=(window.__fleqXss||0)+1\">",
+          "condition": "&lt;b&gt;&amp;",
+          "text": "<img src=x onerror=\"window.__fleqXss=(window.__fleqXss||0)+1\">\n行2[truncated:fieldLimit]",
+          "office": "<script>window.__fleqXss=1</script>&lt;i&gt;"
+        }
+      }
+    },
+    {
+      "id": "P2-A9-T06:a:heartbeatOnlyStopped",
+      "status": "Pass",
+      "evidence": "DOM",
+      "detail": {
+        "first": {
+          "line": "接続: 接続中 / 切断: 未切断 / worker: 停止（停止系） / 受信: 無受信45秒未満",
+          "banner": "更新未確認の最終情報"
+        },
+        "second": {
+          "line": "接続: 接続中 / 切断: 未切断 / worker: 停止（停止系） / 受信: 無受信45秒未満",
+          "banner": "更新未確認の最終情報"
+        },
+        "t5Before": 32,
+        "t5After": 32
+      }
+    },
+    {
+      "id": "P2-A9-T06:b:staleReconnect",
+      "status": "Pass",
+      "evidence": "EventSource観測log・DOM・server clientCount",
+      "detail": {
+        "lastEvent": {
+          "t": 2864.4000000059605,
+          "kind": "heartbeat",
+          "id": 1
+        },
+        "closed": {
+          "t": 60020.5,
+          "kind": "close",
+          "id": 1
+        },
+        "reopened": {
+          "t": 60020.59999999404,
+          "kind": "new",
+          "id": 2
+        },
+        "gapMs": 57156.09999999404,
+        "bannerWhileDown": "更新未確認の最終情報",
+        "after": {
+          "heads": [
+            "[通常] VXSE43 20240417231454 最大5弱"
+          ],
+          "banner": "",
+          "clients": 1
+        }
+      }
+    },
+    {
+      "id": "P2-A9-T06:b:closedConnectionRecovered",
+      "status": "Pass",
+      "evidence": "EventSource観測log・DOM・server clientCount",
+      "detail": {
+        "holderStatuses": [
+          200,
+          200,
+          200,
+          200,
+          200,
+          200,
+          200,
+          200
+        ],
+        "slotsHeld": 8,
+        "closedBy503": {
+          "t": 63024.5,
+          "kind": "error",
+          "id": 2,
+          "readyState": 2
+        },
+        "reopenedAfterSlotsFreed": {
+          "t": 75019.40000000596,
+          "kind": "new",
+          "id": 3
+        },
+        "publishedSequence": 35,
+        "delivered": [
+          {
+            "t": 75215.09999999404,
+            "kind": "snapshot",
+            "id": 3
+          }
+        ],
+        "after": {
+          "heads": [
+            "[通常] VXSE43 20240417231454 最大5弱"
+          ],
+          "banner": "",
+          "clients": 1
+        }
+      }
+    },
+    {
+      "id": "P2-A9-T06:c:foregroundImmediate",
+      "status": "Pass",
+      "evidence": "visibilitychange dispatch内の観測・EventSource観測log",
+      "detail": {
+        "lastEvent": {
+          "t": 82521.59999999404,
+          "kind": "snapshot",
+          "id": 3
+        },
+        "thresholdAt": 127521.59999999404,
+        "nextPeriodicTickAt": 135020.5,
+        "bannerBefore": "",
+        "before": {
+          "phase": "before",
+          "t": 129029.80000001192,
+          "banner": "",
+          "logLength": 84
+        },
+        "after": {
+          "phase": "after",
+          "t": 129030,
+          "banner": "更新未確認の最終情報",
+          "logLength": 86
+        },
+        "events": [
+          {
+            "t": 82524.30000001192,
+            "kind": "error",
+            "id": 3,
+            "readyState": 0
+          },
+          {
+            "t": 85536.19999998808,
+            "kind": "error",
+            "id": 3,
+            "readyState": 0
+          },
+          {
+            "t": 88545.80000001192,
+            "kind": "error",
+            "id": 3,
+            "readyState": 0
+          },
+          {
+            "t": 91556.5,
+            "kind": "error",
+            "id": 3,
+            "readyState": 0
+          },
+          {
+            "t": 94566.19999998808,
+            "kind": "error",
+            "id": 3,
+            "readyState": 0
+          },
+          {
+            "t": 97575.69999998808,
+            "kind": "error",
+            "id": 3,
+            "readyState": 0
+          },
+          {
+            "t": 100584.90000000596,
+            "kind": "error",
+            "id": 3,
+            "readyState": 0
+          },
+          {
+            "t": 103595.5,
+            "kind": "error",
+            "id": 3,
+            "readyState": 0
+          },
+          {
+            "t": 106605.80000001192,
+            "kind": "error",
+            "id": 3,
+            "readyState": 0
+          },
+          {
+            "t": 109616.40000000596,
+            "kind": "error",
+            "id": 3,
+            "readyState": 0
+          },
+          {
+            "t": 112627.19999998808,
+            "kind": "error",
+            "id": 3,
+            "readyState": 0
+          },
+          {
+            "t": 115635.19999998808,
+            "kind": "error",
+            "id": 3,
+            "readyState": 0
+          },
+          {
+            "t": 118645.69999998808,
+            "kind": "error",
+            "id": 3,
+            "readyState": 0
+          },
+          {
+            "t": 121655.09999999404,
+            "kind": "error",
+            "id": 3,
+            "readyState": 0
+          },
+          {
+            "t": 124665.80000001192,
+            "kind": "error",
+            "id": 3,
+            "readyState": 0
+          },
+          {
+            "t": 127676,
+            "kind": "error",
+            "id": 3,
+            "readyState": 0
+          },
+          {
+            "t": 129029.90000000596,
+            "kind": "close",
+            "id": 3
+          },
+          {
+            "t": 129029.90000000596,
+            "kind": "new",
+            "id": 4
+          },
+          {
+            "t": 129032.09999999404,
+            "kind": "error",
+            "id": 4,
+            "readyState": 0
+          }
+        ]
+      }
+    },
+    {
+      "id": "P2-A9-T06:c:recoveredAfterForeground",
+      "status": "Pass",
+      "evidence": "DOM・server clientCount",
+      "detail": {
+        "banner": "",
+        "clients": 1
+      }
+    },
+    {
+      "id": "P2-A9-T04:markNamesOnly",
+      "status": "Pass",
+      "evidence": "performance entry",
+      "detail": {
+        "names": [
+          "fleq:p2:eew:T5",
+          "fleq:p2:eew:T6-candidate"
+        ]
+      }
+    }
+  ],
+  "precedingEvidenceOnly": [
+    {
+      "id": "D-AC02",
+      "smokeRecords": [
+        "P2-A9-T03:R59:removedAndKept",
+        "P2-A9-T03:AC04:unavailableNotNoAlert",
+        "P2-A9-T06:AC04:summary",
+        "P2-A9-T06:AC09:noticeA8Text"
+      ],
+      "notYet": "P4の全災害カード・現在ページ外の取消反映",
+      "status": "先行証拠のみ（Passと報告しない）"
+    },
+    {
+      "id": "D-AC12",
+      "smokeRecords": [
+        "P2-A9-T03:AC04:metadataOnlyNoReinit"
+      ],
+      "notYet": "P4のcamera復帰・ページ停止解除・版付き詳細",
+      "status": "先行証拠のみ（Passと報告しない）"
+    },
+    {
+      "id": "D-AC14",
+      "smokeRecords": [
+        "P2-A9-T02:VXSE43:paintPixels",
+        "P2-A9-T03:R59:removedAndKept"
+      ],
+      "notYet": "全active EventID集合のbounds・P4 GIS・交差取消の系列",
+      "status": "先行証拠のみ（Passと報告しない）"
+    },
+    {
+      "id": "D-AC24",
+      "smokeRecords": [
+        "P2-A9-T04:markers:VXSE43",
+        "P2-A9-T04:markers:VXSE45emptyMap"
+      ],
+      "notYet": "1000×3正式E01 (A10)・E04/E25/E26。T6候補は正式T6ではない",
+      "status": "先行証拠のみ（Passと報告しない）"
+    }
+  ]
+}

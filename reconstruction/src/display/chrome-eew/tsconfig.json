@@ -1,0 +1,16 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ES2022",
+    "lib": ["ES2022", "DOM"],
+    // contractsの型importもprogramに入るのでrootDirはreconstruction/。A9のmoduleは
+    // reconstruction/dist/chrome-eew/src/display/chrome-eew/ に平らに並び、A10 hostはここをmoduleDirectoryに渡す。
+    "rootDir": "../../..",
+    "outDir": "../../../dist/chrome-eew",
+    "strict": true,
+    "skipLibCheck": true,
+    "moduleResolution": "bundler",
+    "types": []
+  },
+  "include": ["**/*.ts"]
+}

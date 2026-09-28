@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>FlEq P2 EEW (計測専用)</title>
+<style>
+  /* 表示規範の先読み: display/frontend/src/lib/theme.css の token を実値まで解決して写す (import しない)。 */
+  :root {
+    --bg: #000000;                 /* theme.css:25 */
+    --fg: #f2f4f6;                 /* theme.css:32 */
+    --int-1: #84919e;              /* theme.css:78 var(--c-gray) → theme.css:37 */
+    --int-2: #56b4e9;              /* theme.css:79 var(--c-sky) → theme.css:39 */
+    --int-3: #3193db;              /* theme.css:80 var(--c-blue-lift) → theme.css:41 */
+    --int-4: #009e73;              /* theme.css:81 var(--c-blue-green) → theme.css:42 */
+    --int-5: #f0e442;              /* theme.css:82 var(--c-yellow) → theme.css:43 */
+    --int-6: #e69f00;              /* theme.css:83 var(--c-orange) → theme.css:44 */
+    --int-7: #e56910;              /* theme.css:84 var(--c-vermillion-lift) → theme.css:47 */
+    --int-8-bg: #d55e00;           /* theme.css:85 var(--c-vermillion) → theme.css:46 */
+    --int-8-on: #000000;           /* theme.css:87 */
+    --int-9-bg: #7a1e00;           /* theme.css:86 var(--c-dark-red) → theme.css:49 */
+    --int-9-on: #ffffff;           /* theme.css:88 */
+    --header-eewForecast-container: #3a2600; /* theme.css:102 */
+    --header-eewForecast-on: #ffd68a;        /* theme.css:102 */
+  }
+  body { background: var(--bg); color: var(--fg); font-family: monospace; margin: 0; padding: 12px 12px 12px 96px; }
+  /* R38: 固定文言を常時1か所。 */
+  #r38 { position: fixed; top: 0; left: 0; padding: 4px 8px; z-index: 1;
+    background: var(--header-eewForecast-container); color: var(--header-eewForecast-on); font-weight: bold; }
+  #banner { color: var(--int-6); min-height: 1.2em; }
+  /* 震度の段階ごとの色はここで1回だけ決め、地図の塗り・card枠・区域文字色はすべて --sev を読む。
+     6強・7は面＋反転文字 (--sev-on)。未知は既知震度の色へ寄せず中立色 (theme.css:33 --fg-faint)。 */
+  .int-1 { --sev: var(--int-1); } .int-2 { --sev: var(--int-2); } .int-3 { --sev: var(--int-3); }
+  .int-4 { --sev: var(--int-4); } .int-5 { --sev: var(--int-5); } .int-6 { --sev: var(--int-6); }
+  .int-7 { --sev: var(--int-7); }
+  .int-8 { --sev: var(--int-8-bg); --sev-on: var(--int-8-on); }
+  .int-9 { --sev: var(--int-9-bg); --sev-on: var(--int-9-on); }
+  .int-unknown { --sev: #566069; } /* theme.css:33 --fg-faint */
+  /* P2-A9-GEOMETRY: 300×300 CSS pxの固定3×3。区域は塗りだけで文字を描かない。 */
+  #map { position: relative; width: 300px; height: 300px; border: 1px solid var(--int-1); margin: 8px 0; }
+  .map-area { position: absolute; box-sizing: border-box; border: 1px solid var(--bg); background: var(--sev); }
+  /* card枠はmaximumのseverity色。4pxは枠色をscreenshotで採取するための幅。 */
+  .eew-card { border: 4px solid var(--sev); margin: 4px 0; padding: 4px; }
+  .eew-card-area { color: var(--sev); }
+  .eew-card-area.int-8, .eew-card-area.int-9 { background: var(--sev); color: var(--sev-on); }
+  /* 改行を含むwire文字列も字面どおりに見せる。 */
+  .notice, .eew-card-head, .eew-card-area { white-space: pre-wrap; }
+</style>
+</head>
+<body>
+  <div id="r38">全国通知</div>
+  <div id="banner"></div>
+  <div id="connection"></div>
+  <div id="confirmation"></div>
+  <div id="unavailable"></div>
+  <div id="cards"></div>
+  <div id="map"></div>
+  <div id="notices"></div>
+  <div id="channels"></div>
+  <script type="module" src="./chrome-eew/main.js"></script>
+</body>
+</html>
