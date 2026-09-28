@@ -1,0 +1,20 @@
+{
+  "schemaVersion": "p2-chrome-smoke-conditions-v1",
+  "conditionsSha256": "2661d0570a9f2de8de3c2f9a66459d2077e54351040d7c48ea9f69174e13858d",
+  "chrome": {
+    "version": "153.0.8010.53",
+    "foregroundTab": true,
+    "viewportCssPx": [
+      1440,
+      900
+    ],
+    "dpr": 2,
+    "motion": "full"
+  },
+  "geometrySha256": "f50229a67539b4c39be1c947fc69d7203cc22af020e4a568fe827c0c933f883f",
+  "paintExpectationsRef": "reconstruction/contracts/p2-chrome-eew.json#meta.questionResolutions[P2-A9-GEOMETRY].paintExpectations",
+  "fixtureSha256": {
+    "test__fixtures__37_01_01_240613_VXSE43": "66ac00a126d831135ce40baea8de5b3c5e58342c607d04f4ef00520a6861fcc0",
+    "test__fixtures__77_01_01_240613_VXSE45": "05aabbf0667f30f4248b464207d7335afda83c69d22a7cd1a300fec847074575"
+  }
+}
