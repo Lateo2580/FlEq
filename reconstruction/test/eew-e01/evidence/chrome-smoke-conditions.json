@@ -1,8 +1,8 @@
 {
   "schemaVersion": "p2-chrome-smoke-conditions-v1",
-  "conditionsSha256": "2661d0570a9f2de8de3c2f9a66459d2077e54351040d7c48ea9f69174e13858d",
+  "conditionsSha256": "07d16d81e410ed293776bcf314580cf7264b178cc018c329de927ecc03f2b1d9",
   "chrome": {
-    "version": "153.0.8010.53",
+    "version": "154.0.8037.58",
     "foregroundTab": true,
     "viewportCssPx": [
       1440,
