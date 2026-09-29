@@ -1,0 +1,175 @@
+{
+  "schemaVersion": "p2-eew-initial-state-draft-v1",
+  "populations": {
+    "fixedBacklog": [
+      {
+        "fixture": "test__fixtures__81_01_04_251222_VPWP50",
+        "sha256": "937dbaa1c74e1e182527ea52690ca75a60f1bd674e6ac6dbe97436e55af7bc1a"
+      }
+    ],
+    "maxVpws50DecodeStarted": [
+      {
+        "fixture": "test__fixtures__81_01_04_251222_VPWP50",
+        "sha256": "937dbaa1c74e1e182527ea52690ca75a60f1bd674e6ac6dbe97436e55af7bc1a"
+      }
+    ],
+    "maxWeatherCheckpointEncodeStarted": [
+      {
+        "fixture": "test__fixtures__15_18_01_250630_VPWS50",
+        "sha256": "4730b26b18e285be6b6141b1140aa5c2f81ce32907571bdd17e80525e3746981"
+      },
+      {
+        "fixture": "test__fixtures__81_01_04_251222_VPWP50",
+        "sha256": "937dbaa1c74e1e182527ea52690ca75a60f1bd674e6ac6dbe97436e55af7bc1a"
+      }
+    ],
+    "maxForecastCheckpointSave": [
+      {
+        "fixture": "test__fixtures__81_09_01_260605_VPWP50",
+        "sha256": "f4614dc206b143ef3a9997fecf1ebffaef2f4f9b3000ddd2df0de522bc8cad4b"
+      }
+    ],
+    "forecastDeadlineOverlap": []
+  },
+  "nWindow": {
+    "file": "page1.json (dmdata Telegram List v2, 2026-09-28 09:00-10:00 JST)",
+    "sha256": "3f886896ad2f059d5c86dfaf9a2b271add4b2bba8e3dba6e438ae26ef8e27535",
+    "skipped": [
+      {
+        "headType": "VPWW54",
+        "offsetMs": 331665,
+        "reason": "noFixtureForHeadType"
+      },
+      {
+        "headType": "VPWW53",
+        "offsetMs": 331673,
+        "reason": "noFixtureForHeadType"
+      },
+      {
+        "headType": "VPWW54",
+        "offsetMs": 577508,
+        "reason": "noFixtureForHeadType"
+      },
+      {
+        "headType": "VPWW53",
+        "offsetMs": 577517,
+        "reason": "noFixtureForHeadType"
+      },
+      {
+        "headType": "VPFJ50",
+        "offsetMs": 578542,
+        "reason": "noFixtureForHeadType"
+      },
+      {
+        "headType": "VPFJ50",
+        "offsetMs": 1595348,
+        "reason": "noFixtureForHeadType"
+      },
+      {
+        "headType": "VXWW50",
+        "offsetMs": 1943364,
+        "reason": "noFixtureForHeadType"
+      },
+      {
+        "headType": "VPWW54",
+        "offsetMs": 1951049,
+        "reason": "noFixtureForHeadType"
+      },
+      {
+        "headType": "VPWW53",
+        "offsetMs": 1951053,
+        "reason": "noFixtureForHeadType"
+      },
+      {
+        "headType": "VPWW54",
+        "offsetMs": 1995912,
+        "reason": "noFixtureForHeadType"
+      },
+      {
+        "headType": "VPWW53",
+        "offsetMs": 1995921,
+        "reason": "noFixtureForHeadType"
+      },
+      {
+        "headType": "VPWW54",
+        "offsetMs": 2068182,
+        "reason": "noFixtureForHeadType"
+      },
+      {
+        "headType": "VPWW53",
+        "offsetMs": 2068186,
+        "reason": "noFixtureForHeadType"
+      },
+      {
+        "headType": "VPWW54",
+        "offsetMs": 2098106,
+        "reason": "noFixtureForHeadType"
+      },
+      {
+        "headType": "VPWW53",
+        "offsetMs": 2098114,
+        "reason": "noFixtureForHeadType"
+      },
+      {
+        "headType": "VPWW54",
+        "offsetMs": 2155171,
+        "reason": "noFixtureForHeadType"
+      },
+      {
+        "headType": "VPWW53",
+        "offsetMs": 2156180,
+        "reason": "noFixtureForHeadType"
+      },
+      {
+        "headType": "VPWW54",
+        "offsetMs": 2232720,
+        "reason": "noFixtureForHeadType"
+      },
+      {
+        "headType": "VPWW53",
+        "offsetMs": 2232722,
+        "reason": "noFixtureForHeadType"
+      },
+      {
+        "headType": "VPWW54",
+        "offsetMs": 2246662,
+        "reason": "noFixtureForHeadType"
+      },
+      {
+        "headType": "VPWW53",
+        "offsetMs": 2246671,
+        "reason": "noFixtureForHeadType"
+      },
+      {
+        "headType": "VPWW54",
+        "offsetMs": 2263562,
+        "reason": "noFixtureForHeadType"
+      },
+      {
+        "headType": "VPWW53",
+        "offsetMs": 2263570,
+        "reason": "noFixtureForHeadType"
+      },
+      {
+        "headType": "WTJP22",
+        "offsetMs": 2680640,
+        "reason": "noFixtureForHeadType"
+      },
+      {
+        "headType": "VPWW54",
+        "offsetMs": 2788205,
+        "reason": "noFixtureForHeadType"
+      },
+      {
+        "headType": "VPWW53",
+        "offsetMs": 2789162,
+        "reason": "noFixtureForHeadType"
+      },
+      {
+        "headType": "VPTA51",
+        "offsetMs": 3001210,
+        "reason": "noFixtureForHeadType"
+      }
+    ]
+  }
+}

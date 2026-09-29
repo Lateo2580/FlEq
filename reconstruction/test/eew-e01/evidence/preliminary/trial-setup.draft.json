@@ -1,0 +1,36 @@
+{
+  "schemaVersion": "p2-eew-trial-setup-v1",
+  "initialStateRef": "reconstruction/test/eew-e01/evidence/preliminary/initial-state.draft.json",
+  "initialStateSha256": "18a98ce10efe988a64bebbb6c201eaedcb19285be68aafe04d0af21968d0c5a2",
+  "initialCheckpoints": {
+    "U-E": {
+      "ref": null,
+      "sha256": null
+    },
+    "U-W": {
+      "ref": null,
+      "sha256": null
+    },
+    "U-F": {
+      "ref": null,
+      "sha256": null
+    }
+  },
+  "clock": {
+    "wallTimeOriginMs": 1780650000000,
+    "monotonicOrigin": "runNodeClock"
+  },
+  "resetBeforeEachTrial": [
+    "run ごとに新しい host 子プロセス・空の state directory・空の診断 directory で始める（毎試行の再起動はしない）",
+    "run ごとに warm-up 用と正式用の EventID を 1 つずつ使い、各試行は同じ EventID の VXSE43 で Serial を 1 ずつ増やす",
+    "続報の予測を A（元 fixture）と B（愛媛県東予の予測震度 4 を 5- に替える）に交互に変え、contentRevision を進める"
+  ],
+  "prepareDirtyGeneration": [
+    "各試行の VXSE43 を独立投入側から製品の WS 入力として送る。U-E の dirty 世代は製品の入力処理が作る",
+    "初期化入力（initial-state の populations 参照）を run 開始時に同じ経路で送り、U-W / U-F の初期状態を作る",
+    "weather の入力（初期化・引き金・通常負荷 N）は、全時刻を平行移動して報告時刻を投入時点の壁時計（秒）へ寄せて流す（期限が最初から過ぎて状態が空になるのを避ける）"
+  ],
+  "preventReplacementUntilPaintOrTimeout": [
+    "次の試行の投入は、前の試行の T6 候補 mark が Chrome に現れるか、実投入から 10000ms が経つまで行わない"
+  ]
+}

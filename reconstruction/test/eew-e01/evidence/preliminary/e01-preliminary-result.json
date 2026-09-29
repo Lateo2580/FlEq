@@ -1,0 +1,5729 @@
+{
+  "kind": "p2-eew-e01-preliminary-v1",
+  "status": "未確認",
+  "statusReason": "予備測定。正式 E01 の合否・Q-PERF の凍結値ではない",
+  "manifestId": "prelim-20260929T122528",
+  "manifestSha256": "cf17c5b9d1d087002d1ce1fa0dc077d99caae89cbf23c8f03e8c5aa26b812791",
+  "startedAt": "2026-09-29T12:25:28.859Z",
+  "finishedAt": "2026-09-29T12:33:32.457Z",
+  "commands": [
+    "node reconstruction/test/eew-e01/run.mjs --preliminary",
+    "host: /opt/homebrew/opt/node@22/bin/node host-launcher.mjs",
+    "caffeinate -dims -w <pid>"
+  ],
+  "plan": {
+    "formalWarmup": 20,
+    "formalSamples": 100,
+    "refWarmup": 5,
+    "refSamples": 20,
+    "period": 1370,
+    "refPeriod": 3000
+  },
+  "notification": "silent",
+  "environment": {
+    "node": "v22.23.2",
+    "chrome": "154.0.8037.58",
+    "os": "27.0.0 arm64",
+    "device": "Apple M5 x10, 32GiB"
+  },
+  "rawEvidenceDir": "/Users/sayue/dev/fleq-a10-runs/prelim-20260929T122528",
+  "formal": [
+    {
+      "population": "fixedBacklog",
+      "run": 1,
+      "status": "未確認",
+      "statusReason": "予備測定（件数が正式の 1000×3 に満たない）。合否に使わない",
+      "warmupSamples": 20,
+      "samples": 100,
+      "missing": 0,
+      "traceMissingByReason": {
+        "none": 100
+      },
+      "injectionFailures": 0,
+      "t6Rate": 1,
+      "latencyLowerMs": {
+        "n": 100,
+        "p50": 28.33,
+        "p99": 41.794,
+        "max": 42.513
+      },
+      "latencyUpperMs": {
+        "n": 100,
+        "p50": 29.211,
+        "p99": 42.698,
+        "max": 43.202
+      },
+      "paintWithoutScreenshot": 11,
+      "ufAllowance": {
+        "withinAllowance": 120,
+        "notWithin": 0,
+        "subjectsMeasured": 1,
+        "subjectsSource": "保存済み U-F checkpoint state/U-F-*.json の payload.subjects（既存の予備の生データから数え直し）"
+      },
+      "clockIntervalWidthMs": {
+        "n": 7,
+        "p50": 0.489,
+        "p99": 0.778,
+        "max": 0.778
+      },
+      "clockProbeCount": 7,
+      "injectedToT0Ms": {
+        "n": 100,
+        "p50": 0.208,
+        "p99": 0.483,
+        "max": 412.157
+      }
+    }
+  ],
+  "references": [
+    {
+      "population": "maxVpws50DecodeStarted",
+      "run": 1,
+      "records": [
+        {
+          "index": 0,
+          "inputId": "input-3",
+          "outcome": "callbackReached",
+          "t0Ms": 3157.587958,
+          "t1Ms": 3157.645833,
+          "t2Ms": 3158.269125,
+          "target": {
+            "startMs": 2702.232125,
+            "endMs": 3096.485125
+          },
+          "injectionInsideTarget": "no",
+          "injectionOffsetFromStartMs": [
+            -0.1954590239524805,
+            -0.1663760104179346
+          ],
+          "t0MinusStartMs": 455.3558330000001,
+          "t0AtOrAfterEnd": true,
+          "judgement": "injectionOutsideTarget",
+          "stages": []
+        },
+        {
+          "index": 1,
+          "inputId": "input-5",
+          "outcome": "callbackReached",
+          "t0Ms": 5603.093625,
+          "t1Ms": 5603.161,
+          "t2Ms": 5603.478083,
+          "target": {
+            "startMs": 5609.628666,
+            "endMs": 5952.679833
+          },
+          "injectionInsideTarget": "no",
+          "injectionOffsetFromStartMs": [
+            -7.862290994754403,
+            -7.833207981219857
+          ],
+          "t0MinusStartMs": -6.5350409999991825,
+          "t0AtOrAfterEnd": false,
+          "judgement": "injectionOutsideTarget",
+          "stages": []
+        },
+        {
+          "index": 2,
+          "inputId": "input-7",
+          "outcome": "callbackReached",
+          "t0Ms": 8603.822791,
+          "t1Ms": 8603.895708,
+          "t2Ms": 8603.9555,
+          "target": {
+            "startMs": 8611.292625,
+            "endMs": 8954.018708
+          },
+          "injectionInsideTarget": "no",
+          "injectionOffsetFromStartMs": [
+            -9.119042028904005,
+            -9.089959015369459
+          ],
+          "t0MinusStartMs": -7.469833999999537,
+          "t0AtOrAfterEnd": false,
+          "judgement": "injectionOutsideTarget",
+          "stages": []
+        },
+        {
+          "index": 3,
+          "inputId": "input-9",
+          "outcome": "callbackReached",
+          "t0Ms": 11603.614583,
+          "t1Ms": 11603.846375,
+          "t2Ms": 11603.906875,
+          "target": {
+            "startMs": 11609.389541,
+            "endMs": 11949.228833
+          },
+          "injectionInsideTarget": "no",
+          "injectionOffsetFromStartMs": [
+            -7.188666015736089,
+            -7.159583002201543
+          ],
+          "t0MinusStartMs": -5.77495799999997,
+          "t0AtOrAfterEnd": false,
+          "judgement": "injectionOutsideTarget",
+          "stages": []
+        },
+        {
+          "index": 4,
+          "inputId": "input-11",
+          "outcome": "callbackReached",
+          "t0Ms": 14975.057375,
+          "t1Ms": 14975.111833,
+          "t2Ms": 14975.154583,
+          "target": {
+            "startMs": 14601.020458,
+            "endMs": 14938.092458
+          },
+          "injectionInsideTarget": "yes",
+          "injectionOffsetFromStartMs": [
+            0.12029199093922216,
+            0.14937500447376806
+          ],
+          "t0MinusStartMs": 374.03691699999945,
+          "t0AtOrAfterEnd": true,
+          "judgement": "insideTargetCallbackAfterEnd",
+          "stages": []
+        },
+        {
+          "index": 5,
+          "inputId": "input-13",
+          "outcome": "callbackReached",
+          "t0Ms": 17959.231625,
+          "t1Ms": 17959.29525,
+          "t2Ms": 17959.331958,
+          "target": {
+            "startMs": 17600.983208,
+            "endMs": 17932.243083
+          },
+          "injectionInsideTarget": "yes",
+          "injectionOffsetFromStartMs": [
+            0.18041700190588017,
+            0.20950001544042607
+          ],
+          "t0MinusStartMs": 358.2484169999989,
+          "t0AtOrAfterEnd": true,
+          "judgement": "insideTargetCallbackAfterEnd",
+          "stages": []
+        },
+        {
+          "index": 6,
+          "inputId": "input-15",
+          "outcome": "callbackReached",
+          "t0Ms": 20988.763166,
+          "t1Ms": 20988.815458,
+          "t2Ms": 20988.850125,
+          "target": {
+            "startMs": 20600.914666,
+            "endMs": 20950.206208
+          },
+          "injectionInsideTarget": "yes",
+          "injectionOffsetFromStartMs": [
+            0.20783400238360628,
+            0.23691701591815217
+          ],
+          "t0MinusStartMs": 387.84850000000006,
+          "t0AtOrAfterEnd": true,
+          "judgement": "insideTargetCallbackAfterEnd",
+          "stages": []
+        },
+        {
+          "index": 7,
+          "inputId": "input-17",
+          "outcome": "callbackReached",
+          "t0Ms": 23961.809958,
+          "t1Ms": 23961.899041,
+          "t2Ms": 23961.958916,
+          "target": {
+            "startMs": 23601.451958,
+            "endMs": 23934.278083
+          },
+          "injectionInsideTarget": "no",
+          "injectionOffsetFromStartMs": [
+            -0.3056670420737646,
+            -0.2765840285392187
+          ],
+          "t0MinusStartMs": 360.3580000000002,
+          "t0AtOrAfterEnd": true,
+          "judgement": "injectionOutsideTarget",
+          "stages": []
+        },
+        {
+          "index": 8,
+          "inputId": "input-19",
+          "outcome": "callbackReached",
+          "t0Ms": 26971.417125,
+          "t1Ms": 26971.466583,
+          "t2Ms": 26971.501708,
+          "target": {
+            "startMs": 26601.022916,
+            "endMs": 26934.784833
+          },
+          "injectionInsideTarget": "yes",
+          "injectionOffsetFromStartMs": [
+            0.1135419796773931,
+            0.142624993211939
+          ],
+          "t0MinusStartMs": 370.3942089999982,
+          "t0AtOrAfterEnd": true,
+          "judgement": "insideTargetCallbackAfterEnd",
+          "stages": []
+        },
+        {
+          "index": 9,
+          "inputId": "input-21",
+          "outcome": "callbackReached",
+          "t0Ms": 29960.508583,
+          "t1Ms": 29960.55675,
+          "t2Ms": 29960.590291,
+          "target": {
+            "startMs": 29600.920083,
+            "endMs": 29934.036958
+          },
+          "injectionInsideTarget": "yes",
+          "injectionOffsetFromStartMs": [
+            0.20041696852786117,
+            0.22949998206240707
+          ],
+          "t0MinusStartMs": 359.588499999998,
+          "t0AtOrAfterEnd": true,
+          "judgement": "insideTargetCallbackAfterEnd",
+          "stages": []
+        },
+        {
+          "index": 10,
+          "inputId": "input-23",
+          "outcome": "callbackReached",
+          "t0Ms": 32973.192708,
+          "t1Ms": 32973.243458,
+          "t2Ms": 32973.281458,
+          "target": {
+            "startMs": 32600.944916,
+            "endMs": 32935.819833
+          },
+          "injectionInsideTarget": "yes",
+          "injectionOffsetFromStartMs": [
+            0.21629197395668598,
+            0.24537498749123188
+          ],
+          "t0MinusStartMs": 372.24779200000194,
+          "t0AtOrAfterEnd": true,
+          "judgement": "insideTargetCallbackAfterEnd",
+          "stages": []
+        },
+        {
+          "index": 11,
+          "inputId": "input-25",
+          "outcome": "callbackReached",
+          "t0Ms": 35967.049875,
+          "t1Ms": 35967.101666,
+          "t2Ms": 35967.135,
+          "target": {
+            "startMs": 35600.950708,
+            "endMs": 35939.69
+          },
+          "injectionInsideTarget": "yes",
+          "injectionOffsetFromStartMs": [
+            0.21641698665189324,
+            0.24550000018643914
+          ],
+          "t0MinusStartMs": 366.0991670000003,
+          "t0AtOrAfterEnd": true,
+          "judgement": "insideTargetCallbackAfterEnd",
+          "stages": []
+        },
+        {
+          "index": 12,
+          "inputId": "input-27",
+          "outcome": "callbackReached",
+          "t0Ms": 38975.869333,
+          "t1Ms": 38975.913916,
+          "t2Ms": 38975.951375,
+          "target": {
+            "startMs": 38600.933875,
+            "endMs": 38938.011041
+          },
+          "injectionInsideTarget": "yes",
+          "injectionOffsetFromStartMs": [
+            0.21891596364730503,
+            0.24799897718185093
+          ],
+          "t0MinusStartMs": 374.9354579999999,
+          "t0AtOrAfterEnd": true,
+          "judgement": "insideTargetCallbackAfterEnd",
+          "stages": []
+        },
+        {
+          "index": 13,
+          "inputId": "input-29",
+          "outcome": "callbackReached",
+          "t0Ms": 41975.97475,
+          "t1Ms": 41976.014916,
+          "t2Ms": 41976.047875,
+          "target": {
+            "startMs": 41600.880958,
+            "endMs": 41946.04
+          },
+          "injectionInsideTarget": "yes",
+          "injectionOffsetFromStartMs": [
+            0.24112500828778138,
+            0.2702080218223273
+          ],
+          "t0MinusStartMs": 375.09379199999967,
+          "t0AtOrAfterEnd": true,
+          "judgement": "insideTargetCallbackAfterEnd",
+          "stages": []
+        },
+        {
+          "index": 14,
+          "inputId": "input-31",
+          "outcome": "callbackReached",
+          "t0Ms": 44968.607708,
+          "t1Ms": 44968.64875,
+          "t2Ms": 44969.223083,
+          "target": {
+            "startMs": 44601.446458,
+            "endMs": 44933.711125
+          },
+          "injectionInsideTarget": "no",
+          "injectionOffsetFromStartMs": [
+            -0.24687500601430656,
+            -0.21779199247976067
+          ],
+          "t0MinusStartMs": 367.16125000000466,
+          "t0AtOrAfterEnd": true,
+          "judgement": "injectionOutsideTarget",
+          "stages": []
+        },
+        {
+          "index": 15,
+          "inputId": "input-33",
+          "outcome": "callbackReached",
+          "t0Ms": 47963.418958,
+          "t1Ms": 47963.489125,
+          "t2Ms": 47963.557083,
+          "target": {
+            "startMs": 47601.113625,
+            "endMs": 47935.913791
+          },
+          "injectionInsideTarget": "yes",
+          "injectionOffsetFromStartMs": [
+            0.214332987787202,
+            0.2434160013217479
+          ],
+          "t0MinusStartMs": 362.3053330000039,
+          "t0AtOrAfterEnd": true,
+          "judgement": "insideTargetCallbackAfterEnd",
+          "stages": []
+        },
+        {
+          "index": 16,
+          "inputId": "input-35",
+          "outcome": "callbackReached",
+          "t0Ms": 50976.54175,
+          "t1Ms": 50976.5885,
+          "t2Ms": 50976.626625,
+          "target": {
+            "startMs": 50600.894416,
+            "endMs": 50941.308708
+          },
+          "injectionInsideTarget": "yes",
+          "injectionOffsetFromStartMs": [
+            0.2474589690027642,
+            0.2765419825373101
+          ],
+          "t0MinusStartMs": 375.64733399999386,
+          "t0AtOrAfterEnd": true,
+          "judgement": "insideTargetCallbackAfterEnd",
+          "stages": []
+        },
+        {
+          "index": 17,
+          "inputId": "input-37",
+          "outcome": "callbackReached",
+          "t0Ms": 53967.47825,
+          "t1Ms": 53967.520125,
+          "t2Ms": 53967.556291,
+          "target": {
+            "startMs": 53600.915458,
+            "endMs": 53937.345125
+          },
+          "injectionInsideTarget": "yes",
+          "injectionOffsetFromStartMs": [
+            0.25774999827262945,
+            0.28683301180717535
+          ],
+          "t0MinusStartMs": 366.562791999997,
+          "t0AtOrAfterEnd": true,
+          "judgement": "insideTargetCallbackAfterEnd",
+          "stages": []
+        },
+        {
+          "index": 18,
+          "inputId": "input-39",
+          "outcome": "callbackReached",
+          "t0Ms": 56970.386583,
+          "t1Ms": 56970.429166,
+          "t2Ms": 56970.465375,
+          "target": {
+            "startMs": 56601.000125,
+            "endMs": 56934.128875
+          },
+          "injectionInsideTarget": "yes",
+          "injectionOffsetFromStartMs": [
+            0.19266598510876065,
+            0.22174899864330655
+          ],
+          "t0MinusStartMs": 369.38645800000086,
+          "t0AtOrAfterEnd": true,
+          "judgement": "insideTargetCallbackAfterEnd",
+          "stages": []
+        },
+        {
+          "index": 19,
+          "inputId": "input-41",
+          "outcome": "callbackReached",
+          "t0Ms": 59961.601208,
+          "t1Ms": 59961.642416,
+          "t2Ms": 59961.677333,
+          "target": {
+            "startMs": 59601.177541,
+            "endMs": 59933.804375
+          },
+          "injectionInsideTarget": "yes",
+          "injectionOffsetFromStartMs": [
+            0.2362500008457573,
+            0.2653330143803032
+          ],
+          "t0MinusStartMs": 360.42366700000275,
+          "t0AtOrAfterEnd": true,
+          "judgement": "insideTargetCallbackAfterEnd",
+          "stages": []
+        },
+        {
+          "index": 20,
+          "inputId": "input-43",
+          "outcome": "callbackReached",
+          "t0Ms": 62976.506916,
+          "t1Ms": 62976.548166,
+          "t2Ms": 62976.582333,
+          "target": {
+            "startMs": 62600.916458,
+            "endMs": 62937.1665
+          },
+          "injectionInsideTarget": "yes",
+          "injectionOffsetFromStartMs": [
+            0.1982500063822954,
+            0.2273330199168413
+          ],
+          "t0MinusStartMs": 375.59045799999876,
+          "t0AtOrAfterEnd": true,
+          "judgement": "insideTargetCallbackAfterEnd",
+          "stages": []
+        },
+        {
+          "index": 21,
+          "inputId": "input-45",
+          "outcome": "callbackReached",
+          "t0Ms": 65965.347625,
+          "t1Ms": 65965.387583,
+          "t2Ms": 65966.002125,
+          "target": {
+            "startMs": 65600.995166,
+            "endMs": 65938.331208
+          },
+          "injectionInsideTarget": "yes",
+          "injectionOffsetFromStartMs": [
+            0.2211250103864586,
+            0.2502080239210045
+          ],
+          "t0MinusStartMs": 364.35245900000155,
+          "t0AtOrAfterEnd": true,
+          "judgement": "insideTargetCallbackAfterEnd",
+          "stages": []
+        },
+        {
+          "index": 22,
+          "inputId": "input-47",
+          "outcome": "callbackReached",
+          "t0Ms": 68975.967875,
+          "t1Ms": 68976.012416,
+          "t2Ms": 68976.049958,
+          "target": {
+            "startMs": 68600.907416,
+            "endMs": 68938.922416
+          },
+          "injectionInsideTarget": "yes",
+          "injectionOffsetFromStartMs": [
+            0.21870897806365974,
+            0.24779199159820564
+          ],
+          "t0MinusStartMs": 375.06045900000026,
+          "t0AtOrAfterEnd": true,
+          "judgement": "insideTargetCallbackAfterEnd",
+          "stages": []
+        },
+        {
+          "index": 23,
+          "inputId": "input-49",
+          "outcome": "callbackReached",
+          "t0Ms": 71964.464,
+          "t1Ms": 71964.506291,
+          "t2Ms": 71964.544208,
+          "target": {
+            "startMs": 71600.994083,
+            "endMs": 71936.74525
+          },
+          "injectionInsideTarget": "yes",
+          "injectionOffsetFromStartMs": [
+            0.2480829827254638,
+            0.2771659962600097
+          ],
+          "t0MinusStartMs": 363.46991700000945,
+          "t0AtOrAfterEnd": true,
+          "judgement": "insideTargetCallbackAfterEnd",
+          "stages": []
+        },
+        {
+          "index": 24,
+          "inputId": "input-51",
+          "outcome": "callbackReached",
+          "t0Ms": 74973.794875,
+          "t1Ms": 74973.848958,
+          "t2Ms": 74973.887791,
+          "target": {
+            "startMs": 74600.963208,
+            "endMs": 74937.16
+          },
+          "injectionInsideTarget": "yes",
+          "injectionOffsetFromStartMs": [
+            0.23187496251193807,
+            0.26095797604648396
+          ],
+          "t0MinusStartMs": 372.83166700000584,
+          "t0AtOrAfterEnd": true,
+          "judgement": "insideTargetCallbackAfterEnd",
+          "stages": []
+        }
+      ],
+      "warmup": {
+        "n": 5,
+        "insideTargetRate": 0.2,
+        "judgements": {
+          "injectionOutsideTarget": 4,
+          "insideTargetCallbackAfterEnd": 1
+        },
+        "t0MinusStartMs": {
+          "n": 5,
+          "p50": -5.775,
+          "p99": 455.356,
+          "max": 455.356
+        }
+      },
+      "samples": {
+        "n": 20,
+        "insideTargetRate": 0.9,
+        "judgements": {
+          "insideTargetCallbackAfterEnd": 18,
+          "injectionOutsideTarget": 2
+        },
+        "t0MinusStartMs": {
+          "n": 20,
+          "p50": 367.161,
+          "p99": 387.849,
+          "max": 387.849
+        }
+      },
+      "paintWithoutScreenshot": 0,
+      "injectedToT0Ms": {
+        "n": 20,
+        "p50": 367.408,
+        "p99": 387.641,
+        "max": 387.641
+      },
+      "judged": [
+        {
+          "schemaVersion": "p2-eew-e01-result-v2",
+          "manifestId": "prelim-20260929T122528",
+          "manifestSha256": "cf17c5b9d1d087002d1ce1fa0dc077d99caae89cbf23c8f03e8c5aa26b812791",
+          "resultSha256": "0000000000000000000000000000000000000000000000000000000000000000",
+          "population": "maxVpws50DecodeStarted",
+          "scope": "reference",
+          "run": 1,
+          "status": "N/A",
+          "samples": 20,
+          "missing": 0,
+          "traceMissing": 20,
+          "injectionFailures": 0,
+          "injectedToT0P50Ms": 367.4081249833107,
+          "injectedToT0P99Ms": 387.6406660079956,
+          "injectedToT0MaxMs": 387.6406660079956,
+          "p50LowerMs": null,
+          "p50UpperMs": null,
+          "p95LowerMs": null,
+          "p95UpperMs": null,
+          "p99LowerMs": null,
+          "p99UpperMs": null,
+          "maxLowerMs": null,
+          "maxUpperMs": null,
+          "evidenceRefs": []
+        }
+      ]
+    },
+    {
+      "population": "maxWeatherCheckpointEncodeStarted",
+      "run": 1,
+      "records": [
+        {
+          "index": 0,
+          "inputId": "input-4",
+          "outcome": "callbackReached",
+          "t0Ms": 6385.196792,
+          "t1Ms": 6385.418542,
+          "t2Ms": 6385.836708,
+          "target": {
+            "startMs": 6397.69975,
+            "endMs": 6418.610542
+          },
+          "injectionInsideTarget": "no",
+          "injectionOffsetFromStartMs": [
+            -12.99733298397041,
+            -12.94908302402473
+          ],
+          "t0MinusStartMs": -12.502958000000035,
+          "t0AtOrAfterEnd": false,
+          "judgement": "injectionOutsideTarget",
+          "stages": [
+            {
+              "stage": "encode",
+              "startMs": 6397.69975,
+              "endMs": 6418.610542,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "write",
+              "startMs": 6465.798208,
+              "endMs": 6466.311417,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "fileSync",
+              "startMs": 6466.315042,
+              "endMs": 6470.575708,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "close",
+              "startMs": 6470.581792,
+              "endMs": 6470.614667,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "rename",
+              "startMs": 6470.617375,
+              "endMs": 6470.730417,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "directorySync",
+              "startMs": 6470.731167,
+              "endMs": 6474.99775,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "verify",
+              "startMs": 6474.998833,
+              "endMs": 6492.58625,
+              "waitOverlapMs": 0
+            }
+          ]
+        },
+        {
+          "index": 1,
+          "inputId": "input-6",
+          "outcome": "callbackReached",
+          "t0Ms": 9486.387292,
+          "t1Ms": 9486.434958,
+          "t2Ms": 9486.712167,
+          "target": {
+            "startMs": 9400.869875,
+            "endMs": 9414.242375
+          },
+          "injectionInsideTarget": "yes",
+          "injectionOffsetFromStartMs": [
+            6.740042044639267,
+            6.788292004584946
+          ],
+          "t0MinusStartMs": 85.51741699999911,
+          "t0AtOrAfterEnd": true,
+          "judgement": "insideTargetCallbackAfterEnd",
+          "stages": [
+            {
+              "stage": "encode",
+              "startMs": 9400.869875,
+              "endMs": 9414.242375,
+              "waitOverlapMs": 6.584207995414545
+            },
+            {
+              "stage": "write",
+              "startMs": 9489.116292,
+              "endMs": 9492.326042,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "fileSync",
+              "startMs": 9492.334375,
+              "endMs": 9495.825875,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "close",
+              "startMs": 9495.829792,
+              "endMs": 9495.869333,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "rename",
+              "startMs": 9495.871292,
+              "endMs": 9496.103542,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "directorySync",
+              "startMs": 9496.10575,
+              "endMs": 9499.927167,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "verify",
+              "startMs": 9499.929333,
+              "endMs": 9522.424583,
+              "waitOverlapMs": 0
+            }
+          ]
+        },
+        {
+          "index": 2,
+          "inputId": "input-8",
+          "outcome": "callbackReached",
+          "t0Ms": 12492.845458,
+          "t1Ms": 12492.900333,
+          "t2Ms": 12493.144958,
+          "target": {
+            "startMs": 12404.213917,
+            "endMs": 12417.710375
+          },
+          "injectionInsideTarget": "yes",
+          "injectionOffsetFromStartMs": [
+            8.45145805388347,
+            8.49970801382915
+          ],
+          "t0MinusStartMs": 88.63154100000065,
+          "t0AtOrAfterEnd": true,
+          "judgement": "insideTargetCallbackAfterEnd",
+          "stages": [
+            {
+              "stage": "encode",
+              "startMs": 12404.213917,
+              "endMs": 12417.710375,
+              "waitOverlapMs": 4.99674998617229
+            },
+            {
+              "stage": "write",
+              "startMs": 12495.030125,
+              "endMs": 12497.539,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "fileSync",
+              "startMs": 12497.548917,
+              "endMs": 12501.472583,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "close",
+              "startMs": 12501.474542,
+              "endMs": 12501.4975,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "rename",
+              "startMs": 12501.499542,
+              "endMs": 12501.678792,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "directorySync",
+              "startMs": 12501.681667,
+              "endMs": 12505.464708,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "verify",
+              "startMs": 12505.466042,
+              "endMs": 12522.224125,
+              "waitOverlapMs": 0
+            }
+          ]
+        },
+        {
+          "index": 3,
+          "inputId": "input-10",
+          "outcome": "callbackReached",
+          "t0Ms": 15488.011042,
+          "t1Ms": 15488.066,
+          "t2Ms": 15488.236542,
+          "target": {
+            "startMs": 15404.148708,
+            "endMs": 15417.015375
+          },
+          "injectionInsideTarget": "yes",
+          "injectionOffsetFromStartMs": [
+            10.619542048159929,
+            10.667792008105607
+          ],
+          "t0MinusStartMs": 83.86233399999946,
+          "t0AtOrAfterEnd": true,
+          "judgement": "insideTargetCallbackAfterEnd",
+          "stages": [
+            {
+              "stage": "encode",
+              "startMs": 15404.148708,
+              "endMs": 15417.015375,
+              "waitOverlapMs": 2.198874991894627
+            },
+            {
+              "stage": "write",
+              "startMs": 15490.605458,
+              "endMs": 15492.919083,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "fileSync",
+              "startMs": 15492.929542,
+              "endMs": 15499.787333,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "close",
+              "startMs": 15499.789958,
+              "endMs": 15499.822917,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "rename",
+              "startMs": 15499.825125,
+              "endMs": 15500.059083,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "directorySync",
+              "startMs": 15500.062125,
+              "endMs": 15503.938208,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "verify",
+              "startMs": 15503.94025,
+              "endMs": 15521.063458,
+              "waitOverlapMs": 0
+            }
+          ]
+        },
+        {
+          "index": 4,
+          "inputId": "input-12",
+          "outcome": "callbackReached",
+          "t0Ms": 18490.373125,
+          "t1Ms": 18490.4125,
+          "t2Ms": 18490.562917,
+          "target": {
+            "startMs": 18406.486167,
+            "endMs": 18419.008917
+          },
+          "injectionInsideTarget": "yes",
+          "injectionOffsetFromStartMs": [
+            8.160458041962556,
+            8.208708001908235
+          ],
+          "t0MinusStartMs": 83.88695799999914,
+          "t0AtOrAfterEnd": true,
+          "judgement": "insideTargetCallbackAfterEnd",
+          "stages": [
+            {
+              "stage": "encode",
+              "startMs": 18406.486167,
+              "endMs": 18419.008917,
+              "waitOverlapMs": 4.314041998091852
+            },
+            {
+              "stage": "write",
+              "startMs": 18492.401417,
+              "endMs": 18496.154875,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "fileSync",
+              "startMs": 18496.163417,
+              "endMs": 18501.134542,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "close",
+              "startMs": 18501.13775,
+              "endMs": 18501.169833,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "rename",
+              "startMs": 18501.170583,
+              "endMs": 18501.380833,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "directorySync",
+              "startMs": 18501.38525,
+              "endMs": 18505.089958,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "verify",
+              "startMs": 18505.091375,
+              "endMs": 18521.331125,
+              "waitOverlapMs": 0
+            }
+          ]
+        },
+        {
+          "index": 5,
+          "inputId": "input-14",
+          "outcome": "callbackReached",
+          "t0Ms": 21494.175458,
+          "t1Ms": 21494.208667,
+          "t2Ms": 21494.357917,
+          "target": {
+            "startMs": 21409.500417,
+            "endMs": 21422.402208
+          },
+          "injectionInsideTarget": "yes",
+          "injectionOffsetFromStartMs": [
+            5.864958041962382,
+            5.91320800190806
+          ],
+          "t0MinusStartMs": 84.67504100000224,
+          "t0AtOrAfterEnd": true,
+          "judgement": "insideTargetCallbackAfterEnd",
+          "stages": [
+            {
+              "stage": "encode",
+              "startMs": 21409.500417,
+              "endMs": 21422.402208,
+              "waitOverlapMs": 6.98858299809217
+            },
+            {
+              "stage": "write",
+              "startMs": 21497.219583,
+              "endMs": 21501.287583,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "fileSync",
+              "startMs": 21501.292333,
+              "endMs": 21506.230458,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "close",
+              "startMs": 21506.235458,
+              "endMs": 21506.279042,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "rename",
+              "startMs": 21506.280542,
+              "endMs": 21506.493208,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "directorySync",
+              "startMs": 21506.495917,
+              "endMs": 21510.268083,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "verify",
+              "startMs": 21510.268833,
+              "endMs": 21526.795333,
+              "waitOverlapMs": 0
+            }
+          ]
+        },
+        {
+          "index": 6,
+          "inputId": "input-16",
+          "outcome": "callbackReached",
+          "t0Ms": 24500.223917,
+          "t1Ms": 24500.263,
+          "t2Ms": 24500.451833,
+          "target": {
+            "startMs": 24412.679875,
+            "endMs": 24426.210458
+          },
+          "injectionInsideTarget": "yes",
+          "injectionOffsetFromStartMs": [
+            4.284209029196063,
+            4.332458989141742
+          ],
+          "t0MinusStartMs": 87.54404199999772,
+          "t0AtOrAfterEnd": true,
+          "judgement": "insideTargetCallbackAfterEnd",
+          "stages": [
+            {
+              "stage": "encode",
+              "startMs": 24412.679875,
+              "endMs": 24426.210458,
+              "waitOverlapMs": 9.19812401085801
+            },
+            {
+              "stage": "write",
+              "startMs": 24502.932667,
+              "endMs": 24505.034458,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "fileSync",
+              "startMs": 24505.037333,
+              "endMs": 24510.196208,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "close",
+              "startMs": 24510.198542,
+              "endMs": 24510.2415,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "rename",
+              "startMs": 24510.24325,
+              "endMs": 24510.510167,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "directorySync",
+              "startMs": 24510.513,
+              "endMs": 24514.290458,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "verify",
+              "startMs": 24514.297042,
+              "endMs": 24532.312292,
+              "waitOverlapMs": 0
+            }
+          ]
+        },
+        {
+          "index": 7,
+          "inputId": "input-18",
+          "outcome": "callbackReached",
+          "t0Ms": 27500.769792,
+          "t1Ms": 27500.801958,
+          "t2Ms": 27500.918917,
+          "target": {
+            "startMs": 27416.027917,
+            "endMs": 27429.014375
+          },
+          "injectionInsideTarget": "yes",
+          "injectionOffsetFromStartMs": [
+            2.7267500436864793,
+            2.775000003632158
+          ],
+          "t0MinusStartMs": 84.74187499999971,
+          "t0AtOrAfterEnd": true,
+          "judgement": "insideTargetCallbackAfterEnd",
+          "stages": [
+            {
+              "stage": "encode",
+              "startMs": 27416.027917,
+              "endMs": 27429.014375,
+              "waitOverlapMs": 10.211457996367244
+            },
+            {
+              "stage": "write",
+              "startMs": 27502.818417,
+              "endMs": 27506.405042,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "fileSync",
+              "startMs": 27506.409042,
+              "endMs": 27511.424167,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "close",
+              "startMs": 27511.426375,
+              "endMs": 27511.463042,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "rename",
+              "startMs": 27511.463958,
+              "endMs": 27511.665958,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "directorySync",
+              "startMs": 27511.668417,
+              "endMs": 27515.399792,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "verify",
+              "startMs": 27515.4005,
+              "endMs": 27531.986083,
+              "waitOverlapMs": 0
+            }
+          ]
+        },
+        {
+          "index": 8,
+          "inputId": "input-20",
+          "outcome": "callbackReached",
+          "t0Ms": 30524.69525,
+          "t1Ms": 30524.727542,
+          "t2Ms": 30524.845792,
+          "target": {
+            "startMs": 30417.497292,
+            "endMs": 30445.706625
+          },
+          "injectionInsideTarget": "yes",
+          "injectionOffsetFromStartMs": [
+            4.044792038257583,
+            4.093041998203262
+          ],
+          "t0MinusStartMs": 107.19795800000065,
+          "t0AtOrAfterEnd": true,
+          "judgement": "insideTargetCallbackAfterEnd",
+          "stages": [
+            {
+              "stage": "encode",
+              "startMs": 30417.497292,
+              "endMs": 30445.706625,
+              "waitOverlapMs": 24.116291001795616
+            },
+            {
+              "stage": "write",
+              "startMs": 30526.722208,
+              "endMs": 30528.862458,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "fileSync",
+              "startMs": 30528.866,
+              "endMs": 30537.032625,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "close",
+              "startMs": 30537.035792,
+              "endMs": 30537.07125,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "rename",
+              "startMs": 30537.071958,
+              "endMs": 30537.312208,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "directorySync",
+              "startMs": 30537.314625,
+              "endMs": 30541.115708,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "verify",
+              "startMs": 30541.118042,
+              "endMs": 30557.806792,
+              "waitOverlapMs": 0
+            }
+          ]
+        },
+        {
+          "index": 9,
+          "inputId": "input-22",
+          "outcome": "callbackReached",
+          "t0Ms": 33528.381583,
+          "t1Ms": 33528.414958,
+          "t2Ms": 33528.536875,
+          "target": {
+            "startMs": 33420.450375,
+            "endMs": 33447.646042
+          },
+          "injectionInsideTarget": "yes",
+          "injectionOffsetFromStartMs": [
+            2.152000030517229,
+            2.2002499904629076
+          ],
+          "t0MinusStartMs": 107.93120800000179,
+          "t0AtOrAfterEnd": true,
+          "judgement": "insideTargetCallbackAfterEnd",
+          "stages": [
+            {
+              "stage": "encode",
+              "startMs": 33420.450375,
+              "endMs": 33447.646042,
+              "waitOverlapMs": 24.99541700953705
+            },
+            {
+              "stage": "write",
+              "startMs": 33530.337958,
+              "endMs": 33532.699333,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "fileSync",
+              "startMs": 33532.704333,
+              "endMs": 33538.802333,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "close",
+              "startMs": 33538.805042,
+              "endMs": 33538.83825,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "rename",
+              "startMs": 33538.839583,
+              "endMs": 33539.026208,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "directorySync",
+              "startMs": 33539.028833,
+              "endMs": 33542.907708,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "verify",
+              "startMs": 33542.909083,
+              "endMs": 33559.861917,
+              "waitOverlapMs": 0
+            }
+          ]
+        },
+        {
+          "index": 10,
+          "inputId": "input-24",
+          "outcome": "callbackReached",
+          "t0Ms": 36528.684542,
+          "t1Ms": 36528.719125,
+          "t2Ms": 36528.822625,
+          "target": {
+            "startMs": 36422.55175,
+            "endMs": 36448.550375
+          },
+          "injectionInsideTarget": "yes",
+          "injectionOffsetFromStartMs": [
+            0.6171670002950123,
+            0.665416960240691
+          ],
+          "t0MinusStartMs": 106.13279200000397,
+          "t0AtOrAfterEnd": true,
+          "judgement": "insideTargetCallbackAfterEnd",
+          "stages": [
+            {
+              "stage": "encode",
+              "startMs": 36422.55175,
+              "endMs": 36448.550375,
+              "waitOverlapMs": 25.333208039759484
+            },
+            {
+              "stage": "write",
+              "startMs": 36530.676917,
+              "endMs": 36533.394375,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "fileSync",
+              "startMs": 36533.39875,
+              "endMs": 36538.531792,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "close",
+              "startMs": 36538.533667,
+              "endMs": 36538.562667,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "rename",
+              "startMs": 36538.563333,
+              "endMs": 36538.865042,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "directorySync",
+              "startMs": 36538.867167,
+              "endMs": 36543.82475,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "verify",
+              "startMs": 36543.826167,
+              "endMs": 36560.299125,
+              "waitOverlapMs": 0
+            }
+          ]
+        },
+        {
+          "index": 11,
+          "inputId": "input-26",
+          "outcome": "callbackReached",
+          "t0Ms": 39531.518,
+          "t1Ms": 39531.551208,
+          "t2Ms": 39531.638375,
+          "target": {
+            "startMs": 39424.356333,
+            "endMs": 39451.051917
+          },
+          "injectionInsideTarget": "yes",
+          "injectionOffsetFromStartMs": [
+            1.1411670023808256,
+            1.1894169623265043
+          ],
+          "t0MinusStartMs": 107.16166699999303,
+          "t0AtOrAfterEnd": true,
+          "judgement": "insideTargetCallbackAfterEnd",
+          "stages": [
+            {
+              "stage": "encode",
+              "startMs": 39424.356333,
+              "endMs": 39451.051917,
+              "waitOverlapMs": 25.506167037667183
+            },
+            {
+              "stage": "write",
+              "startMs": 39533.265917,
+              "endMs": 39536.394292,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "fileSync",
+              "startMs": 39536.397708,
+              "endMs": 39543.550125,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "close",
+              "startMs": 39543.553875,
+              "endMs": 39543.610542,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "rename",
+              "startMs": 39543.611792,
+              "endMs": 39543.888208,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "directorySync",
+              "startMs": 39543.890333,
+              "endMs": 39547.365917,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "verify",
+              "startMs": 39547.369208,
+              "endMs": 39563.958083,
+              "waitOverlapMs": 0
+            }
+          ]
+        },
+        {
+          "index": 12,
+          "inputId": "input-28",
+          "outcome": "callbackReached",
+          "t0Ms": 42533.517417,
+          "t1Ms": 42533.547583,
+          "t2Ms": 42533.664667,
+          "target": {
+            "startMs": 42425.976542,
+            "endMs": 42452.053875
+          },
+          "injectionInsideTarget": "yes",
+          "injectionOffsetFromStartMs": [
+            2.4139170010676025,
+            2.4621669610132813
+          ],
+          "t0MinusStartMs": 107.54087500000605,
+          "t0AtOrAfterEnd": true,
+          "judgement": "insideTargetCallbackAfterEnd",
+          "stages": [
+            {
+              "stage": "encode",
+              "startMs": 42425.976542,
+              "endMs": 42452.053875,
+              "waitOverlapMs": 23.61516603898781
+            },
+            {
+              "stage": "write",
+              "startMs": 42535.356958,
+              "endMs": 42536.146625,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "fileSync",
+              "startMs": 42536.148667,
+              "endMs": 42541.310333,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "close",
+              "startMs": 42541.315,
+              "endMs": 42541.346958,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "rename",
+              "startMs": 42541.3475,
+              "endMs": 42541.564083,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "directorySync",
+              "startMs": 42541.566667,
+              "endMs": 42545.19225,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "verify",
+              "startMs": 42545.196083,
+              "endMs": 42561.979208,
+              "waitOverlapMs": 0
+            }
+          ]
+        },
+        {
+          "index": 13,
+          "inputId": "input-30",
+          "outcome": "callbackReached",
+          "t0Ms": 45532.697792,
+          "t1Ms": 45532.731333,
+          "t2Ms": 45532.851,
+          "target": {
+            "startMs": 45428.584125,
+            "endMs": 45453.442458
+          },
+          "injectionInsideTarget": "yes",
+          "injectionOffsetFromStartMs": [
+            2.1472920002925093,
+            2.195541960238188
+          ],
+          "t0MinusStartMs": 104.1136669999978,
+          "t0AtOrAfterEnd": true,
+          "judgement": "insideTargetCallbackAfterEnd",
+          "stages": [
+            {
+              "stage": "encode",
+              "startMs": 45428.584125,
+              "endMs": 45453.442458,
+              "waitOverlapMs": 22.662791039758304
+            },
+            {
+              "stage": "write",
+              "startMs": 45534.492292,
+              "endMs": 45535.163417,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "fileSync",
+              "startMs": 45535.165042,
+              "endMs": 45538.833333,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "close",
+              "startMs": 45538.838,
+              "endMs": 45538.873625,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "rename",
+              "startMs": 45538.875042,
+              "endMs": 45539.083708,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "directorySync",
+              "startMs": 45539.085625,
+              "endMs": 45543.017292,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "verify",
+              "startMs": 45543.018375,
+              "endMs": 45559.775292,
+              "waitOverlapMs": 0
+            }
+          ]
+        },
+        {
+          "index": 14,
+          "inputId": "input-32",
+          "outcome": "callbackReached",
+          "t0Ms": 48538.015333,
+          "t1Ms": 48538.04475,
+          "t2Ms": 48538.158,
+          "target": {
+            "startMs": 48431.007958,
+            "endMs": 48458.36125
+          },
+          "injectionInsideTarget": "yes",
+          "injectionOffsetFromStartMs": [
+            1.6425419995211996,
+            1.6907919594668783
+          ],
+          "t0MinusStartMs": 107.00737500000105,
+          "t0AtOrAfterEnd": true,
+          "judgement": "insideTargetCallbackAfterEnd",
+          "stages": [
+            {
+              "stage": "encode",
+              "startMs": 48431.007958,
+              "endMs": 48458.36125,
+              "waitOverlapMs": 25.662500040532905
+            },
+            {
+              "stage": "write",
+              "startMs": 48539.735208,
+              "endMs": 48542.691792,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "fileSync",
+              "startMs": 48542.694542,
+              "endMs": 48547.850667,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "close",
+              "startMs": 48547.853667,
+              "endMs": 48547.894917,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "rename",
+              "startMs": 48547.8955,
+              "endMs": 48548.106917,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "directorySync",
+              "startMs": 48548.10875,
+              "endMs": 48552.745125,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "verify",
+              "startMs": 48552.747208,
+              "endMs": 48569.449375,
+              "waitOverlapMs": 0
+            }
+          ]
+        },
+        {
+          "index": 15,
+          "inputId": "input-34",
+          "outcome": "callbackReached",
+          "t0Ms": 51520.508458,
+          "t1Ms": 51520.544542,
+          "t2Ms": 51523.732667,
+          "target": {
+            "startMs": 51433.008708,
+            "endMs": 51446.017208
+          },
+          "injectionInsideTarget": "yes",
+          "injectionOffsetFromStartMs": [
+            1.5218340160281514,
+            1.57008397597383
+          ],
+          "t0MinusStartMs": 87.4997499999954,
+          "t0AtOrAfterEnd": true,
+          "judgement": "insideTargetCallbackAfterEnd",
+          "stages": [
+            {
+              "stage": "encode",
+              "startMs": 51433.008708,
+              "endMs": 51446.017208,
+              "waitOverlapMs": 11.438416024022445
+            },
+            {
+              "stage": "write",
+              "startMs": 51525.780875,
+              "endMs": 51526.329583,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "fileSync",
+              "startMs": 51526.333417,
+              "endMs": 51531.32125,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "close",
+              "startMs": 51531.326458,
+              "endMs": 51531.371792,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "rename",
+              "startMs": 51531.373083,
+              "endMs": 51531.655042,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "directorySync",
+              "startMs": 51531.656958,
+              "endMs": 51535.37675,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "verify",
+              "startMs": 51535.378792,
+              "endMs": 51553.005542,
+              "waitOverlapMs": 0
+            }
+          ]
+        },
+        {
+          "index": 16,
+          "inputId": "input-36",
+          "outcome": "callbackReached",
+          "t0Ms": 54519.148208,
+          "t1Ms": 54519.182708,
+          "t2Ms": 54519.294375,
+          "target": {
+            "startMs": 54432.911542,
+            "endMs": 54445.756708
+          },
+          "injectionInsideTarget": "yes",
+          "injectionOffsetFromStartMs": [
+            3.5152080042898888,
+            3.5634579642355675
+          ],
+          "t0MinusStartMs": 86.23666599999706,
+          "t0AtOrAfterEnd": true,
+          "judgement": "insideTargetCallbackAfterEnd",
+          "stages": [
+            {
+              "stage": "encode",
+              "startMs": 54432.911542,
+              "endMs": 54445.756708,
+              "waitOverlapMs": 9.281708035763586
+            },
+            {
+              "stage": "write",
+              "startMs": 54521.072667,
+              "endMs": 54524.531417,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "fileSync",
+              "startMs": 54524.535708,
+              "endMs": 54531.833083,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "close",
+              "startMs": 54531.835125,
+              "endMs": 54531.861958,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "rename",
+              "startMs": 54531.864042,
+              "endMs": 54532.14925,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "directorySync",
+              "startMs": 54532.151333,
+              "endMs": 54535.912875,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "verify",
+              "startMs": 54535.914042,
+              "endMs": 54553.364125,
+              "waitOverlapMs": 0
+            }
+          ]
+        },
+        {
+          "index": 17,
+          "inputId": "input-38",
+          "outcome": "callbackReached",
+          "t0Ms": 57521.060375,
+          "t1Ms": 57521.097833,
+          "t2Ms": 57521.235458,
+          "target": {
+            "startMs": 57433.947542,
+            "endMs": 57446.774708
+          },
+          "injectionInsideTarget": "yes",
+          "injectionOffsetFromStartMs": [
+            3.6724580047666677,
+            3.7207079647123464
+          ],
+          "t0MinusStartMs": 87.11283299999923,
+          "t0AtOrAfterEnd": true,
+          "judgement": "insideTargetCallbackAfterEnd",
+          "stages": [
+            {
+              "stage": "encode",
+              "startMs": 57433.947542,
+              "endMs": 57446.774708,
+              "waitOverlapMs": 9.10645803528314
+            },
+            {
+              "stage": "write",
+              "startMs": 57523.173042,
+              "endMs": 57523.945917,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "fileSync",
+              "startMs": 57523.948375,
+              "endMs": 57527.918708,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "close",
+              "startMs": 57527.922375,
+              "endMs": 57527.955208,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "rename",
+              "startMs": 57527.956375,
+              "endMs": 57528.198083,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "directorySync",
+              "startMs": 57528.200125,
+              "endMs": 57532.037167,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "verify",
+              "startMs": 57532.038625,
+              "endMs": 57549.302833,
+              "waitOverlapMs": 0
+            }
+          ]
+        },
+        {
+          "index": 18,
+          "inputId": "input-40",
+          "outcome": "callbackReached",
+          "t0Ms": 60522.395375,
+          "t1Ms": 60522.430958,
+          "t2Ms": 60522.595,
+          "target": {
+            "startMs": 60437.1625,
+            "endMs": 60449.770417
+          },
+          "injectionInsideTarget": "yes",
+          "injectionOffsetFromStartMs": [
+            1.3102090001120814,
+            1.3584589600577601
+          ],
+          "t0MinusStartMs": 85.23287500000151,
+          "t0AtOrAfterEnd": true,
+          "judgement": "insideTargetCallbackAfterEnd",
+          "stages": [
+            {
+              "stage": "encode",
+              "startMs": 60437.1625,
+              "endMs": 60449.770417,
+              "waitOverlapMs": 11.24945803994342
+            },
+            {
+              "stage": "write",
+              "startMs": 60524.273125,
+              "endMs": 60527.932333,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "fileSync",
+              "startMs": 60527.936833,
+              "endMs": 60533.910167,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "close",
+              "startMs": 60533.912625,
+              "endMs": 60533.944083,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "rename",
+              "startMs": 60533.946375,
+              "endMs": 60534.199125,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "directorySync",
+              "startMs": 60534.201292,
+              "endMs": 60538.001208,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "verify",
+              "startMs": 60538.002417,
+              "endMs": 60554.840167,
+              "waitOverlapMs": 0
+            }
+          ]
+        },
+        {
+          "index": 19,
+          "inputId": "input-42",
+          "outcome": "callbackReached",
+          "t0Ms": 63527.501083,
+          "t1Ms": 63527.53725,
+          "t2Ms": 63527.706458,
+          "target": {
+            "startMs": 63440.31025,
+            "endMs": 63453.582833
+          },
+          "injectionInsideTarget": "no",
+          "injectionOffsetFromStartMs": [
+            -0.1709999599479488,
+            -0.1227500000022701
+          ],
+          "t0MinusStartMs": 87.19083300000057,
+          "t0AtOrAfterEnd": true,
+          "judgement": "injectionOutsideTarget",
+          "stages": [
+            {
+              "stage": "encode",
+              "startMs": 63440.31025,
+              "endMs": 63453.582833,
+              "waitOverlapMs": 13.272582999998122
+            },
+            {
+              "stage": "write",
+              "startMs": 63529.452375,
+              "endMs": 63532.516625,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "fileSync",
+              "startMs": 63532.520917,
+              "endMs": 63538.46075,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "close",
+              "startMs": 63538.463708,
+              "endMs": 63538.48925,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "rename",
+              "startMs": 63538.489833,
+              "endMs": 63538.813625,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "directorySync",
+              "startMs": 63538.816333,
+              "endMs": 63542.55175,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "verify",
+              "startMs": 63542.553667,
+              "endMs": 63559.563125,
+              "waitOverlapMs": 0
+            }
+          ]
+        },
+        {
+          "index": 20,
+          "inputId": "input-44",
+          "outcome": "callbackReached",
+          "t0Ms": 66442.32325,
+          "t1Ms": 66442.364708,
+          "t2Ms": 66442.41,
+          "target": {
+            "startMs": 66443.893542,
+            "endMs": 66457.383292
+          },
+          "injectionInsideTarget": "no",
+          "injectionOffsetFromStartMs": [
+            -1.7257499777770136,
+            -1.6775000178313348
+          ],
+          "t0MinusStartMs": -1.570292000003974,
+          "t0AtOrAfterEnd": false,
+          "judgement": "injectionOutsideTarget",
+          "stages": [
+            {
+              "stage": "encode",
+              "startMs": 66443.893542,
+              "endMs": 66457.383292,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "write",
+              "startMs": 66531.5485,
+              "endMs": 66532.256833,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "fileSync",
+              "startMs": 66532.258542,
+              "endMs": 66538.160833,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "close",
+              "startMs": 66538.164125,
+              "endMs": 66538.195,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "rename",
+              "startMs": 66538.196333,
+              "endMs": 66538.604542,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "directorySync",
+              "startMs": 66538.607333,
+              "endMs": 66542.220417,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "verify",
+              "startMs": 66542.221375,
+              "endMs": 66558.950833,
+              "waitOverlapMs": 0
+            }
+          ]
+        },
+        {
+          "index": 21,
+          "inputId": "input-46",
+          "outcome": "callbackReached",
+          "t0Ms": 69445.052125,
+          "t1Ms": 69445.093208,
+          "t2Ms": 69445.141167,
+          "target": {
+            "startMs": 69446.84175,
+            "endMs": 69461.2375
+          },
+          "injectionInsideTarget": "no",
+          "injectionOffsetFromStartMs": [
+            -1.929207954890444,
+            -1.8809579949447652
+          ],
+          "t0MinusStartMs": -1.7896250000048894,
+          "t0AtOrAfterEnd": false,
+          "judgement": "injectionOutsideTarget",
+          "stages": [
+            {
+              "stage": "encode",
+              "startMs": 69446.84175,
+              "endMs": 69461.2375,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "write",
+              "startMs": 69536.932333,
+              "endMs": 69537.64425,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "fileSync",
+              "startMs": 69537.647083,
+              "endMs": 69541.846208,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "close",
+              "startMs": 69541.849,
+              "endMs": 69541.8775,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "rename",
+              "startMs": 69541.879042,
+              "endMs": 69542.070458,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "directorySync",
+              "startMs": 69542.073125,
+              "endMs": 69546.866917,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "verify",
+              "startMs": 69546.868625,
+              "endMs": 69564.0025,
+              "waitOverlapMs": 0
+            }
+          ]
+        },
+        {
+          "index": 22,
+          "inputId": "input-48",
+          "outcome": "callbackReached",
+          "t0Ms": 72448.037708,
+          "t1Ms": 72448.075958,
+          "t2Ms": 72448.117875,
+          "target": {
+            "startMs": 72449.767625,
+            "endMs": 72463.6925
+          },
+          "injectionInsideTarget": "no",
+          "injectionOffsetFromStartMs": [
+            -1.8873749632766703,
+            -1.8391250033309916
+          ],
+          "t0MinusStartMs": -1.7299169999896549,
+          "t0AtOrAfterEnd": false,
+          "judgement": "injectionOutsideTarget",
+          "stages": [
+            {
+              "stage": "encode",
+              "startMs": 72449.767625,
+              "endMs": 72463.6925,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "write",
+              "startMs": 72538.335583,
+              "endMs": 72538.928792,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "fileSync",
+              "startMs": 72538.930833,
+              "endMs": 72545.818417,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "close",
+              "startMs": 72545.82075,
+              "endMs": 72545.848542,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "rename",
+              "startMs": 72545.849583,
+              "endMs": 72546.095042,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "directorySync",
+              "startMs": 72546.097292,
+              "endMs": 72549.784083,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "verify",
+              "startMs": 72549.785125,
+              "endMs": 72566.689208,
+              "waitOverlapMs": 0
+            }
+          ]
+        },
+        {
+          "index": 23,
+          "inputId": "input-50",
+          "outcome": "callbackReached",
+          "t0Ms": 75537.807833,
+          "t1Ms": 75537.84325,
+          "t2Ms": 75537.976333,
+          "target": {
+            "startMs": 75450.526667,
+            "endMs": 75463.549958
+          },
+          "injectionInsideTarget": "yes",
+          "injectionOffsetFromStartMs": [
+            0.5256250489328522,
+            0.5738750088785309
+          ],
+          "t0MinusStartMs": 87.28116600000067,
+          "t0AtOrAfterEnd": true,
+          "judgement": "insideTargetCallbackAfterEnd",
+          "stages": [
+            {
+              "stage": "encode",
+              "startMs": 75450.526667,
+              "endMs": 75463.549958,
+              "waitOverlapMs": 12.449415991126443
+            },
+            {
+              "stage": "write",
+              "startMs": 75540.295542,
+              "endMs": 75542.383833,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "fileSync",
+              "startMs": 75542.386917,
+              "endMs": 75547.341958,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "close",
+              "startMs": 75547.34425,
+              "endMs": 75547.374083,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "rename",
+              "startMs": 75547.375333,
+              "endMs": 75547.5605,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "directorySync",
+              "startMs": 75547.562542,
+              "endMs": 75552.369917,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "verify",
+              "startMs": 75552.373125,
+              "endMs": 75569.845917,
+              "waitOverlapMs": 0
+            }
+          ]
+        },
+        {
+          "index": 24,
+          "inputId": "input-52",
+          "outcome": "callbackReached",
+          "t0Ms": 78540.568458,
+          "t1Ms": 78540.6035,
+          "t2Ms": 78540.747,
+          "target": {
+            "startMs": 78453.617208,
+            "endMs": 78466.547708
+          },
+          "injectionInsideTarget": "yes",
+          "injectionOffsetFromStartMs": [
+            8.404655090998858e-05,
+            0.0483340064965887
+          ],
+          "t0MinusStartMs": 86.95124999999825,
+          "t0AtOrAfterEnd": true,
+          "judgement": "insideTargetCallbackAfterEnd",
+          "stages": [
+            {
+              "stage": "encode",
+              "startMs": 78453.617208,
+              "endMs": 78466.547708,
+              "waitOverlapMs": 12.882165993505623
+            },
+            {
+              "stage": "write",
+              "startMs": 78542.730583,
+              "endMs": 78545.35425,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "fileSync",
+              "startMs": 78545.362958,
+              "endMs": 78550.223333,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "close",
+              "startMs": 78550.225875,
+              "endMs": 78550.260042,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "rename",
+              "startMs": 78550.261167,
+              "endMs": 78550.529625,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "directorySync",
+              "startMs": 78550.532,
+              "endMs": 78554.27225,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "verify",
+              "startMs": 78554.272917,
+              "endMs": 78571.515875,
+              "waitOverlapMs": 0
+            }
+          ]
+        }
+      ],
+      "warmup": {
+        "n": 5,
+        "insideTargetRate": 0.8,
+        "judgements": {
+          "injectionOutsideTarget": 1,
+          "insideTargetCallbackAfterEnd": 4
+        },
+        "t0MinusStartMs": {
+          "n": 5,
+          "p50": 83.887,
+          "p99": 88.632,
+          "max": 88.632
+        }
+      },
+      "samples": {
+        "n": 20,
+        "insideTargetRate": 0.8,
+        "judgements": {
+          "insideTargetCallbackAfterEnd": 16,
+          "injectionOutsideTarget": 4
+        },
+        "t0MinusStartMs": {
+          "n": 20,
+          "p50": 87.191,
+          "p99": 107.931,
+          "max": 107.931
+        }
+      },
+      "paintWithoutScreenshot": 2,
+      "injectedToT0Ms": {
+        "n": 20,
+        "p50": 85.978,
+        "p99": 106.021,
+        "max": 106.021
+      },
+      "judged": [
+        {
+          "schemaVersion": "p2-eew-e01-result-v2",
+          "manifestId": "prelim-20260929T122528",
+          "manifestSha256": "cf17c5b9d1d087002d1ce1fa0dc077d99caae89cbf23c8f03e8c5aa26b812791",
+          "resultSha256": "0000000000000000000000000000000000000000000000000000000000000000",
+          "population": "maxWeatherCheckpointEncodeStarted",
+          "scope": "reference",
+          "run": 1,
+          "status": "N/A",
+          "samples": 20,
+          "missing": 0,
+          "traceMissing": 20,
+          "injectionFailures": 0,
+          "injectedToT0P50Ms": 85.97791600227356,
+          "injectedToT0P99Ms": 106.02050000429153,
+          "injectedToT0MaxMs": 106.02050000429153,
+          "p50LowerMs": null,
+          "p50UpperMs": null,
+          "p95LowerMs": null,
+          "p95UpperMs": null,
+          "p99LowerMs": null,
+          "p99UpperMs": null,
+          "maxLowerMs": null,
+          "maxUpperMs": null,
+          "evidenceRefs": []
+        }
+      ]
+    },
+    {
+      "population": "maxForecastCheckpointSave",
+      "run": 1,
+      "records": [
+        {
+          "index": 0,
+          "inputId": "input-3",
+          "outcome": "callbackReached",
+          "t0Ms": 5210.577375,
+          "t1Ms": 5210.643083,
+          "t2Ms": 5210.69625,
+          "target": {
+            "startMs": 5220.440708,
+            "endMs": 5265.84675
+          },
+          "injectionInsideTarget": "no",
+          "injectionOffsetFromStartMs": [
+            -10.059249955947962,
+            -10.005583960350123
+          ],
+          "t0MinusStartMs": -9.863333000000239,
+          "t0AtOrAfterEnd": false,
+          "judgement": "injectionOutsideTarget",
+          "stages": [
+            {
+              "stage": "encode",
+              "startMs": 5220.440708,
+              "endMs": 5225.413666,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "write",
+              "startMs": 5250.287208,
+              "endMs": 5250.593166,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "fileSync",
+              "startMs": 5250.598625,
+              "endMs": 5254.506666,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "close",
+              "startMs": 5254.513666,
+              "endMs": 5254.539083,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "rename",
+              "startMs": 5254.540083,
+              "endMs": 5254.620833,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "directorySync",
+              "startMs": 5254.622666,
+              "endMs": 5258.529375,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "verify",
+              "startMs": 5258.53175,
+              "endMs": 5265.84675,
+              "waitOverlapMs": 0
+            }
+          ]
+        },
+        {
+          "index": 1,
+          "inputId": "input-5",
+          "outcome": "callbackReached",
+          "t0Ms": 8216.0685,
+          "t1Ms": 8216.145625,
+          "t2Ms": 8216.284625,
+          "target": {
+            "startMs": 8222.473166,
+            "endMs": 8276.694083
+          },
+          "injectionInsideTarget": "no",
+          "injectionOffsetFromStartMs": [
+            -6.572082947841409,
+            -6.5184169522435695
+          ],
+          "t0MinusStartMs": -6.404666000000361,
+          "t0AtOrAfterEnd": false,
+          "judgement": "injectionOutsideTarget",
+          "stages": [
+            {
+              "stage": "encode",
+              "startMs": 8222.473166,
+              "endMs": 8229.187458,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "write",
+              "startMs": 8261.428208,
+              "endMs": 8261.667291,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "fileSync",
+              "startMs": 8261.6715,
+              "endMs": 8265.888875,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "close",
+              "startMs": 8265.890958,
+              "endMs": 8265.916458,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "rename",
+              "startMs": 8265.917083,
+              "endMs": 8266.116125,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "directorySync",
+              "startMs": 8266.119958,
+              "endMs": 8269.544875,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "verify",
+              "startMs": 8269.546875,
+              "endMs": 8276.694083,
+              "waitOverlapMs": 0
+            }
+          ]
+        },
+        {
+          "index": 2,
+          "inputId": "input-7",
+          "outcome": "callbackReached",
+          "t0Ms": 11260.656833,
+          "t1Ms": 11260.701166,
+          "t2Ms": 11260.780416,
+          "target": {
+            "startMs": 11224.198166,
+            "endMs": 11282.733083
+          },
+          "injectionInsideTarget": "yes",
+          "injectionOffsetFromStartMs": [
+            6.940084052928796,
+            6.9937500485266355
+          ],
+          "t0MinusStartMs": 36.45866699999897,
+          "t0AtOrAfterEnd": false,
+          "judgement": "callbackDuringTarget",
+          "stages": [
+            {
+              "stage": "encode",
+              "startMs": 11224.198166,
+              "endMs": 11228.867,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "write",
+              "startMs": 11264.868041,
+              "endMs": 11265.144458,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "fileSync",
+              "startMs": 11265.146708,
+              "endMs": 11270.089333,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "close",
+              "startMs": 11270.095666,
+              "endMs": 11270.13225,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "rename",
+              "startMs": 11270.133083,
+              "endMs": 11270.326375,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "directorySync",
+              "startMs": 11270.32725,
+              "endMs": 11274.049125,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "verify",
+              "startMs": 11274.051458,
+              "endMs": 11282.733083,
+              "waitOverlapMs": 0
+            }
+          ]
+        },
+        {
+          "index": 3,
+          "inputId": "input-9",
+          "outcome": "callbackReached",
+          "t0Ms": 14264.352291,
+          "t1Ms": 14264.4765,
+          "t2Ms": 14264.559625,
+          "target": {
+            "startMs": 14226.728666,
+            "endMs": 14286.61125
+          },
+          "injectionInsideTarget": "yes",
+          "injectionOffsetFromStartMs": [
+            5.033209033377716,
+            5.086875028975555
+          ],
+          "t0MinusStartMs": 37.623624999998356,
+          "t0AtOrAfterEnd": false,
+          "judgement": "callbackDuringTarget",
+          "stages": [
+            {
+              "stage": "encode",
+              "startMs": 14226.728666,
+              "endMs": 14232.857791,
+              "waitOverlapMs": 1.0422499710239208
+            },
+            {
+              "stage": "write",
+              "startMs": 14269.323,
+              "endMs": 14269.652041,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "fileSync",
+              "startMs": 14269.655666,
+              "endMs": 14275.011333,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "close",
+              "startMs": 14275.016666,
+              "endMs": 14275.058041,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "rename",
+              "startMs": 14275.059583,
+              "endMs": 14275.250625,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "directorySync",
+              "startMs": 14275.252708,
+              "endMs": 14279.469,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "verify",
+              "startMs": 14279.47,
+              "endMs": 14286.61125,
+              "waitOverlapMs": 0
+            }
+          ]
+        },
+        {
+          "index": 4,
+          "inputId": "input-11",
+          "outcome": "callbackReached",
+          "t0Ms": 17266.115708,
+          "t1Ms": 17266.150916,
+          "t2Ms": 17266.194666,
+          "target": {
+            "startMs": 17229.834791,
+            "endMs": 17286.611708
+          },
+          "injectionInsideTarget": "yes",
+          "injectionOffsetFromStartMs": [
+            3.200584058649838,
+            3.2542500542476773
+          ],
+          "t0MinusStartMs": 36.280917000000045,
+          "t0AtOrAfterEnd": false,
+          "judgement": "callbackDuringTarget",
+          "stages": [
+            {
+              "stage": "encode",
+              "startMs": 17229.834791,
+              "endMs": 17234.473041,
+              "waitOverlapMs": 1.3839999457522936
+            },
+            {
+              "stage": "write",
+              "startMs": 17270.163125,
+              "endMs": 17270.553875,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "fileSync",
+              "startMs": 17270.556333,
+              "endMs": 17275.491666,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "close",
+              "startMs": 17275.497625,
+              "endMs": 17275.53325,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "rename",
+              "startMs": 17275.535208,
+              "endMs": 17275.726666,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "directorySync",
+              "startMs": 17275.727666,
+              "endMs": 17279.415916,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "verify",
+              "startMs": 17279.417333,
+              "endMs": 17286.611708,
+              "waitOverlapMs": 0
+            }
+          ]
+        },
+        {
+          "index": 5,
+          "inputId": "input-13",
+          "outcome": "callbackReached",
+          "t0Ms": 20274.322875,
+          "t1Ms": 20274.414083,
+          "t2Ms": 20274.452291,
+          "target": {
+            "startMs": 20235.390375,
+            "endMs": 20305.349083
+          },
+          "injectionInsideTarget": "no",
+          "injectionOffsetFromStartMs": [
+            -0.20104197835826199,
+            -0.14737598276042263
+          ],
+          "t0MinusStartMs": 38.93250000000262,
+          "t0AtOrAfterEnd": false,
+          "judgement": "injectionOutsideTarget",
+          "stages": [
+            {
+              "stage": "encode",
+              "startMs": 20235.390375,
+              "endMs": 20241.4605,
+              "waitOverlapMs": 6.070125000002008
+            },
+            {
+              "stage": "write",
+              "startMs": 20280.212333,
+              "endMs": 20289.932666,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "fileSync",
+              "startMs": 20289.937541,
+              "endMs": 20294.117541,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "close",
+              "startMs": 20294.123208,
+              "endMs": 20294.167125,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "rename",
+              "startMs": 20294.168916,
+              "endMs": 20294.39025,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "directorySync",
+              "startMs": 20294.393708,
+              "endMs": 20298.074208,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "verify",
+              "startMs": 20298.075291,
+              "endMs": 20305.349083,
+              "waitOverlapMs": 0
+            }
+          ]
+        },
+        {
+          "index": 6,
+          "inputId": "input-15",
+          "outcome": "callbackReached",
+          "t0Ms": 23273.0745,
+          "t1Ms": 23273.107666,
+          "t2Ms": 23273.147916,
+          "target": {
+            "startMs": 23236.386083,
+            "endMs": 23293.745333
+          },
+          "injectionInsideTarget": "yes",
+          "injectionOffsetFromStartMs": [
+            2.7303330370814365,
+            2.783999032679276
+          ],
+          "t0MinusStartMs": 36.68841699999757,
+          "t0AtOrAfterEnd": false,
+          "judgement": "callbackDuringTarget",
+          "stages": [
+            {
+              "stage": "encode",
+              "startMs": 23236.386083,
+              "endMs": 23241.072458,
+              "waitOverlapMs": 1.9023759673182212
+            },
+            {
+              "stage": "write",
+              "startMs": 23277.065458,
+              "endMs": 23277.375333,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "fileSync",
+              "startMs": 23277.378625,
+              "endMs": 23281.339541,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "close",
+              "startMs": 23281.347541,
+              "endMs": 23281.384625,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "rename",
+              "startMs": 23281.3855,
+              "endMs": 23281.597625,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "directorySync",
+              "startMs": 23281.5995,
+              "endMs": 23285.260833,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "verify",
+              "startMs": 23285.2635,
+              "endMs": 23293.745333,
+              "waitOverlapMs": 0
+            }
+          ]
+        },
+        {
+          "index": 7,
+          "inputId": "input-17",
+          "outcome": "callbackReached",
+          "t0Ms": 26276.672458,
+          "t1Ms": 26276.719625,
+          "t2Ms": 26276.764708,
+          "target": {
+            "startMs": 26238.795625,
+            "endMs": 26297.492291
+          },
+          "injectionInsideTarget": "yes",
+          "injectionOffsetFromStartMs": [
+            2.442000002862187,
+            2.4956659984600265
+          ],
+          "t0MinusStartMs": 37.87683300000208,
+          "t0AtOrAfterEnd": false,
+          "judgement": "callbackDuringTarget",
+          "stages": [
+            {
+              "stage": "encode",
+              "startMs": 26238.795625,
+              "endMs": 26244.675916,
+              "waitOverlapMs": 3.3846250015412807
+            },
+            {
+              "stage": "write",
+              "startMs": 26280.841625,
+              "endMs": 26281.259458,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "fileSync",
+              "startMs": 26281.263208,
+              "endMs": 26285.199416,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "close",
+              "startMs": 26285.204958,
+              "endMs": 26285.25675,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "rename",
+              "startMs": 26285.258,
+              "endMs": 26285.483083,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "directorySync",
+              "startMs": 26285.485333,
+              "endMs": 26289.118833,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "verify",
+              "startMs": 26289.12,
+              "endMs": 26297.492291,
+              "waitOverlapMs": 0
+            }
+          ]
+        },
+        {
+          "index": 8,
+          "inputId": "input-19",
+          "outcome": "callbackReached",
+          "t0Ms": 29280.168291,
+          "t1Ms": 29280.214833,
+          "t2Ms": 29280.255791,
+          "target": {
+            "startMs": 29242.217458,
+            "endMs": 29301.164458
+          },
+          "injectionInsideTarget": "yes",
+          "injectionOffsetFromStartMs": [
+            1.6806670524529181,
+            1.7343330480507575
+          ],
+          "t0MinusStartMs": 37.9508330000026,
+          "t0AtOrAfterEnd": false,
+          "judgement": "callbackDuringTarget",
+          "stages": [
+            {
+              "stage": "encode",
+              "startMs": 29242.217458,
+              "endMs": 29248.256208,
+              "waitOverlapMs": 4.3044169519489515
+            },
+            {
+              "stage": "write",
+              "startMs": 29284.401375,
+              "endMs": 29284.718333,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "fileSync",
+              "startMs": 29284.720583,
+              "endMs": 29288.661791,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "close",
+              "startMs": 29288.66925,
+              "endMs": 29288.726625,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "rename",
+              "startMs": 29288.727458,
+              "endMs": 29288.976458,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "directorySync",
+              "startMs": 29288.980416,
+              "endMs": 29292.657958,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "verify",
+              "startMs": 29292.659458,
+              "endMs": 29301.164458,
+              "waitOverlapMs": 0
+            }
+          ]
+        },
+        {
+          "index": 9,
+          "inputId": "input-21",
+          "outcome": "callbackReached",
+          "t0Ms": 32283.854458,
+          "t1Ms": 32283.900208,
+          "t2Ms": 32283.940041,
+          "target": {
+            "startMs": 32245.0575,
+            "endMs": 32307.023916
+          },
+          "injectionInsideTarget": "yes",
+          "injectionOffsetFromStartMs": [
+            1.7089580345163995,
+            1.7626240301142388
+          ],
+          "t0MinusStartMs": 38.79695800000263,
+          "t0AtOrAfterEnd": false,
+          "judgement": "callbackDuringTarget",
+          "stages": [
+            {
+              "stage": "encode",
+              "startMs": 32245.0575,
+              "endMs": 32251.13125,
+              "waitOverlapMs": 4.311125969885325
+            },
+            {
+              "stage": "write",
+              "startMs": 32288.132625,
+              "endMs": 32288.459083,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "fileSync",
+              "startMs": 32288.461958,
+              "endMs": 32293.851666,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "close",
+              "startMs": 32293.855,
+              "endMs": 32293.892208,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "rename",
+              "startMs": 32293.893666,
+              "endMs": 32294.078,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "directorySync",
+              "startMs": 32294.08,
+              "endMs": 32297.884166,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "verify",
+              "startMs": 32297.884958,
+              "endMs": 32307.023916,
+              "waitOverlapMs": 0
+            }
+          ]
+        },
+        {
+          "index": 10,
+          "inputId": "input-23",
+          "outcome": "callbackReached",
+          "t0Ms": 35295.518,
+          "t1Ms": 35295.566833,
+          "t2Ms": 35295.611,
+          "target": {
+            "startMs": 35247.75925,
+            "endMs": 35316.385
+          },
+          "injectionInsideTarget": "yes",
+          "injectionOffsetFromStartMs": [
+            0.7401250452967361,
+            0.7937910408945754
+          ],
+          "t0MinusStartMs": 47.7587499999936,
+          "t0AtOrAfterEnd": false,
+          "judgement": "callbackDuringTarget",
+          "stages": [
+            {
+              "stage": "encode",
+              "startMs": 35247.75925,
+              "endMs": 35259.916291,
+              "waitOverlapMs": 11.363249959103996
+            },
+            {
+              "stage": "write",
+              "startMs": 35299.759,
+              "endMs": 35300.123416,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "fileSync",
+              "startMs": 35300.125958,
+              "endMs": 35303.769125,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "close",
+              "startMs": 35303.774416,
+              "endMs": 35303.824708,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "rename",
+              "startMs": 35303.8265,
+              "endMs": 35304.07675,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "directorySync",
+              "startMs": 35304.079791,
+              "endMs": 35307.79225,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "verify",
+              "startMs": 35307.796125,
+              "endMs": 35316.385,
+              "waitOverlapMs": 0
+            }
+          ]
+        },
+        {
+          "index": 11,
+          "inputId": "input-25",
+          "outcome": "callbackReached",
+          "t0Ms": 38251.718291,
+          "t1Ms": 38251.810333,
+          "t2Ms": 38251.877541,
+          "target": {
+            "startMs": 38256.797791,
+            "endMs": 38312.7755
+          },
+          "injectionInsideTarget": "no",
+          "injectionOffsetFromStartMs": [
+            -5.255707975018595,
+            -5.2020419794207555
+          ],
+          "t0MinusStartMs": -5.079499999999825,
+          "t0AtOrAfterEnd": false,
+          "judgement": "injectionOutsideTarget",
+          "stages": [
+            {
+              "stage": "encode",
+              "startMs": 38256.797791,
+              "endMs": 38263.116083,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "write",
+              "startMs": 38295.267875,
+              "endMs": 38295.535166,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "fileSync",
+              "startMs": 38295.536791,
+              "endMs": 38300.4395,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "close",
+              "startMs": 38300.441166,
+              "endMs": 38300.467583,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "rename",
+              "startMs": 38300.46925,
+              "endMs": 38300.642208,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "directorySync",
+              "startMs": 38300.6445,
+              "endMs": 38304.367083,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "verify",
+              "startMs": 38304.368083,
+              "endMs": 38312.7755,
+              "waitOverlapMs": 0
+            }
+          ]
+        },
+        {
+          "index": 12,
+          "inputId": "input-27",
+          "outcome": "callbackReached",
+          "t0Ms": 41295.952625,
+          "t1Ms": 41296.003708,
+          "t2Ms": 41296.046291,
+          "target": {
+            "startMs": 41257.601125,
+            "endMs": 41316.799416
+          },
+          "injectionInsideTarget": "yes",
+          "injectionOffsetFromStartMs": [
+            1.4633330125798238,
+            1.5169990081776632
+          ],
+          "t0MinusStartMs": 38.35149999999703,
+          "t0AtOrAfterEnd": false,
+          "judgement": "callbackDuringTarget",
+          "stages": [
+            {
+              "stage": "encode",
+              "startMs": 41257.601125,
+              "endMs": 41263.5985,
+              "waitOverlapMs": 4.480375991821347
+            },
+            {
+              "stage": "write",
+              "startMs": 41300.388625,
+              "endMs": 41300.719208,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "fileSync",
+              "startMs": 41300.721541,
+              "endMs": 41305.597708,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "close",
+              "startMs": 41305.601583,
+              "endMs": 41305.654083,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "rename",
+              "startMs": 41305.655666,
+              "endMs": 41305.859208,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "directorySync",
+              "startMs": 41305.861375,
+              "endMs": 41309.594583,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "verify",
+              "startMs": 41309.596416,
+              "endMs": 41316.799416,
+              "waitOverlapMs": 0
+            }
+          ]
+        },
+        {
+          "index": 13,
+          "inputId": "input-29",
+          "outcome": "callbackReached",
+          "t0Ms": 44295.175416,
+          "t1Ms": 44295.220541,
+          "t2Ms": 44295.261458,
+          "target": {
+            "startMs": 44257.552666,
+            "endMs": 44316.623041
+          },
+          "injectionInsideTarget": "yes",
+          "injectionOffsetFromStartMs": [
+            5.160625049000373,
+            5.2142910445982125
+          ],
+          "t0MinusStartMs": 37.622749999994994,
+          "t0AtOrAfterEnd": false,
+          "judgement": "callbackDuringTarget",
+          "stages": [
+            {
+              "stage": "encode",
+              "startMs": 44257.552666,
+              "endMs": 44263.496291,
+              "waitOverlapMs": 0.7293339554016711
+            },
+            {
+              "stage": "write",
+              "startMs": 44299.178625,
+              "endMs": 44299.482875,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "fileSync",
+              "startMs": 44299.484375,
+              "endMs": 44305.405791,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "close",
+              "startMs": 44305.41025,
+              "endMs": 44305.449333,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "rename",
+              "startMs": 44305.449958,
+              "endMs": 44305.624666,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "directorySync",
+              "startMs": 44305.626791,
+              "endMs": 44309.403416,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "verify",
+              "startMs": 44309.404583,
+              "endMs": 44316.623041,
+              "waitOverlapMs": 0
+            }
+          ]
+        },
+        {
+          "index": 14,
+          "inputId": "input-31",
+          "outcome": "callbackReached",
+          "t0Ms": 47295.463458,
+          "t1Ms": 47295.510208,
+          "t2Ms": 47295.550416,
+          "target": {
+            "startMs": 47257.539,
+            "endMs": 47316.34375
+          },
+          "injectionInsideTarget": "yes",
+          "injectionOffsetFromStartMs": [
+            7.417708014014352,
+            7.471374009612191
+          ],
+          "t0MinusStartMs": 37.92445800000132,
+          "t0AtOrAfterEnd": false,
+          "judgement": "callbackDuringTarget",
+          "stages": [
+            {
+              "stage": "encode",
+              "startMs": 47257.539,
+              "endMs": 47263.487958,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "write",
+              "startMs": 47299.521291,
+              "endMs": 47299.831083,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "fileSync",
+              "startMs": 47299.833,
+              "endMs": 47304.028,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "close",
+              "startMs": 47304.031916,
+              "endMs": 47304.068916,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "rename",
+              "startMs": 47304.0705,
+              "endMs": 47304.233583,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "directorySync",
+              "startMs": 47304.235208,
+              "endMs": 47308.05925,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "verify",
+              "startMs": 47308.060333,
+              "endMs": 47316.34375,
+              "waitOverlapMs": 0
+            }
+          ]
+        },
+        {
+          "index": 15,
+          "inputId": "input-33",
+          "outcome": "callbackReached",
+          "t0Ms": 50296.548791,
+          "t1Ms": 50296.592458,
+          "t2Ms": 50296.633416,
+          "target": {
+            "startMs": 50257.512625,
+            "endMs": 50317.563583
+          },
+          "injectionInsideTarget": "yes",
+          "injectionOffsetFromStartMs": [
+            8.503750005242182,
+            8.557416000840021
+          ],
+          "t0MinusStartMs": 39.03616599999805,
+          "t0AtOrAfterEnd": false,
+          "judgement": "callbackDuringTarget",
+          "stages": [
+            {
+              "stage": "encode",
+              "startMs": 50257.512625,
+              "endMs": 50263.491916,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "write",
+              "startMs": 50300.793208,
+              "endMs": 50301.188833,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "fileSync",
+              "startMs": 50301.190666,
+              "endMs": 50306.066166,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "close",
+              "startMs": 50306.072375,
+              "endMs": 50306.119583,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "rename",
+              "startMs": 50306.121458,
+              "endMs": 50306.349875,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "directorySync",
+              "startMs": 50306.351916,
+              "endMs": 50310.155791,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "verify",
+              "startMs": 50310.158333,
+              "endMs": 50317.563583,
+              "waitOverlapMs": 0
+            }
+          ]
+        },
+        {
+          "index": 16,
+          "inputId": "input-35",
+          "outcome": "callbackReached",
+          "t0Ms": 53295.673875,
+          "t1Ms": 53295.721,
+          "t2Ms": 53295.765833,
+          "target": {
+            "startMs": 53258.659166,
+            "endMs": 53318.52575
+          },
+          "injectionInsideTarget": "yes",
+          "injectionOffsetFromStartMs": [
+            7.99300000895164,
+            8.04666600454948
+          ],
+          "t0MinusStartMs": 37.01470900000277,
+          "t0AtOrAfterEnd": false,
+          "judgement": "callbackDuringTarget",
+          "stages": [
+            {
+              "stage": "encode",
+              "startMs": 53258.659166,
+              "endMs": 53263.352625,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "write",
+              "startMs": 53299.789791,
+              "endMs": 53300.057375,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "fileSync",
+              "startMs": 53300.059166,
+              "endMs": 53305.62525,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "close",
+              "startMs": 53305.631291,
+              "endMs": 53305.682333,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "rename",
+              "startMs": 53305.684041,
+              "endMs": 53306.019541,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "directorySync",
+              "startMs": 53306.020625,
+              "endMs": 53309.876041,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "verify",
+              "startMs": 53309.880666,
+              "endMs": 53318.52575,
+              "waitOverlapMs": 0
+            }
+          ]
+        },
+        {
+          "index": 17,
+          "inputId": "input-37",
+          "outcome": "callbackReached",
+          "t0Ms": 56299.601041,
+          "t1Ms": 56299.6555,
+          "t2Ms": 56299.703916,
+          "target": {
+            "startMs": 56260.961083,
+            "endMs": 56322.843875
+          },
+          "injectionInsideTarget": "yes",
+          "injectionOffsetFromStartMs": [
+            5.536583060922567,
+            5.590249056520406
+          ],
+          "t0MinusStartMs": 38.63995799999975,
+          "t0AtOrAfterEnd": false,
+          "judgement": "callbackDuringTarget",
+          "stages": [
+            {
+              "stage": "encode",
+              "startMs": 56260.961083,
+              "endMs": 56267.079375,
+              "waitOverlapMs": 0.5280429434787948
+            },
+            {
+              "stage": "write",
+              "startMs": 56303.983208,
+              "endMs": 56304.36775,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "fileSync",
+              "startMs": 56304.369916,
+              "endMs": 56310.409458,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "close",
+              "startMs": 56310.415958,
+              "endMs": 56310.469291,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "rename",
+              "startMs": 56310.470083,
+              "endMs": 56310.727208,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "directorySync",
+              "startMs": 56310.729291,
+              "endMs": 56315.328458,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "verify",
+              "startMs": 56315.331958,
+              "endMs": 56322.843875,
+              "waitOverlapMs": 0
+            }
+          ]
+        },
+        {
+          "index": 18,
+          "inputId": "input-39",
+          "outcome": "callbackReached",
+          "t0Ms": 59303.633625,
+          "t1Ms": 59303.667666,
+          "t2Ms": 59303.707416,
+          "target": {
+            "startMs": 59262.65125,
+            "endMs": 59324.41975
+          },
+          "injectionInsideTarget": "yes",
+          "injectionOffsetFromStartMs": [
+            3.8747910308811697,
+            3.928457026479009
+          ],
+          "t0MinusStartMs": 40.98237499999959,
+          "t0AtOrAfterEnd": false,
+          "judgement": "callbackDuringTarget",
+          "stages": [
+            {
+              "stage": "encode",
+              "startMs": 59262.65125,
+              "endMs": 59268.221958,
+              "waitOverlapMs": 1.6422509735202766
+            },
+            {
+              "stage": "write",
+              "startMs": 59307.682041,
+              "endMs": 59307.92625,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "fileSync",
+              "startMs": 59307.928708,
+              "endMs": 59311.901208,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "close",
+              "startMs": 59311.905833,
+              "endMs": 59311.937916,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "rename",
+              "startMs": 59311.938541,
+              "endMs": 59312.116958,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "directorySync",
+              "startMs": 59312.117708,
+              "endMs": 59315.858208,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "verify",
+              "startMs": 59315.859916,
+              "endMs": 59324.41975,
+              "waitOverlapMs": 0
+            }
+          ]
+        },
+        {
+          "index": 19,
+          "inputId": "input-41",
+          "outcome": "callbackReached",
+          "t0Ms": 62308.845666,
+          "t1Ms": 62308.888208,
+          "t2Ms": 62308.928375,
+          "target": {
+            "startMs": 62266.74775,
+            "endMs": 62332.19225
+          },
+          "injectionInsideTarget": "no",
+          "injectionOffsetFromStartMs": [
+            -0.26820899629819905,
+            -0.2145430007003597
+          ],
+          "t0MinusStartMs": 42.097915999998804,
+          "t0AtOrAfterEnd": false,
+          "judgement": "injectionOutsideTarget",
+          "stages": [
+            {
+              "stage": "encode",
+              "startMs": 62266.74775,
+              "endMs": 62273.600208,
+              "waitOverlapMs": 6.8524580000012065
+            },
+            {
+              "stage": "write",
+              "startMs": 62313.071916,
+              "endMs": 62313.302666,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "fileSync",
+              "startMs": 62313.304041,
+              "endMs": 62319.469958,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "close",
+              "startMs": 62319.471958,
+              "endMs": 62319.516791,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "rename",
+              "startMs": 62319.517666,
+              "endMs": 62319.702833,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "directorySync",
+              "startMs": 62319.704833,
+              "endMs": 62323.427,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "verify",
+              "startMs": 62323.427583,
+              "endMs": 62332.19225,
+              "waitOverlapMs": 0
+            }
+          ]
+        },
+        {
+          "index": 20,
+          "inputId": "input-43",
+          "outcome": "callbackReached",
+          "t0Ms": 65267.92475,
+          "t1Ms": 65268.104,
+          "t2Ms": 65268.284041,
+          "target": {
+            "startMs": 65279.681291,
+            "endMs": 65348.5545
+          },
+          "injectionInsideTarget": "no",
+          "injectionOffsetFromStartMs": [
+            -12.121874944321462,
+            -12.068208948723623
+          ],
+          "t0MinusStartMs": -11.756541000002471,
+          "t0AtOrAfterEnd": false,
+          "judgement": "injectionOutsideTarget",
+          "stages": [
+            {
+              "stage": "encode",
+              "startMs": 65279.681291,
+              "endMs": 65289.350458,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "write",
+              "startMs": 65329.116625,
+              "endMs": 65329.31275,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "fileSync",
+              "startMs": 65329.314875,
+              "endMs": 65334.021958,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "close",
+              "startMs": 65334.023458,
+              "endMs": 65334.053916,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "rename",
+              "startMs": 65334.0555,
+              "endMs": 65334.262375,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "directorySync",
+              "startMs": 65334.263291,
+              "endMs": 65339.065125,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "verify",
+              "startMs": 65339.066875,
+              "endMs": 65348.5545,
+              "waitOverlapMs": 0
+            }
+          ]
+        },
+        {
+          "index": 21,
+          "inputId": "input-45",
+          "outcome": "callbackReached",
+          "t0Ms": 68273.112666,
+          "t1Ms": 68273.325291,
+          "t2Ms": 68273.476125,
+          "target": {
+            "startMs": 68284.966458,
+            "endMs": 68353.400875
+          },
+          "injectionInsideTarget": "no",
+          "injectionOffsetFromStartMs": [
+            -12.337541974833584,
+            -12.283875979235745
+          ],
+          "t0MinusStartMs": -11.853791999994428,
+          "t0AtOrAfterEnd": false,
+          "judgement": "injectionOutsideTarget",
+          "stages": [
+            {
+              "stage": "encode",
+              "startMs": 68284.966458,
+              "endMs": 68296.0535,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "write",
+              "startMs": 68335.022125,
+              "endMs": 68335.260125,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "fileSync",
+              "startMs": 68335.261833,
+              "endMs": 68341.153416,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "close",
+              "startMs": 68341.15425,
+              "endMs": 68341.182916,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "rename",
+              "startMs": 68341.184583,
+              "endMs": 68341.34575,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "directorySync",
+              "startMs": 68341.348625,
+              "endMs": 68345.212625,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "verify",
+              "startMs": 68345.213375,
+              "endMs": 68353.400875,
+              "waitOverlapMs": 0
+            }
+          ]
+        },
+        {
+          "index": 22,
+          "inputId": "input-47",
+          "outcome": "callbackReached",
+          "t0Ms": 71278.55475,
+          "t1Ms": 71278.662458,
+          "t2Ms": 71278.774375,
+          "target": {
+            "startMs": 71288.849083,
+            "endMs": 71358.008708
+          },
+          "injectionInsideTarget": "no",
+          "injectionOffsetFromStartMs": [
+            -10.601291948129074,
+            -10.547625952531234
+          ],
+          "t0MinusStartMs": -10.294332999998005,
+          "t0AtOrAfterEnd": false,
+          "judgement": "injectionOutsideTarget",
+          "stages": [
+            {
+              "stage": "encode",
+              "startMs": 71288.849083,
+              "endMs": 71299.527541,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "write",
+              "startMs": 71339.771416,
+              "endMs": 71340.009666,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "fileSync",
+              "startMs": 71340.011791,
+              "endMs": 71345.09675,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "close",
+              "startMs": 71345.097625,
+              "endMs": 71345.118666,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "rename",
+              "startMs": 71345.120791,
+              "endMs": 71345.261833,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "directorySync",
+              "startMs": 71345.262583,
+              "endMs": 71348.966625,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "verify",
+              "startMs": 71348.9675,
+              "endMs": 71358.008708,
+              "waitOverlapMs": 0
+            }
+          ]
+        },
+        {
+          "index": 23,
+          "inputId": "input-49",
+          "outcome": "callbackReached",
+          "t0Ms": 74285.744708,
+          "t1Ms": 74285.912083,
+          "t2Ms": 74286.035333,
+          "target": {
+            "startMs": 74296.870125,
+            "endMs": 74364.438583
+          },
+          "injectionInsideTarget": "no",
+          "injectionOffsetFromStartMs": [
+            -11.508499984265654,
+            -11.454833988667815
+          ],
+          "t0MinusStartMs": -11.125417000002926,
+          "t0AtOrAfterEnd": false,
+          "judgement": "injectionOutsideTarget",
+          "stages": [
+            {
+              "stage": "encode",
+              "startMs": 74296.870125,
+              "endMs": 74308.685,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "write",
+              "startMs": 74347.0775,
+              "endMs": 74347.337666,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "fileSync",
+              "startMs": 74347.339708,
+              "endMs": 74352.500208,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "close",
+              "startMs": 74352.501416,
+              "endMs": 74352.532875,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "rename",
+              "startMs": 74352.534,
+              "endMs": 74352.762541,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "directorySync",
+              "startMs": 74352.764916,
+              "endMs": 74356.39975,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "verify",
+              "startMs": 74356.400791,
+              "endMs": 74364.438583,
+              "waitOverlapMs": 0
+            }
+          ]
+        },
+        {
+          "index": 24,
+          "inputId": "input-51",
+          "outcome": "callbackReached",
+          "t0Ms": 77294.211625,
+          "t1Ms": 77294.402291,
+          "t2Ms": 77294.544583,
+          "target": {
+            "startMs": 77305.46075,
+            "endMs": 77372.750208
+          },
+          "injectionInsideTarget": "no",
+          "injectionOffsetFromStartMs": [
+            -11.648166970728198,
+            -11.594500975130359
+          ],
+          "t0MinusStartMs": -11.249125000002095,
+          "t0AtOrAfterEnd": false,
+          "judgement": "injectionOutsideTarget",
+          "stages": [
+            {
+              "stage": "encode",
+              "startMs": 77305.46075,
+              "endMs": 77316.018458,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "write",
+              "startMs": 77355.202666,
+              "endMs": 77355.513541,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "fileSync",
+              "startMs": 77355.515666,
+              "endMs": 77359.648041,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "close",
+              "startMs": 77359.648958,
+              "endMs": 77359.673875,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "rename",
+              "startMs": 77359.67575,
+              "endMs": 77359.835,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "directorySync",
+              "startMs": 77359.83675,
+              "endMs": 77363.591666,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "verify",
+              "startMs": 77363.592375,
+              "endMs": 77372.750208,
+              "waitOverlapMs": 0
+            }
+          ]
+        }
+      ],
+      "warmup": {
+        "n": 5,
+        "insideTargetRate": 0.6,
+        "judgements": {
+          "injectionOutsideTarget": 2,
+          "callbackDuringTarget": 3
+        },
+        "t0MinusStartMs": {
+          "n": 5,
+          "p50": 36.281,
+          "p99": 37.624,
+          "max": 37.624
+        }
+      },
+      "samples": {
+        "n": 20,
+        "insideTargetRate": 0.6,
+        "judgements": {
+          "injectionOutsideTarget": 8,
+          "callbackDuringTarget": 12
+        },
+        "t0MinusStartMs": {
+          "n": 20,
+          "p50": 37.877,
+          "p99": 47.759,
+          "max": 47.759
+        }
+      },
+      "paintWithoutScreenshot": 2,
+      "injectedToT0Ms": {
+        "n": 20,
+        "p50": 32.462,
+        "p99": 47.019,
+        "max": 47.019
+      },
+      "judged": [
+        {
+          "schemaVersion": "p2-eew-e01-result-v2",
+          "manifestId": "prelim-20260929T122528",
+          "manifestSha256": "cf17c5b9d1d087002d1ce1fa0dc077d99caae89cbf23c8f03e8c5aa26b812791",
+          "resultSha256": "0000000000000000000000000000000000000000000000000000000000000000",
+          "population": "maxForecastCheckpointSave",
+          "scope": "reference",
+          "run": 1,
+          "status": "N/A",
+          "samples": 20,
+          "missing": 0,
+          "traceMissing": 20,
+          "injectionFailures": 0,
+          "injectedToT0P50Ms": 32.462124943733215,
+          "injectedToT0P99Ms": 47.01862496137619,
+          "injectedToT0MaxMs": 47.01862496137619,
+          "p50LowerMs": null,
+          "p50UpperMs": null,
+          "p95LowerMs": null,
+          "p95UpperMs": null,
+          "p99LowerMs": null,
+          "p99UpperMs": null,
+          "maxLowerMs": null,
+          "maxUpperMs": null,
+          "evidenceRefs": []
+        }
+      ]
+    },
+    {
+      "population": "forecastDeadlineOverlap",
+      "run": 1,
+      "records": [
+        {
+          "index": 0,
+          "inputId": "input-1",
+          "outcome": "callbackReached",
+          "t0Ms": 2459.239417,
+          "t1Ms": 2459.529167,
+          "t2Ms": 2460.095542,
+          "judgement": "noTarget"
+        },
+        {
+          "index": 1,
+          "inputId": "input-3",
+          "outcome": "callbackReached",
+          "t0Ms": 7074.762667,
+          "t1Ms": 7074.896417,
+          "t2Ms": 7074.988417,
+          "target": {
+            "startMs": 7069.204292,
+            "endMs": 7069.348625
+          },
+          "injectionInsideTarget": "no",
+          "injectionOffsetFromStartMs": [
+            -3.010499954883926,
+            -2.9689590341495204
+          ],
+          "t0MinusStartMs": 5.558374999999614,
+          "t0AtOrAfterEnd": true,
+          "judgement": "injectionOutsideTarget",
+          "stages": [
+            {
+              "stage": "encode",
+              "startMs": 7069.204292,
+              "endMs": 7069.348625,
+              "waitOverlapMs": 0.1443329999992784
+            },
+            {
+              "stage": "write",
+              "startMs": 7082.923708,
+              "endMs": 7084.915,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "fileSync",
+              "startMs": 7084.920333,
+              "endMs": 7090.082917,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "close",
+              "startMs": 7090.087083,
+              "endMs": 7090.121625,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "rename",
+              "startMs": 7090.123667,
+              "endMs": 7090.241542,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "directorySync",
+              "startMs": 7090.242417,
+              "endMs": 7094.227333,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "verify",
+              "startMs": 7094.228167,
+              "endMs": 7094.428708,
+              "waitOverlapMs": 0
+            }
+          ]
+        },
+        {
+          "index": 2,
+          "inputId": "input-5",
+          "outcome": "callbackReached",
+          "t0Ms": 10075.4695,
+          "t1Ms": 10075.573542,
+          "t2Ms": 10075.7825,
+          "target": {
+            "startMs": 10069.983625,
+            "endMs": 10070.094083
+          },
+          "injectionInsideTarget": "no",
+          "injectionOffsetFromStartMs": [
+            1.5345840401641908,
+            1.5761249608985963
+          ],
+          "t0MinusStartMs": 5.485874999998487,
+          "t0AtOrAfterEnd": true,
+          "judgement": "injectionOutsideTarget",
+          "stages": [
+            {
+              "stage": "encode",
+              "startMs": 10069.983625,
+              "endMs": 10070.094083,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "write",
+              "startMs": 10079.7765,
+              "endMs": 10081.472333,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "fileSync",
+              "startMs": 10081.480792,
+              "endMs": 10086.446458,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "close",
+              "startMs": 10086.461583,
+              "endMs": 10086.59525,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "rename",
+              "startMs": 10086.597208,
+              "endMs": 10087.197292,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "directorySync",
+              "startMs": 10087.19875,
+              "endMs": 10091.562333,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "verify",
+              "startMs": 10091.563917,
+              "endMs": 10091.736792,
+              "waitOverlapMs": 0
+            }
+          ]
+        },
+        {
+          "index": 3,
+          "inputId": "input-7",
+          "outcome": "callbackReached",
+          "t0Ms": 13075.18275,
+          "t1Ms": 13075.257708,
+          "t2Ms": 13075.334625,
+          "target": {
+            "startMs": 13071.923792,
+            "endMs": 13072.027167
+          },
+          "injectionInsideTarget": "no",
+          "injectionOffsetFromStartMs": [
+            0.699917022999216,
+            0.7414579437336215
+          ],
+          "t0MinusStartMs": 3.258958000000348,
+          "t0AtOrAfterEnd": true,
+          "judgement": "injectionOutsideTarget",
+          "stages": [
+            {
+              "stage": "encode",
+              "startMs": 13071.923792,
+              "endMs": 13072.027167,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "write",
+              "startMs": 13078.043583,
+              "endMs": 13078.2745,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "fileSync",
+              "startMs": 13078.277667,
+              "endMs": 13083.4,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "close",
+              "startMs": 13083.402208,
+              "endMs": 13083.428042,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "rename",
+              "startMs": 13083.428708,
+              "endMs": 13083.586417,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "directorySync",
+              "startMs": 13083.587083,
+              "endMs": 13087.293792,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "verify",
+              "startMs": 13087.296625,
+              "endMs": 13087.46525,
+              "waitOverlapMs": 0
+            }
+          ]
+        },
+        {
+          "index": 4,
+          "inputId": "input-9",
+          "outcome": "callbackReached",
+          "t0Ms": 16082.004625,
+          "t1Ms": 16082.279292,
+          "t2Ms": 16082.465958,
+          "target": {
+            "startMs": 16076.72075,
+            "endMs": 16076.838792
+          },
+          "injectionInsideTarget": "no",
+          "injectionOffsetFromStartMs": [
+            -2.256498958588054,
+            -2.2149580378536484
+          ],
+          "t0MinusStartMs": 5.2838749999991705,
+          "t0AtOrAfterEnd": true,
+          "judgement": "injectionOutsideTarget",
+          "stages": [
+            {
+              "stage": "encode",
+              "startMs": 16076.72075,
+              "endMs": 16076.838792,
+              "waitOverlapMs": 0.11804200000005949
+            },
+            {
+              "stage": "write",
+              "startMs": 16086.203667,
+              "endMs": 16086.734417,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "fileSync",
+              "startMs": 16086.74025,
+              "endMs": 16090.995042,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "close",
+              "startMs": 16090.99725,
+              "endMs": 16091.039208,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "rename",
+              "startMs": 16091.041083,
+              "endMs": 16091.2955,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "directorySync",
+              "startMs": 16091.29675,
+              "endMs": 16095.025375,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "verify",
+              "startMs": 16095.038583,
+              "endMs": 16095.421667,
+              "waitOverlapMs": 0
+            }
+          ]
+        },
+        {
+          "index": 5,
+          "inputId": "input-11",
+          "outcome": "callbackReached",
+          "t0Ms": 19085.543667,
+          "t1Ms": 19085.618292,
+          "t2Ms": 19085.691833,
+          "target": {
+            "startMs": 19080.224417,
+            "endMs": 19080.355417
+          },
+          "injectionInsideTarget": "no",
+          "injectionOffsetFromStartMs": [
+            -2.423249988740281,
+            -2.3817090680058755
+          ],
+          "t0MinusStartMs": 5.319250000000466,
+          "t0AtOrAfterEnd": true,
+          "judgement": "injectionOutsideTarget",
+          "stages": [
+            {
+              "stage": "encode",
+              "startMs": 19080.224417,
+              "endMs": 19080.355417,
+              "waitOverlapMs": 0.13099999999758438
+            },
+            {
+              "stage": "write",
+              "startMs": 19091.4935,
+              "endMs": 19091.948042,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "fileSync",
+              "startMs": 19091.952917,
+              "endMs": 19097.019208,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "close",
+              "startMs": 19097.029,
+              "endMs": 19097.08375,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "rename",
+              "startMs": 19097.085208,
+              "endMs": 19097.432917,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "directorySync",
+              "startMs": 19097.435333,
+              "endMs": 19101.218375,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "verify",
+              "startMs": 19101.223167,
+              "endMs": 19101.681833,
+              "waitOverlapMs": 0
+            }
+          ]
+        },
+        {
+          "index": 6,
+          "inputId": "input-13",
+          "outcome": "callbackReached",
+          "t0Ms": 22085.860833,
+          "t1Ms": 22085.953625,
+          "t2Ms": 22086.011333,
+          "target": {
+            "startMs": 22081.599417,
+            "endMs": 22081.687125
+          },
+          "injectionInsideTarget": "no",
+          "injectionOffsetFromStartMs": [
+            0.28070905905406107,
+            0.3222499797884666
+          ],
+          "t0MinusStartMs": 4.261415999997553,
+          "t0AtOrAfterEnd": true,
+          "judgement": "injectionOutsideTarget",
+          "stages": [
+            {
+              "stage": "encode",
+              "startMs": 22081.599417,
+              "endMs": 22081.687125,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "write",
+              "startMs": 22089.587708,
+              "endMs": 22090.152208,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "fileSync",
+              "startMs": 22090.158292,
+              "endMs": 22094.355708,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "close",
+              "startMs": 22094.368042,
+              "endMs": 22094.440083,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "rename",
+              "startMs": 22094.441417,
+              "endMs": 22094.997625,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "directorySync",
+              "startMs": 22095.006333,
+              "endMs": 22099.377125,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "verify",
+              "startMs": 22099.38325,
+              "endMs": 22099.812792,
+              "waitOverlapMs": 0
+            }
+          ]
+        },
+        {
+          "index": 7,
+          "inputId": "input-15",
+          "outcome": "callbackReached",
+          "t0Ms": 25086.286667,
+          "t1Ms": 25086.31375,
+          "t2Ms": 25086.360167,
+          "target": {
+            "startMs": 25084.2975,
+            "endMs": 25084.330167
+          },
+          "injectionInsideTarget": "no",
+          "injectionOffsetFromStartMs": [
+            0.8258340501779458,
+            0.8673749709123513
+          ],
+          "t0MinusStartMs": 1.9891669999997248,
+          "t0AtOrAfterEnd": true,
+          "judgement": "injectionOutsideTarget",
+          "stages": [
+            {
+              "stage": "encode",
+              "startMs": 25084.2975,
+              "endMs": 25084.330167,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "write",
+              "startMs": 25087.908083,
+              "endMs": 25088.776417,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "fileSync",
+              "startMs": 25088.779042,
+              "endMs": 25092.645208,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "close",
+              "startMs": 25092.648542,
+              "endMs": 25092.68275,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "rename",
+              "startMs": 25092.684292,
+              "endMs": 25092.906292,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "directorySync",
+              "startMs": 25092.90775,
+              "endMs": 25096.675625,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "verify",
+              "startMs": 25096.677458,
+              "endMs": 25096.814625,
+              "waitOverlapMs": 0
+            }
+          ]
+        },
+        {
+          "index": 8,
+          "inputId": "input-17",
+          "outcome": "callbackReached",
+          "t0Ms": 28090.264208,
+          "t1Ms": 28090.302875,
+          "t2Ms": 28090.330333,
+          "target": {
+            "startMs": 28088.23175,
+            "endMs": 28088.265042
+          },
+          "injectionInsideTarget": "no",
+          "injectionOffsetFromStartMs": [
+            0.16216702413657913,
+            0.20370794487098465
+          ],
+          "t0MinusStartMs": 2.0324580000014976,
+          "t0AtOrAfterEnd": true,
+          "judgement": "injectionOutsideTarget",
+          "stages": [
+            {
+              "stage": "encode",
+              "startMs": 28088.23175,
+              "endMs": 28088.265042,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "write",
+              "startMs": 28092.257625,
+              "endMs": 28092.483667,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "fileSync",
+              "startMs": 28092.485917,
+              "endMs": 28096.45375,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "close",
+              "startMs": 28096.455958,
+              "endMs": 28096.480042,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "rename",
+              "startMs": 28096.481333,
+              "endMs": 28096.644833,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "directorySync",
+              "startMs": 28096.645542,
+              "endMs": 28100.408208,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "verify",
+              "startMs": 28100.41025,
+              "endMs": 28100.549458,
+              "waitOverlapMs": 0
+            }
+          ]
+        },
+        {
+          "index": 9,
+          "inputId": "input-19",
+          "outcome": "callbackReached",
+          "t0Ms": 31092.287833,
+          "t1Ms": 31092.323417,
+          "t2Ms": 31092.364208,
+          "target": {
+            "startMs": 31089.854,
+            "endMs": 31089.887875
+          },
+          "injectionInsideTarget": "no",
+          "injectionOffsetFromStartMs": [
+            2.207709046364471,
+            2.2492499670988764
+          ],
+          "t0MinusStartMs": 2.43383299999914,
+          "t0AtOrAfterEnd": true,
+          "judgement": "injectionOutsideTarget",
+          "stages": [
+            {
+              "stage": "encode",
+              "startMs": 31089.854,
+              "endMs": 31089.887875,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "write",
+              "startMs": 31092.239917,
+              "endMs": 31093.827958,
+              "waitOverlapMs": 0.04791599999953178
+            },
+            {
+              "stage": "fileSync",
+              "startMs": 31093.829375,
+              "endMs": 31098.193458,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "close",
+              "startMs": 31098.195708,
+              "endMs": 31098.220667,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "rename",
+              "startMs": 31098.221917,
+              "endMs": 31098.354417,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "directorySync",
+              "startMs": 31098.355208,
+              "endMs": 31102.265375,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "verify",
+              "startMs": 31102.268042,
+              "endMs": 31102.412375,
+              "waitOverlapMs": 0
+            }
+          ]
+        },
+        {
+          "index": 10,
+          "inputId": "input-21",
+          "outcome": "callbackReached",
+          "t0Ms": 34096.4065,
+          "t1Ms": 34096.445583,
+          "t2Ms": 34096.479833,
+          "target": {
+            "startMs": 35093.612667,
+            "endMs": 35093.663
+          },
+          "injectionInsideTarget": "no",
+          "injectionOffsetFromStartMs": [
+            -999.9969579932149,
+            -999.9554170724805
+          ],
+          "t0MinusStartMs": -997.2061670000039,
+          "t0AtOrAfterEnd": false,
+          "judgement": "injectionOutsideTarget",
+          "stages": [
+            {
+              "stage": "encode",
+              "startMs": 35093.612667,
+              "endMs": 35093.663,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "write",
+              "startMs": 35095.5375,
+              "endMs": 35095.69025,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "fileSync",
+              "startMs": 35095.691583,
+              "endMs": 35100.558958,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "close",
+              "startMs": 35100.561167,
+              "endMs": 35100.581625,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "rename",
+              "startMs": 35100.58225,
+              "endMs": 35100.722583,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "directorySync",
+              "startMs": 35100.723208,
+              "endMs": 35104.588667,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "verify",
+              "startMs": 35104.589583,
+              "endMs": 35104.636667,
+              "waitOverlapMs": 0
+            }
+          ]
+        },
+        {
+          "index": 11,
+          "inputId": "input-23",
+          "outcome": "callbackReached",
+          "t0Ms": 37098.25875,
+          "t1Ms": 37098.287167,
+          "t2Ms": 37098.315833,
+          "target": {
+            "startMs": 37095.868625,
+            "endMs": 37095.901083
+          },
+          "injectionInsideTarget": "no",
+          "injectionOffsetFromStartMs": [
+            1.7596670241327956,
+            1.8012079448672011
+          ],
+          "t0MinusStartMs": 2.390124999998079,
+          "t0AtOrAfterEnd": true,
+          "judgement": "injectionOutsideTarget",
+          "stages": [
+            {
+              "stage": "encode",
+              "startMs": 37095.868625,
+              "endMs": 37095.901083,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "write",
+              "startMs": 37099.573417,
+              "endMs": 37099.826375,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "fileSync",
+              "startMs": 37099.82875,
+              "endMs": 37103.76625,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "close",
+              "startMs": 37103.767583,
+              "endMs": 37103.790167,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "rename",
+              "startMs": 37103.79175,
+              "endMs": 37103.925958,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "directorySync",
+              "startMs": 37103.92675,
+              "endMs": 37107.770458,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "verify",
+              "startMs": 37107.771333,
+              "endMs": 37107.876958,
+              "waitOverlapMs": 0
+            }
+          ]
+        },
+        {
+          "index": 12,
+          "inputId": "input-25",
+          "outcome": "callbackReached",
+          "t0Ms": 40100.453917,
+          "t1Ms": 40100.52275,
+          "t2Ms": 40100.557792,
+          "target": {
+            "startMs": 40098.502875,
+            "endMs": 40098.535667
+          },
+          "injectionInsideTarget": "no",
+          "injectionOffsetFromStartMs": [
+            1.4839170279519749,
+            1.5254579486863804
+          ],
+          "t0MinusStartMs": 1.951042000000598,
+          "t0AtOrAfterEnd": true,
+          "judgement": "injectionOutsideTarget",
+          "stages": [
+            {
+              "stage": "encode",
+              "startMs": 40098.502875,
+              "endMs": 40098.535667,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "write",
+              "startMs": 40102.07975,
+              "endMs": 40102.337375,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "fileSync",
+              "startMs": 40102.339583,
+              "endMs": 40106.165333,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "close",
+              "startMs": 40106.166833,
+              "endMs": 40106.189417,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "rename",
+              "startMs": 40106.19025,
+              "endMs": 40106.316375,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "directorySync",
+              "startMs": 40106.31725,
+              "endMs": 40110.2295,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "verify",
+              "startMs": 40110.233625,
+              "endMs": 40110.413417,
+              "waitOverlapMs": 0
+            }
+          ]
+        },
+        {
+          "index": 13,
+          "inputId": "input-27",
+          "outcome": "callbackReached",
+          "t0Ms": 43103.001458,
+          "t1Ms": 43103.027042,
+          "t2Ms": 43103.053667,
+          "target": {
+            "startMs": 43101.097083,
+            "endMs": 43101.13
+          },
+          "injectionInsideTarget": "no",
+          "injectionOffsetFromStartMs": [
+            1.3614590489305556,
+            1.402999969664961
+          ],
+          "t0MinusStartMs": 1.9043749999982538,
+          "t0AtOrAfterEnd": true,
+          "judgement": "injectionOutsideTarget",
+          "stages": [
+            {
+              "stage": "encode",
+              "startMs": 43101.097083,
+              "endMs": 43101.13,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "write",
+              "startMs": 43104.29925,
+              "endMs": 43105.027875,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "fileSync",
+              "startMs": 43105.0295,
+              "endMs": 43108.828542,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "close",
+              "startMs": 43108.83175,
+              "endMs": 43108.858542,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "rename",
+              "startMs": 43108.859833,
+              "endMs": 43109.006125,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "directorySync",
+              "startMs": 43109.006792,
+              "endMs": 43112.831375,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "verify",
+              "startMs": 43112.831917,
+              "endMs": 43112.929417,
+              "waitOverlapMs": 0
+            }
+          ]
+        },
+        {
+          "index": 14,
+          "inputId": "input-29",
+          "outcome": "callbackReached",
+          "t0Ms": 46105.455917,
+          "t1Ms": 46105.492125,
+          "t2Ms": 46105.518792,
+          "target": {
+            "startMs": 46103.518542,
+            "endMs": 46103.551
+          },
+          "injectionInsideTarget": "no",
+          "injectionOffsetFromStartMs": [
+            1.0085000312901684,
+            1.050040952024574
+          ],
+          "t0MinusStartMs": 1.9373750000013388,
+          "t0AtOrAfterEnd": true,
+          "judgement": "injectionOutsideTarget",
+          "stages": [
+            {
+              "stage": "encode",
+              "startMs": 46103.518542,
+              "endMs": 46103.551,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "write",
+              "startMs": 46107.612917,
+              "endMs": 46107.96425,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "fileSync",
+              "startMs": 46107.966333,
+              "endMs": 46111.909583,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "close",
+              "startMs": 46111.91325,
+              "endMs": 46111.945958,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "rename",
+              "startMs": 46111.947708,
+              "endMs": 46112.219917,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "directorySync",
+              "startMs": 46112.222583,
+              "endMs": 46115.977625,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "verify",
+              "startMs": 46115.980875,
+              "endMs": 46116.171917,
+              "waitOverlapMs": 0
+            }
+          ]
+        },
+        {
+          "index": 15,
+          "inputId": "input-31",
+          "outcome": "callbackReached",
+          "t0Ms": 49108.389542,
+          "t1Ms": 49108.414708,
+          "t2Ms": 49108.926,
+          "target": {
+            "startMs": 49106.480292,
+            "endMs": 49106.5185
+          },
+          "injectionInsideTarget": "no",
+          "injectionOffsetFromStartMs": [
+            0.3341670258596423,
+            0.3757079465940478
+          ],
+          "t0MinusStartMs": 1.9092499999969732,
+          "t0AtOrAfterEnd": true,
+          "judgement": "injectionOutsideTarget",
+          "stages": [
+            {
+              "stage": "encode",
+              "startMs": 49106.480292,
+              "endMs": 49106.5185,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "write",
+              "startMs": 49110.243542,
+              "endMs": 49110.508417,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "fileSync",
+              "startMs": 49110.510875,
+              "endMs": 49115.010167,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "close",
+              "startMs": 49115.011917,
+              "endMs": 49115.035417,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "rename",
+              "startMs": 49115.036,
+              "endMs": 49115.195458,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "directorySync",
+              "startMs": 49115.197083,
+              "endMs": 49119.472792,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "verify",
+              "startMs": 49119.475875,
+              "endMs": 49119.637792,
+              "waitOverlapMs": 0
+            }
+          ]
+        },
+        {
+          "index": 16,
+          "inputId": "input-33",
+          "outcome": "callbackReached",
+          "t0Ms": 52111.326208,
+          "t1Ms": 52111.388333,
+          "t2Ms": 52111.414667,
+          "target": {
+            "startMs": 52109.378625,
+            "endMs": 52109.410542
+          },
+          "injectionInsideTarget": "no",
+          "injectionOffsetFromStartMs": [
+            -0.24441596317046788,
+            -0.20287504243606236
+          ],
+          "t0MinusStartMs": 1.947583000001032,
+          "t0AtOrAfterEnd": true,
+          "judgement": "injectionOutsideTarget",
+          "stages": [
+            {
+              "stage": "encode",
+              "startMs": 52109.378625,
+              "endMs": 52109.410542,
+              "waitOverlapMs": 0.03191700000024866
+            },
+            {
+              "stage": "write",
+              "startMs": 52113.071583,
+              "endMs": 52113.370833,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "fileSync",
+              "startMs": 52113.373083,
+              "endMs": 52117.390542,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "close",
+              "startMs": 52117.391833,
+              "endMs": 52117.41425,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "rename",
+              "startMs": 52117.414792,
+              "endMs": 52117.554292,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "directorySync",
+              "startMs": 52117.554833,
+              "endMs": 52121.195458,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "verify",
+              "startMs": 52121.196167,
+              "endMs": 52121.302042,
+              "waitOverlapMs": 0
+            }
+          ]
+        },
+        {
+          "index": 17,
+          "inputId": "input-35",
+          "outcome": "callbackReached",
+          "t0Ms": 55115.074083,
+          "t1Ms": 55115.099542,
+          "t2Ms": 55115.157583,
+          "target": {
+            "startMs": 55113.104042,
+            "endMs": 55113.136
+          },
+          "injectionInsideTarget": "no",
+          "injectionOffsetFromStartMs": [
+            -0.4498749439153471,
+            -0.4083340231809416
+          ],
+          "t0MinusStartMs": 1.9700410000004922,
+          "t0AtOrAfterEnd": true,
+          "judgement": "injectionOutsideTarget",
+          "stages": [
+            {
+              "stage": "encode",
+              "startMs": 55113.104042,
+              "endMs": 55113.136,
+              "waitOverlapMs": 0.031957999999576714
+            },
+            {
+              "stage": "write",
+              "startMs": 55116.356667,
+              "endMs": 55116.999917,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "fileSync",
+              "startMs": 55117.001958,
+              "endMs": 55120.985917,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "close",
+              "startMs": 55120.987292,
+              "endMs": 55121.01225,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "rename",
+              "startMs": 55121.013417,
+              "endMs": 55121.146417,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "directorySync",
+              "startMs": 55121.147292,
+              "endMs": 55124.907,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "verify",
+              "startMs": 55124.907833,
+              "endMs": 55125.026417,
+              "waitOverlapMs": 0
+            }
+          ]
+        },
+        {
+          "index": 18,
+          "inputId": "input-37",
+          "outcome": "callbackReached",
+          "t0Ms": 58117.306917,
+          "t1Ms": 58117.345583,
+          "t2Ms": 58117.371667,
+          "target": {
+            "startMs": 58115.35625,
+            "endMs": 58115.388875
+          },
+          "injectionInsideTarget": "no",
+          "injectionOffsetFromStartMs": [
+            0.7610420465498464,
+            0.8025829672842519
+          ],
+          "t0MinusStartMs": 1.9506670000046142,
+          "t0AtOrAfterEnd": true,
+          "judgement": "injectionOutsideTarget",
+          "stages": [
+            {
+              "stage": "encode",
+              "startMs": 58115.35625,
+              "endMs": 58115.388875,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "write",
+              "startMs": 58119.069458,
+              "endMs": 58119.479167,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "fileSync",
+              "startMs": 58119.482167,
+              "endMs": 58123.451,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "close",
+              "startMs": 58123.452583,
+              "endMs": 58123.475667,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "rename",
+              "startMs": 58123.476167,
+              "endMs": 58123.632917,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "directorySync",
+              "startMs": 58123.633417,
+              "endMs": 58127.470208,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "verify",
+              "startMs": 58127.474375,
+              "endMs": 58127.647875,
+              "waitOverlapMs": 0
+            }
+          ]
+        },
+        {
+          "index": 19,
+          "inputId": "input-39",
+          "outcome": "callbackReached",
+          "t0Ms": 61120.144625,
+          "t1Ms": 61120.170792,
+          "t2Ms": 61120.196292,
+          "target": {
+            "startMs": 61118.254708,
+            "endMs": 61118.287083
+          },
+          "injectionInsideTarget": "no",
+          "injectionOffsetFromStartMs": [
+            1.2552090207973379,
+            1.2967499415317434
+          ],
+          "t0MinusStartMs": 1.8899170000004233,
+          "t0AtOrAfterEnd": true,
+          "judgement": "injectionOutsideTarget",
+          "stages": [
+            {
+              "stage": "encode",
+              "startMs": 61118.254708,
+              "endMs": 61118.287083,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "write",
+              "startMs": 61121.354875,
+              "endMs": 61121.98475,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "fileSync",
+              "startMs": 61121.986458,
+              "endMs": 61126.531208,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "close",
+              "startMs": 61126.533125,
+              "endMs": 61126.559333,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "rename",
+              "startMs": 61126.560708,
+              "endMs": 61126.712,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "directorySync",
+              "startMs": 61126.712792,
+              "endMs": 61130.937375,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "verify",
+              "startMs": 61130.938208,
+              "endMs": 61131.05425,
+              "waitOverlapMs": 0
+            }
+          ]
+        },
+        {
+          "index": 20,
+          "inputId": "input-41",
+          "outcome": "callbackReached",
+          "t0Ms": 64122.886667,
+          "t1Ms": 64122.923792,
+          "t2Ms": 64122.949417,
+          "target": {
+            "startMs": 64120.992375,
+            "endMs": 64121.02375
+          },
+          "injectionInsideTarget": "no",
+          "injectionOffsetFromStartMs": [
+            1.346501008985797,
+            1.3880419297202025
+          ],
+          "t0MinusStartMs": 1.8942919999972219,
+          "t0AtOrAfterEnd": true,
+          "judgement": "injectionOutsideTarget",
+          "stages": [
+            {
+              "stage": "encode",
+              "startMs": 64120.992375,
+              "endMs": 64121.02375,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "write",
+              "startMs": 64124.293667,
+              "endMs": 64124.645167,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "fileSync",
+              "startMs": 64124.647542,
+              "endMs": 64129.569042,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "close",
+              "startMs": 64129.570667,
+              "endMs": 64129.598,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "rename",
+              "startMs": 64129.599083,
+              "endMs": 64129.748292,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "directorySync",
+              "startMs": 64129.749167,
+              "endMs": 64133.582667,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "verify",
+              "startMs": 64133.583375,
+              "endMs": 64133.793625,
+              "waitOverlapMs": 0
+            }
+          ]
+        },
+        {
+          "index": 21,
+          "inputId": "input-43",
+          "outcome": "callbackReached",
+          "t0Ms": 67125.922708,
+          "t1Ms": 67125.949958,
+          "t2Ms": 67125.975125,
+          "target": {
+            "startMs": 67123.96125,
+            "endMs": 67123.994292
+          },
+          "injectionInsideTarget": "no",
+          "injectionOffsetFromStartMs": [
+            0.8727920126984827,
+            0.9143329334328882
+          ],
+          "t0MinusStartMs": 1.9614580000052229,
+          "t0AtOrAfterEnd": true,
+          "judgement": "injectionOutsideTarget",
+          "stages": [
+            {
+              "stage": "encode",
+              "startMs": 67123.96125,
+              "endMs": 67123.994292,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "write",
+              "startMs": 67127.339792,
+              "endMs": 67128.126792,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "fileSync",
+              "startMs": 67128.129042,
+              "endMs": 67132.622833,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "close",
+              "startMs": 67132.624542,
+              "endMs": 67132.681667,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "rename",
+              "startMs": 67132.682292,
+              "endMs": 67132.865708,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "directorySync",
+              "startMs": 67132.866833,
+              "endMs": 67137.099958,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "verify",
+              "startMs": 67137.101583,
+              "endMs": 67137.24225,
+              "waitOverlapMs": 0
+            }
+          ]
+        },
+        {
+          "index": 22,
+          "inputId": "input-45",
+          "outcome": "callbackReached",
+          "t0Ms": 70128.796583,
+          "t1Ms": 70128.8345,
+          "t2Ms": 70128.862833,
+          "target": {
+            "startMs": 70126.771,
+            "endMs": 70126.804458
+          },
+          "injectionInsideTarget": "no",
+          "injectionOffsetFromStartMs": [
+            0.7652510085172253,
+            0.8067919292516308
+          ],
+          "t0MinusStartMs": 2.0255830000096466,
+          "t0AtOrAfterEnd": true,
+          "judgement": "injectionOutsideTarget",
+          "stages": [
+            {
+              "stage": "encode",
+              "startMs": 70126.771,
+              "endMs": 70126.804458,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "write",
+              "startMs": 70130.228042,
+              "endMs": 70130.5175,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "fileSync",
+              "startMs": 70130.521958,
+              "endMs": 70134.1075,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "close",
+              "startMs": 70134.10975,
+              "endMs": 70134.135667,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "rename",
+              "startMs": 70134.137875,
+              "endMs": 70134.288042,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "directorySync",
+              "startMs": 70134.288833,
+              "endMs": 70138.085,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "verify",
+              "startMs": 70138.085833,
+              "endMs": 70138.182875,
+              "waitOverlapMs": 0
+            }
+          ]
+        },
+        {
+          "index": 23,
+          "inputId": "input-47",
+          "outcome": "callbackReached",
+          "t0Ms": 73131.328042,
+          "t1Ms": 73131.353875,
+          "t2Ms": 73131.38075,
+          "target": {
+            "startMs": 73129.413208,
+            "endMs": 73129.446208
+          },
+          "injectionInsideTarget": "no",
+          "injectionOffsetFromStartMs": [
+            0.8859590370120713,
+            0.9274999577464769
+          ],
+          "t0MinusStartMs": 1.9148339999956079,
+          "t0AtOrAfterEnd": true,
+          "judgement": "injectionOutsideTarget",
+          "stages": [
+            {
+              "stage": "encode",
+              "startMs": 73129.413208,
+              "endMs": 73129.446208,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "write",
+              "startMs": 73132.65125,
+              "endMs": 73133.321208,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "fileSync",
+              "startMs": 73133.323542,
+              "endMs": 73137.203458,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "close",
+              "startMs": 73137.205417,
+              "endMs": 73137.226917,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "rename",
+              "startMs": 73137.227542,
+              "endMs": 73137.367542,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "directorySync",
+              "startMs": 73137.368208,
+              "endMs": 73141.331667,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "verify",
+              "startMs": 73141.33275,
+              "endMs": 73141.458583,
+              "waitOverlapMs": 0
+            }
+          ]
+        },
+        {
+          "index": 24,
+          "inputId": "input-49",
+          "outcome": "callbackReached",
+          "t0Ms": 76134.68675,
+          "t1Ms": 76134.725917,
+          "t2Ms": 76134.7535,
+          "target": {
+            "startMs": 76132.711208,
+            "endMs": 76132.745542
+          },
+          "injectionInsideTarget": "no",
+          "injectionOffsetFromStartMs": [
+            0.6715430476178881,
+            0.7130839683522936
+          ],
+          "t0MinusStartMs": 1.9755420000001322,
+          "t0AtOrAfterEnd": true,
+          "judgement": "injectionOutsideTarget",
+          "stages": [
+            {
+              "stage": "encode",
+              "startMs": 76132.711208,
+              "endMs": 76132.745542,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "write",
+              "startMs": 76136.243208,
+              "endMs": 76136.538292,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "fileSync",
+              "startMs": 76136.540125,
+              "endMs": 76140.065417,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "close",
+              "startMs": 76140.066708,
+              "endMs": 76140.094667,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "rename",
+              "startMs": 76140.095792,
+              "endMs": 76140.251417,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "directorySync",
+              "startMs": 76140.252125,
+              "endMs": 76144.124125,
+              "waitOverlapMs": 0
+            },
+            {
+              "stage": "verify",
+              "startMs": 76144.127125,
+              "endMs": 76144.265708,
+              "waitOverlapMs": 0
+            }
+          ]
+        }
+      ],
+      "warmup": {
+        "n": 5,
+        "insideTargetRate": 0,
+        "judgements": {
+          "noTarget": 1,
+          "injectionOutsideTarget": 4
+        },
+        "t0MinusStartMs": {
+          "n": 4,
+          "p50": 5.284,
+          "p99": 5.558,
+          "max": 5.558
+        }
+      },
+      "samples": {
+        "n": 20,
+        "insideTargetRate": 0,
+        "judgements": {
+          "injectionOutsideTarget": 20
+        },
+        "t0MinusStartMs": {
+          "n": 20,
+          "p50": 1.951,
+          "p99": 5.319,
+          "max": 5.319
+        }
+      },
+      "paintWithoutScreenshot": 0,
+      "injectedToT0Ms": {
+        "n": 20,
+        "p50": 1.163,
+        "p99": 7.743,
+        "max": 7.743
+      },
+      "judged": [
+        {
+          "schemaVersion": "p2-eew-e01-result-v2",
+          "manifestId": "prelim-20260929T122528",
+          "manifestSha256": "cf17c5b9d1d087002d1ce1fa0dc077d99caae89cbf23c8f03e8c5aa26b812791",
+          "resultSha256": "0000000000000000000000000000000000000000000000000000000000000000",
+          "population": "forecastDeadlineOverlap",
+          "scope": "reference",
+          "run": 1,
+          "status": "N/A",
+          "samples": 20,
+          "missing": 0,
+          "traceMissing": 20,
+          "injectionFailures": 0,
+          "injectedToT0P50Ms": 1.1633329391479492,
+          "injectedToT0P99Ms": 7.742500007152557,
+          "injectedToT0MaxMs": 7.742500007152557,
+          "p50LowerMs": null,
+          "p50UpperMs": null,
+          "p95LowerMs": null,
+          "p95UpperMs": null,
+          "p99LowerMs": null,
+          "p99UpperMs": null,
+          "maxLowerMs": null,
+          "maxUpperMs": null,
+          "evidenceRefs": []
+        }
+      ]
+    }
+  ],
+  "cause": {
+    "cause": "none",
+    "decision": "notEvaluated",
+    "evidenceRefs": [],
+    "attemptedFixes": []
+  },
+  "runs": [
+    {
+      "label": "fixedBacklog-run1",
+      "durationMs": 167473.86320900917,
+      "trials": 120,
+      "msPerTrial": 1395.616,
+      "traceBytes": 5330758,
+      "traceBlocks": 2,
+      "dataLoss": false,
+      "channels": {
+        "desktop": "available",
+        "sound": "available"
+      },
+      "notification": "silent",
+      "paintWithoutScreenshot": 11,
+      "hostExit": {
+        "code": 0,
+        "signal": null
+      }
+    },
+    {
+      "label": "maxVpws50DecodeStarted-run1",
+      "durationMs": 76595.67916703224,
+      "trials": 25,
+      "msPerTrial": 3063.827,
+      "traceBytes": 3131492,
+      "traceBlocks": 1,
+      "dataLoss": false,
+      "channels": {
+        "desktop": "available",
+        "sound": "available"
+      },
+      "notification": "silent",
+      "paintWithoutScreenshot": 0,
+      "hostExit": {
+        "code": 0,
+        "signal": null
+      }
+    },
+    {
+      "label": "maxWeatherCheckpointEncodeStarted-run1",
+      "durationMs": 80188.02195900679,
+      "trials": 25,
+      "msPerTrial": 3207.521,
+      "traceBytes": 4137238,
+      "traceBlocks": 1,
+      "dataLoss": false,
+      "channels": {
+        "desktop": "available",
+        "sound": "available"
+      },
+      "notification": "silent",
+      "paintWithoutScreenshot": 2,
+      "hostExit": {
+        "code": 0,
+        "signal": null
+      }
+    },
+    {
+      "label": "maxForecastCheckpointSave-run1",
+      "durationMs": 79034.84516602755,
+      "trials": 25,
+      "msPerTrial": 3161.394,
+      "traceBytes": 3555531,
+      "traceBlocks": 1,
+      "dataLoss": false,
+      "channels": {
+        "desktop": "available",
+        "sound": "available"
+      },
+      "notification": "silent",
+      "paintWithoutScreenshot": 2,
+      "hostExit": {
+        "code": 0,
+        "signal": null
+      }
+    },
+    {
+      "label": "forecastDeadlineOverlap-run1",
+      "durationMs": 77860.15133398771,
+      "trials": 25,
+      "msPerTrial": 3114.406,
+      "traceBytes": 4167853,
+      "traceBlocks": 1,
+      "dataLoss": false,
+      "channels": {
+        "desktop": "available",
+        "sound": "available"
+      },
+      "notification": "silent",
+      "paintWithoutScreenshot": 0,
+      "hostExit": {
+        "code": 0,
+        "signal": null
+      }
+    }
+  ],
+  "notificationProbeNote": "silent stub による probe（spawn の相手を /usr/bin/true に替えた結果）で、実 backend の結果ではない"
+}
