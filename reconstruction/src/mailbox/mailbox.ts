@@ -224,16 +224,15 @@ class Mailbox {
     return this.stats(nowMonotonicMs);
   }
 
+  isStalled(nowMonotonicMs: number): boolean {
+    return this.stalledDurationMs(nowMonotonicMs) != null;
+  }
+
   drainDiagnostics(nowMonotonicMs: number): DiagnosticDetails[] {
     if (this.initialProgress != null) {
-      const all = this.entries();
-      let progress = Math.max(this.initialProgress, this.lastProgress ?? this.initialProgress);
-      if (all.length > 0 && all.every(({ envelope }) => envelope.payload.kind === "control"
-        && envelope.payload.control.kind === "deadline")) {
-        progress = Math.max(progress, this.stats(nowMonotonicMs).nextDeadlineMonotonicMs!);
-      }
-      if (!this.stalledReported && all.length > 0 && nowMonotonicMs - progress >= 5_000) {
-        this.diagnose("mailboxStalled", "mailbox", nowMonotonicMs - progress);
+      const stalledMs = this.stalledDurationMs(nowMonotonicMs);
+      if (!this.stalledReported && stalledMs != null) {
+        this.diagnose("mailboxStalled", "mailbox", stalledMs);
         this.stalledReported = true;
       }
       const response = Math.max(this.initialProgress, this.lastWorkerResponse ?? this.initialProgress);
@@ -252,6 +251,19 @@ class Mailbox {
       this.droppedDiagnostics = 0;
     }
     return this.diagnostics.splice(0);
+  }
+
+  // AC05 stalled predicate shared by drainDiagnostics (reports) and isStalled (read-only).
+  private stalledDurationMs(nowMonotonicMs: number): number | null {
+    if (this.initialProgress == null) return null;
+    const all = this.entries();
+    if (all.length === 0) return null;
+    let progress = Math.max(this.initialProgress, this.lastProgress ?? this.initialProgress);
+    if (all.every(({ envelope }) => envelope.payload.kind === "control"
+      && envelope.payload.control.kind === "deadline")) {
+      progress = Math.max(progress, this.stats(nowMonotonicMs).nextDeadlineMonotonicMs!);
+    }
+    return nowMonotonicMs - progress >= 5_000 ? nowMonotonicMs - progress : null;
   }
 
   private diagnose(reason: "mailboxRejectedDraining" | "mailboxRejectedItemLimit" | "mailboxRejectedByteLimit"

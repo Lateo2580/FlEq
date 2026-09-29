@@ -39,7 +39,7 @@ import type { CheckpointFileSystem, CodecMap, Correlation } from "../checkpoint/
 import { PersistentDiagnosticSink, projectParserDiagnostic } from "../checkpoint/persistent-diagnostic-sink";
 import type { DiagnosticFileSystem } from "../checkpoint/persistent-diagnostic-sink";
 import { Mailbox } from "../mailbox/mailbox";
-import { abortNotificationAttempt, probeDesktopBackend, probeSoundBackend, runNotificationAttempt } from "../notification-delivery/adapter";
+import { abortNotificationAttempt, probeDesktopBackend, probeSoundBackend, resolveRepoPath, runNotificationAttempt } from "../notification-delivery/adapter";
 import { applyNotificationResult, selectNotificationAttempt } from "../notification-delivery/notification-delivery";
 import { eewUnitCodec, reduceEewUnit, toEewView } from "../units/eew/eew-unit";
 import { reduceWeatherCurrentUnit, toWeatherCurrentView, weatherCurrentUnitCodec } from "../units/weather-current/weather-current-unit";
@@ -217,6 +217,8 @@ class RuntimeCompositionRoot {
   // acceptedThroughSequence of the open loss; a later parser input sequence means the transport delivers again.
   private lostThroughSequence: number | null = null;
   private lastInputAt: number | null = null;
+  // The snapshot carries the worker view of the last state change; /healthz and heartbeat carry the latest one.
+  private snapshotWorker: DisplayWorkerView = { state: "healthy", lastProgressAtMonotonicMs: null, lastResponseAtMonotonicMs: null };
   private readonly display: CompositionOptions["display"];
   private streamId = "";
   private projection: SnapshotProjectionState | null = null;
@@ -259,7 +261,7 @@ class RuntimeCompositionRoot {
     let directory: string | null = null;
     try {
       directory = await fileSystem.mkdtemp(join(tmpdir(), "fleq-p2-probe-"));
-      const silent = Buffer.from(readFileSync("reconstruction/assets/sounds/weather-info.wav"));
+      const silent = Buffer.from(readFileSync(resolveRepoPath("reconstruction/assets/sounds/weather-info.wav")));
       silent.fill(0, 44);
       const path = join(directory, "silent.wav");
       await fileSystem.writeFile(path, silent);
@@ -324,7 +326,6 @@ class RuntimeCompositionRoot {
       this.lostThroughSequence = input.acceptedThroughSequence;
     }
     if (input.kind === "mailboxCompleted" && input.completion.kind === "parser") {
-      this.lastInputAt = input.clock.wallTimeMs;
       // A1 ignores an old run's completion, so it cannot end reconnecting either.
       if (this.lostThroughSequence != null && input.completion.runId === previous.runId
         && input.completion.inputSequence > this.lostThroughSequence)
@@ -347,9 +348,9 @@ class RuntimeCompositionRoot {
   // P2-A3-A8-LINK: every step is projected; rejected/unchanged states are kept, only projected is published.
   private project(step: RuntimeStep, clock: ClockReading): void {
     const { state } = step;
-    // Decision 9 fallback: stalled/unresponsive stay with the mailbox's own judgement until a host wires it.
-    const worker: DisplayWorkerView = { state: state.shutdown.stage === "completed" ? "stopped" : "healthy",
-      lastProgressAtMonotonicMs: null, lastResponseAtMonotonicMs: null };
+    // P2-A10-AC13: the host maps the mailbox judgement in; only shutdown completion is decided here.
+    const stopped = state.shutdown.stage === "completed";
+    const worker: DisplayWorkerView = stopped ? { ...this.snapshotWorker, state: "stopped" } : this.snapshotWorker;
     const result = projectSnapshot(snapshotInput(step, this.streamId, clock.wallTimeMs,
       this.connectionView(state), worker), this.projection);
     this.projection = result.state;
@@ -358,7 +359,7 @@ class RuntimeCompositionRoot {
     if (display != null) {
       // A display callback failure surfaces like a notification dispatch failure, after state is adopted.
       const guard = (call: () => void) => { try { call(); } catch (error) { void Promise.reject(error); } };
-      guard(() => display.setWorker?.(worker));
+      if (stopped) guard(() => display.setWorker?.(worker));
       if (result.kind === "projected") {
         const { streamId, semanticRevision, sequence } = result.snapshot;
         guard(() => display.onMarker?.({ point: "T3", clock: "node", monotonicMs: performance.now() },
@@ -381,6 +382,17 @@ class RuntimeCompositionRoot {
     }, Math.min(Math.max(delay, 0), 2 ** 31 - 1));
     this.noticeTimer.unref();
   }
+
+  // P2-A10-AC13: true when the state changed, so the host can emit the heartbeat at once.
+  setWorker(view: DisplayWorkerView): boolean {
+    const changed = view.state !== this.snapshotWorker.state;
+    if (changed) this.snapshotWorker = view;
+    try { this.display?.setWorker?.(view); } catch (error) { void Promise.reject(error); }
+    return changed;
+  }
+
+  // P2-A10-AC13: lastInputAt is the wall clock at the WS receive callback, rejected inputs included.
+  recordInput(wallTimeMs: number): void { this.lastInputAt = wallTimeMs; }
 
   private connectionView(state: RuntimeState): DisplayConnectionView {
     return { state: state.shutdown.stage !== "running" ? "stopped" : this.lostThroughSequence == null ? "connected" : "reconnecting",
@@ -515,6 +527,28 @@ class RuntimeCompositionRoot {
     this.checkpointOperation = tracked;
     void tracked.result.catch(() => { if (this.checkpointOperation === tracked) this.checkpointOperation = null; });
     return output;
+  }
+
+  // P2-A10-AC12: one save attempt for the earliest dirty unit; the host calls it on every tick.
+  async driveCheckpoint(): Promise<void> {
+    const current = this.state;
+    if (current.shutdown.stage !== "running" || this.checkpointOperation != null) return;
+    // An uncertain unit is never a save candidate: reconcile it on every due tick until it is acknowledged.
+    const now = this.clock();
+    for (const unit of ["U-E", "U-W", "U-F"] as const) {
+      const attempt = current.checkpointAttempts[unit];
+      if (current.units[unit].persistence.kind !== "uncertain" || attempt == null
+        || now.monotonicMs < (this.checkpoint.retryAfter(unit) ?? -Infinity)) continue;
+      await this.resolveUncertain(current, unit, attempt.attemptId, now);
+      return;
+    }
+    const correlations = this.knownCorrelations(current);
+    const scheduled = this.scheduleCheckpoint(current, this.clock(), current.runId, correlations);
+    if (scheduled == null) return;
+    if (scheduled.request == null) { this.applyCheckpointResult(this.state, scheduled.result, this.clock()); return; }
+    const correlation = correlations[scheduled.capture.unit]!;
+    const executed = await this.executeCheckpoint(scheduled.request, current.runId, correlation.inputIds, correlation.retryReason);
+    this.applyCheckpointResult(this.state, executed.result, this.clock());
   }
 
   applyCheckpointResult(state: RuntimeState, result: CheckpointResult, clock: ClockReading): RuntimeStep {

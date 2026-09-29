@@ -1,8 +1,18 @@
 import * as childProcess from "node:child_process";
 import { existsSync } from "node:fs";
-import { resolve } from "node:path";
+import { dirname, join, resolve } from "node:path";
 import type { ClockReading, NotificationResult } from "../../contracts/p2-shared-runtime.types";
 import type { NotificationAbortRequest, NotificationAttempt, NotificationChannel, NotificationChannelState } from "../../contracts/p2-notification-delivery.types";
+
+// P2-A10-AC12: without a base resolved once, a start outside the repo root loses the WAV and the probe reports sound unavailable.
+// The nearest ancestor of this module holding reconstruction/assets works from both src/ and the compiled dist/ layout.
+const repoRoot = (() => {
+  for (let directory = __dirname; ; directory = dirname(directory)) {
+    if (existsSync(join(directory, "reconstruction", "assets", "sounds"))) return directory;
+    if (dirname(directory) === directory) return process.cwd();
+  }
+})();
+function resolveRepoPath(path: string): string { return resolve(repoRoot, path); }
 
 type StopObservation = Readonly<{ attemptId: string; stopped: boolean; completedAt: ClockReading }>;
 type Active = {
@@ -27,7 +37,7 @@ function commands(attempt: NotificationAttempt, probeWav?: string): readonly (re
     if (process.platform === "linux") return [["/usr/bin/notify-send", ["--expire-time=10000", "--", title, body]]];
   } else {
     if (attempt.soundAsset == null) throw new RangeError("missing sound asset");
-    const wav = resolve(probeWav ?? attempt.soundAsset);
+    const wav = resolveRepoPath(probeWav ?? attempt.soundAsset);
     if (process.platform === "darwin") return [["/usr/bin/afplay", [wav]]];
     if (process.platform === "linux") return [
       ["/usr/bin/ffplay", ["-nodisp", "-autoexit", "-loglevel", "quiet", wav]],
@@ -164,4 +174,4 @@ async function probeSoundBackend(silentWavPath: string, clock: () => ClockReadin
   try { return await run; } finally { clearTimeout(timer); }
 }
 
-export { runNotificationAttempt, abortNotificationAttempt, probeDesktopBackend, probeSoundBackend };
+export { runNotificationAttempt, abortNotificationAttempt, probeDesktopBackend, probeSoundBackend, resolveRepoPath };

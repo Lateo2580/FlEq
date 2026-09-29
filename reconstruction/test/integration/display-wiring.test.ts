@@ -234,6 +234,8 @@ describe("P2-A3-A8-LINK composition root display wiring", () => {
     const restarted = stream.snapshots.at(-1)!;
     expect(restarted).toMatchObject({ sequence: 1, recovery: { "U-W": { kind: "restored" } } });
     const followUp = decode("15_16_02_251222_VPWW57", "VPWW57", (xml) => atTime(xml, "2020-06-22T23:01:00+09:00"), "follow-up");
+    // P2-A10-AC13: lastInputAt is set at the receive callback (the host), no longer at parser completion.
+    second.root.recordInput(second.clock().wallTimeMs);
     parse(second.root, followUp, second.clock());
     await until(() => stream.snapshots.at(-1)!.sequence === 2);
     expect(stream.snapshots.at(-1)).toMatchObject({ streamId: restarted.streamId,
