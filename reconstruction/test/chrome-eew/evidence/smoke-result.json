@@ -1,6 +1,6 @@
 {
   "schemaVersion": "p2-a9-chrome-smoke-evidence-v1",
-  "ranAt": "2026-09-29T00:01:18.855Z",
+  "ranAt": "2026-09-29T00:07:32.075Z",
   "conditions": {
     "file": "reconstruction/test/eew-e01/evidence/chrome-smoke-conditions.json",
     "conditionsSha256": "07d16d81e410ed293776bcf314580cf7264b178cc018c329de927ecc03f2b1d9"
@@ -315,7 +315,7 @@
       "detail": {
         "t5": [
           {
-            "startTime": 118.80000001192093,
+            "startTime": 64.59999999403954,
             "detail": {
               "name": "fleq:p2:eew:T5",
               "displayVersion": {
@@ -328,7 +328,7 @@
         ],
         "t6": [
           {
-            "startTime": 119.40000000596046,
+            "startTime": 65.09999999403954,
             "detail": {
               "name": "fleq:p2:eew:T6-candidate",
               "displayVersion": {
@@ -374,8 +374,8 @@
       "evidence": "CDP応答 (Runtime.evaluate)",
       "detail": {
         "probeId": "smoke-probe-1",
-        "chromeReceivedMonotonicMs": 264,
-        "chromeSentMonotonicMs": 264
+        "chromeReceivedMonotonicMs": 194.59999999403954,
+        "chromeSentMonotonicMs": 194.59999999403954
       }
     },
     {
@@ -522,7 +522,7 @@
       "detail": {
         "t6": [
           {
-            "startTime": 396.5,
+            "startTime": 373.09999999403954,
             "detail": {
               "name": "fleq:p2:eew:T6-candidate",
               "displayVersion": {
@@ -974,7 +974,7 @@
       "evidence": "EventSource観測log・DOM・performance entry",
       "detail": {
         "lastValidEvent": {
-          "t": 2893.300000011921,
+          "t": 3052.5,
           "kind": "heartbeat",
           "id": 1
         },
@@ -1002,21 +1002,21 @@
       "evidence": "EventSource観測log・DOM・server clientCount",
       "detail": {
         "lastValidEvent": {
-          "t": 2893.300000011921,
+          "t": 3052.5,
           "kind": "heartbeat",
           "id": 1
         },
         "closed": {
-          "t": 60019.60000002384,
+          "t": 60016.69999998808,
           "kind": "close",
           "id": 1
         },
         "reopened": {
-          "t": 60019.70000001788,
+          "t": 60016.69999998808,
           "kind": "new",
           "id": 2
         },
-        "gapMs": 57126.30000001192,
+        "gapMs": 56964.19999998808,
         "bannerWhileInvalid": "更新未確認の最終情報",
         "after": {
           "heads": [
@@ -1044,20 +1044,20 @@
         ],
         "slotsHeld": 8,
         "closedBy503": {
-          "t": 63309.60000002384,
+          "t": 63469.09999999404,
           "kind": "error",
           "id": 2,
           "readyState": 2
         },
         "reopenedAfterSlotsFreed": {
-          "t": 75020.30000001192,
+          "t": 75017.79999998212,
           "kind": "new",
           "id": 3
         },
         "publishedSequence": 42,
         "delivered": [
           {
-            "t": 75116.70000001788,
+            "t": 75078.19999998808,
             "kind": "snapshot",
             "id": 3
           }
@@ -1077,134 +1077,134 @@
       "evidence": "visibilitychange dispatch内の観測・EventSource観測log",
       "detail": {
         "lastEvent": {
-          "t": 82522.60000002384,
+          "t": 82519.59999999404,
           "kind": "snapshot",
           "id": 3
         },
-        "thresholdAt": 127522.60000002384,
-        "nextPeriodicTickAt": 135019.60000002384,
+        "thresholdAt": 127519.59999999404,
+        "nextPeriodicTickAt": 135016.69999998808,
         "bannerBefore": "",
         "before": {
           "phase": "before",
-          "t": 129031.10000002384,
+          "t": 129029.89999997616,
           "banner": "",
           "logLength": 76
         },
         "after": {
           "phase": "after",
-          "t": 129031.30000001192,
+          "t": 129030.19999998808,
           "banner": "更新未確認の最終情報",
           "logLength": 78
         },
         "events": [
           {
-            "t": 82524.60000002384,
+            "t": 82522.39999997616,
             "kind": "error",
             "id": 3,
             "readyState": 0
           },
           {
-            "t": 85536.10000002384,
+            "t": 85532.79999998212,
             "kind": "error",
             "id": 3,
             "readyState": 0
           },
           {
-            "t": 88547.70000001788,
+            "t": 88541.89999997616,
             "kind": "error",
             "id": 3,
             "readyState": 0
           },
           {
-            "t": 91553.5,
+            "t": 91552.89999997616,
             "kind": "error",
             "id": 3,
             "readyState": 0
           },
           {
-            "t": 94564.30000001192,
+            "t": 94561.5,
             "kind": "error",
             "id": 3,
             "readyState": 0
           },
           {
-            "t": 97575.20000001788,
+            "t": 97572.5,
             "kind": "error",
             "id": 3,
             "readyState": 0
           },
           {
-            "t": 100586.10000002384,
+            "t": 100583,
             "kind": "error",
             "id": 3,
             "readyState": 0
           },
           {
-            "t": 103596.60000002384,
+            "t": 103592.39999997616,
             "kind": "error",
             "id": 3,
             "readyState": 0
           },
           {
-            "t": 106607.60000002384,
+            "t": 106602.89999997616,
             "kind": "error",
             "id": 3,
             "readyState": 0
           },
           {
-            "t": 109617.90000000596,
+            "t": 109613.5,
             "kind": "error",
             "id": 3,
             "readyState": 0
           },
           {
-            "t": 112628.20000001788,
+            "t": 112622.89999997616,
             "kind": "error",
             "id": 3,
             "readyState": 0
           },
           {
-            "t": 115638.80000001192,
+            "t": 115632.59999999404,
             "kind": "error",
             "id": 3,
             "readyState": 0
           },
           {
-            "t": 118648.10000002384,
+            "t": 118643.19999998808,
             "kind": "error",
             "id": 3,
             "readyState": 0
           },
           {
-            "t": 121657.20000001788,
+            "t": 121653.59999999404,
             "kind": "error",
             "id": 3,
             "readyState": 0
           },
           {
-            "t": 124667.30000001192,
+            "t": 124663.79999998212,
             "kind": "error",
             "id": 3,
             "readyState": 0
           },
           {
-            "t": 127678,
+            "t": 127673.69999998808,
             "kind": "error",
             "id": 3,
             "readyState": 0
           },
           {
-            "t": 129031.10000002384,
+            "t": 129030,
             "kind": "close",
             "id": 3
           },
           {
-            "t": 129031.20000001788,
+            "t": 129030.09999999404,
             "kind": "new",
             "id": 4
           },
           {
-            "t": 129034.10000002384,
+            "t": 129032.19999998808,
             "kind": "error",
             "id": 4,
             "readyState": 0

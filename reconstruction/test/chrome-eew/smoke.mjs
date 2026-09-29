@@ -641,7 +641,7 @@ async function checkStaleReconnect() {
   const log = await evaluate("window.__smoke.log");
   if (closed == null) {
     check("P2-A9-T06:b:staleReconnect", false, "EventSource観測log", { reason: "no close within 80 s", log: log.slice(logStart) });
-    await server.close();
+    await closeServer("staleReconnect");
     server = await startServer(port);
     return null;
   }
@@ -649,7 +649,7 @@ async function checkStaleReconnect() {
   const invalidDetail = { lastValidEvent: last, invalidReceived: invalidReceived.length, t5Before,
     t5After: (await marks(T5)).length, cardsBefore, cardsAfter: await texts("#cards .eew-card-head") };
   // 再接続先を落としてから再起動し、503の枠取りへ進む。
-  await server.close();
+  await closeServer("afterInvalid");
   const reopened = log.find((e) => e.kind === "new" && e.t >= closed.t);
   // 503で閉じた接続からの回復: 再起動直後にA8の同時接続上限 (http-sse.ts:21 CLIENT_LIMIT=8) をsmoke側の接続で埋め、
   // pageの再試行を503にしてEventSourceをCLOSEDにする。枠を空けた後、stale中の周期検査が張り直すことを見る。
@@ -707,8 +707,7 @@ async function checkForegroundImmediate(tickPhase) {
   await sleep((7_500 - phase + 15_000) % 15_000);
   await publish(withCurrent(S45, [CUR45], "smoke:beforeHidden"));
   const port = server.port;
-  await server.close();
-  server = null;
+  await closeServer("beforeHidden");
   const log = await evaluate("window.__smoke.log");
   const last = lastEventBefore(log, Number.POSITIVE_INFINITY);
   const target = last.t + 45_000 + 1_500;
@@ -858,6 +857,16 @@ async function main() {
   await checkMarkNamesOnly();
 }
 
+// A8 server.close の期限。超過したら Blocked を記録して先へ進み、残った接続は末尾の process.exit で解放する
+// (A8 は http.Server を公開しないので、smoke から個々の接続を強制解放できない)。
+async function closeServer(label) {
+  const current = server;
+  server = null;
+  if (current == null) return;
+  const closed = await Promise.race([current.close().then(() => true, () => true), sleep(5_000).then(() => false)]);
+  if (!closed) record(`P2-A9-smoke:serverClose:${label}`, "Blocked", "-", { reason: "A8 server.close did not finish within 5 s" });
+}
+
 async function teardown() {
   try { await browser?.send("Browser.close", {}, 5_000); } catch { /* 下のpid指定killへ */ }
   browser?.close();
@@ -868,7 +877,7 @@ async function teardown() {
       try { process.kill(chrome.pid, "SIGKILL"); } catch { /* 既に終了している */ }
     }
   }
-  try { await Promise.race([server?.close(), sleep(5_000)]); } catch { /* 既に閉じている */ }
+  await closeServer("teardown");
   if (profileDir != null) rmSync(profileDir, { recursive: true, force: true });
 }
 
@@ -891,4 +900,5 @@ try {
   process.stdout.write(`${JSON.stringify({ total: results.length, notPass: failed.map((r) => `${r.id}=${r.status}`) })}\n`);
   exitCode = failed.length === 0 ? 0 : 1;
 }
-process.exitCode = exitCode;
+// 期限切れで残った接続・timer があっても、証拠を書いた後は必ず終える。
+process.exit(exitCode);
