@@ -356,4 +356,4 @@ function classifyEewCause(
   return { cause, decision: cause === "xmlParse" ? "requireParseWorkerB" : "fixNonParseCause", evidenceRefs: refs, attemptedFixes: [] };
 }
 
-export { quantiles, summarizeEewE01, summarizeHealthE02, classifyEewCause };
+export { quantiles, summarizeEewE01, summarizeHealthE02, classifyEewCause, checkpointJoinProblem };
