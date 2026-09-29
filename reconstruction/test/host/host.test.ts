@@ -235,16 +235,21 @@ describe("P2-A10-T06 host wiring (AC12, AC13)", () => {
     const observations: P2HostObservation[] = [];
     const host = await start(server.url, dirs, observations);
     await until(() => server.sockets.length === 1);
-    // 130 small frames in one burst: 120 fill the normal lane, the 121st is rejected by itemLimit.
+    // 130 small frames in one burst fill the 120-item normal lane; a frame arriving after that is rejected by itemLimit.
+    // The burst may reach the host over several turns, so the pump can take a few items first (CI saw 121 accepted).
     for (let index = 0; index < 130; index++) server.sockets[0].send(junk());
     await until(() => server.sockets.length === 2);
-    expect(observations.filter((o) => o.kind === "decode")).toHaveLength(120);
+    const decodedBeforeReconnect = observations.filter((o) => o.kind === "decode").length;
     await until(async () => (await diagnostics(dirs.diagnosticDirectory)).includes('"component":"host"'));
     const boundary = (await diagnostics(dirs.diagnosticDirectory)).split("\n").filter((line) => line.includes('"component":"host"'));
-    expect(JSON.parse(boundary[0])).toMatchObject({ reason: "mailboxRejectedItemLimit", inputId: "input-120", count: 120 });
+    const { count } = JSON.parse(boundary[0]) as { count: number };
+    expect(count).toBeGreaterThanOrEqual(120);
+    expect(JSON.parse(boundary[0])).toMatchObject({ reason: "mailboxRejectedItemLimit", inputId: `input-${count}` });
+    // Reconnect only after every accepted input was drained.
+    expect(decodedBeforeReconnect).toBe(count);
     // The event timestamp is the wall clock of the rejected frame's receive callback, i.e. the loss start.
-    const t0 = observations.find((o) => o.kind === "marker" && o.point === "T0" && o.inputId === "input-121");
-    if (t0?.kind !== "marker") throw new Error("T0 of the rejected input-121 missing");
+    const t0 = observations.find((o) => o.kind === "marker" && o.point === "T0" && o.inputId === `input-${count + 1}`);
+    if (t0?.kind !== "marker") throw new Error(`T0 of the rejected input-${count + 1} missing`);
     expect(Math.abs(JSON.parse(boundary[0]).timestamp - (EEW_AT + Math.trunc(t0.monotonicMs - base)))).toBeLessThanOrEqual(1);
     // Parser input past the boundary ends "reconnecting".
     await until(() => server.sockets[1].readyState === 1);
