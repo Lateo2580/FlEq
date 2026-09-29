@@ -118,6 +118,18 @@ describe("P2-A10-T02 evidence rules", () => {
     expect(runs.slice(0, 3)).toMatchObject([{ status: "未確認" }, { status: "Fail", missing: 1 }, { status: "未確認", traceMissing: 2 }]);
     expect(verdict.referenceStatus.maxVpws50DecodeStarted).toBe("Blocked");
   });
+
+  // 実不具合の再発防止（2026-09-30）: host は run ごとに input-<n> を 1 から数え直す。inputId だけで一対一を数えると、3 run を一度に渡したとき全標本が重複扱いになった。
+  it("一対一の相関は run ごと: 別 run の同じ inputId は重複にならず、同じ run 内の重複は traceMissing", () => {
+    const id = (k: number) => `input-${k === 6 ? 5 : k}`;
+    const run = (n: 1 | 2 | 3, dup: boolean) => formalRun(n, flat(100, 103), (k, s, i) => {
+      const inputId = dup ? id(k) : `input-${k}`;
+      return [{ ...s, correlation: { ...s.correlation, inputId } }, { ...i, inputId }];
+    });
+    const rs = [run(1, false), run(2, false), run(3, true)];
+    const { runs } = summarizeEewE01(manifest, rs.flatMap((r) => r.samples), rs.flatMap((r) => r.injections));
+    expect(runs.filter((r) => r.scope === "formal")).toMatchObject([{ status: "Pass", traceMissing: 0 }, { status: "Pass", traceMissing: 0 }, { status: "未確認", traceMissing: 2 }]);
+  });
 });
 
 describe("P2-A10-T07 health judgment", () => {

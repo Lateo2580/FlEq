@@ -91,7 +91,9 @@ function summarizeEewE01(
   const sampleGroups = groupByRun(samples);
   const injectionGroups = groupByRun(injections);
   // 相関は一対一: 同じ inputId の標本が二つ以上あれば、どちらも Pass の根拠にしない。
+  // inputId（input-<n>）は host ごとに 1 から数え直すので、runId と組にして数える（別 run の同じ番号を重複にしない）。
   const inputCount = new Map<string, number>();
+  const inputKey = (c: EewTraceSample["correlation"]): string => `${c.runId}\u0000${c.inputId}`;
   // 版も一対一: 同じ (streamId, sequence) を持つ標本が複数あれば、どれも Pass の根拠にしない。
   const versionCount = new Map<string, number>();
   const versionKey = (s: EewTraceSample): string | null => {
@@ -99,7 +101,8 @@ function summarizeEewE01(
     return v == null ? null : `${v.streamId}\u0000${v.sequence}`;
   };
   for (const s of samples) {
-    inputCount.set(s.correlation.inputId, (inputCount.get(s.correlation.inputId) ?? 0) + 1);
+    const ik = inputKey(s.correlation);
+    inputCount.set(ik, (inputCount.get(ik) ?? 0) + 1);
     const vk = versionKey(s);
     if (vk != null) versionCount.set(vk, (versionCount.get(vk) ?? 0) + 1);
   }
@@ -140,7 +143,7 @@ function summarizeEewE01(
       if (s.latencyLowerMs != null && s.latencyLowerMs > manifest.missingAfterMs) { t.missing++; continue; }
       const c = s.correlation;
       const vk = versionKey(s);
-      if (inj == null || inj.inputId !== c.inputId || inj.runId !== c.runId || inputCount.get(c.inputId) !== 1 || (vk != null && versionCount.get(vk) !== 1) || !traceComplete(s, formal)) {
+      if (inj == null || inj.inputId !== c.inputId || inj.runId !== c.runId || inputCount.get(inputKey(c)) !== 1 || (vk != null && versionCount.get(vk) !== 1) || !traceComplete(s, formal)) {
         t.traceMissing++;
         continue;
       }

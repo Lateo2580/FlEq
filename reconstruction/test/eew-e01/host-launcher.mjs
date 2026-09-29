@@ -2,7 +2,7 @@
 // 無いと、投入側と別プロセスの製品 host を測れず、runner が製品入力処理を持つことになる。
 // hot path では配列に積むだけ。書き出しは tick 外の timer か終了時（WP3a と WP3b が同じ形を読む）。
 //   {"t":"meta","runId","nodeVersion","startedWallMs"} は最初の 1 行
-//   {"t":"obs","o":<P2HostObservation>} / {"t":"clock","hrtimeNs","perfNowMs"}（起動時と 30 秒ごと）/ {"t":"mem",...}（10 秒ごと）
+//   {"t":"obs","o":<P2HostObservation>} / {"t":"clock","hrtimeNs","perfNowMs"}（起動時と 30 秒ごと）/ {"t":"mem",...}（config.memEveryMs ごと、既定 10 秒）
 import { appendFileSync, readFileSync } from "node:fs";
 import childProcess from "node:child_process";
 import { performance } from "node:perf_hooks";
@@ -53,7 +53,8 @@ memLine();
 const timers = [
   setInterval(flush, 250),
   setInterval(clockLine, 30_000),
-  setInterval(memLine, 10_000),
+  // E02 窓だけ 1 秒（spec §9.9 は E05 を「RSS を毎秒」と定める。10 秒では VPWS50 処理中の山を取り逃す）。
+  setInterval(memLine, config.memEveryMs ?? 10_000),
 ];
 
 let stopping = false;
