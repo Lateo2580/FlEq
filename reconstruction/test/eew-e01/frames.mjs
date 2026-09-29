@@ -18,10 +18,13 @@ export const fixtureText = (name) => readFileSync(join(REPO, `test/fixtures/${na
 export const fixtureId = (name) => `test__fixtures__${name}`;
 
 // dmdata と同じ data frame（形は ingress.ts と host.test.ts の dataFrame を正とする）。
+// 外側の運用（xmlReport.control.status、head.test は訓練・試験で true）は本文の Control/Status に揃える。違うと製品が operationMismatch で捨てる
+// （operation.ts:37、RES-07 の訓練・試験の national で実際に起きた）。通常の本文は従来と同じ bytes。
 export function dataFrame(headType, xml) {
+  const status = /<Status>([^<]+)<\/Status>/.exec(String(xml))?.[1] ?? "通常";
   return JSON.stringify({ type: "data", version: "2.0", classification: "eew.forecast", id: "a10", format: "xml",
-    encoding: "base64", compression: "gzip", head: { type: headType, author: "JMA", time: "2024-06-13T00:00:00Z", test: false, xml: true },
-    xmlReport: { control: { status: "通常" } }, body: gzipSync(xml).toString("base64") });
+    encoding: "base64", compression: "gzip", head: { type: headType, author: "JMA", time: "2024-06-13T00:00:00Z", test: status !== "通常", xml: true },
+    xmlReport: { control: { status } }, body: gzipSync(xml).toString("base64") });
 }
 
 const ISO = /(\d{4})-(\d\d)-(\d\d)T(\d\d):(\d\d):(\d\d)(\.\d+)?(Z|\+09:00)/g;
@@ -72,7 +75,7 @@ export function loadN(windowFile) {
     const offsetMs = Date.parse(it.receivedTime) - start;
     const fixture = N_FIXTURES[it.head.type];
     if (fixture == null) { skipped.push({ headType: it.head.type, offsetMs, reason: "noFixtureForHeadType" }); continue; }
-    events.push({ offsetMs, headType: it.head.type, fixture, frame: dataFrame(it.head.type, fixtureText(fixture)) });
+    events.push({ offsetMs, headType: it.head.type, fixture });
   }
   return { windowSha256: sha256Hex(text), windowMs: N_WINDOW_MS, events, skipped };
 }
@@ -101,7 +104,167 @@ export function loadEvents(load) {
 // weather の入力は報告時刻を投入時点の壁時計（秒）へ平行移動して流す。fixture の日付が host の壁時計とずれると、
 // U-F の期限（報告の 49 時間後など）が最初から過ぎて状態が空になるため。移動は全時刻を同じ量だけ動かす。
 export function weatherFrame(name, headType, atWallMs) {
-  const xml = fixtureText(name).toString("utf8");
-  const report = Date.parse(/<ReportDateTime>([^<]+)</.exec(xml)[1]);
-  return dataFrame(headType, Buffer.from(shiftTimestamps(xml, atWallMs - report)));
+  return dataFrame(headType, Buffer.from(weatherXml(name, atWallMs)));
+}
+function weatherXml(name, atWallMs) {
+  const xml = xmlOf(name);
+  return shiftTimestamps(xml, atWallMs - reportMs(xml));
+}
+
+// ── Q-PERF §3.1・§3.6・§3.7 の入力規則（P2-A10-AC08/AC15/AC16）。規則ごとに関数 1 つ ──
+// 返すのは { headType, xml }。frame にするのは投入の直前（dataFrame）。規則の文と件数は draft.mjs が initial-state の recipe に書き、
+// この file の sha256 も同じ recipe に固定する（ReplayLoad が書き換え規則を持てないため、契約の穴 §6 c）。
+const xmlCache = new Map();
+const xmlOf = (name) => { let xml = xmlCache.get(name); if (xml == null) xmlCache.set(name, xml = fixtureText(name).toString("utf8")); return xml; };
+const reportMs = (xml) => Date.parse(/<ReportDateTime>([^<]+)</.exec(xml)[1]);
+const jst = (ms) => `${new Date(ms + 9 * 3_600_000).toISOString().slice(0, 19)}+09:00`;
+const atReport = (xml, ms) => xml.replace(/<ReportDateTime>[^<]*<\/ReportDateTime>/, `<ReportDateTime>${jst(ms)}</ReportDateTime>`);
+const office = (xml, name) => xml.replace(/<EditorialOffice>[^<]*<\/EditorialOffice>/, `<EditorialOffice>${name}</EditorialOffice>`);
+const withEventId = (xml, eventId) => xml.replace(/<EventID>[^<]*<\/EventID>/, `<EventID>${eventId}</EventID>`);
+// U-F の validUntil（製品は時間定義の終端の最大、weather-timeseries.ts:235）。書き換えの基準に使う。
+export function validUntilMs(xml) {
+  const ends = [...xml.matchAll(/<TimeDefine[^>]*><DateTime>([^<]+)<\/DateTime><Duration>PT(\d+)H<\/Duration>/g)].map((m) => Date.parse(m[1]) + Number(m[2]) * 3_600_000);
+  if (ends.length === 0) throw new Error("no TimeDefine with PTnH");
+  return Math.max(...ends);
+}
+
+export const FIX = {
+  vxse43: EEW_FIXTURE, vxse43Cancel: "37_01_03_240613_VXSE43", vxse45: "77_01_01_240613_VXSE45", vpws50: "15_18_01_250630_VPWS50",
+  vpww57: "15_16_02_251222_VPWW57", vpwp50: "81_02_01_260605_VPWP50_high_severity", vpwp50Large: "81_09_01_260605_VPWP50",
+};
+const EVENT_BASE = 20240417000000;
+
+// 同時最大状態（A8 RES-07 の合法最大）。作り方は cost.test.ts:155-165 と同じ（EventID・運用・官署名だけを替え、時刻は動かさない）。
+// host の壁時計起点（WALL_ORIGIN_MS）は A8 試験の at と同じ時刻で、U-F（validUntil 翌 03:00）も U-W（時刻で消えない）も充填中・窓の間に消えない。
+// leaveRoomForP は P の再生が新しく足す U-W partial と U-F subject の数（room、統合担当が予備で数えて凍結する）だけ上限から空ける。
+// cycleC は full と同じ件数で、VXSE43 の最後の 1 件（EventID +511）だけを訓練の種 TRAINING_EVENT(0) に替える（C の U-E を一定に保つため。cycleCFrames）。
+export const RES07 = { eventIdsPerFamily: 512, national: ["通常", "訓練", "試験"], partials: 128, forecastSubjects: 512 };
+export function nearCapacityFrames({ mode, room = null }) {
+  const counted = (v, max) => Number.isInteger(v) && v >= 0 && v <= max;
+  if (mode === "leaveRoomForP" ? !(counted(room?.partials, RES07.partials) && counted(room?.forecastSubjects, RES07.forecastSubjects))
+    : !["full", "cycleC"].includes(mode) || room != null)
+    throw new Error(`nearCapacityFrames: full/cycleC take no room; leaveRoomForP needs room {partials ≤ ${RES07.partials}, forecastSubjects ≤ ${RES07.forecastSubjects}}`);
+  const out = [];
+  for (let i = 0; i < RES07.eventIdsPerFamily; i++) {
+    const seed = mode === "cycleC" && i === RES07.eventIdsPerFamily - 1;
+    out.push({ headType: "VXSE43", xml: seed ? trainingEew(0) : withEventId(xmlOf(FIX.vxse43), String(EVENT_BASE + i)) });
+    out.push({ headType: "VXSE45", xml: withEventId(xmlOf(FIX.vxse45), String(EVENT_BASE + i)) });
+  }
+  for (const operation of RES07.national) out.push({ headType: "VPWS50", xml: xmlOf(FIX.vpws50).replace("<Status>通常</Status>", `<Status>${operation}</Status>`) });
+  for (let i = 0; i < RES07.partials - (room?.partials ?? 0); i++) out.push({ headType: "VPWW57", xml: office(xmlOf(FIX.vpww57), `官署${i}`) });
+  for (let i = 0; i < RES07.forecastSubjects - (room?.forecastSubjects ?? 0); i++) out.push({ headType: "VPWP50", xml: office(xmlOf(FIX.vpwp50), `官署${i}`) });
+  return out;
+}
+
+// 固定周期負荷 C（E06 の系列）の周期 c の 7 入力。初期状態は nearCapacityFrames({ mode: "cycleC" })。
+// 周期の終わりの保持量（保存件数・表示件数）を周期をまたいで一定にする（E06 は RSS・heap の傾きで漏れを見るので、保持量が目減りすると
+// 傾きが負へ偏って漏れを隠す）。
+// - U-E: 通常の EventID +c を Serial 2 に更新。訓練の新しい EventID T(c+1) を足し（family 512 を超えるので、製品が最古の非通常 =
+//   前の周期の T(c) の gate を追い出す、eew.ts:366-381）、同じ周期のうちに T(c+1) を取消す。current・gate・予算とも周期の終わりで一定
+// - U-F: 官署0 を周期の開始 + 1 時間まで有効な報告で入れ直し、周期の 40 秒に validUntil が周期の開始 + 50 秒の報告で更新して期限回収させる
+// - U-W: national（通常）と partial 官署{c} の更新
+// どの subject も EEW は (Serial, ReportDateTime)、weather は ReportDateTime が前の報告より新しい（stale・duplicate で捨てられない、
+// spec §9.9「重複拒否だけの反復で代用しない」）。cycleStartWallMs は周期の開始の host 壁時計。
+export const C_CYCLE = { periodMs: 60_000, offsetsMs: [0, 5_000, 10_000, 20_000, 25_000, 30_000, 40_000], validUntilAfterStartMs: 50_000,
+  restoreValidForMs: 3_600_000, forecastOffice: "官署0", warmupCycles: 5 };
+const TRAINING_EVENT_BASE = 20260930000000; // 充填の通常 EventID（20240417000000+i）と重ならない訓練の EventID
+const trainingEew = (k) => withEventId(xmlOf(FIX.vxse43), String(TRAINING_EVENT_BASE + k)).replace("<Status>通常</Status>", "<Status>訓練</Status>");
+export function cycleCFrames(c, cycleStartWallMs) {
+  if (!(Number.isInteger(c) && c >= 0 && c < RES07.partials)) throw new Error(`cycle ${c}: C touches only existing partials (官署0..${RES07.partials - 1})`);
+  const step = (c + 1) * 60_000;
+  const [o0, o1, o2, o3, o4, o5, o6] = C_CYCLE.offsetsMs;
+  const forecast = office(xmlOf(FIX.vpwp50), C_CYCLE.forecastOffice);
+  // 期限を合わせるため全時刻を動かすと報告が充填時（17:00）より古くなるので、ReportDateTime だけは充填時 + 周期ぶん進めた値に置き直す。
+  const forecastUntil = (untilMs, reportAtMs) => atReport(shiftTimestamps(forecast, untilMs - validUntilMs(forecast)), reportAtMs);
+  const cancel = withEventId(xmlOf(FIX.vxse43Cancel), String(TRAINING_EVENT_BASE + c + 1)).replace("<Status>通常</Status>", "<Status>訓練</Status>");
+  return [
+    { offsetMs: o0, headType: "VPWS50", xml: shiftTimestamps(xmlOf(FIX.vpws50), step) },
+    { offsetMs: o1, headType: "VPWP50", xml: forecastUntil(cycleStartWallMs + C_CYCLE.restoreValidForMs, reportMs(forecast) + step - 30_000) },
+    { offsetMs: o2, headType: "VPWW57", xml: atReport(office(xmlOf(FIX.vpww57), `官署${c}`), reportMs(xmlOf(FIX.vpww57)) + step) },
+    { offsetMs: o3, headType: "VXSE43", xml: eewVariant({ eventId: String(EVENT_BASE + c), serial: 2, reportAtMs: EEW_REPORT_MS + step, variant: c % 2 === 0 ? "A" : "B" }) },
+    { offsetMs: o4, headType: "VXSE43", xml: trainingEew(c + 1) },
+    { offsetMs: o5, headType: "VXSE43", xml: cancel },
+    { offsetMs: o6, headType: "VPWP50", xml: forecastUntil(cycleStartWallMs + C_CYCLE.validUntilAfterStartMs, reportMs(forecast) + step) },
+  ];
+}
+
+// E03: VPWS50 15_18_01 を 1,200ms 周期で warm-up 20＋1,000。k 番目の報告時刻は投入予定（start + k × 周期）の秒へ全時刻を平行移動する
+// （周期が 1 秒より長いので報告時刻は厳密に増え、duplicate にならない）。
+export const E03_SERIES = { fixture: FIX.vpws50, periodMs: 1200, warmup: 20, samples: 1000 };
+export function e03Frame(k, startWallMs) {
+  return { headType: "VPWS50", xml: weatherXml(FIX.vpws50, Math.floor((startWallMs + k * E03_SERIES.periodMs) / 1000) * 1000) };
+}
+
+// AC15（p2-snapshot-sse.json:100）: 保持上限ちょうどから 4 シナリオ（EEW 1 件／metadata のみ／U-W 1 subject／U-F 1 subject、
+// A8 cost.test.ts:182-191 と同じ入力）を各 warm-up 10＋100、1,500ms 間隔。新しい EventID・官署を足さない（U-E は 2 family × 512 で
+// 新しい EventID が capacityExceeded になる）。metadata のみは frame ではなく投入側の WS 切断: host が connectionLost を流し
+// （host.ts:228-231）、RECONNECT_MS 5 秒後に再接続する。unit の内容は変わらず、connection だけが変わる。区間は切断の時刻（投入側 hrtime を
+// host 時計へ写したもの）から次の区間の起点まで。間隔 metadataIntervalMs は実走の再接続所要（予備で 5.0〜5.1 秒）より長く取る。
+export const AC15_SCENARIOS = { warmup: 10, samples: 100, intervalMs: 1500, metadataIntervalMs: 7000, scenarios: ["U-E", "metadata", "U-W", "U-F"] };
+export function ac15Frame(unit, index) {
+  if (unit === "U-E") return { headType: "VXSE43", xml: atReport(withEventId(xmlOf(FIX.vxse43), String(EVENT_BASE)), EEW_REPORT_MS + (index + 1) * 1000)
+    .replace(/<Serial>\d+<\/Serial>/, `<Serial>${index + 2}</Serial>`) };
+  if (unit === "U-W") return { headType: "VPWW57", xml: atReport(office(xmlOf(FIX.vpww57), "官署0"), reportMs(xmlOf(FIX.vpww57)) + (index + 1) * 60_000) };
+  if (unit === "U-F") return { headType: "VPWP50", xml: atReport(office(xmlOf(FIX.vpwp50), "官署0"), reportMs(xmlOf(FIX.vpwp50)) + (index + 1) * 1000) };
+  throw new Error(unit === "metadata" ? "AC15 metadata は frame ではなく投入側の WS 切断で起こす（AC15_SCENARIOS の注記）" : `unknown AC15 unit ${unit}`);
+}
+
+// E12: class 別の frame 列（e12-run.mjs の frames.jsonl の 1 行 = { atMs, frame }）。frame の形は e12-run.mjs の frame() と同じ
+// （旧 handler が読む xmlReport と新 ingress が読む head/encoding の両方、utf-8・無圧縮）。weather は k 番目の全時刻を baseWallMs + k × 周期へ
+// 平行移動する（同じ報告の繰り返しは新側で duplicate として捨てられ、処理の費用を測れない）。EEW は Serial を 1 ずつ進める（今の e12-run と同じ）。
+export const E12_CLASSES = {
+  small: { fixture: FIX.vxse45, headType: "VXSE45", count: 200, intervalMs: 200 },
+  large: { fixture: FIX.vpwp50Large, headType: "VPWP50", count: 30, intervalMs: 2000 },
+  max: { fixture: FIX.vpws50, headType: "VPWS50", count: 30, intervalMs: 2000 },
+};
+export function e12Frame(xml, headType, classification, meta) {
+  const now = "2024-06-13T00:00:00.000Z";
+  return JSON.stringify({ type: "data", version: "2.0", classification, id: `e12-${headType}-${meta.serial ?? 0}`,
+    passing: [{ name: "e12", time: now }], head: { type: headType, author: "気象庁", time: now, test: false, xml: true },
+    xmlReport: { control: { title: meta.title, dateTime: now, status: "通常", editorialOffice: "気象庁本庁", publishingOffice: "気象庁" },
+      head: { title: meta.title, reportDateTime: now, targetDateTime: now, eventId: meta.eventId, serial: meta.serial, infoType: "発表",
+        infoKind: meta.infoKind, infoKindVersion: "1.0_0", headline: null } },
+    format: "xml", compression: null, encoding: "utf-8", body: xml });
+}
+export function e12Frames(cls, baseWallMs) {
+  const spec = E12_CLASSES[cls];
+  if (spec == null) throw new Error(`unknown E12 class ${cls}`);
+  const base = Math.floor(baseWallMs / 1000) * 1000;
+  const source = xmlOf(spec.fixture);
+  const title = /<Title>([^<]+)<\/Title>/.exec(source)[1];
+  const infoKind = /<InfoKind>([^<]+)<\/InfoKind>/.exec(source)[1];
+  return Array.from({ length: spec.count }, (_, k) => {
+    const atMs = (k + 1) * spec.intervalMs;
+    if (spec.headType === "VXSE45") return { atMs, frame: e12Frame(source.replace("<Serial>1</Serial>", `<Serial>${k + 1}</Serial>`), "VXSE45", "eew.forecast",
+      { title, eventId: "20240417231454", serial: String(k + 1), infoKind }) };
+    return { atMs, frame: e12Frame(shiftTimestamps(source, base + k * spec.intervalMs - reportMs(source)), spec.headType, "telegram.weather", { title, eventId: null, serial: null, infoKind }) };
+  });
+}
+
+// 充填・窓の投入の流量制御（§3.6 の地雷）。送った数 − host の decode 観測数（mailbox から取り出した件数）を未処理とみなし、32 件以下で送る。
+// EEW（VXSE43/45）は予約枠（mailbox.ts:13 の 8 件）に入るので未処理 8 件以下、VPWS50 は未処理 0 件のときだけ送る。無いと mailbox の枠
+// （p2-mailbox.json RES-03/04）で拒否され、host が自分の接続を切り、送った frame が黙って失われる（予備で EEW の 9 件目が実際に拒否された）。processed() は呼び出し側が host の JSONL から数える decode 観測の累計。
+// sentBefore は呼び出し側がこの host へ既に送った data frame の数。前提: それらは全て mailbox に入り decode 観測で数えられる
+// （ingress 拒否が無い）。decode 観測が送った数を超えたら、別の送り手が混ざっているので throw。送れなかった（seq が null）・捌けないときも throw。
+const EEW_LANE_ITEMS = 8;
+export async function sendPaced(items, { send, processed, sentBefore, maxPending = 32, pollMs = 50, stallMs = 60_000 }) {
+  if (!(Number.isInteger(sentBefore) && sentBefore >= 0)) throw new Error("sendPaced: sentBefore (frames already sent to this host) is required");
+  let sent = sentBefore;
+  let lastProgress = { at: performance.now(), done: -1 };
+  const pending = () => {
+    const done = processed();
+    if (done > sent) throw new Error(`sendPaced: processed ${done} > sent ${sent} (another sender is feeding this host)`);
+    if (done !== lastProgress.done) lastProgress = { at: performance.now(), done };
+    else if (performance.now() - lastProgress.at > stallMs) throw new Error(`sendPaced: no progress for ${stallMs}ms (sent ${sent}, processed ${done})`);
+    return sent - done;
+  };
+  const started = performance.now();
+  for (const item of items) {
+    const limit = item.headType === "VPWS50" ? 0 : /^VXSE4[35]$/.test(item.headType) ? EEW_LANE_ITEMS - 1 : maxPending - 1;
+    while (pending() > limit) await new Promise((wake) => setTimeout(wake, pollMs));
+    if (send(dataFrame(item.headType, item.xml)).seq == null) throw new Error(`sendPaced: send failed after ${sent} frames`);
+    sent += 1;
+  }
+  while (pending() > 0) await new Promise((wake) => setTimeout(wake, pollMs));
+  return { sent: sent - sentBefore, durationMs: performance.now() - started };
 }
