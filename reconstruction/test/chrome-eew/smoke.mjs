@@ -857,14 +857,15 @@ async function main() {
   await checkMarkNamesOnly();
 }
 
-// A8 server.close の期限。超過したら Blocked を記録して先へ進み、残った接続は末尾の process.exit で解放する
-// (A8 は http.Server を公開しないので、smoke から個々の接続を強制解放できない)。
+// A8 server.close の期限。超過したら A8 が返す http.Server の残接続を強制解放し、Blocked を記録して先へ進む。
 async function closeServer(label) {
   const current = server;
   server = null;
   if (current == null) return;
   const closed = await Promise.race([current.close().then(() => true, () => true), sleep(5_000).then(() => false)]);
-  if (!closed) record(`P2-A9-smoke:serverClose:${label}`, "Blocked", "-", { reason: "A8 server.close did not finish within 5 s" });
+  if (closed) return;
+  current.server.closeAllConnections();
+  record(`P2-A9-smoke:serverClose:${label}`, "Blocked", "-", { reason: "A8 server.close did not finish within 5 s; closeAllConnections applied" });
 }
 
 async function teardown() {
