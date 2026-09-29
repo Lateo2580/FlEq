@@ -65,18 +65,20 @@ const clock = { wallTimeMs: NOW, monotonicMs: NOW };
 const healthy = { state: "healthy", lastProgressAtMonotonicMs: NOW, lastResponseAtMonotonicMs: NOW };
 const FIXTURES = { VXSE43: "37_01_01_240613_VXSE43", VXSE45: "77_01_01_240613_VXSE45" };
 
-function material(family) {
-  const xml = readFileSync(join(repo, `test/fixtures/${FIXTURES[family]}.xml`), "utf8");
-  const entered = ingestXmlData({ inputId: FIXTURES[family], inputSequence: 1, receivedAt: 0, origin: "replay",
-    kind: "replay", headType: family, body: Buffer.from(xml) });
+// eventIdを渡すとfixtureのEventIDだけを差し替えた別の報にする (容量超過をA1→A4→A8の実経路で起こすため)。
+function material(family, eventId = null) {
+  const fixture = readFileSync(join(repo, `test/fixtures/${FIXTURES[family]}.xml`), "utf8");
+  const xml = eventId == null ? fixture : fixture.replace(/<EventID>[^<]*<\/EventID>/, `<EventID>${eventId}</EventID>`);
+  const entered = ingestXmlData({ inputId: `${FIXTURES[family]}:${eventId ?? "fixture"}`, inputSequence: 1, receivedAt: 0,
+    origin: "replay", kind: "replay", headType: family, body: Buffer.from(xml) });
   if (entered.kind !== "accepted") throw new Error(`ingest failed: ${entered.diagnostic.reason}`);
   const decoded = decodeMaterial(entered.item);
   if (decoded.kind !== "decoded") throw new Error(`decode failed: ${decoded.diagnostic.reason}`);
   return decoded.material;
 }
 
-// 起動→各fixture受信のたびに射影したsnapshotを返す (起動分は除く)。
-function runtime(streamId, families) {
+// 起動→各material受信のたびに射影したsnapshotを返す (起動分は除く)。
+function runtime(streamId, materials) {
   let projection = null;
   const project = (step) => {
     const result = projectSnapshot(snapshotInput(step, streamId, NOW,
@@ -89,17 +91,19 @@ function runtime(streamId, families) {
     notificationChannels: { desktop: { kind: "idle" }, sound: { kind: "idle" } },
     restored: { "U-E": { kind: "empty" }, "U-W": { kind: "empty" }, "U-F": { kind: "empty" } } }, calls);
   project(step);
-  return families.map((family, index) => {
-    const item = material(family);
+  return materials.map((item, index) => {
     step = reduceRuntime(step.state, { kind: "mailboxCompleted", clock, completion: { kind: "parser",
       messageId: item.inputId, inputId: item.inputId, runId: streamId, encodedByteLength: 0, startedMonotonicMs: NOW,
       completedMonotonicMs: NOW, inputSequence: index + 1, result: { kind: "decoded", material: item } } }, calls);
     return project(step);
   });
 }
-const [S43, S43_45] = runtime("smoke-a", ["VXSE43", "VXSE45"]);
+const [S43, S43_45] = runtime("smoke-a", [material("VXSE43"), material("VXSE45")]);
 // expected:O09:12: VXSE45だけを受けたruntimeの採用snapshot (区域0、予想最大3)。
-const [S45] = runtime("smoke-b", ["VXSE45"]);
+const [S45] = runtime("smoke-b", [material("VXSE45")]);
+// A4のcurrent上限512を超えるnormalの別EventIDを513件入れる。513件目が容量超過になり、normalは公開maskでcardが消える。
+const S_CAPACITY = runtime("smoke-capacity", Array.from({ length: 513 },
+  (_, index) => material("VXSE43", String(index + 1).padStart(14, "0")))).at(-1);
 const [CUR43] = S43.current.eew.view.current;
 const [CUR45] = S45.current.eew.view.current;
 const A8_NOTICE = S43.notices[0];
@@ -116,30 +120,42 @@ function withSummary(base, revision, items) {
 }
 
 // ── CDP ──
+// 応答しないChromeで後段 (pid指定の終了・server解放・結果保存) へ進めなくならないよう、要求ごとに期限を置く。
+const CDP_TIMEOUT_MS = 30_000;
 function cdp(url) {
   const socket = new WebSocket(url, { perMessageDeflate: false });
   const pending = new Map();
   let nextId = 0;
+  const settle = (id) => {
+    const waiter = pending.get(id);
+    if (waiter == null) return null;
+    pending.delete(id);
+    clearTimeout(waiter.timer);
+    return waiter;
+  };
   socket.on("message", (raw) => {
     const message = JSON.parse(raw.toString());
-    const waiter = pending.get(message.id);
+    const waiter = settle(message.id);
     if (waiter == null) return;
-    pending.delete(message.id);
     if (message.error != null) waiter.reject(new Error(`${waiter.method}: ${JSON.stringify(message.error)}`));
     else waiter.resolve(message.result);
   });
+  // 開いた後のsocket errorはcloseへ続くので、ここでは握って待機中の要求の拒否をcloseに任せる。
+  socket.on("error", () => {});
   socket.on("close", () => {
-    for (const waiter of pending.values()) waiter.reject(new Error(`${waiter.method}: CDP socket closed`));
-    pending.clear();
+    for (const id of [...pending.keys()]) settle(id).reject(new Error(`CDP socket closed`));
   });
   return {
-    opened: new Promise((resolve, reject) => { socket.once("open", resolve); socket.once("error", reject); }),
+    opened: Promise.race([new Promise((resolve, reject) => { socket.once("open", resolve); socket.once("error", reject); }),
+      sleep(CDP_TIMEOUT_MS).then(() => { throw new Error("CDP socket did not open"); })]),
     close: () => socket.close(),
-    send: (method, params = {}) => new Promise((resolve, reject) => {
+    send: (method, params = {}, timeoutMs = CDP_TIMEOUT_MS) => new Promise((resolve, reject) => {
       if (socket.readyState !== WebSocket.OPEN) return reject(new Error(`${method}: CDP socket not open`));
       nextId += 1;
-      pending.set(nextId, { resolve, reject, method });
-      socket.send(JSON.stringify({ id: nextId, method, params }));
+      const id = nextId;
+      const timer = setTimeout(() => settle(id)?.reject(new Error(`${method}: no CDP response within ${timeoutMs} ms`)), timeoutMs);
+      pending.set(id, { resolve, reject, method, timer });
+      socket.send(JSON.stringify({ id, method, params }));
     }),
   };
 }
@@ -378,12 +394,14 @@ async function checkT01() {
   const cardsBefore = await texts("#cards .eew-card-head");
   const t5Before = (await marks(T5)).length;
   const invalid = await publish({ ...S43, schemaVersion: 2 }, { ignored: true });
+  // 識別子だけの不完全な版。境界で拒まれ、T5も表示も動かない。
+  const identityOnly = await publish({ schemaVersion: 1, streamId: S43.streamId }, { ignored: true });
   const older = await publish(withCurrent(S43, [CUR43], "smoke:older"), { ignored: true, sequence: 1 });
   // 番兵: 同じstreamの新しい有効snapshot。SSEは順序どおりに届くので、番兵のT5が見えた時点で先の2つは処理済み。
   const sentinel = await publish(S43);
   const t5 = await marks(T5);
   const cardsAfter = await texts("#cards .eew-card-head");
-  check("P2-A9-T01:schemaAndSequenceChecked", t5.length === t5Before + 1
+  check("P2-A9-T01:schemaAndSequenceChecked", identityOnly.sequence != null && t5.length === t5Before + 1
     && t5.at(-1).detail.displayVersion.sequence === sentinel.sequence && JSON.stringify(cardsBefore) === JSON.stringify(cardsAfter),
   "DOM・performance entry", { invalidSequence: invalid.sequence, olderSequence: older.sequence, sentinelSequence: sentinel.sequence,
     t5Before, t5After: t5.length, cardsBefore, cardsAfter });
@@ -416,16 +434,17 @@ async function checkIntensityBounds() {
   "DOM・screenshot画素", { rows, head, pixels, cardPixel, screenshot: "evidence/intensity-bounds.png" });
 }
 
-// AC04: currentが0件でもU-Eの表示不能件数があれば、無発令と区別できる行を出す。
-async function checkUnavailable() {
-  const [n, t, s] = S43.current.eew.items;
-  const snapshot = withCurrent(S43, [], "smoke:unavailable");
-  await publish({ ...snapshot, current: { ...snapshot.current, eew: { ...snapshot.current.eew,
-    items: [{ ...n, activeCount: 0, unavailable: { capacityExceeded: 2 } }, t, s] } } });
-  const rows = await texts("#unavailable .eew-unavailable");
+// AC04: 容量超過でnormalのcardが消えても (公開mask)、無発令と区別できる行が出る。snapshotは実経路の射影そのもの。
+async function checkCapacityExceeded() {
+  const row = S_CAPACITY.current.eew.items[0];
+  const wire = { capacityExceeded: row.admission.capacityExceeded, unavailable: row.unavailable, activeCount: row.activeCount,
+    current: S_CAPACITY.current.eew.view.current.length };
+  await publish(S_CAPACITY);
+  const rows = await texts("#capacity .eew-capacity");
   const cardCount = await evaluate(`document.querySelectorAll("#cards .eew-card").length`);
-  check("P2-A9-T03:AC04:unavailableNotNoAlert", JSON.stringify(rows) === JSON.stringify(["[通常] 表示できない報がある（容量超過 2 件）"])
-    && cardCount === 0, "DOM", { rows, cardCount });
+  check("P2-A9-T03:AC04:capacityExceededNotNoAlert", wire.capacityExceeded === 1 && wire.current === 0
+    && JSON.stringify(rows) === JSON.stringify(["[通常] 表示できない報がある（容量超過 1 件）"]) && cardCount === 0,
+  "DOM (A1→A4→A8の実経路のsnapshot)", { wire, rows, cardCount });
 }
 
 async function checkNotices() {
@@ -605,18 +624,32 @@ const lastEventBefore = (log, t) => log.filter((e) => (e.kind === "snapshot" || 
 
 async function checkStaleReconnect() {
   const port = server.port;
+  const t5Before = (await marks(T5)).length;
+  const cardsBefore = await texts("#cards .eew-card-head");
+  // serverは開いたまま、不正な入力だけを流し続ける: worker.stateが4値外のheartbeatと、識別子だけのsnapshot。
+  // どちらも境界で拒まれるので受信時刻は進まず、最後の有効な受信から45秒でstale再接続になるはず。
+  server.setWorker({ state: "bogus", lastProgressAtMonotonicMs: null, lastResponseAtMonotonicMs: null });
   const logStart = await evaluate("window.__smoke.log.length");
-  await server.close();
-  server = null;
-  const closed = await waitFor(`window.__smoke.log.slice(${logStart}).find((e) => e.kind === "close") ?? null`, 80_000, 500);
-  const bannerWhileDown = await text("#banner");
+  const last = lastEventBefore(await evaluate("window.__smoke.log"), Number.POSITIVE_INFINITY);
+  let closed = null;
+  for (let i = 0; closed == null && i < 8; i += 1) {
+    sequence += 1;
+    server.publish({ schemaVersion: 1, streamId: S43.streamId, sequence });
+    closed = await waitFor(`window.__smoke.log.slice(${logStart}).find((e) => e.kind === "close") ?? null`, 10_000, 500);
+  }
+  const bannerWhileInvalid = await text("#banner");
   const log = await evaluate("window.__smoke.log");
   if (closed == null) {
     check("P2-A9-T06:b:staleReconnect", false, "EventSource観測log", { reason: "no close within 80 s", log: log.slice(logStart) });
+    await server.close();
     server = await startServer(port);
     return null;
   }
-  const last = lastEventBefore(log, closed.t);
+  const invalidReceived = log.slice(logStart).filter((e) => (e.kind === "snapshot" || e.kind === "heartbeat") && e.t < closed.t);
+  const invalidDetail = { lastValidEvent: last, invalidReceived: invalidReceived.length, t5Before,
+    t5After: (await marks(T5)).length, cardsBefore, cardsAfter: await texts("#cards .eew-card-head") };
+  // 再接続先を落としてから再起動し、503の枠取りへ進む。
+  await server.close();
   const reopened = log.find((e) => e.kind === "new" && e.t >= closed.t);
   // 503で閉じた接続からの回復: 再起動直後にA8の同時接続上限 (http-sse.ts:21 CLIENT_LIMIT=8) をsmoke側の接続で埋め、
   // pageの再試行を503にしてEventSourceをCLOSEDにする。枠を空けた後、stale中の周期検査が張り直すことを見る。
@@ -633,12 +666,17 @@ async function checkStaleReconnect() {
   const published = await publish(withCurrent(S43, [CUR43], "smoke:afterStale"));
   const after = { heads: await texts("#cards .eew-card-head"), banner: await text("#banner"), clients: server.clientCount() };
   const finalLog = await evaluate("window.__smoke.log");
-  const delivered = finalLog.filter((e) => e.kind === "snapshot" && e.t > closed.t);
+  // 503で閉じた後に届いた有効な版だけを数える (それ以前はstale再接続先へ再送された不正な版)。
+  const delivered = finalLog.filter((e) => e.kind === "snapshot" && e.t > (failed?.t ?? closed.t));
   const gap = closed.t - last.t;
   const settled = after.heads.length === 1 && after.heads[0].includes("VXSE43") && after.banner === "" && after.clients === 1;
-  check("P2-A9-T06:b:staleReconnect", gap >= 45_000 && gap <= 45_000 + 15_000 + 1_000 && bannerWhileDown === STALE_BANNER
+  // 不正な入力は受信時刻・T5・表示を動かさず、その後の有効な版で通常どおり進む。
+  check("P2-A9-T01:invalidInputDoesNotRefresh", invalidReceived.length > 0 && invalidDetail.t5After === t5Before
+    && JSON.stringify(invalidDetail.cardsAfter) === JSON.stringify(cardsBefore) && closed.t - last.t >= 45_000
+    && bannerWhileInvalid === STALE_BANNER && settled, "EventSource観測log・DOM・performance entry", { ...invalidDetail, after });
+  check("P2-A9-T06:b:staleReconnect", gap >= 45_000 && gap <= 45_000 + 15_000 + 1_000 && bannerWhileInvalid === STALE_BANNER
     && reopened != null && reopened.t - closed.t < 50 && closed.id !== reopened.id && settled,
-  "EventSource観測log・DOM・server clientCount", { lastEvent: last, closed, reopened, gapMs: gap, bannerWhileDown, after });
+  "EventSource観測log・DOM・server clientCount", { lastValidEvent: last, closed, reopened, gapMs: gap, bannerWhileInvalid, after });
   const recoveryDetail = { holderStatuses, slotsHeld, closedBy503: failed, reopenedAfterSlotsFreed: recovered,
     publishedSequence: published.sequence, delivered, after };
   // 場所取りが1本でも200でない (pageの再試行が先に枠を取った等) なら、503の再現そのものが成立していない。
@@ -740,7 +778,7 @@ async function checkConditionsHashes() {
 
 // AC05: 先行証拠。全active EventID bounds・P4 GIS・E04/E25/E26・1000×3正式E01は未実施なのでPassと報告しない。
 const PRECEDING = [
-  { id: "D-AC02", smokeRecords: ["P2-A9-T03:R59:removedAndKept", "P2-A9-T03:AC04:unavailableNotNoAlert",
+  { id: "D-AC02", smokeRecords: ["P2-A9-T03:R59:removedAndKept", "P2-A9-T03:AC04:capacityExceededNotNoAlert",
     "P2-A9-T06:AC04:summary", "P2-A9-T06:AC09:noticeA8Text"],
     notYet: "P4の全災害カード・現在ページ外の取消反映" },
   { id: "D-AC12", smokeRecords: ["P2-A9-T03:AC04:metadataOnlyNoReinit"], notYet: "P4のcamera復帰・ページ停止解除・版付き詳細" },
@@ -805,7 +843,7 @@ async function main() {
   await checkRemoval();
   await r38("VXSE45");
   await checkIntensityBounds();
-  await checkUnavailable();
+  await checkCapacityExceeded();
   await checkNotices();
   await checkChannels();
   await checkConnectionAndWorker();
@@ -821,7 +859,7 @@ async function main() {
 }
 
 async function teardown() {
-  try { await browser?.send("Browser.close"); } catch { /* 下のpid指定killへ */ }
+  try { await browser?.send("Browser.close", {}, 5_000); } catch { /* 下のpid指定killへ */ }
   browser?.close();
   page?.close();
   if (chrome?.pid != null && chrome.exitCode == null && chrome.signalCode == null) {
@@ -830,7 +868,7 @@ async function teardown() {
       try { process.kill(chrome.pid, "SIGKILL"); } catch { /* 既に終了している */ }
     }
   }
-  try { await server?.close(); } catch { /* 既に閉じている */ }
+  try { await Promise.race([server?.close(), sleep(5_000)]); } catch { /* 既に閉じている */ }
   if (profileDir != null) rmSync(profileDir, { recursive: true, force: true });
 }
 

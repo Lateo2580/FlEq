@@ -5,20 +5,19 @@ import type { DisplaySnapshot, DisplayWorkerView } from "../../../contracts/p2-s
 import type { ChromeClockProbeResponse, ChromeEewMarkerDetail } from "../../../contracts/p2-eew-e01.types";
 import {
   buildChannelLines, buildConfirmationLine, buildConnectionLine, buildEewCard, buildNoticeLine, buildSummaryLine,
-  buildUnavailableLine, operationVisible, staleBanner, summaryRowVisible,
+  buildCapacityExceededLine, operationVisible, parseDisplaySnapshot, staleBanner, summaryRowVisible,
 } from "./pure.js";
 
-// AC01: schemaVersion/streamId/sequenceを検証してから呼び出し元へ渡す。独自wire schemaは持たない。
-function connectDisplaySnapshot(url: string, onSnapshot: (snapshot: DisplaySnapshot) => void): EventSource {
+// AC01: 境界で検証した完全snapshotだけを呼び出し元へ渡す。独自wire schemaは持たない。
+// T5 (spec:1113 Chromeが対象snapshotを受け取った時刻) はparse・検証の前、event入口で採る。
+function connectDisplaySnapshot(
+  url: string, onSnapshot: (snapshot: DisplaySnapshot, receivedAtMonotonicMs: number) => void,
+): EventSource {
   const source = new EventSource(url);
   source.addEventListener("snapshot", (event) => {
-    let parsed: unknown;
-    try { parsed = JSON.parse(event.data); } catch { return; }
-    if (parsed == null || typeof parsed !== "object") return;
-    const candidate = parsed as Partial<DisplaySnapshot>;
-    if (candidate.schemaVersion !== 1) return;
-    if (typeof candidate.streamId !== "string" || !Number.isSafeInteger(candidate.sequence)) return;
-    onSnapshot(candidate as DisplaySnapshot);
+    const receivedAt = performance.now();
+    const snapshot = parseDisplaySnapshot(event.data);
+    if (snapshot != null) onSnapshot(snapshot, receivedAt);
   });
   return source;
 }
@@ -96,19 +95,19 @@ function renderEew(cards: HTMLElement, map: HTMLElement, snapshot: DisplaySnapsh
 }
 
 export type StatusElements = Readonly<{
-  unavailable: HTMLElement; notices: HTMLElement; channels: HTMLElement; confirmation: HTMLElement;
+  capacity: HTMLElement; notices: HTMLElement; channels: HTMLElement; confirmation: HTMLElement;
   connection: HTMLElement; banner: HTMLElement;
 }>;
 
-// 状態行 (R40〜R42とU-Eの表示不能件数)。snapshotを受けるたびとheartbeat・stale検査のたびに作り直す。
+// 状態行 (R40〜R42とU-Eの容量超過件数)。snapshotを受けるたびとheartbeat・stale検査のたびに作り直す。
 // 初回snapshot前 (snapshot=null) も接続・stale・heartbeat由来のworkerを出す。
 function renderStatus(
   elements: StatusElements, snapshot: DisplaySnapshot | null, worker: DisplayWorkerView["state"] | null, browserStale: boolean,
 ): void {
   const items = snapshot?.current.eew.items ?? [];
-  elements.unavailable.replaceChildren(...items.flatMap((item) => {
-    const line = buildUnavailableLine(item);
-    return line == null ? [] : [el("div", "eew-unavailable", line)];
+  elements.capacity.replaceChildren(...items.flatMap((item) => {
+    const line = buildCapacityExceededLine(item);
+    return line == null ? [] : [el("div", "eew-capacity", line)];
   }));
   elements.notices.replaceChildren(...(snapshot?.notices ?? []).map((notice) => el("div", "notice", buildNoticeLine(notice))));
   elements.channels.replaceChildren(...(snapshot == null ? [] : buildChannelLines(snapshot.channels))

@@ -1,6 +1,6 @@
 {
   "schemaVersion": "p2-a9-chrome-smoke-evidence-v1",
-  "ranAt": "2026-09-28T23:41:53.071Z",
+  "ranAt": "2026-09-29T00:01:18.855Z",
   "conditions": {
     "file": "reconstruction/test/eew-e01/evidence/chrome-smoke-conditions.json",
     "conditionsSha256": "07d16d81e410ed293776bcf314580cf7264b178cc018c329de927ecc03f2b1d9"
@@ -315,7 +315,7 @@
       "detail": {
         "t5": [
           {
-            "startTime": 114.80000001192093,
+            "startTime": 118.80000001192093,
             "detail": {
               "name": "fleq:p2:eew:T5",
               "displayVersion": {
@@ -328,7 +328,7 @@
         ],
         "t6": [
           {
-            "startTime": 115.30000001192093,
+            "startTime": 119.40000000596046,
             "detail": {
               "name": "fleq:p2:eew:T6-candidate",
               "displayVersion": {
@@ -374,8 +374,8 @@
       "evidence": "CDP応答 (Runtime.evaluate)",
       "detail": {
         "probeId": "smoke-probe-1",
-        "chromeReceivedMonotonicMs": 253,
-        "chromeSentMonotonicMs": 253
+        "chromeReceivedMonotonicMs": 264,
+        "chromeSentMonotonicMs": 264
       }
     },
     {
@@ -402,7 +402,7 @@
       "detail": {
         "invalidSequence": 3,
         "olderSequence": 1,
-        "sentinelSequence": 5,
+        "sentinelSequence": 6,
         "t5Before": 2,
         "t5After": 3,
         "cardsBefore": [
@@ -522,13 +522,13 @@
       "detail": {
         "t6": [
           {
-            "startTime": 389.40000000596046,
+            "startTime": 396.5,
             "detail": {
               "name": "fleq:p2:eew:T6-candidate",
               "displayVersion": {
                 "streamId": "smoke-b",
                 "semanticRevision": "[\"1:0\",\"0:0\",\"0:0\"]",
-                "sequence": 7
+                "sequence": 8
               },
               "operation": "normal",
               "subject": "normal/VXSE45/20240417231454",
@@ -640,12 +640,18 @@
       }
     },
     {
-      "id": "P2-A9-T03:AC04:unavailableNotNoAlert",
+      "id": "P2-A9-T03:AC04:capacityExceededNotNoAlert",
       "status": "Pass",
-      "evidence": "DOM",
+      "evidence": "DOM (A1→A4→A8の実経路のsnapshot)",
       "detail": {
+        "wire": {
+          "capacityExceeded": 1,
+          "unavailable": {},
+          "activeCount": 0,
+          "current": 0
+        },
         "rows": [
-          "[通常] 表示できない報がある（容量超過 2 件）"
+          "[通常] 表示できない報がある（容量超過 1 件）"
         ],
         "cardCount": 0
       }
@@ -656,14 +662,14 @@
       "evidence": "DOM",
       "detail": {
         "a8Notice": {
-          "id": "02c7cae4db2b25e40f49963aae2f313262a1e873f108e2f2663d5f3961d79307",
+          "id": "355543ad5692ab074d7fb4d141b42610e598e30eb70e63bdbc07311157302b64",
           "targetId": "588deb0be2c3d2259088dad3e30979087a3282fbeabbad7b2342fbc7b11e6420",
           "unit": "U-E",
           "kind": "eewNew",
           "operation": "normal",
           "text": "緊急地震速報を確認",
           "source": {
-            "id": "f37e6ebd3e09199b8adbf987e4c5cf845f487ebaeed92d31ecf6710c7009fecf",
+            "id": "ab501062667fe6a4e3f077c76b5b210ec2d61d4b974b68369c8d5871de96a4b3",
             "family": "VXSE43",
             "office": null,
             "officeTruncated": false,
@@ -963,27 +969,55 @@
       }
     },
     {
+      "id": "P2-A9-T01:invalidInputDoesNotRefresh",
+      "status": "Pass",
+      "evidence": "EventSource観測log・DOM・performance entry",
+      "detail": {
+        "lastValidEvent": {
+          "t": 2893.300000011921,
+          "kind": "heartbeat",
+          "id": 1
+        },
+        "invalidReceived": 10,
+        "t5Before": 32,
+        "t5After": 32,
+        "cardsBefore": [
+          "[通常] VXSE45 20240417231454 最大3"
+        ],
+        "cardsAfter": [
+          "[通常] VXSE45 20240417231454 最大3"
+        ],
+        "after": {
+          "heads": [
+            "[通常] VXSE43 20240417231454 最大5弱"
+          ],
+          "banner": "",
+          "clients": 1
+        }
+      }
+    },
+    {
       "id": "P2-A9-T06:b:staleReconnect",
       "status": "Pass",
       "evidence": "EventSource観測log・DOM・server clientCount",
       "detail": {
-        "lastEvent": {
-          "t": 2864.4000000059605,
+        "lastValidEvent": {
+          "t": 2893.300000011921,
           "kind": "heartbeat",
           "id": 1
         },
         "closed": {
-          "t": 60020.5,
+          "t": 60019.60000002384,
           "kind": "close",
           "id": 1
         },
         "reopened": {
-          "t": 60020.59999999404,
+          "t": 60019.70000001788,
           "kind": "new",
           "id": 2
         },
-        "gapMs": 57156.09999999404,
-        "bannerWhileDown": "更新未確認の最終情報",
+        "gapMs": 57126.30000001192,
+        "bannerWhileInvalid": "更新未確認の最終情報",
         "after": {
           "heads": [
             "[通常] VXSE43 20240417231454 最大5弱"
@@ -1010,20 +1044,20 @@
         ],
         "slotsHeld": 8,
         "closedBy503": {
-          "t": 63024.5,
+          "t": 63309.60000002384,
           "kind": "error",
           "id": 2,
           "readyState": 2
         },
         "reopenedAfterSlotsFreed": {
-          "t": 75019.40000000596,
+          "t": 75020.30000001192,
           "kind": "new",
           "id": 3
         },
-        "publishedSequence": 35,
+        "publishedSequence": 42,
         "delivered": [
           {
-            "t": 75215.09999999404,
+            "t": 75116.70000001788,
             "kind": "snapshot",
             "id": 3
           }
@@ -1043,134 +1077,134 @@
       "evidence": "visibilitychange dispatch内の観測・EventSource観測log",
       "detail": {
         "lastEvent": {
-          "t": 82521.59999999404,
+          "t": 82522.60000002384,
           "kind": "snapshot",
           "id": 3
         },
-        "thresholdAt": 127521.59999999404,
-        "nextPeriodicTickAt": 135020.5,
+        "thresholdAt": 127522.60000002384,
+        "nextPeriodicTickAt": 135019.60000002384,
         "bannerBefore": "",
         "before": {
           "phase": "before",
-          "t": 129029.80000001192,
+          "t": 129031.10000002384,
           "banner": "",
-          "logLength": 84
+          "logLength": 76
         },
         "after": {
           "phase": "after",
-          "t": 129030,
+          "t": 129031.30000001192,
           "banner": "更新未確認の最終情報",
-          "logLength": 86
+          "logLength": 78
         },
         "events": [
           {
-            "t": 82524.30000001192,
+            "t": 82524.60000002384,
             "kind": "error",
             "id": 3,
             "readyState": 0
           },
           {
-            "t": 85536.19999998808,
+            "t": 85536.10000002384,
             "kind": "error",
             "id": 3,
             "readyState": 0
           },
           {
-            "t": 88545.80000001192,
+            "t": 88547.70000001788,
             "kind": "error",
             "id": 3,
             "readyState": 0
           },
           {
-            "t": 91556.5,
+            "t": 91553.5,
             "kind": "error",
             "id": 3,
             "readyState": 0
           },
           {
-            "t": 94566.19999998808,
+            "t": 94564.30000001192,
             "kind": "error",
             "id": 3,
             "readyState": 0
           },
           {
-            "t": 97575.69999998808,
+            "t": 97575.20000001788,
             "kind": "error",
             "id": 3,
             "readyState": 0
           },
           {
-            "t": 100584.90000000596,
+            "t": 100586.10000002384,
             "kind": "error",
             "id": 3,
             "readyState": 0
           },
           {
-            "t": 103595.5,
+            "t": 103596.60000002384,
             "kind": "error",
             "id": 3,
             "readyState": 0
           },
           {
-            "t": 106605.80000001192,
+            "t": 106607.60000002384,
             "kind": "error",
             "id": 3,
             "readyState": 0
           },
           {
-            "t": 109616.40000000596,
+            "t": 109617.90000000596,
             "kind": "error",
             "id": 3,
             "readyState": 0
           },
           {
-            "t": 112627.19999998808,
+            "t": 112628.20000001788,
             "kind": "error",
             "id": 3,
             "readyState": 0
           },
           {
-            "t": 115635.19999998808,
+            "t": 115638.80000001192,
             "kind": "error",
             "id": 3,
             "readyState": 0
           },
           {
-            "t": 118645.69999998808,
+            "t": 118648.10000002384,
             "kind": "error",
             "id": 3,
             "readyState": 0
           },
           {
-            "t": 121655.09999999404,
+            "t": 121657.20000001788,
             "kind": "error",
             "id": 3,
             "readyState": 0
           },
           {
-            "t": 124665.80000001192,
+            "t": 124667.30000001192,
             "kind": "error",
             "id": 3,
             "readyState": 0
           },
           {
-            "t": 127676,
+            "t": 127678,
             "kind": "error",
             "id": 3,
             "readyState": 0
           },
           {
-            "t": 129029.90000000596,
+            "t": 129031.10000002384,
             "kind": "close",
             "id": 3
           },
           {
-            "t": 129029.90000000596,
+            "t": 129031.20000001788,
             "kind": "new",
             "id": 4
           },
           {
-            "t": 129032.09999999404,
+            "t": 129034.10000002384,
             "kind": "error",
             "id": 4,
             "readyState": 0
@@ -1204,7 +1238,7 @@
       "id": "D-AC02",
       "smokeRecords": [
         "P2-A9-T03:R59:removedAndKept",
-        "P2-A9-T03:AC04:unavailableNotNoAlert",
+        "P2-A9-T03:AC04:capacityExceededNotNoAlert",
         "P2-A9-T06:AC04:summary",
         "P2-A9-T06:AC09:noticeA8Text"
       ],

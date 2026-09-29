@@ -3,7 +3,7 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
 import type { DisplaySnapshot } from "../../contracts/p2-snapshot-sse.types";
-import { parseHeartbeatWorker, replaceDisplaySnapshot } from "../../src/display/chrome-eew/pure";
+import { parseDisplaySnapshot, parseHeartbeatWorker, replaceDisplaySnapshot } from "../../src/display/chrome-eew/pure";
 
 function snapshot(streamId: string, sequence: number): DisplaySnapshot {
   const item = (operation: "normal" | "training" | "test") => ({ operation, informationType: "eew" as const,
@@ -35,6 +35,16 @@ describe("P2-A9-T01 replaceDisplaySnapshot", () => {
     expect(replaceDisplaySnapshot(current, restarted)).toBe(restarted);
     expect(replaceDisplaySnapshot(current, snapshot("s1", 5))).toBe(current);
     expect(replaceDisplaySnapshot(current, snapshot("s1", 3))).toBe(current);
+  });
+});
+
+// P2-A9-T01 contractBoundary (AC01): A9が読む構造の欠けたsnapshotを完全snapshotと見なさない。
+describe("P2-A9-T01 parseDisplaySnapshot", () => {
+  it("accepts a complete snapshot and rejects broken JSON or an identity-only object", () => {
+    const complete = snapshot("s", 1);
+    expect(parseDisplaySnapshot(JSON.stringify(complete))).toEqual(complete);
+    expect(parseDisplaySnapshot("{")).toBeNull();
+    expect(parseDisplaySnapshot(JSON.stringify({ schemaVersion: 1, streamId: "s", sequence: 1 }))).toBeNull();
   });
 });
 

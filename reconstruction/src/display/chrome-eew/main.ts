@@ -20,7 +20,7 @@ function requireElement(id: string): HTMLElement {
 const cards = requireElement("cards");
 const map = requireElement("map");
 const status = {
-  unavailable: requireElement("unavailable"), notices: requireElement("notices"), channels: requireElement("channels"),
+  capacity: requireElement("capacity"), notices: requireElement("notices"), channels: requireElement("channels"),
   confirmation: requireElement("confirmation"), connection: requireElement("connection"), banner: requireElement("banner"),
 };
 
@@ -36,8 +36,7 @@ function refreshStatus(): void {
   renderStatus(status, latest, worker ?? latest?.worker.state ?? null, stale);
 }
 
-function onSnapshot(snapshot: DisplaySnapshot): void {
-  const receivedAt = performance.now();
+function onSnapshot(snapshot: DisplaySnapshot, receivedAt: number): void {
   lastEventAt = receivedAt;
   stale = false;
   const next = replaceDisplaySnapshot(latest, snapshot);

@@ -164,25 +164,22 @@ function summaryRowVisible(item: DisplaySummaryItem): boolean {
   return item.operation === "normal" || item.activeCount > 0;
 }
 
-const UNAVAILABLE_LABEL = [["capacityExceeded", "容量超過"], ["historyUnavailable", "履歴を確認できない"],
-  ["coverageIncomplete", "範囲が不完全"]] as const;
-// AC04/Q-NOTICE-UX: A8が数えたU-Eの表示不能件数。無発令と区別するため、1件以上のoperationだけ行を出す。
-function buildUnavailableLine(item: DisplaySummaryItem): string | null {
-  const parts = UNAVAILABLE_LABEL.flatMap(([key, label]) => {
-    const count = item.unavailable[key] ?? 0;
-    return count > 0 ? [`${label} ${count} 件`] : [];
-  });
-  return parts.length === 0 ? null : `[${OPERATION_LABEL[item.operation]}] 表示できない報がある（${parts.join("、")}）`;
+// AC04: U-Eで表示できない報は容量超過だけで、A8はA1 P2-A1-ADMISSION-COUNTSをitems[].admissionへ写す
+// (items[].unavailableはU-W/U-F専用でU-Eでは常に空)。normalの公開mask中でcardが消えても件数は残るので、
+// 無発令と区別できるよう1件以上のoperationだけ固定文言の行を出す。
+function buildCapacityExceededLine(item: DisplaySummaryItem): string | null {
+  const count = item.admission.capacityExceeded ?? 0;
+  return count > 0 ? `[${OPERATION_LABEL[item.operation]}] 表示できない報がある（容量超過 ${count} 件）` : null;
 }
 
-// AC09: normalは常に、training/testはそのoperationのcard・summary行・表示不能行・noticeを出している間だけ。
+// AC09: normalは常に、training/testはそのoperationのcard・summary行・容量超過行・noticeを出している間だけ。
 function operationVisible(snapshot: DisplaySnapshot, item: DisplaySummaryItem): boolean {
   if (item.operation === "normal") return true;
   const eew = snapshot.current.eew;
   const shownInEew = eew.delivery === "full"
     ? eew.view.current.some((current) => current.operation === item.operation)
     : summaryRowVisible(item);
-  return shownInEew || buildUnavailableLine(item) != null
+  return shownInEew || buildCapacityExceededLine(item) != null
     || snapshot.notices.some((notice) => notice.operation === item.operation);
 }
 
@@ -196,8 +193,71 @@ function buildSummaryLine(item: DisplaySummaryItem): string {
   return `[${OPERATION_LABEL[item.operation]}] ${item.activeCount}件 / ${severity} / 更新: ${formatJst(item.updatedAt)} / 詳細省略中`;
 }
 
+// ── AC01: snapshotの境界検証。A9が描画・判定で読む部分と判別値だけを確かめる (A8の型全体は複製しない)。──
+type Fields = Readonly<Record<string, unknown>>;
+const isRecord = (value: unknown): value is Fields => typeof value === "object" && value !== null && !Array.isArray(value);
+const oneOf = (table: object, value: unknown) => typeof value === "string" && Object.hasOwn(table, value);
+const isTimeOrNull = (value: unknown) => value === null || typeof value === "number" && Number.isFinite(value);
+const isTextOrNull = (value: unknown) => value === null || typeof value === "string";
+const OPERATIONS = ["normal", "training", "test"] as const;
+
+function isMaterialValue(value: unknown): boolean {
+  if (!isRecord(value)) return false;
+  switch (value.kind) {
+    case "missing": return true;
+    case "empty": case "unknown": return typeof value.raw === "string";
+    case "text": return typeof value.raw === "string" && typeof value.value === "string";
+    case "number": return typeof value.raw === "string" && typeof value.value === "number";
+    case "range": return typeof value.raw === "string" && typeof value.value === "number"
+      && (value.bound === "lower" || value.bound === "upper");
+    default: return false;
+  }
+}
+const isIntensity = (value: unknown) => isRecord(value) && isMaterialValue(value.from) && isMaterialValue(value.to)
+  && isTextOrNull(value.condition) && isTextOrNull(value.description);
+const isCurrent = (value: unknown) => isRecord(value) && oneOf(OPERATION_LABEL, value.operation)
+  && typeof value.subject === "string" && typeof value.eventId === "string"
+  && (value.family === "VXSE43" || value.family === "VXSE45")
+  && isRecord(value.source) && typeof value.source.reportDateTimeRaw === "string"
+  && isRecord(value.prediction) && isIntensity(value.prediction.maximum) && Array.isArray(value.prediction.areas)
+  && value.prediction.areas.every((area) => isRecord(area) && typeof area.code === "string" && isIntensity(area.intensity));
+const isItem = (value: unknown, operation: Operation) => isRecord(value) && value.operation === operation
+  && Number.isSafeInteger(value.activeCount) && (value.highestSeverity === null || oneOf(SEVERITY_LABEL, value.highestSeverity))
+  && isTimeOrNull(value.updatedAt) && isRecord(value.admission)
+  && (value.admission.capacityExceeded === undefined || Number.isSafeInteger(value.admission.capacityExceeded))
+  && isRecord(value.confirmation) && oneOf(CONFIRMATION_LABEL, value.confirmation.state)
+  && isTimeOrNull(value.confirmation.confirmedAt);
+const isNotice = (value: unknown) => isRecord(value) && oneOf(OPERATION_LABEL, value.operation) && typeof value.text === "string"
+  && (value.source === null || isRecord(value.source) && isTextOrNull(value.source.office)
+    && typeof value.source.officeTruncated === "boolean");
+
+function isDisplaySnapshot(value: unknown): value is DisplaySnapshot {
+  if (!isRecord(value) || value.schemaVersion !== 1 || typeof value.streamId !== "string"
+    || !Number.isSafeInteger(value.sequence) || typeof value.semanticRevision !== "string") return false;
+  const { connection, worker, channels, notices, current } = value;
+  if (!isRecord(connection) || !oneOf(CONNECTION_LABEL, connection.state) || !isTimeOrNull(connection.disconnectedAt)
+    || !isRecord(worker) || !oneOf(WORKER_LABEL, worker.state)
+    || !isRecord(channels) || !oneOf(CHANNEL_LABEL, channels.desktop) || !oneOf(CHANNEL_LABEL, channels.sound)
+    || !Array.isArray(notices) || !notices.every(isNotice) || !isRecord(current)) return false;
+  const eew = current.eew;
+  if (!isRecord(eew) || eew.unit !== "U-E" || typeof eew.contentRevision !== "string") return false;
+  const items = eew.items;
+  if (!Array.isArray(items) || items.length !== 3
+    || !OPERATIONS.every((operation, index) => isItem(items[index], operation))) return false;
+  return eew.delivery === "summary"
+    || eew.delivery === "full" && isRecord(eew.view) && Array.isArray(eew.view.current) && eew.view.current.every(isCurrent);
+}
+
+// 受信した文字列をsnapshotへ。不正なら null を返し、呼び出し元は受信時刻・stale・marker・表示を更新しない。
+function parseDisplaySnapshot(data: string): DisplaySnapshot | null {
+  let parsed: unknown;
+  try { parsed = JSON.parse(data); } catch { return null; }
+  return isDisplaySnapshot(parsed) ? parsed : null;
+}
+
 export {
   buildChannelLines, buildConfirmationLine, buildConnectionLine, buildEewCard, buildNoticeLine, buildSummaryLine,
-  buildUnavailableLine, eewContentChanged, operationVisible, parseHeartbeatWorker, replaceDisplaySnapshot, staleBanner,
+  buildCapacityExceededLine, eewContentChanged, operationVisible, parseDisplaySnapshot, parseHeartbeatWorker,
+  replaceDisplaySnapshot, staleBanner,
   summaryRowVisible,
 };
