@@ -1,0 +1,30 @@
+{
+  "schemaVersion": "p2-eew-e01-result-v2",
+  "manifestId": "a10-p2-20260930b",
+  "manifestSha256": "03e631e0507a98e28de19b21812bb62f1f54c08059e1147176019ddd40dd6f51",
+  "resultSha256": "a6532534bb2eb6227a2165c1a74734f1f8108c646f38e941eb108db185545baa",
+  "population": "forecastDeadlineOverlap",
+  "scope": "reference",
+  "run": 1,
+  "status": "N/A",
+  "samples": 100,
+  "missing": 0,
+  "traceMissing": 0,
+  "injectionFailures": 0,
+  "injectedToT0P50Ms": 5.447041988372803,
+  "injectedToT0P99Ms": 9.735333025455475,
+  "injectedToT0MaxMs": 9.760082960128784,
+  "p50LowerMs": 30.040499996661673,
+  "p50UpperMs": 30.807083930959926,
+  "p95LowerMs": 36.622542019357205,
+  "p95UpperMs": 37.475000952437405,
+  "p99LowerMs": 37.5927500719903,
+  "p99UpperMs": 38.546458971011454,
+  "maxLowerMs": 37.79833404684032,
+  "maxUpperMs": 38.78616702222789,
+  "evidenceRefs": [
+    "reconstruction/test/eew-e01/evidence/windows/a10-p2-20260930b/e01-forecastDeadlineOverlap-run1.json",
+    "/Users/sayue/dev/fleq-a10-runs/a10-p2-20260930b/e01-forecastDeadlineOverlap-run1/run-record.json",
+    "/Users/sayue/dev/fleq-a10-runs/a10-p2-20260930b/e01-forecastDeadlineOverlap-run1/e01-assembled.json"
+  ]
+}

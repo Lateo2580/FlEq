@@ -1,0 +1,59 @@
+{
+  "schemaVersion": "p2-a10-aux-result-v1",
+  "manifestId": "a10-p2-20260930b",
+  "manifestSha256": "03e631e0507a98e28de19b21812bb62f1f54c08059e1147176019ddd40dd6f51",
+  "resultSha256": "ed04c9e3c9095e892db2b13dc01a309923bd245b8c1e874eed108435133f6d67",
+  "window": "e02-N-run3",
+  "status": "Pass",
+  "e05": {
+    "status": "Pass",
+    "load": "N",
+    "samples": 997,
+    "maxRssBytes": 308346880,
+    "limitBytes": 314572800,
+    "coverage": {
+      "memEveryMs": 1000,
+      "expectedSamples": 999,
+      "missingSamples": 0,
+      "maxGapMs": 1060.3087090000045,
+      "edgesCovered": true,
+      "maxMissingRatio": 0.01
+    }
+  },
+  "e15": {
+    "status": null,
+    "attempts": 4,
+    "units": {
+      "U-W": {
+        "encodeCount": 4,
+        "encodeBytes": 7493521,
+        "writeBytes": 7493521,
+        "occupiedMsLower": 182.4968340000196,
+        "measuredStagesMs": 227.87071000003198,
+        "failedAttempts": 0
+      }
+    },
+    "retryReasons": {
+      "notRetry": 4
+    },
+    "byteViolations": 4,
+    "unknownInputIds": 0,
+    "blocked": [
+      "executeCheckpoint の前段の同期処理（checkpoint.ts:266-300 の restoreUnit・removeTemporaries・serializedEnvelope・latestValidSlot）は、どの段の計測区間にも入らず、製品に計測点が無いため未測定",
+      "checkpoint と診断の write を A3 CheckpointFileSystem/DiagnosticFileSystem で別計数する口が startP2Host の config に無い（製品 src 不変のため未測定）"
+    ],
+    "occupancyNote": "occupiedMsLower = encode+verify の壁時間（下限）。measuredStagesMs = 計測された段の壁時間の合計で、非同期の待ちを含み、前段の同期処理 checkpoint.ts:266-300 を含まない（上限ではない）"
+  },
+  "byteViolations": 4,
+  "byteViolationsNote": "byteViolations は verify 段の bytes が encode と同値（A3 契約どおりの製品）の件数。AC09「他 stage=0」と A3 の食い違いは総合レビュー送りの既知の契約の穴で、判定は変えない",
+  "publishCost": {
+    "window": "e02-N-run3",
+    "publishCount": 13,
+    "totalJsonBytes": 56499,
+    "maxJsonBytes": 4368,
+    "serializeP50Ms": 0.006875000079162419,
+    "serializeP99Ms": 0.025999999954365194,
+    "serializeMaxMs": 0.025999999954365194
+  },
+  "fill": null
+}

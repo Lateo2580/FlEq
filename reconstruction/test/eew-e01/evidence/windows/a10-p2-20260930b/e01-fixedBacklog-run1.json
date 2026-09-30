@@ -1,0 +1,135 @@
+{
+  "id": "e01-fixedBacklog-run1",
+  "attempt": 1,
+  "manifestId": "a10-p2-20260930b",
+  "manifestSha256": "03e631e0507a98e28de19b21812bb62f1f54c08059e1147176019ddd40dd6f51",
+  "rawDir": "/Users/sayue/dev/fleq-a10-runs/a10-p2-20260930b/e01-fixedBacklog-run1",
+  "command": "node reconstruction/test/eew-e01/run.mjs --manifest reconstruction/test/eew-e01/evidence/manifest.json",
+  "commands": [
+    "node reconstruction/test/eew-e01/run.mjs --manifest reconstruction/test/eew-e01/evidence/manifest.json",
+    "caffeinate -dims -w 9095",
+    "/opt/homebrew/opt/node@22/bin/node /Users/sayue/dev/FlEq/reconstruction/test/eew-e01/host-launcher.mjs /Users/sayue/dev/fleq-a10-runs/a10-p2-20260930b/e01-fixedBacklog-run1/host-config.json",
+    "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome --remote-debugging-port=0 --user-data-dir=/var/folders/rw/1cht1x111j7d7v39ptrn2l4c0000gn/T/fleq-a10-chrome-BLxWop --no-first-run --no-default-browser-check --window-size=1440,900 --force-color-profile=srgb --disable-background-timer-throttling --disable-renderer-backgrounding --disable-backgrounding-occluded-windows about:blank"
+  ],
+  "startedAt": "2026-09-30T09:06:06.373Z",
+  "preflight": {
+    "checkedAt": "2026-09-30T09:06:06.351Z",
+    "nodeVersion": "v22.23.2",
+    "chromeVersion": "154.0.8037.92",
+    "osVersion": "27.0.0 arm64",
+    "dist": [
+      "reconstruction/dist/src/host/host.js",
+      "reconstruction/dist/chrome-eew",
+      "dist/engine/messages/message-router.js"
+    ],
+    "gitHead": "0bf317fa6e1d0fee1a3de34ea194b52b13505f50",
+    "gitStatusPorcelain": ""
+  },
+  "status": "Pass",
+  "byteViolations": 12,
+  "byteViolationsNote": "byteViolations は verify 段の bytes が encode と同値（A3 契約どおりの製品）の件数。AC09「他 stage=0」と A3 の食い違いは総合レビュー送りの既知の契約の穴で、判定は変えない",
+  "resultFiles": [
+    {
+      "path": "reconstruction/test/eew-e01/evidence/windows/a10-p2-20260930b/results/result-formal-fixedBacklog-run1.json",
+      "sha256": "ed4b13cc63cd53123d0ed8f6efbd20c5b786d9147bf6bf9433886041879fa0f4"
+    },
+    {
+      "path": "reconstruction/test/eew-e01/evidence/windows/a10-p2-20260930b/results/aux-e01-fixedBacklog-run1.json",
+      "sha256": "5ff678317c8e5d95e1f7c4e23b10707c885c8965ca1efb336bc40bc732fe63e6"
+    }
+  ],
+  "finishedAt": "2026-09-30T09:31:20.249Z",
+  "raw": [
+    {
+      "file": "aux-e01-fixedBacklog-run1.json",
+      "bytes": 2452,
+      "sha256": "5ff678317c8e5d95e1f7c4e23b10707c885c8965ca1efb336bc40bc732fe63e6"
+    },
+    {
+      "file": "diagnostics/diagnostics-2026-06-05.jsonl",
+      "bytes": 140,
+      "sha256": "68128c855c967b3dde477d4dda426470aac9a18d5c3cd42e2a6db45d9333890c"
+    },
+    {
+      "file": "e01-assembled.json",
+      "bytes": 2062070,
+      "sha256": "036f751c2946e971564cb81306f73f374155a38801e0e6679571106f5f871b75"
+    },
+    {
+      "file": "host-config.json",
+      "bytes": 431,
+      "sha256": "6386c794c47db27b677bdc3763a1ca033cbf600ee53cee86969c50b30050fd25"
+    },
+    {
+      "file": "host-obs.jsonl",
+      "bytes": 2037744,
+      "sha256": "24d724abea9816ac2796db14a5c82c4328bc3b50d5c757104c2e0b741c993c26"
+    },
+    {
+      "file": "result-formal-fixedBacklog-run1.json",
+      "bytes": 1145,
+      "sha256": "ed4b13cc63cd53123d0ed8f6efbd20c5b786d9147bf6bf9433886041879fa0f4"
+    },
+    {
+      "file": "run-record.json",
+      "bytes": 801335,
+      "sha256": "d2ce032628cbc1a26b9e7e4ea4ac3c7eb5dd931af90dfe3a561f31c04e661fe3"
+    },
+    {
+      "file": "trace-00.json",
+      "bytes": 5635858,
+      "sha256": "659052d99e48a00f5a461ab1d41bff100e0816745601a0e7473a1be45fd27ef1"
+    },
+    {
+      "file": "trace-01.json",
+      "bytes": 5897454,
+      "sha256": "2566fb29bdfadeac0c61aac12af105868476e1847246d71a0208da41d4e6ccbe"
+    },
+    {
+      "file": "trace-02.json",
+      "bytes": 5774147,
+      "sha256": "9ff3fbbc3cce317f2df85fe472614255382d115d11c0a68339bf1227a2811e32"
+    },
+    {
+      "file": "trace-03.json",
+      "bytes": 5683901,
+      "sha256": "dbb5d0be40ba111d16b463ff575b40d28b38fca3b995443187705340680ed79b"
+    },
+    {
+      "file": "trace-04.json",
+      "bytes": 5873143,
+      "sha256": "a72efdf8f15f899119011ec6bc3ddeadfc23d1628df0b8307c95f62c2b91b3b7"
+    },
+    {
+      "file": "trace-05.json",
+      "bytes": 5758674,
+      "sha256": "d1e23a88c42218af31364d1b343a783bad1169ef4fc5b2042b8081a5f4c4bd09"
+    },
+    {
+      "file": "trace-06.json",
+      "bytes": 5736948,
+      "sha256": "95529da518fa2eb6f780c7f4f2ee323320fd6a3d7a26f55caab92925e2e12268"
+    },
+    {
+      "file": "trace-07.json",
+      "bytes": 5733563,
+      "sha256": "5f77e1d90b0ea2f9f5d9032b6dd93462a3b2d792b4b4cf6ad5092990d6fd5b12"
+    },
+    {
+      "file": "trace-08.json",
+      "bytes": 5730740,
+      "sha256": "2e9fb59289d8eb4636f5e5cea1435ed706f2a2211791e090b63581d6e25e64ee"
+    },
+    {
+      "file": "trace-09.json",
+      "bytes": 5746601,
+      "sha256": "f52eeb234059d7457dc58b17034cda3264851766f01051f62d69a678869c4976"
+    },
+    {
+      "file": "trace-10.json",
+      "bytes": 5752850,
+      "sha256": "104fcd5865978fbb07cc223014c5621786855ad91c76a0a4d557a57b26911ed7"
+    }
+  ],
+  "orphans": []
+}

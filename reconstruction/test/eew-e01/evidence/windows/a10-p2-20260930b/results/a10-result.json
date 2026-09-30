@@ -1,0 +1,2448 @@
+{
+  "schemaVersion": "p2-a10-result-v1",
+  "manifestId": "a10-p2-20260930b",
+  "manifestSha256": "03e631e0507a98e28de19b21812bb62f1f54c08059e1147176019ddd40dd6f51",
+  "resultSha256": "458beb7960b1281e8a3878c75a2626fa06761a03659198218917bf8d9a3e8819",
+  "e01": {
+    "verdict": {
+      "label": "P2限定E01",
+      "status": "Pass",
+      "referenceStatus": {
+        "maxVpws50DecodeStarted": "measured",
+        "maxWeatherCheckpointEncodeStarted": "measured",
+        "maxForecastCheckpointSave": "measured",
+        "forecastDeadlineOverlap": "measured"
+      },
+      "evidenceRefs": [
+        "unverified:excludedFromP2Formal:maxVpws50DecodeStarted",
+        "unverified:excludedFromP2Formal:maxWeatherCheckpointEncodeStarted",
+        "unverified:excludedFromP2Formal:maxForecastCheckpointSave",
+        "unverified:excludedFromP2Formal:forecastDeadlineOverlap"
+      ]
+    },
+    "cause": {
+      "cause": "none",
+      "decision": "keepA",
+      "evidenceRefs": [],
+      "attemptedFixes": []
+    },
+    "runs": [
+      {
+        "id": "e01-fixedBacklog-run1",
+        "attempt": 1,
+        "status": "Pass",
+        "durationMs": 1512630.7200419903,
+        "paintWithoutScreenshot": 143
+      },
+      {
+        "id": "e01-fixedBacklog-run2",
+        "attempt": 1,
+        "status": "Pass",
+        "durationMs": 1511443.8698340058,
+        "paintWithoutScreenshot": 147
+      },
+      {
+        "id": "e01-fixedBacklog-run3",
+        "attempt": 1,
+        "status": "Pass",
+        "durationMs": 1511414.5335829854,
+        "paintWithoutScreenshot": 199
+      },
+      {
+        "id": "e01-forecastDeadlineOverlap-run1",
+        "attempt": 1,
+        "status": "N/A",
+        "durationMs": 336448.4700000286,
+        "paintWithoutScreenshot": 15
+      },
+      {
+        "id": "e01-maxForecastCheckpointSave-run1",
+        "attempt": 1,
+        "status": "N/A",
+        "durationMs": 339030.56641602516,
+        "paintWithoutScreenshot": 8
+      },
+      {
+        "id": "e01-maxVpws50DecodeStarted-run1",
+        "attempt": 1,
+        "status": "N/A",
+        "durationMs": 334612.80395901203,
+        "paintWithoutScreenshot": 12
+      },
+      {
+        "id": "e01-maxWeatherCheckpointEncodeStarted-run1",
+        "attempt": 1,
+        "status": "N/A",
+        "durationMs": 337775.5830000043,
+        "paintWithoutScreenshot": 7
+      }
+    ]
+  },
+  "e02Verdict": {
+    "path": "reconstruction/test/eew-e01/evidence/windows/a10-p2-20260930b/results/e02-verdict.json",
+    "sha256": "1e74a7357bea47bf4b217aa275e30ca932aca4559f817b58eff49e1a0c23e0ae"
+  },
+  "preflights": [
+    {
+      "checkedAt": "2026-09-30T09:06:06.351Z",
+      "nodeVersion": "v22.23.2",
+      "chromeVersion": "154.0.8037.92",
+      "osVersion": "27.0.0 arm64",
+      "dist": [
+        "reconstruction/dist/src/host/host.js",
+        "reconstruction/dist/chrome-eew",
+        "dist/engine/messages/message-router.js"
+      ],
+      "gitHead": "0bf317fa6e1d0fee1a3de34ea194b52b13505f50",
+      "gitStatusPorcelain": ""
+    }
+  ],
+  "windows": [
+    {
+      "id": "ac15",
+      "attempt": 1,
+      "manifestId": "a10-p2-20260930b",
+      "manifestSha256": "03e631e0507a98e28de19b21812bb62f1f54c08059e1147176019ddd40dd6f51",
+      "rawDir": "/Users/sayue/dev/fleq-a10-runs/a10-p2-20260930b/ac15",
+      "command": "node reconstruction/test/eew-e01/run.mjs --manifest reconstruction/test/eew-e01/evidence/manifest.json",
+      "commands": [
+        "node reconstruction/test/eew-e01/run.mjs --manifest reconstruction/test/eew-e01/evidence/manifest.json",
+        "caffeinate -dims -w 9095",
+        "FLEQ_STRINGIFY_OUT=/Users/sayue/dev/fleq-a10-runs/a10-p2-20260930b/ac15/full/stringify.jsonl /opt/homebrew/opt/node@22/bin/node --import /Users/sayue/dev/FlEq/reconstruction/test/eew-e01/probe-preload.mjs /Users/sayue/dev/FlEq/reconstruction/test/eew-e01/host-launcher.mjs /Users/sayue/dev/fleq-a10-runs/a10-p2-20260930b/ac15/full/host-config.json",
+        "FLEQ_STRINGIFY_OUT=/Users/sayue/dev/fleq-a10-runs/a10-p2-20260930b/ac15/half/stringify.jsonl /opt/homebrew/opt/node@22/bin/node --import /Users/sayue/dev/FlEq/reconstruction/test/eew-e01/probe-preload.mjs /Users/sayue/dev/FlEq/reconstruction/test/eew-e01/host-launcher.mjs /Users/sayue/dev/fleq-a10-runs/a10-p2-20260930b/ac15/half/host-config.json"
+      ],
+      "startedAt": "2026-09-30T13:28:40.543Z",
+      "fill": {
+        "mode": "full",
+        "frames": 1923,
+        "firstSeq": 1,
+        "sentMs": 43229,
+        "verifiedMs": 44396,
+        "observed": {
+          "snapshotActive": {
+            "eew": "512/0/0",
+            "weatherCurrent": "129/1/1",
+            "weatherTimeseries": "512/0/0"
+          },
+          "checkpoint": {
+            "U-W.national": 3,
+            "U-W.partials": 128,
+            "U-F.subjects": 512
+          }
+        },
+        "quiet": {
+          "waitedMs": 17801,
+          "untilLastBackendMs": 2747,
+          "backendLaunchesSeen": {
+            "afplay": 6
+          },
+          "quietMs": 15000,
+          "pgrepFailures": 0,
+          "note": "100ms ごとの pgrep -P で見えた子の数（短命な起動は取りこぼしうる下限）"
+        },
+        "observedBeforeMeasure": {
+          "snapshotActive": {
+            "eew": "512/0/0",
+            "weatherCurrent": "129/1/1",
+            "weatherTimeseries": "512/0/0"
+          },
+          "checkpoint": {
+            "U-W.national": 3,
+            "U-W.partials": 128,
+            "U-F.subjects": 512
+          }
+        }
+      },
+      "ac15Parts": {
+        "full": "Pass",
+        "half": "Pass",
+        "retention": "Pass"
+      },
+      "status": "Pass",
+      "byteViolations": 267,
+      "byteViolationsNote": "byteViolations は verify 段の bytes が encode と同値（A3 契約どおりの製品）の件数。AC09「他 stage=0」と A3 の食い違いは総合レビュー送りの既知の契約の穴で、判定は変えない",
+      "resultFiles": [
+        {
+          "path": "reconstruction/test/eew-e01/evidence/windows/a10-p2-20260930b/results/aux-ac15.json",
+          "sha256": "e620ab44144ddb7f56dc9d473441634e06b4712ae1d018ceeab91b32b113e368"
+        }
+      ],
+      "finishedAt": "2026-09-30T14:12:45.008Z",
+      "raw": [
+        {
+          "file": "aux-ac15.json",
+          "bytes": 81754,
+          "sha256": "e620ab44144ddb7f56dc9d473441634e06b4712ae1d018ceeab91b32b113e368"
+        },
+        {
+          "file": "full/diagnostics/diagnostics-2026-06-05.jsonl",
+          "bytes": 96556,
+          "sha256": "3e39c55ef07c8d944d1c3e4479b305339025ba446d88aeb07814421a89116873"
+        },
+        {
+          "file": "half/diagnostics/diagnostics-2026-06-05.jsonl",
+          "bytes": 44200,
+          "sha256": "8f64f9b502e02df9f095acafc19240c868e96e29e6a399da1b5c85471bf01461"
+        }
+      ],
+      "orphans": [],
+      "latest": true,
+      "preflight": 0
+    },
+    {
+      "id": "e01-fixedBacklog-run1",
+      "attempt": 1,
+      "manifestId": "a10-p2-20260930b",
+      "manifestSha256": "03e631e0507a98e28de19b21812bb62f1f54c08059e1147176019ddd40dd6f51",
+      "rawDir": "/Users/sayue/dev/fleq-a10-runs/a10-p2-20260930b/e01-fixedBacklog-run1",
+      "command": "node reconstruction/test/eew-e01/run.mjs --manifest reconstruction/test/eew-e01/evidence/manifest.json",
+      "commands": [
+        "node reconstruction/test/eew-e01/run.mjs --manifest reconstruction/test/eew-e01/evidence/manifest.json",
+        "caffeinate -dims -w 9095",
+        "/opt/homebrew/opt/node@22/bin/node /Users/sayue/dev/FlEq/reconstruction/test/eew-e01/host-launcher.mjs /Users/sayue/dev/fleq-a10-runs/a10-p2-20260930b/e01-fixedBacklog-run1/host-config.json",
+        "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome --remote-debugging-port=0 --user-data-dir=/var/folders/rw/1cht1x111j7d7v39ptrn2l4c0000gn/T/fleq-a10-chrome-BLxWop --no-first-run --no-default-browser-check --window-size=1440,900 --force-color-profile=srgb --disable-background-timer-throttling --disable-renderer-backgrounding --disable-backgrounding-occluded-windows about:blank"
+      ],
+      "startedAt": "2026-09-30T09:06:06.373Z",
+      "status": "Pass",
+      "byteViolations": 12,
+      "byteViolationsNote": "byteViolations は verify 段の bytes が encode と同値（A3 契約どおりの製品）の件数。AC09「他 stage=0」と A3 の食い違いは総合レビュー送りの既知の契約の穴で、判定は変えない",
+      "resultFiles": [
+        {
+          "path": "reconstruction/test/eew-e01/evidence/windows/a10-p2-20260930b/results/result-formal-fixedBacklog-run1.json",
+          "sha256": "ed4b13cc63cd53123d0ed8f6efbd20c5b786d9147bf6bf9433886041879fa0f4"
+        },
+        {
+          "path": "reconstruction/test/eew-e01/evidence/windows/a10-p2-20260930b/results/aux-e01-fixedBacklog-run1.json",
+          "sha256": "5ff678317c8e5d95e1f7c4e23b10707c885c8965ca1efb336bc40bc732fe63e6"
+        }
+      ],
+      "finishedAt": "2026-09-30T09:31:20.249Z",
+      "raw": [
+        {
+          "file": "aux-e01-fixedBacklog-run1.json",
+          "bytes": 2452,
+          "sha256": "5ff678317c8e5d95e1f7c4e23b10707c885c8965ca1efb336bc40bc732fe63e6"
+        },
+        {
+          "file": "diagnostics/diagnostics-2026-06-05.jsonl",
+          "bytes": 140,
+          "sha256": "68128c855c967b3dde477d4dda426470aac9a18d5c3cd42e2a6db45d9333890c"
+        },
+        {
+          "file": "e01-assembled.json",
+          "bytes": 2062070,
+          "sha256": "036f751c2946e971564cb81306f73f374155a38801e0e6679571106f5f871b75"
+        },
+        {
+          "file": "host-config.json",
+          "bytes": 431,
+          "sha256": "6386c794c47db27b677bdc3763a1ca033cbf600ee53cee86969c50b30050fd25"
+        },
+        {
+          "file": "host-obs.jsonl",
+          "bytes": 2037744,
+          "sha256": "24d724abea9816ac2796db14a5c82c4328bc3b50d5c757104c2e0b741c993c26"
+        },
+        {
+          "file": "result-formal-fixedBacklog-run1.json",
+          "bytes": 1145,
+          "sha256": "ed4b13cc63cd53123d0ed8f6efbd20c5b786d9147bf6bf9433886041879fa0f4"
+        },
+        {
+          "file": "run-record.json",
+          "bytes": 801335,
+          "sha256": "d2ce032628cbc1a26b9e7e4ea4ac3c7eb5dd931af90dfe3a561f31c04e661fe3"
+        },
+        {
+          "file": "trace-00.json",
+          "bytes": 5635858,
+          "sha256": "659052d99e48a00f5a461ab1d41bff100e0816745601a0e7473a1be45fd27ef1"
+        },
+        {
+          "file": "trace-01.json",
+          "bytes": 5897454,
+          "sha256": "2566fb29bdfadeac0c61aac12af105868476e1847246d71a0208da41d4e6ccbe"
+        },
+        {
+          "file": "trace-02.json",
+          "bytes": 5774147,
+          "sha256": "9ff3fbbc3cce317f2df85fe472614255382d115d11c0a68339bf1227a2811e32"
+        },
+        {
+          "file": "trace-03.json",
+          "bytes": 5683901,
+          "sha256": "dbb5d0be40ba111d16b463ff575b40d28b38fca3b995443187705340680ed79b"
+        },
+        {
+          "file": "trace-04.json",
+          "bytes": 5873143,
+          "sha256": "a72efdf8f15f899119011ec6bc3ddeadfc23d1628df0b8307c95f62c2b91b3b7"
+        },
+        {
+          "file": "trace-05.json",
+          "bytes": 5758674,
+          "sha256": "d1e23a88c42218af31364d1b343a783bad1169ef4fc5b2042b8081a5f4c4bd09"
+        },
+        {
+          "file": "trace-06.json",
+          "bytes": 5736948,
+          "sha256": "95529da518fa2eb6f780c7f4f2ee323320fd6a3d7a26f55caab92925e2e12268"
+        },
+        {
+          "file": "trace-07.json",
+          "bytes": 5733563,
+          "sha256": "5f77e1d90b0ea2f9f5d9032b6dd93462a3b2d792b4b4cf6ad5092990d6fd5b12"
+        },
+        {
+          "file": "trace-08.json",
+          "bytes": 5730740,
+          "sha256": "2e9fb59289d8eb4636f5e5cea1435ed706f2a2211791e090b63581d6e25e64ee"
+        },
+        {
+          "file": "trace-09.json",
+          "bytes": 5746601,
+          "sha256": "f52eeb234059d7457dc58b17034cda3264851766f01051f62d69a678869c4976"
+        },
+        {
+          "file": "trace-10.json",
+          "bytes": 5752850,
+          "sha256": "104fcd5865978fbb07cc223014c5621786855ad91c76a0a4d557a57b26911ed7"
+        }
+      ],
+      "orphans": [],
+      "latest": true,
+      "preflight": 0
+    },
+    {
+      "id": "e01-fixedBacklog-run2",
+      "attempt": 1,
+      "manifestId": "a10-p2-20260930b",
+      "manifestSha256": "03e631e0507a98e28de19b21812bb62f1f54c08059e1147176019ddd40dd6f51",
+      "rawDir": "/Users/sayue/dev/fleq-a10-runs/a10-p2-20260930b/e01-fixedBacklog-run2",
+      "command": "node reconstruction/test/eew-e01/run.mjs --manifest reconstruction/test/eew-e01/evidence/manifest.json",
+      "commands": [
+        "node reconstruction/test/eew-e01/run.mjs --manifest reconstruction/test/eew-e01/evidence/manifest.json",
+        "caffeinate -dims -w 9095",
+        "/opt/homebrew/opt/node@22/bin/node /Users/sayue/dev/FlEq/reconstruction/test/eew-e01/host-launcher.mjs /Users/sayue/dev/fleq-a10-runs/a10-p2-20260930b/e01-fixedBacklog-run2/host-config.json",
+        "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome --remote-debugging-port=0 --user-data-dir=/var/folders/rw/1cht1x111j7d7v39ptrn2l4c0000gn/T/fleq-a10-chrome-vMlPSR --no-first-run --no-default-browser-check --window-size=1440,900 --force-color-profile=srgb --disable-background-timer-throttling --disable-renderer-backgrounding --disable-backgrounding-occluded-windows about:blank"
+      ],
+      "startedAt": "2026-09-30T09:31:20.275Z",
+      "status": "Pass",
+      "byteViolations": 13,
+      "byteViolationsNote": "byteViolations は verify 段の bytes が encode と同値（A3 契約どおりの製品）の件数。AC09「他 stage=0」と A3 の食い違いは総合レビュー送りの既知の契約の穴で、判定は変えない",
+      "resultFiles": [
+        {
+          "path": "reconstruction/test/eew-e01/evidence/windows/a10-p2-20260930b/results/result-formal-fixedBacklog-run2.json",
+          "sha256": "47cea3bfe3a3d704add48f90f22f3429bc69dde3296818aee5e2c1a79d878dae"
+        },
+        {
+          "path": "reconstruction/test/eew-e01/evidence/windows/a10-p2-20260930b/results/aux-e01-fixedBacklog-run2.json",
+          "sha256": "a34fa0ed6bd3082e71758cc815217cdf401c0693bff9a067cea615c004f07a42"
+        }
+      ],
+      "finishedAt": "2026-09-30T09:56:32.938Z",
+      "raw": [
+        {
+          "file": "aux-e01-fixedBacklog-run2.json",
+          "bytes": 2453,
+          "sha256": "a34fa0ed6bd3082e71758cc815217cdf401c0693bff9a067cea615c004f07a42"
+        },
+        {
+          "file": "diagnostics/diagnostics-2026-06-05.jsonl",
+          "bytes": 140,
+          "sha256": "af97ff395af97d1b91c16161d6d334caf14ccba8b85956444654625e26ef3fd8"
+        },
+        {
+          "file": "e01-assembled.json",
+          "bytes": 2061792,
+          "sha256": "97bc9d23ba8f1f1170d0f927e9b65898247f59f3e7f02b1b78502ec08449d3c8"
+        },
+        {
+          "file": "host-config.json",
+          "bytes": 431,
+          "sha256": "e2c339097fe17ab7add1d6ed768919b2d89a6398b6cfdba87e8332902c8c00f1"
+        },
+        {
+          "file": "host-obs.jsonl",
+          "bytes": 2040717,
+          "sha256": "db4f8c661811c0887adfad99ae96ca602e51570dc94b866f8091ee56574243bd"
+        },
+        {
+          "file": "result-formal-fixedBacklog-run2.json",
+          "bytes": 1142,
+          "sha256": "47cea3bfe3a3d704add48f90f22f3429bc69dde3296818aee5e2c1a79d878dae"
+        },
+        {
+          "file": "run-record.json",
+          "bytes": 802402,
+          "sha256": "fce7ae90d0bfc2bfe92f2c2aff60b8260f9be9b7239c13d65ffa95dde18f49a0"
+        },
+        {
+          "file": "trace-00.json",
+          "bytes": 5745749,
+          "sha256": "b39e0284c1f29847196979c3d21a462dc94089b85d08c689318c2b7c4f87176f"
+        },
+        {
+          "file": "trace-01.json",
+          "bytes": 5904914,
+          "sha256": "bf7fdd3b24398862f32ebdb04621adabf7d3b89ba70f199f2ebece5b0a90bca1"
+        },
+        {
+          "file": "trace-02.json",
+          "bytes": 5784104,
+          "sha256": "85859402f376dcc102e1da1f35e8bbbfd9b015e9261a5b46478064a1cc4bbc40"
+        },
+        {
+          "file": "trace-03.json",
+          "bytes": 5685679,
+          "sha256": "23ba85968278645cd86e09897baa4b81063e9f38330a1938154e04fcac0d48cc"
+        },
+        {
+          "file": "trace-04.json",
+          "bytes": 5878279,
+          "sha256": "184560423a2d36feb92a61e5ee34e79ff2bf7fb2416340ef12e438fbd73cc046"
+        },
+        {
+          "file": "trace-05.json",
+          "bytes": 5732618,
+          "sha256": "fb4f796e65242f423265e12fa2d990df4b36bba76b1f8bea87faac188f9b10a0"
+        },
+        {
+          "file": "trace-06.json",
+          "bytes": 5777827,
+          "sha256": "6243c56da8e5be225c57e562054c6a49f120e9adc52a8f129a0a2a5d39f63bc4"
+        },
+        {
+          "file": "trace-07.json",
+          "bytes": 5688916,
+          "sha256": "b648be4f4fd8b1463628a7379757239d07acee364aa8bd03652541577e108ae4"
+        },
+        {
+          "file": "trace-08.json",
+          "bytes": 5806874,
+          "sha256": "14785f9ed6322bdbc3d863a99fe1a942c4b2c7820791443b0f63f02a7a85101c"
+        },
+        {
+          "file": "trace-09.json",
+          "bytes": 5835993,
+          "sha256": "d2029e109170ca923a12f28fdd65cf07cf9f40e75f7684835af4ac599394e87b"
+        },
+        {
+          "file": "trace-10.json",
+          "bytes": 5762598,
+          "sha256": "ef204d039eab6bc05e8acf344fd49ce0a9cfbdadc1a1b6e95cb7266fd529b820"
+        }
+      ],
+      "orphans": [],
+      "latest": true,
+      "preflight": 0
+    },
+    {
+      "id": "e01-fixedBacklog-run3",
+      "attempt": 1,
+      "manifestId": "a10-p2-20260930b",
+      "manifestSha256": "03e631e0507a98e28de19b21812bb62f1f54c08059e1147176019ddd40dd6f51",
+      "rawDir": "/Users/sayue/dev/fleq-a10-runs/a10-p2-20260930b/e01-fixedBacklog-run3",
+      "command": "node reconstruction/test/eew-e01/run.mjs --manifest reconstruction/test/eew-e01/evidence/manifest.json",
+      "commands": [
+        "node reconstruction/test/eew-e01/run.mjs --manifest reconstruction/test/eew-e01/evidence/manifest.json",
+        "caffeinate -dims -w 9095",
+        "/opt/homebrew/opt/node@22/bin/node /Users/sayue/dev/FlEq/reconstruction/test/eew-e01/host-launcher.mjs /Users/sayue/dev/fleq-a10-runs/a10-p2-20260930b/e01-fixedBacklog-run3/host-config.json",
+        "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome --remote-debugging-port=0 --user-data-dir=/var/folders/rw/1cht1x111j7d7v39ptrn2l4c0000gn/T/fleq-a10-chrome-XbPeMt --no-first-run --no-default-browser-check --window-size=1440,900 --force-color-profile=srgb --disable-background-timer-throttling --disable-renderer-backgrounding --disable-backgrounding-occluded-windows about:blank"
+      ],
+      "startedAt": "2026-09-30T09:56:32.964Z",
+      "status": "Pass",
+      "byteViolations": 13,
+      "byteViolationsNote": "byteViolations は verify 段の bytes が encode と同値（A3 契約どおりの製品）の件数。AC09「他 stage=0」と A3 の食い違いは総合レビュー送りの既知の契約の穴で、判定は変えない",
+      "resultFiles": [
+        {
+          "path": "reconstruction/test/eew-e01/evidence/windows/a10-p2-20260930b/results/result-formal-fixedBacklog-run3.json",
+          "sha256": "a861a018b895287e9b98a7252ed1c5d649c22e7ab2eab5a496db4a3c2046d2f7"
+        },
+        {
+          "path": "reconstruction/test/eew-e01/evidence/windows/a10-p2-20260930b/results/aux-e01-fixedBacklog-run3.json",
+          "sha256": "e751ca62fa4c329ae0f393d8e84b2a676a300089d7465e54b91fcbf19f358de3"
+        }
+      ],
+      "finishedAt": "2026-09-30T10:21:45.592Z",
+      "raw": [
+        {
+          "file": "aux-e01-fixedBacklog-run3.json",
+          "bytes": 2453,
+          "sha256": "e751ca62fa4c329ae0f393d8e84b2a676a300089d7465e54b91fcbf19f358de3"
+        },
+        {
+          "file": "diagnostics/diagnostics-2026-06-05.jsonl",
+          "bytes": 140,
+          "sha256": "d50743e21e4daa4eb57cb2a027086e359a0e13c28321f92517c6367ac9493271"
+        },
+        {
+          "file": "e01-assembled.json",
+          "bytes": 2062965,
+          "sha256": "2d235a05c3a0c381cc6290892456384255484c789320a6a3a93c653c29907fef"
+        },
+        {
+          "file": "host-config.json",
+          "bytes": 431,
+          "sha256": "3d77da20840215d79c1fdb118abf970367db3287a3794d7b79f9afc3635b60d3"
+        },
+        {
+          "file": "host-obs.jsonl",
+          "bytes": 2040575,
+          "sha256": "bec14b0764fac3d1074b359693dbfd1c724fb1ea2b3518a5757dd69b2a4ef2a4"
+        },
+        {
+          "file": "result-formal-fixedBacklog-run3.json",
+          "bytes": 1142,
+          "sha256": "a861a018b895287e9b98a7252ed1c5d649c22e7ab2eab5a496db4a3c2046d2f7"
+        },
+        {
+          "file": "run-record.json",
+          "bytes": 802408,
+          "sha256": "7de818476cdbfc6703b1c36193a5c3cd31606f9f2c520149d48cc75e387228fd"
+        },
+        {
+          "file": "trace-00.json",
+          "bytes": 5741172,
+          "sha256": "0e438da8da0f7fc450442a1b485c043e4b47574f498a307015354e7a8a6cb0ec"
+        },
+        {
+          "file": "trace-01.json",
+          "bytes": 5923521,
+          "sha256": "529653741d72ad8de683d672902a6e04c6acbeed1f923f330b8b16af8c2fb12a"
+        },
+        {
+          "file": "trace-02.json",
+          "bytes": 5840469,
+          "sha256": "2e694e225761b62777c07ad99a09394dee2e6771bcae02fae6df2095578b5e27"
+        },
+        {
+          "file": "trace-03.json",
+          "bytes": 5884987,
+          "sha256": "f145031c0fe15580cecd4d14de0f72d839d83d1dce978c3fe046dd5cfbfc4813"
+        },
+        {
+          "file": "trace-04.json",
+          "bytes": 5890226,
+          "sha256": "e8d94ae0d9ec429ff5f108e54d709cae6350b16c59dfe752571f307a6870b6cc"
+        },
+        {
+          "file": "trace-05.json",
+          "bytes": 5768751,
+          "sha256": "e1dd143ee77b1016bd2e08594674b1bf38384f8ee6734e198f012f094d310e55"
+        },
+        {
+          "file": "trace-06.json",
+          "bytes": 5790935,
+          "sha256": "4cd7fc82ba51425cb5a4663c4a58c3ed05ab8366a462cfeb4a1b05612633f158"
+        },
+        {
+          "file": "trace-07.json",
+          "bytes": 5696488,
+          "sha256": "c12959b84095a5340fad8abd6d83d349b2fa257e722324e4c91a3e6446aba5d3"
+        },
+        {
+          "file": "trace-08.json",
+          "bytes": 5791280,
+          "sha256": "c9b4e2630fa18bcffbc28a4132d94cc237b47df14a70b2124a59fd7c35015456"
+        },
+        {
+          "file": "trace-09.json",
+          "bytes": 5833452,
+          "sha256": "ada74e93681eb80de1fd56c536c2d708554bafb28fda40c9fe0969ba49f64d29"
+        },
+        {
+          "file": "trace-10.json",
+          "bytes": 5785881,
+          "sha256": "1bb0f8f8a2760462586646a8833e32c533206e47e78d103c5125ff0d90185bdc"
+        }
+      ],
+      "orphans": [],
+      "latest": true,
+      "preflight": 0
+    },
+    {
+      "id": "e01-forecastDeadlineOverlap-run1",
+      "attempt": 1,
+      "manifestId": "a10-p2-20260930b",
+      "manifestSha256": "03e631e0507a98e28de19b21812bb62f1f54c08059e1147176019ddd40dd6f51",
+      "rawDir": "/Users/sayue/dev/fleq-a10-runs/a10-p2-20260930b/e01-forecastDeadlineOverlap-run1",
+      "command": "node reconstruction/test/eew-e01/run.mjs --manifest reconstruction/test/eew-e01/evidence/manifest.json",
+      "commands": [
+        "node reconstruction/test/eew-e01/run.mjs --manifest reconstruction/test/eew-e01/evidence/manifest.json",
+        "caffeinate -dims -w 9095",
+        "/opt/homebrew/opt/node@22/bin/node /Users/sayue/dev/FlEq/reconstruction/test/eew-e01/host-launcher.mjs /Users/sayue/dev/fleq-a10-runs/a10-p2-20260930b/e01-forecastDeadlineOverlap-run1/host-config.json",
+        "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome --remote-debugging-port=0 --user-data-dir=/var/folders/rw/1cht1x111j7d7v39ptrn2l4c0000gn/T/fleq-a10-chrome-hjfgZf --no-first-run --no-default-browser-check --window-size=1440,900 --force-color-profile=srgb --disable-background-timer-throttling --disable-renderer-backgrounding --disable-backgrounding-occluded-windows about:blank"
+      ],
+      "startedAt": "2026-09-30T10:38:39.290Z",
+      "status": "N/A",
+      "byteViolations": 224,
+      "byteViolationsNote": "byteViolations は verify 段の bytes が encode と同値（A3 契約どおりの製品）の件数。AC09「他 stage=0」と A3 の食い違いは総合レビュー送りの既知の契約の穴で、判定は変えない",
+      "resultFiles": [
+        {
+          "path": "reconstruction/test/eew-e01/evidence/windows/a10-p2-20260930b/results/result-reference-forecastDeadlineOverlap-run1.json",
+          "sha256": "4e0a57a01cac59cdd12389106a64779cf9c431dfd1deb1b76676a2f03ae7220f"
+        },
+        {
+          "path": "reconstruction/test/eew-e01/evidence/windows/a10-p2-20260930b/results/aux-e01-forecastDeadlineOverlap-run1.json",
+          "sha256": "faab4a066b01dfc0d2579daa155396a299e80db7b3681e99345724b846d0ee42"
+        }
+      ],
+      "finishedAt": "2026-09-30T10:44:16.557Z",
+      "raw": [
+        {
+          "file": "aux-e01-forecastDeadlineOverlap-run1.json",
+          "bytes": 2477,
+          "sha256": "faab4a066b01dfc0d2579daa155396a299e80db7b3681e99345724b846d0ee42"
+        },
+        {
+          "file": "diagnostics/diagnostics-2026-06-05.jsonl",
+          "bytes": 140,
+          "sha256": "b2ec5931a55fe675138184e84974c75b6d3a6133488294a26ce75d31c040076b"
+        },
+        {
+          "file": "e01-assembled.json",
+          "bytes": 724928,
+          "sha256": "717bc6927310bc6e3bc1a6dcbf2934640306621b7cf086c470f4fd4f37e50836"
+        },
+        {
+          "file": "host-config.json",
+          "bytes": 464,
+          "sha256": "b77a6b3166feca29f5a69a0c4edbfab0991ad080eeccb38249bc536dc3a17f4a"
+        },
+        {
+          "file": "host-obs.jsonl",
+          "bytes": 1202906,
+          "sha256": "70ef4f9ab3206aad38e6ff6beae3941493100a0fe722fb938f8def39a747b1f7"
+        },
+        {
+          "file": "result-reference-forecastDeadlineOverlap-run1.json",
+          "bytes": 1187,
+          "sha256": "4e0a57a01cac59cdd12389106a64779cf9c431dfd1deb1b76676a2f03ae7220f"
+        },
+        {
+          "file": "run-record.json",
+          "bytes": 473740,
+          "sha256": "6c23cc2f24df0d07b8c8b4ec0b43f854ff11967070229d78db161c7889947987"
+        },
+        {
+          "file": "trace-00.json",
+          "bytes": 16347260,
+          "sha256": "1238be29812bd6411457d8ab16bf1fc48bfbfbd79429aec931620936a9ca2782"
+        },
+        {
+          "file": "trace-01.json",
+          "bytes": 1812702,
+          "sha256": "ed534fe095b0089ecfe5cb403985749408766aa2c7e0329bd9ad738c103df355"
+        }
+      ],
+      "orphans": [],
+      "latest": true,
+      "preflight": 0
+    },
+    {
+      "id": "e01-maxForecastCheckpointSave-run1",
+      "attempt": 1,
+      "manifestId": "a10-p2-20260930b",
+      "manifestSha256": "03e631e0507a98e28de19b21812bb62f1f54c08059e1147176019ddd40dd6f51",
+      "rawDir": "/Users/sayue/dev/fleq-a10-runs/a10-p2-20260930b/e01-maxForecastCheckpointSave-run1",
+      "command": "node reconstruction/test/eew-e01/run.mjs --manifest reconstruction/test/eew-e01/evidence/manifest.json",
+      "commands": [
+        "node reconstruction/test/eew-e01/run.mjs --manifest reconstruction/test/eew-e01/evidence/manifest.json",
+        "caffeinate -dims -w 9095",
+        "/opt/homebrew/opt/node@22/bin/node /Users/sayue/dev/FlEq/reconstruction/test/eew-e01/host-launcher.mjs /Users/sayue/dev/fleq-a10-runs/a10-p2-20260930b/e01-maxForecastCheckpointSave-run1/host-config.json",
+        "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome --remote-debugging-port=0 --user-data-dir=/var/folders/rw/1cht1x111j7d7v39ptrn2l4c0000gn/T/fleq-a10-chrome-Urwl6S --no-first-run --no-default-browser-check --window-size=1440,900 --force-color-profile=srgb --disable-background-timer-throttling --disable-renderer-backgrounding --disable-backgrounding-occluded-windows about:blank"
+      ],
+      "startedAt": "2026-09-30T10:32:59.632Z",
+      "status": "N/A",
+      "byteViolations": 119,
+      "byteViolationsNote": "byteViolations は verify 段の bytes が encode と同値（A3 契約どおりの製品）の件数。AC09「他 stage=0」と A3 の食い違いは総合レビュー送りの既知の契約の穴で、判定は変えない",
+      "resultFiles": [
+        {
+          "path": "reconstruction/test/eew-e01/evidence/windows/a10-p2-20260930b/results/result-reference-maxForecastCheckpointSave-run1.json",
+          "sha256": "3c93fb5bb8ff3849587b4473321bbdb2b4bc01ff7ce837236ce0d924ab2b8539"
+        },
+        {
+          "path": "reconstruction/test/eew-e01/evidence/windows/a10-p2-20260930b/results/aux-e01-maxForecastCheckpointSave-run1.json",
+          "sha256": "a782a54e8e8fb55e51d402981db1fc2836dd109bbed1493723a792693eaf5551"
+        }
+      ],
+      "finishedAt": "2026-09-30T10:38:39.283Z",
+      "raw": [
+        {
+          "file": "aux-e01-maxForecastCheckpointSave-run1.json",
+          "bytes": 2485,
+          "sha256": "a782a54e8e8fb55e51d402981db1fc2836dd109bbed1493723a792693eaf5551"
+        },
+        {
+          "file": "diagnostics/diagnostics-2026-06-05.jsonl",
+          "bytes": 140,
+          "sha256": "70ec58a8c5613f5d27865b8ebf310930bc52b2ad264b0500c93d1a811f013e74"
+        },
+        {
+          "file": "e01-assembled.json",
+          "bytes": 506913,
+          "sha256": "24cb0d7317d9e3225cc89509bcc9e3f553a010987d2fb282bcdb4ffe27d93dea"
+        },
+        {
+          "file": "host-config.json",
+          "bytes": 470,
+          "sha256": "bb1aa10717b3a29400b4f070b6f0b2c2fc5ccef9ae6a53655454349536f7d472"
+        },
+        {
+          "file": "host-obs.jsonl",
+          "bytes": 794144,
+          "sha256": "a3dc2305573be9c291f3234f068fae117496bcaaf1a117f2c2abfd488e6aa280"
+        },
+        {
+          "file": "result-reference-maxForecastCheckpointSave-run1.json",
+          "bytes": 1194,
+          "sha256": "3c93fb5bb8ff3849587b4473321bbdb2b4bc01ff7ce837236ce0d924ab2b8539"
+        },
+        {
+          "file": "run-record.json",
+          "bytes": 348056,
+          "sha256": "febae40fbbe983b06ada97429e3bd206862e2ded3d0029d103130038441939f3"
+        },
+        {
+          "file": "trace-00.json",
+          "bytes": 12527682,
+          "sha256": "a71f6115f2ca66aee3cd607a6bf44e692c738142a00c95a563c2d1a78417a721"
+        },
+        {
+          "file": "trace-01.json",
+          "bytes": 1265239,
+          "sha256": "d711c397fd556ad8cb6b9656ad4a3e58dc57e861935623ae666375d71abae7c1"
+        }
+      ],
+      "orphans": [],
+      "latest": true,
+      "preflight": 0
+    },
+    {
+      "id": "e01-maxVpws50DecodeStarted-run1",
+      "attempt": 1,
+      "manifestId": "a10-p2-20260930b",
+      "manifestSha256": "03e631e0507a98e28de19b21812bb62f1f54c08059e1147176019ddd40dd6f51",
+      "rawDir": "/Users/sayue/dev/fleq-a10-runs/a10-p2-20260930b/e01-maxVpws50DecodeStarted-run1",
+      "command": "node reconstruction/test/eew-e01/run.mjs --manifest reconstruction/test/eew-e01/evidence/manifest.json",
+      "commands": [
+        "node reconstruction/test/eew-e01/run.mjs --manifest reconstruction/test/eew-e01/evidence/manifest.json",
+        "caffeinate -dims -w 9095",
+        "/opt/homebrew/opt/node@22/bin/node /Users/sayue/dev/FlEq/reconstruction/test/eew-e01/host-launcher.mjs /Users/sayue/dev/fleq-a10-runs/a10-p2-20260930b/e01-maxVpws50DecodeStarted-run1/host-config.json",
+        "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome --remote-debugging-port=0 --user-data-dir=/var/folders/rw/1cht1x111j7d7v39ptrn2l4c0000gn/T/fleq-a10-chrome-6hT3PN --no-first-run --no-default-browser-check --window-size=1440,900 --force-color-profile=srgb --disable-background-timer-throttling --disable-renderer-backgrounding --disable-backgrounding-occluded-windows about:blank"
+      ],
+      "startedAt": "2026-09-30T10:21:45.617Z",
+      "status": "N/A",
+      "byteViolations": 119,
+      "byteViolationsNote": "byteViolations は verify 段の bytes が encode と同値（A3 契約どおりの製品）の件数。AC09「他 stage=0」と A3 の食い違いは総合レビュー送りの既知の契約の穴で、判定は変えない",
+      "resultFiles": [
+        {
+          "path": "reconstruction/test/eew-e01/evidence/windows/a10-p2-20260930b/results/result-reference-maxVpws50DecodeStarted-run1.json",
+          "sha256": "765e44b2f8c8cd663f0429369c1d34c7cc8553e3dd27682dea4c29a60d3612c0"
+        },
+        {
+          "path": "reconstruction/test/eew-e01/evidence/windows/a10-p2-20260930b/results/aux-e01-maxVpws50DecodeStarted-run1.json",
+          "sha256": "813b5665fdbd1d95e30e3266d18e0c91c8a90e3c233c8cb701c5cec6c11bea0b"
+        }
+      ],
+      "finishedAt": "2026-09-30T10:27:21.004Z",
+      "raw": [
+        {
+          "file": "aux-e01-maxVpws50DecodeStarted-run1.json",
+          "bytes": 2479,
+          "sha256": "813b5665fdbd1d95e30e3266d18e0c91c8a90e3c233c8cb701c5cec6c11bea0b"
+        },
+        {
+          "file": "diagnostics/diagnostics-2026-06-05.jsonl",
+          "bytes": 140,
+          "sha256": "e83e6e96e46bf5d54736d1abffca7c6869db9dfaa6be624703f1f9880cd92500"
+        },
+        {
+          "file": "e01-assembled.json",
+          "bytes": 505486,
+          "sha256": "28be3f2746c133be763ab93295ef10893cd43c1ef56e40b950b5f1bc3158a06e"
+        },
+        {
+          "file": "host-config.json",
+          "bytes": 461,
+          "sha256": "6ff762feae580ba12e6bf269ac9bef928600013fb11aeaf1bcea045ddc8d58b5"
+        },
+        {
+          "file": "host-obs.jsonl",
+          "bytes": 792453,
+          "sha256": "32796ae0291f45a4182a9b9ab2c55d075078ab0c0531b28c88ab358ff40c82c3"
+        },
+        {
+          "file": "result-reference-maxVpws50DecodeStarted-run1.json",
+          "bytes": 1180,
+          "sha256": "765e44b2f8c8cd663f0429369c1d34c7cc8553e3dd27682dea4c29a60d3612c0"
+        },
+        {
+          "file": "run-record.json",
+          "bytes": 277770,
+          "sha256": "20530bd1e1c71fe1d409286b6de4133f01133c04df1d4a336d99bffa850fc2c0"
+        },
+        {
+          "file": "trace-00.json",
+          "bytes": 12849917,
+          "sha256": "01778d32a90e022472fbf1f9bad2f62cc6871b65578f4177d5acd6ca375cbfef"
+        },
+        {
+          "file": "trace-01.json",
+          "bytes": 1395329,
+          "sha256": "04d6768217018c3b7c842d458455856c237f243d1f91b3a96ab0db64cbeb5528"
+        }
+      ],
+      "orphans": [],
+      "latest": true,
+      "preflight": 0
+    },
+    {
+      "id": "e01-maxWeatherCheckpointEncodeStarted-run1",
+      "attempt": 1,
+      "manifestId": "a10-p2-20260930b",
+      "manifestSha256": "03e631e0507a98e28de19b21812bb62f1f54c08059e1147176019ddd40dd6f51",
+      "rawDir": "/Users/sayue/dev/fleq-a10-runs/a10-p2-20260930b/e01-maxWeatherCheckpointEncodeStarted-run1",
+      "command": "node reconstruction/test/eew-e01/run.mjs --manifest reconstruction/test/eew-e01/evidence/manifest.json",
+      "commands": [
+        "node reconstruction/test/eew-e01/run.mjs --manifest reconstruction/test/eew-e01/evidence/manifest.json",
+        "caffeinate -dims -w 9095",
+        "/opt/homebrew/opt/node@22/bin/node /Users/sayue/dev/FlEq/reconstruction/test/eew-e01/host-launcher.mjs /Users/sayue/dev/fleq-a10-runs/a10-p2-20260930b/e01-maxWeatherCheckpointEncodeStarted-run1/host-config.json",
+        "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome --remote-debugging-port=0 --user-data-dir=/var/folders/rw/1cht1x111j7d7v39ptrn2l4c0000gn/T/fleq-a10-chrome-jG1NHg --no-first-run --no-default-browser-check --window-size=1440,900 --force-color-profile=srgb --disable-background-timer-throttling --disable-renderer-backgrounding --disable-backgrounding-occluded-windows about:blank"
+      ],
+      "startedAt": "2026-09-30T10:27:21.011Z",
+      "status": "N/A",
+      "byteViolations": 120,
+      "byteViolationsNote": "byteViolations は verify 段の bytes が encode と同値（A3 契約どおりの製品）の件数。AC09「他 stage=0」と A3 の食い違いは総合レビュー送りの既知の契約の穴で、判定は変えない",
+      "resultFiles": [
+        {
+          "path": "reconstruction/test/eew-e01/evidence/windows/a10-p2-20260930b/results/result-reference-maxWeatherCheckpointEncodeStarted-run1.json",
+          "sha256": "c5d13b08e04a97694877ed6b8540a1a1f75f5e4455acd36371a202ac2361e749"
+        },
+        {
+          "path": "reconstruction/test/eew-e01/evidence/windows/a10-p2-20260930b/results/aux-e01-maxWeatherCheckpointEncodeStarted-run1.json",
+          "sha256": "818bbd80ad91c59e7fc7e605dec2b3f75e6681a09da300da7e11d267451356be"
+        }
+      ],
+      "finishedAt": "2026-09-30T10:32:59.626Z",
+      "raw": [
+        {
+          "file": "aux-e01-maxWeatherCheckpointEncodeStarted-run1.json",
+          "bytes": 2501,
+          "sha256": "818bbd80ad91c59e7fc7e605dec2b3f75e6681a09da300da7e11d267451356be"
+        },
+        {
+          "file": "diagnostics/diagnostics-2026-06-05.jsonl",
+          "bytes": 140,
+          "sha256": "fa5c72cbc4ce949948a0d2aeccdb1db7aa41bcccdac30926ea222db56bb7515a"
+        },
+        {
+          "file": "e01-assembled.json",
+          "bytes": 512317,
+          "sha256": "c25d0ef759dbdfbee663d6c680f682c6e0a7b10b4128ccce748a9b2d2b5ed121"
+        },
+        {
+          "file": "host-config.json",
+          "bytes": 494,
+          "sha256": "5bc4c53c9c220d03857692d528923a2564ea85983465fa33c2a431633845a8e9"
+        },
+        {
+          "file": "host-obs.jsonl",
+          "bytes": 799437,
+          "sha256": "8688c7b81e8a7b60f56671ac9af03f20d2d0a54e3d8447fb1672d6200d8c7d20"
+        },
+        {
+          "file": "result-reference-maxWeatherCheckpointEncodeStarted-run1.json",
+          "bytes": 1228,
+          "sha256": "c5d13b08e04a97694877ed6b8540a1a1f75f5e4455acd36371a202ac2361e749"
+        },
+        {
+          "file": "run-record.json",
+          "bytes": 350233,
+          "sha256": "8a371b6235212b3dea13106143191669d8bebc59eca91ad9ce92c4f81d8e9d37"
+        },
+        {
+          "file": "trace-00.json",
+          "bytes": 12847069,
+          "sha256": "c725c50546244685351af678b1f20c94a42f8be8f0aa9f71acba693af353e1be"
+        },
+        {
+          "file": "trace-01.json",
+          "bytes": 1327960,
+          "sha256": "607f224e873e068ef631fb89aad671183aca67e4d15222d259c108ccc2111b48"
+        }
+      ],
+      "orphans": [],
+      "latest": true,
+      "preflight": 0
+    },
+    {
+      "id": "e02-N-run1",
+      "attempt": 1,
+      "manifestId": "a10-p2-20260930b",
+      "manifestSha256": "03e631e0507a98e28de19b21812bb62f1f54c08059e1147176019ddd40dd6f51",
+      "rawDir": "/Users/sayue/dev/fleq-a10-runs/a10-p2-20260930b/e02-N-run1",
+      "command": "node reconstruction/test/eew-e01/run.mjs --manifest reconstruction/test/eew-e01/evidence/manifest.json",
+      "commands": [
+        "node reconstruction/test/eew-e01/run.mjs --manifest reconstruction/test/eew-e01/evidence/manifest.json",
+        "caffeinate -dims -w 9095",
+        "/opt/homebrew/opt/node@22/bin/node /Users/sayue/dev/FlEq/reconstruction/test/eew-e01/host-launcher.mjs /Users/sayue/dev/fleq-a10-runs/a10-p2-20260930b/e02-N-run1/host-config.json",
+        "/opt/homebrew/opt/node@22/bin/node /Users/sayue/dev/FlEq/reconstruction/test/eew-e01/e02-health-client.mjs --url http://127.0.0.1:56518/healthz --count 1000 --every-ms 1000 --timeout-ms 5000 --load N --run 1 --out /Users/sayue/dev/fleq-a10-runs/a10-p2-20260930b/e02-N-run1/e02.jsonl"
+      ],
+      "startedAt": "2026-09-30T10:44:16.565Z",
+      "fill": null,
+      "statuses": {
+        "E02": "Pass",
+        "E05": "Pass"
+      },
+      "status": "Pass",
+      "byteViolations": 4,
+      "byteViolationsNote": "byteViolations は verify 段の bytes が encode と同値（A3 契約どおりの製品）の件数。AC09「他 stage=0」と A3 の食い違いは総合レビュー送りの既知の契約の穴で、判定は変えない",
+      "resultFiles": [
+        {
+          "path": "reconstruction/test/eew-e01/evidence/windows/a10-p2-20260930b/results/result-e02-N-run1.json",
+          "sha256": "e182c26a466a553f5e20288119fbcd2027678c1bc3c1b1458963906b84783b3d"
+        },
+        {
+          "path": "reconstruction/test/eew-e01/evidence/windows/a10-p2-20260930b/results/aux-e05-N-run1.json",
+          "sha256": "193fbc8e0f49500953853f43f3d2b9a684e79fb54e6b56f5388e7bd5603099bf"
+        }
+      ],
+      "finishedAt": "2026-09-30T11:00:56.297Z",
+      "raw": [
+        {
+          "file": "aux-e05-N-run1.json",
+          "bytes": 2314,
+          "sha256": "193fbc8e0f49500953853f43f3d2b9a684e79fb54e6b56f5388e7bd5603099bf"
+        },
+        {
+          "file": "diagnostics/diagnostics-2026-06-05.jsonl",
+          "bytes": 140,
+          "sha256": "bd6944e08d086a11e886f6c11a4379c0d3c95c4ad45b7fa90744c3f930db3a03"
+        },
+        {
+          "file": "e02.jsonl",
+          "bytes": 206068,
+          "sha256": "1968234fb048d0cd2cc3254baaeaf13d88438487b87341b41ddfcb218d3acbd0"
+        },
+        {
+          "file": "host-config.json",
+          "bytes": 397,
+          "sha256": "551c17f5da39b8d1e4d30727db722aca8bbda6e2ecd338f5b082250ee20873f6"
+        },
+        {
+          "file": "host-obs.jsonl",
+          "bytes": 116105,
+          "sha256": "48445d8b014e6b7061290171c92aab9f1b25afdfaffc532d764d77ac600d5c98"
+        },
+        {
+          "file": "result-e02-N-run1.json",
+          "bytes": 639,
+          "sha256": "e182c26a466a553f5e20288119fbcd2027678c1bc3c1b1458963906b84783b3d"
+        }
+      ],
+      "orphans": [],
+      "latest": true,
+      "preflight": 0
+    },
+    {
+      "id": "e02-N-run2",
+      "attempt": 1,
+      "manifestId": "a10-p2-20260930b",
+      "manifestSha256": "03e631e0507a98e28de19b21812bb62f1f54c08059e1147176019ddd40dd6f51",
+      "rawDir": "/Users/sayue/dev/fleq-a10-runs/a10-p2-20260930b/e02-N-run2",
+      "command": "node reconstruction/test/eew-e01/run.mjs --manifest reconstruction/test/eew-e01/evidence/manifest.json",
+      "commands": [
+        "node reconstruction/test/eew-e01/run.mjs --manifest reconstruction/test/eew-e01/evidence/manifest.json",
+        "caffeinate -dims -w 9095",
+        "/opt/homebrew/opt/node@22/bin/node /Users/sayue/dev/FlEq/reconstruction/test/eew-e01/host-launcher.mjs /Users/sayue/dev/fleq-a10-runs/a10-p2-20260930b/e02-N-run2/host-config.json",
+        "/opt/homebrew/opt/node@22/bin/node /Users/sayue/dev/FlEq/reconstruction/test/eew-e01/e02-health-client.mjs --url http://127.0.0.1:56589/healthz --count 1000 --every-ms 1000 --timeout-ms 5000 --load N --run 2 --out /Users/sayue/dev/fleq-a10-runs/a10-p2-20260930b/e02-N-run2/e02.jsonl"
+      ],
+      "startedAt": "2026-09-30T11:00:56.299Z",
+      "fill": null,
+      "statuses": {
+        "E02": "Pass",
+        "E05": "Pass"
+      },
+      "status": "Pass",
+      "byteViolations": 4,
+      "byteViolationsNote": "byteViolations は verify 段の bytes が encode と同値（A3 契約どおりの製品）の件数。AC09「他 stage=0」と A3 の食い違いは総合レビュー送りの既知の契約の穴で、判定は変えない",
+      "resultFiles": [
+        {
+          "path": "reconstruction/test/eew-e01/evidence/windows/a10-p2-20260930b/results/result-e02-N-run2.json",
+          "sha256": "5e4fdb1db9790f686d033f98372872275e3f5e278c98a42f368ac516b42eed75"
+        },
+        {
+          "path": "reconstruction/test/eew-e01/evidence/windows/a10-p2-20260930b/results/aux-e05-N-run2.json",
+          "sha256": "a9099863e656f7e7d59459ad4813ef900155a49afff827a67a12b3a9351d61b8"
+        }
+      ],
+      "finishedAt": "2026-09-30T11:17:36.063Z",
+      "raw": [
+        {
+          "file": "aux-e05-N-run2.json",
+          "bytes": 2315,
+          "sha256": "a9099863e656f7e7d59459ad4813ef900155a49afff827a67a12b3a9351d61b8"
+        },
+        {
+          "file": "diagnostics/diagnostics-2026-06-05.jsonl",
+          "bytes": 140,
+          "sha256": "81cc63b2f9a96a415424ab5cdf2867ffd4eab7eddf4b54e8cd798b28fba88fa5"
+        },
+        {
+          "file": "e02.jsonl",
+          "bytes": 206035,
+          "sha256": "586629dec45cace2071a8b0055b611e4b77d1220c24246e3c9a376ea66e9ae0a"
+        },
+        {
+          "file": "host-config.json",
+          "bytes": 397,
+          "sha256": "084ee77de0ac783335774dbb1a6fdda029cfdd25ba402e2671f1cad4864321ec"
+        },
+        {
+          "file": "host-obs.jsonl",
+          "bytes": 116112,
+          "sha256": "b7aa96f2cff424023b2a84aca6eb30827f7960516131b83d5c3a0390becc7a07"
+        },
+        {
+          "file": "result-e02-N-run2.json",
+          "bytes": 639,
+          "sha256": "5e4fdb1db9790f686d033f98372872275e3f5e278c98a42f368ac516b42eed75"
+        }
+      ],
+      "orphans": [],
+      "latest": true,
+      "preflight": 0
+    },
+    {
+      "id": "e02-N-run3",
+      "attempt": 1,
+      "manifestId": "a10-p2-20260930b",
+      "manifestSha256": "03e631e0507a98e28de19b21812bb62f1f54c08059e1147176019ddd40dd6f51",
+      "rawDir": "/Users/sayue/dev/fleq-a10-runs/a10-p2-20260930b/e02-N-run3",
+      "command": "node reconstruction/test/eew-e01/run.mjs --manifest reconstruction/test/eew-e01/evidence/manifest.json",
+      "commands": [
+        "node reconstruction/test/eew-e01/run.mjs --manifest reconstruction/test/eew-e01/evidence/manifest.json",
+        "caffeinate -dims -w 9095",
+        "/opt/homebrew/opt/node@22/bin/node /Users/sayue/dev/FlEq/reconstruction/test/eew-e01/host-launcher.mjs /Users/sayue/dev/fleq-a10-runs/a10-p2-20260930b/e02-N-run3/host-config.json",
+        "/opt/homebrew/opt/node@22/bin/node /Users/sayue/dev/FlEq/reconstruction/test/eew-e01/e02-health-client.mjs --url http://127.0.0.1:56659/healthz --count 1000 --every-ms 1000 --timeout-ms 5000 --load N --run 3 --out /Users/sayue/dev/fleq-a10-runs/a10-p2-20260930b/e02-N-run3/e02.jsonl"
+      ],
+      "startedAt": "2026-09-30T11:17:36.071Z",
+      "fill": null,
+      "statuses": {
+        "E02": "Pass",
+        "E05": "Pass"
+      },
+      "status": "Pass",
+      "byteViolations": 4,
+      "byteViolationsNote": "byteViolations は verify 段の bytes が encode と同値（A3 契約どおりの製品）の件数。AC09「他 stage=0」と A3 の食い違いは総合レビュー送りの既知の契約の穴で、判定は変えない",
+      "resultFiles": [
+        {
+          "path": "reconstruction/test/eew-e01/evidence/windows/a10-p2-20260930b/results/result-e02-N-run3.json",
+          "sha256": "0462090990fc30f8a9dd6945febb8fef0c0e29e6f30434136cec15f45b8b331c"
+        },
+        {
+          "path": "reconstruction/test/eew-e01/evidence/windows/a10-p2-20260930b/results/aux-e05-N-run3.json",
+          "sha256": "25edee7c6f14fd5a751f2fe1e621e3f1090665b5fde4ce671c1fb223fea4cc6e"
+        }
+      ],
+      "finishedAt": "2026-09-30T11:34:15.849Z",
+      "raw": [
+        {
+          "file": "aux-e05-N-run3.json",
+          "bytes": 2318,
+          "sha256": "25edee7c6f14fd5a751f2fe1e621e3f1090665b5fde4ce671c1fb223fea4cc6e"
+        },
+        {
+          "file": "diagnostics/diagnostics-2026-06-05.jsonl",
+          "bytes": 140,
+          "sha256": "d47ffc52c4961c969feb6b065ab87769220531f082aed97a7a8d61e553814fad"
+        },
+        {
+          "file": "e02.jsonl",
+          "bytes": 206051,
+          "sha256": "46e0d573546dfda70cb468575a53af1a909323e75b5c45e681b24eb02eb73331"
+        },
+        {
+          "file": "host-config.json",
+          "bytes": 397,
+          "sha256": "ef9f1ac24014433c5c6b94b2f476a73b121273590955b6675f17ededa94378f2"
+        },
+        {
+          "file": "host-obs.jsonl",
+          "bytes": 116023,
+          "sha256": "5c88da245a23f8c8a9b5f3ecd8a61c0addfb9ceceb21f5b93414330ec8da9858"
+        },
+        {
+          "file": "result-e02-N-run3.json",
+          "bytes": 638,
+          "sha256": "0462090990fc30f8a9dd6945febb8fef0c0e29e6f30434136cec15f45b8b331c"
+        }
+      ],
+      "orphans": [],
+      "latest": true,
+      "preflight": 0
+    },
+    {
+      "id": "e02-P-run1",
+      "attempt": 1,
+      "manifestId": "a10-p2-20260930b",
+      "manifestSha256": "03e631e0507a98e28de19b21812bb62f1f54c08059e1147176019ddd40dd6f51",
+      "rawDir": "/Users/sayue/dev/fleq-a10-runs/a10-p2-20260930b/e02-P-run1",
+      "command": "node reconstruction/test/eew-e01/run.mjs --manifest reconstruction/test/eew-e01/evidence/manifest.json",
+      "commands": [
+        "node reconstruction/test/eew-e01/run.mjs --manifest reconstruction/test/eew-e01/evidence/manifest.json",
+        "caffeinate -dims -w 9095",
+        "/opt/homebrew/opt/node@22/bin/node /Users/sayue/dev/FlEq/reconstruction/test/eew-e01/host-launcher.mjs /Users/sayue/dev/fleq-a10-runs/a10-p2-20260930b/e02-P-run1/host-config.json",
+        "/opt/homebrew/opt/node@22/bin/node /Users/sayue/dev/FlEq/reconstruction/test/eew-e01/e02-health-client.mjs --url http://127.0.0.1:56716/healthz --count 1000 --every-ms 1000 --timeout-ms 5000 --load P --run 1 --out /Users/sayue/dev/fleq-a10-runs/a10-p2-20260930b/e02-P-run1/e02.jsonl"
+      ],
+      "startedAt": "2026-09-30T11:34:15.851Z",
+      "fill": {
+        "mode": "leaveRoomForP",
+        "frames": 1664,
+        "firstSeq": 1,
+        "sentMs": 39041,
+        "verifiedMs": 39100,
+        "observed": {
+          "snapshotActive": {
+            "eew": "512/0/0",
+            "weatherCurrent": "127/1/1",
+            "weatherTimeseries": "511/0/0"
+          },
+          "checkpoint": {
+            "U-W.national": 3,
+            "U-W.partials": 126,
+            "U-F.subjects": 511
+          }
+        },
+        "quiet": {
+          "waitedMs": 22941,
+          "untilLastBackendMs": 7831,
+          "backendLaunchesSeen": {
+            "afplay": 11
+          },
+          "quietMs": 15000,
+          "pgrepFailures": 0,
+          "note": "100ms ごとの pgrep -P で見えた子の数（短命な起動は取りこぼしうる下限）"
+        },
+        "observedBeforeMeasure": {
+          "snapshotActive": {
+            "eew": "512/0/0",
+            "weatherCurrent": "127/1/1",
+            "weatherTimeseries": "511/0/0"
+          },
+          "checkpoint": {
+            "U-W.national": 3,
+            "U-W.partials": 126,
+            "U-F.subjects": 511
+          }
+        }
+      },
+      "statuses": {
+        "E02": "Fail",
+        "E05": "Fail"
+      },
+      "status": "Fail",
+      "byteViolations": 91,
+      "byteViolationsNote": "byteViolations は verify 段の bytes が encode と同値（A3 契約どおりの製品）の件数。AC09「他 stage=0」と A3 の食い違いは総合レビュー送りの既知の契約の穴で、判定は変えない",
+      "resultFiles": [
+        {
+          "path": "reconstruction/test/eew-e01/evidence/windows/a10-p2-20260930b/results/result-e02-P-run1.json",
+          "sha256": "d30fab310697fbb5671350d9eca2dbed6e3fa0644f85731903947d9baca0f1ab"
+        },
+        {
+          "path": "reconstruction/test/eew-e01/evidence/windows/a10-p2-20260930b/results/aux-e05-P-run1.json",
+          "sha256": "c9110e4c225df909e89b9e8ffb9ca809abfdc99c6a975deabdceba5705c15b71"
+        }
+      ],
+      "finishedAt": "2026-09-30T11:51:57.729Z",
+      "raw": [
+        {
+          "file": "aux-e05-P-run1.json",
+          "bytes": 3782,
+          "sha256": "c9110e4c225df909e89b9e8ffb9ca809abfdc99c6a975deabdceba5705c15b71"
+        },
+        {
+          "file": "diagnostics/diagnostics-2026-06-05.jsonl",
+          "bytes": 96678,
+          "sha256": "ec7d58c720351d234da0457f4811ac107b24129caf5068dd1841334fa859dca7"
+        },
+        {
+          "file": "e02.jsonl",
+          "bytes": 206023,
+          "sha256": "6bde918025579e92ada88c1e33c902c736fc3281431292117a3579732b5e4496"
+        },
+        {
+          "file": "host-config.json",
+          "bytes": 397,
+          "sha256": "3a5d594538ee62b41ace2b06664747e2febbda49060912adb15b14d4f670eb01"
+        },
+        {
+          "file": "host-obs.jsonl",
+          "bytes": 3319647,
+          "sha256": "608bf3ad2e2c5b2f03d163018c3290f273d2b3b99af717da79c45c9ba0168fbf"
+        },
+        {
+          "file": "result-e02-P-run1.json",
+          "bytes": 638,
+          "sha256": "d30fab310697fbb5671350d9eca2dbed6e3fa0644f85731903947d9baca0f1ab"
+        }
+      ],
+      "orphans": [],
+      "latest": true,
+      "preflight": 0
+    },
+    {
+      "id": "e02-P-run2",
+      "attempt": 1,
+      "manifestId": "a10-p2-20260930b",
+      "manifestSha256": "03e631e0507a98e28de19b21812bb62f1f54c08059e1147176019ddd40dd6f51",
+      "rawDir": "/Users/sayue/dev/fleq-a10-runs/a10-p2-20260930b/e02-P-run2",
+      "command": "node reconstruction/test/eew-e01/run.mjs --manifest reconstruction/test/eew-e01/evidence/manifest.json",
+      "commands": [
+        "node reconstruction/test/eew-e01/run.mjs --manifest reconstruction/test/eew-e01/evidence/manifest.json",
+        "caffeinate -dims -w 9095",
+        "/opt/homebrew/opt/node@22/bin/node /Users/sayue/dev/FlEq/reconstruction/test/eew-e01/host-launcher.mjs /Users/sayue/dev/fleq-a10-runs/a10-p2-20260930b/e02-P-run2/host-config.json",
+        "/opt/homebrew/opt/node@22/bin/node /Users/sayue/dev/FlEq/reconstruction/test/eew-e01/e02-health-client.mjs --url http://127.0.0.1:56763/healthz --count 1000 --every-ms 1000 --timeout-ms 5000 --load P --run 2 --out /Users/sayue/dev/fleq-a10-runs/a10-p2-20260930b/e02-P-run2/e02.jsonl"
+      ],
+      "startedAt": "2026-09-30T11:51:57.732Z",
+      "fill": {
+        "mode": "leaveRoomForP",
+        "frames": 1664,
+        "firstSeq": 1,
+        "sentMs": 39066,
+        "verifiedMs": 41305,
+        "observed": {
+          "snapshotActive": {
+            "eew": "512/0/0",
+            "weatherCurrent": "127/1/1",
+            "weatherTimeseries": "511/0/0"
+          },
+          "checkpoint": {
+            "U-W.national": 3,
+            "U-W.partials": 126,
+            "U-F.subjects": 511
+          }
+        },
+        "quiet": {
+          "waitedMs": 20620,
+          "untilLastBackendMs": 5555,
+          "backendLaunchesSeen": {
+            "afplay": 10
+          },
+          "quietMs": 15000,
+          "pgrepFailures": 0,
+          "note": "100ms ごとの pgrep -P で見えた子の数（短命な起動は取りこぼしうる下限）"
+        },
+        "observedBeforeMeasure": {
+          "snapshotActive": {
+            "eew": "512/0/0",
+            "weatherCurrent": "127/1/1",
+            "weatherTimeseries": "511/0/0"
+          },
+          "checkpoint": {
+            "U-W.national": 3,
+            "U-W.partials": 126,
+            "U-F.subjects": 511
+          }
+        }
+      },
+      "statuses": {
+        "E02": "Fail",
+        "E05": "Fail"
+      },
+      "status": "Fail",
+      "byteViolations": 89,
+      "byteViolationsNote": "byteViolations は verify 段の bytes が encode と同値（A3 契約どおりの製品）の件数。AC09「他 stage=0」と A3 の食い違いは総合レビュー送りの既知の契約の穴で、判定は変えない",
+      "resultFiles": [
+        {
+          "path": "reconstruction/test/eew-e01/evidence/windows/a10-p2-20260930b/results/result-e02-P-run2.json",
+          "sha256": "dc1fca81126587afe99a9a5814f5db8a4c0235c199ea12132ef15eb11d566e4c"
+        },
+        {
+          "path": "reconstruction/test/eew-e01/evidence/windows/a10-p2-20260930b/results/aux-e05-P-run2.json",
+          "sha256": "872a533d0a757d3e9e50394a7c2f80e6295f35aded7c618e5620349dbde2e88c"
+        }
+      ],
+      "finishedAt": "2026-09-30T12:09:39.456Z",
+      "raw": [
+        {
+          "file": "aux-e05-P-run2.json",
+          "bytes": 3784,
+          "sha256": "872a533d0a757d3e9e50394a7c2f80e6295f35aded7c618e5620349dbde2e88c"
+        },
+        {
+          "file": "diagnostics/diagnostics-2026-06-05.jsonl",
+          "bytes": 94622,
+          "sha256": "3dfb3a1b6ed2706c4f21eae0db64fdd137b8600aab303d98fb958f60dcaaba9f"
+        },
+        {
+          "file": "e02.jsonl",
+          "bytes": 206068,
+          "sha256": "972f3b8d6d2078dc9446c7afd49310d3e8106930c67f63e156c865f636dff7ac"
+        },
+        {
+          "file": "host-config.json",
+          "bytes": 397,
+          "sha256": "b673d2319c4bffb436902bbf911c26134533d2d1a3386b2adbba8e306e29efa8"
+        },
+        {
+          "file": "host-obs.jsonl",
+          "bytes": 3310586,
+          "sha256": "731129b42e231fb5f90bbaa1377e8d63d8366fc8224e1fcd2e666c3dfc549e24"
+        },
+        {
+          "file": "result-e02-P-run2.json",
+          "bytes": 639,
+          "sha256": "dc1fca81126587afe99a9a5814f5db8a4c0235c199ea12132ef15eb11d566e4c"
+        }
+      ],
+      "orphans": [],
+      "latest": true,
+      "preflight": 0
+    },
+    {
+      "id": "e02-P-run3",
+      "attempt": 1,
+      "manifestId": "a10-p2-20260930b",
+      "manifestSha256": "03e631e0507a98e28de19b21812bb62f1f54c08059e1147176019ddd40dd6f51",
+      "rawDir": "/Users/sayue/dev/fleq-a10-runs/a10-p2-20260930b/e02-P-run3",
+      "command": "node reconstruction/test/eew-e01/run.mjs --manifest reconstruction/test/eew-e01/evidence/manifest.json",
+      "commands": [
+        "node reconstruction/test/eew-e01/run.mjs --manifest reconstruction/test/eew-e01/evidence/manifest.json",
+        "caffeinate -dims -w 9095",
+        "/opt/homebrew/opt/node@22/bin/node /Users/sayue/dev/FlEq/reconstruction/test/eew-e01/host-launcher.mjs /Users/sayue/dev/fleq-a10-runs/a10-p2-20260930b/e02-P-run3/host-config.json",
+        "/opt/homebrew/opt/node@22/bin/node /Users/sayue/dev/FlEq/reconstruction/test/eew-e01/e02-health-client.mjs --url http://127.0.0.1:56826/healthz --count 1000 --every-ms 1000 --timeout-ms 5000 --load P --run 3 --out /Users/sayue/dev/fleq-a10-runs/a10-p2-20260930b/e02-P-run3/e02.jsonl"
+      ],
+      "startedAt": "2026-09-30T12:09:39.459Z",
+      "fill": {
+        "mode": "leaveRoomForP",
+        "frames": 1664,
+        "firstSeq": 1,
+        "sentMs": 38784,
+        "verifiedMs": 39901,
+        "observed": {
+          "snapshotActive": {
+            "eew": "512/0/0",
+            "weatherCurrent": "127/1/1",
+            "weatherTimeseries": "511/0/0"
+          },
+          "checkpoint": {
+            "U-W.national": 3,
+            "U-W.partials": 126,
+            "U-F.subjects": 511
+          }
+        },
+        "quiet": {
+          "waitedMs": 21942,
+          "untilLastBackendMs": 6856,
+          "backendLaunchesSeen": {
+            "afplay": 10
+          },
+          "quietMs": 15000,
+          "pgrepFailures": 0,
+          "note": "100ms ごとの pgrep -P で見えた子の数（短命な起動は取りこぼしうる下限）"
+        },
+        "observedBeforeMeasure": {
+          "snapshotActive": {
+            "eew": "512/0/0",
+            "weatherCurrent": "127/1/1",
+            "weatherTimeseries": "511/0/0"
+          },
+          "checkpoint": {
+            "U-W.national": 3,
+            "U-W.partials": 126,
+            "U-F.subjects": 511
+          }
+        }
+      },
+      "statuses": {
+        "E02": "Fail",
+        "E05": "Fail"
+      },
+      "status": "Fail",
+      "byteViolations": 91,
+      "byteViolationsNote": "byteViolations は verify 段の bytes が encode と同値（A3 契約どおりの製品）の件数。AC09「他 stage=0」と A3 の食い違いは総合レビュー送りの既知の契約の穴で、判定は変えない",
+      "resultFiles": [
+        {
+          "path": "reconstruction/test/eew-e01/evidence/windows/a10-p2-20260930b/results/result-e02-P-run3.json",
+          "sha256": "7bd1760524b2f8348786c09a6fb38bd700f6bef4e82c2eb4bba4524b1d6b8e9b"
+        },
+        {
+          "path": "reconstruction/test/eew-e01/evidence/windows/a10-p2-20260930b/results/aux-e05-P-run3.json",
+          "sha256": "3fa9102a7b69d4a22c1b4936c64eff4ac8b83b24b9e4ca88f4f5e314634c3470"
+        }
+      ],
+      "finishedAt": "2026-09-30T12:27:21.104Z",
+      "raw": [
+        {
+          "file": "aux-e05-P-run3.json",
+          "bytes": 3786,
+          "sha256": "3fa9102a7b69d4a22c1b4936c64eff4ac8b83b24b9e4ca88f4f5e314634c3470"
+        },
+        {
+          "file": "diagnostics/diagnostics-2026-06-05.jsonl",
+          "bytes": 94436,
+          "sha256": "1bf8362c4b5606e9340281abaa22e8dd3397d9e83b2c8341de9fdb11ba552874"
+        },
+        {
+          "file": "e02.jsonl",
+          "bytes": 206039,
+          "sha256": "d9f3106ef9f94a242e171be547bdc0352b455843774a6c441a3bab242e52266d"
+        },
+        {
+          "file": "host-config.json",
+          "bytes": 397,
+          "sha256": "cdeb770be11b90791c80300cc4fd105f49980faf64789ef7b84b7b22ace19e63"
+        },
+        {
+          "file": "host-obs.jsonl",
+          "bytes": 3316537,
+          "sha256": "801a3fc6603528da10804e303a6ef899b9d200d2a9947200a635fe038060489e"
+        },
+        {
+          "file": "result-e02-P-run3.json",
+          "bytes": 639,
+          "sha256": "7bd1760524b2f8348786c09a6fb38bd700f6bef4e82c2eb4bba4524b1d6b8e9b"
+        }
+      ],
+      "orphans": [],
+      "latest": true,
+      "preflight": 0
+    },
+    {
+      "id": "e03-run1",
+      "attempt": 1,
+      "manifestId": "a10-p2-20260930b",
+      "manifestSha256": "03e631e0507a98e28de19b21812bb62f1f54c08059e1147176019ddd40dd6f51",
+      "rawDir": "/Users/sayue/dev/fleq-a10-runs/a10-p2-20260930b/e03-run1",
+      "command": "node reconstruction/test/eew-e01/run.mjs --manifest reconstruction/test/eew-e01/evidence/manifest.json",
+      "commands": [
+        "node reconstruction/test/eew-e01/run.mjs --manifest reconstruction/test/eew-e01/evidence/manifest.json",
+        "caffeinate -dims -w 9095",
+        "/opt/homebrew/opt/node@22/bin/node /Users/sayue/dev/FlEq/reconstruction/test/eew-e01/host-launcher.mjs /Users/sayue/dev/fleq-a10-runs/a10-p2-20260930b/e03-run1/host-config.json"
+      ],
+      "startedAt": "2026-09-30T12:27:21.111Z",
+      "status": "Pass",
+      "byteViolations": 1020,
+      "byteViolationsNote": "byteViolations は verify 段の bytes が encode と同値（A3 契約どおりの製品）の件数。AC09「他 stage=0」と A3 の食い違いは総合レビュー送りの既知の契約の穴で、判定は変えない",
+      "resultFiles": [
+        {
+          "path": "reconstruction/test/eew-e01/evidence/windows/a10-p2-20260930b/results/aux-e03-run1.json",
+          "sha256": "308d6f04ba24eb5c93d32b7d0bb26ea568ce178f021d162d52132953ede9ba21"
+        }
+      ],
+      "finishedAt": "2026-09-30T12:47:47.587Z",
+      "raw": [
+        {
+          "file": "aux-e03-run1.json",
+          "bytes": 2862,
+          "sha256": "308d6f04ba24eb5c93d32b7d0bb26ea568ce178f021d162d52132953ede9ba21"
+        },
+        {
+          "file": "diagnostics/diagnostics-2026-06-05.jsonl",
+          "bytes": 140,
+          "sha256": "3ef5856a61b1f848544d260214dd9c18aa9ee45b4c8497ccbc9bab4895fe3292"
+        },
+        {
+          "file": "host-config.json",
+          "bytes": 392,
+          "sha256": "be4fe5a8a8ccced251a134f762a3685d8cba9503446815ae2aa0169f1a7bd2f8"
+        },
+        {
+          "file": "host-obs.jsonl",
+          "bytes": 4670239,
+          "sha256": "f254386377af57bd829c64742d42a0120434eca10ead8ed0a6ad1f5e67a65ed6"
+        }
+      ],
+      "orphans": [],
+      "latest": true,
+      "preflight": 0
+    },
+    {
+      "id": "e03-run2",
+      "attempt": 1,
+      "manifestId": "a10-p2-20260930b",
+      "manifestSha256": "03e631e0507a98e28de19b21812bb62f1f54c08059e1147176019ddd40dd6f51",
+      "rawDir": "/Users/sayue/dev/fleq-a10-runs/a10-p2-20260930b/e03-run2",
+      "command": "node reconstruction/test/eew-e01/run.mjs --manifest reconstruction/test/eew-e01/evidence/manifest.json",
+      "commands": [
+        "node reconstruction/test/eew-e01/run.mjs --manifest reconstruction/test/eew-e01/evidence/manifest.json",
+        "caffeinate -dims -w 9095",
+        "/opt/homebrew/opt/node@22/bin/node /Users/sayue/dev/FlEq/reconstruction/test/eew-e01/host-launcher.mjs /Users/sayue/dev/fleq-a10-runs/a10-p2-20260930b/e03-run2/host-config.json"
+      ],
+      "startedAt": "2026-09-30T12:47:47.590Z",
+      "status": "Pass",
+      "byteViolations": 1020,
+      "byteViolationsNote": "byteViolations は verify 段の bytes が encode と同値（A3 契約どおりの製品）の件数。AC09「他 stage=0」と A3 の食い違いは総合レビュー送りの既知の契約の穴で、判定は変えない",
+      "resultFiles": [
+        {
+          "path": "reconstruction/test/eew-e01/evidence/windows/a10-p2-20260930b/results/aux-e03-run2.json",
+          "sha256": "1e52c1cdef37bae6e630d87e8f9d5d6954abf9cbfc1a34586134b23f3f113e08"
+        }
+      ],
+      "finishedAt": "2026-09-30T13:08:14.062Z",
+      "raw": [
+        {
+          "file": "aux-e03-run2.json",
+          "bytes": 2862,
+          "sha256": "1e52c1cdef37bae6e630d87e8f9d5d6954abf9cbfc1a34586134b23f3f113e08"
+        },
+        {
+          "file": "diagnostics/diagnostics-2026-06-05.jsonl",
+          "bytes": 140,
+          "sha256": "229cc28a30ebf0b9b3cce08500a79e470961d6e048e863af527319da47259124"
+        },
+        {
+          "file": "host-config.json",
+          "bytes": 392,
+          "sha256": "3e5db24f9ac13c7c3d4697039d910e05824f93b72fd4898f3a1a36ec953aa769"
+        },
+        {
+          "file": "host-obs.jsonl",
+          "bytes": 4670387,
+          "sha256": "6c91fb90a67329ca4a0524b5a99abcbdae3b721f7e80169358a9059d8724a151"
+        }
+      ],
+      "orphans": [],
+      "latest": true,
+      "preflight": 0
+    },
+    {
+      "id": "e03-run3",
+      "attempt": 1,
+      "manifestId": "a10-p2-20260930b",
+      "manifestSha256": "03e631e0507a98e28de19b21812bb62f1f54c08059e1147176019ddd40dd6f51",
+      "rawDir": "/Users/sayue/dev/fleq-a10-runs/a10-p2-20260930b/e03-run3",
+      "command": "node reconstruction/test/eew-e01/run.mjs --manifest reconstruction/test/eew-e01/evidence/manifest.json",
+      "commands": [
+        "node reconstruction/test/eew-e01/run.mjs --manifest reconstruction/test/eew-e01/evidence/manifest.json",
+        "caffeinate -dims -w 9095",
+        "/opt/homebrew/opt/node@22/bin/node /Users/sayue/dev/FlEq/reconstruction/test/eew-e01/host-launcher.mjs /Users/sayue/dev/fleq-a10-runs/a10-p2-20260930b/e03-run3/host-config.json"
+      ],
+      "startedAt": "2026-09-30T13:08:14.065Z",
+      "status": "Pass",
+      "byteViolations": 1020,
+      "byteViolationsNote": "byteViolations は verify 段の bytes が encode と同値（A3 契約どおりの製品）の件数。AC09「他 stage=0」と A3 の食い違いは総合レビュー送りの既知の契約の穴で、判定は変えない",
+      "resultFiles": [
+        {
+          "path": "reconstruction/test/eew-e01/evidence/windows/a10-p2-20260930b/results/aux-e03-run3.json",
+          "sha256": "af84d3604c8e9bbd1c98aaceaa87459818cab8641f4bd916a4c28fbbbb1c95d0"
+        }
+      ],
+      "finishedAt": "2026-09-30T13:28:40.540Z",
+      "raw": [
+        {
+          "file": "aux-e03-run3.json",
+          "bytes": 2862,
+          "sha256": "af84d3604c8e9bbd1c98aaceaa87459818cab8641f4bd916a4c28fbbbb1c95d0"
+        },
+        {
+          "file": "diagnostics/diagnostics-2026-06-05.jsonl",
+          "bytes": 140,
+          "sha256": "7c23a3df54c7805c86cdc18588242ca75c27fb4b43bf17e0aac91bf1206d168b"
+        },
+        {
+          "file": "host-config.json",
+          "bytes": 392,
+          "sha256": "ee34ebd012597d7afcbb1ed9b86aaeee66e585ad3eb413ff4d4a7ae7cb67923d"
+        },
+        {
+          "file": "host-obs.jsonl",
+          "bytes": 4670290,
+          "sha256": "11d871925dca3a411cd4eb8cd34629732830638ef1d32e351d4b57537f44ece2"
+        }
+      ],
+      "orphans": [],
+      "latest": true,
+      "preflight": 0
+    },
+    {
+      "id": "e06",
+      "attempt": 1,
+      "manifestId": "a10-p2-20260930b",
+      "manifestSha256": "03e631e0507a98e28de19b21812bb62f1f54c08059e1147176019ddd40dd6f51",
+      "rawDir": "/Users/sayue/dev/fleq-a10-runs/a10-p2-20260930b/e06",
+      "command": "node reconstruction/test/eew-e01/run.mjs --manifest reconstruction/test/eew-e01/evidence/manifest.json",
+      "commands": [
+        "node reconstruction/test/eew-e01/run.mjs --manifest reconstruction/test/eew-e01/evidence/manifest.json",
+        "caffeinate -dims -w 9095",
+        "/opt/homebrew/opt/node@22/bin/node /Users/sayue/dev/FlEq/reconstruction/test/eew-e01/host-launcher.mjs /Users/sayue/dev/fleq-a10-runs/a10-p2-20260930b/e06/host-config.json"
+      ],
+      "startedAt": "2026-09-30T14:29:02.709Z",
+      "fill": {
+        "mode": "cycleC",
+        "frames": 1667,
+        "firstSeq": 1,
+        "sentMs": 38991,
+        "verifiedMs": 39048,
+        "observed": {
+          "snapshotActive": {
+            "eew": "512/1/0",
+            "weatherCurrent": "129/1/1",
+            "weatherTimeseries": "512/0/0"
+          },
+          "checkpoint": {
+            "U-W.national": 3,
+            "U-W.partials": 128,
+            "U-F.subjects": 512
+          }
+        },
+        "quiet": {
+          "waitedMs": 22854,
+          "untilLastBackendMs": 7822,
+          "backendLaunchesSeen": {
+            "afplay": 11
+          },
+          "quietMs": 15000,
+          "pgrepFailures": 0,
+          "note": "100ms ごとの pgrep -P で見えた子の数（短命な起動は取りこぼしうる下限）"
+        },
+        "observedBeforeMeasure": {
+          "snapshotActive": {
+            "eew": "512/1/0",
+            "weatherCurrent": "129/1/1",
+            "weatherTimeseries": "512/0/0"
+          },
+          "checkpoint": {
+            "U-W.national": 3,
+            "U-W.partials": 128,
+            "U-F.subjects": 512
+          }
+        }
+      },
+      "eewCapacityEvictedPerCycle": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1
+      ],
+      "status": "N/A",
+      "byteViolations": 639,
+      "byteViolationsNote": "byteViolations は verify 段の bytes が encode と同値（A3 契約どおりの製品）の件数。AC09「他 stage=0」と A3 の食い違いは総合レビュー送りの既知の契約の穴で、判定は変えない",
+      "resultFiles": [
+        {
+          "path": "reconstruction/test/eew-e01/evidence/windows/a10-p2-20260930b/results/aux-e06.json",
+          "sha256": "8b2efe8347c9dec225ebd10cfbdc0131b6de197ebb47a156bfb1aab005137d44"
+        }
+      ],
+      "finishedAt": "2026-09-30T15:35:06.327Z",
+      "raw": [
+        {
+          "file": "aux-e06.json",
+          "bytes": 6734,
+          "sha256": "8b2efe8347c9dec225ebd10cfbdc0131b6de197ebb47a156bfb1aab005137d44"
+        },
+        {
+          "file": "diagnostics/diagnostics-2026-06-05.jsonl",
+          "bytes": 106160,
+          "sha256": "c48d8dce9e8e1fde4f253ef1ec377a9002084ebb927a8c03f80fa4ca798ebfd9"
+        },
+        {
+          "file": "host-config.json",
+          "bytes": 377,
+          "sha256": "4cabd797980d37f7d4604c0f1b07aef66fcff04dd0bdf08affc57a2f986f0c35"
+        },
+        {
+          "file": "host-obs.jsonl",
+          "bytes": 5697156,
+          "sha256": "6d29a6d589b9b3c53c629d630944cee113bc1c3e2f6b0afe30c1b7c70c2b5ee6"
+        }
+      ],
+      "orphans": [],
+      "latest": true,
+      "preflight": 0
+    },
+    {
+      "id": "e12-large-run1",
+      "attempt": 1,
+      "manifestId": "a10-p2-20260930b",
+      "manifestSha256": "03e631e0507a98e28de19b21812bb62f1f54c08059e1147176019ddd40dd6f51",
+      "rawDir": "/Users/sayue/dev/fleq-a10-runs/a10-p2-20260930b/e12-large-run1",
+      "command": "node reconstruction/test/eew-e01/run.mjs --manifest reconstruction/test/eew-e01/evidence/manifest.json",
+      "commands": [
+        "node reconstruction/test/eew-e01/run.mjs --manifest reconstruction/test/eew-e01/evidence/manifest.json",
+        "caffeinate -dims -w 9095",
+        "/opt/homebrew/opt/node@22/bin/node /Users/sayue/dev/FlEq/reconstruction/test/eew-e01/e12-run.mjs --out /Users/sayue/dev/fleq-a10-runs/a10-p2-20260930b/e12-large-run1 --class large --node /opt/homebrew/opt/node@22/bin/node"
+      ],
+      "startedAt": "2026-09-30T14:14:06.054Z",
+      "allocation": {
+        "method": "sampling heap profile（node --heap-prof、既定の sampling 間隔）の selfSize 合計と samples[].size 合計。推定値で、GC 回収済みの sample を含まない V8 既定の扱い。プロセス全体（module 読み込みと host 起動を含む）の profile で、replay 区間に限らない。総 allocation ではない",
+        "old": [
+          {
+            "file": "Heap.20260930.231406.44213.0.001.heapprofile",
+            "bytes": 46555,
+            "sha256": "eca9afa5e0c2982bcfe1789b158dfaf7f486e58622700670f5176de053c8a207",
+            "selfSizeSum": 136565128,
+            "sampleSizeSum": 136565128,
+            "samples": 51
+          }
+        ],
+        "new": [
+          {
+            "file": "Heap.20260930.231507.44248.0.001.heapprofile",
+            "bytes": 36152,
+            "sha256": "8c37fc2253be0a45e6fd95ff1c1501069f64d0b766300246830931c00da260a8",
+            "selfSizeSum": 16448208,
+            "sampleSizeSum": 16448616,
+            "samples": 30
+          }
+        ]
+      },
+      "status": "N/A",
+      "byteViolations": null,
+      "resultFiles": [
+        {
+          "path": "reconstruction/test/eew-e01/evidence/windows/a10-p2-20260930b/results/aux-e12-large-run1.json",
+          "sha256": "3aa62b15c53c67a94ffdacb85bef993f632c841840166c433668d0e858092f10"
+        }
+      ],
+      "finishedAt": "2026-09-30T14:16:07.924Z",
+      "raw": [
+        {
+          "file": "aux-e12-large-run1.json",
+          "bytes": 3685,
+          "sha256": "3aa62b15c53c67a94ffdacb85bef993f632c841840166c433668d0e858092f10"
+        },
+        {
+          "file": "frames.jsonl",
+          "bytes": 80512226,
+          "sha256": "9cd67d10b4733b55de39b4a4e308da9f3c09cef50f27e7fb633d79cd73d8b06c"
+        },
+        {
+          "file": "new/Heap.20260930.231507.44248.0.001.heapprofile",
+          "bytes": 36152,
+          "sha256": "8c37fc2253be0a45e6fd95ff1c1501069f64d0b766300246830931c00da260a8"
+        },
+        {
+          "file": "new/diag/diagnostics-2026-09-30.jsonl",
+          "bytes": 140,
+          "sha256": "de7c60e33061a545f3b9e3ad90a85336f51c948e70152eea3a78f63c7f0e390b"
+        },
+        {
+          "file": "old/Heap.20260930.231406.44213.0.001.heapprofile",
+          "bytes": 46555,
+          "sha256": "eca9afa5e0c2982bcfe1789b158dfaf7f486e58622700670f5176de053c8a207"
+        },
+        {
+          "file": "report.json",
+          "bytes": 3061,
+          "sha256": "9c4892e9caebcb98ecc29751d571708b7d8e63461c43be9cf54878db79370028"
+        }
+      ],
+      "orphans": [],
+      "latest": true,
+      "preflight": 0
+    },
+    {
+      "id": "e12-large-run2",
+      "attempt": 1,
+      "manifestId": "a10-p2-20260930b",
+      "manifestSha256": "03e631e0507a98e28de19b21812bb62f1f54c08059e1147176019ddd40dd6f51",
+      "rawDir": "/Users/sayue/dev/fleq-a10-runs/a10-p2-20260930b/e12-large-run2",
+      "command": "node reconstruction/test/eew-e01/run.mjs --manifest reconstruction/test/eew-e01/evidence/manifest.json",
+      "commands": [
+        "node reconstruction/test/eew-e01/run.mjs --manifest reconstruction/test/eew-e01/evidence/manifest.json",
+        "caffeinate -dims -w 9095",
+        "/opt/homebrew/opt/node@22/bin/node /Users/sayue/dev/FlEq/reconstruction/test/eew-e01/e12-run.mjs --out /Users/sayue/dev/fleq-a10-runs/a10-p2-20260930b/e12-large-run2 --class large --node /opt/homebrew/opt/node@22/bin/node"
+      ],
+      "startedAt": "2026-09-30T14:19:31.964Z",
+      "allocation": {
+        "method": "sampling heap profile（node --heap-prof、既定の sampling 間隔）の selfSize 合計と samples[].size 合計。推定値で、GC 回収済みの sample を含まない V8 既定の扱い。プロセス全体（module 読み込みと host 起動を含む）の profile で、replay 区間に限らない。総 allocation ではない",
+        "old": [
+          {
+            "file": "Heap.20260930.231932.44450.0.001.heapprofile",
+            "bytes": 46005,
+            "sha256": "a7d162c4b09a2b386951c98b442287362c8cc6922c07c0e1474f1caa9a5541c8",
+            "selfSizeSum": 137747840,
+            "sampleSizeSum": 138274064,
+            "samples": 54
+          }
+        ],
+        "new": [
+          {
+            "file": "Heap.20260930.232033.44489.0.001.heapprofile",
+            "bytes": 29709,
+            "sha256": "c8b2143ca744eb2d87075e579b3f600075ce9fd63b1fbae615b1aa4aed9a0275",
+            "selfSizeSum": 11450776,
+            "sampleSizeSum": 11451048,
+            "samples": 20
+          }
+        ]
+      },
+      "status": "N/A",
+      "byteViolations": null,
+      "resultFiles": [
+        {
+          "path": "reconstruction/test/eew-e01/evidence/windows/a10-p2-20260930b/results/aux-e12-large-run2.json",
+          "sha256": "81e0127d9e0da9cbd21f97e463e0de5c697972e6e7ee080e7e4fbc1fe77ffa19"
+        }
+      ],
+      "finishedAt": "2026-09-30T14:21:33.876Z",
+      "raw": [
+        {
+          "file": "aux-e12-large-run2.json",
+          "bytes": 3665,
+          "sha256": "81e0127d9e0da9cbd21f97e463e0de5c697972e6e7ee080e7e4fbc1fe77ffa19"
+        },
+        {
+          "file": "frames.jsonl",
+          "bytes": 80512226,
+          "sha256": "57d1a9e6090d5a3c635282374f6f0b9e72063249d1e55be46df627dfb5e57b51"
+        },
+        {
+          "file": "new/Heap.20260930.232033.44489.0.001.heapprofile",
+          "bytes": 29709,
+          "sha256": "c8b2143ca744eb2d87075e579b3f600075ce9fd63b1fbae615b1aa4aed9a0275"
+        },
+        {
+          "file": "new/diag/diagnostics-2026-09-30.jsonl",
+          "bytes": 140,
+          "sha256": "ef9135c658f580c8de1d8d6e52510f716351256c6ff7569d69d83ae76872edd7"
+        },
+        {
+          "file": "old/Heap.20260930.231932.44450.0.001.heapprofile",
+          "bytes": 46005,
+          "sha256": "a7d162c4b09a2b386951c98b442287362c8cc6922c07c0e1474f1caa9a5541c8"
+        },
+        {
+          "file": "report.json",
+          "bytes": 3041,
+          "sha256": "b8587fc57ebeba538f77f63126288e8dc22acb4f334ecddecf4efcac076ad252"
+        }
+      ],
+      "orphans": [],
+      "latest": true,
+      "preflight": 0
+    },
+    {
+      "id": "e12-large-run3",
+      "attempt": 1,
+      "manifestId": "a10-p2-20260930b",
+      "manifestSha256": "03e631e0507a98e28de19b21812bb62f1f54c08059e1147176019ddd40dd6f51",
+      "rawDir": "/Users/sayue/dev/fleq-a10-runs/a10-p2-20260930b/e12-large-run3",
+      "command": "node reconstruction/test/eew-e01/run.mjs --manifest reconstruction/test/eew-e01/evidence/manifest.json",
+      "commands": [
+        "node reconstruction/test/eew-e01/run.mjs --manifest reconstruction/test/eew-e01/evidence/manifest.json",
+        "caffeinate -dims -w 9095",
+        "/opt/homebrew/opt/node@22/bin/node /Users/sayue/dev/FlEq/reconstruction/test/eew-e01/e12-run.mjs --out /Users/sayue/dev/fleq-a10-runs/a10-p2-20260930b/e12-large-run3 --class large --node /opt/homebrew/opt/node@22/bin/node"
+      ],
+      "startedAt": "2026-09-30T14:24:57.841Z",
+      "allocation": {
+        "method": "sampling heap profile（node --heap-prof、既定の sampling 間隔）の selfSize 合計と samples[].size 合計。推定値で、GC 回収済みの sample を含まない V8 既定の扱い。プロセス全体（module 読み込みと host 起動を含む）の profile で、replay 区間に限らない。総 allocation ではない",
+        "old": [
+          {
+            "file": "Heap.20260930.232458.44695.0.001.heapprofile",
+            "bytes": 48085,
+            "sha256": "3cdb28d14f32981dc89dee8857c2a62bce29985f442e209c76c6d9b45e2455aa",
+            "selfSizeSum": 138660560,
+            "sampleSizeSum": 138660560,
+            "samples": 54
+          }
+        ],
+        "new": [
+          {
+            "file": "Heap.20260930.232559.44731.0.001.heapprofile",
+            "bytes": 31126,
+            "sha256": "9549e9612440dd378ed52f95ffcad2d24bc4ef2bbe9a35814a4651ac3c53fd56",
+            "selfSizeSum": 13502600,
+            "sampleSizeSum": 13502872,
+            "samples": 24
+          }
+        ]
+      },
+      "status": "N/A",
+      "byteViolations": null,
+      "resultFiles": [
+        {
+          "path": "reconstruction/test/eew-e01/evidence/windows/a10-p2-20260930b/results/aux-e12-large-run3.json",
+          "sha256": "3322cb9be44214e0773b95000388bf30d61c392d7b044a95a143c59297ddf9d3"
+        }
+      ],
+      "finishedAt": "2026-09-30T14:26:59.743Z",
+      "raw": [
+        {
+          "file": "aux-e12-large-run3.json",
+          "bytes": 3673,
+          "sha256": "3322cb9be44214e0773b95000388bf30d61c392d7b044a95a143c59297ddf9d3"
+        },
+        {
+          "file": "frames.jsonl",
+          "bytes": 80512226,
+          "sha256": "465ee50ac0c1857cd324c62743ef9a9e6147dc4f2a4e4c4a568aec2faf21c3bf"
+        },
+        {
+          "file": "new/Heap.20260930.232559.44731.0.001.heapprofile",
+          "bytes": 31126,
+          "sha256": "9549e9612440dd378ed52f95ffcad2d24bc4ef2bbe9a35814a4651ac3c53fd56"
+        },
+        {
+          "file": "new/diag/diagnostics-2026-09-30.jsonl",
+          "bytes": 140,
+          "sha256": "f6a6731130aea894c65f53c57f922316c9adf59d5282e76814f8377520f4e2fb"
+        },
+        {
+          "file": "old/Heap.20260930.232458.44695.0.001.heapprofile",
+          "bytes": 48085,
+          "sha256": "3cdb28d14f32981dc89dee8857c2a62bce29985f442e209c76c6d9b45e2455aa"
+        },
+        {
+          "file": "report.json",
+          "bytes": 3049,
+          "sha256": "b3f54d2f01c2340ab2717c996da8ff366ae5cbcb1dfe01ab5de3311a75c0b45c"
+        }
+      ],
+      "orphans": [],
+      "latest": true,
+      "preflight": 0
+    },
+    {
+      "id": "e12-max-run1",
+      "attempt": 1,
+      "manifestId": "a10-p2-20260930b",
+      "manifestSha256": "03e631e0507a98e28de19b21812bb62f1f54c08059e1147176019ddd40dd6f51",
+      "rawDir": "/Users/sayue/dev/fleq-a10-runs/a10-p2-20260930b/e12-max-run1",
+      "command": "node reconstruction/test/eew-e01/run.mjs --manifest reconstruction/test/eew-e01/evidence/manifest.json",
+      "commands": [
+        "node reconstruction/test/eew-e01/run.mjs --manifest reconstruction/test/eew-e01/evidence/manifest.json",
+        "caffeinate -dims -w 9095",
+        "/opt/homebrew/opt/node@22/bin/node /Users/sayue/dev/FlEq/reconstruction/test/eew-e01/e12-run.mjs --out /Users/sayue/dev/fleq-a10-runs/a10-p2-20260930b/e12-max-run1 --class max --node /opt/homebrew/opt/node@22/bin/node"
+      ],
+      "startedAt": "2026-09-30T14:16:07.961Z",
+      "allocation": {
+        "method": "sampling heap profile（node --heap-prof、既定の sampling 間隔）の selfSize 合計と samples[].size 合計。推定値で、GC 回収済みの sample を含まない V8 既定の扱い。プロセス全体（module 読み込みと host 起動を含む）の profile で、replay 区間に限らない。総 allocation ではない",
+        "old": [
+          {
+            "file": "Heap.20260930.231608.44300.0.001.heapprofile",
+            "bytes": 51962,
+            "sha256": "9022834475248e3da0f3781f76659a8b5c7045c6eb3d8a794b2257770d0504a0",
+            "selfSizeSum": 267737376,
+            "sampleSizeSum": 267737376,
+            "samples": 57
+          }
+        ],
+        "new": [
+          {
+            "file": "Heap.20260930.231710.44338.0.001.heapprofile",
+            "bytes": 30052,
+            "sha256": "069d05e71044c1b578b7d362e36cb2fdcbce868a956767702b9c3accaf429463",
+            "selfSizeSum": 19504136,
+            "sampleSizeSum": 19504264,
+            "samples": 29
+          }
+        ]
+      },
+      "status": "N/A",
+      "byteViolations": null,
+      "resultFiles": [
+        {
+          "path": "reconstruction/test/eew-e01/evidence/windows/a10-p2-20260930b/results/aux-e12-max-run1.json",
+          "sha256": "6df5c39fad8fe5090bca564e014134ba4ffbe52d568700c30191e834365b8cd8"
+        }
+      ],
+      "finishedAt": "2026-09-30T14:18:10.879Z",
+      "raw": [
+        {
+          "file": "aux-e12-max-run1.json",
+          "bytes": 3679,
+          "sha256": "6df5c39fad8fe5090bca564e014134ba4ffbe52d568700c30191e834365b8cd8"
+        },
+        {
+          "file": "frames.jsonl",
+          "bytes": 155225396,
+          "sha256": "f5d43839de8db0c5600f4540d294bf39c22536d89d8d29f15d7f31e4b16aa5b4"
+        },
+        {
+          "file": "new/Heap.20260930.231710.44338.0.001.heapprofile",
+          "bytes": 30052,
+          "sha256": "069d05e71044c1b578b7d362e36cb2fdcbce868a956767702b9c3accaf429463"
+        },
+        {
+          "file": "new/diag/diagnostics-2026-09-30.jsonl",
+          "bytes": 140,
+          "sha256": "e295de7b22ab344ac5edad100e10f00c95e5744555ea4e40e9c6c4ae8b72e595"
+        },
+        {
+          "file": "old/Heap.20260930.231608.44300.0.001.heapprofile",
+          "bytes": 51962,
+          "sha256": "9022834475248e3da0f3781f76659a8b5c7045c6eb3d8a794b2257770d0504a0"
+        },
+        {
+          "file": "report.json",
+          "bytes": 3057,
+          "sha256": "94f49e50d2ba96ab0200d21f1f478857976eac6d502e7cac0b3aff2ca71bda4e"
+        }
+      ],
+      "orphans": [],
+      "latest": true,
+      "preflight": 0
+    },
+    {
+      "id": "e12-max-run2",
+      "attempt": 1,
+      "manifestId": "a10-p2-20260930b",
+      "manifestSha256": "03e631e0507a98e28de19b21812bb62f1f54c08059e1147176019ddd40dd6f51",
+      "rawDir": "/Users/sayue/dev/fleq-a10-runs/a10-p2-20260930b/e12-max-run2",
+      "command": "node reconstruction/test/eew-e01/run.mjs --manifest reconstruction/test/eew-e01/evidence/manifest.json",
+      "commands": [
+        "node reconstruction/test/eew-e01/run.mjs --manifest reconstruction/test/eew-e01/evidence/manifest.json",
+        "caffeinate -dims -w 9095",
+        "/opt/homebrew/opt/node@22/bin/node /Users/sayue/dev/FlEq/reconstruction/test/eew-e01/e12-run.mjs --out /Users/sayue/dev/fleq-a10-runs/a10-p2-20260930b/e12-max-run2 --class max --node /opt/homebrew/opt/node@22/bin/node"
+      ],
+      "startedAt": "2026-09-30T14:21:33.917Z",
+      "allocation": {
+        "method": "sampling heap profile（node --heap-prof、既定の sampling 間隔）の selfSize 合計と samples[].size 合計。推定値で、GC 回収済みの sample を含まない V8 既定の扱い。プロセス全体（module 読み込みと host 起動を含む）の profile で、replay 区間に限らない。総 allocation ではない",
+        "old": [
+          {
+            "file": "Heap.20260930.232134.44543.0.001.heapprofile",
+            "bytes": 41197,
+            "sha256": "416f2d821c622c62dfd09efc6ebf026fb2324fab45bb8d9dc06e23d4888df61d",
+            "selfSizeSum": 262876408,
+            "sampleSizeSum": 262876408,
+            "samples": 47
+          }
+        ],
+        "new": [
+          {
+            "file": "Heap.20260930.232235.44583.0.001.heapprofile",
+            "bytes": 30954,
+            "sha256": "a015a421a83d16fc290f3ec288003e0490dd17426b011ecd3ba91b9e5046c9f2",
+            "selfSizeSum": 20173176,
+            "sampleSizeSum": 20173176,
+            "samples": 30
+          }
+        ]
+      },
+      "status": "N/A",
+      "byteViolations": null,
+      "resultFiles": [
+        {
+          "path": "reconstruction/test/eew-e01/evidence/windows/a10-p2-20260930b/results/aux-e12-max-run2.json",
+          "sha256": "f104f7933c48b76527a09eb7d439ee9355770313ede19b3ddecc0b6cbc2554e4"
+        }
+      ],
+      "finishedAt": "2026-09-30T14:23:36.749Z",
+      "raw": [
+        {
+          "file": "aux-e12-max-run2.json",
+          "bytes": 3672,
+          "sha256": "f104f7933c48b76527a09eb7d439ee9355770313ede19b3ddecc0b6cbc2554e4"
+        },
+        {
+          "file": "frames.jsonl",
+          "bytes": 155225396,
+          "sha256": "e19ad16313ad4f12559c948a83809457eae94d62b0124ad17d93fb1d9e9923dd"
+        },
+        {
+          "file": "new/Heap.20260930.232235.44583.0.001.heapprofile",
+          "bytes": 30954,
+          "sha256": "a015a421a83d16fc290f3ec288003e0490dd17426b011ecd3ba91b9e5046c9f2"
+        },
+        {
+          "file": "new/diag/diagnostics-2026-09-30.jsonl",
+          "bytes": 140,
+          "sha256": "c9d6ee54ed1455b30d82723313daa471a01ebad628eae06657b5b743ec8f48cd"
+        },
+        {
+          "file": "old/Heap.20260930.232134.44543.0.001.heapprofile",
+          "bytes": 41197,
+          "sha256": "416f2d821c622c62dfd09efc6ebf026fb2324fab45bb8d9dc06e23d4888df61d"
+        },
+        {
+          "file": "report.json",
+          "bytes": 3050,
+          "sha256": "247a1510276d005951c203c7ce59ddc086c80e279693a890d8ce281045882f27"
+        }
+      ],
+      "orphans": [],
+      "latest": true,
+      "preflight": 0
+    },
+    {
+      "id": "e12-max-run3",
+      "attempt": 1,
+      "manifestId": "a10-p2-20260930b",
+      "manifestSha256": "03e631e0507a98e28de19b21812bb62f1f54c08059e1147176019ddd40dd6f51",
+      "rawDir": "/Users/sayue/dev/fleq-a10-runs/a10-p2-20260930b/e12-max-run3",
+      "command": "node reconstruction/test/eew-e01/run.mjs --manifest reconstruction/test/eew-e01/evidence/manifest.json",
+      "commands": [
+        "node reconstruction/test/eew-e01/run.mjs --manifest reconstruction/test/eew-e01/evidence/manifest.json",
+        "caffeinate -dims -w 9095",
+        "/opt/homebrew/opt/node@22/bin/node /Users/sayue/dev/FlEq/reconstruction/test/eew-e01/e12-run.mjs --out /Users/sayue/dev/fleq-a10-runs/a10-p2-20260930b/e12-max-run3 --class max --node /opt/homebrew/opt/node@22/bin/node"
+      ],
+      "startedAt": "2026-09-30T14:26:59.784Z",
+      "allocation": {
+        "method": "sampling heap profile（node --heap-prof、既定の sampling 間隔）の selfSize 合計と samples[].size 合計。推定値で、GC 回収済みの sample を含まない V8 既定の扱い。プロセス全体（module 読み込みと host 起動を含む）の profile で、replay 区間に限らない。総 allocation ではない",
+        "old": [
+          {
+            "file": "Heap.20260930.232700.44783.0.001.heapprofile",
+            "bytes": 49638,
+            "sha256": "51f29c42514374eaa2107fb8f8f89d784659fd17d5848667b09a7575e707cab4",
+            "selfSizeSum": 268760848,
+            "sampleSizeSum": 268760848,
+            "samples": 58
+          }
+        ],
+        "new": [
+          {
+            "file": "Heap.20260930.232801.44822.0.001.heapprofile",
+            "bytes": 30891,
+            "sha256": "da4ec037179f6cd19355044006e7eefba8d2bda386868f6b80139b59a9650ea8",
+            "selfSizeSum": 17601680,
+            "sampleSizeSum": 17601680,
+            "samples": 26
+          }
+        ]
+      },
+      "status": "N/A",
+      "byteViolations": null,
+      "resultFiles": [
+        {
+          "path": "reconstruction/test/eew-e01/evidence/windows/a10-p2-20260930b/results/aux-e12-max-run3.json",
+          "sha256": "bc3f17dbad213cbc1354245914bad596b2840f377103765db0b55ce7f60b1505"
+        }
+      ],
+      "finishedAt": "2026-09-30T14:29:02.650Z",
+      "raw": [
+        {
+          "file": "aux-e12-max-run3.json",
+          "bytes": 3672,
+          "sha256": "bc3f17dbad213cbc1354245914bad596b2840f377103765db0b55ce7f60b1505"
+        },
+        {
+          "file": "frames.jsonl",
+          "bytes": 155225396,
+          "sha256": "ddafb28967e10def658cd4729b5ab5ff20166fa296e7fe7a07fc022268649776"
+        },
+        {
+          "file": "new/Heap.20260930.232801.44822.0.001.heapprofile",
+          "bytes": 30891,
+          "sha256": "da4ec037179f6cd19355044006e7eefba8d2bda386868f6b80139b59a9650ea8"
+        },
+        {
+          "file": "new/diag/diagnostics-2026-09-30.jsonl",
+          "bytes": 140,
+          "sha256": "65a246616d118dd2aaad196b92bdf29c9566d478273412f3add6178d88065553"
+        },
+        {
+          "file": "old/Heap.20260930.232700.44783.0.001.heapprofile",
+          "bytes": 49638,
+          "sha256": "51f29c42514374eaa2107fb8f8f89d784659fd17d5848667b09a7575e707cab4"
+        },
+        {
+          "file": "report.json",
+          "bytes": 3050,
+          "sha256": "add065b1d781e89c8f2d6acb88c67ebb0da466cf73f97d0533ec83e199cb632f"
+        }
+      ],
+      "orphans": [],
+      "latest": true,
+      "preflight": 0
+    },
+    {
+      "id": "e12-small-run1",
+      "attempt": 1,
+      "manifestId": "a10-p2-20260930b",
+      "manifestSha256": "03e631e0507a98e28de19b21812bb62f1f54c08059e1147176019ddd40dd6f51",
+      "rawDir": "/Users/sayue/dev/fleq-a10-runs/a10-p2-20260930b/e12-small-run1",
+      "command": "node reconstruction/test/eew-e01/run.mjs --manifest reconstruction/test/eew-e01/evidence/manifest.json",
+      "commands": [
+        "node reconstruction/test/eew-e01/run.mjs --manifest reconstruction/test/eew-e01/evidence/manifest.json",
+        "caffeinate -dims -w 9095",
+        "/opt/homebrew/opt/node@22/bin/node /Users/sayue/dev/FlEq/reconstruction/test/eew-e01/e12-run.mjs --out /Users/sayue/dev/fleq-a10-runs/a10-p2-20260930b/e12-small-run1 --class small --node /opt/homebrew/opt/node@22/bin/node"
+      ],
+      "startedAt": "2026-09-30T14:12:45.009Z",
+      "allocation": {
+        "method": "sampling heap profile（node --heap-prof、既定の sampling 間隔）の selfSize 合計と samples[].size 合計。推定値で、GC 回収済みの sample を含まない V8 既定の扱い。プロセス全体（module 読み込みと host 起動を含む）の profile で、replay 区間に限らない。総 allocation ではない",
+        "old": [
+          {
+            "file": "Heap.20260930.231245.44148.0.001.heapprofile",
+            "bytes": 45165,
+            "sha256": "1ed94aa730b570a0a1078ba221ba0dad0760238636cac9e67fb07d5777d898c6",
+            "selfSizeSum": 16066024,
+            "sampleSizeSum": 16066024,
+            "samples": 29
+          }
+        ],
+        "new": [
+          {
+            "file": "Heap.20260930.231325.44177.0.001.heapprofile",
+            "bytes": 28777,
+            "sha256": "3d78a2b5ad8ee76f518b550385e273248d198218746cb4591e9fdd0985b8ec3b",
+            "selfSizeSum": 12630072,
+            "sampleSizeSum": 12630072,
+            "samples": 24
+          }
+        ]
+      },
+      "status": "N/A",
+      "byteViolations": null,
+      "resultFiles": [
+        {
+          "path": "reconstruction/test/eew-e01/evidence/windows/a10-p2-20260930b/results/aux-e12-small-run1.json",
+          "sha256": "89756f91eeb0c0b229e98f4eb9b08a6c69cd8aa995bcd2cbfd9477cba1683517"
+        }
+      ],
+      "finishedAt": "2026-09-30T14:14:06.051Z",
+      "raw": [
+        {
+          "file": "aux-e12-small-run1.json",
+          "bytes": 3662,
+          "sha256": "89756f91eeb0c0b229e98f4eb9b08a6c69cd8aa995bcd2cbfd9477cba1683517"
+        },
+        {
+          "file": "frames.jsonl",
+          "bytes": 585823,
+          "sha256": "3ca51791e1a595019468c9eafdaf689c3d3e5eccc032057f44493fe6ac2c4562"
+        },
+        {
+          "file": "new/Heap.20260930.231325.44177.0.001.heapprofile",
+          "bytes": 28777,
+          "sha256": "3d78a2b5ad8ee76f518b550385e273248d198218746cb4591e9fdd0985b8ec3b"
+        },
+        {
+          "file": "new/diag/diagnostics-2026-09-30.jsonl",
+          "bytes": 140,
+          "sha256": "05b438167722fbff2a9c98e237ed7da86e052ec1b3c08034f21a346d2e36016e"
+        },
+        {
+          "file": "old/Heap.20260930.231245.44148.0.001.heapprofile",
+          "bytes": 45165,
+          "sha256": "1ed94aa730b570a0a1078ba221ba0dad0760238636cac9e67fb07d5777d898c6"
+        },
+        {
+          "file": "report.json",
+          "bytes": 3038,
+          "sha256": "386d558c3ad41388dca8c2d19b1f3a091c041cf471005aa8379108281114ae75"
+        }
+      ],
+      "orphans": [],
+      "latest": true,
+      "preflight": 0
+    },
+    {
+      "id": "e12-small-run2",
+      "attempt": 1,
+      "manifestId": "a10-p2-20260930b",
+      "manifestSha256": "03e631e0507a98e28de19b21812bb62f1f54c08059e1147176019ddd40dd6f51",
+      "rawDir": "/Users/sayue/dev/fleq-a10-runs/a10-p2-20260930b/e12-small-run2",
+      "command": "node reconstruction/test/eew-e01/run.mjs --manifest reconstruction/test/eew-e01/evidence/manifest.json",
+      "commands": [
+        "node reconstruction/test/eew-e01/run.mjs --manifest reconstruction/test/eew-e01/evidence/manifest.json",
+        "caffeinate -dims -w 9095",
+        "/opt/homebrew/opt/node@22/bin/node /Users/sayue/dev/FlEq/reconstruction/test/eew-e01/e12-run.mjs --out /Users/sayue/dev/fleq-a10-runs/a10-p2-20260930b/e12-small-run2 --class small --node /opt/homebrew/opt/node@22/bin/node"
+      ],
+      "startedAt": "2026-09-30T14:18:10.941Z",
+      "allocation": {
+        "method": "sampling heap profile（node --heap-prof、既定の sampling 間隔）の selfSize 合計と samples[].size 合計。推定値で、GC 回収済みの sample を含まない V8 既定の扱い。プロセス全体（module 読み込みと host 起動を含む）の profile で、replay 区間に限らない。総 allocation ではない",
+        "old": [
+          {
+            "file": "Heap.20260930.231811.44380.0.001.heapprofile",
+            "bytes": 47213,
+            "sha256": "ec93836605430238e509b3068ab2fbaa1aac542d62fe46aed45e830f247bce93",
+            "selfSizeSum": 14076592,
+            "sampleSizeSum": 14076592,
+            "samples": 26
+          }
+        ],
+        "new": [
+          {
+            "file": "Heap.20260930.231851.44414.0.001.heapprofile",
+            "bytes": 29669,
+            "sha256": "8234eac254adcaaba83d516a9410ca0bd74e7cdbb60157ff87dd11b0330faf53",
+            "selfSizeSum": 8429888,
+            "sampleSizeSum": 8429888,
+            "samples": 16
+          }
+        ]
+      },
+      "status": "N/A",
+      "byteViolations": null,
+      "resultFiles": [
+        {
+          "path": "reconstruction/test/eew-e01/evidence/windows/a10-p2-20260930b/results/aux-e12-small-run2.json",
+          "sha256": "a9628a0d44ee20e626b0dbad757ca362a52ad44e37e6ff0be81dff47df76185e"
+        }
+      ],
+      "finishedAt": "2026-09-30T14:19:31.961Z",
+      "raw": [
+        {
+          "file": "aux-e12-small-run2.json",
+          "bytes": 3666,
+          "sha256": "a9628a0d44ee20e626b0dbad757ca362a52ad44e37e6ff0be81dff47df76185e"
+        },
+        {
+          "file": "frames.jsonl",
+          "bytes": 585823,
+          "sha256": "3ca51791e1a595019468c9eafdaf689c3d3e5eccc032057f44493fe6ac2c4562"
+        },
+        {
+          "file": "new/Heap.20260930.231851.44414.0.001.heapprofile",
+          "bytes": 29669,
+          "sha256": "8234eac254adcaaba83d516a9410ca0bd74e7cdbb60157ff87dd11b0330faf53"
+        },
+        {
+          "file": "new/diag/diagnostics-2026-09-30.jsonl",
+          "bytes": 140,
+          "sha256": "0ae1cc9fe49e7391146104650cfd4fe608da1a70c9fd6ca22d1a5a2d9542a91f"
+        },
+        {
+          "file": "old/Heap.20260930.231811.44380.0.001.heapprofile",
+          "bytes": 47213,
+          "sha256": "ec93836605430238e509b3068ab2fbaa1aac542d62fe46aed45e830f247bce93"
+        },
+        {
+          "file": "report.json",
+          "bytes": 3042,
+          "sha256": "fb66ced586bc6209aa5c27dc18746a032d52925ee751eaa46a4e7564418bd860"
+        }
+      ],
+      "orphans": [],
+      "latest": true,
+      "preflight": 0
+    },
+    {
+      "id": "e12-small-run3",
+      "attempt": 1,
+      "manifestId": "a10-p2-20260930b",
+      "manifestSha256": "03e631e0507a98e28de19b21812bb62f1f54c08059e1147176019ddd40dd6f51",
+      "rawDir": "/Users/sayue/dev/fleq-a10-runs/a10-p2-20260930b/e12-small-run3",
+      "command": "node reconstruction/test/eew-e01/run.mjs --manifest reconstruction/test/eew-e01/evidence/manifest.json",
+      "commands": [
+        "node reconstruction/test/eew-e01/run.mjs --manifest reconstruction/test/eew-e01/evidence/manifest.json",
+        "caffeinate -dims -w 9095",
+        "/opt/homebrew/opt/node@22/bin/node /Users/sayue/dev/FlEq/reconstruction/test/eew-e01/e12-run.mjs --out /Users/sayue/dev/fleq-a10-runs/a10-p2-20260930b/e12-small-run3 --class small --node /opt/homebrew/opt/node@22/bin/node"
+      ],
+      "startedAt": "2026-09-30T14:23:36.808Z",
+      "allocation": {
+        "method": "sampling heap profile（node --heap-prof、既定の sampling 間隔）の selfSize 合計と samples[].size 合計。推定値で、GC 回収済みの sample を含まない V8 既定の扱い。プロセス全体（module 読み込みと host 起動を含む）の profile で、replay 区間に限らない。総 allocation ではない",
+        "old": [
+          {
+            "file": "Heap.20260930.232336.44626.0.001.heapprofile",
+            "bytes": 38038,
+            "sha256": "d9dc96dc039d9432c2efba335f3b1fa572eadf08602fa4cb46d451b208b47ad6",
+            "selfSizeSum": 13094800,
+            "sampleSizeSum": 13099696,
+            "samples": 23
+          }
+        ],
+        "new": [
+          {
+            "file": "Heap.20260930.232417.44659.0.001.heapprofile",
+            "bytes": 21658,
+            "sha256": "459474cb5b7979f86f2cc4212e333256f1216df8942e77edd45efc71543f8f7f",
+            "selfSizeSum": 7358616,
+            "sampleSizeSum": 7358616,
+            "samples": 14
+          }
+        ]
+      },
+      "status": "N/A",
+      "byteViolations": null,
+      "resultFiles": [
+        {
+          "path": "reconstruction/test/eew-e01/evidence/windows/a10-p2-20260930b/results/aux-e12-small-run3.json",
+          "sha256": "f2c64eacf1ed1a0d60efe2aa22a6ac5baf41bbcdeff162485da8d63a2d28c1c3"
+        }
+      ],
+      "finishedAt": "2026-09-30T14:24:57.837Z",
+      "raw": [
+        {
+          "file": "aux-e12-small-run3.json",
+          "bytes": 3664,
+          "sha256": "f2c64eacf1ed1a0d60efe2aa22a6ac5baf41bbcdeff162485da8d63a2d28c1c3"
+        },
+        {
+          "file": "frames.jsonl",
+          "bytes": 585823,
+          "sha256": "3ca51791e1a595019468c9eafdaf689c3d3e5eccc032057f44493fe6ac2c4562"
+        },
+        {
+          "file": "new/Heap.20260930.232417.44659.0.001.heapprofile",
+          "bytes": 21658,
+          "sha256": "459474cb5b7979f86f2cc4212e333256f1216df8942e77edd45efc71543f8f7f"
+        },
+        {
+          "file": "new/diag/diagnostics-2026-09-30.jsonl",
+          "bytes": 140,
+          "sha256": "d9e2826f430c5d1e3b3b0bd46d8a45c02b3856c3817576d9ae8227ccc16d972a"
+        },
+        {
+          "file": "old/Heap.20260930.232336.44626.0.001.heapprofile",
+          "bytes": 38038,
+          "sha256": "d9dc96dc039d9432c2efba335f3b1fa572eadf08602fa4cb46d451b208b47ad6"
+        },
+        {
+          "file": "report.json",
+          "bytes": 3040,
+          "sha256": "77f3494634c07e62afc2ab88d525469a8ac8d0b88f7975ca622132b88a427221"
+        }
+      ],
+      "orphans": [],
+      "latest": true,
+      "preflight": 0
+    }
+  ]
+}

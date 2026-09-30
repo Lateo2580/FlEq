@@ -1,0 +1,269 @@
+{
+  "schemaVersion": "p2-a10-aux-result-v1",
+  "manifestId": "a10-p2-20260930b",
+  "manifestSha256": "03e631e0507a98e28de19b21812bb62f1f54c08059e1147176019ddd40dd6f51",
+  "resultSha256": "6264dfd0ccf5f4f5c0a8804bfbac4e4ca9d5764c7ad3d6c0c001787b8ad958e2",
+  "window": "e06",
+  "status": "N/A",
+  "cycles": 65,
+  "steadyCycle": 5,
+  "fill": {
+    "mode": "cycleC",
+    "frames": 1667,
+    "firstSeq": 1,
+    "sentMs": 38991,
+    "verifiedMs": 39048,
+    "observed": {
+      "snapshotActive": {
+        "eew": "512/1/0",
+        "weatherCurrent": "129/1/1",
+        "weatherTimeseries": "512/0/0"
+      },
+      "checkpoint": {
+        "U-W.national": 3,
+        "U-W.partials": 128,
+        "U-F.subjects": 512
+      }
+    },
+    "quiet": {
+      "waitedMs": 22854,
+      "untilLastBackendMs": 7822,
+      "backendLaunchesSeen": {
+        "afplay": 11
+      },
+      "quietMs": 15000,
+      "pgrepFailures": 0,
+      "note": "100ms ごとの pgrep -P で見えた子の数（短命な起動は取りこぼしうる下限）"
+    },
+    "observedBeforeMeasure": {
+      "snapshotActive": {
+        "eew": "512/1/0",
+        "weatherCurrent": "129/1/1",
+        "weatherTimeseries": "512/0/0"
+      },
+      "checkpoint": {
+        "U-W.national": 3,
+        "U-W.partials": 128,
+        "U-F.subjects": 512
+      }
+    }
+  },
+  "e06": {
+    "status": null,
+    "complete": true,
+    "windows": [
+      {
+        "window": 0,
+        "memSamples": 60,
+        "fdSamples": 10,
+        "rssMedian": 255688704,
+        "heapUsedMedian": 59715472,
+        "fdMedian": 39,
+        "fdMax": 39
+      },
+      {
+        "window": 1,
+        "memSamples": 60,
+        "fdSamples": 10,
+        "rssMedian": 246087680,
+        "heapUsedMedian": 59896152,
+        "fdMedian": 39,
+        "fdMax": 39
+      },
+      {
+        "window": 2,
+        "memSamples": 60,
+        "fdSamples": 10,
+        "rssMedian": 250593280,
+        "heapUsedMedian": 59725504,
+        "fdMedian": 39,
+        "fdMax": 39
+      },
+      {
+        "window": 3,
+        "memSamples": 60,
+        "fdSamples": 10,
+        "rssMedian": 253542400,
+        "heapUsedMedian": 60432920,
+        "fdMedian": 39,
+        "fdMax": 39
+      },
+      {
+        "window": 4,
+        "memSamples": 60,
+        "fdSamples": 10,
+        "rssMedian": 258818048,
+        "heapUsedMedian": 60116088,
+        "fdMedian": 39,
+        "fdMax": 39
+      },
+      {
+        "window": 5,
+        "memSamples": 61,
+        "fdSamples": 10,
+        "rssMedian": 259981312,
+        "heapUsedMedian": 60904256,
+        "fdMedian": 39,
+        "fdMax": 39
+      }
+    ],
+    "rssSlopeBytesPerMin": 178866.46857142856,
+    "heapUsedSlopeBytesPerMin": 20888.98285714286,
+    "fdSlopePerMin": 0,
+    "spec": {
+      "checks": [
+        {
+          "name": "rssMedianSlopeBytesPerHour",
+          "value": 10731988.114285713,
+          "limit": 1048576,
+          "exceeded": true
+        },
+        {
+          "name": "finalMinusFirstRssMedianBytes",
+          "value": 4292608,
+          "limit": 5242880,
+          "exceeded": false
+        },
+        {
+          "name": "fdFinalMaxMinusFirstMax",
+          "value": 0,
+          "limit": 0,
+          "exceeded": false
+        }
+      ],
+      "report": "報告（spec 式で超過・原因未分類）",
+      "note": "閾値は spec の暫定値（1MiB/時・5MiB は allocator の揺れを許す経験的暫定値）。合否ではなく報告。超過の原因は分類していない"
+    },
+    "finalWindow": {
+      "window": 5,
+      "memSamples": 61,
+      "fdSamples": 10,
+      "rssMedian": 259981312,
+      "heapUsedMedian": 60904256,
+      "fdMedian": 39,
+      "fdMax": 39
+    }
+  },
+  "perCycle": {
+    "eewCapacityEvicted": [
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1
+    ],
+    "expected": "診断 eewCapacityEvicted が 1 件（訓練 EventID の追加による容量退去。U-E の保持量が一定であることの観測値。eew の activeCount は event 単位で VXSE45 が残るため減らない）"
+  },
+  "fdSamples": 66,
+  "e15": {
+    "status": null,
+    "attempts": 639,
+    "units": {
+      "U-E": {
+        "encodeCount": 310,
+        "encodeBytes": 3170188,
+        "writeBytes": 3170188,
+        "occupiedMsLower": 195.66200500041577,
+        "measuredStagesMs": 3323.8342859989248,
+        "failedAttempts": 0
+      },
+      "U-W": {
+        "encodeCount": 132,
+        "encodeBytes": 1006085580,
+        "writeBytes": 1006085580,
+        "occupiedMsLower": 20099.21070900197,
+        "measuredStagesMs": 22033.1282120034,
+        "failedAttempts": 0
+      },
+      "U-F": {
+        "encodeCount": 197,
+        "encodeBytes": 308240461,
+        "writeBytes": 308240461,
+        "occupiedMsLower": 9677.462287998394,
+        "measuredStagesMs": 11598.462369998124,
+        "failedAttempts": 0
+      }
+    },
+    "retryReasons": {
+      "notRetry": 639
+    },
+    "byteViolations": 639,
+    "unknownInputIds": 0,
+    "blocked": [
+      "executeCheckpoint の前段の同期処理（checkpoint.ts:266-300 の restoreUnit・removeTemporaries・serializedEnvelope・latestValidSlot）は、どの段の計測区間にも入らず、製品に計測点が無いため未測定",
+      "checkpoint と診断の write を A3 CheckpointFileSystem/DiagnosticFileSystem で別計数する口が startP2Host の config に無い（製品 src 不変のため未測定）"
+    ],
+    "occupancyNote": "occupiedMsLower = encode+verify の壁時間（下限）。measuredStagesMs = 計測された段の壁時間の合計で、非同期の待ちを含み、前段の同期処理 checkpoint.ts:266-300 を含まない（上限ではない）"
+  },
+  "byteViolations": 639,
+  "byteViolationsNote": "byteViolations は verify 段の bytes が encode と同値（A3 契約どおりの製品）の件数。AC09「他 stage=0」と A3 の食い違いは総合レビュー送りの既知の契約の穴で、判定は変えない",
+  "publishCost": {
+    "window": "e06",
+    "publishCount": 3549,
+    "totalJsonBytes": 337380318,
+    "maxJsonBytes": 1046003,
+    "serializeP50Ms": 0.038500000002386514,
+    "serializeP99Ms": 2.269624999998996,
+    "serializeMaxMs": 5.648791999999958
+  }
+}

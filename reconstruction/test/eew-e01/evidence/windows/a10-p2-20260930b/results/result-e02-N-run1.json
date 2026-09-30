@@ -1,0 +1,21 @@
+{
+  "schemaVersion": "p2-e02-result-v1",
+  "manifestId": "a10-p2-20260930b",
+  "manifestSha256": "03e631e0507a98e28de19b21812bb62f1f54c08059e1147176019ddd40dd6f51",
+  "resultSha256": "de6532f560f245c46a8a677787373a8e2679fc439e7b99965561e006643c6799",
+  "load": "N",
+  "run": 1,
+  "status": "Pass",
+  "samples": 1000,
+  "missing": 0,
+  "failures": {},
+  "p99Ms": 2.1504169999971054,
+  "maxMs": 382.0462499999994,
+  "workerStates": {
+    "healthy": 1000
+  },
+  "evidenceRefs": [
+    "/Users/sayue/dev/fleq-a10-runs/a10-p2-20260930b/e02-N-run1/e02.jsonl",
+    "/Users/sayue/dev/fleq-a10-runs/a10-p2-20260930b/e02-N-run1/host-obs.jsonl"
+  ]
+}

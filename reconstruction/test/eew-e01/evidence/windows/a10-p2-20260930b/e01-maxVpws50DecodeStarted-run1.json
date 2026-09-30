@@ -1,0 +1,90 @@
+{
+  "id": "e01-maxVpws50DecodeStarted-run1",
+  "attempt": 1,
+  "manifestId": "a10-p2-20260930b",
+  "manifestSha256": "03e631e0507a98e28de19b21812bb62f1f54c08059e1147176019ddd40dd6f51",
+  "rawDir": "/Users/sayue/dev/fleq-a10-runs/a10-p2-20260930b/e01-maxVpws50DecodeStarted-run1",
+  "command": "node reconstruction/test/eew-e01/run.mjs --manifest reconstruction/test/eew-e01/evidence/manifest.json",
+  "commands": [
+    "node reconstruction/test/eew-e01/run.mjs --manifest reconstruction/test/eew-e01/evidence/manifest.json",
+    "caffeinate -dims -w 9095",
+    "/opt/homebrew/opt/node@22/bin/node /Users/sayue/dev/FlEq/reconstruction/test/eew-e01/host-launcher.mjs /Users/sayue/dev/fleq-a10-runs/a10-p2-20260930b/e01-maxVpws50DecodeStarted-run1/host-config.json",
+    "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome --remote-debugging-port=0 --user-data-dir=/var/folders/rw/1cht1x111j7d7v39ptrn2l4c0000gn/T/fleq-a10-chrome-6hT3PN --no-first-run --no-default-browser-check --window-size=1440,900 --force-color-profile=srgb --disable-background-timer-throttling --disable-renderer-backgrounding --disable-backgrounding-occluded-windows about:blank"
+  ],
+  "startedAt": "2026-09-30T10:21:45.617Z",
+  "preflight": {
+    "checkedAt": "2026-09-30T09:06:06.351Z",
+    "nodeVersion": "v22.23.2",
+    "chromeVersion": "154.0.8037.92",
+    "osVersion": "27.0.0 arm64",
+    "dist": [
+      "reconstruction/dist/src/host/host.js",
+      "reconstruction/dist/chrome-eew",
+      "dist/engine/messages/message-router.js"
+    ],
+    "gitHead": "0bf317fa6e1d0fee1a3de34ea194b52b13505f50",
+    "gitStatusPorcelain": ""
+  },
+  "status": "N/A",
+  "byteViolations": 119,
+  "byteViolationsNote": "byteViolations は verify 段の bytes が encode と同値（A3 契約どおりの製品）の件数。AC09「他 stage=0」と A3 の食い違いは総合レビュー送りの既知の契約の穴で、判定は変えない",
+  "resultFiles": [
+    {
+      "path": "reconstruction/test/eew-e01/evidence/windows/a10-p2-20260930b/results/result-reference-maxVpws50DecodeStarted-run1.json",
+      "sha256": "765e44b2f8c8cd663f0429369c1d34c7cc8553e3dd27682dea4c29a60d3612c0"
+    },
+    {
+      "path": "reconstruction/test/eew-e01/evidence/windows/a10-p2-20260930b/results/aux-e01-maxVpws50DecodeStarted-run1.json",
+      "sha256": "813b5665fdbd1d95e30e3266d18e0c91c8a90e3c233c8cb701c5cec6c11bea0b"
+    }
+  ],
+  "finishedAt": "2026-09-30T10:27:21.004Z",
+  "raw": [
+    {
+      "file": "aux-e01-maxVpws50DecodeStarted-run1.json",
+      "bytes": 2479,
+      "sha256": "813b5665fdbd1d95e30e3266d18e0c91c8a90e3c233c8cb701c5cec6c11bea0b"
+    },
+    {
+      "file": "diagnostics/diagnostics-2026-06-05.jsonl",
+      "bytes": 140,
+      "sha256": "e83e6e96e46bf5d54736d1abffca7c6869db9dfaa6be624703f1f9880cd92500"
+    },
+    {
+      "file": "e01-assembled.json",
+      "bytes": 505486,
+      "sha256": "28be3f2746c133be763ab93295ef10893cd43c1ef56e40b950b5f1bc3158a06e"
+    },
+    {
+      "file": "host-config.json",
+      "bytes": 461,
+      "sha256": "6ff762feae580ba12e6bf269ac9bef928600013fb11aeaf1bcea045ddc8d58b5"
+    },
+    {
+      "file": "host-obs.jsonl",
+      "bytes": 792453,
+      "sha256": "32796ae0291f45a4182a9b9ab2c55d075078ab0c0531b28c88ab358ff40c82c3"
+    },
+    {
+      "file": "result-reference-maxVpws50DecodeStarted-run1.json",
+      "bytes": 1180,
+      "sha256": "765e44b2f8c8cd663f0429369c1d34c7cc8553e3dd27682dea4c29a60d3612c0"
+    },
+    {
+      "file": "run-record.json",
+      "bytes": 277770,
+      "sha256": "20530bd1e1c71fe1d409286b6de4133f01133c04df1d4a336d99bffa850fc2c0"
+    },
+    {
+      "file": "trace-00.json",
+      "bytes": 12849917,
+      "sha256": "01778d32a90e022472fbf1f9bad2f62cc6871b65578f4177d5acd6ca375cbfef"
+    },
+    {
+      "file": "trace-01.json",
+      "bytes": 1395329,
+      "sha256": "04d6768217018c3b7c842d458455856c237f243d1f91b3a96ab0db64cbeb5528"
+    }
+  ],
+  "orphans": []
+}

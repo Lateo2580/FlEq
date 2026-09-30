@@ -1,0 +1,168 @@
+{
+  "id": "e06",
+  "attempt": 1,
+  "manifestId": "a10-p2-20260930b",
+  "manifestSha256": "03e631e0507a98e28de19b21812bb62f1f54c08059e1147176019ddd40dd6f51",
+  "rawDir": "/Users/sayue/dev/fleq-a10-runs/a10-p2-20260930b/e06",
+  "command": "node reconstruction/test/eew-e01/run.mjs --manifest reconstruction/test/eew-e01/evidence/manifest.json",
+  "commands": [
+    "node reconstruction/test/eew-e01/run.mjs --manifest reconstruction/test/eew-e01/evidence/manifest.json",
+    "caffeinate -dims -w 9095",
+    "/opt/homebrew/opt/node@22/bin/node /Users/sayue/dev/FlEq/reconstruction/test/eew-e01/host-launcher.mjs /Users/sayue/dev/fleq-a10-runs/a10-p2-20260930b/e06/host-config.json"
+  ],
+  "startedAt": "2026-09-30T14:29:02.709Z",
+  "preflight": {
+    "checkedAt": "2026-09-30T09:06:06.351Z",
+    "nodeVersion": "v22.23.2",
+    "chromeVersion": "154.0.8037.92",
+    "osVersion": "27.0.0 arm64",
+    "dist": [
+      "reconstruction/dist/src/host/host.js",
+      "reconstruction/dist/chrome-eew",
+      "dist/engine/messages/message-router.js"
+    ],
+    "gitHead": "0bf317fa6e1d0fee1a3de34ea194b52b13505f50",
+    "gitStatusPorcelain": ""
+  },
+  "fill": {
+    "mode": "cycleC",
+    "frames": 1667,
+    "firstSeq": 1,
+    "sentMs": 38991,
+    "verifiedMs": 39048,
+    "observed": {
+      "snapshotActive": {
+        "eew": "512/1/0",
+        "weatherCurrent": "129/1/1",
+        "weatherTimeseries": "512/0/0"
+      },
+      "checkpoint": {
+        "U-W.national": 3,
+        "U-W.partials": 128,
+        "U-F.subjects": 512
+      }
+    },
+    "quiet": {
+      "waitedMs": 22854,
+      "untilLastBackendMs": 7822,
+      "backendLaunchesSeen": {
+        "afplay": 11
+      },
+      "quietMs": 15000,
+      "pgrepFailures": 0,
+      "note": "100ms ごとの pgrep -P で見えた子の数（短命な起動は取りこぼしうる下限）"
+    },
+    "observedBeforeMeasure": {
+      "snapshotActive": {
+        "eew": "512/1/0",
+        "weatherCurrent": "129/1/1",
+        "weatherTimeseries": "512/0/0"
+      },
+      "checkpoint": {
+        "U-W.national": 3,
+        "U-W.partials": 128,
+        "U-F.subjects": 512
+      }
+    }
+  },
+  "eewCapacityEvictedPerCycle": [
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1
+  ],
+  "status": "N/A",
+  "byteViolations": 639,
+  "byteViolationsNote": "byteViolations は verify 段の bytes が encode と同値（A3 契約どおりの製品）の件数。AC09「他 stage=0」と A3 の食い違いは総合レビュー送りの既知の契約の穴で、判定は変えない",
+  "resultFiles": [
+    {
+      "path": "reconstruction/test/eew-e01/evidence/windows/a10-p2-20260930b/results/aux-e06.json",
+      "sha256": "8b2efe8347c9dec225ebd10cfbdc0131b6de197ebb47a156bfb1aab005137d44"
+    }
+  ],
+  "finishedAt": "2026-09-30T15:35:06.327Z",
+  "raw": [
+    {
+      "file": "aux-e06.json",
+      "bytes": 6734,
+      "sha256": "8b2efe8347c9dec225ebd10cfbdc0131b6de197ebb47a156bfb1aab005137d44"
+    },
+    {
+      "file": "diagnostics/diagnostics-2026-06-05.jsonl",
+      "bytes": 106160,
+      "sha256": "c48d8dce9e8e1fde4f253ef1ec377a9002084ebb927a8c03f80fa4ca798ebfd9"
+    },
+    {
+      "file": "host-config.json",
+      "bytes": 377,
+      "sha256": "4cabd797980d37f7d4604c0f1b07aef66fcff04dd0bdf08affc57a2f986f0c35"
+    },
+    {
+      "file": "host-obs.jsonl",
+      "bytes": 5697156,
+      "sha256": "6d29a6d589b9b3c53c629d630944cee113bc1c3e2f6b0afe30c1b7c70c2b5ee6"
+    }
+  ],
+  "orphans": []
+}

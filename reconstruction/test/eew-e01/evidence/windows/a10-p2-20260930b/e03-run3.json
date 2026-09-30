@@ -1,0 +1,60 @@
+{
+  "id": "e03-run3",
+  "attempt": 1,
+  "manifestId": "a10-p2-20260930b",
+  "manifestSha256": "03e631e0507a98e28de19b21812bb62f1f54c08059e1147176019ddd40dd6f51",
+  "rawDir": "/Users/sayue/dev/fleq-a10-runs/a10-p2-20260930b/e03-run3",
+  "command": "node reconstruction/test/eew-e01/run.mjs --manifest reconstruction/test/eew-e01/evidence/manifest.json",
+  "commands": [
+    "node reconstruction/test/eew-e01/run.mjs --manifest reconstruction/test/eew-e01/evidence/manifest.json",
+    "caffeinate -dims -w 9095",
+    "/opt/homebrew/opt/node@22/bin/node /Users/sayue/dev/FlEq/reconstruction/test/eew-e01/host-launcher.mjs /Users/sayue/dev/fleq-a10-runs/a10-p2-20260930b/e03-run3/host-config.json"
+  ],
+  "startedAt": "2026-09-30T13:08:14.065Z",
+  "preflight": {
+    "checkedAt": "2026-09-30T09:06:06.351Z",
+    "nodeVersion": "v22.23.2",
+    "chromeVersion": "154.0.8037.92",
+    "osVersion": "27.0.0 arm64",
+    "dist": [
+      "reconstruction/dist/src/host/host.js",
+      "reconstruction/dist/chrome-eew",
+      "dist/engine/messages/message-router.js"
+    ],
+    "gitHead": "0bf317fa6e1d0fee1a3de34ea194b52b13505f50",
+    "gitStatusPorcelain": ""
+  },
+  "status": "Pass",
+  "byteViolations": 1020,
+  "byteViolationsNote": "byteViolations は verify 段の bytes が encode と同値（A3 契約どおりの製品）の件数。AC09「他 stage=0」と A3 の食い違いは総合レビュー送りの既知の契約の穴で、判定は変えない",
+  "resultFiles": [
+    {
+      "path": "reconstruction/test/eew-e01/evidence/windows/a10-p2-20260930b/results/aux-e03-run3.json",
+      "sha256": "af84d3604c8e9bbd1c98aaceaa87459818cab8641f4bd916a4c28fbbbb1c95d0"
+    }
+  ],
+  "finishedAt": "2026-09-30T13:28:40.540Z",
+  "raw": [
+    {
+      "file": "aux-e03-run3.json",
+      "bytes": 2862,
+      "sha256": "af84d3604c8e9bbd1c98aaceaa87459818cab8641f4bd916a4c28fbbbb1c95d0"
+    },
+    {
+      "file": "diagnostics/diagnostics-2026-06-05.jsonl",
+      "bytes": 140,
+      "sha256": "7c23a3df54c7805c86cdc18588242ca75c27fb4b43bf17e0aac91bf1206d168b"
+    },
+    {
+      "file": "host-config.json",
+      "bytes": 392,
+      "sha256": "ee34ebd012597d7afcbb1ed9b86aaeee66e585ad3eb413ff4d4a7ae7cb67923d"
+    },
+    {
+      "file": "host-obs.jsonl",
+      "bytes": 4670290,
+      "sha256": "11d871925dca3a411cd4eb8cd34629732830638ef1d32e351d4b57537f44ece2"
+    }
+  ],
+  "orphans": []
+}

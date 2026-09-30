@@ -1,0 +1,118 @@
+{
+  "schemaVersion": "p2-a10-e02-verdict-v1",
+  "manifestId": "a10-p2-20260930b",
+  "manifestSha256": "03e631e0507a98e28de19b21812bb62f1f54c08059e1147176019ddd40dd6f51",
+  "resultSha256": "c3a7a72bb399698bfccddc7fc1cd561fc20827f3e28986bcf8936997568f15a7",
+  "runs": [
+    {
+      "schemaVersion": "p2-e02-result-v1",
+      "manifestId": "a10-p2-20260930b",
+      "manifestSha256": "03e631e0507a98e28de19b21812bb62f1f54c08059e1147176019ddd40dd6f51",
+      "resultSha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "load": "N",
+      "run": 1,
+      "status": "Pass",
+      "samples": 1000,
+      "missing": 0,
+      "failures": {},
+      "p99Ms": 2.1504169999971054,
+      "maxMs": 382.0462499999994,
+      "workerStates": {
+        "healthy": 1000
+      },
+      "evidenceRefs": []
+    },
+    {
+      "schemaVersion": "p2-e02-result-v1",
+      "manifestId": "a10-p2-20260930b",
+      "manifestSha256": "03e631e0507a98e28de19b21812bb62f1f54c08059e1147176019ddd40dd6f51",
+      "resultSha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "load": "N",
+      "run": 2,
+      "status": "Pass",
+      "samples": 1000,
+      "missing": 0,
+      "failures": {},
+      "p99Ms": 1.7510829999955604,
+      "maxMs": 400.1266670000041,
+      "workerStates": {
+        "healthy": 1000
+      },
+      "evidenceRefs": []
+    },
+    {
+      "schemaVersion": "p2-e02-result-v1",
+      "manifestId": "a10-p2-20260930b",
+      "manifestSha256": "03e631e0507a98e28de19b21812bb62f1f54c08059e1147176019ddd40dd6f51",
+      "resultSha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "load": "N",
+      "run": 3,
+      "status": "Pass",
+      "samples": 1000,
+      "missing": 0,
+      "failures": {},
+      "p99Ms": 1.954042000001209,
+      "maxMs": 377.3787089999969,
+      "workerStates": {
+        "healthy": 1000
+      },
+      "evidenceRefs": []
+    },
+    {
+      "schemaVersion": "p2-e02-result-v1",
+      "manifestId": "a10-p2-20260930b",
+      "manifestSha256": "03e631e0507a98e28de19b21812bb62f1f54c08059e1147176019ddd40dd6f51",
+      "resultSha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "load": "P",
+      "run": 1,
+      "status": "Fail",
+      "samples": 1000,
+      "missing": 0,
+      "failures": {},
+      "p99Ms": 352.81970799993724,
+      "maxMs": 688.608957999968,
+      "workerStates": {
+        "healthy": 1000
+      },
+      "evidenceRefs": []
+    },
+    {
+      "schemaVersion": "p2-e02-result-v1",
+      "manifestId": "a10-p2-20260930b",
+      "manifestSha256": "03e631e0507a98e28de19b21812bb62f1f54c08059e1147176019ddd40dd6f51",
+      "resultSha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "load": "P",
+      "run": 2,
+      "status": "Fail",
+      "samples": 1000,
+      "missing": 0,
+      "failures": {},
+      "p99Ms": 208.30104199999914,
+      "maxMs": 703.0420409999788,
+      "workerStates": {
+        "healthy": 1000
+      },
+      "evidenceRefs": []
+    },
+    {
+      "schemaVersion": "p2-e02-result-v1",
+      "manifestId": "a10-p2-20260930b",
+      "manifestSha256": "03e631e0507a98e28de19b21812bb62f1f54c08059e1147176019ddd40dd6f51",
+      "resultSha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "load": "P",
+      "run": 3,
+      "status": "Fail",
+      "samples": 1000,
+      "missing": 0,
+      "failures": {},
+      "p99Ms": 234.73816699999588,
+      "maxMs": 670.7824999999721,
+      "workerStates": {
+        "healthy": 1000
+      },
+      "evidenceRefs": []
+    }
+  ],
+  "unusable": {},
+  "finishedAt": "2026-09-30T15:35:06.373Z"
+}

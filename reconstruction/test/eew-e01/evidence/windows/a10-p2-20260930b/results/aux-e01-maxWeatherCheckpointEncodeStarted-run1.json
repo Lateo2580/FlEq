@@ -1,0 +1,59 @@
+{
+  "schemaVersion": "p2-a10-aux-result-v1",
+  "manifestId": "a10-p2-20260930b",
+  "manifestSha256": "03e631e0507a98e28de19b21812bb62f1f54c08059e1147176019ddd40dd6f51",
+  "resultSha256": "eff1115e9c0ec6e60c29a753639045269b003839999f6970395a855fbfad82b2",
+  "window": "e01-maxWeatherCheckpointEncodeStarted-run1",
+  "status": "N/A",
+  "e15": {
+    "status": null,
+    "attempts": 120,
+    "units": {
+      "U-W": {
+        "encodeCount": 113,
+        "encodeBytes": 253287998,
+        "writeBytes": 253287998,
+        "occupiedMsLower": 6174.3595389997745,
+        "measuredStagesMs": 7467.308111999573,
+        "failedAttempts": 0
+      },
+      "U-F": {
+        "encodeCount": 1,
+        "encodeBytes": 61113,
+        "writeBytes": 61113,
+        "occupiedMsLower": 7.309750999999778,
+        "measuredStagesMs": 17.000916999999845,
+        "failedAttempts": 0
+      },
+      "U-E": {
+        "encodeCount": 6,
+        "encodeBytes": 3436,
+        "writeBytes": 3436,
+        "occupiedMsLower": 4.301667000005182,
+        "measuredStagesMs": 62.237704000013764,
+        "failedAttempts": 0
+      }
+    },
+    "retryReasons": {
+      "notRetry": 120
+    },
+    "byteViolations": 120,
+    "unknownInputIds": 0,
+    "blocked": [
+      "executeCheckpoint の前段の同期処理（checkpoint.ts:266-300 の restoreUnit・removeTemporaries・serializedEnvelope・latestValidSlot）は、どの段の計測区間にも入らず、製品に計測点が無いため未測定",
+      "checkpoint と診断の write を A3 CheckpointFileSystem/DiagnosticFileSystem で別計数する口が startP2Host の config に無い（製品 src 不変のため未測定）"
+    ],
+    "occupancyNote": "occupiedMsLower = encode+verify の壁時間（下限）。measuredStagesMs = 計測された段の壁時間の合計で、非同期の待ちを含み、前段の同期処理 checkpoint.ts:266-300 を含まない（上限ではない）"
+  },
+  "byteViolations": 120,
+  "byteViolationsNote": "byteViolations は verify 段の bytes が encode と同値（A3 契約どおりの製品）の件数。AC09「他 stage=0」と A3 の食い違いは総合レビュー送りの既知の契約の穴で、判定は変えない",
+  "publishCost": {
+    "window": "e01-maxWeatherCheckpointEncodeStarted-run1",
+    "publishCount": 354,
+    "totalJsonBytes": 25822418,
+    "maxJsonBytes": 74264,
+    "serializeP50Ms": 0.22091699996963143,
+    "serializeP99Ms": 1.388290999999299,
+    "serializeMaxMs": 1.5981249999967986
+  }
+}

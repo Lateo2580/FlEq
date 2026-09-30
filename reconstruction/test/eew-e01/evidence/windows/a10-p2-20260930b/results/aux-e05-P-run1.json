@@ -1,0 +1,115 @@
+{
+  "schemaVersion": "p2-a10-aux-result-v1",
+  "manifestId": "a10-p2-20260930b",
+  "manifestSha256": "03e631e0507a98e28de19b21812bb62f1f54c08059e1147176019ddd40dd6f51",
+  "resultSha256": "655c5f5958114e9ab267ea8432b15d185d61347835744c19bafbcb1ac0b5e931",
+  "window": "e02-P-run1",
+  "status": "Fail",
+  "e05": {
+    "status": "Fail",
+    "load": "P",
+    "samples": 995,
+    "maxRssBytes": 489652224,
+    "limitBytes": 419430400,
+    "coverage": {
+      "memEveryMs": 1000,
+      "expectedSamples": 999,
+      "missingSamples": 0,
+      "maxGapMs": 1422.5180420000106,
+      "edgesCovered": true,
+      "maxMissingRatio": 0.01
+    }
+  },
+  "e15": {
+    "status": null,
+    "attempts": 91,
+    "units": {
+      "U-E": {
+        "encodeCount": 43,
+        "encodeBytes": 3183975,
+        "writeBytes": 3183975,
+        "occupiedMsLower": 90.56999800001404,
+        "measuredStagesMs": 481.5127060000211,
+        "failedAttempts": 0
+      },
+      "U-W": {
+        "encodeCount": 43,
+        "encodeBytes": 317000865,
+        "writeBytes": 317000865,
+        "occupiedMsLower": 6371.15220999984,
+        "measuredStagesMs": 7115.031090000106,
+        "failedAttempts": 0
+      },
+      "U-F": {
+        "encodeCount": 5,
+        "encodeBytes": 7264934,
+        "writeBytes": 7264934,
+        "occupiedMsLower": 205.3821670000616,
+        "measuredStagesMs": 252.15449800024362,
+        "failedAttempts": 0
+      }
+    },
+    "retryReasons": {
+      "notRetry": 91
+    },
+    "byteViolations": 91,
+    "unknownInputIds": 0,
+    "blocked": [
+      "executeCheckpoint の前段の同期処理（checkpoint.ts:266-300 の restoreUnit・removeTemporaries・serializedEnvelope・latestValidSlot）は、どの段の計測区間にも入らず、製品に計測点が無いため未測定",
+      "checkpoint と診断の write を A3 CheckpointFileSystem/DiagnosticFileSystem で別計数する口が startP2Host の config に無い（製品 src 不変のため未測定）"
+    ],
+    "occupancyNote": "occupiedMsLower = encode+verify の壁時間（下限）。measuredStagesMs = 計測された段の壁時間の合計で、非同期の待ちを含み、前段の同期処理 checkpoint.ts:266-300 を含まない（上限ではない）"
+  },
+  "byteViolations": 91,
+  "byteViolationsNote": "byteViolations は verify 段の bytes が encode と同値（A3 契約どおりの製品）の件数。AC09「他 stage=0」と A3 の食い違いは総合レビュー送りの既知の契約の穴で、判定は変えない",
+  "publishCost": {
+    "window": "e02-P-run1",
+    "publishCount": 2288,
+    "totalJsonBytes": 334925670,
+    "maxJsonBytes": 1046003,
+    "serializeP50Ms": 0.04100000000107684,
+    "serializeP99Ms": 2.028874999999971,
+    "serializeMaxMs": 5.122041000000536
+  },
+  "fill": {
+    "mode": "leaveRoomForP",
+    "frames": 1664,
+    "firstSeq": 1,
+    "sentMs": 39041,
+    "verifiedMs": 39100,
+    "observed": {
+      "snapshotActive": {
+        "eew": "512/0/0",
+        "weatherCurrent": "127/1/1",
+        "weatherTimeseries": "511/0/0"
+      },
+      "checkpoint": {
+        "U-W.national": 3,
+        "U-W.partials": 126,
+        "U-F.subjects": 511
+      }
+    },
+    "quiet": {
+      "waitedMs": 22941,
+      "untilLastBackendMs": 7831,
+      "backendLaunchesSeen": {
+        "afplay": 11
+      },
+      "quietMs": 15000,
+      "pgrepFailures": 0,
+      "note": "100ms ごとの pgrep -P で見えた子の数（短命な起動は取りこぼしうる下限）"
+    },
+    "observedBeforeMeasure": {
+      "snapshotActive": {
+        "eew": "512/0/0",
+        "weatherCurrent": "127/1/1",
+        "weatherTimeseries": "511/0/0"
+      },
+      "checkpoint": {
+        "U-W.national": 3,
+        "U-W.partials": 126,
+        "U-F.subjects": 511
+      }
+    }
+  }
+}

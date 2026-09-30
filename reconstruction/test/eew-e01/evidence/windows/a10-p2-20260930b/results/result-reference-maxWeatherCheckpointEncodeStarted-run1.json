@@ -1,0 +1,30 @@
+{
+  "schemaVersion": "p2-eew-e01-result-v2",
+  "manifestId": "a10-p2-20260930b",
+  "manifestSha256": "03e631e0507a98e28de19b21812bb62f1f54c08059e1147176019ddd40dd6f51",
+  "resultSha256": "e8398760cae9897d94b8f8713b39edeca8202340b22e27921e7b04eec9e49b67",
+  "population": "maxWeatherCheckpointEncodeStarted",
+  "scope": "reference",
+  "run": 1,
+  "status": "N/A",
+  "samples": 100,
+  "missing": 0,
+  "traceMissing": 0,
+  "injectionFailures": 0,
+  "injectedToT0P50Ms": 136.4956250190735,
+  "injectedToT0P99Ms": 148.0608749985695,
+  "injectedToT0MaxMs": 149.64104199409485,
+  "p50LowerMs": 19.191791967094467,
+  "p50UpperMs": 19.698999968708087,
+  "p95LowerMs": 30.426709014287916,
+  "p95UpperMs": 31.03362497413182,
+  "p99LowerMs": 34.34500000734115,
+  "p99UpperMs": 34.844832947442775,
+  "maxLowerMs": 37.01308300064411,
+  "maxUpperMs": 38.05354097650852,
+  "evidenceRefs": [
+    "reconstruction/test/eew-e01/evidence/windows/a10-p2-20260930b/e01-maxWeatherCheckpointEncodeStarted-run1.json",
+    "/Users/sayue/dev/fleq-a10-runs/a10-p2-20260930b/e01-maxWeatherCheckpointEncodeStarted-run1/run-record.json",
+    "/Users/sayue/dev/fleq-a10-runs/a10-p2-20260930b/e01-maxWeatherCheckpointEncodeStarted-run1/e01-assembled.json"
+  ]
+}

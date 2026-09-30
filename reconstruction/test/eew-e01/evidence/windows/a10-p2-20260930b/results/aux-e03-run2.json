@@ -1,0 +1,73 @@
+{
+  "schemaVersion": "p2-a10-aux-result-v1",
+  "manifestId": "a10-p2-20260930b",
+  "manifestSha256": "03e631e0507a98e28de19b21812bb62f1f54c08059e1147176019ddd40dd6f51",
+  "resultSha256": "10c68c0135453cf8322ee1a6c6509e309b8d9cdfa47199a90aad12485f590ef2",
+  "window": "e03-run2",
+  "status": "Pass",
+  "warmup": 20,
+  "samples": 1000,
+  "e03": {
+    "status": "Pass",
+    "samples": 1000,
+    "unprocessed": 0,
+    "processingMs": {
+      "p50": 391.0037500000035,
+      "p95": 411.6435000000056,
+      "p99": 418.03162500000326,
+      "max": 429.0775409999769
+    },
+    "queueWaitMs": {
+      "p50": 0.1047079999698326,
+      "p95": 0.14333300001453608,
+      "p99": 0.1946250000037253,
+      "max": 0.39929099997971207
+    },
+    "limitMs": 1000,
+    "notes": [
+      "未処理が 1 件でもあれば Fail でなく未確認（保守側）",
+      "終点は dispatch 完了で publish の直列化まで含む（T3 より遅い＝保守側）",
+      "targetInputIds は host の data frame の通し番号（ingress 拒否も番号を消費し、overload 中は消費しない）"
+    ]
+  },
+  "seqAlignment": {
+    "t0": 1025,
+    "sent": 1025,
+    "aligned": true
+  },
+  "e15": {
+    "status": null,
+    "attempts": 1020,
+    "units": {
+      "U-W": {
+        "encodeCount": 1020,
+        "encodeBytes": 3098834093,
+        "writeBytes": 3098834093,
+        "occupiedMsLower": 52067.69253400094,
+        "measuredStagesMs": 62630.17182500506,
+        "failedAttempts": 0
+      }
+    },
+    "retryReasons": {
+      "notRetry": 1020
+    },
+    "byteViolations": 1020,
+    "unknownInputIds": 0,
+    "blocked": [
+      "executeCheckpoint の前段の同期処理（checkpoint.ts:266-300 の restoreUnit・removeTemporaries・serializedEnvelope・latestValidSlot）は、どの段の計測区間にも入らず、製品に計測点が無いため未測定",
+      "checkpoint と診断の write を A3 CheckpointFileSystem/DiagnosticFileSystem で別計数する口が startP2Host の config に無い（製品 src 不変のため未測定）"
+    ],
+    "occupancyNote": "occupiedMsLower = encode+verify の壁時間（下限）。measuredStagesMs = 計測された段の壁時間の合計で、非同期の待ちを含み、前段の同期処理 checkpoint.ts:266-300 を含まない（上限ではない）"
+  },
+  "byteViolations": 1020,
+  "byteViolationsNote": "byteViolations は verify 段の bytes が encode と同値（A3 契約どおりの製品）の件数。AC09「他 stage=0」と A3 の食い違いは総合レビュー送りの既知の契約の穴で、判定は変えない",
+  "publishCost": {
+    "window": "e03-run2",
+    "publishCount": 2049,
+    "totalJsonBytes": 8924440,
+    "maxJsonBytes": 4368,
+    "serializeP50Ms": 0.005915999878197908,
+    "serializeP99Ms": 0.007666999939829111,
+    "serializeMaxMs": 0.02275000000372529
+  }
+}

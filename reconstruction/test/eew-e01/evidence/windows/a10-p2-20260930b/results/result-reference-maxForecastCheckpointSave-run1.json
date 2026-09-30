@@ -1,0 +1,30 @@
+{
+  "schemaVersion": "p2-eew-e01-result-v2",
+  "manifestId": "a10-p2-20260930b",
+  "manifestSha256": "03e631e0507a98e28de19b21812bb62f1f54c08059e1147176019ddd40dd6f51",
+  "resultSha256": "c2c0dfe4e199cca691227353ff8e86284712c24165db14386f4ff17eefd21db5",
+  "population": "maxForecastCheckpointSave",
+  "scope": "reference",
+  "run": 1,
+  "status": "N/A",
+  "samples": 100,
+  "missing": 0,
+  "traceMissing": 0,
+  "injectionFailures": 0,
+  "injectedToT0P50Ms": 61.40966606140137,
+  "injectedToT0P99Ms": 66.95491707324982,
+  "injectedToT0MaxMs": 67.68062502145767,
+  "p50LowerMs": 18.355874997598583,
+  "p50UpperMs": 18.855584079248366,
+  "p95LowerMs": 34.78566592073039,
+  "p95UpperMs": 35.32849997615413,
+  "p99LowerMs": 36.60454092073487,
+  "p99UpperMs": 37.14737497615861,
+  "maxLowerMs": 39.70974996776058,
+  "maxUpperMs": 40.192167026705285,
+  "evidenceRefs": [
+    "reconstruction/test/eew-e01/evidence/windows/a10-p2-20260930b/e01-maxForecastCheckpointSave-run1.json",
+    "/Users/sayue/dev/fleq-a10-runs/a10-p2-20260930b/e01-maxForecastCheckpointSave-run1/run-record.json",
+    "/Users/sayue/dev/fleq-a10-runs/a10-p2-20260930b/e01-maxForecastCheckpointSave-run1/e01-assembled.json"
+  ]
+}

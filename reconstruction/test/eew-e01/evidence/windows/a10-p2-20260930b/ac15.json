@@ -1,0 +1,102 @@
+{
+  "id": "ac15",
+  "attempt": 1,
+  "manifestId": "a10-p2-20260930b",
+  "manifestSha256": "03e631e0507a98e28de19b21812bb62f1f54c08059e1147176019ddd40dd6f51",
+  "rawDir": "/Users/sayue/dev/fleq-a10-runs/a10-p2-20260930b/ac15",
+  "command": "node reconstruction/test/eew-e01/run.mjs --manifest reconstruction/test/eew-e01/evidence/manifest.json",
+  "commands": [
+    "node reconstruction/test/eew-e01/run.mjs --manifest reconstruction/test/eew-e01/evidence/manifest.json",
+    "caffeinate -dims -w 9095",
+    "FLEQ_STRINGIFY_OUT=/Users/sayue/dev/fleq-a10-runs/a10-p2-20260930b/ac15/full/stringify.jsonl /opt/homebrew/opt/node@22/bin/node --import /Users/sayue/dev/FlEq/reconstruction/test/eew-e01/probe-preload.mjs /Users/sayue/dev/FlEq/reconstruction/test/eew-e01/host-launcher.mjs /Users/sayue/dev/fleq-a10-runs/a10-p2-20260930b/ac15/full/host-config.json",
+    "FLEQ_STRINGIFY_OUT=/Users/sayue/dev/fleq-a10-runs/a10-p2-20260930b/ac15/half/stringify.jsonl /opt/homebrew/opt/node@22/bin/node --import /Users/sayue/dev/FlEq/reconstruction/test/eew-e01/probe-preload.mjs /Users/sayue/dev/FlEq/reconstruction/test/eew-e01/host-launcher.mjs /Users/sayue/dev/fleq-a10-runs/a10-p2-20260930b/ac15/half/host-config.json"
+  ],
+  "startedAt": "2026-09-30T13:28:40.543Z",
+  "preflight": {
+    "checkedAt": "2026-09-30T09:06:06.351Z",
+    "nodeVersion": "v22.23.2",
+    "chromeVersion": "154.0.8037.92",
+    "osVersion": "27.0.0 arm64",
+    "dist": [
+      "reconstruction/dist/src/host/host.js",
+      "reconstruction/dist/chrome-eew",
+      "dist/engine/messages/message-router.js"
+    ],
+    "gitHead": "0bf317fa6e1d0fee1a3de34ea194b52b13505f50",
+    "gitStatusPorcelain": ""
+  },
+  "fill": {
+    "mode": "full",
+    "frames": 1923,
+    "firstSeq": 1,
+    "sentMs": 43229,
+    "verifiedMs": 44396,
+    "observed": {
+      "snapshotActive": {
+        "eew": "512/0/0",
+        "weatherCurrent": "129/1/1",
+        "weatherTimeseries": "512/0/0"
+      },
+      "checkpoint": {
+        "U-W.national": 3,
+        "U-W.partials": 128,
+        "U-F.subjects": 512
+      }
+    },
+    "quiet": {
+      "waitedMs": 17801,
+      "untilLastBackendMs": 2747,
+      "backendLaunchesSeen": {
+        "afplay": 6
+      },
+      "quietMs": 15000,
+      "pgrepFailures": 0,
+      "note": "100ms ごとの pgrep -P で見えた子の数（短命な起動は取りこぼしうる下限）"
+    },
+    "observedBeforeMeasure": {
+      "snapshotActive": {
+        "eew": "512/0/0",
+        "weatherCurrent": "129/1/1",
+        "weatherTimeseries": "512/0/0"
+      },
+      "checkpoint": {
+        "U-W.national": 3,
+        "U-W.partials": 128,
+        "U-F.subjects": 512
+      }
+    }
+  },
+  "ac15Parts": {
+    "full": "Pass",
+    "half": "Pass",
+    "retention": "Pass"
+  },
+  "status": "Pass",
+  "byteViolations": 267,
+  "byteViolationsNote": "byteViolations は verify 段の bytes が encode と同値（A3 契約どおりの製品）の件数。AC09「他 stage=0」と A3 の食い違いは総合レビュー送りの既知の契約の穴で、判定は変えない",
+  "resultFiles": [
+    {
+      "path": "reconstruction/test/eew-e01/evidence/windows/a10-p2-20260930b/results/aux-ac15.json",
+      "sha256": "e620ab44144ddb7f56dc9d473441634e06b4712ae1d018ceeab91b32b113e368"
+    }
+  ],
+  "finishedAt": "2026-09-30T14:12:45.008Z",
+  "raw": [
+    {
+      "file": "aux-ac15.json",
+      "bytes": 81754,
+      "sha256": "e620ab44144ddb7f56dc9d473441634e06b4712ae1d018ceeab91b32b113e368"
+    },
+    {
+      "file": "full/diagnostics/diagnostics-2026-06-05.jsonl",
+      "bytes": 96556,
+      "sha256": "3e39c55ef07c8d944d1c3e4479b305339025ba446d88aeb07814421a89116873"
+    },
+    {
+      "file": "half/diagnostics/diagnostics-2026-06-05.jsonl",
+      "bytes": 44200,
+      "sha256": "8f64f9b502e02df9f095acafc19240c868e96e29e6a399da1b5c85471bf01461"
+    }
+  ],
+  "orphans": []
+}
