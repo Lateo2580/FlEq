@@ -1,0 +1,395 @@
+{
+  "schemaVersion": "p2-eew-initial-state-v1",
+  "populations": {
+    "fixedBacklog": [
+      {
+        "fixture": "test__fixtures__81_01_04_251222_VPWP50",
+        "sha256": "937dbaa1c74e1e182527ea52690ca75a60f1bd674e6ac6dbe97436e55af7bc1a"
+      }
+    ],
+    "maxVpws50DecodeStarted": [
+      {
+        "fixture": "test__fixtures__81_01_04_251222_VPWP50",
+        "sha256": "937dbaa1c74e1e182527ea52690ca75a60f1bd674e6ac6dbe97436e55af7bc1a"
+      }
+    ],
+    "maxWeatherCheckpointEncodeStarted": [
+      {
+        "fixture": "test__fixtures__15_18_01_250630_VPWS50",
+        "sha256": "4730b26b18e285be6b6141b1140aa5c2f81ce32907571bdd17e80525e3746981"
+      },
+      {
+        "fixture": "test__fixtures__81_01_04_251222_VPWP50",
+        "sha256": "937dbaa1c74e1e182527ea52690ca75a60f1bd674e6ac6dbe97436e55af7bc1a"
+      }
+    ],
+    "maxForecastCheckpointSave": [
+      {
+        "fixture": "test__fixtures__81_09_01_260605_VPWP50",
+        "sha256": "f4614dc206b143ef3a9997fecf1ebffaef2f4f9b3000ddd2df0de522bc8cad4b"
+      }
+    ],
+    "forecastDeadlineOverlap": []
+  },
+  "nWindow": {
+    "file": "page1.json (dmdata Telegram List v2, 2026-09-28 09:00-10:00 JST)",
+    "sha256": "3f886896ad2f059d5c86dfaf9a2b271add4b2bba8e3dba6e438ae26ef8e27535",
+    "skipped": [
+      {
+        "headType": "VPWW54",
+        "offsetMs": 331665,
+        "reason": "noFixtureForHeadType"
+      },
+      {
+        "headType": "VPWW53",
+        "offsetMs": 331673,
+        "reason": "noFixtureForHeadType"
+      },
+      {
+        "headType": "VPWW54",
+        "offsetMs": 577508,
+        "reason": "noFixtureForHeadType"
+      },
+      {
+        "headType": "VPWW53",
+        "offsetMs": 577517,
+        "reason": "noFixtureForHeadType"
+      },
+      {
+        "headType": "VPFJ50",
+        "offsetMs": 578542,
+        "reason": "noFixtureForHeadType"
+      },
+      {
+        "headType": "VPFJ50",
+        "offsetMs": 1595348,
+        "reason": "noFixtureForHeadType"
+      },
+      {
+        "headType": "VXWW50",
+        "offsetMs": 1943364,
+        "reason": "noFixtureForHeadType"
+      },
+      {
+        "headType": "VPWW54",
+        "offsetMs": 1951049,
+        "reason": "noFixtureForHeadType"
+      },
+      {
+        "headType": "VPWW53",
+        "offsetMs": 1951053,
+        "reason": "noFixtureForHeadType"
+      },
+      {
+        "headType": "VPWW54",
+        "offsetMs": 1995912,
+        "reason": "noFixtureForHeadType"
+      },
+      {
+        "headType": "VPWW53",
+        "offsetMs": 1995921,
+        "reason": "noFixtureForHeadType"
+      },
+      {
+        "headType": "VPWW54",
+        "offsetMs": 2068182,
+        "reason": "noFixtureForHeadType"
+      },
+      {
+        "headType": "VPWW53",
+        "offsetMs": 2068186,
+        "reason": "noFixtureForHeadType"
+      },
+      {
+        "headType": "VPWW54",
+        "offsetMs": 2098106,
+        "reason": "noFixtureForHeadType"
+      },
+      {
+        "headType": "VPWW53",
+        "offsetMs": 2098114,
+        "reason": "noFixtureForHeadType"
+      },
+      {
+        "headType": "VPWW54",
+        "offsetMs": 2155171,
+        "reason": "noFixtureForHeadType"
+      },
+      {
+        "headType": "VPWW53",
+        "offsetMs": 2156180,
+        "reason": "noFixtureForHeadType"
+      },
+      {
+        "headType": "VPWW54",
+        "offsetMs": 2232720,
+        "reason": "noFixtureForHeadType"
+      },
+      {
+        "headType": "VPWW53",
+        "offsetMs": 2232722,
+        "reason": "noFixtureForHeadType"
+      },
+      {
+        "headType": "VPWW54",
+        "offsetMs": 2246662,
+        "reason": "noFixtureForHeadType"
+      },
+      {
+        "headType": "VPWW53",
+        "offsetMs": 2246671,
+        "reason": "noFixtureForHeadType"
+      },
+      {
+        "headType": "VPWW54",
+        "offsetMs": 2263562,
+        "reason": "noFixtureForHeadType"
+      },
+      {
+        "headType": "VPWW53",
+        "offsetMs": 2263570,
+        "reason": "noFixtureForHeadType"
+      },
+      {
+        "headType": "WTJP22",
+        "offsetMs": 2680640,
+        "reason": "noFixtureForHeadType"
+      },
+      {
+        "headType": "VPWW54",
+        "offsetMs": 2788205,
+        "reason": "noFixtureForHeadType"
+      },
+      {
+        "headType": "VPWW53",
+        "offsetMs": 2789162,
+        "reason": "noFixtureForHeadType"
+      },
+      {
+        "headType": "VPTA51",
+        "offsetMs": 3001210,
+        "reason": "noFixtureForHeadType"
+      }
+    ]
+  },
+  "rulesSource": {
+    "file": "reconstruction/test/eew-e01/frames.mjs",
+    "sha256": "26908ae82453eddca0536adc9cf6922e7d53b727103f2f58966fc052b509f4c4"
+  },
+  "nearCapacity": {
+    "function": "nearCapacityFrames({ mode, room })",
+    "source": "A8 RES-07（p2-snapshot-sse.json）の合法最大を cost.test.ts:155-165 と同じ作り方で製品入力から作る",
+    "fixtures": [
+      {
+        "fixture": "test__fixtures__37_01_01_240613_VXSE43",
+        "sha256": "66ac00a126d831135ce40baea8de5b3c5e58342c607d04f4ef00520a6861fcc0"
+      },
+      {
+        "fixture": "test__fixtures__77_01_01_240613_VXSE45",
+        "sha256": "05aabbf0667f30f4248b464207d7335afda83c69d22a7cd1a300fec847074575"
+      },
+      {
+        "fixture": "test__fixtures__15_18_01_250630_VPWS50",
+        "sha256": "4730b26b18e285be6b6141b1140aa5c2f81ce32907571bdd17e80525e3746981"
+      },
+      {
+        "fixture": "test__fixtures__15_16_02_251222_VPWW57",
+        "sha256": "1da9236f048e72354f03a6cacecf59a10e0375ce3a589cfd2bc8c87681766cef"
+      },
+      {
+        "fixture": "test__fixtures__81_02_01_260605_VPWP50_high_severity",
+        "sha256": "eb4e312044555db07c3e215a93fcda4961845cdb7b2b85f3c7e0461d0f160ccd"
+      }
+    ],
+    "rules": [
+      "U-E: VXSE43 37_01_01_240613_VXSE43 と VXSE45 77_01_01_240613_VXSE45 の EventID を 20240417000000+i（i=0..511）に替えて交互に送る（2 family × 512）。時刻は動かさない",
+      "U-W national: VPWS50 15_18_01_250630_VPWS50 の最初の <Status>通常</Status> を 通常・訓練・試験 に替えて 3 件（frame の外側の運用も本文に揃える）",
+      "U-W partial: VPWW57 15_16_02_251222_VPWW57 の EditorialOffice を 官署i（i=0..partials-1）に替える",
+      "U-F: VPWP50 81_02_01_260605_VPWP50_high_severity の EditorialOffice を 官署i（i=0..subjects-1）に替える。ReportDateTime は 17:00 のまま、validUntil は翌 03:00",
+      "cycleC: full と同じで、VXSE43 の EventID 20240417000511 だけを訓練の種（VXSE43 の EventID 20260930000000、Status 訓練）に替える",
+      "全て報告時刻を動かさない（host の壁時計起点 2026-06-05T18:00+09:00 は A8 試験の at と同じ）"
+    ],
+    "pacing": "sendPaced: 未処理（送った数 − host の decode 観測数）を通常 32 件以下・EEW 8 件以下（予約枠）・VPWS50 は 0 件のときだけ送る（mailbox RES-03/04 で拒否させない）。送った後に expected の値を /snapshot と保存済み checkpoint で確かめ、違えば窓を Blocked（stateNotReproducible）",
+    "modes": {
+      "full": {
+        "room": null,
+        "expected": {
+          "snapshotActive": {
+            "eew": "512/0/0",
+            "weatherCurrent": "129/1/1",
+            "weatherTimeseries": "512/0/0"
+          },
+          "checkpoint": {
+            "U-W.national": 3,
+            "U-W.partials": 128,
+            "U-F.subjects": 512
+          }
+        },
+        "usedBy": [
+          "AC15"
+        ]
+      },
+      "leaveRoomForP": {
+        "room": {
+          "partials": 2,
+          "forecastSubjects": 1
+        },
+        "expected": {
+          "snapshotActive": {
+            "eew": "512/0/0",
+            "weatherCurrent": "127/1/1",
+            "weatherTimeseries": "511/0/0"
+          },
+          "checkpoint": {
+            "U-W.national": 3,
+            "U-W.partials": 126,
+            "U-F.subjects": 511
+          }
+        },
+        "usedBy": [
+          "E02-P",
+          "E05-P"
+        ]
+      },
+      "cycleC": {
+        "room": null,
+        "expected": {
+          "snapshotActive": {
+            "eew": "512/1/0",
+            "weatherCurrent": "129/1/1",
+            "weatherTimeseries": "512/0/0"
+          },
+          "checkpoint": {
+            "U-W.national": 3,
+            "U-W.partials": 128,
+            "U-F.subjects": 512
+          }
+        },
+        "usedBy": [
+          "E06"
+        ]
+      }
+    }
+  },
+  "cycleC": {
+    "function": "cycleCFrames(c, cycleStartWallMs)",
+    "initialState": "nearCapacity cycleC（保持上限ちょうど、VXSE43 の 1 件が訓練の種）",
+    "periodMs": 60000,
+    "warmupCycles": 5,
+    "cycles": 65,
+    "fixtures": [
+      {
+        "fixture": "test__fixtures__15_18_01_250630_VPWS50",
+        "sha256": "4730b26b18e285be6b6141b1140aa5c2f81ce32907571bdd17e80525e3746981"
+      },
+      {
+        "fixture": "test__fixtures__15_16_02_251222_VPWW57",
+        "sha256": "1da9236f048e72354f03a6cacecf59a10e0375ce3a589cfd2bc8c87681766cef"
+      },
+      {
+        "fixture": "test__fixtures__37_01_01_240613_VXSE43",
+        "sha256": "66ac00a126d831135ce40baea8de5b3c5e58342c607d04f4ef00520a6861fcc0"
+      },
+      {
+        "fixture": "test__fixtures__37_01_03_240613_VXSE43",
+        "sha256": "b075dab492ed0369c8dca5203bb9b273a71dd8cdeed4be37a84de00e557fcafc"
+      },
+      {
+        "fixture": "test__fixtures__81_02_01_260605_VPWP50_high_severity",
+        "sha256": "eb4e312044555db07c3e215a93fcda4961845cdb7b2b85f3c7e0461d0f160ccd"
+      }
+    ],
+    "inputs": [
+      {
+        "offsetMs": 0,
+        "rule": "VPWS50 15_18_01_250630_VPWS50（通常）の全時刻を充填時より (c+1)×60 秒後へ",
+        "effect": "U-W national の更新（履歴は深さ 2 で最古の normal を押し出す。f65961cc）"
+      },
+      {
+        "offsetMs": 5000,
+        "rule": "VPWP50 81_02_01_260605_VPWP50_high_severity の EditorialOffice を 官署0、全時刻を validUntil が周期の開始 + 60 分になるよう動かし、ReportDateTime を充填時 + (c+1)×60 秒 − 30 秒に置き直す",
+        "effect": "前の周期で期限回収した U-F subject の入れ直し（周期 0 は更新）"
+      },
+      {
+        "offsetMs": 10000,
+        "rule": "VPWW57 15_16_02_251222_VPWW57 の EditorialOffice を 官署{c}、ReportDateTime を充填時 + (c+1)×60 秒",
+        "effect": "U-W partial の更新"
+      },
+      {
+        "offsetMs": 20000,
+        "rule": "VXSE43 37_01_01_240613_VXSE43 の EventID を 20240417000000+c、Serial 2、全時刻を (c+1)×60 秒後へ、予測を c の偶奇で A/B（愛媛県東予 4→5-）",
+        "effect": "U-E の更新"
+      },
+      {
+        "offsetMs": 25000,
+        "rule": "VXSE43 37_01_01_240613_VXSE43（Status 訓練）の EventID を 20260930000000+c+1",
+        "effect": "U-E の追加。family 512 を超えるので製品が最古の非通常（前の周期の訓練 EventID の gate）を追い出す（eew.ts:366-381）"
+      },
+      {
+        "offsetMs": 30000,
+        "rule": "VXSE43 取消 37_01_03_240613_VXSE43（Status 訓練）の EventID を 20260930000000+c+1",
+        "effect": "U-E の取消（同じ周期に足した訓練 EventID が current から消える）"
+      },
+      {
+        "offsetMs": 40000,
+        "rule": "VPWP50 81_02_01_260605_VPWP50_high_severity の EditorialOffice を 官署0、全時刻を validUntil が周期の開始（host 壁時計）+ 50 秒になるよう動かし、ReportDateTime を充填時 + (c+1)×60 秒に置き直す",
+        "effect": "U-F の更新と、周期の中の tick での期限回収"
+      }
+    ],
+    "constantRetention": "周期の終わり（58 秒）で、U-E は current・gate・family 予算、U-F は subjects 512・active 511、U-W は partials 128 が周期をまたいで同じ（E06 の傾きを保持量の目減りで偏らせない）",
+    "bound": "c < 128（官署{c} が充填済みの範囲にある）",
+    "expectedPerCycle": "診断 eewCapacityEvicted が 1 件（訓練 EventID の追加による容量退去。U-E の保持量が一定であることの観測値。eew の activeCount は event 単位で VXSE45 が残るため減らない）",
+    "cancelScope": "取消は訓練の区分でだけ起きる。通常の取消は C では走らない",
+    "established": "予備で 4 周期: 周期の終わりの /snapshot activeCount（eew・weatherTimeseries）と checkpoint の件数（U-W partials、U-F subjects）が一定、eew の contentRevision と U-W・U-F の checkpoint 世代が周期ごとに進む"
+  },
+  "e03Series": {
+    "function": "e03Frame(k, startWallMs)",
+    "fixtures": [
+      {
+        "fixture": "test__fixtures__15_18_01_250630_VPWS50",
+        "sha256": "4730b26b18e285be6b6141b1140aa5c2f81ce32907571bdd17e80525e3746981"
+      }
+    ],
+    "periodMs": 1200,
+    "warmup": 20,
+    "samples": 1000,
+    "background": "N",
+    "rule": "k 番目は全時刻を平行移動し、ReportDateTime を floor((start + k × 1200ms) / 1 秒) の host 壁時計に置く（周期 > 1 秒なので厳密に増える）",
+    "note": "通常の national は履歴 2 件で上限（weather-current.ts:625-636）。空状態からでも 3 件目以降の VPWS50 は capacityExceeded の unavailable 更新になる"
+  },
+  "ac15Scenarios": {
+    "function": "ac15Frame(scenario, index)",
+    "initialState": "nearCapacity full（保持上限ちょうど）",
+    "fixtures": [
+      {
+        "fixture": "test__fixtures__37_01_01_240613_VXSE43",
+        "sha256": "66ac00a126d831135ce40baea8de5b3c5e58342c607d04f4ef00520a6861fcc0"
+      },
+      {
+        "fixture": "test__fixtures__15_16_02_251222_VPWW57",
+        "sha256": "1da9236f048e72354f03a6cacecf59a10e0375ce3a589cfd2bc8c87681766cef"
+      },
+      {
+        "fixture": "test__fixtures__81_02_01_260605_VPWP50_high_severity",
+        "sha256": "eb4e312044555db07c3e215a93fcda4961845cdb7b2b85f3c7e0461d0f160ccd"
+      }
+    ],
+    "warmup": 10,
+    "samples": 100,
+    "intervalMs": 1500,
+    "metadataIntervalMs": 7000,
+    "order": [
+      "U-E",
+      "metadata",
+      "U-W",
+      "U-F"
+    ],
+    "rules": {
+      "U-E": "VXSE43 37_01_01_240613_VXSE43 の EventID 20240417000000、Serial を index+2、ReportDateTime を 23:14:59 + (index+1) 秒",
+      "metadata": "frame ではなく投入側の WS 切断（server 側で socket を terminate）。host が connectionLost を流し RECONNECT_MS 5 秒後に再接続する（host.ts:228-231）。間隔 7000ms（予備の再接続所要より長い）。区間は切断の時刻（投入側 hrtime を host 時計へ写したもの）から次の区間の起点まで",
+      "U-W": "VPWW57 15_16_02_251222_VPWW57 の EditorialOffice を 官署0、ReportDateTime を 2020-06-22T23:00+09:00 + (index+1) 分",
+      "U-F": "VPWP50 81_02_01_260605_VPWP50_high_severity の EditorialOffice を 官署0、ReportDateTime を 17:00 + (index+1) 秒"
+    },
+    "source": "p2-snapshot-sse.json:100 の 4 シナリオ（A8 cost.test.ts:182-191 と同じ入力）"
+  }
+}
