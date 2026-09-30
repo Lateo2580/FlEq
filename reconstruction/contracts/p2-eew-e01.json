@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "585d2f4f858e350c6965d83019ba7e4842285b3c",
-    "sha256": "08bb70bee24a4db82ef9c931b0fb2c16581182cd145c71bd088d07dd1fe5ecff",
+    "sha256": "63db6a355a08d85099e1178a32e066e2b0016a418a46de5621b7718b04805e08",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "76c82b87d7783a4eae14af690cb34e7d6ec46f73617dc75b7f7401951619f080",
     "sequencesSha256": "be9cfd97b555e3a55568f085d107342c978b3dc7249f5cecea868ea5a62c5781",
@@ -87,6 +87,24 @@
         "provisional": "A",
         "ruling": "2026-09-28 作者裁定R63=A（A10点検4 N3、L2）",
         "reason": "E01のT0以降を測るのに認証・socket startは要らず、共通の受信・制御frame・過負荷・終了処理を製品srcに置けば測定経路は成立する。実サービス適合は保証範囲から外して明記する"
+      },
+      {
+        "id": "P2-A10-PERF-P3",
+        "A": "正式測定（manifest a10-p2-20260930b、main c111d843）で3 runともFailしたE02-P（/healthz p99 208〜353ms、暫定100ms）とE05-P（Node RSS最大467〜484MiB、暫定400MiB）は、Failのまま結果に残し、P3最初の契約群へ移管する。E06（報告のみ）でspec §9.9式のRSS窓中央値傾き約10.2MiB/時が暫定1MiB/時を超えた件（heap・externalは横ばい、原因未分類）も同じ契約群で原因を分類する。P3の再検収条件は同じPとCの窓・同じ暫定上限で、原因の構造（VPWS50 parseとU-W保存1回の全量encodeが単一スレッドを塞ぐ、台帳61）に対し差分保存・parseの実行単位分離・暫定上限の見直しをA/Bで裁定してから測る。A10はこの移管付きで完了とし、Fail・超過を合格に読み替えない",
+        "B": "P2のうちにU-W保存の差分化などを入れて同じ窓で測り直す（R60の単一スレッド判断に触れる大工事）",
+        "recommended": "A",
+        "provisional": "A",
+        "ruling": "2026-10-01 作者裁定A（A10ヘルツ最終確認の残件3）",
+        "reason": "R61の移管対象はE01の4条件だけで、E02-P・E05-P・E06を免除する条文が無かった。Failは製品の事実として保持し、直し方の選択（R56・R60に触れる）をP3の設計判断に渡す"
+      },
+      {
+        "id": "P2-A10-E15-P3",
+        "A": "AC09のstage別bytesは、verify段が読んだbytes（製品はA3契約どおりencodeと同値を返す）を別計数で報告し、encode・writeへ二重加算しないと読む（「他stage=0」は加算の対象外の意味）。保存と診断のwriteのfilesystem注入口での別計数（startP2Hostのconfigに注入口が無い）と、保存前段の同期区間（checkpoint.ts:266-300の読み直し・decode、計測点が無い）はP3最初の契約群へ移管する（台帳55と同じ根）。A10の結果のbyteViolationsはverify段の読んだbytesの件数で、違反ではない",
+        "B": "A3の製品をAC09の字面（verify bytes=0）に合わせ、A10で注入口と計測点を足してE15の窓だけ測り直す",
+        "recommended": "A",
+        "provisional": "A",
+        "ruling": "2026-10-01 作者裁定A（A10ヘルツ最終確認の残件1）",
+        "reason": "verifyのbytesはA3契約どおりの製品で、AC09の字面との食い違いは契約の書き方の問題。未測定の2つはA3所有のcheckpoint経路とhostの注入口に手を入れる必要があり、保存1回の読み直しの構造（台帳55）と一緒にP3で扱う"
       }
     ],
     "questionResolutions": [
