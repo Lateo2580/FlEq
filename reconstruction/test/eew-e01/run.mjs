@@ -1,9 +1,11 @@
 // P2-A10 E01 の入口: node reconstruction/test/eew-e01/run.mjs --manifest <path> | --preliminary [options]
 // 製品経路（ローカル WS → startP2Host → SSE → 実 Chrome）で EEW の T0→T6 を測る。runner は入力の送出と証拠収集だけで、
-// 製品の入力処理はここに持たない。E01 以外（E02/E03/E05/E06/E12/E15/費用）の窓は U3 が WINDOWS の並びへ足す。
+// 製品の入力処理はここに持たない。E01 以外（E02/E03/E05/E06/E12/E15/費用・AC15）の窓は windows.mjs（auxWindows）が作り、E01 の後に並べる。
 // --manifest: verifyFrozenManifest と起動時の確認を通った凍結 manifest だけを、窓を順に回す 1 本のループで走らせる。落ちた窓は Blocked と記録して次へ。
 //   --windows <id,...>: 前回 Blocked（または未実施）の窓だけを再実行する。結果は上書きせず -attempt<k> を付ける。
 // --preliminary: 案（draft）で走らせ、結果の status は必ず「未確認」。
+//   --aux <id,...|all>: E01 の代わりに周辺の窓を件数を絞って回す（--e02-count/--e03-count/--ac15-count/--e12-count/--e06-cycles、各 1 run、
+//   P の空け数は --room-partials/--room-forecast）。記録と結果は evidence-scratch（repo の外）に書く。
 import { execFileSync, spawn } from "node:child_process";
 import { appendFileSync, closeSync, copyFileSync, existsSync, mkdirSync, openSync, readdirSync, readFileSync, readSync, realpathSync, statSync, writeFileSync } from "node:fs";
 import { arch, cpus, homedir, release, totalmem } from "node:os";
@@ -13,7 +15,8 @@ import { WebSocketServer } from "ws";
 import { assembleTrials, analyzeTrace, buildHostIndex, referenceRecord } from "./analysis.mjs";
 import { chromeVersion, hrMs, openPage, probeClock, sleep, startTracing, stopTracing } from "./chrome.mjs";
 import { SMOKE_FILE, buildDraft, contractTextsFor } from "./draft.mjs";
-import { REPO, dataFrame, eewVariant, eventIdOf, fixtureId, fixtureText, sha256Hex, loadEvents, shiftTimestamps, weatherFrame } from "./frames.mjs";
+import { REPO, dataFrame, eewVariant, eventIdOf, fixtureId, fixtureText, sha256Hex, shiftTimestamps, weatherFrame } from "./frames.mjs";
+import { auxWindows, e02Verdict, hostReportsOf, replayPump, seal, sealAux } from "./windows.mjs";
 
 import { classifyEewCause, quantiles, summarizeEewE01 } from "../../dist/src/measurement/eew-e01/judge.js";
 import { ZERO_HASH, forecastWithinAllowance, sealSelfHash, verifyFrozenManifest } from "../../dist/src/measurement/eew-e01/frozen.js";
@@ -61,13 +64,23 @@ async function startInjector(scope) {
   server.on("connection", (ws) => {
     if (socket != null) { injector.broken ??= "結合不能: 投入側に 2 本目の connection が来た（通し番号と host の input-<n> がずれる）"; return; }
     socket = ws;
-    ws.on("close", () => { if (!closing) injector.broken ??= "結合不能: 投入側の socket が close した（通し番号と host の input-<n> がずれる）"; });
+    ws.on("close", () => { if (!closing && socket === ws) injector.broken ??= "結合不能: 投入側の socket が close した（通し番号と host の input-<n> がずれる）"; });
     ws.on("message", () => { /* pong など。host 側の観測は launcher の JSONL が正 */ });
     ws.on("error", () => {});
     waiters.splice(0).forEach((f) => f());
   });
   const injector = {
     broken: null,
+    // AC15 の metadata シナリオ: 投入側から切断し（server 側で terminate）、host の再接続を期限付きで待つ。戻り値は再接続までの ms。
+    // 意図した切断は socket を先に外すので broken にならない。通し番号は host 側も接続をまたいで続く（host.ts の lastSequence）。
+    reconnect: async (timeoutMs) => {
+      const old = socket;
+      socket = null;
+      const started = hrMs();
+      old?.terminate();
+      await Promise.race([injector.connected(), sleep(timeoutMs).then(() => { throw new Error(`host did not reconnect within ${timeoutMs}ms`); })]);
+      return hrMs() - started;
+    },
     url: `ws://127.0.0.1:${server.address().port}/`,
     connected: () => socket != null && socket.readyState === 1 ? Promise.resolve() : new Promise((f) => waiters.push(f)),
     sendStart: () => socket?.send(JSON.stringify({ type: "start", socketId: 1, classifications: ["eew.forecast"] })),
@@ -245,19 +258,8 @@ async function measureRun(spec, ctx, label, dir, status) {
   const channels = await (await fetch(`http://127.0.0.1:${hostProcess.displayPort}/snapshot`)).json().then((s) => s.channels, () => null);
 
   // 通常負荷 N（決めた offset で繰り返す）
-  const background = loadEvents(ctx.load);
-  const loadMs = ctx.load.durationMs;
-  let bgNext = 0;
   const loopStart = hrMs();
-  const pumpBackground = () => {
-    for (;;) {
-      const cycle = Math.floor(bgNext / background.length);
-      const event = background[bgNext % background.length];
-      if (loopStart + cycle * loadMs + event.offsetMs > hrMs()) return;
-      dataSend(weatherFrame(event.name, event.headType, wallNow()), "background", { headType: event.headType });
-      bgNext += 1;
-    }
-  };
+  const pumpBackground = replayPump(ctx.load, (frame, event) => dataSend(frame, "background", { headType: event.headType }), wallNow, loopStart);
   const idleUntil = async (targetHrMs) => {
     while (targetHrMs - hrMs() > 4) { pumpBackground(); await sleep(Math.min(20, targetHrMs - hrMs() - 3)); }
     await spinUntil(targetHrMs);
@@ -486,6 +488,7 @@ function e01Window(spec, ctx) {
     // 見込み = 試行数 × 周期 ＋ 起動・trace 解析 2 分（期限はこの 2 倍）
     expectedMin: Math.ceil(((spec.warmup + spec.count) * spec.periodMs) / 60_000) + 2,
     run: async (w) => {
+      w.progress.phase = "measure";
       const result = await executeRun(spec, { ...ctx, scope: w.scope, commands: w.commands }, w.dir, w.progress);
       const assembled = { spec, rawDir: pathRef(w.dir), recordRef: w.recordRef, samples: result.samples, injections: result.injections, processing: result.host.processing,
         checkpoints: result.host.checkpoints, ufNotWithin: ufNotWithin(result.record), durationMs: result.record.durationMs, paintWithoutScreenshot: withoutScreenshot(result.record, spec.warmup) };
@@ -493,7 +496,11 @@ function e01Window(spec, ctx) {
       const run = judgeE01(ctx.manifest, [assembled]).runs.find((r) => r.population === spec.population && r.run === spec.run);
       const file = join(w.dir, `result-${run.scope}-${run.population}-run${run.run}.json`);
       writeSealed(file, run, "resultSha256");
-      return { status: run.status, resultFiles: [file] };
+      // AC15: publish の回数・配送 JSON byte・直列化時間を E01 の各窓でも PublishCostReport として報告する（E15 も同梱）。
+      const id = `e01-${spec.population}-run${spec.run}`;
+      const reports = hostReportsOf(join(w.dir, "host-obs.jsonl"), id);
+      return { status: run.status, byteViolations: reports.byteViolations, byteViolationsNote: reports.byteViolationsNote,
+        resultFiles: [file, sealAux(w.dir, `aux-${id}.json`, ctx.manifest, { window: id, status: run.status, ...reports })] };
     },
   };
 }
@@ -527,11 +534,14 @@ const windowName = (id, attempt) => (attempt === 1 ? id : `${id}-attempt${attemp
 const readWindowRecords = (dir, manifestSha256) => (existsSync(dir) ? readdirSync(dir).filter((f) => f.endsWith(".json"))
   .map((f) => JSON.parse(readFileSync(join(dir, f), "utf8"))).filter((r) => r.manifestSha256 === manifestSha256) : []);
 const latestById = (records) => [...records.reduce((m, r) => (m.has(r.id) && m.get(r.id).attempt > r.attempt ? m : m.set(r.id, r)), new Map()).values()];
-// repo 外の生データ（run-record・trace・JSONL など窓 dir 直下のファイル）を hash で固定する。
-const hashRaw = (dir) => readdirSync(dir, { withFileTypes: true }).filter((e) => e.isFile()).map((e) => {
-  const bytes = readFileSync(join(dir, e.name));
-  return { file: e.name, bytes: bytes.length, sha256: sha256Hex(bytes) };
-});
+// repo 外の生データを hash で固定する: 窓 dir 直下のファイル（run-record・trace・JSONL など）と、下の *.heapprofile（E12 の旧新）・
+// diagnostics（diag）/*.jsonl。file は窓 dir からの相対 path。
+const RAW_NESTED = /(\.heapprofile$)|(^|\/)(diagnostics|diag)\/[^/]+\.jsonl$/;
+const hashRaw = (dir) => readdirSync(dir, { recursive: true }).map(String).sort()
+  .filter((f) => (!f.includes("/") || RAW_NESTED.test(f)) && statSync(join(dir, f)).isFile()).map((f) => {
+    const bytes = readFileSync(join(dir, f));
+    return { file: f, bytes: bytes.length, sha256: sha256Hex(bytes) };
+  });
 let interruptWindow = null; // SIGINT/SIGTERM のとき、今の窓の記録を "interrupted" に書き換える
 
 // 1 窓を回す。例外・子の異常終了・期限（見込み × 2）超過のどれでも、その窓を Blocked と記録して後始末を済ませ、呼び出し側は次の窓へ進む。
@@ -553,7 +563,7 @@ async function runWindow(win, { manifest, outDir, resultsDir, recordsDir, comman
   progress("start", { expectedMin: win.expectedMin });
   current = w.scope;
   interruptWindow = () => writeRecord({ ...base, status: "Blocked", reason: "interrupted", finishedAt: new Date().toISOString(), lastProgress: { ...w.progress }, raw: hashRaw(dir) });
-  const beat = setInterval(() => progress("beat", { done: w.progress.trialsStarted ?? null, total: w.progress.total ?? null }), 60_000);
+  const beat = setInterval(() => progress("beat", { phase: w.progress.phase ?? null, done: w.progress.trialsStarted ?? null, total: w.progress.total ?? null }), 60_000);
   const work = Promise.resolve().then(() => win.run(w));
   let deadline;
   let outcome;
@@ -593,19 +603,19 @@ async function runWindow(win, { manifest, outDir, resultsDir, recordsDir, comman
 
 // 合算（WP3c §1.5）: 窓の記録（全 attempt）と E01 の判定から a10-result.json の保存 text を作る純関数。evidence から毎回作り直す。
 // 窓の status は記録のまま写す（Blocked を Pass・Fail に変えない、AC10）。封印は WP2 の sealSelfHash（resultSha256 だけを 0 置換した bytes の sha256）。
-export function buildA10Result({ manifest, windows, e01 }) {
+export function buildA10Result({ manifest, windows, e01, e02Verdict = null }) {
   const sorted = [...windows].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : a.attempt - b.attempt));
   const latest = new Map(sorted.map((w) => [w.id, w.attempt]));
   const preflights = [...new Set(sorted.map((w) => JSON.stringify(w.preflight ?? null)))];
   const entries = sorted.map(({ preflight, ...w }) => ({ ...w, latest: latest.get(w.id) === w.attempt, preflight: preflights.indexOf(JSON.stringify(preflight ?? null)) }));
   const body = { schemaVersion: "p2-a10-result-v1", manifestId: manifest.manifestId, manifestSha256: manifest.manifestSha256, resultSha256: ZERO_HASH,
-    e01, preflights: preflights.map((p) => JSON.parse(p)), windows: entries };
+    e01, e02Verdict, preflights: preflights.map((p) => JSON.parse(p)), windows: entries };
   return sealSelfHash(`${JSON.stringify(body, null, 2)}\n`, "resultSha256");
 }
 
 // 起動時の確認（WP3c §1.1）: host の Node・Chrome・OS の版を manifest と照合し、生成物の存在を確かめ、repo の状態を記録する。
 // 1 つでも外れたら全窓を走らせずに止める（どの窓も同じ理由で落ちるため）。
-async function preflightCheck(manifest, nodePath, nodeVersion) {
+async function preflightCheck(manifest, nodePath, nodeVersion, initialState) {
   const chrome = await chromeVersion();
   const os = `${release()} ${arch()}`;
   const problems = [
@@ -613,6 +623,9 @@ async function preflightCheck(manifest, nodePath, nodeVersion) {
     chrome === manifest.chrome.version ? null : `Chrome is ${chrome}, manifest.chrome.version is ${manifest.chrome.version}`,
     os === manifest.osVersion ? null : `OS is ${os}, manifest.osVersion is ${manifest.osVersion}`,
     ...DIST_REQUIRED.map((p) => (existsSync(join(REPO, p)) ? null : `missing build output: ${p}`)),
+    // 充填・C・E03・AC15・E12 の入力規則（frames.mjs）が凍結時と同じ bytes か（ReplayLoad は書き換え規則を持てないので recipe の hash で固定する）。
+    sha256Hex(readFileSync(join(REPO, initialState.rulesSource.file))) === initialState.rulesSource.sha256 ? null
+      : `${initialState.rulesSource.file} sha256 differs from initial-state rulesSource (${initialState.rulesSource.sha256})`,
   ].filter((p) => p != null);
   if (problems.length > 0) throw new Error(`preflight failed:\n  ${problems.join("\n  ")}`);
   const git = (...args) => execFileSync("git", args, { cwd: REPO, encoding: "utf8" });
@@ -625,7 +638,8 @@ const TRIGGER_AND_EEW_FIXTURES = ["37_01_01_240613_VXSE43", "15_18_01_250630_VPW
 function frozenInputs(manifest, trialSetup, initialStateText) {
   if (sha256Hex(initialStateText) !== trialSetup.initialStateSha256) throw new Error("initial-state hash does not match trialSetup.initialStateSha256");
   const populations = JSON.parse(initialStateText).populations;
-  const names = new Set(TRIGGER_AND_EEW_FIXTURES);
+  // 充填・C・E03・AC15・E12・N の fixture も含め、manifest に固定した全 fixture の bytes を照合する。
+  const names = new Set([...TRIGGER_AND_EEW_FIXTURES, ...Object.keys(manifest.fixtureSha256).map((id) => id.replace("test__fixtures__", ""))]);
   const initial = {};
   for (const [population, list] of Object.entries(populations)) {
     initial[population] = list.map((entry) => entry.fixture.replace("test__fixtures__", ""));
@@ -639,10 +653,10 @@ function frozenInputs(manifest, trialSetup, initialStateText) {
 }
 
 async function main(argv) {
-  // 今の窓の記録を "interrupted"（raw の hash 付き）に書き換えてから後始末する。
+  // 今の窓の子を止めてから、窓の記録を "interrupted"（raw の hash 付き）に書き換える（子が書いている間に数百 MB を読まない）。
   for (const signal of ["SIGINT", "SIGTERM"]) process.on(signal, () => {
-    try { interruptWindow?.(); } catch { /* 記録の失敗で後始末を止めない */ }
-    void current.close().then(root.close).finally(() => process.exit(130));
+    const record = () => { try { interruptWindow?.(); } catch { /* 記録の失敗で後始末を止めない */ } };
+    void current.close().then(record, record).then(root.close).finally(() => process.exit(130));
   });
   const args = new Map();
   for (let i = 0; i < argv.length; i++) if (argv[i].startsWith("--")) args.set(argv[i].slice(2), argv[i + 1]?.startsWith("--") || argv[i + 1] == null ? true : argv[++i]);
@@ -671,14 +685,13 @@ async function main(argv) {
   if (!preliminary && notification !== "real") throw new Error("--notification silent is allowed only with --preliminary (formal runs use the real backend)");
   if (notification !== "real" && notification !== "silent") throw new Error("--notification must be real or silent");
   let draft = null;
-  const plan = {
-    formalWarmup: num("formal-warmup", 20), formalSamples: num("formal-samples", 100), refWarmup: num("ref-warmup", 5), refSamples: num("ref-samples", 20),
-    period: num("period", 1370), refPeriod: num("ref-period", 3000),
-  };
+  const plan = { formalWarmup: num("formal-warmup", 20), formalSamples: num("formal-samples", 100), period: num("period", 1370), refPeriod: num("ref-period", 3000) };
+  if (args.has("room-partials") !== args.has("room-forecast")) throw new Error("--room-partials and --room-forecast go together");
+  const room = args.has("room-partials") ? { partials: num("room-partials"), forecastSubjects: num("room-forecast") } : null;
   const only = args.has("only") ? String(args.get("only")).split(",") : null;
   if (preliminary) {
     draft = buildDraft({ chromeVersion: await chromeVersion(), nodeVersion,
-      osVersion: `${release()} ${arch()}`, device: `${cpus()[0]?.model ?? "cpu"} x${cpus().length}, ${Math.round(totalmem() / 2 ** 30)}GiB`, periodMs: plan.period, refPeriodMs: plan.refPeriod, id: `prelim-${stamp}` });
+      osVersion: `${release()} ${arch()}`, device: `${cpus()[0]?.model ?? "cpu"} x${cpus().length}, ${Math.round(totalmem() / 2 ** 30)}GiB`, periodMs: plan.period, refPeriodMs: plan.refPeriod, id: `prelim-${stamp}`, room });
     manifest = draft.manifest;
     trialSetup = JSON.parse(draft.trialSetupText);
     initialStateText = draft.initialStateText;
@@ -692,13 +705,16 @@ async function main(argv) {
     trialSetup = verified.trialSetup;
     initialStateText = readFileSync(join(REPO, trialSetup.initialStateRef), "utf8");
   }
-  const preflight = preliminary ? null : await preflightCheck(manifest, nodePath, nodeVersion);
+  const initialState = JSON.parse(initialStateText);
+  const preflight = preliminary ? null : await preflightCheck(manifest, nodePath, nodeVersion, initialState);
   // 起動時の確認の後に起動する（確認で止まるときに子を残さない）。
   const caffeinate = spawn("caffeinate", ["-dims", "-w", String(process.pid)], { stdio: "ignore" });
   caffeinate.on("error", () => {});
   root.add(() => caffeinate.kill());
   const frozen = frozenInputs(manifest, trialSetup, initialStateText);
   const periodOf = (trigger) => Number(/periodMs=(\d+)/.exec(trigger)?.[1]);
+  // 予備の参考件数の既定は manifest.reference（draft の Q-PERF 値）から取る。
+  Object.assign(plan, { refWarmup: num("ref-warmup", Object.values(manifest.reference)[0].warmupPerRun), refSamples: num("ref-samples", Object.values(manifest.reference)[0].samplesPerRun) });
   const specs = preliminary
     ? [{ population: "fixedBacklog", run: 1, warmup: plan.formalWarmup, count: plan.formalSamples, periodMs: plan.period, targetOffsetMs: 0 },
       ...Object.keys(manifest.reference).map((population) => ({ population, run: 1, warmup: plan.refWarmup, count: plan.refSamples, periodMs: plan.refPeriod, targetOffsetMs: manifest.reference[population].targetOffsetMs }))]
@@ -713,7 +729,9 @@ async function main(argv) {
   const outDir = join(RUNS_ROOT, manifest.manifestId);
   mkdirSync(outDir, { recursive: true });
   // 件数を絞ったスモーク（--only / 件数指定）は repo の evidence に書かない。
-  const smoke = only != null || ["formal-warmup", "formal-samples", "ref-warmup", "ref-samples", "period", "ref-period"].some((k) => args.has(k));
+  const aux = args.has("aux") ? String(args.get("aux")) : null;
+  if (aux != null && !preliminary) throw new Error("--aux is allowed only with --preliminary (the manifest run always includes every window)");
+  const smoke = only != null || aux != null || ["formal-warmup", "formal-samples", "ref-warmup", "ref-samples", "period", "ref-period"].some((k) => args.has(k));
   const evidence = smoke ? join(outDir, "evidence-scratch") : preliminary ? join(EVIDENCE_DIR, "preliminary") : EVIDENCE_DIR;
   mkdirSync(evidence, { recursive: true });
   const commands = [`node ${["reconstruction/test/eew-e01/run.mjs", ...argv].join(" ")}`, `caffeinate -dims -w ${process.pid}`];
@@ -727,9 +745,13 @@ async function main(argv) {
   const ctxFor = (spec) => ({ outDir, nodePath, notification, manifest, wallOriginMs: frozen.wallOriginMs, initial: frozen.initial,
     load: manifest.loads[spec.population === "fixedBacklog" ? manifest.formal.load : manifest.reference[spec.population].load] });
   const planned = specs.filter((s) => only == null || only.includes(s.population));
-  if (!preliminary) {
-    // 本番: 窓を順に回す 1 本のループ。窓の並びは配列 1 つ（U3 が周辺の窓をここへ足す）。
-    const windows = planned.map((spec) => e01Window(spec, ctxFor(spec)));
+  // 周辺の窓（windows.mjs）。予備の --aux は件数を絞り、各 1 run。
+  const counts = aux == null ? {} : { e02: num("e02-count", 60), e03: num("e03-count", 20), ac15: num("ac15-count", 5), e12: num("e12-count", 5), e06Cycles: num("e06-cycles", 2) };
+  const auxList = auxWindows({ manifest, initialState, nodePath, notification, preliminary, wallOriginMs: frozen.wallOriginMs, startHost, tailer, counts, runs: aux == null ? null : 1 });
+  if (!preliminary || aux != null) {
+    // 本番: 窓を順に回す 1 本のループ。窓の並びは配列 1 つ（E01 の後に周辺の窓）。予備の --aux は周辺の窓だけ。
+    const windows = aux != null ? auxList.filter((w) => aux === "all" || aux.split(",").includes(w.id))
+      : [...planned.map((spec) => e01Window(spec, ctxFor(spec))), ...(only == null ? auxList : [])];
     const chosen = selected == null ? windows : selected.map((id) => windows.find((w) => w.id === id) ?? (() => { throw new Error(`unknown window: ${id}`); })());
     // 窓の記録と結果は manifest ごとに分ける（results/ は記録と混ざらないよう下の dir）。
     const recordsDir = join(evidence, "windows", manifest.manifestId);
@@ -754,7 +776,9 @@ async function main(argv) {
     let e01;
     try { e01 = e01Verdict(manifest, records); } catch (error) { e01 = { verdict: { label: "P2限定E01", status: "未確認" }, error: String(error?.stack ?? error) }; }
     writeFileSync(join(resultsDir, "e01-verdict.json"), `${JSON.stringify({ ...e01, finishedAt: new Date().toISOString(), commands, notification }, null, 2)}\n`);
-    writeFileSync(join(resultsDir, "a10-result.json"), buildA10Result({ manifest, windows: records, e01 }));
+    // E02 は 6 run をまとめて WP2 の summarizeHealthE02 に 1 回渡す（run ごとに呼ぶと他の run が標本不足の未確認で返る）。
+    const e02File = seal(join(resultsDir, "e02-verdict.json"), { ...e02Verdict(manifest, latestById(records)), finishedAt: new Date().toISOString() }, "resultSha256");
+    writeFileSync(join(resultsDir, "a10-result.json"), buildA10Result({ manifest, windows: records, e01, e02Verdict: { path: pathRef(e02File), sha256: sha256Hex(readFileSync(e02File)) } }));
     return;
   }
 
@@ -802,7 +826,7 @@ async function main(argv) {
       paintWithoutScreenshot: withoutScreenshot(r.record, r.spec.warmup),
       injectedToT0Ms: dist(r.injections.filter((i) => i.sampleIndex >= r.spec.warmup && i.injectedInjectorMonotonicMs != null && r.host.t0.has(i.inputId)).map((i) => r.host.t0.get(i.inputId) - i.injectedInjectorMonotonicMs - r.host.ohLo)),
       judged: refJudged.filter((j) => j.population === r.spec.population) })),
-    cause, runs: results.map((r) => ({ label: r.label, durationMs: r.record.durationMs, trials: r.spec.warmup + r.spec.count, msPerTrial: round(r.record.durationMs / (r.spec.warmup + r.spec.count)),
+    cause, runs: results.map((r) => ({ label: r.label, ...hostReportsOf(join(r.dir, "host-obs.jsonl"), r.label), durationMs: r.record.durationMs, trials: r.spec.warmup + r.spec.count, msPerTrial: round(r.record.durationMs / (r.spec.warmup + r.spec.count)),
       traceBytes: r.record.blocks.reduce((a, b) => a + b.bytes, 0), traceBlocks: r.record.blocks.length, dataLoss: r.record.blocks.some((b) => b.dataLoss), channels: r.record.channels, notification: r.record.notification, paintWithoutScreenshot: withoutScreenshot(r.record, r.spec.warmup), hostExit: r.record.hostExit })),
   };
   writeFileSync(join(evidence, "e01-preliminary-result.json"), `${JSON.stringify(summary, null, 2)}\n`);

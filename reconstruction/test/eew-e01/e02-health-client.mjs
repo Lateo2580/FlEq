@@ -72,7 +72,11 @@ if (process.argv[1] != null && import.meta.filename === process.argv[1]) {
   // 開始と終了の hrtime を 1 行ずつ残す（E05 を同じ窓で切るために launcher の clock 行へ写す）。標本は確定順に追記する。
   const line = (row) => appendFileSync(values.out, `${JSON.stringify(row)}\n`);
   writeFileSync(values.out, "");
+  // 親（run.mjs）が ipc 付きで起動したとき、親の異常終了で IPC が切れたら止まる（孤児にしない）。標本は確定順に追記済み。
+  if (process.channel != null) process.once("disconnect", () => process.exit(1));
   line({ t: "start", hrtimeNs: process.hrtime.bigint().toString() });
   await runHealthClient({ ...args, onSample: line });
   line({ t: "end", hrtimeNs: process.hrtime.bigint().toString() });
+  // disconnect の listener が IPC を event loop に留めるので、終わりで外す（自然終了させる）。
+  process.channel?.unref();
 }

@@ -23,4 +23,4 @@ export type WindowRecord = {
   orphans?: { name: string; pid: number | undefined }[];
 };
 
-export function buildA10Result(input: { manifest: { manifestId: string; manifestSha256: string }; windows: readonly WindowRecord[]; e01: unknown }): string;
+export function buildA10Result(input: { manifest: { manifestId: string; manifestSha256: string }; windows: readonly WindowRecord[]; e01: unknown; e02Verdict?: { path: string; sha256: string } | null }): string;

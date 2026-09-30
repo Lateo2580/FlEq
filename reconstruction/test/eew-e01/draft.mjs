@@ -220,9 +220,9 @@ export function buildManifest({ stage, chromeVersion, nodeVersion, osVersion, de
   return { manifest: JSON.parse(manifestText), manifestText, trialSetupText, initialStateText, smokeText, contractTexts: contracts, nEvents: n };
 }
 
-// 予備測定の案。notificationProbe は run.mjs が実 run の probe 結果で入れ直して再封印する。P 用の空け数は未凍結（null）。
+// 予備測定の案。notificationProbe は run.mjs が実 run の probe 結果で入れ直して再封印する。P 用の空け数は予備で渡したとき（--room-*）だけ入る（無ければ null = 未凍結）。
 export function buildDraft(args) {
-  return buildManifest({ ...args, stage: "preliminary", room: null, notificationProbe: { desktop: "idle", sound: "idle" } });
+  return buildManifest({ ...args, stage: "preliminary", room: args.room ?? null, notificationProbe: { desktop: "idle", sound: "idle" } });
 }
 
 // 凍結: 組み立て → verifyFrozenManifest → 既存ファイルを上書きせずに 3 つを書く。書いた path と manifest を返す。
