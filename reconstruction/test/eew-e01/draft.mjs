@@ -13,7 +13,7 @@ import { arch, cpus, release, totalmem } from "node:os";
 import { join } from "node:path";
 
 import { E12_CONFIG_NOTE } from "./aux-measures.mjs";
-import { AC15_SCENARIOS, C_CYCLE, E03_SERIES, E12_CLASSES, FIX, REPO, RES07, WALL_ORIGIN_MS, fixtureId, fixtureText, loadN, replayLoad, sha256Hex } from "./frames.mjs";
+import { AC15_SCENARIOS, C_CYCLE, E03_SERIES, E12_CLASSES, FIX, PARTIAL_HISTORY_UPDATES, REPO, RES07, WALL_ORIGIN_MS, fixtureId, fixtureText, loadN, replayLoad, sha256Hex } from "./frames.mjs";
 
 import { sealSelfHash, verifyFrozenManifest } from "../../dist/src/measurement/eew-e01/frozen.js";
 
@@ -82,11 +82,14 @@ function recipes(room) {
         `U-W partial: VPWW57 ${FIX.vpww57} の EditorialOffice を 官署i（i=0..partials-1）に替える`,
         `U-F: VPWP50 ${FIX.vpwp50} の EditorialOffice を 官署i（i=0..subjects-1）に替える。ReportDateTime は 17:00 のまま、validUntil は翌 03:00`,
         "cycleC: full と同じで、VXSE43 の EventID 20240417000511 だけを訓練の種（VXSE43 の EventID 20260930000000、Status 訓練）に替える",
+        `half: U-E の EventID（i=0..${RES07.eventIdsPerFamily / 2 - 1}）・U-W partial（官署0..${RES07.partials / 2 - 1}）・U-F（官署0..${RES07.forecastSubjects / 2 - 1}）を full の半分、national は同じ 3 件（AC15 の保持量の対照）`,
+        `full・half: U-W partial の官署ごとに、同じ報告の ReportDateTime を +k 秒（k=1..${PARTIAL_HISTORY_UPDATES}）に置いた更新を続けて送り、履歴を ${PARTIAL_HISTORY_UPDATES} 件作る（AC15 の指紋表に履歴 entry の形を載せる）`,
         "全て報告時刻を動かさない（host の壁時計起点 2026-06-05T18:00+09:00 は A8 試験の at と同じ）",
       ],
       pacing: "sendPaced: 未処理（送った数 − host の decode 観測数）を通常 32 件以下・EEW 8 件以下（予約枠）・VPWS50 は 0 件のときだけ送る（mailbox RES-03/04 で拒否させない）。送った後に expected の値を /snapshot と保存済み checkpoint で確かめ、違えば窓を Blocked（stateNotReproducible）",
       modes: {
         full: { room: null, expected: expect("512/0/0", null), usedBy: ["AC15"] },
+        half: { room: null, expected: expect(`${RES07.eventIdsPerFamily / 2}/0/0`, { partials: RES07.partials / 2, forecastSubjects: RES07.forecastSubjects / 2 }), usedBy: ["AC15"] },
         leaveRoomForP: { room, expected: room == null ? null : expect("512/0/0", room), usedBy: ["E02-P", "E05-P"] },
         cycleC: { room: null, expected: expect("512/1/0", null), usedBy: ["E06"] },
       },
@@ -119,7 +122,10 @@ function recipes(room) {
     },
     ac15Scenarios: {
       function: "ac15Frame(scenario, index)",
-      initialState: "nearCapacity full（保持上限ちょうど）",
+      initialState: "nearCapacity full（保持上限ちょうど）と half（約半分）。同じシナリオを両方の充填から回す",
+      retention: { ...AC15_SCENARIOS.retention,
+        rule: `各シナリオ（区間の入力の unit と metadata）の measure（checkpoint 区間＝どの unit の encode・verify・encode 後の未計測区間の外で、指紋表のどれにも当たらない直列化（その他）・原始値（#string など、要素が原始値の配列を含む）・自 unit の要素・ambiguous の単件の、入力 1 件あたりの回数）ごとに、slope =（full の中央値 − half の中央値）/ ΔN が ${AC15_SCENARIOS.retention.maxSlopePerRetained} 回／保持 1 件を超えたら Fail（走査対象が保持量に比例＝当該 subject だけでない）。ただし差が雑音の床（2 回の実走それぞれの p95 − p50 の大きい方）以下なら Fail にしない。中央値か ΔN が取れなければ未確認。回数・差・傾きを報告する`,
+        deltaRetained: "ΔN は全シナリオ共通で、3 unit の保持件数の差（充填の observed: U-E は /snapshot の eew の通常の activeCount＝EventID 数、U-W は checkpoint の partials 数、U-F は checkpoint の subjects 数）の最小（今の充填では U-W の 64）。unit ごとの差で割ると、保持の差が大きい別 unit の走査が薄まって通るため" },
       fixtures: [FIX.vxse43, FIX.vpww57, FIX.vpwp50].map(ref),
       warmup: AC15_SCENARIOS.warmup, samples: AC15_SCENARIOS.samples, intervalMs: AC15_SCENARIOS.intervalMs, metadataIntervalMs: AC15_SCENARIOS.metadataIntervalMs, order: AC15_SCENARIOS.scenarios,
       rules: {

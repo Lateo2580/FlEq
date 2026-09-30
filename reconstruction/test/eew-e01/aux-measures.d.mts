@@ -9,13 +9,15 @@ export function parseJsonl(text: string): HostRecord[];
 export function hostMsOf(records: readonly HostRecord[], hrtimeNs: string): number | null;
 export function summarizeE03(records: readonly HostRecord[], targetInputIds: readonly string[], options?: { minSamples?: number; limitMs?: number }):
   { status: Status; samples: number; unprocessed: number; processingMs: Quantiles | null; queueWaitMs: Quantiles | null; limitMs: number; notes: string[] };
-export function summarizeE05(records: readonly HostRecord[], load: string, window?: Window):
-  { status: Status; load: string; samples: number; maxRssBytes: number | null; limitBytes: number | null };
+export function summarizeE05(records: readonly HostRecord[], load: string, window?: Window, options?: { memEveryMs?: number; maxMissingRatio?: number }):
+  { status: Status; load: string; samples: number; maxRssBytes: number | null; limitBytes: number | null;
+    coverage?: { memEveryMs: number; expectedSamples: number; missingSamples: number; maxGapMs: number; edgesCovered: boolean; maxMissingRatio: number } };
 export function summarizeE06(records: readonly HostRecord[], fdSeries: readonly { hrtimeNs: string; count: number | null }[], options: { steadyStartMs: number; windowMs?: number; windows?: number }): {
   status: Status | null; complete: boolean;
-  windows: { window: number; memSamples: number; fdSamples: number; rssMedian: number | null; heapUsedMedian: number | null; fdMedian: number | null }[];
+  windows: { window: number; memSamples: number; fdSamples: number; rssMedian: number | null; heapUsedMedian: number | null; fdMedian: number | null; fdMax: number | null }[];
   rssSlopeBytesPerMin: number | null; heapUsedSlopeBytesPerMin: number | null; fdSlopePerMin: number | null;
-  finalWindow: { window: number; rssMedian: number | null; fdMedian: number | null };
+  spec: { checks: { name: string; value: number | null; limit: number; exceeded: boolean | null }[]; report: string; note: string };
+  finalWindow: { window: number; rssMedian: number | null; fdMedian: number | null; fdMax: number | null };
 };
 export function startFdSampler(pid: number, everyMs?: number): { samples: { hrtimeNs: string; count: number | null }[]; stop(): void };
 export const E15_BLOCKED: readonly string[];

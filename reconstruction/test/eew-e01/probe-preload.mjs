@@ -19,7 +19,7 @@ if (out != null) {
 
 // P2-A10-AC15: 受信 1 回の上流全量直列化の回数と対象。無いと、観測口（P2HostObservation）に直列化が無いので数えられない。
 // 1 行 = [開始 performance.now(), 所要 ms, 出力の文字数, 指紋] と、UTF-8 で 64KiB を超えた呼出しだけ 5 番目に stack の先頭 3 frame。
-// 指紋 = 引数の最上位の key を並びのまま "," で繋いだもの（配列は "[" + 先頭要素の key、primitive は "#<型>"）。並べ替え・分類は判定側（ac15.mjs）。
+// 指紋 = 引数の最上位の key を並びのまま "," で繋いだもの（配列は "[<要素数>]" + 先頭要素の key、primitive は "#<型>"）。並べ替え・分類は判定側（ac15.mjs）。
 // hot path は最上位の key 数に比例（深く走査しない）。戻り値と例外は元の JSON.stringify のまま。書き出しは 1 秒の timer（unref）と exit。
 const stringifyOut = process.env.FLEQ_STRINGIFY_OUT;
 if (stringifyOut != null) {
@@ -32,7 +32,7 @@ if (stringifyOut != null) {
     const text = original(value, replacer, space);
     const durationMs = performance.now() - startedMs;
     const length = text === undefined ? 0 : text.length;
-    const row = [startedMs, durationMs, length, Array.isArray(value) ? `[${keysOf(value[0])}` : keysOf(value)];
+    const row = [startedMs, durationMs, length, Array.isArray(value) ? `[${value.length}]${keysOf(value[0])}` : keysOf(value)];
     // 文字数 × 3 が 64KiB 以下なら UTF-8 でも超えない。超えうるものだけ byte を数える。
     if (length * 3 > 65_536 && Buffer.byteLength(text) > 65_536) row.push(new Error().stack.split("\n").slice(2, 5).map((line) => line.trim()));
     pending.push(row);

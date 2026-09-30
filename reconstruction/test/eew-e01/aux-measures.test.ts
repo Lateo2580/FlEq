@@ -36,6 +36,19 @@ describe("P2-A10-T04 auxiliary aggregation (AC08/AC09/AC15)", () => {
     expect(aux.summarizeE05(records, "C", { fromMs: 5, toMs: 25 }).status).toBe("未確認");
   });
 
+  // ヘルツ総合レビュー指摘 7: 1,000 秒の窓に 100 MiB の行が 1 件だけでも Pass だった。
+  it("E05: a window whose per-second mem rows are missing at an edge or beyond 1% is 未確認 with the missing count and the largest gap; an observed exceedance stays Fail", () => {
+    const one = [{ t: "mem", perfNowMs: 500_000, rss: 100 * MiB }];
+    expect(aux.summarizeE05(one, "N", { fromMs: 0, toMs: 1_000_000 })).toMatchObject({ status: "未確認",
+      coverage: { expectedSamples: 1000, missingSamples: 998, maxGapMs: 500_000, edgesCovered: false } });
+    // 毎秒の行に穴 1 つ。20 秒の穴は欠測 19 > 1000 × 1% で未確認、5 秒の穴は欠測 4 で Pass。端は揃っている。
+    const holed = (holeMs: number) => Array.from({ length: 1001 }, (_, s) => ({ t: "mem", perfNowMs: s * 1000, rss: 100 * MiB }))
+      .filter((r) => r.perfNowMs <= 400_000 || r.perfNowMs >= 400_000 + holeMs);
+    expect(aux.summarizeE05(holed(20_000), "N", { fromMs: 0, toMs: 1_000_000 })).toMatchObject({ status: "未確認", coverage: { missingSamples: 19, edgesCovered: true } });
+    expect(aux.summarizeE05(holed(5_000), "N", { fromMs: 0, toMs: 1_000_000 })).toMatchObject({ status: "Pass", coverage: { missingSamples: 4, maxGapMs: 5000 } });
+    expect(aux.summarizeE05([...one, { t: "mem", perfNowMs: 600_000, rss: 301 * MiB }], "N", { fromMs: 0, toMs: 1_000_000 }).status).toBe("Fail");
+  });
+
   it("E06: six 10-minute windows from the steady start, slope per minute, fill phase and rows past 60 min dropped, FD mapped by the clock row", () => {
     const minute = 60_000;
     const steady = 5 * minute;
@@ -50,6 +63,21 @@ describe("P2-A10-T04 auxiliary aggregation (AC08/AC09/AC15)", () => {
     expect(result.rssSlopeBytesPerMin).toBeCloseTo(MiB, 0);
     expect(result.finalWindow).toMatchObject({ window: 5, rssMedian: 100 * MiB + 54 * MiB, fdMedian: 30 });
     expect(aux.summarizeE06([clock, ...rows.slice(0, 50)], fd, { steadyStartMs: steady }).complete).toBe(false);
+  });
+
+  // ヘルツ総合レビュー指摘 8: 6 窓の中央値がすべて同じでも、生標本の回帰で傾きが正になった。FD は窓の最大が無かった。
+  it("E06: slopes come from the six (window centre, window median) points; the spec-formula values (slope/hour, final−first median, FD final max vs first max) flag an excess as an unclassified report, not a pass", () => {
+    const minute = 60_000;
+    // 各窓の最後の 1 分だけ窓番号ぶん高い山、他は 100 MiB: 中央値はどの窓も 100 MiB、生標本の回帰は正。
+    const rows = Array.from({ length: 60 }, (_, m) => ({ t: "mem", perfNowMs: m * minute, rss: (m % 10 === 9 ? 100 + 50 * Math.floor(m / 10) : 100) * MiB, heapUsed: 50 * MiB }));
+    const clock = { t: "clock", hrtimeNs: "0", perfNowMs: 0 };
+    const fd = Array.from({ length: 60 }, (_, m) => ({ hrtimeNs: String(m * minute * 1e6), count: m === 0 ? 45 : m === 59 ? 46 : 30 }));
+    const result = aux.summarizeE06([clock, ...rows], fd, { steadyStartMs: 0 });
+    expect(result.rssSlopeBytesPerMin).toBe(0);
+    expect(result.windows.map((w) => w.fdMax)).toEqual([45, 30, 30, 30, 30, 46]);
+    expect(result.spec.checks.map((c) => [c.name, c.value, c.exceeded])).toEqual([["rssMedianSlopeBytesPerHour", 0, false],
+      ["finalMinusFirstRssMedianBytes", 0, false], ["fdFinalMaxMinusFirstMax", 1, true]]);
+    expect(result.spec.report).toBe("報告（spec 式で超過・原因未分類）");
   });
 
   it("E15: attempts join through WP2 checkpointJoinProblem; a broken join is 未確認 with the reason; occupancy is the encode+verify lower bound and the measured-stage sum (not an upper bound)", () => {

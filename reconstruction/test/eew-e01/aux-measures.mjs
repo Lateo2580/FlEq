@@ -79,18 +79,31 @@ export function summarizeE03(records, targetInputIds, { minSamples = 1000, limit
 }
 
 // E05: Node RSS の最大。同じ窓（E02 の窓）の mem 行から。N ≤ 300MiB、P ≤ 400MiB。N/P 以外（C）は未確認。
-export function summarizeE05(records, load, window) {
+// 上限超過の観測は Fail。超過が無くても、窓の端（開始→最初の行・最後の行→終了）と行の間の間隔が採取周期（spec §9.9 E05 の毎秒）の 2 倍を
+// 超えたところを欠測として数え、端が欠けるか欠測が窓の期待標本数の maxMissingRatio を超えれば未確認。
+// 無いと、長い窓に 1 行しか無い（host の timer が止まった）ときも Pass になる（ヘルツ総合レビュー指摘 7）。
+export function summarizeE05(records, load, window, { memEveryMs = 1000, maxMissingRatio = 0.01 } = {}) {
   const w = hostWindow(records, window);
   const limit = { N: 300, P: 400 }[load];
   if (w == null || limit == null) return { status: "未確認", load, samples: 0, maxRssBytes: null, limitBytes: null };
   const rows = memRows(records, w);
   const maxRss = rows.reduce((a, r) => Math.max(a, r.rss), 0);
-  const status = rows.length === 0 ? "未確認" : maxRss > limit * MiB ? "Fail" : "Pass";
-  return { status, load, samples: rows.length, maxRssBytes: rows.length === 0 ? null : maxRss, limitBytes: limit * MiB };
+  const times = [w.fromMs, ...rows.map((r) => r.perfNowMs), w.toMs];
+  const gaps = times.slice(1).map((t, i) => t - times[i]);
+  const missingSamples = gaps.reduce((a, gap) => a + (gap > 2 * memEveryMs ? Math.ceil(gap / memEveryMs) - 1 : 0), 0);
+  const expectedSamples = Math.floor((w.toMs - w.fromMs) / memEveryMs);
+  const edgesCovered = rows.length > 0 && gaps[0] <= 2 * memEveryMs && gaps.at(-1) <= 2 * memEveryMs;
+  const covered = edgesCovered && missingSamples <= expectedSamples * maxMissingRatio;
+  const status = rows.length > 0 && maxRss > limit * MiB ? "Fail" : covered ? "Pass" : "未確認";
+  return { status, load, samples: rows.length, maxRssBytes: rows.length === 0 ? null : maxRss, limitBytes: limit * MiB,
+    coverage: { memEveryMs, expectedSamples, missingSamples, maxGapMs: Math.max(...gaps), edgesCovered, maxMissingRatio } };
 }
 
 // E06: 保持上限を満たした定常開始点(steadyStartMs, host 時計)から 10 分 × 6 窓。充填段階は入れず、60 分を超えた行は捨てる。
-// RSS・heap の回帰傾き（byte/分）・最終窓の中央値・FD。閾値は置かず報告だけ（status は窓が欠けたときの 未確認 のみ、他は null）。
+// RSS・heap・FD の傾き（/分）は spec §9.9 E06 どおり 6 個の（窓中央時刻, 窓中央値）の最小二乗。FD は窓ごとの最大も出し、
+// spec（reconstruction-p0-contracts.md E06）の式の値を spec に出す: RSS 窓中央値の傾き ≤ 暫定 1MiB/時、最終窓中央値 ≤ 初窓 + 暫定 5MiB、
+// FD 最終窓の最大 ≤ 初窓の最大。超過があれば report を「報告（spec 式で超過・原因未分類）」にする（spec は超過原因未分類のまま合格にしない）。
+// 合否は付けず報告だけ（status は窓が欠けたときの 未確認 のみ、他は null）。
 // fdSeries は startFdSampler の {hrtimeNs,count}。clock 行で host 時計へ写してから窓に振る。
 export function summarizeE06(records, fdSeries, { steadyStartMs, windowMs = 600_000, windows = 6 } = {}) {
   const end = steadyStartMs + windows * windowMs;
@@ -103,16 +116,31 @@ export function summarizeE06(records, fdSeries, { steadyStartMs, windowMs = 600_
     const mem = rows.filter((r) => Math.floor((r.perfNowMs - steadyStartMs) / windowMs) === w);
     const inside = fd.filter((s) => Math.floor(s.elapsedMs / windowMs) === w);
     return { window: w, memSamples: mem.length, fdSamples: inside.length,
-      rssMedian: median(mem.map((r) => r.rss)), heapUsedMedian: median(mem.map((r) => r.heapUsed)), fdMedian: median(inside.map((s) => s.count)) };
+      rssMedian: median(mem.map((r) => r.rss)), heapUsedMedian: median(mem.map((r) => r.heapUsed)), fdMedian: median(inside.map((s) => s.count)),
+      fdMax: inside.length === 0 ? null : Math.max(...inside.map((s) => s.count)) };
   });
-  const perMin = (v) => (v == null ? null : v * 60_000);
+  // 窓中央時刻（定常開始からの ms）と窓中央値。中央値の無い窓は点にしない。
+  const medianSlopePerMin = (key) => {
+    const s = slope(perWindow.flatMap((w) => (w[key] == null ? [] : [[(w.window + 0.5) * windowMs, w[key]]])));
+    return s == null ? null : s * 60_000;
+  };
   const complete = perWindow.every((w) => w.memSamples > 0 && w.fdSamples > 0);
+  const [first, final] = [perWindow[0], perWindow[perWindow.length - 1]];
+  const rssSlopeBytesPerMin = medianSlopePerMin("rssMedian");
+  const checks = [
+    ["rssMedianSlopeBytesPerHour", rssSlopeBytesPerMin == null ? null : rssSlopeBytesPerMin * 60, MiB],
+    ["finalMinusFirstRssMedianBytes", first.rssMedian == null || final.rssMedian == null ? null : final.rssMedian - first.rssMedian, 5 * MiB],
+    ["fdFinalMaxMinusFirstMax", first.fdMax == null || final.fdMax == null ? null : final.fdMax - first.fdMax, 0],
+  ].map(([name, value, limit]) => ({ name, value, limit, exceeded: value == null ? null : value > limit }));
+  const report = checks.some((c) => c.exceeded) ? "報告（spec 式で超過・原因未分類）"
+    : checks.some((c) => c.exceeded == null) ? "報告（spec 式の値が欠けている）" : "報告（spec 式の範囲内）";
   return {
     status: complete ? null : "未確認", complete, windows: perWindow,
-    rssSlopeBytesPerMin: perMin(slope(rows.map((r) => [r.perfNowMs - steadyStartMs, r.rss]))),
-    heapUsedSlopeBytesPerMin: perMin(slope(rows.map((r) => [r.perfNowMs - steadyStartMs, r.heapUsed]))),
-    fdSlopePerMin: perMin(slope(fd.map((s) => [s.elapsedMs, s.count]))),
-    finalWindow: perWindow[perWindow.length - 1],
+    rssSlopeBytesPerMin,
+    heapUsedSlopeBytesPerMin: medianSlopePerMin("heapUsedMedian"),
+    fdSlopePerMin: medianSlopePerMin("fdMedian"),
+    spec: { checks, report, note: "閾値は spec の暫定値（1MiB/時・5MiB は allocator の揺れを許す経験的暫定値）。合否ではなく報告。超過の原因は分類していない" },
+    finalWindow: final,
   };
 }
 

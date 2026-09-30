@@ -138,21 +138,32 @@ const EVENT_BASE = 20240417000000;
 // host の壁時計起点（WALL_ORIGIN_MS）は A8 試験の at と同じ時刻で、U-F（validUntil 翌 03:00）も U-W（時刻で消えない）も充填中・窓の間に消えない。
 // leaveRoomForP は P の再生が新しく足す U-W partial と U-F subject の数（room、統合担当が予備で数えて凍結する）だけ上限から空ける。
 // cycleC は full と同じ件数で、VXSE43 の最後の 1 件（EventID +511）だけを訓練の種 TRAINING_EVENT(0) に替える（C の U-E を一定に保つため。cycleCFrames）。
+// half は AC15 の保持量の対照（走査対象が保持量に比例しないことを full と比べて確かめる）。U-E の EventID・U-W partial・U-F subject が full の半分、
+// national は同じ。無いと、要素ごとの計量で出る原始値やその他の直列化が保持量に比例していても判定されない。
+// full・half（AC15 の充填）は partial の官署ごとに ReportDateTime を 1 秒ずつ進めた更新を PARTIAL_HISTORY_UPDATES 回送り、履歴を作る。
+// 無いと、指紋表を作る時点の U-W に履歴が無く、履歴 entry の形（subject,operation,reports）が指紋表に載らない。
 export const RES07 = { eventIdsPerFamily: 512, national: ["通常", "訓練", "試験"], partials: 128, forecastSubjects: 512 };
+export const PARTIAL_HISTORY_UPDATES = 2;
 export function nearCapacityFrames({ mode, room = null }) {
   const counted = (v, max) => Number.isInteger(v) && v >= 0 && v <= max;
   if (mode === "leaveRoomForP" ? !(counted(room?.partials, RES07.partials) && counted(room?.forecastSubjects, RES07.forecastSubjects))
-    : !["full", "cycleC"].includes(mode) || room != null)
-    throw new Error(`nearCapacityFrames: full/cycleC take no room; leaveRoomForP needs room {partials ≤ ${RES07.partials}, forecastSubjects ≤ ${RES07.forecastSubjects}}`);
+    : !["full", "half", "cycleC"].includes(mode) || room != null)
+    throw new Error(`nearCapacityFrames: full/half/cycleC take no room; leaveRoomForP needs room {partials ≤ ${RES07.partials}, forecastSubjects ≤ ${RES07.forecastSubjects}}`);
+  const scale = mode === "half" ? 2 : 1;
+  const updates = mode === "full" || mode === "half" ? PARTIAL_HISTORY_UPDATES : 0;
   const out = [];
-  for (let i = 0; i < RES07.eventIdsPerFamily; i++) {
+  for (let i = 0; i < RES07.eventIdsPerFamily / scale; i++) {
     const seed = mode === "cycleC" && i === RES07.eventIdsPerFamily - 1;
     out.push({ headType: "VXSE43", xml: seed ? trainingEew(0) : withEventId(xmlOf(FIX.vxse43), String(EVENT_BASE + i)) });
     out.push({ headType: "VXSE45", xml: withEventId(xmlOf(FIX.vxse45), String(EVENT_BASE + i)) });
   }
   for (const operation of RES07.national) out.push({ headType: "VPWS50", xml: xmlOf(FIX.vpws50).replace("<Status>通常</Status>", `<Status>${operation}</Status>`) });
-  for (let i = 0; i < RES07.partials - (room?.partials ?? 0); i++) out.push({ headType: "VPWW57", xml: office(xmlOf(FIX.vpww57), `官署${i}`) });
-  for (let i = 0; i < RES07.forecastSubjects - (room?.forecastSubjects ?? 0); i++) out.push({ headType: "VPWP50", xml: office(xmlOf(FIX.vpwp50), `官署${i}`) });
+  for (let i = 0; i < RES07.partials / scale - (room?.partials ?? 0); i++) {
+    const xml = office(xmlOf(FIX.vpww57), `官署${i}`);
+    out.push({ headType: "VPWW57", xml });
+    for (let k = 1; k <= updates; k++) out.push({ headType: "VPWW57", xml: atReport(xml, reportMs(xml) + k * 1000) });
+  }
+  for (let i = 0; i < RES07.forecastSubjects / scale - (room?.forecastSubjects ?? 0); i++) out.push({ headType: "VPWP50", xml: office(xmlOf(FIX.vpwp50), `官署${i}`) });
   return out;
 }
 
@@ -200,7 +211,10 @@ export function e03Frame(k, startWallMs) {
 // 新しい EventID が capacityExceeded になる）。metadata のみは frame ではなく投入側の WS 切断: host が connectionLost を流し
 // （host.ts:228-231）、RECONNECT_MS 5 秒後に再接続する。unit の内容は変わらず、connection だけが変わる。区間は切断の時刻（投入側 hrtime を
 // host 時計へ写したもの）から次の区間の起点まで。間隔 metadataIntervalMs は実走の再接続所要（予備で 5.0〜5.1 秒）より長く取る。
-export const AC15_SCENARIOS = { warmup: 10, samples: 100, intervalMs: 1500, metadataIntervalMs: 7000, scenarios: ["U-E", "metadata", "U-W", "U-F"] };
+// retention: 同じシナリオを保持上限ちょうど（full）と約半分（half）の充填から回し、checkpoint 区間外の直列化回数（入力 1 件あたりの中央値）の
+// 差を保持件数の差で割った傾きが maxSlopePerRetained（回／保持 1 件）を超えたら Fail（走査対象が保持量に比例＝当該 subject だけでない）。
+export const AC15_SCENARIOS = { warmup: 10, samples: 100, intervalMs: 1500, metadataIntervalMs: 7000, scenarios: ["U-E", "metadata", "U-W", "U-F"],
+  retention: { modes: ["full", "half"], maxSlopePerRetained: 0.5 } };
 export function ac15Frame(unit, index) {
   if (unit === "U-E") return { headType: "VXSE43", xml: atReport(withEventId(xmlOf(FIX.vxse43), String(EVENT_BASE)), EEW_REPORT_MS + (index + 1) * 1000)
     .replace(/<Serial>\d+<\/Serial>/, `<Serial>${index + 2}</Serial>`) };

@@ -3,14 +3,14 @@
 // 関数を呼ぶだけで書き直さない。host の起動（startHost）と JSONL の追跡（tailer）は run.mjs のものを ctx で受ける（循環 import を作らない）。
 // 受信経路の計算量: 充填の確認・通知の静まり待ち・集計はすべて runner 側（host の外）。host に足すのは E02 の mem 1 秒 timer と AC15 の preload だけ。
 import { execFile, spawn } from "node:child_process";
-import { createReadStream, existsSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
+import { createReadStream, existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { createInterface } from "node:readline";
 import { join } from "node:path";
 
-import { ac15Intervals, checkpointWindows, fingerprintTable, judgeAc15, readLatestEnvelopes } from "./ac15.mjs";
+import { ac15Intervals, checkpointWindows, compareRetention, fingerprintTable, judgeAc15, readLatestEnvelopes } from "./ac15.mjs";
 import { hostMsOf, parseJsonl, publishCostReport, startFdSampler, summarizeE03, summarizeE05, summarizeE06, summarizeE15 } from "./aux-measures.mjs";
 import { hrMs, sleep } from "./chrome.mjs";
-import { E12_CLASSES, RES07, ac15Frame, cycleCFrames, dataFrame, e03Frame, loadEvents, nearCapacityFrames, sendPaced, sha256Hex, weatherFrame } from "./frames.mjs";
+import { E12_CLASSES, ac15Frame, cycleCFrames, dataFrame, e03Frame, loadEvents, nearCapacityFrames, sendPaced, sha256Hex, weatherFrame } from "./frames.mjs";
 
 import { summarizeHealthE02 } from "../../dist/src/measurement/eew-e01/judge.js";
 import { ZERO_HASH, sealSelfHash } from "../../dist/src/measurement/eew-e01/frozen.js";
@@ -142,7 +142,8 @@ async function observedCounts(host, stateDir, expected) {
   return { snapshotActive: Object.fromEntries(Object.keys(expected.snapshotActive).map((k) => [k, domain(k)])),
     checkpoint: Object.fromEntries(Object.keys(expected.checkpoint).map((k) => [k, checkpoint[k]])) };
 }
-async function fill(host, w, ctx, mode, { snapshotsAt = [] } = {}) {
+// snapshotsAt は送った frame の列から /snapshot を取る位置の配列を返す関数（充填の件数が mode で変わるため）。
+async function fill(host, w, ctx, mode, { snapshotsAt = () => [] } = {}) {
   const recipe = ctx.initialState.nearCapacity.modes[mode];
   if (recipe?.expected == null) throw new Error(`stateNotReproducible: initial-state nearCapacity.modes.${mode}.expected is null (room not frozen)`);
   const frames = nearCapacityFrames(mode === "leaveRoomForP" ? { mode, room: recipe.room } : { mode });
@@ -151,7 +152,7 @@ async function fill(host, w, ctx, mode, { snapshotsAt = [] } = {}) {
   const snapshots = [];
   let from = 0;
   w.progress.phase = "fill";
-  for (const to of [...snapshotsAt.filter((i) => i > 0 && i < frames.length), frames.length]) {
+  for (const to of [...snapshotsAt(frames).filter((i) => i > 0 && i < frames.length), frames.length]) {
     await sendPaced(frames.slice(from, to), { send: host.send, processed: host.processed, sentBefore: host.sent() });
     if (to < frames.length) snapshots.push(await host.snapshot());
     from = to;
@@ -217,6 +218,8 @@ async function quietWait(pid, w, { quietMs = 15_000, deadlineMs = 600_000, pollM
 }
 
 // ── E02+E05（AC11・AC08）: 別プロセスの /healthz client を走らせ、その間 N または P（充填の後）を流す ──
+// spec §9.9 は E05 を「RSS を毎秒」と定める。10 秒では VPWS50 処理中の山を取り逃す。host の採取周期と E05 の欠測判定が同じ値を使う。
+const E05_MEM_EVERY_MS = 1000;
 function e02Window(ctx, load, run) {
   const { requestEveryMs, requestTimeoutMs, minSamplesPerRun } = ctx.manifest.health;
   const count = ctx.counts.e02 ?? minSamplesPerRun;
@@ -224,8 +227,7 @@ function e02Window(ctx, load, run) {
   return {
     id, expectedMin: Math.ceil((count * requestEveryMs) / 60_000) + (load === "P" ? 6 : 2),
     run: async (w) => {
-      // spec §9.9 は E05 を「RSS を毎秒」と定める。10 秒では VPWS50 処理中の山を取り逃す。
-      const host = await openHost(w, ctx, { memEveryMs: 1000 });
+      const host = await openHost(w, ctx, { memEveryMs: E05_MEM_EVERY_MS });
       const filled = load === "P" ? await fill(host, w, ctx, "leaveRoomForP") : null;
       const out = join(w.dir, "e02.jsonl");
       const client = startChild(w, ctx, [E02_CLIENT, "--url", `http://127.0.0.1:${host.displayPort}/healthz`, "--count", String(count), "--every-ms", String(requestEveryMs),
@@ -247,7 +249,7 @@ function e02Window(ctx, load, run) {
       // 判定は WP2 の summarizeHealthE02。1 run 分の標本だけを渡しても、この run の行は run ごとに絞った同じ規則で決まる（他の run の行は捨てる）。
       // 6 run をまとめた判定は窓ループの後に e02Verdict が 1 回だけ作る。
       const health = summarizeHealthE02(ctx.manifest, samples).find((r) => r.load === load && r.run === run);
-      const e05 = summarizeE05(records, load, { fromHrtimeNs: start.hrtimeNs, toHrtimeNs: end.hrtimeNs });
+      const e05 = summarizeE05(records, load, { fromHrtimeNs: start.hrtimeNs, toHrtimeNs: end.hrtimeNs }, { memEveryMs: E05_MEM_EVERY_MS });
       const reports = hostReports(records, id);
       // 窓の status は E02（この窓の主の判定）。E05 は statuses に別に持つ（まとめて潰さない）。予備は status と同じく未確認に倒し、判定は judgedStatuses へ。
       const statuses = { E02: health.status, E05: e05.status };
@@ -351,71 +353,91 @@ function withSyntheticT0(records, events) {
   out.push(...untimed);
   return out;
 }
+// 1 回分の測定: mode（full・half）の充填から 4 シナリオ。host の dir は窓の dir の下の mode ごと（state・probe・obs を分ける）。
+async function ac15Measure(w, ctx, mode, { s, warmup, samples }) {
+  const dir = join(w.dir, mode);
+  mkdirSync(dir, { recursive: true });
+  const m = { ...w, dir };
+  const probePath = join(dir, "stringify.jsonl");
+  const host = await openHost(m, ctx, { nodeArgs: ["--import", PROBE_PRELOAD], env: { FLEQ_STRINGIFY_OUT: probePath } });
+  // 保持上限では view が summary に落ちるので、各 unit の要素が full で見える充填途中の /snapshot を取る（EEW 2 件・national 1 件・partial 2 件・forecast 2 件の後）。
+  const first = (frames, headType) => frames.findIndex((f) => f.headType === headType);
+  const filled = await fill(host, m, ctx, mode, { snapshotsAt: (frames) => [2, first(frames, "VPWS50") + 1, first(frames, "VPWW57") + 2, first(frames, "VPWP50") + 2] });
+  const envelopes = readLatestEnvelopes(join(dir, "state"));
+  const table = fingerprintTable(envelopes, [...filled.snapshots, await host.snapshot()]);
+  w.progress.phase = `measure:${mode}`;
+  // unitOfInput は測定で流した全入力（充填・warm-up を含む）。unitOf は判定する区間（warm-up を除く）。
+  const unitOfInput = new Map(filled.headTypes.map((h, i) => [`input-${filled.record.firstSeq + i}`, unitOfHead(h)]));
+  const unitOf = new Map();
+  const metadata = [];
+  let due = hrMs() + 1000;
+  for (const name of s.order) {
+    for (let i = 0; i < warmup + samples; i++) {
+      const item = name === "metadata" ? null : ac15Frame(name, i);
+      const frame = item == null ? null : dataFrame(item.headType, item.xml);
+      await waitUntil(host, due);
+      if (frame == null) {
+        const hrtimeNs = process.hrtime.bigint().toString();
+        const reconnectMs = await host.injector.reconnect(15_000);
+        host.injector.sendStart();
+        metadata.push({ id: `metadata-${i}`, index: i, hrtimeNs, reconnectMs });
+      } else {
+        const { seq } = host.send(frame);
+        unitOfInput.set(`input-${seq}`, name);
+        if (i >= warmup) unitOf.set(`input-${seq}`, name);
+      }
+      due += name === "metadata" ? s.metadataIntervalMs : s.intervalMs;
+      w.progress.trialsStarted += 1;
+    }
+  }
+  await sleep(s.intervalMs + 500);
+  await host.stop();
+  const records = host.records();
+  const events = metadata.map((x) => ({ ...x, hostMs: hostMsOf(records, x.hrtimeNs) }));
+  for (const x of events.filter((e) => e.index >= warmup)) unitOf.set(x.id, "metadata");
+  const lastT0 = records.reduce((a, r) => (r.t === "obs" && r.o.kind === "marker" && r.o.point === "T0" ? Math.max(a, r.o.monotonicMs) : a), -Infinity);
+  // 最後の区間の終わりは最後の T0 + 1500ms（U4 の申し送り）。
+  const intervals = ac15Intervals(withSyntheticT0(records, events), unitOf, { endMs: lastT0 + s.intervalMs });
+  const publishObserved = [];
+  for (const x of intervals.filter((i) => i.unit === "metadata")) { publishObserved.push(x.publishCount); x.publishCount = 2; }
+  const judged = judgeAc15(await readProbeRows(probePath, intervals[0]?.startMs ?? 0), intervals, table, { checkpointWindows: checkpointWindows(records), unitOfInput, minInputsPerUnit: samples });
+  const reports = hostReports(records, `ac15-${mode}`);
+  const assumedMinus = judged.scenarios.metadata?.snapshotCallsMinusPublish ?? null;
+  const observedTotal = publishObserved.reduce((a, b) => a + b, 0);
+  return { judged, reports, body: { mode, status: judged.status, fill: filled.record, fingerprintTable: table, judged,
+    metadata: { reconnectMs: events.map((x) => Math.round(x.reconnectMs)),
+      assumed: { publishPerInterval: 2, snapshotCallsMinusPublish: assumedMinus },
+      observed: { publishPerIntervalByRecordOrder: publishObserved, publishTotal: observedTotal,
+        snapshotCallsMinusPublish: assumedMinus == null ? null : assumedMinus + 2 * publishObserved.length - observedTotal },
+      note: "判定へは切断と再接続の 2 回の状態変化で publish 2 回と想定して渡す。observed は時刻の無い publish を記録順で区間に振った実数とそれで数え直した値" },
+    ...reports } };
+}
+// 窓の判定: full・half それぞれの judgeAc15 と、保持量の対照（compareRetention）。どれかが Fail なら Fail、どれかが未確認なら未確認。
 function ac15Window(ctx) {
   const s = ctx.initialState.ac15Scenarios;
   const samples = ctx.counts.ac15 ?? s.samples;
   const warmup = ctx.counts.ac15 == null ? s.warmup : Math.min(s.warmup, Math.ceil(samples / 5));
   const perScenarioMs = (name) => (warmup + samples) * (name === "metadata" ? s.metadataIntervalMs : s.intervalMs);
+  const modes = s.retention?.modes ?? [];
   return {
-    id: "ac15", expectedMin: Math.ceil(s.order.reduce((a, name) => a + perScenarioMs(name), 0) / 60_000) + 6,
+    id: "ac15", expectedMin: Math.max(modes.length, 1) * (Math.ceil(s.order.reduce((a, name) => a + perScenarioMs(name), 0) / 60_000) + 6),
     run: async (w) => {
-      const probePath = join(w.dir, "stringify.jsonl");
-      const host = await openHost(w, ctx, { nodeArgs: ["--import", PROBE_PRELOAD], env: { FLEQ_STRINGIFY_OUT: probePath } });
-      // 保持上限では view が summary に落ちるので、各 unit の要素が full で見える充填途中の /snapshot を取る（EEW 2 件・national 1 件・partial 2 件・forecast 2 件の後）。
-      const eew = 2 * RES07.eventIdsPerFamily;
-      const national = eew + RES07.national.length;
-      const filled = await fill(host, w, ctx, "full", { snapshotsAt: [2, eew + 1, national + 2, national + RES07.partials + 2] });
-      const envelopes = readLatestEnvelopes(join(w.dir, "state"));
-      const table = fingerprintTable(envelopes, [...filled.snapshots, await host.snapshot()]);
-      w.progress.phase = "measure";
-      // unitOfInput は測定で流した全入力（充填・warm-up を含む）。unitOf は判定する区間（warm-up を除く）。
-      const unitOfInput = new Map(filled.headTypes.map((h, i) => [`input-${filled.record.firstSeq + i}`, unitOfHead(h)]));
-      const unitOf = new Map();
-      const metadata = [];
-      let due = hrMs() + 1000;
-      w.progress.total = s.order.length * (warmup + samples);
-      w.progress.trialsStarted = 0;
-      for (const name of s.order) {
-        for (let i = 0; i < warmup + samples; i++) {
-          const item = name === "metadata" ? null : ac15Frame(name, i);
-          const frame = item == null ? null : dataFrame(item.headType, item.xml);
-          await waitUntil(host, due);
-          if (frame == null) {
-            const hrtimeNs = process.hrtime.bigint().toString();
-            const reconnectMs = await host.injector.reconnect(15_000);
-            host.injector.sendStart();
-            metadata.push({ id: `metadata-${i}`, index: i, hrtimeNs, reconnectMs });
-          } else {
-            const { seq } = host.send(frame);
-            unitOfInput.set(`input-${seq}`, name);
-            if (i >= warmup) unitOf.set(`input-${seq}`, name);
-          }
-          due += name === "metadata" ? s.metadataIntervalMs : s.intervalMs;
-          w.progress.trialsStarted += 1;
-        }
+      if (s.retention?.maxSlopePerRetained == null || modes.join() !== "full,half") {
+        throw new Error("stateNotReproducible: initial-state ac15Scenarios.retention { modes: [full, half], maxSlopePerRetained } is missing (re-freeze the manifest)");
       }
-      await sleep(s.intervalMs + 500);
-      await host.stop();
-      const records = host.records();
-      const events = metadata.map((m) => ({ ...m, hostMs: hostMsOf(records, m.hrtimeNs) }));
-      for (const m of events.filter((x) => x.index >= warmup)) unitOf.set(m.id, "metadata");
-      const lastT0 = records.reduce((a, r) => (r.t === "obs" && r.o.kind === "marker" && r.o.point === "T0" ? Math.max(a, r.o.monotonicMs) : a), -Infinity);
-      // 最後の区間の終わりは最後の T0 + 1500ms（U4 の申し送り）。
-      const intervals = ac15Intervals(withSyntheticT0(records, events), unitOf, { endMs: lastT0 + s.intervalMs });
-      const publishObserved = [];
-      for (const x of intervals.filter((i) => i.unit === "metadata")) { publishObserved.push(x.publishCount); x.publishCount = 2; }
-      const judged = judgeAc15(await readProbeRows(probePath, intervals[0]?.startMs ?? 0), intervals, table, { checkpointWindows: checkpointWindows(records), unitOfInput, minInputsPerUnit: samples });
-      const reports = hostReports(records, "ac15");
-      const assumedMinus = judged.scenarios.metadata?.snapshotCallsMinusPublish ?? null;
-      const observedTotal = publishObserved.reduce((a, b) => a + b, 0);
-      const o = outcome(ctx, judged.status, reports, { fill: filled.record });
-      o.resultFiles = [sealAux(w.dir, "aux-ac15.json", ctx.manifest, { window: "ac15", status: o.status, warmup, samples, fill: filled.record,
-        fingerprintTable: table, judged, metadata: { reconnectMs: events.map((m) => Math.round(m.reconnectMs)),
-          assumed: { publishPerInterval: 2, snapshotCallsMinusPublish: assumedMinus },
-          observed: { publishPerIntervalByRecordOrder: publishObserved, publishTotal: observedTotal,
-            snapshotCallsMinusPublish: assumedMinus == null ? null : assumedMinus + 2 * publishObserved.length - observedTotal },
-          note: "判定へは切断と再接続の 2 回の状態変化で publish 2 回と想定して渡す。observed は時刻の無い publish を記録順で区間に振った実数とそれで数え直した値" },
-        ...reports })];
+      w.progress.total = modes.length * s.order.length * (warmup + samples);
+      w.progress.trialsStarted = 0;
+      const runs = {};
+      for (const mode of modes) runs[mode] = await ac15Measure(w, ctx, mode, { s, warmup, samples });
+      // 保持件数は充填の observed（recipe の expected と一致を確かめた値）: U-E は EventID 数、U-W は partial 数、U-F は subject 数。
+      const retainedOf = (observed) => ({ "U-E": Number(observed.snapshotActive.eew.split("/")[0]), "U-W": observed.checkpoint["U-W.partials"], "U-F": observed.checkpoint["U-F.subjects"] });
+      const retained = { full: retainedOf(runs.full.body.fill.observed), half: retainedOf(runs.half.body.fill.observed) };
+      const retention = compareRetention(runs.full.judged, runs.half.judged, { maxSlope: s.retention.maxSlopePerRetained, retained });
+      const statuses = [runs.full.judged.status, runs.half.judged.status, retention.status];
+      const status = statuses.includes("Fail") ? "Fail" : statuses.includes("未確認") ? "未確認" : "Pass";
+      const o = outcome(ctx, status, runs.full.reports, { fill: runs.full.body.fill, ac15Parts: { full: statuses[0], half: statuses[1], retention: statuses[2] } });
+      o.resultFiles = [sealAux(w.dir, "aux-ac15.json", ctx.manifest, { window: "ac15", status: o.status, warmup, samples, retention,
+        full: runs.full.body, half: runs.half.body, ...runs.full.reports })];
       return o;
     },
   };
