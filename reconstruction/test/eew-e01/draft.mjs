@@ -97,7 +97,7 @@ function recipes(room) {
       periodMs: C_CYCLE.periodMs, warmupCycles: C_CYCLE.warmupCycles, cycles: 65,
       fixtures: [FIX.vpws50, FIX.vpww57, FIX.vxse43, FIX.vxse43Cancel, FIX.vpwp50].map(ref),
       inputs: [
-        { offsetMs: C_CYCLE.offsetsMs[0], rule: `VPWS50 ${FIX.vpws50}（通常）の全時刻を充填時より (c+1)×60 秒後へ`, effect: "U-W national の更新。通常の national は履歴上限（weather-current.ts:625-636）で途中から capacityExceeded ⇄ activated を繰り返す（製品・契約の欠陥として別に扱う。入力側で回避しない）" },
+        { offsetMs: C_CYCLE.offsetsMs[0], rule: `VPWS50 ${FIX.vpws50}（通常）の全時刻を充填時より (c+1)×60 秒後へ`, effect: "U-W national の更新（履歴は深さ 2 で最古の normal を押し出す。f65961cc）" },
         { offsetMs: C_CYCLE.offsetsMs[1], rule: `VPWP50 ${FIX.vpwp50} の EditorialOffice を ${C_CYCLE.forecastOffice}、全時刻を validUntil が周期の開始 + ${C_CYCLE.restoreValidForMs / 60_000} 分になるよう動かし、ReportDateTime を充填時 + (c+1)×60 秒 − 30 秒に置き直す`, effect: "前の周期で期限回収した U-F subject の入れ直し（周期 0 は更新）" },
         { offsetMs: C_CYCLE.offsetsMs[2], rule: `VPWW57 ${FIX.vpww57} の EditorialOffice を 官署{c}、ReportDateTime を充填時 + (c+1)×60 秒`, effect: "U-W partial の更新" },
         { offsetMs: C_CYCLE.offsetsMs[3], rule: `VXSE43 ${FIX.vxse43} の EventID を 20240417000000+c、Serial 2、全時刻を (c+1)×60 秒後へ、予測を c の偶奇で A/B（愛媛県東予 4→5-）`, effect: "U-E の更新" },
