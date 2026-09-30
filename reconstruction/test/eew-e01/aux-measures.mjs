@@ -80,7 +80,8 @@ export function summarizeE03(records, targetInputIds, { minSamples = 1000, limit
 
 // E05: Node RSS の最大。同じ窓（E02 の窓）の mem 行から。N ≤ 300MiB、P ≤ 400MiB。N/P 以外（C）は未確認。
 // 上限超過の観測は Fail。超過が無くても、窓の端（開始→最初の行・最後の行→終了）と行の間の間隔が採取周期（spec §9.9 E05 の毎秒）の 2 倍を
-// 超えたところを欠測として数え、端が欠けるか欠測が窓の期待標本数の maxMissingRatio を超えれば未確認。
+// 超えたところを欠測として数え、端が欠けるか欠測が窓の期待標本数の maxMissingRatio を超えれば未確認。実標本数が期待標本数の
+// (1 − maxMissingRatio) 未満でも未確認（2 倍以下の間隔の周期的な欠落は間隔の検査に掛からない）。
 // 無いと、長い窓に 1 行しか無い（host の timer が止まった）ときも Pass になる（ヘルツ総合レビュー指摘 7）。
 export function summarizeE05(records, load, window, { memEveryMs = 1000, maxMissingRatio = 0.01 } = {}) {
   const w = hostWindow(records, window);
@@ -93,7 +94,7 @@ export function summarizeE05(records, load, window, { memEveryMs = 1000, maxMiss
   const missingSamples = gaps.reduce((a, gap) => a + (gap > 2 * memEveryMs ? Math.ceil(gap / memEveryMs) - 1 : 0), 0);
   const expectedSamples = Math.floor((w.toMs - w.fromMs) / memEveryMs);
   const edgesCovered = rows.length > 0 && gaps[0] <= 2 * memEveryMs && gaps.at(-1) <= 2 * memEveryMs;
-  const covered = edgesCovered && missingSamples <= expectedSamples * maxMissingRatio;
+  const covered = edgesCovered && missingSamples <= expectedSamples * maxMissingRatio && rows.length >= expectedSamples * (1 - maxMissingRatio);
   const status = rows.length > 0 && maxRss > limit * MiB ? "Fail" : covered ? "Pass" : "未確認";
   return { status, load, samples: rows.length, maxRssBytes: rows.length === 0 ? null : maxRss, limitBytes: limit * MiB,
     coverage: { memEveryMs, expectedSamples, missingSamples, maxGapMs: Math.max(...gaps), edgesCovered, maxMissingRatio } };

@@ -30,7 +30,7 @@ export function judgeAc15(probeRecords: readonly ProbeRow[], intervals: readonly
     retryAttemptsNearby: string[]; attemptId?: string; maxLength?: number } & Partial<Excess>)[];
   unconfirmed: (({ inputId: string; inputUnit: Unit; category: "ownElementExcess"; fingerprintUnit: Unit; fingerprint: null; count: number;
     retryAttemptsNearby: string[] } & Excess)
-    | { inputId: string; inputUnit: Unit; category: "ownElementLengthUnknown" | "ambiguousCollection"; fingerprintUnit: Unit | null; fingerprint: string; count: number;
+    | { inputId: string; inputUnit: Unit; category: "ownElementLengthUnknown" | "ambiguousCollection" | "otherArrayLengthUnknown"; fingerprintUnit: Unit | null; fingerprint: string; count: number;
       retryAttemptsNearby: string[] })[];
   missing: string[];
   scenarios: Partial<Record<Unit, {
@@ -51,5 +51,5 @@ type Retained = Partial<Record<Unit, number>>;
 export function compareRetention(full: Judged, half: Judged, options: { maxSlope: number; retained: { full: Retained; half: Retained } }): {
   status: "Pass" | "Fail" | "未確認"; maxSlope: number; retained: { full: Retained; half: Retained };
   rows: { scenario: string; measure: "outsideOtherPerInput" | "outsidePrimitivePerInput" | "outsideOwnElementPerInput" | "outsideAmbiguousPerInput";
-    fullMedian: number | null; halfMedian: number | null; deltaRetained: number | null; noiseFloor: number | null; slope: number | null; exceeded: boolean }[];
+    fullMedian: number | null; halfMedian: number | null; deltaRetained: number | null; noiseFloor: number | null; slope: number | null; exceeded: boolean; unresolved: boolean }[];
 };

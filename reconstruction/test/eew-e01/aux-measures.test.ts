@@ -47,6 +47,9 @@ describe("P2-A10-T04 auxiliary aggregation (AC08/AC09/AC15)", () => {
     expect(aux.summarizeE05(holed(20_000), "N", { fromMs: 0, toMs: 1_000_000 })).toMatchObject({ status: "未確認", coverage: { missingSamples: 19, edgesCovered: true } });
     expect(aux.summarizeE05(holed(5_000), "N", { fromMs: 0, toMs: 1_000_000 })).toMatchObject({ status: "Pass", coverage: { missingSamples: 4, maxGapMs: 5000 } });
     expect(aux.summarizeE05([...one, { t: "mem", perfNowMs: 600_000, rss: 301 * MiB }], "N", { fromMs: 0, toMs: 1_000_000 }).status).toBe("Fail");
+    // ヘルツ再レビュー指摘 3: 2 秒ごとの 501 行（期待 1000）は間隔の検査に掛からないが、行数が期待の 99% 未満なので未確認。
+    const everyTwo = Array.from({ length: 501 }, (_, s) => ({ t: "mem", perfNowMs: s * 2000, rss: 100 * MiB }));
+    expect(aux.summarizeE05(everyTwo, "N", { fromMs: 0, toMs: 1_000_000 })).toMatchObject({ status: "未確認", samples: 501, coverage: { missingSamples: 0, expectedSamples: 1000 } });
   });
 
   it("E06: six 10-minute windows from the steady start, slope per minute, fill phase and rows past 60 min dropped, FD mapped by the clock row", () => {

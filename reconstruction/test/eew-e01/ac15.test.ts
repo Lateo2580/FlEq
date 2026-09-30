@@ -110,6 +110,14 @@ describe("P2-A10-T04 AC15 upstream full serialization per input (key-set fingerp
     expect(compare(own(64), []).rows.filter((r) => r.exceeded).map((r) => [r.scenario, r.measure])).toEqual([["U-W", "outsideOwnElementPerInput"]]);
     // U-E の差 4（ΔN は 3 unit の最小の 64 で、保持 1 件あたり 0.0625）と、U-W の保存 w1 の encode の中の 40 件は Fail にしない。
     expect(compare([...primitives(30, 8), ...primitives(101.2, 40)], primitives(30, 4)).status).toBe("Pass");
+    // ヘルツ再レビュー指摘 1: 原始値の配列全体（JSON.stringify(Object.keys(state.ownership)) 相当）は要素数で数える。1 回と数えると full・half・対照が Pass だった。
+    const keys = compare([[20, 0.1, 5_000, "[512]#string"]], [[20, 0.1, 2_500, "[256]#string"]]);
+    expect(keys.rows.filter((r) => r.exceeded)).toMatchObject([{ scenario: "U-E", measure: "outsidePrimitivePerInput", fullMedian: 512, halfMedian: 256 }]);
+    // ヘルツ再レビュー指摘 2: 傾きが閾値を超えて差が雑音の床以下なら Pass でなく未確認（full 128・256、half 64・64、ΔN 64 → 傾き 1、床 128）。
+    const two = (counts: number[]) => judgeAc15(counts.flatMap((n, i) => primitives(i * 100 + 10, n)),
+      counts.map((_, i) => ({ inputId: `e${i}`, unit: "U-E" as const, startMs: i * 100, endMs: i * 100 + 100, processingMs: null, publishCount: 0 })), table, { minInputsPerUnit: 1 });
+    const noisy = compareRetention(two([128, 256]), two([64, 64]), { maxSlope: 0.5, retained });
+    expect([noisy.status, noisy.rows.find((r) => r.measure === "outsidePrimitivePerInput")]).toMatchObject(["未確認", { slope: 1, noiseFloor: 128, exceeded: false, unresolved: true }]);
   });
 
   it("a saved payload outside its unit's checkpoint windows, or a save caused by another unit's input even when it slips to the next interval, is Fail; a carried-over save is not", () => {

@@ -33,7 +33,7 @@ const OWN_ELEMENT_PAIR = 2;
 const FAILING = ["runtimeState", "unitState", "unitCollection", "foreignElement", "foreignPayload", "payloadOutsideCheckpoint", "ownElementCollection"];
 // 未確認に倒す形: 要素数の分からない自 unit の要素の配列と、checkpoint 区間の外の ambiguous の配列で 2 件を超えるもの・要素数の分からないもの
 // （unit を決められない集合の全量。intents の上限計量 eew-unit.ts:90 も同じ形になりうるので Fail にしない）。
-const UNSURE = ["ownElementLengthUnknown", "ambiguousCollection"];
+const UNSURE = ["ownElementLengthUnknown", "ambiguousCollection", "otherArrayLengthUnknown"];
 // 指紋表を作る時点で要素が 1 つも無いと、その形を分類できない payload の field。無いと、U-W の履歴 entry の直列化が「その他」に落ちる。
 const REQUIRED_ELEMENT_FIELDS = [["U-W", "histories"]];
 // 保持量の対照（compareRetention）で比べる、checkpoint 区間の外の入力 1 件あたりの回数。
@@ -259,13 +259,16 @@ export function judgeAc15(probeRecords, intervals, table, { checkpointWindows: w
         else elements = c.length;
       }
       if (category === "ambiguous" && c.array && (c.length == null || c.length > OWN_ELEMENT_PAIR) && saving(null, row[0]).length === 0) category = "ambiguousCollection";
-      // 保持量の対照（compareRetention）の材料: どの unit の checkpoint 区間の外のその他と原始値の回数。
+      // 保持量の対照（compareRetention）の材料: どの unit の checkpoint 区間の外のその他と原始値の回数。配列は要素数で数える
+      // （無いと、Object.keys(state.ownership) のような原始値の配列全体の直列化が保持量に関係なく 1 回になる）。要素数が無ければ未確認。
       if (category === "other" && saving(null, row[0]).length === 0) {
-        if (c.fp.startsWith("#")) outsidePrimitive++; else outsideOther++;
+        if (c.array && c.length == null) category = "otherArrayLengthUnknown";
+        else if (c.fp.startsWith("#")) outsidePrimitive += c.array ? c.length : 1;
+        else outsideOther += c.array ? c.length : 1;
       }
       if (category === "ambiguous" && !c.array && saving(null, row[0]).length === 0) outsideAmbiguous++;
       if (category === "checkpointPayload" || category === "checkpointElement") add((s[category][c.unit] ??= tally()), row);
-      else if (category === "other") add((s.other[c.fp] ??= tally()), row);
+      else if (category === "other" || category === "otherArrayLengthUnknown") add((s.other[c.fp] ??= tally()), row);
       else add(s[category], row);
       if (category === "snapshot") snapshots++;
       if (category === "ownElement") {
@@ -294,7 +297,7 @@ export function judgeAc15(probeRecords, intervals, table, { checkpointWindows: w
     }
     for (const [key, count] of unsure) {
       const [category, fingerprint] = JSON.parse(key);
-      unconfirmed.push({ inputId: interval.inputId, inputUnit: interval.unit, category, fingerprintUnit: category === "ambiguousCollection" ? null : interval.unit,
+      unconfirmed.push({ inputId: interval.inputId, inputUnit: interval.unit, category, fingerprintUnit: category === "ownElementLengthUnknown" ? interval.unit : null,
         fingerprint, count, retryAttemptsNearby: [] });
     }
     s.outsideOtherPerInput.push(outsideOther);
@@ -360,7 +363,7 @@ export function judgeAc15(probeRecords, intervals, table, { checkpointWindows: w
 // P2-A10-AC15 の保持量の対照（p2-snapshot-sse.json:100「当該 subject の before/after だけ」）: 同じシナリオを full と half の充填から回した
 // judgeAc15 の結果を比べる。measure ごとに slope = (full の中央値 − half の中央値) / ΔN（ΔN = 3 unit の保持件数の差の最小。シナリオの
 // unit の差で割ると、保持の差が大きい別 unit の走査が薄まって通るため）。slope > maxSlope なら Fail（走査対象が保持量に比例）。ただし差が雑音の床（2 回の実走それぞれの p95 − p50 の大きい方）
-// 以下なら Fail にしない。中央値か ΔN が無ければ未確認。比ではなく傾きにするのは、入力 1 件ごとの大きな定数に線形成分が埋もれるため。
+// 以下なら Fail でなく未確認（unresolved。ばらつきは保持量に依存しない証拠にならない）。中央値か ΔN が無ければ未確認。比ではなく傾きにするのは、入力 1 件ごとの大きな定数に線形成分が埋もれるため。
 // retained = { full, half } は unit → 保持件数（fill の observed から）。
 export function compareRetention(full, half, { maxSlope, retained }) {
   const deltaRetained = Math.min(...UNITS.map((unit) => (retained.full[unit] ?? NaN) - (retained.half[unit] ?? NaN)));
@@ -373,9 +376,9 @@ export function compareRetention(full, half, { maxSlope, retained }) {
       const noiseFloor = known ? Math.max(f.p95 - f.p50, h.p95 - h.p50) : null;
       const slope = known ? difference / deltaRetained : null;
       rows.push({ scenario, measure, fullMedian: f?.p50 ?? null, halfMedian: h?.p50 ?? null, deltaRetained: Number.isFinite(deltaRetained) ? deltaRetained : null,
-        noiseFloor, slope, exceeded: known && difference > noiseFloor && slope > maxSlope });
+        noiseFloor, slope, exceeded: known && slope > maxSlope && difference > noiseFloor, unresolved: known && slope > maxSlope && difference <= noiseFloor });
     }
   }
-  const status = rows.some((r) => r.exceeded) ? "Fail" : rows.some((r) => r.slope == null) ? "未確認" : "Pass";
+  const status = rows.some((r) => r.exceeded) ? "Fail" : rows.some((r) => r.slope == null || r.unresolved) ? "未確認" : "Pass";
   return { status, maxSlope, retained, rows };
 }
