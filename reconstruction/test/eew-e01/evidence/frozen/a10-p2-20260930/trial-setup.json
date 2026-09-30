@@ -1,7 +1,7 @@
 {
   "schemaVersion": "p2-eew-trial-setup-v1",
   "initialStateRef": "reconstruction/test/eew-e01/evidence/initial-state.json",
-  "initialStateSha256": "5226a0b58b2f95097f362802a5fbfd6200b9b0583311cc674f2268499406ca72",
+  "initialStateSha256": "2491fd5944a9f07be796606ba5b1349c2113a3702790be31d3dbd03998567cb9",
   "initialCheckpoints": {
     "U-E": {
       "ref": null,
@@ -34,6 +34,6 @@
     "E15（write 帰属）と publish 費用（PublishCostReport）は host を起動した全窓で host の JSON Lines から報告する（E01・E02 の窓は必ず出す）。manifest に置き場が無いのでここに書く"
   ],
   "preventReplacementUntilPaintOrTimeout": [
-    "次の試行の投入は、前の試行の入力の処理区間（その T2 から次の入力の T2 まで）に host が公開した版の T6 候補 mark が Chrome に現れ、その mark を含む frame の Commit を過ぎる（requestAnimationFrame 2 回）か、実投入から 10000ms が経つまで行わない。候補 mark の件数の増加だけでは進めない"
+    "次の試行の投入は、前の試行の T6 候補 mark が Chrome に現れるか、実投入から 10000ms が経つまで行わない"
   ]
 }

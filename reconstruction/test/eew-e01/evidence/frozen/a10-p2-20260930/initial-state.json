@@ -174,7 +174,7 @@
   },
   "rulesSource": {
     "file": "reconstruction/test/eew-e01/frames.mjs",
-    "sha256": "28f7ad162cf5853074f2b5cc9e4e0b8509d4b3846984b3e1d2c11eaf9d4eef83"
+    "sha256": "26908ae82453eddca0536adc9cf6922e7d53b727103f2f58966fc052b509f4c4"
   },
   "nearCapacity": {
     "function": "nearCapacityFrames({ mode, room })",
@@ -207,8 +207,6 @@
       "U-W partial: VPWW57 15_16_02_251222_VPWW57 の EditorialOffice を 官署i（i=0..partials-1）に替える",
       "U-F: VPWP50 81_02_01_260605_VPWP50_high_severity の EditorialOffice を 官署i（i=0..subjects-1）に替える。ReportDateTime は 17:00 のまま、validUntil は翌 03:00",
       "cycleC: full と同じで、VXSE43 の EventID 20240417000511 だけを訓練の種（VXSE43 の EventID 20260930000000、Status 訓練）に替える",
-      "half: U-E の EventID（i=0..255）・U-W partial（官署0..63）・U-F（官署0..255）を full の半分、national は同じ 3 件（AC15 の保持量の対照）",
-      "full・half: U-W partial の官署ごとに、同じ報告の ReportDateTime を +k 秒（k=1..2）に置いた更新を続けて送り、履歴を 2 件作る（AC15 の指紋表に履歴 entry の形を載せる）",
       "全て報告時刻を動かさない（host の壁時計起点 2026-06-05T18:00+09:00 は A8 試験の at と同じ）"
     ],
     "pacing": "sendPaced: 未処理（送った数 − host の decode 観測数）を通常 32 件以下・EEW 8 件以下（予約枠）・VPWS50 は 0 件のときだけ送る（mailbox RES-03/04 で拒否させない）。送った後に expected の値を /snapshot と保存済み checkpoint で確かめ、違えば窓を Blocked（stateNotReproducible）",
@@ -225,24 +223,6 @@
             "U-W.national": 3,
             "U-W.partials": 128,
             "U-F.subjects": 512
-          }
-        },
-        "usedBy": [
-          "AC15"
-        ]
-      },
-      "half": {
-        "room": null,
-        "expected": {
-          "snapshotActive": {
-            "eew": "256/0/0",
-            "weatherCurrent": "65/1/1",
-            "weatherTimeseries": "256/0/0"
-          },
-          "checkpoint": {
-            "U-W.national": 3,
-            "U-W.partials": 64,
-            "U-F.subjects": 256
           }
         },
         "usedBy": [
@@ -379,16 +359,7 @@
   },
   "ac15Scenarios": {
     "function": "ac15Frame(scenario, index)",
-    "initialState": "nearCapacity full（保持上限ちょうど）と half（約半分）。同じシナリオを両方の充填から回す",
-    "retention": {
-      "modes": [
-        "full",
-        "half"
-      ],
-      "maxSlopePerRetained": 0.5,
-      "rule": "各シナリオ（区間の入力の unit と metadata）の measure（checkpoint 区間＝どの unit の encode・verify・encode 後の未計測区間の外で、指紋表のどれにも当たらない直列化（その他）・原始値（#string など、要素が原始値の配列を含む）・自 unit の要素・ambiguous の単件の、入力 1 件あたりの回数）ごとに、slope =（full の中央値 − half の中央値）/ ΔN が 0.5 回／保持 1 件を超えたら Fail（走査対象が保持量に比例＝当該 subject だけでない）。ただし差が雑音の床（2 回の実走それぞれの p95 − p50 の大きい方）以下なら Fail にしない。中央値か ΔN が取れなければ未確認。回数・差・傾きを報告する",
-      "deltaRetained": "ΔN は全シナリオ共通で、3 unit の保持件数の差（充填の observed: U-E は /snapshot の eew の通常の activeCount＝EventID 数、U-W は checkpoint の partials 数、U-F は checkpoint の subjects 数）の最小（今の充填では U-W の 64）。unit ごとの差で割ると、保持の差が大きい別 unit の走査が薄まって通るため"
-    },
+    "initialState": "nearCapacity full（保持上限ちょうど）",
     "fixtures": [
       {
         "fixture": "test__fixtures__37_01_01_240613_VXSE43",

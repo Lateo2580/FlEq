@@ -1,7 +1,7 @@
 {
   "schemaVersion": "p2-eew-e01-manifest-v2",
-  "manifestId": "a10-p2-20260930b",
-  "manifestSha256": "03e631e0507a98e28de19b21812bb62f1f54c08059e1147176019ddd40dd6f51",
+  "manifestId": "a10-p2-20260930",
+  "manifestSha256": "a03a3ae47c574622e5e6da745fd056886fd86166122424a57a442b41a069b5f7",
   "contractSha256": {
     "P2-EEW-E01-001": "08bb70bee24a4db82ef9c931b0fb2c16581182cd145c71bd088d07dd1fe5ecff",
     "P1-PARSER-BOUNDARY-001": "c84ae689233450c31cef294eb23118921adde2445ead30271b5c4b403e9aa9d9",
@@ -16,7 +16,7 @@
     "P2-CHROME-EEW-001": "93538c03f925551cd487ad740512619c432f66b3d03bf1535ce05f9c7d8f873d"
   },
   "trialSetupRef": "reconstruction/test/eew-e01/evidence/trial-setup.json",
-  "trialSetupSha256": "cd1ee3dd642cf070f6a0f010a2d3c7075d7a0fb9873feea254375f53a564f578",
+  "trialSetupSha256": "c3cdf008a7ebbec037d3315a4bd05b2e5c2bba482c6d4f87190ea175d3352229",
   "smokeConditionsSha256": "07d16d81e410ed293776bcf314580cf7264b178cc018c329de927ecc03f2b1d9",
   "smokeConditionDifferences": [
     "chrome.version: smoke 154.0.8037.58 / manifest 154.0.8037.92"
@@ -198,7 +198,7 @@
       "load": "N",
       "trigger": "population=maxVpws50DecodeStarted; periodMs=3000; 起点は host の観測（decode / checkpoint encode の開始）に対する投入側の実投入を後から照合する; paintEvidence=PipelineReporter STATE_PRESENTED_ALL; screenshot=corroborating",
       "stateRef": "reconstruction/test/eew-e01/evidence/initial-state.json#populations.maxVpws50DecodeStarted",
-      "stateSha256": "5226a0b58b2f95097f362802a5fbfd6200b9b0583311cc674f2268499406ca72",
+      "stateSha256": "2491fd5944a9f07be796606ba5b1349c2113a3702790be31d3dbd03998567cb9",
       "targetOffsetMs": 1,
       "acceptedOffsetRangeMs": [
         0,
@@ -216,7 +216,7 @@
       "load": "N",
       "trigger": "population=maxWeatherCheckpointEncodeStarted; periodMs=3000; 起点は host の観測（decode / checkpoint encode の開始）に対する投入側の実投入を後から照合する; paintEvidence=PipelineReporter STATE_PRESENTED_ALL; screenshot=corroborating",
       "stateRef": "reconstruction/test/eew-e01/evidence/initial-state.json#populations.maxWeatherCheckpointEncodeStarted",
-      "stateSha256": "5226a0b58b2f95097f362802a5fbfd6200b9b0583311cc674f2268499406ca72",
+      "stateSha256": "2491fd5944a9f07be796606ba5b1349c2113a3702790be31d3dbd03998567cb9",
       "targetOffsetMs": 1,
       "acceptedOffsetRangeMs": [
         0,
@@ -234,7 +234,7 @@
       "load": "N",
       "trigger": "population=maxForecastCheckpointSave; periodMs=3000; 起点は host の観測（decode / checkpoint encode の開始）に対する投入側の実投入を後から照合する; paintEvidence=PipelineReporter STATE_PRESENTED_ALL; screenshot=corroborating",
       "stateRef": "reconstruction/test/eew-e01/evidence/initial-state.json#populations.maxForecastCheckpointSave",
-      "stateSha256": "5226a0b58b2f95097f362802a5fbfd6200b9b0583311cc674f2268499406ca72",
+      "stateSha256": "2491fd5944a9f07be796606ba5b1349c2113a3702790be31d3dbd03998567cb9",
       "targetOffsetMs": 1,
       "acceptedOffsetRangeMs": [
         0,
@@ -252,7 +252,7 @@
       "load": "N",
       "trigger": "population=forecastDeadlineOverlap; periodMs=3000; 起点は host の観測（decode / checkpoint encode の開始）に対する投入側の実投入を後から照合する; paintEvidence=PipelineReporter STATE_PRESENTED_ALL; screenshot=corroborating",
       "stateRef": "reconstruction/test/eew-e01/evidence/initial-state.json#populations.forecastDeadlineOverlap",
-      "stateSha256": "5226a0b58b2f95097f362802a5fbfd6200b9b0583311cc674f2268499406ca72",
+      "stateSha256": "2491fd5944a9f07be796606ba5b1349c2113a3702790be31d3dbd03998567cb9",
       "targetOffsetMs": 1,
       "acceptedOffsetRangeMs": [
         0,
