@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "585d2f4f858e350c6965d83019ba7e4842285b3c",
-    "sha256": "63db6a355a08d85099e1178a32e066e2b0016a418a46de5621b7718b04805e08",
+    "sha256": "13c509424cdf6094dcbec0b47201817e46f18847fc59a6cf3d091ae17e9464c3",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "76c82b87d7783a4eae14af690cb34e7d6ec46f73617dc75b7f7401951619f080",
     "sequencesSha256": "be9cfd97b555e3a55568f085d107342c978b3dc7249f5cecea868ea5a62c5781",
@@ -90,7 +90,7 @@
       },
       {
         "id": "P2-A10-PERF-P3",
-        "A": "正式測定（manifest a10-p2-20260930b、main c111d843）で3 runともFailしたE02-P（/healthz p99 208〜353ms、暫定100ms）とE05-P（Node RSS最大467〜484MiB、暫定400MiB）は、Failのまま結果に残し、P3最初の契約群へ移管する。E06（報告のみ）でspec §9.9式のRSS窓中央値傾き約10.2MiB/時が暫定1MiB/時を超えた件（heap・externalは横ばい、原因未分類）も同じ契約群で原因を分類する。P3の再検収条件は同じPとCの窓・同じ暫定上限で、原因の構造（VPWS50 parseとU-W保存1回の全量encodeが単一スレッドを塞ぐ、台帳61）に対し差分保存・parseの実行単位分離・暫定上限の見直しをA/Bで裁定してから測る。A10はこの移管付きで完了とし、Fail・超過を合格に読み替えない",
+        "A": "正式測定（manifest a10-p2-20260930b、main c111d843）で3 runともFailしたE02-P（/healthz p99 208〜353ms、暫定100ms）とE05-P（Node RSS最大467〜484MiB、暫定400MiB）は、Failのまま結果に残し、P3最初の契約群へ移管する。E06（報告のみ）でspec §9.9式のRSS窓中央値傾き約10.2MiB/時が暫定1MiB/時を超えた件（heap・externalは横ばい、原因未分類）も同じ契約群で原因を分類する。P3の再検収条件は同じPとCの窓・同じ暫定上限で、原因の構造（VPWS50 parseとU-W保存1回の全量encodeが単一スレッドを塞ぐ、台帳61）に対し差分保存・parseの実行単位分離・暫定上限の見直しをA/Bで裁定してから測る。A10はこの移管付きで完了とし、Fail・超過を合格に読み替えない。担当: P3最初の契約群の性能契約（契約IDはP3発注計画で採番）の起草・実装委譲・測定・検収は統合担当が持ち、総合レビューは独立レビュー（ヘルツ）、方式の選択と暫定上限の変更は作者裁定とする。再検収条件: E02は同じP負荷でN/P各1000標本以上×3 runのp99≤暫定100ms、E05は同じP窓でRSS最大≤暫定400MiB、E06は同じCの65周期でspec §9.9の3式（窓中央値傾き・最終中央値−初窓・FD最終最大−初窓最大）を満たすか超過の原因を分類する。暫定上限を変えるときは別の作者裁定と新しいmanifestで行い、今回のFail・超過（manifest a10-p2-20260930b）を遡って変えない",
         "B": "P2のうちにU-W保存の差分化などを入れて同じ窓で測り直す（R60の単一スレッド判断に触れる大工事）",
         "recommended": "A",
         "provisional": "A",
@@ -99,7 +99,7 @@
       },
       {
         "id": "P2-A10-E15-P3",
-        "A": "AC09のstage別bytesは、verify段が読んだbytes（製品はA3契約どおりencodeと同値を返す）を別計数で報告し、encode・writeへ二重加算しないと読む（「他stage=0」は加算の対象外の意味）。保存と診断のwriteのfilesystem注入口での別計数（startP2Hostのconfigに注入口が無い）と、保存前段の同期区間（checkpoint.ts:266-300の読み直し・decode、計測点が無い）はP3最初の契約群へ移管する（台帳55と同じ根）。A10の結果のbyteViolationsはverify段の読んだbytesの件数で、違反ではない",
+        "A": "AC09のstage別bytesは、verify段が読んだbytes（製品はA3契約どおりencodeと同値を返す）を別計数で報告し、encode・writeへ二重加算しないと読む（「他stage=0」は加算の対象外の意味）。保存と診断のwriteのfilesystem注入口での別計数（startP2Hostのconfigに注入口が無い）と、保存前段の同期区間（checkpoint.ts:266-300の読み直し・decode、計測点が無い）はP3最初の契約群へ移管する（台帳55と同じ根）。A10の結果のbyteViolationsはverify段の読んだbytesの件数で、違反ではない。担当はP2-A10-PERF-P3と同じ（統合担当・独立レビュー・作者裁定）。再検収条件: AC09の全要素、すなわちcheckpoint/tmp/logのwrite帰属不能0、保存と診断のwriteのfilesystem注入口での別計数（測定成果物のwriteと区別）、保存前段（読み直し・decode）を含む同期区間の占有時間、verify段の読んだbytesの別計数（encode・writeへ二重加算しない）を、同じ保持上限の窓で測る",
         "B": "A3の製品をAC09の字面（verify bytes=0）に合わせ、A10で注入口と計測点を足してE15の窓だけ測り直す",
         "recommended": "A",
         "provisional": "A",

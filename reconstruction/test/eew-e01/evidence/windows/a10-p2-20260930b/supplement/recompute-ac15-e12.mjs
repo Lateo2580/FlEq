@@ -11,17 +11,19 @@
 //   誤差は投入→host の最小遅延（1ms 未満）。±5ms ずらしたときの判定（status）と数値の差も shifts に出す（感度の記録）。
 // - E12 の exit（子の終了 code）: runner の戻り値で、生ファイルに無い。
 //
-// usage: node recompute-ac15-e12.mjs [--repo <FlEq checkout>]   （既定 /Users/sayue/dev/FlEq。repo は読むだけ。dist の build が要る）
+// usage: node recompute-ac15-e12.mjs [--raw <生データの根>] [--repo <FlEq checkout>] [--out <書き出し先>]
+//   （--raw を省くと raw-supplement.json の rawRoot。repo は読むだけ。dist の build が要る。--out を省くと一時 dir に書き、
+//    repo の recompute-ac15-e12.json は上書きしない。追試は出力の allMatch=true と、repo の同名ファイルとの突き合わせで確かめる）
 import { createHash } from "node:crypto";
 import { createReadStream, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { createInterface } from "node:readline";
 import { join } from "node:path";
+import { tmpdir } from "node:os";
 
 const RUN_ID = "a10-p2-20260930b";
 const HERE = import.meta.dirname;
-const RAW_ROOT = join(HERE, "..", RUN_ID);
-const argi = process.argv.indexOf("--repo");
-const REPO = argi > 0 ? process.argv[argi + 1] : "/Users/sayue/dev/FlEq";
+const arg = (name, fallback) => { const k = process.argv.indexOf(name); return k > 0 ? process.argv[k + 1] : fallback; };
+const REPO = arg("--repo", "/Users/sayue/dev/FlEq");
 const T = join(REPO, "reconstruction/test/eew-e01");
 const { ac15Intervals, checkpointWindows, compareRetention, judgeAc15 } = await import(join(T, "ac15.mjs"));
 const { bracketMem, parseJsonl, replayInterval, summarizeReplayWindow } = await import(join(T, "aux-measures.mjs"));
@@ -33,6 +35,7 @@ const SHIFTS_MS = [-5, 5];
 
 const sha256Hex = (b) => createHash("sha256").update(b).digest("hex");
 const supplement = readSelfHashed(readFileSync(join(HERE, "raw-supplement.json"), "utf8"), "resultSha256");
+const RAW_ROOT = arg("--raw", supplement.rawRoot);
 const sealedOf = (id, rel) => {
   const e = supplement.windows[id]?.find((f) => f.path === rel);
   if (e == null) throw new Error(`${id}/${rel} is not in raw-supplement.json`);
@@ -199,7 +202,9 @@ function e12(id) {
 const out = { runId: RUN_ID, repo: REPO, ac15: await ac15(), e12: readdirSync(RAW_ROOT).filter((d) => d.startsWith("e12-")).sort().map(e12) };
 const all = [out.ac15, ...out.e12];
 out.allMatch = all.every((x) => x.match);
-writeFileSync(join(HERE, "recompute-ac15-e12.json"), `${JSON.stringify(out, null, 2)}\n`);
+const outPath = arg("--out", join(tmpdir(), "recompute-ac15-e12.json"));
+writeFileSync(outPath, `${JSON.stringify(out, null, 2)}\n`);
+console.log(`-> ${outPath}`);
 for (const x of all) console.log(`${x.window}: recomputed=${x.status} sealed=${x.sealedStatus} match=${x.match}${x.match ? "" : ` diffs=${JSON.stringify(x.diffs).slice(0, 600)}`}`);
 console.log(`ac15 metadata clock: full=${JSON.stringify(out.ac15.full.metadataClock)} shifts=${JSON.stringify(out.ac15.full.shifts)} half=${JSON.stringify(out.ac15.half.metadataClock)} shifts=${JSON.stringify(out.ac15.half.shifts)}`);
 console.log(`allMatch=${out.allMatch}`);

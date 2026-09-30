@@ -3,16 +3,19 @@
 // 全窓を hash し、raw-supplement.json に WP2 の sealSelfHash（resultSha256 を 0 置換した bytes の sha256）で封印する。
 // あわせて、窓記録に既にある raw の各行が、同じ path の今の bytes と一致することを確かめる（元の封印と補足封印が同じ bytes を指す）。
 //
-// usage: node seal-raw.mjs [--repo <FlEq checkout>]   （既定 /Users/sayue/dev/FlEq。repo は読むだけ。dist の build が要る）
+// usage: node seal-raw.mjs --raw <生データの根（~/dev/fleq-a10-runs/a10-p2-20260930b）> [--repo <FlEq checkout>] [--out <書き出し先>]
+//   （repo は読むだけ。dist の build が要る。--out を省くと一時 dir に書き、repo の raw-supplement.json は上書きしない）
 import { createHash } from "node:crypto";
 import { readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { tmpdir } from "node:os";
 
 const RUN_ID = "a10-p2-20260930b";
 const HERE = import.meta.dirname;
-const RAW_ROOT = join(HERE, "..", RUN_ID);
-const i = process.argv.indexOf("--repo");
-const REPO = i > 0 ? process.argv[i + 1] : "/Users/sayue/dev/FlEq";
+const arg = (name, fallback) => { const k = process.argv.indexOf(name); return k > 0 ? process.argv[k + 1] : fallback; };
+const RAW_ROOT = arg("--raw", null);
+if (RAW_ROOT == null) throw new Error("--raw <生データの根> が要る（例 ~/dev/fleq-a10-runs/a10-p2-20260930b）");
+const REPO = arg("--repo", "/Users/sayue/dev/FlEq");
 const { ZERO_HASH, sealSelfHash } = await import(join(REPO, "reconstruction/dist/src/measurement/eew-e01/frozen.js"));
 const RECORDS = join(REPO, "reconstruction/test/eew-e01/evidence/windows", RUN_ID);
 
@@ -39,7 +42,7 @@ const body = { schemaVersion: "p2-a10-raw-supplement-v1", manifestId: manifest.m
   rule: "窓 dir の下の全ファイル（下位 dir を含む）。path に state/ を含むもの（checkpoint の slot、測定中に上書きされる作業領域）だけ除く。path は窓 dir からの相対、辞書順",
   recordRawCheck: "各窓記録の raw[] の全行が、同じ path の bytes・sha256 と一致（不一致は recordRawDiffer に列挙）",
   checks, windows };
-const out = join(HERE, "raw-supplement.json");
+const out = arg("--out", join(tmpdir(), "raw-supplement.json"));
 writeFileSync(out, sealSelfHash(`${JSON.stringify(body, null, 2)}\n`, "resultSha256"));
 const total = Object.values(windows).reduce((a, f) => a + f.length, 0);
 const bad = checks.filter((c) => c.recordRawDiffer.length > 0);
