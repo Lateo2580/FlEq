@@ -777,6 +777,21 @@ describe("P2 weather-current unit", () => {
     expect(state.histories.flatMap((item) => item.reports).map((item) => item.source.inputId)).toEqual(["vpws50-7", "vpws50-8"]);
   });
 
+  // A10 Hertz P1-1: pushing out one office's oldest report rebuilt every history entry and re-serialized all offices.
+  it("P2-A5-T11 regression / AC13: a full-depth push-out keeps other offices' history entries and their cached bytes", () => {
+    const offices = ["京都地方気象台", "office-b", "office-c"];
+    const state: WeatherCurrentUnitState = { ...emptyState(),
+      partials: offices.map((office) => snapshot("normal", "VPWW57", office, "2020-06-22T22:59:00+09:00", `${office}-current`)),
+      histories: offices.map((office) => ({ subject: `normal/VPWW57/${office}`, operation: "normal" as const,
+        reports: Array.from({ length: 8 }, (_, index) => snapshot("normal", "VPWW57", office,
+          `2020-06-22T22:${String(40 + index).padStart(2, "0")}:00+09:00`, `${office}-h${index}`)) })) };
+    const others = state.histories.filter((item) => item.subject !== "normal/VPWW57/京都地方気象台");
+    const next = receive(state, decodeFixture("15_16_02_251222_VPWW57", "VPWW57"));
+    expect(next.decisions[0].decision).toBe("changed");
+    // The byte cache is keyed by entry identity, so the same entry object is a cache hit.
+    for (const entry of others) expect(next.state.histories).toContain(entry);
+  });
+
   it("P2-A5-T11 contractBoundary / AC13: reserved envelope bytes set the receive boundary", () => {
     const candidate = decodeFixture("15_18_01_250630_VPWS50", "VPWS50");
     const partial = snapshot("normal", "VPWW55", "福井地方気象台", "2026-09-06T09:00:00+09:00", "partial");

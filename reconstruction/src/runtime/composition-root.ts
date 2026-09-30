@@ -304,18 +304,21 @@ class RuntimeCompositionRoot {
     if (result != null && input.kind === "mailboxCompleted" && !this.checkpoint.validateResult(previous, result))
       return this.control(previous, { kind: "deadline", clock: input.clock });
     const step = reduceRuntime(previous, input, this.runtimeCalls);
-    const contributions = { ...this.contributions };
+    // Copy the ledgers only when a caller's correlation can still reject this step below; otherwise update in place.
+    const copy = Object.keys(correlationByUnit).length !== 0;
+    const contributions = copy ? { ...this.contributions } : this.contributions;
     for (const unit of ["U-E", "U-W", "U-F"] as const) {
       const before = previous.units[unit].persistence;
       const after = step.state.units[unit].persistence;
       if (after.currentGeneration > before.currentGeneration
         || (after.savedGeneration ?? 0) > (before.savedGeneration ?? 0)) {
-        const ledger = new Map(contributions[unit]);
+        const ledger = copy ? new Map(contributions[unit]) : contributions[unit] ?? new Map();
         // AC10 proves the entire generation interval within this one reducer step.
         for (let generation = before.currentGeneration + 1; generation <= after.currentGeneration; generation++)
           ledger.set(generation, Object.hasOwn(step.generationInputIds, unit) ? step.generationInputIds[unit]! : null);
-        for (const generation of ledger.keys())
-          if (generation <= (after.savedGeneration ?? 0)) ledger.delete(generation);
+        // Keys stay above the saved generation, so only the newly saved range leaves the ledger.
+        for (let generation = (before.savedGeneration ?? 0) + 1; generation <= (after.savedGeneration ?? 0); generation++)
+          ledger.delete(generation);
         contributions[unit] = ledger;
       }
     }
@@ -454,8 +457,12 @@ class RuntimeCompositionRoot {
     const current = this.state;
     if (current.shutdown.stage !== "running") return null;
     this.checkCorrelations(current, correlationByUnit);
-    const correlations = this.knownCorrelations(current, correlationByUnit);
-    const scheduled = this.checkpoint.scheduleCheckpoint(current, clock, runId, correlations);
+    return this.captureCheckpoint(state, clock, runId, this.knownCorrelations(current, correlationByUnit));
+  }
+
+  private captureCheckpoint(state: RuntimeState, clock: ClockReading, runId: string,
+    correlations: Readonly<Partial<Record<UnitId, Correlation>>>) {
+    const scheduled = this.checkpoint.scheduleCheckpoint(this.state, clock, runId, correlations);
     if (scheduled != null) {
       this.dispatch(state, { kind: "checkpointCaptured", capture: scheduled.capture });
       if (scheduled.result != null) this.checkpointOperation = {
@@ -486,16 +493,16 @@ class RuntimeCompositionRoot {
       const progress = state.units[unit].persistence;
       if (progress.dirtySince == null || progress.currentGeneration === progress.savedGeneration) continue;
       const ids = this.inputIds(state, unit, contributions);
-      if (ids == null || ids.length !== correlation.inputIds.length
-        || ids.some((id) => !correlation.inputIds.includes(id)))
+      const provided = new Set(correlation.inputIds);
+      if (ids == null || ids.length !== correlation.inputIds.length || ids.some((id) => !provided.has(id)))
         throw new Error(`unverified checkpoint correlation for ${unit}`);
     }
   }
 
-  private knownCorrelations(state: RuntimeState,
-    provided: Readonly<Partial<Record<UnitId, Correlation>>> = {}): Readonly<Partial<Record<UnitId, Correlation>>> {
+  private knownCorrelations(state: RuntimeState, provided: Readonly<Partial<Record<UnitId, Correlation>>> = {},
+    units: readonly RuntimeUnitId[] = ["U-E", "U-W", "U-F"]): Readonly<Partial<Record<UnitId, Correlation>>> {
     const result: Partial<Record<UnitId, Correlation>> = {};
-    for (const unit of ["U-E", "U-W", "U-F"] as const) {
+    for (const unit of units) {
       const ids = this.inputIds(state, unit);
       if (ids != null) result[unit] = { inputIds: ids,
         retryReason: provided[unit]?.retryReason ?? this.checkpoint.retryReason(unit) };
@@ -542,8 +549,10 @@ class RuntimeCompositionRoot {
       await this.resolveUncertain(current, unit, attempt.attemptId, now);
       return;
     }
-    const correlations = this.knownCorrelations(current);
-    const scheduled = this.scheduleCheckpoint(current, this.clock(), current.runId, correlations);
+    // Correlations come from the ledger itself (nothing to cross-check) and only for units whose save is due.
+    const due = (["U-E", "U-W", "U-F"] as const).filter((unit) => this.checkpoint.saveDue(current, unit, now));
+    const correlations = this.knownCorrelations(current, {}, due);
+    const scheduled = this.captureCheckpoint(current, now, current.runId, correlations);
     if (scheduled == null) return;
     if (scheduled.request == null) { this.applyCheckpointResult(this.state, scheduled.result, this.clock()); return; }
     const correlation = correlations[scheduled.capture.unit]!;

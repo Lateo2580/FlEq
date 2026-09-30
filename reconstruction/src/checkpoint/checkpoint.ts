@@ -184,13 +184,9 @@ class CheckpointCoordinator<UnitStates extends RuntimeUnitStates = RuntimeUnitSt
       return null;
     }
     const candidates = (["U-E", "U-W", "U-F"] as const).map((unit) => [unit, state.units[unit].persistence] as const)
-      .filter(([unit, status]) => status != null && !excluded.has(unit)
-        && status.kind !== "uncertain" && status.dirtySince != null
-        && status.currentGeneration !== status.savedGeneration
-        && this.codec(unit) != null
+      .filter(([unit]) => !excluded.has(unit) && this.saveDue(state, unit, clock, force)
         && correlationByUnit[unit] != null
-        && correlationByUnit[unit]!.retryReason === (this.retry.get(unit)?.retryReason ?? "notRetry")
-        && (force || (this.retry.get(unit)?.retryAfter ?? Number.NEGATIVE_INFINITY) <= clock.monotonicMs))
+        && correlationByUnit[unit]!.retryReason === (this.retry.get(unit)?.retryReason ?? "notRetry"))
       .sort(([leftUnit, left], [rightUnit, right]) =>
         left!.dirtySince! - right!.dirtySince! || leftUnit.localeCompare(rightUnit));
     const selected = candidates[0];
@@ -403,6 +399,14 @@ class CheckpointCoordinator<UnitStates extends RuntimeUnitStates = RuntimeUnitSt
     if (this.reservedAttemptId === result.attemptId && attempt.phase === "ended") this.reservedAttemptId = null;
     diagnostics.forEach(this.emitDiagnostic);
     if (result.kind !== "uncertain") this.attempts.delete(result.attemptId);
+  }
+
+  // The one "save is due now" test: the runtime builds input-ID correlations only for these units.
+  saveDue(state: RuntimeState<UnitStates>, unit: RuntimeUnitId, clock: ClockReading, force = false): boolean {
+    const status = state.units[unit].persistence;
+    return status != null && status.kind !== "uncertain" && status.dirtySince != null
+      && status.currentGeneration !== status.savedGeneration && this.codec(unit) != null
+      && (force || (this.retry.get(unit)?.retryAfter ?? Number.NEGATIVE_INFINITY) <= clock.monotonicMs);
   }
 
   retryAfter(unit: UnitId): number | null {

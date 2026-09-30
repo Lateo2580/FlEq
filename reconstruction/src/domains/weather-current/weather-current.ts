@@ -634,7 +634,9 @@ function reduceWeatherCurrentMeaning(state: WeatherCurrentUnitState,
       // Normal protection: training/test over a normal-only history is adopted without keeping its previous version.
       if (evicted == null) retained = null;
       else {
+        // Only the entry holding the evicted report is rebuilt; the others keep their references (and byte cache).
         working = { ...working, histories: working.histories.flatMap((item) => {
+          if (!item.reports.includes(evicted)) return [item];
           const reports = item.reports.filter((report) => report !== evicted);
           return reports.length === 0 ? [] : [{ ...item, reports }];
         }) };
