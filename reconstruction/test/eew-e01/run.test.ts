@@ -1,7 +1,11 @@
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+
 import { describe, expect, it } from "vitest";
 
 import { readSelfHashed } from "../../src/measurement/eew-e01/frozen";
-import { buildA10Result, parseArgs } from "./run.mjs";
+import { buildA10Result, hashRaw, parseArgs } from "./run.mjs";
 import type { WindowRecord } from "./run.mjs";
 import { H } from "./fixtures";
 
@@ -35,5 +39,18 @@ describe("P2-A10-T01 runner side: a10-result aggregate (AC10)", () => {
 describe("P2-A10-T01 runner side: 正式窓の再実行制限（ヘルツ総合レビュー 指摘 6 の再現）", () => {
   it("--manifest に予備専用オプション（--period 等）を足すと、記録先が evidence-scratch に変わる前に拒否する", () => {
     expect(() => parseArgs(["--manifest", "m.json", "--period", "1370", "--windows", "e01-fixedBacklog-run1"])).toThrow("--period is allowed only with --preliminary");
+  });
+});
+
+describe("P2-A10-T01 runner side: 窓記録の raw（ヘルツ最終確認 指摘 2 の再現）", () => {
+  it("下位 dir にある集計の入力（AC15 の full/host-obs.jsonl など）も raw に入り、checkpoint の state/ は入らない", () => {
+    const dir = mkdtempSync(join(tmpdir(), "fleq-hashraw-"));
+    try {
+      for (const f of ["aux-ac15.json", "full/host-obs.jsonl", "full/stringify.jsonl", "full/state/U-E-A.json", "state/U-W-A.json"]) {
+        mkdirSync(join(dir, f, ".."), { recursive: true });
+        writeFileSync(join(dir, f), f);
+      }
+      expect(hashRaw(dir).map((r) => r.file)).toEqual(["aux-ac15.json", "full/host-obs.jsonl", "full/stringify.jsonl"]);
+    } finally { rmSync(dir, { recursive: true, force: true }); }
   });
 });

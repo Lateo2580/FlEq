@@ -569,11 +569,13 @@ const windowName = (id, attempt) => (attempt === 1 ? id : `${id}-attempt${attemp
 const readWindowRecords = (dir, manifestSha256) => (existsSync(dir) ? readdirSync(dir).filter((f) => f.endsWith(".json"))
   .map((f) => JSON.parse(readFileSync(join(dir, f), "utf8"))).filter((r) => r.manifestSha256 === manifestSha256) : []);
 const latestById = (records) => [...records.reduce((m, r) => (m.has(r.id) && m.get(r.id).attempt > r.attempt ? m : m.set(r.id, r)), new Map()).values()];
-// repo 外の生データを hash で固定する: 窓 dir 直下のファイル（run-record・trace・JSONL など）と、下の *.heapprofile（E12 の旧新）・
-// diagnostics（diag）/*.jsonl。file は窓 dir からの相対 path。
-const RAW_NESTED = /(\.heapprofile$)|(^|\/)(diagnostics|diag)\/[^/]+\.jsonl$/;
-const hashRaw = (dir) => readdirSync(dir, { recursive: true }).map(String).sort()
-  .filter((f) => (!f.includes("/") || RAW_NESTED.test(f)) && statSync(join(dir, f)).isFile()).map((f) => {
+// repo 外の生データを hash で固定する: 窓 dir の下の全ファイル（下位 dir を含む。AC15 の full/・half/ の host-obs・stringify、
+// E12 の old/・new/ の calls・probe・host.jsonl・heapprofile など、集計の入力になったもの）。file は窓 dir からの相対 path。
+// 除くのは state/（どの深さでも）だけ: checkpoint の slot で、測定中に上書きされ続ける作業領域（集計が読むのは充填時点の中身で、
+// その結果は指紋表として結果ファイルに封印済み）。一時 profile（Chrome の user-data-dir・E12 旧側の作業 dir）は os.tmpdir() に作って
+// 消すので窓 dir に現れない（chrome.mjs・e12-legacy-launcher.mjs）。
+export const hashRaw = (dir) => readdirSync(dir, { recursive: true }).map(String).sort()
+  .filter((f) => !f.split("/").includes("state") && statSync(join(dir, f)).isFile()).map((f) => {
     const bytes = readFileSync(join(dir, f));
     return { file: f, bytes: bytes.length, sha256: sha256Hex(bytes) };
   });

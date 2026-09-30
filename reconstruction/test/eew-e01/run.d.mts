@@ -27,3 +27,6 @@ export function buildA10Result(input: { manifest: { manifestId: string; manifest
 
 // 引数の Map と、そこから決まる値。--manifest と予備専用オプションの併用などの誤りは throw する。
 export function parseArgs(argv: readonly string[]): { args: Map<string, string | true>; preliminary: boolean; selected: string[] | null; notification: string };
+
+// 窓 dir の下の全ファイル（下位 dir を含む、state/ を除く）の相対 path・大きさ・sha256（窓記録の raw）。
+export function hashRaw(dir: string): { file: string; bytes: number; sha256: string }[];

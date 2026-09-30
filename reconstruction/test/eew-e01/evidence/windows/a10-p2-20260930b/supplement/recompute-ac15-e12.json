@@ -1,0 +1,144 @@
+{
+  "runId": "a10-p2-20260930b",
+  "repo": "/Users/sayue/dev/FlEq/.claude/worktrees/agent-ac85d997bfd7b1c76",
+  "ac15": {
+    "window": "ac15",
+    "status": "Pass",
+    "sealedStatus": "Pass",
+    "parts": {
+      "full": "Pass",
+      "half": "Pass",
+      "retention": "Pass"
+    },
+    "full": {
+      "mode": "full",
+      "status": "Pass",
+      "sealedStatus": "Pass",
+      "metadataClock": {
+        "D": 63816.62983400002,
+        "lagSpreadMs": 5.079166000010446
+      },
+      "shifts": [
+        {
+          "shiftMs": -5,
+          "status": "Pass",
+          "judgedDiffers": 1,
+          "paths": [
+            "$.scenarios.metadata.stringifyMs.p50"
+          ]
+        },
+        {
+          "shiftMs": 5,
+          "status": "Pass",
+          "judgedDiffers": 20,
+          "paths": [
+            "$.scenarios.U-E.snapshot.count",
+            "$.scenarios.U-E.snapshot.ms",
+            "$.scenarios.U-E.snapshot.chars",
+            "$.scenarios.U-E.snapshot.maxChars",
+            "$.scenarios.U-E.snapshotCallsMinusPublish"
+          ]
+        }
+      ],
+      "diffs": []
+    },
+    "half": {
+      "mode": "half",
+      "status": "Pass",
+      "sealedStatus": "Pass",
+      "metadataClock": {
+        "D": 47752.66849999991,
+        "lagSpreadMs": 3.953334000085306
+      },
+      "shifts": [
+        {
+          "shiftMs": -5,
+          "status": "Pass",
+          "judgedDiffers": 0,
+          "paths": []
+        },
+        {
+          "shiftMs": 5,
+          "status": "Pass",
+          "judgedDiffers": 20,
+          "paths": [
+            "$.scenarios.U-E.snapshot.count",
+            "$.scenarios.U-E.snapshot.ms",
+            "$.scenarios.U-E.snapshot.chars",
+            "$.scenarios.U-E.snapshot.maxChars",
+            "$.scenarios.U-E.snapshotCallsMinusPublish"
+          ]
+        }
+      ],
+      "diffs": []
+    },
+    "match": true,
+    "diffs": []
+  },
+  "e12": [
+    {
+      "window": "e12-large-run1",
+      "status": "N/A",
+      "sealedStatus": "N/A",
+      "match": true,
+      "diffs": []
+    },
+    {
+      "window": "e12-large-run2",
+      "status": "N/A",
+      "sealedStatus": "N/A",
+      "match": true,
+      "diffs": []
+    },
+    {
+      "window": "e12-large-run3",
+      "status": "N/A",
+      "sealedStatus": "N/A",
+      "match": true,
+      "diffs": []
+    },
+    {
+      "window": "e12-max-run1",
+      "status": "N/A",
+      "sealedStatus": "N/A",
+      "match": true,
+      "diffs": []
+    },
+    {
+      "window": "e12-max-run2",
+      "status": "N/A",
+      "sealedStatus": "N/A",
+      "match": true,
+      "diffs": []
+    },
+    {
+      "window": "e12-max-run3",
+      "status": "N/A",
+      "sealedStatus": "N/A",
+      "match": true,
+      "diffs": []
+    },
+    {
+      "window": "e12-small-run1",
+      "status": "N/A",
+      "sealedStatus": "N/A",
+      "match": true,
+      "diffs": []
+    },
+    {
+      "window": "e12-small-run2",
+      "status": "N/A",
+      "sealedStatus": "N/A",
+      "match": true,
+      "diffs": []
+    },
+    {
+      "window": "e12-small-run3",
+      "status": "N/A",
+      "sealedStatus": "N/A",
+      "match": true,
+      "diffs": []
+    }
+  ],
+  "allMatch": true
+}
