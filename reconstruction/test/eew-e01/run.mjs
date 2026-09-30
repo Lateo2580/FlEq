@@ -161,6 +161,21 @@ function tailer(path) {
   };
 }
 
+// host が inputId の処理区間（その T2 から次の入力の T2 まで。host は入力を 1 件ずつ同期に処理し、公開の T3 はその中で打つ）に公開した版。
+// tick・notificationResult 由来の T3 も区間に入りうるが、Chrome 側で候補 mark（subject つき）の出た版だけを対象にする（複数なら解析で ambiguous）。
+// from は投入前の行数（その後の行だけ見る）。T2 がまだ書き出されていなければ空。
+function publishedBy(lines, from, inputId) {
+  const versions = [];
+  let started = false;
+  for (let i = from; i < lines.length; i++) {
+    const o = lines[i].t === "obs" ? lines[i].o : null;
+    if (o?.kind !== "marker") continue;
+    if (o.point === "T2") { if (started) break; started = o.inputId === inputId; }
+    else if (started && o.point === "T3") versions.push(o.displayVersion);
+  }
+  return versions;
+}
+
 async function spinUntil(targetHrMs) {
   for (;;) {
     const remaining = targetHrMs - hrMs();
@@ -230,6 +245,16 @@ async function measureRun(spec, ctx, label, dir, status) {
   const probes = [];
   const probe = async (name) => { probes.push(await probeClock(page.evaluate, `${label}-${name}`)); };
   const markCount = () => page.evaluate(`performance.getEntriesByName(${JSON.stringify(T6C)}).length`);
+  // 対象版（versions のどれか）の T6 候補 mark が before 件目以降にあり、それを含む frame の Commit を過ぎた（rAF 2 回目が来た）ら、その版を返す。
+  // 以後に来る候補は後の Commit に入るので、対象版を置換できない（analysis の replacedBeforePaint と同じ境界）。まだなら null。
+  const paintedTarget = (before, versions) => page.evaluate(`(async () => {
+    const targets = ${JSON.stringify(versions.map((v) => [v.streamId, v.sequence]))};
+    const mark = performance.getEntriesByName(${JSON.stringify(T6C)}).slice(${before})
+      .find((e) => targets.some(([streamId, sequence]) => e.detail?.displayVersion?.streamId === streamId && e.detail?.displayVersion?.sequence === sequence));
+    if (mark == null) return null;
+    const framed = await Promise.race([new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(() => r(true)))), new Promise((r) => setTimeout(() => r(false), 1000))]);
+    return framed ? mark.detail.displayVersion : null;
+  })()`);
   log("page ready");
   await probe("start");
   log("probed");
@@ -308,6 +333,7 @@ async function measureRun(spec, ctx, label, dir, status) {
     await idleUntil(due);
     host.refresh();
     const before = await markCount();
+    const linesBefore = host.lines.length;
     const base = { index: k, phase, eventId, serial, variant, subject: `normal/VXSE43/${eventId}`, scheduledHrMs: due, block: Math.floor(k / BLOCK) };
     let trigger = null;
     let sent;
@@ -344,13 +370,22 @@ async function measureRun(spec, ctx, label, dir, status) {
     log(`sent ${k}`);
     const trial = { ...base, inputId: sent.seq == null ? `notInjected-${k}` : `input-${sent.seq}`, injectedHrMs: sent.injectedHrMs, trigger };
     trials.push(trial);
-    // 後続置換の防止: T6 候補 mark が現れるか、実投入から 10 秒が経つまで次を投入しない。
+    // 後続置換の防止: この入力の処理区間に host が公開した版（対象版）が Chrome で描かれた frame の Commit を過ぎるか、実投入から 10 秒が経つまで
+    // 次を投入しない。候補 mark の件数の増加だけでは進めない（別の版の mark や、Commit 前の置換を見分けられない）。
     if (sent.injectedHrMs != null) {
       const deadline = sent.injectedHrMs + 10_000;
       await sleep(120);
-      let done = false;
-      while (!done && hrMs() < deadline) { pumpBackground(); done = (await markCount()) > before; if (!done) await sleep(40); }
-      trial.completedBy = done ? "mark" : "timeout";
+      let painted = null;
+      while (painted == null && hrMs() < deadline) {
+        pumpBackground();
+        host.refresh();
+        const versions = publishedBy(host.lines, linesBefore, trial.inputId);
+        if (versions.length > 0) painted = await paintedTarget(before, versions);
+        if (painted == null) await sleep(40);
+      }
+      const done = painted != null;
+      trial.completedBy = done ? "paint" : "timeout";
+      trial.paintedVersion = painted; // 診断用（run-record で完了判定の対象版を後から確かめる）。判定・集計は読まない
       // timeout の後に遅れて来る mark を次の試行の完了と取り違えないよう、新しい mark が 1 秒来ないのを確かめてから進む。
       if (!done) {
         let last = await markCount();
@@ -652,20 +687,37 @@ function frozenInputs(manifest, trialSetup, initialStateText) {
   return { wallOriginMs: trialSetup.clock.wallTimeOriginMs, initial };
 }
 
+// 予備測定だけのオプション。--manifest と併用すると記録先（evidence-scratch）や条件が変わり、正式窓の再実行制限を迂回できるので拒否する。
+const PRELIMINARY_ONLY = /^(period|only|aux|formal-.+|ref-.+|room-.+|.+-count|e06-cycles)$/;
+
+// 引数を読み、組み合わせの誤りをここで拒否する（子を起動する前）。
+export function parseArgs(argv) {
+  const args = new Map();
+  for (let i = 0; i < argv.length; i++) if (argv[i].startsWith("--")) args.set(argv[i].slice(2), argv[i + 1]?.startsWith("--") || argv[i + 1] == null ? true : argv[++i]);
+  const preliminary = args.has("preliminary");
+  if (preliminary === args.has("manifest")) throw new Error("exactly one of --manifest <path> or --preliminary is required");
+  if (!preliminary) {
+    const extra = [...args.keys()].filter((k) => PRELIMINARY_ONLY.test(k));
+    if (extra.length > 0) throw new Error(`--${extra.join(", --")} is allowed only with --preliminary (the manifest fixes every condition)`);
+  }
+  const selected = args.has("windows") ? String(args.get("windows")).split(",") : null;
+  if (preliminary && selected != null) throw new Error("--windows is allowed only with --manifest");
+  if (selected != null && new Set(selected).size !== selected.length) throw new Error(`--windows has a duplicate id: ${selected.join(",")}`);
+  const notification = args.get("notification") ?? (preliminary ? "silent" : "real");
+  if (!preliminary && notification !== "real") throw new Error("--notification silent is allowed only with --preliminary (formal runs use the real backend)");
+  if (notification !== "real" && notification !== "silent") throw new Error("--notification must be real or silent");
+  if (args.has("room-partials") !== args.has("room-forecast")) throw new Error("--room-partials and --room-forecast go together");
+  return { args, preliminary, selected, notification };
+}
+
 async function main(argv) {
   // 今の窓の子を止めてから、窓の記録を "interrupted"（raw の hash 付き）に書き換える（子が書いている間に数百 MB を読まない）。
   for (const signal of ["SIGINT", "SIGTERM"]) process.on(signal, () => {
     const record = () => { try { interruptWindow?.(); } catch { /* 記録の失敗で後始末を止めない */ } };
     void current.close().then(record, record).then(root.close).finally(() => process.exit(130));
   });
-  const args = new Map();
-  for (let i = 0; i < argv.length; i++) if (argv[i].startsWith("--")) args.set(argv[i].slice(2), argv[i + 1]?.startsWith("--") || argv[i + 1] == null ? true : argv[++i]);
+  const { args, preliminary, selected, notification } = parseArgs(argv);
   const num = (key, fallback) => (args.has(key) ? Number(args.get(key)) : fallback);
-  const preliminary = args.has("preliminary");
-  if (preliminary === args.has("manifest")) throw new Error("exactly one of --manifest <path> or --preliminary is required");
-  const selected = args.has("windows") ? String(args.get("windows")).split(",") : null;
-  if (preliminary && selected != null) throw new Error("--windows is allowed only with --manifest");
-  if (selected != null && new Set(selected).size !== selected.length) throw new Error(`--windows has a duplicate id: ${selected.join(",")}`);
   // host は Node 22 でだけ測る（黙って別版へ切り替えない）。版は run の前に実物へ訊く。
   if (!existsSync(NODE22)) throw new Error(`Node 22 not found at ${NODE22}; refusing to measure with another version`);
   const nodePath = NODE22;
@@ -681,12 +733,8 @@ async function main(argv) {
   let manifest;
   let trialSetup;
   let initialStateText;
-  let notification = args.get("notification") ?? (preliminary ? "silent" : "real");
-  if (!preliminary && notification !== "real") throw new Error("--notification silent is allowed only with --preliminary (formal runs use the real backend)");
-  if (notification !== "real" && notification !== "silent") throw new Error("--notification must be real or silent");
   let draft = null;
   const plan = { formalWarmup: num("formal-warmup", 20), formalSamples: num("formal-samples", 100), period: num("period", 1370), refPeriod: num("ref-period", 3000) };
-  if (args.has("room-partials") !== args.has("room-forecast")) throw new Error("--room-partials and --room-forecast go together");
   const room = args.has("room-partials") ? { partials: num("room-partials"), forecastSubjects: num("room-forecast") } : null;
   const only = args.has("only") ? String(args.get("only")).split(",") : null;
   if (preliminary) {
@@ -730,9 +778,9 @@ async function main(argv) {
   mkdirSync(outDir, { recursive: true });
   // 件数を絞ったスモーク（--only / 件数指定）は repo の evidence に書かない。
   const aux = args.has("aux") ? String(args.get("aux")) : null;
-  if (aux != null && !preliminary) throw new Error("--aux is allowed only with --preliminary (the manifest run always includes every window)");
+  // --manifest の記録先は常に repo の evidence（予備専用オプションは parseArgs が拒否する）。正式窓の再実行判定は保存先に左右されない。
   const smoke = only != null || aux != null || ["formal-warmup", "formal-samples", "ref-warmup", "ref-samples", "period", "ref-period"].some((k) => args.has(k));
-  const evidence = smoke ? join(outDir, "evidence-scratch") : preliminary ? join(EVIDENCE_DIR, "preliminary") : EVIDENCE_DIR;
+  const evidence = !preliminary ? EVIDENCE_DIR : smoke ? join(outDir, "evidence-scratch") : join(EVIDENCE_DIR, "preliminary");
   mkdirSync(evidence, { recursive: true });
   const commands = [`node ${["reconstruction/test/eew-e01/run.mjs", ...argv].join(" ")}`, `caffeinate -dims -w ${process.pid}`];
   const startedAt = new Date().toISOString();

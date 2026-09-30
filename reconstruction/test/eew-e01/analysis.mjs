@@ -48,8 +48,9 @@ export function analyzeTrace(events) {
   }
   for (const list of commits.values()) list.sort((a, b) => a - b);
 
+  const commitOf = (mark) => (commits.get(mark.pid) ?? []).find((ts) => ts >= mark.ts) ?? null;
   const paintOf = (mark) => {
-    const commit = (commits.get(mark.pid) ?? []).find((ts) => ts >= mark.ts);
+    const commit = commitOf(mark);
     if (commit == null) return null;
     const hit = (reporters.get(mark.pid) ?? []).filter((r) => {
       const reporter = r.args?.frame_reporter ?? r.args?.chrome_frame_reporter;
@@ -62,12 +63,26 @@ export function analyzeTrace(events) {
     return { chromeMs: (hit.end - origin) / 1000, paintEvidenceId: `frame:${frameSequence}${shots.has(frameSequence) ? "/screenshot" : ""}`, hasScreenshot: shots.has(frameSequence) };
   };
 
+  // 描画前の置換: 同じ subject の次の候補がこの候補の Commit 以前に出たら、その Commit が描くのは後の版で、この版は提示されていない（T6 なし）。
+  // 同じ版の mark は Chrome が 2 件出すことがある（置換ではない）。置換は renderer（pid）と版の単位で記録する。
+  // 見るのは同じ subject の後の候補だけ。subject を消す版（候補を出さない）は対象外で、E01 は同じ subject の variant A/B の続報だけなので到達しない。
+  const replaced = new Set(); // `${pid}|${versionKey}`
+  const previous = new Map(); // `${pid}|${subject}` → 直前の候補 mark
+  for (const mark of marks.filter((m) => m.name === T6C).sort((a, b) => a.ts - b.ts)) {
+    const key = `${mark.pid}|${mark.detail.subject}`;
+    const prev = previous.get(key);
+    previous.set(key, mark);
+    if (prev == null || versionKey(prev.detail.displayVersion) === versionKey(mark.detail.displayVersion)) continue;
+    const commit = commitOf(prev);
+    if (commit != null && mark.ts <= commit) replaced.add(`${prev.pid}|${versionKey(prev.detail.displayVersion)}`);
+  }
+
   const byVersion = new Map();
   for (const mark of marks) {
     const key = versionKey(mark.detail.displayVersion);
-    const entry = byVersion.get(key) ?? { t5Ms: null, candidate: null, paint: null };
+    const entry = byVersion.get(key) ?? { t5Ms: null, candidate: null, paint: null, replacedBeforePaint: false };
     if (mark.name === T5) entry.t5Ms = mark.startMs;
-    else { entry.candidate = mark.detail; entry.paint = paintOf(mark); }
+    else { entry.candidate = mark.detail; entry.replacedBeforePaint = replaced.has(`${mark.pid}|${key}`); entry.paint = entry.replacedBeforePaint ? null : paintOf(mark); }
     byVersion.set(key, entry);
   }
   return { byVersion, rejectedMarks, markCount: marks.length };
@@ -128,7 +143,7 @@ const nearestProbe = (list, hostMs) => {
 export function assembleTrials({ population, run, trials, host, chromeByVersion, probes, blocks, callbackDeadlineMs, missingAfterMs }) {
   const runId = host.meta?.runId ?? "unknown";
   const corr = correspondences(probes, host);
-  const t0s = [...host.t0.values()].sort((a, b) => a - b);
+  const t2s = [...host.t2.values()].sort((a, b) => a - b);
   const samples = [];
   const injections = [];
   const details = [];
@@ -148,14 +163,30 @@ export function assembleTrials({ population, run, trials, host, chromeByVersion,
       continue;
     }
     const head = [...node("T0", t0), ...node("T1", t1), ...node("T2", t2)];
-    const from = t2 ?? t0;
-    const until = t0s.find((t) => t > t0) ?? Infinity;
-    // 版の結合: この入力の処理開始から次の入力の受信までの T3 のうち、Chrome が候補 mark を出した版だけ（後着結合）。
-    const cands = host.t3.filter((x) => x.ms >= from && x.ms < until && chromeByVersion.get(x.key)?.candidate?.subject === tr.subject);
+    // 処理が始まらなかった入力は描かれていない（結合の失敗ではない）。
+    if (t2 == null) {
+      samples.push(fail("paintNotObservedWithin10s", head));
+      details.push({ index: tr.index, outcome, sample: "notProcessed" });
+      continue;
+    }
+    // 版の結合: この入力の処理区間（T2 から次の入力の T2 まで。host は入力を 1 件ずつ同期に処理し、公開の T3 はその中で打つ）の T3 のうち、
+    // Chrome が同じ subject の候補 mark を出した版だけ。次の受信（T0）では打ち切らない（処理待ちの間に別の入力が届いても結合を失わない）。
+    // tick・notificationResult 由来の T3 も区間に入りうるが、subject で絞り、複数なら ambiguous（traceIncomplete）とする。
+    const until = t2s.find((t) => t > t2) ?? Infinity;
+    const published = host.t3.filter((x) => x.ms >= t2 && x.ms < until);
+    const cands = published.filter((x) => chromeByVersion.get(x.key)?.candidate?.subject === tr.subject);
     if (cands.length === 0) {
       const lost = blocks[tr.block]?.dataLoss === true;
-      samples.push(fail(lost ? "traceIncomplete" : "paintNotObservedWithin10s", head));
-      details.push({ index: tr.index, outcome, sample: lost ? "traceIncomplete(dataLoss)" : "noChromeCandidateInWindow" });
+      const reason = lost ? "traceIncomplete" : "paintNotObservedWithin10s";
+      // 公開版が 1 つだけなら、その版と T3/T4 を記録に残す（判定は変えない）。
+      const only = published.length === 1 ? published[0] : null;
+      if (only == null) samples.push(fail(reason, head));
+      else {
+        const t4 = host.t4.find((x) => x.key === only.key && x.ms >= only.ms)?.ms ?? null;
+        samples.push({ ...fail(reason, [...head, ...node("T3", only.ms), ...node("T4", t4)]),
+          correlation: { ...nullCorrelation, semanticRevision: only.version.semanticRevision, displayVersion: only.version } });
+      }
+      details.push({ index: tr.index, outcome, sample: lost ? "traceIncomplete(dataLoss)" : published.length === 0 ? "notPublished" : "noChromeCandidate" });
       continue;
     }
     if (cands.length > 1) {
@@ -172,7 +203,7 @@ export function assembleTrials({ population, run, trials, host, chromeByVersion,
       semanticRevision: cand.version.semanticRevision, displayVersion: cand.version };
     if (chrome.paint == null) {
       samples.push({ ...base, correlation, markers, clockProbeId: null, latencyLowerMs: null, latencyUpperMs: null, missing: true, missingReason: "traceIncomplete" });
-      details.push({ index: tr.index, outcome, sample: "candidateWithoutPaintLink" });
+      details.push({ index: tr.index, outcome, sample: chrome.replacedBeforePaint ? "replacedBeforePaint" : "candidateWithoutPaintLink" });
       continue;
     }
     markers.push({ point: "T6", clock: "chrome", monotonicMs: chrome.paint.chromeMs, paintEvidenceId: chrome.paint.paintEvidenceId,

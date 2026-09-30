@@ -19,6 +19,8 @@ export type ChromeVersionEntry = {
   t5Ms: number | null;
   candidate: { operation: "normal" | "training" | "test"; subject: string; cardMarkerId: string; mapMarkerId: string; mapAreaCodes: readonly string[] } | null;
   paint: { chromeMs: number; paintEvidenceId: string; hasScreenshot: boolean } | null;
+  // 同じ subject の後の候補が同じ Commit の前に出て、この版は提示されなかった（paint は null）。
+  replacedBeforePaint: boolean;
 };
 
 export type HostIndex = {

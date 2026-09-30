@@ -24,3 +24,6 @@ export type WindowRecord = {
 };
 
 export function buildA10Result(input: { manifest: { manifestId: string; manifestSha256: string }; windows: readonly WindowRecord[]; e01: unknown; e02Verdict?: { path: string; sha256: string } | null }): string;
+
+// 引数の Map と、そこから決まる値。--manifest と予備専用オプションの併用などの誤りは throw する。
+export function parseArgs(argv: readonly string[]): { args: Map<string, string | true>; preliminary: boolean; selected: string[] | null; notification: string };

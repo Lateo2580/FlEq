@@ -178,7 +178,7 @@ export function buildManifest({ stage, chromeVersion, nodeVersion, osVersion, de
       "E15（write 帰属）と publish 費用（PublishCostReport）は host を起動した全窓で host の JSON Lines から報告する（E01・E02 の窓は必ず出す）。manifest に置き場が無いのでここに書く",
     ],
     preventReplacementUntilPaintOrTimeout: [
-      "次の試行の投入は、前の試行の T6 候補 mark が Chrome に現れるか、実投入から 10000ms が経つまで行わない",
+      "次の試行の投入は、前の試行の入力の処理区間（その T2 から次の入力の T2 まで）に host が公開した版の T6 候補 mark が Chrome に現れ、その mark を含む frame の Commit を過ぎる（requestAnimationFrame 2 回）か、実投入から 10000ms が経つまで行わない。候補 mark の件数の増加だけでは進めない",
     ],
   };
   const trialSetupText = `${JSON.stringify(trialSetup, null, 2)}\n`;
