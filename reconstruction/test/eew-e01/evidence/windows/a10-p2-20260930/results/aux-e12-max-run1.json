@@ -1,0 +1,80 @@
+{
+  "schemaVersion": "p2-a10-aux-result-v1",
+  "manifestId": "a10-p2-20260930",
+  "manifestSha256": "a03a3ae47c574622e5e6da745fd056886fd86166122424a57a442b41a069b5f7",
+  "resultSha256": "5aba03a8e22e43f644e3d6e437394a07b1bc080c7e40bf10a907b0e882d853f9",
+  "window": "e12-max-run1",
+  "status": "N/A",
+  "report": {
+    "schemaVersion": "p2-e12-report-v1",
+    "class": "max",
+    "node": "/opt/homebrew/opt/node@22/bin/node",
+    "framesSha256": "fd1bb0f2aefb1ee205adabbc3f4b86d8c8a11a5ae26b78489daf2d73820561d0",
+    "frames": 30,
+    "configuration": "旧側は createMessageHandler({})、display・displaySink・永続化なし。新側は射影・SSE publish・checkpoint を含む。新側 silent は通知 backend の代わりに /usr/bin/true を spawn する費用を含む。旧側は通知を止めていて spawn しない",
+    "nodeVersion": "v22.23.2",
+    "old": {
+      "exit": {
+        "code": 0,
+        "signal": null
+      },
+      "status": null,
+      "replayMs": 58083.929082999995,
+      "gcCount": 272,
+      "gcTotalMs": 127.81320452690125,
+      "gcMaxMs": 5.23895800113678,
+      "heapUsedBefore": 535981464,
+      "heapUsedAfter": 334960328,
+      "heapUsedDelta": -201021136,
+      "heapBoundarySignedDistanceMs": {
+        "before": 0,
+        "after": 0
+      },
+      "note": "heapUsedDelta は前後差であり総 allocation ではない。allocation 推定は --heap-prof の出力を見る",
+      "configuration": "旧側は createMessageHandler({})、display・displaySink・永続化なし。新側は射影・SSE publish・checkpoint を含む。新側 silent は通知 backend の代わりに /usr/bin/true を spawn する費用を含む。旧側は通知を止めていて spawn しない"
+    },
+    "new": {
+      "exit": {
+        "code": 0,
+        "signal": null
+      },
+      "status": null,
+      "replayMs": 58392.353125,
+      "gcCount": 2205,
+      "gcTotalMs": 1062.5652142167091,
+      "gcMaxMs": 18.259999990463257,
+      "heapUsedBefore": 8132568,
+      "heapUsedAfter": 184738736,
+      "heapUsedDelta": 176606168,
+      "heapBoundarySignedDistanceMs": {
+        "before": -2026.3994999999998,
+        "after": 200.93974999999773
+      },
+      "note": "heapUsedDelta は前後差であり総 allocation ではない。allocation 推定は --heap-prof の出力を見る",
+      "configuration": "旧側は createMessageHandler({})、display・displaySink・永続化なし。新側は射影・SSE publish・checkpoint を含む。新側 silent は通知 backend の代わりに /usr/bin/true を spawn する費用を含む。旧側は通知を止めていて spawn しない"
+    },
+    "allocation": {
+      "method": "sampling heap profile（node --heap-prof、既定の sampling 間隔）の selfSize 合計と samples[].size 合計。推定値で、GC 回収済みの sample を含まない V8 既定の扱い。プロセス全体（module 読み込みと host 起動を含む）の profile で、replay 区間に限らない。総 allocation ではない",
+      "old": [
+        {
+          "file": "Heap.20260930.151318.62968.0.001.heapprofile",
+          "bytes": 56512,
+          "sha256": "55b93f991f5d7e950cdcdfb04fcafe344863b5b5c3a3df1ebff4f04a94aed074",
+          "selfSizeSum": 270709504,
+          "sampleSizeSum": 270709504,
+          "samples": 62
+        }
+      ],
+      "new": [
+        {
+          "file": "Heap.20260930.151419.63072.0.001.heapprofile",
+          "bytes": 27527,
+          "sha256": "5b8f82314bd5055eec9cea21bdfe2aa58309d95c35c07974ce4a9842e2210d77",
+          "selfSizeSum": 17675232,
+          "sampleSizeSum": 18200032,
+          "samples": 27
+        }
+      ]
+    }
+  }
+}

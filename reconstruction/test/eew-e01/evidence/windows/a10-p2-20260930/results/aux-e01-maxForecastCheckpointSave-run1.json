@@ -1,0 +1,59 @@
+{
+  "schemaVersion": "p2-a10-aux-result-v1",
+  "manifestId": "a10-p2-20260930",
+  "manifestSha256": "a03a3ae47c574622e5e6da745fd056886fd86166122424a57a442b41a069b5f7",
+  "resultSha256": "22f20bccec5788067de9cfff56d5a66a79b4a33ef8e583745ab89a29aa98a69a",
+  "window": "e01-maxForecastCheckpointSave-run1",
+  "status": "N/A",
+  "e15": {
+    "status": null,
+    "attempts": 119,
+    "units": {
+      "U-F": {
+        "encodeCount": 111,
+        "encodeBytes": 61771393,
+        "writeBytes": 61771393,
+        "occupiedMsLower": 2454.107675999671,
+        "measuredStagesMs": 3476.9961249997928,
+        "failedAttempts": 0
+      },
+      "U-E": {
+        "encodeCount": 6,
+        "encodeBytes": 3436,
+        "writeBytes": 3436,
+        "occupiedMsLower": 4.167833999988943,
+        "measuredStagesMs": 64.9056259999943,
+        "failedAttempts": 0
+      },
+      "U-W": {
+        "encodeCount": 2,
+        "encodeBytes": 3402271,
+        "writeBytes": 3402271,
+        "occupiedMsLower": 91.67575100000249,
+        "measuredStagesMs": 111.44371099992713,
+        "failedAttempts": 0
+      }
+    },
+    "retryReasons": {
+      "notRetry": 119
+    },
+    "byteViolations": 119,
+    "unknownInputIds": 0,
+    "blocked": [
+      "executeCheckpoint の前段の同期処理（checkpoint.ts:266-300 の restoreUnit・removeTemporaries・serializedEnvelope・latestValidSlot）は、どの段の計測区間にも入らず、製品に計測点が無いため未測定",
+      "checkpoint と診断の write を A3 CheckpointFileSystem/DiagnosticFileSystem で別計数する口が startP2Host の config に無い（製品 src 不変のため未測定）"
+    ],
+    "occupancyNote": "occupiedMsLower = encode+verify の壁時間（下限）。measuredStagesMs = 計測された段の壁時間の合計で、非同期の待ちを含み、前段の同期処理 checkpoint.ts:266-300 を含まない（上限ではない）"
+  },
+  "byteViolations": 119,
+  "byteViolationsNote": "byteViolations は verify 段の bytes が encode と同値（A3 契約どおりの製品）の件数。AC09「他 stage=0」と A3 の食い違いは総合レビュー送りの既知の契約の穴で、判定は変えない",
+  "publishCost": {
+    "window": "e01-maxForecastCheckpointSave-run1",
+    "publishCount": 352,
+    "totalJsonBytes": 61071949,
+    "maxJsonBytes": 569690,
+    "serializeP50Ms": 0.037708999996539205,
+    "serializeP99Ms": 6.1229999999995925,
+    "serializeMaxMs": 7.0642079999961425
+  }
+}

@@ -1,0 +1,90 @@
+{
+  "id": "e01-maxWeatherCheckpointEncodeStarted-run1",
+  "attempt": 1,
+  "manifestId": "a10-p2-20260930",
+  "manifestSha256": "a03a3ae47c574622e5e6da745fd056886fd86166122424a57a442b41a069b5f7",
+  "rawDir": "/Users/sayue/dev/fleq-a10-runs/a10-p2-20260930/e01-maxWeatherCheckpointEncodeStarted-run1",
+  "command": "node reconstruction/test/eew-e01/run.mjs --manifest reconstruction/test/eew-e01/evidence/manifest.json",
+  "commands": [
+    "node reconstruction/test/eew-e01/run.mjs --manifest reconstruction/test/eew-e01/evidence/manifest.json",
+    "caffeinate -dims -w 32792",
+    "/opt/homebrew/opt/node@22/bin/node /Users/sayue/dev/FlEq/reconstruction/test/eew-e01/host-launcher.mjs /Users/sayue/dev/fleq-a10-runs/a10-p2-20260930/e01-maxWeatherCheckpointEncodeStarted-run1/host-config.json",
+    "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome --remote-debugging-port=0 --user-data-dir=/var/folders/rw/1cht1x111j7d7v39ptrn2l4c0000gn/T/fleq-a10-chrome-NFUvAv --no-first-run --no-default-browser-check --window-size=1440,900 --force-color-profile=srgb --disable-background-timer-throttling --disable-renderer-backgrounding --disable-backgrounding-occluded-windows about:blank"
+  ],
+  "startedAt": "2026-09-30T02:46:23.748Z",
+  "preflight": {
+    "checkedAt": "2026-09-30T01:25:11.615Z",
+    "nodeVersion": "v22.23.2",
+    "chromeVersion": "154.0.8037.92",
+    "osVersion": "27.0.0 arm64",
+    "dist": [
+      "reconstruction/dist/src/host/host.js",
+      "reconstruction/dist/chrome-eew",
+      "dist/engine/messages/message-router.js"
+    ],
+    "gitHead": "860869ae13c5cfe97c59a5ee167bb0602729636e",
+    "gitStatusPorcelain": ""
+  },
+  "status": "N/A",
+  "byteViolations": 120,
+  "byteViolationsNote": "byteViolations は verify 段の bytes が encode と同値（A3 契約どおりの製品）の件数。AC09「他 stage=0」と A3 の食い違いは総合レビュー送りの既知の契約の穴で、判定は変えない",
+  "resultFiles": [
+    {
+      "path": "reconstruction/test/eew-e01/evidence/windows/a10-p2-20260930/results/result-reference-maxWeatherCheckpointEncodeStarted-run1.json",
+      "sha256": "4631e352b0ea80a0df5ed21064439c66af4be378b5121979a452b53f0c177505"
+    },
+    {
+      "path": "reconstruction/test/eew-e01/evidence/windows/a10-p2-20260930/results/aux-e01-maxWeatherCheckpointEncodeStarted-run1.json",
+      "sha256": "52ba2b1172dcda7d88dcef4edcfd35dfe4e9bc87a519d720af9ba635b4f6fc88"
+    }
+  ],
+  "finishedAt": "2026-09-30T02:52:02.115Z",
+  "raw": [
+    {
+      "file": "aux-e01-maxWeatherCheckpointEncodeStarted-run1.json",
+      "bytes": 2498,
+      "sha256": "52ba2b1172dcda7d88dcef4edcfd35dfe4e9bc87a519d720af9ba635b4f6fc88"
+    },
+    {
+      "file": "diagnostics/diagnostics-2026-06-05.jsonl",
+      "bytes": 140,
+      "sha256": "3cfc5b651c870095fd11c3c7d2b489472f8e8d5811928a911f0736ed104be8b3"
+    },
+    {
+      "file": "e01-assembled.json",
+      "bytes": 512701,
+      "sha256": "607bfaaa9d3239416af568f5e9579be9606919593a9f75f74b9bb9a5cd56efb0"
+    },
+    {
+      "file": "host-config.json",
+      "bytes": 491,
+      "sha256": "fe02d98d4c94470fc2f3b57495292c75f9c17a8900b4421bddcaddc79e089bbc"
+    },
+    {
+      "file": "host-obs.jsonl",
+      "bytes": 798726,
+      "sha256": "6c839dc45637a6f807387dcaa8c904b58a664d8b43496d30ef1de510ddaa1e24"
+    },
+    {
+      "file": "result-reference-maxWeatherCheckpointEncodeStarted-run1.json",
+      "bytes": 1224,
+      "sha256": "4631e352b0ea80a0df5ed21064439c66af4be378b5121979a452b53f0c177505"
+    },
+    {
+      "file": "run-record.json",
+      "bytes": 335847,
+      "sha256": "a915f098cdc5484ecf1159a0d01f04f112a9dc9a5d5f6f9de4f272d1a21ce748"
+    },
+    {
+      "file": "trace-00.json",
+      "bytes": 11668587,
+      "sha256": "ab038e9923ceea56bcab6386bc3efc46d2ebf1823d6d7deed40be048884f5bbf"
+    },
+    {
+      "file": "trace-01.json",
+      "bytes": 1237798,
+      "sha256": "b4ca5ce8e2314bdd31dec0e06aa201e0f275b3fea8777689b0ff4db64b985ef0"
+    }
+  ],
+  "orphans": []
+}

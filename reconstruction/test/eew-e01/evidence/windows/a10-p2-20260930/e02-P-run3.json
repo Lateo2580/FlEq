@@ -1,0 +1,120 @@
+{
+  "id": "e02-P-run3",
+  "attempt": 1,
+  "manifestId": "a10-p2-20260930",
+  "manifestSha256": "a03a3ae47c574622e5e6da745fd056886fd86166122424a57a442b41a069b5f7",
+  "rawDir": "/Users/sayue/dev/fleq-a10-runs/a10-p2-20260930/e02-P-run3",
+  "command": "node reconstruction/test/eew-e01/run.mjs --manifest reconstruction/test/eew-e01/evidence/manifest.json",
+  "commands": [
+    "node reconstruction/test/eew-e01/run.mjs --manifest reconstruction/test/eew-e01/evidence/manifest.json",
+    "caffeinate -dims -w 32792",
+    "/opt/homebrew/opt/node@22/bin/node /Users/sayue/dev/FlEq/reconstruction/test/eew-e01/host-launcher.mjs /Users/sayue/dev/fleq-a10-runs/a10-p2-20260930/e02-P-run3/host-config.json",
+    "/opt/homebrew/opt/node@22/bin/node /Users/sayue/dev/FlEq/reconstruction/test/eew-e01/e02-health-client.mjs --url http://127.0.0.1:64952/healthz --count 1000 --every-ms 1000 --timeout-ms 5000 --load P --run 3 --out /Users/sayue/dev/fleq-a10-runs/a10-p2-20260930/e02-P-run3/e02.jsonl"
+  ],
+  "startedAt": "2026-09-30T04:28:39.558Z",
+  "preflight": {
+    "checkedAt": "2026-09-30T01:25:11.615Z",
+    "nodeVersion": "v22.23.2",
+    "chromeVersion": "154.0.8037.92",
+    "osVersion": "27.0.0 arm64",
+    "dist": [
+      "reconstruction/dist/src/host/host.js",
+      "reconstruction/dist/chrome-eew",
+      "dist/engine/messages/message-router.js"
+    ],
+    "gitHead": "860869ae13c5cfe97c59a5ee167bb0602729636e",
+    "gitStatusPorcelain": ""
+  },
+  "fill": {
+    "mode": "leaveRoomForP",
+    "frames": 1664,
+    "firstSeq": 1,
+    "sentMs": 40032,
+    "verifiedMs": 40095,
+    "observed": {
+      "snapshotActive": {
+        "eew": "512/0/0",
+        "weatherCurrent": "127/1/1",
+        "weatherTimeseries": "511/0/0"
+      },
+      "checkpoint": {
+        "U-W.national": 3,
+        "U-W.partials": 126,
+        "U-F.subjects": 511
+      }
+    },
+    "quiet": {
+      "waitedMs": 21838,
+      "untilLastBackendMs": 6751,
+      "backendLaunchesSeen": {
+        "afplay": 10
+      },
+      "quietMs": 15000,
+      "pgrepFailures": 0,
+      "note": "100ms ごとの pgrep -P で見えた子の数（短命な起動は取りこぼしうる下限）"
+    },
+    "observedBeforeMeasure": {
+      "snapshotActive": {
+        "eew": "512/0/0",
+        "weatherCurrent": "127/1/1",
+        "weatherTimeseries": "511/0/0"
+      },
+      "checkpoint": {
+        "U-W.national": 3,
+        "U-W.partials": 126,
+        "U-F.subjects": 511
+      }
+    }
+  },
+  "statuses": {
+    "E02": "Fail",
+    "E05": "Fail"
+  },
+  "status": "Fail",
+  "byteViolations": 90,
+  "byteViolationsNote": "byteViolations は verify 段の bytes が encode と同値（A3 契約どおりの製品）の件数。AC09「他 stage=0」と A3 の食い違いは総合レビュー送りの既知の契約の穴で、判定は変えない",
+  "resultFiles": [
+    {
+      "path": "reconstruction/test/eew-e01/evidence/windows/a10-p2-20260930/results/result-e02-P-run3.json",
+      "sha256": "0b58c944e1dc7849670b1507e9caeec09f53ed0cc73aa3e84775d4301a18b174"
+    },
+    {
+      "path": "reconstruction/test/eew-e01/evidence/windows/a10-p2-20260930/results/aux-e05-P-run3.json",
+      "sha256": "2548d6327e9575dcb61f22bd80d23d3b4e1288a9a9e2cc3713c7a4109087ecd4"
+    }
+  ],
+  "finishedAt": "2026-09-30T04:46:21.280Z",
+  "raw": [
+    {
+      "file": "aux-e05-P-run3.json",
+      "bytes": 3582,
+      "sha256": "2548d6327e9575dcb61f22bd80d23d3b4e1288a9a9e2cc3713c7a4109087ecd4"
+    },
+    {
+      "file": "diagnostics/diagnostics-2026-06-05.jsonl",
+      "bytes": 96378,
+      "sha256": "8a5ed273ef8085fda883498d3fc694459accae34f7717a32714eab7d21cef96e"
+    },
+    {
+      "file": "e02.jsonl",
+      "bytes": 205099,
+      "sha256": "7f4bf2d21ad18c2da8d4d9f5d9c51c04ff065760f57cf7c5f2b157ff1614a951"
+    },
+    {
+      "file": "host-config.json",
+      "bytes": 394,
+      "sha256": "3d3f8c47243cdd653b5e207344c30ea7e3230d7c716da0012b9e1b6898a8337e"
+    },
+    {
+      "file": "host-obs.jsonl",
+      "bytes": 3318404,
+      "sha256": "bd9ed5448dbd0627b5d6ec3d27e2c0a0892636fcf8833766ba755a945455de2b"
+    },
+    {
+      "file": "result-e02-P-run3.json",
+      "bytes": 636,
+      "sha256": "0b58c944e1dc7849670b1507e9caeec09f53ed0cc73aa3e84775d4301a18b174"
+    }
+  ],
+  "orphans": []
+}

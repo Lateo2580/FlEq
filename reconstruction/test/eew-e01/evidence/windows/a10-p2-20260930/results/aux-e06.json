@@ -1,0 +1,238 @@
+{
+  "schemaVersion": "p2-a10-aux-result-v1",
+  "manifestId": "a10-p2-20260930",
+  "manifestSha256": "a03a3ae47c574622e5e6da745fd056886fd86166122424a57a442b41a069b5f7",
+  "resultSha256": "594f082bd68011126f49c4848fde0e0229d8a429d429b2ec8ccfed70f871f194",
+  "window": "e06",
+  "status": "N/A",
+  "cycles": 65,
+  "steadyCycle": 5,
+  "fill": {
+    "mode": "cycleC",
+    "frames": 1667,
+    "firstSeq": 1,
+    "sentMs": 40572,
+    "verifiedMs": 41743,
+    "observed": {
+      "snapshotActive": {
+        "eew": "512/1/0",
+        "weatherCurrent": "129/1/1",
+        "weatherTimeseries": "512/0/0"
+      },
+      "checkpoint": {
+        "U-W.national": 3,
+        "U-W.partials": 128,
+        "U-F.subjects": 512
+      }
+    },
+    "quiet": {
+      "waitedMs": 20243,
+      "untilLastBackendMs": 5152,
+      "backendLaunchesSeen": {
+        "afplay": 9
+      },
+      "quietMs": 15000,
+      "pgrepFailures": 0,
+      "note": "100ms ごとの pgrep -P で見えた子の数（短命な起動は取りこぼしうる下限）"
+    },
+    "observedBeforeMeasure": {
+      "snapshotActive": {
+        "eew": "512/1/0",
+        "weatherCurrent": "129/1/1",
+        "weatherTimeseries": "512/0/0"
+      },
+      "checkpoint": {
+        "U-W.national": 3,
+        "U-W.partials": 128,
+        "U-F.subjects": 512
+      }
+    }
+  },
+  "e06": {
+    "status": null,
+    "complete": true,
+    "windows": [
+      {
+        "window": 0,
+        "memSamples": 60,
+        "fdSamples": 10,
+        "rssMedian": 260259840,
+        "heapUsedMedian": 59216064,
+        "fdMedian": 39
+      },
+      {
+        "window": 1,
+        "memSamples": 60,
+        "fdSamples": 10,
+        "rssMedian": 261095424,
+        "heapUsedMedian": 41388952,
+        "fdMedian": 39
+      },
+      {
+        "window": 2,
+        "memSamples": 60,
+        "fdSamples": 10,
+        "rssMedian": 261144576,
+        "heapUsedMedian": 59203488,
+        "fdMedian": 39
+      },
+      {
+        "window": 3,
+        "memSamples": 60,
+        "fdSamples": 10,
+        "rssMedian": 260636672,
+        "heapUsedMedian": 41866352,
+        "fdMedian": 39
+      },
+      {
+        "window": 4,
+        "memSamples": 60,
+        "fdSamples": 10,
+        "rssMedian": 265142272,
+        "heapUsedMedian": 42322504,
+        "fdMedian": 39
+      },
+      {
+        "window": 5,
+        "memSamples": 61,
+        "fdSamples": 10,
+        "rssMedian": 259801088,
+        "heapUsedMedian": 42009568,
+        "fdMedian": 39
+      }
+    ],
+    "rssSlopeBytesPerMin": -31589.090047913272,
+    "heapUsedSlopeBytesPerMin": -18724.82277004412,
+    "fdSlopePerMin": 0,
+    "finalWindow": {
+      "window": 5,
+      "memSamples": 61,
+      "fdSamples": 10,
+      "rssMedian": 259801088,
+      "heapUsedMedian": 42009568,
+      "fdMedian": 39
+    }
+  },
+  "perCycle": {
+    "eewCapacityEvicted": [
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1
+    ],
+    "expected": "診断 eewCapacityEvicted が 1 件（訓練 EventID の追加による容量退去。U-E の保持量が一定であることの観測値。eew の activeCount は event 単位で VXSE45 が残るため減らない）"
+  },
+  "fdSamples": 66,
+  "e15": {
+    "status": null,
+    "attempts": 633,
+    "units": {
+      "U-E": {
+        "encodeCount": 303,
+        "encodeBytes": 3168112,
+        "writeBytes": 3168112,
+        "occupiedMsLower": 186.83616899908975,
+        "measuredStagesMs": 3480.586177007027,
+        "failedAttempts": 0
+      },
+      "U-W": {
+        "encodeCount": 133,
+        "encodeBytes": 1011974624,
+        "writeBytes": 1011974624,
+        "occupiedMsLower": 20016.537000002783,
+        "measuredStagesMs": 22228.512917004235,
+        "failedAttempts": 0
+      },
+      "U-F": {
+        "encodeCount": 197,
+        "encodeBytes": 308387581,
+        "writeBytes": 308387581,
+        "occupiedMsLower": 9831.730004005978,
+        "measuredStagesMs": 11826.74979300474,
+        "failedAttempts": 0
+      }
+    },
+    "retryReasons": {
+      "notRetry": 633
+    },
+    "byteViolations": 633,
+    "unknownInputIds": 0,
+    "blocked": [
+      "executeCheckpoint の前段の同期処理（checkpoint.ts:266-300 の restoreUnit・removeTemporaries・serializedEnvelope・latestValidSlot）は、どの段の計測区間にも入らず、製品に計測点が無いため未測定",
+      "checkpoint と診断の write を A3 CheckpointFileSystem/DiagnosticFileSystem で別計数する口が startP2Host の config に無い（製品 src 不変のため未測定）"
+    ],
+    "occupancyNote": "occupiedMsLower = encode+verify の壁時間（下限）。measuredStagesMs = 計測された段の壁時間の合計で、非同期の待ちを含み、前段の同期処理 checkpoint.ts:266-300 を含まない（上限ではない）"
+  },
+  "byteViolations": 633,
+  "byteViolationsNote": "byteViolations は verify 段の bytes が encode と同値（A3 契約どおりの製品）の件数。AC09「他 stage=0」と A3 の食い違いは総合レビュー送りの既知の契約の穴で、判定は変えない",
+  "publishCost": {
+    "window": "e06",
+    "publishCount": 3528,
+    "totalJsonBytes": 336939091,
+    "maxJsonBytes": 1045993,
+    "serializeP50Ms": 0.03754099999787286,
+    "serializeP99Ms": 1.81775000000016,
+    "serializeMaxMs": 4.4195419999996375
+  }
+}

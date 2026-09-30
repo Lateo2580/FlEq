@@ -1,0 +1,92 @@
+{
+  "id": "e12-large-run1",
+  "attempt": 1,
+  "manifestId": "a10-p2-20260930",
+  "manifestSha256": "a03a3ae47c574622e5e6da745fd056886fd86166122424a57a442b41a069b5f7",
+  "rawDir": "/Users/sayue/dev/fleq-a10-runs/a10-p2-20260930/e12-large-run1",
+  "command": "node reconstruction/test/eew-e01/run.mjs --manifest reconstruction/test/eew-e01/evidence/manifest.json",
+  "commands": [
+    "node reconstruction/test/eew-e01/run.mjs --manifest reconstruction/test/eew-e01/evidence/manifest.json",
+    "caffeinate -dims -w 32792",
+    "/opt/homebrew/opt/node@22/bin/node /Users/sayue/dev/FlEq/reconstruction/test/eew-e01/e12-run.mjs --out /Users/sayue/dev/fleq-a10-runs/a10-p2-20260930/e12-large-run1 --class large --node /opt/homebrew/opt/node@22/bin/node"
+  ],
+  "startedAt": "2026-09-30T06:11:15.767Z",
+  "preflight": {
+    "checkedAt": "2026-09-30T01:25:11.615Z",
+    "nodeVersion": "v22.23.2",
+    "chromeVersion": "154.0.8037.92",
+    "osVersion": "27.0.0 arm64",
+    "dist": [
+      "reconstruction/dist/src/host/host.js",
+      "reconstruction/dist/chrome-eew",
+      "dist/engine/messages/message-router.js"
+    ],
+    "gitHead": "860869ae13c5cfe97c59a5ee167bb0602729636e",
+    "gitStatusPorcelain": ""
+  },
+  "allocation": {
+    "method": "sampling heap profile（node --heap-prof、既定の sampling 間隔）の selfSize 合計と samples[].size 合計。推定値で、GC 回収済みの sample を含まない V8 既定の扱い。プロセス全体（module 読み込みと host 起動を含む）の profile で、replay 区間に限らない。総 allocation ではない",
+    "old": [
+      {
+        "file": "Heap.20260930.151116.62736.0.001.heapprofile",
+        "bytes": 54790,
+        "sha256": "8c3b2019bc4d71380af49949f27abb2a62cb7c45f37c683cd7f678f1beec3a22",
+        "selfSizeSum": 138465560,
+        "sampleSizeSum": 138465560,
+        "samples": 55
+      }
+    ],
+    "new": [
+      {
+        "file": "Heap.20260930.151217.62874.0.001.heapprofile",
+        "bytes": 29720,
+        "sha256": "b691c090049a481cea887f708f514d1928f0a114b384919c0dcbb459729d9c17",
+        "selfSizeSum": 11918072,
+        "sampleSizeSum": 11918208,
+        "samples": 22
+      }
+    ]
+  },
+  "status": "N/A",
+  "byteViolations": null,
+  "resultFiles": [
+    {
+      "path": "reconstruction/test/eew-e01/evidence/windows/a10-p2-20260930/results/aux-e12-large-run1.json",
+      "sha256": "c8d6e82ad46f0975338528b7e984e50c9655ae35631609719f160bed4730d655"
+    }
+  ],
+  "finishedAt": "2026-09-30T06:13:17.664Z",
+  "raw": [
+    {
+      "file": "aux-e12-large-run1.json",
+      "bytes": 3684,
+      "sha256": "c8d6e82ad46f0975338528b7e984e50c9655ae35631609719f160bed4730d655"
+    },
+    {
+      "file": "frames.jsonl",
+      "bytes": 80512226,
+      "sha256": "1b72d5d2853e869a45c954cedda8d2e1c1fc90dd7074e10eca38da57eebe22b2"
+    },
+    {
+      "file": "new/Heap.20260930.151217.62874.0.001.heapprofile",
+      "bytes": 29720,
+      "sha256": "b691c090049a481cea887f708f514d1928f0a114b384919c0dcbb459729d9c17"
+    },
+    {
+      "file": "new/diag/diagnostics-2026-09-30.jsonl",
+      "bytes": 140,
+      "sha256": "99805afe1f348bf64bc0518c747bdb12e2101846173dbfe7b011261a25f0c4c5"
+    },
+    {
+      "file": "old/Heap.20260930.151116.62736.0.001.heapprofile",
+      "bytes": 54790,
+      "sha256": "8c3b2019bc4d71380af49949f27abb2a62cb7c45f37c683cd7f678f1beec3a22"
+    },
+    {
+      "file": "report.json",
+      "bytes": 3061,
+      "sha256": "07bc03c93ebae6db4c1192eda2cae7d95c0f8f096802b3268df0ee0ec3651b09"
+    }
+  ],
+  "orphans": []
+}

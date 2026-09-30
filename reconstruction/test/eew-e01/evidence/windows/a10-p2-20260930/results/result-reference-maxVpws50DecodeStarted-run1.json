@@ -1,0 +1,30 @@
+{
+  "schemaVersion": "p2-eew-e01-result-v2",
+  "manifestId": "a10-p2-20260930",
+  "manifestSha256": "a03a3ae47c574622e5e6da745fd056886fd86166122424a57a442b41a069b5f7",
+  "resultSha256": "2e9f4914f15daaeb2e2a6f8666913b2c0fff6df7d911be8125fa0ffb25c0b472",
+  "population": "maxVpws50DecodeStarted",
+  "scope": "reference",
+  "run": 1,
+  "status": "N/A",
+  "samples": 100,
+  "missing": 0,
+  "traceMissing": 0,
+  "injectionFailures": 0,
+  "injectedToT0P50Ms": 1.6077499985694885,
+  "injectedToT0P99Ms": 393.46324998140335,
+  "injectedToT0MaxMs": 537.587750017643,
+  "p50LowerMs": 30.720833956066052,
+  "p50UpperMs": 31.2173749351874,
+  "p95LowerMs": 32.783501017087836,
+  "p95UpperMs": 33.230834007257364,
+  "p99LowerMs": 33.142500995635054,
+  "p99UpperMs": 33.62454200887587,
+  "maxLowerMs": 33.48591698648524,
+  "maxUpperMs": 33.948458995838884,
+  "evidenceRefs": [
+    "reconstruction/test/eew-e01/evidence/windows/a10-p2-20260930/e01-maxVpws50DecodeStarted-run1.json",
+    "/Users/sayue/dev/fleq-a10-runs/a10-p2-20260930/e01-maxVpws50DecodeStarted-run1/run-record.json",
+    "/Users/sayue/dev/fleq-a10-runs/a10-p2-20260930/e01-maxVpws50DecodeStarted-run1/e01-assembled.json"
+  ]
+}

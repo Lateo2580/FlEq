@@ -1,0 +1,106 @@
+{
+  "id": "ac15",
+  "attempt": 1,
+  "manifestId": "a10-p2-20260930",
+  "manifestSha256": "a03a3ae47c574622e5e6da745fd056886fd86166122424a57a442b41a069b5f7",
+  "rawDir": "/Users/sayue/dev/fleq-a10-runs/a10-p2-20260930/ac15",
+  "command": "node reconstruction/test/eew-e01/run.mjs --manifest reconstruction/test/eew-e01/evidence/manifest.json",
+  "commands": [
+    "node reconstruction/test/eew-e01/run.mjs --manifest reconstruction/test/eew-e01/evidence/manifest.json",
+    "caffeinate -dims -w 32792",
+    "FLEQ_STRINGIFY_OUT=/Users/sayue/dev/fleq-a10-runs/a10-p2-20260930/ac15/stringify.jsonl /opt/homebrew/opt/node@22/bin/node --import /Users/sayue/dev/FlEq/reconstruction/test/eew-e01/probe-preload.mjs /Users/sayue/dev/FlEq/reconstruction/test/eew-e01/host-launcher.mjs /Users/sayue/dev/fleq-a10-runs/a10-p2-20260930/ac15/host-config.json"
+  ],
+  "startedAt": "2026-09-30T05:47:40.701Z",
+  "preflight": {
+    "checkedAt": "2026-09-30T01:25:11.615Z",
+    "nodeVersion": "v22.23.2",
+    "chromeVersion": "154.0.8037.92",
+    "osVersion": "27.0.0 arm64",
+    "dist": [
+      "reconstruction/dist/src/host/host.js",
+      "reconstruction/dist/chrome-eew",
+      "dist/engine/messages/message-router.js"
+    ],
+    "gitHead": "860869ae13c5cfe97c59a5ee167bb0602729636e",
+    "gitStatusPorcelain": ""
+  },
+  "fill": {
+    "mode": "full",
+    "frames": 1667,
+    "firstSeq": 1,
+    "sentMs": 43086,
+    "verifiedMs": 44253,
+    "observed": {
+      "snapshotActive": {
+        "eew": "512/0/0",
+        "weatherCurrent": "129/1/1",
+        "weatherTimeseries": "512/0/0"
+      },
+      "checkpoint": {
+        "U-W.national": 3,
+        "U-W.partials": 128,
+        "U-F.subjects": 512
+      }
+    },
+    "quiet": {
+      "waitedMs": 18103,
+      "untilLastBackendMs": 2976,
+      "backendLaunchesSeen": {
+        "afplay": 7
+      },
+      "quietMs": 15000,
+      "pgrepFailures": 0,
+      "note": "100ms ごとの pgrep -P で見えた子の数（短命な起動は取りこぼしうる下限）"
+    },
+    "observedBeforeMeasure": {
+      "snapshotActive": {
+        "eew": "512/0/0",
+        "weatherCurrent": "129/1/1",
+        "weatherTimeseries": "512/0/0"
+      },
+      "checkpoint": {
+        "U-W.national": 3,
+        "U-W.partials": 128,
+        "U-F.subjects": 512
+      }
+    }
+  },
+  "status": "Pass",
+  "byteViolations": 266,
+  "byteViolationsNote": "byteViolations は verify 段の bytes が encode と同値（A3 契約どおりの製品）の件数。AC09「他 stage=0」と A3 の食い違いは総合レビュー送りの既知の契約の穴で、判定は変えない",
+  "resultFiles": [
+    {
+      "path": "reconstruction/test/eew-e01/evidence/windows/a10-p2-20260930/results/aux-ac15.json",
+      "sha256": "67f18c40b8a71e2e0798928ee6059277360cca51458fd86a93c033a5b2b69384"
+    }
+  ],
+  "finishedAt": "2026-09-30T06:09:54.372Z",
+  "raw": [
+    {
+      "file": "aux-ac15.json",
+      "bytes": 30810,
+      "sha256": "67f18c40b8a71e2e0798928ee6059277360cca51458fd86a93c033a5b2b69384"
+    },
+    {
+      "file": "diagnostics/diagnostics-2026-06-05.jsonl",
+      "bytes": 94714,
+      "sha256": "bfa0cfa7c4cfadf746b16b843fa43ed1be75efc98b8a057385468e1836438f28"
+    },
+    {
+      "file": "host-config.json",
+      "bytes": 377,
+      "sha256": "36256891140aadb02e49895015230c33c47efde9945b85e5dc0553ff1da61f9b"
+    },
+    {
+      "file": "host-obs.jsonl",
+      "bytes": 4239950,
+      "sha256": "6803d2000c5baef904f08d0f2c0a67ecf23ca855938781fb7d01eda26aa9f3ac"
+    },
+    {
+      "file": "stringify.jsonl",
+      "bytes": 778057396,
+      "sha256": "6d0101b28107c7f2c2cc70f225dc56b29dc42ea973b08f1822fc3a60801dd477"
+    }
+  ],
+  "orphans": []
+}

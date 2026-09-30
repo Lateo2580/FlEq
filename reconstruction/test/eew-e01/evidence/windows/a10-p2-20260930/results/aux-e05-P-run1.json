@@ -1,0 +1,107 @@
+{
+  "schemaVersion": "p2-a10-aux-result-v1",
+  "manifestId": "a10-p2-20260930",
+  "manifestSha256": "a03a3ae47c574622e5e6da745fd056886fd86166122424a57a442b41a069b5f7",
+  "resultSha256": "a76b362ae86719cebddff424ecc4439eaa6f0cc428a96c595ecf5b8cc4987e86",
+  "window": "e02-P-run1",
+  "status": "Fail",
+  "e05": {
+    "status": "Fail",
+    "load": "P",
+    "samples": 995,
+    "maxRssBytes": 493223936,
+    "limitBytes": 419430400
+  },
+  "e15": {
+    "status": null,
+    "attempts": 91,
+    "units": {
+      "U-E": {
+        "encodeCount": 42,
+        "encodeBytes": 3164162,
+        "writeBytes": 3164162,
+        "occupiedMsLower": 76.18449899997245,
+        "measuredStagesMs": 640.572582999954,
+        "failedAttempts": 0
+      },
+      "U-W": {
+        "encodeCount": 44,
+        "encodeBytes": 322849579,
+        "writeBytes": 322849579,
+        "occupiedMsLower": 5992.0208360006,
+        "measuredStagesMs": 7093.913511001556,
+        "failedAttempts": 0
+      },
+      "U-F": {
+        "encodeCount": 5,
+        "encodeBytes": 7421249,
+        "writeBytes": 7421249,
+        "occupiedMsLower": 195.12437500011583,
+        "measuredStagesMs": 242.27274699999543,
+        "failedAttempts": 0
+      }
+    },
+    "retryReasons": {
+      "notRetry": 91
+    },
+    "byteViolations": 91,
+    "unknownInputIds": 0,
+    "blocked": [
+      "executeCheckpoint の前段の同期処理（checkpoint.ts:266-300 の restoreUnit・removeTemporaries・serializedEnvelope・latestValidSlot）は、どの段の計測区間にも入らず、製品に計測点が無いため未測定",
+      "checkpoint と診断の write を A3 CheckpointFileSystem/DiagnosticFileSystem で別計数する口が startP2Host の config に無い（製品 src 不変のため未測定）"
+    ],
+    "occupancyNote": "occupiedMsLower = encode+verify の壁時間（下限）。measuredStagesMs = 計測された段の壁時間の合計で、非同期の待ちを含み、前段の同期処理 checkpoint.ts:266-300 を含まない（上限ではない）"
+  },
+  "byteViolations": 91,
+  "byteViolationsNote": "byteViolations は verify 段の bytes が encode と同値（A3 契約どおりの製品）の件数。AC09「他 stage=0」と A3 の食い違いは総合レビュー送りの既知の契約の穴で、判定は変えない",
+  "publishCost": {
+    "window": "e02-P-run1",
+    "publishCount": 2297,
+    "totalJsonBytes": 332760250,
+    "maxJsonBytes": 1045993,
+    "serializeP50Ms": 0.03845799999908195,
+    "serializeP99Ms": 1.6888749999998254,
+    "serializeMaxMs": 2.379624999999578
+  },
+  "fill": {
+    "mode": "leaveRoomForP",
+    "frames": 1664,
+    "firstSeq": 1,
+    "sentMs": 40766,
+    "verifiedMs": 41886,
+    "observed": {
+      "snapshotActive": {
+        "eew": "512/0/0",
+        "weatherCurrent": "127/1/1",
+        "weatherTimeseries": "511/0/0"
+      },
+      "checkpoint": {
+        "U-W.national": 3,
+        "U-W.partials": 126,
+        "U-F.subjects": 511
+      }
+    },
+    "quiet": {
+      "waitedMs": 20080,
+      "untilLastBackendMs": 5056,
+      "backendLaunchesSeen": {
+        "afplay": 9
+      },
+      "quietMs": 15000,
+      "pgrepFailures": 0,
+      "note": "100ms ごとの pgrep -P で見えた子の数（短命な起動は取りこぼしうる下限）"
+    },
+    "observedBeforeMeasure": {
+      "snapshotActive": {
+        "eew": "512/0/0",
+        "weatherCurrent": "127/1/1",
+        "weatherTimeseries": "511/0/0"
+      },
+      "checkpoint": {
+        "U-W.national": 3,
+        "U-W.partials": 126,
+        "U-F.subjects": 511
+      }
+    }
+  }
+}

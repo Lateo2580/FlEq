@@ -1,0 +1,81 @@
+{
+  "verdict": {
+    "label": "P2限定E01",
+    "status": "Pass",
+    "referenceStatus": {
+      "maxVpws50DecodeStarted": "measured",
+      "maxWeatherCheckpointEncodeStarted": "measured",
+      "maxForecastCheckpointSave": "measured",
+      "forecastDeadlineOverlap": "measured"
+    },
+    "evidenceRefs": [
+      "unverified:excludedFromP2Formal:maxVpws50DecodeStarted",
+      "unverified:excludedFromP2Formal:maxWeatherCheckpointEncodeStarted",
+      "unverified:excludedFromP2Formal:maxForecastCheckpointSave",
+      "unverified:excludedFromP2Formal:forecastDeadlineOverlap"
+    ]
+  },
+  "cause": {
+    "cause": "none",
+    "decision": "keepA",
+    "evidenceRefs": [],
+    "attemptedFixes": []
+  },
+  "runs": [
+    {
+      "id": "e01-fixedBacklog-run1",
+      "attempt": 1,
+      "status": "Pass",
+      "durationMs": 1511408.5934159756,
+      "paintWithoutScreenshot": 150
+    },
+    {
+      "id": "e01-fixedBacklog-run2",
+      "attempt": 1,
+      "status": "Pass",
+      "durationMs": 1511405.4316669703,
+      "paintWithoutScreenshot": 165
+    },
+    {
+      "id": "e01-fixedBacklog-run3",
+      "attempt": 1,
+      "status": "Pass",
+      "durationMs": 1511537.9685420394,
+      "paintWithoutScreenshot": 145
+    },
+    {
+      "id": "e01-forecastDeadlineOverlap-run1",
+      "attempt": 1,
+      "status": "N/A",
+      "durationMs": 336358.5515410304,
+      "paintWithoutScreenshot": 16
+    },
+    {
+      "id": "e01-maxForecastCheckpointSave-run1",
+      "attempt": 1,
+      "status": "N/A",
+      "durationMs": 336600.58791702986,
+      "paintWithoutScreenshot": 8
+    },
+    {
+      "id": "e01-maxVpws50DecodeStarted-run1",
+      "attempt": 1,
+      "status": "N/A",
+      "durationMs": 334324.04104202986,
+      "paintWithoutScreenshot": 1
+    },
+    {
+      "id": "e01-maxWeatherCheckpointEncodeStarted-run1",
+      "attempt": 1,
+      "status": "N/A",
+      "durationMs": 337626.8326250315,
+      "paintWithoutScreenshot": 4
+    }
+  ],
+  "finishedAt": "2026-09-30T07:32:16.305Z",
+  "commands": [
+    "node reconstruction/test/eew-e01/run.mjs --manifest reconstruction/test/eew-e01/evidence/manifest.json",
+    "caffeinate -dims -w 32792"
+  ],
+  "notification": "real"
+}

@@ -1,0 +1,30 @@
+{
+  "schemaVersion": "p2-eew-e01-result-v2",
+  "manifestId": "a10-p2-20260930",
+  "manifestSha256": "a03a3ae47c574622e5e6da745fd056886fd86166122424a57a442b41a069b5f7",
+  "resultSha256": "0f645355eaec5049fc2298a9624fc76c4a44f58de25ab7adc84bf30440647206",
+  "population": "fixedBacklog",
+  "scope": "formal",
+  "run": 3,
+  "status": "Pass",
+  "samples": 1000,
+  "missing": 0,
+  "traceMissing": 0,
+  "injectionFailures": 0,
+  "injectedToT0P50Ms": 0.2167089581489563,
+  "injectedToT0P99Ms": 0.6927930116653442,
+  "injectedToT0MaxMs": 347.816958963871,
+  "p50LowerMs": 29.76887405696325,
+  "p50UpperMs": 30.621706989733504,
+  "p95LowerMs": 35.7416660183575,
+  "p95UpperMs": 36.50024901117431,
+  "p99LowerMs": 42.975248971115796,
+  "p99UpperMs": 43.81741595421918,
+  "maxLowerMs": 44.920999066357034,
+  "maxUpperMs": 45.91954102945747,
+  "evidenceRefs": [
+    "reconstruction/test/eew-e01/evidence/windows/a10-p2-20260930/e01-fixedBacklog-run3.json",
+    "/Users/sayue/dev/fleq-a10-runs/a10-p2-20260930/e01-fixedBacklog-run3/run-record.json",
+    "/Users/sayue/dev/fleq-a10-runs/a10-p2-20260930/e01-fixedBacklog-run3/e01-assembled.json"
+  ]
+}

@@ -1,0 +1,90 @@
+{
+  "id": "e01-forecastDeadlineOverlap-run1",
+  "attempt": 1,
+  "manifestId": "a10-p2-20260930",
+  "manifestSha256": "a03a3ae47c574622e5e6da745fd056886fd86166122424a57a442b41a069b5f7",
+  "rawDir": "/Users/sayue/dev/fleq-a10-runs/a10-p2-20260930/e01-forecastDeadlineOverlap-run1",
+  "command": "node reconstruction/test/eew-e01/run.mjs --manifest reconstruction/test/eew-e01/evidence/manifest.json",
+  "commands": [
+    "node reconstruction/test/eew-e01/run.mjs --manifest reconstruction/test/eew-e01/evidence/manifest.json",
+    "caffeinate -dims -w 32792",
+    "/opt/homebrew/opt/node@22/bin/node /Users/sayue/dev/FlEq/reconstruction/test/eew-e01/host-launcher.mjs /Users/sayue/dev/fleq-a10-runs/a10-p2-20260930/e01-forecastDeadlineOverlap-run1/host-config.json",
+    "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome --remote-debugging-port=0 --user-data-dir=/var/folders/rw/1cht1x111j7d7v39ptrn2l4c0000gn/T/fleq-a10-chrome-Itepi4 --no-first-run --no-default-browser-check --window-size=1440,900 --force-color-profile=srgb --disable-background-timer-throttling --disable-renderer-backgrounding --disable-backgrounding-occluded-windows about:blank"
+  ],
+  "startedAt": "2026-09-30T02:57:39.408Z",
+  "preflight": {
+    "checkedAt": "2026-09-30T01:25:11.615Z",
+    "nodeVersion": "v22.23.2",
+    "chromeVersion": "154.0.8037.92",
+    "osVersion": "27.0.0 arm64",
+    "dist": [
+      "reconstruction/dist/src/host/host.js",
+      "reconstruction/dist/chrome-eew",
+      "dist/engine/messages/message-router.js"
+    ],
+    "gitHead": "860869ae13c5cfe97c59a5ee167bb0602729636e",
+    "gitStatusPorcelain": ""
+  },
+  "status": "N/A",
+  "byteViolations": 224,
+  "byteViolationsNote": "byteViolations は verify 段の bytes が encode と同値（A3 契約どおりの製品）の件数。AC09「他 stage=0」と A3 の食い違いは総合レビュー送りの既知の契約の穴で、判定は変えない",
+  "resultFiles": [
+    {
+      "path": "reconstruction/test/eew-e01/evidence/windows/a10-p2-20260930/results/result-reference-forecastDeadlineOverlap-run1.json",
+      "sha256": "d0634934daa98c061fa1ca7eeb3053db2af517525639d05b9bba630bebd2d17d"
+    },
+    {
+      "path": "reconstruction/test/eew-e01/evidence/windows/a10-p2-20260930/results/aux-e01-forecastDeadlineOverlap-run1.json",
+      "sha256": "7dc244aba628b681e309106f68eeea23f473917de69f1215d69783282f6b09a4"
+    }
+  ],
+  "finishedAt": "2026-09-30T03:03:16.724Z",
+  "raw": [
+    {
+      "file": "aux-e01-forecastDeadlineOverlap-run1.json",
+      "bytes": 2480,
+      "sha256": "7dc244aba628b681e309106f68eeea23f473917de69f1215d69783282f6b09a4"
+    },
+    {
+      "file": "diagnostics/diagnostics-2026-06-05.jsonl",
+      "bytes": 140,
+      "sha256": "e9f393d9cf1e2e7017fb0121c3590e5e7f53e2bc44ec5af9174fc3d187507112"
+    },
+    {
+      "file": "e01-assembled.json",
+      "bytes": 724710,
+      "sha256": "637162a1f1eeec3d4dde71bb265e81a55685054a8a92415046dd80faba443438"
+    },
+    {
+      "file": "host-config.json",
+      "bytes": 461,
+      "sha256": "0cd01d7d719f5e2e9c94e0189f27d9b6d27670cc032eb9c61ba3bb85b6347920"
+    },
+    {
+      "file": "host-obs.jsonl",
+      "bytes": 1203781,
+      "sha256": "89dca3cf479b0da7ed60fd3f337146707ca413b56ff2f1f50d85b7fe6a731a5f"
+    },
+    {
+      "file": "result-reference-forecastDeadlineOverlap-run1.json",
+      "bytes": 1184,
+      "sha256": "d0634934daa98c061fa1ca7eeb3053db2af517525639d05b9bba630bebd2d17d"
+    },
+    {
+      "file": "run-record.json",
+      "bytes": 458912,
+      "sha256": "4802f29b1112dc04cbf0001a9d30b7107878acd570dcc6e196b9b7d82c6c89b1"
+    },
+    {
+      "file": "trace-00.json",
+      "bytes": 15030639,
+      "sha256": "7ae98c4a2e631a391797ba278a6b2ff2505e50306bab4d6bf027beb97390b802"
+    },
+    {
+      "file": "trace-01.json",
+      "bytes": 1698882,
+      "sha256": "750900111af42b754a6a497b262fbb2d146622308649389d8a2f7d1a1e87e12a"
+    }
+  ],
+  "orphans": []
+}

@@ -1,0 +1,51 @@
+{
+  "schemaVersion": "p2-a10-aux-result-v1",
+  "manifestId": "a10-p2-20260930",
+  "manifestSha256": "a03a3ae47c574622e5e6da745fd056886fd86166122424a57a442b41a069b5f7",
+  "resultSha256": "7c7423c08c53b7d0f81a69fabe72b2fca71b27936349515d5796500663aebe6f",
+  "window": "e02-N-run1",
+  "status": "Pass",
+  "e05": {
+    "status": "Pass",
+    "load": "N",
+    "samples": 997,
+    "maxRssBytes": 305168384,
+    "limitBytes": 314572800
+  },
+  "e15": {
+    "status": null,
+    "attempts": 4,
+    "units": {
+      "U-W": {
+        "encodeCount": 4,
+        "encodeBytes": 7493521,
+        "writeBytes": 7493521,
+        "occupiedMsLower": 213.9947919999977,
+        "measuredStagesMs": 256.7105829996581,
+        "failedAttempts": 0
+      }
+    },
+    "retryReasons": {
+      "notRetry": 4
+    },
+    "byteViolations": 4,
+    "unknownInputIds": 0,
+    "blocked": [
+      "executeCheckpoint の前段の同期処理（checkpoint.ts:266-300 の restoreUnit・removeTemporaries・serializedEnvelope・latestValidSlot）は、どの段の計測区間にも入らず、製品に計測点が無いため未測定",
+      "checkpoint と診断の write を A3 CheckpointFileSystem/DiagnosticFileSystem で別計数する口が startP2Host の config に無い（製品 src 不変のため未測定）"
+    ],
+    "occupancyNote": "occupiedMsLower = encode+verify の壁時間（下限）。measuredStagesMs = 計測された段の壁時間の合計で、非同期の待ちを含み、前段の同期処理 checkpoint.ts:266-300 を含まない（上限ではない）"
+  },
+  "byteViolations": 4,
+  "byteViolationsNote": "byteViolations は verify 段の bytes が encode と同値（A3 契約どおりの製品）の件数。AC09「他 stage=0」と A3 の食い違いは総合レビュー送りの既知の契約の穴で、判定は変えない",
+  "publishCost": {
+    "window": "e02-N-run1",
+    "publishCount": 13,
+    "totalJsonBytes": 56497,
+    "maxJsonBytes": 4368,
+    "serializeP50Ms": 0.007582999998703599,
+    "serializeP99Ms": 0.04166700004134327,
+    "serializeMaxMs": 0.04166700004134327
+  },
+  "fill": null
+}

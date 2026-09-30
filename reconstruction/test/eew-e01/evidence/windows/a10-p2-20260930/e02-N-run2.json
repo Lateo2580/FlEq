@@ -1,0 +1,80 @@
+{
+  "id": "e02-N-run2",
+  "attempt": 1,
+  "manifestId": "a10-p2-20260930",
+  "manifestSha256": "a03a3ae47c574622e5e6da745fd056886fd86166122424a57a442b41a069b5f7",
+  "rawDir": "/Users/sayue/dev/fleq-a10-runs/a10-p2-20260930/e02-N-run2",
+  "command": "node reconstruction/test/eew-e01/run.mjs --manifest reconstruction/test/eew-e01/evidence/manifest.json",
+  "commands": [
+    "node reconstruction/test/eew-e01/run.mjs --manifest reconstruction/test/eew-e01/evidence/manifest.json",
+    "caffeinate -dims -w 32792",
+    "/opt/homebrew/opt/node@22/bin/node /Users/sayue/dev/FlEq/reconstruction/test/eew-e01/host-launcher.mjs /Users/sayue/dev/fleq-a10-runs/a10-p2-20260930/e02-N-run2/host-config.json",
+    "/opt/homebrew/opt/node@22/bin/node /Users/sayue/dev/FlEq/reconstruction/test/eew-e01/e02-health-client.mjs --url http://127.0.0.1:64769/healthz --count 1000 --every-ms 1000 --timeout-ms 5000 --load N --run 2 --out /Users/sayue/dev/fleq-a10-runs/a10-p2-20260930/e02-N-run2/e02.jsonl"
+  ],
+  "startedAt": "2026-09-30T03:19:56.478Z",
+  "preflight": {
+    "checkedAt": "2026-09-30T01:25:11.615Z",
+    "nodeVersion": "v22.23.2",
+    "chromeVersion": "154.0.8037.92",
+    "osVersion": "27.0.0 arm64",
+    "dist": [
+      "reconstruction/dist/src/host/host.js",
+      "reconstruction/dist/chrome-eew",
+      "dist/engine/messages/message-router.js"
+    ],
+    "gitHead": "860869ae13c5cfe97c59a5ee167bb0602729636e",
+    "gitStatusPorcelain": ""
+  },
+  "fill": null,
+  "statuses": {
+    "E02": "Pass",
+    "E05": "Pass"
+  },
+  "status": "Pass",
+  "byteViolations": 4,
+  "byteViolationsNote": "byteViolations は verify 段の bytes が encode と同値（A3 契約どおりの製品）の件数。AC09「他 stage=0」と A3 の食い違いは総合レビュー送りの既知の契約の穴で、判定は変えない",
+  "resultFiles": [
+    {
+      "path": "reconstruction/test/eew-e01/evidence/windows/a10-p2-20260930/results/result-e02-N-run2.json",
+      "sha256": "02809f10f02cbbf7507423710a26aae597488ff37a1ce8c47ad74296de18ef58"
+    },
+    {
+      "path": "reconstruction/test/eew-e01/evidence/windows/a10-p2-20260930/results/aux-e05-N-run2.json",
+      "sha256": "6e89db744206c6bc4ba29fafa5c039b1b7c366c45611f4998b8dde26d3d9afe7"
+    }
+  ],
+  "finishedAt": "2026-09-30T03:36:36.203Z",
+  "raw": [
+    {
+      "file": "aux-e05-N-run2.json",
+      "bytes": 2111,
+      "sha256": "6e89db744206c6bc4ba29fafa5c039b1b7c366c45611f4998b8dde26d3d9afe7"
+    },
+    {
+      "file": "diagnostics/diagnostics-2026-06-05.jsonl",
+      "bytes": 140,
+      "sha256": "ada206ff8caefd73cd2145b71f32067d9ed6aee61d8de99c16fb35341050c31f"
+    },
+    {
+      "file": "e02.jsonl",
+      "bytes": 205017,
+      "sha256": "a75db121879ab73ae1af4773b2b3196bbb4b1154ea8cb53fc90e7b265ca47875"
+    },
+    {
+      "file": "host-config.json",
+      "bytes": 394,
+      "sha256": "3602f945ffef85f0c7ccd6b7836413a7b13b5fbbe9947c1637783243c4f71b81"
+    },
+    {
+      "file": "host-obs.jsonl",
+      "bytes": 115633,
+      "sha256": "da96a1bc4310a9067ab93f5122a85f7d754400dbc7bc21b144d1d2dd8158f4f6"
+    },
+    {
+      "file": "result-e02-N-run2.json",
+      "bytes": 636,
+      "sha256": "02809f10f02cbbf7507423710a26aae597488ff37a1ce8c47ad74296de18ef58"
+    }
+  ],
+  "orphans": []
+}
