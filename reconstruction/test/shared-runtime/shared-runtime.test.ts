@@ -327,6 +327,47 @@ describe("P2 shared runtime", () => {
     }
   });
 
+  // A10 AC15: the stringify count of one receive / one disconnect must not grow with the retained scopes.
+  const areaScope = (office: string) => ({ unit: "U-W" as const, operation: "normal" as const, kind: "area" as const,
+    subject: `normal/VPWW55/${office}`, token: JSON.stringify(["VPWW55", "partial", office, "all", ""]) });
+  const retainedScopes = (count: number) => reduceRuntime(initialState(), { kind: "coverageVerified", runId: "run",
+    epoch: 0, scopes: Array.from({ length: count }, (_, index) => areaScope(`office-${index}`)), clock: at(0) }).state;
+  const stringifyCalls = (act: () => void) => {
+    const stringify = vi.spyOn(JSON, "stringify");
+    try { act(); return stringify.mock.calls.length; } finally { stringify.mockRestore(); }
+  };
+
+  it("P2-A1-CONFIRMATION regression / A10 AC15: receive evidence serializes the incoming scope, not the retained ones", () => {
+    const material = fixture("test/fixtures/15_16_02_251222_VPWW57.xml", "VPWW57");
+    const calls = { ...unitCalls, reduceWeatherCurrentUnit: (unit: WeatherCurrentUnitState, input: WeatherCurrentInput) =>
+      ({ ...unitReply(unit, input), confirmationEvidence: [{ source: "acceptedReport" as const, scopes: [areaScope("incoming")] }] }) };
+    const count = (retained: number) => {
+      const filled = retainedScopes(retained);
+      let scopes = 0;
+      const serialized = stringifyCalls(() => {
+        scopes = reduceRuntime(filled, parserInput({ kind: "decoded", material }), calls).state.confirmation.units["U-W"].normal.scopes.length;
+      });
+      expect(scopes).toBe(retained + 1);
+      return serialized;
+    };
+    expect(count(400)).toBe(count(200));
+  });
+
+  it("P2-A1-CONFIRMATION regression / A10 AC15: a disconnect re-marks retained scopes without serializing them", () => {
+    const count = (retained: number) => {
+      const filled = retainedScopes(retained);
+      let lost = filled;
+      const serialized = stringifyCalls(() => {
+        lost = reduceRuntime(filled, { kind: "connectionLost", acceptedThroughSequence: 0, clock: at(1) }).state;
+      });
+      const slot = lost.confirmation.units["U-W"].normal;
+      expect(slot.counts).toEqual({ disconnected: retained + 1 });
+      expect(slot.scopeBytes).toBe(Buffer.byteLength(JSON.stringify(slot.scopes)));
+      return serialized;
+    };
+    expect(count(400)).toBe(count(200));
+  });
+
   it("P2-A1-T09 contractBoundary / AC09-10: only a newer established current clears a bounded rejection", () => {
     const calls = {
       reduceEewUnit: (unit: EewUnitState, input: EewInput): EewUnitStep => {

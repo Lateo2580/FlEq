@@ -108,12 +108,32 @@ function initialConfirmation(): RuntimeConfirmation {
 
 type ConfirmationSlot = RuntimeConfirmation["units"][RuntimeUnitId][Operation];
 type ScopeRecord = ConfirmationSlot["scopes"][number];
-const scopeBytes = (record: ScopeRecord) => new TextEncoder().encode(JSON.stringify(record)).byteLength;
-const scopeKey = (scope: ConfirmationScope) => JSON.stringify(scope.kind === "unit"
-  ? [scope.unit, scope.operation, "unit"]
-  : scope.kind === "event" ? [scope.unit, scope.operation, "event", scope.eventId]
-    : scope.kind === "area" ? [scope.unit, scope.operation, "area", scope.subject, scope.token]
-      : [scope.unit, scope.operation, "series", "VPWP50", scope.office, scope.subject]);
+// P2-A1-CONFIRMATION bounds: records keep their scope object, so its key and byte length are
+// serialized once per scope object, not once per retained scope on every update or disconnect.
+const scopeKeyCache = new WeakMap<ConfirmationScope, string>();
+const scopeByteCache = new WeakMap<ConfirmationScope, number>();
+// JSON of { scope, reason, confirmedAt }: '{"scope":' ',"reason":' ',"confirmedAt":' '}' are 35 ASCII bytes.
+const scopeBytes = (record: ScopeRecord) => {
+  let bytes = scopeByteCache.get(record.scope);
+  if (bytes == null) {
+    bytes = new TextEncoder().encode(JSON.stringify(record.scope)).byteLength;
+    scopeByteCache.set(record.scope, bytes);
+  }
+  return bytes + 35 + (record.reason == null ? 4 : record.reason.length + 2)
+    + (record.confirmedAt != null && Number.isFinite(record.confirmedAt) ? String(record.confirmedAt).length : 4);
+};
+const scopeKey = (scope: ConfirmationScope) => {
+  let key = scopeKeyCache.get(scope);
+  if (key == null) {
+    key = JSON.stringify(scope.kind === "unit"
+      ? [scope.unit, scope.operation, "unit"]
+      : scope.kind === "event" ? [scope.unit, scope.operation, "event", scope.eventId]
+        : scope.kind === "area" ? [scope.unit, scope.operation, "area", scope.subject, scope.token]
+          : [scope.unit, scope.operation, "series", "VPWP50", scope.office, scope.subject]);
+    scopeKeyCache.set(scope, key);
+  }
+  return key;
+};
 
 function updateConfirmation(confirmation: RuntimeConfirmation, unit: RuntimeUnitId, operation: Operation,
   update: (slot: ConfirmationSlot, unitBytes: number, unitCount: number) => ConfirmationSlot): RuntimeConfirmation {
@@ -141,12 +161,6 @@ function updateScopes(confirmation: RuntimeConfirmation, incoming: readonly Conf
   let next = confirmation;
   for (const group of groups.values()) next = updateConfirmation(next, group.unit, group.operation, (slot) => {
     const records = new Map(slot.scopes.map((item) => [scopeKey(item.scope), item]));
-    const bySubject = new Map<string, string[]>(), broad = new Map<string, string>();
-    for (const [key, item] of records) if (item.scope.kind === "area") {
-      const keys = bySubject.get(item.scope.subject) ?? [];
-      keys.push(key); bySubject.set(item.scope.subject, keys);
-      if (parseScopeToken(item.scope.token)?.[3] === "all") broad.set(item.scope.subject, key);
-    }
     const counts = { ...slot.counts };
     let bytes = slot.scopeBytes, confirmed = slot.confirmedScopeCount;
     const remove = (key: string) => {
@@ -169,6 +183,15 @@ function updateScopes(confirmation: RuntimeConfirmation, incoming: readonly Conf
       scopes = [...areas.values()].flatMap((list) => normalizeScopes(list.map((scope) => scope.token))
         .map((token) => ({ ...list[0], token })));
     }
+    // Only the incoming subjects' previous area records are compared, so only their tokens are parsed.
+    const subjects = new Set(at == null ? [] : scopes.flatMap((scope) => scope.kind === "area" ? [scope.subject] : []));
+    const bySubject = new Map<string, string[]>(), broad = new Map<string, string>();
+    if (subjects.size !== 0) for (const [key, item] of records)
+      if (item.scope.kind === "area" && subjects.has(item.scope.subject)) {
+        const keys = bySubject.get(item.scope.subject) ?? [];
+        keys.push(key); bySubject.set(item.scope.subject, keys);
+        if (parseScopeToken(item.scope.token)?.[3] === "all") broad.set(item.scope.subject, key);
+      }
     for (const scope of scopes) {
       const key = scopeKey(scope);
       if (at == null && records.has(key)) continue;

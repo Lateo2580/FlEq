@@ -792,6 +792,24 @@ describe("P2 weather-current unit", () => {
     for (const entry of others) expect(next.state.histories).toContain(entry);
   });
 
+  // A10 AC15: the domain rebuilds ownership on each receive; its bytes were re-serialized entry by entry.
+  it("P2-A5-T11 regression / A10 AC15: a receive's stringify count does not grow with retained ownership", () => {
+    const first = decodeFixture("15_16_02_251222_VPWW57", "VPWW57");
+    const second = decodeFixture("15_18_01_250630_VPWS50", "VPWS50");
+    const count = (entries: number) => {
+      const state = { ...emptyState(), ownership: Object.fromEntries(Array.from({ length: entries }, (_, index) =>
+        [`training\u0000token-${index}\u0000${index}`, "training/VPWW55/office"])) };
+      const primed = receive(state, first).state;
+      const stringify = vi.spyOn(JSON, "stringify");
+      let next: ReturnType<typeof receive>, serialized: number;
+      try { next = receive(primed, second); serialized = stringify.mock.calls.length; } finally { stringify.mockRestore(); }
+      expect(next.decisions[0].decision).toBe("changed");
+      expect(Object.keys(next.state.ownership).length).toBeGreaterThanOrEqual(entries);
+      return serialized;
+    };
+    expect(count(4_000)).toBe(count(2_000));
+  });
+
   it("P2-A5-T11 contractBoundary / AC13: reserved envelope bytes set the receive boundary", () => {
     const candidate = decodeFixture("15_18_01_250630_VPWS50", "VPWS50");
     const partial = snapshot("normal", "VPWW55", "福井地方気象台", "2026-09-06T09:00:00+09:00", "partial");

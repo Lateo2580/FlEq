@@ -74,13 +74,42 @@ function mapBytes(values: Readonly<Record<string, object | string>>): number {
   return bytes;
 }
 
-function reservedGenerationBytes(state: WeatherCurrentUnitState, capturedAt: number): number {
+// A5 capacity / A10 AC15: the domain rebuilds ownership as a new map on every receive, so a
+// reference cache never hits. Measure it as a diff from the receive's input map (cached by reference),
+// so only the entries that changed are serialized.
+// ponytail: the diff still compares every key (no stringify); pass changed keys from the domain if that shows up.
+type Ownership = WeatherCurrentUnitState["ownership"];
+const NO_OWNERSHIP: Ownership = {};
+const ownershipCache = new WeakMap<Ownership, Readonly<{ sum: number; count: number }>>();
+
+function ownershipMeasure(values: Ownership, base: Ownership): Readonly<{ sum: number; count: number }> {
+  let measured = ownershipCache.get(values);
+  if (measured != null) return measured;
+  const from = base === values ? NO_OWNERSHIP : base;
+  const entry = (key: string, value: string) => encoder.encode(JSON.stringify(key)).byteLength + 1
+    + encoder.encode(JSON.stringify(value)).byteLength;
+  let sum = from === NO_OWNERSHIP ? 0 : ownershipMeasure(from, NO_OWNERSHIP).sum, count = 0;
+  for (const key of Object.keys(values)) {
+    count++;
+    const old = Object.hasOwn(from, key) ? from[key] : undefined;
+    if (old === values[key]) continue;
+    if (old != null) sum -= entry(key, old);
+    sum += entry(key, values[key]);
+  }
+  for (const key of Object.keys(from)) if (!Object.hasOwn(values, key)) sum -= entry(key, from[key]);
+  measured = { sum, count };
+  ownershipCache.set(values, measured);
+  return measured;
+}
+
+function reservedGenerationBytes(state: WeatherCurrentUnitState, capturedAt: number, base: Ownership): number {
+  const ownership = ownershipMeasure(state.ownership, base);
   const generation = state.persistence.currentGeneration;
   if (!Number.isSafeInteger(generation) || generation < 0 || !Number.isFinite(capturedAt)
     || JSON.stringify(generation).length > 32 || JSON.stringify(capturedAt).length > 32)
     throw new RangeError("invalid checkpoint generation or capture time");
   return emptyEnvelopeBytes + 62 + mapBytes(state.national) + arrayBytes(state.partials)
-    + arrayBytes(state.histories) + mapBytes(state.ownership) + arrayBytes(state.tombstones)
+    + arrayBytes(state.histories) + ownership.sum + Math.max(ownership.count - 1, 0) + arrayBytes(state.tombstones)
     + arrayBytes(state.freshness) + arrayBytes(state.unavailable) + arrayBytes(state.intents);
 }
 
@@ -292,7 +321,10 @@ function removeSubject(state: WeatherCurrentUnitState, subjectValue: string, ope
 function fitNormalByByte(state: WeatherCurrentUnitState, capturedAt: number, touched: CurrentChange): Readonly<{ state: WeatherCurrentUnitState; count: number }> {
   let next = state;
   let count = 0;
-  while (reservedGenerationBytes(next, capturedAt) > GENERATION_BYTES) {
+  let measured = state.ownership;
+  // Each eviction is measured as a diff from the previous (already measured) candidate.
+  while (reservedGenerationBytes(next, capturedAt, measured) > GENERATION_BYTES) {
+    measured = next.ownership;
     const historyCandidates = next.histories.flatMap((entry) => entry.reports.map((report) => ({ entry, report })))
       .filter(({ report }) => report.operation !== "normal").sort((a, b) => compareSnapshot(a.report, b.report));
     if (historyCandidates.length !== 0) {
@@ -324,7 +356,8 @@ function reduceWeatherCurrentCore(state: WeatherCurrentUnitState,
     return step;
   };
   const step = reduceWeatherCurrentMeaning(state, input, collect);
-  const fits = (value: WeatherCurrentUnitState) => reservedGenerationBytes(value, input.clock.wallTimeMs) <= GENERATION_BYTES;
+  const fits = (value: WeatherCurrentUnitState) =>
+    reservedGenerationBytes(value, input.clock.wallTimeMs, state.ownership) <= GENERATION_BYTES;
   if (step.state === state || fits(step.state)) return adopt(step);
   if (!step.decisions.some((item) => item.decision === "changed")) return {
     ...step, state, nextDeadline: nextWeatherCurrentDeadline(state),
