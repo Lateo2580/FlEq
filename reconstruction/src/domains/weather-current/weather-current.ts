@@ -621,25 +621,27 @@ function reduceWeatherCurrentMeaning(state: WeatherCurrentUnitState,
     diagnostics.push({ level: "INFO", component: "weather-current", reason: "weatherCurrentCapacityEvicted", unit: "U-W", count: 1 });
   }
 
-  const current = currentFor(working, candidate);
-  if (current != null) {
-    const nationalCount = working.histories.flatMap((item) => item.reports).filter((item) => item.scope === "national").length;
-    const partialCount = working.histories.flatMap((item) => item.reports)
-      .filter((item) => item.scope === "partial" && item.office === candidate.office && item.source.family === candidate.family).length;
-    const limit = candidate.scope === "national" ? 2 : 8;
-    const count = candidate.scope === "national" ? nationalCount : partialCount;
-    if (count >= limit) {
-      const eligible = working.histories.flatMap((item) => item.reports)
-        .filter((item) => item.operation !== "normal" && item.scope === candidate.scope
-          && (candidate.scope === "national" || item.office === candidate.office && item.source.family === candidate.family))
-        .sort(compareEntry);
-      if (eligible.length === 0) return addUnavailable(state, candidate, "capacityExceeded", previous, input.clock.monotonicMs);
-      const evicted = eligible[0];
-      working = { ...working, histories: working.histories.flatMap((item) => {
-        const reports = item.reports.filter((report) => report !== evicted);
-        return reports.length === 0 ? [] : [{ ...item, reports }];
-      }) };
-      diagnostics.push({ level: "INFO", component: "weather-current", reason: "weatherCurrentCapacityEvicted", unit: "U-W", count: 1 });
+  // History limits are depths: a full scope pushes out its oldest report (non-normal first) instead of refusing.
+  let retained = currentFor(working, candidate);
+  if (retained != null) {
+    const scoped = working.histories.flatMap((item) => item.reports)
+      .filter((item) => item.scope === candidate.scope
+        && (candidate.scope === "national" || item.office === candidate.office && item.source.family === candidate.family))
+      .sort(compareEntry);
+    if (scoped.length >= (candidate.scope === "national" ? 2 : 8)) {
+      const evicted = scoped.find((item) => item.operation !== "normal")
+        ?? (candidate.operation === "normal" ? scoped[0] : undefined);
+      // Normal protection: training/test over a normal-only history is adopted without keeping its previous version.
+      if (evicted == null) retained = null;
+      else {
+        working = { ...working, histories: working.histories.flatMap((item) => {
+          const reports = item.reports.filter((report) => report !== evicted);
+          return reports.length === 0 ? [] : [{ ...item, reports }];
+        }) };
+        // Rotating normal depth is silent like the old ring buffer; only a non-normal eviction is a capacity eviction.
+        if (evicted.operation !== "normal")
+          diagnostics.push({ level: "INFO", component: "weather-current", reason: "weatherCurrentCapacityEvicted", unit: "U-W", count: 1 });
+      }
     }
   }
 
@@ -651,9 +653,9 @@ function reduceWeatherCurrentMeaning(state: WeatherCurrentUnitState,
   let next: WeatherCurrentUnitState = candidate.scope === "national"
     ? { ...working, national: { ...working.national, [candidate.operation]: projected } }
     : { ...working, partials: [...working.partials.filter((item) => item.subject !== candidate.subject || item.operation !== candidate.operation), projected] };
-  if (current != null) {
+  if (retained != null) {
     const activeHistory = historyFor(next, candidate.subject, candidate.operation);
-    next = { ...next, histories: historyWith(next, activeHistory, [...(activeHistory?.reports ?? []), current]) };
+    next = { ...next, histories: historyWith(next, activeHistory, [...(activeHistory?.reports ?? []), retained]) };
   }
   const ownership = Object.fromEntries(Object.entries(next.ownership)
     .filter(([key, subject]) => subject !== candidate.subject || !key.startsWith(`${candidate.operation}\u0000`)));

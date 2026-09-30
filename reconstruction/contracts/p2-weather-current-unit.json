@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "fc7006e2380edf9a97b601d124341ba4bd7f7f42",
-    "sha256": "d1073abbc41145749d2bc41cdf3be3d15f34ab5d43e9073867058ba2b97ff5a1",
+    "sha256": "41d08cb75b4b67e9240447e250562be2bd75bbfe51f6528d52fbaaf9f40d60d7",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "76c82b87d7783a4eae14af690cb34e7d6ec46f73617dc75b7f7401951619f080",
     "sequencesSha256": "be9cfd97b555e3a55568f085d107342c978b3dc7249f5cecea868ea5a62c5781",
@@ -40,7 +40,7 @@
         "B": "全国baseの単一slotまたはoperation別に拡大した履歴・partial上限を使う",
         "recommended": "A",
         "provisional": "A",
-        "ruling": "作者裁定R11=A（Issue #21）。再レビュー指摘3: 統合担当判断でbyte境界にも適用",
+        "ruling": "作者裁定R11=A（Issue #21）。再レビュー指摘3: 統合担当判断でbyte境界にも適用。履歴上限を深さとして押し出す規則と、training/testがnormalだけの満杯履歴に当たったら前版を積まずに受理する規則は2026-09-30 作者裁定A（統合担当案、A10実走で発見したE13違反の修正）",
         "reason": "全国baseのoperation間置換を防ぎ、履歴2・partial128・partial履歴8の合算上限とnormal優先を両立する。全国base不変の例外はnormal受理に必要な16MiB容量退去に限定する"
       },
       {
@@ -81,7 +81,7 @@
         "reasonTable": [
           {
             "reason": "capacityExceeded",
-            "trigger": "AC11のnormal保護admission後も、正当なnewer報の同一scopeを16MiBまたは保持件数内に保存できない",
+            "trigger": "AC11のnormal保護admission後も、正当なnewer報の同一scopeを16MiBまたはpartial subject上限128内に保存できない。履歴深さ（全国2/partial8）の上限は押し出しで受理し、capacityExceededにしない",
             "scope": "operation/family/subjectとnationalまたはpartial、partialではofficeも含む",
             "source": "容量超過を起こしたnewer ReportRef（null禁止）",
             "lastKnown": "同じscopeの直前WeatherCurrentSnapshot。無ければnull。AC11の16MiB縮退でnullへ落とす場合を除く。currentや通知根拠として再利用しない",
@@ -185,7 +185,7 @@
     ],
     "operationContract": {
       "ref": "P2-SHARED-RUNTIME-001#meta.operationContract",
-      "rule": "全国/partial/所有現象/履歴/tombstone/freshness/intentをoperation別に保持し、別区分の受理で更新・取消・freshness解除しない。保存単位・ファイルを区分ごとに増やさず、件数・byte上限はnormal/training/testの合計に適用する。nationalはOperation keyのmapで各区分1・合算3までとする。normalによるtraining/testの履歴・partial容量退去と、RES-01超過時に限る全国base容量退去だけを後述admission規則で許可し、意味上の更新・取消と区別する"
+      "rule": "全国/partial/所有現象/履歴/tombstone/freshness/intentをoperation別に保持し、別区分の受理で更新・取消・freshness解除しない。保存単位・ファイルを区分ごとに増やさず、件数・byte上限はnormal/training/testの合計に適用する。nationalはOperation keyのmapで各区分1・合算3までとする。履歴深さ上限での同一scope最古reportの押し出し（非normal優先、normalの押し出しはnormal候補だけ）、normalによるtraining/testの履歴・partial容量退去と、RES-01超過時に限る全国base容量退去だけを後述admission規則で許可し、意味上の更新・取消と区別する"
     }
   },
   "contract": {
@@ -440,7 +440,7 @@
       },
       {
         "id": "P2-A5-AC11",
-        "requirement": "normalの受理はtraining/testの占有で失敗しない。RET-02/03/04の合算上限に達しているとき、normalの新規受理は該当上限を占有するtraining/testの最古entry（履歴・partial subject）を必要な分だけ先に容量退去させてから判定し、normal同士でだけcapacityExceededを返す。training/testの受理はnormalのentryを退去させない。容量退去はunavailableでも取消でもなく、DiagnosticDetails.reason=weatherCurrentCapacityEvictedと既存のunit/count等だけで記録し、§7.9にfieldを追加しない。RES-01の16MiB超過時もnormal保護を適用し、training/testの履歴→partial subject→全国baseの順で、各種別内の最古entryから必要な分だけ容量退去させて再判定する。全国baseの退去はnormal受理に必要なこのbyte容量退去だけをAC10の唯一の例外とする。training/testの受理はnormalを退去させない。normalだけで16MiBを超える場合は従来どおりreason=capacityExceededのunavailableとし、unavailable record用の事前予約枠は設けない（世代・時刻のbyte予約はAC13に従う）。unavailable record自体が16MiBに収まらない場合はlastKnownをnullにして保存し、それでも収まらなければ既存stateを変更せずdecision=capacityExceededの決定とDiagnosticDetails.reason=checkpointEncodeFailedのWARNで拒否し、例外を投げない",
+        "requirement": "normalの受理はtraining/testの占有で失敗しない。RET-02/04の履歴上限は深さの上限とし、上限に達した同一scope（全国は全国、partialは同一官署×family）の履歴へ前版を積むときは、最古reportをまず非normalから、無ければnormal候補に限りnormalから押し出して受理し、capacityExceededにしない。training/testの候補がnormalだけで満杯の履歴に当たった場合はnormalを押し出さず、その候補の前版を履歴に積まずに受理する（後でその版への取消が来ればQ-ENUM.reasonTableのhistoryUnavailable）。RET-03のpartial subject上限に達しているとき、normalの新規受理はtraining/testの最古partial subjectを先に容量退去させてから判定し、normal同士でだけcapacityExceededを返す。training/testの受理はnormalのpartial subjectを退去させない。容量退去はunavailableでも取消でもなく、DiagnosticDetails.reason=weatherCurrentCapacityEvictedと既存のunit/count等だけで記録し、§7.9にfieldを追加しない。RES-01の16MiB超過時もnormal保護を適用し、training/testの履歴→partial subject→全国baseの順で、各種別内の最古entryから必要な分だけ容量退去させて再判定する。全国baseの退去はnormal受理に必要なこのbyte容量退去だけをAC10の唯一の例外とする。training/testの受理はnormalを退去させない。normalだけで16MiBを超える場合は従来どおりreason=capacityExceededのunavailableとし、unavailable record用の事前予約枠は設けない（世代・時刻のbyte予約はAC13に従う）。unavailable record自体が16MiBに収まらない場合はlastKnownをnullにして保存し、それでも収まらなければ既存stateを変更せずdecision=capacityExceededの決定とDiagnosticDetails.reason=checkpointEncodeFailedのWARNで拒否し、例外を投げない",
         "evidenceRefs": [
           "reconstruction/contracts/p2-weather-current-unit.json",
           "docs/specs/reconstruction-p0-contracts.md:572 «9a4b44d95aa2d482»",
@@ -548,7 +548,7 @@
         "referenceIds": [
           "P2-A5-AC11"
         ],
-        "behavior": "全byte境界はRES-01の予約込み計量Bを使う。全国履歴2・partial128・partial履歴8の各合算上限でnormal新規受理がtraining/testの最古entryを容量退去させて成功する。normalだけで満杯ならcapacityExceeded、training/test受理はnormalを退去させない。退去診断reason=weatherCurrentCapacityEvictedを確認し、unavailable/取消を生成しない。件数に余裕があってもtraining/test占有で16MiBを超える場合、履歴→partial subject→全国baseの最古順に退去してnormalを受理する。training/test全国baseだけが超過原因の例でAC10の唯一の例外を確認する。退去後16MiB-1/一致は成功、normalだけで16MiB+1はcapacityExceededとし、training/test入力はbyte境界でもnormalを退去させない。unavailable自体が収まらなければlastKnownを落として保存し、なお収まらなければstate不変のdecision=capacityExceededで拒否する"
+        "behavior": "全byte境界はRES-01の予約込み計量Bを使う。全国履歴2・partial履歴8の各深さ上限でnormal受理が同一scopeの最古非normal report、無ければ最古normal reportを押し出して成功する。training/test受理はnormalだけで満杯の履歴からnormalを押し出さず、前版を積まずに受理し、その版への取消はhistoryUnavailableとなる。partial128ではnormal新規受理がtraining/testの最古subjectを容量退去させて成功し、normalだけで満杯ならcapacityExceeded、training/test受理はnormalを退去させない。退去診断reason=weatherCurrentCapacityEvictedを確認し、unavailable/取消を生成しない。件数に余裕があってもtraining/test占有で16MiBを超える場合、履歴→partial subject→全国baseの最古順に退去してnormalを受理する。training/test全国baseだけが超過原因の例でAC10の唯一の例外を確認する。退去後16MiB-1/一致は成功、normalだけで16MiB+1はcapacityExceededとし、training/test入力はbyte境界でもnormalを退去させない。unavailable自体が収まらなければlastKnownを落として保存し、なお収まらなければstate不変のdecision=capacityExceededで拒否する"
       },
       {
         "testId": "P2-A5-T10",
@@ -643,7 +643,7 @@
       "allowed_paths限定patch、変更一覧、build/test/shuffle結果、未実行検証、残存リスク",
       "純粋な意味関数とreduceUnitはDiagnosticDetailsだけを返し、runtimeがtimestamp/runIdを付与する。各subjectのdecisionsを系列oracleのdecision/reason/changeと照合し、duplicate/stale/noChangeを区別する。識別不能な拒否ではsubjectを空文字にし、架空の業務identityを作らない。",
       "OperationはP1共有型をimportし、nationalのOperation mapをState/Persisted/View/codec/reducerの全経路で使う。無いと別区分の全国baseが単一slotを置換しcheckpointから複数区分を復元できない。履歴・partialの合算上限と単一保存単位は変えない",
-      "normalの受理はtraining/testの占有で失敗しない。RET-02/03/04の合算上限に達しているとき、normalの新規受理は該当上限を占有するtraining/testの最古entry（履歴・partial subject）を必要な分だけ先に容量退去させてから判定し、normal同士でだけcapacityExceededを返す。training/testの受理はnormalのentryを退去させない。容量退去はunavailableでも取消でもなく、DiagnosticDetails.reason=weatherCurrentCapacityEvictedと既存のunit/count等だけで記録し、§7.9にfieldを追加しない。このadmission規則がないと訓練・試験の占有でnormalを拒否する。最古の順序はmeta.decisionBranches[P2-A5-R11]に従い、退去と採用を原子的に適用する。受理不能なら退去をcommitせず、正常currentの取消・復元・freshness解除として扱わない。RES-01の16MiB超過時もnormal保護を適用し、training/testの履歴→partial subject→全国baseの順で、各種別内の最古entryから必要な分だけ容量退去させて再判定する。全国baseの退去はnormal受理に必要なこのbyte容量退去だけをAC10の唯一の例外とする。training/testの受理はnormalを退去させない。normalだけで16MiBを超える場合は従来どおりreason=capacityExceededのunavailableとし、unavailable record用の事前予約枠は設けない（世代・時刻のbyte予約はAC13に従う）",
+      "normalの受理はtraining/testの占有で失敗しない。RET-02/04の履歴上限は深さの上限とし、上限に達した同一scope（全国は全国、partialは同一官署×family）の履歴へ前版を積むときは、最古reportをまず非normalから、無ければnormal候補に限りnormalから押し出して受理し、capacityExceededにしない。training/testの候補がnormalだけで満杯の履歴に当たった場合はnormalを押し出さず、その候補の前版を履歴に積まずに受理する（後でその版への取消が来ればQ-ENUM.reasonTableのhistoryUnavailable）。RET-03のpartial subject上限に達しているとき、normalの新規受理はtraining/testの最古partial subjectを先に容量退去させてから判定し、normal同士でだけcapacityExceededを返す。training/testの受理はnormalのpartial subjectを退去させない。容量退去はunavailableでも取消でもなく、DiagnosticDetails.reason=weatherCurrentCapacityEvictedと既存のunit/count等だけで記録し、§7.9にfieldを追加しない。このadmission規則がないと訓練・試験の占有でnormalを拒否し、履歴深さの押し出しがないとnormalだけの連続報が上限到達後にcapacityExceededと採用の交互へ落ちてE13の恒常的unavailable 0を破る。最古の順序はmeta.decisionBranches[P2-A5-R11]に従い、退去と採用を原子的に適用する。受理不能なら退去をcommitせず、正常currentの取消・復元・freshness解除として扱わない。RES-01の16MiB超過時もnormal保護を適用し、training/testの履歴→partial subject→全国baseの順で、各種別内の最古entryから必要な分だけ容量退去させて再判定する。全国baseの退去はnormal受理に必要なこのbyte容量退去だけをAC10の唯一の例外とする。training/testの受理はnormalを退去させない。normalだけで16MiBを超える場合は従来どおりreason=capacityExceededのunavailableとし、unavailable record用の事前予約枠は設けない（世代・時刻のbyte予約はAC13に従う）",
       "既存affectedScopeにscopeEncodingの5文字列tupleを保存する。無いとsource/lastKnownが両方nullのunavailableのfamily/scope/officeを復元できず別官署で解除できてしまう。追加field・共有unionは不要。codec/view/coverageConfirmed/FreshnessRecordで同じ表現を使う",
       "B2: 全WeatherCurrentInputでClockReadingを受け、WeatherCurrentUnitStep.nextDeadlineのwallTimeMs/monotonicMsを独立のnumber|nullとして返す。有効期限のいずれかが到来すれば配送、両方なしなら外側のnull。無いと片方の時計だけの期限を表現できずA1が当該unitへ同じ呼出しでdeadlineを配送できない",
       "追実装で閉じる項目(A5): reducer/codec/viewの既存責務を変えずClockReading/nextDeadlineと既存shutdown入力を実装し、期限前は同じWeatherCurrentUnitState参照と空のdecisions/intents/outcomes/diagnosticsを返す。旧notificationResultは3 unit共通intentUpdate入力へ置換する。NotificationIntentUpdateのid/attempts/nextAttemptAt/dispositionとclockを受け、選択時は完了結果なしでattempts/nextAttemptAtを更新しdispositionを維持、完了時もA1内部のA7が照合した更新を同じ入口で採用する。無いとU-E以外で試行回数と再試行日時を保存できない。既存idだけを更新し同値・未知idはno-op、変更時だけdeliveryOnlyで保存世代を進める。timer・配送済み入力slot・RuntimeState更新は追加しない intentUpdateの単件/一括配列の条件と採用意味はP2-A1のB4を正本とする。所有配列は一括で索引化・反映し、更新件数分の全配列再走査をしない。",

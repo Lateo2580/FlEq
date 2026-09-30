@@ -613,13 +613,22 @@ describe("P2 weather-current unit", () => {
       reason: "weatherCurrentCapacityEvicted", unit: "U-W", count: 1 });
     expect(accepted.state.unavailable).toEqual([]);
 
-    const normalOnly = { ...state, histories: [0, 1].map((index) => {
-      const item = snapshot("normal", "VPWS50", "気象庁", `2026-09-05T1${index}:00:00+09:00`, `normal-h${index}`);
-      return { subject: item.subject, operation: item.operation, reports: [item] };
-    }) };
-    const refused = receive(normalOnly, candidate);
-    expect(refused.state.unavailable[0]?.reason).toBe("capacityExceeded");
-    expect(refused.diagnostics).toEqual([]);
+    // National normal depth rotation is covered by the AC09 regression below.
+    const normalOnly = { ...state, histories: [{ subject: current.subject, operation: "normal" as const,
+      reports: [0, 1].map((index) => snapshot("normal", "VPWS50", "気象庁", `2026-09-05T1${index}:00:00+09:00`, `normal-h${index}`)) }] };
+    expect(weatherCurrentUnitCodec.decode(weatherCurrentUnitCodec.encode(normalOnly)).kind).not.toBe("invalid");
+    // Normal protection: training over a normal-only history is adopted without keeping its previous version.
+    const trainingCurrent = snapshot("training", "VPWS50", "気象庁", "2026-09-06T10:00:00+09:00", "training-current");
+    const trainingOverNormal = receive({ ...normalOnly, national: { ...normalOnly.national, training: trainingCurrent } },
+      decodeFixture("weather-alert-kind-area/synthetic-vpws50-change-density-after", "VPWS50",
+        (xml) => withOperation(bodyWarning(xml), "training"), "training-new"));
+    expect(trainingOverNormal.decisions[0]).toMatchObject({ decision: "changed", operation: "training" });
+    expect(trainingOverNormal.state.national.training?.source.inputId).toBe("training-new");
+    expect(trainingOverNormal.state.histories).toEqual(normalOnly.histories);
+    expect(trainingOverNormal.diagnostics).toEqual([]);
+    expect(receive(trainingOverNormal.state, decodeFixture("weather-alert-kind-area/synthetic-vpws50-change-density-after",
+      "VPWS50", (xml) => cancellation(withOperation(bodyWarning(xml), "training"), "2026-09-06T10:05:00+09:00"),
+      "training-cancel")).state.unavailable).toMatchObject([{ operation: "training", reason: "historyUnavailable" }]);
 
     const partialMaterial = decodeFixture("15_16_02_251222_VPWW57", "VPWW57");
     const fullPartials = Array.from({ length: 128 }, (_, index) => snapshot(index === 0 ? "training" : "normal",
@@ -646,6 +655,16 @@ describe("P2 weather-current unit", () => {
     expect(partialHistoryAdmission.state.histories.flatMap((item) => item.reports)
       .some((item) => item.source.inputId === "partial-history-0")).toBe(false);
     expect(partialHistoryAdmission.state.unavailable).toEqual([]);
+    // Partial history depth 8 all normal: the oldest normal report rotates out silently.
+    const normalPartialReports = partialReports.map((item) => ({ ...item, operation: "normal" as const,
+      subject: partialCurrent.subject, source: { ...item.source, operation: "normal" as const, subject: partialCurrent.subject } }));
+    const normalPartialRotation = receive({ ...emptyState(), partials: [partialCurrent],
+      histories: [{ subject: partialCurrent.subject, operation: "normal", reports: normalPartialReports }] }, partialMaterial);
+    expect(normalPartialRotation.decisions[0].decision).toBe("changed");
+    expect(normalPartialRotation.state.histories.flatMap((item) => item.reports).map((item) => item.source.inputId))
+      .toEqual([...normalPartialReports.slice(1).map((item) => item.source.inputId), "partial-current"]);
+    expect(normalPartialRotation.diagnostics).toEqual([]);
+    expect(normalPartialRotation.state.unavailable).toEqual([]);
 
     const trainingBase = { ...snapshot("training", "VPWS50", "気象庁",
       "2018-01-01T00:00:00+09:00", "byte-training"), phenomena: { padding: "x".repeat(16_700_000) } };
@@ -682,18 +701,20 @@ describe("P2 weather-current unit", () => {
       reports: [snapshot("normal", "VPWS50", "気象庁", "2026-09-05T10:00:00+09:00", "history-1"),
         snapshot("normal", "VPWS50", "気象庁", "2026-09-05T11:00:00+09:00", "history-2")] };
     // Third review R1: a count-refused input cannot evict a training base for byte space.
+    // History depth never refuses, so the count refusal left is the all-normal partial128 subject limit.
     const refusedBase: WeatherCurrentUnitState = { ...emptyState(), national: {
-      normal: current, training: { ...trainingBase, phenomena: { padding: "" } },
-    }, histories: [fullNormalHistory] };
-    const refusedFull = { ...refusedBase, national: { ...refusedBase.national,
+      training: { ...trainingBase, phenomena: { padding: "" } } }, partials: protectedPartials };
+    const refusedFull = { ...refusedBase, national: {
       training: { ...trainingBase, phenomena: { padding: "x".repeat(16 * 1024 * 1024 - envelopeSize(refusedBase) - 100) } } } };
-    const refusedStep = receive(refusedFull, candidate);
+    const refusedStep = receive(refusedFull, partialMaterial);
     expect(refusedStep.state).toBe(refusedFull);
-    expect(refusedStep.decisions).toEqual([{ subject: current.subject, operation: "normal",
-      decision: "capacityExceeded", rejection: { family: "VPWS50", reportDateTimeMs: Date.parse(candidate.reportDateTimeRaw),
-        affectedScope: ["[\"VPWS50\",\"national\",\"気象庁\",\"all\",\"\"]"] } }]);
+    const established = receive(emptyState(), partialMaterial).decisions[0];
+    if (established.decision !== "changed" || established.currentEstablished == null) throw new Error("partial not established");
+    expect(refusedStep.decisions).toEqual([{ subject: established.subject, operation: "normal",
+      decision: "capacityExceeded", rejection: { family: "VPWW57", reportDateTimeMs: Date.parse(partialMaterial.reportDateTimeRaw),
+        affectedScope: established.currentEstablished.affectedScope } }]);
     expect(refusedStep.diagnostics).toEqual([{ level: "WARN", component: "weather-current",
-      reason: "checkpointEncodeFailed", unit: "U-W", inputId: "normal-new" }]);
+      reason: "checkpointEncodeFailed", unit: "U-W", inputId: partialMaterial.inputId }]);
     expect(() => weatherCurrentUnitCodec.encode(refusedStep.state)).not.toThrow();
     expect(refusedFull.national.training).toBeDefined();
     expect(envelopeSize(refusedFull)).toBe(16 * 1024 * 1024 - 100);
@@ -740,6 +761,20 @@ describe("P2 weather-current unit", () => {
     expect(admittedShared.diagnostics).toContainEqual({ level: "INFO", component: "weather-current",
       reason: "weatherCurrentCapacityEvicted", unit: "U-W", count: 1 });
     expect(envelopeSize(admittedShared.state)).toBeLessThanOrEqual(16 * 1024 * 1024);
+  });
+
+  it("P2-A5-AC09 regression / E13: consecutive VPWS50 normal reports never fall into capacityExceeded", () => {
+    let state = emptyState();
+    for (let index = 0; index < 10; index++) {
+      const step = receive(state, decodeFixture("weather-alert-kind-area/synthetic-vpws50-change-density-after", "VPWS50",
+        (xml) => atTime(bodyWarning(xml), `2026-09-06T11:${String(index).padStart(2, "0")}:00+09:00`), `vpws50-${index}`));
+      expect(step.decisions[0].decision).toBe("changed");
+      expect(step.state.unavailable).toEqual([]);
+      expect(step.diagnostics).toEqual([]);
+      state = step.state;
+    }
+    expect(state.national.normal?.source.inputId).toBe("vpws50-9");
+    expect(state.histories.flatMap((item) => item.reports).map((item) => item.source.inputId)).toEqual(["vpws50-7", "vpws50-8"]);
   });
 
   it("P2-A5-T11 contractBoundary / AC13: reserved envelope bytes set the receive boundary", () => {
