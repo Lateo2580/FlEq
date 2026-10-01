@@ -387,7 +387,7 @@ nextDeadline(state): Deadline | null
 
 | ID / モジュール | 主な責務・公開結果 | fixture・期待 decision | 保存単位・期限 | 非対象 |
 |---|---|---|---|---|
-| M01 `eew` | VXSE43/44/45、報番号、終端、取消、予想震度と保持根拠 | O01/O02/O09。重複抑制、unknown 続報で誤降格しない | U-E。current は N、intent は D | 地震観測、永続 EEW current |
+| M01 `eew` | VXSE43/45、報番号、終端、取消、予想震度と保持根拠 | O01/O02/O09。重複抑制、unknown 続報で誤降格しない | U-E。current は N、intent は D | 地震観測、永続 EEW current |
 | M02 `earthquake` | EventID ごとの観測・訂正、日次履歴、強震保持根拠 | O01/O07。取消と復元後 unknown | U-Q。既存地震期限を明示移植 | 別 quake map store |
 | M03 `long-period` | VXSE62、長周期値・観測根拠 | O01/O02/O07 | U-Q。36時間の gate retention を基準 | 震度 rank との混同 |
 | M04 `tsunami` | VTSE41 警報、VTSE51/52 観測系列、区域・観測点取消 | O01/O05/O07 | U-T。family ごとの期限 | 全分野への fragment merge 一般化 |
@@ -496,7 +496,7 @@ RC には21 route がある。以下は全21 route を網羅し、意味の異�
 | `legacyCounterpart` / VPOA50 | M17 | U-B | lifecycle D、相関待ち N | raw由来速報、VPBS50へのalias、取消・置換記憶、intent | RC:123、PM:1067、`standby-state-store.ts:3337` |
 | `legacyCounterpart` / VPNO50 の区域解除 | M06 | U-W | 終了記憶 D | 対象区域の特別警報終了、官署watermark、base/partial合成、intent | PM:378–453、PM:1062–1076 |
 | `legacyCounterpart` / その他VPNO50、VXWW50 | M18 | U-M | 意味表示 N、対象intentのみD | 同じ legacy subject の短命表示・取消。気象 current を推測で変更しない | RF:271–289、PM:1074 |
-| `eew` / VXSE43/44/45 | M01 | U-E | current/gate N、intent D | EventID と family の報番号、終端、取消、実行中予測保持、該当intent | RC:133、RF:122–143 |
+| `eew` / VXSE43/45 | M01 | U-E | current/gate N、intent D | EventID と family の報番号、終端、取消、実行中予測保持、該当intent | RC:133、RF:122–143 |
 | `volcano` / VFVO50/51/VFSVii | M14 | U-V | D | 対象火山の alert、非数値警報、出典、取消、intent | RC:139、RF:651–670 |
 | `volcano` / VFVO52/56 | M15 | U-V | D | eruption、EventID逆引き、空コード取消、provenance、intent | RF:672–693 |
 | `volcano` / VFVO54/55 | M16 | U-V | D | 共通 ashfall、54/55 variant、取消、期限、未配送intent | RF:315–335 |

@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "fc7006e2380edf9a97b601d124341ba4bd7f7f42",
-    "sha256": "8d714eec8d21ff657a71cd99f454560d0bc698aedf5e267a9e138fefc7f050a5",
+    "sha256": "9dbd74088fb66d8f6b3186d51d74db578d84752782956fef5c879461fa876179",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "76c82b87d7783a4eae14af690cb34e7d6ec46f73617dc75b7f7401951619f080",
     "sequencesSha256": "be9cfd97b555e3a55568f085d107342c978b3dc7249f5cecea868ea5a62c5781",
@@ -400,7 +400,7 @@
         "id": "P2-A4-AC02",
         "requirement": "M01個別意味関数はEventID、family、operation別の報番号・終端・取消・予測保持を判定し、unknown続報で誤降格しない。EewCurrent.prediction/sourceとPublishedOutcomeの最新報raw/出典は常に最新の採用報のままとし、保持値で置換しない。predictionへ全体予想最大震度と区域配列を射影し、区域code・From/To・condition/description・区域なしを固定fieldで保持する。areaCoverageはareas非空ならpresent、空ならnoneとする。P1 MaterialValueのmissing/empty/unknown/rangeとrawを失わない。保持は同じEventID・family・operation内の報単位とする。保持判定の対象はareas非空なら全区域のintensity.from/to、区域なしならmaximum.from/toとし、空集合を全区域unknownとみなさない。対象の合法値のうちfamily検証を通ったnumber/text/rangeを既知値、unknown/missing/emptyを既知根拠のない値として扱う（保持判定だけの区別でrawのkindを相互変換しない）。対象に既知値が一つでもあれば、他の値がunknown/missing/emptyのどの組合せでも、その最新報全体を次回保持の既知根拠へ更新し、旧retainedPredictionをnullへ解除する。対象に既知値が一つもなければ、全unknown、missing/emptyだけ、unknown/missing/empty混在のすべてで、直前の採用currentに既知根拠があればそのprediction全体とsourceをretainedPredictionへ保持し、直前currentにも既知根拠がなければ既存retainedPredictionを維持する。過去にも既知根拠が一度もなければnullのままとする。したがって既知→missing/empty→unknownでも最初の既知報のprediction/sourceを一組で保持する。missing/emptyは既知根拠の解除や取消を意味しない。いずれの分岐も最新prediction/sourceとoutcomeのraw分類を維持し、未知・欠落・空の部分へ過去報の区域・From/Toを継ぎ足さない。区域ごとに異なる報を合成せず、保持predictionとsourceは必ず同じ一報の組とする。取消・current失効では保持根拠も除き、rejected/duplicate/stale/capacityExceededでは変更しない。retainedPredictionはnon-durableでcodec保存対象外、再起動後に保持根拠を復元しない。A9 AC02/AC03は最新prediction/sourceとretainedPredictionの保持根拠を区別して参照する",
         "evidenceRefs": [
-          "docs/specs/reconstruction-p0-contracts.md:390 «65b3993296d54b19»",
+          "docs/specs/reconstruction-p0-contracts.md:390 «4c73352f193dc3a1»",
           "reconstruction/contracts/p2-order-plan.md:79 «3be2683a0c47d9fe»"
         ]
       },
