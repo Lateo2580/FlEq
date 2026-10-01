@@ -5,12 +5,12 @@ import type {
   ParserMailboxItem,
   ParserMailboxResult,
 } from "./p1-parser-boundary.types";
-import type { EewCurrent, EewUnitState } from "./p2-eew-unit.types";
+import type { EewCurrent, EewInput, EewUnitState, EewUnitStep } from "./p2-eew-unit.types";
 import type { EewUnitView } from "./p2-eew-unit.types";
 import type { NotificationDeliveryState, NotificationSelection } from "./p2-notification-delivery.types";
-import type { WeatherCurrentSnapshot, WeatherCurrentUnitState } from "./p2-weather-current-unit.types";
+import type { WeatherCurrentInput, WeatherCurrentSnapshot, WeatherCurrentUnitState, WeatherCurrentUnitStep } from "./p2-weather-current-unit.types";
 import type { WeatherCurrentUnitView } from "./p2-weather-current-unit.types";
-import type { WeatherTimeseriesSubject, WeatherTimeseriesUnitState } from "./p2-weather-timeseries-unit.types";
+import type { WeatherTimeseriesInput, WeatherTimeseriesSubject, WeatherTimeseriesUnitState, WeatherTimeseriesUnitStep } from "./p2-weather-timeseries-unit.types";
 import type { WeatherTimeseriesUnitView } from "./p2-weather-timeseries-unit.types";
 
 export type JsonValue = null | boolean | number | string | readonly JsonValue[] | Readonly<{ [key: string]: JsonValue }>;
@@ -21,11 +21,11 @@ export type UnitId =
 
 export type RuntimeUnitId = "U-E" | "U-W" | "U-F";
 
-export type RuntimeUnitStates = Readonly<{
-  "U-E": EewUnitState;
-  "U-W": WeatherCurrentUnitState;
-  "U-F": WeatherTimeseriesUnitState;
-}>;
+// Per-unit type rows (one line per map). P3-UNIT-TABLE-001 keeps them adjacent and line-neutral:
+// a unit lane adds its key to each of the three maps below.
+export type RuntimeUnitStates = Readonly<{ "U-E": EewUnitState; "U-W": WeatherCurrentUnitState; "U-F": WeatherTimeseriesUnitState }>;
+export type RuntimeUnitInputs = Readonly<{ "U-E": EewInput; "U-W": WeatherCurrentInput; "U-F": WeatherTimeseriesInput }>;
+export type RuntimeUnitSteps = Readonly<{ "U-E": EewUnitStep; "U-W": WeatherCurrentUnitStep; "U-F": WeatherTimeseriesUnitStep }>;
 
 export type ClockReading = Readonly<{
   wallTimeMs: number;

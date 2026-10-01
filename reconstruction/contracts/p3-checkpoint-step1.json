@@ -1,0 +1,418 @@
+{
+  "meta": {
+    "draftedFromOid": "87fc5ed341ed3e7a735e0382533a56610f33636a",
+    "sha256": "4badc04a7eba9a917182cabe3b6b13e4c222e50e55b74b649add6852c2e9184f",
+    "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
+    "manifestSha256": "76c82b87d7783a4eae14af690cb34e7d6ec46f73617dc75b7f7401951619f080",
+    "sequencesSha256": "be9cfd97b555e3a55568f085d107342c978b3dc7249f5cecea868ea5a62c5781",
+    "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
+    "decisionBranches": [
+      {
+        "id": "P3-C1-KNOWLEDGE",
+        "A": "書き手が単位ごとに有効slot・世代・sha256を記憶し、定常保存では読み直さない。記憶は起動時の復元・確認済みack・照合成功で立て、uncertainで捨てる",
+        "B": "毎回の保存で読み直しを続け、restoreUnitとlatestValidSlotの重複だけを1回にまとめる（slot 2本を毎回読む）",
+        "recommended": "A",
+        "provisional": "A",
+        "ruling": "発注計画§2.1 C1行（読み直しは起動時の復元とuncertainの照合だけ）によりA",
+        "reason": "台帳55の保存1回あたり最大5回の読み直しを0にし、C3aでworkerへ移す量を減らす（計画§5.1）"
+      },
+      {
+        "id": "P3-C1-VERIFY",
+        "A": "書込後の読み直し（verify段）を定常経路から外し、保存完了の根拠をfile sync→rename→directory syncの完了だけにする",
+        "B": "書込後の読み直しを残す（OSのcacheから返るため永続の証明にならない）",
+        "recommended": "A",
+        "provisional": "A",
+        "ruling": "発注計画§2.1 C1行と spec§5.7 の保存順（読み直しの段は無い）によりA",
+        "reason": "読み直しは永続を証明しない。保存順はspec:826〜832のとおりで、照合の読み直しはuncertainの解決にだけ残す"
+      },
+      {
+        "id": "P3-C1-S5",
+        "A": "約束は「保存の途中で止まっても前回の保存は壊れない」まで。検証はプロセス停止試験とfsync→rename→ディレクトリsyncの手順確認",
+        "B": "使い捨て媒体での実電源断試験まで行う",
+        "recommended": "A",
+        "provisional": "A",
+        "ruling": "作者裁定S5=A（2026-10-01）",
+        "reason": "Piの停電耐性はP5へ送る（spec:850）。プロセス停止はOSのcacheを残すので電源断の証拠と呼ばない"
+      },
+      {
+        "id": "P3-C1-UNAVAILABLE",
+        "A": "復元がunavailableの単位は記憶を立てない（記憶なし扱い）。その単位の各試行は再試行間隔の下で復旧の読み込みを1回行い、unavailableなら書かずに失敗する",
+        "B": "unavailableを記憶し、再起動まで読み直さずに書込みを拒否する",
+        "recommended": "A",
+        "provisional": "A",
+        "ruling": "起草時の既定（P2-A3-AC09・R21の挙動とP2のQ-STARTUPを変えない）。統合担当が発注前点検で確認する",
+        "reason": "Bは起動時の一過性EIOで単位を再起動まで書けなくし、P2の既存試験R21の挙動を変える。読み直しは障害状態だけで、定常保存には入らない"
+      }
+    ],
+    "questionResolutions": [
+      {
+        "id": "P3-C1-DEP-C0",
+        "status": "closed",
+        "closed": "C0の契約JSON（P3-UNIT-TABLE-001）が同じdirectoryへ合流したので、dependsOnContractIdsに足した",
+        "remaining": "baseOidはC0配送後の版で統合担当が割り当てる（artifactRequirementsの「C0配送後の基底」）",
+        "reason": "計画§3.1（C0 → C1）"
+      },
+      {
+        "id": "P3-C1-OWNER",
+        "status": "closed",
+        "closed": "C1はreconstruction/src/checkpoint/checkpoint.tsとreconstruction/test/checkpoint-shutdown/**だけを編集する。composition-root.ts・host.ts・shared-runtime.ts・共有型は編集しない（計画§3.1 Wave 2でC2と並走、§3.2）",
+        "remaining": "なし",
+        "reason": "計画§3.1・§3.2"
+      },
+      {
+        "id": "P3-C1-E15",
+        "status": "closed",
+        "closed": "E15の計測点（writeの別計数、保存前段の同期区間、verifyの読んだbytes）はC3a後の配置でC4が1回だけ置く。C1は計測点を足さず、既存段の計測（encode・write・fileSync・close・rename・directorySync、照合時のverify）の名前と結合を変えない",
+        "remaining": "C4のmanifestは定常保存にverify段が無いことを前提に組む（p3-execution-boundary.md §6）",
+        "reason": "計画§2.1 C1行のoutOfScope、§6 E15行"
+      }
+    ],
+    "operationContract": {
+      "ref": "P2-SHARED-RUNTIME-001#meta.operationContract"
+    }
+  },
+  "contract": {
+    "contractId": "P3-CHECKPOINT-STEP1-001",
+    "mode": "implementation",
+    "objective": "保存の設計 手順1の②〜④（台帳55）を CheckpointCoordinator の定常保存経路で閉じる。書き手が単位ごとに有効slot・世代・hashを記憶して定常保存の読み直しを0にし、envelopeの直列化を1回にしてhashをその保存bytesに取り、file sync→rename→directory syncの完了だけを保存完了の根拠にする。S5=Aの範囲（保存の途中で止まっても前回の保存は壊れない）をプロセス停止試験と手順確認で検収する。実行場所の分離（C3a）とE15の計測点（C4）は扱わない。",
+    "baseOid": "unassigned",
+    "cleanTreeRequired": true,
+    "readPaths": [
+      "docs/specs/reconstruction-p0-contracts.md",
+      "reconstruction/contracts/p3-order-plan.md",
+      "reconstruction/contracts/p3-execution-boundary.md",
+      "reconstruction/contracts/p3-checkpoint-step1.json",
+      "reconstruction/contracts/p2-checkpoint-shutdown.json",
+      "reconstruction/contracts/p2-shared-runtime.json",
+      "reconstruction/contracts/p2-shared-runtime.types.ts",
+      "reconstruction/contracts/p2-eew-e01.types.ts",
+      "reconstruction/src/**",
+      "reconstruction/test/**",
+      "reconstruction/tools/corpus/manifest.json",
+      "reconstruction/tools/corpus/sequences.json"
+    ],
+    "allowedPaths": [
+      "reconstruction/src/checkpoint/checkpoint.ts",
+      "reconstruction/test/checkpoint-shutdown/**"
+    ],
+    "allowedGitCommands": [
+      "git status --porcelain",
+      "git rev-parse HEAD",
+      "git cat-file -e <oid>:reconstruction/contracts/p3-checkpoint-step1.json",
+      "git diff --binary --no-ext-diff -- <allowed_paths>",
+      "git diff --check -- <allowed_paths>",
+      "git show <required-path-or-object>",
+      "git ls-files <required-path>"
+    ],
+    "moduleIds": [
+      "B07"
+    ],
+    "integrationContractIds": [
+      "I-U-E",
+      "I-U-W",
+      "I-U-F"
+    ],
+    "dependsOnContractIds": [
+      "P2-CHECKPOINT-SHUTDOWN-001",
+      "P2-SHARED-RUNTIME-001",
+      "P3-UNIT-TABLE-001"
+    ],
+    "publicTypes": [
+      "reconstruction/contracts/p2-shared-runtime.types.ts#CheckpointEnvelope",
+      "reconstruction/contracts/p2-shared-runtime.types.ts#CheckpointRequest",
+      "reconstruction/contracts/p2-shared-runtime.types.ts#CheckpointResult",
+      "reconstruction/contracts/p2-shared-runtime.types.ts#RestoreUnitResult",
+      "reconstruction/contracts/p2-eew-e01.types.ts#CheckpointMeasurement"
+    ],
+    "publicFunctions": [
+      "CheckpointCoordinator#restoreUnit(unit: UnitId): RestoreUnitResult（signature不変。読んだ結果で当該単位の記憶を立てる・捨てる）",
+      "CheckpointCoordinator#scheduleCheckpoint(state, clock, runId, correlationByUnit, force?, excluded?)（signature・戻り値の形は不変。新しいcaptureの直列化は1回）",
+      "CheckpointCoordinator#executeCheckpoint(request: CheckpointRequest, runId: string, inputIds: readonly string[], retryReason: CheckpointMeasurement['retryReason']): Promise<Readonly<{ result: CheckpointResult; measurements: readonly CheckpointMeasurement[] }>>（signature不変。記憶がある間は読み直さない）",
+      "CheckpointCoordinator#resolveUncertain(state, unit, attemptId, clock)（signature不変。照合の読み直しはここに残す）",
+      "hashEnvelope(envelope: Omit<CheckpointEnvelope, 'sha256'>): CheckpointEnvelope（export・出力不変）",
+      "serializedEnvelope(envelope: CheckpointEnvelope): Uint8Array（export・出力bytes不変）"
+    ],
+    "allowedDependencies": [
+      "node:crypto",
+      "node:path",
+      "node:child_process（試験のみ。プロセス停止試験の子プロセス起動）",
+      "node:fs（試験のみ。実filesystemでのプロセス停止試験）",
+      "node:os（試験のみ。一時ディレクトリ）"
+    ],
+    "fixtureIds": [
+      "test__fixtures__81_02_01_260605_VPWP50_high_severity",
+      "test__fixtures__81_04_01_260605_VPWP50_cancel"
+    ],
+    "sequenceIds": [
+      "O10"
+    ],
+    "expectedDecisions": [
+      {
+        "expectedRef": "expected:O10:35"
+      },
+      {
+        "expectedRef": "expected:O10:39"
+      }
+    ],
+    "expectationEvidence": [
+      {
+        "expectedRef": "expected:O10:35"
+      },
+      {
+        "expectedRef": "expected:O10:39"
+      }
+    ],
+    "semanticDeadlines": [],
+    "deliveryDeadlines": [
+      {
+        "id": "P3-C1-DLV-01",
+        "target": "normal dirty update through containing generation acknowledgement（P2-A3-DLV-01を変えない）",
+        "limit": 3,
+        "unit": "seconds",
+        "clock": "monotonic",
+        "source": "§5.8"
+      }
+    ],
+    "retentionLimits": [
+      {
+        "id": "P3-C1-RET-01",
+        "target": "checkpoint slots（P2-A3-RET-01を変えない）",
+        "limit": "latest two validated generations per persistence unit",
+        "source": "§4.2/§5.7"
+      }
+    ],
+    "resourceLimits": [
+      {
+        "id": "P3-C1-RES-01",
+        "target": "steady-state checkpoint slot reads",
+        "limit": 0,
+        "unit": "readFile calls per acknowledged save while the unit's writer knowledge is valid",
+        "scope": "restoreUnit・latestValidSlot・書込後verifyのどれも定常経路で呼ばない",
+        "source": "計画§2.1 C1行"
+      },
+      {
+        "id": "P3-C1-RES-02",
+        "target": "recovery slot reads",
+        "limit": 2,
+        "unit": "readFile calls per attempt without writer knowledge (slot A and B once each)",
+        "scope": "記憶なしの試行の最初に1回だけ。重複確認とslot選択に同じ読み込み結果を使う。上限の外は2つ: resolveUncertainの照合の読み込みと、記憶なしの試行で同世代同hashのslotを見つけたときの既存の確認（directory sync後のverify 1回、spec§5.7の再照合）",
+        "source": "計画§2.1 C1行、spec:841・:843"
+      },
+      {
+        "id": "P3-C1-RES-03",
+        "target": "envelope serialization",
+        "limit": 1,
+        "unit": "JSON.stringify calls whose argument is the envelope (the object holding payload) per new capture",
+        "scope": "同世代の再試行は保持したbytesを再利用し0回。codec.encodeの内部と、generation・capturedAtの範囲検査（87fc5ed3のcheckpoint.ts:208）のJSON.stringifyは数えない",
+        "source": "計画§2.1 C1行"
+      },
+      {
+        "id": "P3-C1-RES-04",
+        "target": "checkpoint writer（P2-A3-RES-02を変えない）",
+        "limit": 1,
+        "unit": "in-flight attempt total",
+        "scope": "stopped-unconfirmed I/O retains ownership",
+        "source": "§5.8"
+      }
+    ],
+    "workDeadline": null,
+    "persistenceUnits": [
+      "U-E",
+      "U-W",
+      "U-F"
+    ],
+    "persistedFields": [
+      "CheckpointEnvelope schemaVersion, unit, generation, capturedAt, payload and sha256（保存bytesはP2と同一）"
+    ],
+    "nonPersistedFields": [
+      "書き手の単位ごとの記憶（有効slot・世代・sha256、または空）。プロセス内だけで持ち、起動時の復元で作り直す",
+      "保持した保存bytes（同世代の再試行用）"
+    ],
+    "outOfScope": [
+      "checkpointのworkerへの移動と実行場所の分離（C3a）",
+      "手順1の①・⑤（C3a。⑤はshared-runtime.ts:971〜973が満たしており、C1はackの世代の意味を変えない）",
+      "官署ごとの保存・不変chunk＋manifest（D-P3-2、C4の後に再裁定）",
+      "E15の計測点・計測注入口（C4）",
+      "実電源断試験・Piの停電耐性（S5、P5）",
+      "readSlotの検証手順（保存bytesのhash→parse→正規形比較→decode）の変更。復元と照合でだけ走るため",
+      "tmpの命名・O_EXCL化とnodeCheckpointFileSystemの変更（composition-root.tsはC1の範囲外）",
+      "composition-root.ts・host.ts・shared-runtime.ts・共有型の編集"
+    ],
+    "acceptanceChecks": [
+      {
+        "id": "P3-C1-AC01",
+        "requirement": "定常保存の読み直し0: 単位の記憶が有効な間、確認済みackまでの executeCheckpoint は fileSystem.readFile を1回も呼ばない。restoreUnit・latestValidSlot・書込後のverify読込みを定常経路から外す。書込先は記憶した有効slotの反対側（空ならA）、同じtmp→file sync→close→rename→directory syncの完了でacknowledgedを返し、記憶を書いたslot・世代・sha256へ進める。記憶はプロセス内だけで持ち、単位ごと（unitをkeyにした1つのMap）に置く。単位をまたぐ状態は既存の全体writer予約1件だけとし、C0の unit 表以外に単位の直書き列を足さない（C3aがworkerごとに分けられるように）",
+        "evidenceRefs": [
+          "reconstruction/contracts/p3-order-plan.md:58 «1a2012439510aafc»",
+          "docs/specs/reconstruction-p0-contracts.md:808 «6f567d2a46e4bf30»",
+          "docs/specs/reconstruction-p0-contracts.md:827 «1a0877ad8454ab7f»",
+          "docs/specs/reconstruction-p0-contracts.md:832 «cf257ba87c8db277»",
+          "reconstruction/contracts/p3-order-plan.md:193 «14cf3693cc9813e5»"
+        ]
+      },
+      {
+        "id": "P3-C1-AC02",
+        "requirement": "読み直しが許される場所の限定: (1) restoreUnit（起動時の復元と公開の呼出し）は従来どおりslot A・Bを読み、結果がrestoredならそのslot・世代・sha256、emptyなら空を記憶し、unavailableなら記憶を捨てる。(2) executeCheckpoint は記憶が無いときだけ、その試行の最初にslot A・Bを1回ずつ読み（restoreUnitの結果を1回だけ使い、latestValidSlotで読み直さない）、既存の判定（unavailableは書かずにstage=write失敗、古い世代・同世代異hashは書かずに失敗、同世代同hashはdirectory syncと照合だけでack）を同じ結果から行う。(3) 記憶が要求と同じ世代を指すとき（hashを問わず）は記憶を捨てて(2)の経路を通る。記憶は照合の読み込みからも立つので保存完了の証拠にならず、spec:843の再読込み・syncの再確認を省かない（通常のackの後はsavedGenerationが進むので、ここへ来るのは読み込み由来の記憶だけ）。記憶が要求より新しい世代を指すときは書かずに失敗する（P2-A3-AC09を変えない）。(4) 記憶の確定と破棄: resolveUncertainは終わりに記憶を確定し（照合成功なら確認したslot・世代・sha256、それ以外は破棄）、executeCheckpoint・resolveUncertainがuncertainを返すときは理由を問わず（同世代確認のverify失敗でstage=ackを返す場合を含む）当該単位の記憶を破棄する。rename前の失敗（open・write・fileSync・close）とencode失敗は記憶を変えない",
+        "evidenceRefs": [
+          "reconstruction/contracts/p3-order-plan.md:58 «1a2012439510aafc»",
+          "docs/specs/reconstruction-p0-contracts.md:841 «2e8b93a723481674»",
+          "docs/specs/reconstruction-p0-contracts.md:842 «b5a23cc386e3c9be»",
+          "docs/specs/reconstruction-p0-contracts.md:843 «306d64c536b299fa»",
+          "docs/specs/reconstruction-p0-contracts.md:808 «6f567d2a46e4bf30»",
+          "reconstruction/contracts/p2-checkpoint-shutdown.json"
+        ]
+      },
+      {
+        "id": "P3-C1-AC03",
+        "requirement": "直列化1回とhashの対象: 新しいcaptureではenvelope（payloadを持つobject）を引数とするJSON.stringifyを1回だけ行い（generation・capturedAtの範囲検査のJSON.stringifyは対象外。形はsha256欄を64個のASCII 0にした形、key順はschemaVersion, unit, generation, capturedAt, payload, sha256、BOM・末尾改行なし）、その結果からUTF-8 bytesを作り、そのbytesのsha256を取り、同じbytes列の末尾の64文字（readSlotが0に戻す位置と同じ）をhex値で上書きしたものを保存bytesとする。保存bytesはP2のserializedEnvelope(hashEnvelope(...))とbyte単位で同一で、P2の保存済みslotはそのまま復元できる。保存bytesはcoordinator内部の試行記録と再試行記録に持ち、executeCheckpointは書込み時に再直列化しない。encodedByteLengthはそのbytesの長さ。hashEnvelope・serializedEnvelopeのexportと出力は変えない（unitと試験が使う）。CheckpointRequestの型は変えない",
+        "evidenceRefs": [
+          "reconstruction/contracts/p3-order-plan.md:58 «1a2012439510aafc»",
+          "docs/specs/reconstruction-p0-contracts.md:835 «187d65da3382a48c»",
+          "reconstruction/contracts/p2-checkpoint-shutdown.json"
+        ]
+      },
+      {
+        "id": "P3-C1-AC04",
+        "requirement": "S5の手順確認: 定常保存1回のfilesystem呼出しは、自単位のtmp回収（unlink、既存）→open(tmp)→write→sync→close→rename(tmp, 反対側slot)→syncDirectory(保存ディレクトリ)の順で、syncDirectoryの完了前にacknowledgedを返さない。readFileは0回。故障時の結果種別はP2どおり（rename前はfailed、rename・directory syncはuncertain）",
+        "evidenceRefs": [
+          "reconstruction/contracts/p3-order-plan.md:177 «addac0c4fbd103a1»",
+          "docs/specs/reconstruction-p0-contracts.md:828 «57be50f487f27de7»",
+          "docs/specs/reconstruction-p0-contracts.md:830 «f323ce8533beb3a6»",
+          "docs/specs/reconstruction-p0-contracts.md:831 «6e651e015b43f6fb»"
+        ]
+      },
+      {
+        "id": "P3-C1-AC05",
+        "requirement": "S5のプロセス停止試験: 実filesystemの一時ディレクトリで、子プロセスがbuild済み製品（reconstruction/dist）のCheckpointCoordinatorとnodeCheckpointFileSystemでg1を保存・ack後、g2の保存中に次の2つの境界（tmpを書き切りfile sync・closeを終えたrename前、rename後のsyncDirectory前）で止まって境界名を親へ知らせ、親がSIGKILLで止める。境界での停止は試験側のfilesystem包み（製品adapterの呼出し前で待つ）で作り、製品コードに試験用の口を足さない。止めた後に同じディレクトリで新しいcoordinatorを作ると、restoreUnitはrestoredで、世代はrename前の停止なら1、syncDirectory前の停止なら2。empty・unavailableは0件。孤児tmpは起動時に回収される。続くg3の保存について、書いたslotが復元したslotと異なること、g3のack後も復元したslotが古い世代（g1またはg2）をそのまま持つこと、restoreUnitがg3を返すことを直接確かめる。これは電源断の証拠ではない（OSのcacheが残る）と試験名と報告に明記する",
+        "evidenceRefs": [
+          "reconstruction/contracts/p3-order-plan.md:177 «addac0c4fbd103a1»",
+          "docs/specs/reconstruction-p0-contracts.md:850 «e2a56c7b7574eeb9»",
+          "docs/specs/reconstruction-p0-contracts.md:1786 «f7c784644da02979»",
+          "docs/specs/reconstruction-p0-contracts.md:2924 «e1b09f8866161678»"
+        ]
+      },
+      {
+        "id": "P3-C1-AC06",
+        "requirement": "既存の保存試験の緑と期待値変更の限定: reconstructionのゲート（tsc 2本・vitest・shuffle）を全部通す。P2-A3-T03（E10）・T04（E14）・T05のencode帰属、O10のcheckpoint系列（expected:O10:35・:39）は期待値を変えずに通す。既存試験の期待値を変えてよい理由は次の2つだけ: (a) 定常経路からverify段と書込前の読み込みが外れた（段の一覧、定常executeでのverify・readFile故障注入）(b) 記憶が有効な間に試験が保存ファイルを外から置き換えた。起草時点で該当が分かっているのは checkpoint.test.ts のP2-A3-T05（段の一覧からverify）・P2-A3-T07（verify故障のreason）、review-regressions.test.ts のR01後半（書込後verify失敗→uncertain）・R04（定常executeでのslot EIO）・P2-A3-T09（外から置いた同世代slot、理由(b)）・I01（readFile・verify段の故障）・R26（:180、試行の計測件数7→verify除去）・R27（:265、同じ）・R08（:591、段の一覧からverify）・R13（:700、試行の計測件数7）。理由はP2-A3-T09だけが(b)、ほかは(a)。P2-A3-T09は記憶なしの経路（AC02(2)）で同世代同hashのslotを見つける形に書き直し、opens=0・syncs=1の期待を保つ。変更前にこの一覧を実測で確定して報告し、各試験は削らずに同じ性質（失敗の計測と書き手の解放、同世代同hashの無書込みack、checkpointVerifyFailedの配送）を記憶なしの経路（uncertainの後）か照合の経路で確かめる形に直す。allowedPathsの外（integration・host・unit・eew-e01）で期待値の変更が要る試験が出たら、変えずにblockedとして報告する",
+        "evidenceRefs": [
+          "reconstruction/contracts/p3-order-plan.md:58 «1a2012439510aafc»",
+          "docs/specs/reconstruction-p0-contracts.md:2061 «aeb1275bbe737682»",
+          "docs/specs/reconstruction-p0-contracts.md:2066 «9816b55af233a5a4»",
+          "docs/specs/reconstruction-p0-contracts.md:2067 «f867801b1fa94b3d»",
+          "reconstruction/tools/corpus/sequences.json#expected:O10:35",
+          "reconstruction/tools/corpus/sequences.json#expected:O10:39",
+          "reconstruction/test/checkpoint-shutdown/checkpoint.test.ts",
+          "reconstruction/test/checkpoint-shutdown/review-regressions.test.ts"
+        ]
+      }
+    ],
+    "testMapping": [
+      {
+        "testId": "P3-C1-T01",
+        "purpose": "acceptance",
+        "referenceIds": [
+          "P3-C1-AC01"
+        ],
+        "behavior": "起動時のrestoreUnit（empty）の後、同じ単位をg1・g2・g3と続けて保存すると、readFileの呼出しは0回、書込先はA→B→Aと交互になり、新しいcoordinatorのrestoreUnitがg3を返す"
+      },
+      {
+        "testId": "P3-C1-T02",
+        "purpose": "contractBoundary",
+        "referenceIds": [
+          "P3-C1-AC02"
+        ],
+        "behavior": "renameが名前を置き換えずに失敗してuncertain→照合失敗となった後の再試行では、その試行の最初にslot A・Bを1回ずつ読む（readFile 2回、書込後の読み込みなし）。その保存がackされた後の次の保存は読み直し0回に戻る"
+      },
+      {
+        "testId": "P3-C1-T03",
+        "purpose": "contractBoundary",
+        "referenceIds": [
+          "P3-C1-AC03"
+        ],
+        "behavior": "新しいcapture 1回で、envelope（payloadを持つobject）を引数とするJSON.stringifyは1回（範囲検査の呼出しは数えない）、書いたbytesはserializedEnvelope(hashEnvelope(同じenvelope))とbyte単位で一致し、restoreUnitで復元できる。同世代の再試行ではJSON.stringifyは0回"
+      },
+      {
+        "testId": "P3-C1-T04",
+        "purpose": "acceptance",
+        "referenceIds": [
+          "P3-C1-AC04"
+        ],
+        "behavior": "記録用filesystemで定常保存1回の呼出し順がopen→write→sync→close→rename→syncDirectoryで、syncDirectoryを止めている間はexecuteCheckpointのPromiseが解決しない"
+      },
+      {
+        "testId": "P3-C1-T05",
+        "purpose": "acceptance",
+        "referenceIds": [
+          "P3-C1-AC05"
+        ],
+        "behavior": "子プロセスをg2保存中の2つの境界（rename前、syncDirectory前）でSIGKILLし、新しいcoordinatorのrestoreUnitがrename前なら世代1、syncDirectory前なら世代2のrestoredを返す。続くg3は復元したslotと別のslotへ書かれ、復元したslotは古い世代のまま残り、restoreUnitはg3を返す（プロセス停止試験。電源断の証拠ではない）"
+      }
+    ],
+    "requiredCommands": [
+      {
+        "command": "node reconstruction/tools/corpus/check-manifest.mjs",
+        "stage": "contract",
+        "purpose": "参照fixture台帳を検査する",
+        "cwd": ".",
+        "target": "reconstruction/tools/corpus/manifest.json"
+      },
+      {
+        "command": "node reconstruction/tools/corpus/check-sequences.mjs",
+        "stage": "contract",
+        "purpose": "O10と未充足数を検査する",
+        "cwd": ".",
+        "target": "reconstruction/tools/corpus/sequences.json"
+      },
+      {
+        "command": "node reconstruction/contracts/check-contract.mjs",
+        "stage": "contract",
+        "purpose": "全作業契約を検査する",
+        "cwd": ".",
+        "target": "reconstruction/contracts/*.json"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/tsconfig.json",
+        "stage": "implementation",
+        "purpose": "新築TypeScript型検査とreconstruction/distの生成（P3-C1-T05の子プロセスがdistを使うのでvitestより先）",
+        "cwd": ".",
+        "target": "reconstruction/tsconfig.json"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/tsconfig.test.json",
+        "stage": "implementation",
+        "purpose": "test/配下を含む新築TypeScript型検査",
+        "cwd": ".",
+        "target": "reconstruction/tsconfig.test.json"
+      },
+      {
+        "command": "./node_modules/.bin/vitest run --config reconstruction/vitest.config.ts",
+        "stage": "implementation",
+        "purpose": "全reconstruction試験（既存の保存試験の緑とP3-C1-T01〜T05）",
+        "cwd": ".",
+        "target": "reconstruction/test/"
+      },
+      {
+        "command": "./node_modules/.bin/vitest run --config reconstruction/vitest.config.ts --sequence.shuffle",
+        "stage": "implementation",
+        "purpose": "書き手の記憶（module外のinstance状態）と実filesystem試験の順序依存を検出する",
+        "cwd": ".",
+        "target": "reconstruction/test/"
+      }
+    ],
+    "artifactRequirements": [
+      "P3-C1-AC01: 単位ごとの書き手の記憶（有効slot・世代・sha256、または空）が無いと、定常保存ごとにslotを最大5回読み直す（台帳55: 15.6MBで1回約150msの塊が最大5つ）。記憶はCheckpointCoordinatorのprivateなMap 1つに置き、新しい型・class・helper moduleを作らない",
+      "P3-C1-AC03: 保存bytesを試行記録に持たないと、executeCheckpointが全量を再直列化する（現HEADではscheduleCheckpointで2回、executeCheckpointで1回）。保持はcoordinator内部の試行記録・再試行記録だけで、CheckpointRequest（共有型）に足さない",
+      "判断点（記憶と公開のrestoreUnit）: restoreUnitはwriterの予約中に呼ばれても、読んだ結果で記憶を書き換えてよい（読んだのはdiskの事実で、試行の結果がack・uncertainで記憶を上書き・破棄するため）。記憶を守るための別の排他やflagを足さない",
+      "残存リスク（P3-C1-AC06の理由(b)と同じ根）: 記憶した有効slotが外部から（または媒体の故障で）壊れても、書き手は読み直さずに反対側（その時点で唯一有効なslot）を上書きする。latestValidSlot（87fc5ed3のcheckpoint.ts:294〜296）なら壊れた側を書込先に選んでいた。S5（プロセス停止で前回の保存は壊れない）は弱まらないが、spec:835の「直前の検証可能な写しを一つ残す」は外部・媒体の破損に対して弱まる。この残存リスクを報告に書き、検出の仕組みは足さない",
+      "判断点（時計・世代）: 記憶の世代比較はenvelopeのgeneration（整数）とsha256（hex）だけで行い、時計を使わない。capturedAtの保持はP2どおり同世代の再試行で元の値を使う",
+      "判断点（失敗時の状態）: rename前の失敗では記憶を変えない（有効slotは触られていない）。tmpの残骸は次の試行の既存のtmp回収（unlink）で消し、読み込みはしない",
+      "公開口の不変: CheckpointCoordinatorのconstructor・公開メソッドのsignature、hashEnvelope・serializedEnvelopeのexport、CheckpointFileSystemの形を変えない。composition-root.tsは編集しない（Wave 2でC2が編集する）",
+      "C0配送後の基底: C0（P3-UNIT-TABLE-001）がcheckpoint.tsの単位の直書き列（87fc5ed3の:171・:186）をunit表へ寄せた後の版を基底とする。本契約の行番号は87fc5ed3時点の目安で、関数名（scheduleCheckpoint・executeCheckpoint・resolveUncertain・restoreUnit・latestValidSlot・readSlot）で読み替える",
+      "p3-execution-boundary.md §3・§7のC1向け制約（記憶は単位ごと、結果と計測は構造化複製できる素のデータのまま、composition rootへの新しい依存を作らない）に反しない",
+      "既存試験の期待値を変えた試験ごとに、変更前後の期待値と理由（P3-C1-AC06の(a)か(b)）を1行で報告する。新しい試験ごとに受入条件／契約境界のどれに対応するかを1行で書く",
+      "allowed_pathsに限定したgit diff --binary --no-ext-diff patch",
+      "変更ファイル一覧、実行コマンドと結果、未実行検証と理由、残存リスク"
+    ],
+    "unresolvedQuestions": []
+  }
+}

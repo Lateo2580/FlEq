@@ -1,0 +1,463 @@
+{
+  "meta": {
+    "draftedFromOid": "87fc5ed341ed3e7a735e0382533a56610f33636a",
+    "sha256": "2fc0357e530829eb783860830402bcc716b1727bd7dfb30f7988564abf54517b",
+    "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
+    "manifestSha256": "76c82b87d7783a4eae14af690cb34e7d6ec46f73617dc75b7f7401951619f080",
+    "sequencesSha256": "be9cfd97b555e3a55568f085d107342c978b3dc7249f5cecea868ea5a62c5781",
+    "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
+    "decisionBranches": [
+      {
+        "id": "P3-C0-TABLE-HOME",
+        "A": "型はp3-unit-table.types.tsに固定する。各unitのUnitModule値は各unit自身のfile（units/*/*-unit.ts）からexportし、3行の表linkedUnitTableはcomposition-root.tsに置く。reduceRuntimeは第3引数calls.units（完全なUnitTable、既定値なし）で表を受ける",
+        "B": "shared-runtime.tsが表をimportして既定値にし、testは従来のper-unit fieldで上書きする",
+        "recommended": "A",
+        "provisional": "A",
+        "ruling": "起草者推奨（計画§3.1の「自分の1行だけ」と§3.2の所有に従う）。発注前点検で統合担当が確認",
+        "reason": "主因は明示結線の原則（shared-runtime.ts:455-456「Until delivery they must be supplied explicitly; no missing reducer is treated as success」）で、既定値を持たせると未結線のreducerを本物で黙って代用する。現行の「U-E reducer is not linked」例外は必須のcalls.unitsという型に置き換える。import循環（shared-runtime→units→domains→shared-runtime）が効くのは表をmodule評価時に組む場合だけで、Aでは表をcomposition-root側で組むので問題にならない。unitレーンは自分のdirectoryにmoduleを書き、共有の表には1行だけ足す"
+      },
+      {
+        "id": "P3-C0-TABLE-KEY",
+        "A": "unit表とunit列のkeyはRuntimeUnitId（実装済み3 unit）とし、unitレーンが自分のunitをRuntimeUnitIdと表へ1行ずつ足す",
+        "B": "計画§2.1の字面どおり `{ [K in UnitId]: UnitModule<K> }`（12 unit）にする",
+        "recommended": "A",
+        "provisional": "A",
+        "ruling": "統合担当が採用（C0レビュー P3-8）。Bは起草時の計画§2.1の字面で、現在の計画§2.1はRuntimeUnitIdを鍵にしている",
+        "reason": "未実装9 unitのUnitModule（reducer・codec・view）はまだ存在せず、UnitId keyでは表を作れない"
+      },
+      {
+        "id": "P3-C0-RUNTIME-DISTINCTION",
+        "A": "headTypeの区分を入力1件につき診断1件で残す。ignored→routeIgnored（INFO）、notPorted→routeNotPorted（INFO、unit=候補unit）、表に無い型→routeUnlisted（WARN）。DiagnosticReasonに3値を足し、永続sinkのreason一覧にも足す",
+        "B": "RuntimeStateまたはRuntimeStepに区分別の件数を持たせ、snapshotへ出す",
+        "recommended": "A",
+        "provisional": "A",
+        "ruling": "起草者推奨。計画§2.1 C0行「件数か診断で区別」のうち診断を選ぶ",
+        "reason": "既存の有界な診断経路（§7.9のqueue 256件・1MiB、満杯ではINFOから落とす）を再利用し、状態・保存・snapshot fieldを増やさない。診断のfieldは§7.9の固定fieldだけでheadTypeは持たない（inputIdで入力を指す）。DEBUGは§7.9で通常無効とされているのでignoredにも使わない"
+      },
+      {
+        "id": "P3-C0-PROJECTOR-BRANCHES",
+        "A": "view-projector.tsのunit変数分岐2か所（:442・:490）は、同じfileの既存のRecord<RuntimeUnitId,…>表（TTL・AREA_SYSTEMS・INFORMATION_TYPEと同じ形）へ寄せ、UnitModuleには入れない",
+        "B": "UnitModuleに表示用fieldを足す",
+        "recommended": "A",
+        "provisional": "A",
+        "ruling": "起草者推奨",
+        "reason": "表示の語彙はB08の所有でP4で射影し直す（台帳53・R46）。UnitModuleを表示都合で太らせない。Record<RuntimeUnitId,…>はunitを足すと型エラーになるので漏れは止まる"
+      },
+      {
+        "id": "P3-C0-COVERAGE-UNIVERSE",
+        "A": "coverage表の行は購読5分類のXML headTypeだけとし、範囲表記は個別コードへ展開する（ready 11・ignored 10・notPorted 116、計137行）。非XML 4行・購読外55行・廃止14行・「上記以外」1行は行にしない",
+        "B": "下書きの143行をそのまま（範囲・非XML・購読外・廃止を含めて）表にする",
+        "recommended": "A",
+        "provisional": "A",
+        "ruling": "起草者推奨",
+        "reason": "非XMLはingressでformatUnsupportedとして拒否されheadType照合に届かない（ingress.ts:45）。購読外・廃止は届かず、届いた場合はroute外としてrouteUnlisted（WARN）で見える。headTypeは配信値と完全一致で照合するので、範囲表記（VXKO50-89等）や複合表記は照合鍵にならない"
+      },
+      {
+        "id": "P3-C0-CODEC-SEAM",
+        "A": "CheckpointCoordinatorとcomposition rootのctor引数codecs（CodecMap、部分map可）は形を変えない。本番のlinkedUnitCodecsは表のdurable行から作り、別のリテラルcodec表を持たない。reduceRuntimeの復元は従来どおりcalls.codecsを使う",
+        "B": "composition rootのctorをUnitTable受けに変え、CodecMapを廃止する",
+        "recommended": "A",
+        "provisional": "A",
+        "ruling": "起草者推奨",
+        "reason": "部分codec mapは既存の保存・終了試験の継ぎ目で約40か所が使う。host.ts:67はlinkedUnitCodecsを渡しており、host.tsの編集権はC2以降（計画§3.2）。CodecMapの形とcheckpoint.tsの保存手順はC1の所有で、C0はcheckpoint.tsの列2か所だけを触る。本番経路の漏れは表のpersistence必須で型が止める"
+      },
+      {
+        "id": "P3-C0-NEXT-DEADLINE",
+        "A": "spec §3.2のnextDeadline(state)は各unit stepのnextDeadline fieldで満たし、UnitModuleに別関数を足さない",
+        "B": "UnitModule.nextDeadline(state)を足し、各unitに期限計算を別関数として実装させる",
+        "recommended": "A",
+        "provisional": "A",
+        "ruling": "起草者推奨（P2-SHARED-RUNTIME-001 artifactRequirements B2が各unit stepのnextDeadlineを凍結済み）",
+        "reason": "同じ期限計算を別関数へ複製しない。reduceUnit/toView/encode/decodeはreduce・toView・persistence.codecで満たす"
+      }
+    ],
+    "questionResolutions": [
+      {
+        "id": "P3-C0-S3-ROWS",
+        "status": "closed",
+        "source": "作者裁定S3=A（2026-10-01、進捗ノート§3）",
+        "closed": "VXSE42はignored（理由: 緊急地震速報テスト報。S3）。VXSE47はnotPorted・候補U-Q（購読外eew.realtime。移植時に中身を確かめる）。VPBS51はnotPorted・候補U-B（配信開始時期未定）。新しい指定河川洪水予報はheadTypeコードが公表されていないので行を作れない。届いた場合はrouteUnlisted（WARN）で見え、コード公表後にC11（U-R）が自分の行としてnotPortedまたはreadyで足す",
+        "remaining": "なし",
+        "reason": "計画§1.1の1「S3の4行の行き先を含む」"
+      },
+      {
+        "id": "P3-C0-R27-SPEC",
+        "status": "closed",
+        "source": "R27（VXSE44は新築で非対応）と計画§4.4",
+        "closed": "coverage表ではVXSE44をignored（理由R27）とし、unitへ送らない現行の扱いを保つ。spec:390（M01）と:499（§4.3のeew行）からVXSE44を外す改訂は統合担当がC0の凍結時に行う（計画§4.4）。被引用は:390の1件（p2-eew-unit.json:403）だけで、そのanchorと同契約のmeta.sha256を同じcommitで更新し、check-sequences・check-contractを通す。:499は被引用0",
+        "remaining": "なし（spec:499は計画§4.4の改訂表に:390と並んで載った）",
+        "reason": "計画§4.4 spec:390・:499行"
+      },
+      {
+        "id": "P3-C0-MANIFEST-EXCEPTION",
+        "status": "closed",
+        "closed": "corpus manifestのheadType（null 17件を除く）は全てcoverage表の鍵に含まれる。例外はVFSViiの1つだけで、気象庁サンプルのfile名（test/fixtures/46_01_01_170103_VFSVii.xml）から補完した値（manifest evidence: head.typeはファイル名から補完）で、配信されるheadTypeではない（実際はVFSV50〜61、spec M14・§4.3も同じ略記を使う）",
+        "remaining": "なし",
+        "reason": "計画§4.1「足りないもの: corpus manifest の全 headType が表にあることの検査」"
+      },
+      {
+        "id": "P3-C0-NO-AS-FORM",
+        "status": "closed",
+        "source": "R43のprobe（tsc 5.9.3 strict、2026-09-25。作業ノートのKnowledge「mapped type registry as zero」はreadPaths外なので条件をここに写す）",
+        "closed": "汎用処理を`as`なしで書く条件は3つ。(1) unitとstate/inputのように組になる値は1つのobjectの相関union（UnitJob）で受け、switch(job.unit)で各caseを絞る。別引数に分けると各引数が独立にRuntimeUnitId全体へ広がり、caseごとに`as`が要る。(2) 呼出しはmapped typeで注釈した表（UnitTable型の変数、TypeScript PR #47109の形）を経由する。`satisfies`だけの値をgeneric Kで引くと型がneverに潰れる。(3) unitごとのobjectは1つのliteralで組むか、generic関数（`<K extends RuntimeUnitId>(unit: K) => …`）で作る。空objectをloopやObject.fromEntriesで埋めない（非literalのkeyで左辺のmapped typeが交差型に潰れ、`as`が要る）",
+        "remaining": "なし",
+        "reason": "AC02（linkedUnitCodecsを表のdurable行から作る）とAC03（`as`を新たに足さない）を両立させる書き方を固定する",
+        "allowedForm": "`{ \"U-E\": codecOf(linkedUnitTable[\"U-E\"].persistence), \"U-W\": …, \"U-F\": … } satisfies CodecMap<RuntimeUnitStates>` のような1つのliteral（codecOfはdurableならcodec、ephemeralならundefinedを返すgeneric関数でよい）は許す。keyの列挙は型が漏れを止めるので、AC01の「unit列リテラル」には数えない"
+      }
+    ],
+    "operationContract": {
+      "source": "P1-PARSER-BOUNDARY-001#meta.operationContract",
+      "operations": [
+        "normal",
+        "training",
+        "test"
+      ],
+      "rule": "C0はoperationの伝播・区分間非干渉を変えない。route区分の診断はoperationで分岐せず、normal/training/testの入力に同じ規則を適用する"
+    }
+  },
+  "contract": {
+    "contractId": "P3-UNIT-TABLE-001",
+    "mode": "implementation",
+    "objective": "R43・R44・台帳52: 既存3 unit（U-E/U-W/U-F）の挙動を変えずに、unit列の真実源を1つにし、unit表（UnitModule<K>）・coverage表（headTypeごとにready/notPorted/ignored）・相関unionを受けるdispatcherへ寄せる。route外の入力を区分ごとの診断で見えるようにし、台帳52の実害3点（未登録headTypeの黙殺・復元のelseがU-Fへ流れる・保存候補の直書き列）を型と試験で止める。",
+    "baseOid": "unassigned",
+    "cleanTreeRequired": true,
+    "readPaths": [
+      "docs/specs/reconstruction-p0-contracts.md",
+      "reconstruction/contracts/p3-order-plan.md",
+      "reconstruction/contracts/p3-unit-table.json",
+      "reconstruction/contracts/p3-unit-table.types.ts",
+      "reconstruction/contracts/p2-shared-runtime.json",
+      "reconstruction/contracts/p2-shared-runtime.types.ts",
+      "reconstruction/contracts/p2-eew-unit.json",
+      "reconstruction/contracts/p2-eew-unit.types.ts",
+      "reconstruction/contracts/p2-weather-current-unit.json",
+      "reconstruction/contracts/p2-weather-current-unit.types.ts",
+      "reconstruction/contracts/p2-weather-timeseries-unit.json",
+      "reconstruction/contracts/p2-weather-timeseries-unit.types.ts",
+      "reconstruction/contracts/p2-checkpoint-shutdown.json",
+      "reconstruction/contracts/p2-snapshot-sse.json",
+      "reconstruction/contracts/p2-snapshot-sse.types.ts",
+      "reconstruction/tools/corpus/manifest.json",
+      "reconstruction/tools/corpus/sequences.json",
+      "reconstruction/src/**",
+      "reconstruction/test/**"
+    ],
+    "allowedPaths": [
+      "reconstruction/src/runtime/unit-coverage.ts",
+      "reconstruction/src/runtime/shared-runtime.ts",
+      "reconstruction/src/runtime/composition-root.ts",
+      "reconstruction/src/view-projector/view-projector.ts",
+      "reconstruction/src/checkpoint/checkpoint.ts",
+      "reconstruction/src/checkpoint/persistent-diagnostic-sink.ts",
+      "reconstruction/src/units/eew/eew-unit.ts",
+      "reconstruction/src/units/weather-current/weather-current-unit.ts",
+      "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts",
+      "reconstruction/contracts/p2-shared-runtime.types.ts",
+      "reconstruction/test/unit-table/**",
+      "reconstruction/test/shared-runtime/**",
+      "reconstruction/test/integration/**",
+      "reconstruction/test/checkpoint-shutdown/**",
+      "reconstruction/test/eew-unit/**",
+      "reconstruction/test/weather-current-unit/**",
+      "reconstruction/test/weather-timeseries-unit/**",
+      "reconstruction/test/notification-delivery/**",
+      "reconstruction/test/snapshot-sse/**"
+    ],
+    "allowedGitCommands": [
+      "git status --porcelain",
+      "git rev-parse HEAD",
+      "git cat-file -e <oid>:reconstruction/contracts/p3-unit-table.json",
+      "git diff --binary --no-ext-diff -- <allowed_paths>",
+      "git diff --check -- <allowed_paths>",
+      "git show <required-path-or-object>",
+      "git ls-files <required-path>"
+    ],
+    "moduleIds": [
+      "B02",
+      "B06",
+      "B07",
+      "B08",
+      "B15"
+    ],
+    "integrationContractIds": [
+      "I-U-E",
+      "I-U-W",
+      "I-U-F"
+    ],
+    "dependsOnContractIds": [
+      "P2-SHARED-RUNTIME-001",
+      "P2-CHECKPOINT-SHUTDOWN-001",
+      "P2-EEW-UNIT-001",
+      "P2-WEATHER-CURRENT-UNIT-001",
+      "P2-WEATHER-TIMESERIES-UNIT-001",
+      "P2-SNAPSHOT-SSE-001"
+    ],
+    "publicTypes": [
+      "reconstruction/contracts/p2-shared-runtime.types.ts#RuntimeUnitInputs",
+      "reconstruction/contracts/p2-shared-runtime.types.ts#RuntimeUnitSteps",
+      "reconstruction/contracts/p3-unit-table.types.ts#UnitPersistence",
+      "reconstruction/contracts/p3-unit-table.types.ts#TerminalIntentRecords",
+      "reconstruction/contracts/p3-unit-table.types.ts#UnitModule",
+      "reconstruction/contracts/p3-unit-table.types.ts#UnitTable",
+      "reconstruction/contracts/p3-unit-table.types.ts#UnitJob",
+      "reconstruction/contracts/p3-unit-table.types.ts#CoverageRow",
+      "reconstruction/contracts/p3-unit-table.types.ts#CoverageClass",
+      "reconstruction/contracts/p2-shared-runtime.types.ts#DiagnosticReason"
+    ],
+    "publicFunctions": [
+      "classifyHeadType(headType: string): CoverageClass",
+      "reduceRuntime(state: RuntimeState | null, input: RuntimeInput, calls: Readonly<{ units: UnitTable; codecs?: CodecMap<RuntimeUnitStates>; selectNotificationAttempt?: …; applyNotificationResult?: … }>): RuntimeStep"
+    ],
+    "allowedDependencies": [],
+    "fixtureIds": [
+      "test__fixtures__36_01_10_240613_VXSE44",
+      "test__fixtures__32-39_11_02_250206_VTSE41",
+      "test__fixtures__46_01_01_170103_VFSVii"
+    ],
+    "sequenceIds": [
+      "O09"
+    ],
+    "expectedDecisions": [],
+    "expectationEvidence": [],
+    "semanticDeadlines": [],
+    "deliveryDeadlines": [],
+    "retentionLimits": [],
+    "resourceLimits": [],
+    "workDeadline": null,
+    "persistenceUnits": [
+      "U-E",
+      "U-W",
+      "U-F"
+    ],
+    "persistedFields": [
+      "変更なし: 各unitのcodec・schemaVersion・保存payloadをC0は変えない（UnitModule.persistence.codecは既存codecをそのまま指す）"
+    ],
+    "nonPersistedFields": [
+      "unit列・coverage表・unit表（コード上の定数）",
+      "route区分の診断（routeIgnored/routeNotPorted/routeUnlisted）は既存の診断sinkへ出すだけで、unit stateにもRuntimeStateにも件数を持たない"
+    ],
+    "outOfScope": [
+      "実行場所の列とworker分離（C3a）",
+      "新しいunitの意味・reducer・codec・coverage行のready化（C5〜C14）",
+      "CodecMapの形・checkpoint.tsの保存手順と読み直し（C1）。checkpoint.tsはunit列2か所だけを触る",
+      "host.tsとVTSE41のtsunamiCandidate付与（C2・C5）",
+      "view-projectorの表示語彙・Record表の再設計（P4）",
+      "spec・sequences.json・期待値の改訂（統合担当）",
+      "購読区分の変更（R54）",
+      "VPNO50の内容別振り分け（unresolvedQuestions P3-C0-Q-VPNO50）"
+    ],
+    "acceptanceChecks": [
+      {
+        "id": "P3-C0-AC01",
+        "requirement": "unit列の真実源を1つにする。reconstruction/src/runtime/unit-coverage.tsに `runtimeUnits = [\"U-E\", \"U-W\", \"U-F\"] as const` を1つだけ置き、RuntimeUnitId（p2-shared-runtime.types.ts:22）との双方向の網羅検査（列に無いid、idに無い列要素のどちらも型エラー）を付ける。87fc5ed3のunit列リテラル8か所（shared-runtime.ts:43、composition-root.ts:282・:310・:503・:545・:553、checkpoint.ts:171・:186）をこの列の参照へ置き換える。置き換えないもの: Record<RuntimeUnitId,…>・RuntimeViews・固定keyのobject literal（composition-root.ts:99-103等）は型が漏れを止めるので残す。persistent-diagnostic-sink.ts:39は12 UnitIdの全量（診断のunit field検証用）で実装済みunit列ではない。measurement/eew-e01/frozen.ts:141はA10の版付きtrial setup schemaのfield集合でC4の所有。UnitId・RuntimeUnitIdの値は変えない",
+        "evidenceRefs": [
+          "reconstruction/contracts/p3-order-plan.md:140 «fb6c6f287e207c71»",
+          "reconstruction/contracts/p3-order-plan.md:57 «e843060b3f1ca0b7»",
+          "reconstruction/src/runtime/shared-runtime.ts",
+          "reconstruction/src/checkpoint/checkpoint.ts"
+        ]
+      },
+      {
+        "id": "P3-C0-AC02",
+        "requirement": "unit表をp3-unit-table.types.tsのUnitModule<K>・UnitTableで固定する。eew-unit.ts・weather-current-unit.ts・weather-timeseries-unit.tsがそれぞれ自分のmodule値を `satisfies UnitModule<K>` でexportし、composition-root.tsの `linkedUnitTable = { \"U-E\": …, \"U-W\": …, \"U-F\": … } satisfies UnitTable` が3行だけを持つ。各fieldの値: reduce・toView・persistence（durable、既存codec）は既存関数をそのまま指す。confirmationScopeLimitはU-E 1024・U-W 1024・U-F 512（P2-A1-CONFIRMATION.bounds、現shared-runtime.ts:145）。withoutNormal・keepsWhileNormalHiddenは現:399-420の各unit枝（U-Wだけtransition=unavailableのsubjectをnormal遮蔽中も残す）、normalDisplaySubjectsは現:434-447の各unit枝、terminalIntentsはU-Eだけ{kind:deliveryRecords}で他は{kind:intents}（現:725-727）、reclaimDeadlineBeforeReceiveはU-Eだけtrue（現:926）を、式を変えずに移す。linkedRuntimeCallsは {units: linkedUnitTable, selectNotificationAttempt, applyNotificationResult}、linkedUnitCodecsは表のdurable行のcodecから作り別のリテラルcodec表を持たない（書き方はquestionResolutions P3-C0-NO-AS-FORMの許可形。Object.fromEntriesやloopで空objectを埋めない）。各fieldは現行の分岐1群に対応し、それ以外のfield（将来用・表示用）を足さない",
+        "evidenceRefs": [
+          "reconstruction/contracts/p3-order-plan.md:18 «97876f3f16d8a449»",
+          "docs/specs/reconstruction-p0-contracts.md:334 «07df9b4ceb5650d7»",
+          "docs/specs/reconstruction-p0-contracts.md:2754 «ca820c00fc578c78»",
+          "reconstruction/contracts/p3-unit-table.types.ts"
+        ]
+      },
+      {
+        "id": "P3-C0-AC03",
+        "requirement": "dispatcherと分岐の寄せ直し。reduceRuntimeの第3引数を必須のcalls: Readonly<{ units: UnitTable; codecs?; selectNotificationAttempt?; applyNotificationResult? }>とし、per-unitの6 field（reduceEewUnit・reduceWeatherCurrentUnit・reduceWeatherTimeseriesUnit・toEewView・toWeatherCurrentView・toWeatherTimeseriesView）を削る。unit reducerの呼出し（受信・期限・終了・intentUpdate＝現:593-603、復元＝現:529-540）はUnitJobを受ける網羅switch 1つ（defaultはneverへの代入）またはUnitTable注釈の表経由の呼出しに集約し、最後のelseが特定unitへ流れる分岐を残さない。shared-runtime.tsのunit変数分岐12か所（:89・:145・:401・:408・:434・:439・:442・:529・:533・:725・:727・:926）をunit列と表のfield参照へ置き換える。判別共用体の値で分ける19か所（shared-runtime.ts 8・view-projector.ts 11）は残す。「U-E/U-W/U-F reducer is not linked」の3例外は型で表現できなくなるので削る。`as`（as constを除く）を新たに足さない。復元の`as`式は9個（現:531-532・:535-536・:539-540）から1個以下にし、残すならCodecMapのJsonValue型が理由である旨を1行のcommentで書く。書き方はquestionResolutions P3-C0-NO-AS-FORMの3条件に従う",
+        "evidenceRefs": [
+          "reconstruction/contracts/p3-order-plan.md:140 «fb6c6f287e207c71»",
+          "reconstruction/contracts/p3-order-plan.md:142 «d10e1ccffa6e6501»",
+          "reconstruction/src/runtime/shared-runtime.ts"
+        ]
+      },
+      {
+        "id": "P3-C0-AC04",
+        "requirement": "view-projector.tsのunit変数分岐2か所を同じfileのRecord<RuntimeUnitId,…>表へ寄せる。:442（U-Eだけwarning class別のevent数で数える）は数え方の表、:490（unavailable通知の文言）はunitごとの文言表とし、U-Eはunavailableを作らないので値をnullにして、nullのunitでunavailable通知を作ろうとしたら例外にする（現行はelseでU-Wの文言になる）。snapshotの出力bytesと既存のsnapshot-sse試験の期待値は変えない",
+        "evidenceRefs": [
+          "reconstruction/contracts/p3-order-plan.md:130 «eacdd748a34929f7»",
+          "reconstruction/src/view-projector/view-projector.ts"
+        ]
+      },
+      {
+        "id": "P3-C0-AC05",
+        "requirement": "coverage表と実行時の区別。unit-coverage.tsのcoverage表（`as const`、各行 `satisfies CoverageRow`）を正とし、specへは挿入しない。行はready 11（VXSE43/45→U-E、VPWS50・VPWW55/57/58/59/60/61・VPNO50→U-W、VPWP50→U-F）、ignored 10（VXSE44: R27、VXSE42: S3、VPWW53/54・VPZJ50・VPCJ50・VPFJ50・VMCJ50/51/52: 2028年頃終了予定＋内容重複、spec §4.3 ignore行）、notPorted 116（候補unit: U-Q 6＝VXSE47/51/52/53/61/62、U-M 16＝VXSE56/60・VZSE40・VPZJ51・VPCJ51・VPFJ51・VMCJ53/54/55・VPZI50・VPCI50・VPAW51・VPHW50/51・VXWW50・VPFT50、U-N 4＝VYSE50/51/52/60、U-T 3＝VTSE41/51/52、U-V 21＝VFVO50〜56・VFVO60・VFSV50〜61・VZVO40、U-L 1＝VPWW56、U-B 3＝VPOA50・VPBS50・VPBS51、U-Y 12＝VPTW60〜65・VPTA50〜55、U-R 50＝VXKO50〜89・VXSU50〜59）。reasonは1行の固定文で、notPortedは候補unitの移植待ち、S3由来の行はS3と書く。classifyHeadTypeは外部入力の文字列をown propertyだけで照合し（Object.hasOwnまたはMap）、継承key（toString等）をreadyにしない。照合は入力1件O(1)で表を走査しない。parser completionの扱い: ready→従来どおりunitのreceive（shutdown stageの条件も従来どおり）。ignored→envelope検証をせずrouteIgnored（INFO）を1件。notPorted→validateSemanticEnvelope、拒否なら既存の拒否診断だけ、受理ならrouteNotPorted（INFO、unit=候補unit）を1件。表に無い型→validateSemanticEnvelope、拒否なら既存の拒否診断だけ、受理ならrouteUnlisted（WARN）を1件。component=shared-runtime、inputIdを付ける。入力1件の診断は最大1件。区分の診断はshutdown.finalizationAtがnullの間はstageによらず出す（現行のparser completion処理全体が:920のfinalizationAt == nullの内側にあり、その外側は変えない）。drain後に届いたready入力は現行どおり（unitへ渡さず、envelope拒否時だけ診断）。parser拒否は従来どおり。DiagnosticReasonにrouteIgnored・routeNotPorted・routeUnlistedを足し、persistent-diagnostic-sink.tsのreason一覧にも足す（無いとsinkが読み戻しで捨てる）",
+        "evidenceRefs": [
+          "reconstruction/contracts/p3-order-plan.md:57 «e843060b3f1ca0b7»",
+          "docs/specs/reconstruction-p0-contracts.md:531 «7df01b9badcaada5»",
+          "docs/specs/reconstruction-p0-contracts.md:532 «69e9f6a97b6416be»",
+          "docs/specs/reconstruction-p0-contracts.md:495 «9a5827df2940ea74»",
+          "docs/specs/reconstruction-p0-contracts.md:1211 «1db51524eccef065»",
+          "docs/specs/reconstruction-p0-contracts.md:1222 «2f554684a08fece8»"
+        ]
+      },
+      {
+        "id": "P3-C0-AC06",
+        "requirement": "corpus manifestの全headType（null 17件を除く）がcoverage表の鍵に含まれ、含まれないものはちょうど[\"VFSVii\"]（questionResolutions P3-C0-MANIFEST-EXCEPTION）。manifestに行の無いheadTypeが増えても、例外集合が変わっても試験が落ちる",
+        "evidenceRefs": [
+          "reconstruction/contracts/p3-order-plan.md:142 «d10e1ccffa6e6501»",
+          "reconstruction/tools/corpus/manifest.json"
+        ]
+      },
+      {
+        "id": "P3-C0-AC07",
+        "requirement": "負の型検査6本（R43のprobeの型）をreconstruction/test/unit-table/type-contract.tsに@ts-expect-errorで置き、tsconfig.test.jsonの型検査で確かめる。N1: UnitTableにRuntimeUnitIdの行が欠ける。N2: 別unitのmoduleを別のkeyに置く。N3: persistenceを省く、またはdurableでcodecを省く。N4: UnitJobのunitと別unitのstate/inputを組む。N5: unit列がRuntimeUnitIdの要素を欠く（網羅検査）。N6: coverage行でreadyのunitがRuntimeUnitId以外（例U-T）、またはnotPorted/ignoredがreasonを欠く。正の検査として3つのlinked moduleが `satisfies UnitModule<K>` を通り、UnitJobのswitchで各caseのstate/inputが絞られることも同じfileに置く",
+        "evidenceRefs": [
+          "reconstruction/contracts/p3-order-plan.md:57 «e843060b3f1ca0b7»",
+          "reconstruction/contracts/p3-order-plan.md:142 «d10e1ccffa6e6501»",
+          "reconstruction/contracts/p3-unit-table.types.ts"
+        ]
+      },
+      {
+        "id": "P3-C0-AC08",
+        "requirement": "台帳52の実害3点。①未登録headTypeの黙殺（実行時の再現試験）: 期限が到来していないstate（drainingの入力では期限処理が走る、現:924-927・:947。既存のVXSE44試験はU-Eの期限が到来しておりchangedUnits=[\"U-E\"]になる、test/integration/unit-wiring.test.ts:396）で、実fixtureのdecode材料のうち、表に無いheadType（headTypeだけを\"VZZZ99\"に差し替え）はrouteUnlisted（WARN）1件、VTSE41（fixture 32-39_11_02_250206_VTSE41、O09:14の入力）はrouteNotPorted（unit=U-T）1件、VXSE44はrouteIgnored 1件を返し、3件ともunit state・views・changedUnits・保存世代を変えない。②復元のelseがU-Fへ流れる・③保存候補の直書き列は、3 unitの現行では正しく動いており4つ目のunitを足したときにだけ効くので、実行時の試験ではなく型検査を証拠にする: ②はN1（行の欠け）・N2（別keyのmodule）・N4（別unitのstate/input）、③はN3（persistence・codecの省略）・N5（unit列の欠け）",
+        "evidenceRefs": [
+          "reconstruction/contracts/p3-order-plan.md:34 «8a3fe7b489982786»",
+          "reconstruction/contracts/p3-order-plan.md:140 «fb6c6f287e207c71»",
+          "reconstruction/contracts/p3-order-plan.md:231 «beaf047ac7f9d773»"
+        ]
+      },
+      {
+        "id": "P3-C0-AC09",
+        "requirement": "既存3 unitの挙動不変とE08・E11不変。reconstructionの既存試験が全て緑で、--sequence.shuffleでも緑。E08（P2-A1-T01、固定時計の無変化tick）とE11（P2-A1-T02、全状態stringify・JSON roundtrip 0）はそのまま通る。既存試験の変更は (a) reduceRuntimeの第3引数をcalls.units形へ移すこと。第3引数を省いている呼出し（例 test/shared-runtime/shared-runtime.test.ts:493）も含む（stubはlinkedUnitTableの行をspreadして必要なfieldだけ差し替える。test専用のhelperは置いてよい）と (b) 次の期待値変更だけに限る: test/shared-runtime/shared-runtime.test.ts:534-536の入力0・1（route外のVXSE51）を[]から[\"routeNotPorted\"]へ、test/integration/unit-wiring.test.ts:399（VXSE44）を[]からrouteIgnored 1件へ、shared-runtime.test.ts:694の「U-E reducer is not linked」の行を削る（未結線を型で表現できないため）。ほかに期待値が変わる箇所が見つかったら、route外XMLの診断が増えたことだけが理由であるものに限って更新し、一覧に足す。それ以外の理由で期待値が変わるなら実装を止めてblockedで報告する",
+        "evidenceRefs": [
+          "reconstruction/contracts/p3-order-plan.md:57 «e843060b3f1ca0b7»",
+          "docs/specs/reconstruction-p0-contracts.md:2059 «8ac7c45a9d2292ae»",
+          "docs/specs/reconstruction-p0-contracts.md:2062 «25bd4bb1cab285b6»"
+        ]
+      }
+    ],
+    "testMapping": [
+      {
+        "testId": "P3-C0-T01",
+        "purpose": "regression",
+        "referenceIds": [
+          "P3-C0-AC05",
+          "P3-C0-AC08"
+        ],
+        "behavior": "台帳52①: 期限が到来していないstateで、VZZZ99（未登録）・VTSE41（notPorted）・VXSE44（ignored）の各1入力からrouteUnlisted/routeNotPorted/routeIgnoredが1件ずつ出て、業務state・views・changedUnits・保存世代は不変。notPortedの入力でReportDateTimeを空にすると既存のreportDateTimeMissingだけが出る（区分診断と二重にならない）"
+      },
+      {
+        "testId": "P3-C0-T03",
+        "purpose": "contractBoundary",
+        "referenceIds": [
+          "P3-C0-AC06"
+        ],
+        "behavior": "manifestの非null headTypeのうちcoverage表に無いものがちょうど[VFSVii]"
+      },
+      {
+        "testId": "P3-C0-T04",
+        "purpose": "contractBoundary",
+        "referenceIds": [
+          "P3-C0-AC07",
+          "P3-C0-AC08",
+          "P3-C0-AC01",
+          "P3-C0-AC02"
+        ],
+        "behavior": "test/unit-table/type-contract.ts: 負の型検査N1〜N6（AC08②③の証拠を兼ねる）と、linked moduleのsatisfies・UnitJobの絞り込みの正の検査（tsc --project reconstruction/tsconfig.test.jsonで確かめる。vitestのsuiteにはしない）"
+      },
+      {
+        "testId": "P3-C0-T06",
+        "purpose": "contractBoundary",
+        "referenceIds": [
+          "P3-C0-AC05"
+        ],
+        "behavior": "永続診断sinkがrouteIgnored・routeNotPorted・routeUnlistedを書き、再起動後の読み出しで同じreason・levelのまま返す（sinkのreason一覧の漏れで捨てない）"
+      },
+      {
+        "testId": "P3-C0-T07",
+        "purpose": "acceptance",
+        "referenceIds": [
+          "P3-C0-AC03",
+          "P3-C0-AC04",
+          "P3-C0-AC09"
+        ],
+        "behavior": "既存のreconstruction試験全体（P2-A1-T01/E08・P2-A1-T02/E11・snapshot-sse・checkpoint-shutdown・integrationを含む）が通常順とshuffleの両方で緑。新しい試験は足さず、AC09の期待値変更だけを反映する"
+      }
+    ],
+    "requiredCommands": [
+      {
+        "command": "node reconstruction/tools/corpus/check-manifest.mjs",
+        "stage": "contract",
+        "purpose": "参照fixture台帳と自己hashを検査する",
+        "cwd": ".",
+        "target": "reconstruction/tools/corpus/manifest.json"
+      },
+      {
+        "command": "node reconstruction/tools/corpus/check-sequences.mjs",
+        "stage": "contract",
+        "purpose": "O09参照と根拠を検査する",
+        "cwd": ".",
+        "target": "reconstruction/tools/corpus/sequences.json"
+      },
+      {
+        "command": "node reconstruction/contracts/check-contract.mjs",
+        "stage": "contract",
+        "purpose": "全作業契約の型・参照・自己hashを検査する",
+        "cwd": ".",
+        "target": "reconstruction/contracts/*.json"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/tsconfig.json",
+        "stage": "implementation",
+        "purpose": "新築TypeScript型検査とreconstruction/dist生成（vitestより先）",
+        "cwd": ".",
+        "target": "reconstruction/tsconfig.json"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/tsconfig.test.json",
+        "stage": "implementation",
+        "purpose": "T04の負の型検査6本を含むtest配下の型検査",
+        "cwd": ".",
+        "target": "reconstruction/tsconfig.test.json"
+      },
+      {
+        "command": "./node_modules/.bin/vitest run --config reconstruction/vitest.config.ts",
+        "stage": "implementation",
+        "purpose": "既存3 unitと新しい再現・境界試験",
+        "cwd": ".",
+        "target": "reconstruction/test/"
+      },
+      {
+        "command": "./node_modules/.bin/vitest run --config reconstruction/vitest.config.ts --sequence.shuffle",
+        "stage": "implementation",
+        "purpose": "module scopeの表・共有stateの順序依存を検出する",
+        "cwd": ".",
+        "target": "reconstruction/test/"
+      }
+    ],
+    "artifactRequirements": [
+      "置換表: AC01の8列とAC03・AC04の14分岐について、87fc5ed3のfile:lineと置換後のfile:line（表のfield名またはunit列の参照）を1行ずつ並べる。残した19の判別共用体分岐も同じ表に「残す」と書く",
+      "`as`の件数（as constとsatisfiesを除く）を、触ったfileごとに変更前後で報告する。増えていないこと、復元の3か所が1か所以下であることを示す",
+      "足した仕組みごとに「無いと何が壊れるか」を1行で書く。unit-coverage.ts: 未登録headTypeが診断なしで消える（台帳52①）。UnitModuleの各field: 置き換えた分岐を新unitが黙って欠く。routeIgnored/routeNotPorted/routeUnlisted: 3区分を実行時に見分けられない。linkedUnitTable: unit関数の正本が分散する。これ以外の仕組み（registry・factory・設定・helper層）を足さない",
+      "R45の基準線（C5がR45「1 unit追加の型」を確かめるのに使う）: unitを1つ足すと型エラーになる箇所を、実装後のfile:lineで一覧にする。少なくとも次を含む。AC01で残す固定keyのliteral: shared-runtime.ts:106（initialConfirmationの3 unit）、:483-495（起動時のinitialUnitsとschemaVersion・views・restoration・deadlines）、composition-root.ts:99-103。view-projector.tsのunit表: TTL（:43）・NOTICE_TEXT（:44-49）・INFORMATION_TYPE（:50、:329の添字で型エラー）・AREA_SYSTEMS（:51-55）と、AC04で足す2表。型の行: p2-shared-runtime.types.ts:22（RuntimeUnitId）、:26（RuntimeUnitStates）・:27（RuntimeUnitInputs）・:28（RuntimeUnitSteps。3つとも1行のmapで隣接し、行数を変えずに置いた）、:175（RuntimeUnitView）、:178-188（RuntimeDisplaySubject）、:198-202（RuntimeViews）。表: composition-root.tsのlinkedUnitTable、unit-coverage.tsのruntimeUnits。行番号は起草時（87fc5ed3＋本契約の型改訂）の値で、実装後の値に直して出す。一覧に無いのに型エラーにならず黙って漏れる箇所が見つかったら別に挙げる",
+      "AC09の期待値変更一覧（file:line、変更前→変更後、理由）",
+      "allowed_pathsに限定したgit diff --binary --no-ext-diff patch、変更ファイル一覧、実行コマンドと結果、未実行の検証と理由、残存リスク",
+      "追加・変更した各試験が受入条件・契約境界・実不具合・corpus履歴のどれに当たるかを1行で書く",
+      "P2-SHARED-RUNTIME-001のDiagnosticReason（AC05の計50種）に3値を足す改訂の記録は本契約が正本で、P2の契約JSONは編集しない（計画§3.2「追加は契約改訂として記録」）",
+      "test/chrome-eew/smoke.mjs（allowedPaths外、P2-CHROME-EEW-001のrequiredCommand）はlinkedRuntimeCallsをspreadしてreduceRuntimeへ渡すので、linkedRuntimeCallsがunitsを含む限り編集しない。実Chromeが要るので実装者は実行せず、未実行の検証として報告する",
+      "統合担当への申し送り（実装者は行わない）:C0の凍結時にspec:390（M01）と:499（§4.3のeew行）からVXSE44を外し、:390の被引用のp2-eew-unit.json:403のanchorと同契約のmeta.sha256を同じcommitで更新してcheck-sequences・check-contractを通す（計画§4.4。:499は被引用0）"
+    ],
+    "unresolvedQuestions": [
+      {
+        "id": "P3-C0-Q-VPNO50",
+        "owner": "integrator",
+        "blocks": [
+          "C13（U-M）のcoverage行の編集: spec §4.3はVPNO50の区域解除をM06/U-W、その他のVPNO50をM18/U-Mに置くが、CoverageRowのreadyはunitを1つしか持てない",
+          "VPNO50の内容別振り分けをU-W側で行うか、coverage行の形を変えるかの判断"
+        ],
+        "resolveBy": "C13（P3-UNIT-M-001）の契約凍結前",
+        "requiredEvidence": [
+          "U-W（weather-current）が区域解除以外のVPNO50を現在どう扱うか（reducerの分岐とfixtureでの結果）",
+          "manifestのVPNO50 fixture 2件の内容区分",
+          "行の形を変える場合、CoverageRowの改訂が既存のready行・negative型検査N6に与える影響"
+        ]
+      }
+    ]
+  }
+}

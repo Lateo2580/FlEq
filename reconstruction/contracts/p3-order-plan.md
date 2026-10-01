@@ -54,16 +54,16 @@ P2 計画 §1.4（p2plan:63〜68）をそのまま使い、reconstruction のゲ
 
 | # / 契約 ID | 対象 | 公開型・公開口 | 依存 | 凍結するもの | outOfScope | 検収 ID |
 |---|---|---|---|---|---|---|
-| C0 `P3-UNIT-TABLE-001`（P3-0） | R43・R44、台帳 52 | `UnitModule<K>`、`unitTable satisfies { [K in UnitId]: UnitModule<K> }`、unit 列（`as const`＋網羅検査）、coverage 表、相関 union を受ける dispatcher の網羅 switch 1 つ | P2 完了（裁定不要） | unit 列の真実源 1 つ。headType→unit の唯一の対応。not-ported／ignored／表に無い型を実行時に件数か診断で区別。`Record<RuntimeUnitId, …>` のように型が漏れを止める箇所は残し、unit 変数による分岐と配列の直書きだけを表へ寄せる | 実行場所の列（C3a）、新 unit の意味 | 既存 3 unit の全試験・shuffle 緑、負の型検査 6 本（R43 の probe）、台帳 52 の 3 点の再現試験、E08・E11 不変 |
+| C0 `P3-UNIT-TABLE-001`（P3-0） | R43・R44、台帳 52 | `UnitModule<K>`、`unitTable satisfies { [K in RuntimeUnitId]: UnitModule<K> }`（`UnitId` は未実装の 9 unit を含むので鍵にできない）、unit 列（`as const`＋網羅検査）、coverage 表、相関 union を受ける dispatcher の網羅 switch 1 つ | P2 完了（裁定不要） | unit 列の真実源 1 つ。headType→unit の唯一の対応。not-ported／ignored／表に無い型を実行時に件数か診断で区別。`Record<RuntimeUnitId, …>` のように型が漏れを止める箇所は残し、unit 変数による分岐と配列の直書きだけを表へ寄せる | 実行場所の列（C3a）、新 unit の意味 | 既存 3 unit の全試験・shuffle 緑、負の型検査 6 本（R43 の probe）、台帳 52 の 3 点の再現試験、E08・E11 不変 |
 | C1 `P3-CHECKPOINT-STEP1-001`（P3-1） | 保存の設計 手順 1 の ②〜④、台帳 55 | `CheckpointCoordinator` の定常保存経路 | C0 | 書き手が有効 slot と世代を覚える。読み直しは起動時の復元と `uncertain` の照合だけ。envelope の直列化は 1 回で、hash はその bytes に取る | 官署ごとの保存（D-P3-2）、E15 の計測点（C4） | 定常保存の読み直し 0、既存の保存試験の緑、S5 の範囲の故障注入 |
 | C2 `P3-DMDATA-CONNECT-001`（P3-1） | R63、台帳 58・59、spec §10.1 | 最小の live 起動入口（API キー・appName・購読区分を受け、REST socket start で得た URL で `startP2Host` を起動）、接続の再接続、生存監視、start frame の記録先、接続回復の通知口 | C0 | 接続 1 本（R57）、自分の socket だけを閉じる、生存監視の期限、T0 より前で decode・normalize をしない | CLI の引数解析（C18）、購読区分の拡大（R54） | B03 の接続所有（spec:372）、§10.1 の条件（spec:2111〜2119）、実 dmdata 接続の検証（D-P3-3） |
-| C3a `P3-EXECUTION-SPLIT-001`（P3-1） | R56・R57、台帳 38・55・56・61、手順 1 の ①・⑤、mailbox の dispatch | publisher と worker の間の型付き入出力、unit 表の実行場所 1 列、worker の生成、mailbox の実行場所別 dispatch（P2-MAILBOX-001 の改訂） | C1、C2 | 解凍・XML parse・reduce・期限処理・checkpoint encode と書込みは unit の持ち主の worker 内。parse 済み tree は worker 外へ送らない（台帳 38: 転送 212ms）。公開担当は 1 つ。保存完了で dirty を無条件に消さない。mailbox は通常 data の in-flight を実行場所ごとに 1 件、件数・byte 上限は全体で 1 つ、同対象の順序と完了照合を保つ | 停止監視（C3b）、新しい unit、官署ごとの保存 | E10・E14・O07・O10 の再検収、台帳 62 と同型（参照 cache 外れで全量へ戻る計量）の点検 |
+| C3a `P3-EXECUTION-SPLIT-001`（P3-1） | R56・R57、台帳 38・55・56・61、手順 1 の ①・⑤、mailbox の dispatch | publisher と worker の間の型付き入出力、unit 表の実行場所 1 列、worker の生成、mailbox の実行場所別 dispatch（P2-MAILBOX-001 の改訂） | C1、C2 | 解凍・XML parse・reduce・期限処理・checkpoint encode と書込みは unit の持ち主の worker 内。parse 済み tree は worker 外へ送らない（台帳 38: 転送 212ms）。公開担当は 1 つ。保存完了で dirty を無条件に消さない。16 KiB 以下の data frame を peek と ingress で 2 回 JSON parse している現状（`host.ts:174`〜`:188`）を、spec:1072 の「全文の JSON parse は一回」に直す。mailbox は通常 data の in-flight を実行場所ごとに 1 件、件数・byte 上限は全体で 1 つ、同対象の順序と完了照合を保つ | 停止監視（C3b）、新しい unit、官署ごとの保存 | E10・E14・O07・O10 の再検収、台帳 62 と同型（参照 cache 外れで全量へ戻る計量）の点検 |
 | C3b `P3-EXECUTION-LIFECYCLE-001`（P3-1） | 台帳 56・57 の残り、spec §5.9・§7.8 | worker の停止監視、通常終了の順序（worker の終了を含む） | C3a | spec:1190〜1191 の stalled／unresponsive、§5.9 の順序・世代・code | 自動再起動の方針（spec に無い。要るなら裁定） | E07・E08、その時点の単位での E20（全単位は C22）、止めた worker での stalled／unresponsive の検出試験 |
-| C4 `P3-E01-REACCEPT-001`（P3-1） | R61 の 4 条件、PERF-P3、E15-P3、衝突試験、AC15 の再集計 | P3 測定 manifest、runner の改修（full parse 開始の観測、切断 hrtime と充填時点の `state/`・`/snapshot` の保存）、host config の filesystem 注入口、E15 の計測点（C3a 後の配置に 1 回だけ置く） | C3b | 投入→T0 と T0→T6 を分けた記録、Pi の `/proc/pressure/*` との突合せ（報告のみ）、Pi での unit ごとの保存回数・書込量 | 津波の母集団（C6）、P4/P5 の母集団 | E01（§1.2）、E02・E05・E06、E15、E03・E12 の報告、N7・IR06 の閉鎖の記録 |
+| C4 `P3-E01-REACCEPT-001`（P3-1） | R61 の 4 条件、PERF-P3、E15-P3、衝突試験、AC15 の再集計 | P3 測定 manifest、runner の改修（full parse 開始の観測、切断 hrtime と充填時点の `state/`・`/snapshot` の保存）、host config の filesystem 注入口、E15 の計測点（C3a 後の配置に 1 回だけ置く）、A10 の測定道具を C1 後の保存 stage に追従（verify の読み直しが消えるので、保存の占有に verify を数える `reconstruction/test/eew-e01/aux-measures.mjs:188`・`ac15.mjs:181` を直す） | C3b | 投入→T0 と T0→T6 を分けた記録、Pi の `/proc/pressure/*` との突合せ（報告のみ）、Pi での unit ごとの保存回数・書込量 | 津波の母集団（C6）、P4/P5 の母集団 | E01（§1.2）、E02・E05・E06、E15、E03・E12 の報告、N7・IR06 の閉鎖の記録 |
 
 C3a の分離は R57 で決まっている（解凍と XML 解析は公開担当のスレッドで行わない）。A10 の参考測定では、最大 VPWS50 の decode 中に投入した EEW の投入→T0 が p99 388ms、最大 U-W の encode 中は 148ms、最大 U-F の保存中は 67ms、期限処理の重なりは 9.7ms で、T0→T6 の p99 上界はどれも 35〜44ms だった（`reconstruction/test/eew-e01/evidence/windows/a10-p2-20260930b/results/result-reference-*-run1.json`）。待ちの主因は受信 callback 以前で、T0→T6 に現れない。N7・IR06（§7.6 の parse 分離 B）は C3a で parse が publisher の外へ出た時点で構成として閉じ、C4 は衝突試験の結果を証拠に「閉じた」と記録する。ただし worker を分けるだけでは足りない。現 mailbox は parser 入力が 1 件 in-flight の間、ほかの parser 入力を一切渡さず（`reconstruction/src/mailbox/mailbox.ts:119`）、契約も通常 data の in-flight を 1 件と定める（`p2-mailbox.json:320`〜`:323` の P2-A2-RES-07、spec:1049）。このままでは大型 parse 中の EEW が mailbox で待つので、C3a が mailbox と P2-MAILBOX-001 を改訂する。
 
-C2 の範囲: `composition-root.ts` の接続表示（`:327`〜`:335`、`:400`〜`:402`）と、start frame の記録に要る型（診断 reason の閉集合 `p2-shared-runtime.types.ts:228`〜`:238`、`p2-eew-e01.types.ts:103` の `P2HostObservation`）の編集権を持つ。台帳 59 の回復は RuntimeInput の型を変えずに直す。reconnecting は composition root 内の `lostThroughSequence` だけで決まる（`:329`、`:333`〜`:335`、`:401`）ので、`recordInput`（`:398`）と同じ形のメソッド 1 つで `null` に戻し、`setWorker`（`:390`〜`:395`）と同じく変化を返して host が heartbeat を送る（`host.ts:243`〜`:245`）。確認状態は戻さない（R42）。`startP2Host` の config は接続先 URL だけ（`host.ts:24`〜`:31`）なので、live 起動入口は C2 が足す。
+C2 の範囲: `composition-root.ts` の接続表示（`:327`〜`:335`、`:400`〜`:402`）と、start frame の記録に要る型（診断 reason の閉集合 `p2-shared-runtime.types.ts:228`〜`:238`、`p2-eew-e01.types.ts:103` の `P2HostObservation`）の編集権を持つ。台帳 59 の回復は RuntimeInput の型を変えずに直す。reconnecting は composition root 内の `lostThroughSequence` だけで決まる（`:329`、`:333`〜`:335`、`:401`）ので、`recordInput`（`:398`）と同じ形のメソッド 1 つで `null` に戻し、画面へは毎秒の tick の射影で届く（`view-projector.ts:561` の変更比較に connection が入る）。heartbeat は worker・latestVersion・emittedAt しか運ばない（`http-sse.ts:166`）ので、heartbeat には頼らない。確認状態は戻さない（R42）。`startP2Host` の config は接続先 URL だけ（`host.ts:24`〜`:31`）なので、live 起動入口は C2 が足す。
 
 P3-2（津波）:
 
@@ -121,7 +121,9 @@ C5 → unit レーン: C7〜C14 を D-P3-5 の順に（C6 と重なってよい�
 | unit 表・coverage 表・route（`shared-runtime.ts` の行き先）・`p2-shared-runtime.types.ts` の `UnitId`／`RuntimeUnitId`（:18、:22） | C0。実行場所の列は C3a。以後は各 unit レーンが自分の 1 行だけを足す | レーンの行は統合担当が 1 レーンずつ直列に合流し、合流ごとにゲートを回す。列の追加は C3a だけ |
 | unit・domain・test の directory、脇レーンの新設 directory | そのレーン（§3.1） | 他レーンは触らない。共有部分への結線は統合担当の直列合流 |
 | CLI の入口（コマンドの振り分け） | C18 | C17 の replay 入口の追加は直列合流 |
-| `reconstruction/src/checkpoint/checkpoint.ts` | C1 → C3a | Wave 2 では C1 だけが編集する |
+| `reconstruction/src/checkpoint/checkpoint.ts` | C0（`:171`・`:186` の unit 列の直書きだけ、Wave 1）→ C1 → C3a | Wave 2 では C1 だけが編集する |
+| `reconstruction/src/checkpoint/persistent-diagnostic-sink.ts` の reason 一覧（`:40`〜`:52`） | C0 → C2（直列） | reason の追加だけ |
+| `reconstruction/src/units/*/` | C0（unit ごとの module の export を足す）→ 各 unit レーン（自分の directory） | 他 unit の directory は触らない |
 | `reconstruction/src/host/host.ts` | C2 → C3a → C3b → C4（config の注入口だけ）→ C5（:199〜:201 の候補分類だけ） | Wave 2 では C2 だけが編集する |
 | `reconstruction/src/mailbox/mailbox.ts` と `p2-mailbox.json` | C3a | dispatch の改訂は契約改訂と同じ commit |
 | `composition-root.ts` | C0 → C2（接続表示と start の記録だけ）→ C3a → C3b → unit レーンの結線 | C1 は編集しない。unit レーンの結線は統合担当の直列合流 |
@@ -147,7 +149,7 @@ C5 → unit レーン: C7〜C14 を D-P3-5 の順に（C6 と重なってよい�
 
 ### 4.3 P3 測定 manifest
 
-固定内容: A10 の参考 4 条件の負荷定義を正式条件として継承し、各 1,000 標本×3 run と 100 warm-up（spec:1118〜1119）にする。full parse 開始の観測点を足す（`e01:726` は「P3 の正式再検収で追加する」）。衝突試験は新しい母集団 ID にする。理由: spec §7.5 の母集団 2 は「parse 開始直後」で、R57 が求める「1 本の接続で先に届いた最大 VPWS50 の転送を追い越せない」待ち（受信直後）を含まない。PERF-P3 の窓は `a10-p2-20260930b` の P と C をそのまま使う。
+固定内容: A10 の参考 4 条件の負荷定義を正式条件として継承し、各 1,000 標本×3 run と 100 warm-up（spec:1118〜1119）にする。full parse 開始の観測点を足す（`e01:726` は「P3 の正式再検収で追加する」）。衝突試験は新しい母集団 ID にする。理由: spec §7.5 の母集団 2 は「parse 開始直後」で、R57 が求める「1 本の接続で先に届いた最大 VPWS50 の転送を追い越せない」待ち（受信直後）を含まない。PERF-P3 の窓は `a10-p2-20260930b` の P と C をそのまま使う。測定側のローカル WS は ping を送らないので、C2 の生存監視（90 秒）のもとでは、frame の間隔が 90 秒を超える窓で再接続が起きる（C2 の Q-C2-RUNNER-LIVENESS）。ping を送るか、間隔の上限を窓の定義に入れるかを manifest で固定する。
 
 ### 4.4 spec 改訂
 
@@ -160,7 +162,7 @@ spec は 3005 行で、行番号と行内容の hash（«…»）で引用され
 | spec:1049（§7.2「worker への通常 data in-flight 1 件」） | 実行場所ごとに 1 件へ（D-P3-1） | 0 | 同上 |
 | spec:1157、:1164（§7.6） | 「状態担当 worker は一つのまま」と「XML worker 追加を解決としない」を、R57 の分離と矛盾しない文へ | :1157 は 0、:1164 は 1 | 同上 |
 | spec:2613（P2 行）、:2930（N7） | P2 は「P2 限定 E01」で閉じ、N7 は P3 で閉じたことを書く（台帳 56 の同期要求） | 各 1 | C4 の完了時 |
-| spec:390（M01） | VXSE44 を外す（R27） | 1 | C0 の凍結時 |
+| spec:390（M01）、:499（§4.3 の eew 行） | VXSE44 を外す（R27） | :390 は 1、:499 は 0 | C0 の凍結時 |
 | spec:400・:401、:523・:524（M11/M12） | VPTW60-65・VPTA50-55 の範囲表記（R53） | 0 | C14 の凍結時 |
 | spec:2308（§11.2） | 既存の 1 文を置換し「検収用 replay の公開口は互換必須（新設、R10）」を入れる。表に行を足すと以後の全行がずれるため | 0 | C17 の凍結時 |
 | spec:835（§5.7「別 manifest は作らない」） | D-P3-2 の再裁定で官署ごとの保存を選んだときだけ | 3 | その再裁定後 |
@@ -234,7 +236,7 @@ P2 の実績（git log と作業ノートのハンドオフ）: 計画の起草�
 
 | 契約 | 起草と発注前点検（晩） | 実装（晩） | 測定・修正（晩） | 根拠 |
 |---|---:|---:|---:|---|
-| C0 | 0.5〜1 | 1〜2 | 0.5 | A1（共有型の改訂）。直書き 41 か所（§4.1） |
+| C0 | 0.5〜1 | 2〜3 | 0.5 | A1（共有型の改訂）。直書き 41 か所（§4.1）に加え、`reduceRuntime` の第 3 引数を必須にするので既存試験の呼出し約 53 か所・stub 約 65 個を機械的に移す |
 | C1 | 0.5 | 1 | 0.5 | A3 の保存部分。故障注入の土台は A3 にある |
 | C2 | 0.5〜1 | 1〜2 | 0.5〜1 | A10 WP1（host）。実接続は作者の時刻に合わせる |
 | C3a | 1〜2 | 2〜4 | 1〜2 | A3＋A10 の host 結線に mailbox の改訂を足した規模 |
@@ -248,12 +250,12 @@ P2 の実績（git log と作業ノートのハンドオフ）: 計画の起草�
 | C18 | 1〜1.5 | 2〜4 | 0.5〜1 | CLI 引数と REPL 19 入口・設定移行。前例なし |
 | C19・C20 | 各 0.5〜1 | 各 1〜2 | 各 0.5 | A8 程度 |
 | C22 | 0.5〜1 | — | 1〜2 | 統合担当の全体検証。見つかった欠陥の修正は別枠 |
-| **合計（C21 を除く）** | **15〜31.5** | **27.5〜57** | **17.5〜38.5** | **60〜127 晩** |
-| うち最初の契約群（C0〜C4） | 4〜7.5 | 7〜12 | 5.5〜9 | 16.5〜28.5 晩 |
+| **合計（C21 を除く）** | **15〜31.5** | **28.5〜58** | **17.5〜38.5** | **61〜128 晩** |
+| うち最初の契約群（C0〜C4） | 4〜7.5 | 8〜13 | 5.5〜9 | 17.5〜29.5 晩 |
 
-総期間は依存経路で数える。表の合計 60〜127 晩は作業量で、経路の長さではない。起草は先行させる（§3.1）ので、経路に乗る起草は Wave 0（C0〜C2 の 1.5〜2.5 晩）と C3a（1〜2 晩）だけとし、ほかは実装・測定だけを数える。
+総期間は依存経路で数える。表の合計 61〜128 晩は作業量で、経路の長さではない。起草は先行させる（§3.1）ので、経路に乗る起草は Wave 0（C0〜C2 の 1.5〜2.5 晩）と C3a（1〜2 晩）だけとし、ほかは実装・測定だけを数える。
 
-- 直列区間（Wave 0〜C5）: Wave 0 起草 1.5〜2.5 ＋ C0 1.5〜2.5 ＋ C1 ∥ C2 の長い方（C2）1.5〜3 ＋ C3a 4〜8 ＋ C3b 2 ＋ C4 3〜6 ＋ C5 3〜5 ＝ **16.5〜29 晩**。脇レーンの C17・C18 の前半・C19・C20 は、この区間に空いている 2 レーンで進める（経路外）。
+- 直列区間（Wave 0〜C5）: Wave 0 起草 1.5〜2.5 ＋ C0 2.5〜3.5 ＋ C1 ∥ C2 の長い方（C2）1.5〜3 ＋ C3a 4〜8 ＋ C3b 2 ＋ C4 3〜6 ＋ C5 3〜5 ＝ **17.5〜30 晩**。脇レーンの C17・C18 の前半・C19・C20 は、この区間に空いている 2 レーンで進める（経路外）。
 - レーン区間: 3 本の配置例で数える（上限側、各 unit 5・C6 の実装 3・正式測定 3・C15/C16 の本体 3 と完了の検収 2・C18 の後半 2.5 晩。D-P3-5 の順）。
 
 ```text
@@ -265,7 +267,8 @@ L3  [C8 N  ][測定*][C8][C11 R    ][C14 Y   ]
 ```
 
   終わりは 25.5 晩で、統合担当の直列合流（unit 8 回×0.25 晩＝2）を足して **27.5 晩**。下限側（各 unit 1.5・C6 の実装 2・測定 2・C15/C16 の本体 2 と完了 1・C18 の後半 1.5）を同じ並べ方にすると 11.5 晩、合流を足して **13.5 晩**。作業量を 3 で割った 7〜18.5 晩は、契約を分割できない以上届かない参考の下限。
-経路の合計は 16.5〜29＋13.5〜27.5＋1〜2＝**31〜58.5 晩**、最初の契約群（Wave 0〜C4）は 13.5〜24 晩。P2 の実績比 1 つ（計画合計の中央 56 晩に対して実際 16 日、16/56≒0.29 日/晩。p2plan:262〜289）を掛けると、P3 全体は **約 9〜17 日**、最初の契約群は **約 4〜7 日**。
+
+経路の合計は 17.5〜30＋13.5〜27.5＋1〜2＝**32〜59.5 晩**、最初の契約群（Wave 0〜C4）は 14.5〜25 晩。P2 の実績比 1 つ（計画合計の中央 56 晩に対して実際 16 日、16/56≒0.29 日/晩。p2plan:262〜289）を掛けると、P3 全体は **約 9〜17 日**、最初の契約群は **約 4〜7 日**。
 
 並走の費用（日数に含めない。合流の 2 晩だけは上に含めた）:
 
