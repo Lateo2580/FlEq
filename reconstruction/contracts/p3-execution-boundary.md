@@ -1,7 +1,7 @@
 # P3 実行の境界（C3a・C3b・C4 の凍結項目）
 
 - 起草: 2026-10-01、base `87fc5ed3`。計画 `reconstruction/contracts/p3-order-plan.md`（以下 plan）§1.1 の 2・3、§4.2・§4.3、§5（D-P3-1）・§5.1 を、C1・C2 の契約がこれと矛盾しないかを確かめられる粒度にしたもの。
-- 対象外: C3a・C3b・C4 の本文、型、実装手順。本文は C1・C2 の配送後に書く（plan §3.1）。ここに無い細部は本文で決める。
+- 対象外: C3a・C3b・C4 の本文、型、実装手順。本文は C1・C2 の実装中に起草と点検まで進め、実装への参照・baseOid・最終の型と hash・測定条件は C1・C2 の配送後に確定する（plan §3.1、修正 5）。ここに無い細部は本文で決める。
 - 以下 `spec:` は `docs/specs/reconstruction-p0-contracts.md` の行番号。
 
 ## 1. 実行場所（D-P3-1、plan:178）
@@ -49,7 +49,7 @@
 ## 6. P3 測定 manifest の骨格（C4 が予備測定の後に凍結、plan §4.3）
 
 - 継承元: `reconstruction/test/eew-e01/evidence/manifest.json`（`manifestId` a10-p2-20260930b）。負荷 N・P・C の定義（`loads`）をそのまま使う。A10 の版付き結果は書き換えない（plan:132）。
-- 正式母集団: A10 の `formal`（fixedBacklog）に、A10 の `reference` 4 条件（maxVpws50DecodeStarted・maxWeatherCheckpointEncodeStarted・maxForecastCheckpointSave・forecastDeadlineOverlap）を同じ負荷定義のまま正式条件として足す。衝突試験（最大 VPWS50 の受信直後の EEW、R57）は新しい母集団 ID にする。
+- 正式母集団: A10 の `formal`（fixedBacklog）に、A10 の `reference` 4 条件（maxVpws50DecodeStarted・maxWeatherCheckpointEncodeStarted・maxForecastCheckpointSave・forecastDeadlineOverlap）を同じ負荷定義のまま正式条件として足す。衝突試験（最大 VPWS50 の受信直後の EEW、R57）は新しい母集団 ID にする。計 6 母集団（plan §4.3）。Pi 予備確認は plan §4.5（D-P3-7）。
 - 標本: 各母集団 warm-up 100 件＋1,000 件×3 run、各 run が合格（spec:1118〜1119）。T0 は対象処理開始後 0〜5ms かつ処理中（spec:1133）。投入→T0 と T0→T6 を分けて記録し、callback に届かなかった入力も投入側で照合する。
 - 観測点の追加: full parse 開始（`e01:726`）、切断の hrtime と充填時点の `state/`・`/snapshot`（AC15 の再集計）、E15 の計測点（C3a 後の配置に 1 回だけ）。
 - PERF-P3 の窓は a10-p2-20260930b の P と C をそのまま使う（plan:152）。Pi の `/proc/pressure/*` は報告だけ。測定の窓では同じ機械で build・test・他レーンを走らせない（plan:112）。

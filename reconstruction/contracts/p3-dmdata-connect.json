@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "87fc5ed341ed3e7a735e0382533a56610f33636a",
-    "sha256": "032ded486ea8743c61b064aef696fa591b3a19fd0310d183e599e3f052260e8d",
+    "sha256": "c9656ef397f694ea5709f9174fb442723df97d5d40bf1b23a66c0b90117f1d08",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "76c82b87d7783a4eae14af690cb34e7d6ec46f73617dc75b7f7401951619f080",
     "sequencesSha256": "be9cfd97b555e3a55568f085d107342c978b3dc7249f5cecea868ea5a62c5781",
@@ -330,7 +330,7 @@
         "id": "P3-C2-AC03",
         "requirement": "接続1本と自分のsocketの寿命（R57）: 開いているか接続中のWSは常に1本以下、自分のdmdata socketは常に1つ以下（RES-01・RES-02）。接続試行は同時に1つで、試行の各await（REST・WS open）の後でstop()の開始を確かめ、stop()中ならWSを開かない。stop()は入口でclock()を1回取り、再接続timerを止めてWSを切った後、そのclockでshutdownRuntimeを始める。並行に、進行中の試行の決着を待ってから自分のsocketを1回DELETEする（idを受け取っていないsocketには触れない）。片付けのRESTは停止要求+30秒（spec:889の全体上限）で打ち切り、失敗・打切りはWARN dmdataSocketCloseFailed（sinkが閉じた後なら秘密値なしの固定文1行をstderr）にする。stop()は両方の決着を待つ。片付けをshutdownRuntimeの前に直列に置かない（RES-07）。過負荷の自接続停止・通常切断・errorフレーム・生存期限切れはどれも同じclose経路でconnectionLostを1回流し、次の試行の(2)で前の自分のsocketを片付ける。旧築の接続とqueueを操作しない",
         "evidenceRefs": [
-          "reconstruction/contracts/p3-order-plan.md:218 «0f7a4bde9f8dd8eb»",
+          "reconstruction/contracts/p3-order-plan.md:245 «0f7a4bde9f8dd8eb»",
           "docs/specs/reconstruction-p0-contracts.md:2114 «487c96dbe3d33331»",
           "docs/specs/reconstruction-p0-contracts.md:1077 «6258f9a620e93505»",
           "docs/specs/reconstruction-p0-contracts.md:882 «bfff8478f1442e2a»",
@@ -341,7 +341,7 @@
         "id": "P3-C2-AC04",
         "requirement": "生存監視とhandshake期限（台帳58、P3-C2-LIVENESS）: hostは現在のWSのopenと全frameの受信で最後の受信単調時刻（config.clockのmonotonicMs）を更新し、既存の1秒tickでその差が90秒以上なら、WARN connectionLivenessExpired（durationMs・countなし。経過は90秒以上と決まっており、値を入れるとsinkの反復集約が効かない）を診断へ入れて自分のWSをterminateする。closeは既存経路でconnectionLost→5秒後の再接続になる。handshakeはwsのhandshakeTimeout 15秒。WSごとのtimerや新しい状態機械を足さない。ローカルWS（{ wsUrl }）にも同じ規則を適用し、接続先で分岐しない。pingへのpong返送は既存のまま",
         "evidenceRefs": [
-          "reconstruction/contracts/p3-order-plan.md:219 «5efa7a3bfb581ac7»",
+          "reconstruction/contracts/p3-order-plan.md:246 «5efa7a3bfb581ac7»",
           "src/dmdata/ws-client.ts:54 «9785d1df1d99ece5»",
           "src/dmdata/ws-client.ts:589 «285f6de334789d8c»",
           "docs/specs/reconstruction-p0-contracts.md:372 «88b96373c39dc725»"
@@ -351,7 +351,7 @@
         "id": "P3-C2-AC05",
         "requirement": "start frameの記録（台帳58、P3-C2-START-RECORD）: 制御frameの既存の小frame経路（host.tsのpeek、16 KiB以下）で、type=startかつsocketIdが有限の整数かつclassificationsがstring配列のものを形の正しいstartとし、INFO dmdataSocketStarted（component=host、count=socketId）を1行入れる。{ dmdata }のときは、要求した購読区分のうちstartのclassificationsに無いものが1つ以上あればWARN dmdataSubscriptionNarrowed（countなし）を入れる。形の正しくないstartは既存の未知制御frameと同じenvelopeInvalidの診断で捨て、接続回復にしない。errorフレームはWARN dmdataErrorFrame（countなし）を入れてから既存どおりterminateする（errorフレームのclose flagを見て切り分けるかは実接続の観測後に決める、Q-C2-DMDATA-BEHAVIOR）。足す診断reasonはdmdataSocketStarted・dmdataSubscriptionNarrowed・dmdataSocketListFailed・dmdataConnectionCapacityExceeded・dmdataSocketStartFailed・dmdataSocketStartUncertain・dmdataSocketCloseFailed・dmdataAuthRejected・dmdataErrorFrame・connectionLivenessExpiredの10個だけで、p2-shared-runtime.types.tsのInfrastructureDiagnosticReasonとpersistent-diagnostic-sink.tsの実行時reason一覧（diagnosticReasons）の両方へ足す。WARN・ERRORの診断にはcountもdurationMsも入れない（sinkはcountを反復件数に使い、値の違う行を別の失敗として数える）。実接続検証の証拠用に、制御frame（start・ping・error）の受信をconfig.observeへ{ kind: \"controlFrame\" }で出す（P3-C2-START-RECORD。p2-eew-e01.types.tsのP2HostObservationへこの1種類だけを足す。本番のobserveはnull）",
         "evidenceRefs": [
-          "reconstruction/contracts/p3-order-plan.md:131 «8ef382753b8f4946»",
+          "reconstruction/contracts/p3-order-plan.md:132 «8ef382753b8f4946»",
           "docs/specs/reconstruction-p0-contracts.md:1211 «1db51524eccef065»",
           "src/dmdata/ws-client.ts:497 «cd72bfb65e1091e8»",
           "src/dmdata/ws-client.ts:466 «6e0f0e05d6e29416»"
@@ -361,8 +361,8 @@
         "id": "P3-C2-AC06",
         "requirement": "接続回復（台帳59、P3-C2-RECOVERY）: composition rootにrecordConnected(): voidを1つ足し、lostThroughSequenceをnullにするだけにする（disconnectedAt・lastInputAt・確認状態・RuntimeInputは変えない）。hostは現在のWSで形の正しいstartを受理したときだけ呼ぶ。openだけではconnectedに戻さない。既存の「lostThroughSequenceより後のparser完了で戻す」経路は残す。表示は次のtickのprojectionで反映し（DLV-01）、heartbeatの送出は要求しない（heartbeatのdataは接続状態を運ばない）。composition-root.tsの変更はこのメソッドの追加だけに限る",
         "evidenceRefs": [
-          "reconstruction/contracts/p3-order-plan.md:220 «925b97ef216a44b0»",
-          "reconstruction/contracts/p3-order-plan.md:129 «319c6030bb94e409»",
+          "reconstruction/contracts/p3-order-plan.md:247 «925b97ef216a44b0»",
+          "reconstruction/contracts/p3-order-plan.md:130 «319c6030bb94e409»",
           "reconstruction/contracts/p2-snapshot-sse.types.ts:27 «b8788ab0cbced8cf»",
           "reconstruction/contracts/p2-snapshot-sse.types.ts:179 «a724926c08e31d1e»",
           "docs/specs/reconstruction-p0-contracts.md:1183 «6ed64babfc8a45df»"
@@ -389,8 +389,8 @@
         "id": "P3-C2-AC09",
         "requirement": "実dmdata接続の検証（D-P3-3）: 実装者・契約適合レビュー子・品質レビュー子・独立レビューは、実dmdataへ接続しない・APIキーを読まない・検証scriptを実行しない。host試験はdmdata-rest.tsをvi.mockで差し替え、dmdata-rest.ts自身の境界試験（T08）はnode:httpsのrequestを差し替える。どの試験も127.0.0.1以外へ通信しない。実接続は、作者がQ-C2-LIVE-PRECONDITIONSの全項目を確認して実施時刻を決めた後に、次の分担で行う。APIキーは会話・agentの実行shell・ファイルのどこにも入れないので、キーを使う(2)だけを作者がagentの外の自分の端末で行い、統合担当は(1)(3)(4)を行う。(1) 統合担当がreconstructionのtscを通し、設定JSONを用意する。設定JSONはappName・classifications・stateDirectory・diagnosticDirectory・displayPort・outputPathだけを持ち、キーの欄を置かない。(2) 作者が自分の端末で環境変数DMDATA_API_KEYを設定し、node reconstruction/test/host/dmdata-live-check.mjs <設定JSON>を実行してSIGINTで止める。scriptはDMDATA_API_KEYが無ければ通信を一切せずに非0で終了する。scriptは製品の入力処理を持たず、次の秘密値なしの証拠だけを取ってoutputPathのファイルへ書く。(a) 製品dmdata-rest.tsの射影済み一覧（openとwaiting）を起動前・起動後・停止後に取る。(b) startP2Host({ dmdata, observe })のobserveで受けたcontrolFrame（frameType・monotonicMs・errorClose）とT0 markerの時刻だけを記録する（pingIdや本文は書かない）。(c) 起動中は10秒ごとに自分の表示serverの/snapshot（127.0.0.1）を取り、connection（state・disconnectedAt・lastInputAt）とsequenceだけを時刻付きで記録する（電文の中身は書かない）。(d) 終了状態と停止に要した時間。(3) 統合担当がoutputPathのファイルと診断ファイルを読んで判定する。判定項目と証拠: ①起動前の一覧（a）で+1が4以内 ②dmdataSocketStartedの診断が1行で、そのsocketIdが起動後の一覧（a）にopenであり、idを持つ自分のsocketが常に1つ以下・openとwaitingの合計が4以内（RES-02・RES-03）。idを受け取っていない同じappNameのsocket（結果不明のPOSTの残り）が一覧にあれば、Failにせず観測として別に記録する ③旧築のsocketのidが（a）の3回で同じで、作者がPiの旧築ログで検証時間内の切断が無いことを確かめる ④pingのcontrolFrame（b）が届き、その間隔（観測した最大値）を記録し、その間の/snapshot（c）が3分以上connectedのまま ⑤検証時間内にT0（b）があれば、その後の/snapshot（c）でlastInputAtが進みsequenceが増える（dataが来なければ未確認） ⑥任意: 回線を90秒超断って戻すと、診断のconnectionLivenessExpired→（a）に相当する再接続→startのcontrolFrame（b）→/snapshot（c）でdataを待たずconnected、自分のsocketは常に1つ（実施しなければ未確認） ⑦停止後の一覧（a）で自分のsocketがopenでもwaitingでもない ⑧error frameを受けたら（b）のerrorCloseを記録する（来なければ未確認） ⑨REST 429のRetry-Afterは取得手段を足さず未確認とする。証拠を取れなかった項目は未確認と記録し、関係する暫定値（RES-03・RES-04・RES-05・RES-06・DLV-02）は暫定のまま残す。(4) 各項目をPass／Fail／未確認でreconstruction/test/host/evidence/dmdata-live-<YYYYMMDD>.jsonへ記録する（outputPathの証拠・appName・診断の該当行。秘密値なし）。未実施・Fail・②③④⑦の未確認ではC2を完了にせず、最初の契約群（C0〜C4）も完了にしない。C2の実装と配送（AC01〜AC08・AC10）はこの検証を待たない",
         "evidenceRefs": [
-          "reconstruction/contracts/p3-order-plan.md:180 «699b89be96834a9e»",
-          "reconstruction/contracts/p3-order-plan.md:293 «f256c8f5165830a0»",
+          "reconstruction/contracts/p3-order-plan.md:200 «699b89be96834a9e»",
+          "reconstruction/contracts/p3-order-plan.md:322 «f256c8f5165830a0»",
           "reconstruction/contracts/p3-order-plan.md:46 «e1c1cf45098ef3d0»",
           "reconstruction/contracts/p3-order-plan.md:98 «d7539b44a689cd20»",
           "docs/specs/reconstruction-p0-contracts.md:2146 «99e317cc8ef330f2»",

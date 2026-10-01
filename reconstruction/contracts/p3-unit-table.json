@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "87fc5ed341ed3e7a735e0382533a56610f33636a",
-    "sha256": "2fc0357e530829eb783860830402bcc716b1727bd7dfb30f7988564abf54517b",
+    "sha256": "19fff77835e9a7fb03bf20161eb1060326d836e512a5db4411e040ddfb35a2c1",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "76c82b87d7783a4eae14af690cb34e7d6ec46f73617dc75b7f7401951619f080",
     "sequencesSha256": "be9cfd97b555e3a55568f085d107342c978b3dc7249f5cecea868ea5a62c5781",
@@ -251,7 +251,7 @@
         "id": "P3-C0-AC01",
         "requirement": "unit列の真実源を1つにする。reconstruction/src/runtime/unit-coverage.tsに `runtimeUnits = [\"U-E\", \"U-W\", \"U-F\"] as const` を1つだけ置き、RuntimeUnitId（p2-shared-runtime.types.ts:22）との双方向の網羅検査（列に無いid、idに無い列要素のどちらも型エラー）を付ける。87fc5ed3のunit列リテラル8か所（shared-runtime.ts:43、composition-root.ts:282・:310・:503・:545・:553、checkpoint.ts:171・:186）をこの列の参照へ置き換える。置き換えないもの: Record<RuntimeUnitId,…>・RuntimeViews・固定keyのobject literal（composition-root.ts:99-103等）は型が漏れを止めるので残す。persistent-diagnostic-sink.ts:39は12 UnitIdの全量（診断のunit field検証用）で実装済みunit列ではない。measurement/eew-e01/frozen.ts:141はA10の版付きtrial setup schemaのfield集合でC4の所有。UnitId・RuntimeUnitIdの値は変えない",
         "evidenceRefs": [
-          "reconstruction/contracts/p3-order-plan.md:140 «fb6c6f287e207c71»",
+          "reconstruction/contracts/p3-order-plan.md:141 «fb6c6f287e207c71»",
           "reconstruction/contracts/p3-order-plan.md:57 «e843060b3f1ca0b7»",
           "reconstruction/src/runtime/shared-runtime.ts",
           "reconstruction/src/checkpoint/checkpoint.ts"
@@ -271,8 +271,8 @@
         "id": "P3-C0-AC03",
         "requirement": "dispatcherと分岐の寄せ直し。reduceRuntimeの第3引数を必須のcalls: Readonly<{ units: UnitTable; codecs?; selectNotificationAttempt?; applyNotificationResult? }>とし、per-unitの6 field（reduceEewUnit・reduceWeatherCurrentUnit・reduceWeatherTimeseriesUnit・toEewView・toWeatherCurrentView・toWeatherTimeseriesView）を削る。unit reducerの呼出し（受信・期限・終了・intentUpdate＝現:593-603、復元＝現:529-540）はUnitJobを受ける網羅switch 1つ（defaultはneverへの代入）またはUnitTable注釈の表経由の呼出しに集約し、最後のelseが特定unitへ流れる分岐を残さない。shared-runtime.tsのunit変数分岐12か所（:89・:145・:401・:408・:434・:439・:442・:529・:533・:725・:727・:926）をunit列と表のfield参照へ置き換える。判別共用体の値で分ける19か所（shared-runtime.ts 8・view-projector.ts 11）は残す。「U-E/U-W/U-F reducer is not linked」の3例外は型で表現できなくなるので削る。`as`（as constを除く）を新たに足さない。復元の`as`式は9個（現:531-532・:535-536・:539-540）から1個以下にし、残すならCodecMapのJsonValue型が理由である旨を1行のcommentで書く。書き方はquestionResolutions P3-C0-NO-AS-FORMの3条件に従う",
         "evidenceRefs": [
-          "reconstruction/contracts/p3-order-plan.md:140 «fb6c6f287e207c71»",
-          "reconstruction/contracts/p3-order-plan.md:142 «d10e1ccffa6e6501»",
+          "reconstruction/contracts/p3-order-plan.md:141 «fb6c6f287e207c71»",
+          "reconstruction/contracts/p3-order-plan.md:143 «d10e1ccffa6e6501»",
           "reconstruction/src/runtime/shared-runtime.ts"
         ]
       },
@@ -280,7 +280,7 @@
         "id": "P3-C0-AC04",
         "requirement": "view-projector.tsのunit変数分岐2か所を同じfileのRecord<RuntimeUnitId,…>表へ寄せる。:442（U-Eだけwarning class別のevent数で数える）は数え方の表、:490（unavailable通知の文言）はunitごとの文言表とし、U-Eはunavailableを作らないので値をnullにして、nullのunitでunavailable通知を作ろうとしたら例外にする（現行はelseでU-Wの文言になる）。snapshotの出力bytesと既存のsnapshot-sse試験の期待値は変えない",
         "evidenceRefs": [
-          "reconstruction/contracts/p3-order-plan.md:130 «eacdd748a34929f7»",
+          "reconstruction/contracts/p3-order-plan.md:131 «eacdd748a34929f7»",
           "reconstruction/src/view-projector/view-projector.ts"
         ]
       },
@@ -300,7 +300,7 @@
         "id": "P3-C0-AC06",
         "requirement": "corpus manifestの全headType（null 17件を除く）がcoverage表の鍵に含まれ、含まれないものはちょうど[\"VFSVii\"]（questionResolutions P3-C0-MANIFEST-EXCEPTION）。manifestに行の無いheadTypeが増えても、例外集合が変わっても試験が落ちる",
         "evidenceRefs": [
-          "reconstruction/contracts/p3-order-plan.md:142 «d10e1ccffa6e6501»",
+          "reconstruction/contracts/p3-order-plan.md:143 «d10e1ccffa6e6501»",
           "reconstruction/tools/corpus/manifest.json"
         ]
       },
@@ -309,7 +309,7 @@
         "requirement": "負の型検査6本（R43のprobeの型）をreconstruction/test/unit-table/type-contract.tsに@ts-expect-errorで置き、tsconfig.test.jsonの型検査で確かめる。N1: UnitTableにRuntimeUnitIdの行が欠ける。N2: 別unitのmoduleを別のkeyに置く。N3: persistenceを省く、またはdurableでcodecを省く。N4: UnitJobのunitと別unitのstate/inputを組む。N5: unit列がRuntimeUnitIdの要素を欠く（網羅検査）。N6: coverage行でreadyのunitがRuntimeUnitId以外（例U-T）、またはnotPorted/ignoredがreasonを欠く。正の検査として3つのlinked moduleが `satisfies UnitModule<K>` を通り、UnitJobのswitchで各caseのstate/inputが絞られることも同じfileに置く",
         "evidenceRefs": [
           "reconstruction/contracts/p3-order-plan.md:57 «e843060b3f1ca0b7»",
-          "reconstruction/contracts/p3-order-plan.md:142 «d10e1ccffa6e6501»",
+          "reconstruction/contracts/p3-order-plan.md:143 «d10e1ccffa6e6501»",
           "reconstruction/contracts/p3-unit-table.types.ts"
         ]
       },
@@ -318,8 +318,8 @@
         "requirement": "台帳52の実害3点。①未登録headTypeの黙殺（実行時の再現試験）: 期限が到来していないstate（drainingの入力では期限処理が走る、現:924-927・:947。既存のVXSE44試験はU-Eの期限が到来しておりchangedUnits=[\"U-E\"]になる、test/integration/unit-wiring.test.ts:396）で、実fixtureのdecode材料のうち、表に無いheadType（headTypeだけを\"VZZZ99\"に差し替え）はrouteUnlisted（WARN）1件、VTSE41（fixture 32-39_11_02_250206_VTSE41、O09:14の入力）はrouteNotPorted（unit=U-T）1件、VXSE44はrouteIgnored 1件を返し、3件ともunit state・views・changedUnits・保存世代を変えない。②復元のelseがU-Fへ流れる・③保存候補の直書き列は、3 unitの現行では正しく動いており4つ目のunitを足したときにだけ効くので、実行時の試験ではなく型検査を証拠にする: ②はN1（行の欠け）・N2（別keyのmodule）・N4（別unitのstate/input）、③はN3（persistence・codecの省略）・N5（unit列の欠け）",
         "evidenceRefs": [
           "reconstruction/contracts/p3-order-plan.md:34 «8a3fe7b489982786»",
-          "reconstruction/contracts/p3-order-plan.md:140 «fb6c6f287e207c71»",
-          "reconstruction/contracts/p3-order-plan.md:231 «beaf047ac7f9d773»"
+          "reconstruction/contracts/p3-order-plan.md:141 «fb6c6f287e207c71»",
+          "reconstruction/contracts/p3-order-plan.md:258 «beaf047ac7f9d773»"
         ]
       },
       {
