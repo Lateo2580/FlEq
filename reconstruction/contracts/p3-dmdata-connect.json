@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "87fc5ed341ed3e7a735e0382533a56610f33636a",
-    "sha256": "653ae72c525fdf8a3459f0add2ffb6bf16bda73f591f589c79e473ab1d81c72c",
+    "sha256": "8b9828869686c31cb605e227c5450f7d5bf9df98f32a94e2c3219090de69fa14",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "76c82b87d7783a4eae14af690cb34e7d6ec46f73617dc75b7f7401951619f080",
     "sequencesSha256": "be9cfd97b555e3a55568f085d107342c978b3dc7249f5cecea868ea5a62c5781",
@@ -107,7 +107,7 @@
     "contractId": "P3-DMDATA-CONNECT-001",
     "mode": "implementation",
     "objective": "R63の引受先として、本物のdmdataへ接続する最小のlive起動入口（API キー・appName・購読区分を受け、REST socket startで得たURLとsubprotocolでstartP2Hostを起動）を製品hostへ足し、spec§10.1の起動前の接続条件（使用本数の確認・4本以内・一覧取得失敗で開始しない・自分のsocketだけを閉じる・旧築と異なるappName）、接続1本（R57）、接続ごとのsocket startと自分の前のsocketの片付け、WSの生存監視とhandshake期限（台帳58）、start frameの記録（台帳58）、接続回復でdataを待たずconnectedへ戻すこと（台帳59、確認状態は戻さない）を閉じる。frame受信後はP2の共通入口（T0→ingress→mailbox→decode）をそのまま使い、T0より前でdecode・normalizeをしない。実dmdataへの接続の検証は作者が決めた時刻に統合担当が行う手順として固定し、実装者・レビュー子は実接続しない。",
-    "baseOid": "unassigned",
+    "baseOid": "03da1d39734867eacffb97040766f8ac47d18f87",
     "cleanTreeRequired": true,
     "readPaths": [
       "docs/specs/reconstruction-p0-contracts.md",
