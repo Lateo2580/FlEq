@@ -1,0 +1,962 @@
+{
+  "meta": {
+    "draftedFromOid": "d07d5ac73a2453c4f8475e39cf76afc98ba2c2d0",
+    "sha256": "fde85264f42d0336e2b1ad6770371f2e3ee3c6ccefa7a371e66353086b775604",
+    "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
+    "manifestSha256": "76c82b87d7783a4eae14af690cb34e7d6ec46f73617dc75b7f7401951619f080",
+    "sequencesSha256": "be9cfd97b555e3a55568f085d107342c978b3dc7249f5cecea868ea5a62c5781",
+    "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
+    "decisionBranches": [
+      {
+        "id": "D-P3-1",
+        "A": "worker 3本（U-E系／U-W／急がないunit）。publisherは接続・振り分け・mailbox・snapshot・SSE・通知adapterだけ",
+        "B": "重さで2本（R56の例外）、またはunitごとに1本",
+        "recommended": "A",
+        "provisional": "A",
+        "ruling": "2026-10-01 作者裁定D-P3-1=A（P3発注計画§5）",
+        "reason": "R56・R57、e01:410、A10参考測定の待ち（VPWS50 decode 388ms、U-W encode 148ms、U-F保存67ms）。RSSは未確認でC4の予備測定で取る。以後のunitは急ぐ／急がないを同居させない"
+      },
+      {
+        "id": "P3-C3A-FORM",
+        "A": "実行単位はworker_threads（常駐。電文ごとに生成しない）。RSSは同じプロセスに数える",
+        "B": "子プロセス（IPCが直列化し、起動・終了・監視の経路が増える）",
+        "recommended": "A",
+        "provisional": "A",
+        "ruling": "計画§5.1の統合担当の即断候補A（実行境界メモ§1で凍結）",
+        "reason": "spec:1027の常駐workerの形。treeを送らない配置で転送費用を避ける（台帳38）"
+      },
+      {
+        "id": "P3-C3A-WRITE-RIGHT",
+        "A": "checkpointの書込みは全体のin-flight 1件を保ち、publisherが§5.8の選択で書込み権を1つずつ渡す。capture・encode・hash・書込み・照合はunitを持つownerが行う。retryAfter・連続失敗回数・retryReasonはpublisher、同世代再試行の保持bytesとslotの記憶はownerが持つ",
+        "B": "ownerごとにin-flight 1件（spec:859の改訂が要る）",
+        "recommended": "A",
+        "provisional": "A",
+        "ruling": "計画§5.1の統合担当の即断候補A（実行境界メモ§3で凍結）",
+        "reason": "§5.8の公平性（E14・IR01）を変えない。全体1件では同時dirtyの保存は占有時間の和だけかかるので、PiでC4が権の待ち・着手待ち・encode・I/O・ackを分けて確かめる"
+      },
+      {
+        "id": "P3-C3A-CLOCK",
+        "A": "時計を2つに分け、混ぜない。業務の時刻（受理の適用・期限・dirtySince・capturedAt・ackAt・mailboxの完了照合）は、要求に載せたpublisherの注入時計に送出からの実経過を足した値で、受理はdecode後の実際の適用時刻（P2と同じ）。要求が固定の判断時刻を持つときはそれをそのまま使う（通知結果の更新はcompletedAt、終了の打切りはcutoff。P2と同じ）。計測の時刻（T2・decode・processing・checkpointの各段）はpublisherの実単調時計（performance.now()の基準）へ換算し、注入時計のoffsetを足さない（P2-A10-AC03と同じ）",
+        "B": "受理の時計を送出時のpublisherの値に固定し、owner内の経過を業務判定に使わない",
+        "recommended": "A",
+        "provisional": "A",
+        "ruling": "起草案（作者裁定待ち）",
+        "reason": "見え方の違い: Bは期限直前に送出した電文（VPWP50のvalidUntil、EEWの失効など）をdecode完了時に期限を過ぎていても有効として採用・表示しうる。capturedAtが捕捉した状態より前の時刻になる。Aでは、業務の時刻（採否・表示・保存時刻）、通知結果の採否（期限前のcompletedAtの成功は後で届いてもdelivered）、計測の時刻の基準のいずれもP2と同じ。Aの限界: 注入時計は実時間と同じ速さで進むとみなし、送出後の注入時計の飛び（試験のskew変更）は次の要求から効く"
+      },
+      {
+        "id": "P3-C3A-PLACE-COLUMN",
+        "A": "実行場所の列はunit-coverage.tsのruntimeUnitsの隣に Readonly<Record<RuntimeUnitId, ExecutionPlace>> の1 literalで置き、headType→実行場所を同じfileの関数1つで引く（readyはそのunitの列、ignored・notPorted・unlistedはdeferred）。mailboxとhostはこの関数だけを使い、MailboxEnvelopeとenqueueの形は変えない",
+        "B": "UnitModuleにplace fieldを足し、MailboxEnvelopeにplaceを載せる",
+        "recommended": "A",
+        "provisional": "A",
+        "ruling": "起草案（発注前点検で統合担当が確定）",
+        "reason": "publisherがunitのreducer moduleを使わずに振り分けられる。keyed Recordなのでunitを足して行を書き忘れると型エラーになる。列の追加はC3aだけ（計画§3.2）で、unitレーンは自分の1行を足すだけ。BはP2のmailbox試験とhostのenvelope生成を全部変える"
+      },
+      {
+        "id": "P3-C3A-PARSE-ONCE",
+        "A": "16 KiB以下のframeは、peekでfatalなUTF-8 decodeとJSON.parseを1回行い、その結果（成功・失敗）を制御frameの判定とingressの両方に使う（ingressはws入力として解析結果を受ける形を1つ持ち、失敗なら再parseせずenvelopeInvalidで拒否する）。16 KiB超は従来どおりingressが1回parseする",
+        "B": "大きさで分けず、全frameを1経路で1回parseする",
+        "recommended": "A",
+        "provisional": "A",
+        "ruling": "起草案（発注前点検で統合担当が確定）",
+        "reason": "spec:1072の形（小さいframeはmainで外形確認、大きいdata frameはraw bytesのままworkerへ渡せる境界）を保つ。C4がingressJsonMsで大型frameのparseをownerへ移すと決めた場合も16 KiB超の分岐だけを動かせばよい。Bは16 KiB超の制御形frame（現在は入力として数えてenvelopeInvalid）の扱いを変える"
+      },
+      {
+        "id": "P3-C3A-NONREADY",
+        "A": "readyでないheadType（ignored・notPorted・unlisted）の入力はdeferredのownerがdecodeし、現行と同じ診断（parser拒否、routeIgnored、共通検証の後のrouteNotPorted／routeUnlisted）を返す",
+        "B": "publisherがdecodeせずroute区分の診断だけを入れて捨てる（診断の削減は作者裁定が要る）",
+        "recommended": "A",
+        "provisional": "A",
+        "ruling": "起草案（発注前点検で統合担当が確定）",
+        "reason": "診断の内容と順（C0のP3-C0-RUNTIME-DISTINCTION）、E09の計数を変えない。publisherでdecodeしない原則（R57）はどちらも満たす"
+      },
+      {
+        "id": "P3-C3A-DEADLINES",
+        "A": "各ownerは自分のunitの期限だけを、自分の要求（入力・期限・終了）の処理時に適用する。publisherは既存の1秒tickでownerごとにdeadline要求を送る（未完了は1件まで、AC15）。parser入力の完了で他unitの期限を適用する現行の経路（d07d5ac7のshared-runtime.tsでparser完了時のapplyDeadlines(他unit)）は持ち越さない",
+        "B": "parser入力の完了ごとにpublisherが他の全ownerへdeadline要求を送る（AC15の上限の内側で合流する）",
+        "recommended": "A",
+        "provisional": "A",
+        "ruling": "起草案（作者裁定待ち）",
+        "reason": "見え方の違い: Aでは、期限で変わる表示（EEWの失効、気象の有効期限切れ、通知intentの期限回収）が、他分野の電文が先に届いたときに前倒しで出ることが無くなる。期限を適用する機会は1秒周期のtickで、表示への反映にはそのownerの先行処理の待ちと処理時間が加わり、未完了の間のtickは合流する（AC15）ので、1秒以内の反映は保証しない（実際の遅延はC4で測る）。Bは前倒しを残すが、1入力ごとに全ownerを起こし、急ぐownerの処理に別unitの期限処理が挟まる。Aは恒久の変更として扱う"
+      },
+      {
+        "id": "P3-C3A-CHECKPOINT-ACK",
+        "A": "書込み結果は、書いたownerが自分の直列処理の1入力として自unitのpersistenceへ適用してから（ack世代が現在世代と一致したときだけdirtySinceを消す）、適用後のpersistenceと結果をpublisherへ返す",
+        "B": "publisherがmirrorへ適用し、ownerへack入力を送る",
+        "recommended": "A",
+        "provisional": "A",
+        "ruling": "起草案（発注前点検で統合担当が確定）",
+        "reason": "手順1の⑤を現在世代を持つ場所で判定し、mirrorが古い間にdirtyを消す競合を構造で無くす。I/O callbackがstateを直接変えない（spec:676）"
+      },
+      {
+        "id": "P3-C3A-CONFIRMATION-HOME",
+        "A": "確認状態（RuntimeConfirmation）はpublisherに置き、ownerの出力（displayChanges・confirmationEvidence・retiredEvents）とpublisherの入力（connectionLost・coverageVerified）で更新する",
+        "B": "確認状態をunitごとにownerへ置き、connectionLostを全ownerへ配る",
+        "recommended": "A",
+        "provisional": "A",
+        "ruling": "起草案（発注前点検で統合担当が確定）",
+        "reason": "接続とcoverageはpublisherの責務で、epochとafterInputSequenceが1つのまま保てる。証拠の採否は既存どおり入力連番で決めるので、ownerの返信がconnectionLostより後に届いても切断前の証拠を採らない。U-Eのcurrent全体を渡さずにretireを判定するためretiredEventsを返す"
+      },
+      {
+        "id": "P3-C3A-NOTIFY-ADOPT",
+        "A": "予約で試行回数を消費する（P2の計数のまま）。publisherはmirrorのpending intentでA7の選択を行い、新しい試行を始めるchannelはA7の状態へ採用せず予約（requestId・attemptId・channel・intent）として持ち、intentUpdate（attempts＋1、P2と同じ）を所有ownerへ送る。予約はmirrorが変わるたびの再評価で別のintentが選ばれたとき（上位通知・取消・期限）とshutdownで無効化する。adopted=trueの返信が現在の予約に一致し、shutdown前でintentの期限内のときだけA7の選択結果をそのchannelへ採用してadapterを呼ぶ。それ以外の返信はmirrorだけを反映する。既に始まった試行のabortはA7どおり即時に採用する",
+        "B": "予約と実際の試行を区別する（提示する設計案）。intentに予約中の状態を持たせ、ownerは予約では試行回数と配送の証拠（U-Eのattempts＞0）を進めず、adapterの起動を確認してから進める。この案の変更範囲: NotificationIntentの型と3 unitのcodec（永続schemaの変更と旧データの移行）、A7の再試行間隔の計算、U-EのdeliveryEvidenceの判定で、C3aのfile所有（units/*・domains/*・notification-delivery）の外なので別契約になる。永続しない予約など別の区別の仕方は未検討で、Bを選ぶ場合はその別契約の起草で設計から決める",
+        "recommended": "A",
+        "provisional": "A",
+        "ruling": "起草案（作者裁定待ち）",
+        "reason": "見え方の違い: Aでは、ownerが予約を採用した後でpublisherがその予約を無効化した（同じchannelへの上位の緊急通知・shutdown・期限）とき、adapterを一度も呼んでいないのに試行1回と数える。その結果 (i) そのintentの最初の実配送が失敗したときの再試行待ちが1秒でなく2秒になる（以後も1段ずれる、A7の1・2・4・8・10秒）(ii) U-Eでは配送の証拠がpossibleになり、元のEEW通知を一度も出していないのにその地震の取消で[取消]の通知が出うる。Bはこの2つが起きないが、提示した設計案ではunit・A7・永続schemaに触れる別契約になる。推奨はA: 起きるのは採用と無効化が競合した場合だけで、(ii)は取消を出し過ぎる側（取消を出し損ねる側ではない）の誤りであり、P2も起動後に中断した試行を同じく数える。採用済み回数の巻き戻しはしない。Aでも、取消済みintentの通知を出さないこと（採用してから実行）、上位の緊急通知が予約を待たないこと（spec:958）、結果の捏造をしないことは保つ"
+      },
+      {
+        "id": "P3-C3A-VIEW-REVISION",
+        "A": "台帳49: unit viewの形（O(N)のsemanticRevisionを含む）を変えず、owner→publisherへはstepで変わったunitのviewだけを1回送る。受信1回あたりのviewの複製回数とbyteは試験で計量して報告する（本番経路に計量用の直列化を足さない）。固定長化はC4でE01・E03の未達が射影・転送へ帰属したときに改めて決める",
+        "B": "C3aでunit viewのsemanticRevisionを固定長に変える（units/*と3 unit契約の試験に触れる）",
+        "recommended": "A",
+        "provisional": "A",
+        "ruling": "起草案（発注前点検で統合担当が確定）",
+        "reason": "製品のsnapshotはunit viewのsemanticRevisionを使わない（view-projectorはcontentRevisionから版を作る）。viewの形は各unit契約の所有で、C3aのfile所有（計画§3.2）に無い。既知の費用はview 1枚の構造化複製（O(view)）で、P2の公開用直列化と同じ桁"
+      },
+      {
+        "id": "P3-C3A-OWNER-FAILURE",
+        "A": "暫定例外: owner threadの予期しないerror・exitはpublisherで例外として投げ、プロセスを止める（P2の単一スレッドで不変条件が壊れたときと同じ）。期限はC3bの配送まで、引受先はC3b",
+        "B": "C3aでspec§7.8の停止表示（接続・処理停止の配信、更新未確認の最終情報）まで作る",
+        "recommended": "A",
+        "provisional": "A",
+        "ruling": "起草案（作者裁定待ち）",
+        "reason": "見え方の違い: Aではownerが落ちると表示サーバーごと止まり、ブラウザはSSEの無受信（45秒でstale、spec:1189）で古さを示すだけで、spec:1198の「停止状態の配信と更新未確認の最終情報」は出ない。Bは停止中も表示を続けるが、C3bの停止監視と同じ仕組みを先に作る。Aの未保証範囲: C3a配送からC3b配送までの間のspec:1198。Aでも、ownerだけが止まってEEWが処理されないままconnectedを表示し続ける状態は作らない"
+      },
+      {
+        "id": "P3-C3A-FINALIZE-TIMEOUT",
+        "A": "打ち切る。副作用固定の段の絶対期限（開始＋5秒と全体30秒の早い方）までに固定を確認できないownerは未固定とし、そのunitに最終保存の書込み権を渡さず、unsavedUnitsに数える。(2)の先行返信待ちで期限に達したら、cutoffを決めずに全ownerを未固定とする。期限の後に届いた固定の確認（正しいfinalizeDoneを含む）は使わない。段は既存どおりdeadlineExceededで最終保存へ進む",
+        "B": "待ち続ける。段の期限を過ぎても全体30秒の内側では(2)・(4)の待ちを続け、固定を確認できたownerのunitから最終保存する（段の結果はdeadlineExceededのまま記録する）",
+        "recommended": "A",
+        "provisional": "A",
+        "ruling": "起草案（作者裁定待ち）",
+        "reason": "見え方の違い: どちらも通常の終了では起きず、ownerが段の期限（最大5秒）を超えて応答しないときだけ差が出る。Aでは、(2)の段階で1本のownerが応答しないと、他のownerが正常でも全unitの最新の変更が保存されずに終了code 2になる。(4)の段階では、送信済みのcutoffに対する正しいfinalizeDoneが期限の直後に届いて最終保存の時間が残っていても、そのownerのunitは保存しない。Bは保存できるunitが増えるが、副作用固定の段の5秒の上限（spec:889）を超えて待つ。推奨はA: spec:889の段ごとの上限を保ち、未固定の世代を最終保存の成功と呼ばない（spec§5.9の5、E20の保存未確認のcode 0は0）。終了codeはどちらも既存の優先順3→2→4"
+      },
+      {
+        "id": "P3-C3A-TEST-PATH",
+        "A": "試験を3つに分ける。(1) owner内の純粋なreducer・checkpointの試験は、owner内の関数を直接呼ぶ試験として残す（canonical stateの参照同一性・Proxy・clone 0の検査はここ）。(2) publisherとownerの結線試験だけを、test/のhelper 1つ（境界の値をstructuredCloneに通し、返信の保留と明示の配送だけを持ち、製品の判断を再実装しない）へ通す。(3) 本物のworker_threadsを通す試験はdistのworker entryを使う少数（P3-C3A-T02・T06など）に限る",
+        "B": "既存試験を本物のworker経由に書き直す",
+        "recommended": "A",
+        "provisional": "A",
+        "ruling": "起草案（発注前点検で統合担当が確定）",
+        "reason": "既存の保存・終了・通知・射影の試験は偽の時計と偽のfilesystemに依存し、workerには関数を渡せない。(1)を結線試験へ混ぜるとE08/E11のclone 0の検査が境界のDTO複製と区別できない。製品srcに単一スレッドの実行形を残さない（helperはtest/にだけ置く）"
+      }
+    ],
+    "questionResolutions": [
+      {
+        "id": "P3-C3A-DEP-C1-C2",
+        "status": "inProgress",
+        "closed": "C1（P3-CHECKPOINT-STEP1-001）はd07d5ac7で配送済み。定常保存の読み直し0と直列化1回は、ownerへ移した後もP3-C1-RES-01・RES-03のまま保つ",
+        "remaining": "C2（P3-DMDATA-CONNECT-001）は実装中。baseOidはC2配送後の版で統合担当が割り当てる。C2がhost.tsの受信処理（peekでのstartの記録・生存監視の受信時刻・制御frameの観測）とcomposition-root.ts（recordConnected）へ足す挙動は、本契約の実装後も変えない",
+        "reason": "計画§3.1（C1・C2 → C3a）、§3.2のhost.ts・composition-root.tsの編集順"
+      },
+      {
+        "id": "P3-C3A-OWNER",
+        "status": "closed",
+        "closed": "C3aはhost.ts・ingress.ts・mailbox.tsとp2-mailbox.json・runtime/**・checkpoint.ts・view-projector.ts（入力の受け方だけ）・p2-shared-runtime.types.ts（MailboxStatsと分割に要る型だけ）とtest/の該当directoryを編集する。unitのdirectory（units/*・domains/*）、decode-material、http-sse、notification-delivery、reconstruction/test/eew-e01/**は編集しない。P2契約のうちp2-mailbox.json以外の改訂は統合担当が合流のcommitで行う（P3-C3A-P2-CLAUSES）",
+        "remaining": "なし",
+        "reason": "計画§3.2（実行場所の列の追加はC3aだけ、mailbox.tsとp2-mailbox.jsonはC3a、package・tsconfigは最初に必要とする契約）"
+      },
+      {
+        "id": "P3-C3A-P2-CLAUSES",
+        "status": "closed",
+        "closed": "P2契約の条文のうち配置の変更で字面が合わなくなるものと、C3aでの置換・維持・再検収の対応をmappingに固定する。P2の測定結果（a10-p2-20260930bなど）は単一スレッド配置の履歴として残し、本契約の配置の結果と混ぜない",
+        "remaining": "統合担当の改訂は行数を変えない置換で行い、被引用行（p2-mailbox.json:391、p2-shared-runtime.json:231、p2-eew-e01.json:84・:523、p2-shared-runtime.types.ts:65）を動かさない。書き換えた行が引用されていれば、引用側のanchorとmeta.sha256を同じcommitで更新する",
+        "reason": "独立レビュー（2026-10-01）P2-8",
+        "mapping": [
+          {
+            "clause": "P2-MAILBOX-001 objective（:159）・publicFunctionsのtakeNext／complete（:208・:209）・P2-A2-RES-07（:320〜:325）・artifactRequirementsのinFlightMessageIdの項（:517）",
+            "replacedBy": "P3-C3A-AC03、P3-C3A-RES-01",
+            "keeps": "件数・byte・通常枠・予約枠の全体上限、固定優先順、同じ順序領域の先行拘束、完了照合、in-flightの計数",
+            "reaccept": "P3-C3A-T01、既存P2-A2-T01〜T05",
+            "revisedBy": "実装者（mailbox.tsと同じcommit、計画§3.2）"
+          },
+          {
+            "clause": "P2-A2-AC05（p2-mailbox.json:391、停止判定の述語）",
+            "replacedBy": "置換しない（ownerごとの監視はC3b）",
+            "keeps": "stalled／unresponsiveの述語と発報規則",
+            "reaccept": "既存P2-A2-T05",
+            "revisedBy": "なし"
+          },
+          {
+            "clause": "P2-A1-AC11（p2-shared-runtime.json:573）とartifactRequirements B4（:754「channelと3 unit共通のintentUpdate入力を同じ呼出しで一度に採用」）",
+            "replacedBy": "P3-C3A-AC07（予約方式）",
+            "keeps": "照合済みのintentUpdateだけを所有unitの保存世代へ採用してから試行する順、現在intentを失った試行のabort、U-Eの終端はdeliveryRecordsで確認（owner内）",
+            "reaccept": "P3-C3A-T07、既存のnotification-delivery・notification-wiringの試験",
+            "revisedBy": "統合担当（合流のcommit）"
+          },
+          {
+            "clause": "P2-A1-AC01（E08、:491）・P2-A1-AC02（E11）",
+            "replacedBy": "P3-C3A-AC08・AC11(f)",
+            "keeps": "canonical stateのclone・変更検出の直列化・JSON roundtripが0。境界のDTOの構造化複製は別に数える",
+            "reaccept": "既存P2-A1-T01・T02をowner内の試験として",
+            "revisedBy": "統合担当（合流のcommit）"
+          },
+          {
+            "clause": "P2-A3-AC09（p2-checkpoint-shutdown.json:441、startup入力1つでの採用）",
+            "replacedBy": "P3-C3A-AC01（ownerごとのrestoreとstartup step、publisherは全ownerのrestoredを受けてから自分の状態を作る）",
+            "keeps": "各unitのrestoreは1回、復元後のpersistenceを合成しない、通常入力は起動完了後",
+            "reaccept": "既存P2-A3-T09",
+            "revisedBy": "統合担当（合流のcommit）"
+          },
+          {
+            "clause": "P2-A3-AC10（世代帰属）・P2-A3-AC11（保存予約後のdispatch）・P2-A3-AC06（E20の順）",
+            "replacedBy": "AC10の寄与入力の台帳はowner内で維持。AC11はP3-C3A-AC07。AC06はP3-C3A-AC09（最小結線）とC3b（再検収）",
+            "keeps": "条文の意味はすべて維持し、置き場だけが変わる",
+            "reaccept": "既存P2-A3-T06・T10・T11、P3-C3A-T07",
+            "revisedBy": "統合担当（合流のcommit、置き場の注記だけ）"
+          },
+          {
+            "clause": "P2-A10-AC12（p2-eew-e01.json:523、WS受信callback→ingestXmlData→enqueue→takeNext→decodeMaterial→complete→dispatchの1スレッドの経路）",
+            "replacedBy": "P3-C3A-AC01・AC03（takeNext→ownerへ送出→inputDone→complete→採用）",
+            "keeps": "入口は1つ、mailboxを迂回しない、T0以前にdecodeしない、初回接続失敗のreject",
+            "reaccept": "P3-C3A-T02、既存のhost・eew-e01の試験",
+            "revisedBy": "統合担当（合流のcommit。:523はp3-dmdata-connect.jsonが引用するのでanchorも更新）"
+          },
+          {
+            "clause": "P2-A10-AC13（R60の健全性写像）とP2-A10-EXECUTION（p2-eew-e01.json:57、単一スレッド）",
+            "replacedBy": "AC13はC3bまで維持（ownerごとの監視はC3b）。EXECUTIONはD-P3-1と本契約で置き換わる",
+            "keeps": "C3bまではP2の写像のまま、保証範囲も同じ（スレッドが塞がる間の独立監視は保証しない）",
+            "reaccept": "既存のhostの写像試験（観測方法を変えたものはAC11(f)）",
+            "revisedBy": "統合担当（合流のcommit、:57は履歴として残し置換先を注記）"
+          },
+          {
+            "clause": "P2-A1-PROBE（p2-shared-runtime.json:231、二段階の通知probe）",
+            "replacedBy": "置換しない（publisherに残る）",
+            "keeps": "全文",
+            "reaccept": "既存のprobe試験",
+            "revisedBy": "なし（:231はp2-eew-e01.json:528が引用）"
+          }
+        ]
+      },
+      {
+        "id": "P3-C3A-WORK-UNITS",
+        "status": "closed",
+        "closed": "実装と検収を3つの単位に区切り、各単位でreconstructionのゲートを通してから次へ進む。① owner内処理の切出しと既存試験の分類（P3-C3A-TEST-PATHの(1)〜(3)、AC11の影響一覧の確定）② mailbox・host・本物のworkerの結線（AC01〜AC04・AC12・AC13・AC15）③ 通知・checkpoint・終了の非同期境界（AC05〜AC10・AC14）。レビュー（D-P3-11）は③の後の固定patchに当てる",
+        "remaining": "①の影響一覧の確定後に実装の見積もり（計画§7の2〜4晩）を更新して報告する",
+        "reason": "独立レビュー（2026-10-01）の実装の区切り。別契約へ分けるより小さい"
+      },
+      {
+        "id": "P3-C3A-MEASURE",
+        "status": "closed",
+        "closed": "C3aが完了条件として測るのは構造と回数（frameごとのJSON.parse回数、境界を越える値の形、実行場所ごとのin-flight、unitをまたぐ書込みの重なり、publisherのthreadでのdecode・reduce・encodeの呼出し0、受信1回あたりのviewの複製回数）。RSS（E05はworkerを含む）、大きいframeのingressJsonMs、E01・E02・E03・E06・E15の計測点と測定、Pi予備確認はC4",
+        "remaining": "C4のmanifestは本契約の配置（owner 3本とpublisher）と観測の意味（T2はownerの処理開始、時刻はpublisherの時計の基準）を前提に組む",
+        "reason": "計画§4.2の「実装後にしか測れないので着手条件にせず、C4の予備測定・正式測定で取る」、§8"
+      },
+      {
+        "id": "P3-C3A-BUILD",
+        "status": "closed",
+        "closed": "ownerのworker entryはreconstruction/src/runtime/配下のTypeScriptとし、既存のreconstruction/tsconfig.jsonのemit（reconstruction/dist/）をそのまま使う。package.json・tsconfig・vitest configは変えず、新しいnpm依存を足さない。hostはdistのworker entryをresolveRepoPathで指す（表示資材の扱いと同じ）",
+        "remaining": "requiredCommandsの順（tscがvitestより先）を守る。distを作らずにvitestを回すとworkerの試験は古いdistを読む",
+        "reason": "計画§3.2の「worker用のbuild出力が要るならC3a」"
+      },
+      {
+        "id": "P3-C3A-PI",
+        "status": "closed",
+        "closed": "Pi予備確認の第1段（C3aの配送後）はC4の所有で、C3aと別の測定器を作らない。本契約はPiで確かめる性質をartifactRequirementsに書くだけ",
+        "remaining": "なし",
+        "reason": "計画§4.5（D-P3-7）"
+      }
+    ],
+    "operationContract": {
+      "ref": "P2-SHARED-RUNTIME-001#meta.operationContract",
+      "rule": "実行場所はheadTypeだけで決め、operationで分岐しない。operationの伝播と区分間の非干渉はownerの中の既存reducerが担い、本契約は変えない"
+    }
+  },
+  "contract": {
+    "contractId": "P3-EXECUTION-SPLIT-001",
+    "mode": "implementation",
+    "objective": "R56・R57、台帳38・55・56・61、保存の手順1の①・⑤を閉じる。publisher（Node main）は接続・振り分け・mailbox・snapshot・SSE・通知adapter・checkpointの書込み権の配分だけを持ち、unitごとの解凍・XML parse・reduce・期限処理・view生成・checkpointのencodeと書込みをD-P3-1の3本のworker_threads（urgent＝U-E、weatherCurrent＝U-W、deferred＝U-Fとreadyでない入力）のownerへ移す。境界を越えるのはp3-execution-split.types.tsの型付きの値だけで、parse済みtree・canonicalなunit state・checkpointのbytesは越えない。owner宛ての要求は種別ごとの固定上限で有界にする。mailbox（P2-MAILBOX-001）を実行場所ごとのin-flight 1件へ改訂し、件数・byte上限は全体で1つのまま、同じ順序領域の順序と完了照合を保つ。16 KiB以下のframeの二重JSON parseを1回にする（厳格なUTF-8検証は保つ）。業務の時刻の意味（受理の適用時刻・capture・ack）はP2のまま保つ。保存完了でdirtyを無条件に消さず、全体の書込みin-flight 1件と§5.8の公平性を保ったままE10・E14・O07・O10を再検収する。停止監視・通常終了の順序の検収（C3b）と測定（C4）は扱わない。",
+    "baseOid": "unassigned",
+    "cleanTreeRequired": true,
+    "readPaths": [
+      "AGENTS.md",
+      "docs/specs/reconstruction-p0-contracts.md",
+      "reconstruction/contracts/p3-order-plan.md",
+      "reconstruction/contracts/p3-execution-boundary.md",
+      "reconstruction/contracts/p3-execution-split.json",
+      "reconstruction/contracts/p3-execution-split.types.ts",
+      "reconstruction/contracts/p3-unit-table.json",
+      "reconstruction/contracts/p3-unit-table.types.ts",
+      "reconstruction/contracts/p3-checkpoint-step1.json",
+      "reconstruction/contracts/p3-dmdata-connect.json",
+      "reconstruction/contracts/p3-dmdata-connect.types.ts",
+      "reconstruction/contracts/p2-mailbox.json",
+      "reconstruction/contracts/p2-shared-runtime.json",
+      "reconstruction/contracts/p2-shared-runtime.types.ts",
+      "reconstruction/contracts/p2-checkpoint-shutdown.json",
+      "reconstruction/contracts/p2-notification-delivery.json",
+      "reconstruction/contracts/p2-notification-delivery.types.ts",
+      "reconstruction/contracts/p2-snapshot-sse.json",
+      "reconstruction/contracts/p2-snapshot-sse.types.ts",
+      "reconstruction/contracts/p2-eew-e01.json",
+      "reconstruction/contracts/p2-eew-e01.types.ts",
+      "reconstruction/contracts/p1-parser-boundary.types.ts",
+      "reconstruction/tools/corpus/manifest.json",
+      "reconstruction/tools/corpus/sequences.json",
+      "reconstruction/src/**",
+      "reconstruction/test/**",
+      "reconstruction/tsconfig.json",
+      "reconstruction/tsconfig.test.json",
+      "reconstruction/vitest.config.ts"
+    ],
+    "allowedPaths": [
+      "reconstruction/src/host/host.ts",
+      "reconstruction/src/ingress/ingress.ts",
+      "reconstruction/src/mailbox/mailbox.ts",
+      "reconstruction/src/runtime/**",
+      "reconstruction/src/checkpoint/checkpoint.ts",
+      "reconstruction/src/view-projector/view-projector.ts",
+      "reconstruction/contracts/p2-shared-runtime.types.ts",
+      "reconstruction/contracts/p2-mailbox.json",
+      "reconstruction/test/execution-split/**",
+      "reconstruction/test/mailbox/**",
+      "reconstruction/test/host/**",
+      "reconstruction/test/shared-runtime/**",
+      "reconstruction/test/integration/**",
+      "reconstruction/test/checkpoint-shutdown/**",
+      "reconstruction/test/notification-delivery/**",
+      "reconstruction/test/snapshot-sse/**",
+      "reconstruction/test/unit-table/**",
+      "reconstruction/test/eew-unit/**",
+      "reconstruction/test/weather-current-unit/**",
+      "reconstruction/test/weather-timeseries-unit/**",
+      "reconstruction/test/chrome-eew/smoke.mjs"
+    ],
+    "allowedGitCommands": [
+      "git status --porcelain",
+      "git rev-parse HEAD",
+      "git cat-file -e <oid>:reconstruction/contracts/p3-execution-split.json",
+      "git diff --binary --no-ext-diff -- <allowed_paths>",
+      "git diff --check -- <allowed_paths>",
+      "git show <required-path-or-object>",
+      "git ls-files <required-path>"
+    ],
+    "moduleIds": [
+      "B02",
+      "B03",
+      "B05",
+      "B06",
+      "B07"
+    ],
+    "integrationContractIds": [
+      "I-U-E",
+      "I-U-W",
+      "I-U-F"
+    ],
+    "dependsOnContractIds": [
+      "P2-MAILBOX-001",
+      "P2-SHARED-RUNTIME-001",
+      "P2-CHECKPOINT-SHUTDOWN-001",
+      "P2-NOTIFICATION-DELIVERY-001",
+      "P2-SNAPSHOT-SSE-001",
+      "P2-EEW-E01-001",
+      "P3-UNIT-TABLE-001",
+      "P3-CHECKPOINT-STEP1-001",
+      "P3-DMDATA-CONNECT-001"
+    ],
+    "publicTypes": [
+      "reconstruction/contracts/p3-execution-split.types.ts#ExecutionPlace",
+      "reconstruction/contracts/p3-execution-split.types.ts#OwnerStartData",
+      "reconstruction/contracts/p3-execution-split.types.ts#SentClock",
+      "reconstruction/contracts/p3-execution-split.types.ts#ParserEnvelope",
+      "reconstruction/contracts/p3-execution-split.types.ts#ParserSettlement",
+      "reconstruction/contracts/p3-execution-split.types.ts#OwnerRequest",
+      "reconstruction/contracts/p3-execution-split.types.ts#OwnerUnitDelta",
+      "reconstruction/contracts/p3-execution-split.types.ts#OwnerOutput",
+      "reconstruction/contracts/p3-execution-split.types.ts#OwnerReply",
+      "reconstruction/contracts/p2-shared-runtime.types.ts#MailboxEnvelope",
+      "reconstruction/contracts/p2-shared-runtime.types.ts#MailboxStats",
+      "reconstruction/contracts/p2-eew-e01.types.ts#P2HostObservation"
+    ],
+    "publicFunctions": [
+      "Mailbox#enqueue(envelope: MailboxEnvelope): MailboxEnqueueResult（signature不変。parser itemの実行場所はheadTypeから決める）",
+      "Mailbox#takeNext(nowMonotonicMs: number): MailboxEnvelope | null（signature不変。parserはin-flightの無い実行場所のitemだけを返す。呼出し側はnullまで繰り返し、返ったitemをその実行場所のownerへ送る）",
+      "Mailbox#complete(completion: ParserSettlement | Extract<MailboxCompletion, { kind: \"control\" }>): MailboxStats（parserは識別子だけで照合する。全量のMailboxCompletionもそのまま渡せる）",
+      "unit-coverage.tsのheadType→ExecutionPlaceの関数1つ（readyはunitの列、それ以外はdeferred。Map 1回の参照。名前は実装が決めて成果物に書く）",
+      "ingestXmlData(input)（ws入力に解析結果（成功のobject、または失敗）を受ける形を1つ足す。受理・拒否の結果、診断、ParserMailboxItemのfieldは不変）",
+      "startP2Host(config)（signatureはC2配送後のまま。owner 3本の生成と全ownerのrestoreの完了を、最初のWS接続より前に待つ）",
+      "RuntimeCompositionRoot（publisher）: ownerへの送出を (place: ExecutionPlace, request: OwnerRequest) => void の関数1つで受け、返信をreceive(place: ExecutionPlace, reply: OwnerReply)の1メソッドで受け、ownerの予期しない停止をownerFailed(place, cause)の1メソッドで受ける。Workerの生成と結線はhostが行う",
+      "ownerのworker entry（reconstruction/src/runtime/配下。workerData: OwnerStartDataを受け、parentPortのOwnerRequestを順に処理してOwnerReplyを返す。file名は実装が決めて成果物に書く）"
+    ],
+    "allowedDependencies": [
+      "node:worker_threads（Worker・parentPort・workerData）",
+      "node:perf_hooks（共有の実時計 performance.timeOrigin＋performance.now()）",
+      "既存の依存（ws・node:fs・node:path・node:crypto・node:os）。新しいnpm依存は足さない"
+    ],
+    "fixtureIds": [
+      "test__fixtures__15_18_01_250630_VPWS50",
+      "test__fixtures__77_01_01_240613_VXSE45",
+      "test__fixtures__37_01_01_240613_VXSE43",
+      "test__fixtures__81_02_01_260605_VPWP50_high_severity",
+      "test__fixtures__81_04_01_260605_VPWP50_cancel"
+    ],
+    "sequenceIds": [
+      "O07",
+      "O09",
+      "O10"
+    ],
+    "expectedDecisions": [
+      {
+        "expectedRef": "expected:O07:16"
+      },
+      {
+        "expectedRef": "expected:O09:2"
+      },
+      {
+        "expectedRef": "expected:O10:35"
+      },
+      {
+        "expectedRef": "expected:O10:39"
+      }
+    ],
+    "expectationEvidence": [
+      {
+        "expectedRef": "expected:O07:16"
+      },
+      {
+        "expectedRef": "expected:O09:2"
+      },
+      {
+        "expectedRef": "expected:O10:35"
+      },
+      {
+        "expectedRef": "expected:O10:39"
+      }
+    ],
+    "semanticDeadlines": [],
+    "deliveryDeadlines": [
+      {
+        "id": "P3-C3A-DLV-01",
+        "target": "normal dirty update through containing generation acknowledgement（P2-A3-DLV-01・P3-C1-DLV-01を変えない）",
+        "limit": 3,
+        "unit": "seconds",
+        "clock": "monotonic (publisher clock base)",
+        "scope": "ownerをまたいで全体の書込みin-flight 1件のまま。同時にdirtyになった単位の保存は占有時間の和だけかかる（各保存のp99の和を全体のp99と呼ばない）",
+        "source": "§5.8、計画§5.1"
+      }
+    ],
+    "retentionLimits": [],
+    "resourceLimits": [
+      {
+        "id": "P3-C3A-RES-01",
+        "target": "normal parser data dispatched to owners（P2-A2-RES-07の改訂）",
+        "limit": 1,
+        "unit": "in-flight item per execution place (at most 3 in total)",
+        "scope": "in-flightは完了（inputDoneを受けてcompleteするまで）件数・byteに数える。postMessage済みでも外さない",
+        "source": "spec:1056、計画§2.1 C3a行"
+      },
+      {
+        "id": "P3-C3A-RES-02",
+        "target": "input mailbox total（P2-A2-RES-01〜06を変えない）",
+        "limit": 128,
+        "unit": "items in total and 16,777,216 bytes in total, pending and in-flight of all places together; normal 120/14 MiB and reserved 8/2 MiB unchanged",
+        "scope": "上限は全体で1つ。実行場所ごとの上限や枠を足さない。mailboxはpublisherに1つで、ownerの数だけ増やさない。owner宛てのcontrol要求はmailboxに数えずRES-09で有界にする",
+        "source": "実行境界メモ§4"
+      },
+      {
+        "id": "P3-C3A-RES-03",
+        "target": "checkpoint writer across owners（P2-A3-RES-02・P3-C1-RES-04を変えない）",
+        "limit": 1,
+        "unit": "granted write right (attempt or reconciliation) in the whole process",
+        "scope": "publisherは書込み権をcheckpointDoneを受けたときだけ解放する。停止未確認のfilesystem操作が残る間はcheckpointDoneが来ないので権を持ち続ける",
+        "source": "spec:859、spec:841"
+      },
+      {
+        "id": "P3-C3A-RES-04",
+        "target": "full JSON.parse of one WebSocket frame",
+        "limit": 1,
+        "unit": "JSON.parse at most once per frame, never re-parsed",
+        "scope": "16 KiB以下はpeekで、fatalなUTF-8 decodeに成功したときだけ1回（不正UTF-8なら0回）。16 KiB超はingressの1回。どちらも失敗したframeを再parseしない。制御frame（ping・pong・start・error・未知）も含む",
+        "source": "spec:1072"
+      },
+      {
+        "id": "P3-C3A-RES-05",
+        "target": "resident owner threads",
+        "limit": 3,
+        "unit": "worker_threads created once at startup",
+        "scope": "電文ごと・要求ごとに生成しない。再生成しない（P3-C3A-OWNER-FAILURE）",
+        "source": "spec:1031、D-P3-1"
+      },
+      {
+        "id": "P3-C3A-RES-06",
+        "target": "parse tree, canonical unit state and checkpoint bytes crossing a thread",
+        "limit": 0,
+        "unit": "values",
+        "scope": "DecodedMaterial・XML node・unit stateの本体・終端intentの記録・CheckpointRequest（envelopeのpayloadを含む）・保存bytesはOwnerRequest／OwnerReplyに載らない。ParserMailboxItemのencodedBodyはpublisher→ownerへ入力1件につき1回だけ渡る",
+        "source": "実行境界メモ§2、台帳38"
+      },
+      {
+        "id": "P3-C3A-RES-07",
+        "target": "unit view copies from owner to publisher",
+        "limit": 1,
+        "unit": "view per changed unit per owner reply",
+        "scope": "公開viewが変わらないstepではnull。複製のbyteは試験の中で計量して報告し、本番経路に計量用のJSON.stringifyを足さない（台帳49）",
+        "source": "P3-C3A-VIEW-REVISION"
+      },
+      {
+        "id": "P3-C3A-RES-08",
+        "target": "mailbox takeNext selection",
+        "limit": 1,
+        "unit": "forward pass over pending entries per call",
+        "scope": "先行する同じ順序領域の判定は、走査中に保つheadTypeごとの既出区分で行い、各entryで先行entryを走査し直さない（現行のpending.slice(0, index).someの組合せ走査を持ち越さない）",
+        "source": "AGENTS.mdの受信経路の計算量"
+      },
+      {
+        "id": "P3-C3A-RES-09",
+        "target": "outstanding requests per owner",
+        "limit": 1,
+        "unit": "outstanding request per kind per owner, except intentUpdate at most 2 per notification channel (one reservation and one result update), so at most 9 per owner",
+        "scope": "inputはmailboxのin-flight（RES-01）。deadlineは未完了1件で、未完了の間のtickは送らず、次のtickで最新の時計を送る（合流）。checkpointGrantは全体で1件（RES-03）。restore・shutdownInput・finalizeは各1回。ownerが止まっても要求は増えない",
+        "source": "独立レビュー（2026-10-01）P1-3"
+      }
+    ],
+    "workDeadline": null,
+    "persistenceUnits": [
+      "U-E",
+      "U-W",
+      "U-F"
+    ],
+    "persistedFields": [
+      "CheckpointEnvelope schemaVersion, unit, generation, capturedAt, payload and sha256（保存bytes・保存先・slot選択はC1と同一。書くthreadだけが変わる）"
+    ],
+    "nonPersistedFields": [
+      "publisherのunitごとのmirror（公開view・persistence・pending intent・admissionCounts）。ownerの返信だけで更新し、起動時はrestoreの返信で作る",
+      "通知の予約（requestId・attemptId・channel・intent）、書込み権の保持者、unitごとのretryAfter・連続失敗回数・retryReason、ownerごとの未完了要求",
+      "ownerのunit state・admission・期限・保存試行・世代の寄与入力・slotの記憶・同世代再試行の保持bytes・終端intentの記録（ownerのthreadの中だけ）",
+      "OwnerStartData（起動ごと）"
+    ],
+    "outOfScope": [
+      "ownerごとの停止監視（spec:1190〜1191のstalled／unresponsive）と停止表示（spec§7.8）、DisplayWorkerViewの写像の変更（C3b。C3aの間はP2の写像のまま）",
+      "通常終了の段の順序・期限の再検収、止まったownerの終了、E20の再検収（C3b）",
+      "ownerの自動再起動（specに無い）",
+      "E01・E02・E03・E05（RSS）・E06・E15の計測点と測定、ingressJsonMsによる大型frameのparse位置の決定、Pi予備確認（C4）",
+      "新しいunit、unitの意味・codec・viewの形の変更（台帳49のBを含む）",
+      "A7（notification-delivery）の選択・結果処理の変更と、その線形走査の削減",
+      "官署ごとの保存（D-P3-2）",
+      "詳細ページ（spec§7.10）とIR07（P4で境界型を改訂）",
+      "VTSE41の津波候補の優先分類（C5）",
+      "CLI・replayの公開口（C17・C18）",
+      "reconstruction/test/eew-e01/**（runner・証拠。C4）の変更",
+      "package.json・tsconfig・vitest configの変更、新しいnpm依存",
+      "spec本文とp2-mailbox.json以外のP2契約の改訂（統合担当、P3-C3A-P2-CLAUSES・Q-C3A-SPEC-REVISION）",
+      "旧築src/**の変更"
+    ],
+    "acceptanceChecks": [
+      {
+        "id": "P3-C3A-AC01",
+        "requirement": "実行場所とowner（D-P3-1、P3-C3A-FORM・PLACE-COLUMN・NONREADY）: 起動時にworker_threadsのownerを3本（urgent・weatherCurrent・deferred）だけ作り、電文ごと・要求ごとに作らない。各ownerは自分の実行場所のunitについて、canonicalなunit state・admission・期限・保存試行・世代の寄与入力・終端intentの記録・CheckpointCoordinatorのunit側（slotの記憶・同世代再試行の保持bytes・capture・encode・書込み・照合）と起動時のrestore・startup stepを持つ。publisherのthreadではdecodeMaterial・unitのreduce／toView・codecのencode／decode・checkpoint fileの書込みを呼ばない。実行場所の列はunit-coverage.tsのkeyed Record 1つ、headType→実行場所は同じfileの関数1つで、readyでない入力はdeferredへ送る。publisherは全ownerのrestoredを受けてから自分の状態を作り、startP2Hostは最初のWS接続をその後に始める（P2-A3-AC09の意味を保つ）。ownerのworker entryはdistの1 fileで、hostがresolveRepoPathで指す",
+        "evidenceRefs": [
+          "reconstruction/contracts/p3-order-plan.md:60 «166fda087f5c80b2»",
+          "reconstruction/contracts/p3-order-plan.md:198 «d33db641dfa15ff3»",
+          "reconstruction/contracts/p3-order-plan.md:217 «26169600f01ebd68»",
+          "reconstruction/contracts/p3-execution-boundary.md:11 «ad5afaebe1e4a129»",
+          "reconstruction/contracts/p3-execution-boundary.md:12 «664a6f4b27d9fc87»",
+          "reconstruction/contracts/p3-execution-boundary.md:14 «fecf2363390805fb»",
+          "reconstruction/contracts/p3-execution-boundary.md:16 «1c592c4ecfb317f4»",
+          "docs/specs/reconstruction-p0-contracts.md:1031 «69127c89f41d3c74»",
+          "reconstruction/contracts/p3-order-plan.md:122 «a3833598bcdcbadc»",
+          "reconstruction/contracts/p2-checkpoint-shutdown.json:441 «d5e784b591877d5b»"
+        ]
+      },
+      {
+        "id": "P3-C3A-AC02",
+        "requirement": "境界を越える値と時刻（台帳38、実行境界メモ§2、P3-C3A-CLOCK）: threadをまたぐのはOwnerStartData・OwnerRequest・OwnerReplyだけで、構造化複製できる素のデータに限り（関数・class instance・共有の可変参照を持たない）、各kindのfieldは型の定義どおりに限る。DecodedMaterial・XML node・unit stateの本体・CheckpointRequest（envelopeのpayload）・保存bytesは載せない（RES-06）。ParserMailboxItemはpublisher→ownerへ入力1件につき1回渡り、transferを使うならbyteOffset 0で全長を占めるArrayBufferだけを渡す。時刻は3つを分け、混ぜない（P3-C3A-CLOCK）: (1) 受信時刻＝WS受信callbackの壁時計（item.receivedAt、従来どおり）(2) 業務の時刻＝受理・期限・capture・ack・dirtySince・mailboxの完了照合の時刻で、要求のSentClockからclock＋（共有の実時計の現在値−sharedMs）として外挿する。ただし要求が固定の判断時刻を持つときは外挿せずそのまま使う: intentUpdateのdecisionClock（通知結果の更新は結果のcompletedAt、選択の更新は選択時の時計。unit入力のclockとしてP2と同じに渡し、期限前に完了した成功は後で届いてもdeliveredになる）、finalizeのcutoff。capturedAtは実際にcaptureした時刻、ackAtはdirectory syncの完了後にackを決めた時刻 (3) 計測の時刻＝T2・decode・processingのmarks・CheckpointMeasurementの各段で、共有の実時計の現在値−publisherTimeOriginMsとしてpublisherの実単調時計（performance.now()）の基準へ換算し、注入時計のoffsetを足さない。publisherのT0・T1・T3・T4も同じ実単調時計。注入時計は実時間と同じ速さで進むとみなし、送出後の注入時計の飛びは次の要求から効く（この限界を成果物に書く）。ownerは自分のperformance.now()を他threadの値と直接比べない",
+        "evidenceRefs": [
+          "reconstruction/contracts/p3-execution-boundary.md:23 «ad182de7ff8c41a3»",
+          "reconstruction/contracts/p3-execution-boundary.md:24 «a2093fe26e2e9930»",
+          "reconstruction/contracts/p3-execution-boundary.md:27 «0312174a4bc58c9f»",
+          "reconstruction/contracts/p3-order-plan.md:149 «a8542d2933bd43a1»",
+          "docs/specs/reconstruction-p0-contracts.md:343 «2ffce7ab8bc76db8»",
+          "docs/specs/reconstruction-p0-contracts.md:648 «3661c5161d19f122»",
+          "docs/specs/reconstruction-p0-contracts.md:863 «b0df969f17745090»",
+          "docs/specs/reconstruction-p0-contracts.md:864 «6a7712e8d448213a»"
+        ]
+      },
+      {
+        "id": "P3-C3A-AC03",
+        "requirement": "mailboxの実行場所別dispatch（P2-MAILBOX-001の改訂）: 通常dataのin-flightは実行場所ごとに1件（RES-01）、件数・byteの上限・通常枠・予約枠は全体で1つのまま（RES-02）。parser itemの実行場所はenqueue時にheadTypeから決めてentryに持つ。takeNextはin-flightの無い実行場所のitemのうち、P2-A2-AC03の固定優先順（control→EEW候補→津波候補→その他、確認済みtraining／testを通常緊急候補より上にしない）で最上位を返し、同じ順序領域（P2-A2-CLASSIFICATIONの判定表）で先行するpendingがあるitemは返さない。同じheadTypeは同じ実行場所なので、場所ごとのin-flight 1件と先行pendingの判定で順序を保つ。completeはParserSettlementの識別子（messageId・runId・inputId・inputSequence・encodedByteLength・送出時刻以後の開始）で照合し、照合に失敗した完了・重複した完了はどの場所も解放しない。MailboxStatsのinFlightMessageIdはinFlightMessageIds（場所ごとのdata ID、最大3件）に置き換え、件数・byteの合計と停止判定の述語（P2-A2-AC05）は変えない。p2-mailbox.jsonは同じcommitで改訂する: objective（:159）・publicFunctionsのtakeNextとcomplete（:208・:209）・RES-07（:320〜:325）・artifactRequirementsのinFlightMessageIdの項（:517）を、行数を変えない置換で書き換え、:391（p2-eew-e01.json:538が引用）を動かさず、meta.sha256をhashConventionで再計算する",
+        "evidenceRefs": [
+          "reconstruction/contracts/p3-execution-boundary.md:39 «7c8fc4b78954915b»",
+          "reconstruction/contracts/p3-execution-boundary.md:40 «0a382771625566cf»",
+          "reconstruction/contracts/p3-execution-boundary.md:41 «c8aa4fca3790cbec»",
+          "reconstruction/contracts/p3-order-plan.md:64 «370938812e81e9be»",
+          "reconstruction/contracts/p3-order-plan.md:129 «f2daeac32ebf0411»",
+          "docs/specs/reconstruction-p0-contracts.md:1056 «5a36cc2957d9d9a9»",
+          "docs/specs/reconstruction-p0-contracts.md:1089 «7d583246228571ea»",
+          "docs/specs/reconstruction-p0-contracts.md:1094 «34b125d081cb34b2»"
+        ]
+      },
+      {
+        "id": "P3-C3A-AC04",
+        "requirement": "全文のJSON parseは1回（spec:1072、P3-C3A-PARSE-ONCE、RES-04）: d07d5ac7のhost.ts:174〜:188は16 KiB以下のframeをpeekHead（Buffer.toStringの寛容なdecode）でparseし、data frameならingestXmlDataが同じbytesをもう1回、fatalなTextDecoderでparseする。16 KiB以下は、peekでingressと同じfatalなUTF-8 decodeとJSON.parseを1回だけ行い、結果を成功（object）・失敗（不正UTF-8または不正JSON）・未実行（16 KiB超）の3つで区別する。制御frameの判定は成功のobjectだけで行い、失敗はdata経路へ回してingressが再parseせずにenvelopeInvalidで拒否する（入力として数える、従来の拒否結果と同じ）。16 KiB超はingressが1回parseする。T0の取得を先頭に保ち、制御frameの扱い（ping→pong、start・pongの受理とC2が足すstartの記録、errorの切断、未知の制御typeのenvelopeInvalid、C2の生存監視の受信時刻）と、ingressの受理・拒否・診断・ParserMailboxItemのfieldを変えない。ingressJsonMsはそのframeで実際に行った1回のparseの区間を入れる。不正UTF-8を含む小さい制御形frame（従来はpeekが置換文字でparseし制御として扱いえた）の扱いが変わる点は成果物に書き、凍結時に統合担当が確認する",
+        "evidenceRefs": [
+          "docs/specs/reconstruction-p0-contracts.md:1072 «903f0b45eb75b9e6»",
+          "reconstruction/contracts/p3-execution-boundary.md:26 «ed4456eecbd3dd10»",
+          "reconstruction/contracts/p3-order-plan.md:220 «8f752aac520fde50»",
+          "docs/specs/reconstruction-p0-contracts.md:1110 «c295f3e129f02f59»"
+        ]
+      },
+      {
+        "id": "P3-C3A-AC05",
+        "requirement": "checkpointの書込み権（P3-C3A-WRITE-RIGHT、RES-03）: publisherはmirrorのpersistenceから§5.8の選択（uncertainでなくdirtyかつretryAfter到達済みのうち最古のdirtySince、同時刻は固定UnitId順。uncertainで再照合が到達したunitはmode=reconcile）を行い、書込み権をcheckpointGrantで1つずつ渡す。ownerはgrantを適用する時点の現在世代をcaptureしてencodeし（同世代の再試行は保持したbytesとcapturedAtを再利用、C1）、C1と同じ順（tmp回収→open→write→sync→close→rename→syncDirectory）で書き、結果を自unitへ適用してからcheckpointDoneを返す。dirtyでない・世代が既に保存済みならresult=nullで返す。publisherは権をcheckpointDoneでだけ解放する。区別: 書込みが終わっていない（停止未確認を含む）間は他ownerへgrantしない。終了が確認できた失敗（encode・書込み・照合の失敗）はcheckpointDoneで権を返し、そのunitだけを再試行待ちにして他unitの保存を進める。uncertain（rename後・ack前）も操作が終われば権を返し、再照合はretryAfter到達後のmode=reconcileで行う。同じgrantIdのcheckpointDoneの2回目と、現在の権に一致しないcheckpointDoneはmirrorにもretryにも適用しない。publisherはretryAfter（1・2・4・8・10秒）・連続失敗回数・retryReasonとcheckpointRetryScheduled・checkpointOverdue（3秒）・10秒の監視（checkpointUncertain）の診断を持つ。通常終了の最終保存も同じ権で行い、retryAfterを無視するかはpublisherが決める。ownerの中でもC1のP3-C1-RES-01（定常保存の読み直し0）とRES-03（直列化1回）を保つ",
+        "evidenceRefs": [
+          "reconstruction/contracts/p3-execution-boundary.md:31 «c992db9a4d8a3e6b»",
+          "reconstruction/contracts/p3-execution-boundary.md:32 «cc3592cbabff6989»",
+          "reconstruction/contracts/p3-execution-boundary.md:33 «f2bb94d22854f241»",
+          "reconstruction/contracts/p3-execution-boundary.md:34 «340e4dc2bfe880da»",
+          "docs/specs/reconstruction-p0-contracts.md:859 «9ad08dc74129c0e3»",
+          "docs/specs/reconstruction-p0-contracts.md:862 «b7be10b70d398bbf»",
+          "docs/specs/reconstruction-p0-contracts.md:865 «5f445c73a17df687»",
+          "docs/specs/reconstruction-p0-contracts.md:841 «2e8b93a723481674»",
+          "reconstruction/contracts/p3-order-plan.md:218 «185e0ab8c78b7c92»"
+        ]
+      },
+      {
+        "id": "P3-C3A-AC06",
+        "requirement": "保存完了でdirtyを無条件に消さない（手順1の⑤、P3-C3A-CHECKPOINT-ACK）: ownerはack世代が自分の現在世代と一致したときだけdirtySinceを消してsavedにし、captureの後に世代が進んでいればsavedGenerationだけを進めてpendingのままpostCaptureDirtySinceを新しいdirtySinceにする（d07d5ac7のshared-runtime.tsのcheckpointResult処理と同じ条件）。古い世代のackでcurrent・取消・intentを巻き戻さない。publisherはmirrorのpersistenceをownerの返信でだけ更新し、自分でdirtyを消さない。結果の適用はownerの直列処理の1入力として行い、I/Oのcallbackがstateを直接変えない",
+        "evidenceRefs": [
+          "reconstruction/contracts/p3-execution-boundary.md:35 «a3058c3d8f54a94b»",
+          "reconstruction/contracts/p3-order-plan.md:151 «33dfb5a088ea1ece»",
+          "docs/specs/reconstruction-p0-contracts.md:866 «a822f26e85664a64»",
+          "docs/specs/reconstruction-p0-contracts.md:676 «2a94f20f4e770c22»"
+        ]
+      },
+      {
+        "id": "P3-C3A-AC07",
+        "requirement": "通知の採用と実行（P3-C3A-NOTIFY-ADOPT）: publisherはmirrorのpending intentとchannel状態でA7の選択・結果処理（selectNotificationAttempt・applyNotificationResult、期限切れの回収）を行う。A7の出力のうち、既に始まった試行に関わるもの（abortRequests・stopping）は即時に採用する。新しい試行を始めるchannelはA7の状態へ採用せず、予約（requestId・attemptId・channel・intent）として持ち、intentUpdateを所有ownerへ送る（channelごとに予約は1つ）。予約はmirrorが変わるたびにA7を同じ規則で再評価し、同じintentが選ばれる間だけ保つ。別のintentが選ばれた（上位の通知・取消・期限）とき、または終了要求（shutdownRequested）で無効化する。ownerは要求の全更新を採用するか1つも採用しない（intentが無い・識別子が違う・既に終端なら採用しない）。adopted=trueの返信が現在の予約のrequestIdに一致し、shutdown前でintentの期限内のときだけ、A7の選択結果をそのchannelへ採用してadapterを1回呼ぶ。それ以外の返信はownerの更新（mirror）だけを反映し、adapterの起動・channelの状態変更・他の予約の解除に使わない。通知結果（NotificationResult）を作らない。結果の採用（delivered・失敗・期限切れ）はpublisherがA7でchannelを先に確定し、intentの更新をdecisionClock＝結果のcompletedAtとともにownerへ送る。ownerはその固定時計でintentの期限を判定し（owner が処理した時刻では判定しない）、識別子・終端状態の再照合は従来どおり行う。同じintentに二重の試行を作らない。U-Eの終端記録（deliveryRecords）での採用確認はownerの中で行う",
+        "evidenceRefs": [
+          "docs/specs/reconstruction-p0-contracts.md:948 «2329df574f1ba7a9»",
+          "docs/specs/reconstruction-p0-contracts.md:949 «28854b020dc75755»",
+          "docs/specs/reconstruction-p0-contracts.md:953 «2d1702a30de1cc0c»",
+          "docs/specs/reconstruction-p0-contracts.md:958 «618012b27b0cd8ad»",
+          "docs/specs/reconstruction-p0-contracts.md:960 «1aa04ccc8255047a»",
+          "reconstruction/contracts/p2-shared-runtime.json:573 «dcdaa7c72e70cb83»",
+          "reconstruction/contracts/p2-shared-runtime.json:754 «c6065fe573594293»"
+        ]
+      },
+      {
+        "id": "P3-C3A-AC08",
+        "requirement": "publisherに残る単位横断の状態と順序（P3-C3A-CONFIRMATION-HOME・DEADLINES）: 確認状態・restorationの表示・admissionCounts（ownerの値）・通知channelと通知期限・終了状態と終了要約・接続表示（C2のlostThroughSequenceとrecordConnected）をpublisherが持ち、snapshotはpublisherがmirrorから射影する。順序は3つを分ける: (1) 同じ順序領域の入力の順（mailbox、AC03）(2) owner内の適用順＝そのownerへの要求の順で、返信（checkpointDoneを含む）はすべて適用順に送る（同じportの順で足り、別の順序機構を足さない）(3) publisherの公開順＝返信を受けた順。owner間の中間snapshotの列（どのsequenceにどのunitの更新が載るか）がd07d5ac7と一致することは求めない。検収するのは、すべての入力の処理が終わった後のmirror・snapshotの内容がAC11の(b)〜(e)の箇所を除きd07d5ac7と同じであることと、各snapshotの不変条件（sequenceとsemanticRevisionが単調、各unitのviewはそのownerの適用順の接頭辞、同じunitのviewが古い版へ戻らない）である。期限は各ownerが自分のunitの分だけを適用する。変化の無い返信（unitsが空でoutcomes・displayChanges・diagnosticsも空）では射影・公開・mirrorの複製をしない（E08）。canonical stateのclone・変更検出の直列化・JSON roundtripは0（E11）",
+        "evidenceRefs": [
+          "reconstruction/contracts/p3-order-plan.md:149 «a8542d2933bd43a1»",
+          "docs/specs/reconstruction-p0-contracts.md:2059 «8ac7c45a9d2292ae»",
+          "docs/specs/reconstruction-p0-contracts.md:2062 «25bd4bb1cab285b6»",
+          "docs/specs/reconstruction-p0-contracts.md:345 «2c82d49de87fd563»",
+          "docs/specs/reconstruction-p0-contracts.md:1094 «34b125d081cb34b2»"
+        ]
+      },
+      {
+        "id": "P3-C3A-AC09",
+        "requirement": "終了の最小結線（順序と期限の検収はC3b）: 既存の段（stopInputAndDrainMailbox→finalizeNotificationDelivery→startFinalCheckpoints→closeRuntimeWorkers）を保ち、mailboxの収束は全実行場所のin-flightの完了を待つ。shutdownRequestedで通知の予約をすべて無効化する。mailboxDrainの結果の後に各ownerへshutdownInput（各unitの宣言した終了入力）を送る。sideEffectFinalizationの固定は次の順で行う（P3-C3A-FINALIZE-TIMEOUT）: (1) publisherはownerへの通常の状態変更要求（deadline・intentUpdate。入力はmailboxDrainで既に止まっている）の送出を止める。ownerは要求の処理時にだけ期限を適用し、独立のtimerを持たないので、これが期限適用の停止境界になる (2) 送出済みの要求の返信がすべてそろう（適用の完了）のを確かめる (3) その時点のpublisherの時計を、全ownerに共通の打切り時刻cutoffとして1つ決め、publisherも自分の通知期限をcutoffまで適用し、state.finalizationAtはcutoffの壁時計とする（意味上の打切り時刻で、finalizeDoneを受けた時刻とは区別する）(4) 全ownerへfinalize（cutoffを固定の時計として、cutoffまでの期限を適用し、cutoffより後の期限は適用せず次回起動で評価する。以後checkpointGrant以外の要求を受けない）を送り、finalizeDoneのappliedThroughがcutoffと一致したownerを固定済みとする。(2)と(4)の待ちは、段の開始時に決まった絶対期限（既存のsideEffectFinalizationの期限＝開始＋5秒と全体30秒の早い方）を共有し、待機ごとに再起算しない。期限に達したときは、段の結果をdeadlineExceededとして既存どおり最終保存の段へ進み、未固定のownerのunitは固定済みと扱わない（作者裁定P3-C3A-FINALIZE-TIMEOUT）。(2)で期限に達した場合はcutoffもfinalizeも実行しておらず、finalizationAtはnullのまま、全ownerを未固定、全unitを最終世代未確認とする。(4)で期限に達した場合はfinalizationAt＝cutoffで、appliedThroughが一致したownerだけが固定済みになり、そのunitは最終保存の対象になる。未固定のownerのunitには書込み権を渡さず（最終保存の対象から外す）、unsavedUnitsに数える（終了codeは既存の優先順3→2→4のまま決まり、code 0にしない）。期限の後に届いた未固定のownerの返信は、業務状態（mirror・確認状態・通知・最終保存の成功判定）へ採用しない（件数だけ診断に残す）。ただし現在の書込み権のgrantIdに一致するcheckpointDoneは、操作の終了の確認と書込み権の解放にだけ使い（AC05）、その終了を確認するまでは権を保持する。未固定のownerもworkerCloseで他と同じく終了させる。ownerごとの停止監視と止まったownerの扱いの詳細はC3b。最終保存は書込み権で行い、closeRuntimeWorkersで終了要約の保存後にowner 3本を終了させる。既存の終了試験（P2-A3-T06、integration/shutdown.test.tsなど）の期待値は変えない。stopの後にowner threadを残さない",
+        "evidenceRefs": [
+          "docs/specs/reconstruction-p0-contracts.md:885 «46593c2b19823aa6»",
+          "docs/specs/reconstruction-p0-contracts.md:886 «5ccc49998d03e9c7»",
+          "docs/specs/reconstruction-p0-contracts.md:887 «f50cda702110e7c6»",
+          "reconstruction/contracts/p3-order-plan.md:61 «90cd4b030c735359»",
+          "reconstruction/contracts/p3-execution-boundary.md:47 «03fb41f056642dd7»"
+        ]
+      },
+      {
+        "id": "P3-C3A-AC10",
+        "requirement": "ownerの予期しない停止（P3-C3A-OWNER-FAILURE、作者裁定待ち。Aなら暫定例外で期限はC3bの配送まで）: hostはowner threadのerror、またはstop以外でのexitをownerFailedへ渡し、publisherは例外として投げてプロセスを止める。以後その他のownerへ要求を送らず、止まったownerのまま入力の受付・connectedの表示を続けない。ownerを再生成しない。ownerごとの停止監視・停止表示（spec:1198）はC3bで、Aの間は未保証として成果物に書く",
+        "evidenceRefs": [
+          "docs/specs/reconstruction-p0-contracts.md:1198 «45d7a5dc731dd19b»",
+          "docs/specs/reconstruction-p0-contracts.md:1200 «a145e7845df709f9»",
+          "reconstruction/contracts/p3-order-plan.md:61 «90cd4b030c735359»"
+        ]
+      },
+      {
+        "id": "P3-C3A-AC11",
+        "requirement": "再検収と既存試験（E10・E14・O07・O10、P3-C3A-TEST-PATH）: reconstructionのゲート（tsc 2本・vitest・shuffle）を全部通す。E10（P2-A3-T03）・E14（P2-A3-T04）・O07:15〜18（P2-A3-T01）・O10（P2-A3-T02、C1のP3-C1-T01〜T05）・E08（P2-A1-T01）・E11（P2-A1-T02）は期待値を変えずに通す。試験はTEST-PATHの(1)〜(3)に分け、(1)の呼出し口の移し替えと(2)への移し替えは期待値の変更に数えない。期待値を変えてよい理由は次の6つだけ: (a) 実行場所ごとのin-flight（mailbox.test.tsの「P2-A2-T03 corpusHistory ... maximum O09 input remains in-flight while the EEW candidate waits」はVPWS50のin-flight中にEEW候補が取り出される期待へ変える。実行場所の違うitemを続けて取り出す試験も同じ）(b) 作者裁定P3-C3A-CLOCKがBになった場合の受理の時計 (c) 他unitの期限がparser入力の完了でなく次のdeadline要求で適用される（作者裁定P3-C3A-DEADLINES=Aの場合。unit-wiring.test.tsの「P2-A1-T12 contractBoundary / AC11: VXSE44 with an invalid date is ignored while deadlines still run」が候補）(d) 通知の試行がownerの採用の返信の後に始まる (e) MailboxStatsのinFlightMessageIdがinFlightMessageIdsになった (f) 観測方法の変更: E08・E11のstructuredClone・JSON.stringifyの0はowner内のreducer呼出しに対して測り、境界のDTOの構造化複製は数えない。host.test.ts:268のstall試験はmain側のvi.mock（decode中のhook）が本物のownerへ届かないので、helperで返信を保留して同じ期待（heartbeatがstalled→healthy、mailboxStalledの診断）を確かめる形へ移す。変更前に該当試験の一覧を実測で確定して理由とともに報告し、試験は削らずに同じ性質を確かめる形に直す。これ以外の理由で期待値の変更が要る試験、またはallowedPathsの外（eew-e01・parser-boundary・chrome-eewのvitest試験）の変更が要る試験はblockedとして報告する",
+        "evidenceRefs": [
+          "docs/specs/reconstruction-p0-contracts.md:2061 «aeb1275bbe737682»",
+          "docs/specs/reconstruction-p0-contracts.md:2066 «9816b55af233a5a4»",
+          "reconstruction/tools/corpus/sequences.json#expected:O07:16",
+          "reconstruction/tools/corpus/sequences.json#expected:O10:35",
+          "reconstruction/tools/corpus/sequences.json#expected:O10:39",
+          "reconstruction/contracts/p2-shared-runtime.json:491 «40cc23ac8c8cd9b1»",
+          "reconstruction/contracts/p3-order-plan.md:60 «166fda087f5c80b2»"
+        ]
+      },
+      {
+        "id": "P3-C3A-AC12",
+        "requirement": "parseのpublisher外への移動（N7・IR06を構成として閉じる）: 本物のowner（distのworker entry）を使うhostで、最大VPWS50（O09:2の入力）のframeに続けてVXSE43のframeを送ると、VXSE43のT0とT2がVPWS50のdecode終了より前にあり、VXSE43のT3がVPWS50のinputDoneの採用（VPWS50の処理完了）より前にある。publisherのthreadでのdecodeMaterial・unitのreduceの呼出しは0。これはC4の衝突試験の前提の証拠で、E01のPassとは呼ばない",
+        "evidenceRefs": [
+          "reconstruction/contracts/p3-order-plan.md:241 «d718c9173cd9390a»",
+          "reconstruction/contracts/p3-order-plan.md:64 «370938812e81e9be»",
+          "docs/specs/reconstruction-p0-contracts.md:1111 «87b8c62477d732bb»",
+          "docs/specs/reconstruction-p0-contracts.md:2930 «06c16cf8d745a609»",
+          "reconstruction/tools/corpus/sequences.json#expected:O09:2"
+        ]
+      },
+      {
+        "id": "P3-C3A-AC13",
+        "requirement": "観測の意味を保つ（C4のrunnerの前提）: P2HostObservationの種類とfieldは変えない。T0・T1・T3・T4・publishSerializationはpublisher、T2はownerの処理開始、decodeはownerのdecodeの開始・終了で、時刻はすべてpublisherの実単調時計の基準で、注入時計のoffsetを含まない（AC02の(3)、P2-A10-AC03）。processingのstartedMonotonicMsはT2、endedMonotonicMsはpublisherが返信を採用し射影を終えた時刻、marksはownerの区間にingressJsonMs（publisher）とworkerTransferMs（T2−送出時刻）を入れる。checkpointの計測はownerの値をそのまま出す。reconstruction/test/eew-e01/**の試験は変更なしで緑",
+        "evidenceRefs": [
+          "docs/specs/reconstruction-p0-contracts.md:1110 «c295f3e129f02f59»",
+          "docs/specs/reconstruction-p0-contracts.md:1111 «87b8c62477d732bb»",
+          "reconstruction/contracts/p3-order-plan.md:62 «77bdc4ba5db0bf63»",
+          "reconstruction/contracts/p2-eew-e01.types.ts"
+        ]
+      },
+      {
+        "id": "P3-C3A-AC14",
+        "requirement": "受信経路の計算量（台帳62と同型の点検を含む）: 受信1回の処理で、全件×全件の走査、mirror・intent全体・canonical stateの直列化・構造化複製、同じ集合の二重走査をしない。publisherが行うのは、mailboxの1回の走査（RES-08）、変わったunitのmirror entryの差し替え、既存の射影と公開用の直列化1回、A7の選択・結果処理の1回である。A7の線形な選択は既存のまま許す例外とし、その集合はmirrorのpending intent（unitごとに最大128件・128 KiB、P2-A7-RES-01・02、3 unitで最大384件）と通知期限（最大384件、P2-A7-RES-04）、回数は返信1件につき1回に限る（予約の再評価もこの1回に含める）。参照のcacheが外れたときに全量の計量・走査へ戻る経路を足さない。受信1回あたりのviewの複製回数とbyte（RES-07）は試験で計量して成果物に報告する",
+        "evidenceRefs": [
+          "AGENTS.md:25 «b7f4c3a89b5bb3b2»",
+          "reconstruction/contracts/p3-order-plan.md:255 «9bdb5730f282d9b4»",
+          "reconstruction/contracts/p3-order-plan.md:258 «beaf047ac7f9d773»",
+          "reconstruction/contracts/p2-notification-delivery.json:379 «f5ec72a9893bca2d»"
+        ]
+      },
+      {
+        "id": "P3-C3A-AC15",
+        "requirement": "owner宛て要求の有界性（RES-09）: owner宛てのcontrol要求はmailboxに数えず、種別ごとの固定上限で有界にする。deadlineは未完了1件までで、未完了の間のtickは送らず、次のtickで最新の時計を送る。intentUpdateはchannelごとに予約1件と結果の更新1件まで。checkpointGrantは全体で1件。ownerが返信しなくなっても要求は増えない。ownerはcheckpointのI/Oの完了を待つ間も後続の要求（入力・期限・intent更新）を処理する（checkpointDoneは操作が終わった時点の適用順で送る）",
+        "evidenceRefs": [
+          "docs/specs/reconstruction-p0-contracts.md:1056 «5a36cc2957d9d9a9»",
+          "docs/specs/reconstruction-p0-contracts.md:676 «2a94f20f4e770c22»",
+          "reconstruction/contracts/p3-execution-boundary.md:41 «c8aa4fca3790cbec»"
+        ]
+      }
+    ],
+    "testMapping": [
+      {
+        "testId": "P3-C3A-T01",
+        "purpose": "contractBoundary",
+        "referenceIds": [
+          "P3-C3A-AC03"
+        ],
+        "behavior": "mailbox単体: 最大VPWS50（weatherCurrent）とVPWP50（deferred）がin-flightの間に投入したVXSE45がtakeNextで返り、2件目のVPWS50は1件目の完了まで返らない。in-flightの3件を含めて件数128・16 MiBの+1が拒否される。同じheadTypeのP2-A2-T03-ORDERの順序が実行場所別dispatchでも保たれる。識別子の違う完了と同じ完了の2回目はどの場所も解放しない"
+      },
+      {
+        "testId": "P3-C3A-T02",
+        "purpose": "acceptance",
+        "referenceIds": [
+          "P3-C3A-AC01",
+          "P3-C3A-AC12",
+          "P3-C3A-AC13"
+        ],
+        "behavior": "tsc後のdistのowner 3本を使うstartP2HostへローカルWSで最大VPWS50→VXSE43を続けて送る。observeでVXSE43のT0・T2がVPWS50のdecode終了より前、VXSE43のT3がVPWS50のprocessingの終了より前。1入力ごとにT0≤T1≤T2≤decode開始≤decode終了≤T3（publisherの時計の基準）。/snapshotにEEWが出る。publisherのthreadでdecodeMaterialとunitのreduceの呼出しが0。stop後にowner threadが残らない"
+      },
+      {
+        "testId": "P3-C3A-T03",
+        "purpose": "contractBoundary",
+        "referenceIds": [
+          "P3-C3A-AC02"
+        ],
+        "behavior": "helperでVXSE43・VPWS50・VPWP50を通し、restore・input・deadline・intentUpdate・checkpointGrantの全要求と返信がstructuredCloneを通り、各kindのkey集合が型の定義どおり（余分なkeyが無い）で、どこにもXML node・unit stateの本体・終端intentの記録・envelopeのpayload・保存bytesが現れない"
+      },
+      {
+        "testId": "P3-C3A-T04",
+        "purpose": "regression",
+        "referenceIds": [
+          "P3-C3A-AC04"
+        ],
+        "behavior": "d07d5ac7のhost.ts:174〜:188の二重parseの再発防止。frame本文のJSON.parseは、16 KiB以下と16 KiB超の正常なdata frameで各1回、16 KiB以下の不正JSONで1回、16 KiB以下の不正UTF-8で0回（fatal decodeで止まる）で、どれも再parseしない。不正JSON・不正UTF-8はenvelopeInvalidとして拒否され（従来と同じ拒否）、入力として数えられる。ping・start・errorと未知の制御frameの扱いは変わらない"
+      },
+      {
+        "testId": "P3-C3A-T05",
+        "purpose": "contractBoundary",
+        "referenceIds": [
+          "P3-C3A-AC06"
+        ],
+        "behavior": "ownerがg1をcaptureした後にg2が採用され、g1のackを受けるとpersistenceはpendingのまま（savedGeneration=1、dirtySinceはcapture後の最初の変更時刻）でcheckpointDoneに載る。g2のackでsavedになる。古いackでcurrentとintentは変わらない"
+      },
+      {
+        "testId": "P3-C3A-T06",
+        "purpose": "acceptance",
+        "referenceIds": [
+          "P3-C3A-AC05"
+        ],
+        "behavior": "distのowner 3本で、U-WとU-Fを同時にdirtyにする。observeのcheckpoint計測で、別unitの書込み区間（open〜syncDirectory）が重ならず、先にdirtyになったunitから保存され、両方が3秒以内にackされる"
+      },
+      {
+        "testId": "P3-C3A-T07",
+        "purpose": "contractBoundary",
+        "referenceIds": [
+          "P3-C3A-AC07"
+        ],
+        "behavior": "helperで返信を保留して確かめる。(1) 予約とownerの採用の間にEEWのintentが取消で消えるとadopted=false、adapterの呼出し0、channelはidleのまま、更新後のmirrorで選び直す。(2) U-Wの予約の返信待ちに同じchannelへU-Eの緊急intentが来ると、U-Wの予約は無効化されU-Eが予約・実行され、遅れて届いたU-Wのadopted=trueはadapterを起動せずchannelを変えない。(3) 予約の返信待ちにshutdownRequestedが来ると、遅れたadopted=trueはadapterを起動しない。(4) 採用されたときはadapterが返信の後に1回だけ呼ばれる。(5) U-Wへの返信待ちの間も別channelではU-Eのintentが選ばれる。作者裁定P3-C3A-NOTIFY-ADOPT=Aの場合はさらに (6) ownerが採用した後に無効化された予約のintentはattempts=1のままで、その後の最初の実配送の失敗の再試行待ちが2秒になる (7) U-Eで同じ状況の後にその地震の取消を受けると取消通知のintentが作られる（見え方の記録として固定する）"
+      },
+      {
+        "testId": "P3-C3A-T08",
+        "purpose": "acceptance",
+        "referenceIds": [
+          "P3-C3A-AC11",
+          "P3-C3A-AC08",
+          "P3-C3A-AC09"
+        ],
+        "behavior": "既存のE10（P2-A3-T03）・E14（P2-A3-T04）・O07（P2-A3-T01）・O10（P2-A3-T02、P3-C1-T01〜T05）・E08（P2-A1-T01）・E11（P2-A1-T02）・終了（P2-A3-T06）と全reconstruction試験を、AC11の(a)〜(f)以外の期待値を変えずに通す。VPWS50→VXSE43→VPWP50を通した後のmirrorとsnapshotの内容が逐次実行と同じで、途中の各snapshotがAC08の不変条件を満たす。shuffle実行でも緑"
+      },
+      {
+        "testId": "P3-C3A-T09",
+        "purpose": "contractBoundary",
+        "referenceIds": [
+          "P3-C3A-AC05"
+        ],
+        "behavior": "helperで書込み権の解放条件を確かめる。U-Wの書込みが終わらない（checkpointDoneを保留）間はU-Fがdirtyでもgrantされない。U-Wが終了済みの書込み失敗で返るとU-Fが3秒以内にackされ、U-Wは1秒後まで再grantされない。照合失敗も同じ。同じgrantIdのcheckpointDoneを2回配送しても、mirror・retry・権への適用は1回"
+      },
+      {
+        "testId": "P3-C3A-T10",
+        "purpose": "contractBoundary",
+        "referenceIds": [
+          "P3-C3A-AC10"
+        ],
+        "behavior": "helperからownerFailed（error、stop以外のexit）を配送するとpublisherが例外を投げ、以後どのownerへも要求を送らない。stop中のexitでは投げない"
+      },
+      {
+        "testId": "P3-C3A-T11",
+        "purpose": "contractBoundary",
+        "referenceIds": [
+          "P3-C3A-AC14"
+        ],
+        "behavior": "mirrorの各unitに128件のpending intentと最大のviewを持たせた状態で、VXSE43のinputDoneを1件採用する間、JSON.stringify・structuredCloneの引数にmirror・pending intent全体・unit viewが来ない（公開用snapshotの直列化1回を除く）。A7の選択は1回。pending 120件のmailboxでtakeNext 1回の順序領域の判定は120回以下"
+      },
+      {
+        "testId": "P3-C3A-T12",
+        "purpose": "contractBoundary",
+        "referenceIds": [
+          "P3-C3A-AC02"
+        ],
+        "behavior": "helperの共有実時計と注入時計を別々に進めて確かめる。(1) 送出時は期限前で、decode中に期限をまたぐ入力は、適用時刻が期限後になり逐次実行と同じ判定になる。(2) grantの送出後・適用前にownerへ更新が入ると、captureは更新後の世代でcapturedAtはその適用時刻。ackAtはsyncDirectoryの完了後。(3) 注入時計が実時計より+10秒のoffsetを持つとき、業務の時刻（dirtySince・capturedAt・completeの開始）はoffsetを保ち、completeの開始時刻が送出時刻より前にならない。計測の時刻はoffsetを含まず、1入力のT0≤T1≤T2≤decode開始≤decode終了≤T3≤T4が成り立ち、processingとcheckpointの各段の区間長が0以上。(4) 期限15秒の通知の成功結果（completedAt＝14秒）を、ownerが16秒に処理しても、intentはdeliveredになりexpiredにならない"
+      },
+      {
+        "testId": "P3-C3A-T13",
+        "purpose": "contractBoundary",
+        "referenceIds": [
+          "P3-C3A-AC15",
+          "P3-C3A-AC09"
+        ],
+        "behavior": "helperでownerの返信を10 tick分保留しても、そのownerへの未完了のdeadlineは1件、intentUpdateはchannelごとに2件以下。返信を配送すると次のtickで最新の時計のdeadlineが1件送られる。checkpointのI/Oを保留している間もそのownerが入力を処理して返す。終了では次を確かめる。(1) 先行のdeadline要求（送出99秒）のownerによる処理を102秒まで遅らせると、段の結果（100秒）の後もcutoffはその返信を受けた後に決まり（102秒以上）、どのownerもfinalizationAtより後の期限を適用しない。(2) owner Aのfinalizeを即時、owner Bのfinalizeを2秒遅れて配送しても、cutoff−1msの期限は両方で適用され、cutoff＋1msの期限はどちらも適用されず、finalizationAtはcutoffの壁時計でBの返信の受領時刻ではない。(3) (2)の段階で期限に達する: owner Bの先行返信（書込み権を持つBのcheckpointDoneを含む）を段の絶対期限より後まで保留すると、cutoffもfinalizeも実行されず、finalizationAtはnullのまま、段はdeadlineExceeded、どのunitにも最終保存の書込み権が渡らず全unitがunsavedUnitsに数えられ、終了要約はcode 2（優先順3→2→4どおり）で、workerCloseで3本とも終了する。期限の後に届いたBの現在のgrantIdのcheckpointDoneは書込み権の解放にだけ使われ、それまでは権が保持され、その結果はBのmirrorと最終保存の成功判定に使われず、全unitの最終世代未確認は変わらない。(4) cutoff確定後の(4)の段階で期限に達する: owner AのfinalizeDoneは期限内、owner Bは期限後に届くと、Aのunitは最終保存され、Bのunitには書込み権が渡らずunsavedUnitsに数えられ、遅れたBのfinalizeDoneはmirrorに採用されない"
+      }
+    ],
+    "requiredCommands": [
+      {
+        "command": "node reconstruction/tools/corpus/check-manifest.mjs",
+        "cwd": ".",
+        "target": "reconstruction/tools/corpus/manifest.json",
+        "stage": "contract",
+        "purpose": "fixture台帳とhash検査"
+      },
+      {
+        "command": "node reconstruction/tools/corpus/check-sequences.mjs",
+        "cwd": ".",
+        "target": "reconstruction/tools/corpus/sequences.json",
+        "stage": "contract",
+        "purpose": "O07・O09・O10の参照と未充足数を検査する"
+      },
+      {
+        "command": "node reconstruction/contracts/check-contract.mjs",
+        "cwd": ".",
+        "target": "reconstruction/contracts/*.json",
+        "stage": "contract",
+        "purpose": "全契約を検査する（p2-mailbox.jsonの改訂後のmeta.sha256と、p2-shared-runtime.types.ts:65などの被引用行を含む）"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/tsconfig.json",
+        "cwd": ".",
+        "target": "reconstruction/tsconfig.json",
+        "stage": "implementation",
+        "purpose": "src・契約型の型検査とreconstruction/dist/の生成（ownerのworker entryをdistから読む試験があるのでvitestより先）"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/tsconfig.test.json",
+        "cwd": ".",
+        "target": "reconstruction/tsconfig.test.json",
+        "stage": "implementation",
+        "purpose": "test/を含む型検査"
+      },
+      {
+        "command": "./node_modules/.bin/vitest run --config reconstruction/vitest.config.ts",
+        "cwd": ".",
+        "target": "reconstruction/test/",
+        "stage": "implementation",
+        "purpose": "全reconstruction試験（P3-C3A-T01〜T13と既存試験）"
+      },
+      {
+        "command": "./node_modules/.bin/vitest run --config reconstruction/vitest.config.ts --sequence.shuffle",
+        "cwd": ".",
+        "target": "reconstruction/test/",
+        "stage": "implementation",
+        "purpose": "owner threadの生成・終了、publisherのmirror、module外の状態の順序依存を検出する"
+      }
+    ],
+    "artifactRequirements": [
+      "allowed_pathsに限定したgit diff --binary --no-ext-diffのpatch、変更ファイル一覧、requiredCommandsの実行結果、未実行の検証と理由、残存リスク。追加・変更した各試験について受入条件／契約境界／実不具合／corpus履歴のどれに当たるかを1行で書く",
+      "足した仕組みごとに「無いと何が壊れるか」を1行で書く。最低限: owner 3本（無いと最大VPWS50のdecode中にEEWのT0から先が止まる。Piで約2.4秒、台帳63）、実行場所の列と関数（無いとmailboxがどのin-flight枠を使うか決められず、急ぐunitと急がないunitが混ざる）、実行場所ごとのin-flight（無いとowner分離後もEEWがmailboxで大型parseの完了を待つ）、publisherのmirror（無いとsnapshotと通知の選択にcanonical stateが要る）、書込み権の要求と返信（無いと2つのownerが同時に書きspec:859を破る）、SentClockと実単調時計への換算（無いとownerの業務の時刻が注入時計とずれ、期限・capturedAtの意味が変わる。計測に注入offsetが混ざるとT2がT3より未来になる）、decisionClockとcutoff（無いと期限前に完了した通知成功が後の処理でexpiredになり、先に終わったownerがfinalizationAtまでの期限を取り残す）、通知の予約（無いと採用待ちの間の上位通知・shutdownで古い選択が起動しうる。P1-1）、要求の未完了上限（無いとownerが止まった間にdeadline等がportへ無制限に溜まる。P1-3）、test/のhelper（無いと既存の偽時計・偽filesystemの結線試験を回せない）",
+      "1実装のinterface・registry・factory・汎用RPC層・汎用sequence機構・worker pool・再起動の仕組み・ownerごとのmailboxを作らない。OwnerRequestとOwnerReplyはswitchで網羅し、未知のkindは例外にする。publisherとownerの結線は送出の関数1つと受信・停止のメソッドだけ。linkedUnitTableの置き場（composition-root.ts、C0のP3-C0-TABLE-HOME）は変えず、ownerはそれを読む",
+      "既存の.types.tsの被引用行を動かさない: p2-shared-runtime.types.tsの:65（p2-chrome-eew.json:504が引用）より前に行を挿入・削除しない。p3-execution-split.types.tsは本契約の凍結物で実装中は変えない。変える必要が出たら変えずにblockedで報告する",
+      "p2-mailbox.jsonの改訂は行数を変えない置換で行い、:391を動かさず、meta.sha256を再計算し、check-contractを通す（AC03）。ほかのP2契約は編集しない（P3-C3A-P2-CLAUSESの改訂は統合担当）",
+      "①の影響一覧（P3-C3A-WORK-UNITS）: d07d5ac7の試験のreduceRuntime／reduceRuntimeWith／new RuntimeCompositionRootの呼出し行は23 fileで約220（shared-runtime.test.ts 102、unit-wiring.test.ts 26、notification-delivery.test.ts 23、notification-wiring.test.ts 9、checkpoint.test.ts 9、shutdown.test.ts 7、review-regressions.test.ts 6、weather-timeseries-unit 5、real-backend 5、weather-current-unit 4、adapter 4、eew-unit 4、ほか11 fileで各1〜2。helperの定義を含む起草時の静的集計）。①の最初の成果物として、試験ごとにTEST-PATHの(1)〜(3)とAC11の理由(a)〜(f)のどれに当たるかの一覧を確定し、実装の見積もりを更新して報告してから②へ進む",
+      "Piで確かめる性質（C4のPi予備確認 第1段で確かめる。本契約は書くだけ）: ① 最大VPWS50の処理中・U-Wのencode中・U-Fの保存中に投入したEEWのT0→T2が、他ownerの非中断処理に引きずられない ② publisherがownerの完了を待たない（WSの受信callback・/healthz・SSEがownerの処理中も進む）③ 書込み権が戻る（checkpointDoneの後に他unitが保存できる）④ RSSはowner 3本を足しても明らかな超過が無い（threadごとにheapUsedを分けて取り、RSSは足し合わせない）⑤ mailboxの件数とowner宛ての未完了要求が一方向に増えない",
+      "台帳49の報告（P3-C3A-VIEW-REVISION）: 受信1回あたりのowner→publisherのviewの複製回数とbyte（VXSE43・VPWS50・VPWP50の各1件。試験の中で計量する）と、publisherの公開用直列化の回数",
+      "台帳62と同型の点検（レビュー項目）: cacheや差分の参照が外れたときに全量の計量・走査・直列化へ戻る経路が無いかを、mailbox・publisherのmirror・予約の再評価・ownerのview生成について調べた結果を報告する",
+      "C2の挙動を保つ: C2配送後のhost.tsの接続試行・生存監視・startの記録・接続回復（recordConnected）と{ wsUrl }／{ dmdata }の起動口は変えない。reconstruction/test/host/**のC2の試験は期待値を変えずに緑",
+      "既存試験の期待値を変えた試験ごとに、変更前後の期待値とAC11の理由（a〜f）を1行で報告する。呼出し口だけを移した試験はfile単位の件数で報告する",
+      "残存リスクとして書く: 作者裁定P3-C3A-NOTIFY-ADOPT=Aなら、無効化した通知予約をownerが先に採用していれば試行回数が1つ消費され、再試行待ちが1段ずれ、U-Eでは未起動の通知の取消通知が出うる。注入時計の送出後の飛びは次の要求から効く（AC02）。作者裁定P3-C3A-OWNER-FAILURE=Aの間はspec:1198の停止表示が無い",
+      "spec本文の改訂（計画§4.4の:315・:1024〜1029・:1049・:1157・:1164と、Q-C3A-SPEC-REVISIONで足す行）は実装者が行わない（統合担当が凍結時に行う）"
+    ],
+    "unresolvedQuestions": [
+      {
+        "id": "Q-C3A-AUTHOR-RULINGS",
+        "owner": "user",
+        "blocks": [
+          "C3aの凍結（baseOidの割当）",
+          "P3-C3A-AC07・AC09・AC10・AC11(b)(c)の確定"
+        ],
+        "resolveBy": "baseOidの割当の前",
+        "requiredEvidence": [
+          "P3-C3A-CLOCK（推奨A: 受理・capture・ackの時刻の意味をP2のまま保つ）の裁定",
+          "P3-C3A-DEADLINES（推奨A: 他分野の電文による期限処理の前倒しを無くし、次の1秒tickで適用）の裁定",
+          "P3-C3A-OWNER-FAILURE（推奨A: C3bの配送までの暫定例外として、ownerの予期しない停止でプロセスを止める）の裁定",
+          "P3-C3A-NOTIFY-ADOPT（推奨A: 予約で試行回数を消費するP2の計数のまま。競合時に再試行待ちが1段ずれ、U-Eで未起動の通知の取消通知が出うる）の裁定",
+          "P3-C3A-FINALIZE-TIMEOUT（推奨A: 副作用固定の段の期限で固定の確認を打ち切り、未固定のownerのunitは最終保存しない）の裁定"
+        ]
+      },
+      {
+        "id": "Q-C3A-SPEC-REVISION",
+        "owner": "integrator",
+        "blocks": [
+          "C3aの凍結（baseOidの割当）"
+        ],
+        "resolveBy": "baseOidの割当の前（計画§4.4の時期: C3aの凍結時）",
+        "requiredEvidence": [
+          "計画§4.4の5行（spec:315・:1024〜1029・:1049・:1157・:1164）の置換文。行数を変えず、被引用（:1164は1件）のanchorと引用側のmeta.sha256を同じcommitで更新し、check-sequences・check-contractを通す",
+          "計画§4.4の表に無いがD-P3-1と食い違う行の扱い: spec:375（B06「唯一のstate更新」）、spec:377（B08「worker内でdomain viewから完全snapshotを射影」。本契約ではsnapshotをpublisherがmirrorから射影する）、spec:1054（「mainへ送る待機snapshot 最新1枚」）。表へ足すか、改訂しない理由を記録する",
+          "spec:1027の改訂文が本契約の3本（urgent・weatherCurrent・deferred）とreadyでない入力の置き場（deferred）を表すこと",
+          "AC04の不正UTF-8を含む小さい制御形frameの扱いの変化を、凍結時に許すか確認した記録"
+        ]
+      },
+      {
+        "id": "Q-C3A-C2-BASE",
+        "owner": "integrator",
+        "blocks": [
+          "baseOidの割当",
+          "AC04の制御frameの扱いの列挙とpublicFunctionsのstartP2Hostの確定"
+        ],
+        "resolveBy": "C2（P3-DMDATA-CONNECT-001）の配送後、baseOidの割当の前",
+        "requiredEvidence": [
+          "C2配送後のhost.ts・composition-root.ts・p2-shared-runtime.types.tsを読み、本契約のd07d5ac7時点の行番号（host.ts:174〜:188など）を関数名で読み替えて更新する",
+          "p3-execution-split.types.tsがC2配送後の型でtscを通ること（ParserSettlementとMailboxCompletionの関係、DiagnosticEventのreasonの追加）",
+          "C2の試験（reconstruction/test/host/**）が本契約のAC11の理由(a)〜(f)以外で期待値を変えずに済む見込み"
+        ]
+      },
+      {
+        "id": "Q-C3A-C4-MEASURES",
+        "owner": "integrator",
+        "blocks": [
+          "C4の予備測定の項目（本契約の着手・完了は止めない）"
+        ],
+        "resolveBy": "C4のmanifest凍結の前（C4の起草時に引き取る）",
+        "requiredEvidence": [
+          "owner 3本の構成でのNode RSS（E05はworkerを含む）とthreadごとのheapUsed・external",
+          "大きいframeのingressJsonMsと、envelopeのJSON.parseをpublisherに残すか（計画§5.1）",
+          "受信1回あたりのviewの複製回数とbyte（台帳49）を、E01・E03の未達の帰属に使うか",
+          "通知の初回試行がownerの採用の返信を待つ時間（spec:956の初回1秒の内訳）"
+        ]
+      }
+    ]
+  }
+}
