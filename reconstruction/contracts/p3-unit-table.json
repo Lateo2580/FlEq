@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "87fc5ed341ed3e7a735e0382533a56610f33636a",
-    "sha256": "19fff77835e9a7fb03bf20161eb1060326d836e512a5db4411e040ddfb35a2c1",
+    "sha256": "1fdd9f146d7365b4f624e9f76a223e274542b46d8cdbcfba1126dcfb8156f5ae",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "76c82b87d7783a4eae14af690cb34e7d6ec46f73617dc75b7f7401951619f080",
     "sequencesSha256": "be9cfd97b555e3a55568f085d107342c978b3dc7249f5cecea868ea5a62c5781",
@@ -161,7 +161,8 @@
       "reconstruction/test/weather-current-unit/**",
       "reconstruction/test/weather-timeseries-unit/**",
       "reconstruction/test/notification-delivery/**",
-      "reconstruction/test/snapshot-sse/**"
+      "reconstruction/test/snapshot-sse/**",
+      ".github/workflows/test.yml"
     ],
     "allowedGitCommands": [
       "git status --porcelain",
@@ -324,8 +325,9 @@
       },
       {
         "id": "P3-C0-AC09",
-        "requirement": "既存3 unitの挙動不変とE08・E11不変。reconstructionの既存試験が全て緑で、--sequence.shuffleでも緑。E08（P2-A1-T01、固定時計の無変化tick）とE11（P2-A1-T02、全状態stringify・JSON roundtrip 0）はそのまま通る。既存試験の変更は (a) reduceRuntimeの第3引数をcalls.units形へ移すこと。第3引数を省いている呼出し（例 test/shared-runtime/shared-runtime.test.ts:493）も含む（stubはlinkedUnitTableの行をspreadして必要なfieldだけ差し替える。test専用のhelperは置いてよい）と (b) 次の期待値変更だけに限る: test/shared-runtime/shared-runtime.test.ts:534-536の入力0・1（route外のVXSE51）を[]から[\"routeNotPorted\"]へ、test/integration/unit-wiring.test.ts:399（VXSE44）を[]からrouteIgnored 1件へ、shared-runtime.test.ts:694の「U-E reducer is not linked」の行を削る（未結線を型で表現できないため）。ほかに期待値が変わる箇所が見つかったら、route外XMLの診断が増えたことだけが理由であるものに限って更新し、一覧に足す。それ以外の理由で期待値が変わるなら実装を止めてblockedで報告する",
+        "requirement": "既存3 unitの挙動不変とE08・E11不変。reconstructionの既存試験が全て緑で、--sequence.shuffleでも緑。E08（P2-A1-T01、固定時計の無変化tick）とE11（P2-A1-T02、全状態stringify・JSON roundtrip 0）はそのまま通る。既存試験の変更は (a) reduceRuntimeの第3引数をcalls.units形へ移すこと。第3引数を省いている呼出し（例 test/shared-runtime/shared-runtime.test.ts:493）も含む（stubはlinkedUnitTableの行をspreadして必要なfieldだけ差し替える。test専用のhelperは置いてよい）と (b) 次の期待値変更だけに限る: test/shared-runtime/shared-runtime.test.ts:534-536の入力0・1（route外のVXSE51）を[]から[\"routeNotPorted\"]へ、test/integration/unit-wiring.test.ts:399（VXSE44）を[]からrouteIgnored 1件へ、shared-runtime.test.ts:694の「U-E reducer is not linked」の行を削る（未結線を型で表現できないため）。ほかに期待値が変わる箇所が見つかったら、route外XMLの診断が増えたことだけが理由であるものに限って更新し、一覧に足す。それ以外の理由で期待値が変わるなら実装を止めてblockedで報告する。CIでもshuffleを回す: .github/workflows/test.ymlのreconstruction caseで、vitestの通常実行の次に `./node_modules/.bin/vitest run --config reconstruction/vitest.config.ts --sequence.shuffle` を1行足す（現状はengine-shuffleが旧築だけを回している）。ほかのjob・stepは変えない",
         "evidenceRefs": [
+          "reconstruction/contracts/p3-order-plan.md:145 «b0ade453bec17497»",
           "reconstruction/contracts/p3-order-plan.md:57 «e843060b3f1ca0b7»",
           "docs/specs/reconstruction-p0-contracts.md:2059 «8ac7c45a9d2292ae»",
           "docs/specs/reconstruction-p0-contracts.md:2062 «25bd4bb1cab285b6»"
