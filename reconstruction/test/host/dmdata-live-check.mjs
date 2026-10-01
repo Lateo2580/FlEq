@@ -44,34 +44,40 @@ const sample = (port) => new Promise((done) => {
 
 const clock = () => ({ wallTimeMs: Date.now(), monotonicMs: performance.now() });
 let host = null;
+let hostAt = null;
 let sampler;
-let stopRequested = false;
+let stopRequestedAt = null;
 let startupSettled = false;
-// (d) One stop and evidence write. startP2Host's own SIGINT handler starts the same stop; host.stop() returns it.
+// (d) The stop is timed from the first SIGINT, apart from the evidence write. startP2Host's own SIGINT handler starts the
+// same stop and host.stop() returns it. A SIGINT before the host existed may already have started that stop, so its
+// duration is not measurable and is written as null.
+let stopping = null;
+const beginStop = () => stopping ??= (async () => {
+  const measured = hostAt != null && stopRequestedAt >= hostAt;
+  const duration = () => measured ? performance.now() - stopRequestedAt : null;
+  try {
+    const summary = await host.stop();
+    return { durationMs: duration(), code: summary.code, reasons: summary.reasons };
+  } catch { return { durationMs: duration(), error: "stop failed" }; }
+})();
 let finishing = null;
 const finish = () => finishing ??= (async () => {
   clearInterval(sampler);
-  const begun = performance.now();
-  if (host == null) evidence.stop = { notStarted: true };
-  else {
-    try {
-      const summary = await host.stop();
-      evidence.stop = { durationMs: performance.now() - begun, code: summary.code, reasons: summary.reasons };
-    } catch { evidence.stop = { durationMs: performance.now() - begun, error: "stop failed" }; }
-  }
+  evidence.stop = host == null ? { notStarted: true } : await beginStop();
   await lists("afterStop");
   write();
   process.stdout.write(`evidence written to ${config.outputPath}\n`);
   process.exit(0);
 })();
-// Installed before any await: a SIGINT during startup is remembered, and the stop runs once startup has settled.
+// Installed before any await: a SIGINT during startup is remembered, and the evidence is written once startup has settled.
 process.on("SIGINT", () => {
-  stopRequested = true;
+  stopRequestedAt ??= performance.now();
+  if (host != null) void beginStop();
   if (startupSettled) void finish();
 });
 
 await lists("beforeStart");
-if (!stopRequested) try {
+if (stopRequestedAt == null) try {
   host = await startP2Host({ dmdata: { apiKey, appName: config.appName, classifications: config.classifications },
     stateDirectory: config.stateDirectory, diagnosticDirectory: config.diagnosticDirectory, displayPort: config.displayPort, clock,
     // (b) frameType, time and the error close flag; no pingId, no body.
@@ -86,11 +92,12 @@ if (!stopRequested) try {
   process.exit(1);
 }
 if (host != null) {
-  evidence.start = { displayPort: host.displayPort, monotonicMs: performance.now() };
-  if (!stopRequested) await lists("afterStart");
-  if (!stopRequested) await sample(host.displayPort);
+  hostAt = performance.now();
+  evidence.start = { displayPort: host.displayPort, monotonicMs: hostAt };
+  if (stopRequestedAt == null) await lists("afterStart");
+  if (stopRequestedAt == null) await sample(host.displayPort);
   // No sampler once a stop was requested.
-  if (!stopRequested) sampler = setInterval(() => { void sample(host.displayPort); }, 10_000);
+  if (stopRequestedAt == null) sampler = setInterval(() => { void sample(host.displayPort); }, 10_000);
 }
 startupSettled = true;
-if (stopRequested) void finish();
+if (stopRequestedAt != null) void finish();
