@@ -18,6 +18,7 @@ import type {
   UnitId,
 } from "../../contracts/p2-shared-runtime.types";
 import { completeDiagnostic } from "../runtime/runtime-diagnostic";
+import { runtimeUnits } from "../runtime/unit-coverage";
 
 type WritableCheckpoint = Readonly<{
   write(data: Uint8Array): Promise<void>;
@@ -168,7 +169,7 @@ class CheckpointCoordinator<UnitStates extends RuntimeUnitStates = RuntimeUnitSt
   ): Readonly<{ capture: CheckpointCapture; request: CheckpointRequest; result: null; measurements: readonly CheckpointMeasurement[] }>
     | Readonly<{ capture: CheckpointCapture; request: null; result: Extract<CheckpointResult, { kind: "failed" }> & Readonly<{ stage: "encode" }>; measurements: readonly CheckpointMeasurement[] }>
     | null {
-    for (const unit of ["U-E", "U-W", "U-F"] as const) {
+    for (const unit of runtimeUnits) {
       const status = state.units[unit].persistence;
       if (status?.dirtySince != null && clock.monotonicMs - status.dirtySince > 3_000) this.emitOverdue(unit, status.currentGeneration, runId, clock);
     }
@@ -183,7 +184,7 @@ class CheckpointCoordinator<UnitStates extends RuntimeUnitStates = RuntimeUnitSt
       }
       return null;
     }
-    const candidates = (["U-E", "U-W", "U-F"] as const).map((unit) => [unit, state.units[unit].persistence] as const)
+    const candidates = runtimeUnits.map((unit) => [unit, state.units[unit].persistence] as const)
       .filter(([unit]) => !excluded.has(unit) && this.saveDue(state, unit, clock, force)
         && correlationByUnit[unit] != null
         && correlationByUnit[unit]!.retryReason === (this.retry.get(unit)?.retryReason ?? "notRetry"))

@@ -9,7 +9,7 @@ import type { WeatherTimeseriesCompoundField, WeatherTimeseriesValue, WeatherTim
 import { serializedEnvelope } from "../../src/checkpoint/checkpoint";
 import { classifyMaterial, decodeMaterial } from "../../src/decode-material/decode-material";
 import { ingestXmlData } from "../../src/ingress/ingress";
-import { reduceRuntime } from "../../src/runtime/shared-runtime";
+import { callsWith, reduceRuntimeWith } from "../unit-table/linked-calls";
 import { RuntimeCompositionRoot, nodeCheckpointFileSystem } from "../../src/runtime/composition-root";
 import { reduceWeatherTimeseriesUnit, toWeatherTimeseriesView, weatherTimeseriesUnitCodec } from "../../src/units/weather-timeseries/weather-timeseries-unit";
 import { fixtureDriver, fixtureState , testNotificationChannels, recordingNotificationAdapter} from "../checkpoint-shutdown/runtime-fixture";
@@ -450,16 +450,16 @@ describe("P2-A6 weather timeseries", () => {
     expect(unavailable.state.subjects.find((item) => item.subject === "normal/VPWP50/稚内地方気象台")?.effective).toBe("unavailable");
     expect(unavailable.state.subjects.find((item) => item.subject === blockerItem.subject)).toBeDefined();
     const initial = fixtureState();
-    const ready = reduceRuntime({ ...initial, units: { ...initial.units, "U-F": blocker } }, {
+    const ready = reduceRuntimeWith({ ...initial, units: { ...initial.units, "U-F": blocker } }, {
       kind: "coverageVerified", runId: initial.runId, epoch: initial.confirmation.epoch,
       scopes: [{ unit: "U-F", operation: "normal", kind: "unit" }], clock: clock(),
     }).state;
     const material = fixture(unknown);
-    const added = reduceRuntime(ready, { kind: "mailboxCompleted", clock: clock(), completion: {
+    const added = reduceRuntimeWith(ready, { kind: "mailboxCompleted", clock: clock(), completion: {
       kind: "parser", runId: initial.runId, messageId: "unavailable", inputId: material.inputId,
       inputSequence: 1, encodedByteLength: 0, startedMonotonicMs: 0, completedMonotonicMs: 1,
       result: { kind: "decoded", material },
-    } }, { ...fixtureDriver().calls, reduceWeatherTimeseriesUnit, toWeatherTimeseriesView });
+    } }, { ...fixtureDriver().stubs, reduceWeatherTimeseriesUnit, toWeatherTimeseriesView });
     expect(added.state.confirmation.units["U-F"].normal).toMatchObject({ whole: null,
       confirmedAt: null, confirmedScopeCount: 0, counts: { startup: 1 },
       scopes: [{ reason: "startup", confirmedAt: null }] });
@@ -583,8 +583,8 @@ describe("P2-A6 weather timeseries", () => {
     const makeRoot = () => new RuntimeCompositionRoot({ appName: "fleq-p2", legacyAppName: "fleq",
       stateDirectory: join(directory, "state"), legacyStateDirectory: join(directory, "old"),
       diagnosticDirectory: join(directory, "diagnostics") }, { "U-F": weatherTimeseriesUnitCodec }, { notificationAdapter: recordingNotificationAdapter(),
-      runtimeCalls: { ...fixtureDriver().calls, reduceWeatherTimeseriesUnit,
-        toWeatherTimeseriesView }, clock: () => clock(),
+      runtimeCalls: callsWith({ ...fixtureDriver().stubs, reduceWeatherTimeseriesUnit,
+        toWeatherTimeseriesView }), clock: () => clock(),
       checkpointFileSystem: { ...disk, async rename(from, to) {
         await disk.rename(from, to);
         writes++;
@@ -690,14 +690,14 @@ describe("P2-A6 weather timeseries", () => {
     expect(duplicate.state.persistence.currentGeneration).toBe(other.state.persistence.currentGeneration + 1);
     const runtime = fixtureState({}, { "U-F": other.state.persistence }, "a6");
     const linked = { reduceWeatherTimeseriesUnit, codecs: { "U-F": weatherTimeseriesUnitCodec } };
-    const routed = reduceRuntime({ ...runtime, units: { ...runtime.units, "U-F": other.state },
+    const routed = reduceRuntimeWith({ ...runtime, units: { ...runtime.units, "U-F": other.state },
       deadlines: { "U-E": null, "U-W": null, "U-F": { wallTimeMs: at, monotonicMs: null } } },
     { kind: "mailboxCompleted", clock: clock(at), completion: { kind: "parser", messageId: "duplicate",
       runId: "a6", inputId: "duplicate", inputSequence: 1, encodedByteLength: 0,
       startedMonotonicMs: 0, completedMonotonicMs: 1,
       result: { kind: "decoded", material: otherMaterial } } }, linked);
     expect(routed.generationInputIds["U-F"]).toEqual([]);
-    const headless = reduceRuntime({ ...runtime, units: { ...runtime.units, "U-F": other.state },
+    const headless = reduceRuntimeWith({ ...runtime, units: { ...runtime.units, "U-F": other.state },
       deadlines: { "U-E": null, "U-W": null, "U-F": null } },
     { kind: "mailboxCompleted", clock: clock(DATE), completion: { kind: "parser", messageId: "headless",
       runId: "a6", inputId: "headless", inputSequence: 1, encodedByteLength: 0,

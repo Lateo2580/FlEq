@@ -41,12 +41,13 @@ const TRUNCATED_MARKER = "[truncated:fieldLimit]";
 const DATE_LIMIT = 8_640_000_000_000_000;
 const OPERATIONS = ["normal", "training", "test"] as const;
 const TTL: Readonly<Record<RuntimeUnitId, number>> = { "U-E": 15_000, "U-W": 60_000, "U-F": 60_000 };
-const NOTICE_TEXT = {
-  eewNew: "緊急地震速報を確認",
-  eewWarning: "緊急地震速報が警報に変わりました",
-  "U-W": "気象警報の現況を確認できません",
-  "U-F": "気象時系列情報を確認できません",
-} as const;
+const NOTICE_TEXT = { eewNew: "緊急地震速報を確認", eewWarning: "緊急地震速報が警報に変わりました" } as const;
+// null: the unit never makes an unavailable notice (U-E has no unavailable state).
+const UNAVAILABLE_TEXT: Readonly<Record<RuntimeUnitId, string | null>> = {
+  "U-E": null, "U-W": "気象警報の現況を確認できません", "U-F": "気象時系列情報を確認できません",
+};
+// true: the unit counts events per warning class (A4); the others count from the view's own rows.
+const COUNTS_BY_WARNING_CLASS: Readonly<Record<RuntimeUnitId, boolean>> = { "U-E": true, "U-W": false, "U-F": false };
 const INFORMATION_TYPE = { "U-E": "eew", "U-W": "weather-warning", "U-F": "weather-warning-timeseries" } as const;
 const AREA_SYSTEMS: Readonly<Record<RuntimeUnitId, readonly DisplayAreaSystem[]>> = {
   "U-E": ["eewArea"],
@@ -439,7 +440,7 @@ function projectDomain<View extends AnyView>(unit: RuntimeUnitId, previous: Disp
   for (const operation of timeOps) rowOf(operation).updatedAt = latest(timeRefs, operation);
   const items = OPERATIONS.map((operation, index) => {
     const row = rows[index];
-    if (unit !== "U-E") return buildItem(unit, operation, row, highest(severityRefs, operation), meta);
+    if (!COUNTS_BY_WARNING_CLASS[unit]) return buildItem(unit, operation, row, highest(severityRefs, operation), meta);
     // A4 warningClass only; the normal mask hides current-derived activity (Q-R20-CLEAR).
     const hidden = masked(view, operation);
     const events = (severityRefs.get(`${operation}|forecast`) ?? 0) + (severityRefs.get(`${operation}|warning`) ?? 0);
@@ -485,9 +486,11 @@ function noticeSource(unit: RuntimeUnitId, source: ReportRef | null, office: str
 
 function notice(targetId: string, unit: RuntimeUnitId, operation: Operation, kind: VisibleNotice["kind"],
   source: DisplayNoticeSource | null, expiresAt: number): VisibleNotice {
+  const text = kind === "unavailable" ? UNAVAILABLE_TEXT[unit] : NOTICE_TEXT[kind];
+  if (text == null) throw new Error(`${unit} has no unavailable notice`);
   return {
     id: sha256([targetId, kind, source?.id ?? null]), targetId, unit, kind, operation,
-    text: kind === "unavailable" ? NOTICE_TEXT[unit === "U-F" ? "U-F" : "U-W"] : NOTICE_TEXT[kind],
+    text,
     source, expiresAt,
   };
 }

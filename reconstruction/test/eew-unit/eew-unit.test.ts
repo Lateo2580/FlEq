@@ -15,6 +15,7 @@ import { ingestXmlData } from "../../src/ingress/ingress";
 import { RuntimeCompositionRoot } from "../../src/runtime/composition-root";
 import { eewUnitCodec, reduceEewUnit, toEewView } from "../../src/units/eew/eew-unit";
 import { fixtureDriver , testNotificationChannels, recordingNotificationAdapter} from "../checkpoint-shutdown/runtime-fixture";
+import { callsWith } from "../unit-table/linked-calls";
 
 const BASE_TIME = 1_713_363_299_001;
 
@@ -949,7 +950,7 @@ describe("P2 EEW unit", () => {
     const adapter = new MemoryCheckpointFileSystem();
     const diagnostics = new MemoryDiagnosticFileSystem();
     let now = BASE_TIME + 1;
-    const runtimeCalls = { ...fixtureDriver().calls,
+    const runtimeCalls = { ...fixtureDriver().stubs,
       selectNotificationAttempt: (delivery: NotificationDeliveryState) => ({
         state: delivery, attempts: [], abortRequests: [], diagnostics: [],
       }),
@@ -966,7 +967,7 @@ describe("P2 EEW unit", () => {
     };
     const root = new RuntimeCompositionRoot(config(), { "U-E": eewUnitCodec }, { notificationAdapter: recordingNotificationAdapter(),
       checkpointFileSystem: adapter, diagnosticFileSystem: diagnostics,
-      runtimeCalls,
+      runtimeCalls: callsWith(runtimeCalls),
       clock: () => ({ wallTimeMs: now, monotonicMs: now }),
     });
     const initial = emptyState();
@@ -1039,7 +1040,7 @@ describe("P2 EEW unit", () => {
 
     const oldAckRoot = new RuntimeCompositionRoot(config(), { "U-E": eewUnitCodec }, { notificationAdapter: recordingNotificationAdapter(),
       checkpointFileSystem: new MemoryCheckpointFileSystem(), diagnosticFileSystem: new MemoryDiagnosticFileSystem(),
-      runtimeCalls: cancellationCalls,
+      runtimeCalls: callsWith(cancellationCalls),
       clock: () => ({ wallTimeMs: now, monotonicMs: now }),
     });
     let oldAckState = seed(oldAckRoot);
@@ -1059,7 +1060,7 @@ describe("P2 EEW unit", () => {
     const failedAdapter = new MemoryCheckpointFileSystem();
     const failedRoot = new RuntimeCompositionRoot(config(), { "U-E": eewUnitCodec }, { notificationAdapter: recordingNotificationAdapter(),
       checkpointFileSystem: failedAdapter, diagnosticFileSystem: new MemoryDiagnosticFileSystem(),
-      runtimeCalls: cancellationCalls,
+      runtimeCalls: callsWith(cancellationCalls),
       clock: () => ({ wallTimeMs: now, monotonicMs: now }),
     });
     let failedState = seed(failedRoot);
@@ -1081,7 +1082,7 @@ describe("P2 EEW unit", () => {
 
     const shutdownRoot = new RuntimeCompositionRoot(config(), { "U-E": eewUnitCodec }, { notificationAdapter: recordingNotificationAdapter(),
       checkpointFileSystem: new MemoryCheckpointFileSystem(), diagnosticFileSystem: new MemoryDiagnosticFileSystem(),
-      runtimeCalls,
+      runtimeCalls: callsWith(runtimeCalls),
       clock: () => ({ wallTimeMs: now, monotonicMs: now }),
     });
     const shutdownState = seed(shutdownRoot);

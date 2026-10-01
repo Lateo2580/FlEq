@@ -1,8 +1,6 @@
 import type { DecodedMaterial } from "../../contracts/p1-parser-boundary.types";
 import type { Operation } from "../../contracts/p1-parser-boundary.types";
-import type { EewInput, EewUnitStep, EewUnitView, PersistedEewUnit } from "../../contracts/p2-eew-unit.types";
-import type { WeatherCurrentInput, WeatherCurrentUnitStep, WeatherCurrentUnitView, PersistedWeatherCurrentUnit } from "../../contracts/p2-weather-current-unit.types";
-import type { WeatherTimeseriesInput, WeatherTimeseriesUnitStep, WeatherTimeseriesUnitView, PersistedWeatherTimeseriesUnit } from "../../contracts/p2-weather-timeseries-unit.types";
+import type { UnitJob, UnitTable } from "../../contracts/p3-unit-table.types";
 import type { NotificationDeliveryState, NotificationDeliveryStep, NotificationSelection } from "../../contracts/p2-notification-delivery.types";
 import type {
   ClockReading,
@@ -19,7 +17,9 @@ import type {
   ConfirmationScope,
   CurrentConfirmationEvidence,
   RuntimeDisplayChange,
-  RuntimeUnitView,
+  RuntimeDisplaySubject,
+  RuntimeUnitInputs,
+  RuntimeUnitSteps,
   RuntimeViews,
   AdmissionRejection,
   RuntimeUnitStates,
@@ -35,20 +35,11 @@ import type {
 import { boundedString, boundDiagnosticDetails, completeDiagnostic, parserDiagnosticReasons } from "./runtime-diagnostic";
 import { normalizeScopes, parseScopeToken, scopeContains } from "../domains/weather-current/weather-current";
 import type { CodecMap } from "../checkpoint/checkpoint";
-import { currentSubject, toEewView } from "../units/eew/eew-unit";
-import { displaySubjects as weatherDisplaySubjects, toWeatherCurrentView } from "../units/weather-current/weather-current-unit";
-import { timeseriesSubjectOutcome, toWeatherTimeseriesView } from "../units/weather-timeseries/weather-timeseries-unit";
+import { classifyHeadType, runtimeUnits } from "./unit-coverage";
 
 const EMPTY: readonly never[] = Object.freeze([]);
-const units = ["U-E", "U-W", "U-F"] as const;
 const operations = ["normal", "training", "test"] as const;
 const admissionRecordByteCache = new WeakMap<object, number>();
-// The single P2 route (order plan §6.2): headType → M01/M06/M08 → unit. Other families have no P2 unit.
-const unitRoutes: ReadonlyMap<string, RuntimeUnitId> = new Map([
-  ...["VXSE43", "VXSE45"].map((type) => [type, "U-E"] as const),
-  ...["VPWS50", "VPWW55", "VPWW57", "VPWW58", "VPWW59", "VPWW60", "VPWW61", "VPNO50"].map((type) => [type, "U-W"] as const),
-  ["VPWP50", "U-F"],
-]);
 const stages = ["mailboxDrain", "sideEffectFinalization", "finalCheckpoint", "workerClose"] as const;
 function rejection(material: DecodedMaterial, reason: RejectionReason): SemanticEnvelopeResult {
   return {
@@ -86,7 +77,33 @@ function parserDiagnostic(reason: string, inputId: string): DiagnosticDetails | 
 }
 
 function isRuntimeUnit(unit: UnitId): unit is RuntimeUnitId {
-  return unit === "U-E" || unit === "U-W" || unit === "U-F";
+  return runtimeUnits.some((candidate) => candidate === unit);
+}
+
+type UnitInput = Extract<RuntimeUnitInputs[RuntimeUnitId], { kind: "receive" | "deadline" | "shutdown" | "intentUpdate" }>;
+
+// Pairs a unit with its own state and the input: each case narrows all three together (P3-C0-NO-AS-FORM 1).
+function unitJob(states: RuntimeUnitStates, unit: RuntimeUnitId, input: UnitInput): UnitJob {
+  switch (unit) {
+    case "U-E": return { unit, state: states[unit], input };
+    case "U-W": return { unit, state: states[unit], input };
+    case "U-F": return { unit, state: states[unit], input };
+    default: { const missing: never = unit; throw new Error(`unit ${String(missing)} has no job`); }
+  }
+}
+
+// The one place a unit reducer is called: the job's unit, state and input cannot come from different units.
+function runUnitJob(units: UnitTable, job: UnitJob): RuntimeUnitSteps[RuntimeUnitId] {
+  switch (job.unit) {
+    case "U-E": return units[job.unit].reduce(job.state, job.input);
+    case "U-W": return units[job.unit].reduce(job.state, job.input);
+    case "U-F": return units[job.unit].reduce(job.state, job.input);
+    default: { const missing: never = job; throw new Error(`unit job ${String(missing)} is not handled`); }
+  }
+}
+
+function normalSubjects<K extends RuntimeUnitId>(units: UnitTable, unit: K, state: RuntimeUnitStates[K]) {
+  return units[unit].normalDisplaySubjects(state);
 }
 
 function admissionCounts(admission: RuntimeAdmission): RuntimeAdmissionCounts {
@@ -94,7 +111,7 @@ function admissionCounts(admission: RuntimeAdmission): RuntimeAdmissionCounts {
     const slot = admission[unit]?.[operation];
     return (slot?.records.length ?? 0) + (slot?.overflow ? 1 : 0);
   };
-  return Object.fromEntries(units.map((unit) => [unit, Object.fromEntries(operations.map((operation) =>
+  return Object.fromEntries(runtimeUnits.map((unit) => [unit, Object.fromEntries(operations.map((operation) =>
     [operation, count(unit, operation)]))])) as RuntimeAdmissionCounts;
 }
 
@@ -135,14 +152,14 @@ const scopeKey = (scope: ConfirmationScope) => {
   return key;
 };
 
-function updateConfirmation(confirmation: RuntimeConfirmation, unit: RuntimeUnitId, operation: Operation,
+function updateConfirmation(confirmation: RuntimeConfirmation, units: UnitTable, unit: RuntimeUnitId, operation: Operation,
   update: (slot: ConfirmationSlot, unitBytes: number, unitCount: number) => ConfirmationSlot): RuntimeConfirmation {
   const current = confirmation.units[unit][operation];
   const unitBytes = operations.reduce((sum, name) => sum + confirmation.units[unit][name].scopeBytes, 0);
   const unitCount = operations.reduce((sum, name) => sum + confirmation.units[unit][name].scopes.length, 0);
   let slot = update(current, unitBytes, unitCount);
   if (unitBytes - current.scopeBytes + slot.scopeBytes > 1_048_576
-    || unitCount - current.scopes.length + slot.scopes.length > (unit === "U-F" ? 512 : 1024))
+    || unitCount - current.scopes.length + slot.scopes.length > units[unit].confirmationScopeLimit)
     slot = { whole: "scopeCapacity", counts: { scopeCapacity: 1 }, confirmedScopeCount: 0,
       scopeBytes: 2, scopes: [], confirmedAt: null };
   if (slot === current) return confirmation;
@@ -150,7 +167,7 @@ function updateConfirmation(confirmation: RuntimeConfirmation, unit: RuntimeUnit
     [unit]: { ...confirmation.units[unit], [operation]: slot } } };
 }
 
-function updateScopes(confirmation: RuntimeConfirmation, incoming: readonly ConfirmationScope[], at: number | null): RuntimeConfirmation {
+function updateScopes(confirmation: RuntimeConfirmation, units: UnitTable, incoming: readonly ConfirmationScope[], at: number | null): RuntimeConfirmation {
   const groups = new Map<string, { unit: RuntimeUnitId; operation: Operation; scopes: ConfirmationScope[] }>();
   for (const scope of incoming) {
     const key = JSON.stringify([scope.unit, scope.operation]);
@@ -159,7 +176,7 @@ function updateScopes(confirmation: RuntimeConfirmation, incoming: readonly Conf
     group.scopes.push(scope);
   }
   let next = confirmation;
-  for (const group of groups.values()) next = updateConfirmation(next, group.unit, group.operation, (slot) => {
+  for (const group of groups.values()) next = updateConfirmation(next, units, group.unit, group.operation, (slot) => {
     const records = new Map(slot.scopes.map((item) => [scopeKey(item.scope), item]));
     const counts = { ...slot.counts };
     let bytes = slot.scopeBytes, confirmed = slot.confirmedScopeCount;
@@ -220,9 +237,9 @@ function updateScopes(confirmation: RuntimeConfirmation, incoming: readonly Conf
   return next;
 }
 
-function applyConfirmationEvidence(confirmation: RuntimeConfirmation,
+function applyConfirmationEvidence(confirmation: RuntimeConfirmation, units: UnitTable,
   evidence: readonly CurrentConfirmationEvidence[], at: number): RuntimeConfirmation {
-  return updateScopes(confirmation, evidence.flatMap((item) => item.scopes), at);
+  return updateScopes(confirmation, units, evidence.flatMap((item) => item.scopes), at);
 }
 
 function addedScopes(changes: readonly RuntimeDisplayChange[]): ConfirmationScope[] {
@@ -244,7 +261,7 @@ function addedScopes(changes: readonly RuntimeDisplayChange[]): ConfirmationScop
   });
 }
 
-function retireConfirmation(confirmation: RuntimeConfirmation, changes: readonly RuntimeDisplayChange[],
+function retireConfirmation(confirmation: RuntimeConfirmation, units: UnitTable, changes: readonly RuntimeDisplayChange[],
   eew: RuntimeUnitStates["U-E"]): RuntimeConfirmation {
   if (!changes.some((change) => change.after == null)) return confirmation;
   const groups = new Map<string, { unit: RuntimeUnitId; operation: Operation; subjects: Set<string>; events: Set<string> }>();
@@ -261,7 +278,7 @@ function retireConfirmation(confirmation: RuntimeConfirmation, changes: readonly
       group.events.add(change.before.current.eventId);
   }
   let next = confirmation;
-  for (const group of groups.values()) next = updateConfirmation(next, group.unit, group.operation, (slot) => {
+  for (const group of groups.values()) next = updateConfirmation(next, units, group.unit, group.operation, (slot) => {
     const scopes: ScopeRecord[] = [], removed: ScopeRecord[] = [];
     for (const item of slot.scopes) {
       const drop = item.scope.kind === "event" ? group.events.has(item.scope.eventId)
@@ -286,10 +303,10 @@ function retireConfirmation(confirmation: RuntimeConfirmation, changes: readonly
   return next;
 }
 
-function lostConfirmation(confirmation: RuntimeConfirmation, afterInputSequence: number): RuntimeConfirmation {
+function lostConfirmation(confirmation: RuntimeConfirmation, units: UnitTable, afterInputSequence: number): RuntimeConfirmation {
   let next = { ...confirmation, epoch: confirmation.epoch + 1, afterInputSequence };
-  for (const unit of units) for (const operation of operations)
-    next = updateConfirmation(next, unit, operation, (slot) => {
+  for (const unit of runtimeUnits) for (const operation of operations)
+    next = updateConfirmation(next, units, unit, operation, (slot) => {
       const scopes = slot.scopes.map((item) => ({ scope: item.scope, reason: "disconnected" as const, confirmedAt: null }));
       return { whole: "disconnected", counts: { disconnected: scopes.length + 1 },
         confirmedScopeCount: 0, scopeBytes: 2 + scopes.reduce((sum, item) => sum + scopeBytes(item), Math.max(scopes.length - 1, 0)),
@@ -299,7 +316,7 @@ function lostConfirmation(confirmation: RuntimeConfirmation, afterInputSequence:
 }
 
 function updateAdmission(admission: RuntimeAdmission, unit: RuntimeUnitId,
-  decisions: EewUnitStep["decisions"] | WeatherCurrentUnitStep["decisions"] | WeatherTimeseriesUnitStep["decisions"]): RuntimeAdmission {
+  decisions: RuntimeUnitSteps[RuntimeUnitId]["decisions"]): RuntimeAdmission {
   let next = admission;
   for (const decision of [...decisions.filter((item) => item.decision === "capacityExceeded"),
     ...decisions.filter((item) => item.decision !== "capacityExceeded")]) {
@@ -380,7 +397,7 @@ function shutdownSummary(state: RuntimeState, clock: ClockReading): ShutdownSumm
     finalizationAt: state.shutdown.finalizationAt, completedAt: clock.wallTimeMs,
     acceptedThroughSequence: state.shutdown.acceptedThroughSequence,
     pendingInputs: latest.pending.mailboxPending, inFlightInputs: latest.pending.mailboxInFlight,
-    persistence: Object.fromEntries(units.map((unit) => [unit, state.units[unit].persistence])),
+    persistence: Object.fromEntries(runtimeUnits.map((unit) => [unit, state.units[unit].persistence])),
     droppedDiagnostics: latest.droppedDiagnostics,
   };
 }
@@ -391,86 +408,56 @@ function viewBits(admission: RuntimeAdmission, unit: RuntimeUnitId): number {
     | (admission[unit]?.test == null ? 0 : 4);
 }
 
-function projectViews(state: RuntimeState, calls: NonNullable<Parameters<typeof reduceRuntime>[2]>,
+function projectView<K extends RuntimeUnitId>(state: RuntimeState, units: UnitTable, unit: K): RuntimeViews[K] {
+  const admission = Object.fromEntries(operations.filter((operation) => state.admission[unit]?.[operation] != null)
+    .map((operation) => [operation, "capacityExceeded" as const]));
+  const normalBlocked = state.admission[unit]?.normal != null;
+  const module = units[unit];
+  const source = state.units[unit];
+  const base = module.toView(normalBlocked ? module.withoutNormal(source) : source);
+  return { ...base, admission,
+    subjects: normalBlocked ? base.subjects.filter((item) => item.operation !== "normal" || module.keepsWhileNormalHidden(item)) : base.subjects,
+    contentRevision: `${source.contentRevision}:${viewBits(state.admission, unit)}` };
+}
+
+function projectViews(state: RuntimeState, calls: Parameters<typeof reduceRuntime>[2],
   changed: readonly RuntimeUnitId[]): RuntimeViews {
   let views = state.views;
-  for (const unit of changed) {
-    const admission = Object.fromEntries(operations.filter((operation) => state.admission[unit]?.[operation] != null)
-      .map((operation) => [operation, "capacityExceeded" as const]));
-    const normalBlocked = state.admission[unit]?.normal != null;
-    if (unit === "U-E") {
-      const source = state.units[unit];
-      const base = (calls.toEewView ?? toEewView)(normalBlocked
-        ? { ...source, current: source.current.filter((item) => item.operation !== "normal") } : source);
-      views = { ...views, "U-E": { ...base, admission,
-        subjects: normalBlocked ? base.subjects.filter((item) => item.operation !== "normal") : base.subjects,
-        contentRevision: `${source.contentRevision}:${viewBits(state.admission, unit)}` } };
-    } else if (unit === "U-W") {
-      const source = state.units[unit];
-      const base = (calls.toWeatherCurrentView ?? toWeatherCurrentView)(normalBlocked
-        ? { ...source, national: { ...source.national, normal: undefined },
-          partials: source.partials.filter((item) => item.operation !== "normal") } : source);
-      views = { ...views, "U-W": { ...base, admission,
-        subjects: normalBlocked ? base.subjects.filter((item) => item.operation !== "normal" || item.transition === "unavailable") : base.subjects,
-        contentRevision: `${source.contentRevision}:${viewBits(state.admission, unit)}` } };
-    } else {
-      const source = state.units[unit];
-      const base = (calls.toWeatherTimeseriesView ?? toWeatherTimeseriesView)(normalBlocked
-        ? { ...source, subjects: source.subjects.filter((item) => item.operation !== "normal") } : source);
-      views = { ...views, "U-F": { ...base, admission,
-        subjects: normalBlocked ? base.subjects.filter((item) => item.operation !== "normal") : base.subjects,
-        contentRevision: `${source.contentRevision}:${viewBits(state.admission, unit)}` } };
-    }
-  }
+  for (const unit of changed) views = { ...views, [unit]: projectView(state, calls.units, unit) };
   return views;
 }
 
-function maskChanges(state: RuntimeState, next: RuntimeState, existing: readonly RuntimeDisplayChange[]): RuntimeDisplayChange[] {
+function maskChanges(state: RuntimeState, next: RuntimeState, existing: readonly RuntimeDisplayChange[],
+  units: UnitTable): RuntimeDisplayChange[] {
   const changes: RuntimeDisplayChange[] = [];
-  for (const unit of units) {
+  for (const unit of runtimeUnits) {
     if ((state.admission[unit]?.normal == null) === (next.admission[unit]?.normal == null)) continue;
     const seen = new Set(existing.filter((item) => item.unit === unit && item.operation === "normal")
       .map((item) => item.subject));
-    if (unit === "U-E") for (const item of next.units[unit].current) {
-      if (item.operation !== "normal" || seen.has(item.subject)) continue;
-      const value = { unit, operation: item.operation, subject: item.subject, office: null,
-        current: item, subjects: [currentSubject(item)] } as const;
-      changes.push({ unit, operation: item.operation, subject: item.subject, before: value, after: value });
-    } else if (unit === "U-W") for (const value of weatherDisplaySubjects(next.units[unit]).values()) {
-      if (value.operation !== "normal" || value.current == null || seen.has(value.subject)) continue;
+    for (const value of normalSubjects(units, unit, next.units[unit])) {
+      if (seen.has(value.subject)) continue;
       changes.push({ unit, operation: value.operation, subject: value.subject, before: value, after: value });
-    } else if (unit === "U-F") for (const item of next.units[unit].subjects) {
-      if (item.operation !== "normal" || seen.has(item.subject)) continue;
-      const value = { unit, operation: item.operation, subject: item.subject,
-        office: item.subject.slice(`${item.operation}/VPWP50/`.length), current: item,
-        subjects: [timeseriesSubjectOutcome(item, [])] } as const;
-      changes.push({ unit, operation: item.operation, subject: item.subject, before: value, after: value });
     }
   }
   return changes;
 }
 
-// These are the concrete A4/A5/A6/A7 pure calls, not implementations or a registry.
-// Until delivery they must be supplied explicitly; no missing reducer is treated as success.
+// The unit table is required: no missing unit function can be treated as success (P3-C0-TABLE-HOME).
+// The notification calls stay optional until A7 is linked.
 function reduceRuntime(
   state: RuntimeState | null,
   input: RuntimeInput,
   calls: Readonly<{
-    reduceEewUnit?: (state: RuntimeUnitStates["U-E"], input: EewInput) => EewUnitStep;
-    reduceWeatherCurrentUnit?: (state: RuntimeUnitStates["U-W"], input: WeatherCurrentInput) => WeatherCurrentUnitStep;
-    reduceWeatherTimeseriesUnit?: (state: RuntimeUnitStates["U-F"], input: WeatherTimeseriesInput) => WeatherTimeseriesUnitStep;
-    toEewView?: (state: RuntimeUnitStates["U-E"]) => EewUnitView;
-    toWeatherCurrentView?: (state: RuntimeUnitStates["U-W"]) => WeatherCurrentUnitView;
-    toWeatherTimeseriesView?: (state: RuntimeUnitStates["U-F"]) => WeatherTimeseriesUnitView;
+    units: UnitTable;
     selectNotificationAttempt?: (state: NotificationDeliveryState, clock: ClockReading) => NotificationSelection;
     applyNotificationResult?: (state: NotificationDeliveryState, result: NotificationResult, clock: ClockReading) => NotificationDeliveryStep;
     codecs?: CodecMap<RuntimeUnitStates>;
-  }> = {},
+  }>,
 ): RuntimeStep {
   if (input.kind === "startup") {
     if (state != null) throw new Error("runtime already started");
     if (input.runId.length === 0 || !Number.isFinite(input.clock.wallTimeMs) || !Number.isFinite(input.clock.monotonicMs)
-      || Object.keys(input.restored).length !== units.length || units.some((unit) => input.restored[unit] == null)
+      || Object.keys(input.restored).length !== runtimeUnits.length || runtimeUnits.some((unit) => input.restored[unit] == null)
       || input.notificationChannels == null || Object.keys(input.notificationChannels).length !== 2
       || (["desktop", "sound"] as const).some((name) => {
         const channel = input.notificationChannels[name];
@@ -487,9 +474,9 @@ function reduceRuntime(
     };
     let initial: RuntimeState = {
       runId: input.runId, units: initialUnits,
-      views: { "U-E": (calls.toEewView ?? toEewView)(initialUnits["U-E"]),
-        "U-W": (calls.toWeatherCurrentView ?? toWeatherCurrentView)(initialUnits["U-W"]),
-        "U-F": (calls.toWeatherTimeseriesView ?? toWeatherTimeseriesView)(initialUnits["U-F"]) },
+      views: { "U-E": calls.units["U-E"].toView(initialUnits["U-E"]),
+        "U-W": calls.units["U-W"].toView(initialUnits["U-W"]),
+        "U-F": calls.units["U-F"].toView(initialUnits["U-F"]) },
       confirmation: initialConfirmation(),
       restoration: { "U-E": { kind: "empty" }, "U-W": { kind: "empty" }, "U-F": { kind: "empty" } },
       admission: {}, checkpointAttempts: {}, deadlines: { "U-E": null, "U-W": null, "U-F": null },
@@ -505,11 +492,11 @@ function reduceRuntime(
     const outcomes: RuntimeStep["outcomes"][number][] = [];
     const diagnostics: DiagnosticEvent[] = [];
     const displayChanges: RuntimeDisplayChange[] = [];
-    for (const unit of units) {
+    const restoreUnit = <K extends RuntimeUnitId>(unit: K) => {
       const restored = input.restored[unit];
       if (restored.kind === "empty" || restored.kind === "unavailable") {
         initial = { ...initial, restoration: { ...initial.restoration, [unit]: restored } };
-        continue;
+        return;
       }
       const { envelope } = restored;
       const codec = calls.codecs?.[unit];
@@ -520,25 +507,15 @@ function reduceRuntime(
       const decoded = codec.decode(envelope.payload);
       if (decoded.kind !== "restored") {
         initial = { ...initial, restoration: { ...initial.restoration, [unit]: { kind: "unavailable", reason: "noValidSlot" } } };
-        continue;
+        return;
       }
       const persistence: PersistenceStatus = { kind: "saved", currentGeneration: envelope.generation,
         savedGeneration: envelope.generation, savedCapturedAt: envelope.capturedAt, savedAckAt: null, dirtySince: null };
       const seeded = { ...decoded.state, persistence };
-      let step: EewUnitStep | WeatherCurrentUnitStep | WeatherTimeseriesUnitStep;
-      if (unit === "U-E") {
-        if (calls.reduceEewUnit == null || calls.codecs?.["U-E"] == null) throw new Error("U-E restore is not linked");
-        step = calls.reduceEewUnit(seeded as RuntimeUnitStates["U-E"],
-          { kind: "restore", persisted: calls.codecs["U-E"].encode(seeded as RuntimeUnitStates["U-E"]) as PersistedEewUnit, clock: input.clock });
-      } else if (unit === "U-W") {
-        if (calls.reduceWeatherCurrentUnit == null || calls.codecs?.["U-W"] == null) throw new Error("U-W restore is not linked");
-        step = calls.reduceWeatherCurrentUnit(seeded as RuntimeUnitStates["U-W"],
-          { kind: "restore", persisted: calls.codecs["U-W"].encode(seeded as RuntimeUnitStates["U-W"]) as PersistedWeatherCurrentUnit, clock: input.clock });
-      } else {
-        if (calls.reduceWeatherTimeseriesUnit == null || calls.codecs?.["U-F"] == null) throw new Error("U-F restore is not linked");
-        step = calls.reduceWeatherTimeseriesUnit(seeded as RuntimeUnitStates["U-F"],
-          { kind: "restore", persisted: calls.codecs["U-F"].encode(seeded as RuntimeUnitStates["U-F"]) as PersistedWeatherTimeseriesUnit, clock: input.clock });
-      }
+      // The one `as`: CodecMap is typed over JsonValue; this unit's own codec made both state and persisted payload.
+      // With K generic the whole job escapes the correlated union here, so unit, state and input are checked by eye.
+      const step = runUnitJob(calls.units, { unit, state: seeded,
+        input: { kind: "restore", persisted: codec.encode(seeded), clock: input.clock } } as UnitJob);
       initial = { ...initial, units: { ...initial.units, [unit]: step.state },
         restoration: { ...initial.restoration, [unit]: { kind: "restored" } },
         deadlines: { ...initial.deadlines, [unit]: step.nextDeadline } };
@@ -548,16 +525,17 @@ function reduceRuntime(
       displayChanges.push(...step.displayChanges.filter((change) => change.after != null)
         .map((change) => ({ ...change, before: null })));
       diagnostics.push(...step.diagnostics.map((details) => completeDiagnostic(details, input.clock, input.runId)));
-    }
+    };
+    for (const unit of runtimeUnits) restoreUnit(unit);
     const selected = reduceRuntime(initial, { kind: "mailboxCompleted", clock: input.clock, completion: {
       kind: "control", messageId: "startup", runId: input.runId, encodedByteLength: 0,
       startedMonotonicMs: input.clock.monotonicMs, completedMonotonicMs: input.clock.monotonicMs,
       control: { kind: "deadline", clock: input.clock },
     } }, calls);
-    const views = projectViews(selected.state, calls, units);
+    const views = projectViews(selected.state, calls, runtimeUnits);
     return { ...selected, state: { ...selected.state, views }, changedUnits: [...new Set([...changedUnits, ...selected.changedUnits])],
       generationInputIds: { ...generationInputIds, ...selected.generationInputIds },
-      outcomes: [...outcomes, ...selected.outcomes], views: units.map((unit) => views[unit]),
+      outcomes: [...outcomes, ...selected.outcomes], views: runtimeUnits.map((unit) => views[unit]),
       admissionCounts: admissionCounts(selected.state.admission),
       displayChanges: [...displayChanges, ...selected.displayChanges], diagnostics: [...diagnostics, ...selected.diagnostics] };
   }
@@ -590,20 +568,8 @@ function reduceRuntime(
     next = { ...next, units: { ...next.units, [unit]: { ...next.units[unit], persistence } } };
     changed(unit);
   };
-  const reduceUnit = (unit: RuntimeUnitId, unitInput: Extract<EewInput,
-    { kind: "receive" | "deadline" | "shutdown" | "intentUpdate" }>) => {
-    let step: EewUnitStep | WeatherCurrentUnitStep | WeatherTimeseriesUnitStep;
-    switch (unit) {
-      case "U-E":
-        if (calls.reduceEewUnit == null) throw new Error("U-E reducer is not linked");
-        step = calls.reduceEewUnit(next.units[unit], unitInput); break;
-      case "U-W":
-        if (calls.reduceWeatherCurrentUnit == null) throw new Error("U-W reducer is not linked");
-        step = calls.reduceWeatherCurrentUnit(next.units[unit], unitInput); break;
-      case "U-F":
-        if (calls.reduceWeatherTimeseriesUnit == null) throw new Error("U-F reducer is not linked");
-        step = calls.reduceWeatherTimeseriesUnit(next.units[unit], unitInput); break;
-    }
+  const reduceUnit = (unit: RuntimeUnitId, unitInput: UnitInput) => {
+    const step = runUnitJob(calls.units, unitJob(next.units, unit, unitInput));
     const previous = next.units[unit];
     if (step.state.persistence.currentGeneration > previous.persistence.currentGeneration)
       generationInputIds[unit] ??= [];
@@ -644,7 +610,7 @@ function reduceRuntime(
     step.diagnostics.forEach(diagnose);
     return step;
   };
-  const applyDeadlines = (targets: readonly RuntimeUnitId[] = units) => {
+  const applyDeadlines = (targets: readonly RuntimeUnitId[] = runtimeUnits) => {
     if (clock == null || next.shutdown.finalizationAt != null) return;
     for (const unit of targets) {
       const deadline = next.deadlines[unit];
@@ -653,12 +619,12 @@ function reduceRuntime(
         reduceUnit(unit, { kind: "deadline", clock });
     }
   };
-  const unsavedUnits = () => units.filter((unit) => {
+  const unsavedUnits = () => runtimeUnits.filter((unit) => {
     const status = next.units[unit].persistence;
     return status == null || status.kind !== "saved" || status.currentGeneration !== status.savedGeneration;
   });
   const deliveryState = (): NotificationDeliveryState => ({
-    intents: units.flatMap((unit) => next.units[unit].intents.filter((intent) =>
+    intents: runtimeUnits.flatMap((unit) => next.units[unit].intents.filter((intent) =>
       intent.operation !== "normal" || next.admission[unit]?.normal == null)), channels: next.notificationChannels,
     deadlines: next.notificationDeadlines,
   });
@@ -711,9 +677,9 @@ function reduceRuntime(
       }
       (updates[candidate.unit] ??= []).push({ original, candidate });
     }
-    for (const unit of units) {
+    const adoptUnit = <K extends RuntimeUnitId>(unit: K) => {
       const changes = updates[unit];
-      if (changes == null) continue;
+      if (changes == null) return;
       const previousGeneration = next.units[unit].persistence.currentGeneration;
       const intentUpdates = changes.map(({ candidate }) => ({ id: candidate.id, attempts: candidate.attempts,
         nextAttemptAt: candidate.nextAttemptAt, disposition: candidate.disposition }));
@@ -722,12 +688,14 @@ function reduceRuntime(
         intentUpdate: intentUpdates.length === 1 ? intentUpdates[0] : intentUpdates });
       const adopted = next.units[unit];
       const intentsById = new Map(adopted.intents.map((intent) => [intent.id, intent]));
-      const recordsById = unit === "U-E" ? new Map(next.units["U-E"].deliveryRecords.map((record) => [record.intentId, record])) : null;
+      const terminal = calls.units[unit].terminalIntents;
+      const recordsById = terminal.kind === "deliveryRecords"
+        ? new Map(terminal.records(adopted).map((record) => [record.intentId, record])) : null;
       for (const { original, candidate } of changes) {
-        if (unit === "U-E" && candidate.disposition !== "pending") {
+        if (recordsById != null && candidate.disposition !== "pending") {
           // At the wall deadline A4 reclaims the terminal record in the same adoption.
           const reclaimed = candidate.disposition === "expired" && clock.wallTimeMs >= original.expiresAt;
-          const record = recordsById?.get(original.id);
+          const record = recordsById.get(original.id);
           if ((!reclaimed && (record?.disposition !== candidate.disposition || record.expiresAt !== original.expiresAt))
             || intentsById.has(original.id)
             || adopted.persistence.currentGeneration <= previousGeneration)
@@ -739,7 +707,8 @@ function reduceRuntime(
             throw new Error("unit did not adopt the correlated intent update");
         }
       }
-    }
+    };
+    for (const unit of runtimeUnits) adoptUnit(unit);
     const channelsChanged = (["desktop", "sound"] as const).some((name) => {
       const left = next.notificationChannels[name];
       const right = output.state.channels[name];
@@ -754,7 +723,7 @@ function reduceRuntime(
     });
     if (channelsChanged)
       next = { ...next, notificationChannels: output.state.channels };
-    const ownerPending = units.flatMap((unit) => next.units[unit].intents)
+    const ownerPending = runtimeUnits.flatMap((unit) => next.units[unit].intents)
       .filter((intent) => intent.disposition === "pending");
     const visible = new Set(before.intents.map((intent) => JSON.stringify([intent.unit, intent.id])));
     const adoptedDeadlines = { desktop: { ...output.state.deadlines.desktop }, sound: { ...output.state.deadlines.sound } };
@@ -781,7 +750,7 @@ function reduceRuntime(
 
   const reclaimExpired = () => {
     if (clock == null || next.shutdown.finalizationAt != null) return;
-    const before: NotificationDeliveryState = { ...deliveryState(), intents: units.flatMap((owner) => next.units[owner].intents) };
+    const before: NotificationDeliveryState = { ...deliveryState(), intents: runtimeUnits.flatMap((owner) => next.units[owner].intents) };
     const expired = new Set(before.intents.filter((intent) => intent.disposition === "pending"
       && (clock.wallTimeMs >= intent.expiresAt
         || clock.monotonicMs >= (before.deadlines[intent.channel][JSON.stringify([intent.unit, intent.id])]
@@ -804,7 +773,7 @@ function reduceRuntime(
     adoptDelivery(before, {
       state: { ...before, channels, intents: before.intents.map((intent) => expired.has(intent)
         ? { ...intent, disposition: "expired" } : intent) },
-      diagnostics: units.flatMap((owner) => {
+      diagnostics: runtimeUnits.flatMap((owner) => {
         const count = counts[owner] ?? 0;
         return count === 0 ? [] : [{ level: "INFO", component: "runtime", reason: "notificationExpired", unit: owner, count }];
       }),
@@ -814,7 +783,7 @@ function reduceRuntime(
   const selectDelivery = () => {
     if (clock == null || next.shutdown.stage !== "running") return;
     const before = deliveryState();
-    const ownerPending = units.flatMap((unit) => next.units[unit].intents)
+    const ownerPending = runtimeUnits.flatMap((unit) => next.units[unit].intents)
       .filter((intent) => intent.disposition === "pending");
     if (ownerPending.length === 0 && before.channels.desktop.kind === "idle" && before.channels.sound.kind === "idle"
       && Object.keys(before.deadlines?.desktop ?? {}).length === 0
@@ -879,11 +848,11 @@ function reduceRuntime(
   } else if (input.kind === "connectionLost") {
     if (!Number.isSafeInteger(input.acceptedThroughSequence) || input.acceptedThroughSequence < -1)
       throw new RangeError("invalid disconnect sequence");
-    next = { ...next, confirmation: lostConfirmation(next.confirmation, input.acceptedThroughSequence) };
+    next = { ...next, confirmation: lostConfirmation(next.confirmation, calls.units, input.acceptedThroughSequence) };
   } else if (input.kind === "coverageVerified") {
     if (input.runId === next.runId && input.epoch === next.confirmation.epoch) {
       for (const scope of input.scopes) {
-        if (!units.includes(scope.unit) || !operations.includes(scope.operation)
+        if (!runtimeUnits.includes(scope.unit) || !operations.includes(scope.operation)
           || scope.kind === "event" && (scope.unit !== "U-E" || !/^\d{14}$/.test(scope.eventId))
           || scope.kind === "area" && (scope.unit !== "U-W" || !scope.subject
             || (() => { const tuple = parseScopeToken(scope.token); return tuple == null
@@ -894,11 +863,11 @@ function reduceRuntime(
       }
       const specific: Exclude<ConfirmationScope, { kind: "unit" }>[] = [];
       for (const scope of input.scopes) if (scope.kind === "unit") {
-        next = { ...next, confirmation: updateConfirmation(next.confirmation, scope.unit, scope.operation,
+        next = { ...next, confirmation: updateConfirmation(next.confirmation, calls.units, scope.unit, scope.operation,
           (slot) => ({ ...slot, whole: null, counts: {}, confirmedScopeCount: 0, scopeBytes: 2,
             scopes: [], confirmedAt: input.clock.wallTimeMs })) };
       } else specific.push(scope);
-      if (specific.length !== 0) next = { ...next, confirmation: applyConfirmationEvidence(next.confirmation,
+      if (specific.length !== 0) next = { ...next, confirmation: applyConfirmationEvidence(next.confirmation, calls.units,
         [{ source: "acceptedReport", scopes: specific }], input.clock.wallTimeMs) };
     }
   } else if (input.kind === "checkpointCaptured") {
@@ -920,10 +889,11 @@ function reduceRuntime(
         const { completion } = input;
         // After mailboxDrain every unit has received `shutdown`; a late input stays unapplied (summary: remainingInputs).
         const draining = next.shutdown.stage === "running" || next.shutdown.stage === "mailboxDrain";
-        const unit = draining && completion.result.kind === "decoded" ? unitRoutes.get(completion.result.material.headType) : undefined;
+        const route = completion.result.kind === "decoded" ? classifyHeadType(completion.result.material.headType) : null;
+        const unit = draining && route?.status === "ready" ? route.unit : undefined;
         if (draining) {
           // Reclaim before admission, without starting attempts before cancellation/replacement is known.
-          if (unit === "U-E" && next.deadlines[unit]?.wallTimeMs != null) applyDeadlines([unit]);
+          if (unit != null && calls.units[unit].reclaimDeadlineBeforeReceive && next.deadlines[unit]?.wallTimeMs != null) applyDeadlines([unit]);
           reclaimExpired();
         }
         // Units re-run the common Head/date check themselves: one diagnostic per input, and
@@ -935,17 +905,23 @@ function reduceRuntime(
           if (received.state.persistence.currentGeneration > generationBeforeReceive
             && received.decisions.some((decision) => decision.decision === "changed"))
             generationInputIds[unit] = [completion.inputId];
-        } else if (completion.result.kind !== "decoded" || completion.result.material.headType !== "VXSE44") {
-          const details = completion.result.kind === "rejected"
-            ? parserDiagnostic(completion.result.diagnostic.reason, completion.result.diagnostic.inputId)
-            : (() => {
-                const result = validateSemanticEnvelope(completion.result.material);
-                return result.kind === "rejected" ? result.diagnostic : null;
-              })();
+        } else if (completion.result.kind === "rejected") {
+          const details = parserDiagnostic(completion.result.diagnostic.reason, completion.result.diagnostic.inputId);
           if (details != null) diagnose(details);
+        } else if (route?.status === "ignored") {
+          // P3-UNIT-TABLE-001: at most one diagnostic per input; ignored headTypes skip the envelope check.
+          diagnose(boundDiagnosticDetails({ level: "INFO", component: "shared-runtime", reason: "routeIgnored", inputId: completion.inputId }));
+        } else {
+          const result = validateSemanticEnvelope(completion.result.material);
+          if (result.kind === "rejected") diagnose(result.diagnostic);
+          else if (route?.status === "notPorted")
+            diagnose(boundDiagnosticDetails({ level: "INFO", component: "shared-runtime", reason: "routeNotPorted",
+              unit: route.candidate, inputId: completion.inputId }));
+          else if (route?.status === "unlisted")
+            diagnose(boundDiagnosticDetails({ level: "WARN", component: "shared-runtime", reason: "routeUnlisted", inputId: completion.inputId }));
         }
         if (draining) {
-          applyDeadlines(units.filter((owner) => owner !== unit));
+          applyDeadlines(runtimeUnits.filter((owner) => owner !== unit));
           selectDelivery();
         }
       }
@@ -1037,7 +1013,7 @@ function reduceRuntime(
       summary = shutdownSummary(next, input.clock);
     } else {
       if (stage === "mailboxDrain") {
-        for (const unit of units) reduceUnit(unit, { kind: "shutdown", clock: input.clock });
+        for (const unit of runtimeUnits) reduceUnit(unit, { kind: "shutdown", clock: input.clock });
       } else if (stage === "sideEffectFinalization") {
         applyDeadlines();
         next = { ...next, shutdown: { ...next.shutdown, finalizationAt: input.clock.wallTimeMs } };
@@ -1068,12 +1044,12 @@ function reduceRuntime(
     }
   }
 
-  displayChanges.push(...maskChanges(state, next, displayChanges));
-  let confirmation = retireConfirmation(next.confirmation, displayChanges, next.units["U-E"]);
-  confirmation = updateScopes(confirmation, addedScopes(displayChanges), null);
+  displayChanges.push(...maskChanges(state, next, displayChanges, calls.units));
+  let confirmation = retireConfirmation(next.confirmation, calls.units, displayChanges, next.units["U-E"]);
+  confirmation = updateScopes(confirmation, calls.units, addedScopes(displayChanges), null);
   if (input.kind === "mailboxCompleted" && input.completion.kind === "parser"
     && input.completion.inputSequence > confirmation.afterInputSequence)
-    confirmation = applyConfirmationEvidence(confirmation, confirmationEvidence, input.clock.wallTimeMs);
+    confirmation = applyConfirmationEvidence(confirmation, calls.units, confirmationEvidence, input.clock.wallTimeMs);
   if (confirmation !== next.confirmation) next = { ...next, confirmation };
   const views = viewUnits.size === 0 ? EMPTY : [...viewUnits].map((unit) => {
     next = { ...next, views: projectViews(next, calls, [unit]) };

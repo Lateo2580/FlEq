@@ -24,7 +24,8 @@ import type { NotificationAttempt, NotificationDeliveryState, NotificationSelect
 import { decodeMaterial } from "../../src/decode-material/decode-material";
 import { ingestXmlData } from "../../src/ingress/ingress";
 import { boundDiagnosticDetails, completeDiagnostic } from "../../src/runtime/runtime-diagnostic";
-import { reduceRuntime, validateSemanticEnvelope } from "../../src/runtime/shared-runtime";
+import { validateSemanticEnvelope } from "../../src/runtime/shared-runtime";
+import { reduceRuntimeWith } from "../unit-table/linked-calls";
 import { reduceEewUnit } from "../../src/units/eew/eew-unit";
 import { reduceWeatherCurrentUnit, weatherCurrentUnitCodec } from "../../src/units/weather-current/weather-current-unit";
 import { reduceWeatherTimeseriesUnit, weatherTimeseriesUnitCodec } from "../../src/units/weather-timeseries/weather-timeseries-unit";
@@ -34,7 +35,7 @@ const savedProgress: PersistenceStatus = Object.freeze({ kind: "saved", currentG
   savedCapturedAt: 10, savedAckAt: 20, dirtySince: null });
 
 function initialState(progress: PersistenceStatus = savedProgress): RuntimeState {
-  const baseline = reduceRuntime(null, { kind: "startup", runId: "run", clock,
+  const baseline = reduceRuntimeWith(null, { kind: "startup", runId: "run", clock,
     notificationChannels: { desktop: { kind: "idle" }, sound: { kind: "idle" } },
     restored: { "U-E": { kind: "empty" }, "U-W": { kind: "empty" }, "U-F": { kind: "empty" } } }).state;
   return {
@@ -171,18 +172,18 @@ describe("P2 shared runtime", () => {
       notificationChannels: { desktop: { kind: "idle" as const }, sound: { kind: "idle" as const } },
       restored: { "U-E": { kind: "empty" as const }, "U-W": { kind: "empty" as const },
         "U-F": { kind: "unavailable" as const, reason: "unknownSchema" as const } } };
-    expect(() => reduceRuntime(null, parserInput({ kind: "decoded", material: {
+    expect(() => reduceRuntimeWith(null, parserInput({ kind: "decoded", material: {
       headType: "VXSE43", inputId: "early" } as DecodedMaterial })))
       .toThrow("runtime has not started");
-    const started = reduceRuntime(null, startup);
+    const started = reduceRuntimeWith(null, startup);
     expect(started.state).toMatchObject({ runId: "fresh", restoration: startup.restored,
       admission: {}, units: { "U-E": { persistence: { currentGeneration: 0 } } } });
     expect(started.generationInputIds).toEqual({});
-    expect(() => reduceRuntime(started.state, startup)).toThrow("runtime already started");
+    expect(() => reduceRuntimeWith(started.state, startup)).toThrow("runtime already started");
   });
 
   it("P2-A1-PROBE / A8-AC01 acceptance: startup publishes three views and waits for one explicit probe", () => {
-    const started = reduceRuntime(null, { kind: "startup", runId: "run", clock,
+    const started = reduceRuntimeWith(null, { kind: "startup", runId: "run", clock,
       notificationChannels: { desktop: { kind: "idle" }, sound: { kind: "idle" } },
       restored: { "U-E": { kind: "empty" }, "U-W": { kind: "empty" }, "U-F": { kind: "empty" } } });
     expect(started.views.map((view) => view.unit)).toEqual(["U-E", "U-W", "U-F"]);
@@ -191,12 +192,12 @@ describe("P2 shared runtime", () => {
       "U-W": { normal: 0, training: 0, test: 0 }, "U-F": { normal: 0, training: 0, test: 0 } });
     const probe: RuntimeInput = { kind: "notificationProbeCompleted", clock,
       channels: { desktop: { kind: "idle" }, sound: { kind: "unavailable", reason: "backendMissing" } } };
-    const completed = reduceRuntime(started.state, probe);
+    const completed = reduceRuntimeWith(started.state, probe);
     expect(completed.state.notificationProbeComplete).toBe(true);
     expect(completed.state.notificationChannels.sound.kind).toBe("unavailable");
     expect(completed.views).toEqual([]);
     expect(completed.state.views).toBe(started.state.views);
-    expect(reduceRuntime(completed.state, probe).state).toBe(completed.state);
+    expect(reduceRuntimeWith(completed.state, probe).state).toBe(completed.state);
   });
 
   it("P2-A1-ADMISSION-COUNTS / A8-AC02 contractBoundary: 1 to 2 changes counts without rebuilding views", () => {
@@ -208,7 +209,7 @@ describe("P2 shared runtime", () => {
         : [{ subject: input.material.inputId, operation: "normal", decision: "capacityExceeded",
           rejection: { family: "VXSE43", reportDateTimeMs: 10, affectedScope: "subject" } }],
     }) };
-    const enter = (state: RuntimeState, id: string) => reduceRuntime(state,
+    const enter = (state: RuntimeState, id: string) => reduceRuntimeWith(state,
       parserInput({ kind: "decoded", material: { headType: "VXSE43", inputId: id } as DecodedMaterial }), calls);
     const first = enter(initialState(), "s0");
     const second = enter(first.state, "s1");
@@ -233,28 +234,28 @@ describe("P2 shared runtime", () => {
       selectNotificationAttempt: (delivery: NotificationDeliveryState): NotificationSelection => ({
         state: delivery, attempts: [], abortRequests: [], diagnostics: [] }) };
     const baseline = initialState();
-    const first = reduceRuntime(baseline, { ...parserInput({ kind: "decoded", material }),
+    const first = reduceRuntimeWith(baseline, { ...parserInput({ kind: "decoded", material }),
       clock: at(0) }, calls);
     const slot = first.state.confirmation.units["U-E"].normal;
     expect(slot.whole).toBe("startup");
     expect(slot.confirmedScopeCount).toBe(1);
     expect(slot.scopes).toHaveLength(1);
-    const lost = reduceRuntime(first.state, { kind: "connectionLost", clock: at(1),
+    const lost = reduceRuntimeWith(first.state, { kind: "connectionLost", clock: at(1),
       acceptedThroughSequence: 2 }, calls);
     expect(lost.state.confirmation.epoch).toBe(1);
     expect(lost.state.confirmation.units["U-E"].normal.counts.disconnected).toBe(2);
     const newer = fixture("test/fixtures/37_01_02_240613_VXSE43.xml", "VXSE43");
     const queuedInput = parserInput({ kind: "decoded", material: newer });
     if (queuedInput.completion.kind !== "parser") throw new Error("parser completion expected");
-    const queued = reduceRuntime(lost.state, { ...queuedInput, clock: at(2),
+    const queued = reduceRuntimeWith(lost.state, { ...queuedInput, clock: at(2),
       completion: { ...queuedInput.completion, inputSequence: 2 } }, calls);
     expect(queued.state.confirmation.units["U-E"].normal.confirmedScopeCount).toBe(0);
     expect(queued.state.units["U-E"].current[0].source.inputId).toBe(newer.inputId);
     expect(queued.state.units["U-E"].current[0].serial).toBeGreaterThan(first.state.units["U-E"].current[0].serial);
-    const staleCoverage = reduceRuntime(queued.state, { kind: "coverageVerified", runId: "other", epoch: 1,
+    const staleCoverage = reduceRuntimeWith(queued.state, { kind: "coverageVerified", runId: "other", epoch: 1,
       scopes: [{ unit: "U-E", operation: "normal", kind: "unit" }], clock: at(3) }, calls);
     expect(staleCoverage.state.confirmation).toBe(queued.state.confirmation);
-    const verified = reduceRuntime(staleCoverage.state, { kind: "coverageVerified", runId: "run", epoch: 1,
+    const verified = reduceRuntimeWith(staleCoverage.state, { kind: "coverageVerified", runId: "run", epoch: 1,
       scopes: [{ unit: "U-E", operation: "normal", kind: "unit" }], clock: at(4) }, calls);
     expect(verified.state.confirmation.units["U-E"].normal).toMatchObject({ whole: null, counts: {}, confirmedAt: 1004 });
   });
@@ -273,7 +274,7 @@ describe("P2 shared runtime", () => {
       ({ ...unitReply(unit, input), displayChanges: [{ unit: "U-W" as const, operation: "normal" as const,
         subject: source.subject, before: null, after }] }) };
     const baseline = initialState();
-    const step = reduceRuntime(baseline, parserInput({ kind: "decoded",
+    const step = reduceRuntimeWith(baseline, parserInput({ kind: "decoded",
       material: fixture("test/fixtures/15_16_02_251222_VPWW57.xml", "VPWW57") }), calls);
     expect(step.state.confirmation.units["U-W"].normal).toBe(baseline.confirmation.units["U-W"].normal);
   });
@@ -282,7 +283,7 @@ describe("P2 shared runtime", () => {
     const scopes = Array.from({ length: 513 }, (_, index) => ({ unit: "U-F" as const,
       operation: "normal" as const, kind: "series" as const,
       subject: `normal/VPWP50/office-${index}`, office: `office-${index}` }));
-    const step = reduceRuntime(initialState(), { kind: "coverageVerified", runId: "run", epoch: 0,
+    const step = reduceRuntimeWith(initialState(), { kind: "coverageVerified", runId: "run", epoch: 0,
       scopes, clock: at(1) });
     expect(step.state.confirmation.units["U-F"].normal).toMatchObject({ whole: "scopeCapacity",
       counts: { scopeCapacity: 1 }, confirmedScopeCount: 0, scopes: [] });
@@ -292,10 +293,10 @@ describe("P2 shared runtime", () => {
     const area = (office: string, code: string) => ({ unit: "U-W" as const, operation: "normal" as const,
       kind: "area" as const, subject: `normal/VPWW55/${office}`,
       token: JSON.stringify(["VPWW55", "partial", office, code === "" ? "all" : "気象警報・注意報（市町村等）", code]) });
-    const first = reduceRuntime(initialState(), { kind: "coverageVerified", runId: "run", epoch: 0,
+    const first = reduceRuntimeWith(initialState(), { kind: "coverageVerified", runId: "run", epoch: 0,
       scopes: [area("office", "100"), area("office", "200"), area("other", "100")], clock: at(0) });
-    const lost = reduceRuntime(first.state, { kind: "connectionLost", acceptedThroughSequence: 0, clock: at(1) });
-    const confirmed = reduceRuntime(lost.state, { kind: "coverageVerified", runId: "run", epoch: 1,
+    const lost = reduceRuntimeWith(first.state, { kind: "connectionLost", acceptedThroughSequence: 0, clock: at(1) });
+    const confirmed = reduceRuntimeWith(lost.state, { kind: "coverageVerified", runId: "run", epoch: 1,
       scopes: [area("office", "")], clock: at(2) });
     const slot = confirmed.state.confirmation.units["U-W"].normal;
     expect(slot.scopes).toHaveLength(2);
@@ -312,7 +313,7 @@ describe("P2 shared runtime", () => {
       kind: "series" as const, subject: `normal/VPWP50/${office}`, office });
     const overhead = Buffer.byteLength(JSON.stringify({ scope: scope(""), reason: null, confirmedAt: 0 }));
     const office = "x".repeat(Math.floor((1_048_576 - 6 - overhead - 4) / 2));
-    const first = reduceRuntime(initialState(), { kind: "coverageVerified", runId: "run", epoch: 0,
+    const first = reduceRuntimeWith(initialState(), { kind: "coverageVerified", runId: "run", epoch: 0,
       scopes: [scope(office)], clock: { wallTimeMs: 0, monotonicMs: 0 } });
     expect(first.state.confirmation.units["U-F"].normal.scopes).toHaveLength(1);
     const inputs: RuntimeInput[] = [
@@ -321,7 +322,7 @@ describe("P2 shared runtime", () => {
       { kind: "connectionLost", acceptedThroughSequence: 0, clock: at(1) },
     ];
     for (const input of inputs) {
-      const slots = reduceRuntime(first.state, input).state.confirmation.units["U-F"];
+      const slots = reduceRuntimeWith(first.state, input).state.confirmation.units["U-F"];
       expect(slots.normal).toMatchObject({ whole: "scopeCapacity", scopes: [], counts: { scopeCapacity: 1 } });
       expect(Object.values(slots).reduce((bytes, item) => bytes + item.scopeBytes, 0)).toBeLessThanOrEqual(1_048_576);
     }
@@ -330,7 +331,7 @@ describe("P2 shared runtime", () => {
   // A10 AC15: the stringify count of one receive / one disconnect must not grow with the retained scopes.
   const areaScope = (office: string) => ({ unit: "U-W" as const, operation: "normal" as const, kind: "area" as const,
     subject: `normal/VPWW55/${office}`, token: JSON.stringify(["VPWW55", "partial", office, "all", ""]) });
-  const retainedScopes = (count: number) => reduceRuntime(initialState(), { kind: "coverageVerified", runId: "run",
+  const retainedScopes = (count: number) => reduceRuntimeWith(initialState(), { kind: "coverageVerified", runId: "run",
     epoch: 0, scopes: Array.from({ length: count }, (_, index) => areaScope(`office-${index}`)), clock: at(0) }).state;
   const stringifyCalls = (act: () => void) => {
     const stringify = vi.spyOn(JSON, "stringify");
@@ -345,7 +346,7 @@ describe("P2 shared runtime", () => {
       const filled = retainedScopes(retained);
       let scopes = 0;
       const serialized = stringifyCalls(() => {
-        scopes = reduceRuntime(filled, parserInput({ kind: "decoded", material }), calls).state.confirmation.units["U-W"].normal.scopes.length;
+        scopes = reduceRuntimeWith(filled, parserInput({ kind: "decoded", material }), calls).state.confirmation.units["U-W"].normal.scopes.length;
       });
       expect(scopes).toBe(retained + 1);
       return serialized;
@@ -358,7 +359,7 @@ describe("P2 shared runtime", () => {
       const filled = retainedScopes(retained);
       let lost = filled;
       const serialized = stringifyCalls(() => {
-        lost = reduceRuntime(filled, { kind: "connectionLost", acceptedThroughSequence: 0, clock: at(1) }).state;
+        lost = reduceRuntimeWith(filled, { kind: "connectionLost", acceptedThroughSequence: 0, clock: at(1) }).state;
       });
       const slot = lost.confirmation.units["U-W"].normal;
       expect(slot.counts).toEqual({ disconnected: retained + 1 });
@@ -385,7 +386,7 @@ describe("P2 shared runtime", () => {
         subjects: [{ subject: "s", operation: "normal" as const,
           informationType: "", transition: "active", severity: null, source: null, facts: {}, changedFields: [] }] }),
     };
-    const enter = (previous: RuntimeState, inputId: string) => reduceRuntime(previous,
+    const enter = (previous: RuntimeState, inputId: string) => reduceRuntimeWith(previous,
       parserInput({ kind: "decoded", material: { headType: "VXSE43", inputId } as DecodedMaterial }), calls);
     const rejected = enter(initialState(), "reject");
     expect(rejected.state.admission["U-E"]?.normal?.records).toMatchObject([{ subject: "s", reportDateTimeMs: 12 }]);
@@ -414,7 +415,7 @@ describe("P2 shared runtime", () => {
     const training = { ...normal, subject: "training/VPWP50/office", operation: "training" as const };
     const initial = initialState();
     const unit = { ...initial.units["U-F"], subjects: [normal, training] };
-    const rejected = reduceRuntime({ ...initial, units: { ...initial.units, "U-F": unit } },
+    const rejected = reduceRuntimeWith({ ...initial, units: { ...initial.units, "U-F": unit } },
       parserInput({ kind: "decoded", material: { headType: "VPWP50", inputId: "rejected" } as DecodedMaterial }), {
         reduceWeatherTimeseriesUnit: (state): WeatherTimeseriesUnitStep => ({ state, nextDeadline: null,
           decisions: [{ subject: normal.subject, operation: "normal", decision: "capacityExceeded",
@@ -449,7 +450,7 @@ describe("P2 shared runtime", () => {
             reportDateTimeMs: 13, affectedScope: [id === "other" ? other : id === "left" ? left : right] } }];
       return { state: unit, nextDeadline: null, decisions, intents: [], outcomes: [], diagnostics: [], displayChanges: [], confirmationEvidence: [] };
     } };
-    const enter = (state: RuntimeState, inputId: string) => reduceRuntime(state,
+    const enter = (state: RuntimeState, inputId: string) => reduceRuntimeWith(state,
       parserInput({ kind: "decoded", material: { headType: "VPWW55", inputId } as DecodedMaterial }), calls).state;
     const rejected = enter(initialState(), "reject");
     expect(enter(rejected, "other").admission["U-W"]?.normal?.records[0].affectedScope).toEqual([left, right]);
@@ -472,7 +473,7 @@ describe("P2 shared runtime", () => {
             affectedScope: "subject" } }];
       return { state: unit, nextDeadline: null, decisions, intents: [], outcomes: [], diagnostics: [], displayChanges: [], confirmationEvidence: [] };
     } };
-    const enter = (state: RuntimeState, inputId: string) => reduceRuntime(state,
+    const enter = (state: RuntimeState, inputId: string) => reduceRuntimeWith(state,
       parserInput({ kind: "decoded", material: { headType: "VXSE43", inputId } as DecodedMaterial }), calls).state;
     const overflowed = enter(initial, "overflow");
     expect(overflowed.admission["U-E"]?.normal).toMatchObject({ overflow: true, records });
@@ -489,7 +490,7 @@ describe("P2 shared runtime", () => {
     const stringify = vi.spyOn(JSON, "stringify");
     const parse = vi.spyOn(JSON, "parse");
     for (let index = 0; index < 1_000; index += 1) {
-      const step = reduceRuntime(saved, input);
+      const step = reduceRuntimeWith(saved, input);
       expect(step.state).toBe(saved);
       expect(step.state.views).toBe(saved.views);
       expect(step.displayChanges).toEqual([]);
@@ -530,9 +531,9 @@ describe("P2 shared runtime", () => {
     const parse = vi.spyOn(JSON, "parse");
     const clone = vi.spyOn(globalThis, "structuredClone");
     // The routed VPWS50 reaches a no-op unit: this measures A1's own branches, not unit admission cost.
-    const steps = inputs.map((input) => reduceRuntime(saved, input, unitCalls));
+    const steps = inputs.map((input) => reduceRuntimeWith(saved, input, unitCalls));
     expect(steps.map((step) => step.diagnostics.map((entry) => entry.reason))).toEqual([
-      [], [], [], ["reportDateTimeMissing"], ["xmlInvalid"], [], [], ["shutdownStarted"], [],
+      ["routeNotPorted"], ["routeNotPorted"], [], ["reportDateTimeMissing"], ["xmlInvalid"], [], [], ["shutdownStarted"], [],
     ]);
     for (const [index, step] of steps.entries()) {
       const input = inputs[index];
@@ -563,7 +564,7 @@ describe("P2 shared runtime", () => {
     expect(validateSemanticEnvelope({ ...valid, reportDateTimeRaw: "" })).toMatchObject({ kind: "rejected", reason: "reportDateTimeMissing" });
     // O02:8 (VPWP50) is routed to U-F, whose receive owns its runtime rejection (A6 AC01).
     for (const material of [invalidDate]) {
-      const step = reduceRuntime(saved, parserInput({ kind: "decoded", material }));
+      const step = reduceRuntimeWith(saved, parserInput({ kind: "decoded", material }));
       expect(step.state).toBe(saved);
       expect(step.changedUnits).toEqual([]);
       expect(step.notificationAttempts).toEqual([]);
@@ -579,7 +580,7 @@ describe("P2 shared runtime", () => {
     for (const operation of ["normal", "training", "test"] as const) {
       const material = { ...valid, operation };
       expect(validateSemanticEnvelope(material)).toMatchObject({ kind: "accepted", envelope: { material: { operation } } });
-      expect(reduceRuntime(separated, { ...parserInput({ kind: "decoded", material }), clock: at(1) }, {
+      expect(reduceRuntimeWith(separated, { ...parserInput({ kind: "decoded", material }), clock: at(1) }, {
         selectNotificationAttempt: (delivery) => ({ state: delivery, attempts: [], abortRequests: [], diagnostics: [] }),
       }).state.units).toBe(separated.units);
     }
@@ -590,11 +591,11 @@ describe("P2 shared runtime", () => {
     const pending: PersistenceStatus = { ...savedProgress, kind: "pending", currentGeneration: 2, dirtySince: 1 };
     const initial = freeze(initialState(pending));
     const capture = { unit: "U-E" as const, attemptId: "capture", generation: 2, capturedAt: reading(2).wallTimeMs };
-    let current = reduceRuntime(initial, { kind: "checkpointCaptured", capture }).state;
-    expect(reduceRuntime(initial, { kind: "checkpointCaptured", capture }).state).toEqual(current);
+    let current = reduceRuntimeWith(initial, { kind: "checkpointCaptured", capture }).state;
+    expect(reduceRuntimeWith(initial, { kind: "checkpointCaptured", capture }).state).toEqual(current);
     expect(current.checkpointAttempts["U-E"]).toEqual({ ...capture, postCaptureDirtySince: null });
-    expect(reduceRuntime(current, { kind: "checkpointCaptured", capture }).state).toBe(current);
-    expect(reduceRuntime(current, { kind: "checkpointCaptured", capture: { ...capture, attemptId: "overlap" } }).state).toBe(current);
+    expect(reduceRuntimeWith(current, { kind: "checkpointCaptured", capture }).state).toBe(current);
+    expect(reduceRuntimeWith(current, { kind: "checkpointCaptured", capture: { ...capture, attemptId: "overlap" } }).state).toBe(current);
     const calls = { reduceEewUnit: (unit: EewUnitState) => ({
       ...unitReply(unit, { kind: "deadline", clock: reading(5) }),
       state: { ...unit, persistence: { ...unit.persistence, kind: "pending" as const,
@@ -605,19 +606,19 @@ describe("P2 shared runtime", () => {
     const stringify = vi.spyOn(JSON, "stringify");
     const parse = vi.spyOn(JSON, "parse");
     const clone = vi.spyOn(globalThis, "structuredClone");
-    const first = reduceRuntime(freeze(current), controlInput({ kind: "deadline", clock: reading(5) }), calls);
-    current = reduceRuntime(freeze(first.state), controlInput({ kind: "deadline", clock: reading(6) }), calls).state;
+    const first = reduceRuntimeWith(freeze(current), controlInput({ kind: "deadline", clock: reading(5) }), calls);
+    current = reduceRuntimeWith(freeze(first.state), controlInput({ kind: "deadline", clock: reading(6) }), calls).state;
     expect(current.checkpointAttempts["U-E"]?.postCaptureDirtySince).toBe(5);
-    current = reduceRuntime(current, controlInput({ kind: "checkpointResult", clock: reading(7), result: {
+    current = reduceRuntimeWith(current, controlInput({ kind: "checkpointResult", clock: reading(7), result: {
       ...capture, kind: "uncertain", observedAt: reading(7).wallTimeMs, stage: "ack", encodedByteLength: 10,
     } })).state;
     expect(current.units["U-E"].persistence?.kind).toBe("uncertain");
     const ack: CheckpointResult = { ...capture, kind: "acknowledged", ackAt: reading(8).wallTimeMs, encodedByteLength: 10 };
-    expect(reduceRuntime(current, controlInput({ kind: "checkpointResult", clock: reading(8),
+    expect(reduceRuntimeWith(current, controlInput({ kind: "checkpointResult", clock: reading(8),
       result: { ...ack, attemptId: "wrong" } })).state).toBe(current);
-    expect(reduceRuntime(current, controlInput({ kind: "checkpointResult", clock: reading(8),
+    expect(reduceRuntimeWith(current, controlInput({ kind: "checkpointResult", clock: reading(8),
       result: { ...ack, generation: 3 } })).state).toBe(current);
-    const step = reduceRuntime(freeze(current), controlInput({ kind: "checkpointResult", clock: reading(8), result: ack }));
+    const step = reduceRuntimeWith(freeze(current), controlInput({ kind: "checkpointResult", clock: reading(8), result: ack }));
     expect(step.state.units["U-E"].persistence).toEqual({ kind: "pending", currentGeneration: 4, savedGeneration: 2,
       savedCapturedAt: reading(2).wallTimeMs, savedAckAt: reading(8).wallTimeMs, dirtySince: 5 });
     const dirtySince = step.state.units["U-E"].persistence!.dirtySince!;
@@ -629,10 +630,10 @@ describe("P2 shared runtime", () => {
     expect(step.state.units["U-E"].current).toBe(initial.units["U-E"].current);
     expect(step.state.units["U-W"]).toBe(initial.units["U-W"]);
     expect(step.state).not.toHaveProperty("persistence");
-    expect(reduceRuntime(step.state, controlInput({ kind: "checkpointResult", clock: reading(4_006), result: ack })).state).toBe(step.state);
+    expect(reduceRuntimeWith(step.state, controlInput({ kind: "checkpointResult", clock: reading(4_006), result: ack })).state).toBe(step.state);
     const latest = { ...capture, attemptId: "latest", generation: 4, capturedAt: reading(4_007).wallTimeMs };
-    current = reduceRuntime(step.state, { kind: "checkpointCaptured", capture: latest }).state;
-    const saved = reduceRuntime(current, controlInput({ kind: "checkpointResult", clock: reading(4_008),
+    current = reduceRuntimeWith(step.state, { kind: "checkpointCaptured", capture: latest }).state;
+    const saved = reduceRuntimeWith(current, controlInput({ kind: "checkpointResult", clock: reading(4_008),
       result: { ...ack, ...latest, ackAt: reading(4_008).wallTimeMs } })).state;
     expect(saved.units["U-E"].persistence).toMatchObject({ kind: "saved", currentGeneration: 4, savedGeneration: 4,
       savedCapturedAt: reading(4_007).wallTimeMs, savedAckAt: reading(4_008).wallTimeMs, dirtySince: null });
@@ -644,28 +645,28 @@ describe("P2 shared runtime", () => {
   it("B1 contractBoundary: uncertainty retains correlation; matched encode failure releases it without rollback", () => {
     const initial = freeze(initialState({ ...savedProgress, kind: "pending", currentGeneration: 2, dirtySince: 100 }));
     const capture = { unit: "U-F" as const, attemptId: "encode", generation: 2, capturedAt: 200 };
-    const captured = reduceRuntime(initial, { kind: "checkpointCaptured", capture }).state;
+    const captured = reduceRuntimeWith(initial, { kind: "checkpointCaptured", capture }).state;
     const uncertain = controlInput({ kind: "checkpointResult", clock: at(1), result: {
       ...capture, kind: "uncertain", stage: "ack", observedAt: 1001, encodedByteLength: 0,
     } });
-    const held = reduceRuntime(captured, uncertain).state;
+    const held = reduceRuntimeWith(captured, uncertain).state;
     expect(held.units["U-F"].persistence).toMatchObject({ kind: "uncertain", attemptedGeneration: 2, dirtySince: 100, savedGeneration: 1 });
     expect(held.checkpointAttempts).toBe(captured.checkpointAttempts);
-    expect(reduceRuntime(held, uncertain).state).toBe(held);
+    expect(reduceRuntimeWith(held, uncertain).state).toBe(held);
     const failure = controlInput({ kind: "checkpointResult", clock: at(2), result: {
       ...capture, kind: "failed", stage: "verify", failedAt: 1002, reason: "verify rejected", encodedByteLength: 0,
     } });
-    const failed = reduceRuntime(freeze(held), failure).state;
+    const failed = reduceRuntimeWith(freeze(held), failure).state;
     expect(failed.units["U-F"].persistence).toEqual({ ...initial.units["U-F"].persistence, kind: "failed", stage: "verify", reason: "verify rejected" });
     expect(failed.checkpointAttempts["U-F"]).toBeUndefined();
     expect(failed.units["U-F"].subjects).toBe(initial.units["U-F"].subjects);
     expect(failed.units["U-W"]).toBe(initial.units["U-W"]);
-    expect(reduceRuntime(failed, failure).state).toBe(failed);
-    expect(reduceRuntime(initial, failure).state).toBe(initial);
+    expect(reduceRuntimeWith(failed, failure).state).toBe(failed);
+    expect(reduceRuntimeWith(initial, failure).state).toBe(initial);
     const retry = { ...capture, attemptId: "retry" };
-    const retried = reduceRuntime(failed, { kind: "checkpointCaptured", capture: retry }).state;
+    const retried = reduceRuntimeWith(failed, { kind: "checkpointCaptured", capture: retry }).state;
     expect(retried.checkpointAttempts["U-F"]).toEqual({ ...retry, postCaptureDirtySince: null });
-    const encodeFailed = reduceRuntime(retried, controlInput({ kind: "checkpointResult", clock: at(3), result: {
+    const encodeFailed = reduceRuntimeWith(retried, controlInput({ kind: "checkpointResult", clock: at(3), result: {
       ...retry, kind: "failed", stage: "encode", failedAt: 1003, reason: "encode rejected", encodedByteLength: 0,
     } })).state;
     expect(encodeFailed.units["U-F"].persistence).toMatchObject({ kind: "failed", stage: "encode", currentGeneration: 2 });
@@ -691,8 +692,7 @@ describe("P2 shared runtime", () => {
     const calls = { reduceEewUnit: eew, reduceWeatherCurrentUnit: weather, reduceWeatherTimeseriesUnit: series,
       toWeatherCurrentView: toView };
     const tick = controlInput({ kind: "deadline", clock: at(10) });
-    expect(() => reduceRuntime(pending, tick)).toThrow("U-E reducer is not linked");
-    const step = reduceRuntime(freeze(pending), tick, calls);
+    const step = reduceRuntimeWith(freeze(pending), tick, calls);
     expect(eew.mock.calls).toEqual([[initial.units["U-E"], { kind: "deadline", clock: at(10) }]]);
     expect(weather.mock.calls).toEqual([[initial.units["U-W"], { kind: "deadline", clock: at(10) }]]);
     expect(series).not.toHaveBeenCalled();
@@ -703,7 +703,7 @@ describe("P2 shared runtime", () => {
     expect(step.outcomes[0]).toEqual({ unit: "U-W", outcome });
     expect(step.views).toEqual([]);
     expect(toView).not.toHaveBeenCalled();
-    expect(reduceRuntime(step.state, tick, calls).state).toBe(step.state);
+    expect(reduceRuntimeWith(step.state, tick, calls).state).toBe(step.state);
     expect(eew).toHaveBeenCalledTimes(1);
   });
 
@@ -717,10 +717,10 @@ describe("P2 shared runtime", () => {
   ] as const)("B3 acceptance: $name", ({ codes, failure, pendingStage }) => {
     const initial = freeze(initialState());
     const start = controlInput({ kind: "shutdownRequested", clock: at(0), acceptedThroughSequence: 9 });
-    let step = reduceRuntime(initial, start);
+    let step = reduceRuntimeWith(initial, start);
     expect(step.effects).toEqual([{ kind: "stopInputAndDrainMailbox", acceptedThroughSequence: 9, deadlineMonotonicMs: 10_000 }]);
     expect(step.diagnostics[0]).toMatchObject({ reason: "shutdownStarted", runId: "run", timestamp: 1000 });
-    expect(reduceRuntime(step.state, start).state).toBe(step.state);
+    expect(reduceRuntimeWith(step.state, start).state).toBe(step.state);
     const names = ["mailboxDrain", "sideEffectFinalization", "finalCheckpoint", "workerClose"] as const;
     for (const [index, stage] of names.entries()) {
       const pending = { ...noPending };
@@ -735,13 +735,13 @@ describe("P2 shared runtime", () => {
         pending, clock: at(100 + index * 100), droppedDiagnostics: { ...dropped, WARN: index },
       };
       if (index === 0) {
-        expect(reduceRuntime(step.state, { ...input, stage: "workerClose" }, unitCalls).state).toBe(step.state);
-        expect(() => reduceRuntime(step.state, { ...input, pending: { ...pending, batches: -1 } }, unitCalls)).toThrow(RangeError);
+        expect(reduceRuntimeWith(step.state, { ...input, stage: "workerClose" }, unitCalls).state).toBe(step.state);
+        expect(() => reduceRuntimeWith(step.state, { ...input, pending: { ...pending, batches: -1 } }, unitCalls)).toThrow(RangeError);
       }
       const previous = step.state;
-      step = reduceRuntime(freeze(previous), input, unitCalls);
+      step = reduceRuntimeWith(freeze(previous), input, unitCalls);
       expect(step.state.shutdown.stageResults[stage]?.pending).toEqual(pending);
-      expect(reduceRuntime(step.state, input, unitCalls).state).toBe(step.state);
+      expect(reduceRuntimeWith(step.state, input, unitCalls).state).toBe(step.state);
       expect(Object.keys(step.state.shutdown.stageResults)).toHaveLength(index + 1);
       if (stage === "mailboxDrain") {
         expect(step.effects).toEqual([{ kind: "finalizeNotificationDelivery", deadlineMonotonicMs: 5100 }]);
@@ -764,11 +764,11 @@ describe("P2 shared runtime", () => {
 
   it("B3 contractBoundary: stage timeout is monotonic, bounded by overall deadline, and freezes final generations", () => {
     let state = initialState({ ...savedProgress, kind: "pending", currentGeneration: 2, dirtySince: 100 });
-    state = reduceRuntime(state, { kind: "checkpointCaptured",
+    state = reduceRuntimeWith(state, { kind: "checkpointCaptured",
       capture: { unit: "U-E", attemptId: "late-ack", generation: 2, capturedAt: 500 } }).state;
-    state = reduceRuntime(state, controlInput({ kind: "shutdownRequested", acceptedThroughSequence: 1, clock: at(0) })).state;
+    state = reduceRuntimeWith(state, controlInput({ kind: "shutdownRequested", acceptedThroughSequence: 1, clock: at(0) })).state;
     const observe = (stage: Extract<RuntimeInput, { kind: "shutdownStageResult" }>["stage"], ms: number,
-      result: ShutdownStageResult = { kind: "completed" }) => reduceRuntime(state, {
+      result: ShutdownStageResult = { kind: "completed" }) => reduceRuntimeWith(state, {
       kind: "shutdownStageResult", stage, result, pending: noPending,
       clock: { wallTimeMs: 1000 - ms, monotonicMs: ms }, droppedDiagnostics: dropped,
     }, unitCalls);
@@ -777,11 +777,11 @@ describe("P2 shared runtime", () => {
     state = observe("sideEffectFinalization", 28_000, { kind: "deadlineExceeded" }).state;
     expect(state.shutdown.deadlines.finalCheckpointMonotonicMs).toBe(30_000);
     const tickState = { ...state, deadlines: { ...state.deadlines, "U-E": { wallTimeMs: 0, monotonicMs: 0 } } };
-    expect(reduceRuntime(tickState, controlInput({ kind: "deadline", clock: at(29_000) })).state).toBe(tickState);
+    expect(reduceRuntimeWith(tickState, controlInput({ kind: "deadline", clock: at(29_000) })).state).toBe(tickState);
     const close = observe("finalCheckpoint", 29_000);
     expect(close.state.shutdown.stageResults.finalCheckpoint?.pending.unsavedUnits).toBe(3);
     state = close.state;
-    state = reduceRuntime(state, controlInput({ kind: "checkpointResult", clock: at(29_001), result: {
+    state = reduceRuntimeWith(state, controlInput({ kind: "checkpointResult", clock: at(29_001), result: {
       kind: "acknowledged", unit: "U-E", attemptId: "late-ack", generation: 2, ackAt: 1500, encodedByteLength: 1,
     } })).state;
     const done = observe("workerClose", 29_500);
@@ -804,13 +804,13 @@ describe("P2 shared runtime", () => {
       const selected = attempt(notice);
       const state = freeze({ ...initial, units: { ...initial.units, [unit]: { ...initial.units[unit], intents: [notice] } } });
       const tick = controlInput({ kind: "deadline", clock: at(1) });
-      expect(() => reduceRuntime(state, tick, unitCalls)).toThrow("A7 selection is not linked");
+      expect(() => reduceRuntimeWith(state, tick, unitCalls)).toThrow("A7 selection is not linked");
       const selection = vi.fn((delivery: NotificationDeliveryState) => ({
         state: { channels: { ...delivery.channels, desktop: { kind: "running" as const, attempt: selected } },
           intents: delivery.intents.map((value) => ({ ...value, attempts: 1, nextAttemptAt: 2000 })), deadlines: delivery.deadlines },
         attempts: [selected], abortRequests: [], diagnostics: [],
       }));
-      const step = reduceRuntime(state, tick, { ...unitCalls, reduceEewUnit, selectNotificationAttempt: selection });
+      const step = reduceRuntimeWith(state, tick, { ...unitCalls, reduceEewUnit, selectNotificationAttempt: selection });
       expect(selection.mock.calls[0][0].channels).toBe(state.notificationChannels);
       expect(step.state.units[unit].intents[0]).toMatchObject({ attempts: 1, nextAttemptAt: 2000, disposition: "pending" });
       expect(step.state.units[unit].persistence).toMatchObject({ kind: "pending", currentGeneration: 2 });
@@ -826,14 +826,14 @@ describe("P2 shared runtime", () => {
           intents: delivery.intents.map((value) => ({ ...value, disposition: "delivered" as const })), deadlines: delivery.deadlines },
           diagnostics: [] };
       });
-      const done = reduceRuntime(freeze(step.state), { kind: "notificationResult", result }, {
+      const done = reduceRuntimeWith(freeze(step.state), { kind: "notificationResult", result }, {
         ...unitCalls, reduceEewUnit, applyNotificationResult: apply,
         selectNotificationAttempt: (delivery) => ({ state: delivery, attempts: [], abortRequests: [], diagnostics: [] }),
       });
       if (unit === "U-E") {
         expect(done.state.units[unit].intents).toEqual([]);
         expect(done.state.units[unit].deliveryRecords).toContainEqual({ intentId: notice.id, disposition: "delivered", expiresAt: 5000 });
-        const late = reduceRuntime(step.state, { kind: "notificationResult", result: {
+        const late = reduceRuntimeWith(step.state, { kind: "notificationResult", result: {
           kind: "timeout", stopped: true, attemptId: selected.attemptId, intentId: notice.id,
           channel: "desktop", completedAt: at(4000),
         } }, {
@@ -850,7 +850,7 @@ describe("P2 shared runtime", () => {
       } else expect(done.state.units[unit].intents[0]).toMatchObject({ disposition: "delivered", attempts: 1, expiresAt: 5000 });
       expect(done.state.units[unit].persistence?.currentGeneration).toBe(3);
       expect(done.state.notificationChannels.desktop.kind).toBe("idle");
-      expect(reduceRuntime(done.state, { kind: "notificationResult", result }).state).toBe(done.state);
+      expect(reduceRuntimeWith(done.state, { kind: "notificationResult", result }).state).toBe(done.state);
     }
   });
 
@@ -859,13 +859,13 @@ describe("P2 shared runtime", () => {
     const baseline = initialState();
     const received = reduceEewUnit(baseline.units["U-E"], { kind: "receive", material, clock: at(0) });
     const initial = { ...baseline, units: { ...baseline.units, "U-E": received.state } };
-    const seeded = reduceRuntime(initial, controlInput({ kind: "deadline", clock: at(0) }), {
+    const seeded = reduceRuntimeWith(initial, controlInput({ kind: "deadline", clock: at(0) }), {
       ...unitCalls, reduceEewUnit,
       selectNotificationAttempt: (delivery) => ({ state: delivery, attempts: [], abortRequests: [], diagnostics: [] }),
     });
     expect(Object.keys(seeded.state.notificationDeadlines.desktop)).toHaveLength(1);
     const rewound = { wallTimeMs: 900, monotonicMs: 15_001 };
-    const expired = reduceRuntime(seeded.state, controlInput({ kind: "deadline", clock: rewound }), {
+    const expired = reduceRuntimeWith(seeded.state, controlInput({ kind: "deadline", clock: rewound }), {
       ...unitCalls, reduceEewUnit,
       selectNotificationAttempt: (delivery) => ({ state: { ...delivery,
         intents: delivery.intents.map((value) => ({ ...value, disposition: "expired" as const })),
@@ -883,7 +883,7 @@ describe("P2 shared runtime", () => {
     const initial = initialState();
     const occupied = { ...initial, units: { ...initial.units, "U-E": { ...initial.units["U-E"],
       intents: Array.from({ length: 128 }, (_, index) => ({ ...intent("U-E"), id: `occupied-${index}`, expiresAt: 16_000 })) } } };
-    const seeded = reduceRuntime(occupied, controlInput({ kind: "deadline", clock: at(0) }), {
+    const seeded = reduceRuntimeWith(occupied, controlInput({ kind: "deadline", clock: at(0) }), {
       ...unitCalls, reduceEewUnit,
       selectNotificationAttempt: (delivery) => ({ state: delivery, attempts: [], abortRequests: [], diagnostics: [] }),
     });
@@ -891,7 +891,7 @@ describe("P2 shared runtime", () => {
       attempts: [], abortRequests: [], diagnostics: [] }));
     const owner = vi.fn(reduceEewUnit);
     const material = fixture("test/fixtures/37_01_01_240613_VXSE43.xml", "VXSE43");
-    const received = reduceRuntime(seeded.state, { ...parserInput({ kind: "decoded", material }),
+    const received = reduceRuntimeWith(seeded.state, { ...parserInput({ kind: "decoded", material }),
       clock: { wallTimeMs: 900, monotonicMs: 15_000 } }, { ...unitCalls, reduceEewUnit: owner, selectNotificationAttempt: selection });
     const update = owner.mock.calls[0][1];
     if (update.kind !== "intentUpdate" || "id" in update.intentUpdate) throw new Error("batch expiry expected");
@@ -917,12 +917,12 @@ describe("P2 shared runtime", () => {
         attempts: [selected], abortRequests: [], diagnostics: [] };
     });
     const calls = { ...unitCalls, reduceEewUnit, selectNotificationAttempt: select };
-    const received = reduceRuntime(initialState(), { ...parserInput({ kind: "decoded",
+    const received = reduceRuntimeWith(initialState(), { ...parserInput({ kind: "decoded",
       material: fixture("test/fixtures/37_01_01_240613_VXSE43.xml", "VXSE43") }), clock: at(0) }, calls);
     const active = received.notificationAttempts[0];
     const key = JSON.stringify(["U-E", active.intentId]);
     expect(received.state.notificationDeadlines.desktop[key]?.expiresAtMonotonicMs).toBe(15_000);
-    const expired = reduceRuntime(received.state, { ...parserInput({ kind: "decoded",
+    const expired = reduceRuntimeWith(received.state, { ...parserInput({ kind: "decoded",
       material: fixture("test/fixtures/37_01_02_240613_VXSE43.xml", "VXSE43") }),
       clock: { wallTimeMs: 900, monotonicMs: 15_000 } }, calls);
     expect(expired.abortRequests).toEqual([{ attemptId: active.attemptId, cause: "expired" }]);
@@ -964,7 +964,7 @@ describe("P2 shared runtime", () => {
     if (entered.kind !== "accepted") throw new Error("invalid synthetic follow-up");
     const decoded = decodeMaterial(entered.item);
     if (decoded.kind !== "decoded") throw new Error("invalid synthetic follow-up");
-    const continued = reduceRuntime(state, { ...parserInput(decoded), clock: at(15_000) }, { ...unitCalls, reduceEewUnit });
+    const continued = reduceRuntimeWith(state, { ...parserInput(decoded), clock: at(15_000) }, { ...unitCalls, reduceEewUnit });
     expect(continued.state.units["U-E"].persistence.currentGeneration).toBe(before + 1);
     expect(continued.state.units["U-E"].deliveryRecords).toEqual([]);
     expect(continued.state.units["U-E"].intents).toEqual([]);
@@ -1008,11 +1008,11 @@ describe("P2 shared runtime", () => {
     };
     const calls = { ...unitCalls, reduceEewUnit, selectNotificationAttempt: select, applyNotificationResult: apply };
     const first = fixture("test/fixtures/37_01_01_240613_VXSE43.xml", "VXSE43");
-    const received = reduceRuntime(initialState(), { ...parserInput({ kind: "decoded", material: first }), clock: at(0) }, calls);
+    const received = reduceRuntimeWith(initialState(), { ...parserInput({ kind: "decoded", material: first }), clock: at(0) }, calls);
     const active = received.notificationAttempts[0];
     expect(received.notificationAttempts).toHaveLength(1);
     const key = JSON.stringify(["U-E", active.intentId]);
-    const continued = reduceRuntime(received.state, { ...parserInput({ kind: "decoded",
+    const continued = reduceRuntimeWith(received.state, { ...parserInput({ kind: "decoded",
       material: fixture("test/fixtures/37_01_02_240613_VXSE43.xml", "VXSE43") }), clock: at(1) }, calls);
     expect(continued.state.notificationDeadlines.desktop[key]).toBeUndefined();
     expect(continued.abortRequests).toEqual([{ attemptId: active.attemptId, cause: "superseded" }]);
@@ -1021,7 +1021,7 @@ describe("P2 shared runtime", () => {
     const followups = continued.state.units["U-E"].intents;
     expect(followups).toHaveLength(2);
     for (const notice of followups) expect(notice.payload.body).toMatch(/^続報: /);
-    const cancelled = reduceRuntime(continued.state, { ...parserInput({ kind: "decoded",
+    const cancelled = reduceRuntimeWith(continued.state, { ...parserInput({ kind: "decoded",
       material: fixture("test/fixtures/37_01_03_240613_VXSE43.xml", "VXSE43") }), clock: at(2) }, calls);
     expect(select).toHaveBeenCalledTimes(3);
     expect(cancelled.abortRequests).toEqual([]);
@@ -1033,16 +1033,16 @@ describe("P2 shared runtime", () => {
     for (const notice of followups) expect(cancelled.state.units["U-E"].deliveryRecords).toContainEqual({
       intentId: notice.id, disposition: "superseded", expiresAt: notice.expiresAt,
     });
-    const stopped = reduceRuntime(cancelled.state, { kind: "notificationResult", result: { kind: "aborted", stopped: true,
+    const stopped = reduceRuntimeWith(cancelled.state, { kind: "notificationResult", result: { kind: "aborted", stopped: true,
       reason: "superseded", attemptId: active.attemptId, intentId: active.intentId, channel: "desktop", completedAt: at(3) } }, calls);
     const replacement = stopped.notificationAttempts[0];
     expect(stopped.notificationAttempts).toHaveLength(1);
     expect(replacement.intentId).not.toBe(active.intentId);
     const replacementKey = JSON.stringify(["U-E", replacement.intentId]);
     const expires = stopped.state.notificationDeadlines.desktop[replacementKey]!.expiresAtMonotonicMs;
-    const timedOut = reduceRuntime(stopped.state, controlInput({ kind: "deadline", clock: at(5_003) }), calls);
+    const timedOut = reduceRuntimeWith(stopped.state, controlInput({ kind: "deadline", clock: at(5_003) }), calls);
     expect(timedOut.abortRequests).toEqual([{ attemptId: replacement.attemptId, cause: "timeout" }]);
-    const retry = reduceRuntime(timedOut.state, { kind: "notificationResult", result: { kind: "timeout", stopped: true,
+    const retry = reduceRuntimeWith(timedOut.state, { kind: "notificationResult", result: { kind: "timeout", stopped: true,
       attemptId: replacement.attemptId, intentId: replacement.intentId, channel: "desktop", completedAt: at(5_004) } }, calls);
     expect(retry.notificationAttempts).toEqual([]);
     expect(retry.state.notificationChannels.desktop.kind).toBe("idle");
@@ -1055,7 +1055,7 @@ describe("P2 shared runtime", () => {
       }) };
     let waiting = initialState();
     for (const [index, file] of ["37_01_01", "37_01_02", "37_01_03"].entries()) {
-      const step = reduceRuntime(waiting, { ...parserInput({ kind: "decoded",
+      const step = reduceRuntimeWith(waiting, { ...parserInput({ kind: "decoded",
         material: fixture(`test/fixtures/${file}_240613_VXSE43.xml`, "VXSE43") }), clock: at(index) }, waitingCalls);
       expect(step.notificationAttempts).toEqual([]);
       expect(step.state.units["U-E"].notificationLatches[0].deliveryEvidence).toBe("unattempted");
@@ -1076,14 +1076,14 @@ describe("P2 shared runtime", () => {
       units: { ...initial.units, "U-E": { ...initial.units["U-E"], intents: [notice] } },
       admission: { "U-E": { normal: { records: [], overflow: true } } },
     };
-    const seeded = reduceRuntime(state, controlInput({ kind: "deadline", clock: at(0) }));
+    const seeded = reduceRuntimeWith(state, controlInput({ kind: "deadline", clock: at(0) }));
     const key = JSON.stringify(["U-E", notice.id]);
     const deadline = seeded.state.notificationDeadlines.desktop[key];
     expect(deadline).toEqual({ retryAtMonotonicMs: 0, expiresAtMonotonicMs: 4_000 });
-    const later = reduceRuntime(seeded.state, controlInput({ kind: "deadline",
+    const later = reduceRuntimeWith(seeded.state, controlInput({ kind: "deadline",
       clock: { wallTimeMs: 500, monotonicMs: 1 } }));
     expect(later.state.notificationDeadlines.desktop[key]).toBe(deadline);
-    const expired = reduceRuntime(later.state, controlInput({ kind: "deadline",
+    const expired = reduceRuntimeWith(later.state, controlInput({ kind: "deadline",
       clock: { wallTimeMs: 400, monotonicMs: 4_000 } }), { ...unitCalls, reduceEewUnit });
     expect(expired.state.units["U-E"].intents).toEqual([]);
     expect(expired.state.units["U-E"].deliveryRecords).toContainEqual({
@@ -1091,7 +1091,7 @@ describe("P2 shared runtime", () => {
     });
     expect(expired.state.notificationDeadlines.desktop[key]).toBeUndefined();
     expect(expired.generationInputIds).toEqual({ "U-E": [] });
-    const viaResult = reduceRuntime(later.state, { kind: "notificationResult", result: {
+    const viaResult = reduceRuntimeWith(later.state, { kind: "notificationResult", result: {
       kind: "failed", reason: "adapterError", attemptId: "stale", intentId: notice.id,
       channel: "desktop", completedAt: { wallTimeMs: 400, monotonicMs: 4_000 },
     } }, { ...unitCalls, reduceEewUnit });
@@ -1112,11 +1112,11 @@ describe("P2 shared runtime", () => {
     const calls = { selectNotificationAttempt: (delivery: NotificationDeliveryState): NotificationSelection => ({
       state: delivery, attempts: [], abortRequests: [], diagnostics: [],
     }) };
-    let current = reduceRuntime(state, controlInput({ kind: "deadline", clock: at(0) }), calls).state;
+    let current = reduceRuntimeWith(state, controlInput({ kind: "deadline", clock: at(0) }), calls).state;
     expect(Object.keys(current.notificationDeadlines.desktop)).toHaveLength(384);
     const stringify = vi.spyOn(JSON, "stringify");
     for (let index = 0; index < 30; index++) {
-      const step = reduceRuntime(current, controlInput({ kind: "deadline", clock: at(index + 1) }), calls);
+      const step = reduceRuntimeWith(current, controlInput({ kind: "deadline", clock: at(index + 1) }), calls);
       expect(step.state).toBe(current);
       current = step.state;
     }
@@ -1130,14 +1130,14 @@ describe("P2 shared runtime", () => {
     const initial = initialState();
     const running: RuntimeState = { ...initial, notificationChannels: { ...initial.notificationChannels,
       desktop: { kind: "running", attempt: active } } };
-    const requested = reduceRuntime(running, controlInput({ kind: "shutdownRequested",
+    const requested = reduceRuntimeWith(running, controlInput({ kind: "shutdownRequested",
       acceptedThroughSequence: 1, clock: at(0) }));
     expect(requested.abortRequests).toEqual([{ attemptId: active.attemptId, cause: "shutdown" }]);
     expect(requested.state.notificationChannels.desktop).toEqual({ kind: "stopping", attempt: active,
       cause: "shutdown", stopByMonotonicMs: 1_000 });
     const existing: RuntimeState = { ...running, notificationChannels: { ...running.notificationChannels,
       desktop: { kind: "stopping", attempt: active, cause: "timeout", stopByMonotonicMs: 500 } } };
-    const preserved = reduceRuntime(existing, controlInput({ kind: "shutdownRequested",
+    const preserved = reduceRuntimeWith(existing, controlInput({ kind: "shutdownRequested",
       acceptedThroughSequence: 1, clock: at(0) }));
     expect(preserved.abortRequests).toEqual([]);
     expect(preserved.state.notificationChannels.desktop).toBe(existing.notificationChannels.desktop);
@@ -1180,11 +1180,11 @@ describe("P2 shared runtime", () => {
         return step;
       },
     };
-    const seeded = reduceRuntime({ ...initial, units: { ...initial.units, "U-W": weather.state, "U-F": series.state } },
+    const seeded = reduceRuntimeWith({ ...initial, units: { ...initial.units, "U-W": weather.state, "U-F": series.state } },
       controlInput({ kind: "deadline", clock: at(0) }), calls).state;
     owner["U-W"].reads = owner["U-F"].reads = 0;
     const start = performance.now();
-    const expired = reduceRuntime(seeded, controlInput({ kind: "deadline",
+    const expired = reduceRuntimeWith(seeded, controlInput({ kind: "deadline",
       clock: { wallTimeMs: 500, monotonicMs: 4_000 } }), calls);
     console.info("128 pending + 4000 terminal", { totalMs: performance.now() - start, owner });
     for (const unit of ["U-W", "U-F"] as const) {
@@ -1197,7 +1197,7 @@ describe("P2 shared runtime", () => {
     expect(expired.state.deadlines).toMatchObject({
       "U-W": { wallTimeMs: 5_000, monotonicMs: null }, "U-F": { wallTimeMs: 5_000, monotonicMs: null },
     });
-    const collected = reduceRuntime(expired.state, controlInput({ kind: "deadline", clock: at(4_000) }), calls);
+    const collected = reduceRuntimeWith(expired.state, controlInput({ kind: "deadline", clock: at(4_000) }), calls);
     expect(collected.state.units["U-W"].intents).toEqual([]);
     expect(collected.state.units["U-F"].intents).toEqual([]);
     for (const [codec, payload] of [[weatherCurrentUnitCodec, weatherPayload], [weatherTimeseriesUnitCodec, seriesPayload]] as const) {
@@ -1224,20 +1224,20 @@ describe("P2 shared runtime", () => {
         desktop: { kind: "isolated" as const, attemptId: active.attemptId, sinceMonotonicMs: 10, reason: "stopUnconfirmed" as const } },
         deadlines: delivery.deadlines }, diagnostics: [{ level: "WARN" as const, component: "test-boundary", reason: "mailboxStalled" as const }] };
     });
-    const isolated = reduceRuntime(freeze(state), { kind: "notificationResult", result: timeout }, { ...unitCalls, applyNotificationResult: apply, selectNotificationAttempt });
+    const isolated = reduceRuntimeWith(freeze(state), { kind: "notificationResult", result: timeout }, { ...unitCalls, applyNotificationResult: apply, selectNotificationAttempt });
     expect(isolated.state.notificationChannels.desktop.kind).toBe("isolated");
     expect(isolated.state.units).toBe(state.units);
     expect(isolated.diagnostics[0]).toMatchObject({ timestamp: 1010, runId: "run" });
     const success: NotificationResult = { kind: "delivered", attemptId: active.attemptId, intentId: notice.id,
       channel: "desktop", completedAt: at(11) };
-    const late = reduceRuntime(state, { kind: "notificationResult", result: success }, {
+    const late = reduceRuntimeWith(state, { kind: "notificationResult", result: success }, {
       ...unitCalls, selectNotificationAttempt, applyNotificationResult: (delivery) => ({ state: { ...delivery,
         intents: delivery.intents.map((value) => ({ ...value, disposition: "delivered" })) }, diagnostics: [] }),
     });
     expect(late.state.units).toBe(state.units);
     const crossed = { ...state, notificationChannels: { ...state.notificationChannels,
       desktop: { kind: "running" as const, attempt: { ...active, operation: "normal" as const } } } };
-    expect(reduceRuntime(crossed, { kind: "notificationResult", result: success }, {
+    expect(reduceRuntimeWith(crossed, { kind: "notificationResult", result: success }, {
       ...unitCalls, selectNotificationAttempt, applyNotificationResult: (delivery) => ({ state: { ...delivery,
         intents: delivery.intents.map((value) => ({ ...value, disposition: "delivered" })) }, diagnostics: [] }),
     }).state.units).toBe(state.units);
@@ -1249,19 +1249,19 @@ describe("P2 shared runtime", () => {
         retryAtMonotonicMs: 0, expiresAtMonotonicMs: 10,
       } }, sound: {} },
     };
-    const crossedExpiry = reduceRuntime(expiredNormal, controlInput({ kind: "deadline", clock: at(10) }), {
+    const crossedExpiry = reduceRuntimeWith(expiredNormal, controlInput({ kind: "deadline", clock: at(10) }), {
       ...unitCalls, reduceEewUnit, selectNotificationAttempt,
     });
     expect(crossedExpiry.state.units["U-E"].intents).toEqual([]);
     expect(crossedExpiry.abortRequests).toEqual([]);
     expect(crossedExpiry.state.notificationChannels.desktop).toBe(expiredNormal.notificationChannels.desktop);
     const finalized = { ...state, shutdown: { ...state.shutdown, stage: "finalCheckpoint" as const, finalizationAt: 1000 } };
-    expect(reduceRuntime(finalized, { kind: "notificationResult", result: success }).state).toBe(finalized);
+    expect(reduceRuntimeWith(finalized, { kind: "notificationResult", result: success }).state).toBe(finalized);
   });
 
   it("AC05 contractBoundary: completion runId must match the fixed runtime run", () => {
     const input = parserInput({ kind: "decoded", material: { ...valid, reportDateTimeRaw: "" } }, "another-run");
-    const step = reduceRuntime(state, input);
+    const step = reduceRuntimeWith(state, input);
     expect(step.state).toBe(state);
     expect(step.diagnostics).toEqual([]);
   });
@@ -1314,7 +1314,7 @@ describe("P2 shared runtime", () => {
       const semantic = validateSemanticEnvelope({ ...valid, inputId: long, reportDateTimeRaw: "" });
       if (semantic.kind !== "rejected") throw new Error("rejection expected");
       expect(Buffer.byteLength(JSON.stringify(semantic.diagnostic))).toBeLessThanOrEqual(8192);
-      const [event] = reduceRuntime(state, parserInput({ kind: "decoded",
+      const [event] = reduceRuntimeWith(state, parserInput({ kind: "decoded",
         material: { ...valid, inputId: long, reportDateTimeRaw: "" } }, "run")).diagnostics;
       expect(event).toMatchObject({ timestamp: clock.wallTimeMs, runId: "run", reason: "reportDateTimeMissing" });
     }

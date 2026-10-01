@@ -239,7 +239,9 @@ export type InfrastructureDiagnosticReason =
 
 export type DiagnosticReason = ParserDiagnosticReason | RejectionReason | InfrastructureDiagnosticReason
   | "weatherCurrentCapacityEvicted" | "eewCapacityEvicted"
-  | "notificationAttemptFailed" | "notificationExpired" | "notificationCapacityEvicted" | "notificationAdapterIsolated";
+  | "notificationAttemptFailed" | "notificationExpired" | "notificationCapacityEvicted" | "notificationAdapterIsolated"
+  // P3-UNIT-TABLE-001: one per input whose headType is not routed to a unit (ignored / notPorted / absent from coverage).
+  | "routeIgnored" | "routeNotPorted" | "routeUnlisted";
 
 export type DiagnosticDetails = Readonly<{
   level: DiagnosticLevel;

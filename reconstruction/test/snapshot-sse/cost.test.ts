@@ -146,10 +146,12 @@ describe("P2-A8-T06 regression (AC06/AC13)", () => {
 
   it("P2-A8-T06 / P2-A8-COST.acceptance: near the legal retention bounds each update measures only its own subject", () => {
     const views = { eew: 0, weather: 0, timeseries: 0 };
-    const counting = { ...calls,
-      toEewView: (state: Parameters<typeof toEewView>[0]) => { views.eew++; return toEewView(state); },
-      toWeatherCurrentView: (state: Parameters<typeof toWeatherCurrentView>[0]) => { views.weather++; return toWeatherCurrentView(state); },
-      toWeatherTimeseriesView: (state: Parameters<typeof toWeatherTimeseriesView>[0]) => { views.timeseries++; return toWeatherTimeseriesView(state); } };
+    const counting = { ...calls, units: { "U-E": { ...calls.units["U-E"],
+      toView: (state: Parameters<typeof toEewView>[0]) => { views.eew++; return toEewView(state); } },
+    "U-W": { ...calls.units["U-W"],
+      toView: (state: Parameters<typeof toWeatherCurrentView>[0]) => { views.weather++; return toWeatherCurrentView(state); } },
+    "U-F": { ...calls.units["U-F"],
+      toView: (state: Parameters<typeof toWeatherTimeseriesView>[0]) => { views.timeseries++; return toWeatherTimeseriesView(state); } } } };
     const run = (state: RuntimeState, input: RuntimeInput): RuntimeStep => reduceRuntime(state, input, counting);
     let state = startup(clock).state;
     // RES-07: U-E 512 per family, U-W 3 national + 128 partial, U-F 512 subjects (built by the real reducers).

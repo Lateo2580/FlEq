@@ -228,11 +228,12 @@ describe("P2 unit wiring (A1 route, A3 composition root)", () => {
       "U-E": { ...initial.units["U-E"], notificationLatches: [] } }, deadlines: { ...initial.deadlines,
       "U-E": null, "U-W": { wallTimeMs: null, monotonicMs: at.monotonicMs }, "U-F": null } };
     const step = reduceRuntime(state, parsed("run", decode("37_01_01_240613_VXSE43", "VXSE43"), at), {
-      ...calls, reduceWeatherCurrentUnit: (unit: WeatherCurrentUnitState, input: WeatherCurrentInput) =>
-        input.kind === "deadline" ? { state: { ...unit, persistence: { ...unit.persistence,
-          kind: "pending" as const, currentGeneration: 1, dirtySince: at.monotonicMs } },
-          nextDeadline: null, decisions: [], intents: [], outcomes: [], diagnostics: [], displayChanges: [], confirmationEvidence: [] }
-          : calls.reduceWeatherCurrentUnit(unit, input),
+      ...calls, units: { ...calls.units, "U-W": { ...calls.units["U-W"],
+        reduce: (unit: WeatherCurrentUnitState, input: WeatherCurrentInput) =>
+          input.kind === "deadline" ? { state: { ...unit, persistence: { ...unit.persistence,
+            kind: "pending" as const, currentGeneration: 1, dirtySince: at.monotonicMs } },
+            nextDeadline: null, decisions: [], intents: [], outcomes: [], diagnostics: [], displayChanges: [], confirmationEvidence: [] }
+            : calls.units["U-W"].reduce(unit, input) } },
     });
     expect(step.changedUnits).toEqual(["U-E", "U-W"]);
     expect(step.generationInputIds).toEqual({ "U-E": ["37_01_01_240613_VXSE43"], "U-W": [] });
@@ -396,7 +397,7 @@ describe("P2 unit wiring (A1 route, A3 composition root)", () => {
     expect(step.state.units["U-E"].deliveryRecords).toEqual([]);
     expect(step.changedUnits).toEqual(["U-E"]);
     expect(step.generationInputIds).toEqual({ "U-E": [] });
-    expect(step.diagnostics).toEqual([]);
+    expect(step.diagnostics).toMatchObject([{ reason: "routeIgnored", level: "INFO", inputId: "ignored-44" }]);
   });
 
   it("P2-WIRE-T02 acceptance / A4 AC04, AC08 follow-up: parsed EEW is active, leaves nothing durable, and a restart follow-up becomes current", async () => {

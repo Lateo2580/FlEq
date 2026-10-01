@@ -35,6 +35,7 @@ import {
 } from "../../domains/weather-current/weather-current";
 import type { CurrentChange } from "../../domains/weather-current/weather-current";
 import { serializedEnvelope } from "../../checkpoint/checkpoint";
+import type { UnitModule } from "../../../contracts/p3-unit-table.types";
 
 const SCHEMA = "p2-weather-current-unit-v1" as const;
 type InternalStep = Omit<WeatherCurrentUnitStep, "displayChanges" | "confirmationEvidence">;
@@ -618,4 +619,21 @@ function reduceWeatherCurrent(state: WeatherCurrentUnitState,
   return reduceWeatherCurrentUnit(state, input);
 }
 
-export { displaySubjects, reduceWeatherCurrent, reduceWeatherCurrentUnit, toWeatherCurrentView, weatherCurrentUnitCodec };
+// P3-UNIT-TABLE-001: this unit's row; each field is one former unit branch of shared-runtime.ts.
+const weatherCurrentUnit = {
+  unit: "U-W",
+  reduce: reduceWeatherCurrentUnit,
+  toView: toWeatherCurrentView,
+  persistence: { kind: "durable", codec: weatherCurrentUnitCodec },
+  confirmationScopeLimit: 1024,
+  withoutNormal: (state) => ({ ...state, national: { ...state.national, normal: undefined },
+    partials: state.partials.filter((item) => item.operation !== "normal") }),
+  // An unavailable subject stays visible while the normal operation is blocked.
+  keepsWhileNormalHidden: (subject) => subject.transition === "unavailable",
+  normalDisplaySubjects: (state) => [...displaySubjects(state).values()]
+    .filter((value) => value.operation === "normal" && value.current != null),
+  terminalIntents: { kind: "intents" },
+  reclaimDeadlineBeforeReceive: false,
+} satisfies UnitModule<"U-W">;
+
+export { displaySubjects, reduceWeatherCurrent, reduceWeatherCurrentUnit, toWeatherCurrentView, weatherCurrentUnit, weatherCurrentUnitCodec };

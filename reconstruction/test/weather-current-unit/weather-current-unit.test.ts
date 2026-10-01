@@ -18,6 +18,7 @@ import { ingestXmlData } from "../../src/ingress/ingress";
 import { RuntimeCompositionRoot } from "../../src/runtime/composition-root";
 import { reduceWeatherCurrentUnit, toWeatherCurrentView, weatherCurrentUnitCodec } from "../../src/units/weather-current/weather-current-unit";
 import { fixtureDriver, fixtureState, stringCodec , testNotificationChannels, recordingNotificationAdapter} from "../checkpoint-shutdown/runtime-fixture";
+import { callsWith } from "../unit-table/linked-calls";
 
 const NOW = 1_800_000_000_000;
 
@@ -316,7 +317,7 @@ describe("P2 weather-current unit", () => {
     notificationFiles.seed(intentState, 1, NOW);
     const notificationRoot = new RuntimeCompositionRoot(config(), { "U-W": weatherCurrentUnitCodec }, { notificationAdapter: recordingNotificationAdapter(),
       checkpointFileSystem: notificationFiles, diagnosticFileSystem: new MemoryDiagnosticFileSystem(),
-      runtimeCalls: { ...fixtureDriver().calls, reduceWeatherCurrentUnit,
+      runtimeCalls: callsWith({ ...fixtureDriver().stubs, reduceWeatherCurrentUnit,
         selectNotificationAttempt: (delivery) => delivery.channels.desktop.kind !== "idle"
           || !delivery.intents.some((item) => item.disposition === "pending")
           ? { state: delivery, attempts: [], abortRequests: [], diagnostics: [] } : ({
@@ -329,7 +330,7 @@ describe("P2 weather-current unit", () => {
             intents: delivery.intents.map((item) => ({ ...item, disposition: "delivered" })) },
           diagnostics: [],
         }),
-      },
+      }),
     });
     notificationRoot.startRuntime("weather-test", clock(), testNotificationChannels);
     notificationRoot.dispatch(notificationRoot.state, { kind: "notificationProbeCompleted",
@@ -485,7 +486,7 @@ describe("P2 weather-current unit", () => {
     expect(covered, covered.join(",")).toHaveLength(14);
 
     const driver = fixtureDriver();
-    const calls = { ...driver.calls, reduceWeatherCurrentUnit, toWeatherCurrentView };
+    const calls = callsWith({ ...driver.stubs, reduceWeatherCurrentUnit, toWeatherCurrentView });
     const adapter = new MemoryCheckpointFileSystem();
     adapter.seed(state, state.persistence.currentGeneration, NOW);
     const root = new RuntimeCompositionRoot(config(), { "U-W": weatherCurrentUnitCodec }, { notificationAdapter: recordingNotificationAdapter(),

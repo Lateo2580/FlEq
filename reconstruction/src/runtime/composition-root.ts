@@ -28,6 +28,7 @@ import type {
   UnitId,
 } from "../../contracts/p2-shared-runtime.types";
 import type { ParserDiagnostic } from "../../contracts/p1-parser-boundary.types";
+import type { UnitModule, UnitTable } from "../../contracts/p3-unit-table.types";
 import type { NotificationAbortRequest, NotificationAttempt, NotificationChannel, NotificationChannelState } from "../../contracts/p2-notification-delivery.types";
 import type {
   DisplayConnectionView, DisplaySnapshot, DisplayVersion, DisplayWorkerView, SnapshotProjectionInput, SnapshotProjectionState,
@@ -41,21 +42,24 @@ import type { DiagnosticFileSystem } from "../checkpoint/persistent-diagnostic-s
 import { Mailbox } from "../mailbox/mailbox";
 import { abortNotificationAttempt, probeDesktopBackend, probeSoundBackend, resolveRepoPath, runNotificationAttempt } from "../notification-delivery/adapter";
 import { applyNotificationResult, selectNotificationAttempt } from "../notification-delivery/notification-delivery";
-import { eewUnitCodec, reduceEewUnit, toEewView } from "../units/eew/eew-unit";
-import { reduceWeatherCurrentUnit, toWeatherCurrentView, weatherCurrentUnitCodec } from "../units/weather-current/weather-current-unit";
-import {
-  reduceWeatherTimeseriesUnit, toWeatherTimeseriesView, weatherTimeseriesUnitCodec,
-} from "../units/weather-timeseries/weather-timeseries-unit";
+import { eewUnit } from "../units/eew/eew-unit";
+import { weatherCurrentUnit } from "../units/weather-current/weather-current-unit";
+import { weatherTimeseriesUnit } from "../units/weather-timeseries/weather-timeseries-unit";
 import { dateValue, projectSnapshot } from "../view-projector/view-projector";
 import { completeDiagnostic } from "./runtime-diagnostic";
 import { reduceRuntime } from "./shared-runtime";
+import { runtimeUnits } from "./unit-coverage";
 
 // A3 wiring of delivered units (A4 U-E, A5 U-W, A6 U-F). Notification (A7) links here on delivery.
+// P3-UNIT-TABLE-001: the one table of unit functions. A unit lane adds its row here and nowhere else.
+const linkedUnitTable = { "U-E": eewUnit, "U-W": weatherCurrentUnit, "U-F": weatherTimeseriesUnit } satisfies UnitTable;
+// Durable rows give the codec, ephemeral rows none; the literal keeps each unit's own codec type (no `as`).
+const codecOf = <K extends RuntimeUnitId>(module: UnitModule<K>) =>
+  module.persistence.kind === "durable" ? module.persistence.codec : undefined;
 const linkedUnitCodecs: CodecMap<RuntimeUnitStates> = {
-  "U-E": eewUnitCodec, "U-W": weatherCurrentUnitCodec, "U-F": weatherTimeseriesUnitCodec,
-};
-const linkedRuntimeCalls = { reduceEewUnit, toEewView, reduceWeatherCurrentUnit, toWeatherCurrentView,
-  reduceWeatherTimeseriesUnit, toWeatherTimeseriesView, selectNotificationAttempt, applyNotificationResult } as const;
+  "U-E": codecOf(linkedUnitTable["U-E"]), "U-W": codecOf(linkedUnitTable["U-W"]), "U-F": codecOf(linkedUnitTable["U-F"]),
+} satisfies Record<RuntimeUnitId, unknown>;
+const linkedRuntimeCalls = { units: linkedUnitTable, selectNotificationAttempt, applyNotificationResult } as const;
 
 type ShutdownHooks = Readonly<{
   drainMailbox?: (deadlineMonotonicMs: number, active: () => boolean) => Promise<void>;
@@ -279,7 +283,7 @@ class RuntimeCompositionRoot {
     const step = reduceRuntime(null, { kind: "startup", runId, clock, restored, notificationChannels }, this.runtimeCalls);
     this.current = step.state;
     this.streamId = randomUUID();
-    for (const unit of ["U-E", "U-W", "U-F"] as const) {
+    for (const unit of runtimeUnits) {
       const base = restored[unit].kind === "restored" ? restored[unit].envelope.generation : 0;
       for (let generation = base + 1; generation <= step.state.units[unit].persistence.currentGeneration; generation++) {
         this.contributions[unit] ??= new Map();
@@ -307,7 +311,7 @@ class RuntimeCompositionRoot {
     // Copy the ledgers only when a caller's correlation can still reject this step below; otherwise update in place.
     const copy = Object.keys(correlationByUnit).length !== 0;
     const contributions = copy ? { ...this.contributions } : this.contributions;
-    for (const unit of ["U-E", "U-W", "U-F"] as const) {
+    for (const unit of runtimeUnits) {
       const before = previous.units[unit].persistence;
       const after = step.state.units[unit].persistence;
       if (after.currentGeneration > before.currentGeneration
@@ -500,7 +504,7 @@ class RuntimeCompositionRoot {
   }
 
   private knownCorrelations(state: RuntimeState, provided: Readonly<Partial<Record<UnitId, Correlation>>> = {},
-    units: readonly RuntimeUnitId[] = ["U-E", "U-W", "U-F"]): Readonly<Partial<Record<UnitId, Correlation>>> {
+    units: readonly RuntimeUnitId[] = runtimeUnits): Readonly<Partial<Record<UnitId, Correlation>>> {
     const result: Partial<Record<UnitId, Correlation>> = {};
     for (const unit of units) {
       const ids = this.inputIds(state, unit);
@@ -542,7 +546,7 @@ class RuntimeCompositionRoot {
     if (current.shutdown.stage !== "running" || this.checkpointOperation != null) return;
     // An uncertain unit is never a save candidate: reconcile it on every due tick until it is acknowledged.
     const now = this.clock();
-    for (const unit of ["U-E", "U-W", "U-F"] as const) {
+    for (const unit of runtimeUnits) {
       const attempt = current.checkpointAttempts[unit];
       if (current.units[unit].persistence.kind !== "uncertain" || attempt == null
         || now.monotonicMs < (this.checkpoint.retryAfter(unit) ?? -Infinity)) continue;
@@ -550,7 +554,7 @@ class RuntimeCompositionRoot {
       return;
     }
     // Correlations come from the ledger itself (nothing to cross-check) and only for units whose save is due.
-    const due = (["U-E", "U-W", "U-F"] as const).filter((unit) => this.checkpoint.saveDue(current, unit, now));
+    const due = runtimeUnits.filter((unit) => this.checkpoint.saveDue(current, unit, now));
     const correlations = this.knownCorrelations(current, {}, due);
     const scheduled = this.captureCheckpoint(current, now, current.runId, correlations);
     if (scheduled == null) return;
@@ -713,5 +717,5 @@ class RuntimeCompositionRoot {
   }
 }
 
-export { RuntimeCompositionRoot, linkedRuntimeCalls, linkedUnitCodecs, nodeCheckpointFileSystem, nodeDiagnosticFileSystem, snapshotInput };
+export { RuntimeCompositionRoot, linkedRuntimeCalls, linkedUnitCodecs, linkedUnitTable, nodeCheckpointFileSystem, nodeDiagnosticFileSystem, snapshotInput };
 export type { CompositionOptions, ShutdownHooks };

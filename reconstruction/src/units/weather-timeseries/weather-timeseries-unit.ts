@@ -6,6 +6,7 @@ import type { PersistedWeatherTimeseriesUnit, WeatherTimeseriesInput, WeatherTim
   WeatherTimeseriesUnitView } from "../../../contracts/p2-weather-timeseries-unit.types";
 import { serializedEnvelope } from "../../checkpoint/checkpoint";
 import { EMPTY, inspect } from "../../domains/weather-timeseries/weather-timeseries";
+import type { UnitModule } from "../../../contracts/p3-unit-table.types";
 
 const SCHEMA = "p2-weather-timeseries-unit-v1" as const;
 type InternalStep = Omit<WeatherTimeseriesUnitStep, "displayChanges" | "confirmationEvidence">;
@@ -435,5 +436,22 @@ function reduceWeatherTimeseries(state: WeatherTimeseriesUnitState,
   return reduceWeatherTimeseriesUnit(state, input);
 }
 
+// P3-UNIT-TABLE-001: this unit's row; each field is one former unit branch of shared-runtime.ts.
+const weatherTimeseriesUnit = {
+  unit: "U-F",
+  reduce: reduceWeatherTimeseriesUnit,
+  toView: toWeatherTimeseriesView,
+  persistence: { kind: "durable", codec: weatherTimeseriesUnitCodec },
+  confirmationScopeLimit: 512,
+  withoutNormal: (state) => ({ ...state, subjects: state.subjects.filter((item) => item.operation !== "normal") }),
+  keepsWhileNormalHidden: () => false,
+  normalDisplaySubjects: (state) => state.subjects.filter((item) => item.operation === "normal").map((item) => ({
+    unit: "U-F" as const, operation: item.operation, subject: item.subject,
+    office: item.subject.slice(`${item.operation}/VPWP50/`.length), current: item,
+    subjects: [outcome(item, [])] })),
+  terminalIntents: { kind: "intents" },
+  reclaimDeadlineBeforeReceive: false,
+} satisfies UnitModule<"U-F">;
+
 export { outcome as timeseriesSubjectOutcome, reduceWeatherTimeseries, reduceWeatherTimeseriesUnit,
-  toWeatherTimeseriesView, weatherTimeseriesUnitCodec };
+  toWeatherTimeseriesView, weatherTimeseriesUnit, weatherTimeseriesUnitCodec };

@@ -75,5 +75,6 @@ jobs:
               node reconstruction/contracts/check-contract.mjs
               ./node_modules/.bin/tsc --project reconstruction/tsconfig.json
               ./node_modules/.bin/tsc --project reconstruction/tsconfig.test.json
-              ./node_modules/.bin/vitest run --config reconstruction/vitest.config.ts ;;
+              ./node_modules/.bin/vitest run --config reconstruction/vitest.config.ts
+              ./node_modules/.bin/vitest run --config reconstruction/vitest.config.ts --sequence.shuffle ;;
           esac

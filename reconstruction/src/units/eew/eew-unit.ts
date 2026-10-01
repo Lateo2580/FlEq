@@ -11,6 +11,7 @@ import type {
   PersistedEewUnit,
 } from "../../../contracts/p2-eew-unit.types";
 import { deliveryRecordEvent, dirty, emptyNotificationLatch, nextEewDeadline, notificationArrayBytes, reduceEew as reduceEewCore } from "../../domains/eew/eew";
+import type { UnitModule } from "../../../contracts/p3-unit-table.types";
 
 const SCHEMA = "p2-eew-unit-v1" as const;
 const GENERATION_BYTES = 256 * 1024;
@@ -340,4 +341,20 @@ function reduceEew(state: EewUnitState, input: Extract<EewInput, { kind: "receiv
   return reduceEewUnit(state, input);
 }
 
-export { currentSubject, eewUnitCodec, reduceEew, reduceEewUnit, toEewView };
+// P3-UNIT-TABLE-001: this unit's row; each field is one former unit branch of shared-runtime.ts.
+const eewUnit = {
+  unit: "U-E",
+  reduce: reduceEewUnit,
+  toView: toEewView,
+  persistence: { kind: "durable", codec: eewUnitCodec },
+  confirmationScopeLimit: 1024,
+  withoutNormal: (state) => ({ ...state, current: state.current.filter((item) => item.operation !== "normal") }),
+  keepsWhileNormalHidden: () => false,
+  normalDisplaySubjects: (state) => state.current.filter((item) => item.operation === "normal").map((item) => ({
+    unit: "U-E" as const, operation: item.operation, subject: item.subject, office: null,
+    current: item, subjects: [currentSubject(item)] })),
+  terminalIntents: { kind: "deliveryRecords", records: (state) => state.deliveryRecords },
+  reclaimDeadlineBeforeReceive: true,
+} satisfies UnitModule<"U-E">;
+
+export { currentSubject, eewUnit, eewUnitCodec, reduceEew, reduceEewUnit, toEewView };

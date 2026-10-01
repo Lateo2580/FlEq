@@ -49,6 +49,7 @@ const diagnosticReasons = [
   "diagnosticQueueOverflow", "snapshotNoticeCapacityExceeded", "snapshotCommonBudgetExceeded",
   "snapshotStringLimitExceeded", "weatherCurrentCapacityEvicted", "eewCapacityEvicted",
   "notificationAttemptFailed", "notificationExpired", "notificationCapacityEvicted", "notificationAdapterIsolated",
+  "routeIgnored", "routeNotPorted", "routeUnlisted",
 ] satisfies readonly DiagnosticReason[];
 
 function lineFor(source: DiagnosticEvent, occurrences = 1): QueueEntry {

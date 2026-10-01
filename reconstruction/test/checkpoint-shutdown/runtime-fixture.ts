@@ -3,7 +3,8 @@ import type {
 } from "../../contracts/p2-shared-runtime.types";
 import type { DecodedMaterial } from "../../contracts/p1-parser-boundary.types";
 import type { CompositionOptions, RuntimeCompositionRoot } from "../../src/runtime/composition-root";
-import { reduceRuntime } from "../../src/runtime/shared-runtime";
+import { callsWith, reduceRuntimeWith } from "../unit-table/linked-calls";
+import type { StubCalls } from "../unit-table/linked-calls";
 
 const testNotificationChannels = { desktop: { kind: "idle" }, sound: { kind: "idle" } } as const;
 function recordingNotificationAdapter() {
@@ -17,7 +18,7 @@ function recordingNotificationAdapter() {
 type Fixture = Readonly<{ value: string; intentExpiresAt?: number; activeFixture?: string | null }>;
 const saved: PersistenceStatus = { kind: "saved", currentGeneration: 1, savedGeneration: 1,
   savedCapturedAt: 0, savedAckAt: 0, dirtySince: null };
-const baseline = reduceRuntime(null, { kind: "startup", runId: "review", clock: { wallTimeMs: 0, monotonicMs: 0 },
+const baseline = reduceRuntimeWith(null, { kind: "startup", runId: "review", clock: { wallTimeMs: 0, monotonicMs: 0 },
   notificationChannels: testNotificationChannels, restored: {
     "U-E": { kind: "empty" }, "U-W": { kind: "empty" }, "U-F": { kind: "empty" },
   } }).state;
@@ -76,13 +77,13 @@ function fixtureDriver() {
     intents: [], outcomes: [], diagnostics: [], displayChanges: [], confirmationEvidence: [],
     nextDeadline: { monotonicMs: 0, wallTimeMs: null },
   });
-  const calls: CompositionOptions["runtimeCalls"] = {
+  const stubs: StubCalls = {
     selectNotificationAttempt: (state) => ({ state, attempts: [], abortRequests: [], diagnostics: [] }),
     reduceEewUnit: (state) => step("U-E", state),
     reduceWeatherCurrentUnit: (state) => step("U-W", state),
     reduceWeatherTimeseriesUnit: (state) => step("U-F", state),
   };
-  return { calls, update(root: RuntimeCompositionRoot, desired: RuntimeState, clock: ClockReading,
+  return { calls: callsWith(stubs), stubs, update(root: RuntimeCompositionRoot, desired: RuntimeState, clock: ClockReading,
     correlations: Parameters<RuntimeCompositionRoot["dispatch"]>[2] = {}) {
     try { void root.state; } catch {
       root.startRuntime(desired.runId, clock, testNotificationChannels);
