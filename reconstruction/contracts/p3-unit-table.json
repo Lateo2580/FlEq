@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "87fc5ed341ed3e7a735e0382533a56610f33636a",
-    "sha256": "1fdd9f146d7365b4f624e9f76a223e274542b46d8cdbcfba1126dcfb8156f5ae",
+    "sha256": "8a9ea31645f0528fc5ebf211b0ddeaf36e486dabb3083638af49083cb4204c3f",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "76c82b87d7783a4eae14af690cb34e7d6ec46f73617dc75b7f7401951619f080",
     "sequencesSha256": "be9cfd97b555e3a55568f085d107342c978b3dc7249f5cecea868ea5a62c5781",
@@ -119,7 +119,7 @@
     "contractId": "P3-UNIT-TABLE-001",
     "mode": "implementation",
     "objective": "R43・R44・台帳52: 既存3 unit（U-E/U-W/U-F）の挙動を変えずに、unit列の真実源を1つにし、unit表（UnitModule<K>）・coverage表（headTypeごとにready/notPorted/ignored）・相関unionを受けるdispatcherへ寄せる。route外の入力を区分ごとの診断で見えるようにし、台帳52の実害3点（未登録headTypeの黙殺・復元のelseがU-Fへ流れる・保存候補の直書き列）を型と試験で止める。",
-    "baseOid": "unassigned",
+    "baseOid": "8784938a676135d755fbdcfab5dd66def7e1b0b0",
     "cleanTreeRequired": true,
     "readPaths": [
       "docs/specs/reconstruction-p0-contracts.md",
