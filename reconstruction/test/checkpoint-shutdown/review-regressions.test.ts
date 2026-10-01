@@ -177,7 +177,7 @@ it("R26 regression / AC04: a rejected reducer call cannot consume the durable re
   expect(h.root.applyCheckpointResult(initial, output.result, h.clock()).state.units["U-F"].persistence?.kind).toBe("saved");
   expect(h.scheduleCheckpoint(initial, h.clock(), "review", { "U-W": ids })?.request?.unit).toBe("U-W");
   expect(h.fault.opens).toBe(1);
-  expect(h.measurements.filter((measurement) => measurement.attemptId === request.attemptId)).toHaveLength(7);
+  expect(h.measurements.filter((measurement) => measurement.attemptId === request.attemptId)).toHaveLength(6);
   await h.root.diagnostics.flush();
 });
 
@@ -262,7 +262,7 @@ it("R27 regression / AC04,AC05: failed capture retains its reservation until A1 
       expect(h.root.state.checkpointAttempts).toEqual({});
       expect(h.root.checkpoint.retryAfter("U-F")).toBeNull();
       expect(h.measurements.filter((entry) => entry.stage === "encode")).toHaveLength(3);
-      expect(h.measurements.filter((entry) => entry.attemptId === retry.capture.attemptId)).toHaveLength(7);
+      expect(h.measurements.filter((entry) => entry.attemptId === retry.capture.attemptId)).toHaveLength(6);
       await h.root.diagnostics.flush();
   }
 });
@@ -301,7 +301,7 @@ it("R28 regression / AC04,AC06: shutdown recovers unadopted failures without an 
           expect(h.root.state.units["U-F"].persistence).toMatchObject(stage === "rename"
             ? { kind: "uncertain", savedGeneration: null } : { kind: "saved", savedGeneration: 1 });
           expect(h.fault.opens).toBe(opens + (stage === "rename" ? 1 : 2));
-          expect(h.measurements.length).toBe(measured.length + (stage === "rename" ? 7 : stage === "encode" ? 14 : 13));
+          expect(h.measurements.length).toBe(measured.length + (stage === "rename" ? 6 : stage === "encode" ? 12 : 11));
           expect(h.root.state.shutdown.stageResults.finalCheckpoint?.pending.unsavedUnits)
             .toBe(stage === "rename" ? 1 : 0);
           expect(h.root.checkpoint.retryAfter("U-F")).toBeNull();
@@ -444,16 +444,28 @@ it("R01 regression / AC02,AC08: uncertain needs exact hash and successful sync; 
   state = (await h.root.resolveUncertain(state, "U-F", request.attemptId, h.clock())).state;
   expect(state.units["U-F"].persistence).toMatchObject({ kind: "failed", savedGeneration: null });
 
+  // P3-C1: a steady save has no post-rename verify, so the uncertain-then-reconcile property is shown via directory sync.
   const verify = harness();
   const r = reserve(verify, dirty());
-  verify.fault.verify = true;
+  verify.fault.directorySync = true;
   const result = await verify.root.executeCheckpoint(r, "review", ids.inputIds, "notRetry");
   expect(result.result.kind).toBe("uncertain");
   let verifiedState = verify.root.applyCheckpointResult(dirty(), result.result, verify.clock()).state;
-  verify.fault.verify = false;
+  verify.fault.directorySync = false;
   verifiedState = (await verify.root.resolveUncertain(verifiedState, "U-F", r.attemptId, verify.clock())).state;
   expect(verifiedState.units["U-F"].persistence).toMatchObject({ kind: "saved", savedGeneration: 1 });
-  await Promise.all([h.root.diagnostics.flush(), verify.root.diagnostics.flush()]);
+
+  // The same-generation confirm read (spec:843) failing after directory sync is still uncertain (stage ack).
+  const confirm = harness();
+  const c = reserve(confirm, dirty());
+  confirm.bytes.set(join(confirm.config.stateDirectory, "U-F-A.json"), serializedEnvelope(c.envelope));
+  confirm.root.restoreUnit("U-F"); // the memory now names generation 1, so the save takes the recovery path
+  confirm.fault.verify = true;
+  confirm.fault.onDirectorySync = () => { confirm.fault.renamed = true; };
+  const confirmed = await confirm.root.executeCheckpoint(c, "review", ids.inputIds, "notRetry");
+  expect(confirmed.result).toMatchObject({ kind: "uncertain", stage: "ack" });
+  expect(confirm.fault.opens).toBe(0);
+  await Promise.all([h.root.diagnostics.flush(), verify.root.diagnostics.flush(), confirm.root.diagnostics.flush()]);
 });
 
 it("R02 regression / AC04: a running attempt cannot execute twice or relinquish its writer on uncertainty", async () => {
@@ -497,6 +509,8 @@ it("R04 regression / AC04,AC05: slot EIO returns measured failure and frees the 
   let state = dirty(1, true);
   const request = reserve(h, state);
   h.fault.read = true;
+  // P3-C1: a steady save reads nothing; EIO is met on the recovery path, which an unreadable restoreUnit opens.
+  expect(h.root.restoreUnit("U-F")).toEqual({ kind: "unavailable", reason: "noValidSlot" });
   const failed = await h.root.executeCheckpoint(request, "review", ids.inputIds, "notRetry");
   expect(failed).toMatchObject({ result: { kind: "failed", stage: "write" },
     measurements: [{ stage: "write", outcome: "failed", attemptId: request.attemptId }] });
@@ -588,7 +602,7 @@ it("R07 regression / AC06: deadlines bound summary and forbid another unit write
 it("R08 regression / AC05: final-save encode and executed stages reach the same measurement consumer exactly once", async () => {
   const h = harness({ drainMailbox: async () => { h.update(dirty(4), { "U-F": ids }); } });
   expect((await h.root.shutdownRuntime(fixtureState(), 1, h.clock())).code).toBe(0);
-  expect(h.measurements.map((m) => m.stage)).toEqual(["encode", "write", "fileSync", "close", "rename", "directorySync", "verify"]);
+  expect(h.measurements.map((m) => m.stage)).toEqual(["encode", "write", "fileSync", "close", "rename", "directorySync"]);
   expect(new Set(h.measurements.map((m) => m.attemptId)).size).toBe(1);
   expect(h.measurements.every((m) => m.runId === "review" && m.unit === "U-F" && m.generation === 4
     && m.inputIds.join() === ids.inputIds.join() && m.retryReason === "notRetry")).toBe(true);
@@ -697,7 +711,7 @@ it("R13 regression / AC06: shutdown waits for a normal in-flight write and re-ev
     expect(h.root.restoreUnit("U-F")).toMatchObject({ envelope: { generation: finalGeneration, payload: `final-${finalGeneration}` } });
     expect(h.fault.opens).toBe(finalGeneration);
     expect(h.order).toEqual(["summary", "close", "summary"]);
-    expect(h.measurements.filter((measurement) => measurement.attemptId === request.attemptId)).toHaveLength(7);
+    expect(h.measurements.filter((measurement) => measurement.attemptId === request.attemptId)).toHaveLength(6);
   }
   const late = harness({ finalizeBatchesAndSideEffects: async () => {
     late.update(dirty(2), { "U-F": ids });
@@ -934,7 +948,12 @@ it("I01 contractBoundary / AC04,AC05,AC08: checkpoint fault stages cross recover
         const request = h.scheduleCheckpoint(state, h.clock(), "failure", {
           "U-F": { ...ids, retryReason: h.root.checkpoint.retryReason("U-F") },
         })!.request!;
+        if (stage === "verify") { // A steady save has no verify read: use the same-generation confirm of the recovery path.
+          h.bytes.set(join(h.config.stateDirectory, "U-F-B.json"), serializedEnvelope(request.envelope));
+          h.root.restoreUnit("U-F");
+        }
         setFault(true);
+        if (stage === "readFile") h.root.restoreUnit("U-F"); // An unreadable slot drops the memory, so the save must read.
         const output = await h.root.executeCheckpoint(request, "failure", ids.inputIds, h.root.checkpoint.retryReason("U-F"));
         expect(output.result.kind).toBe(["rename", "directorySync", "verify"].includes(stage) ? "uncertain" : "failed");
         expect(output.measurements.filter((measurement) => measurement.outcome === "failed")).toHaveLength(1);
@@ -1079,6 +1098,7 @@ it("P2-A3-T09 contractBoundary / AC09: an identical durable generation is acknow
   const slot = join(h.config.stateDirectory, "U-F-A.json");
   const bytes = serializedEnvelope(request.envelope);
   h.bytes.set(slot, bytes);
+  h.root.restoreUnit("U-F"); // The file was placed from outside; the memory learns it by a read at the same generation.
   const result = await h.root.executeCheckpoint(request, "review", ids.inputIds, ids.retryReason);
   expect(result.result.kind).toBe("acknowledged");
   expect(h.fault.opens).toBe(0);

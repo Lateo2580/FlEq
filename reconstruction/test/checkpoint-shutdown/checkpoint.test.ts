@@ -1,7 +1,7 @@
 import { promises as fileSystem } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { JsonValue, RuntimeState, RuntimeUnitId, RuntimeUnitStates, UnitCodec, UnitId } from "../../contracts/p2-shared-runtime.types";
 import { hashEnvelope, serializedEnvelope } from "../../src/checkpoint/checkpoint";
@@ -253,7 +253,7 @@ describe("P2 checkpoint", () => {
       attemptId: succeeded.request?.attemptId });
     const output = await root.executeCheckpoint(succeeded.request!, "run-5", ["input-1"], "saveFailed");
     expect(output.measurements.map((measurement) => measurement.stage)).toEqual([
-      "write", "fileSync", "close", "rename", "directorySync", "verify",
+      "write", "fileSync", "close", "rename", "directorySync",
     ]);
     expect(output.measurements.every((measurement) => measurement.attemptId === succeeded.request?.attemptId
       && measurement.unit === "U-F" && measurement.generation === 1
@@ -271,7 +271,8 @@ describe("P2 checkpoint", () => {
     for (const [stage, reason] of Object.entries(expected) as [keyof typeof expected, typeof expected[keyof typeof expected]][]) {
       const path = await directory();
       const adapter = new MemoryCheckpointFileSystem();
-      adapter.fail = stage;
+      // P3-C1: the verify stage no longer follows a steady save; it remains only in reconciliation.
+      adapter.fail = stage === "verify" ? "directorySync" : stage;
       const driver = fixtureDriver();
       const root = new RuntimeCompositionRoot(config(path), { "U-F": codec("U-F") }, { notificationAdapter: recordingNotificationAdapter(),
         checkpointFileSystem: adapter, runtimeCalls: driver.calls,
@@ -283,6 +284,10 @@ describe("P2 checkpoint", () => {
         { "U-F": correlation })!;
       const output = await root.executeCheckpoint(scheduled.request!, "stages", correlation.inputIds, correlation.retryReason);
       const step = root.applyCheckpointResult(state, output.result, { wallTimeMs: 1_001, monotonicMs: 2 });
+      if (stage === "verify") {
+        adapter.fail = "verify";
+        await root.resolveUncertain(step.state, "U-F", scheduled.request!.attemptId, { wallTimeMs: 1_002, monotonicMs: 3 });
+      }
       expect((await root.readDiagnostics({ limit: 256 })).records.map((event) => event.reason)).toContain(reason);
       if (stage === "directorySync") expect((await root.readDiagnostics({ limit: 256 })).records.map((event) => event.reason)).toContain("checkpointUncertain");
       await root.diagnostics.flush();
@@ -332,5 +337,182 @@ describe("P2 checkpoint", () => {
     await fileSystem.writeFile(newerPath, serializedEnvelope(invalid));
     expect(root.restoreUnit("U-F")).toEqual({ kind: "unavailable", reason: "noValidSlot" });
     await root.diagnostics.flush();
+  });
+});
+
+// P3-C1: a steady save reads nothing and serializes the envelope once. Records every filesystem call in order.
+class RecordingFileSystem extends MemoryCheckpointFileSystem {
+  readonly calls: string[] = [];
+  syncGate: Promise<void> | null = null;
+  unlinkSync(path: string): void { this.calls.push("unlink"); super.unlinkSync(path); }
+  readFile(path: string): Uint8Array | null { this.calls.push("readFile"); return super.readFile(path); }
+  async open(path: string): Promise<WritableCheckpoint> {
+    this.calls.push("open");
+    const file = await super.open(path);
+    return {
+      write: async (data) => { this.calls.push("write"); await file.write(data); },
+      sync: async () => { this.calls.push("sync"); await file.sync(); },
+      close: async () => { this.calls.push("close"); await file.close(); },
+    };
+  }
+  async rename(from: string, to: string): Promise<void> {
+    this.calls.push(`rename:${to.slice(-6)}`);
+    await super.rename(from, to);
+  }
+  async syncDirectory(): Promise<void> {
+    this.calls.push("syncDirectory");
+    await this.syncGate;
+    await super.syncDirectory();
+  }
+}
+
+function p3Root(path: string, adapter: CheckpointFileSystem) {
+  const driver = fixtureDriver();
+  const root = new RuntimeCompositionRoot(config(path), { "U-F": codec("U-F") }, { notificationAdapter: recordingNotificationAdapter(),
+    checkpointFileSystem: adapter, runtimeCalls: driver.calls, clock: () => ({ wallTimeMs: 5_000, monotonicMs: 500 }) });
+  driver.update(root, pending(), { wallTimeMs: 5_000, monotonicMs: 500 }); // starts the runtime (its restore reads happen here)
+  // Saves generation g (reserve, execute, adopt) and returns the next state and the execute output.
+  const save = async (previous: RuntimeState, generation: number, at: number,
+    retryReason: "notRetry" | "saveFailed" | "ackUncertain" = "notRetry") => {
+    const before = previous.units["U-F"].persistence;
+    const next = pending({ "U-F": { value: `v${generation}` } }, { "U-F": { kind: "pending", currentGeneration: generation,
+      savedGeneration: generation === 1 ? null : before?.savedGeneration ?? null,
+      savedCapturedAt: generation === 1 ? null : before?.savedCapturedAt ?? null,
+      savedAckAt: generation === 1 ? null : before?.savedAckAt ?? null, dirtySince: at } });
+    const clock = { wallTimeMs: 5_000 + at, monotonicMs: at };
+    const scheduled = schedule(root, driver, next, clock, "p3c1", { "U-F": { ...correlation, retryReason } })!;
+    const output = await root.executeCheckpoint(scheduled.request!, "p3c1", correlation.inputIds, retryReason);
+    return { scheduled, output, state: root.applyCheckpointResult(next, output.result,
+      { wallTimeMs: 5_001 + at, monotonicMs: at + 1 }).state };
+  };
+  return { root, driver, save };
+}
+
+describe("P3-C1 checkpoint step 1", () => {
+  const initial = () => pending({ "U-F": { value: "" } });
+  const slotsWritten = (adapter: RecordingFileSystem) => adapter.calls.filter((call) => call.startsWith("rename:"))
+    .map((call) => call.slice(-6, -5));
+
+  it("P3-C1-T01 acceptance / AC01: after restoreUnit(empty), g1-g3 read nothing and alternate A, B, A", async () => {
+    const path = await directory();
+    const adapter = new RecordingFileSystem();
+    const { root, save } = p3Root(path, adapter);
+    expect(root.restoreUnit("U-F")).toEqual({ kind: "empty" });
+    adapter.calls.length = 0;
+    let state = initial();
+    for (const generation of [1, 2, 3]) {
+      const saved = await save(state, generation, generation * 10);
+      expect(saved.output.result.kind).toBe("acknowledged");
+      state = saved.state;
+    }
+    expect(adapter.calls.filter((call) => call === "readFile")).toHaveLength(0);
+    expect(slotsWritten(adapter)).toEqual(["A", "B", "A"]);
+    const fresh = new RuntimeCompositionRoot(config(path), { "U-F": codec("U-F") }, { notificationAdapter: recordingNotificationAdapter(),
+      checkpointFileSystem: adapter, runtimeCalls: fixtureDriver().calls, clock: () => ({ wallTimeMs: 6_000, monotonicMs: 600 }) });
+    expect(fresh.restoreUnit("U-F")).toMatchObject({ kind: "restored", slot: "A", envelope: { generation: 3 } });
+    await root.diagnostics.flush();
+  });
+
+  it("P3-C1-T02 contractBoundary / AC02: after a failed reconciliation the next attempt reads A and B once, then reads return to 0", async () => {
+    const path = await directory();
+    const adapter = new RecordingFileSystem();
+    const { root, save } = p3Root(path, adapter);
+    root.restoreUnit("U-F");
+    adapter.fail = "rename"; // the name is not replaced: reconciliation finds no g1 and fails
+    const first = await save(initial(), 1, 10);
+    expect(first.output.result).toMatchObject({ kind: "uncertain", stage: "rename" });
+    const reconciled = await root.resolveUncertain(first.state, "U-F", first.scheduled.request!.attemptId,
+      { wallTimeMs: 5_020, monotonicMs: 20 });
+    expect(reconciled.state.units["U-F"].persistence).toMatchObject({ kind: "failed" });
+    adapter.fail = null;
+    adapter.calls.length = 0;
+    const retry = await save(reconciled.state, 1, root.checkpoint.retryAfter("U-F")!, "ackUncertain");
+    expect(retry.output.result.kind).toBe("acknowledged");
+    expect(adapter.calls.filter((call) => call === "readFile")).toHaveLength(2);
+    expect(retry.output.measurements.map((measurement) => measurement.stage))
+      .toEqual(["write", "fileSync", "close", "rename", "directorySync"]);
+    adapter.calls.length = 0;
+    const next = await save(retry.state, 2, 30_000);
+    expect(next.output.result.kind).toBe("acknowledged");
+    expect(adapter.calls.filter((call) => call === "readFile")).toHaveLength(0);
+    await root.diagnostics.flush();
+  });
+
+  it("P3-C1-T03 contractBoundary / AC03: one envelope stringify per new capture, bytes equal P2's, none on a same-generation retry", async () => {
+    const path = await directory();
+    const adapter = new RecordingFileSystem();
+    const { root, save } = p3Root(path, adapter);
+    root.restoreUnit("U-F");
+    const stringify = vi.spyOn(JSON, "stringify");
+    const envelopeCalls = () => stringify.mock.calls.filter(([value]) => value != null && typeof value === "object" && "payload" in value).length;
+    let retry: Awaited<ReturnType<typeof save>>;
+    try {
+      adapter.fail = "write";
+      const failed = await save(initial(), 1, 10);
+      expect(failed.output.result.kind).toBe("failed");
+      expect(envelopeCalls()).toBe(1); // the capture's single serialization; the range checks pass numbers
+      adapter.fail = null;
+      stringify.mockClear();
+      retry = await save(failed.state, 1, root.checkpoint.retryAfter("U-F")!, "saveFailed");
+      expect(retry.output.result.kind).toBe("acknowledged");
+      expect(envelopeCalls()).toBe(0); // the retained bytes are reused
+    } finally { stringify.mockRestore(); }
+    const request = retry.scheduled.request!;
+    const { sha256: _hash, ...unhashed } = request.envelope;
+    expect(adapter.files.get(join(path, "state", "U-F-A.json")))
+      .toEqual(serializedEnvelope(hashEnvelope(unhashed)));
+    expect(request.encodedByteLength).toBe(serializedEnvelope(request.envelope).byteLength);
+    expect(root.restoreUnit("U-F")).toMatchObject({ kind: "restored", envelope: { generation: 1, sha256: request.envelope.sha256 } });
+    await root.diagnostics.flush();
+  });
+
+  it("P3-C1-T04 acceptance / AC04: a steady save is open, write, sync, close, rename, syncDirectory and waits for the directory sync", async () => {
+    const path = await directory();
+    const adapter = new RecordingFileSystem();
+    const { root, driver } = p3Root(path, adapter);
+    const state = pending({ "U-F": { value: "v1" } }, { "U-F": { kind: "pending", currentGeneration: 1,
+      savedGeneration: null, savedCapturedAt: null, savedAckAt: null, dirtySince: 10 } });
+    const scheduled = schedule(root, driver, state, { wallTimeMs: 5_010, monotonicMs: 10 }, "p3c1", { "U-F": correlation })!;
+    adapter.calls.length = 0; // the first dispatch started the runtime (restoreUnit reads); only the save is recorded
+    let release!: () => void;
+    adapter.syncGate = new Promise<void>((resolve) => { release = resolve; });
+    let settled = false;
+    const running = root.executeCheckpoint(scheduled.request!, "p3c1", correlation.inputIds, "notRetry")
+      .then((output) => { settled = true; return output; });
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(adapter.calls).toEqual(["unlink", "unlink", "unlink", "open", "write", "sync", "close", "rename:A.json", "syncDirectory"]);
+    expect(settled).toBe(false);
+    release();
+    expect((await running).result.kind).toBe("acknowledged");
+    await root.diagnostics.flush();
+  });
+
+  // A slot placed from outside; restoreUnit teaches the writer what is on disk before the g1 request executes.
+  const placed = async (generation: number, payload: string) => {
+    const path = await directory();
+    const adapter = new RecordingFileSystem();
+    const { root, driver } = p3Root(path, adapter);
+    const state = pending({ "U-F": { value: "v1" } }, { "U-F": { kind: "pending", currentGeneration: 1,
+      savedGeneration: null, savedCapturedAt: null, savedAckAt: null, dirtySince: 10 } });
+    const scheduled = schedule(root, driver, state, { wallTimeMs: 5_010, monotonicMs: 10 }, "p3c1", { "U-F": correlation })!;
+    adapter.files.set(join(path, "state", "U-F-A.json"), serializedEnvelope(hashEnvelope({
+      schemaVersion: "test-v1", unit: "U-F", generation, capturedAt: 1, payload: { value: payload } })));
+    root.restoreUnit("U-F");
+    adapter.calls.length = 0;
+    const output = await root.executeCheckpoint(scheduled.request!, "p3c1", correlation.inputIds, "notRetry");
+    await root.diagnostics.flush();
+    return { adapter, output };
+  };
+
+  it("P3-C1-T06 contractBoundary / AC02(3): a memory newer than the request fails without reading or writing (P2-A3-AC09)", async () => {
+    const { adapter, output } = await placed(2, "newer");
+    expect(output.result).toMatchObject({ kind: "failed", stage: "write" });
+    expect(adapter.calls.filter((call) => call === "readFile" || call === "open")).toEqual([]);
+  });
+
+  it("P3-C1-T07 contractBoundary / AC02(2): a same-generation slot with another hash fails stage=write without writing", async () => {
+    const { adapter, output } = await placed(1, "different");
+    expect(output.result).toMatchObject({ kind: "failed", stage: "write" });
+    expect(adapter.calls.filter((call) => call === "open")).toEqual([]);
   });
 });

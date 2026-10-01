@@ -56,6 +56,7 @@ type Attempt = {
   fileSynced?: boolean;
   acknowledged?: boolean;
   retryRecorded?: boolean;
+  bytes?: Uint8Array; // The one serialization of request.envelope (AC03); never added to the shared CheckpointRequest.
 };
 
 type Slot = "A" | "B";
@@ -80,9 +81,17 @@ function envelopeBytes(
   }));
 }
 
+// AC03: serialize once; the stored bytes are the zeroed form with its last 64 hex digits overwritten
+// (the position readSlot zeroes), byte-identical to serializedEnvelope(hashEnvelope(envelope)).
+function sealEnvelope(envelope: Omit<CheckpointEnvelope, "sha256">): Readonly<{ envelope: CheckpointEnvelope; bytes: Uint8Array }> {
+  const bytes = envelopeBytes(envelope);
+  const sha256 = createHash("sha256").update(bytes).digest("hex");
+  bytes.set(encoder.encode(sha256), bytes.byteLength - 66);
+  return { envelope: { ...envelope, sha256 }, bytes };
+}
+
 function hashEnvelope(envelope: Omit<CheckpointEnvelope, "sha256">): CheckpointEnvelope {
-  const sha256 = createHash("sha256").update(envelopeBytes(envelope)).digest("hex");
-  return { ...envelope, sha256 };
+  return sealEnvelope(envelope).envelope;
 }
 
 function serializedEnvelope(envelope: CheckpointEnvelope): Uint8Array {
@@ -110,7 +119,11 @@ function errorMessage(error: unknown): string {
 class CheckpointCoordinator<UnitStates extends RuntimeUnitStates = RuntimeUnitStates> {
   private readonly attempts = new Map<string, Attempt>();
   private readonly retry = new Map<UnitId, { failures: number; retryAfter: number;
-    retryReason: CheckpointMeasurement["retryReason"]; request: CheckpointRequest | null; fileSynced?: boolean }>();
+    retryReason: CheckpointMeasurement["retryReason"]; fileSynced?: boolean;
+    held: Readonly<{ request: CheckpointRequest; bytes: Uint8Array }> | null }>(); // request and its bytes travel as a pair
+  // AC01: per unit, the slot this writer last knew to be valid (null = known empty, absent = unknown).
+  // Without it every save re-reads both slots (ledger 55).
+  private readonly knowledge = new Map<UnitId, Readonly<{ slot: Slot; generation: number; sha256: string }> | null>();
   private readonly overdue = new Map<UnitId, number>();
   private reservedAttemptId: string | null = null;
   private attemptSequence = 0;
@@ -130,6 +143,15 @@ class CheckpointCoordinator<UnitStates extends RuntimeUnitStates = RuntimeUnitSt
   }
 
   restoreUnit(unit: UnitId): RestoreUnitResult {
+    const result = this.readUnit(unit);
+    if (result.kind === "restored") this.knowledge.set(unit, { slot: result.slot,
+      generation: result.envelope.generation, sha256: result.envelope.sha256 });
+    else if (result.kind === "empty") this.knowledge.set(unit, null);
+    else this.knowledge.delete(unit);
+    return result;
+  }
+
+  private readUnit(unit: UnitId): RestoreUnitResult {
     const codec = this.codec(unit);
     if (codec == null) {
       this.restoreRejected(unit, "unknownSchema");
@@ -201,23 +223,27 @@ class CheckpointCoordinator<UnitStates extends RuntimeUnitStates = RuntimeUnitSt
     const started = this.readClock();
     // AC09: a retry of the same generation must keep its original envelope identity.
     const prior = this.retry.get(unit);
-    const retained = prior?.request?.generation === generation ? prior.request : null;
-    const capturedAt = retained?.capturedAt ?? started.wallTimeMs;
+    const retained = prior?.held?.request.generation === generation ? prior.held : null;
+    const capturedAt = retained?.request.capturedAt ?? started.wallTimeMs;
     const capture: CheckpointCapture = { attemptId, unit, generation, capturedAt };
     try {
       if (!Number.isSafeInteger(generation) || generation < 1 || !Number.isFinite(capturedAt)
         || JSON.stringify(generation).length > 32 || JSON.stringify(capturedAt).length > 32)
         throw new RangeError("invalid checkpoint generation or capture time");
-      const envelope = retained?.envelope ?? hashEnvelope({ schemaVersion: codec.schemaVersion, unit,
-        generation, capturedAt, payload: codec.encode(state.units[unit]) });
-      const encodedByteLength = retained?.encodedByteLength ?? serializedEnvelope(envelope).byteLength;
+      const { envelope, bytes } = retained != null
+        ? { envelope: retained.request.envelope, bytes: retained.bytes }
+        : sealEnvelope({ schemaVersion: codec.schemaVersion, unit,
+          generation, capturedAt, payload: codec.encode(state.units[unit]) });
+      const encodedByteLength = bytes.byteLength;
+      // A newer generation supersedes the held bytes (up to the whole payload); only a same-generation retry reuses them.
+      if (prior != null && retained == null) this.retry.set(unit, { ...prior, held: null });
       const ended = this.readClock();
       const request: CheckpointRequest = {
         attemptId, unit, generation, reservedAt: clock.monotonicMs, capturedAt,
         envelope, encodedByteLength,
       };
       this.attempts.set(attemptId, { request, unit, generation, runId, inputIds: [...correlation.inputIds],
-        retryReason: correlation.retryReason, capturedAt, phase: "reserved",
+        retryReason: correlation.retryReason, capturedAt, phase: "reserved", bytes,
         fileSynced: retained == null ? undefined : prior?.fileSynced });
       return { capture, request, result: null, measurements: retained != null ? []
         : [this.measurement(request, "encode", started.monotonicMs,
@@ -247,7 +273,7 @@ class CheckpointCoordinator<UnitStates extends RuntimeUnitStates = RuntimeUnitSt
     const attempt = this.attempts.get(request.attemptId);
     if (attempt == null || attempt.request?.attemptId !== request.attemptId
       || attempt.unit !== request.unit || attempt.generation !== request.generation
-      || attempt.request.envelope.sha256 !== request.envelope.sha256
+      || attempt.request.envelope.sha256 !== request.envelope.sha256 || attempt.bytes == null
       || attempt.request.encodedByteLength !== request.encodedByteLength || attempt.runId !== runId
       || attempt.retryReason !== retryReason || !sameStrings(attempt.inputIds, inputIds))
       throw new Error("checkpoint correlation mismatch");
@@ -257,15 +283,19 @@ class CheckpointCoordinator<UnitStates extends RuntimeUnitStates = RuntimeUnitSt
 
     const measurements: CheckpointMeasurement[] = [];
     const byteLength = request.encodedByteLength;
+    const bytes = attempt.bytes;
     let writable: WritableCheckpoint | null = null;
     let stage: CheckpointMeasurement["stage"] = "write";
     let stageStarted = this.readClock().monotonicMs;
     try {
-      const existing = this.restoreUnit(request.unit);
-      if (existing.kind === "unavailable") throw new Error(`checkpoint slot unavailable: ${existing.reason}`);
-      if (existing.kind === "restored") {
-        if (existing.envelope.generation > request.generation) throw new Error("checkpoint generation is older than slot");
-        if (existing.envelope.generation === request.generation) {
+      // AC02(3): a memory at the requested generation may come from a reconciliation read, so it is no proof
+      // of a finished save; drop it and take the recovery path (spec:843 re-sync and re-read stay).
+      let known = this.knowledge.get(request.unit);
+      if (known?.generation === request.generation) { this.knowledge.delete(request.unit); known = undefined; }
+      if (known === undefined) {
+        const existing = this.restoreUnit(request.unit);
+        if (existing.kind === "unavailable") throw new Error(`checkpoint slot unavailable: ${existing.reason}`);
+        if (existing.kind === "restored" && existing.envelope.generation === request.generation) {
           if (existing.envelope.sha256 !== request.envelope.sha256)
             throw new Error("checkpoint generation conflicts with slot");
           attempt.renamed = true;
@@ -286,15 +316,12 @@ class CheckpointCoordinator<UnitStates extends RuntimeUnitStates = RuntimeUnitSt
             generation: request.generation, ackAt: this.readClock().wallTimeMs,
             encodedByteLength: byteLength }, measurements };
         }
+        known = this.knowledge.get(request.unit) ?? null;
       }
+      if (known != null && known.generation > request.generation) throw new Error("checkpoint generation is older than slot");
       // Ownership is held until this attempt (including close cleanup) has ended.
       this.removeTemporaries(request.unit);
-      const bytes = serializedEnvelope(request.envelope);
-      const codec = this.codec(request.unit);
-      if (codec == null) throw new Error("checkpoint codec unavailable");
-      const latest = this.latestValidSlot(request.unit, codec);
-      const slot: Slot = latest?.envelope.generation === request.generation
-        ? latest.slot : latest?.slot === "A" ? "B" : "A";
+      const slot: Slot = known?.slot === "A" ? "B" : "A";
       const target = this.slotPath(request.unit, slot);
       const temporary = join(this.directory, `${request.unit}.json.tmp`);
       await this.fileSystem.mkdir(this.directory);
@@ -330,14 +357,8 @@ class CheckpointCoordinator<UnitStates extends RuntimeUnitStates = RuntimeUnitSt
       await this.fileSystem.syncDirectory(this.directory);
       ended = this.readClock().monotonicMs;
       measurements.push(this.measurement(request, stage, started, ended, 0, "succeeded", runId, attempt));
-
-      stage = "verify";
-      started = stageStarted = this.readClock().monotonicMs;
-      const verified = this.readSlot(request.unit, slot, codec);
-      if (typeof verified === "string" || verified.envelope.sha256 !== request.envelope.sha256)
-        throw new Error("written checkpoint did not verify");
-      ended = this.readClock().monotonicMs;
-      measurements.push(this.measurement(request, stage, started, ended, bytes.byteLength, "succeeded", runId, attempt));
+      // The save is complete at directory sync; no read-back (the OS cache proves no durability).
+      this.knowledge.set(request.unit, { slot, generation: request.generation, sha256: request.envelope.sha256 });
       attempt.acknowledged = true;
       return { result: { kind: "acknowledged", attemptId: request.attemptId, unit: request.unit,
         generation: request.generation, ackAt: this.readClock().wallTimeMs, encodedByteLength: bytes.byteLength }, measurements };
@@ -347,7 +368,9 @@ class CheckpointCoordinator<UnitStates extends RuntimeUnitStates = RuntimeUnitSt
       const now = this.readClock();
       measurements.push(this.measurement(request, stage, stageStarted, now.monotonicMs,
         stage === "write" || stage === "verify" ? byteLength : 0, "failed", runId, attempt));
-      return { result: attempt.renamed || stage === "rename"
+      const uncertain = attempt.renamed || stage === "rename";
+      if (uncertain) this.knowledge.delete(request.unit);
+      return { result: uncertain
         ? { kind: "uncertain", attemptId: request.attemptId, unit: request.unit, generation: request.generation,
             observedAt: now.wallTimeMs, stage: stage === "verify" ? "ack" : stage as "rename" | "directorySync", encodedByteLength: byteLength }
         : { kind: "failed", attemptId: request.attemptId, unit: request.unit, generation: request.generation,
@@ -461,6 +484,7 @@ class CheckpointCoordinator<UnitStates extends RuntimeUnitStates = RuntimeUnitSt
       return { result: { ...identity, kind: "acknowledged", ackAt: this.readClock().wallTimeMs }, measurements };
     } catch (error) {
       attempt.failedStage = stage;
+      this.knowledge.delete(unit); // AC02(4): only a successful reconciliation keeps the memory restoreUnit just set.
       measure("failed");
       this.emitDiagnostic(this.scheduleRetry(attemptId, attempt, this.readClock(), "ackUncertain"));
       return { result: stage === "directorySync"
@@ -476,7 +500,8 @@ class CheckpointCoordinator<UnitStates extends RuntimeUnitStates = RuntimeUnitSt
     const failures = (this.retry.get(attempt.unit)?.failures ?? 0) + 1;
     const delay = retryDelays[Math.min(failures - 1, retryDelays.length - 1)];
     this.retry.set(attempt.unit, { failures, retryAfter: clock.monotonicMs + delay, retryReason,
-      request: attempt.request, fileSynced: attempt.fileSynced });
+      held: attempt.request != null && attempt.bytes != null ? { request: attempt.request, bytes: attempt.bytes } : null,
+      fileSynced: attempt.fileSynced });
     attempt.retryRecorded = true;
     return completeDiagnostic({ level: "WARN", component: "checkpoint", reason: "checkpointRetryScheduled",
       unit: attempt.unit, generation: attempt.generation, attemptId, durationMs: delay, count: failures }, clock, attempt.runId);
@@ -502,12 +527,6 @@ class CheckpointCoordinator<UnitStates extends RuntimeUnitStates = RuntimeUnitSt
     // Exact owned paths only; old slot-specific tmp files never participate in restore.
     for (const name of [`${unit}.json.tmp`, `${unit}-A.json.tmp`, `${unit}-B.json.tmp`])
       this.fileSystem.unlinkSync(join(this.directory, name));
-  }
-
-  private latestValidSlot(unit: UnitId, codec: UnitCodec<unknown, JsonValue>): SlotRead | null {
-    return (["A", "B"] as const).map((slot) => this.readSlot(unit, slot, codec))
-      .filter((value): value is SlotRead => typeof value !== "string")
-      .reduce<SlotRead | null>((latest, value) => latest == null || value.envelope.generation > latest.envelope.generation ? value : latest, null);
   }
 
   private readSlot(unit: UnitId, slot: Slot, codec: UnitCodec<unknown, JsonValue>): SlotRead | SlotInvalid {
