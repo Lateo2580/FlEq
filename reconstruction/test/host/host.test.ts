@@ -1,7 +1,7 @@
 import { execFileSync } from "node:child_process";
 import { existsSync, promises as fileSystem, readFileSync } from "node:fs";
 import { get } from "node:http";
-import type { AddressInfo } from "node:net";
+import type { AddressInfo, Socket } from "node:net";
 import { connect, createServer } from "node:net";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
@@ -11,9 +11,34 @@ import type { WebSocket } from "ws";
 
 import type { P2HostObservation } from "../../contracts/p2-eew-e01.types";
 import type { DisplaySnapshot } from "../../contracts/p2-snapshot-sse.types";
+import type { DmdataSubscription } from "../../contracts/p3-dmdata-connect.types";
+import type { DmdataSocket, SocketCloseResult, SocketListResult, SocketStartResult } from "../../src/host/dmdata-rest";
 import { startP2Host } from "../../src/host/host";
+import type { P2HostConfig } from "../../src/host/host";
+import { RuntimeCompositionRoot } from "../../src/runtime/composition-root";
 
 const hook = vi.hoisted(() => ({ beforeDecode: null as (() => void) | null, probeGate: null as Promise<void> | null }));
+// P3-C2-AC09: no test reaches dmdata. Every host REST call goes to the test's handler; a call without one fails the test.
+const rest = vi.hoisted(() => ({
+  list: null as ((status: "open" | "waiting") => Promise<SocketListResult>) | null,
+  close: null as ((id: number) => Promise<SocketCloseResult>) | null,
+  start: null as (() => Promise<SocketStartResult>) | null,
+  calls: [] as string[],
+  subscriptions: [] as DmdataSubscription[],
+  unmocked: [] as string[],
+}));
+vi.mock("../../src/host/dmdata-rest", () => {
+  const unmocked = (name: string) => { rest.unmocked.push(name); return Promise.resolve({ kind: "failed" as const }); };
+  return {
+    listSockets: (_apiKey: string, status: "open" | "waiting") => { rest.calls.push(`list:${status}`); return rest.list?.(status) ?? unmocked("list"); },
+    closeSocket: (_apiKey: string, id: number) => { rest.calls.push(`delete:${id}`); return rest.close?.(id) ?? unmocked("delete"); },
+    startSocket: (subscription: DmdataSubscription) => {
+      rest.calls.push("start");
+      rest.subscriptions.push(subscription);
+      return rest.start?.() ?? unmocked("start");
+    },
+  };
+});
 // The product notification backends would pop a real notification and play a sound for every EEW; the asset base is real.
 vi.mock("../../src/notification-delivery/adapter", async (importOriginal) => ({
   ...await importOriginal<typeof import("../../src/notification-delivery/adapter")>(),
@@ -46,6 +71,9 @@ afterEach(async () => {
   skew.ms = 0;
   vi.useRealTimers();
   for (const cleanup of cleanups.splice(0).reverse()) await cleanup();
+  const unmocked = rest.unmocked.splice(0);
+  Object.assign(rest, { list: null, close: null, start: null, calls: [], subscriptions: [] });
+  expect(unmocked).toEqual([]);
 });
 
 async function until(condition: () => boolean | Promise<boolean>, milliseconds = 8_000): Promise<void> {
@@ -301,5 +329,439 @@ describe("P2-A10-T06 host wiring (AC12, AC13)", () => {
       { cwd: tmpdir(), encoding: "utf8" });
     expect(path).toBe(resolve("reconstruction/assets/sounds/weather-info.wav"));
     expect(existsSync(path)).toBe(true);
+  });
+});
+
+const subscription: DmdataSubscription = { apiKey: "KEY-SECRET-2", appName: "fleq-p3-test", classifications: ["eew.forecast", "eew.warning"] };
+const socketOf = (id: number, appName: string | null, status = "open"): DmdataSocket => ({ id, appName, status, classifications: ["eew.forecast"] });
+const listing = (open: readonly DmdataSocket[], waiting: readonly DmdataSocket[] = []) =>
+  async (status: "open" | "waiting"): Promise<SocketListResult> => ({ kind: "ok", sockets: status === "open" ? open : waiting });
+const failed = async () => ({ kind: "failed" as const });
+const opened = (url: string, id: number) => async (): Promise<SocketStartResult> => ({ kind: "ok", id, url, protocol: ["dmdata.v2"] });
+const deletes = () => rest.calls.filter((call) => call.startsWith("delete:"));
+const turn = () => new Promise((done) => setImmediate(done));
+// Real time while setTimeout is faked (the host tick stays a real setInterval).
+const pause = (milliseconds: number) => { const end = performance.now() + milliseconds; return until(() => performance.now() >= end, milliseconds + 1_000); };
+
+async function startDmdata(dirs: Awaited<ReturnType<typeof directories>>, observations: P2HostObservation[] = []) {
+  const host = await startP2Host({ dmdata: subscription, ...dirs, displayPort: 0, clock, observe: (o) => { observations.push(o); } });
+  cleanups.push(() => host.stop().then(() => {}, () => {}));
+  return host;
+}
+type HostLine = { level: string; reason: string; count?: number; durationMs?: number };
+async function hostLines(dir: string): Promise<HostLine[]> {
+  return (await diagnostics(dir)).split("\n").filter((line) => line.includes('"component":"host"')).map((line): HostLine => JSON.parse(line));
+}
+async function firstLine(dir: string, reason: string): Promise<HostLine> {
+  await until(async () => (await hostLines(dir)).some((line) => line.reason === reason));
+  return (await hostLines(dir)).find((line) => line.reason === reason)!;
+}
+// WARN and ERROR carry neither count nor durationMs (AC05).
+function expectBare(line: HostLine, level: "WARN" | "ERROR"): void {
+  expect(line.level).toBe(level);
+  expect(line).not.toHaveProperty("count");
+  expect(line).not.toHaveProperty("durationMs");
+}
+// Waits until the host has handled the close (dispatchLost and the reconnect timer happen together).
+// disconnectedAt has 1 ms resolution and a fake-timer reconnect can follow the previous loss within that millisecond,
+// so the test clock moves 1 s first: each loss then has its own disconnectedAt and its own snapshot.
+async function lose(port: number, ws: WebSocket): Promise<void> {
+  const before = (await snapshot(port)).connection.disconnectedAt;
+  skew.ms += 1_000;
+  ws.terminate();
+  await until(async () => (await snapshot(port)).connection.disconnectedAt !== before);
+}
+function refused(port: number): Promise<void> {
+  return new Promise<void>((done, fail) => {
+    const connection = connect(port, "127.0.0.1", () => { connection.destroy(); fail(new Error("display server open")); });
+    connection.on("error", () => done());
+  });
+}
+
+describe("P3-DMDATA-CONNECT-001 live dmdata entry, connection and liveness", () => {
+  it("P3-C2-T01: { dmdata } lists then starts, opens the start URL with its subprotocol, records start; data reaches the snapshot after T0", async () => {
+    const server = await localServer();
+    const dirs = await directories();
+    const observations: P2HostObservation[] = [];
+    rest.list = listing([socketOf(3, "fleq")]);
+    rest.start = opened(server.url, 41);
+    rest.close = async () => ({ kind: "ok" });
+    const host = await startDmdata(dirs, observations);
+    expect(rest.calls).toEqual(["list:open", "list:waiting", "start"]);
+    expect(rest.subscriptions).toEqual([subscription]);
+    await until(() => server.sockets.length === 1);
+    expect(server.sockets[0].protocol).toBe("dmdata.v2");
+    // dmdata granted eew.forecast only: eew.warning is narrowed away.
+    server.sockets[0].send(JSON.stringify({ type: "start", socketId: 41, classifications: ["eew.forecast"] }));
+    expectBare(await firstLine(dirs.diagnosticDirectory, "dmdataSubscriptionNarrowed"), "WARN");
+    expect((await hostLines(dirs.diagnosticDirectory)).filter((line) => line.reason === "dmdataSocketStarted"))
+      .toEqual([expect.objectContaining({ level: "INFO", count: 41 })]);
+    expect(observations.filter((o) => o.kind === "controlFrame")).toEqual([expect.objectContaining({ frameType: "start", errorClose: null })]);
+    server.sockets[0].send(dataFrame("VXSE43", vxse43));
+    await until(async () => (await snapshot(host.displayPort)).current.eew.items.length > 0);
+    const t0 = observations.find((o) => o.kind === "marker" && o.point === "T0");
+    const decode = observations.find((o) => o.kind === "decode");
+    if (t0?.kind !== "marker" || decode?.kind !== "decode") throw new Error("T0 or decode observation missing");
+    expect(t0.monotonicMs).toBeLessThanOrEqual(decode.startedMonotonicMs);
+  });
+
+  it("P3-C2-T01: an invalid subscription rejects before the display server and REST; appName fleq rejects before REST; the sources are exclusive", async () => {
+    const dirs = await directories();
+    // The port is taken: a display server started before the check would fail with another error.
+    const taken = createServer().listen(0, "127.0.0.1");
+    await new Promise((done) => taken.once("listening", done));
+    cleanups.push(() => new Promise<void>((done) => taken.close(() => done())));
+    const invalid: DmdataSubscription[] = [{ ...subscription, classifications: [] }, { ...subscription, apiKey: " " },
+      { ...subscription, classifications: ["eew.forecast", "eew.forecast"] },
+      // @ts-expect-error an unknown classification is the input under test
+      { ...subscription, classifications: ["telegram.unknown"] }];
+    for (const dmdata of invalid) {
+      const error = await startP2Host({ dmdata, ...dirs, displayPort: (taken.address() as AddressInfo).port, clock, observe: null })
+        .catch((rejected: Error) => rejected);
+      expect((error as Error).message).toBe("invalid dmdata subscription");
+    }
+    const displayPort = await freePort();
+    const error = await startP2Host({ dmdata: { ...subscription, appName: "fleq" }, ...dirs, displayPort, clock, observe: null })
+      .catch((rejected: Error) => rejected);
+    expect((error as Error).message).toBe("new and legacy appName must differ");
+    await refused(displayPort);
+    expect(rest.calls).toEqual([]);
+    // @ts-expect-error { wsUrl } and { dmdata } cannot both be given
+    const both: P2HostConfig = { wsUrl: "ws://127.0.0.1:1/", dmdata: subscription, ...dirs, displayPort: 0, clock, observe: null };
+    expect(both).toBeDefined();
+  });
+
+  it("P3-C2-T02: only the own socket is closed, before the next start; a released id is not counted; a vanished id is forgotten; stop() closes the own socket", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    const server = await localServer();
+    const dirs = await directories();
+    // Another process with the same appName, another app, and a waiting socket: counted, never closed.
+    const others = [socketOf(7, subscription.appName), socketOf(8, "other-app")];
+    let own: DmdataSocket[] = [];
+    let nextId = 21;
+    rest.list = async (status) => ({ kind: "ok", sockets: status === "open" ? [...others, ...own] : [socketOf(9, null, "waiting")] });
+    rest.start = async () => {
+      const id = nextId++;
+      own = [socketOf(id, subscription.appName)];
+      return { kind: "ok", id, url: server.url, protocol: ["dmdata.v2"] };
+    };
+    rest.close = async (id) => { own = own.filter((item) => item.id !== id); return { kind: "ok" }; };
+    const host = await startDmdata(dirs);
+    const reconnect = async (index: number) => {
+      await until(() => server.sockets.length === index + 1 && server.sockets[index].readyState === 1);
+      // The pong shows the host side has opened too; a close before that is a handshake failure, not a loss.
+      server.sockets[index].send(JSON.stringify({ type: "ping", pingId: `p${index}` }));
+      await until(() => server.received.length === index + 1);
+      await lose(host.displayPort, server.sockets[index]);
+      vi.advanceTimersByTime(5_000);
+      await until(() => server.sockets.length === index + 2 && server.sockets[index + 1].readyState === 1);
+      expect(server.sockets.filter((ws) => ws.readyState === 1)).toHaveLength(1);
+    };
+    // Own 21 is listed: it is closed before the next start, and not counted (3 others + 21 + 1 would be 5).
+    await reconnect(0);
+    expect(rest.calls.slice(3)).toEqual(["list:open", "list:waiting", "delete:21", "start"]);
+    // dmdata no longer lists 22: no DELETE, straight to start.
+    own = [];
+    await reconnect(1);
+    expect(rest.calls.slice(7)).toEqual(["list:open", "list:waiting", "start"]);
+    await host.stop();
+    expect(deletes()).toEqual(["delete:21", "delete:23"]);
+    expect(server.sockets.every((ws) => ws.readyState !== 1)).toBe(true);
+  });
+
+  const failures: { name: string; reason: string; list: (status: "open" | "waiting") => Promise<SocketListResult>;
+    start?: () => Promise<SocketStartResult> }[] = [
+    { name: "the open list fails", reason: "dmdataSocketListFailed",
+      list: async (status) => status === "open" ? { kind: "failed" } : { kind: "ok", sockets: [] } },
+    { name: "the waiting list fails", reason: "dmdataSocketListFailed",
+      list: async (status) => status === "waiting" ? { kind: "failed" } : { kind: "ok", sockets: [] } },
+    { name: "four waiting sockets fill the capacity", reason: "dmdataConnectionCapacityExceeded",
+      list: listing([], [1, 2, 3, 4].map((id) => socketOf(id, "other-app", "waiting"))) },
+    { name: "the start fails", reason: "dmdataSocketStartFailed", list: listing([]), start: failed },
+  ];
+  it.each(failures)("P3-C2-T02: when $name: one WARN, no reject, reconnecting, then the next attempts 60 s apart", async ({ reason, list, start }) => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    const dirs = await directories();
+    rest.list = list;
+    rest.start = start ?? null;
+    const host = await startDmdata(dirs);
+    const perAttempt = rest.calls.length;
+    await until(async () => (await snapshot(host.displayPort)).connection.state === "reconnecting");
+    expectBare(await firstLine(dirs.diagnosticDirectory, reason), "WARN");
+    for (const attempt of [2, 3]) {
+      await turn();
+      vi.advanceTimersByTime(59_999);
+      await turn();
+      expect(rest.calls).toHaveLength(perAttempt * (attempt - 1));
+      vi.advanceTimersByTime(1);
+      await until(() => rest.calls.length === perAttempt * attempt);
+    }
+  });
+
+  it("P3-C2-T02: a failed DELETE of the listed own socket writes one WARN and starts nothing until the retry 60 s later", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    const server = await localServer();
+    const dirs = await directories();
+    let own: DmdataSocket[] = [];
+    let nextId = 31;
+    rest.list = async (status) => ({ kind: "ok", sockets: status === "open" ? own : [] });
+    rest.start = async () => { own = [socketOf(nextId, subscription.appName)]; return { kind: "ok", id: nextId++, url: server.url, protocol: ["dmdata.v2"] }; };
+    rest.close = failed;
+    const host = await startDmdata(dirs);
+    await until(() => server.sockets.length === 1 && server.sockets[0].readyState === 1);
+    await lose(host.displayPort, server.sockets[0]);
+    vi.advanceTimersByTime(5_000);
+    expectBare(await firstLine(dirs.diagnosticDirectory, "dmdataSocketCloseFailed"), "WARN");
+    expect(rest.calls.slice(3)).toEqual(["list:open", "list:waiting", "delete:31"]);
+    rest.close = async () => { own = []; return { kind: "ok" }; };
+    await turn();
+    vi.advanceTimersByTime(59_999);
+    await turn();
+    expect(rest.calls).toHaveLength(6);
+    expect(server.sockets).toHaveLength(1);
+    vi.advanceTimersByTime(1);
+    await until(() => server.sockets.length === 2);
+    expect(rest.calls.slice(6)).toEqual(["list:open", "list:waiting", "delete:31", "start"]);
+  });
+
+  it("P3-C2-T02: 401/403 write one ERROR and stop retrying; on the first attempt startP2Host rejects", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    const first = await directories();
+    rest.list = async () => ({ kind: "authRejected" });
+    const error = await startP2Host({ dmdata: subscription, ...first, displayPort: 0, clock, observe: null }).catch((rejected: Error) => rejected);
+    expect((error as Error).message).toBe("dmdata authentication rejected");
+    const rejections = (await hostLines(first.diagnosticDirectory)).filter((line) => line.reason === "dmdataAuthRejected");
+    expect(rejections).toHaveLength(1);
+    expectBare(rejections[0], "ERROR");
+    // On a reconnect the 401/403 ends the retries; startP2Host had already returned.
+    const server = await localServer();
+    const dirs = await directories();
+    rest.list = listing([]);
+    rest.start = opened(server.url, 45);
+    rest.close = async () => ({ kind: "ok" });
+    const host = await startDmdata(dirs);
+    await until(() => server.sockets.length === 1 && server.sockets[0].readyState === 1);
+    rest.list = async () => ({ kind: "authRejected" });
+    await lose(host.displayPort, server.sockets[0]);
+    vi.advanceTimersByTime(5_000);
+    expectBare(await firstLine(dirs.diagnosticDirectory, "dmdataAuthRejected"), "ERROR");
+    const calls = rest.calls.length;
+    await turn();
+    vi.advanceTimersByTime(600_000);
+    await turn();
+    expect(rest.calls).toHaveLength(calls);
+  });
+
+  it("P3-C2-T02: stop() while the start answer is pending opens no WS and closes the id the answer returns", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    const server = await localServer();
+    rest.list = failed;
+    const host = await startDmdata(await directories());
+    let answer: (result: SocketStartResult) => void = () => {};
+    rest.list = listing([]);
+    rest.start = () => new Promise((done) => { answer = done; });
+    rest.close = async () => ({ kind: "ok" });
+    await turn();
+    vi.advanceTimersByTime(60_000);
+    await until(() => rest.calls.includes("start"));
+    const stopped = host.stop();
+    answer({ kind: "ok", id: 51, url: server.url, protocol: ["dmdata.v2"] });
+    await stopped;
+    await turn();
+    expect(server.sockets).toHaveLength(0);
+    expect(deletes()).toEqual(["delete:51"]);
+  });
+
+  it("P3-C2-T07: an uncertain start writes one WARN and opens no WS without rejecting; the retry 60 s later decides by capacity alone and never adopts or closes an unreturned socket", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    const dirs = await directories();
+    rest.list = listing([]);
+    rest.start = async () => ({ kind: "uncertain" });
+    const host = await startDmdata(dirs);
+    await until(async () => (await snapshot(host.displayPort)).connection.state === "reconnecting");
+    expectBare(await firstLine(dirs.diagnosticDirectory, "dmdataSocketStartUncertain"), "WARN");
+    expect((await hostLines(dirs.diagnosticDirectory)).filter((line) => line.reason === "dmdataSocketStartUncertain")).toHaveLength(1);
+    // The uncertain POST may have left a waiting socket with this appName: counted, never taken as the own one.
+    const leftover = socketOf(61, subscription.appName, "waiting");
+    rest.list = listing([socketOf(7, "a"), socketOf(8, "b")], [leftover]);
+    rest.start = failed;
+    await turn();
+    vi.advanceTimersByTime(59_999);
+    await turn();
+    expect(rest.calls).toHaveLength(3);
+    vi.advanceTimersByTime(1);
+    await until(() => rest.calls.length === 6);
+    expect(rest.calls.slice(3)).toEqual(["list:open", "list:waiting", "start"]);
+    rest.list = listing([socketOf(7, "a"), socketOf(8, "b"), socketOf(9, "c")], [leftover]);
+    await turn();
+    vi.advanceTimersByTime(60_000);
+    await firstLine(dirs.diagnosticDirectory, "dmdataConnectionCapacityExceeded");
+    expect(rest.calls.slice(6)).toEqual(["list:open", "list:waiting"]);
+    await host.stop();
+    expect(deletes()).toEqual([]);
+  });
+
+  it("P3-C2-T05: apiKey, ticket and ipAddress reach no diagnostic, snapshot, rejection or observation", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    const server = await localServer();
+    const dirs = await directories();
+    const observations: P2HostObservation[] = [];
+    const secret = { apiKey: "KEY-SECRET-5", ticket: "TICKET-SECRET-5", ipAddress: "203.0.113.55" };
+    const leaky = { ...socketOf(3, "fleq"), ticket: secret.ticket, ipAddress: secret.ipAddress };
+    const dmdata = { ...subscription, apiKey: secret.apiKey };
+    rest.list = listing([leaky]);
+    rest.start = opened(`${server.url}&ticket=${secret.ticket}`, 71);
+    rest.close = failed;
+    const host = await startP2Host({ dmdata, ...dirs, displayPort: 0, clock, observe: (o) => { observations.push(o); } });
+    cleanups.push(() => host.stop().then(() => {}, () => {}));
+    await until(() => server.sockets.length === 1 && server.sockets[0].readyState === 1);
+    server.sockets[0].send(JSON.stringify({ type: "start", socketId: 71, classifications: ["eew.forecast", "eew.warning"] }));
+    server.sockets[0].send(dataFrame("VXSE43", vxse43));
+    await until(async () => (await snapshot(host.displayPort)).current.eew.items.length > 0);
+    // An error frame (close flag recorded), a failed DELETE of the listed own socket, then an uncertain start.
+    server.sockets[0].send(JSON.stringify({ type: "error", error: { message: secret.ticket, code: 4808 }, close: true }));
+    await until(async () => (await snapshot(host.displayPort)).connection.disconnectedAt != null);
+    expectBare(await firstLine(dirs.diagnosticDirectory, "dmdataErrorFrame"), "WARN");
+    rest.list = listing([leaky, socketOf(71, dmdata.appName)]);
+    vi.advanceTimersByTime(5_000);
+    await firstLine(dirs.diagnosticDirectory, "dmdataSocketCloseFailed");
+    rest.list = listing([leaky]);
+    rest.close = async () => ({ kind: "ok" });
+    rest.start = async () => ({ kind: "uncertain" });
+    await turn();
+    vi.advanceTimersByTime(60_000);
+    await firstLine(dirs.diagnosticDirectory, "dmdataSocketStartUncertain");
+    const shown = JSON.stringify(await snapshot(host.displayPort));
+    await host.stop();
+    rest.list = async () => ({ kind: "authRejected" });
+    const rejected = await startP2Host({ dmdata, ...(await directories()), displayPort: 0, clock, observe: null })
+      .then(() => "resolved", (error: Error) => `${error.message} ${String(error.stack)}`);
+    expect(observations.flatMap((o) => o.kind === "controlFrame" ? [[o.frameType, o.errorClose]] : []))
+      .toEqual([["start", null], ["error", true]]);
+    for (const text of [await diagnostics(dirs.diagnosticDirectory), shown, JSON.stringify(observations), rejected])
+      for (const value of Object.values(secret)) expect(text).not.toContain(value);
+  });
+
+  it("P3-C2-T09: stop() during a pending start begins shutdownRuntime at once with the stop request clock and cuts the cleanup at +30 s", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    const shutdown = vi.spyOn(RuntimeCompositionRoot.prototype, "shutdownRuntime");
+    cleanups.push(() => shutdown.mockRestore());
+    const dirs = await directories();
+    rest.list = failed;
+    const host = await startDmdata(dirs);
+    rest.list = listing([]);
+    let answer: (result: SocketStartResult) => void = () => {};
+    rest.start = () => new Promise((done) => { answer = done; });
+    rest.close = async () => ({ kind: "ok" });
+    await turn();
+    vi.advanceTimersByTime(60_000);
+    await until(() => rest.calls.includes("start"));
+    const requestedAt = clock().wallTimeMs;
+    let settled = false;
+    const stopped = host.stop().then((summary) => { settled = true; return summary; });
+    // A clock read after the cleanup would be 2 s later.
+    skew.ms += 2_000;
+    // shutdownRuntime already started inside stop(), with the stop request clock.
+    expect(shutdown).toHaveBeenCalledTimes(1);
+    expect(shutdown.mock.calls[0][2].wallTimeMs - requestedAt).toBeGreaterThanOrEqual(0);
+    expect(shutdown.mock.calls[0][2].wallTimeMs - requestedAt).toBeLessThan(2_000);
+    // It completes, every stage in time, while the cleanup still waits. Fake time moves only after that:
+    // the shutdown stage deadlines are setTimeouts too, and advancing during a stage would cut it.
+    const summary = await shutdown.mock.results[0].value;
+    expect(summary.reasons).toEqual([]);
+    expect(settled).toBe(false);
+    vi.advanceTimersByTime(29_000);
+    await turn();
+    expect(settled).toBe(false);
+    vi.advanceTimersByTime(1_000);
+    expect(await stopped).toBe(summary);
+    expectBare(await firstLine(dirs.diagnosticDirectory, "dmdataSocketCloseFailed"), "WARN");
+    // A start answer after the cut-off brings no REST after the stop limit (its socket stays, a known residual risk).
+    answer({ kind: "ok", id: 53, url: "ws://127.0.0.1:1/", protocol: ["dmdata.v2"] });
+    await turn();
+    expect(deletes()).toEqual([]);
+  });
+
+  it("P3-C2-T02: stop() in the turn right after the start answer opens no WS, and the returned id is closed", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    const server = await localServer();
+    rest.list = failed;
+    const host = await startDmdata(await directories());
+    let stopped: Promise<unknown> | null = null;
+    rest.list = listing([]);
+    rest.close = async () => ({ kind: "ok" });
+    rest.start = () => {
+      const answer = Promise.resolve<SocketStartResult>({ kind: "ok", id: 52, url: server.url, protocol: ["dmdata.v2"] });
+      // One microtask after the answer: past the stop check that follows the start, before connect() goes on to the WS.
+      void answer.then(() => {}).then(() => { stopped = host.stop(); });
+      return answer;
+    };
+    await turn();
+    vi.advanceTimersByTime(60_000);
+    await until(() => stopped != null);
+    await stopped;
+    // Room for a WS that would still be opening to reach the server.
+    await pause(300);
+    expect(server.sockets).toHaveLength(0);
+    expect(deletes()).toEqual(["delete:52"]);
+  });
+
+  it("P3-C2-T03: pings under 90 s keep the WS; 90 s without a frame cuts it with one WARN, reconnecting, and a new WS after 5 s", async () => {
+    const server = await localServer();
+    const dirs = await directories();
+    const host = await start(server.url, dirs);
+    await until(() => server.sockets.length === 1 && server.sockets[0].readyState === 1);
+    skew.ms += 60_000;
+    server.sockets[0].send(JSON.stringify({ type: "ping", pingId: "p1" }));
+    await until(() => server.received.length === 1);
+    skew.ms += 60_000;
+    await new Promise((done) => setTimeout(done, 1_300));
+    expect(server.sockets[0].readyState).toBe(1);
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    skew.ms += 30_000;
+    await until(() => server.sockets[0].readyState === 3);
+    await until(async () => (await snapshot(host.displayPort)).connection.state === "reconnecting");
+    expectBare(await firstLine(dirs.diagnosticDirectory, "connectionLivenessExpired"), "WARN");
+    expect((await hostLines(dirs.diagnosticDirectory)).filter((line) => line.reason === "connectionLivenessExpired")).toHaveLength(1);
+    vi.advanceTimersByTime(4_999);
+    await turn();
+    expect(server.sockets).toHaveLength(1);
+    vi.advanceTimersByTime(1);
+    await until(() => server.sockets.length === 2);
+  });
+
+  it("P3-C2-T03: a server that never answers the upgrade fails the handshake after 15 s", async () => {
+    const held: Socket[] = [];
+    const tcp = createServer((connection) => { held.push(connection); });
+    await new Promise<void>((done) => tcp.listen(0, "127.0.0.1", () => done()));
+    cleanups.push(() => new Promise<void>((done) => { for (const connection of held) connection.destroy(); tcp.close(() => done()); }));
+    const begun = performance.now();
+    const error = await startP2Host({ wsUrl: `ws://127.0.0.1:${(tcp.address() as AddressInfo).port}/`, ...(await directories()),
+      displayPort: 0, clock, observe: null }).catch((rejected: Error) => rejected);
+    expect((error as Error).message).toBe("WebSocket connection failed");
+    expect(performance.now() - begun).toBeGreaterThanOrEqual(14_900);
+  }, 25_000);
+
+  it("P3-C2-T04: after a reconnect, open alone and a malformed start stay reconnecting; a valid start connects within a tick, recovery unchanged", async () => {
+    const server = await localServer();
+    const dirs = await directories();
+    const host = await start(server.url, dirs);
+    await until(() => server.sockets.length === 1 && server.sockets[0].readyState === 1);
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    await lose(host.displayPort, server.sockets[0]);
+    vi.advanceTimersByTime(5_000);
+    await until(() => server.sockets.length === 2 && server.sockets[1].readyState === 1);
+    await pause(1_300);
+    const lost = await snapshot(host.displayPort);
+    expect(lost.connection.state).toBe("reconnecting");
+    server.sockets[1].send(JSON.stringify({ type: "start", socketId: "41", classifications: ["eew.forecast"] }));
+    await until(async () => (await diagnostics(dirs.diagnosticDirectory)).includes("unknown-control"));
+    await pause(1_300);
+    expect((await snapshot(host.displayPort)).connection.state).toBe("reconnecting");
+    server.sockets[1].send(JSON.stringify({ type: "start", socketId: 41, classifications: ["eew.forecast"] }));
+    await until(async () => (await snapshot(host.displayPort)).connection.state === "connected", 2_000);
+    const back = await snapshot(host.displayPort);
+    expect(back.recovery).toEqual(lost.recovery);
+    expect(back.connection).toEqual({ ...lost.connection, state: "connected" });
   });
 });

@@ -50,6 +50,9 @@ const diagnosticReasons = [
   "snapshotStringLimitExceeded", "weatherCurrentCapacityEvicted", "eewCapacityEvicted",
   "notificationAttemptFailed", "notificationExpired", "notificationCapacityEvicted", "notificationAdapterIsolated",
   "routeIgnored", "routeNotPorted", "routeUnlisted",
+  "dmdataSocketStarted", "dmdataSubscriptionNarrowed", "dmdataSocketListFailed", "dmdataConnectionCapacityExceeded",
+  "dmdataSocketStartFailed", "dmdataSocketStartUncertain", "dmdataSocketCloseFailed", "dmdataAuthRejected",
+  "dmdataErrorFrame", "connectionLivenessExpired",
 ] satisfies readonly DiagnosticReason[];
 
 function lineFor(source: DiagnosticEvent, occurrences = 1): QueueEntry {

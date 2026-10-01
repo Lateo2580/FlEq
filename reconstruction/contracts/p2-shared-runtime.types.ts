@@ -235,7 +235,11 @@ export type InfrastructureDiagnosticReason =
   | "shutdownStarted" | "shutdownUnsavedUnits"
   | "diagnosticSinkFailed" | "diagnosticQueueOverflow"
   | "snapshotNoticeCapacityExceeded" | "snapshotCommonBudgetExceeded"
-  | "snapshotStringLimitExceeded";
+  | "snapshotStringLimitExceeded"
+  // P3-DMDATA-CONNECT-001 (AC05): the live dmdata connection's start, REST stage, error frame and liveness.
+  | "dmdataSocketStarted" | "dmdataSubscriptionNarrowed" | "dmdataSocketListFailed" | "dmdataConnectionCapacityExceeded"
+  | "dmdataSocketStartFailed" | "dmdataSocketStartUncertain" | "dmdataSocketCloseFailed" | "dmdataAuthRejected"
+  | "dmdataErrorFrame" | "connectionLivenessExpired";
 
 export type DiagnosticReason = ParserDiagnosticReason | RejectionReason | InfrastructureDiagnosticReason
   | "weatherCurrentCapacityEvicted" | "eewCapacityEvicted"

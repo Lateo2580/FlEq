@@ -106,7 +106,9 @@ export type P2HostObservation =
   | Readonly<{ kind: "decode"; runId: string; inputId: string; startedMonotonicMs: number; endedMonotonicMs: number }>
   | Readonly<{ kind: "publishSerialization"; displayVersion: DisplayVersion; bytes: number; durationMs: number }>
   | Readonly<{ kind: "processing"; measurement: ProcessingMeasurement }>
-  | Readonly<{ kind: "checkpoint"; measurement: CheckpointMeasurement }>;
+  | Readonly<{ kind: "checkpoint"; measurement: CheckpointMeasurement }>
+  // P3-C2-START-RECORD: control frame receipt for the live dmdata evidence. errorClose is an error frame's boolean close, else null.
+  | Readonly<{ kind: "controlFrame"; frameType: "start" | "ping" | "error"; monotonicMs: number; errorClose: boolean | null }>;
 
 export type ReplayLoad = Readonly<{
   id: LoadProfileId;

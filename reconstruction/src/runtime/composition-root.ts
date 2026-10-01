@@ -401,6 +401,9 @@ class RuntimeCompositionRoot {
   // P2-A10-AC13: lastInputAt is the wall clock at the WS receive callback, rejected inputs included.
   recordInput(wallTimeMs: number): void { this.lastInputAt = wallTimeMs; }
 
+  // P3-C2-AC06: a well-formed start on the current WS ends reconnecting without waiting for data; confirmation state stays.
+  recordConnected(): void { this.lostThroughSequence = null; }
+
   private connectionView(state: RuntimeState): DisplayConnectionView {
     return { state: state.shutdown.stage !== "running" ? "stopped" : this.lostThroughSequence == null ? "connected" : "reconnecting",
       disconnectedAt: this.disconnectedAt, lastInputAt: this.lastInputAt };
