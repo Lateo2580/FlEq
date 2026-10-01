@@ -311,6 +311,8 @@ class CheckpointCoordinator<UnitStates extends RuntimeUnitStates = RuntimeUnitSt
             throw new Error("existing checkpoint did not verify");
           measurements.push(this.measurement(request, stage, started, this.readClock().monotonicMs,
             byteLength, "succeeded", runId, attempt));
+          // The attempt's ack overrides whatever a restoreUnit() during the sync left in memory.
+          this.knowledge.set(request.unit, { slot: existing.slot, generation: request.generation, sha256: request.envelope.sha256 });
           attempt.acknowledged = true;
           return { result: { kind: "acknowledged", attemptId: request.attemptId, unit: request.unit,
             generation: request.generation, ackAt: this.readClock().wallTimeMs,

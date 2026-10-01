@@ -22,8 +22,11 @@ type SocketStartResult = Readonly<{ kind: "ok"; id: number; url: string; protoco
 // notSent: failed before the request was handed to the OS. lost: handed over, but no complete answer.
 type Exchange = Readonly<{ kind: "notSent" }> | Readonly<{ kind: "lost" }> | Readonly<{ kind: "answered"; status: number; text: string }>;
 
-function exchange(method: "GET" | "POST" | "DELETE", path: string, apiKey: string, body?: object): Promise<Exchange> {
+// signal: the caller's hard stop (the host's stop limit, P3-C2-RES-07). Aborted, the request is destroyed or never sent.
+function exchange(method: "GET" | "POST" | "DELETE", path: string, apiKey: string, signal: AbortSignal | undefined,
+  body?: object): Promise<Exchange> {
   return new Promise((settle) => {
+    if (signal?.aborted) { settle({ kind: "notSent" }); return; }
     let sent = false;
     let settled = false;
     let outgoing: ClientRequest | null = null;
@@ -31,11 +34,13 @@ function exchange(method: "GET" | "POST" | "DELETE", path: string, apiKey: strin
       if (settled) return;
       settled = true;
       clearTimeout(timer);
+      signal?.removeEventListener("abort", lost);
       outgoing?.destroy();
       settle(result);
     };
     const lost = () => end(sent ? { kind: "lost" } : { kind: "notSent" });
     const timer = setTimeout(lost, REQUEST_TIMEOUT_MS);
+    signal?.addEventListener("abort", lost);
     const payload = body == null ? undefined : JSON.stringify(body);
     try {
       outgoing = request({ hostname: "api.dmdata.jp", port: 443, path: `/v2${path}`, method, headers: {
@@ -72,8 +77,8 @@ function parse(text: string): unknown {
 }
 
 /** GET /socket?status=<status>, projected to id, appName, status and classifications. */
-async function listSockets(apiKey: string, status: "open" | "waiting"): Promise<SocketListResult> {
-  const answer = await exchange("GET", `/socket?status=${status}`, apiKey);
+async function listSockets(apiKey: string, status: "open" | "waiting", signal?: AbortSignal): Promise<SocketListResult> {
+  const answer = await exchange("GET", `/socket?status=${status}`, apiKey, signal);
   if (answer.kind !== "answered") return { kind: "failed" };
   if (!success(answer.status)) return refusal(answer.status);
   const body = parse(answer.text);
@@ -91,8 +96,8 @@ async function listSockets(apiKey: string, status: "open" | "waiting"): Promise<
 }
 
 /** DELETE /socket/{id}. Success is 2xx (an empty 204 included, a body must say ok) or 404 (already gone). */
-async function closeSocket(apiKey: string, id: number): Promise<SocketCloseResult> {
-  const answer = await exchange("DELETE", `/socket/${id}`, apiKey);
+async function closeSocket(apiKey: string, id: number, signal?: AbortSignal): Promise<SocketCloseResult> {
+  const answer = await exchange("DELETE", `/socket/${id}`, apiKey, signal);
   if (answer.kind !== "answered") return { kind: "failed" };
   if (answer.status === 404) return { kind: "ok" };
   if (!success(answer.status)) return refusal(answer.status);
@@ -102,8 +107,8 @@ async function closeSocket(apiKey: string, id: number): Promise<SocketCloseResul
 }
 
 /** POST /socket. Failed only before sending or on a fully read non-2xx; any other unclear end is uncertain. */
-async function startSocket(subscription: DmdataSubscription): Promise<SocketStartResult> {
-  const answer = await exchange("POST", "/socket", subscription.apiKey, { classifications: subscription.classifications,
+async function startSocket(subscription: DmdataSubscription, signal?: AbortSignal): Promise<SocketStartResult> {
+  const answer = await exchange("POST", "/socket", subscription.apiKey, signal, { classifications: subscription.classifications,
     test: "no", appName: subscription.appName, formatMode: "raw" });
   if (answer.kind === "notSent") return { kind: "failed" };
   if (answer.kind === "lost") return { kind: "uncertain" };

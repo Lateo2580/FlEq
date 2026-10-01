@@ -112,6 +112,8 @@ async function startP2Host(config: P2HostConfig): Promise<Readonly<{ displayPort
   let attempt: Promise<Attempt> | null = null;
   // The id a successful POST returned to this process, until a DELETE succeeds or a list no longer has it (RES-02).
   let ownSocketId: number | null = null;
+  // Aborted at the stop request + 30 s: every dmdata REST still in flight is destroyed and none starts (RES-07).
+  const halt = new AbortController();
   // Monotonic time of the current WS's open or last frame (P3-C2-LIVENESS).
   let lastFrameAt = 0;
   let overloaded = false;
@@ -284,7 +286,8 @@ async function startP2Host(config: P2HostConfig): Promise<Readonly<{ displayPort
       note("WARN", kind === "uncertain" ? "dmdataSocketStartUncertain" : reason);
       return "retryLater";
     };
-    const [open, waiting] = await Promise.all([listSockets(dmdata.apiKey, "open"), listSockets(dmdata.apiKey, "waiting")]);
+    const [open, waiting] = await Promise.all([listSockets(dmdata.apiKey, "open", halt.signal),
+      listSockets(dmdata.apiKey, "waiting", halt.signal)]);
     if (stopping != null) return "stopped";
     if (open.kind !== "ok" || waiting.kind !== "ok")
       return refused(open.kind === "authRejected" || waiting.kind === "authRejected" ? "authRejected" : "failed", "dmdataSocketListFailed");
@@ -292,7 +295,7 @@ async function startP2Host(config: P2HostConfig): Promise<Readonly<{ displayPort
     let released: number | null = null;
     // Only the id this process got back is ever closed; every other socket is counted, never closed (P3-C2-OWNERSHIP).
     if (ownSocketId != null && listed.some((item) => item.id === ownSocketId)) {
-      const closed = await closeSocket(dmdata.apiKey, ownSocketId);
+      const closed = await closeSocket(dmdata.apiKey, ownSocketId, halt.signal);
       // Forgotten before the stop check, so stop() does not DELETE the same id again.
       if (closed.kind === "ok") { released = ownSocketId; ownSocketId = null; }
       if (stopping != null) return "stopped";
@@ -300,7 +303,7 @@ async function startP2Host(config: P2HostConfig): Promise<Readonly<{ displayPort
     }
     ownSocketId = null;
     if (listed.filter((item) => item.id !== released).length + 1 > SOCKET_LIMIT) return refused("failed", "dmdataConnectionCapacityExceeded");
-    const started = await startSocket(dmdata);
+    const started = await startSocket(dmdata, halt.signal);
     if (started.kind === "ok") ownSocketId = started.id;
     if (stopping != null) return "stopped";
     if (started.kind !== "ok") return refused(started.kind, "dmdataSocketStartFailed");
@@ -362,20 +365,21 @@ async function startP2Host(config: P2HostConfig): Promise<Readonly<{ displayPort
   }
   const tickTimer = setInterval(tick, TICK_MS);
 
-  // P3-C2-RES-07: let the attempt in flight settle, then DELETE the own socket once; both cut at the stop request + 30 s.
+  // P3-C2-RES-07: let the attempt in flight settle, then DELETE the own socket once. At the stop request + 30 s the
+  // REST still in flight is destroyed (halt) and the wait ends.
   async function releaseOwnSocket(deadlineMonotonicMs: number): Promise<void> {
     const dmdata = config.dmdata;
     if (dmdata == null) return;
     let timer: NodeJS.Timeout | undefined;
-    let cutOff = false;
     const expired = new Promise<"expired">((done) => {
-      timer = setTimeout(() => { cutOff = true; done("expired"); }, deadlineMonotonicMs - clock().monotonicMs);
+      timer = setTimeout(() => { halt.abort(); done("expired"); }, deadlineMonotonicMs - clock().monotonicMs);
     });
     const released = (async () => {
       await attempt;
-      // An attempt that settles after the cut-off leaves its socket: no REST after the stop limit.
-      if (cutOff || ownSocketId == null) return "ok";
-      const closed = await closeSocket(dmdata.apiKey, ownSocketId);
+      if (ownSocketId == null) return "ok";
+      // No DELETE starts at or after the limit, even before its timer has run: that socket stays (residual risk).
+      if (halt.signal.aborted || clock().monotonicMs >= deadlineMonotonicMs) return "expired";
+      const closed = await closeSocket(dmdata.apiKey, ownSocketId, halt.signal);
       if (closed.kind === "ok") ownSocketId = null;
       return closed.kind;
     })();

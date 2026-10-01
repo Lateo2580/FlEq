@@ -22,7 +22,7 @@ const hook = vi.hoisted(() => ({ beforeDecode: null as (() => void) | null, prob
 const rest = vi.hoisted(() => ({
   list: null as ((status: "open" | "waiting") => Promise<SocketListResult>) | null,
   close: null as ((id: number) => Promise<SocketCloseResult>) | null,
-  start: null as (() => Promise<SocketStartResult>) | null,
+  start: null as ((signal?: AbortSignal) => Promise<SocketStartResult>) | null,
   calls: [] as string[],
   subscriptions: [] as DmdataSubscription[],
   unmocked: [] as string[],
@@ -32,10 +32,10 @@ vi.mock("../../src/host/dmdata-rest", () => {
   return {
     listSockets: (_apiKey: string, status: "open" | "waiting") => { rest.calls.push(`list:${status}`); return rest.list?.(status) ?? unmocked("list"); },
     closeSocket: (_apiKey: string, id: number) => { rest.calls.push(`delete:${id}`); return rest.close?.(id) ?? unmocked("delete"); },
-    startSocket: (subscription: DmdataSubscription) => {
+    startSocket: (subscription: DmdataSubscription, signal?: AbortSignal) => {
       rest.calls.push("start");
       rest.subscriptions.push(subscription);
-      return rest.start?.() ?? unmocked("start");
+      return rest.start?.(signal) ?? unmocked("start");
     },
   };
 });
@@ -642,20 +642,25 @@ describe("P3-DMDATA-CONNECT-001 live dmdata entry, connection and liveness", () 
       for (const value of Object.values(secret)) expect(text).not.toContain(value);
   });
 
-  it("P3-C2-T09: stop() during a pending start begins shutdownRuntime at once with the stop request clock and cuts the cleanup at +30 s", async () => {
+  it("P3-C2-T09: stop() during a pending start begins shutdownRuntime at once with the stop request clock; at +30 s the REST in flight is destroyed and none starts", async () => {
     vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
     const shutdown = vi.spyOn(RuntimeCompositionRoot.prototype, "shutdownRuntime");
     cleanups.push(() => shutdown.mockRestore());
-    const dirs = await directories();
-    rest.list = failed;
-    const host = await startDmdata(dirs);
-    rest.list = listing([]);
-    let answer: (result: SocketStartResult) => void = () => {};
-    rest.start = () => new Promise((done) => { answer = done; });
-    rest.close = async () => ({ kind: "ok" });
-    await turn();
-    vi.advanceTimersByTime(60_000);
-    await until(() => rest.calls.includes("start"));
+    // A host whose reconnect attempt waits on a POST that does not answer by itself.
+    const pendingStart = async () => {
+      const dirs = await directories();
+      rest.list = failed;
+      const host = await startDmdata(dirs);
+      rest.list = listing([]);
+      const request: { answer: (result: SocketStartResult) => void; signal: AbortSignal | undefined } = { answer: () => {}, signal: undefined };
+      rest.start = (signal) => new Promise((done) => { request.answer = done; request.signal = signal; });
+      rest.close = async () => ({ kind: "ok" });
+      await turn();
+      vi.advanceTimersByTime(60_000);
+      await until(() => rest.calls.includes("start"));
+      return { dirs, host, request };
+    };
+    const { dirs, host, request } = await pendingStart();
     const requestedAt = clock().wallTimeMs;
     let settled = false;
     const stopped = host.stop().then((summary) => { settled = true; return summary; });
@@ -673,12 +678,24 @@ describe("P3-DMDATA-CONNECT-001 live dmdata entry, connection and liveness", () 
     vi.advanceTimersByTime(29_000);
     await turn();
     expect(settled).toBe(false);
+    expect(request.signal?.aborted).toBe(false);
     vi.advanceTimersByTime(1_000);
     expect(await stopped).toBe(summary);
+    // The POST still in flight is destroyed at the limit, not only left unwaited.
+    expect(request.signal?.aborted).toBe(true);
     expectBare(await firstLine(dirs.diagnosticDirectory, "dmdataSocketCloseFailed"), "WARN");
-    // A start answer after the cut-off brings no REST after the stop limit (its socket stays, a known residual risk).
-    answer({ kind: "ok", id: 53, url: "ws://127.0.0.1:1/", protocol: ["dmdata.v2"] });
+    // An answer arriving anyway after the limit starts no DELETE (its socket stays, a known residual risk).
+    const callsAtLimit = rest.calls.length;
+    request.answer({ kind: "ok", id: 53, url: "ws://127.0.0.1:1/", protocol: ["dmdata.v2"] });
     await turn();
+    expect(rest.calls).toHaveLength(callsAtLimit);
+    // The monotonic clock is past the limit before the limit's timer has run: still no DELETE starts.
+    const late = await pendingStart();
+    const lateStopped = late.host.stop();
+    await shutdown.mock.results[1].value;
+    skew.ms += 31_000;
+    late.request.answer({ kind: "ok", id: 54, url: "ws://127.0.0.1:1/", protocol: ["dmdata.v2"] });
+    await lateStopped;
     expect(deletes()).toEqual([]);
   });
 

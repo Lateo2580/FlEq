@@ -42,10 +42,36 @@ const sample = (port) => new Promise((done) => {
   }).on("error", () => { evidence.snapshots.push({ ...at, error: "unreachable" }); done(); });
 });
 
-await lists("beforeStart");
 const clock = () => ({ wallTimeMs: Date.now(), monotonicMs: performance.now() });
-let host;
-try {
+let host = null;
+let sampler;
+let stopRequested = false;
+let startupSettled = false;
+// (d) One stop and evidence write. startP2Host's own SIGINT handler starts the same stop; host.stop() returns it.
+let finishing = null;
+const finish = () => finishing ??= (async () => {
+  clearInterval(sampler);
+  const begun = performance.now();
+  if (host == null) evidence.stop = { notStarted: true };
+  else {
+    try {
+      const summary = await host.stop();
+      evidence.stop = { durationMs: performance.now() - begun, code: summary.code, reasons: summary.reasons };
+    } catch { evidence.stop = { durationMs: performance.now() - begun, error: "stop failed" }; }
+  }
+  await lists("afterStop");
+  write();
+  process.stdout.write(`evidence written to ${config.outputPath}\n`);
+  process.exit(0);
+})();
+// Installed before any await: a SIGINT during startup is remembered, and the stop runs once startup has settled.
+process.on("SIGINT", () => {
+  stopRequested = true;
+  if (startupSettled) void finish();
+});
+
+await lists("beforeStart");
+if (!stopRequested) try {
   host = await startP2Host({ dmdata: { apiKey, appName: config.appName, classifications: config.classifications },
     stateDirectory: config.stateDirectory, diagnosticDirectory: config.diagnosticDirectory, displayPort: config.displayPort, clock,
     // (b) frameType, time and the error close flag; no pingId, no body.
@@ -59,21 +85,12 @@ try {
   write();
   process.exit(1);
 }
-evidence.start = { displayPort: host.displayPort, monotonicMs: performance.now() };
-await lists("afterStart");
-await sample(host.displayPort);
-const sampler = setInterval(() => { void sample(host.displayPort); }, 10_000);
-
-// (d) startP2Host's own SIGINT handler starts the stop; this one waits for the same stop and writes the evidence.
-process.once("SIGINT", async () => {
-  clearInterval(sampler);
-  const begun = performance.now();
-  try {
-    const summary = await host.stop();
-    evidence.stop = { durationMs: performance.now() - begun, code: summary.code, reasons: summary.reasons };
-  } catch { evidence.stop = { durationMs: performance.now() - begun, error: "stop failed" }; }
-  await lists("afterStop");
-  write();
-  process.stdout.write(`evidence written to ${config.outputPath}\n`);
-  process.exit(0);
-});
+if (host != null) {
+  evidence.start = { displayPort: host.displayPort, monotonicMs: performance.now() };
+  if (!stopRequested) await lists("afterStart");
+  if (!stopRequested) await sample(host.displayPort);
+  // No sampler once a stop was requested.
+  if (!stopRequested) sampler = setInterval(() => { void sample(host.displayPort); }, 10_000);
+}
+startupSettled = true;
+if (stopRequested) void finish();

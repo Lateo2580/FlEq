@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { closeSocket, listSockets, startSocket } from "../../src/host/dmdata-rest";
 
-type Outgoing = EventEmitter & { destroy(): void; end(payload?: string): void };
+type Outgoing = EventEmitter & { destroyed: boolean; destroy(): void; end(payload?: string): void };
 type Exchange = { options: RequestOptions; payload: string | undefined; outgoing: Outgoing; onResponse: (response: EventEmitter) => void };
 // P3-C2-AC09: node:https never reaches the network here; each request is answered by the test's handler.
 const https = vi.hoisted(() => ({ exchanges: [] as unknown[], handle: null as ((exchange: never) => void) | null }));
@@ -12,7 +12,8 @@ vi.mock("node:https", async () => {
   const { EventEmitter: Emitter } = await import("node:events");
   return { request: (options: unknown, onResponse: unknown) => {
     const outgoing = Object.assign(new Emitter(), {
-      destroy: () => {},
+      destroyed: false,
+      destroy: () => { outgoing.destroyed = true; },
       end: (payload?: string) => {
         const exchange = { options, payload, outgoing, onResponse };
         https.exchanges.push(exchange);
@@ -117,6 +118,21 @@ describe("P3-C2-T08 dmdata REST boundary (AC01, AC08)", () => {
     // Connection refused: the request never reached the socket.
     https.handle = (exchange: Exchange) => { exchange.outgoing.emit("error", new Error(`connect ECONNREFUSED ${API_KEY}`)); };
     await run("failed");
+    // The caller's stop limit (P3-C2-RES-07): an aborted signal sends nothing; an abort while waiting destroys the request at once.
+    const sentBefore = exchanges().length;
+    const stopped = new AbortController();
+    stopped.abort();
+    expect(await closeSocket(API_KEY, 12, stopped.signal)).toEqual({ kind: "failed" });
+    expect(exchanges()).toHaveLength(sentBefore);
+    https.handle = (exchange: Exchange) => { exchange.outgoing.emit("finish"); };
+    const halt = new AbortController();
+    let aborted: unknown = null;
+    void startSocket(subscription, halt.signal).then((result) => { aborted = result; });
+    expect(exchanges().at(-1)!.outgoing.destroyed).toBe(false);
+    halt.abort();
+    await new Promise((done) => setImmediate(done));
+    expect(aborted).toEqual({ kind: "uncertain" });
+    expect(exchanges().at(-1)!.outgoing.destroyed).toBe(true);
     // Sent, then no answer: the 15 s limit makes it uncertain.
     vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
     https.handle = (exchange: Exchange) => { exchange.outgoing.emit("finish"); };

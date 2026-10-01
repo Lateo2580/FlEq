@@ -344,8 +344,13 @@ describe("P2 checkpoint", () => {
 class RecordingFileSystem extends MemoryCheckpointFileSystem {
   readonly calls: string[] = [];
   syncGate: Promise<void> | null = null;
+  readFails = false;
   unlinkSync(path: string): void { this.calls.push("unlink"); super.unlinkSync(path); }
-  readFile(path: string): Uint8Array | null { this.calls.push("readFile"); return super.readFile(path); }
+  readFile(path: string): Uint8Array | null {
+    this.calls.push("readFile");
+    if (this.readFails) throw new Error("EIO: transient read failure");
+    return super.readFile(path);
+  }
   async open(path: string): Promise<WritableCheckpoint> {
     this.calls.push("open");
     const file = await super.open(path);
@@ -433,6 +438,42 @@ describe("P3-C1 checkpoint step 1", () => {
       .toEqual(["write", "fileSync", "close", "rename", "directorySync"]);
     adapter.calls.length = 0;
     const next = await save(retry.state, 2, 30_000);
+    expect(next.output.result.kind).toBe("acknowledged");
+    expect(adapter.calls.filter((call) => call === "readFile")).toHaveLength(0);
+    await root.diagnostics.flush();
+  });
+
+  it("P3-C1-T02 contractBoundary / AC02: a restoreUnit failing during the same-generation directory sync is overridden by the ack; the next save reads nothing", async () => {
+    const path = await directory();
+    const adapter = new RecordingFileSystem();
+    const { root, save } = p3Root(path, adapter);
+    root.restoreUnit("U-F");
+    // g1 reaches its slot but the directory sync fails, and the reconciliation cannot read: g1 is retried as is.
+    adapter.fail = "directorySync";
+    const first = await save(initial(), 1, 10);
+    expect(first.output.result).toMatchObject({ kind: "uncertain", stage: "directorySync" });
+    adapter.fail = null;
+    adapter.readFails = true;
+    const reconciled = await root.resolveUncertain(first.state, "U-F", first.scheduled.request!.attemptId,
+      { wallTimeMs: 5_020, monotonicMs: 20 });
+    adapter.readFails = false;
+    expect(reconciled.state.units["U-F"].persistence).toMatchObject({ kind: "failed" });
+    let release!: () => void;
+    adapter.syncGate = new Promise<void>((resolve) => { release = resolve; });
+    adapter.calls.length = 0;
+    const retry = save(reconciled.state, 1, root.checkpoint.retryAfter("U-F")!, "ackUncertain");
+    while (!adapter.calls.includes("syncDirectory")) await new Promise((resolve) => setImmediate(resolve));
+    // While the found g1 slot's directory sync waits, a public restore fails once and drops the memory.
+    adapter.readFails = true;
+    expect(root.restoreUnit("U-F")).toMatchObject({ kind: "unavailable" });
+    adapter.readFails = false;
+    release();
+    const retried = await retry;
+    expect(retried.output.result.kind).toBe("acknowledged");
+    expect(retried.output.measurements.map((measurement) => measurement.stage)).toEqual(["directorySync", "verify"]);
+    adapter.syncGate = null;
+    adapter.calls.length = 0;
+    const next = await save(retried.state, 2, 30_000);
     expect(next.output.result.kind).toBe("acknowledged");
     expect(adapter.calls.filter((call) => call === "readFile")).toHaveLength(0);
     await root.diagnostics.flush();
