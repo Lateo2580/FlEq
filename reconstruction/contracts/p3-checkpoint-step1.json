@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "87fc5ed341ed3e7a735e0382533a56610f33636a",
-    "sha256": "c765760531d7232e2f014d3c01005ad3491554ab29a3b9c602fd9636d95680d1",
+    "sha256": "df63d03e50c535285dacac5a0240d9ccf4b8eda3c2e45f61a64dc232cbf99cb5",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "76c82b87d7783a4eae14af690cb34e7d6ec46f73617dc75b7f7401951619f080",
     "sequencesSha256": "be9cfd97b555e3a55568f085d107342c978b3dc7249f5cecea868ea5a62c5781",
@@ -75,7 +75,7 @@
     "contractId": "P3-CHECKPOINT-STEP1-001",
     "mode": "implementation",
     "objective": "保存の設計 手順1の②〜④（台帳55）を CheckpointCoordinator の定常保存経路で閉じる。書き手が単位ごとに有効slot・世代・hashを記憶して定常保存の読み直しを0にし、envelopeの直列化を1回にしてhashをその保存bytesに取り、file sync→rename→directory syncの完了だけを保存完了の根拠にする。S5=Aの範囲（保存の途中で止まっても前回の保存は壊れない）をプロセス停止試験と手順確認で検収する。実行場所の分離（C3a）とE15の計測点（C4）は扱わない。",
-    "baseOid": "unassigned",
+    "baseOid": "e7d68a473564caf7db41be4ac4083a693c6d534f",
     "cleanTreeRequired": true,
     "readPaths": [
       "docs/specs/reconstruction-p0-contracts.md",
