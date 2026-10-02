@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "d07d5ac73a2453c4f8475e39cf76afc98ba2c2d0",
-    "sha256": "fde85264f42d0336e2b1ad6770371f2e3ee3c6ccefa7a371e66353086b775604",
+    "sha256": "a4830b580bf7605e10d41750f44b56024de2c8ba0cf534bd2507a0c65b8de0ec",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "76c82b87d7783a4eae14af690cb34e7d6ec46f73617dc75b7f7401951619f080",
     "sequencesSha256": "be9cfd97b555e3a55568f085d107342c978b3dc7249f5cecea868ea5a62c5781",
@@ -40,7 +40,7 @@
         "B": "受理の時計を送出時のpublisherの値に固定し、owner内の経過を業務判定に使わない",
         "recommended": "A",
         "provisional": "A",
-        "ruling": "起草案（作者裁定待ち）",
+        "ruling": "作者裁定A（2026-10-02、推奨どおり）",
         "reason": "見え方の違い: Bは期限直前に送出した電文（VPWP50のvalidUntil、EEWの失効など）をdecode完了時に期限を過ぎていても有効として採用・表示しうる。capturedAtが捕捉した状態より前の時刻になる。Aでは、業務の時刻（採否・表示・保存時刻）、通知結果の採否（期限前のcompletedAtの成功は後で届いてもdelivered）、計測の時刻の基準のいずれもP2と同じ。Aの限界: 注入時計は実時間と同じ速さで進むとみなし、送出後の注入時計の飛び（試験のskew変更）は次の要求から効く"
       },
       {
@@ -76,7 +76,7 @@
         "B": "parser入力の完了ごとにpublisherが他の全ownerへdeadline要求を送る（AC15の上限の内側で合流する）",
         "recommended": "A",
         "provisional": "A",
-        "ruling": "起草案（作者裁定待ち）",
+        "ruling": "作者裁定A（2026-10-02、推奨どおり）",
         "reason": "見え方の違い: Aでは、期限で変わる表示（EEWの失効、気象の有効期限切れ、通知intentの期限回収）が、他分野の電文が先に届いたときに前倒しで出ることが無くなる。期限を適用する機会は1秒周期のtickで、表示への反映にはそのownerの先行処理の待ちと処理時間が加わり、未完了の間のtickは合流する（AC15）ので、1秒以内の反映は保証しない（実際の遅延はC4で測る）。Bは前倒しを残すが、1入力ごとに全ownerを起こし、急ぐownerの処理に別unitの期限処理が挟まる。Aは恒久の変更として扱う"
       },
       {
@@ -103,7 +103,7 @@
         "B": "予約と実際の試行を区別する（提示する設計案）。intentに予約中の状態を持たせ、ownerは予約では試行回数と配送の証拠（U-Eのattempts＞0）を進めず、adapterの起動を確認してから進める。この案の変更範囲: NotificationIntentの型と3 unitのcodec（永続schemaの変更と旧データの移行）、A7の再試行間隔の計算、U-EのdeliveryEvidenceの判定で、C3aのfile所有（units/*・domains/*・notification-delivery）の外なので別契約になる。永続しない予約など別の区別の仕方は未検討で、Bを選ぶ場合はその別契約の起草で設計から決める",
         "recommended": "A",
         "provisional": "A",
-        "ruling": "起草案（作者裁定待ち）",
+        "ruling": "作者裁定A（2026-10-02、推奨どおり）",
         "reason": "見え方の違い: Aでは、ownerが予約を採用した後でpublisherがその予約を無効化した（同じchannelへの上位の緊急通知・shutdown・期限）とき、adapterを一度も呼んでいないのに試行1回と数える。その結果 (i) そのintentの最初の実配送が失敗したときの再試行待ちが1秒でなく2秒になる（以後も1段ずれる、A7の1・2・4・8・10秒）(ii) U-Eでは配送の証拠がpossibleになり、元のEEW通知を一度も出していないのにその地震の取消で[取消]の通知が出うる。Bはこの2つが起きないが、提示した設計案ではunit・A7・永続schemaに触れる別契約になる。推奨はA: 起きるのは採用と無効化が競合した場合だけで、(ii)は取消を出し過ぎる側（取消を出し損ねる側ではない）の誤りであり、P2も起動後に中断した試行を同じく数える。採用済み回数の巻き戻しはしない。Aでも、取消済みintentの通知を出さないこと（採用してから実行）、上位の緊急通知が予約を待たないこと（spec:958）、結果の捏造をしないことは保つ"
       },
       {
@@ -121,7 +121,7 @@
         "B": "C3aでspec§7.8の停止表示（接続・処理停止の配信、更新未確認の最終情報）まで作る",
         "recommended": "A",
         "provisional": "A",
-        "ruling": "起草案（作者裁定待ち）",
+        "ruling": "作者裁定A（2026-10-02、推奨どおり）",
         "reason": "見え方の違い: Aではownerが落ちると表示サーバーごと止まり、ブラウザはSSEの無受信（45秒でstale、spec:1189）で古さを示すだけで、spec:1198の「停止状態の配信と更新未確認の最終情報」は出ない。Bは停止中も表示を続けるが、C3bの停止監視と同じ仕組みを先に作る。Aの未保証範囲: C3a配送からC3b配送までの間のspec:1198。Aでも、ownerだけが止まってEEWが処理されないままconnectedを表示し続ける状態は作らない"
       },
       {
@@ -130,7 +130,7 @@
         "B": "待ち続ける。段の期限を過ぎても全体30秒の内側では(2)・(4)の待ちを続け、固定を確認できたownerのunitから最終保存する（段の結果はdeadlineExceededのまま記録する）",
         "recommended": "A",
         "provisional": "A",
-        "ruling": "起草案（作者裁定待ち）",
+        "ruling": "作者裁定A（2026-10-02、推奨どおり）",
         "reason": "見え方の違い: どちらも通常の終了では起きず、ownerが段の期限（最大5秒）を超えて応答しないときだけ差が出る。Aでは、(2)の段階で1本のownerが応答しないと、他のownerが正常でも全unitの最新の変更が保存されずに終了code 2になる。(4)の段階では、送信済みのcutoffに対する正しいfinalizeDoneが期限の直後に届いて最終保存の時間が残っていても、そのownerのunitは保存しない。Bは保存できるunitが増えるが、副作用固定の段の5秒の上限（spec:889）を超えて待つ。推奨はA: spec:889の段ごとの上限を保ち、未固定の世代を最終保存の成功と呼ばない（spec§5.9の5、E20の保存未確認のcode 0は0）。終了codeはどちらも既存の優先順3→2→4"
       },
       {
@@ -144,6 +144,14 @@
       }
     ],
     "questionResolutions": [
+      {
+        "id": "Q-C3A-AUTHOR-RULINGS",
+        "status": "closed",
+        "source": "作者裁定（2026-10-02、5件とも推奨どおりA）",
+        "closed": "P3-C3A-CLOCK・P3-C3A-DEADLINES・P3-C3A-OWNER-FAILURE・P3-C3A-NOTIFY-ADOPT・P3-C3A-FINALIZE-TIMEOUTはすべてA。各分岐のruling欄に記録した",
+        "remaining": "なし",
+        "reason": "unresolvedQuestionsのQ-C3A-AUTHOR-RULINGS（baseOidの割当の前）を閉じる"
+      },
       {
         "id": "P3-C3A-DEP-C1-C2",
         "status": "inProgress",
@@ -660,7 +668,7 @@
       },
       {
         "id": "P3-C3A-AC10",
-        "requirement": "ownerの予期しない停止（P3-C3A-OWNER-FAILURE、作者裁定待ち。Aなら暫定例外で期限はC3bの配送まで）: hostはowner threadのerror、またはstop以外でのexitをownerFailedへ渡し、publisherは例外として投げてプロセスを止める。以後その他のownerへ要求を送らず、止まったownerのまま入力の受付・connectedの表示を続けない。ownerを再生成しない。ownerごとの停止監視・停止表示（spec:1198）はC3bで、Aの間は未保証として成果物に書く",
+        "requirement": "ownerの予期しない停止（P3-C3A-OWNER-FAILURE、作者裁定A（2026-10-02）。暫定例外で期限はC3bの配送まで）: hostはowner threadのerror、またはstop以外でのexitをownerFailedへ渡し、publisherは例外として投げてプロセスを止める。以後その他のownerへ要求を送らず、止まったownerのまま入力の受付・connectedの表示を続けない。ownerを再生成しない。ownerごとの停止監視・停止表示（spec:1198）はC3bで、Aの間は未保証として成果物に書く",
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:1198 «45d7a5dc731dd19b»",
           "docs/specs/reconstruction-p0-contracts.md:1200 «a145e7845df709f9»",
@@ -899,22 +907,6 @@
       "spec本文の改訂（計画§4.4の:315・:1024〜1029・:1049・:1157・:1164と、Q-C3A-SPEC-REVISIONで足す行）は実装者が行わない（統合担当が凍結時に行う）"
     ],
     "unresolvedQuestions": [
-      {
-        "id": "Q-C3A-AUTHOR-RULINGS",
-        "owner": "user",
-        "blocks": [
-          "C3aの凍結（baseOidの割当）",
-          "P3-C3A-AC07・AC09・AC10・AC11(b)(c)の確定"
-        ],
-        "resolveBy": "baseOidの割当の前",
-        "requiredEvidence": [
-          "P3-C3A-CLOCK（推奨A: 受理・capture・ackの時刻の意味をP2のまま保つ）の裁定",
-          "P3-C3A-DEADLINES（推奨A: 他分野の電文による期限処理の前倒しを無くし、次の1秒tickで適用）の裁定",
-          "P3-C3A-OWNER-FAILURE（推奨A: C3bの配送までの暫定例外として、ownerの予期しない停止でプロセスを止める）の裁定",
-          "P3-C3A-NOTIFY-ADOPT（推奨A: 予約で試行回数を消費するP2の計数のまま。競合時に再試行待ちが1段ずれ、U-Eで未起動の通知の取消通知が出うる）の裁定",
-          "P3-C3A-FINALIZE-TIMEOUT（推奨A: 副作用固定の段の期限で固定の確認を打ち切り、未固定のownerのunitは最終保存しない）の裁定"
-        ]
-      },
       {
         "id": "Q-C3A-SPEC-REVISION",
         "owner": "integrator",
