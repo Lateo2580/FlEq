@@ -1,0 +1,805 @@
+{
+  "meta": {
+    "draftedFromOid": "fd6e8f33d962ff768120333470aae277c031cc96",
+    "sha256": "3e0ff4ad4353df75dc64497a9044460c242eab02870e2dacdf627ab4de3b79a9",
+    "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
+    "manifestSha256": "76c82b87d7783a4eae14af690cb34e7d6ec46f73617dc75b7f7401951619f080",
+    "sequencesSha256": "be9cfd97b555e3a55568f085d107342c978b3dc7249f5cecea868ea5a62c5781",
+    "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
+    "decisionBranches": [
+      {
+        "id": "P3-C4-COLLISION-VERDICT",
+        "A": "衝突母集団maxVpws50ReceivedThenEewは参考測定にする（manifestの条件でscope \"reference\"・origin \"T0\"。warm-up 100＋1,000×1 run。E01と同じ規則で集計して報告し、P3E01Verdictに入れない）。実送信→T0・T0→T6・実送信→T6を記録し、N7・IR06の閉鎖の証拠に使う。正式E01は残り5母集団（15,000標本）",
+        "B": "衝突母集団を正式（1,000×3 run）にし、起点を投入側の実送信に移して実送信→T6のp99≤250msを合否にする（manifestの条件でscope \"formal\"・origin \"injectorSend\"。工程1の判定の関数と型は両方を扱うので、書き換えはこの2 fieldだけ）。spec§7.5・E01の起点の改訂（行数を変えない置換と被引用のanchorの更新、計画§4.4の形）は、統合担当がmanifest凍結の前に行う",
+        "recommended": "A",
+        "provisional": "A",
+        "ruling": "作者裁定待ち（manifest凍結の前に要る。衝突試験はR57の作者裁定から来た新しい母集団で、合否の置き方が製品の約束を決める）",
+        "reason": "見え方の違い: Aでは、計画が衝突母集団を立てた理由（R57の受信直後の待ち。大きいframeのT0の後、同じcallbackの中で外形parseと受理が同期に走り、後続のEEWのcallbackはその後でしか始まらない）が合否から外れ、その待ちは実送信→T0の報告とP3-C4-INGRESS-JSONでだけ扱う。正式3,300試行の代わりに参考1,100試行で済む（A10の実績1試行3.36秒で約2.0時間短い）。Bでは受信前の待ちも250msの予算に入り、超えたらFailで、同じTCP接続上の転送順（R57で追い越せないと決めた部分）まで合否に入る。起草者の推奨はA: T0の後はEEWがurgent、VPWS50がweatherCurrentのownerで並行し、T0→T6の合否は母集団2とほぼ同じ情報になる。受信前の待ちのうち製品で減らせる部分（外形parse）は、INGRESS-JSONが同じ250msの予算（実送信→T6）で機械的に判定する"
+      },
+      {
+        "id": "P3-C4-INGRESS-JSON",
+        "A": "Macの予備測定（AC08）で衝突母集団を1,000標本取り、実送信→T6を6つの成分（先行するVPWS50のingressJsonMs、実送信→T0のうちそれ以外の残り、T0→T2、T2→T3、T3→T4、T4→T6）に分ける。実送信→T6のp99上界が250msを超え、250msを超えた標本の過半でingressJsonMsが最大の成分なら、16 KiB超のdata frameの外形parseをownerへ移す改訂を別に発注し、manifest凍結はその配送後にする。そうでなければpublisherに残して値を記録する。Pi第1段のingressJsonMsの観測最大とMac/Piの比を報告に添える",
+        "B": "値を問わず16 KiB超のframeの外形parseを先にownerへ移してから測る（spec:1072の形へ寄せる）",
+        "recommended": "A",
+        "provisional": "A",
+        "ruling": "統合担当が発注前点検でAに確定（2026-10-06、レビュー3巡後）（計画§5.1の統合担当の即断。閾値はE01の予算から導くので作者裁定にしない。決めたら作者へ報告する）",
+        "reason": "閾値をE01の予算（実送信→T6の250ms）から導くので、比の条件と絶対値の下限は要らない（レビューM2はこの形で解消）。判定の材料は凍結前の予備測定で取るので、凍結後の測定を待つ循環が無い。成分と集約（超過標本の過半）を固定しておくので、測った後に機械的に決まる。Piの値は判定に使わず添える（台帳63のMac/Pi比約6.3倍を当てると、Macで小さい値でもPiで予算を食いうるので、作者が見られるようにする）。Bの見え方: 外形parseをownerへ移すには、parseの前に行き先を決める仕組みが要る（placeOfHeadTypeとpriorityReasonはhead.typeを使う。head.typeの部分読みか、大きいframeの行き先の固定）ので、16 KiB超の分岐を動かすだけの小さい改訂では済まず、測定の前に境界の変更が1本増える"
+      },
+      {
+        "id": "P3-C4-PI-E03",
+        "A": "PiでE03（最大XMLの処理開始→decision・公開用射影確定）が1秒を大きく超えても、Piに対するE03の上限は変えない。C4はPiの値を予備確認として報告し（Passと呼ばない）、超過なら不要な全量処理・コピー・直列化を削る契約を先に起こす（計画§4.5）",
+        "B": "Piに対するE03の上限を変える",
+        "recommended": "A",
+        "provisional": "A",
+        "ruling": "作者裁定待ち（Pi予備確認の結果が出てから。C4の完了は止めない。Piでの本番判定はP5）",
+        "reason": "見え方の違い: Aでは、Piで大型の気象電文の処理に2秒前後かかる状態（台帳63の単発測定でprocessing 2,400ms）が続く間、同じunitの後続の気象電文の表示はその分遅れ、削減の契約が終わるまで残る。EEWはowner分離で影響を受けない（E01で確かめる）。Bでは上限を満たした扱いになるが、大型通常入力の処理完了の保証と、同じunitの後続処理への影響を失う"
+      },
+      {
+        "id": "P3-C4-MACHINES",
+        "A": "C4の正式測定（E01・E02・E03・E05・E06・E07・E12・E15）はA10と同じMacBook M5で行い、e01:93の再検収条件（同じP・Cの窓）を同じ機械で比べる。その窓のbuild・test・ゲートはMac miniの独立checkoutで回す（reconstruction/dist・node_modulesを共有しない）。予備測定のうち証拠の成立の確認（runnerの試走・短いrun）はMac miniで先に回してよいが、所要と成立率の値はMacBook M5で取る。Pi予備確認は第1段がPi単独、第2段がPi backend＋MacBook M5のChrome。manifestには凍結時のChrome・OS・Nodeの実値を記録し、A10からの差はsmokeConditionDifferencesと同じ形で書く。判定場所（judgmentPlaces、計画§4.5）: E01の本番判定はPi backend＋実接続経路＋MacのChrome、E02・E03・E05〜E07・E14・E15の本番判定はPi（いずれもP5）。C4のMacの結果はe01:93の再検収とE01の正式再検収（R61）の判定で、本番性能の判定と呼ばない。Macは回帰検出、Piは予備確認",
+        "B": "正式測定をMac miniで行い、MacBookを空ける（A10と機械が変わるので、E02-P・E05-PのFail→Passを同じ機械で比べられない）",
+        "recommended": "A",
+        "provisional": "A",
+        "ruling": "統合担当が発注前点検でAに確定（2026-10-06、レビュー3巡後）。Aは計画§3.1のまま。Bは計画§3.1と再検収条件（e01:93の「同じPとCの窓」）を変えるので、Bを選ぶなら作者確認",
+        "reason": "PERF-P3の再検収はA10のFailと同じ条件で比べることが前提で、機械が変わると差が製品の変化か機械の差か分けられない。A10（9/30）以後にChrome・OSが自動更新されていれば完全には同じにならないので、実値と差を残す。Mac mini（作者2026-10-05: 使用可）はゲートと試走に使い、実装レーンを止めない"
+      },
+      {
+        "id": "P3-C4-RUNNER-LIVENESS",
+        "A": "投入側はdmdata形式のping frameを20秒ごとに送る（C2の実接続で観測したdmdataの間隔20秒・最大20.3秒）。hostは既存のpong返送のまま。各窓のframe間隔の最大値（pingを含む）とpingの送出件数を結果に残し、90秒以上の間隔が1つでもあればその窓をBlockedにする",
+        "B": "窓の定義にframe間隔の上限（90秒未満）を入れ、満たさない窓（負荷Nの単独再生）を分割するか負荷を変える",
+        "recommended": "A",
+        "provisional": "A",
+        "ruling": "統合担当が発注前点検でAに確定（2026-10-06、レビュー3巡後）",
+        "reason": "A10の負荷Nは1回の再生の中で最大597,969ms、再生の末尾から先頭へ巡回するときに632,884msの空きを持つ（evidence/manifest.jsonのoffsetsMsとdurationMsからの計算。Pは59,797ms・巡回時63,288ms、Cは20,000ms）ので、Nだけを流す窓（E02-N・E05-N・E07-N）では生存期限で再接続が起きる。Bは負荷Nを変え、A10と同じ負荷で比べる前提を崩す。pingは本番と同じ制御frameで、pong返送の費用も本番と同じ"
+      },
+      {
+        "id": "P3-C4-PARSE-MARK",
+        "A": "full parse開始の観測点を、decodeMaterialがwithinXmlLimitsを通した後、XMLValidator.validateを呼ぶ直前（展開済み本文のXML全文の最初の走査の開始）とし、parseTreeの終了までをparse区間とする。decodeMaterialに省略可能な第2引数（開始・終了の時刻を書き込む小さい記録）を1つ足す。記録にはそのthreadのperformance.now()を書き、ownerがperformance.timeOrigin−start.publisherTimeOriginMsを足してpublisherの基準（C3aの測定時刻）へ直す。ownerは測定の印（OwnerStartData.measured）があるときだけ記録を渡し、無いときOwnerReply.decodeの2 fieldはnull。P1のProcessingMarksの7区間と型は変えず、既存のdurationから逆算しない",
+        "B": "観測点をparseTreeの直前（P1のfullXmlParseMsの起点）にする",
+        "recommended": "A",
+        "provisional": "A",
+        "ruling": "統合担当が発注前点検でAに確定（2026-10-06、レビュー3巡後）。decodeMaterialのsignatureの変更に伴うP1契約（publicFunctions）とC3a契約（OwnerReply・OwnerStartData）の改訂は、統合担当が合流時に記録する",
+        "reason": "validateもparseTreeも全文を走査してownerを塞ぐので、母集団2の「full parse開始直後」は最初の全文走査の開始で捉える。Bは2回目の走査だけを対象にし、validateの間に投入したEEWを母集団から外す。逆算はA10（e01:562の(4)）がdecode開始について禁じたのと同じ理由で採らない"
+      },
+      {
+        "id": "P3-C4-T3-BINDING",
+        "A": "runnerと解析は、入力の版を「観測の到着順（host-obs JSONLの行順）で、その入力のT2の行から、同じ実行場所の次の入力のT2の行まで」に出たT3から結び付ける（単調時刻の順ではない）。入力の実行場所は投入したheadTypeからC3aのplaceOfHeadType（dist）で求める。同じ実行場所の次のT2が窓の終わりまで来ないときは窓の終わりで閉じる。T0の後に拒否された入力（理由はC3bの裁定で増えうる）は、診断の理由の文字列をそのまま持った欠落として数え、理由の種類を列挙しない。製品の観測（T3）にinputIdを足さない",
+        "B": "T3の観測に、公開を起こした返信のinputIdを載せる（P2HostObservationとcomposition-rootの変更）",
+        "recommended": "A",
+        "provisional": "A",
+        "ruling": "統合担当が発注前点検でAに確定（2026-10-06、レビュー3巡後）",
+        "reason": "T2はownerの時刻で、返信の射影の前に観測される（C3aのhost.tsのinputDone）。T3はpublisherの時刻なので、同じ実行場所の次の入力のT2（owner時刻）がXの返信の射影より前に始まることがあり、単調時刻順の窓には自分のT3が入らないことがある。publisherは返信を1件ずつ処理し、返信1件につき公開の直列化は最大1回（C3a配送記録・台帳49の表）なので、行順の窓には必ず入る。別の実行場所のT3はChromeの候補markのsubjectで外れる（A10の規則のまま）。窓の終わりで閉じる規則と理由の文字列のままの欠落で、工程1の判定がC3bの裁定（OWNER-STOP・HUNG-PLACE-INPUT）に依存しない。Bは製品の観測型を変える"
+      },
+      {
+        "id": "P3-C4-WRITE-COUNT",
+        "A": "E15のwrite別計数は製品のfilesystem注入口で数える。owner-workerのnodeCheckpointFileSystem()を、測定の印（OwnerStartData.measured。hostがconfig.observe != nullから作る）があるときだけ数える包みで作り、ownerはfinalizeDoneに累積のcounter（writeCounts、印が無いときnull）を載せる。publisherの診断sinkは既存のcomposition-rootのdiagnosticFileSystem注入口に、hostが同じ包みを渡す。hostは停止時に、threadごと（owner 3本とpublisher）に新しい観測kind writeCountを1回だけ出す。counterは区分（checkpoint slot・tmp・診断log・その他）ごとの回数とbyteだけ",
+        "B": "OSの層で数える（Piの/proc/<pid>/io・Macのfs_usage）",
+        "recommended": "A",
+        "provisional": "A",
+        "ruling": "統合担当が発注前点検でAに確定（2026-10-06、レビュー3巡後）",
+        "reason": "Bは区分（checkpoint・tmp・log）を分けられず、Macでは権限と出力形式が違い、測定成果物のwriteと混ざる。Aは印が無いとき包みを作らないので受信経路の費用は0。startP2Hostのconfigに新しいfieldは要らない（observeの有無で足りる。関数はthreadを越えないのでownerへはserializableな印1つで渡す）。各窓はhostを起動して停止するので、停止時の1回が窓の終わりの1回になる"
+      },
+      {
+        "id": "P3-C4-FAIL-PATH",
+        "A": "C4は観測点・注入口・runner以外の製品の挙動を直さない。正式測定の未達は、spec§7.6の帰属（XML parse・checkpoint encode・射影・整形・転送・描画）と台帳49のviewの複製量で原因を分類し、版付き結果にFail（またはBlocked）として残して作者へ報告する。直し方は別の契約か、C1・C3aの改訂として発注し、直した後は新しい版のmanifestで影響する母集団を再検収する（runnerの--windowsはBlocked・未実施だけを再実行する現行の規則を保つ）",
+        "B": "A10のように、C4の中で最小の修正を足して同じmanifestで測り直す",
+        "recommended": "A",
+        "provisional": "A",
+        "ruling": "統合担当が発注前点検でAに確定（2026-10-06、レビュー3巡後）",
+        "reason": "計画§2.2は保存の故障・実行分離の故障・測定の不備を同じスレッドで切り分ける形を退けた。Bは測定契約が製品の所有ファイル（checkpoint.ts・mailbox.ts・composition-root.ts）を持つことになり、計画§3.2の編集順を崩す。最初の契約群の完了にはE01の正式Passが要る（計画§1.3）ので、Aの代償は再発注と測り直しの分（計画§7で1回につき1〜2日）だけ完了が遅れること"
+      }
+    ],
+    "questionResolutions": [
+      {
+        "id": "P3-C4-DEPS",
+        "status": "closed",
+        "closed": "工程を2つに分ける。工程1（C3bを待たない）: 母集団の対応表、期待する証拠、集計と判定の関数と試験、runnerの準備（試行ごとの成立の判定と窓の打切り、実行場所ごとの版の結び付け、ping、AC15の切断時刻と充填時点の保存、verify段を数えない集計、Pi用のbackend単独の走らせ方）、C3a配置でのPi第1段の先行の回（C3aの性質だけ）。工程2（C3bの配送後）: 新配置への計測点の設置（full parse開始、E14の区間、E15のwrite別計数）、Macの予備測定、Pi予備確認の第1段・第2段（C3bの性質を含む）、manifest凍結、正式測定、結果",
+        "remaining": "工程1のbaseOidは発注前点検で割り当てる（起草はmain fd6e8f33の読み替え。271db561との差はp3-execution-lifecycle.jsonだけで、本契約はそれを行で引用しない）。工程2は、C3bの配送後にhost.ts・composition-root.ts・owner-*.tsのfile:lineを読み替えて契約を改訂し、baseOidを割り当て直す（Q-C4-PHASE2-BASE）",
+        "reason": "計画§3.1「起草の先行」（:114）、§3.2（host.tsはC2→C3a→C3b→C4の順）"
+      },
+      {
+        "id": "Q-C2-RUNNER-LIVENESS",
+        "status": "closed",
+        "closed": "P3-C4-RUNNER-LIVENESS（起草案A）で引き取る。投入側が20秒ごとにping frameを送り、各窓のframe間隔の最大値をmanifestの上限（RES-06）と照合する",
+        "remaining": "A10の負荷の空きは、1回の再生の中でN 597,969ms・P 59,797ms・C 20,000ms、巡回時でN 632,884ms・P 63,288ms（evidence/manifest.jsonのoffsetsMsとdurationMsからの計算値。runnerの実送信間隔は予備測定で確かめる）",
+        "reason": "C2のunresolvedQuestions（p3-dmdata-connect.json:569）"
+      },
+      {
+        "id": "Q-C3A-C4-MEASURES",
+        "status": "closed",
+        "closed": "C3aが送った4項目をAC08（予備測定）とAC07（報告）で引き取る: owner 3本の構成でのRSSとthreadごとのheapUsed・external（RSSは足し合わせない。owner-workerがcomposition-rootをimportしてthreadごとに約+370 KB）、大きいframeのingressJsonMs（P3-C4-INGRESS-JSON）、受信1回あたりのviewの複製回数とbyte（台帳49。C3aの計量はVPWS50でview 620,797 byte・返信622,802 byte）を未達の帰属に使うこと（P3-C4-FAIL-PATH）、通知の初回試行がownerの採用の返信を待つ時間（spec:956の初回1秒の内訳）",
+        "remaining": "なし",
+        "reason": "C3aのunresolvedQuestions（p3-execution-split.json:936）"
+      },
+      {
+        "id": "Q-C3B-E07-C4",
+        "status": "closed",
+        "closed": "E07のNとCの各60分の窓（通常入力の最大待機年齢5秒・入力停止後10秒の排出・周期末backlogの非増加）をAC07でmanifestに入れて測る。C3bのP3-C3B-E07-WINDOWがBに決まったら本項とAC07のE07の節を削る",
+        "remaining": "C3bの裁定待ち（P3-C3B-E07-WINDOWは起草案A）",
+        "reason": "C3bのunresolvedQuestions Q-C3B-E07-C4"
+      },
+      {
+        "id": "P3-C1-E15",
+        "status": "closed",
+        "closed": "C1の後、定常保存にverify段は無い。保存の占有にverifyを数える集計（aux-measures.mjsのsummarizeE15、ac15.mjsのcheckpointWindows）を直し、verify段が出たとき（記憶なしの試行・照合の経路）は別の段として数える。E15の計測点はC3a後の配置に1回だけ置く（工程2）",
+        "remaining": "なし",
+        "reason": "C1のquestionResolutions P3-C1-E15（p3-checkpoint-step1.json:63）"
+      },
+      {
+        "id": "P3-C4-C3A-HANDOVER",
+        "status": "closed",
+        "closed": "C3aの配送記録の引継ぎを本契約に入れた: run.mjsのpublishedByとanalysis.mjsの版の結び付けは「hostは入力を1件ずつ同期に処理」を前提にし、owner 3本の並行では区間が重なる（P3-C4-T3-BINDING）。C3aでT2・decodeの観測は射影の前に移った。smoke.mjsの前にchrome-eewのtscが要る。手動script 2本（chrome-eew/smoke.mjs・integration/private-eew.mjs）は同一プロセスの結線で、製品配置の証拠と呼ばない",
+        "remaining": "なし",
+        "reason": "C3aの配送記録（作業ノート、repo外）"
+      },
+      {
+        "id": "P3-C4-PI-PROPERTIES",
+        "status": "closed",
+        "closed": "C3aとC3bがPiで確かめる性質として書いた項目を、AC09のPi第1段の確認項目に取り込む。工程1（C3a配置の回）はC3aの①〜⑤だけ: ① 大型処理中のEEWのT0→T2が他ownerに引きずられない ② publisherがownerの完了を待たない ③ 書込み権が戻る ④ RSSに明らかな超過が無い ⑤ mailboxとowner宛て要求が一方向に増えない。工程2（C3b配置の回）はC3bの①〜④も: ① 塞がってからunresponsiveまで5秒＋1 tick以内 ② 大型処理中（約2.4秒）のownerがstalled・unresponsiveにならない ③ 終了の段ごとの所要と最終保存10秒以内（U-E・U-W・U-Fの同時dirty） ④ owner 3本のexitが5秒以内",
+        "remaining": "C3bの項目はC3bの裁定（OWNER-STOP・FINALIZE-UNHEALTHY・HUNG-PLACE-INPUT）と配送の結果で変わりうる。工程2の改訂（Q-C4-PHASE2-BASE）で読み替える",
+        "reason": "計画§4.5（D-P3-7。所有はC4、別の測定器を作らない）"
+      }
+    ],
+    "operationContract": {
+      "ref": "P2-SHARED-RUNTIME-001#meta.operationContract",
+      "rule": "全標本はrun/input/operation/subjectを相関し、版は実際に到達した場合だけ記録する（P2-EEW-E01-001と同じ）。normalの正式EEW母集団へtraining/testを混ぜない。観測点・注入口はoperationで分岐しない"
+    }
+  },
+  "contract": {
+    "contractId": "P3-E01-REACCEPT-001",
+    "mode": "implementation",
+    "objective": "P2から移管したEEWの正式再検収（R61の4条件、E01）と衝突試験、PERF-P3（E02-P・E05-P・E06）、E15-P3、AC15の再集計を、C3a・C3bの実行の配置（owner 3本とpublisher）で閉じる。工程1（C3bを待たない）で母集団の対応表・期待する証拠・集計と判定の関数と試験・runnerの準備を作り、工程2（C3bの配送後）で新配置への計測点の設置、Macの予備測定とPi予備確認（二段、正式Passと呼ばない）、P3測定manifestの凍結、正式測定を行う。工程1のallowedPathsは測定のdirectory 2つだけで、工程2の製品のfileはC3bの配送後の契約改訂で足す（Q-C4-PHASE2-BASE）。製品の挙動は観測点・注入口のほかに変えず、未達は原因を分類して報告する（P3-C4-FAIL-PATH）。C4のMacの結果は再検収条件の判定で、本番性能の判定（Pi、P5）と呼ばない。津波の母集団（C6）、P4/P5の母集団は扱わない。",
+    "baseOid": "unassigned",
+    "cleanTreeRequired": true,
+    "readPaths": [
+      "AGENTS.md",
+      "docs/specs/reconstruction-p0-contracts.md",
+      "reconstruction/contracts/p3-order-plan.md",
+      "reconstruction/contracts/p3-execution-boundary.md",
+      "reconstruction/contracts/p3-e01-reaccept.json",
+      "reconstruction/contracts/p3-e01-reaccept.types.ts",
+      "reconstruction/contracts/p2-eew-e01.json",
+      "reconstruction/contracts/p2-eew-e01.types.ts",
+      "reconstruction/contracts/p3-execution-split.json",
+      "reconstruction/contracts/p3-execution-split.types.ts",
+      "reconstruction/contracts/p3-execution-lifecycle.json",
+      "reconstruction/contracts/p3-dmdata-connect.json",
+      "reconstruction/contracts/p3-dmdata-connect.types.ts",
+      "reconstruction/contracts/p3-checkpoint-step1.json",
+      "reconstruction/contracts/p3-unit-table.json",
+      "reconstruction/contracts/p1-parser-boundary.json",
+      "reconstruction/contracts/p1-parser-boundary.types.ts",
+      "reconstruction/contracts/p2-shared-runtime.types.ts",
+      "reconstruction/contracts/p2-snapshot-sse.types.ts",
+      "reconstruction/contracts/p2-checkpoint-shutdown.json",
+      "reconstruction/contracts/p2-mailbox.json",
+      "reconstruction/tools/corpus/manifest.json",
+      "reconstruction/tools/corpus/sequences.json",
+      "reconstruction/src/**",
+      "reconstruction/test/**",
+      "reconstruction/tsconfig.json",
+      "reconstruction/tsconfig.test.json",
+      "reconstruction/vitest.config.ts",
+      "test/fixtures/77_01_01_240613_VXSE45.xml",
+      "test/fixtures/37_01_01_240613_VXSE43.xml",
+      "test/fixtures/15_18_01_250630_VPWS50.xml",
+      "test/fixtures/81_09_01_260605_VPWP50.xml",
+      "scripts/replay-bench.mjs",
+      "src/engine/messages/message-router.ts",
+      "package.json"
+    ],
+    "allowedPaths": [
+      "reconstruction/test/eew-e01/**",
+      "reconstruction/src/measurement/eew-e01/**"
+    ],
+    "allowedGitCommands": [
+      "git status --porcelain",
+      "git rev-parse HEAD",
+      "git cat-file -e <oid>:reconstruction/contracts/p3-e01-reaccept.json",
+      "git diff --binary --no-ext-diff -- <allowed_paths>",
+      "git diff --check -- <allowed_paths>",
+      "git show <required-path-or-object>",
+      "git ls-files <required-path>"
+    ],
+    "moduleIds": [
+      "B03",
+      "B04",
+      "B05",
+      "B06",
+      "B07",
+      "B08",
+      "B11",
+      "B15",
+      "D02",
+      "D07",
+      "D11"
+    ],
+    "integrationContractIds": [
+      "I-U-E",
+      "I-U-W",
+      "I-U-F"
+    ],
+    "dependsOnContractIds": [
+      "P3-EXECUTION-LIFECYCLE-001",
+      "P3-EXECUTION-SPLIT-001",
+      "P3-DMDATA-CONNECT-001",
+      "P3-CHECKPOINT-STEP1-001",
+      "P3-UNIT-TABLE-001",
+      "P2-EEW-E01-001",
+      "P2-CHROME-EEW-001",
+      "P2-SNAPSHOT-SSE-001",
+      "P2-CHECKPOINT-SHUTDOWN-001",
+      "P1-PARSER-BOUNDARY-001"
+    ],
+    "publicTypes": [
+      "reconstruction/contracts/p3-e01-reaccept.types.ts#P3EewPopulation",
+      "reconstruction/contracts/p3-e01-reaccept.types.ts#P3EewEstablishment",
+      "reconstruction/contracts/p3-e01-reaccept.types.ts#P3EewPopulationCondition",
+      "reconstruction/contracts/p3-e01-reaccept.types.ts#P3E01Manifest",
+      "reconstruction/contracts/p3-e01-reaccept.types.ts#P3EewTraceSample",
+      "reconstruction/contracts/p3-e01-reaccept.types.ts#P3EewInjectionRecord",
+      "reconstruction/contracts/p3-e01-reaccept.types.ts#P3EewRunResult",
+      "reconstruction/contracts/p3-e01-reaccept.types.ts#P3E01Verdict",
+      "reconstruction/contracts/p2-eew-e01.types.ts#P2HostObservation",
+      "reconstruction/contracts/p2-eew-e01.types.ts#CheckpointMeasurement",
+      "reconstruction/contracts/p3-execution-split.types.ts#OwnerReply",
+      "reconstruction/contracts/p3-execution-split.types.ts#OwnerStartData"
+    ],
+    "publicFunctions": [
+      "startP2Host(config: P2HostConfig)（signatureは変えない。測定の印はconfig.observe != nullで、hostはOwnerStartData.measuredをそこから作り、診断sinkの包みもそこで決める。印が無いときの挙動と費用は変えない）",
+      "decodeMaterial(item: ParserMailboxItem, parseTimes?: { startedMs: number | null; endedMs: number | null }): ParserMailboxResult（P3-C4-PARSE-MARK=A。記録はそのthreadのperformance.now()。第2引数を渡さない呼出しの挙動・戻り値・ProcessingMarksは変えない。P1契約の改訂は統合担当が合流時に記録）",
+      "OwnerStartData: measured: boolean を足す（write別計数とparseの時刻・権の着手時刻の記録を有効にする）",
+      "OwnerReply: inputDoneのdecodeにxmlParseStartedMonotonicMs・xmlParseEndedMonotonicMs（number | null）、checkpointDoneにgrantStartedMs（number | null）、finalizeDoneにwriteCounts（Readonly<Record<\"checkpoint\" | \"tmp\" | \"diagnosticLog\" | \"other\", Readonly<{ count: number; bytes: number }>>> | null）を足す。印が無いときはどれもnull（C3a契約の改訂は統合担当が合流時に記録）",
+      "P2HostObservation: decodeに同じ2 field、新しいkind checkpointGrant（runId・grantId・unit・attemptIds・dirtyObservedMonotonicMs・grantSentMonotonicMs・ownerStartedMonotonicMs・doneReceivedMonotonicMs）とwriteCount（runId・thread: ExecutionPlace | \"publisher\"・区分ごとのcount/bytes）を足す。observeの経路は既存の1つのまま",
+      "summarizeP3E01(manifest: P3E01Manifest, samples: readonly P3EewTraceSample[], injections: readonly P3EewInjectionRecord[]): Readonly<{ runs: readonly P3EewRunResult[]; verdict: P3E01Verdict }>（reconstruction/src/measurement/eew-e01/。judge.tsのtallyを母集団の型で一般化して共有し、summarizeEewE01の挙動と試験は変えない）",
+      "成立の判定の純関数1つ（establishment・対象の開始と終了・T0・投入側の対応区間 → 成立か不成立の理由。runnerとsummarizeP3E01が同じものを使う）",
+      "verifyFrozenP3Manifest(manifest: P3E01Manifest, contractTexts): void（A10のverifyFrozenManifestと同じ照合を新しいschemaで。frozen.tsの既存の補助を再利用し、A10のmanifestの検査は変えない）"
+    ],
+    "allowedDependencies": [
+      "node:child_process",
+      "node:crypto",
+      "node:fs",
+      "node:http",
+      "node:os",
+      "node:path",
+      "node:perf_hooks",
+      "node:worker_threads",
+      "node:zlib",
+      "ws（既存）。新しいnpm依存は足さない"
+    ],
+    "fixtureIds": [
+      "test__fixtures__77_01_01_240613_VXSE45",
+      "test__fixtures__37_01_01_240613_VXSE43",
+      "test__fixtures__15_18_01_250630_VPWS50",
+      "test__fixtures__81_09_01_260605_VPWP50"
+    ],
+    "sequenceIds": [
+      "O09"
+    ],
+    "expectedDecisions": [
+      {
+        "expectedRef": "expected:O09:2"
+      },
+      {
+        "expectedRef": "expected:O09:12"
+      }
+    ],
+    "expectationEvidence": [
+      {
+        "expectedRef": "expected:O09:2"
+      },
+      {
+        "expectedRef": "expected:O09:12"
+      }
+    ],
+    "semanticDeadlines": [],
+    "deliveryDeadlines": [
+      {
+        "id": "P3-C4-DLV-01",
+        "target": "T0 through first simultaneous EEW card and required map paint",
+        "limit": 250,
+        "unit": "milliseconds p99 upper bound per run",
+        "scope": "正式の母集団の各run、欠落0。投入→T0は別記録で合否に使わない（衝突母集団の扱いはP3-C4-COLLISION-VERDICT）",
+        "source": "spec§7.5、E01"
+      },
+      {
+        "id": "P3-C4-DLV-02",
+        "target": "expected T6 observation",
+        "limit": 10,
+        "unit": "seconds from T0",
+        "scope": "超えたら欠落。T0に届かない投入は実投入から10秒でcallbackNotReached",
+        "source": "spec:1121、P2-A10-DLV-02"
+      },
+      {
+        "id": "P3-C4-DLV-03",
+        "target": "clock correspondence refresh",
+        "limit": 30,
+        "unit": "seconds",
+        "scope": "run開始・終了にも。Pi第2段はPi・Macの往復対応",
+        "source": "spec:1141"
+      },
+      {
+        "id": "P3-C4-DLV-04",
+        "target": "healthz request start through body complete under N and P",
+        "limit": 100,
+        "unit": "milliseconds p99 per run",
+        "status": "provisional",
+        "scope": "N・P各1,000標本以上×3 run、E01と別窓（A10と同じ）。e01:93の再検収の判定で、本番の判定はPi（P5）",
+        "source": "E02、e01:93"
+      },
+      {
+        "id": "P3-C4-DLV-05",
+        "target": "largest normal XML processing start (owner T2) through decision and publish projection (T3)",
+        "limit": 1,
+        "unit": "second p99",
+        "status": "provisional",
+        "scope": "報告。Macは回帰検出、Piは予備確認（P3-C4-PI-E03）、本番の判定はPi（P5）。queue待ちT1→T2は別計数",
+        "source": "E03、計画§4.5"
+      }
+    ],
+    "retentionLimits": [
+      {
+        "id": "P3-C4-RET-01",
+        "target": "formal P3 E01 samples",
+        "limit": 18000,
+        "unit": "samples per manifest",
+        "scope": "正式の母集団×3 run×1,000。COLLISION-VERDICT=Aなら衝突母集団は参考なので15,000（参考の1,000は別に数える）。warm-upと不成立（overlapNotEstablished）は別に数える",
+        "source": "spec:1119、計画:157"
+      },
+      {
+        "id": "P3-C4-RET-02",
+        "target": "warm-up samples",
+        "limit": 1800,
+        "unit": "samples per manifest",
+        "scope": "正式の母集団×3 run×100（Aなら1,500）。分位点に入れない",
+        "source": "spec:1118"
+      }
+    ],
+    "resourceLimits": [
+      {
+        "id": "P3-C4-RES-01",
+        "target": "clock correspondence interval width",
+        "limit": 5,
+        "unit": "milliseconds",
+        "scope": "超えた標本の結果は未確認で、Passにも原因の根拠にもしない",
+        "source": "spec:1143"
+      },
+      {
+        "id": "P3-C4-RES-02",
+        "target": "formal run count",
+        "limit": 3,
+        "unit": "formal runs per population",
+        "scope": "各runが単独で合格する。参考の母集団は1 run",
+        "source": "spec:1119"
+      },
+      {
+        "id": "P3-C4-RES-03",
+        "target": "measurement implementation",
+        "limit": 1,
+        "unit": "product-path runner (the existing reconstruction/test/eew-e01 runner, extended)",
+        "scope": "汎用benchmark frameworkやworker poolを作らない。runnerに製品の入力処理を持たない",
+        "source": "P2-A10-RES-03、計画冒頭の原則"
+      },
+      {
+        "id": "P3-C4-RES-04",
+        "target": "measured SSE clients during E01",
+        "limit": 1,
+        "unit": "Chrome EventSource connection",
+        "scope": "E02のhealth clientは別",
+        "source": "P2-A10-RES-04"
+      },
+      {
+        "id": "P3-C4-RES-05",
+        "target": "write counters",
+        "limit": 4,
+        "unit": "fixed counters (checkpoint slot, tmp, diagnostic log, other) per thread",
+        "scope": "書込みごとの履歴を持たない。停止時に1回だけ観測へ出す。測定の印が無ければ作らない",
+        "source": "P3-C4-WRITE-COUNT"
+      },
+      {
+        "id": "P3-C4-RES-06",
+        "target": "frame gap in any measured window",
+        "limit": 90,
+        "unit": "seconds (exclusive); injector pings every 20 s",
+        "scope": "pingを含むframe間隔の最大値。90秒以上の窓はBlocked",
+        "source": "Q-C2-RUNNER-LIVENESS、P3-C4-RUNNER-LIVENESS"
+      },
+      {
+        "id": "P3-C4-RES-07",
+        "target": "Pi preliminary samples",
+        "limit": 30,
+        "unit": "samples × 3 rounds per condition to start, warm-up separate",
+        "scope": "100件未満のp99は観測最大と書く。正式Passにしない",
+        "source": "計画:187"
+      },
+      {
+        "id": "P3-C4-RES-08",
+        "target": "trials and duration of one window",
+        "limit": 1,
+        "unit": "stopCondition (maxAttempts, maxDurationMs) per population, fixed in the manifest from the preliminary measurement",
+        "scope": "達したらその窓はBlocked。runnerの既存の期限（見込み×2）をこの値で置き換える",
+        "source": "P3-C4-AC03(1)、AC08"
+      }
+    ],
+    "workDeadline": null,
+    "persistenceUnits": [],
+    "persistedFields": [],
+    "nonPersistedFields": [
+      "parseの開始・終了時刻、権の着手時刻（観測にだけ載せる）",
+      "writeの区分別counter（停止時に観測へ出す）",
+      "runnerの投入記録・成立の判定・ping記録・frame間隔、版付き証拠へ抽出する前のraw"
+    ],
+    "outOfScope": [
+      "津波の母集団（C6）、spec§7.5の4（容量縮退・津波同時、P4/P5）",
+      "観測点・注入口以外の製品の挙動の修正（P3-C4-FAIL-PATH）",
+      "官署ごとの保存・差分保存（D-P3-2の再裁定の後）",
+      "大きいframeの外形parseのownerへの移動の実装（P3-C4-INGRESS-JSONで要となったら別の改訂）",
+      "Piの正式測定・72時間並走・資源ゲート（P5）",
+      "公開replay CLI（C17。runnerの共有はC17の側で行う）",
+      "spec:2613・:2930の改訂（C4の完了時に統合担当、計画§4.4）",
+      "P1・C3aの契約JSONの改訂（統合担当が合流時に記録）",
+      "A10の版付き結果と凍結manifestの書換え",
+      "汎用benchmark framework、新しいnpm依存",
+      "旧築src/**の変更"
+    ],
+    "acceptanceChecks": [
+      {
+        "id": "P3-C4-AC01",
+        "requirement": "【工程1】母集団の対応表（P3EewPopulation・P3EewPopulationCondition）: 母集団は6つで、件数はmanifest最上位のwarm-up 100・1,000標本・3 run（spec:1118〜1119）を使い、条件ごとに重複して持たない。(1) fixedBacklog＝spec§7.5の1（A10のformal。負荷N・周期1,370ms・小容量U-Fのforecastと許容範囲、成立の条件なし）(2) maxVpws50ParseStarted＝spec§7.5の2（A10のmaxVpws50DecodeStartedの負荷・初期状態・周期を継承し、起点をfull parse開始に替える。P3-C4-PARSE-MARK）(3) maxWeatherCheckpointEncodeStarted＝spec§7.5の3 (4) maxForecastCheckpointSave (5) forecastDeadlineOverlap（(3)〜(5)はA10のreferenceの負荷・初期状態・周期3,000msを継承）(6) maxVpws50ReceivedThenEew＝衝突試験（負荷N、周期3,000ms、初期状態はA10のinitial-state.json#populations.maxVpws50DecodeStartedを継承。同じWSで最大VPWS50のframeを送った直後に間を空けずEEWを送る）。成立の条件（establishment）: (2)〜(5)はstartOffset（開始から1ms後を目標に投入し、T0が対象処理の開始後0〜5msかつ処理中、spec:1133）、(6)はsentBeforeLargeFrameIngested（EEWの実送信をhostの時計へ直した区間の上界が、VPWS50のT1〔mailbox入場＝受理の完了〕より前。受信直後の待ちが実際に重なったことを示す。VPWS50の受理が終わった後に届いたEEWはfixedBacklogと同じものを測るので数えない）、(1)はnone。(6)のscopeとoriginはP3-C4-COLLISION-VERDICTで決まり、Aなら参考（1 run）・T0、Bなら正式・injectorSend。ほかの5母集団はoriginがT0。正式標本はAなら5×1,000×3＝15,000件、Bなら18,000件（RET-01）。spec§7.5の4（容量縮退・津波同時）、P4/P5の母集団、津波（C6）は含めない。対応表（母集団ID↔spec§7.5の番号↔A10のID↔R61の条件↔計画の行）をmanifestの草案に載せる",
+        "evidenceRefs": [
+          "docs/specs/reconstruction-p0-contracts.md:1118 «63335bec643675ba»",
+          "docs/specs/reconstruction-p0-contracts.md:1119 «602b2dfb3cc1795e»",
+          "docs/specs/reconstruction-p0-contracts.md:1126 «18ddda3377534592»",
+          "docs/specs/reconstruction-p0-contracts.md:1127 «fc0a64a35f9697f1»",
+          "docs/specs/reconstruction-p0-contracts.md:1128 «da7c0eac758c489a»",
+          "docs/specs/reconstruction-p0-contracts.md:1129 «bd2f411aa451df51»",
+          "docs/specs/reconstruction-p0-contracts.md:1133 «0a085841e24bbc6a»",
+          "reconstruction/contracts/p3-order-plan.md:155 «21c281f3f97962d5»",
+          "reconstruction/contracts/p3-order-plan.md:157 «8ad61a51e88bb9b0»",
+          "reconstruction/contracts/p2-eew-e01.json:562 «2aefa884931f4241»",
+          "reconstruction/contracts/p3-e01-reaccept.types.ts"
+        ]
+      },
+      {
+        "id": "P3-C4-AC02",
+        "requirement": "【工程1】集計と判定（spec§7.5、E01）: 正式の各母集団・各runで、成立した試行（sampleIndexを持つもの）だけからnearest-rankのp50/p95/p99/maxを[L_i, U_i]で出し、p99(U_i)≤250msかつ欠落0だけをPass、p99(L_i)>250msまたは欠落1以上をFail、それ以外（時計の区間幅超過・証拠不足）を未確認とする（spec:1142・:1143）。合算も報告するが、各runを合算値で救済しない。warm-upを分位点に混ぜない。T0から10秒までに実paintが無い標本は欠落、callbackに届かない投入はcallbackNotReachedの欠落（A10と同じ）。overlapNotEstablishedの試行は標本に数えず、injectionFailuresとも別に数えて報告し、Passを妨げない（spec:1133の「理由付きで別記」）。投入→T0とT0→T6を別に記録し（計画:62）、投入→T0は合否に使わない。例外として、originがinjectorSendの母集団（COLLISION-VERDICT=Bの衝突母集団）は実送信→T6（injectedToT6、投入側→hostとhost→Chromeの2つの対応区間を合成した区間。幅が5msを超えれば未確認、RES-01）を同じ式で合否に使う。全母集団で実送信→T6の分位点を記録する。参考の母集団（scope reference）のrunにも正式と同じ規則でPass/Fail/未確認を付け（実施不能はBlocked）、verdictに入れず報告する。P3E01Verdictは正式の全母集団の全runがPassのときだけPass、1つでもFailならFail、それ以外で1つでも未確認なら未確認。実装はjudge.tsのtally（分位点・時計区間・欠落の規則）を母集団の型で一般化して共有し、summarizeEewE01の挙動と既存の試験は変えない",
+        "evidenceRefs": [
+          "docs/specs/reconstruction-p0-contracts.md:1121 «c45e4376d94f5013»",
+          "docs/specs/reconstruction-p0-contracts.md:1133 «0a085841e24bbc6a»",
+          "docs/specs/reconstruction-p0-contracts.md:1141 «6d9d63f029934dfb»",
+          "docs/specs/reconstruction-p0-contracts.md:1142 «f0743c498380a707»",
+          "docs/specs/reconstruction-p0-contracts.md:1143 «74f54e911312b3e8»",
+          "docs/specs/reconstruction-p0-contracts.md:2052 «d6ff68c7ef2b9b22»",
+          "reconstruction/contracts/p3-order-plan.md:62 «77bdc4ba5db0bf63»",
+          "reconstruction/contracts/p3-e01-reaccept.types.ts"
+        ]
+      },
+      {
+        "id": "P3-C4-AC03",
+        "requirement": "【工程1】runnerの準備: (1) 試行ごとの成立の判定: runnerは各試行の後（paintまたは10秒の後）にhostの観測（JSONL）から対象の開始（parse開始・encode開始・保存の開始・期限処理の開始、衝突ではVPWS50のT1）とT0を引き、成立をその場で判定する。判定は純関数1つ（establishment・対象の開始と終了・T0・投入側の対応区間を受けて成立か理由を返す）。warm-upの0〜99は成立の判定をせず、順に振る（spec:1118の別IDの固定入力）。成立の判定は正式の試行にだけ行い、成立したものにだけ連番のsampleIndex 100〜1099を振り、不成立はattemptIndexだけを持つoverlapNotEstablishedとして記録する（index空間に入れない）。attemptIndexはwarm-upを含めた通し番号で、maxAttemptsもwarm-upを含めて数える。窓（母集団×run）ごとにmanifestのstopCondition（最大試行数・最大経過時間）に達したら、その窓をBlockedにする。runnerの既存の窓の期限（見込み×2）はこのmaxDurationMsで置き換える (2) 版の結び付けを実行場所ごとの行順の窓にする（P3-C4-T3-BINDING）。run.mjsのpublishedByとanalysis.mjsの版の結び付けから「1件ずつ同期に処理」の前提を外す。T0の後の拒否は理由の文字列のままの欠落、次のT2が来なければ窓の終わりで閉じる (3) 投入側のping（P3-C4-RUNNER-LIVENESS）と、各窓のframe間隔の最大値の記録 (4) AC15の再集計を生データだけで行えるように、AC15の窓でrunnerが接続を切ったhrtimeと、充填の完了時点のstate/（保存物）と/snapshotの本文を窓のrawとして保存する（A10のclosure.mdが挙げた不足） (5) 保存の占有の集計からverify段を外す（C1で定常経路から消えた。verifyが出た試行は別の段として数え、encode・writeへ足さない） (6) Pi第1段用に、Chromeを起動せずbackendだけを測る走らせ方: 試行の完了条件は対象の版のT4の観測（10秒で欠落）、記録はT0〜T4と保存・資源。予定時刻どおりの投入は既存のreplayPumpを使い、新しい仕組みにしない。Piの/proc/pressureとvcgencmdの記録は統合担当のshellのloopで取り、runnerにコードを足さない。新しいrunnerやbenchmark frameworkを作らず、reconstruction/test/eew-e01/**の既存runnerを改修する（RES-03）。A10の版付き結果（evidence/windows/a10-p2-20260930b）と凍結manifestは書き換えない",
+        "evidenceRefs": [
+          "reconstruction/contracts/p3-order-plan.md:62 «77bdc4ba5db0bf63»",
+          "reconstruction/contracts/p3-order-plan.md:184 «b446595310582f83»",
+          "docs/specs/reconstruction-p0-contracts.md:1133 «0a085841e24bbc6a»",
+          "reconstruction/contracts/p3-dmdata-connect.json:572 «06ca95d761bfc44d»",
+          "reconstruction/contracts/p3-checkpoint-step1.json:66 «ed23f8a9cdaff9af»",
+          "reconstruction/test/eew-e01/evidence/windows/a10-p2-20260930b/closure.md"
+        ]
+      },
+      {
+        "id": "P3-C4-AC04",
+        "requirement": "【工程2】計測点の設置（C3b配送後の配置に1回だけ置く）: (1) full parse開始と終了（P3-C4-PARSE-MARK）。P2HostObservationとOwnerReplyのdecodeにxmlParseStartedMonotonicMs・xmlParseEndedMonotonicMs（number | null）を足す (2) E14の区間（spec:864の4時刻、計画§4.5の記録）: OwnerReplyのcheckpointDoneにgrantStartedMs（ownerが権を受けて処理を始めた測定時刻、印が無いときnull）を足し、hostは新しい観測kind checkpointGrant（runId・grantId・unit・同じ返信のCheckpointMeasurementのattemptIds・dirtyObservedMonotonicMs〔publisherがそのunitのdirtyを最初に反映した時刻〕・grantSentMonotonicMs・ownerStartedMonotonicMs・doneReceivedMonotonicMs）を権1回につき1回出す。これで書込み権の待ち（dirtyの反映→権の送出）・ownerの着手までの待ち（送出→着手）・capture/encode/hashとwrite/sync/rename（既存のCheckpointMeasurementの段）・ackの反映（段の終わり→返信の受信）に分ける。既存のCheckpointMeasurementの段とattemptIdの結合は変えない (3) E15のwrite別計数（P3-C4-WRITE-COUNT。finalizeDoneのwriteCountsと観測kind writeCount）。本契約で足す計測点・包み・message・観測は、測定の印（OwnerStartData.measured、config.observe != null）が無いとき作らない。既存の計測（decode・processing・CheckpointMeasurementの時刻取得）は変えない。足した観測fieldは追加だけで、既存のfieldの意味を変えない",
+        "evidenceRefs": [
+          "docs/specs/reconstruction-p0-contracts.md:864 «6a7712e8d448213a»",
+          "docs/specs/reconstruction-p0-contracts.md:2066 «9816b55af233a5a4»",
+          "docs/specs/reconstruction-p0-contracts.md:2067 «f867801b1fa94b3d»",
+          "reconstruction/contracts/p2-eew-e01.json:726 «14dce7bcaa5b873c»",
+          "reconstruction/contracts/p2-eew-e01.json:102 «a44b4cf63f0ffe57»",
+          "reconstruction/contracts/p3-order-plan.md:186 «232d5e21c1e59cfe»"
+        ]
+      },
+      {
+        "id": "P3-C4-AC05",
+        "requirement": "【工程2】E15の再検収（e01:102の全要素）: checkpoint・tmp・logのwriteの帰属不能0（threadごとの包みで数えたbyte・回数と、CheckpointMeasurement・診断recordから帰属したbyte・回数が、区分ごとに一致する）、保存と診断のwriteの別計数（測定成果物のwriteと区別）、保存前段の同期区間の占有時間（C1後は記憶なしの最初の読み込みとcapture・encode・hash。ownerのthreadの値）、verify段の読んだbytesの別計数（encode・writeへ二重加算しない）を、A10と同じ保持上限の窓で測る。単位別のencode回数・総encode/write byte・ownerの占有時間を報告し、byte/保存・受理・日も示す。改善の根拠のない新しい閾値を作らない",
+        "evidenceRefs": [
+          "reconstruction/contracts/p2-eew-e01.json:102 «a44b4cf63f0ffe57»",
+          "docs/specs/reconstruction-p0-contracts.md:2067 «f867801b1fa94b3d»"
+        ]
+      },
+      {
+        "id": "P3-C4-AC06",
+        "requirement": "【工程2】PERF-P3の再検収（e01:93）: E02は同じP負荷とN負荷で各1,000標本以上×3 runのp99≤暫定100ms、E05は同じ窓でNode RSS最大≤暫定300MiB（N）・400MiB（P）、E06は同じCの65周期でspec§9.9の3式を満たすか、超過の原因を分類する。E06は--expose-gc後のRSSと数時間の窓でも分類する（台帳61の追記）。RSSはプロセス全体の値で、heapUsed・externalはthreadごとに取り（owner 3本とpublisher）、RSSを足し合わせない。A10のFail・超過（manifest a10-p2-20260930b）を遡って変えず、暫定上限を変えない。これはe01:93の再検収条件の判定で、本番性能の判定（Pi、P5）とは呼ばない。E02-P・E05-PがなおFailなら、D-P3-2の再裁定の材料（Piでのunitごとの保存回数・書込量を含む）を作者へ報告する",
+        "evidenceRefs": [
+          "reconstruction/contracts/p2-eew-e01.json:93 «ebfc93a60ae82362»",
+          "docs/specs/reconstruction-p0-contracts.md:2053 «5e9334289c7fb257»",
+          "docs/specs/reconstruction-p0-contracts.md:2056 «5468bd61c697fdf7»",
+          "docs/specs/reconstruction-p0-contracts.md:2057 «ffc6a6df7c9d4951»",
+          "reconstruction/contracts/p3-order-plan.md:199 «d09042ab88f09a5d»"
+        ]
+      },
+      {
+        "id": "P3-C4-AC07",
+        "requirement": "【工程2】報告の窓: (1) E03（最大VPWS50、ownerの処理開始T2→decision・公開用射影確定T3のp99、暫定1秒、queue待ちT1→T2は別計数）は報告。Macは回帰検出、Piは予備確認で、本番の判定はPi（P5、計画§4.5） (2) E07（P3-C3B-E07-WINDOW=Aのとき）: NとCの各60分。全遷移で宣言上限内、通常入力の最大待機年齢≤暫定5秒、入力停止から10秒以内に入力mailboxのpending・in-flightが0（spec:2058のとおり、実行場所を絞らない）、Cのwarm-up後の周期末backlogの件数・byteが前周期末以下。窓の中でownerが停止またはunresponsiveになったら、その窓はFail（原因を記録）。N窓はpingで生存期限を避ける (3) E12（旧新を同じ入力・初期状態・Nodeで別実行、A10の窓のまま） (4) AC15の再集計（AC03の(4)で保存した生データだけから。費用報告の規則はP2-A10-AC15のまま） (5) 受信1回あたりのviewの複製回数とbyte（台帳49）、publishの回数・byte・直列化時間 (6) 通知の初回試行がownerの採用の返信を待つ時間（spec:956の初回1秒の内訳）。(1)〜(6)はE01の合否に使わない。窓の共有は、共有する各測定の条件を満たすときだけmanifestのsharesWindowWithに書いて行い、E01の窓は共有しない",
+        "evidenceRefs": [
+          "docs/specs/reconstruction-p0-contracts.md:2054 «726413a61a98e64b»",
+          "docs/specs/reconstruction-p0-contracts.md:2058 «c5a19c3c5d58ec9b»",
+          "docs/specs/reconstruction-p0-contracts.md:2063 «4b4c2419085d5b27»",
+          "docs/specs/reconstruction-p0-contracts.md:956 «26c466d1a7f4b166»",
+          "reconstruction/contracts/p3-order-plan.md:191 «60a0dd184764ac57»",
+          "reconstruction/contracts/p3-execution-split.json:936 «1e30466a1dfe7c91»"
+        ]
+      },
+      {
+        "id": "P3-C4-AC08",
+        "requirement": "【工程2】Macの予備測定（manifest凍結の前、計画:159）: 速さに加えて証拠が成立することを確かめる。① 入力と時刻（投入IDとcallbackの対応、未到達の扱い、full parse開始の観測、成立の判定と成立率、時計区間の幅）② 表示と判定（実paint、欠落判定、集計の入力が揃うこと）③ 保存と長時間（verify段の扱い、E15のwriteの帰属、E14の区間、AC15の切断時刻・state/・/snapshot、pingとframe間隔）。U-E・U-W・U-Fが同時にdirtyになる条件でE14（各dirty更新を含む世代のackまで≤3秒、各保存のp99の和を全体のp99と呼ばない、計画:218）を取る。あわせて、C3aから引き取った値（Q-C3A-C4-MEASURES: RSSとthreadごとのheap、最大VPWS50のingressJsonMs、viewの複製量、通知の初回試行の待ち）を取る。衝突母集団を1,000標本取り（warm-up 100を別に）、実送信→T6を6つの成分に分けてP3-C4-INGRESS-JSONを判定する。正式測定の所要を窓ごとに「初期化＋試行の所要×(100＋ceil(1,000÷成立率))＋後処理」で積む（warm-upは別IDの固定入力で成立を要しない、spec:1118。成立率は1−不成立の率。fixedBacklogは1）。参考の目安はA10b（a10-p2-20260930b）の実績で、fixedBacklog 1 run 25.2分、参考測定1試行3.36秒、E02 6窓計1.7時間、E03 1.0時間、E06 1.1時間、E12 0.5時間。成立率100%ならE01はCOLLISION-VERDICT=Aで約14.6時間・Bで約16.7時間、周辺の窓（E07のN・C各60分を足す）は約6.3時間で、合計約21〜23時間。成立の条件を持つ5母集団（(2)〜(6)）の成立率が50%ならE01だけでAで約26.7時間・Bで約30.7時間。この値で各窓のstopCondition（最大試行数・最大経過時間）を決める。成立率が低く所要が窓に収まらない母集団は、所要時間と試行を報告し、manifest凍結の前に統合担当が代替条件を固定する（spec:1133。凍結後は変えない、spec:1106。Q-C4-ALT-CONDITION）。N・P・Cの再生時刻とperiodMsは機械の速さに合わせて変えない。NO-GOのときは、rawに証拠が揃っていれば再集計、取得漏れなら該当窓の取り直し、製品か測定条件を直したら新しい版として影響する条件を再検収する（計画:159）",
+        "evidenceRefs": [
+          "reconstruction/contracts/p3-order-plan.md:157 «8ad61a51e88bb9b0»",
+          "reconstruction/contracts/p3-order-plan.md:159 «d81307e8b66b9886»",
+          "reconstruction/contracts/p3-order-plan.md:218 «185e0ab8c78b7c92»",
+          "reconstruction/contracts/p3-order-plan.md:220 «8f752aac520fde50»",
+          "docs/specs/reconstruction-p0-contracts.md:1106 «531dc4a11a01dc61»",
+          "docs/specs/reconstruction-p0-contracts.md:1133 «0a085841e24bbc6a»",
+          "docs/specs/reconstruction-p0-contracts.md:2066 «9816b55af233a5a4»",
+          "reconstruction/contracts/p3-execution-split.json:936 «1e30466a1dfe7c91»"
+        ]
+      },
+      {
+        "id": "P3-C4-AC09",
+        "requirement": "【工程1（C3a配置の回）・工程2（C3b配置の回）】Pi予備確認（D-P3-7、二段）: 第1段（Pi単独、backend）は投入側と新築hostをPi上の別プロセスで動かし、localhostのWSで流す（AC03の(6)）。条件は最大VPWS50の処理中・U-Wのencode中・U-Fの保存中のEEW、U-E・U-W・U-Fの同時dirty（E14の区間、計画:218）、「U-Wの大型処理＋U-Fの処理と保存＋旧築稼働中にEEW」の重ね合わせ。単体の比較（処理完了を待って次を送る）と、N/P/Cから選んだ窓の予定時刻どおりの投入（replayPump）の両方。第2段（Pi backend＋MacのChrome、工程2）は実paintまで確かめ、Pi・Macの時計はspec:1141〜1143の往復対応で結び、別機械の単調時計を直接引き算しない。通信経路（LAN・Tailscale・SSHトンネル）を記録し、本番と違う経路の値を本番のE01にしない。第2段はPiとMacの両方を測定機として扱い、測定の窓では両方でbuild・test・他レーンを走らせない（計画:112）。記録: 「実送信→T0」「T0→T2」「T2→採用・射影完了」「採用・射影完了→公開完了」「T0→T6（第2段）」「実送信→T6（第2段）」の区間、E14の分解（AC04(2)、C3a配置の回は既存のCheckpointMeasurementだけ）、ingressJsonMs、同じ窓のPiの/proc/pressure/{cpu,memory,io}・vcgencmdのclock・temp・throttled（統合担当のshellのloop）、threadごとのheapとプロセスのRSS、unitごとの保存回数・書込量。通知はsilent（spawn先を/usr/bin/true）で、実通知の検収ではないと結果に書く。標本は条件ごとにwarm-upを別に取り30件程度×3回から（RES-07）。100件未満のp99は「観測最大」と書く。見るのは次の5つ: EEWが大型処理に追従して止まる、publisherがownerの完了を待つ、書込み権が戻らず他の単位が保存できない、RSSが上限を明らかに超える、queueが一方向に増える。それに加えて、工程1（C3a配置）ではC3aの性質①〜⑤だけ、工程2（C3b配置）ではC3bの性質①〜④も（P3-C4-PI-PROPERTIES）。異常が無ければ「この予備条件では再現せず」と書き、E01・E14などのPassと呼ばない。異常が出たら原因を分類して作者へ報告し（D-P3-9。C5以降の着手禁止条件にしない）、PiのE14の3秒超過はD-P3-2の再裁定の契機として報告する（D-P3-8）。配置: Piの作業複製（公開fixtureだけ、台帳63の~/p3-benchの前例）でnpm ci --ignore-scriptsとtscをPi上で行い、distとnode_modulesを機械間で共有しない。旧築の保護: 別のdirectory・state・port・記録先、新しいdmdata購読を使わない。MemAvailableが2GiBを下回る、swap-in/outが正の10秒窓が3つ続く、新しいthrottleが30秒続く（spec E16・E17の暫定値）のどれかで新築側を止め、旧築を止めて測定を成立させない",
+        "evidenceRefs": [
+          "reconstruction/contracts/p3-order-plan.md:112 «2e2900d2b2416f23»",
+          "reconstruction/contracts/p3-order-plan.md:184 «b446595310582f83»",
+          "reconstruction/contracts/p3-order-plan.md:185 «5e73c88a8bd6b37d»",
+          "reconstruction/contracts/p3-order-plan.md:186 «232d5e21c1e59cfe»",
+          "reconstruction/contracts/p3-order-plan.md:187 «30557e27fbc10ebf»",
+          "reconstruction/contracts/p3-order-plan.md:188 «5568557f566c49ac»",
+          "reconstruction/contracts/p3-order-plan.md:189 «0579acb10a2f2c0a»",
+          "reconstruction/contracts/p3-order-plan.md:204 «6dbae61d532de8c8»",
+          "reconstruction/contracts/p3-order-plan.md:205 «ca5b4f54e5320f4e»",
+          "reconstruction/contracts/p3-order-plan.md:218 «185e0ab8c78b7c92»",
+          "reconstruction/contracts/p3-order-plan.md:327 «68f7494dfae4719e»",
+          "reconstruction/contracts/p3-execution-split.json:926 «19a912125e91eec1»"
+        ]
+      },
+      {
+        "id": "P3-C4-AC10",
+        "requirement": "【工程2】manifest凍結（計画§1.1の3、正式測定の前）: P3E01Manifestを予備測定の後、正式測定の前に凍結し、self hashと使用する全契約ID→meta.sha256を持たせる。固定するもの: 継承するA10の負荷N・P・Cと初期状態（hashで照合）、6母集団の条件（scope・establishment・forecast・stopCondition）、warm-up・標本数・run数、ping間隔とframe間隔の上限、E02・E03・E05・E06・E07・E12・E15の条件と窓の共有、機械の役割と凍結時のChrome・OS・Nodeの実値（A10からの差を含む）、条件ごとの判定場所（judgmentPlaces: E01・E02・E03・E05・E06・E07・E14・E15。P3-C4-MACHINES）、Chromeの条件、O09のC4分の版付きsubset（計画:40）。結果を見てから母集団・除外条件を変えない（spec:1106）。凍結の前にCodexの総合レビュー（D-P3-10の「C4の測定準備一式」、新規スレッド・read-only・Astra high、Claudeの自己評価を添えない）を通す。凍結後のmanifestを変えるときは新しいmanifestIdで、影響する条件を測り直す",
+        "evidenceRefs": [
+          "docs/specs/reconstruction-p0-contracts.md:1106 «531dc4a11a01dc61»",
+          "reconstruction/contracts/p3-order-plan.md:40 «c4be59ca24a3e392»",
+          "reconstruction/contracts/p3-order-plan.md:191 «60a0dd184764ac57»",
+          "reconstruction/contracts/p3-order-plan.md:207 «68a0ce6993c90b5e»",
+          "reconstruction/contracts/p3-order-plan.md:323 «de6cdc07eb05bfb9»",
+          "reconstruction/contracts/p3-e01-reaccept.types.ts"
+        ]
+      },
+      {
+        "id": "P3-C4-AC11",
+        "requirement": "【工程2】正式測定と結果: 凍結manifestで正式の母集団×3 runと参考の母集団を測り、P3E01VerdictとPERF-P3・E15・報告の窓を版付き結果に残す。分割の単位は窓（母集団×run、E02などの各窓）で、日を跨いでよい。各窓は自分のwarm-upと初期状態から始め、結果は窓ごとの最新attempt（既存のlatestById）を使う。runnerの--windowsはBlocked・未実施の窓だけを再実行する現行の規則を保ち、未確認の窓（時計の区間幅超過など）は同じmanifestでは取り直さない（測定を改善して新しいmanifestIdで影響する窓を測り直す、spec:1143）。窓1本の上限時間はmanifestのstopCondition.maxDurationMsで、達したらBlocked。VerificationStatusはPass/Fail/Blocked/N/A/未確認を分け、unit test・予備測定・Pi予備確認・A10の参考測定を正式Passに代用しない。測定の窓では同じ機械でbuild・test・他レーンを走らせない（計画:112）。未達はP3-C4-FAIL-PATHに従う。N7・IR06（§7.6のparse分離B）がC3aの配置で構成として閉じたことは、parse母集団のE01、衝突母集団の実送信→T0・T0→T6・実送信→T6のp99、P3-C4-INGRESS-JSONの結果を証拠に記録する（帰属がXML parse主因の未達なら閉じたと書かない）。版付き結果（rawに基づく証拠・凍結manifest・機械検証の結果）をCodexの総合レビュー（D-P3-10の「C4の結果」、新規スレッド・read-only・Astra high、Claudeの自己評価を添えない）に渡す。生データとprivate corpusはMac・Mini・Piのローカルに置き、公開のActions・artifactに渡さない",
+        "evidenceRefs": [
+          "reconstruction/contracts/p3-order-plan.md:112 «2e2900d2b2416f23»",
+          "reconstruction/contracts/p3-order-plan.md:207 «68a0ce6993c90b5e»",
+          "docs/specs/reconstruction-p0-contracts.md:1143 «74f54e911312b3e8»",
+          "docs/specs/reconstruction-p0-contracts.md:1151 «0c7e70e81284f01e»",
+          "docs/specs/reconstruction-p0-contracts.md:1153 «2a30d897001b96e0»",
+          "docs/specs/reconstruction-p0-contracts.md:1155 «253098a9cc645bbc»",
+          "reconstruction/contracts/p2-eew-e01.json:66 «03daf3864bb0a01c»"
+        ]
+      },
+      {
+        "id": "P3-C4-AC12",
+        "requirement": "既存試験・最小実装・計算量: reconstructionのゲート（tsc 2本・vitest・shuffle・checker 3本）を通す。A10のeew-e01試験（frozen.test.tsのa10-p2-20260930bの凍結manifestの検査、judge.test.tsのsummarizeEewE01を含む）は期待値を変えずに緑。期待値を変えてよいのは、(a) verify段を保存の占有に数えない（C1）(b) 版の結び付けを実行場所ごとの行順の窓にした、の2つだけで、変更前に一覧を報告する。足した仕組みごとに「無いと何が壊れるか」を成果物に1行で書く（artifactRequirements）。受信経路（WSのcallback→mailbox→owner→公開）に、測定の印が無いときの時刻取得・包み・直列化・メッセージを足さない（既存の計測は変えない）。runnerと解析の集計は全標本×全標本の走査をしない（入力IDとplaceでMapを引く）。decodeMaterialのsignature変更に伴うP1契約とC3a契約の改訂は統合担当が合流時に記録する（本契約のallowedPathsに契約JSONは無い。工程2のfileは工程2の改訂でallowedPathsに足す）",
+        "evidenceRefs": [
+          "AGENTS.md",
+          "reconstruction/contracts/p3-checkpoint-step1.json:66 «ed23f8a9cdaff9af»"
+        ]
+      }
+    ],
+    "testMapping": [
+      {
+        "testId": "P3-C4-T01",
+        "purpose": "acceptance",
+        "referenceIds": [
+          "P3-C4-AC01",
+          "P3-C4-AC02",
+          "P3-C4-AC03"
+        ],
+        "behavior": "【工程1】A10の判定規則（分位点・時計区間・欠落）はjudge.test.tsが持つので言い換えない。新しい振る舞いだけを確かめる: (1) 成立の判定の純関数: startOffsetでT0が開始後−0.1ms・0ms・5ms・5.1msのとき不成立・成立・成立・不成立、対象がT0より前に終わっていれば不成立。sentBeforeLargeFrameIngestedは実送信の区間の上界がT1より前のときだけ成立 (2) overlapNotEstablishedの試行はsampleIndexを持たず、injectionFailuresと別に数えられ、他が全部合格ならPass (3) verdictの集約: 正式の1母集団がFailならFail、Failが無く1つが未確認なら未確認、参考の母集団はverdictに入らない (4) originがinjectorSendの母集団は、T0→T6が全部250ms以内でも実送信→T6のp99上界が250msを超えればFail、originがT0なら同じ標本でPass"
+      },
+      {
+        "testId": "P3-C4-T02",
+        "purpose": "regression",
+        "referenceIds": [
+          "P3-C4-AC03"
+        ],
+        "behavior": "【工程1】C3a配送記録の不具合（版の結び付けの区間がowner 3本の並行で重なる）の再発防止: 観測の行順で、urgentのEEWのT2の後にweatherCurrentのT2が来て、その後にEEWのT3が来る列で、EEWの版が自分のT3に結び付く（単調時刻ではweatherCurrentのT2がEEWのT3より後でも同じ）。同じurgentで、行順はT2_X→T3_X→T2_Yだが単調時刻はT2_Y < T3_Xの列でも、Xの版はT3_Xに結び付く（レビューH3の本題）。同じ実行場所の次のT2の行で窓が閉じ、次のT2が無ければ窓の終わりで閉じる。T0の後に拒否された入力は診断の理由の文字列を持つ欠落になる"
+      },
+      {
+        "testId": "P3-C4-T03",
+        "purpose": "contractBoundary",
+        "referenceIds": [
+          "P3-C4-AC04"
+        ],
+        "behavior": "【工程2】full parse開始の観測: 最大VPWS50のfixtureを測定の印ありのownerの経路で処理すると、decodeの観測のxmlParseStartedMonotonicMs・xmlParseEndedMonotonicMsが非nullで、decode開始≤parse開始≤parse終了≤decode終了。印なしでは2 fieldともnull。どちらでもProcessingMarksのkeyの集合と各値のnull・非nullの形は同じ"
+      },
+      {
+        "testId": "P3-C4-T04",
+        "purpose": "regression",
+        "referenceIds": [
+          "P3-C4-AC03"
+        ],
+        "behavior": "【工程1】Q-C2-RUNNER-LIVENESSの再発防止（投入側だけ。hostの生存期限はC2のT03が持つ）: 投入側はdataの空きがある間も20秒以内の間隔でping frameを送り、各窓のframe間隔の最大値とpingの送出件数が記録に出る。記録のframe間隔に90秒以上が1つあれば、その窓はBlockedと判定される"
+      },
+      {
+        "testId": "P3-C4-T05",
+        "purpose": "contractBoundary",
+        "referenceIds": [
+          "P3-C4-AC04",
+          "P3-C4-AC05"
+        ],
+        "behavior": "【工程2】E14とE15の観測（偽のfilesystem）: 印ありでU-E・U-W・U-Fの保存と診断のwriteを流して止めると、(1) writeCountの観測がthreadごとに1回だけ出て、区分ごとのbyte・回数がCheckpointMeasurementと診断recordからの帰属と一致し、測定成果物のwriteは数えない (2) checkpointGrantの観測が権1回につき1回出て、dirtyの反映≤権の送出≤ownerの着手≤返信の受信で、attemptIdsが同じ返信のCheckpointMeasurementと一致する。印なしではfinalizeDoneのwriteCountsとcheckpointDoneのgrantStartedMsがnullで、writeCount・checkpointGrantの観測は出ない"
+      },
+      {
+        "testId": "P3-C4-T06",
+        "purpose": "regression",
+        "referenceIds": [
+          "P3-C4-AC03",
+          "reconstruction/contracts/p3-checkpoint-step1.json:63 «22fd089520c1c8b6»"
+        ],
+        "behavior": "【工程1】C1後の集計: verify段の無い定常保存の測定記録でsummarizeE15とcheckpointWindowsの占有がencodeだけになり、verify段のある試行（記憶なし）はverifyを別に数えてencode・writeへ足さない。既存のaux-measures・ac15の試験の期待値の変更はAC12の(a)の一覧どおり"
+      },
+      {
+        "testId": "P3-C4-T07",
+        "purpose": "contractBoundary",
+        "referenceIds": [
+          "P3-C4-AC10"
+        ],
+        "behavior": "【工程1。照合の関数はfrozen.tsと本契約の型だけで製品のファイルに触れず、工程2で予備測定の直後に凍結できるよう先に用意する】manifestの凍結: P3E01Manifestのself hash・契約hash・継承するA10の負荷と初期状態のhashの照合が通り、1か所変えると拒否する。a10-p2-20260930bの凍結manifestは既存のfrozen.test.tsのまま検査を通る"
+      },
+      {
+        "testId": "P3-C4-T08",
+        "purpose": "regression",
+        "referenceIds": [
+          "P3-C4-AC12"
+        ],
+        "behavior": "【工程1・工程2】reconstructionの全試験を、AC12の(a)(b)以外の期待値を変えずに通す。shuffle実行でも緑"
+      }
+    ],
+    "requiredCommands": [
+      {
+        "command": "node reconstruction/tools/corpus/check-manifest.mjs",
+        "cwd": ".",
+        "target": "reconstruction/tools/corpus/manifest.json",
+        "stage": "contract",
+        "purpose": "fixture台帳とhash検査"
+      },
+      {
+        "command": "node reconstruction/tools/corpus/check-sequences.mjs",
+        "cwd": ".",
+        "target": "reconstruction/tools/corpus/sequences.json",
+        "stage": "contract",
+        "purpose": "O09の参照と未充足数を検査する"
+      },
+      {
+        "command": "node reconstruction/contracts/check-contract.mjs",
+        "cwd": ".",
+        "target": "reconstruction/contracts/*.json",
+        "stage": "contract",
+        "purpose": "全契約を検査する（本契約は実装者が書き換えるrunnerの行をanchorで引用しない）"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/tsconfig.json",
+        "cwd": ".",
+        "target": "reconstruction/src and contracts types",
+        "stage": "implementation",
+        "purpose": "型検査とreconstruction/dist/の生成（runnerがdistをimportする）"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/tsconfig.test.json",
+        "cwd": ".",
+        "target": "reconstruction/test",
+        "stage": "implementation",
+        "purpose": "試験の型検査"
+      },
+      {
+        "command": "./node_modules/.bin/vitest run --config reconstruction/vitest.config.ts",
+        "cwd": ".",
+        "target": "reconstruction/test",
+        "stage": "implementation",
+        "purpose": "全試験"
+      },
+      {
+        "command": "./node_modules/.bin/vitest run --config reconstruction/vitest.config.ts --sequence.shuffle",
+        "cwd": ".",
+        "target": "reconstruction/test",
+        "stage": "implementation",
+        "purpose": "順序依存の検出"
+      },
+      {
+        "command": "node reconstruction/test/eew-e01/run.mjs --preliminary <options>",
+        "cwd": ".",
+        "target": "Macの予備測定（工程2、統合担当が実走する。子のsandboxはlistenできない）",
+        "stage": "preparation",
+        "purpose": "AC08の証拠の成立・成立率・所要。結果の状態は必ず未確認"
+      }
+    ],
+    "artifactRequirements": [
+      "allowed_pathsに限定したgit diff --binary --no-ext-diffのpatch、変更ファイル一覧、requiredCommandsの実行結果、未実行の検証と理由、残存リスク。追加・変更した各試験について受入条件／契約境界／実不具合／corpus履歴のどれに当たるかを1行で書く",
+      "足した仕組みごとに「無いと何が壊れるか」を1行で書く。最低限: 試行ごとの成立の判定と窓の打切り（無いと不成立の試行が正式のindexを占め、(2)〜(5)は1件の不成立でPass不能になり、成立率が低いと窓が終わらない）、実行場所ごとの行順の窓（無いとowner 3本の並行で別の入力の版を拾うか空になり、試行がpaint待ちでtimeoutする）、投入側のping（無いと負荷Nだけの窓で90秒の生存期限により再接続し、E02-N・E05-N・E07-Nが測れない）、AC15の切断hrtimeと充填時点の保存（無いとAC15を生データだけから再集計できず、A10と同じ推定が残る）、parseの開始・終了の時刻（無いと母集団2の成立をdecode開始で代用することになり、e01:562の(5)に反する）、checkpointGrantの観測（無いとPiで3秒を超えたときに権の待ちとI/Oを分けられず、D-P3-2の再裁定の材料にならない）、writeCountの観測（無いとE15の帰属不能0を確かめられない）、測定の印（無いと計測のための包みと時刻取得が本番の経路にも入る）、P3の型とmanifestの検査（無いとP2の型〔正式=fixedBacklogだけ〕で6母集団を表せず、A10の凍結manifestの検査を壊すか型の無いmanifestで凍結する）",
+      "工程1の成果物: 母集団の対応表を載せたmanifestの草案（凍結しない）、判定の関数と試験（T01・T02・T04・T06・T07・T08）、runnerの改修、Pi第1段（C3a配置の回）の記録（予備確認、Passと呼ばない）。工程1のallowedPathsはreconstruction/test/eew-e01/**とreconstruction/src/measurement/eew-e01/**だけで、製品のファイル・観測の型には触れない（C3bと同じfileを編集しない）。parse開始の観測は工程2で入るので、工程1のMacの試走では母集団2（maxVpws50ParseStarted）の成立を確かめられず、成立の判定は純関数の試験（T01）だけで確かめた、と報告に書く",
+      "工程2の成果物（統合担当が実走して記録する）: Macの予備測定の記録と所要の積算、Pi予備確認の第1段・第2段の記録、凍結manifest、正式測定の版付き結果（P3E01Verdict、E02・E05・E06・E15・報告の窓）、N7・IR06の閉鎖の記録、D-P3-2の再裁定の材料（該当時）、Codexの総合レビュー2回（測定準備一式・結果）の記録",
+      "既存試験の期待値を変えたときは、AC12の(a)(b)のどれに当たるかと変更前後の値を一覧にする"
+    ],
+    "unresolvedQuestions": [
+      {
+        "id": "Q-C4-AUTHOR-RULINGS",
+        "owner": "user",
+        "blocks": [
+          "manifest凍結（P3-C4-COLLISION-VERDICT）"
+        ],
+        "resolveBy": "工程2のmanifest凍結の前（工程1の発注は止めない。工程1の判定の関数と型はscope・originの両方を扱うので、裁定はmanifestの2 fieldを決めるだけ）",
+        "requiredEvidence": [
+          "作者の選択: P3-C4-COLLISION-VERDICT",
+          "P3-C4-PI-E03はPi予備確認の結果が出てから（C4の完了を止めない）"
+        ]
+      },
+      {
+        "id": "Q-C4-PHASE2-BASE",
+        "owner": "integrator",
+        "blocks": [
+          "工程2の発注（計測点の設置・予備測定・manifest凍結・正式測定）"
+        ],
+        "resolveBy": "C3bの配送後",
+        "requiredEvidence": [
+          "C3bの配送commit、host.ts・composition-root.ts・owner-*.tsのfile:lineの読み替え、P3-C3B-E07-WINDOWの決定（Bなら本契約のE07の節を削る）、C3bのPiで確かめる性質の最終版",
+          "工程2のbaseOidの割当と、allowedPathsへの工程2のfileの追加（契約の改訂）: reconstruction/src/host/host.ts・reconstruction/src/runtime/owner-host.ts・reconstruction/src/runtime/owner-worker.ts・reconstruction/src/runtime/composition-root.ts・reconstruction/src/decode-material/decode-material.ts・reconstruction/contracts/p2-eew-e01.types.ts・reconstruction/contracts/p3-execution-split.types.ts・reconstruction/test/host/**・reconstruction/test/execution-split/**・reconstruction/test/parser-boundary/p1-parser-boundary.test.ts。工程2の試験はT03・T05（ほかは工程1から引き継ぐ）"
+        ]
+      },
+      {
+        "id": "Q-C4-ALT-CONDITION",
+        "owner": "integrator",
+        "blocks": [
+          "manifest凍結（成立率が低く所要が窓に収まらない母集団があるとき）"
+        ],
+        "resolveBy": "Macの予備測定の後、manifest凍結の前",
+        "requiredEvidence": [
+          "該当する母集団の所要時間・試行数・成立率の予備測定の記録",
+          "統合担当が固定した代替条件（spec:1133）と、それを表すestablishmentの種類（型に無ければ凍結前の契約改訂で1つ足す）。凍結後は変えない（spec:1106）"
+        ]
+      },
+      {
+        "id": "Q-C4-O09-SUBSET",
+        "owner": "integrator",
+        "blocks": [
+          "manifest凍結"
+        ],
+        "resolveBy": "manifest凍結の時",
+        "requiredEvidence": [
+          "O09のうちC4が閉じるstep（EEWのE01母集団・main health・queue待ち）の番号を版付きsubsetとしてmanifestに固定する（計画:40）。unmetの免除はしない"
+        ]
+      },
+      {
+        "id": "Q-C4-D-P3-2",
+        "owner": "user",
+        "blocks": [
+          "D-P3-2の再裁定（C4の結果次第）"
+        ],
+        "resolveBy": "正式測定の結果が出た後",
+        "requiredEvidence": [
+          "E02-P・E05-PのFailが残るか、PiのE14が3秒を超えたとき（D-P3-8）: 同じP・Cの窓の結果、Piのunitごとの保存回数・書込量、E14の区間の分解"
+        ]
+      },
+      {
+        "id": "Q-C4-PERF-ONLY",
+        "owner": "user",
+        "blocks": [
+          "C5の着手（PERF-P3だけが残った場合）"
+        ],
+        "resolveBy": "正式測定の結果が出た後",
+        "requiredEvidence": [
+          "E01の正式母集団がPassで、PERF-P3（E02-P・E05-P・E06）だけが残ったときにC5を先に進めるかの作者裁定（計画§5末尾の条件付き裁定）"
+        ]
+      }
+    ]
+  }
+}
