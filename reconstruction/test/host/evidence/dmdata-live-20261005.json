@@ -1,0 +1,1170 @@
+{
+  "contractId": "P3-DMDATA-CONNECT-001",
+  "check": "P3-C2-AC09",
+  "appName": "fleq-p3-live",
+  "classifications": [
+    "telegram.earthquake",
+    "eew.forecast",
+    "telegram.volcano",
+    "telegram.weather"
+  ],
+  "performedAt": {
+    "startJst": "2026-10-05T21:09:41+09:00",
+    "endJst": "2026-10-05T21:21:41+09:00",
+    "startWallTimeMs": 1791202181107,
+    "endWallTimeMs": 1791202901774
+  },
+  "judgedBy": "統合担当（2026-10-05）",
+  "items": [
+    {
+      "no": "①",
+      "result": "Pass",
+      "evidence": "起動前の一覧: open 1（id 8706104 fleq-rpi500）、waiting 0。+1 で 2 ≤ 4",
+      "sourceRef": "lists[beforeStart]"
+    },
+    {
+      "no": "②",
+      "result": "Pass",
+      "evidence": "dmdataSocketStarted count=8745179（21:09:42.722）が起動の 1 行。afterStart で 8745179 が open。3 回の一覧で自分の socket は最大 1、open+waiting 最大 2。再接続後の 8745232（21:20:42.028）は⑥の再接続による start。一覧は 3 時点だけなので、再接続の前後で旧 8745179 が残った時間は直接は観測していない（afterStop には無い）。同 appName の id 無し socket は無し",
+      "sourceRef": "lists[*]・diagnostics 行1・行6"
+    },
+    {
+      "no": "③",
+      "result": "Pass",
+      "evidence": "8706104 が 3 回の一覧で同一。統合担当が Pi 旧築の tmux pane（17:00〜21:20）で切断・再接続の行 0、接続時間表示 010:00:20:39 が途切れないことを確認",
+      "sourceRef": "lists[*]・Pi tmux pane"
+    },
+    {
+      "no": "④",
+      "result": "Pass",
+      "evidence": "ping 24 回、断の区間を除く間隔は 19.7〜20.3 秒（最大 20.3 秒）。起動〜21:18:32 の約 9 分 /snapshot が connected",
+      "sourceRef": "controlFrames・snapshots"
+    },
+    {
+      "no": "⑤",
+      "result": "Pass",
+      "evidence": "T0 は 3 回（21:11:01・21:14:35・21:20:55）。各後の /snapshot で lastInputAt が進み sequence 2→4、4→5、7→9",
+      "sourceRef": "t0・snapshots"
+    },
+    {
+      "no": "⑥",
+      "result": "Pass",
+      "evidence": "最後の ping 21:17:03.860 → connectionLivenessExpired 21:18:34.746（+90.9 秒）→ reconnecting（disconnectedAt 21:18:34.751）→ 回線断中の dmdataSocketListFailed 2 回（21:18:39・21:19:39）→ dmdataSocketStarted 8745232（21:20:42.028）→ start controlFrame → 21:20:52 の /snapshot で connected（lastInputAt は 21:14:35 のまま＝data を待たずに connected）。作者が Wi-Fi を 90 秒超切断",
+      "sourceRef": "diagnostics 行3〜6・controlFrames・snapshots"
+    },
+    {
+      "no": "⑦",
+      "result": "Pass",
+      "evidence": "afterStop（21:21:41.774）の open は 8706104 のみ、waiting 0。停止 189.5ms、code 0、reasons []",
+      "sourceRef": "lists[afterStop]・stop・shutdown-summary"
+    },
+    {
+      "no": "⑧",
+      "result": "未確認",
+      "evidence": "error frame を受けなかった（errorClose は全 frame で null）。errorClose の有無は未確認",
+      "sourceRef": "controlFrames"
+    },
+    {
+      "no": "⑨",
+      "result": "未確認",
+      "evidence": "REST 429 の Retry-After は取得手段を足さない契約どおり未確認",
+      "sourceRef": "なし"
+    }
+  ],
+  "provisionalValues": [
+    {
+      "id": "P3-C2-RES-03",
+      "value": "waiting を数える（安全側）",
+      "status": "暫定のまま",
+      "reason": "3 時点とも waiting 0。waiting の数え方を確かめる機会が無かった"
+    },
+    {
+      "id": "P3-C2-RES-04",
+      "value": "handshake 15 秒",
+      "status": "暫定のまま",
+      "reason": "handshake の timeout は起きなかった"
+    },
+    {
+      "id": "P3-C2-RES-05",
+      "value": "REST 15 秒",
+      "status": "暫定のまま",
+      "reason": "REST の timeout は起きなかった"
+    },
+    {
+      "id": "P3-C2-RES-06",
+      "value": "REST 失敗後 60 秒",
+      "status": "暫定のまま",
+      "reason": "429・5xx は無し（ListFailed 2 行は回線断中の通信失敗）。Retry-After は未確認"
+    },
+    {
+      "id": "P3-C2-DLV-02",
+      "value": "生存期限 90 秒",
+      "status": "観測で妥当、値は変えない",
+      "reason": "ping 間隔は 20 秒（最大 20.3 秒）で 4 回半の余裕。回線断では最後の ping から 90.9 秒で期限切れを検出"
+    }
+  ],
+  "otherDiagnostics": "routeNotPorted U-Q（input-2、未移植 unit で想定内）",
+  "secretCheck": "APIキーらしい文字列・電文本文が無いことを確認して格納",
+  "source": {
+    "evidence.json": {
+      "appName": "fleq-p3-live",
+      "classifications": [
+        "telegram.earthquake",
+        "eew.forecast",
+        "telegram.volcano",
+        "telegram.weather"
+      ],
+      "lists": [
+        {
+          "at": "beforeStart",
+          "wallTimeMs": 1791202181107,
+          "open": {
+            "kind": "ok",
+            "sockets": [
+              {
+                "id": 8706104,
+                "appName": "fleq-rpi500",
+                "status": "open",
+                "classifications": [
+                  "telegram.earthquake",
+                  "eew.forecast",
+                  "telegram.volcano",
+                  "telegram.weather"
+                ]
+              }
+            ]
+          },
+          "waiting": {
+            "kind": "ok",
+            "sockets": []
+          }
+        },
+        {
+          "at": "afterStart",
+          "wallTimeMs": 1791202182740,
+          "open": {
+            "kind": "ok",
+            "sockets": [
+              {
+                "id": 8745179,
+                "appName": "fleq-p3-live",
+                "status": "open",
+                "classifications": [
+                  "telegram.earthquake",
+                  "eew.forecast",
+                  "telegram.volcano",
+                  "telegram.weather"
+                ]
+              },
+              {
+                "id": 8706104,
+                "appName": "fleq-rpi500",
+                "status": "open",
+                "classifications": [
+                  "telegram.earthquake",
+                  "eew.forecast",
+                  "telegram.volcano",
+                  "telegram.weather"
+                ]
+              }
+            ]
+          },
+          "waiting": {
+            "kind": "ok",
+            "sockets": []
+          }
+        },
+        {
+          "at": "afterStop",
+          "wallTimeMs": 1791202901774,
+          "open": {
+            "kind": "ok",
+            "sockets": [
+              {
+                "id": 8706104,
+                "appName": "fleq-rpi500",
+                "status": "open",
+                "classifications": [
+                  "telegram.earthquake",
+                  "eew.forecast",
+                  "telegram.volcano",
+                  "telegram.weather"
+                ]
+              }
+            ]
+          },
+          "waiting": {
+            "kind": "ok",
+            "sockets": []
+          }
+        }
+      ],
+      "controlFrames": [
+        {
+          "frameType": "start",
+          "monotonicMs": 1773.768791,
+          "errorClose": null
+        },
+        {
+          "frameType": "ping",
+          "monotonicMs": 22773.226666,
+          "errorClose": null
+        },
+        {
+          "frameType": "ping",
+          "monotonicMs": 42777.4045,
+          "errorClose": null
+        },
+        {
+          "frameType": "ping",
+          "monotonicMs": 62784.0245,
+          "errorClose": null
+        },
+        {
+          "frameType": "ping",
+          "monotonicMs": 82790.376083,
+          "errorClose": null
+        },
+        {
+          "frameType": "ping",
+          "monotonicMs": 102827.032916,
+          "errorClose": null
+        },
+        {
+          "frameType": "ping",
+          "monotonicMs": 122799.634375,
+          "errorClose": null
+        },
+        {
+          "frameType": "ping",
+          "monotonicMs": 142808.238458,
+          "errorClose": null
+        },
+        {
+          "frameType": "ping",
+          "monotonicMs": 162812.297708,
+          "errorClose": null
+        },
+        {
+          "frameType": "ping",
+          "monotonicMs": 182817.637,
+          "errorClose": null
+        },
+        {
+          "frameType": "ping",
+          "monotonicMs": 202837.049666,
+          "errorClose": null
+        },
+        {
+          "frameType": "ping",
+          "monotonicMs": 222846.235541,
+          "errorClose": null
+        },
+        {
+          "frameType": "ping",
+          "monotonicMs": 242853.312791,
+          "errorClose": null
+        },
+        {
+          "frameType": "ping",
+          "monotonicMs": 262852.364166,
+          "errorClose": null
+        },
+        {
+          "frameType": "ping",
+          "monotonicMs": 282858.872291,
+          "errorClose": null
+        },
+        {
+          "frameType": "ping",
+          "monotonicMs": 302862.045083,
+          "errorClose": null
+        },
+        {
+          "frameType": "ping",
+          "monotonicMs": 322880.281666,
+          "errorClose": null
+        },
+        {
+          "frameType": "ping",
+          "monotonicMs": 342960.880625,
+          "errorClose": null
+        },
+        {
+          "frameType": "ping",
+          "monotonicMs": 362929.876125,
+          "errorClose": null
+        },
+        {
+          "frameType": "ping",
+          "monotonicMs": 382889.333,
+          "errorClose": null
+        },
+        {
+          "frameType": "ping",
+          "monotonicMs": 403172.82725,
+          "errorClose": null
+        },
+        {
+          "frameType": "ping",
+          "monotonicMs": 423171.973958,
+          "errorClose": null
+        },
+        {
+          "frameType": "ping",
+          "monotonicMs": 442911.535833,
+          "errorClose": null
+        },
+        {
+          "frameType": "start",
+          "monotonicMs": 661078.936458,
+          "errorClose": null
+        },
+        {
+          "frameType": "ping",
+          "monotonicMs": 681974.349875,
+          "errorClose": null
+        },
+        {
+          "frameType": "ping",
+          "monotonicMs": 701970.935291,
+          "errorClose": null
+        }
+      ],
+      "t0": [
+        80169.956541,
+        294577.366666,
+        674198.613791
+      ],
+      "snapshots": [
+        {
+          "monotonicMs": 1792.302333,
+          "wallTimeMs": 1791202182741,
+          "connection": {
+            "state": "connected",
+            "disconnectedAt": null,
+            "lastInputAt": null
+          },
+          "sequence": 2
+        },
+        {
+          "monotonicMs": 11802.854291,
+          "wallTimeMs": 1791202192751,
+          "connection": {
+            "state": "connected",
+            "disconnectedAt": null,
+            "lastInputAt": null
+          },
+          "sequence": 2
+        },
+        {
+          "monotonicMs": 21803.372791,
+          "wallTimeMs": 1791202202752,
+          "connection": {
+            "state": "connected",
+            "disconnectedAt": null,
+            "lastInputAt": null
+          },
+          "sequence": 2
+        },
+        {
+          "monotonicMs": 31804.636708,
+          "wallTimeMs": 1791202212753,
+          "connection": {
+            "state": "connected",
+            "disconnectedAt": null,
+            "lastInputAt": null
+          },
+          "sequence": 2
+        },
+        {
+          "monotonicMs": 41805.328458,
+          "wallTimeMs": 1791202222754,
+          "connection": {
+            "state": "connected",
+            "disconnectedAt": null,
+            "lastInputAt": null
+          },
+          "sequence": 2
+        },
+        {
+          "monotonicMs": 51806.469666,
+          "wallTimeMs": 1791202232755,
+          "connection": {
+            "state": "connected",
+            "disconnectedAt": null,
+            "lastInputAt": null
+          },
+          "sequence": 2
+        },
+        {
+          "monotonicMs": 61808.165,
+          "wallTimeMs": 1791202242757,
+          "connection": {
+            "state": "connected",
+            "disconnectedAt": null,
+            "lastInputAt": null
+          },
+          "sequence": 2
+        },
+        {
+          "monotonicMs": 71810.211791,
+          "wallTimeMs": 1791202252759,
+          "connection": {
+            "state": "connected",
+            "disconnectedAt": null,
+            "lastInputAt": null
+          },
+          "sequence": 2
+        },
+        {
+          "monotonicMs": 81811.787,
+          "wallTimeMs": 1791202262760,
+          "connection": {
+            "state": "connected",
+            "disconnectedAt": null,
+            "lastInputAt": 1791202261118
+          },
+          "sequence": 4
+        },
+        {
+          "monotonicMs": 91812.467166,
+          "wallTimeMs": 1791202272761,
+          "connection": {
+            "state": "connected",
+            "disconnectedAt": null,
+            "lastInputAt": 1791202261118
+          },
+          "sequence": 4
+        },
+        {
+          "monotonicMs": 101813.41075,
+          "wallTimeMs": 1791202282762,
+          "connection": {
+            "state": "connected",
+            "disconnectedAt": null,
+            "lastInputAt": 1791202261118
+          },
+          "sequence": 4
+        },
+        {
+          "monotonicMs": 111814.024166,
+          "wallTimeMs": 1791202292763,
+          "connection": {
+            "state": "connected",
+            "disconnectedAt": null,
+            "lastInputAt": 1791202261118
+          },
+          "sequence": 4
+        },
+        {
+          "monotonicMs": 121814.989416,
+          "wallTimeMs": 1791202302763,
+          "connection": {
+            "state": "connected",
+            "disconnectedAt": null,
+            "lastInputAt": 1791202261118
+          },
+          "sequence": 4
+        },
+        {
+          "monotonicMs": 131815.870083,
+          "wallTimeMs": 1791202312764,
+          "connection": {
+            "state": "connected",
+            "disconnectedAt": null,
+            "lastInputAt": 1791202261118
+          },
+          "sequence": 4
+        },
+        {
+          "monotonicMs": 141816.474208,
+          "wallTimeMs": 1791202322765,
+          "connection": {
+            "state": "connected",
+            "disconnectedAt": null,
+            "lastInputAt": 1791202261118
+          },
+          "sequence": 4
+        },
+        {
+          "monotonicMs": 151818.190125,
+          "wallTimeMs": 1791202332767,
+          "connection": {
+            "state": "connected",
+            "disconnectedAt": null,
+            "lastInputAt": 1791202261118
+          },
+          "sequence": 4
+        },
+        {
+          "monotonicMs": 161819.744791,
+          "wallTimeMs": 1791202342768,
+          "connection": {
+            "state": "connected",
+            "disconnectedAt": null,
+            "lastInputAt": 1791202261118
+          },
+          "sequence": 4
+        },
+        {
+          "monotonicMs": 171820.329375,
+          "wallTimeMs": 1791202352769,
+          "connection": {
+            "state": "connected",
+            "disconnectedAt": null,
+            "lastInputAt": 1791202261118
+          },
+          "sequence": 4
+        },
+        {
+          "monotonicMs": 181821.624208,
+          "wallTimeMs": 1791202362770,
+          "connection": {
+            "state": "connected",
+            "disconnectedAt": null,
+            "lastInputAt": 1791202261118
+          },
+          "sequence": 4
+        },
+        {
+          "monotonicMs": 191822.741583,
+          "wallTimeMs": 1791202372771,
+          "connection": {
+            "state": "connected",
+            "disconnectedAt": null,
+            "lastInputAt": 1791202261118
+          },
+          "sequence": 4
+        },
+        {
+          "monotonicMs": 201824.092958,
+          "wallTimeMs": 1791202382773,
+          "connection": {
+            "state": "connected",
+            "disconnectedAt": null,
+            "lastInputAt": 1791202261118
+          },
+          "sequence": 4
+        },
+        {
+          "monotonicMs": 211824.200833,
+          "wallTimeMs": 1791202392773,
+          "connection": {
+            "state": "connected",
+            "disconnectedAt": null,
+            "lastInputAt": 1791202261118
+          },
+          "sequence": 4
+        },
+        {
+          "monotonicMs": 221825.215416,
+          "wallTimeMs": 1791202402774,
+          "connection": {
+            "state": "connected",
+            "disconnectedAt": null,
+            "lastInputAt": 1791202261118
+          },
+          "sequence": 4
+        },
+        {
+          "monotonicMs": 231826.303541,
+          "wallTimeMs": 1791202412775,
+          "connection": {
+            "state": "connected",
+            "disconnectedAt": null,
+            "lastInputAt": 1791202261118
+          },
+          "sequence": 4
+        },
+        {
+          "monotonicMs": 241827.762416,
+          "wallTimeMs": 1791202422776,
+          "connection": {
+            "state": "connected",
+            "disconnectedAt": null,
+            "lastInputAt": 1791202261118
+          },
+          "sequence": 4
+        },
+        {
+          "monotonicMs": 251827.72625,
+          "wallTimeMs": 1791202432776,
+          "connection": {
+            "state": "connected",
+            "disconnectedAt": null,
+            "lastInputAt": 1791202261118
+          },
+          "sequence": 4
+        },
+        {
+          "monotonicMs": 261828.311458,
+          "wallTimeMs": 1791202442777,
+          "connection": {
+            "state": "connected",
+            "disconnectedAt": null,
+            "lastInputAt": 1791202261118
+          },
+          "sequence": 4
+        },
+        {
+          "monotonicMs": 271829.293291,
+          "wallTimeMs": 1791202452778,
+          "connection": {
+            "state": "connected",
+            "disconnectedAt": null,
+            "lastInputAt": 1791202261118
+          },
+          "sequence": 4
+        },
+        {
+          "monotonicMs": 281830.917208,
+          "wallTimeMs": 1791202462779,
+          "connection": {
+            "state": "connected",
+            "disconnectedAt": null,
+            "lastInputAt": 1791202261118
+          },
+          "sequence": 4
+        },
+        {
+          "monotonicMs": 291831.233625,
+          "wallTimeMs": 1791202472780,
+          "connection": {
+            "state": "connected",
+            "disconnectedAt": null,
+            "lastInputAt": 1791202261118
+          },
+          "sequence": 4
+        },
+        {
+          "monotonicMs": 301832.305291,
+          "wallTimeMs": 1791202482781,
+          "connection": {
+            "state": "connected",
+            "disconnectedAt": null,
+            "lastInputAt": 1791202475526
+          },
+          "sequence": 5
+        },
+        {
+          "monotonicMs": 311833.930291,
+          "wallTimeMs": 1791202492783,
+          "connection": {
+            "state": "connected",
+            "disconnectedAt": null,
+            "lastInputAt": 1791202475526
+          },
+          "sequence": 5
+        },
+        {
+          "monotonicMs": 321834.681541,
+          "wallTimeMs": 1791202502783,
+          "connection": {
+            "state": "connected",
+            "disconnectedAt": null,
+            "lastInputAt": 1791202475526
+          },
+          "sequence": 5
+        },
+        {
+          "monotonicMs": 331834.251916,
+          "wallTimeMs": 1791202512783,
+          "connection": {
+            "state": "connected",
+            "disconnectedAt": null,
+            "lastInputAt": 1791202475526
+          },
+          "sequence": 5
+        },
+        {
+          "monotonicMs": 341835.539416,
+          "wallTimeMs": 1791202522784,
+          "connection": {
+            "state": "connected",
+            "disconnectedAt": null,
+            "lastInputAt": 1791202475526
+          },
+          "sequence": 5
+        },
+        {
+          "monotonicMs": 351836.268291,
+          "wallTimeMs": 1791202532785,
+          "connection": {
+            "state": "connected",
+            "disconnectedAt": null,
+            "lastInputAt": 1791202475526
+          },
+          "sequence": 5
+        },
+        {
+          "monotonicMs": 361837.349166,
+          "wallTimeMs": 1791202542786,
+          "connection": {
+            "state": "connected",
+            "disconnectedAt": null,
+            "lastInputAt": 1791202475526
+          },
+          "sequence": 5
+        },
+        {
+          "monotonicMs": 371838.372875,
+          "wallTimeMs": 1791202552787,
+          "connection": {
+            "state": "connected",
+            "disconnectedAt": null,
+            "lastInputAt": 1791202475526
+          },
+          "sequence": 5
+        },
+        {
+          "monotonicMs": 381839.486583,
+          "wallTimeMs": 1791202562788,
+          "connection": {
+            "state": "connected",
+            "disconnectedAt": null,
+            "lastInputAt": 1791202475526
+          },
+          "sequence": 5
+        },
+        {
+          "monotonicMs": 391840.242166,
+          "wallTimeMs": 1791202572789,
+          "connection": {
+            "state": "connected",
+            "disconnectedAt": null,
+            "lastInputAt": 1791202475526
+          },
+          "sequence": 5
+        },
+        {
+          "monotonicMs": 401841.364583,
+          "wallTimeMs": 1791202582790,
+          "connection": {
+            "state": "connected",
+            "disconnectedAt": null,
+            "lastInputAt": 1791202475526
+          },
+          "sequence": 5
+        },
+        {
+          "monotonicMs": 411842.689333,
+          "wallTimeMs": 1791202592791,
+          "connection": {
+            "state": "connected",
+            "disconnectedAt": null,
+            "lastInputAt": 1791202475526
+          },
+          "sequence": 5
+        },
+        {
+          "monotonicMs": 421843.311708,
+          "wallTimeMs": 1791202602792,
+          "connection": {
+            "state": "connected",
+            "disconnectedAt": null,
+            "lastInputAt": 1791202475526
+          },
+          "sequence": 5
+        },
+        {
+          "monotonicMs": 431845.146125,
+          "wallTimeMs": 1791202612794,
+          "connection": {
+            "state": "connected",
+            "disconnectedAt": null,
+            "lastInputAt": 1791202475526
+          },
+          "sequence": 5
+        },
+        {
+          "monotonicMs": 441846.301708,
+          "wallTimeMs": 1791202622795,
+          "connection": {
+            "state": "connected",
+            "disconnectedAt": null,
+            "lastInputAt": 1791202475526
+          },
+          "sequence": 5
+        },
+        {
+          "monotonicMs": 451848.165208,
+          "wallTimeMs": 1791202632797,
+          "connection": {
+            "state": "connected",
+            "disconnectedAt": null,
+            "lastInputAt": 1791202475526
+          },
+          "sequence": 5
+        },
+        {
+          "monotonicMs": 461849.916,
+          "wallTimeMs": 1791202642799,
+          "connection": {
+            "state": "connected",
+            "disconnectedAt": null,
+            "lastInputAt": 1791202475526
+          },
+          "sequence": 5
+        },
+        {
+          "monotonicMs": 471850.758416,
+          "wallTimeMs": 1791202652799,
+          "connection": {
+            "state": "connected",
+            "disconnectedAt": null,
+            "lastInputAt": 1791202475526
+          },
+          "sequence": 5
+        },
+        {
+          "monotonicMs": 481851.539583,
+          "wallTimeMs": 1791202662800,
+          "connection": {
+            "state": "connected",
+            "disconnectedAt": null,
+            "lastInputAt": 1791202475526
+          },
+          "sequence": 5
+        },
+        {
+          "monotonicMs": 491852.463125,
+          "wallTimeMs": 1791202672801,
+          "connection": {
+            "state": "connected",
+            "disconnectedAt": null,
+            "lastInputAt": 1791202475526
+          },
+          "sequence": 5
+        },
+        {
+          "monotonicMs": 501853.4405,
+          "wallTimeMs": 1791202682802,
+          "connection": {
+            "state": "connected",
+            "disconnectedAt": null,
+            "lastInputAt": 1791202475526
+          },
+          "sequence": 5
+        },
+        {
+          "monotonicMs": 511854.325625,
+          "wallTimeMs": 1791202692803,
+          "connection": {
+            "state": "connected",
+            "disconnectedAt": null,
+            "lastInputAt": 1791202475526
+          },
+          "sequence": 5
+        },
+        {
+          "monotonicMs": 521855.198208,
+          "wallTimeMs": 1791202702804,
+          "connection": {
+            "state": "connected",
+            "disconnectedAt": null,
+            "lastInputAt": 1791202475526
+          },
+          "sequence": 5
+        },
+        {
+          "monotonicMs": 531856.64625,
+          "wallTimeMs": 1791202712805,
+          "connection": {
+            "state": "connected",
+            "disconnectedAt": null,
+            "lastInputAt": 1791202475526
+          },
+          "sequence": 5
+        },
+        {
+          "monotonicMs": 541857.655291,
+          "wallTimeMs": 1791202722806,
+          "connection": {
+            "state": "reconnecting",
+            "disconnectedAt": 1791202714751,
+            "lastInputAt": 1791202475526
+          },
+          "sequence": 6
+        },
+        {
+          "monotonicMs": 551858.021875,
+          "wallTimeMs": 1791202732807,
+          "connection": {
+            "state": "reconnecting",
+            "disconnectedAt": 1791202714751,
+            "lastInputAt": 1791202475526
+          },
+          "sequence": 6
+        },
+        {
+          "monotonicMs": 561859.071041,
+          "wallTimeMs": 1791202742808,
+          "connection": {
+            "state": "reconnecting",
+            "disconnectedAt": 1791202714751,
+            "lastInputAt": 1791202475526
+          },
+          "sequence": 6
+        },
+        {
+          "monotonicMs": 571858.868708,
+          "wallTimeMs": 1791202752808,
+          "connection": {
+            "state": "reconnecting",
+            "disconnectedAt": 1791202714751,
+            "lastInputAt": 1791202475526
+          },
+          "sequence": 6
+        },
+        {
+          "monotonicMs": 581859.800583,
+          "wallTimeMs": 1791202762808,
+          "connection": {
+            "state": "reconnecting",
+            "disconnectedAt": 1791202714751,
+            "lastInputAt": 1791202475526
+          },
+          "sequence": 6
+        },
+        {
+          "monotonicMs": 591860.058875,
+          "wallTimeMs": 1791202772809,
+          "connection": {
+            "state": "reconnecting",
+            "disconnectedAt": 1791202714751,
+            "lastInputAt": 1791202475526
+          },
+          "sequence": 6
+        },
+        {
+          "monotonicMs": 601859.679541,
+          "wallTimeMs": 1791202782808,
+          "connection": {
+            "state": "reconnecting",
+            "disconnectedAt": 1791202714751,
+            "lastInputAt": 1791202475526
+          },
+          "sequence": 6
+        },
+        {
+          "monotonicMs": 611860.741791,
+          "wallTimeMs": 1791202792809,
+          "connection": {
+            "state": "reconnecting",
+            "disconnectedAt": 1791202714751,
+            "lastInputAt": 1791202475526
+          },
+          "sequence": 6
+        },
+        {
+          "monotonicMs": 621861.727,
+          "wallTimeMs": 1791202802810,
+          "connection": {
+            "state": "reconnecting",
+            "disconnectedAt": 1791202714751,
+            "lastInputAt": 1791202475526
+          },
+          "sequence": 6
+        },
+        {
+          "monotonicMs": 631862.221583,
+          "wallTimeMs": 1791202812811,
+          "connection": {
+            "state": "reconnecting",
+            "disconnectedAt": 1791202714751,
+            "lastInputAt": 1791202475526
+          },
+          "sequence": 6
+        },
+        {
+          "monotonicMs": 641863.928375,
+          "wallTimeMs": 1791202822813,
+          "connection": {
+            "state": "reconnecting",
+            "disconnectedAt": 1791202714751,
+            "lastInputAt": 1791202475526
+          },
+          "sequence": 6
+        },
+        {
+          "monotonicMs": 651865.161375,
+          "wallTimeMs": 1791202832814,
+          "connection": {
+            "state": "reconnecting",
+            "disconnectedAt": 1791202714751,
+            "lastInputAt": 1791202475526
+          },
+          "sequence": 6
+        },
+        {
+          "monotonicMs": 661866.656208,
+          "wallTimeMs": 1791202842815,
+          "connection": {
+            "state": "reconnecting",
+            "disconnectedAt": 1791202714751,
+            "lastInputAt": 1791202475526
+          },
+          "sequence": 6
+        },
+        {
+          "monotonicMs": 671866.556833,
+          "wallTimeMs": 1791202852815,
+          "connection": {
+            "state": "connected",
+            "disconnectedAt": 1791202714751,
+            "lastInputAt": 1791202475526
+          },
+          "sequence": 7
+        },
+        {
+          "monotonicMs": 681867.480583,
+          "wallTimeMs": 1791202862816,
+          "connection": {
+            "state": "connected",
+            "disconnectedAt": 1791202714751,
+            "lastInputAt": 1791202855147
+          },
+          "sequence": 9
+        },
+        {
+          "monotonicMs": 691868.359666,
+          "wallTimeMs": 1791202872817,
+          "connection": {
+            "state": "connected",
+            "disconnectedAt": 1791202714751,
+            "lastInputAt": 1791202855147
+          },
+          "sequence": 9
+        },
+        {
+          "monotonicMs": 701869.219666,
+          "wallTimeMs": 1791202882818,
+          "connection": {
+            "state": "connected",
+            "disconnectedAt": 1791202714751,
+            "lastInputAt": 1791202855147
+          },
+          "sequence": 9
+        },
+        {
+          "monotonicMs": 711871.101666,
+          "wallTimeMs": 1791202892820,
+          "connection": {
+            "state": "connected",
+            "disconnectedAt": 1791202714751,
+            "lastInputAt": 1791202855147
+          },
+          "sequence": 9
+        }
+      ],
+      "start": {
+        "displayPort": 7799,
+        "monotonicMs": 1767.722041
+      },
+      "stop": {
+        "durationMs": 189.50525000004563,
+        "code": 0,
+        "reasons": []
+      }
+    },
+    "diagnostics-2026-10-05.jsonl": [
+      {
+        "timestamp": 1791202182722,
+        "level": "INFO",
+        "component": "host",
+        "reason": "dmdataSocketStarted",
+        "runId": "d39e69bb-a264-42fa-808b-79e8310650dc",
+        "count": 8745179
+      },
+      {
+        "timestamp": 1791202475527,
+        "level": "INFO",
+        "component": "shared-runtime",
+        "reason": "routeNotPorted",
+        "runId": "d39e69bb-a264-42fa-808b-79e8310650dc",
+        "inputId": "input-2",
+        "unit": "U-Q"
+      },
+      {
+        "timestamp": 1791202714746,
+        "level": "WARN",
+        "component": "host",
+        "reason": "connectionLivenessExpired",
+        "runId": "d39e69bb-a264-42fa-808b-79e8310650dc"
+      },
+      {
+        "timestamp": 1791202719772,
+        "level": "WARN",
+        "component": "host",
+        "reason": "dmdataSocketListFailed",
+        "runId": "d39e69bb-a264-42fa-808b-79e8310650dc"
+      },
+      {
+        "timestamp": 1791202779778,
+        "level": "WARN",
+        "component": "host",
+        "reason": "dmdataSocketListFailed",
+        "runId": "d39e69bb-a264-42fa-808b-79e8310650dc"
+      },
+      {
+        "timestamp": 1791202842028,
+        "level": "INFO",
+        "component": "host",
+        "reason": "dmdataSocketStarted",
+        "runId": "d39e69bb-a264-42fa-808b-79e8310650dc",
+        "count": 8745232
+      },
+      {
+        "timestamp": 1791202901529,
+        "level": "INFO",
+        "component": "shutdown",
+        "reason": "shutdownStarted",
+        "runId": "d39e69bb-a264-42fa-808b-79e8310650dc"
+      }
+    ],
+    "shutdown-summary.json": {
+      "code": 0,
+      "reasons": [],
+      "requestedAt": 1791202901529,
+      "finalizationAt": 1791202901541,
+      "completedAt": 1791202901545,
+      "acceptedThroughSequence": 3,
+      "pendingInputs": 0,
+      "inFlightInputs": 0,
+      "persistence": {
+        "U-E": {
+          "kind": "saved",
+          "currentGeneration": 0,
+          "savedGeneration": 0,
+          "savedCapturedAt": null,
+          "savedAckAt": null,
+          "dirtySince": null
+        },
+        "U-W": {
+          "currentGeneration": 2,
+          "savedGeneration": 2,
+          "savedCapturedAt": 1791202855893,
+          "savedAckAt": 1791202855923,
+          "dirtySince": null,
+          "kind": "saved"
+        },
+        "U-F": {
+          "kind": "saved",
+          "currentGeneration": 0,
+          "savedGeneration": 0,
+          "savedCapturedAt": null,
+          "savedAckAt": null,
+          "dirtySince": null
+        }
+      },
+      "droppedDiagnostics": {
+        "DEBUG": 0,
+        "INFO": 0,
+        "WARN": 0,
+        "ERROR": 0
+      }
+    }
+  },
+  "authorConsoleObservation": "作者が dmdata の管理画面の接続一覧で、検証 script の起動中は fleq-p3-live の接続が表示され、終了後に消えたことを確認した（2026-10-05、②⑦の外側からの裏づけ）"
+}

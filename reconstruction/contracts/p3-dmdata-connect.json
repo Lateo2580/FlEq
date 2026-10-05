@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "87fc5ed341ed3e7a735e0382533a56610f33636a",
-    "sha256": "8b9828869686c31cb605e227c5450f7d5bf9df98f32a94e2c3219090de69fa14",
+    "sha256": "0816521bad4d137289d53bff0febfa5edf4777a56536eec14bf2d83d3e787400",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "76c82b87d7783a4eae14af690cb34e7d6ec46f73617dc75b7f7401951619f080",
     "sequencesSha256": "be9cfd97b555e3a55568f085d107342c978b3dc7249f5cecea868ea5a62c5781",
@@ -96,6 +96,22 @@
         "closed": "P2のhostは接続先URLだけを受け、本物のdmdataへの接続準備をP3最初の契約群へ送った（e01:84、e01:562の(5)）。本契約がその引受先",
         "remaining": "実接続検証（AC09）は作者が決める時刻に行う。それまでC2は配送できても、最初の契約群（C0〜C4）を完了にしない（計画§1.3）",
         "reason": "計画§6の本物のdmdata接続・台帳58・台帳59の3行をC2へ割り当てる"
+      },
+      {
+        "id": "Q-C2-LIVE-PRECONDITIONS",
+        "status": "closed",
+        "source": "AC09 の実接続検証の実施（2026-10-05 21:09:41〜21:21:41 JST、作者の端末、appName fleq-p3-live、旧築と同じ 4 区分、⑥実施）",
+        "closed": "検証用 appName・open 1 本（旧築 8706104）で +1 が 4 以内・+1 本で費用が生じないこと（2026-10-02 作者確認）・実施時刻と幅・購読区分・⑥の実施がそろい、作者が agent の外で実施した。記録は reconstruction/test/host/evidence/dmdata-live-20261005.json",
+        "remaining": "なし。AC09 の⑧⑨は未確認のまま記録（C2 の完了条件は②③④⑦で、いずれも Pass）",
+        "reason": "unresolvedQuestions の Q-C2-LIVE-PRECONDITIONS（実接続検証の実施前）を閉じる"
+      },
+      {
+        "id": "Q-C2-DMDATA-BEHAVIOR",
+        "status": "closed",
+        "source": "AC09 の実接続検証の観測（dmdata-live-20261005.json）",
+        "closed": "waiting は 3 時点とも 0（WS を閉じた後と停止後の自分の socket は afterStop に無い。失効か DELETE かは区別できない）。ping 間隔は 20 秒（最大 20.3 秒）で、DLV-02 の 90 秒は観測で妥当、値は変えない（回線断で 90.9 秒後に期限切れ）。REST 429・5xx は無し（ListFailed 2 行は回線断中の通信失敗）。error frame は 0 件で errorClose は未確認。結果不明の POST（dmdataSocketStartUncertain）は 0 件で waiting の失効は未確認",
+        "remaining": "暫定のまま残す: RES-03（waiting が出なかった）、RES-04・RES-05（15 秒。timeout は起きなかった）、RES-06（Retry-After 未確認の 60 秒）。errorClose・waiting の失効は未確認",
+        "reason": "unresolvedQuestions の Q-C2-DMDATA-BEHAVIOR（AC09 の観測で閉じる）を閉じる"
       }
     ],
     "operationContract": {
@@ -549,39 +565,6 @@
       "AC09の実接続検証の記録reconstruction/test/host/evidence/dmdata-live-<YYYYMMDD>.jsonは、作者が渡したoutputPathのファイルと診断ファイルから統合担当が書く。各項目のPass／Fail／未確認と使った証拠（射影済みsocket一覧、controlFrameの時刻、/snapshotのconnection・sequence、該当する診断行）、未確認の項目に関係する暫定値を持ち、秘密値と電文の中身を含まない"
     ],
     "unresolvedQuestions": [
-      {
-        "id": "Q-C2-LIVE-PRECONDITIONS",
-        "owner": "user",
-        "blocks": [
-          "P3-C2-AC09の実接続検証の実施",
-          "最初の契約群（C0〜C4）の完了判定（計画§1.3）"
-        ],
-        "resolveBy": "実接続検証の実施前。C2の実装・レビュー・配送は待たない",
-        "requiredEvidence": [
-          "APIキーの用意と、作者が自分の端末（agentの外）で環境変数DMDATA_API_KEYを設定して検証scriptを実行すること（キーを会話・agent・ファイルへ渡さない）",
-          "検証用appName（旧築のfleq・Piの各接続・他の稼働端末と重ならない名前）",
-          "現在openのsocketの本数と持ち主（旧主・旧副）と、+1本で4本以内であること",
-          "+1本で費用が生じるかの確認結果",
-          "実施時刻と時間幅",
-          "検証で購読する区分（旧築と同じ5区分か、その一部か）",
-          "AC09の⑥（回線を90秒超断つ再接続）を実施するか"
-        ]
-      },
-      {
-        "id": "Q-C2-DMDATA-BEHAVIOR",
-        "owner": "integrator",
-        "blocks": [
-          "P3-C2-RES-03のwaitingの数え方と、P3-C2-DLV-02の90秒・RES-04/05の15秒の暫定値の確定（実装は暫定値で進める）"
-        ],
-        "resolveBy": "AC09の実接続検証で観測し、記録に添える",
-        "requiredEvidence": [
-          "起動前・起動中・停止後の射影済みsocket一覧（waitingの出現の有無、WSを閉じた後とDELETE後の自分のsocketのstatus）",
-          "ping受信の間隔（AC09(2)(b)のcontrolFrameで観測できた範囲）",
-          "RESTが429・5xxを返したか（診断の該当行）。Retry-Afterは取得手段を足さないので未確認とし、60秒の暫定値を残す",
-          "errorフレームを受けた場合のclose flag（AC09(2)(b)のerrorClose。closeを伴うerrorと伴わないerrorがあるか。既存hostはflagを見ずにterminateする）",
-          "結果不明のPOSTが起きたか（dmdataSocketStartUncertainの行）と、作られたまま接続されないwaitingのsocketをdmdataが失効させるか、失効までの時間（射影済み一覧のwaitingの推移で観測。起きなければ未確認）"
-        ]
-      },
       {
         "id": "Q-C2-RUNNER-LIVENESS",
         "owner": "integrator",
