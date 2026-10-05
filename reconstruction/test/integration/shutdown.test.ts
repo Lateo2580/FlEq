@@ -5,8 +5,9 @@ import { afterEach, describe, expect, it } from "vitest";
 
 import type { MailboxEnvelope } from "../../contracts/p2-shared-runtime.types";
 import { RuntimeCompositionRoot } from "../../src/runtime/composition-root";
+import { harnessedRoot, startHarness } from "../execution-split/owner-harness";
 
-import { fixtureState, fixtureDriver , testNotificationChannels, recordingNotificationAdapter} from "../checkpoint-shutdown/runtime-fixture";
+import { fixtureState, fixtureDriver, recordingNotificationAdapter } from "../checkpoint-shutdown/runtime-fixture";
 const temporary: string[] = [];
 const clock = { wallTimeMs: 10_000, monotonicMs: 100 } as const;
 
@@ -40,13 +41,13 @@ describe("P2 shutdown composition", () => {
   it("P2-A3-T06 acceptance / AC06: stage order produces only codes 0/2/3/4 and never 0 with unsaved state", async () => {
     const path = await directory();
     const order: string[] = [];
-    let normal: RuntimeCompositionRoot;
-    normal = new RuntimeCompositionRoot(config(path), {}, { notificationAdapter: recordingNotificationAdapter(), runtimeCalls: fixtureDriver().calls, clock: () => clock, shutdownHooks: {
-      drainMailbox: async () => { expect(normal.mailbox.stats(clock.monotonicMs).accepting).toBe(false); order.push("drain"); },
+    const normal = harnessedRoot(config(path), {}, { notificationAdapter: recordingNotificationAdapter(), runtimeCalls: fixtureDriver().calls, clock: () => clock, shutdownHooks: {
+      drainMailbox: async () => { expect(normal.root.mailbox.stats(clock.monotonicMs).accepting).toBe(false); order.push("drain"); },
       finalizeBatchesAndSideEffects: async () => { order.push("finalize"); return { batches: 0, notificationAttempts: 0 }; },
       closeWorker: async () => { order.push("close"); },
     } });
-    expect((await normal.shutdownRuntime(normal.startRuntime("run", clock, testNotificationChannels).state, 7, clock)).code).toBe(0);
+    await startHarness(normal, "run", clock, false);
+    expect((await normal.root.shutdownRuntime(7, clock)).code).toBe(0);
     expect(order).toEqual(["drain", "finalize", "close"]);
     expect(JSON.parse(await fileSystem.readFile(join(path, "diagnostics", "shutdown-summary.json"), "utf8")))
       .toMatchObject({ code: 0, acceptedThroughSequence: 7, pendingInputs: 0, inFlightInputs: 0 });
@@ -54,26 +55,30 @@ describe("P2 shutdown composition", () => {
     const dirty = fixtureState({ "U-F": "final" }, { "U-F": { kind: "pending",
       currentGeneration: 1, savedGeneration: null, savedCapturedAt: null, savedAckAt: null, dirtySince: 0 } });
     const driver = fixtureDriver();
-    const unsaved = new RuntimeCompositionRoot(config(path), {}, { notificationAdapter: recordingNotificationAdapter(), runtimeCalls: driver.calls, clock: () => clock });
-    const unsavedSummary = await unsaved.shutdownRuntime(driver.update(unsaved, dirty, clock), 7, clock);
+    const unsaved = harnessedRoot(config(path), {}, { notificationAdapter: recordingNotificationAdapter(), runtimeCalls: driver.calls, clock: () => clock });
+    await driver.update(unsaved, dirty, clock);
+    const unsavedSummary = await unsaved.root.shutdownRuntime(7, clock);
     expect(unsavedSummary).toMatchObject({ code: 2, reasons: ["finalCheckpoint:unsavedUnits"],
       persistence: { "U-F": { currentGeneration: 1, savedGeneration: null } } });
 
-    const mailboxBlocked = new RuntimeCompositionRoot(config(path), {}, { notificationAdapter: recordingNotificationAdapter(), runtimeCalls: fixtureDriver().calls, clock: () => clock });
-    mailboxBlocked.mailbox.enqueue(pendingEnvelope());
-    expect((await mailboxBlocked.shutdownRuntime(mailboxBlocked.startRuntime("run", clock, testNotificationChannels).state, 7, clock))).toMatchObject({
+    const mailboxBlocked = harnessedRoot(config(path), {}, { notificationAdapter: recordingNotificationAdapter(), runtimeCalls: fixtureDriver().calls, clock: () => clock });
+    mailboxBlocked.root.mailbox.enqueue(pendingEnvelope());
+    await startHarness(mailboxBlocked, "run", clock, false);
+    expect((await mailboxBlocked.root.shutdownRuntime(7, clock))).toMatchObject({
       code: 3, pendingInputs: 1, reasons: ["mailboxDrain:remainingInputs"],
     });
 
-    const batchBlocked = new RuntimeCompositionRoot(config(path), {}, { notificationAdapter: recordingNotificationAdapter(),
+    const batchBlocked = harnessedRoot(config(path), {}, { notificationAdapter: recordingNotificationAdapter(),
       runtimeCalls: fixtureDriver().calls, clock: () => clock, shutdownHooks: { finalizeBatchesAndSideEffects: async () => { throw new Error("stuck"); } },
     });
-    expect((await batchBlocked.shutdownRuntime(batchBlocked.startRuntime("run", clock, testNotificationChannels).state, 7, clock)).code).toBe(3);
+    await startHarness(batchBlocked, "run", clock, false);
+    expect((await batchBlocked.root.shutdownRuntime(7, clock)).code).toBe(3);
 
-    const closeBlocked = new RuntimeCompositionRoot(config(path), {}, { notificationAdapter: recordingNotificationAdapter(),
+    const closeBlocked = harnessedRoot(config(path), {}, { notificationAdapter: recordingNotificationAdapter(),
       runtimeCalls: fixtureDriver().calls, clock: () => clock, shutdownHooks: { closeWorker: async () => { throw new Error("stuck"); } },
     });
-    expect((await closeBlocked.shutdownRuntime(closeBlocked.startRuntime("run", clock, testNotificationChannels).state, 7, clock))).toMatchObject({
+    await startHarness(closeBlocked, "run", clock, false);
+    expect((await closeBlocked.root.shutdownRuntime(7, clock))).toMatchObject({
       code: 4, reasons: ["workerClose:failed:operationFailed", "workerClose:remainingWorkers"],
     });
     expect(JSON.parse(await fileSystem.readFile(join(path, "diagnostics", "shutdown-summary.json"), "utf8")))
@@ -82,8 +87,9 @@ describe("P2 shutdown composition", () => {
 
   it("P2-A3-T06 contractBoundary / AC06: config rejects old/new ownership collisions before startup", async () => {
     const path = await directory();
-    expect(() => new RuntimeCompositionRoot({ ...config(path), appName: "fleq" }, {}, { notificationAdapter: recordingNotificationAdapter() })).toThrow(/appName/);
+    const send = () => {};
+    expect(() => new RuntimeCompositionRoot({ ...config(path), appName: "fleq" }, {}, { send, notificationAdapter: recordingNotificationAdapter() })).toThrow(/appName/);
     expect(() => new RuntimeCompositionRoot({ ...config(path),
-      stateDirectory: join(path, "legacy") }, {}, { notificationAdapter: recordingNotificationAdapter() })).toThrow(/directories/);
+      stateDirectory: join(path, "legacy") }, {}, { send, notificationAdapter: recordingNotificationAdapter() })).toThrow(/directories/);
   });
 });

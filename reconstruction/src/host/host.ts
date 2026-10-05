@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { resolve } from "node:path";
 import { performance } from "node:perf_hooks";
+import { Worker } from "node:worker_threads";
 import { WebSocket } from "ws";
 import type { RawData } from "ws";
 
@@ -8,10 +9,11 @@ import type { P2HostObservation } from "../../contracts/p2-eew-e01.types";
 import type { ParserDiagnostic } from "../../contracts/p1-parser-boundary.types";
 import type { ClockReading, DiagnosticLevel, DiagnosticReason, MailboxEnvelope, ShutdownSummary } from "../../contracts/p2-shared-runtime.types";
 import type { DmdataClassification, DmdataSubscription } from "../../contracts/p3-dmdata-connect.types";
-import { decodeMaterial } from "../decode-material/decode-material";
 import { startDisplayServer } from "../http-sse/http-sse";
 import { ingestXmlData } from "../ingress/ingress";
+import type { ParsedFrame } from "../ingress/ingress";
 import { resolveRepoPath } from "../notification-delivery/adapter";
+import type { ExecutionPlace, OwnerReply, OwnerStartData } from "../../contracts/p3-execution-split.types";
 import { RuntimeCompositionRoot, linkedUnitCodecs } from "../runtime/composition-root";
 import { completeDiagnostic } from "../runtime/runtime-diagnostic";
 import { closeSocket, listSockets, startSocket } from "./dmdata-rest";
@@ -28,8 +30,8 @@ const SOCKET_LIMIT = 4;
 // P3-C2-RES-07 (spec:889): the stop request through the connection cleanup, inside the overall shutdown limit.
 const STOP_LIMIT_MS = 30_000;
 const TICK_MS = 1_000;
-// dmdata control frames (start/ping/pong/error) are small. Larger frames go straight to ingress so a data frame
-// (up to 8 MiB) is JSON-parsed once, by ingress.
+// dmdata control frames (start/ping/pong/error) are small: a small frame is decoded and parsed once here and the
+// result goes on to ingress. Larger frames go straight to ingress, which parses them once (P3-C3A-RES-04).
 const CONTROL_PEEK_BYTES = 16 * 1024;
 const knownClassifications: Readonly<Record<DmdataClassification, true>> = {
   "telegram.earthquake": true, "eew.forecast": true, "eew.warning": true, "telegram.volcano": true, "telegram.weather": true,
@@ -52,11 +54,19 @@ function toBuffer(raw: RawData): Buffer {
   return Buffer.isBuffer(raw) ? raw : Array.isArray(raw) ? Buffer.concat(raw) : Buffer.from(raw);
 }
 
-function peekHead(bytes: Buffer): ControlHead | null {
+// P3-C3A-AC04: the one fatal UTF-8 decode and JSON.parse of a small frame, as ingress would do it; the result goes
+// on to ingress, which then does not parse again (invalid UTF-8 or JSON is rejected there as envelopeInvalid).
+function parseFrame(bytes: Uint8Array): ParsedFrame {
+  const start = performance.now();
   try {
-    const message: unknown = JSON.parse(bytes.toString("utf8"));
-    return message != null && typeof message === "object" ? message : null;
-  } catch { return null; }
+    const value: unknown = JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(bytes));
+    return { kind: "parsed", value, jsonMs: performance.now() - start };
+  } catch { return { kind: "failed" }; }
+}
+
+// Only a parsed object can be a control frame; anything else goes the data path.
+function controlHead(value: unknown): ControlHead | null {
+  return value != null && typeof value === "object" ? value : null;
 }
 
 const isStrings = (value: unknown): value is readonly string[] => Array.isArray(value) && value.every((item) => typeof item === "string");
@@ -87,19 +97,65 @@ async function startP2Host(config: P2HostConfig): Promise<Readonly<{ displayPort
     onSerialize: ({ version, bytes, durationMs }) => emit({ kind: "publishSerialization", displayVersion: version, bytes, durationMs }),
   });
 
+  // P3-C3A-AC01: three resident owner threads (dist worker entry), created once here, never per input or request.
+  const workers = new Map<ExecutionPlace, Worker>();
   let root: RuntimeCompositionRoot;
+  let started = false;
+  // From the stop request on (and on a failed start) an owner's exit is expected and is not a failure.
+  let ownersStopping = false;
+  const endOwners = async () => {
+    ownersStopping = true;
+    await Promise.all([...workers.values()].map((worker) => worker.terminate()));
+  };
+  // P3-C3A-OWNER-FAILURE (author ruling A): an owner's error, or an exit outside stop, stops the process. Before the
+  // runtime has started, the recorded failure rejects startRuntime (and so startP2Host) instead.
+  const ownerFailed = (place: ExecutionPlace, cause: unknown) => {
+    try { root.ownerFailed(place, cause); } catch (error) { if (started) throw error; }
+  };
   try {
+    const entry = resolveRepoPath("reconstruction/dist/src/runtime/owner-worker.js");
+    for (const place of ["urgent", "weatherCurrent", "deferred"] as const) {
+      const start: OwnerStartData = { place, stateDirectory: config.stateDirectory, publisherTimeOriginMs: performance.timeOrigin };
+      const worker = new Worker(entry, { workerData: start });
+      workers.set(place, worker);
+      worker.on("message", (reply: OwnerReply) => {
+        // AC13: T2 and decode are the owner's times, so they are observed before the reply is projected (T3).
+        if (reply.kind === "inputDone") {
+          const { inputId } = reply.settlement;
+          emit({ kind: "marker", point: "T2", runId, inputId, monotonicMs: reply.processingStartedMs });
+          if (reply.decode != null) emit({ kind: "decode", runId, inputId, ...reply.decode });
+        }
+        root.receive(place, reply);
+      });
+      worker.on("error", (error) => ownerFailed(place, error));
+      worker.on("exit", (code) => { if (!ownersStopping) ownerFailed(place, new Error(`owner thread exited (code ${code})`)); });
+    }
     root = new RuntimeCompositionRoot({ appName: config.dmdata?.appName ?? "fleq-p2", legacyAppName: "fleq", stateDirectory: config.stateDirectory,
       legacyStateDirectory: `${resolve(config.stateDirectory)}.legacy`, diagnosticDirectory: config.diagnosticDirectory },
     linkedUnitCodecs, {
-      clock,
+      send: (place, request) => workers.get(place)!.postMessage(request), clock,
       display: { publish: server.publish, setWorker: server.setWorker,
         onMarker: (marker, displayVersion) => emit({ kind: "marker", point: "T3", runId, displayVersion, monotonicMs: marker.monotonicMs }) },
       onMeasurements: (measurements) => { for (const measurement of measurements) emit({ kind: "checkpoint", measurement }); },
-      shutdownHooks: { drainMailbox: async (_deadline, active) => { while (active() && processOne()) { /* drain */ } } },
+      onInputDone: (reply) => {
+        const { inputId } = reply.settlement;
+        if (config.observe != null) {
+          // A decoded input has its parse marks; a parser rejection has none (no processing record, as before).
+          const { workerTransferMs: _transfer, ingressJsonMs: _json, ...parsed } = reply.marks;
+          if (Object.values(parsed).some((value) => value != null)) emit({ kind: "processing", measurement: { runId, inputId,
+            startedMonotonicMs: reply.processingStartedMs, endedMonotonicMs: performance.now(),
+            marks: { ...reply.marks, ingressJsonMs: ingressJsonMs.get(inputId) ?? null } } });
+          ingressJsonMs.delete(inputId);
+        }
+        resumeIfDrained();
+      },
+      shutdownHooks: { drainMailbox: async (_deadline, active) => root.drainInputs(active), closeWorker: endOwners },
     });
-    root.startRuntime(runId, clock(), { desktop: { kind: "idle" }, sound: { kind: "idle" } });
+    await root.startRuntime(runId, clock(), { desktop: { kind: "idle" }, sound: { kind: "idle" } });
+    started = true;
   } catch (error) {
+    // Every owner created so far ends before the rejection (P3-C3A-AC01).
+    await endOwners();
     await server.close();
     throw error;
   }
@@ -117,7 +173,6 @@ async function startP2Host(config: P2HostConfig): Promise<Readonly<{ displayPort
   // Monotonic time of the current WS's open or last frame (P3-C2-LIVENESS).
   let lastFrameAt = 0;
   let overloaded = false;
-  let pumpScheduled = false;
   let saving = false;
   let lastSequence = 0;
   let lastAccepted: Readonly<{ sequence: number; inputId: string }> | null = null;
@@ -132,46 +187,8 @@ async function startP2Host(config: P2HostConfig): Promise<Readonly<{ displayPort
 
   const dispatchLost = () => {
     if (root.state.shutdown.stage !== "running") return;
-    root.dispatch(root.state, { kind: "connectionLost", acceptedThroughSequence: lastAccepted?.sequence ?? -1, clock: clock() });
+    root.dispatch({ kind: "connectionLost", acceptedThroughSequence: lastAccepted?.sequence ?? -1, clock: clock() });
   };
-
-  function processOne(): boolean {
-    const takenAt = clock().monotonicMs;
-    const envelope = mailbox.takeNext(takenAt);
-    if (envelope == null) return false;
-    const t2 = performance.now();
-    if (envelope.payload.kind !== "parser") throw new Error("host mailbox holds parser items only");
-    const { item } = envelope.payload;
-    emit({ kind: "marker", point: "T2", runId, inputId: item.inputId, monotonicMs: t2 });
-    const decodeStarted = performance.now();
-    const result = decodeMaterial(item);
-    const decodeEnded = performance.now();
-    emit({ kind: "decode", runId, inputId: item.inputId, startedMonotonicMs: decodeStarted, endedMonotonicMs: decodeEnded });
-    const done = clock();
-    const completion = { kind: "parser", messageId: envelope.messageId, runId: envelope.runId,
-      encodedByteLength: item.encodedByteLength, startedMonotonicMs: takenAt, completedMonotonicMs: done.monotonicMs,
-      inputId: item.inputId, inputSequence: item.inputSequence, result } as const;
-    mailbox.complete(completion);
-    root.dispatch(root.state, { kind: "mailboxCompleted", completion, clock: done });
-    if (config.observe != null) {
-      if (result.kind === "decoded") emit({ kind: "processing", measurement: { runId, inputId: item.inputId,
-        startedMonotonicMs: t2, endedMonotonicMs: performance.now(),
-        marks: { ...result.material.marks, ingressJsonMs: ingressJsonMs.get(item.inputId) ?? null } } });
-      ingressJsonMs.delete(item.inputId);
-    }
-    return true;
-  }
-
-  // One item per turn so frames that arrive meanwhile queue in the mailbox (T1 to T2 is a real queue).
-  function schedulePump(): void {
-    if (pumpScheduled || stopping != null) return;
-    pumpScheduled = true;
-    setImmediate(() => {
-      pumpScheduled = false;
-      if (stopping != null) return;
-      if (processOne()) schedulePump(); else resumeIfDrained();
-    });
-  }
 
   // The one place an attempt starts: an unexpected rejection counts as a WS failure, so stop() and the retry still run.
   function startAttempt(): Promise<Attempt> {
@@ -232,8 +249,9 @@ async function startP2Host(config: P2HostConfig): Promise<Readonly<{ displayPort
     const bytes = toBuffer(raw);
     const entry = clock();
     lastFrameAt = entry.monotonicMs;
-    if (bytes.byteLength <= CONTROL_PEEK_BYTES) {
-      const head = peekHead(bytes);
+    const parsed = bytes.byteLength <= CONTROL_PEEK_BYTES ? parseFrame(bytes) : undefined;
+    if (parsed != null) {
+      const head = parsed.kind === "parsed" ? controlHead(parsed.value) : null;
       if (head?.type === "ping") {
         emit({ kind: "controlFrame", frameType: "ping", monotonicMs: t0, errorClose: null });
         if (typeof head.pingId === "string") ws.send(JSON.stringify({ type: "pong", pingId: head.pingId }), () => {});
@@ -259,7 +277,7 @@ async function startP2Host(config: P2HostConfig): Promise<Readonly<{ displayPort
     const inputId = `input-${lastSequence}`;
     emit({ kind: "marker", point: "T0", runId, inputId, monotonicMs: t0 });
     const ingressed = ingestXmlData({ inputId, inputSequence: lastSequence, receivedAt: entry.wallTimeMs,
-      origin: "live", kind: "ws", frame: bytes });
+      origin: "live", kind: "ws", frame: bytes, parsed });
     if (ingressed.kind === "rejected") { recordRejected(ingressed.diagnostic, entry.wallTimeMs); return; }
     const { item } = ingressed;
     // The priority reason is the validated outer shape only; meaning stays with parser and units.
@@ -275,7 +293,7 @@ async function startP2Host(config: P2HostConfig): Promise<Readonly<{ displayPort
     lastAccepted = { sequence: lastSequence, inputId };
     if (config.observe != null) ingressJsonMs.set(inputId, ingressed.ingressJsonMs);
     emit({ kind: "marker", point: "T1", runId, inputId, monotonicMs: t1 });
-    schedulePump();
+    if (stopping == null) root.pump();
   }
 
   // spec §10.1 / P3-C2-AC02: list, release the own previous socket, check capacity, start. A failure leaves the WS closed.
@@ -350,7 +368,7 @@ async function startP2Host(config: P2HostConfig): Promise<Readonly<{ displayPort
       note("WARN", "connectionLivenessExpired");
       current.terminate();
     }
-    root.tick(root.state, now);
+    root.tick(now);
     // P2-A10-AC13: the tick itself is the liveness answer; there is no engine worker (R60).
     mailbox.recordWorkerResponse(now.monotonicMs);
     const stalled = mailbox.isStalled(now.monotonicMs);
@@ -393,6 +411,7 @@ async function startP2Host(config: P2HostConfig): Promise<Readonly<{ displayPort
   const stop = (): Promise<ShutdownSummary> => stopping ??= (async () => {
     // The stop request is the origin of the overall shutdown limit; the cleanup runs beside shutdownRuntime, not before it.
     const requested = clock();
+    ownersStopping = true;
     clearInterval(tickTimer);
     if (reconnectTimer != null) clearTimeout(reconnectTimer);
     process.off("SIGINT", stop);
@@ -401,9 +420,10 @@ async function startP2Host(config: P2HostConfig): Promise<Readonly<{ displayPort
     socket = null;
     ws?.terminate();
     const cleanup = releaseOwnSocket(requested.monotonicMs + STOP_LIMIT_MS);
-    try { return await root.shutdownRuntime(root.state, lastAccepted?.sequence ?? 0, requested); }
+    try { return await root.shutdownRuntime(lastAccepted?.sequence ?? 0, requested); }
     finally {
       await cleanup;
+      await endOwners();
       await server.close();
     }
   })();
@@ -412,7 +432,7 @@ async function startP2Host(config: P2HostConfig): Promise<Readonly<{ displayPort
 
   // P2-A1-PROBE: startup publishes the checking snapshot; the probe result arrives asynchronously.
   void root.probeNotificationChannels().then((channels) => {
-    if (stopping == null) root.dispatch(root.state, { kind: "notificationProbeCompleted", channels, clock: clock() });
+    if (stopping == null) root.dispatch({ kind: "notificationProbeCompleted", channels, clock: clock() });
   });
 
   const first = await startAttempt();

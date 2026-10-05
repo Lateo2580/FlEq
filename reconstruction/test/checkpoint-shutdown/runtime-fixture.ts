@@ -1,9 +1,15 @@
 import type {
   ClockReading, JsonValue, PersistenceStatus, RuntimeState, RuntimeUnitId, RuntimeUnitStates, UnitCodec, UnitId,
 } from "../../contracts/p2-shared-runtime.types";
-import type { DecodedMaterial } from "../../contracts/p1-parser-boundary.types";
-import type { CompositionOptions, RuntimeCompositionRoot } from "../../src/runtime/composition-root";
-import { callsWith, reduceRuntimeWith } from "../unit-table/linked-calls";
+import type { ExecutionPlace } from "../../contracts/p3-execution-split.types";
+import type { OwnerState } from "../../src/runtime/owner-runtime";
+import { initialUnits } from "../../src/runtime/owner-runtime";
+import type { CompositionOptions } from "../../src/runtime/composition-root";
+import { linkedUnitTable } from "../../src/runtime/composition-root";
+import { initialConfirmation } from "../../src/runtime/shared-runtime";
+import { envelope, startHarness, submit, unitBodies } from "../execution-split/owner-harness";
+import type { Harness } from "../execution-split/owner-harness";
+import { callsWith } from "../unit-table/linked-calls";
 import type { StubCalls } from "../unit-table/linked-calls";
 
 const testNotificationChannels = { desktop: { kind: "idle" }, sound: { kind: "idle" } } as const;
@@ -18,10 +24,18 @@ function recordingNotificationAdapter() {
 type Fixture = Readonly<{ value: string; intentExpiresAt?: number; activeFixture?: string | null }>;
 const saved: PersistenceStatus = { kind: "saved", currentGeneration: 1, savedGeneration: 1,
   savedCapturedAt: 0, savedAckAt: 0, dirtySince: null };
-const baseline = reduceRuntimeWith(null, { kind: "startup", runId: "review", clock: { wallTimeMs: 0, monotonicMs: 0 },
-  notificationChannels: testNotificationChannels, restored: {
-    "U-E": { kind: "empty" }, "U-W": { kind: "empty" }, "U-F": { kind: "empty" },
-  } }).state;
+// A whole-runtime description of unit states (the owners hold the units; tests describe them together).
+const baseline: RuntimeState = {
+  runId: "review", units: initialUnits,
+  views: { "U-E": linkedUnitTable["U-E"].toView(initialUnits["U-E"]), "U-W": linkedUnitTable["U-W"].toView(initialUnits["U-W"]),
+    "U-F": linkedUnitTable["U-F"].toView(initialUnits["U-F"]) },
+  confirmation: initialConfirmation(), restoration: { "U-E": { kind: "empty" }, "U-W": { kind: "empty" }, "U-F": { kind: "empty" } },
+  admission: {}, checkpointAttempts: {}, deadlines: { "U-E": null, "U-W": null, "U-F": null },
+  notificationChannels: testNotificationChannels, notificationProbeComplete: false, notificationDeadlines: { desktop: {}, sound: {} },
+  shutdown: { stage: "running", acceptedThroughSequence: null, startedAt: null, finalizationAt: null, stageResults: {},
+    deadlines: { overallMonotonicMs: null, mailboxDrainMonotonicMs: null, sideEffectFinalizationMonotonicMs: null,
+      finalCheckpointMonotonicMs: null, workerCloseMonotonicMs: null } },
+};
 
 // Test payloads carry bytes only; no production unit semantics are implemented here.
 function fixtureState(values: Partial<Record<RuntimeUnitId, Fixture | string>> = {},
@@ -64,58 +78,87 @@ function stringCodec<U extends RuntimeUnitId>(unit: U): UnitCodec<RuntimeUnitSta
       : { kind: "invalid", reason: "not a string" } };
 }
 
+// Drives each owner's unit to a desired fixture state: the stub reducers return it for the inputs the driver submits.
 function fixtureDriver() {
-  let update: RuntimeState | null = null;
-  const step = <U extends RuntimeUnitId>(unit: U, previous: RuntimeUnitStates[U]) => ({
-    state: update != null && fixtureValue(update.units[unit]) !== ""
-      && (fixtureValue(update.units[unit]) !== fixtureValue(previous)
-        || update.units[unit].persistence.currentGeneration !== previous.persistence.currentGeneration)
-      ? update.units[unit] : previous,
-    decisions: update != null && update.units[unit].persistence.currentGeneration > previous.persistence.currentGeneration
-      ? [{ subject: "fixture", operation: "normal" as const, decision: "changed" as const,
-        reason: null, change: "semantic" as const, currentEstablished: null }] : [],
-    intents: [], outcomes: [], diagnostics: [], displayChanges: [], confirmationEvidence: [],
-    nextDeadline: { monotonicMs: 0, wallTimeMs: null },
-  });
+  let update: Partial<RuntimeUnitStates> | null = null;
+  const only = <U extends RuntimeUnitId>(unit: U, state: RuntimeUnitStates[U]): Partial<RuntimeUnitStates> => {
+    const result: Partial<RuntimeUnitStates> = {};
+    result[unit] = state;
+    return result;
+  };
+  const target = <U extends RuntimeUnitId>(unit: U): RuntimeUnitStates[U] | null => update?.[unit] ?? null;
+  const step = <U extends RuntimeUnitId>(unit: U, previous: RuntimeUnitStates[U]) => {
+    const desired = target(unit);
+    return {
+      state: desired != null && fixtureValue(desired) !== ""
+        && (fixtureValue(desired) !== fixtureValue(previous)
+          || desired.persistence.currentGeneration !== previous.persistence.currentGeneration)
+        ? desired : previous,
+      decisions: desired != null && desired.persistence.currentGeneration > previous.persistence.currentGeneration
+        ? [{ subject: "fixture", operation: "normal" as const, decision: "changed" as const,
+          reason: null, change: "semantic" as const, currentEstablished: null }] : [],
+      intents: [], outcomes: [], diagnostics: [], displayChanges: [], confirmationEvidence: [],
+      nextDeadline: { monotonicMs: 0, wallTimeMs: null },
+    };
+  };
   const stubs: StubCalls = {
     selectNotificationAttempt: (state) => ({ state, attempts: [], abortRequests: [], diagnostics: [] }),
     reduceEewUnit: (state) => step("U-E", state),
     reduceWeatherCurrentUnit: (state) => step("U-W", state),
     reduceWeatherTimeseriesUnit: (state) => step("U-F", state),
   };
-  return { calls: callsWith(stubs), stubs, update(root: RuntimeCompositionRoot, desired: RuntimeState, clock: ClockReading,
-    correlations: Parameters<RuntimeCompositionRoot["dispatch"]>[2] = {}) {
+  let sequence = 0;
+  return { calls: callsWith(stubs), stubs, async update(h: Harness, desired: RuntimeState, clock: ClockReading = h.clock(),
+    inputIds: Readonly<Partial<Record<RuntimeUnitId, readonly string[]>>> = {}) {
+    const { root } = h;
     try { void root.state; } catch {
-      root.startRuntime(desired.runId, clock, testNotificationChannels);
-      root.dispatch(root.state, { kind: "notificationProbeCompleted", channels: testNotificationChannels, clock });
+      await startHarness(h, desired.runId, clock);
     }
     for (const unit of ["U-E", "U-W", "U-F"] as const) {
-      const headType = unit === "U-E" ? "VXSE43" : unit === "U-W" ? "VPWW57" : "VPWP50";
-      const target = desired.units[unit];
-      if (fixtureValue(target) === "" && target.persistence.kind === "saved") continue;
-      const previous = root.state.units[unit];
-      const start = previous.persistence.currentGeneration;
-      const end = target.persistence.currentGeneration;
-      for (let generation = start + 1; generation <= end; generation++) {
-        update = { ...root.state, units: { ...root.state.units, [unit]: {
-          ...target, persistence: { ...target.persistence, currentGeneration: generation },
-        } } };
-        const inputId = correlations?.[unit]?.inputIds[0] ?? "adopted-input";
-        const material = { headType, inputId } as DecodedMaterial;
-        const completion = root.state.shutdown.stage === "running" || root.state.shutdown.stage === "mailboxDrain"
-          ? { kind: "parser" as const, messageId: inputId, inputId, runId: desired.runId, inputSequence: generation,
-            encodedByteLength: 0, startedMonotonicMs: clock.monotonicMs,
-            completedMonotonicMs: clock.monotonicMs, result: { kind: "decoded" as const, material } }
-          : { kind: "control" as const, messageId: "test-deadline", runId: desired.runId,
-            encodedByteLength: 0, startedMonotonicMs: clock.monotonicMs,
-            completedMonotonicMs: clock.monotonicMs, control: { kind: "deadline" as const, clock } };
-        root.dispatch(root.state, { kind: "mailboxCompleted", clock, completion });
+      const wanted = desired.units[unit];
+      if (fixtureValue(wanted) === "" && wanted.persistence.kind === "saved") continue;
+      const start = root.state.mirror[unit].persistence.currentGeneration;
+      for (let generation = start + 1; generation <= wanted.persistence.currentGeneration; generation++) {
+        update = only(unit, { ...wanted, persistence: { ...wanted.persistence, currentGeneration: generation } });
+        // Once the mailbox stops taking parser input (shutdown), the change arrives with a deadline request instead.
+        if (root.mailbox.stats(clock.monotonicMs).accepting)
+          await submit(h, envelope(desired.runId, unitBodies[unit].headType, inputIds[unit]?.[0] ?? "adopted-input",
+            unitBodies[unit].body, clock, ++sequence));
+        else {
+          root.tick(clock);
+          await h.settle();
+        }
       }
     }
     update = null;
     return root.state;
+  },
+  // Leaves one input per changed unit in the mailbox, not yet handed over: a later drain delivers it and the owner
+  // adopts `desired` (any generation step) with these input ids.
+  queue(h: Harness, desired: RuntimeState, clock: ClockReading = h.clock(),
+    inputIds: Readonly<Partial<Record<RuntimeUnitId, readonly string[]>>> = {}) {
+    update = { ...desired.units };
+    for (const unit of ["U-E", "U-W", "U-F"] as const) {
+      const wanted = desired.units[unit];
+      if (fixtureValue(wanted) === "" && wanted.persistence.kind === "saved") continue;
+      const queued = h.root.mailbox.enqueue(envelope(desired.runId, unitBodies[unit].headType,
+        inputIds[unit]?.[0] ?? "adopted-input", unitBodies[unit].body, clock, ++sequence));
+      if (queued.kind !== "accepted") throw new Error(`mailbox rejected the queued ${unit} input`);
+    }
   } };
 }
 
-export { fixtureState, fixtureValue, fixtureDriver, stringCodec, testNotificationChannels, recordingNotificationAdapter };
+// TEST-PATH (1): the state of one owner, cut from a whole-runtime fixture, for calling the owner core directly.
+function ownerFixture(place: ExecutionPlace, whole: RuntimeState = fixtureState()): OwnerState {
+  const unit = place === "urgent" ? "U-E" as const : place === "weatherCurrent" ? "U-W" as const : "U-F" as const;
+  const units = unit === "U-E" ? { "U-E": whole.units["U-E"] } : unit === "U-W" ? { "U-W": whole.units["U-W"] }
+    : { "U-F": whole.units["U-F"] };
+  const admission = whole.admission[unit];
+  const attempt = whole.checkpointAttempts[unit];
+  return { runId: whole.runId, place, units, admission: admission == null ? {} : { [unit]: admission },
+    deadlines: { [unit]: whole.deadlines[unit] }, checkpointAttempts: attempt == null ? {} : { [unit]: attempt },
+    accepting: true, finalized: false };
+}
+
+export { ownerFixture, fixtureState, fixtureValue, fixtureDriver, stringCodec, testNotificationChannels, recordingNotificationAdapter };
 export type { Fixture };

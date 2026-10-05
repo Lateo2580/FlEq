@@ -26,17 +26,10 @@ const coordinator = new CheckpointCoordinator(directory, { "U-F": codec }, fileS
 coordinator.restoreUnit("U-F");
 
 async function save(generation) {
-  const state = { units: {
-    "U-E": { persistence: null }, "U-W": { persistence: null },
-    "U-F": { value: `g${generation}`, persistence: { kind: "pending", currentGeneration: generation,
-      savedGeneration: generation > 1 ? generation - 1 : null, savedCapturedAt: null, savedAckAt: null, dirtySince: 0 } },
-  }, checkpointAttempts: {} };
-  const correlations = { "U-F": { inputIds: ["input"], retryReason: "notRetry" } };
-  const scheduled = coordinator.scheduleCheckpoint(state, clock(), "stop", correlations);
-  state.checkpointAttempts["U-F"] = scheduled.capture;
-  const output = await coordinator.executeCheckpoint(scheduled.request, "stop", ["input"], "notRetry");
-  coordinator.validateResult(state, output.result);
-  coordinator.resultMetadata(state, output.result, clock());
+  const correlation = { inputIds: ["input"], retryReason: "notRetry" };
+  const captured = coordinator.capture("U-F", { value: `g${generation}` }, generation, "stop", correlation);
+  const output = await coordinator.executeCheckpoint(captured.request, "stop", correlation.inputIds, "notRetry");
+  coordinator.ended(output.result, false);
   return output.result.kind;
 }
 

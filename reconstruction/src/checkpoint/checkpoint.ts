@@ -10,8 +10,8 @@ import type {
   ClockReading,
   DiagnosticEvent,
   JsonValue,
+  PersistenceStatus,
   RestoreUnitResult,
-  RuntimeState,
   RuntimeUnitStates,
   RuntimeUnitId,
   UnitCodec,
@@ -50,12 +50,10 @@ type Attempt = {
   retryReason: CheckpointMeasurement["retryReason"];
   capturedAt: number;
   phase: "reserved" | "running" | "ended";
-  monitored?: boolean;
   failedStage?: CheckpointMeasurement["stage"];
   renamed?: boolean;
   fileSynced?: boolean;
   acknowledged?: boolean;
-  retryRecorded?: boolean;
   bytes?: Uint8Array; // The one serialization of request.envelope (AC03); never added to the shared CheckpointRequest.
 };
 
@@ -116,18 +114,19 @@ function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message.slice(0, 512) : "checkpoint operation failed";
 }
 
+// P3-C3A-WRITE-RIGHT: the owner's side of checkpointing. It captures, encodes, hashes, writes and reconciles the
+// owner's own units, remembers their valid slot (C1) and keeps a failed generation's bytes for a same-generation
+// retry. When to save and how long to wait after a failure is the publisher's (CheckpointWriter below).
 class CheckpointCoordinator<UnitStates extends RuntimeUnitStates = RuntimeUnitStates> {
   private readonly attempts = new Map<string, Attempt>();
-  private readonly retry = new Map<UnitId, { failures: number; retryAfter: number;
-    retryReason: CheckpointMeasurement["retryReason"]; fileSynced?: boolean;
-    held: Readonly<{ request: CheckpointRequest; bytes: Uint8Array }> | null }>(); // request and its bytes travel as a pair
+  // AC09: a retry of the same generation keeps its original envelope identity; request and bytes travel as a pair.
+  private readonly held = new Map<UnitId, Readonly<{ request: CheckpointRequest; bytes: Uint8Array; fileSynced?: boolean }>>();
   // AC01: per unit, the slot this writer last knew to be valid (null = known empty, absent = unknown).
   // Without it every save re-reads both slots (ledger 55).
   private readonly knowledge = new Map<UnitId, Readonly<{ slot: Slot; generation: number; sha256: string }> | null>();
-  private readonly overdue = new Map<UnitId, number>();
-  private reservedAttemptId: string | null = null;
   private attemptSequence = 0;
 
+  // readClock: wallTimeMs is business time (capturedAt, ackAt), monotonicMs is the measured clock of CheckpointMeasurement.
   constructor(
     private readonly directory: string,
     private readonly codecs: CodecMap<UnitStates>,
@@ -149,6 +148,10 @@ class CheckpointCoordinator<UnitStates extends RuntimeUnitStates = RuntimeUnitSt
     else if (result.kind === "empty") this.knowledge.set(unit, null);
     else this.knowledge.delete(unit);
     return result;
+  }
+
+  saves(unit: UnitId): boolean {
+    return this.codec(unit) != null;
   }
 
   private readUnit(unit: UnitId): RestoreUnitResult {
@@ -181,49 +184,16 @@ class CheckpointCoordinator<UnitStates extends RuntimeUnitStates = RuntimeUnitSt
     return { kind: "restored", envelope: selected.envelope, slot: selected.slot };
   }
 
-  scheduleCheckpoint(
-    state: RuntimeState<UnitStates>,
-    clock: ClockReading,
-    runId: string,
-    correlationByUnit: Readonly<Partial<Record<UnitId, Correlation>>>,
-    force = false,
-    excluded: ReadonlySet<UnitId> = new Set(),
-  ): Readonly<{ capture: CheckpointCapture; request: CheckpointRequest; result: null; measurements: readonly CheckpointMeasurement[] }>
-    | Readonly<{ capture: CheckpointCapture; request: null; result: Extract<CheckpointResult, { kind: "failed" }> & Readonly<{ stage: "encode" }>; measurements: readonly CheckpointMeasurement[] }>
-    | null {
-    for (const unit of runtimeUnits) {
-      const status = state.units[unit].persistence;
-      if (status?.dirtySince != null && clock.monotonicMs - status.dirtySince > 3_000) this.emitOverdue(unit, status.currentGeneration, runId, clock);
-    }
-    if (this.reservedAttemptId != null) {
-      const attempt = this.attempts.get(this.reservedAttemptId)!;
-      if (!attempt.monitored && attempt.request != null
-        && clock.monotonicMs - attempt.request.reservedAt >= 10_000) {
-        attempt.monitored = true;
-        this.emitDiagnostic(completeDiagnostic({ level: "WARN", component: "checkpoint",
-          reason: "checkpointUncertain", unit: attempt.unit, generation: attempt.generation,
-          attemptId: attempt.request.attemptId, durationMs: clock.monotonicMs - attempt.request.reservedAt }, clock, attempt.runId));
-      }
-      return null;
-    }
-    const candidates = runtimeUnits.map((unit) => [unit, state.units[unit].persistence] as const)
-      .filter(([unit]) => !excluded.has(unit) && this.saveDue(state, unit, clock, force)
-        && correlationByUnit[unit] != null
-        && correlationByUnit[unit]!.retryReason === (this.retry.get(unit)?.retryReason ?? "notRetry"))
-      .sort(([leftUnit, left], [rightUnit, right]) =>
-        left!.dirtySince! - right!.dirtySince! || leftUnit.localeCompare(rightUnit));
-    const selected = candidates[0];
-    if (selected == null) return null;
-    const [unit, status] = selected;
-    const codec = this.codec(unit)!;
-    const correlation = correlationByUnit[unit]!;
-    const generation = status!.currentGeneration;
+  // The capture of one granted save: the generation current when the grant is applied, encoded once (C1 RES-03).
+  capture(unit: RuntimeUnitId, value: unknown, generation: number, runId: string, correlation: Correlation)
+    : Readonly<{ capture: CheckpointCapture; request: CheckpointRequest; result: null; measurements: readonly CheckpointMeasurement[] }>
+    | Readonly<{ capture: CheckpointCapture; request: null; result: Extract<CheckpointResult, { kind: "failed" }> & Readonly<{ stage: "encode" }>; measurements: readonly CheckpointMeasurement[] }> {
+    const codec = this.codec(unit);
+    if (codec == null) throw new Error(`unit ${unit} has no checkpoint codec`);
     const attemptId = `${runId}:${unit}:${generation}:${++this.attemptSequence}`;
-    this.reservedAttemptId = attemptId;
     const started = this.readClock();
-    // AC09: a retry of the same generation must keep its original envelope identity.
-    const prior = this.retry.get(unit);
-    const retained = prior?.held?.request.generation === generation ? prior.held : null;
+    const prior = this.held.get(unit);
+    const retained = prior?.request.generation === generation ? prior : null;
     const capturedAt = retained?.request.capturedAt ?? started.wallTimeMs;
     const capture: CheckpointCapture = { attemptId, unit, generation, capturedAt };
     try {
@@ -232,19 +202,17 @@ class CheckpointCoordinator<UnitStates extends RuntimeUnitStates = RuntimeUnitSt
         throw new RangeError("invalid checkpoint generation or capture time");
       const { envelope, bytes } = retained != null
         ? { envelope: retained.request.envelope, bytes: retained.bytes }
-        : sealEnvelope({ schemaVersion: codec.schemaVersion, unit,
-          generation, capturedAt, payload: codec.encode(state.units[unit]) });
+        : sealEnvelope({ schemaVersion: codec.schemaVersion, unit, generation, capturedAt, payload: codec.encode(value) });
       const encodedByteLength = bytes.byteLength;
       // A newer generation supersedes the held bytes (up to the whole payload); only a same-generation retry reuses them.
-      if (prior != null && retained == null) this.retry.set(unit, { ...prior, held: null });
+      if (prior != null && retained == null) this.held.delete(unit);
       const ended = this.readClock();
       const request: CheckpointRequest = {
-        attemptId, unit, generation, reservedAt: clock.monotonicMs, capturedAt,
+        attemptId, unit, generation, reservedAt: started.monotonicMs, capturedAt,
         envelope, encodedByteLength,
       };
       this.attempts.set(attemptId, { request, unit, generation, runId, inputIds: [...correlation.inputIds],
-        retryReason: correlation.retryReason, capturedAt, phase: "reserved", bytes,
-        fileSynced: retained == null ? undefined : prior?.fileSynced });
+        retryReason: correlation.retryReason, capturedAt, phase: "reserved", bytes, fileSynced: retained?.fileSynced });
       return { capture, request, result: null, measurements: retained != null ? []
         : [this.measurement(request, "encode", started.monotonicMs,
           ended.monotonicMs, encodedByteLength, "succeeded", runId, correlation)] };
@@ -277,7 +245,6 @@ class CheckpointCoordinator<UnitStates extends RuntimeUnitStates = RuntimeUnitSt
       || attempt.request.encodedByteLength !== request.encodedByteLength || attempt.runId !== runId
       || attempt.retryReason !== retryReason || !sameStrings(attempt.inputIds, inputIds))
       throw new Error("checkpoint correlation mismatch");
-    if (this.reservedAttemptId !== request.attemptId) throw new Error("checkpoint writer is not reserved");
     if (attempt.phase !== "reserved") throw new Error("checkpoint attempt already executed");
     attempt.phase = "running";
 
@@ -382,82 +349,29 @@ class CheckpointCoordinator<UnitStates extends RuntimeUnitStates = RuntimeUnitSt
     }
   }
 
-  validateResult(state: RuntimeState<UnitStates>, result: CheckpointResult): boolean {
-    const previous = state.units[result.unit as RuntimeUnitId]?.persistence;
+  // The owner adopted this result: a failed or reconciliation-uncertain generation keeps its bytes for the retry,
+  // an acknowledged one releases them, and an uncertain attempt stays until reconciliation ends it.
+  ended(result: CheckpointResult, reconciliation: boolean): void {
     const attempt = this.attempts.get(result.attemptId);
-    if (previous == null || attempt == null) return false;
-    if (attempt.unit !== result.unit || attempt.generation !== result.generation)
-      throw new Error("checkpoint result correlation mismatch");
-    const capture = state.checkpointAttempts[result.unit as RuntimeUnitId];
-    if (capture?.attemptId !== result.attemptId || capture.generation !== result.generation
-      || result.encodedByteLength !== (attempt.request?.encodedByteLength ?? 0))
-      throw new Error("checkpoint capture correlation mismatch");
-    if (result.kind !== "uncertain" && attempt.phase !== "ended")
-      throw new Error("checkpoint operation has not ended");
-    if (result.kind === "acknowledged" && !attempt.acknowledged)
-      throw new Error("checkpoint durability is not confirmed");
-    return true;
-  }
-
-  resultMetadata(state: RuntimeState<UnitStates>, result: CheckpointResult, clock: ClockReading): void {
-    // Called only after validateResult and successful A1 adoption, with the pre-result state.
-    const previous = state.units[result.unit as RuntimeUnitId].persistence;
-    const attempt = this.attempts.get(result.attemptId)!;
-    const diagnostics: DiagnosticEvent[] = [];
-    if (result.kind === "acknowledged") {
-      this.retry.delete(result.unit);
-      this.overdue.delete(result.unit);
-    } else if (result.kind === "failed") {
-      diagnostics.push(completeDiagnostic({ level: "ERROR", component: "checkpoint",
-        reason: failureReasons[result.stage], unit: result.unit, generation: result.generation,
-        attemptId: result.attemptId }, clock, attempt.runId));
-      if (!attempt.retryRecorded) diagnostics.push(this.scheduleRetry(result.attemptId, attempt, clock,
-        previous.kind === "uncertain" ? "ackUncertain" : "saveFailed"));
-    } else {
-      const failedStage = attempt.failedStage ?? (result.stage === "ack" ? null : result.stage);
-      if (failedStage != null) diagnostics.push(completeDiagnostic({ level: "ERROR", component: "checkpoint",
-        reason: failureReasons[failedStage], unit: result.unit, generation: result.generation,
-        attemptId: result.attemptId }, clock, attempt.runId));
-      diagnostics.push(completeDiagnostic({ level: "WARN", component: "checkpoint",
-        reason: "checkpointUncertain", unit: result.unit, generation: result.generation,
-        attemptId: result.attemptId }, clock, attempt.runId));
-    }
-    if (this.reservedAttemptId === result.attemptId && attempt.phase === "ended") this.reservedAttemptId = null;
-    diagnostics.forEach(this.emitDiagnostic);
+    if (attempt == null) return;
+    const hold = () => {
+      if (attempt.request != null && attempt.bytes != null)
+        this.held.set(attempt.unit, { request: attempt.request, bytes: attempt.bytes, fileSynced: attempt.fileSynced });
+      else this.held.delete(attempt.unit);
+    };
+    if (result.kind === "acknowledged") this.held.delete(attempt.unit);
+    else if (result.kind === "failed" || reconciliation) hold();
     if (result.kind !== "uncertain") this.attempts.delete(result.attemptId);
   }
 
-  // The one "save is due now" test: the runtime builds input-ID correlations only for these units.
-  saveDue(state: RuntimeState<UnitStates>, unit: RuntimeUnitId, clock: ClockReading, force = false): boolean {
-    const status = state.units[unit].persistence;
-    return status != null && status.kind !== "uncertain" && status.dirtySince != null
-      && status.currentGeneration !== status.savedGeneration && this.codec(unit) != null
-      && (force || (this.retry.get(unit)?.retryAfter ?? Number.NEGATIVE_INFINITY) <= clock.monotonicMs);
-  }
-
-  retryAfter(unit: UnitId): number | null {
-    return this.retry.get(unit)?.retryAfter ?? null;
-  }
-
-  retryReason(unit: UnitId): CheckpointMeasurement["retryReason"] {
-    return this.retry.get(unit)?.retryReason ?? "notRetry";
-  }
-
-  async resolveUncertain(state: RuntimeState<UnitStates>, unit: UnitId, attemptId: string,
-    clock: ClockReading): Promise<Readonly<{ result: CheckpointResult | null; measurements: readonly CheckpointMeasurement[] }>> {
+  // spec §5.7: re-check an uncertain attempt once the publisher grants the reconciliation.
+  async reconcile(unit: UnitId, attemptId: string): Promise<Readonly<{ result: CheckpointResult; measurements: readonly CheckpointMeasurement[] }>> {
     const attempt = this.attempts.get(attemptId);
-    const previous = state.units[unit as RuntimeUnitId]?.persistence;
-    if (attempt?.request == null || previous?.kind !== "uncertain"
-      || attempt.request.unit !== unit || previous.attemptedGeneration !== attempt.request.generation)
+    if (attempt?.request == null || attempt.request.unit !== unit || attempt.phase !== "ended")
       throw new Error("checkpoint is not awaiting reconciliation");
     const identity = { attemptId, unit, generation: attempt.generation,
       encodedByteLength: attempt.request.encodedByteLength };
-    if (attempt.phase !== "ended" || this.reservedAttemptId != null && this.reservedAttemptId !== attemptId
-      || clock.monotonicMs < (this.retry.get(unit)?.retryAfter ?? -Infinity))
-      return { result: null, measurements: [] };
-    this.reservedAttemptId = attemptId;
     attempt.phase = "running";
-    attempt.retryRecorded = false;
     const measurements: CheckpointMeasurement[] = [];
     let stage: "verify" | "directorySync" = "verify";
     let started = this.readClock().monotonicMs;
@@ -488,25 +402,12 @@ class CheckpointCoordinator<UnitStates extends RuntimeUnitStates = RuntimeUnitSt
       attempt.failedStage = stage;
       this.knowledge.delete(unit); // AC02(4): only a successful reconciliation keeps the memory restoreUnit just set.
       measure("failed");
-      this.emitDiagnostic(this.scheduleRetry(attemptId, attempt, this.readClock(), "ackUncertain"));
       return { result: stage === "directorySync"
         ? { ...identity, kind: "uncertain", observedAt: this.readClock().wallTimeMs, stage }
         : { ...identity, kind: "failed", failedAt: this.readClock().wallTimeMs, stage, reason: errorMessage(error) }, measurements };
     } finally {
       attempt.phase = "ended";
     }
-  }
-
-  private scheduleRetry(attemptId: string, attempt: Attempt, clock: ClockReading,
-    retryReason: CheckpointMeasurement["retryReason"]): DiagnosticEvent {
-    const failures = (this.retry.get(attempt.unit)?.failures ?? 0) + 1;
-    const delay = retryDelays[Math.min(failures - 1, retryDelays.length - 1)];
-    this.retry.set(attempt.unit, { failures, retryAfter: clock.monotonicMs + delay, retryReason,
-      held: attempt.request != null && attempt.bytes != null ? { request: attempt.request, bytes: attempt.bytes } : null,
-      fileSynced: attempt.fileSynced });
-    attempt.retryRecorded = true;
-    return completeDiagnostic({ level: "WARN", component: "checkpoint", reason: "checkpointRetryScheduled",
-      unit: attempt.unit, generation: attempt.generation, attemptId, durationMs: delay, count: failures }, clock, attempt.runId);
   }
 
   private codec(unit: UnitId): UnitCodec<unknown, JsonValue> | null {
@@ -571,6 +472,129 @@ class CheckpointCoordinator<UnitStates extends RuntimeUnitStates = RuntimeUnitSt
       reason: "checkpointRestoreRejected", unit }, clock, "restore"));
   }
 
+}
+
+// P3-C3A-WRITE-RIGHT (spec §5.8, spec:859): the publisher's side. One write right in the whole process, given to the
+// oldest due dirty unit (fixed UnitId order on a tie), and the retry interval 1/2/4/8/10 s after an ended failure.
+type CheckpointGrant = Readonly<{ grantId: string; unit: RuntimeUnitId; mode: "save" | "reconcile";
+  retryReason: CheckpointMeasurement["retryReason"]; generation: number; grantedAtMonotonicMs: number; runId: string }>;
+
+class CheckpointWriter {
+  private readonly retry = new Map<UnitId, { failures: number; retryAfter: number; retryReason: CheckpointMeasurement["retryReason"] }>();
+  private readonly overdue = new Map<UnitId, number>();
+  // The generation an owner declined to save (nothing new, or its inputs are not all known): skipped until it changes.
+  private readonly declined = new Map<UnitId, number>();
+  private current: (CheckpointGrant & { monitored: boolean }) | null = null;
+  private sequence = 0;
+
+  constructor(
+    private readonly saves: (unit: RuntimeUnitId) => boolean,
+    private readonly emitDiagnostic: (event: DiagnosticEvent) => void,
+  ) {}
+
+  get grant(): CheckpointGrant | null { return this.current; }
+
+  retryAfter(unit: UnitId): number | null {
+    return this.retry.get(unit)?.retryAfter ?? null;
+  }
+
+  retryReason(unit: UnitId): CheckpointMeasurement["retryReason"] {
+    return this.retry.get(unit)?.retryReason ?? "notRetry";
+  }
+
+  // The one "save is due now" test.
+  saveDue(persistence: PersistenceStatus, unit: RuntimeUnitId, clock: ClockReading, force = false): boolean {
+    return persistence.kind !== "uncertain" && persistence.dirtySince != null
+      && persistence.currentGeneration !== persistence.savedGeneration && this.saves(unit)
+      && this.declined.get(unit) !== persistence.currentGeneration
+      && (force || (this.retry.get(unit)?.retryAfter ?? Number.NEGATIVE_INFINITY) <= clock.monotonicMs);
+  }
+
+  // Overdue (3 s) and the 10 s monitor of a held right are reported here; at most one grant is outstanding.
+  next(persistence: Readonly<Record<RuntimeUnitId, PersistenceStatus>>, clock: ClockReading, runId: string,
+    options: Readonly<{ force?: boolean; reconcile?: boolean; excluded?: ReadonlySet<UnitId> }> = {}): CheckpointGrant | null {
+    for (const unit of runtimeUnits) {
+      const status = persistence[unit];
+      if (status.dirtySince != null && clock.monotonicMs - status.dirtySince > 3_000) this.emitOverdue(unit, status.currentGeneration, runId, clock);
+    }
+    if (this.current != null) {
+      const held = this.current;
+      if (!held.monitored && clock.monotonicMs - held.grantedAtMonotonicMs >= 10_000) {
+        held.monitored = true;
+        this.emitDiagnostic(completeDiagnostic({ level: "WARN", component: "checkpoint",
+          reason: "checkpointUncertain", unit: held.unit, generation: held.generation,
+          attemptId: held.grantId, durationMs: clock.monotonicMs - held.grantedAtMonotonicMs }, clock, held.runId));
+      }
+      return null;
+    }
+    const excluded = options.excluded ?? new Set<UnitId>();
+    let selected: Readonly<{ unit: RuntimeUnitId; mode: "save" | "reconcile"; generation: number }> | null = null;
+    // An uncertain unit is never a save candidate: reconcile it on every due tick until it is acknowledged.
+    if (options.reconcile !== false) for (const unit of runtimeUnits) {
+      const status = persistence[unit];
+      if (excluded.has(unit) || status.kind !== "uncertain"
+        || clock.monotonicMs < (this.retry.get(unit)?.retryAfter ?? -Infinity)) continue;
+      selected = { unit, mode: "reconcile", generation: status.attemptedGeneration };
+      break;
+    }
+    if (selected == null) {
+      const candidates = runtimeUnits.filter((unit) => !excluded.has(unit) && this.saveDue(persistence[unit], unit, clock, options.force))
+        .sort((left, right) => persistence[left].dirtySince! - persistence[right].dirtySince! || left.localeCompare(right));
+      const unit = candidates[0];
+      if (unit != null) selected = { unit, mode: "save", generation: persistence[unit].currentGeneration };
+    }
+    if (selected == null) return null;
+    this.current = { ...selected, grantId: `${runId}:grant:${++this.sequence}`, retryReason: this.retryReason(selected.unit),
+      grantedAtMonotonicMs: clock.monotonicMs, runId, monitored: false };
+    return this.current;
+  }
+
+  // The write right is released only by the reply to the current grant; any other reply changes nothing here.
+  // previous: the unit's persistence before the reply was applied. Returns false for a reply that is not the current grant.
+  done(grantId: string, unit: UnitId, result: CheckpointResult | null, measurements: readonly CheckpointMeasurement[],
+    previous: PersistenceStatus, clock: ClockReading): boolean {
+    const grant = this.current;
+    if (grant == null || grant.grantId !== grantId || grant.unit !== unit) return false;
+    this.current = null;
+    if (result == null) {
+      this.declined.set(grant.unit, grant.generation);
+      return true;
+    }
+    const diagnostics: DiagnosticEvent[] = [];
+    const failedStage = [...measurements].reverse().find((item) => item.outcome === "failed")?.stage ?? null;
+    if (grant.mode === "reconcile" && result.kind !== "acknowledged")
+      diagnostics.push(this.scheduleRetry(grant, result, clock, "ackUncertain"));
+    if (result.kind === "acknowledged") {
+      this.retry.delete(result.unit);
+      this.overdue.delete(result.unit);
+    } else if (result.kind === "failed") {
+      diagnostics.push(completeDiagnostic({ level: "ERROR", component: "checkpoint",
+        reason: failureReasons[result.stage], unit: result.unit, generation: result.generation,
+        attemptId: result.attemptId }, clock, grant.runId));
+      if (grant.mode === "save") diagnostics.push(this.scheduleRetry(grant, result, clock,
+        previous.kind === "uncertain" ? "ackUncertain" : "saveFailed"));
+    } else {
+      const stage = failedStage ?? (result.stage === "ack" ? null : result.stage);
+      if (stage != null && stage !== "encode") diagnostics.push(completeDiagnostic({ level: "ERROR", component: "checkpoint",
+        reason: failureReasons[stage], unit: result.unit, generation: result.generation,
+        attemptId: result.attemptId }, clock, grant.runId));
+      diagnostics.push(completeDiagnostic({ level: "WARN", component: "checkpoint",
+        reason: "checkpointUncertain", unit: result.unit, generation: result.generation,
+        attemptId: result.attemptId }, clock, grant.runId));
+    }
+    diagnostics.forEach(this.emitDiagnostic);
+    return true;
+  }
+
+  private scheduleRetry(grant: CheckpointGrant, result: CheckpointResult, clock: ClockReading,
+    retryReason: CheckpointMeasurement["retryReason"]): DiagnosticEvent {
+    const failures = (this.retry.get(grant.unit)?.failures ?? 0) + 1;
+    const delay = retryDelays[Math.min(failures - 1, retryDelays.length - 1)];
+    this.retry.set(grant.unit, { failures, retryAfter: clock.monotonicMs + delay, retryReason });
+    return completeDiagnostic({ level: "WARN", component: "checkpoint", reason: "checkpointRetryScheduled",
+      unit: grant.unit, generation: result.generation, attemptId: result.attemptId, durationMs: delay, count: failures }, clock, grant.runId);
+  }
+
   private emitOverdue(unit: UnitId, generation: number, runId: string, clock: ClockReading): void {
     if (this.overdue.get(unit) === generation) return;
     this.overdue.set(unit, generation);
@@ -579,5 +603,5 @@ class CheckpointCoordinator<UnitStates extends RuntimeUnitStates = RuntimeUnitSt
   }
 }
 
-export { CheckpointCoordinator, hashEnvelope, serializedEnvelope };
-export type { CheckpointFileSystem, CodecMap, Correlation, WritableCheckpoint };
+export { CheckpointCoordinator, CheckpointWriter, hashEnvelope, serializedEnvelope };
+export type { CheckpointFileSystem, CheckpointGrant, CodecMap, Correlation, WritableCheckpoint };

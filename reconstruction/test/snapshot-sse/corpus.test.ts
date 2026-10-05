@@ -29,9 +29,9 @@ const cases = [
     severity: "forecast", areas: { eewArea: 0 } },
 ] as const;
 
-function begin(at: number) {
+async function begin(at: number) {
   const clock = { wallTimeMs: at, monotonicMs: 1 };
-  const started = startup(clock);
+  const started = await startup(clock);
   return { clock, started, state: projected(projectSnapshot(projectionInput(started, at), null)).state };
 }
 
@@ -44,9 +44,9 @@ function advance(state: SnapshotProjectionState, value: Step, at: number) {
 }
 
 describe("P2-A8-T05 corpusHistory (AC07/AC09)", () => {
-  it.each(cases)("P2-A8-T05 $ref: the owner unit's adoption reaches its fixed row", (item) => {
-    const { clock, started, state } = begin(item.at);
-    const adopted = step(started.state, received("run", decode(item.file, item.type), clock));
+  it.each(cases)("P2-A8-T05 $ref: the owner unit's adoption reaches its fixed row", async (item) => {
+    const { clock, started, state } = await begin(item.at);
+    const adopted = await step(started.state, received("run", decode(item.file, item.type), clock));
     expect(adopted.displayChanges.map((change) => [change.subject, change.after?.subjects[0]?.source?.reportDateTimeRaw]))
       .toEqual([[item.subject, item.time]]);
     const result = projected(advance(state, adopted, item.at));
@@ -59,39 +59,39 @@ describe("P2-A8-T05 corpusHistory (AC07/AC09)", () => {
       .toEqual(item.key === "eew" ? [["eewNew", item.type, 15_000]] : []);
   });
 
-  it("P2-A8-T05 / AC09: VXSE45→VXSE43 of one event upgrades to eewWarning, and 取消 retires it across families", () => {
+  it("P2-A8-T05 / AC09: VXSE45→VXSE43 of one event upgrades to eewWarning, and 取消 retires it across families", async () => {
     const at = 1713363299001;
-    const { clock, started, state } = begin(at);
-    const forecast = step(started.state, received("run", decode("77_01_01_240613_VXSE45", "VXSE45"), clock));
+    const { clock, started, state } = await begin(at);
+    const forecast = await step(started.state, received("run", decode("77_01_01_240613_VXSE45", "VXSE45"), clock));
     const first = projected(advance(state, forecast, at));
     expect(first.snapshot.notices.map((item) => item.kind)).toEqual(["eewNew"]);
-    const warning = step(forecast.state, received("run", decode("37_01_01_240613_VXSE43", "VXSE43"), clock));
+    const warning = await step(forecast.state, received("run", decode("37_01_01_240613_VXSE43", "VXSE43"), clock));
     const upgraded = projected(advance(first.state, warning, at));
     expect(upgraded.snapshot.notices).toMatchObject([{ kind: "eewWarning", targetId: first.snapshot.notices[0].targetId,
       text: "緊急地震速報が警報に変わりました", source: { family: "VXSE43", office: null } }]);
     expect(upgraded.snapshot.current.eew.items[0]).toMatchObject({ activeCount: 1, highestSeverity: "warning" });
-    const cancelled = step(warning.state, received("run", decode("37_01_03_240613_VXSE43", "VXSE43"), clock));
+    const cancelled = await step(warning.state, received("run", decode("37_01_03_240613_VXSE43", "VXSE43"), clock));
     expect(cancelled.state.units["U-E"].current.map((item) => item.family)).toEqual(["VXSE45"]);
     const retired = projected(advance(upgraded.state, cancelled, at));
     expect(retired.snapshot.notices).toEqual([]);
   });
 
-  it("P2-A8-T05 / AC09: a family added to an existing warning event makes no new notice", () => {
+  it("P2-A8-T05 / AC09: a family added to an existing warning event makes no new notice", async () => {
     const at = 1713363299001;
-    const { clock, started, state } = begin(at);
-    const warning = step(started.state, received("run", decode("37_01_01_240613_VXSE43", "VXSE43"), clock));
+    const { clock, started, state } = await begin(at);
+    const warning = await step(started.state, received("run", decode("37_01_01_240613_VXSE43", "VXSE43"), clock));
     const first = projected(advance(state, warning, at));
-    const added = step(warning.state, received("run", decode("77_01_01_240613_VXSE45", "VXSE45"), clock));
+    const added = await step(warning.state, received("run", decode("77_01_01_240613_VXSE45", "VXSE45"), clock));
     expect(added.displayChanges).toHaveLength(1);
     const result = projected(advance(first.state, added, at));
     expect(result.snapshot.notices).toEqual(first.snapshot.notices);
     expect(result.snapshot.current.eew.items[0]).toMatchObject({ activeCount: 1, highestSeverity: "warning" });
   });
 
-  it("P2-A8-T05 / AC09, P2-A8-T06 / AC06: forecast→warning with an unchanged prediction upgrades and moves the content version", () => {
+  it("P2-A8-T05 / AC09, P2-A8-T06 / AC06: forecast→warning with an unchanged prediction upgrades and moves the content version", async () => {
     const at = 1713363297001;
-    const { clock, started, state } = begin(at);
-    const forecast = step(started.state, received("run", decode("77_01_01_240613_VXSE45", "VXSE45"), clock));
+    const { clock, started, state } = await begin(at);
+    const forecast = await step(started.state, received("run", decode("77_01_01_240613_VXSE45", "VXSE45"), clock));
     const first = projected(advance(state, forecast, at));
     const before = forecast.state.units["U-E"].current[0];
     const after = { ...before, warningClass: "warning" as const };
@@ -108,10 +108,10 @@ describe("P2-A8-T05 corpusHistory (AC07/AC09)", () => {
     expect(result.snapshot.semanticRevision).not.toBe(first.snapshot.semanticRevision);
   });
 
-  it("P2-A8-T05 / AC09: W/F notices only for active→unavailable; reason changes keep expiresAt; recovery or removal retires them", () => {
+  it("P2-A8-T05 / AC09: W/F notices only for active→unavailable; reason changes keep expiresAt; recovery or removal retires them", async () => {
     const at = 1780650000000;
-    const { clock, started, state } = begin(at);
-    const adopted = combine(started.state, [received("run", decode("15_16_02_251222_VPWW57", "VPWW57"), clock),
+    const { clock, started, state } = await begin(at);
+    const adopted = await combine(started.state, [received("run", decode("15_16_02_251222_VPWW57", "VPWW57"), clock),
       received("run", decode("81_02_01_260605_VPWP50_high_severity", "VPWP50"), clock)]);
     const first = projected(advance(state, adopted, at));
     expect(first.snapshot.notices).toEqual([]);
@@ -142,32 +142,32 @@ describe("P2-A8-T05 corpusHistory (AC07/AC09)", () => {
     expect(partly.snapshot.notices.map((item) => item.unit)).toEqual(["U-F"]);
   });
 
-  it("P2-A8-T05 / AC09: 取消 of a family with no current retires the event notice, also against a same-step new current", () => {
+  it("P2-A8-T05 / AC09: 取消 of a family with no current retires the event notice, also against a same-step new current", async () => {
     const at = 1713363299001;
-    const { clock, started, state } = begin(at);
-    const forecast = step(started.state, received("run", decode("77_01_01_240613_VXSE45", "VXSE45"), clock));
+    const { clock, started, state } = await begin(at);
+    const forecast = await step(started.state, received("run", decode("77_01_01_240613_VXSE45", "VXSE45"), clock));
     const first = projected(advance(state, forecast, at));
     expect(first.snapshot.notices.map((item) => item.kind)).toEqual(["eewNew"]);
     // VXSE43 never had a current here, so the cancel produces an outcome but no display change.
-    const cancelled = step(forecast.state, received("run", decode("37_01_03_240613_VXSE43", "VXSE43"), clock));
+    const cancelled = await step(forecast.state, received("run", decode("37_01_03_240613_VXSE43", "VXSE43"), clock));
     expect(cancelled.displayChanges).toEqual([]);
     expect(cancelled.outcomes).toMatchObject([{ unit: "U-E", outcome: { kind: "accepted", change: "semantic",
       subjects: [{ transition: "cancelled", facts: { eventId: "20240417231454" } }] } }]);
     expect(projected(advance(first.state, cancelled, at)).snapshot.notices).toEqual([]);
     // Same step: a new VXSE45 current and the VXSE43 取消 of that event; invalidation wins.
-    const both = combine(started.state, [received("run", decode("77_01_01_240613_VXSE45", "VXSE45"), clock),
+    const both = await combine(started.state, [received("run", decode("77_01_01_240613_VXSE45", "VXSE45"), clock),
       received("run", decode("37_01_03_240613_VXSE43", "VXSE43"), clock)]);
     const raced = projected(advance(state, both, at));
     expect([raced.snapshot.notices, raced.snapshot.current.eew.items[0].activeCount]).toEqual([[], 1]);
   });
 
-  it("P2-A8-T05 / AC09: a final report (released) of a family with no current retires the event notice", () => {
+  it("P2-A8-T05 / AC09: a final report (released) of a family with no current retires the event notice", async () => {
     const at = 1713363299001;
-    const { clock, started, state } = begin(at);
-    const warning = step(started.state, received("run", decode("37_01_01_240613_VXSE43", "VXSE43"), clock));
+    const { clock, started, state } = await begin(at);
+    const warning = await step(started.state, received("run", decode("37_01_01_240613_VXSE43", "VXSE43"), clock));
     const first = projected(advance(state, warning, at));
     expect(first.snapshot.notices.map((item) => item.kind)).toEqual(["eewNew"]);
-    const final = step(warning.state, received("run", eewReport("20240417231454", "normal", "77_01_01_240613_VXSE45",
+    const final = await step(warning.state, received("run", eewReport("20240417231454", "normal", "77_01_01_240613_VXSE45",
       (xml) => atTime(xml, "2024-04-17T23:15:30+09:00").replace("</Body>", "<NextAdvisory>この情報をもって、緊急地震速報：最終報とします。</NextAdvisory></Body>")), clock));
     expect(final.displayChanges).toEqual([]);
     expect(final.outcomes).toMatchObject([{ unit: "U-E", outcome: { kind: "accepted", subjects: [{ transition: "released" }] } }]);

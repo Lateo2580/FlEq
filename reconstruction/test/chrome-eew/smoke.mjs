@@ -1,18 +1,19 @@
 // P2-CHROME-EEW-001 requiredCommands: A8 startDisplayServerの固定URL配信から前景実Chromeで単発EventSource・
 // card/map paint・固定名marker・CDP clock probe・stale再接続の証拠を取る。
 // 実paintはPage.captureScreenshotの画素で判定し、DOM存在・rAF・unit testだけでPassにしない。
-// snapshotはA1/A8の実経路 (fixture→reduceRuntime→projectSnapshot) で作り、射影で作れない状態だけを型どおりに組む。
+// snapshotはA1/A8の実経路 (fixture→publisherと3 owner (同一プロセス)→projectSnapshot) で作り、射影で作れない状態だけを型どおりに組む。
 import { spawn } from "node:child_process";
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import WebSocket from "ws";
 
-import { decodeMaterial } from "../../dist/src/decode-material/decode-material.js";
 import { startDisplayServer } from "../../dist/src/http-sse/http-sse.js";
 import { ingestXmlData } from "../../dist/src/ingress/ingress.js";
-import { linkedRuntimeCalls, linkedUnitCodecs, snapshotInput } from "../../dist/src/runtime/composition-root.js";
-import { reduceRuntime } from "../../dist/src/runtime/shared-runtime.js";
+import {
+  RuntimeCompositionRoot, linkedUnitCodecs, linkedUnitTable, nodeCheckpointFileSystem, snapshotInput,
+} from "../../dist/src/runtime/composition-root.js";
+import { OwnerHost } from "../../dist/src/runtime/owner-host.js";
 import { projectSnapshot } from "../../dist/src/view-projector/view-projector.js";
 
 const repo = join(import.meta.dirname, "../../..");
@@ -60,50 +61,77 @@ function check(id, ok, evidence, detail) { record(id, ok ? "Pass" : "Fail", evid
 // ── snapshot: fixtureをruntimeへ順に入れ、A8で射影する。runtimeごとに別stream (再起動と同じ扱い) ──
 const NOW = Date.parse("2024-04-17T23:15:30+09:00");
 const GENERATED_AT_JST = "2024/04/17 23:15:30";
-const calls = { ...linkedRuntimeCalls, codecs: linkedUnitCodecs };
 const clock = { wallTimeMs: NOW, monotonicMs: NOW };
 const healthy = { state: "healthy", lastProgressAtMonotonicMs: NOW, lastResponseAtMonotonicMs: NOW };
 const FIXTURES = { VXSE43: "37_01_01_240613_VXSE43", VXSE45: "77_01_01_240613_VXSE45" };
 
 // eventIdを渡すとfixtureのEventIDだけを差し替えた別の報にする (容量超過をA1→A4→A8の実経路で起こすため)。
+// 返すのはhostがmailboxへ入れるのと同じparser入力 (ingress済み、未decode)。
 function material(family, eventId = null) {
   const fixture = readFileSync(join(repo, `test/fixtures/${FIXTURES[family]}.xml`), "utf8");
   const xml = eventId == null ? fixture : fixture.replace(/<EventID>[^<]*<\/EventID>/, `<EventID>${eventId}</EventID>`);
   const entered = ingestXmlData({ inputId: `${FIXTURES[family]}:${eventId ?? "fixture"}`, inputSequence: 1, receivedAt: 0,
     origin: "replay", kind: "replay", headType: family, body: Buffer.from(xml) });
   if (entered.kind !== "accepted") throw new Error(`ingest failed: ${entered.diagnostic.reason}`);
-  const decoded = decodeMaterial(entered.item);
-  if (decoded.kind !== "decoded") throw new Error(`decode failed: ${decoded.diagnostic.reason}`);
-  return decoded.material;
+  return entered.item;
 }
 
-// 起動→各material受信のたびに射影したsnapshotを返す (起動分は除く)。
-function runtime(streamId, materials) {
+const turns = async (count = 5) => { for (let turn = 0; turn < count; turn += 1) await new Promise((done) => setImmediate(done)); };
+
+// 起動→各material受信のたびに射影したsnapshotを返す (起動分は除く)。publisherと3 ownerを同一プロセスで動かし、
+// 要求と返信はstructuredCloneで渡す (worker間と同じく値だけが越える)。
+async function runtime(streamId, materials) {
+  const directory = mkdtempSync(join(tmpdir(), "fleq-smoke-runtime-"));
+  const owners = new Map();
+  const outputs = [];
+  const root = new RuntimeCompositionRoot({ appName: "fleq-p2", legacyAppName: "fleq", stateDirectory: join(directory, "state"),
+    legacyStateDirectory: join(directory, "legacy"), diagnosticDirectory: join(directory, "diagnostics") }, linkedUnitCodecs, {
+    clock: () => clock, sharedNow: () => NOW,
+    send: (place, request) => queueMicrotask(() => owners.get(place).handle(structuredClone(request))),
+    notificationAdapter: { run: () => new Promise(() => {}), abort: async () => ({}) },
+  });
+  for (const place of ["urgent", "weatherCurrent", "deferred"]) owners.set(place, new OwnerHost({
+    start: { place, stateDirectory: join(directory, "state"), publisherTimeOriginMs: 0 },
+    units: linkedUnitTable, codecs: linkedUnitCodecs, fileSystem: nodeCheckpointFileSystem(), sharedNow: () => NOW,
+    reply: (reply) => queueMicrotask(() => {
+      if ("output" in reply) outputs.push(reply.output);
+      root.receive(place, structuredClone(reply));
+    }),
+    fail: (error) => { throw error; },
+  }));
   let projection = null;
-  const project = (step) => {
-    const result = projectSnapshot(snapshotInput(step, streamId, NOW,
-      { state: "connected", disconnectedAt: null, lastInputAt: NOW }, healthy), projection);
+  const project = () => {
+    const taken = outputs.splice(0);
+    const result = projectSnapshot(snapshotInput({ state: root.state, outcomes: taken.flatMap((output) => output.outcomes),
+      displayChanges: taken.flatMap((output) => output.displayChanges) }, streamId, NOW,
+    { state: "connected", disconnectedAt: null, lastInputAt: NOW }, healthy), projection);
     if (result.kind !== "projected") throw new Error(`projection ${result.kind}`);
     projection = result.state;
     return result.snapshot;
   };
-  let step = reduceRuntime(null, { kind: "startup", runId: streamId, clock,
-    notificationChannels: { desktop: { kind: "idle" }, sound: { kind: "idle" } },
-    restored: { "U-E": { kind: "empty" }, "U-W": { kind: "empty" }, "U-F": { kind: "empty" } } }, calls);
-  project(step);
-  return materials.map((item, index) => {
-    step = reduceRuntime(step.state, { kind: "mailboxCompleted", clock, completion: { kind: "parser",
-      messageId: item.inputId, inputId: item.inputId, runId: streamId, encodedByteLength: 0, startedMonotonicMs: NOW,
-      completedMonotonicMs: NOW, inputSequence: index + 1, result: { kind: "decoded", material: item } } }, calls);
-    return project(step);
-  });
+  const started = root.startRuntime(streamId, clock, { desktop: { kind: "idle" }, sound: { kind: "idle" } });
+  await turns();
+  await started;
+  project();
+  const snapshots = [];
+  for (const [index, item] of materials.entries()) {
+    const queued = root.mailbox.enqueue({ messageId: item.inputId, runId: streamId, t0MonotonicMs: NOW, enqueuedMonotonicMs: NOW,
+      priorityReason: "eewCandidate", payload: { kind: "parser", item: { ...item, inputSequence: index + 1 } } });
+    if (queued.kind !== "accepted") throw new Error(`mailbox rejected ${item.inputId}`);
+    root.pump();
+    await turns();
+    snapshots.push(project());
+  }
+  await root.diagnostics.flush();
+  rmSync(directory, { recursive: true, force: true });
+  return snapshots;
 }
-const [S43, S43_45] = runtime("smoke-a", [material("VXSE43"), material("VXSE45")]);
+const [S43, S43_45] = await runtime("smoke-a", [material("VXSE43"), material("VXSE45")]);
 // expected:O09:12: VXSE45だけを受けたruntimeの採用snapshot (区域0、予想最大3)。
-const [S45] = runtime("smoke-b", [material("VXSE45")]);
+const [S45] = await runtime("smoke-b", [material("VXSE45")]);
 // A4のcurrent上限512を超えるnormalの別EventIDを513件入れる。513件目が容量超過になり、normalは公開maskでcardが消える。
-const S_CAPACITY = runtime("smoke-capacity", Array.from({ length: 513 },
-  (_, index) => material("VXSE43", String(index + 1).padStart(14, "0")))).at(-1);
+const S_CAPACITY = (await runtime("smoke-capacity", Array.from({ length: 513 },
+  (_, index) => material("VXSE43", String(index + 1).padStart(14, "0"))))).at(-1);
 const [CUR43] = S43.current.eew.view.current;
 const [CUR45] = S45.current.eew.view.current;
 const A8_NOTICE = S43.notices[0];

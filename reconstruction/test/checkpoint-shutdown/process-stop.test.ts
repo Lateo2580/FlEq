@@ -4,11 +4,11 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 
-import { RuntimeCompositionRoot } from "../../src/runtime/composition-root";
+import { harnessedRoot, startHarness } from "../execution-split/owner-harness";
 import { fixtureDriver, fixtureState, recordingNotificationAdapter, stringCodec } from "./runtime-fixture";
 
 const temporary: string[] = [];
-const correlations = { "U-F": { inputIds: ["input-3"], retryReason: "notRetry" as const } };
+const inputIds = { "U-F": ["input-3"] };
 const clock = { wallTimeMs: 9_000, monotonicMs: 900 };
 
 afterEach(async () => {
@@ -52,26 +52,29 @@ describe("P3-C1-T05 process-stop test (SIGKILL; the OS cache survives, so this i
       expect(output).toContain("g1:acknowledged");
       expect(existsSync(join(stateDirectory, "U-F.json.tmp"))).toBe(boundary === "beforeRename");
 
+      // TEST-PATH (2): the restarted runtime; its owner reclaims the orphan tmp as it restores at startup.
       const driver = fixtureDriver();
-      const root = new RuntimeCompositionRoot({ appName: "fleq-p2", legacyAppName: "fleq", stateDirectory,
+      const h = harnessedRoot({ appName: "fleq-p2", legacyAppName: "fleq", stateDirectory,
         legacyStateDirectory: join(path, "legacy"), diagnosticDirectory: join(path, "diagnostics") },
       { "U-F": stringCodec("U-F") }, { notificationAdapter: recordingNotificationAdapter(), runtimeCalls: driver.calls,
         clock: () => clock });
-      expect(existsSync(join(stateDirectory, "U-F.json.tmp"))).toBe(false); // orphan tmp reclaimed at startup
-      expect(root.restoreUnit("U-F")).toMatchObject({ kind: "restored", slot: restoredSlot,
-        envelope: { generation: restoredGeneration } });
+      await startHarness(h, "stop", clock);
+      expect(existsSync(join(stateDirectory, "U-F.json.tmp"))).toBe(false);
+      const restore = () => h.owners.get("deferred")!["checkpoint"].restoreUnit("U-F");
+      expect(restore()).toMatchObject({ kind: "restored", slot: restoredSlot, envelope: { generation: restoredGeneration } });
 
       const state = fixtureState({ "U-F": "g3" }, { "U-F": { kind: "pending", currentGeneration: 3,
-        savedGeneration: restoredGeneration, savedCapturedAt: 1, savedAckAt: 2, dirtySince: 1 } });
-      driver.update(root, state, clock, correlations);
-      const scheduled = root.scheduleCheckpoint(root.state, clock, "stop", correlations)!;
-      const written = await root.executeCheckpoint(scheduled.request!, "stop", correlations["U-F"].inputIds, "notRetry");
-      expect(written.result.kind).toBe("acknowledged");
+        savedGeneration: restoredGeneration, savedCapturedAt: 1, savedAckAt: 2, dirtySince: 1 } }, "stop");
+      await driver.update(h, state, clock, inputIds);
+      const released = h.root.driveCheckpoint();
+      await h.settle();
+      await released;
+      expect(h.delivered.flatMap(({ reply }) => reply.kind === "checkpointDone" ? [reply.result?.kind] : [])).toEqual(["acknowledged"]);
       const otherSlot = restoredSlot === "A" ? "B" : "A";
       expect(generationOf(join(stateDirectory, `U-F-${restoredSlot}.json`))).toBe(restoredGeneration);
       expect(generationOf(join(stateDirectory, `U-F-${otherSlot}.json`))).toBe(3);
-      expect(root.restoreUnit("U-F")).toMatchObject({ kind: "restored", slot: otherSlot, envelope: { generation: 3 } });
-      await root.diagnostics.flush();
+      expect(restore()).toMatchObject({ kind: "restored", slot: otherSlot, envelope: { generation: 3 } });
+      await h.root.diagnostics.flush();
     });
   }
 });

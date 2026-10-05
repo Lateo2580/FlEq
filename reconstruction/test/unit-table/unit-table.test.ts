@@ -4,14 +4,13 @@ import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 
 import type { DecodedMaterial } from "../../contracts/p1-parser-boundary.types";
-import type { ClockReading, DiagnosticEvent, RuntimeInput, RuntimeState } from "../../contracts/p2-shared-runtime.types";
+import type { ClockReading, DiagnosticEvent } from "../../contracts/p2-shared-runtime.types";
 import { PersistentDiagnosticSink } from "../../src/checkpoint/persistent-diagnostic-sink";
 import { decodeMaterial } from "../../src/decode-material/decode-material";
 import { ingestXmlData } from "../../src/ingress/ingress";
-import { linkedRuntimeCalls, nodeDiagnosticFileSystem } from "../../src/runtime/composition-root";
-import { reduceRuntime } from "../../src/runtime/shared-runtime";
+import { linkedRuntimeCalls, linkedUnitCodecs, nodeDiagnosticFileSystem } from "../../src/runtime/composition-root";
+import { receiveOwner, restoreOwner } from "../../src/runtime/owner-runtime";
 import { classifyHeadType } from "../../src/runtime/unit-coverage";
-import { testNotificationChannels } from "../checkpoint-shutdown/runtime-fixture";
 
 const clock: ClockReading = { wallTimeMs: 1_800_000_000_000, monotonicMs: 100 };
 const temporary: string[] = [];
@@ -28,23 +27,18 @@ function decode(file: string, headType: string, transform: (xml: string) => stri
   return decoded.material;
 }
 
-function parsed(material: DecodedMaterial): RuntimeInput {
-  return { kind: "mailboxCompleted", clock, completion: { kind: "parser", messageId: material.inputId,
-    inputId: material.inputId, runId: "run", encodedByteLength: 0, startedMonotonicMs: clock.monotonicMs,
-    completedMonotonicMs: clock.monotonicMs, inputSequence: 1, result: { kind: "decoded", material } } };
-}
-
-// A started runtime whose U-E deadline has not arrived: any change in the steps below would be the route's doing.
-function idleRuntime(): RuntimeState {
-  const started = reduceRuntime(null, { kind: "startup", runId: "run", clock, notificationChannels: testNotificationChannels,
-    restored: { "U-E": { kind: "empty" }, "U-W": { kind: "empty" }, "U-F": { kind: "empty" } } }, linkedRuntimeCalls).state;
-  return { ...started, deadlines: { ...started.deadlines, "U-E": { wallTimeMs: clock.wallTimeMs + 60_000, monotonicMs: null } } };
+// A started deferred owner (P3-C3A-NONREADY: inputs no ready unit owns are decoded there) whose U-F deadline has not
+// arrived: any change in the steps below would be the route's doing.
+function idleOwner() {
+  const started = restoreOwner({ runId: "run", place: "deferred", clock, restored: { "U-F": { kind: "empty" } } },
+    linkedRuntimeCalls.units, linkedUnitCodecs).state;
+  return { ...started, deadlines: { "U-F": { wallTimeMs: clock.wallTimeMs + 60_000, monotonicMs: null } } };
 }
 
 describe("P3-UNIT-TABLE-001 route classes", () => {
   // P3-C0-T01 regression (ledger 52 1): headTypes outside the route are seen, one diagnostic per input, no state change.
   it("P3-C0-T01 regression: unlisted, notPorted and ignored inputs each leave one diagnostic and change nothing", () => {
-    const state = idleRuntime();
+    const state = idleOwner();
     const blank = (xml: string) => xml.replace(/<ReportDateTime>[^<]*<\/ReportDateTime>/, "<ReportDateTime></ReportDateTime>");
     const cases = [
       { material: decode("37_01_01_240613_VXSE43", "VZZZ99"), expected: { reason: "routeUnlisted", level: "WARN" } },
@@ -54,10 +48,11 @@ describe("P3-UNIT-TABLE-001 route classes", () => {
       { material: decode("32-39_11_02_250206_VTSE41", "VTSE41", blank), expected: { reason: "reportDateTimeMissing", level: "WARN" } },
     ];
     for (const { material, expected } of cases) {
-      const step = reduceRuntime(state, parsed(material), linkedRuntimeCalls);
+      const step = receiveOwner(state, { runId: "run", inputId: material.inputId, result: { kind: "decoded", material } },
+        clock, linkedRuntimeCalls.units);
       expect(step.diagnostics, material.inputId).toMatchObject([{ ...expected, component: "shared-runtime", inputId: material.inputId }]);
       expect(step.state.units).toBe(state.units);
-      expect(step.state.views).toBe(state.views);
+      expect(step.views).toEqual([]);
       expect(step.changedUnits).toEqual([]);
       expect(step.generationInputIds).toEqual({});
     }

@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { beforeAll, describe, expect, it } from "vitest";
 
 import type { Operation } from "../../contracts/p1-parser-boundary.types";
 import type { RuntimeState, RuntimeUnitId, UnitId } from "../../contracts/p2-shared-runtime.types";
@@ -20,9 +20,12 @@ const at = 1780650000000;
 const clock = { wallTimeMs: at, monotonicMs: 1 };
 const LIMIT = 8_640_000_000_000_000;
 const MAX = Number.MAX_SAFE_INTEGER;
-const started = startup(clock);
-const base = step(started.state, received("run", decode("81_02_01_260605_VPWP50_high_severity", "VPWP50"), clock)).state;
-const wakkanai = base.units["U-F"].subjects[0];
+let started: Step, base: RuntimeState, wakkanai: WeatherTimeseriesSubject;
+beforeAll(async () => {
+  started = await startup(clock);
+  base = (await step(started.state, received("run", decode("81_02_01_260605_VPWP50_high_severity", "VPWP50"), clock))).state;
+  wakkanai = base.units["U-F"].subjects[0];
+});
 const timeseriesUnavailable = () => timeseriesChange(wakkanai, { ...wakkanai, effective: "unavailable", unavailableReason: "capacityExceeded",
   periods: [], validUntil: null, lastKnown: null });
 
@@ -54,7 +57,7 @@ function project(value: Step) {
 }
 
 describe("P2-A8-T07 contractBoundary (AC08/AC12)", () => {
-  it("P2-A8-T07: total 1048575/1048576 stay full and 1048577 degrades only the over-budget domain", () => {
+  it("P2-A8-T07: total 1048575/1048576 stay full and 1048577 degrades only the over-budget domain", async () => {
     const probe = project(padded(0, 0));
     for (const [total, delivery] of [[1_048_575, "full"], [1_048_576, "full"], [1_048_577, "summary"]] as const) {
       const result = project(padded(total - probe.utf8Bytes, 0));
@@ -67,7 +70,7 @@ describe("P2-A8-T07 contractBoundary (AC08/AC12)", () => {
     }
   });
 
-  it("P2-A8-T07: over 1 MiB, a 65535/65536 byte domain stays full and a 65537 byte domain becomes a summary", () => {
+  it("P2-A8-T07: over 1 MiB, a 65535/65536 byte domain stays full and a 65537 byte domain becomes a summary", async () => {
     const big = 1_100_000;
     const probe = project(padded(big, 0));
     const weatherBase = probe.state.domains.weatherCurrent.utf8Bytes;
@@ -84,7 +87,7 @@ describe("P2-A8-T07 contractBoundary (AC08/AC12)", () => {
     }
   });
 
-  it("P2-A8-T07: the derived summary maxima (3558; U-E 1632, U-W 3525, U-F 2301) hold on the wire shape", () => {
+  it("P2-A8-T07: the derived summary maxima (3558; U-E 1632, U-W 3525, U-F 2301) hold on the wire shape", async () => {
     const row = (unit: RuntimeUnitId, operation: Operation): DisplaySummaryItem => ({
       operation, informationType: unit === "U-E" ? "eew" : unit === "U-W" ? "weather-warning" : "weather-warning-timeseries",
       // U-E publishes only A4 warningClass, so its highest class is "warning".
@@ -109,7 +112,7 @@ describe("P2-A8-T07 contractBoundary (AC08/AC12)", () => {
     expect(Math.max(...sizes)).toBeLessThanOrEqual(3558);
   });
 
-  it("P2-A8-T07: the maximal notice is 2000 bytes, 64 of them 128065 <= 131072; long control-character offices are cut", () => {
+  it("P2-A8-T07: the maximal notice is 2000 bytes, 64 of them 128065 <= 131072; long control-character offices are cut", async () => {
     const hex = "f".repeat(64);
     const office = Array.from({ length: 300 }, (_, index) => String.fromCharCode(index % 0x20)).join("");
     // Contract upper bound: longest kind, longest text and a 256-byte office of six-byte JSON escapes at once.
@@ -119,7 +122,7 @@ describe("P2-A8-T07 contractBoundary (AC08/AC12)", () => {
     expect(Buffer.byteLength(JSON.stringify(maximal))).toBe(2000);
     expect(Buffer.byteLength(JSON.stringify(Array(64).fill(maximal)))).toBe(128_065);
 
-    const adopted = step(started.state, received("run", decode("15_16_02_251222_VPWW57", "VPWW57"), clock));
+    const adopted = await step(started.state, received("run", decode("15_16_02_251222_VPWW57", "VPWW57"), clock));
     const previous = projected(projectSnapshot(projectionInput(adopted, at), first())).state;
     for (const [value, text, truncated] of [[office, office.slice(0, 256), true], ["\ud800気".repeat(60), "\ufffd気".repeat(42) + "\ufffd", true],
       ["京都地方気象台", "京都地方気象台", false]] as const) {
@@ -131,9 +134,9 @@ describe("P2-A8-T07 contractBoundary (AC08/AC12)", () => {
     }
   });
 
-  it.each([63, 64, 65])("P2-A8-T07: %i new normal EEW notices keep at most 64 and report the excess", (count) => {
+  it.each([63, 64, 65])("P2-A8-T07: %i new normal EEW notices keep at most 64 and report the excess", async (count) => {
     const previous = first();
-    const value = combine(started.state, Array.from({ length: count }, (_, index) =>
+    const value = await combine(started.state, Array.from({ length: count }, (_, index) =>
       received("run", eewReport(String(20240417000000 + index)), clock)));
     const result = projected(projectSnapshot(projectionInput(value, at), previous));
     expect(result.snapshot.notices).toHaveLength(Math.min(count, 64));
@@ -141,10 +144,10 @@ describe("P2-A8-T07 contractBoundary (AC08/AC12)", () => {
       reason: "snapshotNoticeCapacityExceeded", count: count - 64 }] : []);
   });
 
-  it("P2-A8-T07: under capacity normal outranks training/test and normal EEW outranks normal weather", () => {
-    const adopted = step(started.state, received("run", decode("15_16_02_251222_VPWW57", "VPWW57"), clock));
+  it("P2-A8-T07: under capacity normal outranks training/test and normal EEW outranks normal weather", async () => {
+    const adopted = await step(started.state, received("run", decode("15_16_02_251222_VPWW57", "VPWW57"), clock));
     const previous = projected(projectSnapshot(projectionInput(adopted, at), first())).state;
-    const value = combine(adopted.state, [
+    const value = await combine(adopted.state, [
       ...Array.from({ length: 3 }, (_, index) => received("run", eewReport(String(20240418000000 + index), "training"), clock)),
       ...Array.from({ length: 64 }, (_, index) => received("run", eewReport(String(20240417000000 + index)), clock))]);
     const { change, outcome } = unavailableChange(adopted.state, "京都地方気象台");
@@ -155,7 +158,7 @@ describe("P2-A8-T07 contractBoundary (AC08/AC12)", () => {
     expect(result.diagnostics).toMatchObject([{ reason: "snapshotNoticeCapacityExceeded", count: 4 }]);
   });
 
-  it("P2-A8-T07 / PUBLICATION (a): an initial common-string rejection publishes nothing, then sequence 1", () => {
+  it("P2-A8-T07 / PUBLICATION (a): an initial common-string rejection publishes nothing, then sequence 1", async () => {
     const rejected = projectSnapshot(projectionInput(started, at, { generatedAt: "x".repeat(257) }), null);
     expect(rejected).toMatchObject({ kind: "rejected", reason: "snapshotStringLimitExceeded",
       diagnostics: [{ reason: "snapshotStringLimitExceeded" }] });
@@ -165,11 +168,11 @@ describe("P2-A8-T07 contractBoundary (AC08/AC12)", () => {
     expectMatchesReference(result.state, reference(started, at));
   });
 
-  it("P2-A8-T07 / PUBLICATION (b): rejected steps keep internal deltas and notices; recovery publishes N+1 without double counting", () => {
+  it("P2-A8-T07 / PUBLICATION (b): rejected steps keep internal deltas and notices; recovery publishes N+1 without double counting", async () => {
     const published = projected(projectSnapshot(projectionInput(started, at), null));
-    const one = combine(started.state, [received("run", eewReport("20240417000001"), clock)]);
+    const one = await combine(started.state, [received("run", eewReport("20240417000001"), clock)]);
     const counts = { ...one.admissionCounts, "U-W": { normal: 2, training: 0, test: 0 } };
-    const two = combine(one.state, [received("run", eewReport("20240417000002"), clock)]);
+    const two = await combine(one.state, [received("run", eewReport("20240417000002"), clock)]);
     let state = published.state;
     for (const value of [one, two]) {
       const rejected = projectSnapshot(projectionInput({ ...value, admissionCounts: counts }, at, { generatedAt: "x".repeat(257) }), state);
@@ -180,7 +183,7 @@ describe("P2-A8-T07 contractBoundary (AC08/AC12)", () => {
     const pending = state.notices;
     expect(pending.map((item) => [item.kind, item.expiresAt])).toEqual([["eewNew", at + 15_000], ["eewNew", at + 15_000]]);
     // The recovery delta also updates an existing subject (before != null), not only additions.
-    const three = combine(two.state, [received("run", eewReport("20240417000003", "test"), clock),
+    const three = await combine(two.state, [received("run", eewReport("20240417000003", "test"), clock),
       received("run", eewReport("20240417000001", "normal", "37_01_01_240613_VXSE43", (xml) =>
         atTime(xml, "2024-04-17T23:15:09+09:00").replace("<Serial>1</Serial>", "<Serial>2</Serial>")), clock)]);
     expect(three.displayChanges.filter((item) => item.before != null && item.after != null)).toHaveLength(1);
@@ -195,7 +198,7 @@ describe("P2-A8-T07 contractBoundary (AC08/AC12)", () => {
     expect(late.snapshot.notices.map((item) => item.operation)).toEqual(["test"]);
   });
 
-  it("P2-A8-T07 / RES-05 (ledger 50): a long failed-save reason is shortened on a scalar boundary, never a rejection", () => {
+  it("P2-A8-T07 / RES-05 (ledger 50): a long failed-save reason is shortened on a scalar boundary, never a rejection", async () => {
     const reason = `ENOSPC: /${"状態".repeat(200)}\ud800`;
     const failed = { "U-E": { kind: "failed" as const, stage: "write" as const, reason,
       currentGeneration: 1, savedGeneration: 0, savedCapturedAt: null, savedAckAt: null, dirtySince: 1 } };
@@ -206,10 +209,10 @@ describe("P2-A8-T07 contractBoundary (AC08/AC12)", () => {
     expect(reason.startsWith(shown.reason.slice(0, -"[truncated:fieldLimit]".length))).toBe(true);
   });
 
-  it.each([["U-E", 15_000], ["U-F", 60_000]] as const)("P2-A8-T07: %s TTL %i accepts both Date-range edges and rejects one past", (unit, ttl) => {
-    const generate = (nowMs: number, previous: SnapshotProjectionState) => {
+  it.each([["U-E", 15_000], ["U-F", 60_000]] as const)("P2-A8-T07: %s TTL %i accepts both Date-range edges and rejects one past", async (unit, ttl) => {
+    const generate = async (nowMs: number, previous: SnapshotProjectionState) => {
       if (unit === "U-E") {
-        const value = combine(base, [received("run", eewReport("20240417000009"), clock)]);
+        const value = await combine(base, [received("run", eewReport("20240417000009"), clock)]);
         return projectSnapshot(projectionInput(value, nowMs), previous);
       }
       const { change, outcome } = timeseriesUnavailable();
@@ -219,11 +222,11 @@ describe("P2-A8-T07 contractBoundary (AC08/AC12)", () => {
     const previous = (nowMs: number) => projected(projectSnapshot(projectionInput({ state: base, outcomes: [],
       displayChanges: allSubjects(base), admissionCounts: started.admissionCounts }, nowMs), null)).state;
     for (const nowMs of [-LIMIT, LIMIT - ttl]) {
-      const result = projected(generate(nowMs, previous(nowMs)));
+      const result = projected(await generate(nowMs, previous(nowMs)));
       expect(result.snapshot.notices.map((item) => item.expiresAt)).toEqual([nowMs + ttl]);
     }
     const before = previous(LIMIT - ttl);
-    const rejected = generate(LIMIT - ttl + 1, before);
+    const rejected = await generate(LIMIT - ttl + 1, before);
     expect(rejected).toMatchObject({ kind: "rejected", reason: "snapshotClockInvalid", diagnostics: [] });
     expect(rejected.state.snapshot).toBe(before.snapshot);
     expect(rejected.state.notices).toEqual([]);
@@ -232,11 +235,11 @@ describe("P2-A8-T07 contractBoundary (AC08/AC12)", () => {
     expect(rejected.state.domains[key]).not.toBe(before.domains[key]);
   });
 
-  it.each([LIMIT + 1, -LIMIT - 1, 1.5, Number.NaN, Number.POSITIVE_INFINITY])("P2-A8-T07: nowMs %s is snapshotClockInvalid", (nowMs) => {
+  it.each([LIMIT + 1, -LIMIT - 1, 1.5, Number.NaN, Number.POSITIVE_INFINITY])("P2-A8-T07: nowMs %s is snapshotClockInvalid", async (nowMs) => {
     const published = projected(projectSnapshot(projectionInput(started, at), null));
-    const one = combine(started.state, [received("run", eewReport("20240417000001"), clock)]);
+    const one = await combine(started.state, [received("run", eewReport("20240417000001"), clock)]);
     const withNotice = projected(projectSnapshot(projectionInput(one, at), published.state));
-    const value = combine(one.state, [received("run", eewReport("20240417000002"), clock)]);
+    const value = await combine(one.state, [received("run", eewReport("20240417000002"), clock)]);
     const rejected = projectSnapshot(projectionInput(value, nowMs), withNotice.state);
     expect(rejected).toMatchObject({ kind: "rejected", reason: "snapshotClockInvalid", diagnostics: [] });
     expect(rejected.state.snapshot).toBe(withNotice.snapshot);
@@ -245,7 +248,7 @@ describe("P2-A8-T07 contractBoundary (AC08/AC12)", () => {
     expect(rejected.state.domains.eew.full.items[0].activeCount).toBe(2);
   });
 
-  it("P2-A8-T07 / AC08: the largest legal common metadata stays within 65536 bytes", () => {
+  it("P2-A8-T07 / AC08: the largest legal common metadata stays within 65536 bytes", async () => {
     const control = Array.from({ length: 256 }, (_, index) => String.fromCharCode(index % 0x20)).join("");
     const units: readonly UnitId[] = ["U-E", "U-Q", "U-T", "U-N", "U-W", "U-L", "U-F", "U-B", "U-M", "U-Y", "U-V", "U-R"];
     const persistence = Object.fromEntries(units.map((unit) => [unit, { kind: "failed" as const, stage: "directorySync" as const,

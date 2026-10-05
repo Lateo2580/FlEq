@@ -1,7 +1,7 @@
 import { promises as fileSystem, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { DecodedMaterial } from "../../contracts/p1-parser-boundary.types";
 import type { ClockReading, RuntimeInput, RuntimeState, RuntimeUnitId } from "../../contracts/p2-shared-runtime.types";
@@ -9,15 +9,18 @@ import type { EewUnitState } from "../../contracts/p2-eew-unit.types";
 import type { WeatherCurrentInput, WeatherCurrentUnitState } from "../../contracts/p2-weather-current-unit.types";
 import type { NotificationAttempt, NotificationDeliveryState } from "../../contracts/p2-notification-delivery.types";
 import { decodeMaterial } from "../../src/decode-material/decode-material";
-import { hashEnvelope, serializedEnvelope } from "../../src/checkpoint/checkpoint";
+import { CheckpointCoordinator, hashEnvelope, serializedEnvelope } from "../../src/checkpoint/checkpoint";
+import type { OwnerReply } from "../../contracts/p3-execution-split.types";
+import { OwnerHost } from "../../src/runtime/owner-host";
 import { ingestXmlData } from "../../src/ingress/ingress";
-import {
-  RuntimeCompositionRoot, linkedRuntimeCalls, linkedUnitCodecs, nodeCheckpointFileSystem,
-} from "../../src/runtime/composition-root";
-import { reduceRuntime } from "../../src/runtime/shared-runtime";
+import { linkedRuntimeCalls, linkedUnitCodecs, nodeCheckpointFileSystem } from "../../src/runtime/composition-root";
+import { envelope, harnessedRoot, manualAdapter, startHarness, submit } from "../execution-split/owner-harness";
+import type { Harness } from "../execution-split/owner-harness";
+import { deadlineOwner, receiveOwner, restoreOwner } from "../../src/runtime/owner-runtime";
+import type { OwnerState } from "../../src/runtime/owner-runtime";
 import { eewUnitCodec } from "../../src/units/eew/eew-unit";
 import { weatherCurrentUnitCodec } from "../../src/units/weather-current/weather-current-unit";
-import { fixtureState , testNotificationChannels, recordingNotificationAdapter} from "../checkpoint-shutdown/runtime-fixture";
+import { fixtureState , ownerFixture, testNotificationChannels, recordingNotificationAdapter} from "../checkpoint-shutdown/runtime-fixture";
 
 const calls = { ...linkedRuntimeCalls,
   selectNotificationAttempt: (delivery: NotificationDeliveryState) => ({ state: delivery,
@@ -48,17 +51,10 @@ function atTime(xml: string, time: string): string {
   return xml.replace(/<ReportDateTime>[^<]*<\/ReportDateTime>/, `<ReportDateTime>${time}</ReportDateTime>`);
 }
 
-function parsed(runId: string, material: DecodedMaterial, clock: ClockReading): RuntimeInput {
-  return { kind: "mailboxCompleted", clock, completion: { kind: "parser", messageId: material.inputId,
-    inputId: material.inputId, runId, encodedByteLength: 0, startedMonotonicMs: clock.monotonicMs,
-    completedMonotonicMs: clock.monotonicMs, inputSequence: 1, result: { kind: "decoded", material } } };
-}
-
-async function save(root: RuntimeCompositionRoot, unit: RuntimeUnitId, inputIds: readonly string[], clock: () => ClockReading) {
-  const scheduled = root.scheduleCheckpoint(root.state, clock(), root.state.runId, { [unit]: { inputIds, retryReason: "notRetry" } });
-  if (scheduled?.request == null) throw new Error(`${unit} checkpoint was not captured`);
-  const executed = await root.executeCheckpoint(scheduled.request, root.state.runId, inputIds, "notRetry");
-  return root.applyCheckpointResult(root.state, executed.result, clock()).state;
+// TEST-PATH (1): one parser input to the owner core.
+function received(owner: OwnerState, material: DecodedMaterial, clock: ClockReading) {
+  return receiveOwner(owner, { runId: owner.runId, inputId: material.inputId, result: { kind: "decoded", material } },
+    clock, calls.units);
 }
 
 const eewIntent: EewUnitState["intents"][number] = { id: "U-E:normal/VXSE43/20240417231454:1:sound", unit: "U-E",
@@ -68,42 +64,61 @@ const eewIntent: EewUnitState["intents"][number] = { id: "U-E:normal/VXSE43/2024
   transition: "activated", channel: "sound", payload: { domain: "earthquake-eew", level: "critical", title: "緊急地震速報（警報）", body: "地震" }, createdAt: 1, expiresAt: 15_001,
   nextAttemptAt: 1, attempts: 0, configRevision: "test", disposition: "pending" };
 
+// TEST-PATH (2): the publisher and its in-process owners; parser inputs travel as the host would enqueue them.
+function wired(settings: Awaited<ReturnType<typeof config>>, options: Omit<Parameters<typeof harnessedRoot>[2] & object, never> = {}) {
+  return harnessedRoot(settings, linkedUnitCodecs, { notificationAdapter: recordingNotificationAdapter(), runtimeCalls: calls, ...options });
+}
+let inputSequence = 0;
+function report(file: string, transform: (xml: string) => string = (xml) => xml): Buffer {
+  return Buffer.from(transform(readFileSync(`test/fixtures/${file}.xml`, "utf8")));
+}
+function send(h: Harness, runId: string, file: string, headType: string, clock: ClockReading,
+  transform: (xml: string) => string = (xml) => xml, inputId = file) {
+  return submit(h, envelope(runId, headType, inputId, report(file, transform), clock, ++inputSequence));
+}
+// The slot a restart would read, through the owner-side coordinator.
+function slot(settings: Awaited<ReturnType<typeof config>>, unit: RuntimeUnitId) {
+  return new CheckpointCoordinator(settings.stateDirectory, linkedUnitCodecs, nodeCheckpointFileSystem(),
+    () => ({ wallTimeMs: 0, monotonicMs: 0 }), () => {}).restoreUnit(unit);
+}
+async function save(h: Harness) {
+  await h.root.driveCheckpoint();
+  await h.settle();
+}
 describe("P2 unit wiring (A1 route, A3 composition root)", () => {
   it("P2-A3-A8-LINK regression: dispatch preserves the observed disconnect clock and sequence", async () => {
     const at = { wallTimeMs: 1_800_000_000_000, monotonicMs: 20 };
-    const root = new RuntimeCompositionRoot(await config(), linkedUnitCodecs, {
-      notificationAdapter: recordingNotificationAdapter(), runtimeCalls: calls, clock: () => at });
-    const started = root.startRuntime("run", at, testNotificationChannels);
-    expect(root.lastDisconnectedAt).toBeNull();
-    const lost = root.dispatch(root.state, { kind: "connectionLost", clock: { ...at, wallTimeMs: at.wallTimeMs - 10 },
-      acceptedThroughSequence: 17 });
-    expect(root.lastDisconnectedAt).toBe(at.wallTimeMs - 10);
-    expect(lost.state.confirmation).toMatchObject({ epoch: 1, afterInputSequence: 17 });
-    expect(lost.state.views).toBe(started.state.views);
-    root.dispatch(root.state, { kind: "notificationProbeCompleted", channels: testNotificationChannels, clock: at });
-    expect(root.lastDisconnectedAt).toBe(at.wallTimeMs - 10);
+    const h = wired(await config(), { clock: () => at });
+    await startHarness(h, "run", at, false);
+    const started = h.root.state;
+    expect(h.root.lastDisconnectedAt).toBeNull();
+    h.root.dispatch({ kind: "connectionLost", clock: { ...at, wallTimeMs: at.wallTimeMs - 10 }, acceptedThroughSequence: 17 });
+    expect(h.root.lastDisconnectedAt).toBe(at.wallTimeMs - 10);
+    expect(h.root.state.confirmation).toMatchObject({ epoch: 1, afterInputSequence: 17 });
+    expect(h.root.state.mirror).toBe(started.mirror);
+    h.root.dispatch({ kind: "notificationProbeCompleted", channels: testNotificationChannels, clock: at });
+    expect(h.root.lastDisconnectedAt).toBe(at.wallTimeMs - 10);
   });
+
   it("P2-A1-T09 regression / AC09: real EEW capacity rejection hides dedicated current until a newer adoption", () => {
     const first = decode("37_01_01_240613_VXSE43", "VXSE43");
     const at = { wallTimeMs: Date.parse(first.reportDateTimeRaw), monotonicMs: 1 };
-    const initial = reduceRuntime(null, { kind: "startup", runId: "run", clock: at,
-      notificationChannels: testNotificationChannels, restored: {
-      "U-E": { kind: "empty" }, "U-W": { kind: "empty" }, "U-F": { kind: "empty" },
-    } }, calls).state;
-    const adopted = reduceRuntime(initial, parsed("run", first, at), calls).state;
-    const current = adopted.units["U-E"].current[0];
+    const initial = restoreOwner({ runId: "run", place: "urgent", clock: at, restored: { "U-E": { kind: "empty" } } },
+      calls.units, linkedUnitCodecs).state;
+    const adopted = received(initial, first, at).state;
+    const current = adopted.units["U-E"]!.current[0];
     // Seed only the prior rejection; the follow-ups and dedicated view use the real unit.
-    const state: RuntimeState = { ...adopted, admission: { "U-E": { normal: { overflow: false,
+    const state: OwnerState = { ...adopted, admission: { "U-E": { normal: { overflow: false,
       records: [{ subject: current.subject, family: current.family,
         reportDateTimeMs: at.wallTimeMs + 2_000, affectedScope: "subject" }],
     } } } };
     const report = (offset: number) => decode("37_01_02_240613_VXSE43", "VXSE43",
       (xml) => atTime(xml, new Date(at.wallTimeMs + offset).toISOString()), `eew-${offset}`);
-    const blocked = reduceRuntime(state, parsed("run", report(1_000), at), calls);
-    expect(blocked.state.units["U-E"].current).toHaveLength(1);
+    const blocked = received(state, report(1_000), at);
+    expect(blocked.state.units["U-E"]?.current).toHaveLength(1);
     expect(blocked.views[0]).toMatchObject({ subjects: [], current: [], activeCount: 0,
       admission: { normal: "capacityExceeded" } });
-    const cleared = reduceRuntime(blocked.state, parsed("run", report(3_000), at), calls);
+    const cleared = received(blocked.state, report(3_000), at);
     expect(cleared.state.admission["U-E"]?.normal).toBeUndefined();
     expect(cleared.views[0]).toMatchObject({ admission: {}, activeCount: 1,
       current: [{ source: { inputId: "eew-3000" } }] });
@@ -112,40 +127,44 @@ describe("P2 unit wiring (A1 route, A3 composition root)", () => {
   it("P2-A1-T09 regression / A1 AC09, A5 AC14: real VPNO50 ending confirms its scope and unblocks weather views", () => {
     const ending = decode("18_00_01_260830_VPNO50_switch", "VPNO50");
     const at = { wallTimeMs: Date.parse(ending.reportDateTimeRaw), monotonicMs: 1 };
-    let state = fixtureState({}, {}, "run");
+    let state = ownerFixture("weatherCurrent", fixtureState({}, {}, "run"));
     for (const material of [decode("15_18_01_250630_VPWS50", "VPWS50"),
       decode("18_00_01_260830_VPWW55_fukui_L5", "VPWW55")])
-      state = reduceRuntime(state, parsed("run", material, at), calls).state;
+      state = received(state, material, at).state;
     state = { ...state, admission: { "U-W": { normal: { overflow: false, records: [{
       family: "VPNO50", subject: "normal/VPNO50/福井地方気象台", reportDateTimeMs: at.wallTimeMs,
       affectedScope: [JSON.stringify(["VPNO50", "partial", "福井地方気象台", "気象特別警報報知（府県予報区等）", "180000"])],
     }] } } } };
-    const sameTime = reduceRuntime(state, parsed("run", ending, at), calls);
+    const sameTime = received(state, ending, at);
     expect(sameTime.views[0]).toMatchObject({ admission: { normal: "capacityExceeded" }, subjects: [], national: {}, partials: [] });
-    expect(sameTime.state.units["U-W"].national.normal).toBeDefined();
-    expect(sameTime.state.units["U-W"].partials).toHaveLength(1);
+    expect(sameTime.state.units["U-W"]?.national.normal).toBeDefined();
+    expect(sameTime.state.units["U-W"]?.partials).toHaveLength(1);
     const newer = decode("18_00_01_260830_VPNO50_switch", "VPNO50",
       (xml) => atTime(xml, new Date(at.wallTimeMs + 1_000).toISOString()), "ending-newer");
-    const confirmed = reduceRuntime(sameTime.state, parsed("run", newer, at), calls);
+    const confirmed = received(sameTime.state, newer, at);
     expect(confirmed.state.admission["U-W"]?.normal).toBeUndefined();
     expect(confirmed.outcomes[0]).toMatchObject({ unit: "U-W", outcome: {
       subjects: [{ transition: "released", source: { inputId: "ending-newer" } }] } });
     expect(confirmed.views[0]).toMatchObject({ admission: {}, national: { normal: expect.any(Object) }, partials: [expect.any(Object)] });
   });
 
-  it("P2-A3-T10 regression / AC10: a rejected explicit correlation leaves adoption and its ledger untouched", async () => {
+  it("P2-A3-T10 regression / AC10: a save carries exactly the input IDs of its unsaved generations", async () => {
+    // TEST-PATH (1) (X4, D5 revised): the owner's generation ledger is the only correlation; a grant reads it.
     const at = { wallTimeMs: 1_800_000_000_000, monotonicMs: 1 };
-    const root = new RuntimeCompositionRoot(await config(), linkedUnitCodecs, { notificationAdapter: recordingNotificationAdapter(), runtimeCalls: calls, clock: () => at });
-    const initial = root.startRuntime("run", at, testNotificationChannels).state;
-    const material = decode("15_16_02_251222_VPWW57", "VPWW57", (xml) => xml, "real");
-    const input = parsed("run", material, at);
-    expect(() => root.dispatch(initial, input, { "U-W": { inputIds: ["wrong"], retryReason: "notRetry" } }))
-      .toThrow("unverified checkpoint correlation");
-    expect(root.state).toBe(initial);
-    const accepted = root.dispatch(initial, input, { "U-W": { inputIds: ["real"], retryReason: "notRetry" } });
-    expect(accepted.outcomes).toHaveLength(1);
-    expect(accepted.generationInputIds).toEqual({ "U-W": ["real"] });
-    expect((await root.shutdownRuntime(root.state, 1, at)).code).toBe(0);
+    const settings = await config();
+    const replies: OwnerReply[] = [];
+    const owner = new OwnerHost({ start: { place: "weatherCurrent", stateDirectory: settings.stateDirectory, publisherTimeOriginMs: 0 },
+      units: calls.units, codecs: linkedUnitCodecs, fileSystem: nodeCheckpointFileSystem(), sharedNow: () => 1,
+      reply: (reply) => { replies.push(reply); }, fail: (error) => { throw error; } });
+    owner.handle({ kind: "restore", runId: "run", clock: at, sharedMs: 1 });
+    owner.handle({ kind: "input", clock: at, sharedMs: 1,
+      envelope: envelope("run", "VPWW57", "real", report("15_16_02_251222_VPWW57"), at) });
+    owner.handle({ kind: "checkpointGrant", grantId: "grant-1", unit: "U-W", mode: "save", retryReason: "notRetry", clock: at, sharedMs: 1 });
+    await vi.waitFor(() => expect(replies.at(-1)?.kind).toBe("checkpointDone"));
+    const done = replies.at(-1)!;
+    if (done.kind !== "checkpointDone") throw new Error("checkpointDone expected");
+    expect(done.result?.kind).toBe("acknowledged");
+    expect(done.measurements.map((measurement) => measurement.inputIds)).toEqual(done.measurements.map(() => ["real"]));
   });
 
   it("P2-A3-T10 regression / AC10: two real intent updates in one tick preserve the whole generation interval", async () => {
@@ -158,30 +177,36 @@ describe("P2 unit wiring (A1 route, A3 composition root)", () => {
       payload: eewUnitCodec.encode({ ...fixtureState().units["U-E"], intents: notices }),
     })));
     const at = { wallTimeMs: 10, monotonicMs: 10 };
-    const root = new RuntimeCompositionRoot(settings, linkedUnitCodecs, { notificationAdapter: recordingNotificationAdapter(), clock: () => at, runtimeCalls: {
+    const adapter = manualAdapter();
+    const h = wired(settings, { clock: () => at, notificationAdapter: adapter.adapter, runtimeCalls: {
+      // Each idle channel selects its own unattempted intent (A7 evaluates the channels independently).
       ...calls, selectNotificationAttempt: (delivery: NotificationDeliveryState) => {
-        if (delivery.channels.desktop.kind !== "idle" || delivery.channels.sound.kind !== "idle")
-          return { state: delivery, attempts: [], abortRequests: [], diagnostics: [] };
-        const attempts: NotificationAttempt[] = delivery.intents.map((intent) => ({
+        const chosen = delivery.intents.filter((intent) => intent.attempts === 0 && delivery.channels[intent.channel].kind === "idle");
+        const attempts: NotificationAttempt[] = chosen.map((intent) => ({
           attemptId: `attempt-${intent.channel}`, intentId: intent.id, unit: intent.unit, subject: intent.subject,
           operation: intent.operation, channel: intent.channel, priorityGroup: "other", payload: {}, soundAsset: null,
           selectedAtMonotonicMs: at.monotonicMs, timeoutAtMonotonicMs: 1_000, expiresAt: intent.expiresAt,
         }));
-        return { state: { intents: delivery.intents.map((intent) => ({ ...intent, attempts: 1, nextAttemptAt: 100 })),
-          channels: { desktop: { kind: "running", attempt: attempts[0] }, sound: { kind: "running", attempt: attempts[1] } },
-          deadlines: delivery.deadlines },
-        attempts, abortRequests: [], diagnostics: [] };
+        const channels = { ...delivery.channels };
+        for (const attempt of attempts) channels[attempt.channel] = { kind: "running", attempt };
+        return { state: { intents: delivery.intents.map((intent) => chosen.includes(intent) ? { ...intent, attempts: 1, nextAttemptAt: 100 } : intent),
+          channels, deadlines: delivery.deadlines }, attempts, abortRequests: [], diagnostics: [] };
       },
     } });
-    const started = root.startRuntime("run", at, testNotificationChannels);
-    expect(started.generationInputIds).toEqual({});
-    const probed = root.dispatch(root.state, { kind: "notificationProbeCompleted", channels: testNotificationChannels, clock: at });
-    expect(probed.generationInputIds).toEqual({ "U-E": [] });
-    const step = root.tick(probed.state, at);
-    expect(step.state.units["U-E"].persistence.currentGeneration).toBe(9);
-    expect(step.generationInputIds).toEqual({});
-    expect((await root.shutdownRuntime(root.state, 0, at)).code).toBe(0);
-    expect(root.state.units["U-E"].persistence.savedGeneration).toBe(9);
+    await startHarness(h, "run", at, false);
+    expect(h.root.state.mirror["U-E"].persistence.currentGeneration).toBe(7);
+    h.root.dispatch({ kind: "notificationProbeCompleted", channels: testNotificationChannels, clock: at });
+    h.root.tick(at);
+    await h.settle();
+    // Each reservation is one owner update (AC11(d)); both are adopted before either attempt starts.
+    expect(h.root.state.mirror["U-E"].persistence.currentGeneration).toBe(9);
+    expect(adapter.runs.map((run) => run.attempt.channel)).toEqual(["desktop", "sound"]);
+    for (const { attempt } of adapter.runs) adapter.finish({ kind: "delivered", attemptId: attempt.attemptId,
+      intentId: attempt.intentId, channel: attempt.channel, completedAt: at });
+    await h.settle();
+    expect((await h.root.shutdownRuntime(0, at)).code).toBe(0);
+    // The final save covers every generation the updates made (the owner ledger had each one).
+    expect(h.root.state.mirror["U-E"].persistence.savedGeneration).toBe(h.root.state.mirror["U-E"].persistence.currentGeneration);
   });
 
   it("P2-A3-T09 acceptance / AC09: startup expiry advances a restored generation and saves it", async () => {
@@ -189,20 +214,19 @@ describe("P2 unit wiring (A1 route, A3 composition root)", () => {
     await fileSystem.mkdir(settings.stateDirectory, { recursive: true });
     const initial = fixtureState();
     const payload = eewUnitCodec.encode({ ...initial.units["U-E"], intents: [eewIntent] });
-    const envelope = hashEnvelope({ schemaVersion: eewUnitCodec.schemaVersion,
+    const envelopeBytes = hashEnvelope({ schemaVersion: eewUnitCodec.schemaVersion,
       unit: "U-E", generation: 3, capturedAt: 10, payload });
-    await fileSystem.writeFile(join(settings.stateDirectory, "U-E-A.json"), serializedEnvelope(envelope));
+    await fileSystem.writeFile(join(settings.stateDirectory, "U-E-A.json"), serializedEnvelope(envelopeBytes));
     const at = { wallTimeMs: 16_000, monotonicMs: 45 };
-    const root = new RuntimeCompositionRoot(settings, linkedUnitCodecs, { notificationAdapter: recordingNotificationAdapter(), runtimeCalls: calls, clock: () => at });
-    const started = root.startRuntime("first", at, testNotificationChannels);
-    expect(started.state.units["U-E"].persistence).toMatchObject({ currentGeneration: 4,
+    const h = wired(settings, { clock: () => at });
+    await startHarness(h, "first", at, false);
+    expect(h.root.state.mirror["U-E"].persistence).toMatchObject({ currentGeneration: 4,
       savedGeneration: 3, dirtySince: 45, savedCapturedAt: 10 });
-    expect(started.generationInputIds).toEqual({ "U-E": [] });
-    expect((await root.shutdownRuntime(root.state, 0, at)).code).toBe(0);
-    const restarted = new RuntimeCompositionRoot(settings, linkedUnitCodecs, { notificationAdapter: recordingNotificationAdapter(), runtimeCalls: calls, clock: () => at });
-    expect(restarted.startRuntime("second", at, testNotificationChannels).state.units["U-E"].persistence)
-      .toMatchObject({ kind: "saved", currentGeneration: 4, savedGeneration: 4 });
-    await restarted.diagnostics.flush();
+    expect((await h.root.shutdownRuntime(0, at)).code).toBe(0);
+    const restarted = wired(settings, { clock: () => at });
+    await startHarness(restarted, "second", at, false);
+    expect(restarted.root.state.mirror["U-E"].persistence).toMatchObject({ kind: "saved", currentGeneration: 4, savedGeneration: 4 });
+    await Promise.all([h.root.diagnostics.flush(), restarted.root.diagnostics.flush()]);
   });
 
   it("P2-A3-T09 contractBoundary / AC09: an unavailable slot remains intact after a later report", async () => {
@@ -211,111 +235,111 @@ describe("P2 unit wiring (A1 route, A3 composition root)", () => {
     const payload = weatherCurrentUnitCodec.encode(fixtureState().units["U-W"]);
     const bytes = serializedEnvelope(hashEnvelope({ schemaVersion: "unknown", unit: "U-W",
       generation: 9, capturedAt: 10, payload }));
-    const slot = join(settings.stateDirectory, "U-W-A.json");
-    await fileSystem.writeFile(slot, bytes);
+    const path = join(settings.stateDirectory, "U-W-A.json");
+    await fileSystem.writeFile(path, bytes);
     const at = { wallTimeMs: 1_800_000_000_000, monotonicMs: 4 };
-    const root = new RuntimeCompositionRoot(settings, linkedUnitCodecs, { notificationAdapter: recordingNotificationAdapter(), runtimeCalls: calls, clock: () => at });
-    expect(root.startRuntime("run", at, testNotificationChannels).state.restoration["U-W"]).toEqual({ kind: "unavailable", reason: "unknownSchema" });
-    root.dispatch(root.state, parsed("run", decode("15_16_02_251222_VPWW57", "VPWW57"), at));
-    expect((await root.shutdownRuntime(root.state, 1, at)).code).toBe(2);
-    expect(await fileSystem.readFile(slot)).toEqual(Buffer.from(bytes));
+    const h = wired(settings, { clock: () => at });
+    await startHarness(h, "run", at, false);
+    expect(h.root.state.restoration["U-W"]).toEqual({ kind: "unavailable", reason: "unknownSchema" });
+    await send(h, "run", "15_16_02_251222_VPWW57", "VPWW57", at);
+    expect((await h.root.shutdownRuntime(1, at)).code).toBe(2);
+    expect(await fileSystem.readFile(path)).toEqual(Buffer.from(bytes));
+    await h.root.diagnostics.flush();
   });
+
   it("P2-A3-T10 contractBoundary / AC10: an EEW parser step cannot attribute another unit's deadline generation", () => {
+    // TEST-PATH (1). AC11(c): another unit's deadline is applied by its own owner on its deadline request, never in the
+    // EEW input's step, so the two generations are attributed by separate owner steps.
     const at = { wallTimeMs: 1_713_363_299_001, monotonicMs: 4 };
     const initial = fixtureState({}, { "U-W": { kind: "saved", currentGeneration: 0, savedGeneration: 0,
       savedCapturedAt: null, savedAckAt: null, dirtySince: null } }, "run");
     const state = { ...initial, units: { ...initial.units,
       "U-E": { ...initial.units["U-E"], notificationLatches: [] } }, deadlines: { ...initial.deadlines,
       "U-E": null, "U-W": { wallTimeMs: null, monotonicMs: at.monotonicMs }, "U-F": null } };
-    const step = reduceRuntime(state, parsed("run", decode("37_01_01_240613_VXSE43", "VXSE43"), at), {
-      ...calls, units: { ...calls.units, "U-W": { ...calls.units["U-W"],
-        reduce: (unit: WeatherCurrentUnitState, input: WeatherCurrentInput) =>
-          input.kind === "deadline" ? { state: { ...unit, persistence: { ...unit.persistence,
-            kind: "pending" as const, currentGeneration: 1, dirtySince: at.monotonicMs } },
-            nextDeadline: null, decisions: [], intents: [], outcomes: [], diagnostics: [], displayChanges: [], confirmationEvidence: [] }
-            : calls.units["U-W"].reduce(unit, input) } },
-    });
-    expect(step.changedUnits).toEqual(["U-E", "U-W"]);
-    expect(step.generationInputIds).toEqual({ "U-E": ["37_01_01_240613_VXSE43"], "U-W": [] });
+    const units = { ...calls.units, "U-W": { ...calls.units["U-W"],
+      reduce: (unit: WeatherCurrentUnitState, input: WeatherCurrentInput) =>
+        input.kind === "deadline" ? { state: { ...unit, persistence: { ...unit.persistence,
+          kind: "pending" as const, currentGeneration: 1, dirtySince: at.monotonicMs } },
+          nextDeadline: null, decisions: [], intents: [], outcomes: [], diagnostics: [], displayChanges: [], confirmationEvidence: [] }
+          : calls.units["U-W"].reduce(unit, input) } };
+    const material = decode("37_01_01_240613_VXSE43", "VXSE43");
+    const eew = receiveOwner(ownerFixture("urgent", state), { runId: "run", inputId: material.inputId,
+      result: { kind: "decoded", material } }, at, units);
+    expect(eew.changedUnits).toEqual(["U-E"]);
+    expect(eew.generationInputIds).toEqual({ "U-E": ["37_01_01_240613_VXSE43"] });
+    const weather = deadlineOwner(ownerFixture("weatherCurrent", state), at, units);
+    expect(weather.changedUnits).toEqual(["U-W"]);
+    expect(weather.generationInputIds).toEqual({ "U-W": [] });
   });
 
   it("P2-A3-T10 contractBoundary / AC10: an empty later generation retains only unsaved earlier input IDs", async () => {
     const at = { wallTimeMs: 1_800_000_000_000, monotonicMs: 4 };
-    const first = decode("15_16_02_251222_VPWW57", "VPWW57");
-    const stale = decode("15_16_02_251222_VPWW57", "VPWW57",
-      (xml) => atTime(xml, "2020-06-22T22:59:00+09:00"), "stale");
     for (const savedFirst of [false, true]) {
       const measured: string[][] = [];
-      const root = new RuntimeCompositionRoot(await config(), linkedUnitCodecs, { notificationAdapter: recordingNotificationAdapter(), runtimeCalls: calls,
-        clock: () => at, onMeasurements: (items) => {
-          for (const item of items) if (item.unit === "U-W" && item.stage === "encode")
-            measured.push([...item.inputIds]);
-        } });
-      root.startRuntime("run", at, testNotificationChannels);
-      root.dispatch(root.state, parsed("run", first, at));
-      if (savedFirst) await save(root, "U-W", [first.inputId], () => at);
-      const latest = root.dispatch(root.state, parsed("run", stale, at));
-      expect(latest.generationInputIds).toEqual({ "U-W": [] });
-      expect((await root.shutdownRuntime(root.state, 2, at)).code).toBe(0);
-      expect(measured.at(-1)).toEqual(savedFirst ? [] : [first.inputId]);
+      const h = wired(await config(), { clock: () => at, onMeasurements: (items) => {
+        for (const item of items) if (item.unit === "U-W" && item.stage === "encode") measured.push([...item.inputIds]);
+      } });
+      await startHarness(h, "run", at, false);
+      await send(h, "run", "15_16_02_251222_VPWW57", "VPWW57", at);
+      if (savedFirst) await save(h);
+      await send(h, "run", "15_16_02_251222_VPWW57", "VPWW57", at, (xml) => atTime(xml, "2020-06-22T22:59:00+09:00"), "stale");
+      expect((await h.root.shutdownRuntime(2, at)).code).toBe(0);
+      expect(measured.at(-1)).toEqual(savedFirst ? [] : ["15_16_02_251222_VPWW57"]);
+      await h.root.diagnostics.flush();
     }
   });
+
   it("P2-WIRE-T01 acceptance / A3 AC09, A5 AC03, AC07-08: parsed U-W save and product restart", async () => {
     let now = 1_800_000_000_000;
     const clock = () => ({ wallTimeMs: now, monotonicMs: now });
     const files = nodeCheckpointFileSystem();
     let failWrite = false;
-    const options = { runtimeCalls: calls, clock, checkpointFileSystem: { ...files,
+    const options = { clock, checkpointFileSystem: { ...files,
       open: (path: string) => failWrite ? Promise.reject(new Error("injected write failure")) : files.open(path) } };
     const settings = await config();
-    const root = new RuntimeCompositionRoot(settings, linkedUnitCodecs, { ...(options), notificationAdapter: recordingNotificationAdapter() });
-    const first = decode("15_16_02_251222_VPWW57", "VPWW57");
-    const second = decode("15_16_02_251222_VPWW57", "VPWW57", (xml) => atTime(xml, "2020-06-22T23:01:00+09:00"), "second");
-
-    expect(() => root.dispatch(fixtureState({}, {}, "run-1"), parsed("run-1", first, clock())))
-      .toThrow("runtime has not received its initial state");
-    const received = root.dispatch(root.startRuntime("run-1", clock(), testNotificationChannels).state, parsed("run-1", first, clock()));
-    expect(received.changedUnits).toEqual(["U-W"]);
-    expect(received.views).toMatchObject([{ unit: "U-W", subjects: [{ transition: "active", source: { inputId: first.inputId } }] }]);
-    const national = decode("15_18_01_250630_VPWS50", "VPWS50");
-    root.dispatch(root.state, parsed("run-1", national, clock()));
-    expect((await save(root, "U-W", [first.inputId, national.inputId], clock)).units["U-W"].persistence.kind).toBe("saved");
+    const h = wired(settings, options);
+    expect(() => h.root.state).toThrow("runtime has not received its initial state");
+    await startHarness(h, "run-1", clock(), false);
+    const others = { "U-E": h.root.state.mirror["U-E"], "U-F": h.root.state.mirror["U-F"] };
+    await send(h, "run-1", "15_16_02_251222_VPWW57", "VPWW57", clock());
+    expect({ "U-E": h.root.state.mirror["U-E"], "U-F": h.root.state.mirror["U-F"] }).toEqual(others);
+    expect(h.root.state.mirror["U-W"].view).toMatchObject({ unit: "U-W",
+      subjects: [{ transition: "active", source: { inputId: "15_16_02_251222_VPWW57" } }] });
+    await send(h, "run-1", "15_18_01_250630_VPWS50", "VPWS50", clock());
+    await save(h);
+    expect(h.root.state.mirror["U-W"].persistence.kind).toBe("saved");
 
     now++;
-    root.dispatch(root.state, parsed("run-1", second, clock()));
+    await send(h, "run-1", "15_16_02_251222_VPWW57", "VPWW57", clock(), (xml) => atTime(xml, "2020-06-22T23:01:00+09:00"), "second");
     failWrite = true;
-    const failed = await save(root, "U-W", [second.inputId], clock);
-    expect(failed.units["U-W"].persistence.kind).toBe("failed");
-    expect(failed.units["U-W"].partials[0].source.inputId).toBe("second");
+    await save(h);
+    expect(h.root.state.mirror["U-W"].persistence.kind).toBe("failed");
+    expect(h.unit("U-W").partials[0].source.inputId).toBe("second");
     failWrite = false;
-    const summary = await root.shutdownRuntime(root.state, 2, clock());
-    const generation = root.state.units["U-W"].persistence.currentGeneration;
+    const summary = await h.root.shutdownRuntime(2, clock());
+    const generation = h.root.state.mirror["U-W"].persistence.currentGeneration;
     expect(summary).toMatchObject({ code: 0, persistence: { "U-W": { kind: "saved", savedGeneration: generation } } });
 
     now++;
-    const restarted = new RuntimeCompositionRoot(settings, linkedUnitCodecs, { ...(options), notificationAdapter: recordingNotificationAdapter() });
-    const startup = restarted.startRuntime("run-2", clock(), testNotificationChannels);
-    const resumed = startup.state;
-    expect(resumed.units["U-W"].partials[0].source.inputId).toBe("second");
-    expect(startup.views.find((view) => view.unit === "U-W")).toMatchObject({ national: {}, partials: [],
+    const restarted = wired(settings, options);
+    await startHarness(restarted, "run-2", clock(), false);
+    expect(restarted.unit("U-W").partials[0].source.inputId).toBe("second");
+    expect(restarted.root.state.mirror["U-W"].view).toMatchObject({ national: {}, partials: [],
       subjects: [expect.objectContaining({ transition: "restoredUnconfirmed", facts: expect.objectContaining({
-        currentConfirmed: false, savedCapturedAt: resumed.units["U-W"].persistence.savedCapturedAt,
+        currentConfirmed: false, savedCapturedAt: restarted.root.state.mirror["U-W"].persistence.savedCapturedAt,
       }) }), expect.objectContaining({ transition: "restoredUnconfirmed" })] });
-    const third = decode("15_16_02_251222_VPWW57", "VPWW57", (xml) => atTime(xml, "2020-06-22T23:02:00+09:00"), "third");
-    const followUp = restarted.dispatch(resumed, parsed("run-2", third, clock()));
-    expect(followUp.changedUnits).toEqual(["U-W"]);
-    expect(followUp.state.units["U-W"].partials[0].source.inputId).toBe("third");
-    expect(followUp.state.units["U-W"].persistence.currentGeneration).toBeGreaterThan(generation);
-    expect(followUp.views[0]).toMatchObject({ national: {}, partials: [{ source: { inputId: "third" } }],
+    await send(restarted, "run-2", "15_16_02_251222_VPWW57", "VPWW57", clock(), (xml) => atTime(xml, "2020-06-22T23:02:00+09:00"), "third");
+    expect(restarted.unit("U-W").partials[0].source.inputId).toBe("third");
+    expect(restarted.root.state.mirror["U-W"].persistence.currentGeneration).toBeGreaterThan(generation);
+    expect(restarted.root.state.mirror["U-W"].view).toMatchObject({ national: {}, partials: [{ source: { inputId: "third" } }],
       subjects: [expect.objectContaining({ transition: "restoredUnconfirmed" }), expect.objectContaining({ transition: "active" })] });
-    // No caller correlation: the root attributes the routed input, so normal shutdown saves it.
-    expect((await restarted.shutdownRuntime(restarted.state, 1, clock())).code).toBe(0);
-    const saved = restarted.restoreUnit("U-W");
-    expect(saved).toMatchObject({ kind: "restored", envelope: { generation: generation + 1 } });
-    const finalRoot = new RuntimeCompositionRoot(settings, linkedUnitCodecs, { ...(options), notificationAdapter: recordingNotificationAdapter() });
-    const again = finalRoot.startRuntime("run-3", clock(), testNotificationChannels).state;
-    expect(again.units["U-W"].partials[0].source.inputId).toBe("third");
-    await Promise.all([root.diagnostics.flush(), restarted.diagnostics.flush(), finalRoot.diagnostics.flush()]);
+    // No caller correlation: the owner attributes the routed input, so normal shutdown saves it.
+    expect((await restarted.root.shutdownRuntime(1, clock())).code).toBe(0);
+    expect(slot(settings, "U-W")).toMatchObject({ kind: "restored", envelope: { generation: generation + 1 } });
+    const finalRoot = wired(settings, options);
+    await startHarness(finalRoot, "run-3", clock(), false);
+    expect(finalRoot.unit("U-W").partials[0].source.inputId).toBe("third");
+    await Promise.all([h.root.diagnostics.flush(), restarted.root.diagnostics.flush(), finalRoot.root.diagnostics.flush()]);
   });
 
   it("P2-WIRE-T07 acceptance / A3 AC09, A6 AC07-08: parsed VPWP50 through the linked set, save and product restart", async () => {
@@ -323,30 +347,24 @@ describe("P2 unit wiring (A1 route, A3 composition root)", () => {
     let now = Date.parse("2023-06-22T23:00:00+09:00") + 1_000;
     const clock = () => ({ wallTimeMs: now, monotonicMs: now });
     const settings = await config();
-    const options = { runtimeCalls: calls, clock };
-    const root = new RuntimeCompositionRoot(settings, linkedUnitCodecs, { ...(options), notificationAdapter: recordingNotificationAdapter() });
-    const first = decode("81_01_04_251222_VPWP50", "VPWP50");
-
-    const received = root.dispatch(root.startRuntime("run-1", clock(), testNotificationChannels).state, parsed("run-1", first, clock()));
-    expect(received.changedUnits).toEqual(["U-F"]);
-    expect(received.state.units["U-F"].subjects).toMatchObject([
-      { subject: "normal/VPWP50/稚内地方気象台", effective: "active", source: { inputId: first.inputId } }]);
-    const summary = await root.shutdownRuntime(root.state, 1, clock());
-    const generation = root.state.units["U-F"].persistence.currentGeneration;
+    const h = wired(settings, { clock });
+    await startHarness(h, "run-1", clock(), false);
+    await send(h, "run-1", "81_01_04_251222_VPWP50", "VPWP50", clock());
+    expect(h.unit("U-F").subjects).toMatchObject([
+      { subject: "normal/VPWP50/稚内地方気象台", effective: "active", source: { inputId: "81_01_04_251222_VPWP50" } }]);
+    const summary = await h.root.shutdownRuntime(1, clock());
+    const generation = h.root.state.mirror["U-F"].persistence.currentGeneration;
     expect(summary).toMatchObject({ code: 0, persistence: { "U-F": { kind: "saved", savedGeneration: generation } } });
 
     now++;
-    const restarted = new RuntimeCompositionRoot(settings, linkedUnitCodecs, { ...(options), notificationAdapter: recordingNotificationAdapter() });
-    const resumed = restarted.startRuntime("run-2", clock(), testNotificationChannels).state;
-    expect(resumed.units["U-F"].subjects[0]).toMatchObject({ source: { inputId: first.inputId } });
-    const second = decode("81_01_04_251222_VPWP50", "VPWP50",
-      (xml) => atTime(xml, "2023-06-22T23:30:00+09:00"), "second");
-    const followUp = restarted.dispatch(resumed, parsed("run-2", second, clock()));
-    expect(followUp.changedUnits).toEqual(["U-F"]);
-    expect(followUp.state.units["U-F"].subjects[0]).toMatchObject({ source: { inputId: "second" } });
-    expect((await restarted.shutdownRuntime(restarted.state, 1, clock())).code).toBe(0);
-    expect(restarted.restoreUnit("U-F")).toMatchObject({ kind: "restored", envelope: { generation: generation + 1 } });
-    await Promise.all([root.diagnostics.flush(), restarted.diagnostics.flush()]);
+    const restarted = wired(settings, { clock });
+    await startHarness(restarted, "run-2", clock(), false);
+    expect(restarted.unit("U-F").subjects[0]).toMatchObject({ source: { inputId: "81_01_04_251222_VPWP50" } });
+    await send(restarted, "run-2", "81_01_04_251222_VPWP50", "VPWP50", clock(), (xml) => atTime(xml, "2023-06-22T23:30:00+09:00"), "second");
+    expect(restarted.unit("U-F").subjects[0]).toMatchObject({ source: { inputId: "second" } });
+    expect((await restarted.root.shutdownRuntime(1, clock())).code).toBe(0);
+    expect(slot(settings, "U-F")).toMatchObject({ kind: "restored", envelope: { generation: generation + 1 } });
+    await Promise.all([h.root.diagnostics.flush(), restarted.root.diagnostics.flush()]);
   });
 
   it("P2-WIRE-T05 regression / A10 AC09: automatic attribution excludes inputs saved by an older ack", async () => {
@@ -359,32 +377,31 @@ describe("P2 unit wiring (A1 route, A3 composition root)", () => {
     const openStarted = new Promise<void>((resolve) => { signalOpen = resolve; });
     const openGate = new Promise<void>((resolve) => { releaseOpen = resolve; });
     const settings = await config();
-    const root = new RuntimeCompositionRoot(settings, linkedUnitCodecs, { notificationAdapter: recordingNotificationAdapter(), runtimeCalls: calls, clock,
+    const h = wired(settings, { clock,
       checkpointFileSystem: { ...files, open: async (path) => { signalOpen(); await openGate; return files.open(path); } },
       onMeasurements: (items) => measured.push(...items.map(({ unit, generation, inputIds }) => ({ unit, generation, inputIds }))) });
-    const first = decode("15_16_02_251222_VPWW57", "VPWW57");
-    const second = decode("15_16_02_251222_VPWW57", "VPWW57",
-      (xml) => atTime(xml, "2020-06-22T23:01:00+09:00"), "second");
-    const third = decode("15_16_02_251222_VPWW57", "VPWW57",
-      (xml) => atTime(xml, "2020-06-22T23:02:00+09:00"), "third");
-
-    root.dispatch(root.startRuntime("run", clock(), testNotificationChannels).state, parsed("run", first, clock()));
-    const firstSave = save(root, "U-W", [first.inputId], clock);
+    await startHarness(h, "run", clock(), false);
+    await send(h, "run", "15_16_02_251222_VPWW57", "VPWW57", clock());
+    const firstSave = h.root.driveCheckpoint();
     await openStarted;
     now++;
-    root.dispatch(root.state, parsed("run", second, clock()));
+    // The owner applies this input while its own save waits on the file system (P3-C3A-AC15).
+    await send(h, "run", "15_16_02_251222_VPWW57", "VPWW57", clock(), (xml) => atTime(xml, "2020-06-22T23:01:00+09:00"), "second");
     releaseOpen();
     await firstSave;
-    expect(root.state.units["U-W"].persistence).toMatchObject({ currentGeneration: 2, savedGeneration: 1 });
+    await h.settle();
+    expect(h.root.state.mirror["U-W"].persistence).toMatchObject({ currentGeneration: 2, savedGeneration: 1 });
     now++;
-    root.dispatch(root.state, parsed("run", third, clock()));
-    await root.shutdownRuntime(root.state, 1, clock());
+    await send(h, "run", "15_16_02_251222_VPWW57", "VPWW57", clock(), (xml) => atTime(xml, "2020-06-22T23:02:00+09:00"), "third");
+    await h.root.shutdownRuntime(1, clock());
 
     expect(measured.filter(({ unit }) => unit === "U-W").at(-1)?.inputIds)
       .toEqual(["second", "third"]);
   });
 
   it("P2-A1-T12 contractBoundary / AC11: VXSE44 with an invalid date is ignored while deadlines still run", () => {
+    // TEST-PATH (1). AC11(c): the ignored input changes nothing in its (deferred) owner; U-E's elapsed deadline runs on
+    // the urgent owner's next deadline request, not in this input's step.
     const clock = { wallTimeMs: 1_713_363_299_001, monotonicMs: 1 };
     const initial = fixtureState({}, {}, "run");
     const state: RuntimeState = { ...initial, units: { ...initial.units, "U-E": { ...initial.units["U-E"],
@@ -392,57 +409,58 @@ describe("P2 unit wiring (A1 route, A3 composition root)", () => {
       deadlines: { "U-E": { wallTimeMs: clock.wallTimeMs, monotonicMs: null }, "U-W": null, "U-F": null } };
     const material = decode("37_01_01_240613_VXSE43", "VXSE44", (xml) => xml
       .replace(/<ReportDateTime>[^<]*<\/ReportDateTime>/, "<ReportDateTime>invalid</ReportDateTime>"), "ignored-44");
-    const step = reduceRuntime(state, parsed("run", material, clock), calls);
-    expect(step.state.units["U-E"].current).toEqual([]);
-    expect(step.state.units["U-E"].deliveryRecords).toEqual([]);
-    expect(step.changedUnits).toEqual(["U-E"]);
-    expect(step.generationInputIds).toEqual({ "U-E": [] });
-    expect(step.diagnostics).toMatchObject([{ reason: "routeIgnored", level: "INFO", inputId: "ignored-44" }]);
+    const ignored = receiveOwner(ownerFixture("deferred", state), { runId: "run", inputId: material.inputId,
+      result: { kind: "decoded", material } }, clock, calls.units);
+    expect(ignored.changedUnits).toEqual([]);
+    expect(ignored.diagnostics).toMatchObject([{ reason: "routeIgnored", level: "INFO", inputId: "ignored-44" }]);
+    const deadline = deadlineOwner(ownerFixture("urgent", state), clock, calls.units);
+    expect(deadline.state.units["U-E"]?.current).toEqual([]);
+    expect(deadline.state.units["U-E"]?.deliveryRecords).toEqual([]);
+    expect(deadline.changedUnits).toEqual(["U-E"]);
+    expect(deadline.generationInputIds).toEqual({ "U-E": [] });
   });
 
   it("P2-WIRE-T02 acceptance / A4 AC04, AC08 follow-up: parsed EEW is active, leaves nothing durable, and a restart follow-up becomes current", async () => {
     let now = 1_713_363_299_001;
     const clock = () => ({ wallTimeMs: now, monotonicMs: now });
     const settings = await config();
-    const options = { runtimeCalls: calls, clock };
-    const root = new RuntimeCompositionRoot(settings, linkedUnitCodecs, { ...(options), notificationAdapter: recordingNotificationAdapter() });
-    const first = decode("37_01_01_240613_VXSE43", "VXSE43");
-
-    const received = root.dispatch(root.startRuntime("run-1", clock(), testNotificationChannels).state, parsed("run-1", first, clock()));
-    expect(received.changedUnits).toEqual(["U-E"]);
-    expect(received.views).toMatchObject([{ unit: "U-E", activeCount: 1 }]);
-    expect((await root.shutdownRuntime(root.state, 1, clock())).code).toBe(0);
+    const h = wired(settings, { clock });
+    await startHarness(h, "run-1", clock(), false);
+    const others = { "U-W": h.root.state.mirror["U-W"], "U-F": h.root.state.mirror["U-F"] };
+    await send(h, "run-1", "37_01_01_240613_VXSE43", "VXSE43", clock());
+    expect({ "U-W": h.root.state.mirror["U-W"], "U-F": h.root.state.mirror["U-F"] }).toEqual(others);
+    expect(h.root.state.mirror["U-E"].view).toMatchObject({ unit: "U-E", activeCount: 1 });
+    expect((await h.root.shutdownRuntime(1, clock())).code).toBe(0);
 
     now++;
-    const restarted = new RuntimeCompositionRoot(settings, linkedUnitCodecs, { ...(options), notificationAdapter: recordingNotificationAdapter() });
-    expect(restarted.restoreUnit("U-E")).toMatchObject({ kind: "restored", envelope: {
+    expect(slot(settings, "U-E")).toMatchObject({ kind: "restored", envelope: {
       payload: { intents: [{ channel: "desktop" }, { channel: "sound" }] },
     } }); // active current is not durable; pending delivery is.
-    const resumed = restarted.startRuntime("run-2", clock(), testNotificationChannels).state;
-    const followUp = restarted.dispatch(resumed, parsed("run-2", decode("37_01_02_240613_VXSE43", "VXSE43"), clock()));
-    expect(followUp.changedUnits).toEqual(["U-E"]);
-    expect(followUp.state.units["U-E"].current.map((item) => item.serial)).toEqual([2]);
-    await restarted.diagnostics.flush();
+    const restarted = wired(settings, { clock });
+    await startHarness(restarted, "run-2", clock(), false);
+    await send(restarted, "run-2", "37_01_02_240613_VXSE43", "VXSE43", clock());
+    expect(restarted.unit("U-E").current.map((item) => item.serial)).toEqual([2]);
+    await Promise.all([h.root.diagnostics.flush(), restarted.root.diagnostics.flush()]);
   });
 
   it("P2-WIRE-T03 contractBoundary / A1 route: a routed rejection yields one unit diagnostic and no business change", () => {
     const state = fixtureState({}, {}, "run");
     const material = { ...decode("15_16_02_251222_VPWW57", "VPWW57"), reportDateTimeRaw: "" };
     const clock = { wallTimeMs: 1_800_000_000_000, monotonicMs: 1 };
-    const step = reduceRuntime(state, parsed("run", material, clock), calls);
+    const step = received(ownerFixture("weatherCurrent", state), material, clock);
     expect(step.diagnostics.map((item) => item.reason)).toEqual(["reportDateTimeMissing"]);
     // Routed, not dropped: U-W records the §7.8 freshness target while its business state stays.
     expect(step.changedUnits).toEqual(["U-W"]);
-    expect(step.state.units["U-W"].freshness).toMatchObject([{ decision: "rejected", revisionOrder: "unknown" }]);
-    expect(step.state.units["U-W"].partials).toBe(state.units["U-W"].partials);
-    expect(step.state.units["U-W"].national).toBe(state.units["U-W"].national);
+    expect(step.state.units["U-W"]?.freshness).toMatchObject([{ decision: "rejected", revisionOrder: "unknown" }]);
+    expect(step.state.units["U-W"]?.partials).toBe(state.units["U-W"].partials);
+    expect(step.state.units["U-W"]?.national).toBe(state.units["U-W"].national);
   });
 
   it("P2-WIRE-T04 contractBoundary / A1 shutdown: input completed after mailboxDrain is not applied to units", () => {
-    const running = fixtureState({}, {}, "run");
-    const state = { ...running, shutdown: { ...running.shutdown, stage: "sideEffectFinalization" as const } };
+    // After the shutdown input (spec §5.9 step 3) the owner no longer accepts parser inputs.
+    const state: OwnerState = { ...ownerFixture("weatherCurrent", fixtureState({}, {}, "run")), accepting: false };
     const clock = { wallTimeMs: 1_800_000_000_000, monotonicMs: 1 };
-    const step = reduceRuntime(state, parsed("run", decode("15_16_02_251222_VPWW57", "VPWW57"), clock), calls);
+    const step = received(state, decode("15_16_02_251222_VPWW57", "VPWW57"), clock);
     expect(step.changedUnits).toEqual([]);
     expect(step.state.units).toBe(state.units);
   });

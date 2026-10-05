@@ -15,9 +15,28 @@ import type { DmdataSubscription } from "../../contracts/p3-dmdata-connect.types
 import type { DmdataSocket, SocketCloseResult, SocketListResult, SocketStartResult } from "../../src/host/dmdata-rest";
 import { startP2Host } from "../../src/host/host";
 import type { P2HostConfig } from "../../src/host/host";
-import { RuntimeCompositionRoot } from "../../src/runtime/composition-root";
+import { RuntimeCompositionRoot, linkedUnitTable } from "../../src/runtime/composition-root";
 
-const hook = vi.hoisted(() => ({ beforeDecode: null as (() => void) | null, probeGate: null as Promise<void> | null }));
+const hook = vi.hoisted(() => ({ probeGate: null as Promise<void> | null }));
+// AC11(f): the real owner threads (TEST-PATH (3)). Only the stall test holds the owners' replies away from the host;
+// by default every reply passes straight through.
+const owners = vi.hoisted(() => ({ hold: false, held: [] as (() => void)[], live: new Set<{ terminate(): Promise<number> }>() }));
+vi.mock("node:worker_threads", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("node:worker_threads")>();
+  class Worker extends actual.Worker {
+    constructor(...args: ConstructorParameters<typeof actual.Worker>) {
+      super(...args);
+      owners.live.add(this);
+      this.once("exit", () => { owners.live.delete(this); });
+    }
+    override emit(event: string | symbol, ...args: unknown[]): boolean {
+      if (event !== "message" || !owners.hold) return super.emit(event, ...args);
+      owners.held.push(() => { super.emit(event, ...args); });
+      return true;
+    }
+  }
+  return { ...actual, Worker };
+});
 // P3-C2-AC09: no test reaches dmdata. Every host REST call goes to the test's handler; a call without one fails the test.
 const rest = vi.hoisted(() => ({
   list: null as ((status: "open" | "waiting") => Promise<SocketListResult>) | null,
@@ -39,6 +58,15 @@ vi.mock("../../src/host/dmdata-rest", () => {
     },
   };
 });
+// AC12: the publisher thread must not decode; every call made in this thread is counted.
+const decodes = vi.hoisted(() => ({ count: 0 }));
+vi.mock("../../src/decode-material/decode-material", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../../src/decode-material/decode-material")>();
+  return { ...actual, decodeMaterial: (item: Parameters<typeof actual.decodeMaterial>[0]) => {
+    decodes.count += 1;
+    return actual.decodeMaterial(item);
+  } };
+});
 // The product notification backends would pop a real notification and play a sound for every EEW; the asset base is real.
 vi.mock("../../src/notification-delivery/adapter", async (importOriginal) => ({
   ...await importOriginal<typeof import("../../src/notification-delivery/adapter")>(),
@@ -48,13 +76,6 @@ vi.mock("../../src/notification-delivery/adapter", async (importOriginal) => ({
     ({ kind: "delivered", attemptId: attempt.attemptId, intentId: attempt.intentId, channel: attempt.channel, completedAt: clock() }),
   abortNotificationAttempt: async () => ({ stopped: true }),
 }));
-vi.mock("../../src/decode-material/decode-material", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("../../src/decode-material/decode-material")>();
-  return { ...actual, decodeMaterial: (item: Parameters<typeof actual.decodeMaterial>[0]) => {
-    hook.beforeDecode?.();
-    return actual.decodeMaterial(item);
-  } };
-});
 
 const EEW_AT = 1_713_363_299_001; // 37_01_01 VXSE43 ReportDateTime + 1 ms (same anchor as display-wiring)
 const base = performance.now();
@@ -66,11 +87,14 @@ const clock = () => {
 
 const cleanups: (() => Promise<void> | void)[] = [];
 afterEach(async () => {
-  hook.beforeDecode = null;
   hook.probeGate = null;
+  owners.hold = false;
+  owners.held.length = 0;
   skew.ms = 0;
   vi.useRealTimers();
   for (const cleanup of cleanups.splice(0).reverse()) await cleanup();
+  // Y6: no test leaves an owner thread running.
+  await until(() => owners.live.size === 0);
   const unmocked = rest.unmocked.splice(0);
   Object.assign(rest, { list: null, close: null, start: null, calls: [], subscriptions: [] });
   expect(unmocked).toEqual([]);
@@ -292,14 +316,19 @@ describe("P2-A10-T06 host wiring (AC12, AC13)", () => {
     const host = await start(server.url, dirs);
     const stream = await events(host.displayPort);
     await until(() => server.sockets.length === 1);
-    // The thread cannot run a tick while decoding, so the tick fires inside the unfinished item.
-    hook.beforeDecode = () => { hook.beforeDecode = null; skew.ms += 5_000; vi.advanceTimersByTime(1_000); };
+    // The owner's reply is held, so the input stays unfinished while 5 s pass and the tick runs.
+    owners.hold = true;
     server.sockets[0].send(junk());
+    await until(() => owners.held.length === 1);
+    skew.ms += 5_000;
+    vi.advanceTimersByTime(1_000);
     await until(() => stream.heartbeats.length === 1);
     expect(stream.heartbeats).toEqual(["stalled"]);
     // The same tick's drainDiagnostics reports the stop.
     await until(async () => (await diagnostics(dirs.diagnosticDirectory)).includes("mailboxStalled"));
     expect((await fetchJson<{ worker: string }>(host.displayPort, "/healthz")).worker).toBe("stalled");
+    owners.hold = false;
+    for (const deliver of owners.held.splice(0)) deliver();
     vi.advanceTimersByTime(1_000);
     await until(() => stream.heartbeats.length === 2);
     expect(stream.heartbeats).toEqual(["stalled", "healthy"]);
@@ -312,7 +341,11 @@ describe("P2-A10-T06 host wiring (AC12, AC13)", () => {
     const first = await start(server.url, dirs);
     await until(() => server.sockets.length === 1);
     server.sockets[0].send(dataFrame("VXSE43", vxse43));
-    await until(async () => (await snapshot(first.displayPort)).persistence["U-E"]?.kind === "saved");
+    // Wait for the input's own save: before the frame is applied, U-E is already "saved" at generation 0.
+    await until(async () => {
+      const persistence = (await snapshot(first.displayPort)).persistence["U-E"];
+      return persistence?.kind === "saved" && (persistence.savedGeneration ?? 0) > 0;
+    });
     const saved = (await snapshot(first.displayPort)).persistence["U-E"];
     expect(saved?.savedGeneration).toBeGreaterThan(0);
     await first.stop();
@@ -398,7 +431,9 @@ describe("P3-DMDATA-CONNECT-001 live dmdata entry, connection and liveness", () 
       .toEqual([expect.objectContaining({ level: "INFO", count: 41 })]);
     expect(observations.filter((o) => o.kind === "controlFrame")).toEqual([expect.objectContaining({ frameType: "start", errorClose: null })]);
     server.sockets[0].send(dataFrame("VXSE43", vxse43));
-    await until(async () => (await snapshot(host.displayPort)).current.eew.items.length > 0);
+    // Wait for the owner's decode as well: the snapshot may already list EEW rows before this input is applied.
+    await until(async () => observations.some((o) => o.kind === "decode")
+      && (await snapshot(host.displayPort)).current.eew.items.length > 0);
     const t0 = observations.find((o) => o.kind === "marker" && o.point === "T0");
     const decode = observations.find((o) => o.kind === "decode");
     if (t0?.kind !== "marker" || decode?.kind !== "decode") throw new Error("T0 or decode observation missing");
@@ -668,8 +703,8 @@ describe("P3-DMDATA-CONNECT-001 live dmdata entry, connection and liveness", () 
     skew.ms += 2_000;
     // shutdownRuntime already started inside stop(), with the stop request clock.
     expect(shutdown).toHaveBeenCalledTimes(1);
-    expect(shutdown.mock.calls[0][2].wallTimeMs - requestedAt).toBeGreaterThanOrEqual(0);
-    expect(shutdown.mock.calls[0][2].wallTimeMs - requestedAt).toBeLessThan(2_000);
+    expect(shutdown.mock.calls[0][1].wallTimeMs - requestedAt).toBeGreaterThanOrEqual(0);
+    expect(shutdown.mock.calls[0][1].wallTimeMs - requestedAt).toBeLessThan(2_000);
     // It completes, every stage in time, while the cleanup still waits. Fake time moves only after that:
     // the shutdown stage deadlines are setTimeouts too, and advancing during a stage would cut it.
     const summary = await shutdown.mock.results[0].value;
@@ -780,5 +815,136 @@ describe("P3-DMDATA-CONNECT-001 live dmdata entry, connection and liveness", () 
     const back = await snapshot(host.displayPort);
     expect(back.recovery).toEqual(lost.recovery);
     expect(back.connection).toEqual({ ...lost.connection, state: "connected" });
+  });
+});
+
+describe("P3-C3A host with the three dist owner threads (TEST-PATH (3))", () => {
+  const fixtureText = (name: string) => readFileSync(`test/fixtures/${name}.xml`, "utf8");
+  const marker = (observations: readonly P2HostObservation[], point: "T0" | "T1" | "T2", inputId: string) =>
+    observations.flatMap((o) => o.kind === "marker" && o.point === point && "inputId" in o && o.inputId === inputId ? [o.monotonicMs] : [])[0];
+  const decodeOf = (observations: readonly P2HostObservation[], inputId: string) => {
+    const found = observations.find((o) => o.kind === "decode" && o.inputId === inputId);
+    return found?.kind === "decode" ? found : undefined;
+  };
+  const processingOf = (observations: readonly P2HostObservation[], inputId: string) => {
+    const found = observations.find((o) => o.kind === "processing" && o.measurement.inputId === inputId);
+    return found?.kind === "processing" ? found.measurement : undefined;
+  };
+
+  it("P3-C3A-T02 acceptance / AC01,AC12,AC13: an EEW passes the maximum VPWS50 being decoded in another owner; no decode in the publisher thread", async () => {
+    const reduces = (["U-E", "U-W", "U-F"] as const).flatMap((unit) =>
+      [vi.spyOn(linkedUnitTable[unit], "reduce"), vi.spyOn(linkedUnitTable[unit], "toView")]);
+    decodes.count = 0;
+    const server = await localServer();
+    const observations: P2HostObservation[] = [];
+    const dirs = await directories();
+    const host = await start(server.url, dirs, observations);
+    expect(owners.live.size).toBe(3);
+    const stream = await events(host.displayPort);
+    await until(() => server.sockets.length === 1);
+    server.sockets[0].send(dataFrame("VPWS50", fixtureText("15_18_01_250630_VPWS50")));
+    server.sockets[0].send(dataFrame("VXSE43", vxse43));
+    await until(() => processingOf(observations, "input-1") != null && processingOf(observations, "input-2") != null, 20_000);
+    // Y5: the EEW's T3 is the marker of the first snapshot that carries it.
+    await until(() => stream.snapshots.some((item) => item.current.eew.items.some((row) => row.activeCount > 0)));
+    const eewSequence = stream.snapshots.find((item) => item.current.eew.items.some((row) => row.activeCount > 0))!.sequence;
+    const t3Index = observations.findIndex((o) => o.kind === "marker" && o.point === "T3" && o.displayVersion.sequence === eewSequence);
+    const [weather, eew] = [decodeOf(observations, "input-1")!, decodeOf(observations, "input-2")!];
+    const weatherProcessing = processingOf(observations, "input-1")!;
+    // The EEW's T0 and T2 come before the VPWS50 decode ends, and its T3 before the VPWS50 processing ends.
+    expect(marker(observations, "T0", "input-2")).toBeLessThan(weather.endedMonotonicMs);
+    expect(marker(observations, "T2", "input-2")).toBeLessThan(weather.endedMonotonicMs);
+    const t3Marker = observations[t3Index];
+    if (t3Marker?.kind !== "marker") throw new Error("T3 of the EEW snapshot missing");
+    const t3 = t3Marker.monotonicMs;
+    expect(t3).toBeLessThan(weatherProcessing.endedMonotonicMs);
+    // Y2 (AC13): the EEW's T2 and decode are observed before its T3.
+    const observedAt = (match: (o: P2HostObservation) => boolean) => observations.findIndex(match);
+    expect(observedAt((o) => o.kind === "marker" && o.point === "T2" && "inputId" in o && o.inputId === "input-2")).toBeLessThan(t3Index);
+    expect(observedAt((o) => o.kind === "decode" && o.inputId === "input-2")).toBeLessThan(t3Index);
+    for (const [inputId, decode] of [["input-1", weather], ["input-2", eew]] as const) {
+      const order = [marker(observations, "T0", inputId), marker(observations, "T1", inputId), marker(observations, "T2", inputId),
+        decode.startedMonotonicMs, decode.endedMonotonicMs];
+      expect(order, inputId).toEqual([...order].sort((left, right) => left - right));
+    }
+    expect(eew.endedMonotonicMs).toBeLessThanOrEqual(t3);
+    await until(async () => (await snapshot(host.displayPort)).current.eew.items.some((item) => item.activeCount > 0));
+    expect(decodes.count).toBe(0);
+    expect(reduces.reduce((sum, spy) => sum + spy.mock.calls.length, 0)).toBe(0);
+    await host.stop();
+    await until(() => owners.live.size === 0);
+    // X9: after stop() no owner is left to take a write right, so the state directory stays as it is.
+    const files = async () => Promise.all((await fileSystem.readdir(dirs.stateDirectory)).sort().map(async (name) =>
+      [name, (await fileSystem.stat(join(dirs.stateDirectory, name))).mtimeMs] as const));
+    const stopped = await files();
+    await new Promise((done) => setTimeout(done, 1_500));
+    expect(await files()).toEqual(stopped);
+  });
+
+  it("P3-C3A-T02 acceptance / AC01: a rejected start leaves no owner thread", async () => {
+    const [wsPort, dirs] = [await freePort(), await directories()];
+    await expect(startP2Host({ wsUrl: `ws://127.0.0.1:${wsPort}/`, ...dirs, displayPort: 0, clock, observe: null })).rejects.toThrow();
+    await until(() => owners.live.size === 0);
+  });
+
+  it("P3-C3A-T04 regression / AC04: each frame is JSON-parsed at most once; bad UTF-8 is never parsed", async () => {
+    const server = await localServer();
+    const dirs = await directories();
+    const observations: P2HostObservation[] = [];
+    const host = await start(server.url, dirs, observations);
+    await until(() => server.sockets.length === 1);
+    const parse = vi.spyOn(JSON, "parse");
+    const small = dataFrame("VXSE43", vxse43).replace('"id":"id"', '"id":"small-frame"');
+    const large = dataFrame("VPWS50", fixtureText("15_18_01_250630_VPWS50")).replace('"id":"id"', '"id":"large-frame"');
+    const invalidJson = '{"type":"data","marker":"invalid-json-frame"';
+    const invalidUtf8 = Buffer.concat([Buffer.from('{"type":"data","marker":"invalid-utf8-frame","x":"'), Buffer.from([0xff, 0xfe]), Buffer.from('"}')]);
+    expect([Buffer.byteLength(small) <= 16 * 1024, Buffer.byteLength(large) > 16 * 1024]).toEqual([true, true]);
+    for (const frame of [small, large, invalidJson]) server.sockets[0].send(frame);
+    server.sockets[0].send(invalidUtf8);
+    await until(() => ["input-1", "input-2", "input-3", "input-4"].every((inputId) => marker(observations, "T0", inputId) != null));
+    await until(async () => (await diagnostics(dirs.diagnosticDirectory)).split("envelopeInvalid").length - 1 >= 2);
+    const calls = (needle: string) => parse.mock.calls.filter(([text]) => typeof text === "string" && text.includes(needle)).length;
+    expect([calls("small-frame"), calls("large-frame"), calls("invalid-json-frame"), calls("invalid-utf8-frame")])
+      .toEqual([1, 1, 1, 0]);
+    parse.mockRestore();
+    await host.stop();
+  });
+
+  it("P3-C3A-T06 acceptance / AC05: U-W and U-F saved one at a time, the earlier dirty first, both within 3 s", async () => {
+    const server = await localServer();
+    const observations: P2HostObservation[] = [];
+    const host = await start(server.url, await directories(), observations);
+    await until(() => server.sockets.length === 1);
+    server.sockets[0].send(dataFrame("VPWW57", fixtureText("15_16_02_251222_VPWW57")));
+    server.sockets[0].send(dataFrame("VPWP50", fixtureText("81_02_01_260605_VPWP50_high_severity")));
+    const writes = (unit: "U-W" | "U-F") => observations.flatMap((o) => o.kind === "checkpoint" && o.measurement.unit === unit
+      && o.measurement.stage !== "encode" ? [o.measurement] : []);
+    await until(() => (["U-W", "U-F"] as const).every((unit) => writes(unit).some((m) => m.stage === "directorySync")), 10_000);
+    const span = (unit: "U-W" | "U-F") => ({ start: Math.min(...writes(unit).map((m) => m.startedMonotonicMs)),
+      end: Math.max(...writes(unit).map((m) => m.endedMonotonicMs)) });
+    const [weather, series] = [span("U-W"), span("U-F")];
+    expect(weather.end <= series.start || series.end <= weather.start).toBe(true);
+    // The unit whose input was applied first is saved first.
+    const applied = (inputId: string) => decodeOf(observations, inputId)!.endedMonotonicMs;
+    expect(applied("input-1") <= applied("input-2")).toBe(weather.start < series.start);
+    expect(weather.end - marker(observations, "T0", "input-1")).toBeLessThanOrEqual(3_000);
+    expect(series.end - marker(observations, "T0", "input-2")).toBeLessThanOrEqual(3_000);
+    await host.stop();
+  });
+
+  it("P3-C3A-T10 contractBoundary / AC10: an owner exit outside stop reaches ownerFailed; exits during stop do not", async () => {
+    const failed = vi.spyOn(RuntimeCompositionRoot.prototype, "ownerFailed").mockImplementation(() => undefined as never);
+    const server = await localServer();
+    const host = await start(server.url, await directories());
+    await until(() => server.sockets.length === 1);
+    const [first] = owners.live;
+    await first.terminate();
+    await until(() => failed.mock.calls.length === 1);
+    expect(failed.mock.calls[0][1]).toBeInstanceOf(Error);
+    failed.mockClear();
+    await host.stop();
+    await until(() => owners.live.size === 0);
+    expect(failed).not.toHaveBeenCalled();
+    failed.mockRestore();
   });
 });

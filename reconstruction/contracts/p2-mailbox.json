@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "3095a6c21caa96e06fc3b3a6d2f906534ef5441b",
-    "sha256": "d58d3d0b4beb887777de259c36741c65e2b8dc2006c8c89e70dfe74973f98b1f",
+    "sha256": "81b8b76492d5785489a1d70ef4b48cd7df3e6a4cd4b35ad2bb9c26fc12d39836",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "76c82b87d7783a4eae14af690cb34e7d6ec46f73617dc75b7f7401951619f080",
     "sequencesSha256": "be9cfd97b555e3a55568f085d107342c978b3dc7249f5cecea868ea5a62c5781",
@@ -156,7 +156,7 @@
   "contract": {
     "contractId": "P2-MAILBOX-001",
     "mode": "implementation",
-    "objective": "B05 mailboxをParserMailboxItemを変えずに実装し、件数・byte・通常枠・緊急予約・通常data in-flight 1・固定優先順・停止排出・全遷移の計数を閉じる。",
+    "objective": "B05 mailboxをParserMailboxItemを変えずに実装し、件数・byte・通常枠・緊急予約・通常data in-flightは実行場所ごとに1（P3-C3A-RES-01）・固定優先順・停止排出・全遷移の計数を閉じる。",
     "baseOid": "80777285fe6a3fd79ad464ad2ec8fc8209dde45b",
     "cleanTreeRequired": true,
     "readPaths": [
@@ -205,8 +205,8 @@
     ],
     "publicFunctions": [
       "enqueue(envelope: MailboxEnvelope): MailboxEnqueueResult",
-      "takeNext(nowMonotonicMs: number): MailboxEnvelope | null",
-      "complete(completion: MailboxCompletion): MailboxStats",
+      "takeNext(nowMonotonicMs: number): MailboxEnvelope | null（in-flightの無い実行場所のitemから固定優先順の最上位。同じ順序領域の先行pendingがあれば返さない。pendingの走査は1回、P3-C3A-RES-08）",
+      "complete(completion: ParserSettlement | Extract<MailboxCompletion, { kind: \"control\" }>): MailboxStats（parserはParserSettlementの識別子で照合し、不一致・重複の完了はどの実行場所も解放しない）",
       "cancel(inputId: string, nowMonotonicMs: number): MailboxStats",
       "beginDrain(nowMonotonicMs: number): MailboxStats",
       "stats(nowMonotonicMs: number): MailboxStats (read-only)",
@@ -318,11 +318,11 @@
       },
       {
         "id": "P2-A2-RES-07",
-        "target": "normal data to worker",
+        "target": "normal data to execution owners (P3-EXECUTION-SPLIT-001)",
         "limit": 1,
-        "unit": "in-flight item",
+        "unit": "in-flight item per execution place (at most 3 in total, P3-C3A-RES-01)",
         "scope": "completion keeps item and bytes counted",
-        "source": "§7.2"
+        "source": "§7.2、P3-C3A-RES-01"
       },
       {
         "id": "P2-A2-RES-08",
@@ -513,8 +513,8 @@
       "allowed_pathsに限定したgit diff --binary --no-ext-diff patch",
       "変更ファイル一覧、実行コマンドと結果、未実行検証と理由、残存リスク",
       "追加・変更した各テストのpurposeと対応受入条件",
-      "control配送がないと保存ack/期限/shutdownが緊急予約を利用できない。parser byteはitem.encodedByteLength、control byteはUTF-8 JSON.stringify(payload)のbyte長で固定しpending+in-flightへ一度だけ算入、complete時に解放する。通常data in-flightは1、controlはparser処理終了待ちでなくruntimeへ配送し別途予約枠内のin-flightとして計数する",
-      "観測口がないと無遷移停止を検知できない。inFlightMessageIdはdata ID、controlの処理中IDも有界配列でstatsへ含める。beginDrainは新parser受付を止めるが収束に必要なcontrol受付を維持する",
+      "control配送がないと保存ack/期限/shutdownが緊急予約を利用できない。parser byteはitem.encodedByteLength、control byteはUTF-8 JSON.stringify(payload)のbyte長で固定しpending+in-flightへ一度だけ算入、complete時に解放する。通常data in-flightは実行場所ごとに1（最大3、P3-C3A-RES-01）、controlはparser処理終了待ちでなくruntimeへ配送し別途予約枠内のin-flightとして計数する",
+      "観測口がないと無遷移停止を検知できない。inFlightMessageIdsは実行場所ごとのdata ID（最大3件）、controlの処理中IDも有界配列でstatsへ含める。beginDrainは新parser受付を止めるが収束に必要なcontrol受付を維持する",
       "P1のmailbox/parser-boundary.tsは配送済み境界なので編集しない。引継ぎはParserMailboxItem/Resultの公開型をimportするだけとし、変更が必要ならP1所有者の別契約に分離する",
       "mailboxは検証済みfamily/subjectを持たないためheadTypeだけをfamily相当のordering keyにする。subject粒度の厳密順はunit reducerのoperation/family/subject watermarkで守り、mailboxへ推測parserや新しいordering型を追加しない",
       "追実装で閉じる項目: sameOrderingDomainだけの変更では閉じない。現行operationはfalse × trainingをunknown、confirmedNonNormalは非通常と扱うため、優先度・allocation・先行拘束をP2-A2-CLASSIFICATIONの単一判定表に揃える。反例3入力と矛盾sourceのT03-ORDER回帰試験で閉じる",

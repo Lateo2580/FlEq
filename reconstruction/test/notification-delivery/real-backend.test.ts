@@ -4,13 +4,13 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { expect, it, vi } from "vitest";
-import type { ClockReading, NotificationResult, RuntimeInput, RuntimeStep } from "../../contracts/p2-shared-runtime.types";
+import type { ClockReading, NotificationResult } from "../../contracts/p2-shared-runtime.types";
 import type { NotificationAttempt } from "../../contracts/p2-notification-delivery.types";
-import { CheckpointCoordinator } from "../../src/checkpoint/checkpoint";
-import { linkedUnitCodecs, nodeCheckpointFileSystem } from "../../src/runtime/composition-root";
-import { reduceRuntime } from "../../src/runtime/shared-runtime";
+import { linkedUnitCodecs } from "../../src/runtime/composition-root";
+import { initialUnits } from "../../src/runtime/owner-runtime";
 import { abortNotificationAttempt, probeDesktopBackend, probeSoundBackend, runNotificationAttempt } from "../../src/notification-delivery/adapter";
-import { background, calls, eewInput, empty, tick } from "./delivery-fixture";
+import { harnessedRoot, seeded, startHarness, submit } from "../execution-split/owner-harness";
+import { background, calls, eewEnvelope } from "./delivery-fixture";
 const { judgeLatency } = require("./r32-latency.cjs") as { judgeLatency: (generated: number | undefined,
   spawned: number | undefined, predecessorSpawned?: number | null, predecessorClosed?: number | null,
   hasPredecessor?: boolean) => {
@@ -110,7 +110,31 @@ async function measure(os: "macos" | "linux-rpi") {
     }
     return handle;
   });
-  let current = empty(clock());
+  // TEST-PATH (2): the publisher and its in-process owners with the real adapter. Selection stays idle until the
+  // foreground starts, so the background is selected in the shared foreground dispatch (as before the split).
+  let foregroundStarted = false;
+  const select: typeof calls.selectNotificationAttempt = (state, ...rest) =>
+    foregroundStarted ? calls.selectNotificationAttempt(state, ...rest) : { state, attempts: [], abortRequests: [], diagnostics: [] };
+  const seeds = seeded();
+  const results: { attempt: NotificationAttempt; result: NotificationResult }[] = [];
+  const h = harnessedRoot({ appName: "fleq-p2", legacyAppName: "fleq", stateDirectory: join(directory, "state"),
+    legacyStateDirectory: join(directory, "legacy"), diagnosticDirectory: join(directory, "diagnostics") }, linkedUnitCodecs, {
+    clock, runtimeCalls: { ...calls, units: seeds.units, selectNotificationAttempt: select },
+    notificationAdapter: {
+      run: (attempt, readClock) => {
+        if (os === "linux-rpi" && attempt.channel === "desktop") record.desktopAttempts = Number(record.desktopAttempts) + 1;
+        spawning = attempt;
+        const run = runNotificationAttempt(attempt, readClock);
+        spawning = null;
+        runs.push(run.then((result) => { results.push({ attempt, result }); }));
+        return run;
+      },
+      abort: (request, stopBy, readClock) => {
+        const requestedAt = readClock(); abortAt.set(request.attemptId, requestedAt.monotonicMs);
+        markers.push({ kind: "abort", request, clock: requestedAt });
+        return abortNotificationAttempt(request, stopBy, readClock);
+      },
+    } });
   let finished = false;
   try {
     const silent = Buffer.from(readFileSync("reconstruction/assets/sounds/weather-info.wav")); silent.fill(0, 44);
@@ -119,103 +143,45 @@ async function measure(os: "macos" | "linux-rpi") {
     if ((record.soundProbe as { kind: string }).kind !== "delivered") blocked("silent probe could not confirm an audio device");
     const start = clock(), foreground = { wallTimeMs: start.wallTimeMs + 1_000, monotonicMs: start.monotonicMs + 1_000 };
     record.start = start; record.foreground = foreground;
-    current = background(empty(start), foreground);
-    if (desktopProbe != null) current = { ...current, notificationChannels: { ...current.notificationChannels, desktop: desktopProbe } };
-    record.background = current.units["U-W"].intents;
-    const checkpoint = new CheckpointCoordinator(join(directory, "state"), linkedUnitCodecs, nodeCheckpointFileSystem(), clock,
-      event => markers.push({ kind: "diagnostic", event }));
-    const queued: { attempt: NotificationAttempt; generation: number }[] = [];
-    const results: { attempt: NotificationAttempt; result: NotificationResult }[] = [];
-    let checkpointBusy = false;
+    await startHarness(h, "a7", start, false);
+    h.root.dispatch({ kind: "notificationProbeCompleted", clock: start,
+      channels: { desktop: desktopProbe ?? { kind: "idle" }, sound: { kind: "idle" } } });
+    // The background reaches U-W before offset 0; selecting lower itself remains in the shared foreground dispatch.
+    await seeds.weather(h, { ...initialUnits["U-W"], intents: background(foreground) }, null, start);
+    record.background = h.unit("U-W").intents;
     let failure: string | null = null;
-    function dispatch(input: RuntimeInput) { const step = reduceRuntime(current, input, calls); current = step.state; processStep(step); }
-    function pump() {
-      if (finished) return;
-      if (!checkpointBusy) {
-        const reservation = checkpoint.scheduleCheckpoint(current, clock(), current.runId, {
-          "U-E": { inputIds: [], retryReason: "notRetry" }, "U-W": { inputIds: [], retryReason: "notRetry" } });
-        if (reservation != null) {
-          checkpointBusy = true;
-          const before = current;
-          current = reduceRuntime(current, { kind: "checkpointCaptured", capture: reservation.capture }, calls).state;
-          markers.push({ kind: "reservation", capture: reservation.capture, clock: clock() });
-          if (reservation.request == null) { failure = "checkpoint encode failed"; return; }
-          const write = checkpoint.executeCheckpoint(reservation.request, current.runId, [], "notRetry").then(output => {
-            if (finished) return;
-            checkpoint.resultMetadata(before, output.result, clock());
-            checkpointBusy = false;
-            const now = clock();
-            dispatch({ kind: "mailboxCompleted", clock: now, completion: { kind: "control", runId: current.runId,
-              messageId: "ack", encodedByteLength: 0, startedMonotonicMs: now.monotonicMs, completedMonotonicMs: now.monotonicMs, control: { kind: "checkpointResult", clock: now, result: output.result } } });
-          }).catch(error => { failure = String(error); });
-          runs.push(write);
-        }
-      }
-      for (let i = queued.length - 1; i >= 0; i--) {
-        const { attempt, generation } = queued[i];
-        if (attempt.unit !== "U-E" && attempt.unit !== "U-W") throw new Error("unexpected C2 owner");
-        const reserved = current.checkpointAttempts[attempt.unit]?.generation ?? current.units[attempt.unit].persistence.savedGeneration ?? 0;
-        if (reserved < generation) continue;
-        queued.splice(i, 1);
-        spawning = attempt;
-        const run = runNotificationAttempt(attempt, clock);
-        spawning = null;
-        runs.push(run.then(result => { results.push({ attempt, result });
-          if (!finished) dispatch({ kind: "notificationResult", result }); }));
-      }
-    }
-    function processStep(step: RuntimeStep) {
-      for (const request of step.abortRequests) {
-        const channel = Object.values(current.notificationChannels).find(value => value.kind === "stopping" && value.attempt.attemptId === request.attemptId);
-        if (channel?.kind !== "stopping") continue;
-        const requestedAt = clock(); abortAt.set(request.attemptId, requestedAt.monotonicMs);
-        markers.push({ kind: "abort", request, clock: requestedAt });
-        runs.push(abortNotificationAttempt(request, channel.stopByMonotonicMs, clock));
-      }
-      for (const attempt of step.notificationAttempts) {
-        if (os === "linux-rpi" && attempt.channel === "desktop") record.desktopAttempts = Number(record.desktopAttempts) + 1;
-        if (attempt.unit !== "U-E" && attempt.unit !== "U-W") throw new Error("unexpected C2 owner");
-        queued.push({ attempt, generation: current.units[attempt.unit].persistence.currentGeneration });
-      }
-      pump();
-    }
-    // Reserve the background before offset 0; selecting lower itself remains in the shared foreground dispatch.
-    const seeded = reduceRuntime(current, tick(current, start), { ...calls,
-      selectNotificationAttempt: state => ({ state, attempts: [], abortRequests: [], diagnostics: [] }) });
-    current = seeded.state;
-    const accept = (event: "A" | "B", offset: number) => {
+    const accept = async (event: "A" | "B", offset: number) => {
       const now = clock();
-      const step = reduceRuntime(current, eewInput(current, now, event), calls); current = step.state;
-      const intents = current.units["U-E"].intents.filter(item => item.source.inputId === event);
+      await submit(h, eewEnvelope("a7", now, event));
+      const intents = h.unit("U-E").intents.filter(item => item.source.inputId === event);
       if (intents.length !== 2) failure = `${event} did not produce two A4 intents`;
       for (const intent of intents) generatedAt.set(intent.id, now.monotonicMs);
       markers.push({ kind: "generation", event, scheduledOffsetMs: offset, clock: now,
         createdAtMonotonicMs: now.monotonicMs, intentIds: intents.map(item => item.id) });
-      processStep(step);
     };
-    let foregroundStarted = false;
     await new Promise<void>((resolve, reject) => {
       // B's timer is registered against M0+10 BEFORE A/lower, never after close or A spawn.
-      timers.push(setTimeout(() => { try { accept("B", 10); } catch (error) { reject(error); } }, Math.max(0, foreground.monotonicMs + 10 - clock().monotonicMs)));
+      timers.push(setTimeout(() => { accept("B", 10).catch(reject); }, Math.max(0, foreground.monotonicMs + 10 - clock().monotonicMs)));
       timers.push(setTimeout(() => {
-        try {
+        (async () => {
           foregroundStarted = true;
-          dispatch(tick(current, clock()));
-          // Background generation reservation/spawn must have completed synchronously in this dispatch.
-          const lower = Object.values(current.notificationChannels).filter(value => value.kind === "running");
+          h.root.tick(clock());
+          await h.settle();
+          // Background reservation/spawn must have completed in this dispatch.
+          const lower = Object.values(h.root.state.notificationChannels).filter(value => value.kind === "running");
           const competing = lower.length === backendChannels.length && lower.every(value => value.kind === "running"
             && spawnAt.has(value.attempt.attemptId) && !closeAt.has(value.attempt.attemptId));
           record.lowerCloseUnobservedAtA = competing;
           if (!competing) { failure = "required lower handles were not spawned and close-unobserved at A"; resolve(); return; }
           for (const channel of lower) if (channel.kind === "running") lowerAttemptIds.add(channel.attempt.attemptId);
           record.lowerAttemptIdsAtA = [...lowerAttemptIds];
-          accept("A", 0);
-        } catch (error) { reject(error); }
+          await accept("A", 0);
+        })().catch(reject);
       }, Math.max(0, foreground.monotonicMs - clock().monotonicMs)));
       interval = setInterval(() => {
-        if (!foregroundStarted) return;
+        if (!foregroundStarted || finished) return;
         try {
-          dispatch(tick(current, clock()));
+          h.root.tick(clock());
           if (failure != null || results.filter(item => item.attempt.unit === "U-E" && backendChannels.includes(item.attempt.channel)).length >= backendChannels.length * 2) resolve();
           else if (clock().monotonicMs > foreground.monotonicMs + 15_000) { failure = "competition did not complete"; resolve(); }
         } catch (error) { reject(error); }
@@ -226,19 +192,21 @@ async function measure(os: "macos" | "linux-rpi") {
     Object.assign(record, judgeCompetition(results, generatedAt, spawnAt, closeAt, abortAt, lowerAttemptIds, backendChannels));
     if (record.status === "blocked") blocked(String(record.reason));
     if (os === "linux-rpi") {
-      // R34 TTL evidence is a pure A1 clock input, separate from sound's real backend timings.
-      const desktopIntents = [...current.units["U-E"].intents, ...current.units["U-W"].intents]
+      // R34 TTL evidence is a deadline input at the latest desktop expiry, separate from sound's real backend timings.
+      const desktopIntents = [...h.unit("U-E").intents, ...h.unit("U-W").intents]
         .filter(item => item.channel === "desktop" && item.disposition === "pending");
       const now = clock(), expiresAt = Math.max(now.wallTimeMs, ...desktopIntents.map(item => item.expiresAt));
       const expiryClock = { wallTimeMs: expiresAt, monotonicMs: now.monotonicMs + expiresAt - now.wallTimeMs };
-      const expired = reduceRuntime(current, tick(current, expiryClock), calls);
-      const pendingAfter = [...expired.state.units["U-E"].intents, ...expired.state.units["U-W"].intents]
+      const attemptsBefore = Number(record.desktopAttempts);
+      h.root.tick(expiryClock);
+      await h.settle();
+      const pendingAfter = [...h.unit("U-E").intents, ...h.unit("U-W").intents]
         .filter(item => item.channel === "desktop" && item.disposition === "pending").length;
-      const deadlineKeysAfter = Object.keys(expired.state.notificationDeadlines.desktop).length;
-      const attemptsAtExpiry = expired.notificationAttempts.filter(item => item.channel === "desktop").length;
+      const deadlineKeysAfter = Object.keys(h.root.state.notificationDeadlines.desktop).length;
+      const attemptsAtExpiry = Number(record.desktopAttempts) - attemptsBefore;
       const status = record.desktopAttempts === 0 && desktopIntents.length === 4 && pendingAfter === 0
         && deadlineKeysAfter === 0 && attemptsAtExpiry === 0 ? "pass" : "fail";
-      record.desktopTtlCheck = { evidenceKind: "pure A1 deadline input; not real elapsed time", expiryClock,
+      record.desktopTtlCheck = { evidenceKind: "deadline input at the expiry clock; not real elapsed time", expiryClock,
         originalIntents: desktopIntents.map(item => ({ id: item.id, expiresAt: item.expiresAt, attempts: item.attempts })),
         pendingAfter, deadlineKeysAfter, attemptsAtExpiry, status };
       if (status === "fail") { record.status = "fail"; record.reason = "R34 desktop attempted or TTL reclamation failed"; }
@@ -249,9 +217,10 @@ async function measure(os: "macos" | "linux-rpi") {
     throw error;
   } finally {
     finished = true; clearInterval(interval); timers.forEach(clearTimeout);
-    for (const channel of Object.values(current.notificationChannels)) if (channel.kind === "running" || channel.kind === "stopping")
+    for (const channel of Object.values(h.root.state.notificationChannels)) if (channel.kind === "running" || channel.kind === "stopping")
       await abortNotificationAttempt({ attemptId: channel.attempt.attemptId, cause: "shutdown" }, clock().monotonicMs + 1_000, clock);
     await Promise.allSettled(runs);
+    await h.root.diagnostics.flush();
     vi.mocked(childProcess.spawn).mockImplementation(originalSpawn);
     rmSync(directory, { recursive: true, force: true });
   }

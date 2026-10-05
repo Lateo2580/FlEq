@@ -1,9 +1,8 @@
 import { performance } from "node:perf_hooks";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import type { RuntimeInput, RuntimeState, RuntimeStep } from "../../contracts/p2-shared-runtime.types";
+import type { RuntimeState } from "../../contracts/p2-shared-runtime.types";
 import type { SnapshotProjectionInput, SnapshotProjectionResult, SnapshotProjectionState } from "../../contracts/p2-snapshot-sse.types";
-import { reduceRuntime } from "../../src/runtime/shared-runtime";
 import { toEewView } from "../../src/units/eew/eew-unit";
 import { toWeatherCurrentView } from "../../src/units/weather-current/weather-current-unit";
 import { toWeatherTimeseriesView } from "../../src/units/weather-timeseries/weather-timeseries-unit";
@@ -12,6 +11,7 @@ import {
   allSubjects, atTime, calls, combine, decode, eewReport, expectConsistent, expectMatchesReference, projected, projectionInput,
   received, reference, startup, step,
 } from "./projection-fixture";
+import type { Input, Step } from "./projection-fixture";
 
 const at = 1780650000000;
 const clock = { wallTimeMs: at, monotonicMs: 1 };
@@ -72,9 +72,9 @@ function percentile(values: readonly number[], p: number): number {
 }
 
 describe("P2-A8-T06 regression (AC06/AC13)", () => {
-  it("P2-A8-T06: generatedAt-only is unchanged; metadata and admission-count-only changes advance sequence, not content", () => {
-    const started = startup(clock);
-    const adopted = step(started.state, received("run", decode("15_16_02_251222_VPWW57", "VPWW57"), clock));
+  it("P2-A8-T06: generatedAt-only is unchanged; metadata and admission-count-only changes advance sequence, not content", async () => {
+    const started = await startup(clock);
+    const adopted = await step(started.state, received("run", decode("15_16_02_251222_VPWW57", "VPWW57"), clock));
     const first = projected(projectSnapshot(projectionInput(started, at), null));
     const second = projected(projectSnapshot(projectionInput(adopted, at), first.state));
     const same = projectSnapshot(projectionInput({ ...adopted, displayChanges: [], outcomes: [] }, at + 1), second.state);
@@ -99,16 +99,14 @@ describe("P2-A8-T06 regression (AC06/AC13)", () => {
     }
   });
 
-  it("P2-A8-T06: U-F retainUntil removal with no outcome still reduces bytes and aggregates", () => {
-    const started = startup(clock);
-    const adopted = combine(started.state, [received("run", timeseries("稚内地方気象台", "2026-06-05T17:00:00+09:00"), clock),
+  it("P2-A8-T06: U-F retainUntil removal with no outcome still reduces bytes and aggregates", async () => {
+    const started = await startup(clock);
+    const adopted = await combine(started.state, [received("run", timeseries("稚内地方気象台", "2026-06-05T17:00:00+09:00"), clock),
       received("run", timeseries("網走地方気象台", "2026-06-05T16:00:00+09:00"), clock)]);
     const first = projected(projectSnapshot(projectionInput(adopted, at), null));
     const removed = adopted.state.units["U-F"].subjects[1];
     const retainUntil = removed.retainUntil;
-    const collected = step(adopted.state, { kind: "mailboxCompleted", clock: { wallTimeMs: retainUntil, monotonicMs: 2 },
-      completion: { kind: "control", messageId: "tick", runId: "run", encodedByteLength: 0, startedMonotonicMs: 2,
-        completedMonotonicMs: 2, control: { kind: "deadline", clock: { wallTimeMs: retainUntil, monotonicMs: 2 } } } });
+    const collected = await step(adopted.state, { kind: "tick", clock: { wallTimeMs: retainUntil, monotonicMs: 2 } });
     // The retained subject leaves with no PublishedOutcome at all, only a display change.
     expect(collected.outcomes.flatMap((item) => item.outcome.subjects.map((subject) => subject.subject))).not.toContain(removed.subject);
     expect(collected.displayChanges.filter((item) => item.after == null).map((item) => item.subject)).toEqual([removed.subject]);
@@ -120,10 +118,10 @@ describe("P2-A8-T06 regression (AC06/AC13)", () => {
       result.snapshot.current.weatherTimeseries.items[0].activeCount]).toEqual([2, 0]);
   });
 
-  it("P2-A8-T06: summary→full re-measures only the changed subject", () => {
-    const started = startup(clock);
+  it("P2-A8-T06: summary→full re-measures only the changed subject", async () => {
+    const started = await startup(clock);
     const training = (xml: string) => atTime(xml.replace("<Status>通常</Status>", "<Status>訓練</Status>"), "2026-06-05T16:00:00+09:00");
-    const adopted = combine(started.state, [received("run", decode("81_09_01_260605_VPWP50", "VPWP50"), clock),
+    const adopted = await combine(started.state, [received("run", decode("81_09_01_260605_VPWP50", "VPWP50"), clock),
       received("run", decode("81_09_01_260605_VPWP50", "VPWP50", training, "training-nagano"), clock),
       received("run", timeseries("稚内地方気象台"), clock)]);
     const first = projected(projectSnapshot(projectionInput(adopted, at), null));
@@ -131,7 +129,7 @@ describe("P2-A8-T06 regression (AC06/AC13)", () => {
     // A newer training 取消 empties the large training series; the other series stay untouched.
     const cancel = (xml: string) => training(xml).replace("<InfoType>発表</InfoType>", "<InfoType>取消</InfoType>")
       .replace("<ReportDateTime>2026-06-05T16:00:00+09:00</ReportDateTime>", "<ReportDateTime>2026-06-05T16:30:00+09:00</ReportDateTime>");
-    const collected = step(adopted.state, received("run", decode("81_09_01_260605_VPWP50", "VPWP50", cancel, "training-cancel"), clock));
+    const collected = await step(adopted.state, received("run", decode("81_09_01_260605_VPWP50", "VPWP50", cancel, "training-cancel"), clock));
     const removed = collected.displayChanges.flatMap((item) => [item.before?.current, item.after?.current]).filter((item) => item != null);
     const { result, measured } = measure(projectionInput(collected, at), first.state, adopted.state, collected.state);
     const full = projected(result);
@@ -144,32 +142,42 @@ describe("P2-A8-T06 regression (AC06/AC13)", () => {
     expectMatchesReference(full.state, reference(collected, at));
   });
 
-  it("P2-A8-T06 / P2-A8-COST.acceptance: near the legal retention bounds each update measures only its own subject", () => {
+  it("P2-A8-T06 / P2-A8-COST.acceptance: near the legal retention bounds each update measures only its own subject", async () => {
     const views = { eew: 0, weather: 0, timeseries: 0 };
-    const counting = { ...calls, units: { "U-E": { ...calls.units["U-E"],
-      toView: (state: Parameters<typeof toEewView>[0]) => { views.eew++; return toEewView(state); } },
+    // AC11(f): the element scan is counted inside the owner's reducer and view calls only, not in the boundary clone.
+    let counting = false;
+    const inOwner = <T>(work: () => T): T => { counting = true; try { return work(); } finally { counting = false; } };
+    const countingUnits = { "U-E": { ...calls.units["U-E"],
+      reduce: (state: Parameters<typeof calls.units["U-E"]["reduce"]>[0], input: Parameters<typeof calls.units["U-E"]["reduce"]>[1]) =>
+        inOwner(() => calls.units["U-E"].reduce(state, input)),
+      toView: (state: Parameters<typeof toEewView>[0]) => { views.eew++; return inOwner(() => toEewView(state)); } },
     "U-W": { ...calls.units["U-W"],
-      toView: (state: Parameters<typeof toWeatherCurrentView>[0]) => { views.weather++; return toWeatherCurrentView(state); } },
+      reduce: (state: Parameters<typeof calls.units["U-W"]["reduce"]>[0], input: Parameters<typeof calls.units["U-W"]["reduce"]>[1]) =>
+        inOwner(() => calls.units["U-W"].reduce(state, input)),
+      toView: (state: Parameters<typeof toWeatherCurrentView>[0]) => { views.weather++; return inOwner(() => toWeatherCurrentView(state)); } },
     "U-F": { ...calls.units["U-F"],
-      toView: (state: Parameters<typeof toWeatherTimeseriesView>[0]) => { views.timeseries++; return toWeatherTimeseriesView(state); } } } };
-    const run = (state: RuntimeState, input: RuntimeInput): RuntimeStep => reduceRuntime(state, input, counting);
-    let state = startup(clock).state;
+      reduce: (state: Parameters<typeof calls.units["U-F"]["reduce"]>[0], input: Parameters<typeof calls.units["U-F"]["reduce"]>[1]) =>
+        inOwner(() => calls.units["U-F"].reduce(state, input)),
+      toView: (state: Parameters<typeof toWeatherTimeseriesView>[0]) => { views.timeseries++; return inOwner(() => toWeatherTimeseriesView(state)); } } };
+    const begin = await startup(clock, undefined, countingUnits);
+    const run = (state: RuntimeState, input: Input): Promise<Step> => step(state, input);
+    let state = begin.state;
     // RES-07: U-E 512 per family, U-W 3 national + 128 partial, U-F 512 subjects (built by the real reducers).
     for (let index = 0; index < 512; index++) {
-      state = run(state, received("run", eewReport(String(20240417000000 + index)), clock)).state;
-      state = run(state, received("run", eewReport(String(20240417000000 + index), "normal", "77_01_01_240613_VXSE45"), clock)).state;
+      state = (await run(state, received("run", eewReport(String(20240417000000 + index)), clock))).state;
+      state = (await run(state, received("run", eewReport(String(20240417000000 + index), "normal", "77_01_01_240613_VXSE45"), clock))).state;
     }
     for (const operation of ["通常", "訓練", "試験"])
-      state = run(state, received("run", decode("15_18_01_250630_VPWS50", "VPWS50",
-        (xml) => xml.replace("<Status>通常</Status>", `<Status>${operation}</Status>`), `national-${operation}`), clock)).state;
-    for (let index = 0; index < 128; index++) state = run(state, received("run", decode("15_16_02_251222_VPWW57", "VPWW57",
-      (xml) => office(xml, `官署${index}`), `partial-${index}`), clock)).state;
-    for (let index = 0; index < 512; index++) state = run(state, received("run", timeseries(`官署${index}`), clock)).state;
+      state = (await run(state, received("run", decode("15_18_01_250630_VPWS50", "VPWS50",
+        (xml) => xml.replace("<Status>通常</Status>", `<Status>${operation}</Status>`), `national-${operation}`), clock))).state;
+    for (let index = 0; index < 128; index++) state = (await run(state, received("run", decode("15_16_02_251222_VPWW57", "VPWW57",
+      (xml) => office(xml, `官署${index}`), `partial-${index}`), clock))).state;
+    for (let index = 0; index < 512; index++) state = (await run(state, received("run", timeseries(`官署${index}`), clock))).state;
     expect([state.units["U-E"].current.length, Object.keys(state.units["U-W"].national).length, state.units["U-W"].partials.length,
       state.units["U-F"].subjects.length]).toEqual([1024, 3, 128, 512]);
     // AC12: at the legal bounds every full domain exceeds 64 KiB, so all three degrade and the total stays <= 1 MiB.
     const initial = projected(projectSnapshot(projectionInput({ state, outcomes: [], displayChanges: allSubjects(state),
-      admissionCounts: startup(clock).admissionCounts }, at), null));
+      admissionCounts: (await startup(clock)).admissionCounts }, at), null));
     expectConsistent(initial.state, initial.snapshot, initial.utf8Bytes);
     let projection = initial.state;
     const capacity = { snapshot: initial.utf8Bytes, eew: projection.domains.eew.utf8Bytes,
@@ -181,7 +189,7 @@ describe("P2-A8-T06 regression (AC06/AC13)", () => {
     expect(Math.max(...capacity.summaries)).toBeLessThanOrEqual(3558);
     expect(initial.utf8Bytes).toBeLessThanOrEqual(1_048_576);
 
-    const scenarios: Readonly<Record<string, (index: number) => RuntimeInput>> = {
+    const scenarios: Readonly<Record<string, (index: number) => Input>> = {
       eew: (index) => received("run", eewReport("20240417000000", "normal", "37_01_01_240613_VXSE43", (xml) =>
         atTime(xml, new Date(Date.parse("2024-04-17T23:14:59+09:00") + (index + 1) * 1000).toISOString())
           .replace("<Serial>1</Serial>", `<Serial>${index + 2}</Serial>`)), clock),
@@ -195,7 +203,7 @@ describe("P2-A8-T06 regression (AC06/AC13)", () => {
     let unchangedPeriodReads = 0;
     for (const item of state.units["U-F"].subjects) if (!item.subject.endsWith("/官署0")) {
       const periods = item.periods;
-      Object.defineProperty(item, "periods", { enumerable: true, get: () => { unchangedPeriodReads++; return periods; } });
+      Object.defineProperty(item, "periods", { enumerable: true, get: () => { if (counting) unchangedPeriodReads++; return periods; } });
     }
     const report: Record<string, unknown> = { capacityBytes: capacity };
     let lastInputAt = 0;
@@ -205,7 +213,7 @@ describe("P2-A8-T06 regression (AC06/AC13)", () => {
         unchanged: 0, whole: 0, snapshots: 0, maxStringifiedBytes: 0, changes: 0 };
       for (let index = 0; index < 110; index++) {
         const before = { ...views };
-        const next = run(state, input(index));
+        const next = await run(state, input(index));
         const viewDelta = { eew: views.eew - before.eew, weather: views.weather - before.weather, timeseries: views.timeseries - before.timeseries };
         const { result, ms, measured } = measure(projectionInput(next, at, { connection: { state: "connected",
           disconnectedAt: null, lastInputAt: ++lastInputAt } }), projection, state, next.state);
@@ -237,7 +245,7 @@ describe("P2-A8-T06 regression (AC06/AC13)", () => {
       expect(unchangedPeriodReads).toBe(0);
     }
     expectMatchesReference(projection, reference({ state, outcomes: [], displayChanges: [],
-      admissionCounts: startup(clock).admissionCounts }, at, { connection: { state: "connected", disconnectedAt: null, lastInputAt } }));
+      admissionCounts: (await startup(clock)).admissionCounts }, at, { connection: { state: "connected", disconnectedAt: null, lastInputAt } }));
     console.info(JSON.stringify({ test: "P2-A8-T06", ...report }));
   }, 120_000);
 });

@@ -2,13 +2,30 @@ import { Buffer } from "node:buffer";
 import type { AcquisitionOrigin, Operation, OperationEvidence, ParserDiagnostic, ParserMailboxItem } from "../../contracts/p1-parser-boundary.types";
 import { recordParserDiagnostic } from "../diagnostics/parser-diagnostic";
 
+// P3-C3A-PARSE-ONCE: the host's one fatal UTF-8 decode and JSON.parse of a small frame, handed on so the frame is
+// never parsed twice. "failed" (invalid UTF-8 or JSON) is rejected here without parsing again.
+type ParsedFrame = Readonly<{ kind: "parsed"; value: unknown; jsonMs: number }> | Readonly<{ kind: "failed" }>;
+
 type IngressInput = Readonly<{
   inputId: string; inputSequence: number; receivedAt: number; origin: AcquisitionOrigin;
-}> & (Readonly<{ kind: "ws"; frame: Uint8Array }> | Readonly<{ kind: "rest" | "replay"; body: Uint8Array; headType: string }>);
+}> & (Readonly<{ kind: "ws"; frame: Uint8Array; parsed?: ParsedFrame }>
+  | Readonly<{ kind: "rest" | "replay"; body: Uint8Array; headType: string }>);
+
+// The one fatal UTF-8 decode and JSON.parse of a WebSocket frame (at most once per frame, P3-C3A-RES-04). The host
+// does the same for frames up to 16 KiB and hands its result in `parsed` (P1 keeps this module's runtime exports).
+function parseFrame(bytes: Uint8Array): ParsedFrame {
+  const start = performance.now();
+  try {
+    const value: unknown = JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(bytes));
+    return { kind: "parsed", value, jsonMs: performance.now() - start };
+  } catch { return { kind: "failed" }; }
+}
 
 function object(value: unknown): Record<string, unknown> {
   return value != null && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {};
 }
+
+export type { ParsedFrame };
 
 /** Checks transport bytes before JSON parsing or body allocation. */
 export function ingestXmlData(input: IngressInput):
@@ -28,11 +45,10 @@ export function ingestXmlData(input: IngressInput):
   let compression: ParserMailboxItem["compression"] = null;
   let ingressJsonMs: number | null = null;
   if (input.kind === "ws") {
-    let message: Record<string, unknown>;
-    const start = performance.now();
-    try { message = object(JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(bytes))); }
-    catch { return reject("envelopeInvalid"); }
-    ingressJsonMs = performance.now() - start;
+    const parsed = input.parsed ?? parseFrame(bytes);
+    if (parsed.kind === "failed") return reject("envelopeInvalid");
+    const message = object(parsed.value);
+    ingressJsonMs = parsed.jsonMs;
     const head = object(message.head);
     const status = object(object(message.xmlReport).control).status;
     const observed = (v: unknown): string | boolean | null => typeof v === "boolean" ? v : typeof v === "string" ? v.slice(0, 256) : null;

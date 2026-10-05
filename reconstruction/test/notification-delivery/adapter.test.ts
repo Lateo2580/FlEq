@@ -2,9 +2,14 @@ import { EventEmitter } from "node:events";
 import type { ChildProcess } from "node:child_process";
 import * as childProcess from "node:child_process";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
-import { reduceRuntime } from "../../src/runtime/shared-runtime";
-import { calls, empty, notice, tick } from "./delivery-fixture";
-import type { NotificationAttempt } from "../../contracts/p2-notification-delivery.types";
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import type { NotificationResult } from "../../contracts/p2-shared-runtime.types";
+import { linkedUnitCodecs } from "../../src/runtime/composition-root";
+import { harnessedRoot, seeded, startHarness } from "../execution-split/owner-harness";
+import { calls, notice } from "./delivery-fixture";
+import type { NotificationAbortRequest, NotificationAttempt } from "../../contracts/p2-notification-delivery.types";
 
 vi.mock("node:child_process", () => ({ spawn: vi.fn() }));
 beforeEach(() => { vi.resetModules(); vi.useFakeTimers(); });
@@ -20,33 +25,52 @@ it("T02 regression: kill and exit alone do not confirm stop; late close cannot d
   vi.mocked(childProcess.spawn).mockReturnValue(handle);
   let now = { wallTimeMs: 0, monotonicMs: 0 };
   const clock = () => now;
-  const initial = empty(now);
-  const seeded = { ...initial, units: { ...initial.units, "U-W": { ...initial.units["U-W"], intents: [notice("one", "desktop", 0)] } } };
-  const selected = reduceRuntime(seeded, tick(seeded, now), calls);
-  const active = selected.notificationAttempts[0];
-  const run = runNotificationAttempt(active, clock);
-  const removed = { ...selected.state, units: { ...selected.state.units, "U-W": { ...selected.state.units["U-W"], intents: [] } } };
-  const stopping = reduceRuntime(removed, tick(removed, now), calls);
-  expect(stopping.abortRequests).toEqual([{ attemptId: active.attemptId, cause: "superseded" }]);
-  const stop = abortNotificationAttempt(stopping.abortRequests[0], 1_000, clock);
-  expect(handle.kill).toHaveBeenCalledWith("SIGTERM");
-  handle.emit("exit", 0);
-  now = { wallTimeMs: 100, monotonicMs: 1_000 };
-  await vi.advanceTimersByTimeAsync(1_000);
-  expect(await stop).toEqual({ attemptId: active.attemptId, stopped: false, completedAt: now });
-  expect(await run).toMatchObject({ kind: "aborted", reason: "superseded", stopped: false });
-  expect(() => runNotificationAttempt({ ...attempt, attemptId: "two" }, clock)).toThrow("notification channel occupied");
-  const isolated = reduceRuntime(stopping.state, { kind: "notificationResult", result: await run }, calls);
-  expect(isolated.state.notificationChannels.desktop.kind).toBe("isolated");
-  handle.emit("close", 0);
-  expect(await run).toMatchObject({ kind: "aborted", reason: "superseded", stopped: false });
-  const successor = { ...isolated.state, units: { ...isolated.state.units, "U-W": { ...isolated.state.units["U-W"],
-    intents: [notice("two", "desktop", now.wallTimeMs)] } } };
-  const late = reduceRuntime(successor, { kind: "notificationResult", result: { kind: "delivered", attemptId: active.attemptId,
-    intentId: active.intentId, channel: "desktop", completedAt: now } }, calls);
-  expect(late.state.notificationChannels.desktop.kind).toBe("isolated");
-  expect(late.notificationAttempts).toEqual([]);
-  expect(late.state.units["U-W"].intents[0].disposition).toBe("pending");
+  // TEST-PATH (2) decides selection, abort and isolation; the real adapter runs here by hand (its timers are fake).
+  vi.useRealTimers();
+  const directory = mkdtempSync(join(tmpdir(), "fleq-a7-adapter-"));
+  const seeds = seeded(calls.units);
+  const started: NotificationAttempt[] = [];
+  const aborts: NotificationAbortRequest[] = [];
+  let settleRun!: (result: NotificationResult) => void;
+  const h = harnessedRoot({ appName: "fleq-p2", legacyAppName: "fleq", stateDirectory: join(directory, "state"),
+    legacyStateDirectory: join(directory, "legacy"), diagnosticDirectory: join(directory, "diagnostics") }, linkedUnitCodecs, {
+    clock, runtimeCalls: { ...calls, units: seeds.units },
+    notificationAdapter: { run: (value) => { started.push(value); return new Promise((resolve) => { settleRun = resolve; }); },
+      abort: async (request) => { aborts.push(request); return {}; } } });
+  try {
+    await startHarness(h, "a7", now);
+    await seeds.weather(h, { ...h.unit("U-W"), intents: [notice("one", "desktop", 0)] });
+    const active = started[0];
+    vi.useFakeTimers();
+    const run = runNotificationAttempt(active, clock);
+    vi.useRealTimers();
+    await seeds.weather(h, { ...h.unit("U-W"), intents: [] });
+    expect(aborts).toEqual([{ attemptId: active.attemptId, cause: "superseded" }]);
+    vi.useFakeTimers();
+    const stop = abortNotificationAttempt(aborts[0], 1_000, clock);
+    expect(handle.kill).toHaveBeenCalledWith("SIGTERM");
+    handle.emit("exit", 0);
+    now = { wallTimeMs: 100, monotonicMs: 1_000 };
+    await vi.advanceTimersByTimeAsync(1_000);
+    expect(await stop).toEqual({ attemptId: active.attemptId, stopped: false, completedAt: now });
+    expect(await run).toMatchObject({ kind: "aborted", reason: "superseded", stopped: false });
+    expect(() => runNotificationAttempt({ ...attempt, attemptId: "two" }, clock)).toThrow("notification channel occupied");
+    vi.useRealTimers();
+    settleRun(await run);
+    await h.settle();
+    expect(h.root.state.notificationChannels.desktop.kind).toBe("isolated");
+    handle.emit("close", 0);
+    expect(await run).toMatchObject({ kind: "aborted", reason: "superseded", stopped: false });
+    // The isolated channel takes no new attempt; the successor stays pending (a late success has no run to arrive by).
+    await seeds.weather(h, { ...h.unit("U-W"), intents: [notice("two", "desktop", now.wallTimeMs)] });
+    expect(h.root.state.notificationChannels.desktop.kind).toBe("isolated");
+    expect(started).toHaveLength(1);
+    expect(h.unit("U-W").intents[0].disposition).toBe("pending");
+    await h.root.diagnostics.flush();
+  } finally {
+    vi.useRealTimers();
+    rmSync(directory, { recursive: true, force: true });
+  }
 });
 
 it("T02 regression #2 / R31: argv remains literal and completion samples the actual wall clock", async () => {

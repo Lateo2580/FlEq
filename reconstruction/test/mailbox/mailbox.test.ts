@@ -230,9 +230,11 @@ describe("P2 mailbox", () => {
     mailbox.enqueue(shutdown);
     expect(mailbox.takeNext(13)).toBe(shutdown);
     mailbox.complete(completion(shutdown, 13, 14));
-    expect(mailbox.takeNext(14)).toBeNull();
+    // AC11(a) (P3-C3A-RES-01): the EEW owner is busy, but the deferred place is free, so its VTSE41 is taken.
+    expect(mailbox.takeNext(14)).toBe(earlierTsunami);
+    mailbox.complete(completion(earlierTsunami, 14, 15));
     mailbox.complete(completion(eew, 12, 15));
-    for (const expected of [earlierTsunami, laterTsunami, normal, training]) {
+    for (const expected of [laterTsunami, normal, training]) {
       const next = mailbox.takeNext(16);
       expect(next).toBe(expected);
       if (next == null) throw new Error("priority item missing");
@@ -272,6 +274,39 @@ describe("P2 mailbox", () => {
         }
       }
     }
+  });
+
+  it("P3-C3A-T01 contractBoundary / AC03: one in-flight item per execution place under one shared limit", () => {
+    const mailbox = new Mailbox();
+    const weather = parserEnvelope(fixture("test/fixtures/15_18_01_250630_VPWS50.xml", "VPWS50", 1), "normal", 1);
+    const series = parserEnvelope(item("series", 2, "VPWP50", 1), "normal", 2);
+    const secondWeather = parserEnvelope(item("weather-2", 3, "VPWS50", 1), "normal", 3);
+    const eew = parserEnvelope(item("eew", 4, "VXSE45", 1), "eewCandidate", 4);
+    for (const envelope of [weather, series, secondWeather]) mailbox.enqueue(envelope);
+    expect([mailbox.takeNext(5), mailbox.takeNext(5)]).toEqual([weather, series]);
+    // The second VPWS50 waits for the first: same place, and the same ordering domain.
+    expect(mailbox.takeNext(5)).toBeNull();
+    mailbox.enqueue(eew);
+    expect(mailbox.takeNext(6)).toBe(eew);
+    // The three in flight still count: the shared 128 items / 16 MiB limits reject the next one.
+    const inFlight = mailbox.stats(6);
+    expect(inFlight).toMatchObject({ inFlightItems: 3, pendingItems: 1 });
+    const used = inFlight.pendingBytes + inFlight.inFlightBytes;
+    expect(mailbox.enqueue(parserEnvelope(item("too-large", 5, "VTSE41", 16 * 1024 * 1024 - used + 1), "normal", 6)))
+      .toMatchObject({ kind: "rejected", reason: "byteLimit" });
+    for (let index = 0; index < 124; index += 1)
+      expect(mailbox.enqueue(parserEnvelope(item(`fill-${index}`, 10 + index, "VTSE41", 1),
+        index < 117 ? "normal" : "tsunamiCandidate", 6)).kind).toBe("accepted");
+    expect(mailbox.stats(6)).toMatchObject({ pendingItems: 125, inFlightItems: 3 });
+    expect(mailbox.enqueue(parserEnvelope(item("overflow", 200, "VTSE41", 1), "tsunamiCandidate", 6)))
+      .toMatchObject({ kind: "rejected", reason: "itemLimit" });
+    // A completion with another identity, and a second identical one, release no place.
+    const done = completion(weather, 5, 7);
+    if (done.kind !== "parser") throw new Error("parser completion expected");
+    expect(mailbox.complete({ ...done, inputSequence: 99 })).toMatchObject({ inFlightItems: 3 });
+    expect(mailbox.complete(done)).toMatchObject({ inFlightItems: 2 });
+    expect(mailbox.complete(done)).toMatchObject({ inFlightItems: 2, completed: 1 });
+    expect(mailbox.takeNext(8)).toBe(secondWeather);
   });
 
   it("P2-A2-T04 regression / AC04: P1 item fields stay unchanged and envelope correlation survives completion", () => {
@@ -330,9 +365,12 @@ describe("P2 mailbox", () => {
     mailbox.enqueue(maximum);
     expect(mailbox.takeNext(3)).toBe(maximum);
     mailbox.enqueue(eew);
-    expect(mailbox.takeNext(4)).toBeNull();
+    // AC11(a) (P3-C3A-RES-01): the maximum VPWS50 stays in flight at weatherCurrent while the EEW candidate is taken.
+    expect(mailbox.takeNext(4)).toBe(eew);
+    expect(mailbox.stats(4)).toMatchObject({ inFlightItems: 2, inFlightMessageIds: [maximum.messageId, eew.messageId] });
+    mailbox.complete(completion(eew, 4, 5));
     mailbox.complete(completion(maximum, 3, 5));
-    expect(mailbox.takeNext(5)).toBe(eew);
+    expect(mailbox.stats(5)).toMatchObject({ inFlightItems: 0, inFlightMessageIds: [] });
   });
 
   it("P2-A2-T05 contractBoundary / AC05: read-only ages, deadline origin and separate arrival/response/progress", () => {

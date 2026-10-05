@@ -245,7 +245,7 @@ export type DiagnosticReason = ParserDiagnosticReason | RejectionReason | Infras
   | "weatherCurrentCapacityEvicted" | "eewCapacityEvicted"
   | "notificationAttemptFailed" | "notificationExpired" | "notificationCapacityEvicted" | "notificationAdapterIsolated"
   // P3-UNIT-TABLE-001: one per input whose headType is not routed to a unit (ignored / notPorted / absent from coverage).
-  | "routeIgnored" | "routeNotPorted" | "routeUnlisted";
+  | "routeIgnored" | "routeNotPorted" | "routeUnlisted" | "ownerReplyLate";
 
 export type DiagnosticDetails = Readonly<{
   level: DiagnosticLevel;
@@ -441,7 +441,7 @@ export type MailboxStats = Readonly<{
   pendingBytes: number;
   inFlightItems: number;
   inFlightBytes: number;
-  inFlightMessageId: string | null;
+  inFlightMessageIds: readonly string[];
   inFlightControlMessageIds: readonly string[];
   lastProgressMonotonicMs: number | null;
   lastArrivalMonotonicMs: number | null;

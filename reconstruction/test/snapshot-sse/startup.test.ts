@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { beforeAll, describe, expect, it } from "vitest";
 
 import type { CheckpointEnvelope, RuntimeInput, RuntimeState, RuntimeUnitId, RuntimeUnitStates } from "../../contracts/p2-shared-runtime.types";
 import type { WeatherCurrentUnitState } from "../../contracts/p2-weather-current-unit.types";
@@ -17,9 +17,9 @@ const keys = ["eew", "weatherCurrent", "weatherTimeseries"] as const;
 
 const training = (xml: string) => xml.replace("<Status>通常</Status>", "<Status>訓練</Status>");
 
-function adopt(files: readonly (readonly [string, string, ((xml: string) => string)?])[]): RuntimeState {
-  let state = startup(clock).state;
-  for (const [file, type, transform] of files) state = step(state, received("run", decode(file, type, transform), clock)).state;
+async function adopt(files: readonly (readonly [string, string, ((xml: string) => string)?])[]): Promise<RuntimeState> {
+  let state = (await startup(clock)).state;
+  for (const [file, type, transform] of files) state = (await step(state, received("run", decode(file, type, transform), clock))).state;
   return state;
 }
 
@@ -31,19 +31,22 @@ function envelope<U extends RuntimeUnitId>(unit: U, state: RuntimeUnitStates[U])
 }
 
 describe("P2-A8-T01 contractBoundary (AC01/AC02/AC10/AC11)", () => {
-  const source = adopt([["15_16_02_251222_VPWW57", "VPWW57"], ["81_03_01_260605_VPWP50_unknown_code", "VPWP50"]]);
-  const restorations: Readonly<Record<string, Extract<RuntimeInput, { kind: "startup" }>["restored"]>> = {
-    empty: { "U-E": { kind: "empty" }, "U-W": { kind: "empty" }, "U-F": { kind: "empty" } },
-    unavailable: { "U-E": { kind: "unavailable", reason: "noValidSlot" }, "U-W": { kind: "unavailable", reason: "unknownSchema" },
-      "U-F": { kind: "unavailable", reason: "conflictingGeneration" } },
-    // U-E persists only intents, so its restored current is always empty.
-    restored: { "U-E": { kind: "restored", slot: "A", envelope: envelope("U-E", source.units["U-E"]) },
-      "U-W": { kind: "restored", slot: "B", envelope: envelope("U-W", source.units["U-W"]) },
-      "U-F": { kind: "restored", slot: "A", envelope: envelope("U-F", source.units["U-F"]) } },
-  };
+  let restorations: Readonly<Record<string, Extract<RuntimeInput, { kind: "startup" }>["restored"]>>;
+  beforeAll(async () => {
+    const source = await adopt([["15_16_02_251222_VPWW57", "VPWW57"], ["81_03_01_260605_VPWP50_unknown_code", "VPWP50"]]);
+    restorations = {
+      empty: { "U-E": { kind: "empty" }, "U-W": { kind: "empty" }, "U-F": { kind: "empty" } },
+      unavailable: { "U-E": { kind: "unavailable", reason: "noValidSlot" }, "U-W": { kind: "unavailable", reason: "unknownSchema" },
+        "U-F": { kind: "unavailable", reason: "conflictingGeneration" } },
+      // U-E persists only intents, so its restored current is always empty.
+      restored: { "U-E": { kind: "restored", slot: "A", envelope: envelope("U-E", source.units["U-E"]) },
+        "U-W": { kind: "restored", slot: "B", envelope: envelope("U-W", source.units["U-W"]) },
+        "U-F": { kind: "restored", slot: "A", envelope: envelope("U-F", source.units["U-F"]) } },
+    };
+  });
 
-  it.each(Object.keys(restorations))("P2-A8-T01: %s startup publishes all three domains with nine whole markers", (kind) => {
-    const started = startup(clock, restorations[kind]);
+  it.each(["empty", "unavailable", "restored"])("P2-A8-T01: %s startup publishes all three domains with nine whole markers", async (kind) => {
+    const started = await startup(clock, restorations[kind]);
     const first = projected(projectSnapshot(projectionInput(started, at), null));
     expectConsistent(first.state, first.snapshot, first.utf8Bytes);
     // Startup/restoration never creates a new notice.
@@ -62,7 +65,7 @@ describe("P2-A8-T01 contractBoundary (AC01/AC02/AC10/AC11)", () => {
       expect(first.snapshot.current.eew.items[0].activeCount).toBe(0);
     }
     // R41: the probe result replaces checking; the attempt payload never reaches the wire.
-    const probed = step(started.state, { kind: "notificationProbeCompleted", clock,
+    const probed = await step(started.state, { kind: "notificationProbeCompleted", clock,
       channels: { desktop: { kind: "idle" }, sound: { kind: "unavailable", reason: "backendMissing" } } });
     const next = projected(projectSnapshot(projectionInput(probed, at), first.state));
     expect(next.snapshot.channels).toEqual({ desktop: "available", sound: "unavailable" });
@@ -70,10 +73,10 @@ describe("P2-A8-T01 contractBoundary (AC01/AC02/AC10/AC11)", () => {
     expect(next.state.domains.weatherTimeseries).toBe(first.state.domains.weatherTimeseries);
   });
 
-  it("P2-A8-T01: a partial new report confirms only its scope, never the whole slot", () => {
-    const started = startup(clock, restorations.empty);
+  it("P2-A8-T01: a partial new report confirms only its scope, never the whole slot", async () => {
+    const started = await startup(clock, restorations.empty);
     const first = projected(projectSnapshot(projectionInput(started, at), null));
-    const adopted = step(started.state, received("run", decode("15_16_02_251222_VPWW57", "VPWW57"), clock));
+    const adopted = await step(started.state, received("run", decode("15_16_02_251222_VPWW57", "VPWW57"), clock));
     const next = projected(projectSnapshot(projectionInput(adopted, at), first.state));
     const [normal, training, test] = next.snapshot.current.weatherCurrent.items;
     expect(normal).toMatchObject({ unconfirmed: { startup: 1 }, confirmation: { state: "partial", confirmedAt: null } });
@@ -81,8 +84,8 @@ describe("P2-A8-T01 contractBoundary (AC01/AC02/AC10/AC11)", () => {
       expect(item.confirmation.state).toBe("unconfirmed");
   });
 
-  it("P2-A8-SUMMARY.times: under the normal mask the kept unknownCode keeps its source time in updatedAt", () => {
-    const real = adopt([["15_16_02_251222_VPWW57", "VPWW57", (xml) => xml.replace(/<Code>48<\/Code>/g, "<Code>99</Code>")],
+  it("P2-A8-SUMMARY.times: under the normal mask the kept unknownCode keeps its source time in updatedAt", async () => {
+    const real = await adopt([["15_16_02_251222_VPWW57", "VPWW57", (xml) => xml.replace(/<Code>48<\/Code>/g, "<Code>99</Code>")],
       ["81_03_01_260605_VPWP50_unknown_code", "VPWP50"]]);
     // The masked views as A1 projectViews builds them: normal currents leave the view, the admission flag stays.
     const mask = { normal: "capacityExceeded" as const };
@@ -100,8 +103,8 @@ describe("P2-A8-T01 contractBoundary (AC01/AC02/AC10/AC11)", () => {
         unknownCode: { unknown: expect.any(Number) }, updatedAt: Date.parse(time) });
   });
 
-  it("P2-A8-T01: active, all three unavailable reasons, unknown Code, freshness and unconfirmed coexist in one row", () => {
-    const real = adopt([["15_16_02_251222_VPWW57", "VPWW57"], ["81_03_01_260605_VPWP50_unknown_code", "VPWP50"],
+  it("P2-A8-T01: active, all three unavailable reasons, unknown Code, freshness and unconfirmed coexist in one row", async () => {
+    const real = await adopt([["15_16_02_251222_VPWW57", "VPWW57"], ["81_03_01_260605_VPWP50_unknown_code", "VPWP50"],
       ["81_09_01_260605_VPWP50", "VPWP50"], ["81_09_01_260605_VPWP50", "VPWP50", training]]);
     const kyoto = real.units["U-W"].partials[0];
     const token = (office: string) => JSON.stringify(["VPWW57", "partial", office, "all", ""]);

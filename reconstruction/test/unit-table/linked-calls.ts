@@ -1,12 +1,9 @@
-import type { RuntimeInput, RuntimeState } from "../../contracts/p2-shared-runtime.types";
-import type { UnitModule } from "../../contracts/p3-unit-table.types";
+import type { UnitModule, UnitTable } from "../../contracts/p3-unit-table.types";
 import { linkedUnitTable } from "../../src/runtime/composition-root";
-import { reduceRuntime } from "../../src/runtime/shared-runtime";
+import type { NotificationCalls } from "../../src/runtime/composition-root";
 
-type Calls = Parameters<typeof reduceRuntime>[2];
-
-// Test-only stubs for reduceRuntime's calls (P3-UNIT-TABLE-001 AC09): each stub replaces one field of the
-// linkedUnitTable row, every other field stays the real one. Notification calls are passed through as given.
+// Test-only stubs (P3-UNIT-TABLE-001 AC09): each stub replaces one field of the linkedUnitTable row, every other
+// field stays the real one. The unit rows go to the owners; the notification calls stay with the publisher.
 export type StubCalls = Readonly<{
   reduceEewUnit?: UnitModule<"U-E">["reduce"];
   reduceWeatherCurrentUnit?: UnitModule<"U-W">["reduce"];
@@ -14,12 +11,11 @@ export type StubCalls = Readonly<{
   toEewView?: UnitModule<"U-E">["toView"];
   toWeatherCurrentView?: UnitModule<"U-W">["toView"];
   toWeatherTimeseriesView?: UnitModule<"U-F">["toView"];
-  selectNotificationAttempt?: Calls["selectNotificationAttempt"];
-  applyNotificationResult?: Calls["applyNotificationResult"];
-  codecs?: Calls["codecs"];
+  selectNotificationAttempt?: NotificationCalls["selectNotificationAttempt"];
+  applyNotificationResult?: NotificationCalls["applyNotificationResult"];
 }>;
 
-function callsWith(stubs: StubCalls = {}): Calls {
+function callsWith(stubs: StubCalls = {}): Readonly<{ units: UnitTable } & NotificationCalls> {
   const { reduceEewUnit, reduceWeatherCurrentUnit, reduceWeatherTimeseriesUnit,
     toEewView, toWeatherCurrentView, toWeatherTimeseriesView, ...notification } = stubs;
   const { "U-E": eew, "U-W": weather, "U-F": series } = linkedUnitTable;
@@ -33,8 +29,4 @@ function callsWith(stubs: StubCalls = {}): Calls {
   };
 }
 
-function reduceRuntimeWith(state: RuntimeState | null, input: RuntimeInput, stubs: StubCalls = {}) {
-  return reduceRuntime(state, input, callsWith(stubs));
-}
-
-export { callsWith, reduceRuntimeWith };
+export { callsWith };

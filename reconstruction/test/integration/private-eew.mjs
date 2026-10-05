@@ -93,8 +93,8 @@ function preflight() {
     bodies.push(body);
   }
   const dist = "reconstruction/dist/src";
-  const modules = ["runtime/composition-root.js", "ingress/ingress.js", "decode-material/decode-material.js",
-    "notification-delivery/adapter.js"];
+  const modules = ["runtime/composition-root.js", "runtime/owner-host.js", "ingress/ingress.js",
+    "decode-material/decode-material.js", "notification-delivery/adapter.js"];
   if (modules.some((module) => !existsSync(join(dist, module)))) blocked("reconstructionDistMissing");
   const { ingestXmlData } = require(`../../dist/src/ingress/ingress.js`);
   const { decodeMaterial } = require(`../../dist/src/decode-material/decode-material.js`);
@@ -110,7 +110,8 @@ function preflight() {
       || material.serialRaw !== String(report.serial)
       || Date.parse(material.reportDateTimeRaw) !== Date.parse(report.reportDateTime)
       || material.operation !== "normal") blocked("xmlMetadataMismatch");
-    return material;
+    // The runtime receives the ingress item, as the host enqueues it; the owner decodes it again.
+    return { material, item: entered.item };
   });
   bodies.length = 0;
 
@@ -143,16 +144,22 @@ async function main() {
   const spawned = new Map(), closed = new Map(), terminals = new Map(), adopted = new Map(), expired = new Set(), runs = [];
   const attempts = [];
   evidence.markers = [];
-  // A4 terminal records expire during this 33-second replay. Retain each last A1 state observation.
-  const observe = (step) => {
-    const unit = step.state.units["U-E"];
-    for (const item of unit.intents) adopted.set(item.id, { disposition: item.disposition,
-      basis: "A1 state intent", generation: unit.persistence.currentGeneration });
-    for (const item of unit.deliveryRecords) adopted.set(item.intentId, { disposition: item.disposition,
-      basis: "A1 state deliveryRecords", generation: unit.persistence.currentGeneration });
-    for (const entry of step.outcomes) if (entry.unit === "U-E") for (const subject of entry.outcome.subjects)
+  // A4 terminal records expire during this 33-second replay. Retain each last U-E owner state observation and the
+  // expiry outcomes of every U-E owner reply (the unit state lives in its owner since C3a).
+  let urgent = null;
+  const outputs = new Map();
+  const observe = (output, settlement) => {
+    const unit = urgent?.state?.units["U-E"];
+    if (unit != null) {
+      for (const item of unit.intents) adopted.set(item.id, { disposition: item.disposition,
+        basis: "U-E owner state intent", generation: unit.persistence.currentGeneration });
+      for (const item of unit.deliveryRecords) adopted.set(item.intentId, { disposition: item.disposition,
+        basis: "U-E owner state deliveryRecords", generation: unit.persistence.currentGeneration });
+    }
+    for (const entry of output.outcomes) if (entry.unit === "U-E") for (const subject of entry.outcome.subjects)
       if (subject.transition === "expired" && typeof subject.facts?.intentId === "string")
         expired.add(subject.facts.intentId);
+    if (settlement != null) outputs.get(settlement.inputId)?.(output);
   };
   // E21/R32: observe actual child creation/close; async context also follows sound fallback callbacks.
   const context = new AsyncLocalStorage();
@@ -184,11 +191,31 @@ async function main() {
   try {
     // Both imports follow instrumentation: composition-root itself imports the adapter.
     const { runNotificationAttempt, abortNotificationAttempt } = require("../../dist/src/notification-delivery/adapter.js");
-    const { RuntimeCompositionRoot, linkedUnitCodecs } = require("../../dist/src/runtime/composition-root.js");
+    const { RuntimeCompositionRoot, linkedUnitCodecs, linkedUnitTable, nodeCheckpointFileSystem } =
+      require("../../dist/src/runtime/composition-root.js");
+    const { OwnerHost } = require("../../dist/src/runtime/owner-host.js");
+    // Test-side in-process wiring (not the product placement; the host runs three owner threads): the same request/reply
+    // boundary, a turn later and cloned, so this script can read the U-E owner's state directly as evidence.
+    const sharedNow = () => performance.timeOrigin + performance.now();
+    const owners = new Map();
+    const send = (place, request) => setImmediate(() => {
+      try { owners.get(place).handle(structuredClone(request)); } catch (error) { root.ownerFailed(place, error); }
+    });
+    for (const place of ["urgent", "weatherCurrent", "deferred"])
+      owners.set(place, new OwnerHost({ start: { place, stateDirectory: join(directory, "state"),
+        publisherTimeOriginMs: performance.timeOrigin }, units: linkedUnitTable, codecs: linkedUnitCodecs,
+      fileSystem: nodeCheckpointFileSystem(), sharedNow,
+      reply: (reply) => setImmediate(() => {
+        root.receive(place, structuredClone(reply));
+        if ("output" in reply) observe(reply.output, reply.kind === "inputDone" ? reply.settlement : null);
+      }),
+      fail: (error) => setImmediate(() => root.ownerFailed(place, error)) }));
+    urgent = owners.get("urgent");
     root = new RuntimeCompositionRoot({ appName: "fleq-p2", legacyAppName: "fleq",
       stateDirectory: join(directory, "state"), legacyStateDirectory: join(directory, "legacy"),
       diagnosticDirectory: join(directory, "diagnostics") }, linkedUnitCodecs, {
-      clock,
+      send, clock, sharedNow,
+      shutdownHooks: { drainMailbox: async (_deadline, active) => root.drainInputs(active) },
       notificationAdapter: {
         run(attempt, readClock) {
           attempts.push({ attemptId: attempt.attemptId, intentId: attempt.intentId,
@@ -205,10 +232,8 @@ async function main() {
         abort: abortNotificationAttempt,
       },
     });
-    const dispatch = root.dispatch.bind(root);
-    root.dispatch = (...args) => { const step = dispatch(...args); observe(step); return step; };
     const startupAt = clock();
-    observe(root.startRuntime(runId, startupAt, { desktop: { kind: "idle" }, sound: { kind: "idle" } }));
+    await root.startRuntime(runId, startupAt, { desktop: { kind: "idle" }, sound: { kind: "idle" } });
     started = true;
     const probeStartedAt = clock();
     const probe = await root.probeNotificationChannels();
@@ -217,7 +242,7 @@ async function main() {
     if (probe.sound.kind !== "idle" || process.platform === "darwin" && probe.desktop.kind !== "idle")
       blocked("backendUnavailable");
     if (process.platform === "linux" && probe.desktop.kind !== "unavailable") blocked("r34DesktopMustBeUnavailable");
-    observe(root.dispatch(root.state, { kind: "notificationProbeCompleted", channels: probe, clock: probeCompletedAt }));
+    root.dispatch({ kind: "notificationProbeCompleted", channels: probe, clock: probeCompletedAt });
     const m0 = startupAt.monotonicMs + 1_000;
     evidence.environment.probeElapsedMs = probeCompletedAt.monotonicMs - probeStartedAt.monotonicMs;
     evidence.environment.startupAt = startupAt;
@@ -228,37 +253,30 @@ async function main() {
     // A3-AC11: saving verifies persistence/shutdown; notification start does not wait for it.
     function save() {
       if (savingStopped || savePromise != null) return;
-      savePromise = (async () => {
-        for (let index = 0; index < 3; index++) {
-          const scheduled = root.scheduleCheckpoint(root.state, clock(), runId);
-          if (scheduled == null) break;
-          if (scheduled.request == null) {
-            root.applyCheckpointResult(root.state, scheduled.result, clock());
-            continue;
-          }
-          const correlation = scheduled.measurements[0];
-          if (correlation == null) throw new Error("checkpoint correlation unavailable");
-          const result = await root.executeCheckpoint(scheduled.request, runId,
-            correlation.inputIds, correlation.retryReason);
-          root.applyCheckpointResult(root.state, result.result, clock());
-        }
-      })().catch((error) => { executionError = error; }).finally(() => { savePromise = null; });
+      savePromise = root.driveCheckpoint().catch((error) => { executionError = error; }).finally(() => { savePromise = null; });
     }
     timer = setInterval(() => {
-      try { root.tick(root.state, clock()); save(); }
+      try { root.tick(clock()); save(); }
       catch (error) { executionError = error; }
     }, 50);
-    for (const [index, material] of materials.entries()) {
+    for (const [index, { material, item }] of materials.entries()) {
       const scheduledAt = m0 + index * 1_000;
       await wait(Math.max(0, scheduledAt - clock().monotonicMs));
       if (executionError != null) throw executionError;
       const at = clock();
-      const before = new Set(root.state.units["U-E"].intents.map((item) => item.id));
-      const step = root.dispatch(root.state, { kind: "mailboxCompleted", clock: at,
-        completion: { kind: "parser", messageId: material.inputId, inputId: material.inputId, runId,
-          encodedByteLength: material.decodedByteLength, startedMonotonicMs: at.monotonicMs,
-          completedMonotonicMs: at.monotonicMs, inputSequence: index + 1, result: { kind: "decoded", material } } });
-      const created = step.state.units["U-E"].intents.filter((item) => !before.has(item.id));
+      const before = new Set(urgent.state.units["U-E"].intents.map((intent) => intent.id));
+      const done = new Promise((resolve) => outputs.set(material.inputId, resolve));
+      const queued = root.mailbox.enqueue({ messageId: material.inputId, runId, t0MonotonicMs: at.monotonicMs,
+        enqueuedMonotonicMs: at.monotonicMs, priorityReason: "eewCandidate", payload: { kind: "parser", item } });
+      if (queued.kind !== "accepted") throw new Error(`mailbox rejected ${material.inputId}`);
+      root.pump();
+      const output = await done;
+      outputs.delete(material.inputId);
+      // The owner's per-generation input ledger (unsaved generations) says whether this input joins the next save.
+      const ledger = urgent.ledger["U-E"];
+      const step = { outcomes: output.outcomes, contributesToSave: ledger != null
+        && [...ledger.values()].some((ids) => ids?.includes(material.inputId) === true) };
+      const created = urgent.state.units["U-E"].intents.filter((intent) => !before.has(intent.id));
       for (const intent of created) {
         const serial = index + 1;
         const oracle = expected.get(serial);
@@ -284,14 +302,14 @@ async function main() {
         receivedAtMonotonicMs: at.monotonicMs, accepted: step.outcomes.some((entry) => entry.unit === "U-E"
           && entry.outcome.kind === "accepted" && entry.outcome.change !== "deliveryOnly"
           && entry.outcome.subjects.some((subject) => subject.source?.inputId === material.inputId)),
-        contributesToSave: step.generationInputIds["U-E"]?.includes(material.inputId) ?? false,
+        contributesToSave: step.contributesToSave,
         generatedCount: created.length });
       save();
     }
     const pendingUntil = clock().monotonicMs + 20_000;
     while (clock().monotonicMs < pendingUntil) {
       if (executionError != null) throw executionError;
-      const intents = root.state.units["U-E"].intents;
+      const intents = urgent.state.units["U-E"].intents;
       if (savePromise == null && intents.every((item) => item.disposition !== "pending")
         && channels.every((channel) => !["running", "stopping"].includes(root.state.notificationChannels[channel].kind))) break;
       await wait(50);
@@ -300,7 +318,7 @@ async function main() {
     clearInterval(timer); timer = null;
     await savePromise;
     if (executionError != null) throw executionError;
-    const finalState = root.state;
+    const finalState = { units: { "U-E": urgent.state.units["U-E"] }, notificationChannels: root.state.notificationChannels };
     const expectedSet = [...expected.keys()].flatMap((serial) => channels.map((channel) => `${serial}:${channel}`)).sort();
     const actualSet = evidence.intents.map((item) => `${item.serial}:${item.channel}`).sort();
     evidence.generation = { expected: expectedSet, actual: actualSet,
@@ -345,7 +363,7 @@ async function main() {
       && (!unavailableDesktop || evidence.unavailable.attemptCount === 0
         && evidence.unavailable.expiredCount + evidence.unavailable.supersededCount === evidence.unavailable.expectedCount && evidence.unavailable.pendingAfter === 0)
       && channels.every((channel) => ["idle", "unavailable"].includes(finalState.notificationChannels[channel].kind));
-    evidence.shutdown = await root.shutdownRuntime(root.state, 33, clock());
+    evidence.shutdown = await root.shutdownRuntime(33, clock());
     evidence.status = evidence.reports.every((report) => report.accepted) && evidence.generation.status === "pass"
       && evidence.intents.every((item) => item.payloadValid) && complete && evidence.shutdown.code === 0 ? "pass" : "fail";
     evidence.reason = evidence.status === "pass" ? null : "generationDeliveryOrShutdownFailed";
@@ -354,7 +372,7 @@ async function main() {
     if (timer != null) clearInterval(timer);
     await savePromise;
     if (started && root.state.shutdown.stage === "running") {
-      try { evidence.shutdown = await root.shutdownRuntime(root.state, evidence.reports.length, clock()); }
+      try { evidence.shutdown = await root.shutdownRuntime(evidence.reports.length, clock()); }
       catch { /* Keep the original failure. */ }
     }
     try { await Promise.allSettled(runs); }

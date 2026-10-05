@@ -1,58 +1,181 @@
-import { readFileSync } from "node:fs";
-import { expect } from "vitest";
+import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { afterAll, expect } from "vitest";
 
-import type { DecodedMaterial, Operation } from "../../contracts/p1-parser-boundary.types";
+import type { Operation } from "../../contracts/p1-parser-boundary.types";
 import type {
-  ClockReading, RuntimeDisplayChange, RuntimeInput, RuntimePublishedOutcome, RuntimeState, RuntimeStep,
+  ClockReading, RestoreUnitResult, RuntimeAdmissionCounts, RuntimeDisplayChange, RuntimeInput, RuntimePublishedOutcome, RuntimeState,
+  RuntimeUnitId, RuntimeViews,
 } from "../../contracts/p2-shared-runtime.types";
+import type { UnitTable } from "../../contracts/p3-unit-table.types";
 import type { WeatherTimeseriesSubject } from "../../contracts/p2-weather-timeseries-unit.types";
 import type {
   DisplaySnapshot, SnapshotProjectionInput, SnapshotProjectionResult, SnapshotProjectionState,
 } from "../../contracts/p2-snapshot-sse.types";
-import { decodeMaterial } from "../../src/decode-material/decode-material";
-import { ingestXmlData } from "../../src/ingress/ingress";
+import { hashEnvelope, serializedEnvelope } from "../../src/checkpoint/checkpoint";
 import { linkedRuntimeCalls, linkedUnitCodecs, snapshotInput } from "../../src/runtime/composition-root";
-import { reduceRuntime } from "../../src/runtime/shared-runtime";
+import type { PublisherInput } from "../../src/runtime/composition-root";
+import { initialUnits } from "../../src/runtime/owner-runtime";
+import type { PublisherState } from "../../src/runtime/shared-runtime";
 import { currentSubject } from "../../src/units/eew/eew-unit";
 import { displaySubjects } from "../../src/units/weather-current/weather-current-unit";
 import { timeseriesSubjectOutcome } from "../../src/units/weather-timeseries/weather-timeseries-unit";
 import { projectSnapshot } from "../../src/view-projector/view-projector";
-import { testNotificationChannels } from "../checkpoint-shutdown/runtime-fixture";
+import { envelope, harnessedRoot, idleChannels, places } from "../execution-split/owner-harness";
+import type { Harness } from "../execution-split/owner-harness";
 
-const calls = { ...linkedRuntimeCalls, codecs: linkedUnitCodecs };
+const calls = linkedRuntimeCalls;
 
-function decode(file: string, headType: string, transform: (xml: string) => string = (xml) => xml, inputId = file): DecodedMaterial {
-  const entered = ingestXmlData({ inputId, inputSequence: 1, receivedAt: 0, origin: "replay", kind: "replay",
-    headType, body: Buffer.from(transform(readFileSync(`test/fixtures/${file}.xml`, "utf8"))) });
-  if (entered.kind !== "accepted") throw new Error(entered.diagnostic.reason);
-  const decoded = decodeMaterial(entered.item);
-  if (decoded.kind !== "decoded") throw new Error(decoded.diagnostic.reason);
-  return decoded.material;
+// One report as the host would receive it (bytes, not a decoded tree).
+type Report = Readonly<{ headType: string; inputId: string; body: Uint8Array }>;
+function decode(file: string, headType: string, transform: (xml: string) => string = (xml) => xml, inputId = file): Report {
+  return { headType, inputId, body: Buffer.from(transform(readFileSync(`test/fixtures/${file}.xml`, "utf8"))) };
+}
+
+type Input = Readonly<{ kind: "report"; runId: string; report: Report; clock: ClockReading }>
+  | Readonly<{ kind: "tick"; clock: ClockReading }> | PublisherInput;
+function received(runId: string, report: Report, clock: ClockReading): Input {
+  return { kind: "report", runId, report, clock };
+}
+
+// The runtime seen whole, as A8 projects it: the publisher's state with each owner's units (TEST-PATH (2)).
+type Step = Readonly<{ state: RuntimeState; outcomes: readonly RuntimePublishedOutcome[];
+  displayChanges: readonly RuntimeDisplayChange[]; admissionCounts: RuntimeAdmissionCounts }>;
+
+// Each step remembers the run it came from; continuing from a run's latest step reuses it, an earlier one replays.
+type Run = { h: Harness; inputs: Input[]; clock: { now: ClockReading }; restored: Restored; units?: UnitTable };
+const runs = new WeakMap<RuntimeState, Readonly<{ run: Run; length: number }>>();
+const directories: string[] = [];
+afterAll(() => { for (const path of directories.splice(0)) rmSync(path, { recursive: true, force: true }); });
+
+type Restored = Readonly<Record<RuntimeUnitId, RestoreUnitResult>>;
+const empty: Restored = { "U-E": { kind: "empty" }, "U-W": { kind: "empty" }, "U-F": { kind: "empty" } };
+
+function initialPayload<K extends RuntimeUnitId>(unit: K) {
+  const codec = linkedUnitCodecs[unit];
+  if (codec == null) throw new Error(`${unit} has no codec`);
+  return codec.encode(initialUnits[unit]);
+}
+
+// Startup restoration comes from the state directory, so each requested result is written as slot files.
+function writeSlots(directory: string, restored: Restored): void {
+  mkdirSync(directory, { recursive: true });
+  for (const unit of ["U-E", "U-W", "U-F"] as const) {
+    const result = restored[unit];
+    const codec = linkedUnitCodecs[unit];
+    if (codec == null) continue;
+    const slot = (name: string, value: Uint8Array | string) => writeFileSync(join(directory, `${unit}-${name}.json`), value);
+    const valid = (capturedAt: number, schemaVersion = codec.schemaVersion) => serializedEnvelope(hashEnvelope({
+      schemaVersion, unit, generation: 1, capturedAt, payload: initialPayload(unit) }));
+    if (result.kind === "restored") slot(result.slot, serializedEnvelope(hashEnvelope({ ...result.envelope })));
+    else if (result.kind === "unavailable" && result.reason === "noValidSlot") slot("A", "invalid");
+    else if (result.kind === "unavailable" && result.reason === "unknownSchema") slot("A", valid(1, "unknown-schema"));
+    else if (result.kind === "unavailable") { slot("A", valid(1)); slot("B", valid(2)); }
+  }
+}
+
+async function open(clock: ClockReading, restored: Restored, units?: UnitTable): Promise<Run> {
+  const path = mkdtempSync(join(tmpdir(), "fleq-a8-"));
+  directories.push(path);
+  writeSlots(join(path, "state"), restored);
+  const time = { now: clock };
+  const h = harnessedRoot({ appName: "fleq-p2", legacyAppName: "fleq", stateDirectory: join(path, "state"),
+    legacyStateDirectory: join(path, "legacy"), diagnosticDirectory: join(path, "diagnostics") }, linkedUnitCodecs, {
+    clock: () => time.now, runtimeCalls: { ...calls, units: units ?? calls.units },
+    notificationAdapter: { run: () => new Promise(() => {}), abort: async () => ({}) }, reportFailure: () => {} });
+  const started = h.root.startRuntime("run", clock, idleChannels);
+  await h.settle();
+  await started;
+  h.pause();
+  return { h, inputs: [], clock: time, restored, units };
 }
 
 let sequence = 0;
-function received(runId: string, material: DecodedMaterial, clock: ClockReading): RuntimeInput {
-  sequence += 1;
-  return { kind: "mailboxCompleted", clock, completion: { kind: "parser", messageId: material.inputId,
-    inputId: material.inputId, runId, encodedByteLength: 0, startedMonotonicMs: clock.monotonicMs,
-    completedMonotonicMs: clock.monotonicMs, inputSequence: sequence, result: { kind: "decoded", material } } };
+// Applies one input synchronously: owners run in-process, so the whole exchange settles in one flush.
+function apply(run: Run, input: Input): Pick<Step, "outcomes" | "displayChanges"> {
+  const { h } = run;
+  const from = h.delivered.length;
+  run.clock.now = input.clock;
+  if (input.kind === "report") {
+    const result = h.root.mailbox.enqueue(envelope(input.runId, input.report.headType, input.report.inputId, input.report.body,
+      input.clock, ++sequence));
+    if (result.kind !== "accepted") throw new Error(`mailbox rejected ${input.report.inputId}`);
+    h.root.pump();
+  } else if (input.kind === "tick") h.root.tick(input.clock);
+  else h.root.dispatch(input);
+  h.flush();
+  if (h.failures.length !== 0) throw h.failures.shift();
+  // Long corpus runs keep only what this step returns (each reply carries whole unit views).
+  h.sent.length = 0;
+  const outputs = h.delivered.splice(from).flatMap(({ reply }) => "output" in reply ? [reply.output] : []);
+  run.inputs.push(input);
+  return { outcomes: outputs.flatMap((output) => output.outcomes), displayChanges: outputs.flatMap((output) => output.displayChanges) };
 }
 
-function startup(clock: ClockReading, restored: Extract<RuntimeInput, { kind: "startup" }>["restored"] = {
-  "U-E": { kind: "empty" }, "U-W": { kind: "empty" }, "U-F": { kind: "empty" } }): RuntimeStep {
-  return reduceRuntime(null, { kind: "startup", runId: "run", clock, notificationChannels: testNotificationChannels, restored }, calls);
+function view(run: Run): Step["state"] {
+  const { h } = run;
+  const publisher = h.root.state;
+  const owner = (place: (typeof places)[number]) => h.owners.get(place)!["state"]!;
+  const views = (): RuntimeViews => {
+    const eew = publisher.mirror["U-E"].view, weather = publisher.mirror["U-W"].view, series = publisher.mirror["U-F"].view;
+    if (eew.unit !== "U-E" || weather.unit !== "U-W" || series.unit !== "U-F") throw new Error("mirror view of another unit");
+    return { "U-E": eew, "U-W": weather, "U-F": series };
+  };
+  const merged = <V>(pick: (state: ReturnType<typeof owner>) => Readonly<Partial<Record<RuntimeUnitId, V>>>) =>
+    places.reduce<Partial<Record<RuntimeUnitId, V>>>((all, place) => ({ ...all, ...pick(owner(place)) }), {});
+  return { runId: publisher.runId, units: { "U-E": h.unit("U-E"), "U-W": h.unit("U-W"), "U-F": h.unit("U-F") }, views: views(),
+    confirmation: publisher.confirmation, restoration: publisher.restoration, admission: merged((state) => state.admission),
+    checkpointAttempts: merged((state) => state.checkpointAttempts),
+    deadlines: { "U-E": null, "U-W": null, "U-F": null, ...merged((state) => state.deadlines) },
+    notificationChannels: publisher.notificationChannels, notificationProbeComplete: publisher.notificationProbeComplete,
+    notificationDeadlines: publisher.notificationDeadlines, shutdown: publisher.shutdown };
 }
 
-function step(state: RuntimeState, input: RuntimeInput): RuntimeStep {
-  return reduceRuntime(state, input, calls);
+function stepOf(run: Run, outcomes: Step["outcomes"], displayChanges: Step["displayChanges"]): Step {
+  const state = view(run);
+  const mirror = run.h.root.state.mirror;
+  runs.set(state, { run, length: run.inputs.length });
+  return { state, outcomes, displayChanges, admissionCounts: { "U-E": mirror["U-E"].admissionCounts,
+    "U-W": mirror["U-W"].admissionCounts, "U-F": mirror["U-F"].admissionCounts } };
 }
 
-type Step = Pick<RuntimeStep, "state" | "outcomes" | "displayChanges" | "admissionCounts">;
+async function startup(clock: ClockReading, restored: Restored = empty, units?: UnitTable): Promise<Step> {
+  const run = await open(clock, restored, units);
+  const restoredOutputs = run.h.delivered.flatMap(({ reply }) => reply.kind === "restored" ? [reply.output] : []);
+  return stepOf(run, restoredOutputs.flatMap((output) => output.outcomes), restoredOutputs.flatMap((output) => output.displayChanges));
+}
+
+// The next step after `state`; an older state is reached again by replaying its inputs on a new run.
+async function step(state: RuntimeState, input: Input): Promise<Step> {
+  const known = runs.get(state);
+  if (known == null) throw new Error("step needs a state from startup() or step()");
+  let { run } = known;
+  if (run.inputs.length !== known.length) {
+    const replay = await open(run.clock.now, run.restored, run.units);
+    for (const earlier of run.inputs.slice(0, known.length)) apply(replay, earlier);
+    run = replay;
+  }
+  const { outcomes, displayChanges } = apply(run, input);
+  return stepOf(run, outcomes, displayChanges);
+}
+
+// The publisher state a whole-runtime description gives (A8 reads the mirror only).
+function publisherOf(state: RuntimeState, counts: RuntimeAdmissionCounts): PublisherState {
+  const mirror = <K extends RuntimeUnitId>(unit: K) => ({ persistence: state.units[unit].persistence,
+    admissionCounts: counts[unit], view: state.views[unit],
+    pendingIntents: state.units[unit].intents.filter((item) => item.disposition === "pending") });
+  return { runId: state.runId, mirror: { "U-E": mirror("U-E"), "U-W": mirror("U-W"), "U-F": mirror("U-F") },
+    restoration: state.restoration, confirmation: state.confirmation, notificationChannels: state.notificationChannels,
+    notificationProbeComplete: state.notificationProbeComplete, notificationDeadlines: state.notificationDeadlines,
+    shutdown: state.shutdown };
+}
 
 // The product A3 mapping with a fixed stream and a connected, healthy transport.
 function projectionInput(value: Step, nowMs: number, overrides: Partial<SnapshotProjectionInput> = {}): SnapshotProjectionInput {
-  return { ...snapshotInput(value, "stream", nowMs, { state: "connected", disconnectedAt: null, lastInputAt: null },
-    { state: "healthy", lastProgressAtMonotonicMs: null, lastResponseAtMonotonicMs: null }), ...overrides };
+  return { ...snapshotInput({ state: publisherOf(value.state, value.admissionCounts), outcomes: value.outcomes,
+    displayChanges: value.displayChanges }, "stream", nowMs, { state: "connected", disconnectedAt: null, lastInputAt: null },
+  { state: "healthy", lastProgressAtMonotonicMs: null, lastResponseAtMonotonicMs: null }), ...overrides };
 }
 
 // Reference only (P2-A1-DISPLAY-CHANGES.acceptance): every current subject as an addition.
@@ -105,7 +228,7 @@ const STATUS: Readonly<Record<Operation, string>> = { normal: "通常", training
 
 // A real VXSE43/VXSE45 body under another EventID and/or operation.
 function eewReport(eventId: string, operation: Operation = "normal", file = "37_01_01_240613_VXSE43",
-  transform: (xml: string) => string = (xml) => xml): DecodedMaterial {
+  transform: (xml: string) => string = (xml) => xml): Report {
   return decode(file, file.slice(-6), (xml) => transform(xml.replace("<EventID>20240417231454</EventID>", `<EventID>${eventId}</EventID>`)
     .replace("<Status>通常</Status>", `<Status>${STATUS[operation]}</Status>`)), `${file}/${operation}/${eventId}`);
 }
@@ -135,12 +258,12 @@ function timeseriesChange(before: WeatherTimeseriesSubject | null, after: Weathe
 }
 
 // Several runtime steps observed by one projection call (A3 may batch them).
-function combine(first: RuntimeState, inputs: readonly RuntimeInput[]): Step {
+async function combine(first: RuntimeState, inputs: readonly Input[]): Promise<Step> {
   let state = first;
-  const outcomes: RuntimeStep["outcomes"][number][] = [], displayChanges: RuntimeDisplayChange[] = [];
-  let admissionCounts: RuntimeStep["admissionCounts"] | null = null;
+  const outcomes: RuntimePublishedOutcome[] = [], displayChanges: RuntimeDisplayChange[] = [];
+  let admissionCounts: RuntimeAdmissionCounts | null = null;
   for (const input of inputs) {
-    const next = step(state, input);
+    const next = await step(state, input);
     outcomes.push(...next.outcomes);
     displayChanges.push(...next.displayChanges);
     admissionCounts = next.admissionCounts;
@@ -151,5 +274,5 @@ function combine(first: RuntimeState, inputs: readonly RuntimeInput[]): Step {
 }
 
 export { allSubjects, atTime, calls, combine, decode, eewReport, expectConsistent, expectMatchesReference, projected,
-  projectionInput, received, reference, startup, step, timeseriesChange, unavailableChange };
-export type { Step };
+  projectionInput, publisherOf, received, reference, startup, step, timeseriesChange, unavailableChange };
+export type { Input, Report, Step };

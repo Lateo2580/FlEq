@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "d07d5ac73a2453c4f8475e39cf76afc98ba2c2d0",
-    "sha256": "bc1bd3169982c5437db355d6f0df0e6e9c6c3e455a8f61672c5457f8ca8afe86",
+    "sha256": "4dcad80b296834dcd68a0279fd29e2500b38f76cfc3a62743c6b86a3dcadca9e",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "76c82b87d7783a4eae14af690cb34e7d6ec46f73617dc75b7f7401951619f080",
     "sequencesSha256": "be9cfd97b555e3a55568f085d107342c978b3dc7249f5cecea868ea5a62c5781",
@@ -153,6 +153,14 @@
         "reason": "unresolvedQuestionsのQ-C3A-AUTHOR-RULINGS（baseOidの割当の前）を閉じる"
       },
       {
+        "id": "P3-C3A-INTEGRATOR-DECISIONS",
+        "status": "closed",
+        "source": "統合担当の判断（2026-10-05〜06。c3a-integrator-decisions.md D1〜D6、c3a-u2-fixes.md X1〜X10、c3a-final-fixes.md Y1〜Y9、c3a-u3-done.md）。判断ファイルは配送記録でVaultに写す",
+        "closed": "D1 単位①は純粋関数のowner coreの切出しまで（同期呼出しは一時形で、完了時に製品srcへ残さない）。D2 ②③を入れ替える（WORK-UNITSに記録）。D3 通知期限の受信前回収は行わず、publisherが試行開始時に期限を照合する（AC11 (c)）。D4 FINALIZE-TIMEOUT=Aと逆の挙動を固定していた試験は期待値を変える（AC09・AC11）。D5 明示correlationの照合はowner側に残す案だったが、X4で改め、製品から到達しないので削り、P2-A3-AC10はgrant経路の試験で担保する（P3-C3A-P2-CLAUSES）。D6 chrome-eewのsmoke.mjsだけがallowedPaths内で、実Chromeの実走は統合担当。X3で見つけて直した不具合: 予約の採用返信が届く前に期限更新が古いattemptsでownerへ届きownerが不変条件で落ちた（IntentRequest.reservedでin-transitの予約のintentを期限回収と選択時の期限切れから外す）。Y1 drain後のpumpのguard（stageがrunningでもmailboxDrainでもなければ送らない）。reason ownerReplyLateを1つ足すためpersistent-diagnostic-sink.tsをallowedPathsに足した。手動script 2本（smoke.mjs・private-eew.mjs）は試験側のin-process結線のままとし、製品配置の証拠と呼ばない（hostに通知adapterの差し替え口が無く、private-eewはownerの内部状態を直接読むため）",
+        "remaining": "なし",
+        "reason": "実装中の統合担当の判断を合流のcommitで契約に記録する"
+      },
+      {
         "id": "Q-C3A-C2-BASE",
         "status": "closed",
         "source": "C2配送後の版（c33f5f3d。C2は1aafed5a、節目レビューの修正は9764bb70・c0fbc045）のhost.ts・composition-root.ts・p2-shared-runtime.types.tsとreconstruction/test/host/**の読み替え（2026-10-05）",
@@ -227,9 +235,9 @@
           {
             "clause": "P2-A3-AC10（世代帰属）・P2-A3-AC11（保存予約後のdispatch）・P2-A3-AC06（E20の順）",
             "replacedBy": "AC10の寄与入力の台帳はowner内で維持。AC11はP3-C3A-AC07。AC06はP3-C3A-AC09（最小結線）とC3b（再検収）",
-            "keeps": "条文の意味はすべて維持し、置き場だけが変わる",
-            "reaccept": "既存P2-A3-T06・T10・T11、P3-C3A-T07",
-            "revisedBy": "統合担当（合流のcommit、置き場の注記だけ）"
+            "keeps": "条文の意味はすべて維持し、置き場だけが変わる。ただしAC10の明示correlation照合は製品から到達しないので削り、保証はgrant時のinputIdsの経路（capture→measurement）で担保する",
+            "reaccept": "既存P2-A3-T06・T11、P3-C3A-T07、P2-A3-T10（unit-wiringのgrant経路の試験）、checkpoint-driveの1,000-ID試験",
+            "revisedBy": "統合担当（合流のcommit、2026-10-06）"
           },
           {
             "clause": "P2-A10-AC12（p2-eew-e01.json:523、WS受信callback→ingestXmlData→enqueue→takeNext→decodeMaterial→complete→dispatchの1スレッドの経路）",
@@ -257,7 +265,7 @@
       {
         "id": "P3-C3A-WORK-UNITS",
         "status": "closed",
-        "closed": "実装と検収を3つの単位に区切り、各単位でreconstructionのゲートを通してから次へ進む。① owner内処理の切出しと既存試験の分類（P3-C3A-TEST-PATHの(1)〜(3)、AC11の影響一覧の確定）② mailbox・host・本物のworkerの結線（AC01〜AC04・AC12・AC13・AC15）③ 通知・checkpoint・終了の非同期境界（AC05〜AC10・AC14）。レビュー（D-P3-11）は③の後の固定patchに当てる",
+        "closed": "実装と検収を3つの単位に区切り、各単位でreconstructionのゲートを通してから次へ進む。① owner内処理の切出しと既存試験の分類（P3-C3A-TEST-PATHの(1)〜(3)、AC11の影響一覧の確定）② mailbox・host・本物のworkerの結線（AC01〜AC04・AC12・AC13・AC15）③ 通知・checkpoint・終了の非同期境界（AC05〜AC10・AC14）。レビュー（D-P3-11）は③の後の固定patchに当てる。実装では②と③を入れ替えた（D2、統合担当）: ②'＝mirror・send/receive・予約・書込み権・finalize・helperと既存試験(2)の全移し替え（hostは一時的にin-process owner）、③'＝mailboxの実行場所別dispatch・RES-08・p2-mailbox.json・distのworker・parse 1回・(3)。①の同期呼出しの組み直しはC3a内の一時形で、完了時点で製品srcに単一スレッドの実行形を残さない（D1）",
         "remaining": "①の影響一覧の確定後に実装の見積もり（計画§7の2〜4晩）を更新して報告する",
         "reason": "独立レビュー（2026-10-01）の実装の区切り。別契約へ分けるより小さい"
       },
@@ -331,6 +339,7 @@
       "reconstruction/src/mailbox/mailbox.ts",
       "reconstruction/src/runtime/**",
       "reconstruction/src/checkpoint/checkpoint.ts",
+      "reconstruction/src/checkpoint/persistent-diagnostic-sink.ts",
       "reconstruction/src/view-projector/view-projector.ts",
       "reconstruction/contracts/p2-shared-runtime.types.ts",
       "reconstruction/contracts/p2-mailbox.json",
@@ -673,7 +682,7 @@
       },
       {
         "id": "P3-C3A-AC09",
-        "requirement": "終了の最小結線（順序と期限の検収はC3b）: 既存の段（stopInputAndDrainMailbox→finalizeNotificationDelivery→startFinalCheckpoints→closeRuntimeWorkers）を保ち、mailboxの収束は全実行場所のin-flightの完了を待つ。shutdownRequestedで通知の予約をすべて無効化する。mailboxDrainの結果の後に各ownerへshutdownInput（各unitの宣言した終了入力）を送る。sideEffectFinalizationの固定は次の順で行う（P3-C3A-FINALIZE-TIMEOUT）: (1) publisherはownerへの通常の状態変更要求（deadline・intentUpdate。入力はmailboxDrainで既に止まっている）の送出を止める。ownerは要求の処理時にだけ期限を適用し、独立のtimerを持たないので、これが期限適用の停止境界になる (2) 送出済みの要求の返信がすべてそろう（適用の完了）のを確かめる (3) その時点のpublisherの時計を、全ownerに共通の打切り時刻cutoffとして1つ決め、publisherも自分の通知期限をcutoffまで適用し、state.finalizationAtはcutoffの壁時計とする（意味上の打切り時刻で、finalizeDoneを受けた時刻とは区別する）(4) 全ownerへfinalize（cutoffを固定の時計として、cutoffまでの期限を適用し、cutoffより後の期限は適用せず次回起動で評価する。以後checkpointGrant以外の要求を受けない）を送り、finalizeDoneのappliedThroughがcutoffと一致したownerを固定済みとする。(2)と(4)の待ちは、段の開始時に決まった絶対期限（既存のsideEffectFinalizationの期限＝開始＋5秒と全体30秒の早い方）を共有し、待機ごとに再起算しない。期限に達したときは、段の結果をdeadlineExceededとして既存どおり最終保存の段へ進み、未固定のownerのunitは固定済みと扱わない（作者裁定P3-C3A-FINALIZE-TIMEOUT）。(2)で期限に達した場合はcutoffもfinalizeも実行しておらず、finalizationAtはnullのまま、全ownerを未固定、全unitを最終世代未確認とする。(4)で期限に達した場合はfinalizationAt＝cutoffで、appliedThroughが一致したownerだけが固定済みになり、そのunitは最終保存の対象になる。未固定のownerのunitには書込み権を渡さず（最終保存の対象から外す）、unsavedUnitsに数える（終了codeは既存の優先順3→2→4のまま決まり、code 0にしない）。期限の後に届いた未固定のownerの返信は、業務状態（mirror・確認状態・通知・最終保存の成功判定）へ採用しない（件数だけ診断に残す）。ただし現在の書込み権のgrantIdに一致するcheckpointDoneは、操作の終了の確認と書込み権の解放にだけ使い（AC05）、その終了を確認するまでは権を保持する。未固定のownerもworkerCloseで他と同じく終了させる。ownerごとの停止監視と止まったownerの扱いの詳細はC3b。最終保存は書込み権で行い、closeRuntimeWorkersで終了要約の保存後にowner 3本を終了させる。既存の終了試験（P2-A3-T06、integration/shutdown.test.tsなど）の期待値は変えない。stopの後にowner threadを残さない",
+        "requirement": "終了の最小結線（順序と期限の検収はC3b）: 既存の段（stopInputAndDrainMailbox→finalizeNotificationDelivery→startFinalCheckpoints→closeRuntimeWorkers）を保ち、mailboxの収束は全実行場所のin-flightの完了を待つ。shutdownRequestedで通知の予約をすべて無効化する。mailboxDrainの結果の後に各ownerへshutdownInput（各unitの宣言した終了入力）を送る。sideEffectFinalizationの固定は次の順で行う（P3-C3A-FINALIZE-TIMEOUT）: (1) publisherはownerへの通常の状態変更要求（deadline・intentUpdate。入力はmailboxDrainで既に止まっている）の送出を止める。ownerは要求の処理時にだけ期限を適用し、独立のtimerを持たないので、これが期限適用の停止境界になる (2) 送出済みの要求の返信がすべてそろう（適用の完了）のを確かめる (3) その時点のpublisherの時計を、全ownerに共通の打切り時刻cutoffとして1つ決め、publisherも自分の通知期限をcutoffまで適用し、state.finalizationAtはcutoffの壁時計とする（意味上の打切り時刻で、finalizeDoneを受けた時刻とは区別する）(4) 全ownerへfinalize（cutoffを固定の時計として、cutoffまでの期限を適用し、cutoffより後の期限は適用せず次回起動で評価する。以後checkpointGrant以外の要求を受けない）を送り、finalizeDoneのappliedThroughがcutoffと一致したownerを固定済みとする。(2)と(4)の待ちは、段の開始時に決まった絶対期限（既存のsideEffectFinalizationの期限＝開始＋5秒と全体30秒の早い方）を共有し、待機ごとに再起算しない。期限に達したときは、段の結果をdeadlineExceededとして既存どおり最終保存の段へ進み、未固定のownerのunitは固定済みと扱わない（作者裁定P3-C3A-FINALIZE-TIMEOUT）。(2)で期限に達した場合はcutoffもfinalizeも実行しておらず、finalizationAtはnullのまま、全ownerを未固定、全unitを最終世代未確認とする。(4)で期限に達した場合はfinalizationAt＝cutoffで、appliedThroughが一致したownerだけが固定済みになり、そのunitは最終保存の対象になる。未固定のownerのunitには書込み権を渡さず（最終保存の対象から外す）、unsavedUnitsに数える（終了codeは既存の優先順3→2→4のまま決まり、code 0にしない）。期限の後に届いた未固定のownerの返信は、業務状態（mirror・確認状態・通知・最終保存の成功判定）へ採用しない（件数だけ診断に残す）。ただし現在の書込み権のgrantIdに一致するcheckpointDoneは、操作の終了の確認と書込み権の解放にだけ使い（AC05）、その終了を確認するまでは権を保持する。未固定のownerもworkerCloseで他と同じく終了させる。ownerごとの停止監視と止まったownerの扱いの詳細はC3b。最終保存は書込み権で行い、closeRuntimeWorkersで終了要約の保存後にowner 3本を終了させる。既存の終了試験（P2-A3-T06、integration/shutdown.test.tsなど）の期待値は変えない（FINALIZE-TIMEOUT=Aと逆の挙動を固定していた試験、shared-runtime.test.tsの該当とreview-regressions R28は除く。D4）。stopの後にowner threadを残さない",
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:885 «46593c2b19823aa6»",
           "docs/specs/reconstruction-p0-contracts.md:886 «5ccc49998d03e9c7»",
@@ -693,7 +702,7 @@
       },
       {
         "id": "P3-C3A-AC11",
-        "requirement": "再検収と既存試験（E10・E14・O07・O10、P3-C3A-TEST-PATH）: reconstructionのゲート（tsc 2本・vitest・shuffle）を全部通す。E10（P2-A3-T03）・E14（P2-A3-T04）・O07:15〜18（P2-A3-T01）・O10（P2-A3-T02、C1のP3-C1-T01〜T05）・E08（P2-A1-T01）・E11（P2-A1-T02）は期待値を変えずに通す。試験はTEST-PATHの(1)〜(3)に分け、(1)の呼出し口の移し替えと(2)への移し替えは期待値の変更に数えない。期待値を変えてよい理由は次の6つだけ: (a) 実行場所ごとのin-flight（mailbox.test.tsの「P2-A2-T03 corpusHistory ... maximum O09 input remains in-flight while the EEW candidate waits」はVPWS50のin-flight中にEEW候補が取り出される期待へ変える。実行場所の違うitemを続けて取り出す試験も同じ）(b) 作者裁定P3-C3A-CLOCKがBになった場合の受理の時計 (c) 他unitの期限がparser入力の完了でなく次のdeadline要求で適用される（作者裁定P3-C3A-DEADLINES=Aの場合。unit-wiring.test.tsの「P2-A1-T12 contractBoundary / AC11: VXSE44 with an invalid date is ignored while deadlines still run」が候補）(d) 通知の試行がownerの採用の返信の後に始まる (e) MailboxStatsのinFlightMessageIdがinFlightMessageIdsになった (f) 観測方法の変更: E08・E11のstructuredClone・JSON.stringifyの0はowner内のreducer呼出しに対して測り、境界のDTOの構造化複製は数えない。host.test.ts:296（C2配送後。d07d5ac7では:268）のstall試験（:288の「stall: unfinished work for 5 s ...」）はmain側のvi.mock（decode中のhook）が本物のownerへ届かないので、helperで返信を保留して同じ期待（heartbeatがstalled→healthy、mailboxStalledの診断）を確かめる形へ移す。ownerの返信を止める手段は試験側のnode:worker_threadsのvi.mockとし、製品に試験専用の注入口を足さない。vi.mock('node:worker_threads')はimportOriginalで本物のWorkerを包み、既定は素通しで、返信の保留はstall試験だけが切り替える（同fileのC2の試験とhost.test.ts:219の初回失敗試験は本物のownerを通る）。変更前に該当試験の一覧を実測で確定して理由とともに報告し、試験は削らずに同じ性質を確かめる形に直す。これ以外の理由で期待値の変更が要る試験、またはallowedPathsの外（eew-e01・parser-boundary・chrome-eewのvitest試験）の変更が要る試験はblockedとして報告する",
+        "requirement": "再検収と既存試験（E10・E14・O07・O10、P3-C3A-TEST-PATH）: reconstructionのゲート（tsc 2本・vitest・shuffle）を全部通す。E10（P2-A3-T03）・E14（P2-A3-T04）・O07:15〜18（P2-A3-T01）・O10（P2-A3-T02、C1のP3-C1-T01〜T05）・E08（P2-A1-T01）・E11（P2-A1-T02）は期待値を変えずに通す。試験はTEST-PATHの(1)〜(3)に分け、(1)の呼出し口の移し替えと(2)への移し替えは期待値の変更に数えない。期待値を変えてよい理由は次の6つだけ: (a) 実行場所ごとのin-flight（mailbox.test.tsの「P2-A2-T03 corpusHistory ... maximum O09 input remains in-flight while the EEW candidate waits」はVPWS50のin-flight中にEEW候補が取り出される期待へ変える。実行場所の違うitemを続けて取り出す試験も同じ）(b) 作者裁定P3-C3A-CLOCKがBになった場合の受理の時計 (c) 他unitの期限がparser入力の完了でなく次のdeadline要求で適用される（作者裁定P3-C3A-DEADLINES=Aの場合。unit-wiring.test.tsの「P2-A1-T12 contractBoundary / AC11: VXSE44 with an invalid date is ignored while deadlines still run」が候補。通知期限の受信前回収も行わない（D3、DEADLINES=Aと同じ向き。publisherは試行開始時に期限を照合し、期限切れのintentの試行を開始しない））(d) 通知の試行がownerの採用の返信の後に始まる (e) MailboxStatsのinFlightMessageIdがinFlightMessageIdsになった (f) 観測方法の変更: E08・E11のstructuredClone・JSON.stringifyの0はowner内のreducer呼出しに対して測り、境界のDTOの構造化複製は数えない。host.test.ts:296（C2配送後。d07d5ac7では:268）のstall試験（:288の「stall: unfinished work for 5 s ...」）はmain側のvi.mock（decode中のhook）が本物のownerへ届かないので、helperで返信を保留して同じ期待（heartbeatがstalled→healthy、mailboxStalledの診断）を確かめる形へ移す。ownerの返信を止める手段は試験側のnode:worker_threadsのvi.mockとし、製品に試験専用の注入口を足さない。vi.mock('node:worker_threads')はimportOriginalで本物のWorkerを包み、既定は素通しで、返信の保留はstall試験だけが切り替える（同fileのC2の試験とhost.test.ts:219の初回失敗試験は本物のownerを通る）。変更前に該当試験の一覧を実測で確定して理由とともに報告し、試験は削らずに同じ性質を確かめる形に直す。a〜fの外の置き換え（単一スレッドのA1採用の窓を前提にした回帰試験。c3a-u2-expectation-changes.mdの表）は統合担当が採った（2026-10-06）。これ以外の理由で期待値の変更が要る試験、またはallowedPathsの外（eew-e01・parser-boundary・chrome-eewのvitest試験）の変更が要る試験はblockedとして報告する",
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:2061 «aeb1275bbe737682»",
           "docs/specs/reconstruction-p0-contracts.md:2066 «9816b55af233a5a4»",

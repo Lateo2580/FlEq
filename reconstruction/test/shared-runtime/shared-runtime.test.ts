@@ -1,5 +1,8 @@
 import { Buffer } from "node:buffer";
-import { readFileSync } from "node:fs";
+import { mkdtempSync, readFileSync } from "node:fs";
+import { rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { DecodedMaterial, Operation, ParserMailboxResult } from "../../contracts/p1-parser-boundary.types";
@@ -13,7 +16,9 @@ import type {
   ClockReading,
   NotificationIntent,
   NotificationResult,
+  RuntimeUnitDeadline,
   RuntimeUnitId,
+  RuntimeUnitStates,
   ShutdownStageResult,
   ShutdownPendingCounts,
 } from "../../contracts/p2-shared-runtime.types";
@@ -24,8 +29,20 @@ import type { NotificationAttempt, NotificationDeliveryState, NotificationSelect
 import { decodeMaterial } from "../../src/decode-material/decode-material";
 import { ingestXmlData } from "../../src/ingress/ingress";
 import { boundDiagnosticDetails, completeDiagnostic } from "../../src/runtime/runtime-diagnostic";
-import { validateSemanticEnvelope } from "../../src/runtime/shared-runtime";
-import { reduceRuntimeWith } from "../unit-table/linked-calls";
+import type { ExecutionPlace } from "../../contracts/p3-execution-split.types";
+import {
+  capturedOwner, checkpointResultOwner, deadlineOwner, receiveOwner, unitAdmissionCounts, validateSemanticEnvelope,
+} from "../../src/runtime/owner-runtime";
+import type { OwnerState, ParserCompletion } from "../../src/runtime/owner-runtime";
+import { fixtureState, ownerFixture } from "../checkpoint-shutdown/runtime-fixture";
+import { envelope, harnessedRoot, idleChannels, manualAdapter, seeded, startHarness, submit, unitBodies } from "../execution-split/owner-harness";
+import type { CodecMap } from "../../src/checkpoint/checkpoint";
+import { linkedUnitCodecs } from "../../src/runtime/composition-root";
+import type { NotificationCalls, PublisherInput } from "../../src/runtime/composition-root";
+import { observeStage, requestShutdown } from "../../src/runtime/shared-runtime";
+import type { PublisherState } from "../../src/runtime/shared-runtime";
+import { callsWith } from "../unit-table/linked-calls";
+import type { StubCalls } from "../unit-table/linked-calls";
 import { reduceEewUnit } from "../../src/units/eew/eew-unit";
 import { reduceWeatherCurrentUnit, weatherCurrentUnitCodec } from "../../src/units/weather-current/weather-current-unit";
 import { reduceWeatherTimeseriesUnit, weatherTimeseriesUnitCodec } from "../../src/units/weather-timeseries/weather-timeseries-unit";
@@ -35,9 +52,7 @@ const savedProgress: PersistenceStatus = Object.freeze({ kind: "saved", currentG
   savedCapturedAt: 10, savedAckAt: 20, dirtySince: null });
 
 function initialState(progress: PersistenceStatus = savedProgress): RuntimeState {
-  const baseline = reduceRuntimeWith(null, { kind: "startup", runId: "run", clock,
-    notificationChannels: { desktop: { kind: "idle" }, sound: { kind: "idle" } },
-    restored: { "U-E": { kind: "empty" }, "U-W": { kind: "empty" }, "U-F": { kind: "empty" } } }).state;
+  const baseline = fixtureState({}, {}, "run");
   return {
     ...baseline,
     runId: "run",
@@ -78,6 +93,12 @@ function parserInput(result: ParserMailboxResult, runId = "run"): Extract<Runtim
   };
 }
 
+// TEST-PATH (1): owner core inputs.
+const places = ["urgent", "weatherCurrent", "deferred"] as const satisfies readonly ExecutionPlace[];
+const completion = (result: ParserMailboxResult, runId = "run"): ParserCompletion => ({ runId,
+  inputId: result.kind === "decoded" ? result.material.inputId : result.diagnostic.inputId, result });
+const units = (stubs: StubCalls = {}) => callsWith(stubs).units;
+
 function fixture(path: string, headType: string): DecodedMaterial {
   const inputId = path;
   const entered = ingestXmlData({
@@ -115,6 +136,13 @@ function savedState(inspect: () => void) {
     ...initial, units: new Proxy(Object.freeze({ ...initial.units, "U-E": unit }),
       { ownKeys(target) { inspect(); return Reflect.ownKeys(target); } }),
   });
+}
+
+// The same trap on one owner: listing its units or reading U-E's current is business-state traversal.
+function savedOwner(place: ExecutionPlace, inspect: () => void): OwnerState {
+  const owner = ownerFixture(place, savedState(inspect));
+  return Object.freeze({ ...owner, units: new Proxy(Object.freeze({ ...owner.units }),
+    { ownKeys(target) { inspect(); return Reflect.ownKeys(target); } }) });
 }
 
 const at = (ms: number): ClockReading => ({ wallTimeMs: 1_000 + ms, monotonicMs: ms });
@@ -166,38 +194,97 @@ function freeze<T>(value: T): T {
   return value;
 }
 
+const temporary: string[] = [];
+const roots: { diagnostics: { flush(): Promise<void> } }[] = [];
+afterEach(async () => {
+  for (const root of roots.splice(0)) await root.diagnostics.flush();
+  for (const path of temporary.splice(0)) await rm(path, { recursive: true, force: true, maxRetries: 3 });
+});
+function config() {
+  const path = mkdtempSync(join(tmpdir(), "fleq-c3a-runtime-"));
+  temporary.push(path);
+  return { appName: "fleq-p2", legacyAppName: "fleq", stateDirectory: join(path, "state"),
+    legacyStateDirectory: join(path, "legacy"), diagnosticDirectory: join(path, "diagnostics") } as const;
+}
+const noAttempts = (delivery: NotificationDeliveryState): NotificationSelection =>
+  ({ state: delivery, attempts: [], abortRequests: [], diagnostics: [] });
+const STATUS: Readonly<Record<Operation, string>> = { normal: "通常", training: "訓練", test: "試験" };
+function materialOf(body: Uint8Array, headType: string, inputId: string): DecodedMaterial {
+  const entered = ingestXmlData({ kind: "replay", inputId, inputSequence: 1, receivedAt: clock.wallTimeMs, origin: "replay",
+    headType, body });
+  if (entered.kind !== "accepted") throw new Error(`ingress rejected ${inputId}`);
+  const decoded = decodeMaterial(entered.item);
+  if (decoded.kind !== "decoded") throw new Error(`decode rejected ${inputId}`);
+  return decoded.material;
+}
+
+// TEST-PATH (2): the publisher and three in-process owners on a settable clock; attempts end when the test finishes them.
+async function runtime(stubs: StubCalls = {}, start: ClockReading = clock,
+  options: Readonly<{ probe?: boolean; codecs?: CodecMap<RuntimeUnitStates> }> = {}) {
+  let now = start;
+  const calls = callsWith(stubs);
+  const seeds = seeded(calls.units);
+  const notices = manualAdapter();
+  const h = harnessedRoot(config(), options.codecs ?? linkedUnitCodecs, { clock: () => now, notificationAdapter: notices.adapter,
+    runtimeCalls: { units: seeds.units, selectNotificationAttempt: calls.selectNotificationAttempt,
+      applyNotificationResult: calls.applyNotificationResult } });
+  roots.push(h.root);
+  await startHarness(h, "run", now, options.probe ?? true);
+  return { h, root: h.root, seeds, notices,
+    at(time: ClockReading) { now = time; },
+    input: (path: string, headType: string, inputId: string, at: ClockReading, sequence: number) =>
+      submit(h, envelope("run", headType, inputId, readFileSync(path), at, sequence)) };
+}
+// The publisher's own stage machine (spec §5.9) is a pure function of its state: a fixture of the whole runtime
+// becomes the publisher state with each unit's mirror.
+function publisherState(whole: RuntimeState): PublisherState {
+  const mirror = <K extends RuntimeUnitId>(unit: K) => ({ persistence: whole.units[unit].persistence,
+    admissionCounts: { normal: 0, training: 0, test: 0 }, view: whole.views[unit],
+    pendingIntents: whole.units[unit].intents.filter((item) => item.disposition === "pending") });
+  return { runId: whole.runId, mirror: { "U-E": mirror("U-E"), "U-W": mirror("U-W"), "U-F": mirror("U-F") },
+    restoration: whole.restoration, confirmation: whole.confirmation, notificationChannels: whole.notificationChannels,
+    notificationProbeComplete: whole.notificationProbeComplete, notificationDeadlines: whole.notificationDeadlines,
+    shutdown: whole.shutdown };
+}
+
+// Sets one unit's intents (and persistence) inside its owner.
+async function seedIntents(r: Awaited<ReturnType<typeof runtime>>, unit: RuntimeUnitId, intents: readonly ReturnType<typeof intent>[],
+  persistence: PersistenceStatus = savedProgress, deadline: RuntimeUnitDeadline | null = null) {
+  if (unit === "U-E") await r.seeds.eew(r.h, { ...r.h.unit("U-E"), intents, persistence }, deadline);
+  else if (unit === "U-W") await r.seeds.weather(r.h, { ...r.h.unit("U-W"), intents, persistence }, deadline);
+  else await r.seeds.series(r.h, { ...r.h.unit("U-F"), intents, persistence }, deadline);
+}
 describe("P2 shared runtime", () => {
-  it("P2-A1-T08 contractBoundary / AC08: startup is the only null-state input and runs once", () => {
-    const startup = { kind: "startup" as const, runId: "fresh", clock,
-      notificationChannels: { desktop: { kind: "idle" as const }, sound: { kind: "idle" as const } },
-      restored: { "U-E": { kind: "empty" as const }, "U-W": { kind: "empty" as const },
-        "U-F": { kind: "unavailable" as const, reason: "unknownSchema" as const } } };
-    expect(() => reduceRuntimeWith(null, parserInput({ kind: "decoded", material: {
-      headType: "VXSE43", inputId: "early" } as DecodedMaterial })))
-      .toThrow("runtime has not started");
-    const started = reduceRuntimeWith(null, startup);
-    expect(started.state).toMatchObject({ runId: "fresh", restoration: startup.restored,
-      admission: {}, units: { "U-E": { persistence: { currentGeneration: 0 } } } });
-    expect(started.generationInputIds).toEqual({});
-    expect(() => reduceRuntimeWith(started.state, startup)).toThrow("runtime already started");
+  it("P2-A1-T08 contractBoundary / AC08: startup is the only null-state input and runs once", async () => {
+    // U-F has no codec here, so its restore is unavailable (unknownSchema) as in the P2 startup input.
+    const h = harnessedRoot(config(), { "U-E": linkedUnitCodecs["U-E"], "U-W": linkedUnitCodecs["U-W"] }, { clock: () => clock });
+    expect(() => h.root.state).toThrow("runtime has not received its initial state");
+    h.root.mailbox.enqueue(envelope("fresh", "VXSE43", "early", unitBodies["U-E"].body, clock));
+    h.root.pump();
+    expect(h.sent).toEqual([]);
+    await startHarness(h, "fresh", clock, false);
+    expect(h.root.state).toMatchObject({ runId: "fresh", restoration: { "U-E": { kind: "empty" }, "U-W": { kind: "empty" },
+      "U-F": { kind: "unavailable", reason: "unknownSchema" } },
+    mirror: { "U-E": { persistence: { currentGeneration: 0 }, admissionCounts: { normal: 0, training: 0, test: 0 } } } });
+    await expect(h.root.startRuntime("fresh", clock, idleChannels)).rejects.toThrow("runtime already started");
   });
 
-  it("P2-A1-PROBE / A8-AC01 acceptance: startup publishes three views and waits for one explicit probe", () => {
-    const started = reduceRuntimeWith(null, { kind: "startup", runId: "run", clock,
-      notificationChannels: { desktop: { kind: "idle" }, sound: { kind: "idle" } },
-      restored: { "U-E": { kind: "empty" }, "U-W": { kind: "empty" }, "U-F": { kind: "empty" } } });
-    expect(started.views.map((view) => view.unit)).toEqual(["U-E", "U-W", "U-F"]);
-    expect(started.state.notificationProbeComplete).toBe(false);
-    expect(started.admissionCounts).toEqual({ "U-E": { normal: 0, training: 0, test: 0 },
-      "U-W": { normal: 0, training: 0, test: 0 }, "U-F": { normal: 0, training: 0, test: 0 } });
-    const probe: RuntimeInput = { kind: "notificationProbeCompleted", clock,
-      channels: { desktop: { kind: "idle" }, sound: { kind: "unavailable", reason: "backendMissing" } } };
-    const completed = reduceRuntimeWith(started.state, probe);
-    expect(completed.state.notificationProbeComplete).toBe(true);
-    expect(completed.state.notificationChannels.sound.kind).toBe("unavailable");
-    expect(completed.views).toEqual([]);
-    expect(completed.state.views).toBe(started.state.views);
-    expect(reduceRuntimeWith(completed.state, probe).state).toBe(completed.state);
+  it("P2-A1-PROBE / A8-AC01 acceptance: startup publishes three views and waits for one explicit probe", async () => {
+    const r = await runtime({}, clock, { probe: false });
+    const started = r.root.state;
+    expect(runtimeUnits.map((unit) => started.mirror[unit].view.unit)).toEqual(["U-E", "U-W", "U-F"]);
+    expect(started.notificationProbeComplete).toBe(false);
+    expect(Object.fromEntries(runtimeUnits.map((unit) => [unit, started.mirror[unit].admissionCounts]))).toEqual({
+      "U-E": { normal: 0, training: 0, test: 0 }, "U-W": { normal: 0, training: 0, test: 0 }, "U-F": { normal: 0, training: 0, test: 0 } });
+    const probe = { kind: "notificationProbeCompleted", clock,
+      channels: { desktop: { kind: "idle" }, sound: { kind: "unavailable", reason: "backendMissing" } } } as const;
+    r.root.dispatch(probe);
+    const completed = r.root.state;
+    expect(completed.notificationProbeComplete).toBe(true);
+    expect(completed.notificationChannels.sound.kind).toBe("unavailable");
+    expect(completed.mirror).toBe(started.mirror);
+    r.root.dispatch(probe);
+    expect(r.root.state).toBe(completed);
   });
 
   it("P2-A1-ADMISSION-COUNTS / A8-AC02 contractBoundary: 1 to 2 changes counts without rebuilding views", () => {
@@ -209,58 +296,53 @@ describe("P2 shared runtime", () => {
         : [{ subject: input.material.inputId, operation: "normal", decision: "capacityExceeded",
           rejection: { family: "VXSE43", reportDateTimeMs: 10, affectedScope: "subject" } }],
     }) };
-    const enter = (state: RuntimeState, id: string) => reduceRuntimeWith(state,
-      parserInput({ kind: "decoded", material: { headType: "VXSE43", inputId: id } as DecodedMaterial }), calls);
-    const first = enter(initialState(), "s0");
+    const enter = (state: OwnerState, id: string) => receiveOwner(state,
+      completion({ kind: "decoded", material: { headType: "VXSE43", inputId: id } as DecodedMaterial }), clock, units(calls));
+    const counts = (state: OwnerState, unit: RuntimeUnitId) => unitAdmissionCounts(state.admission, unit);
+    const first = enter(ownerFixture("urgent", initialState()), "s0");
     const second = enter(first.state, "s1");
-    expect(first.admissionCounts["U-E"].normal).toBe(1);
-    expect(second.admissionCounts["U-E"].normal).toBe(2);
+    expect(counts(first.state, "U-E").normal).toBe(1);
+    expect(counts(second.state, "U-E").normal).toBe(2);
+    // No view is rebuilt for a count-only change (the owner sends no view).
     expect(second.views).toEqual([]);
     expect(second.displayChanges).toEqual([]);
-    expect(second.state.views["U-E"]).toBe(first.state.views["U-E"]);
-    expect(second.state.units["U-E"].contentRevision).toBe(first.state.units["U-E"].contentRevision);
+    expect(second.state.units["U-E"]?.contentRevision).toBe(first.state.units["U-E"]?.contentRevision);
     const partlyCleared = enter(second.state, "clear0");
-    expect(partlyCleared.admissionCounts["U-E"].normal).toBe(1);
+    expect(counts(partlyCleared.state, "U-E").normal).toBe(1);
     expect(partlyCleared.views).toEqual([]);
     const cleared = enter(partlyCleared.state, "clear1");
-    expect(cleared.admissionCounts["U-E"].normal).toBe(0);
-    expect(cleared.admissionCounts["U-W"].normal).toBe(0);
-    expect(cleared.admissionCounts["U-F"].normal).toBe(0);
+    expect(counts(cleared.state, "U-E").normal).toBe(0);
+    expect(counts(cleared.state, "U-W").normal).toBe(0);
+    expect(counts(cleared.state, "U-F").normal).toBe(0);
   });
 
-  it("P2-A1-CONFIRMATION / A8-AC11 contractBoundary: disconnect sequence excludes queued evidence", () => {
-    const material = fixture("test/fixtures/37_01_01_240613_VXSE43.xml", "VXSE43");
-    const calls = { ...unitCalls, reduceEewUnit,
-      selectNotificationAttempt: (delivery: NotificationDeliveryState): NotificationSelection => ({
-        state: delivery, attempts: [], abortRequests: [], diagnostics: [] }) };
-    const baseline = initialState();
-    const first = reduceRuntimeWith(baseline, { ...parserInput({ kind: "decoded", material }),
-      clock: at(0) }, calls);
-    const slot = first.state.confirmation.units["U-E"].normal;
+  it("P2-A1-CONFIRMATION / A8-AC11 contractBoundary: disconnect sequence excludes queued evidence", async () => {
+    const r = await runtime({ ...unitCalls, reduceEewUnit, selectNotificationAttempt: noAttempts }, at(0));
+    await r.input("test/fixtures/37_01_01_240613_VXSE43.xml", "VXSE43", "first", at(0), 1);
+    const slot = r.root.state.confirmation.units["U-E"].normal;
     expect(slot.whole).toBe("startup");
     expect(slot.confirmedScopeCount).toBe(1);
     expect(slot.scopes).toHaveLength(1);
-    const lost = reduceRuntimeWith(first.state, { kind: "connectionLost", clock: at(1),
-      acceptedThroughSequence: 2 }, calls);
-    expect(lost.state.confirmation.epoch).toBe(1);
-    expect(lost.state.confirmation.units["U-E"].normal.counts.disconnected).toBe(2);
-    const newer = fixture("test/fixtures/37_01_02_240613_VXSE43.xml", "VXSE43");
-    const queuedInput = parserInput({ kind: "decoded", material: newer });
-    if (queuedInput.completion.kind !== "parser") throw new Error("parser completion expected");
-    const queued = reduceRuntimeWith(lost.state, { ...queuedInput, clock: at(2),
-      completion: { ...queuedInput.completion, inputSequence: 2 } }, calls);
-    expect(queued.state.confirmation.units["U-E"].normal.confirmedScopeCount).toBe(0);
-    expect(queued.state.units["U-E"].current[0].source.inputId).toBe(newer.inputId);
-    expect(queued.state.units["U-E"].current[0].serial).toBeGreaterThan(first.state.units["U-E"].current[0].serial);
-    const staleCoverage = reduceRuntimeWith(queued.state, { kind: "coverageVerified", runId: "other", epoch: 1,
-      scopes: [{ unit: "U-E", operation: "normal", kind: "unit" }], clock: at(3) }, calls);
-    expect(staleCoverage.state.confirmation).toBe(queued.state.confirmation);
-    const verified = reduceRuntimeWith(staleCoverage.state, { kind: "coverageVerified", runId: "run", epoch: 1,
-      scopes: [{ unit: "U-E", operation: "normal", kind: "unit" }], clock: at(4) }, calls);
-    expect(verified.state.confirmation.units["U-E"].normal).toMatchObject({ whole: null, counts: {}, confirmedAt: 1004 });
+    const firstSerial = r.h.unit("U-E").current[0].serial;
+    r.at(at(1));
+    r.root.dispatch({ kind: "connectionLost", clock: at(1), acceptedThroughSequence: 2 });
+    expect(r.root.state.confirmation.epoch).toBe(1);
+    expect(r.root.state.confirmation.units["U-E"].normal.counts.disconnected).toBe(2);
+    r.at(at(2));
+    await r.input("test/fixtures/37_01_02_240613_VXSE43.xml", "VXSE43", "newer", at(2), 2);
+    expect(r.root.state.confirmation.units["U-E"].normal.confirmedScopeCount).toBe(0);
+    expect(r.h.unit("U-E").current[0].source.inputId).toBe("newer");
+    expect(r.h.unit("U-E").current[0].serial).toBeGreaterThan(firstSerial);
+    const queued = r.root.state.confirmation;
+    r.root.dispatch({ kind: "coverageVerified", runId: "other", epoch: 1,
+      scopes: [{ unit: "U-E", operation: "normal", kind: "unit" }], clock: at(3) });
+    expect(r.root.state.confirmation).toBe(queued);
+    r.root.dispatch({ kind: "coverageVerified", runId: "run", epoch: 1,
+      scopes: [{ unit: "U-E", operation: "normal", kind: "unit" }], clock: at(4) });
+    expect(r.root.state.confirmation.units["U-E"].normal).toMatchObject({ whole: null, counts: {}, confirmedAt: 1004 });
   });
 
-  it("P2-A1-CONFIRMATION.startup contractBoundary: a non-suspect freshness record adds no confirmation scope", () => {
+  it("P2-A1-CONFIRMATION.startup contractBoundary: a non-suspect freshness record adds no confirmation scope", async () => {
     const token = JSON.stringify(["VPWW57", "partial", "office", "all", ""]);
     const source = { inputId: "late", origin: "replay" as const, operation: "normal" as const, family: "VPWW57",
       subject: "normal/VPWW57/office", reportDateTimeRaw: "", serialRaw: "", infoTypeRaw: "発表" };
@@ -270,35 +352,34 @@ describe("P2 shared runtime", () => {
         currentSemanticRevision: null, decision: "rejected", reason: "reportDateTimeMissing", revisionOrder: "unknown" as const,
         freshnessSuspect: false, suspectedSource: null, confirmedScope: [],
         clearCondition: "sameTargetScopeAcceptedOrCoverageConfirmed" as const }] };
-    const calls = { ...unitCalls, reduceWeatherCurrentUnit: (unit: WeatherCurrentUnitState, input: WeatherCurrentInput) =>
-      ({ ...unitReply(unit, input), displayChanges: [{ unit: "U-W" as const, operation: "normal" as const,
-        subject: source.subject, before: null, after }] }) };
-    const baseline = initialState();
-    const step = reduceRuntimeWith(baseline, parserInput({ kind: "decoded",
-      material: fixture("test/fixtures/15_16_02_251222_VPWW57.xml", "VPWW57") }), calls);
-    expect(step.state.confirmation.units["U-W"].normal).toBe(baseline.confirmation.units["U-W"].normal);
+    const r = await runtime({ ...unitCalls, reduceWeatherCurrentUnit: (unit: WeatherCurrentUnitState, input: WeatherCurrentInput) =>
+      ({ ...unitReply(unit, input), displayChanges: input.kind !== "receive" ? [] : [{ unit: "U-W" as const, operation: "normal" as const,
+        subject: source.subject, before: null, after }] }) });
+    const baseline = r.root.state.confirmation.units["U-W"].normal;
+    await r.input("test/fixtures/15_16_02_251222_VPWW57.xml", "VPWW57", "late", clock, 1);
+    expect(r.root.state.confirmation.units["U-W"].normal).toBe(baseline);
   });
 
-  it("P2-A1-CONFIRMATION / A8-AC11 contractBoundary: excess scopes fold into a safe whole marker", () => {
+  it("P2-A1-CONFIRMATION / A8-AC11 contractBoundary: excess scopes fold into a safe whole marker", async () => {
     const scopes = Array.from({ length: 513 }, (_, index) => ({ unit: "U-F" as const,
       operation: "normal" as const, kind: "series" as const,
       subject: `normal/VPWP50/office-${index}`, office: `office-${index}` }));
-    const step = reduceRuntimeWith(initialState(), { kind: "coverageVerified", runId: "run", epoch: 0,
-      scopes, clock: at(1) });
-    expect(step.state.confirmation.units["U-F"].normal).toMatchObject({ whole: "scopeCapacity",
+    const r = await runtime();
+    r.root.dispatch({ kind: "coverageVerified", runId: "run", epoch: 0, scopes, clock: at(1) });
+    expect(r.root.state.confirmation.units["U-F"].normal).toMatchObject({ whole: "scopeCapacity",
       counts: { scopeCapacity: 1 }, confirmedScopeCount: 0, scopes: [] });
   });
 
-  it("P2-A1-CONFIRMATION regression: W coverage confirms and compacts only contained scopes", () => {
+  it("P2-A1-CONFIRMATION regression: W coverage confirms and compacts only contained scopes", async () => {
     const area = (office: string, code: string) => ({ unit: "U-W" as const, operation: "normal" as const,
       kind: "area" as const, subject: `normal/VPWW55/${office}`,
       token: JSON.stringify(["VPWW55", "partial", office, code === "" ? "all" : "気象警報・注意報（市町村等）", code]) });
-    const first = reduceRuntimeWith(initialState(), { kind: "coverageVerified", runId: "run", epoch: 0,
+    const r = await runtime();
+    r.root.dispatch({ kind: "coverageVerified", runId: "run", epoch: 0,
       scopes: [area("office", "100"), area("office", "200"), area("other", "100")], clock: at(0) });
-    const lost = reduceRuntimeWith(first.state, { kind: "connectionLost", acceptedThroughSequence: 0, clock: at(1) });
-    const confirmed = reduceRuntimeWith(lost.state, { kind: "coverageVerified", runId: "run", epoch: 1,
-      scopes: [area("office", "")], clock: at(2) });
-    const slot = confirmed.state.confirmation.units["U-W"].normal;
+    r.root.dispatch({ kind: "connectionLost", acceptedThroughSequence: 0, clock: at(1) });
+    r.root.dispatch({ kind: "coverageVerified", runId: "run", epoch: 1, scopes: [area("office", "")], clock: at(2) });
+    const slot = r.root.state.confirmation.units["U-W"].normal;
     expect(slot.scopes).toHaveLength(2);
     expect(slot.scopes.find((item) => item.scope.kind === "area" && item.scope.subject.endsWith("/office")))
       .toMatchObject({ reason: null, confirmedAt: 1002 });
@@ -308,21 +389,24 @@ describe("P2 shared runtime", () => {
     expect(slot.scopeBytes).toBe(Buffer.byteLength(JSON.stringify(slot.scopes)));
   });
 
-  it("P2-A1-CONFIRMATION regression: replacement and disconnect retain the unit byte bound", () => {
+  it("P2-A1-CONFIRMATION regression: replacement and disconnect retain the unit byte bound", async () => {
     const scope = (office: string) => ({ unit: "U-F" as const, operation: "normal" as const,
       kind: "series" as const, subject: `normal/VPWP50/${office}`, office });
     const overhead = Buffer.byteLength(JSON.stringify({ scope: scope(""), reason: null, confirmedAt: 0 }));
     const office = "x".repeat(Math.floor((1_048_576 - 6 - overhead - 4) / 2));
-    const first = reduceRuntimeWith(initialState(), { kind: "coverageVerified", runId: "run", epoch: 0,
-      scopes: [scope(office)], clock: { wallTimeMs: 0, monotonicMs: 0 } });
-    expect(first.state.confirmation.units["U-F"].normal.scopes).toHaveLength(1);
-    const inputs: RuntimeInput[] = [
+    const inputs: PublisherInput[] = [
       { kind: "coverageVerified", runId: "run", epoch: 0, scopes: [scope(office)],
         clock: { wallTimeMs: 9_000_000_000_000_000, monotonicMs: 1 } },
       { kind: "connectionLost", acceptedThroughSequence: 0, clock: at(1) },
     ];
+    // Each input starts from the same first coverage, so each gets its own runtime.
     for (const input of inputs) {
-      const slots = reduceRuntimeWith(first.state, input).state.confirmation.units["U-F"];
+      const r = await runtime();
+      r.root.dispatch({ kind: "coverageVerified", runId: "run", epoch: 0,
+        scopes: [scope(office)], clock: { wallTimeMs: 0, monotonicMs: 0 } });
+      expect(r.root.state.confirmation.units["U-F"].normal.scopes).toHaveLength(1);
+      r.root.dispatch(input);
+      const slots = r.root.state.confirmation.units["U-F"];
       expect(slots.normal).toMatchObject({ whole: "scopeCapacity", scopes: [], counts: { scopeCapacity: 1 } });
       expect(Object.values(slots).reduce((bytes, item) => bytes + item.scopeBytes, 0)).toBeLessThanOrEqual(1_048_576);
     }
@@ -331,42 +415,42 @@ describe("P2 shared runtime", () => {
   // A10 AC15: the stringify count of one receive / one disconnect must not grow with the retained scopes.
   const areaScope = (office: string) => ({ unit: "U-W" as const, operation: "normal" as const, kind: "area" as const,
     subject: `normal/VPWW55/${office}`, token: JSON.stringify(["VPWW55", "partial", office, "all", ""]) });
-  const retainedScopes = (count: number) => reduceRuntimeWith(initialState(), { kind: "coverageVerified", runId: "run",
-    epoch: 0, scopes: Array.from({ length: count }, (_, index) => areaScope(`office-${index}`)), clock: at(0) }).state;
-  const stringifyCalls = (act: () => void) => {
-    const stringify = vi.spyOn(JSON, "stringify");
-    try { act(); return stringify.mock.calls.length; } finally { stringify.mockRestore(); }
+  const retainedScopes = async (count: number, stubs: StubCalls = {}) => {
+    const r = await runtime(stubs);
+    r.root.dispatch({ kind: "coverageVerified", runId: "run", epoch: 0,
+      scopes: Array.from({ length: count }, (_, index) => areaScope(`office-${index}`)), clock: at(0) });
+    return r;
   };
-
-  it("P2-A1-CONFIRMATION regression / A10 AC15: receive evidence serializes the incoming scope, not the retained ones", () => {
-    const material = fixture("test/fixtures/15_16_02_251222_VPWW57.xml", "VPWW57");
+  const stringifyCalls = async (act: () => Promise<void> | void) => {
+    const stringify = vi.spyOn(JSON, "stringify");
+    try { await act(); return stringify.mock.calls.length; } finally { stringify.mockRestore(); }
+  };
+  it("P2-A1-CONFIRMATION regression / A10 AC15: receive evidence serializes the incoming scope, not the retained ones", async () => {
     const calls = { ...unitCalls, reduceWeatherCurrentUnit: (unit: WeatherCurrentUnitState, input: WeatherCurrentInput) =>
-      ({ ...unitReply(unit, input), confirmationEvidence: [{ source: "acceptedReport" as const, scopes: [areaScope("incoming")] }] }) };
-    const count = (retained: number) => {
-      const filled = retainedScopes(retained);
-      let scopes = 0;
-      const serialized = stringifyCalls(() => {
-        scopes = reduceRuntimeWith(filled, parserInput({ kind: "decoded", material }), calls).state.confirmation.units["U-W"].normal.scopes.length;
-      });
-      expect(scopes).toBe(retained + 1);
+      ({ ...unitReply(unit, input), confirmationEvidence: input.kind !== "receive" ? []
+        : [{ source: "acceptedReport" as const, scopes: [areaScope("incoming")] }] }) };
+    const count = async (retained: number) => {
+      const r = await retainedScopes(retained, calls);
+      const input = envelope("run", "VPWW57", "incoming", readFileSync("test/fixtures/15_16_02_251222_VPWW57.xml"), clock, 1);
+      const serialized = await stringifyCalls(() => submit(r.h, input));
+      expect(r.root.state.confirmation.units["U-W"].normal.scopes.length).toBe(retained + 1);
       return serialized;
     };
-    expect(count(400)).toBe(count(200));
+    expect(await count(400)).toBe(await count(200));
   });
 
-  it("P2-A1-CONFIRMATION regression / A10 AC15: a disconnect re-marks retained scopes without serializing them", () => {
-    const count = (retained: number) => {
-      const filled = retainedScopes(retained);
-      let lost = filled;
-      const serialized = stringifyCalls(() => {
-        lost = reduceRuntimeWith(filled, { kind: "connectionLost", acceptedThroughSequence: 0, clock: at(1) }).state;
+  it("P2-A1-CONFIRMATION regression / A10 AC15: a disconnect re-marks retained scopes without serializing them", async () => {
+    const count = async (retained: number) => {
+      const r = await retainedScopes(retained);
+      const serialized = await stringifyCalls(() => {
+        r.root.dispatch({ kind: "connectionLost", acceptedThroughSequence: 0, clock: at(1) });
       });
-      const slot = lost.confirmation.units["U-W"].normal;
+      const slot = r.root.state.confirmation.units["U-W"].normal;
       expect(slot.counts).toEqual({ disconnected: retained + 1 });
       expect(slot.scopeBytes).toBe(Buffer.byteLength(JSON.stringify(slot.scopes)));
       return serialized;
     };
-    expect(count(400)).toBe(count(200));
+    expect(await count(400)).toBe(await count(200));
   });
 
   it("P2-A1-T09 contractBoundary / AC09-10: only a newer established current clears a bounded rejection", () => {
@@ -386,9 +470,9 @@ describe("P2 shared runtime", () => {
         subjects: [{ subject: "s", operation: "normal" as const,
           informationType: "", transition: "active", severity: null, source: null, facts: {}, changedFields: [] }] }),
     };
-    const enter = (previous: RuntimeState, inputId: string) => reduceRuntimeWith(previous,
-      parserInput({ kind: "decoded", material: { headType: "VXSE43", inputId } as DecodedMaterial }), calls);
-    const rejected = enter(initialState(), "reject");
+    const enter = (previous: OwnerState, inputId: string) => receiveOwner(previous,
+      completion({ kind: "decoded", material: { headType: "VXSE43", inputId } as DecodedMaterial }), clock, units(calls));
+    const rejected = enter(ownerFixture("urgent", initialState()), "reject");
     expect(rejected.state.admission["U-E"]?.normal?.records).toMatchObject([{ subject: "s", reportDateTimeMs: 12 }]);
     expect(rejected.views[0]).toMatchObject({ admission: { normal: "capacityExceeded" }, subjects: [] });
     const stale = enter(rejected.state, "old");
@@ -415,8 +499,8 @@ describe("P2 shared runtime", () => {
     const training = { ...normal, subject: "training/VPWP50/office", operation: "training" as const };
     const initial = initialState();
     const unit = { ...initial.units["U-F"], subjects: [normal, training] };
-    const rejected = reduceRuntimeWith({ ...initial, units: { ...initial.units, "U-F": unit } },
-      parserInput({ kind: "decoded", material: { headType: "VPWP50", inputId: "rejected" } as DecodedMaterial }), {
+    const rejected = receiveOwner(ownerFixture("deferred", { ...initial, units: { ...initial.units, "U-F": unit } }),
+      completion({ kind: "decoded", material: { headType: "VPWP50", inputId: "rejected" } as DecodedMaterial }), clock, units({
         reduceWeatherTimeseriesUnit: (state): WeatherTimeseriesUnitStep => ({ state, nextDeadline: null,
           decisions: [{ subject: normal.subject, operation: "normal", decision: "capacityExceeded",
             rejection: { family: "VPWP50", reportDateTimeMs: clock.wallTimeMs, affectedScope: "subject" } }],
@@ -426,7 +510,7 @@ describe("P2 shared runtime", () => {
           subjects: state.subjects.map((item) => ({ subject: item.subject, operation: item.operation,
             informationType: "", transition: item.effective, severity: null, source: item.source,
             facts: { periodCount: item.periods.length }, changedFields: [] })) }),
-      });
+      }));
     expect(rejected.state.units["U-F"]).toBe(unit);
     expect(rejected.generationInputIds).toEqual({});
     expect(rejected.views[0]).toEqual(expect.objectContaining({ admission: { normal: "capacityExceeded" },
@@ -450,9 +534,9 @@ describe("P2 shared runtime", () => {
             reportDateTimeMs: 13, affectedScope: [id === "other" ? other : id === "left" ? left : right] } }];
       return { state: unit, nextDeadline: null, decisions, intents: [], outcomes: [], diagnostics: [], displayChanges: [], confirmationEvidence: [] };
     } };
-    const enter = (state: RuntimeState, inputId: string) => reduceRuntimeWith(state,
-      parserInput({ kind: "decoded", material: { headType: "VPWW55", inputId } as DecodedMaterial }), calls).state;
-    const rejected = enter(initialState(), "reject");
+    const enter = (state: OwnerState, inputId: string) => receiveOwner(state,
+      completion({ kind: "decoded", material: { headType: "VPWW55", inputId } as DecodedMaterial }), clock, units(calls)).state;
+    const rejected = enter(ownerFixture("weatherCurrent", initialState()), "reject");
     expect(enter(rejected, "other").admission["U-W"]?.normal?.records[0].affectedScope).toEqual([left, right]);
     const partial = enter(rejected, "left");
     expect(partial.admission["U-W"]?.normal?.records[0].affectedScope).toEqual([right]);
@@ -473,9 +557,9 @@ describe("P2 shared runtime", () => {
             affectedScope: "subject" } }];
       return { state: unit, nextDeadline: null, decisions, intents: [], outcomes: [], diagnostics: [], displayChanges: [], confirmationEvidence: [] };
     } };
-    const enter = (state: RuntimeState, inputId: string) => reduceRuntimeWith(state,
-      parserInput({ kind: "decoded", material: { headType: "VXSE43", inputId } as DecodedMaterial }), calls).state;
-    const overflowed = enter(initial, "overflow");
+    const enter = (state: OwnerState, inputId: string) => receiveOwner(state,
+      completion({ kind: "decoded", material: { headType: "VXSE43", inputId } as DecodedMaterial }), clock, units(calls)).state;
+    const overflowed = enter(ownerFixture("urgent", initial), "overflow");
     expect(overflowed.admission["U-E"]?.normal).toMatchObject({ overflow: true, records });
     const reduced = enter(overflowed, "clear");
     expect(reduced.admission["U-E"]?.normal).toMatchObject({ overflow: true, records: records.slice(1) });
@@ -483,19 +567,19 @@ describe("P2 shared runtime", () => {
   afterEach(() => vi.restoreAllMocks());
 
   it("P2-A1-T01 acceptance / AC01: saved pre-deadline state has zero work in 1,000 ticks", () => {
+    // AC11(f): measured on each owner's reducer call; notification and shutdown outputs belong to the publisher.
     const inspect = vi.fn();
-    const saved = savedState(inspect);
-    const input = controlInput({ kind: "deadline", clock });
+    const owners = places.map((place) => savedOwner(place, inspect));
+    const linked = units();
     const clone = vi.spyOn(globalThis, "structuredClone");
     const stringify = vi.spyOn(JSON, "stringify");
     const parse = vi.spyOn(JSON, "parse");
-    for (let index = 0; index < 1_000; index += 1) {
-      const step = reduceRuntimeWith(saved, input);
+    for (let index = 0; index < 1_000; index += 1) for (const saved of owners) {
+      const step = deadlineOwner(saved, clock, linked);
       expect(step.state).toBe(saved);
-      expect(step.state.views).toBe(saved.views);
       expect(step.displayChanges).toEqual([]);
-      for (const effects of [step.changedUnits, step.checkpointRequests, step.notificationAttempts, step.abortRequests, step.effects,
-        step.outcomes, step.views, step.diagnostics]) expect(effects).toEqual([]);
+      for (const effects of [step.changedUnits, step.outcomes, step.views, step.diagnostics, step.retiredEvents,
+        step.confirmationEvidence]) expect(effects).toEqual([]);
     }
     expect(inspect).not.toHaveBeenCalled();
     expect(clone).not.toHaveBeenCalled();
@@ -505,46 +589,39 @@ describe("P2 shared runtime", () => {
 
   it("P2-A1-T02 contractBoundary / AC02: runtime input branches never serialize or copy business state", () => {
     const maximum = fixture("test/fixtures/15_18_01_250630_VPWS50.xml", "VPWS50");
+    // AC11(f): measured on the owner's branches; shutdown and notification results are publisher inputs (no unit state).
     const inspect = vi.fn();
-    const saved = savedState(inspect);
-    const inputs = [
-      parserInput({ kind: "decoded", material: valid }),
-      parserInput({ kind: "decoded", material: { ...valid, infoTypeRaw: "取消" } }),
-      parserInput({ kind: "decoded", material: maximum }),
-      parserInput({ kind: "decoded", material: { ...valid, reportDateTimeRaw: "" } }),
-      parserInput({ kind: "rejected", diagnostic: {
+    const owner = (place: ExecutionPlace) => savedOwner(place, inspect);
+    const linked = units(unitCalls);
+    const owners = [
+      ["deferred", (state: OwnerState) => receiveOwner(state, completion({ kind: "decoded", material: valid }), clock, linked)],
+      ["deferred", (state: OwnerState) => receiveOwner(state, completion({ kind: "decoded", material: { ...valid, infoTypeRaw: "取消" } }), clock, linked)],
+      ["weatherCurrent", (state: OwnerState) => receiveOwner(state, completion({ kind: "decoded", material: maximum }), clock, linked)],
+      ["deferred", (state: OwnerState) => receiveOwner(state, completion({ kind: "decoded", material: { ...valid, reportDateTimeRaw: "" } }), clock, linked)],
+      ["deferred", (state: OwnerState) => receiveOwner(state, completion({ kind: "rejected", diagnostic: {
         inputId: "parser-rejected", reason: "xmlInvalid", encodedByteLength: 0,
         expandedByteLength: null, operation: { kind: "undetermined", sources: {} },
-      } }),
-      controlInput({ kind: "deadline", clock }),
-      controlInput({ kind: "checkpointResult", clock, result: {
+      } }), clock, linked)],
+      ...places.map((place) => [place, (state: OwnerState) => deadlineOwner(state, clock, linked)] as const),
+      ["urgent", (state: OwnerState) => checkpointResultOwner(state, {
         kind: "acknowledged", attemptId: "save", unit: "U-E", generation: 1,
         ackAt: clock.wallTimeMs, encodedByteLength: 100,
-      } }),
-      controlInput({ kind: "shutdownRequested", clock, acceptedThroughSequence: 1 }),
-      { kind: "notificationResult", result: {
-        kind: "timeout", stopped: false, attemptId: "notice", intentId: "intent",
-        channel: "sound", completedAt: clock,
-      } },
-    ] satisfies RuntimeInput[];
+      }, linked)],
+    ] as const;
     const stringify = vi.spyOn(JSON, "stringify");
     const parse = vi.spyOn(JSON, "parse");
     const clone = vi.spyOn(globalThis, "structuredClone");
-    // The routed VPWS50 reaches a no-op unit: this measures A1's own branches, not unit admission cost.
-    const steps = inputs.map((input) => reduceRuntimeWith(saved, input, unitCalls));
-    expect(steps.map((step) => step.diagnostics.map((entry) => entry.reason))).toEqual([
-      ["routeNotPorted"], ["routeNotPorted"], [], ["reportDateTimeMissing"], ["xmlInvalid"], [], [], ["shutdownStarted"], [],
-    ]);
-    for (const [index, step] of steps.entries()) {
-      const input = inputs[index];
-      if (input.kind === "mailboxCompleted" && input.completion.kind === "control"
-        && input.completion.control.kind === "shutdownRequested") {
-        expect(step.state.shutdown.stage).toBe("mailboxDrain");
-        expect(step.state.units).toBe(saved.units);
-      } else expect(step.state).toBe(saved);
-      expect(step.checkpointRequests).toEqual([]);
+    // The routed VPWS50 reaches a no-op unit: this measures the owner's own branches, not unit admission cost.
+    const ownerSteps = owners.map(([place, request]) => {
+      const state = owner(place);
+      const step = request(state);
+      expect(step.state).toBe(state);
       expect(step.views).toEqual([]);
-    }
+      return step;
+    });
+    expect(ownerSteps.map((step) => step.diagnostics.map((entry) => entry.reason))).toEqual([
+      ["routeNotPorted"], ["routeNotPorted"], [], ["reportDateTimeMissing"], ["xmlInvalid"], [], [], [], [],
+    ]);
     // Diagnostic string byte accounting is allowed; state serialization is not.
     expect(stringify.mock.calls.every(([value]) => typeof value === "string")).toBe(true);
     expect(inspect).not.toHaveBeenCalled(); // Business-state traversal is forbidden; root copies are unrestricted.
@@ -554,7 +631,7 @@ describe("P2 shared runtime", () => {
 
   it("P2-A1-T03 corpusHistory / AC03: O02:8 and O02:10 reject in fixed priority without state change", () => {
     const inspect = vi.fn();
-    const saved = savedState(inspect);
+    const saved = savedOwner("deferred", inspect);
     const headMissing = fixture("test/fixtures/81_05_01_260605_VPWP50_head_missing.xml", "VPWP50");
     const invalidDate = fixture("test/fixtures/telegram-foundation/invalid-report-datetime.xml", "VXSE51");
     expect(validateSemanticEnvelope(headMissing)).toMatchObject({ kind: "rejected", reason: "headMissing" });
@@ -564,38 +641,42 @@ describe("P2 shared runtime", () => {
     expect(validateSemanticEnvelope({ ...valid, reportDateTimeRaw: "" })).toMatchObject({ kind: "rejected", reason: "reportDateTimeMissing" });
     // O02:8 (VPWP50) is routed to U-F, whose receive owns its runtime rejection (A6 AC01).
     for (const material of [invalidDate]) {
-      const step = reduceRuntimeWith(saved, parserInput({ kind: "decoded", material }));
+      const step = receiveOwner(saved, completion({ kind: "decoded", material }), clock, units());
       expect(step.state).toBe(saved);
       expect(step.changedUnits).toEqual([]);
-      expect(step.notificationAttempts).toEqual([]);
       expect(step.diagnostics).toHaveLength(1);
     }
     expect(inspect).not.toHaveBeenCalled();
   });
 
-  it("P2-A1-T04 contractBoundary: preserves independent state references for three operations", () => {
-    const initial = initialState();
+  it("P2-A1-T04 contractBoundary: preserves independent state references for three operations", async () => {
+    const r = await runtime({ selectNotificationAttempt: noAttempts });
     const notices = (["normal", "training", "test"] as const).map((operation) => intent("U-E", operation));
-    const separated = { ...initial, units: { ...initial.units, "U-E": { ...initial.units["U-E"], intents: notices } } };
-    for (const operation of ["normal", "training", "test"] as const) {
-      const material = { ...valid, operation };
+    await r.seeds.eew(r.h, { ...r.h.unit("U-E"), intents: notices });
+    const xml = readFileSync("test/fixtures/telegram-foundation/phase7_5_VXSE51_20260728162718_059a2b392646.xml", "utf8");
+    for (const [index, operation] of (["normal", "training", "test"] as const).entries()) {
+      const body = Buffer.from(xml.replace("<Status>通常</Status>", `<Status>${STATUS[operation]}</Status>`));
+      const material = materialOf(body, "VXSE51", `operation-${operation}`);
       expect(validateSemanticEnvelope(material)).toMatchObject({ kind: "accepted", envelope: { material: { operation } } });
-      expect(reduceRuntimeWith(separated, { ...parserInput({ kind: "decoded", material }), clock: at(1) }, {
-        selectNotificationAttempt: (delivery) => ({ state: delivery, attempts: [], abortRequests: [], diagnostics: [] }),
-      }).state.units).toBe(separated.units);
+      const eew = r.h.unit("U-E");
+      const mirror = r.root.state.mirror;
+      r.at(at(1));
+      await submit(r.h, envelope("run", "VXSE51", `operation-${operation}`, body, at(1), 10 + index));
+      expect(r.root.state.mirror).toBe(mirror);
+      expect(r.h.unit("U-E")).toBe(eew);
     }
   });
 
   it("B1 contractBoundary: old ack retains the first post-capture monotonic dirty time across the 3s boundary", () => {
     const reading = (ms: number): ClockReading => ({ wallTimeMs: 1_800_000_000_000 + ms, monotonicMs: ms });
     const pending: PersistenceStatus = { ...savedProgress, kind: "pending", currentGeneration: 2, dirtySince: 1 };
-    const initial = freeze(initialState(pending));
+    const initial = freeze(ownerFixture("urgent", initialState(pending)));
     const capture = { unit: "U-E" as const, attemptId: "capture", generation: 2, capturedAt: reading(2).wallTimeMs };
-    let current = reduceRuntimeWith(initial, { kind: "checkpointCaptured", capture }).state;
-    expect(reduceRuntimeWith(initial, { kind: "checkpointCaptured", capture }).state).toEqual(current);
+    let current = capturedOwner(initial, capture, units()).state;
+    expect(capturedOwner(initial, capture, units()).state).toEqual(current);
     expect(current.checkpointAttempts["U-E"]).toEqual({ ...capture, postCaptureDirtySince: null });
-    expect(reduceRuntimeWith(current, { kind: "checkpointCaptured", capture }).state).toBe(current);
-    expect(reduceRuntimeWith(current, { kind: "checkpointCaptured", capture: { ...capture, attemptId: "overlap" } }).state).toBe(current);
+    expect(capturedOwner(current, capture, units()).state).toBe(current);
+    expect(capturedOwner(current, { ...capture, attemptId: "overlap" }, units()).state).toBe(current);
     const calls = { reduceEewUnit: (unit: EewUnitState) => ({
       ...unitReply(unit, { kind: "deadline", clock: reading(5) }),
       state: { ...unit, persistence: { ...unit.persistence, kind: "pending" as const,
@@ -606,36 +687,34 @@ describe("P2 shared runtime", () => {
     const stringify = vi.spyOn(JSON, "stringify");
     const parse = vi.spyOn(JSON, "parse");
     const clone = vi.spyOn(globalThis, "structuredClone");
-    const first = reduceRuntimeWith(freeze(current), controlInput({ kind: "deadline", clock: reading(5) }), calls);
-    current = reduceRuntimeWith(freeze(first.state), controlInput({ kind: "deadline", clock: reading(6) }), calls).state;
+    const first = deadlineOwner(freeze(current), reading(5), units(calls));
+    current = deadlineOwner(freeze(first.state), reading(6), units(calls)).state;
     expect(current.checkpointAttempts["U-E"]?.postCaptureDirtySince).toBe(5);
-    current = reduceRuntimeWith(current, controlInput({ kind: "checkpointResult", clock: reading(7), result: {
+    current = checkpointResultOwner(current, {
       ...capture, kind: "uncertain", observedAt: reading(7).wallTimeMs, stage: "ack", encodedByteLength: 10,
-    } })).state;
-    expect(current.units["U-E"].persistence?.kind).toBe("uncertain");
+    }, units()).state;
+    expect(current.units["U-E"]?.persistence?.kind).toBe("uncertain");
     const ack: CheckpointResult = { ...capture, kind: "acknowledged", ackAt: reading(8).wallTimeMs, encodedByteLength: 10 };
-    expect(reduceRuntimeWith(current, controlInput({ kind: "checkpointResult", clock: reading(8),
-      result: { ...ack, attemptId: "wrong" } })).state).toBe(current);
-    expect(reduceRuntimeWith(current, controlInput({ kind: "checkpointResult", clock: reading(8),
-      result: { ...ack, generation: 3 } })).state).toBe(current);
-    const step = reduceRuntimeWith(freeze(current), controlInput({ kind: "checkpointResult", clock: reading(8), result: ack }));
-    expect(step.state.units["U-E"].persistence).toEqual({ kind: "pending", currentGeneration: 4, savedGeneration: 2,
+    expect(checkpointResultOwner(current, { ...ack, attemptId: "wrong" }, units()).state).toBe(current);
+    expect(checkpointResultOwner(current, { ...ack, generation: 3 }, units()).state).toBe(current);
+    const step = checkpointResultOwner(freeze(current), ack, units());
+    expect(step.state.units["U-E"]?.persistence).toEqual({ kind: "pending", currentGeneration: 4, savedGeneration: 2,
       savedCapturedAt: reading(2).wallTimeMs, savedAckAt: reading(8).wallTimeMs, dirtySince: 5 });
-    const dirtySince = step.state.units["U-E"].persistence!.dirtySince!;
+    const dirtySince = step.state.units["U-E"]!.persistence.dirtySince!;
     // A3 scheduleCheckpoint consumes this timestamp as monotonic milliseconds, not wall time.
     expect(reading(3_005).monotonicMs - dirtySince > 3_000).toBe(false);
     expect(reading(3_006).monotonicMs - dirtySince > 3_000).toBe(true);
     expect(reading(4_005).monotonicMs - dirtySince).toBe(4_000);
     expect(step.state.checkpointAttempts["U-E"]).toBeUndefined();
-    expect(step.state.units["U-E"].current).toBe(initial.units["U-E"].current);
-    expect(step.state.units["U-W"]).toBe(initial.units["U-W"]);
+    expect(step.state.units["U-E"]?.current).toBe(initial.units["U-E"]?.current);
+    // The other units are not in this owner.
+    expect(step.state.units["U-W"]).toBeUndefined();
     expect(step.state).not.toHaveProperty("persistence");
-    expect(reduceRuntimeWith(step.state, controlInput({ kind: "checkpointResult", clock: reading(4_006), result: ack })).state).toBe(step.state);
+    expect(checkpointResultOwner(step.state, ack, units()).state).toBe(step.state);
     const latest = { ...capture, attemptId: "latest", generation: 4, capturedAt: reading(4_007).wallTimeMs };
-    current = reduceRuntimeWith(step.state, { kind: "checkpointCaptured", capture: latest }).state;
-    const saved = reduceRuntimeWith(current, controlInput({ kind: "checkpointResult", clock: reading(4_008),
-      result: { ...ack, ...latest, ackAt: reading(4_008).wallTimeMs } })).state;
-    expect(saved.units["U-E"].persistence).toMatchObject({ kind: "saved", currentGeneration: 4, savedGeneration: 4,
+    current = capturedOwner(step.state, latest, units()).state;
+    const saved = checkpointResultOwner(current, { ...ack, ...latest, ackAt: reading(4_008).wallTimeMs }, units()).state;
+    expect(saved.units["U-E"]?.persistence).toMatchObject({ kind: "saved", currentGeneration: 4, savedGeneration: 4,
       savedCapturedAt: reading(4_007).wallTimeMs, savedAckAt: reading(4_008).wallTimeMs, dirtySince: null });
     expect(stringify).not.toHaveBeenCalled();
     expect(parse).not.toHaveBeenCalled();
@@ -643,33 +722,34 @@ describe("P2 shared runtime", () => {
   });
 
   it("B1 contractBoundary: uncertainty retains correlation; matched encode failure releases it without rollback", () => {
-    const initial = freeze(initialState({ ...savedProgress, kind: "pending", currentGeneration: 2, dirtySince: 100 }));
+    const initial = freeze(ownerFixture("deferred", initialState({ ...savedProgress, kind: "pending", currentGeneration: 2, dirtySince: 100 })));
     const capture = { unit: "U-F" as const, attemptId: "encode", generation: 2, capturedAt: 200 };
-    const captured = reduceRuntimeWith(initial, { kind: "checkpointCaptured", capture }).state;
-    const uncertain = controlInput({ kind: "checkpointResult", clock: at(1), result: {
+    const captured = capturedOwner(initial, capture, units()).state;
+    const uncertain: CheckpointResult = {
       ...capture, kind: "uncertain", stage: "ack", observedAt: 1001, encodedByteLength: 0,
-    } });
-    const held = reduceRuntimeWith(captured, uncertain).state;
-    expect(held.units["U-F"].persistence).toMatchObject({ kind: "uncertain", attemptedGeneration: 2, dirtySince: 100, savedGeneration: 1 });
+    };
+    const held = checkpointResultOwner(captured, uncertain, units()).state;
+    expect(held.units["U-F"]?.persistence).toMatchObject({ kind: "uncertain", attemptedGeneration: 2, dirtySince: 100, savedGeneration: 1 });
     expect(held.checkpointAttempts).toBe(captured.checkpointAttempts);
-    expect(reduceRuntimeWith(held, uncertain).state).toBe(held);
-    const failure = controlInput({ kind: "checkpointResult", clock: at(2), result: {
+    expect(checkpointResultOwner(held, uncertain, units()).state).toBe(held);
+    const failure: CheckpointResult = {
       ...capture, kind: "failed", stage: "verify", failedAt: 1002, reason: "verify rejected", encodedByteLength: 0,
-    } });
-    const failed = reduceRuntimeWith(freeze(held), failure).state;
-    expect(failed.units["U-F"].persistence).toEqual({ ...initial.units["U-F"].persistence, kind: "failed", stage: "verify", reason: "verify rejected" });
+    };
+    const failed = checkpointResultOwner(freeze(held), failure, units()).state;
+    expect(failed.units["U-F"]?.persistence).toEqual({ ...initial.units["U-F"]?.persistence, kind: "failed", stage: "verify", reason: "verify rejected" });
     expect(failed.checkpointAttempts["U-F"]).toBeUndefined();
-    expect(failed.units["U-F"].subjects).toBe(initial.units["U-F"].subjects);
-    expect(failed.units["U-W"]).toBe(initial.units["U-W"]);
-    expect(reduceRuntimeWith(failed, failure).state).toBe(failed);
-    expect(reduceRuntimeWith(initial, failure).state).toBe(initial);
+    expect(failed.units["U-F"]?.subjects).toBe(initial.units["U-F"]?.subjects);
+    // The other units are not in this owner.
+    expect(failed.units["U-W"]).toBeUndefined();
+    expect(checkpointResultOwner(failed, failure, units()).state).toBe(failed);
+    expect(checkpointResultOwner(initial, failure, units()).state).toBe(initial);
     const retry = { ...capture, attemptId: "retry" };
-    const retried = reduceRuntimeWith(failed, { kind: "checkpointCaptured", capture: retry }).state;
+    const retried = capturedOwner(failed, retry, units()).state;
     expect(retried.checkpointAttempts["U-F"]).toEqual({ ...retry, postCaptureDirtySince: null });
-    const encodeFailed = reduceRuntimeWith(retried, controlInput({ kind: "checkpointResult", clock: at(3), result: {
+    const encodeFailed = checkpointResultOwner(retried, {
       ...retry, kind: "failed", stage: "encode", failedAt: 1003, reason: "encode rejected", encodedByteLength: 0,
-    } })).state;
-    expect(encodeFailed.units["U-F"].persistence).toMatchObject({ kind: "failed", stage: "encode", currentGeneration: 2 });
+    }, units()).state;
+    expect(encodeFailed.units["U-F"]?.persistence).toMatchObject({ kind: "failed", stage: "encode", currentGeneration: 2 });
     expect(encodeFailed.checkpointAttempts["U-F"]).toBeUndefined();
   });
 
@@ -691,19 +771,23 @@ describe("P2 shared runtime", () => {
     const toView = vi.fn(() => view);
     const calls = { reduceEewUnit: eew, reduceWeatherCurrentUnit: weather, reduceWeatherTimeseriesUnit: series,
       toWeatherCurrentView: toView };
-    const tick = controlInput({ kind: "deadline", clock: at(10) });
-    const step = reduceRuntimeWith(freeze(pending), tick, calls);
+    // Each owner applies only its own units' due deadlines on its deadline request (P3-C3A-DEADLINES).
+    const frozen = freeze(pending);
+    const [urgent, weatherCurrent, deferred] = places.map((place) =>
+      deadlineOwner(ownerFixture(place, frozen), at(10), units(calls)));
     expect(eew.mock.calls).toEqual([[initial.units["U-E"], { kind: "deadline", clock: at(10) }]]);
     expect(weather.mock.calls).toEqual([[initial.units["U-W"], { kind: "deadline", clock: at(10) }]]);
     expect(series).not.toHaveBeenCalled();
-    expect(step.state.deadlines).toEqual({ ...pending.deadlines, "U-E": null, "U-W": null });
-    expect(step.state.units["U-E"]).toBe(initial.units["U-E"]);
-    expect(step.state.units["U-F"]).toBe(initial.units["U-F"]);
-    expect(step.state.units["U-W"].freshness).toBe(initial.units["U-W"].freshness);
-    expect(step.outcomes[0]).toEqual({ unit: "U-W", outcome });
-    expect(step.views).toEqual([]);
+    expect({ ...urgent.state.deadlines, ...weatherCurrent.state.deadlines, ...deferred.state.deadlines })
+      .toEqual({ ...pending.deadlines, "U-E": null, "U-W": null });
+    expect(urgent.state.units["U-E"]).toBe(initial.units["U-E"]);
+    expect(deferred.state.units["U-F"]).toBe(initial.units["U-F"]);
+    expect(weatherCurrent.state.units["U-W"]?.freshness).toBe(initial.units["U-W"].freshness);
+    expect(weatherCurrent.outcomes[0]).toEqual({ unit: "U-W", outcome });
+    expect([urgent, weatherCurrent, deferred].flatMap((step) => step.views)).toEqual([]);
     expect(toView).not.toHaveBeenCalled();
-    expect(reduceRuntimeWith(step.state, tick, calls).state).toBe(step.state);
+    for (const step of [urgent, weatherCurrent, deferred])
+      expect(deadlineOwner(step.state, at(10), units(calls)).state).toBe(step.state);
     expect(eew).toHaveBeenCalledTimes(1);
   });
 
@@ -715,12 +799,12 @@ describe("P2 shared runtime", () => {
     { name: "worker failure", codes: [0, 4], failure: "workerClose", pendingStage: null },
     { name: "remaining batch outranks save failure", codes: [3, 3], failure: "finalCheckpoint", pendingStage: "sideEffectFinalization" },
   ] as const)("B3 acceptance: $name", ({ codes, failure, pendingStage }) => {
-    const initial = freeze(initialState());
-    const start = controlInput({ kind: "shutdownRequested", clock: at(0), acceptedThroughSequence: 9 });
-    let step = reduceRuntimeWith(initial, start);
-    expect(step.effects).toEqual([{ kind: "stopInputAndDrainMailbox", acceptedThroughSequence: 9, deadlineMonotonicMs: 10_000 }]);
-    expect(step.diagnostics[0]).toMatchObject({ reason: "shutdownStarted", runId: "run", timestamp: 1000 });
-    expect(reduceRuntimeWith(step.state, start).state).toBe(step.state);
+    const initial = freeze(publisherState(initialState()));
+    const requested = requestShutdown(initial, at(0), 9);
+    expect(requested.effects).toEqual([{ kind: "stopInputAndDrainMailbox", acceptedThroughSequence: 9, deadlineMonotonicMs: 10_000 }]);
+    expect(completeDiagnostic(requested.diagnostics[0], at(0), initial.runId))
+      .toMatchObject({ reason: "shutdownStarted", runId: "run", timestamp: 1000 });
+    let state = requested.state;
     const names = ["mailboxDrain", "sideEffectFinalization", "finalCheckpoint", "workerClose"] as const;
     for (const [index, stage] of names.entries()) {
       const pending = { ...noPending };
@@ -734,217 +818,210 @@ describe("P2 shared runtime", () => {
         kind: "shutdownStageResult", stage, result: stage === failure ? { kind: "failed", reason: "fault" } : { kind: "completed" },
         pending, clock: at(100 + index * 100), droppedDiagnostics: { ...dropped, WARN: index },
       };
+      // Every owner was fixed at the cutoff, the clock the stage ended at.
+      const observe = (from: PublisherState, observed: typeof input) => observeStage(from, observed, observed.clock.wallTimeMs, []);
       if (index === 0) {
-        expect(reduceRuntimeWith(step.state, { ...input, stage: "workerClose" }, unitCalls).state).toBe(step.state);
-        expect(() => reduceRuntimeWith(step.state, { ...input, pending: { ...pending, batches: -1 } }, unitCalls)).toThrow(RangeError);
+        expect(observe(state, { ...input, stage: "workerClose" }).state).toBe(state);
+        expect(() => observe(state, { ...input, pending: { ...pending, batches: -1 } })).toThrow(RangeError);
       }
-      const previous = step.state;
-      step = reduceRuntimeWith(freeze(previous), input, unitCalls);
-      expect(step.state.shutdown.stageResults[stage]?.pending).toEqual(pending);
-      expect(reduceRuntimeWith(step.state, input, unitCalls).state).toBe(step.state);
-      expect(Object.keys(step.state.shutdown.stageResults)).toHaveLength(index + 1);
+      const step = observe(freeze(state), input);
+      state = step.state;
+      expect(state.shutdown.stageResults[stage]?.pending).toEqual(pending);
+      expect(observe(state, input).state).toBe(state);
+      expect(Object.keys(state.shutdown.stageResults)).toHaveLength(index + 1);
       if (stage === "mailboxDrain") {
         expect(step.effects).toEqual([{ kind: "finalizeNotificationDelivery", deadlineMonotonicMs: 5100 }]);
       } else if (stage === "sideEffectFinalization") {
-        expect(step.state.shutdown.finalizationAt).toBe(1200);
+        expect(state.shutdown.finalizationAt).toBe(1200);
         expect(step.effects).toEqual([{ kind: "startFinalCheckpoints", units: [], deadlineMonotonicMs: 10200 }]);
       } else if (stage === "finalCheckpoint") {
         expect(step.effects[0]).toMatchObject({ kind: "closeRuntimeWorkers", deadlineMonotonicMs: 5300,
           summary: { code: codes[0], requestedAt: 1000, finalizationAt: 1200, completedAt: 1300,
             acceptedThroughSequence: 9, droppedDiagnostics: { WARN: 2 } } });
       } else {
-        expect(step.state.shutdown.stage).toBe("completed");
-        expect(step.shutdownSummary).toMatchObject({ code: codes[1], completedAt: 1400, droppedDiagnostics: { WARN: 3 } });
-        if (failure != null) expect(step.shutdownSummary?.reasons).toContain(failure + ":failed:fault");
+        expect(state.shutdown.stage).toBe("completed");
+        expect(step.summary).toMatchObject({ code: codes[1], completedAt: 1400, droppedDiagnostics: { WARN: 3 } });
+        if (failure != null) expect(step.summary?.reasons).toContain(failure + ":failed:fault");
       }
-      if (stage !== "workerClose") expect(step.shutdownSummary).toBeNull();
+      if (stage !== "workerClose") expect(step.summary).toBeNull();
     }
     expect(initial.shutdown.stage).toBe("running");
   });
-
   it("B3 contractBoundary: stage timeout is monotonic, bounded by overall deadline, and freezes final generations", () => {
-    let state = initialState({ ...savedProgress, kind: "pending", currentGeneration: 2, dirtySince: 100 });
-    state = reduceRuntimeWith(state, { kind: "checkpointCaptured",
-      capture: { unit: "U-E", attemptId: "late-ack", generation: 2, capturedAt: 500 } }).state;
-    state = reduceRuntimeWith(state, controlInput({ kind: "shutdownRequested", acceptedThroughSequence: 1, clock: at(0) })).state;
+    let state = publisherState(initialState({ ...savedProgress, kind: "pending", currentGeneration: 2, dirtySince: 100 }));
+    state = requestShutdown(state, at(0), 1).state;
+    const all = ["U-E", "U-W", "U-F"] as const;
     const observe = (stage: Extract<RuntimeInput, { kind: "shutdownStageResult" }>["stage"], ms: number,
-      result: ShutdownStageResult = { kind: "completed" }) => reduceRuntimeWith(state, {
+      result: ShutdownStageResult = { kind: "completed" }) => observeStage(state, {
       kind: "shutdownStageResult", stage, result, pending: noPending,
       clock: { wallTimeMs: 1000 - ms, monotonicMs: ms }, droppedDiagnostics: dropped,
-    }, unitCalls);
+    }, null, stage === "mailboxDrain" ? [] : all);
     state = observe("mailboxDrain", 10_000).state; // Equal deadline, even with wall clock moved backwards.
     expect(state.shutdown.deadlines.sideEffectFinalizationMonotonicMs).toBe(15_000);
+    // P3-C3A-FINALIZE-TIMEOUT (A): the stage ended before every earlier reply (U-E's save was in flight), so no
+    // cutoff was decided and no owner is fixed.
     state = observe("sideEffectFinalization", 28_000, { kind: "deadlineExceeded" }).state;
     expect(state.shutdown.deadlines.finalCheckpointMonotonicMs).toBe(30_000);
-    const tickState = { ...state, deadlines: { ...state.deadlines, "U-E": { wallTimeMs: 0, monotonicMs: 0 } } };
-    expect(reduceRuntimeWith(tickState, controlInput({ kind: "deadline", clock: at(29_000) })).state).toBe(tickState);
+    expect(state.shutdown.finalizationAt).toBeNull();
     const close = observe("finalCheckpoint", 29_000);
     expect(close.state.shutdown.stageResults.finalCheckpoint?.pending.unsavedUnits).toBe(3);
     state = close.state;
-    state = reduceRuntimeWith(state, controlInput({ kind: "checkpointResult", clock: at(29_001), result: {
-      kind: "acknowledged", unit: "U-E", attemptId: "late-ack", generation: 2, ackAt: 1500, encodedByteLength: 1,
-    } })).state;
+    // AC11 D4: the save's late acknowledgement only releases the write right; the mirror is not updated.
     const done = observe("workerClose", 29_500);
-    expect(done.shutdownSummary?.code).toBe(3);
-    expect(done.shutdownSummary?.reasons).toEqual([
+    expect(done.summary?.code).toBe(3);
+    expect(done.summary?.reasons).toEqual([
       "mailboxDrain:deadlineExceeded", "sideEffectFinalization:deadlineExceeded", "finalCheckpoint:unsavedUnits",
     ]);
-    expect(done.shutdownSummary?.persistence["U-E"]?.kind).toBe("saved");
-    expect(done.shutdownSummary?.persistence).toEqual({
-      "U-E": done.state.units["U-E"].persistence,
-      "U-W": done.state.units["U-W"].persistence,
-      "U-F": done.state.units["U-F"].persistence,
+    expect(done.summary?.persistence["U-E"]?.kind).toBe("pending");
+    expect(done.summary?.persistence).toEqual({
+      "U-E": done.state.mirror["U-E"].persistence,
+      "U-W": done.state.mirror["U-W"].persistence,
+      "U-F": done.state.mirror["U-F"].persistence,
     });
   });
 
-  it("B4 contractBoundary: selection and result use each owning unit intentUpdate with atomic channel adoption", () => {
+  it("B4 contractBoundary: selection and result use each owning unit intentUpdate with atomic channel adoption", async () => {
     for (const unit of runtimeUnits) {
-      const initial = initialState();
       const notice = intent(unit);
       const selected = attempt(notice);
-      const state = freeze({ ...initial, units: { ...initial.units, [unit]: { ...initial.units[unit], intents: [notice] } } });
-      const tick = controlInput({ kind: "deadline", clock: at(1) });
-      expect(() => reduceRuntimeWith(state, tick, unitCalls)).toThrow("A7 selection is not linked");
-      const selection = vi.fn((delivery: NotificationDeliveryState) => ({
-        state: { channels: { ...delivery.channels, desktop: { kind: "running" as const, attempt: selected } },
-          intents: delivery.intents.map((value) => ({ ...value, attempts: 1, nextAttemptAt: 2000 })), deadlines: delivery.deadlines },
-        attempts: [selected], abortRequests: [], diagnostics: [],
-      }));
-      const step = reduceRuntimeWith(state, tick, { ...unitCalls, reduceEewUnit, selectNotificationAttempt: selection });
-      expect(selection.mock.calls[0][0].channels).toBe(state.notificationChannels);
-      expect(step.state.units[unit].intents[0]).toMatchObject({ attempts: 1, nextAttemptAt: 2000, disposition: "pending" });
-      expect(step.state.units[unit].persistence).toMatchObject({ kind: "pending", currentGeneration: 2 });
-      expect(step.notificationAttempts).toEqual([selected]);
-      expect(step.state.notificationChannels.sound).toBe(state.notificationChannels.sound);
-      for (const other of runtimeUnits.filter((candidate) => candidate !== unit)) expect(step.state.units[other]).toBe(state.units[other]);
+      // Without A7 a pending intent cannot be selected.
+      const bare = await runtime(unitCalls, at(1));
+      await expect(seedIntents(bare, unit, [notice])).rejects.toThrow("A7 selection is not linked");
+      const selection = vi.fn((delivery: NotificationDeliveryState) => delivery.channels.desktop.kind !== "idle"
+        || delivery.intents.length === 0 ? noAttempts(delivery) : {
+          state: { channels: { ...delivery.channels, desktop: { kind: "running" as const, attempt: selected } },
+            intents: delivery.intents.map((value) => ({ ...value, attempts: 1, nextAttemptAt: 2000 })), deadlines: delivery.deadlines },
+          attempts: [selected], abortRequests: [], diagnostics: [],
+        });
       const result: NotificationResult = { kind: "delivered", attemptId: selected.attemptId, intentId: notice.id,
         channel: "desktop", completedAt: at(2) };
-      const apply = vi.fn((delivery: Parameters<typeof selection>[0], actual: NotificationResult, reading: ClockReading) => {
+      const apply = vi.fn((delivery: NotificationDeliveryState, actual: NotificationResult, reading: ClockReading) => {
         expect(actual).toBe(result);
         expect(reading).toBe(result.completedAt);
         return { state: { channels: { ...delivery.channels, desktop: { kind: "idle" as const } },
           intents: delivery.intents.map((value) => ({ ...value, disposition: "delivered" as const })), deadlines: delivery.deadlines },
           diagnostics: [] };
       });
-      const done = reduceRuntimeWith(freeze(step.state), { kind: "notificationResult", result }, {
-        ...unitCalls, reduceEewUnit, applyNotificationResult: apply,
-        selectNotificationAttempt: (delivery) => ({ state: delivery, attempts: [], abortRequests: [], diagnostics: [] }),
-      });
+      const r = await runtime({ ...unitCalls, reduceEewUnit, selectNotificationAttempt: selection, applyNotificationResult: apply }, at(1));
+      const others = runtimeUnits.filter((candidate) => candidate !== unit).map((candidate) => r.h.unit(candidate));
+      await seedIntents(r, unit, [notice]);
+      expect(selection.mock.calls[0][0].channels).toEqual(idleChannels);
+      expect(r.h.unit(unit).intents[0]).toMatchObject({ attempts: 1, nextAttemptAt: 2000, disposition: "pending" });
+      expect(r.h.unit(unit).persistence).toMatchObject({ kind: "pending", currentGeneration: 2 });
+      // AC11(d): the attempt starts once the owner adopted the reservation's update.
+      expect(r.notices.runs.map((run) => run.attempt)).toEqual([selected]);
+      expect(r.root.state.notificationChannels.sound).toEqual({ kind: "idle" });
+      expect(runtimeUnits.filter((candidate) => candidate !== unit).map((candidate) => r.h.unit(candidate))).toEqual(others);
+      r.at(at(2));
+      r.notices.finish(result);
+      await r.h.settle();
       if (unit === "U-E") {
-        expect(done.state.units[unit].intents).toEqual([]);
-        expect(done.state.units[unit].deliveryRecords).toContainEqual({ intentId: notice.id, disposition: "delivered", expiresAt: 5000 });
-        const late = reduceRuntimeWith(step.state, { kind: "notificationResult", result: {
-          kind: "timeout", stopped: true, attemptId: selected.attemptId, intentId: notice.id,
-          channel: "desktop", completedAt: at(4000),
-        } }, {
-          ...unitCalls, reduceEewUnit,
+        expect(r.h.unit("U-E").intents).toEqual([]);
+        expect(r.h.unit("U-E").deliveryRecords).toContainEqual({ intentId: notice.id, disposition: "delivered", expiresAt: 5000 });
+        // A late timeout at the wall deadline: the record is reclaimed with the expiry.
+        const late = await runtime({ ...unitCalls, reduceEewUnit, selectNotificationAttempt: vi.fn(selection.getMockImplementation()!),
           applyNotificationResult: (delivery) => ({ state: { ...delivery,
             channels: { ...delivery.channels, desktop: { kind: "idle" } },
-            intents: delivery.intents.map((value) => ({ ...value, disposition: "expired" })) }, diagnostics: [] }),
-          selectNotificationAttempt: (delivery) => ({ state: delivery, attempts: [], abortRequests: [], diagnostics: [] }),
-        });
-        expect(late.state.units[unit].intents).toEqual([]);
-        expect(late.state.units[unit].deliveryRecords).toEqual([]);
-        expect(late.state.units[unit].persistence.currentGeneration).toBe(3);
-        expect(late.state.notificationChannels.desktop.kind).toBe("idle");
-      } else expect(done.state.units[unit].intents[0]).toMatchObject({ disposition: "delivered", attempts: 1, expiresAt: 5000 });
-      expect(done.state.units[unit].persistence?.currentGeneration).toBe(3);
-      expect(done.state.notificationChannels.desktop.kind).toBe("idle");
-      expect(reduceRuntimeWith(done.state, { kind: "notificationResult", result }).state).toBe(done.state);
+            intents: delivery.intents.map((value) => ({ ...value, disposition: "expired" })) }, diagnostics: [] }) }, at(1));
+        await seedIntents(late, unit, [notice]);
+        late.at(at(4000));
+        late.notices.finish({ kind: "timeout", stopped: true, attemptId: selected.attemptId, intentId: notice.id,
+          channel: "desktop", completedAt: at(4000) });
+        await late.h.settle();
+        expect(late.h.unit("U-E").intents).toEqual([]);
+        expect(late.h.unit("U-E").deliveryRecords).toEqual([]);
+        expect(late.h.unit("U-E").persistence.currentGeneration).toBe(3);
+        expect(late.root.state.notificationChannels.desktop.kind).toBe("idle");
+      } else expect(r.h.unit(unit).intents[0]).toMatchObject({ disposition: "delivered", attempts: 1, expiresAt: 5000 });
+      expect(r.h.unit(unit).persistence.currentGeneration).toBe(3);
+      expect(r.root.state.notificationChannels.desktop.kind).toBe("idle");
+      expect(apply).toHaveBeenCalledTimes(1);
     }
   });
 
-  it("P2-A1-T12 regression / AC11: monotonic expiry without an attempt reaches U-E terminal records", () => {
+  it("P2-A1-T12 regression / AC11: monotonic expiry without an attempt reaches U-E terminal records", async () => {
     const material = fixture("test/fixtures/37_01_01_240613_VXSE43.xml", "VXSE43");
-    const baseline = initialState();
-    const received = reduceEewUnit(baseline.units["U-E"], { kind: "receive", material, clock: at(0) });
-    const initial = { ...baseline, units: { ...baseline.units, "U-E": received.state } };
-    const seeded = reduceRuntimeWith(initial, controlInput({ kind: "deadline", clock: at(0) }), {
-      ...unitCalls, reduceEewUnit,
-      selectNotificationAttempt: (delivery) => ({ state: delivery, attempts: [], abortRequests: [], diagnostics: [] }),
-    });
-    expect(Object.keys(seeded.state.notificationDeadlines.desktop)).toHaveLength(1);
+    const received = reduceEewUnit(initialState().units["U-E"], { kind: "receive", material, clock: at(0) });
+    const r = await runtime({ ...unitCalls, reduceEewUnit, selectNotificationAttempt: noAttempts }, at(0));
+    await r.seeds.eew(r.h, received.state, received.nextDeadline);
+    expect(Object.keys(r.root.state.notificationDeadlines.desktop)).toHaveLength(1);
     const rewound = { wallTimeMs: 900, monotonicMs: 15_001 };
-    const expired = reduceRuntimeWith(seeded.state, controlInput({ kind: "deadline", clock: rewound }), {
-      ...unitCalls, reduceEewUnit,
-      selectNotificationAttempt: (delivery) => ({ state: { ...delivery,
-        intents: delivery.intents.map((value) => ({ ...value, disposition: "expired" as const })),
-        deadlines: { desktop: {}, sound: {} } }, attempts: [], abortRequests: [], diagnostics: [] }),
-    });
-    expect(expired.notificationAttempts).toEqual([]);
-    expect(expired.state.units["U-E"].intents).toEqual([]);
-    expect(expired.state.units["U-E"].deliveryRecords).toEqual(received.intents.map((item) => ({
+    r.at(rewound);
+    r.root.tick(rewound);
+    await r.h.settle();
+    expect(r.notices.runs).toEqual([]);
+    expect(r.h.unit("U-E").intents).toEqual([]);
+    expect(r.h.unit("U-E").deliveryRecords).toEqual(received.intents.map((item) => ({
       intentId: item.id, disposition: "expired", expiresAt: item.expiresAt,
     })));
-    expect(expired.generationInputIds).toEqual({ "U-E": [] });
   });
 
-  it("P2-A1-T12 contractBoundary / TIME: reclaims 128 monotonic-expired intents before receiving a new event", () => {
-    const initial = initialState();
-    const occupied = { ...initial, units: { ...initial.units, "U-E": { ...initial.units["U-E"],
-      intents: Array.from({ length: 128 }, (_, index) => ({ ...intent("U-E"), id: `occupied-${index}`, expiresAt: 16_000 })) } } };
-    const seeded = reduceRuntimeWith(occupied, controlInput({ kind: "deadline", clock: at(0) }), {
-      ...unitCalls, reduceEewUnit,
-      selectNotificationAttempt: (delivery) => ({ state: delivery, attempts: [], abortRequests: [], diagnostics: [] }),
-    });
-    const selection = vi.fn((delivery: NotificationDeliveryState) => ({ state: delivery,
-      attempts: [], abortRequests: [], diagnostics: [] }));
+  it("P2-A1-T12 contractBoundary / TIME: reclaims 128 monotonic-expired intents before receiving a new event", async () => {
     const owner = vi.fn(reduceEewUnit);
-    const material = fixture("test/fixtures/37_01_01_240613_VXSE43.xml", "VXSE43");
-    const received = reduceRuntimeWith(seeded.state, { ...parserInput({ kind: "decoded", material }),
-      clock: { wallTimeMs: 900, monotonicMs: 15_000 } }, { ...unitCalls, reduceEewUnit: owner, selectNotificationAttempt: selection });
-    const update = owner.mock.calls[0][1];
-    if (update.kind !== "intentUpdate" || "id" in update.intentUpdate) throw new Error("batch expiry expected");
+    const selection = vi.fn(noAttempts);
+    const r = await runtime({ ...unitCalls, reduceEewUnit: owner, selectNotificationAttempt: selection }, at(0));
+    await seedIntents(r, "U-E", Array.from({ length: 128 }, (_, index) => ({ ...intent("U-E"), id: `occupied-${index}`, expiresAt: 16_000 })));
+    owner.mockClear();
+    selection.mockClear();
+    const late = { wallTimeMs: 900, monotonicMs: 15_000 };
+    r.at(late);
+    await r.input("test/fixtures/37_01_01_240613_VXSE43.xml", "VXSE43", "event", late, 1);
+    // AC11(c) as extended by D3: the receive is not preceded by the publisher's expiry; the next tick reclaims.
+    expect(owner.mock.calls[0][1].kind).toBe("receive");
+    r.root.tick(late);
+    await r.h.settle();
+    const update = owner.mock.calls.map(([, input]) => input).find((input) => input.kind === "intentUpdate");
+    if (update?.kind !== "intentUpdate" || "id" in update.intentUpdate) throw new Error("batch expiry expected");
     expect(update.intentUpdate).toHaveLength(128);
     expect(update.intentUpdate.every((item) => item.disposition === "expired")).toBe(true);
-    expect(owner.mock.calls[1][1].kind).toBe("receive");
-    expect(selection).toHaveBeenCalledTimes(1);
-    expect(selection.mock.calls[0][0].intents).toHaveLength(2);
-    expect(received.state.units["U-E"].intents.map((value) => value.channel)).toEqual(["desktop", "sound"]);
-    expect(received.state.units["U-E"].deliveryRecords).toHaveLength(128);
-    expect(received.state.units["U-E"].notificationLatches[0].firstReportNotified).toBe(true);
-    expect(received.generationInputIds).toEqual({ "U-E": [material.inputId] });
+    // AC11 D3: the receive met a full intent capacity (wall clock behind, only monotonic expiry), so the new event made no
+    // intent; the tick reclaimed the 128 afterwards.
+    expect(r.h.unit("U-E").intents).toEqual([]);
+    expect(r.h.unit("U-E").current).toHaveLength(1);
+    expect(r.h.unit("U-E").deliveryRecords).toHaveLength(128);
+    expect(r.h.unit("U-E").notificationLatches[0].firstReportNotified).toBe(false);
   });
 
-  it("P2-A1-T12 regression / TIME: monotonic expiry stops a running attempt with expired before reclaiming its deadline", () => {
+  it("P2-A1-T12 regression / TIME: monotonic expiry stops a running attempt with expired before reclaiming its deadline", async () => {
     const select = vi.fn((delivery: NotificationDeliveryState): NotificationSelection => {
-      if (delivery.channels.desktop.kind === "stopping") return { state: delivery, attempts: [], abortRequests: [], diagnostics: [] };
-      const notice = delivery.intents.find((value) => value.channel === "desktop" && value.disposition === "pending");
-      if (delivery.channels.desktop.kind !== "idle" || notice == null) throw new Error("expiry cause was lost before A7 selection");
+      if (delivery.channels.desktop.kind !== "idle") return noAttempts(delivery);
+      const notice = delivery.intents.find((value) => value.channel === "desktop" && value.disposition === "pending" && value.attempts === 0);
+      if (notice == null) return noAttempts(delivery);
       const selected = attempt(notice);
       return { state: { ...delivery, channels: { ...delivery.channels, desktop: { kind: "running", attempt: selected } },
         intents: delivery.intents.map((value) => value === notice ? { ...value, attempts: 1 } : value) },
         attempts: [selected], abortRequests: [], diagnostics: [] };
     });
-    const calls = { ...unitCalls, reduceEewUnit, selectNotificationAttempt: select };
-    const received = reduceRuntimeWith(initialState(), { ...parserInput({ kind: "decoded",
-      material: fixture("test/fixtures/37_01_01_240613_VXSE43.xml", "VXSE43") }), clock: at(0) }, calls);
-    const active = received.notificationAttempts[0];
+    const r = await runtime({ ...unitCalls, reduceEewUnit, selectNotificationAttempt: select }, at(0));
+    await r.input("test/fixtures/37_01_01_240613_VXSE43.xml", "VXSE43", "first", at(0), 1);
+    const active = r.notices.runs[0].attempt;
     const key = JSON.stringify(["U-E", active.intentId]);
-    expect(received.state.notificationDeadlines.desktop[key]?.expiresAtMonotonicMs).toBe(15_000);
-    const expired = reduceRuntimeWith(received.state, { ...parserInput({ kind: "decoded",
-      material: fixture("test/fixtures/37_01_02_240613_VXSE43.xml", "VXSE43") }),
-      clock: { wallTimeMs: 900, monotonicMs: 15_000 } }, calls);
-    expect(expired.abortRequests).toEqual([{ attemptId: active.attemptId, cause: "expired" }]);
-    expect(expired.state.notificationChannels.desktop).toEqual({ kind: "stopping", attempt: active,
-      cause: "expired", stopByMonotonicMs: 16_000 });
-    const followups = expired.state.units["U-E"].intents;
+    expect(r.root.state.notificationDeadlines.desktop[key]?.expiresAtMonotonicMs).toBe(15_000);
+    const late = { wallTimeMs: 900, monotonicMs: 15_000 };
+    r.at(late);
+    await r.input("test/fixtures/37_01_02_240613_VXSE43.xml", "VXSE43", "followup", late, 2);
+    // AC11 D3: the follow-up is applied before any publisher expiry, so the old intents end superseded (not expired) and
+    // the publisher's expiry no longer sees them; this A7 double leaves the running channel alone.
+    expect(r.notices.aborts).toEqual([]);
+    expect(r.root.state.notificationChannels.desktop).toEqual({ kind: "running", attempt: active });
+    expect(r.root.state.notificationDeadlines.desktop[key]).toBeUndefined();
+    expect(r.h.unit("U-E").deliveryRecords).toHaveLength(2);
+    expect(r.h.unit("U-E").deliveryRecords.every((record) => record.disposition === "superseded")).toBe(true);
+    const followups = r.h.unit("U-E").intents;
     expect(followups.map((notice) => notice.channel)).toEqual(["desktop", "sound"]);
     for (const notice of followups) {
       expect(notice.payload).toMatchObject({ level: "critical", title: "緊急地震速報（警報）" });
       expect(notice.payload.body).toMatch(/^続報: /);
       expect(notice).toMatchObject({ attempts: 0, createdAt: 900, expiresAt: 15_900 });
-      expect(expired.state.notificationDeadlines[notice.channel]).toEqual({
+      expect(r.root.state.notificationDeadlines[notice.channel]).toEqual({
         [JSON.stringify(["U-E", notice.id])]: { retryAtMonotonicMs: 15_000, expiresAtMonotonicMs: 30_000 },
       });
     }
-    expect(expired.state.notificationDeadlines.desktop[key]).toBeUndefined();
-    expect(expired.state.units["U-E"].deliveryRecords).toHaveLength(2);
-    expect(expired.state.units["U-E"].deliveryRecords.every((record) => record.disposition === "expired")).toBe(true);
-    expect(expired.notificationAttempts).toEqual([]);
-    expect(select.mock.calls[1][0].channels.desktop).toEqual(expired.state.notificationChannels.desktop);
-    expect(select.mock.calls[1][0].deadlines).toEqual(expired.state.notificationDeadlines);
-    expect(select.mock.calls[1][0].intents).toEqual(followups);
+    expect(r.notices.runs).toHaveLength(1);
+    const last = select.mock.calls.at(-1)![0];
+    expect(last.channels.desktop).toEqual(r.root.state.notificationChannels.desktop);
+    expect(last.deadlines).toEqual(r.root.state.notificationDeadlines);
+    expect(last.intents).toEqual(followups);
   });
 
   it("P2-A1-AC10 regression / R45: a non-notifying follow-up does not own terminal-record reclamation", () => {
@@ -964,15 +1041,15 @@ describe("P2 shared runtime", () => {
     if (entered.kind !== "accepted") throw new Error("invalid synthetic follow-up");
     const decoded = decodeMaterial(entered.item);
     if (decoded.kind !== "decoded") throw new Error("invalid synthetic follow-up");
-    const continued = reduceRuntimeWith(state, { ...parserInput(decoded), clock: at(15_000) }, { ...unitCalls, reduceEewUnit });
-    expect(continued.state.units["U-E"].persistence.currentGeneration).toBe(before + 1);
-    expect(continued.state.units["U-E"].deliveryRecords).toEqual([]);
-    expect(continued.state.units["U-E"].intents).toEqual([]);
-    expect(continued.state.units["U-E"].current[0].serial).toBe(2);
+    const continued = receiveOwner(ownerFixture("urgent", state), completion(decoded), at(15_000), units());
+    expect(continued.state.units["U-E"]?.persistence.currentGeneration).toBe(before + 1);
+    expect(continued.state.units["U-E"]?.deliveryRecords).toEqual([]);
+    expect(continued.state.units["U-E"]?.intents).toEqual([]);
+    expect(continued.state.units["U-E"]?.current[0].serial).toBe(2);
     expect(continued.generationInputIds).toEqual({ "U-E": [] });
   });
 
-  it("P2-A1-T12 contractBoundary / AC11 R35 R36: hazard increase stops the old attempt and cancellation follows delivery evidence", () => {
+  it("P2-A1-T12 contractBoundary / AC11 R35 R36: hazard increase stops the old attempt and cancellation follows delivery evidence", async () => {
     const select = vi.fn((delivery: NotificationDeliveryState, reading: ClockReading): NotificationSelection => {
       const channel = delivery.channels.desktop;
       if (channel.kind === "running") {
@@ -1006,144 +1083,132 @@ describe("P2 shared runtime", () => {
         deadlines: retry ? { ...delivery.deadlines, desktop: { ...delivery.deadlines.desktop,
           [key]: { ...delivery.deadlines.desktop[key]!, retryAtMonotonicMs: reading.monotonicMs + 1_000 } } } : delivery.deadlines }, diagnostics: [] };
     };
-    const calls = { ...unitCalls, reduceEewUnit, selectNotificationAttempt: select, applyNotificationResult: apply };
-    const first = fixture("test/fixtures/37_01_01_240613_VXSE43.xml", "VXSE43");
-    const received = reduceRuntimeWith(initialState(), { ...parserInput({ kind: "decoded", material: first }), clock: at(0) }, calls);
-    const active = received.notificationAttempts[0];
-    expect(received.notificationAttempts).toHaveLength(1);
+    const r = await runtime({ ...unitCalls, reduceEewUnit, selectNotificationAttempt: select, applyNotificationResult: apply }, at(0));
+    await r.input("test/fixtures/37_01_01_240613_VXSE43.xml", "VXSE43", "first", at(0), 1);
+    expect(r.notices.runs).toHaveLength(1);
+    const active = r.notices.runs[0].attempt;
     const key = JSON.stringify(["U-E", active.intentId]);
-    const continued = reduceRuntimeWith(received.state, { ...parserInput({ kind: "decoded",
-      material: fixture("test/fixtures/37_01_02_240613_VXSE43.xml", "VXSE43") }), clock: at(1) }, calls);
-    expect(continued.state.notificationDeadlines.desktop[key]).toBeUndefined();
-    expect(continued.abortRequests).toEqual([{ attemptId: active.attemptId, cause: "superseded" }]);
-    expect(continued.notificationAttempts).toEqual([]);
-    expect(continued.state.units["U-E"].notificationLatches[0].deliveryEvidence).toBe("possible");
-    const followups = continued.state.units["U-E"].intents;
+    r.at(at(1));
+    await r.input("test/fixtures/37_01_02_240613_VXSE43.xml", "VXSE43", "second", at(1), 2);
+    expect(r.root.state.notificationDeadlines.desktop[key]).toBeUndefined();
+    expect(r.notices.aborts).toEqual([active.attemptId]);
+    expect(r.notices.runs).toHaveLength(1);
+    expect(r.h.unit("U-E").notificationLatches[0].deliveryEvidence).toBe("possible");
+    const followups = r.h.unit("U-E").intents;
     expect(followups).toHaveLength(2);
     for (const notice of followups) expect(notice.payload.body).toMatch(/^続報: /);
-    const cancelled = reduceRuntimeWith(continued.state, { ...parserInput({ kind: "decoded",
-      material: fixture("test/fixtures/37_01_03_240613_VXSE43.xml", "VXSE43") }), clock: at(2) }, calls);
-    expect(select).toHaveBeenCalledTimes(3);
-    expect(cancelled.abortRequests).toEqual([]);
-    expect(cancelled.notificationAttempts).toEqual([]);
-    expect(cancelled.state.units["U-E"].intents).toHaveLength(2);
-    expect(cancelled.state.units["U-E"].intents.every((notice) => notice.payload.level === "cancel")).toBe(true);
-    expect(cancelled.state.units["U-E"].deliveryRecords).toContainEqual({ intentId: active.intentId,
+    r.at(at(2));
+    await r.input("test/fixtures/37_01_03_240613_VXSE43.xml", "VXSE43", "third", at(2), 3);
+    expect(r.notices.aborts).toEqual([active.attemptId]);
+    expect(r.notices.runs).toHaveLength(1);
+    expect(r.h.unit("U-E").intents).toHaveLength(2);
+    expect(r.h.unit("U-E").intents.every((notice) => notice.payload.level === "cancel")).toBe(true);
+    expect(r.h.unit("U-E").deliveryRecords).toContainEqual({ intentId: active.intentId,
       disposition: "superseded", expiresAt: active.expiresAt });
-    for (const notice of followups) expect(cancelled.state.units["U-E"].deliveryRecords).toContainEqual({
+    for (const notice of followups) expect(r.h.unit("U-E").deliveryRecords).toContainEqual({
       intentId: notice.id, disposition: "superseded", expiresAt: notice.expiresAt,
     });
-    const stopped = reduceRuntimeWith(cancelled.state, { kind: "notificationResult", result: { kind: "aborted", stopped: true,
-      reason: "superseded", attemptId: active.attemptId, intentId: active.intentId, channel: "desktop", completedAt: at(3) } }, calls);
-    const replacement = stopped.notificationAttempts[0];
-    expect(stopped.notificationAttempts).toHaveLength(1);
+    r.at(at(3));
+    r.notices.finish({ kind: "aborted", stopped: true, reason: "superseded", attemptId: active.attemptId,
+      intentId: active.intentId, channel: "desktop", completedAt: at(3) });
+    await r.h.settle();
+    expect(r.notices.runs).toHaveLength(2);
+    const replacement = r.notices.runs[1].attempt;
     expect(replacement.intentId).not.toBe(active.intentId);
     const replacementKey = JSON.stringify(["U-E", replacement.intentId]);
-    const expires = stopped.state.notificationDeadlines.desktop[replacementKey]!.expiresAtMonotonicMs;
-    const timedOut = reduceRuntimeWith(stopped.state, controlInput({ kind: "deadline", clock: at(5_003) }), calls);
-    expect(timedOut.abortRequests).toEqual([{ attemptId: replacement.attemptId, cause: "timeout" }]);
-    const retry = reduceRuntimeWith(timedOut.state, { kind: "notificationResult", result: { kind: "timeout", stopped: true,
-      attemptId: replacement.attemptId, intentId: replacement.intentId, channel: "desktop", completedAt: at(5_004) } }, calls);
-    expect(retry.notificationAttempts).toEqual([]);
-    expect(retry.state.notificationChannels.desktop.kind).toBe("idle");
-    expect(retry.state.notificationDeadlines.desktop[replacementKey]).toEqual({ retryAtMonotonicMs: 6_004, expiresAtMonotonicMs: expires });
+    const expires = r.root.state.notificationDeadlines.desktop[replacementKey]!.expiresAtMonotonicMs;
+    r.at(at(5_003));
+    r.root.tick(at(5_003));
+    await r.h.settle();
+    expect(r.notices.aborts).toEqual([active.attemptId, replacement.attemptId]);
+    r.at(at(5_004));
+    r.notices.finish({ kind: "timeout", stopped: true, attemptId: replacement.attemptId, intentId: replacement.intentId,
+      channel: "desktop", completedAt: at(5_004) });
+    await r.h.settle();
+    expect(r.notices.runs).toHaveLength(2);
+    expect(r.root.state.notificationChannels.desktop.kind).toBe("idle");
+    expect(r.root.state.notificationDeadlines.desktop[replacementKey]).toEqual({ retryAtMonotonicMs: 6_004, expiresAtMonotonicMs: expires });
 
     // R35: the same reports remain silent on cancellation when A1 never selected an attempt.
-    const waitingCalls = { ...unitCalls, reduceEewUnit,
-      selectNotificationAttempt: (delivery: NotificationDeliveryState): NotificationSelection => ({
-        state: delivery, attempts: [], abortRequests: [], diagnostics: [],
-      }) };
-    let waiting = initialState();
+    const waiting = await runtime({ ...unitCalls, reduceEewUnit, selectNotificationAttempt: noAttempts }, at(0));
     for (const [index, file] of ["37_01_01", "37_01_02", "37_01_03"].entries()) {
-      const step = reduceRuntimeWith(waiting, { ...parserInput({ kind: "decoded",
-        material: fixture(`test/fixtures/${file}_240613_VXSE43.xml`, "VXSE43") }), clock: at(index) }, waitingCalls);
-      expect(step.notificationAttempts).toEqual([]);
-      expect(step.state.units["U-E"].notificationLatches[0].deliveryEvidence).toBe("unattempted");
-      expect(step.state.units["U-E"].intents).toHaveLength(index === 2 ? 0 : 2);
-      if (index === 1) expect(step.state.units["U-E"].intents[0].payload.body).toMatch(/^続報: /);
-      waiting = step.state;
+      waiting.at(at(index));
+      await waiting.input(`test/fixtures/${file}_240613_VXSE43.xml`, "VXSE43", `waiting-${index}`, at(index), index + 1);
+      expect(waiting.notices.runs).toEqual([]);
+      expect(waiting.h.unit("U-E").notificationLatches[0].deliveryEvidence).toBe("unattempted");
+      expect(waiting.h.unit("U-E").intents).toHaveLength(index === 2 ? 0 : 2);
+      if (index === 1) expect(waiting.h.unit("U-E").intents[0].payload.body).toMatch(/^続報: /);
     }
-    expect(waiting.units["U-E"].current).toEqual([]);
-    expect(waiting.units["U-E"].deliveryRecords).toHaveLength(4);
-    expect(waiting.units["U-E"].deliveryRecords.every((record) => record.disposition === "superseded")).toBe(true);
-    expect(waiting.notificationDeadlines).toEqual({ desktop: {}, sound: {} });
+    expect(waiting.h.unit("U-E").current).toEqual([]);
+    expect(waiting.h.unit("U-E").deliveryRecords).toHaveLength(4);
+    expect(waiting.h.unit("U-E").deliveryRecords.every((record) => record.disposition === "superseded")).toBe(true);
+    expect(waiting.root.state.notificationDeadlines).toEqual({ desktop: {}, sound: {} });
   });
 
-  it("P2-A1-T12 contractBoundary / TIME: admission filtering retains the owner's monotonic deadline", () => {
+  it("P2-A1-T12 contractBoundary / TIME: admission filtering retains the owner's monotonic deadline", async () => {
     const notice = intent("U-E");
-    const initial = initialState();
-    const state: RuntimeState = { ...initial,
-      units: { ...initial.units, "U-E": { ...initial.units["U-E"], intents: [notice] } },
-      admission: { "U-E": { normal: { records: [], overflow: true } } },
-    };
-    const seeded = reduceRuntimeWith(state, controlInput({ kind: "deadline", clock: at(0) }));
+    // One capacity rejection hides U-E normal intents from selection (admission count > 0).
+    const blocking = (unit: EewUnitState, input: EewInput): EewUnitStep => input.kind === "receive" && input.material.inputId === "block"
+      ? { ...unitReply(unit, input), decisions: [{ subject: "s", operation: "normal", decision: "capacityExceeded",
+        rejection: { family: "VXSE43", reportDateTimeMs: 1, affectedScope: "subject" } }] }
+      : reduceEewUnit(unit, input);
+    const r = await runtime({ ...unitCalls, reduceEewUnit: blocking }, at(0));
+    await r.input("test/fixtures/37_01_01_240613_VXSE43.xml", "VXSE43", "block", at(0), 1);
+    await seedIntents(r, "U-E", [notice]);
     const key = JSON.stringify(["U-E", notice.id]);
-    const deadline = seeded.state.notificationDeadlines.desktop[key];
+    const deadline = r.root.state.notificationDeadlines.desktop[key];
     expect(deadline).toEqual({ retryAtMonotonicMs: 0, expiresAtMonotonicMs: 4_000 });
-    const later = reduceRuntimeWith(seeded.state, controlInput({ kind: "deadline",
-      clock: { wallTimeMs: 500, monotonicMs: 1 } }));
-    expect(later.state.notificationDeadlines.desktop[key]).toBe(deadline);
-    const expired = reduceRuntimeWith(later.state, controlInput({ kind: "deadline",
-      clock: { wallTimeMs: 400, monotonicMs: 4_000 } }), { ...unitCalls, reduceEewUnit });
-    expect(expired.state.units["U-E"].intents).toEqual([]);
-    expect(expired.state.units["U-E"].deliveryRecords).toContainEqual({
+    r.at({ wallTimeMs: 500, monotonicMs: 1 });
+    r.root.tick({ wallTimeMs: 500, monotonicMs: 1 });
+    await r.h.settle();
+    expect(r.root.state.notificationDeadlines.desktop[key]).toBe(deadline);
+    r.at({ wallTimeMs: 400, monotonicMs: 4_000 });
+    r.root.tick({ wallTimeMs: 400, monotonicMs: 4_000 });
+    await r.h.settle();
+    expect(r.h.unit("U-E").intents).toEqual([]);
+    expect(r.h.unit("U-E").deliveryRecords).toContainEqual({
       intentId: notice.id, disposition: "expired", expiresAt: notice.expiresAt,
     });
-    expect(expired.state.notificationDeadlines.desktop[key]).toBeUndefined();
-    expect(expired.generationInputIds).toEqual({ "U-E": [] });
-    const viaResult = reduceRuntimeWith(later.state, { kind: "notificationResult", result: {
-      kind: "failed", reason: "adapterError", attemptId: "stale", intentId: notice.id,
-      channel: "desktop", completedAt: { wallTimeMs: 400, monotonicMs: 4_000 },
-    } }, { ...unitCalls, reduceEewUnit });
-    expect(viaResult.state.units["U-E"].intents).toEqual([]);
-    expect(viaResult.state.notificationDeadlines.desktop[key]).toBeUndefined();
+    expect(r.root.state.notificationDeadlines.desktop[key]).toBeUndefined();
   });
 
-  it("P2-A1-T12 contractBoundary / TIME: 384 pending deadlines stay stable across ordinary reevaluation", () => {
-    const initial = initialState();
+  it("P2-A1-T12 contractBoundary / TIME: 384 pending deadlines stay stable across ordinary reevaluation", async () => {
     const notices = (unit: RuntimeUnitId) => Array.from({ length: 128 }, (_, index) => ({
       ...intent(unit), id: `${unit}-${index}`, expiresAt: 100_000,
     }));
-    const state: RuntimeState = { ...initial, units: {
-      "U-E": { ...initial.units["U-E"], intents: notices("U-E") },
-      "U-W": { ...initial.units["U-W"], intents: notices("U-W") },
-      "U-F": { ...initial.units["U-F"], intents: notices("U-F") },
-    } };
-    const calls = { selectNotificationAttempt: (delivery: NotificationDeliveryState): NotificationSelection => ({
-      state: delivery, attempts: [], abortRequests: [], diagnostics: [],
-    }) };
-    let current = reduceRuntimeWith(state, controlInput({ kind: "deadline", clock: at(0) }), calls).state;
-    expect(Object.keys(current.notificationDeadlines.desktop)).toHaveLength(384);
+    const r = await runtime({ ...unitCalls, selectNotificationAttempt: noAttempts }, at(0));
+    for (const unit of runtimeUnits) await seedIntents(r, unit, notices(unit));
+    expect(Object.keys(r.root.state.notificationDeadlines.desktop)).toHaveLength(384);
     const stringify = vi.spyOn(JSON, "stringify");
     for (let index = 0; index < 30; index++) {
-      const step = reduceRuntimeWith(current, controlInput({ kind: "deadline", clock: at(index + 1) }), calls);
-      expect(step.state).toBe(current);
-      current = step.state;
+      const deadlines = r.root.state.notificationDeadlines;
+      r.at(at(index + 1));
+      r.root.tick(at(index + 1));
+      await r.h.settle();
+      expect(r.root.state.notificationDeadlines).toBe(deadlines);
     }
-    expect(stringify.mock.calls.some(([value]) => value === current.notificationDeadlines
-      || value === current.notificationDeadlines.desktop)).toBe(false);
+    expect(stringify.mock.calls.some(([value]) => value === r.root.state.notificationDeadlines
+      || value === r.root.state.notificationDeadlines.desktop)).toBe(false);
   });
 
   it("P2-A1-T12 contractBoundary / AC11: shutdown fixes the running abort cause and stop deadline at request", () => {
     const notice = intent("U-E");
     const active = attempt(notice);
     const initial = initialState();
-    const running: RuntimeState = { ...initial, notificationChannels: { ...initial.notificationChannels,
-      desktop: { kind: "running", attempt: active } } };
-    const requested = reduceRuntimeWith(running, controlInput({ kind: "shutdownRequested",
-      acceptedThroughSequence: 1, clock: at(0) }));
+    const running = publisherState({ ...initial, notificationChannels: { ...initial.notificationChannels,
+      desktop: { kind: "running", attempt: active } } });
+    const requested = requestShutdown(running, at(0), 1);
     expect(requested.abortRequests).toEqual([{ attemptId: active.attemptId, cause: "shutdown" }]);
     expect(requested.state.notificationChannels.desktop).toEqual({ kind: "stopping", attempt: active,
       cause: "shutdown", stopByMonotonicMs: 1_000 });
-    const existing: RuntimeState = { ...running, notificationChannels: { ...running.notificationChannels,
-      desktop: { kind: "stopping", attempt: active, cause: "timeout", stopByMonotonicMs: 500 } } };
-    const preserved = reduceRuntimeWith(existing, controlInput({ kind: "shutdownRequested",
-      acceptedThroughSequence: 1, clock: at(0) }));
+    const existing = { ...running, notificationChannels: { ...running.notificationChannels,
+      desktop: { kind: "stopping" as const, attempt: active, cause: "timeout" as const, stopByMonotonicMs: 500 } } };
+    const preserved = requestShutdown(existing, at(0), 1);
     expect(preserved.abortRequests).toEqual([]);
     expect(preserved.state.notificationChannels.desktop).toBe(existing.notificationChannels.desktop);
   });
 
-  it("P2-A1-T12 contractBoundary / TIME: 128 pending plus 4000 terminal intents expire with linear owner work", () => {
+  it("P2-A1-T12 contractBoundary / TIME: 128 pending plus 4000 terminal intents expire with linear owner work", async () => {
     const initial = initialState();
     const notices = (unit: "U-W" | "U-F") => {
       const base = intent(unit);
@@ -1163,10 +1228,8 @@ describe("P2 shared runtime", () => {
         Object.defineProperty(notice, "id", { enumerable: true, get: () => { owner[unit].reads++; return id; } });
       }
     }
-    const calls = {
-      selectNotificationAttempt: (delivery: NotificationDeliveryState): NotificationSelection => ({
-        state: delivery, attempts: [], abortRequests: [], diagnostics: [],
-      }),
+    const r = await runtime({
+      selectNotificationAttempt: noAttempts,
       reduceWeatherCurrentUnit: (state: WeatherCurrentUnitState, input: WeatherCurrentInput) => {
         const start = performance.now();
         const step = reduceWeatherCurrentUnit(state, input);
@@ -1179,90 +1242,107 @@ describe("P2 shared runtime", () => {
         owner["U-F"].ms += performance.now() - start;
         return step;
       },
-    };
-    const seeded = reduceRuntimeWith({ ...initial, units: { ...initial.units, "U-W": weather.state, "U-F": series.state } },
-      controlInput({ kind: "deadline", clock: at(0) }), calls).state;
+    }, at(0));
+    await r.seeds.weather(r.h, { ...weather.state, persistence: savedProgress });
+    await r.seeds.series(r.h, { ...series.state, persistence: savedProgress });
+    const seededGeneration = { "U-W": r.h.unit("U-W").persistence.currentGeneration, "U-F": r.h.unit("U-F").persistence.currentGeneration };
     owner["U-W"].reads = owner["U-F"].reads = 0;
     const start = performance.now();
-    const expired = reduceRuntimeWith(seeded, controlInput({ kind: "deadline",
-      clock: { wallTimeMs: 500, monotonicMs: 4_000 } }), calls);
+    const late = { wallTimeMs: 500, monotonicMs: 4_000 };
+    r.at(late);
+    r.root.tick(late);
+    await r.h.settle();
     console.info("128 pending + 4000 terminal", { totalMs: performance.now() - start, owner });
     for (const unit of ["U-W", "U-F"] as const) {
-      expect(expired.state.units[unit].intents).toHaveLength(4_128);
-      expect(expired.state.units[unit].intents.slice(4_000).every((notice) => notice.disposition === "expired")).toBe(true);
-      expect(expired.state.units[unit].persistence.currentGeneration).toBe(seeded.units[unit].persistence.currentGeneration + 128);
+      expect(r.h.unit(unit).intents).toHaveLength(4_128);
+      expect(r.h.unit(unit).intents.slice(4_000).every((notice) => notice.disposition === "expired")).toBe(true);
+      expect(r.h.unit(unit).persistence.currentGeneration).toBe(seededGeneration[unit] + 128);
       expect(owner[unit].reads).toBeLessThan(20 * 4_128);
     }
-    expect(expired.state.notificationDeadlines).toEqual({ desktop: {}, sound: {} });
-    expect(expired.state.deadlines).toMatchObject({
-      "U-W": { wallTimeMs: 5_000, monotonicMs: null }, "U-F": { wallTimeMs: 5_000, monotonicMs: null },
-    });
-    const collected = reduceRuntimeWith(expired.state, controlInput({ kind: "deadline", clock: at(4_000) }), calls);
-    expect(collected.state.units["U-W"].intents).toEqual([]);
-    expect(collected.state.units["U-F"].intents).toEqual([]);
+    expect(r.root.state.notificationDeadlines).toEqual({ desktop: {}, sound: {} });
+    for (const place of ["weatherCurrent", "deferred"] as const)
+      expect(Object.values(r.h.owners.get(place)!["state"]!.deadlines)).toEqual([{ wallTimeMs: 5_000, monotonicMs: null }]);
+    r.at(at(4_000));
+    r.root.tick(at(4_000));
+    await r.h.settle();
+    expect(r.h.unit("U-W").intents).toEqual([]);
+    expect(r.h.unit("U-F").intents).toEqual([]);
     for (const [codec, payload] of [[weatherCurrentUnitCodec, weatherPayload], [weatherTimeseriesUnitCodec, seriesPayload]] as const) {
       expect(codec.decode({ ...payload, intents: [...payload.intents, { ...payload.intents[4_000], id: "overflow" }] }).kind).toBe("invalid");
       expect(codec.decode({ ...payload, intents: [{ ...payload.intents[4_000], payload: { body: "x".repeat(131_072) } }] }).kind).toBe("invalid");
     }
   });
 
-  it("B4 contractBoundary: stopped=false is preserved; invalidated and cross-operation results cannot deliver", () => {
-    const selectNotificationAttempt = (delivery: NotificationDeliveryState) => ({ state: delivery,
-      attempts: [], abortRequests: [], diagnostics: [] });
-    const initial = initialState();
+  it("B4 contractBoundary: stopped=false is preserved; invalidated and cross-operation results cannot deliver", async () => {
     const notice = intent("U-E", "training");
     const active = attempt(notice);
-    const state: RuntimeState = { ...initial,
-      units: { ...initial.units, "U-E": { ...initial.units["U-E"], intents: [notice] } },
-      notificationChannels: { ...initial.notificationChannels, desktop: { kind: "stopping", attempt: active, cause: "timeout", stopByMonotonicMs: 9 } } };
+    // A7 double: the training intent starts `active`; from 9 ms on the running attempt stops with timeout.
+    const select = (delivery: NotificationDeliveryState, reading: ClockReading): NotificationSelection => {
+      const channel = delivery.channels.desktop;
+      if (channel.kind === "running" && reading.monotonicMs >= 9) return { state: { ...delivery, channels: { ...delivery.channels,
+        desktop: { kind: "stopping", attempt: channel.attempt, cause: "timeout", stopByMonotonicMs: 9 } } },
+        attempts: [], abortRequests: [{ attemptId: channel.attempt.attemptId, cause: "timeout" }], diagnostics: [] };
+      const pending = delivery.intents.find((value) => value.id === notice.id && value.attempts === 0);
+      if (channel.kind !== "idle" || pending == null) return noAttempts(delivery);
+      return { state: { ...delivery, channels: { ...delivery.channels, desktop: { kind: "running", attempt: active } },
+        intents: delivery.intents.map((value) => value === pending ? { ...value, attempts: 1 } : value) },
+        attempts: [active], abortRequests: [], diagnostics: [] };
+    };
+    const stopping = async (apply: NotificationCalls["applyNotificationResult"]) => {
+      const r = await runtime({ ...unitCalls, reduceEewUnit, selectNotificationAttempt: select, applyNotificationResult: apply }, at(1));
+      await seedIntents(r, "U-E", [notice]);
+      r.at(at(9));
+      r.root.tick(at(9));
+      await r.h.settle();
+      expect(r.root.state.notificationChannels.desktop).toMatchObject({ kind: "stopping", cause: "timeout" });
+      return r;
+    };
     const timeout: NotificationResult = { kind: "timeout", stopped: false, attemptId: active.attemptId, intentId: notice.id,
       channel: "desktop", completedAt: at(10) };
-    const apply = vi.fn((delivery: NotificationDeliveryState,
-      actual: NotificationResult) => {
+    const apply = vi.fn((delivery: NotificationDeliveryState, actual: NotificationResult) => {
       expect(actual).toBe(timeout);
       return { state: { intents: delivery.intents, channels: { ...delivery.channels,
         desktop: { kind: "isolated" as const, attemptId: active.attemptId, sinceMonotonicMs: 10, reason: "stopUnconfirmed" as const } },
         deadlines: delivery.deadlines }, diagnostics: [{ level: "WARN" as const, component: "test-boundary", reason: "mailboxStalled" as const }] };
     });
-    const isolated = reduceRuntimeWith(freeze(state), { kind: "notificationResult", result: timeout }, { ...unitCalls, applyNotificationResult: apply, selectNotificationAttempt });
-    expect(isolated.state.notificationChannels.desktop.kind).toBe("isolated");
-    expect(isolated.state.units).toBe(state.units);
-    expect(isolated.diagnostics[0]).toMatchObject({ timestamp: 1010, runId: "run" });
-    const success: NotificationResult = { kind: "delivered", attemptId: active.attemptId, intentId: notice.id,
-      channel: "desktop", completedAt: at(11) };
-    const late = reduceRuntimeWith(state, { kind: "notificationResult", result: success }, {
-      ...unitCalls, selectNotificationAttempt, applyNotificationResult: (delivery) => ({ state: { ...delivery,
-        intents: delivery.intents.map((value) => ({ ...value, disposition: "delivered" })) }, diagnostics: [] }),
-    });
-    expect(late.state.units).toBe(state.units);
-    const crossed = { ...state, notificationChannels: { ...state.notificationChannels,
-      desktop: { kind: "running" as const, attempt: { ...active, operation: "normal" as const } } } };
-    expect(reduceRuntimeWith(crossed, { kind: "notificationResult", result: success }, {
-      ...unitCalls, selectNotificationAttempt, applyNotificationResult: (delivery) => ({ state: { ...delivery,
-        intents: delivery.intents.map((value) => ({ ...value, disposition: "delivered" })) }, diagnostics: [] }),
-    }).state.units).toBe(state.units);
-    const normal = { ...notice, operation: "normal" as const, source: { ...notice.source, operation: "normal" as const } };
-    const expiredNormal: RuntimeState = { ...initial,
-      units: { ...initial.units, "U-E": { ...initial.units["U-E"], intents: [normal] } },
-      notificationChannels: { ...initial.notificationChannels, desktop: { kind: "running", attempt: active } },
-      notificationDeadlines: { desktop: { [JSON.stringify([normal.unit, normal.id])]: {
-        retryAtMonotonicMs: 0, expiresAtMonotonicMs: 10,
-      } }, sound: {} },
-    };
-    const crossedExpiry = reduceRuntimeWith(expiredNormal, controlInput({ kind: "deadline", clock: at(10) }), {
-      ...unitCalls, reduceEewUnit, selectNotificationAttempt,
-    });
-    expect(crossedExpiry.state.units["U-E"].intents).toEqual([]);
-    expect(crossedExpiry.abortRequests).toEqual([]);
-    expect(crossedExpiry.state.notificationChannels.desktop).toBe(expiredNormal.notificationChannels.desktop);
-    const finalized = { ...state, shutdown: { ...state.shutdown, stage: "finalCheckpoint" as const, finalizationAt: 1000 } };
-    expect(reduceRuntimeWith(finalized, { kind: "notificationResult", result: success }).state).toBe(finalized);
+    const isolated = await stopping(apply);
+    const unit = isolated.h.unit("U-E");
+    isolated.at(at(10));
+    isolated.notices.finish(timeout);
+    await isolated.h.settle();
+    expect(isolated.root.state.notificationChannels.desktop.kind).toBe("isolated");
+    expect(isolated.h.unit("U-E")).toBe(unit);
+    await isolated.root.diagnostics.flush();
+    expect((await isolated.root.readDiagnostics({ limit: 256 })).records)
+      .toContainEqual(expect.objectContaining({ reason: "mailboxStalled", timestamp: 1010, runId: "run" }));
+    // A success after the attempt was stopped (invalidated) cannot deliver.
+    const late = await stopping((delivery) => ({ state: { ...delivery,
+      intents: delivery.intents.map((value) => ({ ...value, disposition: "delivered" })) }, diagnostics: [] }));
+    const before = late.h.unit("U-E");
+    late.at(at(11));
+    late.notices.finish({ kind: "delivered", attemptId: active.attemptId, intentId: notice.id, channel: "desktop", completedAt: at(11) });
+    await late.h.settle();
+    expect(late.h.unit("U-E")).toBe(before);
+    // A normal intent expiring while the training attempt runs stops nothing.
+    const normal = { ...intent("U-E"), expiresAt: 1_010 };
+    const crossed = await runtime({ ...unitCalls, reduceEewUnit, selectNotificationAttempt: (delivery, reading) =>
+      reading.monotonicMs >= 9 ? noAttempts(delivery) : select(delivery, reading) }, at(0));
+    await seedIntents(crossed, "U-E", [notice, normal]);
+    const running = crossed.root.state.notificationChannels.desktop;
+    expect(running).toMatchObject({ kind: "running", attempt: active });
+    crossed.at(at(10));
+    crossed.root.tick(at(10));
+    await crossed.h.settle();
+    expect(crossed.h.unit("U-E").intents.map((value) => value.id)).toEqual([notice.id]);
+    expect(crossed.notices.aborts).toEqual([]);
+    expect(crossed.root.state.notificationChannels.desktop).toBe(running);
   });
 
   it("AC05 contractBoundary: completion runId must match the fixed runtime run", () => {
-    const input = parserInput({ kind: "decoded", material: { ...valid, reportDateTimeRaw: "" } }, "another-run");
-    const step = reduceRuntimeWith(state, input);
-    expect(step.state).toBe(state);
+    const owner = ownerFixture("deferred", state);
+    const step = receiveOwner(owner, completion({ kind: "decoded", material: { ...valid, reportDateTimeRaw: "" } }, "another-run"),
+      clock, units());
+    expect(step.state).toBe(owner);
     expect(step.diagnostics).toEqual([]);
   });
 
@@ -1314,8 +1394,8 @@ describe("P2 shared runtime", () => {
       const semantic = validateSemanticEnvelope({ ...valid, inputId: long, reportDateTimeRaw: "" });
       if (semantic.kind !== "rejected") throw new Error("rejection expected");
       expect(Buffer.byteLength(JSON.stringify(semantic.diagnostic))).toBeLessThanOrEqual(8192);
-      const [event] = reduceRuntimeWith(state, parserInput({ kind: "decoded",
-        material: { ...valid, inputId: long, reportDateTimeRaw: "" } }, "run")).diagnostics;
+      const [event] = receiveOwner(ownerFixture("deferred", state), completion({ kind: "decoded",
+        material: { ...valid, inputId: long, reportDateTimeRaw: "" } }), clock, units()).diagnostics;
       expect(event).toMatchObject({ timestamp: clock.wallTimeMs, runId: "run", reason: "reportDateTimeMissing" });
     }
   });

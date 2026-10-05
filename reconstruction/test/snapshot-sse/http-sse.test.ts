@@ -5,7 +5,7 @@ import { Agent } from "node:http";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { performance } from "node:perf_hooks";
-import { afterEach, describe, expect, it, onTestFinished, vi } from "vitest";
+import { afterEach, beforeAll, describe, expect, it, onTestFinished, vi } from "vitest";
 
 import type { DisplaySnapshot, DisplayWorkerView } from "../../contracts/p2-snapshot-sse.types";
 import type { WeatherTimeseriesSubject } from "../../contracts/p2-weather-timeseries-unit.types";
@@ -13,11 +13,13 @@ import { startDisplayServer } from "../../src/http-sse/http-sse";
 import { toWeatherTimeseriesView } from "../../src/units/weather-timeseries/weather-timeseries-unit";
 import { projectSnapshot } from "../../src/view-projector/view-projector";
 import { allSubjects, decode, eewReport, projected, projectionInput, received, startup, step } from "./projection-fixture";
+import type { Step } from "./projection-fixture";
 
 const at = 1780650000000;
 const clock = { wallTimeMs: at, monotonicMs: 1 };
 const healthy: DisplayWorkerView = { state: "healthy", lastProgressAtMonotonicMs: 1, lastResponseAtMonotonicMs: 1 };
-const started = startup(clock);
+let started: Step;
+beforeAll(async () => { started = await startup(clock); largeSnapshot = await buildLarge(); });
 const servers: Awaited<ReturnType<typeof startDisplayServer>>[] = [];
 afterEach(async () => {
   vi.restoreAllMocks();
@@ -33,11 +35,11 @@ async function serve() {
 // A legal (<= 1 MiB, all full) snapshot of about 1 MB: one U-F series with a long area name.
 let largeSnapshot: DisplaySnapshot | null = null;
 function large(sequence: number): DisplaySnapshot {
-  largeSnapshot ??= buildLarge();
+  if (largeSnapshot == null) throw new Error("built in beforeAll");
   return { ...largeSnapshot, sequence };
 }
-function buildLarge(): DisplaySnapshot {
-  const base = step(started.state, received("run", decode("81_02_01_260605_VPWP50_high_severity", "VPWP50"), clock)).state;
+async function buildLarge(): Promise<DisplaySnapshot> {
+  const base = (await step(started.state, received("run", decode("81_02_01_260605_VPWP50_high_severity", "VPWP50"), clock))).state;
   const subject = base.units["U-F"].subjects[0];
   const strings = [...subject.strings];
   strings[subject.areas[0].name!] = "x".repeat(1_000_000);
@@ -232,7 +234,7 @@ describe("P2-A8-T05 / AC07 and P2-A8-T06 / AC13 on the HTTP side", () => {
       onMarker: (marker, version) => markers.push({ ...marker, version }) });
     servers.push(server);
     const first = projected(projectSnapshot(projectionInput(started, at), null));
-    const adopted = step(started.state, received("run", eewReport("20240417231454"), clock));
+    const adopted = await step(started.state, received("run", eewReport("20240417231454"), clock));
     const result = projected(projectSnapshot(projectionInput(adopted, at), first.state));
     server.publish(result.snapshot);
     const client = await open(server.port);

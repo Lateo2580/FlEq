@@ -1,21 +1,23 @@
 import { Buffer } from "node:buffer";
 import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
 import type { DecodedMaterial, Operation } from "../../contracts/p1-parser-boundary.types";
-import type { ClockReading } from "../../contracts/p2-shared-runtime.types";
 import type { NotificationDeliveryState } from "../../contracts/p2-notification-delivery.types";
 import type { EewInput, EewUnitState, EewUnitStep } from "../../contracts/p2-eew-unit.types";
 import corpus from "../../tools/corpus/sequences.json";
 import manifest from "../../tools/corpus/manifest.json";
+import { CheckpointCoordinator } from "../../src/checkpoint/checkpoint";
 import type { CheckpointFileSystem, WritableCheckpoint } from "../../src/checkpoint/checkpoint";
 import type { DiagnosticFileSystem } from "../../src/checkpoint/persistent-diagnostic-sink";
 import { decodeMaterial } from "../../src/decode-material/decode-material";
 import { ingestXmlData } from "../../src/ingress/ingress";
-import { RuntimeCompositionRoot } from "../../src/runtime/composition-root";
 import { eewUnitCodec, reduceEewUnit, toEewView } from "../../src/units/eew/eew-unit";
-import { fixtureDriver , testNotificationChannels, recordingNotificationAdapter} from "../checkpoint-shutdown/runtime-fixture";
+import { fixtureDriver, recordingNotificationAdapter } from "../checkpoint-shutdown/runtime-fixture";
 import { callsWith } from "../unit-table/linked-calls";
+import { envelope, harnessedRoot, startHarness, submit } from "../execution-split/owner-harness";
+import type { Harness } from "../execution-split/owner-harness";
 
 const BASE_TIME = 1_713_363_299_001;
 
@@ -947,8 +949,6 @@ describe("P2 EEW unit", () => {
     const first = decodeFixture("37_01_01_240613_VXSE43", "VXSE43");
     const second = decodeFixture("37_01_02_240613_VXSE43", "VXSE43");
     const cancelled = decodeFixture("37_01_03_240613_VXSE43", "VXSE43");
-    const adapter = new MemoryCheckpointFileSystem();
-    const diagnostics = new MemoryDiagnosticFileSystem();
     let now = BASE_TIME + 1;
     const runtimeCalls = { ...fixtureDriver().stubs,
       selectNotificationAttempt: (delivery: NotificationDeliveryState) => ({
@@ -959,51 +959,49 @@ describe("P2 EEW unit", () => {
       return input.kind === "receive" && state.persistence.currentGeneration === 0
         && input.material.inputId === first.inputId ? { ...step, state: unit } : step;
     }, toEewView };
-    // Unit-local fault injection: A1 adopts the real EEW receive result at the due control call.
-    // Parser routing is outside this checkpoint test; do not replace root.state from the caller.
-    const cancellationCalls: typeof runtimeCalls = { ...runtimeCalls,
-      reduceEewUnit: (state, input) => runtimeCalls.reduceEewUnit(state, input.kind === "deadline"
-        ? { kind: "receive", material: cancelled, clock: input.clock } : input),
+    // TEST-PATH (2): each runtime is the publisher with its in-process owners on a memory file system; the reports
+    // enter as parser inputs. The slot a restart would read comes from an owner-side coordinator over the same files.
+    const slot = (files: MemoryCheckpointFileSystem) => new CheckpointCoordinator(resolve(config().stateDirectory),
+      { "U-E": eewUnitCodec }, files, () => ({ wallTimeMs: now, monotonicMs: now }), () => {}).restoreUnit("U-E");
+    const wired = (files: MemoryCheckpointFileSystem) => harnessedRoot(config(), { "U-E": eewUnitCodec }, {
+      notificationAdapter: recordingNotificationAdapter(), checkpointFileSystem: files,
+      diagnosticFileSystem: new MemoryDiagnosticFileSystem(), runtimeCalls: callsWith(runtimeCalls),
+      clock: () => ({ wallTimeMs: now, monotonicMs: now }) });
+    let inputSequence = 0;
+    const report = (h: Harness, file: string) => submit(h, envelope("eew-test", "VXSE43", file,
+      readFileSync(`test/fixtures/${file}.xml`), { wallTimeMs: now, monotonicMs: now }, ++inputSequence));
+    const seed = async (h: Harness) => {
+      await startHarness(h, "eew-test", { wallTimeMs: now, monotonicMs: now });
+      await report(h, first.inputId);
+      return h;
     };
-    const root = new RuntimeCompositionRoot(config(), { "U-E": eewUnitCodec }, { notificationAdapter: recordingNotificationAdapter(),
-      checkpointFileSystem: adapter, diagnosticFileSystem: diagnostics,
-      runtimeCalls: callsWith(runtimeCalls),
-      clock: () => ({ wallTimeMs: now, monotonicMs: now }),
-    });
+    const urgent = (h: Harness) => h.owners.get("urgent")!["state"]!;
+    // The grant reaches the owner, which captures and starts writing; the reply waits for settle().
+    const grantOnly = (h: Harness) => {
+      h.pause();
+      void h.root.driveCheckpoint();
+      h.flush();
+    };
+    const adapter = new MemoryCheckpointFileSystem();
     const initial = emptyState();
-    expect(root.restoreUnit("U-E").kind).not.toBe("restored");
+    expect(slot(adapter).kind).not.toBe("restored");
     const accepted = receive(initial, first);
     const received = accepted.state;
     const unit = { ...received, intents: [pendingIntent()],
       persistence: { kind: "pending" as const, currentGeneration: 1, savedGeneration: null,
         savedCapturedAt: null, savedAckAt: null, dirtySince: BASE_TIME } };
-    const seed = (target: RuntimeCompositionRoot) => {
-      const at = { wallTimeMs: now, monotonicMs: now };
-      return target.dispatch(target.startRuntime("eew-test", at, testNotificationChannels).state, { kind: "mailboxCompleted", clock: at, completion: {
-        kind: "parser", messageId: first.inputId, inputId: first.inputId, runId: "eew-test",
-        encodedByteLength: 0, startedMonotonicMs: now, completedMonotonicMs: now, inputSequence: 1,
-        result: { kind: "decoded", material: first },
-      } }).state;
-    };
-    const cancelAt = (target: RuntimeCompositionRoot, at: ClockReading) => target.dispatch(target.state,
-      { kind: "mailboxCompleted", clock: at, completion: { kind: "parser", messageId: cancelled.inputId,
-        inputId: cancelled.inputId, runId: "eew-test", encodedByteLength: 0,
-        startedMonotonicMs: at.monotonicMs, completedMonotonicMs: at.monotonicMs,
-        inputSequence: 2, result: { kind: "decoded", material: cancelled } } });
-    let running = seed(root);
-    const correlation = { "U-E": { inputIds: [first.inputId], retryReason: "notRetry" as const } };
-    const scheduled = root.scheduleCheckpoint(running, { wallTimeMs: now, monotonicMs: now }, "o07", correlation);
-    if (scheduled?.request == null) throw new Error("O07 checkpoint was not captured");
-    expect(root.state.checkpointAttempts["U-E"]).toEqual({ ...scheduled.capture, postCaptureDirtySince: null });
-    const saved = await root.executeCheckpoint(scheduled.request, "o07", [first.inputId], "notRetry");
-    running = root.applyCheckpointResult(running, saved.result, { wallTimeMs: ++now, monotonicMs: now }).state;
-    const checkpoint = root.restoreUnit("U-E");
+    const root = await seed(wired(adapter));
+    grantOnly(root);
+    expect(urgent(root).checkpointAttempts["U-E"]).toMatchObject({ generation: 1, postCaptureDirtySince: null });
+    now++;
+    await root.settle();
+    const checkpoint = slot(adapter);
     expect(checkpoint.kind).toBe("restored");
     if (checkpoint.kind !== "restored") throw new Error("checkpoint not restored");
     expect(eewUnitCodec.decode(checkpoint.envelope.payload)).toMatchObject({ kind: "restored", state: {
       current: [], gates: [], intents: [{ expiresAt: BASE_TIME + 15_000 }],
     } });
-    const payload = eewUnitCodec.decode(scheduled.request!.envelope.payload);
+    const payload = eewUnitCodec.decode(checkpoint.envelope.payload);
     if (payload.kind !== "restored") throw new Error(payload.reason);
     const restored = reduceEewUnit(emptyState(), { kind: "restore", persisted: eewUnitCodec.encode(payload.state),
       clock: clock(BASE_TIME + 2) });
@@ -1031,67 +1029,55 @@ describe("P2 EEW unit", () => {
         change: "change" in oracle.decision ? oracle.decision.change : null },
       effective: oracle.effective, subjects: oracle.subjects, intents: oracle.intents, notices: oracle.notices });
     }
-    expect(running.units["U-E"].persistence).toMatchObject({ kind: "saved", savedGeneration: 1 });
-    const savedPayload = scheduled.request!.envelope.payload;
+    expect(root.unit("U-E").persistence).toMatchObject({ kind: "saved", savedGeneration: 1 });
+    expect(root.root.state.mirror["U-E"].persistence).toMatchObject({ kind: "saved", savedGeneration: 1 });
+    const savedPayload = checkpoint.envelope.payload;
     if (savedPayload == null || typeof savedPayload !== "object") throw new Error("invalid checkpoint payload");
     expect(Object.keys(savedPayload)).toEqual(["schemaVersion", "intents", "deliveryRecords"]);
     expect(restored.state.current).toEqual([]);
     expect(restored.state.gates).toEqual([]);
 
-    const oldAckRoot = new RuntimeCompositionRoot(config(), { "U-E": eewUnitCodec }, { notificationAdapter: recordingNotificationAdapter(),
-      checkpointFileSystem: new MemoryCheckpointFileSystem(), diagnosticFileSystem: new MemoryDiagnosticFileSystem(),
-      runtimeCalls: callsWith(cancellationCalls),
-      clock: () => ({ wallTimeMs: now, monotonicMs: now }),
-    });
-    let oldAckState = seed(oldAckRoot);
-    const old = oldAckRoot.scheduleCheckpoint(oldAckState, { wallTimeMs: now, monotonicMs: now }, "old", correlation);
-    if (old?.request == null) throw new Error("old-ack checkpoint was not captured");
-    const oldResult = await oldAckRoot.executeCheckpoint(old.request, "old", [first.inputId], "notRetry");
-    const cancellationClock = { wallTimeMs: ++now, monotonicMs: now };
-    oldAckState = cancelAt(oldAckRoot, cancellationClock).state;
-    expect(oldAckState.checkpointAttempts["U-E"]).toEqual({ ...old.capture, postCaptureDirtySince: cancellationClock.monotonicMs });
-    expect(oldAckState.units["U-E"].current).toEqual([]);
-    oldAckState = oldAckRoot.applyCheckpointResult(oldAckState, oldResult.result,
-      { wallTimeMs: ++now, monotonicMs: now }).state;
-    expect(oldAckState.units["U-E"].current).toEqual([]);
-    expect(oldAckState.units["U-E"].persistence).toMatchObject({ currentGeneration: 2, savedGeneration: 1, kind: "pending" });
-    expect(oldAckState.units["U-E"].persistence?.dirtySince).toBe(cancellationClock.monotonicMs);
+    // The cancellation reaches the owner while its capture is being written; the ack then keeps generation 2 dirty.
+    const oldAck = await seed(wired(new MemoryCheckpointFileSystem()));
+    grantOnly(oldAck);
+    const cancellationAt = ++now;
+    // Enqueued and handed over in the same turn, so the owner applies it before its write completes.
+    oldAck.root.mailbox.enqueue(envelope("eew-test", "VXSE43", cancelled.inputId,
+      readFileSync(`test/fixtures/${cancelled.inputId}.xml`), { wallTimeMs: now, monotonicMs: now }, ++inputSequence));
+    oldAck.root.pump();
+    oldAck.flush();
+    expect(urgent(oldAck).checkpointAttempts["U-E"]).toMatchObject({ generation: 1, postCaptureDirtySince: cancellationAt });
+    expect(oldAck.unit("U-E").current).toEqual([]);
+    now++;
+    await oldAck.settle();
+    expect(oldAck.unit("U-E").current).toEqual([]);
+    expect(oldAck.unit("U-E").persistence).toMatchObject({ currentGeneration: 2, savedGeneration: 1, kind: "pending" });
+    expect(oldAck.unit("U-E").persistence?.dirtySince).toBe(cancellationAt);
 
     const failedAdapter = new MemoryCheckpointFileSystem();
-    const failedRoot = new RuntimeCompositionRoot(config(), { "U-E": eewUnitCodec }, { notificationAdapter: recordingNotificationAdapter(),
-      checkpointFileSystem: failedAdapter, diagnosticFileSystem: new MemoryDiagnosticFileSystem(),
-      runtimeCalls: callsWith(cancellationCalls),
-      clock: () => ({ wallTimeMs: now, monotonicMs: now }),
-    });
-    let failedState = seed(failedRoot);
-    const failedRequest = failedRoot.scheduleCheckpoint(failedState,
-      { wallTimeMs: now, monotonicMs: now }, "failed", correlation);
-    if (failedRequest?.request == null) throw new Error("failure checkpoint was not captured");
+    const failed = await seed(wired(failedAdapter));
     failedAdapter.failWrite = true;
-    const failure = await failedRoot.executeCheckpoint(failedRequest.request!, "failed", [first.inputId], "notRetry");
-    failedState = failedRoot.applyCheckpointResult(failedState, failure.result,
-      { wallTimeMs: ++now, monotonicMs: now }).state;
-    expect(failedState.units["U-E"].persistence?.kind).toBe("failed");
-    failedState = cancelAt(failedRoot, { wallTimeMs: ++now, monotonicMs: now }).state;
-    const afterFailureCancel = failedState.units["U-E"];
+    now++;
+    await failed.root.driveCheckpoint();
+    await failed.settle();
+    expect(failed.unit("U-E").persistence?.kind).toBe("failed");
+    now++;
+    await report(failed, cancelled.inputId);
+    const afterFailureCancel = failed.unit("U-E");
     expect(afterFailureCancel.current).toEqual([]);
     expect(afterFailureCancel.persistence).toMatchObject({ kind: "failed", currentGeneration: 2, savedGeneration: null });
     expect(afterFailureCancel.deliveryRecords).toContainEqual({
       intentId: unit.intents[0].id, disposition: "superseded", expiresAt: unit.intents[0].expiresAt,
     });
 
-    const shutdownRoot = new RuntimeCompositionRoot(config(), { "U-E": eewUnitCodec }, { notificationAdapter: recordingNotificationAdapter(),
-      checkpointFileSystem: new MemoryCheckpointFileSystem(), diagnosticFileSystem: new MemoryDiagnosticFileSystem(),
-      runtimeCalls: callsWith(runtimeCalls),
-      clock: () => ({ wallTimeMs: now, monotonicMs: now }),
-    });
-    const shutdownState = seed(shutdownRoot);
-    const summary = await shutdownRoot.shutdownRuntime(shutdownRoot.state, 1,
+    const shutdownFiles = new MemoryCheckpointFileSystem();
+    const stopping = await seed(wired(shutdownFiles));
+    const summary = await stopping.root.shutdownRuntime(1,
       { wallTimeMs: ++now, monotonicMs: now });
     expect(summary.code).toBe(0);
     expect(summary.persistence["U-E"]).toMatchObject({ kind: "saved", currentGeneration: 1, savedGeneration: 1 });
-    expect(shutdownRoot.state.shutdown.stage).toBe("completed");
-    expect(shutdownRoot.restoreUnit("U-E").kind).toBe("restored");
+    expect(stopping.root.state.shutdown.stage).toBe("completed");
+    expect(slot(shutdownFiles).kind).toBe("restored");
   });
 
   it("P2-A4-T06 regression / AC02-03,06: P1 operation isolation and different-inputId duplicates before TTL", () => {

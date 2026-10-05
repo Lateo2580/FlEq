@@ -9,10 +9,13 @@ import type { WeatherTimeseriesCompoundField, WeatherTimeseriesValue, WeatherTim
 import { serializedEnvelope } from "../../src/checkpoint/checkpoint";
 import { classifyMaterial, decodeMaterial } from "../../src/decode-material/decode-material";
 import { ingestXmlData } from "../../src/ingress/ingress";
-import { callsWith, reduceRuntimeWith } from "../unit-table/linked-calls";
-import { RuntimeCompositionRoot, nodeCheckpointFileSystem } from "../../src/runtime/composition-root";
+import { callsWith } from "../unit-table/linked-calls";
+import { checkpointResultOwner, receiveOwner } from "../../src/runtime/owner-runtime";
+import { nodeCheckpointFileSystem } from "../../src/runtime/composition-root";
 import { reduceWeatherTimeseriesUnit, toWeatherTimeseriesView, weatherTimeseriesUnitCodec } from "../../src/units/weather-timeseries/weather-timeseries-unit";
-import { fixtureDriver, fixtureState , testNotificationChannels, recordingNotificationAdapter} from "../checkpoint-shutdown/runtime-fixture";
+import { fixtureDriver, fixtureState, ownerFixture, recordingNotificationAdapter } from "../checkpoint-shutdown/runtime-fixture";
+import { envelope, harnessedRoot, seeded, startHarness, submit } from "../execution-split/owner-harness";
+import type { Harness } from "../execution-split/owner-harness";
 
 const DATE = Date.parse("2026-06-05T17:00:00+09:00");
 const clock = (wallTimeMs = DATE, monotonicMs = 1) => ({ wallTimeMs, monotonicMs });
@@ -21,10 +24,13 @@ function empty(): WeatherTimeseriesUnitState {
     persistence: { kind: "saved", currentGeneration: 0, savedGeneration: 0,
       savedCapturedAt: null, savedAckAt: null, dirtySince: null } };
 }
-function fixture(name: string, transform: (xml: string) => string = (xml) => xml, operation: Operation = "normal"): DecodedMaterial {
+function fixtureBody(name: string, transform: (xml: string) => string = (xml) => xml, operation: Operation = "normal"): Buffer {
   const xml = transform(readFileSync(`test/fixtures/${name}.xml`, "utf8"));
-  const body = Buffer.from(operation === "normal" ? xml : xml.replace("<Status>通常</Status>",
+  return Buffer.from(operation === "normal" ? xml : xml.replace("<Status>通常</Status>",
     `<Status>${operation === "training" ? "訓練" : "試験"}</Status>`));
+}
+function fixture(name: string, transform: (xml: string) => string = (xml) => xml, operation: Operation = "normal"): DecodedMaterial {
+  const body = fixtureBody(name, transform, operation);
   const entered = ingestXmlData({ inputId: name, inputSequence: 1, receivedAt: DATE, origin: "replay", kind: "replay",
     body, headType: "VPWP50" });
   if (entered.kind !== "accepted") throw new Error(entered.diagnostic.reason);
@@ -438,7 +444,7 @@ describe("P2-A6 weather timeseries", () => {
   });
 
   // T06/T07: a large normal peer forces a valid newer report into unavailable without evicting normal.
-  it("T06/T07 admits byte pressure as unavailable, then keeps stage four atomic", () => {
+  it("T06/T07 admits byte pressure as unavailable, then keeps stage four atomic", async () => {
     const seed = receive(empty(), fixture(unknown)).state;
     const blockerItem = { ...first(seed), subject: "normal/VPWP50/blocker",
       source: { ...first(seed).source!, subject: "normal/VPWP50/blocker" } };
@@ -449,20 +455,24 @@ describe("P2-A6 weather timeseries", () => {
     expect(unavailable.decisions[0]).toMatchObject({ decision: "changed", change: "semantic", currentEstablished: null });
     expect(unavailable.state.subjects.find((item) => item.subject === "normal/VPWP50/稚内地方気象台")?.effective).toBe("unavailable");
     expect(unavailable.state.subjects.find((item) => item.subject === blockerItem.subject)).toBeDefined();
-    const initial = fixtureState();
-    const ready = reduceRuntimeWith({ ...initial, units: { ...initial.units, "U-F": blocker } }, {
-      kind: "coverageVerified", runId: initial.runId, epoch: initial.confirmation.epoch,
-      scopes: [{ unit: "U-F", operation: "normal", kind: "unit" }], clock: clock(),
-    }).state;
-    const material = fixture(unknown);
-    const added = reduceRuntimeWith(ready, { kind: "mailboxCompleted", clock: clock(), completion: {
-      kind: "parser", runId: initial.runId, messageId: "unavailable", inputId: material.inputId,
-      inputSequence: 1, encodedByteLength: 0, startedMonotonicMs: 0, completedMonotonicMs: 1,
-      result: { kind: "decoded", material },
-    } }, { ...fixtureDriver().stubs, reduceWeatherTimeseriesUnit, toWeatherTimeseriesView });
-    expect(added.state.confirmation.units["U-F"].normal).toMatchObject({ whole: null,
-      confirmedAt: null, confirmedScopeCount: 0, counts: { startup: 1 },
-      scopes: [{ reason: "startup", confirmedAt: null }] });
+    // TEST-PATH (2): U-F starts from the blocker; the publisher verified its coverage before the input arrives.
+    const seeds = seeded(callsWith({ ...fixtureDriver().stubs, reduceWeatherTimeseriesUnit, toWeatherTimeseriesView }).units);
+    const directory = mkdtempSync(join(tmpdir(), "fleq-a6-t07-"));
+    try {
+      const h = harnessedRoot({ appName: "fleq-p2", legacyAppName: "fleq", stateDirectory: join(directory, "state"),
+        legacyStateDirectory: join(directory, "old"), diagnosticDirectory: join(directory, "diagnostics") }, undefined,
+      { notificationAdapter: recordingNotificationAdapter(), clock: () => clock(), runtimeCalls: { ...fixtureDriver().calls,
+        units: seeds.units } });
+      await startHarness(h, "review", clock());
+      await seeds.series(h, blocker);
+      h.root.dispatch({ kind: "coverageVerified", runId: "review", epoch: h.root.state.confirmation.epoch,
+        scopes: [{ unit: "U-F", operation: "normal", kind: "unit" }], clock: clock() });
+      await submit(h, envelope("review", "VPWP50", unknown, fixtureBody(unknown), clock(), 1));
+      expect(h.root.state.confirmation.units["U-F"].normal).toMatchObject({ whole: null,
+        confirmedAt: null, confirmedScopeCount: 0, counts: { startup: 1 },
+        scopes: [{ reason: "startup", confirmedAt: null }] });
+      await h.root.diagnostics.flush();
+    } finally { rmSync(directory, { recursive: true, force: true }); }
     const full = inflated(blockerBase, 33_554_432);
     const refused = receive(full, fixture(unknown));
     expect(refused.decisions[0].decision).toBe("capacityExceeded");
@@ -580,11 +590,13 @@ describe("P2-A6 weather timeseries", () => {
     const fail = { write: false, afterRename: false };
     const disk = nodeCheckpointFileSystem();
     let writes = 0;
-    const makeRoot = () => new RuntimeCompositionRoot({ appName: "fleq-p2", legacyAppName: "fleq",
+    // TEST-PATH (2): each run is the publisher with its in-process owners; the business clock is the publisher's.
+    let now = clock();
+    const calls = callsWith({ ...fixtureDriver().stubs, reduceWeatherTimeseriesUnit, toWeatherTimeseriesView });
+    const makeRoot = () => harnessedRoot({ appName: "fleq-p2", legacyAppName: "fleq",
       stateDirectory: join(directory, "state"), legacyStateDirectory: join(directory, "old"),
       diagnosticDirectory: join(directory, "diagnostics") }, { "U-F": weatherTimeseriesUnitCodec }, { notificationAdapter: recordingNotificationAdapter(),
-      runtimeCalls: callsWith({ ...fixtureDriver().stubs, reduceWeatherTimeseriesUnit,
-        toWeatherTimeseriesView }), clock: () => clock(),
+      runtimeCalls: calls, clock: () => now,
       checkpointFileSystem: { ...disk, async rename(from, to) {
         await disk.rename(from, to);
         writes++;
@@ -593,84 +605,87 @@ describe("P2-A6 weather timeseries", () => {
         return { ...handle, async write(data) { if (fail.write) throw new Error("injected write failure");
           await handle.write(data); } }; } },
     });
-    const route = (root: RuntimeCompositionRoot, material: DecodedMaterial, at: number) => root.dispatch(root.state,
-      { kind: "mailboxCompleted", clock: clock(at), completion: { kind: "parser", messageId: material.inputId,
-        inputId: material.inputId, inputSequence: 1, runId: root.state.runId, encodedByteLength: 0,
-        startedMonotonicMs: 0, completedMonotonicMs: 1, result: { kind: "decoded", material } } });
-    const save = async (root: RuntimeCompositionRoot, at: number, inputIds: readonly string[]) => {
-      const scheduled = root.scheduleCheckpoint(root.state, clock(at, at - DATE + 20_000), root.state.runId);
-      if (scheduled?.request == null) throw new Error("checkpoint not scheduled");
-      const executed = await root.executeCheckpoint(scheduled.request, root.state.runId, inputIds,
-        root.checkpoint.retryReason("U-F"));
-      root.applyCheckpointResult(root.state, executed.result, clock(at + 1, at - DATE + 20_001));
-      return executed.result;
+    let inputSequence = 0;
+    const start = async (h: Harness, runId: string, at: ReturnType<typeof clock>) => {
+      now = at;
+      await startHarness(h, runId, at);
+      return h;
     };
+    const route = (h: Harness, name: string, at: number, transform?: (xml: string) => string, operation: Operation = "normal") => {
+      now = clock(at);
+      return submit(h, envelope(h.root.state.runId, "VPWP50", name, fixtureBody(name, transform, operation), now, ++inputSequence));
+    };
+    const save = async (h: Harness, at: number) => {
+      now = clock(at, at - DATE + 20_000);
+      const from = h.delivered.length;
+      await h.root.driveCheckpoint();
+      await h.settle();
+      const done = h.delivered.slice(from).flatMap(({ reply }) => reply.kind === "checkpointDone" ? [reply.result] : []);
+      if (done.length !== 1 || done[0] == null) throw new Error("checkpoint not scheduled");
+      return done[0];
+    };
+    const unit = (h: Harness) => h.unit("U-F");
     try {
-      const a = makeRoot();
-      a.startRuntime("a", clock(), testNotificationChannels);
-      route(a, fixture(unknown), DATE);
-      expect(a.state.units["U-F"].persistence.currentGeneration).toBe(1);
-      const oldAck = await save(a, DATE, [unknown]);
+      const a = await start(makeRoot(), "a", clock());
+      await route(a, unknown, DATE);
+      expect(unit(a).persistence.currentGeneration).toBe(1);
+      const oldAck = await save(a, DATE);
       expect(oldAck.kind).toBe("acknowledged");
-      const expired = makeRoot();
-      const activeUntil = first(a.state.units["U-F"]).validUntil!;
-      const expiry = expired.startRuntime("expiry", clock(activeUntil), testNotificationChannels);
-      expect(expiry.state.units["U-F"].persistence).toMatchObject({ currentGeneration: 2, savedGeneration: 1 });
-      expect(expiry.generationInputIds["U-F"]).toEqual([]);
-      expect(first(expiry.state.units["U-F"]).effective).toBe("noActiveItems");
-      const b = makeRoot();
-      const restoredStep = b.startRuntime("b", clock(DATE + 2), testNotificationChannels);
+      const activeUntil = first(unit(a)).validUntil!;
+      const expired = await start(makeRoot(), "expiry", clock(activeUntil));
+      expect(unit(expired).persistence).toMatchObject({ currentGeneration: 2, savedGeneration: 1 });
+      expect(first(unit(expired)).effective).toBe("noActiveItems");
+      const b = await start(makeRoot(), "b", clock(DATE + 2));
+      const restoredStep = b.delivered.flatMap(({ place, reply }) =>
+        place === "deferred" && reply.kind === "restored" ? [reply.output] : [])[0];
       expect(restoredStep.displayChanges).toMatchObject([{ unit: "U-F", before: null,
         after: { current: { effective: "active" } } }]);
       expect(restoredStep.displayChanges[0].after?.unit === "U-F"
-        && restoredStep.displayChanges[0].after.current).toBe(b.state.units["U-F"].subjects[0]);
-      expect(b.state.units["U-F"].persistence.savedGeneration).toBe(1);
-      route(b, fixture(cancel), DATE + 2);
-      expect(first(b.state.units["U-F"]).effective).toBe("cancelled");
-      expect(b.state.units["U-F"].persistence.currentGeneration).toBe(2);
+        && restoredStep.displayChanges[0].after.current).toEqual(unit(b).subjects[0]);
+      expect(unit(b).persistence.savedGeneration).toBe(1);
+      await route(b, cancel, DATE + 2);
+      expect(first(unit(b)).effective).toBe("cancelled");
+      expect(unit(b).persistence.currentGeneration).toBe(2);
       fail.write = true;
-      expect((await save(b, DATE + 2, [cancel])).kind).toBe("failed");
-      expect(first(b.state.units["U-F"]).effective).toBe("cancelled");
+      expect((await save(b, DATE + 2)).kind).toBe("failed");
+      expect(first(unit(b)).effective).toBe("cancelled");
       fail.write = false;
-      const c = makeRoot();
-      c.startRuntime("c", clock(DATE + 3), testNotificationChannels);
-      expect(c.state.units["U-F"].persistence.savedGeneration).toBe(1);
-      expect(first(c.state.units["U-F"]).effective).toBe("active");
-      route(c, fixture(cancel), DATE + 3);
-      expect(first(c.state.units["U-F"]).effective).toBe("cancelled");
+      const c = await start(makeRoot(), "c", clock(DATE + 3));
+      expect(unit(c).persistence.savedGeneration).toBe(1);
+      expect(first(unit(c)).effective).toBe("active");
+      await route(c, cancel, DATE + 3);
+      expect(first(unit(c)).effective).toBe("cancelled");
       fail.afterRename = true;
-      expect((await save(c, DATE + 3, [cancel])).kind).toBe("uncertain");
+      expect((await save(c, DATE + 3)).kind).toBe("uncertain");
       expect(writes).toBe(2);
-      expect(c.state.units["U-F"].persistence).toMatchObject({ currentGeneration: 2, savedGeneration: 1 });
+      expect(unit(c).persistence).toMatchObject({ currentGeneration: 2, savedGeneration: 1 });
       fail.afterRename = false;
-      const d = makeRoot();
-      d.startRuntime("d", clock(DATE + 4), testNotificationChannels);
-      expect(d.state.units["U-F"].persistence.savedGeneration).toBe(2);
-      expect(first(d.state.units["U-F"]).effective).toBe("cancelled");
-      const newer = fixture(unknown, (xml) => xml.replace("2026-06-05T17:00:00+09:00</ReportDateTime>",
+      const d = await start(makeRoot(), "d", clock(DATE + 4));
+      expect(unit(d).persistence.savedGeneration).toBe(2);
+      expect(first(unit(d)).effective).toBe("cancelled");
+      await route(d, unknown, DATE + 3_600_000, (xml) => xml.replace("2026-06-05T17:00:00+09:00</ReportDateTime>",
         "2026-06-05T18:00:00+09:00</ReportDateTime>").replace("<InfoType>発表</InfoType>", "<InfoType>訂正</InfoType>"));
-      route(d, newer, DATE + 3_600_000);
-      expect(first(d.state.units["U-F"]).effective).toBe("active");
-      const emptyReport = fixture(unknown, (xml) => xml
+      expect(first(unit(d)).effective).toBe("active");
+      await route(d, unknown, DATE + 7_200_000, (xml) => xml
         .replace("2026-06-05T17:00:00+09:00</ReportDateTime>", "2026-06-05T19:00:00+09:00</ReportDateTime>")
         .replace(/<TimeSeriesInfo>[\s\S]*?<\/TimeSeriesInfo>/, ""));
-      route(d, emptyReport, DATE + 7_200_000);
-      expect(first(d.state.units["U-F"]).effective).toBe("noActiveItems");
-      route(d, fixture(unknown, (xml) => xml.replace("<ReportDateTime>2026-06-05T17:00:00+09:00</ReportDateTime>",
-        "<ReportDateTime>2026-06-05T20:00:00+09:00</ReportDateTime>"), "training"), DATE + 10_800_000);
-      expect(d.state.units["U-F"].subjects.map((item) => item.operation).sort()).toEqual(["normal", "training"]);
-      const beforeOldAck = d.state.units["U-F"];
+      expect(first(unit(d)).effective).toBe("noActiveItems");
+      await route(d, unknown, DATE + 10_800_000, (xml) => xml.replace("<ReportDateTime>2026-06-05T17:00:00+09:00</ReportDateTime>",
+        "<ReportDateTime>2026-06-05T20:00:00+09:00</ReportDateTime>"), "training");
+      expect(unit(d).subjects.map((item) => item.operation).sort()).toEqual(["normal", "training"]);
+      const beforeOldAck = unit(d);
       expect(writes).toBe(2);
-      d.applyCheckpointResult(d.state, oldAck, clock(DATE + 10_800_001));
-      expect(d.state.units["U-F"]).toBe(beforeOldAck);
-      const summary = await d.shutdownRuntime(d.state, 1, clock());
+      // TEST-PATH (1): the owner applies checkpoint results itself; another run's ack leaves the unit untouched.
+      const owner = d.owners.get("deferred")!["state"]!;
+      expect(checkpointResultOwner(owner, oldAck, calls.units).state.units["U-F"]).toBe(beforeOldAck);
+      now = clock();
+      const summary = await d.root.shutdownRuntime(1, clock());
       expect(summary).toMatchObject({ code: 0, reasons: [], persistence: { "U-F": { kind: "saved" } } });
-      const finalGeneration = d.state.units["U-F"].persistence.currentGeneration;
-      expect(d.state.units["U-F"].persistence.savedGeneration).toBe(finalGeneration);
-      const e = makeRoot();
-      e.startRuntime("e", clock(DATE + 10_800_002), testNotificationChannels);
-      expect(e.state.units["U-F"].persistence.savedGeneration).toBe(finalGeneration);
-      expect(e.state.units["U-F"].subjects).toEqual(d.state.units["U-F"].subjects);
+      const finalGeneration = unit(d).persistence.currentGeneration;
+      expect(unit(d).persistence.savedGeneration).toBe(finalGeneration);
+      const e = await start(makeRoot(), "e", clock(DATE + 10_800_002));
+      expect(unit(e).persistence.savedGeneration).toBe(finalGeneration);
+      expect(unit(e).subjects).toEqual(unit(d).subjects);
       expect(writes).toBe(3);
     } finally { rmSync(directory, { recursive: true, force: true }); }
   });
@@ -689,20 +704,13 @@ describe("P2-A6 weather timeseries", () => {
     expect(duplicate.outcomes.some((item) => item.kind === "deadlineApplied")).toBe(true);
     expect(duplicate.state.persistence.currentGeneration).toBe(other.state.persistence.currentGeneration + 1);
     const runtime = fixtureState({}, { "U-F": other.state.persistence }, "a6");
-    const linked = { reduceWeatherTimeseriesUnit, codecs: { "U-F": weatherTimeseriesUnitCodec } };
-    const routed = reduceRuntimeWith({ ...runtime, units: { ...runtime.units, "U-F": other.state },
-      deadlines: { "U-E": null, "U-W": null, "U-F": { wallTimeMs: at, monotonicMs: null } } },
-    { kind: "mailboxCompleted", clock: clock(at), completion: { kind: "parser", messageId: "duplicate",
-      runId: "a6", inputId: "duplicate", inputSequence: 1, encodedByteLength: 0,
-      startedMonotonicMs: 0, completedMonotonicMs: 1,
-      result: { kind: "decoded", material: otherMaterial } } }, linked);
+    const linked = callsWith({ reduceWeatherTimeseriesUnit }).units;
+    const owner = ownerFixture("deferred", { ...runtime, units: { ...runtime.units, "U-F": other.state } });
+    const routed = receiveOwner({ ...owner, deadlines: { "U-F": { wallTimeMs: at, monotonicMs: null } } },
+      { runId: "a6", inputId: "duplicate", result: { kind: "decoded", material: otherMaterial } }, clock(at), linked);
     expect(routed.generationInputIds["U-F"]).toEqual([]);
-    const headless = reduceRuntimeWith({ ...runtime, units: { ...runtime.units, "U-F": other.state },
-      deadlines: { "U-E": null, "U-W": null, "U-F": null } },
-    { kind: "mailboxCompleted", clock: clock(DATE), completion: { kind: "parser", messageId: "headless",
-      runId: "a6", inputId: "headless", inputSequence: 1, encodedByteLength: 0,
-      startedMonotonicMs: 0, completedMonotonicMs: 1,
-      result: { kind: "decoded", material: fixture("81_05_01_260605_VPWP50_head_missing") } } }, linked);
+    const headless = receiveOwner({ ...owner, deadlines: { "U-F": null } }, { runId: "a6", inputId: "headless",
+      result: { kind: "decoded", material: fixture("81_05_01_260605_VPWP50_head_missing") } }, clock(DATE), linked);
     expect(headless.state.units["U-F"]).toBe(other.state);
     expect(headless.diagnostics).toMatchObject([{ reason: "headMissing", unit: "U-F" }]);
   });

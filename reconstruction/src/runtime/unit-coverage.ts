@@ -1,5 +1,6 @@
 import type { RuntimeUnitId } from "../../contracts/p2-shared-runtime.types";
 import type { CoverageClass, CoverageRow } from "../../contracts/p3-unit-table.types";
+import type { ExecutionPlace } from "../../contracts/p3-execution-split.types";
 
 // P3-UNIT-TABLE-001 (C0). The one list of implemented runtime units (ledger 52 ③): without it each
 // loop re-spells the units and a new unit is silently skipped by the loops that were not updated.
@@ -7,6 +8,13 @@ import type { CoverageClass, CoverageRow } from "../../contracts/p3-unit-table.t
 const runtimeUnits = ["U-E", "U-W", "U-F"] as const satisfies readonly RuntimeUnitId[];
 type CoversAllUnits<L extends readonly RuntimeUnitId[]> = [Exclude<RuntimeUnitId, L[number]>] extends [never] ? L : never;
 const coveredUnits: CoversAllUnits<typeof runtimeUnits> = runtimeUnits;
+
+// P3-C3A-PLACE-COLUMN: the execution place of each unit, next to the unit list. Without it the mailbox cannot
+// tell which in-flight slot an input uses and urgent and non-urgent units would share an owner. Keyed: a new
+// unit without its row fails to compile.
+const executionPlaces: Readonly<Record<RuntimeUnitId, ExecutionPlace>> = {
+  "U-E": "urgent", "U-W": "weatherCurrent", "U-F": "deferred",
+};
 
 // Coverage: the subscribed XML headTypes (ranges expanded to single codes). A headType not listed here is
 // "unlisted" at runtime and shows up as routeUnlisted (ledger 52 ①).
@@ -157,5 +165,11 @@ function classifyHeadType(headType: string): CoverageClass {
   return rowsByHeadType.get(headType) ?? { status: "unlisted" };
 }
 
-export { classifyHeadType, runtimeUnits };
+// P3-C3A-NONREADY: an input that no ready unit owns (ignored, notPorted, unlisted) is decoded in "deferred".
+function placeOfHeadType(headType: string): ExecutionPlace {
+  const row = rowsByHeadType.get(headType);
+  return row?.status === "ready" ? executionPlaces[row.unit] : "deferred";
+}
+
+export { classifyHeadType, executionPlaces, placeOfHeadType, runtimeUnits };
 export type { CoversAllUnits };

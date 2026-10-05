@@ -15,10 +15,11 @@ import type { DiagnosticFileSystem } from "../../src/checkpoint/persistent-diagn
 import { decodeMaterial } from "../../src/decode-material/decode-material";
 import { reduceWeatherCurrentMeaning } from "../../src/domains/weather-current/weather-current";
 import { ingestXmlData } from "../../src/ingress/ingress";
-import { RuntimeCompositionRoot } from "../../src/runtime/composition-root";
 import { reduceWeatherCurrentUnit, toWeatherCurrentView, weatherCurrentUnitCodec } from "../../src/units/weather-current/weather-current-unit";
 import { fixtureDriver, fixtureState, stringCodec , testNotificationChannels, recordingNotificationAdapter} from "../checkpoint-shutdown/runtime-fixture";
 import { callsWith } from "../unit-table/linked-calls";
+import { envelope, harnessedRoot, startHarness, submit } from "../execution-split/owner-harness";
+import type { Harness } from "../execution-split/owner-harness";
 
 const NOW = 1_800_000_000_000;
 
@@ -31,9 +32,13 @@ function emptyState(): WeatherCurrentUnitState {
 
 function clock(wallTimeMs = NOW, monotonicMs = 0) { return { wallTimeMs, monotonicMs }; }
 
+function fixtureBody(file: string, transform: (xml: string) => string = (xml) => xml): Buffer {
+  return Buffer.from(transform(readFileSync(`test/fixtures/${file}.xml`, "utf8")));
+}
+
 function decodeFixture(file: string, headType: string, transform: (xml: string) => string = (xml) => xml,
   inputId = file): DecodedMaterial {
-  const body = Buffer.from(transform(readFileSync(`test/fixtures/${file}.xml`, "utf8")));
+  const body = fixtureBody(file, transform);
   const entered = ingestXmlData({ inputId, inputSequence: 1, receivedAt: NOW, origin: "replay",
     kind: "replay", body, headType });
   if (entered.kind !== "accepted") throw new Error(entered.diagnostic.reason);
@@ -270,7 +275,7 @@ describe("P2 weather-current unit", () => {
     expect(JSON.stringify(reapplied.outcomes)).not.toContain('"code":"33"');
   });
 
-  it("P2-A5-T03 contractBoundary / AC04: codec enforces combined retention counts", () => {
+  it("P2-A5-T03 contractBoundary / AC04: codec enforces combined retention counts", async () => {
     const nationals = Object.fromEntries((['normal', 'training', 'test'] as const).map((operation, index) =>
       [operation, snapshot(operation, "VPWS50", "気象庁", `2026-09-06T10:0${index}:00+09:00`, `n${index}`)]));
     const nationalHistory = [0, 1].map((index) => snapshot(index === 0 ? "training" : "test", "VPWS50", "気象庁",
@@ -315,8 +320,11 @@ describe("P2 weather-current unit", () => {
     };
     const notificationFiles = new MemoryCheckpointFileSystem();
     notificationFiles.seed(intentState, 1, NOW);
-    const notificationRoot = new RuntimeCompositionRoot(config(), { "U-W": weatherCurrentUnitCodec }, { notificationAdapter: recordingNotificationAdapter(),
-      checkpointFileSystem: notificationFiles, diagnosticFileSystem: new MemoryDiagnosticFileSystem(),
+    // TEST-PATH (2): the owner restores the intent; the publisher selects it, the owner adopts the reservation and the
+    // recording adapter's delivered result comes back as the owner's intent update.
+    let now = clock();
+    const notifying = harnessedRoot(config(), { "U-W": weatherCurrentUnitCodec }, { notificationAdapter: recordingNotificationAdapter(),
+      checkpointFileSystem: notificationFiles, diagnosticFileSystem: new MemoryDiagnosticFileSystem(), clock: () => now,
       runtimeCalls: callsWith({ ...fixtureDriver().stubs, reduceWeatherCurrentUnit,
         selectNotificationAttempt: (delivery) => delivery.channels.desktop.kind !== "idle"
           || !delivery.intents.some((item) => item.disposition === "pending")
@@ -332,18 +340,18 @@ describe("P2 weather-current unit", () => {
         }),
       }),
     });
-    notificationRoot.startRuntime("weather-test", clock(), testNotificationChannels);
-    notificationRoot.dispatch(notificationRoot.state, { kind: "notificationProbeCompleted",
-      channels: testNotificationChannels, clock: clock() });
-    const selectedRuntime = notificationRoot.tick(notificationRoot.state, clock(NOW + 1, 1));
-    const completedRuntime = notificationRoot.dispatch(selectedRuntime.state, { kind: "notificationResult",
-      result: { kind: "delivered", attemptId: attempt.attemptId, intentId: intent.id,
-        channel: "desktop", completedAt: clock(NOW + 2, 2) } });
-    const completed = completedRuntime.state.units["U-W"];
+    await startHarness(notifying, "weather-test", now);
+    now = clock(NOW + 1, 1);
+    notifying.root.tick(now);
+    await notifying.settle();
+    const completed = notifying.unit("U-W");
     expect(completed.intents[0]).toMatchObject({ disposition: "delivered", attempts: 1, expiresAt: intent.expiresAt });
     expect(weatherCurrentUnitCodec.decode(weatherCurrentUnitCodec.encode(completed)))
       .toMatchObject({ kind: "restored", state: { intents: completed.intents } });
-    expect(notificationRoot.tick(completedRuntime.state, clock(intent.expiresAt, 3)).state.units["U-W"].intents).toEqual([]);
+    now = clock(intent.expiresAt, 3);
+    notifying.root.tick(now);
+    await notifying.settle();
+    expect(notifying.unit("U-W").intents).toEqual([]);
   });
 
   it("P2-A1-DISPLAY-CHANGES.revision: an older stale report records a non-suspect monitor without advancing the content revision", () => {
@@ -487,48 +495,39 @@ describe("P2 weather-current unit", () => {
 
     const driver = fixtureDriver();
     const calls = callsWith({ ...driver.stubs, reduceWeatherCurrentUnit, toWeatherCurrentView });
+    // TEST-PATH (2): each runtime is the publisher with its in-process owners on memory file systems.
+    const wired = (files: MemoryCheckpointFileSystem, at: ReturnType<typeof clock>, codecs: Parameters<typeof harnessedRoot>[1]) =>
+      harnessedRoot(config(), codecs, { notificationAdapter: recordingNotificationAdapter(), checkpointFileSystem: files,
+        diagnosticFileSystem: new MemoryDiagnosticFileSystem(), runtimeCalls: calls, clock: () => at });
+    let inputSequence = 0;
+    const send = (h: Harness, file: string, transform: (xml: string) => string, inputId: string, at: ReturnType<typeof clock>) =>
+      submit(h, envelope(h.root.state.runId, "VPWW57", inputId, fixtureBody(file, transform), at, ++inputSequence));
     const adapter = new MemoryCheckpointFileSystem();
     adapter.seed(state, state.persistence.currentGeneration, NOW);
-    const root = new RuntimeCompositionRoot(config(), { "U-W": weatherCurrentUnitCodec }, { notificationAdapter: recordingNotificationAdapter(),
-      checkpointFileSystem: adapter, diagnosticFileSystem: new MemoryDiagnosticFileSystem(), runtimeCalls: calls,
-      clock: () => clock(NOW, NOW),
-    });
-    const arrivalClock = clock(NOW, NOW);
-    let running = root.dispatch(root.startRuntime("weather-test", arrivalClock, testNotificationChannels).state, { kind: "mailboxCompleted", clock: arrivalClock, completion: {
-      kind: "parser", messageId: cancel.inputId, inputId: cancel.inputId, runId: "weather-test",
-      encodedByteLength: 0, startedMonotonicMs: NOW, completedMonotonicMs: NOW, inputSequence: 1,
-      result: { kind: "decoded", material: cancel },
-    } }).state;
-    const request = root.scheduleCheckpoint(running, clock(NOW, NOW), "weather-save",
-      { "U-W": { inputIds: [cancel.inputId], retryReason: "notRetry" } });
-    if (request?.request == null) throw new Error("U-W checkpoint was not captured");
+    const running = wired(adapter, clock(NOW, NOW), { "U-W": weatherCurrentUnitCodec });
+    await startHarness(running, "weather-test", clock(NOW, NOW));
+    await send(running, "15_16_02_251222_VPWW57", (xml) => cancellation(xml, "2020-06-22T23:02:00+09:00"), "cancel", clock(NOW, NOW));
     adapter.failWrite = true;
-    const failure = await root.executeCheckpoint(request.request, "weather-save", [cancel.inputId], "notRetry");
-    running = root.applyCheckpointResult(running, failure.result, clock(NOW + 1, NOW + 1)).state;
-    expect(running.units["U-W"].persistence.kind).toBe("failed");
+    await running.root.driveCheckpoint();
+    await running.settle();
+    expect(running.root.state.mirror["U-W"].persistence.kind).toBe("failed");
 
     const shutdownFiles = new MemoryCheckpointFileSystem();
     shutdownFiles.seed(restored.state, restored.state.persistence.currentGeneration, NOW);
-    const shutdownRoot = new RuntimeCompositionRoot(config(), { "U-W": weatherCurrentUnitCodec }, { notificationAdapter: recordingNotificationAdapter(),
-      checkpointFileSystem: shutdownFiles, diagnosticFileSystem: new MemoryDiagnosticFileSystem(),
-      runtimeCalls: calls, clock: () => clock(NOW + 2, NOW + 2),
-    });
-    const shutdownState = shutdownRoot.startRuntime("weather-test", clock(NOW + 2, NOW + 2), testNotificationChannels).state;
-    const routed = shutdownRoot.dispatch(shutdownState, { kind: "mailboxCompleted", clock: clock(NOW + 2, NOW + 2), completion: {
-      kind: "parser", messageId: first.inputId, inputId: first.inputId, runId: shutdownState.runId,
-      encodedByteLength: 0, startedMonotonicMs: NOW + 2, completedMonotonicMs: NOW + 2,
-      inputSequence: 1, result: { kind: "decoded", material: first },
-    } });
+    const stopping = wired(shutdownFiles, clock(NOW + 2, NOW + 2), { "U-W": weatherCurrentUnitCodec });
+    await startHarness(stopping, "weather-test", clock(NOW + 2, NOW + 2));
+    const before = stopping.unit("U-W");
+    await send(stopping, "15_16_02_251222_VPWW57", (xml) => xml, first.inputId, clock(NOW + 2, NOW + 2));
     // Wired route: the older redelivery reaches U-W as stale and records freshness only (AC06).
-    const routedUnit = routed.state.units["U-W"];
-    expect(routed.changedUnits).toEqual(["U-W"]);
+    const routedUnit = stopping.unit("U-W");
     for (const field of ["national", "partials", "histories", "tombstones", "intents"] as const)
-      expect(routedUnit[field]).toBe(shutdownState.units["U-W"][field]);
+      expect(routedUnit[field]).toBe(before[field]);
     expect(routedUnit.freshness.slice(restored.state.freshness.length)).toMatchObject([
       { candidateSource: { inputId: first.inputId }, decision: "unchanged", reason: "stale", revisionOrder: "older" }]);
     const nextGeneration = restored.state.persistence.currentGeneration + 1;
     expect(routedUnit.persistence.currentGeneration).toBe(nextGeneration);
-    const summary = await shutdownRoot.shutdownRuntime(shutdownRoot.state, 1, clock(NOW + 2, NOW + 2));
+    expect(stopping.root.state.mirror["U-W"].persistence.currentGeneration).toBe(nextGeneration);
+    const summary = await stopping.root.shutdownRuntime(1, clock(NOW + 2, NOW + 2));
     expect(summary.code, JSON.stringify(summary)).toBe(0);
     expect(summary.persistence["U-W"]).toMatchObject({ kind: "saved",
       currentGeneration: nextGeneration, savedGeneration: nextGeneration });
@@ -537,16 +536,13 @@ describe("P2 weather-current unit", () => {
     const counted = { ...weatherCurrentUnitCodec, encode: (value: WeatherCurrentUnitState) => {
       weatherEncodes++; return weatherCurrentUnitCodec.encode(value);
     } };
-    const e10Root = new RuntimeCompositionRoot(config(), { "U-E": stringCodec("U-E"), "U-W": counted }, { notificationAdapter: recordingNotificationAdapter(),
-      diagnosticFileSystem: new MemoryDiagnosticFileSystem(), runtimeCalls: calls,
-      clock: () => clock(NOW + 3, NOW + 3),
-    });
+    const e10 = wired(new MemoryCheckpointFileSystem(), clock(NOW + 3, NOW + 3), { "U-E": stringCodec("U-E"), "U-W": counted });
     const otherDirty = fixtureState({ "U-E": "e10" }, { "U-E": { kind: "pending", currentGeneration: 2, savedGeneration: 1,
       savedCapturedAt: 0, savedAckAt: 0, dirtySince: 1 } }, "e10");
-    driver.update(e10Root, otherDirty, clock(NOW + 3, NOW + 3),
-      { "U-E": { inputIds: ["e10"], retryReason: "notRetry" } });
-    expect(e10Root.scheduleCheckpoint(otherDirty, clock(NOW + 3, NOW + 3), "e10",
-      { "U-E": { inputIds: ["e10"], retryReason: "notRetry" } })?.request?.unit).toBe("U-E");
+    await driver.update(e10, otherDirty, clock(NOW + 3, NOW + 3), { "U-E": ["e10"] });
+    await e10.root.driveCheckpoint();
+    await e10.settle();
+    expect(e10.sent.flatMap(({ request }) => request.kind === "checkpointGrant" ? [request.unit] : [])).toEqual(["U-E"]);
     expect(weatherEncodes).toBe(0);
   });
 
