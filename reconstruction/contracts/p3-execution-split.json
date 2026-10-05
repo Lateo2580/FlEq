@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "d07d5ac73a2453c4f8475e39cf76afc98ba2c2d0",
-    "sha256": "ad70b137a662d145b9cc18e68c38c4cf5096f6f305521876035b8fd1cc37ce65",
+    "sha256": "9e3b7f496d77a9e1840c40ae8f16b888bdf75734ac4673517b079fb4ea7897df",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "76c82b87d7783a4eae14af690cb34e7d6ec46f73617dc75b7f7401951619f080",
     "sequencesSha256": "be9cfd97b555e3a55568f085d107342c978b3dc7249f5cecea868ea5a62c5781",
@@ -292,7 +292,7 @@
     "contractId": "P3-EXECUTION-SPLIT-001",
     "mode": "implementation",
     "objective": "R56・R57、台帳38・55・56・61、保存の手順1の①・⑤を閉じる。publisher（Node main）は接続・振り分け・mailbox・snapshot・SSE・通知adapter・checkpointの書込み権の配分だけを持ち、unitごとの解凍・XML parse・reduce・期限処理・view生成・checkpointのencodeと書込みをD-P3-1の3本のworker_threads（urgent＝U-E、weatherCurrent＝U-W、deferred＝U-Fとreadyでない入力）のownerへ移す。境界を越えるのはp3-execution-split.types.tsの型付きの値だけで、parse済みtree・canonicalなunit state・checkpointのbytesは越えない。owner宛ての要求は種別ごとの固定上限で有界にする。mailbox（P2-MAILBOX-001）を実行場所ごとのin-flight 1件へ改訂し、件数・byte上限は全体で1つのまま、同じ順序領域の順序と完了照合を保つ。16 KiB以下のframeの二重JSON parseを1回にする（厳格なUTF-8検証は保つ）。業務の時刻の意味（受理の適用時刻・capture・ack）はP2のまま保つ。保存完了でdirtyを無条件に消さず、全体の書込みin-flight 1件と§5.8の公平性を保ったままE10・E14・O07・O10を再検収する。停止監視・通常終了の順序の検収（C3b）と測定（C4）は扱わない。",
-    "baseOid": "unassigned",
+    "baseOid": "7be9429e324cb16a61b9040f1b671f397376dfe1",
     "cleanTreeRequired": true,
     "readPaths": [
       "AGENTS.md",
