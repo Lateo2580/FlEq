@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "585d2f4f858e350c6965d83019ba7e4842285b3c",
-    "sha256": "13c509424cdf6094dcbec0b47201817e46f18847fc59a6cf3d091ae17e9464c3",
+    "sha256": "31adff9fafddee671794aa3e8c4ef6ec89a30f54a2f96d3ee446a43bc92a510f",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "76c82b87d7783a4eae14af690cb34e7d6ec46f73617dc75b7f7401951619f080",
     "sequencesSha256": "be9cfd97b555e3a55568f085d107342c978b3dc7249f5cecea868ea5a62c5781",
@@ -468,7 +468,7 @@
         "requirement": "IR06: T0〜T6とP1 ProcessingMarks七区間でXML parse、checkpoint encode、射影・整形、転送・描画へ原因帰属する。XML parse主因だけB、非parse主因は不要な全量処理除去・枝共有・非中断区間縮小を比較し、同一manifestで再測定する。原因判定入力は個別EewTraceSample、runId/inputId付きP1七区間ProcessingMeasurement、A10所有CheckpointMeasurementとし、CheckpointMeasurementはA3 scheduleCheckpointとexecuteCheckpointの公開返却値から取得する。scheduleCheckpointの捕捉/encode計測とexecuteCheckpointのwrite以降の計測をrunId/attemptIdで結合し、unit/generation/inputIds/retryReasonの一致を検証する。encodeは成功・失敗とも捕捉側から一度だけ取り込み、実行済みencodeの再実行・時刻の復元・二重計上をしない。全計測の開始終了は同じrunのNode単調時計へ対応させ、queue(T1→T2)と転送/描画(T4→T6)を分離し、競合する非EEW入力もinputId付きで記録する。保存成功を含むunit/generation/attempt/stage/開始終了単調時刻/byteを診断とは別recordで渡す。対応の欠落・重複・時計不整合で主因を確定できなければcause=unclassified/decision=blockedへ送り、推測でBにしない。原因帰属は正式・参考の両方で報告するが、A/B判定と修正は正式対象の未達だけを根拠にする。参考測定の原因帰属はR56のP3分離設計へ版付きで引き継ぎ、P2でengine workerを追加しない（R60）。R61で最大VPWS50 parse中が正式対象から外れ、参考測定はdecode開始で代用しないため、spec§9のP2行（原因別A/B判定）とN7（parse分離Bの要否）の判断はP3最初の契約群の正式再検収へ送る。specは変えない",
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:1155 «253098a9cc645bbc»",
-          "docs/specs/reconstruction-p0-contracts.md:1164 «55ec4cdd5510861e»",
+          "docs/specs/reconstruction-p0-contracts.md:1164 «a0005fcda1372f26»",
           "reconstruction/contracts/p2-order-plan.md:310 «ebdc3b47863722fd»",
           "docs/specs/reconstruction-p0-contracts.md:2613 «76f9211b31607416»",
           "docs/specs/reconstruction-p0-contracts.md:2930 «06c16cf8d745a609»"

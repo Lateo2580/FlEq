@@ -152,8 +152,8 @@ J1〜J3、津波 T1〜T3・「今すぐ避難！」・片側への集約、見�
 
 ### 1.3 変更しない裁定
 
-- 状態更新担当は一つ。
-- 初期構成は Node main と常駐 worker 一本。
+- 状態更新担当は保存単位ごとに一つ、公開担当は一つ。
+- 初期構成は Node main と常駐 worker 一本。P3 で §7.1 の 3 本へ移した。
 - P2 の大型 XML 直後 EEW 検収で必要なら parse 分離へ進む。
 - 整合性単位ごとに原子的 JSON 保存を行う。
 - 表示 API は有界な完全 snapshot SSE と有限の表示中通知項目。容量超過分野だけを最小事実へ縮退し、その詳細は版付き個別取得に分ける（§8.1・§8.3）。
@@ -312,7 +312,7 @@ J1-B では、次の追加負担を受け入れる。
 
 ### 3.1 統合方針
 
-**45の責務モジュール、12の保存単位、状態更新担当一つ**を仕様案とする。
+**45の責務モジュール、12の保存単位、公開担当一つ、保存単位ごとの状態更新担当一つ**を仕様案とする。
 
 45は package 数、常駐処理数、独立した current store の数ではない。
 
@@ -372,9 +372,9 @@ nextDeadline(state): Deadline | null
 | B03 `ingress` | WS/REST/replay を共通入力へ変換、購読根拠を保持 | B01、通信 adapter | O09/O10。接続所有、受信時刻の自前確定 | 再接続・REST deadline。入力の無制限蓄積をしない |
 | B04 `decode-material` | decode、展開、XML tree、metadata、分野抽出 | B01、純粋パーサ資材 | 全 XML、O02/O09。一回 decode・展開・full parse | 入力上限。tree・raw は処理後解放、保存しない |
 | B05 `mailbox` | credit、入力順、件数・byte、worker 完了、§7.10 の詳細 request/response と取消 | B01、MessagePort adapter | O09/O10。満杯・停止・異常終了時も計数一致。詳細要求で通常・緊急入力を待たせない | §7 の入力上限と §7.10 の独立した詳細上限。queue は non-durable |
-| B06 `runtime-clock` | 唯一の state 更新、期限入力、保存完了入力 | B01、意味モジュール、port | 全系列。同じ入力順・時計で同じ decision | 単調時間と絶対時刻を分離。保存対象は §4 |
+| B06 `runtime-clock` | 保存単位ごとに唯一の state 更新、期限入力、保存完了入力 | B01、意味モジュール、port | 全系列。同じ入力順・時計で同じ decision | 単調時間と絶対時刻を分離。保存対象は §4 |
 | B07 `checkpoint` | encode 要求、2スロット保存、検証・世代選択 | B01、filesystem adapter | O07/O10。途中書込み・成否不明を区別 | 正常系では初回 dirty から包含世代の保存確認まで3秒以内（§5.8）。状態の意味を補修しない |
-| B08 `view-projector` | worker 内で domain view から完全 snapshot と要求された詳細 1 ページを射影する | B01、各 `toView` | O02/O11、E13a、D-AC21。危険区域の配送、対象内容版の照合、失敗単位の局所化 | 別 current・旧版保存庫を持たず、main へ full view を別配送しない。詳細は §7.10 |
+| B08 `view-projector` | unit の worker 内で domain view を射影し、main で各 unit の view から完全 snapshot を射影する。要求された詳細 1 ページは worker 内で射影する | B01、各 `toView` | O02/O11、E13a、D-AC21。危険区域の配送、対象内容版の照合、失敗単位の局所化 | 別 current・旧版保存庫を持たず、main へ full view を別配送しない。詳細は §7.10 |
 | B09 `notification-delivery` | intent の試行、ack・失敗を runtime に戻す | B01、通知・音 adapter | O01/O07/O10。期限内再試行、重複許容 | intent は発生元単位へ保存。独立 outbox DB は作らない |
 | B10 `extension-port` | 型付き outcome の非同期・有界配送 | B01、登録 consumer | O10/O11。遅い／失敗する consumer の隔離 | §12。公開 main は exporter を持たない |
 | B11 `http-sse` | snapshot、health、詳細要求の検証・中継、静的配信、認証 | B01、immutable snapshot、B05 の型付き詳細 port | O11、D-AC21。再接続直後から一枚で復元。詳細の上限・timeout・worker 停止応答 | 最新 snapshot 一枚＋client ごとの待機一枚。詳細応答は §7.10 の有界な一時保持だけとし、配信履歴・full view 複製を持たない |
@@ -1023,8 +1023,8 @@ rollback は旧側を先に有効化し、新側を止める順序を基本と�
 
 | 実行場所 | 責務 |
 |---|---|
-| Node main | 接続、軽いcontrol frame、mailbox、HTTP/SSE、通知adapter、小さい端末出力、health |
-| 常駐 engine worker一本 | decode・展開・XML parse、意味状態、reducer、期限処理、view生成、checkpoint encode |
+| Node main（公開担当） | 接続、軽いcontrol frame、実行場所への振り分け、mailbox、workerが返すviewからのsnapshot射影、HTTP/SSE、通知adapter、checkpoint書込み権の配分、小さい端末出力、health |
+| 常駐 engine worker 3本 | urgent（U-E系の急ぐunit）・weatherCurrent（U-W）・deferred（U-Fなど急がないunitと、readyでないheadTypeの入力）。各workerが自分のunitのdecode・展開・XML parse、意味状態、reducer、期限処理、view生成、checkpoint encodeと書込みを行う |
 | 非同期I/O | checkpoint、ログ、採用したexport。完了はtyped入力へ戻す |
 | 開発機Chrome | 完全snapshotの受信、scene、地図・カード描画 |
 
@@ -1046,12 +1046,12 @@ worker は電文ごとに生成しない。Node の worker 数だけで全体の
 | 入力mailbox全体 | 128件かつ16 MiB |
 | 通常入力の利用枠 | 120件かつ14 MiBまで |
 | 残り予約 | 緊急入力・必要control用8件／2 MiB |
-| workerへの通常data in-flight | 1件 |
+| workerへの通常data in-flight | 実行場所ごとに1件 |
 | 単一WS frame／REST本文 | 8 MiB |
 | 展開後本文 | 10 MiB |
 | REST同時本文取得 | 2件。mailbox creditを使う |
 | checkpoint書込み | 全体で1件in-flight、各単位に最新dirty参照 |
-| mainへ送る待機snapshot | 最新1枚 |
+| workerからmainへ送る待機view | workerごとの未完了要求の返信分。返信1件に変わったunitのview各1枚 |
 
 mailbox の計数には、待機中と worker へ渡した未完了入力を含める。`postMessage` 済みだから計数から外すことはしない。
 
@@ -1154,14 +1154,14 @@ P2 は EEW の最小実描画経路、P3 は津波の最小実描画経路、P4/
 
 **XML parse が主因の場合だけ、現在の B へ移行する。**
 
-- 大型 XML を読む専用 worker を追加し、状態担当 worker は一つのままとする。
+- 大型 XML の parse は公開担当の thread の外で行い、保存単位ごとの状態更新担当は一つのままとする。§7.1 の配置がこれを満たす。
 - EEW・津波候補が大型通常 parse の待ちへ埋もれない処理経路を確保する。
 - 同一 `operation／family／subject` の順序を維持し、parse 完了順で採用しない。
 - 同じ電文を二つの worker で再 parse しない。
 - parse 待ち結果にも件数・byte 上限を設ける。
 - control・期限・保存 ack の進行を保ち、汎用 worker pool へ拡大しない。
 
-checkpoint encode・射影・整形・転送が主因なら、XML worker 追加を解決としない。不要な全量処理の除去、既存の枝共有、必要なページだけの射影、非中断処理量の縮小を先に比較する。新たな worker・journal・coordinator を必須化しない。
+checkpoint encode・射影・整形・転送が主因なら、§7.1 の 3 本を超える worker の追加を解決としない。不要な全量処理の除去、既存の枝共有、必要なページだけの射影、非中断処理量の縮小を先に比較する。新たな worker・journal・coordinator を必須化しない。
 
 採用した最小修正後も §7.5 の同じ母集団で再測定する。parse 対策後に encode 直後の未達が残れば、B 採用だけでは不合格だ。成立する最小案がない場合は当該 P2 契約を **Blocked** とし、原因・未達量・試した対策を残す。津波経路を閉じる P3 でも同じ判断を適用する。
 
