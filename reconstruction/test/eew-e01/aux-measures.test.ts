@@ -83,15 +83,17 @@ describe("P2-A10-T04 auxiliary aggregation (AC08/AC09/AC15)", () => {
     expect(result.spec.report).toBe("報告（spec 式で超過・原因未分類）");
   });
 
-  it("E15: attempts join through WP2 checkpointJoinProblem; a broken join is 未確認 with the reason; occupancy is the encode+verify lower bound and the measured-stage sum (not an upper bound)", () => {
+  // AC12(a)（P3-C1-E15）: verify 段は保存の占有に数えず、読んだ bytes として別に数える（旧期待 occupiedMsLower 7・byteViolations 1）。
+  it("E15: attempts join through WP2 checkpointJoinProblem; a broken join is 未確認 with the reason; occupancy is the encode lower bound with verify counted apart, and the measured-stage sum (not an upper bound)", () => {
     const cp = (attemptId: string, stage: string, bytes: number, startedMonotonicMs: number, endedMonotonicMs: number, inputIds = ["input-1"], outcome = "succeeded") =>
       obs({ kind: "checkpoint", measurement: { runId: "r", inputIds, unit: "U-W", generation: 1, attemptId, stage, startedMonotonicMs, endedMonotonicMs,
         bytes, outcome, retryReason: "notRetry" } });
     const good = [marker("T0", "input-1", 0), cp("a1", "encode", 900, 0, 4), cp("a1", "write", 900, 5, 9), cp("a1", "verify", 900, 10, 11),
       cp("a3", "encode", 700, 30, 32, ["input-9"], "failed")];
     const result = aux.summarizeE15(good);
-    expect(result.units?.["U-W"]).toMatchObject({ encodeCount: 2, encodeBytes: 1600, writeBytes: 900, occupiedMsLower: 7, measuredStagesMs: 11, failedAttempts: 1 });
-    expect(result).toMatchObject({ status: null, byteViolations: 1, unknownInputIds: 1 });
+    expect(result.units?.["U-W"]).toMatchObject({ encodeCount: 2, encodeBytes: 1600, writeBytes: 900, occupiedMsLower: 6, measuredStagesMs: 11, failedAttempts: 1,
+      verifyCount: 1, verifyBytes: 900, verifyMs: 1 });
+    expect(result).toMatchObject({ status: null, byteViolations: 0, unknownInputIds: 1 });
     // A write whose encode was never captured cannot be attributed: the whole report is 未確認.
     const broken = aux.summarizeE15([...good, cp("a2", "write", 900, 20, 21)]);
     expect(broken.status).toBe("未確認");

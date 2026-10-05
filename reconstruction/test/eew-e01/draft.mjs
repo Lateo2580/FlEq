@@ -1,4 +1,4 @@
-// P2-A10-AC01/AC08/AC15/AC16: manifest / trialSetup / initial-state の組み立て。予備測定の案（buildDraft → evidence/preliminary/）と、
+// P2-A10-AC01/AC08/AC15/AC16: manifest / trialSetup / initial-state の組み立て。A10 の予備測定の案（evidence/preliminary/、生成済み）と、
 // Q-PERF の凍結（freeze → evidence/）は同じ組み立てを通り、置き場と通知 probe・P 用の空け数の出どころだけが違う。
 // 無いと、予備測定と本番が別の定数で動き、結果を見る前に固定した条件と runner の内部定数が食い違う。
 //
@@ -55,10 +55,11 @@ const contractTexts = () => {
   return byId;
 };
 
-export function contractTextsFor() {
+// 使用契約: root の契約とその dependsOnContractIds（A10 は P2-EEW-E01-001、P3 は P3-E01-REACCEPT-001）。
+export function contractTextsFor(root = "P2-EEW-E01-001") {
   const all = contractTexts();
-  const own = JSON.parse(all["P2-EEW-E01-001"]).contract.dependsOnContractIds;
-  return Object.fromEntries(["P2-EEW-E01-001", ...own].map((id) => [id, all[id]]));
+  const own = JSON.parse(all[root]).contract.dependsOnContractIds;
+  return Object.fromEntries([root, ...own].map((id) => [id, all[id]]));
 }
 
 const ref = (name) => ({ fixture: fixtureId(name), sha256: sha256Hex(fixtureText(name)) });
@@ -226,11 +227,6 @@ export function buildManifest({ stage, chromeVersion, nodeVersion, osVersion, de
   return { manifest: JSON.parse(manifestText), manifestText, trialSetupText, initialStateText, smokeText, contractTexts: contracts, nEvents: n };
 }
 
-// 予備測定の案。notificationProbe は run.mjs が実 run の probe 結果で入れ直して再封印する。P 用の空け数は予備で渡したとき（--room-*）だけ入る（無ければ null = 未凍結）。
-export function buildDraft(args) {
-  return buildManifest({ ...args, stage: "preliminary", room: args.room ?? null, notificationProbe: { desktop: "idle", sound: "idle" } });
-}
-
 // 凍結: 組み立て → verifyFrozenManifest → 既存ファイルを上書きせずに 3 つを書く。書いた path と manifest を返す。
 export function freeze({ out, ...args }) {
   const counted = (v, max) => Number.isInteger(v) && v >= 0 && v <= max;
@@ -246,6 +242,84 @@ export function freeze({ out, ...args }) {
   return { paths: files.map(([name]) => join(out, name)), manifest: built.manifest };
 }
 
+// ── P3（P3-E01-REACCEPT-001）: A10 の凍結物 a10-p2-20260930b を継承する manifest の組み立て ──
+// 負荷・trialSetup・initial-state・fixture は A10 のまま（verifyFrozenP3Manifest が hash で照合する）。無いと、P3 の予備と凍結が A10 と別の負荷で走り、
+// e01:93 の「同じ P・C の窓」で比べられない。N の窓のファイル（private corpus）は読まない（A10 の loads をそのまま写す）。
+export const A10_MANIFEST = `${EVIDENCE}/manifest.json`;
+// P3-C4-AC01 の対応表: 母集団 ID ↔ spec §7.5 の番号 ↔ A10 の ID ↔ R61 の条件 ↔ 計画の行。trigger の文字列に入れて manifest の hash に固定する。
+// state は継承する initial-state.json#populations の key、periodMs は A10 の周期（formal 1,370ms・reference 3,000ms）。
+const P3_TABLE = {
+  fixedBacklog: { spec: "§7.5-1", a10: "fixedBacklog(formal)", r61: "P2限定E01 の正式対象", state: "fixedBacklog", periodMs: Q.formalPeriodMs,
+    how: "続報方式（同じ EventID の VXSE43 を Serial+1・予測 A/B 交互）を通常負荷 N の再生と同時に投入する" },
+  maxVpws50ParseStarted: { spec: "§7.5-2", a10: "maxVpws50DecodeStarted(reference、起点を full parse 開始に替える)", r61: "除外4条件の1", state: "maxVpws50DecodeStarted", periodMs: Q.refPeriodMs,
+    how: "最大 VPWS50 15_18_01 を送った 1ms 後に EEW を送り、T0 が full parse 開始（P3-C4-PARSE-MARK）の 0〜5ms 後かつ parse 中なら成立" },
+  maxWeatherCheckpointEncodeStarted: { spec: "§7.5-3", a10: "maxWeatherCheckpointEncodeStarted(reference)", r61: "除外4条件の2", state: "maxWeatherCheckpointEncodeStarted", periodMs: Q.refPeriodMs,
+    how: "VPWW55 を引き金に予測した tick の U-W encode 開始の 1ms 後に EEW を送り、T0 が encode 開始の 0〜5ms 後かつ encode 中なら成立" },
+  maxForecastCheckpointSave: { spec: "§7.5-3(保存)", a10: "maxForecastCheckpointSave(reference)", r61: "除外4条件の3", state: "maxForecastCheckpointSave", periodMs: Q.refPeriodMs,
+    how: "VPWP50 81_09_01 を引き金に予測した tick の U-F 保存（encode 開始〜最後の段の終わり）の開始 1ms 後に EEW を送る" },
+  forecastDeadlineOverlap: { spec: "§7.5-3(期限処理)", a10: "forecastDeadlineOverlap(reference)", r61: "除外4条件の4", state: "forecastDeadlineOverlap", periodMs: Q.refPeriodMs,
+    how: "validUntil を狙う tick の 1 つ前の tick に置いた VPWP50 81_01_04 の期限回収で、狙う tick に起きる U-F encode の開始 1ms 後に EEW を送る。代替条件の候補（Q-C4-ALT-CONDITION、未固定）: 期限処理の encode は約 0.3ms で T0 が encode 中に入らないので、target を期限回収で起きた U-F の保存の試行全体（encode 開始〜write 完了）にし、その 1ms 後に投入する。固定は AC08 の予備測定の後に統合担当が行う" },
+  maxVpws50ReceivedThenEew: { spec: "なし(R57 の作者裁定から来た衝突試験)", a10: "なし(初期状態は maxVpws50DecodeStarted を継承)", r61: "なし", state: "maxVpws50DecodeStarted", periodMs: Q.refPeriodMs,
+    how: "同じ WS で最大 VPWS50 の frame を送った直後に間を空けず EEW を送り、EEW の実送信の上界（host 時計）が VPWS50 の T1 より前なら成立" },
+};
+
+// collisionVerdict は P3-C4-COLLISION-VERDICT（A: 参考・T0、B: 正式・injectorSend）。stop は母集団ごとの stopCondition（予備測定の後に統合担当が固定する）。
+// 指定の無い母集団は establishmentRate（成立率の仮置き）から maxAttempts = 100 + ceil(1000 ÷ 成立率)、maxDurationMs = maxAttempts × 周期 × 2 の仮値。
+export function buildP3Manifest({ id, chromeVersion, nodeVersion, osVersion, device, collisionVerdict = "A", stop = {}, establishmentRate = 0.5,
+  machines = { formal: "MacBook M5（A10 と同じ機械）", gate: "Mac mini（独立 checkout。reconstruction/dist・node_modules を共有しない）", piBackend: "Raspberry Pi 500（Pi 第 1 段: backend 単独、第 2 段: Pi backend＋MacBook M5 の Chrome）" } }) {
+  if (!["A", "B"].includes(collisionVerdict)) throw new Error("collisionVerdict must be A or B (P3-C4-COLLISION-VERDICT)");
+  const a10Text = readFileSync(join(REPO, A10_MANIFEST), "utf8");
+  const a10 = JSON.parse(a10Text);
+  const trialSetupText = readFileSync(join(REPO, a10.trialSetupRef), "utf8");
+  const trialSetup = JSON.parse(trialSetupText);
+  const initialStateText = readFileSync(join(REPO, trialSetup.initialStateRef), "utf8");
+  const smokeText = readFileSync(join(REPO, SMOKE_FILE), "utf8");
+  const smoke = JSON.parse(smokeText);
+  const contracts = contractTextsFor("P3-E01-REACCEPT-001");
+  const { schemaVersion: _schema, manifestId: _id, manifestSha256: _hash, formal, reference: _reference, auxiliary, ...common } = a10;
+  const populations = Object.fromEntries(Object.entries(P3_TABLE).map(([key, row]) => {
+    const collision = key === "maxVpws50ReceivedThenEew";
+    const establishment = key === "fixedBacklog" ? { kind: "none" } : collision ? { kind: "sentBeforeLargeFrameIngested" }
+      : { kind: "startOffset", targetOffsetMs: 1, acceptedOffsetRangeMs: [0, 5] };
+    const maxAttempts = stop[key]?.maxAttempts ?? 100 + Math.ceil(1000 / (establishment.kind === "none" ? 1 : establishmentRate));
+    return [key, {
+      scope: collision && collisionVerdict === "A" ? "reference" : "formal", load: "N", periodMs: row.periodMs,
+      trigger: `population=${key}; spec=${row.spec}; a10=${row.a10}; r61=${row.r61}; plan=p3-order-plan.md:155; periodMs=${row.periodMs}; ${row.how}; ${Q.paintEvidence}`,
+      stateRef: `${trialSetup.initialStateRef}#populations.${row.state}`, stateSha256: trialSetup.initialStateSha256, establishment,
+      origin: collision && collisionVerdict === "B" ? "injectorSend" : "T0", forecast: key === "fixedBacklog" ? formal.forecast : null,
+      stopCondition: { maxAttempts, maxDurationMs: stop[key]?.maxDurationMs ?? maxAttempts * row.periodMs * 2 },
+    }];
+  }));
+  const differences = [];
+  if (smoke.chrome.version !== chromeVersion) differences.push(`chrome.version: smoke ${smoke.chrome.version} / manifest ${chromeVersion}`);
+  for (const [field, was, now] of [["chrome.version", a10.chrome.version, chromeVersion], ["nodeVersion", a10.nodeVersion, nodeVersion], ["osVersion", a10.osVersion, osVersion], ["device", a10.device, device]]) {
+    if (was !== now) differences.push(`${a10.manifestId} からの差 ${field}: ${was} / ${now}`);
+  }
+  const manifest = {
+    schemaVersion: "p3-e01-manifest-v1", manifestId: id, manifestSha256: "0".repeat(64), ...common,
+    contractSha256: Object.fromEntries(Object.entries(contracts).map(([cid, text]) => [cid, JSON.parse(text).meta.sha256])),
+    smokeConditionDifferences: differences, chrome: { ...a10.chrome, version: chromeVersion }, nodeVersion, osVersion, device,
+    inheritsManifestId: a10.manifestId, populations,
+    liveness: { pingEveryMs: 20000, maxFrameGapMs: 90000 },
+    auxiliary: {
+      E03: { ...auxiliary.E03, sharesWindowWith: null }, E05: { ...auxiliary.E05, sharesWindowWith: "E02（同じ窓の mem 行）" },
+      E06: { ...auxiliary.E06, condition: `${auxiliary.E06.condition}。--expose-gc 後の RSS と数時間の窓でも分類する（台帳61）`, sharesWindowWith: null },
+      E07: { loads: ["N", "C"], minSamplesPerRun: null, runCount: 1, sharesWindowWith: null,
+        condition: "P3-C3B-E07-WINDOW=A のとき: N と C の各 60 分。全遷移で宣言上限内、通常入力の最大待機年齢≤暫定 5 秒、入力停止から 10 秒以内に入力 mailbox の pending・in-flight が 0、C の warm-up 後の周期末 backlog の件数・byte が前周期末以下。窓の中で owner が停止・unresponsive なら Fail（工程 2 で窓を作る）" },
+      E12: { ...auxiliary.E12, sharesWindowWith: null },
+      E15: { loads: ["P", "C"], minSamplesPerRun: null, runCount: null, sharesWindowWith: "E02-P・E05-P・AC15・E06（A10 と同じ保持上限の窓）",
+        condition: "write の帰属不能 0（thread ごとの write 別計数と CheckpointMeasurement・診断 record の帰属が区分ごとに一致）、保存と診断の write の別計数、保存前段の同期区間の占有、verify 段の読んだ bytes の別計数（encode・write へ足さない）。write 別計数は工程 2 で入る" },
+    },
+    machines,
+    judgmentPlaces: {
+      E01: "Pi backend＋実接続経路＋Mac の Chrome（P5）。C4 の Mac の結果は e01:93 の再検収と E01 の正式再検収（R61）の判定",
+      E02: "Pi（P5）", E03: "Pi（P5）。Mac は回帰検出、Pi 予備確認は P3-C4-PI-E03", E05: "Pi（P5）", E06: "Pi（P5）", E07: "Pi（P5）", E14: "Pi（P5）", E15: "Pi（P5）",
+    },
+  };
+  const manifestText = sealSelfHash(`${JSON.stringify(manifest, null, 2)}\n`, "manifestSha256");
+  return { manifest: JSON.parse(manifestText), manifestText, trialSetupText, initialStateText, smokeText, contractTexts: contracts, a10Text };
+}
+
 const NODE22 = "/opt/homebrew/opt/node@22/bin/node";
 const run = (cmd, args) => new Promise((resolve, reject) => {
   const child = spawn(cmd, args);
@@ -259,6 +333,17 @@ if (process.argv[1] != null && import.meta.filename === realpathSync(process.arg
   const argv = process.argv.slice(2);
   const args = new Map();
   for (let i = 0; i < argv.length; i++) if (argv[i].startsWith("--")) args.set(argv[i].slice(2), argv[i + 1]?.startsWith("--") || argv[i + 1] == null ? true : argv[++i]);
+  if (args.has("p3-draft") && typeof args.get("id") === "string") {
+    // P3 manifest の草案（凍結しない）。母集団の対応表は各母集団の trigger。stopCondition は予備測定の前の仮値。
+    const { chromeVersion } = await import("./chrome.mjs");
+    const built = buildP3Manifest({ id: String(args.get("id")), chromeVersion: await chromeVersion(), nodeVersion: await run(NODE22, ["-p", "process.version"]),
+      osVersion: `${release()} ${arch()}`, device: `${cpus()[0]?.model ?? "cpu"} x${cpus().length}, ${Math.round(totalmem() / 2 ** 30)}GiB`,
+      collisionVerdict: String(args.get("collision-verdict") ?? "A") });
+    const out = args.has("out") ? String(args.get("out")) : join(REPO, EVIDENCE, "p3/manifest.draft.json");
+    writeFileSync(out, built.manifestText);
+    console.log(JSON.stringify({ written: out, manifestId: built.manifest.manifestId, manifestSha256: built.manifest.manifestSha256 }));
+    process.exit(0);
+  }
   if (!args.has("freeze") || typeof args.get("id") !== "string") {
     console.error("usage: node draft.mjs --freeze --id <manifestId> --room-partials <n> --room-forecast <n> --notification-probe desktop=<idle|unavailable>,sound=<idle|unavailable> [--out <dir>]");
     process.exit(2);

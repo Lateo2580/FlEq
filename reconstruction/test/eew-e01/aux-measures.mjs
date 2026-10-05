@@ -163,8 +163,10 @@ export function startFdSampler(pid, everyMs = 60_000) {
 
 // E15（AC09）: CheckpointMeasurement を runId/attemptId で結合し、unit 別に encode 回数・encode/write byte・処理占有時間を数える。
 // 結合の検証は WP2 の checkpointJoinProblem（classifyEewCause と同じ規則）。問題があれば集計せず未確認。
-// 占有時間: encode と verify は同期区間として下限（occupiedMsLower）にする。measuredStagesMs は計測された全段の壁時間の合計で、
+// 占有時間: encode を同期区間の下限（occupiedMsLower）にする。measuredStagesMs は計測された全段の壁時間の合計で、
 // 非同期の待ちを含み、前段の同期処理（checkpoint.ts:266-300）を含まない。上限ではない。
+// verify 段（P3-C1-E15）: C1 後の定常保存には無く、記憶なしの試行・照合の経路でだけ出る。読んだ bytes と時間を verify* に別に数え、
+// encode・write・占有へ足さない（無いと、照合の読み込みが保存の占有と byteViolations に混ざる）。
 export const E15_BLOCKED = [
   "executeCheckpoint の前段の同期処理（checkpoint.ts:266-300 の restoreUnit・removeTemporaries・serializedEnvelope・latestValidSlot）は、どの段の計測区間にも入らず、製品に計測点が無いため未測定",
   "checkpoint と診断の write を A3 CheckpointFileSystem/DiagnosticFileSystem で別計数する口が startP2Host の config に無い（製品 src 不変のため未測定）",
@@ -182,11 +184,15 @@ export function summarizeE15(records) {
   const attempts = new Set();
   for (const m of measurements) {
     attempts.add(`${m.runId}\u0000${m.attemptId}`);
-    const u = (units[m.unit] ??= { encodeCount: 0, encodeBytes: 0, writeBytes: 0, occupiedMsLower: 0, measuredStagesMs: 0, failedAttempts: 0 });
+    const u = (units[m.unit] ??= { encodeCount: 0, encodeBytes: 0, writeBytes: 0, occupiedMsLower: 0, measuredStagesMs: 0, failedAttempts: 0, verifyCount: 0, verifyBytes: 0, verifyMs: 0 });
     const ms = m.endedMonotonicMs - m.startedMonotonicMs;
     u.measuredStagesMs += ms;
-    if (m.stage === "encode" || m.stage === "verify") u.occupiedMsLower += ms;
-    if (m.stage === "encode") {
+    if (m.stage === "verify") {
+      u.verifyCount++;
+      u.verifyBytes += m.bytes;
+      u.verifyMs += ms;
+    } else if (m.stage === "encode") {
+      u.occupiedMsLower += ms;
       u.encodeCount++;
       u.encodeBytes += m.bytes;
       if (m.outcome === "failed") u.failedAttempts++;
@@ -196,7 +202,7 @@ export function summarizeE15(records) {
     else if (m.bytes !== 0) byteViolations++;
   }
   return { status: null, attempts: attempts.size, units, retryReasons, byteViolations, unknownInputIds, blocked: E15_BLOCKED,
-    occupancyNote: "occupiedMsLower = encode+verify の壁時間（下限）。measuredStagesMs = 計測された段の壁時間の合計で、非同期の待ちを含み、前段の同期処理 checkpoint.ts:266-300 を含まない（上限ではない）" };
+    occupancyNote: "occupiedMsLower = encode の壁時間（下限）。verify 段（記憶なし・照合の経路だけ）は verifyCount・verifyBytes（読んだ bytes）・verifyMs に別に数え、占有・write へ足さない。measuredStagesMs = 計測された段の壁時間の合計で、非同期の待ちを含み、前段の同期処理 checkpoint.ts:266-300 を含まない（上限ではない）" };
 }
 
 // PublishCostReport（AC15/R62）: onSerialize 由来の publishSerialization 観測から。窓 = 1 つの JSONL（E01/E02 の 1 run）。上限は置かない。

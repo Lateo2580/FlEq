@@ -90,17 +90,22 @@ export function analyzeTrace(events) {
 
 // ── host の JSONL ──
 export function buildHostIndex(lines) {
-  const index = { meta: null, t0: new Map(), t1: new Map(), t2: new Map(), decode: new Map(), processing: [], checkpoints: [], t3: [], t4: [],
+  // t2Order・t3 の row は観測の行番号（P3-C4-T3-BINDING の窓は行順で切る。owner 3 本の並行では単調時刻の順と一致しない）。
+  const index = { meta: null, t0: new Map(), t1: new Map(), t2: new Map(), t2Order: [], decode: new Map(), processing: [], checkpoints: [], t3: [], t4: [],
     publishes: [], clock: [], mem: [] };
-  for (const line of lines) {
+  for (const [row, line] of lines.entries()) {
     if (line.t === "meta") index.meta = line;
     else if (line.t === "clock") index.clock.push({ hrMs: Number(BigInt(line.hrtimeNs)) / 1e6, perfMs: line.perfNowMs });
     else if (line.t === "mem") index.mem.push(line);
     else if (line.t === "obs") {
       const o = line.o;
-      if (o.kind === "marker" && "inputId" in o) index[o.point === "T0" ? "t0" : o.point === "T1" ? "t1" : "t2"].set(o.inputId, o.monotonicMs);
-      else if (o.kind === "marker") index[o.point === "T3" ? "t3" : "t4"].push({ ms: o.monotonicMs, version: o.displayVersion, key: versionKey(o.displayVersion) });
-      else if (o.kind === "decode") index.decode.set(o.inputId, { startMs: o.startedMonotonicMs, endMs: o.endedMonotonicMs });
+      if (o.kind === "marker" && "inputId" in o) {
+        index[o.point === "T0" ? "t0" : o.point === "T1" ? "t1" : "t2"].set(o.inputId, o.monotonicMs);
+        if (o.point === "T2") index.t2Order.push({ inputId: o.inputId, row });
+      } else if (o.kind === "marker") index[o.point === "T3" ? "t3" : "t4"].push({ ms: o.monotonicMs, version: o.displayVersion, key: versionKey(o.displayVersion), row });
+      // parse 区間（P3-C4-PARSE-MARK）は工程 2 で decode の観測に載る。無い記録では null。
+      else if (o.kind === "decode") index.decode.set(o.inputId, { startMs: o.startedMonotonicMs, endMs: o.endedMonotonicMs,
+        parseStartMs: o.xmlParseStartedMonotonicMs ?? null, parseEndMs: o.xmlParseEndedMonotonicMs ?? null });
       else if (o.kind === "processing") index.processing.push(o.measurement);
       else if (o.kind === "checkpoint") index.checkpoints.push(o.measurement);
       else if (o.kind === "publishSerialization") index.publishes.push(o);
@@ -137,13 +142,51 @@ const nearestProbe = (list, hostMs) => {
   return best?.c ?? null;
 };
 
+// P3-C4-T3-BINDING: 入力ごとの版の窓の終わり（同じ実行場所の次の入力の T2 の行。無ければ記録の終わり = Infinity）。
+// placeOf(inputId) は投入した headType からの実行場所。全入力で同じ値（既定 null）なら、単一スレッドの A10 と同じ「次の入力の T2」になる。
+export function windowEnds(host, placeOf = () => null) {
+  const ends = new Map();
+  const next = new Map();
+  for (let i = host.t2Order.length - 1; i >= 0; i--) {
+    const { inputId, row } = host.t2Order[i];
+    const place = placeOf(inputId);
+    ends.set(inputId, { from: row, to: next.get(place) ?? Infinity });
+    next.set(place, row);
+  }
+  return ends;
+}
+// 行順で (from, to) にある T3。host.t3 は行の昇順なので二分探索で始点を引く。
+function t3Between(host, from, to) {
+  let lo = 0;
+  let hi = host.t3.length;
+  while (lo < hi) { const mid = (lo + hi) >> 1; if (host.t3[mid].row <= from) lo = mid + 1; else hi = mid; }
+  const out = [];
+  for (let i = lo; i < host.t3.length && host.t3[i].row < to; i++) out.push(host.t3[i]);
+  return out;
+}
+
+// 診断の jsonl（diagnostics-*.jsonl の行）から inputId → 理由の文字列。拒否は WARN・ERROR の診断（parser・ingress の拒否は WARN、
+// persistent-diagnostic-sink.ts の projectParserDiagnostic）だけを拾い、INFO（期限切れ等の通常の出来事）は拾わない。
+// 理由の種類は列挙しない（C3b の裁定で増えうる）。
+export function rejectionReasons(diagnosticRecords) {
+  const reasons = new Map();
+  for (const d of diagnosticRecords) {
+    if (typeof d?.inputId !== "string" || typeof d.reason !== "string" || (d.level !== "WARN" && d.level !== "ERROR")) continue;
+    const list = reasons.get(d.inputId) ?? [];
+    if (!list.includes(d.reason)) list.push(d.reason);
+    reasons.set(d.inputId, list);
+  }
+  return new Map([...reasons].map(([id, list]) => [id, list.join(",")]));
+}
+
 // ── 標本の組み立て ──
 // trials: 投入側の EEW 試行 { index, inputId, subject, scheduledHrMs, injectedHrMs|null, block }
 // blocks: trace の塊 { dataLoss }（trial.block が指す）
-export function assembleTrials({ population, run, trials, host, chromeByVersion, probes, blocks, callbackDeadlineMs, missingAfterMs }) {
+// placeOf: 版の窓の実行場所（windowEnds）。rejections: T0 の後に拒否された入力の理由（rejectionReasons）。公開されずに欠落した試行の details に残す。
+export function assembleTrials({ population, run, trials, host, chromeByVersion, probes, blocks, callbackDeadlineMs, missingAfterMs, placeOf, rejections = new Map() }) {
   const runId = host.meta?.runId ?? "unknown";
   const corr = correspondences(probes, host);
-  const t2s = [...host.t2.values()].sort((a, b) => a - b);
+  const ends = windowEnds(host, placeOf);
   const samples = [];
   const injections = [];
   const details = [];
@@ -159,7 +202,7 @@ export function assembleTrials({ population, run, trials, host, chromeByVersion,
     const fail = (missingReason, markers) => ({ ...base, correlation: nullCorrelation, markers, clockProbeId: null, latencyLowerMs: null, latencyUpperMs: null, missing: true, missingReason });
     if (outcome !== "callbackReached") {
       samples.push(fail("callbackNotReached", node("T0", t0)));
-      details.push({ index: tr.index, outcome, sample: "callbackNotReached" });
+      details.push({ index: tr.index, outcome, sample: "callbackNotReached", ...(rejections.has(tr.inputId) ? { rejectedReason: rejections.get(tr.inputId) } : {}) });
       continue;
     }
     const head = [...node("T0", t0), ...node("T1", t1), ...node("T2", t2)];
@@ -169,11 +212,11 @@ export function assembleTrials({ population, run, trials, host, chromeByVersion,
       details.push({ index: tr.index, outcome, sample: "notProcessed" });
       continue;
     }
-    // 版の結合: この入力の処理区間（T2 から次の入力の T2 まで。host は入力を 1 件ずつ同期に処理し、公開の T3 はその中で打つ）の T3 のうち、
-    // Chrome が同じ subject の候補 mark を出した版だけ。次の受信（T0）では打ち切らない（処理待ちの間に別の入力が届いても結合を失わない）。
-    // tick・notificationResult 由来の T3 も区間に入りうるが、subject で絞り、複数なら ambiguous（traceIncomplete）とする。
-    const until = t2s.find((t) => t > t2) ?? Infinity;
-    const published = host.t3.filter((x) => x.ms >= t2 && x.ms < until);
+    // 版の結合: この入力の T2 の行から同じ実行場所の次の入力の T2 の行までの T3 のうち、Chrome が同じ subject の候補 mark を出した版だけ
+    // （publisher は返信を 1 件ずつ処理し、その射影の T3 は自分の T2 の後・同じ場所の次の T2 の前の行に出る）。別の場所・tick 由来の T3 も
+    // 窓に入りうるが subject で絞り、複数なら ambiguous（traceIncomplete）とする。
+    const end = ends.get(tr.inputId);
+    const published = end == null ? [] : t3Between(host, end.from, end.to);
     const cands = published.filter((x) => chromeByVersion.get(x.key)?.candidate?.subject === tr.subject);
     if (cands.length === 0) {
       const lost = blocks[tr.block]?.dataLoss === true;
@@ -186,7 +229,8 @@ export function assembleTrials({ population, run, trials, host, chromeByVersion,
         samples.push({ ...fail(reason, [...head, ...node("T3", only.ms), ...node("T4", t4)]),
           correlation: { ...nullCorrelation, semanticRevision: only.version.semanticRevision, displayVersion: only.version } });
       }
-      details.push({ index: tr.index, outcome, sample: lost ? "traceIncomplete(dataLoss)" : published.length === 0 ? "notPublished" : "noChromeCandidate" });
+      details.push({ index: tr.index, outcome, sample: lost ? "traceIncomplete(dataLoss)" : rejections.has(tr.inputId) ? "rejected" : published.length === 0 ? "notPublished" : "noChromeCandidate",
+        ...(rejections.has(tr.inputId) ? { rejectedReason: rejections.get(tr.inputId) } : {}) });
       continue;
     }
     if (cands.length > 1) {
@@ -221,23 +265,15 @@ export function assembleTrials({ population, run, trials, host, chromeByVersion,
   return { samples, injections, details, correspondences: corr };
 }
 
-// ── 参考測定: 投入が対象区間に入ったか（決定 2 の記録項目） ──
-// target: { startMs, endMs, stages? }（host 時計）。trial: 投入側の EEW 試行。
-export function referenceRecord({ trial, target, host, injection }) {
-  const t0 = host.t0.get(trial.inputId) ?? null;
-  const t1 = host.t1.get(trial.inputId) ?? null;
-  const t2 = host.t2.get(trial.inputId) ?? null;
-  const base = { index: trial.index, inputId: trial.inputId, outcome: injection.outcome, t0Ms: t0, t1Ms: t1, t2Ms: t2 };
-  if (target == null || trial.injectedHrMs == null) return { ...base, judgement: "noTarget" };
-  const lo = trial.injectedHrMs + host.ohLo;
-  const hi = trial.injectedHrMs + host.ohHi;
-  const inside = target.startMs <= lo && hi <= target.endMs ? "yes" : hi < target.startMs || lo > target.endMs ? "no" : "ambiguous";
-  const t0MinusStart = t0 == null ? null : t0 - target.startMs;
-  const t0AtOrAfterEnd = t0 == null ? null : t0 >= target.endMs;
-  const judgement = t0 == null ? "callbackNotReached" : inside !== "yes" ? "injectionOutsideTarget" : !t0AtOrAfterEnd ? "callbackDuringTarget"
-    : t0MinusStart > 5 ? "insideTargetCallbackAfterEnd" : "insideTargetCallbackAtStart";
-  const stages = (target.stages ?? []).map((s) => ({ stage: s.stage, startMs: s.startMs, endMs: s.endMs,
-    waitOverlapMs: t0 == null ? null : Math.max(0, Math.min(t0, s.endMs) - Math.max(hi, s.startMs)) }));
-  return { ...base, target: { startMs: target.startMs, endMs: target.endMs }, injectionInsideTarget: inside,
-    injectionOffsetFromStartMs: [lo - target.startMs, hi - target.startMs], t0MinusStartMs: t0MinusStart, t0AtOrAfterEnd, judgement, stages };
+// P3-C4-AC03(1): 成立した試行（index を持つ）だけを標本に組み、不成立の試行は attemptIndex だけを持つ overlapNotEstablished の投入記録にする
+// （index 空間に入れない）。標本と投入記録は P3 の形（p3-eew-trace-v1、attemptIndex 付き）。
+export function assembleP3Trials(input) {
+  const assembled = assembleTrials({ ...input, trials: input.trials.filter((t) => t.index != null) });
+  const byInput = new Map(assembled.injections.map((r) => [r.inputId, r]));
+  const runId = input.host.meta?.runId ?? "unknown";
+  const injections = input.trials.map((t) => (t.index != null ? { ...byInput.get(t.inputId), attemptIndex: t.attemptIndex }
+    : { runId, inputId: t.inputId, population: input.population, run: input.run, attemptIndex: t.attemptIndex, sampleIndex: null,
+      scheduledInjectorMonotonicMs: t.scheduledHrMs, injectedInjectorMonotonicMs: t.injectedHrMs, outcome: "overlapNotEstablished",
+      hostOffsetLowerMs: input.host.ohLo, hostOffsetUpperMs: input.host.ohHi }));
+  return { ...assembled, samples: assembled.samples.map((s) => ({ ...s, schemaVersion: "p3-eew-trace-v1" })), injections };
 }

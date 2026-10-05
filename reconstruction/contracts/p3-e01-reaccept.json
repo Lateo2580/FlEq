@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "fd6e8f33d962ff768120333470aae277c031cc96",
-    "sha256": "b59a510c24b91591ce419b77aa4b1865c22ba489a7d9d596b615031aeda102a9",
+    "sha256": "cedb13edb43aef15c4172e01849044c2988bce7fa548e61a6017552cd98f5105",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "76c82b87d7783a4eae14af690cb34e7d6ec46f73617dc75b7f7401951619f080",
     "sequencesSha256": "be9cfd97b555e3a55568f085d107342c978b3dc7249f5cecea868ea5a62c5781",
@@ -90,6 +90,13 @@
       }
     ],
     "questionResolutions": [
+      {
+        "id": "P3-C4-PHASE1-INTEGRATOR-DECISIONS",
+        "status": "closed",
+        "closed": "工程1の合流時の統合担当の判断。(1) 期待値変更1件: aux-measures.test.tsのE15、occupiedMsLowerが7→6・byteViolationsが1→0（AC12(a)）。(2) RES-08の読み: 窓の期限はmaxDurationMsに固定の余裕3分を足したもの、打切りは試行ループが行う。(3) 母集団5（forecastDeadlineOverlap）はMacのbackendで(a)(b)の較正後も成立3/38。代替候補「期限回収で起きたU-Fの保存の試行全体（encode開始〜write完了）、1ms後に投入」では12/32で、どちらも正式の窓には低い。代替条件はQ-C4-ALT-CONDITION（spec:1133後半、統合担当が凍結前に固定）でAC08の予備測定の後に固定する。(4) 工程1の記録の所在: scratchpadのc4-u1-done.md（配送記録でVaultに写す）",
+        "remaining": "代替条件の固定はQ-C4-ALT-CONDITION（未決）",
+        "reason": "工程1の実装・検証の合流（C4契約の改訂記録）"
+      },
       {
         "id": "P3-C4-DEPS",
         "status": "closed",
@@ -253,7 +260,7 @@
       "P2HostObservation: decodeに同じ2 field、新しいkind checkpointGrant（runId・grantId・unit・attemptIds・dirtyObservedMonotonicMs・grantSentMonotonicMs・ownerStartedMonotonicMs・doneReceivedMonotonicMs）とwriteCount（runId・thread: ExecutionPlace | \"publisher\"・区分ごとのcount/bytes）を足す。observeの経路は既存の1つのまま",
       "summarizeP3E01(manifest: P3E01Manifest, samples: readonly P3EewTraceSample[], injections: readonly P3EewInjectionRecord[]): Readonly<{ runs: readonly P3EewRunResult[]; verdict: P3E01Verdict }>（reconstruction/src/measurement/eew-e01/。judge.tsのtallyを母集団の型で一般化して共有し、summarizeEewE01の挙動と試験は変えない）",
       "成立の判定の純関数1つ（establishment・対象の開始と終了・T0・投入側の対応区間 → 成立か不成立の理由。runnerとsummarizeP3E01が同じものを使う）",
-      "verifyFrozenP3Manifest(manifest: P3E01Manifest, contractTexts): void（A10のverifyFrozenManifestと同じ照合を新しいschemaで。frozen.tsの既存の補助を再利用し、A10のmanifestの検査は変えない）"
+      "verifyFrozenP3Manifest(input: { manifestText: string; trialSetupText: string; smokeConditionsText: string; contractTexts: Readonly<Record<string, string>>; inherited: { manifestText: string; initialStateText: string } }): { manifest: P3E01Manifest; trialSetup: EewTrialSetup }（reconstruction/src/measurement/eew-e01/frozen.ts。AC10のself hashは保存bytesが要り、継承した初期状態のhashも照合するため、A10のverifyFrozenManifestと同じ形で保存textと継承元（A10のmanifestとinitial-state）を受け、検証済みの値を返す。frozen.tsの既存の補助を再利用し、A10のmanifestの検査は変えない）"
     ],
     "allowedDependencies": [
       "node:child_process",
@@ -604,7 +611,7 @@
           "P3-C4-AC02",
           "P3-C4-AC03"
         ],
-        "behavior": "【工程1】A10の判定規則（分位点・時計区間・欠落）はjudge.test.tsが持つので言い換えない。新しい振る舞いだけを確かめる: (1) 成立の判定の純関数: startOffsetでT0が開始後−0.1ms・0ms・5ms・5.1msのとき不成立・成立・成立・不成立、対象がT0より前に終わっていれば不成立。sentBeforeLargeFrameIngestedは実送信の区間の上界がT1より前のときだけ成立 (2) overlapNotEstablishedの試行はsampleIndexを持たず、injectionFailuresと別に数えられ、他が全部合格ならPass (3) verdictの集約: 正式の1母集団がFailならFail、Failが無く1つが未確認なら未確認、参考の母集団はverdictに入らない (4) originがinjectorSendの母集団は、T0→T6が全部250ms以内でも実送信→T6のp99上界が250msを超えればFail、originがT0なら同じ標本でPass"
+        "behavior": "【工程1】A10の判定規則（分位点・時計区間・欠落）はjudge.test.tsが持つので言い換えない。新しい振る舞いだけを確かめる: (1) 成立の判定の純関数: startOffsetでT0が開始後−0.1ms・0ms・5ms・5.1msのとき不成立・成立・成立・不成立、対象がT0より前に終わっていれば不成立。sentBeforeLargeFrameIngestedは実送信の区間の上界がT1より前のときだけ成立 (2) overlapNotEstablishedの試行はsampleIndexを持たず、injectionFailuresと別に数えられ、他が全部合格ならPass (3) verdictの集約: 正式の1母集団がFailならFail、Failが無く1つが未確認なら未確認、参考の母集団はverdictに入らない (4) originがinjectorSendの母集団は、T0→T6が全部250ms以内でも実送信→T6のp99下界が250msを超えればFail（AC02と同じ式。上界だけが超えたときは未確認）、originがT0なら同じ標本でPass"
       },
       {
         "testId": "P3-C4-T02",
@@ -764,6 +771,7 @@
         "resolveBy": "Macの予備測定の後、manifest凍結の前",
         "requiredEvidence": [
           "該当する母集団の所要時間・試行数・成立率の予備測定の記録",
+          "工程1で得た母集団5（forecastDeadlineOverlap）の成立率（Macのbackend単独で(a)(b)較正後に3/38、代替候補「期限回収で起きたU-Fの保存の試行全体（encode開始〜write完了）、1ms後に投入」で12/32）。どちらも正式の窓には低いので、AC08の予備測定で同じ条件（backend単独・Mac）の成立率を取り直して固定する",
           "統合担当が固定した代替条件（spec:1133）と、それを表すestablishmentの種類（型に無ければ凍結前の契約改訂で1つ足す）。凍結後は変えない（spec:1106）"
         ]
       },

@@ -3,7 +3,7 @@
 // 関数を呼ぶだけで書き直さない。host の起動（startHost）と JSONL の追跡（tailer）は run.mjs のものを ctx で受ける（循環 import を作らない）。
 // 受信経路の計算量: 充填の確認・通知の静まり待ち・集計はすべて runner 側（host の外）。host に足すのは E02 の mem 1 秒 timer と AC15 の preload だけ。
 import { execFile, spawn } from "node:child_process";
-import { createReadStream, existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
+import { cpSync, createReadStream, existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { createInterface } from "node:readline";
 import { join } from "node:path";
 
@@ -52,7 +52,7 @@ async function readProbeRows(path, fromMs) {
   return rows;
 }
 // E15 と publish 費用は host を起動した全窓で出す（AC15 は E01・E02 の各窓に PublishCostReport を求める）。byteViolations は窓記録にも出す。
-const BYTE_NOTE = "byteViolations は verify 段の bytes が encode と同値（A3 契約どおりの製品）の件数。AC09「他 stage=0」と A3 の食い違いは総合レビュー送りの既知の契約の穴で、判定は変えない";
+const BYTE_NOTE = "byteViolations は encode・write・verify 以外の段で bytes が 0 でない件数。verify 段の bytes は読んだ bytes として e15.units の verifyBytes に別に数える（P3-C1-E15、A10 の P2-A10-E15-P3 の読み）";
 export function hostReports(records, window) {
   const e15 = summarizeE15(records);
   return { e15, byteViolations: e15.byteViolations ?? null, byteViolationsNote: BYTE_NOTE, publishCost: publishCostReport(records, window) };
@@ -364,7 +364,12 @@ async function ac15Measure(w, ctx, mode, { s, warmup, samples }) {
   const first = (frames, headType) => frames.findIndex((f) => f.headType === headType);
   const filled = await fill(host, m, ctx, mode, { snapshotsAt: (frames) => [2, first(frames, "VPWS50") + 1, first(frames, "VPWW57") + 2, first(frames, "VPWP50") + 2] });
   const envelopes = readLatestEnvelopes(join(dir, "state"));
-  const table = fingerprintTable(envelopes, [...filled.snapshots, await host.snapshot()]);
+  const snapshots = [...filled.snapshots, await host.snapshot()];
+  const table = fingerprintTable(envelopes, snapshots);
+  // P3-C4-AC03(4): 充填の完了時点の保存物（state/ の写し。窓 dir の state/ は測定中に上書きされ raw から外れる）と /snapshot の本文を raw に残す。
+  // 無いと、指紋表と保持件数を封印済み結果から取るしかなく、AC15 を生データだけから再集計できない（A10 closure.md）。
+  cpSync(join(dir, "state"), join(dir, "filled-state"), { recursive: true });
+  writeFileSync(join(dir, "fill-snapshots.json"), JSON.stringify(snapshots));
   w.progress.phase = `measure:${mode}`;
   // unitOfInput は測定で流した全入力（充填・warm-up を含む）。unitOf は判定する区間（warm-up を除く）。
   const unitOfInput = new Map(filled.headTypes.map((h, i) => [`input-${filled.record.firstSeq + i}`, unitOfHead(h)]));
@@ -392,6 +397,8 @@ async function ac15Measure(w, ctx, mode, { s, warmup, samples }) {
   }
   await sleep(s.intervalMs + 500);
   await host.stop();
+  // P3-C4-AC03(4): metadata の区間の起点（runner が接続を切った hrtime）を raw に残す（A10 は予定表の起点から推定した）。
+  writeFileSync(join(dir, "metadata-disconnects.json"), JSON.stringify(metadata));
   const records = host.records();
   const events = metadata.map((x) => ({ ...x, hostMs: hostMsOf(records, x.hrtimeNs) }));
   for (const x of events.filter((e) => e.index >= warmup)) unitOf.set(x.id, "metadata");

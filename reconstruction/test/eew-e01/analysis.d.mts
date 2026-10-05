@@ -2,12 +2,12 @@ import type {
   CheckpointMeasurement,
   ClockCorrespondence,
   EewInjectionRecord,
-  EewPopulation,
   EewTraceSample,
   P2HostObservation,
   ProcessingMeasurement,
 } from "../../contracts/p2-eew-e01.types";
 import type { DisplayVersion } from "../../contracts/p2-snapshot-sse.types";
+import type { P3EewInjectionRecord, P3EewTraceSample } from "../../contracts/p3-e01-reaccept.types";
 
 export type HostLine =
   | { t: "meta"; runId: string; nodeVersion: string; startedWallMs: number }
@@ -28,11 +28,12 @@ export type HostIndex = {
   t0: Map<string, number>;
   t1: Map<string, number>;
   t2: Map<string, number>;
-  decode: Map<string, { startMs: number; endMs: number }>;
+  t2Order: { inputId: string; row: number }[];
+  decode: Map<string, { startMs: number; endMs: number; parseStartMs: number | null; parseEndMs: number | null }>;
   processing: ProcessingMeasurement[];
   checkpoints: CheckpointMeasurement[];
-  t3: { ms: number; version: DisplayVersion; key: string }[];
-  t4: { ms: number; version: DisplayVersion; key: string }[];
+  t3: { ms: number; version: DisplayVersion; key: string; row: number }[];
+  t4: { ms: number; version: DisplayVersion; key: string; row: number }[];
   publishes: { bytes: number; durationMs: number }[];
   clock: { hrMs: number; perfMs: number }[];
   mem: HostLine[];
@@ -53,20 +54,23 @@ export function versionKey(version: DisplayVersion): string;
 export function analyzeTrace(events: readonly unknown[]): { byVersion: Map<string, ChromeVersionEntry>; rejectedMarks: number; markCount: number };
 export function buildHostIndex(lines: readonly HostLine[]): HostIndex;
 export function correspondences(probes: readonly Probe[], host: HostIndex): (ClockCorrespondence & { attemptCount: number })[];
-export function assembleTrials(input: {
-  population: EewPopulation;
+export type P3Trial = Omit<Trial, "index"> & { index: number | null; attemptIndex: number };
+type AssembleInput<T> = {
+  population: string;
   run: 1 | 2 | 3;
-  trials: readonly Trial[];
+  trials: readonly T[];
   host: HostIndex;
   chromeByVersion: Map<string, ChromeVersionEntry>;
   probes: readonly Probe[];
   blocks: readonly { dataLoss: boolean }[];
   callbackDeadlineMs: number;
   missingAfterMs: number;
-}): { samples: EewTraceSample[]; injections: EewInjectionRecord[]; details: Record<string, unknown>[]; correspondences: ClockCorrespondence[] };
-export function referenceRecord(input: {
-  trial: Trial;
-  target: { startMs: number; endMs: number; stages?: readonly { stage: string; startMs: number; endMs: number }[] } | null;
-  host: HostIndex;
-  injection: EewInjectionRecord;
-}): Record<string, unknown>;
+  // 版の窓の実行場所（P3-C4-T3-BINDING）。省略時は全入力で同じ場所（A10 の単一スレッドと同じ）。
+  placeOf?: (inputId: string) => string | null;
+  // T0 の後に拒否された入力の理由（rejectionReasons）。
+  rejections?: ReadonlyMap<string, string>;
+};
+export function windowEnds(host: HostIndex, placeOf?: (inputId: string) => string | null): Map<string, { from: number; to: number }>;
+export function rejectionReasons(diagnosticRecords: readonly unknown[]): Map<string, string>;
+export function assembleTrials(input: AssembleInput<Trial>): { samples: EewTraceSample[]; injections: EewInjectionRecord[]; details: Record<string, unknown>[]; correspondences: ClockCorrespondence[] };
+export function assembleP3Trials(input: AssembleInput<P3Trial>): { samples: P3EewTraceSample[]; injections: P3EewInjectionRecord[]; details: Record<string, unknown>[]; correspondences: ClockCorrespondence[] };

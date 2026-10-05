@@ -23,7 +23,8 @@ export function startFdSampler(pid: number, everyMs?: number): { samples: { hrti
 export const E15_BLOCKED: readonly string[];
 export function summarizeE15(records: readonly HostRecord[]): {
   status: Status | null; blocked: string[]; attempts?: number;
-  units?: Record<string, { encodeCount: number; encodeBytes: number; writeBytes: number; occupiedMsLower: number; measuredStagesMs: number; failedAttempts: number }>;
+  units?: Record<string, { encodeCount: number; encodeBytes: number; writeBytes: number; occupiedMsLower: number; measuredStagesMs: number; failedAttempts: number;
+    verifyCount: number; verifyBytes: number; verifyMs: number }>;
   retryReasons?: Record<string, number>; byteViolations?: number; unknownInputIds?: number; occupancyNote?: string;
 };
 export function publishCostReport(records: readonly HostRecord[], window: string):
