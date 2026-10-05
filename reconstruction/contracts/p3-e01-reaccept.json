@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "fd6e8f33d962ff768120333470aae277c031cc96",
-    "sha256": "cedb13edb43aef15c4172e01849044c2988bce7fa548e61a6017552cd98f5105",
+    "sha256": "90a55cf0d6529075d46247eb17e9a6b35e289aff5817004b31ba853a05db9ad0",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "76c82b87d7783a4eae14af690cb34e7d6ec46f73617dc75b7f7401951619f080",
     "sequencesSha256": "be9cfd97b555e3a55568f085d107342c978b3dc7249f5cecea868ea5a62c5781",
@@ -13,12 +13,12 @@
         "B": "衝突母集団を正式（1,000×3 run）にし、起点を投入側の実送信に移して実送信→T6のp99≤250msを合否にする（manifestの条件でscope \"formal\"・origin \"injectorSend\"。工程1の判定の関数と型は両方を扱うので、書き換えはこの2 fieldだけ）。spec§7.5・E01の起点の改訂（行数を変えない置換と被引用のanchorの更新、計画§4.4の形）は、統合担当がmanifest凍結の前に行う",
         "recommended": "A",
         "provisional": "A",
-        "ruling": "作者裁定待ち（manifest凍結の前に要る。衝突試験はR57の作者裁定から来た新しい母集団で、合否の置き方が製品の約束を決める）",
+        "ruling": "作者裁定でAに確定（2026-10-06朝）。衝突母集団は参考測定で、manifestのscope \"reference\"・origin \"T0\"の2 fieldで表す。",
         "reason": "見え方の違い: Aでは、計画が衝突母集団を立てた理由（R57の受信直後の待ち。大きいframeのT0の後、同じcallbackの中で外形parseと受理が同期に走り、後続のEEWのcallbackはその後でしか始まらない）が合否から外れ、その待ちは実送信→T0の報告とP3-C4-INGRESS-JSONでだけ扱う。正式3,300試行の代わりに参考1,100試行で済む（A10の実績1試行3.36秒で約2.0時間短い）。Bでは受信前の待ちも250msの予算に入り、超えたらFailで、同じTCP接続上の転送順（R57で追い越せないと決めた部分）まで合否に入る。起草者の推奨はA: T0の後はEEWがurgent、VPWS50がweatherCurrentのownerで並行し、T0→T6の合否は母集団2とほぼ同じ情報になる。受信前の待ちのうち製品で減らせる部分（外形parse）は、INGRESS-JSONが同じ250msの予算（実送信→T6）で機械的に判定する"
       },
       {
         "id": "P3-C4-INGRESS-JSON",
-        "A": "Macの予備測定（AC08）で衝突母集団を1,000標本取り、実送信→T6を6つの成分（先行するVPWS50のingressJsonMs、実送信→T0のうちそれ以外の残り、T0→T2、T2→T3、T3→T4、T4→T6）に分ける。実送信→T6のp99上界が250msを超え、250msを超えた標本の過半でingressJsonMsが最大の成分なら、16 KiB超のdata frameの外形parseをownerへ移す改訂を別に発注し、manifest凍結はその配送後にする。そうでなければpublisherに残して値を記録する。Pi第1段のingressJsonMsの観測最大とMac/Piの比を報告に添える",
+        "A": "Mac miniの予備測定（AC08）で衝突母集団を1,000標本取り、実送信→T6を6つの成分（先行するVPWS50のingressJsonMs、実送信→T0のうちそれ以外の残り、T0→T2、T2→T3、T3→T4、T4→T6）に分ける。実送信→T6のp99上界が250msを超え、250msを超えた標本の過半でingressJsonMsが最大の成分なら、16 KiB超のdata frameの外形parseをownerへ移す改訂を別に発注し、manifest凍結はその配送後にする。そうでなければpublisherに残して値を記録する。Pi第1段のingressJsonMsの観測最大とMac/Piの比を報告に添える",
         "B": "値を問わず16 KiB超のframeの外形parseを先にownerへ移してから測る（spec:1072の形へ寄せる）",
         "recommended": "A",
         "provisional": "A",
@@ -36,12 +36,12 @@
       },
       {
         "id": "P3-C4-MACHINES",
-        "A": "C4の正式測定（E01・E02・E03・E05・E06・E07・E12・E15）はA10と同じMacBook M5で行い、e01:93の再検収条件（同じP・Cの窓）を同じ機械で比べる。その窓のbuild・test・ゲートはMac miniの独立checkoutで回す（reconstruction/dist・node_modulesを共有しない）。予備測定のうち証拠の成立の確認（runnerの試走・短いrun）はMac miniで先に回してよいが、所要と成立率の値はMacBook M5で取る。Pi予備確認は第1段がPi単独、第2段がPi backend＋MacBook M5のChrome。manifestには凍結時のChrome・OS・Nodeの実値を記録し、A10からの差はsmokeConditionDifferencesと同じ形で書く。判定場所（judgmentPlaces、計画§4.5）: E01の本番判定はPi backend＋実接続経路＋MacのChrome、E02・E03・E05〜E07・E14・E15の本番判定はPi（いずれもP5）。C4のMacの結果はe01:93の再検収とE01の正式再検収（R61）の判定で、本番性能の判定と呼ばない。Macは回帰検出、Piは予備確認",
-        "B": "正式測定をMac miniで行い、MacBookを空ける（A10と機械が変わるので、E02-P・E05-PのFail→Passを同じ機械で比べられない）",
-        "recommended": "A",
-        "provisional": "A",
-        "ruling": "統合担当が発注前点検でAに確定（2026-10-06、レビュー3巡後）。Aは計画§3.1のまま。Bは計画§3.1と再検収条件（e01:93の「同じPとCの窓」）を変えるので、Bを選ぶなら作者確認",
-        "reason": "PERF-P3の再検収はA10のFailと同じ条件で比べることが前提で、機械が変わると差が製品の変化か機械の差か分けられない。A10（9/30）以後にChrome・OSが自動更新されていれば完全には同じにならないので、実値と差を残す。Mac mini（作者2026-10-05: 使用可）はゲートと試走に使い、実装レーンを止めない"
+        "A": "C4の正式測定（E01・E02・E03・E05・E06・E07・E12・E15）はA10と同じMacBook M5で行い、e01:93の再検収条件（同じP・Cの窓）を同じ機械で比べる。その窓のbuild・test・ゲートはMac miniの独立checkoutで回す（reconstruction/dist・node_modulesを共有しない）。予備測定のうち証拠の成立の確認（runnerの試走・短いrun）はMac miniで先に回してよいが、所要と成立率の値はMacBook M5で取る。Pi予備確認は第1段がPi単独、第2段がPi backend＋MacBook M5のChrome。manifestには凍結時のChrome・OS・Nodeの実値を記録し、A10からの差はsmokeConditionDifferencesと同じ形で書く。判定場所（judgmentPlaces、計画§4.5）: E01の本番判定はPi backend＋実接続経路＋MacのChrome、E02・E03・E05〜E07・E14・E15の本番判定はPi（いずれもP5）。C4のMac miniの結果はe01:93の再検収とE01の正式再検収（R61）の判定で、本番性能の判定と呼ばない。Mac miniは回帰検出、Piは予備確認",
+        "B": "C4の正式測定（E01・E02・E03・E05・E06・E07・E12・E15）はMac miniで行い、MacBook M5を空ける。build・test・ゲート・測定はMac miniの独立checkout（reconstruction/dist・node_modulesを共有しない）で回し、manifestに機械の実値（CPU・メモリ・OS・Node・Chromeの版）を記録する。e01:93の再検収（同じPとCの窓）の合否はMac miniで測った値で判定する。A10の値はMacBook M5で取ったので、A10との比較は機械が違う参考値として報告し、合否に使わない（E02-P・E05-PのFail→Passを同じ機械の差として読まない）。Chromeは前景で実行する（Mac miniで要る。背景・画面ロック・スリープでは描画とtimerが間引かれるので、窓の間は前景のまま保つ手順を書く）。Pi予備確認は第1段がPi単独、第2段がPi backend＋Mac miniのChrome。判定場所（judgmentPlaces、計画§4.5）: E01の本番判定はPi backend＋実接続経路＋Mac miniのChrome、E02・E03・E05〜E07・E14・E15の本番判定はPi（いずれもP5）。C4のMac miniの結果はe01:93の再検収とE01の正式再検収（R61）の判定で、本番性能の判定と呼ばない。Mac miniは回帰検出、Piは予備確認",
+        "recommended": "B",
+        "provisional": "B",
+        "ruling": "作者裁定でBに確定（2026-10-06朝）: C4の正式測定はMac miniで行う。計画§3.1と再検収条件（e01:93の「同じPとCの窓」）は、合否をMac miniで測った値で判定し、A10（MacBook M5）との比較は機械が違う参考値、と読み替える（統合担当が計画の該当箇所を改訂する）",
+        "reason": "作者がMac miniでの正式測定を選んだ（MacBookを空ける）。機械がA10と変わるので、差が製品の変化か機械の差かは分けられない。そのためe01:93の合否はMac miniの値で判定し、A10との比較は参考にして実値と差を残す。A（MacBook M5で同じ機械の比較）は不採用"
       },
       {
         "id": "P3-C4-RUNNER-LIVENESS",
@@ -91,6 +91,13 @@
     ],
     "questionResolutions": [
       {
+        "id": "P3-C4-PI-STAGE1-APPROVAL",
+        "status": "closed",
+        "closed": "作者がPi予備確認（D-P3-7）の第1段を了承した（2026-10-06）。旧築稼働中のPiで新築backendを並走してよい。旧築の保護（別directory・state・port・記録先、新しいdmdata購読を使わない、MemAvailable監視、AC09）は変えない。第2段・P3-C4-PI-E03は未決のまま",
+        "remaining": "なし（第1段のみ）",
+        "reason": "作者の了承（2026-10-06）。AC09のPi予備確認の前提"
+      },
+      {
         "id": "P3-C4-PHASE1-INTEGRATOR-DECISIONS",
         "status": "closed",
         "closed": "工程1の合流時の統合担当の判断。(1) 期待値変更1件: aux-measures.test.tsのE15、occupiedMsLowerが7→6・byteViolationsが1→0（AC12(a)）。(2) RES-08の読み: 窓の期限はmaxDurationMsに固定の余裕3分を足したもの、打切りは試行ループが行う。(3) 母集団5（forecastDeadlineOverlap）はMacのbackendで(a)(b)の較正後も成立3/38。代替候補「期限回収で起きたU-Fの保存の試行全体（encode開始〜write完了）、1ms後に投入」では12/32で、どちらも正式の窓には低い。代替条件はQ-C4-ALT-CONDITION（spec:1133後半、統合担当が凍結前に固定）でAC08の予備測定の後に固定する。(4) 工程1の記録の所在: scratchpadのc4-u1-done.md（配送記録でVaultに写す）",
@@ -100,7 +107,7 @@
       {
         "id": "P3-C4-DEPS",
         "status": "closed",
-        "closed": "工程を2つに分ける。工程1（C3bを待たない）: 母集団の対応表、期待する証拠、集計と判定の関数と試験、runnerの準備（試行ごとの成立の判定と窓の打切り、実行場所ごとの版の結び付け、ping、AC15の切断時刻と充填時点の保存、verify段を数えない集計、Pi用のbackend単独の走らせ方）、C3a配置でのPi第1段の先行の回（C3aの性質だけ）。工程2（C3bの配送後）: 新配置への計測点の設置（full parse開始、E14の区間、E15のwrite別計数）、Macの予備測定、Pi予備確認の第1段・第2段（C3bの性質を含む）、manifest凍結、正式測定、結果",
+        "closed": "工程を2つに分ける。工程1（C3bを待たない）: 母集団の対応表、期待する証拠、集計と判定の関数と試験、runnerの準備（試行ごとの成立の判定と窓の打切り、実行場所ごとの版の結び付け、ping、AC15の切断時刻と充填時点の保存、verify段を数えない集計、Pi用のbackend単独の走らせ方）、C3a配置でのPi第1段の先行の回（C3aの性質だけ）。工程2（C3bの配送後）: 新配置への計測点の設置（full parse開始、E14の区間、E15のwrite別計数）、Mac miniの予備測定、Pi予備確認の第1段・第2段（C3bの性質を含む）、manifest凍結、正式測定、結果",
         "remaining": "工程1のbaseOidは発注前点検で割り当てる（起草はmain fd6e8f33の読み替え。271db561との差はp3-execution-lifecycle.jsonだけで、本契約はそれを行で引用しない）。工程2は、C3bの配送後にhost.ts・composition-root.ts・owner-*.tsのfile:lineを読み替えて契約を改訂し、baseOidを割り当て直す（Q-C4-PHASE2-BASE）",
         "reason": "計画§3.1「起草の先行」（:114）、§3.2（host.tsはC2→C3a→C3b→C4の順）"
       },
@@ -155,7 +162,7 @@
   "contract": {
     "contractId": "P3-E01-REACCEPT-001",
     "mode": "implementation",
-    "objective": "P2から移管したEEWの正式再検収（R61の4条件、E01）と衝突試験、PERF-P3（E02-P・E05-P・E06）、E15-P3、AC15の再集計を、C3a・C3bの実行の配置（owner 3本とpublisher）で閉じる。工程1（C3bを待たない）で母集団の対応表・期待する証拠・集計と判定の関数と試験・runnerの準備を作り、工程2（C3bの配送後）で新配置への計測点の設置、Macの予備測定とPi予備確認（二段、正式Passと呼ばない）、P3測定manifestの凍結、正式測定を行う。工程1のallowedPathsは測定のdirectory 2つだけで、工程2の製品のfileはC3bの配送後の契約改訂で足す（Q-C4-PHASE2-BASE）。製品の挙動は観測点・注入口のほかに変えず、未達は原因を分類して報告する（P3-C4-FAIL-PATH）。C4のMacの結果は再検収条件の判定で、本番性能の判定（Pi、P5）と呼ばない。津波の母集団（C6）、P4/P5の母集団は扱わない。",
+    "objective": "P2から移管したEEWの正式再検収（R61の4条件、E01）と衝突試験、PERF-P3（E02-P・E05-P・E06）、E15-P3、AC15の再集計を、C3a・C3bの実行の配置（owner 3本とpublisher）で閉じる。工程1（C3bを待たない）で母集団の対応表・期待する証拠・集計と判定の関数と試験・runnerの準備を作り、工程2（C3bの配送後）で新配置への計測点の設置、Mac miniの予備測定とPi予備確認（二段、正式Passと呼ばない）、P3測定manifestの凍結、正式測定を行う。工程1のallowedPathsは測定のdirectory 2つだけで、工程2の製品のfileはC3bの配送後の契約改訂で足す（Q-C4-PHASE2-BASE）。製品の挙動は観測点・注入口のほかに変えず、未達は原因を分類して報告する（P3-C4-FAIL-PATH）。C4のMac miniの結果は再検収条件の判定で、本番性能の判定（Pi、P5）と呼ばない。津波の母集団（C6）、P4/P5の母集団は扱わない。",
     "baseOid": "b55cbf88429132b0350d03f9f5f8ad1eeb4dd040",
     "cleanTreeRequired": true,
     "readPaths": [
@@ -340,7 +347,7 @@
         "limit": 1,
         "unit": "second p99",
         "status": "provisional",
-        "scope": "報告。Macは回帰検出、Piは予備確認（P3-C4-PI-E03）、本番の判定はPi（P5）。queue待ちT1→T2は別計数",
+        "scope": "報告。Mac miniは回帰検出、Piは予備確認（P3-C4-PI-E03）、本番の判定はPi（P5）。queue待ちT1→T2は別計数",
         "source": "E03、計画§4.5"
       }
     ],
@@ -526,7 +533,7 @@
       },
       {
         "id": "P3-C4-AC07",
-        "requirement": "【工程2】報告の窓: (1) E03（最大VPWS50、ownerの処理開始T2→decision・公開用射影確定T3のp99、暫定1秒、queue待ちT1→T2は別計数）は報告。Macは回帰検出、Piは予備確認で、本番の判定はPi（P5、計画§4.5） (2) E07（P3-C3B-E07-WINDOW=Aのとき）: NとCの各60分。全遷移で宣言上限内、通常入力の最大待機年齢≤暫定5秒、入力停止から10秒以内に入力mailboxのpending・in-flightが0（spec:2058のとおり、実行場所を絞らない）、Cのwarm-up後の周期末backlogの件数・byteが前周期末以下。窓の中でownerが停止またはunresponsiveになったら、その窓はFail（原因を記録）。N窓はpingで生存期限を避ける (3) E12（旧新を同じ入力・初期状態・Nodeで別実行、A10の窓のまま） (4) AC15の再集計（AC03の(4)で保存した生データだけから。費用報告の規則はP2-A10-AC15のまま） (5) 受信1回あたりのviewの複製回数とbyte（台帳49）、publishの回数・byte・直列化時間 (6) 通知の初回試行がownerの採用の返信を待つ時間（spec:956の初回1秒の内訳）。(1)〜(6)はE01の合否に使わない。窓の共有は、共有する各測定の条件を満たすときだけmanifestのsharesWindowWithに書いて行い、E01の窓は共有しない",
+        "requirement": "【工程2】報告の窓: (1) E03（最大VPWS50、ownerの処理開始T2→decision・公開用射影確定T3のp99、暫定1秒、queue待ちT1→T2は別計数）は報告。Mac miniは回帰検出、Piは予備確認で、本番の判定はPi（P5、計画§4.5） (2) E07（P3-C3B-E07-WINDOW=Aのとき）: NとCの各60分。全遷移で宣言上限内、通常入力の最大待機年齢≤暫定5秒、入力停止から10秒以内に入力mailboxのpending・in-flightが0（spec:2058のとおり、実行場所を絞らない）、Cのwarm-up後の周期末backlogの件数・byteが前周期末以下。窓の中でownerが停止またはunresponsiveになったら、その窓はFail（原因を記録）。N窓はpingで生存期限を避ける (3) E12（旧新を同じ入力・初期状態・Nodeで別実行、A10の窓のまま） (4) AC15の再集計（AC03の(4)で保存した生データだけから。費用報告の規則はP2-A10-AC15のまま） (5) 受信1回あたりのviewの複製回数とbyte（台帳49）、publishの回数・byte・直列化時間 (6) 通知の初回試行がownerの採用の返信を待つ時間（spec:956の初回1秒の内訳）。(1)〜(6)はE01の合否に使わない。窓の共有は、共有する各測定の条件を満たすときだけmanifestのsharesWindowWithに書いて行い、E01の窓は共有しない",
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:2054 «726413a61a98e64b»",
           "docs/specs/reconstruction-p0-contracts.md:2058 «c5a19c3c5d58ec9b»",
@@ -538,7 +545,7 @@
       },
       {
         "id": "P3-C4-AC08",
-        "requirement": "【工程2】Macの予備測定（manifest凍結の前、計画:159）: 速さに加えて証拠が成立することを確かめる。① 入力と時刻（投入IDとcallbackの対応、未到達の扱い、full parse開始の観測、成立の判定と成立率、時計区間の幅）② 表示と判定（実paint、欠落判定、集計の入力が揃うこと）③ 保存と長時間（verify段の扱い、E15のwriteの帰属、E14の区間、AC15の切断時刻・state/・/snapshot、pingとframe間隔）。U-E・U-W・U-Fが同時にdirtyになる条件でE14（各dirty更新を含む世代のackまで≤3秒、各保存のp99の和を全体のp99と呼ばない、計画:218）を取る。あわせて、C3aから引き取った値（Q-C3A-C4-MEASURES: RSSとthreadごとのheap、最大VPWS50のingressJsonMs、viewの複製量、通知の初回試行の待ち）を取る。衝突母集団を1,000標本取り（warm-up 100を別に）、実送信→T6を6つの成分に分けてP3-C4-INGRESS-JSONを判定する。正式測定の所要を窓ごとに「初期化＋試行の所要×(100＋ceil(1,000÷成立率))＋後処理」で積む（warm-upは別IDの固定入力で成立を要しない、spec:1118。成立率は1−不成立の率。fixedBacklogは1）。参考の目安はA10b（a10-p2-20260930b）の実績で、fixedBacklog 1 run 25.2分、参考測定1試行3.36秒、E02 6窓計1.7時間、E03 1.0時間、E06 1.1時間、E12 0.5時間。成立率100%ならE01はCOLLISION-VERDICT=Aで約14.6時間・Bで約16.7時間、周辺の窓（E07のN・C各60分を足す）は約6.3時間で、合計約21〜23時間。成立の条件を持つ5母集団（(2)〜(6)）の成立率が50%ならE01だけでAで約26.7時間・Bで約30.7時間。この値で各窓のstopCondition（最大試行数・最大経過時間）を決める。成立率が低く所要が窓に収まらない母集団は、所要時間と試行を報告し、manifest凍結の前に統合担当が代替条件を固定する（spec:1133。凍結後は変えない、spec:1106。Q-C4-ALT-CONDITION）。N・P・Cの再生時刻とperiodMsは機械の速さに合わせて変えない。NO-GOのときは、rawに証拠が揃っていれば再集計、取得漏れなら該当窓の取り直し、製品か測定条件を直したら新しい版として影響する条件を再検収する（計画:159）",
+        "requirement": "【工程2】Mac miniの予備測定（manifest凍結の前、計画:159）: 速さに加えて証拠が成立することを確かめる。① 入力と時刻（投入IDとcallbackの対応、未到達の扱い、full parse開始の観測、成立の判定と成立率、時計区間の幅）② 表示と判定（実paint、欠落判定、集計の入力が揃うこと）③ 保存と長時間（verify段の扱い、E15のwriteの帰属、E14の区間、AC15の切断時刻・state/・/snapshot、pingとframe間隔）。U-E・U-W・U-Fが同時にdirtyになる条件でE14（各dirty更新を含む世代のackまで≤3秒、各保存のp99の和を全体のp99と呼ばない、計画:218）を取る。あわせて、C3aから引き取った値（Q-C3A-C4-MEASURES: RSSとthreadごとのheap、最大VPWS50のingressJsonMs、viewの複製量、通知の初回試行の待ち）を取る。衝突母集団を1,000標本取り（warm-up 100を別に）、実送信→T6を6つの成分に分けてP3-C4-INGRESS-JSONを判定する。正式測定の所要を窓ごとに「初期化＋試行の所要×(100＋ceil(1,000÷成立率))＋後処理」で積む（warm-upは別IDの固定入力で成立を要しない、spec:1118。成立率は1−不成立の率。fixedBacklogは1）。参考の目安はA10b（a10-p2-20260930b）の実績で、fixedBacklog 1 run 25.2分、参考測定1試行3.36秒、E02 6窓計1.7時間、E03 1.0時間、E06 1.1時間、E12 0.5時間。成立率100%ならE01はCOLLISION-VERDICT=Aで約14.6時間・Bで約16.7時間、周辺の窓（E07のN・C各60分を足す）は約6.3時間で、合計約21〜23時間。成立の条件を持つ5母集団（(2)〜(6)）の成立率が50%ならE01だけでAで約26.7時間・Bで約30.7時間。この値で各窓のstopCondition（最大試行数・最大経過時間）を決める。成立率が低く所要が窓に収まらない母集団は、所要時間と試行を報告し、manifest凍結の前に統合担当が代替条件を固定する（spec:1133。凍結後は変えない、spec:1106。Q-C4-ALT-CONDITION）。N・P・Cの再生時刻とperiodMsは機械の速さに合わせて変えない。Mac miniではChromeを前景で実行する（背景・ロック・スリープで描画とtimerが間引かれない状態を手順に書き、試行の前に確認する）。NO-GOのときは、rawに証拠が揃っていれば再集計、取得漏れなら該当窓の取り直し、製品か測定条件を直したら新しい版として影響する条件を再検収する（計画:159）",
         "evidenceRefs": [
           "reconstruction/contracts/p3-order-plan.md:157 «8ad61a51e88bb9b0»",
           "reconstruction/contracts/p3-order-plan.md:159 «d81307e8b66b9886»",
@@ -552,9 +559,9 @@
       },
       {
         "id": "P3-C4-AC09",
-        "requirement": "【工程1（C3a配置の回）・工程2（C3b配置の回）】Pi予備確認（D-P3-7、二段）: 第1段（Pi単独、backend）は投入側と新築hostをPi上の別プロセスで動かし、localhostのWSで流す（AC03の(6)）。条件は最大VPWS50の処理中・U-Wのencode中・U-Fの保存中のEEW、U-E・U-W・U-Fの同時dirty（E14の区間、計画:218）、「U-Wの大型処理＋U-Fの処理と保存＋旧築稼働中にEEW」の重ね合わせ。単体の比較（処理完了を待って次を送る）と、N/P/Cから選んだ窓の予定時刻どおりの投入（replayPump）の両方。第2段（Pi backend＋MacのChrome、工程2）は実paintまで確かめ、Pi・Macの時計はspec:1141〜1143の往復対応で結び、別機械の単調時計を直接引き算しない。通信経路（LAN・Tailscale・SSHトンネル）を記録し、本番と違う経路の値を本番のE01にしない。第2段はPiとMacの両方を測定機として扱い、測定の窓では両方でbuild・test・他レーンを走らせない（計画:112）。記録: 「実送信→T0」「T0→T2」「T2→採用・射影完了」「採用・射影完了→公開完了」「T0→T6（第2段）」「実送信→T6（第2段）」の区間、E14の分解（AC04(2)、C3a配置の回は既存のCheckpointMeasurementだけ）、ingressJsonMs、同じ窓のPiの/proc/pressure/{cpu,memory,io}・vcgencmdのclock・temp・throttled（統合担当のshellのloop）、threadごとのheapとプロセスのRSS、unitごとの保存回数・書込量。通知はsilent（spawn先を/usr/bin/true）で、実通知の検収ではないと結果に書く。標本は条件ごとにwarm-upを別に取り30件程度×3回から（RES-07）。100件未満のp99は「観測最大」と書く。見るのは次の5つ: EEWが大型処理に追従して止まる、publisherがownerの完了を待つ、書込み権が戻らず他の単位が保存できない、RSSが上限を明らかに超える、queueが一方向に増える。それに加えて、工程1（C3a配置）ではC3aの性質①〜⑤だけ、工程2（C3b配置）ではC3bの性質①〜④も（P3-C4-PI-PROPERTIES）。異常が無ければ「この予備条件では再現せず」と書き、E01・E14などのPassと呼ばない。異常が出たら原因を分類して作者へ報告し（D-P3-9。C5以降の着手禁止条件にしない）、PiのE14の3秒超過はD-P3-2の再裁定の契機として報告する（D-P3-8）。配置: Piの作業複製（公開fixtureだけ、台帳63の~/p3-benchの前例）でnpm ci --ignore-scriptsとtscをPi上で行い、distとnode_modulesを機械間で共有しない。旧築の保護: 別のdirectory・state・port・記録先、新しいdmdata購読を使わない。MemAvailableが2GiBを下回る、swap-in/outが正の10秒窓が3つ続く、新しいthrottleが30秒続く（spec E16・E17の暫定値）のどれかで新築側を止め、旧築を止めて測定を成立させない",
+        "requirement": "【工程1（C3a配置の回）・工程2（C3b配置の回）】Pi予備確認（D-P3-7、二段）: 第1段（Pi単独、backend）は投入側と新築hostをPi上の別プロセスで動かし、localhostのWSで流す（AC03の(6)）。条件は最大VPWS50の処理中・U-Wのencode中・U-Fの保存中のEEW、U-E・U-W・U-Fの同時dirty（E14の区間、計画:218）、「U-Wの大型処理＋U-Fの処理と保存＋旧築稼働中にEEW」の重ね合わせ。単体の比較（処理完了を待って次を送る）と、N/P/Cから選んだ窓の予定時刻どおりの投入（replayPump）の両方。第2段（Pi backend＋Mac miniのChrome、工程2）は実paintまで確かめ、Pi・Macの時計はspec:1141〜1143の往復対応で結び、別機械の単調時計を直接引き算しない。通信経路（LAN・Tailscale・SSHトンネル）を記録し、本番と違う経路の値を本番のE01にしない。第2段はPiとMacの両方を測定機として扱い、測定の窓では両方でbuild・test・他レーンを走らせない（計画:112）。記録: 「実送信→T0」「T0→T2」「T2→採用・射影完了」「採用・射影完了→公開完了」「T0→T6（第2段）」「実送信→T6（第2段）」の区間、E14の分解（AC04(2)、C3a配置の回は既存のCheckpointMeasurementだけ）、ingressJsonMs、同じ窓のPiの/proc/pressure/{cpu,memory,io}・vcgencmdのclock・temp・throttled（統合担当のshellのloop）、threadごとのheapとプロセスのRSS、unitごとの保存回数・書込量。通知はsilent（spawn先を/usr/bin/true）で、実通知の検収ではないと結果に書く。標本は条件ごとにwarm-upを別に取り30件程度×3回から（RES-07）。100件未満のp99は「観測最大」と書く。見るのは次の5つ: EEWが大型処理に追従して止まる、publisherがownerの完了を待つ、書込み権が戻らず他の単位が保存できない、RSSが上限を明らかに超える、queueが一方向に増える。それに加えて、工程1（C3a配置）ではC3aの性質①〜⑤だけ、工程2（C3b配置）ではC3bの性質①〜④も（P3-C4-PI-PROPERTIES）。異常が無ければ「この予備条件では再現せず」と書き、E01・E14などのPassと呼ばない。異常が出たら原因を分類して作者へ報告し（D-P3-9。C5以降の着手禁止条件にしない）、PiのE14の3秒超過はD-P3-2の再裁定の契機として報告する（D-P3-8）。配置: Piの作業複製（公開fixtureだけ、台帳63の~/p3-benchの前例）でnpm ci --ignore-scriptsとtscをPi上で行い、distとnode_modulesを機械間で共有しない。旧築の保護: 別のdirectory・state・port・記録先、新しいdmdata購読を使わない。MemAvailableが2GiBを下回る、swap-in/outが正の10秒窓が3つ続く、新しいthrottleが30秒続く（spec E16・E17の暫定値）のどれかで新築側を止め、旧築を止めて測定を成立させない",
         "evidenceRefs": [
-          "reconstruction/contracts/p3-order-plan.md:112 «2e2900d2b2416f23»",
+          "reconstruction/contracts/p3-order-plan.md:112 «c81c3e4ab8b07d22»",
           "reconstruction/contracts/p3-order-plan.md:184 «b446595310582f83»",
           "reconstruction/contracts/p3-order-plan.md:185 «5e73c88a8bd6b37d»",
           "reconstruction/contracts/p3-order-plan.md:186 «232d5e21c1e59cfe»",
@@ -570,7 +577,7 @@
       },
       {
         "id": "P3-C4-AC10",
-        "requirement": "【工程2】manifest凍結（計画§1.1の3、正式測定の前）: P3E01Manifestを予備測定の後、正式測定の前に凍結し、self hashと使用する全契約ID→meta.sha256を持たせる。固定するもの: 継承するA10の負荷N・P・Cと初期状態（hashで照合）、6母集団の条件（scope・establishment・forecast・stopCondition）、warm-up・標本数・run数、ping間隔とframe間隔の上限、E02・E03・E05・E06・E07・E12・E15の条件と窓の共有、機械の役割と凍結時のChrome・OS・Nodeの実値（A10からの差を含む）、条件ごとの判定場所（judgmentPlaces: E01・E02・E03・E05・E06・E07・E14・E15。P3-C4-MACHINES）、Chromeの条件、O09のC4分の版付きsubset（計画:40）。結果を見てから母集団・除外条件を変えない（spec:1106）。凍結の前にCodexの総合レビュー（D-P3-10の「C4の測定準備一式」、新規スレッド・read-only・Astra high、Claudeの自己評価を添えない）を通す。凍結後のmanifestを変えるときは新しいmanifestIdで、影響する条件を測り直す",
+        "requirement": "【工程2】manifest凍結（計画§1.1の3、正式測定の前）: P3E01Manifestを予備測定の後、正式測定の前に凍結し、self hashと使用する全契約ID→meta.sha256を持たせる。固定するもの: 継承するA10の負荷N・P・Cと初期状態（hashで照合）、6母集団の条件（scope・establishment・forecast・stopCondition）、warm-up・標本数・run数、ping間隔とframe間隔の上限、E02・E03・E05・E06・E07・E12・E15の条件と窓の共有、機械の役割（正式測定はMac mini）と凍結時の機械の実値（CPU・メモリ・OS・Node・Chromeの版。A10のMacBook M5からの差を含み、A10との比較は機械が違う参考値）、条件ごとの判定場所（judgmentPlaces: E01・E02・E03・E05・E06・E07・E14・E15。P3-C4-MACHINES）、Chromeの条件、O09のC4分の版付きsubset（計画:40）。結果を見てから母集団・除外条件を変えない（spec:1106）。凍結の前にCodexの総合レビュー（D-P3-10の「C4の測定準備一式」、新規スレッド・read-only・Astra high、Claudeの自己評価を添えない）を通す。凍結後のmanifestを変えるときは新しいmanifestIdで、影響する条件を測り直す",
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:1106 «531dc4a11a01dc61»",
           "reconstruction/contracts/p3-order-plan.md:40 «c4be59ca24a3e392»",
@@ -584,7 +591,7 @@
         "id": "P3-C4-AC11",
         "requirement": "【工程2】正式測定と結果: 凍結manifestで正式の母集団×3 runと参考の母集団を測り、P3E01VerdictとPERF-P3・E15・報告の窓を版付き結果に残す。分割の単位は窓（母集団×run、E02などの各窓）で、日を跨いでよい。各窓は自分のwarm-upと初期状態から始め、結果は窓ごとの最新attempt（既存のlatestById）を使う。runnerの--windowsはBlocked・未実施の窓だけを再実行する現行の規則を保ち、未確認の窓（時計の区間幅超過など）は同じmanifestでは取り直さない（測定を改善して新しいmanifestIdで影響する窓を測り直す、spec:1143）。窓1本の上限時間はmanifestのstopCondition.maxDurationMsで、達したらBlocked。VerificationStatusはPass/Fail/Blocked/N/A/未確認を分け、unit test・予備測定・Pi予備確認・A10の参考測定を正式Passに代用しない。測定の窓では同じ機械でbuild・test・他レーンを走らせない（計画:112）。未達はP3-C4-FAIL-PATHに従う。N7・IR06（§7.6のparse分離B）がC3aの配置で構成として閉じたことは、parse母集団のE01、衝突母集団の実送信→T0・T0→T6・実送信→T6のp99、P3-C4-INGRESS-JSONの結果を証拠に記録する（帰属がXML parse主因の未達なら閉じたと書かない）。版付き結果（rawに基づく証拠・凍結manifest・機械検証の結果）をCodexの総合レビュー（D-P3-10の「C4の結果」、新規スレッド・read-only・Astra high、Claudeの自己評価を添えない）に渡す。生データとprivate corpusはMac・Mini・Piのローカルに置き、公開のActions・artifactに渡さない",
         "evidenceRefs": [
-          "reconstruction/contracts/p3-order-plan.md:112 «2e2900d2b2416f23»",
+          "reconstruction/contracts/p3-order-plan.md:112 «c81c3e4ab8b07d22»",
           "reconstruction/contracts/p3-order-plan.md:207 «68a0ce6993c90b5e»",
           "docs/specs/reconstruction-p0-contracts.md:1143 «74f54e911312b3e8»",
           "docs/specs/reconstruction-p0-contracts.md:1151 «0c7e70e81284f01e»",
@@ -725,7 +732,7 @@
       {
         "command": "node reconstruction/test/eew-e01/run.mjs --preliminary <options>",
         "cwd": ".",
-        "target": "Macの予備測定（工程2、統合担当が実走する。子のsandboxはlistenできない）",
+        "target": "Mac miniの予備測定（工程2、統合担当が実走する。子のsandboxはlistenできない）",
         "stage": "preparation",
         "purpose": "AC08の証拠の成立・成立率・所要。結果の状態は必ず未確認"
       }
@@ -734,7 +741,7 @@
       "allowed_pathsに限定したgit diff --binary --no-ext-diffのpatch、変更ファイル一覧、requiredCommandsの実行結果、未実行の検証と理由、残存リスク。追加・変更した各試験について受入条件／契約境界／実不具合／corpus履歴のどれに当たるかを1行で書く",
       "足した仕組みごとに「無いと何が壊れるか」を1行で書く。最低限: 試行ごとの成立の判定と窓の打切り（無いと不成立の試行が正式のindexを占め、(2)〜(5)は1件の不成立でPass不能になり、成立率が低いと窓が終わらない）、実行場所ごとの行順の窓（無いとowner 3本の並行で別の入力の版を拾うか空になり、試行がpaint待ちでtimeoutする）、投入側のping（無いと負荷Nだけの窓で90秒の生存期限により再接続し、E02-N・E05-N・E07-Nが測れない）、AC15の切断hrtimeと充填時点の保存（無いとAC15を生データだけから再集計できず、A10と同じ推定が残る）、parseの開始・終了の時刻（無いと母集団2の成立をdecode開始で代用することになり、e01:562の(5)に反する）、checkpointGrantの観測（無いとPiで3秒を超えたときに権の待ちとI/Oを分けられず、D-P3-2の再裁定の材料にならない）、writeCountの観測（無いとE15の帰属不能0を確かめられない）、測定の印（無いと計測のための包みと時刻取得が本番の経路にも入る）、P3の型とmanifestの検査（無いとP2の型〔正式=fixedBacklogだけ〕で6母集団を表せず、A10の凍結manifestの検査を壊すか型の無いmanifestで凍結する）",
       "工程1の成果物: 母集団の対応表を載せたmanifestの草案（凍結しない）、判定の関数と試験（T01・T02・T04・T06・T07・T08）、runnerの改修、Pi第1段（C3a配置の回）の記録（予備確認、Passと呼ばない）。工程1のallowedPathsはreconstruction/test/eew-e01/**とreconstruction/src/measurement/eew-e01/**だけで、製品のファイル・観測の型には触れない（C3bと同じfileを編集しない）。parse開始の観測は工程2で入るので、工程1のMacの試走では母集団2（maxVpws50ParseStarted）の成立を確かめられず、成立の判定は純関数の試験（T01）だけで確かめた、と報告に書く",
-      "工程2の成果物（統合担当が実走して記録する）: Macの予備測定の記録と所要の積算、Pi予備確認の第1段・第2段の記録、凍結manifest、正式測定の版付き結果（P3E01Verdict、E02・E05・E06・E15・報告の窓）、N7・IR06の閉鎖の記録、D-P3-2の再裁定の材料（該当時）、Codexの総合レビュー2回（測定準備一式・結果）の記録",
+      "工程2の成果物（統合担当が実走して記録する）: Mac miniの予備測定の記録と所要の積算、Pi予備確認の第1段・第2段の記録、凍結manifest、正式測定の版付き結果（P3E01Verdict、E02・E05・E06・E15・報告の窓）、N7・IR06の閉鎖の記録、D-P3-2の再裁定の材料（該当時）、Codexの総合レビュー2回（測定準備一式・結果）の記録",
       "既存試験の期待値を変えたときは、AC12の(a)(b)のどれに当たるかと変更前後の値を一覧にする"
     ],
     "unresolvedQuestions": [
@@ -742,11 +749,10 @@
         "id": "Q-C4-AUTHOR-RULINGS",
         "owner": "user",
         "blocks": [
-          "manifest凍結（P3-C4-COLLISION-VERDICT）"
+          "PiでのE03の上限の扱い（C4の完了は止めない）"
         ],
-        "resolveBy": "工程2のmanifest凍結の前（工程1の発注は止めない。工程1の判定の関数と型はscope・originの両方を扱うので、裁定はmanifestの2 fieldを決めるだけ）",
+        "resolveBy": "Pi予備確認の結果が出た後（P3-C4-COLLISION-VERDICT・P3-C4-MACHINESは2026-10-06朝に裁定済み）",
         "requiredEvidence": [
-          "作者の選択: P3-C4-COLLISION-VERDICT",
           "P3-C4-PI-E03はPi予備確認の結果が出てから（C4の完了を止めない）"
         ]
       },
@@ -768,10 +774,10 @@
         "blocks": [
           "manifest凍結（成立率が低く所要が窓に収まらない母集団があるとき）"
         ],
-        "resolveBy": "Macの予備測定の後、manifest凍結の前",
+        "resolveBy": "Mac miniの予備測定の後、manifest凍結の前",
         "requiredEvidence": [
           "該当する母集団の所要時間・試行数・成立率の予備測定の記録",
-          "工程1で得た母集団5（forecastDeadlineOverlap）の成立率（Macのbackend単独で(a)(b)較正後に3/38、代替候補「期限回収で起きたU-Fの保存の試行全体（encode開始〜write完了）、1ms後に投入」で12/32）。どちらも正式の窓には低いので、AC08の予備測定で同じ条件（backend単独・Mac）の成立率を取り直して固定する",
+          "工程1で得た母集団5（forecastDeadlineOverlap）の成立率（Macのbackend単独で(a)(b)較正後に3/38、代替候補「期限回収で起きたU-Fの保存の試行全体（encode開始〜write完了）、1ms後に投入」で12/32）。どちらも正式の窓には低いので、AC08の予備測定で同じ条件（backend単独・Mac mini）の成立率を取り直して固定する",
           "統合担当が固定した代替条件（spec:1133）と、それを表すestablishmentの種類（型に無ければ凍結前の契約改訂で1つ足す）。凍結後は変えない（spec:1106）"
         ]
       },

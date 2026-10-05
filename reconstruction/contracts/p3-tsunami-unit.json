@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "15d5885c693d176979f1e3e60e3a63b3c7344240",
-    "sha256": "5e7b57a24afb2e5ae2b34a6b8e02a219a6f0a401dce863205a5e49e018b29122",
+    "sha256": "8712397852d9912b33f5700901608d33d6b76e45f62bc033e79d9f3c6c40ffec",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "76c82b87d7783a4eae14af690cb34e7d6ec46f73617dc75b7f7401951619f080",
     "sequencesSha256": "be9cfd97b555e3a55568f085d107342c978b3dc7249f5cecea868ea5a62c5781",
@@ -9,21 +9,22 @@
     "decisionBranches": [
       {
         "id": "P3-C5-NOTICE-LEVELS",
-        "A": "VTSE41の通知の段階（payload.level）を、区分の変化から決まる段階と、報全体の到達後に残った区分から決まる段階の大きい方にする。区域の順位はnone/released=0・forecast=1・advisory=2・warning=3（unknownも3、P3-C5-KIND-ENUM=Bのとき）・majorWarning=4。変化の段階: 直前の採用状態より上がった区域があれば、上がった区域の到達先の最高でmajorWarning→critical、warning/unknown→warning、advisory→normal、forecast→info、上がった区域が無ければinfo。残った区分の段階: 到達後に注意報以上の区域が一つでもあればnormal、無ければinfo。取消はcancel。訂正は同じ式に訂正の接頭辞を付けるだけ。A7の緊急群の判定（notification-delivery.ts:21: normalかつdomain=tsunamiかつlevelがwarning/critical）は変えず、緊急群に入るのは大津波警報・津波警報の発令・引上げ・区域拡大を含む報だけになる（spec:951）",
+        "A": "VTSE41の通知の段階（payload.level）を、区分の変化から決まる段階と、報全体の到達後に残った区分から決まる段階の大きい方にする。区域の順位はnone/released=0・forecast=1・advisory=2・warning=3（unknownも3、P3-C5-KIND-ENUM=B）・majorWarning=4。変化の段階: 直前の採用状態より上がった区域があれば、上がった区域の到達先の最高でmajorWarning→critical、warning/unknown→warning、advisory→normal、forecast→info、上がった区域が無ければinfo。残った区分の段階: 到達後に注意報以上の区域が一つでもあればnormal、無ければinfo。取消はcancel。訂正は同じ式に訂正の接頭辞を付けるだけ。A7の緊急群の判定（notification-delivery.ts:21: normalかつdomain=tsunamiかつlevelがwarning/critical）は変えず、緊急群に入るのは大津波警報・津波警報の発令・引上げ・区域拡大を含む報だけになる（spec:951）",
         "B": "旧築の段階の式（level-helpers.ts:291〜299）を保つ: 全区域が津波予報ならwarning、名前に「津波」を含み「解除」を含まない区域が一つでもあればcritical（「津波予報（若干の海面変動）」も含むので、注意報解除と若干の海面変動が混ざる解除報もcritical）、それ以外で解除を含めばwarning、取消cancel。緊急群の判定はlevelからpayloadの明示flag（発令・引上げ・区域拡大を含む報だけtrue）へ移す。A7のgroup()・NotificationAttemptとP2-NOTIFICATION-DELIVERY-001の改訂が要る",
         "recommended": "A",
         "provisional": "A",
-        "ruling": "作者裁定待ち（Q-NOTICE津波分。発注の前に要る）",
+        "ruling": "作者裁定A（2026-10-06、推奨どおり）",
         "reason": "見え方の違い（旧築→A）: 大津波警報の発令・引上げはcriticalのまま。津波警報の発令はcritical（3打）→warning（2打）、注意報の発令はcritical→normal（単音）。警報・注意報が続く間の続報と区分の変わらない訂正は毎回critical→normal。降格はcritical→normal。注意報解除と若干の海面変動が混ざる解除報はcritical→info、全区域が解除の報はwarning→info。予報だけの初報はwarning→info。予報区域だけの続報（解除の後に津波予報だけが残る間の報）は区分が変わらないのでcontinuationとしてinfo（旧築は毎回warning）。警報・注意報が続く中で予報区域だけが増えた報は、変化の段階info・残った区分の段階normalの大きい方でnormal、緊急群に入らない（旧築critical）。部分解除（一部の区域が解除され、他の区域の警報・注意報が続く報）は残った区分の段階でnormal（旧築critical）。Bでは旧築どおり、続報・降格・解除の混在報でもcriticalが鳴り、発令と区別できない。推奨はA: A7を変えずにspec:951の緊急群と音の重さが一致し、長い大津波警報の間に続報のたびに最も重い音が鳴り続けることがなくなる"
       },
       {
         "id": "P3-C5-NOTICE-OBSERVATION",
         "A": "VTSE51/52の採用（発表・訂正）はdesktopだけを作る（level=info、音なし、緊急群に入らない）。同じsubjectの古いdesktop pendingをsupersededにする。観測の取消はdesktopだけ（level=cancel）",
         "B": "旧築どおり観測報ごとにdesktopとsoundを作る。段階は旧築の式（VTSE51は報に載る予報欄の区分で、警報・注意報中はcritical、予報だけならwarning。VTSE52は予報欄が無いのでnormal）。ただしA7の緊急群に入らないよう、観測intentのlevelは緊急群の判定と切り離す（P3-C5-NOTICE-LEVELS=Bと同じflagが要る）",
+        "C": "VTSE51/52の採用（発表・訂正）ごとにdesktopとsoundを作る。段階は報の中身・VTSE41の区分によらず常にinfoで、緊急群に入らない（A7のgroup()はtsunamiのwarning/criticalだけを緊急群にする）。同じsubjectの古いpendingはP3-C5-REPLACEMENT=Aで置き換える。観測の取消はactiveだった場合だけdesktopとsound（level=cancel）。training/testはdesktopだけ（P3-C5-TRAINING=A）",
         "recommended": "A",
-        "provisional": "A",
-        "ruling": "作者裁定待ち（Q-NOTICE津波分。発注の前に要る）",
-        "reason": "見え方の違い: Aでは、旧築で警報・注意報の間にVTSE51のたびに鳴っていたcritical（3打）が鳴らなくなり、VTSE52のnormal（単音）も鳴らない。観測は通知センターの文字だけになり、音はVTSE41の区分の変化・続報・取消でだけ鳴る。Bでは旧築どおり観測のたびに音が鳴る。Bは観測intentを緊急群から外すためにA7のgroup()（notification-delivery.ts:19〜23）とP2-NOTIFICATION-DELIVERY-001の改訂を伴う（NOTICE-LEVELSの選択によらない費用）。観測は警報の続報と別系統で届き、頻度は未計測。旧築の経路はmessage-router.ts:531→notifier.ts:451→level-helpers.ts:291"
+        "provisional": "C",
+        "ruling": "作者裁定C（2026-10-06。起草時のA・Bに無い選択肢で、作者の言葉は「観測情報は info で鳴らす」）",
+        "reason": "見え方の違い: Aでは、旧築で警報・注意報の間にVTSE51のたびに鳴っていたcritical（3打）が鳴らなくなり、VTSE52のnormal（単音）も鳴らない。観測は通知センターの文字だけになり、音はVTSE41の区分の変化・続報・取消でだけ鳴る。Bでは旧築どおり観測のたびに音が鳴る。Bは観測intentを緊急群から外すためにA7のgroup()（notification-delivery.ts:19〜23）とP2-NOTIFICATION-DELIVERY-001の改訂を伴う（NOTICE-LEVELSの選択によらない費用）。観測は警報の続報と別系統で届き、頻度は未計測。旧築の経路はmessage-router.ts:531→notifier.ts:451→level-helpers.ts:291。裁定Cの見え方: 観測のたびにinfoの単音（A4、sound-design-system.md:17）が鳴る。旧築の警報・注意報中のVTSE51のcritical（3打）、予報だけのVTSE51のwarning、VTSE52のnormalは、どれもinfoになる。infoは緊急群に入らないので、VTSE41の緊急通知を追い越さない。A7の改訂は要らない: group()（notification-delivery.ts:18〜24）はoperation=normalかつdomain=tsunamiかつlevelがwarning/criticalだけをnormalTsunamiEmergencyにし、infoはother。音はresolveSoundAsset（同:13〜16）がtsunami×infoをreconstruction/assets/sounds/tsunami-info.wav（配送済み）へ解決し、soundの候補から外すのはoperation≠normalだけ（同:59）"
       },
       {
         "id": "P3-C5-KIND-ENUM",
@@ -31,7 +32,7 @@
         "B": "表外のKind Codeの区域はareaClass=unknown（順位は警報と同じ3、表示はKind/Name）として採用する。Area/Codeが欠けた区域はArea/Nameをkeyにせず、subjectのunkeyedAreas（名前とKindだけ）として保存・表示し、effectiveと残った区分の段階には数えるが、区分の変化・§7.5の系列の判定には使わない。報の残りは通常どおり採用する",
         "recommended": "B",
         "provisional": "B",
-        "ruling": "作者裁定待ち（発注の前に要る）",
+        "ruling": "作者裁定B（2026-10-06、推奨どおり）",
         "reason": "見え方の違い: Aでは気象庁のコード表の改定や区域コードの欠落が実際に来たとき、その報の警報の表示も通知も丸ごと出ない（出ないのが大津波警報になりうる。診断だけが残る）。Bでは表外の区分の区域をKind/Nameと重大度warningで表示し、警報と同じ重さで数える（上がればwarningで緊急群）。Area/Codeの無い区域は名前で表示し、その区分の重さでactiveと残った区分の段階に数えるが、区分の変化には使わないので、その区域だけの警報の発令は緊急群に入らずnormalで鳴る（旧築はcritical）。旧築は未知のKindを名前のまま表示し（normalizeTsunamiKindの前方一致）、Area/Codeの無い区域も表示だけ通していた（tsunami-state.ts:244〜253）ので、Bが旧築に近い。推奨はB: 生命に関わる警報で、形の崩れた報を黙って捨てる損失の方が、不明の区分を明示して出す損失より大きい。Bの費用は区分の値1つ（unknown）とfield 1つ（unkeyedAreas）。subjectのidentity（EventID）は確定しているので、名前から擬似subjectを作る禁止（spec:534）には当たらない。Aを選ぶならspec:616（一部不正なら残りも変えない）がそのまま根拠になる"
       },
       {
@@ -137,7 +138,7 @@
     "questionResolutions": [
       {
         "id": "Q-NOTICE",
-        "status": "frozen（P3-C5-NOTICE-LEVELSとP3-C5-NOTICE-OBSERVATIONは作者裁定待ち、表は推奨Aで書く）",
+        "status": "frozen（作者裁定 P3-C5-NOTICE-LEVELS=A・P3-C5-NOTICE-OBSERVATION=C、2026-10-06）",
         "source": "spec §6.3・§6.4（spec:951・:973・:987）、P2-EEW-UNIT-001 Q-NOTICEの型、旧築notifier.ts:451・level-helpers.ts:291",
         "generationTable": [
           {
@@ -186,18 +187,19 @@
           },
           {
             "opportunity": "observation",
-            "condition": "VTSE51/52の採用（P3-C5-NOTICE-OBSERVATION=A）。forecastEndedのまま採用した観測、unchangedの報では作らない。観測の取消はactiveだった場合だけ",
+            "condition": "VTSE51/52の採用（P3-C5-NOTICE-OBSERVATION=C）。forecastEndedのまま採用した観測、unchangedの報では作らない。観測の取消はactiveだった場合だけ",
             "normalChannels": [
-              "desktop"
+              "desktop",
+              "sound"
             ],
             "trainingTestChannels": [
               "desktop"
             ]
           }
         ],
-        "level": "VTSE41の発表・訂正はP3-C5-NOTICE-LEVELS=Aの式: level=max(変化の段階, 残った区分の段階)。段階の大小はinfo<normal<warning<critical。残った区分は報全体の到達後の状態で決める（下がった区域の行き先だけを見ない）。取消はcancel、観測はinfo（取消はcancel）",
+        "level": "VTSE41の発表・訂正はP3-C5-NOTICE-LEVELS=Aの式: level=max(変化の段階, 残った区分の段階)。段階の大小はinfo<normal<warning<critical。残った区分は報全体の到達後の状態で決める（下がった区域の行き先だけを見ない）。取消はcancel。観測（VTSE51/52の発表・訂正）は報の中身・VTSE41の区分によらず常にinfo（P3-C5-NOTICE-OBSERVATION=C）、観測の取消はcancel",
         "overlap": "一つの採用報は各channel最大1 intent。機会はescalation、deescalation、continuationの順で一つを選ぶ。訂正は別の機会を作らず、選んだ機会に訂正の接頭辞を付ける",
-        "emergencyGroup": "A7のgroup()（notification-delivery.ts:21）が緊急群に入れるのはoperation=normalかつlevelがwarning/criticalのU-T intentだけ。式により、それは警報以上の区域が上がった報（訂正を含む）に限る。区域拡大は新しい区域への警報の発令なので、spec:951の「発令」に含める（spec:1131の発令系も区域拡大を含む）",
+        "emergencyGroup": "A7のgroup()（notification-delivery.ts:21）が緊急群に入れるのはoperation=normalかつlevelがwarning/criticalのU-T intentだけ。式により、それは警報以上の区域が上がった報（訂正を含む）に限る。区域拡大は新しい区域への警報の発令なので、spec:951の「発令」に含める（spec:1131の発令系も区域拡大を含む）。観測のintentはinfo/cancelなので緊急群に入らない（otherのまま鳴る）",
         "timing": "createdAt=nextAttemptAt=採用したClockReading.wallTimeMs。expiresAtはsound=createdAt+60000、desktop=createdAt+180000（spec §6.4。津波緊急もTTLと初回待ちを別に判定、spec:973）。再試行・停止・timeoutはA7の既存規則のまま。期限は再起動・再試行で延ばさない",
         "replacement": "P3-C5-REPLACEMENT=A。置換の単位はoperation＋subject＋channel（VTSE41と観測は別subjectなので互いを置き換えない）",
         "intentUpdate": "A1が照合済みのNotificationIntentUpdateを受け、既存idだけを更新する。未知id・同値の更新はno-op、変更があればdeliveryOnlyで保存世代を進める。所有配列は一括で索引化して反映し、更新件数分の全配列の再走査をしない（P2-A4の先例）",
@@ -211,11 +213,11 @@
         "id": "P3-C5-LEGACY-DIFF",
         "status": "frozen（旧築の実コードから。作者へ出す見え方の根拠）",
         "items": [
-          "通知の段階（P3-C5-NOTICE-LEVELS）: 旧築はVTSE41/51/52の採用ごとにdesktop＋soundを出し、段階は報の中身だけで決める（level-helpers.ts:291〜299: 予報欄なしnormal、全区域が津波予報warning、「津波」を含み「解除」を含まない区域が一つでもあればcritical、それ以外で解除を含めばwarning、取消cancel）。Aでは津波警報の発令critical→warning、注意報の発令critical→normal、警報・注意報中の続報と区分不変の訂正critical→normal、降格critical→normal、解除の混在報critical→info、全区域解除の報warning→info、予報だけの初報warning→info",
-          "観測の通知（P3-C5-NOTICE-OBSERVATION）: 旧築はVTSE51が警報・注意報中critical、予報だけwarning、VTSE52がnormalで、どれも音を出す。Aではdesktopだけ（info）",
+          "通知の段階（P3-C5-NOTICE-LEVELS=A）: 旧築はVTSE41/51/52の採用ごとにdesktop＋soundを出し、段階は報の中身だけで決める（level-helpers.ts:291〜299: 予報欄なしnormal、全区域が津波予報warning、「津波」を含み「解除」を含まない区域が一つでもあればcritical、それ以外で解除を含めばwarning、取消cancel）。新築では津波警報の発令critical→warning、注意報の発令critical→normal、警報・注意報中の続報と区分不変の訂正critical→normal、降格critical→normal、解除の混在報critical→info、全区域解除の報warning→info、予報だけの初報warning→info",
+          "観測の通知（P3-C5-NOTICE-OBSERVATION=C）: 旧築は観測報ごとにdesktop＋soundを出し、段階は報の中身で決める（level-helpers.ts:291〜299: 警報・注意報中のVTSE51はcritical、予報だけのVTSE51はwarning、予報欄の無いVTSE52はnormal）。新築も観測報ごとにdesktop＋soundを出すが、段階はすべてinfo（単音）で、緊急群に入らない。警報・注意報中のVTSE51はcritical（3打）→info、予報だけのVTSE51はwarning→info、VTSE52はnormal→info",
           "通知の題と本文: 旧築の題はXMLのTitleのまま（例「津波警報・注意報・予報a」、notifier.ts:470）で、本文は報の順に先頭3区域。新築の題は到達後の最高区分の名（解除の報は「津波警報・注意報の解除」）で、escalationでは上がった区域を先に並べる",
           "取消の通知: 旧築は受理した取消を毎回cancelで通知する（notifier.ts:452〜455）。新築は取消の前にactiveだったsubjectだけ。解除済み・未受信の事象の取消では鳴らない",
-          "表外のKind・Area/Codeの欠落（P3-C5-KIND-ENUM）: 旧築は未知のKindを名前のまま表示し（表示の区分は付かない）、名前に「津波」があればcriticalで鳴らした。Area/Codeの無い区域はその報の表示だけに合成し（保存しない）、音はcritical。Aは報全体を拒否し、表示も通知も出ない。Bは表外の区分をKind/Nameと重大度warningで表示し警報と同じ重さで鳴らす（上がればwarning）。Area/Codeの無い区域は名前で表示・保存し、activeと残った区分の段階に数えるが変化には使わないので、その区域だけの警報の発令はnormalで鳴る（旧築critical）",
+          "表外のKind・Area/Codeの欠落（P3-C5-KIND-ENUM=B）: 旧築は未知のKindを名前のまま表示し（表示の区分は付かない）、名前に「津波」があればcriticalで鳴らした。Area/Codeの無い区域はその報の表示だけに合成し（保存しない）、音はcritical。新築は表外の区分をKind/Nameと重大度warningで表示し警報と同じ重さで鳴らす（上がればwarning）。Area/Codeの無い区域は名前で表示・保存し、activeと残った区分の段階に数えるが変化には使わないので、その区域だけの警報の発令はnormalで鳴る（旧築critical）",
           "観測の寿命（P3-C5-OBS-LIFETIME）: 旧築はfamilyに1 subjectで事象をまたいでstationを合成し、全警報が無くなったときだけ畳む。解除の後に届いた観測は表示した。新築はEventIDごとで、解除の後に届いた観測は表示しない。24時間の失効は新設",
           "容量（P3-C5-CAPACITY）: 旧築は1024超のstationを診断なしで落とした。新築は退去手順とnormalのcapacityExceeded。4 MiB超・VTSE41の513件目・観測subjectの513件目の扱いも新しい",
           "容量超過時の退去の候補（P3-C5-CAPACITY）: 新築は超過量を実際に減らすsubjectだけを、期限切れの非active→最古の非active→training/testのactiveの順に退去する（station超過なら同じfamilyのstationsを持つ観測subject、件数超過なら同じ種類、byte超過は全subject）。旧築はstationの上限で最終更新の古い点を落とすだけで、この順の退去は無い（VTSE41 512件の上限での旧築の扱いは本起草で比べていない）",
@@ -226,15 +228,15 @@
       },
       {
         "id": "Q-ENUM",
-        "status": "frozen（表外Kind・Area/Code欠落はP3-C5-KIND-ENUMの裁定待ち、表は推奨Bで書く）",
+        "status": "frozen（表外Kind・Area/Code欠落はP3-C5-KIND-ENUM=B、作者裁定 2026-10-06）",
         "priorityRule": "A1共通検証（運用区分・ReportDateTime）の後、EventID存在→EventID妥当性（14桁の数字）→Serial（VTSE51/52だけ: 存在→正整数）→InfoType別の必須構造の存在→必須構造の妥当性の順で、最初の一RejectionReasonだけを返す。rejectedはforecasts/observations/intents/persistenceを含むstate全体と参照を変えず、diagnosticだけを返す",
         "familyTable": [
           {
             "family": "VTSE41",
-            "legalMissing": "取消はBodyがTextだけでよい（38-39_03_01）。Serialは空でよく、順序に使わない。FirstHeight・MaxHeightは区域ごとに欠落可。LastKindは読まない。P3-C5-KIND-ENUM=Bでは表外のKind CodeとArea/Codeの欠落を合法とする（unknown・unkeyedAreas）",
+            "legalMissing": "取消はBodyがTextだけでよい（38-39_03_01）。Serialは空でよく、順序に使わない。FirstHeight・MaxHeightは区域ごとに欠落可。LastKindは読まない。P3-C5-KIND-ENUM=Bにより表外のKind CodeとArea/Codeの欠落を合法とする（unknown・unkeyedAreas）",
             "required": "非取消ではBody/Tsunami/Forecast/Itemが1件以上、各ItemにArea/Name・Category/Kind/Code・Kind/Name。Area/Codeがあれば3桁の数字で報の中で重複しない",
-            "invalid": "Area/Codeの重複・3桁でない値、存在するTsunamiHeightの値が数値・NaN・範囲表記に射影できない。P3-C5-KIND-ENUM=Aでは表外Kind（requiredStructureInvalid）とArea/Codeの欠落（requiredStructureMissing）も",
-            "kindTable": "52・53→majorWarning、51→warning、62→advisory、71・72・73→forecast、50・60→released、00→none。表外はP3-C5-KIND-ENUMに従う"
+            "invalid": "Area/Codeの重複・3桁でない値、存在するTsunamiHeightの値が数値・NaN・範囲表記に射影できない",
+            "kindTable": "52・53→majorWarning、51→warning、62→advisory、71・72・73→forecast、50・60→released、00→none。表外はunknown（P3-C5-KIND-ENUM=B）"
           },
           {
             "family": "VTSE51",
@@ -316,7 +318,15 @@
       {
         "id": "P3-C5-DEPS",
         "status": "frozen",
-        "rule": "着手条件: C0〜C4の配送と最初の契約群の完了（計画§1.3: E01の正式再検収とR63）、P3-C5-NOTICE-LEVELS・P3-C5-NOTICE-OBSERVATION・P3-C5-KIND-ENUMの作者裁定、Q-C5-CORPUSの解消、Q-C5-C3B-C4-BASEの読み替え（baseOidの割当）。PERF-P3だけが残った場合の扱いはQ-C4-PERF-ONLY（作者裁定）に従う"
+        "rule": "着手条件: C0〜C4の配送と最初の契約群の完了（計画§1.3: E01の正式再検収とR63）、Q-C5-CORPUSの解消、Q-C5-C3B-C4-BASEの読み替え（baseOidの割当）。PERF-P3だけが残った場合の扱いはQ-C4-PERF-ONLY（作者裁定）に従う"
+      },
+      {
+        "id": "Q-C5-AUTHOR-RULINGS",
+        "status": "closed",
+        "source": "作者裁定（2026-10-06朝）",
+        "closed": "P3-C5-NOTICE-LEVELS=A（推奨どおり）、P3-C5-KIND-ENUM=B（推奨どおり）、P3-C5-NOTICE-OBSERVATION=C（新しい選択肢: 観測はdesktop＋soundで段階は常にinfo）。Cに合わせてQ-NOTICE（generationTableのobservation行・level・emergencyGroup）、P3-C5-LEGACY-DIFF、AC07、P3-C5-T06を直した。A7（P2-NOTIFICATION-DELIVERY-001）の改訂は要らない: group()（notification-delivery.ts:18〜24）はinfoをotherにし、音はresolveSoundAsset（同:13〜16）がtsunami-info.wavへ解決する。B選択時の書き換え（NOTICE-LEVELS=B・NOTICE-OBSERVATION=BのA7改訂、KIND-ENUM=Aの型からunknown・unkeyedAreasを消す改訂）は不要になったので消した",
+        "remaining": "なし",
+        "reason": "unresolvedQuestionsのQ-C5-AUTHOR-RULINGS（C5の発注の前）を閉じる"
       }
     ],
     "operationContract": {
@@ -624,7 +634,7 @@
       "旧築v2の津波状態の移行（C15）",
       "最終GIS・正規津波予報区の線（P4）",
       "通常合法最大でのE13a・容量縮退の測定（P4、D-P3-6）",
-      "A7の選択・試行・停止の実装の変更（P3-C5-NOTICE-LEVELS=Bが選ばれた場合は契約改訂）",
+      "A7の選択・試行・停止の実装の変更（裁定A・Cでgroup()と音の解決を変えずに済む）",
       "共有の直書きを表へ寄せる改修（P3-C5-SHARED-ROWS=A）",
       "U-T同居後のEEWの正式E01（C4の結果は流用しない。正式はspec:1129の母集団4、P4/P5。C5はAC13のMacの報告、C6はPiの短い確認だけ）"
     ],
@@ -643,7 +653,7 @@
       },
       {
         "id": "P3-C5-AC02",
-        "requirement": "VTSE41の意味: I-U-T.forecastSemanticsとQ-ENUM.revisionOrderを実装する。報ごとの区域集合の置換、区分の表とP3-C5-KIND-ENUMの裁定、active/released/cancelled（releasedは区域を保つ）、TsunamiTransitionRecordとTsunamiReportSeries、訂正（同じReportDateTime）、取消と取消以前の報のstale、取消より新しい報の再採用、normal/training/testの区分交差0を確かめる。降格だけでsubjectをactiveから外さない（spec:1603）",
+        "requirement": "VTSE41の意味: I-U-T.forecastSemanticsとQ-ENUM.revisionOrderを実装する。報ごとの区域集合の置換、区分の表とP3-C5-KIND-ENUM=B（unknown・unkeyedAreas）、active/released/cancelled（releasedは区域を保つ）、TsunamiTransitionRecordとTsunamiReportSeries、訂正（同じReportDateTime）、取消と取消以前の報のstale、取消より新しい報の再採用、normal/training/testの区分交差0を確かめる。降格だけでsubjectをactiveから外さない（spec:1603）",
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:508 «040e55e0ee621feb»",
           "docs/specs/reconstruction-p0-contracts.md:1603 «ec50739268781fbe»",
@@ -690,7 +700,7 @@
       },
       {
         "id": "P3-C5-AC07",
-        "requirement": "Q-NOTICE津波分: generationTable・level・overlap・payload・timing・replacement（P3-C5-REPLACEMENT=A）・intentUpdate・capacity・recovery・restartを実装する。normalのcritical/warningは警報以上の区域が上がった報だけ。training/testはdesktopだけ（P3-C5-TRAINING=A）。作者裁定でBが選ばれたら契約を改訂してから実装する",
+        "requirement": "Q-NOTICE津波分: generationTable・level・overlap・payload・timing・replacement（P3-C5-REPLACEMENT=A）・intentUpdate・capacity・recovery・restartを実装する。normalのcritical/warningは警報以上の区域が上がった報だけ。training/testはdesktopだけ（P3-C5-TRAINING=A）。観測（VTSE51/52）はnormalでdesktop＋sound、level=infoで緊急群に入らない（P3-C5-NOTICE-OBSERVATION=C）",
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:948 «2329df574f1ba7a9»",
           "docs/specs/reconstruction-p0-contracts.md:951 «29e2b6869a8216ca»",
@@ -788,7 +798,7 @@
         "referenceIds": [
           "P3-C5-AC01"
         ],
-        "behavior": "VTSE41/51/52のQ-ENUMの各不備（EventID欠落・14桁でない、VTSE51/52のSerial、必須構造の欠落・不正、区域・stationの重複、P3-C5-KIND-ENUMの裁定どおりの表外Kind・Area/Code欠落）で最初の一reasonを返しstate参照が不変、または裁定どおり採用。取消の縮退とVTSE52の空Areaは受理。coverage表と実行場所の行（VTSE41→U-T・urgent）"
+        "behavior": "VTSE41/51/52のQ-ENUMの各不備（EventID欠落・14桁でない、VTSE51/52のSerial、必須構造の欠落・不正、区域・stationの重複）で最初の一reasonを返しstate参照が不変。表外Kind（unknown）とArea/Code欠落（unkeyedAreas）は採用（P3-C5-KIND-ENUM=B）。取消の縮退とVTSE52の空Areaは受理。coverage表と実行場所の行（VTSE41→U-T・urgent）"
       },
       {
         "testId": "P3-C5-T02",
@@ -830,7 +840,7 @@
         "referenceIds": [
           "P3-C5-AC07"
         ],
-        "behavior": "Q-NOTICEの各機会とlevelの式（max(変化, 残った区分)。警報中に予報区域だけが増える報、警報Aの解除とBの継続が混ざる報を含む）、overlap（訂正は接頭辞だけ）、置換（同群以上だけ）、満杯で下位を退去して緊急を収容、intentUpdate、training/testのdesktopだけ、recovery未適用、復元直後の続報で再び鳴らないこと"
+        "behavior": "Q-NOTICEの各機会とlevelの式（max(変化, 残った区分)。警報中に予報区域だけが増える報、警報Aの解除とBの継続が混ざる報を含む）、overlap（訂正は接頭辞だけ）、置換（同群以上だけ）、満杯で下位を退去して緊急を収容、intentUpdate、観測の採用でdesktop＋soundがinfo（警報中のVTSE51でもinfo）で緊急群に入らないこと、training/testのdesktopだけ、recovery未適用、復元直後の続報で再び鳴らないこと"
       },
       {
         "testId": "P3-C5-T07",
@@ -945,20 +955,6 @@
       "純粋な意味関数とreduceはDiagnosticDetailsだけを返し、runtimeがtimestamp/runIdを付ける。識別不能な拒否ではsubjectを空文字にし、架空の業務identityを作らない。DiagnosticReasonへの追加はQ-ENUM.diagnosticReasonsの2つ（tsunamiRevisionConflict・tsunamiCapacityEvicted）だけ（persistent-diagnostic-sink.tsの一覧にも足す）"
     ],
     "unresolvedQuestions": [
-      {
-        "id": "Q-C5-AUTHOR-RULINGS",
-        "owner": "user",
-        "blocks": [
-          "baseOidの割当と発注（Q-NOTICE津波分）"
-        ],
-        "resolveBy": "C5の発注の前（C4の正式測定と並行して決めてよい）",
-        "requiredEvidence": [
-          "P3-C5-NOTICE-LEVELSの選択（A/B）",
-          "P3-C5-NOTICE-OBSERVATIONの選択（A/B）",
-          "P3-C5-KIND-ENUMの選択（A/B）。Aなら型のunknown・unkeyedAreasを消す契約改訂を同時に行う",
-          "B選択時の書き換え箇所: NOTICE-LEVELS=BはQ-NOTICE.levelとemergencyGroup、AC07の緊急群の文、P3-C5-T06、outOfScopeのA7の行、allowedPathsへのnotification-delivery.tsの追加、P2-NOTIFICATION-DELIVERY-001とp2-notification-delivery.types.ts（NotificationAttempt）の改訂。NOTICE-OBSERVATION=Bは同じA7の改訂に加え、generationTableのobservation行とQ-NOTICE.levelの観測の文"
-        ]
-      },
       {
         "id": "Q-C5-C3B-C4-BASE",
         "owner": "integrator",

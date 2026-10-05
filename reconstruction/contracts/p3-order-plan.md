@@ -109,7 +109,7 @@ C5 → unit レーン: C7〜C14 を D-P3-5 の順に（C6 と重なってよい�
 - **脇レーンの所有**: 各脇レーンは契約で名前を固定する新設 directory だけを排他的に持つ（C15 は移行器、C16 は回復、C17・C18 は CLI、C19 は端末出力）。C20 は実施中だけ U-W・U-F の unit・domain directory を持つ。脇レーンが使う他契約の境界は、着手前に凍結済みであること（C16 は C3a の mailbox と runtime 採用、C2 の REST。C17 は C3b の host 入口と C4 の runner。C20 は C3a）。
 - **共有部分への合流**: unit レーンも脇レーンも、共有ファイル（§3.2）への結線は統合担当が 1 本ずつ直列に合流し、合流のたびに reconstruction のゲートを全部回し直す。
 - **C6 と最初の unit レーン**: C7 の依存は C5 で C6 ではないので、C6 と unit レーンは重なってよい（上限 3 本の内側で）。
-- **測定の隔離**: C4・C6 の正式測定の窓では、同じ機械で build・test・他レーンの作業を走らせない。正式測定は A10 と同じ開発機（MacBook M5、`evidence/manifest.json` の環境）で行い、その窓の build・test・ゲートは Mac mini の独立 checkout で回して実装レーンを止めない（`reconstruction/dist/`・`node_modules` を測定用 checkout と共有しない）。Pi 予備確認（§4.5）の第 1 段は Pi の中で完結するので Mac のレーンを止めない。第 2 段（Pi backend＋Mac Chrome）は Pi と Mac の両方を測定機として扱い、この規則を両方に適用する。private corpus と測定の生データは Mac・Mini・Pi のローカルに置き、公開の Actions・artifact に渡さない。
+- **測定の隔離**: C4・C6 の正式測定の窓では、同じ機械で build・test・他レーンの作業を走らせない。正式測定は Mac mini の独立 checkout で行い（2026-10-06 作者裁定、C4 の P3-C4-MACHINES=B。A10 の MacBook M5 の値は参考の比較にだけ使う）、その窓では Mac mini で build・test・他レーンを走らせず、実装レーンは MacBook で続ける（`reconstruction/dist/`・`node_modules` を測定用 checkout と共有しない）。Pi 予備確認（§4.5）の第 1 段は Pi の中で完結するので Mac のレーンを止めない。第 2 段（Pi backend＋Mac Chrome）は Pi と Mac の両方を測定機として扱い、この規則を両方に適用する。private corpus と測定の生データは Mac・Mini・Pi のローカルに置き、公開の Actions・artifact に渡さない。
 - **脇レーンは最早着手条件で始める**: C15・C16 の本体と C18 の前半は、§2.1 の「着手」条件が揃った時点で始め、全 unit の配送後には結線と受入だけを残す（§7 の配置例より優先）。
 - **起草の先行**: 次の契約の起草と発注前点検は、前の契約の実装中に進める（例: C3a の実装中に `I-U-T` と Q-NOTICE 津波分を凍結、C5 の実装中に `I-U-Q`・`I-U-N`・`I-U-V` を起草）。C3a・C3b・C4 の本文も C1・C2 の実装中に起草と点検まで進める。C1・C2 の配送後に確定するのは、実装への参照・baseOid・最終の型と hash・測定条件だけで、実装後にしか分からない値（RSS、`ingressJsonMs` など）は仮の数字で凍結しない。C4 のうち母集団の対応表・期待する証拠・集計と判定の試験・runner の準備は C3a の配送を待たずに進め、新配置への計測点の設置・予備測定・manifest 凍結・正式測定は C3b の後に行う。
 
@@ -123,13 +123,13 @@ C5 → unit レーン: C7〜C14 を D-P3-5 の順に（C6 と重なってよい�
 | unit・domain・test の directory、脇レーンの新設 directory | そのレーン（§3.1） | 他レーンは触らない。共有部分への結線は統合担当の直列合流 |
 | CLI の入口（コマンドの振り分け） | C18 | C17 の replay 入口の追加は直列合流 |
 | `reconstruction/src/checkpoint/checkpoint.ts` | C0（`:171`・`:186` の unit 列の直書きだけ、Wave 1）→ C1 → C3a | Wave 2 では C1 だけが編集する |
-| `reconstruction/src/checkpoint/persistent-diagnostic-sink.ts` の reason 一覧（`:40`〜`:52`） | C0 → C2（直列） | reason の追加だけ |
+| `reconstruction/src/checkpoint/persistent-diagnostic-sink.ts` の reason 一覧（`:40`〜`:52`） | C0 → C2 → C3a → C3b（直列） | reason の追加だけ |
 | `reconstruction/src/units/*/` | C0（unit ごとの module の export を足す）→ 各 unit レーン（自分の directory） | 他 unit の directory は触らない |
 | `reconstruction/src/host/host.ts` | C2 → C3a → C3b → C4（config の注入口だけ）→ C5（:199〜:201 の候補分類だけ） | Wave 2 では C2 だけが編集する |
-| `reconstruction/src/mailbox/mailbox.ts` と `p2-mailbox.json` | C3a | dispatch の改訂は契約改訂と同じ commit |
+| `reconstruction/src/mailbox/mailbox.ts` と `p2-mailbox.json` | C3a → C3b（実行場所の pending を 1 回の走査で外す 1 メソッドだけ） | dispatch の改訂は契約改訂と同じ commit |
 | `composition-root.ts` | C0 → C2（接続表示と start の記録だけ）→ C3a → C3b → unit レーンの結線 | C1 は編集しない。unit レーンの結線は統合担当の直列合流 |
-| `shared-runtime.ts`・`view-projector.ts` | C0 → C3a → unit レーン | unit レーンの変更は統合担当の直列合流。台帳 49 で view の版を固定長にするなら C3a |
-| 診断 reason・`P2HostObservation` の型 | C0 → C2（start の記録に要る分だけ） | 追加は契約改訂として記録 |
+| `shared-runtime.ts`・`view-projector.ts` | C0 → C3a → C3b → unit レーン | unit レーンの変更は統合担当の直列合流。台帳 49 で view の版を固定長にするなら C3a |
+| 診断 reason・`P2HostObservation` の型 | C0 → C2（start の記録に要る分だけ）→ C3a → C3b | 追加は契約改訂として記録 |
 | P3 測定 manifest・runner（`reconstruction/test/eew-e01/**` の後継） | C4（津波の母集団は C6） | A10 の版付き結果（`a10-p2-20260930b`）は書き換えない |
 | `sequences.json` と派生 fixture、spec | 統合担当 | unit レーンは期待値を変えない。追加 step はレーンごとに直列で合流 |
 | `reconstruction/package.json`・tsconfig・vitest config | 最初に必要とする契約 1 本 | 依存追加は原則 0。worker 用の build 出力が要るなら C3a |
@@ -290,7 +290,7 @@ P2 の実績（git log と作業ノートのハンドオフ）: 計画の起草�
 L1  [C6 実装][測定*][C9 V   ][C12 B    ][C15 本体][C15 完了]
 L2  [C7 Q  ][測定*][C7][C10 L    ][C13 M   ][C16 本体][C16 完了][C18 後半]
 L3  [C8 N  ][測定*][C8][C11 R    ][C14 Y   ]
-*C6 の正式測定の窓は MacBook の build・test だけを止め、実装レーンは Mac mini でゲートを回して続ける（§3.1、修正 5）。上の晩数は修正前の全停止のまま
+*C6 の正式測定の窓は Mac mini の build・test だけを止め、実装レーンは MacBook で続ける（§3.1、修正 5、2026-10-06 に測定機を Mac mini へ改訂）。上の晩数は修正前の全停止のまま
 ```
 
   終わりは 25.5 晩で、統合担当の直列合流（unit 8 回×0.25 晩＝2）を足して **27.5 晩**。下限側（各 unit 1.5・C6 の実装 2・測定 2・C15/C16 の本体 2 と完了 1・C18 の後半 1.5）を同じ並べ方にすると 11.5 晩、合流を足して **13.5 晩**。作業量を 3 で割った 7〜18.5 晩は、契約を分割できない以上届かない参考の下限。

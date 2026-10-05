@@ -18,7 +18,7 @@ import type {
 
 // P3-TSUNAMI-UNIT-001 (C5, I-U-T). Category/Kind/Code table (questionResolutions[Q-ENUM]):
 // 52/53 majorWarning, 51 warning, 62 advisory, 71/72/73 forecast, 50/60 released, 00 none.
-// "unknown" is a code outside the table, kept only under P3-C5-KIND-ENUM=B (ranked as warning).
+// "unknown" is a code outside the table (P3-C5-KIND-ENUM=B, author ruling 2026-10-06; ranked as warning).
 export type TsunamiAreaClass = "majorWarning" | "warning" | "advisory" | "forecast" | "released" | "none" | "unknown";
 
 // Per area between the subject's previous adopted report and this one (questionResolutions[P3-C5-E01-SERIES]).

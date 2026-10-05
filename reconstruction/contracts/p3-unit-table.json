@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "87fc5ed341ed3e7a735e0382533a56610f33636a",
-    "sha256": "8a9ea31645f0528fc5ebf211b0ddeaf36e486dabb3083638af49083cb4204c3f",
+    "sha256": "97b9313bb45b87f5afe73716c2ed1659831b90626f8a4f95bd99857042979672",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "76c82b87d7783a4eae14af690cb34e7d6ec46f73617dc75b7f7401951619f080",
     "sequencesSha256": "be9cfd97b555e3a55568f085d107342c978b3dc7249f5cecea868ea5a62c5781",
@@ -281,7 +281,7 @@
         "id": "P3-C0-AC04",
         "requirement": "view-projector.tsのunit変数分岐2か所を同じfileのRecord<RuntimeUnitId,…>表へ寄せる。:442（U-Eだけwarning class別のevent数で数える）は数え方の表、:490（unavailable通知の文言）はunitごとの文言表とし、U-Eはunavailableを作らないので値をnullにして、nullのunitでunavailable通知を作ろうとしたら例外にする（現行はelseでU-Wの文言になる）。snapshotの出力bytesと既存のsnapshot-sse試験の期待値は変えない",
         "evidenceRefs": [
-          "reconstruction/contracts/p3-order-plan.md:131 «eacdd748a34929f7»",
+          "reconstruction/contracts/p3-order-plan.md:131 «f3a8292be8b7f3f8»",
           "reconstruction/src/view-projector/view-projector.ts"
         ]
       },
