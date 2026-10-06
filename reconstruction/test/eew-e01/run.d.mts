@@ -63,7 +63,8 @@ export function calibratedSendAt(trigger: { injectedHrMs: number; predictedParse
 // P3-C4 工程2d: 再開の照合と、試行の前の前景の確認。
 export function resumeProblems(current: Record<string, unknown>, records: readonly { startedAt: string; preflight: Record<string, unknown> | null }[]): string[];
 export function trialConditionDeviation(state: { visibility?: string; focus?: boolean; reducedMotion?: boolean } | null, motion: "reduced" | "full",
-  events?: readonly (readonly [number, string])[] | null, sentWallMs?: number | null): string | null;
+  events?: readonly (readonly [number, string])[] | null, sentWallMs?: number | null, clockStepMs?: number): string | null;
+export function signalStopper(stop: () => void): () => void;
 export function distRebuildProblem(rebuiltSha256: string | undefined, currentSha256: string): string | null;
 export function machineProblems(manifest: { nodeVersion: string; osVersion: string; device: string; chrome: { version: string } },
   actual: { nodeVersion: string; chromeVersion: string; osVersion: string; device: string }): string[];

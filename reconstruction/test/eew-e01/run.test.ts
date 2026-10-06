@@ -5,7 +5,7 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
 import { readSelfHashed } from "../../src/measurement/eew-e01/frozen";
-import { buildA10Result, distRebuildProblem, hashRaw, machineProblems, parseArgs, resumeProblems, trialConditionDeviation } from "./run.mjs";
+import { buildA10Result, distRebuildProblem, hashRaw, machineProblems, parseArgs, resumeProblems, signalStopper, trialConditionDeviation } from "./run.mjs";
 import type { WindowRecord } from "./run.mjs";
 import { H } from "./fixtures";
 
@@ -77,10 +77,26 @@ describe("P3-C4 resume and foreground checks", () => {
   // 工程2d の再確認 S3・T2: 状態は投入の時点で取り、投入の時刻以降の blur・visibilitychange があれば逸脱（投入の直後、状態を取る前の blur も）。
   it("a blur or visibilitychange from the send to the end of the trial is a deviation, and one before the send is not", () => {
     const ok = { visibility: "visible", focus: true, reducedMotion: false };
-    expect(trialConditionDeviation(ok, "full", [[999, "blur"]], 1000)).toBeNull();
-    expect(trialConditionDeviation(ok, "full", [[999, "blur"], [1000, "blur"], [1001, "visibilitychange:hidden"]], 1000))
+    expect(trialConditionDeviation(ok, "full", [[979, "blur"]], 1000)).toBeNull();
+    expect(trialConditionDeviation(ok, "full", [[979, "blur"], [1000, "blur"], [1001, "visibilitychange:hidden"]], 1000))
       .toMatch(/during the trial: blur,visibilitychange:hidden$/);
     expect(trialConditionDeviation(ok, "full", null, 1000)).toMatch(/trial watch is missing/);
+  });
+
+  // 工程2d の再確認 U1: 壁時計が試行の間に戻ると、投入の後の blur が投入より前の時刻になるので、跳びを測った試行は逸脱にする。
+  it("a trial during which the wall clock stepped beyond the threshold is a deviation", () => {
+    const ok = { visibility: "visible", focus: true, reducedMotion: false };
+    expect(trialConditionDeviation(ok, "full", [], 1000, 20)).toBeNull();
+    expect(trialConditionDeviation(ok, "full", [[950, "blur"]], 1000, 50)).toMatch(/wall clock stepped by 50ms/);
+  });
+
+  // 工程2d の再確認 U2: 親からの転送と端末の Ctrl-C で SIGINT が 2 回届いても、後始末は 1 回。
+  it("a signal delivered twice runs the stop once", () => {
+    let stops = 0;
+    const stop = signalStopper(() => { stops++; });
+    stop();
+    stop();
+    expect(stops).toBe(1);
   });
 
   // 工程2d の再確認 T1: 正式は作り直した直後の dist で起動したプロセスだけが測る。

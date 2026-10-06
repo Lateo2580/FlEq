@@ -488,8 +488,10 @@ async function measureRun(spec, ctx, label, dir, status) {
     // AC08: 投入の壁時計の時刻を残し（blur・visibilitychange の切り出しの起点）、送った直後に前景の状態を取る（待たずに投げるので、投入の時刻を動かさない）。
     let stateAtSend = null;
     let sentWallMs = null;
+    let sentSkewMs = null;
     const sendEew = () => {
       sentWallMs = Date.now();
+      sentSkewMs = sentWallMs - performance.now();
       const result = injector.send(frame, "VXSE43");
       stateAtSend = page?.evaluate(STATE_AT_SEND).catch(() => null) ?? null;
       return result;
@@ -573,8 +575,9 @@ async function measureRun(spec, ctx, label, dir, status) {
     // 背景・ロックでは描画と timer が間引かれ、製品の遅延と区別できないので、逸脱した試行は成立させない（記録は warm-up も残す）。
     const atSend = await stateAtSend;
     trial.focusAtSend = atSend?.focus ?? null;
-    trial.conditionDeviation = page == null ? null
-      : trialConditionDeviation(atSend, ctx.manifest.chrome.motion, await page.evaluate(takeTrialWatch(Date.now())), sentWallMs);
+    const endWallMs = Date.now();
+    trial.conditionDeviation = page == null ? null : trialConditionDeviation(atSend, ctx.manifest.chrome.motion,
+      await page.evaluate(takeTrialWatch(endWallMs)), sentWallMs, Math.abs(endWallMs - performance.now() - sentSkewMs));
     if (!warm && trial.conditionDeviation != null) trial.establishment = { established: false, reason: "conditionDeviation" };
     else if (!warm) {
       // 成立の判定（establishTrial）。対象の観測（parse・encode・保存の記録は対象の処理が終わってから出る）を、実投入から 11 秒まで待つ。
@@ -678,6 +681,10 @@ const VPWS50_TRIGGERED = new Set(["maxVpws50ParseStarted", "maxVpws50ReceivedThe
 // 以降の分で判定する。条件逸脱（成立させない）は、投入の時点で visible でないか、motion が manifest と違う（openPage の固定が効いていない）か、
 // 投入から終わりまでに blur か visibilitychange があったか、記録が無い（ページが作り直された）とき。document.hasFocus() は OS の key window
 // にも左右され、描画と timer の間引きの条件より厳しいので、false でも記録だけにする（trial.focusAtSend）。
+// 壁時計が試行の間に跳ぶと、時刻での切り出しが投入の後の記録を落とす（工程2d の再確認 U1）。runner の Date.now() と単調時計の差の変化が
+// CLOCK_STEP_MS を超えた試行は逸脱にする（ページと runner は同じ機械の壁時計なので、跳びは runner の側でも同じ量だけ見える）。
+// 閾値より小さい跳び（NTP の slew を含む）で投入の直後の記録を落とさないよう、切り出しは投入の CLOCK_STEP_MS 前から数える（多めに逸脱に寄せる）。
+const CLOCK_STEP_MS = 20;
 const INSTALL_TRIAL_WATCH = `(() => {
   window.fleqTrialWatch = [];
   window.addEventListener("blur", () => window.fleqTrialWatch.push([Date.now(), "blur"]));
@@ -690,11 +697,12 @@ const takeTrialWatch = (endWallMs) => `(() => {
   window.fleqTrialWatch = all.filter(([t]) => t > ${endWallMs});
   return all.filter(([t]) => t <= ${endWallMs});
 })()`;
-export function trialConditionDeviation(state, motion, events = [], sentWallMs = -Infinity) {
-  const during = events?.filter(([t]) => t >= sentWallMs).map(([, type]) => type);
+export function trialConditionDeviation(state, motion, events = [], sentWallMs = -Infinity, clockStepMs = 0) {
+  const during = events?.filter(([t]) => t >= sentWallMs - CLOCK_STEP_MS).map(([, type]) => type);
   const problems = [state?.visibility === "visible" ? null : `visibility ${state?.visibility}`,
     state?.reducedMotion === (motion === "reduced") ? null : `prefers-reduced-motion ${state?.reducedMotion} (manifest motion ${motion})`,
-    during == null ? "the trial watch is missing (the page was reloaded)" : during.length === 0 ? null : `during the trial: ${during.join(",")}`].filter((p) => p != null);
+    during == null ? "the trial watch is missing (the page was reloaded)" : during.length === 0 ? null : `during the trial: ${during.join(",")}`,
+    clockStepMs > CLOCK_STEP_MS ? `the wall clock stepped by ${Math.round(clockStepMs)}ms during the trial` : null].filter((p) => p != null);
   return problems.length === 0 ? null : problems.join("; ");
 }
 
@@ -1085,6 +1093,12 @@ export function parseArgs(argv) {
   return { args, preliminary, selected, notification };
 }
 
+// signal の後始末を 1 回だけにする（端末の Ctrl-C と親からの転送で同じ signal が 2 回届く。工程2d の再確認 U2）。
+export function signalStopper(stop) {
+  let stopping = false;
+  return () => { if (!stopping) { stopping = true; stop(); } };
+}
+
 async function main(argv) {
   const { args, preliminary, selected, notification } = parseArgs(argv);
   // 正式は dist を作り直してから、新しいプロセスで検証と測定を始める（工程2d の再確認 T1。judge.js・frozen.js などは起動時に静的 import
@@ -1092,16 +1106,17 @@ async function main(argv) {
   if (!preliminary && process.env[REBUILT_DIST_ENV] == null) {
     rebuildDist();
     const child = spawn(process.execPath, [import.meta.filename, ...argv], { stdio: "inherit", env: { ...process.env, [REBUILT_DIST_ENV]: treeSha256(DIST_TREES) } });
-    // Ctrl-C は端末から子にも届くので、親は子の後始末を待つ。SIGTERM は親だけに来るので子へ渡す。
-    process.on("SIGINT", () => {});
-    process.on("SIGTERM", () => child.kill("SIGTERM"));
+    // 親に来た signal は子へ渡し、子の後始末を待つ（工程2d の再確認 U2。kill -INT や監督プロセスは親の pid だけに送る）。端末の Ctrl-C では
+    // 子に 2 回届くが、子の後始末は 1 回だけ走る（signalStopper）。
+    for (const signal of ["SIGINT", "SIGTERM"]) process.on(signal, () => child.kill(signal));
     process.exit(await new Promise((resolve) => child.on("exit", (code) => resolve(code ?? 130))));
   }
   // 今の窓の子を止めてから、窓の記録を "interrupted"（raw の hash 付き）に書き換える（子が書いている間に数百 MB を読まない）。
-  for (const signal of ["SIGINT", "SIGTERM"]) process.on(signal, () => {
+  const stop = signalStopper(() => {
     const record = () => { try { interruptWindow?.(); } catch { /* 記録の失敗で後始末を止めない */ } };
     void current.close().then(record, record).then(root.close).finally(() => process.exit(130));
   });
+  for (const signal of ["SIGINT", "SIGTERM"]) process.on(signal, stop);
   const num = (key, fallback) => (args.has(key) ? Number(args.get(key)) : fallback);
   // host は Node 22 でだけ測る（黙って別版へ切り替えない）。版は run の前に実物へ訊く。Pi 第 1 段（予備）は --node で Pi の Node 22 を渡す。
   const nodePath = args.has("node") ? String(args.get("node")) : NODE22;
