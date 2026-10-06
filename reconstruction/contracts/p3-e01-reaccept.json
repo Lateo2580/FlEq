@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "fd6e8f33d962ff768120333470aae277c031cc96",
-    "sha256": "a5bea77129f66e336647d3d723cb0267fd580d7200ca5f7252d404144237f0f4",
+    "sha256": "88f0cc0a75eccc1d31797df5f12c97202875589f04ae6e4cc0e07fcdae569177",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "76c82b87d7783a4eae14af690cb34e7d6ec46f73617dc75b7f7401951619f080",
     "sequencesSha256": "be9cfd97b555e3a55568f085d107342c978b3dc7249f5cecea868ea5a62c5781",
@@ -205,6 +205,27 @@
         "closed": "C3bの配送（66899fb7）と節目修正（771716bf・498d6f71）の後、498d6f71で読み替えた。(1) 前提は名前どおり在る: startP2Host（host.ts:75、signature不変）とconfig.observe（:46）、観測の経路は1つ（:85〜:88）、OwnerStartDataの組立て（:126）、T2・decodeは射影の前に観測（:130〜:135）、hostのtick（:371・:387）。CompositionOptions.diagnosticFileSystem（composition-root.ts:98、既定はnodeDiagnosticFileSystem :363）、nodeCheckpointFileSystemはcomposition-root.ts:198で定義しowner-worker.ts:13でowner 3本が作る、placeOfHeadType（unit-coverage.ts:169）。decodeMaterial（decode-material.ts:242）はwithinXmlLimits（:258）→XMLValidator.validate（:259）→parseTree（:263、fullXmlParseMsの起点 :261）。OwnerStartData（p3-execution-split.types.ts:29）とOwnerReply（:90〜:104、inputDoneのdecode :97）、ProcessingMarksの7区間（p1-parser-boundary.types.ts:70〜:76）、P2HostObservation（p2-eew-e01.types.ts:103〜:111）。owner側はcheckpointDone（owner-host.ts:160）、finalizeDone（:105〜:107）、finalizeの後もcheckpointGrantを受ける（:67）。publisherは権をcheckpointGrantで送る（composition-root.ts:1166・:1202） (2) 前提と実体が違ったもの・C3bで決まったものを次のとおり読み替えた: ①PARSE-MARKの観測点はvalidateの直前でなくwithinXmlLimitsの直前（全文の最初の走査は:258） ②WRITE-COUNTのcounterはfinalizeDoneでなくcheckpointDoneに載せる（終了の段は呼び出し側でfinalizeOwners（composition-root.ts:1321）→saveFinalGenerations（:1326）の順で、最終保存がfinalizeの後） ③T0の後の拒否の理由はC3bでownerStopped（停止済み・unresponsiveの実行場所。refuseInput composition-root.ts:631〜:643、件数の行 :653〜:654）が増えた。最初の1件だけinputId付きで、2件目以後はinputIdの無い件数の行なので、その入力は理由の無い欠落になる（欠落の判定は変えない） ④INTENT-RECLAIM=Aで、送出の直前に期限切れの通知予約を回収し、更新枠が使用中ならその入力の送出を遅らせる（mailboxではin-flight）。この遅れはT1→T2に入り、E01ではT0→T6に含まれる。別の観測は足さない ⑤P3-C3B-E07-WINDOW=A（E07の窓はAC07の(2)、観測の出どころはP3-C4-E07-SOURCE） ⑥C3bのPiで確かめる性質の最終版はP3-C4-PI-PROPERTIESの①〜④のまま ⑦OwnerStartDataとOwnerReplyにfieldを足すと、literalを作る試験2本（integration/unit-wiring.test.ts:156のOwnerStartData、checkpoint-shutdown/review-regressions.test.ts:176のcheckpointDone）の型が通らなくなるので、allowedPathsに足した（期待値は変えず、印なしの値を足すだけ）。JSの手動script（chrome-eew/smoke.mjs・integration/private-eew.mjs・execution-lifecycle/blocking-owner.cjs）は印が無い扱いで動く (3) allowedPathsに工程2のfileを足した（10本は全部実在し、改名・消滅なし）。工程2の試験はT03・T05（ほかは工程1から引き継ぐ）。計画§3.2（p3-order-plan.md:129〜:132）はC4のhost.tsをconfigの注入口に限り、composition-root.tsとP2HostObservationの型の列にC4を置いていないが、本契約がこれらのfileに足すのは観測点と注入口だけ（AC04）で、C3bの後・C5の前に入るので§3.2の編集順は崩さない。P3-C4-FAIL-PATHのBが退けたのは、それらのfileで製品の挙動を直すことのほう (4) 工程2の作業として契約本文に入れないもの: manifest.draft.json（evidence/p3）の契約sha 6本が古く、machinesがP3-C4-MACHINES=Aのまま（formal: MacBook M5）なので、draft.mjsのmachinesを=Bに直してから草案を作り直す（凍結時の契約shaは凍結の時点で入る） (5) 工程2の実装（0873ed09・f3d25ef5）で字面と違う形に決めたもの（どれもPassを甘くしない向き、レビューで確認）: ①checkpointGrantのdirtyObservedMonotonicMsはnullを許す（値は、権を送った時点で最古の未保存世代をpublisherが最初に反映した時刻。最古の未保存の反映時刻が無ければnull。renameが不確定で再照合する権でも、未保存分の時刻を保持する場合がある） ②未保存世代はunitごとの3値（UnsavedMarkのoldestMs〔最古の未保存の反映時刻〕・sinceGrantMs〔最後の権の後で最初に世代が上がった時刻〕・afterGrant〔保存の権を送ったかの印〕）で持ち、起点は早い側に寄せる ③E15の照合: 診断logは追記した行の数とbyteで照合し、終了要約はsink（persistent-diagnostic-sink.ts、allowedPathsに追加）が測定時だけonSummaryWriteで出すbyteを観測kind shutdownSummaryWriteにして、publisherのtmpと照合する。preSaveSyncMsは、下界がencodeの和、上界がownerの着手からencode以外の最初の段の開始まで ④既存試験の期待値の変更の3本目（AC12の(c)）: execution-split.test.tsのP3-C3A-T03で、checkpointDoneのkeyの集合にgrantStartedMs・writeCountsが加わる ⑤E14の区間を分ける集計関数は足さない（AC08の記録で、checkpointGrantとCheckpointMeasurementの生の行から引く）",
         "remaining": "工程2のbaseOidの割当（統合担当、本改訂のcommitの次）。正式測定の窓でownerの停止・unresponsiveが起きうるかは、AC08の予備測定でMac miniの最大の処理時間が5秒（AC01の閾値）に届かないことで確かめる（起きたらE01は欠落でFail、E07は窓のFailで、原因を記録する）。工程2b: baseOidは本改訂のcommitの次に統合担当が割り当てる。manifest.draft.jsonの作り直しは工程2bの実装の側で行う",
         "reason": "unresolvedQuestionsのQ-C4-PHASE2-BASE（C3bの配送後、工程2の発注の前）を閉じる"
+      },
+      {
+        "id": "Q-C4-ALT-CONDITION",
+        "status": "closed",
+        "closed": "統合担当が2026-10-07に確定: 母集団5（forecastDeadlineOverlap）は代わりの条件（establishmentのspan \"encodeThroughWrite\"、期限回収で起きたU-Fの保存の試行全体〔encode開始〜write完了〕の開始＋1ms、spec:1133の0〜5msの幅は変えない）を採る。証拠はMac miniの予備（AC08）: 元の条件は390試行（warm-up 20を含む）で正式370のうち32成立（8.6%、25分で打ち切り。1 runに12.5〜17.4時間かかり窓に収まらない）、代わりの条件は157試行（warm-up 20を含む）で正式137のうち100成立（73%、Wilson下限65%）",
+        "remaining": "なし",
+        "reason": "unresolvedQuestionsのQ-C4-ALT-CONDITION（Mac miniの予備測定の後、manifest凍結の前）を閉じる"
+      },
+      {
+        "id": "Q-C4-O09-SUBSET",
+        "status": "closed",
+        "closed": "統合担当が2026-10-07に確定: o09SubsetはsequenceId \"O09\"・sequencesSha256 be9cfd97b555e3a55568f085d107342c978b3dc7249f5cecea868ea5a62c5781（meta.sequencesSha256と同じ）・positions 1・2・11・12（2がVPWS50 15_18_01の受信〔expected:O09:2〕、12がVXSE45 77_01_01の受信〔expected:O09:12〕、1と11がrestart）。unmetの免除はしない",
+        "remaining": "なし",
+        "reason": "unresolvedQuestionsのQ-C4-O09-SUBSET（manifest凍結の時）を閉じる"
+      },
+      {
+        "id": "P3-C4-FREEZE-DECISIONS",
+        "status": "closed",
+        "closed": "凍結の方針（統合担当が2026-10-07に確定。材料はMac miniの予備測定〔AC08〕の集計）: (1) triggerLeadMsは母集団(3)(4)(5)で600・600・2,400msのまま（Mac miniの成立率94%・90%・73%） (2) stopConditionは予備の成立率のWilson下限で積む（maxAttempts＝100＋ceil(1,000÷Wilson下限×1.1)、maxDurationMs＝（初期化＋試行の所要×maxAttempts）×1.25。fixedBacklogは1,200試行）。凍結候補の値はfixedBacklog 1,200・2,061,024ms、(2) 2,081・7,810,605ms、(3) 1,348・5,118,719ms、(4) 1,424・5,349,652ms、(5) 1,793・9,134,516ms、衝突（参考）1,205・4,525,223ms (3) E14は60束・1 run・intervalMs 20,000・通知silent、補助窓ownerHeapは100件・1 run (4) 機械はMac mini（Apple M2 x8・8GiB・macOS 27.0.0・Node v22.23.3・Chrome 154.0.8037.98）。凍結の後はMac miniのChrome・Node・macOSを更新しない（formalのpreflightが版を照合する） (5) verify段（再照合）は予備で0回だった。正式でも0回ならE15のverify段は「未観測」と報告し、Passと呼ばない（AC05） (6) 記録: 工程2b・2cで、C3aのOwnerReply（inputDoneのheap・inputGenerations、checkpointDoneのgrantStartedMs・writeCounts、deadlineDoneのheapなど）とOwnerStartDataの追加を、本契約のpublicFunctionsとして足した。C3aの契約本文（p3-execution-split.json）は変えない",
+        "remaining": "Q-C4-SOUNDの裁定と、その後のMac miniのnotificationProbeの取り直し",
+        "reason": "AC10の凍結の前に固定する値（AC08の予備測定の結果）"
       }
     ],
     "operationContract": {
@@ -581,7 +602,7 @@
       },
       {
         "id": "P3-C4-AC05",
-        "requirement": "【工程2】E15の再検収（e01:102の全要素）: checkpoint・tmp・logのwriteの帰属不能0（writeCountのconfirmedがfalseのthreadがある窓は未確認、P3-C4-WRITE-COUNT。threadごとの包みで数えたbyte・回数と、CheckpointMeasurement・診断recordから帰属したbyte・回数が、区分ごとに一致する）、保存と診断のwriteの別計数（測定成果物のwriteと区別）、保存前段の同期区間の占有時間（C1後は記憶なしの最初の読み込みとcapture・encode・hash。ownerのthreadの値）、verify段の読んだbytesの別計数（encode・writeへ二重加算しない）を、A10と同じ保持上限の窓で測る。単位別のencode回数・総encode/write byte・ownerの占有時間を報告し、byte/保存・受理・日も示す。改善の根拠のない新しい閾値を作らない",
+        "requirement": "【工程2】E15の再検収（e01:102の全要素）: checkpoint・tmp・logのwriteの帰属不能0（writeCountのconfirmedがfalseのthreadがある窓は未確認、P3-C4-WRITE-COUNT。threadごとの包みで数えたbyte・回数と、CheckpointMeasurement・診断recordから帰属したbyte・回数が、区分ごとに一致する）、保存と診断のwriteの別計数（測定成果物のwriteと区別）、保存前段の同期区間の占有時間（C1後は記憶なしの最初の読み込みとcapture・encode・hash。ownerのthreadの値）、verify段の読んだbytesの別計数（encode・writeへ二重加算しない。正式でverify段が0回なら「未観測」と報告し、Passと呼ばない。P3-C4-FREEZE-DECISIONSの(5)）を、A10と同じ保持上限の窓で測る。単位別のencode回数・総encode/write byte・ownerの占有時間を報告し、byte/保存・受理・日も示す。改善の根拠のない新しい閾値を作らない",
         "evidenceRefs": [
           "reconstruction/contracts/p2-eew-e01.json:102 «a44b4cf63f0ffe57»",
           "docs/specs/reconstruction-p0-contracts.md:2067 «f867801b1fa94b3d»"
@@ -861,30 +882,6 @@
         ]
       },
       {
-        "id": "Q-C4-ALT-CONDITION",
-        "owner": "integrator",
-        "blocks": [
-          "manifest凍結（成立率が低く所要が窓に収まらない母集団があるとき）"
-        ],
-        "resolveBy": "Mac miniの予備測定の後、manifest凍結の前",
-        "requiredEvidence": [
-          "該当する母集団の所要時間・試行数・成立率の予備測定の記録",
-          "工程1で得た母集団5（forecastDeadlineOverlap）の成立率（Macのbackend単独で(a)(b)較正後に3/38、代替候補「期限回収で起きたU-Fの保存の試行全体（encode開始〜write完了）、1ms後に投入」で12/32）。どちらも正式の窓には低いので、AC08の予備測定で同じ条件（backend単独・Mac mini）の成立率を取り直して固定する",
-          "統合担当が固定した代替条件（spec:1133）と、それを表す母集団の条件（AC13(1)のestablishmentとtriggerLeadMs、P3-C4-ALT-SHAPE）。凍結後は変えない（spec:1106）"
-        ]
-      },
-      {
-        "id": "Q-C4-O09-SUBSET",
-        "owner": "integrator",
-        "blocks": [
-          "manifest凍結"
-        ],
-        "resolveBy": "manifest凍結の時",
-        "requiredEvidence": [
-          "O09のうちC4が閉じるstep（EEWのE01母集団・main health・queue待ち）の番号を版付きsubsetとしてmanifestのo09Subset（AC13(2)）に固定する（計画:40）。unmetの免除はしない"
-        ]
-      },
-      {
         "id": "Q-C4-D-P3-2",
         "owner": "user",
         "blocks": [
@@ -904,6 +901,18 @@
         "resolveBy": "正式測定の結果が出た後",
         "requiredEvidence": [
           "E01の正式母集団がPassで、PERF-P3（E02-P・E05-P・E06）だけが残ったときにC5を先に進めるかの作者裁定（計画§5末尾の条件付き裁定）"
+        ]
+      },
+      {
+        "id": "Q-C4-SOUND",
+        "owner": "user",
+        "blocks": [
+          "正式測定の窓の通知のbackendの扱い",
+          "Mac miniのnotificationProbe（本物のbackendのprobe）の取り直し（裁定の後に回す）"
+        ],
+        "resolveBy": "正式測定の前",
+        "requiredEvidence": [
+          "正式の窓の通知を本物のbackendで鳴らすか: A（推奨）本物のbackendのまま音量を消す／B 本物のbackendで鳴らす／C silent。A10の正式は本物のbackendで走り、通知の静まりを待つ時間も所要に入った。Aは実通知の経路と所要を保ち、音だけを消す"
         ]
       }
     ]
