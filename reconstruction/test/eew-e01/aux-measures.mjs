@@ -275,23 +275,29 @@ export function writeAttribution(rows, measurements, diagnosticLog, summaryWrite
     threads: Object.fromEntries(rows.map((r) => [r.thread, { confirmed: r.confirmed, counts: r.counts }])) };
 }
 
-// E15 の保存前段の同期区間（P3-C4-AC05、owner の thread）: checkpointGrant を同じ返信の attemptIds で CheckpointMeasurement と結び、
-// 下界は encode の壁時間、上界は owner の着手から encode 以外の最初の段（write など）の開始まで（無ければ encode の終わりまで）。
-// 上界は capture・hash・前段の読み直しを含み、encode だけの下界と挟む。測定記録の無い権（保存するものが無かった）は数えない。
+// E15 の保存前段の同期区間（P3-C4-AC05、owner の thread）: 権ごとに、同じ返信の attemptIds の CheckpointMeasurement のうち、その権の
+// 送出から返信の受信までに収まる段だけを結ぶ（rename の失敗の後の再照合は同じ attemptId を持つので、時刻で権に分ける）。
+// encode を含まない権は照合（reconcile）で、保存前段に入れず reconcileGrants に数える。下界は encode の壁時間、上界は owner の着手から
+// encode 以外の最初の段（write など）の開始まで（無ければ encode の終わりまで）。上界が負か下界を下回る権は invalid に数え、
+// 区間に足さない（invalid が 1 つでもあれば E15 は未確認）。測定記録の無い権（保存するものが無かった）は数えない。
 function preSaveSync(grants, measurements) {
   const byAttempt = new Map();
   for (const m of measurements) byAttempt.set(m.attemptId, [...(byAttempt.get(m.attemptId) ?? []), m]);
   const units = {};
   for (const grant of grants) {
-    const stages = grant.attemptIds.flatMap((id) => byAttempt.get(id) ?? []);
+    const stages = grant.attemptIds.flatMap((id) => byAttempt.get(id) ?? [])
+      .filter((m) => m.startedMonotonicMs >= grant.grantSentMonotonicMs && m.endedMonotonicMs <= grant.doneReceivedMonotonicMs);
     if (stages.length === 0) continue;
+    const u = (units[grant.unit] ??= { grants: 0, reconcileGrants: 0, invalid: 0, lowerMs: 0, upperMs: 0, maxUpperMs: 0 });
     const encodes = stages.filter((m) => m.stage === "encode");
+    if (encodes.length === 0) { u.reconcileGrants++; continue; }
     const after = stages.filter((m) => m.stage !== "encode").map((m) => m.startedMonotonicMs);
     const end = after.length > 0 ? Math.min(...after) : Math.max(...encodes.map((m) => m.endedMonotonicMs));
     const upper = end - grant.ownerStartedMonotonicMs;
-    const u = (units[grant.unit] ??= { grants: 0, lowerMs: 0, upperMs: 0, maxUpperMs: 0 });
+    const lower = encodes.reduce((a, m) => a + m.endedMonotonicMs - m.startedMonotonicMs, 0);
+    if (upper < 0 || upper < lower) { u.invalid++; continue; }
     u.grants++;
-    u.lowerMs += encodes.reduce((a, m) => a + m.endedMonotonicMs - m.startedMonotonicMs, 0);
+    u.lowerMs += lower;
     u.upperMs += upper;
     u.maxUpperMs = Math.max(u.maxUpperMs, upper);
   }
@@ -331,9 +337,11 @@ export function summarizeE15(records, { diagnosticLog = null } = {}) {
     } else if (m.stage === "write") u.writeBytes += m.bytes;
     else if (m.bytes !== 0) byteViolations++;
   }
-  return { status: writes?.status ?? null, attempts: attempts.size, units, retryReasons, byteViolations, unknownInputIds,
-    blocked: E15_BLOCKED.filter((_, i) => (i === 0 ? grants.length === 0 : writes == null)), writes,
-    preSaveSyncMs: grants.length === 0 ? null : preSaveSync(grants, measurements),
+  const preSave = grants.length === 0 ? null : preSaveSync(grants, measurements);
+  const preSaveInvalid = Object.values(preSave ?? {}).some((u) => u.invalid > 0);
+  return { status: writes?.status === "Fail" ? "Fail" : preSaveInvalid ? "未確認" : writes?.status ?? null, attempts: attempts.size, units, retryReasons,
+    byteViolations, unknownInputIds, blocked: E15_BLOCKED.filter((_, i) => (i === 0 ? grants.length === 0 : writes == null)), writes,
+    preSaveSyncMs: preSave,
     occupancyNote: "occupiedMsLower = encode の壁時間（下限）。verify 段（記憶なし・照合の経路だけ）は verifyCount・verifyBytes（読んだ bytes）・verifyMs に別に数え、占有・write へ足さない。measuredStagesMs = 計測された段の壁時間の合計で、非同期の待ちを含み、前段の同期処理 checkpoint.ts:266-300 を含まない（上限ではない）" };
 }
 

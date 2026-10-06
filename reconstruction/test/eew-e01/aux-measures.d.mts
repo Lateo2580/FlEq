@@ -41,7 +41,7 @@ export function writeAttribution(rows: readonly { thread: string; confirmed: boo
   diagnosticLog: DiagnosticLog | null, summaryWrites: readonly { bytes: number }[]): WriteAttribution;
 export function summarizeE15(records: readonly HostRecord[], options?: { diagnosticLog?: DiagnosticLog | null }): {
   status: Status | null; blocked: string[]; attempts?: number; writes?: WriteAttribution | null;
-  preSaveSyncMs?: Record<string, { grants: number; lowerMs: number; upperMs: number; maxUpperMs: number }> | null;
+  preSaveSyncMs?: Record<string, { grants: number; reconcileGrants: number; invalid: number; lowerMs: number; upperMs: number; maxUpperMs: number }> | null;
   units?: Record<string, { encodeCount: number; encodeBytes: number; writeBytes: number; occupiedMsLower: number; measuredStagesMs: number; failedAttempts: number;
     verifyCount: number; verifyBytes: number; verifyMs: number }>;
   retryReasons?: Record<string, number>; byteViolations?: number; unknownInputIds?: number; occupancyNote?: string;

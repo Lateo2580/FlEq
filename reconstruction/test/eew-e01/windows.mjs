@@ -570,28 +570,33 @@ function e07Window(ctx, load) {
       }
       w.progress.phase = "drain";
       const lastInputId = `input-${host.sent()}`;
-      // C の最後の boundary は最後の入力（周期の開始＋40 秒）より後なので、排出の行が揃っても、その boundary の行が出るまで止めない
-      // （先に止めると ping の行の数が合わず、①が未確認になる）。
-      const pingsBeforeDrain = host.injector.pingKinds.lastIndexOf("boundary") + 1;
+      // 排出の幅が決まるまで drain の ping を送り、決まったら ping の送出を止めて、送った全 ping（周期・boundary・drain）の行が出るまで
+      // host を止めない（ping の行と送出の列を 1 対 1 で照らすので、1 つでも落ちると①が未確認になる）。待ちは各 30 秒・10 秒まで。
+      const pingRows = () => host.lines.filter((l) => l.t === "obs" && l.o.kind === "mailbox" && l.o.trigger === "ping").length;
       const giveUp = hrMs() + 30_000;
       for (;;) {
         host.check();
         host.refresh();
         const t0 = host.lines.find((l) => l.t === "obs" && l.o.kind === "marker" && l.o.point === "T0" && l.o.inputId === lastInputId)?.o.monotonicMs;
         const bounds = t0 == null ? null : drainBounds(host.lines, t0);
-        const pingRows = host.lines.filter((l) => l.t === "obs" && l.o.kind === "mailbox" && l.o.trigger === "ping").length;
-        if ((bounds != null && (bounds.upperMs != null || bounds.lowerMs > t0 + 10_000) && pingRows >= pingsBeforeDrain) || hrMs() > giveUp) break;
+        if ((bounds != null && (bounds.upperMs != null || bounds.lowerMs > t0 + 10_000)) || hrMs() > giveUp) break;
         host.injector.ping("drain");
         await sleep(250);
       }
+      host.injector.stopPings();
+      const pingWait = hrMs() + 10_000;
+      while (pingRows() < host.injector.pingKinds.length && hrMs() < pingWait) { host.check(); await sleep(50); host.refresh(); }
+      const pingsUnreceived = host.injector.pingKinds.length - pingRows();
       await host.stop();
       const records = host.records();
       const diagnostics = diagnosticFiles(w.dir).flatMap((f) => readJsonl(f));
       const e07 = summarizeE07(records, { pingKinds: host.injector.pingKinds, warmupCycles: load === "C" ? c.warmupCycles : 0, lastInputId,
         diagnostics, fromMs, fromWallMs });
       const reports = hostReports(records, id, w.dir);
-      const o = outcome(ctx, e07.status, reports, { fill: filled?.record ?? null });
-      o.resultFiles = [sealAux(w.dir, `aux-${id}.json`, ctx.manifest, { window: id, status: o.status, minutes, e07, fill: filled?.record ?? null, ...reports })];
+      // 送った ping の行が揃わないまま止めた窓は、ping に依らない Fail 以外を未確認にする。
+      const status = pingsUnreceived > 0 && e07.status !== "Fail" ? "未確認" : e07.status;
+      const o = outcome(ctx, status, reports, { fill: filled?.record ?? null, pingsUnreceived });
+      o.resultFiles = [sealAux(w.dir, `aux-${id}.json`, ctx.manifest, { window: id, status: o.status, minutes, e07, pingsUnreceived, fill: filled?.record ?? null, ...reports })];
       return o;
     },
   };

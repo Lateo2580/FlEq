@@ -119,7 +119,7 @@ describe("P2-A10-T04 auxiliary aggregation (AC08/AC09/AC15)", () => {
     const publisher = (tmp = zero) => row("publisher", counts(tmp, { count: 2, bytes: 120 }));
     const matched = aux.summarizeE15([...owners(), publisher(), grant], { diagnosticLog: log });
     expect([matched.status, matched.writes?.unattributed, matched.writes?.unverified, matched.blocked]).toEqual([null, [], [], []]);
-    expect(matched.preSaveSyncMs).toEqual({ "U-W": { grants: 1, lowerMs: 1, upperMs: 3, maxUpperMs: 3 } });
+    expect(matched.preSaveSyncMs).toEqual({ "U-W": { grants: 1, reconcileGrants: 0, invalid: 0, lowerMs: 1, upperMs: 3, maxUpperMs: 3 } });
     // 終了要約の tmp は書き手の試行の記録（shutdownSummaryWrite）に照らす。
     const summary = (bytes: number) => obs({ kind: "shutdownSummaryWrite", runId: "r", bytes });
     expect(aux.summarizeE15([...owners(), publisher({ count: 2, bytes: 600 }), summary(250), summary(350)], { diagnosticLog: log }).writes)
@@ -134,6 +134,22 @@ describe("P2-A10-T04 auxiliary aggregation (AC08/AC09/AC15)", () => {
     expect(aux.summarizeE15([...owners(), publisher()], { diagnosticLog: { bytes: 120, lines: 3 } }).writes)
       .toMatchObject({ status: "Fail", unattributed: [{ thread: "publisher", category: "diagnosticLog" }] });
     expect(aux.summarizeE15(base.slice(0, 3))).toMatchObject({ status: null, blocked: aux.E15_BLOCKED, preSaveSyncMs: null });
+  });
+
+  // ヘルツの再確認（S1）: rename の失敗の後の再照合も同じ attemptId を持つので、各権に全段を結ぶと encode を二重に足し、再照合の着手から
+  // 過去の write 開始を引いて上界が負になった（下界 2ms・上界 −14ms で blocked が空）。
+  it("P3-C4-AC05 E15 regression: a reconciliation sharing the failed save's attemptId is kept apart from the pre-save span; an inconsistent span is 未確認", () => {
+    const stage = (stageName: string, at: number, end: number, outcome = "succeeded") => obs({ kind: "checkpoint", measurement: { runId: "r", inputIds: ["input-1"],
+      unit: "U-F", generation: 1, attemptId: "U-F-a", stage: stageName, startedMonotonicMs: at, endedMonotonicMs: end, bytes: stageName === "encode" || stageName === "write" ? 50 : 0,
+      outcome, retryReason: "notRetry" } });
+    const grant = (grantId: string, sent: number, started: number, done: number) => obs({ kind: "checkpointGrant", runId: "r", grantId, unit: "U-F",
+      attemptIds: ["U-F-a"], dirtyObservedMonotonicMs: null, grantSentMonotonicMs: sent, ownerStartedMonotonicMs: started, doneReceivedMonotonicMs: done });
+    const save = [stage("encode", 2, 4), stage("write", 5, 6), stage("fileSync", 6, 7), stage("close", 7, 7), stage("rename", 7, 8, "failed")];
+    const records = [marker("T0", "input-1", 0), grant("g1", 0, 1, 20), ...save, grant("g2", 30, 31, 40), stage("directorySync", 32, 33)];
+    expect(aux.summarizeE15(records)).toMatchObject({ status: null, preSaveSyncMs: { "U-F": { grants: 1, reconcileGrants: 1, invalid: 0, lowerMs: 2, upperMs: 4 } } });
+    // 着手が encode の途中に記録された（時計の食い違い）権は区間に足さず、E15 を未確認にする。
+    expect(aux.summarizeE15([marker("T0", "input-1", 0), grant("g1", 0, 4.5, 20), ...save])).toMatchObject({ status: "未確認",
+      preSaveSyncMs: { "U-F": { grants: 0, invalid: 1 } } });
   });
 
   // P3-C4-AC07(2): 周期末は boundary の ping の行、排出と待機年齢は上界・下界で判定し、境界をまたぐ証拠は未確認。

@@ -140,6 +140,8 @@ export async function startInjector(scope, { pingEveryMs = 20_000 } = {}) {
     pingKinds,
     // 周期の境界（"boundary"）や入力停止後の排出の幅を狭める（"drain"）ための ping。送れなければ false。
     ping: sendPing,
+    // 周期の ping を止める（E07 の停止の前に、送った全 ping の行を待つため）。
+    stopPings: () => clearInterval(ping),
     placeOf: (inputId) => places.get(inputId) ?? null,
     connected: () => socket != null && socket.readyState === 1 ? Promise.resolve() : new Promise((f) => waiters.push(f)),
     sendStart: () => { if (socket == null) return; socket.send(JSON.stringify({ type: "start", socketId: 1, classifications: ["eew.forecast"] })); meter.sent("start"); },
