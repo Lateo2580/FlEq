@@ -188,17 +188,25 @@ export function summarizeE07(records, { pingKinds = [], warmupCycles = 0, lastIn
     const status = upperMs != null && upperMs <= t0 + drainLimitMs ? "Pass" : lowerMs > t0 + drainLimitMs ? "Fail" : "未確認";
     return { status, lastT0Ms: t0, lowerMs, upperMs };
   })();
+  // 対象は窓の直前の行から最後の行までに受理された入力。その数（行の accepted の差）と T1 の数が違えば、T1 の欠けた入力の
+  // 待機年齢が上界に入っていないので未確認（T1 は受理と同じ callback で 1 回出る）。
   const t1 = markers(records, "T1");
   const t2 = markers(records, "T2");
+  const base = all.filter((r) => r.monotonicMs < fromMs).at(-1);
+  const end = all.at(-1);
+  const accepted = end == null ? 0 : end.accepted - (base?.accepted ?? 0);
   let upper = 0;
   let unprocessed = 0;
+  let observedT1 = 0;
   for (const [id, at] of t1) {
-    if (at < fromMs) continue;
+    if (at <= (base?.monotonicMs ?? -Infinity) || end == null || at > end.monotonicMs) continue;
+    observedT1++;
     if (t2.has(id)) upper = Math.max(upper, t2.get(id) - at); else unprocessed++;
   }
   const lower = rows.reduce((m, r) => Math.max(m, r.oldestPendingAgeMs ?? 0), 0);
-  const wait = { status: lower > waitLimitMs ? "Fail" : unprocessed === 0 && upper <= waitLimitMs ? "Pass" : "未確認", upperMs: upper, lowerMs: lower, unprocessed };
-  const before = all.filter((r) => r.monotonicMs < fromMs).at(-1)?.limitViolations ?? 0;
+  const wait = { status: lower > waitLimitMs ? "Fail" : unprocessed === 0 && observedT1 === accepted && upper <= waitLimitMs ? "Pass" : "未確認",
+    upperMs: upper, lowerMs: lower, unprocessed, accepted, observedT1 };
+  const before = base?.limitViolations ?? 0;
   const limitViolations = rows.reduce((m, r) => Math.max(m, r.limitViolations), before) - before;
   const ownerTrouble = diagnostics.filter((d) => d.timestamp >= fromWallMs).filter((d) => (d.reason === "ownerStopped" && d.level === "ERROR")
     || (d.reason === "mailboxStalled" && /^owner\.[^.]+\.response$/.test(d.component ?? "")));
@@ -238,40 +246,66 @@ export const E15_BLOCKED = [
 
 const OWNER_UNITS = { urgent: ["U-E"], weatherCurrent: ["U-W"], deferred: ["U-F"] };
 const ZERO = { count: 0, bytes: 0 };
-// E15 の write の帰属（P3-C4-AC05・P3-C4-WRITE-COUNT）: host が停止時に出す thread ごとの writeCount を、owner は自分の unit の
-// write 段の CheckpointMeasurement（回数と byte）に、publisher の診断 log は診断 dir の jsonl の byte（diagnosticLogBytes、呼び出し側が
-// 読む）に照らす。publisher の tmp は終了要約の置き換え（同じ file を 1〜2 回書き、最後の 1 回しか残らない）で、記録から byte を
-// 起こせないので照合せず回数と byte を報告する。owner の checkpoint・diagnosticLog・other と publisher の checkpoint・other は 0 が
-// 帰属できる値で、0 でなければ帰属不能。confirmed が false の thread か、4 thread の行が揃わない窓は未確認。
-// diagnosticLog の回数は flush 1 回の追記の数で、record の件数とは比べられない（byte だけ照合する）。
-export function writeAttribution(rows, measurements, diagnosticLogBytes) {
+// E15 の write の帰属（P3-C4-AC05・P3-C4-WRITE-COUNT）: host が停止時に出す thread ごとの writeCount を、包みと独立した記録に照らす。
+// owner の tmp は自分の unit の write 段の CheckpointMeasurement の回数と byte、publisher の diagnosticLog は診断 dir の jsonl の
+// 改行の数と byte（diagnosticLog、呼び出し側が読む）、publisher の tmp は終了要約の書き手が試行ごとに出す shutdownSummaryWrite の
+// 行数と byte の和。owner の checkpoint・diagnosticLog・other と publisher の checkpoint・other は 0 が帰属できる値。
+// status: 行が揃わないか confirmed が false の thread があれば未確認（counter が信用できない）、照合が合わなければ Fail、
+// 照合できない区分（unverified・診断 dir が読めない）があれば未確認、それ以外は null（報告）。
+export function writeAttribution(rows, measurements, diagnosticLog, summaryWrites) {
   const threads = ["urgent", "weatherCurrent", "deferred", "publisher"];
   const complete = threads.every((t) => rows.filter((r) => r.thread === t).length === 1);
   const unattributed = [];
+  const unverified = [];
   for (const row of rows) {
     const expected = row.thread === "publisher"
-      ? { checkpoint: ZERO, other: ZERO, diagnosticLog: diagnosticLogBytes == null ? null : { bytes: diagnosticLogBytes } }
+      ? { checkpoint: ZERO, other: ZERO, diagnosticLog: diagnosticLog == null ? null : { count: diagnosticLog.lines, bytes: diagnosticLog.bytes },
+        tmp: { count: summaryWrites.length, bytes: summaryWrites.reduce((a, w) => a + w.bytes, 0) } }
       : { checkpoint: ZERO, diagnosticLog: ZERO, other: ZERO, tmp: measurements.filter((m) => m.stage === "write" && OWNER_UNITS[row.thread].includes(m.unit))
         .reduce((a, m) => ({ count: a.count + 1, bytes: a.bytes + m.bytes }), ZERO) };
     for (const [category, want] of Object.entries(expected)) {
       const got = row.counts[category];
-      if (want == null) continue;
-      if (got.bytes !== want.bytes || (want.count != null && got.count !== want.count)) unattributed.push({ thread: row.thread, category, counted: got, attributed: want });
+      if (want == null) unverified.push({ thread: row.thread, category, counted: got, reason: "diagnostic directory unreadable" });
+      else if (got.bytes !== want.bytes || got.count !== want.count) unattributed.push({ thread: row.thread, category, counted: got, attributed: want });
     }
   }
   const unconfirmed = rows.filter((r) => !r.confirmed).map((r) => r.thread);
-  const status = !complete || unconfirmed.length > 0 || diagnosticLogBytes == null ? "未確認" : unattributed.length > 0 ? "Fail" : null;
-  return { status, complete, unconfirmed, unattributed, threads: Object.fromEntries(rows.map((r) => [r.thread, { confirmed: r.confirmed, counts: r.counts }])),
-    note: "publisher の tmp は終了要約の置き換えで照合しない。diagnosticLog は byte だけ照合する（回数は flush の追記数）" };
+  const status = !complete || unconfirmed.length > 0 ? "未確認" : unattributed.length > 0 ? "Fail" : unverified.length > 0 ? "未確認" : null;
+  return { status, complete, unconfirmed, unattributed, unverified,
+    threads: Object.fromEntries(rows.map((r) => [r.thread, { confirmed: r.confirmed, counts: r.counts }])) };
+}
+
+// E15 の保存前段の同期区間（P3-C4-AC05、owner の thread）: checkpointGrant を同じ返信の attemptIds で CheckpointMeasurement と結び、
+// 下界は encode の壁時間、上界は owner の着手から encode 以外の最初の段（write など）の開始まで（無ければ encode の終わりまで）。
+// 上界は capture・hash・前段の読み直しを含み、encode だけの下界と挟む。測定記録の無い権（保存するものが無かった）は数えない。
+function preSaveSync(grants, measurements) {
+  const byAttempt = new Map();
+  for (const m of measurements) byAttempt.set(m.attemptId, [...(byAttempt.get(m.attemptId) ?? []), m]);
+  const units = {};
+  for (const grant of grants) {
+    const stages = grant.attemptIds.flatMap((id) => byAttempt.get(id) ?? []);
+    if (stages.length === 0) continue;
+    const encodes = stages.filter((m) => m.stage === "encode");
+    const after = stages.filter((m) => m.stage !== "encode").map((m) => m.startedMonotonicMs);
+    const end = after.length > 0 ? Math.min(...after) : Math.max(...encodes.map((m) => m.endedMonotonicMs));
+    const upper = end - grant.ownerStartedMonotonicMs;
+    const u = (units[grant.unit] ??= { grants: 0, lowerMs: 0, upperMs: 0, maxUpperMs: 0 });
+    u.grants++;
+    u.lowerMs += encodes.reduce((a, m) => a + m.endedMonotonicMs - m.startedMonotonicMs, 0);
+    u.upperMs += upper;
+    u.maxUpperMs = Math.max(u.maxUpperMs, upper);
+  }
+  return units;
 }
 
 // writeCount の観測が無い記録（A10 の窓）は従来どおりの報告。ある記録は write の帰属（writeAttribution）を status に反映する。
-export function summarizeE15(records, { diagnosticLogBytes = null } = {}) {
+export function summarizeE15(records, { diagnosticLog = null } = {}) {
   const measurements = observations(records, "checkpoint").map((o) => o.measurement);
   const problem = checkpointJoinProblem(measurements);
   if (problem != null) return { status: "未確認", blocked: [...E15_BLOCKED, `checkpointJoin:${problem}`] };
   const counted = observations(records, "writeCount");
-  const writes = counted.length === 0 ? null : writeAttribution(counted, measurements, diagnosticLogBytes);
+  const writes = counted.length === 0 ? null : writeAttribution(counted, measurements, diagnosticLog, observations(records, "shutdownSummaryWrite"));
+  const grants = observations(records, "checkpointGrant");
   const seenInputs = new Set(markers(records, "T0").keys());
   const units = {};
   const retryReasons = {};
@@ -298,7 +332,8 @@ export function summarizeE15(records, { diagnosticLogBytes = null } = {}) {
     else if (m.bytes !== 0) byteViolations++;
   }
   return { status: writes?.status ?? null, attempts: attempts.size, units, retryReasons, byteViolations, unknownInputIds,
-    blocked: writes == null ? E15_BLOCKED : [E15_BLOCKED[0]], writes,
+    blocked: E15_BLOCKED.filter((_, i) => (i === 0 ? grants.length === 0 : writes == null)), writes,
+    preSaveSyncMs: grants.length === 0 ? null : preSaveSync(grants, measurements),
     occupancyNote: "occupiedMsLower = encode の壁時間（下限）。verify 段（記憶なし・照合の経路だけ）は verifyCount・verifyBytes（読んだ bytes）・verifyMs に別に数え、占有・write へ足さない。measuredStagesMs = 計測された段の壁時間の合計で、非同期の待ちを含み、前段の同期処理 checkpoint.ts:266-300 を含まない（上限ではない）" };
 }
 

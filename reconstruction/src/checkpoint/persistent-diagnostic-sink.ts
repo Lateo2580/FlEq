@@ -128,6 +128,8 @@ class PersistentDiagnosticSink {
     private readonly fileSystem: DiagnosticFileSystem,
     private readonly readWallTime: () => number,
     private readonly reportFailure: (event: DiagnosticEvent) => void,
+    // P3-C4-WRITE-COUNT（E15）: 測定の時だけ渡す。終了要約の一時 file を書く試行ごとに書く byte を受ける（包みと独立した書き手の記録）。
+    private readonly onSummaryWrite?: (bytes: number) => void,
   ) {
     this.startup = this.serial(() => this.prune(this.readWallTime())).catch(() => { this.fail(); });
   }
@@ -302,6 +304,8 @@ class PersistentDiagnosticSink {
     const temporary = `${path}.tmp`;
     try {
       if (!active()) throw new Error("replacement deadline exceeded");
+      // 置き換えるのは終了要約だけ（persistShutdownSummary）。
+      this.onSummaryWrite?.(Buffer.byteLength(content));
       await this.fileSystem.writeFile(temporary, content);
       if (!active()) throw new Error("replacement deadline exceeded");
       await this.fileSystem.rename(temporary, path);

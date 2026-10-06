@@ -31,7 +31,7 @@ export type ExecutionPlace = "urgent" | "weatherCurrent" | "deferred";
 export type OwnerStartData = Readonly<{ place: ExecutionPlace; stateDirectory: string; publisherTimeOriginMs: number;
   measured: boolean }>;
 
-// P3-C4-WRITE-COUNT（RES-05）: 1 thread の write の呼出し回数と byte の区分別の累積。checkpoint は checkpoint の file へ直接の
+// P3-C4-WRITE-COUNT（RES-05）: 1 thread の write の回数（呼出しの数。diagnosticLog だけは追記した行の数）と byte の区分別の累積。checkpoint は checkpoint の file へ直接の
 // write、tmp は rename で置き換える一時 file（checkpoint の保存・終了要約）、diagnosticLog は診断 log への追記、other はそれ以外。
 export type WriteCounts = Readonly<Record<"checkpoint" | "tmp" | "diagnosticLog" | "other", Readonly<{ count: number; bytes: number }>>>;
 

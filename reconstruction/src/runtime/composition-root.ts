@@ -112,7 +112,7 @@ type CompositionOptions = Readonly<{
   // Each parser input once its owner answered and the mailbox settled it (the host's T2/decode/processing records).
   onInputDone?: (reply: InputDone) => void;
   // P3-C4-AC04（E14・E15）の観測。測定の時（host の config.observe があるとき）だけ渡し、無ければ時刻取得・包み・記録を作らない。
-  measure?: (observation: Extract<P2HostObservation, { kind: "checkpointGrant" | "writeCount" }>) => void;
+  measure?: (observation: Extract<P2HostObservation, { kind: "checkpointGrant" | "writeCount" | "shutdownSummaryWrite" }>) => void;
   // P2-A3-A8-LINK: without it snapshots are still projected (state kept) but not published.
   display?: Readonly<{
     publish: (snapshot: DisplaySnapshot) => void;
@@ -162,11 +162,11 @@ const ownerMonitor = (): OwnerMonitor => ({
   removed: { pending: 0, inFlight: 0 }, refused: null,
 });
 
-// P3-C4-AC04 の測定だけが持つ記録。unsaved は unit ごとの未保存の世代の塊を [最新の世代, publisher が反映した時刻] で古い順に
-// 持ち、保存済みの世代を超えたものだけを残す。grants は送った書込み権で、返信を受けたら消す（停止の終わりに残れば未返信）。
+// P3-C4-AC04 の測定だけが持つ記録。unsaved は unit ごとの E14 の起点（UnsavedMark）。grants は送った書込み権で、返信を受けたら
+// 消す（停止の終わりに残れば未返信）。
 type Measuring = Readonly<{
   observe: NonNullable<CompositionOptions["measure"]>;
-  unsaved: Record<RuntimeUnitId, [generation: number, reflectedMs: number][]>;
+  unsaved: Record<RuntimeUnitId, UnsavedMark>;
   grants: Map<string, Readonly<{ place: ExecutionPlace; sentMs: number; dirtyMs: number | null }>>;
   owners: Partial<Record<ExecutionPlace, WriteCounts>>;
   publisher: WriteCounters;
@@ -283,8 +283,8 @@ type WriteCounters = { [K in keyof WriteCounts]: { count: number; bytes: number 
 function writeCounters(): WriteCounters {
   return { checkpoint: { count: 0, bytes: 0 }, tmp: { count: 0, bytes: 0 }, diagnosticLog: { count: 0, bytes: 0 }, other: { count: 0, bytes: 0 } };
 }
-function countWrite(counters: WriteCounters, category: keyof WriteCounts, bytes: number): void {
-  counters[category].count += 1;
+function countWrite(counters: WriteCounters, category: keyof WriteCounts, bytes: number, count = 1): void {
+  counters[category].count += count;
   counters[category].bytes += bytes;
 }
 
@@ -298,10 +298,10 @@ function countedCheckpointFileSystem(fileSystem: CheckpointFileSystem, counters:
   } };
 }
 
-// 診断 sink の write: 追記は診断 log、置き換え（終了要約の一時 file）は tmp。
+// 診断 sink の write: 追記は診断 log（回数は追記した行の数で jsonl の改行と照合できる）、置き換え（終了要約の一時 file）は tmp。
 function countedDiagnosticFileSystem(fileSystem: DiagnosticFileSystem, counters: WriteCounters): DiagnosticFileSystem {
   return { ...fileSystem,
-    appendFile(path, data) { countWrite(counters, "diagnosticLog", Buffer.byteLength(data)); return fileSystem.appendFile(path, data); },
+    appendFile(path, data) { countWrite(counters, "diagnosticLog", Buffer.byteLength(data), data.split("\n").length - 1); return fileSystem.appendFile(path, data); },
     writeFile(path, data) {
       countWrite(counters, path.endsWith(".tmp") ? "tmp" : "other", Buffer.byteLength(data));
       return fileSystem.writeFile(path, data);
@@ -404,12 +404,12 @@ class RuntimeCompositionRoot {
     this.mailbox = options.mailbox ?? new Mailbox();
     this.mailboxCompleted = this.mailbox.stats(0).completed;
     this.display = options.display;
-    this.measuring = options.measure == null ? null : { observe: options.measure, unsaved: { "U-E": [], "U-W": [], "U-F": [] },
+    this.measuring = options.measure == null ? null : { observe: options.measure, unsaved: unsavedMarks(),
       grants: new Map(), owners: {}, publisher: writeCounters() };
     const diagnosticFileSystem = options.diagnosticFileSystem ?? nodeDiagnosticFileSystem();
     this.diagnostics = new PersistentDiagnosticSink(config.diagnosticDirectory, this.measuring == null ? diagnosticFileSystem
       : countedDiagnosticFileSystem(diagnosticFileSystem, this.measuring.publisher), () => this.clock().wallTimeMs,
-      options.reportFailure ?? ((event) => { process.stderr.write(`${JSON.stringify(event)}\n`); }));
+      options.reportFailure ?? ((event) => { process.stderr.write(`${JSON.stringify(event)}\n`); }), this.measuring == null ? undefined : (bytes) => this.measureSummary(bytes));
     this.checkpoint = new CheckpointWriter((unit) => codecs[unit] != null, (event) => { this.diagnostics.enqueueDiagnostic(event); });
   }
 
@@ -507,7 +507,7 @@ class RuntimeCompositionRoot {
     if (runtimeUnits.some((unit) => mirror[unit] == null || restoration[unit] == null)) throw new Error("an owner did not restore every unit");
     if (this.measuring != null) for (const unit of runtimeUnits) {
       const { currentGeneration, savedGeneration } = mirror[unit]!.persistence;
-      if (currentGeneration > (savedGeneration ?? 0)) this.measuring.unsaved[unit].push([currentGeneration, performance.now()]);
+      if (currentGeneration > (savedGeneration ?? 0)) this.measuring.unsaved[unit].oldestMs = performance.now();
     }
     let state: PublisherState = {
       runId, mirror: { "U-E": mirror["U-E"]!, "U-W": mirror["U-W"]!, "U-F": mirror["U-F"]! },
@@ -1220,11 +1220,15 @@ class RuntimeCompositionRoot {
     return this.until(() => this.checkpoint.grant?.grantId !== grant.grantId);
   }
 
+  // 送出時刻は post の前に取る（owner は別 thread で、post の直後に着手しうる）。
   private postGrant(grant: CheckpointGrant): void {
+    if (this.measuring != null) {
+      const mark = this.measuring.unsaved[grant.unit];
+      this.measuring.grants.set(grant.grantId, { place: executionPlaces[grant.unit], sentMs: performance.now(), dirtyMs: mark.oldestMs });
+      if (grant.mode === "save") Object.assign(mark, { sinceGrantMs: null, afterGrant: true });
+    }
     this.post(executionPlaces[grant.unit], { kind: "checkpointGrant", grantId: grant.grantId, unit: grant.unit,
       mode: grant.mode, retryReason: grant.retryReason });
-    this.measuring?.grants.set(grant.grantId, { place: executionPlaces[grant.unit], sentMs: performance.now(),
-      dirtyMs: this.measuring.unsaved[grant.unit][0]?.[1] ?? null });
   }
 
   // E14（P3-C4-AC04(2)）: 返信を受けた時点で権 1 回の区間を 1 行出す。返信が来た owner の counter はその返信の値に替える。
@@ -1237,6 +1241,11 @@ class RuntimeCompositionRoot {
     measuring.observe({ kind: "checkpointGrant", runId: this.state.runId, grantId: reply.grantId, unit: reply.unit,
       attemptIds: [...new Set(reply.measurements.map((measurement) => measurement.attemptId))], dirtyObservedMonotonicMs: sent.dirtyMs,
       grantSentMonotonicMs: sent.sentMs, ownerStartedMonotonicMs: reply.grantStartedMs, doneReceivedMonotonicMs: receivedMs });
+  }
+
+  // E15: 終了要約の書き手の記録を試行ごとに 1 行（publisher の tmp の照合に使う、P3-C4-AC05）。
+  private measureSummary(bytes: number): void {
+    this.measuring?.observe({ kind: "shutdownSummaryWrite", runId: this.state.runId, bytes });
   }
 
   // P3-C4-WRITE-COUNT: 停止の終わりに thread ごとの累積を 1 回だけ出す。owner は、送った権の返信が全部来て、最終保存の段が期限で
@@ -1482,13 +1491,30 @@ class RuntimeCompositionRoot {
   }
 }
 
-// E14 の起点: 世代が上がったら [新しい世代, 今] を足し、保存済みになった塊を前から外す（測定の時だけ、返信 1 件で差分の unit 数ぶん）。
+// E14 の起点。世代ごとの履歴は持たない（保存の失敗が続いても増えない）。oldestMs は最古の未保存の世代を publisher が反映した時刻、
+// sinceGrantMs は最後の保存の権の後で最初に世代が上がった時刻。権の保存が一部の世代だけを確定したとき、残った最古の世代は権の後に
+// 上がったものなので sinceGrantMs を起点にする（その世代の反映以前の時刻なので、待ちを短く見せない側の値）。
+type UnsavedMark = { oldestMs: number | null; sinceGrantMs: number | null; afterGrant: boolean };
+function unsavedMarks(): Record<RuntimeUnitId, UnsavedMark> {
+  const mark = (): UnsavedMark => ({ oldestMs: null, sinceGrantMs: null, afterGrant: false });
+  return { "U-E": mark(), "U-W": mark(), "U-F": mark() };
+}
+
+// E14 の起点（Measuring の unsaved）を返信 1 件の差分で更新する（測定の時だけ、unit ごとに定数の手間）。
 function reflectUnsaved(measuring: Measuring, mirror: RuntimeMirror, deltas: readonly OwnerUnitDelta[]): void {
   const at = performance.now();
   for (const { unit, persistence } of deltas) {
-    const chunks = measuring.unsaved[unit];
-    if (persistence.currentGeneration > mirror[unit].persistence.currentGeneration) chunks.push([persistence.currentGeneration, at]);
-    while (chunks.length !== 0 && chunks[0][0] <= (persistence.savedGeneration ?? 0)) chunks.shift();
+    const mark = measuring.unsaved[unit];
+    const before = mirror[unit].persistence;
+    if (persistence.currentGeneration > before.currentGeneration) {
+      mark.oldestMs ??= at;
+      if (mark.afterGrant) mark.sinceGrantMs ??= at;
+    }
+    const saved = persistence.savedGeneration ?? 0;
+    if (saved > (before.savedGeneration ?? 0)) {
+      mark.oldestMs = persistence.currentGeneration > saved ? mark.sinceGrantMs ?? at : null;
+      Object.assign(mark, { sinceGrantMs: null, afterGrant: false });
+    }
   }
 }
 

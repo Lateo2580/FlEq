@@ -120,6 +120,8 @@ export type P2HostObservation =
   // P3-C4-WRITE-COUNT、E15: 停止時に thread ごとに 1 行。confirmed が false なら counts と測定記録の両方から write が欠けうるので、
   // その窓の E15 は未確認。
   | Readonly<{ kind: "writeCount"; runId: string; thread: ExecutionPlace | "publisher"; confirmed: boolean; counts: WriteCounts }>
+  // E15: 終了要約の書き手（診断 sink）が一時 file を書く試行ごとに 1 行。publisher の tmp を包みと独立に照らす（P3-C4-AC05）。
+  | Readonly<{ kind: "shutdownSummaryWrite"; runId: string; bytes: number }>
   // P3-C4-E07-SOURCE（B）、E07: host の tick ごとと投入側の ping の受信ごとの入力 mailbox。accepted は mailbox が受理した累計で、
   // その行がどの frame までを含むかを示す。
   | Readonly<{ kind: "mailbox"; runId: string; monotonicMs: number; trigger: "tick" | "ping"; pendingItems: number;

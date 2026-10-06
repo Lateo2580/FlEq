@@ -104,34 +104,50 @@ describe("P2-A10-T04 auxiliary aggregation (AC08/AC09/AC15)", () => {
     expect(mismatch.blocked.some((b: string) => b.startsWith("checkpointJoin:mismatch"))).toBe(true);
   });
 
-  // P3-C4-AC05: write の帰属。writeCount の行が無い記録（A10）は従来の報告のまま。
-  it("P3-C4-AC05 E15: owner tmp writes match the write stages, the log bytes match the diagnostic files; an unconfirmed thread is 未確認, an unmatched write Fail", () => {
+  // P3-C4-AC05: write の帰属と保存前段の同期区間。writeCount・checkpointGrant の行が無い記録（A10）は従来の報告のまま。
+  it("P3-C4-AC05 E15: owner tmp writes match the write stages, the log lines and bytes match the diagnostic files; unconfirmed or unverifiable is 未確認, an unmatched write Fail; the pre-save span is bounded by encode and owner start to write", () => {
     const cp = (unit: string, stage: string, bytes: number, at: number) => obs({ kind: "checkpoint", measurement: { runId: "r", inputIds: ["input-1"], unit,
       generation: 1, attemptId: `${unit}-a`, stage, startedMonotonicMs: at, endedMonotonicMs: at + 1, bytes, outcome: "succeeded", retryReason: "notRetry" } });
     const zero = { count: 0, bytes: 0 };
     const counts = (tmp = zero, diagnosticLog = zero) => ({ checkpoint: zero, tmp, diagnosticLog, other: zero });
     const row = (thread: string, c: ReturnType<typeof counts>, confirmed = true) => obs({ kind: "writeCount", runId: "r", thread, confirmed, counts: c });
-    const base = [marker("T0", "input-1", 0), cp("U-W", "encode", 900, 0), cp("U-W", "write", 900, 2), row("urgent", counts()),
-      row("deferred", counts()), row("publisher", counts({ count: 1, bytes: 300 }, { count: 2, bytes: 120 }))];
-    const matched = aux.summarizeE15([...base, row("weatherCurrent", counts({ count: 1, bytes: 900 }))], { diagnosticLogBytes: 120 });
-    expect([matched.status, matched.writes?.unattributed, matched.blocked]).toEqual([null, [], [aux.E15_BLOCKED[0]]]);
-    expect(aux.summarizeE15([...base, row("weatherCurrent", counts({ count: 1, bytes: 900 }), false)], { diagnosticLogBytes: 120 }).status).toBe("未確認");
-    expect(aux.summarizeE15([...base, row("weatherCurrent", counts({ count: 2, bytes: 1800 }))], { diagnosticLogBytes: 120 }).writes)
+    const grant = obs({ kind: "checkpointGrant", runId: "r", grantId: "g1", unit: "U-W", attemptIds: ["U-W-a"], dirtyObservedMonotonicMs: -5,
+      grantSentMonotonicMs: -3, ownerStartedMonotonicMs: -1, doneReceivedMonotonicMs: 4 });
+    const log = { bytes: 120, lines: 2 };
+    const base = [marker("T0", "input-1", 0), cp("U-W", "encode", 900, 0), cp("U-W", "write", 900, 2), row("urgent", counts()), row("deferred", counts())];
+    const owners = (weather = counts({ count: 1, bytes: 900 }), confirmed = true) => [...base, row("weatherCurrent", weather, confirmed)];
+    const publisher = (tmp = zero) => row("publisher", counts(tmp, { count: 2, bytes: 120 }));
+    const matched = aux.summarizeE15([...owners(), publisher(), grant], { diagnosticLog: log });
+    expect([matched.status, matched.writes?.unattributed, matched.writes?.unverified, matched.blocked]).toEqual([null, [], [], []]);
+    expect(matched.preSaveSyncMs).toEqual({ "U-W": { grants: 1, lowerMs: 1, upperMs: 3, maxUpperMs: 3 } });
+    // 終了要約の tmp は書き手の試行の記録（shutdownSummaryWrite）に照らす。
+    const summary = (bytes: number) => obs({ kind: "shutdownSummaryWrite", runId: "r", bytes });
+    expect(aux.summarizeE15([...owners(), publisher({ count: 2, bytes: 600 }), summary(250), summary(350)], { diagnosticLog: log }).writes)
+      .toMatchObject({ status: null, unattributed: [], unverified: [] });
+    expect(aux.summarizeE15([...owners(), publisher({ count: 2, bytes: 600 }), summary(250)], { diagnosticLog: log }).writes)
+      .toMatchObject({ status: "Fail", unattributed: [{ thread: "publisher", category: "tmp" }] });
+    expect(aux.summarizeE15([...owners(), publisher()], { diagnosticLog: null }).writes)
+      .toMatchObject({ status: "未確認", unverified: [{ thread: "publisher", category: "diagnosticLog" }] });
+    expect(aux.summarizeE15([...owners(undefined, false), publisher()], { diagnosticLog: log }).status).toBe("未確認");
+    expect(aux.summarizeE15([...owners(counts({ count: 2, bytes: 1800 })), publisher()], { diagnosticLog: log }).writes)
       .toMatchObject({ status: "Fail", unattributed: [{ thread: "weatherCurrent", category: "tmp" }] });
-    expect(aux.summarizeE15(base.slice(0, 3)).status).toBeNull();
+    expect(aux.summarizeE15([...owners(), publisher()], { diagnosticLog: { bytes: 120, lines: 3 } }).writes)
+      .toMatchObject({ status: "Fail", unattributed: [{ thread: "publisher", category: "diagnosticLog" }] });
+    expect(aux.summarizeE15(base.slice(0, 3))).toMatchObject({ status: null, blocked: aux.E15_BLOCKED, preSaveSyncMs: null });
   });
 
   // P3-C4-AC07(2): 周期末は boundary の ping の行、排出と待機年齢は上界・下界で判定し、境界をまたぐ証拠は未確認。
+  const mailboxRow = (monotonicMs: number, trigger: string, items: number, accepted: number, age: number | null = null, limitViolations = 0) => obs({
+    kind: "mailbox", runId: "r", monotonicMs, trigger, pendingItems: items, pendingBytes: items * 10, inFlightItems: 0, inFlightBytes: 0,
+    oldestPendingAgeMs: age, oldestIncompleteAgeMs: age, highWaterItems: items, highWaterBytes: items * 10, limitViolations, accepted });
+  const accepted = (id: string, t1: number, t2: number) => [marker("T0", id, t1), marker("T1", id, t1), marker("T2", id, t2)];
+
   it("P3-C4-AC07 E07: cycle ends from boundary ping rows only, drain and waiting age by upper and lower bounds, owner trouble or a limit violation Fail", () => {
-    const row = (monotonicMs: number, trigger: string, items: number, age: number | null = null, limitViolations = 0) => obs({ kind: "mailbox", runId: "r",
-      monotonicMs, trigger, pendingItems: items, pendingBytes: items * 10, inFlightItems: 0, inFlightBytes: 0, oldestPendingAgeMs: age,
-      oldestIncompleteAgeMs: age, highWaterItems: items, highWaterBytes: items * 10, limitViolations, accepted: 0 });
-    const input = (id: string, t0: number, t2: number) => [marker("T0", id, t0), marker("T1", id, t0), marker("T2", id, t2)];
-    const records = [...input("input-1", 0, 100), row(50, "ping", 1, 50), row(500, "tick", 9), row(1000, "ping", 1), ...input("input-2", 2000, 2100),
-      row(3000, "ping", 2), row(4000, "tick", 1, 100), row(5000, "tick", 0)];
+    const records = [...accepted("input-1", 0, 100), mailboxRow(50, "ping", 1, 1, 50), mailboxRow(500, "tick", 9, 1), mailboxRow(1000, "ping", 1, 1),
+      ...accepted("input-2", 2000, 2100), mailboxRow(3000, "ping", 2, 2), mailboxRow(4000, "tick", 1, 2, 100), mailboxRow(5000, "tick", 0, 2)];
     const options = { pingKinds: ["periodic", "boundary", "boundary"], lastInputId: "input-2" };
     const e07 = aux.summarizeE07(records, options);
-    // The tick row with 9 items is not a cycle end; the boundary rows go 1 → 2: the backlog grew.
+    // tick の行（9 件）は周期末にしない。boundary の行は 1 → 2 で backlog が増えた。
     expect([e07.cycleEnd.status, e07.cycleEnd.ends.map((e) => e.items)]).toEqual(["Fail", [1, 2]]);
     expect(e07.drain).toMatchObject({ status: "Pass", lowerMs: 4000, upperMs: 5000 });
     expect(e07.wait).toMatchObject({ status: "Pass", upperMs: 100, lowerMs: 100 });
@@ -139,10 +155,22 @@ describe("P2-A10-T04 auxiliary aggregation (AC08/AC09/AC15)", () => {
     expect(aux.summarizeE07(records, { ...options, drainLimitMs: 2500 }).drain.status).toBe("未確認");
     expect(aux.summarizeE07(records, { ...options, drainLimitMs: 1500 }).drain.status).toBe("Fail");
     expect(aux.summarizeE07(records, { ...options, waitLimitMs: 99 }).wait.status).toBe("Fail");
-    expect(aux.summarizeE07([...records, ...input("input-3", 6000, 6000 + 7000)], { ...options, lastInputId: "input-2" }).wait.status).toBe("未確認");
+    const t2Lost = records.filter((r) => !(r.t === "obs" && JSON.stringify(r.o).includes('"T2","runId":"r","inputId":"input-2"')));
+    expect(aux.summarizeE07(t2Lost, options).wait).toMatchObject({ status: "未確認", unprocessed: 1 });
     const trouble = [{ level: "WARN", reason: "mailboxStalled", component: "owner.urgent.response", timestamp: 0 }];
     expect(aux.summarizeE07(records, { pingKinds: ["periodic", "periodic", "periodic"], lastInputId: "input-2", diagnostics: trouble }).status).toBe("Fail");
-    expect(aux.summarizeE07([...records, row(5500, "tick", 0, null, 1)], { pingKinds: ["periodic", "periodic", "periodic"], lastInputId: "input-2" }).status).toBe("Fail");
+    expect(aux.summarizeE07([...records, mailboxRow(5500, "tick", 0, 2, null, 1)], { pingKinds: ["periodic", "periodic", "periodic"], lastInputId: "input-2" }).status)
+      .toBe("Fail");
+  });
+
+  // ヘルツの品質レビュー（R2）: 待機年齢の母集団を存在する T1 だけから作っていたので、6 秒待った入力の T1 が欠けると未確認が Pass になった。
+  it("P3-C4-AC07 E07 regression: an accepted input whose T1 row is missing keeps the waiting age 未確認 instead of Pass", () => {
+    const records = [mailboxRow(0, "tick", 0, 0), ...accepted("input-1", 500, 600), ...accepted("input-2", 700, 6700), mailboxRow(1000, "tick", 1, 2),
+      mailboxRow(9000, "tick", 0, 2)];
+    const options = { lastInputId: "input-2" };
+    expect(aux.summarizeE07(records, options).wait).toMatchObject({ status: "未確認", upperMs: 6000 });
+    const t1Lost = records.filter((r) => !(r.t === "obs" && JSON.stringify(r.o).includes('"T1","runId":"r","inputId":"input-2"')));
+    expect(aux.summarizeE07(t1Lost, options).wait).toMatchObject({ status: "未確認", upperMs: 100, accepted: 2, observedT1: 1 });
   });
 
   it("publish cost: counted per window", () => {

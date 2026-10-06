@@ -3,7 +3,7 @@
 // 関数を呼ぶだけで書き直さない。host の起動（startHost）と JSONL の追跡（tailer）は run.mjs のものを ctx で受ける（循環 import を作らない）。
 // 受信経路の計算量: 充填の確認・通知の静まり待ち・集計はすべて runner 側（host の外）。host に足すのは E02 の mem 1 秒 timer と AC15 の preload だけ。
 import { execFile, spawn } from "node:child_process";
-import { cpSync, createReadStream, existsSync, mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from "node:fs";
+import { cpSync, createReadStream, existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { createInterface } from "node:readline";
 import { dirname, join } from "node:path";
 
@@ -53,9 +53,9 @@ async function readProbeRows(path, fromMs) {
 }
 // E15 と publish 費用は host を起動した全窓で出す（AC15 は E01・E02 の各窓に PublishCostReport を求める）。byteViolations は窓記録にも出す。
 const BYTE_NOTE = "byteViolations は encode・write・verify 以外の段で bytes が 0 でない件数。verify 段の bytes は読んだ bytes として e15.units の verifyBytes に別に数える（P3-C1-E15、A10 の P2-A10-E15-P3 の読み）";
-// hostDir は host の dir（host-obs.jsonl と diagnostics/ の親）。E15 の診断 log の帰属に、診断 dir の jsonl の byte を渡す（P3-C4-AC05）。
+// hostDir は host の dir（host-obs.jsonl と diagnostics/ の親）。E15 の診断 log の帰属に、診断 dir の jsonl の改行の数と byte を渡す（P3-C4-AC05）。
 export function hostReports(records, window, hostDir = null) {
-  const e15 = summarizeE15(records, { diagnosticLogBytes: hostDir == null ? null : diagnosticLogBytes(hostDir) });
+  const e15 = summarizeE15(records, { diagnosticLog: hostDir == null ? null : diagnosticLog(hostDir) });
   return { e15, byteViolations: e15.byteViolations ?? null, byteViolationsNote: BYTE_NOTE, publishCost: publishCostReport(records, window) };
 }
 export const hostReportsOf = (obsPath, window) => hostReports(readJsonl(obsPath), window, dirname(obsPath));
@@ -63,7 +63,11 @@ const diagnosticFiles = (hostDir) => {
   const dir = join(hostDir, "diagnostics");
   return existsSync(dir) ? readdirSync(dir).filter((f) => f.endsWith(".jsonl")).map((f) => join(dir, f)) : [];
 };
-const diagnosticLogBytes = (hostDir) => (existsSync(join(hostDir, "diagnostics")) ? diagnosticFiles(hostDir).reduce((a, f) => a + statSync(f).size, 0) : null);
+const diagnosticLog = (hostDir) => {
+  if (!existsSync(join(hostDir, "diagnostics"))) return null;
+  const texts = diagnosticFiles(hostDir).map((f) => readFileSync(f));
+  return { bytes: texts.reduce((a, b) => a + b.length, 0), lines: texts.reduce((a, b) => a + b.toString("utf8").split("\n").length - 1, 0) };
+};
 // 窓の結果（runWindow が記録に写す）。予備（--aux・件数指定）は判定にかかわらず status を未確認にし、判定は judgedStatus に残す（run.mjs の約束・AC10）。
 function outcome(ctx, judgedStatus, reports, rest) {
   const status = ctx.preliminary ? "未確認" : judgedStatus;
@@ -566,13 +570,17 @@ function e07Window(ctx, load) {
       }
       w.progress.phase = "drain";
       const lastInputId = `input-${host.sent()}`;
+      // C の最後の boundary は最後の入力（周期の開始＋40 秒）より後なので、排出の行が揃っても、その boundary の行が出るまで止めない
+      // （先に止めると ping の行の数が合わず、①が未確認になる）。
+      const pingsBeforeDrain = host.injector.pingKinds.lastIndexOf("boundary") + 1;
       const giveUp = hrMs() + 30_000;
       for (;;) {
         host.check();
         host.refresh();
         const t0 = host.lines.find((l) => l.t === "obs" && l.o.kind === "marker" && l.o.point === "T0" && l.o.inputId === lastInputId)?.o.monotonicMs;
         const bounds = t0 == null ? null : drainBounds(host.lines, t0);
-        if ((bounds != null && (bounds.upperMs != null || bounds.lowerMs > t0 + 10_000)) || hrMs() > giveUp) break;
+        const pingRows = host.lines.filter((l) => l.t === "obs" && l.o.kind === "mailbox" && l.o.trigger === "ping").length;
+        if ((bounds != null && (bounds.upperMs != null || bounds.lowerMs > t0 + 10_000) && pingRows >= pingsBeforeDrain) || hrMs() > giveUp) break;
         host.injector.ping("drain");
         await sleep(250);
       }
