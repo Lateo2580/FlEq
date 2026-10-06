@@ -102,14 +102,24 @@ async function startP2Host(config: P2HostConfig): Promise<Readonly<{ displayPort
   let root: RuntimeCompositionRoot;
   // From the worker close stage (and on a failed start) an owner's exit is expected and is not a failure (P3-C3B).
   let ownersStopping = false;
-  const endOwners = async () => {
+  // One terminate per owner: the worker close stage starts it, and later callers (the clean-up after stop() and a
+  // failed start) wait for the same promise instead of terminating again.
+  let ending: Promise<void> | null = null;
+  const endOwners = (): Promise<void> => {
     ownersStopping = true;
-    await Promise.all([...workers.values()].map((worker) => worker.terminate()));
+    ending ??= Promise.all([...workers.values()].map((worker) => worker.terminate())).then(() => {});
+    return ending;
   };
+  let started = false;
   // P3-C3B-OWNER-STOP (A): an owner's error, or an exit before endOwners, stops that owner only; the process goes on.
   // Before the runtime has started, the recorded stop rejects startRuntime (and so startP2Host) instead.
   // root is unassigned only if its constructor threw; the catch below then ends the owners.
-  const ownerFailed = (place: ExecutionPlace, cause: unknown) => { if (root != null) root.ownerFailed(place, cause); };
+  // A stop can empty the mailbox (its items leave it) while the WS is cut for overload: that is a drain too.
+  const ownerFailed = (place: ExecutionPlace, cause: unknown) => {
+    if (root == null) return;
+    root.ownerFailed(place, cause);
+    if (started) resumeIfDrained();
+  };
   try {
     const entry = resolveRepoPath("reconstruction/dist/src/runtime/owner-worker.js");
     for (const place of ["urgent", "weatherCurrent", "deferred"] as const) {
@@ -150,6 +160,7 @@ async function startP2Host(config: P2HostConfig): Promise<Readonly<{ displayPort
       shutdownHooks: { drainMailbox: async (_deadline, active) => root.drainInputs(active), closeWorker: endOwners },
     });
     await root.startRuntime(runId, clock(), { desktop: { kind: "idle" }, sound: { kind: "idle" } });
+    started = true;
   } catch (error) {
     // Every owner created so far ends before the rejection (P3-C3A-AC01).
     await endOwners();
@@ -403,6 +414,7 @@ async function startP2Host(config: P2HostConfig): Promise<Readonly<{ displayPort
   const stop = (): Promise<ShutdownSummary> => stopping ??= (async () => {
     // The stop request is the origin of the overall shutdown limit; the cleanup runs beside shutdownRuntime, not before it.
     const requested = clock();
+    const requestedReal = performance.now();
     clearInterval(tickTimer);
     if (reconnectTimer != null) clearTimeout(reconnectTimer);
     process.off("SIGINT", stop);
@@ -414,7 +426,13 @@ async function startP2Host(config: P2HostConfig): Promise<Readonly<{ displayPort
     try { return await root.shutdownRuntime(lastAccepted?.sequence ?? 0, requested); }
     finally {
       await cleanup;
-      await endOwners();
+      // The owners' termination is waited for only up to the worker close stage's limit, fixed in real time when that
+      // stage began (or the overall one if the stages did not get there); an owner left running is already counted in
+      // the summary (workers, code 4).
+      const until = root.workerCloseByRealMs ?? requestedReal + STOP_LIMIT_MS;
+      let timer: NodeJS.Timeout | undefined;
+      await Promise.race([endOwners(), new Promise<void>((done) => { timer = setTimeout(done, Math.max(0, until - performance.now())); })]);
+      clearTimeout(timer);
       await server.close();
     }
   })();

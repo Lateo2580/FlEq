@@ -659,9 +659,16 @@ class RuntimeCompositionRoot {
   // unresponsive, P3-C3B-FINALIZE-UNHEALTHY) are counted only.
   private late(place: ExecutionPlace): boolean {
     const { finalization } = this;
-    if (!this.unhealthy.has(place) && (finalization?.closed !== true || finalization.fixed.has(place))) return false;
+    if (!this.unhealthy.has(place) && (finalization == null || finalization.fixed.has(place)
+      || !finalization.closed && !this.finalizationExpired())) return false;
     this.countLate();
     return true;
+  }
+
+  // The side-effect finalization stage's absolute limit has passed, possibly before its timer ran (P3-C3A-FINALIZE-TIMEOUT).
+  private finalizationExpired(): boolean {
+    const limit = this.state.shutdown.deadlines.sideEffectFinalizationMonotonicMs;
+    return this.finalization != null && limit != null && this.clock().monotonicMs >= limit;
   }
 
   // AC09: a late reply is only counted, as one WARN each (the sink folds repeats into count).
@@ -1184,6 +1191,9 @@ class RuntimeCompositionRoot {
         await this.until(() => this.checkpoint.grant == null || this.shutdownExcluded(holder), active);
         continue;
       }
+      // An owner that stopped after its finalizeDone gets no grant: post() would not send it, and the right it then
+      // seemed to hold would end the stage for every other unit. Its unsaved unit stays counted by its persistence.
+      for (const unit of runtimeUnits) if (this.stoppedUnit(unit)) attempted.add(unit);
       const state = this.state;
       const grant = this.checkpoint.next(this.persistence(), this.clock(), state.runId,
         { force: true, reconcile: false, excluded: attempted });
@@ -1199,7 +1209,7 @@ class RuntimeCompositionRoot {
 
   private finalizeDone(place: ExecutionPlace, reply: Extract<OwnerReply, { kind: "finalizeDone" }>): void {
     const finalization = this.finalization;
-    if (finalization == null || finalization.closed || finalization.cutoff == null
+    if (finalization == null || finalization.closed || finalization.cutoff == null || this.finalizationExpired()
       || reply.appliedThrough.wallTimeMs !== finalization.cutoff.wallTimeMs
       || reply.appliedThrough.monotonicMs !== finalization.cutoff.monotonicMs) {
       this.countLate();
@@ -1253,6 +1263,11 @@ class RuntimeCompositionRoot {
     return projectParserDiagnostic(parser, runId, timestamp);
   }
 
+  // P3-C3B-AC03: the worker close stage's limit in real time (performance.now()), fixed when the stage starts. The
+  // summary saves, the owners' termination and the host's clean-up all end by it, even if the injected clock stands.
+  private workerCloseBy: number | null = null;
+  get workerCloseByRealMs(): number | null { return this.workerCloseBy; }
+
   async shutdownRuntime(acceptedThroughSequence: number,
     clock: ClockReading): Promise<ShutdownSummary> {
     if (this.state.shutdown.stage !== "running") throw new Error("shutdown already started");
@@ -1284,6 +1299,8 @@ class RuntimeCompositionRoot {
         if (effect.kind === "stopInputAndDrainMailbox") this.mailbox.beginDrain(this.clock().monotonicMs);
         let batchFailed = false;
         let rightHeldByStopped = false;
+        if (effect.kind === "closeRuntimeWorkers")
+          this.workerCloseBy = performance.now() + Math.max(0, effect.deadlineMonotonicMs - this.clock().monotonicMs);
         const result = await within(async (active) => {
           switch (effect.kind) {
             case "stopInputAndDrainMailbox":
@@ -1359,8 +1376,11 @@ class RuntimeCompositionRoot {
       if (summary == null) throw new Error("shutdown did not produce a summary");
       // A1 owns both summaries. A failed final delivery is not reported as a successful persistence.
       const deadline = this.state.shutdown.deadlines.workerCloseMonotonicMs!;
-      if (summarySaved && this.clock().monotonicMs < deadline) {
-        const persisted = await within((active) => this.diagnostics.persistShutdownSummary(summary!, active), deadline, this.clock);
+      const closeBy = this.workerCloseBy ?? -Infinity;
+      if (summarySaved && this.clock().monotonicMs < deadline && performance.now() < closeBy) {
+        // Bounded by the stage's real-time limit, not a fresh window of the injected clock.
+        const real = () => ({ wallTimeMs: this.clock().wallTimeMs, monotonicMs: performance.now() });
+        const persisted = await within((active) => this.diagnostics.persistShutdownSummary(summary!, active), closeBy, real);
         if (Object.hasOwn(failure, "error")) throw failure.error;
         if (persisted.kind !== "completed")
           throw new Error("final shutdown summary could not be persisted");

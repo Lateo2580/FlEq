@@ -556,4 +556,43 @@ describe("P3-C3B execution lifecycle (TEST-PATH (2))", () => {
     expect(summary.reasons).toEqual(expect.arrayContaining(["mailboxDrain:deadlineExceeded", "mailboxDrain:remainingInputs"]));
     await l.root.diagnostics.flush();
   });
+
+  it("P3-C3B-T05 regression / AC02,AC03: an owner that stops after its finalizeDone gets no grant, and the others are still saved", async () => {
+    const driver = fixtureDriver();
+    const l = await lifecycle({ runtimeCalls: driver.calls }, stringCodecs);
+    // U-F is the oldest dirty unit, so it would be granted first.
+    await driver.update(l.h, fixtureState({ "U-E": "eew", "U-W": "weather", "U-F": "series" },
+      { "U-E": pending(30), "U-W": pending(20), "U-F": pending(10) }, "run"), l.now);
+    const stop = l.h.hold((place, reply) => place === "urgent" && reply.kind === "finalizeDone");
+    const stopping = l.root.shutdownRuntime(1, l.now);
+    const fixed = () => l.h.delivered.some(({ place, reply }) => place === "deferred" && reply.kind === "finalizeDone");
+    while (!fixed()) await l.h.settle(1);
+    l.root.ownerFailed("deferred", new Error("owner thread exited (code 1)"));
+    stop();
+    l.h.release();
+    const summary = await stopping;
+    expect(summary).toMatchObject({ code: 2, reasons: ["finalCheckpoint:unsavedUnits"] });
+    // The oldest dirty first (U-W, then U-E); U-F, whose owner stopped, gets none.
+    expect(l.h.sent.flatMap(({ request }) => request.kind === "checkpointGrant" ? [request.unit] : [])).toEqual(["U-W", "U-E"]);
+    expect((["U-E", "U-W", "U-F"] as const).map((unit) => l.root.state.mirror[unit].persistence.kind)).toEqual(["saved", "saved", "pending"]);
+  });
+
+  it("P3-C3B-T05 regression / AC03 (P3-C3A-AC09): a finalizeDone handled after the stage's absolute limit, before its timer, is not adopted", async () => {
+    const driver = fixtureDriver();
+    const l = await lifecycle({ runtimeCalls: driver.calls }, stringCodecs);
+    await driver.update(l.h, fixtureState({ "U-E": "eew", "U-W": "weather", "U-F": "series" },
+      { "U-E": pending(30), "U-W": pending(20), "U-F": pending(10) }, "run"), l.now);
+    const stop = l.h.hold((place, reply) => place === "weatherCurrent" && reply.kind === "finalizeDone");
+    const stopping = l.root.shutdownRuntime(1, l.now);
+    while (l.h.held.length === 0) await l.h.settle(1);
+    const limit = l.root.state.shutdown.deadlines.sideEffectFinalizationMonotonicMs!;
+    // Past the absolute limit by the injected clock; the stage's real timer has not run yet.
+    l.set({ wallTimeMs: l.now.wallTimeMs + limit + 1 - l.now.monotonicMs, monotonicMs: limit + 1 });
+    stop();
+    l.h.release();
+    const summary = await stopping;
+    expect(summary.code).toBe(2);
+    expect(l.root.lateReplyCount).toBeGreaterThanOrEqual(1);
+    expect((["U-E", "U-W", "U-F"] as const).map((unit) => l.root.state.mirror[unit].persistence.kind)).toEqual(["saved", "pending", "saved"]);
+  });
 });

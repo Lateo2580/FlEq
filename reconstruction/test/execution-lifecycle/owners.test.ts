@@ -1,6 +1,7 @@
 import { promises as fileSystem, readFileSync } from "node:fs";
 import { get } from "node:http";
 import type { AddressInfo } from "node:net";
+import { connect } from "node:net";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import type { WorkerOptions } from "node:worker_threads";
@@ -10,6 +11,7 @@ import type { WebSocket } from "ws";
 
 import type { DisplaySnapshot } from "../../contracts/p2-snapshot-sse.types";
 import { startP2Host } from "../../src/host/host";
+import { PersistentDiagnosticSink } from "../../src/checkpoint/persistent-diagnostic-sink";
 import { RuntimeCompositionRoot } from "../../src/runtime/composition-root";
 
 // TEST-PATH (3) for P3-EXECUTION-LIFECYCLE-001: startP2Host with the three dist owner threads. The mock only watches
@@ -22,6 +24,9 @@ const control = vi.hoisted(() => ({
   held: [] as (() => void)[],
   blockPlace: null as string | null,
   block: null as Int32Array | null,
+  // A place whose terminate() never settles; the real terminations run at clean-up.
+  hangTerminateOf: null as string | null,
+  hung: [] as (() => Promise<number>)[],
 }));
 vi.mock("node:worker_threads", async (importOriginal) => {
   const actual = await importOriginal<typeof import("node:worker_threads")>();
@@ -37,6 +42,11 @@ vi.mock("node:worker_threads", async (importOriginal) => {
       control.live.add(this);
       control.byPlace.set(start.place, this);
       this.once("exit", () => { control.live.delete(this); });
+    }
+    override terminate(): Promise<number> {
+      if (control.hangTerminateOf !== this.place) return super.terminate();
+      control.hung.push(() => super.terminate());
+      return new Promise<number>(() => {});
     }
     override emit(event: string | symbol, ...args: unknown[]): boolean {
       if (event !== "message") return super.emit(event, ...args);
@@ -69,7 +79,8 @@ const clock = () => ({ wallTimeMs: EEW_AT + skew.ms, monotonicMs: base + skew.ms
 const cleanups: (() => Promise<void> | void)[] = [];
 afterEach(async () => {
   if (control.block != null) { Atomics.store(control.block, 0, 0); Atomics.notify(control.block, 0); }
-  Object.assign(control, { holdInputOf: null, blockPlace: null, block: null });
+  Object.assign(control, { holdInputOf: null, blockPlace: null, block: null, hangTerminateOf: null });
+  for (const terminate of control.hung.splice(0)) await terminate();
   control.held.length = 0;
   control.replies.length = 0;
   skew.ms = 0;
@@ -131,7 +142,7 @@ async function setup() {
     return text.split("\n").filter((line) => line !== "")
       .map((line): { level: string; component: string; reason: string; inputId?: string; count?: number } => JSON.parse(line));
   };
-  return { host, ws: sockets[0], heartbeats, dirs, lines, snapshot: () => fetchJson<DisplaySnapshot>("/snapshot"),
+  return { host, ws: sockets[0], sockets, heartbeats, dirs, lines, snapshot: () => fetchJson<DisplaySnapshot>("/snapshot"),
     healthz: async () => (await fetchJson<{ worker: string }>("/healthz")).worker };
 }
 const fixtureText = (name: string) => readFileSync(`test/fixtures/${name}.xml`, "utf8");
@@ -225,4 +236,45 @@ describe("P3-C3B owners as real threads (TEST-PATH (3))", () => {
     expect((await refusals()).filter((line) => line.count != null)).toEqual([]);
     await until(() => control.live.size === 0);
   });
+
+  it("P3-C3B-T03 regression / AC02: overload cut the WS, then the deferred owner holding the queue stops: the emptied mailbox reconnects", async () => {
+    vi.useFakeTimers({ toFake: ["setInterval", "clearInterval"] });
+    const t = await setup();
+    control.holdInputOf = "deferred";
+    // VPWP50 frames go to deferred; its first input is held in flight, the rest fill the 120-item normal lane.
+    const frame = dataFrame("VPWP50", "x");
+    for (let index = 0; index < 130; index += 1) t.ws.send(frame);
+    await until(() => t.ws.readyState === 3);
+    await control.byPlace.get("deferred")!.terminate();
+    await until(() => t.sockets.length === 2);
+    await until(() => t.sockets[1].readyState === 1);
+    t.sockets[1].send(dataFrame("VXSE43", fixtureText("37_01_01_240613_VXSE43")));
+    await until(async () => (await t.snapshot()).current.eew.items.length > 0);
+    await t.host.stop();
+  });
+
+  // The worker close stage's 5 s limit holds for the whole of stop(): the summary save inside the stage may stop or be
+  // slow, and the injected clock here does not move, so the limit must be fixed in real time when the stage starts.
+  it.each(["saved", "stalled", "slow"] as const)("P3-C3B-T05 regression / AC03: an owner whose terminate never settles, summary save %s: stop() returns code 4 within the worker-close limit and closes the display server", async (save) => {
+    const t = await setup();
+    control.hangTerminateOf = "weatherCurrent";
+    const persist = PersistentDiagnosticSink.prototype.persistShutdownSummary;
+    if (save === "stalled") vi.spyOn(PersistentDiagnosticSink.prototype, "persistShutdownSummary").mockImplementation(() => new Promise<void>(() => {}));
+    if (save === "slow") vi.spyOn(PersistentDiagnosticSink.prototype, "persistShutdownSummary").mockImplementationOnce(
+      async function (this: PersistentDiagnosticSink, ...args) {
+        await new Promise((done) => { setTimeout(done, 4_000); });
+        return persist.apply(this, args);
+      });
+    cleanups.push(() => { vi.restoreAllMocks(); });
+    const port = t.host.displayPort;
+    const started = performance.now();
+    const summary = await Promise.race([t.host.stop(), new Promise<null>((done) => { setTimeout(() => done(null), 35_000); })]);
+    expect(summary).toMatchObject({ code: 4 });
+    expect(summary?.reasons).toContain("workerClose:remainingWorkers");
+    expect(performance.now() - started).toBeLessThan(6_500);
+    await new Promise<void>((done, fail) => {
+      const connection = connect(port, "127.0.0.1", () => { connection.destroy(); fail(new Error("display server still open")); });
+      connection.on("error", () => done());
+    });
+  }, 45_000);
 });
