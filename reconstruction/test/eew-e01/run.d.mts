@@ -62,4 +62,7 @@ export function trialTarget(population: string, trial: { trigger?: { inputId: st
 export function calibratedSendAt(trigger: { injectedHrMs: number; predictedParseDelayMs?: number | null }, predicted: number | null, targetOffsetMs: number): number;
 // P3-C4 工程2d: 再開の照合と、試行の前の前景の確認。
 export function resumeProblems(current: Record<string, unknown>, records: readonly { startedAt: string; preflight: Record<string, unknown> | null }[]): string[];
-export function trialConditionDeviation(state: { visibility?: string; focus?: boolean; reducedMotion?: boolean } | null, motion: "reduced" | "full"): string | null;
+export function trialConditionDeviation(state: { visibility?: string; focus?: boolean; reducedMotion?: boolean } | null, motion: "reduced" | "full",
+  events?: readonly string[]): string | null;
+export function machineProblems(manifest: { nodeVersion: string; osVersion: string; device: string; chrome: { version: string } },
+  actual: { nodeVersion: string; chromeVersion: string; osVersion: string; device: string }): string[];

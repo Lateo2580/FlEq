@@ -21,9 +21,11 @@
 //       node reconstruction/test/eew-e01/run.mjs --preliminary --backend-only --node "$(command -v node)" --runs-root ~/p3-bench/runs \
 //         --only maxVpws50ParseStarted,maxWeatherCheckpointEncodeStarted,maxForecastCheckpointSave,maxVpws50ReceivedThenEew --warmup 10 --samples 30
 //     （30 件程度 × 3 回は --runs-root を変えずに 3 回。100 件未満の p99 は観測最大と書く、RES-07）
+// 注意: 正式の再開は、最初の窓の記録と commit（gitHead）・dist・runner の hash・機械を照合する。測定用の checkout で途中に commit すると
+// gitHead が変わって再開が拒否される（evidence の下の記録は commit せずに置いておく）。
 import { execFileSync, spawn } from "node:child_process";
 import { createHash } from "node:crypto";
-import { appendFileSync, closeSync, copyFileSync, existsSync, mkdirSync, openSync, readdirSync, readFileSync, readSync, realpathSync, statSync, writeFileSync } from "node:fs";
+import { appendFileSync, closeSync, copyFileSync, existsSync, mkdirSync, openSync, readdirSync, readFileSync, readSync, realpathSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { get as httpGet } from "node:http";
 import { arch, cpus, homedir, release, totalmem } from "node:os";
 import { basename, join, relative } from "node:path";
@@ -473,19 +475,22 @@ async function measureRun(spec, ctx, label, dir, status) {
     // 投入の瞬間に frame の組み立てで遅れないよう、待つ前に作る（報告時刻は host 時計の今の秒）。
     const frame = dataFrame("VXSE43", Buffer.from(eewVariant({ eventId, serial, variant, reportAtMs: wallNow() })));
     const vpwsFrame = VPWS50_TRIGGERED.has(population) ? weatherFrame("15_18_01_250630_VPWS50", "VPWS50", wallNow()) : null;
-    // AC08: 試行の前にページが前景（visible・focus）で motion が manifest どおりかを確かめる。外れた試行は条件逸脱として記録し、成立させない
-    // （背景・ロックでは描画と timer が間引かれ、製品の遅延と区別できない）。予定時刻を動かさないよう、待つ前に取る。
-    const conditionDeviation = page == null ? null : trialConditionDeviation(await page.evaluate(PAGE_CONDITION), ctx.manifest.chrome.motion);
     await idleUntil(due);
     host.refresh();
     const before = page == null ? 0 : await markCount();
     const linesBefore = host.lines.length;
-    const base = { attemptIndex: k, index: warm ? k : null, phase, eventId, serial, variant, subject: `normal/VXSE43/${eventId}`, scheduledHrMs: due, block: Math.floor(k / BLOCK),
-      conditionDeviation };
+    const base = { attemptIndex: k, index: warm ? k : null, phase, eventId, serial, variant, subject: `normal/VXSE43/${eventId}`, scheduledHrMs: due, block: Math.floor(k / BLOCK) };
     let trigger = null;
     let sent;
+    // AC08: EEW を送った直後に前景の状態を取り、blur・visibilitychange の記録を始める（待たずに投げるので、投入の時刻を動かさない）。
+    let stateAtSend = null;
+    const sendEew = () => {
+      const result = injector.send(frame, "VXSE43");
+      stateAtSend = page?.evaluate(ARM_TRIAL_WATCH).catch(() => null) ?? null;
+      return result;
+    };
     if (population === "fixedBacklog") {
-      sent = injector.send(frame, "VXSE43");
+      sent = sendEew();
     } else if (vpwsFrame != null) {
       // 衝突は同じ WS で間を空けずに続ける。母集団 2 の予測値は引き金を送る前に作る（送った後に作ると spin の精度を食う）。
       let predicted = null;
@@ -495,7 +500,7 @@ async function measureRun(spec, ctx, label, dir, status) {
       // 母集団 2 の「開始」は parse 開始（P3-C4-PARSE-MARK）で、worker の展開（TextDecoder まで）の後なので、引き金の実送信から直近 10 試行の
       // 「parse 開始 − 引き金の実送信」の中央値＋targetOffsetMs の時刻に送る（AC13(7)）。予測値が無い間（最初の 10 試行）は実送信＋targetOffsetMs。
       if (population === "maxVpws50ParseStarted") await spinUntil(calibratedSendAt(trigger, predicted, spec.targetOffsetMs));
-      sent = injector.send(frame, "VXSE43");
+      sent = sendEew();
     } else {
       // 次の tick の checkpoint encode 開始を予測し、その 1ms 後に EEW を投入する。引き金は狙う tick の lead（manifest の triggerLeadMs）前に送る。
       // 期限回収は狙う tick の 1 つ前の tick で起きる（下の validUntil）。狙う tick は lead より保存で 900ms・期限回収で 100ms 以上先
@@ -503,7 +508,7 @@ async function measureRun(spec, ctx, label, dir, status) {
       const deadlineTrigger = population === "forecastDeadlineOverlap";
       const lead = spec.leadMs;
       const tick = predictTick(host, hrMs(), lead + (deadlineTrigger ? 100 : 900));
-      if (tick == null) { sent = injector.send(frame, "VXSE43"); base.noTickModel = true; }
+      if (tick == null) { sent = sendEew(); base.noTickModel = true; }
       else {
         await spinUntil(tick.hrMs - lead);
         let frameText;
@@ -523,7 +528,7 @@ async function measureRun(spec, ctx, label, dir, status) {
         const t = dataSend(frameText, headType, "trigger", { trial: k });
         trigger = { inputId: t.seq == null ? null : `input-${t.seq}`, injectedHrMs: t.injectedHrMs, predictedTickHostMs: tick.hostMs };
         await spinUntil(tick.hrMs + spec.targetOffsetMs);
-        sent = injector.send(frame, "VXSE43");
+        sent = sendEew();
       }
     }
     log(`sent ${k}`);
@@ -560,7 +565,11 @@ async function measureRun(spec, ctx, label, dir, status) {
         }
       }
     }
-    if (!warm && conditionDeviation != null) trial.establishment = { established: false, reason: "conditionDeviation" };
+    // 背景・ロックでは描画と timer が間引かれ、製品の遅延と区別できないので、逸脱した試行は成立させない（記録は warm-up も残す）。
+    const atSend = await stateAtSend;
+    trial.focusAtSend = atSend?.focus ?? null;
+    trial.conditionDeviation = page == null ? null : trialConditionDeviation(atSend, ctx.manifest.chrome.motion, await page.evaluate(READ_TRIAL_WATCH));
+    if (!warm && trial.conditionDeviation != null) trial.establishment = { established: false, reason: "conditionDeviation" };
     else if (!warm) {
       // 成立の判定（establishTrial）。対象の観測（parse・encode・保存の記録は対象の処理が終わってから出る）を、実投入から 11 秒まで待つ。
       const settleBy = (sent.injectedHrMs ?? hrMs()) + 11_000;
@@ -656,16 +665,25 @@ export function predictParseDelay(trials, parseStarts, ohLo, count = 10) {
 
 const VPWS50_TRIGGERED = new Set(["maxVpws50ParseStarted", "maxVpws50ReceivedThenEew"]);
 
-// 対象の区間（host の時計）。成立の判定（establishTrial）に渡す。host は試行の投入以後の行だけの索引でよい。
-// parse は decode の観測の parse 区間（P3-C4-PARSE-MARK、工程 2 で入る。無ければ null で不成立 targetNotObserved）。衝突は VPWS50 の T1（受理の完了）。
-// encode・保存・期限: 予測した tick の ±500ms（tick 周期の半分）にある checkpoint encode の開始から（保存は最後の段の終わりまで）。
-// その範囲に無ければ null（targetNotObserved で待つ）。checkpoint の観測は保存全体の後と launcher の 250ms flush の後に出るので、
-// 判定の時点で狙った tick の行がまだ無いことがあり、前後の tick の encode を代わりに選ばない。
-// AC08 の前景の条件。motion は manifest の chrome.motion（openPage が prefers-reduced-motion を固定する）。
-const PAGE_CONDITION = "({ visibility: document.visibilityState, focus: document.hasFocus(), reducedMotion: matchMedia('(prefers-reduced-motion: reduce)').matches })";
-export function trialConditionDeviation(state, motion) {
-  const problems = [state?.visibility === "visible" ? null : `visibility ${state?.visibility}`, state?.focus === true ? null : "not focused",
-    state?.reducedMotion === (motion === "reduced") ? null : `prefers-reduced-motion ${state?.reducedMotion} (manifest motion ${motion})`].filter((p) => p != null);
+// AC08 の前景の条件（P3-C4 工程2d）。投入の直後に、そのときの visibility・focus・motion を取り、ページの側で blur と visibilitychange の
+// 記録を空にして始める（初回に listener を 1 度だけ付ける）。試行の終わり（paint か期限）に、その間の記録を読む。条件逸脱（成立させない）は、
+// 投入の時点で visible でないか、motion が manifest と違う（openPage の固定が効いていない）か、投入から終わりまでに blur か visibilitychange が
+// あったとき。document.hasFocus() は OS の key window にも左右され、描画と timer の間引きの条件より厳しいので、false でも記録だけにする
+// （trial.focusAtSend）。
+const ARM_TRIAL_WATCH = `(() => {
+  if (window.fleqTrialWatch == null) {
+    window.fleqTrialWatch = [];
+    window.addEventListener("blur", () => window.fleqTrialWatch.push("blur"));
+    document.addEventListener("visibilitychange", () => window.fleqTrialWatch.push("visibilitychange:" + document.visibilityState));
+  }
+  window.fleqTrialWatch = [];
+  return { visibility: document.visibilityState, focus: document.hasFocus(), reducedMotion: matchMedia("(prefers-reduced-motion: reduce)").matches };
+})()`;
+const READ_TRIAL_WATCH = "window.fleqTrialWatch ?? []";
+export function trialConditionDeviation(state, motion, events = []) {
+  const problems = [state?.visibility === "visible" ? null : `visibility ${state?.visibility}`,
+    state?.reducedMotion === (motion === "reduced") ? null : `prefers-reduced-motion ${state?.reducedMotion} (manifest motion ${motion})`,
+    events.length === 0 ? null : `during the trial: ${events.join(",")}`].filter((p) => p != null);
   return problems.length === 0 ? null : problems.join("; ");
 }
 
@@ -678,6 +696,11 @@ export function populationSpec(manifest, population, run, warmup, count, stop) {
     leadMs: c.triggerLeadMs, span: c.establishment.kind === "startOffset" ? c.establishment.span : "population" };
 }
 
+// 対象の区間（host の時計）。成立の判定（establishTrial）に渡す。host は試行の投入以後の行だけの索引でよい。
+// parse は decode の観測の parse 区間（P3-C4-PARSE-MARK、工程 2 で入る。無ければ null で不成立 targetNotObserved）。衝突は VPWS50 の T1（受理の完了）。
+// encode・保存・期限: 予測した tick の ±500ms（tick 周期の半分）にある checkpoint encode の開始から（保存は最後の段の終わりまで）。
+// その範囲に無ければ null（targetNotObserved で待つ）。checkpoint の観測は保存全体の後と launcher の 250ms flush の後に出るので、
+// 判定の時点で狙った tick の行がまだ無いことがあり、前後の tick の encode を代わりに選ばない。
 // span が "encodeThroughWrite"（P3-C4-ALT-SHAPE=A、母集団 5 だけ）なら対象を保存の試行全体（encode 開始〜write 完了）にする。
 export function trialTarget(population, trial, host, ohLo, span = "population") {
   const id = trial.trigger?.inputId;
@@ -941,10 +964,9 @@ export function buildA10Result({ manifest, windows, e01, e02Verdict = null, sche
 async function preflightCheck(manifest, nodePath, nodeVersion, initialState) {
   const chrome = await chromeVersion();
   const os = `${release()} ${arch()}`;
+  rebuildDist();
   const problems = [
-    nodeVersion === manifest.nodeVersion ? null : `${nodePath} is ${nodeVersion}, manifest.nodeVersion is ${manifest.nodeVersion}`,
-    chrome === manifest.chrome.version ? null : `Chrome is ${chrome}, manifest.chrome.version is ${manifest.chrome.version}`,
-    os === manifest.osVersion ? null : `OS is ${os}, manifest.osVersion is ${manifest.osVersion}`,
+    ...machineProblems(manifest, { nodeVersion, chromeVersion: chrome, osVersion: os, device: deviceOf() }).map((p) => `${p} (node ${nodePath})`),
     ...DIST_REQUIRED.map((p) => (existsSync(join(REPO, p)) ? null : `missing build output: ${p}`)),
     // 充填・C・E03・AC15・E12 の入力規則（frames.mjs）が凍結時と同じ bytes か（ReplayLoad は書き換え規則を持てないので recipe の hash で固定する）。
     sha256Hex(readFileSync(join(REPO, initialState.rulesSource.file))) === initialState.rulesSource.sha256 ? null
@@ -959,6 +981,23 @@ async function preflightCheck(manifest, nodePath, nodeVersion, initialState) {
   return { checkedAt: new Date().toISOString(), nodeVersion, chromeVersion: chrome, osVersion: os, dist: DIST_REQUIRED,
     gitHead: git("rev-parse", "HEAD").trim(), gitStatusPorcelain, distSha256: treeSha256(DIST_TREES), runnerSha256: treeSha256([RUNNER_DIR], (f) => f.endsWith(".mjs")),
     machine: { cpu: cpus()[0]?.model ?? null, cores: cpus().length, memoryBytes: totalmem() } };
+}
+
+// 機械を凍結 manifest と照合する（P3-C4 工程2d）。device は凍結の時に draft.mjs が同じ式で書いた値（CPU の model・コア数・メモリ GiB）。
+// 正式の最初の窓もこれで止まるので、別の機械の最初の窓が再開の基準になることは無い。
+export const deviceOf = () => `${cpus()[0]?.model ?? "cpu"} x${cpus().length}, ${Math.round(totalmem() / 2 ** 30)}GiB`;
+export function machineProblems(manifest, actual) {
+  return [["nodeVersion", manifest.nodeVersion], ["chromeVersion", manifest.chrome.version], ["osVersion", manifest.osVersion], ["device", manifest.device]]
+    .filter(([key, frozen]) => actual[key] !== frozen).map(([key, frozen]) => `${key} is ${actual[key]}, the frozen manifest has ${frozen}`);
+}
+
+// 正式の窓の前に、この checkout の source から dist を作り直す（P3-C4 工程2d。古い dist や別の build を使わない）。作り直した dist の hash
+// （preflight の distSha256）が再開の基準になる。tsc の出力は同じ source・同じ compiler なら同じなので、再開でも hash は一致する。
+function rebuildDist() {
+  for (const dir of DIST_TREES) rmSync(join(REPO, dir), { recursive: true, force: true });
+  const tsc = join(REPO, "node_modules/.bin/tsc");
+  for (const project of [[], ["--project", "reconstruction/tsconfig.json"], ["--project", "reconstruction/src/display/chrome-eew/tsconfig.json"]])
+    execFileSync(tsc, project, { cwd: REPO, stdio: "inherit" });
 }
 
 // 日をまたぐ再開の照合（P3-C4 工程2d）: 同じ manifest の最初の窓の記録の preflight を基準に、測定版の commit・実行物（dist と runner）の hash・
@@ -1056,7 +1095,7 @@ async function main(argv) {
   if (preliminary) {
     // 予備の案は A10 の凍結物（負荷・初期状態・fixture）を継承して組む（draft.mjs の buildP3Manifest）。backend 単独は Chrome を測らない。
     draft = buildP3Manifest({ id: `p3-prelim-${stamp}`, chromeVersion: backendOnly ? "none (backend-only)" : await chromeVersion(), nodeVersion,
-      osVersion: `${release()} ${arch()}`, device: `${cpus()[0]?.model ?? "cpu"} x${cpus().length}, ${Math.round(totalmem() / 2 ** 30)}GiB`,
+      osVersion: `${release()} ${arch()}`, device: deviceOf(),
       collisionVerdict: String(args.get("collision-verdict") ?? "A"), establishmentRate: num("establishment-rate", 0.5),
       lead: { maxWeatherCheckpointEncodeStarted: num("save-lead-ms", DEFAULT_LEAD_MS.maxWeatherCheckpointEncodeStarted),
         maxForecastCheckpointSave: num("save-lead-ms", DEFAULT_LEAD_MS.maxForecastCheckpointSave), forecastDeadlineOverlap: num("deadline-lead-ms", DEFAULT_LEAD_MS.forecastDeadlineOverlap) },
@@ -1138,7 +1177,7 @@ async function main(argv) {
     if (foreign.length > 0) throw new Error(`${recordsDir} has records of another manifest with the same manifestId (${foreign.join(", ")}); re-freezing needs a new manifestId`);
     // 再実行してよいのは前回 Blocked（または未実施）の窓だけ。Fail・未確認・Pass を選び直して良い run に差し替えることを構造で防ぐ。
     const problems = preflight == null ? [] : resumeProblems(preflight, readWindowRecords(recordsDir, manifest.manifestSha256));
-    if (problems.length > 0) throw new Error(`resume refused (the measured version, the build or the machine changed):\n  ${problems.join("\n  ")}`);
+    if (problems.length > 0) throw new Error(`resume refused (the measured version, the build or the machine changed; a commit in the measuring checkout changes gitHead):\n  ${problems.join("\n  ")}`);
     const previous = latestById(readWindowRecords(recordsDir, manifest.manifestSha256));
     for (const w of chosen) {
       const last = previous.find((r) => r.id === w.id);

@@ -312,6 +312,15 @@ describe("P2-A10-T04 auxiliary aggregation (AC08/AC09/AC15)", () => {
     expect(await aux.waitInputsDone(() => rows, 3, { timeoutMs: 40, pollMs: 5 })).toBe(false);
   });
 
+  // 工程2d の再確認 S2: owner の heap は 1 秒の tick からしか出ないので、owner 3 本の行が出てから E12 の再生を始める。
+  it("P3-C4 regression E12: the replay starts only after every owner has a heap row, and gives up at the limit", async () => {
+    const heap = (place: string) => obs({ kind: "ownerHeap", runId: "r", place, replyKind: "deadlineDone", inputId: null, monotonicMs: 1, heapUsedBytes: 1, externalBytes: 0 });
+    const rows: HostRecord[] = [heap("urgent"), heap("weatherCurrent")];
+    expect(await aux.waitOwnerHeaps(() => rows, { timeoutMs: 40, pollMs: 5 })).toBe(false);
+    setTimeout(() => rows.push(heap("deferred")), 20);
+    expect(await aux.waitOwnerHeaps(() => rows, { timeoutMs: 2_000, pollMs: 5 })).toBe(true);
+  });
+
   it("publish cost: counted per window", () => {
     const records = [obs({ kind: "publishSerialization", bytes: 100, durationMs: 1 }), obs({ kind: "publishSerialization", bytes: 300, durationMs: 3 }),
       marker("T0", "input-1", 10), processing("input-1", 12, 20)];

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { ac15Intervals, checkpointWindows, compareRetention, fingerprintTable, judgeAc15 } from "./ac15.mjs";
+import { ac15Intervals, checkpointWindows, compareRetention, fingerprintTable, judgeAc15, ownerProbeIncomplete } from "./ac15.mjs";
 import type { ProbeRow } from "./ac15.mjs";
 import type { HostRecord } from "./aux-measures.mjs";
 
@@ -45,6 +45,12 @@ const brief = (rows: ProbeRow[]) => judged(rows).violations.map((v) => [v.inputI
 describe("P2-A10-T04 AC15 upstream full serialization per input (key-set fingerprint)", () => {
   // P3-C4 工程2d（ヘルツ節目 P1）: 保存の区間で除外するのは同じ実行場所の直列化だけ。publisher の禁止された直列化が owner の encode と
   // 時刻で重なっても除外しない。
+  // Opus 適合レビュー F3: owner は terminate() で止まり最後の書き出しが失われうるので、最後に書いた時刻が窓の終わりより前の owner は欠けうる。
+  it("P3-C4 regression: an owner whose probe was last written before the window's end (or never) is incomplete", () => {
+    expect(ownerProbeIncomplete({ urgent: 300, weatherCurrent: 300, deferred: 300 }, 250)).toEqual([]);
+    expect(ownerProbeIncomplete({ urgent: 300, weatherCurrent: 200, deferred: null }, 250)).toEqual(["weatherCurrent", "deferred"]);
+  });
+
   it("P3-C4 regression: a saved-payload stringify inside an encode is excused only in the encoding owner's thread", () => {
     const at = (place: string): ProbeRow => [201.5, 3, 90_000, "schemaVersion,subjects,gates,intents", null, place];
     expect(judged([at("deferred")]).status).toBe("Pass");

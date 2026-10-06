@@ -52,11 +52,15 @@ if (stringifyOut != null) {
     pending.push([toPublisherMs(startedMs), durationMs, length, Array.isArray(value) ? `[${value.length}]${keysOf(value[0])}` : keysOf(value), stack, place]);
     return text;
   };
+  // owner は書き出すたびに（行が無くても）<FLEQ_STRINGIFY_OUT>.<place>.written へ書いた時刻（publisher の基準）を書く。terminate() で止まると
+  // 最後の書き出しの分が失われうるので、集計はこの時刻が窓の終わりより前の owner を未確認にする（P3-C4 工程2d、E12 の writtenAtMs と同じ形）。
   const flush = () => {
-    if (pending.length === 0) return;
-    const rows = pending;
-    pending = [];
-    appendFileSync(stringifyOut, `${rows.map((row) => original(row)).join("\n")}\n`);
+    if (pending.length > 0) {
+      const rows = pending;
+      pending = [];
+      appendFileSync(stringifyOut, `${rows.map((row) => original(row)).join("\n")}\n`);
+    }
+    if (!isMainThread) writeFileSync(`${stringifyOut}.${place}.written`, String(toPublisherMs(performance.now())));
   };
   // owner は terminate() で終わり exit で書き出せないので短い間隔で書く（AC15 の窓は最後の区間の終わりから 500ms 後に止める）。
   setInterval(flush, isMainThread ? 1_000 : 250).unref();

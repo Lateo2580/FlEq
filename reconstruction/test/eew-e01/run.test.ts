@@ -5,7 +5,7 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
 import { readSelfHashed } from "../../src/measurement/eew-e01/frozen";
-import { buildA10Result, hashRaw, parseArgs, resumeProblems, trialConditionDeviation } from "./run.mjs";
+import { buildA10Result, hashRaw, machineProblems, parseArgs, resumeProblems, trialConditionDeviation } from "./run.mjs";
 import type { WindowRecord } from "./run.mjs";
 import { H } from "./fixtures";
 
@@ -69,7 +69,23 @@ describe("P3-C4 resume and foreground checks", () => {
     const ok = { visibility: "visible", focus: true, reducedMotion: false };
     expect(trialConditionDeviation(ok, "full")).toBeNull();
     expect(trialConditionDeviation({ ...ok, visibility: "hidden" }, "full")).toMatch(/visibility hidden/);
-    expect(trialConditionDeviation({ ...ok, focus: false }, "full")).toMatch(/not focused/);
+    // OS の key window でない（hasFocus が false）だけでは逸脱にしない（Opus 適合レビュー F1。visibility の間引きの条件より厳しいため）。
+    expect(trialConditionDeviation({ ...ok, focus: false }, "full")).toBeNull();
     expect(trialConditionDeviation(ok, "reduced")).toMatch(/prefers-reduced-motion/);
+  });
+
+  // 工程2d の再確認 S3: 状態は投入の時点で取り、投入から終わりまでの blur・visibilitychange があれば逸脱。
+  it("a blur or visibilitychange between the send and the end of the trial is a deviation even when the page was in front at the send", () => {
+    const ok = { visibility: "visible", focus: true, reducedMotion: false };
+    expect(trialConditionDeviation(ok, "full", [])).toBeNull();
+    expect(trialConditionDeviation(ok, "full", ["blur", "visibilitychange:hidden"])).toMatch(/during the trial: blur,visibilitychange:hidden/);
+  });
+
+  // 工程2d の再確認 S1: 正式の最初の窓でも、機械（CPU・コア数・メモリ・OS・Node・Chrome）を凍結 manifest と照合する。
+  it("the machine is checked against the frozen manifest, so a first window on another machine is refused", () => {
+    const manifest = { nodeVersion: "v22.23.3", osVersion: "27.0.0 arm64", device: "Apple M2 x8, 8GiB", chrome: { version: "154.0.8037.98" } };
+    const actual = { nodeVersion: "v22.23.3", chromeVersion: "154.0.8037.98", osVersion: "27.0.0 arm64", device: "Apple M2 x8, 8GiB" };
+    expect(machineProblems(manifest, actual)).toEqual([]);
+    expect(machineProblems(manifest, { ...actual, device: "Apple M5 x10, 32GiB" })).toEqual(["device is Apple M5 x10, 32GiB, the frozen manifest has Apple M2 x8, 8GiB"]);
   });
 });

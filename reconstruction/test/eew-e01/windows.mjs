@@ -7,7 +7,7 @@ import { cpSync, createReadStream, existsSync, mkdirSync, readFileSync, readdirS
 import { createInterface } from "node:readline";
 import { dirname, join } from "node:path";
 
-import { ac15Intervals, checkpointWindows, compareRetention, fingerprintTable, judgeAc15, readLatestEnvelopes } from "./ac15.mjs";
+import { AC15_OWNERS, ac15Intervals, checkpointWindows, compareRetention, fingerprintTable, judgeAc15, ownerProbeIncomplete, readLatestEnvelopes } from "./ac15.mjs";
 import { viewCopyReport } from "./analysis.mjs";
 import {
   drainBounds, e14Acks, e14Index, hostMsOf, notificationAdoptionReport, ownerHeapReport, parseJsonl, publishCostReport, startFdSampler, summarizeE03, summarizeE05,
@@ -463,7 +463,15 @@ async function ac15Measure(w, ctx, mode, { s, warmup, samples }) {
   const intervals = ac15Intervals(withSyntheticT0(records, events), unitOf, { endMs: lastT0 + s.intervalMs });
   const publishObserved = [];
   for (const x of intervals.filter((i) => i.unit === "metadata")) { publishObserved.push(x.publishCount); x.publishCount = 2; }
-  const judged = judgeAc15(await readProbeRows(probePath, intervals[0]?.startMs ?? 0), intervals, table, { checkpointWindows: checkpointWindows(records), unitOfInput, minInputsPerUnit: samples });
+  const judgedRows = judgeAc15(await readProbeRows(probePath, intervals[0]?.startMs ?? 0), intervals, table, { checkpointWindows: checkpointWindows(records), unitOfInput, minInputsPerUnit: samples });
+  // owner の probe の最後の書き出しが窓の終わりより前なら、違反が少なく出うるので Pass を未確認にする（Fail は Fail のまま）。
+  const writtenAt = Object.fromEntries(AC15_OWNERS.map((place) => {
+    const file = `${probePath}.${place}.written`;
+    return [place, existsSync(file) ? Number(readFileSync(file, "utf8")) : null];
+  }));
+  const incomplete = ownerProbeIncomplete(writtenAt, intervals.at(-1)?.endMs ?? Infinity);
+  const judged = incomplete.length === 0 ? judgedRows : { ...judgedRows, status: judgedRows.status === "Fail" ? "Fail" : "未確認",
+    missing: [...judgedRows.missing, `ownerProbeIncomplete:${incomplete.join(",")}`] };
   const reports = hostReports(records, `ac15-${mode}`, dir, host.injector.placeOf);
   const assumedMinus = judged.scenarios.metadata?.snapshotCallsMinusPublish ?? null;
   const observedTotal = publishObserved.reduce((a, b) => a + b, 0);

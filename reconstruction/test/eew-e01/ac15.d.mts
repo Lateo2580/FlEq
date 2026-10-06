@@ -54,3 +54,6 @@ export function compareRetention(full: Judged, half: Judged, options: { maxSlope
   rows: { scenario: string; measure: "outsideOtherPerInput" | "outsidePrimitivePerInput" | "outsideOwnElementPerInput" | "outsideAmbiguousPerInput";
     fullMedian: number | null; halfMedian: number | null; deltaRetained: number | null; noiseFloor: number | null; slope: number | null; exceeded: boolean; unresolved: boolean }[];
 };
+// P3-C4 工程2d: owner の probe の最後の書き出しが窓の終わりより前の owner の place。
+export const AC15_OWNERS: readonly string[];
+export function ownerProbeIncomplete(writtenAt: Record<string, number | null>, endMs: number): string[];

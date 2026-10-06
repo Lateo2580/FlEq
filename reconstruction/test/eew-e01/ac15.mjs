@@ -198,6 +198,13 @@ const add = (t, row) => { t.count++; t.ms += row[1]; t.chars += row[2]; t.maxCha
 
 // probeRecords: probe の行（配列）。intervals: ac15Intervals の返り値（startMs 昇順・重ならない）。checkpointWindows: 同名関数の返り値
 // （渡さなければ保存 payload の直列化はすべて区間外として Fail）。unitOfInput: 測定で流した全入力（warm-up を含む）の inputId → unit。
+// owner の probe の完全性（P3-C4 工程2d）: owner ごとの最後に書いた時刻（probe-preload の .written、無ければ null）が窓の終わりより前なら、
+// その owner の直列化の行が欠けうる。欠けうる owner の place を返す（空なら完全）。
+export const AC15_OWNERS = ["urgent", "weatherCurrent", "deferred"];
+export function ownerProbeIncomplete(writtenAt, endMs) {
+  return AC15_OWNERS.filter((place) => !(typeof writtenAt[place] === "number" && writtenAt[place] >= endMs));
+}
+
 export function judgeAc15(probeRecords, intervals, table, { checkpointWindows: windows = [], unitOfInput = null, ownElementLimit = OWN_ELEMENT_LIMIT,
   minInputsPerUnit = 100 } = {}) {
   const classify = classifier(table);

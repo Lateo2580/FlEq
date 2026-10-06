@@ -471,16 +471,25 @@ export function summarizeE12New(records, probes, { startMs, endMs }) {
   return { status: Object.values(threads).some((t) => t.status != null) ? "未確認" : null, threads };
 }
 
-// E12 の新側の後値は、対象の入力の処理が全部終わってから取る（P3-C4 工程2d）。read() は host の記録、count は送った入力の数。
-// processing の行（入力ごとに処理の完了で 1 行）が count 件になれば true、timeoutMs までに揃わなければ false（未確認にする）。
-export async function waitInputsDone(read, count, { timeoutMs = 60_000, pollMs = 200 } = {}) {
+// read() の host の記録が ready を満たすまで待つ。timeoutMs までに満たさなければ false（呼び出し側が未確認にする）。
+async function waitRecords(read, ready, { timeoutMs, pollMs = 200 }) {
   const until = performance.now() + timeoutMs;
   for (;;) {
-    if (read().filter((r) => r.t === "obs" && r.o.kind === "processing").length >= count) return true;
+    if (ready(read())) return true;
     if (performance.now() >= until) return false;
     await new Promise((wake) => setTimeout(wake, pollMs));
   }
 }
+// E12 の新側の後値は、対象の入力の処理が全部終わってから取る（P3-C4 工程2d）。count は送った入力の数で、processing の行（入力ごとに処理の
+// 完了で 1 行）が count 件になれば true。
+export const waitInputsDone = (read, count, { timeoutMs = 60_000, pollMs = 200 } = {}) =>
+  waitRecords(read, (records) => records.filter((r) => r.t === "obs" && r.o.kind === "processing").length >= count, { timeoutMs, pollMs });
+// E12 の新側の前値: owner の heap は deadlineDone（1 秒の tick）の返信からしか出ないので、owner 3 本の ownerHeap の行が出てから再生を始める
+// （P3-C4 工程2d。接続の直後に始めると、小型の窓で owner の開始前の行が無い）。
+export const waitOwnerHeaps = (read, { timeoutMs = 10_000, pollMs = 100 } = {}) => waitRecords(read, (records) => {
+  const places = new Set(records.flatMap((r) => (r.t === "obs" && r.o.kind === "ownerHeap" ? [r.o.place] : [])));
+  return E12_THREADS.every((thread) => thread === "publisher" || places.has(thread));
+}, { timeoutMs, pollMs });
 
 // 端の行が無い、または距離が replay 区間より長いときは heap を出さず未確認（旧側は端そのもの＝距離 0）。
 export function summarizeReplayWindow({ probe, startMs, endMs, before, after }) {

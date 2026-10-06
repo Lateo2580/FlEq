@@ -75,3 +75,4 @@ type GcProbe = { gc: readonly { startMs: number; durationMs: number }[]; written
 export function summarizeE12New(records: readonly HostRecord[], probes: Record<string, GcProbe | null>, interval: { startMs: number; endMs: number }): {
   status: Status | null; threads: Record<string, { status: Status | null; reason?: string; heapUsedDelta?: number; gcCount?: number }> };
 export function waitInputsDone(read: () => readonly HostRecord[], count: number, options?: { timeoutMs?: number; pollMs?: number }): Promise<boolean>;
+export function waitOwnerHeaps(read: () => readonly HostRecord[], options?: { timeoutMs?: number; pollMs?: number }): Promise<boolean>;
