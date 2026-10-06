@@ -107,7 +107,10 @@ export type OwnerReply =
   // full parse の区間（P3-C4-PARSE-MARK）は印が無いと null、parse tree の前で拒否された入力では終了が null。
   | Readonly<{ kind: "inputDone"; settlement: ParserSettlement; processingStartedMs: number; marks: ProcessingMarks;
       decode: Readonly<{ startedMonotonicMs: number; endedMonotonicMs: number; xmlParseStartedMonotonicMs: number | null;
-        xmlParseEndedMonotonicMs: number | null }> | null; heap: OwnerHeap | null; output: OwnerOutput }>
+        xmlParseEndedMonotonicMs: number | null }> | null; heap: OwnerHeap | null;
+      // P3-C4-AC13(3)②（工程2c）: この入力の採用で世代が上がった unit と、返信の時点の currentGeneration（RuntimeStep.generationInputIds に
+      // この入力 ID を持つ unit だけ。入力の前の期限回収だけで上がった世代は入らない）。印が無いと null。
+      inputGenerations: Readonly<Partial<Record<RuntimeUnitId, number>>> | null; output: OwnerOutput }>
   // heap は deadlineDone では measured のとき、inputDone では measured と inputHeap の両方のときだけ値を持つ。
   | Readonly<{ kind: "deadlineDone"; heap: OwnerHeap | null; output: OwnerOutput }>
   | Readonly<{ kind: "intentUpdateDone"; requestId: string; adopted: boolean; output: OwnerOutput }>

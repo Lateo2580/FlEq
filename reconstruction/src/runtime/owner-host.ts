@@ -100,7 +100,8 @@ class OwnerHost {
           workerTransferMs: processingStartedMs - (request.sharedMs - this.options.start.publisherTimeOriginMs) },
         decode: { startedMonotonicMs: decodeStarted, endedMonotonicMs: decodeEnded, xmlParseStartedMonotonicMs: this.threadToMeasured(parseTimes?.startedMs),
           xmlParseEndedMonotonicMs: this.threadToMeasured(parseTimes?.endedMs) },
-        heap: this.options.start.measured && this.options.start.inputHeap ? threadHeap() : null, output: this.output([step]) });
+        heap: this.options.start.measured && this.options.start.inputHeap ? threadHeap() : null,
+        inputGenerations: this.options.start.measured ? this.inputGenerations(step, item.inputId) : null, output: this.output([step]) });
         return;
       }
       case "deadline": {
@@ -139,6 +140,13 @@ class OwnerHost {
   // Measured time: the publisher's real monotonic clock, with no injected offset (P2-A10-AC03).
   private measured(): number {
     return this.options.sharedNow() - this.options.start.publisherTimeOriginMs;
+  }
+
+  // P3-C4-AC13(3)②: この入力の採用で世代が上がった unit（generationInputIds にこの入力 ID を持つもの）の、返信の時点の世代。
+  private inputGenerations(step: OwnerStep, inputId: string): Partial<Record<RuntimeUnitId, number>> {
+    const raised: Partial<Record<RuntimeUnitId, number>> = {};
+    for (const unit of this.own) if (step.generationInputIds[unit]?.includes(inputId)) raised[unit] = this.persistence(unit).currentGeneration;
+    return raised;
   }
 
   // P3-C4-PARSE-MARK: この thread の performance.now() を publisher の測定時刻へ直す（timeOrigin の差を足す）。

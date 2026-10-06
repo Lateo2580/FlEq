@@ -2,6 +2,10 @@ import { describe, expect, it } from "vitest";
 
 import * as aux from "./aux-measures.mjs";
 import { nearCapacityFrames } from "./frames.mjs";
+import { decodeMaterial } from "../../src/decode-material/decode-material";
+import { ingestXmlData } from "../../src/ingress/ingress";
+import { initialUnits } from "../../src/runtime/owner-runtime";
+import { reduceEewUnit } from "../../src/units/eew/eew-unit";
 import { e14BundleFrames } from "./windows.mjs";
 import type { HostRecord } from "./aux-measures.mjs";
 
@@ -191,51 +195,47 @@ describe("P2-A10-T04 auxiliary aggregation (AC08/AC09/AC15)", () => {
     expect(aux.summarizeE07(t1Lost, options).wait).toMatchObject({ status: "未確認", upperMs: 100, accepted: 2, observedT1: 1 });
   });
 
-  // P3-C4-T10: E14 の束（AC13(3)④⑤⑥）。
-  it("P3-C4-T10 E14: a bundle is established when every unit's first grant saw its dirty before the first grant went out; its ack is the first acknowledged reply at or above the input's generation (a reconciliation after a failed save included); the rest are counted 未確認", () => {
-    const cp = (unit: string, generation: number, inputId: string) => obs({ kind: "checkpoint", measurement: { runId: "r", inputIds: [inputId], unit, generation,
-      attemptId: `${unit}-${generation}`, stage: "encode", startedMonotonicMs: 0, endedMonotonicMs: 1, bytes: 1, outcome: "succeeded", retryReason: "notRetry" } });
-    const grant = (grantId: string, unit: string, sent: number, dirty: number | null, done: number, result: { kind: string; generation: number } | null) =>
-      obs({ kind: "checkpointGrant", runId: "r", grantId, unit, attemptIds: [], dirtyObservedMonotonicMs: dirty, grantSentMonotonicMs: sent,
-        ownerStartedMonotonicMs: sent, doneReceivedMonotonicMs: done, result });
-    const bundle = (k: number, t0: number) => ({ k, inputIds: { "U-E": `e${k}`, "U-W": `w${k}`, "U-F": `f${k}` }, t0 });
-    const inputs = (b: ReturnType<typeof bundle>, generation: number) => (["U-E", "U-W", "U-F"] as const).flatMap((u, i) =>
-      [marker("T0", b.inputIds[u], b.t0 + i), cp(u, generation, b.inputIds[u])]);
-    const [b0, b1, b2] = [bundle(0, 100), bundle(1, 2000), bundle(2, 4000)];
-    const records = [...inputs(b0, 2), ...inputs(b1, 3), ...inputs(b2, 4),
-      // 束 0: U-W の保存は directorySync で失敗し、再照合（dirty なし）で成功する。
-      grant("g1", "U-E", 200, 150, 300, { kind: "acknowledged", generation: 2 }), grant("g2", "U-W", 310, 160, 400, { kind: "failed", generation: 2 }),
-      grant("g3", "U-F", 410, 170, 600, { kind: "acknowledged", generation: 2 }), grant("g4", "U-W", 1400, null, 1500, { kind: "acknowledged", generation: 2 }),
-      // 束 1: U-F の dirty が最初の権の後に反映された（同時でない）。
-      grant("g5", "U-E", 2100, 2050, 2200, { kind: "acknowledged", generation: 3 }), grant("g6", "U-W", 2210, 2060, 2300, { kind: "acknowledged", generation: 3 }),
-      grant("g7", "U-F", 2310, 2150, 2400, { kind: "acknowledged", generation: 3 }),
-      // 束 2: U-F の保存が成功に結べない。
-      grant("g8", "U-E", 4100, 4050, 4200, { kind: "acknowledged", generation: 4 }), grant("g9", "U-W", 4210, 4060, 4300, { kind: "acknowledged", generation: 4 }),
-      grant("g10", "U-F", 4310, 4070, 4400, { kind: "uncertain", generation: 4 })];
-    const e14 = aux.summarizeE14(records, { bundles: [b0, b1, b2], skipped: [3] });
-    expect(e14).toMatchObject({ status: null, bundles: 4, linked: 1, unconfirmed: { notEstablished: 1, "notAcknowledged:U-F": 1, previousNotSaved: 1 } });
-    expect([e14.units["U-E"].max, e14.units["U-W"].max, e14.units["U-F"].max]).toEqual([150, 1340, 430]);
-    expect(aux.summarizeE14(records, { bundles: [b1, b2] }).status).toBe("未確認");
+  // P3-C4-T10: E14 の束（AC13(3)②④⑤⑥、工程2c）。起点は束の入力の generationRaised、成立は区間の重なり。
+  const raised = (inputId: string, unit: string, generation: number, monotonicMs: number) =>
+    obs({ kind: "generationRaised", runId: "r", inputId, unit, generation, monotonicMs });
+  const grant = (grantId: string, unit: string, sent: number, done: number, result: { kind: string; generation: number } | null) => obs({ kind: "checkpointGrant",
+    runId: "r", grantId, unit, attemptIds: [`${unit}-a`], dirtyObservedMonotonicMs: null, grantSentMonotonicMs: sent, ownerStartedMonotonicMs: sent,
+    doneReceivedMonotonicMs: done, result });
+  const e14Bundle = (k: number) => ({ k, inputIds: { "U-E": `e${k}`, "U-W": `w${k}`, "U-F": `f${k}` } });
+  const adopted = (k: number, generation: number, at: readonly [number, number, number]) =>
+    (["U-E", "U-W", "U-F"] as const).map((u, i) => raised(e14Bundle(k).inputIds[u], u, generation, at[i]));
+
+  it("P3-C4-T10 E14: overlapping [start, ack] intervals are established; the ack is the first acknowledged reply at or above the bundle's generation (a reconciliation after a failed save included); notSimultaneous, unacknowledged and not-adopted bundles are counted 未確認", () => {
+    const records = [
+      // 束 0: U-W の保存は失敗し、再照合で成功する。区間は 3 unit で重なる。
+      ...adopted(0, 2, [100, 101, 102]), grant("g1", "U-E", 110, 300, { kind: "acknowledged", generation: 2 }),
+      grant("g2", "U-W", 310, 400, { kind: "failed", generation: 2 }), grant("g3", "U-F", 410, 600, { kind: "acknowledged", generation: 2 }),
+      grant("g4", "U-W", 1400, 1500, { kind: "acknowledged", generation: 2 }),
+      // 束 1: U-E の ack（2100）が U-F の起点（2150）より前で、区間が重ならない。
+      ...adopted(1, 3, [2000, 2001, 2150]), grant("g5", "U-E", 2010, 2100, { kind: "acknowledged", generation: 3 }),
+      grant("g6", "U-W", 2110, 2200, { kind: "acknowledged", generation: 3 }), grant("g7", "U-F", 2210, 2400, { kind: "acknowledged", generation: 3 }),
+      // 束 2: U-F の保存が成功に結べない。束 3: U-W の入力の採用で世代が上がらなかった（行が無い）。
+      ...adopted(2, 4, [4000, 4001, 4002]), grant("g8", "U-E", 4010, 4200, { kind: "acknowledged", generation: 4 }),
+      grant("g9", "U-W", 4210, 4300, { kind: "acknowledged", generation: 4 }), grant("g10", "U-F", 4310, 4400, { kind: "uncertain", generation: 4 }),
+      ...adopted(3, 5, [6000, 6001, 6002]).filter((_, i) => i !== 1)];
+    const e14 = aux.summarizeE14(records, { bundles: [0, 1, 2, 3].map(e14Bundle) });
+    expect(e14).toMatchObject({ status: null, bundles: 4, linked: 1, unconfirmed: { notSimultaneous: 1, "notAcknowledged:U-F": 1, inputNotAdopted: 1 } });
+    expect([e14.units["U-E"].max, e14.units["U-W"].max, e14.units["U-F"].max]).toEqual([200, 1399, 498]);
+    expect(aux.summarizeE14(records, { bundles: [1, 2, 3].map(e14Bundle) }).status).toBe("未確認");
   });
 
-  it("P3-C4-T10 E14: a null dirty in a first grant is not established; the next bundle is not sent until the previous one is saved; a reused attemptId still links by grantId; the index grows by appended rows only (R6)", () => {
-    const cp = (unit: string, inputId: string) => obs({ kind: "checkpoint", measurement: { runId: "r", inputIds: [inputId], unit, generation: 1,
-      attemptId: `${unit}-a`, stage: "encode", startedMonotonicMs: 0, endedMonotonicMs: 1, bytes: 1, outcome: "succeeded", retryReason: "notRetry" } });
-    const grant = (grantId: string, unit: string, sent: number, dirty: number | null, result: string | null) => obs({ kind: "checkpointGrant", runId: "r", grantId, unit,
-      attemptIds: [`${unit}-a`], dirtyObservedMonotonicMs: dirty, grantSentMonotonicMs: sent, ownerStartedMonotonicMs: sent, doneReceivedMonotonicMs: sent + 50,
-      result: result == null ? null : { kind: result, generation: 1 } });
-    const bundle = { k: 0, inputIds: { "U-E": "e0", "U-W": "w0", "U-F": "f0" } };
-    const inputs = (["U-E", "U-W", "U-F"] as const).flatMap((u) => [marker("T0", bundle.inputIds[u], 100), cp(u, bundle.inputIds[u])]);
-    // U-W の保存は失敗し、同じ attemptId の再照合（返信は別の grantId）で成功する。
-    const grants = [grant("g1", "U-E", 200, 150, "acknowledged"), grant("g2", "U-W", 300, 160, "failed"), grant("g3", "U-F", 400, 170, "acknowledged"),
-      grant("g4", "U-W", 500, null, "acknowledged")];
-    expect(aux.summarizeE14([...inputs, ...grants], { bundles: [bundle] })).toMatchObject({ linked: 1, units: { "U-W": { max: 500 + 50 - 160 } } });
-    const nullDirty = [grant("g1", "U-E", 200, null, "acknowledged"), ...grants.slice(1)];
-    expect(aux.summarizeE14([...inputs, ...nullDirty], { bundles: [bundle] })).toMatchObject({ linked: 0, unconfirmed: { notEstablished: 1 }, status: "未確認" });
-    const partial = aux.e14Index([...inputs, ...grants.slice(0, 3)]);
-    expect([aux.e14Sendable(partial, null), aux.e14Sendable(partial, bundle)]).toEqual([true, false]);
-    const grown = aux.e14Index([...inputs, ...grants], partial);
-    expect([grown === partial, aux.e14Sendable(grown, bundle)]).toEqual([true, true]);
+  it("P3-C4-T10 E14: a grant in flight before the start that saved this generation is the ack; a reused attemptId links by grantId; the index grows by appended rows only (R6)", () => {
+    const bundle = e14Bundle(0);
+    // U-E の権は起点（100）より前に送られて in-flight だったが、今回の世代 5 を保存した。U-W は同じ attemptId の再照合（別の grantId）で成功。
+    const grants = [grant("g1", "U-E", 50, 300, { kind: "acknowledged", generation: 5 }), grant("g2", "U-W", 310, 320, { kind: "failed", generation: 5 }),
+      grant("g3", "U-F", 330, 350, { kind: "acknowledged", generation: 5 }), grant("g4", "U-W", 360, 400, { kind: "acknowledged", generation: 5 })];
+    const records = [...adopted(0, 5, [100, 100, 100]), ...grants];
+    expect(aux.summarizeE14(records, { bundles: [bundle] })).toMatchObject({ linked: 1, units: { "U-E": { max: 200 }, "U-W": { max: 300 }, "U-F": { max: 250 } } });
+    const saved = (index: unknown) => aux.e14Acks(index, bundle).every((ack) => ack != null);
+    const partial = aux.e14Index(records.slice(0, -1));
+    expect(saved(partial)).toBe(false);
+    const grown = aux.e14Index(records, partial);
+    expect([grown === partial, saved(grown)]).toEqual([true, true]);
   });
 
   // R4: 初回の採用の待ちに再試行（backoff を含む）を混ぜない。
@@ -244,6 +244,40 @@ describe("P2-A10-T04 auxiliary aggregation (AC08/AC09/AC15)", () => {
       createdAtWallMs: 0, reservationSentWallMs: 0, reservationSentMonotonicMs: 0, replyReceivedMonotonicMs: waitMs, adopted: true, attemptStartedMonotonicMs: waitMs });
     const report = aux.notificationAdoptionReport([row(1, 10), row(2, 10_000)]);
     expect([report.first.reservations, report.first.reservationToReplyMs?.p99, report.retries.reservations, report.retries.reservationToReplyMs?.p99]).toEqual([1, 10, 1, 10_000]);
+  });
+
+  // 工程2c: 束の VXSE45（充填済みの EventID・Serial＋1・訂正）を充填後の U-E に通すと、capacityExceeded にならず世代が上がる（Serial だけを
+  // 進めた続報は通知済みの EventID では revisionOnly で世代が上がらず、予備で E14 の束が 0 しか成立しなかった）。
+  it("P3-C4-T10 E14: after the fill, bundle k's VXSE45 correction is not capacityExceeded and raises the U-E generation", () => {
+    let sequence = 0;
+    const material = (xml: string, headType: string, at: number) => {
+      const entered = ingestXmlData({ inputId: `fill-${++sequence}`, inputSequence: sequence, receivedAt: at, origin: "replay", kind: "replay", body: Buffer.from(xml), headType });
+      if (entered.kind !== "accepted") throw new Error(entered.diagnostic.reason);
+      const decoded = decodeMaterial(entered.item);
+      if (decoded.kind !== "decoded") throw new Error("decode failed");
+      return decoded.material;
+    };
+    const at = Date.parse("2024-06-13T12:00:00Z");
+    let monotonicMs = 0;
+    let state = initialUnits["U-E"];
+    const receive = (xml: string, headType: string, wallTimeMs: number) => {
+      const step = reduceEewUnit(state, { kind: "receive", material: material(xml, headType, wallTimeMs), clock: { wallTimeMs, monotonicMs: ++monotonicMs } });
+      state = step.state;
+      return step;
+    };
+    for (const f of nearCapacityFrames({ mode: "leaveRoomForP", room: { partials: 0, forecastSubjects: 0 } })) if (f.headType.startsWith("VXSE")) receive(f.xml, f.headType, at);
+    // 充填の通知の記録を期限で回収した後（窓の時点の U-E）。
+    state = reduceEewUnit(state, { kind: "deadline", clock: { wallTimeMs: at + 60_000, monotonicMs: ++monotonicMs } }).state;
+    const filledCurrent = state.current.length;
+    for (const k of [0, 1, 511]) {
+      const before = state.persistence.currentGeneration;
+      const bundleAt = at + 61_000 + k * 20_000;
+      const eew = e14BundleFrames(k, bundleAt).find((f) => f.unit === "U-E")!;
+      const step = receive(eew.xml, "VXSE45", bundleAt);
+      expect(step.decisions.map((d) => d.decision), `k=${k}`).not.toContain("rejected");
+      // 世代は 1 上がり、current の件数（充填した subject）は増えない。
+      expect([state.persistence.currentGeneration - before, state.current.length], `k=${k}`).toEqual([1, filledCurrent]);
+    }
   });
 
   it("P3-C4-T10 E14: bundle k updates a filled EEW EventID with the next Serial (no new EventID, so no capacityExceeded)", () => {

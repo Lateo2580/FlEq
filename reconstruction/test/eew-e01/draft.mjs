@@ -267,10 +267,10 @@ const P3_TABLE = {
 // collisionVerdict は P3-C4-COLLISION-VERDICT（A: 参考・T0、B: 正式・injectorSend）。stop は母集団ごとの stopCondition（予備測定の後に統合担当が固定する）。
 // 指定の無い母集団は establishmentRate（成立率の仮置き）から maxAttempts = 100 + ceil(1000 ÷ 成立率)、maxDurationMs = maxAttempts × 周期 × 2 の仮値。
 // lead・deadlineSpan・o09Positions・e14・ownerHeapSamples は凍結の時に決める値（P3-C4-AC13(1)〜(4)）。既定は予備の値（lead は Mac の所要に
-// 合わせた保存 600ms・期限回収 2,400ms、span は母集団の対象、E14 は 30 束・15 秒）。
+// 合わせた保存 600ms・期限回収 2,400ms、span は母集団の対象、E14 は 30 束・20 秒）。
 export const DEFAULT_LEAD_MS = { maxWeatherCheckpointEncodeStarted: 600, maxForecastCheckpointSave: 600, forecastDeadlineOverlap: 2400 };
 export function buildP3Manifest({ id, chromeVersion, nodeVersion, osVersion, device, collisionVerdict = "A", stop = {}, establishmentRate = 0.5,
-  lead = {}, deadlineSpan = "population", o09Positions = [], e14 = { bundles: 30, intervalMs: 15_000 }, ownerHeapSamples = 100,
+  lead = {}, deadlineSpan = "population", o09Positions = [], e14 = { bundles: 30, intervalMs: 20_000 }, ownerHeapSamples = 100,
   // P3-C4-MACHINES=B（作者裁定 2026-10-06 朝）: 正式測定は Mac mini。A10（MacBook M5）との比較は機械が違う参考値で、合否に使わない。
   machines = { formal: "Mac mini（独立 checkout。reconstruction/dist・node_modules を共有しない。Chrome は前景、caffeinate -d）", gate: "Mac mini（独立 checkout。reconstruction/dist・node_modules を共有しない）",
     piBackend: "Raspberry Pi 500（Pi 第 1 段: backend 単独、第 2 段: Pi backend＋Mac mini の Chrome）" } }) {
@@ -318,7 +318,7 @@ export function buildP3Manifest({ id, chromeVersion, nodeVersion, osVersion, dev
       E15: { loads: ["P", "C"], minSamplesPerRun: null, runCount: null, sharesWindowWith: "E02-P・E05-P・AC15・E06（A10 と同じ保持上限の窓）",
         condition: "write の帰属不能 0（thread ごとの write 別計数と CheckpointMeasurement・診断 record の帰属が区分ごとに一致）、保存と診断の write の別計数、保存前段の同期区間の占有、verify 段の読んだ bytes の別計数（encode・write へ足さない）。write 別計数は工程 2 で入る" },
       E14: { loads: ["P"], minSamplesPerRun: e14.bundles, runCount: 1, sharesWindowWith: null, intervalMs: e14.intervalMs,
-        condition: "P3-C4-E14-WINDOW=A: P 負荷の充填（leaveRoomForP）の後、背景の負荷なしで U-E（VXSE45 77_01_01、充填済みの EventID）・U-W（VPWS50 15_18_01、充填済みの national）・U-F（VPWP50 81_09_01、充填済みの官署 0 の subject）の 3 入力を 1 束で送り、intervalMs ごとに繰り返す。unit ごとの dirty→ack の p50・p99・max と 3 秒超えの数を報告（各保存の p99 の和を全体の p99 と呼ばない）" },
+        condition: "P3-C4-E14-WINDOW=A: P 負荷の充填（leaveRoomForP）の後、背景の負荷なしで U-E（VXSE45 77_01_01、充填済みの EventID）・U-W（VPWS50 15_18_01、充填済みの national）・U-F（VPWP50 81_09_01、充填済みの官署 0 の subject）の 3 入力を 1 束で送り、intervalMs ごとに繰り返す（VXSE45 は訂正、通知の backend は silent、前の束の保存を待たない）。unit ごとの dirty→ack の p50・p99・max と 3 秒超えの数を報告（各保存の p99 の和を全体の p99 と呼ばない）" },
       ownerHeap: { loads: ["N"], minSamplesPerRun: ownerHeapSamples, runCount: 1, sharesWindowWith: null,
         condition: "P3-C4-OWNER-HEAP=B': E03 と同じ最大 VPWS50 の入力・初期状態で、inputDone の返信ごとの owner の heap（大型処理の直後の値）を取る補助窓。E01・E03・衝突の窓では inputDone に heap を載せない" },
     }).map(([key, value]) => [key, { ...value, intervalMs: value.intervalMs ?? null }])),

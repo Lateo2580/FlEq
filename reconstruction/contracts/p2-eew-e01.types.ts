@@ -119,6 +119,8 @@ export type P2HostObservation =
   | Readonly<{ kind: "checkpointGrant"; runId: string; grantId: string; unit: UnitId; attemptIds: readonly string[];
       dirtyObservedMonotonicMs: number | null; grantSentMonotonicMs: number; ownerStartedMonotonicMs: number;
       doneReceivedMonotonicMs: number; result: Readonly<{ kind: "acknowledged" | "failed" | "uncertain"; generation: number }> | null }>
+  // P3-C4-AC13(3)②（工程2c）: publisher が inputDone を反映した時点で、その返信の inputGenerations にある unit ごとに 1 行（E14 の束の起点）。
+  | Readonly<{ kind: "generationRaised"; runId: string; inputId: string; unit: UnitId; generation: number; monotonicMs: number }>
   // P3-C4-OWNER-HEAP=B': heap を持つ owner の返信を host が受けた時点で 1 行。inputId は inputDone のときだけ。
   | Readonly<{ kind: "ownerHeap"; runId: string; place: ExecutionPlace; replyKind: "deadlineDone" | "inputDone"; inputId: string | null;
       monotonicMs: number } & OwnerHeap>

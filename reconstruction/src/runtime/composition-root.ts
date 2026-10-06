@@ -112,7 +112,7 @@ type CompositionOptions = Readonly<{
   // Each parser input once its owner answered and the mailbox settled it (the host's T2/decode/processing records).
   onInputDone?: (reply: InputDone) => void;
   // P3-C4-AC04（E14・E15）の観測。測定の時（host の config.observe があるとき）だけ渡し、無ければ時刻取得・包み・記録を作らない。
-  measure?: (observation: Extract<P2HostObservation, { kind: "checkpointGrant" | "writeCount" | "shutdownSummaryWrite" | "notificationAdoption" }>) => void;
+  measure?: (observation: Extract<P2HostObservation, { kind: "checkpointGrant" | "writeCount" | "shutdownSummaryWrite" | "notificationAdoption" | "generationRaised" }>) => void;
   // P2-A3-A8-LINK: without it snapshots are still projected (state kept) but not published.
   display?: Readonly<{
     publish: (snapshot: DisplaySnapshot) => void;
@@ -810,7 +810,7 @@ class RuntimeCompositionRoot {
     }
     if (!this.ownerOutput(place, reply.output, settlement.runId === state.runId ? settlement.inputSequence : null) && reconnected)
       this.project([], [], this.clock());
-    this.onInputDone(reply);
+    this.onInputDone(reply); if (this.measuring != null) observeGenerationRaised(this.measuring, settlement.runId, reply);
     this.pump();
   }
 
@@ -1516,6 +1516,16 @@ type UnsavedMark = { oldestMs: number | null; sinceGrantMs: number | null; after
 function unsavedMarks(): Record<RuntimeUnitId, UnsavedMark> {
   const mark = (): UnsavedMark => ({ oldestMs: null, sinceGrantMs: null, afterGrant: false });
   return { "U-E": mark(), "U-W": mark(), "U-F": mark() };
+}
+
+// P3-C4-AC13(3)②（工程2c）: 反映した inputDone の inputGenerations にある unit ごとに 1 行（E14 の束の起点）。入力の前の期限回収だけで
+// 上がった世代は owner が inputGenerations に入れないので、ここでも出ない。
+function observeGenerationRaised(measuring: Measuring, runId: string, reply: InputDone): void {
+  const at = performance.now();
+  for (const unit of runtimeUnits) {
+    const generation = reply.inputGenerations?.[unit];
+    if (generation != null) measuring.observe({ kind: "generationRaised", runId, inputId: reply.settlement.inputId, unit, generation, monotonicMs: at });
+  }
 }
 
 // E14 の起点（Measuring の unsaved）を返信 1 件の差分で更新する（測定の時だけ、unit ごとに定数の手間）。

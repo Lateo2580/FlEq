@@ -422,7 +422,9 @@ function verifyFrozenP3Manifest(input: Readonly<{
   for (const key of ["E03", "E05", "E06", "E07", "E12", "E14", "E15", "ownerHeap"] as const) {
     const a = m.auxiliary[key];
     need(a != null && nonEmpty(a.condition) && (a.sharesWindowWith == null || !/e01/i.test(a.sharesWindowWith)), `auxiliary ${key} (E01 windows are never shared)`);
-    need(key === "E14" ? typeof a.intervalMs === "number" && a.intervalMs > 0 : a.intervalMs === null, `auxiliary ${key} intervalMs`);
+    // E14 の束は 20 秒以上の間隔（訂正の通知予約は 15 秒で期限が切れ、その回収で U-E がもう一度 dirty になるので、15 秒では次の束の T0 と
+    // ぶつかる、AC13(3)）。
+    need(key === "E14" ? typeof a.intervalMs === "number" && a.intervalMs >= 20_000 : a.intervalMs === null, `auxiliary ${key} intervalMs`);
     // 件数・run 数は正の整数（null は条件に件数が無い窓）。E14 と ownerHeap は件数と run 数が要り、E14 の束は充填の EventID 512 件まで。
     const positive = (n: number | null) => n === null || (Number.isInteger(n) && n >= 1);
     need(positive(a.minSamplesPerRun) && positive(a.runCount), `auxiliary ${key} counts must be positive integers`);

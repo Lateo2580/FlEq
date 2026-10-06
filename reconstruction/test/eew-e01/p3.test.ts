@@ -255,7 +255,7 @@ describe("P3-C4-T09 / R1〜R3 boundaries of the frozen manifest and the runner's
     smokeConditionsText: b.smokeText, sequencesText, contractTexts: b.contractTexts, inherited: { manifestText: b.a10Text, initialStateText: b.initialStateText } });
   type Editable = { extra?: number; health: { loads: string[] }; o09Subset: { positions: number[] };
     populations: Record<string, { establishment: { span?: string; acceptedOffsetRangeMs?: number[] } }>;
-    auxiliary: Record<string, { runCount: number | null; minSamplesPerRun: number | null }> };
+    auxiliary: Record<string, { runCount: number | null; minSamplesPerRun: number | null; intervalMs: number | null }> };
   const reseal = (text: string, patch: (m: Editable) => void) => {
     const m = JSON.parse(text) as Editable;
     patch(m);
@@ -277,6 +277,8 @@ describe("P3-C4-T09 / R1〜R3 boundaries of the frozen manifest and the runner's
     expect(() => verify(reseal(text, (m) => { m.auxiliary.E14.minSamplesPerRun = 513; }))).toThrow("auxiliary E14 needs");
     expect(() => verify(reseal(text, (m) => { m.auxiliary.ownerHeap.minSamplesPerRun = 0; }))).toThrow("auxiliary ownerHeap counts");
     expect(() => verify(reseal(text, (m) => { m.auxiliary.E14.runCount = 0; }))).toThrow("auxiliary E14 counts");
+    // 工程2c: 訂正の通知予約の期限 15 秒と束がぶつからないよう、E14 の間隔は 20 秒以上。
+    expect(() => verify(reseal(text, (m) => { m.auxiliary.E14.intervalMs = 15_000; }))).toThrow("auxiliary E14 intervalMs");
     const b = built();
     const manifest = verify(reseal(b.manifestText, (m) => { m.auxiliary.E14.runCount = 3; }), b).manifest;
     const ids = auxWindows({ manifest, initialState: JSON.parse(b.initialStateText), counts: {} }).map((w) => w.id).filter((id) => id.startsWith("e14-"));

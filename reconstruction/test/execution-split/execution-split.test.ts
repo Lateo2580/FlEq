@@ -98,7 +98,7 @@ describe("P3-C3A execution split (TEST-PATH (2): publisher with in-process owner
       shutdownInput: ["clock", "kind", "sharedMs"], finalize: ["clock", "cutoff", "kind", "sharedMs"],
     };
     const replyKeys: Readonly<Record<OwnerReply["kind"], readonly string[]>> = {
-      restored: ["kind", "output", "units"], inputDone: ["decode", "heap", "kind", "marks", "output", "processingStartedMs", "settlement"],
+      restored: ["kind", "output", "units"], inputDone: ["decode", "heap", "inputGenerations", "kind", "marks", "output", "processingStartedMs", "settlement"],
       deadlineDone: ["heap", "kind", "output"], intentUpdateDone: ["adopted", "kind", "output", "requestId"],
       checkpointDone: ["grantId", "grantStartedMs", "kind", "measurements", "output", "result", "unit", "writeCounts"],
       shutdownInputDone: ["kind", "output"], finalizeDone: ["appliedThrough", "kind", "output"],

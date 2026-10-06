@@ -78,7 +78,7 @@ function memory() {
   return { checkpoint, diagnostic, logs };
 }
 
-type Measured = Extract<P2HostObservation, { kind: "checkpointGrant" | "writeCount" | "shutdownSummaryWrite" | "notificationAdoption" }>;
+type Measured = Extract<P2HostObservation, { kind: "checkpointGrant" | "writeCount" | "shutdownSummaryWrite" | "notificationAdoption" | "generationRaised" }>;
 
 // 測定成果物（観測の書出し）は、host-launcher と同じく製品の包みを通らない生の filesystem で同じ診断 dir に書く。
 async function measuredRuntime(measured = true, clock?: () => ClockReading) {
@@ -272,5 +272,40 @@ describe("P3-C4-T11 contractBoundary / AC13(4)(5): the owner heap on replies and
       await h.settle();
       expect(adoptions(observed).map((row) => [row.adopted, row.attemptStartedMonotonicMs])).toEqual([[false, null], [false, null]]);
     } finally { await cleanup(); }
+  });
+});
+
+describe("P3-C4-T10 contractBoundary / AC13(3)②: generationRaised marks only generations the input's own adoption raised", () => {
+  it("an EEW input that raises U-E gets one row; a duplicate whose inputDone only carries the deadline reclaim gets none; without the mark inputGenerations is null", async () => {
+    for (const measured of [true, false]) {
+      const directory = await disk.mkdtemp(join(tmpdir(), "fleq-c4-raised-"));
+      const at = (ms: number) => ({ wallTimeMs: 1_713_363_299_001 + ms, monotonicMs: 1 + ms });
+      let clock = at(0);
+      const observed: Measured[] = [];
+      const h = harnessedRoot({ appName: "p2", legacyAppName: "v2", stateDirectory: join(directory, "state"), legacyStateDirectory: join(directory, "legacy"),
+        diagnosticDirectory: join(directory, "diagnostics") }, linkedUnitCodecs, { clock: () => clock, notificationAdapter: manualAdapter().adapter,
+        owners: { measured, inputHeap: false }, ...(measured ? { measure: (observation: Measured) => { observed.push(observation); } } : {}) });
+      try {
+        await startHarness(h, "raised", clock);
+        await submit(h, envelope("raised", "VXSE43", "first", readFileSync("test/fixtures/37_01_01_240613_VXSE43.xml"), clock, 1));
+        const generation = () => h.root.state.mirror["U-E"].persistence.currentGeneration;
+        const afterFirst = generation();
+        // 同じ報告をもう一度（重複で no-op）。その前に U-E の期限回収（通知の記録の期限切れ）が同じ inputDone で世代を上げる。
+        clock = at(600_000);
+        await submit(h, envelope("raised", "VXSE43", "duplicate", readFileSync("test/fixtures/37_01_01_240613_VXSE43.xml"), clock, 2));
+        expect(generation()).toBeGreaterThan(afterFirst);
+        const inputGenerations = h.delivered.flatMap(({ reply }) => reply.kind === "inputDone" ? [[reply.settlement.inputId, reply.inputGenerations]] : []);
+        if (!measured) { expect(inputGenerations).toEqual([["first", null], ["duplicate", null]]); continue; }
+        // 入力の採用で上がった世代は返信の時点の値（後の通知の採用でさらに上がる）。
+        const raisedBy = inputGenerations[0][1];
+        expect(typeof raisedBy === "object" && raisedBy != null ? Object.keys(raisedBy) : null).toEqual(["U-E"]);
+        expect(inputGenerations[1]).toEqual(["duplicate", {}]);
+        const rows = observed.flatMap((o) => o.kind === "generationRaised" ? [[o.inputId, o.unit, o.generation]] : []);
+        expect(rows).toEqual([["first", "U-E", typeof raisedBy === "object" && raisedBy != null ? raisedBy["U-E"] : null]]);
+      } finally {
+        await h.root.diagnostics.flush();
+        await disk.rm(directory, { recursive: true, force: true });
+      }
+    }
   });
 });

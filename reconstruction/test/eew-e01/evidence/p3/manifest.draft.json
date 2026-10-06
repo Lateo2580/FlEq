@@ -1,9 +1,9 @@
 {
   "schemaVersion": "p3-e01-manifest-v1",
   "manifestId": "p3-c4-draft-20261006",
-  "manifestSha256": "eff592202f8f2ab9b56b3ea529210a6ddfa5d361f3fdd1610238dd2d76482b22",
+  "manifestSha256": "77006f647de8ac76b8662fbd5f4e3cb34c0eeac2ecffea9bd3384350a59fb19d",
   "contractSha256": {
-    "P3-E01-REACCEPT-001": "4ff8b44d7f25c8513f658ddb218f869be3caa3354d758d848b45ac39e65701ac",
+    "P3-E01-REACCEPT-001": "a5bea77129f66e336647d3d723cb0267fd580d7200ca5f7252d404144237f0f4",
     "P3-EXECUTION-LIFECYCLE-001": "fd19aede1d35a4f7bd81aeeb8cf83c51219d0dba4b3842a8714dfc083e2494f1",
     "P3-EXECUTION-SPLIT-001": "f38d05a92fd26ffb6e14f42c15db163c114ee33d4a849391d864edd4772e30b1",
     "P3-DMDATA-CONNECT-001": "108d5e32a3570e0cb340a5d9dcb3a49a4ddd2f2dbc542a38b6ef0931a2135f8a",
@@ -443,8 +443,8 @@
       "minSamplesPerRun": 30,
       "runCount": 1,
       "sharesWindowWith": null,
-      "intervalMs": 15000,
-      "condition": "P3-C4-E14-WINDOW=A: P 負荷の充填（leaveRoomForP）の後、背景の負荷なしで U-E（VXSE45 77_01_01、充填済みの EventID）・U-W（VPWS50 15_18_01、充填済みの national）・U-F（VPWP50 81_09_01、充填済みの官署 0 の subject）の 3 入力を 1 束で送り、intervalMs ごとに繰り返す。unit ごとの dirty→ack の p50・p99・max と 3 秒超えの数を報告（各保存の p99 の和を全体の p99 と呼ばない）"
+      "intervalMs": 20000,
+      "condition": "P3-C4-E14-WINDOW=A: P 負荷の充填（leaveRoomForP）の後、背景の負荷なしで U-E（VXSE45 77_01_01、充填済みの EventID）・U-W（VPWS50 15_18_01、充填済みの national）・U-F（VPWP50 81_09_01、充填済みの官署 0 の subject）の 3 入力を 1 束で送り、intervalMs ごとに繰り返す（VXSE45 は訂正、通知の backend は silent、前の束の保存を待たない）。unit ごとの dirty→ack の p50・p99・max と 3 秒超えの数を報告（各保存の p99 の和を全体の p99 と呼ばない）"
     },
     "ownerHeap": {
       "loads": [

@@ -10,7 +10,7 @@ import { dirname, join } from "node:path";
 import { ac15Intervals, checkpointWindows, compareRetention, fingerprintTable, judgeAc15, readLatestEnvelopes } from "./ac15.mjs";
 import { viewCopyReport } from "./analysis.mjs";
 import {
-  drainBounds, e14Index, e14Sendable, hostMsOf, notificationAdoptionReport, ownerHeapReport, parseJsonl, publishCostReport, startFdSampler, summarizeE03, summarizeE05,
+  drainBounds, e14Acks, e14Index, hostMsOf, notificationAdoptionReport, ownerHeapReport, parseJsonl, publishCostReport, startFdSampler, summarizeE03, summarizeE05,
   summarizeE06, summarizeE07, summarizeE14, summarizeE15,
 } from "./aux-measures.mjs";
 import { hrMs, sleep } from "./chrome.mjs";
@@ -651,8 +651,9 @@ function e07Window(ctx, load) {
 // ── E14（P3-C4-AC13(3)、P3-C4-E14-WINDOW=A）: P の充填の後、背景の負荷なしで 3 unit の更新を 1 束で intervalMs ごとに送る ──
 // 束 k の 3 入力（①）。frames.mjs の規則は initial-state の rulesSource で hash を固定しているので変えず、ここで組む。どれも充填済みの
 // subject の更新で、新しい subject を足さない: VXSE45 は充填の通常の EventID（frames.mjs の 20240417000000＋i）の k 番目を Serial＋1・
-// 報告時刻＝束の時刻で（新しい EventID は U-E の 512 件で capacityExceeded になる）、VPWS50 は national（通常）を、VPWP50 は充填の官署0 の
-// subject を 81_09_01 で、どちらも全時刻を束の時刻へ移して更新する（束ごとに新しくなる）。
+// 訂正・報告時刻＝束の時刻で（新しい EventID は U-E の 512 件で capacityExceeded になる。U-E の保存対象は通知の記録だけなので、通知済みの
+// EventID の Serial だけを進めた続報は世代を上げず、訂正なら通知の機会ができて毎回世代が上がる、工程2c）、VPWS50 は national（通常）を、
+// VPWP50 は充填の官署0 の subject を 81_09_01 で、どちらも全時刻を束の時刻へ移して更新する（束ごとに新しくなる）。
 const E14_EVENT_BASE = 20240417000000;
 const reportAt = (xml) => Date.parse(/<ReportDateTime>([^<]+)</.exec(xml)[1]);
 const jstAt = (ms) => `${new Date(ms + 9 * 3_600_000).toISOString().slice(0, 19)}+09:00`;
@@ -660,14 +661,16 @@ export function e14BundleFrames(k, atWallMs) {
   const text = (name) => fixtureText(name).toString("utf8");
   const eew = text(FIX.vxse45).replace(/<EventID>[^<]*<\/EventID>/, `<EventID>${E14_EVENT_BASE + k}</EventID>`)
     .replace(/<Serial>(\d+)<\/Serial>/, (_, serial) => `<Serial>${Number(serial) + 1}</Serial>`)
-    .replace(/<ReportDateTime>[^<]*<\/ReportDateTime>/, `<ReportDateTime>${jstAt(atWallMs)}</ReportDateTime>`);
+    .replace(/<ReportDateTime>[^<]*<\/ReportDateTime>/, `<ReportDateTime>${jstAt(atWallMs)}</ReportDateTime>`)
+    .replace(/<InfoType>[^<]*<\/InfoType>/, "<InfoType>訂正</InfoType>");
   const national = text(FIX.vpws50);
   const forecast = text(FIX.vpwp50Large).replace(/<EditorialOffice>[^<]*<\/EditorialOffice>/, "<EditorialOffice>官署0</EditorialOffice>");
   return [{ unit: "U-E", headType: "VXSE45", xml: eew }, { unit: "U-W", headType: "VPWS50", xml: shiftTimestamps(national, atWallMs - reportAt(national)) },
     { unit: "U-F", headType: "VPWP50", xml: shiftTimestamps(forecast, atWallMs - reportAt(forecast)) }];
 }
-// ③ 束の予定時刻に、直前に送った束の 3 unit の保存の成功がまだ確かめられなければ、その束は送らずに未確認に数える（待たない）。
-// 最後の束は intervalMs まで成功を待ってから止める。
+// ③ 束は予定時刻に送り、前の束の保存を待たない（起点は束の入力の generationRaised なので、前の束の残りは束の起点にならない）。最後の束は
+// intervalMs まで成功を待ってから止める。通知の backend は silent に固定する（訂正で束ごとに通知が出るが、この窓は保存の dirty→ack を測り、
+// 通知を判定しない、AC13(3)）。
 function e14Window(ctx, run) {
   const a = ctx.manifest.auxiliary.E14;
   const count = ctx.counts.e14 ?? a.minSamplesPerRun;
@@ -675,21 +678,19 @@ function e14Window(ctx, run) {
   return {
     id, expectedMin: Math.ceil((count * a.intervalMs) / 60_000) + 6,
     run: async (w) => {
-      const host = await openHost(w, ctx);
+      const host = await openHost(w, { ...ctx, notification: "silent" });
       const filled = await fill(host, w, ctx, "leaveRoomForP");
       w.progress.phase = "measure";
       w.progress.total = count;
-      // 索引は追記の分だけ更新する（束ごとに全行を作り直さない）。
+      // 索引は追記の分だけ更新する（待ちの判定ごとに全行を作り直さない）。
       const index = e14Index([]);
-      const saved = (bundle) => { host.refresh(); e14Index(host.lines, index); return e14Sendable(index, bundle); };
+      const saved = (bundle) => { host.refresh(); e14Index(host.lines, index); return e14Acks(index, bundle).every((ack) => ack != null); };
       const startHr = hrMs() + 1000;
       const bundles = [];
-      const skipped = [];
       for (let k = 0; k < count; k++) {
         const due = startHr + k * a.intervalMs;
         const frames = e14BundleFrames(k, host.wallMs(due)).map((f) => ({ unit: f.unit, frame: dataFrame(f.headType, f.xml) }));
         await waitUntil(host, due);
-        if (bundles.length > 0 && !saved(bundles.at(-1))) { skipped.push(k); continue; }
         const inputIds = {};
         for (const f of frames) inputIds[f.unit] = `input-${host.send(f.frame).seq}`;
         bundles.push({ k, inputIds });
@@ -699,10 +700,10 @@ function e14Window(ctx, run) {
       while (bundles.length > 0 && !saved(bundles.at(-1)) && hrMs() < until) { host.check(); await sleep(200); }
       await host.stop();
       const records = host.records();
-      const e14 = summarizeE14(records, { bundles, skipped });
+      const e14 = summarizeE14(records, { bundles });
       const reports = hostReports(records, id, w.dir, host.injector.placeOf);
       const o = outcome(ctx, e14.status ?? "N/A", reports, { fill: filled.record });
-      o.resultFiles = [sealAux(w.dir, `aux-${id}.json`, ctx.manifest, { window: id, status: o.status, intervalMs: a.intervalMs, e14, bundles, skipped,
+      o.resultFiles = [sealAux(w.dir, `aux-${id}.json`, ctx.manifest, { window: id, status: o.status, intervalMs: a.intervalMs, notification: "silent", e14, bundles,
         fill: filled.record, ...reports })];
       return o;
     },

@@ -58,13 +58,13 @@ export function summarizeReplayWindow(input: { probe: { gc: readonly { startMs: 
 
 // P3-C4-AC13(3): E14 の束の集計。
 type E14Bundle = { k: number; inputIds: Record<"U-E" | "U-W" | "U-F", string> };
-export function summarizeE14(records: readonly HostRecord[], options: { bundles: readonly E14Bundle[]; skipped?: readonly number[]; limitMs?: number }): {
+export function summarizeE14(records: readonly HostRecord[], options: { bundles: readonly E14Bundle[]; limitMs?: number }): {
   status: Status | null; bundles: number; linked: number; unconfirmed: Record<string, number>; limitMs: number; note: string;
   units: Record<string, { p50?: number; p95?: number; p99?: number; max?: number; overLimit: number }>;
 };
 export function ownerHeapReport(rows: readonly { place: string; heapUsedBytes: number; externalBytes: number }[]): Record<string, { rows: number; maxHeapUsedBytes: number; maxExternalBytes: number }>;
 export function e14Index(records: readonly HostRecord[], index?: unknown): unknown;
-export function e14Sendable(index: unknown, previous: E14Bundle | null): boolean;
+export function e14Acks(index: unknown, bundle: E14Bundle): readonly (object | null)[];
 type AdoptionPart = { reservations: number; started: number; notStarted: number; reservationToReplyMs: Quantiles | null; replyToAttemptMs: Quantiles | null;
   createdToReservationWallMs: Quantiles | null };
 export function notificationAdoptionReport(records: readonly HostRecord[]): { first: AdoptionPart; retries: AdoptionPart };
