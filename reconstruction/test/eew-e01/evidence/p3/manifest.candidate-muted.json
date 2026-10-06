@@ -1,9 +1,9 @@
 {
   "schemaVersion": "p3-e01-manifest-v1",
   "manifestId": "p3-c4-formal-20261007",
-  "manifestSha256": "639f9e7f6aff77f6c9153c89fa10ad5e3ced2d0a721cd1f142ba76addbd12674",
+  "manifestSha256": "61bb622256bab2041cdd698efa9137409966b3d81bb21ffad066313c0c80491a",
   "contractSha256": {
-    "P3-E01-REACCEPT-001": "88f0cc0a75eccc1d31797df5f12c97202875589f04ae6e4cc0e07fcdae569177",
+    "P3-E01-REACCEPT-001": "13c77beac0eeb35e24526f464c8ede125c73edbbc4716bbddff70592683590b4",
     "P3-EXECUTION-LIFECYCLE-001": "fd19aede1d35a4f7bd81aeeb8cf83c51219d0dba4b3842a8714dfc083e2494f1",
     "P3-EXECUTION-SPLIT-001": "f38d05a92fd26ffb6e14f42c15db163c114ee33d4a849391d864edd4772e30b1",
     "P3-DMDATA-CONNECT-001": "108d5e32a3570e0cb340a5d9dcb3a49a4ddd2f2dbc542a38b6ef0931a2135f8a",
@@ -404,7 +404,7 @@
       ],
       "minSamplesPerRun": null,
       "runCount": 1,
-      "condition": "保持上限ちょうど（nearCapacity cycleC）から C を 65 周期（initial-state の cycleC）。warm-up 5 周期、定常開始（6 周期目の最初の入力の T0）から 60 分を 10 分 × 6 窓。RSS・heapUsed は mem 行（10 秒）、FD は lsof -n -P -p を 60 秒ごと。閾値は置かず報告。--expose-gc 後の RSS と数時間の窓でも分類する（台帳61）",
+      "condition": "保持上限ちょうど（nearCapacity cycleC）から C を 65 周期（initial-state の cycleC）。warm-up 5 周期、定常開始（6 周期目の最初の入力の T0）から 60 分を 10 分 × 6 窓。RSS・heapUsed は mem 行（10 秒）、FD は lsof -n -P -p を 60 秒ごと。閾値は置かず報告。spec §9.9 の 3 式の判定はこの C の 65 周期の窓で行う。超過したときの原因の分類（--expose-gc 後の RSS・数時間の窓など、台帳61）は、条件（GC の時点・長さ・負荷）を決めた別の窓を新しい manifestId で統合担当が発注して行い、この manifest には含めない。超過の原因が未分類のあいだは E06 を Pass と呼ばない（AC06）",
       "sharesWindowWith": null,
       "intervalMs": null
     },

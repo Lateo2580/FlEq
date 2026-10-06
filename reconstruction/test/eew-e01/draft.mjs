@@ -311,7 +311,7 @@ export function buildP3Manifest({ id, chromeVersion, nodeVersion, osVersion, dev
     liveness: { pingEveryMs: 20000, maxFrameGapMs: 90000 },
     auxiliary: Object.fromEntries(Object.entries({
       E03: { ...auxiliary.E03, sharesWindowWith: null }, E05: { ...auxiliary.E05, sharesWindowWith: "E02（同じ窓の mem 行）" },
-      E06: { ...auxiliary.E06, condition: `${auxiliary.E06.condition}。--expose-gc 後の RSS と数時間の窓でも分類する（台帳61）`, sharesWindowWith: null },
+      E06: { ...auxiliary.E06, condition: `${auxiliary.E06.condition}。spec §9.9 の 3 式の判定はこの C の 65 周期の窓で行う。超過したときの原因の分類（--expose-gc 後の RSS・数時間の窓など、台帳61）は、条件（GC の時点・長さ・負荷）を決めた別の窓を新しい manifestId で統合担当が発注して行い、この manifest には含めない。超過の原因が未分類のあいだは E06 を Pass と呼ばない（AC06）`, sharesWindowWith: null },
       E07: { loads: ["N", "C"], minSamplesPerRun: null, runCount: 1, sharesWindowWith: null,
         condition: "P3-C3B-E07-WINDOW=A のとき: N と C の各 60 分。全遷移で宣言上限内、通常入力の最大待機年齢≤暫定 5 秒、入力停止から 10 秒以内に入力 mailbox の pending・in-flight が 0、C の warm-up 後の周期末 backlog の件数・byte が前周期末以下。窓の中で owner が停止・unresponsive なら Fail（工程 2 で窓を作る）" },
       E12: { ...auxiliary.E12, sharesWindowWith: null },
