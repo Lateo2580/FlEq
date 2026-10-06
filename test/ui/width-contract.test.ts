@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { readdirSync, readFileSync } from "node:fs";
 import * as path from "node:path";
-import * as ts from "typescript";
+import * as ts from "typescript6";
 import {
   createRenderBuffer,
   frameLine,
