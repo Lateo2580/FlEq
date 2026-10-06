@@ -575,9 +575,10 @@ async function measureRun(spec, ctx, label, dir, status) {
     // 背景・ロックでは描画と timer が間引かれ、製品の遅延と区別できないので、逸脱した試行は成立させない（記録は warm-up も残す）。
     const atSend = await stateAtSend;
     trial.focusAtSend = atSend?.focus ?? null;
-    const endWallMs = Date.now();
-    trial.conditionDeviation = page == null ? null : trialConditionDeviation(atSend, ctx.manifest.chrome.motion,
-      await page.evaluate(takeTrialWatch(endWallMs)), sentWallMs, Math.abs(endWallMs - performance.now() - sentSkewMs));
+    if (page != null) {
+      const end = await trialWatchAtEnd(page.evaluate, sentSkewMs);
+      trial.conditionDeviation = trialConditionDeviation(atSend, ctx.manifest.chrome.motion, end.events, sentWallMs, end.clockStepMs);
+    } else trial.conditionDeviation = null;
     if (!warm && trial.conditionDeviation != null) trial.establishment = { established: false, reason: "conditionDeviation" };
     else if (!warm) {
       // 成立の判定（establishTrial）。対象の観測（parse・encode・保存の記録は対象の処理が終わってから出る）を、実投入から 11 秒まで待つ。
@@ -697,6 +698,13 @@ const takeTrialWatch = (endWallMs) => `(() => {
   window.fleqTrialWatch = all.filter(([t]) => t > ${endWallMs});
   return all.filter(([t]) => t <= ${endWallMs});
 })()`;
+// 試行の終わりの壁時計と単調時計は、ページへの問い合わせを待つ前に続けて取る（投入の側と同じ形。待った後に取ると、CDP の応答の遅れを
+// 時計の跳びと取り違え、負荷のかかった試行だけを逸脱にする。工程2d の再確認 U1）。
+export async function trialWatchAtEnd(evaluate, sentSkewMs) {
+  const endWallMs = Date.now();
+  const clockStepMs = Math.abs(endWallMs - performance.now() - sentSkewMs);
+  return { events: await evaluate(takeTrialWatch(endWallMs)), clockStepMs };
+}
 export function trialConditionDeviation(state, motion, events = [], sentWallMs = -Infinity, clockStepMs = 0) {
   const during = events?.filter(([t]) => t >= sentWallMs - CLOCK_STEP_MS).map(([, type]) => type);
   const problems = [state?.visibility === "visible" ? null : `visibility ${state?.visibility}`,

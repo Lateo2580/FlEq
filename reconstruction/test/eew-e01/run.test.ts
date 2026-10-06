@@ -5,7 +5,7 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
 import { readSelfHashed } from "../../src/measurement/eew-e01/frozen";
-import { buildA10Result, distRebuildProblem, hashRaw, machineProblems, parseArgs, resumeProblems, signalStopper, trialConditionDeviation } from "./run.mjs";
+import { buildA10Result, distRebuildProblem, hashRaw, machineProblems, parseArgs, resumeProblems, signalStopper, trialConditionDeviation, trialWatchAtEnd } from "./run.mjs";
 import type { WindowRecord } from "./run.mjs";
 import { H } from "./fixtures";
 
@@ -88,6 +88,13 @@ describe("P3-C4 resume and foreground checks", () => {
     const ok = { visibility: "visible", focus: true, reducedMotion: false };
     expect(trialConditionDeviation(ok, "full", [], 1000, 20)).toBeNull();
     expect(trialConditionDeviation(ok, "full", [[950, "blur"]], 1000, 50)).toMatch(/wall clock stepped by 50ms/);
+  });
+
+  // 工程2d の再確認 U1 の残り: ページの応答を待つ時間は、時計の跳びに数えない。
+  it("a slow page reply is not counted as a wall clock step", async () => {
+    const sentSkewMs = Date.now() - performance.now();
+    const end = await trialWatchAtEnd(() => new Promise((resolve) => setTimeout(() => resolve([]), 60)), sentSkewMs);
+    expect(end.clockStepMs).toBeLessThan(20);
   });
 
   // 工程2d の再確認 U2: 親からの転送と端末の Ctrl-C で SIGINT が 2 回届いても、後始末は 1 回。
