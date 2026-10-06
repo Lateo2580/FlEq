@@ -8,9 +8,10 @@ import { createInterface } from "node:readline";
 import { dirname, join } from "node:path";
 
 import { ac15Intervals, checkpointWindows, compareRetention, fingerprintTable, judgeAc15, readLatestEnvelopes } from "./ac15.mjs";
+import { viewCopyReport } from "./analysis.mjs";
 import {
-  drainBounds, e14Acks, e14Index, hostMsOf, notificationAdoptionReport, ownerHeapReport, parseJsonl, publishCostReport, startFdSampler, summarizeE03, summarizeE05,
-  summarizeE06, summarizeE07, summarizeE14, summarizeE15, viewCopyReport,
+  drainBounds, e14Index, e14Sendable, hostMsOf, notificationAdoptionReport, ownerHeapReport, parseJsonl, publishCostReport, startFdSampler, summarizeE03, summarizeE05,
+  summarizeE06, summarizeE07, summarizeE14, summarizeE15,
 } from "./aux-measures.mjs";
 import { hrMs, sleep } from "./chrome.mjs";
 import { E12_CLASSES, FIX, ac15Frame, cycleCFrames, dataFrame, e03Frame, fixtureText, loadEvents, nearCapacityFrames, sendPaced, sha256Hex, shiftTimestamps, weatherFrame } from "./frames.mjs";
@@ -57,14 +58,15 @@ async function readProbeRows(path, fromMs) {
 // E15 と publish 費用は host を起動した全窓で出す（AC15 は E01・E02 の各窓に PublishCostReport を求める）。byteViolations は窓記録にも出す。
 const BYTE_NOTE = "byteViolations は encode・write・verify 以外の段で bytes が 0 でない件数。verify 段の bytes は読んだ bytes として e15.units の verifyBytes に別に数える（P3-C1-E15、A10 の P2-A10-E15-P3 の読み）";
 // hostDir は host の dir（host-obs.jsonl と diagnostics/ の親）。E15 の診断 log の帰属に、診断 dir の jsonl の改行の数と byte を渡す（P3-C4-AC05）。
-export function hostReports(records, window, hostDir = null) {
+// placeOf は投入側の入力 ID → 実行場所（view の複製の版の窓、P3-C4-T3-BINDING）。
+export function hostReports(records, window, hostDir = null, placeOf = () => null) {
   const e15 = summarizeE15(records, { diagnosticLog: hostDir == null ? null : diagnosticLog(hostDir) });
   // ownerHeap（deadlineDone の行）・通知の採用の待ち・view の複製（P3-C4-AC13(4)〜(6)）は全窓で参考量として出す。
   const heapRows = records.flatMap((r) => (r.t === "obs" && r.o.kind === "ownerHeap" && r.o.replyKind === "deadlineDone" ? [r.o] : []));
   return { e15, byteViolations: e15.byteViolations ?? null, byteViolationsNote: BYTE_NOTE, publishCost: publishCostReport(records, window),
-    ownerHeap: ownerHeapReport(heapRows), notificationAdoption: notificationAdoptionReport(records), viewCopy: viewCopyReport(records) };
+    ownerHeap: ownerHeapReport(heapRows), notificationAdoption: notificationAdoptionReport(records), viewCopy: viewCopyReport(records, placeOf) };
 }
-export const hostReportsOf = (obsPath, window) => hostReports(readJsonl(obsPath), window, dirname(obsPath));
+export const hostReportsOf = (obsPath, window, placeOf = () => null) => hostReports(readJsonl(obsPath), window, dirname(obsPath), placeOf);
 const diagnosticFiles = (hostDir) => {
   const dir = join(hostDir, "diagnostics");
   return existsSync(dir) ? readdirSync(dir).filter((f) => f.endsWith(".jsonl")).map((f) => join(dir, f)) : [];
@@ -104,7 +106,14 @@ async function openHost(w, ctx, options = {}) {
   return { ...h, refresh, check, lines: tail.lines, hostMs: (at = hrMs()) => at + oh,
     processed: () => { refresh(); return decodes; },
     sent: () => lastSeq,
-    send: (frame) => { check(); const r = h.injector.send(frame); if (r.seq == null) throw new Error("send failed: injector not connected"); lastSeq = r.seq; return r; },
+    // head.type は frame の先頭近くにある（frames.mjs の dataFrame）。投入側に渡して実行場所を記録させる（P3-C4-T3-BINDING）。
+    send: (frame) => {
+      check();
+      const r = h.injector.send(frame, /"head":\{"type":"([^"]+)"/.exec(frame.slice(0, 400))?.[1] ?? null);
+      if (r.seq == null) throw new Error("send failed: injector not connected");
+      lastSeq = r.seq;
+      return r;
+    },
     wallMs: (at = hrMs()) => ctx.wallOriginMs + Math.trunc(at + oh),
     wallSec: () => ctx.wallOriginMs + Math.floor((hrMs() + oh) / 1000) * 1000,
     snapshot: async () => (await fetch(`http://127.0.0.1:${h.displayPort}/snapshot`, { signal: AbortSignal.timeout(10_000) })).json(),
@@ -266,7 +275,7 @@ function e02Window(ctx, load, run) {
       // 6 run をまとめた判定は窓ループの後に e02Verdict が 1 回だけ作る。
       const health = summarizeHealthE02(ctx.manifest, samples).find((r) => r.load === load && r.run === run);
       const e05 = summarizeE05(records, load, { fromHrtimeNs: start.hrtimeNs, toHrtimeNs: end.hrtimeNs }, { memEveryMs: E05_MEM_EVERY_MS });
-      const reports = hostReports(records, id, w.dir);
+      const reports = hostReports(records, id, w.dir, host.injector.placeOf);
       // 窓の status は E02（この窓の主の判定）。E05 は statuses に別に持つ（まとめて潰さない）。予備は status と同じく未確認に倒し、判定は judgedStatuses へ。
       const statuses = { E02: health.status, E05: e05.status };
       const o = outcome(ctx, health.status, reports, { fill: filled?.record ?? null,
@@ -342,7 +351,7 @@ function e03Window(ctx, run) {
       // host の通し番号と投入側の seq が一致すること（全 frame が 1 本の接続で届いた）を T0 の件数で確かめる。ずれたら未確認。
       const t0 = records.filter((r) => r.t === "obs" && r.o.kind === "marker" && r.o.point === "T0").length;
       const aligned = t0 === host.sent();
-      const reports = hostReports(records, `e03-run${run}`, w.dir);
+      const reports = hostReports(records, `e03-run${run}`, w.dir, host.injector.placeOf);
       const o = outcome(ctx, aligned ? e03.status : "未確認", reports, {});
       o.resultFiles = [sealAux(w.dir, `aux-e03-run${run}.json`, ctx.manifest,
         { window: `e03-run${run}`, status: o.status, warmup, samples, e03, seqAlignment: { t0, sent: host.sent(), aligned }, ...reports })];
@@ -354,21 +363,22 @@ function e03Window(ctx, run) {
 // ── 補助窓 ownerHeap（P3-C4-OWNER-HEAP=B'）: E03 と同じ系列で、inputDone の返信ごとの owner の heap（大型処理の直後の値）だけを取る。
 // inputDone の heap は返信の前に取るので測りたい区間に入る。そのため E01・E03・衝突の窓では取らず、この窓だけ measureInputHeap を立てる。
 // 報告のみ（閾値なし）。
-function ownerHeapWindow(ctx) {
+function ownerHeapWindow(ctx, run) {
   const series = ctx.initialState.e03Series;
   const samples = ctx.counts.ownerHeap ?? ctx.manifest.auxiliary.ownerHeap.minSamplesPerRun;
   const warmup = Math.min(series.warmup, Math.ceil(samples / 5));
   return {
-    id: "ownerHeap", expectedMin: Math.ceil(((warmup + samples) * series.periodMs) / 60_000) + 2,
+    id: `ownerHeap-run${run}`, expectedMin: Math.ceil(((warmup + samples) * series.periodMs) / 60_000) + 2,
     run: async (w) => {
-      const { targets, records } = await e03Series(w, ctx, { warmup, samples, measureInputHeap: true });
+      const { host, targets, records } = await e03Series(w, ctx, { warmup, samples, measureInputHeap: true });
       const wanted = new Set(targets);
       const rows = records.flatMap((r) => (r.t === "obs" && r.o.kind === "ownerHeap" && r.o.replyKind === "inputDone" && wanted.has(r.o.inputId) ? [r.o] : []));
       const heap = ownerHeapReport(rows);
-      const status = rows.length === targets.length ? "N/A" : "未確認";
-      const reports = hostReports(records, "ownerHeap", w.dir);
+      // 標本 0 の窓は何も確かめていないので未確認。
+      const status = targets.length > 0 && rows.length === targets.length ? "N/A" : "未確認";
+      const reports = hostReports(records, `ownerHeap-run${run}`, w.dir, host.injector.placeOf);
       const o = outcome(ctx, status, reports, {});
-      o.resultFiles = [sealAux(w.dir, "aux-ownerHeap.json", ctx.manifest, { window: "ownerHeap", status: o.status, warmup, samples, inputDoneRows: rows.length,
+      o.resultFiles = [sealAux(w.dir, `aux-ownerHeap-run${run}.json`, ctx.manifest, { window: `ownerHeap-run${run}`, status: o.status, warmup, samples, inputDoneRows: rows.length,
         inputDoneHeap: heap, ...reports })];
       return o;
     },
@@ -454,7 +464,7 @@ async function ac15Measure(w, ctx, mode, { s, warmup, samples }) {
   const publishObserved = [];
   for (const x of intervals.filter((i) => i.unit === "metadata")) { publishObserved.push(x.publishCount); x.publishCount = 2; }
   const judged = judgeAc15(await readProbeRows(probePath, intervals[0]?.startMs ?? 0), intervals, table, { checkpointWindows: checkpointWindows(records), unitOfInput, minInputsPerUnit: samples });
-  const reports = hostReports(records, `ac15-${mode}`, dir);
+  const reports = hostReports(records, `ac15-${mode}`, dir, host.injector.placeOf);
   const assumedMinus = judged.scenarios.metadata?.snapshotCallsMinusPublish ?? null;
   const observedTotal = publishObserved.reduce((a, b) => a + b, 0);
   return { judged, reports, body: { mode, status: judged.status, fill: filled.record, fingerprintTable: table, judged,
@@ -558,7 +568,7 @@ function e06Window(ctx) {
           if (d.reason === "eewCapacityEvicted" && k >= 0 && k < cycles) evicted[k] += d.count ?? 1;
         }
       }
-      const reports = hostReports(records, "e06", w.dir);
+      const reports = hostReports(records, "e06", w.dir, host.injector.placeOf);
       const o = outcome(ctx, e06.complete ? "N/A" : "未確認", reports, { fill: filled.record, eewCapacityEvictedPerCycle: evicted });
       o.resultFiles = [sealAux(w.dir, "aux-e06.json", ctx.manifest, { window: "e06", status: o.status, cycles, steadyCycle, fill: filled.record,
         e06, perCycle: { eewCapacityEvicted: evicted, expected: c.expectedPerCycle }, fdSamples: fd.samples.length, ...reports })];
@@ -628,7 +638,7 @@ function e07Window(ctx, load) {
       const diagnostics = diagnosticFiles(w.dir).flatMap((f) => readJsonl(f));
       const e07 = summarizeE07(records, { pingKinds: host.injector.pingKinds, warmupCycles: load === "C" ? c.warmupCycles : 0, lastInputId,
         diagnostics, fromMs, fromWallMs });
-      const reports = hostReports(records, id, w.dir);
+      const reports = hostReports(records, id, w.dir, host.injector.placeOf);
       // 送った ping の行が揃わないまま止めた窓は、ping に依らない Fail 以外を未確認にする。
       const status = pingsUnreceived > 0 && e07.status !== "Fail" ? "未確認" : e07.status;
       const o = outcome(ctx, status, reports, { fill: filled?.record ?? null, pingsUnreceived });
@@ -658,17 +668,20 @@ export function e14BundleFrames(k, atWallMs) {
 }
 // ③ 束の予定時刻に、直前に送った束の 3 unit の保存の成功がまだ確かめられなければ、その束は送らずに未確認に数える（待たない）。
 // 最後の束は intervalMs まで成功を待ってから止める。
-function e14Window(ctx) {
+function e14Window(ctx, run) {
   const a = ctx.manifest.auxiliary.E14;
   const count = ctx.counts.e14 ?? a.minSamplesPerRun;
+  const id = `e14-run${run}`;
   return {
-    id: "e14-run1", expectedMin: Math.ceil((count * a.intervalMs) / 60_000) + 6,
+    id, expectedMin: Math.ceil((count * a.intervalMs) / 60_000) + 6,
     run: async (w) => {
       const host = await openHost(w, ctx);
       const filled = await fill(host, w, ctx, "leaveRoomForP");
       w.progress.phase = "measure";
       w.progress.total = count;
-      const saved = (bundle) => { host.refresh(); return e14Acks(e14Index(host.lines), bundle).every((ack) => ack != null); };
+      // 索引は追記の分だけ更新する（束ごとに全行を作り直さない）。
+      const index = e14Index([]);
+      const saved = (bundle) => { host.refresh(); e14Index(host.lines, index); return e14Sendable(index, bundle); };
       const startHr = hrMs() + 1000;
       const bundles = [];
       const skipped = [];
@@ -687,9 +700,9 @@ function e14Window(ctx) {
       await host.stop();
       const records = host.records();
       const e14 = summarizeE14(records, { bundles, skipped });
-      const reports = hostReports(records, "e14-run1", w.dir);
+      const reports = hostReports(records, id, w.dir, host.injector.placeOf);
       const o = outcome(ctx, e14.status ?? "N/A", reports, { fill: filled.record });
-      o.resultFiles = [sealAux(w.dir, "aux-e14-run1.json", ctx.manifest, { window: "e14-run1", status: o.status, intervalMs: a.intervalMs, e14, bundles, skipped,
+      o.resultFiles = [sealAux(w.dir, `aux-${id}.json`, ctx.manifest, { window: id, status: o.status, intervalMs: a.intervalMs, e14, bundles, skipped,
         fill: filled.record, ...reports })];
       return o;
     },
@@ -706,7 +719,7 @@ export function auxWindows(ctx) {
     ...runs(ctx.manifest.auxiliary.E12.runCount).flatMap((run) => Object.keys(E12_CLASSES).map((cls) => e12Window(ctx, cls, run))),
     e06Window(ctx),
     ...(ctx.manifest.auxiliary.E07?.loads ?? []).map((load) => e07Window(ctx, load)),
-    ...(ctx.manifest.auxiliary.E14 == null ? [] : [e14Window(ctx)]),
-    ...(ctx.manifest.auxiliary.ownerHeap == null ? [] : [ownerHeapWindow(ctx)]),
+    ...(ctx.manifest.auxiliary.E14 == null ? [] : runs(ctx.manifest.auxiliary.E14.runCount).map((run) => e14Window(ctx, run))),
+    ...(ctx.manifest.auxiliary.ownerHeap == null ? [] : runs(ctx.manifest.auxiliary.ownerHeap.runCount).map((run) => ownerHeapWindow(ctx, run))),
   ];
 }

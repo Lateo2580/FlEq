@@ -489,10 +489,7 @@ async function measureRun(spec, ctx, label, dir, status) {
       trigger = { inputId: t.seq == null ? null : `input-${t.seq}`, injectedHrMs: t.injectedHrMs };
       // 母集団 2 の「開始」は parse 開始（P3-C4-PARSE-MARK）で、worker の展開（TextDecoder まで）の後なので、引き金の実送信から直近 10 試行の
       // 「parse 開始 − 引き金の実送信」の中央値＋targetOffsetMs の時刻に送る（AC13(7)）。予測値が無い間（最初の 10 試行）は実送信＋targetOffsetMs。
-      if (population === "maxVpws50ParseStarted") {
-        trigger.predictedParseDelayMs = predicted;
-        await spinUntil(t.injectedHrMs + (predicted ?? 0) + spec.targetOffsetMs);
-      }
+      if (population === "maxVpws50ParseStarted") await spinUntil(calibratedSendAt(trigger, predicted, spec.targetOffsetMs));
       sent = injector.send(frame, "VXSE43");
     } else {
       // 次の tick の checkpoint encode 開始を予測し、その 1ms 後に EEW を投入する。引き金は狙う tick の lead（manifest の triggerLeadMs）前に送る。
@@ -617,6 +614,8 @@ async function measureRun(spec, ctx, label, dir, status) {
     nodeVersion: hostIndex.meta?.nodeVersion ?? null, hostExit: status.hostExit, hostError: status.hostError, teardownErrors, startedWallMs: started.wallMs,
     // durationMs は試行ループの終わりまで、totalMs は終了処理と trace 解析・組み立てを含む run 全体（予備から stopCondition を積むときはこちら）。
     durationMs: finishedHr - started.hrMs, totalMs: hrMs() - started.hrMs, stopped, attempts: trials.length, established, liveness, others, trials,
+    // AC13(7): warm-up の後で予測値が無かった（parse 開始の分かった試行が 10 に満たなかった）母集団 2 の試行の数。送り方は実送信＋targetOffsetMs。
+    parsePredictionMissing: population === "maxVpws50ParseStarted" ? trials.filter((t) => t.phase === "formal" && t.trigger?.predictedParseDelayMs == null).length : null,
     blocks: blocks.map(({ startedHrMs, endedHrMs, ...b }) => ({ ...b, durationMs: endedHrMs - startedHrMs })), probes: probes.map((p) => ({ probeId: p.probeId, atHrMs: p.atHrMs, attempts: p.attempts })),
     correspondences: assembled.correspondences, details: assembled.details,
     backendTrials: backend ? backendIntervals(trials, hostIndex) : null,
@@ -624,11 +623,18 @@ async function measureRun(spec, ctx, label, dir, status) {
     publishSerialization: hostIndex.publishes.length,
     checkpoints: hostIndex.checkpoints.map((c) => ({ unit: c.unit, stage: c.stage, attemptId: c.attemptId, startMs: c.startedMonotonicMs, endMs: c.endedMonotonicMs, bytes: c.bytes, outcome: c.outcome })) };
   writeFileSync(join(dir, "run-record.json"), JSON.stringify(record));
-  return { spec, label, dir, record, samples: assembled.samples, injections: assembled.injections, host: hostIndex, stopped };
+  return { spec, label, dir, record, samples: assembled.samples, injections: assembled.injections, host: hostIndex, stopped, placeOf: injector.placeOf };
 }
 
-// AC13(7): 直近 count 試行の「parse 開始 − 引き金の実送信（host の時計へ直した値）」の中央値。parse 開始の分かった試行が count に満たなければ
-// null（その間は引き金の実送信＋targetOffsetMs で送る）。見るのは末尾の 2×count 試行まで（全試行を毎回走査しない）。
+// AC13(7): 末尾の 2×count 試行（既定 20）のうち、parse 開始の分かった新しい方から count 試行（既定 10）の「parse 開始 − 引き金の実送信
+// （host の時計へ直した値）」の中央値。直前の試行の parse 開始は観測の書出しを待つ間まだ分からないことがあり、その分を 1 つ前の試行で補う。
+// 分かった試行が count に満たなければ null（その間は引き金の実送信＋targetOffsetMs で送り、warm-up の後の件数は parsePredictionMissing に残す）。
+// AC13(7): 母集団 2 の EEW を送る時刻（投入側の時計）。予測値は試行の記録（trigger.predictedParseDelayMs）に残す。
+export function calibratedSendAt(trigger, predicted, targetOffsetMs) {
+  trigger.predictedParseDelayMs = predicted;
+  return trigger.injectedHrMs + (predicted ?? 0) + targetOffsetMs;
+}
+
 export function predictParseDelay(trials, parseStarts, ohLo, count = 10) {
   if (ohLo == null) return null;
   const delays = [];
@@ -720,7 +726,7 @@ function preliminaryRun(result, manifest) {
     warmup: spec.warmup, count: spec.count, attempts: record.attempts, established: record.established, establishmentRate: rate,
     notEstablished: countBy(formal.filter((t) => t.establishment?.established === false), (t) => t.establishment.reason), stopped: record.stopped,
     liveness: record.liveness, durationMs: record.durationMs, totalMs: record.totalMs, msPerAttempt: round(record.durationMs / Math.max(1, record.attempts)),
-    completedBy: countBy(record.trials, (t) => t.completedBy ?? "none"), hostExit: record.hostExit };
+    completedBy: countBy(record.trials, (t) => t.completedBy ?? "none"), hostExit: record.hostExit, parsePredictionMissing: record.parsePredictionMissing };
   if (record.backendOnly) {
     const rows = record.backendTrials.filter((t) => t.index != null && t.index >= spec.warmup);
     const of = (k) => dist(rows.map((t) => t[k]).filter((v) => v != null));
@@ -791,7 +797,7 @@ function e01Window(spec, ctx) {
       const file = join(w.dir, `result-${run.scope}-${run.population}-run${run.run}.json`);
       writeSealed(file, run, "resultSha256");
       // AC15: publish の回数・配送 JSON byte・直列化時間を E01 の各窓でも PublishCostReport として報告する（E15 も同梱）。
-      const reports = hostReportsOf(join(w.dir, "host-obs.jsonl"), id);
+      const reports = hostReportsOf(join(w.dir, "host-obs.jsonl"), id, result.placeOf);
       return { status: run.status, byteViolations: reports.byteViolations, byteViolationsNote: reports.byteViolationsNote,
         resultFiles: [file, sealAux(w.dir, `aux-${id}.json`, ctx.manifest, { window: id, status: run.status, ...reports })] };
     },
@@ -1144,7 +1150,7 @@ async function main(argv) {
     manifestId: manifest.manifestId, manifestSha256: manifest.manifestSha256, startedAt, finishedAt: new Date().toISOString(), commands, plan, notification, backendOnly,
     deadlineAlternative: args.has("deadline-alternative"),
     notificationProbeNote: probeNote, environment: { node: results[0]?.record.nodeVersion, chrome: manifest.chrome.version, os: manifest.osVersion, device: manifest.device },
-    rawEvidenceDir: dirRel, runs: results.map((r) => ({ ...preliminaryRun(r, manifest), host: hostReportsOf(join(r.dir, "host-obs.jsonl"), r.label),
+    rawEvidenceDir: dirRel, runs: results.map((r) => ({ ...preliminaryRun(r, manifest), host: hostReportsOf(join(r.dir, "host-obs.jsonl"), r.label, r.placeOf),
       traceBytes: r.record.blocks.reduce((a, b) => a + b.bytes, 0), traceBlocks: r.record.blocks.length, dataLoss: r.record.blocks.some((b) => b.dataLoss), channels: r.record.channels })),
   };
   writeFileSync(join(evidence, "e01-preliminary-result.json"), `${JSON.stringify(summary, null, 2)}\n`);

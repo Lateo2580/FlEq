@@ -225,12 +225,14 @@ function verifyO09Subset(subset: P3E01Manifest["o09Subset"], sequencesText: stri
   const sequences = isRecord(parsed) && Array.isArray(parsed["sequences"]) ? parsed["sequences"] : [];
   const o09 = sequences.find((q: unknown) => isRecord(q) && q["sequenceId"] === "O09");
   const positions = new Set(isRecord(o09) && Array.isArray(o09["steps"]) ? o09["steps"].flatMap((step: unknown) => isRecord(step) && typeof step["position"] === "number" ? [step["position"]] : []) : []);
-  need(subset.sequenceId === "O09" && subset.positions.every((position) => positions.has(position)), "o09Subset positions must be steps of O09");
+  need(subset.sequenceId === "O09" && subset.positions.length > 0 && subset.positions.every((position) => positions.has(position)),
+    "o09Subset positions must be steps of O09 (at least one; the draft's empty list is not frozen)");
 }
 
 // P3 manifest の読み戻しの境界（AGENTS.md）: 形（型・必須の有無・key の集合・固定値）を確かめた値を項目ごとに組み立てる。全体を as で
-// 言い換えると、型に項目を足したときに確かめの足し忘れをコンパイラが止められない。意味の検査（hash・継承・母集団ごとの規則）は
-// verifyFrozenP3Manifest の need が行う。固定値の拒否の理由は verifyCommon と同じ文字列にする。
+// 言い換えると、型に項目を足したときに確かめの足し忘れをコンパイラが止められない。どの object も許す key の集合ちょうど、組（tuple）は
+// 長さちょうどでなければ拒否する（余分な値を黙って捨てると、凍結した内容と違うものを後の検査に渡す）。意味の検査（hash・継承・
+// 母集団ごとの規則）は verifyFrozenP3Manifest の need が行う。固定値の拒否の理由は verifyCommon と同じ文字列にする。
 type Json = Record<string, unknown>;
 function obj(v: unknown, what: string): Json {
   need(isRecord(v), `${what} must be an object`);
@@ -252,8 +254,8 @@ function count(v: unknown, what: string): number {
 }
 const countOrNull = (v: unknown, what: string): number | null => (v === null ? null : count(v, what));
 const textOrNull = (v: unknown, what: string): string | null => (v === null ? null : text(v, what));
-function list<T>(v: unknown, read: (x: unknown, what: string) => T, what: string): readonly T[] {
-  need(Array.isArray(v), `${what} must be an array`);
+function list<T>(v: unknown, read: (x: unknown, what: string) => T, what: string, length: number | null = null): readonly T[] {
+  need(Array.isArray(v) && (length == null || v.length === length), `${what} must be an array${length == null ? "" : ` of length ${length}`}`);
   return v.map((x, i) => read(x, `${what}[${i}]`));
 }
 function oneOf<T extends string>(v: unknown, values: readonly T[], what: string): T {
@@ -271,29 +273,30 @@ function textRecord(v: unknown, what: string): Readonly<Record<string, string>> 
 const LOADS = ["N", "P", "C"] as const;
 const load = (v: unknown, what: string) => oneOf(v, LOADS, what);
 function readLoad(v: unknown, what: string): EewMeasurementManifest["loads"]["N"] {
-  const o = obj(v, what);
+  const o = exactKeys(v, ["id", "fixtureRefs", "ordering", "offsetsMs", "durationMs", "sha256"], what);
   return { id: load(o["id"], `${what}.id`), fixtureRefs: list(o["fixtureRefs"], text, `${what}.fixtureRefs`), ordering: list(o["ordering"], text, `${what}.ordering`),
     offsetsMs: list(o["offsetsMs"], count, `${what}.offsetsMs`), durationMs: count(o["durationMs"], `${what}.durationMs`), sha256: text(o["sha256"], `${what}.sha256`) };
 }
 function readForecast(v: unknown, what: string): NonNullable<P3EewPopulationCondition["forecast"]> {
-  const o = obj(v, what);
-  const allowed = obj(o["allowed"], `${what}.allowed`);
+  const o = exactKeys(v, ["subjects", "encodedBytes", "saveCondition", "deadlineCondition", "allowed"], what);
+  const allowed = exactKeys(o["allowed"], ["maxSubjects", "maxEncodedBytes"], `${what}.allowed`);
   return { subjects: count(o["subjects"], `${what}.subjects`), encodedBytes: count(o["encodedBytes"], `${what}.encodedBytes`),
     saveCondition: text(o["saveCondition"], `${what}.saveCondition`), deadlineCondition: text(o["deadlineCondition"], `${what}.deadlineCondition`),
     allowed: { maxSubjects: count(allowed["maxSubjects"], `${what}.allowed.maxSubjects`), maxEncodedBytes: count(allowed["maxEncodedBytes"], `${what}.allowed.maxEncodedBytes`) } };
 }
 // 種類の形だけを確かめる。母集団ごとの種類と固定値（1ms・0〜5ms・span の置き場所）は呼び出し側の need（理由 "establishment"）。
 function readEstablishment(v: unknown, what: string): P3EewEstablishment {
-  const o = obj(v, `${what}.establishment`);
-  const kind = oneOf(o["kind"], ["none", "startOffset", "sentBeforeLargeFrameIngested"], `${what}.establishment.kind`);
+  const kind = oneOf(obj(v, `${what}.establishment`)["kind"], ["none", "startOffset", "sentBeforeLargeFrameIngested"], `${what}.establishment.kind`);
+  // 種類ごとに許す項目だけ（span などを別の種類に付けたものは拒否する）。
+  const o = exactKeys(v, kind === "startOffset" ? ["kind", "targetOffsetMs", "acceptedOffsetRangeMs", "span"] : ["kind"], `${what} establishment`);
   if (kind !== "startOffset") return { kind };
-  const range = list(o["acceptedOffsetRangeMs"], count, `${what}.establishment.acceptedOffsetRangeMs`);
+  const range = list(o["acceptedOffsetRangeMs"], count, `${what} establishment acceptedOffsetRangeMs`, 2);
   return { kind, targetOffsetMs: exactly(o["targetOffsetMs"], 1, `${what} establishment`), acceptedOffsetRangeMs: [exactly(range[0], 0, `${what} establishment`),
     exactly(range[1], 5, `${what} establishment`)], span: oneOf(o["span"], ["population", "encodeThroughWrite"], `${what}.establishment.span`) };
 }
 function readCondition(v: unknown, what: string): P3EewPopulationCondition {
-  const o = obj(v, what);
-  const stop = obj(o["stopCondition"], `${what}.stopCondition`);
+  const o = exactKeys(v, ["scope", "load", "periodMs", "trigger", "stateRef", "stateSha256", "establishment", "origin", "forecast", "stopCondition", "triggerLeadMs"], what);
+  const stop = exactKeys(o["stopCondition"], ["maxAttempts", "maxDurationMs"], `${what}.stopCondition`);
   return { scope: oneOf(o["scope"], ["formal", "reference"], `${what}.scope`), load: load(o["load"], `${what}.load`), periodMs: count(o["periodMs"], `${what}.periodMs`),
     trigger: text(o["trigger"], `${what}.trigger`), stateRef: text(o["stateRef"], `${what}.stateRef`), stateSha256: text(o["stateSha256"], `${what}.stateSha256`),
     establishment: readEstablishment(o["establishment"], what), origin: oneOf(o["origin"], ["T0", "injectorSend"], `${what}.origin`),
@@ -302,30 +305,33 @@ function readCondition(v: unknown, what: string): P3EewPopulationCondition {
     triggerLeadMs: countOrNull(o["triggerLeadMs"], `${what}.triggerLeadMs`) };
 }
 function readAuxiliary(v: unknown, what: string): P3E01Manifest["auxiliary"]["E03"] {
-  const o = obj(v, what);
+  const o = exactKeys(v, ["loads", "minSamplesPerRun", "runCount", "condition", "sharesWindowWith", "intervalMs"], what);
   return { loads: list(o["loads"], load, `${what}.loads`), minSamplesPerRun: countOrNull(o["minSamplesPerRun"], `${what}.minSamplesPerRun`),
     runCount: countOrNull(o["runCount"], `${what}.runCount`), condition: text(o["condition"], `${what}.condition`),
     sharesWindowWith: textOrNull(o["sharesWindowWith"], `${what}.sharesWindowWith`), intervalMs: countOrNull(o["intervalMs"], `${what}.intervalMs`) };
 }
+const MANIFEST_KEYS = ["schemaVersion", "manifestId", "manifestSha256", "contractSha256", "trialSetupRef", "trialSetupSha256", "smokeConditionsSha256",
+  "smokeConditionDifferences", "measuredSseClients", "notificationProbe", "loads", "warmupPerRun", "samplesPerRun", "runCount", "missingAfterMs",
+  "callbackDeadlineAfterInjectionMs", "quantile", "clockProbeEveryMs", "maxClockIntervalWidthMs", "health", "chrome", "nodeVersion", "osVersion", "device",
+  "geometrySha256", "fixtureSha256", "inheritsManifestId", "populations", "liveness", "auxiliary", "machines", "judgmentPlaces", "o09Subset"] as const;
 function readP3Manifest(v: unknown): P3E01Manifest {
-  const m = obj(v, "manifest");
-  const health = obj(m["health"], "manifest.health");
-  const chrome = obj(m["chrome"], "manifest.chrome");
-  const viewport = list(chrome["viewportCssPx"], count, "manifest.chrome.viewportCssPx");
-  need(viewport.length === 2, "manifest.chrome.viewportCssPx must be [width, height]");
+  const m = exactKeys(v, MANIFEST_KEYS, "manifest");
+  const health = exactKeys(m["health"], ["loads", "requestEveryMs", "requestTimeoutMs", "minSamplesPerRun", "runCount"], "manifest.health");
+  const chrome = exactKeys(m["chrome"], ["version", "foregroundTab", "viewportCssPx", "dpr", "motion"], "manifest.chrome");
+  const viewport = list(chrome["viewportCssPx"], count, "manifest.chrome.viewportCssPx", 2);
   const probe = exactKeys(m["notificationProbe"], ["desktop", "sound"], "manifest.notificationProbe");
   const loads = exactKeys(m["loads"], LOADS, "manifest.loads");
   const populations = exactKeys(m["populations"], P3_POPULATIONS, "manifest.populations");
-  const liveness = obj(m["liveness"], "manifest.liveness");
+  const liveness = exactKeys(m["liveness"], ["pingEveryMs", "maxFrameGapMs"], "liveness");
   const auxiliary = exactKeys(m["auxiliary"], ["E03", "E05", "E06", "E07", "E12", "E14", "E15", "ownerHeap"], "manifest.auxiliary");
   const machines = exactKeys(m["machines"], ["formal", "gate", "piBackend"], "manifest.machines");
   const places = exactKeys(m["judgmentPlaces"], ["E01", "E02", "E03", "E05", "E06", "E07", "E14", "E15"], "manifest.judgmentPlaces");
-  const o09 = obj(m["o09Subset"], "manifest.o09Subset");
+  const o09 = exactKeys(m["o09Subset"], ["sequenceId", "sequencesSha256", "positions"], "o09Subset");
   const population = (key: P3EewPopulation) => readCondition(populations[key], `population ${key}`);
   const aux = (key: keyof P3E01Manifest["auxiliary"]) => readAuxiliary(auxiliary[key], `auxiliary ${key}`);
   const place = (key: keyof P3E01Manifest["judgmentPlaces"]) => text(places[key], `judgmentPlaces.${key}`);
   const probed = (key: "desktop" | "sound") => oneOf(probe[key], ["idle", "unavailable"], `notificationProbe.${key}`);
-  const healthLoads = list(health["loads"], text, "manifest.health.loads");
+  const healthLoads = list(health["loads"], text, "health conditions: loads", 2);
   return {
     schemaVersion: exactly(m["schemaVersion"], "p3-e01-manifest-v1", "manifest schemaVersion"),
     manifestId: text(m["manifestId"], "manifestId"), manifestSha256: text(m["manifestSha256"], "manifestSha256"),
@@ -372,14 +378,17 @@ function verifyFrozenP3Manifest(input: Readonly<{
   // 継承元: A10 の凍結 manifest と、その trialSetup が指す initial-state の保存 text。
   inherited: Readonly<{ manifestText: string; initialStateText: string }>;
 }>): Readonly<{ manifest: P3E01Manifest; trialSetup: EewTrialSetup }> {
-  const m = readP3Manifest(readSelfHashed(input.manifestText, "manifestSha256"));
+  const raw = readSelfHashed(input.manifestText, "manifestSha256");
+  const m = readP3Manifest(raw);
   verifyCommon(m);
   // 継承元の A10 manifest は照合に使う項目だけを読む（loads は保存の形のまま文字列で比べる）。
   const a10 = obj(readSelfHashed(input.inherited.manifestText, "manifestSha256"), "inherited manifest");
   const a10Id = text(a10["manifestId"], "inherited manifestId");
   const a10Loads = obj(a10["loads"], "inherited loads");
   need(a10Id === m.inheritsManifestId, "inheritsManifestId does not name the inherited manifest");
-  for (const id of ["N", "P", "C"] as const) need(JSON.stringify(m.loads[id]) === JSON.stringify(a10Loads[id]), `load ${id} differs from ${a10Id}`);
+  // 負荷は保存された形のまま（組み立て直す前の値で）継承元と比べる。
+  const rawLoads = obj(obj(raw, "manifest")["loads"], "manifest.loads");
+  for (const id of ["N", "P", "C"] as const) need(JSON.stringify(rawLoads[id]) === JSON.stringify(a10Loads[id]), `load ${id} differs from ${a10Id}`);
   need(m.trialSetupRef === a10["trialSetupRef"] && m.trialSetupSha256 === a10["trialSetupSha256"], `trialSetup differs from ${a10Id}`);
   need(Object.entries(textRecord(a10["fixtureSha256"], "inherited fixtureSha256")).every(([id, h]) => m.fixtureSha256[id] === h), `fixtureSha256 differs from ${a10Id}`);
   const t = verifyTrialSetup(m, input.trialSetupText);
@@ -413,8 +422,12 @@ function verifyFrozenP3Manifest(input: Readonly<{
   for (const key of ["E03", "E05", "E06", "E07", "E12", "E14", "E15", "ownerHeap"] as const) {
     const a = m.auxiliary[key];
     need(a != null && nonEmpty(a.condition) && (a.sharesWindowWith == null || !/e01/i.test(a.sharesWindowWith)), `auxiliary ${key} (E01 windows are never shared)`);
-    need(key === "E14" ? typeof a.intervalMs === "number" && a.intervalMs > 0 && (a.minSamplesPerRun ?? 0) > 0 && (a.minSamplesPerRun ?? 0) <= 512
-      : a.intervalMs === null, `auxiliary ${key} intervalMs`);
+    need(key === "E14" ? typeof a.intervalMs === "number" && a.intervalMs > 0 : a.intervalMs === null, `auxiliary ${key} intervalMs`);
+    // 件数・run 数は正の整数（null は条件に件数が無い窓）。E14 と ownerHeap は件数と run 数が要り、E14 の束は充填の EventID 512 件まで。
+    const positive = (n: number | null) => n === null || (Number.isInteger(n) && n >= 1);
+    need(positive(a.minSamplesPerRun) && positive(a.runCount), `auxiliary ${key} counts must be positive integers`);
+    if (key === "E14" || key === "ownerHeap") need(a.minSamplesPerRun !== null && a.runCount !== null && (key !== "E14" || a.minSamplesPerRun <= 512),
+      `auxiliary ${key} needs minSamplesPerRun and runCount${key === "E14" ? " (at most 512 bundles)" : ""}`);
   }
   verifyO09Subset(m.o09Subset, input.sequencesText);
   need((["formal", "gate", "piBackend"] as const).every((k) => nonEmpty(m.machines[k])), "machines");

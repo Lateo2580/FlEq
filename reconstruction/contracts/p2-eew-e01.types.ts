@@ -122,7 +122,7 @@ export type P2HostObservation =
   // P3-C4-OWNER-HEAP=B': heap を持つ owner の返信を host が受けた時点で 1 行。inputId は inputDone のときだけ。
   | Readonly<{ kind: "ownerHeap"; runId: string; place: ExecutionPlace; replyKind: "deadlineDone" | "inputDone"; inputId: string | null;
       monotonicMs: number } & OwnerHeap>
-  // spec:956 の初回 1 秒の内訳（P3-C4-AC13(5)）: 予約の返信ごとに 1 行。予約の送出→返信の受信→adapter 呼出しの開始（採用されず始めなければ
+  // 通知の初回試行が採用の返信を待つ時間（P3-C4-AC13(5)、Q-C3A-C4-MEASURES）: 予約の返信ごとに 1 行。予約の送出→返信の受信→adapter 呼出しの開始（採用されず始めなければ
   // null）。intent 生成からの待ちは createdAtWallMs と reservationSentWallMs の差。E01 の合否に使わない。
   | Readonly<{ kind: "notificationAdoption"; runId: string; channel: NotificationChannel; intentId: string; unit: UnitId; attempts: number;
       createdAtWallMs: number; reservationSentWallMs: number; reservationSentMonotonicMs: number; replyReceivedMonotonicMs: number;

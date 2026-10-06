@@ -20,12 +20,13 @@ import { RuntimeCompositionRoot, linkedUnitTable } from "../../src/runtime/compo
 const hook = vi.hoisted(() => ({ probeGate: null as Promise<void> | null }));
 // AC11(f): the real owner threads (TEST-PATH (3)). Only the stall test holds the owners' replies away from the host;
 // by default every reply passes straight through.
-const owners = vi.hoisted(() => ({ hold: false, held: [] as (() => void)[], live: new Set<{ terminate(): Promise<number> }>() }));
+const owners = vi.hoisted(() => ({ hold: false, held: [] as (() => void)[], live: new Set<{ terminate(): Promise<number> }>(), workerData: [] as unknown[] }));
 vi.mock("node:worker_threads", async (importOriginal) => {
   const actual = await importOriginal<typeof import("node:worker_threads")>();
   class Worker extends actual.Worker {
     constructor(...args: ConstructorParameters<typeof actual.Worker>) {
       super(...args);
+      owners.workerData.push(args[1]?.workerData);
       owners.live.add(this);
       this.once("exit", () => { owners.live.delete(this); });
     }
@@ -989,5 +990,15 @@ describe("P3-C4-T11 contractBoundary / AC13(4): the ownerHeap rows (P3-C4-OWNER-
         .toEqual(measureInputHeap ? [["urgent", "input-1"]] : []);
       await host.stop();
     }
+  });
+
+  it("without the mark measureInputHeap is ignored: no owner gets inputHeap", async () => {
+    const server = await localServer();
+    owners.workerData.length = 0;
+    const host = await startP2Host({ wsUrl: server.url, ...await directories(), displayPort: 0, clock, measureInputHeap: true, observe: null });
+    cleanups.push(() => host.stop().then(() => {}, () => {}));
+    expect(owners.workerData.map((data) => JSON.stringify(data).includes('"inputHeap":true'))).toEqual([false, false, false]);
+    expect(owners.workerData.map((data) => JSON.stringify(data).includes('"measured":false'))).toEqual([true, true, true]);
+    await host.stop();
   });
 });

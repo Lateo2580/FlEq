@@ -58,3 +58,5 @@ export function populationSpec(manifest: { populations: Record<string, unknown> 
 export function trialTarget(population: string, trial: { trigger?: { inputId: string | null; injectedHrMs: number | null; predictedTickHostMs?: number } | null },
   host: { decode: Map<string, unknown>; t1: Map<string, number>; checkpoints: readonly { unit: string; stage: string; attemptId: string; startedMonotonicMs: number; endedMonotonicMs: number }[] },
   ohLo: number | null, span?: "population" | "encodeThroughWrite"): { startMs: number; endMs: number } | null;
+// AC13(7): 母集団 2 の EEW を送る時刻。予測値を trigger に残す。
+export function calibratedSendAt(trigger: { injectedHrMs: number; predictedParseDelayMs?: number | null }, predicted: number | null, targetOffsetMs: number): number;

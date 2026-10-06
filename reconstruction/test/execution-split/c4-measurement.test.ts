@@ -228,7 +228,7 @@ describe("P3-C4-T11 contractBoundary / AC13(4)(5): the owner heap on replies and
   const adoptions = (observed: readonly Measured[]) => observed.flatMap((o) => o.kind === "notificationAdoption" ? [o] : []);
 
   it("deadlineDone carries the heap with the mark, inputDone only with the inputHeap mark too; without the mark both are null", async () => {
-    for (const [measured, inputHeap] of [[true, true], [true, false], [false, false]] as const) {
+    for (const [measured, inputHeap] of [[true, true], [true, false], [false, true], [false, false]] as const) {
       const { h, cleanup } = await runtime({ measured, inputHeap });
       try {
         await startHarness(h, "t11", now);

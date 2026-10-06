@@ -63,3 +63,8 @@ export function summarizeE14(records: readonly HostRecord[], options: { bundles:
   units: Record<string, { p50?: number; p95?: number; p99?: number; max?: number; overLimit: number }>;
 };
 export function ownerHeapReport(rows: readonly { place: string; heapUsedBytes: number; externalBytes: number }[]): Record<string, { rows: number; maxHeapUsedBytes: number; maxExternalBytes: number }>;
+export function e14Index(records: readonly HostRecord[], index?: unknown): unknown;
+export function e14Sendable(index: unknown, previous: E14Bundle | null): boolean;
+type AdoptionPart = { reservations: number; started: number; notStarted: number; reservationToReplyMs: Quantiles | null; replyToAttemptMs: Quantiles | null;
+  createdToReservationWallMs: Quantiles | null };
+export function notificationAdoptionReport(records: readonly HostRecord[]): { first: AdoptionPart; retries: AdoptionPart };

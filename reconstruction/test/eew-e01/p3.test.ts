@@ -11,10 +11,12 @@ import { summarizeE15 } from "./aux-measures.mjs";
 import type { HostRecord } from "./aux-measures.mjs";
 import { buildP3Manifest } from "./draft.mjs";
 import { injection, sample } from "./fixtures";
-import { frameGapMeter, livenessBlocked, populationSpec, predictParseDelay, publishedBy, startInjector, trialTarget } from "./run.mjs";
+import { calibratedSendAt, frameGapMeter, livenessBlocked, populationSpec, predictParseDelay, publishedBy, startInjector, trialTarget } from "./run.mjs";
+import { auxWindows } from "./windows.mjs";
 
 const machine = { chromeVersion: "154.0.8037.92", nodeVersion: "v22.23.2", osVersion: "27.0.0 arm64", device: "test" };
-const built = (collisionVerdict: "A" | "B" = "A") => buildP3Manifest({ id: "p3-test", collisionVerdict, ...machine });
+// O09 の位置は凍結で空を拒否するので、契約の expectedDecisions（O09:2・O09:12）を置く。
+const built = (collisionVerdict: "A" | "B" = "A") => buildP3Manifest({ id: "p3-test", collisionVerdict, ...machine, o09Positions: [2, 12] });
 
 // 母集団 pop の 1 run（warm-up 100 + 正式 1000）。latency(k) は正式内の 0 始まり index の [L, U]。
 function p3Run(pop: P3EewPopulation, run: 1 | 2 | 3, latency: (k: number) => [number, number], patchInjection: (i: P3EewInjectionRecord) => P3EewInjectionRecord = (i) => i) {
@@ -245,5 +247,47 @@ describe("P3-C4-T09 frozen conditions read by the runner (AC13(1)(2)(7))", () =>
     expect(predictParseDelay(trials.slice(0, 9), parseStarts, 5)).toBeNull();
     expect(predictParseDelay(trials.slice(0, 10), parseStarts, 5)).toBe(24.5);
     expect(predictParseDelay(trials, parseStarts, 5)).toBe(26.5);
+  });
+});
+
+describe("P3-C4-T09 / R1〜R3 boundaries of the frozen manifest and the runner's recorded prediction", () => {
+  const verify = (manifestText: string, b = built(), sequencesText = b.sequencesText) => verifyFrozenP3Manifest({ manifestText, trialSetupText: b.trialSetupText,
+    smokeConditionsText: b.smokeText, sequencesText, contractTexts: b.contractTexts, inherited: { manifestText: b.a10Text, initialStateText: b.initialStateText } });
+  type Editable = { extra?: number; health: { loads: string[] }; o09Subset: { positions: number[] };
+    populations: Record<string, { establishment: { span?: string; acceptedOffsetRangeMs?: number[] } }>;
+    auxiliary: Record<string, { runCount: number | null; minSamplesPerRun: number | null }> };
+  const reseal = (text: string, patch: (m: Editable) => void) => {
+    const m = JSON.parse(text) as Editable;
+    patch(m);
+    return sealSelfHash(`${JSON.stringify(m, null, 2)}\n`, "manifestSha256");
+  };
+
+  it("R3: a value the reader would drop is refused, not silently removed (span on fixedBacklog, a 3-element range, 3 health loads, an extra key, no O09 position)", () => {
+    const text = built().manifestText;
+    expect(() => verify(reseal(text, (m) => { m.populations.fixedBacklog.establishment.span = "population"; }))).toThrow("population fixedBacklog establishment");
+    expect(() => verify(reseal(text, (m) => { m.populations.maxVpws50ParseStarted.establishment.acceptedOffsetRangeMs = [0, 5, 9]; }))).toThrow("acceptedOffsetRangeMs");
+    expect(() => verify(reseal(text, (m) => { m.health.loads = ["N", "P", "C"]; }))).toThrow("health conditions");
+    expect(() => verify(reseal(text, (m) => { m.extra = 1; }))).toThrow("manifest must have exactly");
+    expect(() => verify(reseal(text, (m) => { m.o09Subset.positions = []; }))).toThrow("o09Subset positions");
+  });
+
+  it("R1/R2: E14 and ownerHeap need positive integer counts (E14 at most 512 bundles); E14 windows follow its runCount", () => {
+    const text = built().manifestText;
+    expect(() => verify(reseal(text, (m) => { m.auxiliary.E14.minSamplesPerRun = 1.5; }))).toThrow("auxiliary E14 counts");
+    expect(() => verify(reseal(text, (m) => { m.auxiliary.E14.minSamplesPerRun = 513; }))).toThrow("auxiliary E14 needs");
+    expect(() => verify(reseal(text, (m) => { m.auxiliary.ownerHeap.minSamplesPerRun = 0; }))).toThrow("auxiliary ownerHeap counts");
+    expect(() => verify(reseal(text, (m) => { m.auxiliary.E14.runCount = 0; }))).toThrow("auxiliary E14 counts");
+    const b = built();
+    const manifest = verify(reseal(b.manifestText, (m) => { m.auxiliary.E14.runCount = 3; }), b).manifest;
+    const ids = auxWindows({ manifest, initialState: JSON.parse(b.initialStateText), counts: {} }).map((w) => w.id).filter((id) => id.startsWith("e14-"));
+    expect(ids).toEqual(["e14-run1", "e14-run2", "e14-run3"]);
+  });
+
+  it("T09: a sequences text whose meta matches but whose body was changed is refused; population 2's prediction stays on the trial record", () => {
+    const b = built();
+    expect(() => verify(b.manifestText, b, b.sequencesText.replace('"position": 2,', '"position": 2 ,'))).toThrow("o09Subset sequencesSha256");
+    const trigger: { injectedHrMs: number; predictedParseDelayMs?: number | null } = { injectedHrMs: 1000 };
+    expect([calibratedSendAt(trigger, 24.5, 1), trigger.predictedParseDelayMs]).toEqual([1025.5, 24.5]);
+    expect([calibratedSendAt(trigger, null, 1), trigger.predictedParseDelayMs]).toEqual([1001, null]);
   });
 });

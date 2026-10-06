@@ -218,6 +218,34 @@ describe("P2-A10-T04 auxiliary aggregation (AC08/AC09/AC15)", () => {
     expect(aux.summarizeE14(records, { bundles: [b1, b2] }).status).toBe("未確認");
   });
 
+  it("P3-C4-T10 E14: a null dirty in a first grant is not established; the next bundle is not sent until the previous one is saved; a reused attemptId still links by grantId; the index grows by appended rows only (R6)", () => {
+    const cp = (unit: string, inputId: string) => obs({ kind: "checkpoint", measurement: { runId: "r", inputIds: [inputId], unit, generation: 1,
+      attemptId: `${unit}-a`, stage: "encode", startedMonotonicMs: 0, endedMonotonicMs: 1, bytes: 1, outcome: "succeeded", retryReason: "notRetry" } });
+    const grant = (grantId: string, unit: string, sent: number, dirty: number | null, result: string | null) => obs({ kind: "checkpointGrant", runId: "r", grantId, unit,
+      attemptIds: [`${unit}-a`], dirtyObservedMonotonicMs: dirty, grantSentMonotonicMs: sent, ownerStartedMonotonicMs: sent, doneReceivedMonotonicMs: sent + 50,
+      result: result == null ? null : { kind: result, generation: 1 } });
+    const bundle = { k: 0, inputIds: { "U-E": "e0", "U-W": "w0", "U-F": "f0" } };
+    const inputs = (["U-E", "U-W", "U-F"] as const).flatMap((u) => [marker("T0", bundle.inputIds[u], 100), cp(u, bundle.inputIds[u])]);
+    // U-W の保存は失敗し、同じ attemptId の再照合（返信は別の grantId）で成功する。
+    const grants = [grant("g1", "U-E", 200, 150, "acknowledged"), grant("g2", "U-W", 300, 160, "failed"), grant("g3", "U-F", 400, 170, "acknowledged"),
+      grant("g4", "U-W", 500, null, "acknowledged")];
+    expect(aux.summarizeE14([...inputs, ...grants], { bundles: [bundle] })).toMatchObject({ linked: 1, units: { "U-W": { max: 500 + 50 - 160 } } });
+    const nullDirty = [grant("g1", "U-E", 200, null, "acknowledged"), ...grants.slice(1)];
+    expect(aux.summarizeE14([...inputs, ...nullDirty], { bundles: [bundle] })).toMatchObject({ linked: 0, unconfirmed: { notEstablished: 1 }, status: "未確認" });
+    const partial = aux.e14Index([...inputs, ...grants.slice(0, 3)]);
+    expect([aux.e14Sendable(partial, null), aux.e14Sendable(partial, bundle)]).toEqual([true, false]);
+    const grown = aux.e14Index([...inputs, ...grants], partial);
+    expect([grown === partial, aux.e14Sendable(grown, bundle)]).toEqual([true, true]);
+  });
+
+  // R4: 初回の採用の待ちに再試行（backoff を含む）を混ぜない。
+  it("P3-C4-AC13(5) adoption: first attempts and retries are reported apart", () => {
+    const row = (attempts: number, waitMs: number) => obs({ kind: "notificationAdoption", runId: "r", channel: "desktop", intentId: `i${attempts}`, unit: "U-E", attempts,
+      createdAtWallMs: 0, reservationSentWallMs: 0, reservationSentMonotonicMs: 0, replyReceivedMonotonicMs: waitMs, adopted: true, attemptStartedMonotonicMs: waitMs });
+    const report = aux.notificationAdoptionReport([row(1, 10), row(2, 10_000)]);
+    expect([report.first.reservations, report.first.reservationToReplyMs?.p99, report.retries.reservations, report.retries.reservationToReplyMs?.p99]).toEqual([1, 10, 1, 10_000]);
+  });
+
   it("P3-C4-T10 E14: bundle k updates a filled EEW EventID with the next Serial (no new EventID, so no capacityExceeded)", () => {
     const filled = new Set(nearCapacityFrames({ mode: "leaveRoomForP", room: { partials: 0, forecastSubjects: 0 } })
       .filter((f) => f.headType === "VXSE45").map((f) => /<EventID>([^<]+)</.exec(f.xml)?.[1]));

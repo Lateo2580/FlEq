@@ -3,6 +3,7 @@
 // 無いと、候補 mark の時刻や DOM 更新を T6 に転記してしまい、実 paint 証拠のない遅延が Pass の根拠になる。
 
 import { parseChromeMarkerDetail } from "../../dist/src/measurement/eew-e01/frozen.js";
+import { quantiles } from "../../dist/src/measurement/eew-e01/judge.js";
 
 const T5 = "fleq:p2:eew:T5";
 const T6C = "fleq:p2:eew:T6-candidate";
@@ -163,6 +164,27 @@ function t3Between(host, from, to) {
   const out = [];
   for (let i = lo; i < host.t3.length && host.t3[i].row < to; i++) out.push(host.t3[i]);
   return out;
+}
+
+// 受信 1 回あたりの view の複製（P3-C4-VIEW-COPY=B、台帳 49）: 観測は足さず構造で数える。入力ごとの公開は P3-C4-T3-BINDING の版の窓
+// （windowEnds・t3Between）の T3 の数で、byte と直列化の時間はその版の publishSerialization。thread を越える複製は返信 1 件につき 1 回
+// （view を持つかは観測に無いので上界）。T2 の無い入力（T0 の後の拒否など）は結び付かない入力として数える（落とさない）。公開の byte は
+// 容量超過では summary になり full view より小さいことがあり、直列化の時間も複製の時間の上界でない。複製の帰属は判定しない。
+export function viewCopyReport(records, placeOf = () => null) {
+  const host = buildHostIndex(records);
+  const byVersion = new Map(host.publishes.map((p) => [versionKey(p.displayVersion), p]));
+  const perInput = [];
+  for (const [inputId, { from, to }] of windowEnds(host, placeOf)) {
+    const t3s = t3Between(host, from, to);
+    const published = t3s.map((t) => byVersion.get(t.key)).filter((p) => p != null);
+    perInput.push({ inputId, publishes: t3s.length, unserialized: t3s.length - published.length, bytes: published.reduce((a, p) => a + p.bytes, 0),
+      serializeMs: published.reduce((a, p) => a + p.durationMs, 0) });
+  }
+  const q = (values) => quantiles(values);
+  return { inputs: perInput.length, unbound: [...host.t0.keys()].filter((id) => !host.t2.has(id)).length, threadCopiesPerInputUpper: 1,
+    publishesPerInput: q(perInput.map((i) => i.publishes)), publishBytesPerInput: q(perInput.map((i) => i.bytes)),
+    serializeMsPerInput: q(perInput.map((i) => i.serializeMs)), publishesWithoutSerialization: perInput.reduce((a, i) => a + i.unserialized, 0),
+    attribution: "帰属不能（参考量）", referenceCopyBytes: "C3a の計量: VPWS50 で view 620,797 byte・返信 622,802 byte" };
 }
 
 // 診断の jsonl（diagnostics-*.jsonl の行）から inputId → 理由の文字列。拒否は WARN・ERROR の診断（parser・ingress の拒否は WARN、
