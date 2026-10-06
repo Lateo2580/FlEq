@@ -1,9 +1,9 @@
 {
   "schemaVersion": "p3-e01-manifest-v1",
   "manifestId": "p3-c4-formal-20261007",
-  "manifestSha256": "7997c56728ec4a6ad444e4804b6653178a6097a97ad1232246349ab6d99c9ea3",
+  "manifestSha256": "3edb1aaed272a09ad21142cc06fcd99074b1e70f2a16f68a4ac4864b2565b05c",
   "contractSha256": {
-    "P3-E01-REACCEPT-001": "13c77beac0eeb35e24526f464c8ede125c73edbbc4716bbddff70592683590b4",
+    "P3-E01-REACCEPT-001": "fb8fba23e1bdf6b04f5864ca46f4f43b618e9fc8eacd6cac4cb5531eaffe0d6c",
     "P3-EXECUTION-LIFECYCLE-001": "fd19aede1d35a4f7bd81aeeb8cf83c51219d0dba4b3842a8714dfc083e2494f1",
     "P3-EXECUTION-SPLIT-001": "f38d05a92fd26ffb6e14f42c15db163c114ee33d4a849391d864edd4772e30b1",
     "P3-DMDATA-CONNECT-001": "108d5e32a3570e0cb340a5d9dcb3a49a4ddd2f2dbc542a38b6ef0931a2135f8a",
@@ -470,7 +470,7 @@
     ]
   },
   "machines": {
-    "formal": "Mac mini（Apple M2 8 コア〔P4＋E4〕・8GiB・Mac14,3、macOS 27.0.1〔26A434〕。独立 checkout。reconstruction/dist・node_modules を共有しない。Chrome は前景、caffeinate -d。凍結から正式測定まで Chrome の自動更新を止める）。E01 ほか正式の窓の通知は real backend（出力音量は変えない）",
+    "formal": "Mac mini（Apple M2 8 コア〔P4＋E4〕・8GiB・Mac14,3、macOS 27.0.1〔26A434〕。独立 checkout。reconstruction/dist・node_modules を共有しない。Chrome は前景、caffeinate -d。凍結から正式測定まで Chrome の自動更新を止める）。E01 ほか正式の窓の通知は real backend で、窓の前に出力をミュートする（osascript -e 'set volume with output muted'。backend の spawn・close は製品のまま）",
     "gate": "Mac mini（独立 checkout。reconstruction/dist・node_modules を共有しない）",
     "piBackend": "Raspberry Pi 500（Pi 第 1 段: backend 単独、第 2 段: Pi backend＋Mac mini の Chrome）"
   },

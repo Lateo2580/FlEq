@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "fd6e8f33d962ff768120333470aae277c031cc96",
-    "sha256": "13c77beac0eeb35e24526f464c8ede125c73edbbc4716bbddff70592683590b4",
+    "sha256": "fb8fba23e1bdf6b04f5864ca46f4f43b618e9fc8eacd6cac4cb5531eaffe0d6c",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "76c82b87d7783a4eae14af690cb34e7d6ec46f73617dc75b7f7401951619f080",
     "sequencesSha256": "be9cfd97b555e3a55568f085d107342c978b3dc7249f5cecea868ea5a62c5781",
@@ -224,8 +224,15 @@
         "id": "P3-C4-FREEZE-DECISIONS",
         "status": "closed",
         "closed": "凍結の方針（統合担当が2026-10-07に確定。材料はMac miniの予備測定〔AC08〕の集計）: (1) triggerLeadMsは母集団(3)(4)(5)で600・600・2,400msのまま（Mac miniの成立率94%・90%・73%） (2) stopConditionは予備の成立率のWilson下限で積む（maxAttempts＝100＋ceil(1,000÷Wilson下限×1.1)、maxDurationMs＝（初期化＋試行の所要×maxAttempts）×1.25。fixedBacklogは1,200試行）。凍結候補の値はfixedBacklog 1,200・2,061,024ms、(2) 2,081・7,810,605ms、(3) 1,348・5,118,719ms、(4) 1,424・5,349,652ms、(5) 1,793・9,134,516ms、衝突（参考）1,205・4,525,223ms (3) E14は60束・1 run・intervalMs 20,000・通知silent、補助窓ownerHeapは100件・1 run (4) 機械はMac mini（Apple M2 x8・8GiB・macOS 27.0.0・Node v22.23.3・Chrome 154.0.8037.98）。凍結の後はMac miniのChrome・Node・macOSを更新しない（formalのpreflightが版を照合する） (5) verify段（再照合）は予備で0回だった。正式でも0回ならE15のverify段は「未観測」と報告し、Passと呼ばない（AC05） (6) 記録: 工程2b・2cで、C3aのOwnerReply（inputDoneのheap・inputGenerations、checkpointDoneのgrantStartedMs・writeCounts、deadlineDoneのheapなど）とOwnerStartDataの追加を、本契約のpublicFunctionsとして足した。C3aの契約本文（p3-execution-split.json）は変えない",
-        "remaining": "Q-C4-SOUNDの裁定と、その後のMac miniのnotificationProbeの取り直し",
+        "remaining": "なし（Q-C4-SOUNDは2026-10-07にclosed）",
         "reason": "AC10の凍結の前に固定する値（AC08の予備測定の結果）"
+      },
+      {
+        "id": "Q-C4-SOUND",
+        "status": "closed",
+        "closed": "作者が2026-10-07に裁定（A）: 正式の窓の通知は本物のbackendのまま、Mac miniの出力を消して走らせる（Mac miniはもともとvolume 0・muted）。runnerは正式（--manifest）でrealだけを受け付け、音を消すのは機械の側。E14の窓は従来どおりsilent。notificationProbeの来歴: Mac miniの測定用checkout（~/dev/fleq-c4-measure5、4ff32b00、porcelain 0、Node v22.23.3・Chrome 154.0.8037.98、出力はvolume 0・muted）で予備W4-probe（--notification real --only fixedBacklog、1標本）を回し、/snapshotのchannelsはdesktop・soundともavailable、写した値はidle/idle（notificationProbeNoteはnull）。runsのdirは~/fleq-bench/c4-prelim/runs/p3-prelim-20261006T204632。A10（a10-p2-20260930b）から継承した値idle/idleと同じなので、凍結manifestのnotificationProbeは継承値のまま変えない",
+        "remaining": "なし",
+        "reason": "unresolvedQuestionsのQ-C4-SOUND（正式測定の前）を閉じる"
       }
     ],
     "operationContract": {
@@ -901,18 +908,6 @@
         "resolveBy": "正式測定の結果が出た後",
         "requiredEvidence": [
           "E01の正式母集団がPassで、PERF-P3（E02-P・E05-P・E06）だけが残ったときにC5を先に進めるかの作者裁定（計画§5末尾の条件付き裁定）"
-        ]
-      },
-      {
-        "id": "Q-C4-SOUND",
-        "owner": "user",
-        "blocks": [
-          "正式測定の窓の通知のbackendの扱い",
-          "Mac miniのnotificationProbe（本物のbackendのprobe）の取り直し（裁定の後に回す）"
-        ],
-        "resolveBy": "正式測定の前",
-        "requiredEvidence": [
-          "正式の窓の通知を本物のbackendで鳴らすか: A（推奨）本物のbackendのまま音量を消す／B 本物のbackendで鳴らす／C silent。A10の正式は本物のbackendで走り、通知の静まりを待つ時間も所要に入った。Aは実通知の経路と所要を保ち、音だけを消す"
         ]
       }
     ]
