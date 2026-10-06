@@ -8,9 +8,12 @@ import { createInterface } from "node:readline";
 import { dirname, join } from "node:path";
 
 import { ac15Intervals, checkpointWindows, compareRetention, fingerprintTable, judgeAc15, readLatestEnvelopes } from "./ac15.mjs";
-import { drainBounds, hostMsOf, parseJsonl, publishCostReport, startFdSampler, summarizeE03, summarizeE05, summarizeE06, summarizeE07, summarizeE15 } from "./aux-measures.mjs";
+import {
+  drainBounds, e14Acks, e14Index, hostMsOf, notificationAdoptionReport, ownerHeapReport, parseJsonl, publishCostReport, startFdSampler, summarizeE03, summarizeE05,
+  summarizeE06, summarizeE07, summarizeE14, summarizeE15, viewCopyReport,
+} from "./aux-measures.mjs";
 import { hrMs, sleep } from "./chrome.mjs";
-import { E12_CLASSES, ac15Frame, cycleCFrames, dataFrame, e03Frame, loadEvents, nearCapacityFrames, sendPaced, sha256Hex, weatherFrame } from "./frames.mjs";
+import { E12_CLASSES, FIX, ac15Frame, cycleCFrames, dataFrame, e03Frame, fixtureText, loadEvents, nearCapacityFrames, sendPaced, sha256Hex, shiftTimestamps, weatherFrame } from "./frames.mjs";
 
 import { summarizeHealthE02 } from "../../dist/src/measurement/eew-e01/judge.js";
 import { ZERO_HASH, sealSelfHash } from "../../dist/src/measurement/eew-e01/frozen.js";
@@ -56,7 +59,10 @@ const BYTE_NOTE = "byteViolations は encode・write・verify 以外の段で by
 // hostDir は host の dir（host-obs.jsonl と diagnostics/ の親）。E15 の診断 log の帰属に、診断 dir の jsonl の改行の数と byte を渡す（P3-C4-AC05）。
 export function hostReports(records, window, hostDir = null) {
   const e15 = summarizeE15(records, { diagnosticLog: hostDir == null ? null : diagnosticLog(hostDir) });
-  return { e15, byteViolations: e15.byteViolations ?? null, byteViolationsNote: BYTE_NOTE, publishCost: publishCostReport(records, window) };
+  // ownerHeap（deadlineDone の行）・通知の採用の待ち・view の複製（P3-C4-AC13(4)〜(6)）は全窓で参考量として出す。
+  const heapRows = records.flatMap((r) => (r.t === "obs" && r.o.kind === "ownerHeap" && r.o.replyKind === "deadlineDone" ? [r.o] : []));
+  return { e15, byteViolations: e15.byteViolations ?? null, byteViolationsNote: BYTE_NOTE, publishCost: publishCostReport(records, window),
+    ownerHeap: ownerHeapReport(heapRows), notificationAdoption: notificationAdoptionReport(records), viewCopy: viewCopyReport(records) };
 }
 export const hostReportsOf = (obsPath, window) => hostReports(readJsonl(obsPath), window, dirname(obsPath));
 const diagnosticFiles = (hostDir) => {
@@ -291,6 +297,39 @@ export function e02Verdict(manifest, windows) {
 }
 
 // ── E03（AC08）: N を流しながら VPWS50 の系列（initial-state の e03Series）。targetInputIds は投入側の seq（host の input-<n> と 1 本の接続で一致） ──
+// E03 の系列（N を流しながら最大 VPWS50 を periodMs ごと）を流して host を止め、対象の入力 ID と記録を返す。E03 と補助窓 ownerHeap が共有する。
+async function e03Series(w, ctx, { warmup, samples, measureInputHeap = false }) {
+  const series = ctx.initialState.e03Series;
+  const host = await openHost(w, ctx, { measureInputHeap });
+  const pump = replayPump(ctx.manifest.loads.N, host.send, host.wallSec);
+  const startHr = hrMs() + 1000;
+  const startWall = host.wallMs(startHr);
+  const targets = [];
+  w.progress.phase = "measure";
+  w.progress.total = warmup + samples;
+  for (let k = 0; k < warmup + samples; k++) {
+    const item = e03Frame(k, startWall);
+    const frame = dataFrame(item.headType, item.xml); // gzip は数十 ms かかるので待つ前に作る
+    await waitUntil(host, startHr + k * series.periodMs, pump);
+    const { seq } = host.send(frame);
+    if (k >= warmup) targets.push(`input-${seq}`);
+    w.progress.trialsStarted = k + 1;
+  }
+  const last = targets.at(-1);
+  const deadline = hrMs() + 30_000;
+  let scanned = 0;
+  let done = false;
+  while (!done && hrMs() < deadline) {
+    host.check();
+    host.refresh();
+    for (; scanned < host.lines.length; scanned++) if (host.lines[scanned].t === "obs" && host.lines[scanned].o.kind === "processing" && host.lines[scanned].o.measurement.inputId === last) done = true;
+    if (!done) await sleep(500);
+  }
+  await sleep(1500);
+  await host.stop();
+  return { host, targets, records: host.records() };
+}
+
 function e03Window(ctx, run) {
   const series = ctx.initialState.e03Series;
   const samples = ctx.counts.e03 ?? series.samples;
@@ -298,34 +337,7 @@ function e03Window(ctx, run) {
   return {
     id: `e03-run${run}`, expectedMin: Math.ceil(((warmup + samples) * series.periodMs) / 60_000) + 2,
     run: async (w) => {
-      const host = await openHost(w, ctx);
-      const pump = replayPump(ctx.manifest.loads.N, host.send, host.wallSec);
-      const startHr = hrMs() + 1000;
-      const startWall = host.wallMs(startHr);
-      const targets = [];
-      w.progress.phase = "measure";
-      w.progress.total = warmup + samples;
-      for (let k = 0; k < warmup + samples; k++) {
-        const item = e03Frame(k, startWall);
-        const frame = dataFrame(item.headType, item.xml); // gzip は数十 ms かかるので待つ前に作る
-        await waitUntil(host, startHr + k * series.periodMs, pump);
-        const { seq } = host.send(frame);
-        if (k >= warmup) targets.push(`input-${seq}`);
-        w.progress.trialsStarted = k + 1;
-      }
-      const last = targets.at(-1);
-      const deadline = hrMs() + 30_000;
-      let scanned = 0;
-      let done = false;
-      while (!done && hrMs() < deadline) {
-        host.check();
-        host.refresh();
-        for (; scanned < host.lines.length; scanned++) if (host.lines[scanned].t === "obs" && host.lines[scanned].o.kind === "processing" && host.lines[scanned].o.measurement.inputId === last) done = true;
-        if (!done) await sleep(500);
-      }
-      await sleep(1500);
-      await host.stop();
-      const records = host.records();
+      const { host, targets, records } = await e03Series(w, ctx, { warmup, samples });
       const e03 = summarizeE03(records, targets, { minSamples: ctx.manifest.auxiliary.E03.minSamplesPerRun });
       // host の通し番号と投入側の seq が一致すること（全 frame が 1 本の接続で届いた）を T0 の件数で確かめる。ずれたら未確認。
       const t0 = records.filter((r) => r.t === "obs" && r.o.kind === "marker" && r.o.point === "T0").length;
@@ -334,6 +346,30 @@ function e03Window(ctx, run) {
       const o = outcome(ctx, aligned ? e03.status : "未確認", reports, {});
       o.resultFiles = [sealAux(w.dir, `aux-e03-run${run}.json`, ctx.manifest,
         { window: `e03-run${run}`, status: o.status, warmup, samples, e03, seqAlignment: { t0, sent: host.sent(), aligned }, ...reports })];
+      return o;
+    },
+  };
+}
+
+// ── 補助窓 ownerHeap（P3-C4-OWNER-HEAP=B'）: E03 と同じ系列で、inputDone の返信ごとの owner の heap（大型処理の直後の値）だけを取る。
+// inputDone の heap は返信の前に取るので測りたい区間に入る。そのため E01・E03・衝突の窓では取らず、この窓だけ measureInputHeap を立てる。
+// 報告のみ（閾値なし）。
+function ownerHeapWindow(ctx) {
+  const series = ctx.initialState.e03Series;
+  const samples = ctx.counts.ownerHeap ?? ctx.manifest.auxiliary.ownerHeap.minSamplesPerRun;
+  const warmup = Math.min(series.warmup, Math.ceil(samples / 5));
+  return {
+    id: "ownerHeap", expectedMin: Math.ceil(((warmup + samples) * series.periodMs) / 60_000) + 2,
+    run: async (w) => {
+      const { targets, records } = await e03Series(w, ctx, { warmup, samples, measureInputHeap: true });
+      const wanted = new Set(targets);
+      const rows = records.flatMap((r) => (r.t === "obs" && r.o.kind === "ownerHeap" && r.o.replyKind === "inputDone" && wanted.has(r.o.inputId) ? [r.o] : []));
+      const heap = ownerHeapReport(rows);
+      const status = rows.length === targets.length ? "N/A" : "未確認";
+      const reports = hostReports(records, "ownerHeap", w.dir);
+      const o = outcome(ctx, status, reports, {});
+      o.resultFiles = [sealAux(w.dir, "aux-ownerHeap.json", ctx.manifest, { window: "ownerHeap", status: o.status, warmup, samples, inputDoneRows: rows.length,
+        inputDoneHeap: heap, ...reports })];
       return o;
     },
   };
@@ -602,6 +638,64 @@ function e07Window(ctx, load) {
   };
 }
 
+// ── E14（P3-C4-AC13(3)、P3-C4-E14-WINDOW=A）: P の充填の後、背景の負荷なしで 3 unit の更新を 1 束で intervalMs ごとに送る ──
+// 束 k の 3 入力（①）。frames.mjs の規則は initial-state の rulesSource で hash を固定しているので変えず、ここで組む。どれも充填済みの
+// subject の更新で、新しい subject を足さない: VXSE45 は充填の通常の EventID（frames.mjs の 20240417000000＋i）の k 番目を Serial＋1・
+// 報告時刻＝束の時刻で（新しい EventID は U-E の 512 件で capacityExceeded になる）、VPWS50 は national（通常）を、VPWP50 は充填の官署0 の
+// subject を 81_09_01 で、どちらも全時刻を束の時刻へ移して更新する（束ごとに新しくなる）。
+const E14_EVENT_BASE = 20240417000000;
+const reportAt = (xml) => Date.parse(/<ReportDateTime>([^<]+)</.exec(xml)[1]);
+const jstAt = (ms) => `${new Date(ms + 9 * 3_600_000).toISOString().slice(0, 19)}+09:00`;
+export function e14BundleFrames(k, atWallMs) {
+  const text = (name) => fixtureText(name).toString("utf8");
+  const eew = text(FIX.vxse45).replace(/<EventID>[^<]*<\/EventID>/, `<EventID>${E14_EVENT_BASE + k}</EventID>`)
+    .replace(/<Serial>(\d+)<\/Serial>/, (_, serial) => `<Serial>${Number(serial) + 1}</Serial>`)
+    .replace(/<ReportDateTime>[^<]*<\/ReportDateTime>/, `<ReportDateTime>${jstAt(atWallMs)}</ReportDateTime>`);
+  const national = text(FIX.vpws50);
+  const forecast = text(FIX.vpwp50Large).replace(/<EditorialOffice>[^<]*<\/EditorialOffice>/, "<EditorialOffice>官署0</EditorialOffice>");
+  return [{ unit: "U-E", headType: "VXSE45", xml: eew }, { unit: "U-W", headType: "VPWS50", xml: shiftTimestamps(national, atWallMs - reportAt(national)) },
+    { unit: "U-F", headType: "VPWP50", xml: shiftTimestamps(forecast, atWallMs - reportAt(forecast)) }];
+}
+// ③ 束の予定時刻に、直前に送った束の 3 unit の保存の成功がまだ確かめられなければ、その束は送らずに未確認に数える（待たない）。
+// 最後の束は intervalMs まで成功を待ってから止める。
+function e14Window(ctx) {
+  const a = ctx.manifest.auxiliary.E14;
+  const count = ctx.counts.e14 ?? a.minSamplesPerRun;
+  return {
+    id: "e14-run1", expectedMin: Math.ceil((count * a.intervalMs) / 60_000) + 6,
+    run: async (w) => {
+      const host = await openHost(w, ctx);
+      const filled = await fill(host, w, ctx, "leaveRoomForP");
+      w.progress.phase = "measure";
+      w.progress.total = count;
+      const saved = (bundle) => { host.refresh(); return e14Acks(e14Index(host.lines), bundle).every((ack) => ack != null); };
+      const startHr = hrMs() + 1000;
+      const bundles = [];
+      const skipped = [];
+      for (let k = 0; k < count; k++) {
+        const due = startHr + k * a.intervalMs;
+        const frames = e14BundleFrames(k, host.wallMs(due)).map((f) => ({ unit: f.unit, frame: dataFrame(f.headType, f.xml) }));
+        await waitUntil(host, due);
+        if (bundles.length > 0 && !saved(bundles.at(-1))) { skipped.push(k); continue; }
+        const inputIds = {};
+        for (const f of frames) inputIds[f.unit] = `input-${host.send(f.frame).seq}`;
+        bundles.push({ k, inputIds });
+        w.progress.trialsStarted = k + 1;
+      }
+      const until = hrMs() + a.intervalMs;
+      while (bundles.length > 0 && !saved(bundles.at(-1)) && hrMs() < until) { host.check(); await sleep(200); }
+      await host.stop();
+      const records = host.records();
+      const e14 = summarizeE14(records, { bundles, skipped });
+      const reports = hostReports(records, "e14-run1", w.dir);
+      const o = outcome(ctx, e14.status ?? "N/A", reports, { fill: filled.record });
+      o.resultFiles = [sealAux(w.dir, "aux-e14-run1.json", ctx.manifest, { window: "e14-run1", status: o.status, intervalMs: a.intervalMs, e14, bundles, skipped,
+        fill: filled.record, ...reports })];
+      return o;
+    },
+  };
+}
+
 // 窓の並び（設計メモ §1.2: E02+E05 N → P、E03、AC15、E12、E06、E07）。ctx.runs は run 数の上書き（予備）。E07 は P3 の manifest にだけある。
 export function auxWindows(ctx) {
   const runs = (n) => Array.from({ length: ctx.runs ?? n }, (_, i) => i + 1);
@@ -612,5 +706,7 @@ export function auxWindows(ctx) {
     ...runs(ctx.manifest.auxiliary.E12.runCount).flatMap((run) => Object.keys(E12_CLASSES).map((cls) => e12Window(ctx, cls, run))),
     e06Window(ctx),
     ...(ctx.manifest.auxiliary.E07?.loads ?? []).map((load) => e07Window(ctx, load)),
+    ...(ctx.manifest.auxiliary.E14 == null ? [] : [e14Window(ctx)]),
+    ...(ctx.manifest.auxiliary.ownerHeap == null ? [] : [ownerHeapWindow(ctx)]),
   ];
 }

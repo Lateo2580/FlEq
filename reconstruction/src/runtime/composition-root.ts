@@ -112,7 +112,7 @@ type CompositionOptions = Readonly<{
   // Each parser input once its owner answered and the mailbox settled it (the host's T2/decode/processing records).
   onInputDone?: (reply: InputDone) => void;
   // P3-C4-AC04（E14・E15）の観測。測定の時（host の config.observe があるとき）だけ渡し、無ければ時刻取得・包み・記録を作らない。
-  measure?: (observation: Extract<P2HostObservation, { kind: "checkpointGrant" | "writeCount" | "shutdownSummaryWrite" }>) => void;
+  measure?: (observation: Extract<P2HostObservation, { kind: "checkpointGrant" | "writeCount" | "shutdownSummaryWrite" | "notificationAdoption" }>) => void;
   // P2-A3-A8-LINK: without it snapshots are still projected (state kept) but not published.
   display?: Readonly<{
     publish: (snapshot: DisplaySnapshot) => void;
@@ -168,7 +168,7 @@ type Measuring = Readonly<{
   observe: NonNullable<CompositionOptions["measure"]>;
   unsaved: Record<RuntimeUnitId, UnsavedMark>;
   grants: Map<string, Readonly<{ place: ExecutionPlace; sentMs: number; dirtyMs: number | null }>>;
-  owners: Partial<Record<ExecutionPlace, WriteCounts>>;
+  owners: Partial<Record<ExecutionPlace, WriteCounts>>; reservations: Map<string, ReservationSent>;
   publisher: WriteCounters;
 }>;
 
@@ -405,7 +405,7 @@ class RuntimeCompositionRoot {
     this.mailboxCompleted = this.mailbox.stats(0).completed;
     this.display = options.display;
     this.measuring = options.measure == null ? null : { observe: options.measure, unsaved: unsavedMarks(),
-      grants: new Map(), owners: {}, publisher: writeCounters() };
+      grants: new Map(), owners: {}, publisher: writeCounters(), reservations: new Map() };
     const diagnosticFileSystem = options.diagnosticFileSystem ?? nodeDiagnosticFileSystem();
     this.diagnostics = new PersistentDiagnosticSink(config.diagnosticDirectory, this.measuring == null ? diagnosticFileSystem
       : countedDiagnosticFileSystem(diagnosticFileSystem, this.measuring.publisher), () => this.clock().wallTimeMs,
@@ -1116,6 +1116,8 @@ class RuntimeCompositionRoot {
       const requestId = this.sendIntentUpdate(unit, name, "reservation", [{ id: updated.id, attempts: updated.attempts,
         nextAttemptAt: updated.nextAttemptAt, disposition: updated.disposition }], clock, [], key);
       this.reservations[name] = { requestId, attempt, unit, key };
+      this.measuring?.reservations.set(requestId, { channel: name, intentId: updated.id, unit, attempts: updated.attempts, createdAtWallMs: updated.createdAt,
+        sentWallMs: clock.wallTimeMs, sentMs: performance.now() });
     }
     if (channelsChanged) this.current = { ...this.state, notificationChannels: channels };
     this.abortAttempts(selection.abortRequests);
@@ -1134,6 +1136,10 @@ class RuntimeCompositionRoot {
     this.monitors[place].sent[`${request.channel}:${request.slot}`] = null;
     this.intentRequests.delete(reply.requestId);
     for (const key of request.keys) this.inFlightKeys.delete(key);
+    // P3-C4-AC13(5): 予約の返信を受けた時刻（測定の時だけ）。adapter の呼出しの開始は下の runAttempt の直前。
+    const adoption = request.slot === "reservation" ? this.measuring?.reservations.get(reply.requestId) : undefined;
+    const replyReceivedMs = adoption == null ? null : performance.now();
+    let attemptStartedMs: number | null = null;
     const clock = this.clock();
     const channels = this.state.notificationChannels;
     const changed = this.absorb(place, reply.output, null, clock);
@@ -1148,8 +1154,15 @@ class RuntimeCompositionRoot {
         && intent != null && clock.wallTimeMs < intent.expiresAt && clock.monotonicMs < (deadline?.expiresAtMonotonicMs ?? Infinity)) {
         this.current = { ...state, notificationChannels: { ...state.notificationChannels,
           [request.channel]: { kind: "running", attempt: reservation.attempt } } };
+        if (adoption != null) attemptStartedMs = performance.now();
         this.runAttempt(reservation.attempt);
       }
+    }
+    if (this.measuring != null && adoption != null && replyReceivedMs != null) {
+      this.measuring.reservations.delete(reply.requestId);
+      this.measuring.observe({ kind: "notificationAdoption", runId: this.state.runId, channel: adoption.channel, intentId: adoption.intentId,
+        unit: adoption.unit, attempts: adoption.attempts, createdAtWallMs: adoption.createdAtWallMs, reservationSentWallMs: adoption.sentWallMs,
+        reservationSentMonotonicMs: adoption.sentMs, replyReceivedMonotonicMs: replyReceivedMs, adopted: reply.adopted, attemptStartedMonotonicMs: attemptStartedMs });
     }
     this.flushHeldUpdates();
     this.sendDelayedInputs();
@@ -1240,7 +1253,8 @@ class RuntimeCompositionRoot {
     if (sent == null || reply.grantStartedMs == null) return;
     measuring.observe({ kind: "checkpointGrant", runId: this.state.runId, grantId: reply.grantId, unit: reply.unit,
       attemptIds: [...new Set(reply.measurements.map((measurement) => measurement.attemptId))], dirtyObservedMonotonicMs: sent.dirtyMs,
-      grantSentMonotonicMs: sent.sentMs, ownerStartedMonotonicMs: reply.grantStartedMs, doneReceivedMonotonicMs: receivedMs });
+      grantSentMonotonicMs: sent.sentMs, ownerStartedMonotonicMs: reply.grantStartedMs, doneReceivedMonotonicMs: receivedMs,
+      result: reply.result == null ? null : { kind: reply.result.kind, generation: reply.result.generation } });
   }
 
   // E15: 終了要約の書き手の記録を試行ごとに 1 行（publisher の tmp の照合に使う、P3-C4-AC05）。
@@ -1490,6 +1504,10 @@ class RuntimeCompositionRoot {
     return new Set(runtimeUnits.filter((unit) => !finalization.fixed.has(executionPlaces[unit])));
   }
 }
+
+// P3-C4-AC13(5): 送った予約（返信を受けたら消す。返信の来ない予約は停止した owner の分だけで、件数は予約の枠で限られる）。
+type ReservationSent = Readonly<{ channel: NotificationChannel; intentId: string; unit: RuntimeUnitId; attempts: number; createdAtWallMs: number;
+  sentWallMs: number; sentMs: number }>;
 
 // E14 の起点。世代ごとの履歴は持たない（保存の失敗が続いても増えない）。oldestMs は最古の未保存の世代を publisher が反映した時刻、
 // sinceGrantMs は最後の保存の権の後で最初に世代が上がった時刻。権の保存が一部の世代だけを確定したとき、残った最古の世代は権の後に

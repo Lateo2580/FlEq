@@ -20,6 +20,7 @@ import { sealSelfHash, verifyFrozenManifest } from "../../dist/src/measurement/e
 const N_WINDOW_FILE = join(process.env.HOME, "dev/fleq-corpus-p0/20260929-n-window/page1.json");
 const EVIDENCE = "reconstruction/test/eew-e01/evidence";
 export const SMOKE_FILE = `${EVIDENCE}/chrome-smoke-conditions.json`;
+export const SEQUENCES_FILE = "reconstruction/tools/corpus/sequences.json";
 const FRAMES_FILE = "reconstruction/test/eew-e01/frames.mjs";
 // 母集団ごとの初期化入力（製品の WS 入力として最初に流す）と、試行ごとの引き金。
 export const INITIAL = {
@@ -265,7 +266,11 @@ const P3_TABLE = {
 
 // collisionVerdict は P3-C4-COLLISION-VERDICT（A: 参考・T0、B: 正式・injectorSend）。stop は母集団ごとの stopCondition（予備測定の後に統合担当が固定する）。
 // 指定の無い母集団は establishmentRate（成立率の仮置き）から maxAttempts = 100 + ceil(1000 ÷ 成立率)、maxDurationMs = maxAttempts × 周期 × 2 の仮値。
+// lead・deadlineSpan・o09Positions・e14・ownerHeapSamples は凍結の時に決める値（P3-C4-AC13(1)〜(4)）。既定は予備の値（lead は Mac の所要に
+// 合わせた保存 600ms・期限回収 2,400ms、span は母集団の対象、E14 は 30 束・15 秒）。
+export const DEFAULT_LEAD_MS = { maxWeatherCheckpointEncodeStarted: 600, maxForecastCheckpointSave: 600, forecastDeadlineOverlap: 2400 };
 export function buildP3Manifest({ id, chromeVersion, nodeVersion, osVersion, device, collisionVerdict = "A", stop = {}, establishmentRate = 0.5,
+  lead = {}, deadlineSpan = "population", o09Positions = [], e14 = { bundles: 30, intervalMs: 15_000 }, ownerHeapSamples = 100,
   // P3-C4-MACHINES=B（作者裁定 2026-10-06 朝）: 正式測定は Mac mini。A10（MacBook M5）との比較は機械が違う参考値で、合否に使わない。
   machines = { formal: "Mac mini（独立 checkout。reconstruction/dist・node_modules を共有しない。Chrome は前景、caffeinate -d）", gate: "Mac mini（独立 checkout。reconstruction/dist・node_modules を共有しない）",
     piBackend: "Raspberry Pi 500（Pi 第 1 段: backend 単独、第 2 段: Pi backend＋Mac mini の Chrome）" } }) {
@@ -282,7 +287,7 @@ export function buildP3Manifest({ id, chromeVersion, nodeVersion, osVersion, dev
   const populations = Object.fromEntries(Object.entries(P3_TABLE).map(([key, row]) => {
     const collision = key === "maxVpws50ReceivedThenEew";
     const establishment = key === "fixedBacklog" ? { kind: "none" } : collision ? { kind: "sentBeforeLargeFrameIngested" }
-      : { kind: "startOffset", targetOffsetMs: 1, acceptedOffsetRangeMs: [0, 5] };
+      : { kind: "startOffset", targetOffsetMs: 1, acceptedOffsetRangeMs: [0, 5], span: key === "forecastDeadlineOverlap" ? deadlineSpan : "population" };
     const maxAttempts = stop[key]?.maxAttempts ?? 100 + Math.ceil(1000 / (establishment.kind === "none" ? 1 : establishmentRate));
     return [key, {
       scope: collision && collisionVerdict === "A" ? "reference" : "formal", load: "N", periodMs: row.periodMs,
@@ -290,6 +295,7 @@ export function buildP3Manifest({ id, chromeVersion, nodeVersion, osVersion, dev
       stateRef: `${trialSetup.initialStateRef}#populations.${row.state}`, stateSha256: trialSetup.initialStateSha256, establishment,
       origin: collision && collisionVerdict === "B" ? "injectorSend" : "T0", forecast: key === "fixedBacklog" ? formal.forecast : null,
       stopCondition: { maxAttempts, maxDurationMs: stop[key]?.maxDurationMs ?? maxAttempts * row.periodMs * 2 },
+      triggerLeadMs: Object.hasOwn(DEFAULT_LEAD_MS, key) ? lead[key] ?? DEFAULT_LEAD_MS[key] : null,
     }];
   }));
   const differences = [];
@@ -303,7 +309,7 @@ export function buildP3Manifest({ id, chromeVersion, nodeVersion, osVersion, dev
     smokeConditionDifferences: differences, chrome: { ...a10.chrome, version: chromeVersion }, nodeVersion, osVersion, device,
     inheritsManifestId: a10.manifestId, populations,
     liveness: { pingEveryMs: 20000, maxFrameGapMs: 90000 },
-    auxiliary: {
+    auxiliary: Object.fromEntries(Object.entries({
       E03: { ...auxiliary.E03, sharesWindowWith: null }, E05: { ...auxiliary.E05, sharesWindowWith: "E02（同じ窓の mem 行）" },
       E06: { ...auxiliary.E06, condition: `${auxiliary.E06.condition}。--expose-gc 後の RSS と数時間の窓でも分類する（台帳61）`, sharesWindowWith: null },
       E07: { loads: ["N", "C"], minSamplesPerRun: null, runCount: 1, sharesWindowWith: null,
@@ -311,7 +317,12 @@ export function buildP3Manifest({ id, chromeVersion, nodeVersion, osVersion, dev
       E12: { ...auxiliary.E12, sharesWindowWith: null },
       E15: { loads: ["P", "C"], minSamplesPerRun: null, runCount: null, sharesWindowWith: "E02-P・E05-P・AC15・E06（A10 と同じ保持上限の窓）",
         condition: "write の帰属不能 0（thread ごとの write 別計数と CheckpointMeasurement・診断 record の帰属が区分ごとに一致）、保存と診断の write の別計数、保存前段の同期区間の占有、verify 段の読んだ bytes の別計数（encode・write へ足さない）。write 別計数は工程 2 で入る" },
-    },
+      E14: { loads: ["P"], minSamplesPerRun: e14.bundles, runCount: 1, sharesWindowWith: null, intervalMs: e14.intervalMs,
+        condition: "P3-C4-E14-WINDOW=A: P 負荷の充填（leaveRoomForP）の後、背景の負荷なしで U-E（VXSE45 77_01_01、充填済みの EventID）・U-W（VPWS50 15_18_01、充填済みの national）・U-F（VPWP50 81_09_01、充填済みの官署 0 の subject）の 3 入力を 1 束で送り、intervalMs ごとに繰り返す。unit ごとの dirty→ack の p50・p99・max と 3 秒超えの数を報告（各保存の p99 の和を全体の p99 と呼ばない）" },
+      ownerHeap: { loads: ["N"], minSamplesPerRun: ownerHeapSamples, runCount: 1, sharesWindowWith: null,
+        condition: "P3-C4-OWNER-HEAP=B': E03 と同じ最大 VPWS50 の入力・初期状態で、inputDone の返信ごとの owner の heap（大型処理の直後の値）を取る補助窓。E01・E03・衝突の窓では inputDone に heap を載せない" },
+    }).map(([key, value]) => [key, { ...value, intervalMs: value.intervalMs ?? null }])),
+    o09Subset: { sequenceId: "O09", sequencesSha256: JSON.parse(readFileSync(join(REPO, SEQUENCES_FILE), "utf8")).meta.sha256, positions: o09Positions },
     machines,
     judgmentPlaces: {
       E01: "Pi backend＋実接続経路＋Mac mini の Chrome（P5）。C4 の Mac mini の結果は e01:93 の再検収と E01 の正式再検収（R61）の判定",
@@ -319,7 +330,8 @@ export function buildP3Manifest({ id, chromeVersion, nodeVersion, osVersion, dev
     },
   };
   const manifestText = sealSelfHash(`${JSON.stringify(manifest, null, 2)}\n`, "manifestSha256");
-  return { manifest: JSON.parse(manifestText), manifestText, trialSetupText, initialStateText, smokeText, contractTexts: contracts, a10Text };
+  return { manifest: JSON.parse(manifestText), manifestText, trialSetupText, initialStateText, smokeText, contractTexts: contracts, a10Text,
+    sequencesText: readFileSync(join(REPO, SEQUENCES_FILE), "utf8") };
 }
 
 const NODE22 = "/opt/homebrew/opt/node@22/bin/node";

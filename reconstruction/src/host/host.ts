@@ -43,7 +43,7 @@ type P2HostConfig = Readonly<({ wsUrl: string; dmdata?: never } | { dmdata: Dmda
   diagnosticDirectory: string;
   displayPort: number;
   clock: () => ClockReading;
-  observe: ((observation: P2HostObservation) => void) | null;
+  observe: ((observation: P2HostObservation) => void) | null; measureInputHeap?: boolean;
 }>;
 
 // How one connection attempt ended; the retry interval follows from it (P3-C2-RETRY).
@@ -123,8 +123,8 @@ async function startP2Host(config: P2HostConfig): Promise<Readonly<{ displayPort
   try {
     const entry = resolveRepoPath("reconstruction/dist/src/runtime/owner-worker.js");
     for (const place of ["urgent", "weatherCurrent", "deferred"] as const) {
-      const start: OwnerStartData = { place, stateDirectory: config.stateDirectory, publisherTimeOriginMs: performance.timeOrigin, measured: config.observe != null };
-      const worker = new Worker(entry, { workerData: start });
+      const worker = new Worker(entry, { workerData: { place, stateDirectory: config.stateDirectory, publisherTimeOriginMs: performance.timeOrigin,
+        measured: config.observe != null, inputHeap: config.observe != null && config.measureInputHeap === true } satisfies OwnerStartData });
       workers.set(place, worker);
       worker.on("message", (reply: OwnerReply) => {
         // AC13: T2 and decode are the owner's times, so they are observed before the reply is projected (T3).
@@ -133,7 +133,7 @@ async function startP2Host(config: P2HostConfig): Promise<Readonly<{ displayPort
           emit({ kind: "marker", point: "T2", runId, inputId, monotonicMs: reply.processingStartedMs });
           if (reply.decode != null) emit({ kind: "decode", runId, inputId, ...reply.decode });
         }
-        root.receive(place, reply);
+        observeHeap(place, reply); root.receive(place, reply);
       });
       worker.on("error", (error) => ownerFailed(place, error));
       worker.on("exit", (code) => { if (!ownersStopping) ownerFailed(place, new Error(`owner thread exited (code ${code})`)); });
@@ -370,6 +370,14 @@ async function startP2Host(config: P2HostConfig): Promise<Readonly<{ displayPort
 
   // P3-C4-E07-SOURCE（B）: 測定の時だけ、tick ごとと投入側の ping の受信ごとに mailbox の値を 1 行出す。ping の行は同じ WS で
   // その ping より前に受けた frame を含み、後の frame を含まない（frame ごとの callback が受信順に同期で走る）。
+  // P3-C4-OWNER-HEAP=B': heap を持つ返信（deadlineDone は印のとき、inputDone は補助窓 ownerHeap の measureInputHeap のとき）ごとに 1 行。
+  // config.measureInputHeap は inputDone に heap を載せる印で、observe が null なら無視する（OwnerStartData.inputHeap）。
+  function observeHeap(place: ExecutionPlace, reply: OwnerReply): void {
+    if ((reply.kind !== "deadlineDone" && reply.kind !== "inputDone") || reply.heap == null) return;
+    emit({ kind: "ownerHeap", runId, place, replyKind: reply.kind, inputId: reply.kind === "inputDone" ? reply.settlement.inputId : null,
+      monotonicMs: performance.now(), ...reply.heap });
+  }
+
   function observeMailbox(trigger: "tick" | "ping", monotonicMs: number, businessMs: number): void {
     if (config.observe == null) return;
     const stats = mailbox.stats(businessMs);

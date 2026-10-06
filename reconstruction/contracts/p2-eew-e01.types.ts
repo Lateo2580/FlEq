@@ -1,7 +1,8 @@
 import type { Operation, ProcessingMarks } from "./p1-parser-boundary.types";
 import type { SaveFailureStage, UnitId } from "./p2-shared-runtime.types";
 import type { DisplayVersion, DisplayWorkerView } from "./p2-snapshot-sse.types";
-import type { ExecutionPlace, WriteCounts } from "./p3-execution-split.types";
+import type { ExecutionPlace, OwnerHeap, WriteCounts } from "./p3-execution-split.types";
+import type { NotificationChannel } from "./p2-notification-delivery.types";
 
 export type VerificationStatus = "Pass" | "Fail" | "Blocked" | "N/A" | "未確認";
 // P2限定E01（R61）: 正式対象は fixedBacklog だけ。参考測定は単一スレッドで §7.5 の重畳 T0 が成立しない条件で、合否に使わない。
@@ -113,10 +114,19 @@ export type P2HostObservation =
   // P3-C2-START-RECORD: control frame receipt for the live dmdata evidence. errorClose is an error frame's boolean close, else null.
   | Readonly<{ kind: "controlFrame"; frameType: "start" | "ping" | "error"; monotonicMs: number; errorClose: boolean | null }>
   // P3-C4-AC04(2)、E14: 書込み権 1 回に 1 行。dirtyObserved は権の送出の時点で未保存の最古の世代を publisher が最初に反映した
-  // 時刻（未保存の世代が無い照合では null）。attemptIds は同じ返信の CheckpointMeasurement のもの。
+  // 時刻（未保存の世代が無い照合では null）。attemptIds は同じ返信の CheckpointMeasurement のもの。result は返信の CheckpointResult
+  // の種類と世代（保存不要は null）で、E14 の ack を返信の単位で結ぶ（P3-C4-AC13(3)⑤）。
   | Readonly<{ kind: "checkpointGrant"; runId: string; grantId: string; unit: UnitId; attemptIds: readonly string[];
       dirtyObservedMonotonicMs: number | null; grantSentMonotonicMs: number; ownerStartedMonotonicMs: number;
-      doneReceivedMonotonicMs: number }>
+      doneReceivedMonotonicMs: number; result: Readonly<{ kind: "acknowledged" | "failed" | "uncertain"; generation: number }> | null }>
+  // P3-C4-OWNER-HEAP=B': heap を持つ owner の返信を host が受けた時点で 1 行。inputId は inputDone のときだけ。
+  | Readonly<{ kind: "ownerHeap"; runId: string; place: ExecutionPlace; replyKind: "deadlineDone" | "inputDone"; inputId: string | null;
+      monotonicMs: number } & OwnerHeap>
+  // spec:956 の初回 1 秒の内訳（P3-C4-AC13(5)）: 予約の返信ごとに 1 行。予約の送出→返信の受信→adapter 呼出しの開始（採用されず始めなければ
+  // null）。intent 生成からの待ちは createdAtWallMs と reservationSentWallMs の差。E01 の合否に使わない。
+  | Readonly<{ kind: "notificationAdoption"; runId: string; channel: NotificationChannel; intentId: string; unit: UnitId; attempts: number;
+      createdAtWallMs: number; reservationSentWallMs: number; reservationSentMonotonicMs: number; replyReceivedMonotonicMs: number;
+      adopted: boolean; attemptStartedMonotonicMs: number | null }>
   // P3-C4-WRITE-COUNT、E15: 停止時に thread ごとに 1 行。confirmed が false なら counts と測定記録の両方から write が欠けうるので、
   // その窓の E15 は未確認。
   | Readonly<{ kind: "writeCount"; runId: string; thread: ExecutionPlace | "publisher"; confirmed: boolean; counts: WriteCounts }>

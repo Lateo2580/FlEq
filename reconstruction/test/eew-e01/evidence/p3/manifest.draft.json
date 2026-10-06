@@ -1,9 +1,9 @@
 {
   "schemaVersion": "p3-e01-manifest-v1",
   "manifestId": "p3-c4-draft-20261006",
-  "manifestSha256": "a1005aa5cc566f4ab526fa679a913bbe7c935bc4f5b5ea61379f879258ff3cee",
+  "manifestSha256": "eff592202f8f2ab9b56b3ea529210a6ddfa5d361f3fdd1610238dd2d76482b22",
   "contractSha256": {
-    "P3-E01-REACCEPT-001": "a09dfe81855cd03fc239511238388a3ad349f46b23896a410b488816f23dab31",
+    "P3-E01-REACCEPT-001": "4ff8b44d7f25c8513f658ddb218f869be3caa3354d758d848b45ac39e65701ac",
     "P3-EXECUTION-LIFECYCLE-001": "fd19aede1d35a4f7bd81aeeb8cf83c51219d0dba4b3842a8714dfc083e2494f1",
     "P3-EXECUTION-SPLIT-001": "f38d05a92fd26ffb6e14f42c15db163c114ee33d4a849391d864edd4772e30b1",
     "P3-DMDATA-CONNECT-001": "108d5e32a3570e0cb340a5d9dcb3a49a4ddd2f2dbc542a38b6ef0931a2135f8a",
@@ -252,7 +252,8 @@
       "stopCondition": {
         "maxAttempts": 1100,
         "maxDurationMs": 3014000
-      }
+      },
+      "triggerLeadMs": null
     },
     "maxVpws50ParseStarted": {
       "scope": "formal",
@@ -267,14 +268,16 @@
         "acceptedOffsetRangeMs": [
           0,
           5
-        ]
+        ],
+        "span": "population"
       },
       "origin": "T0",
       "forecast": null,
       "stopCondition": {
         "maxAttempts": 2100,
         "maxDurationMs": 12600000
-      }
+      },
+      "triggerLeadMs": null
     },
     "maxWeatherCheckpointEncodeStarted": {
       "scope": "formal",
@@ -289,14 +292,16 @@
         "acceptedOffsetRangeMs": [
           0,
           5
-        ]
+        ],
+        "span": "population"
       },
       "origin": "T0",
       "forecast": null,
       "stopCondition": {
         "maxAttempts": 2100,
         "maxDurationMs": 12600000
-      }
+      },
+      "triggerLeadMs": 600
     },
     "maxForecastCheckpointSave": {
       "scope": "formal",
@@ -311,14 +316,16 @@
         "acceptedOffsetRangeMs": [
           0,
           5
-        ]
+        ],
+        "span": "population"
       },
       "origin": "T0",
       "forecast": null,
       "stopCondition": {
         "maxAttempts": 2100,
         "maxDurationMs": 12600000
-      }
+      },
+      "triggerLeadMs": 600
     },
     "forecastDeadlineOverlap": {
       "scope": "formal",
@@ -333,14 +340,16 @@
         "acceptedOffsetRangeMs": [
           0,
           5
-        ]
+        ],
+        "span": "population"
       },
       "origin": "T0",
       "forecast": null,
       "stopCondition": {
         "maxAttempts": 2100,
         "maxDurationMs": 12600000
-      }
+      },
+      "triggerLeadMs": 2400
     },
     "maxVpws50ReceivedThenEew": {
       "scope": "reference",
@@ -357,7 +366,8 @@
       "stopCondition": {
         "maxAttempts": 2100,
         "maxDurationMs": 12600000
-      }
+      },
+      "triggerLeadMs": null
     }
   },
   "liveness": {
@@ -372,7 +382,8 @@
       "minSamplesPerRun": 1000,
       "runCount": 3,
       "condition": "N を再生しながら VPWS50 15_18_01 を 1200ms 周期で warm-up 20＋1000 件（initial-state の e03Series）。時刻は投入予定の host 壁時計へ平行移動。T2→dispatch 完了 p99≤1 秒、T1→T2 は別計数",
-      "sharesWindowWith": null
+      "sharesWindowWith": null,
+      "intervalMs": null
     },
     "E05": {
       "loads": [
@@ -382,7 +393,8 @@
       "minSamplesPerRun": null,
       "runCount": 3,
       "condition": "E02 と同じ窓。launcher の mem 行を 1 秒ごと。上限 N 300MiB・P 400MiB",
-      "sharesWindowWith": "E02（同じ窓の mem 行）"
+      "sharesWindowWith": "E02（同じ窓の mem 行）",
+      "intervalMs": null
     },
     "E06": {
       "loads": [
@@ -391,7 +403,8 @@
       "minSamplesPerRun": null,
       "runCount": 1,
       "condition": "保持上限ちょうど（nearCapacity cycleC）から C を 65 周期（initial-state の cycleC）。warm-up 5 周期、定常開始（6 周期目の最初の入力の T0）から 60 分を 10 分 × 6 窓。RSS・heapUsed は mem 行（10 秒）、FD は lsof -n -P -p を 60 秒ごと。閾値は置かず報告。--expose-gc 後の RSS と数時間の窓でも分類する（台帳61）",
-      "sharesWindowWith": null
+      "sharesWindowWith": null,
+      "intervalMs": null
     },
     "E07": {
       "loads": [
@@ -401,14 +414,16 @@
       "minSamplesPerRun": null,
       "runCount": 1,
       "sharesWindowWith": null,
-      "condition": "P3-C3B-E07-WINDOW=A のとき: N と C の各 60 分。全遷移で宣言上限内、通常入力の最大待機年齢≤暫定 5 秒、入力停止から 10 秒以内に入力 mailbox の pending・in-flight が 0、C の warm-up 後の周期末 backlog の件数・byte が前周期末以下。窓の中で owner が停止・unresponsive なら Fail（工程 2 で窓を作る）"
+      "condition": "P3-C3B-E07-WINDOW=A のとき: N と C の各 60 分。全遷移で宣言上限内、通常入力の最大待機年齢≤暫定 5 秒、入力停止から 10 秒以内に入力 mailbox の pending・in-flight が 0、C の warm-up 後の周期末 backlog の件数・byte が前周期末以下。窓の中で owner が停止・unresponsive なら Fail（工程 2 で窓を作る）",
+      "intervalMs": null
     },
     "E12": {
       "loads": [],
       "minSamplesPerRun": null,
       "runCount": 3,
       "condition": "小型 VXSE45 77_01_01 を 200 件・200ms（Serial +1）、大型 VPWP50 81_09_01 を 30 件・2 秒、最大 VPWS50 15_18_01 を 30 件・2 秒（weather は k 番目の全時刻を基準の壁時計 + k × 周期へ平行移動、frames.mjs e12Frames）。class ごとに旧新を別実行、空状態、同じ Node 22、--heap-prof。旧側は createMessageHandler({})、display・displaySink・永続化なし。新側は射影・SSE publish・checkpoint を含む。新側 silent は通知 backend の代わりに /usr/bin/true を spawn する費用を含む。旧側は通知を止めていて spawn しない",
-      "sharesWindowWith": null
+      "sharesWindowWith": null,
+      "intervalMs": null
     },
     "E15": {
       "loads": [
@@ -418,8 +433,34 @@
       "minSamplesPerRun": null,
       "runCount": null,
       "sharesWindowWith": "E02-P・E05-P・AC15・E06（A10 と同じ保持上限の窓）",
-      "condition": "write の帰属不能 0（thread ごとの write 別計数と CheckpointMeasurement・診断 record の帰属が区分ごとに一致）、保存と診断の write の別計数、保存前段の同期区間の占有、verify 段の読んだ bytes の別計数（encode・write へ足さない）。write 別計数は工程 2 で入る"
+      "condition": "write の帰属不能 0（thread ごとの write 別計数と CheckpointMeasurement・診断 record の帰属が区分ごとに一致）、保存と診断の write の別計数、保存前段の同期区間の占有、verify 段の読んだ bytes の別計数（encode・write へ足さない）。write 別計数は工程 2 で入る",
+      "intervalMs": null
+    },
+    "E14": {
+      "loads": [
+        "P"
+      ],
+      "minSamplesPerRun": 30,
+      "runCount": 1,
+      "sharesWindowWith": null,
+      "intervalMs": 15000,
+      "condition": "P3-C4-E14-WINDOW=A: P 負荷の充填（leaveRoomForP）の後、背景の負荷なしで U-E（VXSE45 77_01_01、充填済みの EventID）・U-W（VPWS50 15_18_01、充填済みの national）・U-F（VPWP50 81_09_01、充填済みの官署 0 の subject）の 3 入力を 1 束で送り、intervalMs ごとに繰り返す。unit ごとの dirty→ack の p50・p99・max と 3 秒超えの数を報告（各保存の p99 の和を全体の p99 と呼ばない）"
+    },
+    "ownerHeap": {
+      "loads": [
+        "N"
+      ],
+      "minSamplesPerRun": 100,
+      "runCount": 1,
+      "sharesWindowWith": null,
+      "condition": "P3-C4-OWNER-HEAP=B': E03 と同じ最大 VPWS50 の入力・初期状態で、inputDone の返信ごとの owner の heap（大型処理の直後の値）を取る補助窓。E01・E03・衝突の窓では inputDone に heap を載せない",
+      "intervalMs": null
     }
+  },
+  "o09Subset": {
+    "sequenceId": "O09",
+    "sequencesSha256": "be9cfd97b555e3a55568f085d107342c978b3dc7249f5cecea868ea5a62c5781",
+    "positions": []
   },
   "machines": {
     "formal": "Mac mini（独立 checkout。reconstruction/dist・node_modules を共有しない。Chrome は前景、caffeinate -d）",

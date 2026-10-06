@@ -55,3 +55,11 @@ export function summarizeReplayWindow(input: { probe: { gc: readonly { startMs: 
   status: Status | null; reason?: string; replayMs: number; gcCount?: number; gcTotalMs?: number; gcMaxMs?: number;
   heapUsedBefore?: number; heapUsedAfter?: number; heapUsedDelta?: number; heapBoundarySignedDistanceMs?: { before: number; after: number };
 };
+
+// P3-C4-AC13(3): E14 の束の集計。
+type E14Bundle = { k: number; inputIds: Record<"U-E" | "U-W" | "U-F", string> };
+export function summarizeE14(records: readonly HostRecord[], options: { bundles: readonly E14Bundle[]; skipped?: readonly number[]; limitMs?: number }): {
+  status: Status | null; bundles: number; linked: number; unconfirmed: Record<string, number>; limitMs: number; note: string;
+  units: Record<string, { p50?: number; p95?: number; p99?: number; max?: number; overLimit: number }>;
+};
+export function ownerHeapReport(rows: readonly { place: string; heapUsedBytes: number; externalBytes: number }[]): Record<string, { rows: number; maxHeapUsedBytes: number; maxExternalBytes: number }>;

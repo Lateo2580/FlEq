@@ -27,9 +27,13 @@ export type ExecutionPlace = "urgent" | "weatherCurrent" | "deferred";
 
 // workerData of one owner thread. publisherTimeOriginMs is the publisher's performance.timeOrigin.
 // measured は測定の印（host の config.observe != null、P3-C4-AC04）。印があるときだけ owner は full parse と書込み権の着手の
-// 時刻を取り、write を数える。印が無いときはどれも作らない。
+// 時刻を取り、write を数える。印が無いときはどれも作らない。inputHeap は inputDone に heap を載せる印で、補助窓 ownerHeap だけで立てる
+// （inputDone の heap は返信の前に取るので、ほかの窓では測りたい区間に入る、P3-C4-OWNER-HEAP=B'）。measured が無ければ使わない。
 export type OwnerStartData = Readonly<{ place: ExecutionPlace; stateDirectory: string; publisherTimeOriginMs: number;
-  measured: boolean }>;
+  measured: boolean; inputHeap: boolean }>;
+
+// P3-C4-OWNER-HEAP=B': その owner の thread の process.memoryUsage() の heapUsed と external（RSS は process 全体なので載せない）。
+export type OwnerHeap = Readonly<{ heapUsedBytes: number; externalBytes: number }>;
 
 // P3-C4-WRITE-COUNT（RES-05）: 1 thread の write の回数（呼出しの数。diagnosticLog だけは追記した行の数）と byte の区分別の累積。checkpoint は checkpoint の file へ直接の
 // write、tmp は rename で置き換える一時 file（checkpoint の保存・終了要約）、diagnosticLog は診断 log への追記、other はそれ以外。
@@ -103,8 +107,9 @@ export type OwnerReply =
   // full parse の区間（P3-C4-PARSE-MARK）は印が無いと null、parse tree の前で拒否された入力では終了が null。
   | Readonly<{ kind: "inputDone"; settlement: ParserSettlement; processingStartedMs: number; marks: ProcessingMarks;
       decode: Readonly<{ startedMonotonicMs: number; endedMonotonicMs: number; xmlParseStartedMonotonicMs: number | null;
-        xmlParseEndedMonotonicMs: number | null }> | null; output: OwnerOutput }>
-  | Readonly<{ kind: "deadlineDone"; output: OwnerOutput }>
+        xmlParseEndedMonotonicMs: number | null }> | null; heap: OwnerHeap | null; output: OwnerOutput }>
+  // heap は deadlineDone では measured のとき、inputDone では measured と inputHeap の両方のときだけ値を持つ。
+  | Readonly<{ kind: "deadlineDone"; heap: OwnerHeap | null; output: OwnerOutput }>
   | Readonly<{ kind: "intentUpdateDone"; requestId: string; adopted: boolean; output: OwnerOutput }>
   // result null: nothing to save or reconcile at grant time. The publisher releases the write right on this reply only.
   // grantStartedMs（owner が権の処理を始めた測定時刻）と writeCounts（この owner の累積）は印が無いと null（P3-C4-AC04）。

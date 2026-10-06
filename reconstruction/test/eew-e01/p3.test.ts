@@ -11,7 +11,7 @@ import { summarizeE15 } from "./aux-measures.mjs";
 import type { HostRecord } from "./aux-measures.mjs";
 import { buildP3Manifest } from "./draft.mjs";
 import { injection, sample } from "./fixtures";
-import { frameGapMeter, livenessBlocked, publishedBy, startInjector } from "./run.mjs";
+import { frameGapMeter, livenessBlocked, populationSpec, predictParseDelay, publishedBy, startInjector, trialTarget } from "./run.mjs";
 
 const machine = { chromeVersion: "154.0.8037.92", nodeVersion: "v22.23.2", osVersion: "27.0.0 arm64", device: "test" };
 const built = (collisionVerdict: "A" | "B" = "A") => buildP3Manifest({ id: "p3-test", collisionVerdict, ...machine });
@@ -35,7 +35,7 @@ const judge = (m: P3E01Manifest, runs: ReturnType<typeof p3Run>[]) => summarizeP
 
 describe("P3-C4-T01 establishment, overlapNotEstablished and the P3 verdict (AC01/AC02/AC03)", () => {
   it("startOffset: T0 at start −0.1/0/5/5.1 ms is not/is/is/not established, and a target that ended before T0 is not; the collision needs the send upper bound before the VPWS50 T1", () => {
-    const startOffset = { kind: "startOffset", targetOffsetMs: 1, acceptedOffsetRangeMs: [0, 5] } as const;
+    const startOffset = { kind: "startOffset", targetOffsetMs: 1, acceptedOffsetRangeMs: [0, 5], span: "population" } as const;
     const at = (t0Ms: number, endMs = 2000) => establishTrial({ establishment: startOffset, target: { startMs: 1000, endMs }, t0Ms, injectorSendHostMs: null }).established;
     expect([999.9, 1000, 1005, 1005.1].map((t0) => at(t0))).toEqual([false, true, true, false]);
     expect(at(1003, 1002)).toBe(false);
@@ -183,7 +183,7 @@ describe("P3-C4-T06 save occupancy after C1 (verify only on the no-memory path)"
 });
 
 describe("P3-C4-T07 P3 manifest freeze (AC10)", () => {
-  const verify = (manifestText: string, b = built()) => verifyFrozenP3Manifest({ manifestText, trialSetupText: b.trialSetupText, smokeConditionsText: b.smokeText,
+  const verify = (manifestText: string, b = built()) => verifyFrozenP3Manifest({ manifestText, trialSetupText: b.trialSetupText, smokeConditionsText: b.smokeText, sequencesText: b.sequencesText,
     contractTexts: b.contractTexts, inherited: { manifestText: b.a10Text, initialStateText: b.initialStateText } });
   // 書き換える field だけの形（凍結物の改変を作るため）。
   type Editable = { loads: { N: { offsetsMs: number[] } }; populations: Record<string, { stateSha256: string; origin: string }>;
@@ -204,7 +204,46 @@ describe("P3-C4-T07 P3 manifest freeze (AC10)", () => {
     expect(() => verify(reseal(text, (m) => { m.contractSha256["P3-E01-REACCEPT-001"] = "c".repeat(64); }))).toThrow("contract hash: P3-E01-REACCEPT-001");
     expect(() => verify(reseal(text, (m) => { m.auxiliary.E07.sharesWindowWith = "e01-fixedBacklog-run1"; }))).toThrow("E01 windows are never shared");
     const b = built();
-    expect(() => verifyFrozenP3Manifest({ manifestText: text, trialSetupText: b.trialSetupText, smokeConditionsText: b.smokeText, contractTexts: b.contractTexts,
+    expect(() => verifyFrozenP3Manifest({ manifestText: text, trialSetupText: b.trialSetupText, smokeConditionsText: b.smokeText, sequencesText: b.sequencesText, contractTexts: b.contractTexts,
       inherited: { manifestText: b.a10Text, initialStateText: `${b.initialStateText} ` } })).toThrow("initial-state sha256");
+  });
+});
+
+describe("P3-C4-T09 frozen conditions read by the runner (AC13(1)(2)(7))", () => {
+  const verify = (manifestText: string, b = built()) => verifyFrozenP3Manifest({ manifestText, trialSetupText: b.trialSetupText, smokeConditionsText: b.smokeText,
+    sequencesText: b.sequencesText, contractTexts: b.contractTexts, inherited: { manifestText: b.a10Text, initialStateText: b.initialStateText } });
+  type Editable = { populations: Record<string, { triggerLeadMs: number | null; establishment: { span?: string } }>; o09Subset: { sequencesSha256: string; positions: number[] } };
+  const reseal = (text: string, patch: (m: Editable) => void) => {
+    const m = JSON.parse(text) as Editable;
+    patch(m);
+    return sealSelfHash(`${JSON.stringify(m, null, 2)}\n`, "manifestSha256");
+  };
+
+  it("the runner takes the lead and the span of population 5 from the manifest; the freeze refuses a misplaced span or lead and an O09 subset not of these sequences", () => {
+    const b = buildP3Manifest({ id: "p3-test", ...machine, lead: { forecastDeadlineOverlap: 1234 }, deadlineSpan: "encodeThroughWrite", o09Positions: [2, 12] });
+    const manifest = verify(b.manifestText, b).manifest;
+    const spec = populationSpec(manifest, "forecastDeadlineOverlap", 1, 100, 1000, { maxAttempts: 2000, maxDurationMs: 1 });
+    expect([spec.leadMs, spec.span]).toEqual([1234, "encodeThroughWrite"]);
+    expect(populationSpec(manifest, "maxVpws50ParseStarted", 1, 100, 1000, { maxAttempts: 2000, maxDurationMs: 1 }).leadMs).toBeNull();
+    // span "encodeThroughWrite" の対象は encode 開始〜write 完了（元の対象の encode の区間ではない）。
+    const checkpoints = [{ unit: "U-F", stage: "encode", attemptId: "a", startedMonotonicMs: 1000, endedMonotonicMs: 1001 },
+      { unit: "U-F", stage: "write", attemptId: "a", startedMonotonicMs: 1002, endedMonotonicMs: 1010 }];
+    const trial = { trigger: { inputId: "input-1", injectedHrMs: 0, predictedTickHostMs: 1000 } };
+    const host = { decode: new Map(), t1: new Map(), checkpoints };
+    expect([trialTarget("forecastDeadlineOverlap", trial, host, 0, spec.span), trialTarget("forecastDeadlineOverlap", trial, host, 0)])
+      .toEqual([{ startMs: 1000, endMs: 1010 }, { startMs: 1000, endMs: 1001 }]);
+    expect(() => verify(reseal(b.manifestText, (m) => { m.populations.maxForecastCheckpointSave.establishment.span = "encodeThroughWrite"; }), b)).toThrow("establishment");
+    expect(() => verify(reseal(b.manifestText, (m) => { m.populations.maxVpws50ParseStarted.triggerLeadMs = 600; }), b)).toThrow("triggerLeadMs");
+    expect(() => verify(reseal(b.manifestText, (m) => { m.o09Subset.sequencesSha256 = "d".repeat(64); }), b)).toThrow("o09Subset sequencesSha256");
+    expect(() => verify(reseal(b.manifestText, (m) => { m.o09Subset.positions = [2, 999]; }), b)).toThrow("o09Subset positions");
+  });
+
+  it("population 2 records its predicted parse delay: none for the first ten trials, then the median of the latest ten", () => {
+    const trials = Array.from({ length: 12 }, (_, i) => ({ trigger: { inputId: `t${i}`, injectedHrMs: i * 100 } }));
+    // host の時計 = 投入側 + 5。parse 開始 − 実送信は 20 + i。
+    const parseStarts = new Map(trials.map((t, i) => [t.trigger.inputId, t.trigger.injectedHrMs + 5 + 20 + i]));
+    expect(predictParseDelay(trials.slice(0, 9), parseStarts, 5)).toBeNull();
+    expect(predictParseDelay(trials.slice(0, 10), parseStarts, 5)).toBe(24.5);
+    expect(predictParseDelay(trials, parseStarts, 5)).toBe(26.5);
   });
 });

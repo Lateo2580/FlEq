@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 
 import * as aux from "./aux-measures.mjs";
+import { nearCapacityFrames } from "./frames.mjs";
+import { e14BundleFrames } from "./windows.mjs";
 import type { HostRecord } from "./aux-measures.mjs";
 
 const obs = (o: Record<string, unknown>): HostRecord => ({ t: "obs", o });
@@ -187,6 +189,42 @@ describe("P2-A10-T04 auxiliary aggregation (AC08/AC09/AC15)", () => {
     expect(aux.summarizeE07(records, options).wait).toMatchObject({ status: "未確認", upperMs: 6000 });
     const t1Lost = records.filter((r) => !(r.t === "obs" && JSON.stringify(r.o).includes('"T1","runId":"r","inputId":"input-2"')));
     expect(aux.summarizeE07(t1Lost, options).wait).toMatchObject({ status: "未確認", upperMs: 100, accepted: 2, observedT1: 1 });
+  });
+
+  // P3-C4-T10: E14 の束（AC13(3)④⑤⑥）。
+  it("P3-C4-T10 E14: a bundle is established when every unit's first grant saw its dirty before the first grant went out; its ack is the first acknowledged reply at or above the input's generation (a reconciliation after a failed save included); the rest are counted 未確認", () => {
+    const cp = (unit: string, generation: number, inputId: string) => obs({ kind: "checkpoint", measurement: { runId: "r", inputIds: [inputId], unit, generation,
+      attemptId: `${unit}-${generation}`, stage: "encode", startedMonotonicMs: 0, endedMonotonicMs: 1, bytes: 1, outcome: "succeeded", retryReason: "notRetry" } });
+    const grant = (grantId: string, unit: string, sent: number, dirty: number | null, done: number, result: { kind: string; generation: number } | null) =>
+      obs({ kind: "checkpointGrant", runId: "r", grantId, unit, attemptIds: [], dirtyObservedMonotonicMs: dirty, grantSentMonotonicMs: sent,
+        ownerStartedMonotonicMs: sent, doneReceivedMonotonicMs: done, result });
+    const bundle = (k: number, t0: number) => ({ k, inputIds: { "U-E": `e${k}`, "U-W": `w${k}`, "U-F": `f${k}` }, t0 });
+    const inputs = (b: ReturnType<typeof bundle>, generation: number) => (["U-E", "U-W", "U-F"] as const).flatMap((u, i) =>
+      [marker("T0", b.inputIds[u], b.t0 + i), cp(u, generation, b.inputIds[u])]);
+    const [b0, b1, b2] = [bundle(0, 100), bundle(1, 2000), bundle(2, 4000)];
+    const records = [...inputs(b0, 2), ...inputs(b1, 3), ...inputs(b2, 4),
+      // 束 0: U-W の保存は directorySync で失敗し、再照合（dirty なし）で成功する。
+      grant("g1", "U-E", 200, 150, 300, { kind: "acknowledged", generation: 2 }), grant("g2", "U-W", 310, 160, 400, { kind: "failed", generation: 2 }),
+      grant("g3", "U-F", 410, 170, 600, { kind: "acknowledged", generation: 2 }), grant("g4", "U-W", 1400, null, 1500, { kind: "acknowledged", generation: 2 }),
+      // 束 1: U-F の dirty が最初の権の後に反映された（同時でない）。
+      grant("g5", "U-E", 2100, 2050, 2200, { kind: "acknowledged", generation: 3 }), grant("g6", "U-W", 2210, 2060, 2300, { kind: "acknowledged", generation: 3 }),
+      grant("g7", "U-F", 2310, 2150, 2400, { kind: "acknowledged", generation: 3 }),
+      // 束 2: U-F の保存が成功に結べない。
+      grant("g8", "U-E", 4100, 4050, 4200, { kind: "acknowledged", generation: 4 }), grant("g9", "U-W", 4210, 4060, 4300, { kind: "acknowledged", generation: 4 }),
+      grant("g10", "U-F", 4310, 4070, 4400, { kind: "uncertain", generation: 4 })];
+    const e14 = aux.summarizeE14(records, { bundles: [b0, b1, b2], skipped: [3] });
+    expect(e14).toMatchObject({ status: null, bundles: 4, linked: 1, unconfirmed: { notEstablished: 1, "notAcknowledged:U-F": 1, previousNotSaved: 1 } });
+    expect([e14.units["U-E"].max, e14.units["U-W"].max, e14.units["U-F"].max]).toEqual([150, 1340, 430]);
+    expect(aux.summarizeE14(records, { bundles: [b1, b2] }).status).toBe("未確認");
+  });
+
+  it("P3-C4-T10 E14: bundle k updates a filled EEW EventID with the next Serial (no new EventID, so no capacityExceeded)", () => {
+    const filled = new Set(nearCapacityFrames({ mode: "leaveRoomForP", room: { partials: 0, forecastSubjects: 0 } })
+      .filter((f) => f.headType === "VXSE45").map((f) => /<EventID>([^<]+)</.exec(f.xml)?.[1]));
+    for (const k of [0, 511]) {
+      const eew = e14BundleFrames(k, Date.parse("2026-06-05T18:00:00+09:00")).find((f) => f.unit === "U-E")!;
+      expect([filled.has(/<EventID>([^<]+)</.exec(eew.xml)?.[1]), /<Serial>(\d+)</.exec(eew.xml)?.[1]]).toEqual([true, "2"]);
+    }
   });
 
   it("publish cost: counted per window", () => {

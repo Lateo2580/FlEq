@@ -345,6 +345,100 @@ export function summarizeE15(records, { diagnosticLog = null } = {}) {
     occupancyNote: "occupiedMsLower = encode の壁時間（下限）。verify 段（記憶なし・照合の経路だけ）は verifyCount・verifyBytes（読んだ bytes）・verifyMs に別に数え、占有・write へ足さない。measuredStagesMs = 計測された段の壁時間の合計で、非同期の待ちを含み、前段の同期処理 checkpoint.ts:266-300 を含まない（上限ではない）" };
 }
 
+// P3-C4-OWNER-HEAP=B': owner の thread ごとの heap（ownerHeap の行）の最大と件数。RSS は process 全体なので足し合わせない（mem 行のまま）。
+export function ownerHeapReport(rows) {
+  const places = {};
+  for (const r of rows) {
+    const p = (places[r.place] ??= { rows: 0, maxHeapUsedBytes: 0, maxExternalBytes: 0 });
+    p.rows++;
+    p.maxHeapUsedBytes = Math.max(p.maxHeapUsedBytes, r.heapUsedBytes);
+    p.maxExternalBytes = Math.max(p.maxExternalBytes, r.externalBytes);
+  }
+  return places;
+}
+
+// spec:956 の初回 1 秒の内訳（P3-C4-AC13(5)）: 予約の送出→返信の受信（owner の採用の待ち）と、返信→adapter 呼出しの開始、intent 生成→予約の送出
+// （壁時計）。採用されなかった予約は数だけ。報告で、E01 の合否に使わない。
+export function notificationAdoptionReport(records) {
+  const rows = observations(records, "notificationAdoption");
+  const adopted = rows.filter((r) => r.attemptStartedMonotonicMs != null);
+  const dist = (values) => quantiles(values);
+  return { reservations: rows.length, adopted: adopted.length, notStarted: rows.length - adopted.length,
+    reservationToReplyMs: dist(rows.map((r) => r.replyReceivedMonotonicMs - r.reservationSentMonotonicMs)),
+    replyToAttemptMs: dist(adopted.map((r) => r.attemptStartedMonotonicMs - r.replyReceivedMonotonicMs)),
+    createdToReservationWallMs: dist(rows.map((r) => r.reservationSentWallMs - r.createdAtWallMs)) };
+}
+
+// 受信 1 回あたりの view の複製（P3-C4-VIEW-COPY=B、台帳 49）: 観測は足さず構造で数える。host は owner の返信 1 件を同期に、T2・decode・
+// （射影の T3・publishSerialization）・processing の順で出すので、入力 X の T2 の行から X の processing の行までの publishSerialization が
+// X の返信が起こした公開。thread を越える複製は返信 1 件につき 1 回（view を持つかは観測に無いので上界）、公開ごとに直列化 1 回。byte は
+// 公開の直列化の byte（容量超過では summary になり full view より小さいことがあり、時間も複製の時間の上界でない）。複製の帰属は判定しない。
+export function viewCopyReport(records) {
+  const perInput = [];
+  let open = null;
+  for (const r of records) {
+    const o = r.t === "obs" ? r.o : null;
+    if (o?.kind === "marker" && o.point === "T2") open = { inputId: o.inputId, publishes: 0, bytes: 0, serializeMs: 0 };
+    else if (o?.kind === "publishSerialization" && open != null) { open.publishes++; open.bytes += o.bytes; open.serializeMs += o.durationMs; }
+    else if (o?.kind === "processing" && open?.inputId === o.measurement.inputId) { perInput.push(open); open = null; }
+  }
+  return { inputs: perInput.length, threadCopiesPerInputUpper: 1, publishesPerInput: quantiles(perInput.map((i) => i.publishes)),
+    publishBytesPerInput: quantiles(perInput.map((i) => i.bytes)), serializeMsPerInput: quantiles(perInput.map((i) => i.serializeMs)),
+    attribution: "帰属不能（参考量）", referenceCopyBytes: "C3a の計量: VPWS50 で view 620,797 byte・返信 622,802 byte" };
+}
+
+// E14 の束（P3-C4-AC13(3)、P3-C4-E14-WINDOW=A）。bundles は送った束（k と unit ごとの入力 ID）、skipped は送らなかった束の k（③）。
+// ② 束の入力 ID → それを inputIds に持つ CheckpointMeasurement の世代（最小）→ その世代以上を acknowledged で確定した最初の checkpointGrant の行。
+//    再照合は元の attemptId を使い回すので、試行の attemptId でなく返信（grantId）の単位で結ぶ。
+// ④ 成立: 束の入力の T0 の後で unit ごとに最初の権の行の dirtyObserved がどれも非 null で、3 つの中で最初の grantSent より前。
+// ⑤ dirty→ack は、その最初の行の dirtyObserved → ack の行の doneReceived。成功に結べない unit がある束は未確認に数える。
+// ⑥ 成立して成功に結べた束で unit ごとの p50・p99・max と 3 秒超えの数。各保存の p99 の和を全体の p99 と呼ばない。束が 0 なら未確認。
+// ponytail: 束ごとに grant の行を unit で線形に探す（束 × 権の行）。束は manifest で 512 以下、権の行は窓で数百なので十分。
+export const E14_UNITS = ["U-E", "U-W", "U-F"];
+export function e14Index(records) {
+  const generationOf = new Map();
+  for (const m of observations(records, "checkpoint").map((o) => o.measurement))
+    for (const id of m.inputIds) generationOf.set(id, Math.min(generationOf.get(id) ?? Infinity, m.generation));
+  const grants = Object.fromEntries(E14_UNITS.map((u) => [u, []]));
+  for (const g of observations(records, "checkpointGrant")) grants[g.unit]?.push(g);
+  for (const u of E14_UNITS) grants[u].sort((a, b) => a.grantSentMonotonicMs - b.grantSentMonotonicMs);
+  return { t0: markers(records, "T0"), generationOf, grants };
+}
+// ⑤ unit ごとの ack の行（無ければ null）。③ の「直前の束の保存の成功」もこれで確かめる。
+export function e14Acks(index, bundle) {
+  const from = Math.min(...E14_UNITS.map((u) => index.t0.get(bundle.inputIds[u]) ?? Infinity));
+  return E14_UNITS.map((u) => {
+    const generation = index.generationOf.get(bundle.inputIds[u]);
+    return generation == null ? null : index.grants[u].find((g) => g.grantSentMonotonicMs >= from && g.result?.kind === "acknowledged" && g.result.generation >= generation) ?? null;
+  });
+}
+export function e14Bundle(index, bundle) {
+  const t0s = E14_UNITS.map((u) => index.t0.get(bundle.inputIds[u]));
+  if (t0s.some((t) => t == null)) return { k: bundle.k, status: "未確認", reason: "inputNotObserved" };
+  const from = Math.min(...t0s);
+  const first = E14_UNITS.map((u) => index.grants[u].find((g) => g.grantSentMonotonicMs >= from) ?? null);
+  const acks = e14Acks(index, bundle);
+  const firstSent = Math.min(...first.map((g) => g?.grantSentMonotonicMs ?? Infinity));
+  if (first.some((g) => g?.dirtyObservedMonotonicMs == null || g.dirtyObservedMonotonicMs >= firstSent)) return { k: bundle.k, status: "未確認", reason: "notEstablished" };
+  const missing = E14_UNITS.filter((_, i) => acks[i] == null);
+  if (missing.length > 0) return { k: bundle.k, status: "未確認", reason: `notAcknowledged:${missing.join(",")}` };
+  return { k: bundle.k, status: "linked", dirtyToAckMs: Object.fromEntries(E14_UNITS.map((u, i) => [u, acks[i].doneReceivedMonotonicMs - first[i].dirtyObservedMonotonicMs])) };
+}
+export function summarizeE14(records, { bundles, skipped = [], limitMs = 3000 }) {
+  const index = e14Index(records);
+  const results = bundles.map((b) => e14Bundle(index, b));
+  const linked = results.filter((r) => r.status === "linked");
+  const reasons = {};
+  for (const r of results.filter((x) => x.status !== "linked")) reasons[r.reason] = (reasons[r.reason] ?? 0) + 1;
+  if (skipped.length > 0) reasons.previousNotSaved = skipped.length;
+  const units = Object.fromEntries(E14_UNITS.map((u) => {
+    const values = linked.map((r) => r.dirtyToAckMs[u]);
+    return [u, { ...(quantiles(values) ?? {}), overLimit: values.filter((v) => v > limitMs).length }];
+  }));
+  return { status: linked.length === 0 ? "未確認" : null, bundles: bundles.length + skipped.length, linked: linked.length, unconfirmed: reasons, units, limitMs,
+    note: "unit ごとの dirty→ack。各保存の p99 の和を全体の p99 と呼ばない（計画:218）。Mac の値は報告で、判定場所は Pi（P5）" };
+}
+
 // PublishCostReport（AC15/R62）: onSerialize 由来の publishSerialization 観測から。窓 = 1 つの JSONL（E01/E02 の 1 run）。上限は置かない。
 export function publishCostReport(records, window) {
   const rows = observations(records, "publishSerialization");

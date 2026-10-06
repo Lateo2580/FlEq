@@ -14,7 +14,8 @@ import { OwnerHost } from "../../src/runtime/owner-host";
 import { completeDiagnostic } from "../../src/runtime/runtime-diagnostic";
 import { executionPlaces } from "../../src/runtime/unit-coverage";
 import { fixtureDriver, fixtureState, recordingNotificationAdapter, stringCodec } from "../checkpoint-shutdown/runtime-fixture";
-import { envelope, harnessedRoot, startHarness } from "./owner-harness";
+import { eewEnvelope } from "../notification-delivery/delivery-fixture";
+import { envelope, harnessedRoot, idleChannels, manualAdapter, startHarness, submit } from "./owner-harness";
 import type { Harness } from "./owner-harness";
 
 describe("P3-C4-T03 contractBoundary / AC04(1): the full parse span of an owner input", () => {
@@ -24,7 +25,7 @@ describe("P3-C4-T03 contractBoundary / AC04(1): the full parse span of an owner 
     const run = (measured: boolean) => {
       const replies: OwnerReply[] = [];
       const owner = new OwnerHost({ start: { place: "weatherCurrent", stateDirectory: join(directory, String(measured)),
-        publisherTimeOriginMs: performance.timeOrigin, measured }, units: linkedUnitTable, codecs: linkedUnitCodecs,
+        publisherTimeOriginMs: performance.timeOrigin, measured, inputHeap: false }, units: linkedUnitTable, codecs: linkedUnitCodecs,
       fileSystem: nodeCheckpointFileSystem(), sharedNow: () => performance.timeOrigin + performance.now(),
       reply: (reply) => { replies.push(reply); }, fail: (error) => { throw error; } });
       const at = { wallTimeMs: 1_751_270_000_000, monotonicMs: performance.now() };
@@ -77,7 +78,7 @@ function memory() {
   return { checkpoint, diagnostic, logs };
 }
 
-type Measured = Extract<P2HostObservation, { kind: "checkpointGrant" | "writeCount" | "shutdownSummaryWrite" }>;
+type Measured = Extract<P2HostObservation, { kind: "checkpointGrant" | "writeCount" | "shutdownSummaryWrite" | "notificationAdoption" }>;
 
 // 測定成果物（観測の書出し）は、host-launcher と同じく製品の包みを通らない生の filesystem で同じ診断 dir に書く。
 async function measuredRuntime(measured = true, clock?: () => ClockReading) {
@@ -211,5 +212,65 @@ describe("P3-C4-T05 contractBoundary / AC04, AC05: E14 and E15 observations on f
     expect(writes).toHaveLength(1);
     expect(rows(observed).find((row) => row.thread === "deferred")).toMatchObject({ confirmed: true,
       counts: { tmp: { count: 1, bytes: writes[0].bytes } } });
+  });
+});
+
+describe("P3-C4-T11 contractBoundary / AC13(4)(5): the owner heap on replies and the notification adoption", () => {
+  const now = { wallTimeMs: 1_713_363_299_001, monotonicMs: 1 };
+  async function runtime(owners: Readonly<{ measured: boolean; inputHeap: boolean }>) {
+    const directory = await disk.mkdtemp(join(tmpdir(), "fleq-c4-t11-"));
+    const observed: Measured[] = [];
+    const h = harnessedRoot({ appName: "p2", legacyAppName: "v2", stateDirectory: join(directory, "state"), legacyStateDirectory: join(directory, "legacy"),
+      diagnosticDirectory: join(directory, "diagnostics") }, linkedUnitCodecs, { clock: () => now, notificationAdapter: manualAdapter().adapter, owners,
+      ...(owners.measured ? { measure: (observation: Measured) => { observed.push(observation); } } : {}) });
+    return { h, observed, cleanup: async () => { await h.root.diagnostics.flush(); await disk.rm(directory, { recursive: true, force: true }); } };
+  }
+  const adoptions = (observed: readonly Measured[]) => observed.flatMap((o) => o.kind === "notificationAdoption" ? [o] : []);
+
+  it("deadlineDone carries the heap with the mark, inputDone only with the inputHeap mark too; without the mark both are null", async () => {
+    for (const [measured, inputHeap] of [[true, true], [true, false], [false, false]] as const) {
+      const { h, cleanup } = await runtime({ measured, inputHeap });
+      try {
+        await startHarness(h, "t11", now);
+        await submit(h, eewEnvelope("t11", now));
+        h.root.tick(now);
+        await h.settle();
+        const heaps = (kind: "deadlineDone" | "inputDone") => h.delivered.flatMap(({ reply }) => reply.kind === kind ? [reply.heap != null] : []);
+        expect([heaps("deadlineDone").length > 0, heaps("inputDone").length > 0]).toEqual([true, true]);
+        expect([new Set(heaps("deadlineDone")), new Set(heaps("inputDone"))]).toEqual([new Set([measured]), new Set([measured && inputHeap])]);
+      } finally { await cleanup(); }
+    }
+  });
+
+  it("one adoption row per reservation reply: sent ≤ reply ≤ adapter start; a reservation the owner did not adopt has no start", async () => {
+    {
+      const { h, observed, cleanup } = await runtime({ measured: true, inputHeap: false });
+      try {
+        await startHarness(h, "t11", now);
+        await submit(h, eewEnvelope("t11", now));
+        const rows = adoptions(observed);
+        expect(rows.map((row) => [row.channel, row.adopted])).toEqual([["desktop", true], ["sound", true]]);
+        for (const row of rows) {
+          const order = [row.reservationSentMonotonicMs, row.replyReceivedMonotonicMs, row.attemptStartedMonotonicMs ?? -1];
+          expect(order).toEqual([...order].sort((a, b) => a - b));
+        }
+      } finally { await cleanup(); }
+    }
+    // 予約と owner の採用の間に EEW が取り消され、owner はどちらも採用しない（P3-C3A-T07 の (1) と同じ流れ）。
+    const { h, observed, cleanup } = await runtime({ measured: true, inputHeap: false });
+    try {
+      await startHarness(h, "t11", now, false);
+      await submit(h, eewEnvelope("t11", now));
+      h.pause();
+      h.root.mailbox.enqueue(envelope("t11", "VXSE43", "cancel", readFileSync("test/fixtures/37_01_03_240613_VXSE43.xml"), now, 2));
+      h.root.pump();
+      const release = h.hold((_place, reply) => reply.kind === "intentUpdateDone");
+      h.root.dispatch({ kind: "notificationProbeCompleted", channels: idleChannels, clock: now });
+      await h.settle();
+      release();
+      h.release();
+      await h.settle();
+      expect(adoptions(observed).map((row) => [row.adopted, row.attemptStartedMonotonicMs])).toEqual([[false, null], [false, null]]);
+    } finally { await cleanup(); }
   });
 });

@@ -970,3 +970,24 @@ describe("P3-C4-T05 contractBoundary / AC04(4), AC07: the mailbox observation (P
     await host.stop();
   });
 });
+
+describe("P3-C4-T11 contractBoundary / AC13(4): the ownerHeap rows (P3-C4-OWNER-HEAP=B')", () => {
+  it("a row per deadlineDone (no input id) with the mark; per inputDone (with its input id) only when measureInputHeap is set too", async () => {
+    for (const measureInputHeap of [true, false]) {
+      const server = await localServer();
+      const observations: P2HostObservation[] = [];
+      const host = await startP2Host({ wsUrl: server.url, ...await directories(), displayPort: 0, clock, measureInputHeap,
+        observe: (o) => { observations.push(o); } });
+      cleanups.push(() => host.stop().then(() => {}, () => {}));
+      await until(() => server.sockets.length === 1);
+      server.sockets[0].send(dataFrame("VXSE43", vxse43));
+      const rows = () => observations.flatMap((o) => o.kind === "ownerHeap" ? [o] : []);
+      await until(() => rows().some((row) => row.replyKind === "deadlineDone")
+        && observations.some((o) => o.kind === "processing" && o.measurement.inputId === "input-1"), 5_000);
+      expect(rows().filter((row) => row.replyKind === "deadlineDone").every((row) => row.inputId === null && row.heapUsedBytes > 0)).toBe(true);
+      expect(rows().filter((row) => row.replyKind === "inputDone").map((row) => [row.place, row.inputId]))
+        .toEqual(measureInputHeap ? [["urgent", "input-1"]] : []);
+      await host.stop();
+    }
+  });
+});

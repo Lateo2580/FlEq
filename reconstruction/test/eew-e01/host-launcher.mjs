@@ -43,7 +43,7 @@ const clock = () => {
 
 clockLine();
 const host = await startP2Host({ wsUrl: config.wsUrl, stateDirectory: config.stateDirectory, diagnosticDirectory: config.diagnosticDirectory,
-  displayPort: 0, clock, observe: (o) => { pending.push({ t: "obs", o }); } });
+  displayPort: 0, clock, observe: (o) => { pending.push({ t: "obs", o }); }, measureInputHeap: config.measureInputHeap === true });
 // host 起動直後の mem 行（10 秒周期とは別）。E05/E12 が「区間の開始以前で最後の mem 行」を前値に使う。
 const memLine = () => {
   const m = process.memoryUsage();

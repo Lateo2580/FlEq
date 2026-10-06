@@ -5,7 +5,7 @@ import type { ParserMailboxResult, ProcessingMarks } from "../../contracts/p1-pa
 import type { UnitTable } from "../../contracts/p3-unit-table.types";
 import type { CheckpointMeasurement } from "../../contracts/p2-eew-e01.types";
 import type {
-  OwnerOutput, OwnerReply, OwnerRequest, OwnerStartData, OwnerUnitDelta, SentClock,
+  OwnerHeap, OwnerOutput, OwnerReply, OwnerRequest, OwnerStartData, OwnerUnitDelta, SentClock,
 } from "../../contracts/p3-execution-split.types";
 import type {
   CheckpointResult, ClockReading, DiagnosticEvent, NotificationIntent, RestoreUnitResult, RuntimeUnitId,
@@ -39,6 +39,12 @@ const noMarks: ProcessingMarks = { ingressJsonMs: null, base64DecodeMs: null, de
 
 // One owner: the canonical state of its place's units, applied one request at a time in arrival order (spec:676).
 // The owner thread runs one; the test path (2) runs one per place in-process. Values cross only as OwnerReply.
+// P3-C4-OWNER-HEAP=B': この thread の heap（印があるときだけ呼ぶ）。
+function threadHeap(): OwnerHeap {
+  const { heapUsed, external } = process.memoryUsage();
+  return { heapUsedBytes: heapUsed, externalBytes: external };
+}
+
 class OwnerHost {
   private state: OwnerState | null = null;
   private coordinator: CheckpointCoordinator | null = null;
@@ -93,12 +99,13 @@ class OwnerHost {
         processingStartedMs, marks: { ...marks, ingressJsonMs: null,
           workerTransferMs: processingStartedMs - (request.sharedMs - this.options.start.publisherTimeOriginMs) },
         decode: { startedMonotonicMs: decodeStarted, endedMonotonicMs: decodeEnded, xmlParseStartedMonotonicMs: this.threadToMeasured(parseTimes?.startedMs),
-          xmlParseEndedMonotonicMs: this.threadToMeasured(parseTimes?.endedMs) }, output: this.output([step]) });
+          xmlParseEndedMonotonicMs: this.threadToMeasured(parseTimes?.endedMs) },
+        heap: this.options.start.measured && this.options.start.inputHeap ? threadHeap() : null, output: this.output([step]) });
         return;
       }
       case "deadline": {
         const step = this.apply(deadlineOwner(state, this.business(), this.options.units));
-        this.options.reply({ kind: "deadlineDone", output: this.output([step]) });
+        this.options.reply({ kind: "deadlineDone", heap: this.options.start.measured ? threadHeap() : null, output: this.output([step]) });
         return;
       }
       case "intentUpdate": {

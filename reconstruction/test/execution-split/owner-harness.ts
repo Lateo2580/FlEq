@@ -23,6 +23,8 @@ type Owners = Readonly<{
   sharedNow?: () => number;
   // 測定の印（OwnerStartData.measured、P3-C4-AC04）。既定は印なし。
   measured?: boolean;
+  // inputDone に heap を載せる印（OwnerStartData.inputHeap、P3-C4-OWNER-HEAP=B'）。既定は印なし。
+  inputHeap?: boolean;
 }>;
 type Held = (place: ExecutionPlace, reply: OwnerReply) => boolean;
 
@@ -50,7 +52,8 @@ function harnessedRoot(config: AppConfig, codecs: CodecMap<RuntimeUnitStates> = 
   let scheduled = false;
   let manual = false;
   const owners = new Map(places.map((place) => [place, new OwnerHost({
-    start: { place, stateDirectory: config.stateDirectory, publisherTimeOriginMs: 0, measured: options.owners?.measured ?? false },
+    start: { place, stateDirectory: config.stateDirectory, publisherTimeOriginMs: 0, measured: options.owners?.measured ?? false,
+      inputHeap: options.owners?.inputHeap ?? false },
     units: options.runtimeCalls?.units ?? linkedUnitTable, codecs,
     fileSystem: options.checkpointFileSystem ?? nodeCheckpointFileSystem(), sharedNow,
     reply: (reply) => { replies.push({ place, reply: structuredClone(reply) }); schedule(); },

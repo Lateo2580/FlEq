@@ -9,7 +9,7 @@ import type {
   EewReferencePopulation,
   EewTrialSetup,
 } from "../../../contracts/p2-eew-e01.types";
-import type { P3E01Manifest, P3EewEstablishment, P3EewPopulation } from "../../../contracts/p3-e01-reaccept.types";
+import type { P3E01Manifest, P3EewEstablishment, P3EewPopulation, P3EewPopulationCondition } from "../../../contracts/p3-e01-reaccept.types";
 
 // P2-A10-AC01/AC14 の凍結境界。無いと、結果を見た後に manifest を書き換えても検出できず、
 // smoke 条件との差異や使用契約の hash 不一致が黙って通る。
@@ -208,10 +208,157 @@ function verifyFrozenManifest(input: Readonly<{
 
 const P3_POPULATIONS: readonly P3EewPopulation[] = ["fixedBacklog", "maxVpws50ParseStarted", "maxWeatherCheckpointEncodeStarted",
   "maxForecastCheckpointSave", "forecastDeadlineOverlap", "maxVpws50ReceivedThenEew"];
+const LEAD_POPULATIONS: ReadonlySet<P3EewPopulation> = new Set(["maxWeatherCheckpointEncodeStarted", "maxForecastCheckpointSave", "forecastDeadlineOverlap"]);
 const P3_ESTABLISHMENT: Readonly<Record<P3EewPopulation, P3EewEstablishment["kind"]>> = {
   fixedBacklog: "none", maxVpws50ParseStarted: "startOffset", maxWeatherCheckpointEncodeStarted: "startOffset",
   maxForecastCheckpointSave: "startOffset", forecastDeadlineOverlap: "startOffset", maxVpws50ReceivedThenEew: "sentBeforeLargeFrameIngested",
 };
+
+// Q-C4-O09-SUBSET: o09Subset の sha が sequences.json の meta.sha256 と、その hashConvention で計算した値の両方に一致し、各 position が
+// O09 に在ること（check-sequences.mjs と同じ規約の複製。変えるときは両方直す）。
+function verifyO09Subset(subset: P3E01Manifest["o09Subset"], sequencesText: string): void {
+  const prefix = /^(\{\s*"meta"\s*:\s*\{\s*"baseOid"\s*:\s*"[^"]+"\s*,\s*"sha256"\s*:\s*")([a-f0-9]{64})(")/;
+  const parsed: unknown = JSON.parse(sequencesText);
+  const meta = isRecord(parsed) && isRecord(parsed["meta"]) ? parsed["meta"] : null;
+  need(meta != null && meta["sha256"] === subset.sequencesSha256 && meta["hashConvention"] === HASH_CONVENTION && prefix.test(sequencesText)
+    && sha256Hex(sequencesText.replace(prefix, (_, a: string, _h: string, c: string) => a + ZERO_HASH + c)) === subset.sequencesSha256, "o09Subset sequencesSha256");
+  const sequences = isRecord(parsed) && Array.isArray(parsed["sequences"]) ? parsed["sequences"] : [];
+  const o09 = sequences.find((q: unknown) => isRecord(q) && q["sequenceId"] === "O09");
+  const positions = new Set(isRecord(o09) && Array.isArray(o09["steps"]) ? o09["steps"].flatMap((step: unknown) => isRecord(step) && typeof step["position"] === "number" ? [step["position"]] : []) : []);
+  need(subset.sequenceId === "O09" && subset.positions.every((position) => positions.has(position)), "o09Subset positions must be steps of O09");
+}
+
+// P3 manifest の読み戻しの境界（AGENTS.md）: 形（型・必須の有無・key の集合・固定値）を確かめた値を項目ごとに組み立てる。全体を as で
+// 言い換えると、型に項目を足したときに確かめの足し忘れをコンパイラが止められない。意味の検査（hash・継承・母集団ごとの規則）は
+// verifyFrozenP3Manifest の need が行う。固定値の拒否の理由は verifyCommon と同じ文字列にする。
+type Json = Record<string, unknown>;
+function obj(v: unknown, what: string): Json {
+  need(isRecord(v), `${what} must be an object`);
+  return v;
+}
+// keys と同じ集合の key だけを持つ object（余分・不足は拒否）。
+function exactKeys(v: unknown, keys: readonly string[], what: string): Json {
+  const o = obj(v, what);
+  need(Object.keys(o).length === keys.length && keys.every((k) => Object.hasOwn(o, k)), `${what} must have exactly ${keys.join(",")}`);
+  return o;
+}
+function text(v: unknown, what: string): string {
+  need(typeof v === "string", `${what} must be a string`);
+  return v;
+}
+function count(v: unknown, what: string): number {
+  need(typeof v === "number" && Number.isFinite(v), `${what} must be a finite number`);
+  return v;
+}
+const countOrNull = (v: unknown, what: string): number | null => (v === null ? null : count(v, what));
+const textOrNull = (v: unknown, what: string): string | null => (v === null ? null : text(v, what));
+function list<T>(v: unknown, read: (x: unknown, what: string) => T, what: string): readonly T[] {
+  need(Array.isArray(v), `${what} must be an array`);
+  return v.map((x, i) => read(x, `${what}[${i}]`));
+}
+function oneOf<T extends string>(v: unknown, values: readonly T[], what: string): T {
+  const found = values.find((x) => x === v);
+  need(found != null, `${what} must be one of ${values.join("|")}`);
+  return found;
+}
+function exactly<T extends string | number | boolean>(v: unknown, expected: T, message: string): T {
+  need(v === expected, message);
+  return expected;
+}
+function textRecord(v: unknown, what: string): Readonly<Record<string, string>> {
+  return Object.fromEntries(Object.entries(obj(v, what)).map(([k, x]) => [k, text(x, `${what}.${k}`)]));
+}
+const LOADS = ["N", "P", "C"] as const;
+const load = (v: unknown, what: string) => oneOf(v, LOADS, what);
+function readLoad(v: unknown, what: string): EewMeasurementManifest["loads"]["N"] {
+  const o = obj(v, what);
+  return { id: load(o["id"], `${what}.id`), fixtureRefs: list(o["fixtureRefs"], text, `${what}.fixtureRefs`), ordering: list(o["ordering"], text, `${what}.ordering`),
+    offsetsMs: list(o["offsetsMs"], count, `${what}.offsetsMs`), durationMs: count(o["durationMs"], `${what}.durationMs`), sha256: text(o["sha256"], `${what}.sha256`) };
+}
+function readForecast(v: unknown, what: string): NonNullable<P3EewPopulationCondition["forecast"]> {
+  const o = obj(v, what);
+  const allowed = obj(o["allowed"], `${what}.allowed`);
+  return { subjects: count(o["subjects"], `${what}.subjects`), encodedBytes: count(o["encodedBytes"], `${what}.encodedBytes`),
+    saveCondition: text(o["saveCondition"], `${what}.saveCondition`), deadlineCondition: text(o["deadlineCondition"], `${what}.deadlineCondition`),
+    allowed: { maxSubjects: count(allowed["maxSubjects"], `${what}.allowed.maxSubjects`), maxEncodedBytes: count(allowed["maxEncodedBytes"], `${what}.allowed.maxEncodedBytes`) } };
+}
+// 種類の形だけを確かめる。母集団ごとの種類と固定値（1ms・0〜5ms・span の置き場所）は呼び出し側の need（理由 "establishment"）。
+function readEstablishment(v: unknown, what: string): P3EewEstablishment {
+  const o = obj(v, `${what}.establishment`);
+  const kind = oneOf(o["kind"], ["none", "startOffset", "sentBeforeLargeFrameIngested"], `${what}.establishment.kind`);
+  if (kind !== "startOffset") return { kind };
+  const range = list(o["acceptedOffsetRangeMs"], count, `${what}.establishment.acceptedOffsetRangeMs`);
+  return { kind, targetOffsetMs: exactly(o["targetOffsetMs"], 1, `${what} establishment`), acceptedOffsetRangeMs: [exactly(range[0], 0, `${what} establishment`),
+    exactly(range[1], 5, `${what} establishment`)], span: oneOf(o["span"], ["population", "encodeThroughWrite"], `${what}.establishment.span`) };
+}
+function readCondition(v: unknown, what: string): P3EewPopulationCondition {
+  const o = obj(v, what);
+  const stop = obj(o["stopCondition"], `${what}.stopCondition`);
+  return { scope: oneOf(o["scope"], ["formal", "reference"], `${what}.scope`), load: load(o["load"], `${what}.load`), periodMs: count(o["periodMs"], `${what}.periodMs`),
+    trigger: text(o["trigger"], `${what}.trigger`), stateRef: text(o["stateRef"], `${what}.stateRef`), stateSha256: text(o["stateSha256"], `${what}.stateSha256`),
+    establishment: readEstablishment(o["establishment"], what), origin: oneOf(o["origin"], ["T0", "injectorSend"], `${what}.origin`),
+    forecast: o["forecast"] === null ? null : readForecast(o["forecast"], `${what}.forecast`),
+    stopCondition: { maxAttempts: count(stop["maxAttempts"], `${what}.stopCondition.maxAttempts`), maxDurationMs: count(stop["maxDurationMs"], `${what}.stopCondition.maxDurationMs`) },
+    triggerLeadMs: countOrNull(o["triggerLeadMs"], `${what}.triggerLeadMs`) };
+}
+function readAuxiliary(v: unknown, what: string): P3E01Manifest["auxiliary"]["E03"] {
+  const o = obj(v, what);
+  return { loads: list(o["loads"], load, `${what}.loads`), minSamplesPerRun: countOrNull(o["minSamplesPerRun"], `${what}.minSamplesPerRun`),
+    runCount: countOrNull(o["runCount"], `${what}.runCount`), condition: text(o["condition"], `${what}.condition`),
+    sharesWindowWith: textOrNull(o["sharesWindowWith"], `${what}.sharesWindowWith`), intervalMs: countOrNull(o["intervalMs"], `${what}.intervalMs`) };
+}
+function readP3Manifest(v: unknown): P3E01Manifest {
+  const m = obj(v, "manifest");
+  const health = obj(m["health"], "manifest.health");
+  const chrome = obj(m["chrome"], "manifest.chrome");
+  const viewport = list(chrome["viewportCssPx"], count, "manifest.chrome.viewportCssPx");
+  need(viewport.length === 2, "manifest.chrome.viewportCssPx must be [width, height]");
+  const probe = exactKeys(m["notificationProbe"], ["desktop", "sound"], "manifest.notificationProbe");
+  const loads = exactKeys(m["loads"], LOADS, "manifest.loads");
+  const populations = exactKeys(m["populations"], P3_POPULATIONS, "manifest.populations");
+  const liveness = obj(m["liveness"], "manifest.liveness");
+  const auxiliary = exactKeys(m["auxiliary"], ["E03", "E05", "E06", "E07", "E12", "E14", "E15", "ownerHeap"], "manifest.auxiliary");
+  const machines = exactKeys(m["machines"], ["formal", "gate", "piBackend"], "manifest.machines");
+  const places = exactKeys(m["judgmentPlaces"], ["E01", "E02", "E03", "E05", "E06", "E07", "E14", "E15"], "manifest.judgmentPlaces");
+  const o09 = obj(m["o09Subset"], "manifest.o09Subset");
+  const population = (key: P3EewPopulation) => readCondition(populations[key], `population ${key}`);
+  const aux = (key: keyof P3E01Manifest["auxiliary"]) => readAuxiliary(auxiliary[key], `auxiliary ${key}`);
+  const place = (key: keyof P3E01Manifest["judgmentPlaces"]) => text(places[key], `judgmentPlaces.${key}`);
+  const probed = (key: "desktop" | "sound") => oneOf(probe[key], ["idle", "unavailable"], `notificationProbe.${key}`);
+  const healthLoads = list(health["loads"], text, "manifest.health.loads");
+  return {
+    schemaVersion: exactly(m["schemaVersion"], "p3-e01-manifest-v1", "manifest schemaVersion"),
+    manifestId: text(m["manifestId"], "manifestId"), manifestSha256: text(m["manifestSha256"], "manifestSha256"),
+    contractSha256: textRecord(m["contractSha256"], "contractSha256"), trialSetupRef: text(m["trialSetupRef"], "trialSetupRef"),
+    trialSetupSha256: text(m["trialSetupSha256"], "trialSetupSha256"), smokeConditionsSha256: text(m["smokeConditionsSha256"], "smokeConditionsSha256"),
+    smokeConditionDifferences: list(m["smokeConditionDifferences"], text, "smokeConditionDifferences"),
+    measuredSseClients: exactly(m["measuredSseClients"], 1, "manifest run counts"),
+    notificationProbe: { desktop: probed("desktop"), sound: probed("sound") },
+    loads: { N: readLoad(loads["N"], "load N"), P: readLoad(loads["P"], "load P"), C: readLoad(loads["C"], "load C") },
+    warmupPerRun: exactly(m["warmupPerRun"], 100, "manifest run counts"), samplesPerRun: exactly(m["samplesPerRun"], 1000, "manifest run counts"),
+    runCount: exactly(m["runCount"], 3, "manifest run counts"), missingAfterMs: exactly(m["missingAfterMs"], 10000, "manifest deadlines"),
+    callbackDeadlineAfterInjectionMs: exactly(m["callbackDeadlineAfterInjectionMs"], 10000, "manifest deadlines"),
+    quantile: exactly(m["quantile"], "nearestRank", "manifest clock/quantile"), clockProbeEveryMs: exactly(m["clockProbeEveryMs"], 30000, "manifest deadlines"),
+    maxClockIntervalWidthMs: exactly(m["maxClockIntervalWidthMs"], 5, "manifest clock/quantile"),
+    health: { loads: [exactly(healthLoads[0], "N", "health conditions"), exactly(healthLoads[1], "P", "health conditions")],
+      requestEveryMs: exactly(health["requestEveryMs"], 1000, "health conditions"), requestTimeoutMs: count(health["requestTimeoutMs"], "health.requestTimeoutMs"),
+      minSamplesPerRun: exactly(health["minSamplesPerRun"], 1000, "health conditions"), runCount: exactly(health["runCount"], 3, "health conditions") },
+    chrome: { version: text(chrome["version"], "chrome.version"), foregroundTab: exactly(chrome["foregroundTab"], true, "chrome.foregroundTab must be true"),
+      viewportCssPx: [viewport[0], viewport[1]], dpr: count(chrome["dpr"], "chrome.dpr"), motion: oneOf(chrome["motion"], ["reduced", "full"], "chrome.motion") },
+    nodeVersion: text(m["nodeVersion"], "nodeVersion"), osVersion: text(m["osVersion"], "osVersion"), device: text(m["device"], "device"),
+    geometrySha256: text(m["geometrySha256"], "geometrySha256"), fixtureSha256: textRecord(m["fixtureSha256"], "fixtureSha256"),
+    inheritsManifestId: exactly(m["inheritsManifestId"], "a10-p2-20260930b", "inheritsManifestId does not name the inherited manifest"),
+    populations: { fixedBacklog: population("fixedBacklog"), maxVpws50ParseStarted: population("maxVpws50ParseStarted"),
+      maxWeatherCheckpointEncodeStarted: population("maxWeatherCheckpointEncodeStarted"), maxForecastCheckpointSave: population("maxForecastCheckpointSave"),
+      forecastDeadlineOverlap: population("forecastDeadlineOverlap"), maxVpws50ReceivedThenEew: population("maxVpws50ReceivedThenEew") },
+    liveness: { pingEveryMs: exactly(liveness["pingEveryMs"], 20000, "liveness"), maxFrameGapMs: exactly(liveness["maxFrameGapMs"], 90000, "liveness") },
+    auxiliary: { E03: aux("E03"), E05: aux("E05"), E06: aux("E06"), E07: aux("E07"), E12: aux("E12"), E14: aux("E14"), E15: aux("E15"), ownerHeap: aux("ownerHeap") },
+    machines: { formal: text(machines["formal"], "machines.formal"), gate: text(machines["gate"], "machines.gate"), piBackend: text(machines["piBackend"], "machines.piBackend") },
+    judgmentPlaces: { E01: place("E01"), E02: place("E02"), E03: place("E03"), E05: place("E05"), E06: place("E06"), E07: place("E07"), E14: place("E14"), E15: place("E15") },
+    o09Subset: { sequenceId: exactly(o09["sequenceId"], "O09", "o09Subset positions must be steps of O09"),
+      sequencesSha256: text(o09["sequencesSha256"], "o09Subset.sequencesSha256"), positions: list(o09["positions"], count, "o09Subset.positions") },
+  };
+}
 
 // P3-C4-AC10: P3 manifest の凍結境界。A10 と同じ照合（自己 hash・trialSetup・smoke・使用契約）に、継承する A10 の負荷・初期状態・fixture の
 // hash の一致と、6 母集団の条件の形を足す。無いと、P2 の型（正式は fixedBacklog だけ）で 6 母集団を表せず、型の無い manifest で凍結する。
@@ -220,21 +367,24 @@ function verifyFrozenP3Manifest(input: Readonly<{
   manifestText: string;
   trialSetupText: string;
   smokeConditionsText: string;
+  sequencesText: string;
   contractTexts: Readonly<Record<string, string>>;
   // 継承元: A10 の凍結 manifest と、その trialSetup が指す initial-state の保存 text。
   inherited: Readonly<{ manifestText: string; initialStateText: string }>;
 }>): Readonly<{ manifest: P3E01Manifest; trialSetup: EewTrialSetup }> {
-  const m = readSelfHashed(input.manifestText, "manifestSha256") as P3E01Manifest;
-  need(m.schemaVersion === "p3-e01-manifest-v1", "manifest schemaVersion");
+  const m = readP3Manifest(readSelfHashed(input.manifestText, "manifestSha256"));
   verifyCommon(m);
-  const a10 = readSelfHashed(input.inherited.manifestText, "manifestSha256") as EewMeasurementManifest;
-  need(a10.manifestId === m.inheritsManifestId, "inheritsManifestId does not name the inherited manifest");
-  for (const id of ["N", "P", "C"] as const) need(JSON.stringify(m.loads[id]) === JSON.stringify(a10.loads[id]), `load ${id} differs from ${a10.manifestId}`);
-  need(m.trialSetupRef === a10.trialSetupRef && m.trialSetupSha256 === a10.trialSetupSha256, `trialSetup differs from ${a10.manifestId}`);
-  need(Object.entries(a10.fixtureSha256).every(([id, h]) => m.fixtureSha256[id] === h), `fixtureSha256 differs from ${a10.manifestId}`);
+  // 継承元の A10 manifest は照合に使う項目だけを読む（loads は保存の形のまま文字列で比べる）。
+  const a10 = obj(readSelfHashed(input.inherited.manifestText, "manifestSha256"), "inherited manifest");
+  const a10Id = text(a10["manifestId"], "inherited manifestId");
+  const a10Loads = obj(a10["loads"], "inherited loads");
+  need(a10Id === m.inheritsManifestId, "inheritsManifestId does not name the inherited manifest");
+  for (const id of ["N", "P", "C"] as const) need(JSON.stringify(m.loads[id]) === JSON.stringify(a10Loads[id]), `load ${id} differs from ${a10Id}`);
+  need(m.trialSetupRef === a10["trialSetupRef"] && m.trialSetupSha256 === a10["trialSetupSha256"], `trialSetup differs from ${a10Id}`);
+  need(Object.entries(textRecord(a10["fixtureSha256"], "inherited fixtureSha256")).every(([id, h]) => m.fixtureSha256[id] === h), `fixtureSha256 differs from ${a10Id}`);
   const t = verifyTrialSetup(m, input.trialSetupText);
   need(sha256Hex(input.inherited.initialStateText) === t.initialStateSha256, "initial-state sha256 differs from trialSetup.initialStateSha256");
-  const states = (JSON.parse(input.inherited.initialStateText) as { populations: Record<string, unknown> }).populations;
+  const states = obj(obj(JSON.parse(input.inherited.initialStateText), "initial-state")["populations"], "initial-state populations");
   verifySmokeAgainst(m, input.smokeConditionsText);
   need(Object.hasOwn(m.contractSha256, "P3-E01-REACCEPT-001"), "contractSha256 lacks P3-E01-REACCEPT-001");
   verifyContractHashes(m.contractSha256, input.contractTexts);
@@ -247,8 +397,11 @@ function verifyFrozenP3Manifest(input: Readonly<{
     need(p.stateRef === `${t.initialStateRef}#populations.${state}` && state != null && Object.hasOwn(states, state) && p.stateSha256 === t.initialStateSha256,
       `population ${key} state is not the inherited initial state`);
     const e = p.establishment;
-    need(e.kind === P3_ESTABLISHMENT[key] && (e.kind !== "startOffset" || (e.targetOffsetMs === 1 && e.acceptedOffsetRangeMs[0] === 0 && e.acceptedOffsetRangeMs[1] === 5)),
-      `population ${key} establishment`);
+    need(e.kind === P3_ESTABLISHMENT[key] && (e.kind !== "startOffset" || (e.targetOffsetMs === 1 && e.acceptedOffsetRangeMs[0] === 0 && e.acceptedOffsetRangeMs[1] === 5
+      && (e.span === "population" || (e.span === "encodeThroughWrite" && key === "forecastDeadlineOverlap")))), `population ${key} establishment`);
+    // P3-C4-AC13(1): lead は保存・期限回収の母集団だけ。
+    need(LEAD_POPULATIONS.has(key) ? typeof p.triggerLeadMs === "number" && Number.isFinite(p.triggerLeadMs) && p.triggerLeadMs > 0 : p.triggerLeadMs === null,
+      `population ${key} triggerLeadMs`);
     const scopeOrigin = `${p.scope}/${p.origin}`;
     need(key === "maxVpws50ReceivedThenEew" ? ["reference/T0", "formal/injectorSend"].includes(scopeOrigin) : scopeOrigin === "formal/T0", `population ${key} scope/origin`);
     need(key === "fixedBacklog" ? p.forecast != null && forecastWithinAllowance({ formal: { forecast: p.forecast } }, p.forecast)
@@ -257,10 +410,13 @@ function verifyFrozenP3Manifest(input: Readonly<{
     need(Number.isInteger(s.maxAttempts) && s.maxAttempts >= m.warmupPerRun + m.samplesPerRun && Number.isFinite(s.maxDurationMs) && s.maxDurationMs > 0, `population ${key} stopCondition`);
   }
   need(m.liveness.pingEveryMs === 20000 && m.liveness.maxFrameGapMs === 90000, "liveness");
-  for (const key of ["E03", "E05", "E06", "E07", "E12", "E15"] as const) {
+  for (const key of ["E03", "E05", "E06", "E07", "E12", "E14", "E15", "ownerHeap"] as const) {
     const a = m.auxiliary[key];
     need(a != null && nonEmpty(a.condition) && (a.sharesWindowWith == null || !/e01/i.test(a.sharesWindowWith)), `auxiliary ${key} (E01 windows are never shared)`);
+    need(key === "E14" ? typeof a.intervalMs === "number" && a.intervalMs > 0 && (a.minSamplesPerRun ?? 0) > 0 && (a.minSamplesPerRun ?? 0) <= 512
+      : a.intervalMs === null, `auxiliary ${key} intervalMs`);
   }
+  verifyO09Subset(m.o09Subset, input.sequencesText);
   need((["formal", "gate", "piBackend"] as const).every((k) => nonEmpty(m.machines[k])), "machines");
   need((["E01", "E02", "E03", "E05", "E06", "E07", "E14", "E15"] as const).every((k) => nonEmpty(m.judgmentPlaces[k])), "judgmentPlaces");
   return { manifest: m, trialSetup: t };

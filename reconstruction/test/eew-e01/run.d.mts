@@ -45,3 +45,16 @@ export function parseArgs(argv: readonly string[]): { args: Map<string, string |
 
 // 窓 dir の下の全ファイル（下位 dir を含む、state/ を除く）の相対 path・大きさ・sha256（窓記録の raw）。
 export function hashRaw(dir: string): { file: string; bytes: number; sha256: string }[];
+
+// P3-C4-AC13(7): 直近 count 試行の「parse 開始 − 引き金の実送信（host の時計）」の中央値。足りなければ null。
+export function predictParseDelay(trials: readonly { trigger?: { inputId: string | null; injectedHrMs: number | null } | null }[],
+  parseStarts: ReadonlyMap<string, number>, ohLo: number | null, count?: number): number | null;
+
+// P3-C4-AC13(1): 窓 1 本の条件（lead と span は manifest から）。
+export function populationSpec(manifest: { populations: Record<string, unknown> }, population: string, run: number, warmup: number, count: number,
+  stop: { maxAttempts: number; maxDurationMs: number }): { population: string; leadMs: number | null; span: "population" | "encodeThroughWrite"; targetOffsetMs: number;
+  periodMs: number; stateKey: string };
+// 試行の対象の区間（host の時計）。span "encodeThroughWrite" は保存の試行全体（encode 開始〜write 完了）。
+export function trialTarget(population: string, trial: { trigger?: { inputId: string | null; injectedHrMs: number | null; predictedTickHostMs?: number } | null },
+  host: { decode: Map<string, unknown>; t1: Map<string, number>; checkpoints: readonly { unit: string; stage: string; attemptId: string; startedMonotonicMs: number; endedMonotonicMs: number }[] },
+  ohLo: number | null, span?: "population" | "encodeThroughWrite"): { startMs: number; endMs: number } | null;
