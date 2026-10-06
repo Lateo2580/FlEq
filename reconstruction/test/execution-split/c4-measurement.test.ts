@@ -2,7 +2,7 @@ import { promises as disk, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { basename, join } from "node:path";
 import { performance } from "node:perf_hooks";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { CheckpointMeasurement, P2HostObservation } from "../../contracts/p2-eew-e01.types";
 import type { ClockReading, PersistenceStatus, RuntimeState } from "../../contracts/p2-shared-runtime.types";
@@ -307,5 +307,57 @@ describe("P3-C4-T10 contractBoundary / AC13(3)②: generationRaised marks only g
         await disk.rm(directory, { recursive: true, force: true });
       }
     }
+  });
+});
+
+// ヘルツ・Opus のレビュー（工程2c K1・K2）の再発防止。
+describe("P3-C4-T10 regression / AC13(3)②: when and whether generationRaised is written", () => {
+  afterEach(() => { vi.useRealTimers(); });
+  async function runtime(publish: () => void) {
+    const directory = await disk.mkdtemp(join(tmpdir(), "fleq-c4-raised-at-"));
+    const observed: Measured[] = [];
+    const h = harnessedRoot({ appName: "p2", legacyAppName: "v2", stateDirectory: join(directory, "state"), legacyStateDirectory: join(directory, "legacy"),
+      diagnosticDirectory: join(directory, "diagnostics") }, linkedUnitCodecs, { notificationAdapter: manualAdapter().adapter, owners: { measured: true, inputHeap: false },
+      measure: (observation: Measured) => { observed.push(observation); }, display: { publish } });
+    return { h, observed, cleanup: async () => { await h.root.diagnostics.flush(); await disk.rm(directory, { recursive: true, force: true }); } };
+  }
+
+  it("K1: the start is taken when the reply is reflected, before the delivery evaluation and the projection (a slow publish does not move it)", async () => {
+    const publishes: number[] = [];
+    const { h, observed, cleanup } = await runtime(() => {
+      publishes.push(performance.now());
+      const until = performance.now() + 50;
+      while (performance.now() < until) { /* 射影の後の公開を 50ms 遅らせる */ }
+    });
+    try {
+      await startHarness(h, "k1", h.clock());
+      const from = publishes.length;
+      await submit(h, eewEnvelope("k1", h.clock()));
+      const row = observed.find((o) => o.kind === "generationRaised");
+      if (row?.kind !== "generationRaised") throw new Error("generationRaised missing");
+      // この入力の反映で起きた最初の公開より前の時刻（公開の後に取ると 50ms 以上後ろにずれる）。
+      expect(row.monotonicMs).toBeLessThan(publishes[from]);
+    } finally { await cleanup(); }
+  });
+
+  it("K2: a reply the publisher refuses as late writes no row", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    const { h, observed, cleanup } = await runtime(() => {});
+    try {
+      await startHarness(h, "k2", h.clock());
+      h.hold((_place, reply) => reply.kind === "inputDone");
+      h.root.mailbox.enqueue(eewEnvelope("k2", h.clock()));
+      h.root.pump();
+      await h.settle();
+      expect(h.held).toHaveLength(1);
+      const stopping = h.root.shutdownRuntime(1, h.clock());
+      for (let i = 0; i < 8; i++) await vi.advanceTimersByTimeAsync(10_000);
+      await stopping;
+      const late = h.root.lateReplyCount;
+      h.release();
+      await h.settle();
+      expect(h.root.lateReplyCount).toBe(late + 1);
+      expect(observed.filter((o) => o.kind === "generationRaised")).toEqual([]);
+    } finally { await cleanup(); }
   });
 });

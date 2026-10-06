@@ -382,7 +382,7 @@ export function notificationAdoptionReport(records) {
 //    p99 と呼ばない。束が 0 なら未確認。
 export const E14_UNITS = ["U-E", "U-W", "U-F"];
 // 索引は追記の分だけ更新する（窓は待ちの判定ごとに同じ index を渡す）。acknowledged の保存は unit ごとに世代の昇順に確定するので、束の世代
-// 以上の最初の ack は二分探索で引く。
+// 以上の最初の ack は二分探索で引く。前提: unit ごとの acknowledged の世代は受信順で単調（崩れても後の ack を拾い、dirty→ack は長めに出る）。
 export function e14Index(records, index = { raised: new Map(), acked: Object.fromEntries(E14_UNITS.map((u) => [u, []])), scanned: 0 }) {
   for (; index.scanned < records.length; index.scanned++) {
     const o = records[index.scanned].t === "obs" ? records[index.scanned].o : null;

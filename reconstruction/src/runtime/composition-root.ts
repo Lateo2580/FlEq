@@ -808,9 +808,9 @@ class RuntimeCompositionRoot {
       this.lostThroughSequence = null;
       reconnected = true;
     }
-    if (!this.ownerOutput(place, reply.output, settlement.runId === state.runId ? settlement.inputSequence : null) && reconnected)
-      this.project([], [], this.clock());
-    this.onInputDone(reply); if (this.measuring != null) observeGenerationRaised(this.measuring, settlement.runId, reply);
+    const reflectedAt = this.measuring == null ? null : performance.now(); // E14 の起点は反映の時点（通知の評価・射影の時間を含めない）
+    const adopted = this.ownerOutput(place, reply.output, settlement.runId === state.runId ? settlement.inputSequence : null); if (!adopted && reconnected) this.project([], [], this.clock());
+    this.onInputDone(reply); if (this.measuring != null && adopted && reflectedAt != null) observeGenerationRaised(this.measuring, settlement.runId, reply, reflectedAt);
     this.pump();
   }
 
@@ -1518,10 +1518,10 @@ function unsavedMarks(): Record<RuntimeUnitId, UnsavedMark> {
   return { "U-E": mark(), "U-W": mark(), "U-F": mark() };
 }
 
-// P3-C4-AC13(3)②（工程2c）: 反映した inputDone の inputGenerations にある unit ごとに 1 行（E14 の束の起点）。入力の前の期限回収だけで
-// 上がった世代は owner が inputGenerations に入れないので、ここでも出ない。
-function observeGenerationRaised(measuring: Measuring, runId: string, reply: InputDone): void {
-  const at = performance.now();
+// P3-C4-AC13(3)②（工程2c）: 反映した inputDone の inputGenerations にある unit ごとに 1 行（E14 の束の起点）。at は反映（absorb）の前に
+// 取った時刻。反映が拒否された返信（遅れた返信など）では呼ばない。入力の前の期限回収だけで上がった世代は owner が inputGenerations に
+// 入れないので、ここでも出ない。
+function observeGenerationRaised(measuring: Measuring, runId: string, reply: InputDone, at: number): void {
   for (const unit of runtimeUnits) {
     const generation = reply.inputGenerations?.[unit];
     if (generation != null) measuring.observe({ kind: "generationRaised", runId, inputId: reply.settlement.inputId, unit, generation, monotonicMs: at });
