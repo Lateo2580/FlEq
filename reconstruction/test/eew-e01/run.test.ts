@@ -5,7 +5,7 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
 import { readSelfHashed } from "../../src/measurement/eew-e01/frozen";
-import { buildA10Result, hashRaw, parseArgs } from "./run.mjs";
+import { buildA10Result, hashRaw, parseArgs, resumeProblems, trialConditionDeviation } from "./run.mjs";
 import type { WindowRecord } from "./run.mjs";
 import { H } from "./fixtures";
 
@@ -52,5 +52,24 @@ describe("P2-A10-T01 runner side: 窓記録の raw（ヘルツ最終確認 指�
       }
       expect(hashRaw(dir).map((r) => r.file)).toEqual(["aux-ac15.json", "full/host-obs.jsonl", "full/stringify.jsonl"]);
     } finally { rmSync(dir, { recursive: true, force: true }); }
+  });
+});
+
+// P3-C4 工程2d（ヘルツ節目 P2）の再発防止。
+describe("P3-C4 resume and foreground checks", () => {
+  it("a resume is refused when the measured commit, the build, the runner or the machine differs from the first window's record", () => {
+    const first = { gitHead: "a", distSha256: "d", runnerSha256: "r", machine: { cpu: "M4", cores: 10, memoryBytes: 16 }, nodeVersion: "v22", chromeVersion: "154", osVersion: "27" };
+    const records = [{ startedAt: "2026-10-08T01:00:00Z", preflight: first }, { startedAt: "2026-10-07T01:00:00Z", preflight: null }];
+    expect(resumeProblems(first, records)).toEqual([]);
+    expect(resumeProblems({ ...first, distSha256: "x", machine: { ...first.machine, memoryBytes: 32 } }, records).map((p) => p.split(":")[0])).toEqual(["distSha256", "machine"]);
+    expect(resumeProblems({ ...first, gitHead: "b" }, [])).toEqual([]);
+  });
+
+  it("a trial whose page is hidden, unfocused or off the manifest's motion is a deviation", () => {
+    const ok = { visibility: "visible", focus: true, reducedMotion: false };
+    expect(trialConditionDeviation(ok, "full")).toBeNull();
+    expect(trialConditionDeviation({ ...ok, visibility: "hidden" }, "full")).toMatch(/visibility hidden/);
+    expect(trialConditionDeviation({ ...ok, focus: false }, "full")).toMatch(/not focused/);
+    expect(trialConditionDeviation(ok, "reduced")).toMatch(/prefers-reduced-motion/);
   });
 });

@@ -13,6 +13,7 @@ import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 
 import judge from "../../dist/src/measurement/eew-e01/judge.js";
+import { executionPlaces } from "../../dist/src/runtime/unit-coverage.js";
 
 const { quantiles } = judge;
 const UNITS = ["U-E", "U-W", "U-F"];
@@ -225,7 +226,10 @@ export function judgeAc15(probeRecords, intervals, table, { checkpointWindows: w
     s.inputs++;
     // この区間に掛かる checkpoint 区間だけを見る（行ごとに全区間を走査しない）。
     const local = windows.filter((w) => w.toMs >= interval.startMs && w.fromMs < interval.endMs);
-    const saving = (unit, at) => local.filter((w) => w.kind !== "retrySpan" && (unit == null || w.unit === unit) && w.fromMs <= at && at <= w.toMs);
+    // 保存の区間で除外するのは、行と同じ実行場所（その unit の owner）の保存だけ（P3-C4 工程2d）。publisher の直列化が owner の encode と
+    // 時刻で重なっても保存経路ではない。実行場所の無い行（A10 の単一 thread の記録）は従来どおり時刻と unit だけで見る。
+    const saving = (unit, at, place) => local.filter((w) => w.kind !== "retrySpan" && (unit == null || w.unit === unit)
+      && (place == null || executionPlaces[w.unit] === place) && w.fromMs <= at && at <= w.toMs);
     const counts = new Map();
     const unsure = new Map();
     let outsideOther = 0;
@@ -247,7 +251,7 @@ export function judgeAc15(probeRecords, intervals, table, { checkpointWindows: w
       if (category === "element" || category === "payload") {
         // checkpoint 区間の判定を unit に関係なく先に行う（持ち越しの保存は報告。どの入力が起こした保存かは下の attempt 判定が見る）。
         const own = c.unit === interval.unit;
-        if (saving(c.unit, row[0]).length > 0) category = category === "payload" ? "checkpointPayload" : "checkpointElement";
+        if (saving(c.unit, row[0], row[5]).length > 0) category = category === "payload" ? "checkpointPayload" : "checkpointElement";
         else if (category === "payload") category = own ? "payloadOutsideCheckpoint" : "foreignPayload";
         else category = own ? "ownElement" : "foreignElement";
       }
@@ -258,15 +262,15 @@ export function judgeAc15(probeRecords, intervals, table, { checkpointWindows: w
         else if (c.length > OWN_ELEMENT_PAIR) category = "ownElementCollection";
         else elements = c.length;
       }
-      if (category === "ambiguous" && c.array && (c.length == null || c.length > OWN_ELEMENT_PAIR) && saving(null, row[0]).length === 0) category = "ambiguousCollection";
+      if (category === "ambiguous" && c.array && (c.length == null || c.length > OWN_ELEMENT_PAIR) && saving(null, row[0], row[5]).length === 0) category = "ambiguousCollection";
       // 保持量の対照（compareRetention）の材料: どの unit の checkpoint 区間の外のその他と原始値の回数。配列は要素数で数える
       // （無いと、Object.keys(state.ownership) のような原始値の配列全体の直列化が保持量に関係なく 1 回になる）。要素数が無ければ未確認。
-      if (category === "other" && saving(null, row[0]).length === 0) {
+      if (category === "other" && saving(null, row[0], row[5]).length === 0) {
         if (c.array && c.length == null) category = "otherArrayLengthUnknown";
         else if (c.fp.startsWith("#")) outsidePrimitive += c.array ? c.length : 1;
         else outsideOther += c.array ? c.length : 1;
       }
-      if (category === "ambiguous" && !c.array && saving(null, row[0]).length === 0) outsideAmbiguous++;
+      if (category === "ambiguous" && !c.array && saving(null, row[0], row[5]).length === 0) outsideAmbiguous++;
       if (category === "checkpointPayload" || category === "checkpointElement") add((s[category][c.unit] ??= tally()), row);
       else if (category === "other" || category === "otherArrayLengthUnknown") add((s.other[c.fp] ??= tally()), row);
       else add(s[category], row);

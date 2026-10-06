@@ -289,6 +289,29 @@ describe("P2-A10-T04 auxiliary aggregation (AC08/AC09/AC15)", () => {
     }
   });
 
+  // P3-C4 工程2d（ヘルツ節目 P2）: E12 の新側は thread ごと。owner の GC の probe が欠けるか replay の終わりより前に書かれていれば未確認。
+  it("P3-C4 regression E12: GC and heap per thread (publisher and the three owners); a missing or early owner probe is 未確認", () => {
+    const mem = (perfNowMs: number, heapUsed: number) => ({ t: "mem", perfNowMs, rss: 0, heapUsed, external: 0 });
+    const heap = (place: string, monotonicMs: number, heapUsedBytes: number) => obs({ kind: "ownerHeap", runId: "r", place, replyKind: "deadlineDone", inputId: null,
+      monotonicMs, heapUsedBytes, externalBytes: 0 });
+    const records = [mem(90, 10), mem(210, 20), ...["urgent", "weatherCurrent", "deferred"].flatMap((p) => [heap(p, 95, 100), heap(p, 205, 150)])];
+    const probe = (writtenAtMs: number) => ({ gc: [{ startMs: 150, durationMs: 2 }], writtenAtMs });
+    const all = { publisher: probe(300), urgent: probe(300), weatherCurrent: probe(300), deferred: probe(300) };
+    const done = aux.summarizeE12New(records, all, { startMs: 100, endMs: 200 });
+    expect([done.status, done.threads.weatherCurrent.heapUsedDelta, done.threads.publisher.heapUsedDelta]).toEqual([null, 50, 10]);
+    expect(aux.summarizeE12New(records, { ...all, deferred: null }, { startMs: 100, endMs: 200 }).threads.deferred).toMatchObject({ status: "未確認", reason: "probeMissing" });
+    expect(aux.summarizeE12New(records, { ...all, urgent: probe(150) }, { startMs: 100, endMs: 200 })).toMatchObject({ status: "未確認" });
+  });
+
+  // P3-C4 工程2d（ヘルツ節目 P2、予備 e12-max-run1）: 後値は入力の処理が全部終わるのを待つ。期限までに揃わなければ false。
+  it("P3-C4 regression E12: the after value waits for every input's completion, and gives up at the limit", async () => {
+    const processing = (inputId: string) => obs({ kind: "processing", measurement: { runId: "r", inputId, startedMonotonicMs: 0, endedMonotonicMs: 1, marks: {} } });
+    const rows: HostRecord[] = [processing("input-1")];
+    setTimeout(() => rows.push(processing("input-2")), 30);
+    expect(await aux.waitInputsDone(() => rows, 2, { timeoutMs: 2_000, pollMs: 5 })).toBe(true);
+    expect(await aux.waitInputsDone(() => rows, 3, { timeoutMs: 40, pollMs: 5 })).toBe(false);
+  });
+
   it("publish cost: counted per window", () => {
     const records = [obs({ kind: "publishSerialization", bytes: 100, durationMs: 1 }), obs({ kind: "publishSerialization", bytes: 300, durationMs: 3 }),
       marker("T0", "input-1", 10), processing("input-1", 12, 20)];

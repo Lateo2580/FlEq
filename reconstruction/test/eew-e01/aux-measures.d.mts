@@ -68,3 +68,10 @@ export function e14Acks(index: unknown, bundle: E14Bundle): readonly (object | n
 type AdoptionPart = { reservations: number; started: number; notStarted: number; reservationToReplyMs: Quantiles | null; replyToAttemptMs: Quantiles | null;
   createdToReservationWallMs: Quantiles | null };
 export function notificationAdoptionReport(records: readonly HostRecord[]): { first: AdoptionPart; retries: AdoptionPart };
+
+// P3-C4 工程2d: E12 の新側を thread ごとに。
+export const E12_THREADS: readonly string[];
+type GcProbe = { gc: readonly { startMs: number; durationMs: number }[]; writtenAtMs?: number | null };
+export function summarizeE12New(records: readonly HostRecord[], probes: Record<string, GcProbe | null>, interval: { startMs: number; endMs: number }): {
+  status: Status | null; threads: Record<string, { status: Status | null; reason?: string; heapUsedDelta?: number; gcCount?: number }> };
+export function waitInputsDone(read: () => readonly HostRecord[], count: number, options?: { timeoutMs?: number; pollMs?: number }): Promise<boolean>;

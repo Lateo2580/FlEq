@@ -43,6 +43,14 @@ const judged = (rows: ProbeRow[], records = host, t = table) => judgeAc15([...ba
 const brief = (rows: ProbeRow[]) => judged(rows).violations.map((v) => [v.inputId, v.category, v.fingerprintUnit, v.count]);
 
 describe("P2-A10-T04 AC15 upstream full serialization per input (key-set fingerprint)", () => {
+  // P3-C4 工程2d（ヘルツ節目 P1）: 保存の区間で除外するのは同じ実行場所の直列化だけ。publisher の禁止された直列化が owner の encode と
+  // 時刻で重なっても除外しない。
+  it("P3-C4 regression: a saved-payload stringify inside an encode is excused only in the encoding owner's thread", () => {
+    const at = (place: string): ProbeRow => [201.5, 3, 90_000, "schemaVersion,subjects,gates,intents", null, place];
+    expect(judged([at("deferred")]).status).toBe("Pass");
+    expect(judged([at("publisher")]).status).toBe("Fail");
+  });
+
   it("one UnitState-whole or RuntimeState-whole stringify in any input interval is Fail; the saved payload inside its checkpoint is not", () => {
     // 並びが違っても同じ key 集合（実行中 U-F = payload の key ＋ contentRevision/persistence）。
     const whole: ProbeRow = [210, 3, 90_000, "persistence,subjects,gates,intents,schemaVersion,contentRevision"];

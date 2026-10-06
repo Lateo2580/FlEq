@@ -64,8 +64,9 @@ export async function chromeVersion() {
 }
 
 // url のページを 1440×900・DPR2 の前景 tab で開く。close() は正常・例外・SIGINT のどれでも呼ばれる前提で冪等。
+// motion を渡すと prefers-reduced-motion をその値に固定する（OS の設定で変わらないように。試行の前の確認は run.mjs）。
 // scope（run.mjs の窓の後始末リスト）を渡すと、spawn の直後に close と孤児確認を登録する（起動待ちの間に窓が期限切れになっても Chrome を止める）。
-export async function openPage(url, scope = null) {
+export async function openPage(url, scope = null, { motion = null } = {}) {
   const profile = mkdtempSync(join(tmpdir(), "fleq-a10-chrome-"));
   const args = ["--remote-debugging-port=0", `--user-data-dir=${profile}`, ...FLAGS, "about:blank"];
   const chrome = spawn(CHROME, args, { stdio: "ignore" });
@@ -108,6 +109,7 @@ export async function openPage(url, scope = null) {
     await page.send("Emulation.setDeviceMetricsOverride", { width: 1440, height: 900, deviceScaleFactor: 2, mobile: false });
     await page.send("Page.enable");
     await page.send("Runtime.enable");
+    if (motion != null) await page.send("Emulation.setEmulatedMedia", { features: [{ name: "prefers-reduced-motion", value: motion === "reduced" ? "reduce" : "no-preference" }] });
     await page.send("Page.bringToFront");
     await page.send("Page.navigate", { url });
   } catch (error) {

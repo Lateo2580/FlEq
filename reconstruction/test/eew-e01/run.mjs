@@ -22,6 +22,7 @@
 //         --only maxVpws50ParseStarted,maxWeatherCheckpointEncodeStarted,maxForecastCheckpointSave,maxVpws50ReceivedThenEew --warmup 10 --samples 30
 //     （30 件程度 × 3 回は --runs-root を変えずに 3 回。100 件未満の p99 は観測最大と書く、RES-07）
 import { execFileSync, spawn } from "node:child_process";
+import { createHash } from "node:crypto";
 import { appendFileSync, closeSync, copyFileSync, existsSync, mkdirSync, openSync, readdirSync, readFileSync, readSync, realpathSync, statSync, writeFileSync } from "node:fs";
 import { get as httpGet } from "node:http";
 import { arch, cpus, homedir, release, totalmem } from "node:os";
@@ -349,7 +350,7 @@ async function measureRun(spec, ctx, label, dir, status) {
   let page = null;
   if (backend) await openSse(`http://127.0.0.1:${hostProcess.displayPort}/events`, ctx.scope);
   else {
-    page = await openPage(`http://127.0.0.1:${hostProcess.displayPort}/`, ctx.scope);
+    page = await openPage(`http://127.0.0.1:${hostProcess.displayPort}/`, ctx.scope, { motion: ctx.manifest.chrome.motion });
     ctx.commands?.push(page.command);
     for (let i = 0; i < 200 && !(await page.evaluate("typeof window.fleqRespondClockProbe === 'function'")); i++) await sleep(50);
   }
@@ -472,11 +473,15 @@ async function measureRun(spec, ctx, label, dir, status) {
     // 投入の瞬間に frame の組み立てで遅れないよう、待つ前に作る（報告時刻は host 時計の今の秒）。
     const frame = dataFrame("VXSE43", Buffer.from(eewVariant({ eventId, serial, variant, reportAtMs: wallNow() })));
     const vpwsFrame = VPWS50_TRIGGERED.has(population) ? weatherFrame("15_18_01_250630_VPWS50", "VPWS50", wallNow()) : null;
+    // AC08: 試行の前にページが前景（visible・focus）で motion が manifest どおりかを確かめる。外れた試行は条件逸脱として記録し、成立させない
+    // （背景・ロックでは描画と timer が間引かれ、製品の遅延と区別できない）。予定時刻を動かさないよう、待つ前に取る。
+    const conditionDeviation = page == null ? null : trialConditionDeviation(await page.evaluate(PAGE_CONDITION), ctx.manifest.chrome.motion);
     await idleUntil(due);
     host.refresh();
     const before = page == null ? 0 : await markCount();
     const linesBefore = host.lines.length;
-    const base = { attemptIndex: k, index: warm ? k : null, phase, eventId, serial, variant, subject: `normal/VXSE43/${eventId}`, scheduledHrMs: due, block: Math.floor(k / BLOCK) };
+    const base = { attemptIndex: k, index: warm ? k : null, phase, eventId, serial, variant, subject: `normal/VXSE43/${eventId}`, scheduledHrMs: due, block: Math.floor(k / BLOCK),
+      conditionDeviation };
     let trigger = null;
     let sent;
     if (population === "fixedBacklog") {
@@ -555,7 +560,8 @@ async function measureRun(spec, ctx, label, dir, status) {
         }
       }
     }
-    if (!warm) {
+    if (!warm && conditionDeviation != null) trial.establishment = { established: false, reason: "conditionDeviation" };
+    else if (!warm) {
       // 成立の判定（establishTrial）。対象の観測（parse・encode・保存の記録は対象の処理が終わってから出る）を、実投入から 11 秒まで待つ。
       const settleBy = (sent.injectedHrMs ?? hrMs()) + 11_000;
       for (;;) {
@@ -569,8 +575,8 @@ async function measureRun(spec, ctx, label, dir, status) {
         pumpBackground();
         await sleep(50);
       }
-      if (trial.establishment.established) trial.index = spec.warmup + established++;
     }
+    if (!warm && trial.establishment.established) trial.index = spec.warmup + established++;
   }
   await sleep(1500);
   await probe("end");
@@ -655,6 +661,14 @@ const VPWS50_TRIGGERED = new Set(["maxVpws50ParseStarted", "maxVpws50ReceivedThe
 // encode・保存・期限: 予測した tick の ±500ms（tick 周期の半分）にある checkpoint encode の開始から（保存は最後の段の終わりまで）。
 // その範囲に無ければ null（targetNotObserved で待つ）。checkpoint の観測は保存全体の後と launcher の 250ms flush の後に出るので、
 // 判定の時点で狙った tick の行がまだ無いことがあり、前後の tick の encode を代わりに選ばない。
+// AC08 の前景の条件。motion は manifest の chrome.motion（openPage が prefers-reduced-motion を固定する）。
+const PAGE_CONDITION = "({ visibility: document.visibilityState, focus: document.hasFocus(), reducedMotion: matchMedia('(prefers-reduced-motion: reduce)').matches })";
+export function trialConditionDeviation(state, motion) {
+  const problems = [state?.visibility === "visible" ? null : `visibility ${state?.visibility}`, state?.focus === true ? null : "not focused",
+    state?.reducedMotion === (motion === "reduced") ? null : `prefers-reduced-motion ${state?.reducedMotion} (manifest motion ${motion})`].filter((p) => p != null);
+  return problems.length === 0 ? null : problems.join("; ");
+}
+
 // 窓 1 本の条件。lead と対象の区間は manifest の母集団の条件から読む（P3-C4-AC13(1)。正式も予備も同じで、予備の --save-lead-ms などは
 // 予備の案の manifest に入る）。
 export function populationSpec(manifest, population, run, warmup, count, stop) {
@@ -938,8 +952,37 @@ async function preflightCheck(manifest, nodePath, nodeVersion, initialState) {
   ].filter((p) => p != null);
   if (problems.length > 0) throw new Error(`preflight failed:\n  ${problems.join("\n  ")}`);
   const git = (...args) => execFileSync("git", args, { cwd: REPO, encoding: "utf8" });
+  const gitStatusPorcelain = git("status", "--porcelain");
+  // 測定版は commit した状態だけ（P3-C4 工程2d）。runner 自身が書く evidence の下は除く。
+  const dirty = gitStatusPorcelain.split("\n").filter((line) => line.trim() !== "" && !line.slice(3).startsWith(EVIDENCE_REL));
+  if (dirty.length > 0) throw new Error(`preflight failed: the checkout is dirty outside ${EVIDENCE_REL}:\n  ${dirty.join("\n  ")}`);
   return { checkedAt: new Date().toISOString(), nodeVersion, chromeVersion: chrome, osVersion: os, dist: DIST_REQUIRED,
-    gitHead: git("rev-parse", "HEAD").trim(), gitStatusPorcelain: git("status", "--porcelain") };
+    gitHead: git("rev-parse", "HEAD").trim(), gitStatusPorcelain, distSha256: treeSha256(DIST_TREES), runnerSha256: treeSha256([RUNNER_DIR], (f) => f.endsWith(".mjs")),
+    machine: { cpu: cpus()[0]?.model ?? null, cores: cpus().length, memoryBytes: totalmem() } };
+}
+
+// 日をまたぐ再開の照合（P3-C4 工程2d）: 同じ manifest の最初の窓の記録の preflight を基準に、測定版の commit・実行物（dist と runner）の hash・
+// 機械（CPU・コア数・メモリ・OS・Node・Chrome）が同じであること。基準は manifest に置かず、最初に走った窓の記録に置く（凍結の後に決まる値）。
+// 基準の無い（最初の）実行と、hash を持たない旧い記録の項目は照合しない。
+const RESUME_FIELDS = ["gitHead", "distSha256", "runnerSha256", "machine", "nodeVersion", "chromeVersion", "osVersion"];
+export function resumeProblems(current, records) {
+  const baseline = [...records].filter((r) => r.preflight != null).sort((a, b) => (a.startedAt < b.startedAt ? -1 : a.startedAt > b.startedAt ? 1 : 0))[0]?.preflight;
+  if (baseline == null) return [];
+  return RESUME_FIELDS.filter((key) => baseline[key] !== undefined && JSON.stringify(current[key]) !== JSON.stringify(baseline[key]))
+    .map((key) => `${key}: ${JSON.stringify(current[key])} differs from the first window's ${JSON.stringify(baseline[key])}`);
+}
+const EVIDENCE_REL = "reconstruction/test/eew-e01/evidence/";
+const RUNNER_DIR = "reconstruction/test/eew-e01";
+const DIST_TREES = ["reconstruction/dist", "dist"];
+// 木の下の file（相対 path の昇順）の path と bytes の sha256。filter は file 名で選ぶ。evidence の下は含めない。
+function treeSha256(roots, filter = () => true) {
+  const hash = createHash("sha256");
+  for (const root of roots) {
+    const files = readdirSync(join(REPO, root), { recursive: true }).map(String).filter((f) => !f.startsWith("evidence") && filter(f)
+      && statSync(join(REPO, root, f)).isFile()).sort();
+    for (const f of files) hash.update(`${root}/${f}\0`).update(readFileSync(join(REPO, root, f)));
+  }
+  return hash.digest("hex");
 }
 
 // 凍結した入力の照合（AC01）: 初期入力・引き金の fixture・壁時計起点は trialSetup と manifest から取り、run の前に hash を確かめる。違えば走らせない。
@@ -1094,6 +1137,8 @@ async function main(argv) {
     const foreign = readdirSync(recordsDir).filter((f) => f.endsWith(".json") && JSON.parse(readFileSync(join(recordsDir, f), "utf8")).manifestSha256 !== manifest.manifestSha256);
     if (foreign.length > 0) throw new Error(`${recordsDir} has records of another manifest with the same manifestId (${foreign.join(", ")}); re-freezing needs a new manifestId`);
     // 再実行してよいのは前回 Blocked（または未実施）の窓だけ。Fail・未確認・Pass を選び直して良い run に差し替えることを構造で防ぐ。
+    const problems = preflight == null ? [] : resumeProblems(preflight, readWindowRecords(recordsDir, manifest.manifestSha256));
+    if (problems.length > 0) throw new Error(`resume refused (the measured version, the build or the machine changed):\n  ${problems.join("\n  ")}`);
     const previous = latestById(readWindowRecords(recordsDir, manifest.manifestSha256));
     for (const w of chosen) {
       const last = previous.find((r) => r.id === w.id);

@@ -9,7 +9,7 @@ import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 
 import { join, resolve } from "node:path";
 import { WebSocketServer } from "ws";
 
-import { E12_CONFIG_NOTE, bracketMem, parseFlags, parseJsonl, replayInterval, summarizeReplayWindow } from "./aux-measures.mjs";
+import { E12_CONFIG_NOTE, E12_THREADS, parseFlags, parseJsonl, replayInterval, summarizeE12New, summarizeReplayWindow, waitInputsDone } from "./aux-measures.mjs";
 import { e12Frames } from "./frames.mjs";
 
 const here = import.meta.dirname;
@@ -77,8 +77,12 @@ async function runNew(dir, framesFile, launcher) {
       await new Promise((wake) => setTimeout(wake, Math.max(0, start + atMs - performance.now())));
       socket.send(text);
     }
-    await new Promise((wake) => setTimeout(wake, 500));
-    return { exit: await stopChild(run) };
+    // 後値は対象の入力の処理が全部終わってから取る（最後の送信の 500ms 後に止めると、大型の処理が終わる前の mem 行しか残らない）。
+    // 揃った後に 1.5 秒待つのは、owner の heap（deadlineDone ごと、1 秒の tick）と GC の probe（500ms ごとの書出し）が終わりの後に 1 回ずつ出るため。
+    const hostRecords = () => (existsSync(join(dir, "host.jsonl")) ? parseJsonl(readFileSync(join(dir, "host.jsonl"), "utf8")) : []);
+    const completed = await waitInputsDone(hostRecords, lines.length);
+    await new Promise((wake) => setTimeout(wake, 1_500));
+    return { exit: await stopChild(run), completed };
   } finally {
     await stopChild(run);
     await new Promise((done) => server.close(done));
@@ -109,13 +113,14 @@ if (process.argv[1] != null && import.meta.filename === process.argv[1]) {
     report.old = { exit: oldExit, ...summarizeReplayWindow({ probe: read("old", "probe.json"), startMs: calls.calls[0].startedMs, endMs: last.startedMs + last.durationMs,
       before: calls.memBefore, after: calls.memAfter }) };
   } catch { report.old = { exit: oldExit, status: "未確認", reason: "summaryFailed" }; }
-  const { exit: newExit } = await runNew(join(out, "new"), framesFile, values.launcher ?? join(here, "host-launcher.mjs"));
-  // 新側は区間の開始以前で最後・終了以後で最初の launcher の mem 行を使う（符号付き距離を出し、無い/区間より遠ければ未確認）。
-  if ((report.new = noProbe("new", newExit)) == null) try {
+  const { exit: newExit, completed } = await runNew(join(out, "new"), framesFile, values.launcher ?? join(here, "host-launcher.mjs"));
+  // 新側は thread ごと（publisher と owner 3 本）に、区間の開始以前で最後・終了以後で最初の heap の行と、その thread の GC を使う。
+  if (!completed) report.new = { exit: newExit, status: "未確認", reason: "inputsNotCompleted" };
+  else if ((report.new = noProbe("new", newExit)) == null) try {
     const records = parseJsonl(readFileSync(join(out, "new", "host.jsonl"), "utf8"));
     const interval = replayInterval(records);
-    report.new = { exit: newExit, ...summarizeReplayWindow({ probe: read("new", "probe.json"), ...interval,
-      ...bracketMem(records, interval.startMs, interval.endMs) }) };
+    const probeOf = (thread) => { const name = thread === "publisher" ? "probe.json" : `probe-${thread}.json`; return existsSync(join(out, "new", name)) ? read("new", name) : null; };
+    report.new = { exit: newExit, ...interval, ...summarizeE12New(records, Object.fromEntries(E12_THREADS.map((t) => [t, probeOf(t)])), interval) };
   } catch { report.new = { exit: newExit, status: "未確認", reason: "summaryFailed" }; }
   try { report.allocation = { method: ALLOCATION_METHOD, old: allocationOf(join(out, "old")), new: allocationOf(join(out, "new")) }; }
   catch (error) { report.allocation = { method: ALLOCATION_METHOD, status: "未確認", reason: String(error?.message ?? error) }; }

@@ -3,7 +3,8 @@ import type { HostRecord } from "./aux-measures.mjs";
 type Unit = "U-E" | "U-W" | "U-F";
 type Quantiles = { p50: number; p95: number; p99: number; max: number };
 type Tally = { count: number; ms: number; chars: number; maxChars: number };
-export type ProbeRow = [startedMs: number, durationMs: number, chars: number, fingerprint: string, stack?: string[]];
+// place は実行場所（"publisher" か owner の place、P3-C4 工程2d）。A10 の記録には無い。
+export type ProbeRow = [startedMs: number, durationMs: number, chars: number, fingerprint: string, stack?: string[] | null, place?: string];
 export type FingerprintTable = {
   unitState: Partial<Record<Unit, string>>; runtimeState: string; unitCollection: string; payload: Partial<Record<Unit, string>>;
   envelope: string | null; snapshot: string; viewUnits: Unit[]; elements: Record<string, Unit>; ambiguous: string[];

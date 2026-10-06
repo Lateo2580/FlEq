@@ -453,6 +453,35 @@ export function bracketMem(records, startMs, endMs) {
   return { before: pick(before, startMs), after: pick(after, endMs) };
 }
 
+// E12 の新側（P3-C4 工程2d）: XML の処理の大半は owner の thread にあるので、publisher だけでなく owner 3 本も thread ごとに GC と heap の
+// 前後を出す。heap は publisher が mem 行、owner が ownerHeap の行（deadlineDone ごと、P3-C4-OWNER-HEAP=B'）。GC は thread ごとの probe
+// （probe-preload.mjs）で、owner の probe が無いか、replay の終わりより前に書かれたもの（以後の GC が欠けうる）なら、その thread は未確認。
+// どれかの thread が未確認なら新側は未確認。RSS は process 全体なので thread ごとに足し合わせない。
+export const E12_THREADS = ["publisher", "urgent", "weatherCurrent", "deferred"];
+export function summarizeE12New(records, probes, { startMs, endMs }) {
+  const ownerRows = (place) => records.flatMap((r) => (r.t === "obs" && r.o.kind === "ownerHeap" && r.o.place === place
+    ? [{ t: "mem", perfNowMs: r.o.monotonicMs, heapUsed: r.o.heapUsedBytes }] : []));
+  const threads = Object.fromEntries(E12_THREADS.map((thread) => {
+    const probe = probes[thread];
+    if (probe == null) return [thread, { status: "未確認", reason: "probeMissing" }];
+    if (thread !== "publisher" && !(probe.writtenAtMs >= endMs)) return [thread, { status: "未確認", reason: "probeWrittenBeforeReplayEnd" }];
+    const bracket = bracketMem(thread === "publisher" ? records : ownerRows(thread), startMs, endMs);
+    return [thread, summarizeReplayWindow({ probe, startMs, endMs, ...bracket })];
+  }));
+  return { status: Object.values(threads).some((t) => t.status != null) ? "未確認" : null, threads };
+}
+
+// E12 の新側の後値は、対象の入力の処理が全部終わってから取る（P3-C4 工程2d）。read() は host の記録、count は送った入力の数。
+// processing の行（入力ごとに処理の完了で 1 行）が count 件になれば true、timeoutMs までに揃わなければ false（未確認にする）。
+export async function waitInputsDone(read, count, { timeoutMs = 60_000, pollMs = 200 } = {}) {
+  const until = performance.now() + timeoutMs;
+  for (;;) {
+    if (read().filter((r) => r.t === "obs" && r.o.kind === "processing").length >= count) return true;
+    if (performance.now() >= until) return false;
+    await new Promise((wake) => setTimeout(wake, pollMs));
+  }
+}
+
 // 端の行が無い、または距離が replay 区間より長いときは heap を出さず未確認（旧側は端そのもの＝距離 0）。
 export function summarizeReplayWindow({ probe, startMs, endMs, before, after }) {
   const replayMs = endMs - startMs;

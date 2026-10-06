@@ -60,3 +60,6 @@ export function trialTarget(population: string, trial: { trigger?: { inputId: st
   ohLo: number | null, span?: "population" | "encodeThroughWrite"): { startMs: number; endMs: number } | null;
 // AC13(7): 母集団 2 の EEW を送る時刻。予測値を trigger に残す。
 export function calibratedSendAt(trigger: { injectedHrMs: number; predictedParseDelayMs?: number | null }, predicted: number | null, targetOffsetMs: number): number;
+// P3-C4 工程2d: 再開の照合と、試行の前の前景の確認。
+export function resumeProblems(current: Record<string, unknown>, records: readonly { startedAt: string; preflight: Record<string, unknown> | null }[]): string[];
+export function trialConditionDeviation(state: { visibility?: string; focus?: boolean; reducedMotion?: boolean } | null, motion: "reduced" | "full"): string | null;
