@@ -1,9 +1,9 @@
 {
   "schemaVersion": "p3-e01-manifest-v1",
   "manifestId": "p3-c4-draft-20261006",
-  "manifestSha256": "3196bf04edbdf8ff06cb70bf509f287d6211f0f4ddc51108c7014c236f6497c2",
+  "manifestSha256": "515c4438b44169ef4c7e9395d5f0db6d1e4084630fe5dee3d74b94b5407285f3",
   "contractSha256": {
-    "P3-E01-REACCEPT-001": "8b5ebddd1391f06e6e23d09a8ce377745d819c2c23f4aeed32aaf6ddc6e9bc0d",
+    "P3-E01-REACCEPT-001": "1852cce2dc86ffdfca7f110bd349b039fb251d4366b279e839dd8c8418835307",
     "P3-EXECUTION-LIFECYCLE-001": "fd19aede1d35a4f7bd81aeeb8cf83c51219d0dba4b3842a8714dfc083e2494f1",
     "P3-EXECUTION-SPLIT-001": "f38d05a92fd26ffb6e14f42c15db163c114ee33d4a849391d864edd4772e30b1",
     "P3-DMDATA-CONNECT-001": "108d5e32a3570e0cb340a5d9dcb3a49a4ddd2f2dbc542a38b6ef0931a2135f8a",
