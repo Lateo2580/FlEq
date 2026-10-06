@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "fd6e8f33d962ff768120333470aae277c031cc96",
-    "sha256": "4c9f3fb0ef3db8b6691de86ab60dc9d8a4c24930eb5dca59a316d604189a1f21",
+    "sha256": "b153954ec8797cde0c9f185d7262df4245c28a364a536f2ecce724cb879c794a",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "76c82b87d7783a4eae14af690cb34e7d6ec46f73617dc75b7f7401951619f080",
     "sequencesSha256": "be9cfd97b555e3a55568f085d107342c978b3dc7249f5cecea868ea5a62c5781",
@@ -72,7 +72,7 @@
       },
       {
         "id": "P3-C4-WRITE-COUNT",
-        "A": "E15のwrite別計数は製品のfilesystem注入口で数える。owner-workerのnodeCheckpointFileSystem()を、測定の印（OwnerStartData.measured。hostがconfig.observe != nullから作る）があるときだけ数える包みで作り、ownerはcheckpointDoneに累積のcounter（writeCounts、印が無いときnull）を載せる（ownerのbyteのwriteは書込み権の処理の中だけで起き、最終保存は副作用固定〔finalize〕の後なので、finalizeDoneでは最終保存のwriteが漏れる）。publisherの診断sinkは既存のcomposition-rootのdiagnosticFileSystem注入口に、hostが同じ包みを渡す。hostは停止時に、threadごと（owner 3本とpublisher）に新しい観測kind writeCountを1回だけ出す（ownerはそのthreadから最後に受けたcheckpointDoneの値。ownerの行にはconfirmedを付け、そのownerについて、書込み権が未返信のまま停止に入った・最終保存の段が期限で打ち切られた・停止の終わりにexitを確認できない、のどれかがあればfalseにする。falseのとき、writeの済んだ後のsyncで止まった試行などはcounterにもCheckpointMeasurementにも出ず、両側から同じwriteが消えて一致が見かけ上できるので、その窓のE15は未確認。counterを0と確定してよいのは、confirmedがtrueで、そのownerへ書込み権を一度も送っていないときだけ。停止済みのownerの分はconfirmed falseとして出す）。counterは区分（checkpoint slot・tmp・診断log・その他）ごとの回数とbyteだけ",
+        "A": "E15のwrite別計数は製品のfilesystem注入口で数える。owner-workerのnodeCheckpointFileSystem()を、測定の印（OwnerStartData.measured。hostがconfig.observe != nullから作る）があるときだけ数える包みで作り、ownerはcheckpointDoneに累積のcounter（writeCounts、印が無いときnull）を載せる（ownerのbyteのwriteは書込み権の処理の中だけで起き、最終保存は副作用固定〔finalize〕の後なので、finalizeDoneでは最終保存のwriteが漏れる）。publisherの診断sinkは既存のcomposition-rootのdiagnosticFileSystem注入口に、hostが同じ包みを渡す。hostは停止時に、threadごと（owner 3本とpublisher）に新しい観測kind writeCountを1回だけ出す（ownerはそのthreadから最後に受けたcheckpointDoneの値。ownerの行にはconfirmedを付け、そのownerについて、送った書込み権の返信が終了の時点まで来なかった（停止の途中で返信が来て解消したものは数えない）・最終保存の段が期限で打ち切られた・停止の終わりにexitを確認できない、のどれかがあればfalseにする。falseのとき、writeの済んだ後のsyncで止まった試行などはcounterにもCheckpointMeasurementにも出ず、両側から同じwriteが消えて一致が見かけ上できるので、その窓のE15は未確認。counterを0と確定してよいのは、confirmedがtrueで、そのownerへ書込み権を一度も送っていないときだけ。停止済みのownerの分はconfirmed falseとして出す）。counterは区分（checkpoint slot・tmp・診断log・その他）ごとの回数とbyteだけ",
         "B": "OSの層で数える（Piの/proc/<pid>/io・Macのfs_usage）",
         "recommended": "A",
         "provisional": "A",
@@ -680,7 +680,7 @@
           "P3-C4-AC05",
           "P3-C4-AC07"
         ],
-        "behavior": "【工程2】E14・E15・E07の観測（偽のfilesystem）: 印ありでU-E・U-W・U-Fの保存と診断のwriteを流して止めると、(1) writeCountの観測がthreadごとに1回だけconfirmed trueで出て、区分ごとのbyte・回数がCheckpointMeasurementと診断recordからの帰属と一致し、測定成果物のwriteは数えない (2) checkpointGrantの観測が権1回につき1回出て、dirtyの反映≤権の送出≤ownerの着手≤返信の受信で、attemptIdsが同じ返信のCheckpointMeasurementと一致する。(3) mailboxの観測がhostのtickごとと投入側のpingの受信ごとに1行出て、pingの行はそのpingより前に受けたframeを含みそれより後のframeを含まない。(4) 書込み権の返信を保留したまま止めると、そのownerのwriteCountはconfirmed falseで出る。印なしではcheckpointDoneのwriteCounts・grantStartedMsがnullで、writeCount・checkpointGrant・mailboxの観測は出ない"
+        "behavior": "【工程2】E14・E15・E07の観測（偽のfilesystem）: 印ありでU-E・U-W・U-Fの保存と診断のwriteを流して止めると、(1) writeCountの観測がthreadごとに1回だけconfirmed trueで出て、区分ごとのbyte・回数がCheckpointMeasurementと診断recordからの帰属と一致し、測定成果物のwriteは数えない (2) checkpointGrantの観測が権1回につき1回出て、dirtyの反映≤権の送出≤ownerの着手≤返信の受信で、attemptIdsが同じ返信のCheckpointMeasurementと一致する。(3) mailboxの観測がhostのtickごとと投入側のpingの受信ごとに1行出て、pingの行はそのpingより前に受けたframeを含みそれより後のframeを含まない。(4) 書込み権の返信を保留したまま終了期限に達すると、そのownerのwriteCountはconfirmed falseで出る。保留した返信を停止の途中で返し、最終保存とexitまで終われば、confirmed trueで出る。印なしではcheckpointDoneのwriteCounts・grantStartedMsがnullで、writeCount・checkpointGrant・mailboxの観測は出ない"
       },
       {
         "testId": "P3-C4-T06",
