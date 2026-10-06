@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "fd6e8f33d962ff768120333470aae277c031cc96",
-    "sha256": "40caa6b0b442acb5e2c197e27692e07c8081214366fa1a02483f931b9d82f17f",
+    "sha256": "4c9f3fb0ef3db8b6691de86ab60dc9d8a4c24930eb5dca59a316d604189a1f21",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "76c82b87d7783a4eae14af690cb34e7d6ec46f73617dc75b7f7401951619f080",
     "sequencesSha256": "be9cfd97b555e3a55568f085d107342c978b3dc7249f5cecea868ea5a62c5781",
@@ -59,7 +59,7 @@
         "recommended": "A",
         "provisional": "A",
         "ruling": "統合担当が発注前点検でAに確定（2026-10-06、レビュー3巡後）。decodeMaterialのsignatureの変更に伴うP1契約（publicFunctions）とC3a契約（OwnerReply・OwnerStartData）の改訂は、統合担当が合流時に記録する。工程2の発注前点検で、観測点をvalidateの直前からwithinXmlLimitsの直前へ読み替えた（理由の「最初の全文走査の開始」に合わせる。Q-C4-PHASE2-BASE）",
-        "reason": "withinXmlLimitsもvalidateもparseTreeも全文を走査してownerを塞ぐので、母集団2の「full parse開始直後」は最初の全文走査の開始で捉える。Bは最後の走査だけを対象にし、withinXmlLimitsとvalidateの間に投入したEEWを母集団から外す。逆算はA10（e01:562の(4)）がdecode開始について禁じたのと同じ理由で採らない"
+        "reason": "withinXmlLimitsもvalidateもparseTreeも全文を走査してownerを塞ぐので、母集団2の「full parse開始直後」は最初の全文走査の開始で捉える。Bは最後の走査だけを対象にし、withinXmlLimitsとvalidateの2つの全文走査の最中に投入したEEWを母集団から外す。逆算はA10（e01:562の(4)）がdecode開始について禁じたのと同じ理由で採らない"
       },
       {
         "id": "P3-C4-T3-BINDING",
@@ -72,7 +72,7 @@
       },
       {
         "id": "P3-C4-WRITE-COUNT",
-        "A": "E15のwrite別計数は製品のfilesystem注入口で数える。owner-workerのnodeCheckpointFileSystem()を、測定の印（OwnerStartData.measured。hostがconfig.observe != nullから作る）があるときだけ数える包みで作り、ownerはcheckpointDoneに累積のcounter（writeCounts、印が無いときnull）を載せる（ownerのbyteのwriteは書込み権の処理の中だけで起き、最終保存は副作用固定〔finalize〕の後なので、finalizeDoneでは最終保存のwriteが漏れる）。publisherの診断sinkは既存のcomposition-rootのdiagnosticFileSystem注入口に、hostが同じ包みを渡す。hostは停止時に、threadごと（owner 3本とpublisher）に新しい観測kind writeCountを1回だけ出す（ownerはそのthreadから最後に受けたcheckpointDoneの値、受けていなければ0。停止済みのownerの分は出さず、その窓のE15は未確認）。counterは区分（checkpoint slot・tmp・診断log・その他）ごとの回数とbyteだけ",
+        "A": "E15のwrite別計数は製品のfilesystem注入口で数える。owner-workerのnodeCheckpointFileSystem()を、測定の印（OwnerStartData.measured。hostがconfig.observe != nullから作る）があるときだけ数える包みで作り、ownerはcheckpointDoneに累積のcounter（writeCounts、印が無いときnull）を載せる（ownerのbyteのwriteは書込み権の処理の中だけで起き、最終保存は副作用固定〔finalize〕の後なので、finalizeDoneでは最終保存のwriteが漏れる）。publisherの診断sinkは既存のcomposition-rootのdiagnosticFileSystem注入口に、hostが同じ包みを渡す。hostは停止時に、threadごと（owner 3本とpublisher）に新しい観測kind writeCountを1回だけ出す（ownerはそのthreadから最後に受けたcheckpointDoneの値。ownerの行にはconfirmedを付け、そのownerについて、書込み権が未返信のまま停止に入った・最終保存の段が期限で打ち切られた・停止の終わりにexitを確認できない、のどれかがあればfalseにする。falseのとき、writeの済んだ後のsyncで止まった試行などはcounterにもCheckpointMeasurementにも出ず、両側から同じwriteが消えて一致が見かけ上できるので、その窓のE15は未確認。counterを0と確定してよいのは、confirmedがtrueで、そのownerへ書込み権を一度も送っていないときだけ。停止済みのownerの分はconfirmed falseとして出す）。counterは区分（checkpoint slot・tmp・診断log・その他）ごとの回数とbyteだけ",
         "B": "OSの層で数える（Piの/proc/<pid>/io・Macのfs_usage）",
         "recommended": "A",
         "provisional": "A",
@@ -86,16 +86,16 @@
         "recommended": "A",
         "provisional": "A",
         "ruling": "統合担当が発注前点検でAに確定（2026-10-06、レビュー3巡後）",
-        "reason": "計画§2.2は保存の故障・実行分離の故障・測定の不備を同じスレッドで切り分ける形を退けた。Bは測定契約が製品の所有ファイル（checkpoint.ts・mailbox.ts・composition-root.ts）を持つことになり、計画§3.2の編集順を崩す。最初の契約群の完了にはE01の正式Passが要る（計画§1.3）ので、Aの代償は再発注と測り直しの分（計画§7で1回につき1〜2日）だけ完了が遅れること"
+        "reason": "計画§2.2は保存の故障・実行分離の故障・測定の不備を同じスレッドで切り分ける形を退けた。Bは測定契約が製品の所有ファイル（checkpoint.ts・mailbox.ts・composition-root.ts）の挙動を直すことになり、計画§3.2の編集順を崩す（観測点と注入口を足すのは別で、Q-C4-PHASE2-BASEの(3)）。最初の契約群の完了にはE01の正式Passが要る（計画§1.3）ので、Aの代償は再発注と測り直しの分（計画§7で1回につき1〜2日）だけ完了が遅れること"
       },
       {
         "id": "P3-C4-E07-SOURCE",
         "A": "E07の値をhostの既存の観測から出す: 待機年齢の上界はT1→T2（T2はownerの処理開始なので待機年齢以上）、pending・in-flightはT1があり返信の行（T2・processing）が無い入力の数、宣言上限の違反は過負荷の診断（host・WARN）。製品の観測を足さない",
-        "B": "hostのtick（1秒）ごとに、測定の印（config.observe != null）があるときだけ、MailboxStatsの件数・byte（pending・in-flight）・最古待機年齢・未完了年齢・high-water・違反回数を新しい観測kind mailbox（runId・monotonicMsと各値）で出す。印が無いときは作らない。E07はこの行（1秒の粒度）と入力ごとのT1→T2から出す",
+        "B": "hostのtick（1秒）ごとと、投入側のping frameを受けた時点（既存のcontrolFrameのpingの観測と同じcallback）に、測定の印（config.observe != null）があるときだけ、MailboxStatsの件数・byte（pending・in-flight）・最古待機年齢・未完了年齢・high-water・違反回数を新しい観測kind mailbox（runId・monotonicMs・triggerと各値）で出す。印が無いときは作らない。周期末は投入側が周期の境界に送るpingの行で1回取り、排出と待機年齢は上界と下界で判定する（AC07の(2)）。近いtickの行をそのまま合否に使わない",
         "recommended": "B",
         "provisional": "B",
         "ruling": "統合担当がBに確定（2026-10-06）。spec:2058はqueueのbyteを測るとし、Aではbyteが取れない",
-        "reason": "spec:2058はqueueの件数・byte・最古待機年齢・未完了年齢を測るとし、P3-C3B-E07-WINDOW=Aでその窓はC4が測る。いまのP2HostObservationにmailboxの値は無い（MailboxStatsはmailbox.tsのstats()にあり、観測へ出ていない）。Aの見え方: 製品は変わらないが、mailboxのbyte（ingressの後の大きさ）が取れず、pendingとin-flightを分けられず、T0の後の拒否（返信の行が無い）が窓の終わりまでin-flightに見える。Bの見え方: 観測kindが1つ増える。tickは受信経路の外で、1時間の窓で3,600行。stats()はmailboxの保持件数に比例するが、上限のある件数で1秒に1回"
+        "reason": "spec:2058はqueueの件数・byte・最古待機年齢・未完了年齢を測るとし、P3-C3B-E07-WINDOW=Aでその窓はC4が測る。いまのP2HostObservationにmailboxの値は無い（MailboxStatsはmailbox.tsのstats()にあり、観測へ出ていない）。Aの見え方: 製品は変わらないが、mailboxのbyte（ingressの後の大きさ）が取れず、pendingとin-flightを分けられず、T0の後の拒否（返信の行が無い）が窓の終わりまでin-flightに見える。Bの見え方: 観測kindが1つ増える。tickは受信経路の外で、1時間の窓で約3,600行。pingの行は印があるときだけで、20秒ごとと周期の境界の分。stats()はmailboxの保持件数に比例するが、上限のある件数で1秒に1回"
       }
     ],
     "questionResolutions": [
@@ -165,7 +165,7 @@
       {
         "id": "Q-C4-PHASE2-BASE",
         "status": "closed",
-        "closed": "C3bの配送（66899fb7）と節目修正（771716bf・498d6f71）の後、498d6f71で読み替えた。(1) 前提は名前どおり在る: startP2Host（host.ts:75、signature不変）とconfig.observe（:46）、観測の経路は1つ（:85〜:88）、OwnerStartDataの組立て（:126）、T2・decodeは射影の前に観測（:130〜:135）、hostのtick（:371・:387）。CompositionOptions.diagnosticFileSystem（composition-root.ts:98、既定はnodeDiagnosticFileSystem :363）、nodeCheckpointFileSystemはcomposition-root.ts:198で定義しowner-worker.ts:13でowner 3本が作る、placeOfHeadType（unit-coverage.ts:169）。decodeMaterial（decode-material.ts:242）はwithinXmlLimits（:258）→XMLValidator.validate（:259）→parseTree（:263、fullXmlParseMsの起点 :261）。OwnerStartData（p3-execution-split.types.ts:29）とOwnerReply（:90〜:103、inputDoneのdecode :97）、ProcessingMarksの7区間（p1-parser-boundary.types.ts:67〜:75）、P2HostObservation（p2-eew-e01.types.ts:103〜:111）。owner側はcheckpointDone（owner-host.ts:160）、finalizeDone（:105〜:107）、finalizeの後もcheckpointGrantを受ける（:67）。publisherは権をcheckpointGrantで送る（composition-root.ts:1166・:1202） (2) 前提と実体が違ったもの・C3bで決まったものを次のとおり読み替えた: ①PARSE-MARKの観測点はvalidateの直前でなくwithinXmlLimitsの直前（全文の最初の走査は:258） ②WRITE-COUNTのcounterはfinalizeDoneでなくcheckpointDoneに載せる（終了はfinalizeOwners :1235→saveFinalGenerations :1184の順で、最終保存がfinalizeの後） ③T0の後の拒否の理由はC3bでownerStopped（停止済み・unresponsiveの実行場所、composition-root.ts:633〜:653）が増えた。最初の1件だけinputId付きで、2件目以後はinputIdの無い件数の行なので、その入力は理由の無い欠落になる（欠落の判定は変えない） ④INTENT-RECLAIM=Aで、送出の直前に期限切れの通知予約を回収し、更新枠が使用中ならその入力の送出を遅らせる（mailboxではin-flight）。この遅れはT1→T2に入り、E01ではT0→T6に含まれる。別の観測は足さない ⑤P3-C3B-E07-WINDOW=A（E07の窓はAC07の(2)、観測の出どころはP3-C4-E07-SOURCE） ⑥C3bのPiで確かめる性質の最終版はP3-C4-PI-PROPERTIESの①〜④のまま ⑦OwnerStartDataとOwnerReplyにfieldを足すと、literalを作る試験2本（integration/unit-wiring.test.ts:156のOwnerStartData、checkpoint-shutdown/review-regressions.test.ts:176のcheckpointDone）の型が通らなくなるので、allowedPathsに足した（期待値は変えず、印なしの値を足すだけ）。JSの手動script（chrome-eew/smoke.mjs・integration/private-eew.mjs・execution-lifecycle/blocking-owner.cjs）は印が無い扱いで動く (3) allowedPathsに工程2のfileを足した（10本は全部実在し、改名・消滅なし）。工程2の試験はT03・T05（ほかは工程1から引き継ぐ） (4) 工程2の作業として契約本文に入れないもの: manifest.draft.json（evidence/p3）の契約sha 6本が古く、machinesがP3-C4-MACHINES=Aのまま（formal: MacBook M5）なので、draft.mjsのmachinesを=Bに直してから草案を作り直す（凍結時の契約shaは凍結の時点で入る）",
+        "closed": "C3bの配送（66899fb7）と節目修正（771716bf・498d6f71）の後、498d6f71で読み替えた。(1) 前提は名前どおり在る: startP2Host（host.ts:75、signature不変）とconfig.observe（:46）、観測の経路は1つ（:85〜:88）、OwnerStartDataの組立て（:126）、T2・decodeは射影の前に観測（:130〜:135）、hostのtick（:371・:387）。CompositionOptions.diagnosticFileSystem（composition-root.ts:98、既定はnodeDiagnosticFileSystem :363）、nodeCheckpointFileSystemはcomposition-root.ts:198で定義しowner-worker.ts:13でowner 3本が作る、placeOfHeadType（unit-coverage.ts:169）。decodeMaterial（decode-material.ts:242）はwithinXmlLimits（:258）→XMLValidator.validate（:259）→parseTree（:263、fullXmlParseMsの起点 :261）。OwnerStartData（p3-execution-split.types.ts:29）とOwnerReply（:90〜:104、inputDoneのdecode :97）、ProcessingMarksの7区間（p1-parser-boundary.types.ts:70〜:76）、P2HostObservation（p2-eew-e01.types.ts:103〜:111）。owner側はcheckpointDone（owner-host.ts:160）、finalizeDone（:105〜:107）、finalizeの後もcheckpointGrantを受ける（:67）。publisherは権をcheckpointGrantで送る（composition-root.ts:1166・:1202） (2) 前提と実体が違ったもの・C3bで決まったものを次のとおり読み替えた: ①PARSE-MARKの観測点はvalidateの直前でなくwithinXmlLimitsの直前（全文の最初の走査は:258） ②WRITE-COUNTのcounterはfinalizeDoneでなくcheckpointDoneに載せる（終了の段は呼び出し側でfinalizeOwners（composition-root.ts:1321）→saveFinalGenerations（:1326）の順で、最終保存がfinalizeの後） ③T0の後の拒否の理由はC3bでownerStopped（停止済み・unresponsiveの実行場所。refuseInput composition-root.ts:631〜:643、件数の行 :653〜:654）が増えた。最初の1件だけinputId付きで、2件目以後はinputIdの無い件数の行なので、その入力は理由の無い欠落になる（欠落の判定は変えない） ④INTENT-RECLAIM=Aで、送出の直前に期限切れの通知予約を回収し、更新枠が使用中ならその入力の送出を遅らせる（mailboxではin-flight）。この遅れはT1→T2に入り、E01ではT0→T6に含まれる。別の観測は足さない ⑤P3-C3B-E07-WINDOW=A（E07の窓はAC07の(2)、観測の出どころはP3-C4-E07-SOURCE） ⑥C3bのPiで確かめる性質の最終版はP3-C4-PI-PROPERTIESの①〜④のまま ⑦OwnerStartDataとOwnerReplyにfieldを足すと、literalを作る試験2本（integration/unit-wiring.test.ts:156のOwnerStartData、checkpoint-shutdown/review-regressions.test.ts:176のcheckpointDone）の型が通らなくなるので、allowedPathsに足した（期待値は変えず、印なしの値を足すだけ）。JSの手動script（chrome-eew/smoke.mjs・integration/private-eew.mjs・execution-lifecycle/blocking-owner.cjs）は印が無い扱いで動く (3) allowedPathsに工程2のfileを足した（10本は全部実在し、改名・消滅なし）。工程2の試験はT03・T05（ほかは工程1から引き継ぐ）。計画§3.2（p3-order-plan.md:129〜:132）はC4のhost.tsをconfigの注入口に限り、composition-root.tsとP2HostObservationの型の列にC4を置いていないが、本契約がこれらのfileに足すのは観測点と注入口だけ（AC04）で、C3bの後・C5の前に入るので§3.2の編集順は崩さない。P3-C4-FAIL-PATHのBが退けたのは、それらのfileで製品の挙動を直すことのほう (4) 工程2の作業として契約本文に入れないもの: manifest.draft.json（evidence/p3）の契約sha 6本が古く、machinesがP3-C4-MACHINES=Aのまま（formal: MacBook M5）なので、draft.mjsのmachinesを=Bに直してから草案を作り直す（凍結時の契約shaは凍結の時点で入る）",
         "remaining": "工程2のbaseOidの割当（統合担当、本改訂のcommitの次）。正式測定の窓でownerの停止・unresponsiveが起きうるかは、AC08の予備測定でMac miniの最大の処理時間が5秒（AC01の閾値）に届かないことで確かめる（起きたらE01は欠落でFail、E07は窓のFailで、原因を記録する）",
         "reason": "unresolvedQuestionsのQ-C4-PHASE2-BASE（C3bの配送後、工程2の発注の前）を閉じる"
       }
@@ -292,7 +292,7 @@
       "decodeMaterial(item: ParserMailboxItem, parseTimes?: { startedMs: number | null; endedMs: number | null }): ParserMailboxResult（P3-C4-PARSE-MARK=A。記録はそのthreadのperformance.now()。第2引数を渡さない呼出しの挙動・戻り値・ProcessingMarksは変えない。P1契約の改訂は統合担当が合流時に記録）",
       "OwnerStartData: measured: boolean を足す（write別計数とparseの時刻・権の着手時刻の記録を有効にする）",
       "OwnerReply: inputDoneのdecodeにxmlParseStartedMonotonicMs・xmlParseEndedMonotonicMs（number | null）、checkpointDoneにgrantStartedMs（number | null）とwriteCounts（累積、Readonly<Record<\"checkpoint\" | \"tmp\" | \"diagnosticLog\" | \"other\", Readonly<{ count: number; bytes: number }>>> | null）を足す。印が無いときはどれもnull（C3a契約の改訂は統合担当が合流時に記録）",
-      "P2HostObservation: decodeに同じ2 field、新しいkind checkpointGrant（runId・grantId・unit・attemptIds・dirtyObservedMonotonicMs・grantSentMonotonicMs・ownerStartedMonotonicMs・doneReceivedMonotonicMs）とwriteCount（runId・thread: ExecutionPlace | \"publisher\"・区分ごとのcount/bytes）とmailbox（runId・monotonicMs・pending・in-flightの件数とbyte・oldestPendingAgeMs・oldestIncompleteAgeMs・high-waterの件数とbyte・limitViolations。hostのtickごとに1行、P3-C4-E07-SOURCE=B）を足す。observeの経路は既存の1つのまま",
+      "P2HostObservation: decodeに同じ2 field、新しいkind checkpointGrant（runId・grantId・unit・attemptIds・dirtyObservedMonotonicMs・grantSentMonotonicMs・ownerStartedMonotonicMs・doneReceivedMonotonicMs）とwriteCount（runId・thread: ExecutionPlace | \"publisher\"・confirmed: boolean・区分ごとのcount/bytes）とmailbox（runId・monotonicMs・trigger: \"tick\" | \"ping\"・pending・in-flightの件数とbyte・oldestPendingAgeMs・oldestIncompleteAgeMs・high-waterの件数とbyte・limitViolations。hostのtickごとと投入側のping frameの受信ごとに1行、P3-C4-E07-SOURCE=B）を足す。observeの経路は既存の1つのまま",
       "summarizeP3E01(manifest: P3E01Manifest, samples: readonly P3EewTraceSample[], injections: readonly P3EewInjectionRecord[]): Readonly<{ runs: readonly P3EewRunResult[]; verdict: P3E01Verdict }>（reconstruction/src/measurement/eew-e01/。judge.tsのtallyを母集団の型で一般化して共有し、summarizeEewE01の挙動と試験は変えない）",
       "成立の判定の純関数1つ（establishment・対象の開始と終了・T0・投入側の対応区間 → 成立か不成立の理由。runnerとsummarizeP3E01が同じものを使う）",
       "verifyFrozenP3Manifest(input: { manifestText: string; trialSetupText: string; smokeConditionsText: string; contractTexts: Readonly<Record<string, string>>; inherited: { manifestText: string; initialStateText: string } }): { manifest: P3E01Manifest; trialSetup: EewTrialSetup }（reconstruction/src/measurement/eew-e01/frozen.ts。AC10のself hashは保存bytesが要り、継承した初期状態のhashも照合するため、A10のverifyFrozenManifestと同じ形で保存textと継承元（A10のmanifestとinitial-state）を受け、検証済みの値を返す。frozen.tsの既存の補助を再利用し、A10のmanifestの検査は変えない）"
@@ -530,7 +530,7 @@
       },
       {
         "id": "P3-C4-AC04",
-        "requirement": "【工程2】計測点の設置（C3b配送後の配置に1回だけ置く）: (1) full parse開始と終了（P3-C4-PARSE-MARK）。P2HostObservationとOwnerReplyのdecodeにxmlParseStartedMonotonicMs・xmlParseEndedMonotonicMs（number | null）を足す (2) E14の区間（spec:864の4時刻、計画§4.5の記録）: OwnerReplyのcheckpointDoneにgrantStartedMs（ownerが権を受けて処理を始めた測定時刻、印が無いときnull）を足し、hostは新しい観測kind checkpointGrant（runId・grantId・unit・同じ返信のCheckpointMeasurementのattemptIds・dirtyObservedMonotonicMs〔publisherがそのunitのdirtyを最初に反映した時刻〕・grantSentMonotonicMs・ownerStartedMonotonicMs・doneReceivedMonotonicMs）を権1回につき1回出す。これで書込み権の待ち（dirtyの反映→権の送出）・ownerの着手までの待ち（送出→着手）・capture/encode/hashとwrite/sync/rename（既存のCheckpointMeasurementの段）・ackの反映（段の終わり→返信の受信）に分ける。既存のCheckpointMeasurementの段とattemptIdの結合は変えない (3) E15のwrite別計数（P3-C4-WRITE-COUNT。checkpointDoneのwriteCountsと観測kind writeCount） (4) E07の観測kind mailbox（P3-C4-E07-SOURCE=B。hostのtickごとにMailboxStatsの値を1行）。本契約で足す計測点・包み・message・観測は、測定の印（OwnerStartData.measured、config.observe != null）が無いとき作らない。既存の計測（decode・processing・CheckpointMeasurementの時刻取得）は変えない。足した観測fieldは追加だけで、既存のfieldの意味を変えない",
+        "requirement": "【工程2】計測点の設置（C3b配送後の配置に1回だけ置く）: (1) full parse開始と終了（P3-C4-PARSE-MARK）。P2HostObservationとOwnerReplyのdecodeにxmlParseStartedMonotonicMs・xmlParseEndedMonotonicMs（number | null）を足す (2) E14の区間（spec:864の4時刻、計画§4.5の記録）: OwnerReplyのcheckpointDoneにgrantStartedMs（ownerが権を受けて処理を始めた測定時刻、印が無いときnull）を足し、hostは新しい観測kind checkpointGrant（runId・grantId・unit・同じ返信のCheckpointMeasurementのattemptIds・dirtyObservedMonotonicMs〔publisherがそのunitのdirtyを最初に反映した時刻〕・grantSentMonotonicMs・ownerStartedMonotonicMs・doneReceivedMonotonicMs）を権1回につき1回出す。これで書込み権の待ち（dirtyの反映→権の送出）・ownerの着手までの待ち（送出→着手）・capture/encode/hashとwrite/sync/rename（既存のCheckpointMeasurementの段）・ackの反映（段の終わり→返信の受信）に分ける。既存のCheckpointMeasurementの段とattemptIdの結合は変えない (3) E15のwrite別計数（P3-C4-WRITE-COUNT。checkpointDoneのwriteCountsと観測kind writeCount） (4) E07の観測kind mailbox（P3-C4-E07-SOURCE=B。hostのtickごとと投入側のping frameの受信ごとにMailboxStatsの値を1行、triggerで区別）。本契約で足す計測点・包み・message・観測は、測定の印（OwnerStartData.measured、config.observe != null）が無いとき作らない。既存の計測（decode・processing・CheckpointMeasurementの時刻取得）は変えない。足した観測fieldは追加だけで、既存のfieldの意味を変えない",
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:864 «6a7712e8d448213a»",
           "docs/specs/reconstruction-p0-contracts.md:2066 «9816b55af233a5a4»",
@@ -542,7 +542,7 @@
       },
       {
         "id": "P3-C4-AC05",
-        "requirement": "【工程2】E15の再検収（e01:102の全要素）: checkpoint・tmp・logのwriteの帰属不能0（threadごとの包みで数えたbyte・回数と、CheckpointMeasurement・診断recordから帰属したbyte・回数が、区分ごとに一致する）、保存と診断のwriteの別計数（測定成果物のwriteと区別）、保存前段の同期区間の占有時間（C1後は記憶なしの最初の読み込みとcapture・encode・hash。ownerのthreadの値）、verify段の読んだbytesの別計数（encode・writeへ二重加算しない）を、A10と同じ保持上限の窓で測る。単位別のencode回数・総encode/write byte・ownerの占有時間を報告し、byte/保存・受理・日も示す。改善の根拠のない新しい閾値を作らない",
+        "requirement": "【工程2】E15の再検収（e01:102の全要素）: checkpoint・tmp・logのwriteの帰属不能0（writeCountのconfirmedがfalseのthreadがある窓は未確認、P3-C4-WRITE-COUNT。threadごとの包みで数えたbyte・回数と、CheckpointMeasurement・診断recordから帰属したbyte・回数が、区分ごとに一致する）、保存と診断のwriteの別計数（測定成果物のwriteと区別）、保存前段の同期区間の占有時間（C1後は記憶なしの最初の読み込みとcapture・encode・hash。ownerのthreadの値）、verify段の読んだbytesの別計数（encode・writeへ二重加算しない）を、A10と同じ保持上限の窓で測る。単位別のencode回数・総encode/write byte・ownerの占有時間を報告し、byte/保存・受理・日も示す。改善の根拠のない新しい閾値を作らない",
         "evidenceRefs": [
           "reconstruction/contracts/p2-eew-e01.json:102 «a44b4cf63f0ffe57»",
           "docs/specs/reconstruction-p0-contracts.md:2067 «f867801b1fa94b3d»"
@@ -561,7 +561,7 @@
       },
       {
         "id": "P3-C4-AC07",
-        "requirement": "【工程2】報告の窓: (1) E03（最大VPWS50、ownerの処理開始T2→decision・公開用射影確定T3のp99、暫定1秒、queue待ちT1→T2は別計数）は報告。Mac miniは回帰検出、Piは予備確認で、本番の判定はPi（P5、計画§4.5） (2) E07（P3-C3B-E07-WINDOW=A）: NとCの各60分。観測の出どころはP3-C4-E07-SOURCE。全遷移で宣言上限内、通常入力の最大待機年齢≤暫定5秒、入力停止から10秒以内に入力mailboxのpending・in-flightが0（spec:2058のとおり、実行場所を絞らない）、Cのwarm-up後の周期末backlogの件数・byteが前周期末以下。窓の中でownerが停止またはunresponsiveになったら、その窓はFail（原因を記録）。N窓はpingで生存期限を避ける (3) E12（旧新を同じ入力・初期状態・Nodeで別実行、A10の窓のまま） (4) AC15の再集計（AC03の(4)で保存した生データだけから。費用報告の規則はP2-A10-AC15のまま） (5) 受信1回あたりのviewの複製回数とbyte（台帳49）、publishの回数・byte・直列化時間 (6) 通知の初回試行がownerの採用の返信を待つ時間（spec:956の初回1秒の内訳）。(1)〜(6)はE01の合否に使わない。窓の共有は、共有する各測定の条件を満たすときだけmanifestのsharesWindowWithに書いて行い、E01の窓は共有しない",
+        "requirement": "【工程2】報告の窓: (1) E03（最大VPWS50、ownerの処理開始T2→decision・公開用射影確定T3のp99、暫定1秒、queue待ちT1→T2は別計数）は報告。Mac miniは回帰検出、Piは予備確認で、本番の判定はPi（P5、計画§4.5） (2) E07（P3-C3B-E07-WINDOW=A）: NとCの各60分。観測の出どころはP3-C4-E07-SOURCE。全遷移で宣言上限内、通常入力の最大待機年齢≤暫定5秒、入力停止から10秒以内に入力mailboxのpending・in-flightが0（spec:2058のとおり、実行場所を絞らない）、Cのwarm-up後の周期末backlogの件数・byteが前周期末以下。判定は境界をまたがない証拠だけで行う: ① 周期末backlog: 投入側はCの各周期の最後のframeの後、次の周期の最初のframeの前にpingを1つ送り、そのpingのmailboxの行を周期末の値とする（同じWS接続の受信順で境界に一致する。tickの行は周期末に使わない） ② 入力停止後の排出: 完了時刻を、最後の入力のT0の後で非空だった最後の行（下界）と最初の空の行（上界）で挟み、上界≤T0＋10秒でPass、下界＞T0＋10秒でFail、それ以外は未確認。runnerは上界の行が出るまでhost.stop()を呼ばない（stopでtickが止まる）。幅を狭めるため停止後にpingを足してよい ③ 最大待機年齢: 入力ごとのT1→T2を上界、行のoldestPendingAgeMsを下界とし、上界≤5秒でPass、下界＞5秒でFail、それ以外は未確認。窓の中でownerが停止またはunresponsiveになったら、その窓はFail（原因を記録）。N窓はpingで生存期限を避ける (3) E12（旧新を同じ入力・初期状態・Nodeで別実行、A10の窓のまま） (4) AC15の再集計（AC03の(4)で保存した生データだけから。費用報告の規則はP2-A10-AC15のまま） (5) 受信1回あたりのviewの複製回数とbyte（台帳49）、publishの回数・byte・直列化時間 (6) 通知の初回試行がownerの採用の返信を待つ時間（spec:956の初回1秒の内訳）。(1)〜(6)はE01の合否に使わない。窓の共有は、共有する各測定の条件を満たすときだけmanifestのsharesWindowWithに書いて行い、E01の窓は共有しない",
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:2054 «726413a61a98e64b»",
           "docs/specs/reconstruction-p0-contracts.md:2058 «c5a19c3c5d58ec9b»",
@@ -680,7 +680,7 @@
           "P3-C4-AC05",
           "P3-C4-AC07"
         ],
-        "behavior": "【工程2】E14・E15・E07の観測（偽のfilesystem）: 印ありでU-E・U-W・U-Fの保存と診断のwriteを流して止めると、(1) writeCountの観測がthreadごとに1回だけ出て、区分ごとのbyte・回数がCheckpointMeasurementと診断recordからの帰属と一致し、測定成果物のwriteは数えない (2) checkpointGrantの観測が権1回につき1回出て、dirtyの反映≤権の送出≤ownerの着手≤返信の受信で、attemptIdsが同じ返信のCheckpointMeasurementと一致する。(3) mailboxの観測がhostのtickごとに1行出て、値がその時点のMailboxStatsと一致する。印なしではcheckpointDoneのwriteCounts・grantStartedMsがnullで、writeCount・checkpointGrant・mailboxの観測は出ない"
+        "behavior": "【工程2】E14・E15・E07の観測（偽のfilesystem）: 印ありでU-E・U-W・U-Fの保存と診断のwriteを流して止めると、(1) writeCountの観測がthreadごとに1回だけconfirmed trueで出て、区分ごとのbyte・回数がCheckpointMeasurementと診断recordからの帰属と一致し、測定成果物のwriteは数えない (2) checkpointGrantの観測が権1回につき1回出て、dirtyの反映≤権の送出≤ownerの着手≤返信の受信で、attemptIdsが同じ返信のCheckpointMeasurementと一致する。(3) mailboxの観測がhostのtickごとと投入側のpingの受信ごとに1行出て、pingの行はそのpingより前に受けたframeを含みそれより後のframeを含まない。(4) 書込み権の返信を保留したまま止めると、そのownerのwriteCountはconfirmed falseで出る。印なしではcheckpointDoneのwriteCounts・grantStartedMsがnullで、writeCount・checkpointGrant・mailboxの観測は出ない"
       },
       {
         "testId": "P3-C4-T06",
