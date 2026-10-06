@@ -262,7 +262,8 @@ describe("P3-C3B owners as real threads (TEST-PATH (3))", () => {
     if (save === "stalled") vi.spyOn(PersistentDiagnosticSink.prototype, "persistShutdownSummary").mockImplementation(() => new Promise<void>(() => {}));
     if (save === "slow") vi.spyOn(PersistentDiagnosticSink.prototype, "persistShutdownSummary").mockImplementationOnce(
       async function (this: PersistentDiagnosticSink, ...args) {
-        await new Promise((done) => { setTimeout(done, 4_000); });
+        // 遅延は 2.5 秒: 期限を数え直す退行なら 2.5＋5＝7.5 秒で下の 6.5 秒を超えて落ち、遅い CI でも 2 回目の保存に 2.5 秒残る
+        await new Promise((done) => { setTimeout(done, 2_500); });
         return persist.apply(this, args);
       });
     cleanups.push(() => { vi.restoreAllMocks(); });
