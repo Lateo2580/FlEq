@@ -1468,10 +1468,10 @@ class RuntimeCompositionRoot {
         summary = observed.summary ?? summary;
       }
       if (summary == null) throw new Error("shutdown did not produce a summary");
-      // A1 owns both summaries. A failed final delivery is not reported as a successful persistence.
+      // A1 owns both summaries. A failed final delivery is not reported as a successful persistence. 期限切れは段の結果に揃える（実時間の期限と within の timer の境目で判定が割れないように。P3-C3B-AC03）。
       const deadline = this.state.shutdown.deadlines.workerCloseMonotonicMs!;
       const closeBy = this.workerCloseBy ?? -Infinity;
-      if (summarySaved && this.clock().monotonicMs < deadline && performance.now() < closeBy) {
+      if (summarySaved && this.state.shutdown.stageResults.workerClose?.result.kind !== "deadlineExceeded" && this.clock().monotonicMs < deadline && performance.now() < closeBy) {
         // Bounded by the stage's real-time limit, not a fresh window of the injected clock.
         const real = () => ({ wallTimeMs: this.clock().wallTimeMs, monotonicMs: performance.now() });
         const persisted = await within((active) => this.diagnostics.persistShutdownSummary(summary!, active), closeBy, real);
