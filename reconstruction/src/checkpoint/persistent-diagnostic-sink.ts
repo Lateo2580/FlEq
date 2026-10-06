@@ -52,7 +52,7 @@ const diagnosticReasons = [
   "routeIgnored", "routeNotPorted", "routeUnlisted", "ownerReplyLate",
   "dmdataSocketStarted", "dmdataSubscriptionNarrowed", "dmdataSocketListFailed", "dmdataConnectionCapacityExceeded",
   "dmdataSocketStartFailed", "dmdataSocketStartUncertain", "dmdataSocketCloseFailed", "dmdataAuthRejected",
-  "dmdataErrorFrame", "connectionLivenessExpired",
+  "dmdataErrorFrame", "connectionLivenessExpired", "ownerStopped",
 ] satisfies readonly DiagnosticReason[];
 
 function lineFor(source: DiagnosticEvent, occurrences = 1): QueueEntry {
@@ -278,7 +278,7 @@ class PersistentDiagnosticSink {
       ShutdownSummary["persistence"][UnitId]][]).map(([unit, status]) => [unit, status?.kind === "failed"
       ? { ...status, reason: "checkpoint operation failed" } : status]));
     const record = { ...summary, persistence, reasons: summary.reasons.map((reason) =>
-      /^(mailboxDrain|sideEffectFinalization|finalCheckpoint|workerClose):(failed:operationFailed|deadlineExceeded|remainingInputs|remainingBatches|unconfirmedNotifications|unsavedUnits|remainingWorkers)$/.test(reason)
+      /^(mailboxDrain|sideEffectFinalization|finalCheckpoint|workerClose):(failed:operationFailed|failed:ownerStopped|deadlineExceeded|remainingInputs|remainingBatches|unconfirmedNotifications|unsavedUnits|remainingWorkers)$/.test(reason)
         ? reason : "shutdown incomplete") };
     await this.serial(async () => {
       try {

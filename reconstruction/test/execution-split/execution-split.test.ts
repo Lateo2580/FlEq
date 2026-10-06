@@ -923,11 +923,12 @@ describe("P3-C3A execution split (TEST-PATH (2): publisher with in-process owner
     }
   });
 
-  it("P3-C3A-T10 contractBoundary / AC10: an owner failure throws and the publisher sends no further request", async () => {
+  // P3-C3B-AC06(a): the failure no longer throws; only the stopped owner gets no further request.
+  it("P3-C3A-T10 contractBoundary / AC10: an owner failure stops that owner only and the publisher sends it no further request", async () => {
     let now: ClockReading = { wallTimeMs: 1_713_363_299_001, monotonicMs: 1 };
     const h = harnessedRoot(config(), linkedUnitCodecs, { clock: () => now, notificationAdapter: recordingNotificationAdapter() });
     await startHarness(h, "t10", now);
-    expect(() => h.root.ownerFailed("weatherCurrent", new Error("worker error"))).toThrow(/weatherCurrent stopped unexpectedly/);
+    expect(h.root.ownerFailed("weatherCurrent", new Error("worker error"))).toBeUndefined();
     const sent = h.sent.length;
     h.root.mailbox.enqueue(envelope("t10", "VXSE43", "after", fixture("37_01_01_240613_VXSE43"), now, 1));
     h.root.pump();
@@ -935,7 +936,10 @@ describe("P3-C3A execution split (TEST-PATH (2): publisher with in-process owner
     h.root.tick(now);
     await h.root.driveCheckpoint();
     await h.settle();
-    expect(h.sent).toHaveLength(sent);
+    const later = h.sent.slice(sent);
+    expect(later.filter(({ place }) => place === "weatherCurrent")).toEqual([]);
+    expect(later.filter(({ request }) => request.kind === "input" || request.kind === "deadline")
+      .map(({ place, request }) => [place, request.kind])).toEqual([["urgent", "input"], ["urgent", "deadline"], ["deferred", "deadline"]]);
     await h.root.diagnostics.flush();
   });
 });

@@ -13,7 +13,7 @@ const owner = new OwnerHost({
   start, units: linkedUnitTable, codecs: linkedUnitCodecs, fileSystem: nodeCheckpointFileSystem(),
   sharedNow: sharedClock,
   reply: (reply) => port.postMessage(reply),
-  // A broken invariant ends the thread; the host reports it as ownerFailed (P3-C3A-OWNER-FAILURE).
+  // A broken invariant ends the thread; the host reports it as ownerFailed (P3-C3B-OWNER-STOP).
   fail: (error) => { setImmediate(() => { throw error; }); },
 });
 // An exception here is uncaught in the thread and reaches the host as the worker's error event.

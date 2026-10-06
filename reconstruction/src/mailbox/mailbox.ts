@@ -197,6 +197,19 @@ class Mailbox {
     return this.stats(nowMonotonicMs);
   }
 
+  // P3-C3B-DEAD-PLACE-INPUT: a stopped owner's items leave in one pass. Pending ones count as cancelled; the in-flight
+  // one counts as neither (it was not completed), so a late completion for it releases nothing.
+  removePlace(place: ExecutionPlace): Readonly<{ pending: number; inFlight: number }> {
+    let kept = 0;
+    for (const entry of this.pending) if (entry.place !== place) this.pending[kept++] = entry;
+    const pending = this.pending.length - kept;
+    this.pending.length = kept;
+    const inFlight = this.parserInFlight.delete(place) ? 1 : 0;
+    this.cancelled += pending;
+    this.checkLimits();
+    return { pending, inFlight };
+  }
+
   beginDrain(nowMonotonicMs: number): MailboxStats {
     this.accepting = false;
     this.checkLimits();

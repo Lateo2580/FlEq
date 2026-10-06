@@ -323,15 +323,16 @@ describe("P2-A10-T06 host wiring (AC12, AC13)", () => {
     skew.ms += 5_000;
     vi.advanceTimersByTime(1_000);
     await until(() => stream.heartbeats.length === 1);
-    expect(stream.heartbeats).toEqual(["stalled"]);
+    // P3-C3B-AC06(b): every owner reply is held, so the weatherCurrent owner is stalled and unresponsive (shown).
+    expect(stream.heartbeats).toEqual(["unresponsive"]);
     // The same tick's drainDiagnostics reports the stop.
     await until(async () => (await diagnostics(dirs.diagnosticDirectory)).includes("mailboxStalled"));
-    expect((await fetchJson<{ worker: string }>(host.displayPort, "/healthz")).worker).toBe("stalled");
+    expect((await fetchJson<{ worker: string }>(host.displayPort, "/healthz")).worker).toBe("unresponsive");
     owners.hold = false;
     for (const deliver of owners.held.splice(0)) deliver();
     vi.advanceTimersByTime(1_000);
     await until(() => stream.heartbeats.length === 2);
-    expect(stream.heartbeats).toEqual(["stalled", "healthy"]);
+    expect(stream.heartbeats).toEqual(["unresponsive", "healthy"]);
     expect((await fetchJson<{ worker: string }>(host.displayPort, "/healthz")).worker).toBe("healthy");
   });
 

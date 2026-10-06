@@ -50,6 +50,7 @@ import { eewUnit } from "../units/eew/eew-unit";
 import { weatherCurrentUnit } from "../units/weather-current/weather-current-unit";
 import { weatherTimeseriesUnit } from "../units/weather-timeseries/weather-timeseries-unit";
 import { dateValue, projectSnapshot } from "../view-projector/view-projector";
+import { placeUnits } from "./owner-runtime";
 import { completeDiagnostic } from "./runtime-diagnostic";
 import {
   applyDeltas, confirmOutput, initialConfirmation, isEmptyOutput, lostConfirmation, observeStage, requestShutdown,
@@ -130,6 +131,32 @@ type IntentRequest = Readonly<{ place: ExecutionPlace; channel: NotificationChan
   keys: readonly string[]; reserved: string | null }>;
 type HeldUpdate = Readonly<{ unit: RuntimeUnitId; channel: NotificationChannel; updates: readonly NotificationIntentUpdate[];
   decisionClock: ClockReading; keys: readonly string[] }>;
+
+// P3-C3B-RES-01: one fixed record per owner. sent: the send time of each unanswered request kind (checkpointGrant is
+// left to the 10 s checkpoint monitor); replies may come out of order, so the oldest is the minimum of these slots.
+type MonitorSlot = "deadline" | "shutdownInput" | "input" | "finalize" | `${NotificationChannel}:${IntentRequest["slot"]}`;
+type OwnerJudgement = DisplayWorkerView["state"];
+type OwnerMonitor = {
+  sent: Record<MonitorSlot, number | null>;
+  lastReplyAt: number | null;
+  // The last tick's judgement, and the WARNs given since the owner was last healthy (RES-04).
+  judged: OwnerJudgement;
+  stalledReported: boolean;
+  unresponsiveReported: boolean;
+  stopped: boolean;
+  // Items taken out of the mailbox when the owner stopped (counted as unprocessed by every later shutdown stage).
+  removed: Readonly<{ pending: number; inFlight: number }>;
+  // Inputs refused after the first one of the current episode; null outside an episode.
+  refused: number | null;
+};
+const judgementRank: Readonly<Record<OwnerJudgement, number>> = { healthy: 0, stalled: 1, unresponsive: 2, stopped: 3 };
+const RESPONSE_MS = 5_000;
+const ownerMonitor = (): OwnerMonitor => ({
+  sent: { deadline: null, shutdownInput: null, input: null, finalize: null, "desktop:reservation": null,
+    "desktop:update": null, "sound:reservation": null, "sound:update": null },
+  lastReplyAt: null, judged: "healthy", stalledReported: false, unresponsiveReported: false, stopped: false,
+  removed: { pending: 0, inFlight: 0 }, refused: null,
+});
 
 const intentKey = (intent: Pick<NotificationIntent, "unit" | "id">) => JSON.stringify([intent.unit, intent.id]);
 const sameIntent = (left: NotificationIntent, right: Pick<NotificationIntent, "id" | "unit" | "operation" | "subject" | "channel">) =>
@@ -278,8 +305,16 @@ class RuntimeCompositionRoot {
   private readonly onInputDone: (reply: InputDone) => void;
   private current: PublisherState | null = null;
   private runId: string | null = null;
-  // P3-C3A-OWNER-FAILURE (A): once an owner stopped unexpectedly nothing more is sent.
-  private failure: { place: ExecutionPlace; cause: unknown } | null = null;
+  // An owner that stopped before startRuntime completed rejects it (P3-C3A-AC01); later stops are per owner (C3b AC02).
+  private startFailure: { place: ExecutionPlace; cause: unknown } | null = null;
+  private readonly monitors: Record<ExecutionPlace, OwnerMonitor> = {
+    urgent: ownerMonitor(), weatherCurrent: ownerMonitor(), deferred: ownerMonitor() };
+  // P3-C3B-FINALIZE-UNHEALTHY (A): owners unresponsive when side-effect finalization began; left out of (2) and (4).
+  private readonly unhealthy = new Set<ExecutionPlace>();
+  // P3-C3B-AC08: an input waiting for its unit's held expiry update to be sent first (at most one per place).
+  private readonly delayedInputs = new Map<ExecutionPlace, ParserEnvelope>();
+  // The latest owner reply already handed to the mailbox's worker-response record (once per tick, P3-C3B-AC07).
+  private recordedResponse = -Infinity;
   private readonly restored = new Map<ExecutionPlace, Extract<OwnerReply, { kind: "restored" }>>();
   private requestSequence = 0;
   // P3-C3A-RES-09: the requests each owner has not answered yet, by kind.
@@ -358,9 +393,29 @@ class RuntimeCompositionRoot {
   }
 
   private post(place: ExecutionPlace, request: OwnerRequestBody, clock = this.clock()): void {
-    if (this.failure != null) return;
+    const monitor = this.monitors[place];
+    if (monitor.stopped) return;
+    const slot = this.slotOf(request);
+    if (slot != null) monitor.sent[slot] = clock.monotonicMs;
     this.sendRequest(place, { ...request, clock, sharedMs: this.sharedNow() });
   }
+
+  private slotOf(request: OwnerRequestBody): MonitorSlot | null {
+    switch (request.kind) {
+      case "deadline": case "shutdownInput": case "input": case "finalize": return request.kind;
+      case "intentUpdate": {
+        const sent = this.intentRequests.get(request.requestId);
+        return sent == null ? null : `${sent.channel}:${sent.slot}`;
+      }
+      case "restore": case "checkpointGrant": return null;
+      default: { const unknown: never = request; throw new Error(`unknown owner request ${String(unknown)}`); }
+    }
+  }
+
+  private stoppedUnit(unit: RuntimeUnitId): boolean { return this.monitors[executionPlaces[unit]].stopped; }
+
+  // Stopped, or left out of the shutdown stages as unresponsive (P3-C3B-AC03).
+  private shutdownExcluded(place: ExecutionPlace): boolean { return this.monitors[place].stopped || this.unhealthy.has(place); }
 
   private wake(): void {
     for (const waiter of [...this.waiters]) waiter();
@@ -370,7 +425,12 @@ class RuntimeCompositionRoot {
   private until(condition: () => boolean, active: () => boolean = () => true): Promise<void> {
     return new Promise((resolve, reject) => {
       const check = () => {
-        if (this.failure != null) { this.waiters.delete(check); reject(new Error(`execution owner ${this.failure.place} stopped`)); return; }
+        const failure = this.startFailure;
+        if (failure != null) {
+          this.waiters.delete(check);
+          reject(new Error(`execution owner ${failure.place} stopped`, { cause: failure.cause }));
+          return;
+        }
         if (condition() || !active()) { this.waiters.delete(check); resolve(); }
       };
       this.waiters.add(check);
@@ -446,39 +506,160 @@ class RuntimeCompositionRoot {
 
   // Every reply of every owner enters here, in the order each owner applied its requests.
   receive(place: ExecutionPlace, reply: OwnerReply): void {
-    if (this.failure != null) return;
+    const monitor = this.monitors[place];
+    // A stopped owner's replies are not adopted (P3-C3B-AC02).
+    if (monitor.stopped) return;
+    monitor.lastReplyAt = this.clock().monotonicMs;
     switch (reply.kind) {
       case "restored":
         if (this.restored.has(place)) throw new Error("owner restored twice");
         this.restored.set(place, reply);
         break;
-      case "inputDone": this.inputDone(place, reply); break;
+      case "inputDone":
+        monitor.sent.input = null;
+        this.inputDone(place, reply);
+        break;
       case "deadlineDone":
+        monitor.sent.deadline = null;
         this.outstanding[place].deadline = false;
         this.ownerOutput(place, reply.output, null);
         break;
       case "intentUpdateDone": this.intentUpdateDone(place, reply); break;
       case "checkpointDone": this.checkpointDone(place, reply); break;
       case "shutdownInputDone":
+        monitor.sent.shutdownInput = null;
         this.outstanding[place].shutdownInput = false;
         this.ownerOutput(place, reply.output, null);
         break;
-      case "finalizeDone": this.finalizeDone(place, reply); break;
+      case "finalizeDone":
+        monitor.sent.finalize = null;
+        this.finalizeDone(place, reply);
+        break;
       default: { const unknown: never = reply; throw new Error(`unknown owner reply ${String(unknown)}`); }
     }
     this.wake();
   }
 
-  // P3-C3A-OWNER-FAILURE (author ruling A, until C3b): an owner that stops unexpectedly stops the process.
-  ownerFailed(place: ExecutionPlace, cause: unknown): never {
-    this.failure ??= { place, cause };
+  // P3-C3B-OWNER-STOP (A): an owner's error or unexpected exit stops that owner only. Its mailbox items, requests,
+  // reservations and held updates go; its unit keeps the last view and gets no grant (a write right it holds is kept,
+  // DEAD-WRITE-RIGHT A). Before startRuntime completed, the stop rejects startRuntime instead (P3-C3A-AC01).
+  ownerFailed(place: ExecutionPlace, cause: unknown): void {
+    if (this.current == null) {
+      this.startFailure ??= { place, cause };
+      this.wake();
+      return;
+    }
+    const monitor = this.monitors[place];
+    if (monitor.stopped) return;
+    const clock = this.clock();
+    this.endRefusals(place, clock);
+    monitor.stopped = true;
+    monitor.removed = this.mailbox.removePlace(place);
+    this.inFlightInputs.delete(place);
+    this.delayedInputs.delete(place);
+    this.outstanding[place] = { deadline: false, shutdownInput: false };
+    for (const [requestId, request] of this.intentRequests) if (request.place === place) {
+      this.intentRequests.delete(requestId);
+      for (const key of request.keys) this.inFlightKeys.delete(key);
+    }
+    const units = placeUnits(place);
+    for (const channel of channelNames) {
+      const reservation = this.reservations[channel];
+      if (reservation != null && units.includes(reservation.unit)) delete this.reservations[channel];
+    }
+    for (let index = this.heldUpdates.length - 1; index >= 0; index -= 1) if (units.includes(this.heldUpdates[index].unit)) {
+      for (const key of this.heldUpdates[index].keys) this.inFlightKeys.delete(key);
+      this.heldUpdates.splice(index, 1);
+    }
+    this.enqueueDiagnostic(completeDiagnostic({ level: "ERROR", component: `owner.${place}`, reason: "ownerStopped",
+      count: monitor.removed.pending + monitor.removed.inFlight }, clock, this.state.runId));
     this.wake();
-    throw new Error(`execution owner ${place} stopped unexpectedly`, { cause });
+    this.evaluateDelivery(clock);
+    this.project([], [], clock);
   }
 
-  // P3-C3A-AC09: replies from an owner that was not fixed before the finalization deadline are counted only.
+  // P3-C3B-AC01 (spec:1190-1191): stalled when the oldest unanswered request is 5 s old; unresponsive when, with a
+  // request unanswered, no reply came for 5 s. The per-tick deadline request is the idle owner's progress answer.
+  private judge(monitor: OwnerMonitor, nowMonotonicMs: number): Readonly<{ stalledMs: number | null; unresponsiveMs: number | null }> {
+    let oldest = Infinity;
+    for (const sent of Object.values(monitor.sent)) if (sent != null && sent < oldest) oldest = sent;
+    if (oldest === Infinity) return { stalledMs: null, unresponsiveMs: null };
+    const stalledMs = nowMonotonicMs - oldest;
+    const unresponsiveMs = nowMonotonicMs - Math.max(monitor.lastReplyAt ?? -Infinity, oldest);
+    return { stalledMs: stalledMs >= RESPONSE_MS ? stalledMs : null, unresponsiveMs: unresponsiveMs >= RESPONSE_MS ? unresponsiveMs : null };
+  }
+
+  // P3-C3B-AC01 / WORKER-VIEW (A): the tick's judgement of the three owners and the mailbox as one worker view, worst
+  // first (stopped > unresponsive > stalled > healthy). One WARN per state entry; nothing is judged after stop().
+  monitorOwners(clock: ClockReading = this.clock()): DisplayWorkerView {
+    if (this.state.shutdown.stage !== "running") return this.snapshotWorker;
+    const now = clock.monotonicMs;
+    let worst: OwnerJudgement = this.mailbox.isStalled(now) ? "stalled" : "healthy";
+    for (const place of places) {
+      const monitor = this.monitors[place];
+      const { stalledMs, unresponsiveMs } = this.judge(monitor, now);
+      const judged: OwnerJudgement = monitor.stopped ? "stopped"
+        : unresponsiveMs != null ? "unresponsive" : stalledMs != null ? "stalled" : "healthy";
+      if (!monitor.stopped) {
+        const warn = (component: string, durationMs: number) => this.enqueueDiagnostic(completeDiagnostic({ level: "WARN",
+          component, reason: "mailboxStalled", count: 1, durationMs }, clock, this.state.runId));
+        if (stalledMs != null && !monitor.stalledReported) { monitor.stalledReported = true; warn(`owner.${place}`, stalledMs); }
+        if (unresponsiveMs != null && !monitor.unresponsiveReported) {
+          monitor.unresponsiveReported = true;
+          warn(`owner.${place}.response`, unresponsiveMs);
+        }
+        if (judged === "healthy") {
+          monitor.stalledReported = monitor.unresponsiveReported = false;
+          this.endRefusals(place, clock);
+        }
+      }
+      monitor.judged = judged;
+      if (judgementRank[judged] > judgementRank[worst]) worst = judged;
+    }
+    const inWorst = places.filter((place) => this.monitors[place].judged === worst);
+    let lastResponse: number | null = null;
+    for (const place of inWorst.length === 0 ? places : inWorst) {
+      const at = this.monitors[place].lastReplyAt;
+      if (at != null && (lastResponse == null || at < lastResponse)) lastResponse = at;
+    }
+    return { state: worst, lastProgressAtMonotonicMs: this.mailbox.stats(now).lastProgressMonotonicMs, lastResponseAtMonotonicMs: lastResponse };
+  }
+
+  // P3-C3B-DEAD-PLACE-INPUT / HUNG-PLACE-INPUT (A): an input for a stopped or unresponsive owner is refused before the
+  // mailbox, until the owner is healthy again. The first of an episode is one WARN with its inputId; later ones are
+  // counted into one line at its end. From the shutdown request on, the draining mailbox refuses instead.
+  refuseInput(inputId: string, headType: string, clock: ClockReading = this.clock()): boolean {
+    if (this.state.shutdown.stage !== "running") return false;
+    const place = placeOfHeadType(headType);
+    const monitor = this.monitors[place];
+    if (!monitor.stopped && monitor.judged !== "unresponsive" && (monitor.refused == null || monitor.judged === "healthy")) return false;
+    if (monitor.refused != null) monitor.refused += 1;
+    else {
+      monitor.refused = 0;
+      this.enqueueDiagnostic(completeDiagnostic({ level: "WARN", component: this.refusalComponent(place), reason: "ownerStopped",
+        inputId }, clock, this.state.runId));
+    }
+    return true;
+  }
+
+  private refusalComponent(place: ExecutionPlace): string {
+    return this.monitors[place].stopped ? `owner.${place}` : `owner.${place}.response`;
+  }
+
+  // The end of a refusal episode (back to healthy, the owner stopping, or the shutdown request).
+  private endRefusals(place: ExecutionPlace, clock: ClockReading): void {
+    const monitor = this.monitors[place];
+    if (monitor.refused != null && monitor.refused > 0)
+      this.enqueueDiagnostic(completeDiagnostic({ level: "WARN", component: this.refusalComponent(place), reason: "ownerStopped",
+        count: monitor.refused }, clock, this.state.runId));
+    monitor.refused = null;
+  }
+
+  // P3-C3A-AC09: replies from an owner that was not fixed before the finalization deadline (or was left out of it as
+  // unresponsive, P3-C3B-FINALIZE-UNHEALTHY) are counted only.
   private late(place: ExecutionPlace): boolean {
-    if (this.finalization?.closed !== true || this.finalization.fixed.has(place)) return false;
+    const { finalization } = this;
+    if (!this.unhealthy.has(place) && (finalization?.closed !== true || finalization.fixed.has(place))) return false;
     this.countLate();
     return true;
   }
@@ -510,7 +691,7 @@ class RuntimeCompositionRoot {
 
   // P2-A10-AC12: hand parser inputs to their owners; the mailbox keeps one in flight per execution place (P3-C3A-RES-01).
   pump(): void {
-    if (this.current == null || this.failure != null) return;
+    if (this.current == null) return;
     // After the drain stage nothing more goes to the owners: what is left stays counted as pending (Y1).
     const { stage } = this.state.shutdown;
     if (stage !== "running" && stage !== "mailboxDrain") return;
@@ -520,8 +701,27 @@ class RuntimeCompositionRoot {
       if (!isParser(envelope)) throw new Error("the mailbox holds parser items only");
       const place = placeOfHeadType(envelope.payload.item.headType);
       this.inFlightInputs.set(place, envelope);
-      this.post(place, { kind: "input", envelope });
+      this.sendInput(place, envelope);
     }
+  }
+
+  // P3-C3B-INTENT-RECLAIM (A): the input's own units' expired intents are reclaimed before it, so a full intent capacity
+  // of monotonic-expired notices does not block it. While that update is held behind its slot the input waits.
+  private sendInput(place: ExecutionPlace, envelope: ParserEnvelope): void {
+    this.reclaimExpired(this.clock(), placeUnits(place));
+    if (this.heldUpdates.some((update) => executionPlaces[update.unit] === place)) this.delayedInputs.set(place, envelope);
+    else this.post(place, { kind: "input", envelope });
+  }
+
+  // Only while inputs still go to the owners (the drain stage at the latest, Y1).
+  private sendDelayedInputs(): void {
+    const { stage } = this.state.shutdown;
+    if (stage !== "running" && stage !== "mailboxDrain") return;
+    for (const [place, envelope] of this.delayedInputs)
+      if (!this.heldUpdates.some((update) => executionPlaces[update.unit] === place)) {
+        this.delayedInputs.delete(place);
+        this.post(place, { kind: "input", envelope });
+      }
   }
 
   // Waits until the mailbox has nothing pending or in flight, or until active() turns false (the drain stage).
@@ -558,9 +758,17 @@ class RuntimeCompositionRoot {
   // unanswered is not sent again; the next tick sends the latest clock (P3-C3A-AC15).
   tick(clock: ClockReading = this.clock()): void {
     const state = this.state;
-    if (this.failure != null) return;
+    // P2-A2-AC05 worker response before its predicate runs below: the latest reply of any owner, so the mailbox.worker
+    // WARN means none answered for 5 s. Recorded once per tick, not per reply (AC07).
+    let latest = -Infinity;
+    for (const place of places) latest = Math.max(latest, this.monitors[place].lastReplyAt ?? -Infinity);
+    // Never moved back: a response the mailbox already holds (recorded by another caller) is not overwritten by an older one.
+    if (latest > this.recordedResponse) {
+      this.recordedResponse = latest;
+      if (latest > (this.mailbox.stats(clock.monotonicMs).lastWorkerResponseMonotonicMs ?? -Infinity)) this.mailbox.recordWorkerResponse(latest);
+    }
     if (!this.requestsStopped && state.shutdown.finalizationAt == null)
-      for (const place of places) if (!this.outstanding[place].deadline) {
+      for (const place of places) if (!this.monitors[place].stopped && !this.outstanding[place].deadline) {
         this.outstanding[place].deadline = true;
         this.post(place, { kind: "deadline" }, clock);
       }
@@ -632,10 +840,22 @@ class RuntimeCompositionRoot {
 
   // ---- notification (A7 selection over the mirror; P3-C3A-NOTIFY-ADOPT) ----
 
+  // A stopped owner's pending intents leave A7, except one whose attempt already runs: it ends by the adapter (AC02).
+  private deliverableIntents(unit: RuntimeUnitId): readonly NotificationIntent[] {
+    const { pendingIntents } = this.state.mirror[unit];
+    if (!this.stoppedUnit(unit)) return pendingIntents;
+    const channels = this.state.notificationChannels;
+    return pendingIntents.filter((intent) => channelNames.some((name) => {
+      const channel = channels[name];
+      return (channel.kind === "running" || channel.kind === "stopping")
+        && sameIntent(intent, { ...channel.attempt, id: channel.attempt.intentId });
+    }));
+  }
+
   private deliveryState(): NotificationDeliveryState {
     const state = this.state;
     return {
-      intents: runtimeUnits.flatMap((unit) => state.mirror[unit].pendingIntents.filter((intent) =>
+      intents: runtimeUnits.flatMap((unit) => this.deliverableIntents(unit).filter((intent) =>
         !this.inFlightKeys.has(intentKey(intent)) && (intent.operation !== "normal" || state.mirror[unit].admissionCounts.normal === 0))),
       channels: state.notificationChannels, deadlines: state.notificationDeadlines,
     };
@@ -660,7 +880,7 @@ class RuntimeCompositionRoot {
 
   // A result or expiry update waits while its owner and channel already have one in flight (RES-09).
   private queueUpdate(update: HeldUpdate): void {
-    if (this.requestsStopped) return;
+    if (this.requestsStopped || this.stoppedUnit(update.unit)) return;
     if (this.slotBusy(executionPlaces[update.unit], update.channel, "update")) {
       // A held update's intents are already decided: neither reselected nor reclaimed again while they wait (X1).
       for (const key of update.keys) this.inFlightKeys.add(key);
@@ -715,11 +935,11 @@ class RuntimeCompositionRoot {
     return keys;
   }
 
-  private reclaimExpired(clock: ClockReading): void {
+  private reclaimExpired(clock: ClockReading, units: readonly RuntimeUnitId[] = runtimeUnits): void {
     const state = this.state;
     if (state.shutdown.finalizationAt != null || this.requestsStopped) return;
     const reserved = this.reservedKeys();
-    const expired = runtimeUnits.flatMap((unit) => state.mirror[unit].pendingIntents).filter((intent) =>
+    const expired = units.flatMap((unit) => this.stoppedUnit(unit) ? [] : state.mirror[unit].pendingIntents).filter((intent) =>
       !this.inFlightKeys.has(intentKey(intent)) && !reserved.has(intentKey(intent)) && (clock.wallTimeMs >= intent.expiresAt
         || clock.monotonicMs >= (state.notificationDeadlines[intent.channel][intentKey(intent)]?.expiresAtMonotonicMs ?? Infinity)));
     if (expired.length === 0) return;
@@ -761,7 +981,7 @@ class RuntimeCompositionRoot {
   private selectDelivery(clock: ClockReading): void {
     const state = this.state;
     if (state.shutdown.stage !== "running") return;
-    const ownerPending = runtimeUnits.flatMap((unit) => state.mirror[unit].pendingIntents);
+    const ownerPending = runtimeUnits.flatMap((unit) => this.deliverableIntents(unit));
     const before = this.deliveryState();
     if (ownerPending.length === 0 && before.channels.desktop.kind === "idle" && before.channels.sound.kind === "idle"
       && Object.keys(before.deadlines.desktop).length === 0 && Object.keys(before.deadlines.sound).length === 0
@@ -851,6 +1071,7 @@ class RuntimeCompositionRoot {
   private intentUpdateDone(place: ExecutionPlace, reply: Extract<OwnerReply, { kind: "intentUpdateDone" }>): void {
     const request = this.intentRequests.get(reply.requestId);
     if (request == null || request.place !== place) return;
+    this.monitors[place].sent[`${request.channel}:${request.slot}`] = null;
     this.intentRequests.delete(reply.requestId);
     for (const key of request.keys) this.inFlightKeys.delete(key);
     const clock = this.clock();
@@ -871,6 +1092,7 @@ class RuntimeCompositionRoot {
       }
     }
     this.flushHeldUpdates();
+    this.sendDelayedInputs();
     this.evaluateDelivery(clock);
     // E08: a reply that changed neither a unit nor a channel is not projected.
     if (changed || this.state.notificationChannels !== channels) this.project(reply.output.outcomes, reply.output.displayChanges, clock);
@@ -909,6 +1131,10 @@ class RuntimeCompositionRoot {
               disposition: candidate.disposition }] });
       }
       for (const details of step.diagnostics) this.enqueueDiagnostic(completeDiagnostic(details, clock, state.runId));
+      // An attempt of a stopped owner ends here: its result has no owner to go to (P3-C3B-AC02).
+      const attempted = channel.kind === "isolated" ? undefined : runtimeUnits.find((value) => value === channel.attempt.unit);
+      if (attempted != null && this.stoppedUnit(attempted))
+        this.enqueueDiagnostic(completeDiagnostic({ level: "WARN", component: "notification", reason: "ownerStopped" }, clock, state.runId));
       this.selectDelivery(clock);
     }
     this.project([], [], clock);
@@ -925,8 +1151,10 @@ class RuntimeCompositionRoot {
   // Resolves once the grant it issued (if any) has been answered.
   driveCheckpoint(): Promise<void> {
     const state = this.state;
-    if (state.shutdown.stage !== "running" || this.failure != null) return Promise.resolve();
-    const grant = this.checkpoint.next(this.persistence(), this.clock(), state.runId);
+    if (state.shutdown.stage !== "running") return Promise.resolve();
+    // A stopped owner's unit gets no grant (P3-C3B-AC02); the monitor of a right still out runs on every call.
+    const grant = this.checkpoint.next(this.persistence(), this.clock(), state.runId,
+      { excluded: new Set(runtimeUnits.filter((unit) => this.stoppedUnit(unit))) });
     if (grant == null) return Promise.resolve();
     this.post(executionPlaces[grant.unit], { kind: "checkpointGrant", grantId: grant.grantId, unit: grant.unit,
       mode: grant.mode, retryReason: grant.retryReason });
@@ -944,21 +1172,27 @@ class RuntimeCompositionRoot {
     if (reply.result == null) void this.driveCheckpoint();
   }
 
-  private async saveFinalGenerations(active: () => boolean, unfixed: ReadonlySet<RuntimeUnitId>): Promise<void> {
+  // Returns true when the write right is held by an owner treated as stopped: it is never released, so the stage ends at
+  // once instead of waiting out its limit (P3-C3B-AC03).
+  private async saveFinalGenerations(active: () => boolean, unfixed: ReadonlySet<RuntimeUnitId>): Promise<boolean> {
     const attempted = new Set<RuntimeUnitId>(unfixed);
     while (active()) {
-      if (this.checkpoint.grant != null) {
-        await this.until(() => this.checkpoint.grant == null, active);
+      const held = this.checkpoint.grant;
+      if (held != null) {
+        const holder = executionPlaces[held.unit];
+        if (this.shutdownExcluded(holder)) return true;
+        await this.until(() => this.checkpoint.grant == null || this.shutdownExcluded(holder), active);
         continue;
       }
       const state = this.state;
       const grant = this.checkpoint.next(this.persistence(), this.clock(), state.runId,
         { force: true, reconcile: false, excluded: attempted });
-      if (grant == null) return;
+      if (grant == null) return false;
       attempted.add(grant.unit);
       this.post(executionPlaces[grant.unit], { kind: "checkpointGrant", grantId: grant.grantId, unit: grant.unit,
         mode: grant.mode, retryReason: grant.retryReason });
     }
+    return false;
   }
 
   // ---- shutdown (spec §5.9) ----
@@ -975,9 +1209,15 @@ class RuntimeCompositionRoot {
     this.absorb(place, reply.output, null, finalization.cutoff);
   }
 
+  // Owners treated as stopped are not waited for (P3-C3B-AC03).
   private quiet(): boolean {
-    return this.inFlightInputs.size === 0 && this.intentRequests.size === 0 && this.checkpoint.grant == null
-      && places.every((place) => !this.outstanding[place].deadline && !this.outstanding[place].shutdownInput);
+    const live = (place: ExecutionPlace) => !this.shutdownExcluded(place);
+    // A delayed input was never sent, so no reply will settle it; it stays in flight in the mailbox (remainingInputs).
+    for (const place of this.inFlightInputs.keys()) if (live(place) && !this.delayedInputs.has(place)) return false;
+    for (const request of this.intentRequests.values()) if (live(request.place)) return false;
+    const grant = this.checkpoint.grant;
+    return (grant == null || !live(executionPlaces[grant.unit]))
+      && places.every((place) => !live(place) || !this.outstanding[place].deadline && !this.outstanding[place].shutdownInput);
   }
 
   // P3-C3A-AC09 sideEffectFinalization: (1) no more state-changing requests (2) every earlier reply applied (3) one cutoff
@@ -988,6 +1228,7 @@ class RuntimeCompositionRoot {
     const finalization: NonNullable<RuntimeCompositionRoot["finalization"]> = { cutoff: null, fixed: new Set(), closed: false };
     this.finalization = finalization;
     await this.until(() => this.quiet(), active);
+    this.delayedInputs.clear();
     if (!active()) return;
     const cutoff = this.clock();
     finalization.cutoff = cutoff;
@@ -996,8 +1237,8 @@ class RuntimeCompositionRoot {
     this.stopExpired(runtimeUnits.flatMap((unit) => state.mirror[unit].pendingIntents).filter((intent) =>
       cutoff.wallTimeMs >= intent.expiresAt
       || cutoff.monotonicMs >= (state.notificationDeadlines[intent.channel][intentKey(intent)]?.expiresAtMonotonicMs ?? Infinity)), cutoff);
-    for (const place of places) this.post(place, { kind: "finalize", cutoff }, cutoff);
-    await this.until(() => places.every((place) => finalization.fixed.has(place)), active);
+    for (const place of places) if (!this.shutdownExcluded(place)) this.post(place, { kind: "finalize", cutoff }, cutoff);
+    await this.until(() => places.every((place) => this.shutdownExcluded(place) || finalization.fixed.has(place)), active);
   }
 
   enqueueDiagnostic(event: DiagnosticEvent): DiagnosticSinkResult {
@@ -1027,6 +1268,7 @@ class RuntimeCompositionRoot {
       // Every reservation is void from the shutdown request on (P3-C3A-NOTIFY-ADOPT).
       this.reservations = {};
       this.abortAttempts(requested.abortRequests);
+      for (const place of places) this.endRefusals(place, clock);
       for (const details of requested.diagnostics) this.enqueueDiagnostic(completeDiagnostic(details, clock, this.state.runId));
       this.project([], [], clock);
       let effects: readonly RuntimeEffect[] = requested.effects;
@@ -1041,6 +1283,7 @@ class RuntimeCompositionRoot {
         if (stage === "running" || stage === "completed") throw new Error("unexpected shutdown effect");
         if (effect.kind === "stopInputAndDrainMailbox") this.mailbox.beginDrain(this.clock().monotonicMs);
         let batchFailed = false;
+        let rightHeldByStopped = false;
         const result = await within(async (active) => {
           switch (effect.kind) {
             case "stopInputAndDrainMailbox":
@@ -1063,7 +1306,7 @@ class RuntimeCompositionRoot {
               break;
             }
             case "startFinalCheckpoints":
-              await this.saveFinalGenerations(active, this.unfixedUnits());
+              rightHeldByStopped = await this.saveFinalGenerations(active, this.unfixedUnits());
               break;
             case "closeRuntimeWorkers":
               await this.diagnostics.persistShutdownSummary(effect.summary, active);
@@ -1075,7 +1318,6 @@ class RuntimeCompositionRoot {
           }
         }, effect.deadlineMonotonicMs, this.clock);
         if (Object.hasOwn(failure, "error")) throw failure.error;
-        if (this.failure != null) throw new Error(`execution owner ${this.failure.place} stopped`, { cause: this.failure.cause });
         if (effect.kind === "finalizeNotificationDelivery") {
           notificationAttempts = channelNames.filter((channel) =>
             this.notificationOperations[channel] != null || this.state.notificationChannels[channel].kind === "isolated").length;
@@ -1084,18 +1326,31 @@ class RuntimeCompositionRoot {
         const stats = this.mailbox.stats(this.clock().monotonicMs);
         const observedAt = this.clock();
         const cutoff = this.finalization?.cutoff ?? null;
+        // Inputs a stopped owner left are unprocessed in every later stage; in the drain stage they fail it (code 3).
+        let removedPending = 0, removedInFlight = 0;
+        for (const place of places) {
+          removedPending += this.monitors[place].removed.pending;
+          removedInFlight += this.monitors[place].removed.inFlight;
+        }
+        const ownerStopped = rightHeldByStopped || stage === "mailboxDrain" && removedPending + removedInFlight > 0;
         const observed = observeStage(this.state, { kind: "shutdownStageResult", stage,
-          result: batchFailed ? { kind: "failed", reason: "operationFailed" } : result,
-          pending: { mailboxPending: stats.pendingItems, mailboxInFlight: stats.inFlightItems,
+          result: batchFailed ? { kind: "failed", reason: "operationFailed" }
+            : ownerStopped ? { kind: "failed", reason: "ownerStopped" } : result,
+          pending: { mailboxPending: stats.pendingItems + removedPending, mailboxInFlight: stats.inFlightItems + removedInFlight,
             batches, notificationAttempts, unsavedUnits: 0, workers },
           clock: observedAt, droppedDiagnostics: this.diagnostics.droppedCounts() },
         cutoff?.wallTimeMs ?? null, [...this.unfixedUnits()]);
         this.current = observed.state;
         for (const details of observed.diagnostics) this.enqueueDiagnostic(completeDiagnostic(details, observedAt, this.state.runId));
-        // spec §5.9 step 3: after the drain each owner gets its units' shutdown input.
-        if (stage === "mailboxDrain") for (const place of places) {
-          this.outstanding[place].shutdownInput = true;
-          this.post(place, { kind: "shutdownInput" }, observedAt);
+        // spec §5.9 step 3: after the drain each owner gets its units' shutdown input. An owner unresponsive at this
+        // clock is left out of the stages from here on (P3-C3B-FINALIZE-UNHEALTHY A).
+        if (stage === "mailboxDrain") {
+          for (const place of places) if (!this.monitors[place].stopped
+            && this.judge(this.monitors[place], observedAt.monotonicMs).unresponsiveMs != null) this.unhealthy.add(place);
+          for (const place of places) if (!this.shutdownExcluded(place)) {
+            this.outstanding[place].shutdownInput = true;
+            this.post(place, { kind: "shutdownInput" }, observedAt);
+          }
         }
         this.project([], [], observedAt);
         effects = observed.effects;

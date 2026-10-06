@@ -966,20 +966,16 @@ describe("P2 shared runtime", () => {
     const late = { wallTimeMs: 900, monotonicMs: 15_000 };
     r.at(late);
     await r.input("test/fixtures/37_01_01_240613_VXSE43.xml", "VXSE43", "event", late, 1);
-    // AC11(c) as extended by D3: the receive is not preceded by the publisher's expiry; the next tick reclaims.
-    expect(owner.mock.calls[0][1].kind).toBe("receive");
-    r.root.tick(late);
-    await r.h.settle();
-    const update = owner.mock.calls.map(([, input]) => input).find((input) => input.kind === "intentUpdate");
-    if (update?.kind !== "intentUpdate" || "id" in update.intentUpdate) throw new Error("batch expiry expected");
+    // P3-C3B-AC08 (AC06(e), back to before D3): the input's unit has its 128 monotonic-expired intents reclaimed first.
+    const update = owner.mock.calls[0][1];
+    if (update.kind !== "intentUpdate" || "id" in update.intentUpdate) throw new Error("batch expiry expected");
     expect(update.intentUpdate).toHaveLength(128);
     expect(update.intentUpdate.every((item) => item.disposition === "expired")).toBe(true);
-    // AC11 D3: the receive met a full intent capacity (wall clock behind, only monotonic expiry), so the new event made no
-    // intent; the tick reclaimed the 128 afterwards.
-    expect(r.h.unit("U-E").intents).toEqual([]);
+    expect(owner.mock.calls[1][1].kind).toBe("receive");
+    expect(r.h.unit("U-E").intents.map((value) => value.channel)).toEqual(["desktop", "sound"]);
     expect(r.h.unit("U-E").current).toHaveLength(1);
     expect(r.h.unit("U-E").deliveryRecords).toHaveLength(128);
-    expect(r.h.unit("U-E").notificationLatches[0].firstReportNotified).toBe(false);
+    expect(r.h.unit("U-E").notificationLatches[0].firstReportNotified).toBe(true);
   });
 
   it("P2-A1-T12 regression / TIME: monotonic expiry stops a running attempt with expired before reclaiming its deadline", async () => {
@@ -1000,13 +996,14 @@ describe("P2 shared runtime", () => {
     const late = { wallTimeMs: 900, monotonicMs: 15_000 };
     r.at(late);
     await r.input("test/fixtures/37_01_02_240613_VXSE43.xml", "VXSE43", "followup", late, 2);
-    // AC11 D3: the follow-up is applied before any publisher expiry, so the old intents end superseded (not expired) and
-    // the publisher's expiry no longer sees them; this A7 double leaves the running channel alone.
-    expect(r.notices.aborts).toEqual([]);
-    expect(r.root.state.notificationChannels.desktop).toEqual({ kind: "running", attempt: active });
+    // P3-C3B-AC08 (AC06(e), back to before D3): the old intents are reclaimed as expired before the follow-up is received,
+    // and the running attempt stops with cause expired.
+    expect(r.notices.aborts).toEqual([active.attemptId]);
+    expect(r.root.state.notificationChannels.desktop).toEqual({ kind: "stopping", attempt: active,
+      cause: "expired", stopByMonotonicMs: 16_000 });
     expect(r.root.state.notificationDeadlines.desktop[key]).toBeUndefined();
     expect(r.h.unit("U-E").deliveryRecords).toHaveLength(2);
-    expect(r.h.unit("U-E").deliveryRecords.every((record) => record.disposition === "superseded")).toBe(true);
+    expect(r.h.unit("U-E").deliveryRecords.every((record) => record.disposition === "expired")).toBe(true);
     const followups = r.h.unit("U-E").intents;
     expect(followups.map((notice) => notice.channel)).toEqual(["desktop", "sound"]);
     for (const notice of followups) {

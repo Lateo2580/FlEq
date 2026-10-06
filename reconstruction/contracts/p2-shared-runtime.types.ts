@@ -239,7 +239,9 @@ export type InfrastructureDiagnosticReason =
   // P3-DMDATA-CONNECT-001 (AC05): the live dmdata connection's start, REST stage, error frame and liveness.
   | "dmdataSocketStarted" | "dmdataSubscriptionNarrowed" | "dmdataSocketListFailed" | "dmdataConnectionCapacityExceeded"
   | "dmdataSocketStartFailed" | "dmdataSocketStartUncertain" | "dmdataSocketCloseFailed" | "dmdataAuthRejected"
-  | "dmdataErrorFrame" | "connectionLivenessExpired";
+  | "dmdataErrorFrame" | "connectionLivenessExpired"
+  // P3-EXECUTION-LIFECYCLE-001 (AC02): an owner stopped, and the inputs refused for a stopped or unresponsive owner.
+  | "ownerStopped";
 
 export type DiagnosticReason = ParserDiagnosticReason | RejectionReason | InfrastructureDiagnosticReason
   | "weatherCurrentCapacityEvicted" | "eewCapacityEvicted"

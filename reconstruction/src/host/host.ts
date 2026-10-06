@@ -100,18 +100,16 @@ async function startP2Host(config: P2HostConfig): Promise<Readonly<{ displayPort
   // P3-C3A-AC01: three resident owner threads (dist worker entry), created once here, never per input or request.
   const workers = new Map<ExecutionPlace, Worker>();
   let root: RuntimeCompositionRoot;
-  let started = false;
-  // From the stop request on (and on a failed start) an owner's exit is expected and is not a failure.
+  // From the worker close stage (and on a failed start) an owner's exit is expected and is not a failure (P3-C3B).
   let ownersStopping = false;
   const endOwners = async () => {
     ownersStopping = true;
     await Promise.all([...workers.values()].map((worker) => worker.terminate()));
   };
-  // P3-C3A-OWNER-FAILURE (author ruling A): an owner's error, or an exit outside stop, stops the process. Before the
-  // runtime has started, the recorded failure rejects startRuntime (and so startP2Host) instead.
-  const ownerFailed = (place: ExecutionPlace, cause: unknown) => {
-    try { root.ownerFailed(place, cause); } catch (error) { if (started) throw error; }
-  };
+  // P3-C3B-OWNER-STOP (A): an owner's error, or an exit before endOwners, stops that owner only; the process goes on.
+  // Before the runtime has started, the recorded stop rejects startRuntime (and so startP2Host) instead.
+  // root is unassigned only if its constructor threw; the catch below then ends the owners.
+  const ownerFailed = (place: ExecutionPlace, cause: unknown) => { if (root != null) root.ownerFailed(place, cause); };
   try {
     const entry = resolveRepoPath("reconstruction/dist/src/runtime/owner-worker.js");
     for (const place of ["urgent", "weatherCurrent", "deferred"] as const) {
@@ -152,7 +150,6 @@ async function startP2Host(config: P2HostConfig): Promise<Readonly<{ displayPort
       shutdownHooks: { drainMailbox: async (_deadline, active) => root.drainInputs(active), closeWorker: endOwners },
     });
     await root.startRuntime(runId, clock(), { desktop: { kind: "idle" }, sound: { kind: "idle" } });
-    started = true;
   } catch (error) {
     // Every owner created so far ends before the rejection (P3-C3A-AC01).
     await endOwners();
@@ -173,7 +170,6 @@ async function startP2Host(config: P2HostConfig): Promise<Readonly<{ displayPort
   // Monotonic time of the current WS's open or last frame (P3-C2-LIVENESS).
   let lastFrameAt = 0;
   let overloaded = false;
-  let saving = false;
   let lastSequence = 0;
   let lastAccepted: Readonly<{ sequence: number; inputId: string }> | null = null;
   // Only kept while observing: ingress's JSON time is one of the seven P1 durations of the processing record.
@@ -284,6 +280,8 @@ async function startP2Host(config: P2HostConfig): Promise<Readonly<{ displayPort
     const envelope: MailboxEnvelope = { messageId: inputId, runId, t0MonotonicMs: entry.monotonicMs,
       enqueuedMonotonicMs: clock().monotonicMs, payload: { kind: "parser", item },
       priorityReason: item.headType === "VXSE43" || item.headType === "VXSE45" ? "eewCandidate" : "normal" };
+    // P3-C3B-AC02: an input for a stopped or unresponsive owner is refused here; the other places go on receiving.
+    if (root.refuseInput(inputId, item.headType, entry)) return;
     const t1 = performance.now();
     const result = mailbox.enqueue(envelope);
     if (result.kind === "rejected") {
@@ -369,17 +367,11 @@ async function startP2Host(config: P2HostConfig): Promise<Readonly<{ displayPort
       current.terminate();
     }
     root.tick(now);
-    // P2-A10-AC13: the tick itself is the liveness answer; there is no engine worker (R60).
-    mailbox.recordWorkerResponse(now.monotonicMs);
-    const stalled = mailbox.isStalled(now.monotonicMs);
-    const stats = mailbox.stats(now.monotonicMs);
-    const changed = root.setWorker({ state: stalled ? "stalled" : "healthy",
-      lastProgressAtMonotonicMs: stats.lastProgressMonotonicMs, lastResponseAtMonotonicMs: stats.lastWorkerResponseMonotonicMs });
-    if (changed) server.heartbeat();
-    if (saving) return;
-    saving = true;
+    // P3-C3B-AC01: the owners' own answers decide the worker state, not the tick.
+    if (root.setWorker(root.monitorOwners(now))) server.heartbeat();
+    // Every tick, a write right out included: its 3 s / 10 s monitor must run while an owner holds it (P3-C3B-AC02).
     // A broken invariant takes the process down (I/O failures come back as failed/uncertain results); ignored while stopping.
-    root.driveCheckpoint().catch((error) => { if (stopping == null) throw error; }).finally(() => { saving = false; });
+    void root.driveCheckpoint().catch((error) => { if (stopping == null) throw error; });
   }
   const tickTimer = setInterval(tick, TICK_MS);
 
@@ -411,7 +403,6 @@ async function startP2Host(config: P2HostConfig): Promise<Readonly<{ displayPort
   const stop = (): Promise<ShutdownSummary> => stopping ??= (async () => {
     // The stop request is the origin of the overall shutdown limit; the cleanup runs beside shutdownRuntime, not before it.
     const requested = clock();
-    ownersStopping = true;
     clearInterval(tickTimer);
     if (reconnectTimer != null) clearTimeout(reconnectTimer);
     process.off("SIGINT", stop);
