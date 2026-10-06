@@ -5,7 +5,7 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
 import { readSelfHashed } from "../../src/measurement/eew-e01/frozen";
-import { buildA10Result, hashRaw, machineProblems, parseArgs, resumeProblems, trialConditionDeviation } from "./run.mjs";
+import { buildA10Result, distRebuildProblem, hashRaw, machineProblems, parseArgs, resumeProblems, trialConditionDeviation } from "./run.mjs";
 import type { WindowRecord } from "./run.mjs";
 import { H } from "./fixtures";
 
@@ -74,11 +74,20 @@ describe("P3-C4 resume and foreground checks", () => {
     expect(trialConditionDeviation(ok, "reduced")).toMatch(/prefers-reduced-motion/);
   });
 
-  // 工程2d の再確認 S3: 状態は投入の時点で取り、投入から終わりまでの blur・visibilitychange があれば逸脱。
-  it("a blur or visibilitychange between the send and the end of the trial is a deviation even when the page was in front at the send", () => {
+  // 工程2d の再確認 S3・T2: 状態は投入の時点で取り、投入の時刻以降の blur・visibilitychange があれば逸脱（投入の直後、状態を取る前の blur も）。
+  it("a blur or visibilitychange from the send to the end of the trial is a deviation, and one before the send is not", () => {
     const ok = { visibility: "visible", focus: true, reducedMotion: false };
-    expect(trialConditionDeviation(ok, "full", [])).toBeNull();
-    expect(trialConditionDeviation(ok, "full", ["blur", "visibilitychange:hidden"])).toMatch(/during the trial: blur,visibilitychange:hidden/);
+    expect(trialConditionDeviation(ok, "full", [[999, "blur"]], 1000)).toBeNull();
+    expect(trialConditionDeviation(ok, "full", [[999, "blur"], [1000, "blur"], [1001, "visibilitychange:hidden"]], 1000))
+      .toMatch(/during the trial: blur,visibilitychange:hidden$/);
+    expect(trialConditionDeviation(ok, "full", null, 1000)).toMatch(/trial watch is missing/);
+  });
+
+  // 工程2d の再確認 T1: 正式は作り直した直後の dist で起動したプロセスだけが測る。
+  it("a formal process that was not started on a just-rebuilt dist is refused", () => {
+    expect(distRebuildProblem("d", "d")).toBeNull();
+    expect(distRebuildProblem(undefined, "d")).toMatch(/not rebuilt/);
+    expect(distRebuildProblem("d", "e")).toMatch(/changed after the rebuild/);
   });
 
   // 工程2d の再確認 S1: 正式の最初の窓でも、機械（CPU・コア数・メモリ・OS・Node・Chrome）を凍結 manifest と照合する。

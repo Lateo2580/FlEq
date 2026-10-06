@@ -1,6 +1,6 @@
 // P2-A10-AC04/AC05/AC14: 前景の実 Chrome を CDP で操る。起動と後始末は A9 smoke（test/chrome-eew/smoke.mjs）に倣う。
 // 無いと、T5/T6 の実 paint 証拠（trace）と Node/Chrome の時計往復が取れない。
-import { spawn } from "node:child_process";
+import { execFile, spawn } from "node:child_process";
 import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -121,7 +121,17 @@ export async function openPage(url, scope = null, { motion = null } = {}) {
     if (response.exceptionDetails != null) throw new Error(`evaluate: ${JSON.stringify(response.exceptionDetails)}`);
     return response.result.value;
   };
-  return { evaluate, close, page, command: [CHROME, ...args].join(" ") };
+  return { evaluate, close, page, command: [CHROME, ...args].join(" "), activation: await activate(chrome.pid) };
+}
+
+// 起動した Chrome の process を OS の前面（key window）にする（P3-C4 工程2d、W5 で runner の Chrome が key window でなく全試行が
+// hasFocus false だった）。macOS だけで、System Events の操作の許可が要る。失敗しても止めず、結果を返して run-record に残す
+// （hasFocus は記録だけで成立を止めない、run.mjs の trialConditionDeviation）。
+function activate(pid) {
+  if (process.platform !== "darwin" || pid == null) return Promise.resolve("notApplicable");
+  const script = `tell application "System Events" to set frontmost of (first process whose unix id is ${pid}) to true`;
+  return new Promise((done) => execFile("osascript", ["-e", script], { timeout: 5_000 },
+    (error) => done(error == null ? "activated" : `failed: ${String(error.message).split("\n")[0]}`)));
 }
 
 // 1 回の往復。Node 側の送受信は hrtime（host launcher の clock 行と同じ系）で取り、Chrome 側は A9 の応答をそのまま使う。

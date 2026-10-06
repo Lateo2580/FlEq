@@ -350,11 +350,14 @@ async function measureRun(spec, ctx, label, dir, status) {
   const probes = [];
   // Chrome は E01 の実 paint（T6）用。backend 単独（Pi 第 1 段、AC03(6)）は Chrome を起動せず、SSE の client 1 本で T4 を起こす。
   let page = null;
+  let chromeActivation = null; // 起動時に Chrome を OS の前面にした結果（chrome.mjs の activate）
   if (backend) await openSse(`http://127.0.0.1:${hostProcess.displayPort}/events`, ctx.scope);
   else {
     page = await openPage(`http://127.0.0.1:${hostProcess.displayPort}/`, ctx.scope, { motion: ctx.manifest.chrome.motion });
     ctx.commands?.push(page.command);
+    chromeActivation = page.activation;
     for (let i = 0; i < 200 && !(await page.evaluate("typeof window.fleqRespondClockProbe === 'function'")); i++) await sleep(50);
+    await page.evaluate(INSTALL_TRIAL_WATCH);
   }
   const probe = async (name) => { if (page != null) probes.push(await probeClock(page.evaluate, `${label}-${name}`)); };
   const markCount = () => page.evaluate(`performance.getEntriesByName(${JSON.stringify(T6C)}).length`);
@@ -482,11 +485,13 @@ async function measureRun(spec, ctx, label, dir, status) {
     const base = { attemptIndex: k, index: warm ? k : null, phase, eventId, serial, variant, subject: `normal/VXSE43/${eventId}`, scheduledHrMs: due, block: Math.floor(k / BLOCK) };
     let trigger = null;
     let sent;
-    // AC08: EEW を送った直後に前景の状態を取り、blur・visibilitychange の記録を始める（待たずに投げるので、投入の時刻を動かさない）。
+    // AC08: 投入の壁時計の時刻を残し（blur・visibilitychange の切り出しの起点）、送った直後に前景の状態を取る（待たずに投げるので、投入の時刻を動かさない）。
     let stateAtSend = null;
+    let sentWallMs = null;
     const sendEew = () => {
+      sentWallMs = Date.now();
       const result = injector.send(frame, "VXSE43");
-      stateAtSend = page?.evaluate(ARM_TRIAL_WATCH).catch(() => null) ?? null;
+      stateAtSend = page?.evaluate(STATE_AT_SEND).catch(() => null) ?? null;
       return result;
     };
     if (population === "fixedBacklog") {
@@ -568,7 +573,8 @@ async function measureRun(spec, ctx, label, dir, status) {
     // 背景・ロックでは描画と timer が間引かれ、製品の遅延と区別できないので、逸脱した試行は成立させない（記録は warm-up も残す）。
     const atSend = await stateAtSend;
     trial.focusAtSend = atSend?.focus ?? null;
-    trial.conditionDeviation = page == null ? null : trialConditionDeviation(atSend, ctx.manifest.chrome.motion, await page.evaluate(READ_TRIAL_WATCH));
+    trial.conditionDeviation = page == null ? null
+      : trialConditionDeviation(atSend, ctx.manifest.chrome.motion, await page.evaluate(takeTrialWatch(Date.now())), sentWallMs);
     if (!warm && trial.conditionDeviation != null) trial.establishment = { established: false, reason: "conditionDeviation" };
     else if (!warm) {
       // 成立の判定（establishTrial）。対象の観測（parse・encode・保存の記録は対象の処理が終わってから出る）を、実投入から 11 秒まで待つ。
@@ -626,6 +632,7 @@ async function measureRun(spec, ctx, label, dir, status) {
   });
   const liveness = { pings: injector.meter.pings, frames: injector.meter.frames, maxFrameGapMs: injector.meter.maxFrameGapMs };
   const record = { label, population, run, spec, backendOnly: backend, notification: ctx.notification, notificationNote: ctx.notification === "silent" ? SILENT_NOTE : null, ufAllowance, channels,
+    chromeActivation, focusLostAtSend: trials.filter((t) => t.focusAtSend === false).length,
     nodeVersion: hostIndex.meta?.nodeVersion ?? null, hostExit: status.hostExit, hostError: status.hostError, teardownErrors, startedWallMs: started.wallMs,
     // durationMs は試行ループの終わりまで、totalMs は終了処理と trace 解析・組み立てを含む run 全体（予備から stopCondition を積むときはこちら）。
     durationMs: finishedHr - started.hrMs, totalMs: hrMs() - started.hrMs, stopped, attempts: trials.length, established, liveness, others, trials,
@@ -665,25 +672,29 @@ export function predictParseDelay(trials, parseStarts, ohLo, count = 10) {
 
 const VPWS50_TRIGGERED = new Set(["maxVpws50ParseStarted", "maxVpws50ReceivedThenEew"]);
 
-// AC08 の前景の条件（P3-C4 工程2d）。投入の直後に、そのときの visibility・focus・motion を取り、ページの側で blur と visibilitychange の
-// 記録を空にして始める（初回に listener を 1 度だけ付ける）。試行の終わり（paint か期限）に、その間の記録を読む。条件逸脱（成立させない）は、
-// 投入の時点で visible でないか、motion が manifest と違う（openPage の固定が効いていない）か、投入から終わりまでに blur か visibilitychange が
-// あったとき。document.hasFocus() は OS の key window にも左右され、描画と timer の間引きの条件より厳しいので、false でも記録だけにする
-// （trial.focusAtSend）。
-const ARM_TRIAL_WATCH = `(() => {
-  if (window.fleqTrialWatch == null) {
-    window.fleqTrialWatch = [];
-    window.addEventListener("blur", () => window.fleqTrialWatch.push("blur"));
-    document.addEventListener("visibilitychange", () => window.fleqTrialWatch.push("visibilitychange:" + document.visibilityState));
-  }
+// AC08 の前景の条件（P3-C4 工程2d）。blur と visibilitychange はページを開いたときから壁時計の時刻付きで貯め続ける（投入の後に記録を
+// 始めると、投入から開始の evaluate が届くまでの blur を落とす。工程2d の再確認 T2）。投入の直後に visibility・focus・motion を取り、
+// 試行の終わり（paint か期限）に終わりの時刻までの記録を取り出して捨て、投入の時刻（runner の Date.now()。Chrome と同じ機械の壁時計）
+// 以降の分で判定する。条件逸脱（成立させない）は、投入の時点で visible でないか、motion が manifest と違う（openPage の固定が効いていない）か、
+// 投入から終わりまでに blur か visibilitychange があったか、記録が無い（ページが作り直された）とき。document.hasFocus() は OS の key window
+// にも左右され、描画と timer の間引きの条件より厳しいので、false でも記録だけにする（trial.focusAtSend）。
+const INSTALL_TRIAL_WATCH = `(() => {
   window.fleqTrialWatch = [];
-  return { visibility: document.visibilityState, focus: document.hasFocus(), reducedMotion: matchMedia("(prefers-reduced-motion: reduce)").matches };
+  window.addEventListener("blur", () => window.fleqTrialWatch.push([Date.now(), "blur"]));
+  document.addEventListener("visibilitychange", () => window.fleqTrialWatch.push([Date.now(), "visibilitychange:" + document.visibilityState]));
 })()`;
-const READ_TRIAL_WATCH = "window.fleqTrialWatch ?? []";
-export function trialConditionDeviation(state, motion, events = []) {
+const STATE_AT_SEND = `({ visibility: document.visibilityState, focus: document.hasFocus(), reducedMotion: matchMedia("(prefers-reduced-motion: reduce)").matches })`;
+const takeTrialWatch = (endWallMs) => `(() => {
+  const all = window.fleqTrialWatch;
+  if (all == null) return null;
+  window.fleqTrialWatch = all.filter(([t]) => t > ${endWallMs});
+  return all.filter(([t]) => t <= ${endWallMs});
+})()`;
+export function trialConditionDeviation(state, motion, events = [], sentWallMs = -Infinity) {
+  const during = events?.filter(([t]) => t >= sentWallMs).map(([, type]) => type);
   const problems = [state?.visibility === "visible" ? null : `visibility ${state?.visibility}`,
     state?.reducedMotion === (motion === "reduced") ? null : `prefers-reduced-motion ${state?.reducedMotion} (manifest motion ${motion})`,
-    events.length === 0 ? null : `during the trial: ${events.join(",")}`].filter((p) => p != null);
+    during == null ? "the trial watch is missing (the page was reloaded)" : during.length === 0 ? null : `during the trial: ${during.join(",")}`].filter((p) => p != null);
   return problems.length === 0 ? null : problems.join("; ");
 }
 
@@ -964,8 +975,9 @@ export function buildA10Result({ manifest, windows, e01, e02Verdict = null, sche
 async function preflightCheck(manifest, nodePath, nodeVersion, initialState) {
   const chrome = await chromeVersion();
   const os = `${release()} ${arch()}`;
-  rebuildDist();
+  const distSha256 = treeSha256(DIST_TREES);
   const problems = [
+    distRebuildProblem(process.env[REBUILT_DIST_ENV], distSha256),
     ...machineProblems(manifest, { nodeVersion, chromeVersion: chrome, osVersion: os, device: deviceOf() }).map((p) => `${p} (node ${nodePath})`),
     ...DIST_REQUIRED.map((p) => (existsSync(join(REPO, p)) ? null : `missing build output: ${p}`)),
     // 充填・C・E03・AC15・E12 の入力規則（frames.mjs）が凍結時と同じ bytes か（ReplayLoad は書き換え規則を持てないので recipe の hash で固定する）。
@@ -979,7 +991,7 @@ async function preflightCheck(manifest, nodePath, nodeVersion, initialState) {
   const dirty = gitStatusPorcelain.split("\n").filter((line) => line.trim() !== "" && !line.slice(3).startsWith(EVIDENCE_REL));
   if (dirty.length > 0) throw new Error(`preflight failed: the checkout is dirty outside ${EVIDENCE_REL}:\n  ${dirty.join("\n  ")}`);
   return { checkedAt: new Date().toISOString(), nodeVersion, chromeVersion: chrome, osVersion: os, dist: DIST_REQUIRED,
-    gitHead: git("rev-parse", "HEAD").trim(), gitStatusPorcelain, distSha256: treeSha256(DIST_TREES), runnerSha256: treeSha256([RUNNER_DIR], (f) => f.endsWith(".mjs")),
+    gitHead: git("rev-parse", "HEAD").trim(), gitStatusPorcelain, distSha256, runnerSha256: treeSha256([RUNNER_DIR], (f) => f.endsWith(".mjs")),
     machine: { cpu: cpus()[0]?.model ?? null, cores: cpus().length, memoryBytes: totalmem() } };
 }
 
@@ -989,6 +1001,13 @@ export const deviceOf = () => `${cpus()[0]?.model ?? "cpu"} x${cpus().length}, $
 export function machineProblems(manifest, actual) {
   return [["nodeVersion", manifest.nodeVersion], ["chromeVersion", manifest.chrome.version], ["osVersion", manifest.osVersion], ["device", manifest.device]]
     .filter(([key, frozen]) => actual[key] !== frozen).map(([key, frozen]) => `${key} is ${actual[key]}, the frozen manifest has ${frozen}`);
+}
+
+// 測定するプロセスの dist が、起動の直前に作り直したものか（工程2d の再確認 T1）。作り直しの印が無いか、作り直しの後に dist が変わっていれば止める。
+const REBUILT_DIST_ENV = "FLEQ_E01_REBUILT_DIST_SHA256";
+export function distRebuildProblem(rebuiltSha256, currentSha256) {
+  if (rebuiltSha256 == null) return `dist was not rebuilt before this process started (${REBUILT_DIST_ENV} is unset)`;
+  return rebuiltSha256 === currentSha256 ? null : `dist changed after the rebuild (${rebuiltSha256} -> ${currentSha256})`;
 }
 
 // 正式の窓の前に、この checkout の source から dist を作り直す（P3-C4 工程2d。古い dist や別の build を使わない）。作り直した dist の hash
@@ -1067,12 +1086,22 @@ export function parseArgs(argv) {
 }
 
 async function main(argv) {
+  const { args, preliminary, selected, notification } = parseArgs(argv);
+  // 正式は dist を作り直してから、新しいプロセスで検証と測定を始める（工程2d の再確認 T1。judge.js・frozen.js などは起動時に静的 import
+  // されるので、作り直した同じプロセスでは manifest の検証と集計が古い dist で動く）。子は作り直した直後の dist の hash を受け取り、preflight で照合する。
+  if (!preliminary && process.env[REBUILT_DIST_ENV] == null) {
+    rebuildDist();
+    const child = spawn(process.execPath, [import.meta.filename, ...argv], { stdio: "inherit", env: { ...process.env, [REBUILT_DIST_ENV]: treeSha256(DIST_TREES) } });
+    // Ctrl-C は端末から子にも届くので、親は子の後始末を待つ。SIGTERM は親だけに来るので子へ渡す。
+    process.on("SIGINT", () => {});
+    process.on("SIGTERM", () => child.kill("SIGTERM"));
+    process.exit(await new Promise((resolve) => child.on("exit", (code) => resolve(code ?? 130))));
+  }
   // 今の窓の子を止めてから、窓の記録を "interrupted"（raw の hash 付き）に書き換える（子が書いている間に数百 MB を読まない）。
   for (const signal of ["SIGINT", "SIGTERM"]) process.on(signal, () => {
     const record = () => { try { interruptWindow?.(); } catch { /* 記録の失敗で後始末を止めない */ } };
     void current.close().then(record, record).then(root.close).finally(() => process.exit(130));
   });
-  const { args, preliminary, selected, notification } = parseArgs(argv);
   const num = (key, fallback) => (args.has(key) ? Number(args.get(key)) : fallback);
   // host は Node 22 でだけ測る（黙って別版へ切り替えない）。版は run の前に実物へ訊く。Pi 第 1 段（予備）は --node で Pi の Node 22 を渡す。
   const nodePath = args.has("node") ? String(args.get("node")) : NODE22;
