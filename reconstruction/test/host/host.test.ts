@@ -949,3 +949,24 @@ describe("P3-C3A host with the three dist owner threads (TEST-PATH (3))", () => 
     failed.mockRestore();
   });
 });
+
+describe("P3-C4-T05 contractBoundary / AC04(4), AC07: the mailbox observation (P3-C4-E07-SOURCE=B)", () => {
+  it("(3) one row per host tick and per injector ping; a ping's row holds the frames received before it and none after", async () => {
+    const server = await localServer();
+    const observations: P2HostObservation[] = [];
+    const host = await start(server.url, await directories(), observations);
+    await until(() => server.sockets.length === 1);
+    const [ws] = server.sockets;
+    ws.send(dataFrame("VXSE43", vxse43));
+    ws.send(dataFrame("VXSE43", vxse43));
+    ws.send(JSON.stringify({ type: "ping", pingId: "boundary" }));
+    ws.send(dataFrame("VXSE43", vxse43));
+    const rows = () => observations.flatMap((o) => o.kind === "mailbox" ? [o] : []);
+    await until(() => rows().some((row) => row.trigger === "ping") && rows().filter((row) => row.trigger === "tick").length >= 2, 5_000);
+    const pings = rows().filter((row) => row.trigger === "ping");
+    const pingAt = observations.flatMap((o) => o.kind === "controlFrame" && o.frameType === "ping" ? [o.monotonicMs] : []);
+    expect(pings.map((row) => [row.accepted, row.monotonicMs])).toEqual([[2, pingAt[0]]]);
+    await until(() => rows().some((row) => row.trigger === "tick" && row.accepted === 3));
+    await host.stop();
+  });
+});

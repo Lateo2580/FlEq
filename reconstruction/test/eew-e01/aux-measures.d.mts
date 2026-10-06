@@ -19,10 +19,26 @@ export function summarizeE06(records: readonly HostRecord[], fdSeries: readonly 
   spec: { checks: { name: string; value: number | null; limit: number; exceeded: boolean | null }[]; report: string; note: string };
   finalWindow: { window: number; rssMedian: number | null; fdMedian: number | null; fdMax: number | null };
 };
+export function drainBounds(records: readonly HostRecord[], lastT0Ms: number): { lowerMs: number; upperMs: number | null };
+type Part = { status: Status; reason?: string };
+export function summarizeE07(records: readonly HostRecord[], options: { pingKinds?: readonly string[]; warmupCycles?: number; lastInputId: string;
+  diagnostics?: readonly Record<string, unknown>[]; fromMs?: number; fromWallMs?: number; waitLimitMs?: number; drainLimitMs?: number }): {
+  status: Status; rows: number; pingRows: number;
+  cycleEnd: Part & { ends: { items: number; bytes: number }[]; grewAtCycles?: number[] };
+  drain: Part & { lastT0Ms?: number; lowerMs?: number; upperMs?: number | null };
+  wait: Part & { upperMs: number; lowerMs: number; unprocessed: number };
+  limitViolations: number; ownerTrouble: { reason: unknown; component: unknown; timestamp: unknown }[]; note: string;
+};
 export function startFdSampler(pid: number, everyMs?: number): { samples: { hrtimeNs: string; count: number | null }[]; stop(): void };
 export const E15_BLOCKED: readonly string[];
-export function summarizeE15(records: readonly HostRecord[]): {
-  status: Status | null; blocked: string[]; attempts?: number;
+type Counts = Record<"checkpoint" | "tmp" | "diagnosticLog" | "other", { count: number; bytes: number }>;
+type WriteAttribution = { status: Status | null; complete: boolean; unconfirmed: string[];
+  unattributed: { thread: string; category: string; counted: { count: number; bytes: number }; attributed: { count?: number; bytes: number } }[];
+  threads: Record<string, { confirmed: boolean; counts: Counts }>; note: string };
+export function writeAttribution(rows: readonly { thread: string; confirmed: boolean; counts: Counts }[], measurements: readonly { stage: string; unit: string; bytes: number }[],
+  diagnosticLogBytes: number | null): WriteAttribution;
+export function summarizeE15(records: readonly HostRecord[], options?: { diagnosticLogBytes?: number | null }): {
+  status: Status | null; blocked: string[]; attempts?: number; writes?: WriteAttribution | null;
   units?: Record<string, { encodeCount: number; encodeBytes: number; writeBytes: number; occupiedMsLower: number; measuredStagesMs: number; failedAttempts: number;
     verifyCount: number; verifyBytes: number; verifyMs: number }>;
   retryReasons?: Record<string, number>; byteViolations?: number; unknownInputIds?: number; occupancyNote?: string;

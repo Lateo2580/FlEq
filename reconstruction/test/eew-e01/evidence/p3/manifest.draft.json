@@ -1,14 +1,14 @@
 {
   "schemaVersion": "p3-e01-manifest-v1",
   "manifestId": "p3-c4-draft-20261006",
-  "manifestSha256": "c5a16b77cc5b25b9491bc07a42b6b47aac4cf7fbfad6a8c829f33db37e833b1b",
+  "manifestSha256": "4e3986a498d5b40718dcbec0b571d99cd3dfc6308fabec15f333e062e8a4bf8c",
   "contractSha256": {
-    "P3-E01-REACCEPT-001": "b59a510c24b91591ce419b77aa4b1865c22ba489a7d9d596b615031aeda102a9",
-    "P3-EXECUTION-LIFECYCLE-001": "845c1400a500e46f0a3242ff6f4ab93c9bfe539178a19a8aca4d2e23819e9f36",
-    "P3-EXECUTION-SPLIT-001": "4dcad80b296834dcd68a0279fd29e2500b38f76cfc3a62743c6b86a3dcadca9e",
-    "P3-DMDATA-CONNECT-001": "0816521bad4d137289d53bff0febfa5edf4777a56536eec14bf2d83d3e787400",
+    "P3-E01-REACCEPT-001": "18d02b554c34b7593c2f85702d47d5e21e29c04e88117c6e54939b4815a92c90",
+    "P3-EXECUTION-LIFECYCLE-001": "fd19aede1d35a4f7bd81aeeb8cf83c51219d0dba4b3842a8714dfc083e2494f1",
+    "P3-EXECUTION-SPLIT-001": "f38d05a92fd26ffb6e14f42c15db163c114ee33d4a849391d864edd4772e30b1",
+    "P3-DMDATA-CONNECT-001": "108d5e32a3570e0cb340a5d9dcb3a49a4ddd2f2dbc542a38b6ef0931a2135f8a",
     "P3-CHECKPOINT-STEP1-001": "df63d03e50c535285dacac5a0240d9ccf4b8eda3c2e45f61a64dc232cbf99cb5",
-    "P3-UNIT-TABLE-001": "8a9ea31645f0528fc5ebf211b0ddeaf36e486dabb3083638af49083cb4204c3f",
+    "P3-UNIT-TABLE-001": "97b9313bb45b87f5afe73716c2ed1659831b90626f8a4f95bd99857042979672",
     "P2-EEW-E01-001": "31adff9fafddee671794aa3e8c4ef6ec89a30f54a2f96d3ee446a43bc92a510f",
     "P2-CHROME-EEW-001": "93538c03f925551cd487ad740512619c432f66b3d03bf1535ce05f9c7d8f873d",
     "P2-SNAPSHOT-SSE-001": "97778e79af2b3e189ff1e28ae8eaf9b8501dbe4de7208b231322111b971878d6",
@@ -422,12 +422,12 @@
     }
   },
   "machines": {
-    "formal": "MacBook M5（A10 と同じ機械）",
+    "formal": "Mac mini（独立 checkout。reconstruction/dist・node_modules を共有しない。Chrome は前景、caffeinate -d）",
     "gate": "Mac mini（独立 checkout。reconstruction/dist・node_modules を共有しない）",
-    "piBackend": "Raspberry Pi 500（Pi 第 1 段: backend 単独、第 2 段: Pi backend＋MacBook M5 の Chrome）"
+    "piBackend": "Raspberry Pi 500（Pi 第 1 段: backend 単独、第 2 段: Pi backend＋Mac mini の Chrome）"
   },
   "judgmentPlaces": {
-    "E01": "Pi backend＋実接続経路＋Mac の Chrome（P5）。C4 の Mac の結果は e01:93 の再検収と E01 の正式再検収（R61）の判定",
+    "E01": "Pi backend＋実接続経路＋Mac mini の Chrome（P5）。C4 の Mac mini の結果は e01:93 の再検収と E01 の正式再検収（R61）の判定",
     "E02": "Pi（P5）",
     "E03": "Pi（P5）。Mac は回帰検出、Pi 予備確認は P3-C4-PI-E03",
     "E05": "Pi（P5）",

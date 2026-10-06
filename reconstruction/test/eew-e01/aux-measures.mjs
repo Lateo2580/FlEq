@@ -145,6 +145,70 @@ export function summarizeE06(records, fdSeries, { steadyStartMs, windowMs = 600_
   };
 }
 
+// E07 の入力停止後の排出（P3-C4-AC07(2)②）: 最後の入力の T0 の後の mailbox の行で、非空だった最後の行（下界）と、それより後で最初の
+// 空の行（上界）で完了時刻を挟む。上界の行がまだ無ければ upperMs は null（runner はそれが出るまで host を止めない）。
+const backlogOf = (row) => ({ items: row.pendingItems + row.inFlightItems, bytes: row.pendingBytes + row.inFlightBytes });
+export function drainBounds(records, lastT0Ms) {
+  let lowerMs = lastT0Ms;
+  for (const row of observations(records, "mailbox")) {
+    if (row.monotonicMs <= lastT0Ms) continue;
+    if (backlogOf(row).items !== 0) lowerMs = row.monotonicMs;
+    else return { lowerMs, upperMs: row.monotonicMs };
+  }
+  return { lowerMs, upperMs: null };
+}
+
+// E07（P3-C4-AC07(2)、P3-C3B-E07-WINDOW=A）: N または C の 1 窓。判定は境界をまたがない証拠だけで行い、どれかが Fail なら Fail、
+// どれかが未確認なら未確認。
+// ① 周期末 backlog（C だけ）: pingKinds は投入側が送った ping の種類の列（"periodic" | "boundary" | "drain"）で、host の ping の行と
+//    受信順で 1 対 1 に対応する（数が違えば対応が取れず未確認）。boundary の行 j を周期 j の末とし、warm-up の後の各周期末の件数・byte が
+//    前の周期末以下。tick の行は使わない。
+// ② 入力停止後の排出: drainBounds の上界 ≤ T0＋10 秒で Pass、下界 > T0＋10 秒で Fail。
+// ③ 最大待機年齢: 入力ごとの T1→T2（owner の処理開始なので待機年齢以上）の最大が上界、行の oldestPendingAgeMs の最大が下界。
+// 宣言上限の違反（limitViolations）が窓の中で増えたか、窓の中で owner が停止・unresponsive になった（診断の ownerStopped・
+// owner.<place>.response の mailboxStalled）なら Fail。fromMs（host 時計）は窓の始まりで、充填の段階を②以外から外す。
+// diagnostics の timestamp は壁時計なので、fromWallMs で同じく絞る。
+export function summarizeE07(records, { pingKinds = [], warmupCycles = 0, lastInputId, diagnostics = [], fromMs = -Infinity, fromWallMs = -Infinity,
+  waitLimitMs = 5000, drainLimitMs = 10_000 }) {
+  const all = observations(records, "mailbox");
+  const pings = all.filter((r) => r.trigger === "ping");
+  const rows = all.filter((r) => r.monotonicMs >= fromMs);
+  let cycleEnd = { status: "N/A", ends: [] };
+  if (pingKinds.includes("boundary")) {
+    if (pings.length !== pingKinds.length) cycleEnd = { status: "未確認", reason: `ping rows ${pings.length} != pings sent ${pingKinds.length}`, ends: [] };
+    else {
+      const ends = pings.filter((_, i) => pingKinds[i] === "boundary").map(backlogOf);
+      const grew = ends.flatMap((end, j) => (j >= Math.max(1, warmupCycles) && (end.items > ends[j - 1].items || end.bytes > ends[j - 1].bytes) ? [j] : []));
+      cycleEnd = { status: grew.length > 0 ? "Fail" : "Pass", ends, grewAtCycles: grew };
+    }
+  }
+  const t0 = markers(records, "T0").get(lastInputId);
+  const drain = t0 == null ? { status: "未確認", reason: "last input T0 not observed" } : (() => {
+    const { lowerMs, upperMs } = drainBounds(records, t0);
+    const status = upperMs != null && upperMs <= t0 + drainLimitMs ? "Pass" : lowerMs > t0 + drainLimitMs ? "Fail" : "未確認";
+    return { status, lastT0Ms: t0, lowerMs, upperMs };
+  })();
+  const t1 = markers(records, "T1");
+  const t2 = markers(records, "T2");
+  let upper = 0;
+  let unprocessed = 0;
+  for (const [id, at] of t1) {
+    if (at < fromMs) continue;
+    if (t2.has(id)) upper = Math.max(upper, t2.get(id) - at); else unprocessed++;
+  }
+  const lower = rows.reduce((m, r) => Math.max(m, r.oldestPendingAgeMs ?? 0), 0);
+  const wait = { status: lower > waitLimitMs ? "Fail" : unprocessed === 0 && upper <= waitLimitMs ? "Pass" : "未確認", upperMs: upper, lowerMs: lower, unprocessed };
+  const before = all.filter((r) => r.monotonicMs < fromMs).at(-1)?.limitViolations ?? 0;
+  const limitViolations = rows.reduce((m, r) => Math.max(m, r.limitViolations), before) - before;
+  const ownerTrouble = diagnostics.filter((d) => d.timestamp >= fromWallMs).filter((d) => (d.reason === "ownerStopped" && d.level === "ERROR")
+    || (d.reason === "mailboxStalled" && /^owner\.[^.]+\.response$/.test(d.component ?? "")));
+  const parts = [cycleEnd.status, drain.status, wait.status, limitViolations > 0 || ownerTrouble.length > 0 ? "Fail" : "Pass"];
+  const status = rows.length === 0 ? "未確認" : parts.includes("Fail") ? "Fail" : parts.includes("未確認") ? "未確認" : "Pass";
+  return { status, rows: rows.length, pingRows: pings.length, cycleEnd, drain, wait, limitViolations,
+    ownerTrouble: ownerTrouble.map((d) => ({ reason: d.reason, component: d.component, timestamp: d.timestamp })),
+    note: "待機年齢は通常入力に絞らず全入力の T1→T2（EEW は予約枠で先に出るので上界を大きくしない）" };
+}
+
 // FD 数は外から数える（製品に口を足さない）。`lsof -p <pid>` の行数 - 見出し 1 行。失敗は count=null で残す。
 // 時刻は process.hrtime.bigint（launcher の clock 行と同じ源）で残し、summarizeE06 が host 時計へ写す。
 export function startFdSampler(pid, everyMs = 60_000) {
@@ -172,10 +236,42 @@ export const E15_BLOCKED = [
   "checkpoint と診断の write を A3 CheckpointFileSystem/DiagnosticFileSystem で別計数する口が startP2Host の config に無い（製品 src 不変のため未測定）",
 ];
 
-export function summarizeE15(records) {
+const OWNER_UNITS = { urgent: ["U-E"], weatherCurrent: ["U-W"], deferred: ["U-F"] };
+const ZERO = { count: 0, bytes: 0 };
+// E15 の write の帰属（P3-C4-AC05・P3-C4-WRITE-COUNT）: host が停止時に出す thread ごとの writeCount を、owner は自分の unit の
+// write 段の CheckpointMeasurement（回数と byte）に、publisher の診断 log は診断 dir の jsonl の byte（diagnosticLogBytes、呼び出し側が
+// 読む）に照らす。publisher の tmp は終了要約の置き換え（同じ file を 1〜2 回書き、最後の 1 回しか残らない）で、記録から byte を
+// 起こせないので照合せず回数と byte を報告する。owner の checkpoint・diagnosticLog・other と publisher の checkpoint・other は 0 が
+// 帰属できる値で、0 でなければ帰属不能。confirmed が false の thread か、4 thread の行が揃わない窓は未確認。
+// diagnosticLog の回数は flush 1 回の追記の数で、record の件数とは比べられない（byte だけ照合する）。
+export function writeAttribution(rows, measurements, diagnosticLogBytes) {
+  const threads = ["urgent", "weatherCurrent", "deferred", "publisher"];
+  const complete = threads.every((t) => rows.filter((r) => r.thread === t).length === 1);
+  const unattributed = [];
+  for (const row of rows) {
+    const expected = row.thread === "publisher"
+      ? { checkpoint: ZERO, other: ZERO, diagnosticLog: diagnosticLogBytes == null ? null : { bytes: diagnosticLogBytes } }
+      : { checkpoint: ZERO, diagnosticLog: ZERO, other: ZERO, tmp: measurements.filter((m) => m.stage === "write" && OWNER_UNITS[row.thread].includes(m.unit))
+        .reduce((a, m) => ({ count: a.count + 1, bytes: a.bytes + m.bytes }), ZERO) };
+    for (const [category, want] of Object.entries(expected)) {
+      const got = row.counts[category];
+      if (want == null) continue;
+      if (got.bytes !== want.bytes || (want.count != null && got.count !== want.count)) unattributed.push({ thread: row.thread, category, counted: got, attributed: want });
+    }
+  }
+  const unconfirmed = rows.filter((r) => !r.confirmed).map((r) => r.thread);
+  const status = !complete || unconfirmed.length > 0 || diagnosticLogBytes == null ? "未確認" : unattributed.length > 0 ? "Fail" : null;
+  return { status, complete, unconfirmed, unattributed, threads: Object.fromEntries(rows.map((r) => [r.thread, { confirmed: r.confirmed, counts: r.counts }])),
+    note: "publisher の tmp は終了要約の置き換えで照合しない。diagnosticLog は byte だけ照合する（回数は flush の追記数）" };
+}
+
+// writeCount の観測が無い記録（A10 の窓）は従来どおりの報告。ある記録は write の帰属（writeAttribution）を status に反映する。
+export function summarizeE15(records, { diagnosticLogBytes = null } = {}) {
   const measurements = observations(records, "checkpoint").map((o) => o.measurement);
   const problem = checkpointJoinProblem(measurements);
   if (problem != null) return { status: "未確認", blocked: [...E15_BLOCKED, `checkpointJoin:${problem}`] };
+  const counted = observations(records, "writeCount");
+  const writes = counted.length === 0 ? null : writeAttribution(counted, measurements, diagnosticLogBytes);
   const seenInputs = new Set(markers(records, "T0").keys());
   const units = {};
   const retryReasons = {};
@@ -201,7 +297,8 @@ export function summarizeE15(records) {
     } else if (m.stage === "write") u.writeBytes += m.bytes;
     else if (m.bytes !== 0) byteViolations++;
   }
-  return { status: null, attempts: attempts.size, units, retryReasons, byteViolations, unknownInputIds, blocked: E15_BLOCKED,
+  return { status: writes?.status ?? null, attempts: attempts.size, units, retryReasons, byteViolations, unknownInputIds,
+    blocked: writes == null ? E15_BLOCKED : [E15_BLOCKED[0]], writes,
     occupancyNote: "occupiedMsLower = encode の壁時間（下限）。verify 段（記憶なし・照合の経路だけ）は verifyCount・verifyBytes（読んだ bytes）・verifyMs に別に数え、占有・write へ足さない。measuredStagesMs = 計測された段の壁時間の合計で、非同期の待ちを含み、前段の同期処理 checkpoint.ts:266-300 を含まない（上限ではない）" };
 }
 

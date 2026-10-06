@@ -33,6 +33,7 @@ export function frameGapMeter(now?: () => number): FrameGapMeter;
 export function livenessBlocked(meters: readonly { maxFrameGapMs: number }[] | undefined, maxFrameGapMs: number): string | null;
 export function startInjector(scope: { add(fn: () => unknown): void }, options?: { pingEveryMs?: number }): Promise<{
   url: string; meter: FrameGapMeter; broken: string | null; placeOf(inputId: string): string | null;
+  pingKinds: string[]; ping(kind: "periodic" | "boundary" | "drain"): boolean;
   connected(): Promise<void>; sendStart(): void; send(frame: string, headType?: string | null): { seq: number | null; injectedHrMs: number | null };
   close(): Promise<void>;
 }>;

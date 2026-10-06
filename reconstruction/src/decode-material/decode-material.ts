@@ -238,8 +238,11 @@ export function classifyMaterial(material: DecodedMaterial) {
   } as const;
 }
 
+// parseTimes は測定の時だけ渡す記録（P3-C4-PARSE-MARK）。この thread の performance.now() で、開始は全文の最初の走査
+// （withinXmlLimits）の直前、終了は parse tree の完成。渡さない呼出しの挙動と marks は変わらない。
 /** Decodes, bounds, full-parses and resolves one mailbox item without retaining its raw body. */
-export function decodeMaterial(item: ParserMailboxItem): ParserMailboxResult {
+export function decodeMaterial(item: ParserMailboxItem,
+  parseTimes?: { startedMs: number | null; endedMs: number | null }): ParserMailboxResult {
   if (item.encodedByteLength > MAX_INPUT_BYTES || item.encodedBody.byteLength > MAX_INPUT_BYTES) return rejected(item, "inputTooLarge", null);
   const current = marks();
   let encoded: Uint8Array | null;
@@ -255,6 +258,7 @@ export function decodeMaterial(item: ParserMailboxItem): ParserMailboxResult {
   try {
     // TextDecoder strips a leading UTF-8 BOM (ignoreBOM:false); byte accounting still includes it.
     xmlText = new TextDecoder("utf-8", { fatal: true, ignoreBOM: false }).decode(raw);
+    if (parseTimes != null) parseTimes.startedMs = now();
     withinXmlLimits(xmlText);
     if (XMLValidator.validate(xmlText) !== true) return rejected(item, "xmlInvalid", raw.byteLength);
   } catch (error) { return rejected(item, error instanceof Error && error.message === "xmlLimitExceeded" ? "xmlLimitExceeded" : "xmlInvalid", raw.byteLength); }
@@ -262,6 +266,7 @@ export function decodeMaterial(item: ParserMailboxItem): ParserMailboxResult {
   let xml: XmlElement | null;
   try { xml = parseTree(xmlText); } catch { return rejected(item, "xmlInvalid", raw.byteLength); }
   current.fullXmlParseMs = finiteDuration(parsedAt);
+  if (parseTimes != null) parseTimes.endedMs = now();
   if (xml == null || xml.name !== "Report") return rejected(item, "xmlInvalid", raw.byteLength);
   const metadataAt = now();
   const controlStatus = normalizeStatus(childText(child(xml, "Control"), "Status"));

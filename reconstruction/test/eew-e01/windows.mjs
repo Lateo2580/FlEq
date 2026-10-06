@@ -3,12 +3,12 @@
 // 関数を呼ぶだけで書き直さない。host の起動（startHost）と JSONL の追跡（tailer）は run.mjs のものを ctx で受ける（循環 import を作らない）。
 // 受信経路の計算量: 充填の確認・通知の静まり待ち・集計はすべて runner 側（host の外）。host に足すのは E02 の mem 1 秒 timer と AC15 の preload だけ。
 import { execFile, spawn } from "node:child_process";
-import { cpSync, createReadStream, existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
+import { cpSync, createReadStream, existsSync, mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from "node:fs";
 import { createInterface } from "node:readline";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 
 import { ac15Intervals, checkpointWindows, compareRetention, fingerprintTable, judgeAc15, readLatestEnvelopes } from "./ac15.mjs";
-import { hostMsOf, parseJsonl, publishCostReport, startFdSampler, summarizeE03, summarizeE05, summarizeE06, summarizeE15 } from "./aux-measures.mjs";
+import { drainBounds, hostMsOf, parseJsonl, publishCostReport, startFdSampler, summarizeE03, summarizeE05, summarizeE06, summarizeE07, summarizeE15 } from "./aux-measures.mjs";
 import { hrMs, sleep } from "./chrome.mjs";
 import { E12_CLASSES, ac15Frame, cycleCFrames, dataFrame, e03Frame, loadEvents, nearCapacityFrames, sendPaced, sha256Hex, weatherFrame } from "./frames.mjs";
 
@@ -53,11 +53,17 @@ async function readProbeRows(path, fromMs) {
 }
 // E15 と publish 費用は host を起動した全窓で出す（AC15 は E01・E02 の各窓に PublishCostReport を求める）。byteViolations は窓記録にも出す。
 const BYTE_NOTE = "byteViolations は encode・write・verify 以外の段で bytes が 0 でない件数。verify 段の bytes は読んだ bytes として e15.units の verifyBytes に別に数える（P3-C1-E15、A10 の P2-A10-E15-P3 の読み）";
-export function hostReports(records, window) {
-  const e15 = summarizeE15(records);
+// hostDir は host の dir（host-obs.jsonl と diagnostics/ の親）。E15 の診断 log の帰属に、診断 dir の jsonl の byte を渡す（P3-C4-AC05）。
+export function hostReports(records, window, hostDir = null) {
+  const e15 = summarizeE15(records, { diagnosticLogBytes: hostDir == null ? null : diagnosticLogBytes(hostDir) });
   return { e15, byteViolations: e15.byteViolations ?? null, byteViolationsNote: BYTE_NOTE, publishCost: publishCostReport(records, window) };
 }
-export const hostReportsOf = (obsPath, window) => hostReports(readJsonl(obsPath), window);
+export const hostReportsOf = (obsPath, window) => hostReports(readJsonl(obsPath), window, dirname(obsPath));
+const diagnosticFiles = (hostDir) => {
+  const dir = join(hostDir, "diagnostics");
+  return existsSync(dir) ? readdirSync(dir).filter((f) => f.endsWith(".jsonl")).map((f) => join(dir, f)) : [];
+};
+const diagnosticLogBytes = (hostDir) => (existsSync(join(hostDir, "diagnostics")) ? diagnosticFiles(hostDir).reduce((a, f) => a + statSync(f).size, 0) : null);
 // 窓の結果（runWindow が記録に写す）。予備（--aux・件数指定）は判定にかかわらず status を未確認にし、判定は judgedStatus に残す（run.mjs の約束・AC10）。
 function outcome(ctx, judgedStatus, reports, rest) {
   const status = ctx.preliminary ? "未確認" : judgedStatus;
@@ -85,7 +91,7 @@ async function openHost(w, ctx, options = {}) {
     if (w.progress.hostExit != null) throw new Error(`host launcher exited mid-window: ${JSON.stringify(w.progress.hostExit)}`);
     if (h.injector.broken != null) throw new Error(h.injector.broken);
   };
-  return { ...h, refresh, check, lines: tail.lines,
+  return { ...h, refresh, check, lines: tail.lines, hostMs: (at = hrMs()) => at + oh,
     processed: () => { refresh(); return decodes; },
     sent: () => lastSeq,
     send: (frame) => { check(); const r = h.injector.send(frame); if (r.seq == null) throw new Error("send failed: injector not connected"); lastSeq = r.seq; return r; },
@@ -250,7 +256,7 @@ function e02Window(ctx, load, run) {
       // 6 run をまとめた判定は窓ループの後に e02Verdict が 1 回だけ作る。
       const health = summarizeHealthE02(ctx.manifest, samples).find((r) => r.load === load && r.run === run);
       const e05 = summarizeE05(records, load, { fromHrtimeNs: start.hrtimeNs, toHrtimeNs: end.hrtimeNs }, { memEveryMs: E05_MEM_EVERY_MS });
-      const reports = hostReports(records, id);
+      const reports = hostReports(records, id, w.dir);
       // 窓の status は E02（この窓の主の判定）。E05 は statuses に別に持つ（まとめて潰さない）。予備は status と同じく未確認に倒し、判定は judgedStatuses へ。
       const statuses = { E02: health.status, E05: e05.status };
       const o = outcome(ctx, health.status, reports, { fill: filled?.record ?? null,
@@ -320,7 +326,7 @@ function e03Window(ctx, run) {
       // host の通し番号と投入側の seq が一致すること（全 frame が 1 本の接続で届いた）を T0 の件数で確かめる。ずれたら未確認。
       const t0 = records.filter((r) => r.t === "obs" && r.o.kind === "marker" && r.o.point === "T0").length;
       const aligned = t0 === host.sent();
-      const reports = hostReports(records, `e03-run${run}`);
+      const reports = hostReports(records, `e03-run${run}`, w.dir);
       const o = outcome(ctx, aligned ? e03.status : "未確認", reports, {});
       o.resultFiles = [sealAux(w.dir, `aux-e03-run${run}.json`, ctx.manifest,
         { window: `e03-run${run}`, status: o.status, warmup, samples, e03, seqAlignment: { t0, sent: host.sent(), aligned }, ...reports })];
@@ -408,7 +414,7 @@ async function ac15Measure(w, ctx, mode, { s, warmup, samples }) {
   const publishObserved = [];
   for (const x of intervals.filter((i) => i.unit === "metadata")) { publishObserved.push(x.publishCount); x.publishCount = 2; }
   const judged = judgeAc15(await readProbeRows(probePath, intervals[0]?.startMs ?? 0), intervals, table, { checkpointWindows: checkpointWindows(records), unitOfInput, minInputsPerUnit: samples });
-  const reports = hostReports(records, `ac15-${mode}`);
+  const reports = hostReports(records, `ac15-${mode}`, dir);
   const assumedMinus = judged.scenarios.metadata?.snapshotCallsMinusPublish ?? null;
   const observedTotal = publishObserved.reduce((a, b) => a + b, 0);
   return { judged, reports, body: { mode, status: judged.status, fill: filled.record, fingerprintTable: table, judged,
@@ -512,7 +518,7 @@ function e06Window(ctx) {
           if (d.reason === "eewCapacityEvicted" && k >= 0 && k < cycles) evicted[k] += d.count ?? 1;
         }
       }
-      const reports = hostReports(records, "e06");
+      const reports = hostReports(records, "e06", w.dir);
       const o = outcome(ctx, e06.complete ? "N/A" : "未確認", reports, { fill: filled.record, eewCapacityEvictedPerCycle: evicted });
       o.resultFiles = [sealAux(w.dir, "aux-e06.json", ctx.manifest, { window: "e06", status: o.status, cycles, steadyCycle, fill: filled.record,
         e06, perCycle: { eewCapacityEvicted: evicted, expected: c.expectedPerCycle }, fdSamples: fd.samples.length, ...reports })];
@@ -521,7 +527,69 @@ function e06Window(ctx) {
   };
 }
 
-// 窓の並び（設計メモ §1.2: E02+E05 N → P、E03、AC15、E12、E06）。ctx.runs は run 数の上書き（予備）。
+// ── E07（P3-C4-AC07(2)、P3-C3B-E07-WINDOW=A）: N または C を 60 分（予備は --e07-minutes）流し、入力を止めて排出を見る ──
+// C は E06 と同じ保持上限ちょうど（cycleC）から周期ごとに流し、次の周期の最初の frame の直前（最後の周期は窓の終わり）に boundary の
+// ping を送る（同じ WS の受信順で周期末に一致する。tick の行は周期末に使わない）。入力を止めた後は、排出の上界の行（最初の空の行）が
+// 出るか下界が 10 秒を超えるまで drain の ping を 250ms ごとに送って幅を狭め、それまで host を止めない（stop で tick が止まる）。
+// 30 秒で出なければ止めて未確認に残す。
+function e07Window(ctx, load) {
+  const minutes = ctx.counts.e07Minutes ?? 60;
+  const c = ctx.initialState.cycleC;
+  const id = `e07-${load}`;
+  return {
+    id, expectedMin: minutes + (load === "C" ? 8 : 2),
+    run: async (w) => {
+      const host = await openHost(w, ctx);
+      const filled = load === "C" ? await fill(host, w, ctx, "cycleC") : null;
+      w.progress.phase = "measure";
+      const startHr = hrMs() + 1000;
+      const [fromMs, fromWallMs] = [host.hostMs(startHr), host.wallMs(startHr)];
+      const windowMs = minutes * 60_000;
+      if (load === "C") {
+        const cycles = Math.floor(windowMs / c.periodMs);
+        w.progress.total = cycles;
+        for (let k = 0; k < cycles; k++) {
+          const cycleStart = startHr + k * c.periodMs;
+          for (const [i, f] of cycleCFrames(k, host.wallMs(cycleStart)).entries()) {
+            const frame = dataFrame(f.headType, f.xml);
+            await waitUntil(host, cycleStart + f.offsetMs);
+            if (i === 0 && k > 0 && !host.injector.ping("boundary")) throw new Error("boundary ping not sent: injector not connected");
+            host.send(frame);
+          }
+          w.progress.trialsStarted = k + 1;
+        }
+        await waitUntil(host, startHr + cycles * c.periodMs);
+        if (!host.injector.ping("boundary")) throw new Error("boundary ping not sent: injector not connected");
+      } else {
+        const pump = replayPump(ctx.manifest.loads[load], host.send, host.wallSec, startHr);
+        await waitUntil(host, startHr + windowMs, pump);
+      }
+      w.progress.phase = "drain";
+      const lastInputId = `input-${host.sent()}`;
+      const giveUp = hrMs() + 30_000;
+      for (;;) {
+        host.check();
+        host.refresh();
+        const t0 = host.lines.find((l) => l.t === "obs" && l.o.kind === "marker" && l.o.point === "T0" && l.o.inputId === lastInputId)?.o.monotonicMs;
+        const bounds = t0 == null ? null : drainBounds(host.lines, t0);
+        if ((bounds != null && (bounds.upperMs != null || bounds.lowerMs > t0 + 10_000)) || hrMs() > giveUp) break;
+        host.injector.ping("drain");
+        await sleep(250);
+      }
+      await host.stop();
+      const records = host.records();
+      const diagnostics = diagnosticFiles(w.dir).flatMap((f) => readJsonl(f));
+      const e07 = summarizeE07(records, { pingKinds: host.injector.pingKinds, warmupCycles: load === "C" ? c.warmupCycles : 0, lastInputId,
+        diagnostics, fromMs, fromWallMs });
+      const reports = hostReports(records, id, w.dir);
+      const o = outcome(ctx, e07.status, reports, { fill: filled?.record ?? null });
+      o.resultFiles = [sealAux(w.dir, `aux-${id}.json`, ctx.manifest, { window: id, status: o.status, minutes, e07, fill: filled?.record ?? null, ...reports })];
+      return o;
+    },
+  };
+}
+
+// 窓の並び（設計メモ §1.2: E02+E05 N → P、E03、AC15、E12、E06、E07）。ctx.runs は run 数の上書き（予備）。E07 は P3 の manifest にだけある。
 export function auxWindows(ctx) {
   const runs = (n) => Array.from({ length: ctx.runs ?? n }, (_, i) => i + 1);
   return [
@@ -530,5 +598,6 @@ export function auxWindows(ctx) {
     ac15Window(ctx),
     ...runs(ctx.manifest.auxiliary.E12.runCount).flatMap((run) => Object.keys(E12_CLASSES).map((cls) => e12Window(ctx, cls, run))),
     e06Window(ctx),
+    ...(ctx.manifest.auxiliary.E07?.loads ?? []).map((load) => e07Window(ctx, load)),
   ];
 }

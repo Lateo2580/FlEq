@@ -174,7 +174,7 @@ it("R25 regression / AC02,AC05: a forged result reply cannot bypass durability v
     encodedByteLength: 1, ackAt: clock.wallTimeMs } as const;
   // Only the reply to the current grant is adopted; a forged one changes neither the mirror nor the write right.
   h.root.receive("deferred", { kind: "checkpointDone", grantId: "forged", unit: "U-F", result: fabricated, measurements: [],
-    output: { units: [{ unit: "U-F", persistence: { kind: "saved", currentGeneration: 1, savedGeneration: 1,
+    grantStartedMs: null, writeCounts: null, output: { units: [{ unit: "U-F", persistence: { kind: "saved", currentGeneration: 1, savedGeneration: 1,
       savedCapturedAt: attempt.capturedAt, savedAckAt: clock.wallTimeMs, dirtySince: null },
     admissionCounts: { normal: 0, training: 0, test: 0 }, view: null, pendingIntents: null }],
     outcomes: [], displayChanges: [], confirmationEvidence: [], retiredEvents: [], diagnostics: [] } });

@@ -266,7 +266,9 @@ const P3_TABLE = {
 // collisionVerdict は P3-C4-COLLISION-VERDICT（A: 参考・T0、B: 正式・injectorSend）。stop は母集団ごとの stopCondition（予備測定の後に統合担当が固定する）。
 // 指定の無い母集団は establishmentRate（成立率の仮置き）から maxAttempts = 100 + ceil(1000 ÷ 成立率)、maxDurationMs = maxAttempts × 周期 × 2 の仮値。
 export function buildP3Manifest({ id, chromeVersion, nodeVersion, osVersion, device, collisionVerdict = "A", stop = {}, establishmentRate = 0.5,
-  machines = { formal: "MacBook M5（A10 と同じ機械）", gate: "Mac mini（独立 checkout。reconstruction/dist・node_modules を共有しない）", piBackend: "Raspberry Pi 500（Pi 第 1 段: backend 単独、第 2 段: Pi backend＋MacBook M5 の Chrome）" } }) {
+  // P3-C4-MACHINES=B（作者裁定 2026-10-06 朝）: 正式測定は Mac mini。A10（MacBook M5）との比較は機械が違う参考値で、合否に使わない。
+  machines = { formal: "Mac mini（独立 checkout。reconstruction/dist・node_modules を共有しない。Chrome は前景、caffeinate -d）", gate: "Mac mini（独立 checkout。reconstruction/dist・node_modules を共有しない）",
+    piBackend: "Raspberry Pi 500（Pi 第 1 段: backend 単独、第 2 段: Pi backend＋Mac mini の Chrome）" } }) {
   if (!["A", "B"].includes(collisionVerdict)) throw new Error("collisionVerdict must be A or B (P3-C4-COLLISION-VERDICT)");
   const a10Text = readFileSync(join(REPO, A10_MANIFEST), "utf8");
   const a10 = JSON.parse(a10Text);
@@ -312,7 +314,7 @@ export function buildP3Manifest({ id, chromeVersion, nodeVersion, osVersion, dev
     },
     machines,
     judgmentPlaces: {
-      E01: "Pi backend＋実接続経路＋Mac の Chrome（P5）。C4 の Mac の結果は e01:93 の再検収と E01 の正式再検収（R61）の判定",
+      E01: "Pi backend＋実接続経路＋Mac mini の Chrome（P5）。C4 の Mac mini の結果は e01:93 の再検収と E01 の正式再検収（R61）の判定",
       E02: "Pi（P5）", E03: "Pi（P5）。Mac は回帰検出、Pi 予備確認は P3-C4-PI-E03", E05: "Pi（P5）", E06: "Pi（P5）", E07: "Pi（P5）", E14: "Pi（P5）", E15: "Pi（P5）",
     },
   };

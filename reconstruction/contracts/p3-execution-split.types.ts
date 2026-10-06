@@ -26,7 +26,14 @@ import type {
 export type ExecutionPlace = "urgent" | "weatherCurrent" | "deferred";
 
 // workerData of one owner thread. publisherTimeOriginMs is the publisher's performance.timeOrigin.
-export type OwnerStartData = Readonly<{ place: ExecutionPlace; stateDirectory: string; publisherTimeOriginMs: number }>;
+// measured は測定の印（host の config.observe != null、P3-C4-AC04）。印があるときだけ owner は full parse と書込み権の着手の
+// 時刻を取り、write を数える。印が無いときはどれも作らない。
+export type OwnerStartData = Readonly<{ place: ExecutionPlace; stateDirectory: string; publisherTimeOriginMs: number;
+  measured: boolean }>;
+
+// P3-C4-WRITE-COUNT（RES-05）: 1 thread の write の呼出し回数と byte の区分別の累積。checkpoint は checkpoint の file へ直接の
+// write、tmp は rename で置き換える一時 file（checkpoint の保存・終了要約）、diagnosticLog は診断 log への追記、other はそれ以外。
+export type WriteCounts = Readonly<Record<"checkpoint" | "tmp" | "diagnosticLog" | "other", Readonly<{ count: number; bytes: number }>>>;
 
 // P3-C3A-CLOCK: two clocks, never mixed.
 // Business time (receive application, deadlines, dirtySince, capturedAt, ackAt, mailbox settlement): the publisher's
@@ -93,12 +100,16 @@ export type OwnerReply =
       output: OwnerOutput }>
   // settlement times are business time (mailbox matching). processingStartedMs is T2 in measured time;
   // marks.workerTransferMs = T2 - (sharedMs - publisherTimeOriginMs).
+  // full parse の区間（P3-C4-PARSE-MARK）は印が無いと null、parse tree の前で拒否された入力では終了が null。
   | Readonly<{ kind: "inputDone"; settlement: ParserSettlement; processingStartedMs: number; marks: ProcessingMarks;
-      decode: Readonly<{ startedMonotonicMs: number; endedMonotonicMs: number }> | null; output: OwnerOutput }>
+      decode: Readonly<{ startedMonotonicMs: number; endedMonotonicMs: number; xmlParseStartedMonotonicMs: number | null;
+        xmlParseEndedMonotonicMs: number | null }> | null; output: OwnerOutput }>
   | Readonly<{ kind: "deadlineDone"; output: OwnerOutput }>
   | Readonly<{ kind: "intentUpdateDone"; requestId: string; adopted: boolean; output: OwnerOutput }>
   // result null: nothing to save or reconcile at grant time. The publisher releases the write right on this reply only.
+  // grantStartedMs（owner が権の処理を始めた測定時刻）と writeCounts（この owner の累積）は印が無いと null（P3-C4-AC04）。
   | Readonly<{ kind: "checkpointDone"; grantId: string; unit: RuntimeUnitId; result: CheckpointResult | null;
-      measurements: readonly CheckpointMeasurement[]; output: OwnerOutput }>
+      measurements: readonly CheckpointMeasurement[]; grantStartedMs: number | null; writeCounts: WriteCounts | null;
+      output: OwnerOutput }>
   | Readonly<{ kind: "shutdownInputDone"; output: OwnerOutput }>
   | Readonly<{ kind: "finalizeDone"; appliedThrough: ClockReading; output: OwnerOutput }>;

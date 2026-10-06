@@ -1,4 +1,5 @@
 import { resolve } from "node:path";
+import { performance } from "node:perf_hooks";
 
 import type { ParserMailboxResult, ProcessingMarks } from "../../contracts/p1-parser-boundary.types";
 import type { UnitTable } from "../../contracts/p3-unit-table.types";
@@ -13,6 +14,8 @@ import type {
 import { CheckpointCoordinator } from "../checkpoint/checkpoint";
 import type { CheckpointFileSystem, CodecMap } from "../checkpoint/checkpoint";
 import { decodeMaterial } from "../decode-material/decode-material";
+import { countedCheckpointFileSystem, writeCounters } from "./composition-root";
+import type { WriteCounters } from "./composition-root";
 import {
   capturedOwner, checkpointResultOwner, deadlineOwner, finalizeOwner, intentUpdateOwner, ownerViews, placeUnits,
   receiveOwner, restoreOwner, shutdownInputOwner, unitAdmissionCounts,
@@ -47,9 +50,14 @@ class OwnerHost {
   private readonly reported: Partial<Record<RuntimeUnitId, readonly NotificationIntent[]>> = {};
   private readonly diagnostics: DiagnosticEvent[] = [];
   private base: SentClock | null = null;
+  // P3-C4-WRITE-COUNT: 測定の印があるときだけ、注入された filesystem を数える包みで使う（印が無ければ包みも counter も作らない）。
+  private readonly writeCounts: WriteCounters | null;
+  private readonly fileSystem: CheckpointFileSystem;
 
   constructor(private readonly options: OwnerHostOptions) {
     this.own = placeUnits(options.start.place);
+    this.writeCounts = options.start.measured ? writeCounters() : null;
+    this.fileSystem = this.writeCounts == null ? options.fileSystem : countedCheckpointFileSystem(options.fileSystem, this.writeCounts);
   }
 
   // Made by the restore request: its startup clean-up of owned tmp files may report a diagnostic, which needs that
@@ -71,8 +79,10 @@ class OwnerHost {
         const processingStartedMs = this.measured();
         const { envelope } = request;
         const { item } = envelope.payload;
+        const parseTimes: { startedMs: number | null; endedMs: number | null } | undefined =
+          this.options.start.measured ? { startedMs: null, endedMs: null } : undefined;
         const decodeStarted = this.measured();
-        const result: ParserMailboxResult = decodeMaterial(item);
+        const result: ParserMailboxResult = decodeMaterial(item, parseTimes);
         const decodeEnded = this.measured();
         const clock = this.business();
         const step = this.apply(receiveOwner(state, { runId: envelope.runId, inputId: item.inputId, result }, clock, this.options.units));
@@ -82,7 +92,8 @@ class OwnerHost {
           completedMonotonicMs: clock.monotonicMs, inputId: item.inputId, inputSequence: item.inputSequence },
         processingStartedMs, marks: { ...marks, ingressJsonMs: null,
           workerTransferMs: processingStartedMs - (request.sharedMs - this.options.start.publisherTimeOriginMs) },
-        decode: { startedMonotonicMs: decodeStarted, endedMonotonicMs: decodeEnded }, output: this.output([step]) });
+        decode: { startedMonotonicMs: decodeStarted, endedMonotonicMs: decodeEnded, xmlParseStartedMonotonicMs: this.threadToMeasured(parseTimes?.startedMs),
+          xmlParseEndedMonotonicMs: this.threadToMeasured(parseTimes?.endedMs) }, output: this.output([step]) });
         return;
       }
       case "deadline": {
@@ -123,13 +134,18 @@ class OwnerHost {
     return this.options.sharedNow() - this.options.start.publisherTimeOriginMs;
   }
 
+  // P3-C4-PARSE-MARK: この thread の performance.now() を publisher の測定時刻へ直す（timeOrigin の差を足す）。
+  private threadToMeasured(ms: number | null | undefined): number | null {
+    return ms == null ? null : ms + performance.timeOrigin - this.options.start.publisherTimeOriginMs;
+  }
+
   private restore(runId: string): void {
     if (this.state != null) throw new Error("owner already restored");
     const clock = this.business();
-    const { codecs, fileSystem, start } = this.options;
+    const { codecs, start } = this.options;
     // As validateAppConfig did for the single-thread root: slots live under the absolute state directory.
     this.coordinator = new CheckpointCoordinator(resolve(start.stateDirectory),
-      Object.fromEntries(this.own.flatMap((unit) => codecs[unit] == null ? [] : [[unit, codecs[unit]]])), fileSystem,
+      Object.fromEntries(this.own.flatMap((unit) => codecs[unit] == null ? [] : [[unit, codecs[unit]]])), this.fileSystem,
       () => ({ wallTimeMs: this.business().wallTimeMs, monotonicMs: this.measured() }),
       (event) => { this.diagnostics.push(event); });
     const restored: Partial<Record<RuntimeUnitId, RestoreUnitResult>> = {};
@@ -154,10 +170,13 @@ class OwnerHost {
   }
 
   private grant(request: Extract<OwnerRequest, { kind: "checkpointGrant" }>): void {
+    const grantStartedMs = this.options.start.measured ? this.measured() : null;
     const state = this.state!;
     const { unit, grantId } = request;
+    // writeCounts は返信の時点の累積の写し（owner の write は権の処理の中だけで起きる、P3-C4-WRITE-COUNT）。
     const done = (result: CheckpointResult | null, measurements: readonly CheckpointMeasurement[], steps: readonly OwnerStep[]) =>
-      this.options.reply({ kind: "checkpointDone", grantId, unit, result, measurements, output: this.output(steps) });
+      this.options.reply({ kind: "checkpointDone", grantId, unit, result, measurements, grantStartedMs,
+        writeCounts: this.writeCounts == null ? null : structuredClone(this.writeCounts), output: this.output(steps) });
     const persistence = state.units[unit]?.persistence;
     if (request.mode === "reconcile") {
       const attempt = state.checkpointAttempts[unit];

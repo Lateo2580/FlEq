@@ -123,7 +123,7 @@ async function startP2Host(config: P2HostConfig): Promise<Readonly<{ displayPort
   try {
     const entry = resolveRepoPath("reconstruction/dist/src/runtime/owner-worker.js");
     for (const place of ["urgent", "weatherCurrent", "deferred"] as const) {
-      const start: OwnerStartData = { place, stateDirectory: config.stateDirectory, publisherTimeOriginMs: performance.timeOrigin };
+      const start: OwnerStartData = { place, stateDirectory: config.stateDirectory, publisherTimeOriginMs: performance.timeOrigin, measured: config.observe != null };
       const worker = new Worker(entry, { workerData: start });
       workers.set(place, worker);
       worker.on("message", (reply: OwnerReply) => {
@@ -141,7 +141,7 @@ async function startP2Host(config: P2HostConfig): Promise<Readonly<{ displayPort
     root = new RuntimeCompositionRoot({ appName: config.dmdata?.appName ?? "fleq-p2", legacyAppName: "fleq", stateDirectory: config.stateDirectory,
       legacyStateDirectory: `${resolve(config.stateDirectory)}.legacy`, diagnosticDirectory: config.diagnosticDirectory },
     linkedUnitCodecs, {
-      send: (place, request) => workers.get(place)!.postMessage(request), clock,
+      send: (place, request) => workers.get(place)!.postMessage(request), clock, measure: config.observe == null ? undefined : emit,
       display: { publish: server.publish, setWorker: server.setWorker,
         onMarker: (marker, displayVersion) => emit({ kind: "marker", point: "T3", runId, displayVersion, monotonicMs: marker.monotonicMs }) },
       onMeasurements: (measurements) => { for (const measurement of measurements) emit({ kind: "checkpoint", measurement }); },
@@ -260,7 +260,7 @@ async function startP2Host(config: P2HostConfig): Promise<Readonly<{ displayPort
     if (parsed != null) {
       const head = parsed.kind === "parsed" ? controlHead(parsed.value) : null;
       if (head?.type === "ping") {
-        emit({ kind: "controlFrame", frameType: "ping", monotonicMs: t0, errorClose: null });
+        emit({ kind: "controlFrame", frameType: "ping", monotonicMs: t0, errorClose: null }); observeMailbox("ping", t0, entry.monotonicMs);
         if (typeof head.pingId === "string") ws.send(JSON.stringify({ type: "pong", pingId: head.pingId }), () => {});
         return;
       }
@@ -368,9 +368,21 @@ async function startP2Host(config: P2HostConfig): Promise<Readonly<{ displayPort
     });
   }
 
+  // P3-C4-E07-SOURCE（B）: 測定の時だけ、tick ごとと投入側の ping の受信ごとに mailbox の値を 1 行出す。ping の行は同じ WS で
+  // その ping より前に受けた frame を含み、後の frame を含まない（frame ごとの callback が受信順に同期で走る）。
+  function observeMailbox(trigger: "tick" | "ping", monotonicMs: number, businessMs: number): void {
+    if (config.observe == null) return;
+    const stats = mailbox.stats(businessMs);
+    emit({ kind: "mailbox", runId, monotonicMs, trigger, pendingItems: stats.pendingItems, pendingBytes: stats.pendingBytes,
+      inFlightItems: stats.inFlightItems, inFlightBytes: stats.inFlightBytes, oldestPendingAgeMs: stats.oldestPendingAgeMs,
+      oldestIncompleteAgeMs: stats.oldestIncompleteAgeMs, highWaterItems: stats.highWaterItems, highWaterBytes: stats.highWaterBytes,
+      limitViolations: stats.limitViolations, accepted: stats.accepted });
+  }
+
   function tick(): void {
     if (stopping != null) return;
     const now = clock();
+    observeMailbox("tick", performance.now(), now.monotonicMs);
     // P3-C2-LIVENESS: one comparison per tick cuts a half-open TCP; the close path reports the loss and reconnects.
     const current = socket;
     if (current?.readyState === WebSocket.OPEN && now.monotonicMs - lastFrameAt >= LIVENESS_MS) {

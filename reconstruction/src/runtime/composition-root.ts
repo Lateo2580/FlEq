@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { performance } from "node:perf_hooks";
 
-import type { CheckpointMeasurement } from "../../contracts/p2-eew-e01.types";
+import type { CheckpointMeasurement, P2HostObservation } from "../../contracts/p2-eew-e01.types";
 import type {
   ClockReading,
   DiagnosticEvent,
@@ -29,7 +29,9 @@ import type {
 } from "../../contracts/p2-shared-runtime.types";
 import type { ParserDiagnostic } from "../../contracts/p1-parser-boundary.types";
 import type { UnitModule, UnitTable } from "../../contracts/p3-unit-table.types";
-import type { ExecutionPlace, OwnerOutput, OwnerReply, OwnerRequest, ParserEnvelope } from "../../contracts/p3-execution-split.types";
+import type {
+  ExecutionPlace, OwnerOutput, OwnerReply, OwnerRequest, OwnerUnitDelta, ParserEnvelope, WriteCounts,
+} from "../../contracts/p3-execution-split.types";
 import type {
   NotificationAbortRequest, NotificationAttempt, NotificationChannel, NotificationChannelState, NotificationDeliveryState,
   NotificationDeliveryStep, NotificationSelection,
@@ -40,7 +42,7 @@ import type {
 import { validateAppConfig } from "../app-config/app-config";
 import type { AppConfig } from "../app-config/app-config";
 import { CheckpointWriter } from "../checkpoint/checkpoint";
-import type { CheckpointFileSystem, CodecMap } from "../checkpoint/checkpoint";
+import type { CheckpointFileSystem, CheckpointGrant, CodecMap } from "../checkpoint/checkpoint";
 import { PersistentDiagnosticSink, projectParserDiagnostic } from "../checkpoint/persistent-diagnostic-sink";
 import type { DiagnosticFileSystem } from "../checkpoint/persistent-diagnostic-sink";
 import { Mailbox } from "../mailbox/mailbox";
@@ -56,7 +58,7 @@ import {
   applyDeltas, confirmOutput, initialConfirmation, isEmptyOutput, lostConfirmation, observeStage, requestShutdown,
   validateProbe, verifyCoverage,
 } from "./shared-runtime";
-import type { MirrorUnit, PublisherState } from "./shared-runtime";
+import type { MirrorUnit, PublisherState, RuntimeMirror } from "./shared-runtime";
 import { executionPlaces, placeOfHeadType, runtimeUnits } from "./unit-coverage";
 
 // A3 wiring of delivered units (A4 U-E, A5 U-W, A6 U-F). Notification (A7) links here on delivery.
@@ -109,6 +111,8 @@ type CompositionOptions = Readonly<{
   onMeasurements?: (measurements: readonly CheckpointMeasurement[]) => void;
   // Each parser input once its owner answered and the mailbox settled it (the host's T2/decode/processing records).
   onInputDone?: (reply: InputDone) => void;
+  // P3-C4-AC04（E14・E15）の観測。測定の時（host の config.observe があるとき）だけ渡し、無ければ時刻取得・包み・記録を作らない。
+  measure?: (observation: Extract<P2HostObservation, { kind: "checkpointGrant" | "writeCount" }>) => void;
   // P2-A3-A8-LINK: without it snapshots are still projected (state kept) but not published.
   display?: Readonly<{
     publish: (snapshot: DisplaySnapshot) => void;
@@ -157,6 +161,16 @@ const ownerMonitor = (): OwnerMonitor => ({
   lastReplyAt: null, judged: "healthy", stalledReported: false, unresponsiveReported: false, stopped: false,
   removed: { pending: 0, inFlight: 0 }, refused: null,
 });
+
+// P3-C4-AC04 の測定だけが持つ記録。unsaved は unit ごとの未保存の世代の塊を [最新の世代, publisher が反映した時刻] で古い順に
+// 持ち、保存済みの世代を超えたものだけを残す。grants は送った書込み権で、返信を受けたら消す（停止の終わりに残れば未返信）。
+type Measuring = Readonly<{
+  observe: NonNullable<CompositionOptions["measure"]>;
+  unsaved: Record<RuntimeUnitId, [generation: number, reflectedMs: number][]>;
+  grants: Map<string, Readonly<{ place: ExecutionPlace; sentMs: number; dirtyMs: number | null }>>;
+  owners: Partial<Record<ExecutionPlace, WriteCounts>>;
+  publisher: WriteCounters;
+}>;
 
 const intentKey = (intent: Pick<NotificationIntent, "unit" | "id">) => JSON.stringify([intent.unit, intent.id]);
 const sameIntent = (left: NotificationIntent, right: Pick<NotificationIntent, "id" | "unit" | "operation" | "subject" | "channel">) =>
@@ -264,6 +278,36 @@ function nodeDiagnosticFileSystem(): DiagnosticFileSystem {
   };
 }
 
+// P3-C4-WRITE-COUNT（RES-05）: 区分ごとの固定 counter。write ごとの履歴は持たない。
+type WriteCounters = { [K in keyof WriteCounts]: { count: number; bytes: number } };
+function writeCounters(): WriteCounters {
+  return { checkpoint: { count: 0, bytes: 0 }, tmp: { count: 0, bytes: 0 }, diagnosticLog: { count: 0, bytes: 0 }, other: { count: 0, bytes: 0 } };
+}
+function countWrite(counters: WriteCounters, category: keyof WriteCounts, bytes: number): void {
+  counters[category].count += 1;
+  counters[category].bytes += bytes;
+}
+
+// 呼んだ時点で数える（失敗した write も、write 段の CheckpointMeasurement と同じく試みた byte で数える）。保存は一時 file に
+// 書いて slot へ rename するので、一時 file 以外への write は checkpoint の直接の write。
+function countedCheckpointFileSystem(fileSystem: CheckpointFileSystem, counters: WriteCounters): CheckpointFileSystem {
+  return { ...fileSystem, async open(path) {
+    const handle = await fileSystem.open(path);
+    const category = path.endsWith(".tmp") ? "tmp" : "checkpoint";
+    return { ...handle, write(data) { countWrite(counters, category, data.byteLength); return handle.write(data); } };
+  } };
+}
+
+// 診断 sink の write: 追記は診断 log、置き換え（終了要約の一時 file）は tmp。
+function countedDiagnosticFileSystem(fileSystem: DiagnosticFileSystem, counters: WriteCounters): DiagnosticFileSystem {
+  return { ...fileSystem,
+    appendFile(path, data) { countWrite(counters, "diagnosticLog", Buffer.byteLength(data)); return fileSystem.appendFile(path, data); },
+    writeFile(path, data) {
+      countWrite(counters, path.endsWith(".tmp") ? "tmp" : "other", Buffer.byteLength(data));
+      return fileSystem.writeFile(path, data);
+    } };
+}
+
 async function within(work: (active: () => boolean) => Promise<void>, deadline: number,
   clock: () => ClockReading): Promise<ShutdownStageResult> {
   const milliseconds = deadline - clock().monotonicMs;
@@ -344,6 +388,7 @@ class RuntimeCompositionRoot {
   private projection: SnapshotProjectionState | null = null;
   private noticeTimer: NodeJS.Timeout | null = null;
   private lastDiagnosticTick = -Infinity;
+  private readonly measuring: Measuring | null;
 
   constructor(configInput: AppConfig, codecs: CodecMap<RuntimeUnitStates>, options: CompositionOptions) {
     const config = validateAppConfig(configInput);
@@ -359,8 +404,11 @@ class RuntimeCompositionRoot {
     this.mailbox = options.mailbox ?? new Mailbox();
     this.mailboxCompleted = this.mailbox.stats(0).completed;
     this.display = options.display;
-    this.diagnostics = new PersistentDiagnosticSink(config.diagnosticDirectory,
-      options.diagnosticFileSystem ?? nodeDiagnosticFileSystem(), () => this.clock().wallTimeMs,
+    this.measuring = options.measure == null ? null : { observe: options.measure, unsaved: { "U-E": [], "U-W": [], "U-F": [] },
+      grants: new Map(), owners: {}, publisher: writeCounters() };
+    const diagnosticFileSystem = options.diagnosticFileSystem ?? nodeDiagnosticFileSystem();
+    this.diagnostics = new PersistentDiagnosticSink(config.diagnosticDirectory, this.measuring == null ? diagnosticFileSystem
+      : countedDiagnosticFileSystem(diagnosticFileSystem, this.measuring.publisher), () => this.clock().wallTimeMs,
       options.reportFailure ?? ((event) => { process.stderr.write(`${JSON.stringify(event)}\n`); }));
     this.checkpoint = new CheckpointWriter((unit) => codecs[unit] != null, (event) => { this.diagnostics.enqueueDiagnostic(event); });
   }
@@ -457,6 +505,10 @@ class RuntimeCompositionRoot {
       restoration[unit.unit] = unit.restoration;
     }
     if (runtimeUnits.some((unit) => mirror[unit] == null || restoration[unit] == null)) throw new Error("an owner did not restore every unit");
+    if (this.measuring != null) for (const unit of runtimeUnits) {
+      const { currentGeneration, savedGeneration } = mirror[unit]!.persistence;
+      if (currentGeneration > (savedGeneration ?? 0)) this.measuring.unsaved[unit].push([currentGeneration, performance.now()]);
+    }
     let state: PublisherState = {
       runId, mirror: { "U-E": mirror["U-E"]!, "U-W": mirror["U-W"]!, "U-F": mirror["U-F"]! },
       restoration: { "U-E": restoration["U-E"]!, "U-W": restoration["U-W"]!, "U-F": restoration["U-F"]! },
@@ -682,6 +734,7 @@ class RuntimeCompositionRoot {
   private absorb(place: ExecutionPlace, output: OwnerOutput, evidenceSequence: number | null, clock: ClockReading): boolean {
     if (this.late(place) || isEmptyOutput(output)) return false;
     const state = this.state;
+    if (this.measuring != null) reflectUnsaved(this.measuring, state.mirror, output.units);
     this.current = { ...state, mirror: applyDeltas(state.mirror, output.units),
       confirmation: confirmOutput(state.confirmation, this.units, output, clock, evidenceSequence) };
     output.diagnostics.forEach((event) => this.enqueueDiagnostic(event));
@@ -1163,12 +1216,43 @@ class RuntimeCompositionRoot {
     const grant = this.checkpoint.next(this.persistence(), this.clock(), state.runId,
       { excluded: new Set(runtimeUnits.filter((unit) => this.stoppedUnit(unit))) });
     if (grant == null) return Promise.resolve();
-    this.post(executionPlaces[grant.unit], { kind: "checkpointGrant", grantId: grant.grantId, unit: grant.unit,
-      mode: grant.mode, retryReason: grant.retryReason });
+    this.postGrant(grant);
     return this.until(() => this.checkpoint.grant?.grantId !== grant.grantId);
   }
 
+  private postGrant(grant: CheckpointGrant): void {
+    this.post(executionPlaces[grant.unit], { kind: "checkpointGrant", grantId: grant.grantId, unit: grant.unit,
+      mode: grant.mode, retryReason: grant.retryReason });
+    this.measuring?.grants.set(grant.grantId, { place: executionPlaces[grant.unit], sentMs: performance.now(),
+      dirtyMs: this.measuring.unsaved[grant.unit][0]?.[1] ?? null });
+  }
+
+  // E14（P3-C4-AC04(2)）: 返信を受けた時点で権 1 回の区間を 1 行出す。返信が来た owner の counter はその返信の値に替える。
+  private measureGrant(measuring: Measuring, place: ExecutionPlace, reply: Extract<OwnerReply, { kind: "checkpointDone" }>): void {
+    const receivedMs = performance.now();
+    const sent = measuring.grants.get(reply.grantId);
+    measuring.grants.delete(reply.grantId);
+    if (reply.writeCounts != null) measuring.owners[place] = reply.writeCounts;
+    if (sent == null || reply.grantStartedMs == null) return;
+    measuring.observe({ kind: "checkpointGrant", runId: this.state.runId, grantId: reply.grantId, unit: reply.unit,
+      attemptIds: [...new Set(reply.measurements.map((measurement) => measurement.attemptId))], dirtyObservedMonotonicMs: sent.dirtyMs,
+      grantSentMonotonicMs: sent.sentMs, ownerStartedMonotonicMs: reply.grantStartedMs, doneReceivedMonotonicMs: receivedMs });
+  }
+
+  // P3-C4-WRITE-COUNT: 停止の終わりに thread ごとの累積を 1 回だけ出す。owner は、送った権の返信が全部来て、最終保存の段が期限で
+  // 打ち切られず、終了の段で exit を確かめた（worker close が完了した）ときだけ confirmed。停止済みの owner は confirmed にしない
+  // （最後の write が counter にも測定記録にも出ていないことがある）。権を一度も受けていない owner の counter は 0。
+  private observeWriteCounts(measuring: Measuring, finalSaveCut: boolean, ownersClosed: boolean): void {
+    const runId = this.state.runId;
+    const unanswered = new Set([...measuring.grants.values()].map((grant) => grant.place));
+    for (const place of places) measuring.observe({ kind: "writeCount", runId, thread: place,
+      confirmed: ownersClosed && !finalSaveCut && !this.monitors[place].stopped && !unanswered.has(place),
+      counts: measuring.owners[place] ?? writeCounters() });
+    measuring.observe({ kind: "writeCount", runId, thread: "publisher", confirmed: ownersClosed, counts: structuredClone(measuring.publisher) });
+  }
+
   private checkpointDone(place: ExecutionPlace, reply: Extract<OwnerReply, { kind: "checkpointDone" }>): void {
+    if (this.measuring != null) this.measureGrant(this.measuring, place, reply);
     const clock = this.clock();
     const previous = this.state.mirror[reply.unit].persistence;
     if (!this.checkpoint.done(reply.grantId, reply.unit, reply.result, reply.measurements, previous, clock)) return;
@@ -1199,8 +1283,7 @@ class RuntimeCompositionRoot {
         { force: true, reconcile: false, excluded: attempted });
       if (grant == null) return false;
       attempted.add(grant.unit);
-      this.post(executionPlaces[grant.unit], { kind: "checkpointGrant", grantId: grant.grantId, unit: grant.unit,
-        mode: grant.mode, retryReason: grant.retryReason });
+      this.postGrant(grant);
     }
     return false;
   }
@@ -1291,6 +1374,7 @@ class RuntimeCompositionRoot {
       let notificationAttempts = 0;
       let workers = 1;
       let summarySaved = false;
+      let finalSaveCut = false;
       let summary: ShutdownSummary | null = null;
       while (effects.length !== 0) {
         const effect: RuntimeEffect = effects[0];
@@ -1335,6 +1419,7 @@ class RuntimeCompositionRoot {
           }
         }, effect.deadlineMonotonicMs, this.clock);
         if (Object.hasOwn(failure, "error")) throw failure.error;
+        if (effect.kind === "startFinalCheckpoints" && result.kind === "deadlineExceeded") finalSaveCut = true;
         if (effect.kind === "finalizeNotificationDelivery") {
           notificationAttempts = channelNames.filter((channel) =>
             this.notificationOperations[channel] != null || this.state.notificationChannels[channel].kind === "isolated").length;
@@ -1385,6 +1470,7 @@ class RuntimeCompositionRoot {
         if (persisted.kind !== "completed")
           throw new Error("final shutdown summary could not be persisted");
       }
+      if (this.measuring != null) this.observeWriteCounts(this.measuring, finalSaveCut, workers === 0);
       return summary;
     } finally { this.onNotificationDispatchFailure = null; }
   }
@@ -1396,5 +1482,16 @@ class RuntimeCompositionRoot {
   }
 }
 
-export { RuntimeCompositionRoot, linkedRuntimeCalls, linkedUnitCodecs, linkedUnitTable, nodeCheckpointFileSystem, nodeDiagnosticFileSystem, sharedClock, snapshotInput };
-export type { CompositionOptions, NotificationCalls, ProjectedStep, PublisherInput, ShutdownHooks };
+// E14 の起点: 世代が上がったら [新しい世代, 今] を足し、保存済みになった塊を前から外す（測定の時だけ、返信 1 件で差分の unit 数ぶん）。
+function reflectUnsaved(measuring: Measuring, mirror: RuntimeMirror, deltas: readonly OwnerUnitDelta[]): void {
+  const at = performance.now();
+  for (const { unit, persistence } of deltas) {
+    const chunks = measuring.unsaved[unit];
+    if (persistence.currentGeneration > mirror[unit].persistence.currentGeneration) chunks.push([persistence.currentGeneration, at]);
+    while (chunks.length !== 0 && chunks[0][0] <= (persistence.savedGeneration ?? 0)) chunks.shift();
+  }
+}
+
+export { RuntimeCompositionRoot, countedCheckpointFileSystem, linkedRuntimeCalls, linkedUnitCodecs, linkedUnitTable, nodeCheckpointFileSystem,
+  nodeDiagnosticFileSystem, sharedClock, snapshotInput, writeCounters };
+export type { CompositionOptions, NotificationCalls, ProjectedStep, PublisherInput, ShutdownHooks, WriteCounters };

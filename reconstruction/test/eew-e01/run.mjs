@@ -8,7 +8,9 @@
 // --preliminary: A10 の凍結物を継承した案（draft.mjs の buildP3Manifest）で各母集団 1 run を走らせ、結果の status は必ず「未確認」。
 //   --warmup <n>（20）・--samples <n>（100）・--max-attempts <n>・--max-minutes <n>・--only <母集団,...>・--collision-verdict A|B・--runs-root <dir>
 //   --deadline-alternative: 母集団 5 の対象を Q-C4-ALT-CONDITION の候補（期限回収で起きた U-F 保存の encode 開始〜write 完了）にして成立率を見る
-//   --aux <id,...|all>: E01 の代わりに周辺の窓を件数を絞って回す（--e02-count/--e03-count/--ac15-count/--e12-count/--e06-cycles、各 1 run）。
+//   --save-lead-ms <n>（600）・--deadline-lead-ms <n>（2400）: 保存・期限回収の母集団で引き金を予測 tick より何 ms 前に送るか（AC09。Pi で成立する値を
+//     予備で求めて渡す。使った値は run-record の spec.leadMs に残る。負荷と periodMs は変えない）
+//   --aux <id,...|all>: E01 の代わりに周辺の窓を件数を絞って回す（--e02-count/--e03-count/--ac15-count/--e12-count/--e06-cycles/--e07-minutes、各 1 run）。
 //   記録と結果は evidence-scratch（repo の外）に書く。
 //   --backend-only（Pi 第 1 段、AC03(6)・AC09）: Chrome を起動せず、SSE の client 1 本で、試行の完了を自分の版の T4 の観測（10 秒で欠落）にする。
 //     記録は T0〜T4 と保存・資源（run-record の backendTrials）。予定時刻どおりの投入は既存の replayPump。Pi では --node <Node 22 の path> を渡す。
@@ -101,12 +103,17 @@ export async function startInjector(scope, { pingEveryMs = 20_000 } = {}) {
   const waiters = [];
   const meter = frameGapMeter();
   const places = new Map(); // input-<n> → 実行場所（headType を渡された投入だけ）
-  const ping = setInterval(() => {
-    if (socket == null || socket.readyState !== 1) return;
+  // 送った ping の種類の列（P3-C4-AC07(2)①: host の mailbox の ping の行と受信順で 1 対 1 に対応させ、boundary の行を周期末にする）。
+  const pingKinds = [];
+  const sendPing = (kind) => {
+    if (socket == null || socket.readyState !== 1) return false;
     pingSeq += 1;
     socket.send(JSON.stringify({ type: "ping", pingId: `runner-${pingSeq}` }));
     meter.sent("ping");
-  }, pingEveryMs);
+    pingKinds.push(kind);
+    return true;
+  };
+  const ping = setInterval(() => sendPing("periodic"), pingEveryMs);
   // 通し番号は host の input-<n> と 1 本の connection の上でだけ一致する。2 本目・切断が起きたら run を中止する（試行ループの先頭で見る）。
   server.on("connection", (ws) => {
     if (socket != null) { injector.broken ??= "結合不能: 投入側に 2 本目の connection が来た（通し番号と host の input-<n> がずれる）"; return; }
@@ -130,6 +137,9 @@ export async function startInjector(scope, { pingEveryMs = 20_000 } = {}) {
     },
     url: `ws://127.0.0.1:${server.address().port}/`,
     meter,
+    pingKinds,
+    // 周期の境界（"boundary"）や入力停止後の排出の幅を狭める（"drain"）ための ping。送れなければ false。
+    ping: sendPing,
     placeOf: (inputId) => places.get(inputId) ?? null,
     connected: () => socket != null && socket.readyState === 1 ? Promise.resolve() : new Promise((f) => waiters.push(f)),
     sendStart: () => { if (socket == null) return; socket.send(JSON.stringify({ type: "start", socketId: 1, classifications: ["eew.forecast"] })); meter.sent("start"); },
@@ -462,13 +472,15 @@ async function measureRun(spec, ctx, label, dir, status) {
       if (population === "maxVpws50ParseStarted") await spinUntil(t.injectedHrMs + spec.targetOffsetMs);
       sent = injector.send(frame, "VXSE43");
     } else {
-      // 次の tick の checkpoint encode 開始を予測し、その 1ms 後に EEW を投入する。tick の 1.5 秒以上先を狙って引き金を先に打つ。
-      // 期限回収は狙う tick の 1 つ前の tick で起きる（下の validUntil）ので、引き金は 2.4 秒前に送り、tick は 2.5 秒以上先を狙う。
+      // 次の tick の checkpoint encode 開始を予測し、その 1ms 後に EEW を投入する。引き金は狙う tick の lead 前に送る（既定は Mac の所要に
+      // 合わせた保存 600ms・期限回収 2,400ms。Pi では予備で成立する値を --save-lead-ms・--deadline-lead-ms で渡す、AC09）。
+      // 期限回収は狙う tick の 1 つ前の tick で起きる（下の validUntil）。狙う tick は lead より保存で 900ms・期限回収で 100ms 以上先
+      // （既定で 1.5 秒・2.5 秒先）にし、引き金を過去に送らない。
       const deadlineTrigger = population === "forecastDeadlineOverlap";
-      const tick = predictTick(host, hrMs(), deadlineTrigger ? 2500 : 1500);
+      const lead = deadlineTrigger ? spec.leadMs.deadline : spec.leadMs.save;
+      const tick = predictTick(host, hrMs(), lead + (deadlineTrigger ? 100 : 900));
       if (tick == null) { sent = injector.send(frame, "VXSE43"); base.noTickModel = true; }
       else {
-        const lead = deadlineTrigger ? 2400 : 600;
         await spinUntil(tick.hrMs - lead);
         let frameText;
         let headType;
@@ -898,7 +910,7 @@ function frozenInputs(manifest, trialSetup, initialStateText) {
 }
 
 // 予備測定だけのオプション。--manifest と併用すると記録先（evidence-scratch）や条件が変わり、正式窓の再実行制限を迂回できるので拒否する。
-const PRELIMINARY_ONLY = /^(period|only|aux|formal-.+|ref-.+|room-.+|.+-count|e06-cycles|warmup|samples|max-attempts|max-minutes|backend-only|node|runs-root|collision-verdict|establishment-rate|deadline-alternative)$/;
+const PRELIMINARY_ONLY = /^(period|only|aux|formal-.+|ref-.+|room-.+|.+-count|e06-cycles|e07-minutes|warmup|samples|max-attempts|max-minutes|backend-only|node|runs-root|collision-verdict|establishment-rate|deadline-alternative|save-lead-ms|deadline-lead-ms)$/;
 
 // 引数を読み、組み合わせの誤りをここで拒否する（子を起動する前）。
 export function parseArgs(argv) {
@@ -979,7 +991,8 @@ async function main(argv) {
   const specOf = (population, run, warmup, count, stop) => {
     const c = manifest.populations[population];
     return { population, run, warmup, count, periodMs: c.periodMs, targetOffsetMs: c.establishment.kind === "startOffset" ? c.establishment.targetOffsetMs : 0,
-      establishment: c.establishment, forecast: c.forecast, stop, load: c.load, stateKey: /#populations\.(.+)$/.exec(c.stateRef)[1] };
+      establishment: c.establishment, forecast: c.forecast, stop, load: c.load, stateKey: /#populations\.(.+)$/.exec(c.stateRef)[1],
+      leadMs: { save: num("save-lead-ms", 600), deadline: num("deadline-lead-ms", 2400) } };
   };
   const plan = { warmup: num("warmup", 20), samples: num("samples", 100) };
   const specs = Object.keys(manifest.populations).flatMap((population) => {
@@ -995,6 +1008,7 @@ async function main(argv) {
     if (!(Number.isFinite(s.periodMs) && s.periodMs > 0)) throw new Error(`${s.population} run${s.run}: periodMs must be finite and > 0 (got ${s.periodMs})`);
     if (!(Number.isFinite(s.targetOffsetMs) && s.targetOffsetMs >= 0)) throw new Error(`${s.population} run${s.run}: targetOffsetMs must be finite and >= 0 (got ${s.targetOffsetMs})`);
     if (!(Number.isInteger(s.stop.maxAttempts) && s.stop.maxAttempts > 0 && s.stop.maxDurationMs > 0)) throw new Error(`${s.population} run${s.run}: stopCondition must be positive`);
+    if (!Object.values(s.leadMs).every((v) => Number.isFinite(v) && v > 0)) throw new Error(`${s.population} run${s.run}: lead must be finite and > 0 (got ${JSON.stringify(s.leadMs)})`);
   }
   const outDir = join(args.has("runs-root") ? String(args.get("runs-root")) : RUNS_ROOT, manifest.manifestId);
   mkdirSync(outDir, { recursive: true });
@@ -1012,7 +1026,8 @@ async function main(argv) {
     load: manifest.loads[spec.load] });
   const planned = specs.filter((s) => only == null || only.includes(s.population));
   // 周辺の窓（windows.mjs）。予備の --aux は件数を絞り、各 1 run。
-  const counts = aux == null ? {} : { e02: num("e02-count", 60), e03: num("e03-count", 20), ac15: num("ac15-count", 5), e12: num("e12-count", 5), e06Cycles: num("e06-cycles", 2) };
+  const counts = aux == null ? {} : { e02: num("e02-count", 60), e03: num("e03-count", 20), ac15: num("ac15-count", 5), e12: num("e12-count", 5), e06Cycles: num("e06-cycles", 2),
+    e07Minutes: num("e07-minutes", 3) };
   const auxList = auxWindows({ manifest, initialState, nodePath, notification, preliminary, wallOriginMs: frozen.wallOriginMs, startHost, tailer, counts, runs: aux == null ? null : 1 });
   if (!preliminary || aux != null) {
     // 本番: 窓を順に回す 1 本のループ。窓の並びは配列 1 つ（E01 の後に周辺の窓）。予備の --aux は周辺の窓だけ。

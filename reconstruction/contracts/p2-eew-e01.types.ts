@@ -1,6 +1,7 @@
 import type { Operation, ProcessingMarks } from "./p1-parser-boundary.types";
 import type { SaveFailureStage, UnitId } from "./p2-shared-runtime.types";
 import type { DisplayVersion, DisplayWorkerView } from "./p2-snapshot-sse.types";
+import type { ExecutionPlace, WriteCounts } from "./p3-execution-split.types";
 
 export type VerificationStatus = "Pass" | "Fail" | "Blocked" | "N/A" | "未確認";
 // P2限定E01（R61）: 正式対象は fixedBacklog だけ。参考測定は単一スレッドで §7.5 の重畳 T0 が成立しない条件で、合否に使わない。
@@ -103,12 +104,28 @@ export type EewInjectionRecord = Readonly<{
 export type P2HostObservation =
   | Readonly<{ kind: "marker"; point: "T0" | "T1" | "T2"; runId: string; inputId: string; monotonicMs: number }>
   | Readonly<{ kind: "marker"; point: "T3" | "T4"; runId: string; displayVersion: DisplayVersion; monotonicMs: number }>
-  | Readonly<{ kind: "decode"; runId: string; inputId: string; startedMonotonicMs: number; endedMonotonicMs: number }>
+  // P3-C4-PARSE-MARK: full parse は最初の全文走査の開始から parse tree の完成まで（印が無いと null）。
+  | Readonly<{ kind: "decode"; runId: string; inputId: string; startedMonotonicMs: number; endedMonotonicMs: number;
+      xmlParseStartedMonotonicMs: number | null; xmlParseEndedMonotonicMs: number | null }>
   | Readonly<{ kind: "publishSerialization"; displayVersion: DisplayVersion; bytes: number; durationMs: number }>
   | Readonly<{ kind: "processing"; measurement: ProcessingMeasurement }>
   | Readonly<{ kind: "checkpoint"; measurement: CheckpointMeasurement }>
   // P3-C2-START-RECORD: control frame receipt for the live dmdata evidence. errorClose is an error frame's boolean close, else null.
-  | Readonly<{ kind: "controlFrame"; frameType: "start" | "ping" | "error"; monotonicMs: number; errorClose: boolean | null }>;
+  | Readonly<{ kind: "controlFrame"; frameType: "start" | "ping" | "error"; monotonicMs: number; errorClose: boolean | null }>
+  // P3-C4-AC04(2)、E14: 書込み権 1 回に 1 行。dirtyObserved は権の送出の時点で未保存の最古の世代を publisher が最初に反映した
+  // 時刻（未保存の世代が無い照合では null）。attemptIds は同じ返信の CheckpointMeasurement のもの。
+  | Readonly<{ kind: "checkpointGrant"; runId: string; grantId: string; unit: UnitId; attemptIds: readonly string[];
+      dirtyObservedMonotonicMs: number | null; grantSentMonotonicMs: number; ownerStartedMonotonicMs: number;
+      doneReceivedMonotonicMs: number }>
+  // P3-C4-WRITE-COUNT、E15: 停止時に thread ごとに 1 行。confirmed が false なら counts と測定記録の両方から write が欠けうるので、
+  // その窓の E15 は未確認。
+  | Readonly<{ kind: "writeCount"; runId: string; thread: ExecutionPlace | "publisher"; confirmed: boolean; counts: WriteCounts }>
+  // P3-C4-E07-SOURCE（B）、E07: host の tick ごとと投入側の ping の受信ごとの入力 mailbox。accepted は mailbox が受理した累計で、
+  // その行がどの frame までを含むかを示す。
+  | Readonly<{ kind: "mailbox"; runId: string; monotonicMs: number; trigger: "tick" | "ping"; pendingItems: number;
+      pendingBytes: number; inFlightItems: number; inFlightBytes: number; oldestPendingAgeMs: number | null;
+      oldestIncompleteAgeMs: number | null; highWaterItems: number; highWaterBytes: number; limitViolations: number;
+      accepted: number }>;
 
 export type ReplayLoad = Readonly<{
   id: LoadProfileId;

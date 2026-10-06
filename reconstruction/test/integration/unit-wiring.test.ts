@@ -153,7 +153,7 @@ describe("P2 unit wiring (A1 route, A3 composition root)", () => {
     const at = { wallTimeMs: 1_800_000_000_000, monotonicMs: 1 };
     const settings = await config();
     const replies: OwnerReply[] = [];
-    const owner = new OwnerHost({ start: { place: "weatherCurrent", stateDirectory: settings.stateDirectory, publisherTimeOriginMs: 0 },
+    const owner = new OwnerHost({ start: { place: "weatherCurrent", stateDirectory: settings.stateDirectory, publisherTimeOriginMs: 0, measured: false },
       units: calls.units, codecs: linkedUnitCodecs, fileSystem: nodeCheckpointFileSystem(), sharedNow: () => 1,
       reply: (reply) => { replies.push(reply); }, fail: (error) => { throw error; } });
     owner.handle({ kind: "restore", runId: "run", clock: at, sharedMs: 1 });
