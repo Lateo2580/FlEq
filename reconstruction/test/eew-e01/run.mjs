@@ -93,7 +93,8 @@ export function livenessBlocked(meters, maxFrameGapMs) {
 // ── 独立投入側: host と別プロセスのローカル WS server ──
 // pingEveryMs ごとに dmdata 形式の ping frame を送る（host は既存の pong 返送のまま。ping は host の input-<n> を消費しない、host.ts の onFrame）。
 // send(frame, headType) の headType は版の窓の実行場所（placeOfHeadType）を引くために投入記録へ残す。
-export async function startInjector(scope, { pingEveryMs = 20_000 } = {}) {
+// now は frame 間隔の時計（既定は hrtime。試験は偽の時計を渡して実時間に頼らずに間隔を確かめる）。
+export async function startInjector(scope, { pingEveryMs = 20_000, now = hrMs } = {}) {
   const server = new WebSocketServer({ port: 0, host: "127.0.0.1" });
   await new Promise((done) => server.once("listening", done));
   let socket = null;
@@ -101,7 +102,7 @@ export async function startInjector(scope, { pingEveryMs = 20_000 } = {}) {
   let closing = false;
   let pingSeq = 0;
   const waiters = [];
-  const meter = frameGapMeter();
+  const meter = frameGapMeter(now);
   const places = new Map(); // input-<n> → 実行場所（headType を渡された投入だけ）
   // 送った ping の種類の列（P3-C4-AC07(2)①: host の mailbox の ping の行と受信順で 1 対 1 に対応させ、boundary の行を周期末にする）。
   const pingKinds = [];

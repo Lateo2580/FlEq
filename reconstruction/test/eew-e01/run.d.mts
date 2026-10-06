@@ -31,7 +31,7 @@ export function buildA10Result(input: { manifest: { manifestId: string; manifest
 export type FrameGapMeter = { pings: number; frames: number; maxFrameGapMs: number; sent(kind: "data" | "ping" | "start"): void; close(): void };
 export function frameGapMeter(now?: () => number): FrameGapMeter;
 export function livenessBlocked(meters: readonly { maxFrameGapMs: number }[] | undefined, maxFrameGapMs: number): string | null;
-export function startInjector(scope: { add(fn: () => unknown): void }, options?: { pingEveryMs?: number }): Promise<{
+export function startInjector(scope: { add(fn: () => unknown): void }, options?: { pingEveryMs?: number; now?: () => number }): Promise<{
   url: string; meter: FrameGapMeter; broken: string | null; placeOf(inputId: string): string | null;
   pingKinds: string[]; ping(kind: "periodic" | "boundary" | "drain"): boolean; stopPings(): void;
   connected(): Promise<void>; sendStart(): void; send(frame: string, headType?: string | null): { seq: number | null; injectedHrMs: number | null };

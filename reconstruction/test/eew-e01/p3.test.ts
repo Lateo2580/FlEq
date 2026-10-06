@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import type { CheckpointMeasurement, EewTraceSample } from "../../contracts/p2-eew-e01.types";
 import type { P3E01Manifest, P3EewInjectionRecord, P3EewPopulation, P3EewTraceSample } from "../../contracts/p3-e01-reaccept.types";
@@ -125,23 +125,30 @@ describe("P3-C4-T02 version binding per execution place in observation row order
 });
 
 describe("P3-C4-T04 injector liveness (Q-C2-RUNNER-LIVENESS, injector side only)", () => {
+  // 周期の timer と間隔の時計は偽にし（実時間に頼らない）、WS の配送だけは実物で、送った ping が全部届くのを待ってから閉じる。
+  // 閉じた直後に数えると、最後の ping が terminate で落ちるか未配送で、送出と受信の数が 1 ずれることがあった。
   it("the injector sends ping frames at its interval while data is idle, and its record carries the ping count and the largest frame gap", async () => {
+    vi.useFakeTimers({ toFake: ["setInterval", "clearInterval", "Date"] });
     const cleanups: (() => unknown)[] = [];
-    const injector = await startInjector({ add: (fn) => { cleanups.push(fn); } }, { pingEveryMs: 40 });
-    const { default: WebSocket } = await import("ws");
-    const client = new WebSocket(injector.url);
-    const pings: unknown[] = [];
-    client.on("message", (raw) => pings.push(JSON.parse(String(raw))));
+    const client: { terminate(): void }[] = [];
     try {
+      const injector = await startInjector({ add: (fn) => { cleanups.push(fn); } }, { pingEveryMs: 20_000, now: () => Date.now() });
+      const { default: WebSocket } = await import("ws");
+      const socket = new WebSocket(injector.url);
+      client.push(socket);
+      let received = 0;
+      socket.on("message", (raw) => { if (JSON.parse(String(raw)).type === "ping") received += 1; });
       await injector.connected();
       injector.sendStart();
-      await new Promise((done) => setTimeout(done, 300));
+      // data の空き 140 秒（host の生存期限 90 秒より長い）の間、20 秒ごとに ping が出る。
+      vi.advanceTimersByTime(140_000);
+      injector.stopPings();
+      while (received < injector.meter.pings) await new Promise((done) => setImmediate(done));
       await injector.close();
-      expect(pings.filter((p) => (p as { type: string }).type === "ping").length).toBe(injector.meter.pings);
-      expect(injector.meter.pings).toBeGreaterThanOrEqual(4);
-      expect(injector.meter.maxFrameGapMs).toBeLessThan(40 * 3);
+      expect([injector.meter.pings, received, injector.meter.maxFrameGapMs]).toEqual([7, 7, 20_000]);
     } finally {
-      client.terminate();
+      vi.useRealTimers();
+      for (const socket of client) socket.terminate();
       for (const fn of cleanups) await fn();
     }
   });
