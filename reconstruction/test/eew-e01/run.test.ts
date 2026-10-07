@@ -1,11 +1,11 @@
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 import { describe, expect, it } from "vitest";
 
 import { readSelfHashed } from "../../src/measurement/eew-e01/frozen";
-import { buildA10Result, distRebuildProblem, hashRaw, machineProblems, parseArgs, resumeProblems, signalStopper, trialConditionDeviation, trialWatchAtEnd } from "./run.mjs";
+import { buildA10Result, deadlineTriggerOverlap, distRebuildProblem, hashRaw, machineProblems, parseArgs, resumeProblems, signalStopper, trialConditionDeviation, trialWatchAtEnd } from "./run.mjs";
 import type { WindowRecord } from "./run.mjs";
 import { H } from "./fixtures";
 
@@ -119,5 +119,12 @@ describe("P3-C4 resume and foreground checks", () => {
     const actual = { nodeVersion: "v22.23.3", chromeVersion: "154.0.8037.98", osVersion: "27.0.0 arm64", device: "Apple M2 x8, 8GiB" };
     expect(machineProblems(manifest, actual)).toEqual([]);
     expect(machineProblems(manifest, { ...actual, device: "Apple M5 x10, 32GiB" })).toEqual(["device is Apple M5 x10, 32GiB, the frozen manifest has Apple M2 x8, 8GiB"]);
+  });
+
+  // 実不具合（2026-10-07 の正式で母集団 5 が Blocked）: 背景の 81_01_04 と同じ subject の引き金は、背景の後すべて stale で捨てられた。
+  it("the forecastDeadlineOverlap trigger office is absent from the load of forecastDeadlineOverlap", () => {
+    const manifest = JSON.parse(readFileSync("reconstruction/test/eew-e01/evidence/p3/manifest.json", "utf8"));
+    expect(deadlineTriggerOverlap(manifest)).toBeNull();
+    expect(deadlineTriggerOverlap(manifest, "稚内地方気象台")).toMatch(/81_01_04_251222_VPWP50/);
   });
 });

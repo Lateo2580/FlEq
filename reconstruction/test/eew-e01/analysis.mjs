@@ -93,7 +93,7 @@ export function analyzeTrace(events) {
 export function buildHostIndex(lines) {
   // t2Order・t3 の row は観測の行番号（P3-C4-T3-BINDING の窓は行順で切る。owner 3 本の並行では単調時刻の順と一致しない）。
   const index = { meta: null, t0: new Map(), t1: new Map(), t2: new Map(), t2Order: [], decode: new Map(), processing: [], checkpoints: [], t3: [], t4: [],
-    publishes: [], clock: [], mem: [] };
+    publishes: [], clock: [], mem: [], raised: new Map() };
   for (const [row, line] of lines.entries()) {
     if (line.t === "meta") index.meta = line;
     else if (line.t === "clock") index.clock.push({ hrMs: Number(BigInt(line.hrtimeNs)) / 1e6, perfMs: line.perfNowMs });
@@ -110,6 +110,7 @@ export function buildHostIndex(lines) {
       else if (o.kind === "processing") index.processing.push(o.measurement);
       else if (o.kind === "checkpoint") index.checkpoints.push(o.measurement);
       else if (o.kind === "publishSerialization") index.publishes.push(o);
+      else if (o.kind === "generationRaised") index.raised.set(`${o.inputId}|${o.unit}`, o.generation);
     }
   }
   const offsets = index.clock.map((c) => c.perfMs - c.hrMs);

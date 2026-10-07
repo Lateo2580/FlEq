@@ -56,9 +56,9 @@ const contractTexts = () => {
   return byId;
 };
 
-// 使用契約: root の契約とその dependsOnContractIds（A10 は P2-EEW-E01-001、P3 は P3-E01-REACCEPT-001）。
-export function contractTextsFor(root = "P2-EEW-E01-001") {
-  const all = contractTexts();
+// 使用契約: root の契約とその dependsOnContractIds（A10 は P2-EEW-E01-001、P3 は P3-E01-REACCEPT-001）。all は契約 ID → text
+// （既定は今の tree。採用表の照合は測定 commit の text を渡す、adoption.mjs）。
+export function contractTextsFor(root = "P2-EEW-E01-001", all = contractTexts()) {
   const own = JSON.parse(all[root]).contract.dependsOnContractIds;
   return Object.fromEntries([root, ...own].map((id) => [id, all[id]]));
 }
@@ -259,7 +259,7 @@ const P3_TABLE = {
   maxForecastCheckpointSave: { spec: "§7.5-3(保存)", a10: "maxForecastCheckpointSave(reference)", r61: "除外4条件の3", state: "maxForecastCheckpointSave", periodMs: Q.refPeriodMs,
     how: "VPWP50 81_09_01 を引き金に予測した tick の U-F 保存（encode 開始〜最後の段の終わり）の開始 1ms 後に EEW を送る" },
   forecastDeadlineOverlap: { spec: "§7.5-3(期限処理)", a10: "forecastDeadlineOverlap(reference)", r61: "除外4条件の4", state: "forecastDeadlineOverlap", periodMs: Q.refPeriodMs,
-    how: "validUntil を狙う tick の 1 つ前の tick に VPWP50 81_01_04 を置き、狙う tick の期限回収で起きた U-F の保存の試行全体（encode 開始〜write 完了、span encodeThroughWrite）の開始 1ms 後に EEW を送り、T0 が開始の 0〜5ms 後かつ保存の試行中なら成立。代わりの条件として Q-C4-ALT-CONDITION で 2026-10-07 に固定（元の条件の U-F encode の開始は、期限処理の encode が約 0.3ms で T0 が encode 中に入らず、Mac mini の予備で成立 8.6%）" },
+    how: "validUntil を狙う tick の 1 つ前の tick に VPWP50 81_01_04 を置き、狙う tick の期限回収で起きた U-F の保存の試行全体（encode 開始〜write 完了、span encodeThroughWrite）の開始 1ms 後に EEW を送り、T0 が開始の 0〜5ms 後かつ保存の試行中なら成立。代わりの条件として Q-C4-ALT-CONDITION で 2026-10-07 に固定（元の条件の U-F encode の開始は、期限処理の encode が約 0.3ms で T0 が encode 中に入らず、Mac mini の予備で成立 8.6%）。引き金の EditorialOffice は 期限回収官署 に替え、負荷 N・P の 81_01_04 と subject を分ける（Q-C4-DEADLINE-SUBJECT）" },
   maxVpws50ReceivedThenEew: { spec: "なし(R57 の作者裁定から来た衝突試験)", a10: "なし(初期状態は maxVpws50DecodeStarted を継承)", r61: "なし", state: "maxVpws50DecodeStarted", periodMs: Q.refPeriodMs,
     how: "同じ WS で最大 VPWS50 の frame を送った直後に間を空けず EEW を送り、EEW の実送信の上界（host 時計）が VPWS50 の T1 より前なら成立" },
 };

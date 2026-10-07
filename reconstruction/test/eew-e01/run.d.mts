@@ -56,7 +56,8 @@ export function populationSpec(manifest: { populations: Record<string, unknown> 
   periodMs: number; stateKey: string };
 // 試行の対象の区間（host の時計）。span "encodeThroughWrite" は保存の試行全体（encode 開始〜write 完了）。
 export function trialTarget(population: string, trial: { trigger?: { inputId: string | null; injectedHrMs: number | null; predictedTickHostMs?: number } | null },
-  host: { decode: Map<string, unknown>; t1: Map<string, number>; checkpoints: readonly { unit: string; stage: string; attemptId: string; startedMonotonicMs: number; endedMonotonicMs: number }[] },
+  host: { decode: Map<string, unknown>; t1: Map<string, number>; t2: Map<string, number>; processing: readonly { inputId: string }[]; raised: Map<string, number>;
+    checkpoints: readonly { unit: string; stage: string; attemptId: string; generation: number; startedMonotonicMs: number; endedMonotonicMs: number }[] },
   ohLo: number | null, span?: "population" | "encodeThroughWrite"): { startMs: number; endMs: number } | null;
 // AC13(7): 母集団 2 の EEW を送る時刻。予測値を trigger に残す。
 export function calibratedSendAt(trigger: { injectedHrMs: number; predictedParseDelayMs?: number | null }, predicted: number | null, targetOffsetMs: number): number;
@@ -69,3 +70,6 @@ export function signalStopper(stop: () => void): () => void;
 export function distRebuildProblem(rebuiltSha256: string | undefined, currentSha256: string): string | null;
 export function machineProblems(manifest: { nodeVersion: string; osVersion: string; device: string; chrome: { version: string } },
   actual: { nodeVersion: string; chromeVersion: string; osVersion: string; device: string }): string[];
+// 母集団 5 の引き金の官署が、その母集団の負荷（manifest の load）の VPWP50 と重なるか（重なれば理由の文、無ければ null）。office の既定は引き金の官署。
+export function deadlineTriggerOverlap(manifest: { loads: Record<string, { fixtureRefs: readonly string[] }>; populations: { forecastDeadlineOverlap: { load: string } } },
+  office?: string): string | null;

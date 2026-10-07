@@ -228,12 +228,24 @@ describe("P3-C4-T09 frozen conditions read by the runner (AC13(1)(2)(7))", () =>
     expect([spec.leadMs, spec.span]).toEqual([1234, "encodeThroughWrite"]);
     expect(populationSpec(manifest, "maxVpws50ParseStarted", 1, 100, 1000, { maxAttempts: 2000, maxDurationMs: 1 }).leadMs).toBeNull();
     // span "encodeThroughWrite" の対象は encode 開始〜write 完了（元の対象の encode の区間ではない）。
-    const checkpoints = [{ unit: "U-F", stage: "encode", attemptId: "a", startedMonotonicMs: 1000, endedMonotonicMs: 1001 },
-      { unit: "U-F", stage: "write", attemptId: "a", startedMonotonicMs: 1002, endedMonotonicMs: 1010 }];
+    const checkpoints = [{ unit: "U-F", stage: "encode", attemptId: "a", generation: 8, startedMonotonicMs: 1000, endedMonotonicMs: 1001 },
+      { unit: "U-F", stage: "write", attemptId: "a", generation: 8, startedMonotonicMs: 1002, endedMonotonicMs: 1010 }];
     const trial = { trigger: { inputId: "input-1", injectedHrMs: 0, predictedTickHostMs: 1000 } };
-    const host = { decode: new Map(), t1: new Map(), checkpoints };
+    const host = { decode: new Map(), t1: new Map(), t2: new Map([["input-1", 0]]), processing: [{ inputId: "input-1" }], raised: new Map([["input-1|U-F", 7]]), checkpoints };
     expect([trialTarget("forecastDeadlineOverlap", trial, host, 0, spec.span), trialTarget("forecastDeadlineOverlap", trial, host, 0)])
       .toEqual([{ startMs: 1000, endMs: 1010 }, { startMs: 1000, endMs: 1001 }]);
+    // 対象は期限回収（入力の行の無い世代）を含む保存だけ: 採用 7 の保存そのもの、採用 7・背景の入力 8 の保存は選ばない。採用 7 の後に回収 8 と
+    // 背景 9 がまとまった保存は選ぶ。採用の行が無い引き金（stale）は対象なし。
+    const raised = (pairs: [string, number][]) => ({ ...host, raised: new Map([["input-1|U-F", 7], ...pairs]) });
+    const at = (generation: number) => ({ ...host, checkpoints: checkpoints.map((c) => ({ ...c, generation })) });
+    expect(trialTarget("forecastDeadlineOverlap", trial, { ...at(7), raised: raised([]).raised }, 0, spec.span)).toBeNull();
+    expect(trialTarget("forecastDeadlineOverlap", trial, raised([["input-9|U-F", 8]]), 0, spec.span)).toBeNull();
+    expect(trialTarget("forecastDeadlineOverlap", trial, { ...at(9), raised: raised([["input-9|U-F", 9]]).raised }, 0, spec.span)).toEqual({ startMs: 1000, endMs: 1010 });
+    expect(trialTarget("forecastDeadlineOverlap", trial, { ...host, raised: new Map() }, 0, spec.span)).toBeNull();
+    // 安全側の取りこぼし: 背景 8 の受信の中で回収がまとまり、続く背景 9 までの保存は、どの世代にも入力の行があるので選ばない。
+    expect(trialTarget("forecastDeadlineOverlap", trial, { ...at(9), raised: raised([["input-8|U-F", 8], ["input-9|U-F", 9]]).raised }, 0, spec.span)).toBeNull();
+    // mailbox が完了を受けなかった返信（T2 の行だけで processing の行が無い）があれば、行の無い世代を回収と読まない。
+    expect(trialTarget("forecastDeadlineOverlap", trial, { ...host, t2: new Map([["input-1", 0], ["input-9", 1]]) }, 0, spec.span)).toBeNull();
     expect(() => verify(reseal(b.manifestText, (m) => { m.populations.maxForecastCheckpointSave.establishment.span = "encodeThroughWrite"; }), b)).toThrow("establishment");
     expect(() => verify(reseal(b.manifestText, (m) => { m.populations.maxVpws50ParseStarted.triggerLeadMs = 600; }), b)).toThrow("triggerLeadMs");
     expect(() => verify(reseal(b.manifestText, (m) => { m.o09Subset.sequencesSha256 = "d".repeat(64); }), b)).toThrow("o09Subset sequencesSha256");

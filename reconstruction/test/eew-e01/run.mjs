@@ -48,6 +48,17 @@ const T6C = "fleq:p2:eew:T6-candidate";
 const POP_CODE = { fixedBacklog: 0, maxVpws50ParseStarted: 1, maxWeatherCheckpointEncodeStarted: 2, maxForecastCheckpointSave: 3, forecastDeadlineOverlap: 4, maxVpws50ReceivedThenEew: 5 };
 const BLOCK = 100; // trace は 100 試行ごとに区切る
 const UF_SMALL_VALID_AFTER_REPORT_MS = 49 * 3_600_000; // 81_01_04 系の validUntil は報告時刻の 49 時間後（Phase 0 で実測）
+// 母集団 5 の引き金は 81_01_04 の EditorialOffice だけを替え、負荷 N・P の VPWP50（81_01_04、稚内）と U-F の subject を分ける。同じ subject だと、
+// 報告時刻を壁時計へ動かした背景が gate を進め、以後の引き金が stale で捨てられる（2026-10-07 の正式で母集団 5 が Blocked。Q-C4-DEADLINE-SUBJECT）。
+// 稚内以外の VPWP50 の fixture は 81_09_01（長野、母集団 4 の引き金で XML が約 8 倍）しか無いので、fixture は替えず官署名だけを替える。
+const DEADLINE_TRIGGER_OFFICE = "期限回収官署";
+const editorialOffice = (xml) => /<EditorialOffice>([^<]*)<\/EditorialOffice>/.exec(xml)?.[1];
+export function deadlineTriggerOverlap(manifest, office = DEADLINE_TRIGGER_OFFICE) {
+  const load = manifest.populations.forecastDeadlineOverlap.load;
+  const hit = (manifest.loads[load]?.fixtureRefs ?? []).find((ref) => ref.includes("_VPWP50")
+    && editorialOffice(fixtureText(ref.replace("test__fixtures__", "")).toString("utf8")) === office);
+  return hit == null ? null : `forecastDeadlineOverlap trigger office ${office} is also in load fixture ${hit}; the background would make every later trigger stale`;
+}
 
 const SILENT_NOTE = "silent stub による probe（spawn の相手を /usr/bin/true に替えた結果）で、実 backend の結果ではない";
 
@@ -524,7 +535,8 @@ async function measureRun(spec, ctx, label, dir, status) {
         else if (population === "maxForecastCheckpointSave") { headType = "VPWP50"; frameText = weatherFrame("81_09_01_260605_VPWP50", headType, wallNow() + (k + 1) * 1000); }
         else {
           headType = "VPWP50";
-          const text = fixtureText("81_01_04_251222_VPWP50").toString("utf8");
+          const text = fixtureText("81_01_04_251222_VPWP50").toString("utf8")
+            .replace(/<EditorialOffice>[^<]*<\/EditorialOffice>/, `<EditorialOffice>${DEADLINE_TRIGGER_OFFICE}</EditorialOffice>`);
           const report = Date.parse(/<ReportDateTime>([^<]+)</.exec(text)[1]);
           // validUntil を、狙う tick の 1 つ前の tick の壁時計以下で、その前の tick との間にただ 1 つある秒境界に置く。C3a 後の host では
           // owner がその tick の deadline 要求で期限回収し、保存（encode）は次の tick（狙う tick）で起きる（品質レビュー Q1: A10 の置き方では
@@ -743,7 +755,27 @@ export function trialTarget(population, trial, host, ohLo, span = "population") 
   if (ohLo == null) return null;
   const unit = population === "maxWeatherCheckpointEncodeStarted" ? "U-W" : "U-F";
   const triggerHost = trial.trigger.injectedHrMs + ohLo;
-  const encodes = host.checkpoints.filter((c) => c.unit === unit && c.stage === "encode" && c.startedMonotonicMs >= triggerHost);
+  // 母集団 5 は、引き金の期限回収を含む保存だけを対象にする（P3-C4-AC03(1)）。U-F の 1 step は世代を 1 だけ上げ（dirty）、入力の採用の step は
+  // その世代の generationRaised を 1 行出す。期限回収の step は generationInputIds が空なので行を出さない（owner-runtime.ts の reduceUnit）。
+  // そこで「引き金の採用の世代より後で、どの入力の行も無い世代」を含む保存を、期限回収を含む保存とする。採用の保存だけ、背景の入力の保存だけ
+  // （ヘルツの品質レビュー: 採用 7・背景 8 の保存）は選ばない。採用と回収がまとまった 1 回の保存は選ぶ。前提: この窓で入力によらず U-F の
+  // 世代が上がるのは引き金の subject の validUntil だけ（初期状態は空で U-F に通知予約が無く、背景の subject は報告時刻を今へ動かすので
+  // validUntil は 49 時間後、retainUntil は 7 日後）。採用の行が無い引き金（stale など）は対象なし。行は試行の投入以後の索引から引く。
+  // 背景の受信の中で引き金を回収した世代（weather-timeseries の collect が受信の 1 回の dirty にまとめる）は入力の行を持つので選ばない
+  // （安全側の取りこぼし）。行の不在を回収と読めるのは、返信がすべて反映されたときだけ: generationRaised は mailbox が完了を受けた
+  // inputDone にしか出ず、そのとき processing の行も出る（host.ts の onInputDone）。T2 の行があって processing の行が無い入力が 1 つでも
+  // あれば対象なし（安全側）。遅れ・停止で反映されない owner の保存は checkpoint の行自体が出ない（composition-root.ts の checkpointDone）。
+  // parser が拒否した入力も T2 だけで processing が無いので対象なしになる（安全側。負荷 N の parser の拒否が 0 件であることは予備測定で確かめる）。
+  let reclaimed = () => true;
+  if (population === "forecastDeadlineOverlap") {
+    const adopted = host.raised.get(`${id}|U-F`);
+    if (adopted == null) return null;
+    const processed = new Set(host.processing.map((p) => p.inputId));
+    if ([...host.t2.keys()].some((inputId) => !processed.has(inputId))) return null;
+    const byInput = new Set([...host.raised].flatMap(([key, generation]) => (key.endsWith("|U-F") ? [generation] : [])));
+    reclaimed = (c) => { for (let g = adopted + 1; g <= c.generation; g++) if (!byInput.has(g)) return true; return false; };
+  }
+  const encodes = host.checkpoints.filter((c) => c.unit === unit && c.stage === "encode" && c.startedMonotonicMs >= triggerHost && reclaimed(c));
   const predicted = trial.trigger.predictedTickHostMs;
   const near = predicted == null ? encodes : encodes.filter((c) => Math.abs(c.startedMonotonicMs - predicted) < 500);
   const encode = near.reduce((best, c) => (best == null || (predicted == null ? c.startedMonotonicMs < best.startedMonotonicMs
@@ -875,12 +907,7 @@ function e01Verdict(manifest, records) {
   const assembled = [];
   const unusable = new Map();
   for (const w of windows.filter((x) => x.status !== "Blocked")) {
-    try {
-      const bytes = readFileSync(join(w.rawDir, "e01-assembled.json"));
-      const expected = w.raw?.find((r) => r.file === "e01-assembled.json")?.sha256;
-      if (sha256Hex(bytes) !== expected) throw new Error("e01-assembled.json sha256 differs from the window record");
-      assembled.push(JSON.parse(bytes.toString("utf8")));
-    } catch (error) { unusable.set(w.id, String(error?.message ?? error)); }
+    try { assembled.push(readRawJson(w, "e01-assembled.json")); } catch (error) { unusable.set(w.id, String(error?.message ?? error)); }
   }
   const { verdict, cause } = judgeE01(manifest, assembled);
   const runs = windows.map((w) => {
@@ -891,12 +918,19 @@ function e01Verdict(manifest, records) {
   return { verdict, cause, runs };
 }
 
+// 窓 dir の生データ 1 file を、窓記録の raw の sha256 と照らしてから読む（違えば throw）。
+export function readRawJson(w, file) {
+  const bytes = readFileSync(join(w.rawDir, file));
+  if (sha256Hex(bytes) !== w.raw?.find((r) => r.file === file)?.sha256) throw new Error(`${file} sha256 differs from the window record`);
+  return JSON.parse(bytes.toString("utf8"));
+}
+
 // ── 窓ループ（WP3c §2） ──
 const windowName = (id, attempt) => (attempt === 1 ? id : `${id}-attempt${attempt}`);
 // 窓記録は manifest ごとの dir に置き、manifestSha256 が一致するものだけを読む（別 manifest の記録を合算・再実行判定に混ぜない）。
 const readWindowRecords = (dir, manifestSha256) => (existsSync(dir) ? readdirSync(dir).filter((f) => f.endsWith(".json"))
   .map((f) => JSON.parse(readFileSync(join(dir, f), "utf8"))).filter((r) => r.manifestSha256 === manifestSha256) : []);
-const latestById = (records) => [...records.reduce((m, r) => (m.has(r.id) && m.get(r.id).attempt > r.attempt ? m : m.set(r.id, r)), new Map()).values()];
+export const latestById = (records) => [...records.reduce((m, r) => (m.has(r.id) && m.get(r.id).attempt > r.attempt ? m : m.set(r.id, r)), new Map()).values()];
 // repo 外の生データを hash で固定する: 窓 dir の下の全ファイル（下位 dir を含む。AC15 の full/・half/ の host-obs・stringify、
 // E12 の old/・new/ の calls・probe・host.jsonl・heapprofile など、集計の入力になったもの）。file は窓 dir からの相対 path。
 // 除くのは state/（どの深さでも）だけ: checkpoint の slot で、測定中に上書きされ続ける作業領域（集計が読むのは充填時点の中身で、
@@ -999,6 +1033,7 @@ async function preflightCheck(manifest, nodePath, nodeVersion, initialState) {
     // 充填・C・E03・AC15・E12 の入力規則（frames.mjs）が凍結時と同じ bytes か（ReplayLoad は書き換え規則を持てないので recipe の hash で固定する）。
     sha256Hex(readFileSync(join(REPO, initialState.rulesSource.file))) === initialState.rulesSource.sha256 ? null
       : `${initialState.rulesSource.file} sha256 differs from initial-state rulesSource (${initialState.rulesSource.sha256})`,
+    deadlineTriggerOverlap(manifest),
   ].filter((p) => p != null);
   if (problems.length > 0) throw new Error(`preflight failed:\n  ${problems.join("\n  ")}`);
   const git = (...args) => execFileSync("git", args, { cwd: REPO, encoding: "utf8" });

@@ -32,6 +32,8 @@ export type HostIndex = {
   decode: Map<string, { startMs: number; endMs: number; parseStartMs: number | null; parseEndMs: number | null }>;
   processing: ProcessingMeasurement[];
   checkpoints: CheckpointMeasurement[];
+  // 「入力 ID|unit」→ その入力の採用で上がった世代（generationRaised、工程2c）。
+  raised: Map<string, number>;
   t3: { ms: number; version: DisplayVersion; key: string; row: number }[];
   t4: { ms: number; version: DisplayVersion; key: string; row: number }[];
   publishes: { bytes: number; durationMs: number }[];
