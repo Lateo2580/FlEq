@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "15d5885c693d176979f1e3e60e3a63b3c7344240",
-    "sha256": "a7342cf92a553403bdca015aedfdcce7244aff9769bb15b28ddce12a45771e11",
+    "sha256": "2a3eed75a48c958ecc5a32adc5fd36c495891cf4b3b7bf142fa5c0b03c5c1466",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "226b73cbfb4e769c89d2b1327fcbd8067a47887303527a2893592fba47176235",
     "sequencesSha256": "79769d888ff5f429e4bd370a6a88ccb30611b5ee2a1e7b12d25d58f215cbfbd3",
@@ -368,7 +368,7 @@
     "contractId": "P3-TSUNAMI-UNIT-001",
     "mode": "implementation",
     "objective": "M04をI-U-Tとして閉じる。VTSE41の警報（EventIDごとの区域・区分・取消）とVTSE51/52の独立した観測系列（station・fragment・取消）をU-Tの一つのreducer・唯一のcodec・viewで扱い、Q-NOTICEの津波分（区分の変化から通知の段階、津波緊急は警報以上の発令・引上げ・区域拡大だけ）を生成し、unit表・coverage・実行場所（urgent）・VTSE41のtsunamiCandidateを結線して、E21の津波緊急と入力側の優先を製品経路で検収する。§7.5の津波系列はC6への引渡しとして固定し、E01は測らない。",
-    "baseOid": "unassigned",
+    "baseOid": "ee898dbe51dd5ff6dfc9774a9962aa236cffe07e",
     "cleanTreeRequired": true,
     "readPaths": [
       "AGENTS.md",
