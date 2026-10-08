@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "49d745eff613131fa6b0e3681d019a389d13cd1f",
-    "sha256": "ec2a60501fc615fbe53ed56e30a969b4cedd28c93c5b487df964dcabf3a483d9",
+    "sha256": "4aa6e062df447c459907e155eb287ecd295c971ff1b06c1748b0281ab64e5c00",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "76c82b87d7783a4eae14af690cb34e7d6ec46f73617dc75b7f7401951619f080",
     "sequencesSha256": "be9cfd97b555e3a55568f085d107342c978b3dc7249f5cecea868ea5a62c5781",
@@ -20,7 +20,7 @@
       },
       {
         "id": "P3-UWR-SPEC",
-        "A": "被引用の少ない3行を行数を変えない置換で改め、被引用の多い2行は本文を変えず本契約で読みを記録する。置換: spec:859（被引用は他の契約1・本契約1）→「実行中の writer の in-flight は保存単位ごとに 1 件とし、単位ごとに最新 dirty 参照、`dirtySince`、`retryAfter`、連続失敗回数を持つ。§5.8 の 2 の選択と停止未確認の操作の範囲は単位の中に当たる。失敗単位が即時再選択され、正常単位を永久に待たせることを防ぐための最小状態であり、別 queue や journal は作らない。」、spec:1053（§7.2の表、被引用は本契約の1だけ）→「| checkpoint書込み | 単位ごとに1件in-flight、各単位に最新dirty参照 |」、spec:872（被引用は他の契約1［p3-execution-lifecycle.json:466］・本契約2）→「一試行の監視期限は暫定 10 秒とする。停止を確認できない filesystem 操作は、timeout だけで writer から取り除かない。実行中は当該単位に新しい書込みを重ねず、当該単位の保存障害を表示する（通常終了の段の扱いは §5.9 の段の扱いのまま）。遅延 ack は世代・試行 ID を照合する。`uncertain` の当該単位は照合完了前に上書きしないが、古い操作の終了後は、当該単位の再試行待ちを正常単位へ波及させない。」。置換した行を引く契約（本契約を含む）のanchorとmeta.sha256は同じcommitで更新する。読みの記録: spec:862（被引用は他の契約・sequences.jsonで72）は動かさず、置換後の:859の「選択は単位の中に当たる」で読む（選択の順は同じ単位の中の照合か保存かだけに残る）。spec:841（被引用14）の「全体 writer を占有する」は、running の間はその単位のwriterを占有すると読む",
+        "A": "被引用の少ない3行を行数を変えない置換で改め、被引用の多い2行は本文を変えず本契約で読みを記録する。置換: spec:859（被引用は他の契約1・本契約1）→「実行中の writer の in-flight は保存単位ごとに 1 件とし、単位ごとに最新 dirty 参照、`dirtySince`、`retryAfter`、連続失敗回数を持つ。§5.8 の 2 の選択と停止未確認の操作の範囲は単位の中に当たる。失敗単位が即時再選択され、正常単位を永久に待たせることを防ぐための最小状態であり、別 queue や journal は作らない。」、spec:1053（§7.2の表、被引用は本契約の1だけ）→「| checkpoint書込み | 単位ごとに1件in-flight、各単位に最新dirty参照 |」、spec:872（被引用は他の契約1［p3-execution-lifecycle.json:480］・本契約2）→「一試行の監視期限は暫定 10 秒とする。停止を確認できない filesystem 操作は、timeout だけで writer から取り除かない。実行中は当該単位に新しい書込みを重ねず、当該単位の保存障害を表示する（通常終了の段の扱いは §5.9 の段の扱いのまま）。遅延 ack は世代・試行 ID を照合する。`uncertain` の当該単位は照合完了前に上書きしないが、古い操作の終了後は、当該単位の再試行待ちを正常単位へ波及させない。」。置換した行を引く契約（本契約を含む）のanchorとmeta.sha256は同じcommitで更新する。読みの記録: spec:862（被引用は他の契約・sequences.jsonで72）は動かさず、置換後の:859の「選択は単位の中に当たる」で読む（選択の順は同じ単位の中の照合か保存かだけに残る）。spec:841（被引用14）の「全体 writer を占有する」は、running の間はその単位のwriterを占有すると読む",
         "B": "5行（:859・:862・:841・:872・:1053）とも置換し、被引用（:862の72件、:841の14件を含む）のanchorを更新する",
         "C": "spec本文は変えず、5行とも本契約で読みを記録する（:859の「全体 writer の in-flight は 1 件」を読みで逆にするので推さない）",
         "recommended": "A",
@@ -349,7 +349,7 @@
         "id": "P3-UWR-AC07",
         "requirement": "終了処理の約束は変えない（統合担当の裁定 2026-10-08。本契約が解くのはrunningの間の順番待ち［台帳64］で、終了をunitごとに切り分けると共通のcutoff・遅いackの採用・P3-C3A-AC09・FINALIZE-TIMEOUT・T13の作り直しになり範囲が倍になるため）: 本契約が足すのは、shutdownRuntimeがmailboxDrainの段へ移る処理の中で、自分の保存中の留保（AC04）を能動的に解くことだけ（hostはstop()の最初にtickを止める、host.ts:438。保留中の期限切れの更新による遅延は今のまま）。留保した入力はmailboxのin-flightに数えたままでdrainの完了条件から落とさず、mailboxDrainの後の段では送らない（Y1）。quiet・副作用の固定・最終保存の段・停止扱いのownerの扱いは、P3-C3A-AC09・P3-C3A-FINALIZE-TIMEOUT=A・P3-C3B-AC03・P3-C3A-T13・P3-C3B-T05の(5)（lifecycle.test.ts:385の期待を含む）のまま。unitごとの権のMapは、最終保存の段では今の挙動を保つ最小の形で使う: どれかの権を停止扱いのownerが持てば段を開始時に終え、そうでなければ権を1つずつ、今と同じ選択の順で渡す。quietは、生きているownerの権が全部返るまで静かとしない（今の単一の権の扱いをunitごとに広げただけ）。段が移った後に届いた返信・遅いcheckpointDoneは、入力の送出も通常の保存も再開しない（AC03の再評価はrunningだけ）。無いと: 留保した入力がtickの無いdrainで段の期限まで送られずに残る",
         "evidenceRefs": [
-          "reconstruction/contracts/p3-execution-lifecycle.json:478 «36d43d9a19268162»",
+          "reconstruction/contracts/p3-execution-lifecycle.json:492 «36d43d9a19268162»",
           "reconstruction/contracts/p3-execution-split.json:865 «3e17ec57f91371c6»",
           "reconstruction/contracts/p3-execution-split.json:129 «d4a38fc7de1d9806»"
         ]

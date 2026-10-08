@@ -1490,7 +1490,12 @@ class RuntimeCompositionRoot {
         const real = () => ({ wallTimeMs: this.clock().wallTimeMs, monotonicMs: performance.now() });
         const persisted = await within((active) => this.diagnostics.persistShutdownSummary(summary!, active), closeBy, real);
         if (Object.hasOwn(failure, "error")) throw failure.error;
-        if (persisted.kind !== "completed")
+        // P3-C3B-AC09: 期限切れでは期限内に返す約束を優先し、未保存を返り値に明示する（悲観側）。期限の時点で始まっていた
+        // rename は後から終わりうるので、disk には 1 回目か 2 回目の完全な要約のどちらかが残る。
+        if (persisted.kind === "deadlineExceeded")
+          summary = { ...summary, code: summary.code === 0 ? 4 : summary.code,
+            reasons: [...summary.reasons, "workerClose:summaryNotPersisted"] };
+        else if (persisted.kind !== "completed")
           throw new Error("final shutdown summary could not be persisted");
       }
       if (this.measuring != null) this.observeWriteCounts(this.measuring, finalSaveCut, workers === 0);

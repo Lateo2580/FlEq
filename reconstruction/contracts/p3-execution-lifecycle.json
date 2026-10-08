@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "ad0f4b255d7c422d23421c516d1b6d5bf8ad21cc",
-    "sha256": "fd19aede1d35a4f7bd81aeeb8cf83c51219d0dba4b3842a8714dfc083e2494f1",
+    "sha256": "a982b1c993ea80fe849a79c4e71e8a0ee52312969054d56cf2a95d7ec5946be0",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "76c82b87d7783a4eae14af690cb34e7d6ec46f73617dc75b7f7401951619f080",
     "sequencesSha256": "be9cfd97b555e3a55568f085d107342c978b3dc7249f5cecea868ea5a62c5781",
@@ -186,6 +186,13 @@
             "keeps": "他unitの期限を入力の到着で前倒ししないこと（P3-C3A-DEADLINES=A）、試行開始時の期限の照合（composition-root.ts:866〜:867）、tickごとの回収",
             "reaccept": "P3-C3B-T08、shared-runtime.test.ts:959・:985（AC06の(e)）",
             "revisedBy": "統合担当（合流のcommit。置換先の注記だけ）"
+          },
+          {
+            "clause": "P2-SHARED-RUNTIME-001のartifactRequirementsの「B3終了要約」（p2-shared-runtime.json:738。A3は最終要約を記録・返却するだけとし、code・reasons・stateを合成しない）",
+            "replacedBy": "P3-C3B-AC09（2回目の要約保存がdeadlineExceededのときだけ、A3がreason workerClose:summaryNotPersistedとcode 4を足して返す例外）",
+            "keeps": "それ以外の場面でA3がcode・reasons・stateを合成しないこと、保存用要約を記録してからworkerを閉じる順序、書込みの失敗（failed）でのreject",
+            "reaccept": "P3-C3B-T09、既存のreview-regressions.test.tsのB04（期待値を変えない）・P3-C3B-T05",
+            "revisedBy": "統合担当（合流のcommit。置換先の注記だけ、行数を変えない置換）"
           }
         ]
       },
@@ -210,6 +217,13 @@
         "closed": "本契約が完了条件として確かめるのは判定と順序と回数（停止の検出、表示への反映、終了の段・code・期限、E07の計数の構造、E08の0件）。Pi上での検出の時間・終了の段ごとの所要（計画:191でE07・E20の本番の判定場所はPi）は、C4のPi予備確認 第1段で確かめる性質としてartifactRequirementsに書くだけで、別の測定器を作らない",
         "remaining": "C4の起草でPi予備確認の項目に取り込む",
         "reason": "計画§4.5（D-P3-7。所有はC4）"
+      },
+      {
+        "id": "P3-C3B-CLOSE",
+        "status": "closed",
+        "closed": "作者裁定A（2026-10-07、台帳65の残りのP2）: 2回目の要約保存（workerCloseの結果の後の最終要約の保存）がdeadlineExceededで終わったときは、例外を投げず、A1が作った最終要約にreason workerClose:summaryNotPersistedを足し、codeを3→2→4の優先順で4にして（0なら4、3・2はそのまま）返す（0を4にする根拠はspec:897〜900〔期限超過時にexit 0を返さない、3→2→4の優先順〕とP2-A3-AC06〔保存未確認でcode 0にしない〕で、作者裁定Aが決めたのは例外を投げずに返すことだけ）。stop()は約束どおり期限内に返る。期限までに保存を確かめられなかった。期限の時点で始まっていたrenameは、後から終わりうる。その場合、diskには2回目の完全な要約が残り、それ以外の場合は1回目の要約が残る（renameは原子的なので、壊れた要約は残らない）。返り値は未保存を明示する（悲観側）。書込みの失敗（failed）は従来どおりreject（review-regressions.test.tsのB04）。例外を投げずに返す根拠は作者裁定P2-A3-Q2=B（未保存を明示して表示を続ける）。追補前のbaseOidはa81ae17ee40bc42b83e543d7d5d0076df8d835e7（T01〜T08を配送したbase）で、本追補のbaseOidはe2a962bd1f9bf37e02fb9bcb3c41c21df1a67bfb（本追補の実装の土台）。timerの競争（段の終わりの判定を2つの時計で行っていた分）は9cffac8aで段の結果（deadlineExceeded）に揃えて閉じ、残りはcloseWorkerが期限の直前にcompleted・failedで終わってその判定を通り、2回目の保存が期限切れで例外になる筋。I/Oに上限が無いので、残り時間の閾値だけでは閉じない",
+        "remaining": "本追補で本契約のmeta.sha256が変わるので、本契約を使用契約に持つC4（P3-E01-REACCEPT-001）の凍結manifestのcontractSha256と食い違う。C4は閉じた（e2a962bd）。合流してよい。凍結manifest（p3-c4-formal-20261007・p3-c4-formal-deadline-20261008）のcontractSha256と今の契約文の食い違いは、採用が測定commitの契約文で検証するので問題ない（p3-e01-reaccept.jsonのAC11(1)）。同じく本追補でp2-shared-runtime.json:738に置換先の注記を入れてそのmeta.sha256が変わるので、P2の凍結manifest（reconstruction/test/eew-e01/evidence/manifest.json・reconstruction/test/eew-e01/evidence/frozen/a10-p2-20260930）が固定した旧hashとも食い違うが、測定commitの契約文で確かめる扱いなので問題ない",
+        "reason": "AC09（本契約の追補。配送済みのC3bの条文に例外を1つ足す）"
       }
     ],
     "operationContract": {
@@ -220,8 +234,8 @@
   "contract": {
     "contractId": "P3-EXECUTION-LIFECYCLE-001",
     "mode": "implementation",
-    "objective": "台帳56の監視側の残りと台帳57の残り（止まっている最中のworkerの独立監視。R60のP2限定を解く）とspec§5.9・§7.8を、C3aのowner 3本の配置で閉じる。publisherはownerごとにspec:1190〜1191のstalled／unresponsiveを既存の1秒tickで判定し、表示のworker状態へ写す。ownerの予期しない停止は、C3aの暫定（プロセス停止）に替えて§7.8の停止表示とし、他のownerの処理・公開・保存を続ける（P3-C3B-OWNER-STOP、specどおりA）。通常終了はspec§5.9の順序・世代・code・期限を、停止済み・応答の無いownerを含めて満たし、その時点の単位（U-E・U-W・U-F）でE20を再検収する。E07の計数の構造とE08を再検収する。壁時計が遅れていても期限切れの通知予約が新しい入力の通知を妨げないよう、入力をownerへ送る直前にそのunitの期限切れの通知予約を回収する（P3-C3B-INTENT-RECLAIM、作者要望）。自動再起動、測定（C4）、新しいunitは扱わない。",
-    "baseOid": "a81ae17ee40bc42b83e543d7d5d0076df8d835e7",
+    "objective": "台帳56の監視側の残りと台帳57の残り（止まっている最中のworkerの独立監視。R60のP2限定を解く）とspec§5.9・§7.8を、C3aのowner 3本の配置で閉じる。publisherはownerごとにspec:1190〜1191のstalled／unresponsiveを既存の1秒tickで判定し、表示のworker状態へ写す。ownerの予期しない停止は、C3aの暫定（プロセス停止）に替えて§7.8の停止表示とし、他のownerの処理・公開・保存を続ける（P3-C3B-OWNER-STOP、specどおりA）。通常終了はspec§5.9の順序・世代・code・期限を、停止済み・応答の無いownerを含めて満たし、その時点の単位（U-E・U-W・U-F）でE20を再検収する。E07の計数の構造とE08を再検収する。壁時計が遅れていても期限切れの通知予約が新しい入力の通知を妨げないよう、入力をownerへ送る直前にそのunitの期限切れの通知予約を回収する（P3-C3B-INTENT-RECLAIM、作者要望）。自動再起動、測定（C4）、新しいunitは扱わない。追補（作者裁定P3-C3B-CLOSE=A、2026-10-07）: 2回目の要約保存が期限切れのときにstop()が例外で終わらないよう、未保存を明示した要約を返す（AC09）。",
+    "baseOid": "e2a962bd1f9bf37e02fb9bcb3c41c21df1a67bfb",
     "cleanTreeRequired": true,
     "readPaths": [
       "AGENTS.md",
@@ -553,6 +567,18 @@
           "reconstruction/contracts/p3-execution-split.json:159 «5d0f618a2c1b3a6b»",
           "AGENTS.md:25 «b7f4c3a89b5bb3b2»"
         ]
+      },
+      {
+        "id": "P3-C3B-AC09",
+        "requirement": "【追補 C3B-CLOSE】終了要約の2回目の保存の期限切れ: 2回目の要約保存（workerCloseの結果の後の最終要約の保存）がdeadlineExceededで終わったときは、例外を投げず、A1が作った最終要約にreason workerClose:summaryNotPersistedを足し、codeを3→2→4の優先順で4にして（0なら4、3・2はそのまま）返す（0を4にする根拠はspec:897〜900〔期限超過時にexit 0を返さない、3→2→4の優先順〕とP2-A3-AC06〔保存未確認でcode 0にしない〕で、作者裁定Aが決めたのは例外を投げずに返すことだけ）。stop()は約束どおり期限内に返る。書込みの失敗（failed）は従来どおりreject（review-regressions.test.tsのB04）。変えるのはcomposition-root.tsのshutdownRuntimeの2回目の保存の直後（persisted.kindがcompleted以外のときの分岐）だけで、deadlineExceededとfailedを分け、failedの扱いと、9cffac8aの段の結果での判定・2回目の保存を始める条件は変えない。期限までに保存を確かめられなかった。期限の時点で始まっていたrenameは、後から終わりうる。その場合、diskには2回目の完全な要約が残り、それ以外の場合は1回目の要約が残る（renameは原子的なので、壊れた要約は残らない）。返り値は未保存を明示する（悲観側）。このreasonは返り値にだけ載る。保存する経路を作るときは、persistent-diagnostic-sink.tsの許可パターンに足す。allowedPathsは既存のまま（reconstruction/src/runtime/**・reconstruction/test/execution-lifecycle/**・reconstruction/test/checkpoint-shutdown/**の中）で、本追補の発注ではcomposition-root.tsと、その試験（review-regressions.test.tsまたはlifecycle.test.ts）だけを触る。注意: P3-TSUNAMI-UNIT-001のevidenceRefsがcomposition-root.ts:1068をanchorで引いている。直す場所はそれより後（shutdownRuntimeの2回目の保存、:1490付近）なので、:1068より前の行数を変えない。行がずれたらcheck-contractが落ちるので、統合担当が同じcommitでanchorを更新する",
+        "evidenceRefs": [
+          "reconstruction/contracts/p2-shared-runtime.json",
+          "reconstruction/contracts/p2-checkpoint-shutdown.json",
+          "reconstruction/test/checkpoint-shutdown/review-regressions.test.ts",
+          "docs/specs/reconstruction-p0-contracts.md:897 «f5637316575c1f66»",
+          "docs/specs/reconstruction-p0-contracts.md:898 «8ec453fc247f2c24»",
+          "docs/specs/reconstruction-p0-contracts.md:900 «0ee1ac317cc5543a»"
+        ]
       }
     ],
     "testMapping": [
@@ -621,6 +647,14 @@
           "P3-C3B-AC08"
         ],
         "behavior": "helperと注入時計で確かめる（C3a配送記録F4の場合）。(1) U-Eにwallの期限16,000のpending intent 128件（件数の上限いっぱい）を置き、wall 900・monotonic 15,000（壁時計が遅れ、monotonicだけで期限切れ）でVXSE43の新しい地震を受けると、U-Eのownerへはexpiredの更新（128件）が受信より先に届き、新しい地震のintent（desktop・sound）が作られ、firstReportNotifiedがtrue、deliveryRecordsはexpiredの128件（既存のshared-runtime.test.ts:959をAC06の(e)でこの期待へ戻したもので受け持ってよい） (2) (1)の状態で、U-Eのdesktopの更新枠が別の更新（試行結果の更新）の返信待ちのときに入力が届くと、その入力はその返信と保留された期限切れの更新の送出の後にownerへ送られ、(1)と同じくintentが作られる。保留の間、その入力はmailboxのin-flightに数えられ、owner宛ての要求はP3-C3A-RES-09の上限を超えない"
+      },
+      {
+        "testId": "P3-C3B-T09",
+        "purpose": "contractBoundary",
+        "referenceIds": [
+          "P3-C3B-AC09"
+        ],
+        "behavior": "【追補 C3B-CLOSE】closeWorkerが期限の直前にcompletedで終わり、2回目の要約保存が期限切れ（deadlineExceeded）になる場合を、期限の時点でtmpの書込み中とrename中の2つで確かめる: どちらもshutdownRuntime（stop()）はrejectせずに期限内に返り、返した要約はcode 4でreasonsにworkerClose:summaryNotPersistedを持つ。書込み中に切れた場合、diskのshutdown-summary.jsonは1回目の要約のままでtmpは残らない。rename中に切れた場合、stop()が返った後にrenameが終わると、diskは2回目の完全な要約（JSONとして読める）になり、返り値はcode 4・summaryNotPersistedのまま（failedはB04が受け持つ）"
       }
     ],
     "requiredCommands": [
@@ -682,7 +716,8 @@
       "Piで確かめる性質（C4のPi予備確認 第1段で確かめる。本契約は書くだけ）: ① ownerが塞がってからunresponsiveの表示までの時間（5秒＋1 tick以内）② 大型処理中（VPWS50で約2.4秒）のownerがstalled・unresponsiveにならない ③ 終了の段ごとの所要と、最終保存が10秒以内に終わること（U-E・U-W・U-Fの同時dirty）④ owner 3本のexitが5秒以内",
       "残存リスクとして書く: worker_threadsのterminateは同期のsyscallで塞がったthreadを止められないので、そのthreadはexitせずcode 4として残りうる。P3-C3B-WORKER-VIEW=Aの間は、止まっていない分野にも「更新未確認の最終情報」が出る。P3-C3B-DEAD-WRITE-RIGHT=Aでは、書込みの区間にownerが落ちると再起動まで全unitが保存されない。P3-C3B-AUTO-RESTART=Aでは、止まった分野は人が再起動するまで更新されない。P3-C3B-HUNG-PLACE-INPUT=Bが選ばれた場合は、exitしないまま塞がったownerの入力が通常枠を埋めると§7.3で自分の接続ごと止まり、EEWも止まる（=Aでは、塞がっている間のその分野の入力を失う。正当に5秒を超えて処理しているowner［Piで大きいVPWS50］でも後続電文は失われ、C16まで回復しない。stalledだけの場合［inputDoneの消失などでin-flight枠が塞がる］はAでも守らず、pendingが溜まってBと同じ道をたどる）。入力の処理中に塞がったownerがあると、終了の収束の段は10秒待ってcode 3になる",
       "既存試験の期待値を変えた試験ごとに、変更前後の期待値とAC06の理由（a〜d）を1行で報告する",
-      "spec本文・計画・P2契約・C3a契約の改訂は実装者が行わない（統合担当が合流のcommitで行う。P3-C3B-P2-CLAUSES・P3-C3B-SPEC-1190、計画§3.2の同期はP3-C3B-OWNER）"
+      "spec本文・計画・P2契約・C3a契約の改訂は実装者が行わない（統合担当が合流のcommitで行う。P3-C3B-P2-CLAUSES・P3-C3B-SPEC-1190、計画§3.2の同期はP3-C3B-OWNER）",
+      "追補 C3B-CLOSE: 例外の分岐（無いと、closeWorkerが期限の直前に終わったときにstop()が「final shutdown summary could not be persisted」の例外で終わり、期限内にcode付きで返るという約束が破れる）。追加・変更した試験はT09（契約境界）だけで、既存の試験の期待値は変えない"
     ],
     "unresolvedQuestions": [
       {

@@ -52,7 +52,7 @@ async function harness(hooks: ShutdownHooks = {}) {
     unlink: false, logRead: false, syncGate: null as Promise<void> | null,
     checkpointUnlink: false, unlinks: 0, closeGate: null as Promise<void> | null, onClose: () => {},
     renameGate: null as Promise<void> | null, onRename: () => {}, onDirectorySync: () => {},
-    writeGate: null as Promise<void> | null, summaryGate: null as Promise<void> | null,
+    writeGate: null as Promise<void> | null, summaryGate: null as Promise<void> | null, summaryRenameGate: null as Promise<void> | null,
     appendError: null as Error | null, opens: 0, syncs: 0,
     rewriteFailure: null as "write" | "rename" | null, onOpen: () => {}, onSummary: () => {} };
   const fs: CheckpointFileSystem = {
@@ -110,6 +110,7 @@ async function harness(hooks: ShutdownHooks = {}) {
       lines.set(path, data);
     },
     async rename(from, to) {
+      if (to.endsWith("shutdown-summary.json")) await fault.summaryRenameGate;
       if (fault.rewriteFailure === "rename") throw new Error("rename failed");
       lines.set(to, lines.get(from)!);
       lines.delete(from);
@@ -434,6 +435,42 @@ it("B04 contractBoundary / AC06: a final-summary-only failure cannot return unco
   // The A1 terminal observation is not rewritten by A3 after a persistence error.
   expect(h.root.state.shutdown.stageResults.workerClose?.result.kind).toBe("completed");
   expect(h.events.filter((event) => event.reason === "diagnosticSinkFailed")).toHaveLength(1);
+  expect([...h.lines.keys()].filter((path) => path.endsWith(".tmp"))).toEqual([]);
+});
+
+it.each(["write", "rename"] as const)("P3-C3B-T09 contractBoundary / AC09: a final summary save cut by the worker-close limit during its %s returns code 4 marked unsaved", async (cut) => {
+  vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+  // closeWorker は注入時計で期限の 1ms 前に completed で終わる。2 回目の保存は tmp の書込みか rename で止め、段の期限の timer で切る。
+  const h = await harness({ closeWorker: async (deadline) => { h.order.push("close"); h.setTime(deadline - 1); } });
+  const gate = deferred();
+  const entered = deferred();
+  const saved = () => [...h.lines].find(([path]) => path.endsWith("shutdown-summary.json"))?.[1];
+  let summaries = 0;
+  let first: string | undefined;
+  h.fault.onSummary = () => {
+    if (++summaries !== 2) return;
+    first = saved();
+    if (cut === "write") h.fault.summaryGate = gate.promise;
+    else h.fault.summaryRenameGate = gate.promise;
+    entered.resolve();
+  };
+  const stopping = h.root.shutdownRuntime(1, h.clock());
+  await entered.promise;
+  await vi.advanceTimersByTimeAsync(5_000);
+  const summary = await stopping;
+  expect(summary.code).toBe(4);
+  expect(summary.reasons).toEqual(["workerClose:summaryNotPersisted"]);
+  expect(h.root.state.shutdown.stageResults.workerClose?.result.kind).toBe("completed");
+  gate.resolve();
+  await vi.advanceTimersByTimeAsync(0);
+  expect(h.order).toEqual(["summary", "close", "summary"]);
+  expect(JSON.parse(first!)).toMatchObject({ code: 0, reasons: [] });
+  // 書込み中に切れれば 1 回目が残る。rename 中に切れれば、返った後に終わった rename で 2 回目の完全な要約が残る。
+  if (cut === "write") expect(saved()).toBe(first);
+  else {
+    expect(saved()).not.toBe(first);
+    expect(JSON.parse(saved()!)).toMatchObject({ code: 0, reasons: [], completedAt: summary.completedAt });
+  }
   expect([...h.lines.keys()].filter((path) => path.endsWith(".tmp"))).toEqual([]);
 });
 
