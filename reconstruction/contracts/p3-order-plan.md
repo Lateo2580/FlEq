@@ -327,3 +327,16 @@ L3  [C8 N  ][測定*][C8][C11 R    ][C14 Y   ]
 | Pi 予備確認（§4.5） | Pi の作業複製（公開 fixture だけ。資材の前例は台帳 63 の `~/p3-bench`）、旧築と別の state・port、第 2 段は Pi と Mac の時計対応と通信経路の記録 |
 
 coverage 下書きの「未確認」12 項目のうち、項目 9（priorityReason の付与箇所）は `host.ts:201` で EEW の分だけ解消した。VTSE41 は normal のままで、C5 で扱う。項目 2 は C14 で扱う。残りは移植時に確かめる。
+
+## 9. 計画の後で足した契約（2026-10-08）
+
+§2 の表の行番号を他の契約が anchor で引いているので、表には挿さずここに足す。
+
+| 契約 | 対象 | 依存 | 状態 |
+|---|---|---|---|
+| C3B-CLOSE（`P3-EXECUTION-LIFECYCLE-001` の改訂） | 台帳 65: 終了要約の 2 回目の保存が期限切れのとき、stop() を例外で終わらせず reason `workerClose:summaryNotPersisted`・code 4 で返す | C3b | 配送 `eb62d423` |
+| `P3-UNIT-WRITE-RIGHT-001` | D-P3-2=B（作者裁定 2026-10-08）: checkpoint の書込み権を unit ごとの in-flight 1 件にし、返信の反映の後にすぐ再評価する。非緊急の owner の留保は自分の保存中だけ（台帳 64・68） | C3a・C3b・C4 の閉鎖 | 配送 `54a63c25` |
+| `P3-WEATHER-LIGHT-001`（段 1） | E03・台帳 66 の前段: 気象の処理の重複を削る（jPath、xmlValue、値の使い回し、history と encode の計量） | UWR | 配送 `0bf810b1`。Pi の段ごとの内訳（Q-WL1-PI-STAGES）は未測定 |
+| 段 2（未起草） | 台帳 66・E05-P: 木を作らない parse（A3／A4 と parser の選定） | 段 1 | 材料を集めている |
+| 段 3（未起草） | 台帳 70: 保存の書込量（圧縮・地域本文の重複除去） | 段 1 | 段 2 の後 |
+| 台帳 67 の小契約（未起草） | owner の未保存の世代ごとの入力 ID の記録（OwnerHost.ledger）に件数の上限を付ける。LEDGER67=A（作者裁定 2026-10-08、別の小契約） | UWR | 未着手 |
