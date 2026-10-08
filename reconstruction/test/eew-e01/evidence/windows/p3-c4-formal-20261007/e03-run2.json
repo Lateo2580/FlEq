@@ -1,0 +1,76 @@
+{
+  "id": "e03-run2",
+  "attempt": 1,
+  "manifestId": "p3-c4-formal-20261007",
+  "manifestSha256": "3edb1aaed272a09ad21142cc06fcd99074b1e70f2a16f68a4ac4864b2565b05c",
+  "rawDir": "/Users/tallplain/dev/fleq-a10-runs/p3-c4-formal-20261007/e03-run2",
+  "command": "node reconstruction/test/eew-e01/run.mjs --manifest reconstruction/test/eew-e01/evidence/p3/manifest.json",
+  "commands": [
+    "node reconstruction/test/eew-e01/run.mjs --manifest reconstruction/test/eew-e01/evidence/p3/manifest.json",
+    "caffeinate -dims -w 42593",
+    "/opt/homebrew/opt/node@22/bin/node /Users/tallplain/dev/fleq-c4-measure5/reconstruction/test/eew-e01/host-launcher.mjs /Users/tallplain/dev/fleq-a10-runs/p3-c4-formal-20261007/e03-run2/host-config.json"
+  ],
+  "startedAt": "2026-10-07T18:34:08.007Z",
+  "preflight": {
+    "checkedAt": "2026-10-06T20:50:48.329Z",
+    "nodeVersion": "v22.23.3",
+    "chromeVersion": "154.0.8037.98",
+    "osVersion": "27.0.0 arm64",
+    "dist": [
+      "reconstruction/dist/src/host/host.js",
+      "reconstruction/dist/chrome-eew",
+      "dist/engine/messages/message-router.js"
+    ],
+    "gitHead": "fc8299dc5791051a01d9051a42f9f0aaf794c265",
+    "gitStatusPorcelain": "",
+    "distSha256": "cd1cfb4edb5541354b8ba516642433d5eba60175bff563a321afcd8033af65a7",
+    "runnerSha256": "d27c6f44d709749b31d233d9f05dc37c79e84ea6ff95d5fb3f68ecab91c06bc5",
+    "machine": {
+      "cpu": "Apple M2",
+      "cores": 8,
+      "memoryBytes": 8589934592
+    }
+  },
+  "status": "Pass",
+  "byteViolations": 0,
+  "byteViolationsNote": "byteViolations は encode・write・verify 以外の段で bytes が 0 でない件数。verify 段の bytes は読んだ bytes として e15.units の verifyBytes に別に数える（P3-C1-E15、A10 の P2-A10-E15-P3 の読み）",
+  "resultFiles": [
+    {
+      "path": "reconstruction/test/eew-e01/evidence/windows/p3-c4-formal-20261007/results/aux-e03-run2.json",
+      "sha256": "42d63b8dc8792a7ef9a15b3627abac9ee6d1ff0092f8478545a54bf9af0e451e"
+    }
+  ],
+  "liveness": {
+    "pings": 61,
+    "maxFrameGapMs": 2668.4763749837875
+  },
+  "finishedAt": "2026-10-07T18:54:35.108Z",
+  "raw": [
+    {
+      "file": "aux-e03-run2.json",
+      "bytes": 6406,
+      "sha256": "42d63b8dc8792a7ef9a15b3627abac9ee6d1ff0092f8478545a54bf9af0e451e"
+    },
+    {
+      "file": "diagnostics/diagnostics-2026-06-05.jsonl",
+      "bytes": 475,
+      "sha256": "24d3fdbc8fa823ab6e364a1a7cb09b6173604f7c8578c8dc20265f5bace6135a"
+    },
+    {
+      "file": "diagnostics/shutdown-summary.json",
+      "bytes": 661,
+      "sha256": "6b66ef984f955a6299068194faa7bac531dbb0aa8fe2ca1cd8329cb770417900"
+    },
+    {
+      "file": "host-config.json",
+      "bytes": 444,
+      "sha256": "9bb6ddaef9361a65241600f92d11e61242a010844d231a1d6728a826b8135e88"
+    },
+    {
+      "file": "host-obs.jsonl",
+      "bytes": 6012336,
+      "sha256": "2c4adcf9e4409041801bfe02d61971f4fe65fa07fe99ed36dcee2a83eeb04b73"
+    }
+  ],
+  "orphans": []
+}

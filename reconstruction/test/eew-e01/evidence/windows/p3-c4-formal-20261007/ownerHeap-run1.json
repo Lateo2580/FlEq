@@ -1,0 +1,76 @@
+{
+  "id": "ownerHeap-run1",
+  "attempt": 1,
+  "manifestId": "p3-c4-formal-20261007",
+  "manifestSha256": "3edb1aaed272a09ad21142cc06fcd99074b1e70f2a16f68a4ac4864b2565b05c",
+  "rawDir": "/Users/tallplain/dev/fleq-a10-runs/p3-c4-formal-20261007/ownerHeap-run1",
+  "command": "node reconstruction/test/eew-e01/run.mjs --manifest reconstruction/test/eew-e01/evidence/p3/manifest.json",
+  "commands": [
+    "node reconstruction/test/eew-e01/run.mjs --manifest reconstruction/test/eew-e01/evidence/p3/manifest.json",
+    "caffeinate -dims -w 42593",
+    "/opt/homebrew/opt/node@22/bin/node /Users/tallplain/dev/fleq-c4-measure5/reconstruction/test/eew-e01/host-launcher.mjs /Users/tallplain/dev/fleq-a10-runs/p3-c4-formal-20261007/ownerHeap-run1/host-config.json"
+  ],
+  "startedAt": "2026-10-07T23:43:52.309Z",
+  "preflight": {
+    "checkedAt": "2026-10-06T20:50:48.329Z",
+    "nodeVersion": "v22.23.3",
+    "chromeVersion": "154.0.8037.98",
+    "osVersion": "27.0.0 arm64",
+    "dist": [
+      "reconstruction/dist/src/host/host.js",
+      "reconstruction/dist/chrome-eew",
+      "dist/engine/messages/message-router.js"
+    ],
+    "gitHead": "fc8299dc5791051a01d9051a42f9f0aaf794c265",
+    "gitStatusPorcelain": "",
+    "distSha256": "cd1cfb4edb5541354b8ba516642433d5eba60175bff563a321afcd8033af65a7",
+    "runnerSha256": "d27c6f44d709749b31d233d9f05dc37c79e84ea6ff95d5fb3f68ecab91c06bc5",
+    "machine": {
+      "cpu": "Apple M2",
+      "cores": 8,
+      "memoryBytes": 8589934592
+    }
+  },
+  "status": "N/A",
+  "byteViolations": 0,
+  "byteViolationsNote": "byteViolations は encode・write・verify 以外の段で bytes が 0 でない件数。verify 段の bytes は読んだ bytes として e15.units の verifyBytes に別に数える（P3-C1-E15、A10 の P2-A10-E15-P3 の読み）",
+  "resultFiles": [
+    {
+      "path": "reconstruction/test/eew-e01/evidence/windows/p3-c4-formal-20261007/results/aux-ownerHeap-run1.json",
+      "sha256": "1ea807f00578332a9e69da8bcadb2543b3551fdb32ee93b571a1d136b797a5d3"
+    }
+  ],
+  "liveness": {
+    "pings": 7,
+    "maxFrameGapMs": 2626.9531660079956
+  },
+  "finishedAt": "2026-10-07T23:46:19.300Z",
+  "raw": [
+    {
+      "file": "aux-ownerHeap-run1.json",
+      "bytes": 5729,
+      "sha256": "1ea807f00578332a9e69da8bcadb2543b3551fdb32ee93b571a1d136b797a5d3"
+    },
+    {
+      "file": "diagnostics/diagnostics-2026-06-05.jsonl",
+      "bytes": 290,
+      "sha256": "59269f4194c6e50a4e6b5d8932e6bb6f6f1cb1c8f8b3d8a0b3c25bc13f4506ca"
+    },
+    {
+      "file": "diagnostics/shutdown-summary.json",
+      "bytes": 658,
+      "sha256": "df2429bcbc084e59eee72573846bd022494c61c474deaafa0119472fb8d3902c"
+    },
+    {
+      "file": "host-config.json",
+      "bytes": 461,
+      "sha256": "024d4ee979cdad9f505b1894553d4f9c44f090c0f7da88fd3cbf899ecd7c88f1"
+    },
+    {
+      "file": "host-obs.jsonl",
+      "bytes": 735107,
+      "sha256": "1f60e4d6b57f9ad410315af2be3ac1117726575c05ae8614b3552d4cfff4db96"
+    }
+  ],
+  "orphans": []
+}

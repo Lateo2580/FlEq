@@ -1,0 +1,126 @@
+{
+  "id": "e01-forecastDeadlineOverlap-run3",
+  "attempt": 1,
+  "manifestId": "p3-c4-formal-20261007",
+  "manifestSha256": "3edb1aaed272a09ad21142cc06fcd99074b1e70f2a16f68a4ac4864b2565b05c",
+  "rawDir": "/Users/tallplain/dev/fleq-a10-runs/p3-c4-formal-20261007/e01-forecastDeadlineOverlap-run3",
+  "command": "node reconstruction/test/eew-e01/run.mjs --manifest reconstruction/test/eew-e01/evidence/p3/manifest.json",
+  "commands": [
+    "node reconstruction/test/eew-e01/run.mjs --manifest reconstruction/test/eew-e01/evidence/p3/manifest.json",
+    "caffeinate -dims -w 42593",
+    "/opt/homebrew/opt/node@22/bin/node /Users/tallplain/dev/fleq-c4-measure5/reconstruction/test/eew-e01/host-launcher.mjs /Users/tallplain/dev/fleq-a10-runs/p3-c4-formal-20261007/e01-forecastDeadlineOverlap-run3/host-config.json",
+    "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome --remote-debugging-port=0 --user-data-dir=/var/folders/rh/mfnz7fyn5mz6kqd4thpp0q9w0000gn/T/fleq-a10-chrome-BHk8gO --no-first-run --no-default-browser-check --window-size=1440,900 --force-color-profile=srgb --disable-background-timer-throttling --disable-renderer-backgrounding --disable-backgrounding-occluded-windows about:blank"
+  ],
+  "startedAt": "2026-10-07T13:02:50.083Z",
+  "preflight": {
+    "checkedAt": "2026-10-06T20:50:48.329Z",
+    "nodeVersion": "v22.23.3",
+    "chromeVersion": "154.0.8037.98",
+    "osVersion": "27.0.0 arm64",
+    "dist": [
+      "reconstruction/dist/src/host/host.js",
+      "reconstruction/dist/chrome-eew",
+      "dist/engine/messages/message-router.js"
+    ],
+    "gitHead": "fc8299dc5791051a01d9051a42f9f0aaf794c265",
+    "gitStatusPorcelain": "",
+    "distSha256": "cd1cfb4edb5541354b8ba516642433d5eba60175bff563a321afcd8033af65a7",
+    "runnerSha256": "d27c6f44d709749b31d233d9f05dc37c79e84ea6ff95d5fb3f68ecab91c06bc5",
+    "machine": {
+      "cpu": "Apple M2",
+      "cores": 8,
+      "memoryBytes": 8589934592
+    }
+  },
+  "status": "Blocked",
+  "reason": "stopCondition reached: maxDurationMs (attempts 982, established 328)",
+  "resultFiles": [],
+  "liveness": {
+    "pings": 456,
+    "maxFrameGapMs": 15100.289207994938
+  },
+  "finishedAt": "2026-10-07T15:35:21.332Z",
+  "raw": [
+    {
+      "file": "diagnostics/diagnostics-2026-06-05.jsonl",
+      "bytes": 2889,
+      "sha256": "c499ddbda9570909ef95fe50608dcddc7dd0dd9cd9ba4e292a9fddb24bdb1a60"
+    },
+    {
+      "file": "diagnostics/shutdown-summary.json",
+      "bytes": 721,
+      "sha256": "0099c195d6f4a69030cd2f1ecf695466eb5c38b7e9fb56c0d9ab7961dc432d83"
+    },
+    {
+      "file": "e01-assembled.json",
+      "bytes": 3911754,
+      "sha256": "fd23b4bbbc79a026e1ef230b8cccbaff36a4c2f073c87462995ebc187a619ca5"
+    },
+    {
+      "file": "host-config.json",
+      "bytes": 516,
+      "sha256": "84373665230f8231338d4d33cb83d6075e274cb6a29ca2d362539fb134d4adda"
+    },
+    {
+      "file": "host-obs.jsonl",
+      "bytes": 17899949,
+      "sha256": "09e69c27535cda5ade6a8a81b541eb97d59afe4e43361e98a29447e4db53126d"
+    },
+    {
+      "file": "run-record.json",
+      "bytes": 2386854,
+      "sha256": "5e77cd261a1d65d5baa6a978f541729b38db8ae4f68a12e6a2c016c77ee4d3f5"
+    },
+    {
+      "file": "trace-00.json",
+      "bytes": 14751002,
+      "sha256": "0d6cc8e9b058ecd47d7db5cda17afaa4e1d296d992c086d90cc19e55594e224b"
+    },
+    {
+      "file": "trace-01.json",
+      "bytes": 17217197,
+      "sha256": "7e2a642e74a1c71c0959421c72bc5e2381ba163fc8379d4d4eaa8cde6ed8888f"
+    },
+    {
+      "file": "trace-02.json",
+      "bytes": 16964840,
+      "sha256": "72b6ddee55800d7a96bf0aacdb3bf9b916f80e1bb4e30785ee9b8bd374ec0577"
+    },
+    {
+      "file": "trace-03.json",
+      "bytes": 17108822,
+      "sha256": "5b4222a9e349166da4ac2dffb7ae35b1c44fef00db84d02c7ca043c01f9ed98d"
+    },
+    {
+      "file": "trace-04.json",
+      "bytes": 17066386,
+      "sha256": "4388b72392f8f0c0bae5e1599786e3ac9eb08f8caa0c98a765d5f5fa3ba35487"
+    },
+    {
+      "file": "trace-05.json",
+      "bytes": 17101372,
+      "sha256": "b7bfd156902b27624ae9911632a214859b81c3265607b33f85b43de9e1b47181"
+    },
+    {
+      "file": "trace-06.json",
+      "bytes": 15823478,
+      "sha256": "010612c14f5f68bb7f161c5c2f71b179b92ceeaf6717e3b0d30a8dd6d26a72ef"
+    },
+    {
+      "file": "trace-07.json",
+      "bytes": 15695908,
+      "sha256": "b1e328b7af9ca5eb29f568c59a72b7cf6dc8e902d00f1ae673640f8cea2cb125"
+    },
+    {
+      "file": "trace-08.json",
+      "bytes": 15948738,
+      "sha256": "0bfe3c1477e5505d239d80b6c4073bdc669d4a328234195a86a90a862b7a9fe8"
+    },
+    {
+      "file": "trace-09.json",
+      "bytes": 13126443,
+      "sha256": "da9ea88d76dd9d2dff07b2ffd48af06ad4d88de8cc181b60977fc6ef7955a605"
+    }
+  ],
+  "orphans": []
+}

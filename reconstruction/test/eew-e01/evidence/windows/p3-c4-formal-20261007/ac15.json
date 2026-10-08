@@ -1,0 +1,261 @@
+{
+  "id": "ac15",
+  "attempt": 1,
+  "manifestId": "p3-c4-formal-20261007",
+  "manifestSha256": "3edb1aaed272a09ad21142cc06fcd99074b1e70f2a16f68a4ac4864b2565b05c",
+  "rawDir": "/Users/tallplain/dev/fleq-a10-runs/p3-c4-formal-20261007/ac15",
+  "command": "node reconstruction/test/eew-e01/run.mjs --manifest reconstruction/test/eew-e01/evidence/p3/manifest.json",
+  "commands": [
+    "node reconstruction/test/eew-e01/run.mjs --manifest reconstruction/test/eew-e01/evidence/p3/manifest.json",
+    "caffeinate -dims -w 42593",
+    "FLEQ_STRINGIFY_OUT=/Users/tallplain/dev/fleq-a10-runs/p3-c4-formal-20261007/ac15/full/stringify.jsonl /opt/homebrew/opt/node@22/bin/node --import /Users/tallplain/dev/fleq-c4-measure5/reconstruction/test/eew-e01/probe-preload.mjs /Users/tallplain/dev/fleq-c4-measure5/reconstruction/test/eew-e01/host-launcher.mjs /Users/tallplain/dev/fleq-a10-runs/p3-c4-formal-20261007/ac15/full/host-config.json",
+    "FLEQ_STRINGIFY_OUT=/Users/tallplain/dev/fleq-a10-runs/p3-c4-formal-20261007/ac15/half/stringify.jsonl /opt/homebrew/opt/node@22/bin/node --import /Users/tallplain/dev/fleq-c4-measure5/reconstruction/test/eew-e01/probe-preload.mjs /Users/tallplain/dev/fleq-c4-measure5/reconstruction/test/eew-e01/host-launcher.mjs /Users/tallplain/dev/fleq-a10-runs/p3-c4-formal-20261007/ac15/half/host-config.json"
+  ],
+  "startedAt": "2026-10-07T19:15:02.215Z",
+  "preflight": {
+    "checkedAt": "2026-10-06T20:50:48.329Z",
+    "nodeVersion": "v22.23.3",
+    "chromeVersion": "154.0.8037.98",
+    "osVersion": "27.0.0 arm64",
+    "dist": [
+      "reconstruction/dist/src/host/host.js",
+      "reconstruction/dist/chrome-eew",
+      "dist/engine/messages/message-router.js"
+    ],
+    "gitHead": "fc8299dc5791051a01d9051a42f9f0aaf794c265",
+    "gitStatusPorcelain": "",
+    "distSha256": "cd1cfb4edb5541354b8ba516642433d5eba60175bff563a321afcd8033af65a7",
+    "runnerSha256": "d27c6f44d709749b31d233d9f05dc37c79e84ea6ff95d5fb3f68ecab91c06bc5",
+    "machine": {
+      "cpu": "Apple M2",
+      "cores": 8,
+      "memoryBytes": 8589934592
+    }
+  },
+  "fill": {
+    "mode": "full",
+    "frames": 1923,
+    "firstSeq": 1,
+    "sentMs": 50579,
+    "verifiedMs": 51828,
+    "observed": {
+      "snapshotActive": {
+        "eew": "512/0/0",
+        "weatherCurrent": "129/1/1",
+        "weatherTimeseries": "512/0/0"
+      },
+      "checkpoint": {
+        "U-W.national": 3,
+        "U-W.partials": 128,
+        "U-F.subjects": 512
+      }
+    },
+    "quiet": {
+      "waitedMs": 15114,
+      "untilLastBackendMs": 18,
+      "backendLaunchesSeen": {},
+      "quietMs": 15000,
+      "pgrepFailures": 0,
+      "note": "100ms ごとの pgrep -P で見えた子の数（短命な起動は取りこぼしうる下限）"
+    },
+    "observedBeforeMeasure": {
+      "snapshotActive": {
+        "eew": "512/0/0",
+        "weatherCurrent": "129/1/1",
+        "weatherTimeseries": "512/0/0"
+      },
+      "checkpoint": {
+        "U-W.national": 3,
+        "U-W.partials": 128,
+        "U-F.subjects": 512
+      }
+    }
+  },
+  "ac15Parts": {
+    "full": "Pass",
+    "half": "Pass",
+    "retention": "Pass"
+  },
+  "status": "Pass",
+  "byteViolations": 0,
+  "byteViolationsNote": "byteViolations は encode・write・verify 以外の段で bytes が 0 でない件数。verify 段の bytes は読んだ bytes として e15.units の verifyBytes に別に数える（P3-C1-E15、A10 の P2-A10-E15-P3 の読み）",
+  "resultFiles": [
+    {
+      "path": "reconstruction/test/eew-e01/evidence/windows/p3-c4-formal-20261007/results/aux-ac15.json",
+      "sha256": "a05227e13f99f6f9b89fbfb7d825ff5cd5c13f1b7c9ae0c0b1eaa791f3d2a356"
+    }
+  ],
+  "liveness": {
+    "pings": 77,
+    "maxFrameGapMs": 13610.451625019312
+  },
+  "finishedAt": "2026-10-07T19:59:12.648Z",
+  "raw": [
+    {
+      "file": "aux-ac15.json",
+      "bytes": 93969,
+      "sha256": "a05227e13f99f6f9b89fbfb7d825ff5cd5c13f1b7c9ae0c0b1eaa791f3d2a356"
+    },
+    {
+      "file": "full/diagnostics/diagnostics-2026-06-05.jsonl",
+      "bytes": 127050,
+      "sha256": "dc931183102686b980fa6f786ba7018230b8b75a4e9f1f50b8e53266cff7060f"
+    },
+    {
+      "file": "full/diagnostics/shutdown-summary.json",
+      "bytes": 723,
+      "sha256": "7922dca86be4c644fa3a848380304777525722d4010eb727ea2aaac1997f0f5c"
+    },
+    {
+      "file": "full/fill-snapshots.json",
+      "bytes": 97861,
+      "sha256": "6d30f3cc15a9bf6a2667a655e5ac00f83aa8942efec65a97742ca2706aa49556"
+    },
+    {
+      "file": "full/filled-state/U-E-A.json",
+      "bytes": 252,
+      "sha256": "cf3a8a3f58b976c6e523afcab5d7f0b4e0029b8de205f845af0d032eba24a976"
+    },
+    {
+      "file": "full/filled-state/U-E-B.json",
+      "bytes": 11573,
+      "sha256": "75968aa44b9c30785a6a4b783993c51811149e47d0ebf082500b4dfea90a0fb2"
+    },
+    {
+      "file": "full/filled-state/U-F-A.json",
+      "bytes": 1569123,
+      "sha256": "a6ae3ba83f3ae7e51dd25ab591f451efff404239029e2503d2c8f6e5837a8a35"
+    },
+    {
+      "file": "full/filled-state/U-F-B.json",
+      "bytes": 1357638,
+      "sha256": "b528789329616ff83f995eae61d282fb9ce0f8b34358956d66f0b479b70bf4e2"
+    },
+    {
+      "file": "full/filled-state/U-W-A.json",
+      "bytes": 7788560,
+      "sha256": "fd40a7994994a80322e4c995133d2fa5130b950b82722a9c216a0d5581114e28"
+    },
+    {
+      "file": "full/filled-state/U-W-B.json",
+      "bytes": 7506171,
+      "sha256": "18bde2bab42a82fe35e64f36b89a055fa1e071f105ffdad333e5594ef151c3c4"
+    },
+    {
+      "file": "full/host-config.json",
+      "bytes": 447,
+      "sha256": "64327efca4f01cf0e4130f2a169af1ddfaa1336d7ba526748cc35d4b5f9f209a"
+    },
+    {
+      "file": "full/host-obs.jsonl",
+      "bytes": 7087182,
+      "sha256": "78b264eb5997c50d7c09c1f45b60255ab1106c913184bcecc30bb4e2e0715780"
+    },
+    {
+      "file": "full/metadata-disconnects.json",
+      "bytes": 10226,
+      "sha256": "3aa14a4bc29de78fbc5333d1c4e1e48d4d4a147ed64557a242eb166eda6d2e78"
+    },
+    {
+      "file": "full/stringify.jsonl",
+      "bytes": 270456192,
+      "sha256": "17db331677fa7de3d71d25f7800e30d4c17cf13e7d95632cd7d674821e3af5b3"
+    },
+    {
+      "file": "full/stringify.jsonl.deferred.written",
+      "bytes": 18,
+      "sha256": "d372ad9e309b6077ec373a28fc2ae928e372db81a268fc2e48239557927adf97"
+    },
+    {
+      "file": "full/stringify.jsonl.urgent.written",
+      "bytes": 18,
+      "sha256": "10b52bb46c2188249c75927848de1861b31e56fbef0878b6a788d288990e41e0"
+    },
+    {
+      "file": "full/stringify.jsonl.weatherCurrent.written",
+      "bytes": 18,
+      "sha256": "445a5c2175b0976477acbad7be8179d5ff28611e5c1f9300fe6066b5aa98b842"
+    },
+    {
+      "file": "half/diagnostics/diagnostics-2026-06-05.jsonl",
+      "bytes": 66571,
+      "sha256": "10b41683aa1f329669e7cfca33efa31266a1683bb3d0b8889d4faf2556fb64dd"
+    },
+    {
+      "file": "half/diagnostics/shutdown-summary.json",
+      "bytes": 721,
+      "sha256": "744ea6303348e417aadc6f798a2bd8bd2a52a6f9d82feafefa2a137d3c3c481a"
+    },
+    {
+      "file": "half/fill-snapshots.json",
+      "bytes": 117240,
+      "sha256": "fb003215efe9cd1b603b23abc3322f0c8068525e58f088352e622b3e1a92021f"
+    },
+    {
+      "file": "half/filled-state/U-E-A.json",
+      "bytes": 2671,
+      "sha256": "f0eda62f777a656ac5b0cc6780e5adfaf366fa780333eace5393ed0bf2685f12"
+    },
+    {
+      "file": "half/filled-state/U-E-B.json",
+      "bytes": 251,
+      "sha256": "7d512038c158836b09d7a50a456d028d25eeed591a2885e5c92c673483bc2baf"
+    },
+    {
+      "file": "half/filled-state/U-F-A.json",
+      "bytes": 603253,
+      "sha256": "bc8b136cc66b244f074ae08155c12d5077f9008b06290927590f127df8e995db"
+    },
+    {
+      "file": "half/filled-state/U-F-B.json",
+      "bytes": 783971,
+      "sha256": "4fcb89d77d5e50c83dfe7d3e6afdcad8796c1cc6ff9777faec827c4e15a78621"
+    },
+    {
+      "file": "half/filled-state/U-W-A.json",
+      "bytes": 6133573,
+      "sha256": "383a0a90371fd69bb8befc09cccdb42256b5840a7e175f854adea42965309b74"
+    },
+    {
+      "file": "half/filled-state/U-W-B.json",
+      "bytes": 6435209,
+      "sha256": "b47155199351963c5db4defbd35352f94e03395fb99e426b7274ad61e7352d93"
+    },
+    {
+      "file": "half/host-config.json",
+      "bytes": 447,
+      "sha256": "79d81000468562c3d74c0b04d1a4da07f77fd4062ada2a9448f3bc1ec063fa96"
+    },
+    {
+      "file": "half/host-obs.jsonl",
+      "bytes": 4971008,
+      "sha256": "6bfa64438bfd231d6f83fe65d6dc8c32280a86e537fa62516f81dbabde3c3349"
+    },
+    {
+      "file": "half/metadata-disconnects.json",
+      "bytes": 10226,
+      "sha256": "441d74356be3ecabab841f3be7c302a68de1902ffbbc2a36b97a7f607e788547"
+    },
+    {
+      "file": "half/stringify.jsonl",
+      "bytes": 137667173,
+      "sha256": "e27e6ed66cad8775469a25e2e784444e81901cd661374cb28091c134138a91e9"
+    },
+    {
+      "file": "half/stringify.jsonl.deferred.written",
+      "bytes": 18,
+      "sha256": "931040aea768bb81ce6163be760776d55b87635adf1afe2319e85d7bd3a5f747"
+    },
+    {
+      "file": "half/stringify.jsonl.urgent.written",
+      "bytes": 18,
+      "sha256": "f08326ba16747ba6f9d7102716e42b9eadef337e954be765158eda867210112b"
+    },
+    {
+      "file": "half/stringify.jsonl.weatherCurrent.written",
+      "bytes": 18,
+      "sha256": "ca198e45d8d0be80533c044281d17adf2c6066fcdae1f230c0064c911db3d147"
+    }
+  ],
+  "orphans": []
+}

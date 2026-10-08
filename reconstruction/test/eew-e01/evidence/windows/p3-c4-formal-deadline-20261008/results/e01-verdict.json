@@ -1,0 +1,50 @@
+{
+  "verdict": {
+    "label": "P3 E01",
+    "status": "未確認",
+    "populations": {
+      "fixedBacklog": "未確認",
+      "maxVpws50ParseStarted": "未確認",
+      "maxWeatherCheckpointEncodeStarted": "未確認",
+      "maxForecastCheckpointSave": "未確認",
+      "forecastDeadlineOverlap": "Pass",
+      "maxVpws50ReceivedThenEew": "reference"
+    },
+    "evidenceRefs": []
+  },
+  "cause": {
+    "cause": "none",
+    "decision": "notEvaluated",
+    "evidenceRefs": [],
+    "attemptedFixes": []
+  },
+  "runs": [
+    {
+      "id": "e01-forecastDeadlineOverlap-run1",
+      "attempt": 1,
+      "status": "Pass",
+      "durationMs": 5428724.2145830095,
+      "paintWithoutScreenshot": 248
+    },
+    {
+      "id": "e01-forecastDeadlineOverlap-run2",
+      "attempt": 1,
+      "status": "Pass",
+      "durationMs": 5766726.650375009,
+      "paintWithoutScreenshot": 257
+    },
+    {
+      "id": "e01-forecastDeadlineOverlap-run3",
+      "attempt": 1,
+      "status": "Pass",
+      "durationMs": 5533072.879875004,
+      "paintWithoutScreenshot": 246
+    }
+  ],
+  "finishedAt": "2026-10-08T05:53:39.047Z",
+  "commands": [
+    "node reconstruction/test/eew-e01/run.mjs --manifest reconstruction/test/eew-e01/evidence/p3/manifest-deadline.json --windows e01-forecastDeadlineOverlap-run1,e01-forecastDeadlineOverlap-run2,e01-forecastDeadlineOverlap-run3",
+    "caffeinate -dims -w 62789"
+  ],
+  "notification": "real"
+}

@@ -1,0 +1,237 @@
+{
+  "schemaVersion": "p2-a10-aux-result-v1",
+  "manifestId": "p3-c4-formal-20261007",
+  "manifestSha256": "3edb1aaed272a09ad21142cc06fcd99074b1e70f2a16f68a4ac4864b2565b05c",
+  "resultSha256": "e31bf3e9824bfd7c2eefcd8de5abfd44cb393be87b53ffcfecc7f2eb15fe243e",
+  "window": "e03-run3",
+  "status": "Pass",
+  "warmup": 20,
+  "samples": 1000,
+  "e03": {
+    "status": "Pass",
+    "samples": 1000,
+    "unprocessed": 0,
+    "processingMs": {
+      "p50": 578.659387687454,
+      "p95": 618.3411669843481,
+      "p99": 625.8225068281172,
+      "max": 634.0755625000456
+    },
+    "queueWaitMs": {
+      "p50": 0.3683915937435813,
+      "p95": 0.6012099687941372,
+      "p99": 21.866503906203434,
+      "max": 84.2163603437366
+    },
+    "limitMs": 1000,
+    "notes": [
+      "未処理が 1 件でもあれば Fail でなく未確認（保守側）",
+      "終点は dispatch 完了で publish の直列化まで含む（T3 より遅い＝保守側）",
+      "targetInputIds は host の data frame の通し番号（ingress 拒否も番号を消費し、overload 中は消費しない）"
+    ]
+  },
+  "seqAlignment": {
+    "t0": 1025,
+    "sent": 1025,
+    "aligned": true
+  },
+  "e15": {
+    "status": null,
+    "attempts": 817,
+    "units": {
+      "U-W": {
+        "encodeCount": 817,
+        "encodeBytes": 2483072313,
+        "writeBytes": 2483072313,
+        "occupiedMsLower": 39846.462646484375,
+        "measuredStagesMs": 52338.043701171875,
+        "failedAttempts": 0,
+        "verifyCount": 0,
+        "verifyBytes": 0,
+        "verifyMs": 0
+      }
+    },
+    "retryReasons": {
+      "notRetry": 817
+    },
+    "byteViolations": 0,
+    "unknownInputIds": 0,
+    "blocked": [],
+    "writes": {
+      "status": null,
+      "complete": true,
+      "unconfirmed": [],
+      "unattributed": [],
+      "unverified": [],
+      "threads": {
+        "urgent": {
+          "confirmed": true,
+          "counts": {
+            "checkpoint": {
+              "count": 0,
+              "bytes": 0
+            },
+            "tmp": {
+              "count": 0,
+              "bytes": 0
+            },
+            "diagnosticLog": {
+              "count": 0,
+              "bytes": 0
+            },
+            "other": {
+              "count": 0,
+              "bytes": 0
+            }
+          }
+        },
+        "weatherCurrent": {
+          "confirmed": true,
+          "counts": {
+            "checkpoint": {
+              "count": 0,
+              "bytes": 0
+            },
+            "tmp": {
+              "count": 817,
+              "bytes": 2483072313
+            },
+            "diagnosticLog": {
+              "count": 0,
+              "bytes": 0
+            },
+            "other": {
+              "count": 0,
+              "bytes": 0
+            }
+          }
+        },
+        "deferred": {
+          "confirmed": true,
+          "counts": {
+            "checkpoint": {
+              "count": 0,
+              "bytes": 0
+            },
+            "tmp": {
+              "count": 0,
+              "bytes": 0
+            },
+            "diagnosticLog": {
+              "count": 0,
+              "bytes": 0
+            },
+            "other": {
+              "count": 0,
+              "bytes": 0
+            }
+          }
+        },
+        "publisher": {
+          "confirmed": true,
+          "counts": {
+            "checkpoint": {
+              "count": 0,
+              "bytes": 0
+            },
+            "tmp": {
+              "count": 2,
+              "bytes": 1320
+            },
+            "diagnosticLog": {
+              "count": 3,
+              "bytes": 475
+            },
+            "other": {
+              "count": 0,
+              "bytes": 0
+            }
+          }
+        }
+      }
+    },
+    "preSaveSyncMs": {
+      "U-W": {
+        "grants": 817,
+        "reconcileGrants": 0,
+        "invalid": 0,
+        "lowerMs": 39846.462646484375,
+        "upperMs": 59803.07421875,
+        "maxUpperMs": 634.233154296875
+      }
+    },
+    "occupancyNote": "occupiedMsLower = encode の壁時間（下限）。verify 段（記憶なし・照合の経路だけ）は verifyCount・verifyBytes（読んだ bytes）・verifyMs に別に数え、占有・write へ足さない。measuredStagesMs = 計測された段の壁時間の合計で、非同期の待ちを含み、前段の同期処理 checkpoint.ts:266-300 を含まない（上限ではない）"
+  },
+  "byteViolations": 0,
+  "byteViolationsNote": "byteViolations は encode・write・verify 以外の段で bytes が 0 でない件数。verify 段の bytes は読んだ bytes として e15.units の verifyBytes に別に数える（P3-C1-E15、A10 の P2-A10-E15-P3 の読み）",
+  "publishCost": {
+    "window": "e03-run3",
+    "publishCount": 2423,
+    "totalJsonBytes": 10582598,
+    "maxJsonBytes": 4381,
+    "serializeP50Ms": 0.00849999999627471,
+    "serializeP99Ms": 0.02629100007470697,
+    "serializeMaxMs": 0.741041999999652
+  },
+  "ownerHeap": {
+    "urgent": {
+      "rows": 1224,
+      "maxHeapUsedBytes": 7145272,
+      "maxExternalBytes": 1927463
+    },
+    "weatherCurrent": {
+      "rows": 1224,
+      "maxHeapUsedBytes": 529038808,
+      "maxExternalBytes": 26342539
+    },
+    "deferred": {
+      "rows": 1224,
+      "maxHeapUsedBytes": 7684112,
+      "maxExternalBytes": 1936117
+    }
+  },
+  "notificationAdoption": {
+    "first": {
+      "reservations": 0,
+      "started": 0,
+      "notStarted": 0,
+      "reservationToReplyMs": null,
+      "replyToAttemptMs": null,
+      "createdToReservationWallMs": null
+    },
+    "retries": {
+      "reservations": 0,
+      "started": 0,
+      "notStarted": 0,
+      "reservationToReplyMs": null,
+      "replyToAttemptMs": null,
+      "createdToReservationWallMs": null
+    }
+  },
+  "viewCopy": {
+    "inputs": 1025,
+    "unbound": 0,
+    "threadCopiesPerInputUpper": 1,
+    "publishesPerInput": {
+      "p50": 2,
+      "p95": 3,
+      "p99": 3,
+      "max": 1280
+    },
+    "publishBytesPerInput": {
+      "p50": 8752,
+      "p95": 13105,
+      "p99": 13113,
+      "max": 5591752
+    },
+    "serializeMsPerInput": {
+      "p50": 0.021416999981738627,
+      "p95": 0.035334000072907656,
+      "p99": 0.05470800003968179,
+      "max": 12.379925002343953
+    },
+    "publishesWithoutSerialization": 0,
+    "attribution": "帰属不能（参考量）",
+    "referenceCopyBytes": "C3a の計量: VPWS50 で view 620,797 byte・返信 622,802 byte"
+  }
+}

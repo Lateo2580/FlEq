@@ -1,0 +1,156 @@
+{
+  "id": "e01-maxWeatherCheckpointEncodeStarted-run3",
+  "attempt": 1,
+  "manifestId": "p3-c4-formal-20261007",
+  "manifestSha256": "3edb1aaed272a09ad21142cc06fcd99074b1e70f2a16f68a4ac4864b2565b05c",
+  "rawDir": "/Users/tallplain/dev/fleq-a10-runs/p3-c4-formal-20261007/e01-maxWeatherCheckpointEncodeStarted-run3",
+  "command": "node reconstruction/test/eew-e01/run.mjs --manifest reconstruction/test/eew-e01/evidence/p3/manifest.json",
+  "commands": [
+    "node reconstruction/test/eew-e01/run.mjs --manifest reconstruction/test/eew-e01/evidence/p3/manifest.json",
+    "caffeinate -dims -w 42593",
+    "/opt/homebrew/opt/node@22/bin/node /Users/tallplain/dev/fleq-c4-measure5/reconstruction/test/eew-e01/host-launcher.mjs /Users/tallplain/dev/fleq-a10-runs/p3-c4-formal-20261007/e01-maxWeatherCheckpointEncodeStarted-run3/host-config.json",
+    "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome --remote-debugging-port=0 --user-data-dir=/var/folders/rh/mfnz7fyn5mz6kqd4thpp0q9w0000gn/T/fleq-a10-chrome-zXKlBP --no-first-run --no-default-browser-check --window-size=1440,900 --force-color-profile=srgb --disable-background-timer-throttling --disable-renderer-backgrounding --disable-backgrounding-occluded-windows about:blank"
+  ],
+  "startedAt": "2026-10-07T04:10:57.856Z",
+  "preflight": {
+    "checkedAt": "2026-10-06T20:50:48.329Z",
+    "nodeVersion": "v22.23.3",
+    "chromeVersion": "154.0.8037.98",
+    "osVersion": "27.0.0 arm64",
+    "dist": [
+      "reconstruction/dist/src/host/host.js",
+      "reconstruction/dist/chrome-eew",
+      "dist/engine/messages/message-router.js"
+    ],
+    "gitHead": "fc8299dc5791051a01d9051a42f9f0aaf794c265",
+    "gitStatusPorcelain": "",
+    "distSha256": "cd1cfb4edb5541354b8ba516642433d5eba60175bff563a321afcd8033af65a7",
+    "runnerSha256": "d27c6f44d709749b31d233d9f05dc37c79e84ea6ff95d5fb3f68ecab91c06bc5",
+    "machine": {
+      "cpu": "Apple M2",
+      "cores": 8,
+      "memoryBytes": 8589934592
+    }
+  },
+  "status": "Pass",
+  "byteViolations": 0,
+  "byteViolationsNote": "byteViolations は encode・write・verify 以外の段で bytes が 0 でない件数。verify 段の bytes は読んだ bytes として e15.units の verifyBytes に別に数える（P3-C1-E15、A10 の P2-A10-E15-P3 の読み）",
+  "resultFiles": [
+    {
+      "path": "reconstruction/test/eew-e01/evidence/windows/p3-c4-formal-20261007/results/result-formal-maxWeatherCheckpointEncodeStarted-run3.json",
+      "sha256": "a6790e59e98bbeb1489ff1969122d74bb54adf4954e95c4db35e18221f990f19"
+    },
+    {
+      "path": "reconstruction/test/eew-e01/evidence/windows/p3-c4-formal-20261007/results/aux-e01-maxWeatherCheckpointEncodeStarted-run3.json",
+      "sha256": "223c32632a49899a5fe3efa80cc94deb889092c84af683d87171441b3b74535c"
+    }
+  ],
+  "liveness": {
+    "pings": 170,
+    "maxFrameGapMs": 7613.0250000059605
+  },
+  "finishedAt": "2026-10-07T05:08:00.849Z",
+  "raw": [
+    {
+      "file": "aux-e01-maxWeatherCheckpointEncodeStarted-run3.json",
+      "bytes": 7021,
+      "sha256": "223c32632a49899a5fe3efa80cc94deb889092c84af683d87171441b3b74535c"
+    },
+    {
+      "file": "diagnostics/diagnostics-2026-06-05.jsonl",
+      "bytes": 1405,
+      "sha256": "82cc1e70bc84c64b999ccdf5ca56529a9de7f233028788a1803ec174165ea887"
+    },
+    {
+      "file": "diagnostics/shutdown-summary.json",
+      "bytes": 717,
+      "sha256": "25909f40965331955829940c48f78c70de81b8168b4366011ba45cccfd81f4b0"
+    },
+    {
+      "file": "e01-assembled.json",
+      "bytes": 4866524,
+      "sha256": "4a8f3f64166998e761658e5c7dc4d93b506a808cd240fc32921e6c028556b390"
+    },
+    {
+      "file": "host-config.json",
+      "bytes": 546,
+      "sha256": "1310da0543766240b833aea4f79504ff4f3315a32d6ccebba97e0dd59d8c8d0c"
+    },
+    {
+      "file": "host-obs.jsonl",
+      "bytes": 12081589,
+      "sha256": "c6dd2a37392dedea8056dce517c053ad80bf89817786cae5a88715da70ef178f"
+    },
+    {
+      "file": "result-formal-maxWeatherCheckpointEncodeStarted-run3.json",
+      "bytes": 1587,
+      "sha256": "a6790e59e98bbeb1489ff1969122d74bb54adf4954e95c4db35e18221f990f19"
+    },
+    {
+      "file": "run-record.json",
+      "bytes": 2464959,
+      "sha256": "a4dfb5a319bee6e398cbb735516be8029eef433135b94faebfbcd49e1bcd684e"
+    },
+    {
+      "file": "trace-00.json",
+      "bytes": 10898092,
+      "sha256": "33c23ab26ce0ec2d74ce26e8ff2dde8b872baebcab5bffa465cb99d42560e1cb"
+    },
+    {
+      "file": "trace-01.json",
+      "bytes": 11969853,
+      "sha256": "7cfd99bb4b4ebb5e7fb8d646c18173142eef0b85841d78eab5b10761b96b146d"
+    },
+    {
+      "file": "trace-02.json",
+      "bytes": 11798403,
+      "sha256": "dfd3c89d11de34873ec36453b11c87910d77277f3fc17a2931dde6b4095e4d50"
+    },
+    {
+      "file": "trace-03.json",
+      "bytes": 11778772,
+      "sha256": "c930b53766af2c3c764e641e1ee0b7f66d9821050448e6e5046402904df2377c"
+    },
+    {
+      "file": "trace-04.json",
+      "bytes": 11812583,
+      "sha256": "75ff22e221990079a211a695f047291325cd74d94c257f64b494ad6e9125ce4e"
+    },
+    {
+      "file": "trace-05.json",
+      "bytes": 11803986,
+      "sha256": "ba52b0874b35e0cf29de71ed9756f08562caa51d4aef087e2f61b7d1a3997a62"
+    },
+    {
+      "file": "trace-06.json",
+      "bytes": 12022923,
+      "sha256": "c967d3fe6f70c22be94e05be8b541c0fa452f8dca9a6cd638c8b2f85cdfc1db1"
+    },
+    {
+      "file": "trace-07.json",
+      "bytes": 12062982,
+      "sha256": "4325663cfb9497a5734d74fda67d7ddb6ffa6365b176ceb419858604b928afd8"
+    },
+    {
+      "file": "trace-08.json",
+      "bytes": 11973150,
+      "sha256": "bc8a2bdb9d458793a9c3b4147caaea9f88f34af6816145c79cef3319e6c2e1a2"
+    },
+    {
+      "file": "trace-09.json",
+      "bytes": 11925052,
+      "sha256": "ad773a753a874d83c5fe71581021b21b8a7c546200b25ccab6a3312a4dd373c3"
+    },
+    {
+      "file": "trace-10.json",
+      "bytes": 11873502,
+      "sha256": "b5982073e9edc7a87f8b50e72ca33d45fcab29b02302353ccad6cc3990e2f55e"
+    },
+    {
+      "file": "trace-11.json",
+      "bytes": 3732755,
+      "sha256": "202691a6f721ba6801d5bfbfd6afc5c01aaf48c1fcefb34512a486ee9915e43a"
+    }
+  ],
+  "orphans": []
+}

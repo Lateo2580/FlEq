@@ -1,0 +1,118 @@
+{
+  "id": "e07-C",
+  "attempt": 1,
+  "manifestId": "p3-c4-formal-20261007",
+  "manifestSha256": "3edb1aaed272a09ad21142cc06fcd99074b1e70f2a16f68a4ac4864b2565b05c",
+  "rawDir": "/Users/tallplain/dev/fleq-a10-runs/p3-c4-formal-20261007/e07-C",
+  "command": "node reconstruction/test/eew-e01/run.mjs --manifest reconstruction/test/eew-e01/evidence/p3/manifest.json",
+  "commands": [
+    "node reconstruction/test/eew-e01/run.mjs --manifest reconstruction/test/eew-e01/evidence/p3/manifest.json",
+    "caffeinate -dims -w 42593",
+    "/opt/homebrew/opt/node@22/bin/node /Users/tallplain/dev/fleq-c4-measure5/reconstruction/test/eew-e01/host-launcher.mjs /Users/tallplain/dev/fleq-a10-runs/p3-c4-formal-20261007/e07-C/host-config.json"
+  ],
+  "startedAt": "2026-10-07T22:22:05.184Z",
+  "preflight": {
+    "checkedAt": "2026-10-06T20:50:48.329Z",
+    "nodeVersion": "v22.23.3",
+    "chromeVersion": "154.0.8037.98",
+    "osVersion": "27.0.0 arm64",
+    "dist": [
+      "reconstruction/dist/src/host/host.js",
+      "reconstruction/dist/chrome-eew",
+      "dist/engine/messages/message-router.js"
+    ],
+    "gitHead": "fc8299dc5791051a01d9051a42f9f0aaf794c265",
+    "gitStatusPorcelain": "",
+    "distSha256": "cd1cfb4edb5541354b8ba516642433d5eba60175bff563a321afcd8033af65a7",
+    "runnerSha256": "d27c6f44d709749b31d233d9f05dc37c79e84ea6ff95d5fb3f68ecab91c06bc5",
+    "machine": {
+      "cpu": "Apple M2",
+      "cores": 8,
+      "memoryBytes": 8589934592
+    }
+  },
+  "fill": {
+    "mode": "cycleC",
+    "frames": 1667,
+    "firstSeq": 1,
+    "sentMs": 42709,
+    "verifiedMs": 43918,
+    "observed": {
+      "snapshotActive": {
+        "eew": "512/1/0",
+        "weatherCurrent": "129/1/1",
+        "weatherTimeseries": "512/0/0"
+      },
+      "checkpoint": {
+        "U-W.national": 3,
+        "U-W.partials": 128,
+        "U-F.subjects": 512
+      }
+    },
+    "quiet": {
+      "waitedMs": 18197,
+      "untilLastBackendMs": 3133,
+      "backendLaunchesSeen": {
+        "afplay": 12
+      },
+      "quietMs": 15000,
+      "pgrepFailures": 0,
+      "note": "100ms ごとの pgrep -P で見えた子の数（短命な起動は取りこぼしうる下限）"
+    },
+    "observedBeforeMeasure": {
+      "snapshotActive": {
+        "eew": "512/1/0",
+        "weatherCurrent": "129/1/1",
+        "weatherTimeseries": "512/0/0"
+      },
+      "checkpoint": {
+        "U-W.national": 3,
+        "U-W.partials": 128,
+        "U-F.subjects": 512
+      }
+    }
+  },
+  "pingsUnreceived": 0,
+  "status": "Pass",
+  "byteViolations": 0,
+  "byteViolationsNote": "byteViolations は encode・write・verify 以外の段で bytes が 0 でない件数。verify 段の bytes は読んだ bytes として e15.units の verifyBytes に別に数える（P3-C1-E15、A10 の P2-A10-E15-P3 の読み）",
+  "resultFiles": [
+    {
+      "path": "reconstruction/test/eew-e01/evidence/windows/p3-c4-formal-20261007/results/aux-e07-C.json",
+      "sha256": "80b0fc9b5f47723b8cd3f299e22a4fca5af32870062fc89c5d87a711bf41fb02"
+    }
+  ],
+  "liveness": {
+    "pings": 243,
+    "maxFrameGapMs": 17269.55208399892
+  },
+  "finishedAt": "2026-10-07T23:23:09.277Z",
+  "raw": [
+    {
+      "file": "aux-e07-C.json",
+      "bytes": 12569,
+      "sha256": "80b0fc9b5f47723b8cd3f299e22a4fca5af32870062fc89c5d87a711bf41fb02"
+    },
+    {
+      "file": "diagnostics/diagnostics-2026-06-05.jsonl",
+      "bytes": 120916,
+      "sha256": "383b9b36a9d564e2b0b22fcc4ec5900898b5b4b5ab76ac9594ab2cec59588912"
+    },
+    {
+      "file": "diagnostics/shutdown-summary.json",
+      "bytes": 722,
+      "sha256": "f741ad6b1a09050da1a68c6003801af9164313281057e167fe510126ace7990a"
+    },
+    {
+      "file": "host-config.json",
+      "bytes": 435,
+      "sha256": "ee15a4ac324acfb182604f0a8aa55f82729b9085a3b7dbef3e10093b82d1bb87"
+    },
+    {
+      "file": "host-obs.jsonl",
+      "bytes": 10453003,
+      "sha256": "8ecc0bb985b5e540c61e4fb15301d04f5d922bf9d8051468ae891bc953ce1929"
+    }
+  ],
+  "orphans": []
+}

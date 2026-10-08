@@ -1,0 +1,3344 @@
+{
+  "schemaVersion": "p2-a10-aux-result-v1",
+  "manifestId": "p3-c4-formal-20261007",
+  "manifestSha256": "3edb1aaed272a09ad21142cc06fcd99074b1e70f2a16f68a4ac4864b2565b05c",
+  "resultSha256": "b0be0fc6a0a586b51f79226d0e1628be5d5ed4fdee30b0aeab591b3c5ea21e32",
+  "window": "ac15",
+  "status": "Pass",
+  "warmup": 10,
+  "samples": 100,
+  "retention": {
+    "status": "Pass",
+    "maxSlope": 0.5,
+    "retained": {
+      "full": {
+        "U-E": 512,
+        "U-W": 128,
+        "U-F": 512
+      },
+      "half": {
+        "U-E": 256,
+        "U-W": 64,
+        "U-F": 256
+      }
+    },
+    "rows": [
+      {
+        "scenario": "U-E",
+        "measure": "outsideOtherPerInput",
+        "fullMedian": 57,
+        "halfMedian": 60,
+        "deltaRetained": 64,
+        "noiseFloor": 21,
+        "slope": -0.046875,
+        "exceeded": false,
+        "unresolved": false
+      },
+      {
+        "scenario": "U-E",
+        "measure": "outsidePrimitivePerInput",
+        "fullMedian": 76,
+        "halfMedian": 76,
+        "deltaRetained": 64,
+        "noiseFloor": 25,
+        "slope": 0,
+        "exceeded": false,
+        "unresolved": false
+      },
+      {
+        "scenario": "U-E",
+        "measure": "outsideOwnElementPerInput",
+        "fullMedian": 2,
+        "halfMedian": 2,
+        "deltaRetained": 64,
+        "noiseFloor": 0,
+        "slope": 0,
+        "exceeded": false,
+        "unresolved": false
+      },
+      {
+        "scenario": "U-E",
+        "measure": "outsideAmbiguousPerInput",
+        "fullMedian": 2,
+        "halfMedian": 2,
+        "deltaRetained": 64,
+        "noiseFloor": 0,
+        "slope": 0,
+        "exceeded": false,
+        "unresolved": false
+      },
+      {
+        "scenario": "metadata",
+        "measure": "outsideOtherPerInput",
+        "fullMedian": 203,
+        "halfMedian": 203,
+        "deltaRetained": 64,
+        "noiseFloor": 3,
+        "slope": 0,
+        "exceeded": false,
+        "unresolved": false
+      },
+      {
+        "scenario": "metadata",
+        "measure": "outsidePrimitivePerInput",
+        "fullMedian": 280,
+        "halfMedian": 280,
+        "deltaRetained": 64,
+        "noiseFloor": 0,
+        "slope": 0,
+        "exceeded": false,
+        "unresolved": false
+      },
+      {
+        "scenario": "metadata",
+        "measure": "outsideOwnElementPerInput",
+        "fullMedian": 0,
+        "halfMedian": 0,
+        "deltaRetained": 64,
+        "noiseFloor": 0,
+        "slope": 0,
+        "exceeded": false,
+        "unresolved": false
+      },
+      {
+        "scenario": "metadata",
+        "measure": "outsideAmbiguousPerInput",
+        "fullMedian": 0,
+        "halfMedian": 0,
+        "deltaRetained": 64,
+        "noiseFloor": 0,
+        "slope": 0,
+        "exceeded": false,
+        "unresolved": false
+      },
+      {
+        "scenario": "U-W",
+        "measure": "outsideOtherPerInput",
+        "fullMedian": 125,
+        "halfMedian": 125,
+        "deltaRetained": 64,
+        "noiseFloor": 19,
+        "slope": 0,
+        "exceeded": false,
+        "unresolved": false
+      },
+      {
+        "scenario": "U-W",
+        "measure": "outsidePrimitivePerInput",
+        "fullMedian": 2718,
+        "halfMedian": 2718,
+        "deltaRetained": 64,
+        "noiseFloor": 25,
+        "slope": 0,
+        "exceeded": false,
+        "unresolved": false
+      },
+      {
+        "scenario": "U-W",
+        "measure": "outsideOwnElementPerInput",
+        "fullMedian": 4,
+        "halfMedian": 4,
+        "deltaRetained": 64,
+        "noiseFloor": 0,
+        "slope": 0,
+        "exceeded": false,
+        "unresolved": false
+      },
+      {
+        "scenario": "U-W",
+        "measure": "outsideAmbiguousPerInput",
+        "fullMedian": 2,
+        "halfMedian": 2,
+        "deltaRetained": 64,
+        "noiseFloor": 0,
+        "slope": 0,
+        "exceeded": false,
+        "unresolved": false
+      },
+      {
+        "scenario": "U-F",
+        "measure": "outsideOtherPerInput",
+        "fullMedian": 106,
+        "halfMedian": 106,
+        "deltaRetained": 64,
+        "noiseFloor": 22,
+        "slope": 0,
+        "exceeded": false,
+        "unresolved": false
+      },
+      {
+        "scenario": "U-F",
+        "measure": "outsidePrimitivePerInput",
+        "fullMedian": 206,
+        "halfMedian": 206,
+        "deltaRetained": 64,
+        "noiseFloor": 25,
+        "slope": 0,
+        "exceeded": false,
+        "unresolved": false
+      },
+      {
+        "scenario": "U-F",
+        "measure": "outsideOwnElementPerInput",
+        "fullMedian": 4,
+        "halfMedian": 4,
+        "deltaRetained": 64,
+        "noiseFloor": 0,
+        "slope": 0,
+        "exceeded": false,
+        "unresolved": false
+      },
+      {
+        "scenario": "U-F",
+        "measure": "outsideAmbiguousPerInput",
+        "fullMedian": 2,
+        "halfMedian": 2,
+        "deltaRetained": 64,
+        "noiseFloor": 0,
+        "slope": 0,
+        "exceeded": false,
+        "unresolved": false
+      }
+    ]
+  },
+  "full": {
+    "mode": "full",
+    "status": "Pass",
+    "fill": {
+      "mode": "full",
+      "frames": 1923,
+      "firstSeq": 1,
+      "sentMs": 50579,
+      "verifiedMs": 51828,
+      "observed": {
+        "snapshotActive": {
+          "eew": "512/0/0",
+          "weatherCurrent": "129/1/1",
+          "weatherTimeseries": "512/0/0"
+        },
+        "checkpoint": {
+          "U-W.national": 3,
+          "U-W.partials": 128,
+          "U-F.subjects": 512
+        }
+      },
+      "quiet": {
+        "waitedMs": 15114,
+        "untilLastBackendMs": 18,
+        "backendLaunchesSeen": {},
+        "quietMs": 15000,
+        "pgrepFailures": 0,
+        "note": "100ms ごとの pgrep -P で見えた子の数（短命な起動は取りこぼしうる下限）"
+      },
+      "observedBeforeMeasure": {
+        "snapshotActive": {
+          "eew": "512/0/0",
+          "weatherCurrent": "129/1/1",
+          "weatherTimeseries": "512/0/0"
+        },
+        "checkpoint": {
+          "U-W.national": 3,
+          "U-W.partials": 128,
+          "U-F.subjects": 512
+        }
+      }
+    },
+    "fingerprintTable": {
+      "unitState": {
+        "U-E": "contentRevision,deliveryRecords,intents,persistence,schemaVersion",
+        "U-F": "contentRevision,gates,intents,persistence,schemaVersion,subjects",
+        "U-W": "contentRevision,freshness,histories,intents,national,ownership,partials,persistence,schemaVersion,tombstones,unavailable"
+      },
+      "runtimeState": "restoration,units,views",
+      "unitCollection": "U-E,U-F,U-W",
+      "payload": {
+        "U-E": "deliveryRecords,intents,schemaVersion",
+        "U-F": "gates,intents,schemaVersion,subjects",
+        "U-W": "freshness,histories,intents,national,ownership,partials,schemaVersion,tombstones,unavailable"
+      },
+      "envelope": "capturedAt,generation,payload,schemaVersion,sha256,unit",
+      "snapshot": "channels,connection,current,generatedAt,notices,persistence,recovery,schemaVersion,semanticRevision,sequence,streamId,worker",
+      "viewUnits": [
+        "U-E",
+        "U-F",
+        "U-W"
+      ],
+      "elements": {
+        "affectedScope,areas,attributes,effective,kinds,lastKnown,locals,operation,periods,retainUntil,series,source,strings,subject,unavailableReason,validUntil,values": "U-F",
+        "operation,source,subject": "U-F",
+        "office,operation,phenomena,scope,source,subject": "U-W",
+        "operation,reports,subject": "U-W",
+        "eventId,family,isAssumedHypocenter,operation,prediction,retainedPrediction,serial,source,subject,terminal,warningClass": "U-E"
+      },
+      "ambiguous": [
+        "changedFields,facts,informationType,operation,severity,source,subject,transition"
+      ],
+      "emptyRequiredFields": []
+    },
+    "judged": {
+      "status": "Pass",
+      "violations": [],
+      "unconfirmed": [],
+      "missing": [],
+      "scenarios": {
+        "U-E": {
+          "inputs": 100,
+          "runtimeState": {
+            "count": 0,
+            "ms": 0,
+            "chars": 0,
+            "maxChars": 0
+          },
+          "unitState": {
+            "count": 0,
+            "ms": 0,
+            "chars": 0,
+            "maxChars": 0
+          },
+          "unitCollection": {
+            "count": 0,
+            "ms": 0,
+            "chars": 0,
+            "maxChars": 0
+          },
+          "foreignElement": {
+            "count": 0,
+            "ms": 0,
+            "chars": 0,
+            "maxChars": 0
+          },
+          "ownElement": {
+            "count": 200,
+            "ms": 1.9807040002342546,
+            "chars": 401846,
+            "maxChars": 2011
+          },
+          "ownElementCollection": {
+            "count": 0,
+            "ms": 0,
+            "chars": 0,
+            "maxChars": 0
+          },
+          "ownElementLengthUnknown": {
+            "count": 0,
+            "ms": 0,
+            "chars": 0,
+            "maxChars": 0
+          },
+          "ownElementMaxPerInput": 2,
+          "checkpointElement": {},
+          "ambiguous": {
+            "count": 200,
+            "ms": 2.145994999926188,
+            "chars": 410846,
+            "maxChars": 2056
+          },
+          "ambiguousCollection": {
+            "count": 0,
+            "ms": 0,
+            "chars": 0,
+            "maxChars": 0
+          },
+          "envelope": {
+            "count": 0,
+            "ms": 0,
+            "chars": 0,
+            "maxChars": 0
+          },
+          "checkpointPayload": {},
+          "foreignPayload": {
+            "count": 0,
+            "ms": 0,
+            "chars": 0,
+            "maxChars": 0
+          },
+          "payloadOutsideCheckpoint": {
+            "count": 0,
+            "ms": 0,
+            "chars": 0,
+            "maxChars": 0
+          },
+          "snapshot": {
+            "count": 350,
+            "ms": 5.526998000423191,
+            "chars": 705900,
+            "maxChars": 4424
+          },
+          "publishCount": 100,
+          "snapshotCallsMinusPublish": 250,
+          "other": [
+            {
+              "fingerprint": "activeCount,admission,contentRevision,current,semanticRevision,subjects,unit",
+              "count": 200,
+              "ms": 49.112790999832214,
+              "chars": 12108023,
+              "maxChars": 60541
+            },
+            {
+              "fingerprint": "#string",
+              "count": 1550,
+              "ms": 18.495087000599597,
+              "chars": 2135800,
+              "maxChars": 4196
+            },
+            {
+              "fingerprint": "activeCount,admission,areaCounts,confirmation,freshness,highestSeverity,informationType,operation,unavailable,unconfirmed,unknownCode,updatedAt",
+              "count": 1300,
+              "ms": 13.054102999332827,
+              "chars": 1305400,
+              "maxChars": 1155
+            },
+            {
+              "fingerprint": "o,t",
+              "count": 1310,
+              "ms": 8.675946000425029,
+              "chars": 317003,
+              "maxChars": 459
+            },
+            {
+              "fingerprint": "budgetBytes,contentRevision,delivery,items,originalBytes,reason,unit",
+              "count": 750,
+              "ms": 7.135377999744378,
+              "chars": 843250,
+              "maxChars": 1295
+            },
+            {
+              "fingerprint": "contentRevision,delivery,items,unit,view",
+              "count": 200,
+              "ms": 0.8881650000985246,
+              "chars": 186000,
+              "maxChars": 930
+            },
+            {
+              "fingerprint": "#undefined",
+              "count": 500,
+              "ms": 0.19483700027922168,
+              "chars": 1000,
+              "maxChars": 2
+            },
+            {
+              "fingerprint": "external,heapUsed,perfNowMs,rss,t",
+              "count": 15,
+              "ms": 0.12708299998485018,
+              "chars": 1377,
+              "maxChars": 92
+            },
+            {
+              "fingerprint": "eventId,kind,operation,unit",
+              "count": 100,
+              "ms": 0.07212099996104371,
+              "chars": 7700,
+              "maxChars": 77
+            },
+            {
+              "fingerprint": "hrtimeNs,perfNowMs,t",
+              "count": 5,
+              "ms": 0.027625000002444722,
+              "chars": 336,
+              "maxChars": 68
+            },
+            {
+              "fingerprint": "pingId,type",
+              "count": 7,
+              "ms": 0.022375000073225237,
+              "chars": 247,
+              "maxChars": 36
+            }
+          ],
+          "outsideOtherPerInput": {
+            "p50": 57,
+            "p95": 78,
+            "p99": 81,
+            "max": 81
+          },
+          "outsidePrimitivePerInput": {
+            "p50": 76,
+            "p95": 101,
+            "p99": 101,
+            "max": 101
+          },
+          "outsideOwnElementPerInput": {
+            "p50": 2,
+            "p95": 2,
+            "p99": 2,
+            "max": 2
+          },
+          "outsideAmbiguousPerInput": {
+            "p50": 2,
+            "p95": 2,
+            "p99": 2,
+            "max": 2
+          },
+          "processingMs": {
+            "p50": 46.510094734374434,
+            "p95": 48.90618262501084,
+            "p99": 53.06823242187966,
+            "max": 53.619451187492814
+          },
+          "stringifyMs": {
+            "p50": 1.0624570001091342,
+            "p95": 1.236832000038703,
+            "p99": 1.267331000068225,
+            "max": 1.2790320000203792
+          }
+        },
+        "metadata": {
+          "inputs": 100,
+          "runtimeState": {
+            "count": 0,
+            "ms": 0,
+            "chars": 0,
+            "maxChars": 0
+          },
+          "unitState": {
+            "count": 0,
+            "ms": 0,
+            "chars": 0,
+            "maxChars": 0
+          },
+          "unitCollection": {
+            "count": 0,
+            "ms": 0,
+            "chars": 0,
+            "maxChars": 0
+          },
+          "foreignElement": {
+            "count": 0,
+            "ms": 0,
+            "chars": 0,
+            "maxChars": 0
+          },
+          "ownElement": {
+            "count": 0,
+            "ms": 0,
+            "chars": 0,
+            "maxChars": 0
+          },
+          "ownElementCollection": {
+            "count": 0,
+            "ms": 0,
+            "chars": 0,
+            "maxChars": 0
+          },
+          "ownElementLengthUnknown": {
+            "count": 0,
+            "ms": 0,
+            "chars": 0,
+            "maxChars": 0
+          },
+          "ownElementMaxPerInput": 0,
+          "checkpointElement": {},
+          "ambiguous": {
+            "count": 0,
+            "ms": 0,
+            "chars": 0,
+            "maxChars": 0
+          },
+          "ambiguousCollection": {
+            "count": 0,
+            "ms": 0,
+            "chars": 0,
+            "maxChars": 0
+          },
+          "envelope": {
+            "count": 0,
+            "ms": 0,
+            "chars": 0,
+            "maxChars": 0
+          },
+          "checkpointPayload": {},
+          "foreignPayload": {
+            "count": 0,
+            "ms": 0,
+            "chars": 0,
+            "maxChars": 0
+          },
+          "payloadOutsideCheckpoint": {
+            "count": 0,
+            "ms": 0,
+            "chars": 0,
+            "maxChars": 0
+          },
+          "snapshot": {
+            "count": 999,
+            "ms": 27.390581998974085,
+            "chars": 1748637,
+            "maxChars": 4489
+          },
+          "publishCount": 200,
+          "snapshotCallsMinusPublish": 799,
+          "other": [
+            {
+              "fingerprint": "#string",
+              "count": 10397,
+              "ms": 81.79662500234554,
+              "chars": 6852658,
+              "maxChars": 4261
+            },
+            {
+              "fingerprint": "activeCount,admission,areaCounts,confirmation,freshness,highestSeverity,informationType,operation,unavailable,unconfirmed,unknownCode,updatedAt",
+              "count": 4794,
+              "ms": 61.43570899806218,
+              "chars": 4801990,
+              "maxChars": 1166
+            },
+            {
+              "fingerprint": "budgetBytes,contentRevision,delivery,items,originalBytes,reason,unit",
+              "count": 2397,
+              "ms": 30.694468000612687,
+              "chars": 2737374,
+              "maxChars": 1306
+            },
+            {
+              "fingerprint": "o,t",
+              "count": 3316,
+              "ms": 21.394331996678375,
+              "chars": 810038,
+              "maxChars": 332
+            },
+            {
+              "fingerprint": "#undefined",
+              "count": 1598,
+              "ms": 0.8580730006797239,
+              "chars": 3196,
+              "maxChars": 2
+            },
+            {
+              "fingerprint": "external,heapUsed,perfNowMs,rss,t",
+              "count": 70,
+              "ms": 0.8344189996132627,
+              "chars": 6417,
+              "maxChars": 93
+            },
+            {
+              "fingerprint": "component,count,level,reason,runId,timestamp",
+              "count": 100,
+              "ms": 0.599875999498181,
+              "chars": 14900,
+              "maxChars": 149
+            },
+            {
+              "fingerprint": "hrtimeNs,perfNowMs,t",
+              "count": 23,
+              "ms": 0.2394980003591627,
+              "chars": 1556,
+              "maxChars": 68
+            },
+            {
+              "fingerprint": "pingId,type",
+              "count": 10,
+              "ms": 0.02470900007756427,
+              "chars": 360,
+              "maxChars": 36
+            }
+          ],
+          "outsideOtherPerInput": {
+            "p50": 203,
+            "p95": 206,
+            "p99": 207,
+            "max": 207
+          },
+          "outsidePrimitivePerInput": {
+            "p50": 280,
+            "p95": 280,
+            "p99": 280,
+            "max": 280
+          },
+          "outsideOwnElementPerInput": {
+            "p50": 0,
+            "p95": 0,
+            "p99": 0,
+            "max": 0
+          },
+          "outsideAmbiguousPerInput": {
+            "p50": 0,
+            "p95": 0,
+            "p99": 0,
+            "max": 0
+          },
+          "processingMs": null,
+          "stringifyMs": {
+            "p50": 2.2450379997026175,
+            "p95": 2.3310929997824132,
+            "p99": 2.3598389998078346,
+            "max": 2.454006999498233
+          }
+        },
+        "U-W": {
+          "inputs": 100,
+          "runtimeState": {
+            "count": 0,
+            "ms": 0,
+            "chars": 0,
+            "maxChars": 0
+          },
+          "unitState": {
+            "count": 0,
+            "ms": 0,
+            "chars": 0,
+            "maxChars": 0
+          },
+          "unitCollection": {
+            "count": 0,
+            "ms": 0,
+            "chars": 0,
+            "maxChars": 0
+          },
+          "foreignElement": {
+            "count": 0,
+            "ms": 0,
+            "chars": 0,
+            "maxChars": 0
+          },
+          "ownElement": {
+            "count": 400,
+            "ms": 22.28879199991934,
+            "chars": 4880200,
+            "maxChars": 35512
+          },
+          "ownElementCollection": {
+            "count": 0,
+            "ms": 0,
+            "chars": 0,
+            "maxChars": 0
+          },
+          "ownElementLengthUnknown": {
+            "count": 0,
+            "ms": 0,
+            "chars": 0,
+            "maxChars": 0
+          },
+          "ownElementMaxPerInput": 4,
+          "checkpointElement": {},
+          "ambiguous": {
+            "count": 200,
+            "ms": 2.634159999433905,
+            "chars": 907600,
+            "maxChars": 4538
+          },
+          "ambiguousCollection": {
+            "count": 0,
+            "ms": 0,
+            "chars": 0,
+            "maxChars": 0
+          },
+          "envelope": {
+            "count": 100,
+            "ms": 1489.5667099996936,
+            "chars": 540010576,
+            "maxChars": 5400106
+          },
+          "checkpointPayload": {
+            "U-W": {
+              "count": 100,
+              "ms": 2567.8785460005747,
+              "chars": 539991100,
+              "maxChars": 5399911
+            }
+          },
+          "foreignPayload": {
+            "count": 0,
+            "ms": 0,
+            "chars": 0,
+            "maxChars": 0
+          },
+          "payloadOutsideCheckpoint": {
+            "count": 0,
+            "ms": 0,
+            "chars": 0,
+            "maxChars": 0
+          },
+          "snapshot": {
+            "count": 560,
+            "ms": 6.349702001432888,
+            "chars": 1318322,
+            "maxChars": 4499
+          },
+          "publishCount": 210,
+          "snapshotCallsMinusPublish": 350,
+          "other": [
+            {
+              "fingerprint": "#string",
+              "count": 56350,
+              "ms": 36.56934205687139,
+              "chars": 6438707,
+              "maxChars": 4271
+            },
+            {
+              "fingerprint": "activeCount,admission,areaCounts,confirmation,freshness,highestSeverity,informationType,operation,unavailable,unconfirmed,unknownCode,updatedAt",
+              "count": 1900,
+              "ms": 13.029495000373572,
+              "chars": 1868300,
+              "maxChars": 1162
+            },
+            {
+              "fingerprint": "o,t",
+              "count": 2336,
+              "ms": 11.95286699582357,
+              "chars": 659242,
+              "maxChars": 459
+            },
+            {
+              "fingerprint": "budgetBytes,contentRevision,delivery,items,originalBytes,reason,unit",
+              "count": 1050,
+              "ms": 6.63480099895969,
+              "chars": 1197700,
+              "maxChars": 1302
+            },
+            {
+              "fingerprint": "admission,contentRevision,freshnessSuspectCount,national,partials,semanticRevision,subjects,unit",
+              "count": 200,
+              "ms": 3.8779660017462447,
+              "chars": 1238200,
+              "maxChars": 6191
+            },
+            {
+              "fingerprint": "kind,operation,subject,token,unit",
+              "count": 3500,
+              "ms": 1.5907320040278137,
+              "chars": 540400,
+              "maxChars": 160
+            },
+            {
+              "fingerprint": "contentRevision,delivery,items,unit,view",
+              "count": 200,
+              "ms": 0.7447950009955093,
+              "chars": 247600,
+              "maxChars": 1238
+            },
+            {
+              "fingerprint": "#number",
+              "count": 400,
+              "ms": 0.5748710012994707,
+              "chars": 4153,
+              "maxChars": 18
+            },
+            {
+              "fingerprint": "#undefined",
+              "count": 800,
+              "ms": 0.2566909985616803,
+              "chars": 1600,
+              "maxChars": 2
+            },
+            {
+              "fingerprint": "external,heapUsed,perfNowMs,rss,t",
+              "count": 15,
+              "ms": 0.054208999732509255,
+              "chars": 1386,
+              "maxChars": 93
+            },
+            {
+              "fingerprint": "pingId,type",
+              "count": 8,
+              "ms": 0.02812400017865002,
+              "chars": 288,
+              "maxChars": 36
+            },
+            {
+              "fingerprint": "hrtimeNs,perfNowMs,t",
+              "count": 5,
+              "ms": 0.012041999492794275,
+              "chars": 345,
+              "maxChars": 69
+            }
+          ],
+          "outsideOtherPerInput": {
+            "p50": 125,
+            "p95": 144,
+            "p99": 146,
+            "max": 146
+          },
+          "outsidePrimitivePerInput": {
+            "p50": 2718,
+            "p95": 2743,
+            "p99": 2743,
+            "max": 2743
+          },
+          "outsideOwnElementPerInput": {
+            "p50": 4,
+            "p95": 4,
+            "p99": 4,
+            "max": 4
+          },
+          "outsideAmbiguousPerInput": {
+            "p50": 2,
+            "p95": 2,
+            "p99": 2,
+            "max": 2
+          },
+          "processingMs": {
+            "p50": 75.06047364068218,
+            "p95": 79.09796679695137,
+            "p99": 82.03529687505215,
+            "max": 83.48983593750745
+          },
+          "stringifyMs": {
+            "p50": 43.814473998500034,
+            "p95": 45.476784000289626,
+            "p99": 45.67142300005071,
+            "max": 45.77652600000147
+          }
+        },
+        "U-F": {
+          "inputs": 100,
+          "runtimeState": {
+            "count": 0,
+            "ms": 0,
+            "chars": 0,
+            "maxChars": 0
+          },
+          "unitState": {
+            "count": 0,
+            "ms": 0,
+            "chars": 0,
+            "maxChars": 0
+          },
+          "unitCollection": {
+            "count": 0,
+            "ms": 0,
+            "chars": 0,
+            "maxChars": 0
+          },
+          "foreignElement": {
+            "count": 0,
+            "ms": 0,
+            "chars": 0,
+            "maxChars": 0
+          },
+          "ownElement": {
+            "count": 400,
+            "ms": 9.548577998997644,
+            "chars": 794500,
+            "maxChars": 2564
+          },
+          "ownElementCollection": {
+            "count": 0,
+            "ms": 0,
+            "chars": 0,
+            "maxChars": 0
+          },
+          "ownElementLengthUnknown": {
+            "count": 0,
+            "ms": 0,
+            "chars": 0,
+            "maxChars": 0
+          },
+          "ownElementMaxPerInput": 4,
+          "checkpointElement": {},
+          "ambiguous": {
+            "count": 200,
+            "ms": 0.3887879983521998,
+            "chars": 80200,
+            "maxChars": 401
+          },
+          "ambiguousCollection": {
+            "count": 0,
+            "ms": 0,
+            "chars": 0,
+            "maxChars": 0
+          },
+          "envelope": {
+            "count": 100,
+            "ms": 1264.8125039990991,
+            "chars": 144726673,
+            "maxChars": 1447267
+          },
+          "checkpointPayload": {},
+          "foreignPayload": {
+            "count": 0,
+            "ms": 0,
+            "chars": 0,
+            "maxChars": 0
+          },
+          "payloadOutsideCheckpoint": {
+            "count": 0,
+            "ms": 0,
+            "chars": 0,
+            "maxChars": 0
+          },
+          "snapshot": {
+            "count": 550,
+            "ms": 8.705301001667976,
+            "chars": 1276515,
+            "maxChars": 4496
+          },
+          "publishCount": 203,
+          "snapshotCallsMinusPublish": 347,
+          "other": [
+            {
+              "fingerprint": "admission,contentRevision,semanticRevision,series,subjects,unit",
+              "count": 200,
+              "ms": 28.361285001039505,
+              "chars": 5835200,
+              "maxChars": 29176
+            },
+            {
+              "fingerprint": "#string",
+              "count": 1647,
+              "ms": 23.113899004645646,
+              "chars": 3009593,
+              "maxChars": 4268
+            },
+            {
+              "fingerprint": "activeCount,admission,areaCounts,confirmation,freshness,highestSeverity,informationType,operation,unavailable,unconfirmed,unknownCode,updatedAt",
+              "count": 1894,
+              "ms": 16.446398997912183,
+              "chars": 1899706,
+              "maxChars": 1162
+            },
+            {
+              "fingerprint": "o,t",
+              "count": 2312,
+              "ms": 16.16996999690309,
+              "chars": 653291,
+              "maxChars": 460
+            },
+            {
+              "fingerprint": "budgetBytes,contentRevision,delivery,items,originalBytes,reason,unit",
+              "count": 1047,
+              "ms": 8.568339994177222,
+              "chars": 1192882,
+              "maxChars": 1302
+            },
+            {
+              "fingerprint": "#number",
+              "count": 2100,
+              "ms": 3.8668839978054166,
+              "chars": 98877,
+              "maxChars": 86
+            },
+            {
+              "fingerprint": "code,kind,name",
+              "count": 600,
+              "ms": 2.1290959999896586,
+              "chars": 75000,
+              "maxChars": 129
+            },
+            {
+              "fingerprint": "fields,kind",
+              "count": 200,
+              "ms": 1.2168720012996346,
+              "chars": 39600,
+              "maxChars": 198
+            },
+            {
+              "fingerprint": "#undefined",
+              "count": 1598,
+              "ms": 0.839032995281741,
+              "chars": 3196,
+              "maxChars": 2
+            },
+            {
+              "fingerprint": "contentRevision,delivery,items,unit,view",
+              "count": 200,
+              "ms": 0.7665449995547533,
+              "chars": 207400,
+              "maxChars": 1037
+            },
+            {
+              "fingerprint": "dateTimeRaw,dateTimeType,status",
+              "count": 300,
+              "ms": 0.4937510003801435,
+              "chars": 14400,
+              "maxChars": 48
+            },
+            {
+              "fingerprint": "code,name",
+              "count": 100,
+              "ms": 0.4716219997499138,
+              "chars": 2100,
+              "maxChars": 21
+            },
+            {
+              "fingerprint": "kind,raw,value",
+              "count": 300,
+              "ms": 0.3744470013771206,
+              "chars": 11700,
+              "maxChars": 39
+            },
+            {
+              "fingerprint": "external,heapUsed,perfNowMs,rss,t",
+              "count": 15,
+              "ms": 0.2997880005277693,
+              "chars": 1393,
+              "maxChars": 93
+            },
+            {
+              "fingerprint": "0,1",
+              "count": 300,
+              "ms": 0.2877959958277643,
+              "chars": 2700,
+              "maxChars": 9
+            },
+            {
+              "fingerprint": "kind,office,operation,subject,unit",
+              "count": 100,
+              "ms": 0.1170389992184937,
+              "chars": 9600,
+              "maxChars": 96
+            },
+            {
+              "fingerprint": "pingId,type",
+              "count": 7,
+              "ms": 0.027290999423712492,
+              "chars": 252,
+              "maxChars": 36
+            },
+            {
+              "fingerprint": "hrtimeNs,perfNowMs,t",
+              "count": 5,
+              "ms": 0.01808300008997321,
+              "chars": 343,
+              "maxChars": 69
+            }
+          ],
+          "outsideOtherPerInput": {
+            "p50": 106,
+            "p95": 127,
+            "p99": 130,
+            "max": 130
+          },
+          "outsidePrimitivePerInput": {
+            "p50": 206,
+            "p95": 231,
+            "p99": 231,
+            "max": 231
+          },
+          "outsideOwnElementPerInput": {
+            "p50": 4,
+            "p95": 4,
+            "p99": 4,
+            "max": 4
+          },
+          "outsideAmbiguousPerInput": {
+            "p50": 2,
+            "p95": 2,
+            "p99": 2,
+            "max": 2
+          },
+          "processingMs": {
+            "p50": 43.40819726558402,
+            "p95": 47.852738281246275,
+            "p99": 49.426626968663186,
+            "max": 49.775861328234896
+          },
+          "stringifyMs": {
+            "p50": 13.65812600008212,
+            "p95": 15.772501998348162,
+            "p99": 16.035701000597328,
+            "max": 16.07033699983731
+          }
+        }
+      },
+      "checkpointGapMaxMs": 20.802490234375,
+      "largeCallStacks": [
+        {
+          "category": "checkpointPayload",
+          "unit": "U-W",
+          "stack": [
+            "at persistedValue (/Users/tallplain/dev/fleq-c4-measure5/reconstruction/dist/src/units/weather-current/weather-current-unit.js:236:32)",
+            "at Object.encode (/Users/tallplain/dev/fleq-c4-measure5/reconstruction/dist/src/units/weather-current/weather-current-unit.js:486:23)",
+            "at CheckpointCoordinator.capture (/Users/tallplain/dev/fleq-c4-measure5/reconstruction/dist/src/checkpoint/checkpoint.js:147:115)"
+          ],
+          "count": 100
+        },
+        {
+          "category": "envelope",
+          "unit": null,
+          "stack": [
+            "at envelopeBytes (/Users/tallplain/dev/fleq-c4-measure5/reconstruction/dist/src/checkpoint/checkpoint.js:14:32)",
+            "at sealEnvelope (/Users/tallplain/dev/fleq-c4-measure5/reconstruction/dist/src/checkpoint/checkpoint.js:26:19)",
+            "at CheckpointCoordinator.capture (/Users/tallplain/dev/fleq-c4-measure5/reconstruction/dist/src/checkpoint/checkpoint.js:147:19)"
+          ],
+          "count": 200
+        }
+      ],
+      "notes": [
+        "指紋は引数の最上位の key 集合（配列は先頭要素の key と要素数）。checkpoint 区間の外の自 unit の要素の配列は 2 件まで単件計量（before/after）として要素数ぶん数え、超えれば集合の全量で Fail（ownElementCollection、maxLength）、要素数の無い配列は未確認（ownElementLengthUnknown）",
+        "key が 3 つ程度の小さな形は、無関係なオブジェクトと指紋がぶつかりうる（例: snapshot.persistence は unit id を key に持ち unitCollection と同形）",
+        "複数 unit に出る要素の指紋と、複数 unit に同名で出る field（payload の intents、view の subjects など）の要素の指紋は ambiguous として報告だけにする。ただし checkpoint 区間の外の ambiguous の配列で 2 件を超えるもの・要素数の無いものは未確認（ambiguousCollection）",
+        "走査対象が当該 subject だけであることは、checkpoint 区間の外の直列化（その他・原始値・自 unit の要素・ambiguous の単件）の入力 1 件あたりの回数を保持量 full と half で比べ、保持 1 件あたりの傾きで確かめる（compareRetention）",
+        "保存 payload と要素は、その unit の checkpoint の encode・verify 段と encode 後の未計測区間（checkpoint.ts:266-300、次の T0 で切る）の中なら、入力の unit に関係なく報告だけ（持ち越しの保存）。他 unit の入力が起こした保存は attempt の inputIds で区間に関係なく Fail（E10）。envelope は報告のみ",
+        "自 unit の要素は checkpoint 区間の外で入力 1 件あたり 4 回まで（(1+退去件数)×2×2、退去件数は観測できず 0）。EEW・U-W は入力規則の上で退去 0 なので超過は Fail",
+        "限界: probe は JSON.stringify しか見ないので、直列化しない走査（filter・find など）は見えない。保持の一部だけの走査（半分未満）は保持 1 件あたりの傾きが 0.5 未満になり、対照を通りうる",
+        "U-F の区間の超過だけ未確認（unconfirmed）: 期限回収・保持期限の削除が副作用の退去になりうるが、観測口（P2HostObservation）に退去が無い",
+        "chars は UTF-16 の文字数（byte ではない）。publish の byte は publishSerialization を見る",
+        "配送 snapshot の指紋は view-projector.ts:677 の shell の byte 計量（同じ key 集合）にも当たる。snapshotCallsMinusPublish は publish 以外の同形の呼出し数で、client ごとの再直列化があればここが増える"
+      ]
+    },
+    "metadata": {
+      "reconnectMs": [
+        5027,
+        5007,
+        5007,
+        5008,
+        5008,
+        5009,
+        5008,
+        5007,
+        5014,
+        5009,
+        5008,
+        5007,
+        5007,
+        5009,
+        5007,
+        5008,
+        5007,
+        5007,
+        5007,
+        5007,
+        5007,
+        5007,
+        5007,
+        5007,
+        5007,
+        5007,
+        5007,
+        5007,
+        5007,
+        5007,
+        5007,
+        5007,
+        5007,
+        5007,
+        5008,
+        5008,
+        5007,
+        5008,
+        5007,
+        5006,
+        5007,
+        5007,
+        5007,
+        5007,
+        5007,
+        5007,
+        5008,
+        5008,
+        5007,
+        5008,
+        5008,
+        5007,
+        5007,
+        5006,
+        5007,
+        5007,
+        5007,
+        5007,
+        5007,
+        5007,
+        5007,
+        5007,
+        5007,
+        5007,
+        5007,
+        5006,
+        5007,
+        5006,
+        5007,
+        5007,
+        5007,
+        5007,
+        5008,
+        5008,
+        5007,
+        5008,
+        5008,
+        5007,
+        5008,
+        5007,
+        5007,
+        5007,
+        5007,
+        5007,
+        5006,
+        5007,
+        5007,
+        5007,
+        5007,
+        5007,
+        5007,
+        5007,
+        5007,
+        5007,
+        5007,
+        5008,
+        5008,
+        5007,
+        5008,
+        5007,
+        5008,
+        5007,
+        5007,
+        5007,
+        5007,
+        5008,
+        5007,
+        5008,
+        5007,
+        5007
+      ],
+      "assumed": {
+        "publishPerInterval": 2,
+        "snapshotCallsMinusPublish": 799
+      },
+      "observed": {
+        "publishPerIntervalByRecordOrder": [
+          3,
+          1,
+          2,
+          3,
+          1,
+          2,
+          2,
+          2,
+          2,
+          2,
+          3,
+          1,
+          2,
+          3,
+          1,
+          2,
+          2,
+          2,
+          2,
+          2,
+          3,
+          1,
+          2,
+          3,
+          1,
+          2,
+          2,
+          2,
+          2,
+          2,
+          3,
+          1,
+          2,
+          3,
+          1,
+          2,
+          2,
+          2,
+          2,
+          2,
+          3,
+          1,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          3,
+          1,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          3,
+          1,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          3,
+          1,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          3,
+          1,
+          2,
+          3,
+          1,
+          2,
+          2,
+          2,
+          2,
+          2,
+          3,
+          1,
+          2,
+          3,
+          1,
+          2,
+          2,
+          2,
+          2,
+          3
+        ],
+        "publishTotal": 201,
+        "snapshotCallsMinusPublish": 798
+      },
+      "note": "判定へは切断と再接続の 2 回の状態変化で publish 2 回と想定して渡す。observed は時刻の無い publish を記録順で区間に振った実数とそれで数え直した値"
+    },
+    "e15": {
+      "status": null,
+      "attempts": 271,
+      "units": {
+        "U-E": {
+          "encodeCount": 41,
+          "encodeBytes": 3341009,
+          "writeBytes": 3341009,
+          "occupiedMsLower": 56.47705078125,
+          "measuredStagesMs": 345.86962890625,
+          "failedAttempts": 0,
+          "verifyCount": 0,
+          "verifyBytes": 0,
+          "verifyMs": 0
+        },
+        "U-W": {
+          "encodeCount": 117,
+          "encodeBytes": 906679641,
+          "writeBytes": 906679641,
+          "occupiedMsLower": 12458.220703125,
+          "measuredStagesMs": 14053.458984375,
+          "failedAttempts": 0,
+          "verifyCount": 0,
+          "verifyBytes": 0,
+          "verifyMs": 0
+        },
+        "U-F": {
+          "encodeCount": 113,
+          "encodeBytes": 176186014,
+          "writeBytes": 176186014,
+          "occupiedMsLower": 4552.666259765625,
+          "measuredStagesMs": 5471.2099609375,
+          "failedAttempts": 0,
+          "verifyCount": 0,
+          "verifyBytes": 0,
+          "verifyMs": 0
+        }
+      },
+      "retryReasons": {
+        "notRetry": 271
+      },
+      "byteViolations": 0,
+      "unknownInputIds": 0,
+      "blocked": [],
+      "writes": {
+        "status": null,
+        "complete": true,
+        "unconfirmed": [],
+        "unattributed": [],
+        "unverified": [],
+        "threads": {
+          "urgent": {
+            "confirmed": true,
+            "counts": {
+              "checkpoint": {
+                "count": 0,
+                "bytes": 0
+              },
+              "tmp": {
+                "count": 41,
+                "bytes": 3341009
+              },
+              "diagnosticLog": {
+                "count": 0,
+                "bytes": 0
+              },
+              "other": {
+                "count": 0,
+                "bytes": 0
+              }
+            }
+          },
+          "weatherCurrent": {
+            "confirmed": true,
+            "counts": {
+              "checkpoint": {
+                "count": 0,
+                "bytes": 0
+              },
+              "tmp": {
+                "count": 117,
+                "bytes": 906679641
+              },
+              "diagnosticLog": {
+                "count": 0,
+                "bytes": 0
+              },
+              "other": {
+                "count": 0,
+                "bytes": 0
+              }
+            }
+          },
+          "deferred": {
+            "confirmed": true,
+            "counts": {
+              "checkpoint": {
+                "count": 0,
+                "bytes": 0
+              },
+              "tmp": {
+                "count": 113,
+                "bytes": 176186014
+              },
+              "diagnosticLog": {
+                "count": 0,
+                "bytes": 0
+              },
+              "other": {
+                "count": 0,
+                "bytes": 0
+              }
+            }
+          },
+          "publisher": {
+            "confirmed": true,
+            "counts": {
+              "checkpoint": {
+                "count": 0,
+                "bytes": 0
+              },
+              "tmp": {
+                "count": 2,
+                "bytes": 1446
+              },
+              "diagnosticLog": {
+                "count": 762,
+                "bytes": 127050
+              },
+              "other": {
+                "count": 0,
+                "bytes": 0
+              }
+            }
+          }
+        }
+      },
+      "preSaveSyncMs": {
+        "U-E": {
+          "grants": 41,
+          "reconcileGrants": 0,
+          "invalid": 0,
+          "lowerMs": 56.47705078125,
+          "upperMs": 67.66552734375,
+          "maxUpperMs": 5.0849609375
+        },
+        "U-W": {
+          "grants": 117,
+          "reconcileGrants": 0,
+          "invalid": 0,
+          "lowerMs": 12458.220703125,
+          "upperMs": 12672.06982421875,
+          "maxUpperMs": 124.605224609375
+        },
+        "U-F": {
+          "grants": 113,
+          "reconcileGrants": 0,
+          "invalid": 0,
+          "lowerMs": 4552.666259765625,
+          "upperMs": 4590.205322265625,
+          "maxUpperMs": 45.587646484375
+        }
+      },
+      "occupancyNote": "occupiedMsLower = encode の壁時間（下限）。verify 段（記憶なし・照合の経路だけ）は verifyCount・verifyBytes（読んだ bytes）・verifyMs に別に数え、占有・write へ足さない。measuredStagesMs = 計測された段の壁時間の合計で、非同期の待ちを含み、前段の同期処理 checkpoint.ts:266-300 を含まない（上限ではない）"
+    },
+    "byteViolations": 0,
+    "byteViolationsNote": "byteViolations は encode・write・verify 以外の段で bytes が 0 でない件数。verify 段の bytes は読んだ bytes として e15.units の verifyBytes に別に数える（P3-C1-E15、A10 の P2-A10-E15-P3 の読み）",
+    "publishCost": {
+      "window": "ac15-full",
+      "publishCount": 3747,
+      "totalJsonBytes": 402753870,
+      "maxJsonBytes": 1046012,
+      "serializeP50Ms": 0.08016700000007404,
+      "serializeP99Ms": 3.107624999998734,
+      "serializeMaxMs": 4.516374999999243
+    },
+    "ownerHeap": {
+      "urgent": {
+        "rows": 1363,
+        "maxHeapUsedBytes": 29503528,
+        "maxExternalBytes": 2913742
+      },
+      "weatherCurrent": {
+        "rows": 1360,
+        "maxHeapUsedBytes": 446981512,
+        "maxExternalBytes": 12199039
+      },
+      "deferred": {
+        "rows": 1363,
+        "maxHeapUsedBytes": 24617792,
+        "maxExternalBytes": 7031598
+      }
+    },
+    "notificationAdoption": {
+      "first": {
+        "reservations": 465,
+        "started": 459,
+        "notStarted": 6,
+        "reservationToReplyMs": {
+          "p50": 2.5874579999999696,
+          "p95": 13.596083000000363,
+          "p99": 17.55725000000166,
+          "max": 22.07616699999926
+        },
+        "replyToAttemptMs": {
+          "p50": 0.005375000000640284,
+          "p95": 0.01337500000045111,
+          "p99": 0.02070800000001327,
+          "max": 0.02575000000001637
+        },
+        "createdToReservationWallMs": {
+          "p50": 2761.13330078125,
+          "p95": 14985.188720703125,
+          "p99": 14997.2841796875,
+          "max": 14999.284423828125
+        }
+      },
+      "retries": {
+        "reservations": 0,
+        "started": 0,
+        "notStarted": 0,
+        "reservationToReplyMs": null,
+        "replyToAttemptMs": null,
+        "createdToReservationWallMs": null
+      }
+    },
+    "viewCopy": {
+      "inputs": 2253,
+      "unbound": 0,
+      "threadCopiesPerInputUpper": 1,
+      "publishesPerInput": {
+        "p50": 1,
+        "p95": 4,
+        "p99": 7,
+        "max": 1153
+      },
+      "publishBytesPerInput": {
+        "p50": 31967,
+        "p95": 880652,
+        "p99": 3134211,
+        "max": 22284462
+      },
+      "serializeMsPerInput": {
+        "p50": 0.08141699999760021,
+        "p95": 2.821875000001455,
+        "p99": 11.17316799999844,
+        "max": 64.41105100003915
+      },
+      "publishesWithoutSerialization": 0,
+      "attribution": "帰属不能（参考量）",
+      "referenceCopyBytes": "C3a の計量: VPWS50 で view 620,797 byte・返信 622,802 byte"
+    }
+  },
+  "half": {
+    "mode": "half",
+    "status": "Pass",
+    "fill": {
+      "mode": "half",
+      "frames": 963,
+      "firstSeq": 1,
+      "sentMs": 26099,
+      "verifiedMs": 28362,
+      "observed": {
+        "snapshotActive": {
+          "eew": "256/0/0",
+          "weatherCurrent": "65/1/1",
+          "weatherTimeseries": "256/0/0"
+        },
+        "checkpoint": {
+          "U-W.national": 3,
+          "U-W.partials": 64,
+          "U-F.subjects": 256
+        }
+      },
+      "quiet": {
+        "waitedMs": 17786,
+        "untilLastBackendMs": 2692,
+        "backendLaunchesSeen": {
+          "afplay": 8
+        },
+        "quietMs": 15000,
+        "pgrepFailures": 0,
+        "note": "100ms ごとの pgrep -P で見えた子の数（短命な起動は取りこぼしうる下限）"
+      },
+      "observedBeforeMeasure": {
+        "snapshotActive": {
+          "eew": "256/0/0",
+          "weatherCurrent": "65/1/1",
+          "weatherTimeseries": "256/0/0"
+        },
+        "checkpoint": {
+          "U-W.national": 3,
+          "U-W.partials": 64,
+          "U-F.subjects": 256
+        }
+      }
+    },
+    "fingerprintTable": {
+      "unitState": {
+        "U-E": "contentRevision,deliveryRecords,intents,persistence,schemaVersion",
+        "U-F": "contentRevision,gates,intents,persistence,schemaVersion,subjects",
+        "U-W": "contentRevision,freshness,histories,intents,national,ownership,partials,persistence,schemaVersion,tombstones,unavailable"
+      },
+      "runtimeState": "restoration,units,views",
+      "unitCollection": "U-E,U-F,U-W",
+      "payload": {
+        "U-E": "deliveryRecords,intents,schemaVersion",
+        "U-F": "gates,intents,schemaVersion,subjects",
+        "U-W": "freshness,histories,intents,national,ownership,partials,schemaVersion,tombstones,unavailable"
+      },
+      "envelope": "capturedAt,generation,payload,schemaVersion,sha256,unit",
+      "snapshot": "channels,connection,current,generatedAt,notices,persistence,recovery,schemaVersion,semanticRevision,sequence,streamId,worker",
+      "viewUnits": [
+        "U-E",
+        "U-F",
+        "U-W"
+      ],
+      "elements": {
+        "affectedScope,areas,attributes,effective,kinds,lastKnown,locals,operation,periods,retainUntil,series,source,strings,subject,unavailableReason,validUntil,values": "U-F",
+        "operation,source,subject": "U-F",
+        "office,operation,phenomena,scope,source,subject": "U-W",
+        "operation,reports,subject": "U-W",
+        "eventId,family,isAssumedHypocenter,operation,prediction,retainedPrediction,serial,source,subject,terminal,warningClass": "U-E"
+      },
+      "ambiguous": [
+        "changedFields,facts,informationType,operation,severity,source,subject,transition"
+      ],
+      "emptyRequiredFields": []
+    },
+    "judged": {
+      "status": "Pass",
+      "violations": [],
+      "unconfirmed": [],
+      "missing": [],
+      "scenarios": {
+        "U-E": {
+          "inputs": 100,
+          "runtimeState": {
+            "count": 0,
+            "ms": 0,
+            "chars": 0,
+            "maxChars": 0
+          },
+          "unitState": {
+            "count": 0,
+            "ms": 0,
+            "chars": 0,
+            "maxChars": 0
+          },
+          "unitCollection": {
+            "count": 0,
+            "ms": 0,
+            "chars": 0,
+            "maxChars": 0
+          },
+          "foreignElement": {
+            "count": 0,
+            "ms": 0,
+            "chars": 0,
+            "maxChars": 0
+          },
+          "ownElement": {
+            "count": 200,
+            "ms": 2.4560049998617615,
+            "chars": 401793,
+            "maxChars": 2011
+          },
+          "ownElementCollection": {
+            "count": 0,
+            "ms": 0,
+            "chars": 0,
+            "maxChars": 0
+          },
+          "ownElementLengthUnknown": {
+            "count": 0,
+            "ms": 0,
+            "chars": 0,
+            "maxChars": 0
+          },
+          "ownElementMaxPerInput": 2,
+          "checkpointElement": {},
+          "ambiguous": {
+            "count": 200,
+            "ms": 2.9894550002209144,
+            "chars": 410793,
+            "maxChars": 2056
+          },
+          "ambiguousCollection": {
+            "count": 0,
+            "ms": 0,
+            "chars": 0,
+            "maxChars": 0
+          },
+          "envelope": {
+            "count": 0,
+            "ms": 0,
+            "chars": 0,
+            "maxChars": 0
+          },
+          "checkpointPayload": {},
+          "foreignPayload": {
+            "count": 0,
+            "ms": 0,
+            "chars": 0,
+            "maxChars": 0
+          },
+          "payloadOutsideCheckpoint": {
+            "count": 0,
+            "ms": 0,
+            "chars": 0,
+            "maxChars": 0
+          },
+          "snapshot": {
+            "count": 354,
+            "ms": 5.919708000183164,
+            "chars": 723284,
+            "maxChars": 4421
+          },
+          "publishCount": 104,
+          "snapshotCallsMinusPublish": 250,
+          "other": [
+            {
+              "fingerprint": "activeCount,admission,contentRevision,current,semanticRevision,subjects,unit",
+              "count": 200,
+              "ms": 35.60462600003666,
+              "chars": 6066023,
+              "maxChars": 30331
+            },
+            {
+              "fingerprint": "#string",
+              "count": 1550,
+              "ms": 18.681797000310326,
+              "chars": 2134050,
+              "maxChars": 4193
+            },
+            {
+              "fingerprint": "activeCount,admission,areaCounts,confirmation,freshness,highestSeverity,informationType,operation,unavailable,unconfirmed,unknownCode,updatedAt",
+              "count": 1300,
+              "ms": 13.076551999714866,
+              "chars": 1304900,
+              "maxChars": 1154
+            },
+            {
+              "fingerprint": "o,t",
+              "count": 1322,
+              "ms": 8.277611999881628,
+              "chars": 319514,
+              "maxChars": 459
+            },
+            {
+              "fingerprint": "budgetBytes,contentRevision,delivery,items,originalBytes,reason,unit",
+              "count": 750,
+              "ms": 7.134926000144333,
+              "chars": 842500,
+              "maxChars": 1294
+            },
+            {
+              "fingerprint": "contentRevision,delivery,items,unit,view",
+              "count": 200,
+              "ms": 1.0219989999968675,
+              "chars": 185800,
+              "maxChars": 929
+            },
+            {
+              "fingerprint": "#undefined",
+              "count": 500,
+              "ms": 0.22345900015352527,
+              "chars": 1000,
+              "maxChars": 2
+            },
+            {
+              "fingerprint": "external,heapUsed,perfNowMs,rss,t",
+              "count": 15,
+              "ms": 0.09525099999154918,
+              "chars": 1377,
+              "maxChars": 92
+            },
+            {
+              "fingerprint": "eventId,kind,operation,unit",
+              "count": 100,
+              "ms": 0.073828000065987,
+              "chars": 7700,
+              "maxChars": 77
+            },
+            {
+              "fingerprint": "hrtimeNs,perfNowMs,t",
+              "count": 5,
+              "ms": 0.04204299997945782,
+              "chars": 336,
+              "maxChars": 68
+            },
+            {
+              "fingerprint": "pingId,type",
+              "count": 7,
+              "ms": 0.021334000004571863,
+              "chars": 246,
+              "maxChars": 36
+            }
+          ],
+          "outsideOtherPerInput": {
+            "p50": 60,
+            "p95": 79,
+            "p99": 81,
+            "max": 81
+          },
+          "outsidePrimitivePerInput": {
+            "p50": 76,
+            "p95": 101,
+            "p99": 101,
+            "max": 101
+          },
+          "outsideOwnElementPerInput": {
+            "p50": 2,
+            "p95": 2,
+            "p99": 2,
+            "max": 2
+          },
+          "outsideAmbiguousPerInput": {
+            "p50": 2,
+            "p95": 2,
+            "p99": 2,
+            "max": 2
+          },
+          "processingMs": {
+            "p50": 29.595247078119428,
+            "p95": 32.82530565625348,
+            "p99": 34.47628612499102,
+            "max": 35.146862312511075
+          },
+          "stringifyMs": {
+            "p50": 0.9258320000371896,
+            "p95": 1.1218709999811836,
+            "p99": 1.1311689999420196,
+            "max": 1.1331600000557955
+          }
+        },
+        "metadata": {
+          "inputs": 100,
+          "runtimeState": {
+            "count": 0,
+            "ms": 0,
+            "chars": 0,
+            "maxChars": 0
+          },
+          "unitState": {
+            "count": 0,
+            "ms": 0,
+            "chars": 0,
+            "maxChars": 0
+          },
+          "unitCollection": {
+            "count": 0,
+            "ms": 0,
+            "chars": 0,
+            "maxChars": 0
+          },
+          "foreignElement": {
+            "count": 0,
+            "ms": 0,
+            "chars": 0,
+            "maxChars": 0
+          },
+          "ownElement": {
+            "count": 0,
+            "ms": 0,
+            "chars": 0,
+            "maxChars": 0
+          },
+          "ownElementCollection": {
+            "count": 0,
+            "ms": 0,
+            "chars": 0,
+            "maxChars": 0
+          },
+          "ownElementLengthUnknown": {
+            "count": 0,
+            "ms": 0,
+            "chars": 0,
+            "maxChars": 0
+          },
+          "ownElementMaxPerInput": 0,
+          "checkpointElement": {},
+          "ambiguous": {
+            "count": 0,
+            "ms": 0,
+            "chars": 0,
+            "maxChars": 0
+          },
+          "ambiguousCollection": {
+            "count": 0,
+            "ms": 0,
+            "chars": 0,
+            "maxChars": 0
+          },
+          "envelope": {
+            "count": 0,
+            "ms": 0,
+            "chars": 0,
+            "maxChars": 0
+          },
+          "checkpointPayload": {},
+          "foreignPayload": {
+            "count": 0,
+            "ms": 0,
+            "chars": 0,
+            "maxChars": 0
+          },
+          "payloadOutsideCheckpoint": {
+            "count": 0,
+            "ms": 0,
+            "chars": 0,
+            "maxChars": 0
+          },
+          "snapshot": {
+            "count": 998,
+            "ms": 27.83456399862189,
+            "chars": 1746974,
+            "maxChars": 4486
+          },
+          "publishCount": 200,
+          "snapshotCallsMinusPublish": 798,
+          "other": [
+            {
+              "fingerprint": "#string",
+              "count": 10394,
+              "ms": 82.16898599715205,
+              "chars": 6838530,
+              "maxChars": 4258
+            },
+            {
+              "fingerprint": "activeCount,admission,areaCounts,confirmation,freshness,highestSeverity,informationType,operation,unavailable,unconfirmed,unknownCode,updatedAt",
+              "count": 4788,
+              "ms": 63.75338199874386,
+              "chars": 4794384,
+              "maxChars": 1165
+            },
+            {
+              "fingerprint": "budgetBytes,contentRevision,delivery,items,originalBytes,reason,unit",
+              "count": 2394,
+              "ms": 32.09409499895992,
+              "chars": 2731554,
+              "maxChars": 1305
+            },
+            {
+              "fingerprint": "o,t",
+              "count": 3316,
+              "ms": 20.57046199881006,
+              "chars": 809541,
+              "maxChars": 331
+            },
+            {
+              "fingerprint": "#undefined",
+              "count": 1596,
+              "ms": 0.8295929981977679,
+              "chars": 3192,
+              "maxChars": 2
+            },
+            {
+              "fingerprint": "component,count,level,reason,runId,timestamp",
+              "count": 100,
+              "ms": 0.6386229989002459,
+              "chars": 14900,
+              "maxChars": 149
+            },
+            {
+              "fingerprint": "external,heapUsed,perfNowMs,rss,t",
+              "count": 70,
+              "ms": 0.565662999637425,
+              "chars": 6422,
+              "maxChars": 92
+            },
+            {
+              "fingerprint": "hrtimeNs,perfNowMs,t",
+              "count": 23,
+              "ms": 0.18279099988285452,
+              "chars": 1558,
+              "maxChars": 68
+            },
+            {
+              "fingerprint": "pingId,type",
+              "count": 10,
+              "ms": 0.02516799990553409,
+              "chars": 360,
+              "maxChars": 36
+            }
+          ],
+          "outsideOtherPerInput": {
+            "p50": 203,
+            "p95": 206,
+            "p99": 207,
+            "max": 208
+          },
+          "outsidePrimitivePerInput": {
+            "p50": 280,
+            "p95": 280,
+            "p99": 280,
+            "max": 280
+          },
+          "outsideOwnElementPerInput": {
+            "p50": 0,
+            "p95": 0,
+            "p99": 0,
+            "max": 0
+          },
+          "outsideAmbiguousPerInput": {
+            "p50": 0,
+            "p95": 0,
+            "p99": 0,
+            "max": 0
+          },
+          "processingMs": null,
+          "stringifyMs": {
+            "p50": 2.2676200000569224,
+            "p95": 2.382113998697605,
+            "p99": 2.571453000535257,
+            "max": 2.971842000435572
+          }
+        },
+        "U-W": {
+          "inputs": 100,
+          "runtimeState": {
+            "count": 0,
+            "ms": 0,
+            "chars": 0,
+            "maxChars": 0
+          },
+          "unitState": {
+            "count": 0,
+            "ms": 0,
+            "chars": 0,
+            "maxChars": 0
+          },
+          "unitCollection": {
+            "count": 0,
+            "ms": 0,
+            "chars": 0,
+            "maxChars": 0
+          },
+          "foreignElement": {
+            "count": 0,
+            "ms": 0,
+            "chars": 0,
+            "maxChars": 0
+          },
+          "ownElement": {
+            "count": 400,
+            "ms": 25.907201000023633,
+            "chars": 4880200,
+            "maxChars": 35512
+          },
+          "ownElementCollection": {
+            "count": 0,
+            "ms": 0,
+            "chars": 0,
+            "maxChars": 0
+          },
+          "ownElementLengthUnknown": {
+            "count": 0,
+            "ms": 0,
+            "chars": 0,
+            "maxChars": 0
+          },
+          "ownElementMaxPerInput": 4,
+          "checkpointElement": {},
+          "ambiguous": {
+            "count": 200,
+            "ms": 2.777176999836229,
+            "chars": 907600,
+            "maxChars": 4538
+          },
+          "ambiguousCollection": {
+            "count": 0,
+            "ms": 0,
+            "chars": 0,
+            "maxChars": 0
+          },
+          "envelope": {
+            "count": 100,
+            "ms": 1447.536001999746,
+            "chars": 446352578,
+            "maxChars": 4463526
+          },
+          "checkpointPayload": {
+            "U-W": {
+              "count": 100,
+              "ms": 2709.9848369986285,
+              "chars": 446333100,
+              "maxChars": 4463331
+            }
+          },
+          "foreignPayload": {
+            "count": 0,
+            "ms": 0,
+            "chars": 0,
+            "maxChars": 0
+          },
+          "payloadOutsideCheckpoint": {
+            "count": 0,
+            "ms": 0,
+            "chars": 0,
+            "maxChars": 0
+          },
+          "snapshot": {
+            "count": 550,
+            "ms": 6.738122000591829,
+            "chars": 1272225,
+            "maxChars": 4495
+          },
+          "publishCount": 200,
+          "snapshotCallsMinusPublish": 350,
+          "other": [
+            {
+              "fingerprint": "#string",
+              "count": 56350,
+              "ms": 44.48945002013352,
+              "chars": 6435404,
+              "maxChars": 4267
+            },
+            {
+              "fingerprint": "activeCount,admission,areaCounts,confirmation,freshness,highestSeverity,informationType,operation,unavailable,unconfirmed,unknownCode,updatedAt",
+              "count": 1900,
+              "ms": 14.721257996628992,
+              "chars": 1867800,
+              "maxChars": 1161
+            },
+            {
+              "fingerprint": "o,t",
+              "count": 2316,
+              "ms": 11.667069002985954,
+              "chars": 653616,
+              "maxChars": 460
+            },
+            {
+              "fingerprint": "budgetBytes,contentRevision,delivery,items,originalBytes,reason,unit",
+              "count": 1050,
+              "ms": 7.446967999101616,
+              "chars": 1196650,
+              "maxChars": 1301
+            },
+            {
+              "fingerprint": "admission,contentRevision,freshnessSuspectCount,national,partials,semanticRevision,subjects,unit",
+              "count": 200,
+              "ms": 4.12700500106439,
+              "chars": 643800,
+              "maxChars": 3219
+            },
+            {
+              "fingerprint": "kind,operation,subject,token,unit",
+              "count": 3500,
+              "ms": 1.718541998998262,
+              "chars": 540400,
+              "maxChars": 160
+            },
+            {
+              "fingerprint": "contentRevision,delivery,items,unit,view",
+              "count": 200,
+              "ms": 0.787670997553505,
+              "chars": 247400,
+              "maxChars": 1237
+            },
+            {
+              "fingerprint": "#number",
+              "count": 400,
+              "ms": 0.6182049997150898,
+              "chars": 4154,
+              "maxChars": 18
+            },
+            {
+              "fingerprint": "#undefined",
+              "count": 800,
+              "ms": 0.3270010029664263,
+              "chars": 1600,
+              "maxChars": 2
+            },
+            {
+              "fingerprint": "external,heapUsed,perfNowMs,rss,t",
+              "count": 15,
+              "ms": 0.0868730004876852,
+              "chars": 1386,
+              "maxChars": 93
+            },
+            {
+              "fingerprint": "hrtimeNs,perfNowMs,t",
+              "count": 5,
+              "ms": 0.03695799969136715,
+              "chars": 345,
+              "maxChars": 69
+            },
+            {
+              "fingerprint": "pingId,type",
+              "count": 8,
+              "ms": 0.028625999810174108,
+              "chars": 288,
+              "maxChars": 36
+            }
+          ],
+          "outsideOtherPerInput": {
+            "p50": 125,
+            "p95": 144,
+            "p99": 146,
+            "max": 147
+          },
+          "outsidePrimitivePerInput": {
+            "p50": 2718,
+            "p95": 2743,
+            "p99": 2743,
+            "max": 2743
+          },
+          "outsideOwnElementPerInput": {
+            "p50": 4,
+            "p95": 4,
+            "p99": 4,
+            "max": 4
+          },
+          "outsideAmbiguousPerInput": {
+            "p50": 2,
+            "p95": 2,
+            "p99": 2,
+            "max": 2
+          },
+          "processingMs": {
+            "p50": 68.64237109385431,
+            "p95": 74.8212392500136,
+            "p99": 76.91234862501733,
+            "max": 77.2574912031414
+          },
+          "stringifyMs": {
+            "p50": 42.78475699853152,
+            "p95": 44.90088399942033,
+            "p99": 45.049549002666026,
+            "max": 45.48167000245303
+          }
+        },
+        "U-F": {
+          "inputs": 100,
+          "runtimeState": {
+            "count": 0,
+            "ms": 0,
+            "chars": 0,
+            "maxChars": 0
+          },
+          "unitState": {
+            "count": 0,
+            "ms": 0,
+            "chars": 0,
+            "maxChars": 0
+          },
+          "unitCollection": {
+            "count": 0,
+            "ms": 0,
+            "chars": 0,
+            "maxChars": 0
+          },
+          "foreignElement": {
+            "count": 0,
+            "ms": 0,
+            "chars": 0,
+            "maxChars": 0
+          },
+          "ownElement": {
+            "count": 400,
+            "ms": 11.935423997696489,
+            "chars": 794500,
+            "maxChars": 2564
+          },
+          "ownElementCollection": {
+            "count": 0,
+            "ms": 0,
+            "chars": 0,
+            "maxChars": 0
+          },
+          "ownElementLengthUnknown": {
+            "count": 0,
+            "ms": 0,
+            "chars": 0,
+            "maxChars": 0
+          },
+          "ownElementMaxPerInput": 4,
+          "checkpointElement": {},
+          "ambiguous": {
+            "count": 200,
+            "ms": 0.4469869998283684,
+            "chars": 80200,
+            "maxChars": 401
+          },
+          "ambiguousCollection": {
+            "count": 0,
+            "ms": 0,
+            "chars": 0,
+            "maxChars": 0
+          },
+          "envelope": {
+            "count": 100,
+            "ms": 974.9167510000989,
+            "chars": 72304468,
+            "maxChars": 723045
+          },
+          "checkpointPayload": {},
+          "foreignPayload": {
+            "count": 0,
+            "ms": 0,
+            "chars": 0,
+            "maxChars": 0
+          },
+          "payloadOutsideCheckpoint": {
+            "count": 0,
+            "ms": 0,
+            "chars": 0,
+            "maxChars": 0
+          },
+          "snapshot": {
+            "count": 553,
+            "ms": 9.653894002782181,
+            "chars": 1283713,
+            "maxChars": 4489
+          },
+          "publishCount": 205,
+          "snapshotCallsMinusPublish": 348,
+          "other": [
+            {
+              "fingerprint": "#string",
+              "count": 1650,
+              "ms": 24.315810007741675,
+              "chars": 3012870,
+              "maxChars": 4261
+            },
+            {
+              "fingerprint": "admission,contentRevision,semanticRevision,series,subjects,unit",
+              "count": 200,
+              "ms": 20.06363700213842,
+              "chars": 2916800,
+              "maxChars": 14584
+            },
+            {
+              "fingerprint": "activeCount,admission,areaCounts,confirmation,freshness,highestSeverity,informationType,operation,unavailable,unconfirmed,unknownCode,updatedAt",
+              "count": 1900,
+              "ms": 17.156662998488173,
+              "chars": 1905000,
+              "maxChars": 1161
+            },
+            {
+              "fingerprint": "o,t",
+              "count": 2320,
+              "ms": 16.13566499017179,
+              "chars": 654677,
+              "maxChars": 460
+            },
+            {
+              "fingerprint": "budgetBytes,contentRevision,delivery,items,originalBytes,reason,unit",
+              "count": 1050,
+              "ms": 9.074666002998129,
+              "chars": 1195250,
+              "maxChars": 1301
+            },
+            {
+              "fingerprint": "#number",
+              "count": 2100,
+              "ms": 3.988831000169739,
+              "chars": 98896,
+              "maxChars": 86
+            },
+            {
+              "fingerprint": "code,kind,name",
+              "count": 600,
+              "ms": 2.0737059984821826,
+              "chars": 75000,
+              "maxChars": 129
+            },
+            {
+              "fingerprint": "fields,kind",
+              "count": 200,
+              "ms": 1.3323709992691875,
+              "chars": 39600,
+              "maxChars": 198
+            },
+            {
+              "fingerprint": "contentRevision,delivery,items,unit,view",
+              "count": 200,
+              "ms": 0.9481160007417202,
+              "chars": 207400,
+              "maxChars": 1037
+            },
+            {
+              "fingerprint": "#undefined",
+              "count": 1600,
+              "ms": 0.7917540029156953,
+              "chars": 3200,
+              "maxChars": 2
+            },
+            {
+              "fingerprint": "dateTimeRaw,dateTimeType,status",
+              "count": 300,
+              "ms": 0.5591629981063306,
+              "chars": 14400,
+              "maxChars": 48
+            },
+            {
+              "fingerprint": "0,1",
+              "count": 300,
+              "ms": 0.4716210006736219,
+              "chars": 2700,
+              "maxChars": 9
+            },
+            {
+              "fingerprint": "code,name",
+              "count": 100,
+              "ms": 0.45821500034071505,
+              "chars": 2100,
+              "maxChars": 21
+            },
+            {
+              "fingerprint": "kind,raw,value",
+              "count": 300,
+              "ms": 0.3674500002525747,
+              "chars": 11700,
+              "maxChars": 39
+            },
+            {
+              "fingerprint": "external,heapUsed,perfNowMs,rss,t",
+              "count": 15,
+              "ms": 0.14012400060892105,
+              "chars": 1394,
+              "maxChars": 93
+            },
+            {
+              "fingerprint": "kind,office,operation,subject,unit",
+              "count": 100,
+              "ms": 0.12149899872019887,
+              "chars": 9600,
+              "maxChars": 96
+            },
+            {
+              "fingerprint": "hrtimeNs,perfNowMs,t",
+              "count": 5,
+              "ms": 0.042917000129818916,
+              "chars": 344,
+              "maxChars": 69
+            },
+            {
+              "fingerprint": "pingId,type",
+              "count": 7,
+              "ms": 0.029000999871641397,
+              "chars": 252,
+              "maxChars": 36
+            }
+          ],
+          "outsideOtherPerInput": {
+            "p50": 106,
+            "p95": 128,
+            "p99": 130,
+            "max": 130
+          },
+          "outsidePrimitivePerInput": {
+            "p50": 206,
+            "p95": 231,
+            "p99": 231,
+            "max": 231
+          },
+          "outsideOwnElementPerInput": {
+            "p50": 4,
+            "p95": 4,
+            "p99": 4,
+            "max": 4
+          },
+          "outsideAmbiguousPerInput": {
+            "p50": 2,
+            "p95": 2,
+            "p99": 2,
+            "max": 2
+          },
+          "processingMs": {
+            "p50": 26.80234473431483,
+            "p95": 29.464714843779802,
+            "p99": 30.489553718827665,
+            "max": 31.658134765690193
+          },
+          "stringifyMs": {
+            "p50": 11.027505000820383,
+            "p95": 12.952372999396175,
+            "p99": 13.064502001274377,
+            "max": 13.126251999521628
+          }
+        }
+      },
+      "checkpointGapMaxMs": 17.749267578125,
+      "largeCallStacks": [
+        {
+          "category": "checkpointPayload",
+          "unit": "U-W",
+          "stack": [
+            "at persistedValue (/Users/tallplain/dev/fleq-c4-measure5/reconstruction/dist/src/units/weather-current/weather-current-unit.js:236:32)",
+            "at Object.encode (/Users/tallplain/dev/fleq-c4-measure5/reconstruction/dist/src/units/weather-current/weather-current-unit.js:486:23)",
+            "at CheckpointCoordinator.capture (/Users/tallplain/dev/fleq-c4-measure5/reconstruction/dist/src/checkpoint/checkpoint.js:147:115)"
+          ],
+          "count": 100
+        },
+        {
+          "category": "envelope",
+          "unit": null,
+          "stack": [
+            "at envelopeBytes (/Users/tallplain/dev/fleq-c4-measure5/reconstruction/dist/src/checkpoint/checkpoint.js:14:32)",
+            "at sealEnvelope (/Users/tallplain/dev/fleq-c4-measure5/reconstruction/dist/src/checkpoint/checkpoint.js:26:19)",
+            "at CheckpointCoordinator.capture (/Users/tallplain/dev/fleq-c4-measure5/reconstruction/dist/src/checkpoint/checkpoint.js:147:19)"
+          ],
+          "count": 200
+        }
+      ],
+      "notes": [
+        "指紋は引数の最上位の key 集合（配列は先頭要素の key と要素数）。checkpoint 区間の外の自 unit の要素の配列は 2 件まで単件計量（before/after）として要素数ぶん数え、超えれば集合の全量で Fail（ownElementCollection、maxLength）、要素数の無い配列は未確認（ownElementLengthUnknown）",
+        "key が 3 つ程度の小さな形は、無関係なオブジェクトと指紋がぶつかりうる（例: snapshot.persistence は unit id を key に持ち unitCollection と同形）",
+        "複数 unit に出る要素の指紋と、複数 unit に同名で出る field（payload の intents、view の subjects など）の要素の指紋は ambiguous として報告だけにする。ただし checkpoint 区間の外の ambiguous の配列で 2 件を超えるもの・要素数の無いものは未確認（ambiguousCollection）",
+        "走査対象が当該 subject だけであることは、checkpoint 区間の外の直列化（その他・原始値・自 unit の要素・ambiguous の単件）の入力 1 件あたりの回数を保持量 full と half で比べ、保持 1 件あたりの傾きで確かめる（compareRetention）",
+        "保存 payload と要素は、その unit の checkpoint の encode・verify 段と encode 後の未計測区間（checkpoint.ts:266-300、次の T0 で切る）の中なら、入力の unit に関係なく報告だけ（持ち越しの保存）。他 unit の入力が起こした保存は attempt の inputIds で区間に関係なく Fail（E10）。envelope は報告のみ",
+        "自 unit の要素は checkpoint 区間の外で入力 1 件あたり 4 回まで（(1+退去件数)×2×2、退去件数は観測できず 0）。EEW・U-W は入力規則の上で退去 0 なので超過は Fail",
+        "限界: probe は JSON.stringify しか見ないので、直列化しない走査（filter・find など）は見えない。保持の一部だけの走査（半分未満）は保持 1 件あたりの傾きが 0.5 未満になり、対照を通りうる",
+        "U-F の区間の超過だけ未確認（unconfirmed）: 期限回収・保持期限の削除が副作用の退去になりうるが、観測口（P2HostObservation）に退去が無い",
+        "chars は UTF-16 の文字数（byte ではない）。publish の byte は publishSerialization を見る",
+        "配送 snapshot の指紋は view-projector.ts:677 の shell の byte 計量（同じ key 集合）にも当たる。snapshotCallsMinusPublish は publish 以外の同形の呼出し数で、client ごとの再直列化があればここが増える"
+      ]
+    },
+    "metadata": {
+      "reconnectMs": [
+        5018,
+        5008,
+        5008,
+        5008,
+        5008,
+        5007,
+        5007,
+        5008,
+        5010,
+        5008,
+        5007,
+        5007,
+        5006,
+        5007,
+        5007,
+        5007,
+        5007,
+        5006,
+        5006,
+        5007,
+        5007,
+        5007,
+        5006,
+        5005,
+        5007,
+        5006,
+        5006,
+        5007,
+        5006,
+        5006,
+        5007,
+        5007,
+        5007,
+        5007,
+        5006,
+        5006,
+        5006,
+        5007,
+        5007,
+        5006,
+        5006,
+        5007,
+        5006,
+        5006,
+        5007,
+        5006,
+        5007,
+        5006,
+        5006,
+        5006,
+        5004,
+        5006,
+        5007,
+        5006,
+        5007,
+        5007,
+        5006,
+        5007,
+        5007,
+        5004,
+        5007,
+        5007,
+        5007,
+        5006,
+        5007,
+        5006,
+        5006,
+        5006,
+        5007,
+        5007,
+        5007,
+        5007,
+        5007,
+        5007,
+        5006,
+        5007,
+        5006,
+        5007,
+        5007,
+        5007,
+        5007,
+        5007,
+        5007,
+        5007,
+        5006,
+        5006,
+        5006,
+        5007,
+        5006,
+        5006,
+        5006,
+        5007,
+        5006,
+        5006,
+        5006,
+        5007,
+        5006,
+        5006,
+        5007,
+        5006,
+        5007,
+        5006,
+        5006,
+        5007,
+        5005,
+        5007,
+        5007,
+        5007,
+        5006,
+        5006
+      ],
+      "assumed": {
+        "publishPerInterval": 2,
+        "snapshotCallsMinusPublish": 798
+      },
+      "observed": {
+        "publishPerIntervalByRecordOrder": [
+          2,
+          2,
+          2,
+          3,
+          1,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          3,
+          1,
+          2,
+          3,
+          1,
+          2,
+          2,
+          2,
+          2,
+          2,
+          3,
+          1,
+          2,
+          3,
+          1,
+          2,
+          2,
+          2,
+          2,
+          2,
+          3,
+          1,
+          2,
+          3,
+          1,
+          2,
+          2,
+          2,
+          2,
+          2,
+          3,
+          1,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          3,
+          1,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          3,
+          1,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          3,
+          1,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          3,
+          1,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          2,
+          3,
+          1,
+          2,
+          3,
+          1,
+          2,
+          3
+        ],
+        "publishTotal": 201,
+        "snapshotCallsMinusPublish": 797
+      },
+      "note": "判定へは切断と再接続の 2 回の状態変化で publish 2 回と想定して渡す。observed は時刻の無い publish を記録順で区間に振った実数とそれで数え直した値"
+    },
+    "e15": {
+      "status": null,
+      "attempts": 252,
+      "units": {
+        "U-E": {
+          "encodeCount": 26,
+          "encodeBytes": 1660949,
+          "writeBytes": 1660949,
+          "occupiedMsLower": 31.145263671875,
+          "measuredStagesMs": 197.99169921875,
+          "failedAttempts": 0,
+          "verifyCount": 0,
+          "verifyBytes": 0,
+          "verifyMs": 0
+        },
+        "U-W": {
+          "encodeCount": 114,
+          "encodeBytes": 735375375,
+          "writeBytes": 735375375,
+          "occupiedMsLower": 11608.361328125,
+          "measuredStagesMs": 12774.693359375,
+          "failedAttempts": 0,
+          "verifyCount": 0,
+          "verifyBytes": 0,
+          "verifyMs": 0
+        },
+        "U-F": {
+          "encodeCount": 112,
+          "encodeBytes": 87624220,
+          "writeBytes": 87624220,
+          "occupiedMsLower": 2262.04541015625,
+          "measuredStagesMs": 3136.90673828125,
+          "failedAttempts": 0,
+          "verifyCount": 0,
+          "verifyBytes": 0,
+          "verifyMs": 0
+        }
+      },
+      "retryReasons": {
+        "notRetry": 252
+      },
+      "byteViolations": 0,
+      "unknownInputIds": 0,
+      "blocked": [],
+      "writes": {
+        "status": null,
+        "complete": true,
+        "unconfirmed": [],
+        "unattributed": [],
+        "unverified": [],
+        "threads": {
+          "urgent": {
+            "confirmed": true,
+            "counts": {
+              "checkpoint": {
+                "count": 0,
+                "bytes": 0
+              },
+              "tmp": {
+                "count": 26,
+                "bytes": 1660949
+              },
+              "diagnosticLog": {
+                "count": 0,
+                "bytes": 0
+              },
+              "other": {
+                "count": 0,
+                "bytes": 0
+              }
+            }
+          },
+          "weatherCurrent": {
+            "confirmed": true,
+            "counts": {
+              "checkpoint": {
+                "count": 0,
+                "bytes": 0
+              },
+              "tmp": {
+                "count": 114,
+                "bytes": 735375375
+              },
+              "diagnosticLog": {
+                "count": 0,
+                "bytes": 0
+              },
+              "other": {
+                "count": 0,
+                "bytes": 0
+              }
+            }
+          },
+          "deferred": {
+            "confirmed": true,
+            "counts": {
+              "checkpoint": {
+                "count": 0,
+                "bytes": 0
+              },
+              "tmp": {
+                "count": 112,
+                "bytes": 87624220
+              },
+              "diagnosticLog": {
+                "count": 0,
+                "bytes": 0
+              },
+              "other": {
+                "count": 0,
+                "bytes": 0
+              }
+            }
+          },
+          "publisher": {
+            "confirmed": true,
+            "counts": {
+              "checkpoint": {
+                "count": 0,
+                "bytes": 0
+              },
+              "tmp": {
+                "count": 2,
+                "bytes": 1442
+              },
+              "diagnosticLog": {
+                "count": 406,
+                "bytes": 66571
+              },
+              "other": {
+                "count": 0,
+                "bytes": 0
+              }
+            }
+          }
+        }
+      },
+      "preSaveSyncMs": {
+        "U-E": {
+          "grants": 26,
+          "reconcileGrants": 0,
+          "invalid": 0,
+          "lowerMs": 31.145263671875,
+          "upperMs": 40.08154296875,
+          "maxUpperMs": 6.199462890625
+        },
+        "U-W": {
+          "grants": 114,
+          "reconcileGrants": 0,
+          "invalid": 0,
+          "lowerMs": 11608.361328125,
+          "upperMs": 11697.43505859375,
+          "maxUpperMs": 111.35791015625
+        },
+        "U-F": {
+          "grants": 112,
+          "reconcileGrants": 0,
+          "invalid": 0,
+          "lowerMs": 2262.04541015625,
+          "upperMs": 2313.390380859375,
+          "maxUpperMs": 26.416748046875
+        }
+      },
+      "occupancyNote": "occupiedMsLower = encode の壁時間（下限）。verify 段（記憶なし・照合の経路だけ）は verifyCount・verifyBytes（読んだ bytes）・verifyMs に別に数え、占有・write へ足さない。measuredStagesMs = 計測された段の壁時間の合計で、非同期の待ちを含み、前段の同期処理 checkpoint.ts:266-300 を含まない（上限ではない）"
+    },
+    "byteViolations": 0,
+    "byteViolationsNote": "byteViolations は encode・write・verify 以外の段で bytes が 0 でない件数。verify 段の bytes は読んだ bytes として e15.units の verifyBytes に別に数える（P3-C1-E15、A10 の P2-A10-E15-P3 の読み）",
+    "publishCost": {
+      "window": "ac15-half",
+      "publishCount": 2308,
+      "totalJsonBytes": 370705967,
+      "maxJsonBytes": 1046013,
+      "serializeP50Ms": 0.0815420000017184,
+      "serializeP99Ms": 3.2561659999992116,
+      "serializeMaxMs": 5.675333999999566
+    },
+    "ownerHeap": {
+      "urgent": {
+        "rows": 1374,
+        "maxHeapUsedBytes": 27609648,
+        "maxExternalBytes": 3018127
+      },
+      "weatherCurrent": {
+        "rows": 1374,
+        "maxHeapUsedBytes": 486836920,
+        "maxExternalBytes": 18567545
+      },
+      "deferred": {
+        "rows": 1374,
+        "maxHeapUsedBytes": 19059112,
+        "maxExternalBytes": 3178180
+      }
+    },
+    "notificationAdoption": {
+      "first": {
+        "reservations": 229,
+        "started": 227,
+        "notStarted": 2,
+        "reservationToReplyMs": {
+          "p50": 2.4578330000003916,
+          "p95": 11.86345799999981,
+          "p99": 15.769499999998516,
+          "max": 16.696749999999156
+        },
+        "replyToAttemptMs": {
+          "p50": 0.005708000000140601,
+          "p95": 0.016457999999829553,
+          "p99": 0.026915999998891493,
+          "max": 0.02833400000235997
+        },
+        "createdToReservationWallMs": {
+          "p50": 3180.718505859375,
+          "p95": 14993.265380859375,
+          "p99": 14998.244140625,
+          "max": 14999.18408203125
+        }
+      },
+      "retries": {
+        "reservations": 0,
+        "started": 0,
+        "notStarted": 0,
+        "reservationToReplyMs": null,
+        "replyToAttemptMs": null,
+        "createdToReservationWallMs": null
+      }
+    },
+    "viewCopy": {
+      "inputs": 1293,
+      "unbound": 0,
+      "threadCopiesPerInputUpper": 1,
+      "publishesPerInput": {
+        "p50": 1,
+        "p95": 4,
+        "p99": 7,
+        "max": 722
+      },
+      "publishBytesPerInput": {
+        "p50": 32007,
+        "p95": 1023965,
+        "p99": 4265460,
+        "max": 21438242
+      },
+      "serializeMsPerInput": {
+        "p50": 0.08545899999808171,
+        "p95": 3.4217920000005506,
+        "p99": 14.80724999999984,
+        "max": 68.26344699995752
+      },
+      "publishesWithoutSerialization": 0,
+      "attribution": "帰属不能（参考量）",
+      "referenceCopyBytes": "C3a の計量: VPWS50 で view 620,797 byte・返信 622,802 byte"
+    }
+  },
+  "e15": {
+    "status": null,
+    "attempts": 271,
+    "units": {
+      "U-E": {
+        "encodeCount": 41,
+        "encodeBytes": 3341009,
+        "writeBytes": 3341009,
+        "occupiedMsLower": 56.47705078125,
+        "measuredStagesMs": 345.86962890625,
+        "failedAttempts": 0,
+        "verifyCount": 0,
+        "verifyBytes": 0,
+        "verifyMs": 0
+      },
+      "U-W": {
+        "encodeCount": 117,
+        "encodeBytes": 906679641,
+        "writeBytes": 906679641,
+        "occupiedMsLower": 12458.220703125,
+        "measuredStagesMs": 14053.458984375,
+        "failedAttempts": 0,
+        "verifyCount": 0,
+        "verifyBytes": 0,
+        "verifyMs": 0
+      },
+      "U-F": {
+        "encodeCount": 113,
+        "encodeBytes": 176186014,
+        "writeBytes": 176186014,
+        "occupiedMsLower": 4552.666259765625,
+        "measuredStagesMs": 5471.2099609375,
+        "failedAttempts": 0,
+        "verifyCount": 0,
+        "verifyBytes": 0,
+        "verifyMs": 0
+      }
+    },
+    "retryReasons": {
+      "notRetry": 271
+    },
+    "byteViolations": 0,
+    "unknownInputIds": 0,
+    "blocked": [],
+    "writes": {
+      "status": null,
+      "complete": true,
+      "unconfirmed": [],
+      "unattributed": [],
+      "unverified": [],
+      "threads": {
+        "urgent": {
+          "confirmed": true,
+          "counts": {
+            "checkpoint": {
+              "count": 0,
+              "bytes": 0
+            },
+            "tmp": {
+              "count": 41,
+              "bytes": 3341009
+            },
+            "diagnosticLog": {
+              "count": 0,
+              "bytes": 0
+            },
+            "other": {
+              "count": 0,
+              "bytes": 0
+            }
+          }
+        },
+        "weatherCurrent": {
+          "confirmed": true,
+          "counts": {
+            "checkpoint": {
+              "count": 0,
+              "bytes": 0
+            },
+            "tmp": {
+              "count": 117,
+              "bytes": 906679641
+            },
+            "diagnosticLog": {
+              "count": 0,
+              "bytes": 0
+            },
+            "other": {
+              "count": 0,
+              "bytes": 0
+            }
+          }
+        },
+        "deferred": {
+          "confirmed": true,
+          "counts": {
+            "checkpoint": {
+              "count": 0,
+              "bytes": 0
+            },
+            "tmp": {
+              "count": 113,
+              "bytes": 176186014
+            },
+            "diagnosticLog": {
+              "count": 0,
+              "bytes": 0
+            },
+            "other": {
+              "count": 0,
+              "bytes": 0
+            }
+          }
+        },
+        "publisher": {
+          "confirmed": true,
+          "counts": {
+            "checkpoint": {
+              "count": 0,
+              "bytes": 0
+            },
+            "tmp": {
+              "count": 2,
+              "bytes": 1446
+            },
+            "diagnosticLog": {
+              "count": 762,
+              "bytes": 127050
+            },
+            "other": {
+              "count": 0,
+              "bytes": 0
+            }
+          }
+        }
+      }
+    },
+    "preSaveSyncMs": {
+      "U-E": {
+        "grants": 41,
+        "reconcileGrants": 0,
+        "invalid": 0,
+        "lowerMs": 56.47705078125,
+        "upperMs": 67.66552734375,
+        "maxUpperMs": 5.0849609375
+      },
+      "U-W": {
+        "grants": 117,
+        "reconcileGrants": 0,
+        "invalid": 0,
+        "lowerMs": 12458.220703125,
+        "upperMs": 12672.06982421875,
+        "maxUpperMs": 124.605224609375
+      },
+      "U-F": {
+        "grants": 113,
+        "reconcileGrants": 0,
+        "invalid": 0,
+        "lowerMs": 4552.666259765625,
+        "upperMs": 4590.205322265625,
+        "maxUpperMs": 45.587646484375
+      }
+    },
+    "occupancyNote": "occupiedMsLower = encode の壁時間（下限）。verify 段（記憶なし・照合の経路だけ）は verifyCount・verifyBytes（読んだ bytes）・verifyMs に別に数え、占有・write へ足さない。measuredStagesMs = 計測された段の壁時間の合計で、非同期の待ちを含み、前段の同期処理 checkpoint.ts:266-300 を含まない（上限ではない）"
+  },
+  "byteViolations": 0,
+  "byteViolationsNote": "byteViolations は encode・write・verify 以外の段で bytes が 0 でない件数。verify 段の bytes は読んだ bytes として e15.units の verifyBytes に別に数える（P3-C1-E15、A10 の P2-A10-E15-P3 の読み）",
+  "publishCost": {
+    "window": "ac15-full",
+    "publishCount": 3747,
+    "totalJsonBytes": 402753870,
+    "maxJsonBytes": 1046012,
+    "serializeP50Ms": 0.08016700000007404,
+    "serializeP99Ms": 3.107624999998734,
+    "serializeMaxMs": 4.516374999999243
+  },
+  "ownerHeap": {
+    "urgent": {
+      "rows": 1363,
+      "maxHeapUsedBytes": 29503528,
+      "maxExternalBytes": 2913742
+    },
+    "weatherCurrent": {
+      "rows": 1360,
+      "maxHeapUsedBytes": 446981512,
+      "maxExternalBytes": 12199039
+    },
+    "deferred": {
+      "rows": 1363,
+      "maxHeapUsedBytes": 24617792,
+      "maxExternalBytes": 7031598
+    }
+  },
+  "notificationAdoption": {
+    "first": {
+      "reservations": 465,
+      "started": 459,
+      "notStarted": 6,
+      "reservationToReplyMs": {
+        "p50": 2.5874579999999696,
+        "p95": 13.596083000000363,
+        "p99": 17.55725000000166,
+        "max": 22.07616699999926
+      },
+      "replyToAttemptMs": {
+        "p50": 0.005375000000640284,
+        "p95": 0.01337500000045111,
+        "p99": 0.02070800000001327,
+        "max": 0.02575000000001637
+      },
+      "createdToReservationWallMs": {
+        "p50": 2761.13330078125,
+        "p95": 14985.188720703125,
+        "p99": 14997.2841796875,
+        "max": 14999.284423828125
+      }
+    },
+    "retries": {
+      "reservations": 0,
+      "started": 0,
+      "notStarted": 0,
+      "reservationToReplyMs": null,
+      "replyToAttemptMs": null,
+      "createdToReservationWallMs": null
+    }
+  },
+  "viewCopy": {
+    "inputs": 2253,
+    "unbound": 0,
+    "threadCopiesPerInputUpper": 1,
+    "publishesPerInput": {
+      "p50": 1,
+      "p95": 4,
+      "p99": 7,
+      "max": 1153
+    },
+    "publishBytesPerInput": {
+      "p50": 31967,
+      "p95": 880652,
+      "p99": 3134211,
+      "max": 22284462
+    },
+    "serializeMsPerInput": {
+      "p50": 0.08141699999760021,
+      "p95": 2.821875000001455,
+      "p99": 11.17316799999844,
+      "max": 64.41105100003915
+    },
+    "publishesWithoutSerialization": 0,
+    "attribution": "帰属不能（参考量）",
+    "referenceCopyBytes": "C3a の計量: VPWS50 で view 620,797 byte・返信 622,802 byte"
+  }
+}

@@ -1,0 +1,816 @@
+{
+  "schemaVersion": "p2-a10-aux-result-v1",
+  "manifestId": "p3-c4-formal-20261007",
+  "manifestSha256": "3edb1aaed272a09ad21142cc06fcd99074b1e70f2a16f68a4ac4864b2565b05c",
+  "resultSha256": "1c196edec1f1ff6e76f1008547d53a2684bd4a467ba5242cc94f3d1c3ae629d4",
+  "window": "e14-run1",
+  "status": "N/A",
+  "intervalMs": 20000,
+  "notification": "silent",
+  "e14": {
+    "status": null,
+    "bundles": 60,
+    "linked": 18,
+    "unconfirmed": {
+      "notSimultaneous": 42
+    },
+    "units": {
+      "U-E": {
+        "p50": 811.251583000063,
+        "p95": 977.8455829999875,
+        "p99": 977.8455829999875,
+        "max": 977.8455829999875,
+        "overLimit": 0
+      },
+      "U-W": {
+        "p50": 2287.244457999943,
+        "p95": 2451.314249999996,
+        "p99": 2451.314249999996,
+        "max": 2451.314249999996,
+        "overLimit": 0
+      },
+      "U-F": {
+        "p50": 1440.9926249999553,
+        "p95": 1605.690917,
+        "p99": 1605.690917,
+        "max": 1605.690917,
+        "overLimit": 0
+      }
+    },
+    "limitMs": 3000,
+    "note": "unit ごとの dirty→ack。各保存の p99 の和を全体の p99 と呼ばない（P3-C4-AC13(3)⑥）。Mac の値は報告で、判定場所は Pi（P5）"
+  },
+  "bundles": [
+    {
+      "k": 0,
+      "inputIds": {
+        "U-E": "input-1665",
+        "U-W": "input-1666",
+        "U-F": "input-1667"
+      }
+    },
+    {
+      "k": 1,
+      "inputIds": {
+        "U-E": "input-1668",
+        "U-W": "input-1669",
+        "U-F": "input-1670"
+      }
+    },
+    {
+      "k": 2,
+      "inputIds": {
+        "U-E": "input-1671",
+        "U-W": "input-1672",
+        "U-F": "input-1673"
+      }
+    },
+    {
+      "k": 3,
+      "inputIds": {
+        "U-E": "input-1674",
+        "U-W": "input-1675",
+        "U-F": "input-1676"
+      }
+    },
+    {
+      "k": 4,
+      "inputIds": {
+        "U-E": "input-1677",
+        "U-W": "input-1678",
+        "U-F": "input-1679"
+      }
+    },
+    {
+      "k": 5,
+      "inputIds": {
+        "U-E": "input-1680",
+        "U-W": "input-1681",
+        "U-F": "input-1682"
+      }
+    },
+    {
+      "k": 6,
+      "inputIds": {
+        "U-E": "input-1683",
+        "U-W": "input-1684",
+        "U-F": "input-1685"
+      }
+    },
+    {
+      "k": 7,
+      "inputIds": {
+        "U-E": "input-1686",
+        "U-W": "input-1687",
+        "U-F": "input-1688"
+      }
+    },
+    {
+      "k": 8,
+      "inputIds": {
+        "U-E": "input-1689",
+        "U-W": "input-1690",
+        "U-F": "input-1691"
+      }
+    },
+    {
+      "k": 9,
+      "inputIds": {
+        "U-E": "input-1692",
+        "U-W": "input-1693",
+        "U-F": "input-1694"
+      }
+    },
+    {
+      "k": 10,
+      "inputIds": {
+        "U-E": "input-1695",
+        "U-W": "input-1696",
+        "U-F": "input-1697"
+      }
+    },
+    {
+      "k": 11,
+      "inputIds": {
+        "U-E": "input-1698",
+        "U-W": "input-1699",
+        "U-F": "input-1700"
+      }
+    },
+    {
+      "k": 12,
+      "inputIds": {
+        "U-E": "input-1701",
+        "U-W": "input-1702",
+        "U-F": "input-1703"
+      }
+    },
+    {
+      "k": 13,
+      "inputIds": {
+        "U-E": "input-1704",
+        "U-W": "input-1705",
+        "U-F": "input-1706"
+      }
+    },
+    {
+      "k": 14,
+      "inputIds": {
+        "U-E": "input-1707",
+        "U-W": "input-1708",
+        "U-F": "input-1709"
+      }
+    },
+    {
+      "k": 15,
+      "inputIds": {
+        "U-E": "input-1710",
+        "U-W": "input-1711",
+        "U-F": "input-1712"
+      }
+    },
+    {
+      "k": 16,
+      "inputIds": {
+        "U-E": "input-1713",
+        "U-W": "input-1714",
+        "U-F": "input-1715"
+      }
+    },
+    {
+      "k": 17,
+      "inputIds": {
+        "U-E": "input-1716",
+        "U-W": "input-1717",
+        "U-F": "input-1718"
+      }
+    },
+    {
+      "k": 18,
+      "inputIds": {
+        "U-E": "input-1719",
+        "U-W": "input-1720",
+        "U-F": "input-1721"
+      }
+    },
+    {
+      "k": 19,
+      "inputIds": {
+        "U-E": "input-1722",
+        "U-W": "input-1723",
+        "U-F": "input-1724"
+      }
+    },
+    {
+      "k": 20,
+      "inputIds": {
+        "U-E": "input-1725",
+        "U-W": "input-1726",
+        "U-F": "input-1727"
+      }
+    },
+    {
+      "k": 21,
+      "inputIds": {
+        "U-E": "input-1728",
+        "U-W": "input-1729",
+        "U-F": "input-1730"
+      }
+    },
+    {
+      "k": 22,
+      "inputIds": {
+        "U-E": "input-1731",
+        "U-W": "input-1732",
+        "U-F": "input-1733"
+      }
+    },
+    {
+      "k": 23,
+      "inputIds": {
+        "U-E": "input-1734",
+        "U-W": "input-1735",
+        "U-F": "input-1736"
+      }
+    },
+    {
+      "k": 24,
+      "inputIds": {
+        "U-E": "input-1737",
+        "U-W": "input-1738",
+        "U-F": "input-1739"
+      }
+    },
+    {
+      "k": 25,
+      "inputIds": {
+        "U-E": "input-1740",
+        "U-W": "input-1741",
+        "U-F": "input-1742"
+      }
+    },
+    {
+      "k": 26,
+      "inputIds": {
+        "U-E": "input-1743",
+        "U-W": "input-1744",
+        "U-F": "input-1745"
+      }
+    },
+    {
+      "k": 27,
+      "inputIds": {
+        "U-E": "input-1746",
+        "U-W": "input-1747",
+        "U-F": "input-1748"
+      }
+    },
+    {
+      "k": 28,
+      "inputIds": {
+        "U-E": "input-1749",
+        "U-W": "input-1750",
+        "U-F": "input-1751"
+      }
+    },
+    {
+      "k": 29,
+      "inputIds": {
+        "U-E": "input-1752",
+        "U-W": "input-1753",
+        "U-F": "input-1754"
+      }
+    },
+    {
+      "k": 30,
+      "inputIds": {
+        "U-E": "input-1755",
+        "U-W": "input-1756",
+        "U-F": "input-1757"
+      }
+    },
+    {
+      "k": 31,
+      "inputIds": {
+        "U-E": "input-1758",
+        "U-W": "input-1759",
+        "U-F": "input-1760"
+      }
+    },
+    {
+      "k": 32,
+      "inputIds": {
+        "U-E": "input-1761",
+        "U-W": "input-1762",
+        "U-F": "input-1763"
+      }
+    },
+    {
+      "k": 33,
+      "inputIds": {
+        "U-E": "input-1764",
+        "U-W": "input-1765",
+        "U-F": "input-1766"
+      }
+    },
+    {
+      "k": 34,
+      "inputIds": {
+        "U-E": "input-1767",
+        "U-W": "input-1768",
+        "U-F": "input-1769"
+      }
+    },
+    {
+      "k": 35,
+      "inputIds": {
+        "U-E": "input-1770",
+        "U-W": "input-1771",
+        "U-F": "input-1772"
+      }
+    },
+    {
+      "k": 36,
+      "inputIds": {
+        "U-E": "input-1773",
+        "U-W": "input-1774",
+        "U-F": "input-1775"
+      }
+    },
+    {
+      "k": 37,
+      "inputIds": {
+        "U-E": "input-1776",
+        "U-W": "input-1777",
+        "U-F": "input-1778"
+      }
+    },
+    {
+      "k": 38,
+      "inputIds": {
+        "U-E": "input-1779",
+        "U-W": "input-1780",
+        "U-F": "input-1781"
+      }
+    },
+    {
+      "k": 39,
+      "inputIds": {
+        "U-E": "input-1782",
+        "U-W": "input-1783",
+        "U-F": "input-1784"
+      }
+    },
+    {
+      "k": 40,
+      "inputIds": {
+        "U-E": "input-1785",
+        "U-W": "input-1786",
+        "U-F": "input-1787"
+      }
+    },
+    {
+      "k": 41,
+      "inputIds": {
+        "U-E": "input-1788",
+        "U-W": "input-1789",
+        "U-F": "input-1790"
+      }
+    },
+    {
+      "k": 42,
+      "inputIds": {
+        "U-E": "input-1791",
+        "U-W": "input-1792",
+        "U-F": "input-1793"
+      }
+    },
+    {
+      "k": 43,
+      "inputIds": {
+        "U-E": "input-1794",
+        "U-W": "input-1795",
+        "U-F": "input-1796"
+      }
+    },
+    {
+      "k": 44,
+      "inputIds": {
+        "U-E": "input-1797",
+        "U-W": "input-1798",
+        "U-F": "input-1799"
+      }
+    },
+    {
+      "k": 45,
+      "inputIds": {
+        "U-E": "input-1800",
+        "U-W": "input-1801",
+        "U-F": "input-1802"
+      }
+    },
+    {
+      "k": 46,
+      "inputIds": {
+        "U-E": "input-1803",
+        "U-W": "input-1804",
+        "U-F": "input-1805"
+      }
+    },
+    {
+      "k": 47,
+      "inputIds": {
+        "U-E": "input-1806",
+        "U-W": "input-1807",
+        "U-F": "input-1808"
+      }
+    },
+    {
+      "k": 48,
+      "inputIds": {
+        "U-E": "input-1809",
+        "U-W": "input-1810",
+        "U-F": "input-1811"
+      }
+    },
+    {
+      "k": 49,
+      "inputIds": {
+        "U-E": "input-1812",
+        "U-W": "input-1813",
+        "U-F": "input-1814"
+      }
+    },
+    {
+      "k": 50,
+      "inputIds": {
+        "U-E": "input-1815",
+        "U-W": "input-1816",
+        "U-F": "input-1817"
+      }
+    },
+    {
+      "k": 51,
+      "inputIds": {
+        "U-E": "input-1818",
+        "U-W": "input-1819",
+        "U-F": "input-1820"
+      }
+    },
+    {
+      "k": 52,
+      "inputIds": {
+        "U-E": "input-1821",
+        "U-W": "input-1822",
+        "U-F": "input-1823"
+      }
+    },
+    {
+      "k": 53,
+      "inputIds": {
+        "U-E": "input-1824",
+        "U-W": "input-1825",
+        "U-F": "input-1826"
+      }
+    },
+    {
+      "k": 54,
+      "inputIds": {
+        "U-E": "input-1827",
+        "U-W": "input-1828",
+        "U-F": "input-1829"
+      }
+    },
+    {
+      "k": 55,
+      "inputIds": {
+        "U-E": "input-1830",
+        "U-W": "input-1831",
+        "U-F": "input-1832"
+      }
+    },
+    {
+      "k": 56,
+      "inputIds": {
+        "U-E": "input-1833",
+        "U-W": "input-1834",
+        "U-F": "input-1835"
+      }
+    },
+    {
+      "k": 57,
+      "inputIds": {
+        "U-E": "input-1836",
+        "U-W": "input-1837",
+        "U-F": "input-1838"
+      }
+    },
+    {
+      "k": 58,
+      "inputIds": {
+        "U-E": "input-1839",
+        "U-W": "input-1840",
+        "U-F": "input-1841"
+      }
+    },
+    {
+      "k": 59,
+      "inputIds": {
+        "U-E": "input-1842",
+        "U-W": "input-1843",
+        "U-F": "input-1844"
+      }
+    }
+  ],
+  "fill": {
+    "mode": "leaveRoomForP",
+    "frames": 1664,
+    "firstSeq": 1,
+    "sentMs": 41975,
+    "verifiedMs": 43224,
+    "observed": {
+      "snapshotActive": {
+        "eew": "512/0/0",
+        "weatherCurrent": "127/1/1",
+        "weatherTimeseries": "511/0/0"
+      },
+      "checkpoint": {
+        "U-W.national": 3,
+        "U-W.partials": 126,
+        "U-F.subjects": 511
+      }
+    },
+    "quiet": {
+      "waitedMs": 15085,
+      "untilLastBackendMs": 17,
+      "backendLaunchesSeen": {},
+      "quietMs": 15000,
+      "pgrepFailures": 0,
+      "note": "100ms ごとの pgrep -P で見えた子の数（短命な起動は取りこぼしうる下限）"
+    },
+    "observedBeforeMeasure": {
+      "snapshotActive": {
+        "eew": "512/0/0",
+        "weatherCurrent": "127/1/1",
+        "weatherTimeseries": "511/0/0"
+      },
+      "checkpoint": {
+        "U-W.national": 3,
+        "U-W.partials": 126,
+        "U-F.subjects": 511
+      }
+    }
+  },
+  "e15": {
+    "status": null,
+    "attempts": 289,
+    "units": {
+      "U-E": {
+        "encodeCount": 163,
+        "encodeBytes": 1564675,
+        "writeBytes": 1564675,
+        "occupiedMsLower": 35.5087890625,
+        "measuredStagesMs": 1282.49365234375,
+        "failedAttempts": 0,
+        "verifyCount": 0,
+        "verifyBytes": 0,
+        "verifyMs": 0
+      },
+      "U-W": {
+        "encodeCount": 63,
+        "encodeBytes": 460229808,
+        "writeBytes": 460229808,
+        "occupiedMsLower": 6414.565185546875,
+        "measuredStagesMs": 7152.701416015625,
+        "failedAttempts": 0,
+        "verifyCount": 0,
+        "verifyBytes": 0,
+        "verifyMs": 0
+      },
+      "U-F": {
+        "encodeCount": 63,
+        "encodeBytes": 130543913,
+        "writeBytes": 130543913,
+        "occupiedMsLower": 3020.925048828125,
+        "measuredStagesMs": 3617.438232421875,
+        "failedAttempts": 0,
+        "verifyCount": 0,
+        "verifyBytes": 0,
+        "verifyMs": 0
+      }
+    },
+    "retryReasons": {
+      "notRetry": 289
+    },
+    "byteViolations": 0,
+    "unknownInputIds": 0,
+    "blocked": [],
+    "writes": {
+      "status": null,
+      "complete": true,
+      "unconfirmed": [],
+      "unattributed": [],
+      "unverified": [],
+      "threads": {
+        "urgent": {
+          "confirmed": true,
+          "counts": {
+            "checkpoint": {
+              "count": 0,
+              "bytes": 0
+            },
+            "tmp": {
+              "count": 163,
+              "bytes": 1564675
+            },
+            "diagnosticLog": {
+              "count": 0,
+              "bytes": 0
+            },
+            "other": {
+              "count": 0,
+              "bytes": 0
+            }
+          }
+        },
+        "weatherCurrent": {
+          "confirmed": true,
+          "counts": {
+            "checkpoint": {
+              "count": 0,
+              "bytes": 0
+            },
+            "tmp": {
+              "count": 63,
+              "bytes": 460229808
+            },
+            "diagnosticLog": {
+              "count": 0,
+              "bytes": 0
+            },
+            "other": {
+              "count": 0,
+              "bytes": 0
+            }
+          }
+        },
+        "deferred": {
+          "confirmed": true,
+          "counts": {
+            "checkpoint": {
+              "count": 0,
+              "bytes": 0
+            },
+            "tmp": {
+              "count": 63,
+              "bytes": 130543913
+            },
+            "diagnosticLog": {
+              "count": 0,
+              "bytes": 0
+            },
+            "other": {
+              "count": 0,
+              "bytes": 0
+            }
+          }
+        },
+        "publisher": {
+          "confirmed": true,
+          "counts": {
+            "checkpoint": {
+              "count": 0,
+              "bytes": 0
+            },
+            "tmp": {
+              "count": 2,
+              "bytes": 1450
+            },
+            "diagnosticLog": {
+              "count": 450,
+              "bytes": 76898
+            },
+            "other": {
+              "count": 0,
+              "bytes": 0
+            }
+          }
+        }
+      }
+    },
+    "preSaveSyncMs": {
+      "U-E": {
+        "grants": 163,
+        "reconcileGrants": 0,
+        "invalid": 0,
+        "lowerMs": 35.5087890625,
+        "upperMs": 126.687255859375,
+        "maxUpperMs": 6.721435546875
+      },
+      "U-W": {
+        "grants": 63,
+        "reconcileGrants": 0,
+        "invalid": 0,
+        "lowerMs": 6414.565185546875,
+        "upperMs": 7000.15234375,
+        "maxUpperMs": 587.635009765625
+      },
+      "U-F": {
+        "grants": 63,
+        "reconcileGrants": 0,
+        "invalid": 0,
+        "lowerMs": 3020.925048828125,
+        "upperMs": 3060.29736328125,
+        "maxUpperMs": 54.583740234375
+      }
+    },
+    "occupancyNote": "occupiedMsLower = encode の壁時間（下限）。verify 段（記憶なし・照合の経路だけ）は verifyCount・verifyBytes（読んだ bytes）・verifyMs に別に数え、占有・write へ足さない。measuredStagesMs = 計測された段の壁時間の合計で、非同期の待ちを含み、前段の同期処理 checkpoint.ts:266-300 を含まない（上限ではない）"
+  },
+  "byteViolations": 0,
+  "byteViolationsNote": "byteViolations は encode・write・verify 以外の段で bytes が 0 でない件数。verify 段の bytes は読んだ bytes として e15.units の verifyBytes に別に数える（P3-C1-E15、A10 の P2-A10-E15-P3 の読み）",
+  "publishCost": {
+    "window": "e14-run1",
+    "publishCount": 4628,
+    "totalJsonBytes": 690525442,
+    "maxJsonBytes": 1046019,
+    "serializeP50Ms": 0.05724999999983993,
+    "serializeP99Ms": 3.062167000000045,
+    "serializeMaxMs": 5.174124999999549
+  },
+  "ownerHeap": {
+    "urgent": {
+      "rows": 1303,
+      "maxHeapUsedBytes": 30381296,
+      "maxExternalBytes": 2329035
+    },
+    "weatherCurrent": {
+      "rows": 1303,
+      "maxHeapUsedBytes": 372898224,
+      "maxExternalBytes": 15294466
+    },
+    "deferred": {
+      "rows": 1303,
+      "maxHeapUsedBytes": 97047656,
+      "maxExternalBytes": 7094250
+    }
+  },
+  "notificationAdoption": {
+    "first": {
+      "reservations": 1144,
+      "started": 1144,
+      "notStarted": 0,
+      "reservationToReplyMs": {
+        "p50": 1.7885840000017197,
+        "p95": 11.818500000000313,
+        "p99": 14.69720899999993,
+        "max": 15.717333000000508
+      },
+      "replyToAttemptMs": {
+        "p50": 0.0034999999988940544,
+        "p95": 0.009958999929949641,
+        "p99": 0.019584000000122614,
+        "max": 0.13770900000008623
+      },
+      "createdToReservationWallMs": {
+        "p50": 9.288818359375,
+        "p95": 46.0244140625,
+        "p99": 47.03369140625,
+        "max": 51.00830078125
+      }
+    },
+    "retries": {
+      "reservations": 0,
+      "started": 0,
+      "notStarted": 0,
+      "reservationToReplyMs": null,
+      "replyToAttemptMs": null,
+      "createdToReservationWallMs": null
+    }
+  },
+  "viewCopy": {
+    "inputs": 1844,
+    "unbound": 0,
+    "threadCopiesPerInputUpper": 1,
+    "publishesPerInput": {
+      "p50": 3,
+      "p95": 12,
+      "p99": 13,
+      "max": 801
+    },
+    "publishBytesPerInput": {
+      "p50": 95904,
+      "p95": 2608902,
+      "p99": 4644605,
+      "max": 24662049
+    },
+    "serializeMsPerInput": {
+      "p50": 0.16879100000369363,
+      "p95": 7.6611259999999675,
+      "p99": 10.858541999998124,
+      "max": 56.43448799992257
+    },
+    "publishesWithoutSerialization": 0,
+    "attribution": "帰属不能（参考量）",
+    "referenceCopyBytes": "C3a の計量: VPWS50 で view 620,797 byte・返信 622,802 byte"
+  }
+}

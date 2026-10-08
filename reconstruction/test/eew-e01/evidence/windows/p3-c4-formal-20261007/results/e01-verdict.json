@@ -1,0 +1,141 @@
+{
+  "verdict": {
+    "label": "P3 E01",
+    "status": "未確認",
+    "populations": {
+      "fixedBacklog": "Pass",
+      "maxVpws50ParseStarted": "Pass",
+      "maxWeatherCheckpointEncodeStarted": "Pass",
+      "maxForecastCheckpointSave": "Pass",
+      "forecastDeadlineOverlap": "未確認",
+      "maxVpws50ReceivedThenEew": "reference"
+    },
+    "evidenceRefs": []
+  },
+  "cause": {
+    "cause": "none",
+    "decision": "keepA",
+    "evidenceRefs": [],
+    "attemptedFixes": []
+  },
+  "runs": [
+    {
+      "id": "e01-fixedBacklog-run1",
+      "attempt": 1,
+      "status": "Pass",
+      "durationMs": 1516672.320457995,
+      "paintWithoutScreenshot": 68
+    },
+    {
+      "id": "e01-fixedBacklog-run2",
+      "attempt": 1,
+      "status": "Pass",
+      "durationMs": 1516795.272458002,
+      "paintWithoutScreenshot": 62
+    },
+    {
+      "id": "e01-fixedBacklog-run3",
+      "attempt": 1,
+      "status": "Pass",
+      "durationMs": 1516748.7902919948,
+      "paintWithoutScreenshot": 78
+    },
+    {
+      "id": "e01-forecastDeadlineOverlap-run1",
+      "attempt": 1,
+      "status": "Blocked",
+      "durationMs": null,
+      "paintWithoutScreenshot": null
+    },
+    {
+      "id": "e01-forecastDeadlineOverlap-run2",
+      "attempt": 1,
+      "status": "Blocked",
+      "durationMs": null,
+      "paintWithoutScreenshot": null
+    },
+    {
+      "id": "e01-forecastDeadlineOverlap-run3",
+      "attempt": 1,
+      "status": "Blocked",
+      "durationMs": null,
+      "paintWithoutScreenshot": null
+    },
+    {
+      "id": "e01-maxForecastCheckpointSave-run1",
+      "attempt": 1,
+      "status": "Pass",
+      "durationMs": 3400590.622458011,
+      "paintWithoutScreenshot": 121
+    },
+    {
+      "id": "e01-maxForecastCheckpointSave-run2",
+      "attempt": 1,
+      "status": "Pass",
+      "durationMs": 3387699.568834007,
+      "paintWithoutScreenshot": 119
+    },
+    {
+      "id": "e01-maxForecastCheckpointSave-run3",
+      "attempt": 1,
+      "status": "Pass",
+      "durationMs": 3376656.836665988,
+      "paintWithoutScreenshot": 129
+    },
+    {
+      "id": "e01-maxVpws50ParseStarted-run1",
+      "attempt": 1,
+      "status": "Pass",
+      "durationMs": 5014429.198624998,
+      "paintWithoutScreenshot": 0
+    },
+    {
+      "id": "e01-maxVpws50ParseStarted-run2",
+      "attempt": 1,
+      "status": "Pass",
+      "durationMs": 4933986.361542001,
+      "paintWithoutScreenshot": 12
+    },
+    {
+      "id": "e01-maxVpws50ParseStarted-run3",
+      "attempt": 1,
+      "status": "Pass",
+      "durationMs": 5053371.456458002,
+      "paintWithoutScreenshot": 0
+    },
+    {
+      "id": "e01-maxVpws50ReceivedThenEew-run1",
+      "attempt": 1,
+      "status": "Pass",
+      "durationMs": 3306131.9816250205,
+      "paintWithoutScreenshot": 207
+    },
+    {
+      "id": "e01-maxWeatherCheckpointEncodeStarted-run1",
+      "attempt": 1,
+      "status": "Pass",
+      "durationMs": 3406586.3845829964,
+      "paintWithoutScreenshot": 76
+    },
+    {
+      "id": "e01-maxWeatherCheckpointEncodeStarted-run2",
+      "attempt": 1,
+      "status": "Pass",
+      "durationMs": 3397417.865250021,
+      "paintWithoutScreenshot": 91
+    },
+    {
+      "id": "e01-maxWeatherCheckpointEncodeStarted-run3",
+      "attempt": 1,
+      "status": "Pass",
+      "durationMs": 3415533.876333028,
+      "paintWithoutScreenshot": 90
+    }
+  ],
+  "finishedAt": "2026-10-07T23:46:19.653Z",
+  "commands": [
+    "node reconstruction/test/eew-e01/run.mjs --manifest reconstruction/test/eew-e01/evidence/p3/manifest.json",
+    "caffeinate -dims -w 42593"
+  ],
+  "notification": "real"
+}

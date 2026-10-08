@@ -1,0 +1,159 @@
+{
+  "schemaVersion": "p2-a10-aux-result-v1",
+  "manifestId": "p3-c4-formal-20261007",
+  "manifestSha256": "3edb1aaed272a09ad21142cc06fcd99074b1e70f2a16f68a4ac4864b2565b05c",
+  "resultSha256": "06a82ae52704ad842349b8be874896cfc92f7c2c8782a773c7d3746f91523ea7",
+  "window": "e12-small-run1",
+  "status": "N/A",
+  "report": {
+    "schemaVersion": "p2-e12-report-v1",
+    "class": "small",
+    "node": "/opt/homebrew/opt/node@22/bin/node",
+    "framesSha256": "3ca51791e1a595019468c9eafdaf689c3d3e5eccc032057f44493fe6ac2c4562",
+    "frames": 200,
+    "configuration": "旧側は createMessageHandler({})、display・displaySink・永続化なし。新側は射影・SSE publish・checkpoint を含む。新側 silent は通知 backend の代わりに /usr/bin/true を spawn する費用を含む。旧側は通知を止めていて spawn しない",
+    "nodeVersion": "v22.23.3",
+    "old": {
+      "exit": {
+        "code": 0,
+        "signal": null
+      },
+      "status": null,
+      "replayMs": 39802.431625000005,
+      "gcCount": 84,
+      "gcTotalMs": 41.055381059646606,
+      "gcMaxMs": 4.923875004053116,
+      "heapUsedBefore": 13409016,
+      "heapUsedAfter": 17020528,
+      "heapUsedDelta": 3611512,
+      "heapBoundarySignedDistanceMs": {
+        "before": 0,
+        "after": 0
+      },
+      "note": "heapUsedDelta は前後差であり総 allocation ではない。allocation 推定は --heap-prof の出力を見る",
+      "configuration": "旧側は createMessageHandler({})、display・displaySink・永続化なし。新側は射影・SSE publish・checkpoint を含む。新側 silent は通知 backend の代わりに /usr/bin/true を spawn する費用を含む。旧側は通知を止めていて spawn しない"
+    },
+    "new": {
+      "exit": {
+        "code": 0,
+        "signal": null
+      },
+      "startMs": 1353.758667,
+      "endMs": 41153.338625,
+      "status": null,
+      "threads": {
+        "publisher": {
+          "status": null,
+          "replayMs": 39799.579957999995,
+          "gcCount": 33,
+          "gcTotalMs": 21.410086929798126,
+          "gcMaxMs": 5.957124978303909,
+          "heapUsedBefore": 8392608,
+          "heapUsedAfter": 8622872,
+          "heapUsedDelta": 230264,
+          "heapBoundarySignedDistanceMs": {
+            "before": -1229.859375,
+            "after": 1725.049500000001
+          },
+          "note": "heapUsedDelta は前後差であり総 allocation ではない。allocation 推定は --heap-prof の出力を見る",
+          "configuration": "旧側は createMessageHandler({})、display・displaySink・永続化なし。新側は射影・SSE publish・checkpoint を含む。新側 silent は通知 backend の代わりに /usr/bin/true を spawn する費用を含む。旧側は通知を止めていて spawn しない"
+        },
+        "urgent": {
+          "status": null,
+          "replayMs": 39799.579957999995,
+          "gcCount": 43,
+          "gcTotalMs": 34.71779304742813,
+          "gcMaxMs": 8.05349999666214,
+          "heapUsedBefore": 6773992,
+          "heapUsedAfter": 9317544,
+          "heapUsedDelta": 2543552,
+          "heapBoundarySignedDistanceMs": {
+            "before": -231.29720900000007,
+            "after": 0.8761250000025029
+          },
+          "note": "heapUsedDelta は前後差であり総 allocation ではない。allocation 推定は --heap-prof の出力を見る",
+          "configuration": "旧側は createMessageHandler({})、display・displaySink・永続化なし。新側は射影・SSE publish・checkpoint を含む。新側 silent は通知 backend の代わりに /usr/bin/true を spawn する費用を含む。旧側は通知を止めていて spawn しない"
+        },
+        "weatherCurrent": {
+          "status": null,
+          "replayMs": 39799.579957999995,
+          "gcCount": 4,
+          "gcTotalMs": 19.006250023841858,
+          "gcMaxMs": 10.738499999046326,
+          "heapUsedBefore": 6776544,
+          "heapUsedAfter": 6325880,
+          "heapUsedDelta": -450664,
+          "heapBoundarySignedDistanceMs": {
+            "before": -230.9380000000001,
+            "after": 0.9090000000069267
+          },
+          "note": "heapUsedDelta は前後差であり総 allocation ではない。allocation 推定は --heap-prof の出力を見る",
+          "configuration": "旧側は createMessageHandler({})、display・displaySink・永続化なし。新側は射影・SSE publish・checkpoint を含む。新側 silent は通知 backend の代わりに /usr/bin/true を spawn する費用を含む。旧側は通知を止めていて spawn しない"
+        },
+        "deferred": {
+          "status": null,
+          "replayMs": 39799.579957999995,
+          "gcCount": 4,
+          "gcTotalMs": 14.476958990097046,
+          "gcMaxMs": 8.83466699719429,
+          "heapUsedBefore": 6814496,
+          "heapUsedAfter": 6323712,
+          "heapUsedDelta": -490784,
+          "heapBoundarySignedDistanceMs": {
+            "before": -230.8832500000001,
+            "after": 0.9318750000020373
+          },
+          "note": "heapUsedDelta は前後差であり総 allocation ではない。allocation 推定は --heap-prof の出力を見る",
+          "configuration": "旧側は createMessageHandler({})、display・displaySink・永続化なし。新側は射影・SSE publish・checkpoint を含む。新側 silent は通知 backend の代わりに /usr/bin/true を spawn する費用を含む。旧側は通知を止めていて spawn しない"
+        }
+      }
+    },
+    "allocation": {
+      "method": "sampling heap profile（node --heap-prof、既定の sampling 間隔）の selfSize 合計と samples[].size 合計。推定値で、GC 回収済みの sample を含まない V8 既定の扱い。プロセス全体（module 読み込みと host 起動を含む）の profile で、replay 区間に限らない。総 allocation ではない",
+      "old": [
+        {
+          "file": "Heap.20261008.045913.55655.0.001.heapprofile",
+          "bytes": 44799,
+          "sha256": "2c1d22eb4adc53af26132e131509bff00799744328b369ad9996a5249222b516",
+          "selfSizeSum": 13685088,
+          "sampleSizeSum": 13685088,
+          "samples": 24
+        }
+      ],
+      "new": [
+        {
+          "file": "Heap.20261008.045953.55656.0.001.heapprofile",
+          "bytes": 24672,
+          "sha256": "746b0be181d8561e94ffeafe382fd1a681fa8af00d3290e8e22e29b39b40d914",
+          "selfSizeSum": 7680456,
+          "sampleSizeSum": 7680456,
+          "samples": 14
+        },
+        {
+          "file": "Heap.20261008.045953.55656.1.002.heapprofile",
+          "bytes": 16566,
+          "sha256": "3c24c1a51bdf62d6588fa18f21eceb3d3806ed78c849c60248c33cbb528e6e69",
+          "selfSizeSum": 4741400,
+          "sampleSizeSum": 5280960,
+          "samples": 10
+        },
+        {
+          "file": "Heap.20261008.045953.55656.2.003.heapprofile",
+          "bytes": 27959,
+          "sha256": "adaff92fbc2db07c1b21791559ed36b554a2e635a2d31b9f8eccfa3ed73d5128",
+          "selfSizeSum": 9147560,
+          "sampleSizeSum": 10201896,
+          "samples": 19
+        },
+        {
+          "file": "Heap.20261008.045953.55656.3.004.heapprofile",
+          "bytes": 25445,
+          "sha256": "3829b2f81031b1eb01f08cfb46787f6ae62562cdbb5939a1dff9efaecd07abfd",
+          "selfSizeSum": 9391880,
+          "sampleSizeSum": 10446952,
+          "samples": 19
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,156 @@
+{
+  "id": "e01-maxWeatherCheckpointEncodeStarted-run2",
+  "attempt": 1,
+  "manifestId": "p3-c4-formal-20261007",
+  "manifestSha256": "3edb1aaed272a09ad21142cc06fcd99074b1e70f2a16f68a4ac4864b2565b05c",
+  "rawDir": "/Users/tallplain/dev/fleq-a10-runs/p3-c4-formal-20261007/e01-maxWeatherCheckpointEncodeStarted-run2",
+  "command": "node reconstruction/test/eew-e01/run.mjs --manifest reconstruction/test/eew-e01/evidence/p3/manifest.json",
+  "commands": [
+    "node reconstruction/test/eew-e01/run.mjs --manifest reconstruction/test/eew-e01/evidence/p3/manifest.json",
+    "caffeinate -dims -w 42593",
+    "/opt/homebrew/opt/node@22/bin/node /Users/tallplain/dev/fleq-c4-measure5/reconstruction/test/eew-e01/host-launcher.mjs /Users/tallplain/dev/fleq-a10-runs/p3-c4-formal-20261007/e01-maxWeatherCheckpointEncodeStarted-run2/host-config.json",
+    "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome --remote-debugging-port=0 --user-data-dir=/var/folders/rh/mfnz7fyn5mz6kqd4thpp0q9w0000gn/T/fleq-a10-chrome-ddOipH --no-first-run --no-default-browser-check --window-size=1440,900 --force-color-profile=srgb --disable-background-timer-throttling --disable-renderer-backgrounding --disable-backgrounding-occluded-windows about:blank"
+  ],
+  "startedAt": "2026-10-07T03:14:12.985Z",
+  "preflight": {
+    "checkedAt": "2026-10-06T20:50:48.329Z",
+    "nodeVersion": "v22.23.3",
+    "chromeVersion": "154.0.8037.98",
+    "osVersion": "27.0.0 arm64",
+    "dist": [
+      "reconstruction/dist/src/host/host.js",
+      "reconstruction/dist/chrome-eew",
+      "dist/engine/messages/message-router.js"
+    ],
+    "gitHead": "fc8299dc5791051a01d9051a42f9f0aaf794c265",
+    "gitStatusPorcelain": "",
+    "distSha256": "cd1cfb4edb5541354b8ba516642433d5eba60175bff563a321afcd8033af65a7",
+    "runnerSha256": "d27c6f44d709749b31d233d9f05dc37c79e84ea6ff95d5fb3f68ecab91c06bc5",
+    "machine": {
+      "cpu": "Apple M2",
+      "cores": 8,
+      "memoryBytes": 8589934592
+    }
+  },
+  "status": "Pass",
+  "byteViolations": 0,
+  "byteViolationsNote": "byteViolations は encode・write・verify 以外の段で bytes が 0 でない件数。verify 段の bytes は読んだ bytes として e15.units の verifyBytes に別に数える（P3-C1-E15、A10 の P2-A10-E15-P3 の読み）",
+  "resultFiles": [
+    {
+      "path": "reconstruction/test/eew-e01/evidence/windows/p3-c4-formal-20261007/results/result-formal-maxWeatherCheckpointEncodeStarted-run2.json",
+      "sha256": "2833b6e2cd460503567d720c6318b9e42307dc0fa189e70f2a48a8b8e0b465a7"
+    },
+    {
+      "path": "reconstruction/test/eew-e01/evidence/windows/p3-c4-formal-20261007/results/aux-e01-maxWeatherCheckpointEncodeStarted-run2.json",
+      "sha256": "41dbf081ccf78c01e3e3ec0d59a6f1c7b60c331babf28997265d8815bd586c3a"
+    }
+  ],
+  "liveness": {
+    "pings": 169,
+    "maxFrameGapMs": 7607.964833021164
+  },
+  "finishedAt": "2026-10-07T04:10:57.775Z",
+  "raw": [
+    {
+      "file": "aux-e01-maxWeatherCheckpointEncodeStarted-run2.json",
+      "bytes": 7019,
+      "sha256": "41dbf081ccf78c01e3e3ec0d59a6f1c7b60c331babf28997265d8815bd586c3a"
+    },
+    {
+      "file": "diagnostics/diagnostics-2026-06-05.jsonl",
+      "bytes": 1404,
+      "sha256": "2bd48547e89d05fa04058edfbbbfc5289c090bb93f956a2c27ba94dcde0df0a1"
+    },
+    {
+      "file": "diagnostics/shutdown-summary.json",
+      "bytes": 717,
+      "sha256": "627b6dbecd19f99b72b2764621663dde0c2f1b6fb7e2fe6f20266201adc510ab"
+    },
+    {
+      "file": "e01-assembled.json",
+      "bytes": 4835696,
+      "sha256": "507b8e35a325a54334cbeeab071763331aa2638cbef6d1b944b5df73aede6235"
+    },
+    {
+      "file": "host-config.json",
+      "bytes": 546,
+      "sha256": "b54b1c6f91f09061fec48faf14c484bde2aed8eafeee09c94339efda7af6cd11"
+    },
+    {
+      "file": "host-obs.jsonl",
+      "bytes": 11998653,
+      "sha256": "c859934f28aae68dec5ad2ddba84dc84766b447d1c9f254cc04ffe3e1984b928"
+    },
+    {
+      "file": "result-formal-maxWeatherCheckpointEncodeStarted-run2.json",
+      "bytes": 1591,
+      "sha256": "2833b6e2cd460503567d720c6318b9e42307dc0fa189e70f2a48a8b8e0b465a7"
+    },
+    {
+      "file": "run-record.json",
+      "bytes": 2448459,
+      "sha256": "a89934ff46a91773d24a36d831a19ff0eb42722a91dcb74b8c9b410780a73d14"
+    },
+    {
+      "file": "trace-00.json",
+      "bytes": 10965378,
+      "sha256": "0c20fe386c235c17e2a665e8dfc1733cdb43833a82d06c2220615c7116602e59"
+    },
+    {
+      "file": "trace-01.json",
+      "bytes": 11923503,
+      "sha256": "ea0b5150b60b34e3e51b56a0688adf3399a39f5e8d6804ee088b7429a094c863"
+    },
+    {
+      "file": "trace-02.json",
+      "bytes": 11768983,
+      "sha256": "3d7e0f1f8def7c42ca4a3f5045d686ca64cbbf5df5b56bb80cad95e95f71226a"
+    },
+    {
+      "file": "trace-03.json",
+      "bytes": 11862573,
+      "sha256": "ecb2011c661573968bac43b904d477eaee14e5f594bdb532153b9691dd9c2069"
+    },
+    {
+      "file": "trace-04.json",
+      "bytes": 11920697,
+      "sha256": "e7f265c792da2e672f61d180d90af263a852507de6dd7a27d4a6f58986b3c4b7"
+    },
+    {
+      "file": "trace-05.json",
+      "bytes": 11909720,
+      "sha256": "5b1070747e6c3766b8c9d0298334acb934b598ea484d7a6c6f420ccf5a0fb31b"
+    },
+    {
+      "file": "trace-06.json",
+      "bytes": 12049194,
+      "sha256": "f575a35ce03f970ca61b99b6abda649fab2cc6f3ab414d036468bcb511382f72"
+    },
+    {
+      "file": "trace-07.json",
+      "bytes": 12106805,
+      "sha256": "64ea4e94d54d61615a1123c519779d5a4e5b4dc5b856fccab05a98089438bdd7"
+    },
+    {
+      "file": "trace-08.json",
+      "bytes": 12019959,
+      "sha256": "52a62dd38e0212d7688e2a78f767d2fd3503ec028e92b5fef0d8ccb9080b5a38"
+    },
+    {
+      "file": "trace-09.json",
+      "bytes": 11922329,
+      "sha256": "5729119278a8e17056413ce81414df34c848395c1750b47d9f97ea2369926b79"
+    },
+    {
+      "file": "trace-10.json",
+      "bytes": 11986634,
+      "sha256": "a1a25cbc293d99d278fd5ac0d7642cf180ae760b775ec47d3dbda6dbe9095ef5"
+    },
+    {
+      "file": "trace-11.json",
+      "bytes": 2888743,
+      "sha256": "5404f5c73c47ec36d31abe07479d4e0d87c2c42e2469bc5de47fddd622178718"
+    }
+  ],
+  "orphans": []
+}

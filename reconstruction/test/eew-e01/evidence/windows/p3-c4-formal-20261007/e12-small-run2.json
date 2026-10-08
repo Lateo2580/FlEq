@@ -1,0 +1,187 @@
+{
+  "id": "e12-small-run2",
+  "attempt": 1,
+  "manifestId": "p3-c4-formal-20261007",
+  "manifestSha256": "3edb1aaed272a09ad21142cc06fcd99074b1e70f2a16f68a4ac4864b2565b05c",
+  "rawDir": "/Users/tallplain/dev/fleq-a10-runs/p3-c4-formal-20261007/e12-small-run2",
+  "command": "node reconstruction/test/eew-e01/run.mjs --manifest reconstruction/test/eew-e01/evidence/p3/manifest.json",
+  "commands": [
+    "node reconstruction/test/eew-e01/run.mjs --manifest reconstruction/test/eew-e01/evidence/p3/manifest.json",
+    "caffeinate -dims -w 42593",
+    "/opt/homebrew/opt/node@22/bin/node /Users/tallplain/dev/fleq-c4-measure5/reconstruction/test/eew-e01/e12-run.mjs --out /Users/tallplain/dev/fleq-a10-runs/p3-c4-formal-20261007/e12-small-run2 --class small --node /opt/homebrew/opt/node@22/bin/node"
+  ],
+  "startedAt": "2026-10-07T20:04:48.663Z",
+  "preflight": {
+    "checkedAt": "2026-10-06T20:50:48.329Z",
+    "nodeVersion": "v22.23.3",
+    "chromeVersion": "154.0.8037.98",
+    "osVersion": "27.0.0 arm64",
+    "dist": [
+      "reconstruction/dist/src/host/host.js",
+      "reconstruction/dist/chrome-eew",
+      "dist/engine/messages/message-router.js"
+    ],
+    "gitHead": "fc8299dc5791051a01d9051a42f9f0aaf794c265",
+    "gitStatusPorcelain": "",
+    "distSha256": "cd1cfb4edb5541354b8ba516642433d5eba60175bff563a321afcd8033af65a7",
+    "runnerSha256": "d27c6f44d709749b31d233d9f05dc37c79e84ea6ff95d5fb3f68ecab91c06bc5",
+    "machine": {
+      "cpu": "Apple M2",
+      "cores": 8,
+      "memoryBytes": 8589934592
+    }
+  },
+  "allocation": {
+    "method": "sampling heap profile（node --heap-prof、既定の sampling 間隔）の selfSize 合計と samples[].size 合計。推定値で、GC 回収済みの sample を含まない V8 既定の扱い。プロセス全体（module 読み込みと host 起動を含む）の profile で、replay 区間に限らない。総 allocation ではない",
+    "old": [
+      {
+        "file": "Heap.20261008.050448.55708.0.001.heapprofile",
+        "bytes": 49589,
+        "sha256": "e17d54b989c100e41ad9d4a060be87263e969caf60958917b9fe3b82ff82b700",
+        "selfSizeSum": 16158832,
+        "sampleSizeSum": 16163720,
+        "samples": 29
+      }
+    ],
+    "new": [
+      {
+        "file": "Heap.20261008.050529.55716.0.001.heapprofile",
+        "bytes": 15947,
+        "sha256": "14a347df397a8dec9710c09dd16c905de89b377ecd9b870120046bec9e445e54",
+        "selfSizeSum": 6734384,
+        "sampleSizeSum": 6734384,
+        "samples": 12
+      },
+      {
+        "file": "Heap.20261008.050529.55716.1.002.heapprofile",
+        "bytes": 29740,
+        "sha256": "8d52ab84c3a46c54beb343aac8461021fffa7c039f00943d78006b1c06dd14e4",
+        "selfSizeSum": 8968384,
+        "sampleSizeSum": 8968384,
+        "samples": 17
+      },
+      {
+        "file": "Heap.20261008.050529.55716.2.003.heapprofile",
+        "bytes": 12198,
+        "sha256": "1e2a8cf198de355f2ce68098e1a97813f95097de953476e71391dc889b799f8a",
+        "selfSizeSum": 5531360,
+        "sampleSizeSum": 6056760,
+        "samples": 11
+      },
+      {
+        "file": "Heap.20261008.050529.55716.3.004.heapprofile",
+        "bytes": 20133,
+        "sha256": "6833aeda4ad32c20c932115b6dae83a254a08294804551a0e77122d9dd40e4ef",
+        "selfSizeSum": 6345760,
+        "sampleSizeSum": 6345760,
+        "samples": 12
+      }
+    ]
+  },
+  "status": "N/A",
+  "byteViolations": null,
+  "resultFiles": [
+    {
+      "path": "reconstruction/test/eew-e01/evidence/windows/p3-c4-formal-20261007/results/aux-e12-small-run2.json",
+      "sha256": "bf2bd99bb6789662a41bc4eebd898ad8da7793659b5b1a1006f14438546a02ab"
+    }
+  ],
+  "liveness": {
+    "pings": 0,
+    "maxFrameGapMs": 0
+  },
+  "finishedAt": "2026-10-07T20:06:12.165Z",
+  "raw": [
+    {
+      "file": "aux-e12-small-run2.json",
+      "bytes": 7448,
+      "sha256": "bf2bd99bb6789662a41bc4eebd898ad8da7793659b5b1a1006f14438546a02ab"
+    },
+    {
+      "file": "frames.jsonl",
+      "bytes": 585823,
+      "sha256": "3ca51791e1a595019468c9eafdaf689c3d3e5eccc032057f44493fe6ac2c4562"
+    },
+    {
+      "file": "new/Heap.20261008.050529.55716.0.001.heapprofile",
+      "bytes": 15947,
+      "sha256": "14a347df397a8dec9710c09dd16c905de89b377ecd9b870120046bec9e445e54"
+    },
+    {
+      "file": "new/Heap.20261008.050529.55716.1.002.heapprofile",
+      "bytes": 29740,
+      "sha256": "8d52ab84c3a46c54beb343aac8461021fffa7c039f00943d78006b1c06dd14e4"
+    },
+    {
+      "file": "new/Heap.20261008.050529.55716.2.003.heapprofile",
+      "bytes": 12198,
+      "sha256": "1e2a8cf198de355f2ce68098e1a97813f95097de953476e71391dc889b799f8a"
+    },
+    {
+      "file": "new/Heap.20261008.050529.55716.3.004.heapprofile",
+      "bytes": 20133,
+      "sha256": "6833aeda4ad32c20c932115b6dae83a254a08294804551a0e77122d9dd40e4ef"
+    },
+    {
+      "file": "new/config.json",
+      "bytes": 421,
+      "sha256": "35cbd3be2da700b3c3b83bb73a8d34bd8e33199144a0b5b96405985c7fc209b3"
+    },
+    {
+      "file": "new/diag/diagnostics-2026-10-07.jsonl",
+      "bytes": 140,
+      "sha256": "e0d3b6c6c6b8ab4450529109b29d1932b4c6ac33ffaf2e6c4d13131874affe0f"
+    },
+    {
+      "file": "new/diag/shutdown-summary.json",
+      "bytes": 654,
+      "sha256": "d21b61f7ee4ab550e9b3f464fde5d8bbd182aefadede6bf69b417d3d069fff98"
+    },
+    {
+      "file": "new/host.jsonl",
+      "bytes": 378102,
+      "sha256": "081247c7a0f872ae9225a007b92f6bc011736f1b41d5bcf39b5d90caf6f67496"
+    },
+    {
+      "file": "new/probe-deferred.json",
+      "bytes": 529,
+      "sha256": "618c2e357d76af314a5a9de49b8d53d7e3b2e767a7fdac6ed03aa2aad8fd0c42"
+    },
+    {
+      "file": "new/probe-urgent.json",
+      "bytes": 3291,
+      "sha256": "887b61b470cafe4b6129d5d1224b175b0c1fc98ce161889cf77ba331f9f9f34c"
+    },
+    {
+      "file": "new/probe-weatherCurrent.json",
+      "bytes": 534,
+      "sha256": "b3afebfb230d0d57683e9f1d33bbd569b668fbe8ced4117fe5abd84661524dac"
+    },
+    {
+      "file": "new/probe.json",
+      "bytes": 2540,
+      "sha256": "f62356239ccad5b8570b61a2806813989d7abb514906fac4e19b99fc8417f93a"
+    },
+    {
+      "file": "old/Heap.20261008.050448.55708.0.001.heapprofile",
+      "bytes": 49589,
+      "sha256": "e17d54b989c100e41ad9d4a060be87263e969caf60958917b9fe3b82ff82b700"
+    },
+    {
+      "file": "old/calls.json",
+      "bytes": 20665,
+      "sha256": "99f0ccdb38c57ce5a740f5e6155cea57ef4e498b1ca69f18f652667cbbd5e957"
+    },
+    {
+      "file": "old/probe.json",
+      "bytes": 6020,
+      "sha256": "38d1c0c70108cdd962d724f0c3e6831a398bae3fcae55fe8d62c58b3ad28738a"
+    },
+    {
+      "file": "report.json",
+      "bytes": 6335,
+      "sha256": "63a781a25fc1c4b8a208632f820260e087161a25534552e004c64685789a91bc"
+    }
+  ],
+  "orphans": []
+}
