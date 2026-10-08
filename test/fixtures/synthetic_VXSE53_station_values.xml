@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- synthetic（P3-UNIT-Q-001 Q-C7-CORPUS、O02:38）: 観測点の震度の 5 つの値（数値 0・空要素・欠落・unknown・range）を別の観測点に置く。集計の MaxInt は数値の観測点だけから 0 とした。配信原本ではない -->
+<Report xmlns="http://xml.kishou.go.jp/jmaxml1/" xmlns:jmx="http://xml.kishou.go.jp/jmaxml1/">
+<Control>
+<Title>震源・震度に関する情報</Title>
+<DateTime>2026-08-10T00:01:00Z</DateTime>
+<Status>通常</Status>
+<EditorialOffice>気象庁本庁</EditorialOffice>
+<PublishingOffice>気象庁</PublishingOffice>
+</Control>
+<Head xmlns="http://xml.kishou.go.jp/jmaxml1/informationBasis1/">
+<Title>震源・震度情報</Title>
+<ReportDateTime>2026-08-10T09:01:00+09:00</ReportDateTime>
+<TargetDateTime>2026-08-10T09:01:00+09:00</TargetDateTime>
+<EventID>P0-ZERO</EventID>
+<InfoType>発表</InfoType>
+<Serial>1</Serial>
+<InfoKind>地震情報</InfoKind>
+<InfoKindVersion>1.0_1</InfoKindVersion>
+<Headline>
+<Text>１０日０８時５８分ころ、地震がありました。</Text>
+</Headline>
+</Head>
+<Body xmlns="http://xml.kishou.go.jp/jmaxml1/body/seismology1/" xmlns:jmx_eb="http://xml.kishou.go.jp/jmaxml1/elementBasis1/">
+<Earthquake>
+<OriginTime>2026-08-10T08:58:00+09:00</OriginTime>
+<ArrivalTime>2026-08-10T08:58:00+09:00</ArrivalTime>
+<Hypocenter>
+<Area>
+<Name>合成震央</Name>
+<Code type="震央地名">999</Code>
+<jmx_eb:Coordinate description="北緯３５．０度　東経１３５．０度　深さ　１０ｋｍ">+35.0+135.0-10000/</jmx_eb:Coordinate>
+</Area>
+</Hypocenter>
+<jmx_eb:Magnitude type="Mj" description="Ｍ３．０">3.0</jmx_eb:Magnitude>
+</Earthquake>
+<Intensity>
+<Observation>
+<CodeDefine>
+<Type xpath="Pref/Code">地震情報／都道府県等</Type>
+<Type xpath="Pref/Area/Code">地震情報／細分区域</Type>
+<Type xpath="Pref/Area/City/Code">気象・地震・火山情報／市町村等</Type>
+<Type xpath="Pref/Area/City/IntensityStation/Code">震度観測点</Type>
+</CodeDefine>
+<MaxInt>0</MaxInt>
+<Pref><Name>合成県</Name><Code>99</Code><MaxInt>0</MaxInt>
+<Area><Name>合成地域</Name><Code>990</Code><MaxInt>0</MaxInt>
+<City><Name>合成市</Name><Code>9900100</Code><MaxInt>0</MaxInt>
+<IntensityStation><Name>数値零観測点</Name><Code>9900101</Code><Int>0</Int></IntensityStation>
+<IntensityStation><Name>空要素観測点</Name><Code>9900102</Code><Int></Int></IntensityStation>
+<IntensityStation><Name>欠落観測点</Name><Code>9900103</Code></IntensityStation>
+<IntensityStation><Name>未知値観測点</Name><Code>9900104</Code><Int>不明</Int></IntensityStation>
+<IntensityStation><Name>下限観測点</Name><Code>9900105</Code><Int>５弱以上</Int></IntensityStation>
+</City>
+</Area>
+</Pref>
+</Observation>
+</Intensity>
+<Comments>
+<ForecastComment codeType="固定付加文">
+<Text>この地震による津波の心配はありません。</Text>
+<Code>0215</Code>
+</ForecastComment>
+</Comments>
+</Body>
+</Report>

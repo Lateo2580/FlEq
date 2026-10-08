@@ -1,9 +1,9 @@
 {
   "meta": {
     "baseOid": "3669dfd6a98e6c116c86f7db1cd27aa63002a90d",
-    "sha256": "79769d888ff5f429e4bd370a6a88ccb30611b5ee2a1e7b12d25d58f215cbfbd3",
+    "sha256": "307539b65b8a5d45c007e31f93c767e883c234b49df7099587b1419fef94ea48",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
-    "manifestSha256": "226b73cbfb4e769c89d2b1327fcbd8067a47887303527a2893592fba47176235",
+    "manifestSha256": "da37746c04107de2c1906fec26909f8f90a638e839672498e5fe9454fd192fca",
     "clock": "synthetic epoch milliseconds; receivedAt/evaluatedAt は合成固定時計。原XML日時は不変。系列内ケース間のrestartで時計と空stateを再設定。受信時刻の実測ではない。",
     "decisions": [
       "形式A（推奨・採用）={meta,sequences,expectations,unresolvedQuestions}。B=meta/期待値を別file。Aならstepと根拠の配送欠落を一ファイルのhashで検出できる。baseOidは本契約HEAD、manifestの来歴baseOidとは別。",
@@ -956,42 +956,54 @@
           "sequenceId": "O01",
           "position": 52,
           "action": "receive",
-          "fixtureId": null,
+          "fixtureId": "test__fixtures__synthetic_VXSE53_correction",
           "receivedAt": 1785224100000,
           "evaluatedAt": 1785224100000,
           "inputSource": "replay",
           "operationExpected": "normal",
-          "expectedRef": "unmet:O01:52",
+          "expectedRef": "expected:O01:52",
           "expectationBasis": [
-            "L1: docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6» O01"
+            "L1: docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6» O01",
+            "L1: reconstruction/contracts/p3-seismic-unit.json:290 «89712c3889493686» Q-ENUM revisionOrder",
+            "L1: reconstruction/contracts/p3-seismic-unit.json:194 «95a9ce1b29076de8» Q-NOTICE correction",
+            "L1: reconstruction/contracts/p3-seismic-unit.json:221 «743acc63812f7e7f» Q-NOTICE level（作者裁定 NOTICE-LEVELS=A）",
+            "L2: test/fixtures/synthetic_VXSE53_correction.xml:1 «12c29731e40adc0c» 合成入力（manifest synthetic、配信原本ではない）"
           ]
         },
         {
           "sequenceId": "O01",
           "position": 53,
           "action": "receive",
-          "fixtureId": null,
+          "fixtureId": "test__fixtures__synthetic_VXSE53_cancel",
           "receivedAt": 1785224160000,
           "evaluatedAt": 1785224160000,
           "inputSource": "replay",
           "operationExpected": "normal",
-          "expectedRef": "unmet:O01:53",
+          "expectedRef": "expected:O01:53",
           "expectationBasis": [
-            "L1: docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6» O01"
+            "L1: docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6» O01",
+            "L1: reconstruction/contracts/p3-seismic-unit.json:290 «89712c3889493686» Q-ENUM revisionOrder",
+            "L1: reconstruction/contracts/p3-seismic-unit.json:205 «7f6b50d260e9df88» Q-NOTICE cancellation",
+            "L1: reconstruction/contracts/p3-seismic-unit.json:40 «9f2ed44e0a1cb3ed» P3-C7-CANCEL-SCOPE=A",
+            "L1: reconstruction/contracts/p3-seismic-unit.json:122 «dfab67b5c42d1bc1» P3-C7-REPLACEMENT=A",
+            "L1: reconstruction/contracts/p3-seismic-unit.json:221 «743acc63812f7e7f» Q-NOTICE level（作者裁定 NOTICE-LEVELS=A）",
+            "L2: test/fixtures/synthetic_VXSE53_cancel.xml:1 «12c29731e40adc0c» 合成入力（manifest synthetic、配信原本ではない）"
           ]
         },
         {
           "sequenceId": "O01",
           "position": 54,
           "action": "receive",
-          "fixtureId": null,
+          "fixtureId": "test__fixtures__synthetic_VXSE53_cancel",
           "receivedAt": 1785224160001,
           "evaluatedAt": 1785224160001,
           "inputSource": "replay",
           "operationExpected": "normal",
-          "expectedRef": "unmet:O01:54",
+          "expectedRef": "expected:O01:54",
           "expectationBasis": [
-            "L1: docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6» O01"
+            "L1: docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6» O01",
+            "L1: reconstruction/contracts/p3-seismic-unit.json:290 «89712c3889493686» Q-ENUM revisionOrder",
+            "L2: test/fixtures/synthetic_VXSE53_cancel.xml:1 «12c29731e40adc0c» 合成入力（manifest synthetic、配信原本ではない）"
           ]
         },
         {
@@ -1769,14 +1781,20 @@
           "sequenceId": "O02",
           "position": 38,
           "action": "receive",
-          "fixtureId": null,
+          "fixtureId": "test__fixtures__synthetic_VXSE53_station_values",
           "receivedAt": 1786320060000,
           "evaluatedAt": 1786320060000,
           "inputSource": "replay",
           "operationExpected": "normal",
-          "expectedRef": "unmet:O02:38",
+          "expectedRef": "expected:O02:38",
           "expectationBasis": [
-            "L1: docs/specs/reconstruction-p0-contracts.md:2763 «c7aa1eb5711e93c1»"
+            "L1: docs/specs/reconstruction-p0-contracts.md:2763 «c7aa1eb5711e93c1»",
+            "L1: reconstruction/contracts/p3-seismic-unit.json:257 «70248423928ccaf5» Q-ENUM identity",
+            "L1: reconstruction/contracts/p3-seismic-unit.json:113 «b55cce45140c2af1» P3-C7-VALUE-UNKNOWN=A",
+            "L1: reconstruction/contracts/p3-seismic-unit.json:297 «85cb4ac88a542123» I-U-Q.intensityScale",
+            "L1: reconstruction/contracts/p3-seismic-unit.json:183 «883ae140fb2d61ff» Q-NOTICE semanticAdoption",
+            "L1: reconstruction/contracts/p3-seismic-unit.json:221 «743acc63812f7e7f» Q-NOTICE level（作者裁定 NOTICE-LEVELS=A）",
+            "L2: test/fixtures/synthetic_VXSE53_station_values.xml:1 «12c29731e40adc0c» 合成入力（manifest synthetic、配信原本ではない）"
           ]
         },
         {
@@ -3293,15 +3311,20 @@
           "sequenceId": "O07",
           "position": 5,
           "action": "receive",
-          "fixtureId": null,
+          "fixtureId": "test__fixtures__synthetic_VXSE53_intensity_unknown",
           "receivedAt": 1785224100000,
           "evaluatedAt": 1785224100000,
           "inputSource": "replay",
           "operationExpected": "normal",
-          "expectedRef": "unmet:O07:5",
+          "expectedRef": "expected:O07:5",
           "expectationBasis": [
             "L1: docs/specs/reconstruction-p0-contracts.md:1783 «bb8e18a6762c105d»",
-            "L4: test/engine/telegram-foundation/phase7_5-end-to-end-production.test.ts:590 «aaa7e70817a4b0b7» 旧unknown変換試験"
+            "L4: test/engine/telegram-foundation/phase7_5-end-to-end-production.test.ts:590 «aaa7e70817a4b0b7» 旧unknown変換試験",
+            "L1: reconstruction/contracts/p3-seismic-unit.json:301 «87b8d0e7a1df3f45» I-U-Q.strongHold（作者裁定 INTENSITY-CARRY=A）",
+            "L1: reconstruction/contracts/p3-seismic-unit.json:297 «85cb4ac88a542123» I-U-Q.intensityScale",
+            "L1: reconstruction/contracts/p3-seismic-unit.json:183 «883ae140fb2d61ff» Q-NOTICE semanticAdoption",
+            "L1: reconstruction/contracts/p3-seismic-unit.json:221 «743acc63812f7e7f» Q-NOTICE level（作者裁定 NOTICE-LEVELS=A）",
+            "L2: test/fixtures/synthetic_VXSE53_intensity_unknown.xml:1 «12c29731e40adc0c» 合成入力（manifest synthetic、配信原本ではない）"
           ]
         },
         {
@@ -10637,40 +10660,46 @@
       ]
     },
     {
-      "expectedId": "unmet:O01:52",
+      "expectedId": "expected:O01:52",
       "sequenceId": "O01",
       "position": 52,
       "decision": {
         "kind": "changed",
-        "change": null
+        "change": "semantic"
       },
-      "effective": null,
+      "effective": {
+        "kind": "active"
+      },
       "subjects": [
         {
-          "subject": "normal/O01/input.requiredに記した対象（未充足）",
+          "subject": "normal/VXSE53/20260728162718",
           "revision": {
-            "reportDateTimeRaw": "2026-07-28T16:35",
-            "serialRaw": null,
-            "infoTypeRaw": null
+            "reportDateTimeRaw": "2026-07-28T16:35:00+09:00",
+            "serialRaw": "2",
+            "infoTypeRaw": "訂正"
           }
         }
       ],
-      "notices": null,
-      "intents": null,
+      "notices": true,
+      "intents": true,
       "basisLevel": 1,
       "basisRefs": [
-        "L1: docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6» O01"
+        "L1: docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6» O01",
+        "L1: reconstruction/contracts/p3-seismic-unit.json:290 «89712c3889493686» Q-ENUM revisionOrder",
+        "L1: reconstruction/contracts/p3-seismic-unit.json:194 «95a9ce1b29076de8» Q-NOTICE correction",
+        "L1: reconstruction/contracts/p3-seismic-unit.json:221 «743acc63812f7e7f» Q-NOTICE level（作者裁定 NOTICE-LEVELS=A）",
+        "L2: test/fixtures/synthetic_VXSE53_correction.xml:1 «12c29731e40adc0c» 合成入力（manifest synthetic、配信原本ではない）"
       ],
-      "input": {
-        "required": "VXSE53 EventID20260728162718、Serial2、ReportDateTime=2026-07-28T16:35、InfoType訂正、観測値だけ変更。",
-        "acquisition": "REST見込み/無ければsynthetic"
-      },
+      "input": null,
       "checks": [
-        "同revision訂正は受理・通知判定。"
+        "同じrevision（16:35・Serial2）の訂正はInfoTypeの優先（取消>訂正>発表）で採用する（Q-ENUM.revisionOrder）。VXSE53の寄与を置き換え、宇城市不知火町＊の震度だけ6+→6-。全体の最大震度7は変わらず、強震保持は保ちuntilを延ばさない。",
+        "同revision訂正は受理・通知判定。通知: correction（事実が同じでも作る）、normalなのでdesktop＋sound、level=warning（報自身の全体MaxInt 7、P3-C7-NOTICE-LEVELS=A）。題は「[訂正] 震源・震度情報」。",
+        "当日履歴: 同じEventIDなので件数を足さない。",
+        "運用区分: Control.Status=通常; head.test/envelope Status=notProvided。replay 起源から区分を補わない。"
       ]
     },
     {
-      "expectedId": "unmet:O01:53",
+      "expectedId": "expected:O01:53",
       "sequenceId": "O01",
       "position": 53,
       "decision": {
@@ -10685,30 +10714,36 @@
       },
       "subjects": [
         {
-          "subject": "normal/O01/input.requiredに記した対象（未充足）",
+          "subject": "normal/VXSE53/20260728162718",
           "revision": {
-            "reportDateTimeRaw": "2026-07-28T16:36",
-            "serialRaw": null,
-            "infoTypeRaw": null
+            "reportDateTimeRaw": "2026-07-28T16:36:00+09:00",
+            "serialRaw": "2",
+            "infoTypeRaw": "取消"
           }
         }
       ],
-      "notices": null,
-      "intents": null,
+      "notices": true,
+      "intents": true,
       "basisLevel": 1,
       "basisRefs": [
-        "L1: docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6» O01"
+        "L1: docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6» O01",
+        "L1: reconstruction/contracts/p3-seismic-unit.json:290 «89712c3889493686» Q-ENUM revisionOrder",
+        "L1: reconstruction/contracts/p3-seismic-unit.json:205 «7f6b50d260e9df88» Q-NOTICE cancellation",
+        "L1: reconstruction/contracts/p3-seismic-unit.json:40 «9f2ed44e0a1cb3ed» P3-C7-CANCEL-SCOPE=A",
+        "L1: reconstruction/contracts/p3-seismic-unit.json:122 «dfab67b5c42d1bc1» P3-C7-REPLACEMENT=A",
+        "L1: reconstruction/contracts/p3-seismic-unit.json:221 «743acc63812f7e7f» Q-NOTICE level（作者裁定 NOTICE-LEVELS=A）",
+        "L2: test/fixtures/synthetic_VXSE53_cancel.xml:1 «12c29731e40adc0c» 合成入力（manifest synthetic、配信原本ではない）"
       ],
-      "input": {
-        "required": "VXSE53 EventID20260728162718、Serial2、ReportDateTime=2026-07-28T16:36、InfoType取消。",
-        "acquisition": "REST見込み"
-      },
+      "input": null,
       "checks": [
-        "対象観測寄与だけ取消、別EventIDの危険保持を消さない。"
+        "対象観測寄与だけ取消、別EventIDの危険保持を消さない（P3-C7-CANCEL-SCOPE=A）。この系列には同じEventIDの他familyの寄与が無いので、eventはviewに載らなくなり、震度を持つactiveの寄与が無くなるので強震保持も外れる（I-U-Q.strongHold）。",
+        "通知: cancellation（取消の前にVXSE53のsubjectがactive）、desktop＋sound、level=cancel。同じsubjectのpendingは両channelともsupersededにする（P3-C7-REPLACEMENT=A）。",
+        "当日履歴: 取消で件数・最大震度を減らさない。",
+        "運用区分: Control.Status=通常; head.test/envelope Status=notProvided。replay 起源から区分を補わない。"
       ]
     },
     {
-      "expectedId": "unmet:O01:54",
+      "expectedId": "expected:O01:54",
       "sequenceId": "O01",
       "position": 54,
       "decision": {
@@ -10723,11 +10758,11 @@
       },
       "subjects": [
         {
-          "subject": "normal/O01/input.requiredに記した対象（未充足）",
+          "subject": "normal/VXSE53/20260728162718",
           "revision": {
-            "reportDateTimeRaw": "2026-07-28T16:36",
-            "serialRaw": null,
-            "infoTypeRaw": null
+            "reportDateTimeRaw": "2026-07-28T16:36:00+09:00",
+            "serialRaw": "2",
+            "infoTypeRaw": "取消"
           }
         }
       ],
@@ -10735,14 +10770,14 @@
       "intents": false,
       "basisLevel": 1,
       "basisRefs": [
-        "L1: docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6» O01"
+        "L1: docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6» O01",
+        "L1: reconstruction/contracts/p3-seismic-unit.json:290 «89712c3889493686» Q-ENUM revisionOrder",
+        "L2: test/fixtures/synthetic_VXSE53_cancel.xml:1 «12c29731e40adc0c» 合成入力（manifest synthetic、配信原本ではない）"
       ],
-      "input": {
-        "required": "直前取消と同一bytesを1ms後に再受信。VXSE53 EventID20260728162718、Serial2、ReportDateTime=2026-07-28T16:36、InfoType取消。",
-        "acquisition": "REST見込み"
-      },
+      "input": null,
       "checks": [
-        "前段の未充足取消が充足した後の重複。取消記憶維持、新規通知0。"
+        "前段の取消と同一bytesの1ms後の再受信。同じrevision・同じInfoType・同じ寄与なのでduplicate（Q-ENUM.revisionOrder）。取消記憶維持、新規通知0。",
+        "運用区分: Control.Status=通常; head.test/envelope Status=notProvided。replay 起源から区分を補わない。"
       ]
     },
     {
@@ -11885,7 +11920,7 @@
       ]
     },
     {
-      "expectedId": "unmet:O02:38",
+      "expectedId": "expected:O02:38",
       "sequenceId": "O02",
       "position": 38,
       "decision": {
@@ -11897,26 +11932,31 @@
       },
       "subjects": [
         {
-          "subject": "normal/O02/input.requiredに記した対象（未充足）",
+          "subject": "normal/VXSE53/P0-ZERO",
           "revision": {
-            "reportDateTimeRaw": "2026-08-10T09:01",
-            "serialRaw": null,
-            "infoTypeRaw": null
+            "reportDateTimeRaw": "2026-08-10T09:01:00+09:00",
+            "serialRaw": "1",
+            "infoTypeRaw": "発表"
           }
         }
       ],
-      "notices": null,
-      "intents": null,
+      "notices": true,
+      "intents": true,
       "basisLevel": 1,
       "basisRefs": [
-        "L1: docs/specs/reconstruction-p0-contracts.md:2763 «c7aa1eb5711e93c1»"
+        "L1: docs/specs/reconstruction-p0-contracts.md:2763 «c7aa1eb5711e93c1»",
+        "L1: reconstruction/contracts/p3-seismic-unit.json:257 «70248423928ccaf5» Q-ENUM identity",
+        "L1: reconstruction/contracts/p3-seismic-unit.json:113 «b55cce45140c2af1» P3-C7-VALUE-UNKNOWN=A",
+        "L1: reconstruction/contracts/p3-seismic-unit.json:297 «85cb4ac88a542123» I-U-Q.intensityScale",
+        "L1: reconstruction/contracts/p3-seismic-unit.json:183 «883ae140fb2d61ff» Q-NOTICE semanticAdoption",
+        "L1: reconstruction/contracts/p3-seismic-unit.json:221 «743acc63812f7e7f» Q-NOTICE level（作者裁定 NOTICE-LEVELS=A）",
+        "L2: test/fixtures/synthetic_VXSE53_station_values.xml:1 «12c29731e40adc0c» 合成入力（manifest synthetic、配信原本ではない）"
       ],
-      "input": {
-        "required": "VXSE53 EventID=P0-ZERO、serial1、ReportDateTime=2026-08-10T09:01、stationの震度に数値0・空要素・欠落・unknown・rangeを別stationとして配置。",
-        "acquisition": "synthetic"
-      },
+      "input": null,
       "checks": [
-        "数値0のみ数値0。空/欠落/unknown/rangeを分離。"
+        "数値0のみ数値0。空/欠落/unknown/rangeを分離する: 観測点9900101はnumber 0、9900102の空要素はempty、9900103のInt欠落はmissing、9900104の「不明」はunknown、9900105の「５弱以上」はrange lower 5。どれも0にしない（P3-C7-VALUE-UNKNOWN=A）。14桁でないEventID P0-ZEROは合法（Q-ENUM.identity）。",
+        "通知: semanticAdoption、desktop＋sound、level=normal（報の全体MaxIntは数値0）。",
+        "運用区分: Control.Status=通常; head.test/envelope Status=notProvided。replay 起源から区分を補わない。"
       ]
     },
     {
@@ -14986,7 +15026,7 @@
       ]
     },
     {
-      "expectedId": "unmet:O07:5",
+      "expectedId": "expected:O07:5",
       "sequenceId": "O07",
       "position": 5,
       "decision": {
@@ -14998,27 +15038,33 @@
       },
       "subjects": [
         {
-          "subject": "normal/O07/input.requiredに記した対象（未充足）",
+          "subject": "normal/VXSE53/20260728162718",
           "revision": {
-            "reportDateTimeRaw": "2026-07-28T16:35",
-            "serialRaw": null,
-            "infoTypeRaw": null
+            "reportDateTimeRaw": "2026-07-28T16:35:00+09:00",
+            "serialRaw": "2",
+            "infoTypeRaw": "発表"
           }
         }
       ],
-      "notices": null,
-      "intents": null,
+      "notices": true,
+      "intents": true,
       "basisLevel": 1,
       "basisRefs": [
         "L1: docs/specs/reconstruction-p0-contracts.md:1783 «bb8e18a6762c105d»",
-        "L4: test/engine/telegram-foundation/phase7_5-end-to-end-production.test.ts:590 «aaa7e70817a4b0b7» 旧unknown変換試験"
+        "L4: test/engine/telegram-foundation/phase7_5-end-to-end-production.test.ts:590 «aaa7e70817a4b0b7» 旧unknown変換試験",
+        "L1: reconstruction/contracts/p3-seismic-unit.json:301 «87b8d0e7a1df3f45» I-U-Q.strongHold（作者裁定 INTENSITY-CARRY=A）",
+        "L1: reconstruction/contracts/p3-seismic-unit.json:297 «85cb4ac88a542123» I-U-Q.intensityScale",
+        "L1: reconstruction/contracts/p3-seismic-unit.json:183 «883ae140fb2d61ff» Q-NOTICE semanticAdoption",
+        "L1: reconstruction/contracts/p3-seismic-unit.json:221 «743acc63812f7e7f» Q-NOTICE level（作者裁定 NOTICE-LEVELS=A）",
+        "L2: test/fixtures/synthetic_VXSE53_intensity_unknown.xml:1 «12c29731e40adc0c» 合成入力（manifest synthetic、配信原本ではない）"
       ],
-      "input": {
-        "required": "VXSE53 EventID20260728162718 serial2、ReportDateTime=2026-07-28T16:35。q2を親とし全震度のみunknownにした入力。親fixtureIdはmanifestのbf35e8ea1825、原文は変更しない。",
-        "acquisition": "synthetic"
-      },
+      "input": null,
       "checks": [
-        "既知の最大震度7/元updatedAtの危険保持を維持、新報unknownと分離。保持期限を延長しない。"
+        "復元したstate（:2の16:31・Serial1）より新しいrevisionとして採用し、VXSE53の寄与を置き換える。eventの震度は全部unknown（I-U-Q.intensityScale）。",
+        "既知の最大震度7の危険保持を維持、新報unknownと分離（unknownでは強震保持は外れない）。保持期限は発生時刻16:27+12時間（翌04:27）のまま延長しない（I-U-Q.strongHold）。",
+        "通知: semanticAdoption、desktop＋sound、level=info（報自身の全体MaxIntがunknown、P3-C7-NOTICE-LEVELS=A）。",
+        "当日履歴: 既知の段階の震度だけを数えるので件数を足さず、最大震度を下げない。",
+        "運用区分: Control.Status=通常; head.test/envelope Status=notProvided。replay 起源から区分を補わない。"
       ]
     },
     {

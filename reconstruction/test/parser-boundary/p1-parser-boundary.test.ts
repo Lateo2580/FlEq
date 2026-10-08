@@ -38,11 +38,11 @@ function sizedXml(size: number) {
 
 it("P1-T01 corpusHistory / AC01: independently compares every XML and the explicit rejected fragment", () => {
   const rows = classifyCorpus(api);
-  expect(rows).toHaveLength(247);
+  expect(rows).toHaveLength(251);
   expect(rows.filter(r => r.difference != null)).toEqual([]);
-  expect(rows.filter(r => r.actual.kind === "decoded")).toHaveLength(246);
+  expect(rows.filter(r => r.actual.kind === "decoded")).toHaveLength(250);
   const rejectedRows = classifyCorpus({ ...api, decodeMaterial: () => ({ kind: "rejected", diagnostic: { reason: "xmlInvalid" } }) });
-  expect(rejectedRows.filter(r => r.difference != null)).toHaveLength(246);
+  expect(rejectedRows.filter(r => r.difference != null)).toHaveLength(250);
 });
 
 it("P1-T02 acceptance / AC02-04: spies count decode, expansion and full parse, including pre-rejection", () => {
