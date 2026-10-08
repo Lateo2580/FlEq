@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "5ae33089defe69954857bd3ad5bdcc11ccb8196f",
-    "sha256": "db2ac5863e2c088ebcf4d6f303334d945b546d4fe871cbbe6732d86732fdf6b1",
+    "sha256": "443d492f0397f7d19938813798fbc45f3272a888a98dc7d19ae71488fdfc8c74",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "226b73cbfb4e769c89d2b1327fcbd8067a47887303527a2893592fba47176235",
     "sequencesSha256": "79769d888ff5f429e4bd370a6a88ccb30611b5ee2a1e7b12d25d58f215cbfbd3",
@@ -66,7 +66,7 @@
     "contractId": "P3-OWNER-LEDGER-BOUND-001",
     "mode": "implementation",
     "objective": "台帳67（LEDGER67=A、作者裁定 2026-10-08）を直す: ownerの未保存の世代ごとの入力IDの記録（OwnerHost.ledger）をunitごとに4,096項目までにし、超えたら最も古い世代から捨てる。捨てても保存は辞退せず、I/Oが戻れば保存を続ける。帰属不明（P2-A3-AC10）は切り詰めに巻き込まず、今どおり保存を辞退して終了code 2にする。記録の更新は受信ごとに上がった世代と消す項目の数だけの手数にする。上限の外で失うのは保存の測定の記録の古い入力IDだけで、保存物・書込み権・終了処理・E14は変えない。I/Oが戻らないunitの保存そのもの・測定の記録の形・保存の形式は扱わない。",
-    "baseOid": "unassigned",
+    "baseOid": "95d0a1a8943ef74d069f50075978a495efa43af6",
     "cleanTreeRequired": true,
     "readPaths": [
       "AGENTS.md",
