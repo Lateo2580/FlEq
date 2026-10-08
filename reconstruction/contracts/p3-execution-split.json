@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "d07d5ac73a2453c4f8475e39cf76afc98ba2c2d0",
-    "sha256": "0c3286b7db019f7a435bd0e9ec7ec95b2c0bd24547a28bd06d08bda071a0ca41",
+    "sha256": "428239af4b199776649483176041caa5fbd876b4643e8c09a5e94a13cca01cc3",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "76c82b87d7783a4eae14af690cb34e7d6ec46f73617dc75b7f7401951619f080",
     "sequencesSha256": "be9cfd97b555e3a55568f085d107342c978b3dc7249f5cecea868ea5a62c5781",
@@ -597,7 +597,7 @@
         "id": "P3-C3A-AC02",
         "requirement": "境界を越える値と時刻（台帳38、実行境界メモ§2、P3-C3A-CLOCK）: threadをまたぐのはOwnerStartData・OwnerRequest・OwnerReplyだけで、構造化複製できる素のデータに限り（関数・class instance・共有の可変参照を持たない）、各kindのfieldは型の定義どおりに限る。DecodedMaterial・XML node・unit stateの本体・CheckpointRequest（envelopeのpayload）・保存bytesは載せない（RES-06）。ParserMailboxItemはpublisher→ownerへ入力1件につき1回渡り、transferを使うならbyteOffset 0で全長を占めるArrayBufferだけを渡す。時刻は3つを分け、混ぜない（P3-C3A-CLOCK）: (1) 受信時刻＝WS受信callbackの壁時計（item.receivedAt、従来どおり）(2) 業務の時刻＝受理・期限・capture・ack・dirtySince・mailboxの完了照合の時刻で、要求のSentClockからclock＋（共有の実時計の現在値−sharedMs）として外挿する。ただし要求が固定の判断時刻を持つときは外挿せずそのまま使う: intentUpdateのdecisionClock（通知結果の更新は結果のcompletedAt、選択の更新は選択時の時計。unit入力のclockとしてP2と同じに渡し、期限前に完了した成功は後で届いてもdeliveredになる）、finalizeのcutoff。capturedAtは実際にcaptureした時刻、ackAtはdirectory syncの完了後にackを決めた時刻 (3) 計測の時刻＝T2・decode・processingのmarks・CheckpointMeasurementの各段で、共有の実時計の現在値−publisherTimeOriginMsとしてpublisherの実単調時計（performance.now()）の基準へ換算し、注入時計のoffsetを足さない。publisherのT0・T1・T3・T4も同じ実単調時計。注入時計は実時間と同じ速さで進むとみなし、送出後の注入時計の飛びは次の要求から効く（この限界を成果物に書く）。ownerは自分のperformance.now()を他threadの値と直接比べない",
         "evidenceRefs": [
-          "reconstruction/contracts/p3-execution-boundary.md:23 «ad182de7ff8c41a3»",
+          "reconstruction/contracts/p3-execution-boundary.md:23 «92ed612528871f13»",
           "reconstruction/contracts/p3-execution-boundary.md:24 «a2093fe26e2e9930»",
           "reconstruction/contracts/p3-execution-boundary.md:27 «0312174a4bc58c9f»",
           "reconstruction/contracts/p3-order-plan.md:149 «a8542d2933bd43a1»",
@@ -635,15 +635,15 @@
         "id": "P3-C3A-AC05",
         "requirement": "checkpointの書込み権（P3-C3A-WRITE-RIGHT、RES-03）: publisherはmirrorのpersistenceから§5.8の選択（uncertainでなくdirtyかつretryAfter到達済みのうち最古のdirtySince、同時刻は固定UnitId順。uncertainで再照合が到達したunitはmode=reconcile）を行い、書込み権をcheckpointGrantで1つずつ渡す。ownerはgrantを適用する時点の現在世代をcaptureしてencodeし（同世代の再試行は保持したbytesとcapturedAtを再利用、C1）、C1と同じ順（tmp回収→open→write→sync→close→rename→syncDirectory）で書き、結果を自unitへ適用してからcheckpointDoneを返す。dirtyでない・世代が既に保存済みならresult=nullで返す。publisherは権をcheckpointDoneでだけ解放する。区別: 書込みが終わっていない（停止未確認を含む）間は他ownerへgrantしない。終了が確認できた失敗（encode・書込み・照合の失敗）はcheckpointDoneで権を返し、そのunitだけを再試行待ちにして他unitの保存を進める。uncertain（rename後・ack前）も操作が終われば権を返し、再照合はretryAfter到達後のmode=reconcileで行う。同じgrantIdのcheckpointDoneの2回目と、現在の権に一致しないcheckpointDoneはmirrorにもretryにも適用しない。publisherはretryAfter（1・2・4・8・10秒）・連続失敗回数・retryReasonとcheckpointRetryScheduled・checkpointOverdue（3秒）・10秒の監視（checkpointUncertain）の診断を持つ。通常終了の最終保存も同じ権で行い、retryAfterを無視するかはpublisherが決める。ownerの中でもC1のP3-C1-RES-01（定常保存の読み直し0）とRES-03（直列化1回）を保つ",
         "evidenceRefs": [
-          "reconstruction/contracts/p3-execution-boundary.md:31 «c992db9a4d8a3e6b»",
+          "reconstruction/contracts/p3-execution-boundary.md:31 «5fd390bc66770805»",
           "reconstruction/contracts/p3-execution-boundary.md:32 «cc3592cbabff6989»",
-          "reconstruction/contracts/p3-execution-boundary.md:33 «f2bb94d22854f241»",
+          "reconstruction/contracts/p3-execution-boundary.md:33 «9666149507f4d408»",
           "reconstruction/contracts/p3-execution-boundary.md:34 «340e4dc2bfe880da»",
-          "docs/specs/reconstruction-p0-contracts.md:859 «9ad08dc74129c0e3»",
+          "docs/specs/reconstruction-p0-contracts.md:859 «8a40236838b7a43d»",
           "docs/specs/reconstruction-p0-contracts.md:862 «b7be10b70d398bbf»",
           "docs/specs/reconstruction-p0-contracts.md:865 «5f445c73a17df687»",
           "docs/specs/reconstruction-p0-contracts.md:841 «2e8b93a723481674»",
-          "reconstruction/contracts/p3-order-plan.md:218 «185e0ab8c78b7c92»"
+          "reconstruction/contracts/p3-order-plan.md:218 «c60076e915feb659»"
         ]
       },
       {

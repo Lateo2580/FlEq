@@ -20,7 +20,7 @@
 
 | 向き | 流れるもの | 流さないもの |
 |---|---|---|
-| publisher → worker | 受理した入力（frame の raw bytes と ingress 済みの外形 metadata、inputId・T0）、control（期限 tick の時計、終了の段階指示）、checkpoint の書込み権（1 件ずつ） | decode・normalize 済みの中身 |
+| publisher → worker | 受理した入力（frame の raw bytes と ingress 済みの外形 metadata、inputId・T0）、control（期限 tick の時計、終了の段階指示）、checkpoint の書込み権（unit ごとに 1 件まで、`P3-UNIT-WRITE-RIGHT-001`） | decode・normalize 済みの中身 |
 | worker → publisher | 版付きの有界な view・outcome・intent 選択の入力・persistence 状態（`kind`・`dirtySince`・`currentGeneration`・`savedGeneration`）、checkpoint の結果と計測、入力の完了、進捗応答、診断 | parse 済み tree（台帳 38: 転送 212ms）、canonical state 全体、checkpoint の bytes |
 
 - 大きい frame の envelope の全文 JSON.parse を publisher に残すかは C4 の予備測定の `ingressJsonMs` で決める（plan:194、spec:1072「全文の JSON parse は一回」）。どちらでも parse は 1 回。
@@ -28,9 +28,9 @@
 
 ## 3. checkpoint の書込み権（plan §5.1 の A、plan:192）
 
-- 全体の in-flight は 1 件のまま（spec:859）。publisher が worker から届く persistence 状態で §5.8 の選択（試行可能な最古の `dirtySince`、同時刻は固定 UnitId 順）を行い、書込み権を 1 つずつ渡す。§5.8 の公平性（E14・IR01）は変えない。
+- in-flight は unit ごとに 1 件（spec:859。2026-10-08 に D-P3-2=B で全体 1 件から改めた、`P3-UNIT-WRITE-RIGHT-001`）。publisher が worker から届く persistence 状態で unit ごとに §5.8 の選択（照合か保存か、retryAfter）を行い、その unit に権が無く、その unit の実行場所が parser 入力を処理中でなければ書込み権を渡す。他 unit の権の有無は選択に入らない。
 - 再試行の間隔（`retryAfter` と連続失敗回数、spec:859。現行は `checkpoint.ts` の retry Map）は publisher が持つ。worker は失敗・成否不明の結果を返すだけで、publisher がその結果から 1・2・4・8・10 秒の間隔を決め、選択に使う。同世代の再試行に使う request と保存 bytes は worker に残す。
-- 権を受けた worker が capture・encode・hash・書込み・照合を行い、結果を型付き入力として返す。全体の権を持ち続けるのは、停止未確認の filesystem 操作が残っている間と照合を実行している間だけ（spec:841）。終了が確認できた失敗（書込み・照合の失敗を含む）では権を返し、その単位だけを再試行待ちにして、正常な他単位の保存を妨げない（spec:841、E14。現行も操作の終了で全体 writer を解放する: `checkpoint.ts` の `resultMetadata`）。
+- 権を受けた worker が capture・encode・hash・書込み・照合を行い、結果を型付き入力として返す。その unit の権を持ち続けるのは、停止未確認の filesystem 操作が残っている間と照合を実行している間だけで、running の間は他 unit の保存を妨げない（spec:841 の読み、`P3-UNIT-WRITE-RIGHT-001` の P3-UWR-SPEC）。終了が確認できた失敗（書込み・照合の失敗を含む）では権を返し、その単位だけを再試行待ちにする（spec:841、E14。現行も操作の終了で writer を解放する: `checkpoint.ts` の `resultMetadata`）。通常終了の段の扱いは今の契約のまま（P3-UWR-AC07）。
 - slot の記憶（C1 が足す有効 slot・世代・hash）は、その unit を持つ worker の中にだけ置く。publisher は持たない。
 - 保存完了で dirty を無条件に消さない（手順 1 の ⑤）。ack 世代が現在世代と一致したときだけ `dirtySince` を消す現行の条件（`shared-runtime.ts:971`〜`:973`）を分離後も検収に残す。
 
@@ -59,7 +59,7 @@
 
 C1（`P3-CHECKPOINT-STEP1-001`）:
 
-1. slot の記憶は unit ごとに持ち、単位をまたぐ新しい状態を足さない（§3 で worker ごとに分けるため）。既存の全体 writer 予約 1 件はそのまま。
+1. slot の記憶は unit ごとに持ち、単位をまたぐ新しい状態を足さない（§3 で worker ごとに分けるため）。全体 writer 予約 1 件は、2026-10-08 に unit ごとの予約（CheckpointWriter の中の Map 1 つ）へ改めた（`P3-UNIT-WRITE-RIGHT-001`）。
 2. `CheckpointResult`・`CheckpointMeasurement`・`CheckpointRequest` は素のデータのまま、型を変えない（§2）。保存 bytes は coordinator の内部に持ち、request に載せない。
 3. composition root への新しい依存や呼出しを作らない（Wave 2 で C2 が編集する）。
 4. 定常保存から verify 段が消える。段の名前と attemptId の結合は変えない。C4 の manifest は定常保存に verify 段が無い前提で組む（§6）。

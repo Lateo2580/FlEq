@@ -122,15 +122,15 @@ C5 → unit レーン: C7〜C14 を D-P3-5 の順に（C6 と重なってよい�
 | unit 表・coverage 表・route（`shared-runtime.ts` の行き先）・`p2-shared-runtime.types.ts` の `UnitId`／`RuntimeUnitId`（:18、:22） | C0。実行場所の列は C3a。以後は各 unit レーンが自分の 1 行だけを足す | レーンの行は統合担当が 1 レーンずつ直列に合流し、合流ごとにゲートを回す。列の追加は C3a だけ |
 | unit・domain・test の directory、脇レーンの新設 directory | そのレーン（§3.1） | 他レーンは触らない。共有部分への結線は統合担当の直列合流 |
 | CLI の入口（コマンドの振り分け） | C18 | C17 の replay 入口の追加は直列合流 |
-| `reconstruction/src/checkpoint/checkpoint.ts` | C0（`:171`・`:186` の unit 列の直書きだけ、Wave 1）→ C1 → C3a | Wave 2 では C1 だけが編集する |
+| `reconstruction/src/checkpoint/checkpoint.ts` | C0（`:171`・`:186` の unit 列の直書きだけ、Wave 1）→ C1 → C3a → UWR（`P3-UNIT-WRITE-RIGHT-001`。CheckpointWriter の権を unit ごとに、D-P3-2=B） | Wave 2 では C1 だけが編集する |
 | `reconstruction/src/checkpoint/persistent-diagnostic-sink.ts` の reason 一覧（`:40`〜`:52`） | C0 → C2 → C3a → C3b（直列） | reason の追加だけ |
 | `reconstruction/src/units/*/` | C0（unit ごとの module の export を足す）→ 各 unit レーン（自分の directory） | 他 unit の directory は触らない |
 | `reconstruction/src/host/host.ts` | C2 → C3a → C3b → C4（config の注入口だけ）→ C5（:199〜:201 の候補分類だけ） | Wave 2 では C2 だけが編集する |
 | `reconstruction/src/mailbox/mailbox.ts` と `p2-mailbox.json` | C3a → C3b（実行場所の pending を 1 回の走査で外す 1 メソッドだけ） | dispatch の改訂は契約改訂と同じ commit |
-| `composition-root.ts` | C0 → C2（接続表示と start の記録だけ）→ C3a → C3b → unit レーンの結線 | C1 は編集しない。unit レーンの結線は統合担当の直列合流 |
-| `shared-runtime.ts`・`view-projector.ts` | C0 → C3a → C3b → unit レーン | unit レーンの変更は統合担当の直列合流。台帳 49 で view の版を固定長にするなら C3a |
-| 診断 reason・`P2HostObservation` の型 | C0 → C2（start の記録に要る分だけ）→ C3a → C3b | 追加は契約改訂として記録 |
-| P3 測定 manifest・runner（`reconstruction/test/eew-e01/**` の後継） | C4（津波の母集団は C6） | A10 の版付き結果（`a10-p2-20260930b`）は書き換えない |
+| `composition-root.ts` | C0 → C2（接続表示と start の記録だけ）→ C3a → C3b → C4 → UWR → C5 → unit レーンの結線 | C1 は編集しない。C5 は UWR の合流の後で rebase し、ずれた anchor は UWR の合流と同じ commit で直す。unit レーンの結線は統合担当の直列合流 |
+| `shared-runtime.ts`・`view-projector.ts`・`owner-runtime.ts` | C0 → C3a → C3b → unit レーン（`owner-runtime.ts` は C3a → C3b → UWR［finish の射影の前の時刻の読み口だけ］→ C5 → unit レーン） | unit レーンの変更は統合担当の直列合流。台帳 49 で view の版を固定長にするなら C3a |
+| 診断 reason・`P2HostObservation` の型 | C0 → C2（start の記録に要る分だけ）→ C3a → C3b → C4 → UWR（generationRaised に ownerMonotonicMs を足すだけ） | 追加は契約改訂として記録 |
+| P3 測定 manifest・runner（`reconstruction/test/eew-e01/**` の後継） | C4（津波の母集団は C6）。UWR は `aux-measures.mjs` の E14 の束の起点だけ | A10 の版付き結果（`a10-p2-20260930b`）は書き換えない |
 | `sequences.json` と派生 fixture、spec | 統合担当 | unit レーンは期待値を変えない。追加 step はレーンごとに直列で合流 |
 | `reconstruction/package.json`・tsconfig・vitest config | 最初に必要とする契約 1 本 | 依存追加は原則 0。worker 用の build 出力が要るなら C3a |
 
@@ -215,7 +215,7 @@ spec:167 と §15.4 の改訂（R52）は P4 前に行う（§5.2）。
 作者の裁定を要しない技術的な細部。A で進め、B を選ぶときだけ作者に諮る。決めたら作者へ報告する。
 
 - **実行単位の形**: A `worker_threads`（spec:1027 の常駐 worker の形。tree を送らない配置で転送費用を避け、RSS は同じプロセスに数える）。B 子プロセス（IPC が直列化し、起動・終了・監視の経路が増える）。
-- **checkpoint の書込み権**: A 全体の in-flight 1 件（spec:859）を保ち、publisher が書込み権を 1 つずつ渡す。encode と書込みは unit の持ち主の worker が行う。§5.8 の公平性（E14・IR01）を変えない。B worker ごとに in-flight 1 件（spec:859 の改訂が要る）。A のまま、Pi で権の待ち・worker の着手待ち・encode・I/O・ack を分けて E14 を確かめる（§4.5）。全体 1 件では、同時に dirty になった単位の保存は占有時間の和だけかかる（各保存の p99 の和を全体の p99 とは呼ばない）ので、C4 は U-E/U-W/U-F、C6 は U-T を加えて、C22 は全 unit で同時 dirty を確かめる。
+- **checkpoint の書込み権**: 2026-10-08 に D-P3-2=B（作者裁定）で unit ごとの in-flight 1 件へ改めた（`P3-UNIT-WRITE-RIGHT-001`、spec:859・:872・:1053 を置換）。以下は C3a の時点の即断の記録: A 全体の in-flight 1 件（spec:859）を保ち、publisher が書込み権を 1 つずつ渡す。encode と書込みは unit の持ち主の worker が行う。§5.8 の公平性（E14・IR01）を変えない。B worker ごとに in-flight 1 件（spec:859 の改訂が要る）。A のまま、Pi で権の待ち・worker の着手待ち・encode・I/O・ack を分けて E14 を確かめる（§4.5）。全体 1 件では、同時に dirty になった単位の保存は占有時間の和だけかかる（各保存の p99 の和を全体の p99 とは呼ばない）ので、C4 は U-E/U-W/U-F、C6 は U-T を加えて、C22 は全 unit で同時 dirty を確かめる。
 - C1 を C3a の前に置く（読み直しを除いた単純な checkpoint を worker へ移す方が移す量が少ない）。
 - 大きい frame の envelope JSON.parse を publisher に残すかは、C4 の予備測定の `ingressJsonMs` で決める。spec:1072 は「大きい data frame は raw bytes のまま worker へ渡せる境界にし、全文の JSON parse は一回」とする。
 - 移行器は全 `I-U-*` の persisted 型の凍結後に 1 本（§10.4 は単位ごとの成功・未充足を出すので、途中の単位だけ先に移す利益が小さい）。

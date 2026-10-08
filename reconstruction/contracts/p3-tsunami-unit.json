@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "15d5885c693d176979f1e3e60e3a63b3c7344240",
-    "sha256": "f3dfcdd9b7c164c59b042e27dbc5bb46f28c567503c1f5b5ff4e7601ad98137b",
+    "sha256": "6de78ae67972fc31301f6ce081ed62b3bdc1b6666cb96e7b1a48e8be03da6e7f",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "76c82b87d7783a4eae14af690cb34e7d6ec46f73617dc75b7f7401951619f080",
     "sequencesSha256": "be9cfd97b555e3a55568f085d107342c978b3dc7249f5cecea868ea5a62c5781",
@@ -747,7 +747,7 @@
         "requirement": "§13.3の9段をcomposition rootの一経路で: 保存失敗中の取消、古いack、通常終了、復元直後の続報（復元したstateとの差で通知を決め、同じ発令を再び緊急群にしない）。current巻戻し0・最新dirty世代維持。checkpointの書込み権と同時dirty（C6でU-Tを加えて確かめる、計画:218）はC4の規則のまま",
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:596 «c20d709bf6f86046»",
-          "reconstruction/contracts/p3-order-plan.md:218 «185e0ab8c78b7c92»"
+          "reconstruction/contracts/p3-order-plan.md:218 «c60076e915feb659»"
         ]
       },
       {

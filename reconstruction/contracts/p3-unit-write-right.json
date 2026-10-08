@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "49d745eff613131fa6b0e3681d019a389d13cd1f",
-    "sha256": "4aa6e062df447c459907e155eb287ecd295c971ff1b06c1748b0281ab64e5c00",
+    "sha256": "895a5dcb3afddd61e48074f8f03e156d10ced221c7ff1b80945d4bdcc7dedbea",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "76c82b87d7783a4eae14af690cb34e7d6ec46f73617dc75b7f7401951619f080",
     "sequencesSha256": "be9cfd97b555e3a55568f085d107342c978b3dc7249f5cecea868ea5a62c5781",
@@ -63,7 +63,7 @@
         "recommended": "A",
         "provisional": "A",
         "ruling": "統合担当がAに確定（2026-10-08。設計Bでも残す、作者裁定B）",
-        "reason": "本契約の効果はE14の測り直しで確かめる。今の起点（publisherがinputDoneを反映した時刻、composition-root.ts:810〜:812）は射影・約4.6MBの返信の複製・配送の後で、dirty→ackを短めに出す。射影はreceiveOwnerの最後のfinish（owner-runtime.ts:315）で済むので、時刻はその前で読む"
+        "reason": "本契約の効果はE14の測り直しで確かめる。今の起点（publisherがinputDoneを反映した時刻、composition-root.ts:811〜:813）は射影・約4.6MBの返信の複製・配送の後で、dirty→ackを短めに出す。射影はreceiveOwnerの最後のfinish（owner-runtime.ts:315）で済むので、時刻はその前で読む"
       }
     ],
     "questionResolutions": [
@@ -93,9 +93,17 @@
       {
         "id": "P3-UWR-OWNER",
         "status": "closed",
-        "closed": "本契約が編集するのはcheckpoint.ts（CheckpointWriterの権をunitごとにする。CheckpointCoordinatorと保存形式は変えない）、composition-root.ts（unitごとの権の送出と解放・処理中ownerの扱い・即時の再評価・非緊急の自分の保存中の留保・終了処理の留保の能動的な解放と、今の終了の挙動を保ったままの権のMapへの対応・generationRaisedの起点の値）、owner-runtime.ts（finishの射影の前で時刻を1回読む口だけ）、owner-host.ts（その時刻をinputDoneに載せる）、p3-execution-split.types.ts（inputDoneにgenerationRaisedMsを足す）、p2-eew-e01.types.ts（generationRaisedにownerMonotonicMsを足す）、aux-measures.mjs（E14の束の起点）と試験。host.ts・mailbox.ts・spec本文・計画・他の契約は編集しない（spec:859・:1053の置換と他契約の読み替えは統合担当、P3-UWR-SPEC・AC10）。計画§3.2の4行（:127 checkpoint.ts: C0 → C1 → C3a、:130 composition-root.ts、:131 shared-runtime.ts・view-projector.ts［owner-runtime.tsを足す］、:132 診断reason・P2HostObservationの型、:133 P3測定manifest・runner）と§5.1の書込み権の行に本契約を足す同期、および実行境界メモp3-execution-boundary.mdの:23（書込み権を1件ずつ）・:31（全体のin-flightは1件のまま）・:33（全体の権を持ち続ける）・:62（既存の全体writer予約1件はそのまま）をunitごとの権へ改める同期は統合担当が行う（行の置換なので行数は変わらない）。境界メモの:23・:31・:33を直すとp3-execution-split.jsonの:600・:638・:640のanchorが動くので、split.jsonのanchorとmeta.sha256も同じcommitで直す。specの置換（P3-UWR-SPEC）は:859・:1053・:872の3行",
+        "closed": "本契約が編集するのはcheckpoint.ts（CheckpointWriterの権をunitごとにする。CheckpointCoordinatorと保存形式は変えない）、composition-root.ts（unitごとの権の送出と解放・処理中ownerの扱い・即時の再評価・非緊急の自分の保存中の留保・終了処理の留保の能動的な解放と、今の終了の挙動を保ったままの権のMapへの対応・generationRaisedの起点の値）、owner-runtime.ts（finishの射影の前で時刻を1回読む口だけ）、owner-host.ts（その時刻をinputDoneに載せる）、p3-execution-split.types.ts（inputDoneにgenerationRaisedMsを足す）、p2-eew-e01.types.ts（generationRaisedにownerMonotonicMsを足す）、aux-measures.mjs（E14の束の起点）と試験。host.ts・mailbox.ts・spec本文・計画・他の契約は編集しない（spec:859・:1053の置換と他契約の読み替えは統合担当、P3-UWR-SPEC・AC10）。計画§3.2の4行（:125 checkpoint.ts: C0 → C1 → C3a、:130 composition-root.ts、:131 shared-runtime.ts・view-projector.ts［owner-runtime.tsを足す］、:132 診断reason・P2HostObservationの型、:133 P3測定manifest・runner）と§5.1の書込み権の行に本契約を足す同期、および実行境界メモp3-execution-boundary.mdの:23（書込み権を1件ずつ）・:31（全体のin-flightは1件のまま）・:33（全体の権を持ち続ける）・:62（既存の全体writer予約1件はそのまま）をunitごとの権へ改める同期は統合担当が行う（行の置換なので行数は変わらない）。境界メモの:23・:31・:33を直すとp3-execution-split.jsonの:600・:638・:640のanchorが動くので、split.jsonのanchorとmeta.sha256も同じcommitで直す。specの置換（P3-UWR-SPEC）は:859・:1053・:872の3行",
         "remaining": "計画§3.2・§5.1の同期（統合担当、baseOidの割当の前）と、C5の契約の読み替え（Q-UWR-BASE）",
         "reason": "composition-root.ts・owner-runtime.tsの編集順はC3b→C4→本契約→C5（P3-TSUNAMI-UNIT-001、起草中。allowedPathsに両方を持つ）→unitレーンの結線。本契約を先に入れ、C5はその後でrebaseする"
+      },
+      {
+        "id": "Q-UWR-BASE",
+        "status": "closed",
+        "source": "eb62d423（C3B-CLOSE の後）での読み替えと同期（2026-10-08）",
+        "closed": "(1) decisionBranchesの「起草案」0件 (2) spec:859・:872・:1053をP3-UWR-SPECの文で行数を変えずに置換し、引用する契約のanchorとmeta.sha256を同じcommitで更新した (3) 計画§3.2の:125・:130〜:133と§5.1の書込み権の行（:218）、実行境界メモの:23・:31・:33・:62を同期し、それらの行を引く契約（split.json:600・:638・:640ほか）のanchorとmeta.sha256を更新した (4) 49d745ef→eb62d423でreconstruction/srcの変更はcomposition-root.tsの:1490以降の5行だけで、Q-UWR-CODE-READの(1)〜(9)の行はそのまま成り立つ。本文のcomposition-root.ts:810〜:812（起草時からの誤記）を:811〜:813に、P3-UWR-OWNERの計画の:127を:125に直した。aux-measures.mjs:412〜:413・execution-split.test.ts:602・:647・:894・host.test.ts:928・lifecycle.test.ts:385もそのまま (5) C5（P3-TSUNAMI-UNIT-001）のcomposition-root.ts:1068の引用はずれていない（本契約の実装の合流で直す）",
+        "remaining": "baseOidの割当（統合担当、この準備のcommitの次のcommit）",
+        "reason": "unresolvedQuestionsのQ-UWR-BASE（C4の結果の記録（母集団5の測り直しを含む）の後）を閉じる"
       }
     ],
     "operationContract": {
@@ -296,7 +304,7 @@
         "id": "P3-UWR-AC01",
         "requirement": "unitごとの書込み権（作者裁定D-P3-2=B）: publisherのCheckpointWriterは、権をunitごとに持つ（unitをkeyにしたMap 1つ。新しいclass・queueを作らない）。各unitは未終了の書込み・照合を最大1件持ち、そのunitの権はそのgrantIdのcheckpointDoneでだけ戻る。権の出し方は、そのunitに権が無く、保存・照合の候補（CheckpointWriter.saveDueが真、または照合の候補＝mirrorのpersistence.kindがuncertainでretryAfter(unit)が無いか到達済み）で、そのunitの実行場所が処理中でない（AC02）こと。uncertainの照合を同じunitの保存より先にする、retryAfter（1・2・4・8・10秒）・連続失敗回数・retryReason・辞退の扱い、checkpointOverdue（3秒）と10秒の監視（checkpointUncertain）は、今どおりunitごとに持つ。他unitの権の有無は、あるunitの権の出し方に入らない。同じ実行場所の別unit（C5でurgentにU-Tが入る）の保存は並べてよい。保存の形式（unitごとのA/B slotとtmp、CheckpointCoordinator）は変えない。無いと: Piで、U-Wの保存1回（4.6秒）の間、U-Eは保存できない（台帳64）。C4のE14でも待ちの95〜99%が全体1つの権の送出待ち",
         "evidenceRefs": [
-          "docs/specs/reconstruction-p0-contracts.md:859 «9ad08dc74129c0e3»",
+          "docs/specs/reconstruction-p0-contracts.md:859 «8a40236838b7a43d»",
           "docs/specs/reconstruction-p0-contracts.md:862 «b7be10b70d398bbf»",
           "reconstruction/contracts/p3-execution-split.json:636 «629497553b6a7d9c»"
         ]
@@ -331,7 +339,7 @@
         "id": "P3-UWR-AC05",
         "requirement": "running の間、止まったI/Oが止める範囲はそのunitだけ（P3-C3B-DEAD-WRITE-RIGHT=Aの範囲の改め。stageがrunningの間に限る。通常終了の段はAC07のとおり今の契約のまま）: 停止を確認できないfilesystem操作のunitは、その権をtimeout・留保の満了・ownerの停止で解放しない（spec:872。新しい書込みを重ねない）。止まるのはそのunitの保存だけで、他unitの権の出し方と保存は続く。uncertainの照合はそのunitの権を占有し、他unitを妨げない（spec:841の読み、P3-UWR-SPEC）。停止したownerが持つ権は全部解放せず、そのownerのunitへは以後権を出さない。I/Oが戻って権が返れば、次の保存は最新世代をcaptureし、inputIdsは未保存区間の寄与IDの和集合（P2-A3-AC10）のまま保存できる。無いと: running の間に U-WのI/Oが止まる、またはweatherCurrentが書込みの区間に落ちると、再起動まで全unit（EEWの通知の記録を含む）が保存されない（P3-C3B-DEAD-WRITE-RIGHTの今の代償）",
         "evidenceRefs": [
-          "docs/specs/reconstruction-p0-contracts.md:872 «375ffcc141a80a02»",
+          "docs/specs/reconstruction-p0-contracts.md:872 «b3b0c2329adfa0da»",
           "docs/specs/reconstruction-p0-contracts.md:841 «2e8b93a723481674»",
           "reconstruction/contracts/p3-execution-lifecycle.json:75 «c998c8d30f543159»",
           "reconstruction/contracts/p2-checkpoint-shutdown.json:450 «ecd78d93e144c0fc»"
@@ -367,7 +375,7 @@
         "requirement": "進行の保証（保証の文で、試験で直接は確かめない。各項の値は測り直しで確かめる、Q-UWR-REMEASURE）。前提は、ownerの処理・I/O・返信の配送に上界がある正常系。保存時間は、そのownerの中で保存のawaitの合間に走る処理（留保されない期限要求・intent更新の処理、urgentでは入力の処理）を含む実経過時間で定義し、割り込みの無い保存時間（Piの約0.2秒など）をそのまま代入しない。unit Uの各dirty更新について、それを含む世代のackまでの時間は次の経路ごとの有限和で、他unitの保存時間を含まない（AC01）: (a) 失敗が無く留保が満了しない経路: Uの実行場所の処理中の入力の残り時間（AC02、1件まで）＋Uの既存の保存の残り時間（保存中に上がった世代はAC06で次のcaptureへ回る）＋次の保存の時間＋返信・射影・配送の時間 (b) Lを超える保存で留保が満了した後も進む経路: (a)の和で、満了の後は保存の時間に入力の処理の割り込み（非緊急の入力は満了後その保存の間は留保されない、HOLD-REPEAT=A）が加わる。保存がやがて成功すれば有限 (c) 有限回の失敗・uncertainから復旧する経路: 失敗ごとにretryAfterの残り（1・2・4・8・10秒）＋再評価の待ち（次の返信かtick、最大1 tick）＋照合（uncertainのとき）＋次の保存の時間を足す。各dirty更新の3秒（spec:855）の判定には、正常な保存環境の(a)と(b)の両方を含め、超えたら未達とする（Lの満了は保存の障害ではない。測り直しの条件はQ-UWR-REMEASURE）。障害時（I/Oが戻らない・ownerが応答しない）: そのunitの保存完了は保証しない。保証するのは running の間の (i) そのunitに書込みを重ねない (ii) 他unitの保存は続く (iii) 非緊急の入力は1,000ms＋1 tickで流れ出し、以後その止まった保存の間は留保しない (iv) 3秒超はcheckpointOverdue、10秒はcheckpointUncertainで示す。通常終了の段の障害時はAC07のとおり今の契約のまま。無いと: 3秒の根拠を、他unitの保存時間を足す全体の和（全体1権）や割り込みの無い保存時間と区別できず、失敗・障害時に何を約束するかが定まらない",
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:855 «94dc54eb44ab608c»",
-          "docs/specs/reconstruction-p0-contracts.md:872 «375ffcc141a80a02»",
+          "docs/specs/reconstruction-p0-contracts.md:872 «b3b0c2329adfa0da»",
           "docs/specs/reconstruction-p0-contracts.md:2066 «9816b55af233a5a4»"
         ]
       },
@@ -381,7 +389,7 @@
           "reconstruction/contracts/p3-execution-split.json:832 «663a656a27e549d3»",
           "reconstruction/contracts/p2-checkpoint-shutdown.json:390 «5e735ed48998372c»",
           "reconstruction/contracts/p3-execution-lifecycle.json:75 «c998c8d30f543159»",
-          "docs/specs/reconstruction-p0-contracts.md:1053 «36be3bb4fcad35b2»"
+          "docs/specs/reconstruction-p0-contracts.md:1053 «e5e05eaee34b87de»"
         ]
       }
     ],
@@ -506,21 +514,6 @@
       "残存リスクとして書く: (1) 3 ownerの保存が同時に走る（libuvの共有thread poolと同じ媒体）。同時I/Oの下の保存時間とfsyncの干渉、E01への並列encode・I/Oの影響は未測定（Q-UWR-REMEASURE） (2) 非緊急の入力は自分の保存のぶん遅れる（Piで1件あたり約0.2秒、I/Oが止まると最初の1件だけ最大1,000ms＋1 tick） (3) I/Oが止まったunitは再起動まで保存されず、ledgerはそのunitだけ伸びる（台帳67） (4) urgent自身のcapture・encodeは同期で走るので、U-Eの保存中のEEWの処理はその分待つ（今と同じ） (5) 終了時は、ownerが応答していてもI/Oだけが止まったunitが1つあると、quietがその権を待ち、副作用固定の期限が切れて全unitが最終保存から外れる（今の契約のまま、AC07。この制約は統合担当の決定で残したもので、作者に報告済み［2026-10-08］。統合担当が構造的欠陥台帳に構造の事実として記録する）"
     ],
     "unresolvedQuestions": [
-      {
-        "id": "Q-UWR-BASE",
-        "owner": "integrator",
-        "blocks": [
-          "baseOidの割当と発注"
-        ],
-        "resolveBy": "C4の結果の記録（母集団5の測り直しを含む）の後",
-        "requiredEvidence": [
-          "decisionBranchesの「起草案」が0件",
-          "P3-UWR-SPECのとおりのspec:859・:1053・:872の置換と、AC10の他契約の読み替えを合流と同じcommitで行う段取り",
-          "計画§3.2の5行と§5.1の書込み権の行、実行境界メモの:23・:31・:33・:62の同期（P3-UWR-OWNER）",
-          "割り当てる版でのcheckpoint.ts・composition-root.ts・owner-host.ts・owner-runtime.ts・aux-measures.mjs・execution-split.test.tsの行の読み替えと、Q-UWR-CODE-READの(1)〜(9)が成り立つこと",
-          "C5（P3-TSUNAMI-UNIT-001）の読み替え: 本契約の変更でC5が引くcomposition-root.ts:1068のanchor（«63ea8e73951b99d1»）などがずれるので、本契約の合流と同じcommitで、統合担当がC5のanchorとmeta.sha256を直す（前例: C3b・C4の合流のcommit 66899fb7・771716bf・0873ed09）。C5はその後でrebaseしてから発注する"
-        ]
-      },
       {
         "id": "Q-UWR-REMEASURE",
         "owner": "integrator",
