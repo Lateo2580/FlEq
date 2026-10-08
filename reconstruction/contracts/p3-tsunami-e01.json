@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "2d1696da9cea2ea624248e00c494637f5bc5846f",
-    "sha256": "67affb7d6ea1f9dd4bc5d82fa7fd6e8487291dbdd273f0b1cf066ecfe3ad7482",
+    "sha256": "ee9889ca35cbffbe091130a7837b97a3e6831d3972a27aef030ee781cb9fbac4",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "e4294056f8be82e935cfe620919806a73cffd91ebd14334e74d82b1edf00df3e",
     "sequencesSha256": "a6502ec4fd5a1959735ce044f3388788d6893b3a41f6a3f4ab0d72ca61e9ea1f",
@@ -150,7 +150,7 @@
     "contractId": "P3-TSUNAMI-E01-001",
     "mode": "implementation",
     "objective": "IR05（大津波警報・津波警報もEEWと同じp99 250ms）を、P3の津波の最小実描画経路（spec:1147）で検収する。A9のページに津波の大カード・警報区分・最小海岸線（D-P3-4のP3専用資材）とT6候補markerを足し、C4のrunnerを津波の系列へ広げ、発令系と解除系を別の系列として通常backlog・大型parse直後・checkpoint encode直後・EEW同時の4条件で測る。Mac miniの予備測定の後にmanifestを凍結し、正式測定を行う。Pi backend＋Mac ChromeでC6の短い予備確認を行う（正式Passにしない）。容量縮退の系列は期待値だけを記録して測定はP4へ送る（D-P3-6）。製品のhost・runtime・unitは変えず、未達は原因を分類して報告する。D-ACはPassと報告しない",
-    "baseOid": "unassigned",
+    "baseOid": "be1209b5e9acc6cfa4638a6014fe1ad4078a90fc",
     "cleanTreeRequired": true,
     "readPaths": [
       "AGENTS.md",
