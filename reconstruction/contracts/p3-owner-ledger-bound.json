@@ -1,0 +1,364 @@
+{
+  "meta": {
+    "draftedFromOid": "5ae33089defe69954857bd3ad5bdcc11ccb8196f",
+    "sha256": "64fe518dc5b3b549f36da16328d391145ca446eccb3c7e93bd98bbc166d0f208",
+    "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
+    "manifestSha256": "226b73cbfb4e769c89d2b1327fcbd8067a47887303527a2893592fba47176235",
+    "sequencesSha256": "79769d888ff5f429e4bd370a6a88ccb30611b5ee2a1e7b12d25d58f215cbfbd3",
+    "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
+    "decisionBranches": [
+      {
+        "id": "P3-OLB-OVERFLOW",
+        "A": "上限（4,096項目）を超えたら最も古い世代の項目から捨て、保存は残った項目の和集合で続ける。保存物と製品の診断は変えない。上限の外の保存の測定の記録（CheckpointMeasurement.inputIds）は直近4,096世代の入力IDだけになり、欠けの印は付けない（止まったことは既存のcheckpointOverdue［3秒］・checkpointUncertain［10秒］・保存失敗の診断で見える）",
+        "B": "Aに加えて、CheckpointMeasurementに捨てた件数（例 droppedInputIds: number、上限の内側は0）を足す。測定の帰属（ac15.mjsのE10など）で欠けた保存を区別できる。p2-eew-e01.types.tsの型と、judge.ts・aux-measures.mjsの照合に波及する",
+        "C": "Aに加えて、切り詰めが始まったときunitごとに1件のWARN診断（新しいreason）を出す。製品の診断の語彙が増え、persistent-diagnostic-sinkと表示の語彙に波及する",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "起草案",
+        "ruling": "作者裁定待ち（起草案）",
+        "reason": "見え方の違い: どの案でも、長い停止の後に保存されないものは無い（inputIdsは保存物に入らない。envelopeはschemaVersion・unit・generation・capturedAt・payloadだけ）。今は停止が長いほど記録が伸び、復帰後の保存に全区間の入力IDが載る。Aでは上限を超えた古い入力IDが測定の記録から黙って消え、製品の画面・診断・保存は今と同じ。Bでは測定の記録に欠けの件数が残る。Cでは診断のlogに切り詰めの1行が増える。推奨はA: 製品ではinputIdsは測定の記録にしか届かず（host.tsはobserveが無ければ捨てる）、切り詰めが起きるのはackが止まって未保存の世代が4,096を超えたときだけで、その停止は既存の診断（3秒のcheckpointOverdue、10秒のcheckpointUncertain）で見えている。「測定の中では起きない」は証明しきれないので推奨の理由に入れない（P3-OLB-CAPの理由）。B・Cを選ぶ場合の注意: Bの「捨てた世代の項目の数」と「失われた一意の入力IDの数」は別物（[]の項目は数えても入力IDを失わない。同じIDが残る世代にもあれば失われない）なので、どちらを数えるかを裁定で決める。CのWARNは「runの中でunitごとに1回」か「切り詰めの再開ごと（ackで上限の内側に戻った後にまた超えるたび）」かを裁定で決める。作者に訊く理由: P2-A3-AC10の「capture時は未保存区間の和集合を固定する」（作者が承認したP2の約束）を上限の外で緩める（本契約のAC05）"
+      },
+      {
+        "id": "P3-OLB-CAP",
+        "A": "unitごとに未保存の世代の項目を最大4,096件（owner-host.tsの定数1つ）",
+        "B": "1,024件",
+        "C": "件数でなく入力IDのbyteで数える",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（技術の分岐）",
+        "ruling": "起草時に推奨で確定（技術の分岐。製品の挙動を変えない）",
+        "reason": "記録が溜まるのはackが止まっている間だけ（ackで刈る）で、溜まる数は入力の数でなく未保存の世代の数（期限・intentUpdate・起動回収も[]の項目で世代を上げる、owner-runtime.ts:245〜:246・:376）。ackがE14の範囲（dirty→ack 3秒、spec:855）で返る間は、未保存の世代はackの間隔に上がる世代の数を超えず、4,096はそれを大きく超えると読む。測定の中で切り詰めが起きるのは保存が止まった（その測定はE14ですでに不成立の）場合だけと読むが、3秒の間に上がる世代の上界は証明していない（runnerは成立した試料が揃うまで投入を続け［run.mjs:464、manifestは最大2,081試行］、背景負荷も窓の長さで繰り返す［windows.mjs:28］ので、入力の総数は上限にならない）。上限の記録の大きさはunitあたり約0.57MB（1項目約140B、Q-OLB-CAP-BASIS）で、4 unitで約2.3MB。Bは測定1 runの入力を下回る。Cは入力IDの形がhostの連番1つ（input-<連番>）に決まっていて件数とbyteが比例するので、別の計数が要らない"
+      },
+      {
+        "id": "P3-OLB-UNKNOWN",
+        "A": "帰属不明（世代が上がったstepのgenerationInputIdsにそのunitのkeyが無い）は世代の項目に持たず、記録した時点でunitを今のunavailableの集合（そのrunでは保存しないunit）へ入れる",
+        "B": "不明の世代を上限で捨てない別のMapに持つ",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（技術の分岐）",
+        "ruling": "起草時に推奨で確定（技術の分岐。今の挙動と同じ）",
+        "reason": "不明の世代gがあるとg以上のcaptureは全部辞退され、savedGenerationはgを越えない（g未満のcaptureのackだけが進む）ので、不明はそのrunの間消えない。世代ごとに持つ意味が無く、集合1つで上限の切り詰めに巻き込まれない"
+      }
+    ],
+    "questionResolutions": [
+      {
+        "id": "Q-OLB-CODE-READ",
+        "status": "closed",
+        "source": "起草時の版（5ae33089）のowner-host.ts・owner-runtime.ts・checkpoint.ts・composition-root.ts・host.tsと、測定の読み手（judge.ts・aux-measures.mjs・ac15.mjs）の読み合わせ（2026-10-08）",
+        "closed": "inputIds()の値の行き先（行は起草時の版）: (1) owner-host.ts:209〜:211 grantの辞退の条件（nullなら保存しない）。失ってはいけない: 不明・復元不能のときだけnull (2) owner-host.ts:217・:226 → checkpoint.ts:214・:225 試行のinputIds、:246 executeCheckpointの相関の照合（sameStrings）。同じ配列を両方へ渡すので、短くしても照合は崩れない (3) checkpoint.ts:228・:420 CheckpointMeasurement.inputIds（encodeとwrite以降の各段に写す）→ owner-host.tsのcheckpointDoneで毎回publisherへ送る → composition-root.ts:1341 onMeasurements → host.ts:147 emit。host.ts:86〜:88はobserveが無ければ捨てる。製品の中では読む者がいない (4) composition-root.ts:1313（E14の権の行）はattemptIdだけ、checkpoint.ts:564（CheckpointWriter.done）はstageとoutcomeだけを読み、inputIdsを読まない (5) judge.ts:383〜:384 試行の全段のinputIdsがencodeと同じかの照合。1試行1配列なので短くしても崩れない (6) aux-measures.mjs:336 runで見ていない入力IDの数。短くすると減るだけ (7) ac15.mjs:180〜:181（試行の最初の段のinputIdsを窓へ写す）・:336 E10（attemptのinputIdsに他unitの入力があればFail）。上限の外では古い入力が見えなくなり、Failを見落としうる（上限が測定1 runの入力を超えるので測定の中では起きない） (7b) analysis.mjs:111（観測のcheckpointの行をそのまま索引へ積む）とrun.mjs:886（runの組み立てにcheckpointsを写す）は運ぶだけで、inputIdsの中身を判定に使わない。短くしても崩れない。windows.mjs:702のinputIdsはE14の束（unitごとの入力ID 1つ）で、ownerの記録とは別物なので対象外 (8) 保存物には入らない（checkpoint.ts:68〜:80のenvelopeBytes）。E14の束（aux-measures.mjs:400）はowner-host.ts:106・:149〜:152のinputGenerations（stepのgenerationInputIds）を使い、記録を読まない。記録の書き手はowner-host.tsのrestore（:174〜:181）とapply（:241〜:256）だけで、composition-root.ts（TEST-PATH (1)）には同じ記録が無い。null（不明）の項目は世代が上がったstepにそのunitのkeyが無いときだけ作られ、reduceUnitは世代が上がると[]を入れる（owner-runtime.ts:245〜:246）",
+        "remaining": "なし（baseOidの割当の前に行番号を読み替える、Q-OLB-BASE）",
+        "reason": "有界にしたとき失ってよいもの（測定の記録の古い入力ID）と失ってはいけないもの（辞退の条件、試行の中の相関、保存物）を分ける"
+      },
+      {
+        "id": "Q-OLB-CAP-BASIS",
+        "status": "closed",
+        "source": "reconstruction/test/eew-e01/evidence/p3/manifest.json・manifest-deadline.json（2026-10-08に読んだ）、起草時のMacのnode（--expose-gc）での実測",
+        "closed": "(1) 記録の項目は未保存の世代1つに1つで、ackで刈られる。測定の入力の総数は上限にならない: manifestはwarmupPerRun 100・samplesPerRun 1,000・runCount 3で、runnerは成立した試料が揃うまで投入を続け（run.mjs:464、maxAttempts 2,081）、背景の負荷（N・Pは21件、Cは7件）は窓の長さで繰り返す（windows.mjs:28） (2) 1項目の大きさ: Map<number, [`input-<7桁>`]>を4,096項目×10個作り、gcの前後のheapUsedの差から約140B/項目 (3) 4,096項目の和集合（Setに入れて配列にする）は約0.1ms（Mac） (4) 4,096個の入力ID（7桁）のJSONは65,537B。入力IDはhost.ts:284のinput-<連番>で、連番は安全な整数なので1個22文字以下 (5) 今の伸び方（推定、未測定）: 3秒に1世代のunitが24時間止まると28,800項目・約4MB、復帰後の保存1回の測定の記録は7段×約0.5MB",
+        "remaining": "Piでの1項目の大きさと和集合の時間は未測定。ackの間隔（3秒）に上がる世代の上界は証明していない",
+        "reason": "P3-OLB-CAPの数字の根拠（入力の総数でなく、ackの間隔に上がる世代の数で読む）"
+      }
+    ],
+    "operationContract": {
+      "ref": "P2-SHARED-RUNTIME-001#meta.operationContract",
+      "rule": "記録の上限・切り詰め・帰属不明の扱いはunitと世代だけで決め、operationで分岐しない。上限はnormal/training/testの合計に当てる"
+    }
+  },
+  "contract": {
+    "contractId": "P3-OWNER-LEDGER-BOUND-001",
+    "mode": "implementation",
+    "objective": "台帳67（LEDGER67=A、作者裁定 2026-10-08）を直す: ownerの未保存の世代ごとの入力IDの記録（OwnerHost.ledger）をunitごとに4,096項目までにし、超えたら最も古い世代から捨てる。捨てても保存は辞退せず、I/Oが戻れば保存を続ける。帰属不明（P2-A3-AC10）は切り詰めに巻き込まず、今どおり保存を辞退して終了code 2にする。記録の更新は受信ごとに上がった世代と消す項目の数だけの手数にする。上限の外で失うのは保存の測定の記録の古い入力IDだけで、保存物・書込み権・終了処理・E14は変えない。I/Oが戻らないunitの保存そのもの・測定の記録の形・保存の形式は扱わない。",
+    "baseOid": "unassigned",
+    "cleanTreeRequired": true,
+    "readPaths": [
+      "AGENTS.md",
+      "docs/specs/reconstruction-p0-contracts.md",
+      "reconstruction/contracts/p3-order-plan.md",
+      "reconstruction/contracts/p3-owner-ledger-bound.json",
+      "reconstruction/contracts/p3-unit-write-right.json",
+      "reconstruction/contracts/p3-execution-split.json",
+      "reconstruction/contracts/p3-execution-split.types.ts",
+      "reconstruction/contracts/p3-execution-lifecycle.json",
+      "reconstruction/contracts/p3-e01-reaccept.json",
+      "reconstruction/contracts/p2-checkpoint-shutdown.json",
+      "reconstruction/contracts/p2-shared-runtime.json",
+      "reconstruction/contracts/p2-shared-runtime.types.ts",
+      "reconstruction/contracts/p2-eew-e01.json",
+      "reconstruction/contracts/p2-eew-e01.types.ts",
+      "reconstruction/tools/corpus/manifest.json",
+      "reconstruction/tools/corpus/sequences.json",
+      "reconstruction/src/**",
+      "reconstruction/test/**",
+      "reconstruction/tsconfig.json",
+      "reconstruction/tsconfig.test.json",
+      "reconstruction/vitest.config.ts"
+    ],
+    "allowedPaths": [
+      "reconstruction/src/runtime/owner-host.ts",
+      "reconstruction/test/execution-split/unit-write-right.test.ts",
+      "reconstruction/test/checkpoint-shutdown/review-regressions.test.ts"
+    ],
+    "allowedGitCommands": [
+      "git status --porcelain",
+      "git rev-parse HEAD",
+      "git diff --binary --no-ext-diff -- <allowed_paths>",
+      "git diff --check -- <allowed_paths>",
+      "git show <required-path-or-object>",
+      "git ls-files <required-path>"
+    ],
+    "moduleIds": [
+      "B06",
+      "B07"
+    ],
+    "integrationContractIds": [
+      "I-U-E",
+      "I-U-W",
+      "I-U-F",
+      "I-U-T"
+    ],
+    "dependsOnContractIds": [
+      "P3-UNIT-WRITE-RIGHT-001",
+      "P3-EXECUTION-SPLIT-001",
+      "P3-EXECUTION-LIFECYCLE-001",
+      "P2-CHECKPOINT-SHUTDOWN-001",
+      "P2-EEW-E01-001",
+      "P3-E01-REACCEPT-001",
+      "P2-SHARED-RUNTIME-001"
+    ],
+    "publicTypes": [
+      "reconstruction/contracts/p2-eew-e01.types.ts#CheckpointMeasurement",
+      "reconstruction/contracts/p2-shared-runtime.types.ts#PersistenceStatus",
+      "reconstruction/contracts/p3-execution-split.types.ts#OwnerReply"
+    ],
+    "publicFunctions": [
+      "OwnerHost（owner-host.ts）: constructor・handle・exportは変えない。変えるのはprivateのledger・unavailable・restore・apply・inputIdsの中と、読むだけの件数の口1つ（例 ledgerSize(unit: RuntimeUnitId): number、そのunitの記録の項目数を返す。状態を変えない。無いと: 返すIDだけ絞って記録は伸び続ける誤実装を試験が落とせない）。試験はowner-harness.tsが返すownersから呼び、asでprivateを覗かない",
+      "型（CheckpointMeasurement・OwnerReply・PersistenceStatus）は変えない（P3-OLB-OVERFLOW=Aのとき）"
+    ],
+    "allowedDependencies": [
+      "既存の依存。新しいnpm依存は足さない"
+    ],
+    "fixtureIds": [
+      "test__fixtures__37_01_01_240613_VXSE43"
+    ],
+    "sequenceIds": [
+      "O07"
+    ],
+    "expectedDecisions": [],
+    "expectationEvidence": [],
+    "semanticDeadlines": [],
+    "deliveryDeadlines": [],
+    "retentionLimits": [],
+    "resourceLimits": [
+      {
+        "id": "P3-OLB-RES-01",
+        "target": "OwnerHost.ledger",
+        "limit": 4096,
+        "unit": "entries (unsaved generations) per persistence unit",
+        "scope": "超えたら最も古い世代の項目から捨てる。帰属不明は項目に持たない（AC02）。byteは別に数えない（入力IDはhostの連番1つの形）",
+        "source": "台帳67、P3-OLB-CAP=A"
+      },
+      {
+        "id": "P3-OLB-RES-02",
+        "target": "ledger work per owner step",
+        "limit": "O(そのstepで上がった世代の数＋ackで消す項目の数)",
+        "unit": "apply() 1回",
+        "scope": "記録全体の走査・直列化をしない。savedGenerationの番号の区間で回さない",
+        "source": "AGENTS.mdの受信経路の計算量"
+      },
+      {
+        "id": "P3-OLB-RES-03",
+        "target": "inputIds() per checkpoint grant",
+        "limit": "O(残った項目の数) ≤ 4,096",
+        "unit": "保存の権1回",
+        "scope": "未保存の世代の番号の区間で回さない。入力・期限・intent更新の要求では走らない",
+        "source": "AGENTS.mdの受信経路の計算量"
+      }
+    ],
+    "workDeadline": null,
+    "persistenceUnits": [
+      "U-E",
+      "U-W",
+      "U-F",
+      "U-T"
+    ],
+    "persistedFields": [
+      "なし（CheckpointEnvelope・slot・tmp・終了要約の形式は変えない。inputIdsは保存物に入らない）"
+    ],
+    "nonPersistedFields": [
+      "OwnerHost.ledger（unitごとのMap 1つ、未保存の世代の項目を最大4,096件）",
+      "そのrunでは保存しないunitの集合（今のunavailable。復元がunavailableだったunitと、帰属不明を記録したunit）"
+    ],
+    "outOfScope": [
+      "I/Oが戻らないunitを再起動まで保存できないこと自体（P3-UWR-AC05・AC09のまま）",
+      "書込み権・留保・再評価（P3-UNIT-WRITE-RIGHT-001）と終了処理（C3a・C3b）の変更。composition-root.ts・checkpoint.ts・owner-runtime.tsの編集",
+      "CheckpointMeasurementの形と測定の判定（judge.ts・aux-measures.mjs・ac15.mjs）の変更（P3-OLB-OVERFLOW=Aのとき）",
+      "測定の各段の記録ごとのinputIdsの写しを減らすこと（上限で有界になる）",
+      "保存の形式（envelope・slot・tmp・終了要約）とCheckpointCoordinatorの保存手順",
+      "spec本文・計画・他の契約のファイルの改訂（統合担当。AC05）",
+      "測り直しとC4の凍結manifest・版付き結果の変更",
+      "package.json・tsconfig・vitest config、新しいnpm依存、旧築src/**"
+    ],
+    "acceptanceChecks": [
+      {
+        "id": "P3-OLB-AC01",
+        "requirement": "記録をunitごとに有界にする（台帳67、P3-OLB-CAP=A）: OwnerHost.ledgerは未保存の世代（savedGenerationより後）の項目だけをunitごとに最大4,096件持つ（owner-host.tsの定数1つ。設定にしない。項目数は読むだけの口1つで試験から読める）。項目を足して4,096件を超えたら、最も古い世代の項目から捨てる（世代はrestoreとapplyで昇順にだけ足され、同じ世代を足し直す経路は無いので、Mapの挿入順の先頭が最も古い）。項目の値は寄与した入力IDの配列（今のreducerでは0件か1件）で、byteの上限は別に置かない（入力IDはhost.tsのinput-<連番>で、和集合は最大4,096個・JSONで約100KB以下）。ackでsavedGenerationが進んだら、その世代以下の項目を消す（今と同じ）。上限は保存が止まっている間の保存中の試行が捕捉した世代も数える（その世代もsavedGenerationより後なので）。上限の内側では、項目・和集合・辞退・終了codeは今と同じ。無いと: I/Oが長く止まると止まったunitの記録が世代ごとに約140Bずつ伸び続け、復帰後の最初の権で全区間を走査し、全入力IDを測定の7段の記録へ写してpublisherへ送る（推定: 3秒に1世代で24時間なら28,800項目・約4MB）",
+        "evidenceRefs": [
+          "reconstruction/contracts/p3-unit-write-right.json:52 «50ff06928f8e796c»",
+          "reconstruction/contracts/p3-unit-write-right.json:57 «91a371f814200b5c»",
+          "reconstruction/contracts/p2-checkpoint-shutdown.json:450 «ecd78d93e144c0fc»"
+        ]
+      },
+      {
+        "id": "P3-OLB-AC02",
+        "requirement": "捨てても保存を辞退しない、帰属不明は捨てない（P2-A3-AC10の不明の扱いを保つ、P3-OLB-UNKNOWN=A）: inputIds()がnullを返すのは、unitがそのrunでは保存しない集合（今のunavailable）に入っているときだけにする。世代が上がったstepのgenerationInputIdsにそのunitのkeyが無いとき（restoreとapplyが今nullの項目を作るところ）は、項目を足さずにunitをその集合へ入れる。上限で捨てた世代は不明に数えず、inputIds()は残った項目の和集合（世代の順、重複なし）を返す。grantの辞退の条件（persistence・saves・inputIds()==null）とpublisherのdeclined（CheckpointWriter）は変えない。復帰の後は、次の権で今の世代をcaptureし、ackまで進む。ただし無条件ではない: 終了処理の中では、副作用の固定に間に合わず未固定になったowner、停止扱いのowner、段の期限の後の復帰には、C3a・C3bの従来の除外（P3-C3A-AC09・P3-C3A-FINALIZE-TIMEOUT=A・P3-C3B-AC03）がそのまま効き、本契約はそれを変えない。帰属不明のunitがあっても、他に優先する終了理由があれば最終codeは3になりうる（codeの選び方は変えない）。無いと: 捨てた世代を不明と同じに扱うと、復帰後の権がinputIds()==nullで辞退され、declinedがその世代を飛ばし、次の世代でもまた辞退して再起動まで保存できない（終了はcode 2）。不明を項目として持つと、上限で捨てたときに不明が消え、P2-A3-AC10が拒むcaptureを通す",
+        "evidenceRefs": [
+          "reconstruction/contracts/p2-checkpoint-shutdown.json:450 «ecd78d93e144c0fc»",
+          "reconstruction/contracts/p2-checkpoint-shutdown.json:592 «dfe24ca87cd9cc8d»",
+          "reconstruction/contracts/p3-unit-write-right.json:353 «965f301772842e4c»"
+        ]
+      },
+      {
+        "id": "P3-OLB-AC03",
+        "requirement": "受信ごとの手数を記録の大きさに比例させない（AGENTS.mdの受信経路の計算量、P3-OLB-RES-02・RES-03）: apply()の1回の手数は、そのstepで上がった世代の数（足すことと上限で捨てること）と、ackで消す項目の数だけにする。ackで消すのはMapの先頭からsavedGeneration以下の項目で、今の「前のsavedGeneration＋1から新しいsavedGenerationまで世代の番号で回す」ループはやめる（止まった後の最初のackで、捨て済みの世代の番号まで回るため）。inputIds()は残った項目だけを回り、未保存の世代の番号の区間（savedGeneration＋1〜currentGeneration）では回さない。inputIds()は保存の権1回に1回で、入力・期限・intent更新の要求では走らない（今と同じ）。記録をJSON.stringify・structuredCloneで数えず、件数の別の計数を足さない（Map.sizeを使う）。試験では直接確かめず、レビューで確かめる。無いと: 項目数を有界にしても、世代の番号で回るループが止まっていた長さに比例して回る",
+        "evidenceRefs": [
+          "AGENTS.md:25 «b7f4c3a89b5bb3b2»"
+        ]
+      },
+      {
+        "id": "P3-OLB-AC04",
+        "requirement": "上限の外で失うのは測定の記録の古い入力IDだけ（P3-OLB-OVERFLOW、起草案Aで書く）: 4,096件を超えた後の保存のCheckpointMeasurement.inputIds（encodeとwrite以降の各段。checkpoint.tsのcaptureとexecuteCheckpointが同じ配列から写す）は残った項目の和集合で、捨てた世代の入力IDを含まない。欠けの印は付けず、型（CheckpointMeasurement）と製品の診断の語彙を変えない。保つもの: (1) 保存物（envelopeはinputIdsを含まない。slot・tmp・終了要約も変えない） (2) 1回の試行の中の相関（captureとexecuteCheckpointに同じ配列を渡すので、checkpoint.tsの相関の照合とjudge.tsの段ごとの一致は崩れない） (3) writeの帰属（E15の帰属不能0はattemptIdで結び、inputIdsを使わない） (4) E14（inputDoneのinputGenerationsはstepのgenerationInputIdsから作り、記録を読まない。P3-C4-AC13(3)②のまま） (5) 止まったことの表示（既存のcheckpointOverdue・checkpointUncertain・失敗の診断）。切り詰めはackが止まって未保存の世代が4,096を超えたときだけ起きる（P3-OLB-CAP。測定の中で起きないことは保証しない）。B・Cの裁定なら、この条の「欠けの印は付けず」を差し替える（Bは捨てた件数をCheckpointMeasurementに足し、p2-eew-e01.types.ts・checkpoint.ts・judge.ts・aux-measures.mjsをallowedPathsに足す。Cは切り詰めの開始ごとにWARNを1件足し、診断のreasonの型とsinkを足す）。無いと: 上限の外で何が変わるかが決まらず、測定の帰属（ac15.mjsのE10はattemptのinputIdsで他unitの入力を探す）が上限の外で黙って弱くなることを契約が言わない",
+        "evidenceRefs": [
+          "reconstruction/contracts/p2-checkpoint-shutdown.json:401 «998141f6cd409dee»",
+          "reconstruction/contracts/p2-eew-e01.json:498 «e32528567119139b»",
+          "reconstruction/contracts/p3-e01-reaccept.json:778 «57b454c048ec4882»"
+        ]
+      },
+      {
+        "id": "P3-OLB-AC05",
+        "requirement": "既存の約束（本契約に記録し、他の契約の条文は編集しない。下の改める4件は、上限の外については本契約のAC05が優先する［supersedes］。記録は統合担当が行う、Q-OLB-BASE）: 変えない: P3-UNIT-WRITE-RIGHT-001のunitごとの権・留保・再評価（I/Oが止まったunitの権を解放しない、他unitの保存は続く。本契約はownerの記録だけを変える）、C3a・C3bの終了処理（最終保存の段も同じgrantを通るので、上限の内側では今と同じで、上限の外では辞退せず保存する。quiet・cutoff・codeの規則は変えない。帰属不明のcode 2は保つ。他に優先する理由があればcode 3になりうるのも今どおり、AC02）、P2-A3-AC10の帰属の規則（明示keyの配列だけを採用、[]は寄与なしの明示値、keyの欠落は不明で後から補わない、古いackで消すのは保存確認済みの世代まで）。改める（上限の内側に限ると読む）: (1) P2-A3-AC10の「capture時はsavedGenerationより後から捕捉世代までの和集合を重複なく固定する」→ 未保存の世代が4,096以下のとき。超えたら直近4,096世代の和集合 (2) P3-UWR-AC05の「inputIdsは未保存区間の寄与IDの和集合（P2-A3-AC10）のまま保存できる」とP3-UWR-T01の「inputIdsは前回の保存の後の全入力IDの和集合になる」→ (1)と同じ読み (3) P3-UNIT-WRITE-RIGHT-001の残存リスク(3)の「ledgerはそのunitだけ伸びる」→ 4,096項目で止まる (4) P2-EEW-E01のE15の「trace run/inputへ相関」→ 上限の外では古い入力を保存へ相関しない。無いと: 他の契約の条文と本契約が同じ挙動について違うことを言う",
+        "evidenceRefs": [
+          "reconstruction/contracts/p2-checkpoint-shutdown.json:450 «ecd78d93e144c0fc»",
+          "reconstruction/contracts/p3-unit-write-right.json:353 «965f301772842e4c»",
+          "reconstruction/contracts/p3-unit-write-right.json:417 «920adb13fabb5d34»",
+          "reconstruction/contracts/p3-unit-write-right.json:527 «dc3e1930ecc033c2»",
+          "reconstruction/contracts/p2-eew-e01.json:498 «e32528567119139b»"
+        ]
+      }
+    ],
+    "testMapping": [
+      {
+        "testId": "P3-OLB-T01",
+        "purpose": "acceptance",
+        "referenceIds": [
+          "P3-OLB-AC01",
+          "P3-OLB-AC02",
+          "P3-OLB-AC04"
+        ],
+        "behavior": "保存が失敗し続ける長い停止（unit-write-right.test.tsのTEST-PATH (2)、U-Eのopenを失敗させる。urgentなので入力は留保されない）: U-Eをg1（入力first）、g2〜g(N−1)（入力bulk 1件で世代を飛ばす、fixture driverのstub）、gN（入力last）と上げ、tickで再試行を回してから書込みを戻すと、次の再試行の権で辞退されずに保存され、ackの世代はN。3通りの回で、inputIdsはN=4,095（手前）・4,096（ちょうど）で[first, bulk, last]、N=4,097（超えた後）で[bulk, last]。どの回も、書込みを戻す前のU-Eの記録の項目数（OwnerHostの件数の口）は4,095・4,096・4,096（上限で止まる）。どの回も辞退（result null）の返信は0件。その後の入力1件でもまた保存され、inputIdsはその入力だけ"
+      },
+      {
+        "testId": "P3-OLB-T02",
+        "purpose": "contractBoundary",
+        "referenceIds": [
+          "P3-OLB-AC01",
+          "P3-OLB-AC02"
+        ],
+        "behavior": "止まったI/O（U-Eのsyncを保留し、保存中の試行がg1を捕捉したまま）: U-Eをg2（入力second）、g3〜g(N−1)（bulk）、gN（last）と上げ、tickで監視を回してからsyncを戻すと、g1がackされ（その項目は上限で既に捨ててある）、次の権でgNが保存される。inputIdsはN=4,097で[second, bulk, last]（捨てたのは保存中のg1だけ）、N=4,098で[bulk, last]。その後の入力でも保存が続く"
+      },
+      {
+        "testId": "P3-OLB-T03",
+        "purpose": "contractBoundary",
+        "referenceIds": [
+          "P3-OLB-AC02"
+        ],
+        "behavior": "帰属不明は上限で消えない（review-regressions.test.tsの「P2-A3-T10 contractBoundary / AC10: a later explicit empty step cannot fill an earlier missing attribution」の系列）: (1) g1をkeyの欠けたstepで上げた後、入力1件で4,096を超える世代へ飛ばしても、grantは辞退され（result null）、shutdownRuntimeはcode 2で、openは0回 (2) 既知のg1をcaptureしてsyncを保留したまま、g2をkeyの欠けたstepで上げ、入力1件で4,096を超える世代へ飛ばしてからsyncを戻すと、g1の保存はacknowledgedになり、その後の権は辞退され（result null）、帰属不明が単独の終了失敗理由ならshutdownRuntimeはcode 2。openはg1の既存の試行の1回だけで、追加のopenは0回（(1)のopen 0回とは分けて確かめる）。どちらもreview-regressions.test.tsかunit-write-right.test.tsの既存の系列に足す"
+      }
+    ],
+    "requiredCommands": [
+      {
+        "command": "node reconstruction/tools/corpus/check-manifest.mjs",
+        "cwd": ".",
+        "target": "reconstruction/tools/corpus/manifest.json",
+        "stage": "contract",
+        "purpose": "fixture台帳とhash検査"
+      },
+      {
+        "command": "node reconstruction/tools/corpus/check-sequences.mjs",
+        "cwd": ".",
+        "target": "reconstruction/tools/corpus/sequences.json",
+        "stage": "contract",
+        "purpose": "O07の参照と未充足数を検査する"
+      },
+      {
+        "command": "node reconstruction/contracts/check-contract.mjs",
+        "cwd": ".",
+        "target": "reconstruction/contracts/*.json",
+        "stage": "contract",
+        "purpose": "全契約を検査する（本契約も他の契約もowner-host.tsと編集する試験2本の行をanchorで引かない。起草時にgrepで確かめた）"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/tsconfig.json",
+        "cwd": ".",
+        "target": "reconstruction/tsconfig.json",
+        "stage": "implementation",
+        "purpose": "src・契約型の型検査とreconstruction/dist/の生成（ownerのworker entryをdistから読む試験があるのでvitestより先）"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/tsconfig.test.json",
+        "cwd": ".",
+        "target": "reconstruction/tsconfig.test.json",
+        "stage": "implementation",
+        "purpose": "test/を含む型検査"
+      },
+      {
+        "command": "./node_modules/.bin/vitest run --config reconstruction/vitest.config.ts",
+        "cwd": ".",
+        "target": "reconstruction/test/",
+        "stage": "implementation",
+        "purpose": "全reconstruction試験（P3-OLB-T01〜T03と既存試験。P2-A3-T10の5本とP3-UWR-T01は期待値を変えずに緑）"
+      },
+      {
+        "command": "./node_modules/.bin/vitest run --config reconstruction/vitest.config.ts --sequence.shuffle",
+        "cwd": ".",
+        "target": "reconstruction/test/",
+        "stage": "implementation",
+        "purpose": "保存の経路に触れるので順序依存を検出する（AGENTS.md）"
+      }
+    ],
+    "artifactRequirements": [
+      "allowed_pathsに限定したgit diff --binary --no-ext-diffのpatch、変更ファイル一覧、requiredCommandsの実行結果、未実行の検証と理由、残存リスク。追加・変更した各試験について受入条件／契約境界／実不具合／corpus履歴のどれに当たるかを1行で書く",
+      "足した仕組みごとに「無いと何が壊れるか」を1行で書く。最低限: 上限の定数と先頭からの切り詰め（AC01）、読むだけの件数の口（AC01・RES-01の検収）、帰属不明をunitの集合で持つこと（AC02）、ackで先頭から消すこと（AC03）。これ以外の型・class・helper module・設定を足さない。OwnerHostのconstructor・handle、OwnerReply・CheckpointMeasurementを変えない",
+      "既存試験の期待値は変えない（P2-A3-T10の5本、P3-UWR-T01の[3, [\"U-W-2\", \"U-W-3\"]]を含む）。試験は1つの振る舞いに1つのitで、T01の3通りは1つのitの中の回でよい。上限の数は試験に契約の値（4,096）で書き、試験のためにowner-host.tsから定数をexportしない。4,096を超える世代はfixture driverのstubで1件の入力から飛ばし、入力を4,096件送らない",
+      "check-contractの想定内のFAILは無い（本契約が編集するowner-host.tsと試験2本の行を引く契約は無い）。FAILが出たら想定外として報告する（P3-UNIT-WRITE-RIGHT-001の先例の文に倣い、合流でanchorが動く契約があれば統合担当が同じcommitで直す）",
+      "残存リスクとして書く: (1) 上限の外の保存は測定の記録に古い入力IDが残らず、欠けの印も無い（OVERFLOW=A）。測定の外の長い停止の後のE10相当の帰属は弱くなる (2) Piでの1項目の大きさと和集合の時間は未測定（Macで約140B・4,096項目の和集合約0.1ms） (3) ackの間隔（3秒）に上がる世代の上界は証明していないので、測定の中で切り詰めが起きないことは保証しない（起きるのは保存が止まったときで、その測定はE14で不成立） (4) I/Oが戻らないunitは再起動まで保存されない（P3-UWR-AC05のまま。記録は伸びなくなる） (5) C7（P3-UNIT-Q-001）とallowedPathsの試験2本が重なる。合流は本契約が先（Q-OLB-BASE）"
+    ],
+    "unresolvedQuestions": [
+      {
+        "id": "Q-OLB-AUTHOR-RULING",
+        "owner": "user",
+        "blocks": [
+          "baseOidの割当",
+          "P3-OLB-AC04"
+        ],
+        "resolveBy": "本契約の発注前点検",
+        "requiredEvidence": [
+          "P3-OLB-OVERFLOWの裁定（A/B/C）"
+        ]
+      },
+      {
+        "id": "Q-OLB-BASE",
+        "owner": "integrator",
+        "blocks": [
+          "実装の着手"
+        ],
+        "resolveBy": "本契約の発注前点検",
+        "requiredEvidence": [
+          "baseOidの割当（起草は5ae33089）",
+          "割当の時点で本契約のanchorと、Q-OLB-CODE-READの行を読み替える",
+          "計画§9の台帳67の行を本契約のIDへ改める（統合担当）",
+          "AC05の改める4件（P2-A3-AC10の和集合の固定、P3-UWR-AC05とP3-UWR-T01、P3-UNIT-WRITE-RIGHT-001の残存リスク(3)、P2-EEW-E01のE15の相関）の上限の外のsupersedeを、計画§9の台帳67の行と構造的欠陥台帳に記録する（統合担当、発注前点検のcommitで）",
+          "C7（P3-UNIT-Q-001、p3-seismic-unit.json）のallowedPathsはreview-regressions.test.ts・unit-write-right.test.ts・owner-harness.ts・owner-runtime.tsを含み、本契約の試験2本と重なる（事実）。合流は本契約が先（C7は作者裁定待ちで、本契約のほうが小さい）。C7が先に入ったら、persistenceUnitsにU-Qを足し、記録の大きさを「5 unitで約2.9MB」と読み替える"
+        ]
+      }
+    ]
+  }
+}
