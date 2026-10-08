@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "5ae33089defe69954857bd3ad5bdcc11ccb8196f",
-    "sha256": "64fe518dc5b3b549f36da16328d391145ca446eccb3c7e93bd98bbc166d0f208",
+    "sha256": "db2ac5863e2c088ebcf4d6f303334d945b546d4fe871cbbe6732d86732fdf6b1",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "226b73cbfb4e769c89d2b1327fcbd8067a47887303527a2893592fba47176235",
     "sequencesSha256": "79769d888ff5f429e4bd370a6a88ccb30611b5ee2a1e7b12d25d58f215cbfbd3",
@@ -14,8 +14,7 @@
         "C": "Aに加えて、切り詰めが始まったときunitごとに1件のWARN診断（新しいreason）を出す。製品の診断の語彙が増え、persistent-diagnostic-sinkと表示の語彙に波及する",
         "recommended": "A",
         "provisional": "A",
-        "status": "起草案",
-        "ruling": "作者裁定待ち（起草案）",
+        "ruling": "作者裁定A（2026-10-09、推奨どおり）",
         "reason": "見え方の違い: どの案でも、長い停止の後に保存されないものは無い（inputIdsは保存物に入らない。envelopeはschemaVersion・unit・generation・capturedAt・payloadだけ）。今は停止が長いほど記録が伸び、復帰後の保存に全区間の入力IDが載る。Aでは上限を超えた古い入力IDが測定の記録から黙って消え、製品の画面・診断・保存は今と同じ。Bでは測定の記録に欠けの件数が残る。Cでは診断のlogに切り詰めの1行が増える。推奨はA: 製品ではinputIdsは測定の記録にしか届かず（host.tsはobserveが無ければ捨てる）、切り詰めが起きるのはackが止まって未保存の世代が4,096を超えたときだけで、その停止は既存の診断（3秒のcheckpointOverdue、10秒のcheckpointUncertain）で見えている。「測定の中では起きない」は証明しきれないので推奨の理由に入れない（P3-OLB-CAPの理由）。B・Cを選ぶ場合の注意: Bの「捨てた世代の項目の数」と「失われた一意の入力IDの数」は別物（[]の項目は数えても入力IDを失わない。同じIDが残る世代にもあれば失われない）なので、どちらを数えるかを裁定で決める。CのWARNは「runの中でunitごとに1回」か「切り詰めの再開ごと（ackで上限の内側に戻った後にまた超えるたび）」かを裁定で決める。作者に訊く理由: P2-A3-AC10の「capture時は未保存区間の和集合を固定する」（作者が承認したP2の約束）を上限の外で緩める（本契約のAC05）"
       },
       {
@@ -354,8 +353,8 @@
         "requiredEvidence": [
           "baseOidの割当（起草は5ae33089）",
           "割当の時点で本契約のanchorと、Q-OLB-CODE-READの行を読み替える",
-          "計画§9の台帳67の行を本契約のIDへ改める（統合担当）",
-          "AC05の改める4件（P2-A3-AC10の和集合の固定、P3-UWR-AC05とP3-UWR-T01、P3-UNIT-WRITE-RIGHT-001の残存リスク(3)、P2-EEW-E01のE15の相関）の上限の外のsupersedeを、計画§9の台帳67の行と構造的欠陥台帳に記録する（統合担当、発注前点検のcommitで）",
+          "計画§9の台帳67の行を本契約のIDへ改める（統合担当）。済（2026-10-09 発注前点検）",
+          "AC05の改める4件（P2-A3-AC10の和集合の固定、P3-UWR-AC05とP3-UWR-T01、P3-UNIT-WRITE-RIGHT-001の残存リスク(3)、P2-EEW-E01のE15の相関）の上限の外のsupersedeを、計画§9の台帳67の行と構造的欠陥台帳に記録する（統合担当、発注前点検のcommitで）。済（2026-10-09 発注前点検、計画§9と台帳67）",
           "C7（P3-UNIT-Q-001、p3-seismic-unit.json）のallowedPathsはreview-regressions.test.ts・unit-write-right.test.ts・owner-harness.ts・owner-runtime.tsを含み、本契約の試験2本と重なる（事実）。合流は本契約が先（C7は作者裁定待ちで、本契約のほうが小さい）。C7が先に入ったら、persistenceUnitsにU-Qを足し、記録の大きさを「5 unitで約2.9MB」と読み替える"
         ]
       }
