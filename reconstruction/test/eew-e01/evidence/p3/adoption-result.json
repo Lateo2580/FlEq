@@ -1,0 +1,918 @@
+{
+  "schemaVersion": "p3-c4-adoption-v1",
+  "baseManifestId": "p3-c4-formal-20261007",
+  "resultSha256": "7a18f34bfe94dae47b10e3a2752364e1608fb882539213dbd2325b0e910b248d",
+  "verdict": {
+    "label": "P3 E01",
+    "status": "Pass",
+    "populations": {
+      "fixedBacklog": "Pass",
+      "maxVpws50ParseStarted": "Pass",
+      "maxWeatherCheckpointEncodeStarted": "Pass",
+      "maxForecastCheckpointSave": "Pass",
+      "forecastDeadlineOverlap": "Pass",
+      "maxVpws50ReceivedThenEew": "reference"
+    },
+    "evidenceRefs": [
+      "reconstruction/test/eew-e01/evidence/windows/p3-c4-formal-20261007/e01-fixedBacklog-run1.json (p3-c4-formal-20261007, 26952c87168d9a27eec505348b4f8df514cb4d93bcec85860181684b960ab085)",
+      "reconstruction/test/eew-e01/evidence/windows/p3-c4-formal-20261007/e01-fixedBacklog-run2.json (p3-c4-formal-20261007, 759019213d4d89eb8d7c1d27293b3de244e437d2cc2a0b77ef346f88c9d2e6a6)",
+      "reconstruction/test/eew-e01/evidence/windows/p3-c4-formal-20261007/e01-fixedBacklog-run3.json (p3-c4-formal-20261007, d67bb6ea8b744b83dad2079e83fb2178edfb35e23907ec9f7316b7ca89c5c0a0)",
+      "reconstruction/test/eew-e01/evidence/windows/p3-c4-formal-20261007/e01-maxForecastCheckpointSave-run1.json (p3-c4-formal-20261007, 172c2896c86c865b7356af05beae830485589ca247ae936fced6ab13d60c2ca8)",
+      "reconstruction/test/eew-e01/evidence/windows/p3-c4-formal-20261007/e01-maxForecastCheckpointSave-run2.json (p3-c4-formal-20261007, b1b4bfba3603e4579915d4009d8fe345fe0a75b5dc1d9e76b4994e8dc0d9bfa3)",
+      "reconstruction/test/eew-e01/evidence/windows/p3-c4-formal-20261007/e01-maxForecastCheckpointSave-run3.json (p3-c4-formal-20261007, 92f72cf164bd462c616f161e42a013e0c55eee6b012294dd97118e2bc1db23ed)",
+      "reconstruction/test/eew-e01/evidence/windows/p3-c4-formal-20261007/e01-maxVpws50ParseStarted-run1.json (p3-c4-formal-20261007, 5a9fdb90ff8bcc877f8edc0630da2f1605a88104b252e5626dac7b93f32652b2)",
+      "reconstruction/test/eew-e01/evidence/windows/p3-c4-formal-20261007/e01-maxVpws50ParseStarted-run2.json (p3-c4-formal-20261007, 0612305ed24fab1a2dfae107b24aa0f2abfc6b5ecb9d58f40aed3d57e2597ae6)",
+      "reconstruction/test/eew-e01/evidence/windows/p3-c4-formal-20261007/e01-maxVpws50ParseStarted-run3.json (p3-c4-formal-20261007, 529f4a548a553fca907e419cb398cb4686f0db6bf44c48006ee760a0fba6791a)",
+      "reconstruction/test/eew-e01/evidence/windows/p3-c4-formal-20261007/e01-maxVpws50ReceivedThenEew-run1.json (p3-c4-formal-20261007, 5ee81e268f5f04ff236cd1e408fc2aeb05213436b638a6f4ab1dc40329a4c638)",
+      "reconstruction/test/eew-e01/evidence/windows/p3-c4-formal-20261007/e01-maxWeatherCheckpointEncodeStarted-run1.json (p3-c4-formal-20261007, bbf628fb46dee6ba6652bf13e13e6ad2f96f574d995eb10792b928d172b2d167)",
+      "reconstruction/test/eew-e01/evidence/windows/p3-c4-formal-20261007/e01-maxWeatherCheckpointEncodeStarted-run2.json (p3-c4-formal-20261007, 740a542c4cc98e675f4cbead1674cd045fe5eb2e3bb5b2b5ecc5e09c9ea545bc)",
+      "reconstruction/test/eew-e01/evidence/windows/p3-c4-formal-20261007/e01-maxWeatherCheckpointEncodeStarted-run3.json (p3-c4-formal-20261007, 2c15a153ae001fce79d935b51920c1de0b0c88b6fd1b2e033858939f003f5754)",
+      "reconstruction/test/eew-e01/evidence/windows/p3-c4-formal-deadline-20261008/e01-forecastDeadlineOverlap-run1.json (p3-c4-formal-deadline-20261008, a6f0ae04ce6d7f68522a7ac174c3aecc0425120b56d8df5d9ac2b13218a7aa93)",
+      "reconstruction/test/eew-e01/evidence/windows/p3-c4-formal-deadline-20261008/e01-forecastDeadlineOverlap-run2.json (p3-c4-formal-deadline-20261008, 496a791d45633d89c994e948826dab7edf6615bf8b7f28d047c5e4b453084ff0)",
+      "reconstruction/test/eew-e01/evidence/windows/p3-c4-formal-deadline-20261008/e01-forecastDeadlineOverlap-run3.json (p3-c4-formal-deadline-20261008, e6244ddec66f43fc162ea5d2b28879d2f7c734f431ffefaf2552deddf44c37b7)"
+    ]
+  },
+  "rows": [
+    {
+      "window": "ac15",
+      "manifestId": "p3-c4-formal-20261007",
+      "manifestSha256": "3edb1aaed272a09ad21142cc06fcd99074b1e70f2a16f68a4ac4864b2565b05c",
+      "recordPath": "reconstruction/test/eew-e01/evidence/windows/p3-c4-formal-20261007/ac15.json",
+      "recordSha256": "537e41a469b5a533350d6d42f2917e4f59c16526436fff444c26ae3d97e3a044",
+      "attempts": [
+        {
+          "attempt": 1,
+          "status": "Pass",
+          "recordPath": "reconstruction/test/eew-e01/evidence/windows/p3-c4-formal-20261007/ac15.json"
+        }
+      ]
+    },
+    {
+      "window": "e01-fixedBacklog-run1",
+      "manifestId": "p3-c4-formal-20261007",
+      "manifestSha256": "3edb1aaed272a09ad21142cc06fcd99074b1e70f2a16f68a4ac4864b2565b05c",
+      "recordPath": "reconstruction/test/eew-e01/evidence/windows/p3-c4-formal-20261007/e01-fixedBacklog-run1.json",
+      "recordSha256": "26952c87168d9a27eec505348b4f8df514cb4d93bcec85860181684b960ab085",
+      "attempts": [
+        {
+          "attempt": 1,
+          "status": "Pass",
+          "recordPath": "reconstruction/test/eew-e01/evidence/windows/p3-c4-formal-20261007/e01-fixedBacklog-run1.json"
+        }
+      ]
+    },
+    {
+      "window": "e01-fixedBacklog-run2",
+      "manifestId": "p3-c4-formal-20261007",
+      "manifestSha256": "3edb1aaed272a09ad21142cc06fcd99074b1e70f2a16f68a4ac4864b2565b05c",
+      "recordPath": "reconstruction/test/eew-e01/evidence/windows/p3-c4-formal-20261007/e01-fixedBacklog-run2.json",
+      "recordSha256": "759019213d4d89eb8d7c1d27293b3de244e437d2cc2a0b77ef346f88c9d2e6a6",
+      "attempts": [
+        {
+          "attempt": 1,
+          "status": "Pass",
+          "recordPath": "reconstruction/test/eew-e01/evidence/windows/p3-c4-formal-20261007/e01-fixedBacklog-run2.json"
+        }
+      ]
+    },
+    {
+      "window": "e01-fixedBacklog-run3",
+      "manifestId": "p3-c4-formal-20261007",
+      "manifestSha256": "3edb1aaed272a09ad21142cc06fcd99074b1e70f2a16f68a4ac4864b2565b05c",
+      "recordPath": "reconstruction/test/eew-e01/evidence/windows/p3-c4-formal-20261007/e01-fixedBacklog-run3.json",
+      "recordSha256": "d67bb6ea8b744b83dad2079e83fb2178edfb35e23907ec9f7316b7ca89c5c0a0",
+      "attempts": [
+        {
+          "attempt": 1,
+          "status": "Pass",
+          "recordPath": "reconstruction/test/eew-e01/evidence/windows/p3-c4-formal-20261007/e01-fixedBacklog-run3.json"
+        }
+      ]
+    },
+    {
+      "window": "e01-maxForecastCheckpointSave-run1",
+      "manifestId": "p3-c4-formal-20261007",
+      "manifestSha256": "3edb1aaed272a09ad21142cc06fcd99074b1e70f2a16f68a4ac4864b2565b05c",
+      "recordPath": "reconstruction/test/eew-e01/evidence/windows/p3-c4-formal-20261007/e01-maxForecastCheckpointSave-run1.json",
+      "recordSha256": "172c2896c86c865b7356af05beae830485589ca247ae936fced6ab13d60c2ca8",
+      "attempts": [
+        {
+          "attempt": 1,
+          "status": "Pass",
+          "recordPath": "reconstruction/test/eew-e01/evidence/windows/p3-c4-formal-20261007/e01-maxForecastCheckpointSave-run1.json"
+        }
+      ]
+    },
+    {
+      "window": "e01-maxForecastCheckpointSave-run2",
+      "manifestId": "p3-c4-formal-20261007",
+      "manifestSha256": "3edb1aaed272a09ad21142cc06fcd99074b1e70f2a16f68a4ac4864b2565b05c",
+      "recordPath": "reconstruction/test/eew-e01/evidence/windows/p3-c4-formal-20261007/e01-maxForecastCheckpointSave-run2.json",
+      "recordSha256": "b1b4bfba3603e4579915d4009d8fe345fe0a75b5dc1d9e76b4994e8dc0d9bfa3",
+      "attempts": [
+        {
+          "attempt": 1,
+          "status": "Pass",
+          "recordPath": "reconstruction/test/eew-e01/evidence/windows/p3-c4-formal-20261007/e01-maxForecastCheckpointSave-run2.json"
+        }
+      ]
+    },
+    {
+      "window": "e01-maxForecastCheckpointSave-run3",
+      "manifestId": "p3-c4-formal-20261007",
+      "manifestSha256": "3edb1aaed272a09ad21142cc06fcd99074b1e70f2a16f68a4ac4864b2565b05c",
+      "recordPath": "reconstruction/test/eew-e01/evidence/windows/p3-c4-formal-20261007/e01-maxForecastCheckpointSave-run3.json",
+      "recordSha256": "92f72cf164bd462c616f161e42a013e0c55eee6b012294dd97118e2bc1db23ed",
+      "attempts": [
+        {
+          "attempt": 1,
+          "status": "Pass",
+          "recordPath": "reconstruction/test/eew-e01/evidence/windows/p3-c4-formal-20261007/e01-maxForecastCheckpointSave-run3.json"
+        }
+      ]
+    },
+    {
+      "window": "e01-maxVpws50ParseStarted-run1",
+      "manifestId": "p3-c4-formal-20261007",
+      "manifestSha256": "3edb1aaed272a09ad21142cc06fcd99074b1e70f2a16f68a4ac4864b2565b05c",
+      "recordPath": "reconstruction/test/eew-e01/evidence/windows/p3-c4-formal-20261007/e01-maxVpws50ParseStarted-run1.json",
+      "recordSha256": "5a9fdb90ff8bcc877f8edc0630da2f1605a88104b252e5626dac7b93f32652b2",
+      "attempts": [
+        {
+          "attempt": 1,
+          "status": "Pass",
+          "recordPath": "reconstruction/test/eew-e01/evidence/windows/p3-c4-formal-20261007/e01-maxVpws50ParseStarted-run1.json"
+        }
+      ]
+    },
+    {
+      "window": "e01-maxVpws50ParseStarted-run2",
+      "manifestId": "p3-c4-formal-20261007",
+      "manifestSha256": "3edb1aaed272a09ad21142cc06fcd99074b1e70f2a16f68a4ac4864b2565b05c",
+      "recordPath": "reconstruction/test/eew-e01/evidence/windows/p3-c4-formal-20261007/e01-maxVpws50ParseStarted-run2.json",
+      "recordSha256": "0612305ed24fab1a2dfae107b24aa0f2abfc6b5ecb9d58f40aed3d57e2597ae6",
+      "attempts": [
+        {
+          "attempt": 1,
+          "status": "Pass",
+          "recordPath": "reconstruction/test/eew-e01/evidence/windows/p3-c4-formal-20261007/e01-maxVpws50ParseStarted-run2.json"
+        }
+      ]
+    },
+    {
+      "window": "e01-maxVpws50ParseStarted-run3",
+      "manifestId": "p3-c4-formal-20261007",
+      "manifestSha256": "3edb1aaed272a09ad21142cc06fcd99074b1e70f2a16f68a4ac4864b2565b05c",
+      "recordPath": "reconstruction/test/eew-e01/evidence/windows/p3-c4-formal-20261007/e01-maxVpws50ParseStarted-run3.json",
+      "recordSha256": "529f4a548a553fca907e419cb398cb4686f0db6bf44c48006ee760a0fba6791a",
+      "attempts": [
+        {
+          "attempt": 1,
+          "status": "Pass",
+          "recordPath": "reconstruction/test/eew-e01/evidence/windows/p3-c4-formal-20261007/e01-maxVpws50ParseStarted-run3.json"
+        }
+      ]
+    },
+    {
+      "window": "e01-maxVpws50ReceivedThenEew-run1",
+      "manifestId": "p3-c4-formal-20261007",
+      "manifestSha256": "3edb1aaed272a09ad21142cc06fcd99074b1e70f2a16f68a4ac4864b2565b05c",
+      "recordPath": "reconstruction/test/eew-e01/evidence/windows/p3-c4-formal-20261007/e01-maxVpws50ReceivedThenEew-run1.json",
+      "recordSha256": "5ee81e268f5f04ff236cd1e408fc2aeb05213436b638a6f4ab1dc40329a4c638",
+      "attempts": [
+        {
+          "attempt": 1,
+          "status": "Pass",
+          "recordPath": "reconstruction/test/eew-e01/evidence/windows/p3-c4-formal-20261007/e01-maxVpws50ReceivedThenEew-run1.json"
+        }
+      ]
+    },
+    {
+      "window": "e01-maxWeatherCheckpointEncodeStarted-run1",
+      "manifestId": "p3-c4-formal-20261007",
+      "manifestSha256": "3edb1aaed272a09ad21142cc06fcd99074b1e70f2a16f68a4ac4864b2565b05c",
+      "recordPath": "reconstruction/test/eew-e01/evidence/windows/p3-c4-formal-20261007/e01-maxWeatherCheckpointEncodeStarted-run1.json",
+      "recordSha256": "bbf628fb46dee6ba6652bf13e13e6ad2f96f574d995eb10792b928d172b2d167",
+      "attempts": [
+        {
+          "attempt": 1,
+          "status": "Pass",
+          "recordPath": "reconstruction/test/eew-e01/evidence/windows/p3-c4-formal-20261007/e01-maxWeatherCheckpointEncodeStarted-run1.json"
+        }
+      ]
+    },
+    {
+      "window": "e01-maxWeatherCheckpointEncodeStarted-run2",
+      "manifestId": "p3-c4-formal-20261007",
+      "manifestSha256": "3edb1aaed272a09ad21142cc06fcd99074b1e70f2a16f68a4ac4864b2565b05c",
+      "recordPath": "reconstruction/test/eew-e01/evidence/windows/p3-c4-formal-20261007/e01-maxWeatherCheckpointEncodeStarted-run2.json",
+      "recordSha256": "740a542c4cc98e675f4cbead1674cd045fe5eb2e3bb5b2b5ecc5e09c9ea545bc",
+      "attempts": [
+        {
+          "attempt": 1,
+          "status": "Pass",
+          "recordPath": "reconstruction/test/eew-e01/evidence/windows/p3-c4-formal-20261007/e01-maxWeatherCheckpointEncodeStarted-run2.json"
+        }
+      ]
+    },
+    {
+      "window": "e01-maxWeatherCheckpointEncodeStarted-run3",
+      "manifestId": "p3-c4-formal-20261007",
+      "manifestSha256": "3edb1aaed272a09ad21142cc06fcd99074b1e70f2a16f68a4ac4864b2565b05c",
+      "recordPath": "reconstruction/test/eew-e01/evidence/windows/p3-c4-formal-20261007/e01-maxWeatherCheckpointEncodeStarted-run3.json",
+      "recordSha256": "2c15a153ae001fce79d935b51920c1de0b0c88b6fd1b2e033858939f003f5754",
+      "attempts": [
+        {
+          "attempt": 1,
+          "status": "Pass",
+          "recordPath": "reconstruction/test/eew-e01/evidence/windows/p3-c4-formal-20261007/e01-maxWeatherCheckpointEncodeStarted-run3.json"
+        }
+      ]
+    },
+    {
+      "window": "e02-N-run1",
+      "manifestId": "p3-c4-formal-20261007",
+      "manifestSha256": "3edb1aaed272a09ad21142cc06fcd99074b1e70f2a16f68a4ac4864b2565b05c",
+      "recordPath": "reconstruction/test/eew-e01/evidence/windows/p3-c4-formal-20261007/e02-N-run1.json",
+      "recordSha256": "3fda758703b856f3ce57509870d4162354e476ded7cf255d7f67c834ed47adc6",
+      "attempts": [
+        {
+          "attempt": 1,
+          "status": "Pass",
+          "recordPath": "reconstruction/test/eew-e01/evidence/windows/p3-c4-formal-20261007/e02-N-run1.json"
+        }
+      ]
+    },
+    {
+      "window": "e02-N-run2",
+      "manifestId": "p3-c4-formal-20261007",
+      "manifestSha256": "3edb1aaed272a09ad21142cc06fcd99074b1e70f2a16f68a4ac4864b2565b05c",
+      "recordPath": "reconstruction/test/eew-e01/evidence/windows/p3-c4-formal-20261007/e02-N-run2.json",
+      "recordSha256": "e7f96861791d83dcd268ea49daeff641dd2c79f7a8484b8a3d8e6faf1054d0bc",
+      "attempts": [
+        {
+          "attempt": 1,
+          "status": "Pass",
+          "recordPath": "reconstruction/test/eew-e01/evidence/windows/p3-c4-formal-20261007/e02-N-run2.json"
+        }
+      ]
+    },
+    {
+      "window": "e02-N-run3",
+      "manifestId": "p3-c4-formal-20261007",
+      "manifestSha256": "3edb1aaed272a09ad21142cc06fcd99074b1e70f2a16f68a4ac4864b2565b05c",
+      "recordPath": "reconstruction/test/eew-e01/evidence/windows/p3-c4-formal-20261007/e02-N-run3.json",
+      "recordSha256": "005cbee9cea74c321df6c97d11880601f41d12e0a235aafdc4a70d25a047f5e8",
+      "attempts": [
+        {
+          "attempt": 1,
+          "status": "Pass",
+          "recordPath": "reconstruction/test/eew-e01/evidence/windows/p3-c4-formal-20261007/e02-N-run3.json"
+        }
+      ]
+    },
+    {
+      "window": "e02-P-run1",
+      "manifestId": "p3-c4-formal-20261007",
+      "manifestSha256": "3edb1aaed272a09ad21142cc06fcd99074b1e70f2a16f68a4ac4864b2565b05c",
+      "recordPath": "reconstruction/test/eew-e01/evidence/windows/p3-c4-formal-20261007/e02-P-run1.json",
+      "recordSha256": "242955abd151b448fb9d30bd127c82690384a1f253160c0e54c7d3f1e6bb3611",
+      "attempts": [
+        {
+          "attempt": 1,
+          "status": "Pass",
+          "recordPath": "reconstruction/test/eew-e01/evidence/windows/p3-c4-formal-20261007/e02-P-run1.json"
+        }
+      ]
+    },
+    {
+      "window": "e02-P-run2",
+      "manifestId": "p3-c4-formal-20261007",
+      "manifestSha256": "3edb1aaed272a09ad21142cc06fcd99074b1e70f2a16f68a4ac4864b2565b05c",
+      "recordPath": "reconstruction/test/eew-e01/evidence/windows/p3-c4-formal-20261007/e02-P-run2.json",
+      "recordSha256": "f6c69a754041243a1dfaaab45d53e401da1a28d3cff800e12f5d813f5d63a769",
+      "attempts": [
+        {
+          "attempt": 1,
+          "status": "Pass",
+          "recordPath": "reconstruction/test/eew-e01/evidence/windows/p3-c4-formal-20261007/e02-P-run2.json"
+        }
+      ]
+    },
+    {
+      "window": "e02-P-run3",
+      "manifestId": "p3-c4-formal-20261007",
+      "manifestSha256": "3edb1aaed272a09ad21142cc06fcd99074b1e70f2a16f68a4ac4864b2565b05c",
+      "recordPath": "reconstruction/test/eew-e01/evidence/windows/p3-c4-formal-20261007/e02-P-run3.json",
+      "recordSha256": "02cae7d12b3cc4c82b23c7e22ceb3823c1d3892e1a628ad3cec73442e5bb7641",
+      "attempts": [
+        {
+          "attempt": 1,
+          "status": "Pass",
+          "recordPath": "reconstruction/test/eew-e01/evidence/windows/p3-c4-formal-20261007/e02-P-run3.json"
+        }
+      ]
+    },
+    {
+      "window": "e03-run1",
+      "manifestId": "p3-c4-formal-20261007",
+      "manifestSha256": "3edb1aaed272a09ad21142cc06fcd99074b1e70f2a16f68a4ac4864b2565b05c",
+      "recordPath": "reconstruction/test/eew-e01/evidence/windows/p3-c4-formal-20261007/e03-run1.json",
+      "recordSha256": "a744852c8f18fbeb15e22b40175f2115a6c5adc2a66d96d691c69d7fbf393e8f",
+      "attempts": [
+        {
+          "attempt": 1,
+          "status": "Pass",
+          "recordPath": "reconstruction/test/eew-e01/evidence/windows/p3-c4-formal-20261007/e03-run1.json"
+        }
+      ]
+    },
+    {
+      "window": "e03-run2",
+      "manifestId": "p3-c4-formal-20261007",
+      "manifestSha256": "3edb1aaed272a09ad21142cc06fcd99074b1e70f2a16f68a4ac4864b2565b05c",
+      "recordPath": "reconstruction/test/eew-e01/evidence/windows/p3-c4-formal-20261007/e03-run2.json",
+      "recordSha256": "7c5158dec9c49ed8095a6336aa2104aac14f30a7a744e01f72caefeb0accc5a9",
+      "attempts": [
+        {
+          "attempt": 1,
+          "status": "Pass",
+          "recordPath": "reconstruction/test/eew-e01/evidence/windows/p3-c4-formal-20261007/e03-run2.json"
+        }
+      ]
+    },
+    {
+      "window": "e03-run3",
+      "manifestId": "p3-c4-formal-20261007",
+      "manifestSha256": "3edb1aaed272a09ad21142cc06fcd99074b1e70f2a16f68a4ac4864b2565b05c",
+      "recordPath": "reconstruction/test/eew-e01/evidence/windows/p3-c4-formal-20261007/e03-run3.json",
+      "recordSha256": "013e726c0594a0ee5298b23ead549d3c06344e31d5e44d45fdb57c1d9d233b3b",
+      "attempts": [
+        {
+          "attempt": 1,
+          "status": "Pass",
+          "recordPath": "reconstruction/test/eew-e01/evidence/windows/p3-c4-formal-20261007/e03-run3.json"
+        }
+      ]
+    },
+    {
+      "window": "e06",
+      "manifestId": "p3-c4-formal-20261007",
+      "manifestSha256": "3edb1aaed272a09ad21142cc06fcd99074b1e70f2a16f68a4ac4864b2565b05c",
+      "recordPath": "reconstruction/test/eew-e01/evidence/windows/p3-c4-formal-20261007/e06.json",
+      "recordSha256": "c7dc1389b82d2f10f0dd450438d19f02c753a3e00c84741bf68a5fb4e81fbc7c",
+      "attempts": [
+        {
+          "attempt": 1,
+          "status": "N/A",
+          "recordPath": "reconstruction/test/eew-e01/evidence/windows/p3-c4-formal-20261007/e06.json"
+        }
+      ]
+    },
+    {
+      "window": "e07-C",
+      "manifestId": "p3-c4-formal-20261007",
+      "manifestSha256": "3edb1aaed272a09ad21142cc06fcd99074b1e70f2a16f68a4ac4864b2565b05c",
+      "recordPath": "reconstruction/test/eew-e01/evidence/windows/p3-c4-formal-20261007/e07-C.json",
+      "recordSha256": "4b2f73c3d7e16d8d7204a9c70b272303ec46a1b1ee13e5b1f592a0faa7037309",
+      "attempts": [
+        {
+          "attempt": 1,
+          "status": "Pass",
+          "recordPath": "reconstruction/test/eew-e01/evidence/windows/p3-c4-formal-20261007/e07-C.json"
+        }
+      ]
+    },
+    {
+      "window": "e07-N",
+      "manifestId": "p3-c4-formal-20261007",
+      "manifestSha256": "3edb1aaed272a09ad21142cc06fcd99074b1e70f2a16f68a4ac4864b2565b05c",
+      "recordPath": "reconstruction/test/eew-e01/evidence/windows/p3-c4-formal-20261007/e07-N.json",
+      "recordSha256": "e4513e0dbe95433373a30eda88bfafaf6cdc8946eaa9b2f4151fd2958c312eae",
+      "attempts": [
+        {
+          "attempt": 1,
+          "status": "Pass",
+          "recordPath": "reconstruction/test/eew-e01/evidence/windows/p3-c4-formal-20261007/e07-N.json"
+        }
+      ]
+    },
+    {
+      "window": "e12-large-run1",
+      "manifestId": "p3-c4-formal-20261007",
+      "manifestSha256": "3edb1aaed272a09ad21142cc06fcd99074b1e70f2a16f68a4ac4864b2565b05c",
+      "recordPath": "reconstruction/test/eew-e01/evidence/windows/p3-c4-formal-20261007/e12-large-run1.json",
+      "recordSha256": "f12e8b78109e19b4eb4727db82225b2df462abe3ec276f7188da681eaf6e3aba",
+      "attempts": [
+        {
+          "attempt": 1,
+          "status": "N/A",
+          "recordPath": "reconstruction/test/eew-e01/evidence/windows/p3-c4-formal-20261007/e12-large-run1.json"
+        }
+      ]
+    },
+    {
+      "window": "e12-large-run2",
+      "manifestId": "p3-c4-formal-20261007",
+      "manifestSha256": "3edb1aaed272a09ad21142cc06fcd99074b1e70f2a16f68a4ac4864b2565b05c",
+      "recordPath": "reconstruction/test/eew-e01/evidence/windows/p3-c4-formal-20261007/e12-large-run2.json",
+      "recordSha256": "cc3b1b6f0ad98ff07e512d731f60d897fa7838557c6f0b019456566d413aed71",
+      "attempts": [
+        {
+          "attempt": 1,
+          "status": "N/A",
+          "recordPath": "reconstruction/test/eew-e01/evidence/windows/p3-c4-formal-20261007/e12-large-run2.json"
+        }
+      ]
+    },
+    {
+      "window": "e12-large-run3",
+      "manifestId": "p3-c4-formal-20261007",
+      "manifestSha256": "3edb1aaed272a09ad21142cc06fcd99074b1e70f2a16f68a4ac4864b2565b05c",
+      "recordPath": "reconstruction/test/eew-e01/evidence/windows/p3-c4-formal-20261007/e12-large-run3.json",
+      "recordSha256": "53c7835cf9e67f7514f1562425d2a9e9fe7eb1848edf820d9d3b5e4d52be7171",
+      "attempts": [
+        {
+          "attempt": 1,
+          "status": "N/A",
+          "recordPath": "reconstruction/test/eew-e01/evidence/windows/p3-c4-formal-20261007/e12-large-run3.json"
+        }
+      ]
+    },
+    {
+      "window": "e12-max-run1",
+      "manifestId": "p3-c4-formal-20261007",
+      "manifestSha256": "3edb1aaed272a09ad21142cc06fcd99074b1e70f2a16f68a4ac4864b2565b05c",
+      "recordPath": "reconstruction/test/eew-e01/evidence/windows/p3-c4-formal-20261007/e12-max-run1.json",
+      "recordSha256": "ed92d00e2b8554d8a112cc82b2e888704226fd44402f3695aabd572a3b1d5640",
+      "attempts": [
+        {
+          "attempt": 1,
+          "status": "N/A",
+          "recordPath": "reconstruction/test/eew-e01/evidence/windows/p3-c4-formal-20261007/e12-max-run1.json"
+        }
+      ]
+    },
+    {
+      "window": "e12-max-run2",
+      "manifestId": "p3-c4-formal-20261007",
+      "manifestSha256": "3edb1aaed272a09ad21142cc06fcd99074b1e70f2a16f68a4ac4864b2565b05c",
+      "recordPath": "reconstruction/test/eew-e01/evidence/windows/p3-c4-formal-20261007/e12-max-run2.json",
+      "recordSha256": "b05126e96e1eacd88668235a552ac838f8fcff40d15a27d4750bca6f5ff19efc",
+      "attempts": [
+        {
+          "attempt": 1,
+          "status": "N/A",
+          "recordPath": "reconstruction/test/eew-e01/evidence/windows/p3-c4-formal-20261007/e12-max-run2.json"
+        }
+      ]
+    },
+    {
+      "window": "e12-max-run3",
+      "manifestId": "p3-c4-formal-20261007",
+      "manifestSha256": "3edb1aaed272a09ad21142cc06fcd99074b1e70f2a16f68a4ac4864b2565b05c",
+      "recordPath": "reconstruction/test/eew-e01/evidence/windows/p3-c4-formal-20261007/e12-max-run3.json",
+      "recordSha256": "cd42a10e80ed789604007f393ab0c58869d51e0d3a130175856bc4b6346c0be8",
+      "attempts": [
+        {
+          "attempt": 1,
+          "status": "N/A",
+          "recordPath": "reconstruction/test/eew-e01/evidence/windows/p3-c4-formal-20261007/e12-max-run3.json"
+        }
+      ]
+    },
+    {
+      "window": "e12-small-run1",
+      "manifestId": "p3-c4-formal-20261007",
+      "manifestSha256": "3edb1aaed272a09ad21142cc06fcd99074b1e70f2a16f68a4ac4864b2565b05c",
+      "recordPath": "reconstruction/test/eew-e01/evidence/windows/p3-c4-formal-20261007/e12-small-run1.json",
+      "recordSha256": "7a1ac42aace8a6525a5c0e89f8b6d9ee2fd17d57eadd9cc647e7c6fd10cfe8d0",
+      "attempts": [
+        {
+          "attempt": 1,
+          "status": "N/A",
+          "recordPath": "reconstruction/test/eew-e01/evidence/windows/p3-c4-formal-20261007/e12-small-run1.json"
+        }
+      ]
+    },
+    {
+      "window": "e12-small-run2",
+      "manifestId": "p3-c4-formal-20261007",
+      "manifestSha256": "3edb1aaed272a09ad21142cc06fcd99074b1e70f2a16f68a4ac4864b2565b05c",
+      "recordPath": "reconstruction/test/eew-e01/evidence/windows/p3-c4-formal-20261007/e12-small-run2.json",
+      "recordSha256": "4f852066c6d2bba5a3a22cebfbe0eac2ac8be61914dd10a7c04b505ddff6a0d4",
+      "attempts": [
+        {
+          "attempt": 1,
+          "status": "N/A",
+          "recordPath": "reconstruction/test/eew-e01/evidence/windows/p3-c4-formal-20261007/e12-small-run2.json"
+        }
+      ]
+    },
+    {
+      "window": "e12-small-run3",
+      "manifestId": "p3-c4-formal-20261007",
+      "manifestSha256": "3edb1aaed272a09ad21142cc06fcd99074b1e70f2a16f68a4ac4864b2565b05c",
+      "recordPath": "reconstruction/test/eew-e01/evidence/windows/p3-c4-formal-20261007/e12-small-run3.json",
+      "recordSha256": "08f9ce421a4d9c6ba55aabd9598d47bd165f1288301ee33c933d5be4385c1dae",
+      "attempts": [
+        {
+          "attempt": 1,
+          "status": "N/A",
+          "recordPath": "reconstruction/test/eew-e01/evidence/windows/p3-c4-formal-20261007/e12-small-run3.json"
+        }
+      ]
+    },
+    {
+      "window": "e14-run1",
+      "manifestId": "p3-c4-formal-20261007",
+      "manifestSha256": "3edb1aaed272a09ad21142cc06fcd99074b1e70f2a16f68a4ac4864b2565b05c",
+      "recordPath": "reconstruction/test/eew-e01/evidence/windows/p3-c4-formal-20261007/e14-run1.json",
+      "recordSha256": "c35afebb02f1a98d03246ae1fd2ba36fd57263d2b6196128476b309369011dad",
+      "attempts": [
+        {
+          "attempt": 1,
+          "status": "N/A",
+          "recordPath": "reconstruction/test/eew-e01/evidence/windows/p3-c4-formal-20261007/e14-run1.json"
+        }
+      ]
+    },
+    {
+      "window": "ownerHeap-run1",
+      "manifestId": "p3-c4-formal-20261007",
+      "manifestSha256": "3edb1aaed272a09ad21142cc06fcd99074b1e70f2a16f68a4ac4864b2565b05c",
+      "recordPath": "reconstruction/test/eew-e01/evidence/windows/p3-c4-formal-20261007/ownerHeap-run1.json",
+      "recordSha256": "9334eca893d2648dc1e78be8fba7ba88d1040df133846ecbebd9bb0e7b0272c9",
+      "attempts": [
+        {
+          "attempt": 1,
+          "status": "N/A",
+          "recordPath": "reconstruction/test/eew-e01/evidence/windows/p3-c4-formal-20261007/ownerHeap-run1.json"
+        }
+      ]
+    },
+    {
+      "window": "e01-forecastDeadlineOverlap-run1",
+      "manifestId": "p3-c4-formal-deadline-20261008",
+      "manifestSha256": "2b0c2973f822a2ded7e8ccfe0d4f0bc7874722b9761a9744a6bc0a4387bb40c9",
+      "recordPath": "reconstruction/test/eew-e01/evidence/windows/p3-c4-formal-deadline-20261008/e01-forecastDeadlineOverlap-run1.json",
+      "recordSha256": "a6f0ae04ce6d7f68522a7ac174c3aecc0425120b56d8df5d9ac2b13218a7aa93",
+      "attempts": [
+        {
+          "attempt": 1,
+          "status": "Pass",
+          "recordPath": "reconstruction/test/eew-e01/evidence/windows/p3-c4-formal-deadline-20261008/e01-forecastDeadlineOverlap-run1.json"
+        }
+      ]
+    },
+    {
+      "window": "e01-forecastDeadlineOverlap-run2",
+      "manifestId": "p3-c4-formal-deadline-20261008",
+      "manifestSha256": "2b0c2973f822a2ded7e8ccfe0d4f0bc7874722b9761a9744a6bc0a4387bb40c9",
+      "recordPath": "reconstruction/test/eew-e01/evidence/windows/p3-c4-formal-deadline-20261008/e01-forecastDeadlineOverlap-run2.json",
+      "recordSha256": "496a791d45633d89c994e948826dab7edf6615bf8b7f28d047c5e4b453084ff0",
+      "attempts": [
+        {
+          "attempt": 1,
+          "status": "Pass",
+          "recordPath": "reconstruction/test/eew-e01/evidence/windows/p3-c4-formal-deadline-20261008/e01-forecastDeadlineOverlap-run2.json"
+        }
+      ]
+    },
+    {
+      "window": "e01-forecastDeadlineOverlap-run3",
+      "manifestId": "p3-c4-formal-deadline-20261008",
+      "manifestSha256": "2b0c2973f822a2ded7e8ccfe0d4f0bc7874722b9761a9744a6bc0a4387bb40c9",
+      "recordPath": "reconstruction/test/eew-e01/evidence/windows/p3-c4-formal-deadline-20261008/e01-forecastDeadlineOverlap-run3.json",
+      "recordSha256": "e6244ddec66f43fc162ea5d2b28879d2f7c734f431ffefaf2552deddf44c37b7",
+      "attempts": [
+        {
+          "attempt": 1,
+          "status": "Pass",
+          "recordPath": "reconstruction/test/eew-e01/evidence/windows/p3-c4-formal-deadline-20261008/e01-forecastDeadlineOverlap-run3.json"
+        }
+      ]
+    }
+  ],
+  "manifests": [
+    {
+      "manifestId": "p3-c4-formal-20261007",
+      "path": "reconstruction/test/eew-e01/evidence/p3/manifest.json",
+      "commit": "fc8299dc5791051a01d9051a42f9f0aaf794c265"
+    },
+    {
+      "manifestId": "p3-c4-formal-deadline-20261008",
+      "path": "reconstruction/test/eew-e01/evidence/p3/manifest-deadline.json",
+      "commit": "49d745eff613131fa6b0e3681d019a389d13cd1f",
+      "questionResolution": "Q-C4-DEADLINE-SUBJECT"
+    }
+  ],
+  "manifestDiffs": {
+    "p3-c4-formal-deadline-20261008": [
+      {
+        "path": "manifestId",
+        "base": "p3-c4-formal-20261007",
+        "value": "p3-c4-formal-deadline-20261008"
+      },
+      {
+        "path": "manifestSha256",
+        "base": "3edb1aaed272a09ad21142cc06fcd99074b1e70f2a16f68a4ac4864b2565b05c",
+        "value": "2b0c2973f822a2ded7e8ccfe0d4f0bc7874722b9761a9744a6bc0a4387bb40c9"
+      },
+      {
+        "path": "contractSha256",
+        "base": {
+          "P3-E01-REACCEPT-001": "fb8fba23e1bdf6b04f5864ca46f4f43b618e9fc8eacd6cac4cb5531eaffe0d6c",
+          "P3-EXECUTION-LIFECYCLE-001": "fd19aede1d35a4f7bd81aeeb8cf83c51219d0dba4b3842a8714dfc083e2494f1",
+          "P3-EXECUTION-SPLIT-001": "f38d05a92fd26ffb6e14f42c15db163c114ee33d4a849391d864edd4772e30b1",
+          "P3-DMDATA-CONNECT-001": "108d5e32a3570e0cb340a5d9dcb3a49a4ddd2f2dbc542a38b6ef0931a2135f8a",
+          "P3-CHECKPOINT-STEP1-001": "df63d03e50c535285dacac5a0240d9ccf4b8eda3c2e45f61a64dc232cbf99cb5",
+          "P3-UNIT-TABLE-001": "97b9313bb45b87f5afe73716c2ed1659831b90626f8a4f95bd99857042979672",
+          "P2-EEW-E01-001": "31adff9fafddee671794aa3e8c4ef6ec89a30f54a2f96d3ee446a43bc92a510f",
+          "P2-CHROME-EEW-001": "93538c03f925551cd487ad740512619c432f66b3d03bf1535ce05f9c7d8f873d",
+          "P2-SNAPSHOT-SSE-001": "97778e79af2b3e189ff1e28ae8eaf9b8501dbe4de7208b231322111b971878d6",
+          "P2-CHECKPOINT-SHUTDOWN-001": "a4f11857bbfc4abc226afdde48e11fb8ba27f3d7b3e561fe1011c8abad661511",
+          "P1-PARSER-BOUNDARY-001": "c84ae689233450c31cef294eb23118921adde2445ead30271b5c4b403e9aa9d9"
+        },
+        "value": {
+          "P3-E01-REACCEPT-001": "443073bead27cac4640c82b9199e4d5d58475fda08cb99c24087a8d7d279b8c5",
+          "P3-EXECUTION-LIFECYCLE-001": "fd19aede1d35a4f7bd81aeeb8cf83c51219d0dba4b3842a8714dfc083e2494f1",
+          "P3-EXECUTION-SPLIT-001": "f38d05a92fd26ffb6e14f42c15db163c114ee33d4a849391d864edd4772e30b1",
+          "P3-DMDATA-CONNECT-001": "108d5e32a3570e0cb340a5d9dcb3a49a4ddd2f2dbc542a38b6ef0931a2135f8a",
+          "P3-CHECKPOINT-STEP1-001": "df63d03e50c535285dacac5a0240d9ccf4b8eda3c2e45f61a64dc232cbf99cb5",
+          "P3-UNIT-TABLE-001": "97b9313bb45b87f5afe73716c2ed1659831b90626f8a4f95bd99857042979672",
+          "P2-EEW-E01-001": "31adff9fafddee671794aa3e8c4ef6ec89a30f54a2f96d3ee446a43bc92a510f",
+          "P2-CHROME-EEW-001": "93538c03f925551cd487ad740512619c432f66b3d03bf1535ce05f9c7d8f873d",
+          "P2-SNAPSHOT-SSE-001": "97778e79af2b3e189ff1e28ae8eaf9b8501dbe4de7208b231322111b971878d6",
+          "P2-CHECKPOINT-SHUTDOWN-001": "a4f11857bbfc4abc226afdde48e11fb8ba27f3d7b3e561fe1011c8abad661511",
+          "P1-PARSER-BOUNDARY-001": "c84ae689233450c31cef294eb23118921adde2445ead30271b5c4b403e9aa9d9"
+        }
+      },
+      {
+        "path": "populations.forecastDeadlineOverlap.trigger",
+        "base": "population=forecastDeadlineOverlap; spec=§7.5-3(期限処理); a10=forecastDeadlineOverlap(reference); r61=除外4条件の4; plan=p3-order-plan.md:155; periodMs=3000; validUntil を狙う tick の 1 つ前の tick に VPWP50 81_01_04 を置き、狙う tick の期限回収で起きた U-F の保存の試行全体（encode 開始〜write 完了、span encodeThroughWrite）の開始 1ms 後に EEW を送り、T0 が開始の 0〜5ms 後かつ保存の試行中なら成立。代わりの条件として Q-C4-ALT-CONDITION で 2026-10-07 に固定（元の条件の U-F encode の開始は、期限処理の encode が約 0.3ms で T0 が encode 中に入らず、Mac mini の予備で成立 8.6%）; paintEvidence=PipelineReporter STATE_PRESENTED_ALL; screenshot=corroborating",
+        "value": "population=forecastDeadlineOverlap; spec=§7.5-3(期限処理); a10=forecastDeadlineOverlap(reference); r61=除外4条件の4; plan=p3-order-plan.md:155; periodMs=3000; validUntil を狙う tick の 1 つ前の tick に VPWP50 81_01_04 を置き、狙う tick の期限回収で起きた U-F の保存の試行全体（encode 開始〜write 完了、span encodeThroughWrite）の開始 1ms 後に EEW を送り、T0 が開始の 0〜5ms 後かつ保存の試行中なら成立。代わりの条件として Q-C4-ALT-CONDITION で 2026-10-07 に固定（元の条件の U-F encode の開始は、期限処理の encode が約 0.3ms で T0 が encode 中に入らず、Mac mini の予備で成立 8.6%）。引き金の EditorialOffice は 期限回収官署 に替え、負荷 N・P の 81_01_04 と subject を分ける（Q-C4-DEADLINE-SUBJECT）; paintEvidence=PipelineReporter STATE_PRESENTED_ALL; screenshot=corroborating"
+      }
+    ]
+  },
+  "superseded": [
+    {
+      "window": "e01-forecastDeadlineOverlap-run1",
+      "manifestId": "p3-c4-formal-20261007",
+      "attempt": 1,
+      "recordPath": "reconstruction/test/eew-e01/evidence/windows/p3-c4-formal-20261007/e01-forecastDeadlineOverlap-run1.json",
+      "recordSha256": "5de6908b97a8cc779606c1a5540005af56fb32b5bab4ba3d63238c7997f5c628",
+      "status": "Blocked",
+      "reason": "stopCondition reached: maxDurationMs (attempts 982, established 322)"
+    },
+    {
+      "window": "e01-forecastDeadlineOverlap-run2",
+      "manifestId": "p3-c4-formal-20261007",
+      "attempt": 1,
+      "recordPath": "reconstruction/test/eew-e01/evidence/windows/p3-c4-formal-20261007/e01-forecastDeadlineOverlap-run2.json",
+      "recordSha256": "c90d4848d5255352430e8b2bbb6636e86e85a0146de186244db5e27ce6bdaa9d",
+      "status": "Blocked",
+      "reason": "stopCondition reached: maxDurationMs (attempts 986, established 338)"
+    },
+    {
+      "window": "e01-forecastDeadlineOverlap-run3",
+      "manifestId": "p3-c4-formal-20261007",
+      "attempt": 1,
+      "recordPath": "reconstruction/test/eew-e01/evidence/windows/p3-c4-formal-20261007/e01-forecastDeadlineOverlap-run3.json",
+      "recordSha256": "66bb5904722998b55a4c4ba9746337f7525fb74345f2c70e27c76238c490c117",
+      "status": "Blocked",
+      "reason": "stopCondition reached: maxDurationMs (attempts 982, established 328)"
+    }
+  ],
+  "unusable": {},
+  "backgroundSplit": {
+    "reconstruction/test/eew-e01/evidence/windows/p3-c4-formal-20261007/e01-maxForecastCheckpointSave-run1.json": {
+      "window": "e01-maxForecastCheckpointSave-run1",
+      "status": "Pass",
+      "backgroundVpwp50InjectedHrMs": 154255801.303666,
+      "before": {
+        "attempts": 641,
+        "established": 622,
+        "missing": 0,
+        "p99LowerMs": 47.77524901656434,
+        "p99UpperMs": 48.403959000390024
+      },
+      "after": {
+        "attempts": 385,
+        "established": 378,
+        "missing": 0,
+        "p99LowerMs": 47.6914159973152,
+        "p99UpperMs": 48.61033397112042
+      }
+    },
+    "reconstruction/test/eew-e01/evidence/windows/p3-c4-formal-20261007/e01-maxForecastCheckpointSave-run2.json": {
+      "window": "e01-maxForecastCheckpointSave-run2",
+      "status": "Pass",
+      "backgroundVpwp50InjectedHrMs": 157662124.720416,
+      "before": {
+        "attempts": 641,
+        "established": 623,
+        "missing": 0,
+        "p99LowerMs": 47.73679100917652,
+        "p99UpperMs": 48.712875003833325
+      },
+      "after": {
+        "attempts": 382,
+        "established": 377,
+        "missing": 0,
+        "p99LowerMs": 47.36749901724979,
+        "p99UpperMs": 48.21150002805516
+      }
+    },
+    "reconstruction/test/eew-e01/evidence/windows/p3-c4-formal-20261007/e01-maxForecastCheckpointSave-run3.json": {
+      "window": "e01-maxForecastCheckpointSave-run3",
+      "status": "Pass",
+      "backgroundVpwp50InjectedHrMs": 161055522.832416,
+      "before": {
+        "attempts": 640,
+        "established": 630,
+        "missing": 0,
+        "p99LowerMs": 47.395958005078135,
+        "p99UpperMs": 48.21924998043105
+      },
+      "after": {
+        "attempts": 377,
+        "established": 370,
+        "missing": 0,
+        "p99LowerMs": 47.47591599738225,
+        "p99UpperMs": 48.33320800578222
+      }
+    },
+    "reconstruction/test/eew-e01/evidence/windows/p3-c4-formal-20261007/e01-maxWeatherCheckpointEncodeStarted-run1.json": {
+      "window": "e01-maxWeatherCheckpointEncodeStarted-run1",
+      "status": "Pass",
+      "backgroundVpwp50InjectedHrMs": 144014797.837541,
+      "before": {
+        "attempts": 639,
+        "established": 621,
+        "missing": 0,
+        "p99LowerMs": 50.93545798338018,
+        "p99UpperMs": 51.88641598427203
+      },
+      "after": {
+        "attempts": 387,
+        "established": 379,
+        "missing": 0,
+        "p99LowerMs": 51.745583003014325,
+        "p99UpperMs": 52.71279097525403
+      }
+    },
+    "reconstruction/test/eew-e01/evidence/windows/p3-c4-formal-20261007/e01-maxWeatherCheckpointEncodeStarted-run2.json": {
+      "window": "e01-maxWeatherCheckpointEncodeStarted-run2",
+      "status": "Pass",
+      "backgroundVpwp50InjectedHrMs": 147428680.488458,
+      "before": {
+        "attempts": 639,
+        "established": 623,
+        "missing": 0,
+        "p99LowerMs": 51.76733200756134,
+        "p99UpperMs": 52.44325000253739
+      },
+      "after": {
+        "attempts": 384,
+        "established": 377,
+        "missing": 0,
+        "p99LowerMs": 52.03633297011256,
+        "p99UpperMs": 52.69550000354648
+      }
+    },
+    "reconstruction/test/eew-e01/evidence/windows/p3-c4-formal-20261007/e01-maxWeatherCheckpointEncodeStarted-run3.json": {
+      "window": "e01-maxWeatherCheckpointEncodeStarted-run3",
+      "status": "Pass",
+      "backgroundVpwp50InjectedHrMs": 150833650.360625,
+      "before": {
+        "attempts": 640,
+        "established": 630,
+        "missing": 0,
+        "p99LowerMs": 51.257291038846596,
+        "p99UpperMs": 52.138834001636134
+      },
+      "after": {
+        "attempts": 391,
+        "established": 370,
+        "missing": 0,
+        "p99LowerMs": 51.58170703481883,
+        "p99UpperMs": 52.32766798734665
+      }
+    },
+    "reconstruction/test/eew-e01/evidence/windows/p3-c4-formal-deadline-20261008/e01-forecastDeadlineOverlap-run1.json": {
+      "window": "e01-forecastDeadlineOverlap-run1",
+      "status": "Pass",
+      "backgroundVpwp50InjectedHrMs": 226605387.814291,
+      "before": {
+        "attempts": 476,
+        "established": 290,
+        "missing": 0,
+        "p99LowerMs": 69.5871240491746,
+        "p99UpperMs": 70.58962504218798
+      },
+      "after": {
+        "attempts": 843,
+        "established": 710,
+        "missing": 0,
+        "p99LowerMs": 58.71250002561137,
+        "p99UpperMs": 59.51766696749255
+      }
+    },
+    "reconstruction/test/eew-e01/evidence/windows/p3-c4-formal-deadline-20261008/e01-forecastDeadlineOverlap-run2.json": {
+      "window": "e01-forecastDeadlineOverlap-run2",
+      "status": "Pass",
+      "backgroundVpwp50InjectedHrMs": 232051799.189708,
+      "before": {
+        "attempts": 479,
+        "established": 262,
+        "missing": 0,
+        "p99LowerMs": 66.21508300127462,
+        "p99UpperMs": 66.94774998249486
+      },
+      "after": {
+        "attempts": 921,
+        "established": 738,
+        "missing": 0,
+        "p99LowerMs": 53.126542028598486,
+        "p99UpperMs": 53.98979199808091
+      }
+    },
+    "reconstruction/test/eew-e01/evidence/windows/p3-c4-formal-deadline-20261008/e01-forecastDeadlineOverlap-run3.json": {
+      "window": "e01-forecastDeadlineOverlap-run3",
+      "status": "Pass",
+      "backgroundVpwp50InjectedHrMs": 237837190.53675,
+      "before": {
+        "attempts": 478,
+        "established": 301,
+        "missing": 0,
+        "p99LowerMs": 56.16412503654137,
+        "p99UpperMs": 57.051459037605674
+      },
+      "after": {
+        "attempts": 871,
+        "established": 699,
+        "missing": 0,
+        "p99LowerMs": 52.04537502732128,
+        "p99UpperMs": 52.98158298190683
+      }
+    },
+    "reconstruction/test/eew-e01/evidence/windows/p3-c4-formal-20261007/e01-forecastDeadlineOverlap-run1.json": {
+      "window": "e01-forecastDeadlineOverlap-run1",
+      "status": "Blocked",
+      "backgroundVpwp50InjectedHrMs": 164436358.522083,
+      "before": {
+        "attempts": 476,
+        "established": 322,
+        "missing": 0,
+        "p99LowerMs": 65.56054202127271,
+        "p99UpperMs": 66.28462599324993
+      },
+      "after": {
+        "attempts": 406,
+        "established": 0,
+        "missing": 0,
+        "p99LowerMs": null,
+        "p99UpperMs": null
+      }
+    },
+    "reconstruction/test/eew-e01/evidence/windows/p3-c4-formal-20261007/e01-forecastDeadlineOverlap-run2.json": {
+      "window": "e01-forecastDeadlineOverlap-run2",
+      "status": "Blocked",
+      "backgroundVpwp50InjectedHrMs": 173588644.82575,
+      "before": {
+        "attempts": 480,
+        "established": 338,
+        "missing": 0,
+        "p99LowerMs": 50.09187498721294,
+        "p99UpperMs": 50.848208976117895
+      },
+      "after": {
+        "attempts": 406,
+        "established": 0,
+        "missing": 0,
+        "p99LowerMs": null,
+        "p99UpperMs": null
+      }
+    },
+    "reconstruction/test/eew-e01/evidence/windows/p3-c4-formal-20261007/e01-forecastDeadlineOverlap-run3.json": {
+      "window": "e01-forecastDeadlineOverlap-run3",
+      "status": "Blocked",
+      "backgroundVpwp50InjectedHrMs": 182738871.238458,
+      "before": {
+        "attempts": 476,
+        "established": 328,
+        "missing": 0,
+        "p99LowerMs": 51.92145798539277,
+        "p99UpperMs": 52.704957983247006
+      },
+      "after": {
+        "attempts": 406,
+        "established": 0,
+        "missing": 0,
+        "p99LowerMs": null,
+        "p99UpperMs": null
+      }
+    }
+  }
+}
