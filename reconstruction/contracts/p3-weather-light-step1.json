@@ -1,0 +1,452 @@
+{
+  "meta": {
+    "draftedFromOid": "e02a413fc240931f1830e966ac94dde1e27aa5f5",
+    "sha256": "2558e5df97524acb541191c7d6a53999763fafc74bda288a1cd80c7b3b8ca7bd",
+    "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
+    "manifestSha256": "226b73cbfb4e769c89d2b1327fcbd8067a47887303527a2893592fba47176235",
+    "sequencesSha256": "79769d888ff5f429e4bd370a6a88ccb30611b5ee2a1e7b12d25d58f215cbfbd3",
+    "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
+    "decisionBranches": [
+      {
+        "id": "D-WL1-STEP",
+        "A": "段1は業務の約束を変えない小さな直しだけ（A1 jPath:false、A2 文字数え・構造検査の重複の除去、S1 保存の二重の全量処理の除去）。木を作らないparse（A3・A4の比較）は段2、保存の圧縮・重複除去（S2・S3）は段3の別契約",
+        "B": "段1からA4（全体を検証し必要な気象値へ直接組み立てる）に入る",
+        "recommended": "A",
+        "provisional": "A",
+        "ruling": "確定A（統合担当、2026-10-08 発注前点検の後）。作者の方向「性能は大元から」（2026-10-08夜（後））とP3-C4-PI-E03=A（E03の上限1秒は変えず、処理を削る契約を先に起こす）の範囲",
+        "reason": "A1・A2・S1は同じ入力・同じ状態で出力が変わらないことを旧と新の比較で閉じられる。A4はP1のDecodedMaterial.xml・XML境界・拒否の優先順位・計測marksを変える契約変更で、parserの選定（整形式の検査・Node 22とPiの対応・保守状況）も未決。先に段1を入れてPiの段ごとの内訳を取り直すと、段2で何をどこまで変えるかを数字で決められる（ChatGPT Proの回答§6の順序1・4）"
+      },
+      {
+        "id": "D-WL1-ENCODE-BOUND",
+        "A": "encodeのbyteの守りは、payloadのJSONのUTF-8 byteを受理時と同じ要素ごとのcache（recordByteCache・mapByteCache・ownershipの差分）から正確に足し、16MiB以下でなければ今と同じ文言で投げる。受理する集合は今と同じ",
+        "B": "encodeの守りを予約込みの計量B（envelopeと数値の予約を含む）≤16MiBにする",
+        "C": "encodeのbyteの守りを外し、受理時のadmissionだけに頼る",
+        "recommended": "A",
+        "provisional": "A",
+        "ruling": "確定A（統合担当、2026-10-08 発注前点検の後）",
+        "reason": "Bは今のencode（payloadだけで16MiB）より厳しく、受理を通らない経路（intentUpdate・coverageConfirmed・期限）の状態で、16MiBの手前のenvelope分の幅だけencodeの成否が変わる。Cでは受理を通らない経路の状態がdecodeの拒否する大きさで書かれうる（decodeは16MiB超をinvalidにする）。Aは受け付ける集合を変えずに、全量のJSON.stringifyだけを消す"
+      },
+      {
+        "id": "D-WL1-ENCODE-CHECKS",
+        "A": "encodeは項目ごとの型の確かめ（snapshot・reportRef・json・history・tombstone・freshness・intent・unavailableの判定）、scopeの正規化、P2-A5-AC04の件数・一意性の上限、P2-A7-AC04のpending 128件・131072 byteを今どおり残し、消すのは最後の全量のJSON.stringifyによるbyteの計量だけにする（byteは既存のcacheの和で正確に求める、D-WL1-ENCODE-BOUND=A）。persistedValue（decodeと共用）には触らず、encode用の関数を別に置き、型の判定の関数（snapshot・history ほか）はそのまま呼ぶ",
+        "B": "encodeは内部の型を信頼し、項目ごとの型の確かめもやめる（件数・一意性・pendingの上限と正規化だけ残す）",
+        "C": "encodeの確かめを全部外す",
+        "recommended": "A",
+        "provisional": "A",
+        "ruling": "確定A（統合担当、2026-10-08 発注前点検の後。起草時の案Bを改めた）",
+        "reason": "Bでは、domainの不具合で型に合わない状態ができると、A/Bのslotを交互に書くので、壊れた状態を2回保存すると両方のslotがinvalidになり（checkpoint.tsのreadSlotがcodec.decodeの不合格をinvalidにする）、noValidSlotでU-Wが空のまま起動する。今はencodeの段でcheckpointEncodeFailedが見え、古い正しい世代が残る。型の確かめを残すので、encode失敗の扱い（spec:839）に注記は要らない。費用はQ-WL1-ENCODE-COSTの参考値のとおり、型の確かめは全量のstringifyより小さい（約0.4倍）ので、消す価値はstringifyの側にある。persistedValueに触らないので、AGENTS.mdのasを直す義務も起きない"
+      },
+      {
+        "id": "D-WL1-EQUIVALENCE",
+        "A": "旧と新の同値性は、使い捨ての比較の道具（repoに入れない）をbaseOidのbuildと新しいbuildで同じ入力に当てて、結果の差が0件であることで示す。常設の試験は、比較で見つけた不足の境界（T02〜T07）だけに足す",
+        "B": "全corpusの結果のdigestを常設の試験に焼き込む",
+        "recommended": "A",
+        "provisional": "A",
+        "ruling": "確定A（統合担当、2026-10-08 発注前点検の後）",
+        "reason": "BはAGENTS.mdの最小テストが禁じるfixtureの焼き直しで、意図した後続の変更（段2）のたびに期待値の焼き直しが要る。段1の約束は「旧と同じ」なので、旧の実物と比べるのが最も直接"
+      },
+      {
+        "id": "D-WL1-E05P",
+        "A": "段1はE05-P（負荷PのRSSの上限400MiB超え）の解消を主張しない。heapとRSSは前後比較の報告に載せるだけにし、E05-Pの再検収（P3-C4-CLOSE-E05P）は木を2本作る構造（台帳66）を変える段2の契約が引き受ける",
+        "B": "段1の後のPiの測り直しでE05-Pを再検収する",
+        "recommended": "A",
+        "provisional": "A",
+        "ruling": "確定A（統合担当、2026-10-08 発注前点検の後）。根拠: P3-C4-CLOSE-E05P（p3-e01-reaccept.json）の引受先は「台帳66（weatherCurrentのparseの木2本でheapが山になる）の契約」で、段1はその木を残すので、その契約に当たるのは木を除く段2",
+        "reason": "段1では、木が2本（約113MiB）同時に生きる構造（台帳66）は残る。jPath:falseは一時文字列の割り当てを減らすが、heapの山の主因は木なので、段1でE05-Pが通る根拠はない"
+      }
+    ],
+    "questionResolutions": [
+      {
+        "id": "Q-WL1-CODE-READ",
+        "status": "closed",
+        "source": "起草時の版（e02a413f）のdecode-material.ts・weather-current.ts・weather-current-unit.ts・checkpoint.tsの読み合わせ（2026-10-08）",
+        "closed": "(1) parseTree（decode-material.ts）のXMLParserのoptionsはjPathを指定していない（fast-xml-parser 5.5.8の既定はtrue）。tagValueProcessor・attributeValueProcessor・updateTag・isArray・ignoreAttributesは既定のまま (2) xmlValueはwithinXmlLimitsの文字数え（textLengthと属性値）とxmlNodeの値作り（textと属性）で同じtextに2回かかり、&を含まないtextでも正規表現の置換を走らせる。実体の表はreplaceの呼出しごとにnew Mapで作っている (3) textLengthはArray.from(xmlValue(text)).length、CDATAはArray.from(text).length。withinXmlLimitsは先頭で孤立サロゲートと禁止文字を拒否する (4) weather-current.tsのvalidateMaterialは、同じKindについてelements(kind, \"Status\")・elements(kind, \"Code\")・scalar(...)を欠落の判定・不正の判定・rowsの組立てで計8回前後呼び直し、inspectIdentityも同じAreaのelements(area, \"Code\")とscalarを繰り返す。elementsは毎回children.filterを走らせる (5) reject()はtargetを作るためにcandidateTargetからinspectIdentityとvalidateSemanticEnvelopeをもう一度呼ぶ (6) weatherCurrentUnitCodec.encodeはpersistedValue(persistedFromState(state))を通す。persistedValueはdecodeと共用で、項目ごとの型の確かめ・正規化・件数の上限の後、encoder.encode(JSON.stringify(result))で全量を計量する。その後checkpointのsealEnvelopeがenvelope全体をもう一度JSON化する (7) recordBytesはobjectの参照をkeyにしたWeakMapのcacheで、historiesはarrayBytes(state.histories)からrecordBytes(history)で測る。domainが受理のたびにhistoryのobjectを作り直すので、前の受理で測ったsnapshot（reports）を含むhistory全体をJSON.stringifyし直す (8) 受理時の容量判定（reservedGenerationBytes）は予約込みの計量Bで、試験P2-A5-T11（AC13）が実checkpoint byteとの一致を境界で確かめている",
+        "remaining": "なし（srcの行はanchorで引かない。実装者が書き換えるため）",
+        "reason": "段1で変える場所と、変えずに使う部品（recordByteCache・mapByteCache・ownershipの差分計量・decodeのpersistedValue）を確かめる"
+      },
+      {
+        "id": "Q-WL1-ENCODE-COST",
+        "status": "closed",
+        "source": "統合担当の使い捨ての計測（2026-10-08、MacBook Apple M5・Node v26.8.1、e02a413fのreconstruction/dist、scratchpadのencode-cost.cjs）。warm-up 5回を捨て続く20回、強制GCなし",
+        "closed": "weatherCurrentUnitCodec.encode 1回の全体と、その中の全量の計量（encoder.encode(JSON.stringify(payload))）を別々に測り、差を型の確かめ・正規化・件数の上限とみなした。(1) 最大VPWS50（15_18_01）を時刻だけ変えて3回受けた状態（全国current＋全国履歴2、payload 3,029,007 B）: encode全体 p50 5.53ms（5.28〜5.82）、全量の計量 p50 4.05ms（3.83〜4.65）、差 約1.5ms (2) 16MiB付近（(1)に全国のphenomenaの深い写しを持つpartialを20件、payload 16,359,606 B）: encode全体 p50 39.4ms（38.3〜41.0）、全量の計量 p50 27.5ms（26.5〜28.3）、差 約11.9ms。型の確かめは全量の計量の約0.37〜0.43倍で、目安（stringifyと同じくらい）より小さい。参考値でありPiの値ではない（Piは数倍の見込み、台帳63）",
+        "remaining": "なし（実装者はAC07で前後のencode 1回の時間を報告する）",
+        "reason": "D-WL1-ENCODE-CHECKSで型の確かめを残す判断の費用の裏付け"
+      },
+      {
+        "id": "Q-WL1-JPATH",
+        "status": "closed",
+        "source": "fast-xml-parser 5.5.8の同梱src（OptionsBuilder.jsの既定、OrderedObjParser.js・node2json.jsのoptions.jPathの分岐）と、起草時のcorpus全件の比較（2026-10-08）",
+        "closed": "jPathは、callbackへ渡す引数をpathの文字列にするかMatcherにするかだけを切り替える（OrderedObjParser.jsのparseTextData・buildAttributesMap・addChild・replaceEntitiesValue、node2json.js）。parseTreeは既定のcallbackしか使わないので、出力の木は変わらない。起草時にmanifestのXML 247件すべてを、今のoptionsとjPath:falseを足したoptionsでparseし、preserveOrderの木をutil.isDeepStrictEqualで比べて247件とも一致した",
+        "remaining": "なし（実装者は同値性の比較（AC06）でXmlNodeの木の一致を改めて示す）",
+        "reason": "A1が出力を変えないことを、parserの実装とcorpusの両方で確かめる"
+      },
+      {
+        "id": "Q-WL1-TEST-GAP",
+        "status": "closed",
+        "source": "reconstruction/test/parser-boundary/p1-parser-boundary.test.ts・reconstruction/test/weather-current-unit/weather-current-unit.test.tsの読み合わせ（2026-10-08）",
+        "closed": "既存で足りる: 実体参照と文字参照の値と上限（P1の試験A、&#x1F600;を上限まで並べる非BMPの参照を含む）、未宣言の実体と不正な文字参照の拒否（試験B）、先頭ゼロ（P1-T03のa=\"007\"・EventID 001）、CDATAの値の保持（試験A）、BOM（試験D）、構造上限の直前・一致・+1（P1-T05）、全corpusの分類（P1-T01）、EditorialOffice・Area・Codeの欠落と空・重複Control・重複Office・重複Area・重複Statusの拒否の理由と順番（P2-A5-T01）、AC13の予約込みの計量Bの境界（P2-A5-T11、partialにescape文字を含む）。足りない: (a) 参照を使わない非BMP文字そのもの・CDATAの中の非BMP文字・CRLFを含むtextの、上限の直前・一致・+1（今はArray.fromに頼っており、数え方を変えると.lengthとの取り違えが出る） (b) Kindの段の境界: 空のStatus（<Status/>）と欠落、子要素を含むStatus・Code、なし以外のStatusでCodeの欠落、なしのStatusでCodeあり、VPWWのCodeの重複、Nameの重複と子要素を含むName、先頭ゼロのCodeがrowsに文字列のまま残ること (c) historyを含む状態での計量Bの境界（今の境界の試験はhistoryを含まない） (d) encodeの守り（payload 16MiBの一致と+1、pendingの128件と131072 byteの+1）。U-Wのencodeが投げることを確かめる試験は今は無い。既存のnot.toThrow() 10か所は投げないことだけを見ており、復元できることは見ていない（T08で強化） (e) 受理とencodeの費用の回帰（測ったreportを測り直さない、encodeで全量を直列化しない）",
+        "remaining": "なし",
+        "reason": "同値性の比較に加えて常設で残す試験を、既存で足りない境界だけに絞る（AGENTS.mdの最小テスト）"
+      }
+    ],
+    "operationContract": {
+      "ref": "P2-SHARED-RUNTIME-001#meta.operationContract",
+      "rule": "段1はoperationの扱いを変えない。operationの伝播・区分間の非干渉・件数とbyteの上限の三区分合算は、既存のdecode-material・weather-current・weather-current-unitのまま保つ（AC06の同値性でnormal・training・testを含めて確かめる）"
+    }
+  },
+  "contract": {
+    "contractId": "P3-WEATHER-LIGHT-001",
+    "mode": "implementation",
+    "objective": "気象の電文の処理を軽くする段1（E03（台帳66の前段）、作者の方向「性能は大元から」とP3-C4-PI-E03=A）。業務の約束を変えない小さな直しだけを入れる: (A1) parseTreeのfast-xml-parserに jPath:false を足す (A2) xmlValueの&なしの近道・配列を作らないcode pointの数え方・weatherCurrentのvalidateMaterial／inspectIdentityで同じKind／Areaの子と値を計算し直さない (S1) U-Wの保存で全量の二重の処理を除く: encodeは項目ごとの型の確かめを残し、全量のJSON.stringifyによるbyteの計量だけを既存のcacheの和に替える（persistedValueとdecodeは変えない）。受理時の容量の見積りはhistoryを既存のcacheで加算する。同じ入力・同じ状態で、decision・拒否の理由・state・保存のbyte・復元の結果が旧と同じであることを比較で示し、Macの前後比較を報告する。木を作らないparse（段2）と保存の圧縮・重複除去（段3）は扱わない。",
+    "baseOid": "unassigned",
+    "cleanTreeRequired": true,
+    "readPaths": [
+      "AGENTS.md",
+      "docs/specs/reconstruction-p0-contracts.md",
+      "reconstruction/contracts/p3-weather-light-step1.json",
+      "reconstruction/contracts/p3-order-plan.md",
+      "reconstruction/contracts/p1-parser-boundary.json",
+      "reconstruction/contracts/p1-parser-boundary.types.ts",
+      "reconstruction/contracts/p2-weather-current-unit.json",
+      "reconstruction/contracts/p2-weather-current-unit.types.ts",
+      "reconstruction/contracts/p2-weather-timeseries-unit.json",
+      "reconstruction/contracts/p2-shared-runtime.json",
+      "reconstruction/contracts/p2-shared-runtime.types.ts",
+      "reconstruction/contracts/p3-unit-write-right.json",
+      "reconstruction/tools/corpus/manifest.json",
+      "reconstruction/tools/corpus/sequences.json",
+      "reconstruction/src/**",
+      "reconstruction/test/**",
+      "test/fixtures/**",
+      "node_modules/fast-xml-parser/src/**",
+      "reconstruction/tsconfig.json",
+      "reconstruction/tsconfig.test.json",
+      "reconstruction/vitest.config.ts"
+    ],
+    "allowedPaths": [
+      "reconstruction/src/decode-material/decode-material.ts",
+      "reconstruction/src/domains/weather-current/weather-current.ts",
+      "reconstruction/src/units/weather-current/weather-current-unit.ts",
+      "reconstruction/test/parser-boundary/p1-parser-boundary.test.ts",
+      "reconstruction/test/weather-current-unit/weather-current-unit.test.ts"
+    ],
+    "allowedGitCommands": [
+      "git status --porcelain",
+      "git rev-parse HEAD",
+      "git cat-file -e <oid>:reconstruction/contracts/p3-weather-light-step1.json",
+      "git diff --binary --no-ext-diff -- <allowed_paths>",
+      "git diff --check -- <allowed_paths>",
+      "git show <required-path-or-object>",
+      "git ls-files <required-path>"
+    ],
+    "moduleIds": [
+      "B04",
+      "M06"
+    ],
+    "integrationContractIds": [
+      "I-U-W"
+    ],
+    "dependsOnContractIds": [
+      "P1-PARSER-BOUNDARY-001",
+      "P2-WEATHER-CURRENT-UNIT-001",
+      "P2-SHARED-RUNTIME-001",
+      "P3-UNIT-WRITE-RIGHT-001"
+    ],
+    "publicTypes": [
+      "reconstruction/contracts/p1-parser-boundary.types.ts#DecodedMaterial",
+      "reconstruction/contracts/p1-parser-boundary.types.ts#XmlNode",
+      "reconstruction/contracts/p1-parser-boundary.types.ts#ParserMailboxResult",
+      "reconstruction/contracts/p2-weather-current-unit.types.ts#PersistedWeatherCurrentUnit",
+      "reconstruction/contracts/p2-weather-current-unit.types.ts#WeatherCurrentUnitState",
+      "reconstruction/contracts/p2-weather-current-unit.types.ts#WeatherCurrentUnitCodec"
+    ],
+    "publicFunctions": [
+      "decodeMaterial(item, parseTimes?): ParserMailboxResult（signature・結果・marksのkeyを変えない）",
+      "classifyMaterial(material)（変えない）",
+      "parserLimits（値を変えない）",
+      "reduceWeatherCurrentUnit(state, input): WeatherCurrentUnitStep（signature・結果を変えない）",
+      "weatherCurrentUnitCodec.encode(state): PersistedWeatherCurrentUnit（signature・出力のbyte・投げる条件の集合を変えない。型の確かめは残し、全量のJSON.stringifyによる計量だけをやめる、AC05）",
+      "weatherCurrentUnitCodec.decode(payload)とpersistedValue（変えない。encode用の計量は別の関数に置く）"
+    ],
+    "allowedDependencies": [
+      "既存の依存（fast-xml-parser 5.5.8を含む）。新しいnpm依存は足さない。package.json・package-lock.jsonは変えない"
+    ],
+    "fixtureIds": [
+      "test__fixtures__15_18_01_250630_VPWS50",
+      "test__fixtures__15_16_02_251222_VPWW57",
+      "test__fixtures__18_00_01_260830_VPNO50_switch",
+      "test__fixtures__18_00_01_260830_VPNO50_issue",
+      "test__fixtures__18_00_01_260830_VPWW55_fukui_L5",
+      "test__fixtures__18_00_01_260830_VPWW55_fukui_downgrade",
+      "test__fixtures__18_00_01_260830_VPWW55_fukui_release",
+      "test__fixtures__weather-alert-kind-area__synthetic-vpws50-change-density-before",
+      "test__fixtures__weather-alert-kind-area__synthetic-vpws50-change-density-after"
+    ],
+    "sequenceIds": [
+      "O04",
+      "O06",
+      "O09"
+    ],
+    "expectedDecisions": [],
+    "expectationEvidence": [],
+    "semanticDeadlines": [],
+    "deliveryDeadlines": [],
+    "retentionLimits": [],
+    "resourceLimits": [
+      {
+        "id": "P3-WL1-RES-01",
+        "target": "U-Wの受理1回の容量の見積り（reservedGenerationBytes）",
+        "limit": "変わったrecordだけJSON.stringify",
+        "unit": "受理1回",
+        "scope": "前の受理で測ったsnapshot（historyのreports、nationalのentry）を測り直さない。新しく作ったhistoryのobjectは、外側 {...history, reports: []} とreportsのcacheの和で数える。P2-A5-AC13の「変更した不変recordだけ再計量し、unit全体のJSON直列化を受信ごとに行わない」を満たす",
+        "source": "P2-A5-AC13、AGENTS.mdの受信経路の計算量"
+      },
+      {
+        "id": "P3-WL1-RES-02",
+        "target": "U-Wのencode 1回",
+        "limit": 0,
+        "unit": "payload全体・snapshot全体のJSON.stringify（byteの守りは要素ごとのcacheの和）",
+        "scope": "checkpointのsealEnvelopeのJSON化1回（保存するbyteを作る仕事）は残る。cacheに無いrecord（受理を通らない経路で作られたintent・freshness・unavailableなど）は、そのrecordだけ測る",
+        "source": "spec①-6・②-2（本番自己往復0）、D-WL1-ENCODE-BOUND=A、D-WL1-ENCODE-CHECKS=A（型の確かめのJSONの判定は再帰の走査で、stringifyではないので残る）"
+      }
+    ],
+    "workDeadline": null,
+    "persistenceUnits": [
+      "U-W"
+    ],
+    "persistedFields": [
+      "なし（PersistedWeatherCurrentUnit・schemaVersion p2-weather-current-unit-v1・CheckpointEnvelope・slotの形式とbyteは変えない）"
+    ],
+    "nonPersistedFields": [
+      "U-Wのbyteの計量cache（既存のrecordByteCache・mapByteCacheとownershipの差分。新しいcacheの種類は足さない）"
+    ],
+    "outOfScope": [
+      "段2（後続の契約。台帳66の木2本の除去、E05-Pの再検収を引き受ける見込み、D-WL1-E05P）: 木を作らないparse。A3（イベントparserからXmlNodeを1本だけ作る）とA4（全体を検証し必要な気象値へ直接組み立てる）を、整形式の検査・上限・Node 22とPi・保守状況を満たすparserの候補で、同じ合法最大の入力で比べる。P1のDecodedMaterial.xml・XML境界・拒否の優先順位・freshnessの監視の対象・計測marks（fullXmlParseMsの位置）を変えるので、契約を先に固定する。withinXmlLimitsとxmlNodeでxmlValueを2回かける重複、xmlNodeのObject.entries・flatMapもここで扱う",
+      "段3（後続の契約、台帳70）: 保存の書込量を減らす。S2（完全snapshotの圧縮をA/Bで）とS3（各A/Bファイルの中の地域本文の重複除去。U-Fのstorage行と共有表が先例）を、Piの保存完了の時間・圧縮率・共有率・全面変更時の大きさで比べる。圧縮後のbyteを新しい容量の正本にするかはA5-AC13の改訂として明記する。S4〜S6（内容ファイルの共有・差分journal・SQLite）は、なお残るI/Oの不足が数値で分かるまで起こさない",
+      "A5（変わらない地域本文の参照の再利用）・A6（状態を報告headerと地域表に整理）・A7（native／WASM）・A8（受信前の変換）",
+      "E03の上限1秒・E01・E05・E14の3秒・Q-LIMITの値・U-Wの16MiB・保持の上限の変更",
+      "XmlNode・DecodedMaterial・PersistedWeatherCurrentUnit・ParserMailboxResult・診断の型と形式の変更、QNameの扱い・地域tokenの重複（後の値が残る）・Kindの順序の変更",
+      "persistedValue（decodeと共用）の編集とdecodeの確かめを緩めること、encodeの型の確かめを外すこと（D-WL1-ENCODE-CHECKS=A）、checkpoint.ts（sealEnvelope・slot・照合）の変更",
+      "inputDoneの返信の約4.6MB（U-Wのviewの毎回のclone、台帳66の副産物）・publisher側の反映",
+      "worker・resourceLimits・処理の小分けのyield",
+      "Piの段ごとの内訳の測定とE03の正式の判定（Q-WL1-PI-STAGES、統合担当。正式はPiのp99≤1秒で、後の段）",
+      "spec本文・計画・他の契約のファイルの改訂（統合担当）",
+      "package.json・tsconfig・vitest config、新しいnpm依存、旧築src/**"
+    ],
+    "acceptanceChecks": [
+      {
+        "id": "P3-WL1-AC01",
+        "requirement": "A1: parseTreeのXMLParserのoptionsに jPath: false を1つ足す。ほかのoptionとparseの回数（Bodyを読むXMLでfull parse 1回、P1-AC04）は変えない。出力の木（DecodedMaterial.xml）は全corpusと境界の入力で旧と同じ（AC06）。将来pathを使うcallbackを足すときは、jPathを見直すと1行のコメントで残す。無いと: 既定のjPath:trueで、text・開きタグ・属性ごとにMatcherのpathを文字列にする費用（MacのprofileでMatcher.toString 1件83ms、約15%）がそのまま残る",
+        "evidenceRefs": [
+          "reconstruction/contracts/p1-parser-boundary.json:500 «4cae89a4f5209c86»",
+          "docs/specs/reconstruction-p0-contracts.md:2054 «726413a61a98e64b»",
+          "reconstruction/contracts/p3-order-plan.md:190 «edc8ef9af837dfd5»"
+        ]
+      },
+      {
+        "id": "P3-WL1-AC02",
+        "requirement": "A2（decode-material）: (1) xmlValueは&を含まないtextをそのまま返す近道を持ち、実体の表は呼出しごとに作らない (2) withinXmlLimitsの文字数え（textLength・CDATA・属性値）を、配列を作らずにcode pointを数える形にする。数は全ての文字列でArray.from(s).lengthと同じ（サロゲートペアは1、孤立サロゲートは1）。(3) 受理と拒否の集合・拒否の理由（xmlInvalid・xmlLimitExceeded）・上限の判定の位置（直前・一致・+1）・ParserDiagnosticのoperation（P1-AC15）・XmlTextとXmlAttributeの値（空白・CDATA・参照の展開、P1-AC06）は旧と同じ。無いと: limitsの段52msと、&の無い大半のtextにかかるxmlValueの置換（2回で約31ms）とArray.fromの配列（約7ms）が残る",
+        "evidenceRefs": [
+          "reconstruction/contracts/p1-parser-boundary.json:46 «75d66f66d664fec3»",
+          "reconstruction/contracts/p1-parser-boundary.json:502 «0ad9ce09d06f5848»",
+          "reconstruction/contracts/p1-parser-boundary.json:511 «229a70c4a87b4736»"
+        ]
+      },
+      {
+        "id": "P3-WL1-AC03",
+        "requirement": "A2（weatherCurrent）: validateMaterialとinspectIdentityは、同じKind（Status・Code・Name）とArea（Code）の子の一覧とscalarの値を、1回の呼出しの中で1回だけ求めて、欠落の判定・不正の判定・rowsの組立て・tokenの組立てで使い回す（呼出しをまたぐcacheは作らない。型・helperは足さない、関数の中の変数でよい）。reject()のtarget作りで、同じ入力のinspectIdentityを求め直さないようにしてもよい（targetは旧と同じ）。判定の順番（identityMissing→identityInvalid→requiredStructureMissing→requiredStructureInvalid、P2-A5-AC01）・欠落（要素が無い）と空（scalarが空文字）と子要素を含むscalar（null）の区別・Kindの順序・rowsの値（先頭ゼロのCodeは文字列のまま）・拒否のときのfreshnessの対象は旧と同じ。無いと: 最大VPWS50の意味づけ28.8msのうち約23msの構造検査が、同じKindのchildren.filterを繰り返す",
+        "evidenceRefs": [
+          "reconstruction/contracts/p2-weather-current-unit.json:356 «86eb55276d25bba1»"
+        ]
+      },
+      {
+        "id": "P3-WL1-AC04",
+        "requirement": "S1（受理時の容量の見積り）: historyのbyteは、外側 {...history, reports: []} のJSONのUTF-8 byteと、reportsの各snapshotのrecordBytes（既存のrecordByteCache）と区切りの和で数える。予約込みの計量Bの値は、全ての状態で旧のJSON.stringify(history)による値と同じ（P2-A5-AC13の実byte≤B・差は数値の予約の未使用分だけ、を保つ）。受理1回で、前の状態のhistoryにあったsnapshotをJSON.stringifyしない（P3-WL1-RES-01）。無いと: 最大VPWS50の受理ごとに、前の報告2本を含むhistory（JSONで約1.33MB）を文字列にし直す（Macで約5.4ms、Piでその数倍）。AC13の「変更した不変recordだけ再計量」とも食い違ったまま",
+        "evidenceRefs": [
+          "reconstruction/contracts/p2-weather-current-unit.json:461 «d222ffecf873259b»",
+          "AGENTS.md:25 «b7f4c3a89b5bb3b2»"
+        ]
+      },
+      {
+        "id": "P3-WL1-AC05",
+        "requirement": "S1（encode）: weatherCurrentUnitCodec.encodeから、payload全体のJSON.stringifyによるbyteの計量だけを除く（D-WL1-ENCODE-CHECKS=A、D-WL1-ENCODE-BOUND=A）。persistedValue（decodeと共用）は変えず、encode用の関数を別に置く。その関数は、persistedValueと同じ確かめを同じ順で残す: (1) 項目ごとの型の判定（既存のsnapshot・history・tombstone・freshness・unavailable・intent・nationalのkeyとoperationの一致。判定の関数は写さずに呼ぶ） (2) scopeの正規化（tombstone・freshness・unavailableのaffectedScopeとconfirmedScope）。出るpayloadのJSONは旧と同じにし、既に正規形のrecordは作り直さない（cacheのkeyを保つ） (3) P2-A5-AC04の件数・一意性の上限と、P2-A7-AC04のpending 128件・131072 byte (4) payloadのJSONのUTF-8 byteが16MiB以下であること。値は受理時と同じ要素ごとのcacheの和で正確に求め、旧のencoder.encode(JSON.stringify(result)).byteLengthと全ての状態で一致させる。(1)〜(4)のどれかに反すれば今と同じ文言（U-W checkpoint exceeds or violates its persisted boundary）で投げ、投げる条件の集合は旧と同じ（AC06(3)で比べる）。無いと: 保存のたびに（P3-UNIT-WRITE-RIGHT-001の後は受理のたびに）、payload全体（最大VPWS50を3回受けた状態で約3MB、16MiB付近で約16MB）をJSON化してUTF-8にする仕事が、sealEnvelopeの直列化とは別にもう1回走る（Macでencode 1回の約7割、Q-WL1-ENCODE-COST）",
+        "evidenceRefs": [
+          "docs/specs/reconstruction-p0-contracts.md:2007 «4b2a085530cf8cb8»",
+          "docs/specs/reconstruction-p0-contracts.md:2012 «96edc4cec5855d14»",
+          "reconstruction/contracts/p2-weather-current-unit.json:381 «9da02d2083ff866f»",
+          "docs/specs/reconstruction-p0-contracts.md:874 «f68a559d178d6dae»"
+        ]
+      },
+      {
+        "id": "P3-WL1-AC06",
+        "requirement": "同値性（D-WL1-EQUIVALENCE=A）: 使い捨ての比較の道具を、baseOidで作ったreconstruction/distと、変更後のreconstruction/distに同じ入力で当て、次がすべて一致することを示す（差0件）。(1) decodeMaterial: manifestのXML全件と境界の入力の組（先頭ゼロ、未知の正しいコード、CDATA（中に&と]]の手前の文字）、実体参照と文字参照、非BMP文字（そのものと参照）、CRLFとCR、空のtextと空要素、重複要素、子要素を含むscalar、属性の重複と大文字小文字、namespaceの接頭辞、途中で切れた文書、rootの外のtext、構造上限の直前・一致・+1）と、拒否の理由の順番を確かめる入力（16,385文字を超えるtextの末尾に裸の&または不正な文字参照があるもの、257文字以上で不正な参照を含む属性値）で、結果のkind・拒否の理由・ParserDiagnostic・materialのxml（XmlNodeの木）とmarks以外の項目 (2) U-W: P2-A5-T01とP2-A5-T03の全行の入力と状態、VPNO50のKind・Areasの欠落と不正、拒否のときのfreshnessの対象（target）、manifestの気象の電文（VPWS50・VPWW55〜61・VPNO50）の全件を空の状態と同じ官署のcurrentを持つ状態の両方に当てたもの、O04・O06の系列、最大VPWS50の続報（本文同じで時刻だけ新しい・一部の地域が変わる・全地域が変わる）・取消・VPNO50の終了・training／testを含む交差・容量の境界の付近（16MiBの手前）で、各受理のdecisions・diagnostics・intents・outcomes・displayChanges・confirmationEvidenceとstate（persistenceを含む） (3) 各状態のencodeの出力のJSON（文字列として一致）と投げる・投げないの別。今encodeが投げる件数・一意性の行（partial 129件・全国履歴3件・partial履歴9件・subject・history・inputId・intent idの重複・pendingの129件と131073 byte・型に合わないrecord）を含める。decode(encode)の状態と、その状態からさらに続報・取消を入れた結果。比較はmarksの所要時間だけを除き、snapshotのrestoredAtのsymbolは2つのdistで別のsymbolなので、descriptionで揃えて比べる。無いと: 速くするための直しが、受理・拒否の条件や保存の形を黙って変えても、既存の試験の当たっていない所では止まらない",
+        "evidenceRefs": [
+          "reconstruction/contracts/p1-parser-boundary.json:500 «4cae89a4f5209c86»",
+          "reconstruction/contracts/p2-weather-current-unit.json:356 «86eb55276d25bba1»",
+          "reconstruction/contracts/p2-weather-current-unit.json:381 «9da02d2083ff866f»",
+          "reconstruction/contracts/p2-weather-current-unit.json:461 «d222ffecf873259b»",
+          "docs/specs/reconstruction-p0-contracts.md:1830 «964d8b6f65321973»"
+        ]
+      },
+      {
+        "id": "P3-WL1-AC07",
+        "requirement": "性能の報告（合否の閾値にしない）: 実装者の機械で、baseOidのdistと変更後のdistを同じ手順で測り、前後を並べる。入力はe03Frame（reconstruction/test/eew-e01/frames.mjs、15_18_01_250630_VPWS50）で、OwnerHost.handleを同じthreadで続けて呼ぶ（強制GCなし）。warm-up 5件を捨て、続く20件の1件の時間のp50・p95・最大・四分位の幅を出す。あわせて、その後の状態のweatherCurrentUnitCodec.encode 1回の時間（p50、20回）、decodeMaterialとreduceの段の時間（p50）、1件の中のheapUsedの最大を参考として載せる。機械・Node・CPUの名前・負荷の有無を書く。Mac miniでの正式の前後比較とPiの段ごとの内訳は統合担当が行う（Q-WL1-PI-STAGES）。無いと: 段1で何がどれだけ減ったかと、段2で何を変えるべきかを数字で決められない",
+        "evidenceRefs": [
+          "docs/specs/reconstruction-p0-contracts.md:2054 «726413a61a98e64b»",
+          "docs/specs/reconstruction-p0-contracts.md:2056 «5468bd61c697fdf7»",
+          "docs/specs/reconstruction-p0-contracts.md:2067 «f867801b1fa94b3d»",
+          "docs/specs/reconstruction-p0-contracts.md:1164 «a0005fcda1372f26»"
+        ]
+      }
+    ],
+    "testMapping": [
+      {
+        "testId": "P3-WL1-T01",
+        "purpose": "corpusHistory",
+        "referenceIds": [
+          "P3-WL1-AC01"
+        ],
+        "behavior": "既存のP1-T01（manifestのXML 247件の分類）・P1-T02（parse 1回）・P1の試験A〜Dと、P2-A5の全試験が、期待値を変えずに緑のまま通る。新しい試験は足さない（jPathの同値はAC06の比較で示す）"
+      },
+      {
+        "testId": "P3-WL1-T02",
+        "purpose": "contractBoundary",
+        "referenceIds": [
+          "P3-WL1-AC02"
+        ],
+        "behavior": "p1-parser-boundary.test.tsに1つのitを足す: 参照を使わない非BMP文字（😀）をtextに16,384個・属性値に256個、CDATAの中に16,384個、CRLF（\\r\\nは2文字と数える）でtextを16,384文字にした入力を、それぞれ上限の直前・一致・+1で並べると、直前と一致はdecoded（値は旧と同じ。非BMPはそのまま、CRLFはparserの正規化でLFになる）、+1はxmlLimitExceededで拒否されfull parseは0回"
+      },
+      {
+        "testId": "P3-WL1-T03",
+        "purpose": "contractBoundary",
+        "referenceIds": [
+          "P3-WL1-AC03"
+        ],
+        "behavior": "weather-current-unit.test.tsに表の形のitを1つ足す（P2-A5-T01と同じ15_16_02_251222_VPWW57の書き換え）: <Status/>はrequiredStructureMissing、Statusの欠落はrequiredStructureMissing、子要素を含むStatus・子要素を含むCode・VPWWのCodeの重複・なしのStatusでCodeありはrequiredStructureInvalid、なし以外のStatusでCodeの欠落はrequiredStructureMissing、Nameの重複と子要素を含むNameは受理されrowsのnameがnull、先頭ゼロのCode（例 03）は受理されrowsのcodeが文字列\"03\"。拒否の行は業務stateを変えない"
+      },
+      {
+        "testId": "P3-WL1-T04",
+        "purpose": "regression",
+        "referenceIds": [
+          "P3-WL1-AC04"
+        ],
+        "behavior": "全国のVPWS50（synthetic-vpws50-change-density-afterを既存のP2-A5-AC09の回帰試験と同じく書き換え、時刻だけ新しくした続報）を3回受理してhistoryが全国の深さ2に達した状態から、もう1回受理するとき、JSON.stringifyの呼出しの引数に、reportsを持つobject（history）が無く、かつ前の状態のhistoryのreportsにあったsnapshotを参照で含む引数が無い（既存のP2-A5-T11のstringifyのspyと同じ形）。この試験はbaseOidでは赤になる（artifactで示す）"
+      },
+      {
+        "testId": "P3-WL1-T05",
+        "purpose": "contractBoundary",
+        "referenceIds": [
+          "P3-WL1-AC04"
+        ],
+        "behavior": "既存のP2-A5-T11（AC13）の境界を、historyを含む状態で確かめる: 全国のnormalのcurrentを持つ状態に最大VPWS50を受理させてhistoryが1件できるとき、partialのpadding（escape文字を含む）で実checkpoint byte＋数値の予約の未使用分を16MiBちょうどにすると受理され、+1では採用されない"
+      },
+      {
+        "testId": "P3-WL1-T06",
+        "purpose": "contractBoundary",
+        "referenceIds": [
+          "P3-WL1-AC05"
+        ],
+        "behavior": "weatherCurrentUnitCodec.encodeの守り: payloadのJSONのUTF-8 byteが16MiBちょうど（partialのphenomenaにescape文字と多バイト文字を含むpadding）ならencodeは投げず、decode(encode)はrestored、+1では今の文言で投げる。pendingのintentが128件なら投げず129件で投げる。pendingのJSONが131072 byteなら投げず131073 byteで投げる"
+      },
+      {
+        "testId": "P3-WL1-T07",
+        "purpose": "regression",
+        "referenceIds": [
+          "P3-WL1-AC05"
+        ],
+        "behavior": "全国のVPWS50（T04と同じ入力）を2回受理してhistoryを持つ状態でencodeを呼ぶと、JSON.stringifyの呼出しの引数に、形で判定して \"national\" in value のobject（payload）と、reportsを持つobject（history）が無く、受理で測ったsnapshotを参照で含む引数も無い（受理で測ったrecordはcacheから足す）。出力はdecodeでrestoredになる。この試験はbaseOidでは赤になる（artifactで示す）"
+      },
+      {
+        "testId": "P3-WL1-T08",
+        "purpose": "contractBoundary",
+        "referenceIds": [
+          "P3-WL1-AC05"
+        ],
+        "behavior": "weather-current-unit.test.tsの既存の expect(() => weatherCurrentUnitCodec.encode(x)).not.toThrow() 10か所（起草時の版でP2-A5-T01・T04・T05・T09の中）を、expect(weatherCurrentUnitCodec.decode(weatherCurrentUnitCodec.encode(x)).kind).toBe(\"restored\") に置き換える。期待値の変更ではなく強化として本契約が認める（encodeが受けた状態は復元できる、を毎回確かめる）"
+      }
+    ],
+    "requiredCommands": [
+      {
+        "command": "node reconstruction/tools/corpus/check-manifest.mjs",
+        "cwd": ".",
+        "target": "reconstruction/tools/corpus/manifest.json",
+        "stage": "contract",
+        "purpose": "fixture台帳とhash検査"
+      },
+      {
+        "command": "node reconstruction/tools/corpus/check-sequences.mjs",
+        "cwd": ".",
+        "target": "reconstruction/tools/corpus/sequences.json",
+        "stage": "contract",
+        "purpose": "O04・O06・O09の参照を検査する"
+      },
+      {
+        "command": "node reconstruction/contracts/check-contract.mjs",
+        "cwd": ".",
+        "target": "reconstruction/contracts/*.json",
+        "stage": "contract",
+        "purpose": "全契約を検査する（本契約は実装者が書き換えるsrcの行をanchorで引かない。変えるsrcの行を引く他の契約は起草時に0件）"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/tsconfig.json",
+        "cwd": ".",
+        "target": "reconstruction/tsconfig.json",
+        "stage": "preparation",
+        "purpose": "変更の前に、baseOidのreconstruction/distを作り、AC06の比較とAC07の測定の旧の側を取る（distは別の場所へ写してから変更に入る）"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/tsconfig.json",
+        "cwd": ".",
+        "target": "reconstruction/tsconfig.json",
+        "stage": "implementation",
+        "purpose": "src・契約型の型検査とreconstruction/dist/の生成（vitestより先）"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/tsconfig.test.json",
+        "cwd": ".",
+        "target": "reconstruction/tsconfig.test.json",
+        "stage": "implementation",
+        "purpose": "test/を含む型検査"
+      },
+      {
+        "command": "./node_modules/.bin/vitest run --config reconstruction/vitest.config.ts",
+        "cwd": ".",
+        "target": "reconstruction/test/",
+        "stage": "implementation",
+        "purpose": "全reconstruction試験（T02〜T07と既存試験。既存の期待値は変えない）"
+      },
+      {
+        "command": "./node_modules/.bin/vitest run --config reconstruction/vitest.config.ts --sequence.shuffle",
+        "cwd": ".",
+        "target": "reconstruction/test/",
+        "stage": "implementation",
+        "purpose": "module scopeのcache（recordByteCache・mapByteCache）を触るので順序依存を検査する"
+      }
+    ],
+    "artifactRequirements": [
+      "allowed_pathsに限定したgit diff --binary --no-ext-diffのpatch、変更ファイル一覧、requiredCommandsの実行結果、未実行の検証と理由、残存リスク。追加した各試験について受入条件／契約境界／実不具合／corpus履歴のどれに当たるかを1行で書く",
+      "足した仕組みごとに「無いと何が壊れるか」を1行で書く。最低限: xmlValueの近道（AC02）、code pointの数え方（AC02）、Kind／Areaの値の使い回し（AC03）、historyの加算の計量（AC04）、encode用の関数とcacheの和によるbyteの守り（AC05）。新しいmodule・class・型・cacheの種類は足さない",
+      "AC06の比較の道具（repoの外に置く使い捨てのscript）と、旧と新の結果のファイル、差の一覧（0件であること）。入力の組の一覧と件数（(1)(2)(3)の組ごと）、比較から除いた項目（marksの所要時間）とrestoredAtの揃え方を書く。比較の道具はbaseOidのdistを変更の前に別の場所へ写してから使う（git worktree・stashは使わない）",
+      "AC07の前後の測定の表（機械・Node・CPU・負荷、p50・p95・最大・四分位の幅、encode 1回、段の時間、heapUsedの最大）と測定のscript。閾値の合否は書かない",
+      "既存試験の期待値は変えない（T08の10か所の置き換えは強化として本契約が認める）。ほかに変える必要が出たら、変える前に試験名・旧の期待・理由を報告して止める（同値性の約束が破れているかもしれないため）",
+      "T04とT07は、baseOidのsrcに当てると赤になることを、実行の記録（失敗した試験名と理由）で示す",
+      "残存リスクとして書く: (1) encode用の関数はpersistedValueと同じ確かめを別に並べるので、後でpersistedValueに確かめを足すとき、encode側の足し忘れをコンパイラは止めない（AC06(3)の比較は今の版の一致だけを示す） (2) 段1の後も木は2本作られ、heapの山（台帳66）とE05-Pは残る（D-WL1-E05P） (3) 段1の効果はMacの値で、Piの段の比率が同じかは未確認（Q-WL1-PI-STAGES）"
+    ],
+    "unresolvedQuestions": [
+      {
+        "id": "Q-WL1-PI-STAGES",
+        "owner": "integrator",
+        "blocks": [
+          "段2の契約の範囲の決定（A3とA4のどちらまで変えるか、limitsの統合の要否）"
+        ],
+        "resolveBy": "本契約の配送の後",
+        "requiredEvidence": [
+          "Mac miniで、本契約のbaseOidと配送後の版を同じ手順（作業ノートのFlEq-P3-vpws50-profile-2026-10-08のvpws50-prof.mjsのhost・stagesのmode、warm-up 5・20件）で測った前後の表",
+          "Piで、配送後の版の最大VPWS50の段ごとの内訳（base64〜metadata・domain・unit・射影、各p50・最大、1件の中のGC）と、OwnerHost.handleの1件のp50・p95・p99・最大。Node・起動option・温度・動作周波数・throttle・swapを記録する",
+          "Piのprocessing（T2→dispatch完了、summarizeE03と同じ定義）の参考値。E03の正式の判定（p99≤1秒）は段2の後に、契約の標本数で行う",
+          "weatherCurrentのownerのheapUsedの最大とprocess RSS（参考、D-WL1-E05P）"
+        ]
+      }
+    ]
+  }
+}
