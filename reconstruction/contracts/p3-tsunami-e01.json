@@ -1,0 +1,778 @@
+{
+  "meta": {
+    "draftedFromOid": "2d1696da9cea2ea624248e00c494637f5bc5846f",
+    "sha256": "7e46931486041b2ac6f7f161fa1f4875a46c0022998dd462002ee6e86a8fe908",
+    "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
+    "manifestSha256": "226b73cbfb4e769c89d2b1327fcbd8067a47887303527a2893592fba47176235",
+    "sequencesSha256": "79769d888ff5f429e4bd370a6a88ccb30611b5ee2a1e7b12d25d58f215cbfbd3",
+    "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
+    "decisionBranches": [
+      {
+        "id": "P3-C6-POP-SHAPE",
+        "status": "起草案",
+        "A": "母集団は系列×条件の8つ（発令系・解除系×通常backlog・大型parse直後・encode直後・EEW同時）。各母集団はwarm-up 100＋1,000標本×3 run（spec:1118〜1119）で、正式標本は8×3,000＝24,000件。系列の中の遷移は試行ごとに順に回す（発令系は発令・引上げ・区域拡大で各333〜334件、解除系は解除・降格で各500件）。合否は母集団×runで出し、遷移ごとのp50/p95/p99/max・標本数・欠落数は別に報告する（遷移の値で系列の不合格を救済しない）。sequences.jsonのO09:23〜26・32〜35・41〜44・50〜53・59〜62（20位置）のchecksは「遷移だけを別集計し各run p99≤250ms」なので、Aを採るならこの20位置のchecksを「系列の母集団で判定し、遷移ごとは報告」へ改訂する（統合担当、Q-C6-PRECHECK）",
+        "B": "母集団を遷移×条件の20個にし、遷移ごとに1,000標本×3 runを取る（O09:23〜62のchecksどおり、正式標本60,000件）",
+        "recommended": "A",
+        "provisional": "A",
+        "ruling": "未決（作者裁定待ち、Q-C6-AUTHOR-RULINGS）",
+        "reason": "見え方の違い: AのMac miniの所要は約28〜35時間（各runの試行数をC4の成立率で積算: 通常backlog 1,100・parse直後 約2,080・encode直後 約1,350・EEW同時 1,100、試行3秒、2系列×3 run、stopConditionの余裕を含む。primeSettledを合わせた成立率は予備測定で測り直す）。Aの代償は2つ: ① O09の20位置のchecksの改訂が要る ② 遷移1つあたりの標本はrunごとに333〜500件で、遷移単独のp99が250msを超えても系列のp99が250ms以内なら系列はPassになりうる（遷移の値は報告に残るが合否を変えない）。Bは約70〜88時間で、遷移ごとに合否が付き、checksの改訂は要らない。spec:1131は「系列について別母集団」「各遷移を識別して報告」と定め、E01（spec:2052）は系列の混合を禁じるので、Aでもspecの条件は満たす。推奨はA"
+      },
+      {
+        "id": "P3-C6-COAST-ASSET",
+        "status": "起草案",
+        "A": "最小海岸線資材をrepoの中で自作する模式図にする: 区域code（AC05の和集合、51）ごとに固定の矩形1つを、codeの昇順で3列×17行の格子へ置いた300×272 CSS pxの図。地理の形・位置を持たない（A9の3×3 geometry〔P2-A9-D06=A〕と同じ型）。出所はrepo内の生成、外部の利用条件は無い",
+        "B": "気象庁の公開GISデータ（津波予報区、https://www.data.jma.go.jp/developer/gis.html の公開archive）から、AC05のcodeの線だけを抽出し、display/maps/quake/source.lock.jsonと同じ形でURL・archiveのsha256・取得日・利用条件・変換手順を固定する。抽出・変換の手順とprovenanceはreconstruction/tools/tsunami-coast/に置く（allowedPathsのこのpathはBのときだけ使う。archive本体はcommitしない）。利用条件（出典の表記、加工の可否、repoへの同梱の可否）は作者が確かめ、確認の記録が揃うまで資材をcommitしない（blocked）",
+        "C": "既存のdisplay/maps/quakeの県・細分区域の輪郭から海岸線を切り出す",
+        "recommended": "A",
+        "provisional": "A",
+        "ruling": "未決（作者裁定待ち、Q-C6-AUTHOR-RULINGS）",
+        "reason": "見え方の違い: Aは画面に日本地図が出ず、区域ごとの色の帯が並ぶ測定専用の図になる。描画する点数が実際の海岸線より桁違いに少ないので、T6のpaint費用は実資材より小さく出る（P4の製品資材で測り直す、spec:1147）。Bは形が実際の海岸に近く、paint費用も現実に近いが、資材の出所と利用条件の確認が作者の作業（利用条件の該当箇所を読んで記録する、約30分の見込み）になり、変換の手順（抽出・間引き・検査）がC6の実装に約0.5〜1晩上乗せになる（推定、P2-A9の3×3 geometryより重く、display/maps/quakeの変換の前例より軽い）。Cはspec:1607・:1721が正規の予報区線として禁じる県輪郭の代用で、P3専用でも誤読を招く。推奨はA（D-P3-4の「P3専用・固定・hash付き」を最小の手間で満たし、P4のGIS合格と取り違えようがない）"
+      },
+      {
+        "id": "P3-C6-PI-STAGE2",
+        "status": "起草案",
+        "A": "Pi予備確認（D-P3-7、C6の短い確認）を、Pi backend＋Mac miniのChrome（第2段の形）で、PiとMac miniを同じルーターに有線でつないで（直結ケーブルではない）行う（Pi上の新築hostの別portへMac miniのChromeがLAN越しに接続する）。両方が既にそのルーターに有線でつながっていれば作者の手作業は無く、どちらかが無線ならLANケーブルを1本挿す作業が要る。条件は発令系・解除系・EEW同時の3つ、warm-upを別に30件×3回、所要は準備を含め約1〜2時間。旧築の保護はC4のAC09のまま。この裁定は、C4から移管されたPiの第2段（P3-UNIT-WRITE-RIGHT-001のQ-UWR-REMEASURE）にも同じ形で効く（準備・時計の対応・通信経路を共有し、窓は重ねない。順序はAC09）",
+        "B": "Aと同じ確認をSSHトンネル経由で行う",
+        "C": "C6ではPiで確かめず、P5へ送る（D-P3-7の改訂が要る。Q-UWR-REMEASUREの第2段の扱いも別に決める）",
+        "recommended": "A",
+        "provisional": "A",
+        "ruling": "未決（作者裁定待ち、Q-C6-AUTHOR-RULINGS）。C4で作者が了承したのは第1段（Pi単独）だけ（P3-C4-PI-STAGE1-APPROVAL）で、Piのbackendに別の機械のChromeをつなぐ第2段の形は未了承",
+        "reason": "見え方の違い: AはMac miniのChromeから旧築とは別のportへ一時的に有線LANの接続が開く（C6とQ-UWR-REMEASUREで各1〜2時間）。通信経路が本番の表示端末（PiのChrome）と違うので、値はE01の本番判定に使わない（計画:185）。Bは所要がAとほぼ同じ（トンネルの準備に数分を足す）で、LANにportを開かないが、暗号化とTCPの二重化による遅延と揺れが区間に入る（目安は1件あたり1ms前後の上乗せ、実測していない推定）。CはU-Tを急ぐworkerに足した干渉（計画:73）をP5まで確かめない"
+      },
+      {
+        "id": "P3-C6-CODEX",
+        "status": "起草案",
+        "A": "D-P3-10の節目「C5＋C6」のCodex総合レビュー（新規スレッド・read-only・Astra high、Claudeの自己評価を添えない）を2回に分ける: 1回目は測定準備一式（C5の差分39fccd46、C6の差分、manifestの草案、予備測定のraw。manifest凍結の前）、2回目は正式測定の版付き結果",
+        "B": "D-P3-10のとおり節目1回（結果の後）だけ",
+        "recommended": "A",
+        "provisional": "A",
+        "ruling": "未決（作者裁定待ち、Q-C6-AUTHOR-RULINGS）。D-P3-10の節目の回数を変えるため",
+        "reason": "見え方の違い: AはCodexの枠を1回ぶん多く使い（C4の実績で1回あたり7日枠の約2%）、manifestの凍結がCodexの返答を待つぶん正式測定の開始が遅れる（D-P3-10は節目以外では後続を待たせない）。正式測定は約28〜35時間の実時間を使い、凍結後は条件を変えられない（spec:1106）ので、Aは測定の組み立ての誤りを凍結前に拾える。C4は凍結前と結果の2回で、結果のレビューが閉鎖記録の不足3点を見つけた。Bでは組み立ての誤りが結果の後に見つかると、新しいmanifestIdで影響する母集団を全部測り直す"
+      },
+      {
+        "id": "P3-C6-O09-REST",
+        "status": "起草案",
+        "A": "O09の津波のburstと詳細射影中のstep（O09:30・31・39・40・48・49・57・58・66・67）を、詳細射影の実体があるP4へ送り、計画§5.2に引受先として書き足す（統合担当）",
+        "B": "C6で測る（母集団が系列×2条件ぶん増え8→12、詳細射影〔spec §7.10〕の最小実装と、burstの定義の凍結が要る）",
+        "recommended": "A",
+        "provisional": "A",
+        "ruling": "未決（作者裁定待ち、Q-C6-AUTHOR-RULINGS）。いまはどの契約にも割り当てが無い（計画:40はunmetを免除しない、spec:2052はE01に詳細射影中を含む）",
+        "reason": "見え方の違い: Aでは、P4までは津波のburst・詳細射影中のE01が未検収のまま残る（P3の完了報告にその旨を書く）。Bでは、P3に詳細射影の仕組み（P4の範囲）を先取りし、測定は約1.4〜1.6倍（約39〜55時間）に延びる。根拠の式: 系列×runあたりの試行数は今の4条件で1,100＋2,080＋1,350＋1,100＝5,630、足す2条件はburst 1,100と詳細射影中1,100〜2,080（成立の条件が無ければ1,100、parse直後と同じ成立率なら2,080）で、(5,630＋2,200)÷5,630≒1.39〜(5,630＋3,180)÷5,630≒1.56。試行3秒・2系列×3 runは同じ"
+      },
+      {
+        "id": "P3-C6-PAGE",
+        "status": "起草者が推奨で確定（統合担当の即断の範囲。発注前点検で覆してよい）",
+        "A": "A9のページ（reconstruction/src/display/chrome-eew/）に津波の大カード・海岸線の層・T6候補markerを足し、1枚のページでEEWと津波を描く。EEWと津波はそれぞれのcontentRevisionが変わった回だけ描き直す",
+        "B": "津波専用のページを別に作る",
+        "recommended": "A",
+        "provisional": "A",
+        "ruling": "起草者がAに確定（2026-10-08）",
+        "reason": "EEW同時の母集団とspec:1599（EEW同時でも陸は予想震度、海岸線は津波）は1枚の画面で両方を描く必要があり、Bでは同時の条件が作れない"
+      },
+      {
+        "id": "P3-C6-TRIAL-RESET",
+        "status": "起草者が推奨で確定（統合担当の即断の範囲。発注前点検で覆してよい）",
+        "A": "窓（母集団×run）ごとに14桁のEventIDを1つ固定し（warm-upは別のEventID、P3TsunamiPopulationConditionのtsunamiEventIds）、各試行は前置きの報（prime。その遷移の初期状態へ区域を置き換える報）→対象の報（target。標本）の2つをrunnerが送る。どちらも凍結したtemplateの区域のままで、runnerは報ごとにReportDateTimeを1秒以上単調に進める（VTSE41の新旧はReportDateTimeとInfoTypeだけで決まりSerialは効かない。Serialは整合のために進めるだけ）。primeが落ち着いた（AC06(3)）後にtargetを送る",
+        "B": "試行ごとに新しいEventIDを使い、試行の後に取消の報で片付ける",
+        "recommended": "A",
+        "provisional": "A",
+        "ruling": "起草者がAに確定（2026-10-08）",
+        "reason": "BはVTSE41のsubjectが試行ごとに増え、512件の上限（P3-C5-CAPACITY）で退去が受信のたびに起き、片付けの報と通知も増える。Aはsubjectが窓ごとに2つ（warm-upと正式）のままで、各試行がspec:1135の既知の初期状態から始まる（区域集合の置換はI-U-TのforecastSemantics）"
+      },
+      {
+        "id": "P3-C6-SERIES-SOURCE",
+        "status": "起草者が推奨で確定（統合担当の即断の範囲。発注前点検で覆してよい）",
+        "A": "各遷移のtemplate（prime→target）の系列・区域ごとの遷移・paintの期待を、manifestの草案を作るときにreconstruction/distのC5のreducerへ通して決め、manifestに凍結する。expectedPaintはページと同じ塗りの規則（AC03(2)。海岸線に塗る区域だけ）で作る。runnerと解析は推測せず、標本ごとにT6候補markerのareasがtemplateのexpectedPaintと一致することで対象の報の採用を確かめる（一致しない候補はT6にしない）",
+        "B": "製品の観測にSubjectOutcome.factsのseries・areaTransitionsを足す（P2HostObservationの改訂）",
+        "recommended": "A",
+        "provisional": "A",
+        "ruling": "起草者がAに確定（2026-10-08）",
+        "reason": "P3-C5-E01-SERIESは「C5が返すfactsで機械的に決め、runnerが推測しない」と定める。Aは同じreducerの出力を凍結時に使い、製品の観測型を変えない。templateは区域を変えずに版だけ進むので、試行ごとの結果は凍結時と同じになる"
+      },
+      {
+        "id": "P3-C6-CONDITIONS",
+        "status": "起草者が推奨で確定（統合担当の即断の範囲。発注前点検で覆してよい）",
+        "A": "4条件の負荷・初期状態・引き金は凍結済みのC4のmanifest（p3-c4-formal-20261007）の同じ条件を継ぐ: 通常backlog＝fixedBacklogの負荷N、大型parse直後＝maxVpws50ParseStarted（最大VPWS50のfull parse開始の0〜5ms後にT0、P3-C4-PARSE-MARK）、encode直後＝maxWeatherCheckpointEncodeStarted（最大U-Wのencode開始の0〜5ms後、triggerLeadMsはC4の凍結値から始める）、EEW同時＝fixedBacklogの負荷N。試行の周期はprimeが入るので3,000msを既定とし（fixedBacklogは1,370msから変わる）、C4との差はmanifestのdifferencesFromC4に書く",
+        "B": "parse・encodeの条件を、U-Tと同じ実行場所（urgent）の最大の入力（VTSE51・VTSE52など）に替える",
+        "recommended": "A",
+        "provisional": "A",
+        "ruling": "起草者がAに確定（2026-10-08）",
+        "reason": "spec §7.5の「大型parse」「checkpoint encode」はEEWの母集団2・3と同じ最大正常XML・最大正常encodeで、AはC4の凍結した負荷・成立率・stopConditionの式を流用できる。同じ実行場所の干渉（U-Tがurgentに同居、P3-C5-PLACE）はEEW同時の母集団とPiの短い確認で見る"
+      },
+      {
+        "id": "P3-C6-EEW-ORDER",
+        "status": "起草者が推奨で確定（統合担当の即断の範囲。発注前点検で覆してよい）",
+        "A": "EEW同時は、窓ごとに1つのEventID（eewEventIds）のVXSE45を、試行ごとにSerial＋1・予想A/B交互（C4のrunnerと同じ作り）で送り、その直後に間を空けずに同じWSで対象のVTSE41を送る。成立の種類はprimeSettledEewOrder（VTSE41のT0がそのVXSE45のinputDone〔返信の反映〕以前、AC06(3)）。標本は津波のT0→T6で、同じ試行のEEWのT0→T6は実行場所urgent×U-E（subject）に結んで参考として記録する（合否に使わない）",
+        "B": "VTSE41を先に送り、EEWを後に送る",
+        "recommended": "A",
+        "provisional": "A",
+        "ruling": "起草者がAに確定（2026-10-08）",
+        "reason": "EEWとVTSE41はどちらもurgentで通常dataのin-flightは1件、mailboxの優先もEEWが先なので、Aが津波にとって重い側。試行ごとに新しいEventIDを使うとU-Eの通常subjectは退去しないので約512試行目から全部capacityExceededになる（domains/eew/eew.ts）。U-T同居後のEEWの正式E01はC6の範囲外なので、EEWの値は参考にとどめる"
+      },
+      {
+        "id": "P3-C6-FAIL-PATH",
+        "status": "起草者が推奨で確定（統合担当の即断の範囲。発注前点検で覆してよい）",
+        "A": "C6は表示・runner・測定以外の製品の挙動を直さない。正式の未達はspec§7.6の帰属（XML parse・checkpoint encode・射影・整形・転送・描画）で原因を分け、版付き結果にFail（またはBlocked）として残して作者へ報告し、直し方は別の契約として発注する（P3-C4-FAIL-PATH=Aと同じ）",
+        "B": "C6の中で最小の修正を足して測り直す",
+        "recommended": "A",
+        "provisional": "A",
+        "ruling": "起草者がAに確定（2026-10-08）",
+        "reason": "C6のallowedPathsは表示と測定だけで、製品のhost・runtimeの所有は他の契約にある（計画§3.2）。C4と同じ切り分けにする"
+      }
+    ],
+    "questionResolutions": [
+      {
+        "id": "P3-C6-DEPS",
+        "status": "frozen",
+        "rule": "着手条件: C5（39fccd46）の配送、C4のrunnerと凍結manifest（p3-c4-formal-20261007）、計画§8の着手ゲート（最小海岸線資材、計画:325。P3-C6-COAST-ASSETの裁定と、Bなら利用条件の確認の記録）、作者裁定（Q-C6-AUTHOR-RULINGS）、発注前点検（Q-C6-PRECHECK）。C6と最初のunitレーン（C7）は同時実行の上限3本の内側で重なってよい（計画:111）",
+        "reason": "計画§3.1・§8の C6 の行"
+      },
+      {
+        "id": "P3-C6-MACHINES",
+        "status": "frozen",
+        "rule": "正式測定はMac mini（独立checkout。reconstruction/dist・node_modulesを共有しない。前景Chrome・caffeinate -d）で、窓（母集団×run、1本あたり約1.5〜3時間）を日を跨いで分けて流す。合計約28〜35時間（P3-C6-POP-SHAPE=Aのとき）。その窓ではMac miniでbuild・test・他レーンを走らせず、実装はMacBookで続ける。機械の実値はC4の凍結時の値を継ぎ、違えばdifferencesFromC4に書く",
+        "reason": "計画:112（作者裁定 2026-10-06、C4・C6の正式測定はMac mini）。作者に改めて訊かない"
+      },
+      {
+        "id": "P3-C6-INHERITED",
+        "status": "frozen",
+        "rule": "C5から引き継ぐもの（変えない）: 系列の定義・遷移の型・4母集団・容量縮退の期待・T6の定義・合成入力の作り方（P3-C5-E01-SERIES）、U-Tのviewとsnapshotの対応（P3-C5-SNAPSHOT=A。色・点滅・意匠はC6とP4）、実行場所urgent（P3-C5-PLACE）、U-EとU-Tの同時dirtyの確かめ（P3-C5-AC11、P3-C5-WRITE-RIGHTの(7)、計画:218。C6のAC08）。C4から引き継ぐもの: 判定の規則（P3-C4-AC02のtally・分位点・時計区間・欠落）、試行ごとの成立の判定と窓の打切り、実行場所ごとの行順の版の結び付け（P3-C4-T3-BINDING）、ping、Mac miniの手順、通知はreal backendで出力をミュート（Q-C4-SOUND）。C4の版をまたぐ採用表（adoption.mjs）はC4専用のまま広げない",
+        "reason": "spec:1104（津波条件はP3契約の前に凍結）と、計画§2.1のC6の行（A9の型を流用）"
+      }
+    ],
+    "operationContract": {
+      "ref": "P2-SHARED-RUNTIME-001#meta.operationContract",
+      "rule": "全標本はrun/input/operation/subjectを相関し、版は実際に到達した場合だけ記録する。normalの正式母集団へtraining/testを混ぜない（P3-C5-E01-SERIESのinputs）。観測点・markerはoperationで分岐しない"
+    }
+  },
+  "contract": {
+    "contractId": "P3-TSUNAMI-E01-001",
+    "mode": "implementation",
+    "objective": "IR05（大津波警報・津波警報もEEWと同じp99 250ms）を、P3の津波の最小実描画経路（spec:1147）で検収する。A9のページに津波の大カード・警報区分・最小海岸線（D-P3-4のP3専用資材）とT6候補markerを足し、C4のrunnerを津波の系列へ広げ、発令系と解除系を別の系列として通常backlog・大型parse直後・checkpoint encode直後・EEW同時の4条件で測る。Mac miniの予備測定の後にmanifestを凍結し、正式測定を行う。Pi backend＋Mac ChromeでC6の短い予備確認を行う（正式Passにしない）。容量縮退の系列は期待値だけを記録して測定はP4へ送る（D-P3-6）。製品のhost・runtime・unitは変えず、未達は原因を分類して報告する。D-ACはPassと報告しない",
+    "baseOid": "unassigned",
+    "cleanTreeRequired": true,
+    "readPaths": [
+      "AGENTS.md",
+      "docs/specs/reconstruction-p0-contracts.md",
+      "reconstruction/contracts/p3-order-plan.md",
+      "docs/specs/display-design-system.md",
+      "display/frontend/src/lib/theme.css",
+      "display/frontend/src/components/TsunamiPanel.svelte",
+      "reconstruction/contracts/p3-e01-reaccept.json",
+      "reconstruction/contracts/p3-e01-reaccept.types.ts",
+      "reconstruction/contracts/p3-tsunami-unit.json",
+      "reconstruction/contracts/p3-tsunami-unit.types.ts",
+      "reconstruction/contracts/p3-tsunami-e01.types.ts",
+      "reconstruction/contracts/p2-chrome-eew.json",
+      "reconstruction/contracts/p2-eew-e01.json",
+      "reconstruction/contracts/p2-eew-e01.types.ts",
+      "reconstruction/contracts/p2-snapshot-sse.types.ts",
+      "reconstruction/contracts/p3-execution-split.types.ts",
+      "reconstruction/contracts/p3-unit-write-right.json",
+      "reconstruction/tools/corpus/manifest.json",
+      "reconstruction/tools/corpus/sequences.json",
+      "reconstruction/src/**",
+      "reconstruction/test/**",
+      "reconstruction/tsconfig.json",
+      "reconstruction/tsconfig.test.json",
+      "reconstruction/vitest.config.ts",
+      "display/maps/quake/source.lock.json",
+      "test/fixtures/32-39_11_02_250206_VTSE41.xml",
+      "test/fixtures/32-39_11_09_250206_VTSE41.xml",
+      "test/fixtures/32-39_11_11_250206_VTSE41.xml",
+      "test/fixtures/32-39_12_02_250206_VTSE41.xml",
+      "test/fixtures/77_01_01_240613_VXSE45.xml",
+      "test/fixtures/37_01_01_240613_VXSE43.xml",
+      "test/fixtures/15_18_01_250630_VPWS50.xml",
+      "test/fixtures/81_09_01_260605_VPWP50.xml",
+      "package.json"
+    ],
+    "allowedPaths": [
+      "reconstruction/src/display/chrome-eew/**",
+      "reconstruction/test/chrome-eew/**",
+      "reconstruction/test/eew-e01/**",
+      "reconstruction/src/measurement/eew-e01/**",
+      "reconstruction/contracts/p3-tsunami-e01.types.ts",
+      "reconstruction/tools/tsunami-coast/**"
+    ],
+    "allowedGitCommands": [
+      "git status --porcelain",
+      "git rev-parse HEAD",
+      "git cat-file -e <oid>:reconstruction/contracts/p3-tsunami-e01.json",
+      "git diff --binary --no-ext-diff -- <allowed_paths>",
+      "git diff --check -- <allowed_paths>",
+      "git show <required-path-or-object>",
+      "git ls-files <required-path>"
+    ],
+    "moduleIds": [
+      "D02",
+      "D07",
+      "D11"
+    ],
+    "integrationContractIds": [
+      "I-U-T",
+      "I-U-E"
+    ],
+    "dependsOnContractIds": [
+      "P3-TSUNAMI-UNIT-001",
+      "P3-E01-REACCEPT-001",
+      "P3-UNIT-WRITE-RIGHT-001",
+      "P3-EXECUTION-LIFECYCLE-001",
+      "P3-EXECUTION-SPLIT-001",
+      "P2-CHROME-EEW-001",
+      "P2-EEW-E01-001",
+      "P2-SNAPSHOT-SSE-001"
+    ],
+    "publicTypes": [
+      "reconstruction/contracts/p3-tsunami-e01.types.ts#P3TsunamiSeries",
+      "reconstruction/contracts/p3-tsunami-e01.types.ts#P3TsunamiCondition",
+      "reconstruction/contracts/p3-tsunami-e01.types.ts#P3TsunamiPopulation",
+      "reconstruction/contracts/p3-tsunami-e01.types.ts#P3TsunamiTransitionTemplate",
+      "reconstruction/contracts/p3-tsunami-e01.types.ts#P3TsunamiPopulationCondition",
+      "reconstruction/contracts/p3-tsunami-e01.types.ts#P3TsunamiE01Manifest",
+      "reconstruction/contracts/p3-tsunami-e01.types.ts#ChromeTsunamiMarkerDetail",
+      "reconstruction/contracts/p3-tsunami-e01.types.ts#P3TsunamiCoastAsset",
+      "reconstruction/contracts/p3-tsunami-e01.types.ts#P3TsunamiRunResult",
+      "reconstruction/contracts/p3-tsunami-e01.types.ts#P3TsunamiE01Verdict",
+      "reconstruction/contracts/p3-tsunami-e01.types.ts#P3TsunamiEstablishment",
+      "reconstruction/contracts/p3-tsunami-e01.types.ts#P3TsunamiSmokeConditions",
+      "reconstruction/contracts/p3-tsunami-unit.types.ts#TsunamiUnitView",
+      "reconstruction/contracts/p2-eew-e01.types.ts#ChromeEewMarkerDetail"
+    ],
+    "publicFunctions": [
+      "summarizeP3TsunamiE01(manifest: P3TsunamiE01Manifest, samples, injections): Readonly<{ runs: readonly P3TsunamiRunResult[]; verdict: P3TsunamiE01Verdict }>（reconstruction/src/measurement/eew-e01/。C4のtallyを共有し、summarizeEewE01・summarizeP3E01の挙動は変えない）",
+      "成立の判定の純関数1つ（C4のestablishTrialにprimeSettledの条件を足す形。runnerと集計が同じものを使う）",
+      "verifyFrozenP3TsunamiManifest（frozen.tsの既存の補助を再利用し、A10・C4の凍結manifestの検査は変えない）",
+      "markTsunamiPaintCandidate(snapshot, previousSubjects, chromeMonotonicMs)（chrome-eew/client.ts。performance.markの固定名fleq:p3:tsunami:T6-candidate、detailはChromeTsunamiMarkerDetail）",
+      "renderTsunami(cards, coast, snapshot)（chrome-eew/client.ts。呼ぶのは津波の配送かcontentRevisionが変わった回だけ）"
+    ],
+    "allowedDependencies": [
+      "node:child_process",
+      "node:crypto",
+      "node:fs",
+      "node:http",
+      "node:os",
+      "node:path",
+      "node:perf_hooks",
+      "node:zlib",
+      "ws（既存）。新しいnpm依存は足さない"
+    ],
+    "fixtureIds": [
+      "test__fixtures__32-39_11_02_250206_VTSE41",
+      "test__fixtures__32-39_11_09_250206_VTSE41",
+      "test__fixtures__32-39_11_11_250206_VTSE41",
+      "test__fixtures__32-39_12_02_250206_VTSE41",
+      "test__fixtures__77_01_01_240613_VXSE45",
+      "test__fixtures__37_01_01_240613_VXSE43",
+      "test__fixtures__15_18_01_250630_VPWS50",
+      "test__fixtures__81_09_01_260605_VPWP50"
+    ],
+    "sequenceIds": [
+      "O09"
+    ],
+    "expectedDecisions": [
+      {
+        "expectedRef": "expected:O09:14"
+      },
+      {
+        "expectedRef": "expected:O09:15"
+      },
+      {
+        "expectedRef": "expected:O09:16"
+      }
+    ],
+    "expectationEvidence": [
+      {
+        "expectedRef": "expected:O09:14"
+      },
+      {
+        "expectedRef": "expected:O09:15"
+      },
+      {
+        "expectedRef": "expected:O09:16"
+      }
+    ],
+    "semanticDeadlines": [],
+    "deliveryDeadlines": [
+      {
+        "id": "P3-C6-DLV-01",
+        "target": "T0 through first paint of the tsunami large card, area classes and required coast (release: removal; downgrade: class/colour/blink/text update)",
+        "limit": 250,
+        "unit": "milliseconds p99 upper bound per run",
+        "scope": "8つの正式母集団の各run、欠落0。系列を混ぜない",
+        "source": "spec:1115、E01、IR05"
+      },
+      {
+        "id": "P3-C6-DLV-02",
+        "target": "expected tsunami T6 observation",
+        "limit": 10,
+        "unit": "seconds from T0",
+        "scope": "超えたら欠落。T0に届かない投入は実投入から10秒でcallbackNotReached（C4と同じ）",
+        "source": "spec:1121"
+      },
+      {
+        "id": "P3-C6-DLV-03",
+        "target": "clock correspondence refresh",
+        "limit": 30,
+        "unit": "seconds",
+        "scope": "run開始・終了にも。Pi確認はPi・Macの往復対応",
+        "source": "spec:1141"
+      }
+    ],
+    "retentionLimits": [
+      {
+        "id": "P3-C6-RET-01",
+        "target": "formal P3 tsunami E01 samples",
+        "limit": 24000,
+        "unit": "samples per manifest",
+        "scope": "P3-C6-POP-SHAPE=Aのとき8母集団×3 run×1,000（Bなら60,000）。warm-upと不成立は別に数える",
+        "source": "spec:1119"
+      },
+      {
+        "id": "P3-C6-RET-02",
+        "target": "warm-up samples",
+        "limit": 2400,
+        "unit": "samples per manifest",
+        "scope": "8母集団×3 run×100（Bなら6,000）。分位点に入れない",
+        "source": "spec:1118"
+      }
+    ],
+    "resourceLimits": [
+      {
+        "id": "P3-C6-RES-01",
+        "target": "clock correspondence interval width",
+        "limit": 5,
+        "unit": "milliseconds",
+        "scope": "超えた標本の結果は未確認で、その窓は同じmanifestで取り直さない（測定を改善して新しいmanifestIdで測り直す）",
+        "source": "spec:1143、P3-C4-AC11の未確認の窓の規則"
+      },
+      {
+        "id": "P3-C6-RES-02",
+        "target": "measurement implementation",
+        "limit": 1,
+        "unit": "product-path runner (the existing reconstruction/test/eew-e01 runner, extended)",
+        "scope": "津波用の別runner・汎用benchmark framework・worker poolを作らない",
+        "source": "P3-C4-RES-03"
+      },
+      {
+        "id": "P3-C6-RES-03",
+        "target": "U-T subjects held during a window",
+        "limit": 2,
+        "unit": "VTSE41 subjects (formal and warm-up EventIDs)",
+        "scope": "warm-upのsubjectは正式の前に解除する。stateBreaks（U-Tの退去、U-T・U-EのcapacityExceeded、tsunamiRevisionConflict、staleのtarget）が1件でも出た窓は未確認（P3-C6-AC06(7)）",
+        "source": "P3-C6-TRIAL-RESET、P3-C5-CAPACITY"
+      },
+      {
+        "id": "P3-C6-RES-06",
+        "target": "U-E subjects held during an eewTogether window",
+        "limit": 2,
+        "unit": "VXSE45 subjects (formal and warm-up EventIDs, Serial+1 per trial)",
+        "scope": "試行ごとに新しいEventIDを使わない（U-Eの通常subjectは退去せず512件でcapacityExceeded）",
+        "source": "P3-C6-EEW-ORDER"
+      },
+      {
+        "id": "P3-C6-RES-04",
+        "target": "Pi preliminary samples",
+        "limit": 30,
+        "unit": "samples × 3 rounds per condition to start, warm-up separate",
+        "scope": "100件未満のp99は観測最大と書く。正式Passにしない",
+        "source": "計画:187、P3-C4-RES-07"
+      },
+      {
+        "id": "P3-C6-RES-05",
+        "target": "minimal coast asset",
+        "limit": 1,
+        "unit": "canonical JSON asset, P3 only",
+        "scope": "P4のGIS・LOD・hit testに使わない",
+        "source": "D-P3-4"
+      }
+    ],
+    "workDeadline": null,
+    "persistenceUnits": [],
+    "persistedFields": [],
+    "nonPersistedFields": [
+      "T6候補markerのdetail（performance.markだけ）",
+      "runnerの投入記録・成立の判定・ping記録、版付き証拠へ抽出する前のraw"
+    ],
+    "outOfScope": [
+      "hover・詳細・LOD・ページ送り・県フォーカス・「今すぐ避難！」の帯・P4の意匠（D-AC01〜24はP4）",
+      "D-ACのPass報告（D-AC15・D-AC24は先行証拠の記録だけ）",
+      "観測（VTSE51/52）の描画",
+      "容量縮退の系列の測定（spec:1137、D-P3-6でP4の容量契約）、personal有効の母集団（P4/P5）",
+      "burst・詳細射影中の母集団（O09:30・31・39・40・48・49・57・58・66・67。P3-C6-O09-REST=Aなら P4）",
+      "U-T同居後のEEWの正式E01（spec:1129の母集団4、P4/P5。C6はPiの短い確認とEEW同時の参考値だけ）",
+      "正規の津波予報区GIS（N18、P4）",
+      "製品のhost・runtime・unit・projector・mailboxの変更（P3-C6-FAIL-PATH=A）",
+      "Piの正式測定・72時間並走（P5）",
+      "A10・C4の版付き結果と凍結manifestの書換え",
+      "汎用benchmark framework、新しいnpm依存",
+      "旧築src/**・display/**の変更"
+    ],
+    "acceptanceChecks": [
+      {
+        "id": "P3-C6-AC01",
+        "requirement": "母集団の対応表（P3TsunamiPopulation・P3TsunamiPopulationCondition）: P3-C6-POP-SHAPE=Aのとき、母集団は系列（escalation＝発令・引上げ・区域拡大、deescalation＝解除・降格）×条件（fixedBacklog・maxVpws50ParseStarted・maxWeatherCheckpointEncodeStarted・eewTogether）の8つで、すべてscope formal・origin T0。件数はwarm-up 100・1,000標本・3 run（spec:1118〜1119）で、正式標本は24,000件。条件の負荷・初期状態・引き金・成立の条件はP3-C6-CONDITIONS=AでC4の凍結manifestの同じ条件を継ぎ（inheritsC4Population）、AC06(3)の成立の条件を加える。C4との差（fixedBacklogの周期1,370→3,000msなど）はmanifestのdifferencesFromC4に書く。遷移のtemplateは5つ（O09:23・32・41・50・59の型〔P3-C5-E01-SERIESのtransitions〕。区域は311・312だけ）で、EventIDはtemplateに持たせず窓（母集団×run）の側に持つ（tsunamiEventIds・eewEventIds、14桁）。系列の中の遷移は試行ごとに順に回す。容量縮退の2母集団（spec:1137）は測らず、P3-C5-E01-SERIESのcapacityExpectationをmanifestのcapacityExpectation（status expectationOnly、引受先はP4の容量契約、D-P3-6）に写す。personal有効（O09:29等）はP4/P5、burst・詳細射影中（O09:30・31・39・40・48・49・57・58・66・67）はP3-C6-O09-RESTの裁定に従い、C6に含めない。対応表（母集団ID↔spec§7.5の系列と条件↔C4の母集団ID↔O09の位置↔計画の行）をmanifestの草案に載せる。O09のC6分の版付きsubset（o09Subset）は位置13〜18・23〜26・32〜35・41〜44・50〜53・59〜62で、unmetの免除はしない（計画:40）",
+        "evidenceRefs": [
+          "docs/specs/reconstruction-p0-contracts.md:1118 «63335bec643675ba»",
+          "docs/specs/reconstruction-p0-contracts.md:1119 «602b2dfb3cc1795e»",
+          "docs/specs/reconstruction-p0-contracts.md:1131 «97e9cc25a1b97b6f»",
+          "docs/specs/reconstruction-p0-contracts.md:1133 «0a085841e24bbc6a»",
+          "docs/specs/reconstruction-p0-contracts.md:1135 «331287df22cee9ea»",
+          "docs/specs/reconstruction-p0-contracts.md:1137 «c06677d2196cd39e»",
+          "docs/specs/reconstruction-p0-contracts.md:2052 «d6ff68c7ef2b9b22»",
+          "reconstruction/contracts/p3-order-plan.md:40 «c4be59ca24a3e392»",
+          "reconstruction/contracts/p3-order-plan.md:73 «e02eb5bbe989309b»",
+          "reconstruction/contracts/p3-order-plan.md:203 «d3505cb6b3f9f653»",
+          "reconstruction/contracts/p3-tsunami-unit.json:274 «a2947cde95691a72»",
+          "reconstruction/contracts/p3-tsunami-unit.json:275 «3b718bb20018f2e2»",
+          "reconstruction/contracts/p3-tsunami-unit.json:276 «d5d3b4298289d668»",
+          "reconstruction/contracts/p3-tsunami-unit.json:277 «73465647117053c5»",
+          "reconstruction/contracts/p3-tsunami-unit.json:279 «b6134b488cf994e9»",
+          "reconstruction/tools/corpus/sequences.json#unmet:O09:23",
+          "reconstruction/tools/corpus/sequences.json#unmet:O09:50",
+          "reconstruction/contracts/p3-tsunami-e01.types.ts"
+        ]
+      },
+      {
+        "id": "P3-C6-AC02",
+        "requirement": "集計と判定（spec§7.5、E01）: C4のsummarizeP3E01と同じ規則（judge.tsのtallyを母集団の型で一般化して共有したもの: 成立した試行だけからnearest-rankの分位点を[L_i, U_i]で出し、p99(U_i)≤250msかつ欠落0だけをPass、p99(L_i)>250msか欠落1以上をFail、それ以外は未確認）を母集団×runに当てる。合算も報告するが各runを救済しない。T6は、targetのT3-BINDINGの窓（C4と同じ: 同じ実行場所の次の入力のT2の行まで。U-TとU-Eは同じurgentなので、EEW同時ではVXSE45の後のVTSE41の窓になる）で公開された版のうち、fleq:p3:tsunami:T6-candidateでそのsubjectのpresent・areasがtemplateのexpectedPaintと一致する最初の候補の実paint（spec:1115。解除はpresent false〔旧表示の除去〕、降格は区分・色・点滅・文言の更新）。窓の中に一致する候補が無いか、T0から10秒までに無ければ欠落。overlapNotEstablished（C4の意味: 条件が成立しなかった正式の試行すべて。理由はprimeNotSettled・startOffset・eewOrderに分けて数える）の試行は標本に数えず、injectionFailuresと別に数えて報告し、Passを妨げない（spec:1133）。primeのT6も同じ規則で、primeのT3-BINDINGの窓でexpectedPrimePaintと一致する最初の候補とする（AC06(3)）。窓のstateBreaks（AC06(7)）が1件でもあれば、その窓は未確認。遷移ごとの標本数・欠落数・p50/p95/p99/maxの上界（byTransition）を報告し、遷移の値で系列の判定を変えない。mixedの報はtemplateに作らない（P3-C5-E01-SERIES）。P3TsunamiE01Verdictは8母集団の全runがPassのときだけPass、1つでもFailならFail、それ以外で未確認があれば未確認。EEW同時の試行のEEWのT0→T6は参考として別に出し、verdictに入れない。summarizeEewE01・summarizeP3E01の挙動と既存の試験は変えない",
+        "evidenceRefs": [
+          "docs/specs/reconstruction-p0-contracts.md:1115 «4d2fc2980fcced03»",
+          "docs/specs/reconstruction-p0-contracts.md:1121 «c45e4376d94f5013»",
+          "docs/specs/reconstruction-p0-contracts.md:1133 «0a085841e24bbc6a»",
+          "docs/specs/reconstruction-p0-contracts.md:1142 «f0743c498380a707»",
+          "docs/specs/reconstruction-p0-contracts.md:1143 «74f54e911312b3e8»",
+          "docs/specs/reconstruction-p0-contracts.md:2052 «d6ff68c7ef2b9b22»",
+          "reconstruction/contracts/p3-tsunami-unit.json:278 «210f658b7946ffb2»",
+          "reconstruction/contracts/p3-tsunami-e01.types.ts"
+        ]
+      },
+      {
+        "id": "P3-C6-AC03",
+        "requirement": "津波の最小実描画（spec:1147、P3-C6-PAGE=A）: A9のページに、U-Tのfull view（snapshot.current.tsunami）のforecastsから津波の大カードと海岸線の層を足す。(1) 大カード: subjectごとに1枚。運用区分・EventID・発表時刻（A9のformatJst）・最高区分の見出しと、区域ごとの行（code・name・区分の名前・maxHeightの生表記・firstHeightの到達予想の生表記。未提供値は計算して埋めない）。枠と見出しは最高区分の色。(2) 塗りの規則: AC05の資材の矩形を、区分がmajorWarning・warning・unknown（P3-C5-KIND-ENUM=Bで警報の順位）・advisoryの区域だけ塗る。forecast・released・noneの区域とview外のsubjectは塗らない。同じcodeを複数のsubjectが塗るときは、codeごとに最高の区分（majorWarning＞warning＝unknown＞advisory）で1回だけ塗る。資材に無いcodeは塗らず、件数を「海岸線の資材なし n 区域」の1行で出す（spec§8.10の7と同じく対象なしにしない）。T6候補のareas（subjectをまたいでcodeごとに最高区分へまとめた後の、そのsubjectのcodeの塗った結果）とtemplateのexpectedPrimePaint・expectedPaintはこの規則で作る。(3) 色（JMAの法定3色、display-design-system.md:69）: 面（海岸線の矩形・カードの枠）はmajorWarning＝--c-tsunami-purple-bar（theme.css:53）、warning・unknown＝--c-jma-red-bar（theme.css:55）、advisory＝--c-yellow（theme.css:43）。文字はrole（theme.css:65〜67のrole-tsunamiMajor・Warning・Advisory）、見出しの面と文字はheader-tsunami*-container・on（theme.css:105〜107）、地は--bg・文字は--fg・資材なしの行は--fg-faint（theme.css:25・:32・:33）。tokenは実値まで解決してindex.htmlに写す（A9の錨: chrome-eew/index.html:7の注記と:32の段階ごとのclassで1回だけ決める形。区分→roleの対応はTsunamiPanel.svelte:98〜100に倣う）。(4) 点滅（spec:1598のT2）: majorWarningの海岸線の矩形だけをCSSのanimation（opacity 1↔0.4のsteps、1秒周期）で点滅させ、warning・advisoryは静止。motionの設定はmanifestのchrome.motionで固定する（reduced-motionはP4、計画§5.2）。(5) summary配送のときは旧カードと旧海岸線を除き、A9のbuildSummaryLineの1行を出す（無発令に見せない）。(6) EEWと津波はそれぞれの配送とcontentRevisionが変わった回だけ描き直し、片方の更新でもう片方を描き直さない（A9のeewContentChangedと同じ形）。(7) snapshotの境界検証にcurrent.tsunami（unit U-T、items 3行、full/summary、viewのforecastsのうち描画に使う項目）を足し、不正なら受けない。(8) A9のAC08（wire由来の文字列はtextContentだけ、禁止APIの静的検査0件、classは固定表から）とR38の固定文言をそのまま保つ。観測（VTSE51/52）の描画、hover・詳細・LOD・ページ送り・「今すぐ避難！」の帯・P4の意匠は作らない",
+        "evidenceRefs": [
+          "docs/specs/reconstruction-p0-contracts.md:1115 «4d2fc2980fcced03»",
+          "docs/specs/reconstruction-p0-contracts.md:1147 «73a0192a421e7aa9»",
+          "docs/specs/reconstruction-p0-contracts.md:1597 «2e96e09901094d1c»",
+          "docs/specs/reconstruction-p0-contracts.md:1598 «c7e1c1b9a235e9ef»",
+          "docs/specs/reconstruction-p0-contracts.md:1599 «0722710359a226ee»",
+          "docs/specs/display-design-system.md:69 «be9fa00dcf21c901»",
+          "display/frontend/src/lib/theme.css:25 «aad6fd2cfeab5bff»",
+          "display/frontend/src/lib/theme.css:32 «d033505a811fcb0e»",
+          "display/frontend/src/lib/theme.css:33 «dfafc5ffb63af87b»",
+          "display/frontend/src/lib/theme.css:43 «44fe559909927428»",
+          "display/frontend/src/lib/theme.css:53 «d84a792b8a84a850»",
+          "display/frontend/src/lib/theme.css:55 «6aef19250c2367c4»",
+          "display/frontend/src/lib/theme.css:65 «7588ef02d08f61a8»",
+          "display/frontend/src/lib/theme.css:66 «17c21c747a1365d2»",
+          "display/frontend/src/lib/theme.css:67 «58635064624e9cbe»",
+          "display/frontend/src/lib/theme.css:105 «340cc6be2989b29d»",
+          "display/frontend/src/lib/theme.css:106 «c829f0c80a7c141e»",
+          "display/frontend/src/lib/theme.css:107 «7c8c99ece15c4e1c»",
+          "reconstruction/src/display/chrome-eew/index.html:7 «29450dc31fc2cee4»",
+          "reconstruction/src/display/chrome-eew/index.html:32 «0933dfb60032c3e1»",
+          "display/frontend/src/components/TsunamiPanel.svelte:98 «a9c3cd146f55c96a»",
+          "display/frontend/src/components/TsunamiPanel.svelte:99 «b97269b2c7af8a57»",
+          "display/frontend/src/components/TsunamiPanel.svelte:100 «0f15b91f1be13704»",
+          "reconstruction/contracts/p3-tsunami-unit.json:130 «ba686084569a790f»"
+        ]
+      },
+      {
+        "id": "P3-C6-AC04",
+        "requirement": "marker（A9の型を流用、A9のAC06）: T5はA9のfleq:p2:eew:T5をそのまま使う（snapshot 1枚につき1つ）。津波のT6候補は固定名fleq:p3:tsunami:T6-candidateで、detailはChromeTsunamiMarkerDetail（displayVersion・operation・subject・present・cardMarkerId・coastMarkerId・areas〔AC03(2)の規則でsubjectをまたいでまとめた後に塗った結果のうち、そのsubjectのcodeとareaClass〕）。カードと海岸線のDOM更新を終えた後の同じ更新の中で、full配送の各subjectに1つ出す。直前に描いていてこの更新でview外になったsubjectにはpresent false・areas空の候補を1つ出す（解除のT6の「旧表示の除去」を測るため）。時計probe（A9のrespondClockProbe）はそのまま使う。frozen.tsのparseChromeMarkerDetailに津波のdetailの検証を足す（A9のdetailの検証は変えない）。正式T6の認定・run/inputとの結合・paintEvidenceIdの付与はrunnerが行い、製品のSSE・HTTPに測定用のevent・endpointを足さない",
+        "evidenceRefs": [
+          "reconstruction/contracts/p2-chrome-eew.json:459 «82275f41dc47c3bf»",
+          "docs/specs/reconstruction-p0-contracts.md:1115 «4d2fc2980fcced03»",
+          "docs/specs/reconstruction-p0-contracts.md:1145 «275d23e44fd3e820»",
+          "reconstruction/contracts/p3-tsunami-e01.types.ts"
+        ]
+      },
+      {
+        "id": "P3-C6-AC05",
+        "requirement": "最小海岸線資材（D-P3-4、作者裁定P3-C6-COAST-ASSET）: P3専用・固定・hash付き。canonical JSON（P3TsunamiCoastAsset。keyの順と空白なしを固定し、sha256をmanifestのcoastSha256とC6のsmoke条件に記録する。A9のgeometry.tsのcanonicalGeometryJsonと同じ作り）で、segmentsのcodeはC6の入力に現れる津波予報区code（合成templateの311・312と、公開fixture 32-39_11_02・32-39_11_09・32-39_11_11のBody/Tsunami/Forecast/ItemのArea/Codeの和集合。起草時の数えで51）。AC07(2)の32-39_12_02の15 codeは意図して入れない（資材に無いcodeの経路を確かめるため）。provenanceにはspec:1727の項目（入手元・版・取得日・利用条件・元archiveのhash・変換toolの版と引数・期待コード数51・既知の除外）を持たせる。出力hashは資材のbytesの中に置けないので、manifestのcoastSha256とC6のsmoke条件のcoastSha256に置く。Aなら入手元は「repo内で生成した模式図（地理の形を持たない）」・利用条件は「外部の資材を使わない」。Bなら公開archiveのURL・sha256・取得日・利用条件の文面の所在・抽出と間引きの手順（reconstruction/tools/tsunami-coast/に置く）で、作者の確認の記録（Q-C6-AUTHOR-RULINGS）が揃うまで資材をcommitせずblockedとする。どちらでも資材・画面・結果に「P3の測定専用。正規の津波予報区GIS（N18、P4）ではない」と書き、P4のGIS合格・D-AC15・D-AC23と呼ばない",
+        "evidenceRefs": [
+          "docs/specs/reconstruction-p0-contracts.md:1607 «6e2100674b781a07»",
+          "docs/specs/reconstruction-p0-contracts.md:1721 «3c87a1a58035b69f»",
+          "docs/specs/reconstruction-p0-contracts.md:1727 «0bc1409b1590c55f»",
+          "docs/specs/reconstruction-p0-contracts.md:2941 «5504e8ce3a341da3»",
+          "reconstruction/contracts/p3-order-plan.md:201 «dbac4c72efe0b3be»",
+          "reconstruction/contracts/p3-order-plan.md:325 «86abe48ef632ad90»",
+          "reconstruction/contracts/p2-chrome-eew.json:30 «014c60b8a145de93»",
+          "display/maps/quake/source.lock.json:4 «3ab6f0a5b431f328»",
+          "reconstruction/contracts/p3-tsunami-e01.types.ts"
+        ]
+      },
+      {
+        "id": "P3-C6-AC06",
+        "requirement": "runnerの改修（既存のreconstruction/test/eew-e01のrunnerを広げる。新しいrunnerやbenchmark frameworkを作らない、P3-C4-RES-03）: (1) 試行はprime→targetの2報（P3-C6-TRIAL-RESET=A）。bodyは凍結したtemplateから作り、runnerが変えてよいのはReportDateTime・Serialと、それに整合するbody内の日時だけ（区域・区分は変えない。fixtureは書き換えない）。ReportDateTimeはsubjectごとに報ごとに1秒以上単調に増やす（VTSE41の新旧はReportDateTimeとInfoTypeだけで決まり、同じ秒・同じInfoTypeで中身が違う報はtsunamiRevisionConflictでstaleになる。tsunami-unit.ts）。EventIDは窓ごとに1つ（tsunamiEventIds）。(2) warm-upの100試行の後に、warm-upのEventIDの解除の報を送り、片付けを確かめてから正式の試行に入る: subjectが表示中ならpresent falseの候補で、既に表示外（最後のwarm-upのtargetが解除など）ならU-Tのdisplay changesが0なのでその報の世代のU-Tのackで確かめる（どちらも観測できなければその窓はBlocked）。(3) 成立の判定はC4の純関数を条件ごとの判別共用体（P3TsunamiEstablishment）へ広げた1つ。どの種類もprimeSettledを含む: primeのT6（primeのT3-BINDINGの窓でexpectedPrimePaintと一致する最初の候補、Chrome時計）をhost時計へ直した区間の上界がtargetのT0より前で、かつU-Tのack（観測kind checkpointGrantのresult acknowledged、generationがprimeの世代以上）がtargetのT0より前。区間がtargetのT0を跨ぐときは不成立。primeのT6を求めないのは、primeのU-Tのdisplay changesが0のときだけ（subjectがprimeの前も後もview外。今のtemplateでは窓の最初の発令系のprimeだけ）で、そのときはprimeの返信の行（processing）とU-Tのackで判定する。理由: subjectが前後とも表示中なら区域が同じでもdisplay changeが出てcontentRevisionが上がり（tsunami-unit.tsは参照の同一で比べる）、津波が描き直される。snapshotはprimeの採用とackのたびにpersistenceの変化で出るので、snapshotの有無では判定しない。primeSettledでtargetの標本からU-T自身の保存（primeの世代）との干渉を除く。primeSettledStartOffset（parse直後・encode直後）はC4のstartOffset（span population）も要る。primeSettledEewOrder（EEW同時）はVTSE41のT0がそのVXSE45のinputDone（そのinputIdのprocessingの行）以前であることも要る。不成立はC4と同じくoverlapNotEstablished（sampleIndexを振らない）として記録し、理由（primeNotSettled・startOffset・eewOrder）ごとに数える。(4) targetの送出: 通常backlog・EEW同時はprimeの実送信からprimeLeadMsの後、parse直後・encode直後はC4の引き金の予測（母集団2の自己較正P3-C4-AC13(7)、triggerLeadMs）に合わせ、primeはそれよりprimeLeadMs前に送る。EEW同時はVXSE45（窓ごとに1つのEventID、Serial＋1・予想A/B交互、C4のrunnerと同じ作り）の直後にVTSE41を送る。(5) 版の結び付けは実行場所ごとの行順の窓（P3-C4-T3-BINDING）のまま。解析はChromeのmarkを（版, subject, markの名前）の組で引く（今のanalysis.mjsは版ごとに候補を1つで上書きするので、EEWと津波・複数subjectの候補が同じ版で消える）。EEWの参考値はurgent×U-EのsubjectでT3と候補を結ぶ。(6) ping・stopCondition・Mac miniの手順・--windowsの規則・通知のreal backendとミュートはC4のまま。(7) 窓ごとのstateBreaks（U-Tの退去〔診断tsunamiCapacityEvicted〕・U-TとU-EのcapacityExceeded・tsunamiRevisionConflict・staleになったtarget）を数えて結果に出し、1件でもあればその窓は未確認とする（既知の初期状態が崩れるため）",
+        "evidenceRefs": [
+          "reconstruction/contracts/p3-e01-reaccept.json:558 «1b08fa0233cd7b17»",
+          "docs/specs/reconstruction-p0-contracts.md:1133 «0a085841e24bbc6a»",
+          "docs/specs/reconstruction-p0-contracts.md:1135 «331287df22cee9ea»",
+          "reconstruction/contracts/p3-tsunami-unit.json:279 «b6134b488cf994e9»",
+          "reconstruction/contracts/p3-tsunami-e01.types.ts"
+        ]
+      },
+      {
+        "id": "P3-C6-AC07",
+        "requirement": "単発の実Chrome smoke（A9のP2-A9-T02と同じ形、統合担当が実走する。子のsandboxはlistenできない）: smoke.mjsに条件ファイルと出力先を渡す引数を足し（既定は今のA9の条件ファイルと出力先のままで、A9の挙動と試験・commit済みのsmoke-result.jsonとpngを変えない）、C6はC6の条件ファイル（P3TsunamiSmokeConditions）と別の出力先で走らせる。前景Chrome・1440×900 CSS px・DPR 2で、(1) 5つの遷移のtemplateをprime→targetの順に流し、targetのたびにT6候補markerのpresent・areasがexpectedPaintと一致し、海岸線の矩形の中心pixelがAC03(3)の色であること（点滅はCDPのAnimation.setPlaybackRate 0で止めた状態で採る）、majorWarningの矩形だけにanimationがあり、解除でカードと矩形が消えること (2) 公開fixtureの32-39_11_02→32-39_11_09→32-39_11_11（O09:14〜16、EventID 20110311144640）を流し、カードの区域の行と海岸線が各報の区分に一致すること。続けて資材に無いcodeを持つ公開fixture 32-39_12_02（訓練。資材の和集合に無いcodeが15、110・240・341など）を単独で流し、そのcodeが塗られず「海岸線の資材なし 15 区域」の行が出ること（この確かめだけに使い、ほかの入力と組ませない。O09:20の訓練fixture 32-39_13_07はcodeがすべて資材の内側なので使えない）。同じcodeを2つのsubjectが塗るときは、通常の合成template 2本（別のEventIDで311を大津波警報と津波警報）を流し、codeごとの最高区分で塗られ、両方の候補のareasがまとめた後の値になること (3) EEW（VXSE43）と津波が同時に描かれ、片方の更新でもう片方のcontentRevisionが変わらないときは描き直さないこと (4) summary配送で旧カード・旧海岸線が消えること (5) A9のsmokeの全項目が変わらず通ること。結果はD-AC15・D-AC24の先行証拠として記録し、Passと報告しない",
+        "evidenceRefs": [
+          "docs/specs/reconstruction-p0-contracts.md:1852 «6a30a97554c10a55»",
+          "docs/specs/reconstruction-p0-contracts.md:1861 «75e08d641a30c6f3»",
+          "docs/specs/reconstruction-p0-contracts.md:1145 «275d23e44fd3e820»",
+          "reconstruction/tools/corpus/sequences.json#expected:O09:14",
+          "reconstruction/tools/corpus/sequences.json#expected:O09:16",
+          "reconstruction/contracts/p2-chrome-eew.json:526 «d3d0e9b04d42708a»"
+        ]
+      },
+      {
+        "id": "P3-C6-AC08",
+        "requirement": "Mac miniの予備測定（manifest凍結の前、計画:159）: 速さに加えて証拠が成立することを確かめる。① 入力と時刻（prime→targetの投入IDとcallbackの対応、primeSettledと条件〔startOffset・EEW同時〕を合わせた成立率、時計区間の幅） ② 表示と判定（T6候補のareasとexpectedPaintの一致、点滅を含む実paint、欠落判定、集計の入力。大津波警報の点滅でChromeのtraceが増えるので、traceのブロックごとの大きさとdataLossを記録する） ③ 状態と保存（C4の初期状態〔U-Tの保存が無い〕から起動したときU-Tが空で始まること、warm-upの解除でpresent falseが出ること、窓の中のstateBreaksが0であること、primeのU-Tのackの時刻） ④ U-EとU-Tの同時dirty（C5から引き継いだ義務: P3-C5-AC11、P3-C5-WRITE-RIGHTの(7)、計画:218）: C4のE14の束の窓（P3-C4-AC13(3)）の各束にVTSE41（templateの版を進めた報）を足し、U-EとU-Tが同時にdirtyになったときのunitごとのdirty→ackを報告する（判定場所はPi・P5、Macの値は報告）。値から固定するもの: primeLeadMs、試行の周期（既定3,000ms。N/P/Cの再生時刻は変えない）、各窓のstopCondition（成立率は上の合わせた率。式はC4のP3-C4-FREEZE-DECISIONSの(2): maxAttempts＝100＋ceil(1,000÷Wilson下限×1.1)、maxDurationMs＝（初期化＋試行の所要×maxAttempts）×1.25）、parse直後・encode直後のtriggerLeadMs。成立率が低く窓に収まらない母集団は、所要と試行を報告し、凍結の前に統合担当が代替条件を固定する（spec:1133。凍結後は変えない、spec:1106）。正式の所要を窓ごとに積み、作者へ報告する。NO-GOのときの扱いは計画:159のまま",
+        "evidenceRefs": [
+          "reconstruction/contracts/p3-order-plan.md:157 «8ad61a51e88bb9b0»",
+          "reconstruction/contracts/p3-order-plan.md:159 «d81307e8b66b9886»",
+          "reconstruction/contracts/p3-order-plan.md:218 «c60076e915feb659»",
+          "docs/specs/reconstruction-p0-contracts.md:1106 «531dc4a11a01dc61»",
+          "docs/specs/reconstruction-p0-contracts.md:1133 «0a085841e24bbc6a»",
+          "reconstruction/contracts/p3-e01-reaccept.json:226 «21a309d1f8520fb2»",
+          "reconstruction/contracts/p3-tsunami-unit.json:335 «1cc7edc14f8f6143»",
+          "reconstruction/contracts/p3-tsunami-unit.json:934 «f520ecc47cdb1a22»"
+        ]
+      },
+      {
+        "id": "P3-C6-AC09",
+        "requirement": "Pi予備確認（D-P3-7のC6の短い確認、作者裁定P3-C6-PI-STAGE2）: Pi backend＋Mac miniのChrome（PiとMac miniを同じルーターに有線でつなぐ。直結ケーブルではない）で、発令系（通常backlog）・解除系（通常backlog）・EEW同時（EEWのT0→T6も記録）の3条件を、warm-upを別に30件程度×3回（P3-C4-RES-07）。100件未満のp99は「観測最大」と書く。記録はC4のAC09の区間（実送信→T0・T0→T2・T2→採用と射影・採用と射影→公開・T0→T6・実送信→T6）、時計区間の幅の分布（spec:1141〜1143の往復対応。別機械の単調時計を直接引き算しない）、通信経路、同じ窓のPiの/proc/pressure/{cpu,memory,io}とvcgencmd（統合担当のshellのloop）、threadごとのheapとプロセスのRSS。見るのは計画:187の5つと、urgentにU-Tを足した干渉（津波の処理中に届いたEEW、EEWの処理中に届いた津波の待ち）。継承する負荷と初期状態はC6のmanifestと同じ（C4の凍結manifestを継ぐ）で、記録はC6のmanifestIdに結ぶ。Q-UWR-REMEASURE（P3-UNIT-WRITE-RIGHT-001、C4から移管されたPiの第2段）とは、Piの作業複製・時計の対応・有線LANの経路の準備を共有し、窓は重ねない。順序はQ-UWR-REMEASUREのPiの窓を先、C6の確認を後にする（C6の確認は書込み権の測り直しの後の製品で見るため）。この確認の窓はPiとMac miniの両方を測定機として扱い、両方でbuild・test・他レーンを走らせず、Mac miniの正式測定の窓と重ねない（計画:112）。Piの作業複製は公開fixtureだけ、旧築の保護はC4のAC09のまま。異常が無ければ「この予備条件では再現せず」と書き、E01のPassと呼ばない。異常が出たら原因を分類して作者へ報告する（D-P3-9。後続の着手禁止条件にしない）",
+        "evidenceRefs": [
+          "reconstruction/contracts/p3-order-plan.md:112 «c81c3e4ab8b07d22»",
+          "reconstruction/contracts/p3-order-plan.md:185 «5e73c88a8bd6b37d»",
+          "reconstruction/contracts/p3-order-plan.md:186 «232d5e21c1e59cfe»",
+          "reconstruction/contracts/p3-order-plan.md:187 «30557e27fbc10ebf»",
+          "reconstruction/contracts/p3-order-plan.md:188 «5568557f566c49ac»",
+          "reconstruction/contracts/p3-order-plan.md:204 «6dbae61d532de8c8»",
+          "docs/specs/reconstruction-p0-contracts.md:1141 «6d9d63f029934dfb»",
+          "reconstruction/contracts/p3-e01-reaccept.json:142 «a628b4634a4a8cd3»",
+          "reconstruction/contracts/p3-unit-write-right.json:541 «1c17bf61d1990dbf»"
+        ]
+      },
+      {
+        "id": "P3-C6-AC10",
+        "requirement": "manifest凍結（予備測定の後、正式測定の前）: P3TsunamiE01Manifestを凍結し、self hashと使う全契約ID→meta.sha256を持たせる。固定するもの: 継承するC4の凍結manifest（inheritsManifestId p3-c4-formal-20261007）とその負荷・初期状態のhash、differencesFromC4、5つのtemplate（区域・body hash・expectedSeries・expectedTransitions・expectedPrimePaint・expectedPaint）、8母集団の条件（establishmentの種類と条件の対応・primeLeadMs・triggerLeadMs・periodMs・stopCondition・tsunamiEventIds・eewEventIds）、warm-up・標本数・run数、ping、海岸線資材のcoastSha256とEEWのgeometrySha256、C6専用のsmoke条件（smokeConditionsRef。型はP3TsunamiSmokeConditionsでcoastSha256・templateのbody hashを持つ。manifestのsmokeConditionsSha256はこのC6のファイルのhash。A9のchrome-smoke-conditions.jsonはA10とC4の凍結manifestがself hashで固定しているので書き換えず、C6用の別ファイルをreconstruction/test/eew-e01/evidence/p3-tsunami/に作り、C6のmanifestだけが参照する）、Chromeの条件（版・前景・viewport・DPR・motion）、機械の役割と凍結時の実値、judgmentPlaces（E01の本番判定はPi backend＋実接続経路＋表示端末のChrome、P5）、capacityExpectation（期待だけ、P4）、o09Subset（AC01の位置、sequencesSha256はsequences.jsonのmeta.sha256）。結果を見てから母集団・除外条件を変えない（spec:1106）。凍結の前にCodexの総合レビュー（P3-C6-CODEX=Aなら1回目）を通す。凍結後に条件を変えるとき（Blockedの後の条件の変更を含む）は新しいmanifestIdで、影響する母集団を全runとも測り直す（C4のadoption.mjsの版をまたぐ採用はC6に広げない）。照合はfrozen.tsのverifyFrozenP3Manifestと同じ形の関数1つで、既存のA10・C4の凍結manifestの検査は変えない",
+        "evidenceRefs": [
+          "docs/specs/reconstruction-p0-contracts.md:1104 «b93e705ab7397a04»",
+          "docs/specs/reconstruction-p0-contracts.md:1106 «531dc4a11a01dc61»",
+          "docs/specs/reconstruction-p0-contracts.md:1117 «aa21455d124a4e6d»",
+          "reconstruction/contracts/p3-order-plan.md:207 «68a0ce6993c90b5e»",
+          "reconstruction/contracts/p3-e01-reaccept.json:757 «de3ea7ee502cd62f»",
+          "reconstruction/contracts/p3-tsunami-e01.types.ts"
+        ]
+      },
+      {
+        "id": "P3-C6-AC11",
+        "requirement": "正式測定と結果: 凍結manifestで8母集団×3 runを測り、P3TsunamiE01Verdictと遷移ごとの報告を版付き結果に残す。分割の単位は窓（母集団×run）で日を跨いでよい。各窓は自分のwarm-upと初期状態から始め、窓ごとの最新attemptを使う。runnerの--windowsはBlocked・未実施の窓だけを再実行し、未確認の窓（時計の区間幅超過・stateBreaksなど）は同じmanifestでは取り直さない（P3-C4-AC11と同じ規則）。Blockedの原因を除くために条件を変えたときは、AC10のとおり新しいmanifestIdで影響する母集団を全runとも測り直し、旧と新の窓を混ぜない。測定の窓ではMac miniでbuild・test・他レーンを走らせない（計画:112）。unit test・予備測定・Pi予備確認・単発smokeを正式Passに代用しない。未達はP3-C6-FAIL-PATH=Aに従う（spec§7.6の帰属で分類して報告し、C6の中で直さない）。容量縮退の母集団は「未検収（期待値だけを固定、測定はP4の容量契約、D-P3-6）」、burst・詳細射影中はP3-C6-O09-RESTの裁定どおりの引受先を結果に書く。D-AC15・D-AC24はPassと報告しない（計画:40）。版付き結果（rawに基づく証拠・凍結manifest・機械検証の結果）をCodexの総合レビュー（P3-C6-CODEXの裁定どおり）に渡す。生データはMac・Mini・Piのローカルに置き、公開のActions・artifactに渡さない",
+        "evidenceRefs": [
+          "reconstruction/contracts/p3-order-plan.md:40 «c4be59ca24a3e392»",
+          "reconstruction/contracts/p3-order-plan.md:112 «c81c3e4ab8b07d22»",
+          "reconstruction/contracts/p3-e01-reaccept.json:757 «de3ea7ee502cd62f»",
+          "docs/specs/reconstruction-p0-contracts.md:1137 «c06677d2196cd39e»",
+          "docs/specs/reconstruction-p0-contracts.md:2614 «14a838a9ba869959»",
+          "reconstruction/contracts/p3-e01-reaccept.json:84 «916b8c487fa7525c»"
+        ]
+      },
+      {
+        "id": "P3-C6-AC12",
+        "requirement": "既存試験・最小実装・計算量: reconstructionのゲート（tsc 2本・vitest・shuffle・checker 3本）とchrome-eewのtscを通す。A9のchrome-eewの試験、A10・C4のeew-e01の試験（frozen.test.tsの凍結manifestの検査、judge.test.ts・p3.test.ts・adoption.test.tsを含む）は期待値を変えずに緑。期待値を変える必要が出たら変更前に一覧を報告する。足した仕組みごとに「無いと何が壊れるか」を成果物に1行で書く。製品のhost・runtime・unit・projectorのファイルに触れない（allowedPathsに無い）。ブラウザの受信経路で受信ごとに全subject×全区域の走査やsnapshot全体の直列化をしない（描き直しは変わった配送だけ、資材はcode→矩形のMapを1回作って引く）。runnerと解析は入力ID・place・（版, subject, mark名）でMapを引き、全標本×全標本の走査をしない",
+        "evidenceRefs": [
+          "AGENTS.md",
+          "reconstruction/contracts/p3-e01-reaccept.json:558 «1b08fa0233cd7b17»"
+        ]
+      }
+    ],
+    "testMapping": [
+      {
+        "testId": "P3-C6-T01",
+        "purpose": "acceptance",
+        "referenceIds": [
+          "P3-C6-AC01",
+          "P3-C6-AC02",
+          "P3-C6-AC06"
+        ],
+        "behavior": "C4のjudge.test.ts・p3.test.tsが持つ分位点・時計区間・欠落の規則は言い換えない。新しい振る舞いだけ: (1) T6候補のareasがexpectedPaintと違う候補はT6にならず、T3-BINDINGの窓の中に一致する候補が無ければ欠落（窓の外の後の版の候補は拾わない） (2) 解除のtemplateではpresent falseの候補がT6になる (3) 同じ版にEEWの候補と津波の候補、2つのsubjectの津波の候補があっても、（版, subject, mark名）で引いてそれぞれが残る（同じ版で上書きされない） (4) overlapNotEstablished（理由primeNotSettled・startOffset・eewOrder）の試行はsampleIndexを持たず、理由ごとに数えられ、ほかが全部合格ならPass。primeのT6はprimeの窓でexpectedPrimePaintと一致する候補だけ (5) stateBreaksが1件の窓は未確認 (6) 遷移ごとの報告が出て、1つの遷移の上界が250msを超えても系列のp99(U)が250ms以内なら系列はPassのまま報告に残る (7) 8母集団のうち1つのrunがFailならverdictはFail"
+      },
+      {
+        "testId": "P3-C6-T02",
+        "purpose": "corpusHistory",
+        "referenceIds": [
+          "P3-C6-AC01",
+          "P3-C6-AC06",
+          "reconstruction/tools/corpus/sequences.json#unmet:O09:23"
+        ],
+        "behavior": "5つの遷移のtemplateをreconstruction/distのC5のreducerにprime→targetの順で通すと、targetのSubjectOutcome.factsのseriesが発令・引上げ・区域拡大でescalation、解除・降格でdeescalation、areaTransitionsが311・312のtemplateの遷移（issued・upgraded・expanded・released・downgraded）に一致し、manifestの草案のexpectedSeries・expectedTransitions・expectedPaint（塗りの規則で作ったもの）と一致する。同じtemplateを報ごとにReportDateTimeを1秒進めて100試行ぶん続けて通しても、各targetの結果は変わらず、subject数は2のまま・退去0・stale 0。窓の最初の発令系のprimeはU-TのdisplayChangesが0（subjectが前後ともview外）で、区域が直前と同じでも引上げ・区域拡大のprime（subjectが前後とも表示中）はdisplayChangesを出す。各primeの描画の期待がexpectedPrimePaintと一致する"
+      },
+      {
+        "testId": "P3-C6-T03",
+        "purpose": "contractBoundary",
+        "referenceIds": [
+          "P3-C6-AC03",
+          "P3-C6-AC04"
+        ],
+        "behavior": "chrome-eewのpure部分（DOMに依存しない関数）で: U-Tのviewから作るカードと海岸線の描画指示が、区分→固定classの表（majorWarning・warning・unknown・advisory）だけを使い、forecast・released・noneを塗らず、点滅のclassはmajorWarningだけ、同じcodeを2つのsubjectが塗るときcodeごとの最高区分、資材に無いcodeを件数に数える。直前に描いたsubjectがview外になるとpresent falseの候補が1つ作られる。snapshotの境界検証は、current.tsunamiが無い・unitが違う・itemsが3行でない・forecastsの描画に使う項目の型が違うとき受けない。parseChromeMarkerDetailは津波のdetailを受け、areasの形が違えば拒む（A9のdetailの扱いは変わらない）。津波のcontentRevisionだけが変わったsnapshotではEEWを描き直さず、その逆も同じ"
+      },
+      {
+        "testId": "P3-C6-T04",
+        "purpose": "acceptance",
+        "referenceIds": [
+          "P3-C6-AC07",
+          "P3-C6-AC03",
+          "P3-C6-AC04"
+        ],
+        "behavior": "実Chromeの単発smoke（統合担当が実走）: AC07の(1)〜(5)。smoke.mjsを引数なしで走らせるとA9の条件ファイルと出力先を使い、A9の結果が変わらない。markerの名前はfleq:p2:eew:T5とfleq:p2:eew:T6-candidateとfleq:p3:tsunami:T6-candidateの3つだけで、detailの形が型どおり。HTML断片・実体参照・改行を含む区域名でも要素数不変・実行要素0・字面表示（A9のT05の津波版）"
+      },
+      {
+        "testId": "P3-C6-T05",
+        "purpose": "contractBoundary",
+        "referenceIds": [
+          "P3-C6-AC05",
+          "P3-C6-AC07"
+        ],
+        "behavior": "海岸線資材のcanonical JSONのsha256がmanifest・C6のsmoke条件に記録した値と一致し、provenanceのexpectedCodeCountが51で、segmentsのcodeがAC05の和集合と一致する（重複なし、矩形が図の中で重ならない）。1文字変えると不一致になる"
+      },
+      {
+        "testId": "P3-C6-T06",
+        "purpose": "contractBoundary",
+        "referenceIds": [
+          "P3-C6-AC10"
+        ],
+        "behavior": "津波のmanifestの凍結の照合: self hash・契約hash・継承するC4のmanifestのhash・templateのbody hash・coastSha256・C6のsmoke条件のhash・o09Subset（sequencesSha256とpositionがO09にあること）が通り、1か所変えると拒否する。8母集団の鍵がそろわない、templateの遷移が系列と合わない（発令系にreleasedなど）、establishmentの種類と条件の対応が違う（fixedBacklog↔primeSettled、parse直後・encode直後↔primeSettledStartOffsetでspanがpopulation、EEW同時↔primeSettledEewOrder）、eewEventIdsがEEW同時以外で非nullかEEW同時でnull、窓のEventIDが重複する、のどれでも拒否する。A10とC4の凍結manifestとA9のsmoke条件は既存のfrozen.test.tsのまま通る"
+      },
+      {
+        "testId": "P3-C6-T07",
+        "purpose": "contractBoundary",
+        "referenceIds": [
+          "P3-C6-AC06"
+        ],
+        "behavior": "成立の判定の純関数（establishmentの種類ごと）: primeのT6をhost時計へ直した区間の上界かU-Tのackのどちらかが無い・targetのT0より後なら不成立（理由primeNotSettled）、区間がtargetのT0を跨いでも不成立、U-TのdisplayChangesが0のprimeだけはT6なしで返信の行とackで判定し、区域が同じでも引上げ・区域拡大のprimeにはT6を求める。primeSettledStartOffsetは続けてC4と同じ−0.1・0・5・5.1msの境界（理由startOffset）。primeSettledEewOrderはVTSE41のT0がVXSE45のprocessingの行より後なら不成立（理由eewOrder）。どれもoutcomeはoverlapNotEstablished。templateからbodyを作る関数は、ReportDateTime・Serialと関係する日時だけを変え、区域・区分・EventIDの並びはtemplateのbodyと同じ（他の差分0）で、同じsubjectの続く報のReportDateTimeは1秒以上増える。ReportDateTimeを同じ秒のまま中身の違う報を作ると、C5のreducerがtsunamiRevisionConflictを出してstaleになり、それをstateBreaksに数える"
+      },
+      {
+        "testId": "P3-C6-T08",
+        "purpose": "regression",
+        "referenceIds": [
+          "P3-C6-AC12"
+        ],
+        "behavior": "reconstructionの全試験とchrome-eewの試験を、期待値を変えずに通す。shuffle実行でも緑"
+      }
+    ],
+    "requiredCommands": [
+      {
+        "command": "node reconstruction/tools/corpus/check-manifest.mjs",
+        "cwd": ".",
+        "target": "reconstruction/tools/corpus/manifest.json",
+        "stage": "contract",
+        "purpose": "fixture台帳とhash検査"
+      },
+      {
+        "command": "node reconstruction/tools/corpus/check-sequences.mjs",
+        "cwd": ".",
+        "target": "reconstruction/tools/corpus/sequences.json",
+        "stage": "contract",
+        "purpose": "O09の参照と未充足数"
+      },
+      {
+        "command": "node reconstruction/contracts/check-contract.mjs",
+        "cwd": ".",
+        "target": "reconstruction/contracts/*.json",
+        "stage": "contract",
+        "purpose": "全契約の検査"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/tsconfig.json",
+        "cwd": ".",
+        "target": "reconstruction/src and contracts types",
+        "stage": "implementation",
+        "purpose": "型検査とreconstruction/dist/の生成（runnerとT02がdistを使う）"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/tsconfig.test.json",
+        "cwd": ".",
+        "target": "reconstruction/test",
+        "stage": "implementation",
+        "purpose": "試験の型検査"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/src/display/chrome-eew/tsconfig.json",
+        "cwd": ".",
+        "target": "reconstruction/dist/chrome-eew/",
+        "stage": "implementation",
+        "purpose": "ブラウザ用ES moduleの生成（A9の唯一の生成手順）"
+      },
+      {
+        "command": "./node_modules/.bin/vitest run --config reconstruction/vitest.config.ts",
+        "cwd": ".",
+        "target": "reconstruction/test",
+        "stage": "implementation",
+        "purpose": "全試験"
+      },
+      {
+        "command": "./node_modules/.bin/vitest run --config reconstruction/vitest.config.ts --sequence.shuffle",
+        "cwd": ".",
+        "target": "reconstruction/test",
+        "stage": "implementation",
+        "purpose": "順序依存の検出"
+      },
+      {
+        "command": "node reconstruction/test/chrome-eew/smoke.mjs",
+        "cwd": ".",
+        "target": "reconstruction/test/chrome-eew/evidence/",
+        "stage": "implementation",
+        "purpose": "AC07の実Chrome単発smoke（統合担当が実走）"
+      },
+      {
+        "command": "node reconstruction/test/eew-e01/run.mjs --preliminary <options>",
+        "cwd": ".",
+        "target": "Mac miniの予備測定（統合担当が実走）",
+        "stage": "preparation",
+        "purpose": "AC08の証拠の成立・成立率・所要。結果の状態は必ず未確認"
+      }
+    ],
+    "artifactRequirements": [
+      "allowed_pathsに限定したgit diff --binary --no-ext-diffのpatch、変更ファイル一覧、requiredCommandsの実行結果、未実行の検証と理由、残存リスク。追加・変更した各試験について受入条件／契約境界／実不具合／corpus履歴のどれに当たるかを1行で書く",
+      "足した仕組みごとに「無いと何が壊れるか」を1行で書く。最低限: 津波のT6候補marker（無いと津波のT6を観測できない）、present falseの候補（無いと解除の旧表示の除去を測れない）、海岸線資材とhash（無いとspec:1115の「必要な海岸線」とspec:1117の資材hashを固定できない）、点滅のclass（無いと降格のT6の点滅の更新を確かめられない）、prime→targetの試行（無いと各試行が既知の初期状態から始まらない）、smoke.mjsの条件ファイルと出力先の引数（無いとC6の条件でsmokeを走らせるとA9の条件の照合とcommit済みのA9の証拠を壊す）、primeSettledの成立判定（無いとprimeの保存中・描画中に送ったtargetが標本に混ざる）、templateの凍結と照合（無いと系列をrunnerが推測することになる）、遷移ごとの報告（無いと軽い遷移の値で重い遷移を代替しても見えない、spec:1131）",
+      "工程の成果物（統合担当が実走して記録する）: 単発smokeの記録、Mac miniの予備測定の記録と所要の積算、Pi予備確認の記録、凍結manifest、正式測定の版付き結果（P3TsunamiE01Verdict・遷移ごとの報告・EEW同時のEEWの参考値）、Codexの総合レビュー2回の記録",
+      "既存試験の期待値を変えたときは、理由と変更前後の値を一覧にする"
+    ],
+    "unresolvedQuestions": [
+      {
+        "id": "Q-C6-AUTHOR-RULINGS",
+        "owner": "user",
+        "blocks": [
+          "P3-C6-AC01",
+          "P3-C6-AC05",
+          "P3-C6-AC08",
+          "P3-C6-AC09",
+          "P3-C6-AC10",
+          "P3-C6-AC11"
+        ],
+        "resolveBy": "baseOidの割当の前（発注前点検）",
+        "requiredEvidence": [
+          "P3-C6-POP-SHAPE・P3-C6-COAST-ASSET・P3-C6-PI-STAGE2・P3-C6-CODEX・P3-C6-O09-RESTの作者裁定（日付付き）",
+          "P3-C6-COAST-ASSET=Bなら、資材の利用条件を作者が確かめた記録（文面の所在・出典表記・同梱の可否）"
+        ]
+      },
+      {
+        "id": "Q-C6-PRECHECK",
+        "owner": "integrator",
+        "blocks": [
+          "P3-C6-AC01",
+          "P3-C6-AC10"
+        ],
+        "resolveBy": "baseOidの割当の前（発注前点検）",
+        "requiredEvidence": [
+          "O09のC6分（13〜18・23〜26・32〜35・41〜44・50〜53・59〜62）の扱い: 5つの遷移のtemplateをsyntheticのfixture（prime・target）としてcorpusに足してunmetを充足するか、runnerのtemplateとして測定の証拠に置いてunmetのまま残すか（推奨は前者。Q-C5-CORPUSと同じ機械的な波及〔manifestの件数・P1契約のfixtureIds・READMEなど〕を同じcommitで直す）。O09:17・18（Q-C5-CORPUSの(4)でC6へ送られた解除・降格の見込み）は、32-39_11_11の続報のsyntheticで単発smokeとPi確認に使い、正式母集団には入れない",
+          "P3-C6-POP-SHAPE=Aなら、O09の20位置（23〜26・32〜35・41〜44・50〜53・59〜62）のchecksを「系列の母集団で判定し、遷移ごとは報告」へ改訂し、sequences.jsonのmeta.sha256と引用側のanchorを同じcommitで直す",
+          "P3-C6-PI-STAGE2の裁定を、p3-unit-write-right.jsonのQ-UWR-REMEASUREにも記録する（発注前点検のcommitで、anchorとmeta.sha256を同じcommitで直す）",
+          "P3-C6-O09-REST=Aなら、計画§5.2に津波のburst・詳細射影中のE01（O09の10位置）の引受先P4を書き足す",
+          "C5配送（39fccd46）後のchrome-eew・runner・U-Tのviewの実体と本契約の前提（U-Tがurgent、snapshot.current.tsunami、checkpointGrantのunitとresult）の照合"
+        ]
+      }
+    ]
+  }
+}
