@@ -1,9 +1,9 @@
 {
   "meta": {
     "baseOid": "3669dfd6a98e6c116c86f7db1cd27aa63002a90d",
-    "sha256": "be9cfd97b555e3a55568f085d107342c978b3dc7249f5cecea868ea5a62c5781",
+    "sha256": "79769d888ff5f429e4bd370a6a88ccb30611b5ee2a1e7b12d25d58f215cbfbd3",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
-    "manifestSha256": "76c82b87d7783a4eae14af690cb34e7d6ec46f73617dc75b7f7401951619f080",
+    "manifestSha256": "226b73cbfb4e769c89d2b1327fcbd8067a47887303527a2893592fba47176235",
     "clock": "synthetic epoch milliseconds; receivedAt/evaluatedAt は合成固定時計。原XML日時は不変。系列内ケース間のrestartで時計と空stateを再設定。受信時刻の実測ではない。",
     "decisions": [
       "形式A（推奨・採用）={meta,sequences,expectations,unresolvedQuestions}。B=meta/期待値を別file。Aならstepと根拠の配送欠落を一ファイルのhashで検出できる。baseOidは本契約HEAD、manifestの来歴baseOidとは別。",
@@ -1082,6 +1082,122 @@
           "expectationBasis": [
             "L1: docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6» O01",
             "L2: test/fixtures/43_04_01_260807_VFVO52.xml:1 «12c29731e40adc0c» 原本確認済み（dmdata Telegram List item id と受領 hash 一致、manifest 参照）"
+          ]
+        },
+        {
+          "sequenceId": "O01",
+          "position": 61,
+          "action": "restart",
+          "fixtureId": null,
+          "receivedAt": null,
+          "evaluatedAt": 1299822540000,
+          "inputSource": "replay",
+          "operationExpected": null,
+          "expectedRef": "expected:O01:61",
+          "expectationBasis": [
+            "L1: docs/specs/reconstruction-p0-contracts.md:1758 «37f025f94e7bbdfd» 固定初期状態・時計",
+            "L1: docs/specs/reconstruction-p0-contracts.md:736 «e88a83452d784a7c»"
+          ]
+        },
+        {
+          "sequenceId": "O01",
+          "position": 62,
+          "action": "receive",
+          "fixtureId": "test__fixtures__32-39_11_02_250206_VTSE41",
+          "receivedAt": 1299822540001,
+          "evaluatedAt": 1299822540001,
+          "inputSource": "replay",
+          "operationExpected": "normal",
+          "expectedRef": "expected:O01:62",
+          "expectationBasis": [
+            "L1: docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6» O01",
+            "L1: reconstruction/contracts/p3-tsunami-unit.json:146 «c21a8479a57628b3» Q-NOTICE escalation",
+            "L1: reconstruction/contracts/p3-tsunami-unit.json:200 «ae156ddc44d461f8» Q-NOTICE level（作者裁定 NOTICE-LEVELS=A）",
+            "L2: test/fixtures/32-39_11_02_250206_VTSE41.xml:1 «12c29731e40adc0c» 元XMLのControl/Head/Bodyを読解（原本確認の主張ではない）"
+          ]
+        },
+        {
+          "sequenceId": "O01",
+          "position": 63,
+          "action": "receive",
+          "fixtureId": "test__fixtures__32-39_11_09_250206_VTSE41",
+          "receivedAt": 1299823200000,
+          "evaluatedAt": 1299823200000,
+          "inputSource": "replay",
+          "operationExpected": "normal",
+          "expectedRef": "expected:O01:63",
+          "expectationBasis": [
+            "L1: docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6» O01",
+            "L1: reconstruction/contracts/p3-tsunami-unit.json:146 «c21a8479a57628b3» Q-NOTICE escalation",
+            "L1: reconstruction/contracts/p3-tsunami-unit.json:200 «ae156ddc44d461f8» Q-NOTICE level（作者裁定 NOTICE-LEVELS=A）",
+            "L2: test/fixtures/32-39_11_09_250206_VTSE41.xml:1 «12c29731e40adc0c» 元XMLのControl/Head/Bodyを読解（原本確認の主張ではない）"
+          ]
+        },
+        {
+          "sequenceId": "O01",
+          "position": 64,
+          "action": "receive",
+          "fixtureId": "test__fixtures__synthetic_VTSE41_correction",
+          "receivedAt": 1299823200001,
+          "evaluatedAt": 1299823200001,
+          "inputSource": "replay",
+          "operationExpected": "normal",
+          "expectedRef": "expected:O01:64",
+          "expectationBasis": [
+            "L1: docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6» O01",
+            "L1: reconstruction/contracts/p3-tsunami-unit.json:254 «bb39e7f5ac7c2c81» Q-ENUM revisionOrder",
+            "L1: reconstruction/contracts/p3-tsunami-unit.json:168 «7f25e429950cfac0» Q-NOTICE continuation",
+            "L1: reconstruction/contracts/p3-tsunami-unit.json:200 «ae156ddc44d461f8» Q-NOTICE level（作者裁定 NOTICE-LEVELS=A）",
+            "L2: test/fixtures/synthetic_VTSE41_correction.xml:1 «12c29731e40adc0c» 合成入力（manifest synthetic、配信原本ではない）"
+          ]
+        },
+        {
+          "sequenceId": "O01",
+          "position": 65,
+          "action": "receive",
+          "fixtureId": "test__fixtures__synthetic_VTSE41_cancel",
+          "receivedAt": 1299823500000,
+          "evaluatedAt": 1299823500000,
+          "inputSource": "replay",
+          "operationExpected": "normal",
+          "expectedRef": "expected:O01:65",
+          "expectationBasis": [
+            "L1: docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6» O01",
+            "L1: reconstruction/contracts/p3-tsunami-unit.json:179 «3ed2fe2737edee40» Q-NOTICE cancellation",
+            "L1: reconstruction/contracts/p3-tsunami-unit.json:200 «ae156ddc44d461f8» Q-NOTICE level（作者裁定 NOTICE-LEVELS=A）",
+            "L2: test/fixtures/synthetic_VTSE41_cancel.xml:1 «12c29731e40adc0c» 合成入力（manifest synthetic、配信原本ではない）"
+          ]
+        },
+        {
+          "sequenceId": "O01",
+          "position": 66,
+          "action": "receive",
+          "fixtureId": "test__fixtures__synthetic_VTSE41_cancel",
+          "receivedAt": 1299823500001,
+          "evaluatedAt": 1299823500001,
+          "inputSource": "replay",
+          "operationExpected": "normal",
+          "expectedRef": "expected:O01:66",
+          "expectationBasis": [
+            "L1: docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6» O01",
+            "L1: reconstruction/contracts/p3-tsunami-unit.json:254 «bb39e7f5ac7c2c81» Q-ENUM revisionOrder",
+            "L2: test/fixtures/synthetic_VTSE41_cancel.xml:1 «12c29731e40adc0c» 合成入力（manifest synthetic、配信原本ではない）"
+          ]
+        },
+        {
+          "sequenceId": "O01",
+          "position": 67,
+          "action": "receive",
+          "fixtureId": "test__fixtures__32-39_11_02_250206_VTSE41",
+          "receivedAt": 1299823500002,
+          "evaluatedAt": 1299823500002,
+          "inputSource": "replay",
+          "operationExpected": "normal",
+          "expectedRef": "expected:O01:67",
+          "expectationBasis": [
+            "L1: docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6» O01",
+            "L1: reconstruction/contracts/p3-tsunami-unit.json:254 «bb39e7f5ac7c2c81» Q-ENUM revisionOrder",
+            "L2: test/fixtures/32-39_11_02_250206_VTSE41.xml:1 «12c29731e40adc0c» 元XMLのControl/Head/Bodyを読解（原本確認の主張ではない）"
           ]
         }
       ]
@@ -2351,6 +2467,7 @@
           "expectationBasis": [
             "L1: docs/specs/reconstruction-p0-contracts.md:510 «1bbd6a7777e200c7» family独立",
             "L1: docs/specs/reconstruction-p0-contracts.md:1789 «4857755b6c184d37» 実corpusの限界",
+            "L1: reconstruction/contracts/p3-tsunami-unit.json:190 «f2710b8ce571e078» Q-NOTICE 観測（作者裁定 NOTICE-OBSERVATION=C・OBS-LIFETIME=A）",
             "L2: test/fixtures/61_11_01_250206_VTSE52.xml:1 «12c29731e40adc0c» 元XMLのControl/Head/Bodyを読解（原本確認の主張ではない）"
           ]
         },
@@ -2367,6 +2484,7 @@
           "expectationBasis": [
             "L1: docs/specs/reconstruction-p0-contracts.md:509 «13c4f83676b58064»",
             "L1: docs/specs/reconstruction-p0-contracts.md:1789 «4857755b6c184d37»",
+            "L1: reconstruction/contracts/p3-tsunami-unit.json:190 «f2710b8ce571e078» Q-NOTICE 観測（作者裁定 NOTICE-OBSERVATION=C・OBS-LIFETIME=A）",
             "L2: test/fixtures/32-39_11_10_250206_VTSE51.xml:1 «12c29731e40adc0c» 元XMLのControl/Head/Bodyを読解（原本確認の主張ではない）"
           ]
         },
@@ -2389,45 +2507,54 @@
           "sequenceId": "O05",
           "position": 5,
           "action": "receive",
-          "fixtureId": null,
+          "fixtureId": "test__fixtures__synthetic_VTSE51_fragmentA",
           "receivedAt": 1299823320000,
           "evaluatedAt": 1299823320000,
           "inputSource": "replay",
           "operationExpected": "normal",
-          "expectedRef": "unmet:O05:5",
+          "expectedRef": "expected:O05:5",
           "expectationBasis": [
             "L1: docs/specs/reconstruction-p0-contracts.md:1781 «281dabfe783ca67a»",
-            "L1: docs/specs/reconstruction-p0-contracts.md:1789 «4857755b6c184d37»"
+            "L1: docs/specs/reconstruction-p0-contracts.md:1789 «4857755b6c184d37»",
+            "L1: reconstruction/contracts/p3-tsunami-unit.json:262 «3bb56bb1732834ff» I-U-T observationSemantics",
+            "L1: reconstruction/contracts/p3-tsunami-unit.json:190 «f2710b8ce571e078» Q-NOTICE 観測（作者裁定 NOTICE-OBSERVATION=C・OBS-LIFETIME=A）",
+            "L2: test/fixtures/synthetic_VTSE51_fragmentA.xml:1 «12c29731e40adc0c» 合成入力（manifest synthetic、配信原本ではない）"
           ]
         },
         {
           "sequenceId": "O05",
           "position": 6,
           "action": "receive",
-          "fixtureId": null,
+          "fixtureId": "test__fixtures__synthetic_VTSE51_fragmentB",
           "receivedAt": 1299823320000,
           "evaluatedAt": 1299823320000,
           "inputSource": "replay",
           "operationExpected": "normal",
-          "expectedRef": "unmet:O05:6",
+          "expectedRef": "expected:O05:6",
           "expectationBasis": [
             "L1: docs/specs/reconstruction-p0-contracts.md:1781 «281dabfe783ca67a»",
-            "L1: docs/specs/reconstruction-p0-contracts.md:1789 «4857755b6c184d37»"
+            "L1: docs/specs/reconstruction-p0-contracts.md:1789 «4857755b6c184d37»",
+            "L1: reconstruction/contracts/p3-tsunami-unit.json:262 «3bb56bb1732834ff» I-U-T observationSemantics",
+            "L1: reconstruction/contracts/p3-tsunami-unit.json:190 «f2710b8ce571e078» Q-NOTICE 観測（作者裁定 NOTICE-OBSERVATION=C・OBS-LIFETIME=A）",
+            "L2: test/fixtures/synthetic_VTSE51_fragmentB.xml:1 «12c29731e40adc0c» 合成入力（manifest synthetic、配信原本ではない）"
           ]
         },
         {
           "sequenceId": "O05",
           "position": 7,
           "action": "receive",
-          "fixtureId": null,
+          "fixtureId": "test__fixtures__synthetic_VTSE51_correction",
           "receivedAt": 1299823320000,
           "evaluatedAt": 1299823320000,
           "inputSource": "replay",
           "operationExpected": "normal",
-          "expectedRef": "unmet:O05:7",
+          "expectedRef": "expected:O05:7",
           "expectationBasis": [
             "L1: docs/specs/reconstruction-p0-contracts.md:1781 «281dabfe783ca67a»",
-            "L1: docs/specs/reconstruction-p0-contracts.md:1789 «4857755b6c184d37»"
+            "L1: docs/specs/reconstruction-p0-contracts.md:1789 «4857755b6c184d37»",
+            "L1: reconstruction/contracts/p3-tsunami-unit.json:262 «3bb56bb1732834ff» I-U-T observationSemantics",
+            "L1: reconstruction/contracts/p3-tsunami-unit.json:190 «f2710b8ce571e078» Q-NOTICE 観測（作者裁定 NOTICE-OBSERVATION=C・OBS-LIFETIME=A）",
+            "L2: test/fixtures/synthetic_VTSE51_correction.xml:1 «12c29731e40adc0c» 合成入力（manifest synthetic、配信原本ではない）"
           ]
         },
         {
@@ -2449,45 +2576,54 @@
           "sequenceId": "O05",
           "position": 9,
           "action": "receive",
-          "fixtureId": null,
+          "fixtureId": "test__fixtures__synthetic_VTSE51_fragmentB",
           "receivedAt": 1299823320000,
           "evaluatedAt": 1299823320000,
           "inputSource": "replay",
           "operationExpected": "normal",
-          "expectedRef": "unmet:O05:9",
+          "expectedRef": "expected:O05:9",
           "expectationBasis": [
             "L1: docs/specs/reconstruction-p0-contracts.md:1781 «281dabfe783ca67a»",
-            "L1: docs/specs/reconstruction-p0-contracts.md:1789 «4857755b6c184d37»"
+            "L1: docs/specs/reconstruction-p0-contracts.md:1789 «4857755b6c184d37»",
+            "L1: reconstruction/contracts/p3-tsunami-unit.json:262 «3bb56bb1732834ff» I-U-T observationSemantics",
+            "L1: reconstruction/contracts/p3-tsunami-unit.json:190 «f2710b8ce571e078» Q-NOTICE 観測（作者裁定 NOTICE-OBSERVATION=C・OBS-LIFETIME=A）",
+            "L2: test/fixtures/synthetic_VTSE51_fragmentB.xml:1 «12c29731e40adc0c» 合成入力（manifest synthetic、配信原本ではない）"
           ]
         },
         {
           "sequenceId": "O05",
           "position": 10,
           "action": "receive",
-          "fixtureId": null,
+          "fixtureId": "test__fixtures__synthetic_VTSE51_fragmentA",
           "receivedAt": 1299823320000,
           "evaluatedAt": 1299823320000,
           "inputSource": "replay",
           "operationExpected": "normal",
-          "expectedRef": "unmet:O05:10",
+          "expectedRef": "expected:O05:10",
           "expectationBasis": [
             "L1: docs/specs/reconstruction-p0-contracts.md:1781 «281dabfe783ca67a»",
-            "L1: docs/specs/reconstruction-p0-contracts.md:1789 «4857755b6c184d37»"
+            "L1: docs/specs/reconstruction-p0-contracts.md:1789 «4857755b6c184d37»",
+            "L1: reconstruction/contracts/p3-tsunami-unit.json:262 «3bb56bb1732834ff» I-U-T observationSemantics",
+            "L1: reconstruction/contracts/p3-tsunami-unit.json:190 «f2710b8ce571e078» Q-NOTICE 観測（作者裁定 NOTICE-OBSERVATION=C・OBS-LIFETIME=A）",
+            "L2: test/fixtures/synthetic_VTSE51_fragmentA.xml:1 «12c29731e40adc0c» 合成入力（manifest synthetic、配信原本ではない）"
           ]
         },
         {
           "sequenceId": "O05",
           "position": 11,
           "action": "receive",
-          "fixtureId": null,
+          "fixtureId": "test__fixtures__synthetic_VTSE51_correction",
           "receivedAt": 1299823320000,
           "evaluatedAt": 1299823320000,
           "inputSource": "replay",
           "operationExpected": "normal",
-          "expectedRef": "unmet:O05:11",
+          "expectedRef": "expected:O05:11",
           "expectationBasis": [
             "L1: docs/specs/reconstruction-p0-contracts.md:1781 «281dabfe783ca67a»",
-            "L1: docs/specs/reconstruction-p0-contracts.md:1789 «4857755b6c184d37»"
+            "L1: docs/specs/reconstruction-p0-contracts.md:1789 «4857755b6c184d37»",
+            "L1: reconstruction/contracts/p3-tsunami-unit.json:262 «3bb56bb1732834ff» I-U-T observationSemantics",
+            "L1: reconstruction/contracts/p3-tsunami-unit.json:190 «f2710b8ce571e078» Q-NOTICE 観測（作者裁定 NOTICE-OBSERVATION=C・OBS-LIFETIME=A）",
+            "L2: test/fixtures/synthetic_VTSE51_correction.xml:1 «12c29731e40adc0c» 合成入力（manifest synthetic、配信原本ではない）"
           ]
         },
         {
@@ -2509,45 +2645,54 @@
           "sequenceId": "O05",
           "position": 13,
           "action": "receive",
-          "fixtureId": null,
+          "fixtureId": "test__fixtures__synthetic_VTSE52_fragmentA",
           "receivedAt": 1299823320000,
           "evaluatedAt": 1299823320000,
           "inputSource": "replay",
           "operationExpected": "normal",
-          "expectedRef": "unmet:O05:13",
+          "expectedRef": "expected:O05:13",
           "expectationBasis": [
             "L1: docs/specs/reconstruction-p0-contracts.md:1781 «281dabfe783ca67a»",
-            "L1: docs/specs/reconstruction-p0-contracts.md:1789 «4857755b6c184d37»"
+            "L1: docs/specs/reconstruction-p0-contracts.md:1789 «4857755b6c184d37»",
+            "L1: reconstruction/contracts/p3-tsunami-unit.json:262 «3bb56bb1732834ff» I-U-T observationSemantics",
+            "L1: reconstruction/contracts/p3-tsunami-unit.json:190 «f2710b8ce571e078» Q-NOTICE 観測（作者裁定 NOTICE-OBSERVATION=C・OBS-LIFETIME=A）",
+            "L2: test/fixtures/synthetic_VTSE52_fragmentA.xml:1 «12c29731e40adc0c» 合成入力（manifest synthetic、配信原本ではない）"
           ]
         },
         {
           "sequenceId": "O05",
           "position": 14,
           "action": "receive",
-          "fixtureId": null,
+          "fixtureId": "test__fixtures__synthetic_VTSE52_fragmentB",
           "receivedAt": 1299823320000,
           "evaluatedAt": 1299823320000,
           "inputSource": "replay",
           "operationExpected": "normal",
-          "expectedRef": "unmet:O05:14",
+          "expectedRef": "expected:O05:14",
           "expectationBasis": [
             "L1: docs/specs/reconstruction-p0-contracts.md:1781 «281dabfe783ca67a»",
-            "L1: docs/specs/reconstruction-p0-contracts.md:1789 «4857755b6c184d37»"
+            "L1: docs/specs/reconstruction-p0-contracts.md:1789 «4857755b6c184d37»",
+            "L1: reconstruction/contracts/p3-tsunami-unit.json:262 «3bb56bb1732834ff» I-U-T observationSemantics",
+            "L1: reconstruction/contracts/p3-tsunami-unit.json:190 «f2710b8ce571e078» Q-NOTICE 観測（作者裁定 NOTICE-OBSERVATION=C・OBS-LIFETIME=A）",
+            "L2: test/fixtures/synthetic_VTSE52_fragmentB.xml:1 «12c29731e40adc0c» 合成入力（manifest synthetic、配信原本ではない）"
           ]
         },
         {
           "sequenceId": "O05",
           "position": 15,
           "action": "receive",
-          "fixtureId": null,
+          "fixtureId": "test__fixtures__synthetic_VTSE52_correction",
           "receivedAt": 1299823320000,
           "evaluatedAt": 1299823320000,
           "inputSource": "replay",
           "operationExpected": "normal",
-          "expectedRef": "unmet:O05:15",
+          "expectedRef": "expected:O05:15",
           "expectationBasis": [
             "L1: docs/specs/reconstruction-p0-contracts.md:1781 «281dabfe783ca67a»",
-            "L1: docs/specs/reconstruction-p0-contracts.md:1789 «4857755b6c184d37»"
+            "L1: docs/specs/reconstruction-p0-contracts.md:1789 «4857755b6c184d37»",
+            "L1: reconstruction/contracts/p3-tsunami-unit.json:262 «3bb56bb1732834ff» I-U-T observationSemantics",
+            "L1: reconstruction/contracts/p3-tsunami-unit.json:190 «f2710b8ce571e078» Q-NOTICE 観測（作者裁定 NOTICE-OBSERVATION=C・OBS-LIFETIME=A）",
+            "L2: test/fixtures/synthetic_VTSE52_correction.xml:1 «12c29731e40adc0c» 合成入力（manifest synthetic、配信原本ではない）"
           ]
         },
         {
@@ -2569,45 +2714,54 @@
           "sequenceId": "O05",
           "position": 17,
           "action": "receive",
-          "fixtureId": null,
+          "fixtureId": "test__fixtures__synthetic_VTSE52_fragmentB",
           "receivedAt": 1299823320000,
           "evaluatedAt": 1299823320000,
           "inputSource": "replay",
           "operationExpected": "normal",
-          "expectedRef": "unmet:O05:17",
+          "expectedRef": "expected:O05:17",
           "expectationBasis": [
             "L1: docs/specs/reconstruction-p0-contracts.md:1781 «281dabfe783ca67a»",
-            "L1: docs/specs/reconstruction-p0-contracts.md:1789 «4857755b6c184d37»"
+            "L1: docs/specs/reconstruction-p0-contracts.md:1789 «4857755b6c184d37»",
+            "L1: reconstruction/contracts/p3-tsunami-unit.json:262 «3bb56bb1732834ff» I-U-T observationSemantics",
+            "L1: reconstruction/contracts/p3-tsunami-unit.json:190 «f2710b8ce571e078» Q-NOTICE 観測（作者裁定 NOTICE-OBSERVATION=C・OBS-LIFETIME=A）",
+            "L2: test/fixtures/synthetic_VTSE52_fragmentB.xml:1 «12c29731e40adc0c» 合成入力（manifest synthetic、配信原本ではない）"
           ]
         },
         {
           "sequenceId": "O05",
           "position": 18,
           "action": "receive",
-          "fixtureId": null,
+          "fixtureId": "test__fixtures__synthetic_VTSE52_fragmentA",
           "receivedAt": 1299823320000,
           "evaluatedAt": 1299823320000,
           "inputSource": "replay",
           "operationExpected": "normal",
-          "expectedRef": "unmet:O05:18",
+          "expectedRef": "expected:O05:18",
           "expectationBasis": [
             "L1: docs/specs/reconstruction-p0-contracts.md:1781 «281dabfe783ca67a»",
-            "L1: docs/specs/reconstruction-p0-contracts.md:1789 «4857755b6c184d37»"
+            "L1: docs/specs/reconstruction-p0-contracts.md:1789 «4857755b6c184d37»",
+            "L1: reconstruction/contracts/p3-tsunami-unit.json:262 «3bb56bb1732834ff» I-U-T observationSemantics",
+            "L1: reconstruction/contracts/p3-tsunami-unit.json:190 «f2710b8ce571e078» Q-NOTICE 観測（作者裁定 NOTICE-OBSERVATION=C・OBS-LIFETIME=A）",
+            "L2: test/fixtures/synthetic_VTSE52_fragmentA.xml:1 «12c29731e40adc0c» 合成入力（manifest synthetic、配信原本ではない）"
           ]
         },
         {
           "sequenceId": "O05",
           "position": 19,
           "action": "receive",
-          "fixtureId": null,
+          "fixtureId": "test__fixtures__synthetic_VTSE52_correction",
           "receivedAt": 1299823320000,
           "evaluatedAt": 1299823320000,
           "inputSource": "replay",
           "operationExpected": "normal",
-          "expectedRef": "unmet:O05:19",
+          "expectedRef": "expected:O05:19",
           "expectationBasis": [
             "L1: docs/specs/reconstruction-p0-contracts.md:1781 «281dabfe783ca67a»",
-            "L1: docs/specs/reconstruction-p0-contracts.md:1789 «4857755b6c184d37»"
+            "L1: docs/specs/reconstruction-p0-contracts.md:1789 «4857755b6c184d37»",
+            "L1: reconstruction/contracts/p3-tsunami-unit.json:262 «3bb56bb1732834ff» I-U-T observationSemantics",
+            "L1: reconstruction/contracts/p3-tsunami-unit.json:190 «f2710b8ce571e078» Q-NOTICE 観測（作者裁定 NOTICE-OBSERVATION=C・OBS-LIFETIME=A）",
+            "L2: test/fixtures/synthetic_VTSE52_correction.xml:1 «12c29731e40adc0c» 合成入力（manifest synthetic、配信原本ではない）"
           ]
         }
       ]
@@ -3470,6 +3624,135 @@
             "L1: docs/specs/reconstruction-p0-contracts.md:1783 «bb8e18a6762c105d»",
             "L2: test/fixtures/standby-persistence/v3.4.0-writer-output.json:2 «3e64f5a35133dfbf» 旧形式入力の実体。移行後の新築出力を根拠にしない"
           ]
+        },
+        {
+          "sequenceId": "O07",
+          "position": 27,
+          "action": "restart",
+          "fixtureId": null,
+          "receivedAt": null,
+          "evaluatedAt": 1299823200000,
+          "inputSource": "replay",
+          "operationExpected": null,
+          "expectedRef": "expected:O07:27",
+          "expectationBasis": [
+            "L1: docs/specs/reconstruction-p0-contracts.md:1758 «37f025f94e7bbdfd» 固定初期状態・時計",
+            "L1: docs/specs/reconstruction-p0-contracts.md:736 «e88a83452d784a7c»"
+          ]
+        },
+        {
+          "sequenceId": "O07",
+          "position": 28,
+          "action": "receive",
+          "fixtureId": "test__fixtures__32-39_11_09_250206_VTSE41",
+          "receivedAt": 1299823200001,
+          "evaluatedAt": 1299823200001,
+          "inputSource": "replay",
+          "operationExpected": "normal",
+          "expectedRef": "expected:O07:28",
+          "expectationBasis": [
+            "L1: docs/specs/reconstruction-p0-contracts.md:1783 «bb8e18a6762c105d» O07",
+            "L1: reconstruction/contracts/p3-tsunami-unit.json:146 «c21a8479a57628b3» Q-NOTICE escalation",
+            "L1: reconstruction/contracts/p3-tsunami-unit.json:200 «ae156ddc44d461f8» Q-NOTICE level（作者裁定 NOTICE-LEVELS=A）",
+            "L2: test/fixtures/32-39_11_09_250206_VTSE41.xml:1 «12c29731e40adc0c» 元XMLのControl/Head/Bodyを読解（原本確認の主張ではない）"
+          ]
+        },
+        {
+          "sequenceId": "O07",
+          "position": 29,
+          "action": "save",
+          "fixtureId": null,
+          "receivedAt": null,
+          "evaluatedAt": 1299823200002,
+          "inputSource": "replay",
+          "operationExpected": null,
+          "expectedRef": "expected:O07:29",
+          "expectationBasis": [
+            "L1: docs/specs/reconstruction-p0-contracts.md:476 «36cbecd69d17df3e» §4.2 U-T",
+            "L1: docs/specs/reconstruction-p0-contracts.md:1783 «bb8e18a6762c105d» O07"
+          ]
+        },
+        {
+          "sequenceId": "O07",
+          "position": 30,
+          "action": "restart",
+          "fixtureId": null,
+          "receivedAt": null,
+          "evaluatedAt": 1299823200003,
+          "inputSource": "replay",
+          "operationExpected": null,
+          "expectedRef": "expected:O07:30",
+          "expectationBasis": [
+            "L1: docs/specs/reconstruction-p0-contracts.md:1783 «bb8e18a6762c105d» O07",
+            "L1: docs/specs/reconstruction-p0-contracts.md:2074 «643c123a1c57d2a8» E22",
+            "L1: reconstruction/contracts/p3-tsunami-unit.json:209 «17691bc0b82138f3» Q-NOTICE restart"
+          ]
+        },
+        {
+          "sequenceId": "O07",
+          "position": 31,
+          "action": "receive",
+          "fixtureId": "test__fixtures__synthetic_VTSE41_correction",
+          "receivedAt": 1299823260000,
+          "evaluatedAt": 1299823260000,
+          "inputSource": "replay",
+          "operationExpected": "normal",
+          "expectedRef": "expected:O07:31",
+          "expectationBasis": [
+            "L1: docs/specs/reconstruction-p0-contracts.md:1783 «bb8e18a6762c105d» O07",
+            "L1: reconstruction/contracts/p3-tsunami-unit.json:209 «17691bc0b82138f3» Q-NOTICE restart",
+            "L1: reconstruction/contracts/p3-tsunami-unit.json:168 «7f25e429950cfac0» Q-NOTICE continuation",
+            "L1: reconstruction/contracts/p3-tsunami-unit.json:200 «ae156ddc44d461f8» Q-NOTICE level（作者裁定 NOTICE-LEVELS=A）",
+            "L2: test/fixtures/synthetic_VTSE41_correction.xml:1 «12c29731e40adc0c» 合成入力（manifest synthetic、配信原本ではない）"
+          ]
+        },
+        {
+          "sequenceId": "O07",
+          "position": 32,
+          "action": "save",
+          "fixtureId": null,
+          "receivedAt": null,
+          "evaluatedAt": 1299823260001,
+          "inputSource": "replay",
+          "operationExpected": null,
+          "expectedRef": "expected:O07:32",
+          "expectationBasis": [
+            "L1: docs/specs/reconstruction-p0-contracts.md:476 «36cbecd69d17df3e» §4.2 U-T",
+            "L1: docs/specs/reconstruction-p0-contracts.md:1783 «bb8e18a6762c105d» O07"
+          ]
+        },
+        {
+          "sequenceId": "O07",
+          "position": 33,
+          "action": "restart",
+          "fixtureId": null,
+          "receivedAt": null,
+          "evaluatedAt": 1299823260002,
+          "inputSource": "replay",
+          "operationExpected": null,
+          "expectedRef": "expected:O07:33",
+          "expectationBasis": [
+            "L1: docs/specs/reconstruction-p0-contracts.md:1783 «bb8e18a6762c105d» O07",
+            "L1: docs/specs/reconstruction-p0-contracts.md:2074 «643c123a1c57d2a8» E22",
+            "L1: reconstruction/contracts/p3-tsunami-unit.json:209 «17691bc0b82138f3» Q-NOTICE restart"
+          ]
+        },
+        {
+          "sequenceId": "O07",
+          "position": 34,
+          "action": "receive",
+          "fixtureId": "test__fixtures__synthetic_VTSE41_cancel",
+          "receivedAt": 1299823500000,
+          "evaluatedAt": 1299823500000,
+          "inputSource": "replay",
+          "operationExpected": "normal",
+          "expectedRef": "expected:O07:34",
+          "expectationBasis": [
+            "L1: docs/specs/reconstruction-p0-contracts.md:1783 «bb8e18a6762c105d» O07",
+            "L1: reconstruction/contracts/p3-tsunami-unit.json:179 «3ed2fe2737edee40» Q-NOTICE cancellation",
+            "L1: reconstruction/contracts/p3-tsunami-unit.json:200 «ae156ddc44d461f8» Q-NOTICE level（作者裁定 NOTICE-LEVELS=A）",
+            "L2: test/fixtures/synthetic_VTSE41_cancel.xml:1 «12c29731e40adc0c» 合成入力（manifest synthetic、配信原本ではない）"
+          ]
         }
       ]
     },
@@ -3768,7 +4051,7 @@
             "L1: docs/specs/reconstruction-p0-contracts.md:2058 «c5a19c3c5d58ec9b» E07",
             "L1: docs/specs/reconstruction-p0-contracts.md:2073 «060f0c204a8219fe» E21",
             "L1: docs/specs/reconstruction-p0-contracts.md:1119 «602b2dfb3cc1795e»",
-            "L1: docs/specs/reconstruction-p0-contracts.md:1131 «11fd08067698aeea»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:1131 «97e9cc25a1b97b6f»",
             "L1: docs/specs/reconstruction-p0-contracts.md:1133 «0a085841e24bbc6a»",
             "L1: docs/specs/reconstruction-p0-contracts.md:1137 «c06677d2196cd39e»",
             "L1: docs/specs/reconstruction-p0-contracts.md:2052 «d6ff68c7ef2b9b22»",
@@ -3794,7 +4077,7 @@
             "L1: docs/specs/reconstruction-p0-contracts.md:2058 «c5a19c3c5d58ec9b» E07",
             "L1: docs/specs/reconstruction-p0-contracts.md:2073 «060f0c204a8219fe» E21",
             "L1: docs/specs/reconstruction-p0-contracts.md:1119 «602b2dfb3cc1795e»",
-            "L1: docs/specs/reconstruction-p0-contracts.md:1131 «11fd08067698aeea»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:1131 «97e9cc25a1b97b6f»",
             "L1: docs/specs/reconstruction-p0-contracts.md:1133 «0a085841e24bbc6a»",
             "L1: docs/specs/reconstruction-p0-contracts.md:1137 «c06677d2196cd39e»",
             "L1: docs/specs/reconstruction-p0-contracts.md:2052 «d6ff68c7ef2b9b22»",
@@ -3820,7 +4103,7 @@
             "L1: docs/specs/reconstruction-p0-contracts.md:2058 «c5a19c3c5d58ec9b» E07",
             "L1: docs/specs/reconstruction-p0-contracts.md:2073 «060f0c204a8219fe» E21",
             "L1: docs/specs/reconstruction-p0-contracts.md:1119 «602b2dfb3cc1795e»",
-            "L1: docs/specs/reconstruction-p0-contracts.md:1131 «11fd08067698aeea»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:1131 «97e9cc25a1b97b6f»",
             "L1: docs/specs/reconstruction-p0-contracts.md:1133 «0a085841e24bbc6a»",
             "L1: docs/specs/reconstruction-p0-contracts.md:1137 «c06677d2196cd39e»",
             "L1: docs/specs/reconstruction-p0-contracts.md:2052 «d6ff68c7ef2b9b22»",
@@ -3846,7 +4129,7 @@
             "L1: docs/specs/reconstruction-p0-contracts.md:2058 «c5a19c3c5d58ec9b» E07",
             "L1: docs/specs/reconstruction-p0-contracts.md:2073 «060f0c204a8219fe» E21",
             "L1: docs/specs/reconstruction-p0-contracts.md:1119 «602b2dfb3cc1795e»",
-            "L1: docs/specs/reconstruction-p0-contracts.md:1131 «11fd08067698aeea»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:1131 «97e9cc25a1b97b6f»",
             "L1: docs/specs/reconstruction-p0-contracts.md:1133 «0a085841e24bbc6a»",
             "L1: docs/specs/reconstruction-p0-contracts.md:1137 «c06677d2196cd39e»",
             "L1: docs/specs/reconstruction-p0-contracts.md:2052 «d6ff68c7ef2b9b22»",
@@ -3872,7 +4155,7 @@
             "L1: docs/specs/reconstruction-p0-contracts.md:2058 «c5a19c3c5d58ec9b» E07",
             "L1: docs/specs/reconstruction-p0-contracts.md:2073 «060f0c204a8219fe» E21",
             "L1: docs/specs/reconstruction-p0-contracts.md:1119 «602b2dfb3cc1795e»",
-            "L1: docs/specs/reconstruction-p0-contracts.md:1131 «11fd08067698aeea»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:1131 «97e9cc25a1b97b6f»",
             "L1: docs/specs/reconstruction-p0-contracts.md:1133 «0a085841e24bbc6a»",
             "L1: docs/specs/reconstruction-p0-contracts.md:1137 «c06677d2196cd39e»",
             "L1: docs/specs/reconstruction-p0-contracts.md:2052 «d6ff68c7ef2b9b22»",
@@ -3898,7 +4181,7 @@
             "L1: docs/specs/reconstruction-p0-contracts.md:2058 «c5a19c3c5d58ec9b» E07",
             "L1: docs/specs/reconstruction-p0-contracts.md:2073 «060f0c204a8219fe» E21",
             "L1: docs/specs/reconstruction-p0-contracts.md:1119 «602b2dfb3cc1795e»",
-            "L1: docs/specs/reconstruction-p0-contracts.md:1131 «11fd08067698aeea»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:1131 «97e9cc25a1b97b6f»",
             "L1: docs/specs/reconstruction-p0-contracts.md:1133 «0a085841e24bbc6a»",
             "L1: docs/specs/reconstruction-p0-contracts.md:1137 «c06677d2196cd39e»",
             "L1: docs/specs/reconstruction-p0-contracts.md:2052 «d6ff68c7ef2b9b22»",
@@ -3924,7 +4207,7 @@
             "L1: docs/specs/reconstruction-p0-contracts.md:2058 «c5a19c3c5d58ec9b» E07",
             "L1: docs/specs/reconstruction-p0-contracts.md:2073 «060f0c204a8219fe» E21",
             "L1: docs/specs/reconstruction-p0-contracts.md:1119 «602b2dfb3cc1795e»",
-            "L1: docs/specs/reconstruction-p0-contracts.md:1131 «11fd08067698aeea»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:1131 «97e9cc25a1b97b6f»",
             "L1: docs/specs/reconstruction-p0-contracts.md:1133 «0a085841e24bbc6a»",
             "L1: docs/specs/reconstruction-p0-contracts.md:1137 «c06677d2196cd39e»",
             "L1: docs/specs/reconstruction-p0-contracts.md:2052 «d6ff68c7ef2b9b22»",
@@ -3950,7 +4233,7 @@
             "L1: docs/specs/reconstruction-p0-contracts.md:2058 «c5a19c3c5d58ec9b» E07",
             "L1: docs/specs/reconstruction-p0-contracts.md:2073 «060f0c204a8219fe» E21",
             "L1: docs/specs/reconstruction-p0-contracts.md:1119 «602b2dfb3cc1795e»",
-            "L1: docs/specs/reconstruction-p0-contracts.md:1131 «11fd08067698aeea»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:1131 «97e9cc25a1b97b6f»",
             "L1: docs/specs/reconstruction-p0-contracts.md:1133 «0a085841e24bbc6a»",
             "L1: docs/specs/reconstruction-p0-contracts.md:1137 «c06677d2196cd39e»",
             "L1: docs/specs/reconstruction-p0-contracts.md:2052 «d6ff68c7ef2b9b22»",
@@ -4125,7 +4408,7 @@
           "expectedRef": "unmet:O09:21",
           "expectationBasis": [
             "L1: docs/specs/reconstruction-p0-contracts.md:1119 «602b2dfb3cc1795e»",
-            "L1: docs/specs/reconstruction-p0-contracts.md:1131 «11fd08067698aeea»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:1131 «97e9cc25a1b97b6f»",
             "L1: docs/specs/reconstruction-p0-contracts.md:1133 «0a085841e24bbc6a»",
             "L1: docs/specs/reconstruction-p0-contracts.md:1137 «c06677d2196cd39e»",
             "L1: docs/specs/reconstruction-p0-contracts.md:2052 «d6ff68c7ef2b9b22»",
@@ -4146,7 +4429,7 @@
           "expectedRef": "unmet:O09:22",
           "expectationBasis": [
             "L1: docs/specs/reconstruction-p0-contracts.md:1119 «602b2dfb3cc1795e»",
-            "L1: docs/specs/reconstruction-p0-contracts.md:1131 «11fd08067698aeea»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:1131 «97e9cc25a1b97b6f»",
             "L1: docs/specs/reconstruction-p0-contracts.md:1133 «0a085841e24bbc6a»",
             "L1: docs/specs/reconstruction-p0-contracts.md:1137 «c06677d2196cd39e»",
             "L1: docs/specs/reconstruction-p0-contracts.md:2052 «d6ff68c7ef2b9b22»",
@@ -4167,7 +4450,7 @@
           "expectedRef": "unmet:O09:23",
           "expectationBasis": [
             "L1: docs/specs/reconstruction-p0-contracts.md:1119 «602b2dfb3cc1795e»",
-            "L1: docs/specs/reconstruction-p0-contracts.md:1131 «11fd08067698aeea»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:1131 «97e9cc25a1b97b6f»",
             "L1: docs/specs/reconstruction-p0-contracts.md:1133 «0a085841e24bbc6a»",
             "L1: docs/specs/reconstruction-p0-contracts.md:1137 «c06677d2196cd39e»",
             "L1: docs/specs/reconstruction-p0-contracts.md:2052 «d6ff68c7ef2b9b22»",
@@ -4188,7 +4471,7 @@
           "expectedRef": "unmet:O09:24",
           "expectationBasis": [
             "L1: docs/specs/reconstruction-p0-contracts.md:1119 «602b2dfb3cc1795e»",
-            "L1: docs/specs/reconstruction-p0-contracts.md:1131 «11fd08067698aeea»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:1131 «97e9cc25a1b97b6f»",
             "L1: docs/specs/reconstruction-p0-contracts.md:1133 «0a085841e24bbc6a»",
             "L1: docs/specs/reconstruction-p0-contracts.md:1137 «c06677d2196cd39e»",
             "L1: docs/specs/reconstruction-p0-contracts.md:2052 «d6ff68c7ef2b9b22»",
@@ -4209,7 +4492,7 @@
           "expectedRef": "unmet:O09:25",
           "expectationBasis": [
             "L1: docs/specs/reconstruction-p0-contracts.md:1119 «602b2dfb3cc1795e»",
-            "L1: docs/specs/reconstruction-p0-contracts.md:1131 «11fd08067698aeea»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:1131 «97e9cc25a1b97b6f»",
             "L1: docs/specs/reconstruction-p0-contracts.md:1133 «0a085841e24bbc6a»",
             "L1: docs/specs/reconstruction-p0-contracts.md:1137 «c06677d2196cd39e»",
             "L1: docs/specs/reconstruction-p0-contracts.md:2052 «d6ff68c7ef2b9b22»",
@@ -4230,7 +4513,7 @@
           "expectedRef": "unmet:O09:26",
           "expectationBasis": [
             "L1: docs/specs/reconstruction-p0-contracts.md:1119 «602b2dfb3cc1795e»",
-            "L1: docs/specs/reconstruction-p0-contracts.md:1131 «11fd08067698aeea»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:1131 «97e9cc25a1b97b6f»",
             "L1: docs/specs/reconstruction-p0-contracts.md:1133 «0a085841e24bbc6a»",
             "L1: docs/specs/reconstruction-p0-contracts.md:1137 «c06677d2196cd39e»",
             "L1: docs/specs/reconstruction-p0-contracts.md:2052 «d6ff68c7ef2b9b22»",
@@ -4251,7 +4534,7 @@
           "expectedRef": "unmet:O09:27",
           "expectationBasis": [
             "L1: docs/specs/reconstruction-p0-contracts.md:1119 «602b2dfb3cc1795e»",
-            "L1: docs/specs/reconstruction-p0-contracts.md:1131 «11fd08067698aeea»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:1131 «97e9cc25a1b97b6f»",
             "L1: docs/specs/reconstruction-p0-contracts.md:1133 «0a085841e24bbc6a»",
             "L1: docs/specs/reconstruction-p0-contracts.md:1137 «c06677d2196cd39e»",
             "L1: docs/specs/reconstruction-p0-contracts.md:2052 «d6ff68c7ef2b9b22»",
@@ -4272,7 +4555,7 @@
           "expectedRef": "unmet:O09:28",
           "expectationBasis": [
             "L1: docs/specs/reconstruction-p0-contracts.md:1119 «602b2dfb3cc1795e»",
-            "L1: docs/specs/reconstruction-p0-contracts.md:1131 «11fd08067698aeea»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:1131 «97e9cc25a1b97b6f»",
             "L1: docs/specs/reconstruction-p0-contracts.md:1133 «0a085841e24bbc6a»",
             "L1: docs/specs/reconstruction-p0-contracts.md:1137 «c06677d2196cd39e»",
             "L1: docs/specs/reconstruction-p0-contracts.md:2052 «d6ff68c7ef2b9b22»",
@@ -4293,7 +4576,7 @@
           "expectedRef": "unmet:O09:29",
           "expectationBasis": [
             "L1: docs/specs/reconstruction-p0-contracts.md:1119 «602b2dfb3cc1795e»",
-            "L1: docs/specs/reconstruction-p0-contracts.md:1131 «11fd08067698aeea»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:1131 «97e9cc25a1b97b6f»",
             "L1: docs/specs/reconstruction-p0-contracts.md:1133 «0a085841e24bbc6a»",
             "L1: docs/specs/reconstruction-p0-contracts.md:1137 «c06677d2196cd39e»",
             "L1: docs/specs/reconstruction-p0-contracts.md:2052 «d6ff68c7ef2b9b22»",
@@ -4314,7 +4597,7 @@
           "expectedRef": "unmet:O09:30",
           "expectationBasis": [
             "L1: docs/specs/reconstruction-p0-contracts.md:1119 «602b2dfb3cc1795e»",
-            "L1: docs/specs/reconstruction-p0-contracts.md:1131 «11fd08067698aeea»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:1131 «97e9cc25a1b97b6f»",
             "L1: docs/specs/reconstruction-p0-contracts.md:1133 «0a085841e24bbc6a»",
             "L1: docs/specs/reconstruction-p0-contracts.md:1137 «c06677d2196cd39e»",
             "L1: docs/specs/reconstruction-p0-contracts.md:2052 «d6ff68c7ef2b9b22»",
@@ -4335,7 +4618,7 @@
           "expectedRef": "unmet:O09:31",
           "expectationBasis": [
             "L1: docs/specs/reconstruction-p0-contracts.md:1119 «602b2dfb3cc1795e»",
-            "L1: docs/specs/reconstruction-p0-contracts.md:1131 «11fd08067698aeea»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:1131 «97e9cc25a1b97b6f»",
             "L1: docs/specs/reconstruction-p0-contracts.md:1133 «0a085841e24bbc6a»",
             "L1: docs/specs/reconstruction-p0-contracts.md:1137 «c06677d2196cd39e»",
             "L1: docs/specs/reconstruction-p0-contracts.md:2052 «d6ff68c7ef2b9b22»",
@@ -4356,7 +4639,7 @@
           "expectedRef": "unmet:O09:32",
           "expectationBasis": [
             "L1: docs/specs/reconstruction-p0-contracts.md:1119 «602b2dfb3cc1795e»",
-            "L1: docs/specs/reconstruction-p0-contracts.md:1131 «11fd08067698aeea»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:1131 «97e9cc25a1b97b6f»",
             "L1: docs/specs/reconstruction-p0-contracts.md:1133 «0a085841e24bbc6a»",
             "L1: docs/specs/reconstruction-p0-contracts.md:1137 «c06677d2196cd39e»",
             "L1: docs/specs/reconstruction-p0-contracts.md:2052 «d6ff68c7ef2b9b22»",
@@ -4377,7 +4660,7 @@
           "expectedRef": "unmet:O09:33",
           "expectationBasis": [
             "L1: docs/specs/reconstruction-p0-contracts.md:1119 «602b2dfb3cc1795e»",
-            "L1: docs/specs/reconstruction-p0-contracts.md:1131 «11fd08067698aeea»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:1131 «97e9cc25a1b97b6f»",
             "L1: docs/specs/reconstruction-p0-contracts.md:1133 «0a085841e24bbc6a»",
             "L1: docs/specs/reconstruction-p0-contracts.md:1137 «c06677d2196cd39e»",
             "L1: docs/specs/reconstruction-p0-contracts.md:2052 «d6ff68c7ef2b9b22»",
@@ -4398,7 +4681,7 @@
           "expectedRef": "unmet:O09:34",
           "expectationBasis": [
             "L1: docs/specs/reconstruction-p0-contracts.md:1119 «602b2dfb3cc1795e»",
-            "L1: docs/specs/reconstruction-p0-contracts.md:1131 «11fd08067698aeea»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:1131 «97e9cc25a1b97b6f»",
             "L1: docs/specs/reconstruction-p0-contracts.md:1133 «0a085841e24bbc6a»",
             "L1: docs/specs/reconstruction-p0-contracts.md:1137 «c06677d2196cd39e»",
             "L1: docs/specs/reconstruction-p0-contracts.md:2052 «d6ff68c7ef2b9b22»",
@@ -4419,7 +4702,7 @@
           "expectedRef": "unmet:O09:35",
           "expectationBasis": [
             "L1: docs/specs/reconstruction-p0-contracts.md:1119 «602b2dfb3cc1795e»",
-            "L1: docs/specs/reconstruction-p0-contracts.md:1131 «11fd08067698aeea»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:1131 «97e9cc25a1b97b6f»",
             "L1: docs/specs/reconstruction-p0-contracts.md:1133 «0a085841e24bbc6a»",
             "L1: docs/specs/reconstruction-p0-contracts.md:1137 «c06677d2196cd39e»",
             "L1: docs/specs/reconstruction-p0-contracts.md:2052 «d6ff68c7ef2b9b22»",
@@ -4440,7 +4723,7 @@
           "expectedRef": "unmet:O09:36",
           "expectationBasis": [
             "L1: docs/specs/reconstruction-p0-contracts.md:1119 «602b2dfb3cc1795e»",
-            "L1: docs/specs/reconstruction-p0-contracts.md:1131 «11fd08067698aeea»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:1131 «97e9cc25a1b97b6f»",
             "L1: docs/specs/reconstruction-p0-contracts.md:1133 «0a085841e24bbc6a»",
             "L1: docs/specs/reconstruction-p0-contracts.md:1137 «c06677d2196cd39e»",
             "L1: docs/specs/reconstruction-p0-contracts.md:2052 «d6ff68c7ef2b9b22»",
@@ -4461,7 +4744,7 @@
           "expectedRef": "unmet:O09:37",
           "expectationBasis": [
             "L1: docs/specs/reconstruction-p0-contracts.md:1119 «602b2dfb3cc1795e»",
-            "L1: docs/specs/reconstruction-p0-contracts.md:1131 «11fd08067698aeea»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:1131 «97e9cc25a1b97b6f»",
             "L1: docs/specs/reconstruction-p0-contracts.md:1133 «0a085841e24bbc6a»",
             "L1: docs/specs/reconstruction-p0-contracts.md:1137 «c06677d2196cd39e»",
             "L1: docs/specs/reconstruction-p0-contracts.md:2052 «d6ff68c7ef2b9b22»",
@@ -4482,7 +4765,7 @@
           "expectedRef": "unmet:O09:38",
           "expectationBasis": [
             "L1: docs/specs/reconstruction-p0-contracts.md:1119 «602b2dfb3cc1795e»",
-            "L1: docs/specs/reconstruction-p0-contracts.md:1131 «11fd08067698aeea»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:1131 «97e9cc25a1b97b6f»",
             "L1: docs/specs/reconstruction-p0-contracts.md:1133 «0a085841e24bbc6a»",
             "L1: docs/specs/reconstruction-p0-contracts.md:1137 «c06677d2196cd39e»",
             "L1: docs/specs/reconstruction-p0-contracts.md:2052 «d6ff68c7ef2b9b22»",
@@ -4503,7 +4786,7 @@
           "expectedRef": "unmet:O09:39",
           "expectationBasis": [
             "L1: docs/specs/reconstruction-p0-contracts.md:1119 «602b2dfb3cc1795e»",
-            "L1: docs/specs/reconstruction-p0-contracts.md:1131 «11fd08067698aeea»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:1131 «97e9cc25a1b97b6f»",
             "L1: docs/specs/reconstruction-p0-contracts.md:1133 «0a085841e24bbc6a»",
             "L1: docs/specs/reconstruction-p0-contracts.md:1137 «c06677d2196cd39e»",
             "L1: docs/specs/reconstruction-p0-contracts.md:2052 «d6ff68c7ef2b9b22»",
@@ -4524,7 +4807,7 @@
           "expectedRef": "unmet:O09:40",
           "expectationBasis": [
             "L1: docs/specs/reconstruction-p0-contracts.md:1119 «602b2dfb3cc1795e»",
-            "L1: docs/specs/reconstruction-p0-contracts.md:1131 «11fd08067698aeea»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:1131 «97e9cc25a1b97b6f»",
             "L1: docs/specs/reconstruction-p0-contracts.md:1133 «0a085841e24bbc6a»",
             "L1: docs/specs/reconstruction-p0-contracts.md:1137 «c06677d2196cd39e»",
             "L1: docs/specs/reconstruction-p0-contracts.md:2052 «d6ff68c7ef2b9b22»",
@@ -4545,7 +4828,7 @@
           "expectedRef": "unmet:O09:41",
           "expectationBasis": [
             "L1: docs/specs/reconstruction-p0-contracts.md:1119 «602b2dfb3cc1795e»",
-            "L1: docs/specs/reconstruction-p0-contracts.md:1131 «11fd08067698aeea»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:1131 «97e9cc25a1b97b6f»",
             "L1: docs/specs/reconstruction-p0-contracts.md:1133 «0a085841e24bbc6a»",
             "L1: docs/specs/reconstruction-p0-contracts.md:1137 «c06677d2196cd39e»",
             "L1: docs/specs/reconstruction-p0-contracts.md:2052 «d6ff68c7ef2b9b22»",
@@ -4566,7 +4849,7 @@
           "expectedRef": "unmet:O09:42",
           "expectationBasis": [
             "L1: docs/specs/reconstruction-p0-contracts.md:1119 «602b2dfb3cc1795e»",
-            "L1: docs/specs/reconstruction-p0-contracts.md:1131 «11fd08067698aeea»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:1131 «97e9cc25a1b97b6f»",
             "L1: docs/specs/reconstruction-p0-contracts.md:1133 «0a085841e24bbc6a»",
             "L1: docs/specs/reconstruction-p0-contracts.md:1137 «c06677d2196cd39e»",
             "L1: docs/specs/reconstruction-p0-contracts.md:2052 «d6ff68c7ef2b9b22»",
@@ -4587,7 +4870,7 @@
           "expectedRef": "unmet:O09:43",
           "expectationBasis": [
             "L1: docs/specs/reconstruction-p0-contracts.md:1119 «602b2dfb3cc1795e»",
-            "L1: docs/specs/reconstruction-p0-contracts.md:1131 «11fd08067698aeea»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:1131 «97e9cc25a1b97b6f»",
             "L1: docs/specs/reconstruction-p0-contracts.md:1133 «0a085841e24bbc6a»",
             "L1: docs/specs/reconstruction-p0-contracts.md:1137 «c06677d2196cd39e»",
             "L1: docs/specs/reconstruction-p0-contracts.md:2052 «d6ff68c7ef2b9b22»",
@@ -4608,7 +4891,7 @@
           "expectedRef": "unmet:O09:44",
           "expectationBasis": [
             "L1: docs/specs/reconstruction-p0-contracts.md:1119 «602b2dfb3cc1795e»",
-            "L1: docs/specs/reconstruction-p0-contracts.md:1131 «11fd08067698aeea»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:1131 «97e9cc25a1b97b6f»",
             "L1: docs/specs/reconstruction-p0-contracts.md:1133 «0a085841e24bbc6a»",
             "L1: docs/specs/reconstruction-p0-contracts.md:1137 «c06677d2196cd39e»",
             "L1: docs/specs/reconstruction-p0-contracts.md:2052 «d6ff68c7ef2b9b22»",
@@ -4629,7 +4912,7 @@
           "expectedRef": "unmet:O09:45",
           "expectationBasis": [
             "L1: docs/specs/reconstruction-p0-contracts.md:1119 «602b2dfb3cc1795e»",
-            "L1: docs/specs/reconstruction-p0-contracts.md:1131 «11fd08067698aeea»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:1131 «97e9cc25a1b97b6f»",
             "L1: docs/specs/reconstruction-p0-contracts.md:1133 «0a085841e24bbc6a»",
             "L1: docs/specs/reconstruction-p0-contracts.md:1137 «c06677d2196cd39e»",
             "L1: docs/specs/reconstruction-p0-contracts.md:2052 «d6ff68c7ef2b9b22»",
@@ -4650,7 +4933,7 @@
           "expectedRef": "unmet:O09:46",
           "expectationBasis": [
             "L1: docs/specs/reconstruction-p0-contracts.md:1119 «602b2dfb3cc1795e»",
-            "L1: docs/specs/reconstruction-p0-contracts.md:1131 «11fd08067698aeea»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:1131 «97e9cc25a1b97b6f»",
             "L1: docs/specs/reconstruction-p0-contracts.md:1133 «0a085841e24bbc6a»",
             "L1: docs/specs/reconstruction-p0-contracts.md:1137 «c06677d2196cd39e»",
             "L1: docs/specs/reconstruction-p0-contracts.md:2052 «d6ff68c7ef2b9b22»",
@@ -4671,7 +4954,7 @@
           "expectedRef": "unmet:O09:47",
           "expectationBasis": [
             "L1: docs/specs/reconstruction-p0-contracts.md:1119 «602b2dfb3cc1795e»",
-            "L1: docs/specs/reconstruction-p0-contracts.md:1131 «11fd08067698aeea»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:1131 «97e9cc25a1b97b6f»",
             "L1: docs/specs/reconstruction-p0-contracts.md:1133 «0a085841e24bbc6a»",
             "L1: docs/specs/reconstruction-p0-contracts.md:1137 «c06677d2196cd39e»",
             "L1: docs/specs/reconstruction-p0-contracts.md:2052 «d6ff68c7ef2b9b22»",
@@ -4692,7 +4975,7 @@
           "expectedRef": "unmet:O09:48",
           "expectationBasis": [
             "L1: docs/specs/reconstruction-p0-contracts.md:1119 «602b2dfb3cc1795e»",
-            "L1: docs/specs/reconstruction-p0-contracts.md:1131 «11fd08067698aeea»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:1131 «97e9cc25a1b97b6f»",
             "L1: docs/specs/reconstruction-p0-contracts.md:1133 «0a085841e24bbc6a»",
             "L1: docs/specs/reconstruction-p0-contracts.md:1137 «c06677d2196cd39e»",
             "L1: docs/specs/reconstruction-p0-contracts.md:2052 «d6ff68c7ef2b9b22»",
@@ -4713,7 +4996,7 @@
           "expectedRef": "unmet:O09:49",
           "expectationBasis": [
             "L1: docs/specs/reconstruction-p0-contracts.md:1119 «602b2dfb3cc1795e»",
-            "L1: docs/specs/reconstruction-p0-contracts.md:1131 «11fd08067698aeea»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:1131 «97e9cc25a1b97b6f»",
             "L1: docs/specs/reconstruction-p0-contracts.md:1133 «0a085841e24bbc6a»",
             "L1: docs/specs/reconstruction-p0-contracts.md:1137 «c06677d2196cd39e»",
             "L1: docs/specs/reconstruction-p0-contracts.md:2052 «d6ff68c7ef2b9b22»",
@@ -4734,7 +5017,7 @@
           "expectedRef": "unmet:O09:50",
           "expectationBasis": [
             "L1: docs/specs/reconstruction-p0-contracts.md:1119 «602b2dfb3cc1795e»",
-            "L1: docs/specs/reconstruction-p0-contracts.md:1131 «11fd08067698aeea»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:1131 «97e9cc25a1b97b6f»",
             "L1: docs/specs/reconstruction-p0-contracts.md:1133 «0a085841e24bbc6a»",
             "L1: docs/specs/reconstruction-p0-contracts.md:1137 «c06677d2196cd39e»",
             "L1: docs/specs/reconstruction-p0-contracts.md:2052 «d6ff68c7ef2b9b22»",
@@ -4755,7 +5038,7 @@
           "expectedRef": "unmet:O09:51",
           "expectationBasis": [
             "L1: docs/specs/reconstruction-p0-contracts.md:1119 «602b2dfb3cc1795e»",
-            "L1: docs/specs/reconstruction-p0-contracts.md:1131 «11fd08067698aeea»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:1131 «97e9cc25a1b97b6f»",
             "L1: docs/specs/reconstruction-p0-contracts.md:1133 «0a085841e24bbc6a»",
             "L1: docs/specs/reconstruction-p0-contracts.md:1137 «c06677d2196cd39e»",
             "L1: docs/specs/reconstruction-p0-contracts.md:2052 «d6ff68c7ef2b9b22»",
@@ -4776,7 +5059,7 @@
           "expectedRef": "unmet:O09:52",
           "expectationBasis": [
             "L1: docs/specs/reconstruction-p0-contracts.md:1119 «602b2dfb3cc1795e»",
-            "L1: docs/specs/reconstruction-p0-contracts.md:1131 «11fd08067698aeea»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:1131 «97e9cc25a1b97b6f»",
             "L1: docs/specs/reconstruction-p0-contracts.md:1133 «0a085841e24bbc6a»",
             "L1: docs/specs/reconstruction-p0-contracts.md:1137 «c06677d2196cd39e»",
             "L1: docs/specs/reconstruction-p0-contracts.md:2052 «d6ff68c7ef2b9b22»",
@@ -4797,7 +5080,7 @@
           "expectedRef": "unmet:O09:53",
           "expectationBasis": [
             "L1: docs/specs/reconstruction-p0-contracts.md:1119 «602b2dfb3cc1795e»",
-            "L1: docs/specs/reconstruction-p0-contracts.md:1131 «11fd08067698aeea»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:1131 «97e9cc25a1b97b6f»",
             "L1: docs/specs/reconstruction-p0-contracts.md:1133 «0a085841e24bbc6a»",
             "L1: docs/specs/reconstruction-p0-contracts.md:1137 «c06677d2196cd39e»",
             "L1: docs/specs/reconstruction-p0-contracts.md:2052 «d6ff68c7ef2b9b22»",
@@ -4818,7 +5101,7 @@
           "expectedRef": "unmet:O09:54",
           "expectationBasis": [
             "L1: docs/specs/reconstruction-p0-contracts.md:1119 «602b2dfb3cc1795e»",
-            "L1: docs/specs/reconstruction-p0-contracts.md:1131 «11fd08067698aeea»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:1131 «97e9cc25a1b97b6f»",
             "L1: docs/specs/reconstruction-p0-contracts.md:1133 «0a085841e24bbc6a»",
             "L1: docs/specs/reconstruction-p0-contracts.md:1137 «c06677d2196cd39e»",
             "L1: docs/specs/reconstruction-p0-contracts.md:2052 «d6ff68c7ef2b9b22»",
@@ -4839,7 +5122,7 @@
           "expectedRef": "unmet:O09:55",
           "expectationBasis": [
             "L1: docs/specs/reconstruction-p0-contracts.md:1119 «602b2dfb3cc1795e»",
-            "L1: docs/specs/reconstruction-p0-contracts.md:1131 «11fd08067698aeea»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:1131 «97e9cc25a1b97b6f»",
             "L1: docs/specs/reconstruction-p0-contracts.md:1133 «0a085841e24bbc6a»",
             "L1: docs/specs/reconstruction-p0-contracts.md:1137 «c06677d2196cd39e»",
             "L1: docs/specs/reconstruction-p0-contracts.md:2052 «d6ff68c7ef2b9b22»",
@@ -4860,7 +5143,7 @@
           "expectedRef": "unmet:O09:56",
           "expectationBasis": [
             "L1: docs/specs/reconstruction-p0-contracts.md:1119 «602b2dfb3cc1795e»",
-            "L1: docs/specs/reconstruction-p0-contracts.md:1131 «11fd08067698aeea»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:1131 «97e9cc25a1b97b6f»",
             "L1: docs/specs/reconstruction-p0-contracts.md:1133 «0a085841e24bbc6a»",
             "L1: docs/specs/reconstruction-p0-contracts.md:1137 «c06677d2196cd39e»",
             "L1: docs/specs/reconstruction-p0-contracts.md:2052 «d6ff68c7ef2b9b22»",
@@ -4881,7 +5164,7 @@
           "expectedRef": "unmet:O09:57",
           "expectationBasis": [
             "L1: docs/specs/reconstruction-p0-contracts.md:1119 «602b2dfb3cc1795e»",
-            "L1: docs/specs/reconstruction-p0-contracts.md:1131 «11fd08067698aeea»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:1131 «97e9cc25a1b97b6f»",
             "L1: docs/specs/reconstruction-p0-contracts.md:1133 «0a085841e24bbc6a»",
             "L1: docs/specs/reconstruction-p0-contracts.md:1137 «c06677d2196cd39e»",
             "L1: docs/specs/reconstruction-p0-contracts.md:2052 «d6ff68c7ef2b9b22»",
@@ -4902,7 +5185,7 @@
           "expectedRef": "unmet:O09:58",
           "expectationBasis": [
             "L1: docs/specs/reconstruction-p0-contracts.md:1119 «602b2dfb3cc1795e»",
-            "L1: docs/specs/reconstruction-p0-contracts.md:1131 «11fd08067698aeea»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:1131 «97e9cc25a1b97b6f»",
             "L1: docs/specs/reconstruction-p0-contracts.md:1133 «0a085841e24bbc6a»",
             "L1: docs/specs/reconstruction-p0-contracts.md:1137 «c06677d2196cd39e»",
             "L1: docs/specs/reconstruction-p0-contracts.md:2052 «d6ff68c7ef2b9b22»",
@@ -4923,7 +5206,7 @@
           "expectedRef": "unmet:O09:59",
           "expectationBasis": [
             "L1: docs/specs/reconstruction-p0-contracts.md:1119 «602b2dfb3cc1795e»",
-            "L1: docs/specs/reconstruction-p0-contracts.md:1131 «11fd08067698aeea»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:1131 «97e9cc25a1b97b6f»",
             "L1: docs/specs/reconstruction-p0-contracts.md:1133 «0a085841e24bbc6a»",
             "L1: docs/specs/reconstruction-p0-contracts.md:1137 «c06677d2196cd39e»",
             "L1: docs/specs/reconstruction-p0-contracts.md:2052 «d6ff68c7ef2b9b22»",
@@ -4944,7 +5227,7 @@
           "expectedRef": "unmet:O09:60",
           "expectationBasis": [
             "L1: docs/specs/reconstruction-p0-contracts.md:1119 «602b2dfb3cc1795e»",
-            "L1: docs/specs/reconstruction-p0-contracts.md:1131 «11fd08067698aeea»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:1131 «97e9cc25a1b97b6f»",
             "L1: docs/specs/reconstruction-p0-contracts.md:1133 «0a085841e24bbc6a»",
             "L1: docs/specs/reconstruction-p0-contracts.md:1137 «c06677d2196cd39e»",
             "L1: docs/specs/reconstruction-p0-contracts.md:2052 «d6ff68c7ef2b9b22»",
@@ -4965,7 +5248,7 @@
           "expectedRef": "unmet:O09:61",
           "expectationBasis": [
             "L1: docs/specs/reconstruction-p0-contracts.md:1119 «602b2dfb3cc1795e»",
-            "L1: docs/specs/reconstruction-p0-contracts.md:1131 «11fd08067698aeea»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:1131 «97e9cc25a1b97b6f»",
             "L1: docs/specs/reconstruction-p0-contracts.md:1133 «0a085841e24bbc6a»",
             "L1: docs/specs/reconstruction-p0-contracts.md:1137 «c06677d2196cd39e»",
             "L1: docs/specs/reconstruction-p0-contracts.md:2052 «d6ff68c7ef2b9b22»",
@@ -4986,7 +5269,7 @@
           "expectedRef": "unmet:O09:62",
           "expectationBasis": [
             "L1: docs/specs/reconstruction-p0-contracts.md:1119 «602b2dfb3cc1795e»",
-            "L1: docs/specs/reconstruction-p0-contracts.md:1131 «11fd08067698aeea»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:1131 «97e9cc25a1b97b6f»",
             "L1: docs/specs/reconstruction-p0-contracts.md:1133 «0a085841e24bbc6a»",
             "L1: docs/specs/reconstruction-p0-contracts.md:1137 «c06677d2196cd39e»",
             "L1: docs/specs/reconstruction-p0-contracts.md:2052 «d6ff68c7ef2b9b22»",
@@ -5007,7 +5290,7 @@
           "expectedRef": "unmet:O09:63",
           "expectationBasis": [
             "L1: docs/specs/reconstruction-p0-contracts.md:1119 «602b2dfb3cc1795e»",
-            "L1: docs/specs/reconstruction-p0-contracts.md:1131 «11fd08067698aeea»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:1131 «97e9cc25a1b97b6f»",
             "L1: docs/specs/reconstruction-p0-contracts.md:1133 «0a085841e24bbc6a»",
             "L1: docs/specs/reconstruction-p0-contracts.md:1137 «c06677d2196cd39e»",
             "L1: docs/specs/reconstruction-p0-contracts.md:2052 «d6ff68c7ef2b9b22»",
@@ -5028,7 +5311,7 @@
           "expectedRef": "unmet:O09:64",
           "expectationBasis": [
             "L1: docs/specs/reconstruction-p0-contracts.md:1119 «602b2dfb3cc1795e»",
-            "L1: docs/specs/reconstruction-p0-contracts.md:1131 «11fd08067698aeea»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:1131 «97e9cc25a1b97b6f»",
             "L1: docs/specs/reconstruction-p0-contracts.md:1133 «0a085841e24bbc6a»",
             "L1: docs/specs/reconstruction-p0-contracts.md:1137 «c06677d2196cd39e»",
             "L1: docs/specs/reconstruction-p0-contracts.md:2052 «d6ff68c7ef2b9b22»",
@@ -5049,7 +5332,7 @@
           "expectedRef": "unmet:O09:65",
           "expectationBasis": [
             "L1: docs/specs/reconstruction-p0-contracts.md:1119 «602b2dfb3cc1795e»",
-            "L1: docs/specs/reconstruction-p0-contracts.md:1131 «11fd08067698aeea»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:1131 «97e9cc25a1b97b6f»",
             "L1: docs/specs/reconstruction-p0-contracts.md:1133 «0a085841e24bbc6a»",
             "L1: docs/specs/reconstruction-p0-contracts.md:1137 «c06677d2196cd39e»",
             "L1: docs/specs/reconstruction-p0-contracts.md:2052 «d6ff68c7ef2b9b22»",
@@ -5070,7 +5353,7 @@
           "expectedRef": "unmet:O09:66",
           "expectationBasis": [
             "L1: docs/specs/reconstruction-p0-contracts.md:1119 «602b2dfb3cc1795e»",
-            "L1: docs/specs/reconstruction-p0-contracts.md:1131 «11fd08067698aeea»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:1131 «97e9cc25a1b97b6f»",
             "L1: docs/specs/reconstruction-p0-contracts.md:1133 «0a085841e24bbc6a»",
             "L1: docs/specs/reconstruction-p0-contracts.md:1137 «c06677d2196cd39e»",
             "L1: docs/specs/reconstruction-p0-contracts.md:2052 «d6ff68c7ef2b9b22»",
@@ -5091,7 +5374,7 @@
           "expectedRef": "unmet:O09:67",
           "expectationBasis": [
             "L1: docs/specs/reconstruction-p0-contracts.md:1119 «602b2dfb3cc1795e»",
-            "L1: docs/specs/reconstruction-p0-contracts.md:1131 «11fd08067698aeea»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:1131 «97e9cc25a1b97b6f»",
             "L1: docs/specs/reconstruction-p0-contracts.md:1133 «0a085841e24bbc6a»",
             "L1: docs/specs/reconstruction-p0-contracts.md:1137 «c06677d2196cd39e»",
             "L1: docs/specs/reconstruction-p0-contracts.md:2052 «d6ff68c7ef2b9b22»",
@@ -12980,17 +13263,19 @@
           }
         }
       ],
-      "notices": null,
-      "intents": null,
+      "notices": true,
+      "intents": true,
       "basisLevel": 1,
       "basisRefs": [
         "L1: docs/specs/reconstruction-p0-contracts.md:510 «1bbd6a7777e200c7» family独立",
         "L1: docs/specs/reconstruction-p0-contracts.md:1789 «4857755b6c184d37» 実corpusの限界",
+        "L1: reconstruction/contracts/p3-tsunami-unit.json:190 «f2710b8ce571e078» Q-NOTICE 観測（作者裁定 NOTICE-OBSERVATION=C・OBS-LIFETIME=A）",
         "L2: test/fixtures/61_11_01_250206_VTSE52.xml:1 «12c29731e40adc0c» 元XMLのControl/Head/Bodyを読解（原本確認の主張ではない）"
       ],
       "input": null,
       "checks": [
         "VTSE52観測station={21050,21090,21091}。全MaxHeight=観測中で数値0ではない。",
+        "VTSE41 subjectが無いので観測はactive（P3-C5-OBS-LIFETIME=A）。通知: 採用ごとにdesktop＋sound、level=info、緊急群に入らない（P3-C5-NOTICE-OBSERVATION=C）。題「沖合の津波観測に関する情報」。",
         "運用区分: Control.Status=通常; head.test/envelope Status=notProvided。replay 起源から区分を補わない。"
       ]
     },
@@ -13015,17 +13300,19 @@
           }
         }
       ],
-      "notices": null,
-      "intents": null,
+      "notices": true,
+      "intents": true,
       "basisLevel": 1,
       "basisRefs": [
         "L1: docs/specs/reconstruction-p0-contracts.md:509 «13c4f83676b58064»",
         "L1: docs/specs/reconstruction-p0-contracts.md:1789 «4857755b6c184d37»",
+        "L1: reconstruction/contracts/p3-tsunami-unit.json:190 «f2710b8ce571e078» Q-NOTICE 観測（作者裁定 NOTICE-OBSERVATION=C・OBS-LIFETIME=A）",
         "L2: test/fixtures/32-39_11_10_250206_VTSE51.xml:1 «12c29731e40adc0c» 元XMLのControl/Head/Bodyを読解（原本確認の主張ではない）"
       ],
       "input": null,
       "checks": [
         "VTSE51観測station={20102,21001,21002,21003,22002}。釜石21003は3.2m/上昇中、他は観測中。ForecastのstationをObservationと混同しない。52の3点も保持。",
+        "VTSE41 subjectが無いので観測はactive（P3-C5-OBS-LIFETIME=A）。通知: 採用ごとにdesktop＋sound、level=info、緊急群に入らない（P3-C5-NOTICE-OBSERVATION=C）。題「津波観測に関する情報」。",
         "運用区分: Control.Status=通常; head.test/envelope Status=notProvided。replay 起源から区分を補わない。"
       ]
     },
@@ -13052,7 +13339,7 @@
       ]
     },
     {
-      "expectedId": "unmet:O05:5",
+      "expectedId": "expected:O05:5",
       "sequenceId": "O05",
       "position": 5,
       "decision": {
@@ -13064,31 +13351,34 @@
       },
       "subjects": [
         {
-          "subject": "normal/O05/input.requiredに記した対象（未充足）",
+          "subject": "normal/tsunamiObservation:VTSE51/20110311144640",
           "revision": {
             "reportDateTimeRaw": "2011-03-11T15:02:00+09:00",
-            "serialRaw": null,
-            "infoTypeRaw": null
+            "serialRaw": "4",
+            "infoTypeRaw": "発表"
           }
         }
       ],
-      "notices": null,
-      "intents": null,
+      "notices": true,
+      "intents": true,
       "basisLevel": 1,
       "basisRefs": [
         "L1: docs/specs/reconstruction-p0-contracts.md:1781 «281dabfe783ca67a»",
-        "L1: docs/specs/reconstruction-p0-contracts.md:1789 «4857755b6c184d37»"
+        "L1: docs/specs/reconstruction-p0-contracts.md:1789 «4857755b6c184d37»",
+        "L1: reconstruction/contracts/p3-tsunami-unit.json:262 «3bb56bb1732834ff» I-U-T observationSemantics",
+        "L1: reconstruction/contracts/p3-tsunami-unit.json:190 «f2710b8ce571e078» Q-NOTICE 観測（作者裁定 NOTICE-OBSERVATION=C・OBS-LIFETIME=A）",
+        "L2: test/fixtures/synthetic_VTSE51_fragmentA.xml:1 «12c29731e40adc0c» 合成入力（manifest synthetic、配信原本ではない）"
       ],
-      "input": {
-        "required": "VTSE51 通常、EventID20110311144640、ReportDateTime=2011-03-11T15:02:00+09:00、Serial4、InfoType発表。fragment A、Observation.Station.Code={20102,21001}のみ。対応実corpusのstation値を使う。",
-        "acquisition": "synthetic"
-      },
+      "input": null,
       "checks": [
-        "到着済みfragmentのstation集合を合成。二片後は{20102,21001,21002,21003,22002}で値一致。VTSE51以外のfamily watermark不変。"
+        "到着済みfragmentのstation集合を合成。二片後は{20102,21001,21002,21003,22002}で値一致。VTSE51以外のfamily watermark不変。",
+        "一片目: 載ったstationだけを持つ観測subjectを作る（VTSE41 subjectが無いのでactive、P3-C5-OBS-LIFETIME=A）。",
+        "通知: 採用ごとにdesktop＋sound、level=info、緊急群に入らない（P3-C5-NOTICE-OBSERVATION=C）。題「津波観測に関する情報」。",
+        "運用区分: Control.Status=通常; head.test/envelope Status=notProvided。replay 起源から区分を補わない。"
       ]
     },
     {
-      "expectedId": "unmet:O05:6",
+      "expectedId": "expected:O05:6",
       "sequenceId": "O05",
       "position": 6,
       "decision": {
@@ -13100,31 +13390,34 @@
       },
       "subjects": [
         {
-          "subject": "normal/O05/input.requiredに記した対象（未充足）",
+          "subject": "normal/tsunamiObservation:VTSE51/20110311144640",
           "revision": {
             "reportDateTimeRaw": "2011-03-11T15:02:00+09:00",
-            "serialRaw": null,
-            "infoTypeRaw": null
+            "serialRaw": "4",
+            "infoTypeRaw": "発表"
           }
         }
       ],
-      "notices": null,
-      "intents": null,
+      "notices": true,
+      "intents": true,
       "basisLevel": 1,
       "basisRefs": [
         "L1: docs/specs/reconstruction-p0-contracts.md:1781 «281dabfe783ca67a»",
-        "L1: docs/specs/reconstruction-p0-contracts.md:1789 «4857755b6c184d37»"
+        "L1: docs/specs/reconstruction-p0-contracts.md:1789 «4857755b6c184d37»",
+        "L1: reconstruction/contracts/p3-tsunami-unit.json:262 «3bb56bb1732834ff» I-U-T observationSemantics",
+        "L1: reconstruction/contracts/p3-tsunami-unit.json:190 «f2710b8ce571e078» Q-NOTICE 観測（作者裁定 NOTICE-OBSERVATION=C・OBS-LIFETIME=A）",
+        "L2: test/fixtures/synthetic_VTSE51_fragmentB.xml:1 «12c29731e40adc0c» 合成入力（manifest synthetic、配信原本ではない）"
       ],
-      "input": {
-        "required": "VTSE51 通常、EventID20110311144640、ReportDateTime=2011-03-11T15:02:00+09:00、Serial4、InfoType発表。fragment B、Observation.Station.Code={21002,21003,22002}のみ。対応実corpusのstation値を使う。",
-        "acquisition": "synthetic"
-      },
+      "input": null,
       "checks": [
-        "到着済みfragmentのstation集合を合成。二片後は{20102,21001,21002,21003,22002}で値一致。VTSE51以外のfamily watermark不変。"
+        "到着済みfragmentのstation集合を合成。二片後は{20102,21001,21002,21003,22002}で値一致。VTSE51以外のfamily watermark不変。",
+        "二片目: 同じrevision・同じInfoTypeの非重複stationを和集合にする（P3-C5-OBS-MERGE=A）。一片目のpendingは同じsubject・同じchannel・同群（other）なのでsupersededにする（P3-C5-REPLACEMENT=A）。",
+        "通知: 採用ごとにdesktop＋sound、level=info、緊急群に入らない（P3-C5-NOTICE-OBSERVATION=C）。題「津波観測に関する情報」。",
+        "運用区分: Control.Status=通常; head.test/envelope Status=notProvided。replay 起源から区分を補わない。"
       ]
     },
     {
-      "expectedId": "unmet:O05:7",
+      "expectedId": "expected:O05:7",
       "sequenceId": "O05",
       "position": 7,
       "decision": {
@@ -13136,27 +13429,30 @@
       },
       "subjects": [
         {
-          "subject": "normal/O05/input.requiredに記した対象（未充足）",
+          "subject": "normal/tsunamiObservation:VTSE51/20110311144640",
           "revision": {
             "reportDateTimeRaw": "2011-03-11T15:02:00+09:00",
-            "serialRaw": null,
-            "infoTypeRaw": null
+            "serialRaw": "4",
+            "infoTypeRaw": "訂正"
           }
         }
       ],
-      "notices": null,
-      "intents": null,
+      "notices": true,
+      "intents": true,
       "basisLevel": 1,
       "basisRefs": [
         "L1: docs/specs/reconstruction-p0-contracts.md:1781 «281dabfe783ca67a»",
-        "L1: docs/specs/reconstruction-p0-contracts.md:1789 «4857755b6c184d37»"
+        "L1: docs/specs/reconstruction-p0-contracts.md:1789 «4857755b6c184d37»",
+        "L1: reconstruction/contracts/p3-tsunami-unit.json:262 «3bb56bb1732834ff» I-U-T observationSemantics",
+        "L1: reconstruction/contracts/p3-tsunami-unit.json:190 «f2710b8ce571e078» Q-NOTICE 観測（作者裁定 NOTICE-OBSERVATION=C・OBS-LIFETIME=A）",
+        "L2: test/fixtures/synthetic_VTSE51_correction.xml:1 «12c29731e40adc0c» 合成入力（manifest synthetic、配信原本ではない）"
       ],
-      "input": {
-        "required": "VTSE51 通常、EventID20110311144640、ReportDateTime=2011-03-11T15:02:00+09:00、Serial4、InfoType訂正。Station.Code=21003は不変、当該itemのArea.Codeだけ合法な別codeへ変更（採用codeは公式区域表と照合後固定）。",
-        "acquisition": "synthetic"
-      },
+      "input": null,
       "checks": [
-        "同stationは追加点にせず1点だけ更新、他stationを落とさない。競合する同stationの順序交換は可換性保証の対象外。"
+        "同stationは追加点にせず1点だけ更新、他stationを落とさない。競合する同stationの順序交換は可換性保証の対象外。",
+        "同じrevisionの訂正（InfoType優先 訂正>発表）で、station 21003の点を1つのまま更新し、そのItemのArea.Codeを210/岩手県→220/宮城県にする。他の4 stationは変えない。合法なArea.Codeの根拠は親32-39_11_10のObservation（CodeDefine「津波予報区」）に現れる値（公式コード表との照合はしていない）。",
+        "通知: 採用ごとにdesktop＋sound、level=info、緊急群に入らない（P3-C5-NOTICE-OBSERVATION=C）。題「津波観測に関する情報」。",
+        "運用区分: Control.Status=通常; head.test/envelope Status=notProvided。replay 起源から区分を補わない。"
       ]
     },
     {
@@ -13182,7 +13478,7 @@
       ]
     },
     {
-      "expectedId": "unmet:O05:9",
+      "expectedId": "expected:O05:9",
       "sequenceId": "O05",
       "position": 9,
       "decision": {
@@ -13194,31 +13490,34 @@
       },
       "subjects": [
         {
-          "subject": "normal/O05/input.requiredに記した対象（未充足）",
+          "subject": "normal/tsunamiObservation:VTSE51/20110311144640",
           "revision": {
             "reportDateTimeRaw": "2011-03-11T15:02:00+09:00",
-            "serialRaw": null,
-            "infoTypeRaw": null
+            "serialRaw": "4",
+            "infoTypeRaw": "発表"
           }
         }
       ],
-      "notices": null,
-      "intents": null,
+      "notices": true,
+      "intents": true,
       "basisLevel": 1,
       "basisRefs": [
         "L1: docs/specs/reconstruction-p0-contracts.md:1781 «281dabfe783ca67a»",
-        "L1: docs/specs/reconstruction-p0-contracts.md:1789 «4857755b6c184d37»"
+        "L1: docs/specs/reconstruction-p0-contracts.md:1789 «4857755b6c184d37»",
+        "L1: reconstruction/contracts/p3-tsunami-unit.json:262 «3bb56bb1732834ff» I-U-T observationSemantics",
+        "L1: reconstruction/contracts/p3-tsunami-unit.json:190 «f2710b8ce571e078» Q-NOTICE 観測（作者裁定 NOTICE-OBSERVATION=C・OBS-LIFETIME=A）",
+        "L2: test/fixtures/synthetic_VTSE51_fragmentB.xml:1 «12c29731e40adc0c» 合成入力（manifest synthetic、配信原本ではない）"
       ],
-      "input": {
-        "required": "VTSE51 通常、EventID20110311144640、ReportDateTime=2011-03-11T15:02:00+09:00、Serial4、InfoType発表。fragment B、Observation.Station.Code={21002,21003,22002}のみ。対応実corpusのstation値を使う。",
-        "acquisition": "synthetic"
-      },
+      "input": null,
       "checks": [
-        "到着済みfragmentのstation集合を合成。二片後は{20102,21001,21002,21003,22002}で値一致。VTSE51以外のfamily watermark不変。"
+        "到着済みfragmentのstation集合を合成。二片後は{20102,21001,21002,21003,22002}で値一致。VTSE51以外のfamily watermark不変。",
+        "一片目: 載ったstationだけを持つ観測subjectを作る（VTSE41 subjectが無いのでactive、P3-C5-OBS-LIFETIME=A）。",
+        "通知: 採用ごとにdesktop＋sound、level=info、緊急群に入らない（P3-C5-NOTICE-OBSERVATION=C）。題「津波観測に関する情報」。",
+        "運用区分: Control.Status=通常; head.test/envelope Status=notProvided。replay 起源から区分を補わない。"
       ]
     },
     {
-      "expectedId": "unmet:O05:10",
+      "expectedId": "expected:O05:10",
       "sequenceId": "O05",
       "position": 10,
       "decision": {
@@ -13230,31 +13529,34 @@
       },
       "subjects": [
         {
-          "subject": "normal/O05/input.requiredに記した対象（未充足）",
+          "subject": "normal/tsunamiObservation:VTSE51/20110311144640",
           "revision": {
             "reportDateTimeRaw": "2011-03-11T15:02:00+09:00",
-            "serialRaw": null,
-            "infoTypeRaw": null
+            "serialRaw": "4",
+            "infoTypeRaw": "発表"
           }
         }
       ],
-      "notices": null,
-      "intents": null,
+      "notices": true,
+      "intents": true,
       "basisLevel": 1,
       "basisRefs": [
         "L1: docs/specs/reconstruction-p0-contracts.md:1781 «281dabfe783ca67a»",
-        "L1: docs/specs/reconstruction-p0-contracts.md:1789 «4857755b6c184d37»"
+        "L1: docs/specs/reconstruction-p0-contracts.md:1789 «4857755b6c184d37»",
+        "L1: reconstruction/contracts/p3-tsunami-unit.json:262 «3bb56bb1732834ff» I-U-T observationSemantics",
+        "L1: reconstruction/contracts/p3-tsunami-unit.json:190 «f2710b8ce571e078» Q-NOTICE 観測（作者裁定 NOTICE-OBSERVATION=C・OBS-LIFETIME=A）",
+        "L2: test/fixtures/synthetic_VTSE51_fragmentA.xml:1 «12c29731e40adc0c» 合成入力（manifest synthetic、配信原本ではない）"
       ],
-      "input": {
-        "required": "VTSE51 通常、EventID20110311144640、ReportDateTime=2011-03-11T15:02:00+09:00、Serial4、InfoType発表。fragment A、Observation.Station.Code={20102,21001}のみ。対応実corpusのstation値を使う。",
-        "acquisition": "synthetic"
-      },
+      "input": null,
       "checks": [
-        "到着済みfragmentのstation集合を合成。二片後は{20102,21001,21002,21003,22002}で値一致。VTSE51以外のfamily watermark不変。"
+        "到着済みfragmentのstation集合を合成。二片後は{20102,21001,21002,21003,22002}で値一致。VTSE51以外のfamily watermark不変。",
+        "二片目: 同じrevision・同じInfoTypeの非重複stationを和集合にする（P3-C5-OBS-MERGE=A）。一片目のpendingは同じsubject・同じchannel・同群（other）なのでsupersededにする（P3-C5-REPLACEMENT=A）。",
+        "通知: 採用ごとにdesktop＋sound、level=info、緊急群に入らない（P3-C5-NOTICE-OBSERVATION=C）。題「津波観測に関する情報」。",
+        "運用区分: Control.Status=通常; head.test/envelope Status=notProvided。replay 起源から区分を補わない。"
       ]
     },
     {
-      "expectedId": "unmet:O05:11",
+      "expectedId": "expected:O05:11",
       "sequenceId": "O05",
       "position": 11,
       "decision": {
@@ -13266,27 +13568,30 @@
       },
       "subjects": [
         {
-          "subject": "normal/O05/input.requiredに記した対象（未充足）",
+          "subject": "normal/tsunamiObservation:VTSE51/20110311144640",
           "revision": {
             "reportDateTimeRaw": "2011-03-11T15:02:00+09:00",
-            "serialRaw": null,
-            "infoTypeRaw": null
+            "serialRaw": "4",
+            "infoTypeRaw": "訂正"
           }
         }
       ],
-      "notices": null,
-      "intents": null,
+      "notices": true,
+      "intents": true,
       "basisLevel": 1,
       "basisRefs": [
         "L1: docs/specs/reconstruction-p0-contracts.md:1781 «281dabfe783ca67a»",
-        "L1: docs/specs/reconstruction-p0-contracts.md:1789 «4857755b6c184d37»"
+        "L1: docs/specs/reconstruction-p0-contracts.md:1789 «4857755b6c184d37»",
+        "L1: reconstruction/contracts/p3-tsunami-unit.json:262 «3bb56bb1732834ff» I-U-T observationSemantics",
+        "L1: reconstruction/contracts/p3-tsunami-unit.json:190 «f2710b8ce571e078» Q-NOTICE 観測（作者裁定 NOTICE-OBSERVATION=C・OBS-LIFETIME=A）",
+        "L2: test/fixtures/synthetic_VTSE51_correction.xml:1 «12c29731e40adc0c» 合成入力（manifest synthetic、配信原本ではない）"
       ],
-      "input": {
-        "required": "VTSE51 通常、EventID20110311144640、ReportDateTime=2011-03-11T15:02:00+09:00、Serial4、InfoType訂正。Station.Code=21003は不変、当該itemのArea.Codeだけ合法な別codeへ変更（採用codeは公式区域表と照合後固定）。",
-        "acquisition": "synthetic"
-      },
+      "input": null,
       "checks": [
-        "同stationは追加点にせず1点だけ更新、他stationを落とさない。競合する同stationの順序交換は可換性保証の対象外。"
+        "同stationは追加点にせず1点だけ更新、他stationを落とさない。競合する同stationの順序交換は可換性保証の対象外。",
+        "同じrevisionの訂正（InfoType優先 訂正>発表）で、station 21003の点を1つのまま更新し、そのItemのArea.Codeを210/岩手県→220/宮城県にする。他の4 stationは変えない。合法なArea.Codeの根拠は親32-39_11_10のObservation（CodeDefine「津波予報区」）に現れる値（公式コード表との照合はしていない）。",
+        "通知: 採用ごとにdesktop＋sound、level=info、緊急群に入らない（P3-C5-NOTICE-OBSERVATION=C）。題「津波観測に関する情報」。",
+        "運用区分: Control.Status=通常; head.test/envelope Status=notProvided。replay 起源から区分を補わない。"
       ]
     },
     {
@@ -13312,7 +13617,7 @@
       ]
     },
     {
-      "expectedId": "unmet:O05:13",
+      "expectedId": "expected:O05:13",
       "sequenceId": "O05",
       "position": 13,
       "decision": {
@@ -13324,31 +13629,34 @@
       },
       "subjects": [
         {
-          "subject": "normal/O05/input.requiredに記した対象（未充足）",
+          "subject": "normal/tsunamiObservation:VTSE52/20110311144640",
           "revision": {
             "reportDateTimeRaw": "2011-03-11T15:02:00+09:00",
-            "serialRaw": null,
-            "infoTypeRaw": null
+            "serialRaw": "4",
+            "infoTypeRaw": "発表"
           }
         }
       ],
-      "notices": null,
-      "intents": null,
+      "notices": true,
+      "intents": true,
       "basisLevel": 1,
       "basisRefs": [
         "L1: docs/specs/reconstruction-p0-contracts.md:1781 «281dabfe783ca67a»",
-        "L1: docs/specs/reconstruction-p0-contracts.md:1789 «4857755b6c184d37»"
+        "L1: docs/specs/reconstruction-p0-contracts.md:1789 «4857755b6c184d37»",
+        "L1: reconstruction/contracts/p3-tsunami-unit.json:262 «3bb56bb1732834ff» I-U-T observationSemantics",
+        "L1: reconstruction/contracts/p3-tsunami-unit.json:190 «f2710b8ce571e078» Q-NOTICE 観測（作者裁定 NOTICE-OBSERVATION=C・OBS-LIFETIME=A）",
+        "L2: test/fixtures/synthetic_VTSE52_fragmentA.xml:1 «12c29731e40adc0c» 合成入力（manifest synthetic、配信原本ではない）"
       ],
-      "input": {
-        "required": "VTSE52 通常、EventID20110311144640、ReportDateTime=2011-03-11T15:02:00+09:00、Serial4、InfoType発表。fragment A、Observation.Station.Code={21090}のみ。対応実corpusのstation値を使う。",
-        "acquisition": "synthetic"
-      },
+      "input": null,
       "checks": [
-        "到着済みfragmentのstation集合を合成。二片後は{21050,21090,21091}で値一致。VTSE52以外のfamily watermark不変。"
+        "到着済みfragmentのstation集合を合成。二片後は{21050,21090,21091}で値一致。VTSE52以外のfamily watermark不変。",
+        "一片目: 載ったstationだけを持つ観測subjectを作る（VTSE41 subjectが無いのでactive、P3-C5-OBS-LIFETIME=A）。",
+        "通知: 採用ごとにdesktop＋sound、level=info、緊急群に入らない（P3-C5-NOTICE-OBSERVATION=C）。題「沖合の津波観測に関する情報」。",
+        "運用区分: Control.Status=通常; head.test/envelope Status=notProvided。replay 起源から区分を補わない。"
       ]
     },
     {
-      "expectedId": "unmet:O05:14",
+      "expectedId": "expected:O05:14",
       "sequenceId": "O05",
       "position": 14,
       "decision": {
@@ -13360,31 +13668,34 @@
       },
       "subjects": [
         {
-          "subject": "normal/O05/input.requiredに記した対象（未充足）",
+          "subject": "normal/tsunamiObservation:VTSE52/20110311144640",
           "revision": {
             "reportDateTimeRaw": "2011-03-11T15:02:00+09:00",
-            "serialRaw": null,
-            "infoTypeRaw": null
+            "serialRaw": "4",
+            "infoTypeRaw": "発表"
           }
         }
       ],
-      "notices": null,
-      "intents": null,
+      "notices": true,
+      "intents": true,
       "basisLevel": 1,
       "basisRefs": [
         "L1: docs/specs/reconstruction-p0-contracts.md:1781 «281dabfe783ca67a»",
-        "L1: docs/specs/reconstruction-p0-contracts.md:1789 «4857755b6c184d37»"
+        "L1: docs/specs/reconstruction-p0-contracts.md:1789 «4857755b6c184d37»",
+        "L1: reconstruction/contracts/p3-tsunami-unit.json:262 «3bb56bb1732834ff» I-U-T observationSemantics",
+        "L1: reconstruction/contracts/p3-tsunami-unit.json:190 «f2710b8ce571e078» Q-NOTICE 観測（作者裁定 NOTICE-OBSERVATION=C・OBS-LIFETIME=A）",
+        "L2: test/fixtures/synthetic_VTSE52_fragmentB.xml:1 «12c29731e40adc0c» 合成入力（manifest synthetic、配信原本ではない）"
       ],
-      "input": {
-        "required": "VTSE52 通常、EventID20110311144640、ReportDateTime=2011-03-11T15:02:00+09:00、Serial4、InfoType発表。fragment B、Observation.Station.Code={21050,21091}のみ。対応実corpusのstation値を使う。",
-        "acquisition": "synthetic"
-      },
+      "input": null,
       "checks": [
-        "到着済みfragmentのstation集合を合成。二片後は{21050,21090,21091}で値一致。VTSE52以外のfamily watermark不変。"
+        "到着済みfragmentのstation集合を合成。二片後は{21050,21090,21091}で値一致。VTSE52以外のfamily watermark不変。",
+        "二片目: 同じrevision・同じInfoTypeの非重複stationを和集合にする（P3-C5-OBS-MERGE=A）。一片目のpendingは同じsubject・同じchannel・同群（other）なのでsupersededにする（P3-C5-REPLACEMENT=A）。",
+        "通知: 採用ごとにdesktop＋sound、level=info、緊急群に入らない（P3-C5-NOTICE-OBSERVATION=C）。題「沖合の津波観測に関する情報」。",
+        "運用区分: Control.Status=通常; head.test/envelope Status=notProvided。replay 起源から区分を補わない。"
       ]
     },
     {
-      "expectedId": "unmet:O05:15",
+      "expectedId": "expected:O05:15",
       "sequenceId": "O05",
       "position": 15,
       "decision": {
@@ -13396,27 +13707,30 @@
       },
       "subjects": [
         {
-          "subject": "normal/O05/input.requiredに記した対象（未充足）",
+          "subject": "normal/tsunamiObservation:VTSE52/20110311144640",
           "revision": {
             "reportDateTimeRaw": "2011-03-11T15:02:00+09:00",
-            "serialRaw": null,
-            "infoTypeRaw": null
+            "serialRaw": "4",
+            "infoTypeRaw": "訂正"
           }
         }
       ],
-      "notices": null,
-      "intents": null,
+      "notices": true,
+      "intents": true,
       "basisLevel": 1,
       "basisRefs": [
         "L1: docs/specs/reconstruction-p0-contracts.md:1781 «281dabfe783ca67a»",
-        "L1: docs/specs/reconstruction-p0-contracts.md:1789 «4857755b6c184d37»"
+        "L1: docs/specs/reconstruction-p0-contracts.md:1789 «4857755b6c184d37»",
+        "L1: reconstruction/contracts/p3-tsunami-unit.json:262 «3bb56bb1732834ff» I-U-T observationSemantics",
+        "L1: reconstruction/contracts/p3-tsunami-unit.json:190 «f2710b8ce571e078» Q-NOTICE 観測（作者裁定 NOTICE-OBSERVATION=C・OBS-LIFETIME=A）",
+        "L2: test/fixtures/synthetic_VTSE52_correction.xml:1 «12c29731e40adc0c» 合成入力（manifest synthetic、配信原本ではない）"
       ],
-      "input": {
-        "required": "VTSE52 通常、EventID20110311144640、ReportDateTime=2011-03-11T15:02:00+09:00、Serial4、InfoType訂正。Station.Code=21090は不変、当該itemのArea.Codeだけ合法な別codeへ変更（採用codeは公式区域表と照合後固定）。",
-        "acquisition": "synthetic"
-      },
+      "input": null,
       "checks": [
-        "同stationは追加点にせず1点だけ更新、他stationを落とさない。競合する同stationの順序交換は可換性保証の対象外。"
+        "同stationは追加点にせず1点だけ更新、他stationを落とさない。競合する同stationの順序交換は可換性保証の対象外。",
+        "同じrevisionの訂正（InfoType優先 訂正>発表）で、station 21090の点を1つのまま更新し、そのItemのArea.Codeを空→210/岩手県にする。21050・21091は変えない。合法なArea.Codeの根拠は親32-39_11_10のObservation（CodeDefine「津波予報区」）に現れる210/岩手県（VTSE52のObservation/Item/Areaは空も合法、Q-ENUM）。",
+        "通知: 採用ごとにdesktop＋sound、level=info、緊急群に入らない（P3-C5-NOTICE-OBSERVATION=C）。題「沖合の津波観測に関する情報」。",
+        "運用区分: Control.Status=通常; head.test/envelope Status=notProvided。replay 起源から区分を補わない。"
       ]
     },
     {
@@ -13442,7 +13756,7 @@
       ]
     },
     {
-      "expectedId": "unmet:O05:17",
+      "expectedId": "expected:O05:17",
       "sequenceId": "O05",
       "position": 17,
       "decision": {
@@ -13454,31 +13768,34 @@
       },
       "subjects": [
         {
-          "subject": "normal/O05/input.requiredに記した対象（未充足）",
+          "subject": "normal/tsunamiObservation:VTSE52/20110311144640",
           "revision": {
             "reportDateTimeRaw": "2011-03-11T15:02:00+09:00",
-            "serialRaw": null,
-            "infoTypeRaw": null
+            "serialRaw": "4",
+            "infoTypeRaw": "発表"
           }
         }
       ],
-      "notices": null,
-      "intents": null,
+      "notices": true,
+      "intents": true,
       "basisLevel": 1,
       "basisRefs": [
         "L1: docs/specs/reconstruction-p0-contracts.md:1781 «281dabfe783ca67a»",
-        "L1: docs/specs/reconstruction-p0-contracts.md:1789 «4857755b6c184d37»"
+        "L1: docs/specs/reconstruction-p0-contracts.md:1789 «4857755b6c184d37»",
+        "L1: reconstruction/contracts/p3-tsunami-unit.json:262 «3bb56bb1732834ff» I-U-T observationSemantics",
+        "L1: reconstruction/contracts/p3-tsunami-unit.json:190 «f2710b8ce571e078» Q-NOTICE 観測（作者裁定 NOTICE-OBSERVATION=C・OBS-LIFETIME=A）",
+        "L2: test/fixtures/synthetic_VTSE52_fragmentB.xml:1 «12c29731e40adc0c» 合成入力（manifest synthetic、配信原本ではない）"
       ],
-      "input": {
-        "required": "VTSE52 通常、EventID20110311144640、ReportDateTime=2011-03-11T15:02:00+09:00、Serial4、InfoType発表。fragment B、Observation.Station.Code={21050,21091}のみ。対応実corpusのstation値を使う。",
-        "acquisition": "synthetic"
-      },
+      "input": null,
       "checks": [
-        "到着済みfragmentのstation集合を合成。二片後は{21050,21090,21091}で値一致。VTSE52以外のfamily watermark不変。"
+        "到着済みfragmentのstation集合を合成。二片後は{21050,21090,21091}で値一致。VTSE52以外のfamily watermark不変。",
+        "一片目: 載ったstationだけを持つ観測subjectを作る（VTSE41 subjectが無いのでactive、P3-C5-OBS-LIFETIME=A）。",
+        "通知: 採用ごとにdesktop＋sound、level=info、緊急群に入らない（P3-C5-NOTICE-OBSERVATION=C）。題「沖合の津波観測に関する情報」。",
+        "運用区分: Control.Status=通常; head.test/envelope Status=notProvided。replay 起源から区分を補わない。"
       ]
     },
     {
-      "expectedId": "unmet:O05:18",
+      "expectedId": "expected:O05:18",
       "sequenceId": "O05",
       "position": 18,
       "decision": {
@@ -13490,31 +13807,34 @@
       },
       "subjects": [
         {
-          "subject": "normal/O05/input.requiredに記した対象（未充足）",
+          "subject": "normal/tsunamiObservation:VTSE52/20110311144640",
           "revision": {
             "reportDateTimeRaw": "2011-03-11T15:02:00+09:00",
-            "serialRaw": null,
-            "infoTypeRaw": null
+            "serialRaw": "4",
+            "infoTypeRaw": "発表"
           }
         }
       ],
-      "notices": null,
-      "intents": null,
+      "notices": true,
+      "intents": true,
       "basisLevel": 1,
       "basisRefs": [
         "L1: docs/specs/reconstruction-p0-contracts.md:1781 «281dabfe783ca67a»",
-        "L1: docs/specs/reconstruction-p0-contracts.md:1789 «4857755b6c184d37»"
+        "L1: docs/specs/reconstruction-p0-contracts.md:1789 «4857755b6c184d37»",
+        "L1: reconstruction/contracts/p3-tsunami-unit.json:262 «3bb56bb1732834ff» I-U-T observationSemantics",
+        "L1: reconstruction/contracts/p3-tsunami-unit.json:190 «f2710b8ce571e078» Q-NOTICE 観測（作者裁定 NOTICE-OBSERVATION=C・OBS-LIFETIME=A）",
+        "L2: test/fixtures/synthetic_VTSE52_fragmentA.xml:1 «12c29731e40adc0c» 合成入力（manifest synthetic、配信原本ではない）"
       ],
-      "input": {
-        "required": "VTSE52 通常、EventID20110311144640、ReportDateTime=2011-03-11T15:02:00+09:00、Serial4、InfoType発表。fragment A、Observation.Station.Code={21090}のみ。対応実corpusのstation値を使う。",
-        "acquisition": "synthetic"
-      },
+      "input": null,
       "checks": [
-        "到着済みfragmentのstation集合を合成。二片後は{21050,21090,21091}で値一致。VTSE52以外のfamily watermark不変。"
+        "到着済みfragmentのstation集合を合成。二片後は{21050,21090,21091}で値一致。VTSE52以外のfamily watermark不変。",
+        "二片目: 同じrevision・同じInfoTypeの非重複stationを和集合にする（P3-C5-OBS-MERGE=A）。一片目のpendingは同じsubject・同じchannel・同群（other）なのでsupersededにする（P3-C5-REPLACEMENT=A）。",
+        "通知: 採用ごとにdesktop＋sound、level=info、緊急群に入らない（P3-C5-NOTICE-OBSERVATION=C）。題「沖合の津波観測に関する情報」。",
+        "運用区分: Control.Status=通常; head.test/envelope Status=notProvided。replay 起源から区分を補わない。"
       ]
     },
     {
-      "expectedId": "unmet:O05:19",
+      "expectedId": "expected:O05:19",
       "sequenceId": "O05",
       "position": 19,
       "decision": {
@@ -13526,27 +13846,30 @@
       },
       "subjects": [
         {
-          "subject": "normal/O05/input.requiredに記した対象（未充足）",
+          "subject": "normal/tsunamiObservation:VTSE52/20110311144640",
           "revision": {
             "reportDateTimeRaw": "2011-03-11T15:02:00+09:00",
-            "serialRaw": null,
-            "infoTypeRaw": null
+            "serialRaw": "4",
+            "infoTypeRaw": "訂正"
           }
         }
       ],
-      "notices": null,
-      "intents": null,
+      "notices": true,
+      "intents": true,
       "basisLevel": 1,
       "basisRefs": [
         "L1: docs/specs/reconstruction-p0-contracts.md:1781 «281dabfe783ca67a»",
-        "L1: docs/specs/reconstruction-p0-contracts.md:1789 «4857755b6c184d37»"
+        "L1: docs/specs/reconstruction-p0-contracts.md:1789 «4857755b6c184d37»",
+        "L1: reconstruction/contracts/p3-tsunami-unit.json:262 «3bb56bb1732834ff» I-U-T observationSemantics",
+        "L1: reconstruction/contracts/p3-tsunami-unit.json:190 «f2710b8ce571e078» Q-NOTICE 観測（作者裁定 NOTICE-OBSERVATION=C・OBS-LIFETIME=A）",
+        "L2: test/fixtures/synthetic_VTSE52_correction.xml:1 «12c29731e40adc0c» 合成入力（manifest synthetic、配信原本ではない）"
       ],
-      "input": {
-        "required": "VTSE52 通常、EventID20110311144640、ReportDateTime=2011-03-11T15:02:00+09:00、Serial4、InfoType訂正。Station.Code=21090は不変、当該itemのArea.Codeだけ合法な別codeへ変更（採用codeは公式区域表と照合後固定）。",
-        "acquisition": "synthetic"
-      },
+      "input": null,
       "checks": [
-        "同stationは追加点にせず1点だけ更新、他stationを落とさない。競合する同stationの順序交換は可換性保証の対象外。"
+        "同stationは追加点にせず1点だけ更新、他stationを落とさない。競合する同stationの順序交換は可換性保証の対象外。",
+        "同じrevisionの訂正（InfoType優先 訂正>発表）で、station 21090の点を1つのまま更新し、そのItemのArea.Codeを空→210/岩手県にする。21050・21091は変えない。合法なArea.Codeの根拠は親32-39_11_10のObservation（CodeDefine「津波予報区」）に現れる210/岩手県（VTSE52のObservation/Item/Areaは空も合法、Q-ENUM）。",
+        "通知: 採用ごとにdesktop＋sound、level=info、緊急群に入らない（P3-C5-NOTICE-OBSERVATION=C）。題「沖合の津波観測に関する情報」。",
+        "運用区分: Control.Status=通常; head.test/envelope Status=notProvided。replay 起源から区分を補わない。"
       ]
     },
     {
@@ -15707,7 +16030,7 @@
         "L1: docs/specs/reconstruction-p0-contracts.md:2058 «c5a19c3c5d58ec9b» E07",
         "L1: docs/specs/reconstruction-p0-contracts.md:2073 «060f0c204a8219fe» E21",
         "L1: docs/specs/reconstruction-p0-contracts.md:1119 «602b2dfb3cc1795e»",
-        "L1: docs/specs/reconstruction-p0-contracts.md:1131 «11fd08067698aeea»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:1131 «97e9cc25a1b97b6f»",
         "L1: docs/specs/reconstruction-p0-contracts.md:1133 «0a085841e24bbc6a»",
         "L1: docs/specs/reconstruction-p0-contracts.md:1137 «c06677d2196cd39e»",
         "L1: docs/specs/reconstruction-p0-contracts.md:2052 «d6ff68c7ef2b9b22»",
@@ -15741,7 +16064,7 @@
         "L1: docs/specs/reconstruction-p0-contracts.md:2058 «c5a19c3c5d58ec9b» E07",
         "L1: docs/specs/reconstruction-p0-contracts.md:2073 «060f0c204a8219fe» E21",
         "L1: docs/specs/reconstruction-p0-contracts.md:1119 «602b2dfb3cc1795e»",
-        "L1: docs/specs/reconstruction-p0-contracts.md:1131 «11fd08067698aeea»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:1131 «97e9cc25a1b97b6f»",
         "L1: docs/specs/reconstruction-p0-contracts.md:1133 «0a085841e24bbc6a»",
         "L1: docs/specs/reconstruction-p0-contracts.md:1137 «c06677d2196cd39e»",
         "L1: docs/specs/reconstruction-p0-contracts.md:2052 «d6ff68c7ef2b9b22»",
@@ -15775,7 +16098,7 @@
         "L1: docs/specs/reconstruction-p0-contracts.md:2058 «c5a19c3c5d58ec9b» E07",
         "L1: docs/specs/reconstruction-p0-contracts.md:2073 «060f0c204a8219fe» E21",
         "L1: docs/specs/reconstruction-p0-contracts.md:1119 «602b2dfb3cc1795e»",
-        "L1: docs/specs/reconstruction-p0-contracts.md:1131 «11fd08067698aeea»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:1131 «97e9cc25a1b97b6f»",
         "L1: docs/specs/reconstruction-p0-contracts.md:1133 «0a085841e24bbc6a»",
         "L1: docs/specs/reconstruction-p0-contracts.md:1137 «c06677d2196cd39e»",
         "L1: docs/specs/reconstruction-p0-contracts.md:2052 «d6ff68c7ef2b9b22»",
@@ -15809,7 +16132,7 @@
         "L1: docs/specs/reconstruction-p0-contracts.md:2058 «c5a19c3c5d58ec9b» E07",
         "L1: docs/specs/reconstruction-p0-contracts.md:2073 «060f0c204a8219fe» E21",
         "L1: docs/specs/reconstruction-p0-contracts.md:1119 «602b2dfb3cc1795e»",
-        "L1: docs/specs/reconstruction-p0-contracts.md:1131 «11fd08067698aeea»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:1131 «97e9cc25a1b97b6f»",
         "L1: docs/specs/reconstruction-p0-contracts.md:1133 «0a085841e24bbc6a»",
         "L1: docs/specs/reconstruction-p0-contracts.md:1137 «c06677d2196cd39e»",
         "L1: docs/specs/reconstruction-p0-contracts.md:2052 «d6ff68c7ef2b9b22»",
@@ -15843,7 +16166,7 @@
         "L1: docs/specs/reconstruction-p0-contracts.md:2058 «c5a19c3c5d58ec9b» E07",
         "L1: docs/specs/reconstruction-p0-contracts.md:2073 «060f0c204a8219fe» E21",
         "L1: docs/specs/reconstruction-p0-contracts.md:1119 «602b2dfb3cc1795e»",
-        "L1: docs/specs/reconstruction-p0-contracts.md:1131 «11fd08067698aeea»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:1131 «97e9cc25a1b97b6f»",
         "L1: docs/specs/reconstruction-p0-contracts.md:1133 «0a085841e24bbc6a»",
         "L1: docs/specs/reconstruction-p0-contracts.md:1137 «c06677d2196cd39e»",
         "L1: docs/specs/reconstruction-p0-contracts.md:2052 «d6ff68c7ef2b9b22»",
@@ -15877,7 +16200,7 @@
         "L1: docs/specs/reconstruction-p0-contracts.md:2058 «c5a19c3c5d58ec9b» E07",
         "L1: docs/specs/reconstruction-p0-contracts.md:2073 «060f0c204a8219fe» E21",
         "L1: docs/specs/reconstruction-p0-contracts.md:1119 «602b2dfb3cc1795e»",
-        "L1: docs/specs/reconstruction-p0-contracts.md:1131 «11fd08067698aeea»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:1131 «97e9cc25a1b97b6f»",
         "L1: docs/specs/reconstruction-p0-contracts.md:1133 «0a085841e24bbc6a»",
         "L1: docs/specs/reconstruction-p0-contracts.md:1137 «c06677d2196cd39e»",
         "L1: docs/specs/reconstruction-p0-contracts.md:2052 «d6ff68c7ef2b9b22»",
@@ -15911,7 +16234,7 @@
         "L1: docs/specs/reconstruction-p0-contracts.md:2058 «c5a19c3c5d58ec9b» E07",
         "L1: docs/specs/reconstruction-p0-contracts.md:2073 «060f0c204a8219fe» E21",
         "L1: docs/specs/reconstruction-p0-contracts.md:1119 «602b2dfb3cc1795e»",
-        "L1: docs/specs/reconstruction-p0-contracts.md:1131 «11fd08067698aeea»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:1131 «97e9cc25a1b97b6f»",
         "L1: docs/specs/reconstruction-p0-contracts.md:1133 «0a085841e24bbc6a»",
         "L1: docs/specs/reconstruction-p0-contracts.md:1137 «c06677d2196cd39e»",
         "L1: docs/specs/reconstruction-p0-contracts.md:2052 «d6ff68c7ef2b9b22»",
@@ -15945,7 +16268,7 @@
         "L1: docs/specs/reconstruction-p0-contracts.md:2058 «c5a19c3c5d58ec9b» E07",
         "L1: docs/specs/reconstruction-p0-contracts.md:2073 «060f0c204a8219fe» E21",
         "L1: docs/specs/reconstruction-p0-contracts.md:1119 «602b2dfb3cc1795e»",
-        "L1: docs/specs/reconstruction-p0-contracts.md:1131 «11fd08067698aeea»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:1131 «97e9cc25a1b97b6f»",
         "L1: docs/specs/reconstruction-p0-contracts.md:1133 «0a085841e24bbc6a»",
         "L1: docs/specs/reconstruction-p0-contracts.md:1137 «c06677d2196cd39e»",
         "L1: docs/specs/reconstruction-p0-contracts.md:2052 «d6ff68c7ef2b9b22»",
@@ -16281,7 +16604,7 @@
       "basisLevel": 1,
       "basisRefs": [
         "L1: docs/specs/reconstruction-p0-contracts.md:1119 «602b2dfb3cc1795e»",
-        "L1: docs/specs/reconstruction-p0-contracts.md:1131 «11fd08067698aeea»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:1131 «97e9cc25a1b97b6f»",
         "L1: docs/specs/reconstruction-p0-contracts.md:1133 «0a085841e24bbc6a»",
         "L1: docs/specs/reconstruction-p0-contracts.md:1137 «c06677d2196cd39e»",
         "L1: docs/specs/reconstruction-p0-contracts.md:2052 «d6ff68c7ef2b9b22»",
@@ -16309,7 +16632,7 @@
       "basisLevel": 1,
       "basisRefs": [
         "L1: docs/specs/reconstruction-p0-contracts.md:1119 «602b2dfb3cc1795e»",
-        "L1: docs/specs/reconstruction-p0-contracts.md:1131 «11fd08067698aeea»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:1131 «97e9cc25a1b97b6f»",
         "L1: docs/specs/reconstruction-p0-contracts.md:1133 «0a085841e24bbc6a»",
         "L1: docs/specs/reconstruction-p0-contracts.md:1137 «c06677d2196cd39e»",
         "L1: docs/specs/reconstruction-p0-contracts.md:2052 «d6ff68c7ef2b9b22»",
@@ -16337,7 +16660,7 @@
       "basisLevel": 1,
       "basisRefs": [
         "L1: docs/specs/reconstruction-p0-contracts.md:1119 «602b2dfb3cc1795e»",
-        "L1: docs/specs/reconstruction-p0-contracts.md:1131 «11fd08067698aeea»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:1131 «97e9cc25a1b97b6f»",
         "L1: docs/specs/reconstruction-p0-contracts.md:1133 «0a085841e24bbc6a»",
         "L1: docs/specs/reconstruction-p0-contracts.md:1137 «c06677d2196cd39e»",
         "L1: docs/specs/reconstruction-p0-contracts.md:2052 «d6ff68c7ef2b9b22»",
@@ -16368,7 +16691,7 @@
       "basisLevel": 1,
       "basisRefs": [
         "L1: docs/specs/reconstruction-p0-contracts.md:1119 «602b2dfb3cc1795e»",
-        "L1: docs/specs/reconstruction-p0-contracts.md:1131 «11fd08067698aeea»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:1131 «97e9cc25a1b97b6f»",
         "L1: docs/specs/reconstruction-p0-contracts.md:1133 «0a085841e24bbc6a»",
         "L1: docs/specs/reconstruction-p0-contracts.md:1137 «c06677d2196cd39e»",
         "L1: docs/specs/reconstruction-p0-contracts.md:2052 «d6ff68c7ef2b9b22»",
@@ -16399,7 +16722,7 @@
       "basisLevel": 1,
       "basisRefs": [
         "L1: docs/specs/reconstruction-p0-contracts.md:1119 «602b2dfb3cc1795e»",
-        "L1: docs/specs/reconstruction-p0-contracts.md:1131 «11fd08067698aeea»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:1131 «97e9cc25a1b97b6f»",
         "L1: docs/specs/reconstruction-p0-contracts.md:1133 «0a085841e24bbc6a»",
         "L1: docs/specs/reconstruction-p0-contracts.md:1137 «c06677d2196cd39e»",
         "L1: docs/specs/reconstruction-p0-contracts.md:2052 «d6ff68c7ef2b9b22»",
@@ -16430,7 +16753,7 @@
       "basisLevel": 1,
       "basisRefs": [
         "L1: docs/specs/reconstruction-p0-contracts.md:1119 «602b2dfb3cc1795e»",
-        "L1: docs/specs/reconstruction-p0-contracts.md:1131 «11fd08067698aeea»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:1131 «97e9cc25a1b97b6f»",
         "L1: docs/specs/reconstruction-p0-contracts.md:1133 «0a085841e24bbc6a»",
         "L1: docs/specs/reconstruction-p0-contracts.md:1137 «c06677d2196cd39e»",
         "L1: docs/specs/reconstruction-p0-contracts.md:2052 «d6ff68c7ef2b9b22»",
@@ -16461,7 +16784,7 @@
       "basisLevel": 1,
       "basisRefs": [
         "L1: docs/specs/reconstruction-p0-contracts.md:1119 «602b2dfb3cc1795e»",
-        "L1: docs/specs/reconstruction-p0-contracts.md:1131 «11fd08067698aeea»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:1131 «97e9cc25a1b97b6f»",
         "L1: docs/specs/reconstruction-p0-contracts.md:1133 «0a085841e24bbc6a»",
         "L1: docs/specs/reconstruction-p0-contracts.md:1137 «c06677d2196cd39e»",
         "L1: docs/specs/reconstruction-p0-contracts.md:2052 «d6ff68c7ef2b9b22»",
@@ -16492,7 +16815,7 @@
       "basisLevel": 1,
       "basisRefs": [
         "L1: docs/specs/reconstruction-p0-contracts.md:1119 «602b2dfb3cc1795e»",
-        "L1: docs/specs/reconstruction-p0-contracts.md:1131 «11fd08067698aeea»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:1131 «97e9cc25a1b97b6f»",
         "L1: docs/specs/reconstruction-p0-contracts.md:1133 «0a085841e24bbc6a»",
         "L1: docs/specs/reconstruction-p0-contracts.md:1137 «c06677d2196cd39e»",
         "L1: docs/specs/reconstruction-p0-contracts.md:2052 «d6ff68c7ef2b9b22»",
@@ -16523,7 +16846,7 @@
       "basisLevel": 1,
       "basisRefs": [
         "L1: docs/specs/reconstruction-p0-contracts.md:1119 «602b2dfb3cc1795e»",
-        "L1: docs/specs/reconstruction-p0-contracts.md:1131 «11fd08067698aeea»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:1131 «97e9cc25a1b97b6f»",
         "L1: docs/specs/reconstruction-p0-contracts.md:1133 «0a085841e24bbc6a»",
         "L1: docs/specs/reconstruction-p0-contracts.md:1137 «c06677d2196cd39e»",
         "L1: docs/specs/reconstruction-p0-contracts.md:2052 «d6ff68c7ef2b9b22»",
@@ -16554,7 +16877,7 @@
       "basisLevel": 1,
       "basisRefs": [
         "L1: docs/specs/reconstruction-p0-contracts.md:1119 «602b2dfb3cc1795e»",
-        "L1: docs/specs/reconstruction-p0-contracts.md:1131 «11fd08067698aeea»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:1131 «97e9cc25a1b97b6f»",
         "L1: docs/specs/reconstruction-p0-contracts.md:1133 «0a085841e24bbc6a»",
         "L1: docs/specs/reconstruction-p0-contracts.md:1137 «c06677d2196cd39e»",
         "L1: docs/specs/reconstruction-p0-contracts.md:2052 «d6ff68c7ef2b9b22»",
@@ -16585,7 +16908,7 @@
       "basisLevel": 1,
       "basisRefs": [
         "L1: docs/specs/reconstruction-p0-contracts.md:1119 «602b2dfb3cc1795e»",
-        "L1: docs/specs/reconstruction-p0-contracts.md:1131 «11fd08067698aeea»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:1131 «97e9cc25a1b97b6f»",
         "L1: docs/specs/reconstruction-p0-contracts.md:1133 «0a085841e24bbc6a»",
         "L1: docs/specs/reconstruction-p0-contracts.md:1137 «c06677d2196cd39e»",
         "L1: docs/specs/reconstruction-p0-contracts.md:2052 «d6ff68c7ef2b9b22»",
@@ -16616,7 +16939,7 @@
       "basisLevel": 1,
       "basisRefs": [
         "L1: docs/specs/reconstruction-p0-contracts.md:1119 «602b2dfb3cc1795e»",
-        "L1: docs/specs/reconstruction-p0-contracts.md:1131 «11fd08067698aeea»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:1131 «97e9cc25a1b97b6f»",
         "L1: docs/specs/reconstruction-p0-contracts.md:1133 «0a085841e24bbc6a»",
         "L1: docs/specs/reconstruction-p0-contracts.md:1137 «c06677d2196cd39e»",
         "L1: docs/specs/reconstruction-p0-contracts.md:2052 «d6ff68c7ef2b9b22»",
@@ -16647,7 +16970,7 @@
       "basisLevel": 1,
       "basisRefs": [
         "L1: docs/specs/reconstruction-p0-contracts.md:1119 «602b2dfb3cc1795e»",
-        "L1: docs/specs/reconstruction-p0-contracts.md:1131 «11fd08067698aeea»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:1131 «97e9cc25a1b97b6f»",
         "L1: docs/specs/reconstruction-p0-contracts.md:1133 «0a085841e24bbc6a»",
         "L1: docs/specs/reconstruction-p0-contracts.md:1137 «c06677d2196cd39e»",
         "L1: docs/specs/reconstruction-p0-contracts.md:2052 «d6ff68c7ef2b9b22»",
@@ -16678,7 +17001,7 @@
       "basisLevel": 1,
       "basisRefs": [
         "L1: docs/specs/reconstruction-p0-contracts.md:1119 «602b2dfb3cc1795e»",
-        "L1: docs/specs/reconstruction-p0-contracts.md:1131 «11fd08067698aeea»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:1131 «97e9cc25a1b97b6f»",
         "L1: docs/specs/reconstruction-p0-contracts.md:1133 «0a085841e24bbc6a»",
         "L1: docs/specs/reconstruction-p0-contracts.md:1137 «c06677d2196cd39e»",
         "L1: docs/specs/reconstruction-p0-contracts.md:2052 «d6ff68c7ef2b9b22»",
@@ -16709,7 +17032,7 @@
       "basisLevel": 1,
       "basisRefs": [
         "L1: docs/specs/reconstruction-p0-contracts.md:1119 «602b2dfb3cc1795e»",
-        "L1: docs/specs/reconstruction-p0-contracts.md:1131 «11fd08067698aeea»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:1131 «97e9cc25a1b97b6f»",
         "L1: docs/specs/reconstruction-p0-contracts.md:1133 «0a085841e24bbc6a»",
         "L1: docs/specs/reconstruction-p0-contracts.md:1137 «c06677d2196cd39e»",
         "L1: docs/specs/reconstruction-p0-contracts.md:2052 «d6ff68c7ef2b9b22»",
@@ -16740,7 +17063,7 @@
       "basisLevel": 1,
       "basisRefs": [
         "L1: docs/specs/reconstruction-p0-contracts.md:1119 «602b2dfb3cc1795e»",
-        "L1: docs/specs/reconstruction-p0-contracts.md:1131 «11fd08067698aeea»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:1131 «97e9cc25a1b97b6f»",
         "L1: docs/specs/reconstruction-p0-contracts.md:1133 «0a085841e24bbc6a»",
         "L1: docs/specs/reconstruction-p0-contracts.md:1137 «c06677d2196cd39e»",
         "L1: docs/specs/reconstruction-p0-contracts.md:2052 «d6ff68c7ef2b9b22»",
@@ -16771,7 +17094,7 @@
       "basisLevel": 1,
       "basisRefs": [
         "L1: docs/specs/reconstruction-p0-contracts.md:1119 «602b2dfb3cc1795e»",
-        "L1: docs/specs/reconstruction-p0-contracts.md:1131 «11fd08067698aeea»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:1131 «97e9cc25a1b97b6f»",
         "L1: docs/specs/reconstruction-p0-contracts.md:1133 «0a085841e24bbc6a»",
         "L1: docs/specs/reconstruction-p0-contracts.md:1137 «c06677d2196cd39e»",
         "L1: docs/specs/reconstruction-p0-contracts.md:2052 «d6ff68c7ef2b9b22»",
@@ -16802,7 +17125,7 @@
       "basisLevel": 1,
       "basisRefs": [
         "L1: docs/specs/reconstruction-p0-contracts.md:1119 «602b2dfb3cc1795e»",
-        "L1: docs/specs/reconstruction-p0-contracts.md:1131 «11fd08067698aeea»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:1131 «97e9cc25a1b97b6f»",
         "L1: docs/specs/reconstruction-p0-contracts.md:1133 «0a085841e24bbc6a»",
         "L1: docs/specs/reconstruction-p0-contracts.md:1137 «c06677d2196cd39e»",
         "L1: docs/specs/reconstruction-p0-contracts.md:2052 «d6ff68c7ef2b9b22»",
@@ -16833,7 +17156,7 @@
       "basisLevel": 1,
       "basisRefs": [
         "L1: docs/specs/reconstruction-p0-contracts.md:1119 «602b2dfb3cc1795e»",
-        "L1: docs/specs/reconstruction-p0-contracts.md:1131 «11fd08067698aeea»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:1131 «97e9cc25a1b97b6f»",
         "L1: docs/specs/reconstruction-p0-contracts.md:1133 «0a085841e24bbc6a»",
         "L1: docs/specs/reconstruction-p0-contracts.md:1137 «c06677d2196cd39e»",
         "L1: docs/specs/reconstruction-p0-contracts.md:2052 «d6ff68c7ef2b9b22»",
@@ -16864,7 +17187,7 @@
       "basisLevel": 1,
       "basisRefs": [
         "L1: docs/specs/reconstruction-p0-contracts.md:1119 «602b2dfb3cc1795e»",
-        "L1: docs/specs/reconstruction-p0-contracts.md:1131 «11fd08067698aeea»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:1131 «97e9cc25a1b97b6f»",
         "L1: docs/specs/reconstruction-p0-contracts.md:1133 «0a085841e24bbc6a»",
         "L1: docs/specs/reconstruction-p0-contracts.md:1137 «c06677d2196cd39e»",
         "L1: docs/specs/reconstruction-p0-contracts.md:2052 «d6ff68c7ef2b9b22»",
@@ -16895,7 +17218,7 @@
       "basisLevel": 1,
       "basisRefs": [
         "L1: docs/specs/reconstruction-p0-contracts.md:1119 «602b2dfb3cc1795e»",
-        "L1: docs/specs/reconstruction-p0-contracts.md:1131 «11fd08067698aeea»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:1131 «97e9cc25a1b97b6f»",
         "L1: docs/specs/reconstruction-p0-contracts.md:1133 «0a085841e24bbc6a»",
         "L1: docs/specs/reconstruction-p0-contracts.md:1137 «c06677d2196cd39e»",
         "L1: docs/specs/reconstruction-p0-contracts.md:2052 «d6ff68c7ef2b9b22»",
@@ -16926,7 +17249,7 @@
       "basisLevel": 1,
       "basisRefs": [
         "L1: docs/specs/reconstruction-p0-contracts.md:1119 «602b2dfb3cc1795e»",
-        "L1: docs/specs/reconstruction-p0-contracts.md:1131 «11fd08067698aeea»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:1131 «97e9cc25a1b97b6f»",
         "L1: docs/specs/reconstruction-p0-contracts.md:1133 «0a085841e24bbc6a»",
         "L1: docs/specs/reconstruction-p0-contracts.md:1137 «c06677d2196cd39e»",
         "L1: docs/specs/reconstruction-p0-contracts.md:2052 «d6ff68c7ef2b9b22»",
@@ -16957,7 +17280,7 @@
       "basisLevel": 1,
       "basisRefs": [
         "L1: docs/specs/reconstruction-p0-contracts.md:1119 «602b2dfb3cc1795e»",
-        "L1: docs/specs/reconstruction-p0-contracts.md:1131 «11fd08067698aeea»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:1131 «97e9cc25a1b97b6f»",
         "L1: docs/specs/reconstruction-p0-contracts.md:1133 «0a085841e24bbc6a»",
         "L1: docs/specs/reconstruction-p0-contracts.md:1137 «c06677d2196cd39e»",
         "L1: docs/specs/reconstruction-p0-contracts.md:2052 «d6ff68c7ef2b9b22»",
@@ -16988,7 +17311,7 @@
       "basisLevel": 1,
       "basisRefs": [
         "L1: docs/specs/reconstruction-p0-contracts.md:1119 «602b2dfb3cc1795e»",
-        "L1: docs/specs/reconstruction-p0-contracts.md:1131 «11fd08067698aeea»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:1131 «97e9cc25a1b97b6f»",
         "L1: docs/specs/reconstruction-p0-contracts.md:1133 «0a085841e24bbc6a»",
         "L1: docs/specs/reconstruction-p0-contracts.md:1137 «c06677d2196cd39e»",
         "L1: docs/specs/reconstruction-p0-contracts.md:2052 «d6ff68c7ef2b9b22»",
@@ -17019,7 +17342,7 @@
       "basisLevel": 1,
       "basisRefs": [
         "L1: docs/specs/reconstruction-p0-contracts.md:1119 «602b2dfb3cc1795e»",
-        "L1: docs/specs/reconstruction-p0-contracts.md:1131 «11fd08067698aeea»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:1131 «97e9cc25a1b97b6f»",
         "L1: docs/specs/reconstruction-p0-contracts.md:1133 «0a085841e24bbc6a»",
         "L1: docs/specs/reconstruction-p0-contracts.md:1137 «c06677d2196cd39e»",
         "L1: docs/specs/reconstruction-p0-contracts.md:2052 «d6ff68c7ef2b9b22»",
@@ -17050,7 +17373,7 @@
       "basisLevel": 1,
       "basisRefs": [
         "L1: docs/specs/reconstruction-p0-contracts.md:1119 «602b2dfb3cc1795e»",
-        "L1: docs/specs/reconstruction-p0-contracts.md:1131 «11fd08067698aeea»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:1131 «97e9cc25a1b97b6f»",
         "L1: docs/specs/reconstruction-p0-contracts.md:1133 «0a085841e24bbc6a»",
         "L1: docs/specs/reconstruction-p0-contracts.md:1137 «c06677d2196cd39e»",
         "L1: docs/specs/reconstruction-p0-contracts.md:2052 «d6ff68c7ef2b9b22»",
@@ -17081,7 +17404,7 @@
       "basisLevel": 1,
       "basisRefs": [
         "L1: docs/specs/reconstruction-p0-contracts.md:1119 «602b2dfb3cc1795e»",
-        "L1: docs/specs/reconstruction-p0-contracts.md:1131 «11fd08067698aeea»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:1131 «97e9cc25a1b97b6f»",
         "L1: docs/specs/reconstruction-p0-contracts.md:1133 «0a085841e24bbc6a»",
         "L1: docs/specs/reconstruction-p0-contracts.md:1137 «c06677d2196cd39e»",
         "L1: docs/specs/reconstruction-p0-contracts.md:2052 «d6ff68c7ef2b9b22»",
@@ -17112,7 +17435,7 @@
       "basisLevel": 1,
       "basisRefs": [
         "L1: docs/specs/reconstruction-p0-contracts.md:1119 «602b2dfb3cc1795e»",
-        "L1: docs/specs/reconstruction-p0-contracts.md:1131 «11fd08067698aeea»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:1131 «97e9cc25a1b97b6f»",
         "L1: docs/specs/reconstruction-p0-contracts.md:1133 «0a085841e24bbc6a»",
         "L1: docs/specs/reconstruction-p0-contracts.md:1137 «c06677d2196cd39e»",
         "L1: docs/specs/reconstruction-p0-contracts.md:2052 «d6ff68c7ef2b9b22»",
@@ -17143,7 +17466,7 @@
       "basisLevel": 1,
       "basisRefs": [
         "L1: docs/specs/reconstruction-p0-contracts.md:1119 «602b2dfb3cc1795e»",
-        "L1: docs/specs/reconstruction-p0-contracts.md:1131 «11fd08067698aeea»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:1131 «97e9cc25a1b97b6f»",
         "L1: docs/specs/reconstruction-p0-contracts.md:1133 «0a085841e24bbc6a»",
         "L1: docs/specs/reconstruction-p0-contracts.md:1137 «c06677d2196cd39e»",
         "L1: docs/specs/reconstruction-p0-contracts.md:2052 «d6ff68c7ef2b9b22»",
@@ -17174,7 +17497,7 @@
       "basisLevel": 1,
       "basisRefs": [
         "L1: docs/specs/reconstruction-p0-contracts.md:1119 «602b2dfb3cc1795e»",
-        "L1: docs/specs/reconstruction-p0-contracts.md:1131 «11fd08067698aeea»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:1131 «97e9cc25a1b97b6f»",
         "L1: docs/specs/reconstruction-p0-contracts.md:1133 «0a085841e24bbc6a»",
         "L1: docs/specs/reconstruction-p0-contracts.md:1137 «c06677d2196cd39e»",
         "L1: docs/specs/reconstruction-p0-contracts.md:2052 «d6ff68c7ef2b9b22»",
@@ -17205,7 +17528,7 @@
       "basisLevel": 1,
       "basisRefs": [
         "L1: docs/specs/reconstruction-p0-contracts.md:1119 «602b2dfb3cc1795e»",
-        "L1: docs/specs/reconstruction-p0-contracts.md:1131 «11fd08067698aeea»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:1131 «97e9cc25a1b97b6f»",
         "L1: docs/specs/reconstruction-p0-contracts.md:1133 «0a085841e24bbc6a»",
         "L1: docs/specs/reconstruction-p0-contracts.md:1137 «c06677d2196cd39e»",
         "L1: docs/specs/reconstruction-p0-contracts.md:2052 «d6ff68c7ef2b9b22»",
@@ -17236,7 +17559,7 @@
       "basisLevel": 1,
       "basisRefs": [
         "L1: docs/specs/reconstruction-p0-contracts.md:1119 «602b2dfb3cc1795e»",
-        "L1: docs/specs/reconstruction-p0-contracts.md:1131 «11fd08067698aeea»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:1131 «97e9cc25a1b97b6f»",
         "L1: docs/specs/reconstruction-p0-contracts.md:1133 «0a085841e24bbc6a»",
         "L1: docs/specs/reconstruction-p0-contracts.md:1137 «c06677d2196cd39e»",
         "L1: docs/specs/reconstruction-p0-contracts.md:2052 «d6ff68c7ef2b9b22»",
@@ -17267,7 +17590,7 @@
       "basisLevel": 1,
       "basisRefs": [
         "L1: docs/specs/reconstruction-p0-contracts.md:1119 «602b2dfb3cc1795e»",
-        "L1: docs/specs/reconstruction-p0-contracts.md:1131 «11fd08067698aeea»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:1131 «97e9cc25a1b97b6f»",
         "L1: docs/specs/reconstruction-p0-contracts.md:1133 «0a085841e24bbc6a»",
         "L1: docs/specs/reconstruction-p0-contracts.md:1137 «c06677d2196cd39e»",
         "L1: docs/specs/reconstruction-p0-contracts.md:2052 «d6ff68c7ef2b9b22»",
@@ -17298,7 +17621,7 @@
       "basisLevel": 1,
       "basisRefs": [
         "L1: docs/specs/reconstruction-p0-contracts.md:1119 «602b2dfb3cc1795e»",
-        "L1: docs/specs/reconstruction-p0-contracts.md:1131 «11fd08067698aeea»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:1131 «97e9cc25a1b97b6f»",
         "L1: docs/specs/reconstruction-p0-contracts.md:1133 «0a085841e24bbc6a»",
         "L1: docs/specs/reconstruction-p0-contracts.md:1137 «c06677d2196cd39e»",
         "L1: docs/specs/reconstruction-p0-contracts.md:2052 «d6ff68c7ef2b9b22»",
@@ -17329,7 +17652,7 @@
       "basisLevel": 1,
       "basisRefs": [
         "L1: docs/specs/reconstruction-p0-contracts.md:1119 «602b2dfb3cc1795e»",
-        "L1: docs/specs/reconstruction-p0-contracts.md:1131 «11fd08067698aeea»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:1131 «97e9cc25a1b97b6f»",
         "L1: docs/specs/reconstruction-p0-contracts.md:1133 «0a085841e24bbc6a»",
         "L1: docs/specs/reconstruction-p0-contracts.md:1137 «c06677d2196cd39e»",
         "L1: docs/specs/reconstruction-p0-contracts.md:2052 «d6ff68c7ef2b9b22»",
@@ -17360,7 +17683,7 @@
       "basisLevel": 1,
       "basisRefs": [
         "L1: docs/specs/reconstruction-p0-contracts.md:1119 «602b2dfb3cc1795e»",
-        "L1: docs/specs/reconstruction-p0-contracts.md:1131 «11fd08067698aeea»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:1131 «97e9cc25a1b97b6f»",
         "L1: docs/specs/reconstruction-p0-contracts.md:1133 «0a085841e24bbc6a»",
         "L1: docs/specs/reconstruction-p0-contracts.md:1137 «c06677d2196cd39e»",
         "L1: docs/specs/reconstruction-p0-contracts.md:2052 «d6ff68c7ef2b9b22»",
@@ -17391,7 +17714,7 @@
       "basisLevel": 1,
       "basisRefs": [
         "L1: docs/specs/reconstruction-p0-contracts.md:1119 «602b2dfb3cc1795e»",
-        "L1: docs/specs/reconstruction-p0-contracts.md:1131 «11fd08067698aeea»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:1131 «97e9cc25a1b97b6f»",
         "L1: docs/specs/reconstruction-p0-contracts.md:1133 «0a085841e24bbc6a»",
         "L1: docs/specs/reconstruction-p0-contracts.md:1137 «c06677d2196cd39e»",
         "L1: docs/specs/reconstruction-p0-contracts.md:2052 «d6ff68c7ef2b9b22»",
@@ -17422,7 +17745,7 @@
       "basisLevel": 1,
       "basisRefs": [
         "L1: docs/specs/reconstruction-p0-contracts.md:1119 «602b2dfb3cc1795e»",
-        "L1: docs/specs/reconstruction-p0-contracts.md:1131 «11fd08067698aeea»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:1131 «97e9cc25a1b97b6f»",
         "L1: docs/specs/reconstruction-p0-contracts.md:1133 «0a085841e24bbc6a»",
         "L1: docs/specs/reconstruction-p0-contracts.md:1137 «c06677d2196cd39e»",
         "L1: docs/specs/reconstruction-p0-contracts.md:2052 «d6ff68c7ef2b9b22»",
@@ -17453,7 +17776,7 @@
       "basisLevel": 1,
       "basisRefs": [
         "L1: docs/specs/reconstruction-p0-contracts.md:1119 «602b2dfb3cc1795e»",
-        "L1: docs/specs/reconstruction-p0-contracts.md:1131 «11fd08067698aeea»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:1131 «97e9cc25a1b97b6f»",
         "L1: docs/specs/reconstruction-p0-contracts.md:1133 «0a085841e24bbc6a»",
         "L1: docs/specs/reconstruction-p0-contracts.md:1137 «c06677d2196cd39e»",
         "L1: docs/specs/reconstruction-p0-contracts.md:2052 «d6ff68c7ef2b9b22»",
@@ -17484,7 +17807,7 @@
       "basisLevel": 1,
       "basisRefs": [
         "L1: docs/specs/reconstruction-p0-contracts.md:1119 «602b2dfb3cc1795e»",
-        "L1: docs/specs/reconstruction-p0-contracts.md:1131 «11fd08067698aeea»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:1131 «97e9cc25a1b97b6f»",
         "L1: docs/specs/reconstruction-p0-contracts.md:1133 «0a085841e24bbc6a»",
         "L1: docs/specs/reconstruction-p0-contracts.md:1137 «c06677d2196cd39e»",
         "L1: docs/specs/reconstruction-p0-contracts.md:2052 «d6ff68c7ef2b9b22»",
@@ -17515,7 +17838,7 @@
       "basisLevel": 1,
       "basisRefs": [
         "L1: docs/specs/reconstruction-p0-contracts.md:1119 «602b2dfb3cc1795e»",
-        "L1: docs/specs/reconstruction-p0-contracts.md:1131 «11fd08067698aeea»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:1131 «97e9cc25a1b97b6f»",
         "L1: docs/specs/reconstruction-p0-contracts.md:1133 «0a085841e24bbc6a»",
         "L1: docs/specs/reconstruction-p0-contracts.md:1137 «c06677d2196cd39e»",
         "L1: docs/specs/reconstruction-p0-contracts.md:2052 «d6ff68c7ef2b9b22»",
@@ -17546,7 +17869,7 @@
       "basisLevel": 1,
       "basisRefs": [
         "L1: docs/specs/reconstruction-p0-contracts.md:1119 «602b2dfb3cc1795e»",
-        "L1: docs/specs/reconstruction-p0-contracts.md:1131 «11fd08067698aeea»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:1131 «97e9cc25a1b97b6f»",
         "L1: docs/specs/reconstruction-p0-contracts.md:1133 «0a085841e24bbc6a»",
         "L1: docs/specs/reconstruction-p0-contracts.md:1137 «c06677d2196cd39e»",
         "L1: docs/specs/reconstruction-p0-contracts.md:2052 «d6ff68c7ef2b9b22»",
@@ -17577,7 +17900,7 @@
       "basisLevel": 1,
       "basisRefs": [
         "L1: docs/specs/reconstruction-p0-contracts.md:1119 «602b2dfb3cc1795e»",
-        "L1: docs/specs/reconstruction-p0-contracts.md:1131 «11fd08067698aeea»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:1131 «97e9cc25a1b97b6f»",
         "L1: docs/specs/reconstruction-p0-contracts.md:1133 «0a085841e24bbc6a»",
         "L1: docs/specs/reconstruction-p0-contracts.md:1137 «c06677d2196cd39e»",
         "L1: docs/specs/reconstruction-p0-contracts.md:2052 «d6ff68c7ef2b9b22»",
@@ -17608,7 +17931,7 @@
       "basisLevel": 1,
       "basisRefs": [
         "L1: docs/specs/reconstruction-p0-contracts.md:1119 «602b2dfb3cc1795e»",
-        "L1: docs/specs/reconstruction-p0-contracts.md:1131 «11fd08067698aeea»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:1131 «97e9cc25a1b97b6f»",
         "L1: docs/specs/reconstruction-p0-contracts.md:1133 «0a085841e24bbc6a»",
         "L1: docs/specs/reconstruction-p0-contracts.md:1137 «c06677d2196cd39e»",
         "L1: docs/specs/reconstruction-p0-contracts.md:2052 «d6ff68c7ef2b9b22»",
@@ -17639,7 +17962,7 @@
       "basisLevel": 1,
       "basisRefs": [
         "L1: docs/specs/reconstruction-p0-contracts.md:1119 «602b2dfb3cc1795e»",
-        "L1: docs/specs/reconstruction-p0-contracts.md:1131 «11fd08067698aeea»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:1131 «97e9cc25a1b97b6f»",
         "L1: docs/specs/reconstruction-p0-contracts.md:1133 «0a085841e24bbc6a»",
         "L1: docs/specs/reconstruction-p0-contracts.md:1137 «c06677d2196cd39e»",
         "L1: docs/specs/reconstruction-p0-contracts.md:2052 «d6ff68c7ef2b9b22»",
@@ -17670,7 +17993,7 @@
       "basisLevel": 1,
       "basisRefs": [
         "L1: docs/specs/reconstruction-p0-contracts.md:1119 «602b2dfb3cc1795e»",
-        "L1: docs/specs/reconstruction-p0-contracts.md:1131 «11fd08067698aeea»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:1131 «97e9cc25a1b97b6f»",
         "L1: docs/specs/reconstruction-p0-contracts.md:1133 «0a085841e24bbc6a»",
         "L1: docs/specs/reconstruction-p0-contracts.md:1137 «c06677d2196cd39e»",
         "L1: docs/specs/reconstruction-p0-contracts.md:2052 «d6ff68c7ef2b9b22»",
@@ -17701,7 +18024,7 @@
       "basisLevel": 1,
       "basisRefs": [
         "L1: docs/specs/reconstruction-p0-contracts.md:1119 «602b2dfb3cc1795e»",
-        "L1: docs/specs/reconstruction-p0-contracts.md:1131 «11fd08067698aeea»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:1131 «97e9cc25a1b97b6f»",
         "L1: docs/specs/reconstruction-p0-contracts.md:1133 «0a085841e24bbc6a»",
         "L1: docs/specs/reconstruction-p0-contracts.md:1137 «c06677d2196cd39e»",
         "L1: docs/specs/reconstruction-p0-contracts.md:2052 «d6ff68c7ef2b9b22»",
@@ -19044,6 +19367,476 @@
         "遅着した 01:58 発表報で流向 東 を復活させない。訂正済み current（西）維持。",
         "運用区分: Control.Status=通常; head.test/envelope Status=notProvided。replay 起源から区分を補わない。"
       ]
+    },
+    {
+      "expectedId": "expected:O01:61",
+      "sequenceId": "O01",
+      "position": 61,
+      "decision": null,
+      "effective": null,
+      "subjects": [],
+      "notices": false,
+      "intents": false,
+      "basisLevel": 1,
+      "basisRefs": [
+        "L1: docs/specs/reconstruction-p0-contracts.md:1758 «37f025f94e7bbdfd» 固定初期状態・時計",
+        "L1: docs/specs/reconstruction-p0-contracts.md:736 «e88a83452d784a7c»"
+      ],
+      "input": {
+        "required": "新しい隔離 harness を空の全 UnitState・checkpoint なしで起動: 津波 VTSE41 発表→続報→同revision訂正→取消→重複→遅着",
+        "acquisition": "synthetic"
+      },
+      "checks": [
+        "この step は試験ケースの初期化。前ケースの保存物・通知・gate を共有しない。起動の未充足を無発令と表示しない。"
+      ]
+    },
+    {
+      "expectedId": "expected:O01:62",
+      "sequenceId": "O01",
+      "position": 62,
+      "decision": {
+        "kind": "changed",
+        "change": "semantic"
+      },
+      "effective": {
+        "kind": "active"
+      },
+      "subjects": [
+        {
+          "subject": "normal/VTSE41/20110311144640",
+          "revision": {
+            "reportDateTimeRaw": "2011-03-11T14:49:00+09:00",
+            "serialRaw": null,
+            "infoTypeRaw": "発表"
+          }
+        }
+      ],
+      "notices": true,
+      "intents": true,
+      "basisLevel": 1,
+      "basisRefs": [
+        "L1: docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6» O01",
+        "L1: reconstruction/contracts/p3-tsunami-unit.json:146 «c21a8479a57628b3» Q-NOTICE escalation",
+        "L1: reconstruction/contracts/p3-tsunami-unit.json:200 «ae156ddc44d461f8» Q-NOTICE level（作者裁定 NOTICE-LEVELS=A）",
+        "L2: test/fixtures/32-39_11_02_250206_VTSE41.xml:1 «12c29731e40adc0c» 元XMLのControl/Head/Bodyを読解（原本確認の主張ではない）"
+      ],
+      "input": null,
+      "checks": [
+        "空stateからの初報なので直前を全区域noneとする（P3-C5-TRANSITION-BASIS=A）。210・220・250は大津波警報（Kind 53）、101・201・300・310・320は津波警報、注意報15区域、予報20区域。警報以上の区域がissuedなのでescalation、level=critical、normalのdesktop＋soundで緊急群（A7のgroup()）。",
+        "運用区分: Control.Status=通常; head.test/envelope Status=notProvided。replay 起源から区分を補わない。"
+      ]
+    },
+    {
+      "expectedId": "expected:O01:63",
+      "sequenceId": "O01",
+      "position": 63,
+      "decision": {
+        "kind": "changed",
+        "change": "semantic"
+      },
+      "effective": {
+        "kind": "active"
+      },
+      "subjects": [
+        {
+          "subject": "normal/VTSE41/20110311144640",
+          "revision": {
+            "reportDateTimeRaw": "2011-03-11T15:00:00+09:00",
+            "serialRaw": null,
+            "infoTypeRaw": "発表"
+          }
+        }
+      ],
+      "notices": true,
+      "intents": true,
+      "basisLevel": 1,
+      "basisRefs": [
+        "L1: docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6» O01",
+        "L1: reconstruction/contracts/p3-tsunami-unit.json:146 «c21a8479a57628b3» Q-NOTICE escalation",
+        "L1: reconstruction/contracts/p3-tsunami-unit.json:200 «ae156ddc44d461f8» Q-NOTICE level（作者裁定 NOTICE-LEVELS=A）",
+        "L2: test/fixtures/32-39_11_09_250206_VTSE41.xml:1 «12c29731e40adc0c» 元XMLのControl/Head/Bodyを読解（原本確認の主張ではない）"
+      ],
+      "input": null,
+      "checks": [
+        "201 青森県太平洋沿岸が津波警報→大津波警報（upgraded）、他の42区域の区分は変わらない。escalation、level=critical、緊急群。:62のpendingは同じsubject・同じchannel・同群なのでsupersededにする（P3-C5-REPLACEMENT=A）。",
+        "運用区分: Control.Status=通常; head.test/envelope Status=notProvided。replay 起源から区分を補わない。"
+      ]
+    },
+    {
+      "expectedId": "expected:O01:64",
+      "sequenceId": "O01",
+      "position": 64,
+      "decision": {
+        "kind": "changed",
+        "change": "semantic"
+      },
+      "effective": {
+        "kind": "active"
+      },
+      "subjects": [
+        {
+          "subject": "normal/VTSE41/20110311144640",
+          "revision": {
+            "reportDateTimeRaw": "2011-03-11T15:00:00+09:00",
+            "serialRaw": null,
+            "infoTypeRaw": "訂正"
+          }
+        }
+      ],
+      "notices": true,
+      "intents": true,
+      "basisLevel": 1,
+      "basisRefs": [
+        "L1: docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6» O01",
+        "L1: reconstruction/contracts/p3-tsunami-unit.json:254 «bb39e7f5ac7c2c81» Q-ENUM revisionOrder",
+        "L1: reconstruction/contracts/p3-tsunami-unit.json:168 «7f25e429950cfac0» Q-NOTICE continuation",
+        "L1: reconstruction/contracts/p3-tsunami-unit.json:200 «ae156ddc44d461f8» Q-NOTICE level（作者裁定 NOTICE-LEVELS=A）",
+        "L2: test/fixtures/synthetic_VTSE41_correction.xml:1 «12c29731e40adc0c» 合成入力（manifest synthetic、配信原本ではない）"
+      ],
+      "input": null,
+      "checks": [
+        "同じReportDateTimeで訂正は発表より上位なので採用する（Q-ENUM.revisionOrder）。250 福島県のMaxHeightだけ5m→10m。区分の変わった区域が無いのでcontinuation、残った区分に注意報以上があるのでlevel=normal（P3-C5-NOTICE-LEVELS=A）、題「[訂正] 大津波警報」。緊急群に入らない。",
+        "運用区分: Control.Status=通常; head.test/envelope Status=notProvided。replay 起源から区分を補わない。"
+      ]
+    },
+    {
+      "expectedId": "expected:O01:65",
+      "sequenceId": "O01",
+      "position": 65,
+      "decision": {
+        "kind": "changed",
+        "change": "semantic"
+      },
+      "effective": {
+        "kind": "inactive",
+        "cause": {
+          "kind": "cancelled"
+        }
+      },
+      "subjects": [
+        {
+          "subject": "normal/VTSE41/20110311144640",
+          "revision": {
+            "reportDateTimeRaw": "2011-03-11T15:05:00+09:00",
+            "serialRaw": null,
+            "infoTypeRaw": "取消"
+          }
+        }
+      ],
+      "notices": true,
+      "intents": true,
+      "basisLevel": 1,
+      "basisRefs": [
+        "L1: docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6» O01",
+        "L1: reconstruction/contracts/p3-tsunami-unit.json:179 «3ed2fe2737edee40» Q-NOTICE cancellation",
+        "L1: reconstruction/contracts/p3-tsunami-unit.json:200 «ae156ddc44d461f8» Q-NOTICE level（作者裁定 NOTICE-LEVELS=A）",
+        "L2: test/fixtures/synthetic_VTSE41_cancel.xml:1 «12c29731e40adc0c» 合成入力（manifest synthetic、配信原本ではない）"
+      ],
+      "input": null,
+      "checks": [
+        "取消の前にactiveなのでcancellation、level=cancel、desktop＋sound、題「[取消] 津波警報・注意報・予報」。areas=[]。同じsubjectの全pendingを両channelでsupersededにする（P3-C5-REPLACEMENT=A）。観測は取り消さない。",
+        "運用区分: Control.Status=通常; head.test/envelope Status=notProvided。replay 起源から区分を補わない。"
+      ]
+    },
+    {
+      "expectedId": "expected:O01:66",
+      "sequenceId": "O01",
+      "position": 66,
+      "decision": {
+        "kind": "unchanged",
+        "reason": "duplicate"
+      },
+      "effective": {
+        "kind": "inactive",
+        "cause": {
+          "kind": "cancelled"
+        }
+      },
+      "subjects": [
+        {
+          "subject": "normal/VTSE41/20110311144640",
+          "revision": {
+            "reportDateTimeRaw": "2011-03-11T15:05:00+09:00",
+            "serialRaw": null,
+            "infoTypeRaw": "取消"
+          }
+        }
+      ],
+      "notices": false,
+      "intents": false,
+      "basisLevel": 1,
+      "basisRefs": [
+        "L1: docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6» O01",
+        "L1: reconstruction/contracts/p3-tsunami-unit.json:254 «bb39e7f5ac7c2c81» Q-ENUM revisionOrder",
+        "L2: test/fixtures/synthetic_VTSE41_cancel.xml:1 «12c29731e40adc0c» 合成入力（manifest synthetic、配信原本ではない）"
+      ],
+      "input": null,
+      "checks": [
+        "同じ取消の再受信はduplicate。追加通知0、revision不変。",
+        "運用区分: Control.Status=通常; head.test/envelope Status=notProvided。replay 起源から区分を補わない。"
+      ]
+    },
+    {
+      "expectedId": "expected:O01:67",
+      "sequenceId": "O01",
+      "position": 67,
+      "decision": {
+        "kind": "unchanged",
+        "reason": "stale"
+      },
+      "effective": {
+        "kind": "inactive",
+        "cause": {
+          "kind": "cancelled"
+        }
+      },
+      "subjects": [
+        {
+          "subject": "normal/VTSE41/20110311144640",
+          "revision": {
+            "reportDateTimeRaw": "2011-03-11T14:49:00+09:00",
+            "serialRaw": null,
+            "infoTypeRaw": "発表"
+          }
+        }
+      ],
+      "notices": false,
+      "intents": false,
+      "basisLevel": 1,
+      "basisRefs": [
+        "L1: docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6» O01",
+        "L1: reconstruction/contracts/p3-tsunami-unit.json:254 «bb39e7f5ac7c2c81» Q-ENUM revisionOrder",
+        "L2: test/fixtures/32-39_11_02_250206_VTSE41.xml:1 «12c29731e40adc0c» 元XMLのControl/Head/Bodyを読解（原本確認の主張ではない）"
+      ],
+      "input": null,
+      "checks": [
+        "取消以前のrevisionはstale。遅着した14:49の発表で取消したsubjectを戻さない（O01、Q-ENUM.revisionOrder）。",
+        "運用区分: Control.Status=通常; head.test/envelope Status=notProvided。replay 起源から区分を補わない。"
+      ]
+    },
+    {
+      "expectedId": "expected:O07:27",
+      "sequenceId": "O07",
+      "position": 27,
+      "decision": null,
+      "effective": null,
+      "subjects": [],
+      "notices": false,
+      "intents": false,
+      "basisLevel": 1,
+      "basisRefs": [
+        "L1: docs/specs/reconstruction-p0-contracts.md:1758 «37f025f94e7bbdfd» 固定初期状態・時計",
+        "L1: docs/specs/reconstruction-p0-contracts.md:736 «e88a83452d784a7c»"
+      ],
+      "input": {
+        "required": "新しい隔離 harness を空の全 UnitState・checkpoint なしで起動: 津波 VTSE41 保存→再起動→直後の訂正→保存→再起動→取消",
+        "acquisition": "synthetic"
+      },
+      "checks": [
+        "この step は試験ケースの初期化。前ケースの保存物・通知・gate を共有しない。起動の未充足を無発令と表示しない。"
+      ]
+    },
+    {
+      "expectedId": "expected:O07:28",
+      "sequenceId": "O07",
+      "position": 28,
+      "decision": {
+        "kind": "changed",
+        "change": "semantic"
+      },
+      "effective": {
+        "kind": "active"
+      },
+      "subjects": [
+        {
+          "subject": "normal/VTSE41/20110311144640",
+          "revision": {
+            "reportDateTimeRaw": "2011-03-11T15:00:00+09:00",
+            "serialRaw": null,
+            "infoTypeRaw": "発表"
+          }
+        }
+      ],
+      "notices": true,
+      "intents": true,
+      "basisLevel": 1,
+      "basisRefs": [
+        "L1: docs/specs/reconstruction-p0-contracts.md:1783 «bb8e18a6762c105d» O07",
+        "L1: reconstruction/contracts/p3-tsunami-unit.json:146 «c21a8479a57628b3» Q-NOTICE escalation",
+        "L1: reconstruction/contracts/p3-tsunami-unit.json:200 «ae156ddc44d461f8» Q-NOTICE level（作者裁定 NOTICE-LEVELS=A）",
+        "L2: test/fixtures/32-39_11_09_250206_VTSE41.xml:1 «12c29731e40adc0c» 元XMLのControl/Head/Bodyを読解（原本確認の主張ではない）"
+      ],
+      "input": null,
+      "checks": [
+        "空stateからの初報なので直前を全区域noneとする（P3-C5-TRANSITION-BASIS=A）。警報以上の区域がissuedなのでescalation、level=critical、緊急群。",
+        "運用区分: Control.Status=通常; head.test/envelope Status=notProvided。replay 起源から区分を補わない。"
+      ]
+    },
+    {
+      "expectedId": "expected:O07:29",
+      "sequenceId": "O07",
+      "position": 29,
+      "decision": null,
+      "effective": null,
+      "subjects": [],
+      "notices": null,
+      "intents": null,
+      "basisLevel": 1,
+      "basisRefs": [
+        "L1: docs/specs/reconstruction-p0-contracts.md:476 «36cbecd69d17df3e» §4.2 U-T",
+        "L1: docs/specs/reconstruction-p0-contracts.md:1783 «bb8e18a6762c105d» O07"
+      ],
+      "input": {
+        "required": "U-Tの当該世代のcheckpoint ackまで待つ。通知の配送は保留し、期限は固定時計で止める。",
+        "acquisition": "synthetic"
+      },
+      "checks": [
+        "forecasts・observations・intents（pendingと終端記録）が同じ保存単位に入る（I-U-T.persisted）。contentRevision・persistenceは保存しない。"
+      ]
+    },
+    {
+      "expectedId": "expected:O07:30",
+      "sequenceId": "O07",
+      "position": 30,
+      "decision": null,
+      "effective": null,
+      "subjects": [],
+      "notices": false,
+      "intents": false,
+      "basisLevel": 1,
+      "basisRefs": [
+        "L1: docs/specs/reconstruction-p0-contracts.md:1783 «bb8e18a6762c105d» O07",
+        "L1: docs/specs/reconstruction-p0-contracts.md:2074 «643c123a1c57d2a8» E22",
+        "L1: reconstruction/contracts/p3-tsunami-unit.json:209 «17691bc0b82138f3» Q-NOTICE restart"
+      ],
+      "input": {
+        "required": "直前にsaveしたU-Tだけから復元、時計+1ms。",
+        "acquisition": "synthetic"
+      },
+      "checks": [
+        "復元でintentを新しく作らない。:28のpendingは元のcreatedAt/expiresAtで再試行対象に戻る（Q-NOTICE.restart）。期限を延ばさない。"
+      ]
+    },
+    {
+      "expectedId": "expected:O07:31",
+      "sequenceId": "O07",
+      "position": 31,
+      "decision": {
+        "kind": "changed",
+        "change": "semantic"
+      },
+      "effective": {
+        "kind": "active"
+      },
+      "subjects": [
+        {
+          "subject": "normal/VTSE41/20110311144640",
+          "revision": {
+            "reportDateTimeRaw": "2011-03-11T15:00:00+09:00",
+            "serialRaw": null,
+            "infoTypeRaw": "訂正"
+          }
+        }
+      ],
+      "notices": true,
+      "intents": true,
+      "basisLevel": 1,
+      "basisRefs": [
+        "L1: docs/specs/reconstruction-p0-contracts.md:1783 «bb8e18a6762c105d» O07",
+        "L1: reconstruction/contracts/p3-tsunami-unit.json:209 «17691bc0b82138f3» Q-NOTICE restart",
+        "L1: reconstruction/contracts/p3-tsunami-unit.json:168 «7f25e429950cfac0» Q-NOTICE continuation",
+        "L1: reconstruction/contracts/p3-tsunami-unit.json:200 «ae156ddc44d461f8» Q-NOTICE level（作者裁定 NOTICE-LEVELS=A）",
+        "L2: test/fixtures/synthetic_VTSE41_correction.xml:1 «12c29731e40adc0c» 合成入力（manifest synthetic、配信原本ではない）"
+      ],
+      "input": null,
+      "checks": [
+        "復元したstateとの差で決める: 区分の変化が無いのでcontinuation、level=normal。同じ発令を再びcritical・緊急群にしない（Q-NOTICE.restart、P3-C5-AC11）。",
+        "運用区分: Control.Status=通常; head.test/envelope Status=notProvided。replay 起源から区分を補わない。"
+      ]
+    },
+    {
+      "expectedId": "expected:O07:32",
+      "sequenceId": "O07",
+      "position": 32,
+      "decision": null,
+      "effective": null,
+      "subjects": [],
+      "notices": null,
+      "intents": null,
+      "basisLevel": 1,
+      "basisRefs": [
+        "L1: docs/specs/reconstruction-p0-contracts.md:476 «36cbecd69d17df3e» §4.2 U-T",
+        "L1: docs/specs/reconstruction-p0-contracts.md:1783 «bb8e18a6762c105d» O07"
+      ],
+      "input": {
+        "required": "U-Tの当該世代のcheckpoint ackまで待つ。通知の配送は保留し、期限は固定時計で止める。",
+        "acquisition": "synthetic"
+      },
+      "checks": [
+        "forecasts・observations・intents（pendingと終端記録）が同じ保存単位に入る（I-U-T.persisted）。contentRevision・persistenceは保存しない。"
+      ]
+    },
+    {
+      "expectedId": "expected:O07:33",
+      "sequenceId": "O07",
+      "position": 33,
+      "decision": null,
+      "effective": null,
+      "subjects": [],
+      "notices": false,
+      "intents": false,
+      "basisLevel": 1,
+      "basisRefs": [
+        "L1: docs/specs/reconstruction-p0-contracts.md:1783 «bb8e18a6762c105d» O07",
+        "L1: docs/specs/reconstruction-p0-contracts.md:2074 «643c123a1c57d2a8» E22",
+        "L1: reconstruction/contracts/p3-tsunami-unit.json:209 «17691bc0b82138f3» Q-NOTICE restart"
+      ],
+      "input": {
+        "required": "直前にsaveしたU-Tだけから復元、時計+1ms。",
+        "acquisition": "synthetic"
+      },
+      "checks": [
+        "復元でintentを新しく作らない。:31のpendingは元のcreatedAt/expiresAtで再試行対象に戻る（Q-NOTICE.restart）。期限を延ばさない。"
+      ]
+    },
+    {
+      "expectedId": "expected:O07:34",
+      "sequenceId": "O07",
+      "position": 34,
+      "decision": {
+        "kind": "changed",
+        "change": "semantic"
+      },
+      "effective": {
+        "kind": "inactive",
+        "cause": {
+          "kind": "cancelled"
+        }
+      },
+      "subjects": [
+        {
+          "subject": "normal/VTSE41/20110311144640",
+          "revision": {
+            "reportDateTimeRaw": "2011-03-11T15:05:00+09:00",
+            "serialRaw": null,
+            "infoTypeRaw": "取消"
+          }
+        }
+      ],
+      "notices": true,
+      "intents": true,
+      "basisLevel": 1,
+      "basisRefs": [
+        "L1: docs/specs/reconstruction-p0-contracts.md:1783 «bb8e18a6762c105d» O07",
+        "L1: reconstruction/contracts/p3-tsunami-unit.json:179 «3ed2fe2737edee40» Q-NOTICE cancellation",
+        "L1: reconstruction/contracts/p3-tsunami-unit.json:200 «ae156ddc44d461f8» Q-NOTICE level（作者裁定 NOTICE-LEVELS=A）",
+        "L2: test/fixtures/synthetic_VTSE41_cancel.xml:1 «12c29731e40adc0c» 合成入力（manifest synthetic、配信原本ではない）"
+      ],
+      "input": null,
+      "checks": [
+        "復元後の取消: 取消の前にactiveなのでcancellation、level=cancel。areas=[]。復元したpendingは同じsubjectの取消で両channelともsupersededにする（P3-C5-REPLACEMENT=A）。",
+        "運用区分: Control.Status=通常; head.test/envelope Status=notProvided。replay 起源から区分を補わない。"
+      ]
     }
   ],
   "unresolvedQuestions": [
@@ -19062,8 +19855,7 @@
       "blocks": [
         "同時刻/番号の内容相違・孤立訂正・時刻とSerial逆転の優先順位",
         "同revision訂正のchange",
-        "全国/partial連続取消の対象版指定",
-        "VTSE同station訂正用の合法Area.Code値凍結"
+        "全国/partial連続取消の対象版指定"
       ],
       "resolveBy": "各O01/O06対象Unit実装契約前"
     },

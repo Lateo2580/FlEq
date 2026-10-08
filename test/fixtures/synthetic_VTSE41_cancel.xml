@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- synthetic（P3-TSUNAMI-UNIT-001 Q-C5-CORPUS、O01・O07）: 2011-03-11 の EventID 20110311144640 の取消。形は 38-39_03_01_210805_VTSE41 に倣う。配信原本ではない -->
+<Report xmlns="http://xml.kishou.go.jp/jmaxml1/" xmlns:jmx="http://xml.kishou.go.jp/jmaxml1/">
+<Control>
+	<Title>津波警報・注意報・予報a</Title>
+	<DateTime>2011-03-11T06:05:00Z</DateTime>
+	<Status>通常</Status>
+	<EditorialOffice>大阪管区気象台</EditorialOffice>
+	<PublishingOffice>気象庁</PublishingOffice>
+</Control>
+<Head xmlns="http://xml.kishou.go.jp/jmaxml1/informationBasis1/">
+	<Title>大津波警報・津波警報・津波注意報・津波予報</Title>
+	<ReportDateTime>2011-03-11T15:05:00+09:00</ReportDateTime>
+	<TargetDateTime>2011-03-11T15:05:00+09:00</TargetDateTime>
+	<EventID>20110311144640</EventID>
+	<InfoType>取消</InfoType>
+	<Serial></Serial>
+	<InfoKind>津波警報・注意報・予報</InfoKind>
+	<InfoKindVersion>1.0_1</InfoKindVersion>
+	<Headline>
+		<Text>大津波警報・津波警報・津波注意報を取り消します。</Text>
+	</Headline>
+</Head>
+<Body xmlns="http://xml.kishou.go.jp/jmaxml1/body/seismology1/" xmlns:jmx_eb="http://xml.kishou.go.jp/jmaxml1/elementBasis1/">
+	<Text>先ほどの、大津波警報・津波警報・津波注意報を取り消します。</Text>
+</Body>
+</Report>

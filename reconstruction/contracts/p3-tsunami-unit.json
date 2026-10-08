@@ -1,10 +1,10 @@
 {
   "meta": {
     "draftedFromOid": "15d5885c693d176979f1e3e60e3a63b3c7344240",
-    "sha256": "bc48ba06b3ceb28476ae01d1447f7bdfa5cfc9f901e9fe74e75378c1ed30a825",
+    "sha256": "a7342cf92a553403bdca015aedfdcce7244aff9769bb15b28ddce12a45771e11",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
-    "manifestSha256": "76c82b87d7783a4eae14af690cb34e7d6ec46f73617dc75b7f7401951619f080",
-    "sequencesSha256": "be9cfd97b555e3a55568f085d107342c978b3dc7249f5cecea868ea5a62c5781",
+    "manifestSha256": "226b73cbfb4e769c89d2b1327fcbd8067a47887303527a2893592fba47176235",
+    "sequencesSha256": "79769d888ff5f429e4bd370a6a88ccb30611b5ee2a1e7b12d25d58f215cbfbd3",
     "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
     "decisionBranches": [
       {
@@ -23,7 +23,7 @@
         "C": "VTSE51/52の採用（発表・訂正）ごとにdesktopとsoundを作る。段階は報の中身・VTSE41の区分によらず常にinfoで、緊急群に入らない（A7のgroup()はtsunamiのwarning/criticalだけを緊急群にする）。同じsubjectの古いpendingはP3-C5-REPLACEMENT=Aで置き換える。観測の取消はactiveだった場合だけdesktopとsound（level=cancel）。training/testはdesktopだけ（P3-C5-TRAINING=A）",
         "recommended": "A",
         "provisional": "C",
-        "ruling": "作者裁定C（2026-10-06。起草時のA・Bに無い選択肢で、作者の言葉は「観測情報は info で鳴らす」）",
+        "ruling": "作者裁定C（2026-10-06。起草時のA・Bに無い選択肢で、作者の言葉は「観測情報は info で鳴らす」）。例外はP3-C5-OBS-LIFETIME=A（作者裁定 2026-10-06夜）: VTSE41の解除・取消の後に届いた観測（forecastEndedのまま採用したVTSE51/52）は表示もinfoの音も出さない",
         "reason": "見え方の違い: Aでは、旧築で警報・注意報の間にVTSE51のたびに鳴っていたcritical（3打）が鳴らなくなり、VTSE52のnormal（単音）も鳴らない。観測は通知センターの文字だけになり、音はVTSE41の区分の変化・続報・取消でだけ鳴る。Bでは旧築どおり観測のたびに音が鳴る。Bは観測intentを緊急群から外すためにA7のgroup()（notification-delivery.ts:19〜23）とP2-NOTIFICATION-DELIVERY-001の改訂を伴う（NOTICE-LEVELSの選択によらない費用）。観測は警報の続報と別系統で届き、頻度は未計測。旧築の経路はmessage-router.ts:531→notifier.ts:451→level-helpers.ts:291。裁定Cの見え方: 観測のたびにinfoの単音（A4、sound-design-system.md:17）が鳴る。旧築の警報・注意報中のVTSE51のcritical（3打）、予報だけのVTSE51のwarning、VTSE52のnormalは、どれもinfoになる。infoは緊急群に入らないので、VTSE41の緊急通知を追い越さない。A7の改訂は要らない: group()（notification-delivery.ts:18〜24）はoperation=normalかつdomain=tsunamiかつlevelがwarning/criticalだけをnormalTsunamiEmergencyにし、infoはother。音はresolveSoundAsset（同:13〜16）がtsunami×infoをreconstruction/assets/sounds/tsunami-info.wav（配送済み）へ解決し、soundの候補から外すのはoperation≠normalだけ（同:59）"
       },
       {
@@ -41,7 +41,7 @@
         "B": "区分が変わった報・訂正・取消だけを通知し、続報は表示だけを更新する",
         "recommended": "A",
         "provisional": "A",
-        "ruling": "統合担当が決めてよい（頻度は旧築と同じ。Bを選ぶなら作者確認）。続報の音の重さの変化はP3-C5-NOTICE-LEVELSの見え方に含めた",
+        "ruling": "統合担当が発注前点検でAに確定（2026-10-06夜、頻度は旧築と同じ）。続報の音の重さの変化はP3-C5-NOTICE-LEVELSの見え方に含めた",
         "reason": "旧築はVTSE41の採用ごとに通知する（message-router.ts:531）。続報の予想高さの引上げ（同じ大津波警報のまま数値が上がる）は区分の変化に現れないので、Bではその報を音で知らせない"
       },
       {
@@ -59,7 +59,7 @@
         "B": "電文のLastKind（気象庁の前報の区分）で決める",
         "recommended": "A",
         "provisional": "A",
-        "ruling": "統合担当が決めてよい",
+        "ruling": "統合担当が発注前点検でAに確定（2026-10-06夜）",
         "reason": "LastKindは気象庁の前報が基準なので、受信漏れ・再起動・訂正の後にunitの表示と食い違う。Aでは表示と通知と§7.5の系列の分類が同じ差分から出る。旧築の津波もLastKindを読まない。stateが無いときに全区域を初出として扱うのは鳴らしすぎの側に倒す"
       },
       {
@@ -68,7 +68,7 @@
         "B": "新しいrevisionで全stationを置き換える",
         "recommended": "A",
         "provisional": "A",
-        "ruling": "統合担当が決めてよい",
+        "ruling": "統合担当が発注前点検でAに確定（2026-10-06夜）",
         "reason": "spec:1781（O05）の観測欠落防止とfamily独立に合わせる。旧築も観測をstation codeで合成していた（revision-family-registry.ts:736、fragmentMerge）。Bは一部stationだけを載せた報で他の観測を消す。食い違いで入力全体をstaleにするのは、decisionが入力に一つだから"
       },
       {
@@ -77,7 +77,7 @@
         "B": "観測の終わりを独立の期限だけで決める",
         "recommended": "A",
         "provisional": "A",
-        "ruling": "統合担当が決めてよい（警報が無くなったら観測を畳む見え方は旧築と同じ）",
+        "ruling": "作者裁定A（2026-10-06夜、推奨どおり）。解除（VTSE41の全区域解除・取消）の後に届いたVTSE51/52は、表示もinfoの音も出さない。これはP3-C5-NOTICE-OBSERVATION=Cの例外として明記する（Q-NOTICE.generationTableのobservation行）。警報が無くなったら観測を畳む見え方は旧築と同じ",
         "reason": "旧築は警報の区分が無くなると観測を消す（tsunami-state.ts:564）。旧築との差は3つで、どれも単一事象の通常の経過では見えない: (a)旧築の観測はfamilyに1 subjectで事象をまたいでstationを合成し、全警報が無くなったときだけ畳む。新築はEventIDごと (b)旧築は解除の後に届いた観測を表示する（畳むのはVTSE41の適用時だけ）。新築は表示しない (c)24時間の失効は旧築に無い（M04の「familyごとの期限」による）。観測の更新は警報中に11分を超えることがある（revision-family-registry.ts:732）ので短くしない。forecastEndedがstationsを保つのは、遅れて届く同じrevisionのfragmentの重複・食い違いを判定できるようにするため"
       },
       {
@@ -86,7 +86,7 @@
         "B": "VTSE41のactiveにも時間の期限を置く",
         "recommended": "A",
         "provisional": "A",
-        "ruling": "統合担当が決めてよい（旧築と同じ。Bは表示が変わるので作者確認）",
+        "ruling": "統合担当が発注前点検でAに確定（2026-10-06夜、旧築と同じ）",
         "reason": "大津波警報は解除まで日単位で続く。解除を受信し損ねた場合の古い大カードはC16のREST回復（VTSE41が対象、spec:2205）で扱い、時間で推測して消さない"
       },
       {
@@ -95,7 +95,7 @@
         "B": "旧築どおり上限で最終更新の古いstationを黙って落とす",
         "recommended": "A",
         "provisional": "A",
-        "ruling": "統合担当が決めてよい（どれも実運用では届かない値）",
+        "ruling": "統合担当が発注前点検でAに確定（2026-10-06夜、どれも実運用では届かない値）",
         "reason": "旧築は1024超のstationを診断なしで落とす（tsunami-state.ts:35の上限と合成時の最古削除）。Aは入力を拒否して診断を残し、normalを訓練の占有から守る（R14の先例、operationContract）。4 MiB超の拒否、VTSE41の513件目、観測subjectの513件目の扱いも新しい"
       },
       {
@@ -104,7 +104,7 @@
         "B": "EEW（P2-A4 Q-NOTICE）と同じく最新一件で置き換える",
         "recommended": "A",
         "provisional": "A",
-        "ruling": "統合担当が決めてよい",
+        "ruling": "統合担当が発注前点検でAに確定（2026-10-06夜）",
         "reason": "Bでは発令のintentの配送前に続報や降格が採用されると、緊急群の通知が下位群に置き換わって消える。Aは発令→降格の順で両方出す"
       },
       {
@@ -122,7 +122,7 @@
         "B": "C5の中で直書きを表へ寄せる",
         "recommended": "A",
         "provisional": "A",
-        "ruling": "統合担当が決めてよい",
+        "ruling": "統合担当が発注前点検でAに確定（2026-10-06夜）",
         "reason": "C5はR45（1 unit追加の型）の試行で、足すのに何か所触るかが判断材料になる（計画:108）。寄せる改修を混ぜると数が測れない"
       },
       {
@@ -131,7 +131,7 @@
         "B": "U-Tのviewをsnapshotへ載せずC6で足す",
         "recommended": "A",
         "provisional": "A",
-        "ruling": "統合担当が決めてよい（色・点滅・意匠はC6とP4で決め、ここは意味の対応だけ）",
+        "ruling": "統合担当が発注前点検でAに確定（2026-10-06夜。色・点滅・意匠はC6とP4で決め、ここは意味の対応だけ）",
         "reason": "C6のT6はsnapshot経由の実paintなので、射影はunitの持ち主のC5が作る（R45の「射影」に含まれる）。BではC6がunitの意味の写像を持つ"
       }
     ],
@@ -187,7 +187,7 @@
           },
           {
             "opportunity": "observation",
-            "condition": "VTSE51/52の採用（P3-C5-NOTICE-OBSERVATION=C）。forecastEndedのまま採用した観測、unchangedの報では作らない。観測の取消はactiveだった場合だけ",
+            "condition": "VTSE51/52の採用（P3-C5-NOTICE-OBSERVATION=C）。forecastEndedのまま採用した観測（VTSE41の解除・取消の後に届いた観測。P3-C5-OBS-LIFETIME=A、作者裁定 2026-10-06夜、Cの例外）とunchangedの報では作らない。観測の取消はactiveだった場合だけ",
             "normalChannels": [
               "desktop",
               "sound"
@@ -218,7 +218,7 @@
           "通知の題と本文: 旧築の題はXMLのTitleのまま（例「津波警報・注意報・予報a」、notifier.ts:470）で、本文は報の順に先頭3区域。新築の題は到達後の最高区分の名（解除の報は「津波警報・注意報の解除」）で、escalationでは上がった区域を先に並べる",
           "取消の通知: 旧築は受理した取消を毎回cancelで通知する（notifier.ts:452〜455）。新築は取消の前にactiveだったsubjectだけ。解除済み・未受信の事象の取消では鳴らない",
           "表外のKind・Area/Codeの欠落（P3-C5-KIND-ENUM=B）: 旧築は未知のKindを名前のまま表示し（表示の区分は付かない）、名前に「津波」があればcriticalで鳴らした。Area/Codeの無い区域はその報の表示だけに合成し（保存しない）、音はcritical。新築は表外の区分をKind/Nameと重大度warningで表示し警報と同じ重さで鳴らす（上がればwarning）。Area/Codeの無い区域は名前で表示・保存し、activeと残った区分の段階に数えるが変化には使わないので、その区域だけの警報の発令はnormalで鳴る（旧築critical）",
-          "観測の寿命（P3-C5-OBS-LIFETIME）: 旧築はfamilyに1 subjectで事象をまたいでstationを合成し、全警報が無くなったときだけ畳む。解除の後に届いた観測は表示した。新築はEventIDごとで、解除の後に届いた観測は表示しない。24時間の失効は新設",
+          "観測の寿命（P3-C5-OBS-LIFETIME）: 旧築はfamilyに1 subjectで事象をまたいでstationを合成し、全警報が無くなったときだけ畳む。解除の後に届いた観測は表示した。新築はEventIDごとで、解除の後に届いた観測は表示もinfoの音も出さない（作者裁定 2026-10-06夜、P3-C5-NOTICE-OBSERVATION=Cの例外）。24時間の失効は新設",
           "容量（P3-C5-CAPACITY）: 旧築は1024超のstationを診断なしで落とした。新築は退去手順とnormalのcapacityExceeded。4 MiB超・VTSE41の513件目・観測subjectの513件目の扱いも新しい",
           "容量超過時の退去の候補（P3-C5-CAPACITY）: 新築は超過量を実際に減らすsubjectだけを、期限切れの非active→最古の非active→training/testのactiveの順に退去する（station超過なら同じfamilyのstationsを持つ観測subject、件数超過なら同じ種類、byte超過は全subject）。旧築はstationの上限で最終更新の古い点を落とすだけで、この順の退去は無い（VTSE41 512件の上限での旧築の扱いは本起草で比べていない）",
           "観測subjectの件数上限と確認の範囲（I-U-T.confirmationScope）: 新築は観測をEventIDごとに持つので、familyごと512件の上限を新設した（旧築はfamilyに1 subjectで件数上限が要らなかった）。表示の確認状態のscopeはVTSE41の採用からだけ作り、観測は確認の対象にしない（REST回復の対象外、P3-C5-N2）",
@@ -252,7 +252,7 @@
           }
         ],
         "revisionOrder": "VTSE41はReportDateTimeだけで比べ、同時刻はInfoTypeの優先（取消>訂正>発表）で後着の上位だけ採用する。同じ時刻・同じInfoTypeで内容が同じならduplicate、違えば先着を保ってstale＋WARN診断tsunamiRevisionConflict（Q-REV）。VTSE51/52はReportDateTime、次にSerialで、同じrevisionはP3-C5-OBS-MERGEに従う。取消以前のrevisionはstaleで、取消したsubjectを戻さない（O01）。取消より新しいrevisionの発表・訂正は新しい報として採用し、直前を全区域none（観測はstationsなし）としてsubjectをactiveに戻す（気象庁が同じEventIDで出し直した報を捨てない）",
-        "diagnosticReasons": "既存のDiagnosticReason（p2-shared-runtime.types.ts:244〜248）に同じrevisionの食い違いと津波の容量退去に当たるものが無いので、tsunamiRevisionConflictとtsunamiCapacityEvictedの2つだけを足す（persistent-diagnostic-sink.tsの一覧にも足す）"
+        "diagnosticReasons": "既存のDiagnosticReason（p2-shared-runtime.types.ts:246〜:250）に同じrevisionの食い違いと津波の容量退去に当たるものが無いので、tsunamiRevisionConflictとtsunamiCapacityEvictedの2つだけを足す（persistent-diagnostic-sink.tsの一覧にも足す）"
       },
       {
         "id": "I-U-T",
@@ -313,12 +313,12 @@
       {
         "id": "P3-C5-MIGRATION",
         "status": "frozen",
-        "rule": "PersistedTsunamiUnit（p3-tsunami-unit-v1）は新設のschemaなので、C5の中で旧データの移行は要らない（新築に既存のU-T保存物は無い）。旧築v2の津波active（keyedActive・観測group）からU-T候補を作るのはC15（P3-MIGRATION-001、計画:79）で、operationの根拠が無いものは移行未確認として報告する（spec §10.4）。codecのdecodeはp3-tsunami-unit-v1以外をunavailableで返す"
+        "rule": "PersistedTsunamiUnit（p3-tsunami-unit-v1）は新設のschemaなので、C5の中で旧データの移行は要らない（新築に既存のU-T保存物は無い）。旧築v2の津波active（keyedActive・観測group）からU-T候補を作るのはC15（P3-MIGRATION-001、計画:80）で、operationの根拠が無いものは移行未確認として報告する（spec §10.4）。codecのdecodeはp3-tsunami-unit-v1以外をunavailableで返す"
       },
       {
         "id": "P3-C5-DEPS",
         "status": "frozen",
-        "rule": "着手条件: C0〜C4の配送と最初の契約群の完了（計画§1.3: E01の正式再検収とR63）、Q-C5-CORPUSの解消、Q-C5-C3B-C4-BASEの読み替え（baseOidの割当）。PERF-P3だけが残った場合の扱いはQ-C4-PERF-ONLY（作者裁定）に従う"
+        "rule": "着手条件: C0〜C4の配送と最初の契約群の完了（計画§1.3: E01の正式再検収とR63）、Q-C5-CORPUSの解消、Q-C5-C3B-C4-BASEの読み替え（baseOidの割当）。PERF-P3だけが残った場合の扱いはQ-C4-PERF-ONLY（作者裁定 2026-10-08: C5を先行し、E05-Pは台帳66の契約が引き受けて再検収する）に従う。3つの条件は発注前点検（2026-10-08）で閉じた（Q-C5-C3B-C4-BASE・Q-C5-CORPUS・Q-C5-SPEC）。baseOidの割当は統合担当が次のcommitで行う"
       },
       {
         "id": "Q-C5-AUTHOR-RULINGS",
@@ -327,6 +327,36 @@
         "closed": "P3-C5-NOTICE-LEVELS=A（推奨どおり）、P3-C5-KIND-ENUM=B（推奨どおり）、P3-C5-NOTICE-OBSERVATION=C（新しい選択肢: 観測はdesktop＋soundで段階は常にinfo）。Cに合わせてQ-NOTICE（generationTableのobservation行・level・emergencyGroup）、P3-C5-LEGACY-DIFF、AC07、P3-C5-T06を直した。A7（P2-NOTIFICATION-DELIVERY-001）の改訂は要らない: group()（notification-delivery.ts:18〜24）はinfoをotherにし、音はresolveSoundAsset（同:13〜16）がtsunami-info.wavへ解決する。B選択時の書き換え（NOTICE-LEVELS=B・NOTICE-OBSERVATION=BのA7改訂、KIND-ENUM=Aの型からunknown・unkeyedAreasを消す改訂）は不要になったので消した",
         "remaining": "なし",
         "reason": "unresolvedQuestionsのQ-C5-AUTHOR-RULINGS（C5の発注の前）を閉じる"
+      },
+      {
+        "id": "P3-C5-WRITE-RIGHT",
+        "status": "frozen（発注前点検 2026-10-08。P3-UNIT-WRITE-RIGHT-001の配送 54a63c25 の後の形）",
+        "source": "P3-UWR-AC01・AC02・AC04・AC10(1)・RES-03、Q-UWR-REMOVED(2)、composition-root.ts（54a63c25）",
+        "rule": "U-TをP3-UNIT-WRITE-RIGHT-001の後の形に入れる。矛盾は無く、読み替えは次のとおり: (1) 書込み権はunitごとに1件（P3-UWR-AC01）。U-TとU-Eは同じurgentの実行場所で別々の権を持ち、保存は並べてよい（ownerのcheckpointAttemptsはunitごと） (2) 処理中のownerに権を預けない規則（P3-UWR-AC02）は実行場所の単位で判定する（composition-root.ts:1281〜:1283）。urgentがVTSE41/51/52またはEEWの入力を処理している間（inputDone未着）は、U-EとU-Tのどちらにも権を出さない (3) 自分の保存中の留保（P3-UWR-AC04）はurgentに掛からない（composition-root.ts:807）。U-Tの保存中もVTSE41/51/52とEEWの入力を送る（P3-C5-PLACE=A、spec §7.5）。urgentのcaptureとencodeは同期で走るので、最大U-Tのencodeの間はEEWの処理が待つ（P3-UWRの残存リスク(4)と同じ） (4) P3-C3A-RES-09の「checkpointGrantはそのownerのunit数まで」（P3-UWR-AC10(1)）により、urgentのcheckpointGrantは2件まで、ownerあたりの未応答要求の上限は1増える。権の再評価はO(unit数)のまま（P3-UWR-RES-03） (5) 起草の版にあったAC02(i)のurgentの待ち（全unitを外してnext()を呼ぶ）は配送版に無い（Q-UWR-REMOVEDの(2)）。urgentのunitが増えても、追い越しの規則は増えない (6) 受信前回収（P3-C3B-INTENT-RECLAIM、composition-root.ts:781〜:786・:799〜:802）は実行場所の全unitの期限切れintentを見る。U-Tの保留中のintent更新がEEWの入力の送出を1往復遅らせうる（逆も同じ） (7) (2)・(3)・(6)の待ちはAC13で報告し、AC11の書込み権と同時dirtyはこの規則のまま確かめる（C6でU-Tを加える、計画:218）"
+      },
+      {
+        "id": "Q-C5-C3B-C4-BASE",
+        "status": "closed",
+        "source": "発注前点検（2026-10-08、HEAD 54a63c25）",
+        "closed": "(1) decisionBranches 14件のrulingは全部確定の文（作者裁定・先例の適用・統合担当の発注前点検での確定）で、起草時の仮の文言は残っていない (2) C3b（66899fb7・771716bf・498d6f71・eb62d423）、C4（工程1〜2d、閉鎖 e2a962bd）、P3-UNIT-WRITE-RIGHT-001（1cef61d0・54a63c25）の後の行の読み替え: host.ts:286→:291〜:293（priorityReason）、composition-root.ts:788→:1112（通知期限の上限384）、p2-shared-runtime.types.ts:244〜248→:246〜:250、計画:79→:80（C15）、runtime-fixture.ts:49〜58→:49〜:61（:155〜:157も足す）、owner-harness.ts:184・:203〜212→:244〜:248・:259〜:272、execution-split.test.ts:749→:780。unit-coverage.ts:69、mailbox.ts:48、notification-delivery.ts:13〜16・:18〜24・:59、shared-runtime.ts:89、unit-table.test.ts:45・:80、mailbox.test.ts:233、shared-runtime.test.ts:623、p2-notification-delivery.types.ts:46は変わらない (3) C4の観測点（host.ts:85〜:88のobserve、composition-root.ts:115のmeasure、:1290〜:1293の権の観測、:1580のunsavedMarks）はunitごとで、RuntimeUnitIdのRecordにU-Tの行を足すだけ（:1580は型で止まる）。C4は閉じたので、C4の凍結manifestにU-Tは入らない。AC13の報告にC4の正式測定を流用しない (4) C3bの停止監視・停止判定・終了の確定は実行場所の単位で、unitはexecutionPlacesから引く: composition-root.ts:354〜:355（monitorsはplaceごと）・:468（stoppedUnit）・:1281〜:1283（停止したplaceと処理中のplaceのunitを権から除く）・:1563〜:1566（unfixedUnits）、host.ts:295（refuseInputはheadTypeの実行場所で判定）。U-TをexecutionPlacesにurgentで足せばU-Eと同じ扱いになり、E20の順序の分岐は増えない (5) 最初の契約群の完了: C4を閉じた（e2a962bd、P3 E01=Pass ec494cb0）。Q-C4-PERF-ONLYは作者裁定でC5を先行する（2026-10-08 15時、E05-Pは台帳66の契約が引き受けて再検収する） (6) P3-UNIT-WRITE-RIGHT-001との関係はP3-C5-WRITE-RIGHTに書いた",
+        "remaining": "baseOidの割当（統合担当、次のcommit）",
+        "reason": "unresolvedQuestionsのQ-C5-C3B-C4-BASE（baseOidの割当と発注をブロック）を閉じる"
+      },
+      {
+        "id": "Q-C5-CORPUS",
+        "status": "closed",
+        "source": "発注前点検（2026-10-08）、案 c5-precheck-proposal.md §2.2",
+        "closed": "(1) O05のunmet 12をsynthetic 6本で充足した（synthetic_VTSE51_fragmentA・fragmentB・correction、synthetic_VTSE52_fragmentA・fragmentB・correction。順序比較の2 stepは同じfixtureを引く）。同じstationの訂正のArea.Codeは、VTSE51が210/岩手県→220/宮城県、VTSE52が空→210/岩手県。値の根拠は親32-39_11_10のObservation（CodeDefine「津波予報区」）に現れる値で、気象庁の公式コード表との照合はrepo内に表が無いため行っていない。sequencesのQ-REVからこの項を外した (2) O01:61〜67（restart→32-39_11_02→32-39_11_09→synthetic_VTSE41_correction→synthetic_VTSE41_cancel→同じ取消の重複→32-39_11_02の遅着）と、O07:27〜34（restart→32-39_11_09→save→restart→synthetic_VTSE41_correction→save→restart→synthetic_VTSE41_cancel）を足した。38-39_03_01は別EventIDなのでこの群に使わない (3) Q-LIMITのU-T境界入力はfixtureを焼かず、試験内で作る（P2-A6の先例。T04） (4) O09:17・18（解除・降格のREST見込み）はE01の母集団の入力としてC6へ送り、unmetのまま残す。解除・降格の意味はT02で確かめる (5) 機械的な波及: manifest 260→268（XML 239→247）、check-manifest.mjsの件数、P1契約のfixtureIdsと件数の文、P1-T01の件数（p1-parser-boundary.test.ts:41）、README。O05:2・:3と足したstepのnotices/intentsはQ-NOTICE（NOTICE-OBSERVATION=C・OBS-LIFETIME=A）の値で埋めた。O05のunmetは12→0、全体のunmetは139→127",
+        "remaining": "なし",
+        "reason": "unresolvedQuestionsのQ-C5-CORPUS（AC10の受入とbaseOidの割当をブロック）を閉じる"
+      },
+      {
+        "id": "Q-C5-SPEC",
+        "status": "closed",
+        "source": "発注前点検（2026-10-08）",
+        "closed": "spec:1131の第2文の後ろに「容量縮退の母集団は P3 で期待値だけを固定し、測定は P4 の容量契約で行う（D-P3-6）。」を、spec:2614の検収列の末尾に「（津波の容量縮退の母集団は期待値の固定までで、測定は P4。D-P3-6）」を、行数を変えずに足した。引用側（sequences.json 110件、本契約AC12、p2-eew-e01.json 1件）のanchorと各meta.sha256を同じcommitで直した",
+        "remaining": "なし",
+        "reason": "unresolvedQuestionsのQ-C5-SPEC（C5の凍結をブロック）を閉じる"
       }
     ],
     "operationContract": {
@@ -353,6 +383,7 @@
       "reconstruction/contracts/p3-execution-split.types.ts",
       "reconstruction/contracts/p3-execution-lifecycle.json",
       "reconstruction/contracts/p3-e01-reaccept.json",
+      "reconstruction/contracts/p3-unit-write-right.json",
       "reconstruction/contracts/p2-eew-unit.json",
       "reconstruction/contracts/p2-eew-unit.types.ts",
       "reconstruction/contracts/p2-weather-timeseries-unit.json",
@@ -418,6 +449,7 @@
       "P3-EXECUTION-SPLIT-001",
       "P3-EXECUTION-LIFECYCLE-001",
       "P3-E01-REACCEPT-001",
+      "P3-UNIT-WRITE-RIGHT-001",
       "P2-SHARED-RUNTIME-001",
       "P2-CHECKPOINT-SHUTDOWN-001",
       "P2-MAILBOX-001",
@@ -461,13 +493,21 @@
       "test__fixtures__32-39_13_07_250206_VTSE41",
       "test__fixtures__38-39_03_01_210805_VTSE41",
       "test__fixtures__rest__telegram-body-vtse41-real",
+      "test__fixtures__synthetic_VTSE41_correction",
+      "test__fixtures__synthetic_VTSE41_cancel",
       "test__fixtures__32-39_11_03_250206_VTSE51",
       "test__fixtures__32-39_11_10_250206_VTSE51",
       "test__fixtures__38-39_02_02_250206_VTSE51",
       "test__fixtures__38-39_03_03_210805_VTSE51",
+      "test__fixtures__synthetic_VTSE51_fragmentA",
+      "test__fixtures__synthetic_VTSE51_fragmentB",
+      "test__fixtures__synthetic_VTSE51_correction",
       "test__fixtures__32-39_12_05_250206_VTSE52",
       "test__fixtures__61_11_01_250206_VTSE52",
-      "test__fixtures__61_11_02_250206_VTSE52"
+      "test__fixtures__61_11_02_250206_VTSE52",
+      "test__fixtures__synthetic_VTSE52_fragmentA",
+      "test__fixtures__synthetic_VTSE52_fragmentB",
+      "test__fixtures__synthetic_VTSE52_correction"
     ],
     "sequenceIds": [
       "O01",
@@ -481,6 +521,69 @@
       },
       {
         "expectedRef": "expected:O05:3"
+      },
+      {
+        "expectedRef": "expected:O05:5"
+      },
+      {
+        "expectedRef": "expected:O05:6"
+      },
+      {
+        "expectedRef": "expected:O05:7"
+      },
+      {
+        "expectedRef": "expected:O05:9"
+      },
+      {
+        "expectedRef": "expected:O05:10"
+      },
+      {
+        "expectedRef": "expected:O05:11"
+      },
+      {
+        "expectedRef": "expected:O05:13"
+      },
+      {
+        "expectedRef": "expected:O05:14"
+      },
+      {
+        "expectedRef": "expected:O05:15"
+      },
+      {
+        "expectedRef": "expected:O05:17"
+      },
+      {
+        "expectedRef": "expected:O05:18"
+      },
+      {
+        "expectedRef": "expected:O05:19"
+      },
+      {
+        "expectedRef": "expected:O01:62"
+      },
+      {
+        "expectedRef": "expected:O01:63"
+      },
+      {
+        "expectedRef": "expected:O01:64"
+      },
+      {
+        "expectedRef": "expected:O01:65"
+      },
+      {
+        "expectedRef": "expected:O01:66"
+      },
+      {
+        "expectedRef": "expected:O01:67"
+      },
+      {
+        "expectedRef": "expected:O07:28"
+      },
+      {
+        "expectedRef": "expected:O07:31"
+      },
+      {
+        "expectedRef": "expected:O07:34"
       },
       {
         "expectedRef": "expected:O09:14"
@@ -501,6 +604,69 @@
       },
       {
         "expectedRef": "expected:O05:3"
+      },
+      {
+        "expectedRef": "expected:O05:5"
+      },
+      {
+        "expectedRef": "expected:O05:6"
+      },
+      {
+        "expectedRef": "expected:O05:7"
+      },
+      {
+        "expectedRef": "expected:O05:9"
+      },
+      {
+        "expectedRef": "expected:O05:10"
+      },
+      {
+        "expectedRef": "expected:O05:11"
+      },
+      {
+        "expectedRef": "expected:O05:13"
+      },
+      {
+        "expectedRef": "expected:O05:14"
+      },
+      {
+        "expectedRef": "expected:O05:15"
+      },
+      {
+        "expectedRef": "expected:O05:17"
+      },
+      {
+        "expectedRef": "expected:O05:18"
+      },
+      {
+        "expectedRef": "expected:O05:19"
+      },
+      {
+        "expectedRef": "expected:O01:62"
+      },
+      {
+        "expectedRef": "expected:O01:63"
+      },
+      {
+        "expectedRef": "expected:O01:64"
+      },
+      {
+        "expectedRef": "expected:O01:65"
+      },
+      {
+        "expectedRef": "expected:O01:66"
+      },
+      {
+        "expectedRef": "expected:O01:67"
+      },
+      {
+        "expectedRef": "expected:O07:28"
+      },
+      {
+        "expectedRef": "expected:O07:31"
+      },
+      {
+        "expectedRef": "expected:O07:34"
       },
       {
         "expectedRef": "expected:O09:14"
@@ -609,7 +775,7 @@
         "id": "P3-C5-RES-02",
         "target": "notification deadlines across both channels",
         "limit": "runtimeUnits.length × 128（U-Tを足して512）",
-        "scope": "composition-root.ts:788の固定値384を置き換える",
+        "scope": "composition-root.ts:1112の固定値384を置き換える",
         "source": "P2-A7-TIME、AC14"
       }
     ],
@@ -722,7 +888,7 @@
       },
       {
         "id": "P3-C5-AC09",
-        "requirement": "入力側の優先（spec:1092）の製品経路検収: host.ts:286でheadType=VTSE41（発令・解除・降格・訓練を問わない）にpriorityReason tsunamiCandidateを付け、VTSE51/52はnormalのまま。startP2Hostの入口（WS frame）から実fixtureで(a)通常枠（120件/14 MiB）がVPWS50・VPWP50で埋まっていてもnormalのVTSE41（32-39_11_02の発令、REST本文telegram-body-vtse41-realの注意報解除、合成の降格）は予約枠で受理される(b)urgentにVTSE51のpendingが並んでいても、in-flightの完了後にVTSE41が先に出る(c)EEW候補はVTSE41より先(d)確認済みtrainingのVTSE41は予約枠・優先を使わない(e)同じheadTypeの先行するnormal VTSE41を飛ばさない、を確かめる。T0〜T1の時刻と選択順をobserveの記録で示す",
+        "requirement": "入力側の優先（spec:1092）の製品経路検収: host.ts:291〜:293でheadType=VTSE41（発令・解除・降格・訓練を問わない）にpriorityReason tsunamiCandidateを付け、VTSE51/52はnormalのまま。startP2Hostの入口（WS frame）から実fixtureで(a)通常枠（120件/14 MiB）がVPWS50・VPWP50で埋まっていてもnormalのVTSE41（32-39_11_02の発令、REST本文telegram-body-vtse41-realの注意報解除、合成の降格）は予約枠で受理される(b)urgentにVTSE51のpendingが並んでいても、in-flightの完了後にVTSE41が先に出る(c)EEW候補はVTSE41より先(d)確認済みtrainingのVTSE41は予約枠・優先を使わない(e)同じheadTypeの先行するnormal VTSE41を飛ばさない、を確かめる。T0〜T1の時刻と選択順をobserveの記録で示す",
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:1089 «7d583246228571ea»",
           "docs/specs/reconstruction-p0-contracts.md:1092 «50f730793bf26903»",
@@ -733,7 +899,7 @@
       },
       {
         "id": "P3-C5-AC10",
-        "requirement": "corpus: O05（expected:O05:2・3と、Q-C5-CORPUSで足すsyntheticの12 step）、O09:14〜16・20の意味部（E01はC6）、O01/O07の津波step（Q-C5-CORPUSで足すもの）を履歴oracleで通す。E13: 全正常の津波fixtureで期限処理後も残る恒常的unavailable 0（REST未対応は理由付き別群）。unmetを免除しない",
+        "requirement": "corpus: O05の全step（expected:O05:2・3と、synthetic 6本の12 step expected:O05:5〜7・:9〜11・:13〜15・:17〜19）、O09:14〜16・20の意味部（E01はC6。O09:17・18はC6の母集団でunmetのまま）、O01:61〜67・O07:27〜34の津波stepを履歴oracleで通す。Q-LIMITの境界入力は試験内で作る（fixtureなし、T04）。E13: 全正常の津波fixtureで期限処理後も残る恒常的unavailable 0（REST未対応は理由付き別群）。unmetを免除しない",
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:1781 «281dabfe783ca67a»",
           "docs/specs/reconstruction-p0-contracts.md:2064 «e2e2e4700050616c»",
@@ -744,7 +910,7 @@
       },
       {
         "id": "P3-C5-AC11",
-        "requirement": "§13.3の9段をcomposition rootの一経路で: 保存失敗中の取消、古いack、通常終了、復元直後の続報（復元したstateとの差で通知を決め、同じ発令を再び緊急群にしない）。current巻戻し0・最新dirty世代維持。checkpointの書込み権と同時dirty（C6でU-Tを加えて確かめる、計画:218）はC4の規則のまま",
+        "requirement": "§13.3の9段をcomposition rootの一経路で: 保存失敗中の取消、古いack、通常終了、復元直後の続報（復元したstateとの差で通知を決め、同じ発令を再び緊急群にしない）。current巻戻し0・最新dirty世代維持。checkpointの書込み権と同時dirty（C6でU-Tを加えて確かめる、計画:218）はP3-UNIT-WRITE-RIGHT-001の規則のまま（unitごとの書込み権、P3-C5-WRITE-RIGHT）",
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:596 «c20d709bf6f86046»",
           "reconstruction/contracts/p3-order-plan.md:218 «c60076e915feb659»"
@@ -752,18 +918,18 @@
       },
       {
         "id": "P3-C5-AC12",
-        "requirement": "§7.5の津波系列（P3-C5-E01-SERIES）をC6への引渡しとして固定する。C5はfacts.series・areaTransitionsを返すところまでで、E01の測定はしない。spec:1131・:2614のD-P3-6改訂（容量縮退の測定をP4へ）は統合担当がC5の凍結時に行う（Q-C5-SPEC）",
+        "requirement": "§7.5の津波系列（P3-C5-E01-SERIES）をC6への引渡しとして固定する。C5はfacts.series・areaTransitionsを返すところまでで、E01の測定はしない。spec:1131・:2614のD-P3-6改訂（容量縮退の測定をP4へ）は発注前点検で行った（Q-C5-SPEC）",
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:1104 «b93e705ab7397a04»",
           "docs/specs/reconstruction-p0-contracts.md:1115 «4d2fc2980fcced03»",
-          "docs/specs/reconstruction-p0-contracts.md:1131 «11fd08067698aeea»",
+          "docs/specs/reconstruction-p0-contracts.md:1131 «97e9cc25a1b97b6f»",
           "reconstruction/contracts/p3-order-plan.md:21 «dcbc4456ea33769c»",
           "reconstruction/contracts/p3-order-plan.md:203 «d3505cb6b3f9f653»"
         ]
       },
       {
         "id": "P3-C5-AC13",
-        "requirement": "urgentでの干渉の報告（台帳63、計画:79の共通条文）: urgentで最も長い非中断処理（最大VTSE41・最大VTSE51のdecode＋reduce、最大U-Tのcheckpoint encode）の所要と、その処理中に投入したEEWの投入→T0・T0→T2の待ちをMacで報告する。正式E01ではなく、Piの確認はC6。U-T同居後のEEWの正式E01はC4の結果を流用せず、spec:1129の母集団4（P4/P5）まで無いことを報告に明記する",
+        "requirement": "urgentでの干渉の報告（台帳63、計画:79の共通条文）: urgentで最も長い非中断処理（最大VTSE41・最大VTSE51のdecode＋reduce、最大U-Tのcheckpoint encode）の所要と、その処理中に投入したEEWの投入→T0・T0→T2の待ちをMacで報告する。正式E01ではなく、Piの確認はC6。U-T同居後のEEWの正式E01はC4の結果を流用せず、spec:1129の母集団4（P4/P5）まで無いことを報告に明記する。あわせて、P3-C5-WRITE-RIGHTの(2)（urgentが入力を処理している間にU-E・U-Tの権が出ない時間）と(6)（受信前回収で、U-Tの保留中のintent更新がurgentのEEW入力の送出を遅らせた回数と遅れ）もMacで報告する",
         "evidenceRefs": [
           "reconstruction/contracts/p3-order-plan.md:79 «975ab2facd6ca2d6»",
           "reconstruction/contracts/p3-order-plan.md:198 «d33db641dfa15ff3»",
@@ -772,7 +938,7 @@
       },
       {
         "id": "P3-C5-AC14",
-        "requirement": "R45（1 unit追加の型）の確認: 触ったfileと行を、adapter・意味・codec・射影・fixture期待値・coverage行・試験helperの区分で一覧にする（P3-C5-SHARED-ROWS=A。試験helperのreconstruction/test/checkpoint-shutdown/runtime-fixture.ts:30〜33・:49〜58とreconstruction/test/execution-split/owner-harness.ts:184・:203〜212を含む）。composition-root.ts:788の通知期限の上限384（3 unit×128）を「runtimeUnitsの数×128」に直す（U-Tを足すと512まで要り、直さないとRangeErrorで止まる）。p2-notification-delivery.types.ts:46の注記も同じ値にする",
+        "requirement": "R45（1 unit追加の型）の確認: 触ったfileと行を、adapter・意味・codec・射影・fixture期待値・coverage行・試験helperの区分で一覧にする（P3-C5-SHARED-ROWS=A。試験helperのreconstruction/test/checkpoint-shutdown/runtime-fixture.ts:30〜:33・:49〜:61・:155〜:157とreconstruction/test/execution-split/owner-harness.ts:244〜:248・:259〜:272を含む。54a63c25でU-E・U-W・U-Fを直書きする製品の行はcomposition-root.ts:66・:71・:188〜:196・:518〜:519・:1265・:1580とowner-runtime.ts:74〜:77・:127〜:129・:137〜:139）。composition-root.ts:1112の通知期限の上限384（3 unit×128）を「runtimeUnitsの数×128」に直す（U-Tを足すと512まで要り、直さないとRangeErrorで止まる）。p2-notification-delivery.types.ts:46の注記も同じ値にする",
         "evidenceRefs": [
           "reconstruction/contracts/p3-order-plan.md:72 «4a65d89f48f565e0»",
           "reconstruction/contracts/p3-order-plan.md:108 «71876395a763cd04»",
@@ -816,7 +982,7 @@
           "P3-C5-AC03",
           "P3-C5-AC10"
         ],
-        "behavior": "O05の全step。fragmentのA→BとB→Aで同じstation集合と値、同stationの訂正、family独立、食い違いfragmentの入力全体stale"
+        "behavior": "O05の全step（:1〜:19、unmet 0）。fragmentのA→BとB→Aで同じstation集合と値、同stationの訂正、family独立、食い違いfragmentの入力全体stale"
       },
       {
         "testId": "P3-C5-T04",
@@ -824,7 +990,7 @@
         "referenceIds": [
           "P3-C5-AC04"
         ],
-        "behavior": "VTSE41 subjectの511/512/513、観測subjectの511/512/513、stationの1023/1024/1025、4 MiBの境界で、退去の候補（超過量を減らすものだけ）・順・normal保護・capacityExceededの不変条件を確かめる。保持上限付近で受信1回のencodeがsubject・station単位の加算だけであること（全体の直列化0）"
+        "behavior": "VTSE41 subjectの511/512/513、観測subjectの511/512/513、stationの1023/1024/1025、4 MiBの境界で、退去の候補（超過量を減らすものだけ）・順・normal保護・capacityExceededの不変条件を確かめる。保持上限付近で受信1回のencodeがsubject・station単位の加算だけであること（全体の直列化0）。境界入力は試験内で作る（Q-C5-CORPUS、P2-A6の先例）: VTSE41 subjectは32-39_11_02のEventIDを替え、stationは32-39_11_10のStationを複製し、4 MiBはstateを膨らませる"
       },
       {
         "testId": "P3-C5-T05",
@@ -864,7 +1030,7 @@
         "referenceIds": [
           "P3-C5-AC10"
         ],
-        "behavior": "O09:14〜16・20の意味部、O01/O07の津波step（Q-C5-CORPUSで足したもの）、全正常津波fixtureのE13集計"
+        "behavior": "O09:14〜16・20の意味部、O01:61〜67・O07:27〜34の津波step（synthetic_VTSE41_correction・synthetic_VTSE41_cancelを含む）、全正常津波fixtureのE13集計"
       },
       {
         "testId": "P3-C5-T10",
@@ -945,7 +1111,7 @@
     ],
     "artifactRequirements": [
       "allowed_paths限定のpatch、変更file一覧、build/test/shuffleの結果、未実行の検証と理由、残存リスク",
-      "追加・変更した各試験が受入条件／契約境界／実不具合／corpus履歴のどれに当たるかの1行。既存試験・試験helperを変える箇所は、変える前に理由を報告する: unit-table.test.ts:45（VTSE41のrouteNotPortedを別のnotPortedのheadTypeへ）、mailbox.test.ts:233（urgentが塞がっていても別のplaceが取られることを残すため、headTypeをdeferredのもの、例えばVPWP50へ替える。消さない）、shared-runtime.test.ts:623（routeNotPortedの期待）、runtime-fixture.ts:30〜33・:49〜58とowner-harness.ts:184・:203〜212（RuntimeUnitIdの網羅にU-Tを足す）。unit-table.test.ts:80（sinkの再起動試験の合成event）とexecution-split.test.ts:749（headTypeを読んだ回数だけを見る）は変えない",
+      "追加・変更した各試験が受入条件／契約境界／実不具合／corpus履歴のどれに当たるかの1行。既存試験・試験helperを変える箇所は、変える前に理由を報告する: unit-table.test.ts:45（VTSE41のrouteNotPortedを別のnotPortedのheadTypeへ）、mailbox.test.ts:233（urgentが塞がっていても別のplaceが取られることを残すため、headTypeをdeferredのもの、例えばVPWP50へ替える。消さない）、shared-runtime.test.ts:623（routeNotPortedの期待）、runtime-fixture.ts:30〜:33・:49〜:61・:155〜:157とowner-harness.ts:244〜:248・:259〜:272（RuntimeUnitIdの網羅にU-Tを足す）。unit-table.test.ts:80（sinkの再起動試験の合成event）とexecution-split.test.ts:780（headTypeを読んだ回数だけを見る）は変えない",
       "AC14のR45一覧（file:lineと区分）。unit・domain・testのdirectoryの外で足した行・caseの数",
       "AC13のurgentでの干渉の数値（Mac、試行数・最大・中央値）。正式E01と呼ばない",
       "仕組みを一つ足すときは、要求する契約IDと無いと壊れる振る舞いを1行で添える。1実装のinterface・factory・registry・将来用の拡張点を足さない",
@@ -954,47 +1120,6 @@
       "永続schemaの変更: p3-tsunami-unit-v1は新設で旧データの移行は無い（P3-C5-MIGRATION）。復元試験はこの版の保存物だけで行い、旧築の形式を読まない",
       "純粋な意味関数とreduceはDiagnosticDetailsだけを返し、runtimeがtimestamp/runIdを付ける。識別不能な拒否ではsubjectを空文字にし、架空の業務identityを作らない。DiagnosticReasonへの追加はQ-ENUM.diagnosticReasonsの2つ（tsunamiRevisionConflict・tsunamiCapacityEvicted）だけ（persistent-diagnostic-sink.tsの一覧にも足す）"
     ],
-    "unresolvedQuestions": [
-      {
-        "id": "Q-C5-C3B-C4-BASE",
-        "owner": "integrator",
-        "blocks": [
-          "baseOidの割当と発注"
-        ],
-        "resolveBy": "C3bとC4（工程2を含む）の配送後、最初の契約群の完了時",
-        "requiredEvidence": [
-          "C3b・C4の配送commitと、本契約が引くhost.ts:286（priorityReason）・composition-root.ts:788（通知期限の上限）・unit-coverage.ts・owner-runtime.tsの行のfile:lineの読み替え（行の内容は起草時の15d5885c）",
-          "C4がhost・owner・composition rootへ足す観測点・注入口とU-Tの結線が衝突しないこと（AC09・AC13の観測の取り方）",
-          "C3bの停止監視・終了順序にurgentのU-Tが入ってもE20の順序が変わらないこと",
-          "最初の契約群の完了（計画:46）と、PERF-P3だけが残った場合のQ-C4-PERF-ONLYの裁定"
-        ]
-      },
-      {
-        "id": "Q-C5-CORPUS",
-        "owner": "integrator",
-        "blocks": [
-          "AC10の受入（O05の12 step、O01/O07の津波step）",
-          "baseOidの割当（sequences.jsonのhashが変わるので契約を再計算する）"
-        ],
-        "resolveBy": "C5の発注の前",
-        "requiredEvidence": [
-          "O05のunmet 12（:5〜7・:9〜11・:13〜15・:17〜19）のsynthetic fixtureと期待。Q-REVの「VTSE同station訂正用の合法Area.Code」を公式区域表と照合して固定",
-          "O01とO07には現在津波stepが無い（起草時のsequences.jsonで0件）。O01にVTSE41の発表→続報→同一revision訂正→取消→重複→遅着、O07に保存→停止→復元→直後の続報・取消の津波stepを足す。実fixtureは32-39_11_02/09/11と38-39_03_01（取消、別EventID）、REST本文（20260728162718の注意報解除）。足りない訂正・取消はsynthetic",
-          "Q-LIMITのU-T境界入力（VTSE41 subject 512/513、station 1024/1025、4 MiB付近）",
-          "O09:17・18（解除・降格のREST見込み）はC6の母集団でsyntheticに置くか、C5の意味部に入れるかの振り分け"
-        ]
-      },
-      {
-        "id": "Q-C5-SPEC",
-        "owner": "integrator",
-        "blocks": [
-          "C5の凍結（計画:176）"
-        ],
-        "resolveBy": "baseOidの割当と同じcommit",
-        "requiredEvidence": [
-          "spec:1131と:2614を行数を変えない置換で改訂し、津波の容量縮退の測定をP4へ送る旨（D-P3-6）を入れる。spec:1131は契約・sequencesから110件引用されているので、引用側のanchorを同じcommitで更新し、check-contractとcheck-sequencesを通す"
-        ]
-      }
-    ]
+    "unresolvedQuestions": []
   }
 }
