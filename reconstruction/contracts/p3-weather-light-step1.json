@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "e02a413fc240931f1830e966ac94dde1e27aa5f5",
-    "sha256": "2558e5df97524acb541191c7d6a53999763fafc74bda288a1cd80c7b3b8ca7bd",
+    "sha256": "fedeaed2053bcfa4838e3511febee536424a90a32609c6494da1cfc7bc9ccbb6",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "226b73cbfb4e769c89d2b1327fcbd8067a47887303527a2893592fba47176235",
     "sequencesSha256": "79769d888ff5f429e4bd370a6a88ccb30611b5ee2a1e7b12d25d58f215cbfbd3",
@@ -98,7 +98,7 @@
     "contractId": "P3-WEATHER-LIGHT-001",
     "mode": "implementation",
     "objective": "気象の電文の処理を軽くする段1（E03（台帳66の前段）、作者の方向「性能は大元から」とP3-C4-PI-E03=A）。業務の約束を変えない小さな直しだけを入れる: (A1) parseTreeのfast-xml-parserに jPath:false を足す (A2) xmlValueの&なしの近道・配列を作らないcode pointの数え方・weatherCurrentのvalidateMaterial／inspectIdentityで同じKind／Areaの子と値を計算し直さない (S1) U-Wの保存で全量の二重の処理を除く: encodeは項目ごとの型の確かめを残し、全量のJSON.stringifyによるbyteの計量だけを既存のcacheの和に替える（persistedValueとdecodeは変えない）。受理時の容量の見積りはhistoryを既存のcacheで加算する。同じ入力・同じ状態で、decision・拒否の理由・state・保存のbyte・復元の結果が旧と同じであることを比較で示し、Macの前後比較を報告する。木を作らないparse（段2）と保存の圧縮・重複除去（段3）は扱わない。",
-    "baseOid": "unassigned",
+    "baseOid": "bc6fe3fb765b57709c24048ba7849989dce6f8a0",
     "cleanTreeRequired": true,
     "readPaths": [
       "AGENTS.md",
