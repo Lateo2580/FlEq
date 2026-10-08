@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "fd6e8f33d962ff768120333470aae277c031cc96",
-    "sha256": "443073bead27cac4640c82b9199e4d5d58475fda08cb99c24087a8d7d279b8c5",
+    "sha256": "e7446854d4f2d55731dfda560c9e6d58d7601b43f45db8a17f0eb37dfb698671",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "76c82b87d7783a4eae14af690cb34e7d6ec46f73617dc75b7f7401951619f080",
     "sequencesSha256": "be9cfd97b555e3a55568f085d107342c978b3dc7249f5cecea868ea5a62c5781",
@@ -31,7 +31,7 @@
         "B": "Piに対するE03の上限を変える",
         "recommended": "A",
         "provisional": "A",
-        "ruling": "作者裁定待ち（Pi予備確認の結果が出てから。C4の完了は止めない。Piでの本番判定はP5）",
+        "ruling": "作者裁定でAに確定（2026-10-08 15時、Q-C4-AUTHOR-RULINGS）。Piでの本番判定はP5",
         "reason": "見え方の違い: Aでは、Piで大型の気象電文の処理に2秒前後かかる状態（台帳63の単発測定でprocessing 2,400ms）が続く間、同じunitの後続の気象電文の表示はその分遅れ、削減の契約が終わるまで残る。EEWはowner分離で影響を受けない（E01で確かめる）。Bでは上限を満たした扱いになるが、大型通常入力の処理完了の保証と、同じunitの後続処理への影響を失う"
       },
       {
@@ -238,8 +238,71 @@
         "id": "Q-C4-DEADLINE-SUBJECT",
         "status": "closed",
         "closed": "統合担当が2026-10-07に確定: 母集団5（forecastDeadlineOverlap）の引き金は、VPWP50 81_01_04のEditorialOfficeを負荷N・Pに無い官署名（期限回収官署）へ替え、負荷の81_01_04（稚内）とU-Fのsubjectを分ける。fixtureは替えない（稚内以外のVPWP50のfixtureは81_09_01だけで、母集団4の引き金でXMLが約8倍）。establishment（span \"encodeThroughWrite\"を含む）・triggerLeadMs・stopConditionは変えない。正式の起動時の確認で、引き金の官署が母集団5の負荷のVPWP50に無いことを照らす。凍結manifest p3-c4-formal-20261007は書き換えず、母集団5は新しいmanifestIdで測り直し、証拠はAC11の採用表で組む。新しいmanifestで元と違ってよいのはpopulations.forecastDeadlineOverlap.triggerの文だけ（AC11(2)。採用表はこのIDを書く）",
-        "remaining": "新しいmanifestIdの凍結と母集団5の正式3 runの測定（統合担当）",
+        "remaining": "なし（新しいmanifest p3-c4-formal-deadline-20261008を49d745efで凍結し、母集団5の3 runはPass〔reconstruction/test/eew-e01/evidence/windows/p3-c4-formal-deadline-20261008/results/result-formal-forecastDeadlineOverlap-run{1,2,3}.json〕。採用表はreconstruction/test/eew-e01/evidence/p3/adoption-result.json〔ec494cb0〕）",
         "reason": "正式p3-c4-formal-20261007（Mac mini）で、負荷Nの背景（offset 2,227,748ms）の81_01_04 VPWP50が報告時刻を壁時計へ動かし、同じsubjectの引き金（報告時刻は狙うtick−49h）が背景の後すべてstaleになった。成立は背景の前322/476、後0/406で、母集団5はBlocked。判断に使ったのは成立数だけで、遅延の分布は見ていない（spec:1106）"
+      },
+      {
+        "id": "P3-C4-CLOSE-VERDICTS",
+        "status": "closed",
+        "closed": "C4の判定表（統合担当、2026-10-08）。値は版付き結果から読み直した。F/＝reconstruction/test/eew-e01/evidence/windows/p3-c4-formal-20261007/results/、D/＝reconstruction/test/eew-e01/evidence/windows/p3-c4-formal-deadline-20261008/results/。機械はMac mini（P3-C4-MACHINES=B）で、E01以外の判定場所はPi（P5、manifestのjudgmentPlaces）。E01: Pass（reconstruction/test/eew-e01/evidence/p3/adoption-result.json の.verdict.status。正式5母集団×3 runの15窓をF/とD/のresult-formal-*-run*.jsonから採り、各runでsamples 1,000・missing 0・traceMissing 0・injectionFailures 0、.p99UpperMs 40.48〜67.63ms。母集団5はD/の3窓で、旧3窓はBlockedのまま.supersededに残る。衝突はreference）。E02: Pass（F/result-e02-{N,P}-run{1,2,3}.json の.status・.p99Ms: N 2.40・2.46・2.47ms、P 2.64・2.62・2.66ms、各samples 1,000・missing 0）。E03: Pass（Macの報告で回帰検出。F/aux-e03-run{1,2,3}.json の.e03.processingMs.p99 632.90・627.80・625.82ms、.e03.unprocessed 0、.e03.queueWaitMs.p99 35.05・26.21・21.87ms。Piの扱いはP3-C4-PI-E03）。E04: N/A（表示端末のpaint、display担当・P4、spec:2055）。E05: NはPass・PはFail（F/aux-e05-{N,P}-run{1,2,3}.json の.e05.maxRssBytes: N 278.16・270.79・270.99MiB〔上限300〕、P 453.61・455.19・458.57MiB〔上限400〕、.e05.coverage.missingSamples 0。窓記録e02-P-run*.jsonの最上位のstatusはE02の判定で、.statuses.E05がFail。引受はP3-C4-CLOSE-E05P）。E06: JSONの表示はN/A（F/aux-e06.json の.status \"N/A\"、.e06.spec.report「報告（spec 式の範囲内）」）。再検収（e01:93、spec§9.9の3式）は.e06.spec.checksの3式ともexceeded false: rssMedianSlopeBytesPerHour −25,264,491 B/時（−24.09MiB/時、上限1MiB/時）、finalMinusFirstRssMedianBytes −8,472,136 B（−8.08MiB、上限5MiB）、fdFinalMaxMinusFirstMax 0（上限0）。AC06の「超過があったら」（原因分類の別窓）には当たらない。E07: Pass（F/aux-e07-N.json・aux-e07-C.json の.e07.status。.e07.wait.upperMs N 1.31ms・C 0.525ms、排出の上界〔.e07.drain.upperMs−lastT0Ms〕N 1,138.49ms・C 1,019.03ms、Cの.e07.cycleEnd.endsは60点すべて0件0 byte、limitViolations 0、ownerTrouble空、accepted＝observedT1〔N 21・C 420〕）。E08・E09・E10・E11・E13: N/A（C4の範囲外。E08・E11はC3b、E10はC3a、E09はP1、E13は各unit。計画§1.2、spec:2059〜2064）。E12: 報告（F/aux-e12-{small,large,max}-run{1,2,3}.json の.statusは\"N/A\"。旧新を別実行した報告で、総allocationの削減の証明にしない）。E14: 報告（F/aux-e14-run1.json の.statusは\"N/A\"）。中身はP3-C4-CLOSE-E14。E15: 報告（.e15.statusはnull）。中身はP3-C4-CLOSE-E15。AC15: Pass（F/aux-ac15.json の.status・.retention.status・.full.judged.status・.half.judged.statusがPass、violations・unconfirmed・missingは空）。参考量: 補助窓ownerHeapのweatherCurrentのinputDone直後のheapUsed最大519,332,056 B（495.27MiB、F/aux-ownerHeap-run1.json の.inputDoneHeap.weatherCurrent.maxHeapUsedBytes、100行。RSSと足さない）。43窓のframe間隔の最大は20.0秒（F/とD/のp3-result.json の.windows[].liveness.maxFrameGapMs、上限90秒）",
+        "remaining": "E05-PはP3-C4-CLOSE-E05P、E14の後継の測定はP3-C4-CLOSE-E14、E15のbyte/日はP3-C4-CLOSE-E15。E01以外のPiでの本番判定はP5",
+        "reason": "AC11の版付き結果に対するD-P3-10「C4の結果」の総合レビュー（Codex、新規スレッド・read-only・Astra high）の結論が条件付きで、閉鎖記録を求めた"
+      },
+      {
+        "id": "P3-C4-CLOSE-E05P",
+        "status": "closed",
+        "closed": "E05-PはFail（reconstruction/test/eew-e01/evidence/windows/p3-c4-formal-20261007/results/aux-e05-P-run{1,2,3}.json の.e05.maxRssBytes 475,647,360・477,302,072・480,841,064 B＝453.61・455.19・458.57MiB、.e05.limitBytes 419,430,400）。同じ窓のweatherCurrentのheapUsed最大（.ownerHeap.weatherCurrent.maxHeapUsedBytes、deadlineDoneの行）は415.84・393.62・424.23MiB。作者裁定（2026-10-08 15時、Q-C4-PERF-ONLY）で、引受先は台帳66（weatherCurrentのparseの木2本でheapが山になる）の契約とし、その契約の配送後に新しいmanifestIdで同じPの窓（e01:93）のE05-Pを再検収する。C4の中では直さない（P3-C4-FAIL-PATH=A）。P3-UNIT-WRITE-RIGHT-001のQ-UWR-REMEASUREはE05-Pを含まない",
+        "remaining": "台帳66の契約（未起草）の起草・配送と、その版でのE05-Pの再検収（統合担当）",
+        "reason": "E05-Pの未達の引受先を決める（Codexの節目「C4の結果」の指摘1、作者裁定Q-C4-PERF-ONLY）"
+      },
+      {
+        "id": "P3-C4-CLOSE-E14",
+        "status": "closed",
+        "closed": "E14は報告として成立した（reconstruction/test/eew-e01/evidence/windows/p3-c4-formal-20261007/results/aux-e14-run1.json: .e14.bundles 60、.e14.linked 18、.e14.unconfirmed.notSimultaneous 42。成立して成功に結べた18束のunitごとのdirty→ackはp50／観測最大〔18標本なのでp99は観測最大と同じ値〕でU-E 811.25／977.85ms、U-W 2,287.24／2,451.31ms、U-F 1,440.99／1,605.69ms、.e14.units.*.overLimit 0）。これは3秒の保証（spec:855・:2066）の合格の証拠ではない: 起点はpublisherがinputDoneを反映した時刻（generationRaised、AC13(3)②）で、射影・約4.6MBの返信の複製・配送の後なのでdirty→ackを短めに出す（台帳68、P3-UNIT-WRITE-RIGHT-001のP3-UWR-ORIGIN68）。42束のnotSimultaneousの分類も起点を早めると変わりうる。窓はMac mini・通知silent・背景なしの同時dirtyで、判定場所はPi（P5）。後継の測定はP3-UNIT-WRITE-RIGHT-001のQ-UWR-REMEASURE（新しいmanifestId、E14の起点はownerMonotonicMs）",
+        "remaining": "Q-UWR-REMEASURE（P3-UNIT-WRITE-RIGHT-001の配送後）",
+        "reason": "E14の測定限界と後継の測定を記録する（Codexの節目「C4の結果」の指摘2）"
+      },
+      {
+        "id": "P3-C4-CLOSE-E15",
+        "status": "closed",
+        "closed": "E15（AC05）はmanifestのauxiliary.E15.sharesWindowWith（E02-P・E05-P・AC15・E06）の窓で、報告（.e15.status null）として次を満たした: reconstruction/test/eew-e01/evidence/windows/p3-c4-formal-20261007/results/aux-e05-P-run{1,2,3}.json・aux-e06.json・aux-ac15.json（.full・.half）の.e15で、.writes.complete true、.writes.unconfirmed・unattributed・unverifiedと.blockedが空、.byteViolations 0、.unknownInputIds 0、.preSaveSyncMsの全unitでinvalid 0、verifyCount 0。unit別のencode回数・write byte・占有（occupiedMsLower）は同じ.e15.unitsにある。AC05のbyte/保存・受理・日の補い。集計区間はhostの起動から停止まで（summarizeE15はhostの観測の全CheckpointMeasurementを数える、aux-measures.mjs）で、充填と終了処理の保存を含む。byte/保存＝.e15.units.<unit>.writeBytes÷encodeCount: E02-P（3 run）U-E 79,087〜79,534 B（保存42回）・U-W 7,328,187〜7,328,733 B（44回）・U-F 1,430,458〜1,438,121 B（6回）、E06 U-E 10,916 B（316回）・U-W 7,605,574 B（133回）・U-F 1,563,121 B（198回）、AC15 full U-E 81,488 B（41回）・U-W 7,749,399 B（117回）・U-F 1,559,168 B（113回）、AC15 half U-E 63,883 B（26回）・U-W 6,450,661 B（114回）・U-F 782,359 B（112回）。byte/受理＝3 unitのwriteBytesの和÷.viewCopy.inputs（T2の行を持つ入力の数。.viewCopy.unbound〔T0があってT2の無い入力〕は全窓で0）: E02-P 193,711〜193,762 B（入力1,726、うち充填の.fill.frames 1,664）、E06 624,170 B（2,122、充填1,667）、AC15 full 482,116 B（2,253、充填1,923）、AC15 half 637,789 B（1,293、充填963）。byte/日は未確認: 結果に定常区間だけのwrite byteが無く、充填・終了処理を含む総量を定常の日量へ外挿しない。verify段は0回で「未観測」（Passと呼ばない、P3-C4-FREEZE-DECISIONSの(5)）。判定場所はPi（P5）",
+        "remaining": "byte/日（定常区間の集計）は未確認。Piでのunitごとの保存回数・書込量はQ-UWR-REMEASUREとP5",
+        "reason": "AC05の報告の不足を補う（Codexの節目「C4の結果」の指摘3）"
+      },
+      {
+        "id": "P3-C4-CLOSE-INGRESS-N7",
+        "status": "closed",
+        "closed": "N7・IR06（§7.6のparse分離B）とP3-C4-INGRESS-JSON=Aの記録（AC11）。正式の衝突窓（参考、reconstruction/test/eew-e01/evidence/windows/p3-c4-formal-20261007/results/result-reference-maxVpws50ReceivedThenEew-run1.json）: samples 1,000・missing 0・overlapNotEstablished 0、実送信→T0 p99 2.38ms（.injectedToT0P99Ms）、T0→T6 p99上界 49.81ms（.p99UpperMs）、実送信→T6 p99上界 51.64ms（.injectedToT6P99UpperMs）。parse母集団maxVpws50ParseStartedのE01は3 runともPass（reconstruction/test/eew-e01/evidence/windows/p3-c4-formal-20261007/results/result-formal-maxVpws50ParseStarted-run{1,2,3}.json の.p99UpperMs 40.48・47.23・43.33ms）。結び付けた予備の記録（Vault、作業ノート）: (1) 6成分の分解とINGRESSの判定: FlEq-archive/FlEq-P3-C4-phase2-prelim-2026-10-07/agg/sum-new.json の[2].dirs[0].ingressJson（Mac miniの予備W2、衝突1,000標本）のcomponentsのp99がingressJsonMs 1.106・実送信→T0の残り 1.162・T0→T2 0.320・T2→T3 5.959・T3→T4 1.508・T4→T6 42.04ms、injToT6UpperP99Ms 49.323、over250 0、decision「publisher に残して値を記録」（FlEq-archive/FlEq-P3-C4-phase2-prelim-2026-10-07/ac08-prelim-report.md §3）。正式の衝突窓の同じ6成分はFlEq-archive/FlEq-P3-C4-phase2-prelim-2026-10-07/c4-formal-report.md §2.4（ingressJsonMs p99 1.126・max 1.261ms、T4→T6 p99 43.518ms、250ms超0件） (2) Piのingressの最大: FlEq-archive/FlEq-P3-C4-pi-stage1-2026-10-06/analysis.json の.runs[].ingressJsonMs.maxの最大6.16ms（.runs[2]、maxWeatherCheckpointEncodeStarted、C3a配置6321e1e0）、衝突のrun（.runs[1]・[4]・[7]）は1.43・1.29・1.43ms（FlEq-archive/FlEq-P3-C4-pi-stage1-2026-10-06/pi-stage1-report.md） (3) Mac/Piのingressの比: 未結合（FlEq-archive/FlEq-P3-C4-phase2-prelim-2026-10-07/ac08-prelim-report.md §3の末尾に「添えていない」、FlEq-archive/FlEq-P3-C4-pi-stage1-2026-10-06/pi-stage1-report.mdのPi/Macの比の表にingressJsonMsの行は無い）。parse母集団と衝突のE01に未達が無く、帰属がXML parse主因の未達は無いので、AC11の記録としてN7・IR06は閉じた",
+        "remaining": "Mac/Piのingressの比はC4では未結合。作者裁定（2026-10-08 16時、移管）で、P3-UNIT-WRITE-RIGHT-001の実装の後のPiの測り直し（Q-UWR-REMEASURE）へ送った。AC09の成果物のうちC3b配置のPi第1段・第2段の記録の扱いは「移管、作者裁定 2026-10-08」（Mac/Piのingressの比・Piのprocessingの内訳も同じ移管）。spec:2613（P2行）・:2930（N7）は本閉鎖の改訂で同期した",
+        "reason": "P3-C4-INGRESS-JSONとN7・IR06の閉鎖の証拠を結び付ける（Codexの節目「C4の結果」の後続の判断材料）"
+      },
+      {
+        "id": "Q-C4-PERF-ONLY",
+        "status": "closed",
+        "closed": "作者裁定（2026-10-08 15時、進捗ノート）: C5を先に進める。E01の正式母集団はPass、PERF-P3のうちE02-PはPass、E06は3式充足で、残るのはE05-P（P3-C4-CLOSE-VERDICTS）。E05-Pは台帳66の契約が引き受けて再検収する（P3-C4-CLOSE-E05P）",
+        "remaining": "E05-Pの再検収（台帳66の契約）",
+        "reason": "unresolvedQuestionsのQ-C4-PERF-ONLY（計画§5末尾の条件付き裁定）を閉じる"
+      },
+      {
+        "id": "Q-C4-AUTHOR-RULINGS",
+        "status": "closed",
+        "closed": "P3-C4-PI-E03は作者裁定でA（2026-10-08 15時、進捗ノート）: PiのE03の上限1秒を変えず、不要な全量処理・コピー・直列化を削る契約を先に起こす（台帳66の直しと合わせる見込み）。材料: Pi第1段（C3a配置6321e1e0、FlEq-archive/FlEq-P3-C4-pi-stage1-2026-10-06/pi-stage1-report.mdの単体の比較）でVPWS50 15_18_01のprocessing p50 2,378〜2,417ms・観測最大2,741ms、queue待ちの観測最大26.2ms。MacのE03はp99 625.82〜632.90ms（P3-C4-CLOSE-VERDICTS）。processingの内訳と、C3b配置のPi第1段・第2段の記録は、FlEq-archive/FlEq-P3-C4-pi-stage1-2026-10-06/とFlEq-archive/FlEq-P3-C4-phase2-prelim-2026-10-07/からは未結合。P3-C4-COLLISION-VERDICT・P3-C4-MACHINESは2026-10-06朝に裁定済み",
+        "remaining": "Piのprocessingの内訳と、C3b配置のPi第1段・第2段の記録はC4では未結合。作者裁定（2026-10-08 16時、移管）で、P3-UNIT-WRITE-RIGHT-001の実装の後のPiの測り直し（Q-UWR-REMEASURE）へ送った。AC09の成果物のうちC3b配置のPi第1段・第2段の記録の扱いは「移管、作者裁定 2026-10-08」（Mac/Piのingressの比も同じ移管）。削減の契約の起草（統合担当）。Piでの本番判定はP5",
+        "reason": "unresolvedQuestionsのQ-C4-AUTHOR-RULINGSを閉じる"
+      },
+      {
+        "id": "Q-C4-D-P3-2",
+        "status": "closed",
+        "closed": "作者裁定（2026-10-08昼、進捗ノート）: D-P3-2の設計=B（unitごとの書込み権。非緊急のownerは自分の保存中だけ次のparser入力を留保し、urgentは留保しない）。P3-UNIT-WRITE-RIGHT-001（bf91242dで起草、台帳64・68）へ移した。材料: 同じP・Cの窓の結果（P3-C4-CLOSE-VERDICTS・P3-C4-CLOSE-E15）、Piのunitごとの保存回数・書込量とE14の区間の分解はFlEq-archive/FlEq-P3-C4-pi-stage1-2026-10-06/pi-stage1-report.mdの「E14 の分解」（C3a配置、1 run約22.5分でU-W〔衝突〕20回・59.9MB、U-W〔encode中〕41〜43回・79〜84MB、U-F 77回・42.9MB、U-E 3〜5回・2.4〜4.2KB、段ごとのencode・write・fileSync・directorySync）とFlEq-archive/FlEq-P3-C4-phase2-prelim-2026-10-07/dp32-materials.md §1.2。権の待ちの分解（checkpointGrant）を含むPiの記録と、設計Bの後の測定はQ-UWR-REMEASURE",
+        "remaining": "Q-UWR-REMEASURE（P3-UNIT-WRITE-RIGHT-001）",
+        "reason": "unresolvedQuestionsのQ-C4-D-P3-2を閉じる"
+      },
+      {
+        "id": "P3-C4-CLOSE-GATES",
+        "status": "closed",
+        "closed": "既存ゲートの実行証拠（AC12）。(1) commit d3732735: mainでのローカルのゲートがGREEN（tsc 2本・vitest・--sequence.shuffle・checker 3本、2026-10-08朝、統合担当が実行）。CIはrun 37694104662でsuccess (2) commit bf91242d: CIはrun 37722984609でsuccess (3) 本閉鎖の版（base ec494cb0の作業ツリー、2026-10-08）: ./node_modules/.bin/tsc --project reconstruction/tsconfig.json（exit 0）、./node_modules/.bin/tsc --project reconstruction/tsconfig.test.json（exit 0）、npm test -- --config reconstruction/vitest.config.ts --maxWorkers=2（exit 0、Test Files 43 passed・Tests 450 passed | 3 skipped）、npm test -- --config reconstruction/vitest.config.ts --maxWorkers=2 --sequence.shuffle（exit 0、同じ件数）、node reconstruction/contracts/check-contract.mjs（exit 0、19契約PASS）、node reconstruction/tools/corpus/check-manifest.mjs（exit 0）、node reconstruction/tools/corpus/check-sequences.mjs（exit 0）、git diff --check（exit 0）",
+        "remaining": "なし",
+        "reason": "AC12の既存ゲートの実行証拠を閉鎖記録から辿れるようにする（Codexの節目「C4の結果」の未確認の項目）"
       }
     ],
     "operationContract": {
@@ -893,40 +956,6 @@
       "工程2の成果物（統合担当が実走して記録する）: Mac miniの予備測定の記録と所要の積算、Pi予備確認の第1段・第2段の記録、凍結manifest、正式測定の版付き結果（P3E01Verdict、E02・E05・E06・E15・報告の窓）、N7・IR06の閉鎖の記録、D-P3-2の再裁定の材料（該当時）、Codexの総合レビュー2回（測定準備一式・結果）の記録",
       "既存試験の期待値を変えたときは、AC12の(a)〜(e)のどれに当たるかと変更前後の値を一覧にする"
     ],
-    "unresolvedQuestions": [
-      {
-        "id": "Q-C4-AUTHOR-RULINGS",
-        "owner": "user",
-        "blocks": [
-          "PiでのE03の上限の扱い（C4の完了は止めない）"
-        ],
-        "resolveBy": "Pi予備確認の結果が出た後（P3-C4-COLLISION-VERDICT・P3-C4-MACHINESは2026-10-06朝に裁定済み）",
-        "requiredEvidence": [
-          "P3-C4-PI-E03はPi予備確認の結果が出てから（C4の完了を止めない）"
-        ]
-      },
-      {
-        "id": "Q-C4-D-P3-2",
-        "owner": "user",
-        "blocks": [
-          "D-P3-2の再裁定（C4の結果次第）"
-        ],
-        "resolveBy": "正式測定の結果が出た後",
-        "requiredEvidence": [
-          "E02-P・E05-PのFailが残るか、PiのE14が3秒を超えたとき（D-P3-8）: 同じP・Cの窓の結果、Piのunitごとの保存回数・書込量、E14の区間の分解"
-        ]
-      },
-      {
-        "id": "Q-C4-PERF-ONLY",
-        "owner": "user",
-        "blocks": [
-          "C5の着手（PERF-P3だけが残った場合）"
-        ],
-        "resolveBy": "正式測定の結果が出た後",
-        "requiredEvidence": [
-          "E01の正式母集団がPassで、PERF-P3（E02-P・E05-P・E06）だけが残ったときにC5を先に進めるかの作者裁定（計画§5末尾の条件付き裁定）"
-        ]
-      }
-    ]
+    "unresolvedQuestions": []
   }
 }

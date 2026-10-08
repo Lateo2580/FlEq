@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "49d745eff613131fa6b0e3681d019a389d13cd1f",
-    "sha256": "d9eb1a165bbdd896f3521d4f6cba262e1d200461d55c3fe00df6fa667f117b92",
+    "sha256": "ec2a60501fc615fbe53ed56e30a969b4cedd28c93c5b487df964dcabf3a483d9",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "76c82b87d7783a4eae14af690cb34e7d6ec46f73617dc75b7f7401951619f080",
     "sequencesSha256": "be9cfd97b555e3a55568f085d107342c978b3dc7249f5cecea868ea5a62c5781",
@@ -531,7 +531,10 @@
         "requiredEvidence": [
           "新しいmanifestIdでの測り直し（C4のrunner）: Mac miniのE14の窓・E07のN/C・保存と重なるE01の母集団（3〜5）。E14は起点にownerMonotonicMsを使う",
           "Pi第1段の衝突run（最大VPWS50を約3秒ごと）3本: unitごとのdirty→ackの観測最大と区間の分解、同時I/Oの下のunitごとの保存時間（encode・write・sync・rename）、weatherCurrent・deferredの入力の待機年齢と留保の満了回数、U-Fの入力の負荷、保存と重なるEEWのE01の区間",
-          "短い予備の判定（Pi第1段、正式Passとは呼ばない）: 各unitの各dirty更新からそれを含む世代のackまで≤3秒（spec:855・:2066）で、通常入力の最大待機年齢と入力停止後の排出がE07の値の内側なら台帳64を解消とし、外れれば原因を分類して作者へ報告する（D-P3-9）。正式の判定はspec:2058のE07の条件全部（N・Cを各60分、全遷移で宣言上限内、最大待機年齢5秒以下、停止から10秒以内に0、warm-up後の周期末backlogが増えない）とE14をPiで測ってから行う（計画§4.5、P5）。checkpointOverdueの件数はPi第1段と粒度が違いうるので参考"
+          "短い予備の判定（Pi第1段、正式Passとは呼ばない）: 各unitの各dirty更新からそれを含む世代のackまで≤3秒（spec:855・:2066）で、通常入力の最大待機年齢と入力停止後の排出がE07の値の内側なら台帳64を解消とし、外れれば原因を分類して作者へ報告する（D-P3-9）。正式の判定はspec:2058のE07の条件全部（N・Cを各60分、全遷移で宣言上限内、最大待機年齢5秒以下、停止から10秒以内に0、warm-up後の周期末backlogが増えない）とE14をPiで測ってから行う（計画§4.5、P5）。checkpointOverdueの件数はPi第1段と粒度が違いうるので参考",
+          "C4から移管（作者裁定 2026-10-08 16時、P3-E01-REACCEPT-001のQ-C4-AUTHOR-RULINGS・P3-C4-CLOSE-INGRESS-N7。C4のAC09の成果物）。完了の条件: Pi第1段（backend単独）と第2段（Piのbackend＋Mac miniのChrome、実paintまで）の記録",
+          "C4から移管（同上）。完了の条件: MacとPiのingressJsonMsを同じ条件（同じ母集団・入力・runner）で比べた比",
+          "C4から移管（同上）。完了の条件: Piのprocessingの内訳（測定区間を書く）"
         ]
       }
     ]

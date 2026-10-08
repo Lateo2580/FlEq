@@ -2610,7 +2610,7 @@ consumer の一試行 timeout は登録時の必須宣言値とし、開始値�
 |---|---|---|
 | P0 契約・境界・oracle | 本spec、route表、単位表、corpus manifest、機能採否、比較形式 | 21routeの未対応0、全257fixtureの分類行あり、全系列に期待根拠あり、Q13の未処理横断0、未決事項にownerと期限あり |
 | P1 パーサ境界 | 純粋な資材型、decode 済み入力、診断、運用区分、七区間計測 | 全 XML の期待差分分類、一入力一回 decode／展開／full parse、特殊値・空白・属性・先頭ゼロ保持、旧 engine/ui 依存0、入力上限検査。§5.1 の三判定源・区分必須型・拒否 reason を契約前に固定し、全257 fixture の分類・期待根拠と P1 作業契約の存在を確認 |
-| P2 最小縦断 | EEW＋VPWS50＋VPWP50、runtime、mailbox、checkpoint、通知 intent、最小 SSE/Chrome 表示 | O02/O04/O06/O07/O09/O10 成功、194period 保持、無変化 tick 0仕事、Q2=B、成否不明解決、E01 の EEW250msと原因別 A/B 判定。IR01/03/06/08/14 の契約を事前固定し、単位固有保存失敗の隔離、緊急初回試行、意味鮮度の対象束縛、区分交差、queue 排出、E15 を検収 |
+| P2 最小縦断 | EEW＋VPWS50＋VPWP50、runtime、mailbox、checkpoint、通知 intent、最小 SSE/Chrome 表示 | O02/O04/O06/O07/O09/O10 成功、194period 保持、無変化 tick 0仕事、Q2=B、成否不明解決、P2 限定 E01（fixedBacklog の EEW250ms）と原因別 A/B 判定（4 条件と衝突試験は P3 の C4 で再検収）。IR01/03/06/08/14 の契約を事前固定し、単位固有保存失敗の隔離、緊急初回試行、意味鮮度の対象束縛、区分交差、queue 排出、E15 を検収 |
 | P3 意味・出力・移行 | 残りの意味モジュール、旧v2移行、採用CLI/DSL、personal配線、津波縦断 | 全 route の正常／取消／復元が oracle を通り、一入力一保存単位、必須機能契約、移行直後続報、通知・export 故障隔離を検収。津波単位を閉じる前に運用区分・津波緊急通知と §7.5 の各系列を固定し、最小実描画経路で E01 を検収 |
 | **P4：display・GIS・実操作** | 完全 snapshot・容量契約・worker 詳細射影、地図・カード・県フォーカス・ドット・受信調停・EEW／津波・LOD・Chrome 記録 | 着手前に Q5-a/Q5-b/Q7 と残る表示案、§7.10 の wire 契約を固定。T1〜T3・F01=A・F08=A・IR05=A・IR11=A を反映し D-AC01〜24、E01/E13a/E25/E26 を検収。危険区域配送欠落0、縮退中の別分野取消、版競合、緊急時 dim 保留、全 active EventID、階級非依存の同時配置、新着継続中の実 paint 到達を含める。§9.8 を追跡し、未裁定・未実測・目視未検収を Pass にしない |
 | P5 並走検収 | 固定比較、独立購読照合、Pi72時間、開発機Chrome実表示 | 未分類重大差分0、資源ゲート内、旧系非退行、personal 有効の最終構成で EEW・津波の E01、入力停止排出、保存復帰、切断復帰を検収 |
@@ -2927,7 +2927,7 @@ T1〜T3 は 2026-09-10 21:45 に裁定済み（§8.7.2）。
 | N4 | 公開物へ含められる資材の境界は何か | main／personal の source・bundle・npm pack・artifact を含む配送検査 | 公開前 |
 | N5 | 最大正規入力と同時発生時の容量開始値は足りるか | corpus の byte 数・展開量・queue・snapshot・checkpoint・RSS | P1〜P5 |
 | N6 | Pi 受信時刻と Chrome 実 paint をどの精度で対応付けられるか | 時計誤差、trace、対応 ID、測定不確かさ | 測定方法は P2 A/B 判定前に凍結、最終構成は P5 前に再確認（§7.5） |
-| N7 | parse 分離 B が必要か | 大型 XML 直後 EEW の O9。§7 の移行条件に従う | P2 |
+| N7 | parse 分離 B が必要か | 大型 XML 直後 EEW の O9。§7 の移行条件に従う | P3（C3a の配置で構成として閉じ、C4 の衝突試験と parse 母集団の E01 で記録） |
 | N8 | 旧 v2 と補助保存物の移行入力に整合した切り口を作れるか | 読み取り専用コピーの世代・時刻・相互参照検査。不明部分の移行報告 | P3 |
 | N9 | 新旧の依存・build・CI・配送をどう分離するか | `reconstruction/` 専用 target、旧成果物の非上書き、公開物の検査。P1作業契約 `P1-PARSER-BOUNDARY-001` | P1 |
 | N10 | 再放送・studio 等の実際の外部契約は何か | コマンド・docs・tests・使用側の棚卸し。Q7 と混同せず材料を出す | 対象機能の実装契約前 |
