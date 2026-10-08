@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- synthetic（P3-TSUNAMI-E01-001 Q-C6-PRECHECK、O09 の津波 E01 の template）: 引上げの target（311 津波警報→大津波警報）と区域拡大の prime（312 無発令）。区域と区分だけが意味を持ち、EventID・ReportDateTime・Serial は名目で、runner が窓・報ごとに書き換える（P3-C6-TRIAL-RESET=A）。LastKind は prime と target の両方に使うので持たない。配信原本ではない -->
+<Report xmlns="http://xml.kishou.go.jp/jmaxml1/" xmlns:jmx="http://xml.kishou.go.jp/jmaxml1/">
+<Control>
+	<Title>津波警報・注意報・予報a</Title>
+	<DateTime>2026-01-01T02:59:30Z</DateTime>
+	<Status>通常</Status>
+	<EditorialOffice>気象庁本庁</EditorialOffice>
+	<PublishingOffice>気象庁</PublishingOffice>
+</Control>
+<Head xmlns="http://xml.kishou.go.jp/jmaxml1/informationBasis1/">
+	<Title>大津波警報・津波警報・津波注意報・津波予報</Title>
+	<ReportDateTime>2026-01-01T11:59:30+09:00</ReportDateTime>
+	<TargetDateTime>2026-01-01T11:59:30+09:00</TargetDateTime>
+	<EventID>20260101115800</EventID>
+	<InfoType>発表</InfoType>
+	<Serial></Serial>
+	<InfoKind>津波警報・注意報・予報</InfoKind>
+	<InfoKindVersion>1.0_1</InfoKindVersion>
+	<Headline>
+		<Text>大津波警報を発表しました。</Text>
+	</Headline>
+</Head>
+<Body xmlns="http://xml.kishou.go.jp/jmaxml1/body/seismology1/" xmlns:jmx_eb="http://xml.kishou.go.jp/jmaxml1/elementBasis1/">
+	<Tsunami>
+	<Forecast>
+		<CodeDefine>
+			<Type xpath="Item/Area/Code">津波予報区</Type>
+			<Type xpath="Item/Category/Kind/Code">警報等情報要素／津波警報・注意報・予報</Type>
+		</CodeDefine>
+		<Item>
+			<Area><Name>千葉県内房</Name><Code>311</Code></Area>
+			<Category>
+				<Kind><Name>大津波警報</Name><Code>52</Code></Kind>
+			</Category>
+			<FirstHeight>
+				<ArrivalTime>2026-01-01T12:20:00+09:00</ArrivalTime>
+			</FirstHeight>
+			<MaxHeight>
+				<jmx_eb:TsunamiHeight type="津波の高さ" unit="m" description="１０ｍ">10</jmx_eb:TsunamiHeight>
+			</MaxHeight>
+		</Item>
+	</Forecast>
+	</Tsunami>
+	<Earthquake>
+		<OriginTime>2026-01-01T11:58:00+09:00</OriginTime>
+		<ArrivalTime>2026-01-01T11:58:00+09:00</ArrivalTime>
+		<jmx_eb:Magnitude type="Mj" description="Ｍ７．５">7.5</jmx_eb:Magnitude>
+	</Earthquake>
+</Body>
+</Report>

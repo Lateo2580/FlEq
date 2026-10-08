@@ -507,7 +507,7 @@ describe("P3-TSUNAMI-UNIT-001 U-T reducer", () => {
       else throw new Error(`${fixture.fixtureId}: ${JSON.stringify(decision)}`);
     }
     expect(groups.noChange.sort()).toEqual(["test__fixtures__32-39_11_03_250206_VTSE51", "test__fixtures__38-39_02_02_250206_VTSE51"]);
-    expect(groups.changed).toHaveLength(20);
+    expect(groups.changed).toHaveLength(26);
   });
 
   // contractBoundary: 期限の境界（P3-C5-SEM-01・02、I-U-T.deadlines、AC02・AC03）。

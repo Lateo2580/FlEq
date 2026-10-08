@@ -10,7 +10,7 @@ export type P3TsunamiSeries = "escalation" | "deescalation";
 // The four conditions measured in P3 (plan:73). Capacity degradation (spec:1137) is expectation-only (D-P3-6, P4).
 export type P3TsunamiCondition = "fixedBacklog" | "maxVpws50ParseStarted" | "maxWeatherCheckpointEncodeStarted" | "eewTogether";
 
-// P3-C6-POP-SHAPE=A (起草案): one population per series × condition; transitions inside a series run round-robin.
+// P3-C6-POP-SHAPE=A (author ruling 2026-10-09): one population per series × condition; transitions inside a series run round-robin.
 export type P3TsunamiPopulation = `${P3TsunamiSeries}:${P3TsunamiCondition}`;
 
 // One trial = the prime report (resets the subject to the transition's known initial state, never sampled)

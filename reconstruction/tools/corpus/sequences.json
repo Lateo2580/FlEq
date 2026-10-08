@@ -1,9 +1,9 @@
 {
   "meta": {
     "baseOid": "3669dfd6a98e6c116c86f7db1cd27aa63002a90d",
-    "sha256": "307539b65b8a5d45c007e31f93c767e883c234b49df7099587b1419fef94ea48",
+    "sha256": "a6502ec4fd5a1959735ce044f3388788d6893b3a41f6a3f4ab0d72ca61e9ea1f",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
-    "manifestSha256": "da37746c04107de2c1906fec26909f8f90a638e839672498e5fe9454fd192fca",
+    "manifestSha256": "e4294056f8be82e935cfe620919806a73cffd91ebd14334e74d82b1edf00df3e",
     "clock": "synthetic epoch milliseconds; receivedAt/evaluatedAt は合成固定時計。原XML日時は不変。系列内ケース間のrestartで時計と空stateを再設定。受信時刻の実測ではない。",
     "decisions": [
       "形式A（推奨・採用）={meta,sequences,expectations,unresolvedQuestions}。B=meta/期待値を別file。Aならstepと根拠の配送欠落を一ファイルのhashで検出できる。baseOidは本契約HEAD、manifestの来歴baseOidとは別。",
@@ -4465,12 +4465,12 @@
           "sequenceId": "O09",
           "position": 23,
           "action": "injectFailure",
-          "fixtureId": null,
+          "fixtureId": "test__fixtures__synthetic_VTSE41_e01_311warning",
           "receivedAt": null,
           "evaluatedAt": 1767236400000,
           "inputSource": "replay",
           "operationExpected": null,
-          "expectedRef": "unmet:O09:23",
+          "expectedRef": "expected:O09:23",
           "expectationBasis": [
             "L1: docs/specs/reconstruction-p0-contracts.md:1119 «602b2dfb3cc1795e»",
             "L1: docs/specs/reconstruction-p0-contracts.md:1131 «97e9cc25a1b97b6f»",
@@ -4479,19 +4479,23 @@
             "L1: docs/specs/reconstruction-p0-contracts.md:2052 «d6ff68c7ef2b9b22»",
             "L1: docs/specs/reconstruction-p0-contracts.md:2065 «67443c1d1be88906»",
             "L1: docs/specs/reconstruction-p0-contracts.md:1142 «f0743c498380a707»",
-            "L1: docs/specs/reconstruction-p0-contracts.md:1155 «253098a9cc645bbc»"
+            "L1: docs/specs/reconstruction-p0-contracts.md:1155 «253098a9cc645bbc»",
+            "L1: reconstruction/contracts/p3-tsunami-unit.json:274 «a2947cde95691a72» P3-C5-E01-SERIES 系列",
+            "L1: reconstruction/contracts/p3-tsunami-unit.json:275 «3b718bb20018f2e2» P3-C5-E01-SERIES 遷移の型",
+            "L2: test/fixtures/synthetic_VTSE41_e01_released.xml:1 «12c29731e40adc0c» 合成入力 prime（manifest synthetic、配信原本ではない）",
+            "L2: test/fixtures/synthetic_VTSE41_e01_311warning.xml:1 «12c29731e40adc0c» 合成入力 target（manifest synthetic、配信原本ではない）"
           ]
         },
         {
           "sequenceId": "O09",
           "position": 24,
           "action": "injectFailure",
-          "fixtureId": null,
+          "fixtureId": "test__fixtures__synthetic_VTSE41_e01_311warning",
           "receivedAt": null,
           "evaluatedAt": 1767236400000,
           "inputSource": "replay",
           "operationExpected": null,
-          "expectedRef": "unmet:O09:24",
+          "expectedRef": "expected:O09:24",
           "expectationBasis": [
             "L1: docs/specs/reconstruction-p0-contracts.md:1119 «602b2dfb3cc1795e»",
             "L1: docs/specs/reconstruction-p0-contracts.md:1131 «97e9cc25a1b97b6f»",
@@ -4500,19 +4504,23 @@
             "L1: docs/specs/reconstruction-p0-contracts.md:2052 «d6ff68c7ef2b9b22»",
             "L1: docs/specs/reconstruction-p0-contracts.md:2065 «67443c1d1be88906»",
             "L1: docs/specs/reconstruction-p0-contracts.md:1142 «f0743c498380a707»",
-            "L1: docs/specs/reconstruction-p0-contracts.md:1155 «253098a9cc645bbc»"
+            "L1: docs/specs/reconstruction-p0-contracts.md:1155 «253098a9cc645bbc»",
+            "L1: reconstruction/contracts/p3-tsunami-unit.json:274 «a2947cde95691a72» P3-C5-E01-SERIES 系列",
+            "L1: reconstruction/contracts/p3-tsunami-unit.json:275 «3b718bb20018f2e2» P3-C5-E01-SERIES 遷移の型",
+            "L2: test/fixtures/synthetic_VTSE41_e01_released.xml:1 «12c29731e40adc0c» 合成入力 prime（manifest synthetic、配信原本ではない）",
+            "L2: test/fixtures/synthetic_VTSE41_e01_311warning.xml:1 «12c29731e40adc0c» 合成入力 target（manifest synthetic、配信原本ではない）"
           ]
         },
         {
           "sequenceId": "O09",
           "position": 25,
           "action": "injectFailure",
-          "fixtureId": null,
+          "fixtureId": "test__fixtures__synthetic_VTSE41_e01_311warning",
           "receivedAt": null,
           "evaluatedAt": 1767236400000,
           "inputSource": "replay",
           "operationExpected": null,
-          "expectedRef": "unmet:O09:25",
+          "expectedRef": "expected:O09:25",
           "expectationBasis": [
             "L1: docs/specs/reconstruction-p0-contracts.md:1119 «602b2dfb3cc1795e»",
             "L1: docs/specs/reconstruction-p0-contracts.md:1131 «97e9cc25a1b97b6f»",
@@ -4521,19 +4529,23 @@
             "L1: docs/specs/reconstruction-p0-contracts.md:2052 «d6ff68c7ef2b9b22»",
             "L1: docs/specs/reconstruction-p0-contracts.md:2065 «67443c1d1be88906»",
             "L1: docs/specs/reconstruction-p0-contracts.md:1142 «f0743c498380a707»",
-            "L1: docs/specs/reconstruction-p0-contracts.md:1155 «253098a9cc645bbc»"
+            "L1: docs/specs/reconstruction-p0-contracts.md:1155 «253098a9cc645bbc»",
+            "L1: reconstruction/contracts/p3-tsunami-unit.json:274 «a2947cde95691a72» P3-C5-E01-SERIES 系列",
+            "L1: reconstruction/contracts/p3-tsunami-unit.json:275 «3b718bb20018f2e2» P3-C5-E01-SERIES 遷移の型",
+            "L2: test/fixtures/synthetic_VTSE41_e01_released.xml:1 «12c29731e40adc0c» 合成入力 prime（manifest synthetic、配信原本ではない）",
+            "L2: test/fixtures/synthetic_VTSE41_e01_311warning.xml:1 «12c29731e40adc0c» 合成入力 target（manifest synthetic、配信原本ではない）"
           ]
         },
         {
           "sequenceId": "O09",
           "position": 26,
           "action": "injectFailure",
-          "fixtureId": null,
+          "fixtureId": "test__fixtures__synthetic_VTSE41_e01_311warning",
           "receivedAt": null,
           "evaluatedAt": 1767236400000,
           "inputSource": "replay",
           "operationExpected": null,
-          "expectedRef": "unmet:O09:26",
+          "expectedRef": "expected:O09:26",
           "expectationBasis": [
             "L1: docs/specs/reconstruction-p0-contracts.md:1119 «602b2dfb3cc1795e»",
             "L1: docs/specs/reconstruction-p0-contracts.md:1131 «97e9cc25a1b97b6f»",
@@ -4542,7 +4554,11 @@
             "L1: docs/specs/reconstruction-p0-contracts.md:2052 «d6ff68c7ef2b9b22»",
             "L1: docs/specs/reconstruction-p0-contracts.md:2065 «67443c1d1be88906»",
             "L1: docs/specs/reconstruction-p0-contracts.md:1142 «f0743c498380a707»",
-            "L1: docs/specs/reconstruction-p0-contracts.md:1155 «253098a9cc645bbc»"
+            "L1: docs/specs/reconstruction-p0-contracts.md:1155 «253098a9cc645bbc»",
+            "L1: reconstruction/contracts/p3-tsunami-unit.json:274 «a2947cde95691a72» P3-C5-E01-SERIES 系列",
+            "L1: reconstruction/contracts/p3-tsunami-unit.json:275 «3b718bb20018f2e2» P3-C5-E01-SERIES 遷移の型",
+            "L2: test/fixtures/synthetic_VTSE41_e01_released.xml:1 «12c29731e40adc0c» 合成入力 prime（manifest synthetic、配信原本ではない）",
+            "L2: test/fixtures/synthetic_VTSE41_e01_311warning.xml:1 «12c29731e40adc0c» 合成入力 target（manifest synthetic、配信原本ではない）"
           ]
         },
         {
@@ -4654,12 +4670,12 @@
           "sequenceId": "O09",
           "position": 32,
           "action": "injectFailure",
-          "fixtureId": null,
+          "fixtureId": "test__fixtures__synthetic_VTSE41_e01_311major",
           "receivedAt": null,
           "evaluatedAt": 1767236400000,
           "inputSource": "replay",
           "operationExpected": null,
-          "expectedRef": "unmet:O09:32",
+          "expectedRef": "expected:O09:32",
           "expectationBasis": [
             "L1: docs/specs/reconstruction-p0-contracts.md:1119 «602b2dfb3cc1795e»",
             "L1: docs/specs/reconstruction-p0-contracts.md:1131 «97e9cc25a1b97b6f»",
@@ -4668,19 +4684,23 @@
             "L1: docs/specs/reconstruction-p0-contracts.md:2052 «d6ff68c7ef2b9b22»",
             "L1: docs/specs/reconstruction-p0-contracts.md:2065 «67443c1d1be88906»",
             "L1: docs/specs/reconstruction-p0-contracts.md:1142 «f0743c498380a707»",
-            "L1: docs/specs/reconstruction-p0-contracts.md:1155 «253098a9cc645bbc»"
+            "L1: docs/specs/reconstruction-p0-contracts.md:1155 «253098a9cc645bbc»",
+            "L1: reconstruction/contracts/p3-tsunami-unit.json:274 «a2947cde95691a72» P3-C5-E01-SERIES 系列",
+            "L1: reconstruction/contracts/p3-tsunami-unit.json:275 «3b718bb20018f2e2» P3-C5-E01-SERIES 遷移の型",
+            "L2: test/fixtures/synthetic_VTSE41_e01_311warning.xml:1 «12c29731e40adc0c» 合成入力 prime（manifest synthetic、配信原本ではない）",
+            "L2: test/fixtures/synthetic_VTSE41_e01_311major.xml:1 «12c29731e40adc0c» 合成入力 target（manifest synthetic、配信原本ではない）"
           ]
         },
         {
           "sequenceId": "O09",
           "position": 33,
           "action": "injectFailure",
-          "fixtureId": null,
+          "fixtureId": "test__fixtures__synthetic_VTSE41_e01_311major",
           "receivedAt": null,
           "evaluatedAt": 1767236400000,
           "inputSource": "replay",
           "operationExpected": null,
-          "expectedRef": "unmet:O09:33",
+          "expectedRef": "expected:O09:33",
           "expectationBasis": [
             "L1: docs/specs/reconstruction-p0-contracts.md:1119 «602b2dfb3cc1795e»",
             "L1: docs/specs/reconstruction-p0-contracts.md:1131 «97e9cc25a1b97b6f»",
@@ -4689,19 +4709,23 @@
             "L1: docs/specs/reconstruction-p0-contracts.md:2052 «d6ff68c7ef2b9b22»",
             "L1: docs/specs/reconstruction-p0-contracts.md:2065 «67443c1d1be88906»",
             "L1: docs/specs/reconstruction-p0-contracts.md:1142 «f0743c498380a707»",
-            "L1: docs/specs/reconstruction-p0-contracts.md:1155 «253098a9cc645bbc»"
+            "L1: docs/specs/reconstruction-p0-contracts.md:1155 «253098a9cc645bbc»",
+            "L1: reconstruction/contracts/p3-tsunami-unit.json:274 «a2947cde95691a72» P3-C5-E01-SERIES 系列",
+            "L1: reconstruction/contracts/p3-tsunami-unit.json:275 «3b718bb20018f2e2» P3-C5-E01-SERIES 遷移の型",
+            "L2: test/fixtures/synthetic_VTSE41_e01_311warning.xml:1 «12c29731e40adc0c» 合成入力 prime（manifest synthetic、配信原本ではない）",
+            "L2: test/fixtures/synthetic_VTSE41_e01_311major.xml:1 «12c29731e40adc0c» 合成入力 target（manifest synthetic、配信原本ではない）"
           ]
         },
         {
           "sequenceId": "O09",
           "position": 34,
           "action": "injectFailure",
-          "fixtureId": null,
+          "fixtureId": "test__fixtures__synthetic_VTSE41_e01_311major",
           "receivedAt": null,
           "evaluatedAt": 1767236400000,
           "inputSource": "replay",
           "operationExpected": null,
-          "expectedRef": "unmet:O09:34",
+          "expectedRef": "expected:O09:34",
           "expectationBasis": [
             "L1: docs/specs/reconstruction-p0-contracts.md:1119 «602b2dfb3cc1795e»",
             "L1: docs/specs/reconstruction-p0-contracts.md:1131 «97e9cc25a1b97b6f»",
@@ -4710,19 +4734,23 @@
             "L1: docs/specs/reconstruction-p0-contracts.md:2052 «d6ff68c7ef2b9b22»",
             "L1: docs/specs/reconstruction-p0-contracts.md:2065 «67443c1d1be88906»",
             "L1: docs/specs/reconstruction-p0-contracts.md:1142 «f0743c498380a707»",
-            "L1: docs/specs/reconstruction-p0-contracts.md:1155 «253098a9cc645bbc»"
+            "L1: docs/specs/reconstruction-p0-contracts.md:1155 «253098a9cc645bbc»",
+            "L1: reconstruction/contracts/p3-tsunami-unit.json:274 «a2947cde95691a72» P3-C5-E01-SERIES 系列",
+            "L1: reconstruction/contracts/p3-tsunami-unit.json:275 «3b718bb20018f2e2» P3-C5-E01-SERIES 遷移の型",
+            "L2: test/fixtures/synthetic_VTSE41_e01_311warning.xml:1 «12c29731e40adc0c» 合成入力 prime（manifest synthetic、配信原本ではない）",
+            "L2: test/fixtures/synthetic_VTSE41_e01_311major.xml:1 «12c29731e40adc0c» 合成入力 target（manifest synthetic、配信原本ではない）"
           ]
         },
         {
           "sequenceId": "O09",
           "position": 35,
           "action": "injectFailure",
-          "fixtureId": null,
+          "fixtureId": "test__fixtures__synthetic_VTSE41_e01_311major",
           "receivedAt": null,
           "evaluatedAt": 1767236400000,
           "inputSource": "replay",
           "operationExpected": null,
-          "expectedRef": "unmet:O09:35",
+          "expectedRef": "expected:O09:35",
           "expectationBasis": [
             "L1: docs/specs/reconstruction-p0-contracts.md:1119 «602b2dfb3cc1795e»",
             "L1: docs/specs/reconstruction-p0-contracts.md:1131 «97e9cc25a1b97b6f»",
@@ -4731,7 +4759,11 @@
             "L1: docs/specs/reconstruction-p0-contracts.md:2052 «d6ff68c7ef2b9b22»",
             "L1: docs/specs/reconstruction-p0-contracts.md:2065 «67443c1d1be88906»",
             "L1: docs/specs/reconstruction-p0-contracts.md:1142 «f0743c498380a707»",
-            "L1: docs/specs/reconstruction-p0-contracts.md:1155 «253098a9cc645bbc»"
+            "L1: docs/specs/reconstruction-p0-contracts.md:1155 «253098a9cc645bbc»",
+            "L1: reconstruction/contracts/p3-tsunami-unit.json:274 «a2947cde95691a72» P3-C5-E01-SERIES 系列",
+            "L1: reconstruction/contracts/p3-tsunami-unit.json:275 «3b718bb20018f2e2» P3-C5-E01-SERIES 遷移の型",
+            "L2: test/fixtures/synthetic_VTSE41_e01_311warning.xml:1 «12c29731e40adc0c» 合成入力 prime（manifest synthetic、配信原本ではない）",
+            "L2: test/fixtures/synthetic_VTSE41_e01_311major.xml:1 «12c29731e40adc0c» 合成入力 target（manifest synthetic、配信原本ではない）"
           ]
         },
         {
@@ -4843,12 +4875,12 @@
           "sequenceId": "O09",
           "position": 41,
           "action": "injectFailure",
-          "fixtureId": null,
+          "fixtureId": "test__fixtures__synthetic_VTSE41_e01_311major_312major",
           "receivedAt": null,
           "evaluatedAt": 1767236400000,
           "inputSource": "replay",
           "operationExpected": null,
-          "expectedRef": "unmet:O09:41",
+          "expectedRef": "expected:O09:41",
           "expectationBasis": [
             "L1: docs/specs/reconstruction-p0-contracts.md:1119 «602b2dfb3cc1795e»",
             "L1: docs/specs/reconstruction-p0-contracts.md:1131 «97e9cc25a1b97b6f»",
@@ -4857,19 +4889,23 @@
             "L1: docs/specs/reconstruction-p0-contracts.md:2052 «d6ff68c7ef2b9b22»",
             "L1: docs/specs/reconstruction-p0-contracts.md:2065 «67443c1d1be88906»",
             "L1: docs/specs/reconstruction-p0-contracts.md:1142 «f0743c498380a707»",
-            "L1: docs/specs/reconstruction-p0-contracts.md:1155 «253098a9cc645bbc»"
+            "L1: docs/specs/reconstruction-p0-contracts.md:1155 «253098a9cc645bbc»",
+            "L1: reconstruction/contracts/p3-tsunami-unit.json:274 «a2947cde95691a72» P3-C5-E01-SERIES 系列",
+            "L1: reconstruction/contracts/p3-tsunami-unit.json:275 «3b718bb20018f2e2» P3-C5-E01-SERIES 遷移の型",
+            "L2: test/fixtures/synthetic_VTSE41_e01_311major.xml:1 «12c29731e40adc0c» 合成入力 prime（manifest synthetic、配信原本ではない）",
+            "L2: test/fixtures/synthetic_VTSE41_e01_311major_312major.xml:1 «12c29731e40adc0c» 合成入力 target（manifest synthetic、配信原本ではない）"
           ]
         },
         {
           "sequenceId": "O09",
           "position": 42,
           "action": "injectFailure",
-          "fixtureId": null,
+          "fixtureId": "test__fixtures__synthetic_VTSE41_e01_311major_312major",
           "receivedAt": null,
           "evaluatedAt": 1767236400000,
           "inputSource": "replay",
           "operationExpected": null,
-          "expectedRef": "unmet:O09:42",
+          "expectedRef": "expected:O09:42",
           "expectationBasis": [
             "L1: docs/specs/reconstruction-p0-contracts.md:1119 «602b2dfb3cc1795e»",
             "L1: docs/specs/reconstruction-p0-contracts.md:1131 «97e9cc25a1b97b6f»",
@@ -4878,19 +4914,23 @@
             "L1: docs/specs/reconstruction-p0-contracts.md:2052 «d6ff68c7ef2b9b22»",
             "L1: docs/specs/reconstruction-p0-contracts.md:2065 «67443c1d1be88906»",
             "L1: docs/specs/reconstruction-p0-contracts.md:1142 «f0743c498380a707»",
-            "L1: docs/specs/reconstruction-p0-contracts.md:1155 «253098a9cc645bbc»"
+            "L1: docs/specs/reconstruction-p0-contracts.md:1155 «253098a9cc645bbc»",
+            "L1: reconstruction/contracts/p3-tsunami-unit.json:274 «a2947cde95691a72» P3-C5-E01-SERIES 系列",
+            "L1: reconstruction/contracts/p3-tsunami-unit.json:275 «3b718bb20018f2e2» P3-C5-E01-SERIES 遷移の型",
+            "L2: test/fixtures/synthetic_VTSE41_e01_311major.xml:1 «12c29731e40adc0c» 合成入力 prime（manifest synthetic、配信原本ではない）",
+            "L2: test/fixtures/synthetic_VTSE41_e01_311major_312major.xml:1 «12c29731e40adc0c» 合成入力 target（manifest synthetic、配信原本ではない）"
           ]
         },
         {
           "sequenceId": "O09",
           "position": 43,
           "action": "injectFailure",
-          "fixtureId": null,
+          "fixtureId": "test__fixtures__synthetic_VTSE41_e01_311major_312major",
           "receivedAt": null,
           "evaluatedAt": 1767236400000,
           "inputSource": "replay",
           "operationExpected": null,
-          "expectedRef": "unmet:O09:43",
+          "expectedRef": "expected:O09:43",
           "expectationBasis": [
             "L1: docs/specs/reconstruction-p0-contracts.md:1119 «602b2dfb3cc1795e»",
             "L1: docs/specs/reconstruction-p0-contracts.md:1131 «97e9cc25a1b97b6f»",
@@ -4899,19 +4939,23 @@
             "L1: docs/specs/reconstruction-p0-contracts.md:2052 «d6ff68c7ef2b9b22»",
             "L1: docs/specs/reconstruction-p0-contracts.md:2065 «67443c1d1be88906»",
             "L1: docs/specs/reconstruction-p0-contracts.md:1142 «f0743c498380a707»",
-            "L1: docs/specs/reconstruction-p0-contracts.md:1155 «253098a9cc645bbc»"
+            "L1: docs/specs/reconstruction-p0-contracts.md:1155 «253098a9cc645bbc»",
+            "L1: reconstruction/contracts/p3-tsunami-unit.json:274 «a2947cde95691a72» P3-C5-E01-SERIES 系列",
+            "L1: reconstruction/contracts/p3-tsunami-unit.json:275 «3b718bb20018f2e2» P3-C5-E01-SERIES 遷移の型",
+            "L2: test/fixtures/synthetic_VTSE41_e01_311major.xml:1 «12c29731e40adc0c» 合成入力 prime（manifest synthetic、配信原本ではない）",
+            "L2: test/fixtures/synthetic_VTSE41_e01_311major_312major.xml:1 «12c29731e40adc0c» 合成入力 target（manifest synthetic、配信原本ではない）"
           ]
         },
         {
           "sequenceId": "O09",
           "position": 44,
           "action": "injectFailure",
-          "fixtureId": null,
+          "fixtureId": "test__fixtures__synthetic_VTSE41_e01_311major_312major",
           "receivedAt": null,
           "evaluatedAt": 1767236400000,
           "inputSource": "replay",
           "operationExpected": null,
-          "expectedRef": "unmet:O09:44",
+          "expectedRef": "expected:O09:44",
           "expectationBasis": [
             "L1: docs/specs/reconstruction-p0-contracts.md:1119 «602b2dfb3cc1795e»",
             "L1: docs/specs/reconstruction-p0-contracts.md:1131 «97e9cc25a1b97b6f»",
@@ -4920,7 +4964,11 @@
             "L1: docs/specs/reconstruction-p0-contracts.md:2052 «d6ff68c7ef2b9b22»",
             "L1: docs/specs/reconstruction-p0-contracts.md:2065 «67443c1d1be88906»",
             "L1: docs/specs/reconstruction-p0-contracts.md:1142 «f0743c498380a707»",
-            "L1: docs/specs/reconstruction-p0-contracts.md:1155 «253098a9cc645bbc»"
+            "L1: docs/specs/reconstruction-p0-contracts.md:1155 «253098a9cc645bbc»",
+            "L1: reconstruction/contracts/p3-tsunami-unit.json:274 «a2947cde95691a72» P3-C5-E01-SERIES 系列",
+            "L1: reconstruction/contracts/p3-tsunami-unit.json:275 «3b718bb20018f2e2» P3-C5-E01-SERIES 遷移の型",
+            "L2: test/fixtures/synthetic_VTSE41_e01_311major.xml:1 «12c29731e40adc0c» 合成入力 prime（manifest synthetic、配信原本ではない）",
+            "L2: test/fixtures/synthetic_VTSE41_e01_311major_312major.xml:1 «12c29731e40adc0c» 合成入力 target（manifest synthetic、配信原本ではない）"
           ]
         },
         {
@@ -5032,12 +5080,12 @@
           "sequenceId": "O09",
           "position": 50,
           "action": "injectFailure",
-          "fixtureId": null,
+          "fixtureId": "test__fixtures__synthetic_VTSE41_e01_released",
           "receivedAt": null,
           "evaluatedAt": 1767236400000,
           "inputSource": "replay",
           "operationExpected": null,
-          "expectedRef": "unmet:O09:50",
+          "expectedRef": "expected:O09:50",
           "expectationBasis": [
             "L1: docs/specs/reconstruction-p0-contracts.md:1119 «602b2dfb3cc1795e»",
             "L1: docs/specs/reconstruction-p0-contracts.md:1131 «97e9cc25a1b97b6f»",
@@ -5046,19 +5094,23 @@
             "L1: docs/specs/reconstruction-p0-contracts.md:2052 «d6ff68c7ef2b9b22»",
             "L1: docs/specs/reconstruction-p0-contracts.md:2065 «67443c1d1be88906»",
             "L1: docs/specs/reconstruction-p0-contracts.md:1142 «f0743c498380a707»",
-            "L1: docs/specs/reconstruction-p0-contracts.md:1155 «253098a9cc645bbc»"
+            "L1: docs/specs/reconstruction-p0-contracts.md:1155 «253098a9cc645bbc»",
+            "L1: reconstruction/contracts/p3-tsunami-unit.json:274 «a2947cde95691a72» P3-C5-E01-SERIES 系列",
+            "L1: reconstruction/contracts/p3-tsunami-unit.json:275 «3b718bb20018f2e2» P3-C5-E01-SERIES 遷移の型",
+            "L2: test/fixtures/synthetic_VTSE41_e01_311major_312warning.xml:1 «12c29731e40adc0c» 合成入力 prime（manifest synthetic、配信原本ではない）",
+            "L2: test/fixtures/synthetic_VTSE41_e01_released.xml:1 «12c29731e40adc0c» 合成入力 target（manifest synthetic、配信原本ではない）"
           ]
         },
         {
           "sequenceId": "O09",
           "position": 51,
           "action": "injectFailure",
-          "fixtureId": null,
+          "fixtureId": "test__fixtures__synthetic_VTSE41_e01_released",
           "receivedAt": null,
           "evaluatedAt": 1767236400000,
           "inputSource": "replay",
           "operationExpected": null,
-          "expectedRef": "unmet:O09:51",
+          "expectedRef": "expected:O09:51",
           "expectationBasis": [
             "L1: docs/specs/reconstruction-p0-contracts.md:1119 «602b2dfb3cc1795e»",
             "L1: docs/specs/reconstruction-p0-contracts.md:1131 «97e9cc25a1b97b6f»",
@@ -5067,19 +5119,23 @@
             "L1: docs/specs/reconstruction-p0-contracts.md:2052 «d6ff68c7ef2b9b22»",
             "L1: docs/specs/reconstruction-p0-contracts.md:2065 «67443c1d1be88906»",
             "L1: docs/specs/reconstruction-p0-contracts.md:1142 «f0743c498380a707»",
-            "L1: docs/specs/reconstruction-p0-contracts.md:1155 «253098a9cc645bbc»"
+            "L1: docs/specs/reconstruction-p0-contracts.md:1155 «253098a9cc645bbc»",
+            "L1: reconstruction/contracts/p3-tsunami-unit.json:274 «a2947cde95691a72» P3-C5-E01-SERIES 系列",
+            "L1: reconstruction/contracts/p3-tsunami-unit.json:275 «3b718bb20018f2e2» P3-C5-E01-SERIES 遷移の型",
+            "L2: test/fixtures/synthetic_VTSE41_e01_311major_312warning.xml:1 «12c29731e40adc0c» 合成入力 prime（manifest synthetic、配信原本ではない）",
+            "L2: test/fixtures/synthetic_VTSE41_e01_released.xml:1 «12c29731e40adc0c» 合成入力 target（manifest synthetic、配信原本ではない）"
           ]
         },
         {
           "sequenceId": "O09",
           "position": 52,
           "action": "injectFailure",
-          "fixtureId": null,
+          "fixtureId": "test__fixtures__synthetic_VTSE41_e01_released",
           "receivedAt": null,
           "evaluatedAt": 1767236400000,
           "inputSource": "replay",
           "operationExpected": null,
-          "expectedRef": "unmet:O09:52",
+          "expectedRef": "expected:O09:52",
           "expectationBasis": [
             "L1: docs/specs/reconstruction-p0-contracts.md:1119 «602b2dfb3cc1795e»",
             "L1: docs/specs/reconstruction-p0-contracts.md:1131 «97e9cc25a1b97b6f»",
@@ -5088,19 +5144,23 @@
             "L1: docs/specs/reconstruction-p0-contracts.md:2052 «d6ff68c7ef2b9b22»",
             "L1: docs/specs/reconstruction-p0-contracts.md:2065 «67443c1d1be88906»",
             "L1: docs/specs/reconstruction-p0-contracts.md:1142 «f0743c498380a707»",
-            "L1: docs/specs/reconstruction-p0-contracts.md:1155 «253098a9cc645bbc»"
+            "L1: docs/specs/reconstruction-p0-contracts.md:1155 «253098a9cc645bbc»",
+            "L1: reconstruction/contracts/p3-tsunami-unit.json:274 «a2947cde95691a72» P3-C5-E01-SERIES 系列",
+            "L1: reconstruction/contracts/p3-tsunami-unit.json:275 «3b718bb20018f2e2» P3-C5-E01-SERIES 遷移の型",
+            "L2: test/fixtures/synthetic_VTSE41_e01_311major_312warning.xml:1 «12c29731e40adc0c» 合成入力 prime（manifest synthetic、配信原本ではない）",
+            "L2: test/fixtures/synthetic_VTSE41_e01_released.xml:1 «12c29731e40adc0c» 合成入力 target（manifest synthetic、配信原本ではない）"
           ]
         },
         {
           "sequenceId": "O09",
           "position": 53,
           "action": "injectFailure",
-          "fixtureId": null,
+          "fixtureId": "test__fixtures__synthetic_VTSE41_e01_released",
           "receivedAt": null,
           "evaluatedAt": 1767236400000,
           "inputSource": "replay",
           "operationExpected": null,
-          "expectedRef": "unmet:O09:53",
+          "expectedRef": "expected:O09:53",
           "expectationBasis": [
             "L1: docs/specs/reconstruction-p0-contracts.md:1119 «602b2dfb3cc1795e»",
             "L1: docs/specs/reconstruction-p0-contracts.md:1131 «97e9cc25a1b97b6f»",
@@ -5109,7 +5169,11 @@
             "L1: docs/specs/reconstruction-p0-contracts.md:2052 «d6ff68c7ef2b9b22»",
             "L1: docs/specs/reconstruction-p0-contracts.md:2065 «67443c1d1be88906»",
             "L1: docs/specs/reconstruction-p0-contracts.md:1142 «f0743c498380a707»",
-            "L1: docs/specs/reconstruction-p0-contracts.md:1155 «253098a9cc645bbc»"
+            "L1: docs/specs/reconstruction-p0-contracts.md:1155 «253098a9cc645bbc»",
+            "L1: reconstruction/contracts/p3-tsunami-unit.json:274 «a2947cde95691a72» P3-C5-E01-SERIES 系列",
+            "L1: reconstruction/contracts/p3-tsunami-unit.json:275 «3b718bb20018f2e2» P3-C5-E01-SERIES 遷移の型",
+            "L2: test/fixtures/synthetic_VTSE41_e01_311major_312warning.xml:1 «12c29731e40adc0c» 合成入力 prime（manifest synthetic、配信原本ではない）",
+            "L2: test/fixtures/synthetic_VTSE41_e01_released.xml:1 «12c29731e40adc0c» 合成入力 target（manifest synthetic、配信原本ではない）"
           ]
         },
         {
@@ -5221,12 +5285,12 @@
           "sequenceId": "O09",
           "position": 59,
           "action": "injectFailure",
-          "fixtureId": null,
+          "fixtureId": "test__fixtures__synthetic_VTSE41_e01_311warning_312advisory",
           "receivedAt": null,
           "evaluatedAt": 1767236400000,
           "inputSource": "replay",
           "operationExpected": null,
-          "expectedRef": "unmet:O09:59",
+          "expectedRef": "expected:O09:59",
           "expectationBasis": [
             "L1: docs/specs/reconstruction-p0-contracts.md:1119 «602b2dfb3cc1795e»",
             "L1: docs/specs/reconstruction-p0-contracts.md:1131 «97e9cc25a1b97b6f»",
@@ -5235,19 +5299,23 @@
             "L1: docs/specs/reconstruction-p0-contracts.md:2052 «d6ff68c7ef2b9b22»",
             "L1: docs/specs/reconstruction-p0-contracts.md:2065 «67443c1d1be88906»",
             "L1: docs/specs/reconstruction-p0-contracts.md:1142 «f0743c498380a707»",
-            "L1: docs/specs/reconstruction-p0-contracts.md:1155 «253098a9cc645bbc»"
+            "L1: docs/specs/reconstruction-p0-contracts.md:1155 «253098a9cc645bbc»",
+            "L1: reconstruction/contracts/p3-tsunami-unit.json:274 «a2947cde95691a72» P3-C5-E01-SERIES 系列",
+            "L1: reconstruction/contracts/p3-tsunami-unit.json:275 «3b718bb20018f2e2» P3-C5-E01-SERIES 遷移の型",
+            "L2: test/fixtures/synthetic_VTSE41_e01_311major_312warning.xml:1 «12c29731e40adc0c» 合成入力 prime（manifest synthetic、配信原本ではない）",
+            "L2: test/fixtures/synthetic_VTSE41_e01_311warning_312advisory.xml:1 «12c29731e40adc0c» 合成入力 target（manifest synthetic、配信原本ではない）"
           ]
         },
         {
           "sequenceId": "O09",
           "position": 60,
           "action": "injectFailure",
-          "fixtureId": null,
+          "fixtureId": "test__fixtures__synthetic_VTSE41_e01_311warning_312advisory",
           "receivedAt": null,
           "evaluatedAt": 1767236400000,
           "inputSource": "replay",
           "operationExpected": null,
-          "expectedRef": "unmet:O09:60",
+          "expectedRef": "expected:O09:60",
           "expectationBasis": [
             "L1: docs/specs/reconstruction-p0-contracts.md:1119 «602b2dfb3cc1795e»",
             "L1: docs/specs/reconstruction-p0-contracts.md:1131 «97e9cc25a1b97b6f»",
@@ -5256,19 +5324,23 @@
             "L1: docs/specs/reconstruction-p0-contracts.md:2052 «d6ff68c7ef2b9b22»",
             "L1: docs/specs/reconstruction-p0-contracts.md:2065 «67443c1d1be88906»",
             "L1: docs/specs/reconstruction-p0-contracts.md:1142 «f0743c498380a707»",
-            "L1: docs/specs/reconstruction-p0-contracts.md:1155 «253098a9cc645bbc»"
+            "L1: docs/specs/reconstruction-p0-contracts.md:1155 «253098a9cc645bbc»",
+            "L1: reconstruction/contracts/p3-tsunami-unit.json:274 «a2947cde95691a72» P3-C5-E01-SERIES 系列",
+            "L1: reconstruction/contracts/p3-tsunami-unit.json:275 «3b718bb20018f2e2» P3-C5-E01-SERIES 遷移の型",
+            "L2: test/fixtures/synthetic_VTSE41_e01_311major_312warning.xml:1 «12c29731e40adc0c» 合成入力 prime（manifest synthetic、配信原本ではない）",
+            "L2: test/fixtures/synthetic_VTSE41_e01_311warning_312advisory.xml:1 «12c29731e40adc0c» 合成入力 target（manifest synthetic、配信原本ではない）"
           ]
         },
         {
           "sequenceId": "O09",
           "position": 61,
           "action": "injectFailure",
-          "fixtureId": null,
+          "fixtureId": "test__fixtures__synthetic_VTSE41_e01_311warning_312advisory",
           "receivedAt": null,
           "evaluatedAt": 1767236400000,
           "inputSource": "replay",
           "operationExpected": null,
-          "expectedRef": "unmet:O09:61",
+          "expectedRef": "expected:O09:61",
           "expectationBasis": [
             "L1: docs/specs/reconstruction-p0-contracts.md:1119 «602b2dfb3cc1795e»",
             "L1: docs/specs/reconstruction-p0-contracts.md:1131 «97e9cc25a1b97b6f»",
@@ -5277,19 +5349,23 @@
             "L1: docs/specs/reconstruction-p0-contracts.md:2052 «d6ff68c7ef2b9b22»",
             "L1: docs/specs/reconstruction-p0-contracts.md:2065 «67443c1d1be88906»",
             "L1: docs/specs/reconstruction-p0-contracts.md:1142 «f0743c498380a707»",
-            "L1: docs/specs/reconstruction-p0-contracts.md:1155 «253098a9cc645bbc»"
+            "L1: docs/specs/reconstruction-p0-contracts.md:1155 «253098a9cc645bbc»",
+            "L1: reconstruction/contracts/p3-tsunami-unit.json:274 «a2947cde95691a72» P3-C5-E01-SERIES 系列",
+            "L1: reconstruction/contracts/p3-tsunami-unit.json:275 «3b718bb20018f2e2» P3-C5-E01-SERIES 遷移の型",
+            "L2: test/fixtures/synthetic_VTSE41_e01_311major_312warning.xml:1 «12c29731e40adc0c» 合成入力 prime（manifest synthetic、配信原本ではない）",
+            "L2: test/fixtures/synthetic_VTSE41_e01_311warning_312advisory.xml:1 «12c29731e40adc0c» 合成入力 target（manifest synthetic、配信原本ではない）"
           ]
         },
         {
           "sequenceId": "O09",
           "position": 62,
           "action": "injectFailure",
-          "fixtureId": null,
+          "fixtureId": "test__fixtures__synthetic_VTSE41_e01_311warning_312advisory",
           "receivedAt": null,
           "evaluatedAt": 1767236400000,
           "inputSource": "replay",
           "operationExpected": null,
-          "expectedRef": "unmet:O09:62",
+          "expectedRef": "expected:O09:62",
           "expectationBasis": [
             "L1: docs/specs/reconstruction-p0-contracts.md:1119 «602b2dfb3cc1795e»",
             "L1: docs/specs/reconstruction-p0-contracts.md:1131 «97e9cc25a1b97b6f»",
@@ -5298,7 +5374,11 @@
             "L1: docs/specs/reconstruction-p0-contracts.md:2052 «d6ff68c7ef2b9b22»",
             "L1: docs/specs/reconstruction-p0-contracts.md:2065 «67443c1d1be88906»",
             "L1: docs/specs/reconstruction-p0-contracts.md:1142 «f0743c498380a707»",
-            "L1: docs/specs/reconstruction-p0-contracts.md:1155 «253098a9cc645bbc»"
+            "L1: docs/specs/reconstruction-p0-contracts.md:1155 «253098a9cc645bbc»",
+            "L1: reconstruction/contracts/p3-tsunami-unit.json:274 «a2947cde95691a72» P3-C5-E01-SERIES 系列",
+            "L1: reconstruction/contracts/p3-tsunami-unit.json:275 «3b718bb20018f2e2» P3-C5-E01-SERIES 遷移の型",
+            "L2: test/fixtures/synthetic_VTSE41_e01_311major_312warning.xml:1 «12c29731e40adc0c» 合成入力 prime（manifest synthetic、配信原本ではない）",
+            "L2: test/fixtures/synthetic_VTSE41_e01_311warning_312advisory.xml:1 «12c29731e40adc0c» 合成入力 target（manifest synthetic、配信原本ではない）"
           ]
         },
         {
@@ -16695,7 +16775,7 @@
       ]
     },
     {
-      "expectedId": "unmet:O09:23",
+      "expectedId": "expected:O09:23",
       "sequenceId": "O09",
       "position": 23,
       "decision": null,
@@ -16712,21 +16792,26 @@
         "L1: docs/specs/reconstruction-p0-contracts.md:2052 «d6ff68c7ef2b9b22»",
         "L1: docs/specs/reconstruction-p0-contracts.md:2065 «67443c1d1be88906»",
         "L1: docs/specs/reconstruction-p0-contracts.md:1142 «f0743c498380a707»",
-        "L1: docs/specs/reconstruction-p0-contracts.md:1155 «253098a9cc645bbc»"
+        "L1: docs/specs/reconstruction-p0-contracts.md:1155 «253098a9cc645bbc»",
+        "L1: reconstruction/contracts/p3-tsunami-unit.json:274 «a2947cde95691a72» P3-C5-E01-SERIES 系列",
+        "L1: reconstruction/contracts/p3-tsunami-unit.json:275 «3b718bb20018f2e2» P3-C5-E01-SERIES 遷移の型",
+        "L2: test/fixtures/synthetic_VTSE41_e01_released.xml:1 «12c29731e40adc0c» 合成入力 prime（manifest synthetic、配信原本ではない）",
+        "L2: test/fixtures/synthetic_VTSE41_e01_311warning.xml:1 «12c29731e40adc0c» 合成入力 target（manifest synthetic、配信原本ではない）"
       ],
       "input": {
         "required": "独立母集団: 津波発令 / 通常backlog。VTSE41、Control.Status通常、EventID=P0-T-発令、初期ReportDateTime=2026-01-01T11:59:00+09:00/Serial1、新報12:00:00/Serial2。初期は311/312とも無発令。新報は311=津波警報。 有界mailboxに通常VPWS50/VPWP50を待機。通常入力の採用/取消も進む負荷。 同一operation/family/subjectの先行報を飛ばさない。原fixtureを改変せず別synthetic bodyが必要。body全日時・初期checkpoint・投入offset・合法最大容量と端末はQ-PERF/Q-LIMITで凍結。",
-        "acquisition": "synthetic"
+        "acquisition": "synthetic: prime test/fixtures/synthetic_VTSE41_e01_released.xml → target test/fixtures/synthetic_VTSE41_e01_311warning.xml（manifest synthetic）。EventID・ReportDateTime・Serialはrunnerが窓・報ごとに書き換え、本文の値は名目（P3-C6-TRIAL-RESET=A。O09の\"P0-T-…\"は名札、P3-C5-E01-SERIES.inputs）"
       },
       "checks": [
-        "津波発令だけを別集計。入力側EEW候補→VTSE41候補→その他の優先順は解除/降格も対象。通知の津波緊急群とは別。",
-        "各母集団100 warm-up、1000標本×3run。各run p99(U_i)≤250ms、T0から10秒無paint欠落0。T6は発令系の大カード/警報区分/海岸線、解除の旧表示除去、降格の色/点滅/文言更新の完了。",
+        "津波発令は発令系（発令・引上げ・区域拡大）の母集団で判定し、発令の遷移ごとの標本数・欠落数・p50/p95/p99/maxの上界は報告する（P3-C6-POP-SHAPE=A、作者裁定2026-10-09。遷移の値で系列の判定を変えず、発令系と解除系を混ぜない）。入力側EEW候補→VTSE41候補→その他の優先順は解除/降格も対象。通知の津波緊急群とは別。",
+        "系列×条件の各母集団100 warm-up、1000標本×3run（系列の中の遷移は試行ごとに順に回す）。各run p99(U_i)≤250ms、T0から10秒無paint欠落0。T6は発令系の大カード/警報区分/海岸線、解除の旧表示除去、降格の色/点滅/文言更新の完了。",
+        "合否はP3-TSUNAMI-E01-001の版付き結果（P3TsunamiE01Verdict）で出す。このrecordは入力の充足でありPassを表さない（decision null）。各試行はprime→targetの2報で既知の初期状態から始める（P3-C6-TRIAL-RESET=A）。",
         "通常合法最大は予報区別警報の欠落/誤値0。対象分野の意図的超過だけ最小事実/省略表示/旧地図除去をT6とする。他分野summaryは免除理由にしない。",
         "Q-PERF未充足。時計不確かさ込み判定、DOM/rAFで実paintを代用しない。原因をparse/encode/射影/転送に分け、parse起因だけB移行。"
       ]
     },
     {
-      "expectedId": "unmet:O09:24",
+      "expectedId": "expected:O09:24",
       "sequenceId": "O09",
       "position": 24,
       "decision": null,
@@ -16743,21 +16828,26 @@
         "L1: docs/specs/reconstruction-p0-contracts.md:2052 «d6ff68c7ef2b9b22»",
         "L1: docs/specs/reconstruction-p0-contracts.md:2065 «67443c1d1be88906»",
         "L1: docs/specs/reconstruction-p0-contracts.md:1142 «f0743c498380a707»",
-        "L1: docs/specs/reconstruction-p0-contracts.md:1155 «253098a9cc645bbc»"
+        "L1: docs/specs/reconstruction-p0-contracts.md:1155 «253098a9cc645bbc»",
+        "L1: reconstruction/contracts/p3-tsunami-unit.json:274 «a2947cde95691a72» P3-C5-E01-SERIES 系列",
+        "L1: reconstruction/contracts/p3-tsunami-unit.json:275 «3b718bb20018f2e2» P3-C5-E01-SERIES 遷移の型",
+        "L2: test/fixtures/synthetic_VTSE41_e01_released.xml:1 «12c29731e40adc0c» 合成入力 prime（manifest synthetic、配信原本ではない）",
+        "L2: test/fixtures/synthetic_VTSE41_e01_311warning.xml:1 «12c29731e40adc0c» 合成入力 target（manifest synthetic、配信原本ではない）"
       ],
       "input": {
         "required": "独立母集団: 津波発令 / 最大XML parse直後。VTSE41、Control.Status通常、EventID=P0-T-発令、初期ReportDateTime=2026-01-01T11:59:00+09:00/Serial1、新報12:00:00/Serial2。初期は311/312とも無発令。新報は311=津波警報。 manifest最大VPWS50由来の合法bodyをparse。開始+1ms目標、実T0=開始後0〜5msかつ進行中。 同一operation/family/subjectの先行報を飛ばさない。原fixtureを改変せず別synthetic bodyが必要。body全日時・初期checkpoint・投入offset・合法最大容量と端末はQ-PERF/Q-LIMITで凍結。",
-        "acquisition": "synthetic"
+        "acquisition": "synthetic: prime test/fixtures/synthetic_VTSE41_e01_released.xml → target test/fixtures/synthetic_VTSE41_e01_311warning.xml（manifest synthetic）。EventID・ReportDateTime・Serialはrunnerが窓・報ごとに書き換え、本文の値は名目（P3-C6-TRIAL-RESET=A。O09の\"P0-T-…\"は名札、P3-C5-E01-SERIES.inputs）"
       },
       "checks": [
-        "津波発令だけを別集計。入力側EEW候補→VTSE41候補→その他の優先順は解除/降格も対象。通知の津波緊急群とは別。",
-        "各母集団100 warm-up、1000標本×3run。各run p99(U_i)≤250ms、T0から10秒無paint欠落0。T6は発令系の大カード/警報区分/海岸線、解除の旧表示除去、降格の色/点滅/文言更新の完了。",
+        "津波発令は発令系（発令・引上げ・区域拡大）の母集団で判定し、発令の遷移ごとの標本数・欠落数・p50/p95/p99/maxの上界は報告する（P3-C6-POP-SHAPE=A、作者裁定2026-10-09。遷移の値で系列の判定を変えず、発令系と解除系を混ぜない）。入力側EEW候補→VTSE41候補→その他の優先順は解除/降格も対象。通知の津波緊急群とは別。",
+        "系列×条件の各母集団100 warm-up、1000標本×3run（系列の中の遷移は試行ごとに順に回す）。各run p99(U_i)≤250ms、T0から10秒無paint欠落0。T6は発令系の大カード/警報区分/海岸線、解除の旧表示除去、降格の色/点滅/文言更新の完了。",
+        "合否はP3-TSUNAMI-E01-001の版付き結果（P3TsunamiE01Verdict）で出す。このrecordは入力の充足でありPassを表さない（decision null）。各試行はprime→targetの2報で既知の初期状態から始める（P3-C6-TRIAL-RESET=A）。",
         "通常合法最大は予報区別警報の欠落/誤値0。対象分野の意図的超過だけ最小事実/省略表示/旧地図除去をT6とする。他分野summaryは免除理由にしない。",
         "Q-PERF未充足。時計不確かさ込み判定、DOM/rAFで実paintを代用しない。原因をparse/encode/射影/転送に分け、parse起因だけB移行。"
       ]
     },
     {
-      "expectedId": "unmet:O09:25",
+      "expectedId": "expected:O09:25",
       "sequenceId": "O09",
       "position": 25,
       "decision": null,
@@ -16774,21 +16864,26 @@
         "L1: docs/specs/reconstruction-p0-contracts.md:2052 «d6ff68c7ef2b9b22»",
         "L1: docs/specs/reconstruction-p0-contracts.md:2065 «67443c1d1be88906»",
         "L1: docs/specs/reconstruction-p0-contracts.md:1142 «f0743c498380a707»",
-        "L1: docs/specs/reconstruction-p0-contracts.md:1155 «253098a9cc645bbc»"
+        "L1: docs/specs/reconstruction-p0-contracts.md:1155 «253098a9cc645bbc»",
+        "L1: reconstruction/contracts/p3-tsunami-unit.json:274 «a2947cde95691a72» P3-C5-E01-SERIES 系列",
+        "L1: reconstruction/contracts/p3-tsunami-unit.json:275 «3b718bb20018f2e2» P3-C5-E01-SERIES 遷移の型",
+        "L2: test/fixtures/synthetic_VTSE41_e01_released.xml:1 «12c29731e40adc0c» 合成入力 prime（manifest synthetic、配信原本ではない）",
+        "L2: test/fixtures/synthetic_VTSE41_e01_311warning.xml:1 «12c29731e40adc0c» 合成入力 target（manifest synthetic、配信原本ではない）"
       ],
       "input": {
         "required": "独立母集団: 津波発令 / checkpoint encode直後。VTSE41、Control.Status通常、EventID=P0-T-発令、初期ReportDateTime=2026-01-01T11:59:00+09:00/Serial1、新報12:00:00/Serial2。初期は311/312とも無発令。新報は311=津波警報。 合法最大U-Wをencode。開始+1ms目標、実T0=開始後0〜5msかつ進行中。 同一operation/family/subjectの先行報を飛ばさない。原fixtureを改変せず別synthetic bodyが必要。body全日時・初期checkpoint・投入offset・合法最大容量と端末はQ-PERF/Q-LIMITで凍結。",
-        "acquisition": "synthetic"
+        "acquisition": "synthetic: prime test/fixtures/synthetic_VTSE41_e01_released.xml → target test/fixtures/synthetic_VTSE41_e01_311warning.xml（manifest synthetic）。EventID・ReportDateTime・Serialはrunnerが窓・報ごとに書き換え、本文の値は名目（P3-C6-TRIAL-RESET=A。O09の\"P0-T-…\"は名札、P3-C5-E01-SERIES.inputs）"
       },
       "checks": [
-        "津波発令だけを別集計。入力側EEW候補→VTSE41候補→その他の優先順は解除/降格も対象。通知の津波緊急群とは別。",
-        "各母集団100 warm-up、1000標本×3run。各run p99(U_i)≤250ms、T0から10秒無paint欠落0。T6は発令系の大カード/警報区分/海岸線、解除の旧表示除去、降格の色/点滅/文言更新の完了。",
+        "津波発令は発令系（発令・引上げ・区域拡大）の母集団で判定し、発令の遷移ごとの標本数・欠落数・p50/p95/p99/maxの上界は報告する（P3-C6-POP-SHAPE=A、作者裁定2026-10-09。遷移の値で系列の判定を変えず、発令系と解除系を混ぜない）。入力側EEW候補→VTSE41候補→その他の優先順は解除/降格も対象。通知の津波緊急群とは別。",
+        "系列×条件の各母集団100 warm-up、1000標本×3run（系列の中の遷移は試行ごとに順に回す）。各run p99(U_i)≤250ms、T0から10秒無paint欠落0。T6は発令系の大カード/警報区分/海岸線、解除の旧表示除去、降格の色/点滅/文言更新の完了。",
+        "合否はP3-TSUNAMI-E01-001の版付き結果（P3TsunamiE01Verdict）で出す。このrecordは入力の充足でありPassを表さない（decision null）。各試行はprime→targetの2報で既知の初期状態から始める（P3-C6-TRIAL-RESET=A）。",
         "通常合法最大は予報区別警報の欠落/誤値0。対象分野の意図的超過だけ最小事実/省略表示/旧地図除去をT6とする。他分野summaryは免除理由にしない。",
         "Q-PERF未充足。時計不確かさ込み判定、DOM/rAFで実paintを代用しない。原因をparse/encode/射影/転送に分け、parse起因だけB移行。"
       ]
     },
     {
-      "expectedId": "unmet:O09:26",
+      "expectedId": "expected:O09:26",
       "sequenceId": "O09",
       "position": 26,
       "decision": null,
@@ -16805,15 +16900,20 @@
         "L1: docs/specs/reconstruction-p0-contracts.md:2052 «d6ff68c7ef2b9b22»",
         "L1: docs/specs/reconstruction-p0-contracts.md:2065 «67443c1d1be88906»",
         "L1: docs/specs/reconstruction-p0-contracts.md:1142 «f0743c498380a707»",
-        "L1: docs/specs/reconstruction-p0-contracts.md:1155 «253098a9cc645bbc»"
+        "L1: docs/specs/reconstruction-p0-contracts.md:1155 «253098a9cc645bbc»",
+        "L1: reconstruction/contracts/p3-tsunami-unit.json:274 «a2947cde95691a72» P3-C5-E01-SERIES 系列",
+        "L1: reconstruction/contracts/p3-tsunami-unit.json:275 «3b718bb20018f2e2» P3-C5-E01-SERIES 遷移の型",
+        "L2: test/fixtures/synthetic_VTSE41_e01_released.xml:1 «12c29731e40adc0c» 合成入力 prime（manifest synthetic、配信原本ではない）",
+        "L2: test/fixtures/synthetic_VTSE41_e01_311warning.xml:1 «12c29731e40adc0c» 合成入力 target（manifest synthetic、配信原本ではない）"
       ],
       "input": {
         "required": "独立母集団: 津波発令 / EEW同時。VTSE41、Control.Status通常、EventID=P0-T-発令、初期ReportDateTime=2026-01-01T11:59:00+09:00/Serial1、新報12:00:00/Serial2。初期は311/312とも無発令。新報は311=津波警報。 VXSE45 normal EventID=P0-EEW-A、Serial1を対象VTSE41と同時投入。 同一operation/family/subjectの先行報を飛ばさない。原fixtureを改変せず別synthetic bodyが必要。body全日時・初期checkpoint・投入offset・合法最大容量と端末はQ-PERF/Q-LIMITで凍結。",
-        "acquisition": "synthetic"
+        "acquisition": "synthetic: prime test/fixtures/synthetic_VTSE41_e01_released.xml → target test/fixtures/synthetic_VTSE41_e01_311warning.xml（manifest synthetic）。EventID・ReportDateTime・Serialはrunnerが窓・報ごとに書き換え、本文の値は名目（P3-C6-TRIAL-RESET=A。O09の\"P0-T-…\"は名札、P3-C5-E01-SERIES.inputs）"
       },
       "checks": [
-        "津波発令だけを別集計。入力側EEW候補→VTSE41候補→その他の優先順は解除/降格も対象。通知の津波緊急群とは別。",
-        "各母集団100 warm-up、1000標本×3run。各run p99(U_i)≤250ms、T0から10秒無paint欠落0。T6は発令系の大カード/警報区分/海岸線、解除の旧表示除去、降格の色/点滅/文言更新の完了。",
+        "津波発令は発令系（発令・引上げ・区域拡大）の母集団で判定し、発令の遷移ごとの標本数・欠落数・p50/p95/p99/maxの上界は報告する（P3-C6-POP-SHAPE=A、作者裁定2026-10-09。遷移の値で系列の判定を変えず、発令系と解除系を混ぜない）。入力側EEW候補→VTSE41候補→その他の優先順は解除/降格も対象。通知の津波緊急群とは別。",
+        "系列×条件の各母集団100 warm-up、1000標本×3run（系列の中の遷移は試行ごとに順に回す）。各run p99(U_i)≤250ms、T0から10秒無paint欠落0。T6は発令系の大カード/警報区分/海岸線、解除の旧表示除去、降格の色/点滅/文言更新の完了。",
+        "合否はP3-TSUNAMI-E01-001の版付き結果（P3TsunamiE01Verdict）で出す。このrecordは入力の充足でありPassを表さない（decision null）。各試行はprime→targetの2報で既知の初期状態から始める（P3-C6-TRIAL-RESET=A）。",
         "通常合法最大は予報区別警報の欠落/誤値0。対象分野の意図的超過だけ最小事実/省略表示/旧地図除去をT6とする。他分野summaryは免除理由にしない。",
         "Q-PERF未充足。時計不確かさ込み判定、DOM/rAFで実paintを代用しない。原因をparse/encode/射影/転送に分け、parse起因だけB移行。"
       ]
@@ -16974,7 +17074,7 @@
       ]
     },
     {
-      "expectedId": "unmet:O09:32",
+      "expectedId": "expected:O09:32",
       "sequenceId": "O09",
       "position": 32,
       "decision": null,
@@ -16991,21 +17091,26 @@
         "L1: docs/specs/reconstruction-p0-contracts.md:2052 «d6ff68c7ef2b9b22»",
         "L1: docs/specs/reconstruction-p0-contracts.md:2065 «67443c1d1be88906»",
         "L1: docs/specs/reconstruction-p0-contracts.md:1142 «f0743c498380a707»",
-        "L1: docs/specs/reconstruction-p0-contracts.md:1155 «253098a9cc645bbc»"
+        "L1: docs/specs/reconstruction-p0-contracts.md:1155 «253098a9cc645bbc»",
+        "L1: reconstruction/contracts/p3-tsunami-unit.json:274 «a2947cde95691a72» P3-C5-E01-SERIES 系列",
+        "L1: reconstruction/contracts/p3-tsunami-unit.json:275 «3b718bb20018f2e2» P3-C5-E01-SERIES 遷移の型",
+        "L2: test/fixtures/synthetic_VTSE41_e01_311warning.xml:1 «12c29731e40adc0c» 合成入力 prime（manifest synthetic、配信原本ではない）",
+        "L2: test/fixtures/synthetic_VTSE41_e01_311major.xml:1 «12c29731e40adc0c» 合成入力 target（manifest synthetic、配信原本ではない）"
       ],
       "input": {
         "required": "独立母集団: 津波引上げ / 通常backlog。VTSE41、Control.Status通常、EventID=P0-T-引上げ、初期ReportDateTime=2026-01-01T11:59:00+09:00/Serial1、新報12:00:00/Serial2。初期311=津波警報、新報311=大津波警報。 有界mailboxに通常VPWS50/VPWP50を待機。通常入力の採用/取消も進む負荷。 同一operation/family/subjectの先行報を飛ばさない。原fixtureを改変せず別synthetic bodyが必要。body全日時・初期checkpoint・投入offset・合法最大容量と端末はQ-PERF/Q-LIMITで凍結。",
-        "acquisition": "synthetic"
+        "acquisition": "synthetic: prime test/fixtures/synthetic_VTSE41_e01_311warning.xml → target test/fixtures/synthetic_VTSE41_e01_311major.xml（manifest synthetic）。EventID・ReportDateTime・Serialはrunnerが窓・報ごとに書き換え、本文の値は名目（P3-C6-TRIAL-RESET=A。O09の\"P0-T-…\"は名札、P3-C5-E01-SERIES.inputs）"
       },
       "checks": [
-        "津波引上げだけを別集計。入力側EEW候補→VTSE41候補→その他の優先順は解除/降格も対象。通知の津波緊急群とは別。",
-        "各母集団100 warm-up、1000標本×3run。各run p99(U_i)≤250ms、T0から10秒無paint欠落0。T6は発令系の大カード/警報区分/海岸線、解除の旧表示除去、降格の色/点滅/文言更新の完了。",
+        "津波引上げは発令系（発令・引上げ・区域拡大）の母集団で判定し、引上げの遷移ごとの標本数・欠落数・p50/p95/p99/maxの上界は報告する（P3-C6-POP-SHAPE=A、作者裁定2026-10-09。遷移の値で系列の判定を変えず、発令系と解除系を混ぜない）。入力側EEW候補→VTSE41候補→その他の優先順は解除/降格も対象。通知の津波緊急群とは別。",
+        "系列×条件の各母集団100 warm-up、1000標本×3run（系列の中の遷移は試行ごとに順に回す）。各run p99(U_i)≤250ms、T0から10秒無paint欠落0。T6は発令系の大カード/警報区分/海岸線、解除の旧表示除去、降格の色/点滅/文言更新の完了。",
+        "合否はP3-TSUNAMI-E01-001の版付き結果（P3TsunamiE01Verdict）で出す。このrecordは入力の充足でありPassを表さない（decision null）。各試行はprime→targetの2報で既知の初期状態から始める（P3-C6-TRIAL-RESET=A）。",
         "通常合法最大は予報区別警報の欠落/誤値0。対象分野の意図的超過だけ最小事実/省略表示/旧地図除去をT6とする。他分野summaryは免除理由にしない。",
         "Q-PERF未充足。時計不確かさ込み判定、DOM/rAFで実paintを代用しない。原因をparse/encode/射影/転送に分け、parse起因だけB移行。"
       ]
     },
     {
-      "expectedId": "unmet:O09:33",
+      "expectedId": "expected:O09:33",
       "sequenceId": "O09",
       "position": 33,
       "decision": null,
@@ -17022,21 +17127,26 @@
         "L1: docs/specs/reconstruction-p0-contracts.md:2052 «d6ff68c7ef2b9b22»",
         "L1: docs/specs/reconstruction-p0-contracts.md:2065 «67443c1d1be88906»",
         "L1: docs/specs/reconstruction-p0-contracts.md:1142 «f0743c498380a707»",
-        "L1: docs/specs/reconstruction-p0-contracts.md:1155 «253098a9cc645bbc»"
+        "L1: docs/specs/reconstruction-p0-contracts.md:1155 «253098a9cc645bbc»",
+        "L1: reconstruction/contracts/p3-tsunami-unit.json:274 «a2947cde95691a72» P3-C5-E01-SERIES 系列",
+        "L1: reconstruction/contracts/p3-tsunami-unit.json:275 «3b718bb20018f2e2» P3-C5-E01-SERIES 遷移の型",
+        "L2: test/fixtures/synthetic_VTSE41_e01_311warning.xml:1 «12c29731e40adc0c» 合成入力 prime（manifest synthetic、配信原本ではない）",
+        "L2: test/fixtures/synthetic_VTSE41_e01_311major.xml:1 «12c29731e40adc0c» 合成入力 target（manifest synthetic、配信原本ではない）"
       ],
       "input": {
         "required": "独立母集団: 津波引上げ / 最大XML parse直後。VTSE41、Control.Status通常、EventID=P0-T-引上げ、初期ReportDateTime=2026-01-01T11:59:00+09:00/Serial1、新報12:00:00/Serial2。初期311=津波警報、新報311=大津波警報。 manifest最大VPWS50由来の合法bodyをparse。開始+1ms目標、実T0=開始後0〜5msかつ進行中。 同一operation/family/subjectの先行報を飛ばさない。原fixtureを改変せず別synthetic bodyが必要。body全日時・初期checkpoint・投入offset・合法最大容量と端末はQ-PERF/Q-LIMITで凍結。",
-        "acquisition": "synthetic"
+        "acquisition": "synthetic: prime test/fixtures/synthetic_VTSE41_e01_311warning.xml → target test/fixtures/synthetic_VTSE41_e01_311major.xml（manifest synthetic）。EventID・ReportDateTime・Serialはrunnerが窓・報ごとに書き換え、本文の値は名目（P3-C6-TRIAL-RESET=A。O09の\"P0-T-…\"は名札、P3-C5-E01-SERIES.inputs）"
       },
       "checks": [
-        "津波引上げだけを別集計。入力側EEW候補→VTSE41候補→その他の優先順は解除/降格も対象。通知の津波緊急群とは別。",
-        "各母集団100 warm-up、1000標本×3run。各run p99(U_i)≤250ms、T0から10秒無paint欠落0。T6は発令系の大カード/警報区分/海岸線、解除の旧表示除去、降格の色/点滅/文言更新の完了。",
+        "津波引上げは発令系（発令・引上げ・区域拡大）の母集団で判定し、引上げの遷移ごとの標本数・欠落数・p50/p95/p99/maxの上界は報告する（P3-C6-POP-SHAPE=A、作者裁定2026-10-09。遷移の値で系列の判定を変えず、発令系と解除系を混ぜない）。入力側EEW候補→VTSE41候補→その他の優先順は解除/降格も対象。通知の津波緊急群とは別。",
+        "系列×条件の各母集団100 warm-up、1000標本×3run（系列の中の遷移は試行ごとに順に回す）。各run p99(U_i)≤250ms、T0から10秒無paint欠落0。T6は発令系の大カード/警報区分/海岸線、解除の旧表示除去、降格の色/点滅/文言更新の完了。",
+        "合否はP3-TSUNAMI-E01-001の版付き結果（P3TsunamiE01Verdict）で出す。このrecordは入力の充足でありPassを表さない（decision null）。各試行はprime→targetの2報で既知の初期状態から始める（P3-C6-TRIAL-RESET=A）。",
         "通常合法最大は予報区別警報の欠落/誤値0。対象分野の意図的超過だけ最小事実/省略表示/旧地図除去をT6とする。他分野summaryは免除理由にしない。",
         "Q-PERF未充足。時計不確かさ込み判定、DOM/rAFで実paintを代用しない。原因をparse/encode/射影/転送に分け、parse起因だけB移行。"
       ]
     },
     {
-      "expectedId": "unmet:O09:34",
+      "expectedId": "expected:O09:34",
       "sequenceId": "O09",
       "position": 34,
       "decision": null,
@@ -17053,21 +17163,26 @@
         "L1: docs/specs/reconstruction-p0-contracts.md:2052 «d6ff68c7ef2b9b22»",
         "L1: docs/specs/reconstruction-p0-contracts.md:2065 «67443c1d1be88906»",
         "L1: docs/specs/reconstruction-p0-contracts.md:1142 «f0743c498380a707»",
-        "L1: docs/specs/reconstruction-p0-contracts.md:1155 «253098a9cc645bbc»"
+        "L1: docs/specs/reconstruction-p0-contracts.md:1155 «253098a9cc645bbc»",
+        "L1: reconstruction/contracts/p3-tsunami-unit.json:274 «a2947cde95691a72» P3-C5-E01-SERIES 系列",
+        "L1: reconstruction/contracts/p3-tsunami-unit.json:275 «3b718bb20018f2e2» P3-C5-E01-SERIES 遷移の型",
+        "L2: test/fixtures/synthetic_VTSE41_e01_311warning.xml:1 «12c29731e40adc0c» 合成入力 prime（manifest synthetic、配信原本ではない）",
+        "L2: test/fixtures/synthetic_VTSE41_e01_311major.xml:1 «12c29731e40adc0c» 合成入力 target（manifest synthetic、配信原本ではない）"
       ],
       "input": {
         "required": "独立母集団: 津波引上げ / checkpoint encode直後。VTSE41、Control.Status通常、EventID=P0-T-引上げ、初期ReportDateTime=2026-01-01T11:59:00+09:00/Serial1、新報12:00:00/Serial2。初期311=津波警報、新報311=大津波警報。 合法最大U-Wをencode。開始+1ms目標、実T0=開始後0〜5msかつ進行中。 同一operation/family/subjectの先行報を飛ばさない。原fixtureを改変せず別synthetic bodyが必要。body全日時・初期checkpoint・投入offset・合法最大容量と端末はQ-PERF/Q-LIMITで凍結。",
-        "acquisition": "synthetic"
+        "acquisition": "synthetic: prime test/fixtures/synthetic_VTSE41_e01_311warning.xml → target test/fixtures/synthetic_VTSE41_e01_311major.xml（manifest synthetic）。EventID・ReportDateTime・Serialはrunnerが窓・報ごとに書き換え、本文の値は名目（P3-C6-TRIAL-RESET=A。O09の\"P0-T-…\"は名札、P3-C5-E01-SERIES.inputs）"
       },
       "checks": [
-        "津波引上げだけを別集計。入力側EEW候補→VTSE41候補→その他の優先順は解除/降格も対象。通知の津波緊急群とは別。",
-        "各母集団100 warm-up、1000標本×3run。各run p99(U_i)≤250ms、T0から10秒無paint欠落0。T6は発令系の大カード/警報区分/海岸線、解除の旧表示除去、降格の色/点滅/文言更新の完了。",
+        "津波引上げは発令系（発令・引上げ・区域拡大）の母集団で判定し、引上げの遷移ごとの標本数・欠落数・p50/p95/p99/maxの上界は報告する（P3-C6-POP-SHAPE=A、作者裁定2026-10-09。遷移の値で系列の判定を変えず、発令系と解除系を混ぜない）。入力側EEW候補→VTSE41候補→その他の優先順は解除/降格も対象。通知の津波緊急群とは別。",
+        "系列×条件の各母集団100 warm-up、1000標本×3run（系列の中の遷移は試行ごとに順に回す）。各run p99(U_i)≤250ms、T0から10秒無paint欠落0。T6は発令系の大カード/警報区分/海岸線、解除の旧表示除去、降格の色/点滅/文言更新の完了。",
+        "合否はP3-TSUNAMI-E01-001の版付き結果（P3TsunamiE01Verdict）で出す。このrecordは入力の充足でありPassを表さない（decision null）。各試行はprime→targetの2報で既知の初期状態から始める（P3-C6-TRIAL-RESET=A）。",
         "通常合法最大は予報区別警報の欠落/誤値0。対象分野の意図的超過だけ最小事実/省略表示/旧地図除去をT6とする。他分野summaryは免除理由にしない。",
         "Q-PERF未充足。時計不確かさ込み判定、DOM/rAFで実paintを代用しない。原因をparse/encode/射影/転送に分け、parse起因だけB移行。"
       ]
     },
     {
-      "expectedId": "unmet:O09:35",
+      "expectedId": "expected:O09:35",
       "sequenceId": "O09",
       "position": 35,
       "decision": null,
@@ -17084,15 +17199,20 @@
         "L1: docs/specs/reconstruction-p0-contracts.md:2052 «d6ff68c7ef2b9b22»",
         "L1: docs/specs/reconstruction-p0-contracts.md:2065 «67443c1d1be88906»",
         "L1: docs/specs/reconstruction-p0-contracts.md:1142 «f0743c498380a707»",
-        "L1: docs/specs/reconstruction-p0-contracts.md:1155 «253098a9cc645bbc»"
+        "L1: docs/specs/reconstruction-p0-contracts.md:1155 «253098a9cc645bbc»",
+        "L1: reconstruction/contracts/p3-tsunami-unit.json:274 «a2947cde95691a72» P3-C5-E01-SERIES 系列",
+        "L1: reconstruction/contracts/p3-tsunami-unit.json:275 «3b718bb20018f2e2» P3-C5-E01-SERIES 遷移の型",
+        "L2: test/fixtures/synthetic_VTSE41_e01_311warning.xml:1 «12c29731e40adc0c» 合成入力 prime（manifest synthetic、配信原本ではない）",
+        "L2: test/fixtures/synthetic_VTSE41_e01_311major.xml:1 «12c29731e40adc0c» 合成入力 target（manifest synthetic、配信原本ではない）"
       ],
       "input": {
         "required": "独立母集団: 津波引上げ / EEW同時。VTSE41、Control.Status通常、EventID=P0-T-引上げ、初期ReportDateTime=2026-01-01T11:59:00+09:00/Serial1、新報12:00:00/Serial2。初期311=津波警報、新報311=大津波警報。 VXSE45 normal EventID=P0-EEW-A、Serial1を対象VTSE41と同時投入。 同一operation/family/subjectの先行報を飛ばさない。原fixtureを改変せず別synthetic bodyが必要。body全日時・初期checkpoint・投入offset・合法最大容量と端末はQ-PERF/Q-LIMITで凍結。",
-        "acquisition": "synthetic"
+        "acquisition": "synthetic: prime test/fixtures/synthetic_VTSE41_e01_311warning.xml → target test/fixtures/synthetic_VTSE41_e01_311major.xml（manifest synthetic）。EventID・ReportDateTime・Serialはrunnerが窓・報ごとに書き換え、本文の値は名目（P3-C6-TRIAL-RESET=A。O09の\"P0-T-…\"は名札、P3-C5-E01-SERIES.inputs）"
       },
       "checks": [
-        "津波引上げだけを別集計。入力側EEW候補→VTSE41候補→その他の優先順は解除/降格も対象。通知の津波緊急群とは別。",
-        "各母集団100 warm-up、1000標本×3run。各run p99(U_i)≤250ms、T0から10秒無paint欠落0。T6は発令系の大カード/警報区分/海岸線、解除の旧表示除去、降格の色/点滅/文言更新の完了。",
+        "津波引上げは発令系（発令・引上げ・区域拡大）の母集団で判定し、引上げの遷移ごとの標本数・欠落数・p50/p95/p99/maxの上界は報告する（P3-C6-POP-SHAPE=A、作者裁定2026-10-09。遷移の値で系列の判定を変えず、発令系と解除系を混ぜない）。入力側EEW候補→VTSE41候補→その他の優先順は解除/降格も対象。通知の津波緊急群とは別。",
+        "系列×条件の各母集団100 warm-up、1000標本×3run（系列の中の遷移は試行ごとに順に回す）。各run p99(U_i)≤250ms、T0から10秒無paint欠落0。T6は発令系の大カード/警報区分/海岸線、解除の旧表示除去、降格の色/点滅/文言更新の完了。",
+        "合否はP3-TSUNAMI-E01-001の版付き結果（P3TsunamiE01Verdict）で出す。このrecordは入力の充足でありPassを表さない（decision null）。各試行はprime→targetの2報で既知の初期状態から始める（P3-C6-TRIAL-RESET=A）。",
         "通常合法最大は予報区別警報の欠落/誤値0。対象分野の意図的超過だけ最小事実/省略表示/旧地図除去をT6とする。他分野summaryは免除理由にしない。",
         "Q-PERF未充足。時計不確かさ込み判定、DOM/rAFで実paintを代用しない。原因をparse/encode/射影/転送に分け、parse起因だけB移行。"
       ]
@@ -17253,7 +17373,7 @@
       ]
     },
     {
-      "expectedId": "unmet:O09:41",
+      "expectedId": "expected:O09:41",
       "sequenceId": "O09",
       "position": 41,
       "decision": null,
@@ -17270,21 +17390,26 @@
         "L1: docs/specs/reconstruction-p0-contracts.md:2052 «d6ff68c7ef2b9b22»",
         "L1: docs/specs/reconstruction-p0-contracts.md:2065 «67443c1d1be88906»",
         "L1: docs/specs/reconstruction-p0-contracts.md:1142 «f0743c498380a707»",
-        "L1: docs/specs/reconstruction-p0-contracts.md:1155 «253098a9cc645bbc»"
+        "L1: docs/specs/reconstruction-p0-contracts.md:1155 «253098a9cc645bbc»",
+        "L1: reconstruction/contracts/p3-tsunami-unit.json:274 «a2947cde95691a72» P3-C5-E01-SERIES 系列",
+        "L1: reconstruction/contracts/p3-tsunami-unit.json:275 «3b718bb20018f2e2» P3-C5-E01-SERIES 遷移の型",
+        "L2: test/fixtures/synthetic_VTSE41_e01_311major.xml:1 «12c29731e40adc0c» 合成入力 prime（manifest synthetic、配信原本ではない）",
+        "L2: test/fixtures/synthetic_VTSE41_e01_311major_312major.xml:1 «12c29731e40adc0c» 合成入力 target（manifest synthetic、配信原本ではない）"
       ],
       "input": {
         "required": "独立母集団: 津波区域拡大 / 通常backlog。VTSE41、Control.Status通常、EventID=P0-T-区域拡大、初期ReportDateTime=2026-01-01T11:59:00+09:00/Serial1、新報12:00:00/Serial2。初期311=大津波警報、312=無発令。新報311/312=大津波警報。 有界mailboxに通常VPWS50/VPWP50を待機。通常入力の採用/取消も進む負荷。 同一operation/family/subjectの先行報を飛ばさない。原fixtureを改変せず別synthetic bodyが必要。body全日時・初期checkpoint・投入offset・合法最大容量と端末はQ-PERF/Q-LIMITで凍結。",
-        "acquisition": "synthetic"
+        "acquisition": "synthetic: prime test/fixtures/synthetic_VTSE41_e01_311major.xml → target test/fixtures/synthetic_VTSE41_e01_311major_312major.xml（manifest synthetic）。EventID・ReportDateTime・Serialはrunnerが窓・報ごとに書き換え、本文の値は名目（P3-C6-TRIAL-RESET=A。O09の\"P0-T-…\"は名札、P3-C5-E01-SERIES.inputs）"
       },
       "checks": [
-        "津波区域拡大だけを別集計。入力側EEW候補→VTSE41候補→その他の優先順は解除/降格も対象。通知の津波緊急群とは別。",
-        "各母集団100 warm-up、1000標本×3run。各run p99(U_i)≤250ms、T0から10秒無paint欠落0。T6は発令系の大カード/警報区分/海岸線、解除の旧表示除去、降格の色/点滅/文言更新の完了。",
+        "津波区域拡大は発令系（発令・引上げ・区域拡大）の母集団で判定し、区域拡大の遷移ごとの標本数・欠落数・p50/p95/p99/maxの上界は報告する（P3-C6-POP-SHAPE=A、作者裁定2026-10-09。遷移の値で系列の判定を変えず、発令系と解除系を混ぜない）。入力側EEW候補→VTSE41候補→その他の優先順は解除/降格も対象。通知の津波緊急群とは別。",
+        "系列×条件の各母集団100 warm-up、1000標本×3run（系列の中の遷移は試行ごとに順に回す）。各run p99(U_i)≤250ms、T0から10秒無paint欠落0。T6は発令系の大カード/警報区分/海岸線、解除の旧表示除去、降格の色/点滅/文言更新の完了。",
+        "合否はP3-TSUNAMI-E01-001の版付き結果（P3TsunamiE01Verdict）で出す。このrecordは入力の充足でありPassを表さない（decision null）。各試行はprime→targetの2報で既知の初期状態から始める（P3-C6-TRIAL-RESET=A）。",
         "通常合法最大は予報区別警報の欠落/誤値0。対象分野の意図的超過だけ最小事実/省略表示/旧地図除去をT6とする。他分野summaryは免除理由にしない。",
         "Q-PERF未充足。時計不確かさ込み判定、DOM/rAFで実paintを代用しない。原因をparse/encode/射影/転送に分け、parse起因だけB移行。"
       ]
     },
     {
-      "expectedId": "unmet:O09:42",
+      "expectedId": "expected:O09:42",
       "sequenceId": "O09",
       "position": 42,
       "decision": null,
@@ -17301,21 +17426,26 @@
         "L1: docs/specs/reconstruction-p0-contracts.md:2052 «d6ff68c7ef2b9b22»",
         "L1: docs/specs/reconstruction-p0-contracts.md:2065 «67443c1d1be88906»",
         "L1: docs/specs/reconstruction-p0-contracts.md:1142 «f0743c498380a707»",
-        "L1: docs/specs/reconstruction-p0-contracts.md:1155 «253098a9cc645bbc»"
+        "L1: docs/specs/reconstruction-p0-contracts.md:1155 «253098a9cc645bbc»",
+        "L1: reconstruction/contracts/p3-tsunami-unit.json:274 «a2947cde95691a72» P3-C5-E01-SERIES 系列",
+        "L1: reconstruction/contracts/p3-tsunami-unit.json:275 «3b718bb20018f2e2» P3-C5-E01-SERIES 遷移の型",
+        "L2: test/fixtures/synthetic_VTSE41_e01_311major.xml:1 «12c29731e40adc0c» 合成入力 prime（manifest synthetic、配信原本ではない）",
+        "L2: test/fixtures/synthetic_VTSE41_e01_311major_312major.xml:1 «12c29731e40adc0c» 合成入力 target（manifest synthetic、配信原本ではない）"
       ],
       "input": {
         "required": "独立母集団: 津波区域拡大 / 最大XML parse直後。VTSE41、Control.Status通常、EventID=P0-T-区域拡大、初期ReportDateTime=2026-01-01T11:59:00+09:00/Serial1、新報12:00:00/Serial2。初期311=大津波警報、312=無発令。新報311/312=大津波警報。 manifest最大VPWS50由来の合法bodyをparse。開始+1ms目標、実T0=開始後0〜5msかつ進行中。 同一operation/family/subjectの先行報を飛ばさない。原fixtureを改変せず別synthetic bodyが必要。body全日時・初期checkpoint・投入offset・合法最大容量と端末はQ-PERF/Q-LIMITで凍結。",
-        "acquisition": "synthetic"
+        "acquisition": "synthetic: prime test/fixtures/synthetic_VTSE41_e01_311major.xml → target test/fixtures/synthetic_VTSE41_e01_311major_312major.xml（manifest synthetic）。EventID・ReportDateTime・Serialはrunnerが窓・報ごとに書き換え、本文の値は名目（P3-C6-TRIAL-RESET=A。O09の\"P0-T-…\"は名札、P3-C5-E01-SERIES.inputs）"
       },
       "checks": [
-        "津波区域拡大だけを別集計。入力側EEW候補→VTSE41候補→その他の優先順は解除/降格も対象。通知の津波緊急群とは別。",
-        "各母集団100 warm-up、1000標本×3run。各run p99(U_i)≤250ms、T0から10秒無paint欠落0。T6は発令系の大カード/警報区分/海岸線、解除の旧表示除去、降格の色/点滅/文言更新の完了。",
+        "津波区域拡大は発令系（発令・引上げ・区域拡大）の母集団で判定し、区域拡大の遷移ごとの標本数・欠落数・p50/p95/p99/maxの上界は報告する（P3-C6-POP-SHAPE=A、作者裁定2026-10-09。遷移の値で系列の判定を変えず、発令系と解除系を混ぜない）。入力側EEW候補→VTSE41候補→その他の優先順は解除/降格も対象。通知の津波緊急群とは別。",
+        "系列×条件の各母集団100 warm-up、1000標本×3run（系列の中の遷移は試行ごとに順に回す）。各run p99(U_i)≤250ms、T0から10秒無paint欠落0。T6は発令系の大カード/警報区分/海岸線、解除の旧表示除去、降格の色/点滅/文言更新の完了。",
+        "合否はP3-TSUNAMI-E01-001の版付き結果（P3TsunamiE01Verdict）で出す。このrecordは入力の充足でありPassを表さない（decision null）。各試行はprime→targetの2報で既知の初期状態から始める（P3-C6-TRIAL-RESET=A）。",
         "通常合法最大は予報区別警報の欠落/誤値0。対象分野の意図的超過だけ最小事実/省略表示/旧地図除去をT6とする。他分野summaryは免除理由にしない。",
         "Q-PERF未充足。時計不確かさ込み判定、DOM/rAFで実paintを代用しない。原因をparse/encode/射影/転送に分け、parse起因だけB移行。"
       ]
     },
     {
-      "expectedId": "unmet:O09:43",
+      "expectedId": "expected:O09:43",
       "sequenceId": "O09",
       "position": 43,
       "decision": null,
@@ -17332,21 +17462,26 @@
         "L1: docs/specs/reconstruction-p0-contracts.md:2052 «d6ff68c7ef2b9b22»",
         "L1: docs/specs/reconstruction-p0-contracts.md:2065 «67443c1d1be88906»",
         "L1: docs/specs/reconstruction-p0-contracts.md:1142 «f0743c498380a707»",
-        "L1: docs/specs/reconstruction-p0-contracts.md:1155 «253098a9cc645bbc»"
+        "L1: docs/specs/reconstruction-p0-contracts.md:1155 «253098a9cc645bbc»",
+        "L1: reconstruction/contracts/p3-tsunami-unit.json:274 «a2947cde95691a72» P3-C5-E01-SERIES 系列",
+        "L1: reconstruction/contracts/p3-tsunami-unit.json:275 «3b718bb20018f2e2» P3-C5-E01-SERIES 遷移の型",
+        "L2: test/fixtures/synthetic_VTSE41_e01_311major.xml:1 «12c29731e40adc0c» 合成入力 prime（manifest synthetic、配信原本ではない）",
+        "L2: test/fixtures/synthetic_VTSE41_e01_311major_312major.xml:1 «12c29731e40adc0c» 合成入力 target（manifest synthetic、配信原本ではない）"
       ],
       "input": {
         "required": "独立母集団: 津波区域拡大 / checkpoint encode直後。VTSE41、Control.Status通常、EventID=P0-T-区域拡大、初期ReportDateTime=2026-01-01T11:59:00+09:00/Serial1、新報12:00:00/Serial2。初期311=大津波警報、312=無発令。新報311/312=大津波警報。 合法最大U-Wをencode。開始+1ms目標、実T0=開始後0〜5msかつ進行中。 同一operation/family/subjectの先行報を飛ばさない。原fixtureを改変せず別synthetic bodyが必要。body全日時・初期checkpoint・投入offset・合法最大容量と端末はQ-PERF/Q-LIMITで凍結。",
-        "acquisition": "synthetic"
+        "acquisition": "synthetic: prime test/fixtures/synthetic_VTSE41_e01_311major.xml → target test/fixtures/synthetic_VTSE41_e01_311major_312major.xml（manifest synthetic）。EventID・ReportDateTime・Serialはrunnerが窓・報ごとに書き換え、本文の値は名目（P3-C6-TRIAL-RESET=A。O09の\"P0-T-…\"は名札、P3-C5-E01-SERIES.inputs）"
       },
       "checks": [
-        "津波区域拡大だけを別集計。入力側EEW候補→VTSE41候補→その他の優先順は解除/降格も対象。通知の津波緊急群とは別。",
-        "各母集団100 warm-up、1000標本×3run。各run p99(U_i)≤250ms、T0から10秒無paint欠落0。T6は発令系の大カード/警報区分/海岸線、解除の旧表示除去、降格の色/点滅/文言更新の完了。",
+        "津波区域拡大は発令系（発令・引上げ・区域拡大）の母集団で判定し、区域拡大の遷移ごとの標本数・欠落数・p50/p95/p99/maxの上界は報告する（P3-C6-POP-SHAPE=A、作者裁定2026-10-09。遷移の値で系列の判定を変えず、発令系と解除系を混ぜない）。入力側EEW候補→VTSE41候補→その他の優先順は解除/降格も対象。通知の津波緊急群とは別。",
+        "系列×条件の各母集団100 warm-up、1000標本×3run（系列の中の遷移は試行ごとに順に回す）。各run p99(U_i)≤250ms、T0から10秒無paint欠落0。T6は発令系の大カード/警報区分/海岸線、解除の旧表示除去、降格の色/点滅/文言更新の完了。",
+        "合否はP3-TSUNAMI-E01-001の版付き結果（P3TsunamiE01Verdict）で出す。このrecordは入力の充足でありPassを表さない（decision null）。各試行はprime→targetの2報で既知の初期状態から始める（P3-C6-TRIAL-RESET=A）。",
         "通常合法最大は予報区別警報の欠落/誤値0。対象分野の意図的超過だけ最小事実/省略表示/旧地図除去をT6とする。他分野summaryは免除理由にしない。",
         "Q-PERF未充足。時計不確かさ込み判定、DOM/rAFで実paintを代用しない。原因をparse/encode/射影/転送に分け、parse起因だけB移行。"
       ]
     },
     {
-      "expectedId": "unmet:O09:44",
+      "expectedId": "expected:O09:44",
       "sequenceId": "O09",
       "position": 44,
       "decision": null,
@@ -17363,15 +17498,20 @@
         "L1: docs/specs/reconstruction-p0-contracts.md:2052 «d6ff68c7ef2b9b22»",
         "L1: docs/specs/reconstruction-p0-contracts.md:2065 «67443c1d1be88906»",
         "L1: docs/specs/reconstruction-p0-contracts.md:1142 «f0743c498380a707»",
-        "L1: docs/specs/reconstruction-p0-contracts.md:1155 «253098a9cc645bbc»"
+        "L1: docs/specs/reconstruction-p0-contracts.md:1155 «253098a9cc645bbc»",
+        "L1: reconstruction/contracts/p3-tsunami-unit.json:274 «a2947cde95691a72» P3-C5-E01-SERIES 系列",
+        "L1: reconstruction/contracts/p3-tsunami-unit.json:275 «3b718bb20018f2e2» P3-C5-E01-SERIES 遷移の型",
+        "L2: test/fixtures/synthetic_VTSE41_e01_311major.xml:1 «12c29731e40adc0c» 合成入力 prime（manifest synthetic、配信原本ではない）",
+        "L2: test/fixtures/synthetic_VTSE41_e01_311major_312major.xml:1 «12c29731e40adc0c» 合成入力 target（manifest synthetic、配信原本ではない）"
       ],
       "input": {
         "required": "独立母集団: 津波区域拡大 / EEW同時。VTSE41、Control.Status通常、EventID=P0-T-区域拡大、初期ReportDateTime=2026-01-01T11:59:00+09:00/Serial1、新報12:00:00/Serial2。初期311=大津波警報、312=無発令。新報311/312=大津波警報。 VXSE45 normal EventID=P0-EEW-A、Serial1を対象VTSE41と同時投入。 同一operation/family/subjectの先行報を飛ばさない。原fixtureを改変せず別synthetic bodyが必要。body全日時・初期checkpoint・投入offset・合法最大容量と端末はQ-PERF/Q-LIMITで凍結。",
-        "acquisition": "synthetic"
+        "acquisition": "synthetic: prime test/fixtures/synthetic_VTSE41_e01_311major.xml → target test/fixtures/synthetic_VTSE41_e01_311major_312major.xml（manifest synthetic）。EventID・ReportDateTime・Serialはrunnerが窓・報ごとに書き換え、本文の値は名目（P3-C6-TRIAL-RESET=A。O09の\"P0-T-…\"は名札、P3-C5-E01-SERIES.inputs）"
       },
       "checks": [
-        "津波区域拡大だけを別集計。入力側EEW候補→VTSE41候補→その他の優先順は解除/降格も対象。通知の津波緊急群とは別。",
-        "各母集団100 warm-up、1000標本×3run。各run p99(U_i)≤250ms、T0から10秒無paint欠落0。T6は発令系の大カード/警報区分/海岸線、解除の旧表示除去、降格の色/点滅/文言更新の完了。",
+        "津波区域拡大は発令系（発令・引上げ・区域拡大）の母集団で判定し、区域拡大の遷移ごとの標本数・欠落数・p50/p95/p99/maxの上界は報告する（P3-C6-POP-SHAPE=A、作者裁定2026-10-09。遷移の値で系列の判定を変えず、発令系と解除系を混ぜない）。入力側EEW候補→VTSE41候補→その他の優先順は解除/降格も対象。通知の津波緊急群とは別。",
+        "系列×条件の各母集団100 warm-up、1000標本×3run（系列の中の遷移は試行ごとに順に回す）。各run p99(U_i)≤250ms、T0から10秒無paint欠落0。T6は発令系の大カード/警報区分/海岸線、解除の旧表示除去、降格の色/点滅/文言更新の完了。",
+        "合否はP3-TSUNAMI-E01-001の版付き結果（P3TsunamiE01Verdict）で出す。このrecordは入力の充足でありPassを表さない（decision null）。各試行はprime→targetの2報で既知の初期状態から始める（P3-C6-TRIAL-RESET=A）。",
         "通常合法最大は予報区別警報の欠落/誤値0。対象分野の意図的超過だけ最小事実/省略表示/旧地図除去をT6とする。他分野summaryは免除理由にしない。",
         "Q-PERF未充足。時計不確かさ込み判定、DOM/rAFで実paintを代用しない。原因をparse/encode/射影/転送に分け、parse起因だけB移行。"
       ]
@@ -17532,7 +17672,7 @@
       ]
     },
     {
-      "expectedId": "unmet:O09:50",
+      "expectedId": "expected:O09:50",
       "sequenceId": "O09",
       "position": 50,
       "decision": null,
@@ -17549,21 +17689,26 @@
         "L1: docs/specs/reconstruction-p0-contracts.md:2052 «d6ff68c7ef2b9b22»",
         "L1: docs/specs/reconstruction-p0-contracts.md:2065 «67443c1d1be88906»",
         "L1: docs/specs/reconstruction-p0-contracts.md:1142 «f0743c498380a707»",
-        "L1: docs/specs/reconstruction-p0-contracts.md:1155 «253098a9cc645bbc»"
+        "L1: docs/specs/reconstruction-p0-contracts.md:1155 «253098a9cc645bbc»",
+        "L1: reconstruction/contracts/p3-tsunami-unit.json:274 «a2947cde95691a72» P3-C5-E01-SERIES 系列",
+        "L1: reconstruction/contracts/p3-tsunami-unit.json:275 «3b718bb20018f2e2» P3-C5-E01-SERIES 遷移の型",
+        "L2: test/fixtures/synthetic_VTSE41_e01_311major_312warning.xml:1 «12c29731e40adc0c» 合成入力 prime（manifest synthetic、配信原本ではない）",
+        "L2: test/fixtures/synthetic_VTSE41_e01_released.xml:1 «12c29731e40adc0c» 合成入力 target（manifest synthetic、配信原本ではない）"
       ],
       "input": {
         "required": "独立母集団: 津波解除 / 通常backlog。VTSE41、Control.Status通常、EventID=P0-T-解除、初期ReportDateTime=2026-01-01T11:59:00+09:00/Serial1、新報12:00:00/Serial2。初期311=大津波警報、312=津波警報。新報で両区域を解除。 有界mailboxに通常VPWS50/VPWP50を待機。通常入力の採用/取消も進む負荷。 同一operation/family/subjectの先行報を飛ばさない。原fixtureを改変せず別synthetic bodyが必要。body全日時・初期checkpoint・投入offset・合法最大容量と端末はQ-PERF/Q-LIMITで凍結。",
-        "acquisition": "synthetic"
+        "acquisition": "synthetic: prime test/fixtures/synthetic_VTSE41_e01_311major_312warning.xml → target test/fixtures/synthetic_VTSE41_e01_released.xml（manifest synthetic）。EventID・ReportDateTime・Serialはrunnerが窓・報ごとに書き換え、本文の値は名目（P3-C6-TRIAL-RESET=A。O09の\"P0-T-…\"は名札、P3-C5-E01-SERIES.inputs）"
       },
       "checks": [
-        "津波解除だけを別集計。入力側EEW候補→VTSE41候補→その他の優先順は解除/降格も対象。通知の津波緊急群とは別。",
-        "各母集団100 warm-up、1000標本×3run。各run p99(U_i)≤250ms、T0から10秒無paint欠落0。T6は発令系の大カード/警報区分/海岸線、解除の旧表示除去、降格の色/点滅/文言更新の完了。",
+        "津波解除は解除系（解除・降格）の母集団で判定し、解除の遷移ごとの標本数・欠落数・p50/p95/p99/maxの上界は報告する（P3-C6-POP-SHAPE=A、作者裁定2026-10-09。遷移の値で系列の判定を変えず、発令系と解除系を混ぜない）。入力側EEW候補→VTSE41候補→その他の優先順は解除/降格も対象。通知の津波緊急群とは別。",
+        "系列×条件の各母集団100 warm-up、1000標本×3run（系列の中の遷移は試行ごとに順に回す）。各run p99(U_i)≤250ms、T0から10秒無paint欠落0。T6は発令系の大カード/警報区分/海岸線、解除の旧表示除去、降格の色/点滅/文言更新の完了。",
+        "合否はP3-TSUNAMI-E01-001の版付き結果（P3TsunamiE01Verdict）で出す。このrecordは入力の充足でありPassを表さない（decision null）。各試行はprime→targetの2報で既知の初期状態から始める（P3-C6-TRIAL-RESET=A）。",
         "通常合法最大は予報区別警報の欠落/誤値0。対象分野の意図的超過だけ最小事実/省略表示/旧地図除去をT6とする。他分野summaryは免除理由にしない。",
         "Q-PERF未充足。時計不確かさ込み判定、DOM/rAFで実paintを代用しない。原因をparse/encode/射影/転送に分け、parse起因だけB移行。"
       ]
     },
     {
-      "expectedId": "unmet:O09:51",
+      "expectedId": "expected:O09:51",
       "sequenceId": "O09",
       "position": 51,
       "decision": null,
@@ -17580,21 +17725,26 @@
         "L1: docs/specs/reconstruction-p0-contracts.md:2052 «d6ff68c7ef2b9b22»",
         "L1: docs/specs/reconstruction-p0-contracts.md:2065 «67443c1d1be88906»",
         "L1: docs/specs/reconstruction-p0-contracts.md:1142 «f0743c498380a707»",
-        "L1: docs/specs/reconstruction-p0-contracts.md:1155 «253098a9cc645bbc»"
+        "L1: docs/specs/reconstruction-p0-contracts.md:1155 «253098a9cc645bbc»",
+        "L1: reconstruction/contracts/p3-tsunami-unit.json:274 «a2947cde95691a72» P3-C5-E01-SERIES 系列",
+        "L1: reconstruction/contracts/p3-tsunami-unit.json:275 «3b718bb20018f2e2» P3-C5-E01-SERIES 遷移の型",
+        "L2: test/fixtures/synthetic_VTSE41_e01_311major_312warning.xml:1 «12c29731e40adc0c» 合成入力 prime（manifest synthetic、配信原本ではない）",
+        "L2: test/fixtures/synthetic_VTSE41_e01_released.xml:1 «12c29731e40adc0c» 合成入力 target（manifest synthetic、配信原本ではない）"
       ],
       "input": {
         "required": "独立母集団: 津波解除 / 最大XML parse直後。VTSE41、Control.Status通常、EventID=P0-T-解除、初期ReportDateTime=2026-01-01T11:59:00+09:00/Serial1、新報12:00:00/Serial2。初期311=大津波警報、312=津波警報。新報で両区域を解除。 manifest最大VPWS50由来の合法bodyをparse。開始+1ms目標、実T0=開始後0〜5msかつ進行中。 同一operation/family/subjectの先行報を飛ばさない。原fixtureを改変せず別synthetic bodyが必要。body全日時・初期checkpoint・投入offset・合法最大容量と端末はQ-PERF/Q-LIMITで凍結。",
-        "acquisition": "synthetic"
+        "acquisition": "synthetic: prime test/fixtures/synthetic_VTSE41_e01_311major_312warning.xml → target test/fixtures/synthetic_VTSE41_e01_released.xml（manifest synthetic）。EventID・ReportDateTime・Serialはrunnerが窓・報ごとに書き換え、本文の値は名目（P3-C6-TRIAL-RESET=A。O09の\"P0-T-…\"は名札、P3-C5-E01-SERIES.inputs）"
       },
       "checks": [
-        "津波解除だけを別集計。入力側EEW候補→VTSE41候補→その他の優先順は解除/降格も対象。通知の津波緊急群とは別。",
-        "各母集団100 warm-up、1000標本×3run。各run p99(U_i)≤250ms、T0から10秒無paint欠落0。T6は発令系の大カード/警報区分/海岸線、解除の旧表示除去、降格の色/点滅/文言更新の完了。",
+        "津波解除は解除系（解除・降格）の母集団で判定し、解除の遷移ごとの標本数・欠落数・p50/p95/p99/maxの上界は報告する（P3-C6-POP-SHAPE=A、作者裁定2026-10-09。遷移の値で系列の判定を変えず、発令系と解除系を混ぜない）。入力側EEW候補→VTSE41候補→その他の優先順は解除/降格も対象。通知の津波緊急群とは別。",
+        "系列×条件の各母集団100 warm-up、1000標本×3run（系列の中の遷移は試行ごとに順に回す）。各run p99(U_i)≤250ms、T0から10秒無paint欠落0。T6は発令系の大カード/警報区分/海岸線、解除の旧表示除去、降格の色/点滅/文言更新の完了。",
+        "合否はP3-TSUNAMI-E01-001の版付き結果（P3TsunamiE01Verdict）で出す。このrecordは入力の充足でありPassを表さない（decision null）。各試行はprime→targetの2報で既知の初期状態から始める（P3-C6-TRIAL-RESET=A）。",
         "通常合法最大は予報区別警報の欠落/誤値0。対象分野の意図的超過だけ最小事実/省略表示/旧地図除去をT6とする。他分野summaryは免除理由にしない。",
         "Q-PERF未充足。時計不確かさ込み判定、DOM/rAFで実paintを代用しない。原因をparse/encode/射影/転送に分け、parse起因だけB移行。"
       ]
     },
     {
-      "expectedId": "unmet:O09:52",
+      "expectedId": "expected:O09:52",
       "sequenceId": "O09",
       "position": 52,
       "decision": null,
@@ -17611,21 +17761,26 @@
         "L1: docs/specs/reconstruction-p0-contracts.md:2052 «d6ff68c7ef2b9b22»",
         "L1: docs/specs/reconstruction-p0-contracts.md:2065 «67443c1d1be88906»",
         "L1: docs/specs/reconstruction-p0-contracts.md:1142 «f0743c498380a707»",
-        "L1: docs/specs/reconstruction-p0-contracts.md:1155 «253098a9cc645bbc»"
+        "L1: docs/specs/reconstruction-p0-contracts.md:1155 «253098a9cc645bbc»",
+        "L1: reconstruction/contracts/p3-tsunami-unit.json:274 «a2947cde95691a72» P3-C5-E01-SERIES 系列",
+        "L1: reconstruction/contracts/p3-tsunami-unit.json:275 «3b718bb20018f2e2» P3-C5-E01-SERIES 遷移の型",
+        "L2: test/fixtures/synthetic_VTSE41_e01_311major_312warning.xml:1 «12c29731e40adc0c» 合成入力 prime（manifest synthetic、配信原本ではない）",
+        "L2: test/fixtures/synthetic_VTSE41_e01_released.xml:1 «12c29731e40adc0c» 合成入力 target（manifest synthetic、配信原本ではない）"
       ],
       "input": {
         "required": "独立母集団: 津波解除 / checkpoint encode直後。VTSE41、Control.Status通常、EventID=P0-T-解除、初期ReportDateTime=2026-01-01T11:59:00+09:00/Serial1、新報12:00:00/Serial2。初期311=大津波警報、312=津波警報。新報で両区域を解除。 合法最大U-Wをencode。開始+1ms目標、実T0=開始後0〜5msかつ進行中。 同一operation/family/subjectの先行報を飛ばさない。原fixtureを改変せず別synthetic bodyが必要。body全日時・初期checkpoint・投入offset・合法最大容量と端末はQ-PERF/Q-LIMITで凍結。",
-        "acquisition": "synthetic"
+        "acquisition": "synthetic: prime test/fixtures/synthetic_VTSE41_e01_311major_312warning.xml → target test/fixtures/synthetic_VTSE41_e01_released.xml（manifest synthetic）。EventID・ReportDateTime・Serialはrunnerが窓・報ごとに書き換え、本文の値は名目（P3-C6-TRIAL-RESET=A。O09の\"P0-T-…\"は名札、P3-C5-E01-SERIES.inputs）"
       },
       "checks": [
-        "津波解除だけを別集計。入力側EEW候補→VTSE41候補→その他の優先順は解除/降格も対象。通知の津波緊急群とは別。",
-        "各母集団100 warm-up、1000標本×3run。各run p99(U_i)≤250ms、T0から10秒無paint欠落0。T6は発令系の大カード/警報区分/海岸線、解除の旧表示除去、降格の色/点滅/文言更新の完了。",
+        "津波解除は解除系（解除・降格）の母集団で判定し、解除の遷移ごとの標本数・欠落数・p50/p95/p99/maxの上界は報告する（P3-C6-POP-SHAPE=A、作者裁定2026-10-09。遷移の値で系列の判定を変えず、発令系と解除系を混ぜない）。入力側EEW候補→VTSE41候補→その他の優先順は解除/降格も対象。通知の津波緊急群とは別。",
+        "系列×条件の各母集団100 warm-up、1000標本×3run（系列の中の遷移は試行ごとに順に回す）。各run p99(U_i)≤250ms、T0から10秒無paint欠落0。T6は発令系の大カード/警報区分/海岸線、解除の旧表示除去、降格の色/点滅/文言更新の完了。",
+        "合否はP3-TSUNAMI-E01-001の版付き結果（P3TsunamiE01Verdict）で出す。このrecordは入力の充足でありPassを表さない（decision null）。各試行はprime→targetの2報で既知の初期状態から始める（P3-C6-TRIAL-RESET=A）。",
         "通常合法最大は予報区別警報の欠落/誤値0。対象分野の意図的超過だけ最小事実/省略表示/旧地図除去をT6とする。他分野summaryは免除理由にしない。",
         "Q-PERF未充足。時計不確かさ込み判定、DOM/rAFで実paintを代用しない。原因をparse/encode/射影/転送に分け、parse起因だけB移行。"
       ]
     },
     {
-      "expectedId": "unmet:O09:53",
+      "expectedId": "expected:O09:53",
       "sequenceId": "O09",
       "position": 53,
       "decision": null,
@@ -17642,15 +17797,20 @@
         "L1: docs/specs/reconstruction-p0-contracts.md:2052 «d6ff68c7ef2b9b22»",
         "L1: docs/specs/reconstruction-p0-contracts.md:2065 «67443c1d1be88906»",
         "L1: docs/specs/reconstruction-p0-contracts.md:1142 «f0743c498380a707»",
-        "L1: docs/specs/reconstruction-p0-contracts.md:1155 «253098a9cc645bbc»"
+        "L1: docs/specs/reconstruction-p0-contracts.md:1155 «253098a9cc645bbc»",
+        "L1: reconstruction/contracts/p3-tsunami-unit.json:274 «a2947cde95691a72» P3-C5-E01-SERIES 系列",
+        "L1: reconstruction/contracts/p3-tsunami-unit.json:275 «3b718bb20018f2e2» P3-C5-E01-SERIES 遷移の型",
+        "L2: test/fixtures/synthetic_VTSE41_e01_311major_312warning.xml:1 «12c29731e40adc0c» 合成入力 prime（manifest synthetic、配信原本ではない）",
+        "L2: test/fixtures/synthetic_VTSE41_e01_released.xml:1 «12c29731e40adc0c» 合成入力 target（manifest synthetic、配信原本ではない）"
       ],
       "input": {
         "required": "独立母集団: 津波解除 / EEW同時。VTSE41、Control.Status通常、EventID=P0-T-解除、初期ReportDateTime=2026-01-01T11:59:00+09:00/Serial1、新報12:00:00/Serial2。初期311=大津波警報、312=津波警報。新報で両区域を解除。 VXSE45 normal EventID=P0-EEW-A、Serial1を対象VTSE41と同時投入。 同一operation/family/subjectの先行報を飛ばさない。原fixtureを改変せず別synthetic bodyが必要。body全日時・初期checkpoint・投入offset・合法最大容量と端末はQ-PERF/Q-LIMITで凍結。",
-        "acquisition": "synthetic"
+        "acquisition": "synthetic: prime test/fixtures/synthetic_VTSE41_e01_311major_312warning.xml → target test/fixtures/synthetic_VTSE41_e01_released.xml（manifest synthetic）。EventID・ReportDateTime・Serialはrunnerが窓・報ごとに書き換え、本文の値は名目（P3-C6-TRIAL-RESET=A。O09の\"P0-T-…\"は名札、P3-C5-E01-SERIES.inputs）"
       },
       "checks": [
-        "津波解除だけを別集計。入力側EEW候補→VTSE41候補→その他の優先順は解除/降格も対象。通知の津波緊急群とは別。",
-        "各母集団100 warm-up、1000標本×3run。各run p99(U_i)≤250ms、T0から10秒無paint欠落0。T6は発令系の大カード/警報区分/海岸線、解除の旧表示除去、降格の色/点滅/文言更新の完了。",
+        "津波解除は解除系（解除・降格）の母集団で判定し、解除の遷移ごとの標本数・欠落数・p50/p95/p99/maxの上界は報告する（P3-C6-POP-SHAPE=A、作者裁定2026-10-09。遷移の値で系列の判定を変えず、発令系と解除系を混ぜない）。入力側EEW候補→VTSE41候補→その他の優先順は解除/降格も対象。通知の津波緊急群とは別。",
+        "系列×条件の各母集団100 warm-up、1000標本×3run（系列の中の遷移は試行ごとに順に回す）。各run p99(U_i)≤250ms、T0から10秒無paint欠落0。T6は発令系の大カード/警報区分/海岸線、解除の旧表示除去、降格の色/点滅/文言更新の完了。",
+        "合否はP3-TSUNAMI-E01-001の版付き結果（P3TsunamiE01Verdict）で出す。このrecordは入力の充足でありPassを表さない（decision null）。各試行はprime→targetの2報で既知の初期状態から始める（P3-C6-TRIAL-RESET=A）。",
         "通常合法最大は予報区別警報の欠落/誤値0。対象分野の意図的超過だけ最小事実/省略表示/旧地図除去をT6とする。他分野summaryは免除理由にしない。",
         "Q-PERF未充足。時計不確かさ込み判定、DOM/rAFで実paintを代用しない。原因をparse/encode/射影/転送に分け、parse起因だけB移行。"
       ]
@@ -17811,7 +17971,7 @@
       ]
     },
     {
-      "expectedId": "unmet:O09:59",
+      "expectedId": "expected:O09:59",
       "sequenceId": "O09",
       "position": 59,
       "decision": null,
@@ -17828,21 +17988,26 @@
         "L1: docs/specs/reconstruction-p0-contracts.md:2052 «d6ff68c7ef2b9b22»",
         "L1: docs/specs/reconstruction-p0-contracts.md:2065 «67443c1d1be88906»",
         "L1: docs/specs/reconstruction-p0-contracts.md:1142 «f0743c498380a707»",
-        "L1: docs/specs/reconstruction-p0-contracts.md:1155 «253098a9cc645bbc»"
+        "L1: docs/specs/reconstruction-p0-contracts.md:1155 «253098a9cc645bbc»",
+        "L1: reconstruction/contracts/p3-tsunami-unit.json:274 «a2947cde95691a72» P3-C5-E01-SERIES 系列",
+        "L1: reconstruction/contracts/p3-tsunami-unit.json:275 «3b718bb20018f2e2» P3-C5-E01-SERIES 遷移の型",
+        "L2: test/fixtures/synthetic_VTSE41_e01_311major_312warning.xml:1 «12c29731e40adc0c» 合成入力 prime（manifest synthetic、配信原本ではない）",
+        "L2: test/fixtures/synthetic_VTSE41_e01_311warning_312advisory.xml:1 «12c29731e40adc0c» 合成入力 target（manifest synthetic、配信原本ではない）"
       ],
       "input": {
         "required": "独立母集団: 津波降格 / 通常backlog。VTSE41、Control.Status通常、EventID=P0-T-降格、初期ReportDateTime=2026-01-01T11:59:00+09:00/Serial1、新報12:00:00/Serial2。初期311=大津波警報、312=津波警報。新報311=津波警報、312=注意報。 有界mailboxに通常VPWS50/VPWP50を待機。通常入力の採用/取消も進む負荷。 同一operation/family/subjectの先行報を飛ばさない。原fixtureを改変せず別synthetic bodyが必要。body全日時・初期checkpoint・投入offset・合法最大容量と端末はQ-PERF/Q-LIMITで凍結。",
-        "acquisition": "synthetic"
+        "acquisition": "synthetic: prime test/fixtures/synthetic_VTSE41_e01_311major_312warning.xml → target test/fixtures/synthetic_VTSE41_e01_311warning_312advisory.xml（manifest synthetic）。EventID・ReportDateTime・Serialはrunnerが窓・報ごとに書き換え、本文の値は名目（P3-C6-TRIAL-RESET=A。O09の\"P0-T-…\"は名札、P3-C5-E01-SERIES.inputs）"
       },
       "checks": [
-        "津波降格だけを別集計。入力側EEW候補→VTSE41候補→その他の優先順は解除/降格も対象。通知の津波緊急群とは別。",
-        "各母集団100 warm-up、1000標本×3run。各run p99(U_i)≤250ms、T0から10秒無paint欠落0。T6は発令系の大カード/警報区分/海岸線、解除の旧表示除去、降格の色/点滅/文言更新の完了。",
+        "津波降格は解除系（解除・降格）の母集団で判定し、降格の遷移ごとの標本数・欠落数・p50/p95/p99/maxの上界は報告する（P3-C6-POP-SHAPE=A、作者裁定2026-10-09。遷移の値で系列の判定を変えず、発令系と解除系を混ぜない）。入力側EEW候補→VTSE41候補→その他の優先順は解除/降格も対象。通知の津波緊急群とは別。",
+        "系列×条件の各母集団100 warm-up、1000標本×3run（系列の中の遷移は試行ごとに順に回す）。各run p99(U_i)≤250ms、T0から10秒無paint欠落0。T6は発令系の大カード/警報区分/海岸線、解除の旧表示除去、降格の色/点滅/文言更新の完了。",
+        "合否はP3-TSUNAMI-E01-001の版付き結果（P3TsunamiE01Verdict）で出す。このrecordは入力の充足でありPassを表さない（decision null）。各試行はprime→targetの2報で既知の初期状態から始める（P3-C6-TRIAL-RESET=A）。",
         "通常合法最大は予報区別警報の欠落/誤値0。対象分野の意図的超過だけ最小事実/省略表示/旧地図除去をT6とする。他分野summaryは免除理由にしない。",
         "Q-PERF未充足。時計不確かさ込み判定、DOM/rAFで実paintを代用しない。原因をparse/encode/射影/転送に分け、parse起因だけB移行。"
       ]
     },
     {
-      "expectedId": "unmet:O09:60",
+      "expectedId": "expected:O09:60",
       "sequenceId": "O09",
       "position": 60,
       "decision": null,
@@ -17859,21 +18024,26 @@
         "L1: docs/specs/reconstruction-p0-contracts.md:2052 «d6ff68c7ef2b9b22»",
         "L1: docs/specs/reconstruction-p0-contracts.md:2065 «67443c1d1be88906»",
         "L1: docs/specs/reconstruction-p0-contracts.md:1142 «f0743c498380a707»",
-        "L1: docs/specs/reconstruction-p0-contracts.md:1155 «253098a9cc645bbc»"
+        "L1: docs/specs/reconstruction-p0-contracts.md:1155 «253098a9cc645bbc»",
+        "L1: reconstruction/contracts/p3-tsunami-unit.json:274 «a2947cde95691a72» P3-C5-E01-SERIES 系列",
+        "L1: reconstruction/contracts/p3-tsunami-unit.json:275 «3b718bb20018f2e2» P3-C5-E01-SERIES 遷移の型",
+        "L2: test/fixtures/synthetic_VTSE41_e01_311major_312warning.xml:1 «12c29731e40adc0c» 合成入力 prime（manifest synthetic、配信原本ではない）",
+        "L2: test/fixtures/synthetic_VTSE41_e01_311warning_312advisory.xml:1 «12c29731e40adc0c» 合成入力 target（manifest synthetic、配信原本ではない）"
       ],
       "input": {
         "required": "独立母集団: 津波降格 / 最大XML parse直後。VTSE41、Control.Status通常、EventID=P0-T-降格、初期ReportDateTime=2026-01-01T11:59:00+09:00/Serial1、新報12:00:00/Serial2。初期311=大津波警報、312=津波警報。新報311=津波警報、312=注意報。 manifest最大VPWS50由来の合法bodyをparse。開始+1ms目標、実T0=開始後0〜5msかつ進行中。 同一operation/family/subjectの先行報を飛ばさない。原fixtureを改変せず別synthetic bodyが必要。body全日時・初期checkpoint・投入offset・合法最大容量と端末はQ-PERF/Q-LIMITで凍結。",
-        "acquisition": "synthetic"
+        "acquisition": "synthetic: prime test/fixtures/synthetic_VTSE41_e01_311major_312warning.xml → target test/fixtures/synthetic_VTSE41_e01_311warning_312advisory.xml（manifest synthetic）。EventID・ReportDateTime・Serialはrunnerが窓・報ごとに書き換え、本文の値は名目（P3-C6-TRIAL-RESET=A。O09の\"P0-T-…\"は名札、P3-C5-E01-SERIES.inputs）"
       },
       "checks": [
-        "津波降格だけを別集計。入力側EEW候補→VTSE41候補→その他の優先順は解除/降格も対象。通知の津波緊急群とは別。",
-        "各母集団100 warm-up、1000標本×3run。各run p99(U_i)≤250ms、T0から10秒無paint欠落0。T6は発令系の大カード/警報区分/海岸線、解除の旧表示除去、降格の色/点滅/文言更新の完了。",
+        "津波降格は解除系（解除・降格）の母集団で判定し、降格の遷移ごとの標本数・欠落数・p50/p95/p99/maxの上界は報告する（P3-C6-POP-SHAPE=A、作者裁定2026-10-09。遷移の値で系列の判定を変えず、発令系と解除系を混ぜない）。入力側EEW候補→VTSE41候補→その他の優先順は解除/降格も対象。通知の津波緊急群とは別。",
+        "系列×条件の各母集団100 warm-up、1000標本×3run（系列の中の遷移は試行ごとに順に回す）。各run p99(U_i)≤250ms、T0から10秒無paint欠落0。T6は発令系の大カード/警報区分/海岸線、解除の旧表示除去、降格の色/点滅/文言更新の完了。",
+        "合否はP3-TSUNAMI-E01-001の版付き結果（P3TsunamiE01Verdict）で出す。このrecordは入力の充足でありPassを表さない（decision null）。各試行はprime→targetの2報で既知の初期状態から始める（P3-C6-TRIAL-RESET=A）。",
         "通常合法最大は予報区別警報の欠落/誤値0。対象分野の意図的超過だけ最小事実/省略表示/旧地図除去をT6とする。他分野summaryは免除理由にしない。",
         "Q-PERF未充足。時計不確かさ込み判定、DOM/rAFで実paintを代用しない。原因をparse/encode/射影/転送に分け、parse起因だけB移行。"
       ]
     },
     {
-      "expectedId": "unmet:O09:61",
+      "expectedId": "expected:O09:61",
       "sequenceId": "O09",
       "position": 61,
       "decision": null,
@@ -17890,21 +18060,26 @@
         "L1: docs/specs/reconstruction-p0-contracts.md:2052 «d6ff68c7ef2b9b22»",
         "L1: docs/specs/reconstruction-p0-contracts.md:2065 «67443c1d1be88906»",
         "L1: docs/specs/reconstruction-p0-contracts.md:1142 «f0743c498380a707»",
-        "L1: docs/specs/reconstruction-p0-contracts.md:1155 «253098a9cc645bbc»"
+        "L1: docs/specs/reconstruction-p0-contracts.md:1155 «253098a9cc645bbc»",
+        "L1: reconstruction/contracts/p3-tsunami-unit.json:274 «a2947cde95691a72» P3-C5-E01-SERIES 系列",
+        "L1: reconstruction/contracts/p3-tsunami-unit.json:275 «3b718bb20018f2e2» P3-C5-E01-SERIES 遷移の型",
+        "L2: test/fixtures/synthetic_VTSE41_e01_311major_312warning.xml:1 «12c29731e40adc0c» 合成入力 prime（manifest synthetic、配信原本ではない）",
+        "L2: test/fixtures/synthetic_VTSE41_e01_311warning_312advisory.xml:1 «12c29731e40adc0c» 合成入力 target（manifest synthetic、配信原本ではない）"
       ],
       "input": {
         "required": "独立母集団: 津波降格 / checkpoint encode直後。VTSE41、Control.Status通常、EventID=P0-T-降格、初期ReportDateTime=2026-01-01T11:59:00+09:00/Serial1、新報12:00:00/Serial2。初期311=大津波警報、312=津波警報。新報311=津波警報、312=注意報。 合法最大U-Wをencode。開始+1ms目標、実T0=開始後0〜5msかつ進行中。 同一operation/family/subjectの先行報を飛ばさない。原fixtureを改変せず別synthetic bodyが必要。body全日時・初期checkpoint・投入offset・合法最大容量と端末はQ-PERF/Q-LIMITで凍結。",
-        "acquisition": "synthetic"
+        "acquisition": "synthetic: prime test/fixtures/synthetic_VTSE41_e01_311major_312warning.xml → target test/fixtures/synthetic_VTSE41_e01_311warning_312advisory.xml（manifest synthetic）。EventID・ReportDateTime・Serialはrunnerが窓・報ごとに書き換え、本文の値は名目（P3-C6-TRIAL-RESET=A。O09の\"P0-T-…\"は名札、P3-C5-E01-SERIES.inputs）"
       },
       "checks": [
-        "津波降格だけを別集計。入力側EEW候補→VTSE41候補→その他の優先順は解除/降格も対象。通知の津波緊急群とは別。",
-        "各母集団100 warm-up、1000標本×3run。各run p99(U_i)≤250ms、T0から10秒無paint欠落0。T6は発令系の大カード/警報区分/海岸線、解除の旧表示除去、降格の色/点滅/文言更新の完了。",
+        "津波降格は解除系（解除・降格）の母集団で判定し、降格の遷移ごとの標本数・欠落数・p50/p95/p99/maxの上界は報告する（P3-C6-POP-SHAPE=A、作者裁定2026-10-09。遷移の値で系列の判定を変えず、発令系と解除系を混ぜない）。入力側EEW候補→VTSE41候補→その他の優先順は解除/降格も対象。通知の津波緊急群とは別。",
+        "系列×条件の各母集団100 warm-up、1000標本×3run（系列の中の遷移は試行ごとに順に回す）。各run p99(U_i)≤250ms、T0から10秒無paint欠落0。T6は発令系の大カード/警報区分/海岸線、解除の旧表示除去、降格の色/点滅/文言更新の完了。",
+        "合否はP3-TSUNAMI-E01-001の版付き結果（P3TsunamiE01Verdict）で出す。このrecordは入力の充足でありPassを表さない（decision null）。各試行はprime→targetの2報で既知の初期状態から始める（P3-C6-TRIAL-RESET=A）。",
         "通常合法最大は予報区別警報の欠落/誤値0。対象分野の意図的超過だけ最小事実/省略表示/旧地図除去をT6とする。他分野summaryは免除理由にしない。",
         "Q-PERF未充足。時計不確かさ込み判定、DOM/rAFで実paintを代用しない。原因をparse/encode/射影/転送に分け、parse起因だけB移行。"
       ]
     },
     {
-      "expectedId": "unmet:O09:62",
+      "expectedId": "expected:O09:62",
       "sequenceId": "O09",
       "position": 62,
       "decision": null,
@@ -17921,15 +18096,20 @@
         "L1: docs/specs/reconstruction-p0-contracts.md:2052 «d6ff68c7ef2b9b22»",
         "L1: docs/specs/reconstruction-p0-contracts.md:2065 «67443c1d1be88906»",
         "L1: docs/specs/reconstruction-p0-contracts.md:1142 «f0743c498380a707»",
-        "L1: docs/specs/reconstruction-p0-contracts.md:1155 «253098a9cc645bbc»"
+        "L1: docs/specs/reconstruction-p0-contracts.md:1155 «253098a9cc645bbc»",
+        "L1: reconstruction/contracts/p3-tsunami-unit.json:274 «a2947cde95691a72» P3-C5-E01-SERIES 系列",
+        "L1: reconstruction/contracts/p3-tsunami-unit.json:275 «3b718bb20018f2e2» P3-C5-E01-SERIES 遷移の型",
+        "L2: test/fixtures/synthetic_VTSE41_e01_311major_312warning.xml:1 «12c29731e40adc0c» 合成入力 prime（manifest synthetic、配信原本ではない）",
+        "L2: test/fixtures/synthetic_VTSE41_e01_311warning_312advisory.xml:1 «12c29731e40adc0c» 合成入力 target（manifest synthetic、配信原本ではない）"
       ],
       "input": {
         "required": "独立母集団: 津波降格 / EEW同時。VTSE41、Control.Status通常、EventID=P0-T-降格、初期ReportDateTime=2026-01-01T11:59:00+09:00/Serial1、新報12:00:00/Serial2。初期311=大津波警報、312=津波警報。新報311=津波警報、312=注意報。 VXSE45 normal EventID=P0-EEW-A、Serial1を対象VTSE41と同時投入。 同一operation/family/subjectの先行報を飛ばさない。原fixtureを改変せず別synthetic bodyが必要。body全日時・初期checkpoint・投入offset・合法最大容量と端末はQ-PERF/Q-LIMITで凍結。",
-        "acquisition": "synthetic"
+        "acquisition": "synthetic: prime test/fixtures/synthetic_VTSE41_e01_311major_312warning.xml → target test/fixtures/synthetic_VTSE41_e01_311warning_312advisory.xml（manifest synthetic）。EventID・ReportDateTime・Serialはrunnerが窓・報ごとに書き換え、本文の値は名目（P3-C6-TRIAL-RESET=A。O09の\"P0-T-…\"は名札、P3-C5-E01-SERIES.inputs）"
       },
       "checks": [
-        "津波降格だけを別集計。入力側EEW候補→VTSE41候補→その他の優先順は解除/降格も対象。通知の津波緊急群とは別。",
-        "各母集団100 warm-up、1000標本×3run。各run p99(U_i)≤250ms、T0から10秒無paint欠落0。T6は発令系の大カード/警報区分/海岸線、解除の旧表示除去、降格の色/点滅/文言更新の完了。",
+        "津波降格は解除系（解除・降格）の母集団で判定し、降格の遷移ごとの標本数・欠落数・p50/p95/p99/maxの上界は報告する（P3-C6-POP-SHAPE=A、作者裁定2026-10-09。遷移の値で系列の判定を変えず、発令系と解除系を混ぜない）。入力側EEW候補→VTSE41候補→その他の優先順は解除/降格も対象。通知の津波緊急群とは別。",
+        "系列×条件の各母集団100 warm-up、1000標本×3run（系列の中の遷移は試行ごとに順に回す）。各run p99(U_i)≤250ms、T0から10秒無paint欠落0。T6は発令系の大カード/警報区分/海岸線、解除の旧表示除去、降格の色/点滅/文言更新の完了。",
+        "合否はP3-TSUNAMI-E01-001の版付き結果（P3TsunamiE01Verdict）で出す。このrecordは入力の充足でありPassを表さない（decision null）。各試行はprime→targetの2報で既知の初期状態から始める（P3-C6-TRIAL-RESET=A）。",
         "通常合法最大は予報区別警報の欠落/誤値0。対象分野の意図的超過だけ最小事実/省略表示/旧地図除去をT6とする。他分野summaryは免除理由にしない。",
         "Q-PERF未充足。時計不確かさ込み判定、DOM/rAFで実paintを代用しない。原因をparse/encode/射影/転送に分け、parse起因だけB移行。"
       ]

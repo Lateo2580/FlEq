@@ -1,122 +1,111 @@
 {
   "meta": {
     "draftedFromOid": "2d1696da9cea2ea624248e00c494637f5bc5846f",
-    "sha256": "edc042c5bdf735c12b50ffae5287516b989234d40430fc9c712cd8996625c764",
+    "sha256": "67affb7d6ea1f9dd4bc5d82fa7fd6e8487291dbdd273f0b1cf066ecfe3ad7482",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
-    "manifestSha256": "da37746c04107de2c1906fec26909f8f90a638e839672498e5fe9454fd192fca",
-    "sequencesSha256": "307539b65b8a5d45c007e31f93c767e883c234b49df7099587b1419fef94ea48",
+    "manifestSha256": "e4294056f8be82e935cfe620919806a73cffd91ebd14334e74d82b1edf00df3e",
+    "sequencesSha256": "a6502ec4fd5a1959735ce044f3388788d6893b3a41f6a3f4ab0d72ca61e9ea1f",
     "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
     "decisionBranches": [
       {
         "id": "P3-C6-POP-SHAPE",
-        "status": "起草案",
         "A": "母集団は系列×条件の8つ（発令系・解除系×通常backlog・大型parse直後・encode直後・EEW同時）。各母集団はwarm-up 100＋1,000標本×3 run（spec:1118〜1119）で、正式標本は8×3,000＝24,000件。系列の中の遷移は試行ごとに順に回す（発令系は発令・引上げ・区域拡大で各333〜334件、解除系は解除・降格で各500件）。合否は母集団×runで出し、遷移ごとのp50/p95/p99/max・標本数・欠落数は別に報告する（遷移の値で系列の不合格を救済しない）。sequences.jsonのO09:23〜26・32〜35・41〜44・50〜53・59〜62（20位置）のchecksは「遷移だけを別集計し各run p99≤250ms」なので、Aを採るならこの20位置のchecksを「系列の母集団で判定し、遷移ごとは報告」へ改訂する（統合担当、Q-C6-PRECHECK）",
         "B": "母集団を遷移×条件の20個にし、遷移ごとに1,000標本×3 runを取る（O09:23〜62のchecksどおり、正式標本60,000件）",
         "recommended": "A",
         "provisional": "A",
-        "ruling": "未決（作者裁定待ち、Q-C6-AUTHOR-RULINGS）",
+        "ruling": "作者裁定A（2026-10-09、推奨どおり）。O09の20位置のchecksは発注前点検で「系列の母集団で判定し、遷移ごとは報告」へ改めた（sequences.json）",
         "reason": "見え方の違い: AのMac miniの所要は約28〜35時間（各runの試行数をC4の成立率で積算: 通常backlog 1,100・parse直後 約2,080・encode直後 約1,350・EEW同時 1,100、試行3秒、2系列×3 run、stopConditionの余裕を含む。primeSettledを合わせた成立率は予備測定で測り直す）。Aの代償は2つ: ① O09の20位置のchecksの改訂が要る ② 遷移1つあたりの標本はrunごとに333〜500件で、遷移単独のp99が250msを超えても系列のp99が250ms以内なら系列はPassになりうる（遷移の値は報告に残るが合否を変えない）。Bは約70〜88時間で、遷移ごとに合否が付き、checksの改訂は要らない。spec:1131は「系列について別母集団」「各遷移を識別して報告」と定め、E01（spec:2052）は系列の混合を禁じるので、Aでもspecの条件は満たす。推奨はA"
       },
       {
         "id": "P3-C6-COAST-ASSET",
-        "status": "起草案",
         "A": "最小海岸線資材をrepoの中で自作する模式図にする: 区域code（AC05の和集合、51）ごとに固定の矩形1つを、codeの昇順で3列×17行の格子へ置いた300×272 CSS pxの図。地理の形・位置を持たない（A9の3×3 geometry〔P2-A9-D06=A〕と同じ型）。出所はrepo内の生成、外部の利用条件は無い",
         "B": "気象庁の公開GISデータ（津波予報区、https://www.data.jma.go.jp/developer/gis.html の公開archive）から、AC05のcodeの線だけを抽出し、display/maps/quake/source.lock.jsonと同じ形でURL・archiveのsha256・取得日・利用条件・変換手順を固定する。抽出・変換の手順とprovenanceはreconstruction/tools/tsunami-coast/に置く（allowedPathsのこのpathはBのときだけ使う。archive本体はcommitしない）。利用条件（出典の表記、加工の可否、repoへの同梱の可否）は作者が確かめ、確認の記録が揃うまで資材をcommitしない（blocked）",
         "C": "既存のdisplay/maps/quakeの県・細分区域の輪郭から海岸線を切り出す",
         "recommended": "A",
         "provisional": "A",
-        "ruling": "未決（作者裁定待ち、Q-C6-AUTHOR-RULINGS）",
+        "ruling": "作者裁定A（2026-10-09、推奨どおり）。repo内で自作する模式図にする（Bのreconstruction/tools/tsunami-coast/はallowedPathsから外した）",
         "reason": "見え方の違い: Aは画面に日本地図が出ず、区域ごとの色の帯が並ぶ測定専用の図になる。描画する点数が実際の海岸線より桁違いに少ないので、T6のpaint費用は実資材より小さく出る（P4の製品資材で測り直す、spec:1147）。Bは形が実際の海岸に近く、paint費用も現実に近いが、資材の出所と利用条件の確認が作者の作業（利用条件の該当箇所を読んで記録する、約30分の見込み）になり、変換の手順（抽出・間引き・検査）がC6の実装に約0.5〜1晩上乗せになる（推定、P2-A9の3×3 geometryより重く、display/maps/quakeの変換の前例より軽い）。Cはspec:1607・:1721が正規の予報区線として禁じる県輪郭の代用で、P3専用でも誤読を招く。推奨はA（D-P3-4の「P3専用・固定・hash付き」を最小の手間で満たし、P4のGIS合格と取り違えようがない）"
       },
       {
         "id": "P3-C6-PI-STAGE2",
-        "status": "起草案",
         "A": "Pi予備確認（D-P3-7、C6の短い確認）を、Pi backend＋Mac miniのChrome（第2段の形）で、PiとMac miniを同じルーターに有線でつないで（直結ケーブルではない）行う（Pi上の新築hostの別portへMac miniのChromeがLAN越しに接続する）。両方が既にそのルーターに有線でつながっていれば作者の手作業は無く、どちらかが無線ならLANケーブルを1本挿す作業が要る。条件は発令系・解除系・EEW同時の3つ、warm-upを別に30件×3回、所要は準備を含め約1〜2時間。旧築の保護はC4のAC09のまま。この裁定は、C4から移管されたPiの第2段（P3-UNIT-WRITE-RIGHT-001のQ-UWR-REMEASURE）にも同じ形で効く（準備・時計の対応・通信経路を共有し、窓は重ねない。順序はAC09）",
         "B": "Aと同じ確認をSSHトンネル経由で行う",
         "C": "C6ではPiで確かめず、P5へ送る（D-P3-7の改訂が要る。Q-UWR-REMEASUREの第2段の扱いも別に決める）",
         "recommended": "A",
         "provisional": "A",
-        "ruling": "未決（作者裁定待ち、Q-C6-AUTHOR-RULINGS）。C4で作者が了承したのは第1段（Pi単独）だけ（P3-C4-PI-STAGE1-APPROVAL）で、Piのbackendに別の機械のChromeをつなぐ第2段の形は未了承",
+        "ruling": "作者裁定A（2026-10-09、推奨どおり）。第2段の形（Pi backend＋Mac miniのChrome、同じルーターに有線）を作者が了承した（C4で了承したのは第1段だけ、P3-C4-PI-STAGE1-APPROVAL）。Q-UWR-REMEASUREの第2段にも同じ形で記録した（p3-unit-write-right.jsonのQ-UWR-REMEASURE）",
         "reason": "見え方の違い: AはMac miniのChromeから旧築とは別のportへ一時的に有線LANの接続が開く（C6とQ-UWR-REMEASUREで各1〜2時間）。通信経路が本番の表示端末（PiのChrome）と違うので、値はE01の本番判定に使わない（計画:185）。Bは所要がAとほぼ同じ（トンネルの準備に数分を足す）で、LANにportを開かないが、暗号化とTCPの二重化による遅延と揺れが区間に入る（目安は1件あたり1ms前後の上乗せ、実測していない推定）。CはU-Tを急ぐworkerに足した干渉（計画:73）をP5まで確かめない"
       },
       {
         "id": "P3-C6-CODEX",
-        "status": "起草案",
         "A": "D-P3-10の節目「C5＋C6」のCodex総合レビュー（新規スレッド・read-only・Astra high、Claudeの自己評価を添えない）を2回に分ける: 1回目は測定準備一式（C5の差分39fccd46、C6の差分、manifestの草案、予備測定のraw。manifest凍結の前）、2回目は正式測定の版付き結果",
         "B": "D-P3-10のとおり節目1回（結果の後）だけ",
         "recommended": "A",
         "provisional": "A",
-        "ruling": "未決（作者裁定待ち、Q-C6-AUTHOR-RULINGS）。D-P3-10の節目の回数を変えるため",
+        "ruling": "作者裁定A（2026-10-09、推奨どおり）。D-P3-10の節目「C5＋C6」を、測定準備一式（manifest凍結の前）と正式測定の版付き結果の2回にする",
         "reason": "見え方の違い: AはCodexの枠を1回ぶん多く使い（C4の実績で1回あたり7日枠の約2%）、manifestの凍結がCodexの返答を待つぶん正式測定の開始が遅れる（D-P3-10は節目以外では後続を待たせない）。正式測定は約28〜35時間の実時間を使い、凍結後は条件を変えられない（spec:1106）ので、Aは測定の組み立ての誤りを凍結前に拾える。C4は凍結前と結果の2回で、結果のレビューが閉鎖記録の不足3点を見つけた。Bでは組み立ての誤りが結果の後に見つかると、新しいmanifestIdで影響する母集団を全部測り直す"
       },
       {
         "id": "P3-C6-O09-REST",
-        "status": "起草案",
         "A": "O09の津波のburstと詳細射影中のstep（O09:30・31・39・40・48・49・57・58・66・67）を、詳細射影の実体があるP4へ送り、計画§5.2に引受先として書き足す（統合担当）",
         "B": "C6で測る（母集団が系列×2条件ぶん増え8→12、詳細射影〔spec §7.10〕の最小実装と、burstの定義の凍結が要る）",
         "recommended": "A",
         "provisional": "A",
-        "ruling": "未決（作者裁定待ち、Q-C6-AUTHOR-RULINGS）。いまはどの契約にも割り当てが無い（計画:40はunmetを免除しない、spec:2052はE01に詳細射影中を含む）",
+        "ruling": "作者裁定A（2026-10-09、推奨どおり）。計画§5.2（p3-order-plan.md:231）に引受先P4を書き足した。unmetは免除しない（計画:40）",
         "reason": "見え方の違い: Aでは、P4までは津波のburst・詳細射影中のE01が未検収のまま残る（P3の完了報告にその旨を書く）。Bでは、P3に詳細射影の仕組み（P4の範囲）を先取りし、測定は約1.4〜1.6倍（約39〜55時間）に延びる。根拠の式: 系列×runあたりの試行数は今の4条件で1,100＋2,080＋1,350＋1,100＝5,630、足す2条件はburst 1,100と詳細射影中1,100〜2,080（成立の条件が無ければ1,100、parse直後と同じ成立率なら2,080）で、(5,630＋2,200)÷5,630≒1.39〜(5,630＋3,180)÷5,630≒1.56。試行3秒・2系列×3 runは同じ"
       },
       {
         "id": "P3-C6-PAGE",
-        "status": "起草者が推奨で確定（統合担当の即断の範囲。発注前点検で覆してよい）",
         "A": "A9のページ（reconstruction/src/display/chrome-eew/）に津波の大カード・海岸線の層・T6候補markerを足し、1枚のページでEEWと津波を描く。EEWと津波はそれぞれのcontentRevisionが変わった回だけ描き直す",
         "B": "津波専用のページを別に作る",
         "recommended": "A",
         "provisional": "A",
-        "ruling": "起草者がAに確定（2026-10-08）",
+        "ruling": "起草者がAに確定（2026-10-08）し、発注前点検（2026-10-09）で維持",
         "reason": "EEW同時の母集団とspec:1599（EEW同時でも陸は予想震度、海岸線は津波）は1枚の画面で両方を描く必要があり、Bでは同時の条件が作れない"
       },
       {
         "id": "P3-C6-TRIAL-RESET",
-        "status": "起草者が推奨で確定（統合担当の即断の範囲。発注前点検で覆してよい）",
         "A": "窓（母集団×run）ごとに14桁のEventIDを1つ固定し（warm-upは別のEventID、P3TsunamiPopulationConditionのtsunamiEventIds）、各試行は前置きの報（prime。その遷移の初期状態へ区域を置き換える報）→対象の報（target。標本）の2つをrunnerが送る。どちらも凍結したtemplateの区域のままで、runnerは報ごとにReportDateTimeを1秒以上単調に進める（VTSE41の新旧はReportDateTimeとInfoTypeだけで決まりSerialは効かない。Serialは整合のために進めるだけ）。primeが落ち着いた（AC06(3)）後にtargetを送る",
         "B": "試行ごとに新しいEventIDを使い、試行の後に取消の報で片付ける",
         "recommended": "A",
         "provisional": "A",
-        "ruling": "起草者がAに確定（2026-10-08）",
+        "ruling": "起草者がAに確定（2026-10-08）し、発注前点検（2026-10-09）で維持",
         "reason": "BはVTSE41のsubjectが試行ごとに増え、512件の上限（P3-C5-CAPACITY）で退去が受信のたびに起き、片付けの報と通知も増える。Aはsubjectが窓ごとに2つ（warm-upと正式）のままで、各試行がspec:1135の既知の初期状態から始まる（区域集合の置換はI-U-TのforecastSemantics）"
       },
       {
         "id": "P3-C6-SERIES-SOURCE",
-        "status": "起草者が推奨で確定（統合担当の即断の範囲。発注前点検で覆してよい）",
         "A": "各遷移のtemplate（prime→target）の系列・区域ごとの遷移・paintの期待を、manifestの草案を作るときにreconstruction/distのC5のreducerへ通して決め、manifestに凍結する。expectedPaintはページと同じ塗りの規則（AC03(2)。海岸線に塗る区域だけ）で作る。runnerと解析は推測せず、標本ごとにT6候補markerのareasがtemplateのexpectedPaintと一致することで対象の報の採用を確かめる（一致しない候補はT6にしない）",
         "B": "製品の観測にSubjectOutcome.factsのseries・areaTransitionsを足す（P2HostObservationの改訂）",
         "recommended": "A",
         "provisional": "A",
-        "ruling": "起草者がAに確定（2026-10-08）",
+        "ruling": "起草者がAに確定（2026-10-08）し、発注前点検（2026-10-09）で維持",
         "reason": "P3-C5-E01-SERIESは「C5が返すfactsで機械的に決め、runnerが推測しない」と定める。Aは同じreducerの出力を凍結時に使い、製品の観測型を変えない。templateは区域を変えずに版だけ進むので、試行ごとの結果は凍結時と同じになる"
       },
       {
         "id": "P3-C6-CONDITIONS",
-        "status": "起草者が推奨で確定（統合担当の即断の範囲。発注前点検で覆してよい）",
         "A": "4条件の負荷・初期状態・引き金は凍結済みのC4のmanifest（p3-c4-formal-20261007）の同じ条件を継ぐ: 通常backlog＝fixedBacklogの負荷N、大型parse直後＝maxVpws50ParseStarted（最大VPWS50のfull parse開始の0〜5ms後にT0、P3-C4-PARSE-MARK）、encode直後＝maxWeatherCheckpointEncodeStarted（最大U-Wのencode開始の0〜5ms後、triggerLeadMsはC4の凍結値から始める）、EEW同時＝fixedBacklogの負荷N。試行の周期はprimeが入るので3,000msを既定とし（fixedBacklogは1,370msから変わる）、C4との差はmanifestのdifferencesFromC4に書く",
         "B": "parse・encodeの条件を、U-Tと同じ実行場所（urgent）の最大の入力（VTSE51・VTSE52など）に替える",
         "recommended": "A",
         "provisional": "A",
-        "ruling": "起草者がAに確定（2026-10-08）",
+        "ruling": "起草者がAに確定（2026-10-08）し、発注前点検（2026-10-09）で維持",
         "reason": "spec §7.5の「大型parse」「checkpoint encode」はEEWの母集団2・3と同じ最大正常XML・最大正常encodeで、AはC4の凍結した負荷・成立率・stopConditionの式を流用できる。同じ実行場所の干渉（U-Tがurgentに同居、P3-C5-PLACE）はEEW同時の母集団とPiの短い確認で見る"
       },
       {
         "id": "P3-C6-EEW-ORDER",
-        "status": "起草者が推奨で確定（統合担当の即断の範囲。発注前点検で覆してよい）",
         "A": "EEW同時は、窓ごとに1つのEventID（eewEventIds）のVXSE45を、試行ごとにSerial＋1・予想A/B交互（C4のrunnerと同じ作り）で送り、その直後に間を空けずに同じWSで対象のVTSE41を送る。成立の種類はprimeSettledEewOrder（VTSE41のT0がそのVXSE45のinputDone〔返信の反映〕以前、AC06(3)）。標本は津波のT0→T6で、同じ試行のEEWのT0→T6は実行場所urgent×U-E（subject）に結んで参考として記録する（合否に使わない）",
         "B": "VTSE41を先に送り、EEWを後に送る",
         "recommended": "A",
         "provisional": "A",
-        "ruling": "起草者がAに確定（2026-10-08）",
+        "ruling": "起草者がAに確定（2026-10-08）し、発注前点検（2026-10-09）で維持",
         "reason": "EEWとVTSE41はどちらもurgentで通常dataのin-flightは1件、mailboxの優先もEEWが先なので、Aが津波にとって重い側。試行ごとに新しいEventIDを使うとU-Eの通常subjectは退去しないので約512試行目から全部capacityExceededになる（domains/eew/eew.ts）。U-T同居後のEEWの正式E01はC6の範囲外なので、EEWの値は参考にとどめる"
       },
       {
         "id": "P3-C6-FAIL-PATH",
-        "status": "起草者が推奨で確定（統合担当の即断の範囲。発注前点検で覆してよい）",
         "A": "C6は表示・runner・測定以外の製品の挙動を直さない。正式の未達はspec§7.6の帰属（XML parse・checkpoint encode・射影・整形・転送・描画）で原因を分け、版付き結果にFail（またはBlocked）として残して作者へ報告し、直し方は別の契約として発注する（P3-C4-FAIL-PATH=Aと同じ）",
         "B": "C6の中で最小の修正を足して測り直す",
         "recommended": "A",
         "provisional": "A",
-        "ruling": "起草者がAに確定（2026-10-08）",
+        "ruling": "起草者がAに確定（2026-10-08）し、発注前点検（2026-10-09）で維持",
         "reason": "C6のallowedPathsは表示と測定だけで、製品のhost・runtimeの所有は他の契約にある（計画§3.2）。C4と同じ切り分けにする"
       }
     ],
@@ -124,13 +113,13 @@
       {
         "id": "P3-C6-DEPS",
         "status": "frozen",
-        "rule": "着手条件: C5（39fccd46）の配送、C4のrunnerと凍結manifest（p3-c4-formal-20261007）、計画§8の着手ゲート（最小海岸線資材、計画:325。P3-C6-COAST-ASSETの裁定と、Bなら利用条件の確認の記録）、作者裁定（Q-C6-AUTHOR-RULINGS）、発注前点検（Q-C6-PRECHECK）。C6と最初のunitレーン（C7）は同時実行の上限3本の内側で重なってよい（計画:111）",
+        "rule": "着手条件: C5（39fccd46）の配送、C4のrunnerと凍結manifest（p3-c4-formal-20261007）、計画§8の着手ゲート（最小海岸線資材、計画:325。P3-C6-COAST-ASSET=Aで自作の模式図）。作者裁定（5件ともA、2026-10-09）と発注前点検（2026-10-09、Q-C6-PRECHECK）は済み。C6と最初のunitレーン（C7）は同時実行の上限3本の内側で重なってよい（計画:111）",
         "reason": "計画§3.1・§8の C6 の行"
       },
       {
         "id": "P3-C6-MACHINES",
         "status": "frozen",
-        "rule": "正式測定はMac mini（独立checkout。reconstruction/dist・node_modulesを共有しない。前景Chrome・caffeinate -d）で、窓（母集団×run、1本あたり約1.5〜3時間）を日を跨いで分けて流す。合計約28〜35時間（P3-C6-POP-SHAPE=Aのとき）。その窓ではMac miniでbuild・test・他レーンを走らせず、実装はMacBookで続ける。機械の実値はC4の凍結時の値を継ぎ、違えばdifferencesFromC4に書く",
+        "rule": "正式測定はMac mini（独立checkout。reconstruction/dist・node_modulesを共有しない。前景Chrome・caffeinate -d）で、窓（母集団×run、1本あたり約1.5〜3時間）を日を跨いで分けて流す。合計約28〜35時間（P3-C6-POP-SHAPE=A）。その窓ではMac miniでbuild・test・他レーンを走らせず、実装はMacBookで続ける。機械の実値はC4の凍結時の値を継ぎ、違えばdifferencesFromC4に書く",
         "reason": "計画:112（作者裁定 2026-10-06、C4・C6の正式測定はMac mini）。作者に改めて訊かない"
       },
       {
@@ -138,6 +127,18 @@
         "status": "frozen",
         "rule": "C5から引き継ぐもの（変えない）: 系列の定義・遷移の型・4母集団・容量縮退の期待・T6の定義・合成入力の作り方（P3-C5-E01-SERIES）、U-Tのviewとsnapshotの対応（P3-C5-SNAPSHOT=A。色・点滅・意匠はC6とP4）、実行場所urgent（P3-C5-PLACE）、U-EとU-Tの同時dirtyの確かめ（P3-C5-AC11、P3-C5-WRITE-RIGHTの(7)、計画:218。C6のAC08）。C4から引き継ぐもの: 判定の規則（P3-C4-AC02のtally・分位点・時計区間・欠落）、試行ごとの成立の判定と窓の打切り、実行場所ごとの行順の版の結び付け（P3-C4-T3-BINDING）、ping、Mac miniの手順、通知はreal backendで出力をミュート（Q-C4-SOUND）。C4の版をまたぐ採用表（adoption.mjs）はC4専用のまま広げない",
         "reason": "spec:1104（津波条件はP3契約の前に凍結）と、計画§2.1のC6の行（A9の型を流用）"
+      },
+      {
+        "id": "Q-C6-AUTHOR-RULINGS",
+        "status": "closed（2026-10-09、作者裁定）",
+        "rule": "P3-C6-POP-SHAPE・P3-C6-COAST-ASSET・P3-C6-PI-STAGE2・P3-C6-CODEX・P3-C6-O09-RESTはすべてA（推奨どおり）。COAST-ASSET=Aなので資材の利用条件の確認は要らない",
+        "reason": "unresolvedQuestionsのQ-C6-AUTHOR-RULINGSを閉じる（baseOidの割当の前）"
+      },
+      {
+        "id": "Q-C6-PRECHECK",
+        "status": "closed（2026-10-09、統合担当の発注前点検）",
+        "rule": "(1) O09のC6分: 5つの遷移のtemplateのbodyをsynthetic fixture 6本（synthetic_VTSE41_e01_released・311warning・311major・311major_312major・311major_312warning・311warning_312advisory）としてcorpusに足し、O09:23〜26・32〜35・41〜44・50〜53・59〜62をexpected（入力の充足、decision null）にした（O09のunmet 57→37）。fixtureはreconstruction/distのC5のreducerにprime→targetの順で3巡通して、targetのfactsが発令＝311 issued、引上げ＝311 upgraded、区域拡大＝312 expanded（series escalation）、解除＝311・312 released、降格＝311・312 downgraded（series deescalation）になり、窓の最初の発令系のprimeだけdisplayChangesが0、区域が同じ引上げ・区域拡大のprimeはrevisionOnlyでdisplayChangesが1、diagnostic 0、subject 1のままであることを確かめた。O09:17・18は単発smokeとPi確認の入力で正式母集団に入れないのでunmetのまま（入力は実装時にsmokeの条件として作る）。(2) POP-SHAPE=Aに合わせて20位置のchecksを改めた。(3) PI-STAGE2=AをQ-UWR-REMEASUREの第2段の行に足した（行を増やさない）。(4) O09-REST=Aの引受先P4を計画§5.2の既存の行に足した（行を増やさない）。(5) C5（39fccd46）と台帳67（968126bc）の後の実体を照合した: U-Tの実行場所urgent（unit-coverage.ts）、snapshotのcurrent.tsunami（p2-snapshot-sse.types.ts・composition-root.tsのsnapshotInput）、host.tsのpriorityReason tsunamiCandidate、観測checkpointGrantのunit・result（kind acknowledged・generation）、analysis.mjsの版ごとの候補の上書き、smoke.mjsの条件ファイルの固定path、judge.tsのestablishTrial・summarizeP3E01、frozen.tsのverifyFrozenP3Manifest・parseChromeMarkerDetail。起草（ee9fbbff）の後にsrcで変わったのはowner-host.ts（台帳67のledgerの上限）だけで、本契約の前提に触れない",
+        "reason": "unresolvedQuestionsのQ-C6-PRECHECKを閉じる（baseOidの割当の前）"
       }
     ],
     "operationContract": {
@@ -185,6 +186,12 @@
       "test/fixtures/37_01_01_240613_VXSE43.xml",
       "test/fixtures/15_18_01_250630_VPWS50.xml",
       "test/fixtures/81_09_01_260605_VPWP50.xml",
+      "test/fixtures/synthetic_VTSE41_e01_311major.xml",
+      "test/fixtures/synthetic_VTSE41_e01_311major_312major.xml",
+      "test/fixtures/synthetic_VTSE41_e01_311major_312warning.xml",
+      "test/fixtures/synthetic_VTSE41_e01_311warning.xml",
+      "test/fixtures/synthetic_VTSE41_e01_311warning_312advisory.xml",
+      "test/fixtures/synthetic_VTSE41_e01_released.xml",
       "package.json"
     ],
     "allowedPaths": [
@@ -192,8 +199,7 @@
       "reconstruction/test/chrome-eew/**",
       "reconstruction/test/eew-e01/**",
       "reconstruction/src/measurement/eew-e01/**",
-      "reconstruction/contracts/p3-tsunami-e01.types.ts",
-      "reconstruction/tools/tsunami-coast/**"
+      "reconstruction/contracts/p3-tsunami-e01.types.ts"
     ],
     "allowedGitCommands": [
       "git status --porcelain",
@@ -265,7 +271,13 @@
       "test__fixtures__77_01_01_240613_VXSE45",
       "test__fixtures__37_01_01_240613_VXSE43",
       "test__fixtures__15_18_01_250630_VPWS50",
-      "test__fixtures__81_09_01_260605_VPWP50"
+      "test__fixtures__81_09_01_260605_VPWP50",
+      "test__fixtures__synthetic_VTSE41_e01_311major",
+      "test__fixtures__synthetic_VTSE41_e01_311major_312major",
+      "test__fixtures__synthetic_VTSE41_e01_311major_312warning",
+      "test__fixtures__synthetic_VTSE41_e01_311warning",
+      "test__fixtures__synthetic_VTSE41_e01_311warning_312advisory",
+      "test__fixtures__synthetic_VTSE41_e01_released"
     ],
     "sequenceIds": [
       "O09"
@@ -325,7 +337,7 @@
         "target": "formal P3 tsunami E01 samples",
         "limit": 24000,
         "unit": "samples per manifest",
-        "scope": "P3-C6-POP-SHAPE=Aのとき8母集団×3 run×1,000（Bなら60,000）。warm-upと不成立は別に数える",
+        "scope": "8母集団×3 run×1,000（P3-C6-POP-SHAPE=A）。warm-upと不成立は別に数える",
         "source": "spec:1119"
       },
       {
@@ -333,7 +345,7 @@
         "target": "warm-up samples",
         "limit": 2400,
         "unit": "samples per manifest",
-        "scope": "8母集団×3 run×100（Bなら6,000）。分位点に入れない",
+        "scope": "8母集団×3 run×100。分位点に入れない",
         "source": "spec:1118"
       }
     ],
@@ -399,7 +411,7 @@
       "D-ACのPass報告（D-AC15・D-AC24は先行証拠の記録だけ）",
       "観測（VTSE51/52）の描画",
       "容量縮退の系列の測定（spec:1137、D-P3-6でP4の容量契約）、personal有効の母集団（P4/P5）",
-      "burst・詳細射影中の母集団（O09:30・31・39・40・48・49・57・58・66・67。P3-C6-O09-REST=Aなら P4）",
+      "burst・詳細射影中の母集団（O09:30・31・39・40・48・49・57・58・66・67。P3-C6-O09-REST=A〔作者裁定 2026-10-09〕でP4、計画§5.2）",
       "U-T同居後のEEWの正式E01（spec:1129の母集団4、P4/P5。C6はPiの短い確認とEEW同時の参考値だけ）",
       "正規の津波予報区GIS（N18、P4）",
       "製品のhost・runtime・unit・projector・mailboxの変更（P3-C6-FAIL-PATH=A）",
@@ -411,7 +423,7 @@
     "acceptanceChecks": [
       {
         "id": "P3-C6-AC01",
-        "requirement": "母集団の対応表（P3TsunamiPopulation・P3TsunamiPopulationCondition）: P3-C6-POP-SHAPE=Aのとき、母集団は系列（escalation＝発令・引上げ・区域拡大、deescalation＝解除・降格）×条件（fixedBacklog・maxVpws50ParseStarted・maxWeatherCheckpointEncodeStarted・eewTogether）の8つで、すべてscope formal・origin T0。件数はwarm-up 100・1,000標本・3 run（spec:1118〜1119）で、正式標本は24,000件。条件の負荷・初期状態・引き金・成立の条件はP3-C6-CONDITIONS=AでC4の凍結manifestの同じ条件を継ぎ（inheritsC4Population）、AC06(3)の成立の条件を加える。C4との差（fixedBacklogの周期1,370→3,000msなど）はmanifestのdifferencesFromC4に書く。遷移のtemplateは5つ（O09:23・32・41・50・59の型〔P3-C5-E01-SERIESのtransitions〕。区域は311・312だけ）で、EventIDはtemplateに持たせず窓（母集団×run）の側に持つ（tsunamiEventIds・eewEventIds、14桁）。系列の中の遷移は試行ごとに順に回す。容量縮退の2母集団（spec:1137）は測らず、P3-C5-E01-SERIESのcapacityExpectationをmanifestのcapacityExpectation（status expectationOnly、引受先はP4の容量契約、D-P3-6）に写す。personal有効（O09:29等）はP4/P5、burst・詳細射影中（O09:30・31・39・40・48・49・57・58・66・67）はP3-C6-O09-RESTの裁定に従い、C6に含めない。対応表（母集団ID↔spec§7.5の系列と条件↔C4の母集団ID↔O09の位置↔計画の行）をmanifestの草案に載せる。O09のC6分の版付きsubset（o09Subset）は位置13〜18・23〜26・32〜35・41〜44・50〜53・59〜62で、unmetの免除はしない（計画:40）",
+        "requirement": "母集団の対応表（P3TsunamiPopulation・P3TsunamiPopulationCondition）: P3-C6-POP-SHAPE=A（作者裁定 2026-10-09）で、母集団は系列（escalation＝発令・引上げ・区域拡大、deescalation＝解除・降格）×条件（fixedBacklog・maxVpws50ParseStarted・maxWeatherCheckpointEncodeStarted・eewTogether）の8つで、すべてscope formal・origin T0。件数はwarm-up 100・1,000標本・3 run（spec:1118〜1119）で、正式標本は24,000件。条件の負荷・初期状態・引き金・成立の条件はP3-C6-CONDITIONS=AでC4の凍結manifestの同じ条件を継ぎ（inheritsC4Population）、AC06(3)の成立の条件を加える。C4との差（fixedBacklogの周期1,370→3,000msなど）はmanifestのdifferencesFromC4に書く。遷移のtemplateは5つ（O09:23・32・41・50・59の型〔P3-C5-E01-SERIESのtransitions〕。区域は311・312だけ）で、prime・targetのbodyはcorpusのsynthetic fixture（発令 synthetic_VTSE41_e01_released→311warning、引上げ 311warning→311major、区域拡大 311major→311major_312major、解除 311major_312warning→released、降格 311major_312warning→311warning_312advisory。templateのbodySha256はそのfixtureのsha256で、fixtureは書き換えない）、EventIDはtemplateに持たせず窓（母集団×run）の側に持つ（tsunamiEventIds・eewEventIds、14桁）。系列の中の遷移は試行ごとに順に回す。容量縮退の2母集団（spec:1137）は測らず、P3-C5-E01-SERIESのcapacityExpectationをmanifestのcapacityExpectation（status expectationOnly、引受先はP4の容量契約、D-P3-6）に写す。personal有効（O09:29等）はP4/P5、burst・詳細射影中（O09:30・31・39・40・48・49・57・58・66・67）はP3-C6-O09-REST=AでP4（計画§5.2）へ送り、C6に含めない。対応表（母集団ID↔spec§7.5の系列と条件↔C4の母集団ID↔O09の位置↔計画の行）をmanifestの草案に載せる。O09のC6分の版付きsubset（o09Subset）は位置13〜18・23〜26・32〜35・41〜44・50〜53・59〜62で、unmetの免除はしない（計画:40）。23〜26・32〜35・41〜44・50〜53・59〜62は入力をcorpusで充足したexpected（decision null。合否はこの契約の版付き結果で出す）、17・18はunmet（単発smokeとPi確認の入力で、正式母集団に入れない）",
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:1118 «63335bec643675ba»",
           "docs/specs/reconstruction-p0-contracts.md:1119 «602b2dfb3cc1795e»",
@@ -428,8 +440,9 @@
           "reconstruction/contracts/p3-tsunami-unit.json:276 «d5d3b4298289d668»",
           "reconstruction/contracts/p3-tsunami-unit.json:277 «73465647117053c5»",
           "reconstruction/contracts/p3-tsunami-unit.json:279 «b6134b488cf994e9»",
-          "reconstruction/tools/corpus/sequences.json#unmet:O09:23",
-          "reconstruction/tools/corpus/sequences.json#unmet:O09:50",
+          "reconstruction/tools/corpus/sequences.json#expected:O09:23",
+          "reconstruction/tools/corpus/sequences.json#expected:O09:50",
+          "reconstruction/contracts/p3-order-plan.md:231 «9ed72a033549bed0»",
           "reconstruction/contracts/p3-tsunami-e01.types.ts"
         ]
       },
@@ -489,7 +502,7 @@
       },
       {
         "id": "P3-C6-AC05",
-        "requirement": "最小海岸線資材（D-P3-4、作者裁定P3-C6-COAST-ASSET）: P3専用・固定・hash付き。canonical JSON（P3TsunamiCoastAsset。keyの順と空白なしを固定し、sha256をmanifestのcoastSha256とC6のsmoke条件に記録する。A9のgeometry.tsのcanonicalGeometryJsonと同じ作り）で、segmentsのcodeはC6の入力に現れる津波予報区code（合成templateの311・312と、公開fixture 32-39_11_02・32-39_11_09・32-39_11_11のBody/Tsunami/Forecast/ItemのArea/Codeの和集合。起草時の数えで51）。AC07(2)の32-39_12_02の15 codeは意図して入れない（資材に無いcodeの経路を確かめるため）。provenanceにはspec:1727の項目（入手元・版・取得日・利用条件・元archiveのhash・変換toolの版と引数・期待コード数51・既知の除外）を持たせる。出力hashは資材のbytesの中に置けないので、manifestのcoastSha256とC6のsmoke条件のcoastSha256に置く。Aなら入手元は「repo内で生成した模式図（地理の形を持たない）」・利用条件は「外部の資材を使わない」。Bなら公開archiveのURL・sha256・取得日・利用条件の文面の所在・抽出と間引きの手順（reconstruction/tools/tsunami-coast/に置く）で、作者の確認の記録（Q-C6-AUTHOR-RULINGS）が揃うまで資材をcommitせずblockedとする。どちらでも資材・画面・結果に「P3の測定専用。正規の津波予報区GIS（N18、P4）ではない」と書き、P4のGIS合格・D-AC15・D-AC23と呼ばない",
+        "requirement": "最小海岸線資材（D-P3-4、作者裁定P3-C6-COAST-ASSET=A〔2026-10-09〕）: P3専用・固定・hash付き。canonical JSON（P3TsunamiCoastAsset。keyの順と空白なしを固定し、sha256をmanifestのcoastSha256とC6のsmoke条件に記録する。A9のgeometry.tsのcanonicalGeometryJsonと同じ作り）で、segmentsのcodeはC6の入力に現れる津波予報区code（合成templateの311・312と、公開fixture 32-39_11_02・32-39_11_09・32-39_11_11のBody/Tsunami/Forecast/ItemのArea/Codeの和集合。起草時の数えで51）。AC07(2)の32-39_12_02の15 codeは意図して入れない（資材に無いcodeの経路を確かめるため）。provenanceにはspec:1727の項目（入手元・版・取得日・利用条件・元archiveのhash・変換toolの版と引数・期待コード数51・既知の除外）を持たせる。出力hashは資材のbytesの中に置けないので、manifestのcoastSha256とC6のsmoke条件のcoastSha256に置く。入手元は「repo内で生成した模式図（地理の形を持たない）」・利用条件は「外部の資材を使わない」で、sourceArchiveSha256とretrievedAtはnull。資材・画面・結果に「P3の測定専用。正規の津波予報区GIS（N18、P4）ではない」と書き、P4のGIS合格・D-AC15・D-AC23と呼ばない",
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:1607 «6e2100674b781a07»",
           "docs/specs/reconstruction-p0-contracts.md:1721 «3c87a1a58035b69f»",
@@ -504,7 +517,7 @@
       },
       {
         "id": "P3-C6-AC06",
-        "requirement": "runnerの改修（既存のreconstruction/test/eew-e01のrunnerを広げる。新しいrunnerやbenchmark frameworkを作らない、P3-C4-RES-03）: (1) 試行はprime→targetの2報（P3-C6-TRIAL-RESET=A）。bodyは凍結したtemplateから作り、runnerが変えてよいのはReportDateTime・Serialと、それに整合するbody内の日時だけ（区域・区分は変えない。fixtureは書き換えない）。ReportDateTimeはsubjectごとに報ごとに1秒以上単調に増やす（VTSE41の新旧はReportDateTimeとInfoTypeだけで決まり、同じ秒・同じInfoTypeで中身が違う報はtsunamiRevisionConflictでstaleになる。tsunami-unit.ts）。EventIDは窓ごとに1つ（tsunamiEventIds）。(2) warm-upの100試行の後に、warm-upのEventIDの解除の報を送り、片付けを確かめてから正式の試行に入る: subjectが表示中ならpresent falseの候補で、既に表示外（最後のwarm-upのtargetが解除など）ならU-Tのdisplay changesが0なのでその報の世代のU-Tのackで確かめる（どちらも観測できなければその窓はBlocked）。(3) 成立の判定はC4の純関数を条件ごとの判別共用体（P3TsunamiEstablishment）へ広げた1つ。どの種類もprimeSettledを含む: primeのT6（primeのT3-BINDINGの窓でexpectedPrimePaintと一致する最初の候補、Chrome時計）をhost時計へ直した区間の上界がtargetのT0より前で、かつU-Tのack（観測kind checkpointGrantのresult acknowledged、generationがprimeの世代以上）がtargetのT0より前。区間がtargetのT0を跨ぐときは不成立。primeのT6を求めないのは、primeのU-Tのdisplay changesが0のときだけ（subjectがprimeの前も後もview外。今のtemplateでは窓の最初の発令系のprimeだけ）で、そのときはprimeの返信の行（processing）とU-Tのackで判定する。理由: subjectが前後とも表示中なら区域が同じでもdisplay changeが出てcontentRevisionが上がり（tsunami-unit.tsは参照の同一で比べる）、津波が描き直される。snapshotはprimeの採用とackのたびにpersistenceの変化で出るので、snapshotの有無では判定しない。primeSettledでtargetの標本からU-T自身の保存（primeの世代）との干渉を除く。primeSettledStartOffset（parse直後・encode直後）はC4のstartOffset（span population）も要る。primeSettledEewOrder（EEW同時）はVTSE41のT0がそのVXSE45のinputDone（そのinputIdのprocessingの行）以前であることも要る。不成立はC4と同じくoverlapNotEstablished（sampleIndexを振らない）として記録し、理由（primeNotSettled・startOffset・eewOrder）ごとに数える。(4) targetの送出: 通常backlog・EEW同時はprimeの実送信からprimeLeadMsの後、parse直後・encode直後はC4の引き金の予測（母集団2の自己較正P3-C4-AC13(7)、triggerLeadMs）に合わせ、primeはそれよりprimeLeadMs前に送る。EEW同時はVXSE45（窓ごとに1つのEventID、Serial＋1・予想A/B交互、C4のrunnerと同じ作り）の直後にVTSE41を送る。(5) 版の結び付けは実行場所ごとの行順の窓（P3-C4-T3-BINDING）のまま。解析はChromeのmarkを（版, subject, markの名前）の組で引く（今のanalysis.mjsは版ごとに候補を1つで上書きするので、EEWと津波・複数subjectの候補が同じ版で消える）。EEWの参考値はurgent×U-EのsubjectでT3と候補を結ぶ。(6) ping・stopCondition・Mac miniの手順・--windowsの規則・通知のreal backendとミュートはC4のまま。(7) 窓ごとのstateBreaks（U-Tの退去〔診断tsunamiCapacityEvicted〕・U-TとU-EのcapacityExceeded・tsunamiRevisionConflict・staleになったtarget）を数えて結果に出し、1件でもあればその窓は未確認とする（既知の初期状態が崩れるため）",
+        "requirement": "runnerの改修（既存のreconstruction/test/eew-e01のrunnerを広げる。新しいrunnerやbenchmark frameworkを作らない、P3-C4-RES-03）: (1) 試行はprime→targetの2報（P3-C6-TRIAL-RESET=A）。bodyは凍結したtemplate（AC01のsynthetic fixture）から作り、runnerが変えてよいのはReportDateTime・Serialと、それに整合するbody内の日時だけ（区域・区分は変えない。fixtureは書き換えない）。ReportDateTimeはsubjectごとに報ごとに1秒以上単調に増やす（VTSE41の新旧はReportDateTimeとInfoTypeだけで決まり、同じ秒・同じInfoTypeで中身が違う報はtsunamiRevisionConflictでstaleになる。tsunami-unit.ts）。EventIDは窓ごとに1つ（tsunamiEventIds）。(2) warm-upの100試行の後に、warm-upのEventIDの解除の報を送り、片付けを確かめてから正式の試行に入る: subjectが表示中ならpresent falseの候補で、既に表示外（最後のwarm-upのtargetが解除など）ならU-Tのdisplay changesが0なのでその報の世代のU-Tのackで確かめる（どちらも観測できなければその窓はBlocked）。(3) 成立の判定はC4の純関数を条件ごとの判別共用体（P3TsunamiEstablishment）へ広げた1つ。どの種類もprimeSettledを含む: primeのT6（primeのT3-BINDINGの窓でexpectedPrimePaintと一致する最初の候補、Chrome時計）をhost時計へ直した区間の上界がtargetのT0より前で、かつU-Tのack（観測kind checkpointGrantのresult acknowledged、generationがprimeの世代以上）がtargetのT0より前。区間がtargetのT0を跨ぐときは不成立。primeのT6を求めないのは、primeのU-Tのdisplay changesが0のときだけ（subjectがprimeの前も後もview外。今のtemplateでは窓の最初の発令系のprimeだけ）で、そのときはprimeの返信の行（processing）とU-Tのackで判定する。理由: subjectが前後とも表示中なら区域が同じでもdisplay changeが出てcontentRevisionが上がり（tsunami-unit.tsは参照の同一で比べる）、津波が描き直される。snapshotはprimeの採用とackのたびにpersistenceの変化で出るので、snapshotの有無では判定しない。primeSettledでtargetの標本からU-T自身の保存（primeの世代）との干渉を除く。primeSettledStartOffset（parse直後・encode直後）はC4のstartOffset（span population）も要る。primeSettledEewOrder（EEW同時）はVTSE41のT0がそのVXSE45のinputDone（そのinputIdのprocessingの行）以前であることも要る。不成立はC4と同じくoverlapNotEstablished（sampleIndexを振らない）として記録し、理由（primeNotSettled・startOffset・eewOrder）ごとに数える。(4) targetの送出: 通常backlog・EEW同時はprimeの実送信からprimeLeadMsの後、parse直後・encode直後はC4の引き金の予測（母集団2の自己較正P3-C4-AC13(7)、triggerLeadMs）に合わせ、primeはそれよりprimeLeadMs前に送る。EEW同時はVXSE45（窓ごとに1つのEventID、Serial＋1・予想A/B交互、C4のrunnerと同じ作り）の直後にVTSE41を送る。(5) 版の結び付けは実行場所ごとの行順の窓（P3-C4-T3-BINDING）のまま。解析はChromeのmarkを（版, subject, markの名前）の組で引く（今のanalysis.mjsは版ごとに候補を1つで上書きするので、EEWと津波・複数subjectの候補が同じ版で消える）。EEWの参考値はurgent×U-EのsubjectでT3と候補を結ぶ。(6) ping・stopCondition・Mac miniの手順・--windowsの規則・通知のreal backendとミュートはC4のまま。(7) 窓ごとのstateBreaks（U-Tの退去〔診断tsunamiCapacityEvicted〕・U-TとU-EのcapacityExceeded・tsunamiRevisionConflict・staleになったtarget）を数えて結果に出し、1件でもあればその窓は未確認とする（既知の初期状態が崩れるため）",
         "evidenceRefs": [
           "reconstruction/contracts/p3-e01-reaccept.json:558 «1b08fa0233cd7b17»",
           "docs/specs/reconstruction-p0-contracts.md:1133 «0a085841e24bbc6a»",
@@ -541,7 +554,7 @@
       },
       {
         "id": "P3-C6-AC09",
-        "requirement": "Pi予備確認（D-P3-7のC6の短い確認、作者裁定P3-C6-PI-STAGE2）: Pi backend＋Mac miniのChrome（PiとMac miniを同じルーターに有線でつなぐ。直結ケーブルではない）で、発令系（通常backlog）・解除系（通常backlog）・EEW同時（EEWのT0→T6も記録）の3条件を、warm-upを別に30件程度×3回（P3-C4-RES-07）。100件未満のp99は「観測最大」と書く。記録はC4のAC09の区間（実送信→T0・T0→T2・T2→採用と射影・採用と射影→公開・T0→T6・実送信→T6）、時計区間の幅の分布（spec:1141〜1143の往復対応。別機械の単調時計を直接引き算しない）、通信経路、同じ窓のPiの/proc/pressure/{cpu,memory,io}とvcgencmd（統合担当のshellのloop）、threadごとのheapとプロセスのRSS。見るのは計画:187の5つと、urgentにU-Tを足した干渉（津波の処理中に届いたEEW、EEWの処理中に届いた津波の待ち）。継承する負荷と初期状態はC6のmanifestと同じ（C4の凍結manifestを継ぐ）で、記録はC6のmanifestIdに結ぶ。Q-UWR-REMEASURE（P3-UNIT-WRITE-RIGHT-001、C4から移管されたPiの第2段）とは、Piの作業複製・時計の対応・有線LANの経路の準備を共有し、窓は重ねない。順序はQ-UWR-REMEASUREのPiの窓を先、C6の確認を後にする（C6の確認は書込み権の測り直しの後の製品で見るため）。この確認の窓はPiとMac miniの両方を測定機として扱い、両方でbuild・test・他レーンを走らせず、Mac miniの正式測定の窓と重ねない（計画:112）。Piの作業複製は公開fixtureだけ、旧築の保護はC4のAC09のまま。異常が無ければ「この予備条件では再現せず」と書き、E01のPassと呼ばない。異常が出たら原因を分類して作者へ報告する（D-P3-9。後続の着手禁止条件にしない）",
+        "requirement": "Pi予備確認（D-P3-7のC6の短い確認、作者裁定P3-C6-PI-STAGE2=A〔2026-10-09〕）: Pi backend＋Mac miniのChrome（PiとMac miniを同じルーターに有線でつなぐ。直結ケーブルではない）で、発令系（通常backlog）・解除系（通常backlog）・EEW同時（EEWのT0→T6も記録）の3条件を、warm-upを別に30件程度×3回（P3-C4-RES-07）。100件未満のp99は「観測最大」と書く。記録はC4のAC09の区間（実送信→T0・T0→T2・T2→採用と射影・採用と射影→公開・T0→T6・実送信→T6）、時計区間の幅の分布（spec:1141〜1143の往復対応。別機械の単調時計を直接引き算しない）、通信経路、同じ窓のPiの/proc/pressure/{cpu,memory,io}とvcgencmd（統合担当のshellのloop）、threadごとのheapとプロセスのRSS。見るのは計画:187の5つと、urgentにU-Tを足した干渉（津波の処理中に届いたEEW、EEWの処理中に届いた津波の待ち）。継承する負荷と初期状態はC6のmanifestと同じ（C4の凍結manifestを継ぐ）で、記録はC6のmanifestIdに結ぶ。Q-UWR-REMEASURE（P3-UNIT-WRITE-RIGHT-001、C4から移管されたPiの第2段）とは、Piの作業複製・時計の対応・有線LANの経路の準備を共有し、窓は重ねない。順序はQ-UWR-REMEASUREのPiの窓を先、C6の確認を後にする（C6の確認は書込み権の測り直しの後の製品で見るため）。この確認の窓はPiとMac miniの両方を測定機として扱い、両方でbuild・test・他レーンを走らせず、Mac miniの正式測定の窓と重ねない（計画:112）。Piの作業複製は公開fixtureだけ、旧築の保護はC4のAC09のまま。異常が無ければ「この予備条件では再現せず」と書き、E01のPassと呼ばない。異常が出たら原因を分類して作者へ報告する（D-P3-9。後続の着手禁止条件にしない）",
         "evidenceRefs": [
           "reconstruction/contracts/p3-order-plan.md:112 «c81c3e4ab8b07d22»",
           "reconstruction/contracts/p3-order-plan.md:185 «5e73c88a8bd6b37d»",
@@ -551,12 +564,12 @@
           "reconstruction/contracts/p3-order-plan.md:204 «6dbae61d532de8c8»",
           "docs/specs/reconstruction-p0-contracts.md:1141 «6d9d63f029934dfb»",
           "reconstruction/contracts/p3-e01-reaccept.json:142 «a628b4634a4a8cd3»",
-          "reconstruction/contracts/p3-unit-write-right.json:541 «1c17bf61d1990dbf»"
+          "reconstruction/contracts/p3-unit-write-right.json:541 «6639f170960948c3»"
         ]
       },
       {
         "id": "P3-C6-AC10",
-        "requirement": "manifest凍結（予備測定の後、正式測定の前）: P3TsunamiE01Manifestを凍結し、self hashと使う全契約ID→meta.sha256を持たせる。固定するもの: 継承するC4の凍結manifest（inheritsManifestId p3-c4-formal-20261007）とその負荷・初期状態のhash、differencesFromC4、5つのtemplate（区域・body hash・expectedSeries・expectedTransitions・expectedPrimePaint・expectedPaint）、8母集団の条件（establishmentの種類と条件の対応・primeLeadMs・triggerLeadMs・periodMs・stopCondition・tsunamiEventIds・eewEventIds）、warm-up・標本数・run数、ping、海岸線資材のcoastSha256とEEWのgeometrySha256、C6専用のsmoke条件（smokeConditionsRef。型はP3TsunamiSmokeConditionsでcoastSha256・templateのbody hashを持つ。manifestのsmokeConditionsSha256はこのC6のファイルのhash。A9のchrome-smoke-conditions.jsonはA10とC4の凍結manifestがself hashで固定しているので書き換えず、C6用の別ファイルをreconstruction/test/eew-e01/evidence/p3-tsunami/に作り、C6のmanifestだけが参照する）、Chromeの条件（版・前景・viewport・DPR・motion）、機械の役割と凍結時の実値、judgmentPlaces（E01の本番判定はPi backend＋実接続経路＋表示端末のChrome、P5）、capacityExpectation（期待だけ、P4）、o09Subset（AC01の位置、sequencesSha256はsequences.jsonのmeta.sha256）。結果を見てから母集団・除外条件を変えない（spec:1106）。凍結の前にCodexの総合レビュー（P3-C6-CODEX=Aなら1回目）を通す。凍結後に条件を変えるとき（Blockedの後の条件の変更を含む）は新しいmanifestIdで、影響する母集団を全runとも測り直す（C4のadoption.mjsの版をまたぐ採用はC6に広げない）。照合はfrozen.tsのverifyFrozenP3Manifestと同じ形の関数1つで、既存のA10・C4の凍結manifestの検査は変えない",
+        "requirement": "manifest凍結（予備測定の後、正式測定の前）: P3TsunamiE01Manifestを凍結し、self hashと使う全契約ID→meta.sha256を持たせる。固定するもの: 継承するC4の凍結manifest（inheritsManifestId p3-c4-formal-20261007）とその負荷・初期状態のhash、differencesFromC4、5つのtemplate（区域・body hash・expectedSeries・expectedTransitions・expectedPrimePaint・expectedPaint）、8母集団の条件（establishmentの種類と条件の対応・primeLeadMs・triggerLeadMs・periodMs・stopCondition・tsunamiEventIds・eewEventIds）、warm-up・標本数・run数、ping、海岸線資材のcoastSha256とEEWのgeometrySha256、C6専用のsmoke条件（smokeConditionsRef。型はP3TsunamiSmokeConditionsでcoastSha256・templateのbody hashを持つ。manifestのsmokeConditionsSha256はこのC6のファイルのhash。A9のchrome-smoke-conditions.jsonはA10とC4の凍結manifestがself hashで固定しているので書き換えず、C6用の別ファイルをreconstruction/test/eew-e01/evidence/p3-tsunami/に作り、C6のmanifestだけが参照する）、Chromeの条件（版・前景・viewport・DPR・motion）、機械の役割と凍結時の実値、judgmentPlaces（E01の本番判定はPi backend＋実接続経路＋表示端末のChrome、P5）、capacityExpectation（期待だけ、P4）、o09Subset（AC01の位置、sequencesSha256はsequences.jsonのmeta.sha256）。結果を見てから母集団・除外条件を変えない（spec:1106）。凍結の前にCodexの総合レビュー（P3-C6-CODEX=Aの1回目）を通す。凍結後に条件を変えるとき（Blockedの後の条件の変更を含む）は新しいmanifestIdで、影響する母集団を全runとも測り直す（C4のadoption.mjsの版をまたぐ採用はC6に広げない）。照合はfrozen.tsのverifyFrozenP3Manifestと同じ形の関数1つで、既存のA10・C4の凍結manifestの検査は変えない",
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:1104 «b93e705ab7397a04»",
           "docs/specs/reconstruction-p0-contracts.md:1106 «531dc4a11a01dc61»",
@@ -568,14 +581,15 @@
       },
       {
         "id": "P3-C6-AC11",
-        "requirement": "正式測定と結果: 凍結manifestで8母集団×3 runを測り、P3TsunamiE01Verdictと遷移ごとの報告を版付き結果に残す。分割の単位は窓（母集団×run）で日を跨いでよい。各窓は自分のwarm-upと初期状態から始め、窓ごとの最新attemptを使う。runnerの--windowsはBlocked・未実施の窓だけを再実行し、未確認の窓（時計の区間幅超過・stateBreaksなど）は同じmanifestでは取り直さない（P3-C4-AC11と同じ規則）。Blockedの原因を除くために条件を変えたときは、AC10のとおり新しいmanifestIdで影響する母集団を全runとも測り直し、旧と新の窓を混ぜない。測定の窓ではMac miniでbuild・test・他レーンを走らせない（計画:112）。unit test・予備測定・Pi予備確認・単発smokeを正式Passに代用しない。未達はP3-C6-FAIL-PATH=Aに従う（spec§7.6の帰属で分類して報告し、C6の中で直さない）。容量縮退の母集団は「未検収（期待値だけを固定、測定はP4の容量契約、D-P3-6）」、burst・詳細射影中はP3-C6-O09-RESTの裁定どおりの引受先を結果に書く。D-AC15・D-AC24はPassと報告しない（計画:40）。版付き結果（rawに基づく証拠・凍結manifest・機械検証の結果）をCodexの総合レビュー（P3-C6-CODEXの裁定どおり）に渡す。生データはMac・Mini・Piのローカルに置き、公開のActions・artifactに渡さない",
+        "requirement": "正式測定と結果: 凍結manifestで8母集団×3 runを測り、P3TsunamiE01Verdictと遷移ごとの報告を版付き結果に残す。分割の単位は窓（母集団×run）で日を跨いでよい。各窓は自分のwarm-upと初期状態から始め、窓ごとの最新attemptを使う。runnerの--windowsはBlocked・未実施の窓だけを再実行し、未確認の窓（時計の区間幅超過・stateBreaksなど）は同じmanifestでは取り直さない（P3-C4-AC11と同じ規則）。Blockedの原因を除くために条件を変えたときは、AC10のとおり新しいmanifestIdで影響する母集団を全runとも測り直し、旧と新の窓を混ぜない。測定の窓ではMac miniでbuild・test・他レーンを走らせない（計画:112）。unit test・予備測定・Pi予備確認・単発smokeを正式Passに代用しない。未達はP3-C6-FAIL-PATH=Aに従う（spec§7.6の帰属で分類して報告し、C6の中で直さない）。容量縮退の母集団は「未検収（期待値だけを固定、測定はP4の容量契約、D-P3-6）」、burst・詳細射影中は「未検収（引受先P4、P3-C6-O09-REST=A、計画§5.2）」と結果に書く。D-AC15・D-AC24はPassと報告しない（計画:40）。版付き結果（rawに基づく証拠・凍結manifest・機械検証の結果）をCodexの総合レビュー（P3-C6-CODEX=Aの2回目）に渡す。生データはMac・Mini・Piのローカルに置き、公開のActions・artifactに渡さない",
         "evidenceRefs": [
           "reconstruction/contracts/p3-order-plan.md:40 «c4be59ca24a3e392»",
           "reconstruction/contracts/p3-order-plan.md:112 «c81c3e4ab8b07d22»",
           "reconstruction/contracts/p3-e01-reaccept.json:757 «de3ea7ee502cd62f»",
           "docs/specs/reconstruction-p0-contracts.md:1137 «c06677d2196cd39e»",
           "docs/specs/reconstruction-p0-contracts.md:2614 «14a838a9ba869959»",
-          "reconstruction/contracts/p3-e01-reaccept.json:84 «916b8c487fa7525c»"
+          "reconstruction/contracts/p3-e01-reaccept.json:84 «916b8c487fa7525c»",
+          "reconstruction/contracts/p3-order-plan.md:231 «9ed72a033549bed0»"
         ]
       },
       {
@@ -604,9 +618,9 @@
         "referenceIds": [
           "P3-C6-AC01",
           "P3-C6-AC06",
-          "reconstruction/tools/corpus/sequences.json#unmet:O09:23"
+          "reconstruction/tools/corpus/sequences.json#expected:O09:23"
         ],
-        "behavior": "5つの遷移のtemplateをreconstruction/distのC5のreducerにprime→targetの順で通すと、targetのSubjectOutcome.factsのseriesが発令・引上げ・区域拡大でescalation、解除・降格でdeescalation、areaTransitionsが311・312のtemplateの遷移（issued・upgraded・expanded・released・downgraded）に一致し、manifestの草案のexpectedSeries・expectedTransitions・expectedPaint（塗りの規則で作ったもの）と一致する。同じtemplateを報ごとにReportDateTimeを1秒進めて100試行ぶん続けて通しても、各targetの結果は変わらず、subject数は2のまま・退去0・stale 0。窓の最初の発令系のprimeはU-TのdisplayChangesが0（subjectが前後ともview外）で、区域が直前と同じでも引上げ・区域拡大のprime（subjectが前後とも表示中）はdisplayChangesを出す。各primeの描画の期待がexpectedPrimePaintと一致する"
+        "behavior": "5つの遷移のtemplate（AC01のsynthetic fixture）をreconstruction/distのC5のreducerにprime→targetの順で通すと、targetのSubjectOutcome.factsのseriesが発令・引上げ・区域拡大でescalation、解除・降格でdeescalation、areaTransitionsが311・312のtemplateの遷移（issued・upgraded・expanded・released・downgraded）に一致し、manifestの草案のexpectedSeries・expectedTransitions・expectedPaint（塗りの規則で作ったもの）と一致する。同じtemplateを報ごとにReportDateTimeを1秒進めて100試行ぶん続けて通しても、各targetの結果は変わらず、subject数は2のまま・退去0・stale 0。窓の最初の発令系のprimeはU-TのdisplayChangesが0（subjectが前後ともview外）で、区域が直前と同じでも引上げ・区域拡大のprime（subjectが前後とも表示中）はdisplayChangesを出す。各primeの描画の期待がexpectedPrimePaintと一致する"
       },
       {
         "testId": "P3-C6-T03",
@@ -739,40 +753,6 @@
       "工程の成果物（統合担当が実走して記録する）: 単発smokeの記録、Mac miniの予備測定の記録と所要の積算、Pi予備確認の記録、凍結manifest、正式測定の版付き結果（P3TsunamiE01Verdict・遷移ごとの報告・EEW同時のEEWの参考値）、Codexの総合レビュー2回の記録",
       "既存試験の期待値を変えたときは、理由と変更前後の値を一覧にする"
     ],
-    "unresolvedQuestions": [
-      {
-        "id": "Q-C6-AUTHOR-RULINGS",
-        "owner": "user",
-        "blocks": [
-          "P3-C6-AC01",
-          "P3-C6-AC05",
-          "P3-C6-AC08",
-          "P3-C6-AC09",
-          "P3-C6-AC10",
-          "P3-C6-AC11"
-        ],
-        "resolveBy": "baseOidの割当の前（発注前点検）",
-        "requiredEvidence": [
-          "P3-C6-POP-SHAPE・P3-C6-COAST-ASSET・P3-C6-PI-STAGE2・P3-C6-CODEX・P3-C6-O09-RESTの作者裁定（日付付き）",
-          "P3-C6-COAST-ASSET=Bなら、資材の利用条件を作者が確かめた記録（文面の所在・出典表記・同梱の可否）"
-        ]
-      },
-      {
-        "id": "Q-C6-PRECHECK",
-        "owner": "integrator",
-        "blocks": [
-          "P3-C6-AC01",
-          "P3-C6-AC10"
-        ],
-        "resolveBy": "baseOidの割当の前（発注前点検）",
-        "requiredEvidence": [
-          "O09のC6分（13〜18・23〜26・32〜35・41〜44・50〜53・59〜62）の扱い: 5つの遷移のtemplateをsyntheticのfixture（prime・target）としてcorpusに足してunmetを充足するか、runnerのtemplateとして測定の証拠に置いてunmetのまま残すか（推奨は前者。Q-C5-CORPUSと同じ機械的な波及〔manifestの件数・P1契約のfixtureIds・READMEなど〕を同じcommitで直す）。O09:17・18（Q-C5-CORPUSの(4)でC6へ送られた解除・降格の見込み）は、32-39_11_11の続報のsyntheticで単発smokeとPi確認に使い、正式母集団には入れない",
-          "P3-C6-POP-SHAPE=Aなら、O09の20位置（23〜26・32〜35・41〜44・50〜53・59〜62）のchecksを「系列の母集団で判定し、遷移ごとは報告」へ改訂し、sequences.jsonのmeta.sha256と引用側のanchorを同じcommitで直す",
-          "P3-C6-PI-STAGE2の裁定を、p3-unit-write-right.jsonのQ-UWR-REMEASUREにも記録する（発注前点検のcommitで、anchorとmeta.sha256を同じcommitで直す）",
-          "P3-C6-O09-REST=Aなら、計画§5.2に津波のburst・詳細射影中のE01（O09の10位置）の引受先P4を書き足す",
-          "C5配送（39fccd46）後のchrome-eew・runner・U-Tのviewの実体と本契約の前提（U-Tがurgent、snapshot.current.tsunami、checkpointGrantのunitとresult）の照合"
-        ]
-      }
-    ]
+    "unresolvedQuestions": []
   }
 }
