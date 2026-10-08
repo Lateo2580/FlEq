@@ -1248,6 +1248,49 @@ it("P2-A3-T10 contractBoundary / AC10: a later explicit empty step cannot fill a
   expect(h.fault.opens).toBe(0);
 });
 
+it("P3-OLB-T03 contractBoundary / AC02: an unknown attribution is not discarded by the 4,096-generation bound", async () => {
+  const receive = ownerRuntime.receiveOwner;
+  const fault = vi.spyOn(ownerRuntime, "receiveOwner");
+  const missing = () => fault.mockImplementationOnce((...args) => ({ ...receive(...args), generationInputIds: {} }));
+  // (1) g1 is unknown; a jump past 4,096 generations still leaves the grant declined and the exit code 2.
+  const first = await harness();
+  missing();
+  await first.update(dirty(1));
+  await first.update(dirty(5_000), { "U-F": ["late"] });
+  expect((await first.grant()).map((reply) => [reply.unit, reply.result])).toEqual([["U-F", null]]);
+  expect((await first.root.shutdownRuntime(2, first.clock())).code).toBe(2);
+  expect(first.fault.opens).toBe(0);
+  // (2) g1 is known and captured (its write held); g2 is unknown, then a jump past 4,096. g1 is acknowledged, later grants decline.
+  const second = await harness();
+  const gate = deferred();
+  second.fault.writeGate = gate.promise;
+  await second.update(dirty(1), { "U-F": ["known"] });
+  const running = second.start();
+  await vi.waitFor(() => expect(second.fault.opens).toBe(1));
+  // 契約の文言（sync 保留・入力 1 件）と経路が違う理由: own-save hold が g1 の保存中は同じ unit の入力を留め置くので、
+  // ack の前に g2 を入れる順序は期限の経路（byDeadline）でしか作れない。
+  const deadline = ownerRuntime.deadlineOwner;
+  const deadlineFault = vi.spyOn(ownerRuntime, "deadlineOwner");
+  deadlineFault.mockImplementation((...args) => {
+    const step = deadline(...args);
+    return step.state.units["U-F"]?.persistence.currentGeneration === 2 ? { ...step, generationInputIds: {} } : step;
+  });
+  await second.driver.update(second.h, dirty(2), second.clock(), {}, true);
+  await second.driver.update(second.h, dirty(5_000), second.clock(), {}, true);
+  gate.resolve();
+  await running;
+  expect(second.root.state.mirror["U-F"].persistence).toMatchObject({ savedGeneration: 1 });
+  await second.grant();
+  const results = second.h.delivered.flatMap(({ reply }) => reply.kind === "checkpointDone" && reply.unit === "U-F"
+    ? [reply.result?.kind ?? null] : []);
+  expect(results[0]).toBe("acknowledged");
+  expect(results.slice(1).length).toBeGreaterThan(0);
+  expect(results.slice(1).every((kind) => kind === null)).toBe(true);
+  expect(second.root.state.mirror["U-F"].persistence).toMatchObject({ savedGeneration: 1, currentGeneration: 5_000 });
+  expect((await second.root.shutdownRuntime(2, second.clock())).code).toBe(2);
+  expect(second.fault.opens).toBe(1);
+});
+
 it("P2-A3-T09 contractBoundary / AC09: an identical durable generation is acknowledged without rewriting a slot", async () => {
   const h = await harness();
   const slot = join(h.config.stateDirectory, "U-F-A.json");

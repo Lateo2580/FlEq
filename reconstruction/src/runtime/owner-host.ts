@@ -45,12 +45,17 @@ function threadHeap(): OwnerHeap {
   return { heapUsedBytes: heapUsed, externalBytes: external };
 }
 
+const ledgerLimit = 4096;
+
 class OwnerHost {
   private state: OwnerState | null = null;
   private coordinator: CheckpointCoordinator | null = null;
   private readonly own: readonly RuntimeUnitId[];
   // P2-A3-AC10: per unit, the input IDs of each unsaved generation (null = unknown).
-  private readonly ledger: Partial<Record<RuntimeUnitId, Map<number, readonly string[] | null>>> = {};
+  // P3-OLB-AC01: unit ごとに 4,096 世代まで。無いと I/O が止まっている間、記録が世代ごとに伸び続ける。
+  private readonly ledger: Partial<Record<RuntimeUnitId, Map<number, readonly string[]>>> = {};
+  // その run では保存しない unit: 復元が unavailable だったものと、帰属不明の世代を記録したもの（P3-OLB-AC02。
+  // 不明を項目で持つと上限で捨てたとき不明が消え、P2-A3-AC10 が拒む capture を通してしまう）。
   private readonly unavailable = new Set<RuntimeUnitId>();
   // The intents array each unit last reported; pendingIntents is sent only when it changed.
   private readonly reported: Partial<Record<RuntimeUnitId, readonly NotificationIntent[]>> = {};
@@ -177,8 +182,7 @@ class OwnerHost {
       const base = entry.kind === "restored" ? entry.envelope.generation : 0;
       const ids = { ...first.generationInputIds, ...deadline.generationInputIds };
       const current = this.persistence(unit).currentGeneration;
-      for (let generation = base + 1; generation <= current; generation++)
-        (this.ledger[unit] ??= new Map()).set(generation, Object.hasOwn(ids, unit) ? ids[unit]! : null);
+      this.record(unit, base + 1, current, Object.hasOwn(ids, unit) ? ids[unit]! : null);
     }
     const views = new Map(ownerViews(this.state, this.options.units).map((view) => [view.unit, view]));
     const output = this.output([first, deadline]);
@@ -245,28 +249,37 @@ class OwnerHost {
       const next = step.state.units[unit]?.persistence;
       if (previous == null || next == null) continue;
       if (next.currentGeneration > previous.currentGeneration || (next.savedGeneration ?? 0) > (previous.savedGeneration ?? 0)) {
-        const ledger = this.ledger[unit] ??= new Map();
-        for (let generation = previous.currentGeneration + 1; generation <= next.currentGeneration; generation++)
-          ledger.set(generation, Object.hasOwn(step.generationInputIds, unit) ? step.generationInputIds[unit]! : null);
-        // Keys stay above the saved generation, so only the newly saved range leaves the ledger.
-        for (let generation = (previous.savedGeneration ?? 0) + 1; generation <= (next.savedGeneration ?? 0); generation++)
-          ledger.delete(generation);
+        this.record(unit, previous.currentGeneration + 1, next.currentGeneration,
+          Object.hasOwn(step.generationInputIds, unit) ? step.generationInputIds[unit]! : null);
+        // 世代は昇順にだけ足されるので、保存確認済みの世代以下は Map の先頭から消せる（P3-OLB-AC03。番号の区間では回らない）。
+        const ledger = this.ledger[unit];
+        const saved = next.savedGeneration ?? 0;
+        if (ledger != null) for (const generation of ledger.keys()) { if (generation > saved) break; ledger.delete(generation); }
       }
     }
     this.state = step.state;
     return step;
   }
 
-  private inputIds(unit: RuntimeUnitId): readonly string[] | null {
-    const { currentGeneration, savedGeneration } = this.persistence(unit);
-    const ledger = this.ledger[unit];
-    if (this.unavailable.has(unit) || ledger == null) return null;
-    const ids = new Set<string>();
-    for (let generation = (savedGeneration ?? 0) + 1; generation <= currentGeneration; generation++) {
-      const value = ledger.get(generation);
-      if (value == null) return null;
-      for (const id of value) ids.add(id);
+  // 世代 from..to の入力 ID を足す。null は帰属不明で、unit をそのrunでは保存しない集合へ入れる。
+  private record(unit: RuntimeUnitId, from: number, to: number, ids: readonly string[] | null): void {
+    if (ids == null) { if (to >= from) this.unavailable.add(unit); return; }
+    const ledger = this.ledger[unit] ??= new Map();
+    for (let generation = from; generation <= to; generation++) {
+      ledger.set(generation, ids);
+      if (ledger.size > ledgerLimit) ledger.delete(ledger.keys().next().value!);
     }
+  }
+
+  // 残った項目の数だけ読む（P3-OLB-AC01 の検収用。状態は変えない）。
+  ledgerSize(unit: RuntimeUnitId): number {
+    return this.ledger[unit]?.size ?? 0;
+  }
+
+  private inputIds(unit: RuntimeUnitId): readonly string[] | null {
+    if (this.unavailable.has(unit)) return null;
+    const ids = new Set<string>();
+    for (const value of this.ledger[unit]?.values() ?? []) for (const id of value) ids.add(id);
     return [...ids];
   }
 

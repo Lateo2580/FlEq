@@ -121,6 +121,60 @@ async function runtime(options: Readonly<{ measure?: (observation: P2HostObserva
 type Runtime = Awaited<ReturnType<typeof runtime>>;
 const saved = (r: Runtime, unit: RuntimeUnitId) => r.root.state.mirror[unit].persistence;
 
+describe("P3-OWNER-LEDGER-BOUND-001 (TEST-PATH (2))", () => {
+  // 上限 4,096 は契約の値（owner-host.ts から定数は出さない）。4,096 を超える世代は 1 件の入力から飛ばす。
+  const declined = (r: Runtime, unit: RuntimeUnitId) => r.h.delivered.filter(({ reply }) =>
+    reply.kind === "checkpointDone" && reply.unit === unit && reply.result === null).length;
+  const owner = (r: Runtime) => r.h.owners.get("urgent")!;
+
+  it("P3-OLB-T01 acceptance / AC01,AC02,AC04: a long failing stop keeps 4,096 generations and the save after it is not declined", async () => {
+    for (const [last, expectedIds, size] of [[4_095, ["U-E-1", "bulk", "last"], 4_095], [4_096, ["U-E-1", "bulk", "last"], 4_096],
+      [4_097, ["bulk", "last"], 4_096]] as const) {
+      const r = await runtime();
+      const open = vi.spyOn(r.files.system, "open").mockRejectedValue(new Error("open failed"));
+      await r.raise("U-E", 1, "U-E-1");
+      await r.raise("U-E", last - 1, "bulk");
+      await r.raise("U-E", last, "last");
+      for (let second = 1; second <= 3; second += 1) await r.tick(second * 1_000);
+      expect(owner(r).ledgerSize("U-E")).toBe(size);
+      open.mockRestore();
+      for (let second = 4; second <= 8 && saved(r, "U-E").kind !== "saved"; second += 1) await r.tick(second * 1_000);
+      expect(saved(r, "U-E")).toMatchObject({ kind: "saved", savedGeneration: last });
+      expect(r.measurements.filter((measurement) => measurement.unit === "U-E").at(-1)!.inputIds).toEqual(expectedIds);
+      expect(declined(r, "U-E")).toBe(0);
+      await r.raise("U-E", last + 1, "after");
+      expect(saved(r, "U-E")).toMatchObject({ kind: "saved", savedGeneration: last + 1 });
+      expect(r.measurements.filter((measurement) => measurement.unit === "U-E").at(-1)!.inputIds).toEqual(["after"]);
+      await r.root.diagnostics.flush();
+    }
+  });
+
+  it("P3-OLB-T02 contractBoundary / AC01,AC02: the generation held by a stopped sync counts toward the bound, and the save after it is not declined", async () => {
+    for (const [last, expectedIds] of [[4_097, ["second", "bulk", "last"]], [4_098, ["bulk", "last"]]] as const) {
+      const r = await runtime();
+      const release = r.files.hold("U-E");
+      await r.raise("U-E", 1, "first");
+      await r.raise("U-E", 2, "second");
+      await r.raise("U-E", last - 1, "bulk");
+      await r.raise("U-E", last, "last");
+      for (let second = 1; second <= 3; second += 1) await r.tick(second * 1_000);
+      expect(owner(r).ledgerSize("U-E")).toBe(4_096);
+      release();
+      await r.h.settle();
+      // g1 の ack が先に届き（次の権の保存は続けて走るので savedGeneration の瞬間値では見えない）、その後に last が保存される。
+      expect(r.h.delivered.flatMap(({ reply }) => reply.kind === "checkpointDone" && reply.unit === "U-E" && reply.result?.kind === "acknowledged"
+        ? [reply.result.generation] : [])[0]).toBe(1);
+      for (let second = 4; second <= 8 && saved(r, "U-E").savedGeneration !== last; second += 1) await r.tick(second * 1_000);
+      expect(saved(r, "U-E")).toMatchObject({ kind: "saved", savedGeneration: last });
+      expect(r.measurements.filter((measurement) => measurement.unit === "U-E").at(-1)!.inputIds).toEqual(expectedIds);
+      expect(declined(r, "U-E")).toBe(0);
+      await r.raise("U-E", last + 1, "after");
+      expect(saved(r, "U-E")).toMatchObject({ kind: "saved", savedGeneration: last + 1 });
+      await r.root.diagnostics.flush();
+    }
+  });
+});
+
 describe("P3-UNIT-WRITE-RIGHT-001 (TEST-PATH (2))", () => {
   it("P3-UWR-T01 acceptance / AC01,AC05: a held U-W sync neither delays U-E and U-F nor loses U-W's later inputs", async () => {
     const r = await runtime();
