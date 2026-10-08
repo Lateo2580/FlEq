@@ -158,7 +158,8 @@ describe("P2-A8-T06 regression (AC06/AC13)", () => {
     "U-F": { ...calls.units["U-F"],
       reduce: (state: Parameters<typeof calls.units["U-F"]["reduce"]>[0], input: Parameters<typeof calls.units["U-F"]["reduce"]>[1]) =>
         inOwner(() => calls.units["U-F"].reduce(state, input)),
-      toView: (state: Parameters<typeof toWeatherTimeseriesView>[0]) => { views.timeseries++; return inOwner(() => toWeatherTimeseriesView(state)); } } };
+      toView: (state: Parameters<typeof toWeatherTimeseriesView>[0]) => { views.timeseries++; return inOwner(() => toWeatherTimeseriesView(state)); } },
+    "U-T": calls.units["U-T"] };
     const begin = await startup(clock, undefined, countingUnits);
     const run = (state: RuntimeState, input: Input): Promise<Step> => step(state, input);
     let state = begin.state;

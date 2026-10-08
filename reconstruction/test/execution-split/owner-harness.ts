@@ -245,6 +245,7 @@ const unitBodies: Readonly<Record<RuntimeUnitId, Readonly<{ headType: string; bo
   "U-E": { headType: "VXSE43", body: readFileSync("test/fixtures/37_01_01_240613_VXSE43.xml") },
   "U-W": { headType: "VPWW57", body: readFileSync("test/fixtures/15_16_02_251222_VPWW57.xml") },
   "U-F": { headType: "VPWP50", body: readFileSync("test/fixtures/81_02_01_260605_VPWP50_high_severity.xml") },
+  "U-T": { headType: "VTSE41", body: readFileSync("test/fixtures/32-39_11_02_250206_VTSE41.xml") },
 };
 
 type Seed<K extends RuntimeUnitId> = Readonly<{ state: RuntimeUnitStates[K]; deadline: RuntimeUnitDeadline | null }>;
@@ -253,6 +254,7 @@ type Seed<K extends RuntimeUnitId> = Readonly<{ state: RuntimeUnitStates[K]; dea
 // test can start from any unit state. Every other input reaches the given unit rows unchanged.
 function seeded(base: UnitTable = linkedUnitTable) {
   let eew: Seed<"U-E"> | null = null, weather: Seed<"U-W"> | null = null, series: Seed<"U-F"> | null = null;
+  let tsunami: Seed<"U-T"> | null = null;
   const empty = { decisions: [], intents: [], outcomes: [], diagnostics: [], displayChanges: [], confirmationEvidence: [] } as const;
   const seeding = (input: { kind: string; material?: { inputId: string } }) =>
     input.kind === "receive" && input.material?.inputId.startsWith("seed:") === true;
@@ -269,6 +271,10 @@ function seeded(base: UnitTable = linkedUnitTable) {
       if (seeding(input) && series != null) { const seed = series; series = null; return { ...empty, state: seed.state, nextDeadline: seed.deadline }; }
       return base["U-F"].reduce(state, input);
     } },
+    "U-T": { ...base["U-T"], reduce: (state, input) => {
+      if (seeding(input) && tsunami != null) { const seed = tsunami; tsunami = null; return { ...empty, state: seed.state, nextDeadline: seed.deadline }; }
+      return base["U-T"].reduce(state, input);
+    } },
   };
   let sequence = 0;
   const send = (h: Harness, unit: RuntimeUnitId, clock: ClockReading) => submit(h, envelope(h.root.state.runId,
@@ -283,6 +289,9 @@ function seeded(base: UnitTable = linkedUnitTable) {
     },
     async series(h: Harness, state: RuntimeUnitStates["U-F"], deadline: RuntimeUnitDeadline | null = null, clock = h.clock()) {
       series = { state, deadline }; await send(h, "U-F", clock);
+    },
+    async tsunami(h: Harness, state: RuntimeUnitStates["U-T"], deadline: RuntimeUnitDeadline | null = null, clock = h.clock()) {
+      tsunami = { state, deadline }; await send(h, "U-T", clock);
     },
   };
 }

@@ -86,7 +86,7 @@ function verifyCoverage(confirmation: RuntimeConfirmation, units: UnitTable, run
   if (input.runId !== runId || input.epoch !== confirmation.epoch) return confirmation;
   for (const scope of input.scopes) {
     if (!runtimeUnits.includes(scope.unit) || !operations.includes(scope.operation)
-      || scope.kind === "event" && (scope.unit !== "U-E" || !/^\d{14}$/.test(scope.eventId))
+      || scope.kind === "event" && (scope.unit !== "U-E" && scope.unit !== "U-T" || !/^\d{14}$/.test(scope.eventId))
       || scope.kind === "area" && (scope.unit !== "U-W" || !scope.subject
         || (() => { const tuple = parseScopeToken(scope.token); return tuple == null
           || scope.subject !== `${scope.operation}/${tuple[0]}/${tuple[2]}`; })())
@@ -203,7 +203,7 @@ function initialConfirmation(): RuntimeConfirmation {
     scopeBytes: 2, scopes: [], confirmedAt: null });
   const three = () => ({ normal: slot(), training: slot(), test: slot() });
   return { epoch: 0, afterInputSequence: -1,
-    units: { "U-E": three(), "U-W": three(), "U-F": three() } };
+    units: { "U-E": three(), "U-W": three(), "U-F": three(), "U-T": three() } };
 }
 
 type ConfirmationSlot = RuntimeConfirmation["units"][RuntimeUnitId][Operation];
@@ -332,6 +332,9 @@ function addedScopes(changes: readonly RuntimeDisplayChange[]): ConfirmationScop
       : [{ unit: "U-E", operation: value.operation, kind: "event", eventId: value.current.eventId }];
     if (value.unit === "U-F") return value.current == null || value.office == null ? []
       : [{ unit: "U-F", operation: value.operation, kind: "series", subject: value.subject, office: value.office }];
+    // I-U-T.confirmationScope: event の scope を持つのは表示中の VTSE41 の subject だけで、観測は確認の対象にしない。
+    if (value.unit === "U-T") return value.current == null || !("areas" in value.current) ? []
+      : [{ unit: "U-T", operation: value.operation, kind: "event", eventId: value.current.eventId }];
     return normalizeScopes([...(value.current == null ? [] : Object.keys(value.current.phenomena)),
       ...value.unavailable.flatMap((item) => item.affectedScope),
       // Only shown (suspect) freshness enters confirmation; older/same/unknown non-adoption raises no doubt (A5).

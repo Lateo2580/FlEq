@@ -75,6 +75,7 @@ const initialUnits: RuntimeUnitStates = {
   "U-W": { schemaVersion: "p2-weather-current-unit-v1", contentRevision: 0, national: {}, partials: [], histories: [], ownership: {},
     tombstones: [], freshness: [], unavailable: [], intents: [], persistence: cleanPersistence },
   "U-F": { schemaVersion: "p2-weather-timeseries-unit-v1", contentRevision: 0, subjects: [], gates: [], intents: [], persistence: cleanPersistence },
+  "U-T": { schemaVersion: "p3-tsunami-unit-v1", contentRevision: 0, forecasts: [], observations: [], intents: [], persistence: cleanPersistence },
 };
 
 const placeUnits = (place: ExecutionPlace): readonly RuntimeUnitId[] =>
@@ -127,6 +128,7 @@ function unitJob(state: OwnerState, unit: RuntimeUnitId, input: UnitInput): Unit
     case "U-E": return { unit, state: ownUnit(state, unit), input };
     case "U-W": return { unit, state: ownUnit(state, unit), input };
     case "U-F": return { unit, state: ownUnit(state, unit), input };
+    case "U-T": return { unit, state: ownUnit(state, unit), input };
     default: { const missing: never = unit; throw new Error(`unit ${String(missing)} has no job`); }
   }
 }
@@ -137,6 +139,7 @@ function runUnitJob(units: UnitTable, job: UnitJob): RuntimeUnitSteps[RuntimeUni
     case "U-E": return units[job.unit].reduce(job.state, job.input);
     case "U-W": return units[job.unit].reduce(job.state, job.input);
     case "U-F": return units[job.unit].reduce(job.state, job.input);
+    case "U-T": return units[job.unit].reduce(job.state, job.input);
     default: { const missing: never = job; throw new Error(`unit job ${String(missing)} is not handled`); }
   }
 }
@@ -302,15 +305,20 @@ function session(start: OwnerState, units: UnitTable, clock: ClockReading | null
         displayChanges.push({ unit, operation: value.operation, subject: value.subject, before: value, after: value });
       }
     }
-    // Event-scoped confirmation records the publisher retires: removed U-E subjects whose event no current holds.
+    // publisher が外す event 単位の確認記録: どの current も持たない event の U-E subject と、view から外れた U-T の VTSE41 subject
+    // （I-U-T.confirmationScope。VTSE41 の subject は operation・EventID ごとに 1 つなので、外れた event を残りと照合しない）。
     let retiredEvents: OwnerOutput["retiredEvents"] = EMPTY;
-    if (displayChanges.some((change) => change.after == null && change.before?.unit === "U-E" && change.before.current != null)) {
-      const live = new Set(ownUnit(next, "U-E").current.map((item) => JSON.stringify([item.operation, item.eventId])));
+    const leaving = (change: RuntimeDisplayChange) => change.after == null && change.before != null && change.before.current != null
+      && (change.before.unit === "U-E" || change.before.unit === "U-T" && "areas" in change.before.current);
+    if (displayChanges.some(leaving)) {
+      const live = new Set(next.units["U-E"]?.current.map((item) => JSON.stringify([item.operation, item.eventId])));
       const retired: OwnerOutput["retiredEvents"][number][] = [];
-      for (const change of displayChanges)
-        if (change.after == null && change.before?.unit === "U-E" && change.before.current != null
-          && !live.has(JSON.stringify([change.operation, change.before.current.eventId])))
-          retired.push({ unit: "U-E", operation: change.operation, eventId: change.before.current.eventId });
+      for (const change of displayChanges) {
+        if (!leaving(change) || change.before?.current == null || !("eventId" in change.before.current)) continue;
+        const unit = change.before.unit === "U-T" ? "U-T" as const : "U-E" as const;
+        const eventId = change.before.current.eventId;
+        if (unit === "U-T" || !live.has(JSON.stringify([change.operation, eventId]))) retired.push({ unit, operation: change.operation, eventId });
+      }
       retiredEvents = retired;
     }
     beforeProjection?.();

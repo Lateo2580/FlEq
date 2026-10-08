@@ -290,7 +290,9 @@ async function startP2Host(config: P2HostConfig): Promise<Readonly<{ displayPort
     // The priority reason is the validated outer shape only; meaning stays with parser and units.
     const envelope: MailboxEnvelope = { messageId: inputId, runId, t0MonotonicMs: entry.monotonicMs,
       enqueuedMonotonicMs: clock().monotonicMs, payload: { kind: "parser", item },
-      priorityReason: item.headType === "VXSE43" || item.headType === "VXSE45" ? "eewCandidate" : "normal" };
+      priorityReason: item.headType === "VXSE43" || item.headType === "VXSE45" ? "eewCandidate"
+        // P3-C5-AC09: VTSE41 は発令・解除・降格・訓練を問わず津波候補（訓練の優先は mailbox が運用区分で外す）。
+        : item.headType === "VTSE41" ? "tsunamiCandidate" : "normal" };
     // P3-C3B-AC02: an input for a stopped or unresponsive owner is refused here; the other places go on receiving.
     if (root.refuseInput(inputId, item.headType, entry)) return;
     const t1 = performance.now();

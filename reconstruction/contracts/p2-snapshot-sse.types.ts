@@ -16,6 +16,7 @@ import type {
 } from "./p2-shared-runtime.types";
 import type { WeatherCurrentUnitView } from "./p2-weather-current-unit.types";
 import type { WeatherTimeseriesUnitView } from "./p2-weather-timeseries-unit.types";
+import type { TsunamiUnitView } from "./p3-tsunami-unit.types";
 
 export type DisplayVersion = Readonly<{
   streamId: string;
@@ -40,9 +41,11 @@ export type DisplayWorkerView = Readonly<{
 // P2-A8-AC11: durable restoration is independent of current confirmation.
 export type DisplayRecoveryView = RuntimeRestoration;
 
-export type DisplayInformationType = "eew" | "weather-warning" | "weather-warning-timeseries";
+export type DisplayInformationType = "eew" | "weather-warning" | "weather-warning-timeseries" | "tsunami";
 export type DisplaySeverity = "none" | "below" | "forecast" | "advisory" | "warning" | "danger" | "specialWarning";
-export type DisplayAreaSystem = "eewArea" | "prefecture" | "primary" | "municipalityGroup" | "municipality" | "stormSurge" | "forecastArea";
+export type DisplayAreaSystem = "eewArea" | "prefecture" | "primary" | "municipalityGroup" | "municipality" | "stormSurge" | "forecastArea"
+  // P3-C5-SNAPSHOT=A: VTSE41 の津波予報区と VTSE51/52 の観測点。
+  | "tsunamiForecastArea" | "tsunamiStation";
 export type DisplayConfirmationView = Readonly<{
   state: "confirmed" | "partial" | "unconfirmed";
   confirmedAt: number | null;
@@ -111,6 +114,7 @@ export type DisplaySnapshot = Readonly<{
     eew: DisplayDomainView<EewUnitView>;
     weatherCurrent: DisplayDomainView<WeatherCurrentUnitView>;
     weatherTimeseries: DisplayDomainView<WeatherTimeseriesUnitView>;
+    tsunami: DisplayDomainView<TsunamiUnitView>;
   }>;
   notices: readonly VisibleNotice[];
 }>;
@@ -132,6 +136,7 @@ export type SnapshotProjectionInput = Readonly<{
   eew: EewUnitView;
   weatherCurrent: WeatherCurrentUnitView;
   weatherTimeseries: WeatherTimeseriesUnitView;
+  tsunami: TsunamiUnitView;
   // A1 accepted outcomes only; A8 derives short-lived screen notices, never A7 intents.
   outcomes: readonly RuntimePublishedOutcome[];
   // P2-A1-DISPLAY-CHANGES: includes deletions/evictions with no PublishedOutcome.
@@ -161,6 +166,7 @@ export type SnapshotProjectionState = Readonly<{
     }>;
     weatherCurrent: DisplayDomainProjection<WeatherCurrentUnitView>;
     weatherTimeseries: DisplayDomainProjection<WeatherTimeseriesUnitView>;
+    tsunami: DisplayDomainProjection<TsunamiUnitView>;
   }>;
 }>;
 export type SnapshotProjectionResult =

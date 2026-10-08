@@ -42,10 +42,11 @@ describe("P3-UNIT-TABLE-001 route classes", () => {
     const blank = (xml: string) => xml.replace(/<ReportDateTime>[^<]*<\/ReportDateTime>/, "<ReportDateTime></ReportDateTime>");
     const cases = [
       { material: decode("37_01_01_240613_VXSE43", "VZZZ99"), expected: { reason: "routeUnlisted", level: "WARN" } },
-      { material: decode("32-39_11_02_250206_VTSE41", "VTSE41"), expected: { reason: "routeNotPorted", level: "INFO", unit: "U-T" } },
+      // P3-C5: VTSE41 is ready (U-T); VTSE41 bytes under VFVO50 keep a notPorted route on the deferred owner.
+      { material: decode("32-39_11_02_250206_VTSE41", "VFVO50"), expected: { reason: "routeNotPorted", level: "INFO", unit: "U-V" } },
       { material: decode("36_01_10_240613_VXSE44", "VXSE44"), expected: { reason: "routeIgnored", level: "INFO" } },
       // The envelope check comes first: a rejected notPorted input gets its existing rejection only.
-      { material: decode("32-39_11_02_250206_VTSE41", "VTSE41", blank), expected: { reason: "reportDateTimeMissing", level: "WARN" } },
+      { material: decode("32-39_11_02_250206_VTSE41", "VFVO50", blank), expected: { reason: "reportDateTimeMissing", level: "WARN" } },
     ];
     for (const { material, expected } of cases) {
       const step = receiveOwner(state, { runId: "run", inputId: material.inputId, result: { kind: "decoded", material } },

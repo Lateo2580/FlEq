@@ -47,7 +47,7 @@ const diagnosticReasons = [
   "mailboxRejectedDraining", "mailboxRejectedItemLimit", "mailboxRejectedByteLimit", "mailboxStalled",
   "mailboxLimitViolation", "shutdownStarted", "shutdownUnsavedUnits", "diagnosticSinkFailed",
   "diagnosticQueueOverflow", "snapshotNoticeCapacityExceeded", "snapshotCommonBudgetExceeded",
-  "snapshotStringLimitExceeded", "weatherCurrentCapacityEvicted", "eewCapacityEvicted",
+  "snapshotStringLimitExceeded", "weatherCurrentCapacityEvicted", "eewCapacityEvicted", "tsunamiRevisionConflict", "tsunamiCapacityEvicted",
   "notificationAttemptFailed", "notificationExpired", "notificationCapacityEvicted", "notificationAdapterIsolated",
   "routeIgnored", "routeNotPorted", "routeUnlisted", "ownerReplyLate",
   "dmdataSocketStarted", "dmdataSubscriptionNarrowed", "dmdataSocketListFailed", "dmdataConnectionCapacityExceeded",

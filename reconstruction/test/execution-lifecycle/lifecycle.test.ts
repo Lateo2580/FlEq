@@ -318,17 +318,19 @@ describe("P3-C3B execution lifecycle (TEST-PATH (2))", () => {
   });
 
   it("P3-C3B-T05 acceptance / AC03: shutdown with stopped and unresponsive owners (spec:2072)", async () => {
-    const dirtyState = (ages: Readonly<Record<RuntimeUnitId, number>> = { "U-E": 30, "U-W": 20, "U-F": 10 },
-      units: readonly RuntimeUnitId[] = ["U-E", "U-W", "U-F"]) => {
+    // U-T stays clean here: this case describes the three earlier units (P3-C5 adds its row only).
+    type Dirtied = Exclude<RuntimeUnitId, "U-T">;
+    const dirtyState = (ages: Readonly<Record<Dirtied, number>> = { "U-E": 30, "U-W": 20, "U-F": 10 },
+      units: readonly Dirtied[] = ["U-E", "U-W", "U-F"]) => {
       const values = { "U-E": "eew", "U-W": "weather", "U-F": "series" } as const;
       return fixtureState(Object.fromEntries(units.map((unit) => [unit, values[unit]])),
         Object.fromEntries(units.map((unit) => [unit, pending(ages[unit])])), "run");
     };
-    const dirtyAll = (driver: ReturnType<typeof fixtureDriver>, l: Lifecycle, ages?: Readonly<Record<RuntimeUnitId, number>>) =>
+    const dirtyAll = (driver: ReturnType<typeof fixtureDriver>, l: Lifecycle, ages?: Readonly<Record<Dirtied, number>>) =>
       driver.update(l.h, dirtyState(ages), l.now);
     // An input in the running stage saves at once (P3-UWR-AC03). Units that must still be dirty when the final saves start
     // get their inputs in the drain stage instead (AC10(7)).
-    const dirtyAtDrain = (driver: ReturnType<typeof fixtureDriver>, l: Lifecycle, units?: readonly RuntimeUnitId[]) =>
+    const dirtyAtDrain = (driver: ReturnType<typeof fixtureDriver>, l: Lifecycle, units?: readonly Dirtied[]) =>
       driver.queue(l.h, dirtyState(undefined, units), l.now);
     // A unit whose saves fail at open, so it stays dirty through the running stage (P3-UWR-AC03, AC10(7)).
     const failingOpen = (unit: RuntimeUnitId): CheckpointFileSystem => {

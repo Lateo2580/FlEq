@@ -103,7 +103,7 @@ describe("P2 unit wiring (A1 route, A3 composition root)", () => {
   it("P2-A1-T09 regression / AC09: real EEW capacity rejection hides dedicated current until a newer adoption", () => {
     const first = decode("37_01_01_240613_VXSE43", "VXSE43");
     const at = { wallTimeMs: Date.parse(first.reportDateTimeRaw), monotonicMs: 1 };
-    const initial = restoreOwner({ runId: "run", place: "urgent", clock: at, restored: { "U-E": { kind: "empty" } } },
+    const initial = restoreOwner({ runId: "run", place: "urgent", clock: at, restored: { "U-E": { kind: "empty" }, "U-T": { kind: "empty" } } },
       calls.units, linkedUnitCodecs).state;
     const adopted = received(initial, first, at).state;
     const current = adopted.units["U-E"]!.current[0];
@@ -426,7 +426,7 @@ describe("P2 unit wiring (A1 route, A3 composition root)", () => {
     const initial = fixtureState({}, {}, "run");
     const state: RuntimeState = { ...initial, units: { ...initial.units, "U-E": { ...initial.units["U-E"],
       deliveryRecords: [{ intentId: "elapsed", disposition: "delivered", expiresAt: clock.wallTimeMs }] } },
-      deadlines: { "U-E": { wallTimeMs: clock.wallTimeMs, monotonicMs: null }, "U-W": null, "U-F": null } };
+      deadlines: { "U-E": { wallTimeMs: clock.wallTimeMs, monotonicMs: null }, "U-W": null, "U-F": null, "U-T": null } };
     const material = decode("37_01_01_240613_VXSE43", "VXSE44", (xml) => xml
       .replace(/<ReportDateTime>[^<]*<\/ReportDateTime>/, "<ReportDateTime>invalid</ReportDateTime>"), "ignored-44");
     const ignored = receiveOwner(ownerFixture("deferred", state), { runId: "run", inputId: material.inputId,

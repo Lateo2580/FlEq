@@ -8,22 +8,25 @@ export type StubCalls = Readonly<{
   reduceEewUnit?: UnitModule<"U-E">["reduce"];
   reduceWeatherCurrentUnit?: UnitModule<"U-W">["reduce"];
   reduceWeatherTimeseriesUnit?: UnitModule<"U-F">["reduce"];
+  reduceTsunamiUnit?: UnitModule<"U-T">["reduce"];
   toEewView?: UnitModule<"U-E">["toView"];
   toWeatherCurrentView?: UnitModule<"U-W">["toView"];
   toWeatherTimeseriesView?: UnitModule<"U-F">["toView"];
+  toTsunamiView?: UnitModule<"U-T">["toView"];
   selectNotificationAttempt?: NotificationCalls["selectNotificationAttempt"];
   applyNotificationResult?: NotificationCalls["applyNotificationResult"];
 }>;
 
 function callsWith(stubs: StubCalls = {}): Readonly<{ units: UnitTable } & NotificationCalls> {
-  const { reduceEewUnit, reduceWeatherCurrentUnit, reduceWeatherTimeseriesUnit,
-    toEewView, toWeatherCurrentView, toWeatherTimeseriesView, ...notification } = stubs;
-  const { "U-E": eew, "U-W": weather, "U-F": series } = linkedUnitTable;
+  const { reduceEewUnit, reduceWeatherCurrentUnit, reduceWeatherTimeseriesUnit, reduceTsunamiUnit,
+    toEewView, toWeatherCurrentView, toWeatherTimeseriesView, toTsunamiView, ...notification } = stubs;
+  const { "U-E": eew, "U-W": weather, "U-F": series, "U-T": tsunami } = linkedUnitTable;
   return {
     units: {
       "U-E": { ...eew, reduce: reduceEewUnit ?? eew.reduce, toView: toEewView ?? eew.toView },
       "U-W": { ...weather, reduce: reduceWeatherCurrentUnit ?? weather.reduce, toView: toWeatherCurrentView ?? weather.toView },
       "U-F": { ...series, reduce: reduceWeatherTimeseriesUnit ?? series.reduce, toView: toWeatherTimeseriesView ?? series.toView },
+      "U-T": { ...tsunami, reduce: reduceTsunamiUnit ?? tsunami.reduce, toView: toTsunamiView ?? tsunami.toView },
     },
     ...notification,
   };

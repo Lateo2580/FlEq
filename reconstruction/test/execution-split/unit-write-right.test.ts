@@ -427,7 +427,8 @@ describe("P3-UNIT-WRITE-RIGHT-001 (TEST-PATH (2))", () => {
     await vi.advanceTimersByTimeAsync(10_000);
     const summary = await stopping;
     expect(r.root.state.shutdown.finalizationAt).toBeNull();
-    expect(r.root.state.shutdown.stageResults.finalCheckpoint?.pending.unsavedUnits).toBe(3);
+    // D4: no cutoff was decided, so all four units (U-T too) count unsaved.
+    expect(r.root.state.shutdown.stageResults.finalCheckpoint?.pending.unsavedUnits).toBe(4);
     expect(summary.code).toBe(2);
     // The late ack releases U-W's right only: no mirror change, no input, no grant.
     const mirror = r.root.state.mirror["U-W"];

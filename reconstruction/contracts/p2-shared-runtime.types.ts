@@ -12,6 +12,7 @@ import type { WeatherCurrentInput, WeatherCurrentSnapshot, WeatherCurrentUnitSta
 import type { WeatherCurrentUnitView } from "./p2-weather-current-unit.types";
 import type { WeatherTimeseriesInput, WeatherTimeseriesSubject, WeatherTimeseriesUnitState, WeatherTimeseriesUnitStep } from "./p2-weather-timeseries-unit.types";
 import type { WeatherTimeseriesUnitView } from "./p2-weather-timeseries-unit.types";
+import type { TsunamiForecastSubject, TsunamiInput, TsunamiObservationSubject, TsunamiUnitState, TsunamiUnitStep, TsunamiUnitView } from "./p3-tsunami-unit.types";
 
 export type JsonValue = null | boolean | number | string | readonly JsonValue[] | Readonly<{ [key: string]: JsonValue }>;
 
@@ -19,13 +20,13 @@ export type UnitId =
   | "U-E" | "U-Q" | "U-T" | "U-N" | "U-W" | "U-L"
   | "U-F" | "U-B" | "U-M" | "U-Y" | "U-V" | "U-R";
 
-export type RuntimeUnitId = "U-E" | "U-W" | "U-F";
+export type RuntimeUnitId = "U-E" | "U-W" | "U-F" | "U-T";
 
 // Per-unit type rows (one line per map). P3-UNIT-TABLE-001 keeps them adjacent and line-neutral:
 // a unit lane adds its key to each of the three maps below.
-export type RuntimeUnitStates = Readonly<{ "U-E": EewUnitState; "U-W": WeatherCurrentUnitState; "U-F": WeatherTimeseriesUnitState }>;
-export type RuntimeUnitInputs = Readonly<{ "U-E": EewInput; "U-W": WeatherCurrentInput; "U-F": WeatherTimeseriesInput }>;
-export type RuntimeUnitSteps = Readonly<{ "U-E": EewUnitStep; "U-W": WeatherCurrentUnitStep; "U-F": WeatherTimeseriesUnitStep }>;
+export type RuntimeUnitStates = Readonly<{ "U-E": EewUnitState; "U-W": WeatherCurrentUnitState; "U-F": WeatherTimeseriesUnitState; "U-T": TsunamiUnitState }>;
+export type RuntimeUnitInputs = Readonly<{ "U-E": EewInput; "U-W": WeatherCurrentInput; "U-F": WeatherTimeseriesInput; "U-T": TsunamiInput }>;
+export type RuntimeUnitSteps = Readonly<{ "U-E": EewUnitStep; "U-W": WeatherCurrentUnitStep; "U-F": WeatherTimeseriesUnitStep; "U-T": TsunamiUnitStep }>;
 
 export type ClockReading = Readonly<{
   wallTimeMs: number;
@@ -172,7 +173,7 @@ export type UnitView = Readonly<{
   subjects: readonly SubjectOutcome[];
 }>;
 
-export type RuntimeUnitView = EewUnitView | WeatherCurrentUnitView | WeatherTimeseriesUnitView;
+export type RuntimeUnitView = EewUnitView | WeatherCurrentUnitView | WeatherTimeseriesUnitView | TsunamiUnitView;
 
 // P2-A1-DISPLAY-CHANGES: direct subject references avoid searching a whole view for a delta.
 export type RuntimeDisplaySubject = Readonly<{
@@ -185,6 +186,7 @@ export type RuntimeDisplaySubject = Readonly<{
   | Readonly<{ unit: "U-W"; current: WeatherCurrentSnapshot | null;
       unavailable: WeatherCurrentUnitState["unavailable"]; freshness: readonly FreshnessRecord[] }>
   | Readonly<{ unit: "U-F"; current: WeatherTimeseriesSubject | null }>
+  | Readonly<{ unit: "U-T"; current: TsunamiForecastSubject | TsunamiObservationSubject | null }>
 );
 
 export type RuntimeDisplayChange = Readonly<{
@@ -199,6 +201,7 @@ export type RuntimeViews = Readonly<{
   "U-E": EewUnitView;
   "U-W": WeatherCurrentUnitView;
   "U-F": WeatherTimeseriesUnitView;
+  "U-T": TsunamiUnitView;
 }>;
 
 export type FreshnessRecord = Readonly<{
@@ -245,6 +248,8 @@ export type InfrastructureDiagnosticReason =
 
 export type DiagnosticReason = ParserDiagnosticReason | RejectionReason | InfrastructureDiagnosticReason
   | "weatherCurrentCapacityEvicted" | "eewCapacityEvicted"
+  // P3-TSUNAMI-UNIT-001 Q-ENUM.diagnosticReasons: a same-revision conflict and a U-T capacity eviction.
+  | "tsunamiRevisionConflict" | "tsunamiCapacityEvicted"
   | "notificationAttemptFailed" | "notificationExpired" | "notificationCapacityEvicted" | "notificationAdapterIsolated"
   // P3-UNIT-TABLE-001: one per input whose headType is not routed to a unit (ignored / notPorted / absent from coverage).
   | "routeIgnored" | "routeNotPorted" | "routeUnlisted" | "ownerReplyLate";
@@ -335,7 +340,8 @@ export type RuntimeRestoration = Readonly<Record<RuntimeUnitId,
 export type UnconfirmedReason = "startup" | "disconnected" | "scopeCapacity" | "scopeRetired";
 export type ConfirmationScope = Readonly<{ operation: Operation }> & (
   | Readonly<{ unit: RuntimeUnitId; kind: "unit" }>
-  | Readonly<{ unit: "U-E"; kind: "event"; eventId: string }>
+  // I-U-T.confirmationScope: U-T reuses the event row (VTSE41 EventID), no new row.
+  | Readonly<{ unit: "U-E" | "U-T"; kind: "event"; eventId: string }>
   | Readonly<{ unit: "U-W"; kind: "area"; subject: string; token: string }>
   | Readonly<{ unit: "U-F"; kind: "series"; subject: string; office: string }>
 );

@@ -49,6 +49,7 @@ import { Mailbox } from "../mailbox/mailbox";
 import { abortNotificationAttempt, probeDesktopBackend, probeSoundBackend, resolveRepoPath, runNotificationAttempt } from "../notification-delivery/adapter";
 import { applyNotificationResult, selectNotificationAttempt } from "../notification-delivery/notification-delivery";
 import { eewUnit } from "../units/eew/eew-unit";
+import { tsunamiUnit } from "../units/tsunami/tsunami-unit";
 import { weatherCurrentUnit } from "../units/weather-current/weather-current-unit";
 import { weatherTimeseriesUnit } from "../units/weather-timeseries/weather-timeseries-unit";
 import { dateValue, projectSnapshot } from "../view-projector/view-projector";
@@ -61,14 +62,15 @@ import {
 import type { MirrorUnit, PublisherState, RuntimeMirror } from "./shared-runtime";
 import { executionPlaces, placeOfHeadType, runtimeUnits } from "./unit-coverage";
 
-// A3 wiring of delivered units (A4 U-E, A5 U-W, A6 U-F). Notification (A7) links here on delivery.
+// A3 wiring of delivered units (A4 U-E, A5 U-W, A6 U-F, C5 U-T). Notification (A7) links here on delivery.
 // P3-UNIT-TABLE-001: the one table of unit functions. A unit lane adds its row here and nowhere else.
-const linkedUnitTable = { "U-E": eewUnit, "U-W": weatherCurrentUnit, "U-F": weatherTimeseriesUnit } satisfies UnitTable;
+const linkedUnitTable = { "U-E": eewUnit, "U-W": weatherCurrentUnit, "U-F": weatherTimeseriesUnit, "U-T": tsunamiUnit } satisfies UnitTable;
 // Durable rows give the codec, ephemeral rows none; the literal keeps each unit's own codec type (no `as`).
 const codecOf = <K extends RuntimeUnitId>(module: UnitModule<K>) =>
   module.persistence.kind === "durable" ? module.persistence.codec : undefined;
 const linkedUnitCodecs: CodecMap<RuntimeUnitStates> = {
   "U-E": codecOf(linkedUnitTable["U-E"]), "U-W": codecOf(linkedUnitTable["U-W"]), "U-F": codecOf(linkedUnitTable["U-F"]),
+  "U-T": codecOf(linkedUnitTable["U-T"]),
 } satisfies Record<RuntimeUnitId, unknown>;
 const linkedRuntimeCalls = { units: linkedUnitTable, selectNotificationAttempt, applyNotificationResult } as const;
 // Execution places in unit order; one owner per place (D-P3-1).
@@ -186,17 +188,19 @@ function snapshotInput(step: ProjectedStep, streamId: string, nowMs: number,
   const { state } = step;
   const date = new Date(nowMs);
   const eew = viewOf(state.mirror["U-E"]), weatherCurrent = viewOf(state.mirror["U-W"]), weatherTimeseries = viewOf(state.mirror["U-F"]);
-  if (eew.unit !== "U-E" || weatherCurrent.unit !== "U-W" || weatherTimeseries.unit !== "U-F") throw new Error("mirror view of another unit");
+  const tsunami = viewOf(state.mirror["U-T"]);
+  if (eew.unit !== "U-E" || weatherCurrent.unit !== "U-W" || weatherTimeseries.unit !== "U-F" || tsunami.unit !== "U-T")
+    throw new Error("mirror view of another unit");
   const admissionCounts: RuntimeAdmissionCounts = { "U-E": state.mirror["U-E"].admissionCounts,
-    "U-W": state.mirror["U-W"].admissionCounts, "U-F": state.mirror["U-F"].admissionCounts };
+    "U-W": state.mirror["U-W"].admissionCounts, "U-F": state.mirror["U-F"].admissionCounts, "U-T": state.mirror["U-T"].admissionCounts };
   return {
     // An invalid clock is passed through unrounded; A8 rejects it as snapshotClockInvalid.
     streamId, generatedAt: Number.isNaN(date.getTime()) ? String(nowMs) : date.toISOString(), nowMs, connection, worker,
     persistence: { "U-E": state.mirror["U-E"].persistence, "U-W": state.mirror["U-W"].persistence,
-      "U-F": state.mirror["U-F"].persistence },
+      "U-F": state.mirror["U-F"].persistence, "U-T": state.mirror["U-T"].persistence },
     recovery: state.restoration, confirmation: state.confirmation, admissionCounts,
     notificationChannels: state.notificationChannels, channelProbeComplete: state.notificationProbeComplete,
-    eew, weatherCurrent, weatherTimeseries, outcomes: step.outcomes, displayChanges: step.displayChanges,
+    eew, weatherCurrent, weatherTimeseries, tsunami, outcomes: step.outcomes, displayChanges: step.displayChanges,
   };
 }
 
@@ -515,8 +519,8 @@ class RuntimeCompositionRoot {
       if (currentGeneration > (savedGeneration ?? 0)) this.measuring.unsaved[unit].oldestMs = performance.now();
     }
     let state: PublisherState = {
-      runId, mirror: { "U-E": mirror["U-E"]!, "U-W": mirror["U-W"]!, "U-F": mirror["U-F"]! },
-      restoration: { "U-E": restoration["U-E"]!, "U-W": restoration["U-W"]!, "U-F": restoration["U-F"]! },
+      runId, mirror: { "U-E": mirror["U-E"]!, "U-W": mirror["U-W"]!, "U-F": mirror["U-F"]!, "U-T": mirror["U-T"]! },
+      restoration: { "U-E": restoration["U-E"]!, "U-W": restoration["U-W"]!, "U-F": restoration["U-F"]!, "U-T": restoration["U-T"]! },
       confirmation: initialConfirmation(), notificationChannels, notificationProbeComplete: false,
       notificationDeadlines: { desktop: {}, sound: {} },
       shutdown: { stage: "running", acceptedThroughSequence: null, startedAt: null, finalizationAt: null,
@@ -1109,7 +1113,8 @@ class RuntimeCompositionRoot {
         }
       }
     }
-    if (Object.keys(deadlines.desktop).length + Object.keys(deadlines.sound).length > 384)
+    // P3-C5-AC14: pending の上限は unit ごとに 128（P2-A7-RES-01）なので、表は最大で runtimeUnits の数×128。
+    if (Object.keys(deadlines.desktop).length + Object.keys(deadlines.sound).length > runtimeUnits.length * 128)
       throw new RangeError("notification deadline capacity exceeded");
     const selectedState = { ...before, deadlines: changedDeadline ? deadlines : before.deadlines };
     if (changedDeadline) this.current = { ...this.state, notificationDeadlines: deadlines };
@@ -1262,7 +1267,8 @@ class RuntimeCompositionRoot {
 
   private persistence() {
     const { mirror } = this.state;
-    return { "U-E": mirror["U-E"].persistence, "U-W": mirror["U-W"].persistence, "U-F": mirror["U-F"].persistence };
+    return { "U-E": mirror["U-E"].persistence, "U-W": mirror["U-W"].persistence, "U-F": mirror["U-F"].persistence,
+      "U-T": mirror["U-T"].persistence };
   }
 
   // P2-A10-AC12・P3-UWR-AC01: unit ごとに保存か照合を最大 1 件。host の tick ごとと、owner の返信の反映ごと（P3-UWR-AC03）に呼ぶ。
@@ -1577,7 +1583,7 @@ type ReservationSent = Readonly<{ channel: NotificationChannel; intentId: string
 type UnsavedMark = { oldestMs: number | null; sinceGrantMs: number | null; afterGrant: boolean };
 function unsavedMarks(): Record<RuntimeUnitId, UnsavedMark> {
   const mark = (): UnsavedMark => ({ oldestMs: null, sinceGrantMs: null, afterGrant: false });
-  return { "U-E": mark(), "U-W": mark(), "U-F": mark() };
+  return { "U-E": mark(), "U-W": mark(), "U-F": mark(), "U-T": mark() };
 }
 
 // P3-C4-AC13(3)②（工程2c）: 反映した inputDone の inputGenerations にある unit ごとに 1 行（E14 の束の起点）。at は反映（absorb）の前に

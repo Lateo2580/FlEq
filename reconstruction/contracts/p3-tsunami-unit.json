@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "15d5885c693d176979f1e3e60e3a63b3c7344240",
-    "sha256": "2a3eed75a48c958ecc5a32adc5fd36c495891cf4b3b7bf142fa5c0b03c5c1466",
+    "sha256": "c99b67a80d2ac23cb358218e831556efdaaf82fa5034a16e982d3975093c7605",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "226b73cbfb4e769c89d2b1327fcbd8067a47887303527a2893592fba47176235",
     "sequencesSha256": "79769d888ff5f429e4bd370a6a88ccb30611b5ee2a1e7b12d25d58f215cbfbd3",
@@ -203,7 +203,7 @@
         "timing": "createdAt=nextAttemptAt=採用したClockReading.wallTimeMs。expiresAtはsound=createdAt+60000、desktop=createdAt+180000（spec §6.4。津波緊急もTTLと初回待ちを別に判定、spec:973）。再試行・停止・timeoutはA7の既存規則のまま。期限は再起動・再試行で延ばさない",
         "replacement": "P3-C5-REPLACEMENT=A。置換の単位はoperation＋subject＋channel（VTSE41と観測は別subjectなので互いを置き換えない）",
         "intentUpdate": "A1が照合済みのNotificationIntentUpdateを受け、既存idだけを更新する。未知id・同値の更新はno-op、変更があればdeliveryOnlyで保存世代を進める。所有配列は一括で索引化して反映し、更新件数分の全配列の再走査をしない（P2-A4の先例）",
-        "payload": "typeRef reconstruction/contracts/p3-tsunami-unit.types.ts#TsunamiNotificationPayload。titleはoperationPrefix（normalは空、trainingは【訓練】、testは【試験】）＋本体。本体は到達後の最高区分の名（大津波警報・津波警報・津波注意報・津波予報。区分が無ければ「津波警報・注意報の解除」。effective=releasedの報は予報区域が残っていても「津波警報・注意報の解除」とする。最高区分がunknownならその区域のKind/Name）、取消は「[取消] 津波警報・注意報・予報」、訂正は「[訂正] 」＋本体、観測は「津波観測に関する情報」（VTSE52は「沖合の津波観測に関する情報」）。bodyは旧築notifier.ts:459〜471と同じく区分の和集合を「・」連結 / 先頭3区域名を「, 」連結 / Headline本文で組み、escalationでは上がった区域を先に並べる。取消は「この情報は取り消されました」。訂正はbody冒頭に「訂正: 」。training/testはbody冒頭に区分の注記行（P2-A4と同じ文）。title/bodyは空にしない",
+        "payload": "typeRef reconstruction/contracts/p3-tsunami-unit.types.ts#TsunamiNotificationPayload。titleはoperationPrefix（normalは空、trainingは【訓練】、testは【試験】）＋本体。本体は到達後の最高区分の名（大津波警報・津波警報・津波注意報・津波予報。区分が無ければ「津波警報・注意報の解除」。effective=releasedの報で、直前の採用状態がactiveだったもの（intentのtransition=released）は、予報区域が残っていても「津波警報・注意報の解除」とする。直前がactiveでないreleasedの報（予報だけの初報、解除の後の予報だけの続報）は、予報区域があれば「津波予報」、無ければ「津波警報・注意報の解除」とする。最高区分がunknownならその区域のKind/Name）、取消は「[取消] 津波警報・注意報・予報」、訂正は「[訂正] 」＋本体、観測は「津波観測に関する情報」（VTSE52は「沖合の津波観測に関する情報」）。bodyは旧築notifier.ts:459〜471と同じく区分の和集合を「・」連結 / 先頭3区域名を「, 」連結 / Headline本文で組み、escalationでは上がった区域を先に並べる。取消は「この情報は取り消されました」。訂正はbody冒頭に「訂正: 」。training/testはbody冒頭に区分の注記行（P2-A4と同じ文）。title/bodyは空にしない",
         "capacity": "採用前に新intent集合と置換を合わせた候補を作り、三区分・両channelのpendingを128件/131072 byte（JSON UTF-8、intent単位の加算）以内にする。満杯ならexpiresAtを過ぎた終端記録を先に回収し、なお足りなければ下位群をA7の選択順の逆で必要数だけ退去する。同群以上は退去しない。収容できない機会はchannelごとに全採用か未採用で、未採用なら既存pendingを保ち、診断notificationCapacityEvicted（count）を返す。終端記録は件数の上限を別に置かず、expiresAtで回収し、保存世代のbyte予算（RES-01）に含める（P2の各unitと同じ）",
         "recovery": "origin=recoveryの入力はC16（P3-RECOVERY-001）の候補採用までstate全体に適用しない。意味検証の後にstate同一参照、decision=unchanged/reason=noChange、intents/outcomes空を返す（P2-A4 Q-NOTICE.generationRuleと同じ）",
         "restart": "復元でintentを新しく作らない。pendingは元のcreatedAt/expiresAtで再試行対象に戻る。復元直後の続報の区分の差は復元したstateとの差で決める（同じ発令を再起動のたびに鳴らさない）",
@@ -223,7 +223,7 @@
           "容量超過時の退去の候補（P3-C5-CAPACITY）: 新築は超過量を実際に減らすsubjectだけを、期限切れの非active→最古の非active→training/testのactiveの順に退去する（station超過なら同じfamilyのstationsを持つ観測subject、件数超過なら同じ種類、byte超過は全subject）。旧築はstationの上限で最終更新の古い点を落とすだけで、この順の退去は無い（VTSE41 512件の上限での旧築の扱いは本起草で比べていない）",
           "観測subjectの件数上限と確認の範囲（I-U-T.confirmationScope）: 新築は観測をEventIDごとに持つので、familyごと512件の上限を新設した（旧築はfamilyに1 subjectで件数上限が要らなかった）。表示の確認状態のscopeはVTSE41の採用からだけ作り、観測は確認の対象にしない（REST回復の対象外、P3-C5-N2）",
           "訓練: 旧築は既定testMode=\"no\"（types.ts:405、rest-client.ts:530）で訓練・試験報が届かない。\"including\"にすると通常と同じdesktop＋sound・同じ段階（critical も鳴る）で、表題はXMLのTitleのまま。新築もdmdata-rest.ts:112でtest:\"no\"固定なので本番では差が出ず、届いた場合はdesktopだけ（P3-C5-TRAINING）",
-          "記録のみ: 旧築の分野通知の無効設定はcriticalだけ通す（notifier.ts:1149）。Aで津波警報がwarningになると、将来この設定を移植したときに「無効でも通す」に入らない。新築には該当機能が無くC5の範囲外"
+          "観測の無いVTSE51（各地の満潮時刻・津波到達予想時刻に関する情報、Q-ENUMのVTSE51.legalMissing）: 旧築は満潮時刻の報でもdesktopとsoundを出した。新築はstateを変えず鳴らさない（unchanged/noChange）", "記録のみ: 旧築の分野通知の無効設定はcriticalだけ通す（notifier.ts:1149）。Aで津波警報がwarningになると、将来この設定を移植したときに「無効でも通す」に入らない。新築には該当機能が無くC5の範囲外"
         ]
       },
       {
@@ -240,8 +240,8 @@
           },
           {
             "family": "VTSE51",
-            "legalMissing": "取消はBodyがTextだけでよい（38-39_03_03）。Body/Tsunami/Forecastは読まない（警報の区分の出典はVTSE41だけ）。各StationのFirstHeight・MaxHeightの子は欠落可（観測中など）",
-            "required": "非取消ではBody/Tsunami/Observation/Itemが1件以上、各Item/StationにCode（空でない）とName",
+            "legalMissing": "取消はBodyがTextだけでよい（38-39_03_03）。Body/Tsunami/Forecastは読まない（警報の区分の出典はVTSE41だけ）。各StationのFirstHeight・MaxHeightの子は欠落可（観測中など）。非取消で Body/Tsunami/Observation の無い報は合法とし、state・watermark を変えず unchanged（reason=noChange）で返す。intent・outcome・診断は出さない。区分の出典は VTSE41 だけ（統合担当の決定 2026-10-08。32-39_11_03・38-39_02_02 の「各地の満潮時刻・津波到達予想時刻に関する情報」）",
+            "required": "非取消ではBody/Tsunamiがあり、Observationがあれば Item が1件以上、各Item/StationにCode（空でない）とName",
             "invalid": "報の中で同じStation/Codeが二度出る、存在するTsunamiHeightの値が射影できない"
           },
           {
@@ -335,6 +335,22 @@
         "rule": "U-TをP3-UNIT-WRITE-RIGHT-001の後の形に入れる。矛盾は無く、読み替えは次のとおり: (1) 書込み権はunitごとに1件（P3-UWR-AC01）。U-TとU-Eは同じurgentの実行場所で別々の権を持ち、保存は並べてよい（ownerのcheckpointAttemptsはunitごと） (2) 処理中のownerに権を預けない規則（P3-UWR-AC02）は実行場所の単位で判定する（composition-root.ts:1281〜:1283）。urgentがVTSE41/51/52またはEEWの入力を処理している間（inputDone未着）は、U-EとU-Tのどちらにも権を出さない (3) 自分の保存中の留保（P3-UWR-AC04）はurgentに掛からない（composition-root.ts:807）。U-Tの保存中もVTSE41/51/52とEEWの入力を送る（P3-C5-PLACE=A、spec §7.5）。urgentのcaptureとencodeは同期で走るので、最大U-Tのencodeの間はEEWの処理が待つ（P3-UWRの残存リスク(4)と同じ） (4) P3-C3A-RES-09の「checkpointGrantはそのownerのunit数まで」（P3-UWR-AC10(1)）により、urgentのcheckpointGrantは2件まで、ownerあたりの未応答要求の上限は1増える。権の再評価はO(unit数)のまま（P3-UWR-RES-03） (5) 起草の版にあったAC02(i)のurgentの待ち（全unitを外してnext()を呼ぶ）は配送版に無い（Q-UWR-REMOVEDの(2)）。urgentのunitが増えても、追い越しの規則は増えない (6) 受信前回収（P3-C3B-INTENT-RECLAIM、composition-root.ts:781〜:786・:799〜:802）は実行場所の全unitの期限切れintentを見る。U-Tの保留中のintent更新がEEWの入力の送出を1往復遅らせうる（逆も同じ） (7) (2)・(3)・(6)の待ちはAC13で報告し、AC11の書込み権と同時dirtyはこの規則のまま確かめる（C6でU-Tを加える、計画:218）"
       },
       {
+        "id": "Q-C5-ALLOWEDPATHS-GAP",
+        "status": "closed",
+        "source": "統合担当の決定（2026-10-08、実装の blocked を受けた改訂。allowedPaths の抜け）",
+        "closed": "U-T を足すと型エラーか失敗になる既存の試験 5 本を allowedPaths に足した: test/chrome-eew/pure.test.ts、test/execution-lifecycle/lifecycle.test.ts、test/execution-split/execution-split.test.ts、test/execution-split/unit-write-right.test.ts、test/checkpoint-shutdown/review-regressions.test.ts。直しは機械的なものに限る（unit の一覧に U-T を足す、全 unit が未保存の数を 3 から 4 にする、など）。期待値の意味を変える直しは別に報告する",
+        "remaining": "なし",
+        "reason": "allowedPaths に無い試験が U-T で落ちるため、実装が blocked になった"
+      },
+      {
+        "id": "Q-C5-REVIEW-FIXES",
+        "status": "closed",
+        "source": "統合担当の決定（2026-10-08、実装レビュー 2 本の後。契約適合 F1〜F6・品質 1〜6）",
+        "closed": "(1) 観測の無いVTSE51（32-39_11_03・38-39_02_02）を合法にした: Q-ENUMのVTSE51.legalMissing・required、AC10のE13、P3-C5-LEGACY-DIFFに1行 (2) 題の規則の矛盾を解いた: 直前がactiveのreleasedは解除、直前がactiveでないreleasedは予報区域があれば津波予報（Q-NOTICE.payload） (3) AC14のR45一覧にowner-runtime.ts:308〜:323のretiredEventsの組み直しを足した (4) host.tsのanchorをVTSE41のtsunamiCandidateの行（:295）に付け替え、AC09の本文を:291〜:295にした",
+        "remaining": "記録だけにするもの: leafValuesの写し（tsunami.tsとeew.ts）とgroupRankの写し（A7）。空のKindのCodeがunknownになるのは契約の読みどおりとして残す",
+        "reason": "実装レビューの指摘のうち契約の矛盾・抜けを契約側で閉じる"
+      },
+      {
         "id": "Q-C5-C3B-C4-BASE",
         "status": "closed",
         "source": "発注前点検（2026-10-08、HEAD 54a63c25）",
@@ -426,7 +442,12 @@
       "reconstruction/test/snapshot-sse/**",
       "reconstruction/test/integration/**",
       "reconstruction/test/checkpoint-shutdown/runtime-fixture.ts",
-      "reconstruction/test/execution-split/owner-harness.ts"
+      "reconstruction/test/execution-split/owner-harness.ts",
+      "reconstruction/test/chrome-eew/pure.test.ts",
+      "reconstruction/test/execution-lifecycle/lifecycle.test.ts",
+      "reconstruction/test/execution-split/execution-split.test.ts",
+      "reconstruction/test/execution-split/unit-write-right.test.ts",
+      "reconstruction/test/checkpoint-shutdown/review-regressions.test.ts"
     ],
     "allowedGitCommands": [
       "git status --porcelain",
@@ -814,7 +835,7 @@
           "docs/specs/reconstruction-p0-contracts.md:508 «040e55e0ee621feb»",
           "docs/specs/reconstruction-p0-contracts.md:509 «13c4f83676b58064»",
           "docs/specs/reconstruction-p0-contracts.md:510 «1bbd6a7777e200c7»",
-          "reconstruction/src/runtime/unit-coverage.ts:69 «28718fdecdbb5f7f»"
+          "reconstruction/src/runtime/unit-coverage.ts:69 «e09f29ea9d7e029f»"
         ]
       },
       {
@@ -888,18 +909,18 @@
       },
       {
         "id": "P3-C5-AC09",
-        "requirement": "入力側の優先（spec:1092）の製品経路検収: host.ts:291〜:293でheadType=VTSE41（発令・解除・降格・訓練を問わない）にpriorityReason tsunamiCandidateを付け、VTSE51/52はnormalのまま。startP2Hostの入口（WS frame）から実fixtureで(a)通常枠（120件/14 MiB）がVPWS50・VPWP50で埋まっていてもnormalのVTSE41（32-39_11_02の発令、REST本文telegram-body-vtse41-realの注意報解除、合成の降格）は予約枠で受理される(b)urgentにVTSE51のpendingが並んでいても、in-flightの完了後にVTSE41が先に出る(c)EEW候補はVTSE41より先(d)確認済みtrainingのVTSE41は予約枠・優先を使わない(e)同じheadTypeの先行するnormal VTSE41を飛ばさない、を確かめる。T0〜T1の時刻と選択順をobserveの記録で示す",
+        "requirement": "入力側の優先（spec:1092）の製品経路検収: host.ts:291〜:295でheadType=VTSE41（発令・解除・降格・訓練を問わない）にpriorityReason tsunamiCandidateを付け、VTSE51/52はnormalのまま。startP2Hostの入口（WS frame）から実fixtureで(a)通常枠（120件/14 MiB）がVPWS50・VPWP50で埋まっていてもnormalのVTSE41（32-39_11_02の発令、REST本文telegram-body-vtse41-realの注意報解除、合成の降格）は予約枠で受理される(b)urgentにVTSE51のpendingが並んでいても、in-flightの完了後にVTSE41が先に出る(c)EEW候補はVTSE41より先(d)確認済みtrainingのVTSE41は予約枠・優先を使わない(e)同じheadTypeの先行するnormal VTSE41を飛ばさない、を確かめる。T0〜T1の時刻と選択順をobserveの記録で示す",
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:1089 «7d583246228571ea»",
           "docs/specs/reconstruction-p0-contracts.md:1092 «50f730793bf26903»",
           "docs/specs/reconstruction-p0-contracts.md:1098 «623c7cfd74054e54»",
-          "reconstruction/src/host/host.ts:293 «338ec95130645135»",
+          "reconstruction/src/host/host.ts:295 «5c0ae1a90804b159»",
           "reconstruction/src/mailbox/mailbox.ts:48 «09594f159c8c0552»"
         ]
       },
       {
         "id": "P3-C5-AC10",
-        "requirement": "corpus: O05の全step（expected:O05:2・3と、synthetic 6本の12 step expected:O05:5〜7・:9〜11・:13〜15・:17〜19）、O09:14〜16・20の意味部（E01はC6。O09:17・18はC6の母集団でunmetのまま）、O01:61〜67・O07:27〜34の津波stepを履歴oracleで通す。Q-LIMITの境界入力は試験内で作る（fixtureなし、T04）。E13: 全正常の津波fixtureで期限処理後も残る恒常的unavailable 0（REST未対応は理由付き別群）。unmetを免除しない",
+        "requirement": "corpus: O05の全step（expected:O05:2・3と、synthetic 6本の12 step expected:O05:5〜7・:9〜11・:13〜15・:17〜19）、O09:14〜16・20の意味部（E01はC6。O09:17・18はC6の母集団でunmetのまま）、O01:61〜67・O07:27〜34の津波stepを履歴oracleで通す。Q-LIMITの境界入力は試験内で作る（fixtureなし、T04）。E13: 全正常の津波fixtureで期限処理後も残る恒常的unavailable 0（REST未対応は理由付き別群。観測の無いVTSE51はnoChangeの別群で、理由はQ-ENUMのVTSE51.legalMissing）。unmetを免除しない",
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:1781 «281dabfe783ca67a»",
           "docs/specs/reconstruction-p0-contracts.md:2064 «e2e2e4700050616c»",
@@ -938,12 +959,12 @@
       },
       {
         "id": "P3-C5-AC14",
-        "requirement": "R45（1 unit追加の型）の確認: 触ったfileと行を、adapter・意味・codec・射影・fixture期待値・coverage行・試験helperの区分で一覧にする（P3-C5-SHARED-ROWS=A。試験helperのreconstruction/test/checkpoint-shutdown/runtime-fixture.ts:30〜:33・:49〜:61・:155〜:157とreconstruction/test/execution-split/owner-harness.ts:244〜:248・:259〜:272を含む。54a63c25でU-E・U-W・U-Fを直書きする製品の行はcomposition-root.ts:66・:71・:188〜:196・:518〜:519・:1265・:1580とowner-runtime.ts:74〜:77・:127〜:129・:137〜:139）。composition-root.ts:1112の通知期限の上限384（3 unit×128）を「runtimeUnitsの数×128」に直す（U-Tを足すと512まで要り、直さないとRangeErrorで止まる）。p2-notification-delivery.types.ts:46の注記も同じ値にする",
+        "requirement": "R45（1 unit追加の型）の確認: 触ったfileと行を、adapter・意味・codec・射影・fixture期待値・coverage行・試験helperの区分で一覧にする（P3-C5-SHARED-ROWS=A。試験helperのreconstruction/test/checkpoint-shutdown/runtime-fixture.ts:30〜:33・:49〜:61・:155〜:157とreconstruction/test/execution-split/owner-harness.ts:244〜:248・:259〜:272を含む。54a63c25でU-E・U-W・U-Fを直書きする製品の行はcomposition-root.ts:66・:71・:188〜:196・:518〜:519・:1265・:1580とowner-runtime.ts:74〜:77・:127〜:129・:137〜:139）。owner-runtime.ts:308〜:323（retiredEvents）は行を足すだけでなく、U-TのVTSE41 subjectがviewから外れたときもeventのscopeを退かせるよう関数を組み直した（P3-C5-SHARED-ROWS=Aの数に含める）。composition-root.ts:1112の通知期限の上限384（3 unit×128）を「runtimeUnitsの数×128」に直す（U-Tを足すと512まで要り、直さないとRangeErrorで止まる）。p2-notification-delivery.types.ts:46の注記も同じ値にする",
         "evidenceRefs": [
           "reconstruction/contracts/p3-order-plan.md:72 «4a65d89f48f565e0»",
           "reconstruction/contracts/p3-order-plan.md:108 «71876395a763cd04»",
-          "reconstruction/src/runtime/composition-root.ts:1112 «63ea8e73951b99d1»",
-          "reconstruction/contracts/p2-notification-delivery.types.ts:46 «af25b3f7eb4d8e76»"
+          "reconstruction/src/runtime/composition-root.ts:1117 «cee278b81108e897»",
+          "reconstruction/contracts/p2-notification-delivery.types.ts:46 «1b08ca409afb5abc»"
         ]
       },
       {

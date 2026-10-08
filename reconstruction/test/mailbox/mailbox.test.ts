@@ -214,13 +214,14 @@ describe("P2 mailbox", () => {
 
   it("P2-A2-T03 contractBoundary / AC03: control and fixed priority in a known-operation synthetic sequence", () => {
     const mailbox = new Mailbox();
-    const earlierTsunami = parserEnvelope(item("tsunami-old", 0, "VTSE41", 1), "normal");
+    // P3-C5: VTSE41 now runs in urgent; a deferred headType keeps the "another place is free" case (AC11(a)).
+    const earlierDeferred = parserEnvelope(item("deferred-old", 0, "VPWP50", 1), "normal");
     const normal = parserEnvelope(item("normal", 1, "VPWS50", 1), "normal");
     const laterTsunami = parserEnvelope(item("tsunami-new", 2, "VTSE41", 1), "tsunamiCandidate");
     const eew = parserEnvelope(item("eew", 3, "VXSE45", 1), "eewCandidate");
     const training = parserEnvelope(item("training", 4, "VXSE45", 1, "training"), "eewCandidate");
     const deadline = controlEnvelope("deadline", { kind: "deadline", clock: { wallTimeMs: 0, monotonicMs: 10 } }, 5);
-    for (const envelope of [earlierTsunami, normal, laterTsunami, eew, training, deadline]) mailbox.enqueue(envelope);
+    for (const envelope of [earlierDeferred, normal, laterTsunami, eew, training, deadline]) mailbox.enqueue(envelope);
 
     expect(mailbox.takeNext(10)).toBe(deadline);
     mailbox.complete(completion(deadline, 10, 11));
@@ -230,9 +231,9 @@ describe("P2 mailbox", () => {
     mailbox.enqueue(shutdown);
     expect(mailbox.takeNext(13)).toBe(shutdown);
     mailbox.complete(completion(shutdown, 13, 14));
-    // AC11(a) (P3-C3A-RES-01): the EEW owner is busy, but the deferred place is free, so its VTSE41 is taken.
-    expect(mailbox.takeNext(14)).toBe(earlierTsunami);
-    mailbox.complete(completion(earlierTsunami, 14, 15));
+    // AC11(a) (P3-C3A-RES-01): the EEW owner is busy, but the deferred place is free, so its VPWP50 is taken.
+    expect(mailbox.takeNext(14)).toBe(earlierDeferred);
+    mailbox.complete(completion(earlierDeferred, 14, 15));
     mailbox.complete(completion(eew, 12, 15));
     for (const expected of [laterTsunami, normal, training]) {
       const next = mailbox.takeNext(16);
