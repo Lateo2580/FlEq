@@ -74,15 +74,32 @@ function expanded(input: Uint8Array, current: MutableMarks, compression: ParserM
   return output;
 }
 
+const ENTITIES = new Map([["amp", "&"], ["lt", "<"], ["gt", ">"], ["apos", "'"], ["quot", '"']]);
+
 // Shared by the bounded scan and tree conversion so limits count the same semantic characters.
+// & の無い text が大半なので、置換の正規表現を走らせずにそのまま返す（P3-WL1-AC02）。
 function xmlValue(raw: string): string {
+  if (!raw.includes("&")) return raw;
   return raw.replace(/&(#x[0-9a-fA-F]+|#[0-9]+|amp|lt|gt|apos|quot);|&/g, (_match, reference: string | undefined) => {
     if (reference == null) throw new Error("xmlInvalid");
-    if (reference[0] !== "#") return new Map([["amp", "&"], ["lt", "<"], ["gt", ">"], ["apos", "'"], ["quot", '"']]).get(reference)!;
+    if (reference[0] !== "#") return ENTITIES.get(reference)!;
     const point = reference[1] === "x" ? Number.parseInt(reference.slice(2), 16) : Number(reference.slice(1));
     if (!(point === 9 || point === 10 || point === 13 || (point >= 0x20 && point <= 0xd7ff) || (point >= 0xe000 && point <= 0xfffd) || (point >= 0x10000 && point <= 0x10ffff))) throw new Error("xmlInvalid");
     return String.fromCodePoint(point);
   });
+}
+
+// Array.from(text).length と同じ数（サロゲートペアは 1、孤立サロゲートも 1）を、配列を作らずに数える（P3-WL1-AC02）。
+function codePointLength(text: string): number {
+  let count = text.length;
+  for (let index = 0; index < text.length - 1; index++) {
+    const unit = text.charCodeAt(index);
+    if (unit >= 0xd800 && unit <= 0xdbff) {
+      const next = text.charCodeAt(index + 1);
+      if (next >= 0xdc00 && next <= 0xdfff) { count--; index++; }
+    }
+  }
+  return count;
 }
 
 function withinXmlLimits(xml: string): boolean {
@@ -90,10 +107,10 @@ function withinXmlLimits(xml: string): boolean {
   let nodes = 0;
   const stack: number[] = [];
   let index = 0;
-  const textLength = (text: string) => Array.from(xmlValue(text)).length;
+  const textLength = (text: string) => codePointLength(xmlValue(text));
   const addText = (text: string, cdata = false) => {
     if (stack.length === 0) return;
-    stack[stack.length - 1] += cdata ? Array.from(text).length : textLength(text);
+    stack[stack.length - 1] += cdata ? codePointLength(text) : textLength(text);
     if (stack[stack.length - 1] > limits.text) throw new Error("xmlLimitExceeded");
   };
   while (index < xml.length) {
@@ -161,7 +178,8 @@ function xmlNode(value: PreservedNode): XmlNode | null {
 }
 
 function parseTree(xml: string): XmlElement | null {
-  const parsed = new XMLParser({ preserveOrder: true, ignoreAttributes: false, attributeNamePrefix: "", textNodeName: "#text", cdataPropName: "#cdata", processEntities: false, trimValues: false, parseTagValue: false, parseAttributeValue: false }).parse(xml);
+  // jPath:false は callback へ渡す path を文字列にしないだけで、木は同じ（P3-WL1-AC01）。path を読む callback を足すときは見直す。
+  const parsed = new XMLParser({ jPath: false, preserveOrder: true, ignoreAttributes: false, attributeNamePrefix: "", textNodeName: "#text", cdataPropName: "#cdata", processEntities: false, trimValues: false, parseTagValue: false, parseAttributeValue: false }).parse(xml);
   const source = Array.isArray(parsed) ? parsed.find((node) => node != null && typeof node === "object" && "Report" in node) : null;
   if (source == null) return null;
   const root = xmlNode(source as PreservedNode);

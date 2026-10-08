@@ -60,8 +60,19 @@ function recordBytes(value: object): number {
   return bytes;
 }
 
-function arrayBytes(values: readonly object[]): number {
-  return values.reduce((sum, value) => sum + recordBytes(value), Math.max(values.length - 1, 0));
+function arrayBytes<T extends object>(values: readonly T[], measure: (value: T) => number = recordBytes): number {
+  return values.reduce((sum, value) => sum + measure(value), Math.max(values.length - 1, 0));
+}
+
+// P3-WL1-AC04: domain は受理のたびに history の object を作り直すが、reports の snapshot は前の受理で測ってある。
+// history 全体を文字列にせず、外側（reports を空にした形）と reports の cache の和で数える。値は JSON.stringify(history) と同じ。
+function historyBytes(value: WeatherCurrentHistory): number {
+  let bytes = recordByteCache.get(value);
+  if (bytes == null) {
+    bytes = encoder.encode(JSON.stringify({ ...value, reports: [] })).byteLength + arrayBytes(value.reports);
+    recordByteCache.set(value, bytes);
+  }
+  return bytes;
 }
 
 function mapBytes(values: Readonly<Record<string, object | string>>): number {
@@ -110,7 +121,7 @@ function reservedGenerationBytes(state: WeatherCurrentUnitState, capturedAt: num
     || JSON.stringify(generation).length > 32 || JSON.stringify(capturedAt).length > 32)
     throw new RangeError("invalid checkpoint generation or capture time");
   return emptyEnvelopeBytes + 62 + mapBytes(state.national) + arrayBytes(state.partials)
-    + arrayBytes(state.histories) + ownership.sum + Math.max(ownership.count - 1, 0) + arrayBytes(state.tombstones)
+    + arrayBytes(state.histories, historyBytes) + ownership.sum + Math.max(ownership.count - 1, 0) + arrayBytes(state.tombstones)
     + arrayBytes(state.freshness) + arrayBytes(state.unavailable) + arrayBytes(state.intents);
 }
 
@@ -275,6 +286,71 @@ function persistedValue(value: unknown): PersistedWeatherCurrentUnit | null {
   // Payload-only boundary: UnitCodec has no capture clock/generation on decode.
   // Receive admission below adds subject bytes and reserves the envelope numeric fields.
   return encoder.encode(JSON.stringify(result)).byteLength <= GENERATION_BYTES ? result : null;
+}
+
+const emptyPayloadBytes = encoder.encode(JSON.stringify({ schemaVersion: SCHEMA, national: {}, partials: [], histories: [],
+  ownership: {}, tombstones: [], freshness: [], unavailable: [], intents: [] })).byteLength;
+
+// P3-WL1-AC05（D-WL1-ENCODE-CHECKS=A）: encode 用。persistedValue と同じ確かめを同じ順で並べ、最後の 16MiB の守りだけを
+// 受理時と同じ要素ごとの cache の和で数える（payload 全体を JSON.stringify しない）。persistedValue に確かめを足すときはここにも足す。
+// cache の鍵は object なので、測った後の snapshot・history を書き換えない約束に頼る（破ると encode を素通りし decode でだけ invalid になる）。
+function encodedValue(state: WeatherCurrentUnitState): PersistedWeatherCurrentUnit | null {
+  const record = persistedFromState(state);
+  const national = object(record.national);
+  const ownership = object(record.ownership);
+  if (national == null
+    || Object.keys(national).some((key) => !operation(key))
+    || Object.entries(national).some(([key, item]) => !snapshot(item) || item.scope !== "national" || item.operation !== key)
+    || ownership == null || Object.values(ownership).some((item) => typeof item !== "string")
+    || !Array.isArray(record.partials) || !record.partials.every(snapshot)
+    || record.partials.some((item) => item.scope !== "partial") || record.partials.length > 128
+    || !Array.isArray(record.histories) || !record.histories.every(history)
+    || !Array.isArray(record.tombstones) || !record.tombstones.every(tombstone)
+    || !Array.isArray(record.freshness) || !record.freshness.every(freshness)
+    || !Array.isArray(record.unavailable) || !record.unavailable.every(unavailable)
+    || !Array.isArray(record.intents) || !record.intents.every(intent)) return null;
+
+  // 既に正規形の record は作り直さない（byte の cache の key を保つ）。作り直すときの形は persistedValue と同じ。
+  const normalized = (tokens: readonly string[]) => {
+    const value = normalizeScopes(tokens);
+    return value.length === tokens.length && value.every((token, index) => token === tokens[index]) ? tokens : value;
+  };
+  const result: PersistedWeatherCurrentUnit = {
+    schemaVersion: SCHEMA,
+    national: record.national,
+    partials: record.partials,
+    histories: record.histories,
+    ownership: record.ownership,
+    tombstones: record.tombstones.map((item) => {
+      const affectedScope = normalized(item.affectedScope);
+      return affectedScope === item.affectedScope ? item : { ...item, affectedScope };
+    }),
+    freshness: record.freshness.map((item) => {
+      const affectedScope = normalized(item.target.affectedScope), confirmedScope = normalized(item.confirmedScope);
+      return affectedScope === item.target.affectedScope && confirmedScope === item.confirmedScope ? item
+        : { ...item, target: { ...item.target, affectedScope }, confirmedScope };
+    }),
+    unavailable: record.unavailable.map((item) => {
+      const affectedScope = normalized(item.affectedScope);
+      return affectedScope === item.affectedScope ? item : { ...item, affectedScope };
+    }),
+    intents: record.intents,
+  };
+  const nationalHistory = result.histories.flatMap((item) => item.reports).filter((item) => item.scope === "national");
+  if (nationalHistory.length > 2 || new Set(result.partials.map((item) => item.subject)).size !== result.partials.length
+    || new Set(result.histories.map((item) => `${item.operation}\u0000${item.subject}`)).size !== result.histories.length
+    || result.histories.some((item) => new Set(item.reports.map((report) => report.source.inputId)).size !== item.reports.length)
+    || result.histories.some((item) => item.reports.some((report) => report.scope === "partial")
+      && result.histories.flatMap((other) => other.reports).filter((report) => report.scope === "partial"
+        && report.office === item.reports[0].office && report.source.family === item.reports[0].source.family).length > 8)
+    || new Set(result.intents.map((item) => item.id)).size !== result.intents.length) return null;
+  const pending = result.intents.filter((item) => item.disposition === "pending");
+  if (pending.length > 128 || encoder.encode(JSON.stringify(pending)).byteLength > 131_072) return null;
+  const owned = ownershipMeasure(result.ownership, result.ownership);
+  const bytes = emptyPayloadBytes + mapBytes(result.national) + arrayBytes(result.partials)
+    + arrayBytes(result.histories, historyBytes) + owned.sum + Math.max(owned.count - 1, 0)
+    + arrayBytes(result.tombstones) + arrayBytes(result.freshness) + arrayBytes(result.unavailable) + arrayBytes(result.intents);
+  return bytes <= GENERATION_BYTES ? result : null;
 }
 
 function persistedFromState(state: WeatherCurrentUnitState): PersistedWeatherCurrentUnit {
@@ -513,7 +589,7 @@ function toWeatherCurrentView(state: WeatherCurrentUnitState): WeatherCurrentUni
 const weatherCurrentUnitCodec: WeatherCurrentUnitCodec = {
   schemaVersion: SCHEMA,
   encode(state) {
-    const value = persistedValue(persistedFromState(state));
+    const value = encodedValue(state);
     if (value == null) throw new Error("U-W checkpoint exceeds or violates its persisted boundary");
     return value;
   },

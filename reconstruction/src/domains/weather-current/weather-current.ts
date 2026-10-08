@@ -144,10 +144,12 @@ function sourceFor(material: DecodedMaterial, familyValue: WeatherFamily, subjec
 }
 
 // AC01/06: one identity check serves both rejection priority and monitoring eligibility.
+// P3-WL1-AC03: 各 Item の Area と各 Area の Code の scalar は、この呼出しの中で 1 回だけ求めて判定と token 作りで使い回す。
 function inspectIdentity(material: DecodedMaterial) {
   const familyValue = family(material.headType);
   const controls = elements(material.xml, "Control");
   const offices = controls.flatMap((node) => elements(node, "EditorialOffice"));
+  const officeValues = offices.map(scalar);
   const heads = elements(material.xml, "Head");
   const bodies = elements(material.xml, "Body");
   const warnings = bodies.length === 1 ? elements(bodies[0], "Warning") : [];
@@ -155,30 +157,33 @@ function inspectIdentity(material: DecodedMaterial) {
   const information = headlines.flatMap((node) => elements(node, "Information"))
     .filter((node) => attribute(node, "type")[0] === VPNO_TYPE);
   const items = (familyValue === "VPNO50" ? information : warnings).flatMap((node) => elements(node, "Item"));
+  const itemAreas = items.map((item) => elements(item, "Area"));
   const areas = familyValue === "VPNO50"
     ? items.flatMap((item) => elements(item, "Areas").flatMap((node) => elements(node, "Area")))
-    : items.flatMap((item) => elements(item, "Area").length === 1 ? elements(item, "Area") : []);
+    : itemAreas.flatMap((list) => list.length === 1 ? list : []);
+  const areaCodes = new Map(areas.map((area) => [area, elements(area, "Code").map(scalar)]));
+  const codesOf = (area: XmlElement) => areaCodes.get(area) ?? [];
   let reason: RejectionReason | null = null;
   if (controls.length === 0 || controls.length === 1
-    && (offices.length === 0 || offices.some((node) => scalar(node) === "")))
+    && (offices.length === 0 || officeValues.some((value) => value === "")))
     reason = "identityMissing";
-  else if (familyValue !== "VPNO50" && items.some((item) => elements(item, "Area").length === 0)
-    || areas.some((area) => elements(area, "Code").length === 0
-      || elements(area, "Code").some((code) => scalar(code) === "")))
+  else if (familyValue !== "VPNO50" && itemAreas.some((list) => list.length === 0)
+    || areas.some((area) => codesOf(area).length === 0 || codesOf(area).some((value) => value === "")))
     reason = "identityMissing";
-  else if (controls.length !== 1 || offices.length !== 1 || scalar(offices[0]) == null)
+  else if (controls.length !== 1 || offices.length !== 1 || officeValues[0] == null)
     reason = "identityInvalid";
-  else if (familyValue !== "VPNO50" && items.some((item) => elements(item, "Area").length !== 1)
-    || areas.some((area) => elements(area, "Code").length !== 1
-      || scalar(elements(area, "Code")[0]) == null || !/^\d+$/.test(scalar(elements(area, "Code")[0])!)))
+  else if (familyValue !== "VPNO50" && itemAreas.some((list) => list.length !== 1)
+    || areas.some((area) => {
+      const codes = codesOf(area);
+      return codes.length !== 1 || codes[0] == null || !/^\d+$/.test(codes[0]);
+    }))
     reason = "identityInvalid";
-  return { familyValue, controls, offices, heads, bodies, warnings, headlines, information, items, areas,
-    office: offices.length === 1 ? scalar(offices[0]) : null, reason };
+  return { familyValue, controls, offices, heads, bodies, warnings, headlines, information, items, areas, codesOf,
+    office: offices.length === 1 ? officeValues[0] : null, reason };
 }
 
-function candidateTarget(material: DecodedMaterial): Candidate | null {
-  const checked = inspectIdentity(material);
-  const { familyValue, office } = checked;
+function candidateTarget(material: DecodedMaterial, checked: ReturnType<typeof inspectIdentity> = inspectIdentity(material)): Candidate | null {
+  const { familyValue, office, codesOf } = checked;
   if (checked.reason != null || familyValue == null || office == null) return null;
   const scope = scopeFor(familyValue);
   const subject = `${material.operation}/${familyValue}/${office}`;
@@ -186,14 +191,15 @@ function candidateTarget(material: DecodedMaterial): Candidate | null {
   const tokens: string[] = [];
   if (familyValue === "VPNO50") {
     for (const area of checked.areas)
-      tokens.push(scopeToken([familyValue, scope, office, VPNO_TYPE, scalar(elements(area, "Code")[0])!]));
+      tokens.push(scopeToken([familyValue, scope, office, VPNO_TYPE, codesOf(area)[0]!]));
   } else {
+    // reason が null なら VPNO50 以外の各 Item は Area をちょうど 1 つ持つので、areas[i] は items[i] の Area。
+    let at = 0;
     for (const warning of checked.warnings) {
       const types = attribute(warning, "type");
       if (types.length !== 1 || !(WARNING_TYPES as readonly string[]).includes(types[0])) return null;
-      for (const item of elements(warning, "Item"))
-        tokens.push(scopeToken([familyValue, scope, office, types[0],
-          scalar(elements(elements(item, "Area")[0], "Code")[0])!]));
+      for (let count = elements(warning, "Item").length; count > 0; count--)
+        tokens.push(scopeToken([familyValue, scope, office, types[0], codesOf(checked.areas[at++])[0]!]));
     }
   }
   if (tokens.length === 0) return null;
@@ -212,80 +218,79 @@ function validateMaterial(material: DecodedMaterial): CandidateResult {
   const common = validateSemanticEnvelope(material);
   if (common.kind === "rejected") return { ...common, target: candidateTarget(material) };
   const checked = inspectIdentity(material);
-  const { familyValue, office, heads, bodies, warnings, headlines, information, items } = checked;
+  const { familyValue, office, heads, bodies, warnings, headlines, information, items, codesOf } = checked;
   if (checked.reason != null) return reject(material, checked.reason, null);
   if (familyValue == null || office == null) return reject(material, "requiredStructureInvalid", null);
+  const refuse = (reason: RejectionReason) => reject(material, reason, candidateTarget(material, checked));
   const infoTypes = heads.length === 1 ? elements(heads[0], "InfoType") : [];
   if (heads.length === 1 && (infoTypes.length === 0 || infoTypes.some((node) => scalar(node) === "")))
-    return reject(material, "requiredStructureMissing");
+    return refuse("requiredStructureMissing");
   if (heads.length !== 1 || infoTypes.length !== 1 || scalar(infoTypes[0]) == null
     || !["発表", "訂正", "取消"].includes(scalar(infoTypes[0])!))
-    return reject(material, "requiredStructureInvalid");
+    return refuse("requiredStructureInvalid");
   const cancelling = scalar(infoTypes[0]) === "取消";
   const scope = scopeFor(familyValue);
   const subject = `${material.operation}/${familyValue}/${office}`;
   const base = { operation: material.operation, family: familyValue, subject, scope, office,
     reportDateTimeMs: common.envelope.reportDateTimeMs, source: sourceFor(material, familyValue, subject),
     cancelled: cancelling, ignored: false, affectedScope: allScope(familyValue, scope, office), phenomena: {} };
-  if (bodies.length === 0) return reject(material, "requiredStructureMissing");
-  if (bodies.length !== 1) return reject(material, "requiredStructureInvalid");
+  if (bodies.length === 0) return refuse("requiredStructureMissing");
+  if (bodies.length !== 1) return refuse("requiredStructureInvalid");
+  // P3-WL1-AC03: 同じ Kind の Status・Code の値と Name の一覧は 1 回だけ求め、欠落・不正の判定と rows で使い回す。
+  const itemKinds = items.map((item) => elements(item, "Kind").map((kind) => ({
+    status: elements(kind, "Status").map(scalar), code: elements(kind, "Code").map(scalar), names: elements(kind, "Name"),
+  })));
 
   if (familyValue === "VPNO50") {
     if (cancelling) return { kind: "accepted", candidate: { ...base, ignored: true } };
+    const itemAreaLists = items.map((item) => elements(item, "Areas"));
     if (headlines.length === 0 || information.length === 0
       || information.some((node) => elements(node, "Item").length === 0)
-      || items.some((item) => elements(item, "Kind").length === 0
-        || elements(item, "Kind").some((kind) => elements(kind, "Code").length === 0
-          || elements(kind, "Code").some((code) => scalar(code) === ""))
-        || elements(item, "Areas").length === 0
-        || elements(item, "Areas").some((areas) => elements(areas, "Area").length === 0)))
-      return reject(material, "requiredStructureMissing");
+      || items.some((_, index) => itemKinds[index].length === 0
+        || itemKinds[index].some(({ code }) => code.length === 0 || code.some((value) => value === ""))
+        || itemAreaLists[index].length === 0
+        || itemAreaLists[index].some((areas) => elements(areas, "Area").length === 0)))
+      return refuse("requiredStructureMissing");
     if (headlines.length !== 1 || information.some((node) => attribute(node, "type").length !== 1)
-      || items.some((item) => elements(item, "Kind").length !== 1 || elements(item, "Areas").length !== 1
-        || elements(item, "Kind").some((kind) => elements(kind, "Code").length !== 1
-          || scalar(elements(kind, "Code")[0]) == null || !/^\d{2}$/.test(scalar(elements(kind, "Code")[0])!))))
-      return reject(material, "requiredStructureInvalid");
-    const terminating = items.filter((item) => scalar(elements(elements(item, "Kind")[0], "Code")[0]) === "00");
+      || items.some((_, index) => itemKinds[index].length !== 1 || itemAreaLists[index].length !== 1
+        || itemKinds[index].some(({ code: [value, ...rest] }) => rest.length !== 0 || value == null || !/^\d{2}$/.test(value))))
+      return refuse("requiredStructureInvalid");
+    const terminating = items.filter((_, index) => itemKinds[index][0].code[0] === "00");
     if (terminating.length === 0) return { kind: "accepted", candidate: { ...base, ignored: true } };
     const affectedScope = normalizeScopes(terminating.flatMap((item) => elements(item, "Areas")
       .flatMap((areas) => elements(areas, "Area")).map((area) =>
-        scopeToken([familyValue, scope, office, VPNO_TYPE, scalar(elements(area, "Code")[0])!]))));
+        scopeToken([familyValue, scope, office, VPNO_TYPE, codesOf(area)[0]!]))));
     return { kind: "accepted", candidate: { ...base, affectedScope,
       phenomena: Object.fromEntries(affectedScope.map((token) => [token, { ended: true }])) } };
   }
 
-  const kinds = items.flatMap((item) => elements(item, "Kind"));
+  const kinds = itemKinds.flat();
   if (!cancelling && (warnings.length === 0 || warnings.some((warning) => elements(warning, "Item").length === 0))
     || warnings.some((warning) => elements(warning, "Item").length !== 0
       && (attribute(warning, "type").length === 0 || attribute(warning, "type")[0] === ""))
-    || items.some((item) => elements(item, "Kind").length === 0)
-    || kinds.some((kind) => elements(kind, "Status").length === 0
-      || elements(kind, "Status").some((status) => scalar(status) === "")
-      || elements(kind, "Status").length === 1 && scalar(elements(kind, "Status")[0]) != null
-        && scalar(elements(kind, "Status")[0]) !== "発表警報・注意報はなし"
-        && (elements(kind, "Code").length === 0 || elements(kind, "Code").some((code) => scalar(code) === ""))))
-    return reject(material, "requiredStructureMissing");
+    || itemKinds.some((list) => list.length === 0)
+    || kinds.some(({ status, code }) => status.length === 0
+      || status.some((value) => value === "")
+      || status.length === 1 && status[0] != null && status[0] !== "発表警報・注意報はなし"
+        && (code.length === 0 || code.some((value) => value === ""))))
+    return refuse("requiredStructureMissing");
   if (warnings.some((warning) => !(cancelling && elements(warning, "Item").length === 0
       && attribute(warning, "type").length === 0)
       && (attribute(warning, "type").length !== 1 || !(WARNING_TYPES as readonly string[]).includes(attribute(warning, "type")[0])))
-    || kinds.some((kind) => elements(kind, "Status").length !== 1 || scalar(elements(kind, "Status")[0]) == null
-      || !STATUSES.has(scalar(elements(kind, "Status")[0])!)
-      || scalar(elements(kind, "Status")[0]) === "発表警報・注意報はなし" && elements(kind, "Code").length !== 0
-      || scalar(elements(kind, "Status")[0]) !== "発表警報・注意報はなし"
-        && (elements(kind, "Code").length !== 1 || scalar(elements(kind, "Code")[0]) == null
-          || !/^\d{2}$/.test(scalar(elements(kind, "Code")[0])!))))
-    return reject(material, "requiredStructureInvalid");
+    || kinds.some(({ status: [value, ...restStatus], code }) => restStatus.length !== 0 || value == null
+      || !STATUSES.has(value)
+      || value === "発表警報・注意報はなし" && code.length !== 0
+      || value !== "発表警報・注意報はなし" && (code.length !== 1 || code[0] == null || !/^\d{2}$/.test(code[0]))))
+    return refuse("requiredStructureInvalid");
 
+  // ここまで来た VPNO50 以外では、各 Item は Area をちょうど 1 つ持つので、areas[i] と itemKinds[i] は items[i] のもの。
   const rows: Record<string, JsonValue> = {};
-  for (const warning of warnings) for (const item of elements(warning, "Item")) {
-    const token = scopeToken([familyValue, scope, office, attribute(warning, "type")[0],
-      scalar(elements(elements(item, "Area")[0], "Code")[0])!]);
-    rows[token] = elements(item, "Kind").map((kind) => {
-      const names = elements(kind, "Name"), codes = elements(kind, "Code");
-      return { status: scalar(elements(kind, "Status")[0])!,
-        code: codes.length === 0 ? null : scalar(codes[0]),
-        name: names.length === 1 ? scalar(names[0]) : null };
-    });
+  let at = 0;
+  for (const warning of warnings) for (let count = elements(warning, "Item").length; count > 0; count--, at++) {
+    const token = scopeToken([familyValue, scope, office, attribute(warning, "type")[0], codesOf(checked.areas[at])[0]!]);
+    rows[token] = itemKinds[at].map(({ status, code, names }) => ({ status: status[0]!,
+      code: code.length === 0 ? null : code[0],
+      name: names.length === 1 ? scalar(names[0]) : null }));
   }
   return { kind: "accepted", candidate: { ...base, phenomena: rows,
     affectedScope: cancelling || scope === "national" ? base.affectedScope : normalizeScopes(Object.keys(rows)) } };

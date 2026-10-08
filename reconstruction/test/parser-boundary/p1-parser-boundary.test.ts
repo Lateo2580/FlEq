@@ -278,3 +278,28 @@ it("D / AC06: UTF-8 BOM is accepted and does not enter the XML tree", () => {
     expect(result.material.expandedByteLength).toBe(Buffer.byteLength(base) + 3);
   }
 });
+
+// P3-WL1-T02: 文字数えを Array.from から配列なしの数え方へ替えたので、.length（UTF-16 の数）との取り違えを境界で止める。
+it("P3-WL1-T02 contractBoundary / P3-WL1-AC02: raw non-BMP, CDATA non-BMP and CRLF text count code points at below/exact/over", () => {
+  const parse = vi.spyOn(XMLParser.prototype, "parse");
+  const cases: Array<[string, number, (n: number) => string, (n: number) => string, boolean]> = [
+    ["text", 16384, n => `<Body>${"😀".repeat(n)}</Body>`, n => "😀".repeat(n), false],
+    // & を含む text は置換の後に数える（AC02 の近道でない側）。
+    ["reference", 16384, n => `<Body>${"&#x1F600;".repeat(n)}</Body>`, n => "😀".repeat(n), false],
+    ["attribute", 256, n => `<Body a="${"😀".repeat(n)}"/>`, n => "😀".repeat(n), true],
+    ["cdata", 16384, n => `<Body><![CDATA[${"😀".repeat(n)}]]></Body>`, n => "😀".repeat(n), false],
+    // \r\n は 2 文字と数え、parser の正規化で LF になる。
+    ["crlf", 16384, n => `<Body>${"\r\n".repeat(Math.floor(n / 2))}${n % 2 ? "x" : ""}</Body>`, n => `${"\n".repeat(Math.floor(n / 2))}${n % 2 ? "x" : ""}`, false],
+  ];
+  for (const [label, limit, body, value, attribute] of cases) for (const delta of [-1, 0, 1]) {
+    parse.mockClear();
+    const result = decode(base.replace("<Body/>", body(limit + delta)));
+    expect(result.kind, `${label}/${delta}`).toBe(delta > 0 ? "rejected" : "decoded");
+    expect(parse).toHaveBeenCalledTimes(delta > 0 ? 0 : 1);
+    if (result.kind === "rejected") { expect(result.diagnostic.reason).toBe("xmlLimitExceeded"); continue; }
+    const node = result.material.xml.children.find(n => n.kind === "element" && n.name === "Body");
+    if (node?.kind !== "element") throw Error("Body");
+    expect(attribute ? node.attributes[0].value : node.children.map(n => n.kind === "text" ? n.value : "").join(""), `${label}/${delta}`)
+      .toBe(value(limit + delta));
+  }
+});

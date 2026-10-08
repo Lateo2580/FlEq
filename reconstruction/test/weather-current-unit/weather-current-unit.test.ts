@@ -77,6 +77,30 @@ function replaceBodyStatus(xml: string, status: string): string {
   return xml.replace(/(<Body[\s\S]*?<Status>)[^<]*(<\/Status>)/, `$1${status}$2`);
 }
 
+// Body の中だけを書き換える（Head にも Name・Code・Status がある）。
+function inBody(change: (body: string) => string): (xml: string) => string {
+  return (xml) => { const at = xml.indexOf("<Body"); return xml.slice(0, at) + change(xml.slice(at)); };
+}
+
+// 全国の VPWS50 の続報（P2-A5-AC09 の回帰試験と同じ書き換えで、時刻だけ新しくする）。
+function nationalSequel(index: number, prefix: string): DecodedMaterial {
+  return decodeFixture("weather-alert-kind-area/synthetic-vpws50-change-density-after", "VPWS50",
+    (xml) => atTime(bodyWarning(xml), `2026-09-06T11:${String(index).padStart(2, "0")}:00+09:00`), `${prefix}-${index}`);
+}
+
+// JSON.stringify の引数が、targets のどれかを参照で含むか。
+function holdsAny(value: unknown, targets: ReadonlySet<unknown>, seen = new Set<unknown>()): boolean {
+  if (value == null || typeof value !== "object" || seen.has(value)) return false;
+  if (targets.has(value)) return true;
+  seen.add(value);
+  return Object.values(value).some((item) => holdsAny(item, targets, seen));
+}
+
+function stringified(run: () => void): unknown[] {
+  const stringify = vi.spyOn(JSON, "stringify");
+  try { run(); return stringify.mock.calls.map(([value]) => value); } finally { stringify.mockRestore(); }
+}
+
 function source(operation: Operation, family: string, subject: string, time: string, inputId: string) {
   return { inputId, origin: "replay" as const, operation, family, subject,
     reportDateTimeRaw: time, serialRaw: "", infoTypeRaw: "発表" };
@@ -214,7 +238,7 @@ describe("P2 weather-current unit", () => {
       const step = receive(state, decodeFixture("18_00_01_260830_VPNO50_switch", "VPNO50", change));
       expect(step.decisions[0]).toMatchObject({ decision: "rejected", reason });
       expect(step.state.tombstones).toBe(state.tombstones);
-      expect(() => weatherCurrentUnitCodec.encode(step.state)).not.toThrow();
+      expect(weatherCurrentUnitCodec.decode(weatherCurrentUnitCodec.encode(step.state)).kind).toBe("restored");
     }
   });
 
@@ -389,7 +413,7 @@ describe("P2 weather-current unit", () => {
     expect(unknown.state.freshness[0]).toMatchObject({ revisionOrder: "unknown", freshnessSuspect: true,
       candidateSource: { inputId: "invalid-time" }, suspectedSource: { inputId: "newer-invalid" } });
     expect(receive(state, invalidTime).state.freshness[0]).toMatchObject({ revisionOrder: "unknown", freshnessSuspect: false });
-    expect(() => weatherCurrentUnitCodec.encode(unknown.state)).not.toThrow();
+    expect(weatherCurrentUnitCodec.decode(weatherCurrentUnitCodec.encode(unknown.state)).kind).toBe("restored");
     const noHistory = receive(unknown.state, decodeFixture("15_16_02_251222_VPWW57", "VPWW57",
       (xml) => cancellation(xml, "2020-06-22T23:03:00+09:00"), "no-history"));
     expect(noHistory.state.unavailable[0].reason).toBe("historyUnavailable");
@@ -445,7 +469,7 @@ describe("P2 weather-current unit", () => {
         .replace("<EditorialOffice>気象庁</EditorialOffice>", "<EditorialOffice>別官署</EditorialOffice>"), "other-office"));
     expect(otherOffice.state.national.normal).toBe(national.national.normal);
     expect(otherOffice.state.unavailable[0]).toMatchObject({ lastKnown: null, subject: "normal/VPWS50/別官署" });
-    expect(() => weatherCurrentUnitCodec.encode(otherOffice.state)).not.toThrow();
+    expect(weatherCurrentUnitCodec.decode(weatherCurrentUnitCodec.encode(otherOffice.state)).kind).toBe("restored");
 
     // Restore-input continuation is a unit path, not a runtime receive integration claim.
     const recovered = reduceWeatherCurrentUnit(emptyState(), {
@@ -475,7 +499,7 @@ describe("P2 weather-current unit", () => {
     expect(opaqueCancel.state.partials[0]).toMatchObject({ subject: "s", source: { subject: "s", inputId: first.inputId } });
     expect(opaqueCancel.state.unavailable).toEqual([]);
     expect(opaqueCancel.state.tombstones[0].subject).toBe("s");
-    expect(() => weatherCurrentUnitCodec.encode(opaqueCancel.state)).not.toThrow();
+    expect(weatherCurrentUnitCodec.decode(weatherCurrentUnitCodec.encode(opaqueCancel.state)).kind).toBe("restored");
 
     expect(corpus.meta.p2Subsets.find((item) => item.subsetId === "P2-O06-U-W-v1")?.stepRefs)
       .toContain("expected:O06:31");
@@ -666,7 +690,7 @@ describe("P2 weather-current unit", () => {
     const trainingBase = { ...snapshot("training", "VPWS50", "気象庁",
       "2018-01-01T00:00:00+09:00", "byte-training"), phenomena: { padding: "x".repeat(16_700_000) } };
     const byteState: WeatherCurrentUnitState = { ...emptyState(), national: { training: trainingBase } };
-    expect(() => weatherCurrentUnitCodec.encode(byteState)).not.toThrow();
+    expect(weatherCurrentUnitCodec.decode(weatherCurrentUnitCodec.encode(byteState)).kind).toBe("restored");
     const largest = decodeFixture("15_18_01_250630_VPWS50", "VPWS50");
     const byteAdmission = receive(byteState, largest);
     expect(byteAdmission.state.national.normal?.source.inputId).toBe(largest.inputId);
@@ -691,7 +715,7 @@ describe("P2 weather-current unit", () => {
       expect(refusedMonitor.decisions[0].decision).not.toBe("changed");
       expect(refusedMonitor.state).toBe(nearLimit);
       expect(refusedMonitor.diagnostics.some((item) => item.reason === "weatherCurrentCapacityEvicted")).toBe(false);
-      expect(() => weatherCurrentUnitCodec.encode(refusedMonitor.state)).not.toThrow();
+      expect(weatherCurrentUnitCodec.decode(weatherCurrentUnitCodec.encode(refusedMonitor.state)).kind).toBe("restored");
     }
 
     const fullNormalHistory = { subject: current.subject, operation: current.operation,
@@ -712,7 +736,7 @@ describe("P2 weather-current unit", () => {
         affectedScope: established.currentEstablished.affectedScope } }]);
     expect(refusedStep.diagnostics).toEqual([{ level: "WARN", component: "weather-current",
       reason: "checkpointEncodeFailed", unit: "U-W", inputId: partialMaterial.inputId }]);
-    expect(() => weatherCurrentUnitCodec.encode(refusedStep.state)).not.toThrow();
+    expect(weatherCurrentUnitCodec.decode(weatherCurrentUnitCodec.encode(refusedStep.state)).kind).toBe("restored");
     expect(refusedFull.national.training).toBeDefined();
     expect(envelopeSize(refusedFull)).toBe(16 * 1024 * 1024 - 100);
 
@@ -721,11 +745,11 @@ describe("P2 weather-current unit", () => {
       national: { normal: { ...current, phenomena: { padding: "" } } }, histories: [fullNormalHistory] };
     const normalFull = { ...normalBase, national: { normal: { ...current,
       phenomena: { padding: "x".repeat(16 * 1024 * 1024 - envelopeSize(normalBase) - 100) } } } };
-    expect(() => weatherCurrentUnitCodec.encode(normalFull)).not.toThrow();
+    expect(weatherCurrentUnitCodec.decode(weatherCurrentUnitCodec.encode(normalFull)).kind).toBe("restored");
     const droppedStep = receive(normalFull, candidate);
     expect(droppedStep.state.unavailable).toEqual([expect.objectContaining({
       reason: "capacityExceeded", lastKnown: null })]);
-    expect(() => weatherCurrentUnitCodec.encode(droppedStep.state)).not.toThrow();
+    expect(weatherCurrentUnitCodec.decode(weatherCurrentUnitCodec.encode(droppedStep.state)).kind).toBe("restored");
     expect(envelopeSize(droppedStep.state)).toBeLessThanOrEqual(16 * 1024 * 1024);
     expect(envelopeSize(normalFull)).toBe(16 * 1024 * 1024 - 100);
 
@@ -744,7 +768,7 @@ describe("P2 weather-current unit", () => {
     expect(cancelledShared.state.national.normal).toBe(shared.national.normal);
     expect(cancelledShared.state.unavailable).toMatchObject([{ subject: "s", operation: "training",
       reason: "historyUnavailable", lastKnown: shared.national.training }]);
-    expect(() => weatherCurrentUnitCodec.encode(cancelledShared.state)).not.toThrow();
+    expect(weatherCurrentUnitCodec.decode(weatherCurrentUnitCodec.encode(cancelledShared.state)).kind).toBe("restored");
 
     const sharedFull = { ...shared, national: { ...shared.national, training: { ...sharedTraining,
       phenomena: { padding: "x".repeat(16 * 1024 * 1024 - envelopeSize(shared) - 100) } } } };
@@ -880,6 +904,116 @@ describe("P2 weather-current unit", () => {
     expect(weatherCurrentUnitCodec.decode({ ...weatherCurrentUnitCodec.encode(state),
       unavailable: [{ ...record, affectedScope: [token, part].sort() }] }))
       .toMatchObject({ kind: "restored", state: { unavailable: [{ affectedScope: [token] }] } });
+  });
+
+  it("P3-WL1-T03 contractBoundary / P3-WL1-AC03: Kind children keep missing, empty, nested and duplicate rulings and rows", () => {
+    const file = "15_16_02_251222_VPWW57";
+    const state = { ...receive(emptyState(), decodeFixture(file, "VPWW57")).state, intents: [pendingIntent()] };
+    const firstKind = (change: (kind: string) => string) => inBody((body) => body.replace(/<Kind>[\s\S]*?<\/Kind>/, change));
+    const rejected = [
+      ["requiredStructureMissing", firstKind((kind) => kind.replace("<Status>発表</Status>", "<Status/>"))],
+      ["requiredStructureMissing", firstKind((kind) => kind.replace("<Status>発表</Status>", ""))],
+      ["requiredStructureInvalid", firstKind((kind) => kind.replace("<Status>発表</Status>", "<Status><x/></Status>"))],
+      ["requiredStructureInvalid", firstKind((kind) => kind.replace("<Code>48</Code>", "<Code><x/></Code>"))],
+      ["requiredStructureInvalid", firstKind((kind) => kind.replace("<Code>48</Code>", "<Code>48</Code><Code>48</Code>"))],
+      ["requiredStructureInvalid", inBody((body) => body.replace("<Status>発表警報・注意報はなし</Status>",
+        "<Code>00</Code><Status>発表警報・注意報はなし</Status>"))],
+      ["requiredStructureMissing", firstKind((kind) => kind.replace("<Code>48</Code>", ""))],
+    ] as const;
+    for (const [index, [reason, transform]] of rejected.entries()) {
+      const step = receive(state, decodeFixture(file, "VPWW57", transform, `t03-${index}`));
+      expect(step.decisions[0], `${index}`).toMatchObject({ decision: "rejected", reason });
+      for (const field of ["national", "partials", "histories", "intents", "tombstones"] as const)
+        expect(step.state[field]).toBe(state[field]);
+    }
+    const token = JSON.stringify(["VPWW57", "partial", "京都地方気象台", "気象警報・注意報（府県予報区等）", "260000"]);
+    const accepted = [
+      [firstKind((kind) => kind.replace(/<Name>[^<]*<\/Name>/, "<Name>a</Name><Name>a</Name>")), { status: "発表", code: "48", name: null }],
+      [firstKind((kind) => kind.replace(/<Name>[^<]*<\/Name>/, "<Name><x/></Name>")), { status: "発表", code: "48", name: null }],
+      [firstKind((kind) => kind.replace("<Code>48</Code>", "<Code>03</Code>")), { status: "発表", code: "03", name: "レベル４高潮危険警報" }],
+    ] as const;
+    for (const [index, [transform, row]] of accepted.entries()) {
+      const step = receive(emptyState(), decodeFixture(file, "VPWW57", transform, `t03-accepted-${index}`));
+      expect(step.decisions[0].decision).toBe("changed");
+      expect(step.state.partials[0].phenomena[token]).toEqual([row]);
+    }
+  });
+
+  it("P3-WL1-T04 regression / P3-WL1-AC04: a receive does not re-stringify the previous history or its reports", () => {
+    let state = emptyState();
+    for (let index = 0; index < 3; index++) state = receive(state, nationalSequel(index, "t04")).state;
+    const previous = new Set<unknown>(state.histories.flatMap((item) => item.reports));
+    expect(previous.size).toBe(2);
+    const material = nationalSequel(3, "t04");
+    let step: ReturnType<typeof receive> | null = null;
+    const calls = stringified(() => { step = receive(state, material); });
+    expect(step!.decisions[0].decision).toBe("changed");
+    // 外側の数え方 {...history, reports: []} は reports が空なので許す（AC04）。
+    expect(calls.filter((value) => value != null && typeof value === "object" && "reports" in value
+      && Array.isArray(value.reports) && value.reports.length > 0)).toHaveLength(0);
+    expect(calls.filter((value) => holdsAny(value, previous))).toHaveLength(0);
+  });
+
+  it("P3-WL1-T05 contractBoundary / P3-WL1-AC04: the reserved receive boundary is exact with a history entry", () => {
+    const largest = "15_18_01_250630_VPWS50";
+    const first = receive(emptyState(), decodeFixture(largest, "VPWS50",
+      (xml) => atTime(xml, "2019-01-01T00:00:00+09:00"), "t05-first")).state;
+    const candidate = decodeFixture(largest, "VPWS50");
+    const partial = snapshot("normal", "VPWW55", "福井地方気象台", "2026-09-06T09:00:00+09:00", "partial");
+    const paddingKey = '区域"\\\n';
+    const prefix = '日本語"\\\n';
+    const withPadding = (length: number): WeatherCurrentUnitState => ({ ...first,
+      partials: [{ ...partial, phenomena: { [paddingKey]: prefix + "x".repeat(length) } }] });
+    const actualBytes = (value: WeatherCurrentUnitState) => serializedEnvelope({
+      schemaVersion: value.schemaVersion, unit: "U-W", generation: value.persistence.currentGeneration,
+      capturedAt: NOW, payload: weatherCurrentUnitCodec.encode(value), sha256: "0".repeat(64),
+    }).byteLength;
+    const accepted = receive(withPadding(0), candidate);
+    expect(accepted.state.histories.flatMap((item) => item.reports)).toHaveLength(1);
+    const unused = 62 - (JSON.stringify(accepted.state.persistence.currentGeneration).length - 1)
+      - (JSON.stringify(NOW).length - 1);
+    const padding = 16 * 1024 * 1024 - actualBytes(accepted.state) - unused;
+    const exact = receive(withPadding(padding), candidate);
+    expect(exact.state.national.normal?.source.inputId).toBe(candidate.inputId);
+    expect(actualBytes(exact.state) + unused).toBe(16 * 1024 * 1024);
+    const over = receive(withPadding(padding + 1), candidate);
+    expect(over.state.national.normal?.source.inputId).not.toBe(candidate.inputId);
+  });
+
+  it("P3-WL1-T06 contractBoundary / P3-WL1-AC05: encode keeps the 16MiB payload and pending count and byte guards", () => {
+    const message = "U-W checkpoint exceeds or violates its persisted boundary";
+    const partial = snapshot("normal", "VPWW55", "福井地方気象台", "2026-09-06T09:00:00+09:00", "partial");
+    const padded = (length: number): WeatherCurrentUnitState => ({ ...emptyState(),
+      partials: [{ ...partial, phenomena: { '区域"\\\n': '日本語"\\\n' + "x".repeat(length) } }] });
+    const payloadBytes = (value: WeatherCurrentUnitState) => Buffer.byteLength(JSON.stringify(weatherCurrentUnitCodec.encode(value)));
+    const length = 16 * 1024 * 1024 - payloadBytes(padded(0));
+    expect(payloadBytes(padded(length))).toBe(16 * 1024 * 1024);
+    expect(weatherCurrentUnitCodec.decode(weatherCurrentUnitCodec.encode(padded(length))).kind).toBe("restored");
+    expect(() => weatherCurrentUnitCodec.encode(padded(length + 1))).toThrow(message);
+
+    const intents = (count: number, pad = "") => Array.from({ length: count }, (_, index) =>
+      ({ ...pendingIntent(), id: `intent-${index}`, payload: { pad } }));
+    expect(weatherCurrentUnitCodec.decode(weatherCurrentUnitCodec.encode({ ...emptyState(), intents: intents(128) })).kind)
+      .toBe("restored");
+    expect(() => weatherCurrentUnitCodec.encode({ ...emptyState(), intents: intents(129) })).toThrow(message);
+    const pad = 131_072 - Buffer.byteLength(JSON.stringify(intents(1)));
+    expect(Buffer.byteLength(JSON.stringify(intents(1, "x".repeat(pad))))).toBe(131_072);
+    expect(weatherCurrentUnitCodec.decode(weatherCurrentUnitCodec.encode({ ...emptyState(), intents: intents(1, "x".repeat(pad)) })).kind)
+      .toBe("restored");
+    expect(() => weatherCurrentUnitCodec.encode({ ...emptyState(), intents: intents(1, "x".repeat(pad + 1)) })).toThrow(message);
+  });
+
+  it("P3-WL1-T07 regression / P3-WL1-AC05: encode does not stringify the payload, histories or snapshots measured on receive", () => {
+    let state = emptyState();
+    for (let index = 0; index < 2; index++) state = receive(state, nationalSequel(index, "t07")).state;
+    expect(state.histories.flatMap((item) => item.reports)).toHaveLength(1);
+    const measured = new Set<unknown>([...Object.values(state.national), ...state.histories.flatMap((item) => item.reports)]);
+    let payload: ReturnType<typeof weatherCurrentUnitCodec.encode> | null = null;
+    const calls = stringified(() => { payload = weatherCurrentUnitCodec.encode(state); });
+    const objects = calls.filter((value): value is object => value != null && typeof value === "object");
+    expect(objects.filter((value) => "national" in value || "reports" in value)).toHaveLength(0);
+    expect(calls.filter((value) => holdsAny(value, measured))).toHaveLength(0);
+    expect(weatherCurrentUnitCodec.decode(payload!).kind).toBe("restored");
   });
 
 });
