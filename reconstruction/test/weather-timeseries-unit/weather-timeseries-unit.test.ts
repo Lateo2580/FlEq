@@ -615,12 +615,12 @@ describe("P2-A6 weather timeseries", () => {
       now = clock(at);
       return submit(h, envelope(h.root.state.runId, "VPWP50", name, fixtureBody(name, transform, operation), now, ++inputSequence));
     };
+    // The save of the routed input: it starts at once (P3-UWR-AC03), so faults are set before route(); driving another
+    // grant here would retry a failed save at this later clock (AC10(7)).
     const save = async (h: Harness, at: number) => {
-      now = clock(at, at - DATE + 20_000);
-      const from = h.delivered.length;
-      await h.root.driveCheckpoint();
       await h.settle();
-      const done = h.delivered.slice(from).flatMap(({ reply }) => reply.kind === "checkpointDone" ? [reply.result] : []);
+      now = clock(at, at - DATE + 20_000);
+      const done = h.newDone().map((reply) => reply.result);
       if (done.length !== 1 || done[0] == null) throw new Error("checkpoint not scheduled");
       return done[0];
     };
@@ -643,19 +643,21 @@ describe("P2-A6 weather timeseries", () => {
       expect(restoredStep.displayChanges[0].after?.unit === "U-F"
         && restoredStep.displayChanges[0].after.current).toEqual(unit(b).subjects[0]);
       expect(unit(b).persistence.savedGeneration).toBe(1);
+      fail.write = true;
       await route(b, cancel, DATE + 2);
       expect(first(unit(b)).effective).toBe("cancelled");
       expect(unit(b).persistence.currentGeneration).toBe(2);
-      fail.write = true;
       expect((await save(b, DATE + 2)).kind).toBe("failed");
       expect(first(unit(b)).effective).toBe("cancelled");
       fail.write = false;
       const c = await start(makeRoot(), "c", clock(DATE + 3));
       expect(unit(c).persistence.savedGeneration).toBe(1);
       expect(first(unit(c)).effective).toBe("active");
+      fail.afterRename = true;
+      // The uncertain save's reconciliation, which would start at once, is kept from the owner (this runtime ends here).
+      c.holdRequests((_place, request) => request.kind === "checkpointGrant" && request.mode === "reconcile");
       await route(c, cancel, DATE + 3);
       expect(first(unit(c)).effective).toBe("cancelled");
-      fail.afterRename = true;
       expect((await save(c, DATE + 3)).kind).toBe("uncertain");
       expect(writes).toBe(2);
       expect(unit(c).persistence).toMatchObject({ currentGeneration: 2, savedGeneration: 1 });
@@ -663,6 +665,9 @@ describe("P2-A6 weather timeseries", () => {
       const d = await start(makeRoot(), "d", clock(DATE + 4));
       expect(unit(d).persistence.savedGeneration).toBe(2);
       expect(first(unit(d)).effective).toBe("cancelled");
+      // Each route below would save at once (P3-UWR-AC03); those saves fail before any rename, so the only write of this
+      // runtime is the final save (AC10(7)).
+      fail.write = true;
       await route(d, unknown, DATE + 3_600_000, (xml) => xml.replace("2026-06-05T17:00:00+09:00</ReportDateTime>",
         "2026-06-05T18:00:00+09:00</ReportDateTime>").replace("<InfoType>発表</InfoType>", "<InfoType>訂正</InfoType>"));
       expect(first(unit(d)).effective).toBe("active");
@@ -679,6 +684,7 @@ describe("P2-A6 weather timeseries", () => {
       const owner = d.owners.get("deferred")!["state"]!;
       expect(checkpointResultOwner(owner, oldAck, calls.units).state.units["U-F"]).toBe(beforeOldAck);
       now = clock();
+      fail.write = false;
       const summary = await d.root.shutdownRuntime(1, clock());
       expect(summary).toMatchObject({ code: 0, reasons: [], persistence: { "U-F": { kind: "saved" } } });
       const finalGeneration = unit(d).persistence.currentGeneration;

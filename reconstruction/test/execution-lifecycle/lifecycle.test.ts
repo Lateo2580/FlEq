@@ -143,11 +143,12 @@ describe("P3-C3B execution lifecycle (TEST-PATH (2))", () => {
     {
       const driver = fixtureDriver();
       const l = await lifecycle({ runtimeCalls: driver.calls }, stringCodecs);
-      await driver.update(l.h, fixtureState({ "U-W": "weather" }, { "U-W": pending(0) }, "run"), l.now);
+      // The input saves at once (P3-UWR-AC03): its reply is held from the start (AC10(7)).
       l.h.hold((place, reply) => place === "weatherCurrent" && reply.kind === "checkpointDone");
+      await driver.update(l.h, fixtureState({ "U-W": "weather" }, { "U-W": pending(0) }, "run"), l.now);
       void l.root.driveCheckpoint();
       await l.h.settle();
-      expect(l.root.checkpoint.grant?.unit).toBe("U-W");
+      expect(l.root.checkpoint.grantOf("U-W")?.unit).toBe("U-W");
       for (let second = 1; second <= 12; second += 1) expect(await l.tick(second * 1_000)).toBe(false);
       expect(l.shown.every((worker) => worker.state === "healthy")).toBe(true);
       await l.root.diagnostics.flush();
@@ -208,30 +209,39 @@ describe("P3-C3B execution lifecycle (TEST-PATH (2))", () => {
       expect(l.stops("notification")).toHaveLength(1);
       await l.root.diagnostics.flush();
     }
-    // (3) deferred holds no write right when it stops: the older dirty U-F is skipped and U-W is saved.
+    // (3) deferred holds no write right when it stops (its save failed and waits for its retry): U-F gets no grant at
+    // the retry time, and U-W, dirty after the stop, is saved with its own right (P3-UWR-AC01/AC05, AC10(9)).
     {
       const driver = fixtureDriver();
-      const l = await lifecycle({ runtimeCalls: driver.calls }, stringCodecs);
-      await driver.update(l.h, fixtureState({ "U-W": "weather", "U-F": "series" }, { "U-W": pending(20), "U-F": pending(10) }, "run"), l.now);
+      const files = nodeCheckpointFileSystem();
+      const l = await lifecycle({ runtimeCalls: driver.calls, checkpointFileSystem: { ...files, open: async (path) => {
+        if (path.includes("U-F")) throw new Error("open failed");
+        return files.open(path);
+      } } }, stringCodecs);
+      await driver.update(l.h, fixtureState({ "U-F": "series" }, { "U-F": pending(10) }, "run"), l.now);
+      expect(l.root.state.mirror["U-F"].persistence.kind).toBe("failed");
       l.root.ownerFailed("deferred", new Error("owner thread exited (code 1)"));
+      const from = l.h.sent.length;
+      await driver.update(l.h, fixtureState({ "U-W": "weather", "U-F": "series" }, { "U-W": pending(20), "U-F": pending(10) }, "run"), l.now);
       l.set(1_000);
       const released = l.root.driveCheckpoint();
       await l.h.settle();
       await released;
-      expect(l.h.sent.flatMap(({ request }) => request.kind === "checkpointGrant" ? [request.unit] : [])).toEqual(["U-W"]);
+      expect(l.h.sent.slice(from).flatMap(({ request }) => request.kind === "checkpointGrant" ? [request.unit] : [])).toEqual(["U-W"]);
       expect(l.root.state.mirror["U-W"].persistence).toMatchObject({ kind: "saved", savedGeneration: 1 });
       await l.root.diagnostics.flush();
     }
-    // (4) deferred stops before answering its grant: the right is kept (DEAD-WRITE-RIGHT A), U-W gets none, and the
-    // overdue and uncertain monitors report it. Its checkpointDone arriving after the stop changes nothing.
+    // (4) deferred stops before answering its grant: the right is kept (DEAD-WRITE-RIGHT A), U-W is still granted and
+    // saved with its own right (P3-UWR-AC05, AC10(4)(9)), and the overdue and uncertain monitors report U-F. Its
+    // checkpointDone arriving after the stop changes nothing.
     {
       const driver = fixtureDriver();
       const l = await lifecycle({ runtimeCalls: driver.calls }, stringCodecs);
-      await driver.update(l.h, fixtureState({ "U-W": "weather", "U-F": "series" }, { "U-W": pending(20), "U-F": pending(10) }, "run"), l.now);
       l.h.hold((place, reply) => place === "deferred" && reply.kind === "checkpointDone");
+      await driver.update(l.h, fixtureState({ "U-W": "weather", "U-F": "series" }, { "U-W": pending(20), "U-F": pending(10) }, "run"), l.now);
       void l.root.driveCheckpoint();
       await l.h.settle();
-      expect(l.root.checkpoint.grant?.unit).toBe("U-F");
+      expect(l.root.checkpoint.grantOf("U-F")?.unit).toBe("U-F");
       l.root.ownerFailed("deferred", new Error("owner thread exited (code 1)"));
       l.h.release();
       for (let second = 1; second <= 10; second += 1) {
@@ -239,9 +249,11 @@ describe("P3-C3B execution lifecycle (TEST-PATH (2))", () => {
         void l.root.driveCheckpoint();
         await l.h.settle();
       }
-      expect(l.root.checkpoint.grant?.unit).toBe("U-F");
-      expect(l.h.sent.filter(({ request }) => request.kind === "checkpointGrant")).toHaveLength(1);
-      expect(l.events().filter((event) => event.reason === "checkpointOverdue").map((event) => event.unit)).toContain("U-W");
+      expect(l.root.checkpoint.grantOf("U-F")?.unit).toBe("U-F");
+      expect(l.h.sent.filter(({ request }) => request.kind === "checkpointGrant").map(({ request }) => request.kind === "checkpointGrant"
+        && request.unit)).toEqual(["U-W", "U-F"]);
+      expect(l.root.state.mirror["U-W"].persistence).toMatchObject({ kind: "saved", savedGeneration: 1 });
+      expect(l.events().filter((event) => event.reason === "checkpointOverdue").map((event) => event.unit)).toContain("U-F");
       expect(l.events().filter((event) => event.reason === "checkpointUncertain").map((event) => event.unit)).toEqual(["U-F"]);
       await l.root.diagnostics.flush();
     }
@@ -306,9 +318,26 @@ describe("P3-C3B execution lifecycle (TEST-PATH (2))", () => {
   });
 
   it("P3-C3B-T05 acceptance / AC03: shutdown with stopped and unresponsive owners (spec:2072)", async () => {
-    const dirtyAll = (driver: ReturnType<typeof fixtureDriver>, l: Lifecycle, ages: Readonly<Record<RuntimeUnitId, number>> =
-      { "U-E": 30, "U-W": 20, "U-F": 10 }) => driver.update(l.h, fixtureState({ "U-E": "eew", "U-W": "weather", "U-F": "series" },
-      { "U-E": pending(ages["U-E"]), "U-W": pending(ages["U-W"]), "U-F": pending(ages["U-F"]) }, "run"), l.now);
+    const dirtyState = (ages: Readonly<Record<RuntimeUnitId, number>> = { "U-E": 30, "U-W": 20, "U-F": 10 },
+      units: readonly RuntimeUnitId[] = ["U-E", "U-W", "U-F"]) => {
+      const values = { "U-E": "eew", "U-W": "weather", "U-F": "series" } as const;
+      return fixtureState(Object.fromEntries(units.map((unit) => [unit, values[unit]])),
+        Object.fromEntries(units.map((unit) => [unit, pending(ages[unit])])), "run");
+    };
+    const dirtyAll = (driver: ReturnType<typeof fixtureDriver>, l: Lifecycle, ages?: Readonly<Record<RuntimeUnitId, number>>) =>
+      driver.update(l.h, dirtyState(ages), l.now);
+    // An input in the running stage saves at once (P3-UWR-AC03). Units that must still be dirty when the final saves start
+    // get their inputs in the drain stage instead (AC10(7)).
+    const dirtyAtDrain = (driver: ReturnType<typeof fixtureDriver>, l: Lifecycle, units?: readonly RuntimeUnitId[]) =>
+      driver.queue(l.h, dirtyState(undefined, units), l.now);
+    // A unit whose saves fail at open, so it stays dirty through the running stage (P3-UWR-AC03, AC10(7)).
+    const failingOpen = (unit: RuntimeUnitId): CheckpointFileSystem => {
+      const files = nodeCheckpointFileSystem();
+      return { ...files, open: async (path) => {
+        if (path.includes(unit)) throw Object.assign(new Error("no space"), { code: "ENOSPC" });
+        return files.open(path);
+      } };
+    };
     const saved = (l: Lifecycle) => (["U-E", "U-W", "U-F"] as const).filter((unit) => l.root.state.mirror[unit].persistence.kind === "saved");
     const shutdown = async (l: Lifecycle) => {
       const started = performance.now();
@@ -323,7 +352,7 @@ describe("P3-C3B execution lifecycle (TEST-PATH (2))", () => {
       const l = await lifecycle({ runtimeCalls: driver.calls, shutdownHooks: {
         closeWorker: async () => { order.push(existsSync(summaryPath) ? "close after summary" : "close before summary"); } } }, stringCodecs);
       summaryPath = join(l.settings.diagnosticDirectory, "shutdown-summary.json");
-      await dirtyAll(driver, l);
+      dirtyAtDrain(driver, l);
       const { summary } = await shutdown(l);
       expect(summary).toMatchObject({ code: 0, reasons: [] });
       expect(saved(l)).toEqual(["U-E", "U-W", "U-F"]);
@@ -338,7 +367,7 @@ describe("P3-C3B execution lifecycle (TEST-PATH (2))", () => {
         return files.open(path);
       } };
       const l = await lifecycle({ runtimeCalls: driver.calls, checkpointFileSystem }, stringCodecs);
-      await dirtyAll(driver, l);
+      dirtyAtDrain(driver, l);
       const { summary } = await shutdown(l);
       expect(summary).toMatchObject({ code: 2, reasons: ["finalCheckpoint:unsavedUnits"] });
       expect(saved(l)).toEqual(["U-E", "U-F"]);
@@ -347,7 +376,7 @@ describe("P3-C3B execution lifecycle (TEST-PATH (2))", () => {
     // (ownerStopped), deferred gets no shutdownInput or finalize, code 3, U-F counted unsaved.
     {
       const driver = fixtureDriver();
-      const l = await lifecycle({ runtimeCalls: driver.calls }, stringCodecs);
+      const l = await lifecycle({ runtimeCalls: driver.calls, checkpointFileSystem: failingOpen("U-F") }, stringCodecs);
       await dirtyAll(driver, l);
       l.h.hold((place, reply) => place === "deferred" && reply.kind === "inputDone");
       await submit(l.h, envelope("run", "VPWP50", "series", vpwp50(), l.now, 50));
@@ -368,7 +397,7 @@ describe("P3-C3B execution lifecycle (TEST-PATH (2))", () => {
     // side-effect finalization begins: that stage does not wait, U-E and U-F are saved, U-W is not. code 2.
     {
       const driver = fixtureDriver();
-      const l = await lifecycle({ runtimeCalls: driver.calls }, stringCodecs);
+      const l = await lifecycle({ runtimeCalls: driver.calls, checkpointFileSystem: failingOpen("U-W") }, stringCodecs);
       await dirtyAll(driver, l);
       await l.tick(1_000);
       l.h.holdRequests((place, request) => place === "weatherCurrent" && request.kind === "deadline");
@@ -387,11 +416,14 @@ describe("P3-C3B execution lifecycle (TEST-PATH (2))", () => {
     for (const holder of ["deferred", "weatherCurrent"] as const) {
       const driver = fixtureDriver();
       const l = await lifecycle({ runtimeCalls: driver.calls }, stringCodecs);
-      await dirtyAll(driver, l, holder === "deferred" ? { "U-E": 30, "U-W": 20, "U-F": 10 } : { "U-E": 30, "U-W": 10, "U-F": 20 });
+      // The holder's unit saves at once (P3-UWR-AC03) and its reply is held; the other units become dirty in the drain.
+      const own = holder === "deferred" ? "U-F" : "U-W";
       l.h.hold((place, reply) => place === holder && reply.kind === "checkpointDone");
+      await driver.update(l.h, dirtyState(undefined, [own]), l.now);
+      dirtyAtDrain(driver, l, (["U-E", "U-W", "U-F"] as const).filter((unit) => unit !== own));
       void l.root.driveCheckpoint();
       await l.h.settle();
-      expect(l.root.checkpoint.grant?.unit).toBe(holder === "deferred" ? "U-F" : "U-W");
+      expect(l.root.checkpoint.grantOf(holder === "deferred" ? "U-F" : "U-W")?.unit).toBe(holder === "deferred" ? "U-F" : "U-W");
       if (holder === "deferred") l.root.ownerFailed("deferred", new Error("owner thread exited (code 1)"));
       else {
         l.h.holdRequests((place, request) => place === "weatherCurrent" && request.kind === "deadline");
@@ -480,7 +512,11 @@ describe("P3-C3B execution lifecycle (TEST-PATH (2))", () => {
     };
     const adapter = manualAdapter();
     const seeds = seeded(calls.units);
-    const l = await lifecycle({ notificationAdapter: adapter.adapter, runtimeCalls: { ...calls, units: seeds.units, selectNotificationAttempt: select } });
+    // U-E is not saved here: each U-E reply would start a save at once (P3-UWR-AC03), and its grants would join the
+    // requests to urgent counted below (AC10(7)).
+    const { "U-E": _eew, ...withoutEew } = linkedUnitCodecs;
+    const l = await lifecycle({ notificationAdapter: adapter.adapter, runtimeCalls: { ...calls, units: seeds.units, selectNotificationAttempt: select } },
+      withoutEew);
     const occupied = Array.from({ length: 128 }, (_, index) => ({ ...eewNotice(`occupied-${index}`, l.now.wallTimeMs),
       expiresAt: l.now.wallTimeMs + 16_000 }));
     await seeds.eew(l.h, { ...initialUnits["U-E"], intents: occupied }, null, l.now);
@@ -560,8 +596,9 @@ describe("P3-C3B execution lifecycle (TEST-PATH (2))", () => {
   it("P3-C3B-T05 regression / AC02,AC03: an owner that stops after its finalizeDone gets no grant, and the others are still saved", async () => {
     const driver = fixtureDriver();
     const l = await lifecycle({ runtimeCalls: driver.calls }, stringCodecs);
-    // U-F is the oldest dirty unit, so it would be granted first.
-    await driver.update(l.h, fixtureState({ "U-E": "eew", "U-W": "weather", "U-F": "series" },
+    // U-F is the oldest dirty unit, so it would be granted first. The units become dirty in the drain stage, so only the
+    // final saves save them (an input in the running stage saves at once, P3-UWR-AC03; AC10(7)).
+    driver.queue(l.h, fixtureState({ "U-E": "eew", "U-W": "weather", "U-F": "series" },
       { "U-E": pending(30), "U-W": pending(20), "U-F": pending(10) }, "run"), l.now);
     const stop = l.h.hold((place, reply) => place === "urgent" && reply.kind === "finalizeDone");
     const stopping = l.root.shutdownRuntime(1, l.now);
@@ -580,7 +617,8 @@ describe("P3-C3B execution lifecycle (TEST-PATH (2))", () => {
   it("P3-C3B-T05 regression / AC03 (P3-C3A-AC09): a finalizeDone handled after the stage's absolute limit, before its timer, is not adopted", async () => {
     const driver = fixtureDriver();
     const l = await lifecycle({ runtimeCalls: driver.calls }, stringCodecs);
-    await driver.update(l.h, fixtureState({ "U-E": "eew", "U-W": "weather", "U-F": "series" },
+    // The units become dirty in the drain stage (an input in the running stage saves at once, P3-UWR-AC03; AC10(7)).
+    driver.queue(l.h, fixtureState({ "U-E": "eew", "U-W": "weather", "U-F": "series" },
       { "U-E": pending(30), "U-W": pending(20), "U-F": pending(10) }, "run"), l.now);
     const stop = l.h.hold((place, reply) => place === "weatherCurrent" && reply.kind === "finalizeDone");
     const stopping = l.root.shutdownRuntime(1, l.now);

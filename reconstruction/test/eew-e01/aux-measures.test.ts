@@ -238,6 +238,21 @@ describe("P2-A10-T04 auxiliary aggregation (AC08/AC09/AC15)", () => {
     expect([grown === partial, saved(grown)]).toEqual([true, true]);
   });
 
+  // P3-UWR-T07: 起点は owner の時刻（ownerMonotonicMs）。欠けているか null の行（C4 の凍結記録の形）は今と同じ結果になる。
+  it("P3-UWR-T07 E14: ownerMonotonicMs is the origin of both the overlap and dirty→ack; rows without it keep the C4 result", () => {
+    const grants = [grant("g1", "U-E", 50, 300, { kind: "acknowledged", generation: 5 }), grant("g2", "U-W", 310, 320, { kind: "acknowledged", generation: 5 }),
+      grant("g3", "U-F", 330, 350, { kind: "acknowledged", generation: 5 })];
+    const frozen = [...adopted(0, 5, [100, 100, 100]), ...grants];
+    const withOwner = (ownerMonotonicMs: number | null) => [...(["U-E", "U-W", "U-F"] as const).map((unit) => obs({ kind: "generationRaised",
+      runId: "r", inputId: e14Bundle(0).inputIds[unit], unit, generation: 5, monotonicMs: 100, ownerMonotonicMs })), ...grants];
+    const units = (records: typeof frozen) => aux.summarizeE14(records, { bundles: [e14Bundle(0)] }).units;
+    expect(units(frozen)).toMatchObject({ "U-E": { max: 200 }, "U-W": { max: 220 }, "U-F": { max: 250 } });
+    expect(units(withOwner(null))).toEqual(units(frozen));
+    expect(units(withOwner(60))).toMatchObject({ "U-E": { max: 240 }, "U-W": { max: 260 }, "U-F": { max: 290 } });
+    // An owner origin after the earliest ack would not overlap it.
+    expect(aux.summarizeE14(withOwner(400), { bundles: [e14Bundle(0)] })).toMatchObject({ linked: 0, unconfirmed: { notSimultaneous: 1 } });
+  });
+
   // R4: 初回の採用の待ちに再試行（backoff を含む）を混ぜない。
   it("P3-C4-AC13(5) adoption: first attempts and retries are reported apart", () => {
     const row = (attempts: number, waitMs: number) => obs({ kind: "notificationAdoption", runId: "r", channel: "desktop", intentId: `i${attempts}`, unit: "U-E", attempts,

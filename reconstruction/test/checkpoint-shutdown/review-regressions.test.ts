@@ -14,7 +14,7 @@ import type { ShutdownHooks } from "../../src/runtime/composition-root";
 import * as ownerRuntime from "../../src/runtime/owner-runtime";
 import * as sharedRuntime from "../../src/runtime/shared-runtime";
 import { executionPlaces } from "../../src/runtime/unit-coverage";
-import { harnessedRoot, startHarness } from "../execution-split/owner-harness";
+import { harnessedRoot, park, startHarness } from "../execution-split/owner-harness";
 import type { Harness } from "../execution-split/owner-harness";
 import { fixtureState, fixtureDriver, stringCodec, recordingNotificationAdapter } from "./runtime-fixture";
 
@@ -75,25 +75,25 @@ async function harness(hooks: ShutdownHooks = {}) {
       let closes = 0;
       return {
         async write(data) {
-          await fault.writeGate;
+          await park(fault.writeGate);
           if (fault.checkpointFailure === "write") { bytes.set(path, data.slice(0, 10)); throw new Error("partial write"); }
           bytes.set(path, data.slice());
         },
         async sync() { if (fault.checkpointFailure === "fileSync") throw new Error("file sync failed"); },
         async close() {
           if (++closes === 1 && fault.checkpointFailure === "close") throw new Error("close failed");
-          fault.onClose(); await fault.closeGate;
+          fault.onClose(); await park(fault.closeGate);
           if (fault.checkpointFailure === "close") throw new Error("close failed");
         },
       };
     },
     async rename(from, to) {
-      fault.onRename(); await fault.renameGate;
+      fault.onRename(); await park(fault.renameGate);
       if (fault.checkpointFailure === "rename") throw new Error("rename failed");
       bytes.set(to, bytes.get(from)!); bytes.delete(from); fault.renamed = true;
     },
     async syncDirectory() {
-      fault.syncs += 1; fault.onDirectorySync(); await fault.syncGate;
+      fault.syncs += 1; fault.onDirectorySync(); await park(fault.syncGate);
       if (fault.directorySync) throw new Error("directory sync failed");
     },
   };
@@ -136,8 +136,11 @@ async function harness(hooks: ShutdownHooks = {}) {
   };
   const { h, driver } = runtime(undefined, codecs, hooks);
   await startHarness(h, "review", clock());
-  const update = (state: RuntimeState, inputIds: Readonly<Partial<Record<RuntimeUnitId, readonly string[]>>> = {}) =>
-    driver.update(h, state, clock(), inputIds);
+  // An input saves at once (P3-UWR-AC03): grant() after update() returns the saves the update started.
+  const update = (state: RuntimeState, inputIds: Readonly<Partial<Record<RuntimeUnitId, readonly string[]>>> = {}) => {
+    h.newDone();
+    return driver.update(h, state, clock(), inputIds);
+  };
   return { h, root: h.root, driver, runtime, update, clock, codecs,
     setTime: (value: number) => { now = value; }, setWallOffset: (value: number) => { wallOffset = value; },
     bytes, lines, fs, logs, fault, events, measurements, order, config,
@@ -146,17 +149,37 @@ async function harness(hooks: ShutdownHooks = {}) {
       target.owners.get(executionPlaces[unit])!["checkpoint"].restoreUnit(unit),
     attempt: (target: Harness = h) => target.owners.get("deferred")!["state"]!.checkpointAttempts["U-F"],
     grant: (target: Harness = h) => granted(target),
-    // Starts a grant whose write the test holds open; await the returned promise after releasing it.
-    start: (target: Harness = h) => { const released = target.root.driveCheckpoint(); return target.settle().then(() => released); } };
+    // Keeps the reconciliation an uncertain save starts at once (P3-UWR-AC03) from the owner until the returned function
+    // is called (the test's next step drives it). Without it the reconciliation runs before the test sets its faults.
+    holdReconcile: (target: Harness = h) => {
+      const holding = target.holdRequests((_place, request) => request.kind === "checkpointGrant" && request.mode === "reconcile");
+      let released = false;
+      return () => {
+        if (released) return;
+        released = true;
+        holding();
+        target.releaseRequests();
+      };
+    },
+    // Drives the due grants and waits for them and for the saves already running (an input's immediate save, P3-UWR-AC03),
+    // whose write the test may hold open; await the returned promise after releasing it.
+    start: async (target: Harness = h) => {
+      const running = target.root.checkpoint.grants;
+      const released = target.root.driveCheckpoint();
+      await target.settle();
+      await released;
+      while (running.some((grant) => target.root.checkpoint.grantOf(grant.unit)?.grantId === grant.grantId)) await target.settle();
+      target.newDone();
+    } };
 }
 
-// One write-right grant (if any is due) and the owner's checkpointDone reply to it.
+// The write rights due now and the owner's checkpointDone replies since the previous look, the immediate saves after
+// inputs included (P3-UWR-AC03, AC10(7)).
 async function granted(h: Harness): Promise<Done[]> {
-  const from = h.delivered.length;
   const released = h.root.driveCheckpoint();
   await h.settle();
   await released;
-  return h.delivered.slice(from).flatMap(({ reply }) => reply.kind === "checkpointDone" ? [reply] : []);
+  return h.newDone();
 }
 const grants = (h: Harness) => h.sent.flatMap(({ request }) => request.kind === "checkpointGrant" ? [request] : []);
 
@@ -164,9 +187,10 @@ afterEach(() => { vi.useRealTimers(); vi.restoreAllMocks(); });
 
 it("R25 regression / AC02,AC05: a forged result reply cannot bypass durability validation", async () => {
   const h = await harness();
-  await h.update(dirty(1, true));
   const gate = deferred();
   h.fault.writeGate = gate.promise;
+  // U-F's input saves at once (P3-UWR-AC03) and its write waits; U-W becomes dirty after it (AC10(7)).
+  await h.update(dirty(1));
   const running = h.start();
   await vi.waitFor(() => expect(h.fault.opens).toBe(1));
   const clock = h.clock();
@@ -187,14 +211,16 @@ it("R25 regression / AC02,AC05: a forged result reply cannot bypass durability v
   await running;
   expect(h.root.state.mirror["U-F"].persistence.kind).toBe("saved");
   expect(h.h.owners.get("deferred")!["state"]!.checkpointAttempts).toEqual({});
+  await h.update(dirty(1, true));
   expect((await h.grant()).map((reply) => reply.unit)).toEqual(["U-W"]);
   await h.root.diagnostics.flush();
 });
 
 it("R26 regression / AC04: the write right is released only with the owner's applied result", async () => {
   const h = await harness();
-  await h.update(dirty(1, true));
+  // U-F's input saves at once (P3-UWR-AC03); its reply waits. U-W becomes dirty after it (AC10(7)).
   const release = h.h.hold((_place, reply) => reply.kind === "checkpointDone");
+  await h.update(dirty(1));
   void h.root.driveCheckpoint();
   await h.h.settle();
   // AC06: the owner applied its own result; the publisher keeps the right until that reply arrives.
@@ -207,6 +233,7 @@ it("R26 regression / AC04: the write right is released only with the owner's app
   h.h.release();
   await h.h.settle();
   expect(h.root.state.mirror["U-F"].persistence.kind).toBe("saved");
+  await h.update(dirty(1, true));
   expect((await h.grant()).map((reply) => reply.unit)).toEqual(["U-W"]);
   expect(h.fault.opens).toBe(2);
   const attempt = h.measurements[0].attemptId;
@@ -221,9 +248,11 @@ it("R27 regression / AC04,AC05: a failed capture keeps the write right until its
   ] as const) {
       const h = await harness();
       h.fault.checkpointFailure = stage;
-      await h.update(dirty(1, true), { "U-F": ids.inputIds });
-      // Every U-F reply waits, in port order, from the grant's reply on.
-      const release = h.h.hold((place) => place === "deferred");
+      // Every U-F reply waits, in port order, from the reply of the input's immediate grant (P3-UWR-AC03) on. U-W becomes
+      // dirty after the fault is cleared (AC10(7)).
+      let holding = false;
+      const release = h.h.hold((place, reply) => place === "deferred" && (holding ||= reply.kind === "checkpointDone"));
+      await h.update(dirty(1), { "U-F": ids.inputIds });
       void h.root.driveCheckpoint();
       await h.h.settle();
       const [held] = h.h.held.map((item) => item.reply).filter((reply): reply is Done => reply.kind === "checkpointDone");
@@ -232,9 +261,11 @@ it("R27 regression / AC04,AC05: a failed capture keeps the write right until its
         unit: "U-F", generation: 1, stage: stage === "open" ? "write" : stage });
       h.fault.checkpointFailure = null; // A second capture would now be able to write g2.
       h.setTime(25);
-      // The owner has already applied its result (AC06); the next generation keeps that status.
-      await h.update(fixtureState({ "U-F": "final-2" }, {
-        "U-F": { ...h.h.unit("U-F").persistence, currentGeneration: 2, dirtySince: 25 } }));
+      // The owner has already applied its result (AC06); the next generation keeps that status. g2 comes with a deadline
+      // request while the reply is still in transit: a U-F input would wait for that reply (P3-UWR-AC04; AC10(7)).
+      await h.driver.update(h.h, fixtureState({ "U-F": "final-2" }, {
+        "U-F": { ...h.h.unit("U-F").persistence, currentGeneration: 2, dirtySince: 25 } }), h.clock(), {}, true);
+      expect([h.h.unit("U-F").persistence.currentGeneration, h.root.state.mirror["U-F"].persistence.currentGeneration]).toEqual([2, 1]);
       // While the reply is in transit no unit gets the right, and nothing is measured or backed off yet.
       const before = grants(h.h).length;
       void h.root.driveCheckpoint();
@@ -244,6 +275,7 @@ it("R27 regression / AC04,AC05: a failed capture keeps the write right until its
       expect(h.fault.opens).toBe(stage === "encode" ? 0 : 1);
       release();
       h.h.release();
+      h.h.newDone(); // the released reply; the reconciliation it starts at once (rename) is the next grant()'s
       await h.h.settle();
       const measured = [...h.measurements];
       expect(measured.every((entry) => entry.attemptId === result.attemptId
@@ -270,6 +302,7 @@ it("R27 regression / AC04,AC05: a failed capture keeps the write right until its
         expect(h.root.checkpoint.retryAfter("U-F")).toBe(due);
         expect(h.measurements).toEqual(measured);
       }
+      await h.update(dirty(1, true));
       expect((await h.grant()).map((reply) => reply.unit)).toEqual(["U-W"]);
       expect(h.root.state.mirror["U-W"].persistence.kind).toBe("saved");
       h.setTime(due - 1);
@@ -296,38 +329,39 @@ it("R28 regression / AC04,AC06: shutdown recovers earlier failures without an ex
           if (!remaining) h.setTime(50_000);
           return { batches: 0, notificationAttempts: 0 };
         } });
+        // P3-UWR-AC01/AC03 (AC10(9)): U-F's input saves at once under the fault, and a rename failure's reconciliation
+        // runs at once too (it finds no slot and fails). U-W, dirty after the fault, saves with its own right.
         h.fault.checkpointFailure = stage;
-        await h.update(dirty(1, true), { "U-F": ids.inputIds, "U-W": ids.inputIds });
+        await h.update(dirty(1), { "U-F": ids.inputIds });
         const [first] = await h.grant();
         const result = first.result!;
         expect(result.kind).toBe(stage === "rename" ? "uncertain" : "failed");
         h.fault.checkpointFailure = null;
+        await h.update(dirty(1, true), { "U-F": ids.inputIds, "U-W": ids.inputIds });
+        expect(h.root.state.mirror["U-W"].persistence).toMatchObject({ kind: "saved", savedGeneration: 1 });
+        expect(h.root.state.mirror["U-F"].persistence.kind).toBe("failed");
         const measured = [...h.measurements];
+        const attempt = h.measurements.filter((entry) => entry.attemptId === result.attemptId);
         const opens = h.fault.opens;
         h.setTime(20_000);
         const summary = await h.root.shutdownRuntime(1, h.clock());
-        expect(summary.code, `${stage}/remaining=${remaining}`)
-          .toBe(remaining ? stage === "rename" ? 2 : 0 : 3);
-        expect(h.measurements.filter((entry) => entry.attemptId === result.attemptId)).toEqual(measured);
+        expect(summary.code, `${stage}/remaining=${remaining}`).toBe(remaining ? 0 : 3);
+        expect(h.measurements.filter((entry) => entry.attemptId === result.attemptId)).toEqual(attempt);
         if (remaining) {
           expect(h.root.state.mirror["U-W"].persistence).toMatchObject({ kind: "saved", savedGeneration: 1 });
-          expect(h.root.state.mirror["U-F"].persistence).toMatchObject(stage === "rename"
-            ? { kind: "uncertain", savedGeneration: null } : { kind: "saved", savedGeneration: 1 });
-          expect(h.fault.opens).toBe(opens + (stage === "rename" ? 1 : 2));
-          expect(h.measurements.length).toBe(measured.length + (stage === "rename" ? 6 : stage === "encode" ? 12 : 11));
-          expect(h.root.state.shutdown.stageResults.finalCheckpoint?.pending.unsavedUnits)
-            .toBe(stage === "rename" ? 1 : 0);
+          expect(h.root.state.mirror["U-F"].persistence).toMatchObject({ kind: "saved", savedGeneration: 1 });
+          expect(h.fault.opens).toBe(opens + 1);
+          expect(h.measurements.length).toBe(measured.length + (stage === "encode" ? 6 : 5));
+          expect(h.root.state.shutdown.stageResults.finalCheckpoint?.pending.unsavedUnits).toBe(0);
           expect(h.root.checkpoint.retryAfter("U-F")).toBeNull();
           expect(h.order).toEqual(["summary", "close", "summary"]);
-          if (stage !== "rename") {
-            expect(h.h.owners.get("deferred")!["state"]!.checkpointAttempts).toEqual({});
-            expect(h.restore("U-F")).toMatchObject({ kind: "restored", envelope: { generation: 1 } });
-          }
+          expect(h.h.owners.get("deferred")!["state"]!.checkpointAttempts).toEqual({});
+          expect(h.restore("U-F")).toMatchObject({ kind: "restored", envelope: { generation: 1 } });
           expect(h.restore("U-W")).toMatchObject({ kind: "restored", envelope: { generation: 1 } });
         } else {
           expect(h.fault.opens).toBe(opens);
           expect(h.measurements).toEqual(measured);
-          expect(h.root.state.mirror["U-W"].persistence.savedGeneration).toBeNull();
+          expect(h.root.state.mirror["U-W"].persistence.savedGeneration).toBe(1);
           expect(h.root.state.shutdown.stageResults.finalCheckpoint).toMatchObject({
             // D4 (FINALIZE-TIMEOUT=A): no cutoff was decided, so every unit, the clean U-E too, counts unsaved.
             result: { kind: "deadlineExceeded" }, pending: { unsavedUnits: 3 },
@@ -341,25 +375,37 @@ it("R28 regression / AC04,AC06: shutdown recovers earlier failures without an ex
 it("B01 contractBoundary / AC02,AC05: capture precedes post-capture dirty input and the owner applies the correlated ack", async () => {
   for (const outcome of ["acknowledged", "failed", "uncertain"] as const) {
     const h = await harness();
-    await h.update(dirty(1, true));
     const gate = deferred();
     h.fault.writeGate = gate.promise;
+    // U-F's input saves at once (P3-UWR-AC03) and its write waits; U-W becomes dirty at the end (AC10(7)).
+    await h.update(dirty(1));
     const running = h.start();
     await vi.waitFor(() => expect(h.fault.opens).toBe(1));
     const capture = h.attempt()!;
     expect(capture).toMatchObject({ unit: "U-F", generation: 1, postCaptureDirtySince: null });
     h.setTime(500);
-    await h.update(fixtureState({ "U-F": "final-2" }, {
-      "U-F": { ...h.h.unit("U-F").persistence, kind: "pending", currentGeneration: 2, dirtySince: h.clock().monotonicMs } }));
+    // The g2 input waits for U-F's own save (P3-UWR-AC04) until the 1,000 ms hold limit, then reaches the owner mid-write.
+    h.driver.queue(h.h, fixtureState({ "U-F": "final-2" }, {
+      "U-F": { ...h.h.unit("U-F").persistence, kind: "pending", currentGeneration: 2, dirtySince: h.clock().monotonicMs } }), h.clock());
+    h.root.pump();
+    await h.h.settle();
+    h.setTime(1_500);
+    h.root.tick(h.clock());
+    await h.h.settle();
     expect(h.attempt()?.postCaptureDirtySince).toBe(h.clock().monotonicMs);
     if (outcome === "failed") h.fault.checkpointFailure = "write";
     if (outcome === "uncertain") h.fault.directorySync = true;
+    // The next U-F grant the reply starts at once (the g2 save, or the reconciliation) waits until the test drives it.
+    let holding = h.h.holdRequests((place, request) => place === "deferred" && request.kind === "checkpointGrant");
     gate.resolve();
     await running;
     expect(h.h.delivered.flatMap(({ reply }) => reply.kind === "checkpointDone" ? [reply.result?.kind] : [])).toEqual([outcome]);
     expect(h.h.unit("U-F").persistence.currentGeneration).toBe(2);
     if (outcome === "uncertain") {
       h.fault.directorySync = false;
+      holding();
+      holding = h.h.holdRequests((place, request) => place === "deferred" && request.kind === "checkpointGrant" && request.mode === "save");
+      h.h.releaseRequests("deferred");
       await h.grant();
     }
     if (outcome !== "failed") expect(h.h.unit("U-F").persistence).toMatchObject({
@@ -368,6 +414,7 @@ it("B01 contractBoundary / AC02,AC05: capture precedes post-capture dirty input 
     });
     expect(h.attempt()).toBeUndefined();
     h.fault.checkpointFailure = null;
+    await h.update(dirty(1, true));
     expect((await h.grant()).map((reply) => reply.unit)).toEqual(["U-W"]);
     expect(h.root.state.mirror["U-W"].persistence.kind).toBe("saved");
     expect(h.h.unit("U-F").persistence.currentGeneration).toBe(2);
@@ -481,9 +528,11 @@ function fixtureEnvelope(generation: number, capturedAt: number, payload: JsonVa
 
 it("R01 regression / AC02,AC08: uncertain needs exact hash and successful sync; post-rename verify failure stays uncertain", async () => {
   const h = await harness();
-  await h.update(dirty());
   h.fault.directorySync = true;
+  const reconcile = h.holdReconcile();
+  await h.update(dirty());
   expect((await h.grant()).map((reply) => reply.result?.kind)).toEqual(["uncertain"]);
+  reconcile();
   expect((await h.grant()).map((reply) => reply.result?.kind)).toEqual(["uncertain"]);
   expect(h.root.state.mirror["U-F"].persistence).toMatchObject({ kind: "uncertain", savedGeneration: null });
   h.fault.directorySync = false;
@@ -496,21 +545,24 @@ it("R01 regression / AC02,AC08: uncertain needs exact hash and successful sync; 
 
   // P3-C1: a steady save has no post-rename verify, so the uncertain-then-reconcile property is shown via directory sync.
   const verify = await harness();
-  await verify.update(dirty());
   verify.fault.directorySync = true;
+  const reconcileVerify = verify.holdReconcile();
+  await verify.update(dirty());
   expect((await verify.grant()).map((reply) => reply.result?.kind)).toEqual(["uncertain"]);
   verify.fault.directorySync = false;
+  reconcileVerify();
   await verify.grant();
   expect(verify.root.state.mirror["U-F"].persistence).toMatchObject({ kind: "saved", savedGeneration: 1 });
 
   // The same-generation confirm read (spec:843) failing after directory sync is still uncertain (stage ack).
   const confirm = await harness();
-  await confirm.update(dirty());
   confirm.bytes.set(join(confirm.config.stateDirectory, "U-F-A.json"),
     serializedEnvelope(fixtureEnvelope(1, confirm.clock().wallTimeMs)));
   confirm.restore("U-F"); // the memory now names generation 1, so the save takes the recovery path
   confirm.fault.verify = true;
   confirm.fault.onDirectorySync = () => { confirm.fault.renamed = true; };
+  confirm.holdReconcile();
+  await confirm.update(dirty());
   expect((await confirm.grant()).map((reply) => reply.result)).toMatchObject([{ kind: "uncertain", stage: "ack" }]);
   expect(confirm.fault.opens).toBe(0);
   await Promise.all([h.root.diagnostics.flush(), verify.root.diagnostics.flush(), confirm.root.diagnostics.flush()]);
@@ -532,7 +584,8 @@ it("R02 regression / AC04: a running attempt cannot execute twice or relinquish 
   const h = await harness();
   const held = deferred();
   h.fault.writeGate = held.promise;
-  await h.update(dirty(1, true));
+  // U-F's input saves at once (P3-UWR-AC03) and its write waits; U-W becomes dirty after it (AC10(7)).
+  await h.update(dirty(1));
   const running = h.start();
   await vi.waitFor(() => expect(h.fault.opens).toBe(1));
   const before = grants(h.h).length;
@@ -543,6 +596,7 @@ it("R02 regression / AC04: a running attempt cannot execute twice or relinquish 
   await running;
   expect(h.root.state.mirror["U-F"].persistence.kind).toBe("saved");
   expect(h.fault.opens).toBe(1);
+  await h.update(dirty(1, true));
   expect((await h.grant()).map((reply) => reply.unit)).toEqual(["U-W"]);
   await Promise.all([direct.root.diagnostics.flush(), h.root.diagnostics.flush()]);
 });
@@ -561,16 +615,18 @@ it("R03 regression / AC08: a BOM cannot be stripped before the full-byte hash ch
 
 it("R04 regression / AC04,AC05: slot EIO returns measured failure and frees the writer for U-W", async () => {
   const h = await harness();
-  await h.update(dirty(1, true));
   h.fault.read = true;
   // P3-C1: a steady save reads nothing; EIO is met on the recovery path, which an unreadable restoreUnit opens.
   expect(h.restore("U-F")).toEqual({ kind: "unavailable", reason: "noValidSlot" });
+  // U-F's input saves at once (P3-UWR-AC03) on that path; U-W becomes dirty after the fault (AC10(7)).
+  await h.update(dirty(1));
   const [failed] = await h.grant();
   expect(failed).toMatchObject({ unit: "U-F", result: { kind: "failed", stage: "write" } });
   expect(failed.measurements.filter((measurement) => measurement.stage !== "encode"))
     .toMatchObject([{ stage: "write", outcome: "failed", attemptId: failed.result!.attemptId }]);
   expect(h.root.checkpoint.retryAfter("U-F")).toBe(1_000);
   h.fault.read = false;
+  await h.update(dirty(1, true));
   expect((await h.grant()).map((reply) => reply.unit)).toEqual(["U-W"]);
   expect(h.root.state.mirror["U-W"].persistence.kind).toBe("saved");
   await h.root.diagnostics.flush();
@@ -580,21 +636,25 @@ it("R05 regression / AC04,AC07: argument clocks monitor an occupied writer witho
   const h = await harness();
   const gate = deferred();
   h.fault.writeGate = gate.promise;
-  await h.update(dirty(1, true));
+  await h.update(dirty(1));
   const running = h.start();
   await vi.waitFor(() => expect(h.fault.opens).toBe(1));
-  const grantId = h.root.checkpoint.grant!.grantId;
+  const grantId = h.root.checkpoint.grantOf("U-F")!.grantId;
+  // P3-UWR-AC01 (AC10(9)): while U-F's write is held, U-W saves with its own right.
+  h.fault.writeGate = null;
+  await h.update(dirty(1, true));
+  expect(h.root.state.mirror["U-W"].persistence).toMatchObject({ kind: "saved", savedGeneration: 1 });
   h.setTime(20_001);
   const before = grants(h.h).length;
   await h.root.driveCheckpoint();
   await h.root.driveCheckpoint();
   expect(grants(h.h)).toHaveLength(before);
   const read = await h.root.readDiagnostics({ limit: 256 });
-  expect(read.records.filter((event) => event.reason === "checkpointOverdue")).toHaveLength(2);
+  expect(read.records.filter((event) => event.reason === "checkpointOverdue").map((event) => event.unit)).toEqual(["U-F"]);
   // The publisher knows the held right by its grant id, not by the owner's attempt id.
   expect(read.records.filter((event) => event.reason === "checkpointUncertain"))
     .toEqual([expect.objectContaining({ attemptId: grantId, durationMs: 20_001 })]);
-  expect(h.fault.opens).toBe(1);
+  expect(h.fault.opens).toBe(2);
   gate.resolve();
   await running;
 });
@@ -671,11 +731,13 @@ it("R08 regression / AC05: final-save encode and executed stages reach the same 
 
 it("R09 regression / AC02,AC06: reconciliation uses the shared retry reason and shutdown retries after lost data", async () => {
   const h = await harness();
-  await h.update(dirty());
   h.fault.directorySync = true;
+  const reconcile = h.holdReconcile();
+  await h.update(dirty());
   const [first] = await h.grant();
   h.bytes.clear();
   h.fault.directorySync = false;
+  reconcile();
   await h.grant();
   expect(h.root.checkpoint.retryReason("U-F")).toBe("ackUncertain");
   const summary = await h.root.shutdownRuntime(1, h.clock());
@@ -913,9 +975,11 @@ it("R13 regression / AC06: shutdown waits for a normal in-flight write and re-ev
 
 it("R14 regression / AC04: ended reconciliation failures retain uncertainty but back off 1/2/4/8/10 seconds", async () => {
   const h = await harness();
-  await h.update(dirty());
   h.fault.directorySync = true;
+  const reconcile = h.holdReconcile();
+  await h.update(dirty());
   expect((await h.grant()).map((reply) => reply.result?.kind)).toEqual(["uncertain"]);
+  reconcile();
   let due = 0;
   for (const delay of [1_000, 2_000, 4_000, 8_000, 10_000, 10_000]) {
     expect((await h.grant()).map((reply) => reply.result?.kind)).toEqual(["uncertain"]);
@@ -947,12 +1011,14 @@ it("R14 regression / AC04: ended reconciliation failures retain uncertainty but 
 
 it("R15 regression / AC05: reconciliation stages are measured once with the original attempt correlation", async () => {
   const h = await harness();
-  await h.update(dirty());
   h.fault.directorySync = true;
+  const reconcile = h.holdReconcile();
+  await h.update(dirty());
   const [written] = await h.grant();
   const request = written.result!;
   const before = h.measurements.length;
   const verifies = vi.spyOn(h.h.owners.get("deferred")!["checkpoint"], "restoreUnit");
+  reconcile();
   await h.grant();
   for (let repeat = 0; repeat < 3; repeat += 1) expect(await h.grant()).toEqual([]);
   expect(h.measurements.slice(before).map((measurement) => [measurement.stage, measurement.outcome]))
@@ -978,21 +1044,23 @@ it("R17 regression / AC04,AC06: another unit's completed result is kept whether 
   for (const outcome of ["acknowledged", "failed", "uncertain"] as const) {
     for (const application of ["explicit", "shutdown"] as const) {
       const h = await harness();
-      await h.update(dirty(1, true));
       h.fault.directorySync = true;
-      expect((await h.grant()).map((reply) => reply.unit)).toEqual(["U-F"]);
+      const reconcile = h.holdReconcile();
+      await h.update(dirty(1));
       expect((await h.grant()).map((reply) => [reply.unit, reply.result?.kind])).toEqual([["U-F", "uncertain"]]);
-      h.fault.directorySync = outcome === "uncertain";
+      h.fault.directorySync = false;
       h.fault.checkpointFailure = outcome === "failed" ? "write" : null;
       const gate = deferred();
       h.fault.writeGate = gate.promise;
+      await h.update(dirty(1, true)); // U-W's input saves at once (P3-UWR-AC03); its write waits at the gate
       const running = h.start();
-      await vi.waitFor(() => expect(h.root.checkpoint.grant?.unit).toBe("U-W"));
-      // While U-W writes, the due reconciliation of U-F gets no grant.
+      await vi.waitFor(() => expect(h.root.checkpoint.grantOf("U-W")?.unit).toBe("U-W"));
+      // P3-UWR-AC01 (AC10(9)): while U-W writes, U-F's due reconciliation runs with its own right and is acknowledged.
       h.setTime(20_000);
-      const before = grants(h.h).length;
-      void h.root.driveCheckpoint();
-      expect(grants(h.h)).toHaveLength(before);
+      reconcile();
+      await vi.waitFor(() => expect(h.root.state.mirror["U-F"].persistence.kind).toBe("saved"));
+      expect(h.root.checkpoint.grantOf("U-W")?.unit).toBe("U-W");
+      h.fault.directorySync = outcome === "uncertain";
       gate.resolve();
       await running;
       const [weather] = h.h.delivered.flatMap(({ reply }) => reply.kind === "checkpointDone" && reply.unit === "U-W" ? [reply] : []);
@@ -1001,11 +1069,15 @@ it("R17 regression / AC04,AC06: another unit's completed result is kept whether 
       h.fault.checkpointFailure = null;
       if (application === "explicit") {
         for (let round = 0; round < 3 && (h.root.state.mirror["U-F"].persistence.kind === "uncertain"
-          || h.root.state.mirror["U-W"].persistence.kind === "uncertain"); round += 1) await h.grant();
+          || h.root.state.mirror["U-W"].persistence.kind === "uncertain"); round += 1) {
+          h.setTime(Math.max(h.clock().monotonicMs, h.root.checkpoint.retryAfter("U-W") ?? 0));
+          await h.grant();
+        }
       }
       const summary = await h.root.shutdownRuntime(1, h.clock());
       expect(summary.persistence["U-W"]?.kind).toBe(application === "shutdown" && outcome === "uncertain" ? "uncertain" : "saved");
-      expect(summary.code).toBe(application === "shutdown" ? 2 : 0);
+      expect(summary.persistence["U-F"]?.kind).toBe("saved");
+      expect(summary.code).toBe(application === "shutdown" && outcome === "uncertain" ? 2 : 0);
       expect(h.measurements.filter((measurement) => measurement.attemptId === weather.result!.attemptId && measurement.stage === "write"))
         .toHaveLength(1);
       expect(h.order).toEqual(["summary", "close", "summary"]);
@@ -1021,10 +1093,12 @@ it("I01 contractBoundary / AC04,AC05,AC08: checkpoint fault stages cross recover
     ["write", "continuous"], ["fileSync", "continuous"], ["readFile", "continuous"], ["verify", "continuous"],
   ] as const) {
       const h = await harness();
-      await h.update(dirty(1, true));
+      // U-F's inputs save at once (P3-UWR-AC03): the g2 input comes in the first round, after its faults are set, and its
+      // uncertain save's reconciliation waits for the test. U-W becomes dirty after the faults (AC10(7)).
+      await h.update(dirty(1));
       expect((await h.grant()).map((reply) => reply.unit)).toEqual(["U-F"]);
-      await h.update(fixtureState({ "U-F": "final-2" }, {
-        "U-F": { ...h.h.unit("U-F").persistence, kind: "pending", currentGeneration: 2, dirtySince: 0 } }));
+      const second = fixtureState({ "U-F": "final-2" }, {
+        "U-F": { ...h.h.unit("U-F").persistence, kind: "pending", currentGeneration: 2, dirtySince: 0 } });
       const setFault = (active: boolean) => {
         h.fault.checkpointFailure = active && ["open", "write", "fileSync", "close", "rename"].includes(stage)
           ? stage as "open" | "write" | "fileSync" | "close" | "rename" : null;
@@ -1045,6 +1119,8 @@ it("I01 contractBoundary / AC04,AC05,AC08: checkpoint fault stages cross recover
         }
         setFault(true);
         if (stage === "readFile") h.restore("U-F"); // An unreadable slot drops the memory, so the save must read.
+        const reconcile = h.holdReconcile();
+        if (index === 0) await h.update(second);
         const [output] = await h.grant();
         expect(output.unit).toBe("U-F");
         expect(output.result!.kind).toBe(["rename", "directorySync", "verify"].includes(stage) ? "uncertain" : "failed");
@@ -1054,9 +1130,11 @@ it("I01 contractBoundary / AC04,AC05,AC08: checkpoint fault stages cross recover
         if (mode === "continuous" && output.result!.kind === "uncertain") {
           // A missing/unreadable target turns reconciliation into a completed verify failure.
           h.fault.read = true;
+          reconcile();
           await h.grant();
         }
         setFault(false);
+        reconcile();
         expect([...h.bytes.keys()].filter((path) => path.endsWith(".tmp")).length).toBeLessThanOrEqual(1);
         if (index < rounds - 1) h.setTime(h.root.checkpoint.retryAfter("U-F")!);
       }
@@ -1070,15 +1148,16 @@ it("I01 contractBoundary / AC04,AC05,AC08: checkpoint fault stages cross recover
         const restarted = h.runtime(fixtureDriver(), { "U-F": codec, "U-W": stringCodec("U-W") });
         await startHarness(restarted.h, "review", h.clock());
         expect(h.restore("U-F", restarted.h)).toEqual(restore);
-        const desired = dirty(3, true);
+        const desired = dirty(3);
         await restarted.driver.update(restarted.h, { ...desired, units: { ...desired.units,
           "U-F": { ...desired.units["U-F"], persistence: { ...restarted.h.unit("U-F").persistence,
             kind: "pending", currentGeneration: 3, dirtySince: 0 } },
-        } }, h.clock(), { "U-F": ids.inputIds, "U-W": ids.inputIds });
+        } }, h.clock(), { "U-F": ids.inputIds });
         expect((await granted(restarted.h)).map((reply) => reply.unit)).toEqual(["U-F"]);
         await restarted.h.root.diagnostics.flush();
       } else {
         // The failing unit cannot block a healthy unit after its result was applied.
+        await h.update(dirty(1, true));
         for (let round = 0; round < 4 && !(h.root.state.mirror["U-W"].persistence.kind === "saved"
           && h.root.state.mirror["U-F"].persistence.kind === "saved"); round += 1) {
           if ((await h.grant()).length === 0) h.setTime(h.root.checkpoint.retryAfter("U-F")!);
@@ -1091,30 +1170,33 @@ it("I01 contractBoundary / AC04,AC05,AC08: checkpoint fault stages cross recover
   }
 });
 
-it("I02 contractBoundary / AC04,AC06: held reconciliation excludes other writes and shutdown shares its acknowledgement", async () => {
+it("I02 contractBoundary / AC04,AC06: a held reconciliation does not hold back another unit's write, and shutdown waits for both", async () => {
   vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
   for (const failed of [false, true]) {
     const h = await harness();
-    await h.update(dirty(1, true));
     h.fault.directorySync = true;
+    const reconcile = h.holdReconcile();
+    await h.update(dirty(1));
     expect((await h.grant()).map((reply) => reply.result?.kind)).toEqual(["uncertain"]);
     h.fault.directorySync = failed;
     const gate = deferred();
     h.fault.syncGate = gate.promise;
+    reconcile();
     const reconciliation = h.start();
-    await vi.waitFor(() => expect(h.root.checkpoint.grant?.mode).toBe("reconcile"));
-    const before = grants(h.h).length;
-    void h.root.driveCheckpoint();
-    expect(grants(h.h)).toHaveLength(before);
+    await vi.waitFor(() => expect(h.root.checkpoint.grantOf("U-F")?.mode).toBe("reconcile"));
+    // P3-UWR-AC01 (AC10(9)): U-W gets its own right and writes while U-F's reconciliation is held.
+    await h.update(dirty(1, true));
+    expect(h.root.checkpoint.grantOf("U-W")?.mode).toBe("save");
     const stopped = h.root.shutdownRuntime(1, h.clock());
     await vi.advanceTimersByTimeAsync(0);
     expect(h.order).toEqual([]);
-    expect(h.fault.opens).toBe(1);
+    expect(h.fault.opens).toBe(2);
     gate.resolve();
     await reconciliation;
     const summary = await stopped;
     expect(summary.code).toBe(failed ? 2 : 0);
     expect(summary.persistence["U-F"]?.kind).toBe(failed ? "uncertain" : "saved");
+    expect(summary.persistence["U-W"]?.kind).toBe(failed ? "uncertain" : "saved");
     expect(h.fault.opens).toBe(2);
     expect(h.measurements.filter((measurement) => measurement.stage === "directorySync")).toHaveLength(h.fault.syncs);
     expect(h.order).toEqual(["summary", "close", "summary"]);
@@ -1125,12 +1207,15 @@ it("R19 regression / AC08: retrying the same generation preserves the preceding 
   const h = await harness();
   await h.update(dirty());
   await h.grant();
-  await h.update(fixtureState({ "U-F": "final-2" }, { "U-F": { ...h.h.unit("U-F").persistence, kind: "pending", currentGeneration: 2, dirtySince: 0 } }));
+  // The g2 input saves at once (P3-UWR-AC03) under the fault; its reconciliation waits for the test.
   h.fault.directorySync = true;
+  const reconcile = h.holdReconcile();
+  await h.update(fixtureState({ "U-F": "final-2" }, { "U-F": { ...h.h.unit("U-F").persistence, kind: "pending", currentGeneration: 2, dirtySince: 0 } }));
   const [second] = await h.grant();
   const secondSlot = JSON.parse(new TextDecoder().decode(h.bytes.get(join(h.config.stateDirectory, "U-F-B.json"))!)) as
     ReturnType<typeof fixtureEnvelope>;
   h.fault.read = true;
+  reconcile();
   await h.grant();
   h.fault.read = false;
   h.fault.directorySync = false;
@@ -1165,11 +1250,11 @@ it("P2-A3-T10 contractBoundary / AC10: a later explicit empty step cannot fill a
 
 it("P2-A3-T09 contractBoundary / AC09: an identical durable generation is acknowledged without rewriting a slot", async () => {
   const h = await harness();
-  await h.update(dirty());
   const slot = join(h.config.stateDirectory, "U-F-A.json");
   const bytes = serializedEnvelope(fixtureEnvelope(1, h.clock().wallTimeMs));
   h.bytes.set(slot, bytes);
   h.restore("U-F"); // The file was placed from outside; the memory learns it by a read at the same generation.
+  await h.update(dirty()); // its input saves at once (P3-UWR-AC03)
   expect((await h.grant()).map((reply) => reply.result?.kind)).toEqual(["acknowledged"]);
   expect(h.fault.opens).toBe(0);
   expect(h.fault.syncs).toBe(1);
@@ -1262,8 +1347,8 @@ it("R23 regression / AC06: normal scheduling cannot introduce a new dirty genera
   expect(h.measurements.filter((measurement) => measurement.stage === "encode")).toHaveLength(1);
   expect(h.fault.opens).toBe(1);
   const uncertain = await harness();
-  await uncertain.update(dirty());
   uncertain.fault.directorySync = true;
+  await uncertain.update(dirty()); // saves at once (P3-UWR-AC03), and its reconciliation fails the same way
   await uncertain.grant();
   expect((await uncertain.root.shutdownRuntime(1, uncertain.clock())).code).toBe(2);
   uncertain.fault.directorySync = false;
@@ -1363,13 +1448,17 @@ it("I07 contractBoundary / AC04,AC08: checkpoint rename completion followed by a
   const injected = vi.spyOn(h.fs, "rename").mockImplementation(async (from, to) => {
     await rename(from, to); throw new Error("lost rename response");
   });
-  await h.update(dirty(1, true));
+  // U-F's input saves at once (P3-UWR-AC03); its reconciliation waits for the test. U-W becomes dirty after it (AC10(7)).
+  const reconcile = h.holdReconcile();
+  await h.update(dirty(1));
   expect((await h.grant()).map((reply) => [reply.unit, reply.result?.kind])).toEqual([["U-F", "uncertain"]]);
   injected.mockRestore();
+  reconcile();
   await h.grant();
   expect(h.root.state.mirror["U-F"].persistence.kind).toBe("saved");
   expect(h.fault.opens).toBe(1);
   expect([...h.bytes.keys()].some((path) => path.endsWith(".tmp"))).toBe(false);
+  await h.update(dirty(1, true));
   expect((await h.grant()).map((reply) => reply.unit)).toEqual(["U-W"]);
   await h.root.diagnostics.flush();
 });
@@ -1385,10 +1474,13 @@ it("R24 regression / AC08 RES-01: same-generation failure then current advanceme
   const advance = (generation: number) => h.update(fixtureState({ "U-F": `final-${generation}` }, { "U-F": {
     ...h.h.unit("U-F").persistence, kind: "pending", currentGeneration: generation, dirtySince: 0 } }));
   await save(); // A g1
-  await advance(2);
+  // Each advance saves at once (P3-UWR-AC03): the faults come first, and g2's reconciliation waits for the test.
   h.fault.directorySync = true;
+  const reconcile = h.holdReconcile();
+  await advance(2);
   await save(); // B g2, directory durability unknown
   h.fault.read = true;
+  reconcile();
   await save(); // its reconciliation cannot read
   h.fault.read = false;
   h.fault.directorySync = false;
@@ -1437,9 +1529,13 @@ it("I08 contractBoundary / AC04,AC08 RES-01: tmp lifetime is bounded across slot
         expect(replies.map((reply) => reply.unit)).toEqual(["U-F"]);
         return replies[0];
       };
+      // A new generation saves at once (P3-UWR-AC03): its faults and gates come first, and an uncertain save's
+      // reconciliation waits for rejectUncertain (AC10(7)).
+      let reconcile = () => {};
       const rejectUncertain = async () => {
-        if (target.root.state.mirror["U-F"].persistence.kind !== "uncertain") return;
+        if (target.root.state.mirror["U-F"].persistence.kind !== "uncertain") { reconcile(); return; }
         h.fault.read = true;
+        reconcile();
         await granted(target);
         h.fault.read = false;
       };
@@ -1450,17 +1546,18 @@ it("I08 contractBoundary / AC04,AC08 RES-01: tmp lifetime is bounded across slot
       for (let generation = 1; generation <= baseline; generation += 1) {
         await changeGeneration(generation); await execute();
       }
-      await changeGeneration(baseline + 1);
       failAt("directorySync");
+      reconcile = h.holdReconcile(target);
+      await changeGeneration(baseline + 1);
       await execute();
       await rejectUncertain(); // A/B contains the new, unacknowledged generation.
       failAt(firstStage);
+      reconcile = h.holdReconcile(target);
       await execute();
       await rejectUncertain(); // Same generation, first failure stage.
       checkBound();
-      if (advance) await changeGeneration(baseline + 2);
       failAt(nextStage);
-      const nextGeneration = target.unit("U-F").persistence.currentGeneration;
+      const nextGeneration = advance ? baseline + 2 : target.unit("U-F").persistence.currentGeneration;
       due();
       const entered = deferred();
       const gate = deferred();
@@ -1469,7 +1566,11 @@ it("I08 contractBoundary / AC04,AC08 RES-01: tmp lifetime is bounded across slot
         if (nextStage === "rename") { h.fault.renameGate = gate.promise; h.fault.onRename = entered.resolve; }
         if (nextStage === "directorySync") { h.fault.syncGate = gate.promise; h.fault.onDirectorySync = entered.resolve; }
       }
-      const running = granted(target);
+      reconcile = h.holdReconcile(target);
+      const running = advance ? (async () => {
+        await changeGeneration(baseline + 2);
+        while (target.root.checkpoint.grantOf("U-F")?.mode === "save") await target.settle();
+      })() : granted(target);
       if (held) {
         await entered.promise;
         const opens = h.fault.opens;
@@ -1504,7 +1605,9 @@ it("I08 contractBoundary / AC04,AC08 RES-01: tmp lifetime is bounded across slot
         if (target.unit("U-F").persistence.currentGeneration < nextGeneration)
           await changeGeneration(nextGeneration);
       }
-      const saved = target.root.state.mirror["U-F"].persistence.kind === "saved" ? null : await execute();
+      // The restarted runtime's new generation saved at once (P3-UWR-AC03); that save is the one checked below.
+      const [immediate] = restart ? target.newDone() : [];
+      const saved = target.root.state.mirror["U-F"].persistence.kind === "saved" ? immediate ?? null : await execute();
       expect(h.restore("U-F", target)).toMatchObject({ kind: "restored", envelope: { generation: nextGeneration } });
       expect([...h.bytes.keys()].filter((path) => path.endsWith(".tmp"))).toEqual([]);
       expect(h.bytes.size).toBe(2);

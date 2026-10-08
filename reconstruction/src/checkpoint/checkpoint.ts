@@ -474,8 +474,8 @@ class CheckpointCoordinator<UnitStates extends RuntimeUnitStates = RuntimeUnitSt
 
 }
 
-// P3-C3A-WRITE-RIGHT (spec §5.8, spec:859): the publisher's side. One write right in the whole process, given to the
-// oldest due dirty unit (fixed UnitId order on a tie), and the retry interval 1/2/4/8/10 s after an ended failure.
+// P3-C3A-WRITE-RIGHT（spec §5.8、spec:859）と P3-UWR-AC01: publisher の側。書込み権は unit ごとに 1 つ（unit ごとに保存か照合を
+// 最大 1 件持ち、他 unit の保存を待たない）。保存の候補の unit に出し、終わった失敗の後は 1/2/4/8/10 秒の再試行間隔を置く。
 type CheckpointGrant = Readonly<{ grantId: string; unit: RuntimeUnitId; mode: "save" | "reconcile";
   retryReason: CheckpointMeasurement["retryReason"]; generation: number; grantedAtMonotonicMs: number; runId: string }>;
 
@@ -484,7 +484,8 @@ class CheckpointWriter {
   private readonly overdue = new Map<UnitId, number>();
   // The generation an owner declined to save (nothing new, or its inputs are not all known): skipped until it changes.
   private readonly declined = new Map<UnitId, number>();
-  private current: (CheckpointGrant & { monitored: boolean }) | null = null;
+  // P3-UWR-AC01: unit ごとの出ている権。その unit の権はその grantId の checkpointDone でだけ戻る。
+  private readonly held = new Map<UnitId, CheckpointGrant & { monitored: boolean }>();
   private sequence = 0;
 
   constructor(
@@ -492,7 +493,10 @@ class CheckpointWriter {
     private readonly emitDiagnostic: (event: DiagnosticEvent) => void,
   ) {}
 
-  get grant(): CheckpointGrant | null { return this.current; }
+  grantOf(unit: UnitId): CheckpointGrant | null { return this.held.get(unit) ?? null; }
+
+  // 出ている権（出した順）。
+  get grants(): readonly CheckpointGrant[] { return [...this.held.values()]; }
 
   retryAfter(unit: UnitId): number | null {
     return this.retry.get(unit)?.retryAfter ?? null;
@@ -510,52 +514,48 @@ class CheckpointWriter {
       && (force || (this.retry.get(unit)?.retryAfter ?? Number.NEGATIVE_INFINITY) <= clock.monotonicMs);
   }
 
-  // Overdue (3 s) and the 10 s monitor of a held right are reported here; at most one grant is outstanding.
+  // overdue（3 秒）と出ている権ごとの 10 秒の監視は呼出しのたびに判定する。権が出ている unit には 2 件目を出さず、ほかの候補の
+  // unit にはそれぞれ出す（照合が先、次に dirtySince の古い順、同じなら UnitId の順）。limit はこの呼出しで出す権の数の上限
+  // （最終保存の段は 1 つずつ、P3-UWR-AC07）。
   next(persistence: Readonly<Record<RuntimeUnitId, PersistenceStatus>>, clock: ClockReading, runId: string,
-    options: Readonly<{ force?: boolean; reconcile?: boolean; excluded?: ReadonlySet<UnitId> }> = {}): CheckpointGrant | null {
+    options: Readonly<{ force?: boolean; reconcile?: boolean; excluded?: ReadonlySet<UnitId>; limit?: number }> = {}): readonly CheckpointGrant[] {
     for (const unit of runtimeUnits) {
       const status = persistence[unit];
       if (status.dirtySince != null && clock.monotonicMs - status.dirtySince > 3_000) this.emitOverdue(unit, status.currentGeneration, runId, clock);
     }
-    if (this.current != null) {
-      const held = this.current;
-      if (!held.monitored && clock.monotonicMs - held.grantedAtMonotonicMs >= 10_000) {
-        held.monitored = true;
-        this.emitDiagnostic(completeDiagnostic({ level: "WARN", component: "checkpoint",
-          reason: "checkpointUncertain", unit: held.unit, generation: held.generation,
-          attemptId: held.grantId, durationMs: clock.monotonicMs - held.grantedAtMonotonicMs }, clock, held.runId));
-      }
-      return null;
+    for (const held of this.held.values()) if (!held.monitored && clock.monotonicMs - held.grantedAtMonotonicMs >= 10_000) {
+      held.monitored = true;
+      this.emitDiagnostic(completeDiagnostic({ level: "WARN", component: "checkpoint",
+        reason: "checkpointUncertain", unit: held.unit, generation: held.generation,
+        attemptId: held.grantId, durationMs: clock.monotonicMs - held.grantedAtMonotonicMs }, clock, held.runId));
     }
-    const excluded = options.excluded ?? new Set<UnitId>();
-    let selected: Readonly<{ unit: RuntimeUnitId; mode: "save" | "reconcile"; generation: number }> | null = null;
-    // An uncertain unit is never a save candidate: reconcile it on every due tick until it is acknowledged.
-    if (options.reconcile !== false) for (const unit of runtimeUnits) {
+    const selected: { unit: RuntimeUnitId; mode: "save" | "reconcile"; generation: number; order: number }[] = [];
+    for (const unit of runtimeUnits) {
       const status = persistence[unit];
-      if (excluded.has(unit) || status.kind !== "uncertain"
-        || clock.monotonicMs < (this.retry.get(unit)?.retryAfter ?? -Infinity)) continue;
-      selected = { unit, mode: "reconcile", generation: status.attemptedGeneration };
-      break;
+      if (this.held.has(unit) || options.excluded?.has(unit)) continue;
+      // uncertain の unit は保存の候補にしない。ack されるまで、再試行の時刻に達した呼出しのたびに照合する。
+      if (status.kind === "uncertain") {
+        if (options.reconcile !== false && clock.monotonicMs >= (this.retry.get(unit)?.retryAfter ?? -Infinity))
+          selected.push({ unit, mode: "reconcile", generation: status.attemptedGeneration, order: -Infinity });
+      } else if (this.saveDue(status, unit, clock, options.force))
+        selected.push({ unit, mode: "save", generation: status.currentGeneration, order: status.dirtySince! });
     }
-    if (selected == null) {
-      const candidates = runtimeUnits.filter((unit) => !excluded.has(unit) && this.saveDue(persistence[unit], unit, clock, options.force))
-        .sort((left, right) => persistence[left].dirtySince! - persistence[right].dirtySince! || left.localeCompare(right));
-      const unit = candidates[0];
-      if (unit != null) selected = { unit, mode: "save", generation: persistence[unit].currentGeneration };
-    }
-    if (selected == null) return null;
-    this.current = { ...selected, grantId: `${runId}:grant:${++this.sequence}`, retryReason: this.retryReason(selected.unit),
-      grantedAtMonotonicMs: clock.monotonicMs, runId, monitored: false };
-    return this.current;
+    selected.sort((left, right) => left.order - right.order || left.unit.localeCompare(right.unit));
+    return selected.slice(0, options.limit ?? selected.length).map(({ unit, mode, generation }) => {
+      const grant = { unit, mode, generation, grantId: `${runId}:grant:${++this.sequence}`, retryReason: this.retryReason(unit),
+        grantedAtMonotonicMs: clock.monotonicMs, runId, monitored: false };
+      this.held.set(unit, grant);
+      return grant;
+    });
   }
 
-  // The write right is released only by the reply to the current grant; any other reply changes nothing here.
-  // previous: the unit's persistence before the reply was applied. Returns false for a reply that is not the current grant.
+  // unit の書込み権は、その unit の今の権への返信でだけ戻る。ほかの返信はここで何も変えない。previous は返信を反映する前の
+  // その unit の persistence。今の権への返信でなければ false。
   done(grantId: string, unit: UnitId, result: CheckpointResult | null, measurements: readonly CheckpointMeasurement[],
     previous: PersistenceStatus, clock: ClockReading): boolean {
-    const grant = this.current;
-    if (grant == null || grant.grantId !== grantId || grant.unit !== unit) return false;
-    this.current = null;
+    const grant = this.held.get(unit);
+    if (grant == null || grant.grantId !== grantId) return false;
+    this.held.delete(unit);
     if (result == null) {
       this.declined.set(grant.unit, grant.generation);
       return true;
@@ -566,7 +566,8 @@ class CheckpointWriter {
       diagnostics.push(this.scheduleRetry(grant, result, clock, "ackUncertain"));
     if (result.kind === "acknowledged") {
       this.retry.delete(result.unit);
-      this.overdue.delete(result.unit);
+      // P3-UWR-AC06: 古い世代の ack では、より新しい世代の overdue の記録を消さない（同じ世代の WARN を再び出さない）。
+      if ((this.overdue.get(result.unit) ?? Infinity) <= result.generation) this.overdue.delete(result.unit);
     } else if (result.kind === "failed") {
       diagnostics.push(completeDiagnostic({ level: "ERROR", component: "checkpoint",
         reason: failureReasons[result.stage], unit: result.unit, generation: result.generation,

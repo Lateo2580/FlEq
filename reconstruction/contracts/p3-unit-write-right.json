@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "49d745eff613131fa6b0e3681d019a389d13cd1f",
-    "sha256": "300b63c03fc61a0a818dc6960d6362c79eaf57bff882c11bc345812c7e740617",
+    "sha256": "728e903e849beda42f5620805b604f7bdaa48d16a32c6b459fe8002f985edefb",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "76c82b87d7783a4eae14af690cb34e7d6ec46f73617dc75b7f7401951619f080",
     "sequencesSha256": "be9cfd97b555e3a55568f085d107342c978b3dc7249f5cecea868ea5a62c5781",
@@ -104,6 +104,14 @@
         "closed": "(1) decisionBranchesの「起草案」0件 (2) spec:859・:872・:1053をP3-UWR-SPECの文で行数を変えずに置換し、引用する契約のanchorとmeta.sha256を同じcommitで更新した (3) 計画§3.2の:125・:130〜:133と§5.1の書込み権の行（:218）、実行境界メモの:23・:31・:33・:62を同期し、それらの行を引く契約（split.json:600・:638・:640ほか）のanchorとmeta.sha256を更新した (4) 49d745ef→eb62d423でreconstruction/srcの変更はcomposition-root.tsの:1490以降の5行だけで、Q-UWR-CODE-READの(1)〜(9)の行はそのまま成り立つ。本文のcomposition-root.ts:810〜:812（起草時からの誤記）を:811〜:813に、P3-UWR-OWNERの計画の:127を:125に直した。aux-measures.mjs:412〜:413・execution-split.test.ts:602・:647・:894・host.test.ts:928・lifecycle.test.ts:385もそのまま (5) C5（P3-TSUNAMI-UNIT-001）のcomposition-root.ts:1068の引用はずれていない（本契約の実装の合流で直す）",
         "remaining": "なし（baseOid＝1cef61d060ca9670c3829e7a39c45887d9097303、統合担当が 2026-10-08 に割り当てた）",
         "reason": "unresolvedQuestionsのQ-UWR-BASE（C4の結果の記録（母集団5の測り直しを含む）の後）を閉じる"
+      },
+      {
+        "id": "Q-UWR-TEST-SETUP",
+        "status": "closed",
+        "source": "実装のblocked報告（2026-10-08）: 即時の保存（AC02・AC03）と保存中の留保（AC04）で、入力の後に故障・保留を仕込む既存の試験が、allowedPathsの外の5つのdirectoryを含めて約70本落ちた",
+        "closed": "統合担当の確定（2026-10-08、実装のblockedを受けた改訂）: allowedPathsにtest/eew-unit・weather-current-unit・weather-timeseries-unit・shared-runtime・snapshot-sseを足し、AC10の(7)（準備の順番だけの変更、期待値は変えない、artifactに一覧）と(8)（owner-harnessのsettle()のI/O待ち）を足した。baseOidは変えない",
+        "remaining": "なし",
+        "reason": "AC03の即時の再評価を保ったまま、requiredCommandsの全試験を緑にする"
       }
     ],
     "operationContract": {
@@ -155,7 +163,12 @@
       "reconstruction/test/checkpoint-shutdown/**",
       "reconstruction/test/notification-delivery/**",
       "reconstruction/test/host/**",
-      "reconstruction/test/integration/**"
+      "reconstruction/test/integration/**",
+      "reconstruction/test/eew-unit/**",
+      "reconstruction/test/weather-current-unit/**",
+      "reconstruction/test/weather-timeseries-unit/**",
+      "reconstruction/test/shared-runtime/**",
+      "reconstruction/test/snapshot-sse/**"
     ],
     "allowedGitCommands": [
       "git status --porcelain",
@@ -381,7 +394,7 @@
       },
       {
         "id": "P3-UWR-AC10",
-        "requirement": "改める既存の約束（本契約に記録し、他の契約のファイルは編集しない。統合担当がspecの置換［P3-UWR-SPEC］と他契約の読み替えを合流と同じcommitで行う）: (1) 全体1件を前提にする条文をunitごとに1件へ改める: P3-C3A-WRITE-RIGHT（A: 全体のin-flight 1件。C3aのBの「ownerごと」より細かい）、P3-C3A-AC05（p3-execution-split.json:636、grantの規則そのもの。§5.8の選択はunitの中、権の解放はそのunitのcheckpointDone、「書込みが終わっていない間は他ownerへgrantしない」を「そのunitへ2件目をgrantしない」に）、P3-C3A-AC15（:749）の「checkpointGrantは全体で1件」、split.jsonのobjectiveの「全体の書込みin-flight 1件」、P3-C3A-RES-03、P3-C3A-RES-09の「ownerあたり最大9（checkpointGrant 1を含む）」をcheckpointGrantはそのownerのunit数まで（今はどのownerも1 unitなので値は変わらず、C5でurgentにU-Tが入ると＋1）、P3-C3A-DLV-01のscope（全体1件の和→unitごとの和）、P2-A3-WRITER・P2-A3-RES-02・P3-C1-RES-04（in-flight attempt total 1→unitごとに1）、P3-C1-AC01の「単位をまたぐ状態は既存の全体writer予約1件だけ」（unitごとの予約のMap 1つに）、P2-A3-AC04（p2-checkpoint-shutdown.json:390）の「試行可能な最古dirtySinceを選び」（unitの中の選択に。3秒・再試行間隔・飢餓なしは保つ） (2) 全体1件を確かめる試験の条文と実試験: P3-C3A-T06（split.json:806「別unitの書込み区間が重ならず、先にdirtyになったunitから保存」、実試験host.test.ts:928）とP3-C3A-T09（:832「U-Wの書込みが終わらない間はU-Fがdirtyでもgrantされない」、実試験execution-split.test.ts:894）を、それぞれ「両方が3秒以内にack（区間は重なってよい）」「U-Wの書込みが終わらない間もU-Fはgrantされackされる」に改める (3) P3-C3A-AC15の「ownerはcheckpointのI/O待ちの間も後続の要求を処理する」は、urgentでは常に、非緊急では自分の保存中の留保（AC04）の間の次のparser入力を除いて保つ。T13の保証と期待値は保つ（即時の保存に合わせた保留の設定・準備の順番・完了待ちの変更は許す。T06で足す複数の権からの終了の境界は、今の終了の保証を複数の権へ当てるだけで、T13の期待値は変えない） (4) P3-C3B-DEAD-WRITE-RIGHT=A（権を解放しない）は保ち、running の間に止める範囲を全unitからそのunitだけにする（AC05）。P3-C3B-T02の(4)（「権は解放されず、U-Wはgrantされず」）をrunningの間の「U-Wはgrantされ保存される」に改める (5) 終了処理は変えない（AC07）: P3-C3A-AC09・FINALIZE-TIMEOUT（split.json:129）・終了の最小結線（:685）・P3-C3B-AC03・P3-C3B-T05の(5)・T13は改訂の対象に入れない (6) spec:859・:1053・:872の置換と:862・:841の読みはP3-UWR-SPECのとおり。無いと: 他の契約の条文・試験と本契約が同じ挙動について逆のことを言い、後の契約と試験がどちらを守るか決められない",
+        "requirement": "改める既存の約束（本契約に記録し、他の契約のファイルは編集しない。specの置換［P3-UWR-SPEC］は1cef61d0で済んだ。他契約の読み替えは統合担当が合流と同じcommitで行う。試験の行番号は実装の作業ツリーの版で、試験名でも引ける）: (1) 全体1件を前提にする条文をunitごとに1件へ改める: P3-C3A-WRITE-RIGHT（A: 全体のin-flight 1件。C3aのBの「ownerごと」より細かい）、P3-C3A-AC05（p3-execution-split.json:636、grantの規則そのもの。§5.8の選択はunitの中、権の解放はそのunitのcheckpointDone、「書込みが終わっていない間は他ownerへgrantしない」を「そのunitへ2件目をgrantしない」に）、P3-C3A-AC15（:749）の「checkpointGrantは全体で1件」、split.jsonのobjectiveの「全体の書込みin-flight 1件」、P3-C3A-RES-03、P3-C3A-RES-09の「ownerあたり最大9（checkpointGrant 1を含む）」をcheckpointGrantはそのownerのunit数まで（今はどのownerも1 unitなので値は変わらず、C5でurgentにU-Tが入ると＋1）、P3-C3A-DLV-01のscope（全体1件の和→unitごとの和）、P2-A3-WRITER・P2-A3-RES-02・P3-C1-RES-04（in-flight attempt total 1→unitごとに1）、P3-C1-AC01の「単位をまたぐ状態は既存の全体writer予約1件だけ」（unitごとの予約のMap 1つに）、P2-A3-AC04（p2-checkpoint-shutdown.json:390）の「試行可能な最古dirtySinceを選び」（unitの中の選択に。3秒・再試行間隔・飢餓なしは保つ） (2) 全体1件を確かめる試験の条文と実試験: P3-C3A-T06（split.json:806「別unitの書込み区間が重ならず、先にdirtyになったunitから保存」、実試験host.test.ts:915の「P3-C3A-T06 acceptance / AC05」）とP3-C3A-T09（:832「U-Wの書込みが終わらない間はU-Fがdirtyでもgrantされない」、実試験execution-split.test.ts:907の「P3-C3A-T09 contractBoundary / AC05」）を、それぞれ「両方が3秒以内にack（区間は重なってよい）」「U-Wの書込みが終わらない間もU-Fはgrantされackされる」に改める (3) P3-C3A-AC15の「ownerはcheckpointのI/O待ちの間も後続の要求を処理する」は、urgentでは常に、非緊急では自分の保存中の留保（AC04）の間の次のparser入力を除いて保つ。T13の保証と期待値は保つ（即時の保存に合わせた保留の設定・準備の順番・完了待ちの変更は許す。T06で足す複数の権からの終了の境界は、今の終了の保証を複数の権へ当てるだけで、T13の期待値は変えない） (4) P3-C3B-DEAD-WRITE-RIGHT=A（権を解放しない）は保ち、running の間に止める範囲を全unitからそのunitだけにする（AC05）。P3-C3B-T02の(4)（「権は解放されず、U-Wはgrantされず」）をrunningの間の「U-Wはgrantされ保存される」に改める (5) 終了処理は変えない（AC07）: P3-C3A-AC09・FINALIZE-TIMEOUT（split.json:129）・終了の最小結線（:685）・P3-C3B-AC03・P3-C3B-T05の(5)・T13は改訂の対象に入れない (6) spec:859・:1053・:872の置換と:862・:841の読みはP3-UWR-SPECのとおり (7) 入力を送った後に故障・保留を仕込む、または保存を明示的に起こす既存の試験は、即時の保存（AC02・AC03）に合わせて準備の順番だけを変えてよい。故障・保留は入力の前に仕込む、保存の完了を待つ、のような変更が該当する。期待値（expectの値と、確かめる事柄）は変えない。変えた試験はartifactに一覧で書く（fileとitの名前と、変えた準備）。準備の順番だけを超える次の変更も、期待値を変えずにここで許す（統合担当の確認が要る）: (a) 世代を飛ばす入力を1件にした（runtime-fixture.tsのfixtureDriver.update。前は世代ごとに1件で、即時の保存では途中の世代ごとに保存が走る）と、変化を期限要求で運ぶ口byDeadline（同じ関数。自分の保存中の留保［AC04］で入力が待つ試験用） (b) 変化を入力でなく期限要求で運ぶ（期限要求は留保されない）: checkpoint.test.tsの「P2-A3-T02 contractBoundary / AC02」（:141、g3）、review-regressions.test.tsの「R27 regression / AC04,AC05」（:244、g2。g1の失敗の返信がpublisherに届く前にownerがg2へ進む条件を保つ） (c) dirtyにする入力をdrainの段へ移した（driver.queueとdrainMailboxの結線。最終保存の段で保存させる）: lifecycle.test.tsの「P3-C3B-T05 acceptance / AC03」（:320、dirtyAtDrain）・「P3-C3B-T05 regression / AC02,AC03」（:596）・「P3-C3B-T05 regression / AC03 (P3-C3A-AC09)」（:617）、execution-split.test.tsの「P3-C3A-T13 contractBoundary / AC15,AC09」の(4)（:666）、unit-wiring.test.tsの「P2-A3-T10 contractBoundary / AC10: an empty later generation」（:275、savedFirstが偽の回） (d) runningの段の保存を失敗させる故障を足した（unitをdirtyのまま残す）: lifecycle.test.tsの「P3-C3B-T05 acceptance / AC03」のfailingOpen（:379・:400の回）、weather-timeseries-unit.test.tsの「T05 restores and saves two generations」（:588、route()の前のfail.write） (e) codecを外した（そのunitを保存しない）: lifecycle.test.tsの「P3-C3B-T06 acceptance / AC05」（:460、U-E）、shared-runtime.test.tsの「B4 contractBoundary」（:883、codecsを空に） (f) 回からunitを外した: review-regressions.test.tsの「I01 contractBoundary / AC04,AC05,AC08」（:1088）の再起動の回からU-W。元はこの回がU-Fだけにgrantされることで全体1件の権も兼ねていたが、(9)へは移さない（この回の期待値は再起動の後のU-Fの復元と保存のままで変わらない。全体1件の性質は(1)で改め、unitごとの権はT01と(9)のR05・I02が確かめる） (g) 保存先をmemoryにした: snapshot-sse/projection-fixture.ts（memoryWrites。apply()は各入力の前に前の保存の完了を待つ） (h) 試験が意図して止めるfile systemの門をpark()で登録した（(8)のsettle()の判定のため）: eew-unit・review-regressions・unit-wiring・notification-wiring・notification-delivery・execution-split・unit-write-rightの各fake (8) owner-harness.tsのsettle()は、保存中の留保（AC04）で待たされていないownerのI/Oの完了を待つように変えてよい。保留されている入力はsettle()が待たない（留保の試験が自分で進める）。試験が意図して止めるI/Oは、fakeの中でpark(gate)により登録し、その門が開くまでは待たない。完了の判定はharnessが追う自分のI/Oの呼出しだけで行い、プロセス全体のfs要求（getActiveResourcesInfo）を見ない。ハングの検出の上限（実時間10秒）は完了の判定とは別に置き、達したら失敗として投げる (9) 期待値を新しい振る舞いへ置き換える試験（統合担当の確定 2026-10-08、どれも全体1件の書込み権かtickごとの選択を確かめていた）: P3-C3A-T06（host.test.ts:915、(2)）、P3-C3A-T09（execution-split.test.ts:907、(2)）、P3-C3A-T12の(2)（execution-split.test.ts:359、(1)のP3-C3A-AC05とAC02。期限要求で運ぶ更新の後の権の送出の順［deadline→checkpointGrant］でAC02を確かめる期待値を足した）、P3-C3B-T04の(3)(4)（lifecycle.test.ts:212・:234、(4)と(1)のP3-C3A-AC05）、review-regressions.test.tsのR05（:635、(1)のP2-A3-WRITER）・R17（:1043、(1)のP3-C3A-AC05）・I02（:1173、(1)のP2-A3-WRITER）・R28の2件（:323、(1)のP2-A3-WRITERとAC03の即時の再評価）。期待値は消さず、unitごとの権・即時の保存と照合を確かめる期待値に置き換える。無いと: 他の契約の条文・試験と本契約が同じ挙動について逆のことを言い、後の契約と試験がどちらを守るか決められない",
         "evidenceRefs": [
           "reconstruction/contracts/p3-execution-split.json:636 «629497553b6a7d9c»",
           "reconstruction/contracts/p3-execution-split.json:749 «2fcfb37e1bff5861»",
@@ -444,7 +457,7 @@
         "referenceIds": [
           "P3-UWR-AC07"
         ],
-        "behavior": "weatherCurrentの入力を留保している間に、tickを呼ばずにshutdownRuntimeを始めると、mailboxDrainの段に移った時点でその入力が送られ、drainの完了はそのinputDoneの後になる。drainの期限で残った入力は以後送られず、未処理件数に数えられる。複数の権からの終了（既存のP3-C3A-T13の系列に足す。保証を複数の権へ当てるだけで期待値は変えない）: U-WとU-Fの権を残して終了すると、片方だけが返ってもcutoffを決めず、両方が返ってから固定し、要る最終保存を今と同じ順で1つずつ行う。片方のI/Oだけが止まると、副作用固定の期限で全unitが未固定になり、期限の後に届いたそのackはその権だけを解放し、mirror・入力の送出・通常の保存を再開しない"
+        "behavior": "weatherCurrentの入力を留保している間に、tickを呼ばずにshutdownRuntimeを始めると、mailboxDrainの段に移った時点でその入力が送られ、drainの完了はそのinputDoneの後になる。drainの期限で残った入力は以後送られず、未処理件数に数えられる（自分の保存中の留保はmailboxDrainへ移る時に解くので、残るのは期限切れの更新による遅延［P3-C3B-AC08］か送出済みの入力だけで、既存のlifecycle.test.tsの「P3-C3B-T08 regression / AC08,AC03: a delayed input still waiting when the drain stage ends」とexecution-split.test.tsの「P3-C3A-T13 regression / AC09 ... (Y1)」がこの約束を確かめる。新しいitは足さない）。複数の権からの終了（既存のP3-C3A-T13の系列に足す。保証を複数の権へ当てるだけで期待値は変えない）: U-WとU-Fの権を残して終了すると、片方だけが返ってもcutoffを決めず、両方が返ってから固定し、要る最終保存を今と同じ順で1つずつ行う。片方のI/Oだけが止まると、副作用固定の期限で全unitが未固定になり、期限の後に届いたそのackはその権だけを解放し、mirror・入力の送出・通常の保存を再開しない"
       },
       {
         "testId": "P3-UWR-T07",

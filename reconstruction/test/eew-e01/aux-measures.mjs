@@ -402,6 +402,9 @@ const e14Starts = (index, bundle) => E14_UNITS.map((u) => index.raised.get(`${bu
 export function e14Acks(index, bundle) {
   return e14Starts(index, bundle).map((start, i) => (start == null ? null : firstAckedFrom(index.acked[E14_UNITS[i]], start.generation)));
 }
+// 起点は owner が射影の前に読んだ時刻（ownerMonotonicMs、P3-UWR-AC08）。欠けているか null の行（C4 の凍結記録の形）は publisher の
+// 反映の時刻（monotonicMs）で、今と同じ値になる。新しい起点は旧より早いので、新旧を同じ指標として並べない。
+const e14Origin = (start) => start.ownerMonotonicMs ?? start.monotonicMs;
 export function e14Bundle(index, bundle) {
   const starts = e14Starts(index, bundle);
   const notAdopted = E14_UNITS.filter((_, i) => starts[i] == null);
@@ -409,8 +412,8 @@ export function e14Bundle(index, bundle) {
   const acks = e14Acks(index, bundle);
   const missing = E14_UNITS.filter((_, i) => acks[i] == null);
   if (missing.length > 0) return { k: bundle.k, status: "未確認", reason: `notAcknowledged:${missing.join(",")}` };
-  if (!(Math.max(...starts.map((s) => s.monotonicMs)) < Math.min(...acks.map((a) => a.doneReceivedMonotonicMs)))) return { k: bundle.k, status: "未確認", reason: "notSimultaneous" };
-  return { k: bundle.k, status: "linked", dirtyToAckMs: Object.fromEntries(E14_UNITS.map((u, i) => [u, acks[i].doneReceivedMonotonicMs - starts[i].monotonicMs])) };
+  if (!(Math.max(...starts.map(e14Origin)) < Math.min(...acks.map((a) => a.doneReceivedMonotonicMs)))) return { k: bundle.k, status: "未確認", reason: "notSimultaneous" };
+  return { k: bundle.k, status: "linked", dirtyToAckMs: Object.fromEntries(E14_UNITS.map((u, i) => [u, acks[i].doneReceivedMonotonicMs - e14Origin(starts[i])])) };
 }
 export function summarizeE14(records, { bundles, limitMs = 3000 }) {
   const index = e14Index(records);

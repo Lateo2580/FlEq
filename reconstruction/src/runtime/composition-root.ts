@@ -356,7 +356,12 @@ class RuntimeCompositionRoot {
   // P3-C3B-FINALIZE-UNHEALTHY (A): owners unresponsive when side-effect finalization began; left out of (2) and (4).
   private readonly unhealthy = new Set<ExecutionPlace>();
   // P3-C3B-AC08: an input waiting for its unit's held expiry update to be sent first (at most one per place).
+  // P3-UWR-AC04 の自分の保存中の留保もここに置く（新しい queue を作らない、P3-UWR-RES-02）。
   private readonly delayedInputs = new Map<ExecutionPlace, ParserEnvelope>();
+  // P3-UWR-AC04: 非緊急の実行場所ごとの、保存で留保した入力を置いた時刻（注入時計の monotonic）。再保存へ切り替えても延ばさない。
+  private readonly holdSince = new Map<ExecutionPlace, number>();
+  // P3-UWR-HOLD-REPEAT=A: 留保が満了した時に出ていた自分の権。その checkpointDone を反映するまで、その owner の入力を再び留保しない。
+  private readonly holdSpent = new Map<ExecutionPlace, readonly string[]>();
   // The latest owner reply already handed to the mailbox's worker-response record (once per tick, P3-C3B-AC07).
   private recordedResponse = -Infinity;
   private readonly restored = new Map<ExecutionPlace, Extract<OwnerReply, { kind: "restored" }>>();
@@ -575,6 +580,9 @@ class RuntimeCompositionRoot {
         monitor.sent.deadline = null;
         this.outstanding[place].deadline = false;
         this.ownerOutput(place, reply.output, null);
+        // P3-UWR-AC03: 反映 → 権の再評価 → 入力を送ってよいかの判定。
+        this.reevaluate();
+        this.sendDelayedInputs();
         break;
       case "intentUpdateDone": this.intentUpdateDone(place, reply); break;
       case "checkpointDone": this.checkpointDone(place, reply); break;
@@ -609,6 +617,8 @@ class RuntimeCompositionRoot {
     monitor.removed = this.mailbox.removePlace(place);
     this.inFlightInputs.delete(place);
     this.delayedInputs.delete(place);
+    this.holdSince.delete(place);
+    this.holdSpent.delete(place);
     this.outstanding[place] = { deadline: false, shutdownInput: false };
     for (const [requestId, request] of this.intentRequests) if (request.place === place) {
       this.intentRequests.delete(requestId);
@@ -767,21 +777,50 @@ class RuntimeCompositionRoot {
 
   // P3-C3B-INTENT-RECLAIM (A): the input's own units' expired intents are reclaimed before it, so a full intent capacity
   // of monotonic-expired notices does not block it. While that update is held behind its slot the input waits.
+  // P3-UWR-AC04: 非緊急の owner は、自分の保存中もその入力を留保する（2 つの遅延は別に判定し、両方が消えたときだけ送る）。
   private sendInput(place: ExecutionPlace, envelope: ParserEnvelope): void {
-    this.reclaimExpired(this.clock(), placeUnits(place));
-    if (this.heldUpdates.some((update) => executionPlaces[update.unit] === place)) this.delayedInputs.set(place, envelope);
+    const clock = this.clock();
+    this.reclaimExpired(clock, placeUnits(place));
+    if (this.inputWaits(place, clock.monotonicMs)) this.delayedInputs.set(place, envelope);
     else this.post(place, { kind: "input", envelope });
   }
 
-  // Only while inputs still go to the owners (the drain stage at the latest, Y1).
-  private sendDelayedInputs(): void {
+  // Only while inputs still go to the owners (the drain stage at the latest, Y1). 留保の満了も、ここで tick と owner の返信ごとに判定する。
+  private sendDelayedInputs(clock: ClockReading = this.clock()): void {
     const { stage } = this.state.shutdown;
     if (stage !== "running" && stage !== "mailboxDrain") return;
     for (const [place, envelope] of this.delayedInputs)
-      if (!this.heldUpdates.some((update) => executionPlaces[update.unit] === place)) {
+      if (!this.inputWaits(place, clock.monotonicMs)) {
         this.delayedInputs.delete(place);
         this.post(place, { kind: "input", envelope });
       }
+  }
+
+  private inputWaits(place: ExecutionPlace, nowMs: number): boolean {
+    const saving = this.ownSaveHold(place, nowMs);
+    return this.heldUpdates.some((update) => executionPlaces[update.unit] === place) || saving;
+  }
+
+  // P3-UWR-AC04: 自分の実行場所の unit の権が出ている間だけ留保する（他 unit の権は見ない）。urgent と running の外では留保しない
+  // （spec §7.5、P3-UWR-AC07）。上限は置いた時から 1,000 ms（P3-UWR-HOLD-LIMIT=A）。満了しても権は回収しない（P3-UWR-AC05）。
+  private ownSaveHold(place: ExecutionPlace, nowMs: number): boolean {
+    const own = place === "urgent" || this.state.shutdown.stage !== "running" ? []
+      : placeUnits(place).flatMap((unit) => this.checkpoint.grantOf(unit)?.grantId ?? []);
+    const spent = this.holdSpent.get(place);
+    if (spent != null && spent.some((grantId) => own.includes(grantId))) return false;
+    this.holdSpent.delete(place);
+    if (own.length === 0) {
+      this.holdSince.delete(place);
+      return false;
+    }
+    const since = this.holdSince.get(place) ?? nowMs;
+    if (nowMs - since < 1_000) {
+      this.holdSince.set(place, since);
+      return true;
+    }
+    this.holdSince.delete(place);
+    this.holdSpent.set(place, own);
+    return false;
   }
 
   // Waits until the mailbox has nothing pending or in flight, or until active() turns false (the drain stage).
@@ -811,6 +850,9 @@ class RuntimeCompositionRoot {
     const reflectedAt = this.measuring == null ? null : performance.now(); // E14 の起点は反映の時点（通知の評価・射影の時間を含めない）
     const adopted = this.ownerOutput(place, reply.output, settlement.runId === state.runId ? settlement.inputSequence : null); if (!adopted && reconnected) this.project([], [], this.clock());
     this.onInputDone(reply); if (this.measuring != null && adopted && reflectedAt != null) observeGenerationRaised(this.measuring, settlement.runId, reply, reflectedAt);
+    // P3-UWR-AC02・AC03: 処理を終えた owner の unit へ、次の入力を送る前に権を出す。
+    this.reevaluate();
+    this.sendDelayedInputs();
     this.pump();
   }
 
@@ -827,6 +869,8 @@ class RuntimeCompositionRoot {
       this.recordedResponse = latest;
       if (latest > (this.mailbox.stats(clock.monotonicMs).lastWorkerResponseMonotonicMs ?? -Infinity)) this.mailbox.recordWorkerResponse(latest);
     }
+    // P3-UWR-AC04: 満了した留保の入力は、同じ tick の期限要求より先に送る（owner は届いた順に適用する）。
+    this.sendDelayedInputs(clock);
     if (!this.requestsStopped && state.shutdown.finalizationAt == null)
       for (const place of places) if (!this.monitors[place].stopped && !this.outstanding[place].deadline) {
         this.outstanding[place].deadline = true;
@@ -1165,7 +1209,8 @@ class RuntimeCompositionRoot {
         reservationSentMonotonicMs: adoption.sentMs, replyReceivedMonotonicMs: replyReceivedMs, adopted: reply.adopted, attemptStartedMonotonicMs: attemptStartedMs });
     }
     this.flushHeldUpdates();
-    this.sendDelayedInputs();
+    this.reevaluate(clock);
+    this.sendDelayedInputs(clock);
     this.evaluateDelivery(clock);
     // E08: a reply that changed neither a unit nor a channel is not projected.
     if (changed || this.state.notificationChannels !== channels) this.project(reply.output.outcomes, reply.output.displayChanges, clock);
@@ -1220,17 +1265,24 @@ class RuntimeCompositionRoot {
     return { "U-E": mirror["U-E"].persistence, "U-W": mirror["U-W"].persistence, "U-F": mirror["U-F"].persistence };
   }
 
-  // P2-A10-AC12: at most one save or reconciliation in the whole process; the host calls it on every tick.
-  // Resolves once the grant it issued (if any) has been answered.
+  // P2-A10-AC12・P3-UWR-AC01: unit ごとに保存か照合を最大 1 件。host の tick ごとと、owner の返信の反映ごと（P3-UWR-AC03）に呼ぶ。
+  // この呼出しで出した権が全部返ったら解決する。
   driveCheckpoint(): Promise<void> {
+    const grants = this.reevaluate();
+    if (grants.length === 0) return Promise.resolve();
+    return this.until(() => grants.every((grant) => this.checkpoint.grantOf(grant.unit)?.grantId !== grant.grantId));
+  }
+
+  // running の間だけ権を出す。停止した owner の unit（P3-C3B-AC02）と、送出済みで inputDone が未着の入力を持つ実行場所の unit
+  // （P3-UWR-AC02。留保して未送出の入力は数えない）には出さない。出ている権の監視は呼出しのたびに回る。
+  private reevaluate(clock: ClockReading = this.clock()): readonly CheckpointGrant[] {
     const state = this.state;
-    if (state.shutdown.stage !== "running") return Promise.resolve();
-    // A stopped owner's unit gets no grant (P3-C3B-AC02); the monitor of a right still out runs on every call.
-    const grant = this.checkpoint.next(this.persistence(), this.clock(), state.runId,
-      { excluded: new Set(runtimeUnits.filter((unit) => this.stoppedUnit(unit))) });
-    if (grant == null) return Promise.resolve();
-    this.postGrant(grant);
-    return this.until(() => this.checkpoint.grant?.grantId !== grant.grantId);
+    if (state.shutdown.stage !== "running") return [];
+    const busy = (place: ExecutionPlace) => this.monitors[place].stopped || this.inFlightInputs.has(place) && !this.delayedInputs.has(place);
+    const grants = this.checkpoint.next(this.persistence(), clock, state.runId,
+      { excluded: new Set(runtimeUnits.filter((unit) => busy(executionPlaces[unit]))) });
+    for (const grant of grants) this.postGrant(grant);
+    return grants;
   }
 
   // 送出時刻は post の前に取る（owner は別 thread で、post の直後に着手しうる）。
@@ -1282,28 +1334,29 @@ class RuntimeCompositionRoot {
     if (this.late(place)) return;
     if (reply.measurements.length !== 0) this.onMeasurements(reply.measurements);
     this.ownerOutput(place, reply.output, null);
-    // Declined (nothing to save at grant time): the next candidate needs no new tick.
-    if (reply.result == null) void this.driveCheckpoint();
+    // P3-UWR-AC03・AC06: 結果を問わず、反映の後に権を再評価する（保存中に上がった世代の unit へ次の権、辞退の後の次の候補）。
+    this.reevaluate(clock);
+    this.sendDelayedInputs(clock);
   }
 
-  // Returns true when the write right is held by an owner treated as stopped: it is never released, so the stage ends at
-  // once instead of waiting out its limit (P3-C3B-AC03).
+  // Returns true when a write right is held by an owner treated as stopped: it is never released, so the stage ends at
+  // once instead of waiting out its limit (P3-C3B-AC03). P3-UWR-AC07: 権の Map でも今の挙動を保つ（どれかの権を停止扱いの
+  // owner が持てば段を終え、そうでなければ権が全部返ってから 1 つずつ渡す）。
   private async saveFinalGenerations(active: () => boolean, unfixed: ReadonlySet<RuntimeUnitId>): Promise<boolean> {
     const attempted = new Set<RuntimeUnitId>(unfixed);
+    const heldByExcluded = () => this.checkpoint.grants.some((grant) => this.shutdownExcluded(executionPlaces[grant.unit]));
     while (active()) {
-      const held = this.checkpoint.grant;
-      if (held != null) {
-        const holder = executionPlaces[held.unit];
-        if (this.shutdownExcluded(holder)) return true;
-        await this.until(() => this.checkpoint.grant == null || this.shutdownExcluded(holder), active);
+      if (this.checkpoint.grants.length !== 0) {
+        if (heldByExcluded()) return true;
+        await this.until(() => this.checkpoint.grants.length === 0 || heldByExcluded(), active);
         continue;
       }
       // An owner that stopped after its finalizeDone gets no grant: post() would not send it, and the right it then
       // seemed to hold would end the stage for every other unit. Its unsaved unit stays counted by its persistence.
       for (const unit of runtimeUnits) if (this.stoppedUnit(unit)) attempted.add(unit);
       const state = this.state;
-      const grant = this.checkpoint.next(this.persistence(), this.clock(), state.runId,
-        { force: true, reconcile: false, excluded: attempted });
+      const [grant] = this.checkpoint.next(this.persistence(), this.clock(), state.runId,
+        { force: true, reconcile: false, excluded: attempted, limit: 1 });
       if (grant == null) return false;
       attempted.add(grant.unit);
       this.postGrant(grant);
@@ -1331,8 +1384,7 @@ class RuntimeCompositionRoot {
     // A delayed input was never sent, so no reply will settle it; it stays in flight in the mailbox (remainingInputs).
     for (const place of this.inFlightInputs.keys()) if (live(place) && !this.delayedInputs.has(place)) return false;
     for (const request of this.intentRequests.values()) if (live(request.place)) return false;
-    const grant = this.checkpoint.grant;
-    return (grant == null || !live(executionPlaces[grant.unit]))
+    return this.checkpoint.grants.every((grant) => !live(executionPlaces[grant.unit]))
       && places.every((place) => !live(place) || !this.outstanding[place].deadline && !this.outstanding[place].shutdownInput);
   }
 
@@ -1345,6 +1397,7 @@ class RuntimeCompositionRoot {
     this.finalization = finalization;
     await this.until(() => this.quiet(), active);
     this.delayedInputs.clear();
+    this.holdSince.clear();
     if (!active()) return;
     const cutoff = this.clock();
     finalization.cutoff = cutoff;
@@ -1403,7 +1456,11 @@ class RuntimeCompositionRoot {
         const effect: RuntimeEffect = effects[0];
         const stage = this.state.shutdown.stage;
         if (stage === "running" || stage === "completed") throw new Error("unexpected shutdown effect");
-        if (effect.kind === "stopInputAndDrainMailbox") this.mailbox.beginDrain(this.clock().monotonicMs);
+        if (effect.kind === "stopInputAndDrainMailbox") {
+          this.mailbox.beginDrain(this.clock().monotonicMs);
+          // P3-UWR-AC07: tick の無い drain で段の期限まで残らないよう、自分の保存中の留保をここで解く（期限切れの更新による遅延は残す）。
+          this.sendDelayedInputs();
+        }
         let batchFailed = false;
         let rightHeldByStopped = false;
         if (effect.kind === "closeRuntimeWorkers")
@@ -1529,7 +1586,8 @@ function unsavedMarks(): Record<RuntimeUnitId, UnsavedMark> {
 function observeGenerationRaised(measuring: Measuring, runId: string, reply: InputDone, at: number): void {
   for (const unit of runtimeUnits) {
     const generation = reply.inputGenerations?.[unit];
-    if (generation != null) measuring.observe({ kind: "generationRaised", runId, inputId: reply.settlement.inputId, unit, generation, monotonicMs: at });
+    if (generation != null) measuring.observe({ kind: "generationRaised", runId, inputId: reply.settlement.inputId, unit, generation, monotonicMs: at,
+      ownerMonotonicMs: reply.generationRaisedMs });
   }
 }
 

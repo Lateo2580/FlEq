@@ -181,8 +181,9 @@ describe("P3-C4-T05 contractBoundary / AC04, AC05: E14 and E15 observations on f
     const skew = { ms: 0 };
     const { h, observed, update } = await measuredRuntime(true, () => ({ wallTimeMs: 1_800_000_000_000 + performance.now() + skew.ms,
       monotonicMs: performance.now() + skew.ms }));
-    await update(dirtySeries());
+    // The input saves at once (P3-UWR-AC03): its reply is held from the start (AC10(7)).
     h.hold((_place, reply) => reply.kind === "checkpointDone");
+    await update(dirtySeries());
     void h.root.driveCheckpoint();
     await h.settle();
     expect(h.held).toHaveLength(1);
@@ -198,8 +199,9 @@ describe("P3-C4-T05 contractBoundary / AC04, AC05: E14 and E15 observations on f
 
   it("(4) the held reply answered during the stop, with the final save and the exit done, is confirmed with its write", async () => {
     const { h, observed, measurements, update } = await measuredRuntime();
-    await update(dirtySeries());
+    // The input saves at once (P3-UWR-AC03): its reply is held from the start (AC10(7)).
     const release = h.hold((_place, reply) => reply.kind === "checkpointDone");
+    await update(dirtySeries());
     void h.root.driveCheckpoint();
     await h.settle();
     expect(h.held).toHaveLength(1);

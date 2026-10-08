@@ -134,6 +134,8 @@ describe("P2-A3-A8-LINK composition root display wiring", () => {
     await parse(h, decode("37_01_01_240613_VXSE43", "VXSE43"), clock());
     expect(published.at(-1)!.notices).toMatchObject([{ kind: "eewNew", expiresAt: EEW_AT + 15_000 }]);
     const count = published.length;
+    // The expiry adoption below saves at once (P3-UWR-AC03); that save's reply is not part of what is counted (AC10(7)).
+    h.hold((_place, reply) => reply.kind === "checkpointDone");
     now.wallTimeMs = EEW_AT + 14_999;
     vi.advanceTimersByTime(14_999);
     await h.settle();
@@ -226,8 +228,9 @@ describe("P2-A3-A8-LINK composition root display wiring", () => {
     expect(startup).toMatchObject({ status: 200, body: { sequence: 1, channels: { desktop: "checking" } } });
     const stream = await events(server.port);
     await until(() => stream.snapshots.length === 1);
-    await parse(first.h, decode("15_16_02_251222_VPWW57", "VPWW57"), first.clock());
+    // The input saves at once (P3-UWR-AC03): the fault comes before it (AC10(7)).
     files.control.fail = true;
+    await parse(first.h, decode("15_16_02_251222_VPWW57", "VPWW57"), first.clock());
     await save(first.h);
     files.control.fail = false;
     await until(() => stream.snapshots.at(-1)?.persistence["U-W"]?.kind === "failed");
@@ -250,6 +253,8 @@ describe("P2-A3-A8-LINK composition root display wiring", () => {
     const followUp = decode("15_16_02_251222_VPWW57", "VPWW57", (xml) => atTime(xml, "2020-06-22T23:01:00+09:00"), "follow-up");
     // P2-A10-AC13: lastInputAt is set at the receive callback (the host), no longer at parser completion.
     second.root.recordInput(second.clock().wallTimeMs);
+    // The follow-up saves at once (P3-UWR-AC03); its reply is held so the pending snapshot is the last one (AC10(7)).
+    second.h.hold((_place, reply) => reply.kind === "checkpointDone");
     await parse(second.h, followUp, second.clock());
     await until(() => stream.snapshots.at(-1)!.sequence === 2);
     expect(stream.snapshots.at(-1)).toMatchObject({ streamId: restarted.streamId,
@@ -270,12 +275,16 @@ describe("P2-A3-A8-LINK composition root display wiring", () => {
     const stream = await events(server.port);
     await until(() => stream.snapshots.length === 1);
     await probe(h, clock());
+    // The input saves at once (P3-UWR-AC03); that save's reply waits until the markers are read (AC10(7)).
+    const release = h.hold((_place, reply) => reply.kind === "checkpointDone");
     await parse(h, decode("37_01_01_240613_VXSE43", "VXSE43"), clock());
     root.tick(clock());
     await h.settle();
     await until(() => stream.snapshots.length === 3);
     // Sequence 1 was published before the client connected; its T4 comes at connection.
     expect(markers).toEqual(["T3:1", "T4:1", "T3:2", "T4:2", "T3:3", "T4:3"]);
+    release();
+    h.release();
     // Shutdown clears the unref'd notice reservation so no tick runs after cleanup.
     await root.shutdownRuntime(1, clock());
   });

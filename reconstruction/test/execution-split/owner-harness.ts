@@ -30,6 +30,48 @@ type Held = (place: ExecutionPlace, reply: OwnerReply) => boolean;
 
 const places = ["urgent", "weatherCurrent", "deferred"] as const satisfies readonly ExecutionPlace[];
 
+// P3-UWR-AC10(8): owner の checkpoint I/O の呼出しのうち、まだ終わっていないもの。settle() はそれが全部終わるまで待つ。試験が
+// 意図して止める呼出しは、その fake の中で park(gate) を同期の部分で呼んで登録し、gate が解けるまでは待たない。無いと、即時の
+// 保存（AC03）と留保（AC04）で settle() の後に保存の返信や入力が未適用で残る。
+type Io = { parked: number };
+let calling: Io | null = null;
+function trackedFileSystem(fileSystem: CheckpointFileSystem, pending: Set<Io>): CheckpointFileSystem {
+  const track = <T>(call: () => Promise<T>): Promise<T> => {
+    const io: Io = { parked: 0 };
+    pending.add(io);
+    calling = io;
+    let promise: Promise<T>;
+    try { promise = call(); } catch (error) { pending.delete(io); throw error; } finally { calling = null; }
+    const done = () => { pending.delete(io); };
+    promise.then(done, done);
+    return promise;
+  };
+  // Methods are called on the given object: a class-based fake keeps them on its prototype, which a spread would drop.
+  return { readFile: (path) => fileSystem.readFile(path), unlinkSync: (path) => fileSystem.unlinkSync(path),
+    mkdir: (path) => track(() => fileSystem.mkdir(path)),
+    rename: (from, to) => track(() => fileSystem.rename(from, to)),
+    syncDirectory: (path) => track(() => fileSystem.syncDirectory(path)),
+    open: (path) => track(() => fileSystem.open(path).then((handle) => ({ write: (data: Uint8Array) => track(() => handle.write(data)),
+      sync: () => track(() => handle.sync()), close: () => track(() => handle.close()) }))) };
+}
+
+// A test's gate inside a checkpoint file-system fake: the call that awaits it is not waited for by settle() until it
+// opens. Called in the fake's synchronous part (before its first await), so the call it belongs to is known.
+function park<T extends Promise<unknown> | null | undefined>(gate: T): T {
+  if (gate == null) return gate;
+  const io = calling;
+  if (io == null) throw new Error("park() outside the synchronous part of a checkpoint file-system call");
+  io.parked += 1;
+  const open = () => { io.parked -= 1; };
+  gate.then(open, open);
+  return gate;
+}
+
+// The hang check of settle(), apart from its completion check: real time, read through a reference taken before any
+// test fakes the clock.
+const realNow = performance.now.bind(performance);
+const settleLimitMs = 10_000;
+
 // runtimeCalls: the unit rows go to the owners (and give the publisher its confirmation limits); the notification
 // calls go to the publisher. codecs: as the composition root takes them; the owners get the same.
 function harnessedRoot(config: AppConfig, codecs: CodecMap<RuntimeUnitStates> = linkedUnitCodecs,
@@ -51,11 +93,15 @@ function harnessedRoot(config: AppConfig, codecs: CodecMap<RuntimeUnitStates> = 
   const sent: { place: ExecutionPlace; request: OwnerRequest }[] = [];
   let scheduled = false;
   let manual = false;
+  const pendingIo = new Set<Io>();
+  let looked = 0;
+  const fileSystem = trackedFileSystem(options.checkpointFileSystem ?? nodeCheckpointFileSystem(), pendingIo);
+  const ioRunning = () => [...pendingIo].some((io) => io.parked === 0);
   const owners = new Map(places.map((place) => [place, new OwnerHost({
     start: { place, stateDirectory: config.stateDirectory, publisherTimeOriginMs: 0, measured: options.owners?.measured ?? false,
       inputHeap: options.owners?.inputHeap ?? false },
     units: options.runtimeCalls?.units ?? linkedUnitTable, codecs,
-    fileSystem: options.checkpointFileSystem ?? nodeCheckpointFileSystem(), sharedNow,
+    fileSystem, sharedNow,
     reply: (reply) => { replies.push({ place, reply: structuredClone(reply) }); schedule(); },
     fail: (error) => { failures.push(error); },
   })] as const));
@@ -98,15 +144,18 @@ function harnessedRoot(config: AppConfig, codecs: CodecMap<RuntimeUnitStates> = 
   }
   return {
     root, owners, sent,
-    // Waits until no request or reply is queued for `turns` consecutive event-loop turns. Owner file operations are not
-    // counted: a test that needs a write to end awaits root.driveCheckpoint() (or a held reply) instead.
+    // Waits until no request or reply is queued for `turns` consecutive event-loop turns and every owner checkpoint I/O
+    // call has ended, except the calls parked at a test's gate (P3-UWR-AC10(8)). An input held by the own-save hold is not
+    // waited for. Throws when that takes longer than settleLimitMs (a hang, or a gate not parked).
     async settle(turns = 3): Promise<void> {
+      const limit = realNow() + settleLimitMs;
       for (let quiet = 0; quiet < turns;) {
         const before = requests.length + replies.length;
         try { flush(); } catch (error) { failures.push(error); }
         await new Promise((done) => setImmediate(done));
         if (failures.length !== 0) throw failures.shift();
-        quiet = before === 0 && requests.length + replies.length === 0 ? quiet + 1 : 0;
+        quiet = before === 0 && requests.length + replies.length === 0 && !ioRunning() ? quiet + 1 : 0;
+        if (quiet < turns && realNow() > limit) throw new Error(`settle(): not settled after ${settleLimitMs} ms (owner checkpoint I/O not parked?)`);
       }
     },
     flush,
@@ -134,6 +183,12 @@ function harnessedRoot(config: AppConfig, codecs: CodecMap<RuntimeUnitStates> = 
       schedule();
     },
     heldRequests,
+    // P3-UWR-AC10(7): the checkpointDone replies delivered since the previous call, the immediate saves (AC03) included.
+    newDone(): Extract<OwnerReply, { kind: "checkpointDone" }>[] {
+      const from = looked;
+      looked = delivered.length;
+      return delivered.slice(from).flatMap(({ reply }) => reply.kind === "checkpointDone" ? [reply] : []);
+    },
     // Delivers one held reply a second time (duplicate delivery).
     redeliver(place: ExecutionPlace, reply: OwnerReply): void { root.receive(place, structuredClone(reply)); },
     held,
@@ -251,5 +306,5 @@ function manualAdapter() {
   };
 }
 
-export { envelope, harnessedRoot, idleChannels, manualAdapter, places, seeded, startHarness, submit, unitBodies };
+export { envelope, harnessedRoot, idleChannels, manualAdapter, park, places, seeded, startHarness, submit, unitBodies };
 export type { Harness, Owners };

@@ -16,7 +16,7 @@ import { linkedUnitCodecs, nodeCheckpointFileSystem } from "../../src/runtime/co
 import { initialUnits } from "../../src/runtime/owner-runtime";
 import { fixtureDriver, fixtureState, recordingNotificationAdapter, stringCodec } from "../checkpoint-shutdown/runtime-fixture";
 import { calls, eewEnvelope, notice } from "../notification-delivery/delivery-fixture";
-import { envelope, harnessedRoot, idleChannels, manualAdapter, seeded, startHarness, submit, unitBodies } from "./owner-harness";
+import { envelope, harnessedRoot, idleChannels, manualAdapter, park, seeded, startHarness, submit, unitBodies } from "./owner-harness";
 import type { Harness } from "./owner-harness";
 
 const directories: string[] = [];
@@ -34,13 +34,13 @@ const fixture = (name: string) => readFileSync(`test/fixtures/${name}.xml`);
 const doneReplies = (h: Harness) => h.delivered.flatMap(({ place, reply }) => reply.kind === "checkpointDone" ? [{ place, reply }] : []);
 const grantsOf = (h: Harness) => h.sent.flatMap(({ request }) => request.kind === "checkpointGrant" ? [request] : []);
 
-// One write-right grant (if any is due) and the owner's checkpointDone reply to it.
+// The write rights due now and the owner's checkpointDone replies since the previous look, the immediate saves after
+// inputs included (P3-UWR-AC03, AC10(7)).
 async function granted(h: Harness) {
-  const from = h.delivered.length;
   const released = h.root.driveCheckpoint();
   await h.settle();
   await released;
-  return h.delivered.slice(from).flatMap(({ reply }) => reply.kind === "checkpointDone" ? [reply] : []);
+  return h.newDone();
 }
 
 // Every object reachable from a value (arrays included), for checks over whole requests and replies.
@@ -84,8 +84,10 @@ describe("P3-C3A execution split (TEST-PATH (2): publisher with in-process owner
     const h = harnessedRoot(config(), linkedUnitCodecs, { clock: () => now, notificationAdapter: adapter.adapter });
     await startHarness(h, "t03", now);
     await submit(h, envelope("t03", "VXSE43", "eew", fixture("37_01_01_240613_VXSE43"), now, 1),
-      envelope("t03", "VPWS50", "national", fixture("15_18_01_250630_VPWS50"), now, 2),
-      envelope("t03", "VPWP50", "series", fixture("81_02_01_260605_VPWP50_high_severity"), now, 3));
+      envelope("t03", "VPWS50", "national", fixture("15_18_01_250630_VPWS50"), now, 2));
+    // Each input saves at once (P3-UWR-AC03): the save counted below is the last input's (AC10(7)).
+    h.newDone();
+    await submit(h, envelope("t03", "VPWP50", "series", fixture("81_02_01_260605_VPWP50_high_severity"), now, 3));
     now = { wallTimeMs: now.wallTimeMs + 2_000, monotonicMs: 2_001 };
     h.root.tick(now);
     await h.settle();
@@ -98,7 +100,7 @@ describe("P3-C3A execution split (TEST-PATH (2): publisher with in-process owner
       shutdownInput: ["clock", "kind", "sharedMs"], finalize: ["clock", "cutoff", "kind", "sharedMs"],
     };
     const replyKeys: Readonly<Record<OwnerReply["kind"], readonly string[]>> = {
-      restored: ["kind", "output", "units"], inputDone: ["decode", "heap", "inputGenerations", "kind", "marks", "output", "processingStartedMs", "settlement"],
+      restored: ["kind", "output", "units"], inputDone: ["decode", "generationRaisedMs", "heap", "inputGenerations", "kind", "marks", "output", "processingStartedMs", "settlement"],
       deadlineDone: ["heap", "kind", "output"], intentUpdateDone: ["adopted", "kind", "output", "requestId"],
       checkpointDone: ["grantId", "grantStartedMs", "kind", "measurements", "output", "result", "unit", "writeCounts"],
       shutdownInputDone: ["kind", "output"], finalizeDone: ["appliedThrough", "kind", "output"],
@@ -153,7 +155,7 @@ describe("P3-C3A execution split (TEST-PATH (2): publisher with in-process owner
     const files = nodeCheckpointFileSystem();
     let gated = true;
     const h = harnessedRoot(config(), linkedUnitCodecs, { clock: () => now, notificationAdapter: recordingNotificationAdapter(),
-      checkpointFileSystem: { ...files, syncDirectory: async (path) => { if (gated) await gate; return files.syncDirectory(path); } } });
+      checkpointFileSystem: { ...files, syncDirectory: async (path) => { if (gated) await park(gate); return files.syncDirectory(path); } } });
     await startHarness(h, "t05", now, false);
     await submit(h, envelope("t05", "VXSE43", "first", fixture("37_01_01_240613_VXSE43"), now, 1));
     // The owner captures g1 and holds its directory sync; g2 is adopted after the capture.
@@ -165,6 +167,8 @@ describe("P3-C3A execution split (TEST-PATH (2): publisher with in-process owner
     const before = h.unit("U-E");
     expect(before.persistence.currentGeneration).toBe(2);
     gated = false;
+    // The g2 save the g1 ack starts at once (P3-UWR-AC03) waits until granted() below.
+    const holding = h.holdRequests((_place, request) => request.kind === "checkpointGrant");
     release();
     await first;
     await h.settle();
@@ -176,6 +180,9 @@ describe("P3-C3A execution split (TEST-PATH (2): publisher with in-process owner
     expect(after.current).toBe(before.current);
     expect(after.intents).toBe(before.intents);
     expect(h.root.state.mirror["U-E"].persistence).toMatchObject({ kind: "pending", savedGeneration: 1, dirtySince: 1_010 });
+    holding();
+    h.newDone();
+    h.releaseRequests();
     expect((await granted(h)).map((reply) => reply.result)).toMatchObject([{ kind: "acknowledged", generation: 2 }]);
     expect(h.root.state.mirror["U-E"].persistence).toMatchObject({ kind: "saved", currentGeneration: 2, savedGeneration: 2 });
     await h.root.diagnostics.flush();
@@ -350,7 +357,8 @@ describe("P3-C3A execution split (TEST-PATH (2): publisher with in-process owner
     await Promise.all([split.root.diagnostics.flush(), sequential.root.diagnostics.flush()]);
 
     // (2) An update the owner applies after a grant was sent but before it is applied is in the capture; capturedAt is
-    // the grant's application time and ackAt follows the directory sync.
+    // the grant's application time and ackAt follows the directory sync. P3-UWR-AC02 (AC10(9)): a parser input sent first
+    // keeps the grant back until its inputDone, so the update comes with a deadline request, which AC02 does not wait for.
     {
       let real = 0;
       const clock = { wallTimeMs: 1_800_000_000_000, monotonicMs: 100 };
@@ -362,18 +370,30 @@ describe("P3-C3A execution split (TEST-PATH (2): publisher with in-process owner
       await startHarness(h, "t12", clock);
       const dirty = (generation: number) => fixtureState({ "U-F": `v${generation}` }, { "U-F": { kind: "pending",
         currentGeneration: generation, savedGeneration: null, savedCapturedAt: null, savedAckAt: null, dirtySince: 1 } }, "t12");
+      // g1's own save fails, so U-F is still dirty when its retry is due.
+      files.fault.unit = "U-F";
+      files.fault.stage = "write";
       await driver.update(h, dirty(1), clock);
+      files.fault.stage = null;
+      clock.monotonicMs = 1_100;
       h.pause();
+      // The driver's target is g2 (its input stays in the mailbox); the deadline request carries g2 to the owner, and the
+      // due retry's grant is sent after it.
+      const from = h.sent.length;
       driver.queue(h, dirty(2), clock);
-      h.root.pump();
+      h.root.tick(clock);
       const released = h.root.driveCheckpoint();
       real += 3;
       await h.settle();
       await released;
-      const [done] = doneReplies(h);
+      const done = doneReplies(h).at(-1)!;
       expect(done.reply.result).toMatchObject({ kind: "acknowledged", generation: 2, ackAt: clock.wallTimeMs + 3 + 5 });
       expect(h.root.state.mirror["U-F"].persistence).toMatchObject({ kind: "saved", savedGeneration: 2,
         savedCapturedAt: clock.wallTimeMs + 3, savedAckAt: clock.wallTimeMs + 8 });
+      // P3-UWR-AC02: the deadline request still unanswered does not keep the right back (only a parser input sent and not
+      // answered does), and the parser input left in the mailbox is not handed over before the grant.
+      expect(h.sent.slice(from).filter(({ place }) => place === "deferred").map(({ request }) => request.kind))
+        .toEqual(["deadline", "checkpointGrant"]);
       await h.root.diagnostics.flush();
     }
 
@@ -405,6 +425,8 @@ describe("P3-C3A execution split (TEST-PATH (2): publisher with in-process owner
         // T0 at receive, T1 at enqueue (the host's measured clock).
         const input = { ...envelope("t12", "VXSE43", "offset", fixture("37_01_01_240613_VXSE43"), received, 1),
           enqueuedMonotonicMs: performance.now() };
+        // The input saves at once (P3-UWR-AC03); its reply waits so the dirty time below is read first (AC10(7)).
+        const saving = h.hold((_place, reply) => reply.kind === "checkpointDone");
         await submit(h, input);
         for (let turn = 0; turn < 20 && !markers.some((marker) => marker.point === "T4" && marker.sequence === 2); turn += 1)
           await new Promise((resolve) => setTimeout(resolve, 5));
@@ -422,6 +444,8 @@ describe("P3-C3A execution split (TEST-PATH (2): publisher with in-process owner
         expect(dirtySince - done.processingStartedMs).toBeGreaterThanOrEqual(offset - 1_000);
         expect(dirtySince - done.processingStartedMs).toBeLessThanOrEqual(offset + 1_000);
         const before = Date.now();
+        saving();
+        h.release();
         const [saved] = await granted(h);
         expect(saved.result!.kind).toBe("acknowledged");
         const capturedAt = h.root.state.mirror["U-E"].persistence.savedCapturedAt!;
@@ -500,17 +524,20 @@ describe("P3-C3A execution split (TEST-PATH (2): publisher with in-process owner
       const gate = new Promise<void>((resolve) => { release = resolve; });
       const files = nodeCheckpointFileSystem();
       const h = harnessedRoot(config(), linkedUnitCodecs, { clock: () => clock, notificationAdapter: recordingNotificationAdapter(),
-        checkpointFileSystem: { ...files, syncDirectory: async (path) => { await gate; return files.syncDirectory(path); } } });
+        checkpointFileSystem: { ...files, syncDirectory: async (path) => { await park(gate); return files.syncDirectory(path); } } });
       await startHarness(h, "t13", clock, false);
       await submit(h, envelope("t13", "VXSE43", "first", fixture("37_01_01_240613_VXSE43"), clock, 1));
-      const writing = h.root.driveCheckpoint();
-      await h.settle();
+      // The input saves at once (P3-UWR-AC03): that save is the one held at the gate (AC10(7)).
+      const writing = h.root.checkpoint.grantOf("U-E")!.grantId;
       clock = at(1_000);
       await submit(h, envelope("t13", "VXSE43", "second", fixture("37_01_02_240613_VXSE43"), clock, 2));
-      expect(h.root.checkpoint.grant).not.toBeNull();
+      expect(h.root.checkpoint.grantOf("U-E")).not.toBeNull();
       expect(h.delivered.some(({ reply }) => reply.kind === "inputDone" && reply.settlement.inputId === "second")).toBe(true);
       release();
-      await writing;
+      // The held save's reply is applied and returns its right (settle() waits for the I/O the gate let go).
+      await h.settle();
+      expect(h.newDone().map((reply) => reply.grantId)).toContain(writing);
+      expect(h.root.checkpoint.grantOf("U-E")?.grantId).not.toBe(writing);
       await h.root.diagnostics.flush();
     }
 
@@ -599,12 +626,13 @@ describe("P3-C3A execution split (TEST-PATH (2): publisher with in-process owner
       const h = harnessedRoot(config(), codecs, { clock: () => clock, notificationAdapter: recordingNotificationAdapter(),
         runtimeCalls: { ...driver.calls, units }, checkpointFileSystem: faultyFiles().system });
       await startHarness(h, "t13", clock);
-      await driver.update(h, dirty("t13"), clock);
+      // U-F's input saves at once (P3-UWR-AC03): its reply is held from the start (AC10(7)).
       const release = h.hold((place, reply) => place === "deferred" && reply.kind === "checkpointDone");
+      await driver.update(h, dirty("t13"), clock);
       void h.root.driveCheckpoint();
       for (let turn = 0; turn < 50 && !h.held.some(({ reply }) => reply.kind === "checkpointDone"); turn += 1) await h.settle(1);
       expect(h.held.map(({ reply }) => reply.kind)).toEqual(["checkpointDone"]);
-      expect(h.root.checkpoint.grant?.unit).toBe("U-F");
+      expect(h.root.checkpoint.grantOf("U-F")?.unit).toBe("U-F");
       const granting = grantsOf(h).length;
       const stopping = h.root.shutdownRuntime(1, clock);
       await h.settle();
@@ -621,12 +649,12 @@ describe("P3-C3A execution split (TEST-PATH (2): publisher with in-process owner
       expect(stageResults.finalCheckpoint?.pending.unsavedUnits).toBe(3);
       expect(summary.code).toBe(2);
       expect(stageResults.workerClose?.result.kind).toBe("completed");
-      expect(h.root.checkpoint.grant).not.toBeNull();
+      expect(h.root.checkpoint.grantOf("U-F")).not.toBeNull();
       const mirror = h.root.state.mirror["U-F"];
       release();
       h.release();
       await h.settle();
-      expect(h.root.checkpoint.grant).toBeNull();
+      expect(h.root.checkpoint.grantOf("U-F")).toBeNull();
       expect(h.root.state.mirror["U-F"]).toBe(mirror);
       // AC09: the late reply is only counted (X5).
       expect(h.root.lateReplyCount).toBe(1);
@@ -641,10 +669,13 @@ describe("P3-C3A execution split (TEST-PATH (2): publisher with in-process owner
       vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
       const { driver, units } = recordingUnits(() => null);
       let clock = second(400);
-      const h = harnessedRoot(config(), codecs, { clock: () => clock, notificationAdapter: recordingNotificationAdapter(),
-        runtimeCalls: { ...driver.calls, units }, checkpointFileSystem: faultyFiles().system });
+      // The units become dirty in the drain stage, so they are saved by the final saves only (the running stage would save
+      // each input at once, P3-UWR-AC03; AC10(7)).
+      const h: Harness = harnessedRoot(config(), codecs, { clock: () => clock, notificationAdapter: recordingNotificationAdapter(),
+        runtimeCalls: { ...driver.calls, units }, checkpointFileSystem: faultyFiles().system,
+        shutdownHooks: { drainMailbox: (_deadline, active) => h.root.drainInputs(active) } });
       await startHarness(h, "t13", clock);
-      await driver.update(h, dirty("t13"), clock);
+      driver.queue(h, dirty("t13"), clock);
       const release = h.hold((place, reply) => place === "deferred" && reply.kind === "finalizeDone");
       const granting = grantsOf(h).length;
       const stopping = h.root.shutdownRuntime(1, clock);
@@ -884,32 +915,41 @@ describe("P3-C3A execution split (TEST-PATH (2): publisher with in-process owner
       await startHarness(h, "t09", clock());
       const pending = (dirtySince: number) => ({ kind: "pending" as const, currentGeneration: 1, savedGeneration: null,
         savedCapturedAt: null, savedAckAt: null, dirtySince });
-      await driver.update(h, fixtureState({ "U-W": "weather", "U-F": "series" }, { "U-W": pending(10), "U-F": pending(20) }, "t09"));
+      // U-W's input saves at once (P3-UWR-AC03) and its failure reply is held from the start: from the uncertain save's
+      // reconciliation on in the reconcile case, whose read then fails.
+      fault.unit = "U-W";
+      fault.stage = failure === "reconcile" ? "directorySync" : "write";
+      let replies = 0;
+      const release = h.hold((place, reply) => place === "weatherCurrent" && reply.kind === "checkpointDone"
+        && (failure === "write" || ++replies > 1));
+      const reconciling = h.holdRequests((place, request) => failure === "reconcile" && place === "weatherCurrent"
+        && request.kind === "checkpointGrant" && request.mode === "reconcile");
+      await driver.update(h, fixtureState({ "U-W": "weather" }, { "U-W": pending(10) }, "t09"));
       if (failure === "reconcile") {
-        // U-W reaches uncertain first; its reconciliation then cannot read and fails.
-        fault.unit = "U-W"; fault.stage = "directorySync";
-        expect((await granted(h)).map((reply) => [reply.unit, reply.result?.kind])).toEqual([["U-W", "uncertain"]]);
+        expect(doneReplies(h).map(({ reply }) => [reply.unit, reply.result?.kind])).toEqual([["U-W", "uncertain"]]);
         fault.stage = "read";
-      } else { fault.unit = "U-W"; fault.stage = "write"; }
-      // While U-W's reply is held, the dirty U-F gets no grant.
-      const release = h.hold((place, reply) => place === "weatherCurrent" && reply.kind === "checkpointDone");
-      void h.root.driveCheckpoint();
+      }
+      reconciling();
+      h.releaseRequests("weatherCurrent");
+      await driver.update(h, fixtureState({ "U-W": "weather", "U-F": "series" }, { "U-W": pending(10), "U-F": pending(20) }, "t09"));
       await h.settle();
       const held = h.held.map((item) => item.reply).find((reply) => reply.kind === "checkpointDone")!;
       expect(held).toMatchObject({ unit: "U-W", result: { kind: "failed" } });
-      const granting = grantsOf(h).length;
+      // P3-UWR-AC01 (AC10(9)): while U-W's right is out, the dirty U-F gets its own right and is acknowledged within 3 s;
+      // U-W gets no second right.
+      const [series] = doneReplies(h).flatMap(({ reply }) => reply.unit === "U-F" ? [reply] : []);
+      expect(series).toMatchObject({ unit: "U-F", result: { kind: "acknowledged" } });
+      expect(series.measurements.at(-1)!.endedMonotonicMs - 20).toBeLessThanOrEqual(3_000);
+      const granting = grantsOf(h).filter((grant) => grant.unit === "U-W").length;
       void h.root.driveCheckpoint();
-      expect(grantsOf(h)).toHaveLength(granting);
+      expect(grantsOf(h).filter((grant) => grant.unit === "U-W")).toHaveLength(granting);
       release();
       h.release();
       await h.settle();
+      h.newDone();
       fault.stage = null;
       const due = h.root.checkpoint.retryAfter("U-W");
       expect(due).toBe(now + 1_000);
-      // The ended failure returned the right: U-F is acknowledged within 3 s of becoming dirty.
-      const [series] = await granted(h);
-      expect(series).toMatchObject({ unit: "U-F", result: { kind: "acknowledged" } });
-      expect(series.measurements.at(-1)!.endedMonotonicMs - 20).toBeLessThanOrEqual(3_000);
       // A second delivery of the same grantId changes neither the mirror, the retry nor the right.
       const mirror = h.root.state.mirror["U-W"];
       h.redeliver("weatherCurrent", held);

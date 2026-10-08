@@ -11,7 +11,7 @@ import type { NotificationAttempt } from "../../contracts/p2-notification-delive
 import { resolveSoundAsset, selectNotificationAttempt } from "../../src/notification-delivery/notification-delivery";
 import { linkedUnitCodecs, nodeCheckpointFileSystem } from "../../src/runtime/composition-root";
 import type { PublisherState } from "../../src/runtime/shared-runtime";
-import { harnessedRoot, manualAdapter, seeded, startHarness, submit } from "../execution-split/owner-harness";
+import { harnessedRoot, manualAdapter, park, seeded, startHarness, submit } from "../execution-split/owner-harness";
 import { at, background, calls, eewEnvelope, notice } from "./delivery-fixture";
 
 vi.mock("node:fs", async importOriginal => {
@@ -223,7 +223,7 @@ describe("P2-A7 notification delivery", () => {
     const notices = manualAdapter();
     const h = harnessedRoot(settings, linkedUnitCodecs, { notificationAdapter: notices.adapter, runtimeCalls: gated, clock: () => clock });
     const restored = harnessedRoot(settings, linkedUnitCodecs, { notificationAdapter: notices.adapter, runtimeCalls: gated, clock: () => clock,
-      checkpointFileSystem: { ...files, open: async (path) => { await gate; return files.open(path); } } });
+      checkpointFileSystem: { ...files, open: async (path) => { await park(gate); return files.open(path); } } });
     try {
       await startHarness(h, "o07", clock, false);
       expect(h.root.state.notificationProbeComplete).toBe(false);
@@ -249,18 +249,19 @@ describe("P2-A7 notification delivery", () => {
       restored.root.dispatch({ kind: "notificationProbeCompleted", channels: testNotificationChannels, clock });
       await restored.settle();
       expect(Object.values(restored.root.state.notificationDeadlines.desktop)[0]).toEqual({ retryAtMonotonicMs: 500, expiresAtMonotonicMs: 15_000 });
+      // Separate fault: grant the selected generation's save but hold its acknowledgement while the adapter result arrives.
+      // The selection's adoption saves at once (P3-UWR-AC03), so the gate comes before it (AC10(7)).
+      let release!: () => void;
+      gate = new Promise<void>((resolve) => { release = resolve; });
       held = false;
       restored.root.tick(clock);
       await restored.settle();
       const attempt = notices.runs[0].attempt;
       const startedCount = notices.runs.length;
       expect(attempt.expiresAt).toBe(original[0].expiresAt);
-      // Separate fault: grant the selected generation's save but hold its acknowledgement while the adapter result arrives.
-      let release!: () => void;
-      gate = new Promise<void>((resolve) => { release = resolve; });
-      const delayed = restored.root.driveCheckpoint();
+      const delayed = restored.root.checkpoint.grantOf("U-E")?.grantId;
       await restored.settle();
-      expect(restored.root.checkpoint.grant).not.toBeNull();
+      expect(restored.root.checkpoint.grantOf("U-E")).not.toBeNull();
       expect(restored.root.state.mirror["U-E"].persistence.kind).not.toBe("saved");
       clock = at(600);
       notices.finish({ kind: "failed", reason: "adapterRejected",
@@ -269,8 +270,8 @@ describe("P2-A7 notification delivery", () => {
       const deadline = restored.root.state.notificationDeadlines[attempt.channel][JSON.stringify(["U-E", attempt.intentId])];
       expect(deadline).toEqual({ retryAtMonotonicMs: 1_600, expiresAtMonotonicMs: 15_000 });
       release();
-      await delayed;
       await restored.settle();
+      expect(restored.newDone().map((reply) => reply.grantId)).toContain(delayed);
       clock = { wallTimeMs: at(-1_000).wallTimeMs, monotonicMs: 1_599 };
       restored.root.tick(clock);
       await restored.settle();

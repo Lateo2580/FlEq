@@ -14,7 +14,7 @@ import type { OwnerReply } from "../../contracts/p3-execution-split.types";
 import { OwnerHost } from "../../src/runtime/owner-host";
 import { ingestXmlData } from "../../src/ingress/ingress";
 import { linkedRuntimeCalls, linkedUnitCodecs, nodeCheckpointFileSystem } from "../../src/runtime/composition-root";
-import { envelope, harnessedRoot, manualAdapter, startHarness, submit } from "../execution-split/owner-harness";
+import { envelope, harnessedRoot, manualAdapter, park, startHarness, submit } from "../execution-split/owner-harness";
 import type { Harness } from "../execution-split/owner-harness";
 import { deadlineOwner, receiveOwner, restoreOwner } from "../../src/runtime/owner-runtime";
 import type { OwnerState } from "../../src/runtime/owner-runtime";
@@ -276,13 +276,21 @@ describe("P2 unit wiring (A1 route, A3 composition root)", () => {
     const at = { wallTimeMs: 1_800_000_000_000, monotonicMs: 4 };
     for (const savedFirst of [false, true]) {
       const measured: string[][] = [];
-      const h = wired(await config(), { clock: () => at, onMeasurements: (items) => {
+      const h: Harness = wired(await config(), { clock: () => at, onMeasurements: (items) => {
         for (const item of items) if (item.unit === "U-W" && item.stage === "encode") measured.push([...item.inputIds]);
-      } });
+      }, shutdownHooks: { drainMailbox: (_deadline, active) => h.root.drainInputs(active) } });
       await startHarness(h, "run", at, false);
-      await send(h, "run", "15_16_02_251222_VPWW57", "VPWW57", at);
-      if (savedFirst) await save(h);
-      await send(h, "run", "15_16_02_251222_VPWW57", "VPWW57", at, (xml) => atTime(xml, "2020-06-22T22:59:00+09:00"), "stale");
+      // An input in the running stage saves at once (P3-UWR-AC03). Without the earlier save, both inputs come in the drain
+      // stage, so the first generation is still unsaved at the final save (AC10(7)).
+      const stale = envelope("run", "VPWW57", "stale", report("15_16_02_251222_VPWW57", (xml) => atTime(xml, "2020-06-22T22:59:00+09:00")),
+        at, inputSequence + 2);
+      if (savedFirst) {
+        await send(h, "run", "15_16_02_251222_VPWW57", "VPWW57", at);
+        await save(h);
+        await submit(h, stale);
+      } else for (const input of [envelope("run", "VPWW57", "15_16_02_251222_VPWW57", report("15_16_02_251222_VPWW57"), at, inputSequence + 1), stale])
+        h.root.mailbox.enqueue(input);
+      inputSequence += 2;
       expect((await h.root.shutdownRuntime(2, at)).code).toBe(0);
       expect(measured.at(-1)).toEqual(savedFirst ? [] : ["15_16_02_251222_VPWW57"]);
       await h.root.diagnostics.flush();
@@ -310,8 +318,9 @@ describe("P2 unit wiring (A1 route, A3 composition root)", () => {
     expect(h.root.state.mirror["U-W"].persistence.kind).toBe("saved");
 
     now++;
-    await send(h, "run-1", "15_16_02_251222_VPWW57", "VPWW57", clock(), (xml) => atTime(xml, "2020-06-22T23:01:00+09:00"), "second");
+    // The input saves at once (P3-UWR-AC03): the fault comes before it (AC10(7)).
     failWrite = true;
+    await send(h, "run-1", "15_16_02_251222_VPWW57", "VPWW57", clock(), (xml) => atTime(xml, "2020-06-22T23:01:00+09:00"), "second");
     await save(h);
     expect(h.root.state.mirror["U-W"].persistence.kind).toBe("failed");
     expect(h.unit("U-W").partials[0].source.inputId).toBe("second");
@@ -378,21 +387,32 @@ describe("P2 unit wiring (A1 route, A3 composition root)", () => {
     const openGate = new Promise<void>((resolve) => { releaseOpen = resolve; });
     const settings = await config();
     const h = wired(settings, { clock,
-      checkpointFileSystem: { ...files, open: async (path) => { signalOpen(); await openGate; return files.open(path); } },
+      checkpointFileSystem: { ...files, open: async (path) => { signalOpen(); await park(openGate); return files.open(path); } },
       onMeasurements: (items) => measured.push(...items.map(({ unit, generation, inputIds }) => ({ unit, generation, inputIds }))) });
     await startHarness(h, "run", clock(), false);
+    // The first input saves at once (P3-UWR-AC03). The second U-W input waits for the owner's own save (AC04) and reaches
+    // it at the 1,000 ms hold limit, by a tick; after that limit the third is not held (P3-UWR-HOLD-REPEAT). The third
+    // input is kept from the owner until the first ack, so that ack starts no save while it is in flight (AC02) and one
+    // save takes both (AC10(7)).
     await send(h, "run", "15_16_02_251222_VPWW57", "VPWW57", clock());
     const firstSave = h.root.driveCheckpoint();
     await openStarted;
     now++;
     // The owner applies this input while its own save waits on the file system (P3-C3A-AC15).
     await send(h, "run", "15_16_02_251222_VPWW57", "VPWW57", clock(), (xml) => atTime(xml, "2020-06-22T23:01:00+09:00"), "second");
+    now += 1_000;
+    h.root.tick(clock());
+    await h.settle();
+    const holding = h.holdRequests((place, request) => place === "weatherCurrent" && request.kind === "input");
+    now++;
+    await send(h, "run", "15_16_02_251222_VPWW57", "VPWW57", clock(), (xml) => atTime(xml, "2020-06-22T23:02:00+09:00"), "third");
     releaseOpen();
     await firstSave;
     await h.settle();
     expect(h.root.state.mirror["U-W"].persistence).toMatchObject({ currentGeneration: 2, savedGeneration: 1 });
-    now++;
-    await send(h, "run", "15_16_02_251222_VPWW57", "VPWW57", clock(), (xml) => atTime(xml, "2020-06-22T23:02:00+09:00"), "third");
+    holding();
+    h.releaseRequests("weatherCurrent");
+    await h.settle();
     await h.root.shutdownRuntime(1, clock());
 
     expect(measured.filter(({ unit }) => unit === "U-W").at(-1)?.inputIds)

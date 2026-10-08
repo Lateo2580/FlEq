@@ -506,8 +506,8 @@ describe("P2 weather-current unit", () => {
     adapter.seed(state, state.persistence.currentGeneration, NOW);
     const running = wired(adapter, clock(NOW, NOW), { "U-W": weatherCurrentUnitCodec });
     await startHarness(running, "weather-test", clock(NOW, NOW));
+    adapter.failWrite = true; // the input saves at once (P3-UWR-AC03; AC10(7))
     await send(running, "15_16_02_251222_VPWW57", (xml) => cancellation(xml, "2020-06-22T23:02:00+09:00"), "cancel", clock(NOW, NOW));
-    adapter.failWrite = true;
     await running.root.driveCheckpoint();
     await running.settle();
     expect(running.root.state.mirror["U-W"].persistence.kind).toBe("failed");

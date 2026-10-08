@@ -8,7 +8,7 @@ import type { NotificationAbortRequest, NotificationAttempt, NotificationDeliver
 import { linkedRuntimeCalls, linkedUnitCodecs, nodeCheckpointFileSystem } from "../../src/runtime/composition-root";
 import { applyNotificationResult } from "../../src/notification-delivery/notification-delivery";
 import { at, eewEnvelope } from "../notification-delivery/delivery-fixture";
-import { harnessedRoot, startHarness, submit } from "../execution-split/owner-harness";
+import { harnessedRoot, park, startHarness, submit } from "../execution-split/owner-harness";
 import type { Harness } from "../execution-split/owner-harness";
 
 // TEST-PATH (2): the publisher with its in-process owners; the probe result is dispatched after startup.
@@ -55,14 +55,14 @@ it("P2-A3-T11 acceptance / AC11: a dirty owner reservation dispatches before che
   // The save's write never completes here: the reservation and its result proceed while the save is in flight.
   const files = nodeCheckpointFileSystem();
   const h = harnessedRoot(await settings(), linkedUnitCodecs, { clock: () => now, notificationAdapter: fake,
-    checkpointFileSystem: { ...files, open: () => new Promise(() => {}) } });
+    checkpointFileSystem: { ...files, open: () => park(new Promise(() => {})) } });
   await startProbed(h, now, { desktop: { kind: "unavailable", reason: "backendMissing" }, sound: { kind: "idle" } });
   await eew(h, now);
   expect(fake.attempts).toHaveLength(1);
   expect(h.root.state.mirror["U-E"].persistence).toMatchObject({ kind: "pending", savedGeneration: 0 });
   void h.root.driveCheckpoint();
   await h.settle();
-  expect(h.root.checkpoint.grant).not.toBeNull();
+  expect(h.root.checkpoint.grantOf("U-E")).not.toBeNull();
   expect(h.root.state.mirror["U-E"].persistence.savedGeneration).toBe(0);
   const attempt = fake.attempts[0];
   now = at(1);

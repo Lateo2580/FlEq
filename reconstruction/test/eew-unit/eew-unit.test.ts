@@ -16,7 +16,7 @@ import { ingestXmlData } from "../../src/ingress/ingress";
 import { eewUnitCodec, reduceEewUnit, toEewView } from "../../src/units/eew/eew-unit";
 import { fixtureDriver, recordingNotificationAdapter } from "../checkpoint-shutdown/runtime-fixture";
 import { callsWith } from "../unit-table/linked-calls";
-import { envelope, harnessedRoot, startHarness, submit } from "../execution-split/owner-harness";
+import { envelope, harnessedRoot, park, startHarness, submit } from "../execution-split/owner-harness";
 import type { Harness } from "../execution-split/owner-harness";
 
 const BASE_TIME = 1_713_363_299_001;
@@ -69,13 +69,20 @@ function pendingIntent(subject = "normal/VXSE43/20240417231454", createdAt = BAS
 class MemoryCheckpointFileSystem implements CheckpointFileSystem {
   readonly files = new Map<string, Uint8Array>();
   failWrite = false;
+  // Holds a write open: an input's save starts at once (P3-UWR-AC03), so a test that looks at the save in progress
+  // gates it before the input (AC10(7)).
+  writeGate: Promise<void> | null = null;
   unlinkSync(path: string): void { this.files.delete(path); }
   readFile(path: string): Uint8Array | null { return this.files.get(path) ?? null; }
   async mkdir(): Promise<void> {}
   async open(path: string): Promise<WritableCheckpoint> {
     let bytes = new Uint8Array();
     return {
-      write: async (value) => { if (this.failWrite) throw new Error("injected write failure"); bytes = value.slice(); },
+      write: async (value) => {
+        await park(this.writeGate);
+        if (this.failWrite) throw new Error("injected write failure");
+        bytes = value.slice();
+      },
       sync: async () => {},
       close: async () => { this.files.set(path, bytes); },
     };
@@ -976,6 +983,12 @@ describe("P2 EEW unit", () => {
       return h;
     };
     const urgent = (h: Harness) => h.owners.get("urgent")!["state"]!;
+    // The seed's input saves at once (P3-UWR-AC03) and its write waits at the gate until the returned function is called.
+    const gated = (files: MemoryCheckpointFileSystem) => {
+      let open = () => {};
+      files.writeGate = new Promise<void>((resolve) => { open = resolve; });
+      return () => open();
+    };
     // The grant reaches the owner, which captures and starts writing; the reply waits for settle().
     const grantOnly = (h: Harness) => {
       h.pause();
@@ -983,6 +996,7 @@ describe("P2 EEW unit", () => {
       h.flush();
     };
     const adapter = new MemoryCheckpointFileSystem();
+    const opened = gated(adapter);
     const initial = emptyState();
     expect(slot(adapter).kind).not.toBe("restored");
     const accepted = receive(initial, first);
@@ -994,6 +1008,7 @@ describe("P2 EEW unit", () => {
     grantOnly(root);
     expect(urgent(root).checkpointAttempts["U-E"]).toMatchObject({ generation: 1, postCaptureDirtySince: null });
     now++;
+    opened();
     await root.settle();
     const checkpoint = slot(adapter);
     expect(checkpoint.kind).toBe("restored");
@@ -1038,7 +1053,9 @@ describe("P2 EEW unit", () => {
     expect(restored.state.gates).toEqual([]);
 
     // The cancellation reaches the owner while its capture is being written; the ack then keeps generation 2 dirty.
-    const oldAck = await seed(wired(new MemoryCheckpointFileSystem()));
+    const oldAckFiles = new MemoryCheckpointFileSystem();
+    const oldAckOpened = gated(oldAckFiles);
+    const oldAck = await seed(wired(oldAckFiles));
     grantOnly(oldAck);
     const cancellationAt = ++now;
     // Enqueued and handed over in the same turn, so the owner applies it before its write completes.
@@ -1049,14 +1066,17 @@ describe("P2 EEW unit", () => {
     expect(urgent(oldAck).checkpointAttempts["U-E"]).toMatchObject({ generation: 1, postCaptureDirtySince: cancellationAt });
     expect(oldAck.unit("U-E").current).toEqual([]);
     now++;
+    // The generation-2 save the ack starts at once (P3-UWR-AC03) is kept from the owner here.
+    oldAck.holdRequests((_place, request) => request.kind === "checkpointGrant");
+    oldAckOpened();
     await oldAck.settle();
     expect(oldAck.unit("U-E").current).toEqual([]);
     expect(oldAck.unit("U-E").persistence).toMatchObject({ currentGeneration: 2, savedGeneration: 1, kind: "pending" });
     expect(oldAck.unit("U-E").persistence?.dirtySince).toBe(cancellationAt);
 
     const failedAdapter = new MemoryCheckpointFileSystem();
+    failedAdapter.failWrite = true; // the seed's input saves at once (P3-UWR-AC03)
     const failed = await seed(wired(failedAdapter));
-    failedAdapter.failWrite = true;
     now++;
     await failed.root.driveCheckpoint();
     await failed.settle();

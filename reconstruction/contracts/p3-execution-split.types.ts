@@ -64,7 +64,7 @@ export type OwnerRequest = SentClock & (
   // decisionClock is the unit input clock, as in P2: the selection clock, or the result's completedAt.
   | Readonly<{ kind: "intentUpdate"; requestId: string; unit: RuntimeUnitId; updates: readonly NotificationIntentUpdate[];
       decisionClock: ClockReading }>
-  // The one global write right (spec §5.8). "reconcile" re-checks an uncertain unit (spec §5.7).
+  // The write right of one unit (spec §5.8, P3-UWR-AC01). "reconcile" re-checks an uncertain unit (spec §5.7).
   | Readonly<{ kind: "checkpointGrant"; grantId: string; unit: RuntimeUnitId; mode: "save" | "reconcile";
       retryReason: CheckpointMeasurement["retryReason"] }>
   // spec §5.9 step 3 (each unit's declared shutdown input) and step 4 (last deadlines, then only checkpointGrant).
@@ -110,7 +110,9 @@ export type OwnerReply =
         xmlParseEndedMonotonicMs: number | null }> | null; heap: OwnerHeap | null;
       // P3-C4-AC13(3)②（工程2c）: この入力の採用で世代が上がった unit と、返信の時点の currentGeneration（RuntimeStep.generationInputIds に
       // この入力 ID を持つ unit だけ。入力の前の期限回収だけで上がった世代は入らない）。印が無いと null。
-      inputGenerations: Readonly<Partial<Record<RuntimeUnitId, number>>> | null; output: OwnerOutput }>
+      inputGenerations: Readonly<Partial<Record<RuntimeUnitId, number>>> | null;
+      // P3-UWR-AC08（台帳68）: 入力の適用で state が決まった後・view の射影の前に owner が読んだ測定時刻。印が無いと null。
+      generationRaisedMs: number | null; output: OwnerOutput }>
   // heap は deadlineDone では measured のとき、inputDone では measured と inputHeap の両方のときだけ値を持つ。
   | Readonly<{ kind: "deadlineDone"; heap: OwnerHeap | null; output: OwnerOutput }>
   | Readonly<{ kind: "intentUpdateDone"; requestId: string; adopted: boolean; output: OwnerOutput }>

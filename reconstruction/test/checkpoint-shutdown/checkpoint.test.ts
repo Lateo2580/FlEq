@@ -9,7 +9,7 @@ import type {
 import { CheckpointCoordinator, hashEnvelope, serializedEnvelope } from "../../src/checkpoint/checkpoint";
 import type { CheckpointFileSystem, CodecMap, WritableCheckpoint } from "../../src/checkpoint/checkpoint";
 import { nodeCheckpointFileSystem } from "../../src/runtime/composition-root";
-import { harnessedRoot } from "../execution-split/owner-harness";
+import { harnessedRoot, startHarness } from "../execution-split/owner-harness";
 import type { Harness } from "../execution-split/owner-harness";
 
 import { fixtureState, fixtureValue, fixtureDriver, recordingNotificationAdapter } from "./runtime-fixture";
@@ -60,13 +60,13 @@ function wired(path: string, codecs: CodecMap, clock: () => ClockReading, files?
   return { h, driver };
 }
 
-// One write-right grant (if any is due) and the owner's checkpointDone reply to it.
+// The write rights due now and the owner's checkpointDone replies since the previous look, the immediate saves after
+// inputs included (P3-UWR-AC03, AC10(7)).
 async function granted(h: Harness) {
-  const from = h.delivered.length;
   const released = h.root.driveCheckpoint();
   await h.settle();
   await released;
-  return h.delivered.slice(from).flatMap(({ reply }) => reply.kind === "checkpointDone" ? [reply] : []);
+  return h.newDone();
 }
 
 // The slot a restart would read: a fresh owner-side coordinator over the same files.
@@ -143,25 +143,35 @@ describe("P2 checkpoint", () => {
     const adapter = new MemoryCheckpointFileSystem();
     let now = { wallTimeMs: 5_000, monotonicMs: 500 };
     const { h, driver } = wired(path, { "U-F": codec("U-F") }, () => now, adapter);
-    await driver.update(h, pending({ "U-F": { value: "active" } }, { "U-F": { kind: "pending",
+    await startHarness(h, "o10", now);
+    adapter.fail = "directorySync";
+    // The owner captures g2 at the g2 input's immediate grant (P3-UWR-AC03) and starts writing; g3 arrives with a deadline
+    // request (never held, P3-UWR-AC04) before the write ends.
+    h.pause();
+    driver.queue(h, pending({ "U-F": { value: "active" } }, { "U-F": { kind: "pending",
       currentGeneration: 2, savedGeneration: 1, savedCapturedAt: 1, savedAckAt: 2, dirtySince: 10 } }, "o10"), now,
     { "U-F": correlation.inputIds });
-    adapter.fail = "directorySync";
-    // The owner captures g2 and starts writing; g3 arrives before the write ends.
-    h.pause();
-    const released = h.root.driveCheckpoint();
+    h.root.pump();
     h.flush();
     const before = h.unit("U-F").persistence;
     now = { wallTimeMs: 5_001, monotonicMs: 501 };
-    await driver.update(h, pending({ "U-F": { value: "cancelled" } }, { "U-F": { ...before,
+    driver.queue(h, pending({ "U-F": { value: "cancelled" } }, { "U-F": { ...before,
       kind: "pending", currentGeneration: 3, dirtySince: 501 } }, "o10"), now);
-    await released;
+    h.root.tick(now);
+    h.flush();
+    // The immediate reconciliation after the uncertain reply waits until the fault is cleared.
+    const holding = h.holdRequests((_place, request) => request.kind === "checkpointGrant");
+    await h.settle();
     expect(h.delivered.flatMap(({ reply }) => reply.kind === "checkpointDone" ? [reply.result] : []))
       .toMatchObject([{ kind: "uncertain", generation: 2, stage: "directorySync" }]);
     expect(h.unit("U-F")).toMatchObject({ value: "cancelled",
       persistence: { kind: "uncertain", currentGeneration: 3, attemptedGeneration: 2 } });
     adapter.fail = null;
     now = { wallTimeMs: 5_002, monotonicMs: 502 };
+    // Only the reconciliation runs: the g3 save its ack would start at once is kept from the owner.
+    holding();
+    h.holdRequests((_place, request) => request.kind === "checkpointGrant" && request.mode === "save");
+    h.releaseRequests("deferred");
     await granted(h);
     expect(h.unit("U-F")).toMatchObject({ value: "cancelled",
       persistence: { kind: "pending", currentGeneration: 3, savedGeneration: 2, dirtySince: 501 } });
@@ -193,19 +203,23 @@ describe("P2 checkpoint", () => {
     let now = 100;
     const { h, driver } = wired(path, { "U-F": codec("U-F"), "U-W": codec("U-W") },
       () => ({ wallTimeMs: 10_000 + now, monotonicMs: now }), adapter);
-    await driver.update(h, pending({ "U-F": { value: "cancelled" }, "U-W": { value: "normal" } }, {
+    const dirty = (units: readonly ("U-F" | "U-W")[]) => pending({ "U-F": { value: "cancelled" },
+      ...(units.includes("U-W") ? { "U-W": { value: "normal" } } : {}) }, {
       "U-F": { kind: "pending", currentGeneration: 3, savedGeneration: 1,
         savedCapturedAt: 1, savedAckAt: 2, dirtySince: 0 },
-      "U-W": { kind: "pending", currentGeneration: 1, savedGeneration: null,
-        savedCapturedAt: null, savedAckAt: null, dirtySince: 50 },
-    }, "run"), undefined, { "U-F": correlation.inputIds, "U-W": correlation.inputIds });
+      ...(units.includes("U-W") ? { "U-W": { kind: "pending", currentGeneration: 1, savedGeneration: null,
+        savedCapturedAt: null, savedAckAt: null, dirtySince: 50 } } : {}),
+    }, "run");
+    // U-F's input saves at once (P3-UWR-AC03) under the write fault; U-W becomes dirty after the fault is cleared.
     adapter.fail = "write";
+    await driver.update(h, dirty(["U-F"]), undefined, { "U-F": correlation.inputIds });
     expect((await granted(h)).map((reply) => reply.unit)).toEqual(["U-F"]);
     expect(h.root.checkpoint.retryAfter("U-F")).toBe(1_100);
 
     adapter.fail = null;
     now = 101;
-    const dirtySince = h.root.state.mirror["U-W"].persistence.dirtySince!;
+    const dirtySince = 50;
+    await driver.update(h, dirty(["U-F", "U-W"]), undefined, { "U-F": correlation.inputIds, "U-W": correlation.inputIds });
     const weather = await granted(h);
     expect(weather.map((reply) => reply.unit)).toEqual(["U-W"]);
     expect(weather[0].measurements.at(-1)!.endedMonotonicMs - dirtySince).toBeLessThanOrEqual(3_000);
@@ -274,12 +288,16 @@ describe("P2 checkpoint", () => {
       adapter.fail = stage === "verify" ? "directorySync" : stage;
       const clock = { wallTimeMs: 1_000, monotonicMs: 1 };
       const { h, driver } = wired(path, { "U-F": codec("U-F") }, () => clock, adapter);
+      // verify: the uncertain save's reply waits until the verify fault is set, so its immediate reconciliation (P3-UWR-AC03) reads it.
+      const holding = stage === "verify" ? h.hold((_place, reply) => reply.kind === "checkpointDone") : null;
       await driver.update(h, pending({ "U-F": { value: "payload" } }, { "U-F": { kind: "pending",
         currentGeneration: 1, savedGeneration: null, savedCapturedAt: null, savedAckAt: null, dirtySince: 0 } }, "stages"),
       clock, { "U-F": correlation.inputIds });
       await granted(h);
-      if (stage === "verify") {
+      if (holding != null) {
         adapter.fail = "verify";
+        holding();
+        h.release();
         await granted(h);
       }
       expect(await reasons(h)).toContain(reason);

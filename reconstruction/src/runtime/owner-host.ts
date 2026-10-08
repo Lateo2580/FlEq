@@ -91,7 +91,9 @@ class OwnerHost {
         const result: ParserMailboxResult = decodeMaterial(item, parseTimes);
         const decodeEnded = this.measured();
         const clock = this.business();
-        const step = this.apply(receiveOwner(state, { runId: envelope.runId, inputId: item.inputId, result }, clock, this.options.units));
+        let generationRaisedMs: number | null = null;
+        const step = this.apply(receiveOwner(state, { runId: envelope.runId, inputId: item.inputId, result }, clock, this.options.units,
+          this.options.start.measured ? () => { generationRaisedMs = this.measured(); } : undefined));
         const marks = result.kind === "decoded" ? result.material.marks : noMarks;
         this.options.reply({ kind: "inputDone", settlement: { kind: "parser", messageId: envelope.messageId,
           runId: envelope.runId, encodedByteLength: item.encodedByteLength, startedMonotonicMs: started.monotonicMs,
@@ -101,7 +103,8 @@ class OwnerHost {
         decode: { startedMonotonicMs: decodeStarted, endedMonotonicMs: decodeEnded, xmlParseStartedMonotonicMs: this.threadToMeasured(parseTimes?.startedMs),
           xmlParseEndedMonotonicMs: this.threadToMeasured(parseTimes?.endedMs) },
         heap: this.options.start.measured && this.options.start.inputHeap ? threadHeap() : null,
-        inputGenerations: this.options.start.measured ? this.inputGenerations(step, item.inputId) : null, output: this.output([step]) });
+        inputGenerations: this.options.start.measured ? this.inputGenerations(step, item.inputId) : null, generationRaisedMs,
+        output: this.output([step]) });
         return;
       }
       case "deadline": {
@@ -209,7 +212,7 @@ class OwnerHost {
       done(null, [], []);
       return;
     }
-    // The publisher holds one write right (RES-03): a second save of a unit whose attempt is still open is a broken invariant.
+    // The publisher holds one write right per unit (P3-UWR-AC01): a second save of a unit whose attempt is still open is a broken invariant.
     if (state.checkpointAttempts[unit] != null) throw new Error(`a save of ${unit} is already in progress`);
     const correlation = { inputIds, retryReason: request.retryReason };
     const scheduled = this.checkpoint.capture(unit, state.units[unit], persistence.currentGeneration, state.runId, correlation);

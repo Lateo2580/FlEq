@@ -109,7 +109,7 @@ function fixtureDriver() {
   };
   let sequence = 0;
   return { calls: callsWith(stubs), stubs, async update(h: Harness, desired: RuntimeState, clock: ClockReading = h.clock(),
-    inputIds: Readonly<Partial<Record<RuntimeUnitId, readonly string[]>>> = {}) {
+    inputIds: Readonly<Partial<Record<RuntimeUnitId, readonly string[]>>> = {}, byDeadline = false) {
     const { root } = h;
     try { void root.state; } catch {
       await startHarness(h, desired.runId, clock);
@@ -117,11 +117,13 @@ function fixtureDriver() {
     for (const unit of ["U-E", "U-W", "U-F"] as const) {
       const wanted = desired.units[unit];
       if (fixtureValue(wanted) === "" && wanted.persistence.kind === "saved") continue;
-      const start = root.state.mirror[unit].persistence.currentGeneration;
-      for (let generation = start + 1; generation <= wanted.persistence.currentGeneration; generation++) {
-        update = only(unit, { ...wanted, persistence: { ...wanted.persistence, currentGeneration: generation } });
-        // Once the mailbox stops taking parser input (shutdown), the change arrives with a deadline request instead.
-        if (root.mailbox.stats(clock.monotonicMs).accepting)
+      // One input reaches the wanted generation: with immediate saves (P3-UWR-AC03) one input per generation would save
+      // every generation in between, which a test that jumps generations does not describe (P3-UWR-AC10(7)).
+      if (root.state.mirror[unit].persistence.currentGeneration < wanted.persistence.currentGeneration) {
+        update = only(unit, wanted);
+        // Once the mailbox stops taking parser input (shutdown), or with byDeadline (an input the own-save hold would keep,
+        // P3-UWR-AC04), the change arrives with a deadline request instead.
+        if (!byDeadline && root.mailbox.stats(clock.monotonicMs).accepting)
           await submit(h, envelope(desired.runId, unitBodies[unit].headType, inputIds[unit]?.[0] ?? "adopted-input",
             unitBodies[unit].body, clock, ++sequence));
         else {

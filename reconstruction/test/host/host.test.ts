@@ -912,7 +912,7 @@ describe("P3-C3A host with the three dist owner threads (TEST-PATH (3))", () => 
     await host.stop();
   });
 
-  it("P3-C3A-T06 acceptance / AC05: U-W and U-F saved one at a time, the earlier dirty first, both within 3 s", async () => {
+  it("P3-C3A-T06 acceptance / AC05: U-W and U-F each saved with their own right after their own input, both within 3 s", async () => {
     const server = await localServer();
     const observations: P2HostObservation[] = [];
     const host = await start(server.url, await directories(), observations);
@@ -925,10 +925,11 @@ describe("P3-C3A host with the three dist owner threads (TEST-PATH (3))", () => 
     const span = (unit: "U-W" | "U-F") => ({ start: Math.min(...writes(unit).map((m) => m.startedMonotonicMs)),
       end: Math.max(...writes(unit).map((m) => m.endedMonotonicMs)) });
     const [weather, series] = [span("U-W"), span("U-F")];
-    expect(weather.end <= series.start || series.end <= weather.start).toBe(true);
-    // The unit whose input was applied first is saved first.
+    // P3-UWR-AC01/AC03 (AC10(2)(9)): each save starts once its own input is applied, without waiting for the other unit's
+    // save (the spans may overlap).
     const applied = (inputId: string) => decodeOf(observations, inputId)!.endedMonotonicMs;
-    expect(applied("input-1") <= applied("input-2")).toBe(weather.start < series.start);
+    expect(weather.start).toBeGreaterThanOrEqual(applied("input-1"));
+    expect(series.start).toBeGreaterThanOrEqual(applied("input-2"));
     expect(weather.end - marker(observations, "T0", "input-1")).toBeLessThanOrEqual(3_000);
     expect(series.end - marker(observations, "T0", "input-2")).toBeLessThanOrEqual(3_000);
     await host.stop();

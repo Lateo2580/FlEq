@@ -902,7 +902,10 @@ describe("P2 shared runtime", () => {
           intents: delivery.intents.map((value) => ({ ...value, disposition: "delivered" as const })), deadlines: delivery.deadlines },
           diagnostics: [] };
       });
-      const r = await runtime({ ...unitCalls, reduceEewUnit, selectNotificationAttempt: selection, applyNotificationResult: apply }, at(1));
+      // No unit is saved here: each adoption would start a save at once (P3-UWR-AC03), and the pending generation below
+      // is the adoption's (AC10(7)).
+      const r = await runtime({ ...unitCalls, reduceEewUnit, selectNotificationAttempt: selection, applyNotificationResult: apply }, at(1),
+        { codecs: {} });
       const others = runtimeUnits.filter((candidate) => candidate !== unit).map((candidate) => r.h.unit(candidate));
       await seedIntents(r, unit, [notice]);
       expect(selection.mock.calls[0][0].channels).toEqual(idleChannels);

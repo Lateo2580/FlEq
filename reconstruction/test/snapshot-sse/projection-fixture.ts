@@ -14,7 +14,8 @@ import type {
   DisplaySnapshot, SnapshotProjectionInput, SnapshotProjectionResult, SnapshotProjectionState,
 } from "../../contracts/p2-snapshot-sse.types";
 import { hashEnvelope, serializedEnvelope } from "../../src/checkpoint/checkpoint";
-import { linkedRuntimeCalls, linkedUnitCodecs, snapshotInput } from "../../src/runtime/composition-root";
+import type { CheckpointFileSystem } from "../../src/checkpoint/checkpoint";
+import { linkedRuntimeCalls, linkedUnitCodecs, nodeCheckpointFileSystem, snapshotInput } from "../../src/runtime/composition-root";
 import type { PublisherInput } from "../../src/runtime/composition-root";
 import { initialUnits } from "../../src/runtime/owner-runtime";
 import type { PublisherState } from "../../src/runtime/shared-runtime";
@@ -75,6 +76,20 @@ function writeSlots(directory: string, restored: Restored): void {
   }
 }
 
+// Saves go to memory; restore reads the slot files above from disk. Without it every input's immediate save
+// (P3-UWR-AC03) would wait on the real disk and the legal-bound runs would pass the test timeout.
+function memoryWrites(): CheckpointFileSystem {
+  const files = new Map<string, Uint8Array>();
+  const disk = nodeCheckpointFileSystem();
+  return { readFile: (path) => files.get(path) ?? disk.readFile(path), unlinkSync: (path) => { files.delete(path); },
+    mkdir: async () => {}, rename: async (from, to) => { files.set(to, files.get(from)!); files.delete(from); },
+    syncDirectory: async () => {},
+    open: async (path) => {
+      let bytes = new Uint8Array();
+      return { write: async (data) => { bytes = data.slice(); }, sync: async () => {}, close: async () => { files.set(path, bytes); } };
+    } };
+}
+
 async function open(clock: ClockReading, restored: Restored, units?: UnitTable): Promise<Run> {
   const path = mkdtempSync(join(tmpdir(), "fleq-a8-"));
   directories.push(path);
@@ -83,7 +98,8 @@ async function open(clock: ClockReading, restored: Restored, units?: UnitTable):
   const h = harnessedRoot({ appName: "fleq-p2", legacyAppName: "fleq", stateDirectory: join(path, "state"),
     legacyStateDirectory: join(path, "legacy"), diagnosticDirectory: join(path, "diagnostics") }, linkedUnitCodecs, {
     clock: () => time.now, runtimeCalls: { ...calls, units: units ?? calls.units },
-    notificationAdapter: { run: () => new Promise(() => {}), abort: async () => ({}) }, reportFailure: () => {} });
+    notificationAdapter: { run: () => new Promise(() => {}), abort: async () => ({}) }, reportFailure: () => {},
+    checkpointFileSystem: memoryWrites() });
   const started = h.root.startRuntime("run", clock, idleChannels);
   await h.settle();
   await started;
@@ -92,9 +108,12 @@ async function open(clock: ClockReading, restored: Restored, units?: UnitTable):
 }
 
 let sequence = 0;
-// Applies one input synchronously: owners run in-process, so the whole exchange settles in one flush.
-function apply(run: Run, input: Input): Pick<Step, "outcomes" | "displayChanges"> {
+// Applies one input synchronously: owners run in-process, so the whole exchange settles in one flush. The previous
+// input's save starts at once (P3-UWR-AC03) and holds the owner's next input until it ends (AC04), so the step first
+// lets that save end; the step's own save is left running, so its state stays the one before the save (P3-UWR-AC10(7)).
+async function apply(run: Run, input: Input): Promise<Pick<Step, "outcomes" | "displayChanges">> {
   const { h } = run;
+  await h.settle();
   const from = h.delivered.length;
   run.clock.now = input.clock;
   if (input.kind === "report") {
@@ -153,10 +172,10 @@ async function step(state: RuntimeState, input: Input): Promise<Step> {
   let { run } = known;
   if (run.inputs.length !== known.length) {
     const replay = await open(run.clock.now, run.restored, run.units);
-    for (const earlier of run.inputs.slice(0, known.length)) apply(replay, earlier);
+    for (const earlier of run.inputs.slice(0, known.length)) await apply(replay, earlier);
     run = replay;
   }
-  const { outcomes, displayChanges } = apply(run, input);
+  const { outcomes, displayChanges } = await apply(run, input);
   return stepOf(run, outcomes, displayChanges);
 }
 

@@ -290,7 +290,8 @@ function session(start: OwnerState, units: UnitTable, clock: ClockReading | null
     next = { ...next, units: { ...next.units, [unit]: { ...ownUnit(next, unit), persistence } } };
     changed(unit);
   };
-  const finish = (project = true): OwnerStep => {
+  // beforeProjection: 印のあるときだけ owner-host が渡す測定時刻の読み口。state が決まった後・射影の前に 1 回呼ぶ（P3-UWR-AC08）。
+  const finish = (project = true, beforeProjection?: () => void): OwnerStep => {
     // A normal-admission toggle shows or hides every normal subject of that unit without a unit change.
     for (const unit of placeUnits(start.place)) {
       if ((start.admission[unit]?.normal == null) === (next.admission[unit]?.normal == null)) continue;
@@ -312,6 +313,7 @@ function session(start: OwnerState, units: UnitTable, clock: ClockReading | null
           retired.push({ unit: "U-E", operation: change.operation, eventId: change.before.current.eventId });
       retiredEvents = retired;
     }
+    beforeProjection?.();
     const views = !project || viewUnits.size === 0 ? EMPTY : [...viewUnits].map((unit) => projectView(next, units, unit));
     return { state: next, changedUnits, generationInputIds, views, outcomes, displayChanges, confirmationEvidence,
       retiredEvents, diagnostics };
@@ -394,10 +396,11 @@ function routedUnit(state: OwnerState, completion: ParserCompletion): RuntimeUni
 }
 
 // One parser input: route, receive or exactly one diagnostic (P3-UNIT-TABLE-001, P3-C3A-NONREADY).
-function receiveOwner(state: OwnerState, completion: ParserCompletion, clock: ClockReading, units: UnitTable): OwnerStep {
+function receiveOwner(state: OwnerState, completion: ParserCompletion, clock: ClockReading, units: UnitTable,
+  beforeProjection?: () => void): OwnerStep {
   checkClock(clock);
   const work = session(state, units, clock);
-  if (completion.runId !== state.runId || state.finalized) return work.finish();
+  if (completion.runId !== state.runId || state.finalized) return work.finish(true, beforeProjection);
   const unit = routedUnit(state, completion);
   const route = completion.result.kind === "decoded" ? classifyHeadType(completion.result.material.headType) : null;
   // Before a receive, a unit that asks for it reclaims its own wall-clock deadline (A4 terminal records).
@@ -427,7 +430,7 @@ function receiveOwner(state: OwnerState, completion: ParserCompletion, clock: Cl
     else if (route?.status === "unlisted")
       work.diagnose(boundDiagnosticDetails({ level: "WARN", component: "shared-runtime", reason: "routeUnlisted", inputId: completion.inputId }));
   }
-  return work.finish();
+  return work.finish(true, beforeProjection);
 }
 
 // The correlated intent updates of one unit, adopted in one unit input (P2-A1 B4) or not at all (P3-C3A-NOTIFY-ADOPT):
