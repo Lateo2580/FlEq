@@ -3,75 +3,75 @@
   "inputs": [
     {
       "population": "escalation:fixedBacklog",
-      "source": "2 回目の予備 ae343ce6",
+      "source": "4 回目の予備 15d3d759（--notification real）",
       "window": "escalation:fixedBacklog-run1",
       "firstPredictedAttempt": null,
-      "trials": 10,
-      "successes": 10,
-      "msPerAttempt": 3465.673
+      "trials": 20,
+      "successes": 20,
+      "msPerAttempt": 3173.449
     },
     {
       "population": "deescalation:fixedBacklog",
-      "source": "2 回目の予備 ae343ce6",
+      "source": "4 回目の予備 15d3d759（--notification real）",
       "window": "deescalation:fixedBacklog-run1",
       "firstPredictedAttempt": null,
-      "trials": 10,
-      "successes": 10,
-      "msPerAttempt": 3415.282
+      "trials": 20,
+      "successes": 20,
+      "msPerAttempt": 3166.96
     },
     {
       "population": "escalation:eewTogether",
-      "source": "2 回目の予備 ae343ce6",
+      "source": "4 回目の予備 15d3d759（--notification real）",
       "window": "escalation:eewTogether-run1",
       "firstPredictedAttempt": null,
-      "trials": 10,
-      "successes": 10,
-      "msPerAttempt": 3433.173
+      "trials": 20,
+      "successes": 20,
+      "msPerAttempt": 3167.549
     },
     {
       "population": "deescalation:eewTogether",
-      "source": "2 回目の予備 ae343ce6",
+      "source": "4 回目の予備 15d3d759（--notification real）",
       "window": "deescalation:eewTogether-run1",
       "firstPredictedAttempt": null,
-      "trials": 10,
-      "successes": 10,
-      "msPerAttempt": 3432.452
+      "trials": 20,
+      "successes": 20,
+      "msPerAttempt": 3167.814
     },
     {
       "population": "escalation:maxVpws50ParseStarted",
-      "source": "2 回目の予備 ae343ce6",
+      "source": "4 回目の予備 15d3d759（--notification real）",
       "window": "escalation:maxVpws50ParseStarted-run1",
       "firstPredictedAttempt": 10,
-      "trials": 14,
-      "successes": 10,
-      "msPerAttempt": 3274.088
+      "trials": 44,
+      "successes": 20,
+      "msPerAttempt": 3112.297
     },
     {
       "population": "deescalation:maxVpws50ParseStarted",
-      "source": "2 回目の予備 ae343ce6",
+      "source": "4 回目の予備 15d3d759（--notification real）",
       "window": "deescalation:maxVpws50ParseStarted-run1",
       "firstPredictedAttempt": 10,
-      "trials": 10,
-      "successes": 10,
-      "msPerAttempt": 3310.84
+      "trials": 32,
+      "successes": 20,
+      "msPerAttempt": 3138.447
     },
     {
       "population": "escalation:maxWeatherCheckpointEncodeStarted",
-      "source": "3 回目の予備 511378f2",
+      "source": "4 回目の予備 15d3d759（--notification real）",
       "window": "escalation:maxWeatherCheckpointEncodeStarted-run1",
       "firstPredictedAttempt": 10,
-      "trials": 29,
+      "trials": 25,
       "successes": 20,
-      "msPerAttempt": 3142.863
+      "msPerAttempt": 3152.098
     },
     {
       "population": "deescalation:maxWeatherCheckpointEncodeStarted",
-      "source": "3 回目の予備 511378f2",
+      "source": "4 回目の予備 15d3d759（--notification real）",
       "window": "deescalation:maxWeatherCheckpointEncodeStarted-run1",
       "firstPredictedAttempt": 10,
-      "trials": 24,
+      "trials": 32,
       "successes": 20,
-      "msPerAttempt": 3159.708
+      "msPerAttempt": 3137.521
     }
   ]
 }
