@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "04fd2fb12c1e0650bf0d50145c3ea465d3f1c38d",
-    "sha256": "0b1bfaf27c6e8d409141a133f6c8c9b83b442281d80bf937d5204260a8d3c2b9",
+    "sha256": "6407232435401b02df4f290510489d6af4359fc48339c167e9c8f5770e1dcffa",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "07dacd74b734222a3f493141d6c2128c172392afd6d6b025b98bb76d38613cbf",
     "sequencesSha256": "4a3d8fcfa174d60512abf30a15829dfbd188547c51047c5104a32ac22cbceb05",
@@ -794,10 +794,10 @@
           "docs/specs/reconstruction-p0-contracts.md:526 «2a6bdc1eecc7f89f»",
           "docs/specs/reconstruction-p0-contracts.md:605 «94c9c00b2938587b»",
           "docs/specs/reconstruction-p0-contracts.md:616 «ea3e5e78f369ae4f»",
-          "reconstruction/src/runtime/unit-coverage.ts:8 «bfd4ea7b51bf407d»",
+          "reconstruction/src/runtime/unit-coverage.ts:8 «366b1de59feade43»",
           "reconstruction/src/runtime/unit-coverage.ts:15 «0326746541bb8e67»",
-          "reconstruction/src/runtime/unit-coverage.ts:109 «4d12349fcbdc575c»",
-          "reconstruction/src/runtime/unit-coverage.ts:149 «602355f51706e6e2»"
+          "reconstruction/src/runtime/unit-coverage.ts:110 «4d12349fcbdc575c»",
+          "reconstruction/src/runtime/unit-coverage.ts:150 «602355f51706e6e2»"
         ]
       },
       {
@@ -860,10 +860,10 @@
         "requirement": "view・outcome・snapshot: FloodUnitView、subjectごとのSubjectOutcome、RuntimeDisplaySubjectのU-R行、addedScopesのU-Rの空（P3-C11-N2）、snapshotのdomain flood（P3-C11-SNAPSHOT=A、highestSeverityは河川のlevel、nullとkinds空はunknown）を同じ採用結果から作る。active以外の記録を載せず、unavailable・未保存・再起動の空を「洪水予報なし」に読み替えない。U-Rだけが変わった入力でもsnapshotが出し直される（view-projectorの比較・domainの列・byteの合計にU-Rが入る）。実装後に、実配信の最大の日の状態（I-U-R.capacityMeasurement、10 EventID・19,964 byte）と512 subjectの状態でdomain floodのUTF-8 byteとfull/summaryの判定を測って報告し、実配信の最大の日の状態がsummaryに落ちたら配送の前に作者へ報告する。あわせて、domain floodがfullからsummaryへ落ちるEventIDの数の閾値（概算約33: 65,536 byteを実配信の最大の日の記録の平均約2.0 KBで割った値。実装のviewのbyteで測り直す）を報告し、作者とP4へ渡す",
         "evidenceRefs": [
           "reconstruction/src/view-projector/view-projector.ts:36 «c47aa0d1f5b59833»",
-          "reconstruction/src/view-projector/view-projector.ts:47 «72c0369b7e7fc5f1»",
-          "reconstruction/src/view-projector/view-projector.ts:58 «e28c24c638ff52fe»",
-          "reconstruction/contracts/p2-snapshot-sse.types.ts:47 «076ed1fb786c54d4»",
-          "reconstruction/src/runtime/composition-root.ts:195 «9ed0037a4a82959a»",
+          "reconstruction/src/view-projector/view-projector.ts:47 «0d0f022cec6bf5bd»",
+          "reconstruction/src/view-projector/view-projector.ts:59 «e28c24c638ff52fe»",
+          "reconstruction/contracts/p2-snapshot-sse.types.ts:48 «5f568710cc71f36f»",
+          "reconstruction/src/runtime/composition-root.ts:197 «9ed0037a4a82959a»",
           "docs/specs/reconstruction-p0-contracts.md:485 «ba2a41e3a4d013e4»",
           "docs/specs/reconstruction-p0-contracts.md:1468 «35085757904baccf»"
         ]
@@ -939,7 +939,7 @@
         "evidenceRefs": [
           "reconstruction/contracts/p3-order-plan.md:108 «71876395a763cd04»",
           "reconstruction/contracts/p3-order-plan.md:110 «be284b9936747da5»",
-          "reconstruction/src/runtime/composition-root.ts:195 «9ed0037a4a82959a»"
+          "reconstruction/src/runtime/composition-root.ts:197 «9ed0037a4a82959a»"
         ]
       },
       {

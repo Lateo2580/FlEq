@@ -249,6 +249,7 @@ const unitBodies: Readonly<Record<RuntimeUnitId, Readonly<{ headType: string; bo
   "U-Q": { headType: "VXSE53", body: readFileSync("test/fixtures/32-35_04_04_240613_VXSE53.xml") },
   "U-N": { headType: "VYSE50", body: readFileSync("test/fixtures/selected_xml/74_01_04_200512_VYSE50.xml") },
   "U-V": { headType: "VFVO50", body: readFileSync("test/fixtures/45_01_01_200522_VFVO50.xml") },
+  "U-L": { headType: "VPWW56", body: readFileSync("test/fixtures/15_16_01_241031_VPWW56.xml") },
 };
 
 type Seed<K extends RuntimeUnitId> = Readonly<{ state: RuntimeUnitStates[K]; deadline: RuntimeUnitDeadline | null }>;
@@ -281,6 +282,7 @@ function seeded(base: UnitTable = linkedUnitTable) {
     "U-Q": base["U-Q"],
     "U-N": base["U-N"],
     "U-V": base["U-V"],
+    "U-L": base["U-L"],
   };
   let sequence = 0;
   const send = (h: Harness, unit: RuntimeUnitId, clock: ClockReading) => submit(h, envelope(h.root.state.runId,

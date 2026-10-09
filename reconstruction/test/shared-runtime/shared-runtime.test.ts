@@ -58,7 +58,7 @@ function initialState(progress: PersistenceStatus = savedProgress): RuntimeState
     ...baseline,
     runId: "run",
     restoration: { "U-E": { kind: "empty" }, "U-W": { kind: "empty" }, "U-F": { kind: "empty" }, "U-T": { kind: "empty" },
-      "U-Q": { kind: "empty" }, "U-N": { kind: "empty" }, "U-V": { kind: "empty" } },
+      "U-Q": { kind: "empty" }, "U-N": { kind: "empty" }, "U-V": { kind: "empty" }, "U-L": { kind: "empty" } },
     admission: {},
     notificationProbeComplete: true,
     units: {
@@ -66,15 +66,17 @@ function initialState(progress: PersistenceStatus = savedProgress): RuntimeState
       "U-W": { schemaVersion: "p2-weather-current-unit-v1", contentRevision: 0, national: {}, partials: [], histories: [], ownership: {},
         tombstones: [], freshness: [], unavailable: [], intents: [], persistence: progress },
       "U-F": { schemaVersion: "p2-weather-timeseries-unit-v1", contentRevision: 0, subjects: [], gates: [], intents: [], persistence: progress },
-      // U-T, U-Q, U-N and U-V stay clean here: these cases describe the three earlier units (P3-C5-AC14, P3-C7, P3-C8 and P3-C9 add their rows only).
+      // U-T, U-Q, U-N, U-V and U-L stay clean here: these cases describe the three earlier units (P3-C5-AC14, P3-C7, P3-C8, P3-C9 and P3-C10
+      // add their rows only).
       "U-T": { schemaVersion: "p3-tsunami-unit-v1", contentRevision: 0, forecasts: [], observations: [], intents: [], persistence: savedProgress },
       "U-Q": { schemaVersion: "p3-seismic-unit-v1", contentRevision: 0, earthquakes: [], longPeriods: [], daily: {
         normal: noHistory, training: noHistory, test: noHistory }, intents: [], persistence: savedProgress },
       "U-N": { schemaVersion: "p3-nankai-unit-v1", contentRevision: 0, currents: [], information: [], intents: [], persistence: savedProgress },
       "U-V": { schemaVersion: "p3-volcano-unit-v1", contentRevision: 0, alerts: [], eruptions: [], ashfalls: [], shortfalls: [],
         scheduledAshfalls: [], batch: null, bulletins: [], intents: [], persistence: savedProgress },
+      "U-L": { schemaVersion: "p3-landslide-unit-v1", contentRevision: 0, currents: [], intents: [], persistence: savedProgress },
     },
-    checkpointAttempts: {}, deadlines: { "U-E": null, "U-W": null, "U-F": null, "U-T": null, "U-Q": null, "U-N": null, "U-V": null },
+    checkpointAttempts: {}, deadlines: { "U-E": null, "U-W": null, "U-F": null, "U-T": null, "U-Q": null, "U-N": null, "U-V": null, "U-L": null },
     notificationChannels: { desktop: { kind: "idle" }, sound: { kind: "idle" } },
     notificationDeadlines: { desktop: {}, sound: {} },
     shutdown: { stage: "running", acceptedThroughSequence: null, startedAt: null, finalizationAt: null, stageResults: {},
@@ -252,7 +254,7 @@ function publisherState(whole: RuntimeState): PublisherState {
     admissionCounts: { normal: 0, training: 0, test: 0 }, view: whole.views[unit],
     pendingIntents: whole.units[unit].intents.filter((item) => item.disposition === "pending") });
   return { runId: whole.runId, mirror: { "U-E": mirror("U-E"), "U-W": mirror("U-W"), "U-F": mirror("U-F"), "U-T": mirror("U-T"),
-    "U-Q": mirror("U-Q"), "U-N": mirror("U-N"), "U-V": mirror("U-V") },
+    "U-Q": mirror("U-Q"), "U-N": mirror("U-N"), "U-V": mirror("U-V"), "U-L": mirror("U-L") },
     restoration: whole.restoration, confirmation: whole.confirmation, notificationChannels: whole.notificationChannels,
     notificationProbeComplete: whole.notificationProbeComplete, notificationDeadlines: whole.notificationDeadlines,
     shutdown: whole.shutdown };
@@ -775,6 +777,7 @@ describe("P2 shared runtime", () => {
       "U-Q": null,
       "U-N": null,
       "U-V": null,
+      "U-L": null,
     } };
     const eew = vi.fn((unit: EewUnitState, input: EewInput) => unitReply(unit, input));
     const outcome = { kind: "deadlineApplied" as const, subjects: [] };
@@ -897,6 +900,7 @@ describe("P2 shared runtime", () => {
       "U-Q": done.state.mirror["U-Q"].persistence,
       "U-N": done.state.mirror["U-N"].persistence,
       "U-V": done.state.mirror["U-V"].persistence,
+      "U-L": done.state.mirror["U-L"].persistence,
     });
   });
 
@@ -1280,8 +1284,9 @@ describe("P2 shared runtime", () => {
       expect(owner[unit].reads).toBeLessThan(20 * 4_128);
     }
     expect(r.root.state.notificationDeadlines).toEqual({ desktop: {}, sound: {} });
-    for (const place of ["weatherCurrent", "deferred"] as const)
-      expect(Object.values(r.h.owners.get(place)!["state"]!.deadlines)).toEqual([{ wallTimeMs: 5_000, monotonicMs: null }]);
+    // deferred also owns U-L (P3-C10-PLACE=A), idle here.
+    expect(r.h.owners.get("weatherCurrent")!["state"]!.deadlines).toEqual({ "U-W": { wallTimeMs: 5_000, monotonicMs: null } });
+    expect(r.h.owners.get("deferred")!["state"]!.deadlines).toEqual({ "U-F": { wallTimeMs: 5_000, monotonicMs: null }, "U-L": null });
     r.at(at(4_000));
     r.root.tick(at(4_000));
     await r.h.settle();

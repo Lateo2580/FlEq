@@ -16,6 +16,7 @@ import type { TsunamiForecastSubject, TsunamiInput, TsunamiObservationSubject, T
 import type { EarthquakeEventView, LongPeriodSubject, SeismicInput, SeismicUnitState, SeismicUnitStep, SeismicUnitView } from "./p3-seismic-unit.types";
 import type { NankaiCurrent, NankaiInformationView, NankaiInput, NankaiUnitState, NankaiUnitStep, NankaiUnitView } from "./p3-nankai-unit.types";
 import type { VolcanoAlert, VolcanoAshfall, VolcanoBulletinView, VolcanoEruption, VolcanoInput, VolcanoUnitState, VolcanoUnitStep, VolcanoUnitView } from "./p3-volcano-unit.types";
+import type { LandslideCurrent, LandslideInput, LandslideUnitState, LandslideUnitStep, LandslideUnitView } from "./p3-landslide-unit.types";
 
 export type JsonValue = null | boolean | number | string | readonly JsonValue[] | Readonly<{ [key: string]: JsonValue }>;
 
@@ -23,13 +24,13 @@ export type UnitId =
   | "U-E" | "U-Q" | "U-T" | "U-N" | "U-W" | "U-L"
   | "U-F" | "U-B" | "U-M" | "U-Y" | "U-V" | "U-R";
 
-export type RuntimeUnitId = "U-E" | "U-W" | "U-F" | "U-T" | "U-Q" | "U-N" | "U-V";
+export type RuntimeUnitId = "U-E" | "U-W" | "U-F" | "U-T" | "U-Q" | "U-N" | "U-V" | "U-L";
 
 // Per-unit type rows (one line per map). P3-UNIT-TABLE-001 keeps them adjacent and line-neutral:
 // a unit lane adds its key to each of the three maps below.
-export type RuntimeUnitStates = Readonly<{ "U-E": EewUnitState; "U-W": WeatherCurrentUnitState; "U-F": WeatherTimeseriesUnitState; "U-T": TsunamiUnitState; "U-Q": SeismicUnitState; "U-N": NankaiUnitState; "U-V": VolcanoUnitState }>;
-export type RuntimeUnitInputs = Readonly<{ "U-E": EewInput; "U-W": WeatherCurrentInput; "U-F": WeatherTimeseriesInput; "U-T": TsunamiInput; "U-Q": SeismicInput; "U-N": NankaiInput; "U-V": VolcanoInput }>;
-export type RuntimeUnitSteps = Readonly<{ "U-E": EewUnitStep; "U-W": WeatherCurrentUnitStep; "U-F": WeatherTimeseriesUnitStep; "U-T": TsunamiUnitStep; "U-Q": SeismicUnitStep; "U-N": NankaiUnitStep; "U-V": VolcanoUnitStep }>;
+export type RuntimeUnitStates = Readonly<{ "U-E": EewUnitState; "U-W": WeatherCurrentUnitState; "U-F": WeatherTimeseriesUnitState; "U-T": TsunamiUnitState; "U-Q": SeismicUnitState; "U-N": NankaiUnitState; "U-V": VolcanoUnitState; "U-L": LandslideUnitState }>;
+export type RuntimeUnitInputs = Readonly<{ "U-E": EewInput; "U-W": WeatherCurrentInput; "U-F": WeatherTimeseriesInput; "U-T": TsunamiInput; "U-Q": SeismicInput; "U-N": NankaiInput; "U-V": VolcanoInput; "U-L": LandslideInput }>;
+export type RuntimeUnitSteps = Readonly<{ "U-E": EewUnitStep; "U-W": WeatherCurrentUnitStep; "U-F": WeatherTimeseriesUnitStep; "U-T": TsunamiUnitStep; "U-Q": SeismicUnitStep; "U-N": NankaiUnitStep; "U-V": VolcanoUnitStep; "U-L": LandslideUnitStep }>;
 
 export type ClockReading = Readonly<{
   wallTimeMs: number;
@@ -176,7 +177,7 @@ export type UnitView = Readonly<{
   subjects: readonly SubjectOutcome[];
 }>;
 
-export type RuntimeUnitView = EewUnitView | WeatherCurrentUnitView | WeatherTimeseriesUnitView | TsunamiUnitView | SeismicUnitView | NankaiUnitView | VolcanoUnitView;
+export type RuntimeUnitView = EewUnitView | WeatherCurrentUnitView | WeatherTimeseriesUnitView | TsunamiUnitView | SeismicUnitView | NankaiUnitView | VolcanoUnitView | LandslideUnitView;
 
 // P2-A1-DISPLAY-CHANGES: direct subject references avoid searching a whole view for a delta.
 export type RuntimeDisplaySubject = Readonly<{
@@ -196,6 +197,8 @@ export type RuntimeDisplaySubject = Readonly<{
   | Readonly<{ unit: "U-N"; current: NankaiCurrent | NankaiInformationView | null }>
   // I-U-V.view: subject は三 slice の記録か解説 subject（解説は見出しだけ）。
   | Readonly<{ unit: "U-V"; current: VolcanoAlert | VolcanoEruption | VolcanoAshfall | VolcanoBulletinView | null }>
+  // I-U-L.view: subject は官署の current（active だけ）。
+  | Readonly<{ unit: "U-L"; current: Extract<LandslideCurrent, Readonly<{ effective: "active" }>> | null }>
 );
 
 export type RuntimeDisplayChange = Readonly<{
@@ -214,6 +217,7 @@ export type RuntimeViews = Readonly<{
   "U-Q": SeismicUnitView;
   "U-N": NankaiUnitView;
   "U-V": VolcanoUnitView;
+  "U-L": LandslideUnitView;
 }>;
 
 export type FreshnessRecord = Readonly<{
@@ -268,6 +272,8 @@ export type DiagnosticReason = ParserDiagnosticReason | RejectionReason | Infras
   | "nankaiRevisionConflict" | "nankaiCapacityEvicted"
   // P3-UNIT-V-001 Q-ENUM.diagnosticReasons: a same-revision conflict and a U-V capacity eviction.
   | "volcanoRevisionConflict" | "volcanoCapacityEvicted"
+  // P3-UNIT-L-001 Q-ENUM.diagnosticReasons: a same-revision conflict and a U-L capacity eviction.
+  | "landslideRevisionConflict" | "landslideCapacityEvicted"
   | "notificationAttemptFailed" | "notificationExpired" | "notificationCapacityEvicted" | "notificationAdapterIsolated"
   // P3-UNIT-TABLE-001: one per input whose headType is not routed to a unit (ignored / notPorted / absent from coverage).
   | "routeIgnored" | "routeNotPorted" | "routeUnlisted" | "ownerReplyLate";

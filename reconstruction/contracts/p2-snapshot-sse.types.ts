@@ -20,6 +20,7 @@ import type { TsunamiUnitView } from "./p3-tsunami-unit.types";
 import type { SeismicUnitView } from "./p3-seismic-unit.types";
 import type { NankaiUnitView } from "./p3-nankai-unit.types";
 import type { VolcanoUnitView } from "./p3-volcano-unit.types";
+import type { LandslideUnitView } from "./p3-landslide-unit.types";
 
 export type DisplayVersion = Readonly<{
   streamId: string;
@@ -44,7 +45,7 @@ export type DisplayWorkerView = Readonly<{
 // P2-A8-AC11: durable restoration is independent of current confirmation.
 export type DisplayRecoveryView = RuntimeRestoration;
 
-export type DisplayInformationType = "eew" | "weather-warning" | "weather-warning-timeseries" | "tsunami" | "earthquake" | "nankai" | "volcano";
+export type DisplayInformationType = "eew" | "weather-warning" | "weather-warning-timeseries" | "tsunami" | "earthquake" | "nankai" | "volcano" | "landslide";
 export type DisplaySeverity = "none" | "below" | "forecast" | "advisory" | "warning" | "danger" | "specialWarning";
 export type DisplayAreaSystem = "eewArea" | "prefecture" | "primary" | "municipalityGroup" | "municipality" | "stormSurge" | "forecastArea"
   // P3-C5-SNAPSHOT=A: VTSE41 の津波予報区と VTSE51/52 の観測点。
@@ -121,6 +122,7 @@ export type DisplaySnapshot = Readonly<{
     earthquake: DisplayDomainView<SeismicUnitView>;
     nankai: DisplayDomainView<NankaiUnitView>;
     volcano: DisplayDomainView<VolcanoUnitView>;
+    landslide: DisplayDomainView<LandslideUnitView>;
   }>;
   notices: readonly VisibleNotice[];
 }>;
@@ -146,6 +148,7 @@ export type SnapshotProjectionInput = Readonly<{
   earthquake: SeismicUnitView;
   nankai: NankaiUnitView;
   volcano: VolcanoUnitView;
+  landslide: LandslideUnitView;
   // A1 accepted outcomes only; A8 derives short-lived screen notices, never A7 intents.
   outcomes: readonly RuntimePublishedOutcome[];
   // P2-A1-DISPLAY-CHANGES: includes deletions/evictions with no PublishedOutcome.
@@ -179,6 +182,7 @@ export type SnapshotProjectionState = Readonly<{
     earthquake: DisplayDomainProjection<SeismicUnitView>;
     nankai: DisplayDomainProjection<NankaiUnitView>;
     volcano: DisplayDomainProjection<VolcanoUnitView>;
+    landslide: DisplayDomainProjection<LandslideUnitView>;
   }>;
 }>;
 export type SnapshotProjectionResult =

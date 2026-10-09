@@ -43,7 +43,7 @@ export type NotificationChannelState =
 export type NotificationDeliveryState = Readonly<{
   intents: readonly NotificationIntent[];
   channels: Readonly<Record<NotificationChannel, NotificationChannelState>>;
-  // P2-A7-TIME: key = JSON.stringify([unit, intentId]); pending only, <= runtimeUnits.length × 128 total (896 with U-V, P3-C9-RES-02).
+  // P2-A7-TIME: key = JSON.stringify([unit, intentId]); pending only, <= runtimeUnits.length × 128 total (1,024 with U-L, P3-C10-RES-02).
   // Initialized at adoption/restore, retry updated on failure; ordinary selection preserves them.
   deadlines: Readonly<Record<NotificationChannel, Readonly<Partial<Record<string, Readonly<{
     retryAtMonotonicMs: number;

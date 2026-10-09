@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "0d271ae071a22e14a0a192b9f17320e9b44e3cbb",
-    "sha256": "4bbdb3af51af6b86163d5d23e2cc069eae7d2003de3acc2584843f57ca6a0c97",
+    "sha256": "2012bc5a9f06e77dc69e6940409e4b7f245dce0f39d5d1e317fa8d150c34410e",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "07dacd74b734222a3f493141d6c2128c172392afd6d6b025b98bb76d38613cbf",
     "sequencesSha256": "4a3d8fcfa174d60512abf30a15829dfbd188547c51047c5104a32ac22cbceb05",
@@ -303,7 +303,9 @@
           "C20（P3-WEATHER-NOTICE-001）: U-Wの通知を作るとき、VPWS50の土砂の区域の変化とVPWW56（U-L）が同じ変化で2回鳴らないかを決める（P3-C10-NOTICE-OWNER）",
           "C13（U-M）: 旧来の土砂災害警戒情報VXWW50はspec:498でU-Mのlegacy counterpart。VPWW56との対応付けは旧築でunconfirmed（legacy-counterpart-registry.ts:149）で、バックログの調査でKind 3↔49の単一の正規化が成り立たない（1↔29も実在）。U-LはVXWW50を読まず、U-Lの記録を推測で変えない",
           "C15（移行）: P3-C10-MIGRATION",
-          "C4・C22（測定）: P3のE01の負荷N（reconstruction/test/eew-e01/evidence/p3/manifest.jsonのloads.N）は15_16_01_241031_VPWW56を何度も流す。C10の配送の後はnotPortedの経路でなくU-Lの受理（2回目以降はduplicate）になり、deferredの負荷が変わる。凍結した版付きの結果は書き換えず、C22の確認でこの差を記録する"
+          "C4・C22（測定）: P3のE01の負荷N（reconstruction/test/eew-e01/evidence/p3/manifest.jsonのloads.N）は15_16_01_241031_VPWW56を何度も流す。C10の配送の後はnotPortedの経路でなくU-Lの受理（2回目以降はduplicate）になり、deferredの負荷が変わる。凍結した版付きの結果は書き換えず、C22の確認でこの差を記録する",
+          "P4（表示の分野の配分）: 同時最大状態（64官署・1,772区域）のdomain landslideは96,460 byteで分野の予算65,536を超える。summaryに落ちるのはsnapshot全体が1 MiBを超えたときだけなので、大雨でU-W・U-Fも同時に大きい日に真っ先にsummaryへ落ちうる。作者へ報告済み（統合担当、2026-10-10）。分野ごとの配分をP4の表示の境界で決める（Q-C10-IMPL-AMEND(9)）",
+          "C22（Piでの短い確認）: 「U-Fの保存中に届いたVPWW56」の投入→T2を足す。own-saveの留保（最長1,000ms、P3-UWR-AC04）を通り、C10のAC11の156ms（U-Fの最大VPWP50の処理の後ろ、Mac 10回）には入っていない。active 128件の一括回収の表示の費用も未測定（Q-C10-IMPL-AMEND(10)）"
         ]
       },
       {
@@ -317,6 +319,13 @@
         "source": "統合担当の発注前点検（2026-10-10、HEAD 04fd2fb1）",
         "closed": "Q-C10-AUTHOR-RULINGS: 作者裁定（2026-10-10朝、ご主人、推奨どおり）ACTIVE-EXPIRY=C・NOTICE-LEVELS=Bを各分岐のrulingに書いた。起草は推奨（provisional）で書かれていたので、選ばなかった案に依存する条文（Q-NOTICE.levelの「Aを選ぶなら・Cを選ぶなら・Dを選ぶなら」、generationTableのexpiryの「Bではactiveの回収も」、P3-C10-CAPACITYの「Aではinactiveだけ」、P3-C10-RETENTIONの「Bではactiveの期限そのもの」、I-U-L.deadlinesの「Aならinactiveだけ」、SEM-02の「none if A; 6 if B」、AC03・T03の起草案の書き方、残存リスクの「A・C」）を除き、Q-NOTICE・P3-C10-LEGACY-DIFF・I-U-L・AC03・AC07・T03・T06の表記を裁定に置き換えた。types.tsはretainUntilの注記（起草案C・「Aなら」）だけを裁定に直し、型は変えない。Q-C10-PLACE: P3-C10-PLACEのruling（A、統合担当の確定。S4の本文は読んでいない）。P3-C10-INTERFERENCE・P3-C10-WRITE-RIGHT・I-U-L.runtimeRowsの表記を確定に直した。Q-C10-CORPUS: (1) sequences.jsonにU-L（VPWW56）のstepが0だったことを確かめた (2) synthetic 2本（synthetic_VPWW56_correction: 15_16_01と同じ版の訂正で事実は同じ、Headlineの文だけ違う。synthetic_VPWW56_cancel: 同じ版の取消でBodyは空）でO01:80〜85（発表→同一revision訂正→取消→重複→遅着）とO07:45〜53（保存→復元→訂正→取消→保存→復元→旧報）を足した。続報（引上げ・引下げ・事実の同じ報・全解除）と別の官署はT02・T03の試験内の入力と二重になるので足さない (3) 実配信のVPWW56を1本（18_00_01_260603_VPWW56_kagawa_release、2026-06-03の高松地方気象台の発表、市町村等17のうち1区域がKind/Code 29のままStatus=解除で、activeの区域が無い）をdmdataのArchiveのmemberと全bytes一致で足し（利用規約14項1号でpublicApproved、統合担当の決定）、O03:25・26で記録の無い官署への解除（ended・inactiveAdoption）を確かめる。実配信の425本で、解除の区域を持ちactiveの区域の無い報は34本、activeと解除が混ざる報は73本 (4) manifest・P1契約・P1-T01・check-manifest・READMEの件数（291件、XML 270、合成97、原本確認24、publicApproved 15）へ波及させた（P1-T01の分類の差分0）。15_16_01は気象庁のサンプル電文で実際の系列ではないことを、期待を入れたstepのchecksに書いた。Q-C10-BASE: 点検で閉じられる分を閉じた（0d271ae0→04fd2fb1の差分は本契約とtypes.tsだけで、anchorは04fd2fb1で全部一致、check-contract PASS。p2-notification-delivery.types.ts:46は7×128＝896、unit-table/type-contract.ts:62・:66・:68とunit-table.test.ts:46のU-L・VPWW56の使い方は0d271ae0の記述どおり。計画は中身を変える行が無いので変えない）。baseOidの割当の時点の読み直しはQ-C10-BASEに残す",
         "reason": "発注前点検の項目を閉じる。baseOidの割当を止める未決は残さない（Q-C10-BASEは実装の着手だけを止める）"
+      },
+      {
+        "id": "Q-C10-IMPL-AMEND",
+        "status": "closed",
+        "source": "C10実装（2026-10-10、1b4e362dの上、main 5aa354d7へrebase）と統合担当の許可",
+        "closed": "(1) 既存試験の期待値の変更5件（統合担当の許可）。全部U-Lがdeferredの2つ目のunitになった（P3-C10-PLACE=A）機械的な帰結: ①②③ review-regressions.test.tsのR28・execution-split.test.tsのD4・unit-write-right.test.tsのD4のunsavedUnits 7→8（cutoffが決まらないと全unitを数える） ④ execution-split.test.tsのP3-C3A-T13 (4)の遅れたowner B（deferred）のunsavedUnits 1→2（unfixedなownerのunitを全部数える、shared-runtime.tsのobserveStage。U-FとU-L） ⑤ shared-runtime.test.tsのP2-A1-T12: deferredのownerのdeadlinesがunitごとの形{\"U-F\":…,\"U-L\":null}になる（C9まではdeferredがU-Fだけで、Object.valuesが1要素だった）。weatherCurrentも{\"U-W\":…}の形で明示した。ほかにunit-table.test.tsのidleOwner: restoreOwnerはplaceの全unitのrestoredを要求するのでU-Lのemptyを足し、deadlinesはstartedから引き継いでU-Fだけを上書きする（統合担当の許可）。(2) 契約が名指しした変更: unit-table/type-contract.tsのn5b・n6a・n6bとunit-table.test.tsのnotPortedの代表をU-R（VXKO50）へ、owner-harness.tsのunitBodiesとseededにU-L、runtime-fixture.tsのRuntimeUnitIdの網羅とownerFixtureのdeferredをU-F＋U-Lに、weather-timeseries-unit.test.tsのdeferredのrestoreOwnerのrestoredにU-L。tsunami・seismic・nankai・volcanoのunitの試験は変えずに済んだ。(3) 取消の記録（cancelled）に解除の報を採用したら、effectiveをendedにする（cancelledのままだと続く解除の報のたびにinactiveAdoptionが鳴る）。記憶だけの取消とactiveを取り消した記録はstateで見分けられない（types.tsに見分ける欄が無い）ので、cancelledの記録は全部inactiveAdoptionの対象にした。型を変えずに実装する唯一の読みとして、統合担当の判断で閉じる（I-U-L.currentSemantics(1)の「記録がinactiveならsourceを進め」は、見えないままsourceとretainUntilが進むと読む）。(4) 遅着の判定（P3-C10-ACTIVE-EXPIRY=C・P3-C10-RETENTION=A）はReportDateTime+6時間≤受理の時刻（ちょうど6時間も遅着）で、retainUntilの到来の判定と同じ比較。(5) 記憶だけの取消も、そのsubjectのpendingを両channelともsupersededにする（新しいintentは作らない。C8と同じ）。currentを残さない受理（記録の無い官署へ遅れて届いた取消、training/testの取消が自身を退去する受理）でも、採用した取消はpendingを置き換える。currentsの参照は保ち、intentsが変わったときだけ保存世代を進める（品質レビューP2の直し: 訓練のcurrentがnormalの新官署で退去された後の訓練の取消で、訓練の通知が配送対象に残っていた）。(6) endedになる訂正のtransitionはupdated（Q-NOTICE.transitionの訂正の規則を先に当てる、C8の先例）、段階はnormal。(7) P3-C10-WRITE-RIGHTの「U-Lの保存中も同じ実行場所の入力を送る」は、実行時にはdeferredのown-saveの留保（最長1,000ms、P3-UWR-AC04・P3-UWR-HOLD-LIMIT=A）を通ってから送られる。T09の古いackとU-F・U-Lの同時dirtyの試験はこの留保の満了を待つ形で書いた。(8) corpusの再生（T08）のrestartは、restoreOwnerと同じく保存した世代（envelope.generation）から続ける（世代0から始めるとintentのidの世代が復元したpendingと重なりdecodeが拒否する。試験の側の直しで、製品経路はenvelopeの世代から続く）。(9) AC06の実測（2026-10-10、Mac、P3-C10-T09）: 同時最大状態（64官署・1,772区域）のview 95,497 byte、domain landslide 96,460 byte。P3-C10-SNAPSHOTのreasonの「分野ごとの65,536 byteを超えればsummaryに落ちる」は前提の誤りで、summaryに落とすのはsnapshot全体が1 MiBを超えたときだけ（view-projector.tsのRES-06のoverflow）。この状態では全体106,285 byteでfullのまま届くが、domain landslideは分野の予算DOMAIN_BUDGET 65,536を超えているので、全体が溢れたとき（大雨でU-W・U-Fも同時に大きい日）に真っ先にsummaryへ落ちうる。作者へ報告済み（統合担当、2026-10-10）。分野の配分はP4へ申し送る（P3-C10-HANDOFF）。(10) AC11の報告（Mac、正式E01ではない。最大/中央値ms）: U-Lの合法最大の報（Item 256・Kind/Code 8種類、128官署を満たした状態）の最中のEEWの投入→T2 0.46/0.27（work 3.67、decode 1.35・reduce 0.68・viewと送出1.56、20回）、U-Lのencode（1,130,411 byte）の最中のEEW 0.22/0.17（encode 1.75、20回）、128官署の一括の期限回収の最中のEEW 1.58/0.84（回収0.91、10回。受信の経路で組めるendedの記録で測った。activeの+48時間は記録の無い官署へ遅れて届くとactiveにならないので組めない）。EEWの待ちの最大1.58は約40msの内側。U-Fの最大のVPWP50（81_09_01、2,268,084 byte）の後ろのVPWW56の投入→T2 156.06/135.75（VPWP50の処理139.67、10回）で、約160msの手前。U-Lのencodeの最中に投入したVPWP50は10.80/10.31（own-saveの留保、P3-UWR-AC04）。U-Fの保存中に届いたVPWW56はown-saveの留保（最長1,000ms、composition-root.tsのownSaveHold、P3-UWR-AC04）を通り、156ms（線160msの2.5%手前、10回）の測定には入っていない。一括の期限回収はendedの記録だけで測り、active 128件の回収の表示の費用は測っていない。C22のPiの確認に「U-Fの保存中のVPWW56」を足す（P3-C10-HANDOFF）。(11) I-U-L.capacityMeasurementの測り直し（同じfixture、実装の記録の形、P3-C10-T04）: activeの記録804 byte（起草815、試験のinputIdは36文字より短い）、endedの記録391（402）、intent 960（882、+8.8%、bodyにHeadlineを含む）、実例の同時最大のpayload 288,915 byte（起草293,040はenvelope 293を含む、約−1.3%）、上界の記録1件8,562（8,566）、上界のpayload 1,321,179（1,327,328）。どれも10%以内で、数は直さない。(12) AC12（R45、1 unit追加の型。行はC10実装の作業ツリー）: adapterはsrc/domains/landslide/landslide.ts:1-170（XMLの読み取りlocalName・children・scalar・cut、Kind/Statusの語彙、validSerialはdomains/nankai・volcano・weather-currentの写し）。意味はsrc/units/landslide/landslide-unit.ts:41-451（容量・期限・版・current・通知・受信・回収・intentUpdate・復元・reduce・view）、codecは同:452-566、unit表の行は同:568-579。射影はview-projector.ts:47・52・56・58・70-71（TTL・UNAVAILABLE_TEXT・COUNTS_BY_WARNING_CLASS・INFORMATION_TYPE・AREA_SYSTEMSの行）、:365-385（landslideTally、重大度は同じfileのWEATHER_SEVERITY）、:407（fixedBytes）、:697（comparable）、:744-745・:802-803・:812・:822・:826・:837・:846-847（projectSnapshotのdomainの列・shellBytesの減数−8・byteの合計）、p2-snapshot-sse.types.ts:23・48・125・151・185、p2-shared-runtime.types.ts:19・27・31-33・180・200-201・220・275-276。coverageの行はunit-coverage.ts:8・17・94。結線はcomposition-root.ts:55・69・72・80・199・201-202・206・212-213・216・536・538・1287・1602、owner-runtime.ts:85・142・157、shared-runtime.ts:206-207・345-346、persistent-diagnostic-sink.ts:52、p2-notification-delivery.types.ts:46（注記）。fixture期待値と試験helperは試験18本（owner-harness.tsのunitBodies・seeded、runtime-fixture.tsの網羅とownerFixture、projection-fixture.ts、linked-calls.tsなど）。unit・domain・testのdirectoryの外で足した行は、src・contractsの型9 fileで+82/−32、試験18 fileで+87/−60（unit-table.test.tsの表の代表の差し替えとowner-runtimeのswitchのcase 2つを含む）。型で漏れを止められない箇所: view-projectorのcomparable・domainの列・byteの合計・shellBytesの減数、composition-rootのsnapshotInputのunitの照合、shared-runtimeのaddedScopesの分岐、persistent-diagnostic-sinkの一覧。(13) check-contractのanchorの付け直し（統合担当の許可）: unit-coverage.tsの:8（内容の変化）・:43・:65・:69・:72、owner-runtime.tsの:466、p2-snapshot-sse.types.tsの:31・:93の行のずれを、P3-UNIT-L-001・P3-UNIT-R-001・P3-UNIT-Q-001・P3-UNIT-N-001・P3-TSUNAMI-UNIT-001・P3-UNIT-V-001・P3-INTENT-UPDATE-RESERVE-001・P3-DMDATA-CONNECT-001・P2-CHROME-EEW-001で付け直し、meta.sha256を計算し直した。(14) 契約適合レビューの直し: 退去を伴う受理（記録の無い官署への解除などrevisionOnlyの形）はdecisionもoutcomeもsemanticに揃えた（U-Nと同じ、P3-C10-T04に1行）。T04のtitle 129文字とKindの名前33文字の切り詰めは別の報で確かめる。T09の「U-Lだけの変化で出し直す」は、保存の状態を前の入力のままにした射影でも出し直され、他のdomainが変わらないことまでを確かめる（保存の状態に依らずU-Lの変化で出し直されることの確認。土砂の採用ではsnapshotのsemanticRevisionも変わるので、comparableにdomain landslideが入ることの切り分けにはなっていない）。(15) 品質レビューP2の直し: Head/InfoTypeも1個のscalarを確かめる（子要素や重複のInfoTypeを取消と読まず、state不変のrequiredStructureInvalid。P1は最初の要素の直下textだけを読む）。T01の表に2行。",
+        "reason": "実装で読んだ契約の解釈と許可した範囲の変更、測った値を契約に戻す"
       }
     ],
     "operationContract": {
@@ -664,9 +673,9 @@
           "docs/specs/reconstruction-p0-contracts.md:479 «3ed5ef9a291c28b5»",
           "docs/specs/reconstruction-p0-contracts.md:515 «b2d19a49aa46190a»",
           "docs/specs/reconstruction-p0-contracts.md:599 «f0c2a2fedd6f32c0»",
-          "reconstruction/src/runtime/unit-coverage.ts:8 «bfd4ea7b51bf407d»",
+          "reconstruction/src/runtime/unit-coverage.ts:8 «366b1de59feade43»",
           "reconstruction/src/runtime/unit-coverage.ts:15 «0326746541bb8e67»",
-          "reconstruction/src/runtime/unit-coverage.ts:93 «e734142b4cf8bd81»",
+          "reconstruction/src/runtime/unit-coverage.ts:94 «88cdba85989457fd»",
           "reconstruction/src/domains/weather-current/weather-current.ts:151 «6bd033e915fa9e90»",
           "reconstruction/contracts/p2-weather-current-unit.json:109 «02cd5774d58ba577»"
         ]
@@ -680,7 +689,7 @@
           "docs/specs/reconstruction-p0-contracts.md:599 «f0c2a2fedd6f32c0»",
           "docs/specs/reconstruction-p0-contracts.md:534 «92491768609ba6ce»",
           "reconstruction/contracts/p2-snapshot-sse.json:67 «a3f1c965a1d09c56»",
-          "reconstruction/src/view-projector/view-projector.ts:92 «850f0318c98a7301»",
+          "reconstruction/src/view-projector/view-projector.ts:95 «850f0318c98a7301»",
           "reconstruction/src/domains/weather-current/weather-current.ts:35 «3a1f6e3168d4afc3»",
           "test/fixtures/15_16_01_241031_VPWW56.xml:308 «2567a3af87a62e16»",
           "src/dmdata/weather-warning-level.ts:107 «ee52073a9225e6a0»"
@@ -731,10 +740,10 @@
         "requirement": "view・outcome・snapshot: LandslideUnitView、subjectごとのSubjectOutcome、RuntimeDisplaySubjectのU-L行、addedScopesのU-Lの空（P3-C10-N2）、snapshotのdomain landslide（P3-C10-SNAPSHOT=A、highestSeverityはWEATHER_SEVERITY、区域はmunicipality）を同じ採用結果から作る。active以外の記録を載せず、unavailable・未保存・再起動の空を「警報なし」に読み替えない。U-Lだけが変わった入力でもsnapshotが出し直される（view-projectorの比較・domainの列・byteの合計にU-Lが入る）。実装後に、I-U-L.capacityMeasurementの同時最大状態（64官署・1,772区域）でdomain landslideのUTF-8 byteとfull/summaryの判定を測って報告し、summaryに落ちたら配送の前に作者へ報告する",
         "evidenceRefs": [
           "reconstruction/src/view-projector/view-projector.ts:36 «c47aa0d1f5b59833»",
-          "reconstruction/src/view-projector/view-projector.ts:58 «e28c24c638ff52fe»",
-          "reconstruction/src/view-projector/view-projector.ts:80 «ee0a6e3cbb07eb66»",
+          "reconstruction/src/view-projector/view-projector.ts:59 «e28c24c638ff52fe»",
+          "reconstruction/src/view-projector/view-projector.ts:83 «ee0a6e3cbb07eb66»",
           "reconstruction/contracts/p2-snapshot-sse.json:67 «a3f1c965a1d09c56»",
-          "reconstruction/src/runtime/composition-root.ts:195 «9ed0037a4a82959a»",
+          "reconstruction/src/runtime/composition-root.ts:197 «9ed0037a4a82959a»",
           "docs/specs/reconstruction-p0-contracts.md:479 «3ed5ef9a291c28b5»"
         ]
       },
@@ -805,7 +814,7 @@
         "evidenceRefs": [
           "reconstruction/contracts/p3-order-plan.md:108 «71876395a763cd04»",
           "reconstruction/contracts/p3-order-plan.md:110 «be284b9936747da5»",
-          "reconstruction/src/runtime/composition-root.ts:195 «9ed0037a4a82959a»"
+          "reconstruction/src/runtime/composition-root.ts:197 «9ed0037a4a82959a»"
         ]
       },
       {
