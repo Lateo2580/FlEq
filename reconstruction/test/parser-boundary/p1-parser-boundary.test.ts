@@ -89,11 +89,14 @@ it("P1-T03 acceptance / AC05-08: corpus special values and lossless raw metadata
   expect(material.materialValues).toEqual(expect.arrayContaining([
     { kind: "number", value: 4, raw: "４" }, { kind: "empty", raw: " 　" }, { kind: "range", bound: "lower", value: 5, raw: "" },
   ]));
-  const extra = decode(base.replace("<Body/>", '<Body><n a="007">0</n><n>不明</n><n>3以下</n><n> keep </n></Body>'));
+  const overflow = `${"9".repeat(400)}以上`;
+  const extra = decode(base.replace("<Body/>", `<Body><n a="007">0</n><n>不明</n><n>3以下</n><n> keep </n><n>${overflow}</n></Body>`));
   if (extra.kind !== "decoded") throw Error("decode");
   expect(extra.material).toMatchObject({ eventIdRaw: "001", serialRaw: "02" });
   expect(classifyMaterial(extra.material).materialValues).toEqual(expect.arrayContaining([
     { kind: "number", value: 0, raw: "0" }, { kind: "unknown", raw: "不明" }, { kind: "range", bound: "upper", value: 3, raw: "3以下" }, { kind: "text", value: " keep ", raw: " keep " },
+    // 桁あふれの境界は range にせず text に落とす（保存の JSON で Infinity が null になるのを防ぐ）。
+    { kind: "text", value: overflow, raw: overflow },
   ]));
   expect(JSON.stringify(extra.material.xml)).toContain('"name":"a","value":"007"');
   const absent = decode(base.replace("<EventID>001</EventID>", ""));

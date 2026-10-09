@@ -345,7 +345,10 @@ function materialValue(raw: string | undefined, condition = ""): MaterialValue {
   if (raw === undefined) return { kind: "missing" };
   const normalized = raw.normalize("NFKC").trim();
   const match = (condition.normalize("NFKC") || normalized).match(/([+-]?(?:\d+(?:\.\d+)?|\.\d+)).*(以上|超|未満|以下)/);
-  if (match != null) return { kind: "range", bound: match[2] === "以上" || match[2] === "超" ? "lower" : "upper", value: Number(match[1]), raw };
+  // 有限でない境界（桁あふれ）は range にしない。保存の JSON で null になり、どの unit の decode も受けられなくなる。
+  if (match != null && Number.isFinite(Number(match[1]))) {
+    return { kind: "range", bound: match[2] === "以上" || match[2] === "超" ? "lower" : "upper", value: Number(match[1]), raw };
+  }
   if (/不明|未定|NaN|なし/.test(condition || normalized)) return { kind: "unknown", raw };
   if (normalized === "") return { kind: "empty", raw };
   const number = Number(normalized);
