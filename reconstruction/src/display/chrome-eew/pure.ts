@@ -368,7 +368,7 @@ const isTsunamiForecast = (value: unknown) => isRecord(value) && oneOf(OPERATION
   && isRecord(value.source) && typeof value.source.reportDateTimeRaw === "string"
   && Array.isArray(value.areas) && value.areas.every(isTsunamiArea)
   && Array.isArray(value.unkeyedAreas) && value.unkeyedAreas.every((area) => isRecord(area) && typeof area.name === "string"
-    && typeof area.kindName === "string");
+    && typeof area.kindName === "string" && typeof area.kindCode === "string");
 const isNotice = (value: unknown) => isRecord(value) && oneOf(OPERATION_LABEL, value.operation) && typeof value.text === "string"
   && (value.source === null || isRecord(value.source) && isTextOrNull(value.source.office)
     && typeof value.source.officeTruncated === "boolean");

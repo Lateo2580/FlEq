@@ -1,7 +1,7 @@
 {
   "schemaVersion": "p3-tsunami-e01-manifest-v1",
   "manifestId": "p3-c6-draft-20261009",
-  "manifestSha256": "5ddef02d28136d9a9dd88e17e1c893c6549bb5f8b1e44bdf065b52fa849ae61a",
+  "manifestSha256": "1fc2f50265a42c68639c85efc8e0085fef54d3f67cbd88631d4db6e70fb7d830",
   "trialSetupRef": "reconstruction/test/eew-e01/evidence/trial-setup.json",
   "trialSetupSha256": "cd1ee3dd642cf070f6a0f010a2d3c7075d7a0fb9873feea254375f53a564f578",
   "measuredSseClients": 1,
@@ -224,7 +224,7 @@
     "piBackend": "Raspberry Pi 500（Pi 第 1 段: backend 単独、第 2 段: Pi backend＋Mac mini の Chrome）"
   },
   "contractSha256": {
-    "P3-TSUNAMI-E01-001": "10c26d1b46ab52460d6c622751364955c46d596d99a7715bc39317d24c27caaa",
+    "P3-TSUNAMI-E01-001": "fa64cac2eac88715a5533904a4e5e509c0b21663316433fa4ac6807a032f9e70",
     "P3-TSUNAMI-UNIT-001": "d21a55fefa40c10af49b9f1b5ee18b21273a721f40c032c86479fe0c6a0ceb42",
     "P3-E01-REACCEPT-001": "700b567863d718fb83be58a83e66be51a00a011ea2753935ac21aaf820d5ade2",
     "P3-UNIT-WRITE-RIGHT-001": "92a662b0180d3c7bd7ebd88772e96a453be16d6f4926757269c556188542c68d",

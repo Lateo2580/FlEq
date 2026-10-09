@@ -1184,7 +1184,8 @@ function judgeE01(manifest, assembled) {
       assembled.flatMap((a) => (a.stateBreaks == null ? [] : [{ population: a.spec.population, run: a.spec.run, stateBreaks: a.stateBreaks }])));
     const runs = judged.runs.map((run) => {
       const a = assembled.find((x) => x.spec.population === run.population && x.spec.run === run.run);
-      return { ...run, evidenceRefs: a == null ? [] : [a.recordRef, `${a.rawDir}/run-record.json`, `${a.rawDir}/e01-assembled.json`] };
+      // 判定器の evidenceRefs（transitionQuotaUnmet など）を残し、raw の参照を足す。
+      return { ...run, evidenceRefs: [...run.evidenceRefs, ...(a == null ? [] : [a.recordRef, `${a.rawDir}/run-record.json`, `${a.rawDir}/e01-assembled.json`])] };
     });
     const eewReference = assembled.filter((a) => a.eewReference?.length > 0).map((a) => ({ population: a.spec.population, run: a.spec.run, scope: "reference（判定に使わない）",
       ...eewReferenceSummary(a.eewReference) }));

@@ -104,8 +104,8 @@ const entry = (sequence: number, present: boolean, areas: readonly { code: strin
     areas: areas.map((a) => ({ code: a.code, areaClass: a.areaClass as "majorWarning" })) }, paint: { chromeMs, paintEvidenceId: "frame:1", hasScreenshot: false }, replacedBeforePaint: false }];
 const trial = (expectedPaint: typeof MAJOR, prime: TsunamiTrial["prime"]): TsunamiTrial => ({ attemptIndex: 100, index: 100, inputId: "input-2", subject: SUBJECT,
   scheduledHrMs: 990, injectedHrMs: 995, block: 0, phase: "formal", transition: "upgraded", expectedPaint, prime, eew: null, establishment: { established: true } });
-const assemble = (trials: TsunamiTrial[], candidates: [string, ChromeCandidateEntry][]) => assembleTsunamiTrials({ population: "escalation:fixedBacklog", run: 1, trials,
-  host: buildHostIndex(lines), chromeByVersion: new Map(), chromeByCandidate: new Map(candidates), probes, blocks: [{ dataLoss: false }], callbackDeadlineMs: 10_000, missingAfterMs: 10_000 });
+const assemble = (trials: TsunamiTrial[], candidates: [string, ChromeCandidateEntry][], dataLoss = false) => assembleTsunamiTrials({ population: "escalation:fixedBacklog", run: 1, trials,
+  host: buildHostIndex(lines), chromeByVersion: new Map(), chromeByCandidate: new Map(candidates), probes, blocks: [{ dataLoss }], callbackDeadlineMs: 10_000, missingAfterMs: 10_000 });
 
 describe("P3-C6-T01 binding the tsunami T6 inside the target's version window (AC02・AC06(5))", () => {
   it("a candidate whose areas differ from expectedPaint is not T6, and a matching candidate in a later version outside the window is not picked: the sample is missing", () => {
@@ -121,6 +121,9 @@ describe("P3-C6-T01 binding the tsunami T6 inside the target's version window (A
     const prime = { inputId: "input-1", paintRequired: true, expectedPaint: { present: true, areas: [{ code: "311", areaClass: "warning" }] } };
     const settled = assemble([trial(MAJOR, prime)], [entry(1, true, prime.expectedPaint.areas, 950), entry(2, true, MAJOR.areas, 1050)]);
     expect(settled.samples[0]).toMatchObject({ missing: false });
+    // trace のブロックに dataLoss があれば、候補と paint が結べても標本にしない（Q-C6-IMPL-AMEND (14)）。
+    const lost = assemble([trial(MAJOR, prime)], [entry(1, true, prime.expectedPaint.areas, 950), entry(2, true, MAJOR.areas, 1050)], true);
+    expect([lost.samples[0], lost.details[0]]).toMatchObject([{ missing: true, missingReason: "traceIncomplete" }, { sample: "traceIncomplete(dataLoss)" }]);
     const late = assemble([trial(MAJOR, prime)], [entry(1, true, prime.expectedPaint.areas, 1000), entry(2, true, MAJOR.areas, 1050)]);
     expect(late.samples[0]).toMatchObject({ missing: true, missingReason: "traceIncomplete" });
     expect(late.details[0]).toMatchObject({ sample: "primeSettledNotConfirmedByTrace" });

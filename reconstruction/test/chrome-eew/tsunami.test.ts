@@ -79,6 +79,10 @@ describe("P3-C6-T03 tsunami paint instructions, candidates and the snapshot boun
     const view = t.delivery === "full" ? t.view : null;
     expect(parseDisplaySnapshot(patch({ ...t, view: { ...view, forecasts: [{ ...view!.forecasts[0], areas: [{ ...area("311", "warning"), code: 311 }] }] } }))).toBeNull();
     expect(parseDisplaySnapshot(patch({ ...t, view: { ...view, forecasts: [{ ...view!.forecasts[0], areas: [{ ...area("311", "warning"), areaClass: "red" }] }] } }))).toBeNull();
+    // 区域コードの無い区域は kindCode が文字列でなければ受けない（描画で区分を引くので、欠落や文字列でない値で TypeError にしない、AC03(7)）。
+    const unkeyed = (kindCode: unknown) => patch({ ...t, view: { ...view, forecasts: [{ ...view!.forecasts[0], unkeyedAreas: [{ name: "n", kindName: "k", kindCode }] }] } });
+    expect([parseDisplaySnapshot(unkeyed("99")) != null, parseDisplaySnapshot(unkeyed(undefined)), parseDisplaySnapshot(unkeyed({ toString: null, valueOf: null }))])
+      .toEqual([true, null, null]);
     expect(tsunamiContentChanged(valid, snapshot(view!.forecasts, "2"))).toBe(true);
     expect(eewContentChanged(valid, snapshot(view!.forecasts, "2"))).toBe(false);
     expect(tsunamiContentChanged(valid, snapshot(view!.forecasts, "1", "9"))).toBe(false);

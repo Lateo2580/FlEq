@@ -385,11 +385,17 @@ export function assembleTsunamiTrials({ population, run, trials, host, chromeByV
       continue;
     }
     const head = [...node("T0", t0), ...node("T1", t1), ...node("T2", t2)];
+    // trace のブロックに dataLoss があれば、候補と paint が結べても標本にしない（Q-C6-IMPL-AMEND (14)）。描画前の置換は「後の候補の mark」で
+    // 見るので、置換した側の mark が欠けると、置き換えられた旧い候補に frame を結びうる。prime の実 paint も同じ試行の同じブロックにある。
+    if (blocks[tr.block]?.dataLoss === true) {
+      samples.push(fail("traceIncomplete", head));
+      details.push({ index: tr.index, outcome, sample: "traceIncomplete(dataLoss)", ...reason });
+      continue;
+    }
     const bound = t2 == null ? null : bind(tr.inputId, tr.subject, T6T, (c) => samePaint(c, tr.expectedPaint));
     if (bound?.entry == null) {
-      const lost = blocks[tr.block]?.dataLoss === true;
-      samples.push(fail(lost ? "traceIncomplete" : "paintNotObservedWithin10s", head));
-      details.push({ index: tr.index, outcome, sample: t2 == null ? "notProcessed" : lost ? "traceIncomplete(dataLoss)" : bound.published ? "noMatchingCandidate" : "notPublished", ...reason });
+      samples.push(fail("paintNotObservedWithin10s", head));
+      details.push({ index: tr.index, outcome, sample: t2 == null ? "notProcessed" : bound.published ? "noMatchingCandidate" : "notPublished", ...reason });
       continue;
     }
     const { t3, entry } = bound;
