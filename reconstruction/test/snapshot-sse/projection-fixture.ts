@@ -51,7 +51,8 @@ const directories: string[] = [];
 afterAll(() => { for (const path of directories.splice(0)) rmSync(path, { recursive: true, force: true }); });
 
 type Restored = Readonly<Record<RuntimeUnitId, RestoreUnitResult>>;
-const empty: Restored = { "U-E": { kind: "empty" }, "U-W": { kind: "empty" }, "U-F": { kind: "empty" }, "U-T": { kind: "empty" } };
+const empty: Restored = { "U-E": { kind: "empty" }, "U-W": { kind: "empty" }, "U-F": { kind: "empty" }, "U-T": { kind: "empty" },
+  "U-Q": { kind: "empty" } };
 
 function initialPayload<K extends RuntimeUnitId>(unit: K) {
   const codec = linkedUnitCodecs[unit];
@@ -138,18 +139,19 @@ function view(run: Run): Step["state"] {
   const owner = (place: (typeof places)[number]) => h.owners.get(place)!["state"]!;
   const views = (): RuntimeViews => {
     const eew = publisher.mirror["U-E"].view, weather = publisher.mirror["U-W"].view, series = publisher.mirror["U-F"].view;
-    const tsunami = publisher.mirror["U-T"].view;
-    if (eew.unit !== "U-E" || weather.unit !== "U-W" || series.unit !== "U-F" || tsunami.unit !== "U-T")
+    const tsunami = publisher.mirror["U-T"].view, seismic = publisher.mirror["U-Q"].view;
+    if (eew.unit !== "U-E" || weather.unit !== "U-W" || series.unit !== "U-F" || tsunami.unit !== "U-T" || seismic.unit !== "U-Q")
       throw new Error("mirror view of another unit");
-    return { "U-E": eew, "U-W": weather, "U-F": series, "U-T": tsunami };
+    return { "U-E": eew, "U-W": weather, "U-F": series, "U-T": tsunami, "U-Q": seismic };
   };
   const merged = <V>(pick: (state: ReturnType<typeof owner>) => Readonly<Partial<Record<RuntimeUnitId, V>>>) =>
     places.reduce<Partial<Record<RuntimeUnitId, V>>>((all, place) => ({ ...all, ...pick(owner(place)) }), {});
-  return { runId: publisher.runId, units: { "U-E": h.unit("U-E"), "U-W": h.unit("U-W"), "U-F": h.unit("U-F"), "U-T": h.unit("U-T") },
+  return { runId: publisher.runId, units: { "U-E": h.unit("U-E"), "U-W": h.unit("U-W"), "U-F": h.unit("U-F"), "U-T": h.unit("U-T"),
+    "U-Q": h.unit("U-Q") },
     views: views(),
     confirmation: publisher.confirmation, restoration: publisher.restoration, admission: merged((state) => state.admission),
     checkpointAttempts: merged((state) => state.checkpointAttempts),
-    deadlines: { "U-E": null, "U-W": null, "U-F": null, "U-T": null, ...merged((state) => state.deadlines) },
+    deadlines: { "U-E": null, "U-W": null, "U-F": null, "U-T": null, "U-Q": null, ...merged((state) => state.deadlines) },
     notificationChannels: publisher.notificationChannels, notificationProbeComplete: publisher.notificationProbeComplete,
     notificationDeadlines: publisher.notificationDeadlines, shutdown: publisher.shutdown };
 }
@@ -159,7 +161,8 @@ function stepOf(run: Run, outcomes: Step["outcomes"], displayChanges: Step["disp
   const mirror = run.h.root.state.mirror;
   runs.set(state, { run, length: run.inputs.length });
   return { state, outcomes, displayChanges, admissionCounts: { "U-E": mirror["U-E"].admissionCounts,
-    "U-W": mirror["U-W"].admissionCounts, "U-F": mirror["U-F"].admissionCounts, "U-T": mirror["U-T"].admissionCounts } };
+    "U-W": mirror["U-W"].admissionCounts, "U-F": mirror["U-F"].admissionCounts, "U-T": mirror["U-T"].admissionCounts,
+    "U-Q": mirror["U-Q"].admissionCounts } };
 }
 
 async function startup(clock: ClockReading, restored: Restored = empty, units?: UnitTable): Promise<Step> {
@@ -187,7 +190,8 @@ function publisherOf(state: RuntimeState, counts: RuntimeAdmissionCounts): Publi
   const mirror = <K extends RuntimeUnitId>(unit: K) => ({ persistence: state.units[unit].persistence,
     admissionCounts: counts[unit], view: state.views[unit],
     pendingIntents: state.units[unit].intents.filter((item) => item.disposition === "pending") });
-  return { runId: state.runId, mirror: { "U-E": mirror("U-E"), "U-W": mirror("U-W"), "U-F": mirror("U-F"), "U-T": mirror("U-T") },
+  return { runId: state.runId, mirror: { "U-E": mirror("U-E"), "U-W": mirror("U-W"), "U-F": mirror("U-F"), "U-T": mirror("U-T"),
+    "U-Q": mirror("U-Q") },
     restoration: state.restoration, confirmation: state.confirmation, notificationChannels: state.notificationChannels,
     notificationProbeComplete: state.notificationProbeComplete, notificationDeadlines: state.notificationDeadlines,
     shutdown: state.shutdown };

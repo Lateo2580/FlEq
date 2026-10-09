@@ -318,8 +318,8 @@ describe("P3-C3B execution lifecycle (TEST-PATH (2))", () => {
   });
 
   it("P3-C3B-T05 acceptance / AC03: shutdown with stopped and unresponsive owners (spec:2072)", async () => {
-    // U-T stays clean here: this case describes the three earlier units (P3-C5 adds its row only).
-    type Dirtied = Exclude<RuntimeUnitId, "U-T">;
+    // U-T and U-Q stay clean here: this case describes the three earlier units (P3-C5 and P3-C7 add their rows only).
+    type Dirtied = Exclude<RuntimeUnitId, "U-T" | "U-Q">;
     const dirtyState = (ages: Readonly<Record<Dirtied, number>> = { "U-E": 30, "U-W": 20, "U-F": 10 },
       units: readonly Dirtied[] = ["U-E", "U-W", "U-F"]) => {
       const values = { "U-E": "eew", "U-W": "weather", "U-F": "series" } as const;

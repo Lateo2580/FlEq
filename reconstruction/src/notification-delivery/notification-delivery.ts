@@ -17,7 +17,7 @@ function resolveSoundAsset(payload: NotificationIntent["payload"]): Notification
 
 function group(intent: NotificationIntent): NotificationPriorityGroup {
   if (intent.operation !== "normal") return "other";
-  if (intent.payload.domain === "earthquake-eew") return "normalEew";
+  if (intent.unit === "U-E") return "normalEew"; // P3-C7-NOTICE-GROUP=A: U-Q の地震情報も domain=earthquake-eew だが other。
   if (intent.payload.domain === "tsunami" && (intent.payload.level === "warning" || intent.payload.level === "critical"))
     return "normalTsunamiEmergency";
   return "other";

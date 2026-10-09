@@ -51,12 +51,14 @@ const clock = { wallTimeMs: 1_780_650_000_001, monotonicMs: 12 } as const;
 const savedProgress: PersistenceStatus = Object.freeze({ kind: "saved", currentGeneration: 1, savedGeneration: 1,
   savedCapturedAt: 10, savedAckAt: 20, dirtySince: null });
 
+const noHistory = { dayKey: null, count: 0, maxInt: null, countedEventIds: [], recent: [] } as const;
 function initialState(progress: PersistenceStatus = savedProgress): RuntimeState {
   const baseline = fixtureState({}, {}, "run");
   return {
     ...baseline,
     runId: "run",
-    restoration: { "U-E": { kind: "empty" }, "U-W": { kind: "empty" }, "U-F": { kind: "empty" }, "U-T": { kind: "empty" } },
+    restoration: { "U-E": { kind: "empty" }, "U-W": { kind: "empty" }, "U-F": { kind: "empty" }, "U-T": { kind: "empty" },
+      "U-Q": { kind: "empty" } },
     admission: {},
     notificationProbeComplete: true,
     units: {
@@ -64,10 +66,12 @@ function initialState(progress: PersistenceStatus = savedProgress): RuntimeState
       "U-W": { schemaVersion: "p2-weather-current-unit-v1", contentRevision: 0, national: {}, partials: [], histories: [], ownership: {},
         tombstones: [], freshness: [], unavailable: [], intents: [], persistence: progress },
       "U-F": { schemaVersion: "p2-weather-timeseries-unit-v1", contentRevision: 0, subjects: [], gates: [], intents: [], persistence: progress },
-      // U-T stays clean here: these cases describe the three earlier units (P3-C5-AC14 adds its row only).
+      // U-T and U-Q stay clean here: these cases describe the three earlier units (P3-C5-AC14 and P3-C7 add their rows only).
       "U-T": { schemaVersion: "p3-tsunami-unit-v1", contentRevision: 0, forecasts: [], observations: [], intents: [], persistence: savedProgress },
+      "U-Q": { schemaVersion: "p3-seismic-unit-v1", contentRevision: 0, earthquakes: [], longPeriods: [], daily: {
+        normal: noHistory, training: noHistory, test: noHistory }, intents: [], persistence: savedProgress },
     },
-    checkpointAttempts: {}, deadlines: { "U-E": null, "U-W": null, "U-F": null, "U-T": null },
+    checkpointAttempts: {}, deadlines: { "U-E": null, "U-W": null, "U-F": null, "U-T": null, "U-Q": null },
     notificationChannels: { desktop: { kind: "idle" }, sound: { kind: "idle" } },
     notificationDeadlines: { desktop: {}, sound: {} },
     shutdown: { stage: "running", acceptedThroughSequence: null, startedAt: null, finalizationAt: null, stageResults: {},
@@ -118,7 +122,8 @@ function fixture(path: string, headType: string): DecodedMaterial {
   return decoded.material;
 }
 
-const valid = fixture("test/fixtures/telegram-foundation/phase7_5_VXSE51_20260728162718_059a2b392646.xml", "VXSE51");
+// routeのない入力の代表。VXSE51 は U-Q で ready になった（P3-C7）ので、notPorted のまま残る VXSE56 にする。
+const valid = fixture("test/fixtures/32-35_09_01_191111_VXSE56.xml", "VXSE56");
 
 
 function controlInput(control: MailboxControl): RuntimeInput {
@@ -243,7 +248,8 @@ function publisherState(whole: RuntimeState): PublisherState {
   const mirror = <K extends RuntimeUnitId>(unit: K) => ({ persistence: whole.units[unit].persistence,
     admissionCounts: { normal: 0, training: 0, test: 0 }, view: whole.views[unit],
     pendingIntents: whole.units[unit].intents.filter((item) => item.disposition === "pending") });
-  return { runId: whole.runId, mirror: { "U-E": mirror("U-E"), "U-W": mirror("U-W"), "U-F": mirror("U-F"), "U-T": mirror("U-T") },
+  return { runId: whole.runId, mirror: { "U-E": mirror("U-E"), "U-W": mirror("U-W"), "U-F": mirror("U-F"), "U-T": mirror("U-T"),
+    "U-Q": mirror("U-Q") },
     restoration: whole.restoration, confirmation: whole.confirmation, notificationChannels: whole.notificationChannels,
     notificationProbeComplete: whole.notificationProbeComplete, notificationDeadlines: whole.notificationDeadlines,
     shutdown: whole.shutdown };
@@ -633,7 +639,7 @@ describe("P2 shared runtime", () => {
 
   it("P2-A1-T03 corpusHistory / AC03: O02:8 and O02:10 reject in fixed priority without state change", () => {
     const inspect = vi.fn();
-    const saved = savedOwner("deferred", inspect);
+    const urgent = savedOwner("urgent", inspect);
     const headMissing = fixture("test/fixtures/81_05_01_260605_VPWP50_head_missing.xml", "VPWP50");
     const invalidDate = fixture("test/fixtures/telegram-foundation/invalid-report-datetime.xml", "VXSE51");
     expect(validateSemanticEnvelope(headMissing)).toMatchObject({ kind: "rejected", reason: "headMissing" });
@@ -641,10 +647,11 @@ describe("P2 shared runtime", () => {
     expect(validateSemanticEnvelope({ ...valid, reportDateTimeRaw: "2026-02-30T00:00:00+09:00" })).toMatchObject({ kind: "rejected", reason: "reportDateTimeInvalid" });
     expect(validateSemanticEnvelope({ ...headMissing, reportDateTimeRaw: "not-a-date" })).toMatchObject({ kind: "rejected", reason: "headMissing" });
     expect(validateSemanticEnvelope({ ...valid, reportDateTimeRaw: "" })).toMatchObject({ kind: "rejected", reason: "reportDateTimeMissing" });
-    // O02:8 (VPWP50) is routed to U-F, whose receive owns its runtime rejection (A6 AC01).
+    // O02:8 (VPWP50) is routed to U-F, whose receive owns its runtime rejection (A6 AC01). O02:10 (VXSE51) is routed to
+    // U-Q on the urgent owner since P3-C7, which rejects it with the same common check.
     for (const material of [invalidDate]) {
-      const step = receiveOwner(saved, completion({ kind: "decoded", material }), clock, units());
-      expect(step.state).toBe(saved);
+      const step = receiveOwner(urgent, completion({ kind: "decoded", material }), clock, units());
+      expect(step.state).toBe(urgent);
       expect(step.changedUnits).toEqual([]);
       expect(step.diagnostics).toHaveLength(1);
     }
@@ -655,15 +662,15 @@ describe("P2 shared runtime", () => {
     const r = await runtime({ selectNotificationAttempt: noAttempts });
     const notices = (["normal", "training", "test"] as const).map((operation) => intent("U-E", operation));
     await r.seeds.eew(r.h, { ...r.h.unit("U-E"), intents: notices });
-    const xml = readFileSync("test/fixtures/telegram-foundation/phase7_5_VXSE51_20260728162718_059a2b392646.xml", "utf8");
+    const xml = readFileSync("test/fixtures/32-35_09_01_191111_VXSE56.xml", "utf8");
     for (const [index, operation] of (["normal", "training", "test"] as const).entries()) {
       const body = Buffer.from(xml.replace("<Status>通常</Status>", `<Status>${STATUS[operation]}</Status>`));
-      const material = materialOf(body, "VXSE51", `operation-${operation}`);
+      const material = materialOf(body, "VXSE56", `operation-${operation}`);
       expect(validateSemanticEnvelope(material)).toMatchObject({ kind: "accepted", envelope: { material: { operation } } });
       const eew = r.h.unit("U-E");
       const mirror = r.root.state.mirror;
       r.at(at(1));
-      await submit(r.h, envelope("run", "VXSE51", `operation-${operation}`, body, at(1), 10 + index));
+      await submit(r.h, envelope("run", "VXSE56", `operation-${operation}`, body, at(1), 10 + index));
       expect(r.root.state.mirror).toBe(mirror);
       expect(r.h.unit("U-E")).toBe(eew);
     }
@@ -762,6 +769,7 @@ describe("P2 shared runtime", () => {
       "U-W": { wallTimeMs: 9999, monotonicMs: 10 },
       "U-F": { wallTimeMs: 1011, monotonicMs: 11 },
       "U-T": null,
+      "U-Q": null,
     } };
     const eew = vi.fn((unit: EewUnitState, input: EewInput) => unitReply(unit, input));
     const outcome = { kind: "deadlineApplied" as const, subjects: [] };
@@ -881,6 +889,7 @@ describe("P2 shared runtime", () => {
       "U-W": done.state.mirror["U-W"].persistence,
       "U-F": done.state.mirror["U-F"].persistence,
       "U-T": done.state.mirror["U-T"].persistence,
+      "U-Q": done.state.mirror["U-Q"].persistence,
     });
   });
 

@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "aaa3b2d3d3cf4c6a492c475e9d78fe7e86fa181b",
-    "sha256": "1fd2593a866cb3392b21230c078c56fed4f133be1e8a12128ee66d329499b6e0",
+    "sha256": "88bc1c0d10ae20c4263d3a831aed774f099edf93adac5c6ad94de31e6f4fc6f7",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "e4294056f8be82e935cfe620919806a73cffd91ebd14334e74d82b1edf00df3e",
     "sequencesSha256": "a6502ec4fd5a1959735ce044f3388788d6893b3a41f6a3f4ab0d72ca61e9ea1f",
@@ -632,8 +632,8 @@
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:1472 «5bbe65daadf9a2ed»",
           "reconstruction/contracts/p3-seismic-unit.json:148 «52525ff82a60caa3»",
-          "reconstruction/src/view-projector/view-projector.ts:35 «c47aa0d1f5b59833»",
-          "reconstruction/src/view-projector/view-projector.ts:727 «c42a191089542248»",
+          "reconstruction/src/view-projector/view-projector.ts:36 «c47aa0d1f5b59833»",
+          "reconstruction/src/view-projector/view-projector.ts:757 «c42a191089542248»",
           "src/engine/display/standby-state-store.ts:3203 «7af6c560b641723c»"
         ]
       },
@@ -685,7 +685,7 @@
           "reconstruction/contracts/p3-order-plan.md:79 «975ab2facd6ca2d6»",
           "reconstruction/contracts/p3-order-plan.md:198 «d33db641dfa15ff3»",
           "reconstruction/contracts/p3-order-plan.md:202 «6e6f60e66181b92a»",
-          "reconstruction/src/runtime/composition-root.ts:1284 «4b3e06f0acf52345»",
+          "reconstruction/src/runtime/composition-root.ts:1289 «4b3e06f0acf52345»",
           "reconstruction/contracts/p3-execution-boundary.md:12 «664a6f4b27d9fc87»",
           "docs/specs/reconstruction-p0-contracts.md:1027 «da2210ef3e4ebcfb»",
           "reconstruction/contracts/p3-order-plan.md:239 «a2dcbf55a796dfee»",
@@ -698,7 +698,7 @@
         "evidenceRefs": [
           "reconstruction/contracts/p3-order-plan.md:108 «71876395a763cd04»",
           "reconstruction/contracts/p3-order-plan.md:110 «be284b9936747da5»",
-          "reconstruction/src/runtime/composition-root.ts:192 «159efbfad126c86e»"
+          "reconstruction/src/runtime/composition-root.ts:194 «75cf2512443da992»"
         ]
       },
       {

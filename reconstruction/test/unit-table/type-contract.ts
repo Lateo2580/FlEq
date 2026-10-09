@@ -7,14 +7,16 @@ import { eewUnit } from "../../src/units/eew/eew-unit";
 import { weatherCurrentUnit } from "../../src/units/weather-current/weather-current-unit";
 import { weatherTimeseriesUnit } from "../../src/units/weather-timeseries/weather-timeseries-unit";
 import { tsunamiUnit } from "../../src/units/tsunami/tsunami-unit";
+import { seismicUnit } from "../../src/units/seismic/seismic-unit";
 
 declare const eewInput: RuntimeUnitInputs["U-E"];
 declare const weatherState: RuntimeUnitStates["U-W"];
 
-// Positive: the four linked modules satisfy their row type and make a complete table.
-export const positiveTable = { "U-E": eewUnit, "U-W": weatherCurrentUnit, "U-F": weatherTimeseriesUnit, "U-T": tsunamiUnit } satisfies UnitTable;
+// Positive: the five linked modules satisfy their row type and make a complete table.
+export const positiveTable = { "U-E": eewUnit, "U-W": weatherCurrentUnit, "U-F": weatherTimeseriesUnit, "U-T": tsunamiUnit,
+  "U-Q": seismicUnit } satisfies UnitTable;
 export const positiveRows = [eewUnit satisfies UnitModule<"U-E">, weatherCurrentUnit satisfies UnitModule<"U-W">,
-  weatherTimeseriesUnit satisfies UnitModule<"U-F">, tsunamiUnit satisfies UnitModule<"U-T">];
+  weatherTimeseriesUnit satisfies UnitModule<"U-F">, tsunamiUnit satisfies UnitModule<"U-T">, seismicUnit satisfies UnitModule<"U-Q">];
 
 // Positive: one switch on job.unit narrows state and input together; a missing case fails at `never`.
 export function describeJob(job: UnitJob): RuntimeUnitId {
@@ -23,6 +25,7 @@ export function describeJob(job: UnitJob): RuntimeUnitId {
     case "U-W": { const state: RuntimeUnitStates["U-W"] = job.state; const input: RuntimeUnitInputs["U-W"] = job.input; void state; void input; return job.unit; }
     case "U-F": { const state: RuntimeUnitStates["U-F"] = job.state; const input: RuntimeUnitInputs["U-F"] = job.input; void state; void input; return job.unit; }
     case "U-T": { const state: RuntimeUnitStates["U-T"] = job.state; const input: RuntimeUnitInputs["U-T"] = job.input; void state; void input; return job.unit; }
+    case "U-Q": { const state: RuntimeUnitStates["U-Q"] = job.state; const input: RuntimeUnitInputs["U-Q"] = job.input; void state; void input; return job.unit; }
     default: { const missing: never = job; return missing; }
   }
 }
@@ -33,7 +36,7 @@ export const n1: UnitTable = { "U-E": eewUnit, "U-W": weatherCurrentUnit };
 
 // N2: a module under another unit's key.
 // @ts-expect-error N2
-export const n2: UnitTable = { "U-E": weatherCurrentUnit, "U-W": eewUnit, "U-F": weatherTimeseriesUnit, "U-T": tsunamiUnit };
+export const n2: UnitTable = { "U-E": weatherCurrentUnit, "U-W": eewUnit, "U-F": weatherTimeseriesUnit, "U-T": tsunamiUnit, "U-Q": seismicUnit };
 
 // N3: persistence omitted, or durable without a codec.
 const { persistence: omitted, ...withoutPersistence } = eewUnit;
@@ -51,12 +54,12 @@ export const n4: UnitJob = { unit: "U-E", state: weatherState, input: eewInput }
 // @ts-expect-error N5a
 export const n5a: CoversAllUnits<readonly ["U-E", "U-W"]> = ["U-E", "U-W"] as const;
 // @ts-expect-error N5b
-export const n5b = ["U-E", "U-W", "U-F", "U-T", "U-Q"] as const satisfies readonly RuntimeUnitId[];
+export const n5b = ["U-E", "U-W", "U-F", "U-T", "U-Q", "U-N"] as const satisfies readonly RuntimeUnitId[];
 
 // N6: ready names a unit outside RuntimeUnitId; notPorted and ignored need a reason.
 // @ts-expect-error N6a
-export const n6a = { status: "ready", unit: "U-Q" } satisfies CoverageRow;
+export const n6a = { status: "ready", unit: "U-N" } satisfies CoverageRow;
 // @ts-expect-error N6b
-export const n6b = { status: "notPorted", candidate: "U-Q" } satisfies CoverageRow;
+export const n6b = { status: "notPorted", candidate: "U-N" } satisfies CoverageRow;
 // @ts-expect-error N6c
 export const n6c = { status: "ignored" } satisfies CoverageRow;

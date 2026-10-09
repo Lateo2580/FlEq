@@ -5,7 +5,7 @@ import type { ExecutionPlace } from "../../contracts/p3-execution-split.types";
 // P3-UNIT-TABLE-001 (C0). The one list of implemented runtime units (ledger 52 ③): without it each
 // loop re-spells the units and a new unit is silently skipped by the loops that were not updated.
 // An element outside RuntimeUnitId fails `satisfies`; a missing RuntimeUnitId fails CoversAllUnits.
-const runtimeUnits = ["U-E", "U-W", "U-F", "U-T"] as const satisfies readonly RuntimeUnitId[];
+const runtimeUnits = ["U-E", "U-W", "U-F", "U-T", "U-Q"] as const satisfies readonly RuntimeUnitId[];
 type CoversAllUnits<L extends readonly RuntimeUnitId[]> = [Exclude<RuntimeUnitId, L[number]>] extends [never] ? L : never;
 const coveredUnits: CoversAllUnits<typeof runtimeUnits> = runtimeUnits;
 
@@ -13,7 +13,7 @@ const coveredUnits: CoversAllUnits<typeof runtimeUnits> = runtimeUnits;
 // tell which in-flight slot an input uses and urgent and non-urgent units would share an owner. Keyed: a new
 // unit without its row fails to compile.
 const executionPlaces: Readonly<Record<RuntimeUnitId, ExecutionPlace>> = {
-  "U-E": "urgent", "U-W": "weatherCurrent", "U-F": "deferred", "U-T": "urgent",
+  "U-E": "urgent", "U-W": "weatherCurrent", "U-F": "deferred", "U-T": "urgent", "U-Q": "urgent",
 };
 
 // Coverage: the subscribed XML headTypes (ranges expanded to single codes). A headType not listed here is
@@ -40,12 +40,12 @@ const coverageTable = {
   VMCJ50: { status: "ignored", reason: "2028年頃終了予定かつ内容重複（spec §4.3 ignore行）" },
   VMCJ51: { status: "ignored", reason: "2028年頃終了予定かつ内容重複（spec §4.3 ignore行）" },
   VMCJ52: { status: "ignored", reason: "2028年頃終了予定かつ内容重複（spec §4.3 ignore行）" },
-  VXSE47: { status: "notPorted", candidate: "U-Q", reason: "S3: 購読外eew.realtime。移植時に中身を確かめる" },
-  VXSE51: { status: "notPorted", candidate: "U-Q", reason: "U-Qの移植待ち" },
-  VXSE52: { status: "notPorted", candidate: "U-Q", reason: "U-Qの移植待ち" },
-  VXSE53: { status: "notPorted", candidate: "U-Q", reason: "U-Qの移植待ち" },
-  VXSE61: { status: "notPorted", candidate: "U-Q", reason: "U-Qの移植待ち" },
-  VXSE62: { status: "notPorted", candidate: "U-Q", reason: "U-Qの移植待ち" },
+  VXSE47: { status: "notPorted", candidate: "U-Q", reason: "C7で確認: checkoutに実電文・schema・旧築の実装が無く、購読区分はeew.realtimeでhostの既知区分に無い（host.ts:37）。候補unitがU-Qかどうかも未確認。購読の拡大（R54）の契約で中身と候補unitを確かめる" },
+  VXSE51: { status: "ready", unit: "U-Q" },
+  VXSE52: { status: "ready", unit: "U-Q" },
+  VXSE53: { status: "ready", unit: "U-Q" },
+  VXSE61: { status: "ready", unit: "U-Q" },
+  VXSE62: { status: "ready", unit: "U-Q" },
   VXSE56: { status: "notPorted", candidate: "U-M", reason: "U-Mの移植待ち" },
   VXSE60: { status: "notPorted", candidate: "U-M", reason: "U-Mの移植待ち" },
   VZSE40: { status: "notPorted", candidate: "U-M", reason: "U-Mの移植待ち" },

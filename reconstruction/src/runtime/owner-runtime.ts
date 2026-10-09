@@ -70,12 +70,15 @@ type UnitInput = Extract<RuntimeUnitInputs[RuntimeUnitId], { kind: "receive" | "
 
 const cleanPersistence: PersistenceStatus = { kind: "saved", currentGeneration: 0, savedGeneration: 0,
   savedCapturedAt: null, savedAckAt: null, dirtySince: null };
+const noHistory = { dayKey: null, count: 0, maxInt: null, countedEventIds: [], recent: [] } as const;
 const initialUnits: RuntimeUnitStates = {
   "U-E": { schemaVersion: "p2-eew-unit-v1", contentRevision: 0, current: [], gates: [], intents: [], deliveryRecords: [], notificationLatches: [], persistence: cleanPersistence },
   "U-W": { schemaVersion: "p2-weather-current-unit-v1", contentRevision: 0, national: {}, partials: [], histories: [], ownership: {},
     tombstones: [], freshness: [], unavailable: [], intents: [], persistence: cleanPersistence },
   "U-F": { schemaVersion: "p2-weather-timeseries-unit-v1", contentRevision: 0, subjects: [], gates: [], intents: [], persistence: cleanPersistence },
   "U-T": { schemaVersion: "p3-tsunami-unit-v1", contentRevision: 0, forecasts: [], observations: [], intents: [], persistence: cleanPersistence },
+  "U-Q": { schemaVersion: "p3-seismic-unit-v1", contentRevision: 0, earthquakes: [], longPeriods: [],
+    daily: { normal: noHistory, training: noHistory, test: noHistory }, intents: [], persistence: cleanPersistence },
 };
 
 const placeUnits = (place: ExecutionPlace): readonly RuntimeUnitId[] =>
@@ -129,6 +132,7 @@ function unitJob(state: OwnerState, unit: RuntimeUnitId, input: UnitInput): Unit
     case "U-W": return { unit, state: ownUnit(state, unit), input };
     case "U-F": return { unit, state: ownUnit(state, unit), input };
     case "U-T": return { unit, state: ownUnit(state, unit), input };
+    case "U-Q": return { unit, state: ownUnit(state, unit), input };
     default: { const missing: never = unit; throw new Error(`unit ${String(missing)} has no job`); }
   }
 }
@@ -140,6 +144,7 @@ function runUnitJob(units: UnitTable, job: UnitJob): RuntimeUnitSteps[RuntimeUni
     case "U-W": return units[job.unit].reduce(job.state, job.input);
     case "U-F": return units[job.unit].reduce(job.state, job.input);
     case "U-T": return units[job.unit].reduce(job.state, job.input);
+    case "U-Q": return units[job.unit].reduce(job.state, job.input);
     default: { const missing: never = job; throw new Error(`unit job ${String(missing)} is not handled`); }
   }
 }
@@ -276,6 +281,8 @@ function session(start: OwnerState, units: UnitTable, clock: ClockReading | null
       displayChanges.push(...step.displayChanges);
       viewUnits.add(unit);
     }
+    // 表示の変化の無い内容の変化（U-Q の当日履歴の日付の切り替え、P3-C7-SEM-04）も view を出し直す。
+    if (step.state.contentRevision !== ownUnit(start, unit).contentRevision) viewUnits.add(unit);
     if (unitInput.kind === "receive") confirmationEvidence.push(...step.confirmationEvidence);
     step.diagnostics.forEach(diagnose);
     return step;

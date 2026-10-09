@@ -113,7 +113,7 @@ export type LongPeriodSubject = Readonly<{
 // 当日地震履歴（operation ごと。日の基準は P3-C7-DAILY-BASIS）。件数と最大震度は全体の震度が既知の段階（I-U-Q.intensityScale）の
 // event だけを数え、取消で減らさない。recent は新しい順に最大 5 行、countedEventIds は最大 2048 件（P3-C7-DAILY）。
 // 文字列の上限（P3-C7-DAILY）: originTimeRaw・reportDateTimeRaw は 40 文字を超えたら null、hypocenterName は 64 文字に切り詰め、
-// magnitude・maxInt の raw と value は 32 文字に切り詰める。1 行の最大は 1,166 byte（I-U-Q.capacityReserve）。
+// magnitude・maxInt の raw と value は 32 文字に切り詰める。1 行の最大は 1,206 byte（JSON で 1 文字 3 byte、ReportDateTime 25 文字、I-U-Q.capacityReserve）。
 export type SeismicRecentQuake = Readonly<{
   eventId: string;
   originTimeRaw: string | null;
@@ -163,7 +163,7 @@ export type PersistedSeismicUnit = Readonly<{
 
 // event の公開事実（I-U-Q.earthquakeSemantics）。subject は event の鍵 `${operation}/earthquake/${eventId}` で、判定の
 // family subject とは別（RuntimeDisplaySubject と表示差分の鍵）。originTimeRaw は OriginTime、無ければ VXSE51 の Head/TargetDateTime。
-// tsunamiCommentFamily が VXSE51 のときは「今後の情報に注意」などで、津波の評価ではない。
+// tsunamiCommentFamily が VXSE51 のときは「今後の情報に注意」などで、津波の評価ではない。view の intensity.items は station を含まない（Q-C7-IMPL-AMEND）。
 export type EarthquakeEventView = Readonly<{
   subject: string;
   eventId: string;
