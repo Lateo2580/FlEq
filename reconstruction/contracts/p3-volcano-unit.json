@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "b7c5999889d82f832b68f5bd579a8b2aa67a880f",
-    "sha256": "ab16b0a40760ae67c8375e78bc48c877b974768bb4ac9825829939da36ce7198",
+    "sha256": "fbdb14b7d836918e636aa4e7fd23bad48a23e094d2fcc4a00aae6d272241cba9",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "98c9607b6ddf1a3e2fc8fc1668ab07b22f9e3a4e6bf61e5a06a034d02390b4d9",
     "sequencesSha256": "f8b5d03b1325ccdb8b7469a66c99ee240c27e2669dce3dafa0cd12840548f002",
@@ -393,7 +393,7 @@
     "contractId": "P3-UNIT-V-001",
     "mode": "implementation",
     "objective": "M14・M15・M16をI-U-Vとして閉じる。VFVO50〜56・VFVO60・VFSV50〜61・VZVO40を、警報（火山ごと）・噴火（EventIDごと）・降灰の速報詳細（火山ごと）の三slice（D）と、定時の降灰・待機batch・解説（N）、復旧不足に分けてU-Vの一つのreducer・唯一のcodec・viewで扱い、Q-NOTICEの火山分を生成し、unit表・coverage・実行場所・snapshotを結線し、U-Vの通知がEEW・津波緊急を追い越さないことを製品経路で確かめる。",
-    "baseOid": "unassigned",
+    "baseOid": "3c954bd5c71d617dac7539455a5895470fae8294",
     "cleanTreeRequired": true,
     "readPaths": [
       "AGENTS.md",
