@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "aaa3b2d3d3cf4c6a492c475e9d78fe7e86fa181b",
-    "sha256": "05d9c9fc6d456c26fa5b1be63fd9280f6f7e17b336197ce655eab614998b1b18",
+    "sha256": "74af491ac84b7660f9cbba2972751e55a253c14470ac28b2ec2bd348b23afe32",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "bfff9e7f6cc7010fff2a6c385ec7018fe5b70c48c943b02c1be52681fcd8d6e1",
     "sequencesSha256": "32151d72aa415850580341af2bc7cc2200ee657bb2dcbcb6c5f09e23a029760b",
@@ -731,7 +731,7 @@
           "docs/specs/reconstruction-p0-contracts.md:470 «815e6c46a5340ce4»",
           "docs/specs/reconstruction-p0-contracts.md:477 «3e40d22acd0eaefe»",
           "docs/specs/reconstruction-p0-contracts.md:981 «f6dbd4291d01e07b»",
-          "reconstruction/contracts/p3-order-plan.md:79 «975ab2facd6ca2d6»"
+          "reconstruction/contracts/p3-order-plan.md:79 «f6084393a2730ede»"
         ]
       },
       {
@@ -802,7 +802,7 @@
         "id": "P3-C8-AC11",
         "requirement": "urgentでの干渉の報告（台帳63、P3-C8-INTERFERENCE）: urgentでU-Nが足す最も長い非中断処理の所要と、その処理中に投入したEEWの投入→T0・T0→T2の待ちをMacで報告する。正式E01ではない。Macの待ちの最大が約40ms（計画:239の速度差6.3倍）を超えたら配送の前に作者へ報告し、P3-C8-PLACEを見直す。U-N同居後のEEWの正式な再測定はspec:1129の後半とC22（計画:87）であることを報告に明記する。書込み権の出ない時間と受信前回収の遅れも報告する。同時dirtyの権のまとめ出しの最中のEEW（reevaluateがU-Q・U-T・U-E・U-NのcheckpointGrantを続けてpostし、U-Qの合法最大のencodeとU-Nのencodeが続く間に投入したEEW）の待ちの最大も報告する。C7のAC12（段2の後の測り直し、最大VXSE53の最中のEEWの投入→T2の最大29.64 ms）と並べて報告に書く",
         "evidenceRefs": [
-          "reconstruction/contracts/p3-order-plan.md:79 «975ab2facd6ca2d6»",
+          "reconstruction/contracts/p3-order-plan.md:79 «f6084393a2730ede»",
           "reconstruction/contracts/p3-order-plan.md:198 «d33db641dfa15ff3»",
           "reconstruction/contracts/p3-order-plan.md:202 «6e6f60e66181b92a»",
           "reconstruction/src/runtime/composition-root.ts:1292 «4b3e06f0acf52345»",

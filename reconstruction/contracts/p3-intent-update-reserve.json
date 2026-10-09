@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "0ed0c626b17303cfa3e4b66821d7c5fa7d96fc03",
-    "sha256": "1aa61a3cca90e8f4c99eb68429d62b36a7dae17f615c3906004dda8e2465271f",
+    "sha256": "811ea72deb5be2c94ff8968ec4f6f155f039dff015d9f644e1bb2e4883053033",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "bfff9e7f6cc7010fff2a6c385ec7018fe5b70c48c943b02c1be52681fcd8d6e1",
     "sequencesSha256": "32151d72aa415850580341af2bc7cc2200ee657bb2dcbcb6c5f09e23a029760b",
@@ -62,6 +62,14 @@
         "closed": "AGENTS.mdどおり、本契約で触る関数の中のasは、intents以外も確かめた値から項目ごとに組み立てる形に直す（U-Fのpersistedのrow・subjects・gates、U-WのpersistedValueのnational・ownership）。起草時（0ed0c626）にgrepした範囲では、本契約が触る関数のうちasがあるのはこの2関数だけ（U-T・U-Q・U-Eのpersisted・admit・generationBytes、eew.tsの受理の関数、U-WのencodedValue・reservedGenerationBytes、U-Fのmeasureには無い）。触らない関数のasはoutOfScope。要素の同一性は保ち、組み立てるのは外側のobject・recordだけ（改訂3、U-Fのmeasureのcache）",
         "remaining": "なし",
         "reason": "改訂1でQ-IUR-BASEに残した論点を閉じる"
+      },
+      {
+        "id": "Q-IUR-BASE",
+        "status": "closed",
+        "source": "統合担当の発注前点検（2026-10-09夜、起草e84e387bのHEAD）",
+        "closed": "(1) Q-IUR-CODE-READの事実とanchor: 起草(0ed0c626)の後のcommitはevidenceのmanifest.jsonと本契約の追加だけで、check-contractが本契約のanchorを通すことで確かめた。baseOidの割当は次のcommitで統合担当が行う（baseOidはunassignedのまま） (2) 計画§9の台帳73の行を本契約のID P3-INTENT-UPDATE-RESERVE-001へ改め、状態を「起草e84e387b、発注前点検」にした (3) AC05の読み替え（既存試験の期待値の変更3本）とU-Eの世代の条件（P3-IUR-GENERATION）を同じ行に記録した。台帳73は作業ノート（repo外）側で記録する (4) 計画:79のC7〜C14の共通条文に「受理とdecodeと世代の計量は配送の更新の予約をdelivery-growth.tsの式で数える」を既存の行の中に足した（行番号は動かない）。この行を引くp3-nankai-unit・p3-tsunami-unit・p3-seismic-unitのanchorを付け直した",
+        "remaining": "baseOidの割当（次のcommit、統合担当）",
+        "reason": "発注前点検で閉じる論点を閉じる"
       }
     ],
     "operationContract": {
@@ -227,7 +235,7 @@
         "id": "P3-IUR-AC01",
         "requirement": "pendingの予算は予約込み、受理とdecodeで同じ式（台帳73、P3-IUR-RES-01）: U-T・U-Q・U-E・U-W・U-Fのpendingの131,072 byteの検査は、JSONのUTF-8の実byteにpendingごとの予約（max(0,16−attemptsのJSONの長さ)＋max(0,25−nextAttemptAtのJSONの長さ)＋3）の和を足して数える。受理: U-Tはadmitのfits、U-Qはadmitのpoolの大きさと外すときの引き算（1件ごとに実byte＋1＋予約を引く）、U-Eはdomains/eew/eew.tsのfitsと下位の退去の引き算。decode・encode: U-T・U-Qのpersisted、U-Eのpersisted（encodeも同じ関数を通る）、U-WのpersistedValue（decode）とencodedValue（encode。P3-WL1-AC05の並びの同期を保つ）、U-Fのpersisted（encodeとdecodeが共有）。U-W・U-Fには受理の経路が無い。実装の地雷（Q-IUR-CODE-READ (8)）: 予約の和はlistBytesやnotificationArrayBytesの中に入れず、横で別に足す（U-QのlistBytesは配列だけで和をcacheするので、同じ配列を別のsize関数で数えると前の和が返る。eew.tsのnotificationArrayBytesはU-Eの世代の計量と共有で、そこへ予約を入れるとU-Eの世代に予約が混ざる）。件数128と退去の順・群・全採用か未採用は変えない。U-Eはdispositionがintentsの中で伸びない（終端はdeliveryRecordsへ移る）が、同じ式で数え、1件3 byteの余りを許す（式を1つに保つ）。無いと: 上限ちょうどまで受理したpendingが配送の更新で伸び、U-T・U-Qは保存した世代を復元のdecodeが拒否し（正常な旧slotへ後退、無ければnoValidSlot）、U-E・U-W・U-Fはencodeが拒否して保存が失敗する",
         "evidenceRefs": [
-          "reconstruction/contracts/p3-order-plan.md:344 «d601105f42810a31»",
+          "reconstruction/contracts/p3-order-plan.md:344 «462fe90a710c8d41»",
           "reconstruction/contracts/p3-nankai-unit.json:296 «11d1b802043a2d33»",
           "reconstruction/contracts/p3-nankai-unit.json:297 «af3fe4ee1a81eeaa»",
           "reconstruction/contracts/p3-tsunami-unit.json:207 «499a13c8ac294e8d»",
@@ -400,21 +408,6 @@
       "check-contractの想定内のFAILは無い。FAILが出たら想定外として報告する",
       "残存リスクとして書く: (1) decodeの受ける範囲が予約の分だけ狭まるので、変更前のコードが書いた境界の手前のslot（pendingの実byteは131,072以下だが予約込みで超える。U-T・U-Qは世代も同じ）は復元で拒否される（旧slotへ後退、無ければnoValidSlot）。新築は製品でまだ保存していないので実害なしの見込み (2) attemptsが安全な整数を超えた保存物はdecodeが拒否する（C8と同じ） (3) Piでは測っていない（byteの数は機械に依らない） (4) C9〜C14は同じ式を受理とdecodeに当てる必要がある（Q-IUR-BASE） (5) U-Eの世代の後段の退去がintentUpdateのstepで更新した記録を消すとownerが止まる形は、製品の今の束ね方では届かない（P3-IUR-GENERATIONのreason）。束ね方を変える契約の条件"
     ],
-    "unresolvedQuestions": [
-      {
-        "id": "Q-IUR-BASE",
-        "owner": "integrator",
-        "blocks": [
-          "実装の着手"
-        ],
-        "resolveBy": "本契約の発注前点検",
-        "requiredEvidence": [
-          "baseOidの割当（起草は0ed0c626）。割当の時点でQ-IUR-CODE-READの事実とanchorを読み直す",
-          "計画§9の台帳73の行を本契約のIDへ改める",
-          "AC05の読み替えと、U-Eの世代の条件（更新の束ね方を変える契約は予約か後段の退去からの除外を持つ、P3-IUR-GENERATION）を計画§9と構造的欠陥台帳73に記録する",
-          "C9〜C14（未起草のunit）が受理とdecodeにdelivery-growth.tsの式を当てることを計画:79の共通条文に足す"
-        ]
-      }
-    ]
+    "unresolvedQuestions": []
   }
 }
