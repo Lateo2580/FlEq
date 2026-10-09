@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Report xmlns="http://xml.kishou.go.jp/jmaxml1/" xmlns:jmx="http://xml.kishou.go.jp/jmaxml1/" xmlns:jmx_add="http://xml.kishou.go.jp/jmaxml1/addition1/">
+<Control>
+<Title>気象警報・注意報（Ｒ０６）（土砂）</Title>
+<DateTime>2020-06-22T14:01:20Z</DateTime>
+<Status>通常</Status>
+<EditorialOffice>稚内地方気象台</EditorialOffice>
+<PublishingOffice>稚内地方気象台</PublishingOffice>
+</Control>
+<Head xmlns="http://xml.kishou.go.jp/jmaxml1/informationBasis1/">
+<Title>宗谷地方土砂災害警報・注意報</Title>
+<ReportDateTime>2020-06-22T23:00:00+09:00</ReportDateTime>
+<TargetDateTime>2020-06-22T23:00:00+09:00</TargetDateTime>
+<EventID/>
+<InfoType>取消</InfoType>
+<Serial/>
+<InfoKind>気象警報・注意報</InfoKind>
+<InfoKindVersion>1.5_0</InfoKindVersion>
+<Headline>
+<Text>２２日２３時００分に発表した宗谷地方の土砂災害警報・注意報を取り消します。</Text>
+</Headline>
+</Head>
+<Body xmlns="http://xml.kishou.go.jp/jmaxml1/body/meteorology1/"/>
+</Report>

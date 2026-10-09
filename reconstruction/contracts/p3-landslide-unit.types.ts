@@ -42,7 +42,7 @@ type LandslideCurrentFacts = Readonly<{
 // 官署の current。subject = `${operation}/VPWW56/${office}`。office は Control/EditorialOffice（P3-C10-SUBJECTS）。
 // source は subject の watermark と出典を兼ねる（その subject を変えた最新の採用報。解除・取消を含む）。
 // retainUntil は記録を除く時刻: inactive は source の ReportDateTime + 21,600,000 ms（P3-C10-RETENTION）、active は
-// P3-C10-ACTIVE-EXPIRY の起草案 C で + 172,800,000 ms（A なら active を除かない）。active 以外は事実を持たない。
+// + 172,800,000 ms（P3-C10-ACTIVE-EXPIRY=C、作者裁定）。active 以外は事実を持たない。
 export type LandslideCurrent = Readonly<{
   subject: string;
   operation: Operation;

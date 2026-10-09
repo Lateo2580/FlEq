@@ -1,10 +1,10 @@
 {
   "meta": {
     "draftedFromOid": "d9990053b44496fd54fa6995148e2a04a5a9c9a3",
-    "sha256": "27c5bcf951e12536d7b8943344cfd92ab8d39d7f73735d75eff1a20f2bc08fbc",
+    "sha256": "4128dea2df4c113cbc5535157cce3e8658538ffa8eaf2c3cc55d103aa4d67596",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
-    "manifestSha256": "41089d0d4e4381a3f054f342313aad359e252fcbf4ba51e10ed64324ac15d560",
-    "sequencesSha256": "7da7868d070e3a31cac738153aba6114f3a4014ac7cd89e958f9e66609445552",
+    "manifestSha256": "eaf3dbcdc7db9f861d02c74bd723ccc831901750f5e3076c7bc62b03b22b3ad0",
+    "sequencesSha256": "09f5677d9ffff29ca54b81252ac57b8f3753e2111ae48bfb30cbc404b33756e1",
     "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
     "decisionBranches": [
       {
@@ -81,7 +81,7 @@
   "contract": {
     "contractId": "P1-PARSER-BOUNDARY-001",
     "mode": "implementation",
-    "objective": "B01/B03/B04/B15のパーサ境界を実装し、全288 fixtureの分類根拠、一入力一回処理、特殊値保持、運用区分判定、入力上限を検収可能にする。B05は型境界だけを定める。",
+    "objective": "B01/B03/B04/B15のパーサ境界を実装し、全291 fixtureの分類根拠、一入力一回処理、特殊値保持、運用区分判定、入力上限を検収可能にする。B05は型境界だけを定める。",
     "baseOid": "0f2fe89f592dc09d6002f2d0f2582800c0f0822e",
     "cleanTreeRequired": true,
     "readPaths": [
@@ -172,6 +172,7 @@
       "test__fixtures__16_11_02_260312_VXKO50",
       "test__fixtures__16_12_01_260312_VXKO50",
       "test__fixtures__16_14_01_251222_VXKO50",
+      "test__fixtures__18_00_01_260603_VPWW56_kagawa_release",
       "test__fixtures__18_00_01_260830_VPNO50_issue",
       "test__fixtures__18_00_01_260830_VPNO50_switch",
       "test__fixtures__18_00_01_260830_VPWW55_fukui_L5",
@@ -371,6 +372,8 @@
       "test__fixtures__synthetic_VPTA50_cancel",
       "test__fixtures__synthetic_VPTW60_TC2606",
       "test__fixtures__synthetic_VPTW60_cancel",
+      "test__fixtures__synthetic_VPWW56_cancel",
+      "test__fixtures__synthetic_VPWW56_correction",
       "test__fixtures__synthetic_VTSE41_cancel",
       "test__fixtures__synthetic_VTSE41_correction",
       "test__fixtures__synthetic_VTSE41_e01_311major",
@@ -514,7 +517,7 @@
       "parse worker split B; decide only from P2 O09 measurement"
     ],
     "acceptanceChecks": [
-      {"id":"P1-AC01","requirement":"manifestのXML 267件すべてに期待分類との比較結果を1件ずつ出し、未分類差分を0にする","evidenceRefs":["docs/specs/reconstruction-p0-contracts.md:2612 «751e268b6083918d»","reconstruction/tools/corpus/manifest.json"]},
+      {"id":"P1-AC01","requirement":"manifestのXML 270件すべてに期待分類との比較結果を1件ずつ出し、未分類差分を0にする","evidenceRefs":["docs/specs/reconstruction-p0-contracts.md:2612 «751e268b6083918d»","reconstruction/tools/corpus/manifest.json"]},
       {"id":"P1-AC02","requirement":"一入力につきbody decodeは最大1回である","evidenceRefs":["docs/specs/reconstruction-p0-contracts.md:2612 «751e268b6083918d»"]},
       {"id":"P1-AC03","requirement":"一入力につき展開は最大1回である","evidenceRefs":["docs/specs/reconstruction-p0-contracts.md:2612 «751e268b6083918d»"]},
       {"id":"P1-AC04","requirement":"Bodyを読むXML入力はfull parse 1回、事前拒否は0回で、出力別の再parseを0にする","evidenceRefs":["docs/specs/reconstruction-p0-contracts.md:2612 «751e268b6083918d»","reconstruction/tools/corpus/sequences.json#expected:O09:2"]},
@@ -531,7 +534,7 @@
       {"id":"P1-AC15","requirement":"展開上限超過・壊れたXMLで本文運用区分を読めない場合、ParserDiagnostic.operationをundeterminedとし、未観測sourceを省略する。観測済みsourceだけを四状態で保持し、Control.StatusのnotProvided/missingやOperationResolutionを捏造しない。","evidenceRefs":["docs/specs/reconstruction-p0-contracts.md:653 «76458a722597a98d»","docs/specs/reconstruction-p0-contracts.md:666 «ba1fdcd7a94571b1»","docs/specs/reconstruction-p0-contracts.md:1051 «99c97fa5e43a3a4f»"]}
     ],
     "testMapping": [
-      { "testId": "P1-T01", "purpose": "corpusHistory", "referenceIds": ["P1-AC01"], "behavior": "全267 XMLを一度ずつ処理し、fixtureIdごとの分類差分を報告する" },
+      { "testId": "P1-T01", "purpose": "corpusHistory", "referenceIds": ["P1-AC01"], "behavior": "全270 XMLを一度ずつ処理し、fixtureIdごとの分類差分を報告する" },
       { "testId": "P1-T02", "purpose": "acceptance", "referenceIds": ["P1-AC02", "P1-AC03", "P1-AC04"], "behavior": "一入力でdecode・展開・full parseが各最大1回になる" },
       { "testId": "P1-T03", "purpose": "acceptance", "referenceIds": ["P1-AC05", "P1-AC06", "P1-AC07", "P1-AC08"], "behavior": "特殊値・空白・属性・先頭ゼロを損失なく区別して保持する" },
       { "testId": "P1-T04", "purpose": "contractBoundary", "referenceIds": ["P1-AC09"], "behavior": "reconstructionのimport graphに旧engine/ui実装が入らない" },
@@ -542,7 +545,7 @@
     ],
     "requiredCommands": [
       {"command":"npm ci --ignore-scripts","stage":"preparation","purpose":"lockfileどおりに依存を準備しpackage filesを変更しない","cwd":".","target":"package-lock.json"},
-      {"command":"node reconstruction/tools/corpus/check-manifest.mjs","stage":"contract","purpose":"288 fixture台帳と自己hashを検査する","cwd":".","target":"reconstruction/tools/corpus/check-manifest.mjs"},
+      {"command":"node reconstruction/tools/corpus/check-manifest.mjs","stage":"contract","purpose":"291 fixture台帳と自己hashを検査する","cwd":".","target":"reconstruction/tools/corpus/check-manifest.mjs"},
       {"command":"node reconstruction/tools/corpus/check-sequences.mjs","stage":"contract","purpose":"系列step・expectedRef・根拠・未決を検査する","cwd":".","target":"reconstruction/tools/corpus/check-sequences.mjs"},
       {"command":"node reconstruction/contracts/check-contract.mjs","stage":"contract","purpose":"P1作業契約の型・参照・owner/期限・自己hashを検査する","cwd":".","target":"reconstruction/contracts/check-contract.mjs"},
       {"command":"./node_modules/.bin/tsc --project reconstruction/tsconfig.json","cwd":".","target":"reconstruction/src/** and reconstruction/contracts/p1-parser-boundary.types.ts → reconstruction/dist/","stage":"implementation","purpose":"新築専用TypeScript build。rootのcleanは呼ばず旧distを削除・上書きしない"},

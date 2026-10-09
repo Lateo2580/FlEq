@@ -1,9 +1,9 @@
 {
   "meta": {
     "baseOid": "3669dfd6a98e6c116c86f7db1cd27aa63002a90d",
-    "sha256": "7da7868d070e3a31cac738153aba6114f3a4014ac7cd89e958f9e66609445552",
+    "sha256": "09f5677d9ffff29ca54b81252ac57b8f3753e2111ae48bfb30cbc404b33756e1",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
-    "manifestSha256": "41089d0d4e4381a3f054f342313aad359e252fcbf4ba51e10ed64324ac15d560",
+    "manifestSha256": "eaf3dbcdc7db9f861d02c74bd723ccc831901750f5e3076c7bc62b03b22b3ad0",
     "clock": "synthetic epoch milliseconds; receivedAt/evaluatedAt は合成固定時計。原XML日時は不変。系列内ケース間のrestartで時計と空stateを再設定。受信時刻の実測ではない。",
     "decisions": [
       "形式A（推奨・採用）={meta,sequences,expectations,unresolvedQuestions}。B=meta/期待値を別file。Aならstepと根拠の配送欠落を一ファイルのhashで検出できる。baseOidは本契約HEAD、manifestの来歴baseOidとは別。",
@@ -1479,6 +1479,112 @@
             "L1: reconstruction/contracts/p3-nankai-unit.json:192 «56d2a35abda72da4» Q-NOTICE level（作者裁定 NOTICE-LEVELS=B）",
             "L2: test/fixtures/selected_xml/74_01_07_200512_VYSE50.xml:1 «12c29731e40adc0c» 気象庁のサンプル電文のControl/Head/Bodyを読解（実系列・原本確認の主張ではない）"
           ]
+        },
+        {
+          "sequenceId": "O01",
+          "position": 80,
+          "action": "restart",
+          "fixtureId": null,
+          "receivedAt": null,
+          "evaluatedAt": 1592834400000,
+          "inputSource": "replay",
+          "operationExpected": null,
+          "expectedRef": "expected:O01:80",
+          "expectationBasis": [
+            "L1: docs/specs/reconstruction-p0-contracts.md:1758 «37f025f94e7bbdfd» 固定初期状態・時計",
+            "L1: docs/specs/reconstruction-p0-contracts.md:736 «e88a83452d784a7c»"
+          ]
+        },
+        {
+          "sequenceId": "O01",
+          "position": 81,
+          "action": "receive",
+          "fixtureId": "test__fixtures__15_16_01_241031_VPWW56",
+          "receivedAt": 1592834400001,
+          "evaluatedAt": 1592834400001,
+          "inputSource": "replay",
+          "operationExpected": "normal",
+          "expectedRef": "expected:O01:81",
+          "expectationBasis": [
+            "L1: docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6» O01",
+            "L1: reconstruction/contracts/p3-landslide-unit.json:270 «89fa0e14f41d967a» I-U-L currentSemantics",
+            "L1: reconstruction/contracts/p3-landslide-unit.json:43 «ac7dbb2bffd2f033» P3-C10-SUBJECTS=A",
+            "L1: reconstruction/contracts/p3-landslide-unit.json:158 «d012d1866b9f2d8d» Q-NOTICE semanticAdoption",
+            "L1: reconstruction/contracts/p3-landslide-unit.json:218 «50f826d178608f2a» Q-NOTICE level（作者裁定 NOTICE-LEVELS=B）",
+            "L2: test/fixtures/15_16_01_241031_VPWW56.xml:1 «12c29731e40adc0c» 気象庁のサンプル電文のControl/Head/Bodyを読解（実系列・原本確認の主張ではない）"
+          ]
+        },
+        {
+          "sequenceId": "O01",
+          "position": 82,
+          "action": "receive",
+          "fixtureId": "test__fixtures__synthetic_VPWW56_correction",
+          "receivedAt": 1592834445000,
+          "evaluatedAt": 1592834445000,
+          "inputSource": "replay",
+          "operationExpected": "normal",
+          "expectedRef": "expected:O01:82",
+          "expectationBasis": [
+            "L1: docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6» O01",
+            "L1: reconstruction/contracts/p3-landslide-unit.json:263 «a121492370decf1e» Q-ENUM revisionOrder",
+            "L1: reconstruction/contracts/p3-landslide-unit.json:270 «89fa0e14f41d967a» I-U-L currentSemantics",
+            "L1: reconstruction/contracts/p3-landslide-unit.json:191 «315a071d06f19ec9» Q-NOTICE correction",
+            "L1: reconstruction/contracts/p3-landslide-unit.json:218 «50f826d178608f2a» Q-NOTICE level（作者裁定 NOTICE-LEVELS=B）",
+            "L1: reconstruction/contracts/p3-landslide-unit.json:115 «e26c35106f961b7c» P3-C10-REPLACEMENT=A",
+            "L2: test/fixtures/synthetic_VPWW56_correction.xml:1 «12c29731e40adc0c» 合成入力（manifest synthetic、配信原本ではない）"
+          ]
+        },
+        {
+          "sequenceId": "O01",
+          "position": 83,
+          "action": "receive",
+          "fixtureId": "test__fixtures__synthetic_VPWW56_cancel",
+          "receivedAt": 1592834490000,
+          "evaluatedAt": 1592834490000,
+          "inputSource": "replay",
+          "operationExpected": "normal",
+          "expectedRef": "expected:O01:83",
+          "expectationBasis": [
+            "L1: docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6» O01",
+            "L1: reconstruction/contracts/p3-landslide-unit.json:263 «a121492370decf1e» Q-ENUM revisionOrder",
+            "L1: reconstruction/contracts/p3-landslide-unit.json:70 «bce6dcd2b91bf44d» P3-C10-CANCEL-SCOPE=A",
+            "L1: reconstruction/contracts/p3-landslide-unit.json:202 «e8bd700d8139e539» Q-NOTICE cancellation",
+            "L1: reconstruction/contracts/p3-landslide-unit.json:115 «e26c35106f961b7c» P3-C10-REPLACEMENT=A",
+            "L2: test/fixtures/synthetic_VPWW56_cancel.xml:1 «12c29731e40adc0c» 合成入力（manifest synthetic、配信原本ではない）"
+          ]
+        },
+        {
+          "sequenceId": "O01",
+          "position": 84,
+          "action": "receive",
+          "fixtureId": "test__fixtures__synthetic_VPWW56_cancel",
+          "receivedAt": 1592834490001,
+          "evaluatedAt": 1592834490001,
+          "inputSource": "replay",
+          "operationExpected": "normal",
+          "expectedRef": "expected:O01:84",
+          "expectationBasis": [
+            "L1: docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6» O01",
+            "L1: reconstruction/contracts/p3-landslide-unit.json:263 «a121492370decf1e» Q-ENUM revisionOrder",
+            "L2: test/fixtures/synthetic_VPWW56_cancel.xml:1 «12c29731e40adc0c» 合成入力（manifest synthetic、配信原本ではない）"
+          ]
+        },
+        {
+          "sequenceId": "O01",
+          "position": 85,
+          "action": "receive",
+          "fixtureId": "test__fixtures__15_16_01_241031_VPWW56",
+          "receivedAt": 1592834490002,
+          "evaluatedAt": 1592834490002,
+          "inputSource": "replay",
+          "operationExpected": "normal",
+          "expectedRef": "expected:O01:85",
+          "expectationBasis": [
+            "L1: docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6» O01",
+            "L1: reconstruction/contracts/p3-landslide-unit.json:263 «a121492370decf1e» Q-ENUM revisionOrder",
+            "L1: reconstruction/contracts/p3-landslide-unit.json:70 «bce6dcd2b91bf44d» P3-C10-CANCEL-SCOPE=A",
+            "L2: test/fixtures/15_16_01_241031_VPWW56.xml:1 «12c29731e40adc0c» 気象庁のサンプル電文のControl/Head/Bodyを読解（実系列・原本確認の主張ではない）"
+          ]
         }
       ]
     },
@@ -2672,6 +2778,41 @@
           "expectationBasis": [
             "L1: docs/specs/reconstruction-p0-contracts.md:1779 «739b40cc8a7f938f» O03",
             "L2: test/fixtures/replay/VPBS50_HJPNB202608270458.xml:1 «12c29731e40adc0c» 元XMLのControl/Head/Bodyを読解（原本確認の主張ではない）"
+          ]
+        },
+        {
+          "sequenceId": "O03",
+          "position": 25,
+          "action": "restart",
+          "fixtureId": null,
+          "receivedAt": null,
+          "evaluatedAt": 1780449360000,
+          "inputSource": "replay",
+          "operationExpected": null,
+          "expectedRef": "expected:O03:25",
+          "expectationBasis": [
+            "L1: docs/specs/reconstruction-p0-contracts.md:1758 «37f025f94e7bbdfd» 固定初期状態・時計",
+            "L1: docs/specs/reconstruction-p0-contracts.md:736 «e88a83452d784a7c»"
+          ]
+        },
+        {
+          "sequenceId": "O03",
+          "position": 26,
+          "action": "receive",
+          "fixtureId": "test__fixtures__18_00_01_260603_VPWW56_kagawa_release",
+          "receivedAt": 1780449385339,
+          "evaluatedAt": 1780449385339,
+          "inputSource": "replay",
+          "operationExpected": "normal",
+          "expectedRef": "expected:O03:26",
+          "expectationBasis": [
+            "L1: docs/specs/reconstruction-p0-contracts.md:1779 «739b40cc8a7f938f» O03",
+            "L1: reconstruction/contracts/p3-landslide-unit.json:61 «df713ec539f267d2» P3-C10-ACTIVE-STATUS=A",
+            "L1: reconstruction/contracts/p3-landslide-unit.json:52 «b0f7693ceac39793» P3-C10-AREAS=A",
+            "L1: reconstruction/contracts/p3-landslide-unit.json:270 «89fa0e14f41d967a» I-U-L currentSemantics",
+            "L1: reconstruction/contracts/p3-landslide-unit.json:180 «c3186f0189b273d1» Q-NOTICE inactiveAdoption",
+            "L1: reconstruction/contracts/p3-landslide-unit.json:218 «50f826d178608f2a» Q-NOTICE level（作者裁定 NOTICE-LEVELS=B）",
+            "L2: test/fixtures/18_00_01_260603_VPWW56_kagawa_release.xml:1 «12c29731e40adc0c» 原本確認済み（dmdata Archive の member と受領 hash 一致、manifest 参照）"
           ]
         }
       ]
@@ -4306,6 +4447,157 @@
             "L1: reconstruction/contracts/p3-nankai-unit.json:39 «8afa7b92bd4f4069» P3-C8-CURRENT-EXPIRY=A（作者裁定）",
             "L1: reconstruction/contracts/p3-nankai-unit.json:84 «9f9a911e5e36f284» P3-C8-RETENTION=A",
             "L1: reconstruction/contracts/p3-nankai-unit.json:187 «d4e358cef8a12114» Q-NOTICE expiry"
+          ]
+        },
+        {
+          "sequenceId": "O07",
+          "position": 45,
+          "action": "restart",
+          "fixtureId": null,
+          "receivedAt": null,
+          "evaluatedAt": 1592834400000,
+          "inputSource": "replay",
+          "operationExpected": null,
+          "expectedRef": "expected:O07:45",
+          "expectationBasis": [
+            "L1: docs/specs/reconstruction-p0-contracts.md:1758 «37f025f94e7bbdfd» 固定初期状態・時計",
+            "L1: docs/specs/reconstruction-p0-contracts.md:736 «e88a83452d784a7c»"
+          ]
+        },
+        {
+          "sequenceId": "O07",
+          "position": 46,
+          "action": "receive",
+          "fixtureId": "test__fixtures__15_16_01_241031_VPWW56",
+          "receivedAt": 1592834400001,
+          "evaluatedAt": 1592834400001,
+          "inputSource": "replay",
+          "operationExpected": "normal",
+          "expectedRef": "expected:O07:46",
+          "expectationBasis": [
+            "L1: docs/specs/reconstruction-p0-contracts.md:1783 «bb8e18a6762c105d» O07",
+            "L1: reconstruction/contracts/p3-landslide-unit.json:270 «89fa0e14f41d967a» I-U-L currentSemantics",
+            "L1: reconstruction/contracts/p3-landslide-unit.json:158 «d012d1866b9f2d8d» Q-NOTICE semanticAdoption",
+            "L1: reconstruction/contracts/p3-landslide-unit.json:218 «50f826d178608f2a» Q-NOTICE level（作者裁定 NOTICE-LEVELS=B）",
+            "L2: test/fixtures/15_16_01_241031_VPWW56.xml:1 «12c29731e40adc0c» 気象庁のサンプル電文のControl/Head/Bodyを読解（実系列・原本確認の主張ではない）"
+          ]
+        },
+        {
+          "sequenceId": "O07",
+          "position": 47,
+          "action": "save",
+          "fixtureId": null,
+          "receivedAt": null,
+          "evaluatedAt": 1592834400002,
+          "inputSource": "replay",
+          "operationExpected": null,
+          "expectedRef": "expected:O07:47",
+          "expectationBasis": [
+            "L1: docs/specs/reconstruction-p0-contracts.md:479 «3ed5ef9a291c28b5» U-Lの保存するもの",
+            "L1: reconstruction/contracts/p3-landslide-unit.json:273 «0eca0a521a5810b0» I-U-L persisted"
+          ]
+        },
+        {
+          "sequenceId": "O07",
+          "position": 48,
+          "action": "restart",
+          "fixtureId": null,
+          "receivedAt": null,
+          "evaluatedAt": 1592834400003,
+          "inputSource": "replay",
+          "operationExpected": null,
+          "expectedRef": "expected:O07:48",
+          "expectationBasis": [
+            "L1: docs/specs/reconstruction-p0-contracts.md:1783 «bb8e18a6762c105d» O07",
+            "L1: reconstruction/contracts/p3-landslide-unit.json:228 «0e4b747ce9be9b7e» Q-NOTICE restart",
+            "L1: reconstruction/contracts/p3-landslide-unit.json:79 «ae92021fec62f87f» P3-C10-RETENTION=A"
+          ]
+        },
+        {
+          "sequenceId": "O07",
+          "position": 49,
+          "action": "receive",
+          "fixtureId": "test__fixtures__synthetic_VPWW56_correction",
+          "receivedAt": 1592834445000,
+          "evaluatedAt": 1592834445000,
+          "inputSource": "replay",
+          "operationExpected": "normal",
+          "expectedRef": "expected:O07:49",
+          "expectationBasis": [
+            "L1: docs/specs/reconstruction-p0-contracts.md:1783 «bb8e18a6762c105d» O07",
+            "L1: reconstruction/contracts/p3-landslide-unit.json:263 «a121492370decf1e» Q-ENUM revisionOrder",
+            "L1: reconstruction/contracts/p3-landslide-unit.json:191 «315a071d06f19ec9» Q-NOTICE correction",
+            "L1: reconstruction/contracts/p3-landslide-unit.json:218 «50f826d178608f2a» Q-NOTICE level（作者裁定 NOTICE-LEVELS=B）",
+            "L1: reconstruction/contracts/p3-landslide-unit.json:228 «0e4b747ce9be9b7e» Q-NOTICE restart",
+            "L1: reconstruction/contracts/p3-landslide-unit.json:115 «e26c35106f961b7c» P3-C10-REPLACEMENT=A",
+            "L2: test/fixtures/synthetic_VPWW56_correction.xml:1 «12c29731e40adc0c» 合成入力（manifest synthetic、配信原本ではない）"
+          ]
+        },
+        {
+          "sequenceId": "O07",
+          "position": 50,
+          "action": "receive",
+          "fixtureId": "test__fixtures__synthetic_VPWW56_cancel",
+          "receivedAt": 1592834490000,
+          "evaluatedAt": 1592834490000,
+          "inputSource": "replay",
+          "operationExpected": "normal",
+          "expectedRef": "expected:O07:50",
+          "expectationBasis": [
+            "L1: docs/specs/reconstruction-p0-contracts.md:1783 «bb8e18a6762c105d» O07",
+            "L1: reconstruction/contracts/p3-landslide-unit.json:263 «a121492370decf1e» Q-ENUM revisionOrder",
+            "L1: reconstruction/contracts/p3-landslide-unit.json:70 «bce6dcd2b91bf44d» P3-C10-CANCEL-SCOPE=A",
+            "L1: reconstruction/contracts/p3-landslide-unit.json:202 «e8bd700d8139e539» Q-NOTICE cancellation",
+            "L1: reconstruction/contracts/p3-landslide-unit.json:115 «e26c35106f961b7c» P3-C10-REPLACEMENT=A",
+            "L2: test/fixtures/synthetic_VPWW56_cancel.xml:1 «12c29731e40adc0c» 合成入力（manifest synthetic、配信原本ではない）"
+          ]
+        },
+        {
+          "sequenceId": "O07",
+          "position": 51,
+          "action": "save",
+          "fixtureId": null,
+          "receivedAt": null,
+          "evaluatedAt": 1592834490001,
+          "inputSource": "replay",
+          "operationExpected": null,
+          "expectedRef": "expected:O07:51",
+          "expectationBasis": [
+            "L1: docs/specs/reconstruction-p0-contracts.md:479 «3ed5ef9a291c28b5» U-Lの保存するもの",
+            "L1: reconstruction/contracts/p3-landslide-unit.json:273 «0eca0a521a5810b0» I-U-L persisted"
+          ]
+        },
+        {
+          "sequenceId": "O07",
+          "position": 52,
+          "action": "restart",
+          "fixtureId": null,
+          "receivedAt": null,
+          "evaluatedAt": 1592834490002,
+          "inputSource": "replay",
+          "operationExpected": null,
+          "expectedRef": "expected:O07:52",
+          "expectationBasis": [
+            "L1: docs/specs/reconstruction-p0-contracts.md:1783 «bb8e18a6762c105d» O07",
+            "L1: reconstruction/contracts/p3-landslide-unit.json:228 «0e4b747ce9be9b7e» Q-NOTICE restart",
+            "L1: reconstruction/contracts/p3-landslide-unit.json:79 «ae92021fec62f87f» P3-C10-RETENTION=A"
+          ]
+        },
+        {
+          "sequenceId": "O07",
+          "position": 53,
+          "action": "receive",
+          "fixtureId": "test__fixtures__15_16_01_241031_VPWW56",
+          "receivedAt": 1592834490003,
+          "evaluatedAt": 1592834490003,
+          "inputSource": "replay",
+          "operationExpected": "normal",
+          "expectedRef": "expected:O07:53",
+          "expectationBasis": [
+            "L1: docs/specs/reconstruction-p0-contracts.md:1783 «bb8e18a6762c105d» O07",
+            "L1: reconstruction/contracts/p3-landslide-unit.json:263 «a121492370decf1e» Q-ENUM revisionOrder",
+            "L1: reconstruction/contracts/p3-landslide-unit.json:70 «bce6dcd2b91bf44d» P3-C10-CANCEL-SCOPE=A",
+            "L2: test/fixtures/15_16_01_241031_VPWW56.xml:1 «12c29731e40adc0c» 気象庁のサンプル電文のControl/Head/Bodyを読解（実系列・原本確認の主張ではない）"
           ]
         }
       ]
@@ -21642,6 +21934,566 @@
       },
       "checks": [
         "validUntilの到来で現況はexpired（事実を捨てる、P3-C8-CURRENT-EXPIRY=A）。巨大地震注意へは移らない。expiryでは通知しない（Q-NOTICE expiry）。watermarkは2020-06-11T16:28まで保持（+30日）。"
+      ]
+    },
+    {
+      "expectedId": "expected:O01:80",
+      "sequenceId": "O01",
+      "position": 80,
+      "decision": null,
+      "effective": null,
+      "subjects": [],
+      "notices": false,
+      "intents": false,
+      "basisLevel": 1,
+      "basisRefs": [
+        "L1: docs/specs/reconstruction-p0-contracts.md:1758 «37f025f94e7bbdfd» 固定初期状態・時計",
+        "L1: docs/specs/reconstruction-p0-contracts.md:736 «e88a83452d784a7c»"
+      ],
+      "input": {
+        "required": "新しい隔離 harness を空の全 UnitState・checkpoint なしで起動: 土砂（U-L）の官署の発表→同一revision訂正→取消→重複→遅着",
+        "acquisition": "synthetic"
+      },
+      "checks": [
+        "この step は試験ケースの初期化。前ケースの保存物・通知・gate を共有しない。起動の未充足を無発令と表示しない。"
+      ]
+    },
+    {
+      "expectedId": "expected:O01:81",
+      "sequenceId": "O01",
+      "position": 81,
+      "decision": {
+        "kind": "changed",
+        "change": "semantic"
+      },
+      "effective": {
+        "kind": "active"
+      },
+      "subjects": [
+        {
+          "subject": "normal/VPWW56/稚内地方気象台",
+          "revision": {
+            "reportDateTimeRaw": "2020-06-22T23:00:00+09:00",
+            "serialRaw": null,
+            "infoTypeRaw": "発表"
+          }
+        }
+      ],
+      "notices": true,
+      "intents": true,
+      "basisLevel": 1,
+      "basisRefs": [
+        "L1: docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6» O01",
+        "L1: reconstruction/contracts/p3-landslide-unit.json:270 «89fa0e14f41d967a» I-U-L currentSemantics",
+        "L1: reconstruction/contracts/p3-landslide-unit.json:43 «ac7dbb2bffd2f033» P3-C10-SUBJECTS=A",
+        "L1: reconstruction/contracts/p3-landslide-unit.json:158 «d012d1866b9f2d8d» Q-NOTICE semanticAdoption",
+        "L1: reconstruction/contracts/p3-landslide-unit.json:218 «50f826d178608f2a» Q-NOTICE level（作者裁定 NOTICE-LEVELS=B）",
+        "L2: test/fixtures/15_16_01_241031_VPWW56.xml:1 «12c29731e40adc0c» 気象庁のサンプル電文のControl/Head/Bodyを読解（実系列・原本確認の主張ではない）"
+      ],
+      "input": null,
+      "checks": [
+        "稚内地方気象台の記録の無い状態への発表。Body/Warning（市町村等）の10区域から、group 49×1（稚内市）・09×1（猿払村）・29×8を作りactive（I-U-L.currentSemantics(1)、P3-C10-SUBJECTS=AでsubjectはEditorialOffice）。titleは宗谷地方土砂災害警報・注意報。retainUntil=ReportDateTime+48時間（P3-C10-ACTIVE-EXPIRY=C）。",
+        "通知: semanticAdoption（新しい官署のactive）、desktop＋sound、level=warning（区域は全部新しく、上がった区域の最大がレベル4（49）。P3-C10-NOTICE-LEVELS=B）。",
+        "15_16_01は気象庁のサンプル電文（Control/DateTimeは2020年、R06の形）で、訂正・取消は試験用のsynthetic（実際の系列ではない）。続報（引上げ・引下げ・事実の同じ報・全解除）と別の官署はsequencesに足さず、P3-C10-T02・T03が試験内の入力で確かめる。",
+        "運用区分: Control.Status=通常; head.test/envelope Status=notProvided。replay 起源から区分を補わない。"
+      ]
+    },
+    {
+      "expectedId": "expected:O01:82",
+      "sequenceId": "O01",
+      "position": 82,
+      "decision": {
+        "kind": "changed",
+        "change": "revisionOnly"
+      },
+      "effective": {
+        "kind": "active"
+      },
+      "subjects": [
+        {
+          "subject": "normal/VPWW56/稚内地方気象台",
+          "revision": {
+            "reportDateTimeRaw": "2020-06-22T23:00:00+09:00",
+            "serialRaw": null,
+            "infoTypeRaw": "訂正"
+          }
+        }
+      ],
+      "notices": true,
+      "intents": true,
+      "basisLevel": 1,
+      "basisRefs": [
+        "L1: docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6» O01",
+        "L1: reconstruction/contracts/p3-landslide-unit.json:263 «a121492370decf1e» Q-ENUM revisionOrder",
+        "L1: reconstruction/contracts/p3-landslide-unit.json:270 «89fa0e14f41d967a» I-U-L currentSemantics",
+        "L1: reconstruction/contracts/p3-landslide-unit.json:191 «315a071d06f19ec9» Q-NOTICE correction",
+        "L1: reconstruction/contracts/p3-landslide-unit.json:218 «50f826d178608f2a» Q-NOTICE level（作者裁定 NOTICE-LEVELS=B）",
+        "L1: reconstruction/contracts/p3-landslide-unit.json:115 «e26c35106f961b7c» P3-C10-REPLACEMENT=A",
+        "L2: test/fixtures/synthetic_VPWW56_correction.xml:1 «12c29731e40adc0c» 合成入力（manifest synthetic、配信原本ではない）"
+      ],
+      "input": null,
+      "checks": [
+        "同じrevision（23:00・Serial空）の訂正はInfoTypeの優先（取消>訂正>発表）で採用する（Q-ENUM.revisionOrder）。Body/Warningは15_16_01と同じで公開事実（effective・title・kinds）は変わらず、Head/Headline/Textの文だけが違うのでrevisionOnly（I-U-L.currentSemantics(4)）。",
+        "通知: correction（事実が同じでも作る。spec:1777のO01「受理済み訂正は表示差分なしでも通知判定」）、desktop＋sound、level=normal（採用前の記録より上がった区域が無い、P3-C10-NOTICE-LEVELS=B）、bodyの冒頭は「訂正: 」。:81のpendingのintent（sound 60秒・desktop 180秒の期限内）は同じsubject・channelなのでsupersededにする（P3-C10-REPLACEMENT=A）。",
+        "運用区分: Control.Status=通常; head.test/envelope Status=notProvided。replay 起源から区分を補わない。"
+      ]
+    },
+    {
+      "expectedId": "expected:O01:83",
+      "sequenceId": "O01",
+      "position": 83,
+      "decision": {
+        "kind": "changed",
+        "change": "semantic"
+      },
+      "effective": {
+        "kind": "inactive",
+        "cause": {
+          "kind": "cancelled"
+        }
+      },
+      "subjects": [
+        {
+          "subject": "normal/VPWW56/稚内地方気象台",
+          "revision": {
+            "reportDateTimeRaw": "2020-06-22T23:00:00+09:00",
+            "serialRaw": null,
+            "infoTypeRaw": "取消"
+          }
+        }
+      ],
+      "notices": true,
+      "intents": true,
+      "basisLevel": 1,
+      "basisRefs": [
+        "L1: docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6» O01",
+        "L1: reconstruction/contracts/p3-landslide-unit.json:263 «a121492370decf1e» Q-ENUM revisionOrder",
+        "L1: reconstruction/contracts/p3-landslide-unit.json:70 «bce6dcd2b91bf44d» P3-C10-CANCEL-SCOPE=A",
+        "L1: reconstruction/contracts/p3-landslide-unit.json:202 «e8bd700d8139e539» Q-NOTICE cancellation",
+        "L1: reconstruction/contracts/p3-landslide-unit.json:115 «e26c35106f961b7c» P3-C10-REPLACEMENT=A",
+        "L2: test/fixtures/synthetic_VPWW56_cancel.xml:1 «12c29731e40adc0c» 合成入力（manifest synthetic、配信原本ではない）"
+      ],
+      "input": null,
+      "checks": [
+        "同じrevisionの取消はInfoTypeの優先で採用し、稚内地方気象台の記録だけをcancelledにして事実を捨てる。前の報の事実を戻さない（P3-C10-CANCEL-SCOPE=A）。Body/Warningの無い取消は合法（Q-ENUM.familyTable）。cancelledの記録のretainUntilはReportDateTime+6時間。",
+        "通知: cancellation（取消の前に記録がactive）、desktop＋sound、level=cancel、titleは「[取消] 宗谷地方土砂災害警報・注意報」、bodyは「この情報は取り消されました」。同じsubjectのpendingのintent（:82のsound・desktop）は両channelともsupersededにする（P3-C10-REPLACEMENT=A）。",
+        "運用区分: Control.Status=通常; head.test/envelope Status=notProvided。replay 起源から区分を補わない。"
+      ]
+    },
+    {
+      "expectedId": "expected:O01:84",
+      "sequenceId": "O01",
+      "position": 84,
+      "decision": {
+        "kind": "unchanged",
+        "reason": "duplicate"
+      },
+      "effective": {
+        "kind": "inactive",
+        "cause": {
+          "kind": "cancelled"
+        }
+      },
+      "subjects": [
+        {
+          "subject": "normal/VPWW56/稚内地方気象台",
+          "revision": {
+            "reportDateTimeRaw": "2020-06-22T23:00:00+09:00",
+            "serialRaw": null,
+            "infoTypeRaw": "取消"
+          }
+        }
+      ],
+      "notices": false,
+      "intents": false,
+      "basisLevel": 1,
+      "basisRefs": [
+        "L1: docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6» O01",
+        "L1: reconstruction/contracts/p3-landslide-unit.json:263 «a121492370decf1e» Q-ENUM revisionOrder",
+        "L2: test/fixtures/synthetic_VPWW56_cancel.xml:1 «12c29731e40adc0c» 合成入力（manifest synthetic、配信原本ではない）"
+      ],
+      "input": null,
+      "checks": [
+        "前段の取消と同一bytesの1 ms後の再受信。同じrevision・同じInfoType・同じ公開事実でduplicate（Q-ENUM.revisionOrder）。取消記憶維持、新規通知0。",
+        "運用区分: Control.Status=通常; head.test/envelope Status=notProvided。replay 起源から区分を補わない。"
+      ]
+    },
+    {
+      "expectedId": "expected:O01:85",
+      "sequenceId": "O01",
+      "position": 85,
+      "decision": {
+        "kind": "unchanged",
+        "reason": "stale"
+      },
+      "effective": {
+        "kind": "inactive",
+        "cause": {
+          "kind": "cancelled"
+        }
+      },
+      "subjects": [
+        {
+          "subject": "normal/VPWW56/稚内地方気象台",
+          "revision": {
+            "reportDateTimeRaw": "2020-06-22T23:00:00+09:00",
+            "serialRaw": null,
+            "infoTypeRaw": "発表"
+          }
+        }
+      ],
+      "notices": false,
+      "intents": false,
+      "basisLevel": 1,
+      "basisRefs": [
+        "L1: docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6» O01",
+        "L1: reconstruction/contracts/p3-landslide-unit.json:263 «a121492370decf1e» Q-ENUM revisionOrder",
+        "L1: reconstruction/contracts/p3-landslide-unit.json:70 «bce6dcd2b91bf44d» P3-C10-CANCEL-SCOPE=A",
+        "L2: test/fixtures/15_16_01_241031_VPWW56.xml:1 «12c29731e40adc0c» 気象庁のサンプル電文のControl/Head/Bodyを読解（実系列・原本確認の主張ではない）"
+      ],
+      "input": null,
+      "checks": [
+        "取消の後に元の発表が遅着。同じrevisionでInfoTypeが取消より下位なのでstaleで、稚内地方気象台のactiveは復活しない（Q-ENUM.revisionOrder、P3-C10-CANCEL-SCOPE=A）。取消記憶維持、通知0。",
+        "運用区分: Control.Status=通常; head.test/envelope Status=notProvided。replay 起源から区分を補わない。"
+      ]
+    },
+    {
+      "expectedId": "expected:O03:25",
+      "sequenceId": "O03",
+      "position": 25,
+      "decision": null,
+      "effective": null,
+      "subjects": [],
+      "notices": false,
+      "intents": false,
+      "basisLevel": 1,
+      "basisRefs": [
+        "L1: docs/specs/reconstruction-p0-contracts.md:1758 «37f025f94e7bbdfd» 固定初期状態・時計",
+        "L1: docs/specs/reconstruction-p0-contracts.md:736 «e88a83452d784a7c»"
+      ],
+      "input": {
+        "required": "新しい隔離 harness を空の全 UnitState・checkpoint なしで起動: 土砂（U-L）の記録の無い官署への実配信の解除の報",
+        "acquisition": "synthetic"
+      },
+      "checks": [
+        "この step は試験ケースの初期化。前ケースの保存物・通知・gate を共有しない。起動の未充足を無発令と表示しない。"
+      ]
+    },
+    {
+      "expectedId": "expected:O03:26",
+      "sequenceId": "O03",
+      "position": 26,
+      "decision": {
+        "kind": "changed",
+        "change": "revisionOnly"
+      },
+      "effective": {
+        "kind": "inactive",
+        "cause": {
+          "kind": "released"
+        }
+      },
+      "subjects": [
+        {
+          "subject": "normal/VPWW56/高松地方気象台",
+          "revision": {
+            "reportDateTimeRaw": "2026-06-03T10:16:00+09:00",
+            "serialRaw": null,
+            "infoTypeRaw": "発表"
+          }
+        }
+      ],
+      "notices": true,
+      "intents": true,
+      "basisLevel": 1,
+      "basisRefs": [
+        "L1: docs/specs/reconstruction-p0-contracts.md:1779 «739b40cc8a7f938f» O03",
+        "L1: reconstruction/contracts/p3-landslide-unit.json:61 «df713ec539f267d2» P3-C10-ACTIVE-STATUS=A",
+        "L1: reconstruction/contracts/p3-landslide-unit.json:52 «b0f7693ceac39793» P3-C10-AREAS=A",
+        "L1: reconstruction/contracts/p3-landslide-unit.json:270 «89fa0e14f41d967a» I-U-L currentSemantics",
+        "L1: reconstruction/contracts/p3-landslide-unit.json:180 «c3186f0189b273d1» Q-NOTICE inactiveAdoption",
+        "L1: reconstruction/contracts/p3-landslide-unit.json:218 «50f826d178608f2a» Q-NOTICE level（作者裁定 NOTICE-LEVELS=B）",
+        "L2: test/fixtures/18_00_01_260603_VPWW56_kagawa_release.xml:1 «12c29731e40adc0c» 原本確認済み（dmdata Archive の member と受領 hash 一致、manifest 参照）"
+      ],
+      "input": null,
+      "checks": [
+        "高松地方気象台の記録の無い状態への実配信の報（2026-06-03 10:16の発表）。Body/Warning（市町村等）の17 Itemのうち高松市はKind/Codeが29（レベル２土砂災害注意報）のままStatus=解除、残り16はStatus「発表警報・注意報はなし」。解除の区域はKind/Codeが元の種別のままでもinactive（P3-C10-ACTIVE-STATUS=A）で、activeの区域は0。",
+        "記録が無いのでwatermarkだけのendedの記録を作る（changed/revisionOnly、I-U-L.currentSemantics(1)）。view・snapshotに載らない。retainUntil=ReportDateTime+6時間。受理の時点はReportDateTime+25.339秒（配信のreceivedTime）で+6時間の内側（P3-C10-RETENTION=A）。",
+        "通知: inactiveAdoption（記録の無い官署へのStatus「解除」の区域を持ちactiveの区域の無い報）、desktop＋sound、level=normal（P3-C10-NOTICE-LEVELS=B）。",
+        "Head/Headlineの層は解除をKind/Code 00・Name「解除」で書くが、新築はHeadlineを読まない（P3-C10-AREAS=A）。ほかの官署の記録は無いので、O03の他の官署の所有現象との交差はこの系列では確かめない（P3-C10-T02）。",
+        "運用区分: Control.Status=通常; head.test/envelope Status=notProvided。replay 起源から区分を補わない。"
+      ]
+    },
+    {
+      "expectedId": "expected:O07:45",
+      "sequenceId": "O07",
+      "position": 45,
+      "decision": null,
+      "effective": null,
+      "subjects": [],
+      "notices": false,
+      "intents": false,
+      "basisLevel": 1,
+      "basisRefs": [
+        "L1: docs/specs/reconstruction-p0-contracts.md:1758 «37f025f94e7bbdfd» 固定初期状態・時計",
+        "L1: docs/specs/reconstruction-p0-contracts.md:736 «e88a83452d784a7c»"
+      ],
+      "input": {
+        "required": "新しい隔離 harness を空の全 UnitState・checkpoint なしで起動: 土砂（U-L）の保存→再起動→直後の訂正・取消→保存→再起動→旧報（15_16_01は気象庁のサンプル電文、訂正・取消はsynthetic）",
+        "acquisition": "synthetic"
+      },
+      "checks": [
+        "この step は試験ケースの初期化。前ケースの保存物・通知・gate を共有しない。起動の未充足を無発令と表示しない。"
+      ]
+    },
+    {
+      "expectedId": "expected:O07:46",
+      "sequenceId": "O07",
+      "position": 46,
+      "decision": {
+        "kind": "changed",
+        "change": "semantic"
+      },
+      "effective": {
+        "kind": "active"
+      },
+      "subjects": [
+        {
+          "subject": "normal/VPWW56/稚内地方気象台",
+          "revision": {
+            "reportDateTimeRaw": "2020-06-22T23:00:00+09:00",
+            "serialRaw": null,
+            "infoTypeRaw": "発表"
+          }
+        }
+      ],
+      "notices": true,
+      "intents": true,
+      "basisLevel": 1,
+      "basisRefs": [
+        "L1: docs/specs/reconstruction-p0-contracts.md:1783 «bb8e18a6762c105d» O07",
+        "L1: reconstruction/contracts/p3-landslide-unit.json:270 «89fa0e14f41d967a» I-U-L currentSemantics",
+        "L1: reconstruction/contracts/p3-landslide-unit.json:158 «d012d1866b9f2d8d» Q-NOTICE semanticAdoption",
+        "L1: reconstruction/contracts/p3-landslide-unit.json:218 «50f826d178608f2a» Q-NOTICE level（作者裁定 NOTICE-LEVELS=B）",
+        "L2: test/fixtures/15_16_01_241031_VPWW56.xml:1 «12c29731e40adc0c» 気象庁のサンプル電文のControl/Head/Bodyを読解（実系列・原本確認の主張ではない）"
+      ],
+      "input": null,
+      "checks": [
+        "稚内地方気象台の記録の無い状態への発表。Body/Warning（市町村等）の10区域から、group 49×1（稚内市）・09×1（猿払村）・29×8を作りactive（I-U-L.currentSemantics(1)、P3-C10-SUBJECTS=AでsubjectはEditorialOffice）。titleは宗谷地方土砂災害警報・注意報。retainUntil=ReportDateTime+48時間（P3-C10-ACTIVE-EXPIRY=C）。",
+        "通知: semanticAdoption（新しい官署のactive）、desktop＋sound、level=warning（区域は全部新しく、上がった区域の最大がレベル4（49）。P3-C10-NOTICE-LEVELS=B）。",
+        "15_16_01は気象庁のサンプル電文（Control/DateTimeは2020年、R06の形）で、訂正・取消は試験用のsynthetic（実際の系列ではない）。",
+        "運用区分: Control.Status=通常; head.test/envelope Status=notProvided。replay 起源から区分を補わない。"
+      ]
+    },
+    {
+      "expectedId": "expected:O07:47",
+      "sequenceId": "O07",
+      "position": 47,
+      "decision": null,
+      "effective": null,
+      "subjects": [],
+      "notices": null,
+      "intents": null,
+      "basisLevel": 1,
+      "basisRefs": [
+        "L1: docs/specs/reconstruction-p0-contracts.md:479 «3ed5ef9a291c28b5» U-Lの保存するもの",
+        "L1: reconstruction/contracts/p3-landslide-unit.json:273 «0eca0a521a5810b0» I-U-L persisted"
+      ],
+      "input": {
+        "required": "U-Lの当該世代のcheckpoint ackまで待つ。通知の配送は保留し、期限は固定時計で止める。",
+        "acquisition": "synthetic"
+      },
+      "checks": [
+        "稚内地方気象台のactiveの記録（retainUntil=ReportDateTime+48時間）とpendingのintent（desktop・sound）が同じ世代に入る（I-U-L.persisted）。"
+      ]
+    },
+    {
+      "expectedId": "expected:O07:48",
+      "sequenceId": "O07",
+      "position": 48,
+      "decision": null,
+      "effective": null,
+      "subjects": [],
+      "notices": null,
+      "intents": null,
+      "basisLevel": 1,
+      "basisRefs": [
+        "L1: docs/specs/reconstruction-p0-contracts.md:1783 «bb8e18a6762c105d» O07",
+        "L1: reconstruction/contracts/p3-landslide-unit.json:228 «0e4b747ce9be9b7e» Q-NOTICE restart",
+        "L1: reconstruction/contracts/p3-landslide-unit.json:79 «ae92021fec62f87f» P3-C10-RETENTION=A"
+      ],
+      "input": {
+        "required": "直前にsaveしたU-Lだけから復元、時計+1ms。",
+        "acquisition": "synthetic"
+      },
+      "checks": [
+        "復元でintentを新しく作らない。pendingは元のcreatedAt/expiresAtで戻る（spec:997）。官署を名前・受信時刻から推測しない。retainUntilを延ばさない（P3-C10-RETENTION=A）。"
+      ]
+    },
+    {
+      "expectedId": "expected:O07:49",
+      "sequenceId": "O07",
+      "position": 49,
+      "decision": {
+        "kind": "changed",
+        "change": "revisionOnly"
+      },
+      "effective": {
+        "kind": "active"
+      },
+      "subjects": [
+        {
+          "subject": "normal/VPWW56/稚内地方気象台",
+          "revision": {
+            "reportDateTimeRaw": "2020-06-22T23:00:00+09:00",
+            "serialRaw": null,
+            "infoTypeRaw": "訂正"
+          }
+        }
+      ],
+      "notices": true,
+      "intents": true,
+      "basisLevel": 1,
+      "basisRefs": [
+        "L1: docs/specs/reconstruction-p0-contracts.md:1783 «bb8e18a6762c105d» O07",
+        "L1: reconstruction/contracts/p3-landslide-unit.json:263 «a121492370decf1e» Q-ENUM revisionOrder",
+        "L1: reconstruction/contracts/p3-landslide-unit.json:191 «315a071d06f19ec9» Q-NOTICE correction",
+        "L1: reconstruction/contracts/p3-landslide-unit.json:218 «50f826d178608f2a» Q-NOTICE level（作者裁定 NOTICE-LEVELS=B）",
+        "L1: reconstruction/contracts/p3-landslide-unit.json:228 «0e4b747ce9be9b7e» Q-NOTICE restart",
+        "L1: reconstruction/contracts/p3-landslide-unit.json:115 «e26c35106f961b7c» P3-C10-REPLACEMENT=A",
+        "L2: test/fixtures/synthetic_VPWW56_correction.xml:1 «12c29731e40adc0c» 合成入力（manifest synthetic、配信原本ではない）"
+      ],
+      "input": null,
+      "checks": [
+        "復元直後の同じrevisionの訂正。復元した記録との差で決め、公開事実が同じなのでrevisionOnly（Q-NOTICE.restart、I-U-L.currentSemantics(4)）。",
+        "通知: correction、desktop＋sound、level=normal（復元した記録より上がった区域が無い）。復元した:46のpendingのintent（期限内）は同じsubject・channelなのでsupersededにする（P3-C10-REPLACEMENT=A）。",
+        "運用区分: Control.Status=通常; head.test/envelope Status=notProvided。replay 起源から区分を補わない。"
+      ]
+    },
+    {
+      "expectedId": "expected:O07:50",
+      "sequenceId": "O07",
+      "position": 50,
+      "decision": {
+        "kind": "changed",
+        "change": "semantic"
+      },
+      "effective": {
+        "kind": "inactive",
+        "cause": {
+          "kind": "cancelled"
+        }
+      },
+      "subjects": [
+        {
+          "subject": "normal/VPWW56/稚内地方気象台",
+          "revision": {
+            "reportDateTimeRaw": "2020-06-22T23:00:00+09:00",
+            "serialRaw": null,
+            "infoTypeRaw": "取消"
+          }
+        }
+      ],
+      "notices": true,
+      "intents": true,
+      "basisLevel": 1,
+      "basisRefs": [
+        "L1: docs/specs/reconstruction-p0-contracts.md:1783 «bb8e18a6762c105d» O07",
+        "L1: reconstruction/contracts/p3-landslide-unit.json:263 «a121492370decf1e» Q-ENUM revisionOrder",
+        "L1: reconstruction/contracts/p3-landslide-unit.json:70 «bce6dcd2b91bf44d» P3-C10-CANCEL-SCOPE=A",
+        "L1: reconstruction/contracts/p3-landslide-unit.json:202 «e8bd700d8139e539» Q-NOTICE cancellation",
+        "L1: reconstruction/contracts/p3-landslide-unit.json:115 «e26c35106f961b7c» P3-C10-REPLACEMENT=A",
+        "L2: test/fixtures/synthetic_VPWW56_cancel.xml:1 «12c29731e40adc0c» 合成入力（manifest synthetic、配信原本ではない）"
+      ],
+      "input": null,
+      "checks": [
+        "復元後の取消。稚内地方気象台の記録だけをcancelledにし、事実を戻さない（P3-C10-CANCEL-SCOPE=A）。",
+        "通知: cancellation、level=cancel。同じsubjectのpendingのintentは両channelともsupersededにする（P3-C10-REPLACEMENT=A）。",
+        "運用区分: Control.Status=通常; head.test/envelope Status=notProvided。replay 起源から区分を補わない。"
+      ]
+    },
+    {
+      "expectedId": "expected:O07:51",
+      "sequenceId": "O07",
+      "position": 51,
+      "decision": null,
+      "effective": null,
+      "subjects": [],
+      "notices": null,
+      "intents": null,
+      "basisLevel": 1,
+      "basisRefs": [
+        "L1: docs/specs/reconstruction-p0-contracts.md:479 «3ed5ef9a291c28b5» U-Lの保存するもの",
+        "L1: reconstruction/contracts/p3-landslide-unit.json:273 «0eca0a521a5810b0» I-U-L persisted"
+      ],
+      "input": {
+        "required": "取消の後のU-Lの世代のcheckpoint ackまで待つ。通知の配送は保留し、期限は固定時計で止める。",
+        "acquisition": "synthetic"
+      },
+      "checks": [
+        "取消の記憶（cancelled、retainUntil=ReportDateTime+6時間）と取消のintentが同じ世代に入る。"
+      ]
+    },
+    {
+      "expectedId": "expected:O07:52",
+      "sequenceId": "O07",
+      "position": 52,
+      "decision": null,
+      "effective": null,
+      "subjects": [],
+      "notices": null,
+      "intents": null,
+      "basisLevel": 1,
+      "basisRefs": [
+        "L1: docs/specs/reconstruction-p0-contracts.md:1783 «bb8e18a6762c105d» O07",
+        "L1: reconstruction/contracts/p3-landslide-unit.json:228 «0e4b747ce9be9b7e» Q-NOTICE restart",
+        "L1: reconstruction/contracts/p3-landslide-unit.json:79 «ae92021fec62f87f» P3-C10-RETENTION=A"
+      ],
+      "input": {
+        "required": "直前にsaveしたU-Lだけから復元、時計+1ms。",
+        "acquisition": "synthetic"
+      },
+      "checks": [
+        "取消の記憶を復元する。復元でintentを新しく作らず、期限を延ばさない。"
+      ]
+    },
+    {
+      "expectedId": "expected:O07:53",
+      "sequenceId": "O07",
+      "position": 53,
+      "decision": {
+        "kind": "unchanged",
+        "reason": "stale"
+      },
+      "effective": {
+        "kind": "inactive",
+        "cause": {
+          "kind": "cancelled"
+        }
+      },
+      "subjects": [
+        {
+          "subject": "normal/VPWW56/稚内地方気象台",
+          "revision": {
+            "reportDateTimeRaw": "2020-06-22T23:00:00+09:00",
+            "serialRaw": null,
+            "infoTypeRaw": "発表"
+          }
+        }
+      ],
+      "notices": false,
+      "intents": false,
+      "basisLevel": 1,
+      "basisRefs": [
+        "L1: docs/specs/reconstruction-p0-contracts.md:1783 «bb8e18a6762c105d» O07",
+        "L1: reconstruction/contracts/p3-landslide-unit.json:263 «a121492370decf1e» Q-ENUM revisionOrder",
+        "L1: reconstruction/contracts/p3-landslide-unit.json:70 «bce6dcd2b91bf44d» P3-C10-CANCEL-SCOPE=A",
+        "L2: test/fixtures/15_16_01_241031_VPWW56.xml:1 «12c29731e40adc0c» 気象庁のサンプル電文のControl/Head/Bodyを読解（実系列・原本確認の主張ではない）"
+      ],
+      "input": null,
+      "checks": [
+        "再起動後に元の発表が遅着。復元した取消の記憶より下位のInfoTypeなのでstaleで、activeは復活しない（Q-ENUM.revisionOrder、P3-C10-CANCEL-SCOPE=A）。通知0。",
+        "運用区分: Control.Status=通常; head.test/envelope Status=notProvided。replay 起源から区分を補わない。"
       ]
     }
   ],
