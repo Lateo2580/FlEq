@@ -13,6 +13,7 @@ import type {
 } from "../../../contracts/p3-seismic-unit.types";
 import type { UnitModule } from "../../../contracts/p3-unit-table.types";
 import { serializedEnvelope } from "../../checkpoint/checkpoint";
+import { deliveryGrowth } from "../../notification-delivery/delivery-growth";
 import {
   EARTHQUAKE_FAMILIES, INFO_RANK, STAGE_LABEL, knownStage, lgRank, parseSeismic, safetyRank, validEventId, validSerial,
 } from "../../domains/seismic/seismic";
@@ -94,13 +95,19 @@ function dailyBytes(daily: Daily): number {
   return DAILY_KEYS + historyBytes(daily.normal) + historyBytes(daily.training) + historyBytes(daily.test);
 }
 const intentBytes = (values: readonly SeismicIntent[]) => listBytes(values, bytes);
+// 配送の更新で pending が伸びうる分の予約（P3-INTENT-UPDATE-RESERVE-001）。listBytes は配列だけで和を cache するので、予約は横で足す。
+// 無いと上限ちょうどの pending が更新で伸び、decode が拒否する。
+// 世代の計量でもこの別走査のままにする（intentBytes の sumCache は配列だけが鍵で、size 関数を混ぜると前の和が返る）。
+function reserve(values: readonly SeismicIntent[]): number {
+  return values.reduce((sum, item) => item.disposition === "pending" ? sum + deliveryGrowth(item) : sum, 0);
+}
 const emptyEnvelopeBytes = serializedEnvelope({ schemaVersion: SCHEMA, unit: "U-Q", generation: 0, capturedAt: 0,
   payload: { schemaVersion: SCHEMA, earthquakes: [], longPeriods: [], daily: {}, intents: [] }, sha256: "0".repeat(64) }).byteLength;
 // 62: generation と capturedAt が 0 から 32 桁まで伸びる分（U-F・U-T と同じ予約）。
 function generationBytes(earthquakes: readonly EarthquakeEvent[], longPeriods: readonly LongPeriodSubject[], daily: Daily,
   intents: readonly SeismicIntent[]): number {
   return emptyEnvelopeBytes + 62 - 8 + listBytes(earthquakes, shownBytes) + listBytes(longPeriods, shownBytes)
-    + dailyBytes(daily) + intentBytes(intents);
+    + dailyBytes(daily) + intentBytes(intents) + reserve(intents);
 }
 
 // 退去できない記録（取消記憶だけの event・長周期と当日履歴）の byte。配列に結び付けて持つ（受信ごとに直列化しない）。
@@ -382,13 +389,14 @@ function admit(current: readonly SeismicIntent[], fresh: readonly SeismicIntent[
   const pool = [...current.filter((item) => item.disposition === "pending" && !superseded.has(item)), ...fresh];
   const out = new Set<SeismicIntent>();
   // 同じ群の中で A7 の選択順の後ろのものから外す。新しい intent が外れることもある（channel ごとに全採用か未採用）。
-  if (pool.length > PENDING_ITEMS || listBytes(pool, bytes) > PENDING_BYTES) {
-    let count = pool.length, size = listBytes(pool, bytes);
+  const poolReserve = reserve(pool);
+  if (pool.length > PENDING_ITEMS || listBytes(pool, bytes) + poolReserve > PENDING_BYTES) {
+    let count = pool.length, size = listBytes(pool, bytes) + poolReserve;
     for (const item of [...pool].sort(a7Order).reverse()) {
       if (count <= PENDING_ITEMS && size <= PENDING_BYTES) break;
       out.add(item);
       count--;
-      size -= bytes(item) + 1;
+      size -= bytes(item) + 1 + deliveryGrowth(item);
     }
   }
   const admitted = fresh.filter((item) => !out.has(item));
@@ -963,7 +971,7 @@ function persisted(value: unknown): PersistedSeismicUnit | null {
     || !unique(intents.map((entry) => entry.id))) return null;
   const daily = { normal, training, test };
   const pending = intents.filter((entry) => entry.disposition === "pending");
-  if (pending.length > PENDING_ITEMS || listBytes(pending, bytes) > PENDING_BYTES || reservedBytes(earthquakes, longPeriods, daily) > RESERVE_BYTES
+  if (pending.length > PENDING_ITEMS || listBytes(pending, bytes) + reserve(pending) > PENDING_BYTES || reservedBytes(earthquakes, longPeriods, daily) > RESERVE_BYTES
     || generationBytes(earthquakes, longPeriods, daily, intents) > GENERATION_LIMIT) return null;
   return { schemaVersion: SCHEMA, earthquakes, longPeriods, daily, intents };
 }

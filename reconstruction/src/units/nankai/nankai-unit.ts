@@ -2,7 +2,7 @@ import { isDeepStrictEqual } from "node:util";
 
 import type { Operation } from "../../../contracts/p1-parser-boundary.types";
 import type {
-  ClockReading, DiagnosticDetails, JsonValue, NotificationIntent, PersistenceStatus, ReportRef, RuntimeDisplaySubject, RuntimeUnitDeadline,
+  ClockReading, DiagnosticDetails, JsonValue, PersistenceStatus, ReportRef, RuntimeDisplaySubject, RuntimeUnitDeadline,
   SubjectOutcome,
 } from "../../../contracts/p2-shared-runtime.types";
 import type {
@@ -12,6 +12,7 @@ import type {
 } from "../../../contracts/p3-nankai-unit.types";
 import type { UnitModule } from "../../../contracts/p3-unit-table.types";
 import { serializedEnvelope } from "../../checkpoint/checkpoint";
+import { deliveryGrowth } from "../../notification-delivery/delivery-growth";
 import { BOUNDS, FAMILIES, INFO_RANK, LIMITS, parseNankai, validEventId, validSerial } from "../../domains/nankai/nankai";
 import type { NankaiCandidate } from "../../domains/nankai/nankai";
 
@@ -251,15 +252,6 @@ function trimTerminal(intents: readonly NankaiIntent[], kept: ReadonlySet<string
     terminal -= bytes(item) + 1;
   }
   return intents.filter((item) => !gone.has(item));
-}
-// 配送の更新（NotificationIntentUpdate）で 1 件の JSON が伸びうる byte の最大（作者裁定 2026-10-09、Q-C8-IMPL-AMEND(7)(8)）。値域は
-// 狭めず、decode が受ける値の最長に合わせる: attempts は 0 以上の安全な整数（最長 16 桁）、nextAttemptAt は有限の数（JSON の最長
-// 25 文字、例 -0.0000018927186924017318。worker の時計は小数になる）、disposition は最長の superseded（pending より 3 文字長い）。
-// 受理と decode の両方で pending の byte にこの予約を足して数える。unit によらない式。
-const ATTEMPTS_CHARS = 16, TIME_CHARS = 25, DISPOSITION_GROWTH = 3;
-function deliveryGrowth(item: NotificationIntent): number {
-  return Math.max(0, ATTEMPTS_CHARS - JSON.stringify(item.attempts).length)
-    + Math.max(0, TIME_CHARS - JSON.stringify(item.nextAttemptAt).length) + DISPOSITION_GROWTH;
 }
 // Q-NOTICE.capacity と P3-C8-REPLACEMENT=A。新しい intent は同じ subject・channel の pending を、取消は対象 subject の全 pending を置き換える。
 function admit(current: readonly NankaiIntent[], fresh: readonly NankaiIntent[], cancelled: ReadonlySet<string>):

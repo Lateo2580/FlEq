@@ -13,6 +13,9 @@ import type { CheckpointFileSystem, WritableCheckpoint } from "../../src/checkpo
 import type { DiagnosticFileSystem } from "../../src/checkpoint/persistent-diagnostic-sink";
 import { decodeMaterial } from "../../src/decode-material/decode-material";
 import { ingestXmlData } from "../../src/ingress/ingress";
+import { deliveryGrowth } from "../../src/notification-delivery/delivery-growth";
+import { linkedUnitCodecs, linkedUnitTable } from "../../src/runtime/composition-root";
+import { intentUpdateOwner, restoreOwner } from "../../src/runtime/owner-runtime";
 import { eewUnitCodec, reduceEewUnit, toEewView } from "../../src/units/eew/eew-unit";
 import { fixtureDriver, recordingNotificationAdapter } from "../checkpoint-shutdown/runtime-fixture";
 import { callsWith } from "../unit-table/linked-calls";
@@ -437,10 +440,12 @@ describe("P2 EEW unit", () => {
     const held = pendingIntent("normal/VXSE43/00000000000999");
     const body = `${held.payload.body}\n"境界"`;
     const padded = { ...held, payload: { ...held.payload, body } };
-    const padding = 131_072 - Buffer.byteLength(JSON.stringify([padded, ...pair]));
+    // 境界は実 byte＋配送の更新の予約＝131,072（P3-IUR-AC05）。
+    const reserved = (items: readonly (typeof held)[]) => items.reduce((sum, item) => sum + deliveryGrowth(item), 0);
+    const padding = 131_072 - Buffer.byteLength(JSON.stringify([padded, ...pair])) - reserved([padded, ...pair]);
     for (const extra of [0, 1]) {
       const pending = { ...padded, payload: { ...padded.payload, body: body + "x".repeat(padding + extra) } };
-      expect(Buffer.byteLength(JSON.stringify([pending, ...pair]))).toBe(131_072 + extra);
+      expect(Buffer.byteLength(JSON.stringify([pending, ...pair])) + reserved([pending, ...pair])).toBe(131_072 + extra);
       const step = receive({ ...emptyState(), intents: [pending] }, first);
       expect(step.intents).toEqual(extra === 0 ? pair : []);
       expect(step.state.intents).toEqual(extra === 0 ? [pending, ...pair] : [pending]);
@@ -921,13 +926,48 @@ describe("P2 EEW unit", () => {
       else expect(eewUnitCodec.decode(eewUnitCodec.encode(many))).toMatchObject({ kind: "restored", state: { intents: many.intents } });
     }
     const small = pendingIntent();
-    const padding = 131_072 - Buffer.byteLength(JSON.stringify([small]));
+    // 実 byte は 131,072 ちょうどで、予約を足すと超える pending は decode が受けない（P3-IUR-AC01）。
+    const realLimit = [{ ...small, payload: { ...small.payload, body: small.payload.body + "x".repeat(131_072 - Buffer.byteLength(JSON.stringify([small]))) } }];
+    expect(Buffer.byteLength(JSON.stringify(realLimit))).toBe(131_072);
+    expect(eewUnitCodec.decode({ ...eewUnitCodec.encode(emptyState()), intents: realLimit }).kind).toBe("invalid");
+    // 境界は実 byte＋配送の更新の予約＝131,072（P3-IUR-AC05）。
+    const padding = 131_072 - Buffer.byteLength(JSON.stringify([small])) - deliveryGrowth(small);
     for (const extra of [0, 1]) {
       const intents = [{ ...small, payload: { ...small.payload, body: small.payload.body + "x".repeat(padding + extra) } }];
-      expect(Buffer.byteLength(JSON.stringify(intents))).toBe(131_072 + extra);
+      expect(Buffer.byteLength(JSON.stringify(intents)) + deliveryGrowth(intents[0])).toBe(131_072 + extra);
       if (extra === 0) expect(() => eewUnitCodec.encode({ ...emptyState(), intents })).not.toThrow();
       else expect(() => eewUnitCodec.encode({ ...emptyState(), intents })).toThrow(/persisted boundary/);
     }
+  });
+
+  // 実不具合の再発防止（台帳 73）: 受理の上限ちょうどの pending が配送の更新で伸びても、encode が拒否せず復元できる。
+  it("P3-IUR-T03 regression / P3-IUR-AC01,AC03: pending admitted at its budget survives delivery updates, encode and decode through the owner", () => {
+    const first = decodeFixture("37_01_01_240613_VXSE43", "VXSE43");
+    const pair = receive(emptyState(), first).intents;
+    const held = pendingIntent("normal/VXSE43/00000000000999");
+    const body = `${held.payload.body}\n"境界"`;
+    const reserved = (items: readonly (typeof held)[]) => items.reduce((sum, item) => sum + deliveryGrowth(item), 0);
+    const padding = 131_072 - Buffer.byteLength(JSON.stringify([{ ...held, payload: { ...held.payload, body } }, ...pair])) - reserved([held, ...pair]);
+    const padded = { ...held, payload: { ...held.payload, body: body + "x".repeat(padding) } };
+    expect(Buffer.byteLength(JSON.stringify([padded, ...pair])) + reserved([padded, ...pair])).toBe(131_072);
+    const admitted = receive({ ...emptyState(), intents: [padded] }, first).state;
+    expect(admitted.intents).toEqual([padded, ...pair]);
+    const roundTrip = (state: EewUnitState) => eewUnitCodec.decode(JSON.parse(JSON.stringify(eewUnitCodec.encode(state))));
+    const restored = roundTrip(admitted);
+    if (restored.kind !== "restored") throw new Error("the admitted state does not decode");
+    const now = clock(BASE_TIME);
+    const empty = restoreOwner({ runId: "run", place: "urgent", clock: now, restored: { "U-E": { kind: "empty" }, "U-T": { kind: "empty" },
+      "U-Q": { kind: "empty" }, "U-N": { kind: "empty" } } }, linkedUnitTable, linkedUnitCodecs).state;
+    const owner = { ...empty, units: { ...empty.units, "U-E": restored.state } };
+    const update = (from: Parameters<typeof intentUpdateOwner>[0], split: boolean) => intentUpdateOwner(from, "U-E", from.units["U-E"]!.intents.map((item, index) => ({ id: item.id, attempts: Number.MAX_SAFE_INTEGER,
+      nextAttemptAt: -0.0000018927186924017318, disposition: split && index % 3 === 1 ? "superseded" as const : "pending" as const })), now, linkedUnitTable);
+    // 全 pending が最長へ伸びる更新（予約の不変条件、AC03）→ 3 件に 1 件が終端になる更新、のそれぞれの後で保存と復元ができる。
+    const widened = update(owner, false);
+    expect(widened.adopted).toBe(true);
+    expect(roundTrip(widened.state.units["U-E"]!).kind).toBe("restored");
+    const grown = update(widened.state, true);
+    expect(grown.adopted).toBe(true);
+    expect(roundTrip(grown.state.units["U-E"]!).kind).toBe("restored");
   });
 
   it("P2-A4-T04 acceptance / AC05-06: all outcome variants, explicit operation view and absolute TTL", () => {

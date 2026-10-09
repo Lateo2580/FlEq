@@ -2,9 +2,10 @@ import { isDeepStrictEqual } from "node:util";
 
 import type { JsonValue, NotificationIntent, PersistenceStatus, PublishedOutcome, ReportRef, RuntimeDisplaySubject, RuntimeUnitDeadline, SubjectOutcome } from "../../../contracts/p2-shared-runtime.types";
 import type { PersistedWeatherTimeseriesUnit, WeatherTimeseriesInput, WeatherTimeseriesSnapshot,
-  WeatherTimeseriesSubject, WeatherTimeseriesUnitCodec, WeatherTimeseriesUnitState, WeatherTimeseriesUnitStep,
+  WeatherTimeseriesGate, WeatherTimeseriesSubject, WeatherTimeseriesUnitCodec, WeatherTimeseriesUnitState, WeatherTimeseriesUnitStep,
   WeatherTimeseriesUnitView } from "../../../contracts/p2-weather-timeseries-unit.types";
 import { serializedEnvelope } from "../../checkpoint/checkpoint";
+import { deliveryGrowth } from "../../notification-delivery/delivery-growth";
 import { EMPTY, inspect } from "../../domains/weather-timeseries/weather-timeseries";
 import type { UnitModule } from "../../../contracts/p3-unit-table.types";
 
@@ -24,15 +25,19 @@ function bytes(value: object): number {
   if (size == null) { size = encoder.encode(JSON.stringify(value)).byteLength; cache.set(value, size); }
   return size;
 }
-function arrayBytes(values: readonly object[]): number {
-  return values.reduce((sum, item) => sum + bytes(item), Math.max(values.length - 1, 0));
+function arrayBytes<T extends object>(values: readonly T[], measure: (item: T) => number = bytes): number {
+  return values.reduce((sum, item) => sum + measure(item), Math.max(values.length - 1, 0));
+}
+// 配送の更新で pending が伸びうる分の予約（P3-INTENT-UPDATE-RESERVE-001）。無いと上限ちょうどの pending が更新で伸び、encode が拒否する。
+function reserve(intents: readonly NotificationIntent[]): number {
+  return intents.reduce((sum, item) => item.disposition === "pending" ? sum + deliveryGrowth(item) : sum, 0);
 }
 function measure(subjects: readonly WeatherTimeseriesSubject[], gates: readonly { source: ReportRef }[],
   intents: readonly NotificationIntent[], generation: number, capturedAt: number): number {
   if (!Number.isSafeInteger(generation) || generation < 0 || !Number.isFinite(capturedAt)
     || JSON.stringify(generation).length > 32 || JSON.stringify(capturedAt).length > 32)
     throw new RangeError("invalid U-F checkpoint generation or capture time");
-  return emptyEnvelopeBytes + 62 + arrayBytes(subjects) + arrayBytes(gates) + arrayBytes(intents);
+  return emptyEnvelopeBytes + 62 + arrayBytes(subjects) + arrayBytes(gates) + arrayBytes(intents, (item) => bytes(item) + (item.disposition === "pending" ? deliveryGrowth(item) : 0));
 }
 function dirty(persistence: PersistenceStatus, monotonicMs: number): PersistenceStatus {
   const progress = { ...persistence, currentGeneration: persistence.currentGeneration + 1,
@@ -305,44 +310,66 @@ function snapshot(value: unknown): value is WeatherTimeseriesSnapshot {
     && index(entry[8], (series[entry[0]] as { timeDefines: unknown[] }).timeDefines.length)
     && index(entry[9], attributes.length) && index(entry[10], values.length));
 }
+function json(value: unknown): value is JsonValue {
+  if (value === null || typeof value === "boolean" || typeof value === "string") return true;
+  if (typeof value === "number") return Number.isFinite(value);
+  if (Array.isArray(value)) return value.every(json);
+  const row = object(value);
+  return row != null && Object.values(row).every(json);
+}
+// 要素は確かめたまま使う（measure が object の同一性で byte を cache するので、作り直すと encode のたびに全要素を直列化し直す、P3-IUR-AC06）。
+function subjectRow(value: unknown): value is WeatherTimeseriesSubject {
+  const item = object(value), source = object(item?.source);
+  return snapshot(value) && typeof item?.subject === "string" && item.subject !== ""
+    && ["normal", "training", "test"].includes(String(item.operation))
+    && ["active", "noActiveItems", "cancelled", "unavailable"].includes(String(item.effective))
+    && (item.unavailableReason === null || ["capacityExceeded", "historyUnavailable", "coverageIncomplete"].includes(String(item.unavailableReason)))
+    && (item.lastKnown === null || snapshot(item.lastKnown))
+    && (item.affectedScope === "subject" || Array.isArray(item.affectedScope)
+      && item.affectedScope.every((part: unknown) => typeof part === "string"))
+    && (item.validUntil === null || finite(item.validUntil)) && finite(item.retainUntil)
+    && (reportRef(item.source) && source?.subject === item.subject && source.operation === item.operation
+      || item.source === null && item.effective === "unavailable" && item.unavailableReason === "coverageIncomplete")
+    && item.subject.startsWith(`${item.operation}/VPWP50/`) && item.subject.length > `${item.operation}/VPWP50/`.length
+    && (source === null || item.retainUntil === Date.parse(String(source.reportDateTimeRaw)) + RETAIN)
+    && (item.effective !== "unavailable" || item.unavailableReason != null
+      && Array.isArray(item.periods) && item.periods.length === 0);
+}
+function gateRow(value: unknown): value is WeatherTimeseriesGate {
+  const gate = object(value), source = object(gate?.source);
+  return gate != null && typeof gate.subject === "string" && reportRef(gate.source)
+    && source?.subject === gate.subject && source.operation === gate.operation;
+}
+// subject は文字列であることだけを確かめる（P2-A1-T12 が U-F の intent を別の形の subject で往復させる）。
+function intentRow(value: unknown): value is NotificationIntent {
+  const item = object(value);
+  return item != null && typeof item.id === "string" && item.unit === "U-F" && typeof item.subject === "string"
+    && typeof item.operation === "string" && ["normal", "training", "test"].includes(item.operation) && reportRef(item.source)
+    && item.source.subject === item.subject && item.source.operation === item.operation
+    && typeof item.transition === "string" && ["activated", "updated", "cancelled", "released", "expired"].includes(item.transition)
+    && (item.channel === "desktop" || item.channel === "sound") && object(item.payload) != null && json(item.payload)
+    && finite(item.createdAt) && finite(item.expiresAt) && finite(item.nextAttemptAt) && item.expiresAt >= item.createdAt
+    && Number.isSafeInteger(item.attempts) && Number(item.attempts) >= 0 && typeof item.configRevision === "string"
+    && typeof item.disposition === "string" && ["pending", "delivered", "expired", "superseded"].includes(item.disposition);
+}
 function persisted(payload: unknown): PersistedWeatherTimeseriesUnit | null {
   const row = object(payload);
   if (row?.schemaVersion !== SCHEMA || !Array.isArray(row.subjects) || row.subjects.length > SUBJECT_LIMIT
     || !Array.isArray(row.gates) || !Array.isArray(row.intents)) return null;
-  if (!row.subjects.every((value) => { const item = object(value), source = object(item?.source);
-    return snapshot(value) && typeof item?.subject === "string" && item.subject !== ""
-      && ["normal", "training", "test"].includes(String(item.operation))
-      && ["active", "noActiveItems", "cancelled", "unavailable"].includes(String(item.effective))
-      && (item.unavailableReason === null || ["capacityExceeded", "historyUnavailable", "coverageIncomplete"].includes(String(item.unavailableReason)))
-      && (item.lastKnown === null || snapshot(item.lastKnown))
-      && (item.affectedScope === "subject" || Array.isArray(item.affectedScope)
-        && item.affectedScope.every((part: unknown) => typeof part === "string"))
-      && (item.validUntil === null || finite(item.validUntil)) && finite(item.retainUntil)
-      && (reportRef(item.source) && source?.subject === item.subject && source.operation === item.operation
-        || item.source === null && item.effective === "unavailable" && item.unavailableReason === "coverageIncomplete")
-      && item.subject.startsWith(`${item.operation}/VPWP50/`) && item.subject.length > `${item.operation}/VPWP50/`.length
-      && (source === null || item.retainUntil === Date.parse(String(source.reportDateTimeRaw)) + RETAIN)
-      && (item.effective !== "unavailable" || item.unavailableReason != null
-        && Array.isArray(item.periods) && item.periods.length === 0); })) return null;
-  if (new Set(row.subjects.map((item) => item.subject)).size !== row.subjects.length
-    || !row.gates.every((entry) => { const gate = object(entry), source = object(gate?.source);
-      return gate != null && typeof gate.subject === "string" && reportRef(gate.source)
-        && source?.subject === gate.subject && source.operation === gate.operation; })
-    || new Set(row.gates.map((item) => item.subject)).size !== row.gates.length
-    || row.gates.length > row.subjects.length
-    || row.subjects.some((item) => item.source !== null && !(row.gates as Record<string, unknown>[]).some((gate) =>
+  const subjects: unknown[] = row.subjects, gates: unknown[] = row.gates, intents: unknown[] = row.intents;
+  if (!subjects.every(subjectRow) || !gates.every(gateRow) || !intents.every(intentRow)) return null;
+  if (new Set(subjects.map((item) => item.subject)).size !== subjects.length
+    || new Set(gates.map((item) => item.subject)).size !== gates.length
+    || gates.length > subjects.length
+    || subjects.some((item) => item.source !== null && !gates.some((gate) =>
       gate.subject === item.subject && gate.operation === item.operation && isDeepStrictEqual(item.source, gate.source)))
-    || row.gates.some((gate) => !(row.subjects as Record<string, unknown>[]).some((item) => item.subject === gate.subject
+    || gates.some((gate) => !subjects.some((item) => item.subject === gate.subject
       && item.operation === gate.operation && (item.source === null || isDeepStrictEqual(item.source, gate.source))))
-    || row.intents.some((entry) => {
-      const item = object(entry);
-      return item?.unit !== "U-F" || typeof item.id !== "string" || !finite(item.expiresAt)
-        || !["pending", "delivered", "expired", "superseded"].includes(String(item.disposition));
-    }) || new Set(row.intents.map((item) => item.id)).size !== row.intents.length) return null;
-  const value = row as PersistedWeatherTimeseriesUnit;
-  const pending = value.intents.filter((item) => item.disposition === "pending");
-  if (pending.length > 128 || encoder.encode(JSON.stringify(pending)).byteLength > 131_072) return null;
-  return measure(value.subjects, value.gates, value.intents, 0, 0) <= LIMIT ? value : null;
+    || new Set(intents.map((item) => item.id)).size !== intents.length) return null;
+  const value: PersistedWeatherTimeseriesUnit = { schemaVersion: SCHEMA, subjects, gates, intents };
+  const pending = intents.filter((item) => item.disposition === "pending");
+  if (pending.length > 128 || encoder.encode(JSON.stringify(pending)).byteLength + reserve(pending) > 131_072) return null;
+  return measure(subjects, gates, intents, 0, 0) <= LIMIT ? value : null;
 }
 const weatherTimeseriesUnitCodec: WeatherTimeseriesUnitCodec = {
   schemaVersion: SCHEMA,

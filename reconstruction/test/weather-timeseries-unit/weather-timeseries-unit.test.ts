@@ -10,8 +10,9 @@ import { serializedEnvelope } from "../../src/checkpoint/checkpoint";
 import { classifyMaterial, decodeMaterial } from "../../src/decode-material/decode-material";
 import { ingestXmlData } from "../../src/ingress/ingress";
 import { callsWith } from "../unit-table/linked-calls";
-import { checkpointResultOwner, receiveOwner } from "../../src/runtime/owner-runtime";
-import { nodeCheckpointFileSystem } from "../../src/runtime/composition-root";
+import { deliveryGrowth } from "../../src/notification-delivery/delivery-growth";
+import { checkpointResultOwner, intentUpdateOwner, receiveOwner, restoreOwner } from "../../src/runtime/owner-runtime";
+import { linkedUnitCodecs, linkedUnitTable, nodeCheckpointFileSystem } from "../../src/runtime/composition-root";
 import { reduceWeatherTimeseriesUnit, toWeatherTimeseriesView, weatherTimeseriesUnitCodec } from "../../src/units/weather-timeseries/weather-timeseries-unit";
 import { fixtureDriver, fixtureState, ownerFixture, recordingNotificationAdapter } from "../checkpoint-shutdown/runtime-fixture";
 import { envelope, harnessedRoot, seeded, startHarness, submit } from "../execution-split/owner-harness";
@@ -201,6 +202,65 @@ describe("P2-A6 weather timeseries", () => {
       const { expiresAt: _expiresAt, ...missing } = notice;
       expect(weatherTimeseriesUnitCodec.decode({ ...base, intents: [missing] }).kind).toBe("invalid");
     }
+
+    // P3-IUR-AC01・AC02・AC06: 実 byte は上限ちょうどで予約を足すと超える pending と世代、予約の式が頼る attempts・nextAttemptAt の値域。
+    const notice = (id: string, body: string, disposition: "pending" | "delivered" = "pending") => ({ unit: "U-F", id, disposition,
+      expiresAt: DATE + 1_000, subject: "normal/VPWP50/test", operation: "normal", channel: "desktop", transition: "activated",
+      source: { inputId: "reserve-boundary", origin: "replay", operation: "normal", family: "VPWP50", subject: "normal/VPWP50/test",
+        reportDateTimeRaw: new Date(DATE).toISOString(), serialRaw: "", infoTypeRaw: "発表" },
+      payload: { title: "boundary", body }, createdAt: DATE, nextAttemptAt: DATE, attempts: 0, configRevision: "test" } as const);
+    const growth = deliveryGrowth(notice("a", ""));
+    const pad = 131_072 - Buffer.byteLength(JSON.stringify([notice("a", "")]));
+    expect(Buffer.byteLength(JSON.stringify([notice("a", "x".repeat(pad))]))).toBe(131_072);
+    expect(weatherTimeseriesUnitCodec.decode({ ...base, intents: [notice("a", "x".repeat(pad))] }).kind).toBe("invalid");
+    expect(weatherTimeseriesUnitCodec.decode({ ...base, intents: [notice("a", "x".repeat(pad - growth))] }).kind).toBe("restored");
+    const wire = (length: number) => ({ ...base, intents: [notice("a", ""), notice("b", "x".repeat(length), "delivered")] });
+    const generation = (length: number) => serializedEnvelope({ schemaVersion: "p2-weather-timeseries-unit-v1", unit: "U-F", generation: 0,
+      capturedAt: 0, payload: wire(length), sha256: "0".repeat(64) }).byteLength + 62;
+    const length = 33_554_432 - generation(0);
+    expect(generation(length)).toBe(33_554_432);
+    expect(weatherTimeseriesUnitCodec.decode(wire(length)).kind).toBe("invalid");
+    expect(weatherTimeseriesUnitCodec.decode(wire(length - growth)).kind).toBe("restored");
+    for (const patch of [{ attempts: Number.MAX_SAFE_INTEGER + 1 }, { attempts: -1 }, { attempts: 0.5 }, { nextAttemptAt: Infinity },
+      { nextAttemptAt: "soon" }, { nextAttemptAt: null }])
+      expect(weatherTimeseriesUnitCodec.decode({ ...base, intents: [{ ...notice("a", ""), ...patch }] }).kind, JSON.stringify(patch)).toBe("invalid");
+    // 配列などの非文字列は String() で列挙値に化けて pending の計量から外れるので、型ごと拒否する（P3-IUR-AC06）。
+    for (const patch of [{ disposition: ["pending"] }, { transition: ["updated"] }, { operation: ["normal"] }])
+      expect(weatherTimeseriesUnitCodec.decode({ ...base, intents: [{ ...notice("a", ""), ...patch }] }).kind, JSON.stringify(patch)).toBe("invalid");
+    // 値域は狭めない: 最長の attempts・nextAttemptAt は受ける。
+    expect(weatherTimeseriesUnitCodec.decode({ ...base, intents: [{ ...notice("a", ""), attempts: Number.MAX_SAFE_INTEGER,
+      nextAttemptAt: -0.0000018927186924017318 }] }).kind).toBe("restored");
+  });
+
+  // 実不具合の再発防止（台帳 73）: 合成の保存物の pending が予約込みの上限でも、配送の更新の後の encode が拒否しない。
+  it("P3-IUR-T06 regression / P3-IUR-AC01,AC02,AC03,AC06: synthetic pending at its budget survives delivery updates, encode and decode through the owner", () => {
+    const base = weatherTimeseriesUnitCodec.encode(empty());
+    const make = (pad: number) => Array.from({ length: 64 }, (_, index) => ({ unit: "U-F", id: `intent-${index}`, disposition: "pending",
+      expiresAt: DATE + 1_000, subject: "normal/VPWP50/test", operation: "normal", channel: "desktop", transition: "activated",
+      source: { inputId: "reserve-flow", origin: "replay", operation: "normal", family: "VPWP50", subject: "normal/VPWP50/test",
+        reportDateTimeRaw: new Date(DATE).toISOString(), serialRaw: "", infoTypeRaw: "発表" },
+      payload: { title: "boundary", body: index === 0 ? "x".repeat(pad) : "" }, createdAt: DATE, nextAttemptAt: DATE,
+      attempts: 0, configRevision: "test" } as const));
+    const reserved = (items: ReturnType<typeof make>) => items.reduce((sum, item) => sum + deliveryGrowth(item), 0);
+    const pending = make(131_072 - Buffer.byteLength(JSON.stringify(make(0))) - reserved(make(0)));
+    expect(Buffer.byteLength(JSON.stringify(pending)) + reserved(pending)).toBe(131_072);
+    const roundTrip = (state: WeatherTimeseriesUnitState) =>
+      weatherTimeseriesUnitCodec.decode(JSON.parse(JSON.stringify(weatherTimeseriesUnitCodec.encode(state))));
+    const first = weatherTimeseriesUnitCodec.decode(JSON.parse(JSON.stringify({ ...base, intents: pending })));
+    if (first.kind !== "restored") throw new Error("the synthetic payload does not decode");
+    const now = clock();
+    const owner0 = restoreOwner({ runId: "run", place: "deferred", clock: now, restored: { "U-F": { kind: "empty" } } },
+      linkedUnitTable, linkedUnitCodecs).state;
+    const owner = { ...owner0, units: { ...owner0.units, "U-F": first.state } };
+    const update = (from: Parameters<typeof intentUpdateOwner>[0], split: boolean) => intentUpdateOwner(from, "U-F", from.units["U-F"]!.intents.map((item, index) => ({ id: item.id, attempts: Number.MAX_SAFE_INTEGER,
+      nextAttemptAt: -0.0000018927186924017318, disposition: split && index % 3 === 1 ? "superseded" as const : "pending" as const })), now, linkedUnitTable);
+    // 全 pending が最長へ伸びる更新（予約の不変条件、AC03）→ 3 件に 1 件が終端になる更新、のそれぞれの後で保存と復元ができる。
+    const widened = update(owner, false);
+    expect(widened.adopted).toBe(true);
+    expect(roundTrip(widened.state.units["U-F"]!).kind).toBe("restored");
+    const grown = update(widened.state, true);
+    expect(grown.adopted).toBe(true);
+    expect(roundTrip(grown.state.units["U-F"]!).kind).toBe("restored");
   });
 
   // T01: one contract boundary table covers valid empty/cancel and first rejection reason.

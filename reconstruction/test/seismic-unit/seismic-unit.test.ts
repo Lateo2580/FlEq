@@ -8,9 +8,11 @@ import type {
 import contract from "../../contracts/p3-seismic-unit.json";
 import corpus from "../../tools/corpus/sequences.json";
 import manifest from "../../tools/corpus/manifest.json";
+import { serializedEnvelope } from "../../src/checkpoint/checkpoint";
 import { knownStage, safetyRank } from "../../src/domains/seismic/seismic";
+import { deliveryGrowth } from "../../src/notification-delivery/delivery-growth";
 import { linkedUnitCodecs, linkedUnitTable } from "../../src/runtime/composition-root";
-import { receiveOwner, restoreOwner } from "../../src/runtime/owner-runtime";
+import { intentUpdateOwner, receiveOwner, restoreOwner } from "../../src/runtime/owner-runtime";
 import { classifyHeadType, placeOfHeadType } from "../../src/runtime/unit-coverage";
 import { reduceSeismicUnit, seismicUnitCodec, toSeismicView } from "../../src/units/seismic/seismic-unit";
 import { clock, decodeFixture, decodeXml, emptyState, fixtureXml, receive, replaceTag, vxse53 } from "./seismic-fixture";
@@ -49,6 +51,16 @@ const facts = (state: SeismicUnitState) => {
 };
 const levels = (step: SeismicUnitStep) => step.intents.map((item) => `${item.channel}:${item.payload.level}`);
 const pending = (state: SeismicUnitState) => state.intents.filter((item) => item.disposition === "pending");
+
+// 実 byte が 131,072 ちょうどで、配送の更新の予約を足すと超える pending（P3-IUR-AC01）。
+function reserveOver(intent: Record<string, unknown>): Record<string, unknown>[] {
+  const make = (index: number, pad: number) => ({ ...intent, id: `fit-${index}`, disposition: "pending",
+    payload: { ...(intent.payload as Record<string, unknown>), body: "x".repeat(1 + pad) } });
+  const items = Array.from({ length: 64 }, (_, index) => make(index, 0));
+  items[0] = make(0, 131_072 - Buffer.byteLength(JSON.stringify(items)));
+  if (Buffer.byteLength(JSON.stringify(items)) !== 131_072) throw new Error("pending is not 131,072 bytes");
+  return items;
+}
 
 describe("P3-UNIT-Q-001 U-Q reducer", () => {
   // contractBoundary: Q-ENUM の順と原子性、合法の縮退、coverage と実行場所（AC01）。
@@ -491,6 +503,15 @@ describe("P3-UNIT-Q-001 U-Q reducer", () => {
     const lpN = (index: number) => ({ ...lp, eventId: `L${index}`, subject: `normal/VXSE62/L${index}`,
       source: { ...(lp.source as Row), subject: `normal/VXSE62/L${index}` } });
     const hold = quake.strongHold as Row | null;
+    // 実 byte は世代の上限ちょうどで、予約を足すと超える世代（終端記録で埋める。P3-IUR-AC02）。
+    const live = value.intents.find((item) => item.disposition === "pending")!;
+    const withPad = (pad: number) => ({ ...value, intents: [live, { ...live, id: "pad", disposition: "delivered",
+      payload: { ...(live.payload as Row), body: "x".repeat(pad) } }] });
+    const generation = (pad: number) => serializedEnvelope({ schemaVersion: "p3-seismic-unit-v1", unit: "U-Q", generation: 0, capturedAt: 0,
+      payload: withPad(pad) as JsonValue, sha256: "0".repeat(64) }).byteLength + 62;
+    const generationPad = 4_194_304 - generation(0);
+    expect(generation(generationPad)).toBe(4_194_304);
+    expect(seismicUnitCodec.decode(withPad(generationPad - deliveryGrowth(pending(state)[0])) as JsonValue).kind).toBe("restored");
     const invalid: [string, unknown][] = [
       ["schemaVersion", { ...value, schemaVersion: "p3-seismic-unit-v0" }],
       ["events > 512", { ...value, earthquakes: many(513, eventN) }],
@@ -498,6 +519,8 @@ describe("P3-UNIT-Q-001 U-Q reducer", () => {
       ["pending > 128", { ...value, intents: many(129, (index) => ({ ...value.intents[0], id: `pending-${index}`, disposition: "pending" })) }],
       ["pending > 131072 bytes", { ...value, intents: many(100, (index) => ({ ...value.intents[0], id: `big-${index}`, disposition: "pending",
         payload: { ...(value.intents[0].payload as Row), body: "x".repeat(1400) } })) }],
+      ["pending real 131072 + reserve", { ...value, intents: reserveOver(live) }],
+      ["generation real 4 MiB + reserve", withPad(generationPad)],
       ["generation > 4 MiB", { ...value, earthquakes: many(14, (index) => ({ ...eventN(index), contributions: [{ ...active,
         headline: "x".repeat(300_000), source: { ...(active.source as Row), subject: `normal/${String(active.family)}/E${index}` } }] })) }],
       ["EventID not printable ASCII", withQuake({ eventId: "地震" })],
@@ -574,6 +597,43 @@ describe("P3-UNIT-Q-001 U-Q reducer", () => {
     if (maxInt.kind === "range" && !Number.isFinite(maxInt.value)) context.skip();
     expect(maxInt).toMatchObject({ kind: "text" });
     expect(seismicUnitCodec.decode(JSON.parse(JSON.stringify(seismicUnitCodec.encode(step.state))) as JsonValue).kind).toBe("restored");
+  });
+
+  // 実不具合の再発防止（台帳 73）: 受理の上限ちょうどの pending が配送の更新で伸びても、保存した世代を復元できる。
+  it("P3-IUR-T02 regression / P3-IUR-AC01,AC03: pending admitted at its budget survives delivery updates, save and restore through the owner", () => {
+    const now = clock(Date.parse("2099-01-01T09:00:00+09:00"));
+    const raw = "2099-01-01T09:00:00+09:00";
+    const next = decodeXml(vxse53({ at: raw, eventId: "20990101000022" }), "VXSE53");
+    const pair = receive(emptyState(), next, now).intents;
+    const held = receive(emptyState(), decodeXml(vxse53({ at: raw, eventId: "20990101000011" }), "VXSE53"), now).intents[0];
+    const body = `${held.payload.body}境界`;
+    const reserved = (items: readonly SeismicIntent[]) => items.reduce((sum, item) => sum + deliveryGrowth(item), 0);
+    const padding = 131_072 - Buffer.byteLength(JSON.stringify([{ ...held, payload: { ...held.payload, body } }, ...pair])) - reserved([held, ...pair]);
+    let admitted: SeismicUnitState | null = null;
+    for (const extra of [0, 1]) {
+      const padded = { ...held, payload: { ...held.payload, body: body + "x".repeat(padding + extra) } };
+      expect(Buffer.byteLength(JSON.stringify([padded, ...pair])) + reserved([padded, ...pair])).toBe(131_072 + extra);
+      const step = receive({ ...emptyState(), intents: [padded] }, next, now);
+      // +1 byte では選択順の後ろの pending が 1 件置き換えられる（予約込みで上限を超えるため）。
+      expect(pending(step.state).length).toBe(extra === 0 ? 3 : 2);
+      if (extra === 0) admitted = step.state;
+    }
+    const roundTrip = (state: SeismicUnitState) => seismicUnitCodec.decode(JSON.parse(JSON.stringify(seismicUnitCodec.encode(state))) as JsonValue);
+    const first = roundTrip(admitted!);
+    if (first.kind !== "restored") throw new Error("the admitted state does not decode");
+    const empty = restoreOwner({ runId: "run", place: "urgent", clock: now, restored: { "U-E": { kind: "empty" }, "U-T": { kind: "empty" },
+      "U-Q": { kind: "empty" }, "U-N": { kind: "empty" } } }, linkedUnitTable, linkedUnitCodecs).state;
+    const owner = { ...empty, units: { ...empty.units, "U-Q": first.state } };
+    const update = (from: Parameters<typeof intentUpdateOwner>[0], split: boolean) => intentUpdateOwner(from, "U-Q", pending(from.units["U-Q"]!).map((item, index) => ({
+      id: item.id, attempts: Number.MAX_SAFE_INTEGER, nextAttemptAt: -0.0000018927186924017318,
+      disposition: split && index % 3 === 1 ? "superseded" as const : "pending" as const })), now, linkedUnitTable);
+    // 全 pending が最長へ伸びる更新（予約の不変条件、AC03）→ 3 件に 1 件が終端になる更新、のそれぞれの後で保存と復元ができる。
+    const widened = update(owner, false);
+    expect(widened.adopted).toBe(true);
+    expect(roundTrip(widened.state.units["U-Q"]!).kind).toBe("restored");
+    const grown = update(widened.state, true);
+    expect(grown.adopted).toBe(true);
+    expect(roundTrip(grown.state.units["U-Q"]!).kind).toBe("restored");
   });
 
   // acceptance: Q-NOTICE の地震分（AC08）。

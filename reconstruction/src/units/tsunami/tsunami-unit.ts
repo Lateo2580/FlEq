@@ -13,6 +13,7 @@ import type {
 } from "../../../contracts/p3-tsunami-unit.types";
 import type { UnitModule } from "../../../contracts/p3-unit-table.types";
 import { serializedEnvelope } from "../../checkpoint/checkpoint";
+import { deliveryGrowth } from "../../notification-delivery/delivery-growth";
 import { AREA_RANK, INFO_RANK, KIND_CLASS, parseTsunami, sameStation } from "../../domains/tsunami/tsunami";
 import type { ForecastCandidate, ObservationCandidate } from "../../domains/tsunami/tsunami";
 
@@ -44,6 +45,10 @@ function bytes(value: object): number {
 function listBytes(values: readonly object[]): number {
   return values.reduce((sum, item) => sum + bytes(item), 2 + Math.max(values.length - 1, 0));
 }
+// 配送の更新で pending が伸びうる分の予約（P3-INTENT-UPDATE-RESERVE-001）。無いと上限ちょうどの pending が更新で伸び、decode が拒否する。
+function reserve(values: readonly TsunamiIntent[]): number {
+  return values.reduce((sum, item) => item.disposition === "pending" ? sum + deliveryGrowth(item) : sum, 0);
+}
 // 観測 subject は station・推定ごとの加算（station 1 点の更新で 1024 点を直列化し直さない）。
 function subjectBytes(value: Subject): number {
   if (!("stations" in value)) return bytes(value);
@@ -63,7 +68,7 @@ const emptyEnvelopeBytes = serializedEnvelope({ schemaVersion: SCHEMA, unit: "U-
 // 62: generation と capturedAt が 0 から 32 桁まで伸びる分（U-F と同じ予約）。
 function generationBytes(forecasts: readonly Subject[], observations: readonly Subject[], intents: readonly TsunamiIntent[]): number {
   return emptyEnvelopeBytes + 62 + sumBytes(forecasts) + sumBytes(observations)
-    + intents.reduce((sum, item) => sum + bytes(item), Math.max(intents.length - 1, 0));
+    + intents.reduce((sum, item) => sum + bytes(item) + (item.disposition === "pending" ? deliveryGrowth(item) : 0), Math.max(intents.length - 1, 0));
 }
 
 // nextDeadline の最小値は配列に結び付けて持つ（weather-timeseries-unit の先例）。
@@ -151,25 +156,28 @@ function admit(current: readonly TsunamiIntent[], fresh: readonly TsunamiIntent[
   const evicted = new Set<TsunamiIntent>();
   const admitted: TsunamiIntent[] = [];
   let refused = 0;
-  const fits = (values: readonly TsunamiIntent[]) => values.length <= PENDING_ITEMS && listBytes(values) <= PENDING_BYTES;
   for (const intent of fresh) {
     const rank = groupRank(intent);
     const live = pending.filter((item) => !superseded.has(item) && !evicted.has(item));
     const replaced = live.filter((item) => item.subject === intent.subject && item.channel === intent.channel && groupRank(item) >= rank);
     const kept = live.filter((item) => !replaced.includes(item));
-    let values = [...kept, ...admitted, intent];
+    const values = [...kept, ...admitted, intent];
     const out: TsunamiIntent[] = [];
-    if (!fits(values)) {
+    // 予約込みの byte は初回に数え、退去のたびに 1 件分を引く（受理 1 回を O(pending) に保つ、P3-IUR-RES-03）。
+    let count = values.length, size = listBytes(values) + reserve(values);
+    const fits = () => count <= PENDING_ITEMS && size <= PENDING_BYTES;
+    if (!fits()) {
       // 下位群だけを A7 の選択順の逆（期限・生成時刻・ID の遅い順）で必要数だけ退去する。同群以上は退去しない。
       const lower = kept.filter((item) => groupRank(item) > rank).sort((left, right) => right.expiresAt - left.expiresAt
         || right.createdAt - left.createdAt || (left.id < right.id ? 1 : left.id > right.id ? -1 : 0));
       for (const item of lower) {
-        if (fits(values)) break;
+        if (fits()) break;
         out.push(item);
-        values = values.filter((entry) => entry !== item);
+        count--;
+        size -= bytes(item) + 1 + deliveryGrowth(item);
       }
       // channel ごとに全採用か未採用。未採用なら既存の pending を保つ。
-      if (!fits(values)) { refused++; continue; }
+      if (!fits()) { refused++; continue; }
     }
     for (const item of replaced) superseded.add(item);
     for (const item of out) evicted.add(item);
@@ -816,7 +824,7 @@ function persisted(value: unknown): PersistedTsunamiUnit | null {
     if (own.length > OBSERVATION_LIMIT || own.reduce((sum, item) => sum + item.stations.length, 0) > STATION_LIMIT) return null;
   }
   const pending = intents.filter((item) => item.disposition === "pending");
-  if (pending.length > PENDING_ITEMS || listBytes(pending) > PENDING_BYTES
+  if (pending.length > PENDING_ITEMS || listBytes(pending) + reserve(pending) > PENDING_BYTES
     || generationBytes(forecasts, observations, intents) > GENERATION_LIMIT) return null;
   return { schemaVersion: SCHEMA, forecasts, observations, intents };
 }

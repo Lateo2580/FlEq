@@ -34,6 +34,7 @@ import {
   validateWeatherCandidate,
 } from "../../domains/weather-current/weather-current";
 import type { CurrentChange } from "../../domains/weather-current/weather-current";
+import { deliveryGrowth } from "../../notification-delivery/delivery-growth";
 import { serializedEnvelope } from "../../checkpoint/checkpoint";
 import type { UnitModule } from "../../../contracts/p3-unit-table.types";
 
@@ -114,6 +115,14 @@ function ownershipMeasure(values: Ownership, base: Ownership): Readonly<{ sum: n
   return measured;
 }
 
+// 配送の更新で pending が伸びうる分の予約（P3-INTENT-UPDATE-RESERVE-001）。無いと上限ちょうどの pending が更新で伸び、encode が拒否する。
+function reserve(intents: readonly NotificationIntent[]): number {
+  return intents.reduce((sum, item) => item.disposition === "pending" ? sum + deliveryGrowth(item) : sum, 0);
+}
+
+// 世代の計量は intent の加算と同じ走査で予約を足す（P3-IUR-RES-03）。
+const intentBytes = (item: NotificationIntent) => recordBytes(item) + (item.disposition === "pending" ? deliveryGrowth(item) : 0);
+
 function reservedGenerationBytes(state: WeatherCurrentUnitState, capturedAt: number, base: Ownership): number {
   const ownership = ownershipMeasure(state.ownership, base);
   const generation = state.persistence.currentGeneration;
@@ -122,7 +131,7 @@ function reservedGenerationBytes(state: WeatherCurrentUnitState, capturedAt: num
     throw new RangeError("invalid checkpoint generation or capture time");
   return emptyEnvelopeBytes + 62 + mapBytes(state.national) + arrayBytes(state.partials)
     + arrayBytes(state.histories, historyBytes) + ownership.sum + Math.max(ownership.count - 1, 0) + arrayBytes(state.tombstones)
-    + arrayBytes(state.freshness) + arrayBytes(state.unavailable) + arrayBytes(state.intents);
+    + arrayBytes(state.freshness) + arrayBytes(state.unavailable) + arrayBytes(state.intents, intentBytes);
 }
 
 function object(value: unknown): Record<string, unknown> | null {
@@ -188,13 +197,13 @@ function intent(value: unknown): value is NotificationIntent {
   const record = object(value);
   return record != null && typeof record.id === "string" && record.unit === "U-W"
     && typeof record.subject === "string" && operation(record.operation) && reportRef(record.source)
-    && ["activated", "updated", "cancelled", "released", "expired"].includes(String(record.transition))
+    && typeof record.transition === "string" && ["activated", "updated", "cancelled", "released", "expired"].includes(record.transition)
     && (record.channel === "desktop" || record.channel === "sound")
     && object(record.payload) != null && json(record.payload)
     && finite(record.createdAt) && finite(record.expiresAt) && finite(record.nextAttemptAt)
     && Number.isSafeInteger(record.attempts) && Number(record.attempts) >= 0
     && typeof record.configRevision === "string"
-    && ["pending", "delivered", "expired", "superseded"].includes(String(record.disposition))
+    && typeof record.disposition === "string" && ["pending", "delivered", "expired", "superseded"].includes(record.disposition)
     && record.expiresAt >= record.createdAt && record.source.subject === record.subject
     && record.source.operation === record.operation;
 }
@@ -262,10 +271,10 @@ function persistedValue(value: unknown): PersistedWeatherCurrentUnit | null {
 
   const result: PersistedWeatherCurrentUnit = {
     schemaVersion: SCHEMA,
-    national: national as PersistedWeatherCurrentUnit["national"],
+    national: Object.fromEntries(Object.entries(national).flatMap(([key, item]) => operation(key) && snapshot(item) ? [[key, item] as const] : [])),
     partials: record.partials,
     histories: record.histories,
-    ownership: ownership as Readonly<Record<string, string>>,
+    ownership: Object.fromEntries(Object.entries(ownership).flatMap(([key, item]) => typeof item === "string" ? [[key, item] as const] : [])),
     tombstones: record.tombstones.map((item) => ({ ...item, affectedScope: normalizeScopes(item.affectedScope) })),
     freshness: record.freshness.map((item) => ({ ...item,
       target: { ...item.target, affectedScope: normalizeScopes(item.target.affectedScope) },
@@ -282,10 +291,10 @@ function persistedValue(value: unknown): PersistedWeatherCurrentUnit | null {
         && report.office === item.reports[0].office && report.source.family === item.reports[0].source.family).length > 8)
     || new Set(result.intents.map((item) => item.id)).size !== result.intents.length) return null;
   const pending = result.intents.filter((item) => item.disposition === "pending");
-  if (pending.length > 128 || encoder.encode(JSON.stringify(pending)).byteLength > 131_072) return null;
+  if (pending.length > 128 || encoder.encode(JSON.stringify(pending)).byteLength + reserve(pending) > 131_072) return null;
   // Payload-only boundary: UnitCodec has no capture clock/generation on decode.
   // Receive admission below adds subject bytes and reserves the envelope numeric fields.
-  return encoder.encode(JSON.stringify(result)).byteLength <= GENERATION_BYTES ? result : null;
+  return encoder.encode(JSON.stringify(result)).byteLength + reserve(pending) <= GENERATION_BYTES ? result : null;
 }
 
 const emptyPayloadBytes = encoder.encode(JSON.stringify({ schemaVersion: SCHEMA, national: {}, partials: [], histories: [],
@@ -345,11 +354,11 @@ function encodedValue(state: WeatherCurrentUnitState): PersistedWeatherCurrentUn
         && report.office === item.reports[0].office && report.source.family === item.reports[0].source.family).length > 8)
     || new Set(result.intents.map((item) => item.id)).size !== result.intents.length) return null;
   const pending = result.intents.filter((item) => item.disposition === "pending");
-  if (pending.length > 128 || encoder.encode(JSON.stringify(pending)).byteLength > 131_072) return null;
+  if (pending.length > 128 || encoder.encode(JSON.stringify(pending)).byteLength + reserve(pending) > 131_072) return null;
   const owned = ownershipMeasure(result.ownership, result.ownership);
   const bytes = emptyPayloadBytes + mapBytes(result.national) + arrayBytes(result.partials)
     + arrayBytes(result.histories, historyBytes) + owned.sum + Math.max(owned.count - 1, 0)
-    + arrayBytes(result.tombstones) + arrayBytes(result.freshness) + arrayBytes(result.unavailable) + arrayBytes(result.intents);
+    + arrayBytes(result.tombstones) + arrayBytes(result.freshness) + arrayBytes(result.unavailable) + arrayBytes(result.intents, intentBytes);
   return bytes <= GENERATION_BYTES ? result : null;
 }
 

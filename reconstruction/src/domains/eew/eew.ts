@@ -1,4 +1,5 @@
 import { isDeepStrictEqual } from "node:util";
+import { deliveryGrowth } from "../../notification-delivery/delivery-growth";
 import type {
   DecodedMaterial,
   MaterialValue,
@@ -515,14 +516,15 @@ function reduceEew(state: EewUnitState, input: Extract<EewInput, { kind: "receiv
   const removed = active.filter(replace);
   let proposed = [...retained, ...newIntents];
   const evictedIntents: EewUnitState["intents"][number][] = [];
-  let proposedBytes = notificationArrayBytes(proposed);
+  // 配送の更新の予約は notificationArrayBytes（U-E の世代の計量と cache を共有）の外で足す（P3-INTENT-UPDATE-RESERVE-001）。
+  let proposedBytes = notificationArrayBytes(proposed) + proposed.reduce((sum, item) => sum + deliveryGrowth(item), 0);
   let proposedCount = proposed.length;
   const fits = () => proposedCount <= 128 && proposedBytes <= 131_072;
   if (!fits() && candidate.operation === "normal") {
     const lower = retained.filter((intent) => intent.operation !== "normal").sort((left, right) =>
       right.expiresAt - left.expiresAt || right.createdAt - left.createdAt || right.id.localeCompare(left.id));
     for (const intent of lower) {
-      proposedBytes -= notificationArrayBytes([intent]) - 2 + (proposedCount > 1 ? 1 : 0);
+      proposedBytes -= notificationArrayBytes([intent]) - 2 + (proposedCount > 1 ? 1 : 0) + deliveryGrowth(intent);
       proposedCount -= 1;
       evictedIntents.push(intent);
       if (fits()) break;

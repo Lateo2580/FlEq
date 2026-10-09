@@ -11,6 +11,7 @@ import type {
   PersistedEewUnit,
 } from "../../../contracts/p2-eew-unit.types";
 import { deliveryRecordEvent, dirty, emptyNotificationLatch, nextEewDeadline, notificationArrayBytes, reduceEew as reduceEewCore } from "../../domains/eew/eew";
+import { deliveryGrowth } from "../../notification-delivery/delivery-growth";
 import type { UnitModule } from "../../../contracts/p3-unit-table.types";
 
 const SCHEMA = "p2-eew-unit-v1" as const;
@@ -88,7 +89,8 @@ function persisted(value: unknown): PersistedEewUnit | null {
   const pendingIds = new Set(result.intents.map((item) => item.id));
   if (pendingIds.size !== result.intents.length
     || result.deliveryRecords.some((item) => pendingIds.has(item.intentId))) return null;
-  if (encoder.encode(JSON.stringify(result.intents)).byteLength > INTENT_BYTES
+  // 予約は世代の計量に入れない（P3-IUR-GENERATION）。受理（domains/eew/eew.ts）と同じ式で pending の上限だけに足す。
+  if (encoder.encode(JSON.stringify(result.intents)).byteLength + result.intents.reduce((sum, item) => sum + deliveryGrowth(item), 0) > INTENT_BYTES
     || generationByteLength(result) > GENERATION_BYTES) return null;
   return result;
 }

@@ -15,6 +15,9 @@ import type { DiagnosticFileSystem } from "../../src/checkpoint/persistent-diagn
 import { decodeMaterial } from "../../src/decode-material/decode-material";
 import { reduceWeatherCurrentMeaning } from "../../src/domains/weather-current/weather-current";
 import { ingestXmlData } from "../../src/ingress/ingress";
+import { deliveryGrowth } from "../../src/notification-delivery/delivery-growth";
+import { linkedUnitCodecs, linkedUnitTable } from "../../src/runtime/composition-root";
+import { intentUpdateOwner, restoreOwner } from "../../src/runtime/owner-runtime";
 import { reduceWeatherCurrentUnit, toWeatherCurrentView, weatherCurrentUnitCodec } from "../../src/units/weather-current/weather-current-unit";
 import { fixtureDriver, fixtureState, stringCodec , testNotificationChannels, recordingNotificationAdapter} from "../checkpoint-shutdown/runtime-fixture";
 import { callsWith } from "../unit-table/linked-calls";
@@ -996,11 +999,57 @@ describe("P2 weather-current unit", () => {
     expect(weatherCurrentUnitCodec.decode(weatherCurrentUnitCodec.encode({ ...emptyState(), intents: intents(128) })).kind)
       .toBe("restored");
     expect(() => weatherCurrentUnitCodec.encode({ ...emptyState(), intents: intents(129) })).toThrow(message);
-    const pad = 131_072 - Buffer.byteLength(JSON.stringify(intents(1)));
-    expect(Buffer.byteLength(JSON.stringify(intents(1, "x".repeat(pad))))).toBe(131_072);
+    // 境界は実 byte＋配送の更新の予約＝131,072（P3-IUR-AC05）。
+    const pad = 131_072 - Buffer.byteLength(JSON.stringify(intents(1))) - deliveryGrowth(intents(1)[0]);
+    expect(Buffer.byteLength(JSON.stringify(intents(1, "x".repeat(pad)))) + deliveryGrowth(intents(1)[0])).toBe(131_072);
     expect(weatherCurrentUnitCodec.decode(weatherCurrentUnitCodec.encode({ ...emptyState(), intents: intents(1, "x".repeat(pad)) })).kind)
       .toBe("restored");
     expect(() => weatherCurrentUnitCodec.encode({ ...emptyState(), intents: intents(1, "x".repeat(pad + 1)) })).toThrow(message);
+
+    // 実 byte は上限ちょうどで、予約を足すと超える pending と世代は、decode が受けず encode が拒否する（P3-IUR-AC01・AC02）。
+    const realLimit = intents(1, "x".repeat(pad + deliveryGrowth(pendingIntent())));
+    expect(Buffer.byteLength(JSON.stringify(realLimit))).toBe(131_072);
+    expect(weatherCurrentUnitCodec.decode({ ...weatherCurrentUnitCodec.encode(emptyState()), intents: realLimit }).kind).toBe("invalid");
+    expect(() => weatherCurrentUnitCodec.encode({ ...emptyState(), intents: realLimit })).toThrow(message);
+    // 非文字列の disposition・transition は String() で列挙値に化けて pending の計量から外れるので、型ごと拒否する（P3-IUR-AC06）。
+    for (const patch of [{ disposition: ["pending"] }, { transition: ["activated"] }])
+      expect(weatherCurrentUnitCodec.decode({ ...weatherCurrentUnitCodec.encode(emptyState()), intents: [{ ...pendingIntent(), ...patch }] }).kind,
+        JSON.stringify(patch)).toBe("invalid");
+    const withIntent = (extra: number) => ({ ...padded(extra), intents: intents(1) });
+    const wire = (extra: number) => ({ ...weatherCurrentUnitCodec.encode(padded(extra)), intents: intents(1) });
+    const wireLength = 16 * 1024 * 1024 - Buffer.byteLength(JSON.stringify(wire(0)));
+    expect(Buffer.byteLength(JSON.stringify(wire(wireLength)))).toBe(16 * 1024 * 1024);
+    expect(weatherCurrentUnitCodec.decode(wire(wireLength)).kind).toBe("invalid");
+    expect(() => weatherCurrentUnitCodec.encode(withIntent(wireLength))).toThrow(message);
+    const inside = wireLength - deliveryGrowth(pendingIntent());
+    expect(weatherCurrentUnitCodec.decode(wire(inside)).kind).toBe("restored");
+    expect(() => weatherCurrentUnitCodec.encode(withIntent(inside))).not.toThrow();
+  });
+
+  // 実不具合の再発防止（台帳 73）: 合成の保存物の pending が予約込みの上限でも、配送の更新の後の encode が拒否しない。
+  it("P3-IUR-T05 regression / P3-IUR-AC01,AC02,AC03: synthetic pending at its budget survives delivery updates, encode and decode through the owner", () => {
+    const make = (pad: number) => Array.from({ length: 64 }, (_, index) =>
+      ({ ...pendingIntent(), id: `intent-${index}`, payload: { pad: index === 0 ? "x".repeat(pad) : "" } }));
+    const reserved = (items: readonly NotificationIntent[]) => items.reduce((sum, item) => sum + deliveryGrowth(item), 0);
+    const pending = make(131_072 - Buffer.byteLength(JSON.stringify(make(0))) - reserved(make(0)));
+    expect(Buffer.byteLength(JSON.stringify(pending)) + reserved(pending)).toBe(131_072);
+    const roundTrip = (state: WeatherCurrentUnitState) =>
+      weatherCurrentUnitCodec.decode(JSON.parse(JSON.stringify(weatherCurrentUnitCodec.encode(state))));
+    const first = weatherCurrentUnitCodec.decode(JSON.parse(JSON.stringify({ ...weatherCurrentUnitCodec.encode(emptyState()), intents: pending })));
+    if (first.kind !== "restored") throw new Error("the synthetic payload does not decode");
+    const now = clock();
+    const empty = restoreOwner({ runId: "run", place: "weatherCurrent", clock: now, restored: { "U-W": { kind: "empty" } } },
+      linkedUnitTable, linkedUnitCodecs).state;
+    const owner = { ...empty, units: { ...empty.units, "U-W": first.state } };
+    const update = (from: Parameters<typeof intentUpdateOwner>[0], split: boolean) => intentUpdateOwner(from, "U-W", from.units["U-W"]!.intents.map((item, index) => ({ id: item.id, attempts: Number.MAX_SAFE_INTEGER,
+      nextAttemptAt: -0.0000018927186924017318, disposition: split && index % 3 === 1 ? "superseded" as const : "pending" as const })), now, linkedUnitTable);
+    // 全 pending が最長へ伸びる更新（予約の不変条件、AC03）→ 3 件に 1 件が終端になる更新、のそれぞれの後で保存と復元ができる。
+    const widened = update(owner, false);
+    expect(widened.adopted).toBe(true);
+    expect(roundTrip(widened.state.units["U-W"]!).kind).toBe("restored");
+    const grown = update(widened.state, true);
+    expect(grown.adopted).toBe(true);
+    expect(roundTrip(grown.state.units["U-W"]!).kind).toBe("restored");
   });
 
   it("P3-WL1-T07 regression / P3-WL1-AC05: encode does not stringify the payload, histories or snapshots measured on receive", () => {
