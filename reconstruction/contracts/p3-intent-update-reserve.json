@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "0ed0c626b17303cfa3e4b66821d7c5fa7d96fc03",
-    "sha256": "2a779ba0e4c9f75ce324153bbb131b087fbed19f8191bedec869f6c1bcf2981a",
+    "sha256": "aab99b5a0322cfdc84b02e637a4cf4131c8f884a20e6cfee9b4f8c59bba60d13",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "98c9607b6ddf1a3e2fc8fc1668ab07b22f9e3a4e6bf61e5a06a034d02390b4d9",
     "sequencesSha256": "f8b5d03b1325ccdb8b7469a66c99ee240c27e2669dce3dafa0cd12840548f002",
@@ -235,7 +235,7 @@
         "id": "P3-IUR-AC01",
         "requirement": "pendingの予算は予約込み、受理とdecodeで同じ式（台帳73、P3-IUR-RES-01）: U-T・U-Q・U-E・U-W・U-Fのpendingの131,072 byteの検査は、JSONのUTF-8の実byteにpendingごとの予約（max(0,16−attemptsのJSONの長さ)＋max(0,25−nextAttemptAtのJSONの長さ)＋3）の和を足して数える。受理: U-Tはadmitのfits、U-Qはadmitのpoolの大きさと外すときの引き算（1件ごとに実byte＋1＋予約を引く）、U-Eはdomains/eew/eew.tsのfitsと下位の退去の引き算。decode・encode: U-T・U-Qのpersisted、U-Eのpersisted（encodeも同じ関数を通る）、U-WのpersistedValue（decode）とencodedValue（encode。P3-WL1-AC05の並びの同期を保つ）、U-Fのpersisted（encodeとdecodeが共有）。U-W・U-Fには受理の経路が無い。実装の地雷（Q-IUR-CODE-READ (8)）: 予約の和はlistBytesやnotificationArrayBytesの中に入れず、横で別に足す（U-QのlistBytesは配列だけで和をcacheするので、同じ配列を別のsize関数で数えると前の和が返る。eew.tsのnotificationArrayBytesはU-Eの世代の計量と共有で、そこへ予約を入れるとU-Eの世代に予約が混ざる）。件数128と退去の順・群・全採用か未採用は変えない。U-Eはdispositionがintentsの中で伸びない（終端はdeliveryRecordsへ移る）が、同じ式で数え、1件3 byteの余りを許す（式を1つに保つ）。無いと: 上限ちょうどまで受理したpendingが配送の更新で伸び、U-T・U-Qは保存した世代を復元のdecodeが拒否し（正常な旧slotへ後退、無ければnoValidSlot）、U-E・U-W・U-Fはencodeが拒否して保存が失敗する",
         "evidenceRefs": [
-          "reconstruction/contracts/p3-order-plan.md:344 «462fe90a710c8d41»",
+          "reconstruction/contracts/p3-order-plan.md:344 «cab21d450b7db8ea»",
           "reconstruction/contracts/p3-nankai-unit.json:296 «11d1b802043a2d33»",
           "reconstruction/contracts/p3-nankai-unit.json:297 «af3fe4ee1a81eeaa»",
           "reconstruction/contracts/p3-tsunami-unit.json:207 «499a13c8ac294e8d»",

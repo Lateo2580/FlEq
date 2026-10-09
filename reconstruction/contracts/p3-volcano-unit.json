@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "b7c5999889d82f832b68f5bd579a8b2aa67a880f",
-    "sha256": "369f216c91b92c5c10ba5902f2e0b1beb61c2f5b85a856ec93545ac6a305b129",
+    "sha256": "ab16b0a40760ae67c8375e78bc48c877b974768bb4ac9825829939da36ce7198",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "98c9607b6ddf1a3e2fc8fc1668ab07b22f9e3a4e6bf61e5a06a034d02390b4d9",
     "sequencesSha256": "f8b5d03b1325ccdb8b7469a66c99ee240c27e2669dce3dafa0cd12840548f002",
@@ -374,14 +374,14 @@
       {
         "id": "P3-C9-DEPS",
         "status": "frozen",
-        "rule": "着手条件: C8（P3-UNIT-N-001）の配送（0ed0c626、済み。RuntimeUnitIdにU-Nが入った後の共有fileの基底）、作者裁定（2026-10-09夜: ERUPTION-SUBJECT=A・ALERT-ACTIVE=A・BULLETIN=A・NOTICE-LEVELS=C・SHORTFALL=A・MARINE=A）と発注前点検（2026-10-09、synthetic 6本でO01のunmet 8 stepを充足し、決定がnullの3 stepに期待を入れ、PLACEを確定）の済み、P3-INTENT-UPDATE-RESERVE-001の配送（台帳73の予約の式をdelivery-growth.tsのdeliveryGrowthに置く。206a3acbで発注前点検、b7c59998でbaseOid割当、配送待ち）。最後の一つは実装の着手の条件で、baseOidの割当を妨げない（Q-C9-BASE）。allowedPathsはP3-INTENT-UPDATE-RESERVE-001とtest/tsunami-unit/tsunami-unit.test.ts・test/seismic-unit/seismic-unit.test.tsの2本で重なる（本契約はunitの数・一覧の機械的な追加だけ）ので、合流は同契約が先。U-Vはdelivery-growth.tsをimportするだけで編集しない。C18（P3-CLI-REPL-001）の完了はC9の配送に依存する（計画:83、volcanorepair）"
+        "rule": "着手条件: C8（P3-UNIT-N-001）の配送（0ed0c626、済み。RuntimeUnitIdにU-Nが入った後の共有fileの基底）、作者裁定（2026-10-09夜: ERUPTION-SUBJECT=A・ALERT-ACTIVE=A・BULLETIN=A・NOTICE-LEVELS=C・SHORTFALL=A・MARINE=A）と発注前点検（2026-10-09、synthetic 6本でO01のunmet 8 stepを充足し、決定がnullの3 stepに期待を入れ、PLACEを確定）の済み、P3-INTENT-UPDATE-RESERVE-001の配送（台帳73の予約の式をdelivery-growth.tsのdeliveryGrowthに置く。配送 2a8f80bc、済み）。着手条件は全部満たされた。baseOidは2a8f80bcを含むcommitに割り当てる（この点検はc4fafb8eの上で行い、統合担当が2a8f80bcの上へrebaseする）。allowedPathsはP3-INTENT-UPDATE-RESERVE-001とtest/tsunami-unit/tsunami-unit.test.ts・test/seismic-unit/seismic-unit.test.tsの2本で重なる（本契約はunitの数・一覧の機械的な追加だけ）が、同契約は2a8f80bcで先に合流した。U-Vはdelivery-growth.tsをimportするだけで編集しない。C18（P3-CLI-REPL-001）の完了はC9の配送に依存する（計画:83、volcanorepair）"
       },
       {
         "id": "Q-C9-PRECHECK",
         "status": "closed",
         "source": "統合担当の発注前点検（2026-10-09、HEAD c4fafb8e）",
-        "closed": "Q-C9-AUTHOR-RULINGS: 作者裁定（2026-10-09夜、ご主人、全部推奨どおり）ERUPTION-SUBJECT=A・ALERT-ACTIVE=A・BULLETIN=A・NOTICE-LEVELS=C・SHORTFALL=A・MARINE=Aを各分岐のrulingに書いた。起草は推奨（provisional）で書かれていたので、選ばなかった案の条文（Q-NOTICE.levelの「Aを選ぶなら・Bを選ぶなら」）を除き、Q-NOTICE・P3-C9-LEGACY-DIFF・Q-ENUM・I-U-V・persistedFields・AC16・T07のprovisionalの表記を裁定に置き換えた。generationTable・types.tsは選んだ案のままで変えない。Q-C9-S4-PLACE: P3-C9-PLACEのruling（A、統合担当の確定。S4の本文は読んでいない）。P3-C9-INTERFERENCE・P3-C9-WRITE-RIGHT・AC13からB案の文を除いた。Q-C9-CORPUS: (1) 決定がnullのO01:17・:27・:28に本契約の規則の期待を入れた（:17はunchanged/stale＋volcanoRevisionConflict、:27は新しいsubjectのchanged/semantic・active、:28は143900_306だけのchanged/semantic・cancelled） (2) synthetic 6本（synthetic_VFVO56_correction・synthetic_VFVO50_continuation・synthetic_VFVO50_correction・synthetic_VFVO50_cancel・synthetic_VFVO55_correction・synthetic_VFVO55_cancel）でunmetのO01:18・:29〜32・:37〜39を充足し、manifest・P1契約・P1-T01・check-manifestの件数（288件、XML 267、合成93）へ波及させた（P1-T01の分類の差分0）。O01:33・:40はこの充足の後の旧報の期待のまま (3) O08:11〜13（VFVO53の7秒おきの追加でmaxWait・54/55割込み・時計逆行）はsyntheticで充足しない: 7秒おきに新しい版の定時報を十数本要し、fixtureの追加が過大。sequencesではunmetのまま合格に数えず、同じ振る舞いはT04が試験内で66_01_01・66_01_02の時刻を書き換えた入力で確かめる（AC04の受入、AC11の範囲外） (4) O02のU-Vのstepはexpected:O02:37（synthetic_phase5c_plume、VFVO52）だけで、計画:250のVFVO52→C9の振り分けで残るunmetは無い。警報・定時・解説の正常系はT02・T04・T07とE13（fixtureIdsの全正常fixture）で確かめるので、O02にstepを足さない (5) O10:2〜10はC9の範囲に入れる（expectedDecisionsのO10:2・:5・:9、AC12）。O10:7の「取消g2を失った可能性の明示」とO10:8の回復の候補への適用はC16の領分で、C9のharnessはO10:7でg1を読み直し、O10:8では何もしない（O10:9の再投入で取消を再確立する） (6) O11:12・:14はP4（計画§5.2のO11）でC9に入れない (7) 43_01〜43_03・45_01〜45_02・66_01_02〜03・67_01_xxは気象庁のサンプル電文で実際の系列ではないことを、期待を入れたstepのchecksに書いた。Q-C9-BASE: 点検で閉じられる分を閉じた（anchorはc4fafb8eで全部一致、check-contract PASS。計画は中身を変える行が無いので変えない）。P3-INTENT-UPDATE-RESERVE-001の配送の後の確認は、実装の着手の条件としてQ-C9-BASEに残す",
-        "reason": "発注前点検の項目を閉じる。baseOidの割当を止める未決は残さない（Q-C9-BASEは実装の着手だけを止める）"
+        "closed": "Q-C9-AUTHOR-RULINGS: 作者裁定（2026-10-09夜、ご主人、全部推奨どおり）ERUPTION-SUBJECT=A・ALERT-ACTIVE=A・BULLETIN=A・NOTICE-LEVELS=C・SHORTFALL=A・MARINE=Aを各分岐のrulingに書いた。起草は推奨（provisional）で書かれていたので、選ばなかった案の条文（Q-NOTICE.levelの「Aを選ぶなら・Bを選ぶなら」）を除き、Q-NOTICE・P3-C9-LEGACY-DIFF・Q-ENUM・I-U-V・persistedFields・AC16・T07のprovisionalの表記を裁定に置き換えた。generationTable・types.tsは選んだ案のままで変えない。Q-C9-S4-PLACE: P3-C9-PLACEのruling（A、統合担当の確定。S4の本文は読んでいない）。P3-C9-INTERFERENCE・P3-C9-WRITE-RIGHT・AC13からB案の文を除いた。Q-C9-CORPUS: (1) 決定がnullのO01:17・:27・:28に本契約の規則の期待を入れた（:17はunchanged/stale＋volcanoRevisionConflict、:27は新しいsubjectのchanged/semantic・active、:28は143900_306だけのchanged/semantic・cancelled） (2) synthetic 6本（synthetic_VFVO56_correction・synthetic_VFVO50_continuation・synthetic_VFVO50_correction・synthetic_VFVO50_cancel・synthetic_VFVO55_correction・synthetic_VFVO55_cancel）でunmetのO01:18・:29〜32・:37〜39を充足し、manifest・P1契約・P1-T01・check-manifestの件数（288件、XML 267、合成93）へ波及させた（P1-T01の分類の差分0）。O01:33・:40はこの充足の後の旧報の期待のまま (3) O08:11〜13（VFVO53の7秒おきの追加でmaxWait・54/55割込み・時計逆行）はsyntheticで充足しない: 7秒おきに新しい版の定時報を十数本要し、fixtureの追加が過大。sequencesではunmetのまま合格に数えず、同じ振る舞いはT04が試験内で66_01_01・66_01_02の時刻を書き換えた入力で確かめる（AC04の受入、AC11の範囲外） (4) O02のU-Vのstepはexpected:O02:37（synthetic_phase5c_plume、VFVO52）だけで、計画:250のVFVO52→C9の振り分けで残るunmetは無い。警報・定時・解説の正常系はT02・T04・T07とE13（fixtureIdsの全正常fixture）で確かめるので、O02にstepを足さない (5) O10:2〜10はC9の範囲に入れる（expectedDecisionsのO10:2・:5・:9、AC12）。O10:7の「取消g2を失った可能性の明示」とO10:8の回復の候補への適用はC16の領分で、C9のharnessはO10:7でg1を読み直し、O10:8では何もしない（O10:9の再投入で取消を再確立する） (6) O11:12・:14はP4（計画§5.2のO11）でC9に入れない (7) 43_01〜43_03・45_01〜45_02・66_01_02〜03・67_01_xxは気象庁のサンプル電文で実際の系列ではないことを、期待を入れたstepのchecksに書いた。Q-C9-BASE: P3-INTENT-UPDATE-RESERVE-001は2a8f80bc（c4fafb8eの上の1 commit、srcと試験だけ）で配送され、着手条件を満たした。(1) anchor: 2a8f80bcで変わった13 fileを行anchorで引く契約・sequencesは無く、本契約のanchorはc4fafb8eで全部一致（check-contract PASS）なので、2a8f80bcの上でもずれない (2) delivery-growth.tsのexportはdeliveryGrowth(item: NotificationIntent): numberだけで、U-Vのcodecが受理とdecodeの両方でimportして呼べる（式は写さない、Q-NOTICE.capacity・I-U-V.decode） (3) RES-02: p2-notification-delivery.types.ts:46の注記は2a8f80bcでも768（U-N）で、U-Vを足して896にするのは本契約の実装（RES-02）。計画は§9のP3-INTENT-UPDATE-RESERVE-001の行の状態を「配送 2a8f80bc」に改め、その行を引くanchor（本契約のAC06、P3-INTENT-UPDATE-RESERVE-001）を付け直した。baseOidは2a8f80bcを含むcommitに割り当てる（P3-C9-DEPS）",
+        "reason": "発注前点検の項目を閉じ、unresolvedQuestionsを空にする"
       }
     ],
     "operationContract": {
@@ -1049,7 +1049,7 @@
           "docs/specs/reconstruction-p0-contracts.md:580 «c0b11a524dbe0ac6»",
           "docs/specs/reconstruction-p0-contracts.md:981 «f6dbd4291d01e07b»",
           "reconstruction/contracts/p3-order-plan.md:79 «f6084393a2730ede»",
-          "reconstruction/contracts/p3-order-plan.md:344 «462fe90a710c8d41»"
+          "reconstruction/contracts/p3-order-plan.md:344 «cab21d450b7db8ea»"
         ]
       },
       {
@@ -1336,20 +1336,6 @@
       "check-contractで、本契約が行を足すファイル（composition-root.ts・owner-runtime.ts・shared-runtime.ts・view-projector.ts・unit-coverage.ts・persistent-diagnostic-sink.ts・p2-shared-runtime.types.ts・p2-snapshot-sse.types.ts・p2-notification-delivery.types.ts）を引く他の契約（C5・C7・C8など）と本契約のanchorだけがFAILするのは想定内として報告する。統合担当が、合流と同じcommitで、そのanchorとmeta.sha256を直す。それ以外のFAILは想定外として扱う",
       "容量の実測: 実装後に、I-U-V.capacityMeasurementのfixtureで実際の警報・噴火・降灰・intentのencode byteを測り、契約の値と並べて報告する（10%以上違えば統合担当がP3-C9-CAPACITYの数を直す）"
     ],
-    "unresolvedQuestions": [
-      {
-        "id": "Q-C9-BASE",
-        "owner": "integrator",
-        "blocks": [
-          "実装の着手"
-        ],
-        "resolveBy": "P3-INTENT-UPDATE-RESERVE-001の配送の後、C9の実装の着手の前",
-        "requiredEvidence": [
-          "P3-INTENT-UPDATE-RESERVE-001の配送で変わったfile（delivery-growth.tsと各unitのsrc・試験）の行と本契約のanchorを突き合わせ、ずれたanchorを直す（2026-10-09の発注前点検ではc4fafb8eで全部一致）。baseOidが配送より前のcommitなら、配送の後の基底での着手（baseOidの付け替えかrebase）を統合担当が決める",
-          "delivery-growth.tsのdeliveryGrowthが配送された形で、Q-NOTICE.capacity・I-U-V.decodeがそれを受理とdecodeの両方で呼べることの確認（式は写さない）",
-          "RES-02の通知期限の数（U-Vを足して896）を確かめる（p2-notification-delivery.types.ts:46はc4fafb8eで768）"
-        ]
-      }
-    ]
+    "unresolvedQuestions": []
   }
 }
