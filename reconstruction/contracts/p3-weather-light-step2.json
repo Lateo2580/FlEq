@@ -1,10 +1,10 @@
 {
   "meta": {
     "draftedFromOid": "27a4d43b8c12ca6d1167bcc238669d13df5ff505",
-    "sha256": "e2bf84002cd4ff33cedae22c97574d74f9c5637985f03f9c5317d4c3ec4d49de",
+    "sha256": "3b310cb1a943f62a69e354f0ff9994b95e55d692878a1e21737e538fea8a00b5",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
-    "manifestSha256": "eaf3dbcdc7db9f861d02c74bd723ccc831901750f5e3076c7bc62b03b22b3ad0",
-    "sequencesSha256": "09f5677d9ffff29ca54b81252ac57b8f3753e2111ae48bfb30cbc404b33756e1",
+    "manifestSha256": "07dacd74b734222a3f493141d6c2128c172392afd6d6b025b98bb76d38613cbf",
+    "sequencesSha256": "4a3d8fcfa174d60512abf30a15829dfbd188547c51047c5104a32ac22cbceb05",
     "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
     "decisionBranches": [
       {
@@ -277,7 +277,7 @@
         "id": "P3-WL2-AC01",
         "requirement": "方式（D-WL2-METHOD=A3、D-WL2-DEP=B）: decodeMaterialは withinXmlLimits → XMLValidator.validate → 木の組立て の順を保ち、普通の入力では、木の組立てはXmlNodeの木を1本だけ直接作り、FXPのXMLParserを使わない（XMLValidatorは残す）。今のparseTree・xmlNode・attributesは旧の経路（fallback）としてだけ残す。速い経路は、FXP 5.5.8のparseXml（今のoptions）とxmlNodeを合わせた結果を写し、検出の規則（D2〜D6、Q-WL2-IMPL-AMEND。速い経路が扱うのは実電文に出る形だけで、XML宣言以外のPIとCDATA・危険な名前とcritical名は旧の経路へ戻す）に当たったら、その入力を今のparseTree（XMLParser.parse＋今のxmlNode、旧の経路としてdecode-material.tsに残す）で処理し直す。結果は、limitsとvalidatorを通った全ての入力で旧と完全に同じ（木・拒否の理由・parseTimes・marks・運用区分の診断）。速い経路は例外の理由を写さず、拒否するかどうかと理由は旧の経路が決める。fallbackは組立ての段の中（parsedAtの後、fullXmlParseMsとparseTimesの区間の中）で行い、marksのkeyとnullの別、parseTimesの開始と終了の位置は旧と同じ。fallbackに入った回数は、試験ではXMLParser.prototype.parseのspyの回数（旧の経路だけがFXPを呼ぶ）、tree-diffと測定では読み込み時にparseTreeを包んで数える（公開の読む関数は足さない、Q-WL2-IMPL-AMEND）。速い経路の関数は、写したFXPの版、limitsとvalidatorを通った文字列を受ける前提、検出の各規則の理由（作者裁定 2026-10-09 の2本目）を、なぜのコメントで書く（順序に頼る処理、AGENTS.mdのコメント）。変えないもの: rootの選び方（最上位で最初の名前 \"Report\" の要素）、BOM（TextDecoderで除く）、marksのkey、fullXmlParseMsが組立ての時間であること（parsedAtの位置、改行の正規化を含む）、parseTimesの開始（limitsの直前）と終了（木の完成）、Control.Status・Headの読み方。新しいmodule・class・型・公開APIは足さない（decode-material.ts の中の関数と、その中だけで使う小さな関数）。無いと: Piで、FXP parse 696.39ms＋xmlNode 352.94ms（全体p50 1,496.7msの7割、Q-WL2-PI-STEP1）と、木2本が同時に生きるheapの山（台帳66、E05-P）が残る",
         "evidenceRefs": [
-          "reconstruction/contracts/p1-parser-boundary.json:523 «4cae89a4f5209c86»",
+          "reconstruction/contracts/p1-parser-boundary.json:527 «4cae89a4f5209c86»",
           "reconstruction/contracts/p3-weather-light-step1.json:224 «a2783f9a110fdf02»",
           "reconstruction/contracts/p3-order-plan.md:340 «f111c495db48d514»",
           "AGENTS.md:24 «c1288cfa5b0d16dc»",
@@ -288,17 +288,17 @@
         "id": "P3-WL2-AC02",
         "requirement": "corpusの同値: manifestのXML 247件すべてで、decodeMaterialの結果（kind・拒否の理由・ParserDiagnostic・materialのxml以外の項目。marksは所要時間を除きkeyとnullの別を比べる）とparseTimesのstartedMs・endedMsの有無が旧と同じで、materialのxml（XmlNodeの木）が旧と再帰一致する。一致の定義はkind・name・value、attributesの順序と名前と値、childrenの順序、textの分割で、sort・trim・繋ぎ直しで差を消さない。corpusは実電文と既存のfixtureなので、全件が速い経路で済む（fallback 0件）ことも検収にする。起草時のprobeでは decoded 246・rejected 1（weathercw-10_03_01_171016_VPTW60-wind-range、xmlInvalid）で差0（Q-WL2-TREE-PROBE）。無いと: 実電文の形で木が変わっても、P1-T01の分類（葉の値）に出ない差（textの分割・属性の順）が素通りする",
         "evidenceRefs": [
-          "reconstruction/contracts/p1-parser-boundary.json:525 «0ad9ce09d06f5848»",
-          "reconstruction/contracts/p1-parser-boundary.json:526 «1a0cd68b93edab6b»",
-          "reconstruction/contracts/p1-parser-boundary.json:523 «4cae89a4f5209c86»"
+          "reconstruction/contracts/p1-parser-boundary.json:529 «0ad9ce09d06f5848»",
+          "reconstruction/contracts/p1-parser-boundary.json:530 «1a0cd68b93edab6b»",
+          "reconstruction/contracts/p1-parser-boundary.json:527 «4cae89a4f5209c86»"
         ]
       },
       {
         "id": "P3-WL2-AC03",
         "requirement": "corpusに無い構文の境界。全ての行で旧と同じ結果（受理なら同じ木、拒否なら同じ理由と段）で、行ごとにどちらの経路を通るか（速い経路／fallback）と、拒否の段（事前＝組立てに入らない、組立て＝組立ての例外でendedMsなし、組立て後＝rootの判定・運用区分でendedMsあり）を期待に書く。速い経路で受理: text-コメント-text（text 1つ）、a<!--x<!--y-->b（ab）、CRとCRLFとCRだけ（textと属性値でLF）、&#13;（CRのまま）、タブと改行を含む属性値、タグの中のタブ、閉じタグの名前の後の空白、多バイト文字の要素名・属性名・text、実体参照と文字参照（先頭ゼロ・非BMP、属性とtext）、= の前後の空白・単引用符と中の\"・属性値の中の>と<、大文字小文字だけ違う属性、接頭辞付きの名前とxmlns（展開しない）、<A/>・<A />・<A></A>、空白だけのtext、上限ちょうどのtext、Reportの後の<Report/>（最初を使う）、<X/>tailに続くReport、]]>を含むtext、rootの外の実電文の形のXML宣言（standaloneと ?> の前の空白を含む）とコメント、<A\\uFEFFB/>（名前はA）、</A/>で1段だけ過剰に閉じる文書。速い経路で拒否: 事前のxmlInvalid — 重複属性・値の無い属性・引用符の無い属性・閉じタグ違い・途中で切れた文書・rootの外のtext・DOCTYPE（limitsが見るもの）・Reportの後の<Report></Report>。組立て後のxmlInvalid（endedMsあり）— <Foo/>、<jmx:Report/>。fallbackで受理（旧と同じ木）: D5（Q-WL2-IMPL-AMEND）— CDATA（中に&・]]・<!--、CRとCRLFを含むもの）、空のCDATA（値 \"\" のtext 1つ）、隣り合うCDATA、text-コメント-CDATA-text-コメント-text、200,000文字のコメントと64KiBを超えるPI、rootの外のXML宣言とPI、タブまたは単引用符のXML宣言、Reportの外のPIの不正な実体、Reportの中のXML宣言、Reportの中の普通のPI（\"?name\" 要素、擬似属性の有無、Headの中）、Codexの反例 <?p '='\\t''?>（旧は値が空白）、<Status>通<?p a=\"?>\"?>常</Status>（二重と単引用符）、Bodyの<?p a=\"?> <A/> \"?>、<Report>…<Body><?><?p?></Body></Report>と<?><?p?>に続くReport（開始位置のずれ）、<?p a=\"?> <!--\"?>に続けてコメントの中に隠したDOCTYPE・内部DTD・<#text/>・<#cdata/>・<:@/>・<!xml>…</!xml>・<:@><A a=\"&bogus;\"/></:@>。D6 — 危険な名前7つの要素・属性（旧は \"__\" 付き）と改名先との併存（toString=\"1\" __toString=\"2\" とその逆順で属性1つ）。fallbackで組立て後の拒否: 運用区分が不正なStatusの文書の中の<?p a=\"?>\"?>（operationInvalid、endedMsあり）。fallbackで組立てのxmlInvalid（D4、endedMsなし）: PIの不正な実体・閉じない引用符・critical名の擬似属性（Reportの中と外）、critical名3つの要素・属性（Reportの中、外、採用しない後続の要素、<A\\uFEFFconstructor/>）、</A/></B/>で棚が空になった後の要素。（D1を外した写しでD2・D3を確かめる項は、D1がD5に吸収されたので外した。Q-WL2-IMPL-AMEND）無いと: corpusに無い構文（CDATA・内部PI・CRは0件）で、速い経路の写し方の違いや変な形の見落としが、黙って木・拒否・運用区分を変える",
         "evidenceRefs": [
-          "reconstruction/contracts/p1-parser-boundary.json:525 «0ad9ce09d06f5848»",
-          "reconstruction/contracts/p1-parser-boundary.json:526 «1a0cd68b93edab6b»",
+          "reconstruction/contracts/p1-parser-boundary.json:529 «0ad9ce09d06f5848»",
+          "reconstruction/contracts/p1-parser-boundary.json:530 «1a0cd68b93edab6b»",
           "reconstruction/contracts/p1-parser-boundary.json:46 «75d66f66d664fec3»"
         ]
       },
@@ -306,8 +306,8 @@
         "id": "P3-WL2-AC04",
         "requirement": "拒否の理由・優先・上限を変えない: withinXmlLimitsとXMLValidator.validateのコードと呼ぶ順は変えず、拒否の理由の集合（inputTooLarge・bodyDecodeFailed・expandedBodyInvalid・expandedBodyTooLarge・xmlLimitExceeded・xmlInvalid・運用区分の4種）と、1つの入力が複数に当たるときの理由（limitsがvalidateより先、上限超過の判定の位置は直前・一致・+1）、ParserDiagnosticのoperation（P1-AC15）、Q-LIMITの値は旧と同じ。事前拒否（limits・validate）では木を作らない（P1-AC04）。組立ての段の拒否は旧と同じ入力の集合で、理由はxmlInvalid（旧の経路が決める。AC03・AC08）。段1のAC06(1)の優先の入力（16,385文字を超えるtextの末尾の裸の&・不正な文字参照、257文字以上で不正な参照を含む属性値）も旧と同じ理由。P1の契約の改訂は要らない（P1-AC04の「full parse 1回」は木の組立て1回と読む）。無いと: 組立ての置き換えで、壊れた入力・上限を超える入力の扱い（診断の理由と運用区分の証拠）が変わっても気づけない",
         "evidenceRefs": [
-          "reconstruction/contracts/p1-parser-boundary.json:523 «4cae89a4f5209c86»",
-          "reconstruction/contracts/p1-parser-boundary.json:534 «229a70c4a87b4736»",
+          "reconstruction/contracts/p1-parser-boundary.json:527 «4cae89a4f5209c86»",
+          "reconstruction/contracts/p1-parser-boundary.json:538 «229a70c4a87b4736»",
           "reconstruction/contracts/p1-parser-boundary.json:46 «75d66f66d664fec3»",
           "reconstruction/contracts/p3-weather-light-step1.json:282 «f008634089375993»"
         ]
@@ -342,7 +342,7 @@
         "id": "P3-WL2-AC08",
         "requirement": "変異による差分の確かめ（D-WL2-EQUIVALENCE=Aの(2)）: reconstruction/tools/parse-diff/tree-diff.mjs（測定用のscript。製品コードからimportしない）を足す。manifestのXMLを種に、決まったseedの擬似乱数で、PI（引用符の中の?>・単引用符・不正な実体・critical名と危険な名前の擬似属性・XML宣言）・コメント（入れ子の開き・空・>を含む）・CDATA（空・CR・&と<）・閉じタグ（</A/>・名前違い）・空要素・危険な名前とcritical名の要素と属性・改名の衝突・重複属性・名前の中の\\uFEFFと\\u3000・実体（正しい・先頭ゼロ・不正・裸の&）・BOM・CR・CRLF・タブ・引用符・<・>・]]>・非BMP文字を、タグの境目と任意の位置へ差し込み・削除・写しで1件に1〜3回入れる。前処理と組立てで読み方がずれる複合の型をテンプレートとして持つ: <?p a=\"?> <!--\"?>（と単引用符）に続けてコメントの中に隠したDOCTYPE・内部DTD・#text・#cdata・:@・!xml・不正な実体・critical名・危険な名前・開きと閉じのタグ・CDATA・PI、コメントの中のPI、PIの引用符の中のコメント・CDATAの開き・]]>、<??>・<?>、引用符の外のタブを含むPIと引用符の組み合わせ（Codexの反例の型、Q-WL2-IMPL-AMEND）。2つのreconstruction/distのdecodeMaterialに同じ入力を必ず両方当て、result.kind・拒否の理由・ParserDiagnostic・木・materialの他の項目・marksのkeyとnullの別・parseTimesのstartedMsとendedMsの有無を全部比べる。段は組立ての入口の回数で分ける（読み込んだsourceの組立ての関数を包み、回数を取る。fallbackの回数は読み込んだsourceのparseTreeを包んで取る（Q-WL2-IMPL-AMEND）。製品に注入の口は足さない）: 事前（0回）・組立ての例外・組立ての後の拒否・受理。1入力で組立てが2回以上なら失敗。判定は同じ／失敗の2つだけで、結果そのものを比べる（実装の例外名やfallbackの有無で差を認めない）。corpus全件はfallbackに入ったら失敗（実電文で遅い経路に入らない）。失敗が1件でもあれば非0のexit codeで終わる。出力は件数・seed・種のfile数・解決されたfast-xml-parserの版・同じ／失敗の件数・fallbackの件数（corpus・境界・変異ごと、旧の段ごと）・旧と新の段ごとの件数と、失敗の一覧（入力の短縮と両方の結果）。比べる相手は2通り: (a) baseOidのdist（変更の前に別の場所へ写したもの）と変更後のdist (b) 変更後のdistの組立てを、同じscriptの中に持つ旧の組立て（FXPのXMLParserとbaseOidのxmlNodeの写し）へ差し替えたもの（fast-xml-parserの版を上げるときのゲート）。ゲートが効くことの確かめ（負の対照、使い捨ての写し）: 検出（名前の確かめとD5のPIの確かめ）を外した版と、fallbackの無い速い経路だけの版に当てて、どちらも失敗を表示しexit 1で終わることを示す。検収は(a)と(b)の両方で、seed 20261009・1・2の各100,000件以上と、corpus全件・AC03の入力の全部で失敗0、corpusのfallback 0件。seedごとのfallbackの件数を記録する。fast-xml-parserの版を上げる変更は、(b)とAC03を必須のゲートにする。無いと: 変な形の見落とし（差になる唯一の向き）が列挙に無い組み合わせで残り、実電文が遅い経路に入っても、validatorの更新で受理の集合が変わっても気づけない",
         "evidenceRefs": [
-          "reconstruction/contracts/p1-parser-boundary.json:523 «4cae89a4f5209c86»",
+          "reconstruction/contracts/p1-parser-boundary.json:527 «4cae89a4f5209c86»",
           "reconstruction/contracts/p1-parser-boundary.json:148 «29ee69fce610d025»",
           "AGENTS.md:26 «2c223bbb66635b53»"
         ]

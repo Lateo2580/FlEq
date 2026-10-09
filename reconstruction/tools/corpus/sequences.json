@@ -1,9 +1,9 @@
 {
   "meta": {
     "baseOid": "3669dfd6a98e6c116c86f7db1cd27aa63002a90d",
-    "sha256": "09f5677d9ffff29ca54b81252ac57b8f3753e2111ae48bfb30cbc404b33756e1",
+    "sha256": "4a3d8fcfa174d60512abf30a15829dfbd188547c51047c5104a32ac22cbceb05",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
-    "manifestSha256": "eaf3dbcdc7db9f861d02c74bd723ccc831901750f5e3076c7bc62b03b22b3ad0",
+    "manifestSha256": "07dacd74b734222a3f493141d6c2128c172392afd6d6b025b98bb76d38613cbf",
     "clock": "synthetic epoch milliseconds; receivedAt/evaluatedAt は合成固定時計。原XML日時は不変。系列内ケース間のrestartで時計と空stateを再設定。受信時刻の実測ではない。",
     "decisions": [
       "形式A（推奨・採用）={meta,sequences,expectations,unresolvedQuestions}。B=meta/期待値を別file。Aならstepと根拠の配送欠落を一ファイルのhashで検出できる。baseOidは本契約HEAD、manifestの来歴baseOidとは別。",
@@ -858,6 +858,9 @@
           "expectedRef": "expected:O01:42",
           "expectationBasis": [
             "L1: docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6» O01",
+            "L1: reconstruction/contracts/p3-flood-unit.json:316 «ed0d6f7e58db05e3» I-U-R currentSemantics",
+            "L1: reconstruction/contracts/p3-flood-unit.json:199 «3722b9f79d37e6b4» Q-NOTICE semanticAdoption",
+            "L1: reconstruction/contracts/p3-flood-unit.json:263 «eb49276ecdb022f2» Q-NOTICE level（作者裁定 NOTICE-LEVELS=E）",
             "L2: test/fixtures/16_02_01_220728_VXKO50.xml:1 «12c29731e40adc0c» 元XMLのControl/Head/Bodyを読解（原本確認の主張ではない）"
           ]
         },
@@ -873,6 +876,10 @@
           "expectedRef": "expected:O01:43",
           "expectationBasis": [
             "L1: docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6» O01",
+            "L1: reconstruction/contracts/p3-flood-unit.json:309 «1c4eb0c2fc196583» Q-ENUM revisionOrder",
+            "L1: reconstruction/contracts/p3-flood-unit.json:316 «ed0d6f7e58db05e3» I-U-R currentSemantics",
+            "L1: reconstruction/contracts/p3-flood-unit.json:232 «315a071d06f19ec9» Q-NOTICE correction",
+            "L1: reconstruction/contracts/p3-flood-unit.json:263 «eb49276ecdb022f2» Q-NOTICE level（作者裁定 NOTICE-LEVELS=E）",
             "L2: test/fixtures/synthetic_VXKO50_correction.xml:1 «12c29731e40adc0c» 元XMLのControl/Head/Bodyを読解（原本確認の主張ではない）"
           ]
         },
@@ -888,6 +895,9 @@
           "expectedRef": "expected:O01:44",
           "expectationBasis": [
             "L1: docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6» O01",
+            "L1: reconstruction/contracts/p3-flood-unit.json:316 «ed0d6f7e58db05e3» I-U-R currentSemantics",
+            "L1: reconstruction/contracts/p3-flood-unit.json:199 «3722b9f79d37e6b4» Q-NOTICE semanticAdoption",
+            "L1: reconstruction/contracts/p3-flood-unit.json:263 «eb49276ecdb022f2» Q-NOTICE level（作者裁定 NOTICE-LEVELS=E）",
             "L2: test/fixtures/synthetic_VXKO50_code31.xml:1 «12c29731e40adc0c» 元XMLのControl/Head/Bodyを読解（原本確認の主張ではない）"
           ]
         },
@@ -895,14 +905,20 @@
           "sequenceId": "O01",
           "position": 45,
           "action": "receive",
-          "fixtureId": null,
-          "receivedAt": 1558918800000,
-          "evaluatedAt": 1558918800000,
+          "fixtureId": "test__fixtures__synthetic_VXKO50_code31_correction",
+          "receivedAt": 1558918840000,
+          "evaluatedAt": 1558918840000,
           "inputSource": "replay",
           "operationExpected": "normal",
-          "expectedRef": "unmet:O01:45",
+          "expectedRef": "expected:O01:45",
           "expectationBasis": [
-            "L1: docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6» O01"
+            "L1: docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6» O01",
+            "L1: reconstruction/contracts/p3-flood-unit.json:309 «1c4eb0c2fc196583» Q-ENUM revisionOrder",
+            "L1: reconstruction/contracts/p3-flood-unit.json:316 «ed0d6f7e58db05e3» I-U-R currentSemantics",
+            "L1: reconstruction/contracts/p3-flood-unit.json:232 «315a071d06f19ec9» Q-NOTICE correction",
+            "L1: reconstruction/contracts/p3-flood-unit.json:263 «eb49276ecdb022f2» Q-NOTICE level（作者裁定 NOTICE-LEVELS=E）",
+            "L1: reconstruction/contracts/p3-flood-unit.json:153 «dfa411a7eb692cab» P3-C11-REPLACEMENT=A",
+            "L2: test/fixtures/synthetic_VXKO50_code31_correction.xml:1 «12c29731e40adc0c» 合成入力（manifest synthetic、配信原本ではない）"
           ]
         },
         {
@@ -917,6 +933,9 @@
           "expectedRef": "expected:O01:46",
           "expectationBasis": [
             "L1: docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6» O01",
+            "L1: reconstruction/contracts/p3-flood-unit.json:309 «1c4eb0c2fc196583» Q-ENUM revisionOrder",
+            "L1: reconstruction/contracts/p3-flood-unit.json:108 «d2e334e47d0fa659» P3-C11-CANCEL-SCOPE=A",
+            "L1: reconstruction/contracts/p3-flood-unit.json:243 «44fe5884736c13e5» Q-NOTICE cancellation",
             "L2: test/fixtures/synthetic_VXKO50_cancel.xml:1 «12c29731e40adc0c» 元XMLのControl/Head/Bodyを読解（原本確認の主張ではない）"
           ]
         },
@@ -1585,6 +1604,60 @@
             "L1: reconstruction/contracts/p3-landslide-unit.json:70 «bce6dcd2b91bf44d» P3-C10-CANCEL-SCOPE=A",
             "L2: test/fixtures/15_16_01_241031_VPWW56.xml:1 «12c29731e40adc0c» 気象庁のサンプル電文のControl/Head/Bodyを読解（実系列・原本確認の主張ではない）"
           ]
+        },
+        {
+          "sequenceId": "O01",
+          "position": 86,
+          "action": "restart",
+          "fixtureId": null,
+          "receivedAt": null,
+          "evaluatedAt": 1780432500000,
+          "inputSource": "replay",
+          "operationExpected": null,
+          "expectedRef": "expected:O01:86",
+          "expectationBasis": [
+            "L1: docs/specs/reconstruction-p0-contracts.md:1758 «37f025f94e7bbdfd» 固定初期状態・時計",
+            "L1: docs/specs/reconstruction-p0-contracts.md:736 «e88a83452d784a7c»"
+          ]
+        },
+        {
+          "sequenceId": "O01",
+          "position": 87,
+          "action": "receive",
+          "fixtureId": "test__fixtures__16_00_01_260603_VXKO70_kozagawa_l5",
+          "receivedAt": 1780432518154,
+          "evaluatedAt": 1780432518154,
+          "inputSource": "replay",
+          "operationExpected": "normal",
+          "expectedRef": "expected:O01:87",
+          "expectationBasis": [
+            "L1: docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6» O01",
+            "L1: reconstruction/contracts/p3-flood-unit.json:316 «ed0d6f7e58db05e3» I-U-R currentSemantics",
+            "L1: reconstruction/contracts/p3-flood-unit.json:50 «927dcf0821fb895f» P3-C11-SUBJECTS=A",
+            "L1: reconstruction/contracts/p3-flood-unit.json:68 «bea92bfd2f4f1d0d» P3-C11-STATIONS=A",
+            "L1: reconstruction/contracts/p3-flood-unit.json:199 «3722b9f79d37e6b4» Q-NOTICE semanticAdoption",
+            "L1: reconstruction/contracts/p3-flood-unit.json:263 «eb49276ecdb022f2» Q-NOTICE level（作者裁定 NOTICE-LEVELS=E）",
+            "L2: test/fixtures/16_00_01_260603_VXKO70_kozagawa_l5.xml:1 «12c29731e40adc0c» 原本確認済み（dmdata Archive の member と受領 hash 一致、manifest 参照）"
+          ]
+        },
+        {
+          "sequenceId": "O01",
+          "position": 88,
+          "action": "receive",
+          "fixtureId": "test__fixtures__16_00_02_260603_VXKO70_kozagawa_overflow",
+          "receivedAt": 1780434640743,
+          "evaluatedAt": 1780434640743,
+          "inputSource": "replay",
+          "operationExpected": "normal",
+          "expectedRef": "expected:O01:88",
+          "expectationBasis": [
+            "L1: docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6» O01",
+            "L1: reconstruction/contracts/p3-flood-unit.json:309 «1c4eb0c2fc196583» Q-ENUM revisionOrder",
+            "L1: reconstruction/contracts/p3-flood-unit.json:316 «ed0d6f7e58db05e3» I-U-R currentSemantics",
+            "L1: reconstruction/contracts/p3-flood-unit.json:199 «3722b9f79d37e6b4» Q-NOTICE semanticAdoption",
+            "L1: reconstruction/contracts/p3-flood-unit.json:263 «eb49276ecdb022f2» Q-NOTICE level（作者裁定 NOTICE-LEVELS=E）",
+            "L2: test/fixtures/16_00_02_260603_VXKO70_kozagawa_overflow.xml:1 «12c29731e40adc0c» 原本確認済み（dmdata Archive の member と受領 hash 一致、manifest 参照）"
+          ]
         }
       ]
     },
@@ -1953,6 +2026,9 @@
           "expectedRef": "expected:O02:24",
           "expectationBasis": [
             "L1: docs/specs/reconstruction-p0-contracts.md:1778 «513e4c47ef60e225» O02",
+            "L1: reconstruction/contracts/p3-flood-unit.json:316 «ed0d6f7e58db05e3» I-U-R currentSemantics",
+            "L1: reconstruction/contracts/p3-flood-unit.json:199 «3722b9f79d37e6b4» Q-NOTICE semanticAdoption",
+            "L1: reconstruction/contracts/p3-flood-unit.json:263 «eb49276ecdb022f2» Q-NOTICE level（作者裁定 NOTICE-LEVELS=E）",
             "L2: test/fixtures/16_02_01_220728_VXKO50.xml:1 «12c29731e40adc0c» 元XMLのControl/Head/Bodyを読解（原本確認の主張ではない）"
           ]
         },
@@ -1960,15 +2036,19 @@
           "sequenceId": "O02",
           "position": 25,
           "action": "receive",
-          "fixtureId": null,
+          "fixtureId": "test__fixtures__synthetic_VXKO50_all_unknown",
           "receivedAt": 1558915260000,
           "evaluatedAt": 1558915260000,
           "inputSource": "replay",
           "operationExpected": "normal",
-          "expectedRef": "unmet:O02:25",
+          "expectedRef": "expected:O02:25",
           "expectationBasis": [
             "L1: docs/specs/reconstruction-p0-contracts.md:402 «daf0a793689748d4»",
-            "L1: docs/specs/reconstruction-p0-contracts.md:1778 «513e4c47ef60e225»"
+            "L1: docs/specs/reconstruction-p0-contracts.md:1778 «513e4c47ef60e225»",
+            "L1: reconstruction/contracts/p3-flood-unit.json:99 «ea21c68014dfa86f» P3-C11-UNKNOWN=A",
+            "L1: reconstruction/contracts/p3-flood-unit.json:316 «ed0d6f7e58db05e3» I-U-R currentSemantics",
+            "L1: reconstruction/contracts/p3-flood-unit.json:199 «3722b9f79d37e6b4» Q-NOTICE semanticAdoption",
+            "L2: test/fixtures/synthetic_VXKO50_all_unknown.xml:1 «12c29731e40adc0c» 合成入力（manifest synthetic、配信原本ではない）"
           ]
         },
         {
@@ -4598,6 +4678,178 @@
             "L1: reconstruction/contracts/p3-landslide-unit.json:263 «a121492370decf1e» Q-ENUM revisionOrder",
             "L1: reconstruction/contracts/p3-landslide-unit.json:70 «bce6dcd2b91bf44d» P3-C10-CANCEL-SCOPE=A",
             "L2: test/fixtures/15_16_01_241031_VPWW56.xml:1 «12c29731e40adc0c» 気象庁のサンプル電文のControl/Head/Bodyを読解（実系列・原本確認の主張ではない）"
+          ]
+        },
+        {
+          "sequenceId": "O07",
+          "position": 54,
+          "action": "restart",
+          "fixtureId": null,
+          "receivedAt": null,
+          "evaluatedAt": 1558915200000,
+          "inputSource": "replay",
+          "operationExpected": null,
+          "expectedRef": "expected:O07:54",
+          "expectationBasis": [
+            "L1: docs/specs/reconstruction-p0-contracts.md:1758 «37f025f94e7bbdfd» 固定初期状態・時計",
+            "L1: docs/specs/reconstruction-p0-contracts.md:736 «e88a83452d784a7c»"
+          ]
+        },
+        {
+          "sequenceId": "O07",
+          "position": 55,
+          "action": "receive",
+          "fixtureId": "test__fixtures__16_02_01_220728_VXKO50",
+          "receivedAt": 1558915200001,
+          "evaluatedAt": 1558915200001,
+          "inputSource": "replay",
+          "operationExpected": "normal",
+          "expectedRef": "expected:O07:55",
+          "expectationBasis": [
+            "L1: docs/specs/reconstruction-p0-contracts.md:1783 «bb8e18a6762c105d» O07",
+            "L1: reconstruction/contracts/p3-flood-unit.json:316 «ed0d6f7e58db05e3» I-U-R currentSemantics",
+            "L1: reconstruction/contracts/p3-flood-unit.json:199 «3722b9f79d37e6b4» Q-NOTICE semanticAdoption",
+            "L1: reconstruction/contracts/p3-flood-unit.json:263 «eb49276ecdb022f2» Q-NOTICE level（作者裁定 NOTICE-LEVELS=E）",
+            "L2: test/fixtures/16_02_01_220728_VXKO50.xml:1 «12c29731e40adc0c» 気象庁のサンプル電文のControl/Head/Bodyを読解（実系列・原本確認の主張ではない）"
+          ]
+        },
+        {
+          "sequenceId": "O07",
+          "position": 56,
+          "action": "receive",
+          "fixtureId": "test__fixtures__synthetic_VXKO50_code31",
+          "receivedAt": 1558918800000,
+          "evaluatedAt": 1558918800000,
+          "inputSource": "replay",
+          "operationExpected": "normal",
+          "expectedRef": "expected:O07:56",
+          "expectationBasis": [
+            "L1: docs/specs/reconstruction-p0-contracts.md:1783 «bb8e18a6762c105d» O07",
+            "L1: reconstruction/contracts/p3-flood-unit.json:316 «ed0d6f7e58db05e3» I-U-R currentSemantics",
+            "L1: reconstruction/contracts/p3-flood-unit.json:199 «3722b9f79d37e6b4» Q-NOTICE semanticAdoption",
+            "L1: reconstruction/contracts/p3-flood-unit.json:263 «eb49276ecdb022f2» Q-NOTICE level（作者裁定 NOTICE-LEVELS=E）",
+            "L2: test/fixtures/synthetic_VXKO50_code31.xml:1 «12c29731e40adc0c» 合成入力（manifest synthetic、配信原本ではない）"
+          ]
+        },
+        {
+          "sequenceId": "O07",
+          "position": 57,
+          "action": "save",
+          "fixtureId": null,
+          "receivedAt": null,
+          "evaluatedAt": 1558918800001,
+          "inputSource": "replay",
+          "operationExpected": null,
+          "expectedRef": "expected:O07:57",
+          "expectationBasis": [
+            "L1: docs/specs/reconstruction-p0-contracts.md:485 «ba2a41e3a4d013e4» U-Rの保存するもの",
+            "L1: reconstruction/contracts/p3-flood-unit.json:319 «f7db5886932381d0» I-U-R persisted"
+          ]
+        },
+        {
+          "sequenceId": "O07",
+          "position": 58,
+          "action": "restart",
+          "fixtureId": null,
+          "receivedAt": null,
+          "evaluatedAt": 1558918800002,
+          "inputSource": "replay",
+          "operationExpected": null,
+          "expectedRef": "expected:O07:58",
+          "expectationBasis": [
+            "L1: docs/specs/reconstruction-p0-contracts.md:1783 «bb8e18a6762c105d» O07",
+            "L1: reconstruction/contracts/p3-flood-unit.json:273 «8058f30ca1652783» Q-NOTICE restart",
+            "L1: reconstruction/contracts/p3-flood-unit.json:117 «dd63cdde6131f9ea» P3-C11-RETENTION=A"
+          ]
+        },
+        {
+          "sequenceId": "O07",
+          "position": 59,
+          "action": "receive",
+          "fixtureId": "test__fixtures__synthetic_VXKO50_all_unknown",
+          "receivedAt": 1558918800003,
+          "evaluatedAt": 1558918800003,
+          "inputSource": "replay",
+          "operationExpected": "normal",
+          "expectedRef": "expected:O07:59",
+          "expectationBasis": [
+            "L1: docs/specs/reconstruction-p0-contracts.md:1783 «bb8e18a6762c105d» O07",
+            "L1: reconstruction/contracts/p3-flood-unit.json:99 «ea21c68014dfa86f» P3-C11-UNKNOWN=A",
+            "L1: reconstruction/contracts/p3-flood-unit.json:316 «ed0d6f7e58db05e3» I-U-R currentSemantics",
+            "L1: reconstruction/contracts/p3-flood-unit.json:273 «8058f30ca1652783» Q-NOTICE restart",
+            "L2: test/fixtures/synthetic_VXKO50_all_unknown.xml:1 «12c29731e40adc0c» 合成入力（manifest synthetic、配信原本ではない）"
+          ]
+        },
+        {
+          "sequenceId": "O07",
+          "position": 60,
+          "action": "receive",
+          "fixtureId": "test__fixtures__synthetic_VXKO50_correction",
+          "receivedAt": 1558918800004,
+          "evaluatedAt": 1558918800004,
+          "inputSource": "replay",
+          "operationExpected": "normal",
+          "expectedRef": "expected:O07:60",
+          "expectationBasis": [
+            "L1: docs/specs/reconstruction-p0-contracts.md:1783 «bb8e18a6762c105d» O07",
+            "L1: reconstruction/contracts/p3-flood-unit.json:309 «1c4eb0c2fc196583» Q-ENUM revisionOrder",
+            "L1: reconstruction/contracts/p3-flood-unit.json:316 «ed0d6f7e58db05e3» I-U-R currentSemantics",
+            "L1: reconstruction/contracts/p3-flood-unit.json:232 «315a071d06f19ec9» Q-NOTICE correction",
+            "L1: reconstruction/contracts/p3-flood-unit.json:263 «eb49276ecdb022f2» Q-NOTICE level（作者裁定 NOTICE-LEVELS=E）",
+            "L1: reconstruction/contracts/p3-flood-unit.json:273 «8058f30ca1652783» Q-NOTICE restart",
+            "L2: test/fixtures/synthetic_VXKO50_correction.xml:1 «12c29731e40adc0c» 合成入力（manifest synthetic、配信原本ではない）"
+          ]
+        },
+        {
+          "sequenceId": "O07",
+          "position": 61,
+          "action": "receive",
+          "fixtureId": "test__fixtures__synthetic_VXKO50_cancel",
+          "receivedAt": 1558926000000,
+          "evaluatedAt": 1558926000000,
+          "inputSource": "replay",
+          "operationExpected": "normal",
+          "expectedRef": "expected:O07:61",
+          "expectationBasis": [
+            "L1: docs/specs/reconstruction-p0-contracts.md:1783 «bb8e18a6762c105d» O07",
+            "L1: reconstruction/contracts/p3-flood-unit.json:309 «1c4eb0c2fc196583» Q-ENUM revisionOrder",
+            "L1: reconstruction/contracts/p3-flood-unit.json:108 «d2e334e47d0fa659» P3-C11-CANCEL-SCOPE=A",
+            "L1: reconstruction/contracts/p3-flood-unit.json:243 «44fe5884736c13e5» Q-NOTICE cancellation",
+            "L2: test/fixtures/synthetic_VXKO50_cancel.xml:1 «12c29731e40adc0c» 合成入力（manifest synthetic、配信原本ではない）"
+          ]
+        },
+        {
+          "sequenceId": "O07",
+          "position": 62,
+          "action": "advanceClock",
+          "fixtureId": null,
+          "receivedAt": null,
+          "evaluatedAt": 1559055660000,
+          "inputSource": "replay",
+          "operationExpected": null,
+          "expectedRef": "expected:O07:62",
+          "expectationBasis": [
+            "L1: docs/specs/reconstruction-p0-contracts.md:1783 «bb8e18a6762c105d» O07",
+            "L1: reconstruction/contracts/p3-flood-unit.json:19 «ba7c88abb994c59b» P3-C11-ACTIVE-EXPIRY=D（作者裁定）",
+            "L1: reconstruction/contracts/p3-flood-unit.json:117 «dd63cdde6131f9ea» P3-C11-RETENTION=A",
+            "L1: reconstruction/contracts/p3-flood-unit.json:254 «5bc32546bc2e2e32» Q-NOTICE expiry"
+          ]
+        },
+        {
+          "sequenceId": "O07",
+          "position": 63,
+          "action": "receive",
+          "fixtureId": "test__fixtures__16_02_01_220728_VXKO50",
+          "receivedAt": 1559055660001,
+          "evaluatedAt": 1559055660001,
+          "inputSource": "replay",
+          "operationExpected": "normal",
+          "expectedRef": "expected:O07:63",
+          "expectationBasis": [
+            "L1: docs/specs/reconstruction-p0-contracts.md:1783 «bb8e18a6762c105d» O07",
+            "L1: reconstruction/contracts/p3-flood-unit.json:16 «48b58c03b89a0af3» P3-C11-ACTIVE-EXPIRY lateRule（作者裁定D）",
+            "L1: reconstruction/contracts/p3-flood-unit.json:117 «dd63cdde6131f9ea» P3-C11-RETENTION=A",
+            "L2: test/fixtures/16_02_01_220728_VXKO50.xml:1 «12c29731e40adc0c» 気象庁のサンプル電文のControl/Head/Bodyを読解（実系列・原本確認の主張ではない）"
           ]
         }
       ]
@@ -11312,16 +11564,21 @@
           }
         }
       ],
-      "notices": null,
-      "intents": null,
+      "notices": true,
+      "intents": true,
       "basisLevel": 1,
       "basisRefs": [
         "L1: docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6» O01",
+        "L1: reconstruction/contracts/p3-flood-unit.json:316 «ed0d6f7e58db05e3» I-U-R currentSemantics",
+        "L1: reconstruction/contracts/p3-flood-unit.json:199 «3722b9f79d37e6b4» Q-NOTICE semanticAdoption",
+        "L1: reconstruction/contracts/p3-flood-unit.json:263 «eb49276ecdb022f2» Q-NOTICE level（作者裁定 NOTICE-LEVELS=E）",
         "L2: test/fixtures/16_02_01_220728_VXKO50.xml:1 «12c29731e40adc0c» 元XMLのControl/Head/Bodyを読解（原本確認の主張ではない）"
       ],
       "input": null,
       "checks": [
         "EventID123456789012・Serial3。観測点12345678901234567を区間に結合。",
+        "通知: semanticAdoption（新しいsubjectのactive）、desktop＋sound、level=warning（河川○○川・△△川はKind/Code 30でレベル3、上がった河川の最大。観測所の現況レベルの最大2はnormalで、大きい方。P3-C11-NOTICE-LEVELS=E）、transition activated。",
+        "16_02_01・synthetic_VXKO50_code31は気象庁のサンプル電文とその合成（観測所のcodeは仮の値で、3観測所が同じcode）で、実際の系列ではない。",
         "運用区分: Control.Status=通常; head.test/envelope Status=notProvided。replay 起源から区分を補わない。"
       ]
     },
@@ -11329,8 +11586,13 @@
       "expectedId": "expected:O01:43",
       "sequenceId": "O01",
       "position": 43,
-      "decision": null,
-      "effective": null,
+      "decision": {
+        "kind": "changed",
+        "change": "semantic"
+      },
+      "effective": {
+        "kind": "active"
+      },
       "subjects": [
         {
           "subject": "normal/VXKO50/123456789012",
@@ -11341,16 +11603,21 @@
           }
         }
       ],
-      "notices": null,
-      "intents": null,
+      "notices": true,
+      "intents": true,
       "basisLevel": 1,
       "basisRefs": [
         "L1: docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6» O01",
+        "L1: reconstruction/contracts/p3-flood-unit.json:309 «1c4eb0c2fc196583» Q-ENUM revisionOrder",
+        "L1: reconstruction/contracts/p3-flood-unit.json:316 «ed0d6f7e58db05e3» I-U-R currentSemantics",
+        "L1: reconstruction/contracts/p3-flood-unit.json:232 «315a071d06f19ec9» Q-NOTICE correction",
+        "L1: reconstruction/contracts/p3-flood-unit.json:263 «eb49276ecdb022f2» Q-NOTICE level（作者裁定 NOTICE-LEVELS=E）",
         "L2: test/fixtures/synthetic_VXKO50_correction.xml:1 «12c29731e40adc0c» 元XMLのControl/Head/Bodyを読解（原本確認の主張ではない）"
       ],
       "input": null,
       "checks": [
-        "ReportDateTime09:30だがSerial2、元片はSerial3。同revision訂正と見なさず、時刻/番号優先を Q-REV で固定する。",
+        "ReportDateTime 09:30は:42の09:00より新しいので、Serial 2が:42のSerial 3より小さくても新しいrevisionとして訂正を採用する（Q-ENUM.revisionOrderはReportDateTime→Serialの順。旧Q-REVの時刻/番号の優先を洪水で固定、発注前点検 2026-10-10）。事実を全部置き換え、河川△△川と観測所△△△・□□□が外れ、timesは現況の1点になるのでsemantic（I-U-R.currentSemantics）。",
+        "通知: correction（訂正は事実が同じでも作る）、desktop＋sound、level=normal（上がった河川が無く、観測所の現況レベルの最大は2のまま。河川が減った報はnormal、P3-C11-NOTICE-LEVELS=E）、transition updated、bodyの冒頭は「訂正: 」。:42のpendingのintentは30分前で期限（sound 60秒・desktop 180秒）を過ぎている。",
         "運用区分: Control.Status=通常; head.test/envelope Status=notProvided。replay 起源から区分を補わない。"
       ]
     },
@@ -11375,50 +11642,62 @@
           }
         }
       ],
-      "notices": null,
-      "intents": null,
+      "notices": true,
+      "intents": true,
       "basisLevel": 1,
       "basisRefs": [
         "L1: docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6» O01",
+        "L1: reconstruction/contracts/p3-flood-unit.json:316 «ed0d6f7e58db05e3» I-U-R currentSemantics",
+        "L1: reconstruction/contracts/p3-flood-unit.json:199 «3722b9f79d37e6b4» Q-NOTICE semanticAdoption",
+        "L1: reconstruction/contracts/p3-flood-unit.json:263 «eb49276ecdb022f2» Q-NOTICE level（作者裁定 NOTICE-LEVELS=E）",
         "L2: test/fixtures/synthetic_VXKO50_code31.xml:1 «12c29731e40adc0c» 元XMLのControl/Head/Bodyを読解（原本確認の主張ではない）"
       ],
       "input": null,
       "checks": [
         "別EventID123456789013、code31。取消隔離の対照。",
+        "通知: semanticAdoption（新しいsubjectのactive）、desktop＋sound、level=warning（河川○○川のKind/Code 31はレベル3、観測所の現況レベル3もwarning、P3-C11-NOTICE-LEVELS=E）、transition activated。",
         "運用区分: Control.Status=通常; head.test/envelope Status=notProvided。replay 起源から区分を補わない。"
       ]
     },
     {
-      "expectedId": "unmet:O01:45",
+      "expectedId": "expected:O01:45",
       "sequenceId": "O01",
       "position": 45,
       "decision": {
         "kind": "changed",
-        "change": null
+        "change": "semantic"
       },
-      "effective": null,
+      "effective": {
+        "kind": "active"
+      },
       "subjects": [
         {
-          "subject": "normal/O01/input.requiredに記した対象（未充足）",
+          "subject": "normal/VXKO50/123456789013",
           "revision": {
-            "reportDateTimeRaw": "2019-05-27T09:00",
-            "serialRaw": null,
-            "infoTypeRaw": null
+            "reportDateTimeRaw": "2019-05-27T10:00:00+09:00",
+            "serialRaw": "1",
+            "infoTypeRaw": "訂正"
           }
         }
       ],
-      "notices": null,
-      "intents": null,
+      "notices": true,
+      "intents": true,
       "basisLevel": 1,
       "basisRefs": [
-        "L1: docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6» O01"
+        "L1: docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6» O01",
+        "L1: reconstruction/contracts/p3-flood-unit.json:309 «1c4eb0c2fc196583» Q-ENUM revisionOrder",
+        "L1: reconstruction/contracts/p3-flood-unit.json:316 «ed0d6f7e58db05e3» I-U-R currentSemantics",
+        "L1: reconstruction/contracts/p3-flood-unit.json:232 «315a071d06f19ec9» Q-NOTICE correction",
+        "L1: reconstruction/contracts/p3-flood-unit.json:263 «eb49276ecdb022f2» Q-NOTICE level（作者裁定 NOTICE-LEVELS=E）",
+        "L1: reconstruction/contracts/p3-flood-unit.json:153 «dfa411a7eb692cab» P3-C11-REPLACEMENT=A",
+        "L2: test/fixtures/synthetic_VXKO50_code31_correction.xml:1 «12c29731e40adc0c» 合成入力（manifest synthetic、配信原本ではない）"
       ],
-      "input": {
-        "required": "VXKO50 EventID123456789012、Serial3、ReportDateTime=2019-05-27T09:00、InfoType訂正。観測水位だけ変更。",
-        "acquisition": "synthetic"
-      },
+      "input": null,
       "checks": [
-        "同revision訂正の受理と通知判定。"
+        "P0のrequired（123456789012のSerial 3・09:00の訂正）は、:43が09:30の訂正を採用してwatermarkを進めた後なのでstaleになり、「同revision訂正の受理」を確かめられない。発注前点検（2026-10-10、P3-UNIT-R-001 Q-C11-PRECHECK）で同じ確かめを:44の版（123456789013、10:00・Serial 1）へ移し、synthetic_VXKO50_code31_correctionで埋めた。",
+        "同じrevision（10:00・Serial 1）の訂正はInfoTypeの優先（取消>訂正>発表）で採用する（Q-ENUM.revisionOrder）。観測所○○○の現況の水位だけが144.80→144.70でsemantic（I-U-R.currentSemantics(4)）。河川のKind/Code 31と現況レベル3は同じ。",
+        "通知: correction（事実の差によらず作る。spec:1777のO01「受理済み訂正は表示差分なしでも通知判定」）、desktop＋sound、level=normal（上がった河川も観測の最大の上昇も無い、P3-C11-NOTICE-LEVELS=E）、transition updated、bodyの冒頭は「訂正: 」。:44のpendingのintent（40秒前で、soundの60秒・desktopの180秒の期限内）は同じsubject・channelなのでsupersededにする（P3-C11-REPLACEMENT=A）。",
+        "運用区分: Control.Status=通常; head.test/envelope Status=notProvided。replay 起源から区分を補わない。"
       ]
     },
     {
@@ -11445,16 +11724,20 @@
           }
         }
       ],
-      "notices": null,
-      "intents": null,
+      "notices": true,
+      "intents": true,
       "basisLevel": 1,
       "basisRefs": [
         "L1: docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6» O01",
+        "L1: reconstruction/contracts/p3-flood-unit.json:309 «1c4eb0c2fc196583» Q-ENUM revisionOrder",
+        "L1: reconstruction/contracts/p3-flood-unit.json:108 «d2e334e47d0fa659» P3-C11-CANCEL-SCOPE=A",
+        "L1: reconstruction/contracts/p3-flood-unit.json:243 «44fe5884736c13e5» Q-NOTICE cancellation",
         "L2: test/fixtures/synthetic_VXKO50_cancel.xml:1 «12c29731e40adc0c» 元XMLのControl/Head/Bodyを読解（原本確認の主張ではない）"
       ],
       "input": null,
       "checks": [
         "EventID123456789012だけ取消。123456789013維持。",
+        "通知: cancellation（取消の前に記録がactive）、desktop＋sound、level=cancel、titleは「[取消] ○○川上流氾濫警戒情報の取消」、bodyは「この情報は取り消されました」（P3-C11-CANCEL-SCOPE=A）。:43のpendingのintentは期限を過ぎている。",
         "運用区分: Control.Status=通常; head.test/envelope Status=notProvided。replay 起源から区分を補わない。"
       ]
     },
@@ -12499,51 +12782,63 @@
           }
         }
       ],
-      "notices": null,
-      "intents": null,
+      "notices": true,
+      "intents": true,
       "basisLevel": 1,
       "basisRefs": [
         "L1: docs/specs/reconstruction-p0-contracts.md:1778 «513e4c47ef60e225» O02",
+        "L1: reconstruction/contracts/p3-flood-unit.json:316 «ed0d6f7e58db05e3» I-U-R currentSemantics",
+        "L1: reconstruction/contracts/p3-flood-unit.json:199 «3722b9f79d37e6b4» Q-NOTICE semanticAdoption",
+        "L1: reconstruction/contracts/p3-flood-unit.json:263 «eb49276ecdb022f2» Q-NOTICE level（作者裁定 NOTICE-LEVELS=E）",
         "L2: test/fixtures/16_02_01_220728_VXKO50.xml:1 «12c29731e40adc0c» 元XMLのControl/Head/Bodyを読解（原本確認の主張ではない）"
       ],
       "input": null,
       "checks": [
         "既知河川・区間・水位の保持根拠。",
+        "通知: semanticAdoption（新しいsubjectのactive）、desktop＋sound、level=warning（河川のKind/Code 30はレベル3、P3-C11-NOTICE-LEVELS=E）。",
+        "16_02_01・synthetic_VXKO50_code31は気象庁のサンプル電文とその合成（観測所のcodeは仮の値で、3観測所が同じcode）で、実際の系列ではない。",
         "運用区分: Control.Status=通常; head.test/envelope Status=notProvided。replay 起源から区分を補わない。"
       ]
     },
     {
-      "expectedId": "unmet:O02:25",
+      "expectedId": "expected:O02:25",
       "sequenceId": "O02",
       "position": 25,
       "decision": {
         "kind": "changed",
         "change": "semantic"
       },
-      "effective": null,
+      "effective": {
+        "kind": "active"
+      },
       "subjects": [
         {
-          "subject": "normal/O02/input.requiredに記した対象（未充足）",
+          "subject": "normal/VXKO50/123456789012",
           "revision": {
-            "reportDateTimeRaw": "2019-05-27T09:01",
-            "serialRaw": null,
-            "infoTypeRaw": null
+            "reportDateTimeRaw": "2019-05-27T09:01:00+09:00",
+            "serialRaw": "4",
+            "infoTypeRaw": "発表"
           }
         }
       ],
-      "notices": null,
-      "intents": null,
+      "notices": false,
+      "intents": false,
       "basisLevel": 1,
       "basisRefs": [
         "L1: docs/specs/reconstruction-p0-contracts.md:402 «daf0a793689748d4»",
-        "L1: docs/specs/reconstruction-p0-contracts.md:1778 «513e4c47ef60e225»"
+        "L1: docs/specs/reconstruction-p0-contracts.md:1778 «513e4c47ef60e225»",
+        "L1: reconstruction/contracts/p3-flood-unit.json:99 «ea21c68014dfa86f» P3-C11-UNKNOWN=A",
+        "L1: reconstruction/contracts/p3-flood-unit.json:316 «ed0d6f7e58db05e3» I-U-R currentSemantics",
+        "L1: reconstruction/contracts/p3-flood-unit.json:199 «3722b9f79d37e6b4» Q-NOTICE semanticAdoption",
+        "L2: test/fixtures/synthetic_VXKO50_all_unknown.xml:1 «12c29731e40adc0c» 合成入力（manifest synthetic、配信原本ではない）"
       ],
-      "input": {
-        "required": "VXKO50 EventID123456789012 serial4、ReportDateTime=2019-05-27T09:01、同station12345678901234567、全水位unknown、解除/取消なし。",
-        "acquisition": "REST見込み"
-      },
+      "input": null,
       "checks": [
-        "全unknownを解除としない。既知危険の根拠と新しいunknownを区別。Q-VALUES。"
+        ":24の続報で、「（河川）」Informationが無く（kinds空）、3観測所の水位・レベルが全時刻で欠測。河川の段階を読めない報なので、activeの記録の事実（title・areaName・kinds・times・stations）を保ち、basisReportDateTimeRawに事実を出した報のReportDateTime（2019-05-27T09:00:00+09:00）を入れ、sourceを09:01・Serial 4へ進める（P3-C11-UNKNOWN=A）。",
+        "全unknownを解除としない（effective active）。既知危険の根拠（:24の河川○○川・△△川のレベル3）と新しいunknown（basisReportDateTimeRaw）を区別する。basisReportDateTimeRawが変わるのでsemantic（I-U-R.currentSemantics(4)）。",
+        "通知: 作らない（basisだけの変化はsemanticAdoptionの機会にならず、kinds空・basisを保った報では観測の最大を比べない。P3-C11-NOTICE-LEVELS=E）。",
+        "Q-VALUES「洪水all-unknownの保持scope」はP3-C11-UNKNOWN=Aで固定（発注前点検 2026-10-10、P3-UNIT-R-001 Q-C11-PRECHECK）。kindsのある報で全観測所の値がnullの形（activeのまま事実を置き換える）はP3-C11-T02が試験内で確かめる。16_02_01は気象庁のサンプル電文で、この報はそこからのsynthetic。",
+        "運用区分: Control.Status=通常; head.test/envelope Status=notProvided。replay 起源から区分を補わない。"
       ]
     },
     {
@@ -22158,6 +22453,109 @@
       ]
     },
     {
+      "expectedId": "expected:O01:86",
+      "sequenceId": "O01",
+      "position": 86,
+      "decision": null,
+      "effective": null,
+      "subjects": [],
+      "notices": false,
+      "intents": false,
+      "basisLevel": 1,
+      "basisRefs": [
+        "L1: docs/specs/reconstruction-p0-contracts.md:1758 «37f025f94e7bbdfd» 固定初期状態・時計",
+        "L1: docs/specs/reconstruction-p0-contracts.md:736 «e88a83452d784a7c»"
+      ],
+      "input": {
+        "required": "新しい隔離 harness を空の全 UnitState・checkpoint なしで起動: 洪水（U-R）の実配信の続報の組（2026-06-03 和歌山県古座川、EventID 300013000100 の Serial 3・4）",
+        "acquisition": "synthetic"
+      },
+      "checks": [
+        "この step は試験ケースの初期化。前ケースの保存物・通知・gate を共有しない。起動の未充足を無発令と表示しない。"
+      ]
+    },
+    {
+      "expectedId": "expected:O01:87",
+      "sequenceId": "O01",
+      "position": 87,
+      "decision": {
+        "kind": "changed",
+        "change": "semantic"
+      },
+      "effective": {
+        "kind": "active"
+      },
+      "subjects": [
+        {
+          "subject": "normal/VXKO70/300013000100",
+          "revision": {
+            "reportDateTimeRaw": "2026-06-03T05:35:00+09:00",
+            "serialRaw": "3",
+            "infoTypeRaw": "発表"
+          }
+        }
+      ],
+      "notices": true,
+      "intents": true,
+      "basisLevel": 1,
+      "basisRefs": [
+        "L1: docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6» O01",
+        "L1: reconstruction/contracts/p3-flood-unit.json:316 «ed0d6f7e58db05e3» I-U-R currentSemantics",
+        "L1: reconstruction/contracts/p3-flood-unit.json:50 «927dcf0821fb895f» P3-C11-SUBJECTS=A",
+        "L1: reconstruction/contracts/p3-flood-unit.json:68 «bea92bfd2f4f1d0d» P3-C11-STATIONS=A",
+        "L1: reconstruction/contracts/p3-flood-unit.json:199 «3722b9f79d37e6b4» Q-NOTICE semanticAdoption",
+        "L1: reconstruction/contracts/p3-flood-unit.json:263 «eb49276ecdb022f2» Q-NOTICE level（作者裁定 NOTICE-LEVELS=E）",
+        "L2: test/fixtures/16_00_01_260603_VXKO70_kozagawa_l5.xml:1 «12c29731e40adc0c» 原本確認済み（dmdata Archive の member と受領 hash 一致、manifest 参照）"
+      ],
+      "input": null,
+      "checks": [
+        "和歌山地方気象台の古座川（予報区域 和歌山県古座川水系古座川、EventID 300013000100）の記録の無い状態への実配信の発表（2026-06-03 05:35、Serial 3）。（河川）のgroupはKind/Code 51（レベル５氾濫特別警報、レベル5）・河川 古座川（3000130001）の1つでactive。観測所は月野瀬・相瀬の2つ（HydrometricStationPartとseriesのItemを（code, name）で結ぶ）で、現況（i=0）の観測レベルは月野瀬4・相瀬3、riverCodesはどちらもChargeSectionの1行目「古座川」の3000130001（P3-C11-STATIONS=A）。subjectはnormal/VXKO70/300013000100（P3-C11-SUBJECTS=A）。",
+        "通知: semanticAdoption（新しいsubjectのactive）、desktop＋sound、level=critical（新しい河川の段階がレベル5。観測の最大4はwarningで、大きい方。P3-C11-NOTICE-LEVELS=E）、transition activated。",
+        "実配信の報（dmdataのArchiveのmemberと全bytes一致、manifest参照）。受理の時点は配信のreceivedTime（ReportDateTime+18.154秒）で+36時間の内側（P3-C11-RETENTION=A）。",
+        "運用区分: Control.Status=通常; head.test/envelope Status=notProvided。replay 起源から区分を補わない。"
+      ]
+    },
+    {
+      "expectedId": "expected:O01:88",
+      "sequenceId": "O01",
+      "position": 88,
+      "decision": {
+        "kind": "changed",
+        "change": "semantic"
+      },
+      "effective": {
+        "kind": "active"
+      },
+      "subjects": [
+        {
+          "subject": "normal/VXKO70/300013000100",
+          "revision": {
+            "reportDateTimeRaw": "2026-06-03T06:10:00+09:00",
+            "serialRaw": "4",
+            "infoTypeRaw": "発表"
+          }
+        }
+      ],
+      "notices": true,
+      "intents": true,
+      "basisLevel": 1,
+      "basisRefs": [
+        "L1: docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6» O01",
+        "L1: reconstruction/contracts/p3-flood-unit.json:309 «1c4eb0c2fc196583» Q-ENUM revisionOrder",
+        "L1: reconstruction/contracts/p3-flood-unit.json:316 «ed0d6f7e58db05e3» I-U-R currentSemantics",
+        "L1: reconstruction/contracts/p3-flood-unit.json:199 «3722b9f79d37e6b4» Q-NOTICE semanticAdoption",
+        "L1: reconstruction/contracts/p3-flood-unit.json:263 «eb49276ecdb022f2» Q-NOTICE level（作者裁定 NOTICE-LEVELS=E）",
+        "L2: test/fixtures/16_00_02_260603_VXKO70_kozagawa_overflow.xml:1 «12c29731e40adc0c» 原本確認済み（dmdata Archive の member と受領 hash 一致、manifest 参照）"
+      ],
+      "input": null,
+      "checks": [
+        "同じEventIDの実配信の続報（06:10、Serial 4）。ReportDateTimeが新しいので採用し、事実を全部置き換える（Q-ENUM.revisionOrder、I-U-R.currentSemantics）。河川はKind/Code 51のままで上がった河川は無い。月野瀬の現況の観測レベルが4→5（相瀬は3のまま）、timesは7点→4点でsemantic。Head/Headlineは「〔継続〕《氾濫発生》…越水による氾濫が発生」で、Kind/Codeは53でなく51。",
+        "通知: semanticAdoption（観測所の現況レベルの最大が4→5へ上がり2以上）、desktop＋sound、level=critical（観測の最大5、P3-C11-NOTICE-LEVELS=E）、transition updated。河川の段階だけで決める案（P3-C11-NOTICE-LEVELS=B）なら作らない報で、作者裁定Eの受入を実配信で確かめる。:87のpendingのintentは35分前で期限（sound 60秒・desktop 180秒）を過ぎている。",
+        "実配信の報（dmdataのArchiveのmemberと全bytes一致、manifest参照）。実配信の138本で河川の段階が変わらず観測の最大が上がった報は5本で、レベル5の継続中に観測がレベル5に達した報はこの1本（発注前点検 2026-10-10、P3-UNIT-R-001 Q-C11-PRECHECK）。",
+        "運用区分: Control.Status=通常; head.test/envelope Status=notProvided。replay 起源から区分を補わない。"
+      ]
+    },
+    {
       "expectedId": "expected:O03:25",
       "sequenceId": "O03",
       "position": 25,
@@ -22493,6 +22891,338 @@
       "input": null,
       "checks": [
         "再起動後に元の発表が遅着。復元した取消の記憶より下位のInfoTypeなのでstaleで、activeは復活しない（Q-ENUM.revisionOrder、P3-C10-CANCEL-SCOPE=A）。通知0。",
+        "運用区分: Control.Status=通常; head.test/envelope Status=notProvided。replay 起源から区分を補わない。"
+      ]
+    },
+    {
+      "expectedId": "expected:O07:54",
+      "sequenceId": "O07",
+      "position": 54,
+      "decision": null,
+      "effective": null,
+      "subjects": [],
+      "notices": false,
+      "intents": false,
+      "basisLevel": 1,
+      "basisRefs": [
+        "L1: docs/specs/reconstruction-p0-contracts.md:1758 «37f025f94e7bbdfd» 固定初期状態・時計",
+        "L1: docs/specs/reconstruction-p0-contracts.md:736 «e88a83452d784a7c»"
+      ],
+      "input": {
+        "required": "新しい隔離 harness を空の全 UnitState・checkpoint なしで起動: 洪水（U-R）の保存→再起動→直後の読めない報・訂正・取消→期限→遅着（16_02_01は気象庁のサンプル電文、code31・読めない報・訂正・取消はsynthetic）",
+        "acquisition": "synthetic"
+      },
+      "checks": [
+        "この step は試験ケースの初期化。前ケースの保存物・通知・gate を共有しない。起動の未充足を無発令と表示しない。"
+      ]
+    },
+    {
+      "expectedId": "expected:O07:55",
+      "sequenceId": "O07",
+      "position": 55,
+      "decision": {
+        "kind": "changed",
+        "change": "semantic"
+      },
+      "effective": {
+        "kind": "active"
+      },
+      "subjects": [
+        {
+          "subject": "normal/VXKO50/123456789012",
+          "revision": {
+            "reportDateTimeRaw": "2019-05-27T09:00:00+09:00",
+            "serialRaw": "3",
+            "infoTypeRaw": "発表"
+          }
+        }
+      ],
+      "notices": true,
+      "intents": true,
+      "basisLevel": 1,
+      "basisRefs": [
+        "L1: docs/specs/reconstruction-p0-contracts.md:1783 «bb8e18a6762c105d» O07",
+        "L1: reconstruction/contracts/p3-flood-unit.json:316 «ed0d6f7e58db05e3» I-U-R currentSemantics",
+        "L1: reconstruction/contracts/p3-flood-unit.json:199 «3722b9f79d37e6b4» Q-NOTICE semanticAdoption",
+        "L1: reconstruction/contracts/p3-flood-unit.json:263 «eb49276ecdb022f2» Q-NOTICE level（作者裁定 NOTICE-LEVELS=E）",
+        "L2: test/fixtures/16_02_01_220728_VXKO50.xml:1 «12c29731e40adc0c» 気象庁のサンプル電文のControl/Head/Bodyを読解（実系列・原本確認の主張ではない）"
+      ],
+      "input": null,
+      "checks": [
+        "123456789012の記録の無い状態への発表。河川○○川・△△川（Kind/Code 30、レベル3）と3観測所でactive。retainUntil=ReportDateTime+36時間（P3-C11-ACTIVE-EXPIRY=D）。",
+        "通知: semanticAdoption、desktop＋sound、level=warning、transition activated（P3-C11-NOTICE-LEVELS=E）。",
+        "16_02_01・synthetic_VXKO50_code31は気象庁のサンプル電文とその合成（観測所のcodeは仮の値で、3観測所が同じcode）で、実際の系列ではない。",
+        "運用区分: Control.Status=通常; head.test/envelope Status=notProvided。replay 起源から区分を補わない。"
+      ]
+    },
+    {
+      "expectedId": "expected:O07:56",
+      "sequenceId": "O07",
+      "position": 56,
+      "decision": {
+        "kind": "changed",
+        "change": "semantic"
+      },
+      "effective": {
+        "kind": "active"
+      },
+      "subjects": [
+        {
+          "subject": "normal/VXKO50/123456789013",
+          "revision": {
+            "reportDateTimeRaw": "2019-05-27T10:00:00+09:00",
+            "serialRaw": "1",
+            "infoTypeRaw": "発表"
+          }
+        }
+      ],
+      "notices": true,
+      "intents": true,
+      "basisLevel": 1,
+      "basisRefs": [
+        "L1: docs/specs/reconstruction-p0-contracts.md:1783 «bb8e18a6762c105d» O07",
+        "L1: reconstruction/contracts/p3-flood-unit.json:316 «ed0d6f7e58db05e3» I-U-R currentSemantics",
+        "L1: reconstruction/contracts/p3-flood-unit.json:199 «3722b9f79d37e6b4» Q-NOTICE semanticAdoption",
+        "L1: reconstruction/contracts/p3-flood-unit.json:263 «eb49276ecdb022f2» Q-NOTICE level（作者裁定 NOTICE-LEVELS=E）",
+        "L2: test/fixtures/synthetic_VXKO50_code31.xml:1 «12c29731e40adc0c» 合成入力（manifest synthetic、配信原本ではない）"
+      ],
+      "input": null,
+      "checks": [
+        "別EventID 123456789013の記録の無い状態への発表（Kind/Code 31、レベル3、観測所○○○の現況レベル3）でactive。retainUntil=2019-05-28T22:00+09:00（ReportDateTime+36時間）。",
+        "通知: semanticAdoption、desktop＋sound、level=warning、transition activated（P3-C11-NOTICE-LEVELS=E）。",
+        "運用区分: Control.Status=通常; head.test/envelope Status=notProvided。replay 起源から区分を補わない。"
+      ]
+    },
+    {
+      "expectedId": "expected:O07:57",
+      "sequenceId": "O07",
+      "position": 57,
+      "decision": null,
+      "effective": null,
+      "subjects": [],
+      "notices": null,
+      "intents": null,
+      "basisLevel": 1,
+      "basisRefs": [
+        "L1: docs/specs/reconstruction-p0-contracts.md:485 «ba2a41e3a4d013e4» U-Rの保存するもの",
+        "L1: reconstruction/contracts/p3-flood-unit.json:319 «f7db5886932381d0» I-U-R persisted"
+      ],
+      "input": {
+        "required": "U-Rの当該世代のcheckpoint ackまで待つ。通知の配送は保留し、期限は固定時計で止める。",
+        "acquisition": "synthetic"
+      },
+      "checks": [
+        "123456789012・123456789013のactiveの記録（retainUntil=各ReportDateTime+36時間）とintent（pendingと終端記録）が同じ世代に入る（I-U-R.persisted）。"
+      ]
+    },
+    {
+      "expectedId": "expected:O07:58",
+      "sequenceId": "O07",
+      "position": 58,
+      "decision": null,
+      "effective": null,
+      "subjects": [],
+      "notices": null,
+      "intents": null,
+      "basisLevel": 1,
+      "basisRefs": [
+        "L1: docs/specs/reconstruction-p0-contracts.md:1783 «bb8e18a6762c105d» O07",
+        "L1: reconstruction/contracts/p3-flood-unit.json:273 «8058f30ca1652783» Q-NOTICE restart",
+        "L1: reconstruction/contracts/p3-flood-unit.json:117 «dd63cdde6131f9ea» P3-C11-RETENTION=A"
+      ],
+      "input": {
+        "required": "直前にsaveしたU-Rだけから復元、時計+1ms。",
+        "acquisition": "synthetic"
+      },
+      "checks": [
+        "復元でintentを新しく作らない。pendingは元のcreatedAt/expiresAtで戻る（spec:997）。subjectを名前・受信時刻から推測しない。retainUntilを延ばさない（P3-C11-RETENTION=A）。"
+      ]
+    },
+    {
+      "expectedId": "expected:O07:59",
+      "sequenceId": "O07",
+      "position": 59,
+      "decision": {
+        "kind": "changed",
+        "change": "semantic"
+      },
+      "effective": {
+        "kind": "active"
+      },
+      "subjects": [
+        {
+          "subject": "normal/VXKO50/123456789012",
+          "revision": {
+            "reportDateTimeRaw": "2019-05-27T09:01:00+09:00",
+            "serialRaw": "4",
+            "infoTypeRaw": "発表"
+          }
+        }
+      ],
+      "notices": false,
+      "intents": false,
+      "basisLevel": 1,
+      "basisRefs": [
+        "L1: docs/specs/reconstruction-p0-contracts.md:1783 «bb8e18a6762c105d» O07",
+        "L1: reconstruction/contracts/p3-flood-unit.json:99 «ea21c68014dfa86f» P3-C11-UNKNOWN=A",
+        "L1: reconstruction/contracts/p3-flood-unit.json:316 «ed0d6f7e58db05e3» I-U-R currentSemantics",
+        "L1: reconstruction/contracts/p3-flood-unit.json:273 «8058f30ca1652783» Q-NOTICE restart",
+        "L2: test/fixtures/synthetic_VXKO50_all_unknown.xml:1 «12c29731e40adc0c» 合成入力（manifest synthetic、配信原本ではない）"
+      ],
+      "input": null,
+      "checks": [
+        "復元直後の読めない報（kinds空、全水位欠測、09:01・Serial 4）。復元した記録の事実を保ち、basisReportDateTimeRaw=2019-05-27T09:00:00+09:00、sourceを進める（P3-C11-UNKNOWN=A）。effective activeのまま（全unknownを解除としない）。basisReportDateTimeRawの変化でsemantic。",
+        "通知: 作らない（basisだけの変化。復元した記録との差で決める、Q-NOTICE.restart）。",
+        "運用区分: Control.Status=通常; head.test/envelope Status=notProvided。replay 起源から区分を補わない。"
+      ]
+    },
+    {
+      "expectedId": "expected:O07:60",
+      "sequenceId": "O07",
+      "position": 60,
+      "decision": {
+        "kind": "changed",
+        "change": "semantic"
+      },
+      "effective": {
+        "kind": "active"
+      },
+      "subjects": [
+        {
+          "subject": "normal/VXKO50/123456789012",
+          "revision": {
+            "reportDateTimeRaw": "2019-05-27T09:30:00+09:00",
+            "serialRaw": "2",
+            "infoTypeRaw": "訂正"
+          }
+        }
+      ],
+      "notices": true,
+      "intents": true,
+      "basisLevel": 1,
+      "basisRefs": [
+        "L1: docs/specs/reconstruction-p0-contracts.md:1783 «bb8e18a6762c105d» O07",
+        "L1: reconstruction/contracts/p3-flood-unit.json:309 «1c4eb0c2fc196583» Q-ENUM revisionOrder",
+        "L1: reconstruction/contracts/p3-flood-unit.json:316 «ed0d6f7e58db05e3» I-U-R currentSemantics",
+        "L1: reconstruction/contracts/p3-flood-unit.json:232 «315a071d06f19ec9» Q-NOTICE correction",
+        "L1: reconstruction/contracts/p3-flood-unit.json:263 «eb49276ecdb022f2» Q-NOTICE level（作者裁定 NOTICE-LEVELS=E）",
+        "L1: reconstruction/contracts/p3-flood-unit.json:273 «8058f30ca1652783» Q-NOTICE restart",
+        "L2: test/fixtures/synthetic_VXKO50_correction.xml:1 «12c29731e40adc0c» 合成入力（manifest synthetic、配信原本ではない）"
+      ],
+      "input": null,
+      "checks": [
+        "09:30・Serial 2の訂正は:59の09:01より新しいので採用する（Q-ENUM.revisionOrder）。kindsのある報なので事実を全部置き換え、basisReportDateTimeRawはnull、河川△△川と観測所△△△・□□□が外れる（semantic）。",
+        "通知: correction、desktop＋sound、level=normal（復元して保った記録と比べて上がった河川も観測の最大の上昇も無く、河川が減った。P3-C11-NOTICE-LEVELS=E）、transition updated、bodyの冒頭は「訂正: 」。",
+        "運用区分: Control.Status=通常; head.test/envelope Status=notProvided。replay 起源から区分を補わない。"
+      ]
+    },
+    {
+      "expectedId": "expected:O07:61",
+      "sequenceId": "O07",
+      "position": 61,
+      "decision": {
+        "kind": "changed",
+        "change": "semantic"
+      },
+      "effective": {
+        "kind": "inactive",
+        "cause": {
+          "kind": "cancelled"
+        }
+      },
+      "subjects": [
+        {
+          "subject": "normal/VXKO50/123456789012",
+          "revision": {
+            "reportDateTimeRaw": "2019-05-27T12:00:00+09:00",
+            "serialRaw": "4",
+            "infoTypeRaw": "取消"
+          }
+        }
+      ],
+      "notices": true,
+      "intents": true,
+      "basisLevel": 1,
+      "basisRefs": [
+        "L1: docs/specs/reconstruction-p0-contracts.md:1783 «bb8e18a6762c105d» O07",
+        "L1: reconstruction/contracts/p3-flood-unit.json:309 «1c4eb0c2fc196583» Q-ENUM revisionOrder",
+        "L1: reconstruction/contracts/p3-flood-unit.json:108 «d2e334e47d0fa659» P3-C11-CANCEL-SCOPE=A",
+        "L1: reconstruction/contracts/p3-flood-unit.json:243 «44fe5884736c13e5» Q-NOTICE cancellation",
+        "L2: test/fixtures/synthetic_VXKO50_cancel.xml:1 «12c29731e40adc0c» 合成入力（manifest synthetic、配信原本ではない）"
+      ],
+      "input": null,
+      "checks": [
+        "123456789012だけをcancelledにして事実を捨てる。復元した123456789013のactiveは変えない（P3-C11-CANCEL-SCOPE=A）。cancelledの記録のretainUntil=2019-05-29T00:00+09:00（ReportDateTime 12:00+36時間）。Body・Headlineの無い取消は合法（Q-ENUM.familyTable）。",
+        "通知: cancellation（取消の前に記録がactive）、desktop＋sound、level=cancel、titleは「[取消] ○○川上流氾濫警戒情報の取消」、bodyは「この情報は取り消されました」。",
+        "運用区分: Control.Status=通常; head.test/envelope Status=notProvided。replay 起源から区分を補わない。"
+      ]
+    },
+    {
+      "expectedId": "expected:O07:62",
+      "sequenceId": "O07",
+      "position": 62,
+      "decision": null,
+      "effective": {
+        "kind": "inactive",
+        "cause": {
+          "kind": "expired"
+        }
+      },
+      "subjects": [],
+      "notices": true,
+      "intents": true,
+      "basisLevel": 1,
+      "basisRefs": [
+        "L1: docs/specs/reconstruction-p0-contracts.md:1783 «bb8e18a6762c105d» O07",
+        "L1: reconstruction/contracts/p3-flood-unit.json:19 «ba7c88abb994c59b» P3-C11-ACTIVE-EXPIRY=D（作者裁定）",
+        "L1: reconstruction/contracts/p3-flood-unit.json:117 «dd63cdde6131f9ea» P3-C11-RETENTION=A",
+        "L1: reconstruction/contracts/p3-flood-unit.json:254 «5bc32546bc2e2e32» Q-NOTICE expiry"
+      ],
+      "input": {
+        "required": "入力なしで時計を2019-05-29T00:01:00.000+09:00へ進め、期限処理を走らせる。",
+        "acquisition": "synthetic"
+      },
+      "checks": [
+        "123456789013のactiveの記録（retainUntil=2019-05-28T22:00+09:00、元報の10:00から36時間。:58の復元で延びない）を回収し、同じreduceでdesktopだけの期限切れを1件作る（transition expired、level info、titleは「[期限切れ] ○○川上流レベル３氾濫警報（継続）」、bodyは「○○川上流の洪水予報は36時間続報がなく、現況を確認できません」、soundは作らない。P3-C11-ACTIVE-EXPIRY=D）。",
+        "123456789012の取消の記憶（retainUntil=2019-05-29T00:00+09:00）は黙って除く（ended・cancelledの回収では通知しない、Q-NOTICE expiry）。到来分だけを回収し、viewとsnapshotに洪水の記録は載らない。"
+      ]
+    },
+    {
+      "expectedId": "expected:O07:63",
+      "sequenceId": "O07",
+      "position": 63,
+      "decision": {
+        "kind": "unchanged",
+        "reason": "stale"
+      },
+      "effective": {
+        "kind": "inactive",
+        "cause": {
+          "kind": "expired"
+        }
+      },
+      "subjects": [
+        {
+          "subject": "normal/VXKO50/123456789012",
+          "revision": {
+            "reportDateTimeRaw": "2019-05-27T09:00:00+09:00",
+            "serialRaw": "3",
+            "infoTypeRaw": "発表"
+          }
+        }
+      ],
+      "notices": false,
+      "intents": false,
+      "basisLevel": 1,
+      "basisRefs": [
+        "L1: docs/specs/reconstruction-p0-contracts.md:1783 «bb8e18a6762c105d» O07",
+        "L1: reconstruction/contracts/p3-flood-unit.json:16 «48b58c03b89a0af3» P3-C11-ACTIVE-EXPIRY lateRule（作者裁定D）",
+        "L1: reconstruction/contracts/p3-flood-unit.json:117 «dd63cdde6131f9ea» P3-C11-RETENTION=A",
+        "L2: test/fixtures/16_02_01_220728_VXKO50.xml:1 «12c29731e40adc0c» 気象庁のサンプル電文のControl/Head/Bodyを読解（実系列・原本確認の主張ではない）"
+      ],
+      "input": null,
+      "checks": [
+        "取消の記憶が36時間で消えた後に、元の発表（ReportDateTime 2019-05-27T09:00+09:00）が受理の時点で+39時間1分に遅着。受理の時点でReportDateTime+36時間を過ぎた報は記録の有無によらずstateを変えない（unchanged/stale、P3-C11-ACTIVE-EXPIRY.lateRule）。記録を作らず、view・通知・退去なし、保存世代を進めない。この規則が無ければ記録の無いsubjectへの発表としてactiveに戻る（O08「失効・取消を復活させない」と同じ確かめ）。",
         "運用区分: Control.Status=通常; head.test/envelope Status=notProvided。replay 起源から区分を補わない。"
       ]
     }
