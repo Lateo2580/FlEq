@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "0ed0c626b17303cfa3e4b66821d7c5fa7d96fc03",
-    "sha256": "811ea72deb5be2c94ff8968ec4f6f155f039dff015d9f644e1bb2e4883053033",
+    "sha256": "5a8284f121dd9da827f1f73592ac2d927c496fe80b7f0ebb7f57dea11a9bda8f",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "bfff9e7f6cc7010fff2a6c385ec7018fe5b70c48c943b02c1be52681fcd8d6e1",
     "sequencesSha256": "32151d72aa415850580341af2bc7cc2200ee657bb2dcbcb6c5f09e23a029760b",
@@ -68,7 +68,7 @@
         "status": "closed",
         "source": "統合担当の発注前点検（2026-10-09夜、起草e84e387bのHEAD）",
         "closed": "(1) Q-IUR-CODE-READの事実とanchor: 起草(0ed0c626)の後のcommitはevidenceのmanifest.jsonと本契約の追加だけで、check-contractが本契約のanchorを通すことで確かめた。baseOidの割当は次のcommitで統合担当が行う（baseOidはunassignedのまま） (2) 計画§9の台帳73の行を本契約のID P3-INTENT-UPDATE-RESERVE-001へ改め、状態を「起草e84e387b、発注前点検」にした (3) AC05の読み替え（既存試験の期待値の変更3本）とU-Eの世代の条件（P3-IUR-GENERATION）を同じ行に記録した。台帳73は作業ノート（repo外）側で記録する (4) 計画:79のC7〜C14の共通条文に「受理とdecodeと世代の計量は配送の更新の予約をdelivery-growth.tsの式で数える」を既存の行の中に足した（行番号は動かない）。この行を引くp3-nankai-unit・p3-tsunami-unit・p3-seismic-unitのanchorを付け直した",
-        "remaining": "baseOidの割当（次のcommit、統合担当）",
+        "remaining": "なし（baseOidは206a3acbに割当済み）",
         "reason": "発注前点検で閉じる論点を閉じる"
       }
     ],
@@ -81,7 +81,7 @@
     "contractId": "P3-INTENT-UPDATE-RESERVE-001",
     "mode": "implementation",
     "objective": "台帳73を直す: 配送の更新（intentUpdate）でpendingのintentが伸びうるbyteを、intentごとに予約し、受理とdecodeで同じ式で数える（C8のU-Nの直し、Q-C8-IMPL-AMEND(7)(8)の形を使い回す）。対象はU-T・U-Q（保存した世代を復元で拒否するP1）、U-E（encodeの拒否で保存が失敗するP2）、U-W・U-F（今は生成しないが、pendingを含む保存物の復元の後にencodeが拒否するP2。P3-IUR-WEATHER=A）。予約はpendingの131,072 byteの検査（5 unit）と、intentを含む世代の計量（U-T・U-Q・U-W・U-F、P3-IUR-GENERATION=A）に入れる。式は1か所（P3-IUR-HELPER=A）。decodeの値域は狭めない（作者裁定 2026-10-09）。U-Fのdecodeはintentsを確かめて項目ごとに組み立てる。U-Nの挙動、U-Eの世代の計量、保存の形式、終端記録の回収の規則は変えない。",
-    "baseOid": "unassigned",
+    "baseOid": "206a3acb3440e78035a7220b69cff28197398467",
     "cleanTreeRequired": true,
     "readPaths": [
       "AGENTS.md",
