@@ -1,9 +1,9 @@
 {
   "meta": {
     "baseOid": "3669dfd6a98e6c116c86f7db1cd27aa63002a90d",
-    "sha256": "a6502ec4fd5a1959735ce044f3388788d6893b3a41f6a3f4ab0d72ca61e9ea1f",
+    "sha256": "32151d72aa415850580341af2bc7cc2200ee657bb2dcbcb6c5f09e23a029760b",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
-    "manifestSha256": "e4294056f8be82e935cfe620919806a73cffd91ebd14334e74d82b1edf00df3e",
+    "manifestSha256": "bfff9e7f6cc7010fff2a6c385ec7018fe5b70c48c943b02c1be52681fcd8d6e1",
     "clock": "synthetic epoch milliseconds; receivedAt/evaluatedAt は合成固定時計。原XML日時は不変。系列内ケース間のrestartで時計と空stateを再設定。受信時刻の実測ではない。",
     "decisions": [
       "形式A（推奨・採用）={meta,sequences,expectations,unresolvedQuestions}。B=meta/期待値を別file。Aならstepと根拠の配送欠落を一ファイルのhashで検出できる。baseOidは本契約HEAD、manifestの来歴baseOidとは別。",
@@ -1211,6 +1211,231 @@
             "L1: reconstruction/contracts/p3-tsunami-unit.json:254 «bb39e7f5ac7c2c81» Q-ENUM revisionOrder",
             "L2: test/fixtures/32-39_11_02_250206_VTSE41.xml:1 «12c29731e40adc0c» 元XMLのControl/Head/Bodyを読解（原本確認の主張ではない）"
           ]
+        },
+        {
+          "sequenceId": "O01",
+          "position": 68,
+          "action": "restart",
+          "fixtureId": null,
+          "receivedAt": null,
+          "evaluatedAt": 1589268000000,
+          "inputSource": "replay",
+          "operationExpected": null,
+          "expectedRef": "expected:O01:68",
+          "expectationBasis": [
+            "L1: docs/specs/reconstruction-p0-contracts.md:1758 «37f025f94e7bbdfd» 固定初期状態・時計",
+            "L1: docs/specs/reconstruction-p0-contracts.md:736 «e88a83452d784a7c»"
+          ]
+        },
+        {
+          "sequenceId": "O01",
+          "position": 69,
+          "action": "receive",
+          "fixtureId": "test__fixtures__selected_xml__74_01_01_200512_VYSE50",
+          "receivedAt": 1589268000001,
+          "evaluatedAt": 1589268000001,
+          "inputSource": "replay",
+          "operationExpected": "normal",
+          "expectedRef": "expected:O01:69",
+          "expectationBasis": [
+            "L1: docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6» O01",
+            "L1: reconstruction/contracts/p3-nankai-unit.json:12 «6fe017fe9313d1eb» P3-C8-INVESTIGATING=A（作者裁定）",
+            "L1: reconstruction/contracts/p3-nankai-unit.json:48 «a86b4a1f006aa940» P3-C8-SUBJECTS=A",
+            "L1: reconstruction/contracts/p3-nankai-unit.json:57 «20209b3347687477» P3-C8-CODE-TABLE=A",
+            "L1: reconstruction/contracts/p3-nankai-unit.json:154 «c48582b5667e1eb9» Q-NOTICE semanticAdoption",
+            "L1: reconstruction/contracts/p3-nankai-unit.json:192 «56d2a35abda72da4» Q-NOTICE level（作者裁定 NOTICE-LEVELS=B）",
+            "L2: test/fixtures/selected_xml/74_01_01_200512_VYSE50.xml:1 «12c29731e40adc0c» 気象庁のサンプル電文のControl/Head/Bodyを読解（実系列・原本確認の主張ではない）"
+          ]
+        },
+        {
+          "sequenceId": "O01",
+          "position": 70,
+          "action": "receive",
+          "fixtureId": "test__fixtures__selected_xml__74_01_04_200512_VYSE50",
+          "receivedAt": 1589268480000,
+          "evaluatedAt": 1589268480000,
+          "inputSource": "replay",
+          "operationExpected": "normal",
+          "expectedRef": "expected:O01:70",
+          "expectationBasis": [
+            "L1: docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6» O01",
+            "L1: reconstruction/contracts/p3-nankai-unit.json:251 «c0ad3eae73b20c8b» I-U-N.currentSemantics",
+            "L1: reconstruction/contracts/p3-nankai-unit.json:48 «a86b4a1f006aa940» P3-C8-SUBJECTS=A",
+            "L1: reconstruction/contracts/p3-nankai-unit.json:57 «20209b3347687477» P3-C8-CODE-TABLE=A",
+            "L1: reconstruction/contracts/p3-nankai-unit.json:154 «c48582b5667e1eb9» Q-NOTICE semanticAdoption",
+            "L1: reconstruction/contracts/p3-nankai-unit.json:192 «56d2a35abda72da4» Q-NOTICE level（作者裁定 NOTICE-LEVELS=B）",
+            "L2: test/fixtures/selected_xml/74_01_04_200512_VYSE50.xml:1 «12c29731e40adc0c» 気象庁のサンプル電文のControl/Head/Bodyを読解（実系列・原本確認の主張ではない）"
+          ]
+        },
+        {
+          "sequenceId": "O01",
+          "position": 71,
+          "action": "receive",
+          "fixtureId": "test__fixtures__selected_xml__74_01_05_200512_VYSE50",
+          "receivedAt": 1589268720000,
+          "evaluatedAt": 1589268720000,
+          "inputSource": "replay",
+          "operationExpected": "normal",
+          "expectedRef": "expected:O01:71",
+          "expectationBasis": [
+            "L1: docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6» O01",
+            "L1: reconstruction/contracts/p3-nankai-unit.json:251 «c0ad3eae73b20c8b» I-U-N.currentSemantics",
+            "L1: reconstruction/contracts/p3-nankai-unit.json:48 «a86b4a1f006aa940» P3-C8-SUBJECTS=A",
+            "L1: reconstruction/contracts/p3-nankai-unit.json:57 «20209b3347687477» P3-C8-CODE-TABLE=A",
+            "L1: reconstruction/contracts/p3-nankai-unit.json:154 «c48582b5667e1eb9» Q-NOTICE semanticAdoption",
+            "L1: reconstruction/contracts/p3-nankai-unit.json:192 «56d2a35abda72da4» Q-NOTICE level（作者裁定 NOTICE-LEVELS=B）",
+            "L2: test/fixtures/selected_xml/74_01_05_200512_VYSE50.xml:1 «12c29731e40adc0c» 気象庁のサンプル電文のControl/Head/Bodyを読解（実系列・原本確認の主張ではない）"
+          ]
+        },
+        {
+          "sequenceId": "O01",
+          "position": 72,
+          "action": "receive",
+          "fixtureId": "test__fixtures__selected_xml__75_01_01_200512_VYSE51",
+          "receivedAt": 1589269080000,
+          "evaluatedAt": 1589269080000,
+          "inputSource": "replay",
+          "operationExpected": "normal",
+          "expectedRef": "expected:O01:72",
+          "expectationBasis": [
+            "L1: docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6» O01",
+            "L1: reconstruction/contracts/p3-nankai-unit.json:57 «20209b3347687477» P3-C8-CODE-TABLE=A",
+            "L1: reconstruction/contracts/p3-nankai-unit.json:252 «a406bd82cd10d229» I-U-N.informationSemantics",
+            "L1: reconstruction/contracts/p3-nankai-unit.json:154 «c48582b5667e1eb9» Q-NOTICE semanticAdoption",
+            "L1: reconstruction/contracts/p3-nankai-unit.json:192 «56d2a35abda72da4» Q-NOTICE level（作者裁定 NOTICE-LEVELS=B）",
+            "L2: test/fixtures/selected_xml/75_01_01_200512_VYSE51.xml:1 «12c29731e40adc0c» 気象庁のサンプル電文のControl/Head/Bodyを読解（実系列・原本確認の主張ではない）"
+          ]
+        },
+        {
+          "sequenceId": "O01",
+          "position": 73,
+          "action": "receive",
+          "fixtureId": "test__fixtures__selected_xml__75_01_02_200512_VYSE51",
+          "receivedAt": 1589269200000,
+          "evaluatedAt": 1589269200000,
+          "inputSource": "replay",
+          "operationExpected": "normal",
+          "expectedRef": "expected:O01:73",
+          "expectationBasis": [
+            "L1: docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6» O01",
+            "L1: reconstruction/contracts/p3-nankai-unit.json:244 «0f7252ab6a0d98a9» Q-ENUM revisionOrder",
+            "L1: reconstruction/contracts/p3-nankai-unit.json:252 «a406bd82cd10d229» I-U-N.informationSemantics",
+            "L1: reconstruction/contracts/p3-nankai-unit.json:154 «c48582b5667e1eb9» Q-NOTICE semanticAdoption",
+            "L1: reconstruction/contracts/p3-nankai-unit.json:192 «56d2a35abda72da4» Q-NOTICE level（作者裁定 NOTICE-LEVELS=B）",
+            "L1: reconstruction/contracts/p3-nankai-unit.json:111 «3589317e02aae4bc» P3-C8-REPLACEMENT=A",
+            "L2: test/fixtures/selected_xml/75_01_02_200512_VYSE51.xml:1 «12c29731e40adc0c» 気象庁のサンプル電文のControl/Head/Bodyを読解（実系列・原本確認の主張ではない）"
+          ]
+        },
+        {
+          "sequenceId": "O01",
+          "position": 74,
+          "action": "receive",
+          "fixtureId": "test__fixtures__selected_xml__75_01_03_200512_VYSE51",
+          "receivedAt": 1589269320000,
+          "evaluatedAt": 1589269320000,
+          "inputSource": "replay",
+          "operationExpected": "normal",
+          "expectedRef": "expected:O01:74",
+          "expectationBasis": [
+            "L1: docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6» O01",
+            "L1: reconstruction/contracts/p3-nankai-unit.json:244 «0f7252ab6a0d98a9» Q-ENUM revisionOrder",
+            "L1: reconstruction/contracts/p3-nankai-unit.json:252 «a406bd82cd10d229» I-U-N.informationSemantics",
+            "L1: reconstruction/contracts/p3-nankai-unit.json:154 «c48582b5667e1eb9» Q-NOTICE semanticAdoption",
+            "L1: reconstruction/contracts/p3-nankai-unit.json:192 «56d2a35abda72da4» Q-NOTICE level（作者裁定 NOTICE-LEVELS=B）",
+            "L1: reconstruction/contracts/p3-nankai-unit.json:111 «3589317e02aae4bc» P3-C8-REPLACEMENT=A",
+            "L2: test/fixtures/selected_xml/75_01_03_200512_VYSE51.xml:1 «12c29731e40adc0c» 気象庁のサンプル電文のControl/Head/Bodyを読解（実系列・原本確認の主張ではない）"
+          ]
+        },
+        {
+          "sequenceId": "O01",
+          "position": 75,
+          "action": "receive",
+          "fixtureId": "test__fixtures__synthetic_VYSE51_correction",
+          "receivedAt": 1589269320001,
+          "evaluatedAt": 1589269320001,
+          "inputSource": "replay",
+          "operationExpected": "normal",
+          "expectedRef": "expected:O01:75",
+          "expectationBasis": [
+            "L1: docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6» O01",
+            "L1: reconstruction/contracts/p3-nankai-unit.json:244 «0f7252ab6a0d98a9» Q-ENUM revisionOrder",
+            "L1: reconstruction/contracts/p3-nankai-unit.json:165 «44321eb36e4655e2» Q-NOTICE correction",
+            "L1: reconstruction/contracts/p3-nankai-unit.json:192 «56d2a35abda72da4» Q-NOTICE level（作者裁定 NOTICE-LEVELS=B）",
+            "L1: reconstruction/contracts/p3-nankai-unit.json:111 «3589317e02aae4bc» P3-C8-REPLACEMENT=A",
+            "L2: test/fixtures/synthetic_VYSE51_correction.xml:1 «12c29731e40adc0c» 合成入力（manifest synthetic、配信原本ではない）"
+          ]
+        },
+        {
+          "sequenceId": "O01",
+          "position": 76,
+          "action": "receive",
+          "fixtureId": "test__fixtures__synthetic_VYSE50_cancel",
+          "receivedAt": 1589269380000,
+          "evaluatedAt": 1589269380000,
+          "inputSource": "replay",
+          "operationExpected": "normal",
+          "expectedRef": "expected:O01:76",
+          "expectationBasis": [
+            "L1: docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6» O01",
+            "L1: reconstruction/contracts/p3-nankai-unit.json:244 «0f7252ab6a0d98a9» Q-ENUM revisionOrder",
+            "L1: reconstruction/contracts/p3-nankai-unit.json:66 «12d2ca0cebf39643» P3-C8-CANCEL-SCOPE=A",
+            "L1: reconstruction/contracts/p3-nankai-unit.json:176 «1df7e30209991af4» Q-NOTICE cancellation",
+            "L1: reconstruction/contracts/p3-nankai-unit.json:192 «56d2a35abda72da4» Q-NOTICE level（作者裁定 NOTICE-LEVELS=B）",
+            "L1: reconstruction/contracts/p3-nankai-unit.json:111 «3589317e02aae4bc» P3-C8-REPLACEMENT=A",
+            "L2: test/fixtures/synthetic_VYSE50_cancel.xml:1 «12c29731e40adc0c» 合成入力（manifest synthetic、配信原本ではない）"
+          ]
+        },
+        {
+          "sequenceId": "O01",
+          "position": 77,
+          "action": "receive",
+          "fixtureId": "test__fixtures__synthetic_VYSE50_cancel",
+          "receivedAt": 1589269380001,
+          "evaluatedAt": 1589269380001,
+          "inputSource": "replay",
+          "operationExpected": "normal",
+          "expectedRef": "expected:O01:77",
+          "expectationBasis": [
+            "L1: docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6» O01",
+            "L1: reconstruction/contracts/p3-nankai-unit.json:244 «0f7252ab6a0d98a9» Q-ENUM revisionOrder",
+            "L2: test/fixtures/synthetic_VYSE50_cancel.xml:1 «12c29731e40adc0c» 合成入力（manifest synthetic、配信原本ではない）"
+          ]
+        },
+        {
+          "sequenceId": "O01",
+          "position": 78,
+          "action": "receive",
+          "fixtureId": "test__fixtures__selected_xml__74_01_05_200512_VYSE50",
+          "receivedAt": 1589269380002,
+          "evaluatedAt": 1589269380002,
+          "inputSource": "replay",
+          "operationExpected": "normal",
+          "expectedRef": "expected:O01:78",
+          "expectationBasis": [
+            "L1: docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6» O01",
+            "L1: reconstruction/contracts/p3-nankai-unit.json:244 «0f7252ab6a0d98a9» Q-ENUM revisionOrder",
+            "L1: reconstruction/contracts/p3-nankai-unit.json:48 «a86b4a1f006aa940» P3-C8-SUBJECTS=A",
+            "L2: test/fixtures/selected_xml/74_01_05_200512_VYSE50.xml:1 «12c29731e40adc0c» 気象庁のサンプル電文のControl/Head/Bodyを読解（実系列・原本確認の主張ではない）"
+          ]
+        },
+        {
+          "sequenceId": "O01",
+          "position": 79,
+          "action": "receive",
+          "fixtureId": "test__fixtures__selected_xml__74_01_07_200512_VYSE50",
+          "receivedAt": 1589269380003,
+          "evaluatedAt": 1589269380003,
+          "inputSource": "replay",
+          "operationExpected": "normal",
+          "expectedRef": "expected:O01:79",
+          "expectationBasis": [
+            "L1: docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6» O01",
+            "L1: reconstruction/contracts/p3-nankai-unit.json:251 «c0ad3eae73b20c8b» I-U-N.currentSemantics",
+            "L1: reconstruction/contracts/p3-nankai-unit.json:57 «20209b3347687477» P3-C8-CODE-TABLE=A",
+            "L1: reconstruction/contracts/p3-nankai-unit.json:154 «c48582b5667e1eb9» Q-NOTICE semanticAdoption",
+            "L1: reconstruction/contracts/p3-nankai-unit.json:192 «56d2a35abda72da4» Q-NOTICE level（作者裁定 NOTICE-LEVELS=B）",
+            "L2: test/fixtures/selected_xml/74_01_07_200512_VYSE50.xml:1 «12c29731e40adc0c» 気象庁のサンプル電文のControl/Head/Bodyを読解（実系列・原本確認の主張ではない）"
+          ]
         }
       ]
     },
@@ -1789,7 +2014,7 @@
           "expectedRef": "expected:O02:38",
           "expectationBasis": [
             "L1: docs/specs/reconstruction-p0-contracts.md:2763 «c7aa1eb5711e93c1»",
-            "L1: reconstruction/contracts/p3-seismic-unit.json:257 «70248423928ccaf5» Q-ENUM identity",
+            "L1: reconstruction/contracts/p3-seismic-unit.json:257 «6a870f9ac1d4615f» Q-ENUM identity",
             "L1: reconstruction/contracts/p3-seismic-unit.json:113 «b55cce45140c2af1» P3-C7-VALUE-UNKNOWN=A",
             "L1: reconstruction/contracts/p3-seismic-unit.json:297 «85cb4ac88a542123» I-U-Q.intensityScale",
             "L1: reconstruction/contracts/p3-seismic-unit.json:183 «883ae140fb2d61ff» Q-NOTICE semanticAdoption",
@@ -1944,6 +2169,102 @@
             "L1: docs/specs/reconstruction-p0-contracts.md:1778 «513e4c47ef60e225» O02",
             "L1: docs/specs/reconstruction-p0-contracts.md:668 «1c7ec8bbb7f61094» 運用区分隔離",
             "L2: test/fixtures/synthetic_VXKO50_cumulative_no_window.xml:1 «12c29731e40adc0c» Control/Head/Body"
+          ]
+        },
+        {
+          "sequenceId": "O02",
+          "position": 49,
+          "action": "restart",
+          "fixtureId": null,
+          "receivedAt": null,
+          "evaluatedAt": 1589268720000,
+          "inputSource": "replay",
+          "operationExpected": null,
+          "expectedRef": "expected:O02:49",
+          "expectationBasis": [
+            "L1: docs/specs/reconstruction-p0-contracts.md:1758 «37f025f94e7bbdfd» 固定初期状態・時計",
+            "L1: docs/specs/reconstruction-p0-contracts.md:736 «e88a83452d784a7c»"
+          ]
+        },
+        {
+          "sequenceId": "O02",
+          "position": 50,
+          "action": "receive",
+          "fixtureId": "test__fixtures__synthetic_VYSE50_unknown_code",
+          "receivedAt": 1589268720001,
+          "evaluatedAt": 1589268720001,
+          "inputSource": "replay",
+          "operationExpected": "normal",
+          "expectedRef": "expected:O02:50",
+          "expectationBasis": [
+            "L1: reconstruction/contracts/p3-nankai-unit.json:57 «20209b3347687477» P3-C8-CODE-TABLE=A",
+            "L1: reconstruction/contracts/p3-nankai-unit.json:252 «a406bd82cd10d229» I-U-N.informationSemantics",
+            "L1: reconstruction/contracts/p3-nankai-unit.json:154 «c48582b5667e1eb9» Q-NOTICE semanticAdoption",
+            "L1: reconstruction/contracts/p3-nankai-unit.json:192 «56d2a35abda72da4» Q-NOTICE level（作者裁定 NOTICE-LEVELS=B）",
+            "L2: test/fixtures/synthetic_VYSE50_unknown_code.xml:1 «12c29731e40adc0c» 合成入力（manifest synthetic、配信原本ではない）"
+          ]
+        },
+        {
+          "sequenceId": "O02",
+          "position": 51,
+          "action": "restart",
+          "fixtureId": null,
+          "receivedAt": null,
+          "evaluatedAt": 1589268000000,
+          "inputSource": "replay",
+          "operationExpected": null,
+          "expectedRef": "expected:O02:51",
+          "expectationBasis": [
+            "L1: docs/specs/reconstruction-p0-contracts.md:1758 «37f025f94e7bbdfd» 固定初期状態・時計",
+            "L1: docs/specs/reconstruction-p0-contracts.md:736 «e88a83452d784a7c»"
+          ]
+        },
+        {
+          "sequenceId": "O02",
+          "position": 52,
+          "action": "receive",
+          "fixtureId": "test__fixtures__synthetic_VYSE50_no_earthquake_info",
+          "receivedAt": 1589268000001,
+          "evaluatedAt": 1589268000001,
+          "inputSource": "replay",
+          "operationExpected": "normal",
+          "expectedRef": "expected:O02:52",
+          "expectationBasis": [
+            "L1: reconstruction/contracts/p3-nankai-unit.json:227 «446f658d04108472» Q-ENUM priorityRule",
+            "L2: test/fixtures/synthetic_VYSE50_no_earthquake_info.xml:1 «12c29731e40adc0c» 合成入力（manifest synthetic、配信原本ではない）"
+          ]
+        },
+        {
+          "sequenceId": "O02",
+          "position": 53,
+          "action": "restart",
+          "fixtureId": null,
+          "receivedAt": null,
+          "evaluatedAt": 1721287800000,
+          "inputSource": "replay",
+          "operationExpected": null,
+          "expectedRef": "expected:O02:53",
+          "expectationBasis": [
+            "L1: docs/specs/reconstruction-p0-contracts.md:1758 «37f025f94e7bbdfd» 固定初期状態・時計",
+            "L1: docs/specs/reconstruction-p0-contracts.md:736 «e88a83452d784a7c»"
+          ]
+        },
+        {
+          "sequenceId": "O02",
+          "position": 54,
+          "action": "receive",
+          "fixtureId": "test__fixtures__selected_xml__80_01_01_240821_VYSE60",
+          "receivedAt": 1721287800001,
+          "evaluatedAt": 1721287800001,
+          "inputSource": "replay",
+          "operationExpected": "normal",
+          "expectedRef": "expected:O02:54",
+          "expectationBasis": [
+            "L1: reconstruction/contracts/p3-nankai-unit.json:21 «127bf5c1478d1599» P3-C8-VYSE60=A（作者裁定）",
+            "L1: reconstruction/contracts/p3-nankai-unit.json:48 «a86b4a1f006aa940» P3-C8-SUBJECTS=A",
+            "L1: reconstruction/contracts/p3-nankai-unit.json:154 «c48582b5667e1eb9» Q-NOTICE semanticAdoption",
+            "L1: reconstruction/contracts/p3-nankai-unit.json:192 «56d2a35abda72da4» Q-NOTICE level（作者裁定 NOTICE-LEVELS=B）",
+            "L2: test/fixtures/selected_xml/80_01_01_240821_VYSE60.xml:1 «12c29731e40adc0c» 気象庁のサンプル電文のControl/Head/Bodyを読解（実系列・原本確認の主張ではない）"
           ]
         }
       ]
@@ -3775,6 +4096,173 @@
             "L1: reconstruction/contracts/p3-tsunami-unit.json:179 «3ed2fe2737edee40» Q-NOTICE cancellation",
             "L1: reconstruction/contracts/p3-tsunami-unit.json:200 «ae156ddc44d461f8» Q-NOTICE level（作者裁定 NOTICE-LEVELS=A）",
             "L2: test/fixtures/synthetic_VTSE41_cancel.xml:1 «12c29731e40adc0c» 合成入力（manifest synthetic、配信原本ではない）"
+          ]
+        },
+        {
+          "sequenceId": "O07",
+          "position": 35,
+          "action": "restart",
+          "fixtureId": null,
+          "receivedAt": null,
+          "evaluatedAt": 1589268720000,
+          "inputSource": "replay",
+          "operationExpected": null,
+          "expectedRef": "expected:O07:35",
+          "expectationBasis": [
+            "L1: docs/specs/reconstruction-p0-contracts.md:1758 «37f025f94e7bbdfd» 固定初期状態・時計",
+            "L1: docs/specs/reconstruction-p0-contracts.md:736 «e88a83452d784a7c»"
+          ]
+        },
+        {
+          "sequenceId": "O07",
+          "position": 36,
+          "action": "receive",
+          "fixtureId": "test__fixtures__selected_xml__74_01_05_200512_VYSE50",
+          "receivedAt": 1589268721000,
+          "evaluatedAt": 1589268721000,
+          "inputSource": "replay",
+          "operationExpected": "normal",
+          "expectedRef": "expected:O07:36",
+          "expectationBasis": [
+            "L1: docs/specs/reconstruction-p0-contracts.md:1783 «bb8e18a6762c105d» O07",
+            "L1: reconstruction/contracts/p3-nankai-unit.json:251 «c0ad3eae73b20c8b» I-U-N.currentSemantics",
+            "L1: reconstruction/contracts/p3-nankai-unit.json:154 «c48582b5667e1eb9» Q-NOTICE semanticAdoption",
+            "L1: reconstruction/contracts/p3-nankai-unit.json:192 «56d2a35abda72da4» Q-NOTICE level（作者裁定 NOTICE-LEVELS=B）",
+            "L2: test/fixtures/selected_xml/74_01_05_200512_VYSE50.xml:1 «12c29731e40adc0c» 気象庁のサンプル電文のControl/Head/Bodyを読解（実系列・原本確認の主張ではない）"
+          ]
+        },
+        {
+          "sequenceId": "O07",
+          "position": 37,
+          "action": "save",
+          "fixtureId": null,
+          "receivedAt": null,
+          "evaluatedAt": 1589268721001,
+          "inputSource": "replay",
+          "operationExpected": null,
+          "expectedRef": "expected:O07:37",
+          "expectationBasis": [
+            "L1: docs/specs/reconstruction-p0-contracts.md:477 «3e40d22acd0eaefe» §4.2 U-N",
+            "L1: docs/specs/reconstruction-p0-contracts.md:1783 «bb8e18a6762c105d» O07"
+          ]
+        },
+        {
+          "sequenceId": "O07",
+          "position": 38,
+          "action": "restart",
+          "fixtureId": null,
+          "receivedAt": null,
+          "evaluatedAt": 1589268780000,
+          "inputSource": "replay",
+          "operationExpected": null,
+          "expectedRef": "expected:O07:38",
+          "expectationBasis": [
+            "L1: docs/specs/reconstruction-p0-contracts.md:1783 «bb8e18a6762c105d» O07",
+            "L1: docs/specs/reconstruction-p0-contracts.md:2074 «643c123a1c57d2a8» E22",
+            "L1: reconstruction/contracts/p3-nankai-unit.json:202 «0b0276177e8537f1» Q-NOTICE restart",
+            "L1: reconstruction/contracts/p3-nankai-unit.json:255 «142e404cf665ee9d» I-U-N.persisted"
+          ]
+        },
+        {
+          "sequenceId": "O07",
+          "position": 39,
+          "action": "receive",
+          "fixtureId": "test__fixtures__synthetic_VYSE50_cancel",
+          "receivedAt": 1589268780001,
+          "evaluatedAt": 1589268780001,
+          "inputSource": "replay",
+          "operationExpected": "normal",
+          "expectedRef": "expected:O07:39",
+          "expectationBasis": [
+            "L1: docs/specs/reconstruction-p0-contracts.md:1783 «bb8e18a6762c105d» O07",
+            "L1: reconstruction/contracts/p3-nankai-unit.json:66 «12d2ca0cebf39643» P3-C8-CANCEL-SCOPE=A",
+            "L1: reconstruction/contracts/p3-nankai-unit.json:176 «1df7e30209991af4» Q-NOTICE cancellation",
+            "L1: reconstruction/contracts/p3-nankai-unit.json:192 «56d2a35abda72da4» Q-NOTICE level（作者裁定 NOTICE-LEVELS=B）",
+            "L1: reconstruction/contracts/p3-nankai-unit.json:111 «3589317e02aae4bc» P3-C8-REPLACEMENT=A",
+            "L2: test/fixtures/synthetic_VYSE50_cancel.xml:1 «12c29731e40adc0c» 合成入力（manifest synthetic、配信原本ではない）"
+          ]
+        },
+        {
+          "sequenceId": "O07",
+          "position": 40,
+          "action": "restart",
+          "fixtureId": null,
+          "receivedAt": null,
+          "evaluatedAt": 1589268480000,
+          "inputSource": "replay",
+          "operationExpected": null,
+          "expectedRef": "expected:O07:40",
+          "expectationBasis": [
+            "L1: docs/specs/reconstruction-p0-contracts.md:1758 «37f025f94e7bbdfd» 固定初期状態・時計",
+            "L1: docs/specs/reconstruction-p0-contracts.md:736 «e88a83452d784a7c»"
+          ]
+        },
+        {
+          "sequenceId": "O07",
+          "position": 41,
+          "action": "receive",
+          "fixtureId": "test__fixtures__selected_xml__74_01_04_200512_VYSE50",
+          "receivedAt": 1589268481000,
+          "evaluatedAt": 1589268481000,
+          "inputSource": "replay",
+          "operationExpected": "normal",
+          "expectedRef": "expected:O07:41",
+          "expectationBasis": [
+            "L1: docs/specs/reconstruction-p0-contracts.md:1783 «bb8e18a6762c105d» O07",
+            "L1: reconstruction/contracts/p3-nankai-unit.json:251 «c0ad3eae73b20c8b» I-U-N.currentSemantics",
+            "L1: reconstruction/contracts/p3-nankai-unit.json:154 «c48582b5667e1eb9» Q-NOTICE semanticAdoption",
+            "L1: reconstruction/contracts/p3-nankai-unit.json:192 «56d2a35abda72da4» Q-NOTICE level（作者裁定 NOTICE-LEVELS=B）",
+            "L2: test/fixtures/selected_xml/74_01_04_200512_VYSE50.xml:1 «12c29731e40adc0c» 気象庁のサンプル電文のControl/Head/Bodyを読解（実系列・原本確認の主張ではない）"
+          ]
+        },
+        {
+          "sequenceId": "O07",
+          "position": 42,
+          "action": "save",
+          "fixtureId": null,
+          "receivedAt": null,
+          "evaluatedAt": 1589268481001,
+          "inputSource": "replay",
+          "operationExpected": null,
+          "expectedRef": "expected:O07:42",
+          "expectationBasis": [
+            "L1: docs/specs/reconstruction-p0-contracts.md:477 «3e40d22acd0eaefe» §4.2 U-N",
+            "L1: docs/specs/reconstruction-p0-contracts.md:1783 «bb8e18a6762c105d» O07"
+          ]
+        },
+        {
+          "sequenceId": "O07",
+          "position": 43,
+          "action": "restart",
+          "fixtureId": null,
+          "receivedAt": null,
+          "evaluatedAt": 1589873279999,
+          "inputSource": "replay",
+          "operationExpected": null,
+          "expectedRef": "expected:O07:43",
+          "expectationBasis": [
+            "L1: docs/specs/reconstruction-p0-contracts.md:1783 «bb8e18a6762c105d» O07",
+            "L1: docs/specs/reconstruction-p0-contracts.md:2074 «643c123a1c57d2a8» E22",
+            "L1: reconstruction/contracts/p3-nankai-unit.json:202 «0b0276177e8537f1» Q-NOTICE restart",
+            "L1: reconstruction/contracts/p3-nankai-unit.json:39 «8afa7b92bd4f4069» P3-C8-CURRENT-EXPIRY=A（作者裁定）",
+            "L1: reconstruction/contracts/p3-nankai-unit.json:84 «9f9a911e5e36f284» P3-C8-RETENTION=A"
+          ]
+        },
+        {
+          "sequenceId": "O07",
+          "position": 44,
+          "action": "advanceClock",
+          "fixtureId": null,
+          "receivedAt": null,
+          "evaluatedAt": 1589873280000,
+          "inputSource": "replay",
+          "operationExpected": null,
+          "expectedRef": "expected:O07:44",
+          "expectationBasis": [
+            "L1: docs/specs/reconstruction-p0-contracts.md:1783 «bb8e18a6762c105d» O07",
+            "L1: reconstruction/contracts/p3-nankai-unit.json:39 «8afa7b92bd4f4069» P3-C8-CURRENT-EXPIRY=A（作者裁定）",
+            "L1: reconstruction/contracts/p3-nankai-unit.json:84 «9f9a911e5e36f284» P3-C8-RETENTION=A",
+            "L1: reconstruction/contracts/p3-nankai-unit.json:187 «d4e358cef8a12114» Q-NOTICE expiry"
           ]
         }
       ]
@@ -12025,7 +12513,7 @@
       "basisLevel": 1,
       "basisRefs": [
         "L1: docs/specs/reconstruction-p0-contracts.md:2763 «c7aa1eb5711e93c1»",
-        "L1: reconstruction/contracts/p3-seismic-unit.json:257 «70248423928ccaf5» Q-ENUM identity",
+        "L1: reconstruction/contracts/p3-seismic-unit.json:257 «6a870f9ac1d4615f» Q-ENUM identity",
         "L1: reconstruction/contracts/p3-seismic-unit.json:113 «b55cce45140c2af1» P3-C7-VALUE-UNKNOWN=A",
         "L1: reconstruction/contracts/p3-seismic-unit.json:297 «85cb4ac88a542123» I-U-Q.intensityScale",
         "L1: reconstruction/contracts/p3-seismic-unit.json:183 «883ae140fb2d61ff» Q-NOTICE semanticAdoption",
@@ -20062,6 +20550,995 @@
       "checks": [
         "復元後の取消: 取消の前にactiveなのでcancellation、level=cancel。areas=[]。復元したpendingは同じsubjectの取消で両channelともsupersededにする（P3-C5-REPLACEMENT=A）。",
         "運用区分: Control.Status=通常; head.test/envelope Status=notProvided。replay 起源から区分を補わない。"
+      ]
+    },
+    {
+      "expectedId": "expected:O01:68",
+      "sequenceId": "O01",
+      "position": 68,
+      "decision": null,
+      "effective": null,
+      "subjects": [],
+      "notices": false,
+      "intents": false,
+      "basisLevel": 1,
+      "basisRefs": [
+        "L1: docs/specs/reconstruction-p0-contracts.md:1758 «37f025f94e7bbdfd» 固定初期状態・時計",
+        "L1: docs/specs/reconstruction-p0-contracts.md:736 «e88a83452d784a7c»"
+      ],
+      "input": {
+        "required": "新しい隔離 harness を空の全 UnitState・checkpoint なしで起動: 南海トラフ U-N 調査中→巨大地震警戒→巨大地震注意→解説→同revision訂正→取消→重複→遅着→調査終了（74_01_xx・75_01_xxは気象庁のサンプル電文で、時刻順に並べた試験用の列（実際の系列ではない。EventIDが全部違い、伏字がある）。）",
+        "acquisition": "synthetic"
+      },
+      "checks": [
+        "この step は試験ケースの初期化。前ケースの保存物・通知・gate を共有しない。起動の未充足を無発令と表示しない。"
+      ]
+    },
+    {
+      "expectedId": "expected:O01:69",
+      "sequenceId": "O01",
+      "position": 69,
+      "decision": {
+        "kind": "changed",
+        "change": "semantic"
+      },
+      "effective": {
+        "kind": "active"
+      },
+      "subjects": [
+        {
+          "subject": "normal/nankai/current",
+          "revision": {
+            "reportDateTimeRaw": "2020-05-12T16:20:00+09:00",
+            "serialRaw": "",
+            "infoTypeRaw": "発表"
+          }
+        },
+        {
+          "subject": "normal/VYSE50/20200512162000",
+          "revision": {
+            "reportDateTimeRaw": "2020-05-12T16:20:00+09:00",
+            "serialRaw": "",
+            "infoTypeRaw": "発表"
+          }
+        }
+      ],
+      "notices": true,
+      "intents": true,
+      "basisLevel": 1,
+      "basisRefs": [
+        "L1: docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6» O01",
+        "L1: reconstruction/contracts/p3-nankai-unit.json:12 «6fe017fe9313d1eb» P3-C8-INVESTIGATING=A（作者裁定）",
+        "L1: reconstruction/contracts/p3-nankai-unit.json:48 «a86b4a1f006aa940» P3-C8-SUBJECTS=A",
+        "L1: reconstruction/contracts/p3-nankai-unit.json:57 «20209b3347687477» P3-C8-CODE-TABLE=A",
+        "L1: reconstruction/contracts/p3-nankai-unit.json:154 «c48582b5667e1eb9» Q-NOTICE semanticAdoption",
+        "L1: reconstruction/contracts/p3-nankai-unit.json:192 «56d2a35abda72da4» Q-NOTICE level（作者裁定 NOTICE-LEVELS=B）",
+        "L2: test/fixtures/selected_xml/74_01_01_200512_VYSE50.xml:1 «12c29731e40adc0c» 気象庁のサンプル電文のControl/Head/Bodyを読解（実系列・原本確認の主張ではない）"
+      ],
+      "input": null,
+      "checks": [
+        "74_01_xx・75_01_xxは気象庁のサンプル電文で、時刻順に並べた試験用の列（実際の系列ではない。EventIDが全部違い、伏字がある）。code 111（調査中）。activeの巨大地震警戒・巨大地震注意が無いので、南海トラフの現況をinvestigating（label「調査中」）にし（P3-C8-INVESTIGATING=A）、情報subjectにも入る（P3-C8-SUBJECTS=A）。effectiveとdecisionは両subjectで同じ。",
+        "通知: semanticAdoption、normalなのでdesktop＋sound、intentのsubjectは現況、level=warning（111、P3-C8-NOTICE-LEVELS=B）。題はHead/Title「南海トラフ地震臨時情報（調査中）」。",
+        "運用区分: Control.Status=通常; head.test/envelope Status=notProvided。replay 起源から区分を補わない。"
+      ]
+    },
+    {
+      "expectedId": "expected:O01:70",
+      "sequenceId": "O01",
+      "position": 70,
+      "decision": {
+        "kind": "changed",
+        "change": "semantic"
+      },
+      "effective": {
+        "kind": "active"
+      },
+      "subjects": [
+        {
+          "subject": "normal/nankai/current",
+          "revision": {
+            "reportDateTimeRaw": "2020-05-12T16:28:00+09:00",
+            "serialRaw": "",
+            "infoTypeRaw": "発表"
+          }
+        },
+        {
+          "subject": "normal/VYSE50/20200512162800",
+          "revision": {
+            "reportDateTimeRaw": "2020-05-12T16:28:00+09:00",
+            "serialRaw": "",
+            "infoTypeRaw": "発表"
+          }
+        }
+      ],
+      "notices": true,
+      "intents": true,
+      "basisLevel": 1,
+      "basisRefs": [
+        "L1: docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6» O01",
+        "L1: reconstruction/contracts/p3-nankai-unit.json:251 «c0ad3eae73b20c8b» I-U-N.currentSemantics",
+        "L1: reconstruction/contracts/p3-nankai-unit.json:48 «a86b4a1f006aa940» P3-C8-SUBJECTS=A",
+        "L1: reconstruction/contracts/p3-nankai-unit.json:57 «20209b3347687477» P3-C8-CODE-TABLE=A",
+        "L1: reconstruction/contracts/p3-nankai-unit.json:154 «c48582b5667e1eb9» Q-NOTICE semanticAdoption",
+        "L1: reconstruction/contracts/p3-nankai-unit.json:192 «56d2a35abda72da4» Q-NOTICE level（作者裁定 NOTICE-LEVELS=B）",
+        "L2: test/fixtures/selected_xml/74_01_04_200512_VYSE50.xml:1 «12c29731e40adc0c» 気象庁のサンプル電文のControl/Head/Bodyを読解（実系列・原本確認の主張ではない）"
+      ],
+      "input": null,
+      "checks": [
+        "code 120。系統のwatermark（:69の16:20）より新しいので、現況のinvestigatingをmegaquakeWarning（label「巨大地震警戒」）で置き換え、validUntil=16:28+7日（I-U-N.currentSemantics(1)）。transitionはupdated。",
+        "通知: semanticAdoption、desktop＋sound、level=critical（120）。:69のpendingは16:20の採用から180秒を過ぎて受信前に回収されている。A7の群はother（P3-C8-NOTICE-GROUP）。",
+        "運用区分: Control.Status=通常; head.test/envelope Status=notProvided。replay 起源から区分を補わない。"
+      ]
+    },
+    {
+      "expectedId": "expected:O01:71",
+      "sequenceId": "O01",
+      "position": 71,
+      "decision": {
+        "kind": "changed",
+        "change": "semantic"
+      },
+      "effective": {
+        "kind": "active"
+      },
+      "subjects": [
+        {
+          "subject": "normal/nankai/current",
+          "revision": {
+            "reportDateTimeRaw": "2020-05-12T16:32:00+09:00",
+            "serialRaw": "",
+            "infoTypeRaw": "発表"
+          }
+        },
+        {
+          "subject": "normal/VYSE50/20200512163200",
+          "revision": {
+            "reportDateTimeRaw": "2020-05-12T16:32:00+09:00",
+            "serialRaw": "",
+            "infoTypeRaw": "発表"
+          }
+        }
+      ],
+      "notices": true,
+      "intents": true,
+      "basisLevel": 1,
+      "basisRefs": [
+        "L1: docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6» O01",
+        "L1: reconstruction/contracts/p3-nankai-unit.json:251 «c0ad3eae73b20c8b» I-U-N.currentSemantics",
+        "L1: reconstruction/contracts/p3-nankai-unit.json:48 «a86b4a1f006aa940» P3-C8-SUBJECTS=A",
+        "L1: reconstruction/contracts/p3-nankai-unit.json:57 «20209b3347687477» P3-C8-CODE-TABLE=A",
+        "L1: reconstruction/contracts/p3-nankai-unit.json:154 «c48582b5667e1eb9» Q-NOTICE semanticAdoption",
+        "L1: reconstruction/contracts/p3-nankai-unit.json:192 «56d2a35abda72da4» Q-NOTICE level（作者裁定 NOTICE-LEVELS=B）",
+        "L2: test/fixtures/selected_xml/74_01_05_200512_VYSE50.xml:1 «12c29731e40adc0c» 気象庁のサンプル電文のControl/Head/Bodyを読解（実系列・原本確認の主張ではない）"
+      ],
+      "input": null,
+      "checks": [
+        "code 130。系統のwatermark（16:28）より新しいので、現況をmegaquakeAdvisory（label「巨大地震注意」）で置き換える（別のEventIDなのでReportDateTimeで比べる、Q-ENUM.revisionOrder）。",
+        "通知: semanticAdoption、desktop＋sound、level=warning（130）。",
+        "運用区分: Control.Status=通常; head.test/envelope Status=notProvided。replay 起源から区分を補わない。"
+      ]
+    },
+    {
+      "expectedId": "expected:O01:72",
+      "sequenceId": "O01",
+      "position": 72,
+      "decision": {
+        "kind": "changed",
+        "change": "semantic"
+      },
+      "effective": {
+        "kind": "active"
+      },
+      "subjects": [
+        {
+          "subject": "normal/VYSE51/20200512163800",
+          "revision": {
+            "reportDateTimeRaw": "2020-05-12T16:38:00+09:00",
+            "serialRaw": "1",
+            "infoTypeRaw": "発表"
+          }
+        }
+      ],
+      "notices": true,
+      "intents": true,
+      "basisLevel": 1,
+      "basisRefs": [
+        "L1: docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6» O01",
+        "L1: reconstruction/contracts/p3-nankai-unit.json:57 «20209b3347687477» P3-C8-CODE-TABLE=A",
+        "L1: reconstruction/contracts/p3-nankai-unit.json:252 «a406bd82cd10d229» I-U-N.informationSemantics",
+        "L1: reconstruction/contracts/p3-nankai-unit.json:154 «c48582b5667e1eb9» Q-NOTICE semanticAdoption",
+        "L1: reconstruction/contracts/p3-nankai-unit.json:192 «56d2a35abda72da4» Q-NOTICE level（作者裁定 NOTICE-LEVELS=B）",
+        "L2: test/fixtures/selected_xml/75_01_01_200512_VYSE51.xml:1 «12c29731e40adc0c» 気象庁のサンプル電文のControl/Head/Bodyを読解（実系列・原本確認の主張ではない）"
+      ],
+      "input": null,
+      "checks": [
+        "VYSE51第1号（code 210、臨時解説）は情報だけで、現況（megaquakeAdvisory）と系統のwatermarkを変えない（P3-C8-CODE-TABLE=A）。情報subjectの新規の採用でtransitionはactivated。",
+        "通知: semanticAdoption、desktop＋sound、intentのsubjectは情報subject、level=warning（210）。",
+        "運用区分: Control.Status=通常; head.test/envelope Status=notProvided。replay 起源から区分を補わない。"
+      ]
+    },
+    {
+      "expectedId": "expected:O01:73",
+      "sequenceId": "O01",
+      "position": 73,
+      "decision": {
+        "kind": "changed",
+        "change": "semantic"
+      },
+      "effective": {
+        "kind": "active"
+      },
+      "subjects": [
+        {
+          "subject": "normal/VYSE51/20200512163800",
+          "revision": {
+            "reportDateTimeRaw": "2020-05-12T16:40:00+09:00",
+            "serialRaw": "2",
+            "infoTypeRaw": "発表"
+          }
+        }
+      ],
+      "notices": true,
+      "intents": true,
+      "basisLevel": 1,
+      "basisRefs": [
+        "L1: docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6» O01",
+        "L1: reconstruction/contracts/p3-nankai-unit.json:244 «0f7252ab6a0d98a9» Q-ENUM revisionOrder",
+        "L1: reconstruction/contracts/p3-nankai-unit.json:252 «a406bd82cd10d229» I-U-N.informationSemantics",
+        "L1: reconstruction/contracts/p3-nankai-unit.json:154 «c48582b5667e1eb9» Q-NOTICE semanticAdoption",
+        "L1: reconstruction/contracts/p3-nankai-unit.json:192 «56d2a35abda72da4» Q-NOTICE level（作者裁定 NOTICE-LEVELS=B）",
+        "L1: reconstruction/contracts/p3-nankai-unit.json:111 «3589317e02aae4bc» P3-C8-REPLACEMENT=A",
+        "L2: test/fixtures/selected_xml/75_01_02_200512_VYSE51.xml:1 «12c29731e40adc0c» 気象庁のサンプル電文のControl/Head/Bodyを読解（実系列・原本確認の主張ではない）"
+      ],
+      "input": null,
+      "checks": [
+        "同じEventIDの第2号（Serial 2）。情報subjectの新しいrevisionで、title「（第２号）」が変わるのでsemantic。現況は変えない。",
+        "通知: semanticAdoption、level=warning（210）。:72のdesktopのpending（180秒以内）は同じsubject・channelなのでsupersededにする（:72のsoundは60秒を過ぎて回収済み、P3-C8-REPLACEMENT=A）。",
+        "運用区分: Control.Status=通常; head.test/envelope Status=notProvided。replay 起源から区分を補わない。"
+      ]
+    },
+    {
+      "expectedId": "expected:O01:74",
+      "sequenceId": "O01",
+      "position": 74,
+      "decision": {
+        "kind": "changed",
+        "change": "semantic"
+      },
+      "effective": {
+        "kind": "active"
+      },
+      "subjects": [
+        {
+          "subject": "normal/VYSE51/20200512163800",
+          "revision": {
+            "reportDateTimeRaw": "2020-05-12T16:42:00+09:00",
+            "serialRaw": "3",
+            "infoTypeRaw": "発表"
+          }
+        }
+      ],
+      "notices": true,
+      "intents": true,
+      "basisLevel": 1,
+      "basisRefs": [
+        "L1: docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6» O01",
+        "L1: reconstruction/contracts/p3-nankai-unit.json:244 «0f7252ab6a0d98a9» Q-ENUM revisionOrder",
+        "L1: reconstruction/contracts/p3-nankai-unit.json:252 «a406bd82cd10d229» I-U-N.informationSemantics",
+        "L1: reconstruction/contracts/p3-nankai-unit.json:154 «c48582b5667e1eb9» Q-NOTICE semanticAdoption",
+        "L1: reconstruction/contracts/p3-nankai-unit.json:192 «56d2a35abda72da4» Q-NOTICE level（作者裁定 NOTICE-LEVELS=B）",
+        "L1: reconstruction/contracts/p3-nankai-unit.json:111 «3589317e02aae4bc» P3-C8-REPLACEMENT=A",
+        "L2: test/fixtures/selected_xml/75_01_03_200512_VYSE51.xml:1 «12c29731e40adc0c» 気象庁のサンプル電文のControl/Head/Bodyを読解（実系列・原本確認の主張ではない）"
+      ],
+      "input": null,
+      "checks": [
+        "第3号（Serial 3、code 219）。情報subjectの新しいrevisionでsemantic。本文の「●月●日●●時まで警戒（注意）する措置」は自由文で、期限の状態を作らない（P3-C8-CURRENT-EXPIRY=A）。",
+        "通知: semanticAdoption、level=warning（219）。:73のdesktopのpendingをsupersededにする。",
+        "運用区分: Control.Status=通常; head.test/envelope Status=notProvided。replay 起源から区分を補わない。"
+      ]
+    },
+    {
+      "expectedId": "expected:O01:75",
+      "sequenceId": "O01",
+      "position": 75,
+      "decision": {
+        "kind": "changed",
+        "change": "semantic"
+      },
+      "effective": {
+        "kind": "active"
+      },
+      "subjects": [
+        {
+          "subject": "normal/VYSE51/20200512163800",
+          "revision": {
+            "reportDateTimeRaw": "2020-05-12T16:42:00+09:00",
+            "serialRaw": "3",
+            "infoTypeRaw": "訂正"
+          }
+        }
+      ],
+      "notices": true,
+      "intents": true,
+      "basisLevel": 1,
+      "basisRefs": [
+        "L1: docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6» O01",
+        "L1: reconstruction/contracts/p3-nankai-unit.json:244 «0f7252ab6a0d98a9» Q-ENUM revisionOrder",
+        "L1: reconstruction/contracts/p3-nankai-unit.json:165 «44321eb36e4655e2» Q-NOTICE correction",
+        "L1: reconstruction/contracts/p3-nankai-unit.json:192 «56d2a35abda72da4» Q-NOTICE level（作者裁定 NOTICE-LEVELS=B）",
+        "L1: reconstruction/contracts/p3-nankai-unit.json:111 «3589317e02aae4bc» P3-C8-REPLACEMENT=A",
+        "L2: test/fixtures/synthetic_VYSE51_correction.xml:1 «12c29731e40adc0c» 合成入力（manifest synthetic、配信原本ではない）"
+      ],
+      "input": null,
+      "checks": [
+        "同じrevision（16:42・Serial 3）の訂正はInfoTypeの優先（取消>訂正>発表）で採用する（Q-ENUM.revisionOrder）。Headlineが「やや活発」に変わるのでsemantic。VYSE51は現況に効かないので、訂正も情報subjectだけを変える（I-U-N.currentSemantics(4)）。",
+        "通知: correction（事実が同じでも作る）、desktop＋sound、level=warning（219）。題「[訂正] 南海トラフ地震関連解説情報（第３号）」、bodyは「訂正: 」＋Headline。:74のpending（両channel）は同じsubject・channelなのでsupersededにする。",
+        "運用区分: Control.Status=通常; head.test/envelope Status=notProvided。replay 起源から区分を補わない。"
+      ]
+    },
+    {
+      "expectedId": "expected:O01:76",
+      "sequenceId": "O01",
+      "position": 76,
+      "decision": {
+        "kind": "changed",
+        "change": "semantic"
+      },
+      "effective": {
+        "kind": "inactive",
+        "cause": {
+          "kind": "cancelled"
+        }
+      },
+      "subjects": [
+        {
+          "subject": "normal/nankai/current",
+          "revision": {
+            "reportDateTimeRaw": "2020-05-12T16:33:00+09:00",
+            "serialRaw": "",
+            "infoTypeRaw": "取消"
+          }
+        },
+        {
+          "subject": "normal/VYSE50/20200512163200",
+          "revision": {
+            "reportDateTimeRaw": "2020-05-12T16:33:00+09:00",
+            "serialRaw": "",
+            "infoTypeRaw": "取消"
+          }
+        }
+      ],
+      "notices": true,
+      "intents": true,
+      "basisLevel": 1,
+      "basisRefs": [
+        "L1: docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6» O01",
+        "L1: reconstruction/contracts/p3-nankai-unit.json:244 «0f7252ab6a0d98a9» Q-ENUM revisionOrder",
+        "L1: reconstruction/contracts/p3-nankai-unit.json:66 «12d2ca0cebf39643» P3-C8-CANCEL-SCOPE=A",
+        "L1: reconstruction/contracts/p3-nankai-unit.json:176 «1df7e30209991af4» Q-NOTICE cancellation",
+        "L1: reconstruction/contracts/p3-nankai-unit.json:192 «56d2a35abda72da4» Q-NOTICE level（作者裁定 NOTICE-LEVELS=B）",
+        "L1: reconstruction/contracts/p3-nankai-unit.json:111 «3589317e02aae4bc» P3-C8-REPLACEMENT=A",
+        "L2: test/fixtures/synthetic_VYSE50_cancel.xml:1 «12c29731e40adc0c» 合成入力（manifest synthetic、配信原本ではない）"
+      ],
+      "input": null,
+      "checks": [
+        "74_01_05と同じheadType（VYSE50）・EventID（20200512163200）の取消（ReportDateTime 16:33、遅れて16:43に受信）。現況のsourceが同じ報で、取消がそのrevision以後なので現況をcancelledにして事実を捨て、情報subjectもcancelledにする（P3-C8-CANCEL-SCOPE=A(1)(2)）。ほかの情報subject（:69・:70・VYSE51）は変えない。",
+        "通知: cancellation（取消の前に現況と情報subjectがactive）、desktop＋sound、level=cancel。題「[取消] 南海トラフ地震臨時情報（巨大地震注意）」、body「この情報は取り消されました」。:71のpendingは180秒を過ぎて回収済み。",
+        "運用区分: Control.Status=通常; head.test/envelope Status=notProvided。replay 起源から区分を補わない。"
+      ]
+    },
+    {
+      "expectedId": "expected:O01:77",
+      "sequenceId": "O01",
+      "position": 77,
+      "decision": {
+        "kind": "unchanged",
+        "reason": "duplicate"
+      },
+      "effective": {
+        "kind": "inactive",
+        "cause": {
+          "kind": "cancelled"
+        }
+      },
+      "subjects": [
+        {
+          "subject": "normal/nankai/current",
+          "revision": {
+            "reportDateTimeRaw": "2020-05-12T16:33:00+09:00",
+            "serialRaw": "",
+            "infoTypeRaw": "取消"
+          }
+        },
+        {
+          "subject": "normal/VYSE50/20200512163200",
+          "revision": {
+            "reportDateTimeRaw": "2020-05-12T16:33:00+09:00",
+            "serialRaw": "",
+            "infoTypeRaw": "取消"
+          }
+        }
+      ],
+      "notices": false,
+      "intents": false,
+      "basisLevel": 1,
+      "basisRefs": [
+        "L1: docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6» O01",
+        "L1: reconstruction/contracts/p3-nankai-unit.json:244 «0f7252ab6a0d98a9» Q-ENUM revisionOrder",
+        "L2: test/fixtures/synthetic_VYSE50_cancel.xml:1 «12c29731e40adc0c» 合成入力（manifest synthetic、配信原本ではない）"
+      ],
+      "input": null,
+      "checks": [
+        "直前の取消と同じbytesの再受信。同じrevision・同じInfoTypeで事実が同じなのでduplicate（両subject）。取消記憶を保ち、通知0。",
+        "運用区分: Control.Status=通常; head.test/envelope Status=notProvided。replay 起源から区分を補わない。"
+      ]
+    },
+    {
+      "expectedId": "expected:O01:78",
+      "sequenceId": "O01",
+      "position": 78,
+      "decision": {
+        "kind": "unchanged",
+        "reason": "stale"
+      },
+      "effective": {
+        "kind": "inactive",
+        "cause": {
+          "kind": "cancelled"
+        }
+      },
+      "subjects": [
+        {
+          "subject": "normal/nankai/current",
+          "revision": {
+            "reportDateTimeRaw": "2020-05-12T16:32:00+09:00",
+            "serialRaw": "",
+            "infoTypeRaw": "発表"
+          }
+        },
+        {
+          "subject": "normal/VYSE50/20200512163200",
+          "revision": {
+            "reportDateTimeRaw": "2020-05-12T16:32:00+09:00",
+            "serialRaw": "",
+            "infoTypeRaw": "発表"
+          }
+        }
+      ],
+      "notices": false,
+      "intents": false,
+      "basisLevel": 1,
+      "basisRefs": [
+        "L1: docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6» O01",
+        "L1: reconstruction/contracts/p3-nankai-unit.json:244 «0f7252ab6a0d98a9» Q-ENUM revisionOrder",
+        "L1: reconstruction/contracts/p3-nankai-unit.json:48 «a86b4a1f006aa940» P3-C8-SUBJECTS=A",
+        "L2: test/fixtures/selected_xml/74_01_05_200512_VYSE50.xml:1 «12c29731e40adc0c» 気象庁のサンプル電文のControl/Head/Bodyを読解（実系列・原本確認の主張ではない）"
+      ],
+      "input": null,
+      "checks": [
+        "取消以前のrevision（16:32）の遅着はstale。取消した現況を戻さない（O01「取消後の古い報は復活しない」）。現況がstaleとした報は情報系列にも入らず、情報subjectも同じreasonのunchanged（P3-C8-SUBJECTS=A）。通知0。",
+        "運用区分: Control.Status=通常; head.test/envelope Status=notProvided。replay 起源から区分を補わない。"
+      ]
+    },
+    {
+      "expectedId": "expected:O01:79",
+      "sequenceId": "O01",
+      "position": 79,
+      "decision": {
+        "kind": "changed",
+        "change": "semantic"
+      },
+      "effective": {
+        "kind": "active"
+      },
+      "subjects": [
+        {
+          "subject": "normal/VYSE50/20200512163600",
+          "revision": {
+            "reportDateTimeRaw": "2020-05-12T16:36:00+09:00",
+            "serialRaw": "",
+            "infoTypeRaw": "発表"
+          }
+        }
+      ],
+      "notices": true,
+      "intents": true,
+      "basisLevel": 1,
+      "basisRefs": [
+        "L1: docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6» O01",
+        "L1: reconstruction/contracts/p3-nankai-unit.json:251 «c0ad3eae73b20c8b» I-U-N.currentSemantics",
+        "L1: reconstruction/contracts/p3-nankai-unit.json:57 «20209b3347687477» P3-C8-CODE-TABLE=A",
+        "L1: reconstruction/contracts/p3-nankai-unit.json:154 «c48582b5667e1eb9» Q-NOTICE semanticAdoption",
+        "L1: reconstruction/contracts/p3-nankai-unit.json:192 «56d2a35abda72da4» Q-NOTICE level（作者裁定 NOTICE-LEVELS=B）",
+        "L2: test/fixtures/selected_xml/74_01_07_200512_VYSE50.xml:1 «12c29731e40adc0c» 気象庁のサンプル電文のControl/Head/Bodyを読解（実系列・原本確認の主張ではない）"
+      ],
+      "input": null,
+      "checks": [
+        "code 190（調査終了）。系統の現況はcancelledでactiveのinvestigatingが無いので、現況に効かない（I-U-N.currentSemantics(3)）。系統のwatermarkと比べず進めず、情報subjectの新規の採用だけ（effectiveは情報subjectのもの）。現況はcancelledのまま。",
+        "通知: semanticAdoption（調査終了はactiveの現況が無いときも作る）、desktop＋sound、level=info（190、P3-C8-NOTICE-LEVELS=B）。",
+        "運用区分: Control.Status=通常; head.test/envelope Status=notProvided。replay 起源から区分を補わない。"
+      ]
+    },
+    {
+      "expectedId": "expected:O02:49",
+      "sequenceId": "O02",
+      "position": 49,
+      "decision": null,
+      "effective": null,
+      "subjects": [],
+      "notices": false,
+      "intents": false,
+      "basisLevel": 1,
+      "basisRefs": [
+        "L1: docs/specs/reconstruction-p0-contracts.md:1758 «37f025f94e7bbdfd» 固定初期状態・時計",
+        "L1: docs/specs/reconstruction-p0-contracts.md:736 «e88a83452d784a7c»"
+      ],
+      "input": {
+        "required": "新しい隔離 harness を空の全 UnitState・checkpoint なしで起動: synthetic_VYSE50_unknown_code.xml（U-N、表に無いcode）",
+        "acquisition": "synthetic"
+      },
+      "checks": [
+        "この step は試験ケースの初期化。前ケースの保存物・通知・gate を共有しない。起動の未充足を無発令と表示しない。"
+      ]
+    },
+    {
+      "expectedId": "expected:O02:50",
+      "sequenceId": "O02",
+      "position": 50,
+      "decision": {
+        "kind": "changed",
+        "change": "semantic"
+      },
+      "effective": {
+        "kind": "active"
+      },
+      "subjects": [
+        {
+          "subject": "normal/VYSE50/20200512163200",
+          "revision": {
+            "reportDateTimeRaw": "2020-05-12T16:32:00+09:00",
+            "serialRaw": "",
+            "infoTypeRaw": "発表"
+          }
+        }
+      ],
+      "notices": true,
+      "intents": true,
+      "basisLevel": 1,
+      "basisRefs": [
+        "L1: reconstruction/contracts/p3-nankai-unit.json:57 «20209b3347687477» P3-C8-CODE-TABLE=A",
+        "L1: reconstruction/contracts/p3-nankai-unit.json:252 «a406bd82cd10d229» I-U-N.informationSemantics",
+        "L1: reconstruction/contracts/p3-nankai-unit.json:154 «c48582b5667e1eb9» Q-NOTICE semanticAdoption",
+        "L1: reconstruction/contracts/p3-nankai-unit.json:192 «56d2a35abda72da4» Q-NOTICE level（作者裁定 NOTICE-LEVELS=B）",
+        "L2: test/fixtures/synthetic_VYSE50_unknown_code.xml:1 «12c29731e40adc0c» 合成入力（manifest synthetic、配信原本ではない）"
+      ],
+      "input": null,
+      "checks": [
+        "InfoSerial/Codeが表に無い「999」の報は拒否せず情報だけ（P3-C8-CODE-TABLE=A）。南海トラフの現況を作らない（effectiveは情報subjectのもの）。codeは文字列のまま情報subjectのinfoSerialに残す。",
+        "通知: semanticAdoption、desktop＋sound、level=warning（表に無いcode、P3-C8-NOTICE-LEVELS=B）。",
+        "運用区分: Control.Status=通常; head.test/envelope Status=notProvided。replay 起源から区分を補わない。"
+      ]
+    },
+    {
+      "expectedId": "expected:O02:51",
+      "sequenceId": "O02",
+      "position": 51,
+      "decision": null,
+      "effective": null,
+      "subjects": [],
+      "notices": false,
+      "intents": false,
+      "basisLevel": 1,
+      "basisRefs": [
+        "L1: docs/specs/reconstruction-p0-contracts.md:1758 «37f025f94e7bbdfd» 固定初期状態・時計",
+        "L1: docs/specs/reconstruction-p0-contracts.md:736 «e88a83452d784a7c»"
+      ],
+      "input": {
+        "required": "新しい隔離 harness を空の全 UnitState・checkpoint なしで起動: synthetic_VYSE50_no_earthquake_info.xml（U-N、非取消でEarthquakeInfoの欠落）",
+        "acquisition": "synthetic"
+      },
+      "checks": [
+        "この step は試験ケースの初期化。前ケースの保存物・通知・gate を共有しない。起動の未充足を無発令と表示しない。"
+      ]
+    },
+    {
+      "expectedId": "expected:O02:52",
+      "sequenceId": "O02",
+      "position": 52,
+      "decision": {
+        "kind": "rejected",
+        "reason": "requiredStructureMissing"
+      },
+      "effective": null,
+      "subjects": [
+        {
+          "subject": "normal/VYSE50/20200512162000",
+          "revision": {
+            "reportDateTimeRaw": "2020-05-12T16:20:00+09:00",
+            "serialRaw": "",
+            "infoTypeRaw": "発表"
+          }
+        }
+      ],
+      "notices": false,
+      "intents": false,
+      "basisLevel": 1,
+      "basisRefs": [
+        "L1: reconstruction/contracts/p3-nankai-unit.json:227 «446f658d04108472» Q-ENUM priorityRule",
+        "L2: test/fixtures/synthetic_VYSE50_no_earthquake_info.xml:1 «12c29731e40adc0c» 合成入力（manifest synthetic、配信原本ではない）"
+      ],
+      "input": null,
+      "checks": [
+        "非取消のVYSE50でBody/EarthquakeInfoが無いのはrequiredStructureMissing（Q-ENUM.familyTableのrequired、priorityRuleの順で最初の一reason）。stateは参照ごと不変で、現況・情報系列・intentを作らない。",
+        "運用区分: Control.Status=通常; head.test/envelope Status=notProvided。replay 起源から区分を補わない。"
+      ]
+    },
+    {
+      "expectedId": "expected:O02:53",
+      "sequenceId": "O02",
+      "position": 53,
+      "decision": null,
+      "effective": null,
+      "subjects": [],
+      "notices": false,
+      "intents": false,
+      "basisLevel": 1,
+      "basisRefs": [
+        "L1: docs/specs/reconstruction-p0-contracts.md:1758 «37f025f94e7bbdfd» 固定初期状態・時計",
+        "L1: docs/specs/reconstruction-p0-contracts.md:736 «e88a83452d784a7c»"
+      ],
+      "input": {
+        "required": "新しい隔離 harness を空の全 UnitState・checkpoint なしで起動: 80_01_01_240821_VYSE60.xml（U-N、北海道・三陸沖後発地震注意情報）",
+        "acquisition": "synthetic"
+      },
+      "checks": [
+        "この step は試験ケースの初期化。前ケースの保存物・通知・gate を共有しない。起動の未充足を無発令と表示しない。"
+      ]
+    },
+    {
+      "expectedId": "expected:O02:54",
+      "sequenceId": "O02",
+      "position": 54,
+      "decision": {
+        "kind": "changed",
+        "change": "semantic"
+      },
+      "effective": {
+        "kind": "active"
+      },
+      "subjects": [
+        {
+          "subject": "normal/VYSE60/current",
+          "revision": {
+            "reportDateTimeRaw": "2024-07-18T16:30:00+09:00",
+            "serialRaw": "",
+            "infoTypeRaw": "発表"
+          }
+        },
+        {
+          "subject": "normal/VYSE60/20240718163000",
+          "revision": {
+            "reportDateTimeRaw": "2024-07-18T16:30:00+09:00",
+            "serialRaw": "",
+            "infoTypeRaw": "発表"
+          }
+        }
+      ],
+      "notices": true,
+      "intents": true,
+      "basisLevel": 1,
+      "basisRefs": [
+        "L1: reconstruction/contracts/p3-nankai-unit.json:21 «127bf5c1478d1599» P3-C8-VYSE60=A（作者裁定）",
+        "L1: reconstruction/contracts/p3-nankai-unit.json:48 «a86b4a1f006aa940» P3-C8-SUBJECTS=A",
+        "L1: reconstruction/contracts/p3-nankai-unit.json:154 «c48582b5667e1eb9» Q-NOTICE semanticAdoption",
+        "L1: reconstruction/contracts/p3-nankai-unit.json:192 «56d2a35abda72da4» Q-NOTICE level（作者裁定 NOTICE-LEVELS=B）",
+        "L2: test/fixtures/selected_xml/80_01_01_240821_VYSE60.xml:1 «12c29731e40adc0c» 気象庁のサンプル電文のControl/Head/Bodyを読解（実系列・原本確認の主張ではない）"
+      ],
+      "input": null,
+      "checks": [
+        "VYSE60はInfoSerialが無くても、発表でVYSE60の系統の現況をsubsequentAdvisory（label「後発地震注意」）にする（P3-C8-VYSE60=A）。validUntil=ReportDateTime+7日。南海トラフの現況は作らない。情報subjectにも入る。80_01_01は例文で、実際の系列ではない。",
+        "通知: semanticAdoption、desktop＋sound、intentのsubjectは現況、level=warning（InfoSerialの無い報、P3-C8-NOTICE-LEVELS=B）。",
+        "運用区分: Control.Status=通常; head.test/envelope Status=notProvided。replay 起源から区分を補わない。"
+      ]
+    },
+    {
+      "expectedId": "expected:O07:35",
+      "sequenceId": "O07",
+      "position": 35,
+      "decision": null,
+      "effective": null,
+      "subjects": [],
+      "notices": false,
+      "intents": false,
+      "basisLevel": 1,
+      "basisRefs": [
+        "L1: docs/specs/reconstruction-p0-contracts.md:1758 «37f025f94e7bbdfd» 固定初期状態・時計",
+        "L1: docs/specs/reconstruction-p0-contracts.md:736 «e88a83452d784a7c»"
+      ],
+      "input": {
+        "required": "新しい隔離 harness を空の全 UnitState・checkpoint なしで起動: 南海トラフ U-N 74_01_05 保存→再起動→直後の取消（74_01_xx・75_01_xxは気象庁のサンプル電文で、時刻順に並べた試験用の列（実際の系列ではない。EventIDが全部違い、伏字がある）。）",
+        "acquisition": "synthetic"
+      },
+      "checks": [
+        "この step は試験ケースの初期化。前ケースの保存物・通知・gate を共有しない。起動の未充足を無発令と表示しない。"
+      ]
+    },
+    {
+      "expectedId": "expected:O07:36",
+      "sequenceId": "O07",
+      "position": 36,
+      "decision": {
+        "kind": "changed",
+        "change": "semantic"
+      },
+      "effective": {
+        "kind": "active"
+      },
+      "subjects": [
+        {
+          "subject": "normal/nankai/current",
+          "revision": {
+            "reportDateTimeRaw": "2020-05-12T16:32:00+09:00",
+            "serialRaw": "",
+            "infoTypeRaw": "発表"
+          }
+        },
+        {
+          "subject": "normal/VYSE50/20200512163200",
+          "revision": {
+            "reportDateTimeRaw": "2020-05-12T16:32:00+09:00",
+            "serialRaw": "",
+            "infoTypeRaw": "発表"
+          }
+        }
+      ],
+      "notices": true,
+      "intents": true,
+      "basisLevel": 1,
+      "basisRefs": [
+        "L1: docs/specs/reconstruction-p0-contracts.md:1783 «bb8e18a6762c105d» O07",
+        "L1: reconstruction/contracts/p3-nankai-unit.json:251 «c0ad3eae73b20c8b» I-U-N.currentSemantics",
+        "L1: reconstruction/contracts/p3-nankai-unit.json:154 «c48582b5667e1eb9» Q-NOTICE semanticAdoption",
+        "L1: reconstruction/contracts/p3-nankai-unit.json:192 «56d2a35abda72da4» Q-NOTICE level（作者裁定 NOTICE-LEVELS=B）",
+        "L2: test/fixtures/selected_xml/74_01_05_200512_VYSE50.xml:1 «12c29731e40adc0c» 気象庁のサンプル電文のControl/Head/Bodyを読解（実系列・原本確認の主張ではない）"
+      ],
+      "input": null,
+      "checks": [
+        "空stateからの巨大地震注意（code 130）。現況をmegaquakeAdvisoryにし、情報subjectにも入る。通知: semanticAdoption、desktop＋sound、level=warning。",
+        "運用区分: Control.Status=通常; head.test/envelope Status=notProvided。replay 起源から区分を補わない。"
+      ]
+    },
+    {
+      "expectedId": "expected:O07:37",
+      "sequenceId": "O07",
+      "position": 37,
+      "decision": null,
+      "effective": null,
+      "subjects": [],
+      "notices": null,
+      "intents": null,
+      "basisLevel": 1,
+      "basisRefs": [
+        "L1: docs/specs/reconstruction-p0-contracts.md:477 «3e40d22acd0eaefe» §4.2 U-N",
+        "L1: docs/specs/reconstruction-p0-contracts.md:1783 «bb8e18a6762c105d» O07"
+      ],
+      "input": {
+        "required": "U-Nの当該世代のcheckpoint ackまで待つ。通知の配送は保留し、期限は固定時計で止める。",
+        "acquisition": "synthetic"
+      },
+      "checks": [
+        "currents・intents（pendingと終端記録）が同じ保存単位に入る（I-U-N.persisted）。情報系列・contentRevision・persistenceは保存しない。"
+      ]
+    },
+    {
+      "expectedId": "expected:O07:38",
+      "sequenceId": "O07",
+      "position": 38,
+      "decision": null,
+      "effective": null,
+      "subjects": [],
+      "notices": false,
+      "intents": false,
+      "basisLevel": 1,
+      "basisRefs": [
+        "L1: docs/specs/reconstruction-p0-contracts.md:1783 «bb8e18a6762c105d» O07",
+        "L1: docs/specs/reconstruction-p0-contracts.md:2074 «643c123a1c57d2a8» E22",
+        "L1: reconstruction/contracts/p3-nankai-unit.json:202 «0b0276177e8537f1» Q-NOTICE restart",
+        "L1: reconstruction/contracts/p3-nankai-unit.json:255 «142e404cf665ee9d» I-U-N.persisted"
+      ],
+      "input": {
+        "required": "直前にsaveしたU-Nだけから復元、時計16:33:00。",
+        "acquisition": "synthetic"
+      },
+      "checks": [
+        "復元でintentを新しく作らない。:36のpendingは元のcreatedAt/expiresAt（sound 16:33:01、desktop 16:35:01）で再試行対象に戻る。情報系列は空から始まる（spec:512のN）。"
+      ]
+    },
+    {
+      "expectedId": "expected:O07:39",
+      "sequenceId": "O07",
+      "position": 39,
+      "decision": {
+        "kind": "changed",
+        "change": "semantic"
+      },
+      "effective": {
+        "kind": "inactive",
+        "cause": {
+          "kind": "cancelled"
+        }
+      },
+      "subjects": [
+        {
+          "subject": "normal/nankai/current",
+          "revision": {
+            "reportDateTimeRaw": "2020-05-12T16:33:00+09:00",
+            "serialRaw": "",
+            "infoTypeRaw": "取消"
+          }
+        }
+      ],
+      "notices": true,
+      "intents": true,
+      "basisLevel": 1,
+      "basisRefs": [
+        "L1: docs/specs/reconstruction-p0-contracts.md:1783 «bb8e18a6762c105d» O07",
+        "L1: reconstruction/contracts/p3-nankai-unit.json:66 «12d2ca0cebf39643» P3-C8-CANCEL-SCOPE=A",
+        "L1: reconstruction/contracts/p3-nankai-unit.json:176 «1df7e30209991af4» Q-NOTICE cancellation",
+        "L1: reconstruction/contracts/p3-nankai-unit.json:192 «56d2a35abda72da4» Q-NOTICE level（作者裁定 NOTICE-LEVELS=B）",
+        "L1: reconstruction/contracts/p3-nankai-unit.json:111 «3589317e02aae4bc» P3-C8-REPLACEMENT=A",
+        "L2: test/fixtures/synthetic_VYSE50_cancel.xml:1 «12c29731e40adc0c» 合成入力（manifest synthetic、配信原本ではない）"
+      ],
+      "input": null,
+      "checks": [
+        "復元直後の取消。復元した現況のsourceと同じheadType・EventIDなので現況をcancelledにする（P3-C8-CANCEL-SCOPE=A(1)）。情報系列は復元で空なので、情報subjectはcancelledの記憶（viewに載らない、同(3)）として作る。復元した現況との差で決める（Q-NOTICE.restart）。",
+        "通知: cancellation（取消の前に現況がactive）、desktop＋sound、level=cancel。復元した:36のpending（両channel）は取消で対象のsubjectのものなのでsupersededにする（P3-C8-REPLACEMENT=A）。",
+        "運用区分: Control.Status=通常; head.test/envelope Status=notProvided。replay 起源から区分を補わない。"
+      ]
+    },
+    {
+      "expectedId": "expected:O07:40",
+      "sequenceId": "O07",
+      "position": 40,
+      "decision": null,
+      "effective": null,
+      "subjects": [],
+      "notices": false,
+      "intents": false,
+      "basisLevel": 1,
+      "basisRefs": [
+        "L1: docs/specs/reconstruction-p0-contracts.md:1758 «37f025f94e7bbdfd» 固定初期状態・時計",
+        "L1: docs/specs/reconstruction-p0-contracts.md:736 «e88a83452d784a7c»"
+      ],
+      "input": {
+        "required": "新しい隔離 harness を空の全 UnitState・checkpoint なしで起動: 南海トラフ U-N 74_01_04 保存→再起動→期限の非延長（74_01_xx・75_01_xxは気象庁のサンプル電文で、時刻順に並べた試験用の列（実際の系列ではない。EventIDが全部違い、伏字がある）。）",
+        "acquisition": "synthetic"
+      },
+      "checks": [
+        "この step は試験ケースの初期化。前ケースの保存物・通知・gate を共有しない。起動の未充足を無発令と表示しない。"
+      ]
+    },
+    {
+      "expectedId": "expected:O07:41",
+      "sequenceId": "O07",
+      "position": 41,
+      "decision": {
+        "kind": "changed",
+        "change": "semantic"
+      },
+      "effective": {
+        "kind": "active"
+      },
+      "subjects": [
+        {
+          "subject": "normal/nankai/current",
+          "revision": {
+            "reportDateTimeRaw": "2020-05-12T16:28:00+09:00",
+            "serialRaw": "",
+            "infoTypeRaw": "発表"
+          }
+        },
+        {
+          "subject": "normal/VYSE50/20200512162800",
+          "revision": {
+            "reportDateTimeRaw": "2020-05-12T16:28:00+09:00",
+            "serialRaw": "",
+            "infoTypeRaw": "発表"
+          }
+        }
+      ],
+      "notices": true,
+      "intents": true,
+      "basisLevel": 1,
+      "basisRefs": [
+        "L1: docs/specs/reconstruction-p0-contracts.md:1783 «bb8e18a6762c105d» O07",
+        "L1: reconstruction/contracts/p3-nankai-unit.json:251 «c0ad3eae73b20c8b» I-U-N.currentSemantics",
+        "L1: reconstruction/contracts/p3-nankai-unit.json:154 «c48582b5667e1eb9» Q-NOTICE semanticAdoption",
+        "L1: reconstruction/contracts/p3-nankai-unit.json:192 «56d2a35abda72da4» Q-NOTICE level（作者裁定 NOTICE-LEVELS=B）",
+        "L2: test/fixtures/selected_xml/74_01_04_200512_VYSE50.xml:1 «12c29731e40adc0c» 気象庁のサンプル電文のControl/Head/Bodyを読解（実系列・原本確認の主張ではない）"
+      ],
+      "input": null,
+      "checks": [
+        "空stateからの巨大地震警戒（code 120）。現況をmegaquakeWarningにし、validUntil=2020-05-19T16:28:00+09:00（ReportDateTime+7×86,400,000 ms、受信時刻16:28:01からではない、P3-C8-RETENTION=A）。通知: semanticAdoption、desktop＋sound、level=critical。",
+        "運用区分: Control.Status=通常; head.test/envelope Status=notProvided。replay 起源から区分を補わない。"
+      ]
+    },
+    {
+      "expectedId": "expected:O07:42",
+      "sequenceId": "O07",
+      "position": 42,
+      "decision": null,
+      "effective": null,
+      "subjects": [],
+      "notices": null,
+      "intents": null,
+      "basisLevel": 1,
+      "basisRefs": [
+        "L1: docs/specs/reconstruction-p0-contracts.md:477 «3e40d22acd0eaefe» §4.2 U-N",
+        "L1: docs/specs/reconstruction-p0-contracts.md:1783 «bb8e18a6762c105d» O07"
+      ],
+      "input": {
+        "required": "U-Nの当該世代のcheckpoint ackまで待つ。通知の配送は保留し、期限は固定時計で止める。",
+        "acquisition": "synthetic"
+      },
+      "checks": [
+        "currents・intentsが同じ保存単位に入る（I-U-N.persisted）。情報系列は保存しない。"
+      ]
+    },
+    {
+      "expectedId": "expected:O07:43",
+      "sequenceId": "O07",
+      "position": 43,
+      "decision": null,
+      "effective": {
+        "kind": "active"
+      },
+      "subjects": [],
+      "notices": false,
+      "intents": false,
+      "basisLevel": 1,
+      "basisRefs": [
+        "L1: docs/specs/reconstruction-p0-contracts.md:1783 «bb8e18a6762c105d» O07",
+        "L1: docs/specs/reconstruction-p0-contracts.md:2074 «643c123a1c57d2a8» E22",
+        "L1: reconstruction/contracts/p3-nankai-unit.json:202 «0b0276177e8537f1» Q-NOTICE restart",
+        "L1: reconstruction/contracts/p3-nankai-unit.json:39 «8afa7b92bd4f4069» P3-C8-CURRENT-EXPIRY=A（作者裁定）",
+        "L1: reconstruction/contracts/p3-nankai-unit.json:84 «9f9a911e5e36f284» P3-C8-RETENTION=A"
+      ],
+      "input": {
+        "required": "直前にsaveしたU-Nだけから復元、時計2020-05-19T16:27:59.999+09:00（validUntilの1 ms前）。",
+        "acquisition": "synthetic"
+      },
+      "checks": [
+        "復元した現況はactiveのまま（validUntilの前）。再起動で期限を延ばさない（validUntilは元報の16:28+7日のまま）。:41のintentは元のexpiresAtを過ぎているので再試行しない。復元で新しいintentを作らない。"
+      ]
+    },
+    {
+      "expectedId": "expected:O07:44",
+      "sequenceId": "O07",
+      "position": 44,
+      "decision": null,
+      "effective": {
+        "kind": "inactive",
+        "cause": {
+          "kind": "expired"
+        }
+      },
+      "subjects": [],
+      "notices": false,
+      "intents": false,
+      "basisLevel": 1,
+      "basisRefs": [
+        "L1: docs/specs/reconstruction-p0-contracts.md:1783 «bb8e18a6762c105d» O07",
+        "L1: reconstruction/contracts/p3-nankai-unit.json:39 «8afa7b92bd4f4069» P3-C8-CURRENT-EXPIRY=A（作者裁定）",
+        "L1: reconstruction/contracts/p3-nankai-unit.json:84 «9f9a911e5e36f284» P3-C8-RETENTION=A",
+        "L1: reconstruction/contracts/p3-nankai-unit.json:187 «d4e358cef8a12114» Q-NOTICE expiry"
+      ],
+      "input": {
+        "required": "入力なしで時計を2020-05-19T16:28:00.000+09:00（validUntil）へ進め、期限処理を走らせる。",
+        "acquisition": "synthetic"
+      },
+      "checks": [
+        "validUntilの到来で現況はexpired（事実を捨てる、P3-C8-CURRENT-EXPIRY=A）。巨大地震注意へは移らない。expiryでは通知しない（Q-NOTICE expiry）。watermarkは2020-06-11T16:28まで保持（+30日）。"
       ]
     }
   ],

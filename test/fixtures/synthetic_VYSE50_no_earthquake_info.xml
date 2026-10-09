@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Report xmlns="http://xml.kishou.go.jp/jmaxml1/" xmlns:jmx="http://xml.kishou.go.jp/jmaxml1/">
+<Control>
+<Title>南海トラフ地震臨時情報</Title>
+<DateTime>2020-05-12T07:20:33Z</DateTime>
+<Status>通常</Status>
+<EditorialOffice>気象庁本庁</EditorialOffice>
+<PublishingOffice>気象庁</PublishingOffice>
+</Control>
+<Head xmlns="http://xml.kishou.go.jp/jmaxml1/informationBasis1/">
+<Title>南海トラフ地震臨時情報（調査中）</Title>
+<ReportDateTime>2020-05-12T16:20:00+09:00</ReportDateTime>
+<TargetDateTime>2020-05-12T16:20:00+09:00</TargetDateTime>
+<EventID>20200512162000</EventID>
+<InfoType>発表</InfoType>
+<Serial></Serial>
+<InfoKind>南海トラフ地震に関連する情報</InfoKind>
+<InfoKindVersion>1.1_0</InfoKindVersion>
+<Headline>
+<Text>
+　●月●日●●時●●分頃に発生した地震と南海トラフ地震との関連性についての調査を開始しました。南海トラフ地震で被害が想定される地域の方は、個々の状況に応じて、身の安全を守る行動を取ってください。
+</Text>
+</Headline>
+</Head>
+<Body xmlns="http://xml.kishou.go.jp/jmaxml1/body/seismology1/" xmlns:jmx_eb="http://xml.kishou.go.jp/jmaxml1/elementBasis1/">
+<NextAdvisory>
+　調査結果がまとまり次第、「南海トラフ地震臨時情報」でお知らせします。
+</NextAdvisory>
+</Body>
+</Report>

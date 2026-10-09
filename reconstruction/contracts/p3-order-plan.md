@@ -340,3 +340,4 @@ coverage 下書きの「未確認」12 項目のうち、項目 9（priorityReas
 | `P3-WEATHER-LIGHT-002`（段 2） | 台帳 66・E05-P: 自前の速い組立てで XmlNode を 1 本、変な形は旧の FXP の経路へ戻す（全入力で旧と同じ）。D-WL2-DEP=B・同値の基準（作者裁定 2026-10-09） | 段 1 | 起草 `e5a86bae`、発注前点検 2026-10-09 |
 | 段 3（未起草） | 台帳 70: 保存の書込量（圧縮・地域本文の重複除去） | 段 1 | 段 2 の後 |
 | `P3-OWNER-LEDGER-BOUND-001`（台帳 67） | owner の未保存の世代ごとの入力 ID の記録（OwnerHost.ledger）を unit ごとに 4,096 世代までにする。LEDGER67=A（作者裁定 2026-10-08）、OVERFLOW=A（2026-10-09）。上限の外では P2-A3-AC10 の和集合の固定・P3-UWR-AC05 と T01・UWR の残存リスク (3)・E15 の相関を本契約の AC05 が上書きする（他の契約の条文は編集しない） | UWR。C7 と試験 2 本が重なり、本契約が先 | 起草 `d41394a9`、発注前点検 2026-10-09 |
+| 写した読み取り関数の集約（未起草） | domains・units で写した XML の読み取り関数（localName・children・scalar・leafValues など）と unit の codec の基本形を 1 か所へ寄せる。共有の行（Record<RuntimeUnitId,…>・網羅 switch）は unit ごとの直書きのまま（P3-C7-SHARED-ROWS、C8 の Q-C8-BASE） | C14 の後・C22 の前 | 未着手 |

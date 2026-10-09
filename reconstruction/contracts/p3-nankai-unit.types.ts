@@ -20,7 +20,7 @@ import type {
 export type NankaiReportFamily = "VYSE50" | "VYSE51" | "VYSE52" | "VYSE60";
 
 // InfoSerial/Code の表（questionResolutions[Q-ENUM].codeTable、旧築 nankai-status.ts）で決まる南海トラフの現況の区分。
-// investigating は P3-C8-INVESTIGATING=A のときだけ作る。VYSE60 の系統は subsequentAdvisory だけ（型で縛る）。
+// investigating は P3-C8-INVESTIGATING=A（作者裁定）で作る。VYSE60 の系統は subsequentAdvisory だけ（型で縛る）。
 export type NankaiCurrentStatus = "investigating" | "megaquakeWarning" | "megaquakeAdvisory";
 
 // 報自身の InfoSerial。code は XML の文字列を trim したもの（P1 は "120" を number にするので使わない、Q-ENUM.codeTable）。
@@ -55,7 +55,6 @@ export type NankaiCurrent = Readonly<{
   | Readonly<{ line: "VYSE60"; effective: "cancelled" | "expired" }>
 );
 
-// P3-C8-VYSE60=B なら VYSE60 の 2 行を外す。
 export type NankaiCurrentLine = NankaiCurrent["line"];
 
 // 情報系列（N、保存しない）。subject = `${operation}/${family}/${eventId}`。採用した全ての報が入る
