@@ -1,0 +1,924 @@
+{
+  "meta": {
+    "draftedFromOid": "aaa3b2d3d3cf4c6a492c475e9d78fe7e86fa181b",
+    "sha256": "1fd2593a866cb3392b21230c078c56fed4f133be1e8a12128ee66d329499b6e0",
+    "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
+    "manifestSha256": "e4294056f8be82e935cfe620919806a73cffd91ebd14334e74d82b1edf00df3e",
+    "sequencesSha256": "a6502ec4fd5a1959735ce044f3388788d6893b3a41f6a3f4ab0d72ca61e9ea1f",
+    "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
+    "decisionBranches": [
+      {
+        "id": "P3-C8-INVESTIGATING",
+        "A": "調査中（VYSE50のInfoSerial/Code 111・112・113）を南海トラフの現況（status=investigating、label「調査中」）にする。ただし、activeの巨大地震警戒・巨大地震注意は置き換えない（そのとき調査中の報は情報系列だけに入る）。investigatingは巨大地震警戒・巨大地震注意で置き換わり、調査終了（190）でended、取消でcancelledになる。報は情報系列にも入る（P3-C8-SUBJECTS）",
+        "B": "旧築どおり、調査中は情報系列だけに入り、現況を変えない（nankai-status.ts:8〜:10のignore、standby-state-store.ts:2393）。調査終了（190）も情報だけ（investigatingが無いので終わらせる現況が無い）",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "起草案",
+        "ruling": "作者裁定待ち（起草案）",
+        "reason": "見え方の違い（74_01_xxと75_01_xxは気象庁のサンプル電文で、EventIDが全部違い、伏字があり、111・112・113は互いの代替。実際の系列ではなく、試験用に時刻順に並べたもの）: 16:20の臨時情報（調査中、111）を受けたとき、Aでは現況が「調査中」になり、16:28の臨時情報（巨大地震警戒、120）で「巨大地震警戒」に替わる。Bでは16:20〜16:28の間は現況が空のままで、調査中の報は情報系列（保存しない）にだけある。再起動すると、Bでは調査中の根拠が消え、Aでは発表から7日（P3-C8-RETENTION）まで現況として戻る。spec §8.5.2の器の推奨（spec:1448）は「南海トラフ調査中」を見出しの器に割り当て、§8.5.3（spec:1472）は南海トラフの必須事実を「調査・評価の区分」とするので、調査中を区分の一つとして現況に置くのが素直。規則: 調査終了は報のAppendix（74_01_04の:70）が「（巨大地震警戒）、（巨大地震注意）のいずれにも当てはまらない現象と評価した場合」と定める調査の結論で、警戒・注意を終わらせる報ではない。そこで190が終わらせるのはinvestigatingだけとし、調査中もactiveの警戒・注意を置き換えない（Appendixは、すでに防災対応がとられている際の調査は解説情報で発表する場合があるとする）。Aの代償: P3-C8-N2（REST回復なし）と重なり、切断中に調査終了を取り逃すと「調査中」が最大7日残る（2025-01-13の日向灘M6.6では実際の調査は約2時間で終わった。レビュアーの記憶、要確認）。旧築との差: 旧築は190で無条件に現況（巨大地震注意を含む）を消す（revision-family-registry.ts:458のdeactivationPredicate、standby-state-store.ts:2396）。新築は巨大地震注意の最中の調査終了で注意を残す。鳴り方はP3-C8-NOTICE-LEVELSで決まり、この分岐では変わらない"
+      },
+      {
+        "id": "P3-C8-VYSE60",
+        "A": "VYSE60（北海道・三陸沖後発地震注意情報）の発表・訂正を、南海トラフと別の系統の現況（subject `${operation}/VYSE60/current`、status=subsequentAdvisory、label「後発地震注意」）にする。取消でcancelled、ReportDateTime+7日でexpired。南海トラフの現況を上書きしない。報は情報系列にも入る",
+        "B": "旧築どおり、VYSE60は情報系列だけ（InfoSerialが無いのでnankai-status.ts:20でignore）",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "起草案",
+        "ruling": "作者裁定待ち（起草案）",
+        "reason": "見え方の違い（corpusの80_01_01_240821_VYSE60、2024-07-18 16:30、三陸沖Mw7.7の例文）: Aでは受信から7日、現況に「後発地震注意」が残り、再起動の後も戻る。Bでは情報系列（保存しない、7日）にだけあり、再起動で消える。どちらも南海トラフの現況は変えない。判断の材料（レビュアーの記憶、要確認。checkoutに資料は無い）: 北海道・三陸沖後発地震注意情報の呼びかけは1週間で、数え始めは地震の発生時刻。電文から読めること: 本文は「その地震発生後７日以内に」の統計を示すが、呼びかけの期間と終わりの報は電文に無い。発生時刻は本文の自由文（例文は14時05分の地震で、ReportDateTimeは16:30と約2時間半遅い）にだけあり、13本ともTargetDateTime＝ReportDateTimeで、もとの地震の時刻は構造化されていない。Aの7日はReportDateTimeから7×86,400,000 msの絶対の長さ（JSTの暦日を使わない）で、旧築の南海トラフの表示期限（standby-state-store.ts:115）の流用。発生時刻から数える1週間より数時間遅れて終わる。Aの代償は、保存する現況が3件から6件になること（P3-C8-CAPACITYの内側）。推奨はA: 期間付きの注意の呼びかけを再起動で落とさない。Bを選ぶなら型のNankaiCurrentからVYSE60の2行を外す"
+      },
+      {
+        "id": "P3-C8-NOTICE-LEVELS",
+        "A": "旧築の式を保ち、段階はその報自身のInfoSerial/Codeで決める（level-helpers.ts:308〜:312のsound、notifier.ts:494の取消）。取消はcancel、code 120（巨大地震警戒）はcritical、それ以外（巨大地震注意・調査中・臨時解説・定例解説・調査終了・InfoSerialの無いVYSE60・表に無いcode）はwarning",
+        "B": "段階を分ける（旧築の表示の段階level-helpers.ts:232〜:245に揃える）: 120はcritical、130・111〜113・210・219はwarning、190・200はinfo、InfoSerialの無い報（VYSE60を含む）と表に無いcodeは旧築どおりwarning（level-helpers.ts:236・:243）、取消はcancel",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "起草案",
+        "ruling": "作者裁定待ち（起草案）",
+        "reason": "鳴り方の違い（corpus）: 定例の南海トラフ地震関連解説情報（75_01_04_200512_VYSE52、code 200、月1回程度）と調査終了（74_01_07、code 190）は、Aでは短三和音2回（warning、地震・EEWのC5）、Bでは単音（info）。巨大地震警戒（74_01_04）はどちらもcritical（和音3回、EEW警報と同じ重さ）。巨大地震注意（74_01_05）はどちらもwarning。どちらの案もA7の群はotherで、EEWと津波緊急を追い越さない（P3-C8-NOTICE-GROUP）。推奨はA: 新しい根拠が無いまま鳴り方を変えない。Bを選んでも型は変わらず、levelの表だけを差し替える"
+      },
+      {
+        "id": "P3-C8-CURRENT-EXPIRY",
+        "A": "旧築どおり、現況はsourceのReportDateTimeから7日でexpiredになる（巨大地震警戒も巨大地震注意も同じ、standby-state-store.ts:115・:2403）。期限では通知しない",
+        "B": "巨大地震警戒は7日で巨大地震注意へ移り、さらに7日でexpiredになる（政府の防災対応の期間を、電文の無いまま状態に写す）",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "起草案",
+        "ruling": "作者裁定待ち（起草案）",
+        "reason": "見え方の違い: 巨大地震警戒（74_01_04、例文の2020-05-12 16:28）を最後の報とすると、Aでは05-19 16:28に現況が消える。Bでは05-19 16:28から「巨大地震注意」になり、05-26 16:28に消える。判断の材料（レビュアーの記憶、要確認。checkoutに資料は無い）: 内閣府のガイドラインでは、半割れ（120）は警戒の防災対応1週間＋注意の防災対応1週間、一部割れ（130）は注意1週間、ゆっくりすべり（130）は期間が決まっていない。数え始めは地震の発生時刻。実例（同じくレビュアーの記憶）: 2024-08-08の日向灘は調査中→巨大地震注意で、8/15の呼びかけの終わりは政府の発表でありVYSE50は出ていない。2025-01-13の日向灘M6.6は調査中→約2時間後に調査終了。電文から読めること: corpusの75_01_03（code 219）の本文に「●月●日●●時まで警戒（注意）する措置」と期間が自由文で出るが、構造化された値は無い。13本ともTargetDateTime＝ReportDateTimeで、もとの地震の時刻も構造化されていない。期限はReportDateTimeから7×86,400,000 msの絶対の長さで、JSTの暦日を使わない（発生時刻から数えるより数時間遅れて終わる）。ゆっくりすべりの130はAでもBでも7日の固定に合わない（期間が決まっていないのに7日で消える）。推奨はA: 電文に無い状態の遷移を作らない。Bを選ぶなら現況に移行の時刻を1 field足す"
+      },
+      {
+        "id": "P3-C8-SUBJECTS",
+        "A": "判定のsubjectは、現況が`${operation}/${line}/current`（lineはnankaiとVYSE60、P3-C8-VYSE60）、情報が`${operation}/${headType}/${eventId}`（旧築のnankai:information:${type}:${eventId}と同じ粒度、revision-family-registry.ts:463〜:477）。採用した全ての報は情報系列に入る。報が現況に効くか（I-U-N.currentSemantics）はcode・系統の現況・訂正の対象で決まる。判定の順は旧築と同じで、除外を先に判定し、除外した報は系統のwatermarkと比べず進めもせず情報だけで採用し（情報の版は情報subjectの側で比べる）、除外されない報だけを系統のwatermarkと比べる。現況に効く報は現況が採用したときだけ情報系列にも入り、現況がunchangedならその報の情報subjectも同じreasonのunchangedにする。現況に効かない報（解説・定例・表に無いcode、activeの警戒・注意の最中の調査中、investigatingの無いときの調査終了、現況のsourceと別の報の訂正）は情報subjectだけを変える。一入力の変更は一回の参照交換で原子的に適用する",
+        "B": "旧築どおり、現況を変える報と情報だけの報を別のgateで比べ、現況を変える報を情報系列に入れない",
+        "recommended": "A",
+        "provisional": "A",
+        "ruling": "統合担当が起草で確定（spec:511・:512の現況D・情報系列Nの分離を、保存の予算の内側で表示と端末出力に要る本文を持てる形にする）",
+        "reason": "現況は本文（Text）を保存しない（256 KiBの予算、P3-C8-CAPACITY）。Bでは巨大地震警戒や調査終了の本文がどこにも無く、表示の詳細と端末出力（C19）が読めない。Aは現況の採用を情報系列の採用の条件にするので、再起動の後に古い報を読み直しても、除外に当たらない報（巨大地震警戒・巨大地震注意、activeの警戒・注意が無いときの調査中など）は復元した現況のwatermarkでstale・duplicateになり、情報系列にも入らず鳴らない。除外に当たる報（警戒・注意の最中の調査中、investigatingの無いときの調査終了、sourceと別の報の訂正）と情報だけの報は、現況のwatermarkと比べないので、情報系列（復元で空）に新しく採用されて鳴りうる（旧築も情報は保存しない）"
+      },
+      {
+        "id": "P3-C8-CODE-TABLE",
+        "A": "InfoSerial/CodeをXMLの文字列（子要素の無い要素の直下textのtrim）で表に引く（旧築nankai-status.ts:7〜:17と同じ表）: 111・112・113はinvestigating（P3-C8-INVESTIGATING=Aのとき、activeの巨大地震警戒・巨大地震注意が無いときだけ。Bなら情報だけ）、120はmegaquakeWarning、130はmegaquakeAdvisory、190はactiveのinvestigatingだけをendedにする（activeの警戒・注意は変えず、investigatingが無ければ情報だけ）、200・210・219・表に無いcode・InfoSerialの無いVYSE50〜52は情報だけ。headTypeで絞らない（旧築と同じ）。VYSE60はP3-C8-VYSE60=Aなら、InfoSerialによらず発表・訂正でVYSE60の系統をactiveにする。labelは表の文字列（旧築と同じ）で、報のInfoSerial/NameはinfoSerial.nameに残す",
+        "B": "P1のMaterialValue（kind=number）のvalueで引く（rawをtrimして引くならAと同じになる）",
+        "recommended": "A",
+        "provisional": "A",
+        "ruling": "統合担当が起草で確定（電文の値の型: P1はCodeの「120」をkind=numberの120にする。起草時にclassifyMaterialで確かめた）",
+        "reason": "numberのvalueで引くと先頭0のcodeや全角の数字を区別できない（「0120」と「120」が同じになる）。表に無いcodeを拒否せず情報だけにするのは旧築（nankai-status.ts:20）と同じで、気象庁のcodeの追加で報を捨てない（C7のP3-C7-VALUE-UNKNOWNと同じ向き）"
+      },
+      {
+        "id": "P3-C8-CANCEL-SCOPE",
+        "A": "取消はHeadのheadTypeとEventIDで対象を決める。(1) その系統の現況のsourceが同じheadType・EventIDで、取消がそのrevision以後なら、現況をcancelledにする（事実を捨て、sourceを取消へ進める） (2) 情報subject`${operation}/${headType}/${eventId}`があればcancelledにする (3) どちらも無ければ、情報subjectをcancelledの記憶（N、viewに載らない）として作る。現況のsourceが別のEventIDのとき、取消は現況を変えない。VYSE60の取消はVYSE60の系統だけを見る",
+        "B": "旧築どおり、取消は全部現況のpolicyへ回し（process-message.ts:506）、現況のsourceとEventIDが一致したときだけ採用して現況を消す。一致しない取消と未受信の対象の取消はgateで落として鳴らさない（process-standby-foundation.ts:75〜:82、process-message.ts:290、旧築の試験phase3b-standby-domains.test.ts:210〜:233）。情報だけの報（調査中・解説・定例・VYSE60）の取消は情報を取り消さない",
+        "recommended": "A",
+        "provisional": "A",
+        "ruling": "統合担当が起草で確定（spec:1777のO01「対象だけ取消」）",
+        "reason": "旧築では、調査中・解説・定例・VYSE60を取り消す報は現況のsourceとEventIDが一致しない限り黙って捨てられ、取り消されたはずの情報が残る。Aは情報subjectを取り消し、activeだったなら鳴らす。未受信の対象の取消（corpusの74_03_01_220318_VYSE50、2022-03-18 19:36の調査中を19:38に取り消す報で、元の報はcorpusに無い）は、A・Bどちらも鳴らさない（Aは(3)の記憶だけ）。spec:1777のO01「対象だけ取消」とも合う"
+      },
+      {
+        "id": "P3-C8-PLACE",
+        "A": "U-Nの実行場所をurgent（U-E・U-T・U-Qと同じowner）にする",
+        "B": "U-Nをdeferred（U-Fと同じowner）にする",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "起草案",
+        "ruling": "起草案（発注前点検でS4の本文とD-P3-1により統合担当が確定する、Q-C8-S4-PLACE。S4にU-Nが急ぐunitとして無ければ作者の分岐として出し直す）",
+        "reason": "D-P3-5（計画:202）は「急ぐunitから（S4）」の順でU-NをU-Qの次に置き、spec:1027はurgentを「U-E系の急ぐunit」とする。Bでは巨大地震警戒の報がU-FのVPWP50の解凍・処理・保存の後に並び、Piでは気象の1回の処理が1秒を超えうる（計画§4.5のE03、台帳66）。Aの代償は小さい: corpusの最大のVYSEは8,992 byte（80_01_01_240821_VYSE60）、U-Nの1世代は262,144 byte以下で、その処理中に届いたEEWの待ちはAC11で報告し、Macの待ちの最大が約40msを超えたら配送前に作者へ報告してこの分岐を見直す"
+      },
+      {
+        "id": "P3-C8-RETENTION",
+        "A": "期限はすべて元報のReportDateTimeから、7×86,400,000 msのような絶対の長さで数える（JSTの暦日を使わない）: 現況のactiveは+7日（旧築standby-state-store.ts:115・:2403）、現況のwatermarkは+30日（旧築revision-family-registry.ts:154）、情報subjectは+7日（新しい選択）。再起動・再受信で延ばさない。到着の時点で期限を過ぎた報は採用してwatermarkを進め、同じreduceで回収する（viewに載らず鳴らない）",
+        "B": "受信時刻から数える",
+        "recommended": "A",
+        "provisional": "A",
+        "ruling": "統合担当が起草で確定（spec §10.5の5「業務上の期限は元報の絶対時刻から」、C5のP3-C5-RETENTION・C7のP3-C7-RETENTIONと同じ基準）",
+        "reason": "受信時刻を基準にすると、replay・再起動で同じ報の期限が変わる。情報の7日は新しい選択: 旧築の情報のgateの記憶は30日・256件（revision-family-registry.ts:477）で、standby-registry.ts:31の7日は現況のカードのfallbackTtl。情報系列は保存しない（N）ので30日の記憶は再起動で消え、表示の器と期間はP4が決める。7日を過ぎて届く重複は、Aでも到着の時点で期限切れとして回収され鳴らない"
+      },
+      {
+        "id": "P3-C8-CAPACITY",
+        "A": "保存の1世代は256 KiB（262,144 byte、spec:477）。現況は系統×運用区分で最大6件（1件の上限4,718 byte、I-U-N.bounds）、pending intentは128件・131,072 byte（spec:981）、終端記録は合計98,304 byteまで（超える分は最古の終端記録から期限前に回収）。同時最大状態の上界は258,489 byteで、件数・文字列の上限と回収の規則から予算を超えない。情報系列（N、保存しない）は最大64 subject（三区分合算）で、65件目は (1) retainUntilを過ぎたもの (2) training/test (3) normalの最古（ReportDateTime順）から1件退去して受け、確定した退去だけを診断nankaiCapacityEvicted（count）で返す。U-NはcapacityExceededを返さない",
+        "B": "情報系列の65件目をcapacityExceededで拒否する",
+        "recommended": "A",
+        "provisional": "A",
+        "ruling": "統合担当が起草で確定（spec:470の同時最大状態はI-U-N.capacityMeasurementの式で定める）",
+        "reason": "情報系列は表示用のNで保存の予算に入らず、新しい報ほど要る。Bでは解説情報の続く期間に新しい解説を捨てる。64は数えた値でなく選んだ値: 7日の保持に対し、定例解説（月1回）・臨時解説（警戒・注意の期間に1日数回、という見込み）・臨時情報の数に数倍の幅を持たせた。代償: 退去した情報の重複が遅れて届くと、新しく採用されて鳴りうる（64件を7日で超える日だけ）。現況の件数は系統と運用区分で決まり、退去の手順は要らない"
+      },
+      {
+        "id": "P3-C8-NOTICE-GROUP",
+        "A": "U-Nのintentはdomain=earthquake-eewで、A7のgroup()がC7のP3-C7-NOTICE-GROUP=A（intent.unit=U-EだけをnormalEewにする）によりotherに入る。C8はgroup()を変えず、試験で確かめるだけ",
+        "B": "巨大地震警戒を緊急の群に入れる",
+        "recommended": "A",
+        "provisional": "A",
+        "ruling": "統合担当が起草で確定（spec:951の固定優先群は通常運用のEEW→津波緊急→その他で、南海トラフはその他）",
+        "reason": "C7の合流より前にC8を合流すると、現行のgroup()（notification-delivery.tsのdomain=earthquake-eewを全部normalEewにする行）により巨大地震注意がEEWと同じ最上位群に入り、試行中の津波緊急を中断させる。C8の着手条件にC7の合流を置く（P3-C8-DEPS）。Bはspec:951の改訂を要する"
+      },
+      {
+        "id": "P3-C8-REPLACEMENT",
+        "A": "新しいintentは、同じsubject・channelの古いpendingをsupersededにする（現況を変える報のintentのsubjectは現況、情報だけの報は情報subject）。取消のintentは、取り消した対象のsubject（現況と情報）の全pending（両channel）をsupersededにする。delivered・expiredは変えない",
+        "B": "置き換えずに全部残す",
+        "recommended": "A",
+        "provisional": "A",
+        "ruling": "統合担当が起草で確定（P2-A4 Q-NOTICEの最新一件の置換、C7のP3-C7-REPLACEMENTと同じ。U-Nのintentは全部同じ群）",
+        "reason": "Bでは調査中の音が未配送のうちに巨大地震警戒が来ると、古い調査中も後から鳴る。Aでは同じ現況の系統は最新の1件だけが鳴り、別の情報（解説）は互いに消さない"
+      },
+      {
+        "id": "P3-C8-TRAINING",
+        "A": "training/testは段階付きのdesktopだけを作り、soundを作らない",
+        "B": "通常と同じchannelを作る",
+        "recommended": "A",
+        "provisional": "A",
+        "ruling": "R28=A・D7=Aの先例を適用（統合担当）。sound-design-system.mdの「training／testは鳴らさない」",
+        "reason": "新築の購読はtest:「no」固定なので本番では訓練報が届かない。届くのは試験とreplayだけ"
+      },
+      {
+        "id": "P3-C8-SNAPSHOT",
+        "A": "snapshotにdomain nankai（DisplayDomainView<NankaiUnitView>）を足し、DisplayInformationTypeに「nankai」を足す。viewとsnapshotに載せる情報はNankaiInformationView（title・headlineなどの見出しだけ）で、本文（text・nextAdvisory）は載せない（情報subjectのSubjectOutcomeのfactsも同じ）。区域を持たないのでAREA_SYSTEMSのU-Nの行は空、highestSeverityはnull、件数はactiveの現況で数え、情報は数えない。view-projectorのunit鍵の表（TTL 60秒、未確認の文言null、INFORMATION_TYPE、COUNTS_BY_WARNING_CLASS false、AREA_SYSTEMS []）にU-Nの行を足す",
+        "B": "U-Nのviewをsnapshotへ載せずP4で足す",
+        "recommended": "A",
+        "provisional": "A",
+        "ruling": "統合担当が起草で確定（view-projectorの表はRecord<RuntimeUnitId, …>なのでU-Nの行が無いと型で止まる。色・器・掲載の期間はP4のD07で決め、ここは意味の写像だけ。C7のP3-C7-SNAPSHOTと同じ）",
+        "reason": "本文を載せると、情報64件の合法最大のviewは約2.1 MB（64×32,849 byte）で、snapshotの1 MiBと分野ごとの65,536 byte（view-projector.ts:35・:725〜:727）を超えsummaryに落ちる（I-U-N.capacityMeasurement）。見出しだけなら合法最大で約359 KB・実例の最大で約74.5 KBで、snapshot全体が1 MiBを超えない限りfullで載る。本文は情報系列（state）に残り、表示の詳細はP4、端末出力はC19が扱う。Bでも表の行は要り、空の行を足すだけになる。旧築の待機画面はlabelに「警戒」を含むとcritical、ほかはwarningにする（standby-state-store.ts:3203）が、snapshotの重大度の語彙は気象の警報区分なので写さない"
+      },
+      {
+        "id": "P3-C8-N2",
+        "A": "U-NはREST回復の対象外とし、確認scopeを作らない（addedScopesはU-Nで空）。origin=recoveryの入力は適用しない",
+        "B": "南海トラフのREST履歴を回復の対象にする",
+        "recommended": "A",
+        "provisional": "A",
+        "ruling": "統合担当が起草で確定（spec:2205: 現行で履歴取得・coverage判定を確かめられるのはVTSE41とVFVO50/54/55だけ）",
+        "reason": "Bには回復の根拠（coverageの証拠・期限の基準）が無い。再起動・切断の間の報は未回復として残し、復元した現況を「回復済み」と呼ばない"
+      }
+    ],
+    "questionResolutions": [
+      {
+        "id": "Q-NOTICE",
+        "status": "起草案（P3-C8-NOTICE-LEVELSの作者裁定待ち。ほかの項は統合担当が起草で確定）",
+        "source": "spec §6.3・§6.4（spec:951・:973・:974・:981）、P2-EEW-UNIT-001 Q-NOTICEの型、P3-UNIT-Q-001 Q-NOTICE、旧築notifier.ts:489〜:509、level-helpers.ts:308〜:312",
+        "generationTable": [
+          {
+            "opportunity": "semanticAdoption",
+            "condition": "採用した報の情報subjectの新規の採用か、事実（infoKind・infoSerial・title・headline・text・nextAdvisory）の変わった新しいrevisionの採用。現況を変える報は現況が採用したときだけ情報subjectに入る（P3-C8-SUBJECTS）ので、現況がstale・duplicateとした報では作らない。調査終了は、activeの現況が無いときも情報subjectの採用で作る（旧築も鳴らす）。duplicate・stale・revisionOnlyでは作らない",
+            "normalChannels": [
+              "desktop",
+              "sound"
+            ],
+            "trainingTestChannels": [
+              "desktop"
+            ]
+          },
+          {
+            "opportunity": "correction",
+            "condition": "訂正を採用した（事実が同じでも作る。spec:1777のO01「受理済み訂正は表示差分なしでも通知判定」、旧築も訂正ごとに通知、notifier.ts:497〜:507のcorrectionNotification）",
+            "normalChannels": [
+              "desktop",
+              "sound"
+            ],
+            "trainingTestChannels": [
+              "desktop"
+            ]
+          },
+          {
+            "opportunity": "cancellation",
+            "condition": "取消を採用し、取消の前に対象の現況か情報subjectがactiveだった（P3-C8-CANCEL-SCOPEの(1)(2)）。(3)の未受信の対象の取消は通知しない",
+            "normalChannels": [
+              "desktop",
+              "sound"
+            ],
+            "trainingTestChannels": [
+              "desktop"
+            ]
+          },
+          {
+            "opportunity": "expiry",
+            "condition": "作らない。現況のexpired、watermarkと情報の回収では通知しない（旧築も通知しない）",
+            "normalChannels": [],
+            "trainingTestChannels": []
+          }
+        ],
+        "level": "P3-C8-NOTICE-LEVELS=A（起草案）: その報自身のInfoSerial/Codeで決める（現況の区分では決めない）。取消はcancel、code 120はcritical、それ以外はwarning（旧築level-helpers.ts:308〜:312）。訂正は同じ式",
+        "overlap": "一つの採用報は各channel最大1 intent。現況と情報subjectの両方が変わっても1件で、intentのsubjectは現況を変える報なら現況、情報だけの報なら情報subject",
+        "transition": "新しいsubjectのactiveへの採用はactivated、既存のsubjectの新しいrevisionと訂正はupdated、調査終了による現況のendedはreleased、取消はcancelled",
+        "emergencyGroup": "U-Nのintentは全部A7の群other（P3-C8-NOTICE-GROUP=A）。criticalの巨大地震警戒でもEEW・津波緊急を追い越さない",
+        "timing": "createdAt=nextAttemptAt=採用したClockReading.wallTimeMs。expiresAtはsound=createdAt+60000、desktop=createdAt+180000（spec:973・:974）。再試行・停止・timeoutはA7の既存規則のまま。期限は再起動・再試行で延ばさない",
+        "replacement": "P3-C8-REPLACEMENT=A",
+        "intentUpdate": "A1が照合済みのNotificationIntentUpdateを受け、既存idだけを更新する。未知id・同値の更新はno-op、変更があればdeliveryOnlyで保存世代を進める。所有配列は一括で索引化して反映し、更新件数分の全配列の再走査をしない（P2-A4・C5・C7の先例）",
+        "payload": "typeRef reconstruction/contracts/p3-nankai-unit.types.ts#NankaiNotificationPayload。domain=earthquake-eew。titleはoperationPrefix（normalは空、trainingは【訓練】、testは【試験】）＋旧築notifier.ts:489〜:509と同じ組み方: 発表はHead/Title、訂正は「[訂正] 」＋Head/Title、取消は「[取消] 」＋Head/Title。bodyは取消なら「この情報は取り消されました」、それ以外はHead/Headline/Text、無ければ本文（EarthquakeInfo/Text）の先頭80文字、それも無ければHead/Title。訂正はbodyの冒頭に「訂正: 」。文字列はI-U-N.boundsで切った値から組む。title/bodyは空にしない",
+        "capacity": "採用前に新intent集合と置換を合わせた候補を作り、三区分・両channelのpendingを128件/131072 byte（JSON UTF-8、intent単位の加算）以内にする。満杯ならexpiresAtを過ぎた終端記録を先に回収し、なお足りなければspec §6.4のとおり同じ群の中でA7の選択順（期限→生成時刻→ID）の後ろのものを外す。U-Nは全部同じ群なので、新しいintentが外れることがある。外れた機会はchannelごとに全採用か未採用で、診断notificationCapacityEvicted（count）を返す。終端記録はexpiresAtで回収し、保存世代のbyte予算に含める。終端記録の合計が98,304 byteを超える分は、最古の終端記録からexpiresAtの前に回収する（終端記録は遅れた結果の照合にだけ使い、未知idの更新はno-opなので、早く回収しても通知は変わらない）",
+        "recovery": "origin=recoveryの入力は適用しない。意味検証の後にstate同一参照、decision=unchanged/reason=noChange、intents/outcomes空を返す（P3-C8-N2）",
+        "restart": "復元でintentを新しく作らない。pendingは元のcreatedAt/expiresAtで再試行対象に戻る。復元直後の続報の事実の差は、復元した現況との差で決める（情報系列は空から始まる）",
+        "legacyDifference": "旧築との差の一覧は questionResolutions[P3-C8-LEGACY-DIFF]"
+      },
+      {
+        "id": "P3-C8-LEGACY-DIFF",
+        "status": "起草案（旧築の実コードから。作者へ出す見え方の根拠。挙動はコードを読んだ範囲で、旧築を実走して確かめてはいない）",
+        "items": [
+          "通知の機会: 旧築はgateを通った報ごとにdesktop＋soundを出す（message-router.ts:513〜:515・:533〜:534→notifier.ts:489）。現況のsourceとEventIDが一致しない取消と未受信の対象の取消（corpusの74_03_01）はgateで落ち、鳴らない（process-standby-foundation.ts:75〜:82、process-message.ts:290）。新築は事実の変わった採用・訂正・取消の前にactiveだった対象の取消だけで鳴らし、事実の同じ新しいrevisionでは鳴らさない",
+          "段階: P3-C8-NOTICE-LEVELS=Aなら旧築のsoundの式（level-helpers.ts:308〜:312）と同じ。旧築のdesktopは段階を持たない。音源は旧築の5段階でなく、分野別根音表の地震・EEW（sound-design-system.md:46）",
+          "優先: 旧築には優先群が無く、受理の順に鳴らす。新築のU-Nはotherの群で、EEWと津波緊急の後になる（P3-C8-NOTICE-GROUP）",
+          "現況の対象: 旧築は120・130で現況を作り、190で無条件に消し（巨大地震注意の最中の調査終了でも注意が消える）、ほかのcode・InfoSerialの無い報（VYSE60を含む）では現況を変えない（nankai-status.ts:7〜:20、standby-state-store.ts:2393〜:2403）。新築はP3-C8-INVESTIGATING=Aで調査中も現況にし（activeの警戒・注意は置き換えない）、190はinvestigatingだけを終え、P3-C8-VYSE60=AでVYSE60を別の系統の現況にする",
+          "取消の範囲（P3-C8-CANCEL-SCOPE）: 旧築は取消を全部現況のpolicyへ回し（process-message.ts:506）、現況とEventIDが一致したときだけ採用する（旧築の試験phase3b-standby-domains.test.ts:210〜:233）。調査中・解説・定例・VYSE60の取消は黙って捨てられ、情報が残る。新築はheadType・EventIDで情報subjectも取り消し、activeだったなら鳴らす",
+          "期限: 旧築の現況の表示は報の時刻から7日（standby-state-store.ts:2403のrevision.reportTimeMs）、gateの記憶は30日（revision-family-registry.ts:154）で、新築も同じ基準。情報の記憶は旧築が30日・256件（revision-family-registry.ts:477）、新築は7日・64件（新しい選択）",
+          "route: 旧築はVYSEで始まる全てのheadTypeを南海トラフへ回す（route-catalog.ts:187のprefix）。新築はcoverage表のVYSE50/51/52/60だけをU-Nへ送り、それ以外のVYSEは表に無いのでrouteUnlistedの診断を残して捨てる（C0の規則）",
+          "情報系列は旧築も保存しない（durable: false、revision-family-registry.ts:477）。再起動の後に同じ情報だけの報を読み直すと、どちらも新しく採用して鳴りうる。新築でも、除外に当たらない現況の報は復元した現況のwatermarkでstale・duplicateになり鳴らないが、除外に当たる報（警戒・注意の最中の調査中、investigatingの無いときの調査終了、sourceと別の報の訂正）は現況のwatermarkと比べないので、情報だけの報と同じく鳴りうる（P3-C8-SUBJECTSの判定の順）",
+          "版の比較: 旧築の現況は全てのVYSEの現況の報を1つのwatermarkで比べる（revision-family-registry.ts:452〜:459、maxSubjects 1）。新築も系統ごとに1つのwatermarkで比べるが、VYSE60は南海トラフと別の系統（P3-C8-VYSE60=A）。Serialは同じEventIDの報の間だけで比べる",
+          "訓練: 旧築は既定で訓練報が届かず、届けば通常と同じdesktop＋sound。新築も本番では届かず、届けばdesktopだけ（P3-C8-TRAINING）",
+          "分野の設定: 旧築は分野nankaiTroughの通知のON/OFF・mute（notifier.ts:129・:208）を持つ。新築にはその設定が無く、音源は地震・EEW（earthquake-eew）に一本化",
+          "表示の重大度: 旧築の待機画面はlabelに「警戒」を含むとcritical、ほかはwarning（standby-state-store.ts:3203）。新築のsnapshotはhighestSeverity nullで、色はP4のD07で決める（P3-C8-SNAPSHOT）",
+          "出典のEventID: 旧築はEventIDの無い報でevent.idを使う（standby-state-store.ts:2403）。新築はEventIDの無い報をidentityMissingで拒否する（Q-ENUM.identity）"
+        ]
+      },
+      {
+        "id": "Q-ENUM",
+        "status": "frozen",
+        "priorityRule": "A1共通検証（運用区分・ReportDateTime）の後、EventID存在→EventID妥当性→Serial妥当性（存在するときだけ）→ReportDateTime・InfoTypeのrawの長さ→InfoType別の必須構造の存在→必須構造の妥当性の順で、最初の一RejectionReasonだけを返す。rejectedはcurrents・information・intents・persistenceを含むstate全体と参照を変えず、diagnosticだけを返す",
+        "identity": "EventIDは前後の空白を除いて空ならidentityMissing。印字可能なASCII（0x21〜0x7E）以外か「/」を含む、または64 byteを超えるならidentityInvalid（subjectの区切りを壊さず、保存する現況のbyteの上限を件数から決めるため。C7のQ-ENUM.identityと同じ）。Serialは空を合法とし（旧築allowMissingSerial、revision-family-registry.ts:460）、あれば10桁以下の正整数でなければidentityInvalid。ReportDateTimeのrawが40文字を超えるか、InfoTypeのrawが8文字を超える報はidentityInvalid（保存するReportRefのbyteの上限のため。corpusは25文字と2文字）",
+        "familyTable": [
+          {
+            "family": "VYSE50・VYSE51・VYSE52",
+            "legalMissing": "取消はBodyがTextだけでよい（74_03_01_220318_VYSE50）。InfoSerialは無くてよい（情報だけ、旧築telegram-parser.tsのparseNankaiTroughTelegram）。InfoSerialのName、EarthquakeInfo/Text、NextAdvisory、Head/Headlineは欠落してよい（欠落はnullで、空文字にしない）。Appendix（参考の定型文、corpusでは同じ940文字）は読まない",
+            "required": "非取消ではBody/EarthquakeInfoが1個",
+            "invalid": "EarthquakeInfo・InfoSerial・InfoSerial/Code・InfoSerial/Nameのどれかが2個以上、またはそれらに子要素がある（文字列として読めない）"
+          },
+          {
+            "family": "VYSE60",
+            "legalMissing": "取消はBodyがTextだけでよい。InfoSerialは無い（80_01_01_240821_VYSE60）。あれば情報subjectのinfoSerialに残すが、現況の規則（P3-C8-CODE-TABLE）には使わない",
+            "required": "非取消ではBody/EarthquakeInfoが1個",
+            "invalid": "VYSE50と同じ"
+          }
+        ],
+        "codeTable": "P3-C8-CODE-TABLE=A",
+        "revisionOrder": "subjectごとにReportDateTimeで比べ、同時刻で両方にSerialがあればSerialで比べる（現況のsubjectは別のEventIDの報を比べるので、Serialは同じEventIDのときだけ比べる）。それでも同じなら同じrevisionで、InfoTypeの優先（取消>訂正>発表）で後着の上位だけ採用する。同じrevision・同じInfoTypeで事実が同じならduplicate、違えば先着を保ってstale＋WARN診断nankaiRevisionConflict。取消以前のrevisionはstaleで、取消したsubjectを戻さない。取消より新しいrevisionの発表・訂正は新しい報として採用し、そのsubjectをactiveに戻す。訂正が現況に効くのは、現況のsourceと同じheadType・EventIDの訂正だけで、それ以外の訂正（古い報や別の報の訂正）は情報subjectだけを変え、現況を巻き戻さない",
+        "diagnosticReasons": "既存のDiagnosticReason（p2-shared-runtime.types.ts）に南海トラフの同じrevisionの食い違いと情報系列の退去に当たるものが無いので、nankaiRevisionConflictとnankaiCapacityEvictedの2つだけを足す（persistent-diagnostic-sink.tsの一覧にも足す）"
+      },
+      {
+        "id": "I-U-N",
+        "status": "起草案（P3-C8-INVESTIGATING・P3-C8-VYSE60・P3-C8-NOTICE-LEVELS・P3-C8-CURRENT-EXPIRYの作者裁定待ち。以下はprovisionalのAで書く）",
+        "subjects": "P3-C8-SUBJECTS=A。現況は運用区分と系統（nankai・VYSE60）ごとに1件で最大6件、情報は`${operation}/${headType}/${eventId}`。一入力は、その報の系統の現況（現況を変える報と取消だけ）と、その報の情報subjectだけを変える",
+        "currentSemantics": "判定の順は旧築と同じ（standby-state-store.ts:2393のignoreが:2395のrevision guardより前）: まず報が現況に効くか（(2)(3)(4)の除外、解説・定例・表に無いcode）を現況の今の状態で判定し、除外した報は系統のwatermarkと比べず進めもせず、情報subjectの側のwatermarkで比べて情報だけで採用する。除外されない報だけを系統のwatermarkと比べる。現況に効く報（系統ごと、Q-ENUM.revisionOrderで系統のwatermarkより新しい報だけ）: (1) megaquakeWarning・megaquakeAdvisory（VYSE60の系統ではsubsequentAdvisory）になる報の発表で、effective=active、status・infoSerial・title・headlineをその報の値に置き換え、validUntil=ReportDateTime+7日、retainUntil=ReportDateTime+30日 (2) investigatingになる報（111〜113）の発表は、系統の現況がactiveの巨大地震警戒・巨大地震注意でないときだけ(1)と同じに置き換える (3) code 190の報は、系統の現況がactiveのinvestigatingのときだけeffective=endedにする (4) 訂正は現況のsourceと同じheadType・EventIDのときだけ現況に効き、それ以外は現況に効かない。sourceと同じ報の訂正は、その報を当てる前の現況に対して判定する（その報が無かったものとして(2)(3)の除外を見る）。前の現況は保存していないので、訂正後のcodeが現況に効く区分（120・130・111〜113、VYSE60の系統の発表）ならその値でactiveに置き換え、効かないcode（190・表に無いcode・200・210・219、InfoSerialの無いVYSE50〜52）ならeffective=endedにして事実を捨てる（巨大地震警戒のsourceを111や表に無いcodeに直す訂正で、誤ったstatusを残さない） (5) 取消はP3-C8-CANCEL-SCOPE (6) validUntilの到来でeffective=expired（事実を捨てる。通知しない） (7) retainUntilの到来で記録を除く。(2)(3)(4)で現況に効かない報は情報subjectだけを変える（P3-C8-SUBJECTS）。active以外は事実を持たない（型の判別共用体、types.tsのNankaiCurrent）。changeは公開事実（effective・status・infoSerial・title・headline）が変わればsemantic、watermarkだけが進めばrevisionOnly",
+        "informationSemantics": "情報subjectは採用報ごとに事実（infoKind・infoSerial・title・headline・text・nextAdvisory）を置き換える。retainUntil=ReportDateTime+7日の到来で除く（通知しない）。取消はP3-C8-CANCEL-SCOPE。現況を変える報は、現況が採用したときだけ情報subjectを変える（P3-C8-SUBJECTS）",
+        "bounds": "文字列の上限（UTF-16の長さ）: title 128、headline 512、text 4,096、nextAdvisory 512、infoKind 64、infoSerial.code 8、infoSerial.name 32。超えたら切り詰めてtruncated=true（corpusの最大はtitle 19、headline 176、text 1,431、nextAdvisory 102文字で、切り詰めは起きない）。現況の1件のencodeの上限は4,718 byte（全ての文字列が上限で、JSONで6 byteになる文字のとき。EventID 64 byte、inputId 64文字、ReportDateTime 40文字、Serial 10桁）",
+        "deadlines": "nextDeadlineは、activeの現況のvalidUntil、現況のretainUntil、情報subjectのretainUntil、intentのexpiresAtの最小。期限処理は到来分だけを回収し、到来していなければ同じstate参照と空の結果を返す。上限のある一括の回収（現況6・情報64の同時の期限）だけを許し、その件数を計測値とともに報告する（AGENTS.md「受信経路の計算量」）",
+        "persisted": "PersistedNankaiUnitはschemaVersion p3-nankai-unit-v1、currents、intents（pendingと終端記録）。information・contentRevision・persistenceは保存しない（spec:512の情報系列N）",
+        "decode": "codecは一つ（nankaiUnitCodec）。decodeは次を全部確かめ、一つでも外れればunavailableで返してstateを推測で直さない: schemaVersion、現況≤6件で運用区分・系統の重複なし、subjectが`${operation}/${line}/current`の形で運用区分・系統と一致、EventIDが印字可能なASCIIで64 byte以下、ReportRefの文字列の長さ（inputId 64、ReportDateTime 40、Serial 10桁、InfoType 8）、active以外の現況は事実のfield（status・infoSerial・title・headline・truncated・validUntil）を持たない（types.tsの判別共用体）、activeの現況はstatusが系統の表にありvalidUntil=sourceのReportDateTime+7日、retainUntil=sourceのReportDateTime+30日、I-U-N.boundsの文字列の上限、pending≤128件かつ≤131072 byte、終端記録の合計≤98,304 byte、encode後の世代≤262,144 byte、intentのunitがU-NでsubjectがU-Nの現況か情報subjectの形であること（stateに残っているsubjectとの一致は求めない。情報系列は復元で空になるため）",
+        "view": "NankaiUnitViewはactiveの現況と、activeの情報subjectの見出し（NankaiInformationView。本文のtext・nextAdvisoryを外す、P3-C8-SNAPSHOT）だけを載せる。SubjectOutcomeは現況と情報subjectごとに作り、factsに公開事実（情報は見出しだけ）と変わったfieldを載せる。RuntimeDisplaySubjectにunit U-Nの行（current: NankaiCurrent | NankaiInformationView | null）を足す。unavailable・未保存・再起動の空を「現況なし」に読み替えない",
+        "confirmationScope": "U-Nは確認scopeを作らない（P3-C8-N2）。shared-runtime.tsのaddedScopesにU-Nで空を返す分岐を足す",
+        "runtimeRows": "unit-coverage.tsのruntimeUnitsにU-N、executionPlacesにU-N=urgent（P3-C8-PLACE）、coverage表のVYSE50/51/52/60をready＋U-N。UnitModule<「U-N」>はpersistence durable、terminalIntents kind intents、reclaimDeadlineBeforeReceive true",
+        "computation": "容量は現況・情報・intentごとのencode byteをWeakMapでその値に結び付けて加算する（tsunami-unit.ts・seismic-unitの先例）。情報subjectの検索は配列に結び付けたMapのcacheで引き、素朴なfindを入れ子にしない。nextDeadlineの最小値も配列に結び付けたcacheで持つ。受信1回でstate全体・intent全体を直列化しない（AGENTS.md「受信経路の計算量」、台帳47）",
+        "capacityReserve": "台帳41の読み替え: U-Nは拒否・診断をstateに保存しない（診断はstepの出力、admissionの記録はruntime）ので予約の対象が無い。保存の世代の予約は、現況6×4,718＝28,308 byte、pending 131,072 byte（spec:981）、終端記録98,304 byte、区切り512 byte以下（前提: intent 1件が259 byte以上。終端記録は98,304÷259＝379件以下で、区切りは5＋128＋379−1＝511。実例の最小は800 byte）、envelope 293 byte（generation・capturedAtの伸び62 byteを含む）で、合計258,489 byte以下＝256 KiB（262,144）の内側。超えることは件数・文字列の上限と回収の規則から起きず、decodeで超えた保存物はunavailable",
+        "capacityMeasurement": "測り方（2026-10-09、Mac、起草時の測定スクリプトはrepo外）: aaa3b2d3をtscでbuildしたdistのingestXmlData→decodeMaterialでcorpusのVYSE 13本を読み、types.tsのNankaiCurrent・NankaiInformation・NankaiIntentの形に組み（文字列はI-U-N.boundsで切る）、JSON.stringifyのUTF-8 byteを数えた。結果: 現況1件の最大の実例は1,057 byte（74_01_04・74_01_05、巨大地震警戒・巨大地震注意）、VYSE60の現況は1,044、情報1件の最大は5,037（75_01_04_200512_VYSE52の定例解説、本文1,431文字）、intent 1件の最大は1,188（VYSE60）。同時最大状態（spec:470、実電文の最大で）: 現況6×1,057＝6,342＋pending 110×1,188＝130,680（byteの上限で110件）＋終端記録82×1,188＝97,416＋区切り196＋envelope 293＝234,927 byte（262,144まで27,217）。上限の文字列での上界は258,489 byte（I-U-N.capacityReserve）。view・snapshotの見積り（P3-C8-SNAPSHOT）: 本文を含む情報1件の合法最大は32,849 byte（上限の文字列）で、64件のviewは約2.1 MBになり、snapshotの1 MiB・分野ごとの65,536 byte（view-projector.ts:35・:725〜:727）を超えてsummaryに落ちる。見出しだけ（NankaiInformationView）の1件は合法最大5,173・実例の最大1,065 byte（74_01_04）で、viewは合法最大で64×5,173＋6×4,718＝359,380 byte、実例の最大で64×1,065＋6×1,057＝74,502 byte。どちらも1 MiBの内側だが65,536 byteを超えるので、snapshot全体が1 MiBを超えた時だけU-Nはsummaryに落ちうる。64は数えた値でなく選んだ値（P3-C8-CAPACITY）。実装後に同じfixtureで実際のencode byteを測り直し、この値と10%以上違えば数を直して報告する"
+      },
+      {
+        "id": "P3-C8-INTERFERENCE",
+        "status": "frozen（台帳63、計画:79の共通条文）",
+        "longestUninterrupted": "urgentでU-Nが足す非中断処理: 最大のVYSE（corpusの80_01_01_240821_VYSE60、8,992 byte）の解凍・XML parse・reduce、合法最大（I-U-N.capacityReserve）のU-Nのcheckpoint encode、現況6・情報64の同時の期限回収、合法最大でのtoView",
+        "report": "それぞれの所要と、その処理の最中に投入したEEW（VXSE45）の投入→T0とT0→T2の待ちをMacで報告する（試行数・最大・中央値）。正式E01ではない。Macの待ちの最大が約40ms（E01の250msをMac・Piの速度差の約6.3倍で割った値、計画:239）を超えたら、配送の前に作者へ報告し、P3-C8-PLACEを見直す。U-N同居後のEEWの正式な再測定は、spec:1129の後半「P5は最終構成で1〜4を再測定する」とC22のPiでの短い確認（計画:87）に送る。あわせて、urgentが入力を処理している間にU-E・U-T・U-Q・U-Nの書込み権が出ない時間と、受信前回収（P3-C3B-INTENT-RECLAIM）でU-Nの保留中のintent更新がEEW入力の送出を遅らせた回数と遅れを報告する（P3-C7-INTERFERENCEと同じ）。同時dirtyの権のまとめ出し: composition-root.tsのreevaluate（:1284〜:1292）はurgentのownerにU-E・U-T・U-Q・U-NのcheckpointGrantをまとめてpostするので、U-Qの合法最大のencodeとU-Nのencodeを続けた最中に投入したEEWの待ちの最大を報告する。C7のAC12の報告は38ms（統合担当の伝達）で、40msまで2msしか余裕が無い"
+      },
+      {
+        "id": "P3-C8-WRITE-RIGHT",
+        "status": "frozen（P3-UNIT-WRITE-RIGHT-001配送 54a63c25 とC7の合流の後の形）",
+        "rule": "U-NをP3-C7-WRITE-RIGHTと同じ読み替えで入れる: 書込み権はunitごとに1件で、U-E・U-T・U-Q・U-Nは同じurgentの実行場所で別々の権を持つ。urgentが入力を処理している間はurgentのどのunitにも権を出さない。urgentのcheckpointGrantはunit数（4）まで。U-Nの保存中もEEW・津波・地震の入力を送る"
+      },
+      {
+        "id": "P3-C8-MIGRATION",
+        "status": "frozen",
+        "rule": "PersistedNankaiUnit（p3-nankai-unit-v1）は新設のschemaなので、C8の中で旧データの移行は要らない。旧築の待機画面の保存（standby-persistence.tsのPersistedNankaiStateV1）からU-N候補を作るのはC15（P3-MIGRATION-001）。codecのdecodeはp3-nankai-unit-v1以外をunavailableで返す"
+      },
+      {
+        "id": "P3-C8-DEPS",
+        "status": "起草案",
+        "rule": "着手条件: C7（P3-UNIT-Q-001）の合流（A7のgroup()をunitで分けるP3-C7-NOTICE-GROUP=Aと、本契約のallowedPathsの共有fileの基底。C7の合流より前にU-Nのintentを流すと巨大地震注意がnormalEewに入る）、作者裁定（Q-C8-AUTHOR-RULINGS）と発注前点検（Q-C8-CORPUS・Q-C8-S4-PLACE）の済み、その後のbaseOidの割当（Q-C8-BASE）。C6（P3-TSUNAMI-E01-001）とallowedPathsが重なる（C6のtest/chrome-eew/**と本契約のtest/chrome-eew/pure.test.ts）ので、合流はC6が先で、本契約はC6の合流の後にrebaseしてずれたanchorを直す"
+      }
+    ],
+    "operationContract": {
+      "ref": "P2-SHARED-RUNTIME-001#meta.operationContract",
+      "rule": "normal/training/testをsubject、watermark、現況、情報、取消、intent、outcome、viewへ必須伝播し、同一EventIDでも区分間の意味上の更新・取消・置換・重複抑制をしない。保存単位・ファイルを区分ごとに増やさず、件数・byte上限はnormal/training/testの合計に適用する。情報系列の退去はP3-C8-CAPACITYの規則に限り、training/test受理でnormalを先に退去させない"
+    }
+  },
+  "contract": {
+    "contractId": "P3-UNIT-N-001",
+    "mode": "implementation",
+    "objective": "M05をI-U-Nとして閉じる。VYSE50/51/52/60を、現況（D、運用区分と系統ごとに1件、出典EventID・取消・終了・期限）と情報系列（N、headType・EventIDごと）に分けてU-Nの一つのreducer・唯一のcodec・viewで扱い、Q-NOTICEの南海トラフ分を生成し、unit表・coverage・実行場所（urgent）・snapshotを結線し、U-Nの通知がEEW・津波緊急を追い越さないことを製品経路で確かめる。",
+    "baseOid": "unassigned",
+    "cleanTreeRequired": true,
+    "readPaths": [
+      "AGENTS.md",
+      "docs/specs/reconstruction-p0-contracts.md",
+      "docs/specs/sound-design-system.md",
+      "reconstruction/contracts/p3-order-plan.md",
+      "reconstruction/contracts/p3-execution-boundary.md",
+      "reconstruction/contracts/p3-nankai-unit.json",
+      "reconstruction/contracts/p3-nankai-unit.types.ts",
+      "reconstruction/contracts/p3-seismic-unit.json",
+      "reconstruction/contracts/p3-seismic-unit.types.ts",
+      "reconstruction/contracts/p3-tsunami-unit.json",
+      "reconstruction/contracts/p3-tsunami-unit.types.ts",
+      "reconstruction/contracts/p3-unit-table.json",
+      "reconstruction/contracts/p3-unit-table.types.ts",
+      "reconstruction/contracts/p3-execution-split.json",
+      "reconstruction/contracts/p3-execution-split.types.ts",
+      "reconstruction/contracts/p3-execution-lifecycle.json",
+      "reconstruction/contracts/p3-unit-write-right.json",
+      "reconstruction/contracts/p2-notification-delivery.json",
+      "reconstruction/contracts/p2-mailbox.json",
+      "reconstruction/contracts/p2-snapshot-sse.json",
+      "reconstruction/contracts/p2-shared-runtime.json",
+      "reconstruction/contracts/p2-checkpoint-shutdown.json",
+      "reconstruction/contracts/p1-parser-boundary.json",
+      "reconstruction/tools/corpus/manifest.json",
+      "reconstruction/tools/corpus/sequences.json",
+      "reconstruction/src/**",
+      "reconstruction/test/**",
+      "test/fixtures/**",
+      "src/dmdata/telegram-parser.ts",
+      "src/engine/display/nankai-status.ts",
+      "src/engine/display/standby-state-store.ts",
+      "src/engine/display/standby-registry.ts",
+      "src/engine/presentation/level-helpers.ts",
+      "src/engine/presentation/processors/process-message.ts",
+      "src/engine/presentation/processors/process-nankai-trough.ts",
+      "src/engine/messages/revision-family-registry.ts",
+      "src/engine/messages/route-catalog.ts",
+      "src/engine/messages/message-router.ts",
+      "src/engine/notification/notifier.ts",
+      "src/ui/nankai-trough-formatter.ts"
+    ],
+    "allowedPaths": [
+      "reconstruction/src/domains/nankai/**",
+      "reconstruction/src/units/nankai/**",
+      "reconstruction/test/nankai-unit/**",
+      "reconstruction/src/runtime/unit-coverage.ts",
+      "reconstruction/src/runtime/composition-root.ts",
+      "reconstruction/src/runtime/owner-runtime.ts",
+      "reconstruction/src/runtime/shared-runtime.ts",
+      "reconstruction/src/view-projector/view-projector.ts",
+      "reconstruction/src/checkpoint/persistent-diagnostic-sink.ts",
+      "reconstruction/contracts/p2-shared-runtime.types.ts",
+      "reconstruction/contracts/p2-snapshot-sse.types.ts",
+      "reconstruction/contracts/p2-notification-delivery.types.ts",
+      "reconstruction/test/notification-delivery/**",
+      "reconstruction/test/unit-table/**",
+      "reconstruction/test/mailbox/**",
+      "reconstruction/test/shared-runtime/**",
+      "reconstruction/test/snapshot-sse/**",
+      "reconstruction/test/integration/**",
+      "reconstruction/test/checkpoint-shutdown/runtime-fixture.ts",
+      "reconstruction/test/checkpoint-shutdown/review-regressions.test.ts",
+      "reconstruction/test/execution-split/owner-harness.ts",
+      "reconstruction/test/execution-split/execution-split.test.ts",
+      "reconstruction/test/execution-split/unit-write-right.test.ts",
+      "reconstruction/test/execution-lifecycle/lifecycle.test.ts",
+      "reconstruction/test/chrome-eew/pure.test.ts",
+      "reconstruction/test/tsunami-unit/tsunami-host.test.ts",
+      "reconstruction/test/tsunami-unit/tsunami-runtime.test.ts",
+      "reconstruction/test/tsunami-unit/tsunami-unit.test.ts",
+      "reconstruction/test/seismic-unit/seismic-host.test.ts",
+      "reconstruction/test/seismic-unit/seismic-runtime.test.ts",
+      "reconstruction/test/seismic-unit/seismic-unit.test.ts"
+    ],
+    "allowedGitCommands": [
+      "git status --porcelain",
+      "git rev-parse HEAD",
+      "git diff --binary --no-ext-diff -- <allowed_paths>",
+      "git diff --check -- <allowed_paths>",
+      "git show <required-path-or-object>",
+      "git ls-files <required-path>"
+    ],
+    "moduleIds": [
+      "M05"
+    ],
+    "integrationContractIds": [
+      "I-U-N"
+    ],
+    "dependsOnContractIds": [
+      "P3-UNIT-TABLE-001",
+      "P3-CHECKPOINT-STEP1-001",
+      "P3-DMDATA-CONNECT-001",
+      "P3-EXECUTION-SPLIT-001",
+      "P3-EXECUTION-LIFECYCLE-001",
+      "P3-E01-REACCEPT-001",
+      "P3-UNIT-WRITE-RIGHT-001",
+      "P3-TSUNAMI-UNIT-001",
+      "P3-UNIT-Q-001",
+      "P3-TSUNAMI-E01-001",
+      "P2-SHARED-RUNTIME-001",
+      "P2-CHECKPOINT-SHUTDOWN-001",
+      "P2-MAILBOX-001",
+      "P2-NOTIFICATION-DELIVERY-001",
+      "P2-SNAPSHOT-SSE-001",
+      "P1-PARSER-BOUNDARY-001"
+    ],
+    "publicTypes": [
+      "reconstruction/contracts/p3-nankai-unit.types.ts#NankaiReportFamily",
+      "reconstruction/contracts/p3-nankai-unit.types.ts#NankaiCurrentLine",
+      "reconstruction/contracts/p3-nankai-unit.types.ts#NankaiCurrentStatus",
+      "reconstruction/contracts/p3-nankai-unit.types.ts#NankaiInfoSerial",
+      "reconstruction/contracts/p3-nankai-unit.types.ts#NankaiCurrent",
+      "reconstruction/contracts/p3-nankai-unit.types.ts#NankaiInformation",
+      "reconstruction/contracts/p3-nankai-unit.types.ts#NankaiInformationView",
+      "reconstruction/contracts/p3-nankai-unit.types.ts#NankaiNotificationPayload",
+      "reconstruction/contracts/p3-nankai-unit.types.ts#NankaiIntent",
+      "reconstruction/contracts/p3-nankai-unit.types.ts#NankaiUnitState",
+      "reconstruction/contracts/p3-nankai-unit.types.ts#PersistedNankaiUnit",
+      "reconstruction/contracts/p3-nankai-unit.types.ts#NankaiUnitView",
+      "reconstruction/contracts/p3-nankai-unit.types.ts#NankaiInput",
+      "reconstruction/contracts/p3-nankai-unit.types.ts#NankaiUnitStep",
+      "reconstruction/contracts/p3-nankai-unit.types.ts#NankaiUnitCodec"
+    ],
+    "publicFunctions": [
+      "reduceNankaiUnit(state: NankaiUnitState, input: NankaiInput): NankaiUnitStep",
+      "toNankaiView(state: NankaiUnitState): NankaiUnitView",
+      "nankaiUnitCodec: NankaiUnitCodec",
+      "nankaiUnit: UnitModule<\"U-N\">（reconstruction/src/units/nankai/。unit表の1行）"
+    ],
+    "allowedDependencies": [],
+    "fixtureIds": [
+      "test__fixtures__selected_xml__74_01_01_200512_VYSE50",
+      "test__fixtures__selected_xml__74_01_02_200512_VYSE50",
+      "test__fixtures__selected_xml__74_01_03_200512_VYSE50",
+      "test__fixtures__selected_xml__74_01_04_200512_VYSE50",
+      "test__fixtures__selected_xml__74_01_05_200512_VYSE50",
+      "test__fixtures__selected_xml__74_01_06_200512_VYSE50",
+      "test__fixtures__selected_xml__74_01_07_200512_VYSE50",
+      "test__fixtures__selected_xml__74_03_01_220318_VYSE50",
+      "test__fixtures__selected_xml__75_01_01_200512_VYSE51",
+      "test__fixtures__selected_xml__75_01_02_200512_VYSE51",
+      "test__fixtures__selected_xml__75_01_03_200512_VYSE51",
+      "test__fixtures__selected_xml__75_01_04_200512_VYSE52",
+      "test__fixtures__selected_xml__80_01_01_240821_VYSE60"
+    ],
+    "sequenceIds": [
+      "O01",
+      "O02",
+      "O07"
+    ],
+    "expectedDecisions": [],
+    "expectationEvidence": [],
+    "semanticDeadlines": [
+      {
+        "id": "P3-C8-SEM-01",
+        "target": "active current (nankai and VYSE60 lines)",
+        "limit": 7,
+        "unit": "days from the source ReportDateTime",
+        "rule": "P3-C8-RETENTION=A・P3-C8-CURRENT-EXPIRY=A。到来でexpired、通知しない",
+        "source": "旧築standby-state-store.ts:115・:2403"
+      },
+      {
+        "id": "P3-C8-SEM-02",
+        "target": "current watermark (ended, cancelled, expired)",
+        "limit": 30,
+        "unit": "days from the source ReportDateTime",
+        "rule": "P3-C8-RETENTION=A。到来で記録を除く",
+        "source": "旧築revision-family-registry.ts:154"
+      },
+      {
+        "id": "P3-C8-SEM-03",
+        "target": "information subject",
+        "limit": 7,
+        "unit": "days from the ReportDateTime",
+        "rule": "P3-C8-RETENTION=A。到来で除く、通知しない",
+        "source": "旧築standby-registry.ts:31"
+      },
+      {
+        "id": "P3-C8-SEM-04",
+        "target": "U-N sound intent",
+        "limit": 60,
+        "unit": "seconds from original createdAt",
+        "rule": "再起動・再試行で延ばさない",
+        "source": "spec:973"
+      },
+      {
+        "id": "P3-C8-SEM-05",
+        "target": "U-N desktop intent",
+        "limit": 180,
+        "unit": "seconds from original createdAt",
+        "rule": "再起動・再試行で延ばさない",
+        "source": "spec:974"
+      }
+    ],
+    "deliveryDeadlines": [],
+    "retentionLimits": [
+      {
+        "id": "P3-C8-RET-01",
+        "target": "current records",
+        "limit": 6,
+        "unit": "records (2 lines × 3 operations)",
+        "source": "P3-C8-SUBJECTS・P3-C8-VYSE60（VYSE60=Bなら3）"
+      },
+      {
+        "id": "P3-C8-RET-02",
+        "target": "information subjects (not persisted)",
+        "limit": 64,
+        "unit": "subjects, normal/training/test combined",
+        "source": "P3-C8-CAPACITY（深さの上限。capacityExceededにしない）"
+      },
+      {
+        "id": "P3-C8-RET-03",
+        "target": "pending intents",
+        "limit": "128 items and 128 KiB per persistence unit",
+        "source": "spec:981"
+      },
+      {
+        "id": "P3-C8-RET-04",
+        "target": "terminal intent records",
+        "limit": "each until its expiresAt (at most 180 seconds), and at most 98,304 bytes in total",
+        "source": "Q-NOTICE.capacity・I-U-N.capacityReserve"
+      }
+    ],
+    "resourceLimits": [
+      {
+        "id": "P3-C8-RES-01",
+        "target": "U-N encoded generation",
+        "limit": 262144,
+        "unit": "UTF-8 bytes",
+        "scope": "currents and intents; counted as a sum of per-current and per-intent encodings. The upper bound from count and string limits is 258,489 bytes (I-U-N.capacityReserve)",
+        "source": "spec:477"
+      },
+      {
+        "id": "P3-C8-RES-02",
+        "target": "notification deadlines across both channels",
+        "limit": "runtimeUnits.length × 128（U-Nを足して768）",
+        "scope": "composition-root.tsの式のまま（C5で可変にした）。p2-notification-delivery.types.tsの注記の値を768にする",
+        "source": "P2-A7-TIME、P3-C5-AC14"
+      }
+    ],
+    "workDeadline": null,
+    "persistenceUnits": [
+      "U-N"
+    ],
+    "persistedFields": [
+      "現況: subject・line・operation・eventId・source・effective・status・infoSerial・title・headline・truncated・validUntil・retainUntil（active以外は事実を持たない）",
+      "intent: pendingの全fieldと元のcreatedAt/expiresAt、終端記録（expiresAtまで、合計98,304 byteまで）"
+    ],
+    "nonPersistedFields": [
+      "情報系列（information）: 復元の後は空から始まる（spec:512）",
+      "contentRevision、persistence（RuntimeState側のmetadata）",
+      "現況・情報・intentごとのencode byteの加算値、検索用のMap（容量判定と検索用。復元時に作り直す）",
+      "DecodedMaterial/XML tree、Appendix（参考の定型文）、単調時計、UnitView、PublishedOutcome"
+    ],
+    "outOfScope": [
+      "U-N同居後のEEWの正式E01（正式な再測定はspec:1129の後半のP5の最終構成とC22。C8はAC11のMacの報告だけ）",
+      "REST回復（P3-C8-N2。C16も南海トラフを対象にしない）",
+      "旧築の待機画面の保存（PersistedNankaiStateV1）の移行（C15）",
+      "南海トラフの器・色・掲載の期間の意匠（P4のD07・§8.5）",
+      "南海トラフの端末出力（C19。旧築nankai-trough-formatter.ts）",
+      "A7の選択・試行・停止の実装の変更（group()はC7で変わったまま触らない）",
+      "共有の直書きを表へ寄せる改修（統合担当がC8の発注前点検で扱いを決め、変えるなら本契約を改訂する）",
+      "VXSE56/60・VZSE40（U-M、C13）"
+    ],
+    "acceptanceChecks": [
+      {
+        "id": "P3-C8-AC01",
+        "requirement": "単位入力とcoverage: RuntimeUnitIdにU-N、unit表にUnitModule<「U-N」>の行、coverage表のVYSE50/51/52/60をready＋U-N、executionPlacesにU-N=urgent（I-U-N.runtimeRows）。VYSE50/51/52/60の入力はU-Nだけへ届き、一入力の変更は一回の参照交換で原子的に適用する。questionResolutions[Q-ENUM]の順で最初の一RejectionReasonだけを返し、rejectedはstate全体を不変にする。取消のBody縮退・InfoSerialの無い報・表に無いcodeは合法",
+        "evidenceRefs": [
+          "docs/specs/reconstruction-p0-contracts.md:511 «2c565ef25a043ddf»",
+          "docs/specs/reconstruction-p0-contracts.md:512 «176370e46e5b2b85»",
+          "docs/specs/reconstruction-p0-contracts.md:597 «49edf29fa8fae5d5»",
+          "reconstruction/src/runtime/unit-coverage.ts:65 «82bf569e59bf8875»",
+          "src/engine/messages/route-catalog.ts:186 «1c88819e79efa0d8»",
+          "reconstruction/src/host/host.ts:37 «5bd01bfcb4ff01bb»"
+        ]
+      },
+      {
+        "id": "P3-C8-AC02",
+        "requirement": "現況と情報系列の分離（I-U-N.currentSemantics・informationSemantics、P3-C8-SUBJECTS・P3-C8-CODE-TABLE）: codeをXMLの文字列で表に引き、現況に効く報は系統の現況を最新の報で置き換え（巨大地震警戒・巨大地震注意、P3-C8-INVESTIGATINGの裁定どおりの調査中。調査中はactiveの警戒・注意を置き換えない）、190はactiveのinvestigatingだけをended、表に無いcode・解説・定例は情報だけ。訂正はsourceと同じheadType・EventIDのときだけ現況に効き、古い報の訂正で現況を巻き戻さない。現況を変える報は現況が採用したときだけ情報系列に入り、現況がunchangedならその情報subjectも同じreasonのunchangedになる。VYSE60はP3-C8-VYSE60の裁定どおりで、南海トラフの現況を変えない。semanticとrevisionOnlyの区別、同じrevisionの訂正の採用、食い違いのstale＋nankaiRevisionConflict、normal/training/testの区分交差0",
+        "evidenceRefs": [
+          "docs/specs/reconstruction-p0-contracts.md:394 «2a6fc73451d7ced4»",
+          "docs/specs/reconstruction-p0-contracts.md:477 «3e40d22acd0eaefe»",
+          "docs/specs/reconstruction-p0-contracts.md:1448 «96e1f728d55f4329»",
+          "docs/specs/reconstruction-p0-contracts.md:1472 «5bbe65daadf9a2ed»",
+          "src/engine/display/nankai-status.ts:7 «8f38f9582ff7d158»",
+          "src/engine/display/nankai-status.ts:20 «3cef1d4720351299»",
+          "src/engine/display/standby-state-store.ts:2393 «50a77a0db6fec35a»",
+          "src/engine/presentation/processors/process-message.ts:506 «e9b541232d5f0ac1»",
+          "test/fixtures/selected_xml/74_01_04_200512_VYSE50.xml:70 «7bcfabe2c63751e8»",
+          "src/engine/messages/revision-family-registry.ts:458 «c246535688bd9bb4»"
+        ]
+      },
+      {
+        "id": "P3-C8-AC03",
+        "requirement": "取消・終了・期限（P3-C8-CANCEL-SCOPE・P3-C8-RETENTION・P3-C8-CURRENT-EXPIRY）: 取消はheadType・EventIDで現況と情報subjectだけを取り消し、別のEventIDの取消は現況を変えない。未受信の対象の取消は記憶だけで鳴らない。取消以前の報はstaleで復活しない。現況はReportDateTime+7日でexpired、watermarkは+30日まで保持、情報は+7日で除く。期限は元報の時刻から数え、再起動・再受信で延ばさない。到着の時点で期限を過ぎた報は採用して同じreduceで回収する",
+        "evidenceRefs": [
+          "docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6»",
+          "src/engine/display/standby-state-store.ts:2386 «9f087bdd6e9a91c4»",
+          "src/engine/presentation/processors/process-standby-foundation.ts:76 «8a6a8a567f778fad»",
+          "test/engine/telegram-foundation/phase3b-standby-domains.test.ts:210 «705c078730d3f850»",
+          "src/engine/display/standby-state-store.ts:115 «05e0ceb77c5394a4»",
+          "src/engine/messages/revision-family-registry.ts:154 «c6cf5576d8765e93»",
+          "src/engine/display/standby-registry.ts:31 «9abaab7a0ce66045»"
+        ]
+      },
+      {
+        "id": "P3-C8-AC04",
+        "requirement": "容量と受信1回の費用: P3-C8-CAPACITY=A（現況6件、情報64件と65件目の退去の順・nankaiCapacityEvicted、pending 128件・131,072 byte、終端記録98,304 byte、1世代262,144 byte）とI-U-N.capacityMeasurementの同時最大状態（234,927 byte、上界258,489 byte）を通す（spec:470）。capacityExceededを返さない。最大正常と+1の境界入力（Q-LIMIT）で確かめる。容量はI-U-N.computationどおり記録単位のencode byteの加算で数え、受信1回でstate全体を直列化せず、全件×全件の走査をしない（AGENTS.md「受信経路の計算量」、台帳47）",
+        "evidenceRefs": [
+          "docs/specs/reconstruction-p0-contracts.md:470 «815e6c46a5340ce4»",
+          "docs/specs/reconstruction-p0-contracts.md:477 «3e40d22acd0eaefe»",
+          "docs/specs/reconstruction-p0-contracts.md:981 «f6dbd4291d01e07b»",
+          "reconstruction/contracts/p3-order-plan.md:79 «975ab2facd6ca2d6»"
+        ]
+      },
+      {
+        "id": "P3-C8-AC05",
+        "requirement": "保存と復元: PersistedNankaiUnitと唯一のcodec（schemaVersion p3-nankai-unit-v1）、I-U-N.persisted・I-U-N.decodeの検査（上限を全部、復元境界でも効かせる）とunavailable。情報系列は保存せず、復元の後は空。新設schemaなのでC8に旧データ移行は無い（P3-C8-MIGRATION）。復元でintentを新しく作らず、pendingは元の期限で戻る。復元直後の続報は復元した現況との差で決める（O07）",
+        "evidenceRefs": [
+          "docs/specs/reconstruction-p0-contracts.md:477 «3e40d22acd0eaefe»",
+          "docs/specs/reconstruction-p0-contracts.md:512 «176370e46e5b2b85»",
+          "docs/specs/reconstruction-p0-contracts.md:590 «bcafc751055476d3»",
+          "docs/specs/reconstruction-p0-contracts.md:1783 «bb8e18a6762c105d»"
+        ]
+      },
+      {
+        "id": "P3-C8-AC06",
+        "requirement": "view・outcome・snapshot: NankaiUnitView、現況と情報subjectごとのSubjectOutcome、RuntimeDisplaySubjectのU-N行、addedScopesのU-Nの空（P3-C8-N2）、snapshotのdomain nankai（P3-C8-SNAPSHOT=A）を同じ採用結果から作る。active以外の現況と取消済みの情報を載せず、unavailable・未保存・再起動の空を「現況なし」に読み替えない。U-Nだけが変わった入力でもsnapshotが出し直される（view-projectorの比較・domainの列・byteの合計にU-Nが入る）。viewとsnapshotの情報は見出しだけで本文を載せず、情報64件と現況6件の合法最大のview（I-U-N.capacityMeasurementの359,380 byte）でsnapshotが1 MiBの内側に収まることを確かめる",
+        "evidenceRefs": [
+          "docs/specs/reconstruction-p0-contracts.md:1472 «5bbe65daadf9a2ed»",
+          "reconstruction/contracts/p3-seismic-unit.json:148 «52525ff82a60caa3»",
+          "reconstruction/src/view-projector/view-projector.ts:35 «c47aa0d1f5b59833»",
+          "reconstruction/src/view-projector/view-projector.ts:727 «c42a191089542248»",
+          "src/engine/display/standby-state-store.ts:3203 «7af6c560b641723c»"
+        ]
+      },
+      {
+        "id": "P3-C8-AC07",
+        "requirement": "Q-NOTICE南海トラフ分: generationTable・level（P3-C8-NOTICE-LEVELSの裁定）・overlap・transition・payload・timing・replacement（P3-C8-REPLACEMENT=A）・intentUpdate・capacity・recovery・restartを実装する。training/testはdesktopだけ（P3-C8-TRAINING=A）。revisionOnly・duplicate・stale・期限・未受信の対象の取消では作らない。訂正は事実が同じでも作る",
+        "evidenceRefs": [
+          "docs/specs/reconstruction-p0-contracts.md:944 «a9a0d7b09bdc982b»",
+          "docs/specs/reconstruction-p0-contracts.md:973 «0f9853c505322060»",
+          "docs/specs/reconstruction-p0-contracts.md:974 «5e4b6abaa9ac7542»",
+          "docs/specs/reconstruction-p0-contracts.md:981 «f6dbd4291d01e07b»",
+          "src/engine/presentation/level-helpers.ts:311 «353366078841131c»",
+          "src/engine/notification/notifier.ts:489 «96449cac8ab4d9fe»",
+          "src/engine/notification/notifier.ts:494 «c86b4551af858fe5»",
+          "src/engine/messages/message-router.ts:534 «73bb268f8eb5e064»"
+        ]
+      },
+      {
+        "id": "P3-C8-AC08",
+        "requirement": "優先群（P3-C8-NOTICE-GROUP=A）: U-Nのintent（criticalの巨大地震警戒を含む）はotherで、試行中の津波緊急・EEWを中断せず、同時にpendingのEEW・津波緊急より後に選ばれる。A7のgroup()は変えない",
+        "evidenceRefs": [
+          "docs/specs/reconstruction-p0-contracts.md:951 «29e2b6869a8216ca»",
+          "reconstruction/contracts/p3-seismic-unit.json:57 «884ad0b7effcdfc4»",
+          "docs/specs/sound-design-system.md:46 «cbd92a61248d4886»"
+        ]
+      },
+      {
+        "id": "P3-C8-AC09",
+        "requirement": "corpus: 発注前点検でO01・O02・O07に足すU-Nのstep（Q-C8-CORPUS）を履歴oracleで通し、expectedDecisionsに戻す。Q-LIMITの境界入力は試験内で作る（fixtureなし、T05）。E13: fixtureIdsの全正常のVYSE fixtureで、各fixtureの時刻に合わせた時計の期限処理後も残る恒常的unavailable 0。unmetを免除しない",
+        "evidenceRefs": [
+          "docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6»",
+          "docs/specs/reconstruction-p0-contracts.md:1783 «bb8e18a6762c105d»",
+          "docs/specs/reconstruction-p0-contracts.md:2064 «e2e2e4700050616c»",
+          "reconstruction/contracts/p3-order-plan.md:134 «28108775faec1446»"
+        ]
+      },
+      {
+        "id": "P3-C8-AC10",
+        "requirement": "§13.3の9段をcomposition rootの一経路で: 保存失敗中の取消、古いack、通常終了、復元直後の続報（復元した現況との差で通知を決める）。current巻戻し0・最新dirty世代維持。checkpointの書込み権と同時dirtyはP3-UNIT-WRITE-RIGHT-001の規則のまま（unitごとの書込み権、P3-C8-WRITE-RIGHT）",
+        "evidenceRefs": [
+          "docs/specs/reconstruction-p0-contracts.md:590 «bcafc751055476d3»",
+          "reconstruction/contracts/p3-order-plan.md:218 «c60076e915feb659»"
+        ]
+      },
+      {
+        "id": "P3-C8-AC11",
+        "requirement": "urgentでの干渉の報告（台帳63、P3-C8-INTERFERENCE）: urgentでU-Nが足す最も長い非中断処理の所要と、その処理中に投入したEEWの投入→T0・T0→T2の待ちをMacで報告する。正式E01ではない。Macの待ちの最大が約40ms（計画:239の速度差6.3倍）を超えたら配送の前に作者へ報告し、P3-C8-PLACEを見直す。U-N同居後のEEWの正式な再測定はspec:1129の後半とC22（計画:87）であることを報告に明記する。書込み権の出ない時間と受信前回収の遅れも報告する。同時dirtyの権のまとめ出しの最中のEEW（reevaluateがU-Q・U-T・U-E・U-NのcheckpointGrantを続けてpostし、U-Qの合法最大のencodeとU-Nのencodeが続く間に投入したEEW）の待ちの最大も報告する。C7の38msは40msまで2msしか余裕が無いことを報告に書く",
+        "evidenceRefs": [
+          "reconstruction/contracts/p3-order-plan.md:79 «975ab2facd6ca2d6»",
+          "reconstruction/contracts/p3-order-plan.md:198 «d33db641dfa15ff3»",
+          "reconstruction/contracts/p3-order-plan.md:202 «6e6f60e66181b92a»",
+          "reconstruction/src/runtime/composition-root.ts:1284 «4b3e06f0acf52345»",
+          "reconstruction/contracts/p3-execution-boundary.md:12 «664a6f4b27d9fc87»",
+          "docs/specs/reconstruction-p0-contracts.md:1027 «da2210ef3e4ebcfb»",
+          "reconstruction/contracts/p3-order-plan.md:239 «a2dcbf55a796dfee»",
+          "reconstruction/contracts/p3-order-plan.md:87 «77d166f46b4ef4e7»"
+        ]
+      },
+      {
+        "id": "P3-C8-AC12",
+        "requirement": "R45（1 unit追加の型）の確認: 触ったfileと行を、adapter・意味・codec・射影・fixture期待値・coverage行・試験helperの区分で一覧にし、unit・domain・testのdirectoryの外で足した行・caseの数を書く（C5・C7の一覧と比べられる形）。型で漏れを止められない箇所（view-projectorの比較・domainの列・byteの合計・shellの件数、composition-rootのsnapshotInputのunitの照合）を別に挙げる",
+        "evidenceRefs": [
+          "reconstruction/contracts/p3-order-plan.md:108 «71876395a763cd04»",
+          "reconstruction/contracts/p3-order-plan.md:110 «be284b9936747da5»",
+          "reconstruction/src/runtime/composition-root.ts:192 «159efbfad126c86e»"
+        ]
+      },
+      {
+        "id": "P3-C8-AC13",
+        "requirement": "E22のU-N範囲を「対象外」として固定し（P3-C8-N2）、origin=recoveryを適用しない（unchanged/noChange、state同一参照）",
+        "evidenceRefs": [
+          "docs/specs/reconstruction-p0-contracts.md:2205 «48db9eb076ee4278»",
+          "docs/specs/reconstruction-p0-contracts.md:2074 «643c123a1c57d2a8»",
+          "reconstruction/contracts/p3-order-plan.md:22 «7b800a876110a618»"
+        ]
+      }
+    ],
+    "testMapping": [
+      {
+        "testId": "P3-C8-T01",
+        "purpose": "contractBoundary",
+        "referenceIds": [
+          "P3-C8-AC01"
+        ],
+        "behavior": "Q-ENUMの各不備（EventID欠落・空白や「/」を含む・65 byte、Serialが正整数でない、ReportDateTime・InfoTypeのrawの長さ、非取消のEarthquakeInfoの欠落、EarthquakeInfo・InfoSerial・Codeの重複）で最初の一reasonを返しstate参照が不変。取消の縮退（74_03_01）・InfoSerialの無い報・表に無いcodeは採用。coverage表と実行場所の行（VYSE50/51/52/60→U-N・urgent）"
+      },
+      {
+        "testId": "P3-C8-T02",
+        "purpose": "acceptance",
+        "referenceIds": [
+          "P3-C8-AC02",
+          "P3-C8-AC06"
+        ],
+        "behavior": "corpusのサンプル電文（74_01_01〜74_01_07→75_01_01〜75_01_04。実際の系列ではなく試験用に時刻順に並べる）で、系統の現況と情報系列のdecision・changeの区別・viewを確かめる。時刻順の列（74_01_01〜74_01_07）では、調査中→巨大地震警戒→巨大地震注意（74_01_05・74_01_06）となり、16:36の調査終了（74_01_07）は注意がactiveの最中に届くので(3)により情報だけで、注意が残る。調査中のendedは別の並び（74_01_01→74_01_07）で確かめる（P3-C8-INVESTIGATING=Aのとき）。VYSE51の第1〜3号（同じEventID、Serial 1〜3）は情報subjectのrevisionで並ぶ。巨大地震注意の最中の調査中は情報だけで、系統のwatermarkを進めない。古い報（別のEventID）の訂正は現況を巻き戻さず情報だけを変える。現況がstaleとした古い報は情報系列にも入らない。表に無いcodeの報（試験内で74_01_05のCodeを替えて作る）は情報だけ。VYSE60（80_01_01）はP3-C8-VYSE60の裁定どおりで南海トラフの現況を変えない。訓練（74_01_04のStatusを訓練に替える）との交差0"
+      },
+      {
+        "testId": "P3-C8-T03",
+        "purpose": "acceptance",
+        "referenceIds": [
+          "P3-C8-AC03"
+        ],
+        "behavior": "取消: 巨大地震注意（74_01_05）の後に同じheadType・EventIDの取消で現況がcancelled、別のEventIDの取消（74_03_01）では現況が変わらず鳴らない、取消の後に届いた元の報はstale、取消より新しい報で再びactive。期限: 現況の6日23時間59分と7日、watermarkの29日23時間59分と30日、情報の6日23時間59分と7日、到着の時点で期限を過ぎた報の採用と同じreduceでの回収、期限が到来していないdeadline入力で同じstate参照と空の結果"
+      },
+      {
+        "testId": "P3-C8-T04",
+        "purpose": "contractBoundary",
+        "referenceIds": [
+          "P3-C8-AC04"
+        ],
+        "behavior": "情報の63/64/65件（65件目の退去の順: 期限切れ→training/test→normalの最古、nankaiCapacityEvicted）、pendingの128/129件と131,072/131,073 byte、終端記録の98,304 byteを超えた分の期限前の回収、I-U-N.capacityMeasurementの同時最大状態と上限の文字列の上界の世代がencodeでき262,144 byte以下であること、上限+1の文字列の切り詰め（truncated）。保持上限付近で受信1回のencodeが記録単位の加算だけであること（全体の直列化0）。境界入力は試験内で作る（fixtureのEventID・文字列を替える）"
+      },
+      {
+        "testId": "P3-C8-T05",
+        "purpose": "contractBoundary",
+        "referenceIds": [
+          "P3-C8-AC05"
+        ],
+        "behavior": "codecの往復で保存fieldだけが残り、情報系列は空で戻る。I-U-N.decodeの各検査に外れる保存物はunavailable。復元でintentを作らず、pendingの期限を延ばさない"
+      },
+      {
+        "testId": "P3-C8-T06",
+        "purpose": "acceptance",
+        "referenceIds": [
+          "P3-C8-AC07"
+        ],
+        "behavior": "Q-NOTICEの各機会とlevelの式（報自身のcodeで決める: 120はcritical、ほかはwarning、取消はcancel。P3-C8-NOTICE-LEVELS=Bに決まったらその表）、revisionOnlyで作らない、訂正は事実が同じでも作る、未受信の対象の取消で作らない、一入力1 intent/channel、置換（同じ現況の系統・channel。巨大地震警戒が未配送の調査中を置き換えるのはP3-C8-INVESTIGATING=Aのときだけで、Bなら調査中は情報subjectのintentなので置き換えない。解説は互いに消さない）、title・bodyの組み方（Headlineが無ければ本文の先頭80文字、それも無ければTitle）、満杯での扱い、intentUpdate、training/testのdesktopだけ、recovery未適用、復元直後の続報"
+      },
+      {
+        "testId": "P3-C8-T07",
+        "purpose": "contractBoundary",
+        "referenceIds": [
+          "P3-C8-AC08"
+        ],
+        "behavior": "A7の群の境界: U-Nのintent（domain=earthquake-eew、level=critical）がotherに入り、試行中の津波緊急を中断せず、同時にpendingのEEW・津波緊急より後に選ばれる"
+      },
+      {
+        "testId": "P3-C8-T08",
+        "purpose": "corpusHistory",
+        "referenceIds": [
+          "P3-C8-AC09"
+        ],
+        "behavior": "Q-C8-CORPUSで足したO01・O02・O07のU-Nのstepと、fixtureIdsの全正常fixtureのE13集計"
+      },
+      {
+        "testId": "P3-C8-T09",
+        "purpose": "acceptance",
+        "referenceIds": [
+          "P3-C8-AC10",
+          "P3-C8-AC06"
+        ],
+        "behavior": "composition root経由で、保存失敗中の取消・古いack・通常終了・復元直後の続報（current巻戻し0、最新dirty世代、同じ報を再び鳴らさない）。U-Nだけが変わった入力でsnapshotが出し直される。U-E・U-T・U-Q・U-Nの同時dirtyでunitごとの書込み権"
+      },
+      {
+        "testId": "P3-C8-T10",
+        "purpose": "contractBoundary",
+        "referenceIds": [
+          "P3-C8-AC13"
+        ],
+        "behavior": "origin=recoveryのVYSE入力でunchanged/noChange、state同一参照、intents/outcomes空"
+      }
+    ],
+    "requiredCommands": [
+      {
+        "command": "node reconstruction/tools/corpus/check-manifest.mjs",
+        "cwd": ".",
+        "target": "reconstruction/tools/corpus/manifest.json",
+        "stage": "contract",
+        "purpose": "fixture台帳検査"
+      },
+      {
+        "command": "node reconstruction/tools/corpus/check-sequences.mjs",
+        "cwd": ".",
+        "target": "reconstruction/tools/corpus/sequences.json",
+        "stage": "contract",
+        "purpose": "O01/O02/O07の参照と未充足数"
+      },
+      {
+        "command": "node reconstruction/contracts/check-contract.mjs",
+        "cwd": ".",
+        "target": "reconstruction/contracts/*.json",
+        "stage": "contract",
+        "purpose": "全契約検査"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/tsconfig.json",
+        "cwd": ".",
+        "target": "reconstruction/src and contracts types",
+        "stage": "implementation",
+        "purpose": "型検査とreconstruction/dist/の生成"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/tsconfig.test.json",
+        "cwd": ".",
+        "target": "reconstruction/test",
+        "stage": "implementation",
+        "purpose": "試験の型検査"
+      },
+      {
+        "command": "./node_modules/.bin/vitest run --config reconstruction/vitest.config.ts",
+        "cwd": ".",
+        "target": "reconstruction/test",
+        "stage": "implementation",
+        "purpose": "全試験"
+      },
+      {
+        "command": "./node_modules/.bin/vitest run --config reconstruction/vitest.config.ts --sequence.shuffle",
+        "cwd": ".",
+        "target": "reconstruction/test",
+        "stage": "implementation",
+        "purpose": "永続化・共有状態の順序依存検査"
+      }
+    ],
+    "artifactRequirements": [
+      "allowed_paths限定のpatch、変更file一覧、build/test/shuffleの結果、未実行の検証と理由、残存リスク",
+      "最小実装・最小テスト: 追加・変更した各試験が受入条件／契約境界／実不具合／corpus履歴のどれに当たるかの1行（どれにも当たらない試験は削る）。仕組みを一つ足すときは、要求する契約IDと無いと壊れる振る舞いを1行で添える。1実装のinterface・factory・registry・将来用の拡張点を足さない",
+      "既存試験・試験helperを変える箇所は、変える前に理由を報告する。少なくとも: unit-table/type-contract.tsの負の型検査n5b・n6a・n6b（U-Nを「まだruntimeに無いunit」の代表に使っているので、U-Vへ替える）、owner-harness.ts（unitごとの代表入力にU-Nの行）、runtime-fixture.ts（RuntimeUnitIdの網羅にU-N）、tsunami-unit/・seismic-unit/の各3本（unitの数・一覧の機械的な追加だけ）",
+      "AC12のR45一覧（file:lineと区分）。unit・domain・testのdirectoryの外で足した行・caseの数と、型で漏れを止められない箇所",
+      "AC11のurgentでの干渉の数値（Mac、試行数・最大・中央値）。正式E01と呼ばない",
+      "NankaiUnitCodec一つだけを実装する。無いと保存と復元のschema選択が曖昧になる",
+      "受信経路の計算量: 受信・選択・結果照合1回でunit全体の直列化と全件×全件の走査をしない。容量は記録単位の加算で数える（AGENTS.md）。無いと上限付近の受信1回が保持量に比例して遅くなり、urgentのEEWを待たせる",
+      "既存のhelper: children・scalar・text・attribute・leafValuesなどXMLの読み取りとcodecの基本形（record・operationOf・reportRef・list・unique）は、domains/tsunami・domains/seismic・units/tsunami・units/seismicに同じ写しがある。他unitのdirectoryは触らないので、U-Nの写しを作るなら一覧（AC12）に書く（共有化は統合担当が決める）",
+      "永続schemaの変更: p3-nankai-unit-v1は新設で旧データの移行は無い（P3-C8-MIGRATION）。復元試験はこの版の保存物だけで行い、旧築の形式を読まない",
+      "純粋な意味関数とreduceはDiagnosticDetailsだけを返し、runtimeがtimestamp/runIdを付ける。識別不能な拒否ではsubjectを空文字にし、架空の業務identityを作らない。DiagnosticReasonへの追加はQ-ENUM.diagnosticReasonsの2つ（nankaiRevisionConflict・nankaiCapacityEvicted）だけ（persistent-diagnostic-sink.tsの一覧にも足す）",
+      "check-contractで、本契約が行を足すファイル（composition-root.ts・owner-runtime.ts・shared-runtime.ts・view-projector.ts・unit-coverage.ts・persistent-diagnostic-sink.ts・p2-shared-runtime.types.ts・p2-snapshot-sse.types.ts・p2-notification-delivery.types.ts）を引く他の契約（C5のP3-TSUNAMI-UNIT-001、C7のP3-UNIT-Q-001など）と本契約のanchorだけがFAILするのは想定内として報告する。統合担当が、合流と同じcommitで、そのanchorとmeta.sha256を直す。それ以外のFAILは想定外として扱う（P3-UNIT-WRITE-RIGHT-001の先例）",
+      "容量の実測: 実装後に、I-U-N.capacityMeasurementのfixtureで実際の現況・情報・intentのencode byteを測り、契約の値と並べて報告する（10%以上違えば統合担当がP3-C8-CAPACITYの数を直す）"
+    ],
+    "unresolvedQuestions": [
+      {
+        "id": "Q-C8-AUTHOR-RULINGS",
+        "owner": "user",
+        "blocks": [
+          "baseOidの割当",
+          "P3-C8-AC02",
+          "P3-C8-AC03",
+          "P3-C8-AC07"
+        ],
+        "resolveBy": "C8の発注前点検",
+        "requiredEvidence": [
+          "P3-C8-INVESTIGATINGの裁定（A/B）",
+          "P3-C8-VYSE60の裁定（A/B）",
+          "P3-C8-NOTICE-LEVELSの裁定（A/B）",
+          "P3-C8-CURRENT-EXPIRYの裁定（A/B）"
+        ]
+      },
+      {
+        "id": "Q-C8-CORPUS",
+        "owner": "integrator",
+        "blocks": [
+          "P3-C8-AC09の受入",
+          "baseOidの割当"
+        ],
+        "resolveBy": "C8の発注前点検",
+        "requiredEvidence": [
+          "sequences.jsonにU-N（VYSE）のstepが0件であること（2026-10-09、grep 0件）の確認と、O01・O02・O07へのstepの追加（計画§3.2で統合担当が持つ）。各stepのreceivedAtは、その報のReportDateTime以上・ReportDateTime+7日未満の帯に置く（2020-05-12の時刻のfixtureをそのままO01の時計に差すと、全部が着いた時点で期限切れとなって素通りする。check-sequences.mjs:61・:80）",
+          "候補: O01はreceivedAtを2020-05-12 16:20〜16:50の帯に置き、74_01_01（調査中）→74_01_04（巨大地震警戒）→74_01_05（巨大地震注意）→75_01_01〜03（解説の第1〜3号）→75_01_03の同一revisionの訂正→74_01_05と同じEventIDの取消（synthetic、ReportDateTimeは16:33に固定）→同じ取消の重複→取消の後に届く74_01_05（stale）→74_01_07（調査終了。investigatingが無いので情報だけ）。O02は表に無いcode・非取消でEarthquakeInfoの無い報・VYSE60（80_01_01、receivedAtは2024-07-18 16:30以上・+7日未満）。O07は74_01_04をreceivedAt 2020-05-12 16:28:01で採用・保存→restart（16:30）→復元直後に同じEventIDの取消、と期限の非延長（2020-05-19 16:28の直前と直後の時計）",
+          "74_01_xx・75_01_xxは気象庁のサンプル電文（EventIDが全部違い、伏字があり、111・112・113は互いの代替）で実際の系列ではないので、expectationBasisで実系列と言わない。同じEventIDの訂正・取消・訓練・表に無いcode・EarthquakeInfoの欠落はsyntheticにし、manifest・sequences・P1契約へ機械的に波及させる（C5のQ-C5-CORPUS・C7のQ-C7-CORPUSと同じ手順）",
+          "充足後にexpectedDecisions・expectationEvidenceへ足したstepを戻す改訂"
+        ]
+      },
+      {
+        "id": "Q-C8-S4-PLACE",
+        "owner": "integrator",
+        "blocks": [
+          "P3-C8-PLACEの確定",
+          "baseOidの割当"
+        ],
+        "resolveBy": "C8の発注前点検",
+        "requiredEvidence": [
+          "作者裁定S4の本文（進捗ノート§3、checkoutの外）でU-Nが急ぐunitに入っていることの確認。入っていなければP3-C8-PLACEを作者の分岐として出し直す"
+        ]
+      },
+      {
+        "id": "Q-C8-BASE",
+        "owner": "integrator",
+        "blocks": [
+          "実装の着手"
+        ],
+        "resolveBy": "C7の合流の後の発注前点検",
+        "requiredEvidence": [
+          "baseOidの割当（起草はaaa3b2d3。C7の合流の後）",
+          "割当の時点で本契約のanchor（unit-coverage.ts・composition-root.tsの行を含む）と、C7で変わった共有fileの行を確かめ、ずれたanchorを直す",
+          "共有の行の扱い（起草報告のC5・C7の数と推奨）を決め、変えるなら本契約のallowedPaths・outOfScopeを改訂する",
+          "写したXMLの読み取りとcodecの基本形の集約は、計画§9に置く予定の小さな契約として、統合担当が計画§9と構造的欠陥台帳に行を足す（今は行き先がどこにも無い）"
+        ]
+      }
+    ]
+  }
+}
