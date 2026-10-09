@@ -482,7 +482,7 @@ byte 予算は**開始値**だ。P1〜P3 で最大正常入力・同時最大状
 | U-M `local-and-bulletins` | 竜巻・熱中症・各種短命情報 | tornado/heat の意味状態・取消・期限、通知対象の intent | 早期天候・気候・解説・raw の永続 current | 4 MiB |
 | U-Y `typhoon` | 台風解析・確率 | 独立 slice、各 revision・期限・取消、連続ゼロ判定、intent | formatter 別の台風 cache | 8 MiB |
 | U-V `volcano` | 警報・噴火・降灰 | 三 slice、火山と EventID の対応、provenance、取消・復旧不足、intent | VFVO53 待機 batch、runtime `restored` | 4 MiB |
-| U-R `flood` | 指定河川・水位周知 | EventID lifecycle、河川・区間・station事実、gate、取消・期限、intent | 別 card current、表示用 station 複製 | 8 MiB |
+| U-R `flood` | 指定河川・水位周知 | EventID lifecycle、河川・区間・station事実、gate、取消・期限、intent | 別 card current、表示用 station 複製 | 16 MiB（2026-10-10 作者裁定 P3-C11-BOUNDS=B、R20。当初 8 MiB） |
 
 設定は電文保存単位とは別の設定ファイルとする。設定変更と電文状態の複数ファイル原子性は要求しない。設定版を各 decision と intent に記録し、どの設定で判断したかを説明できるようにする。
 
