@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "aaa3b2d3d3cf4c6a492c475e9d78fe7e86fa181b",
-    "sha256": "19e16689ad827eedc4adc27e051212b07c1f96d12331be5a8e2c3886cf582f9b",
+    "sha256": "309dbf8e77d951b507aca64a84dfae70b3957943c5991b8ae8992c8c6df5fc14",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "bfff9e7f6cc7010fff2a6c385ec7018fe5b70c48c943b02c1be52681fcd8d6e1",
     "sequencesSha256": "32151d72aa415850580341af2bc7cc2200ee657bb2dcbcb6c5f09e23a029760b",
@@ -299,7 +299,7 @@
     "contractId": "P3-UNIT-N-001",
     "mode": "implementation",
     "objective": "M05をI-U-Nとして閉じる。VYSE50/51/52/60を、現況（D、運用区分と系統ごとに1件、出典EventID・取消・終了・期限）と情報系列（N、headType・EventIDごと）に分けてU-Nの一つのreducer・唯一のcodec・viewで扱い、Q-NOTICEの南海トラフ分を生成し、unit表・coverage・実行場所（urgent）・snapshotを結線し、U-Nの通知がEEW・津波緊急を追い越さないことを製品経路で確かめる。",
-    "baseOid": "unassigned",
+    "baseOid": "6bc4314a29fbee989f9dcad685c93702ff469522",
     "cleanTreeRequired": true,
     "readPaths": [
       "AGENTS.md",
