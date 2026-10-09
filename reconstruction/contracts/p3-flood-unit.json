@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "04fd2fb12c1e0650bf0d50145c3ea465d3f1c38d",
-    "sha256": "6407232435401b02df4f290510489d6af4359fc48339c167e9c8f5770e1dcffa",
+    "sha256": "dfbba33378e16d465858578c553e203728e53338cd8958c9cb03f6338af8e04a",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "07dacd74b734222a3f493141d6c2128c172392afd6d6b025b98bb76d38613cbf",
     "sequencesSha256": "4a3d8fcfa174d60512abf30a15829dfbd188547c51047c5104a32ac22cbceb05",
@@ -379,7 +379,7 @@
     "contractId": "P3-UNIT-R-001",
     "mode": "implementation",
     "objective": "M13をI-U-Rとして閉じる。指定河川洪水予報（VXKO50〜89）と水位周知河川に関する情報（VXSU50〜59）を、EventIDごとのcurrent（D）としてU-Rの一つのreducer・唯一のcodec・viewで扱い、R51の意味要件（水位の観測・予測seriesと基準水位）を保存し、Q-NOTICEの洪水分を生成し、unit表・coverage・実行場所・snapshotを結線し、U-Rの通知がEEW・津波緊急を追い越さないことを製品経路で確かめる。",
-    "baseOid": "unassigned",
+    "baseOid": "97ba24505b0776c2083427033319d39c46216535",
     "cleanTreeRequired": true,
     "readPaths": [
       "AGENTS.md",
